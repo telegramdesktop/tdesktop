@@ -70,7 +70,6 @@ bool Processor::write(const structure::Module &module) const {
 	common::ProjectInfo project = {
 		"codegen_style",
 		srcFile.fileName(),
-		"stdafx.h",
 		forceReGenerate
 	};
 
@@ -79,10 +78,6 @@ bool Processor::write(const structure::Module &module) const {
 		return false;
 	}
 	if (!generator.writeSource()) {
-		return false;
-	}
-	auto themePath = srcFile.absoluteDir().absolutePath() + "/default.tdesktop-theme";
-	if (options_.isPalette && !generator.writeSampleTheme(themePath)) {
 		return false;
 	}
 	return true;

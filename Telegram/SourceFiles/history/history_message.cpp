@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "history/history_message.h"
 
 #include "lang.h"
@@ -28,9 +27,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_location_manager.h"
 #include "history/history_service_layout.h"
 #include "history/history_media_types.h"
+#include "auth_session.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
+#include "window/notifications_manager.h"
 
 namespace {
 
@@ -76,6 +77,36 @@ ApiWrap::RequestMessageDataCallback historyDependentItemCallback(const FullMsgId
 }
 
 constexpr auto kPinnedMessageTextLimit = 16;
+
+style::color fromNameFg(int index) {
+	t_assert(index >= 0 && index < 8);
+	style::color colors[] = {
+		st::historyPeer1NameFg,
+		st::historyPeer2NameFg,
+		st::historyPeer3NameFg,
+		st::historyPeer4NameFg,
+		st::historyPeer5NameFg,
+		st::historyPeer6NameFg,
+		st::historyPeer7NameFg,
+		st::historyPeer8NameFg,
+	};
+	return colors[index];
+}
+
+style::color fromNameFgSelected(int index) {
+	t_assert(index >= 0 && index < 8);
+	style::color colors[] = {
+		st::historyPeer1NameFgSelected,
+		st::historyPeer2NameFgSelected,
+		st::historyPeer3NameFgSelected,
+		st::historyPeer4NameFgSelected,
+		st::historyPeer5NameFgSelected,
+		st::historyPeer6NameFgSelected,
+		st::historyPeer7NameFgSelected,
+		st::historyPeer8NameFgSelected,
+	};
+	return colors[index];
+}
 
 } // namespace
 
@@ -179,7 +210,7 @@ bool HistoryMessageReply::updateData(HistoryMessage *holder, bool force) {
 		replyToLnk = goToMessageClickHandler(replyToMsg);
 		if (!replyToMsg->Has<HistoryMessageForwarded>()) {
 			if (auto bot = replyToMsg->viaBot()) {
-				_replyToVia.reset(new HistoryMessageVia());
+				_replyToVia = std::make_unique<HistoryMessageVia>();
 				_replyToVia->create(peerToUser(bot->id));
 			}
 		}
@@ -283,10 +314,9 @@ void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, in
 				auto replyToAsMsg = replyToMsg->toHistoryMessage();
 				if (!(flags & PaintInBubble)) {
 				} else if ((replyToAsMsg && replyToAsMsg->emptyText()) || replyToMsg->serviceMsg()) {
-					auto &date = outbg ? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg) : (selected ? st::msgInDateFgSelected : st::msgInDateFg);
-					p.setPen(date);
+					p.setPen(outbg ? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg) : (selected ? st::msgInDateFgSelected : st::msgInDateFg));
 				} else {
-					p.setPen(outbg ? st::historyTextOutFg : st::historyTextInFg);
+					p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
 				}
 				replyToText.drawLeftElided(p, x + st::msgReplyBarSkip + previewSkip, y + st::msgReplyPadding.top() + st::msgServiceNameFont->height, w - st::msgReplyBarSkip - previewSkip, w + 2 * x);
 			}
@@ -385,7 +415,7 @@ HistoryMessage::HistoryMessage(History *history, const MTPDmessage &msg)
 
 	TextWithEntities textWithEntities = {
 		textClean(qs(msg.vmessage)),
-		msg.has_entities() ? entitiesFromMTP(msg.ventities.c_vector().v) : EntitiesInText(),
+		msg.has_entities() ? entitiesFromMTP(msg.ventities.v) : EntitiesInText(),
 	};
 	setText(textWithEntities);
 }
@@ -444,7 +474,7 @@ HistoryMessage::HistoryMessage(History *history, MsgId id, MTPDmessage::Flags fl
 	createComponents(config);
 
 	if (mediaOriginal) {
-		_media.reset(mediaOriginal->clone(this));
+		_media = mediaOriginal->clone(this);
 	}
 	setText(fwd->originalText());
 }
@@ -468,7 +498,7 @@ HistoryMessage::HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags
 	: HistoryItem(history, msgId, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
 	createComponentsHelper(flags, replyTo, viaBotId, markup);
 
-	_media.reset(new HistoryPhoto(this, photo, caption));
+	_media = std::make_unique<HistoryPhoto>(this, photo, caption);
 	setText(TextWithEntities());
 }
 
@@ -476,7 +506,7 @@ HistoryMessage::HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags
 	: HistoryItem(history, msgId, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
 	createComponentsHelper(flags, replyTo, viaBotId, markup);
 
-	_media.reset(new HistoryGame(this, game));
+	_media = std::make_unique<HistoryGame>(this, game);
 	setText(TextWithEntities());
 }
 
@@ -537,7 +567,6 @@ bool HistoryMessage::displayEditedBadge(bool hasViaBotOrInlineMarkup) const {
 	}
 	return true;
 }
-
 
 void HistoryMessage::createComponents(const CreateConfig &config) {
 	uint64 mask = 0;
@@ -652,24 +681,24 @@ void HistoryMessage::initMedia(const MTPMessageMedia *media) {
 	switch (media ? media->type() : mtpc_messageMediaEmpty) {
 	case mtpc_messageMediaContact: {
 		auto &d = media->c_messageMediaContact();
-		_media.reset(new HistoryContact(this, d.vuser_id.v, qs(d.vfirst_name), qs(d.vlast_name), qs(d.vphone_number)));
+		_media = std::make_unique<HistoryContact>(this, d.vuser_id.v, qs(d.vfirst_name), qs(d.vlast_name), qs(d.vphone_number));
 	} break;
 	case mtpc_messageMediaGeo: {
 		auto &point = media->c_messageMediaGeo().vgeo;
 		if (point.type() == mtpc_geoPoint) {
-			_media.reset(new HistoryLocation(this, LocationCoords(point.c_geoPoint())));
+			_media = std::make_unique<HistoryLocation>(this, LocationCoords(point.c_geoPoint()));
 		}
 	} break;
 	case mtpc_messageMediaVenue: {
 		auto &d = media->c_messageMediaVenue();
 		if (d.vgeo.type() == mtpc_geoPoint) {
-			_media.reset(new HistoryLocation(this, LocationCoords(d.vgeo.c_geoPoint()), qs(d.vtitle), qs(d.vaddress)));
+			_media = std::make_unique<HistoryLocation>(this, LocationCoords(d.vgeo.c_geoPoint()), qs(d.vtitle), qs(d.vaddress));
 		}
 	} break;
 	case mtpc_messageMediaPhoto: {
 		auto &photo = media->c_messageMediaPhoto();
 		if (photo.vphoto.type() == mtpc_photo) {
-			_media.reset(new HistoryPhoto(this, App::feedPhoto(photo.vphoto.c_photo()), qs(photo.vcaption)));
+			_media = std::make_unique<HistoryPhoto>(this, App::feedPhoto(photo.vphoto.c_photo()), qs(photo.vcaption));
 		}
 	} break;
 	case mtpc_messageMediaDocument: {
@@ -683,10 +712,10 @@ void HistoryMessage::initMedia(const MTPMessageMedia *media) {
 		switch (d.type()) {
 		case mtpc_webPageEmpty: break;
 		case mtpc_webPagePending: {
-			_media.reset(new HistoryWebPage(this, App::feedWebPage(d.c_webPagePending())));
+			_media = std::make_unique<HistoryWebPage>(this, App::feedWebPage(d.c_webPagePending()));
 		} break;
 		case mtpc_webPage: {
-			_media.reset(new HistoryWebPage(this, App::feedWebPage(d.c_webPage())));
+			_media = std::make_unique<HistoryWebPage>(this, App::feedWebPage(d.c_webPage()));
 		} break;
 		case mtpc_webPageNotModified: LOG(("API Error: webPageNotModified is unexpected in message media.")); break;
 		}
@@ -694,21 +723,39 @@ void HistoryMessage::initMedia(const MTPMessageMedia *media) {
 	case mtpc_messageMediaGame: {
 		auto &d = media->c_messageMediaGame().vgame;
 		if (d.type() == mtpc_game) {
-			_media.reset(new HistoryGame(this, App::feedGame(d.c_game())));
+			_media = std::make_unique<HistoryGame>(this, App::feedGame(d.c_game()));
+		}
+	} break;
+	case mtpc_messageMediaInvoice: {
+		_media = std::make_unique<HistoryInvoice>(this, media->c_messageMediaInvoice());
+		if (static_cast<HistoryInvoice*>(getMedia())->getReceiptMsgId()) {
+			replaceBuyWithReceiptInMarkup();
 		}
 	} break;
 	};
 }
 
+void HistoryMessage::replaceBuyWithReceiptInMarkup() {
+	if (auto markup = inlineReplyMarkup()) {
+		for (auto &row : markup->rows) {
+			for (auto &button : row) {
+				if (button.type == HistoryMessageReplyMarkup::Button::Type::Buy) {
+					button.text = lang(lng_payments_receipt_button);
+				}
+			}
+		}
+	}
+}
+
 void HistoryMessage::initMediaFromDocument(DocumentData *doc, const QString &caption) {
 	if (doc->sticker()) {
-		_media.reset(new HistorySticker(this, doc));
+		_media = std::make_unique<HistorySticker>(this, doc);
 	} else if (doc->isAnimation()) {
-		_media.reset(new HistoryGif(this, doc, caption));
+		_media = std::make_unique<HistoryGif>(this, doc, caption);
 	} else if (doc->isVideo()) {
-		_media.reset(new HistoryVideo(this, doc, caption));
+		_media = std::make_unique<HistoryVideo>(this, doc, caption);
 	} else {
-		_media.reset(new HistoryDocument(this, doc, caption));
+		_media = std::make_unique<HistoryDocument>(this, doc, caption);
 	}
 }
 
@@ -797,7 +844,7 @@ void HistoryMessage::initDimensions() {
 	}
 	if (auto markup = inlineReplyMarkup()) {
 		if (!markup->inlineKeyboard) {
-			markup->inlineKeyboard.reset(new ReplyKeyboard(this, std_::make_unique<KeyboardStyle>(st::msgBotKbButton)));
+			markup->inlineKeyboard.reset(new ReplyKeyboard(this, std::make_unique<KeyboardStyle>(st::msgBotKbButton)));
 		}
 
 		// if we have a text bubble we can resize it to fit the keyboard
@@ -865,11 +912,11 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 
 	TextWithEntities textWithEntities = { qs(message.vmessage), EntitiesInText() };
 	if (message.has_entities()) {
-		textWithEntities.entities = entitiesFromMTP(message.ventities.c_vector().v);
+		textWithEntities.entities = entitiesFromMTP(message.ventities.v);
 	}
 	setText(textWithEntities);
-	setMedia(message.has_media() ? (&message.vmedia) : nullptr);
 	setReplyMarkup(message.has_reply_markup() ? (&message.vreply_markup) : nullptr);
+	setMedia(message.has_media() ? (&message.vmedia) : nullptr);
 	setViewsCount(message.has_views() ? message.vviews.v : -1);
 
 	finishEdition(keyboardTop);
@@ -960,7 +1007,7 @@ TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {
 	} else {
 		result.text = textResult.text + qstr("\n\n");
 		result.entities = textResult.entities;
-		appendTextWithEntities(result, std_::move(mediaResult));
+		appendTextWithEntities(result, std::move(mediaResult));
 	}
 	if (auto fwd = Get<HistoryMessageForwarded>()) {
 		if (selection == FullSelection) {
@@ -969,9 +1016,9 @@ TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {
 			wrapped.text.reserve(fwdinfo.text.size() + 4 + result.text.size());
 			wrapped.entities.reserve(fwdinfo.entities.size() + result.entities.size());
 			wrapped.text.append('[');
-			appendTextWithEntities(wrapped, std_::move(fwdinfo));
+			appendTextWithEntities(wrapped, std::move(fwdinfo));
 			wrapped.text.append(qsl("]\n"));
-			appendTextWithEntities(wrapped, std_::move(result));
+			appendTextWithEntities(wrapped, std::move(result));
 			result = wrapped;
 		}
 	}
@@ -980,7 +1027,7 @@ TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {
 			TextWithEntities wrapped;
 			wrapped.text.reserve(lang(lng_in_reply_to).size() + reply->replyToMsg->author()->name.size() + 4 + result.text.size());
 			wrapped.text.append('[').append(lang(lng_in_reply_to)).append(' ').append(reply->replyToMsg->author()->name).append(qsl("]\n"));
-			appendTextWithEntities(wrapped, std_::move(result));
+			appendTextWithEntities(wrapped, std::move(result));
 			result = wrapped;
 		}
 	}
@@ -996,7 +1043,7 @@ void HistoryMessage::setMedia(const MTPMessageMedia *media) {
 		if (_media->type() == MediaTypeGame) return;
 
 		mediaRemovedSkipBlock = _media->isDisplayed() && _media->isBubbleBottom();
-		_media.clear();
+		_media.reset();
 	}
 	initMedia(media);
 	auto mediaDisplayed = _media && _media->isDisplayed();
@@ -1260,17 +1307,21 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, T
 		if (animms > st::activeFadeInDuration + st::activeFadeOutDuration) {
 			App::main()->stopAnimActive();
 		} else {
-			int skiph = marginTop() - marginBottom();
+			auto top = marginTop();
+			auto bottom = marginBottom();
+			auto fill = qMin(top, bottom);
+			auto skiptop = top - fill;
+			auto fillheight = fill + (height - top - bottom) + fill;
 
-			float64 dt = (animms > st::activeFadeInDuration) ? (1 - (animms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (animms / float64(st::activeFadeInDuration));
-			float64 o = p.opacity();
+			auto dt = (animms > st::activeFadeInDuration) ? (1. - (animms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (animms / float64(st::activeFadeInDuration));
+			auto o = p.opacity();
 			p.setOpacity(o * dt);
-			p.fillRect(0, skiph, _history->width, height - skiph, st::defaultTextPalette.selectOverlay);
+			p.fillRect(0, skiptop, _history->width, fillheight, st::defaultTextPalette.selectOverlay);
 			p.setOpacity(o);
 		}
 	}
 
-	p.setTextPalette(outbg ? st::outTextPalette : st::inTextPalette);
+	p.setTextPalette(selected ? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected) : (outbg ? st::outTextPalette : st::inTextPalette));
 
 	auto keyboard = inlineReplyKeyboard();
 	if (keyboard) {
@@ -1353,7 +1404,7 @@ void HistoryMessage::paintFromName(Painter &p, QRect &trect, bool selected) cons
 		if (isPost()) {
 			p.setPen(selected ? st::msgInServiceFgSelected : st::msgInServiceFg);
 		} else {
-			p.setPen(author()->color);
+			p.setPen(selected ? fromNameFgSelected(author()->colorIndex()) : fromNameFg(author()->colorIndex()));
 		}
 		author()->nameText.drawElided(p, trect.left(), trect.top(), trect.width());
 
@@ -1372,14 +1423,15 @@ void HistoryMessage::paintForwardedInfo(Painter &p, QRect &trect, bool selected)
 	if (displayForwardedFrom()) {
 		style::font serviceFont(st::msgServiceFont), serviceName(st::msgServiceNameFont);
 
-		p.setPen(selected ? (hasOutLayout() ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (hasOutLayout() ? st::msgOutServiceFg : st::msgInServiceFg));
+		auto outbg = hasOutLayout();
+		p.setPen(selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg));
 		p.setFont(serviceFont);
 
 		auto fwd = Get<HistoryMessageForwarded>();
 		bool breakEverywhere = (fwd->_text.countHeight(trect.width()) > 2 * serviceFont->height);
-		p.setTextPalette(selected ? (hasOutLayout() ? st::outFwdTextPaletteSelected : st::inFwdTextPaletteSelected) : (hasOutLayout() ? st::outFwdTextPalette : st::inFwdTextPalette));
+		p.setTextPalette(selected ? (outbg ? st::outFwdTextPaletteSelected : st::inFwdTextPaletteSelected) : (outbg ? st::outFwdTextPalette : st::inFwdTextPalette));
 		fwd->_text.drawElided(p, trect.x(), trect.y(), trect.width(), 2, style::al_left, 0, -1, 0, breakEverywhere);
-		p.setTextPalette(hasOutLayout() ? st::outTextPalette : st::inTextPalette);
+		p.setTextPalette(selected ? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected) : (outbg ? st::outTextPalette : st::inTextPalette));
 
 		trect.setY(trect.y() + (((fwd->_text.maxWidth() > trect.width()) ? 2 : 1) * serviceFont->height));
 	}
@@ -1411,8 +1463,9 @@ void HistoryMessage::paintViaBotIdInfo(Painter &p, QRect &trect, bool selected) 
 }
 
 void HistoryMessage::paintText(Painter &p, QRect &trect, TextSelection selection) const {
-	bool outbg = out() && !isPost();
-	p.setPen(outbg ? st::historyTextOutFg : st::historyTextInFg);
+	auto outbg = out() && !isPost();
+	auto selected = (selection == FullSelection);
+	p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
 	p.setFont(st::msgFont);
 	_text.draw(p, trect.x(), trect.y(), trect.width(), style::al_left, 0, -1, selection);
 }
@@ -1640,6 +1693,60 @@ HistoryTextState HistoryMessage::getState(int x, int y, HistoryStateRequest requ
 	return result;
 }
 
+// Forward to _media.
+void HistoryMessage::updatePressed(int x, int y) {
+	if (!_media) return;
+
+	auto left = 0, width = 0, height = _height;
+	countPositionAndSize(left, width);
+
+	auto keyboard = inlineReplyKeyboard();
+	if (keyboard) {
+		auto h = st::msgBotKbButton.margin + keyboard->naturalHeight();
+		height -= h;
+	}
+
+	if (drawBubble()) {
+		auto mediaDisplayed = _media && _media->isDisplayed();
+		auto top = marginTop();
+		QRect r(left, top, width, height - top - marginBottom());
+		QRect trect(r.marginsAdded(-st::msgPadding));
+		if (mediaDisplayed && _media->isBubbleTop()) {
+			trect.setY(trect.y() - st::msgPadding.top());
+		} else {
+			if (displayFromName()) trect.setTop(trect.top() + st::msgNameFont->height);
+			if (displayForwardedFrom()) {
+				auto fwd = Get<HistoryMessageForwarded>();
+				auto fwdheight = ((fwd->_text.maxWidth() > trect.width()) ? 2 : 1) * st::semiboldFont->height;
+				trect.setTop(trect.top() + fwdheight);
+			}
+			if (Get<HistoryMessageReply>()) {
+				auto h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
+				trect.setTop(trect.top() + h);
+			}
+			if (!displayFromName() && !Has<HistoryMessageForwarded>()) {
+				if (auto via = Get<HistoryMessageVia>()) {
+					trect.setTop(trect.top() + st::msgNameFont->height);
+				}
+			}
+		}
+		if (mediaDisplayed && _media->isBubbleBottom()) {
+			trect.setHeight(trect.height() + st::msgPadding.bottom());
+		}
+
+		auto needDateCheck = true;
+		if (mediaDisplayed) {
+			auto mediaAboveText = _media->isAboveMessage();
+			auto mediaHeight = _media->height();
+			auto mediaLeft = trect.x() - st::msgPadding.left();
+			auto mediaTop = mediaAboveText ? trect.y() : (trect.y() + trect.height() - mediaHeight);
+			_media->updatePressed(x - mediaLeft, y - mediaTop);
+		}
+	} else {
+		_media->updatePressed(x - left, y - marginTop());
+	}
+}
+
 bool HistoryMessage::getStateFromName(int x, int y, QRect &trect, HistoryTextState *outResult) const {
 	if (displayFromName()) {
 		if (y >= trect.top() && y < trect.top() + st::msgNameFont->height) {
@@ -1744,172 +1851,217 @@ bool HistoryMessage::hasFromPhoto() const {
 }
 
 HistoryMessage::~HistoryMessage() {
-	_media.clear();
+	_media.reset();
 	if (auto reply = Get<HistoryMessageReply>()) {
 		reply->clearData(this);
 	}
 }
 
 void HistoryService::setMessageByAction(const MTPmessageAction &action) {
-	auto text = lang(lng_message_empty);
-	auto from = textcmdLink(1, _from->name);
+	auto prepareChatAddUserText = [this](const MTPDmessageActionChatAddUser &action) {
+		auto result = PreparedText {};
+		auto &users = action.vusers.v;
+		if (users.size() == 1) {
+			auto u = App::user(peerFromUser(users[0]));
+			if (u == _from) {
+				result.links.push_back(fromLink());
+				result.text = lng_action_user_joined(lt_from, fromLinkText());
+			} else {
+				result.links.push_back(fromLink());
+				result.links.push_back(peerOpenClickHandler(u));
+				result.text = lng_action_add_user(lt_from, fromLinkText(), lt_user, textcmdLink(2, u->name));
+			}
+		} else if (users.isEmpty()) {
+			result.links.push_back(fromLink());
+			result.text = lng_action_add_user(lt_from, fromLinkText(), lt_user, "somebody");
+		} else {
+			result.links.push_back(fromLink());
+			for (auto i = 0, l = users.size(); i != l; ++i) {
+				auto user = App::user(peerFromUser(users[i]));
+				result.links.push_back(peerOpenClickHandler(user));
 
-	Links links;
-	links.push_back(peerOpenClickHandler(_from));
+				auto linkText = textcmdLink(i + 2, user->name);
+				if (i == 0) {
+					result.text = linkText;
+				} else if (i + 1 == l) {
+					result.text = lng_action_add_users_and_last(lt_accumulated, result.text, lt_user, linkText);
+				} else {
+					result.text = lng_action_add_users_and_one(lt_accumulated, result.text, lt_user, linkText);
+				}
+			}
+			result.text = lng_action_add_users_many(lt_from, fromLinkText(), lt_users, result.text);
+		}
+		return result;
+	};
+
+	auto prepareChatJoinedByLink = [this](const MTPDmessageActionChatJoinedByLink &action) {
+		auto result = PreparedText {};
+		result.links.push_back(fromLink());
+		result.text = lng_action_user_joined_by_link(lt_from, fromLinkText());
+		return result;
+	};
+
+	auto prepareChatCreate = [this](const MTPDmessageActionChatCreate &action) {
+		auto result = PreparedText {};
+		result.links.push_back(fromLink());
+		result.text = lng_action_created_chat(lt_from, fromLinkText(), lt_title, textClean(qs(action.vtitle)));
+		return result;
+	};
+
+	auto prepareChannelCreate = [this](const MTPDmessageActionChannelCreate &action) {
+		auto result = PreparedText {};
+		if (isPost()) {
+			result.text = lang(lng_action_created_channel);
+		} else {
+			result.links.push_back(fromLink());
+			result.text = lng_action_created_chat(lt_from, fromLinkText(), lt_title, textClean(qs(action.vtitle)));
+		}
+		return result;
+	};
+
+	auto prepareChatDeletePhoto = [this] {
+		auto result = PreparedText {};
+		if (isPost()) {
+			result.text = lang(lng_action_removed_photo_channel);
+		} else {
+			result.links.push_back(fromLink());
+			result.text = lng_action_removed_photo(lt_from, fromLinkText());
+		}
+		return result;
+	};
+
+	auto prepareChatDeleteUser = [this](const MTPDmessageActionChatDeleteUser &action) {
+		auto result = PreparedText {};
+		if (peerFromUser(action.vuser_id) == _from->id) {
+			result.links.push_back(fromLink());
+			result.text = lng_action_user_left(lt_from, fromLinkText());
+		} else {
+			auto user = App::user(peerFromUser(action.vuser_id));
+			result.links.push_back(fromLink());
+			result.links.push_back(peerOpenClickHandler(user));
+			result.text = lng_action_kick_user(lt_from, fromLinkText(), lt_user, textcmdLink(2, user->name));
+		}
+		return result;
+	};
+
+	auto prepareChatEditPhoto = [this](const MTPDmessageActionChatEditPhoto &action) {
+		auto result = PreparedText {};
+		if (isPost()) {
+			result.text = lang(lng_action_changed_photo_channel);
+		} else {
+			result.links.push_back(fromLink());
+			result.text = lng_action_changed_photo(lt_from, fromLinkText());
+		}
+		return result;
+	};
+
+	auto prepareChatEditTitle = [this](const MTPDmessageActionChatEditTitle &action) {
+		auto result = PreparedText {};
+		if (isPost()) {
+			result.text = lng_action_changed_title_channel(lt_title, textClean(qs(action.vtitle)));
+		} else {
+			result.links.push_back(fromLink());
+			result.text = lng_action_changed_title(lt_from, fromLinkText(), lt_title, textClean(qs(action.vtitle)));
+		}
+		return result;
+	};
+
+	auto preparePhoneCallText = [this](const MTPDmessageActionPhoneCall &action) {
+		auto result = PreparedText {};
+		auto timeText = date.toString(cTimeFormat());
+		auto duration = action.has_duration() ? qMax(action.vduration.v, 0) : 0;
+		auto durationText = ([duration]() -> QString {
+			if (!duration) {
+				return QString();
+			}
+			if (duration >= 60) {
+				auto minutes = duration / 60;
+				auto seconds = duration % 60;
+				return lng_duration_minutes_seconds(lt_count_minutes, minutes, lt_count_seconds, seconds);
+			}
+			return lng_duration_seconds(lt_count, duration);
+		})();
+		auto wasMissed = [&action] {
+			if (action.has_reason()) switch (action.vreason.type()) {
+			case mtpc_phoneCallDiscardReasonBusy:
+			case mtpc_phoneCallDiscardReasonMissed: return true;
+			}
+			return false;
+		};
+		if (out()) {
+			if (wasMissed()) {
+				result.text = lng_action_call_outgoing_missed(lt_time, timeText);
+			} else if (duration) {
+				result.text = lng_action_call_outgoing_duration(lt_duration, durationText, lt_time, timeText);
+			} else {
+				result.text = lng_action_call_outgoing(lt_time, timeText);
+			}
+		} else {
+			if (wasMissed()) {
+				result.text = lng_action_call_incoming_missed(lt_time, timeText);
+			} else if (duration) {
+				result.text = lng_action_call_incoming_duration(lt_duration, durationText, lt_time, timeText);
+			} else {
+				result.text = lng_action_call_incoming(lt_time, timeText);
+			}
+		}
+		return result;
+	};
+
+	auto messageText = PreparedText {};
 
 	switch (action.type()) {
+	case mtpc_messageActionChatAddUser: messageText = prepareChatAddUserText(action.c_messageActionChatAddUser()); break;
+	case mtpc_messageActionChatJoinedByLink: messageText = prepareChatJoinedByLink(action.c_messageActionChatJoinedByLink()); break;
+	case mtpc_messageActionChatCreate: messageText = prepareChatCreate(action.c_messageActionChatCreate()); break;
+	case mtpc_messageActionChannelCreate: messageText = prepareChannelCreate(action.c_messageActionChannelCreate()); break;
+	case mtpc_messageActionHistoryClear: break; // Leave empty text.
+	case mtpc_messageActionChatDeletePhoto: messageText = prepareChatDeletePhoto(); break;
+	case mtpc_messageActionChatDeleteUser: messageText = prepareChatDeleteUser(action.c_messageActionChatDeleteUser()); break;
+	case mtpc_messageActionChatEditPhoto: messageText = prepareChatEditPhoto(action.c_messageActionChatEditPhoto()); break;
+	case mtpc_messageActionChatEditTitle: messageText = prepareChatEditTitle(action.c_messageActionChatEditTitle()); break;
+	case mtpc_messageActionChatMigrateTo: messageText.text = lang(lng_action_group_migrate); break;
+	case mtpc_messageActionChannelMigrateFrom: messageText.text = lang(lng_action_group_migrate); break;
+	case mtpc_messageActionPinMessage: messageText = preparePinnedText(); break;
+	case mtpc_messageActionGameScore: messageText = prepareGameScoreText(); break;
+	case mtpc_messageActionPhoneCall: messageText = preparePhoneCallText(action.c_messageActionPhoneCall()); break;
+	case mtpc_messageActionPaymentSent: messageText = preparePaymentSentText(); break;
+	default: messageText.text = lang(lng_message_empty); break;
+	}
+
+	setServiceText(messageText);
+
+	// Additional information.
+	switch (action.type()) {
 	case mtpc_messageActionChatAddUser: {
-		auto &d = action.c_messageActionChatAddUser();
-		auto &v = d.vusers.c_vector().v;
-		bool foundSelf = false;
-		for (int i = 0, l = v.size(); i < l; ++i) {
-			if (v.at(i).v == MTP::authedId()) {
-				foundSelf = true;
-				break;
-			}
-		}
-		if (v.size() == 1) {
-			auto u = App::user(peerFromUser(v.at(0)));
-			if (u == _from) {
-				text = lng_action_user_joined(lt_from, from);
-			} else {
-				links.push_back(peerOpenClickHandler(u));
-				text = lng_action_add_user(lt_from, from, lt_user, textcmdLink(2, u->name));
-			}
-		} else if (v.isEmpty()) {
-			text = lng_action_add_user(lt_from, from, lt_user, "somebody");
-		} else {
-			for (int i = 0, l = v.size(); i < l; ++i) {
-				auto u = App::user(peerFromUser(v.at(i)));
-				auto linkText = textcmdLink(i + 2, u->name);
-				if (i == 0) {
-					text = linkText;
-				} else if (i + 1 < l) {
-					text = lng_action_add_users_and_one(lt_accumulated, text, lt_user, linkText);
-				} else {
-					text = lng_action_add_users_and_last(lt_accumulated, text, lt_user, linkText);
+		if (auto channel = history()->peer->asMegagroup()) {
+			auto &users = action.c_messageActionChatAddUser().vusers;
+			for_const (auto &item, users.v) {
+				if (item.v == AuthSession::CurrentUserId()) {
+					channel->mgInfo->joinedMessageFound = true;
+					break;
 				}
-				links.push_back(peerOpenClickHandler(u));
-			}
-			text = lng_action_add_users_many(lt_from, from, lt_users, text);
-		}
-		if (foundSelf) {
-			if (history()->peer->isMegagroup()) {
-				history()->peer->asChannel()->mgInfo->joinedMessageFound = true;
 			}
 		}
 	} break;
 
 	case mtpc_messageActionChatJoinedByLink: {
-		auto &d = action.c_messageActionChatJoinedByLink();
-		//if (true || peerFromUser(d.vinviter_id) == _from->id) {
-		text = lng_action_user_joined_by_link(lt_from, from);
-		//} else {
-		//	UserData *u = App::user(App::peerFromUser(d.vinviter_id));
-		//	links.push_back(peerOpenClickHandler(u));
-		//	text = lng_action_user_joined_by_link_from(lt_from, from, lt_inviter, textcmdLink(2, u->name));
-		//}
 		if (_from->isSelf() && history()->peer->isMegagroup()) {
 			history()->peer->asChannel()->mgInfo->joinedMessageFound = true;
 		}
 	} break;
 
-	case mtpc_messageActionChatCreate: {
-		auto &d = action.c_messageActionChatCreate();
-		text = lng_action_created_chat(lt_from, from, lt_title, textClean(qs(d.vtitle)));
-	} break;
-
-	case mtpc_messageActionChannelCreate: {
-		auto &d = action.c_messageActionChannelCreate();
-		if (isPost()) {
-			text = lang(lng_action_created_channel);
-		} else {
-			text = lng_action_created_chat(lt_from, from, lt_title, textClean(qs(d.vtitle)));
-		}
-	} break;
-
-	case mtpc_messageActionHistoryClear: {
-		text = QString();
-	} break;
-
-	case mtpc_messageActionChatDeletePhoto: {
-		text = isPost() ? lang(lng_action_removed_photo_channel) : lng_action_removed_photo(lt_from, from);
-	} break;
-
-	case mtpc_messageActionChatDeleteUser: {
-		auto &d = action.c_messageActionChatDeleteUser();
-		if (peerFromUser(d.vuser_id) == _from->id) {
-			text = lng_action_user_left(lt_from, from);
-		} else {
-			auto u = App::user(peerFromUser(d.vuser_id));
-			links.push_back(peerOpenClickHandler(u));
-			text = lng_action_kick_user(lt_from, from, lt_user, textcmdLink(2, u->name));
-		}
-	} break;
-
 	case mtpc_messageActionChatEditPhoto: {
-		auto &d = action.c_messageActionChatEditPhoto();
-		if (d.vphoto.type() == mtpc_photo) {
-			_media.reset(new HistoryPhoto(this, history()->peer, d.vphoto.c_photo(), st::msgServicePhotoWidth));
-		}
-		text = isPost() ? lang(lng_action_changed_photo_channel) : lng_action_changed_photo(lt_from, from);
-	} break;
-
-	case mtpc_messageActionChatEditTitle: {
-		auto &d = action.c_messageActionChatEditTitle();
-		text = isPost() ? lng_action_changed_title_channel(lt_title, textClean(qs(d.vtitle))) : lng_action_changed_title(lt_from, from, lt_title, textClean(qs(d.vtitle)));
-	} break;
-
-	case mtpc_messageActionChatMigrateTo: {
-		_flags |= MTPDmessage_ClientFlag::f_is_group_migrate;
-		auto &d = action.c_messageActionChatMigrateTo();
-		if (true/*PeerData *channel = App::channelLoaded(d.vchannel_id.v)*/) {
-			text = lang(lng_action_group_migrate);
-		} else {
-			text = lang(lng_contacts_loading);
+		auto &photo = action.c_messageActionChatEditPhoto().vphoto;
+		if (photo.type() == mtpc_photo) {
+			_media = std::make_unique<HistoryPhoto>(this, history()->peer, photo.c_photo(), st::msgServicePhotoWidth);
 		}
 	} break;
 
+	case mtpc_messageActionChatMigrateTo:
 	case mtpc_messageActionChannelMigrateFrom: {
 		_flags |= MTPDmessage_ClientFlag::f_is_group_migrate;
-		auto &d = action.c_messageActionChannelMigrateFrom();
-		if (true/*PeerData *chat = App::chatLoaded(d.vchat_id.v)*/) {
-			text = lang(lng_action_group_migrate);
-		} else {
-			text = lang(lng_contacts_loading);
-		}
 	} break;
-
-	case mtpc_messageActionPinMessage: {
-		preparePinnedText(from, &text, &links);
-	} break;
-
-	case mtpc_messageActionGameScore: {
-		prepareGameScoreText(from, &text, &links);
-	} break;
-
-	case mtpc_messageActionPhoneCall: {
-		auto &d = action.c_messageActionPhoneCall();
-		if (d.has_reason()) {
-			switch (d.vreason.type()) {
-			case mtpc_phoneCallDiscardReasonBusy: break;
-			case mtpc_phoneCallDiscardReasonDisconnect: break;
-			case mtpc_phoneCallDiscardReasonHangup: break;
-			case mtpc_phoneCallDiscardReasonMissed: break;
-			}
-		} else {
-
-		}
-		if (d.has_duration()) {
-		}
-	} break;
-
-	default: from = QString(); break;
-	}
-
-	setServiceText(text, links);
-	for (int i = 0, count = links.size(); i != count; ++i) {
-		_text.setLink(1 + i, links.at(i));
 	}
 }
 
@@ -1943,45 +2095,44 @@ bool HistoryService::updateDependent(bool force) {
 		}
 		updateDependentText();
 	}
-	if (force) {
-		if (gotDependencyItem && App::wnd()) {
-			App::wnd()->notifySettingGot();
-		}
+	if (force && gotDependencyItem) {
+		AuthSession::Current().notifications().checkDelayed();
 	}
 	return (dependent->msg || !dependent->msgId);
 }
 
-bool HistoryService::preparePinnedText(const QString &from, QString *outText, Links *outLinks) {
-	bool result = false;
-	QString text;
-
-	ClickHandlerPtr second;
+HistoryService::PreparedText HistoryService::preparePinnedText() {
+	auto result = PreparedText {};
 	auto pinned = Get<HistoryServicePinned>();
 	if (pinned && pinned->msg) {
-		auto media = pinned->msg->getMedia();
-		QString mediaText;
-		switch (media ? media->type() : MediaTypeCount) {
-		case MediaTypePhoto: mediaText = lang(lng_action_pinned_media_photo); break;
-		case MediaTypeVideo: mediaText = lang(lng_action_pinned_media_video); break;
-		case MediaTypeContact: mediaText = lang(lng_action_pinned_media_contact); break;
-		case MediaTypeFile: mediaText = lang(lng_action_pinned_media_file); break;
-		case MediaTypeGif: mediaText = lang(lng_action_pinned_media_gif); break;
-		case MediaTypeSticker: {
-			auto emoji = static_cast<HistorySticker*>(media)->emoji();
-			if (emoji.isEmpty()) {
-				mediaText = lang(lng_action_pinned_media_sticker);
-			} else {
-				mediaText = lng_action_pinned_media_emoji_sticker(lt_emoji, emoji);
+		auto mediaText = ([pinned]() -> QString {
+			auto media = pinned->msg->getMedia();
+			switch (media ? media->type() : MediaTypeCount) {
+			case MediaTypePhoto: return lang(lng_action_pinned_media_photo);
+			case MediaTypeVideo: return lang(lng_action_pinned_media_video);
+			case MediaTypeContact: return lang(lng_action_pinned_media_contact);
+			case MediaTypeFile: return lang(lng_action_pinned_media_file);
+			case MediaTypeGif: return lang(lng_action_pinned_media_gif);
+			case MediaTypeSticker: {
+				auto emoji = static_cast<HistorySticker*>(media)->emoji();
+				if (emoji.isEmpty()) {
+					return lang(lng_action_pinned_media_sticker);
+				}
+				return lng_action_pinned_media_emoji_sticker(lt_emoji, emoji);
+			} break;
+			case MediaTypeLocation: return lang(lng_action_pinned_media_location);
+			case MediaTypeMusicFile: return lang(lng_action_pinned_media_audio);
+			case MediaTypeVoiceFile: return lang(lng_action_pinned_media_voice);
+			case MediaTypeGame: {
+				auto title = static_cast<HistoryGame*>(media)->game()->title;
+				return lng_action_pinned_media_game(lt_game, title);
+			} break;
 			}
-		} break;
-		case MediaTypeLocation: mediaText = lang(lng_action_pinned_media_location); break;
-		case MediaTypeMusicFile: mediaText = lang(lng_action_pinned_media_audio); break;
-		case MediaTypeVoiceFile: mediaText = lang(lng_action_pinned_media_voice); break;
-		case MediaTypeGame: {
-			auto title = static_cast<HistoryGame*>(media)->game()->title;
-			mediaText = lng_action_pinned_media_game(lt_game, title);
-		} break;
-		}
+			return QString();
+		})();
+
+		result.links.push_back(fromLink());
+		result.links.push_back(pinned->lnk);
 		if (mediaText.isEmpty()) {
 			auto original = pinned->msg->originalText().text;
 			auto cutAt = 0;
@@ -1999,66 +2150,83 @@ bool HistoryService::preparePinnedText(const QString &from, QString *outText, Li
 			if (!limit && cutAt + 5 < size) {
 				original = original.mid(0, cutAt) + qstr("...");
 			}
-			text = lng_action_pinned_message(lt_from, from, lt_text, textcmdLink(2, original));
+			result.text = lng_action_pinned_message(lt_from, fromLinkText(), lt_text, textcmdLink(2, original));
 		} else {
-			text = lng_action_pinned_media(lt_from, from, lt_media, textcmdLink(2, mediaText));
+			result.text = lng_action_pinned_media(lt_from, fromLinkText(), lt_media, textcmdLink(2, mediaText));
 		}
-		second = pinned->lnk;
-		result = true;
 	} else if (pinned && pinned->msgId) {
-		text = lng_action_pinned_media(lt_from, from, lt_media, textcmdLink(2, lang(lng_contacts_loading)));
-		second = pinned->lnk;
-		result = true;
+		result.links.push_back(fromLink());
+		result.links.push_back(pinned->lnk);
+		result.text = lng_action_pinned_media(lt_from, fromLinkText(), lt_media, textcmdLink(2, lang(lng_contacts_loading)));
 	} else {
-		text = lng_action_pinned_media(lt_from, from, lt_media, lang(lng_deleted_message));
-	}
-	*outText = text;
-	if (second) {
-		outLinks->push_back(second);
+		result.links.push_back(fromLink());
+		result.text = lng_action_pinned_media(lt_from, fromLinkText(), lt_media, lang(lng_deleted_message));
 	}
 	return result;
 }
 
-bool HistoryService::prepareGameScoreText(const QString &from, QString *outText, Links *outLinks) {
-	bool result = false;
-	QString gameTitle;
-
-	ClickHandlerPtr second;
+HistoryService::PreparedText HistoryService::prepareGameScoreText() {
+	auto result = PreparedText {};
 	auto gamescore = Get<HistoryServiceGameScore>();
-	if (gamescore && gamescore->msg) {
-		auto getGameTitle = [item = gamescore->msg, &second]()->QString {
-			if (auto media = item->getMedia()) {
+
+	auto computeGameTitle = [gamescore, &result]() -> QString {
+		if (gamescore && gamescore->msg) {
+			if (auto media = gamescore->msg->getMedia()) {
 				if (media->type() == MediaTypeGame) {
-					second = MakeShared<ReplyMarkupClickHandler>(item, 0, 0);
-					return textcmdLink(2, static_cast<HistoryGame*>(media)->game()->title);
+					result.links.push_back(MakeShared<ReplyMarkupClickHandler>(gamescore->msg, 0, 0));
+					auto titleText = static_cast<HistoryGame*>(media)->game()->title;
+					return textcmdLink(result.links.size(), titleText);
 				}
 			}
 			return lang(lng_deleted_message);
-		};
-		gameTitle = getGameTitle();
-		result = true;
-	} else if (gamescore && gamescore->msgId) {
-		gameTitle = lang(lng_contacts_loading);
-		result = true;
-	} else {
-		gameTitle = QString();
-	}
+		} else if (gamescore && gamescore->msgId) {
+			return lang(lng_contacts_loading);
+		}
+		return QString();
+	};
+
 	auto scoreNumber = gamescore ? gamescore->score : 0;
 	if (_from->isSelf()) {
+		auto gameTitle = computeGameTitle();
 		if (gameTitle.isEmpty()) {
-			*outText = lng_action_game_you_scored_no_game(lt_count, scoreNumber);
+			result.text = lng_action_game_you_scored_no_game(lt_count, scoreNumber);
 		} else {
-			*outText = lng_action_game_you_scored(lt_count, scoreNumber, lt_game, gameTitle);
+			result.text = lng_action_game_you_scored(lt_count, scoreNumber, lt_game, gameTitle);
 		}
 	} else {
+		result.links.push_back(fromLink());
+		auto gameTitle = computeGameTitle();
 		if (gameTitle.isEmpty()) {
-			*outText = lng_action_game_score_no_game(lt_from, from, lt_count, scoreNumber);
+			result.text = lng_action_game_score_no_game(lt_from, fromLinkText(), lt_count, scoreNumber);
 		} else {
-			*outText = lng_action_game_score(lt_from, from, lt_count, scoreNumber, lt_game, gameTitle);
+			result.text = lng_action_game_score(lt_from, fromLinkText(), lt_count, scoreNumber, lt_game, gameTitle);
 		}
 	}
-	if (second) {
-		outLinks->push_back(second);
+	return result;
+}
+
+HistoryService::PreparedText HistoryService::preparePaymentSentText() {
+	auto result = PreparedText {};
+	auto payment = Get<HistoryServicePayment>();
+
+	auto invoiceTitle = ([payment]() -> QString {
+		if (payment && payment->msg) {
+			if (auto media = payment->msg->getMedia()) {
+				if (media->type() == MediaTypeInvoice) {
+					return static_cast<HistoryInvoice*>(media)->getTitle();
+				}
+			}
+			return lang(lng_deleted_message);
+		} else if (payment && payment->msgId) {
+			return lang(lng_contacts_loading);
+		}
+		return QString();
+	})();
+
+	if (invoiceTitle.isEmpty()) {
+		result.text = lng_action_payment_done(lt_amount, payment->amount, lt_user, history()->peer->name);
+	} else {
+		result.text = lng_action_payment_done_for(lt_amount, payment->amount, lt_user, history()->peer->name, lt_invoice, invoiceTitle);
 	}
 	return result;
 }
@@ -2071,7 +2239,7 @@ HistoryService::HistoryService(History *history, const MTPDmessageService &msg) 
 
 HistoryService::HistoryService(History *history, MsgId msgId, QDateTime date, const QString &msg, MTPDmessage::Flags flags, int32 from) :
 	HistoryItem(history, msgId, flags, date, from) {
-	setServiceText(msg, Links());
+	setServiceText({ msg });
 }
 
 void HistoryService::initDimensions() {
@@ -2109,10 +2277,12 @@ QString HistoryService::inReplyText() const {
 	return result.trimmed().startsWith(author()->name) ? result.trimmed().mid(author()->name.size()).trimmed() : result;
 }
 
-void HistoryService::setServiceText(const QString &text, const Links &links) {
-	_text.setText(st::serviceTextStyle, text, _historySrvOptions);
-	for (int i = 0, count = links.size(); i != count; ++i) {
-		_text.setLink(1 + i, links.at(i));
+void HistoryService::setServiceText(const PreparedText &prepared) {
+	_text.setText(st::serviceTextStyle, prepared.text, _historySrvOptions);
+	auto linkIndex = 0;
+	for_const (auto &link, prepared.links) {
+		// Link indices start with 1.
+		_text.setLink(++linkIndex, link);
 	}
 
 	setPendingInitDimensions();
@@ -2239,6 +2409,10 @@ HistoryTextState HistoryService::getState(int x, int y, HistoryStateRequest requ
 			if (!result.link && result.cursor == HistoryInTextCursorState && outer.contains(x, y)) {
 				result.link = gamescore->lnk;
 			}
+		} else if (auto payment = Get<HistoryServicePayment>()) {
+			if (!result.link && result.cursor == HistoryInTextCursorState && outer.contains(x, y)) {
+				result.link = payment->lnk;
+			}
 		}
 	} else if (_media) {
 		result = _media->getState(x - st::msgServiceMargin.left() - (width - _media->maxWidth()) / 2, y - st::msgServiceMargin.top() - height - st::msgServiceMargin.top(), request);
@@ -2250,6 +2424,11 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 	if (message.vaction.type() == mtpc_messageActionGameScore) {
 		UpdateComponents(HistoryServiceGameScore::Bit());
 		Get<HistoryServiceGameScore>()->score = message.vaction.c_messageActionGameScore().vscore.v;
+	} else if (message.vaction.type() == mtpc_messageActionPaymentSent) {
+		UpdateComponents(HistoryServicePayment::Bit());
+		auto amount = message.vaction.c_messageActionPaymentSent().vtotal_amount.v;
+		auto currency = qs(message.vaction.c_messageActionPaymentSent().vcurrency);
+		Get<HistoryServicePayment>()->amount = HistoryInvoice::fillAmountAndCurrency(amount, currency);
 	}
 	if (message.has_reply_to_msg_id()) {
 		if (message.vaction.type() == mtpc_messageActionPinMessage) {
@@ -2283,7 +2462,7 @@ void HistoryService::removeMedia() {
 	if (!_media) return;
 
 	bool mediaWasDisplayed = _media->isDisplayed();
-	_media.clear();
+	_media.reset();
 	if (mediaWasDisplayed) {
 		_textWidth = -1;
 		_textHeight = 0;
@@ -2314,29 +2493,26 @@ void HistoryService::eraseFromOverview() {
 	}
 }
 
-bool HistoryService::updateDependentText() {
-	auto result = false;
-	auto from = textcmdLink(1, _from->name);
-	QString text;
-	Links links;
-	links.push_back(peerOpenClickHandler(_from));
+void HistoryService::updateDependentText() {
+	auto text = PreparedText {};
 	if (Has<HistoryServicePinned>()) {
-		result = preparePinnedText(from, &text, &links);
+		text = preparePinnedText();
 	} else if (Has<HistoryServiceGameScore>()) {
-		result = prepareGameScoreText(from, &text, &links);
+		text = prepareGameScoreText();
+	} else if (Has<HistoryServicePayment>()) {
+		text = preparePaymentSentText();
 	} else {
-		return result;
+		return;
 	}
 
-	setServiceText(text, links);
+	setServiceText(text);
 	if (history()->textCachedFor == this) {
-		history()->textCachedFor = 0;
+		history()->textCachedFor = nullptr;
 	}
 	if (App::main()) {
 		App::main()->dlgUpdated(history()->peer, id);
 	}
 	App::historyUpdateDependent(this);
-	return result;
 }
 
 void HistoryService::clearDependency() {
@@ -2349,21 +2525,21 @@ void HistoryService::clearDependency() {
 
 HistoryService::~HistoryService() {
 	clearDependency();
-	_media.clear();
+	_media.reset();
 }
 
 HistoryJoined::HistoryJoined(History *history, const QDateTime &inviteDate, UserData *inviter, MTPDmessage::Flags flags)
 	: HistoryService(history, clientMsgId(), inviteDate, QString(), flags) {
-	Links links;
-	auto text = ([history, inviter, &links]() {
-		if (peerToUser(inviter->id) == MTP::authedId()) {
+	auto prepared = PreparedText {};
+	prepared.text = ([history, inviter, &prepared]() {
+		if (inviter->id == AuthSession::CurrentUserPeerId()) {
 			return lang(history->isMegagroup() ? lng_action_you_joined_group : lng_action_you_joined);
 		}
-		links.push_back(peerOpenClickHandler(inviter));
+		prepared.links.push_back(peerOpenClickHandler(inviter));
 		if (history->isMegagroup()) {
 			return lng_action_add_you_group(lt_from, textcmdLink(1, inviter->name));
 		}
 		return lng_action_add_you(lt_from, textcmdLink(1, inviter->name));
 	})();
-	setServiceText(text, links);
+	setServiceText(prepared);
 }

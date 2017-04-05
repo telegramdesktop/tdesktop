@@ -18,13 +18,12 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "boxes/passcodebox.h"
 
 #include "lang.h"
 #include "confirmbox.h"
 #include "mainwindow.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "styles/style_boxes.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -336,7 +335,7 @@ void PasscodeBox::onSave(bool force) {
 			if (!_oldPasscode->isHidden()) {
 				hashSha256(oldPasswordData.constData(), oldPasswordData.size(), oldPasswordHash.data());
 			}
-			MTPDaccount_passwordInputSettings::Flags flags = MTPDaccount_passwordInputSettings::Flag::f_new_salt | MTPDaccount_passwordInputSettings::Flag::f_new_password_hash | MTPDaccount_passwordInputSettings::Flag::f_hint;
+			auto flags = MTPDaccount_passwordInputSettings::Flag::f_new_salt | MTPDaccount_passwordInputSettings::Flag::f_new_password_hash | MTPDaccount_passwordInputSettings::Flag::f_hint;
 			if (_oldPasscode->isHidden() || _newPasscode->isHidden()) {
 				flags |= MTPDaccount_passwordInputSettings::Flag::f_email;
 			}

@@ -18,14 +18,13 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "stickers.h"
 
 #include "boxes/stickers_box.h"
 #include "boxes/confirmbox.h"
 #include "lang.h"
 #include "apiwrap.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "ui/toast/toast.h"
@@ -40,7 +39,7 @@ internal::FeaturedReader *FeaturedReaderInstance = nullptr;
 } // namespace
 
 void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
-	auto &v = d.vsets.c_vector().v;
+	auto &v = d.vsets.v;
 	auto &order = Global::RefStickerSetsOrder();
 	Stickers::Order archived;
 	archived.reserve(v.size());
@@ -86,7 +85,7 @@ void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	toast.text = lang(lng_stickers_packs_archived);
 	toast.maxWidth = st::stickersToastMaxWidth;
 	toast.padding = st::stickersToastPadding;
-	Ui::Toast::Show(App::wnd(), toast);
+	Ui::Toast::Show(toast);
 //	Ui::show(Box<StickersBox>(archived), KeepOtherLayers);
 
 	emit App::main()->stickersUpdated();

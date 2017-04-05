@@ -18,7 +18,7 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
+#include "ui/style/style_core.h"
 
 namespace style {
 namespace internal {
@@ -113,6 +113,20 @@ void colorizeImage(const QImage &src, QColor c, QImage *outResult, QRect srcRect
 	}
 
 	outResult->setDevicePixelRatio(src.devicePixelRatio());
+}
+
+QBrush transparentPlaceholderBrush() {
+	auto size = st::transparentPlaceholderSize * cIntRetinaFactor();
+	auto transparent = QImage(2 * size, 2 * size, QImage::Format_ARGB32_Premultiplied);
+	transparent.fill(st::mediaviewTransparentBg->c);
+	{
+		Painter p(&transparent);
+		p.fillRect(rtlrect(0, size, size, size, 2 * size), st::mediaviewTransparentFg);
+		p.fillRect(rtlrect(size, 0, size, size, 2 * size), st::mediaviewTransparentFg);
+	}
+	transparent.setDevicePixelRatio(cRetinaFactor());
+	return QBrush(transparent);
+
 }
 
 namespace internal {

@@ -39,7 +39,7 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
@@ -63,7 +63,7 @@ private:
 	QPixmap _notificationSampleSmall;
 	QPixmap _notificationSampleLarge;
 	ScreenCorner _chosenCorner;
-	std_::vector_of_moveable<Animation> _sampleOpacities;
+	std::vector<Animation> _sampleOpacities;
 
 	bool _isOverCorner = false;
 	ScreenCorner _overCorner = ScreenCorner::TopLeft;

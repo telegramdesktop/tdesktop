@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "profile/profile_block_invite_link.h"
 
 #include "styles/style_profile.h"
@@ -110,9 +109,7 @@ void InviteLinkWidget::refreshLink() {
 			}
 
 			QApplication::clipboard()->setText(link);
-			Ui::Toast::Config toast;
-			toast.text = lang(lng_group_invite_copied);
-			Ui::Toast::Show(App::wnd(), toast);
+			Ui::Toast::Show(lang(lng_group_invite_copied));
 			return false;
 		});
 	}

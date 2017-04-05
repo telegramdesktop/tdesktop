@@ -39,9 +39,9 @@ private:
 
 	int32 _blockHeight;
 	struct Block {
-		Block(const EmojiData *emoji = 0, const QString &text = QString()) : emoji(emoji), text(text) {
+		Block(EmojiPtr emoji = nullptr, const QString &text = QString()) : emoji(emoji), text(text) {
 		}
-		const EmojiData *emoji;
+		EmojiPtr emoji;
 		QString text;
 	};
 	typedef QVector<Block> BlockRow;

@@ -21,7 +21,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 class AudioMsgId;
-struct AudioPlaybackState;
 
 namespace Ui {
 class FlatLabel;
@@ -39,7 +38,7 @@ namespace Player {
 
 class PlayButton;
 class VolumeWidget;
-struct UpdatedEvent;
+struct TrackState;
 
 class Widget : public TWidget, private base::Subscriber {
 public:
@@ -61,7 +60,7 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
-	void leaveEvent(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 
 private:
@@ -81,11 +80,11 @@ private:
 
 	void updateVolumeToggleIcon();
 
-	void handleSongUpdate(const UpdatedEvent &e);
+	void handleSongUpdate(const TrackState &state);
 	void handleSongChange();
 	void handlePlaylistUpdate();
 
-	void updateTimeText(const AudioMsgId &audioId, const AudioPlaybackState &playbackState);
+	void updateTimeText(const TrackState &state);
 	void updateTimeLabel();
 
 	TimeMs _seekPositionMs = -1;
@@ -102,7 +101,7 @@ private:
 	object_ptr<Ui::IconButton> _repeatTrack;
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<Ui::PlainShadow> _shadow = { nullptr };
-	std_::unique_ptr<Clip::Playback> _playback;
+	std::unique_ptr<Clip::Playback> _playback;
 
 };
 

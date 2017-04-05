@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/widgets/discrete_sliders.h"
 
 #include "ui/effects/ripple_animation.h"
@@ -31,7 +30,7 @@ DiscreteSlider::DiscreteSlider(QWidget *parent) : TWidget(parent) {
 }
 
 void DiscreteSlider::setSectionActivatedCallback(SectionActivatedCallback &&callback) {
-	_callback = std_::move(callback);
+	_callback = std::move(callback);
 }
 
 void DiscreteSlider::setActiveSection(int index) {
@@ -45,6 +44,7 @@ void DiscreteSlider::setActiveSection(int index) {
 void DiscreteSlider::activateCallback() {
 	if (_timerId >= 0) {
 		killTimer(_timerId);
+		_timerId = -1;
 	}
 	auto ms = getms();
 	if (ms >= _callbackAfterMs) {
@@ -122,7 +122,7 @@ void DiscreteSlider::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void DiscreteSlider::mouseReleaseEvent(QMouseEvent *e) {
-	auto pressed = base::take(_pressed, -1);
+	auto pressed = std::exchange(_pressed, -1);
 	if (pressed < 0) return;
 
 	auto index = getIndexFromPosition(e->pos());
@@ -207,7 +207,7 @@ void SettingsSlider::startRipple(int sectionIndex) {
 		if (index++ == sectionIndex) {
 			if (!section.ripple) {
 				auto mask = prepareRippleMask(sectionIndex, section);
-				section.ripple = MakeShared<RippleAnimation>(_st.ripple, std_::move(mask), [this] { update(); });
+				section.ripple = MakeShared<RippleAnimation>(_st.ripple, std::move(mask), [this] { update(); });
 			}
 			section.ripple->add(mapFromGlobal(QCursor::pos()) - QPoint(section.left, 0));
 			return false;

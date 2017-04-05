@@ -81,6 +81,9 @@ build() {
   # Patched GYP (supports cmake precompiled headers)
   getGYP
 
+  # Guideline Support Library
+  getGSL
+
   # Configure the build
   if [[ $BUILD_VERSION == *"disable_autoupdate"* ]]; then
     GYP_DEFINES+=",TDESKTOP_DISABLE_AUTOUPDATE"
@@ -539,6 +542,12 @@ buildCustomQt() {
   sudo make install
 }
 
+getGSL() {
+  cd "$UPSTREAM"
+  git submodule init
+  git submodule update
+}
+
 getGYP() {
   travisStartFold "Getting patched GYP"
 
@@ -593,7 +602,7 @@ buildTelegram() {
 
   cd "$UPSTREAM/Telegram/gyp"
   "$GYP_PATH/gyp" \
-      -Dtravis_defines=${GYP_DEFINES:1} \
+      -Dbuild_defines=${GYP_DEFINES:1} \
       -Dlinux_path_xkbcommon=$XKB_PATH \
       -Dlinux_path_va=$VA_PATH \
       -Dlinux_path_vdpau=$VDPAU_PATH \

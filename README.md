@@ -2,8 +2,9 @@
 
 This is the complete source code and the build instructions for the alpha version of the official desktop client for the [Telegram][telegram] messenger, based on the [Telegram API][telegram_api] and the [MTProto][telegram_proto] secure protocol.
 
-[![GitHub version](https://badge.fury.io/gh/telegramdesktop%2Ftdesktop.svg)](https://badge.fury.io/gh/telegramdesktop%2Ftdesktop)
-[![Build Status](https://travis-ci.org/telegramdesktop/tdesktop.svg?branch=master)](https://travis-ci.org/telegramdesktop/tdesktop)
+[![Version](https://badge.fury.io/gh/telegramdesktop%2Ftdesktop.svg)](https://github.com/telegramdesktop/tdesktop/releases)
+[![Build Status](https://travis-ci.org/telegramdesktop/tdesktop.svg?branch=dev)](https://travis-ci.org/telegramdesktop/tdesktop)
+[![Build status](https://ci.appveyor.com/api/projects/status/uiw2y768iy4i5bu8/branch/dev?svg=true)](https://ci.appveyor.com/project/telegramdesktop/tdesktop)
 
 The source code is published under GPLv3 with OpenSSL exception, the license is available [here][license].
 
@@ -30,6 +31,8 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 * OpenAL Soft ([LGPL](http://kcat.strangesoft.net/openal.html))
 * Opus codec ([BSD license](http://www.opus-codec.org/license/))
 * FFmpeg ([LGPL](https://www.ffmpeg.org/legal.html))
+* Guideline Support Library ([MIT License](https://github.com/Microsoft/GSL/blob/master/LICENSE))
+* Mapbox Variant ([BSD license](https://github.com/mapbox/variant/blob/master/LICENSE))
 * Open Sans font ([Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0.html))
 
 ## Build instructions
@@ -38,41 +41,6 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 * [Xcode 8][xcode]
 * [GYP/CMake on GNU/Linux][cmake]
 * [GYP/CMake on Ubuntu 14.04+][ubuntu14]
-
-## Projects in Telegram solution
-
-* ### Telegram
-
-  [Telegram Desktop][telegram_desktop] messenger
-
-* ### Updater
-
-  A little app, that is launched by Telegram when update is ready, replaces all files and launches it back.
-
-* ### Packer
-
-  Compiles given files to single update file, compresses it with lzma and signs with a private key. It is not built in **Debug** and **Release** configurations of Telegram solution, because private key is inaccessible.
-
-* ### MetaEmoji
-
-  Creates four sprites and text2emoji replace code
-  * SourceFiles/art/emoji.png
-  * SourceFiles/art/emoji_125x.png
-  * SourceFiles/art/emoji_150x.png
-  * SourceFiles/art/emoji_200x.png
-  * SourceFiles/art/emoji_250x.png
-  * SourceFiles/ui/emoji_config.cpp
-
-* ### codegen_style
-* ### codegen_numbers
-
-  Helper code generating console utilities.
-
-* ### MetaLang
-
-  Creates from languagepack file `Resources/lang.strings` language constants code and language file parse code:
-  * GeneratedFiles/lang.h
-  * GeneratedFiles/lang.cpp
 
 [//]: # (LINKS)
 [telegram]: https://telegram.org

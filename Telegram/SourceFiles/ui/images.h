@@ -20,7 +20,18 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "mtproto/file_download.h"
+class FileLoader;
+class mtpFileLoader;
+
+enum LoadFromCloudSetting {
+	LoadFromCloudOrLocal,
+	LoadFromLocalOnly,
+};
+
+enum LoadToCacheSetting {
+	LoadToFileOnly,
+	LoadToCacheAsWell,
+};
 
 enum class ImageRoundRadius {
 	None,
@@ -71,8 +82,7 @@ inline int32 unpackIntSecond(uint64 v) {
 
 class StorageImageLocation {
 public:
-	StorageImageLocation() : _widthheight(0), _dclocal(0), _volume(0), _secret(0) {
-	}
+	StorageImageLocation() = default;
 	StorageImageLocation(int32 width, int32 height, int32 dc, const uint64 &volume, int32 local, const uint64 &secret) : _widthheight(packIntInt(width, height)), _dclocal(packIntInt(dc, local)), _volume(volume), _secret(secret) {
 	}
 	StorageImageLocation(int32 width, int32 height, const MTPDfileLocation &location) : _widthheight(packIntInt(width, height)), _dclocal(packIntInt(location.vdc_id.v, location.vlocal_id.v)), _volume(location.vvolume_id.v), _secret(location.vsecret.v) {
@@ -105,10 +115,10 @@ public:
 	static StorageImageLocation Null;
 
 private:
-	uint64 _widthheight;
-	uint64 _dclocal;
-	uint64 _volume;
-	uint64 _secret;
+	uint64 _widthheight = 0;
+	uint64 _dclocal = 0;
+	uint64 _volume = 0;
+	uint64 _secret = 0;
 
 	friend inline bool operator==(const StorageImageLocation &a, const StorageImageLocation &b) {
 		return (a._dclocal == b._dclocal) && (a._volume == b._volume) && (a._secret == b._secret);
@@ -117,6 +127,51 @@ private:
 };
 
 inline bool operator!=(const StorageImageLocation &a, const StorageImageLocation &b) {
+	return !(a == b);
+}
+
+class WebFileImageLocation {
+public:
+	WebFileImageLocation() = default;
+	WebFileImageLocation(int32 width, int32 height, int32 dc, const QByteArray &url, uint64 accessHash) : _widthheight(packIntInt(width, height)), _accessHash(accessHash), _url(url), _dc(dc) {
+	}
+	bool isNull() const {
+		return !_dc;
+	}
+	int32 width() const {
+		return unpackIntFirst(_widthheight);
+	}
+	int32 height() const {
+		return unpackIntSecond(_widthheight);
+	}
+	void setSize(int32 width, int32 height) {
+		_widthheight = packIntInt(width, height);
+	}
+	int32 dc() const {
+		return _dc;
+	}
+	uint64 accessHash() const {
+		return _accessHash;
+	}
+	const QByteArray &url() const {
+		return _url;
+	}
+
+	static WebFileImageLocation Null;
+
+private:
+	uint64 _widthheight = 0;
+	uint64 _accessHash = 0;
+	QByteArray _url;
+	int32 _dc = 0;
+
+	friend inline bool operator==(const WebFileImageLocation &a, const WebFileImageLocation &b) {
+		return (a._dc == b._dc) && (a._accessHash == b._accessHash) && (a._url == b._url);
+	}
+
+};
+
+inline bool operator!=(const WebFileImageLocation &a, const WebFileImageLocation &b) {
 	return !(a == b);
 }
 
@@ -279,13 +334,14 @@ inline StorageKey storageKey(const MTPDfileLocation &location) {
 inline StorageKey storageKey(const StorageImageLocation &location) {
 	return storageKey(location.dc(), location.volume(), location.local());
 }
+inline StorageKey storageKey(const WebFileImageLocation &location) {
+	auto url = location.url();
+	auto sha = hashSha1(url.data(), url.size());
+	return storageKey(location.dc(), *reinterpret_cast<const uint64*>(sha.data()), *reinterpret_cast<const int32*>(sha.data() + sizeof(uint64)));
+}
 
 class RemoteImage : public Image {
 public:
-
-	RemoteImage() : _loader(0) {
-	}
-
 	void automaticLoad(const HistoryItem *item); // auto load photo
 	void automaticLoadSettingsChanged();
 
@@ -320,17 +376,16 @@ protected:
 	void loadLocal();
 
 private:
-	mutable FileLoader *_loader;
-	bool amLoading() const {
-		return _loader && _loader != CancelledFileLoader;
-	}
+	mutable FileLoader *_loader = nullptr;
+	bool amLoading() const;
 	void doCheckload() const;
+
+	void destroyLoaderDelayed(FileLoader *newValue = nullptr) const;
 
 };
 
 class StorageImage : public RemoteImage {
 public:
-
 	StorageImage(const StorageImageLocation &location, int32 size = 0);
 	StorageImage(const StorageImageLocation &location, QByteArray &bytes);
 
@@ -343,6 +398,22 @@ protected:
 	FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) override;
 
 	StorageImageLocation _location;
+	int32 _size;
+
+	int32 countWidth() const override;
+	int32 countHeight() const override;
+
+};
+
+class WebFileImage : public RemoteImage {
+public:
+	WebFileImage(const WebFileImageLocation &location, int32 size = 0);
+
+protected:
+	void setInformation(int32 size, int32 width, int32 height) override;
+	FileLoader *createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) override;
+
+	WebFileImageLocation _location;
 	int32 _size;
 
 	int32 countWidth() const override;
@@ -420,6 +491,7 @@ namespace internal {
 	Image *getImage(int32 width, int32 height);
 	StorageImage *getImage(const StorageImageLocation &location, int32 size = 0);
 	StorageImage *getImage(const StorageImageLocation &location, const QByteArray &bytes);
+	WebFileImage *getImage(const WebFileImageLocation &location, int32 size = 0);
 } // namespace internal
 
 class ImagePtr : public ManagedPtr<Image> {
@@ -440,6 +512,8 @@ public:
 	ImagePtr(const StorageImageLocation &location, int32 size = 0) : Parent(internal::getImage(location, size)) {
 	}
 	ImagePtr(const StorageImageLocation &location, const QByteArray &bytes) : Parent(internal::getImage(location, bytes)) {
+	}
+	ImagePtr(const WebFileImageLocation &location, int32 size = 0) : Parent(internal::getImage(location, size)) {
 	}
 	ImagePtr(int32 width, int32 height, const MTPFileLocation &location, ImagePtr def = ImagePtr());
 	ImagePtr(int32 width, int32 height) : Parent(internal::getImage(width, height)) {
@@ -485,9 +559,8 @@ private:
 
 class FileLocation {
 public:
-	FileLocation(StorageFileType type, const QString &name);
-	FileLocation() : size(0) {
-	}
+	FileLocation() = default;
+	explicit FileLocation(const QString &name);
 
 	bool check() const;
 	const QString &name() const;
@@ -500,7 +573,6 @@ public:
 	bool accessEnable() const;
 	void accessDisable() const;
 
-	StorageFileType type;
 	QString fname;
 	QDateTime modified;
 	qint32 size;
@@ -510,24 +582,8 @@ private:
 
 };
 inline bool operator==(const FileLocation &a, const FileLocation &b) {
-	return a.type == b.type && a.name() == b.name() && a.modified == b.modified && a.size == b.size;
+	return (a.name() == b.name()) && (a.modified == b.modified) && (a.size == b.size);
 }
 inline bool operator!=(const FileLocation &a, const FileLocation &b) {
 	return !(a == b);
-}
-
-typedef QPair<uint64, uint64> MediaKey;
-inline uint64 mediaMix32To64(int32 a, int32 b) {
-	return (uint64(*reinterpret_cast<uint32*>(&a)) << 32) | uint64(*reinterpret_cast<uint32*>(&b));
-}
-// Old method, should not be used anymore.
-//inline MediaKey mediaKey(LocationType type, int32 dc, const uint64 &id) {
-//	return MediaKey(mediaMix32To64(type, dc), id);
-//}
-// New method when version was introduced, type is not relevant anymore (all files are Documents).
-inline MediaKey mediaKey(LocationType type, int32 dc, const uint64 &id, int32 version) {
-	return (version > 0) ? MediaKey(mediaMix32To64(version, dc), id) : MediaKey(mediaMix32To64(type, dc), id);
-}
-inline StorageKey mediaKey(const MTPDfileLocation &location) {
-	return storageKey(location.vdc_id.v, location.vvolume_id.v, location.vlocal_id.v);
 }

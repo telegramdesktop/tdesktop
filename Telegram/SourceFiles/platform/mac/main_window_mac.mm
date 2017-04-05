@@ -15,7 +15,6 @@ GNU General Public License for more details.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "platform/mac/main_window_mac.h"
 
 #include "styles/style_window.h"
@@ -23,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "application.h"
 #include "historywidget.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "window/notifications_manager_default.h"
 #include "platform/platform_notifications_manager.h"
 #include "boxes/contactsbox.h"
@@ -57,7 +56,6 @@ public:
 	Private(MainWindow *window);
 
 	void setWindowBadge(const QString &str);
-	void startBounce();
 
 	void enableShadow(WId winId);
 
@@ -65,8 +63,11 @@ public:
 
 	void willEnterFullScreen();
 	void willExitFullScreen();
+	void activateCustomNotifications();
 
 	void initCustomTitle(NSWindow *window, NSView *view);
+
+	bool clipboardHasText();
 
 	~Private();
 
@@ -75,6 +76,28 @@ private:
 	friend class MainWindow;
 
 	MainWindowObserver *_observer;
+	NSPasteboard *_generalPasteboard = nullptr;
+	int _generalPasteboardChangeCount = -1;
+	bool _generalPasteboardHasText = false;
+
+};
+
+class MainWindow::CustomNotificationHandle : public QObject {
+public:
+	CustomNotificationHandle(QWidget *parent) : QObject(parent) {
+	}
+
+	void activate() {
+		auto widget = static_cast<QWidget*>(parent());
+		NSWindow *wnd = [reinterpret_cast<NSView *>(widget->winId()) window];
+		[wnd orderFront:wnd];
+	}
+
+	~CustomNotificationHandle() {
+		if (auto window = App::wnd()) {
+			window->customNotificationDestroyed(this);
+		}
+	}
 
 };
 
@@ -94,11 +117,7 @@ MainWindow::Private *_private;
 }
 
 - (void) activeSpaceDidChange:(NSNotification *)aNotification {
-	if (auto manager = Window::Notifications::Default::manager()) {
-		manager->enumerateNotifications([](QWidget *widget) {
-			objc_activateWnd(widget->winId());
-		});
-	}
+	_private->activateCustomNotifications();
 }
 
 - (void) darkModeChanged:(NSNotification *)aNotification {
@@ -128,6 +147,8 @@ namespace Platform {
 MainWindow::Private::Private(MainWindow *window)
 : _public(window)
 , _observer([[MainWindowObserver alloc] init:this]) {
+	_generalPasteboard = [NSPasteboard generalPasteboard];
+
 	@autoreleasepool {
 
 	[[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:_observer selector:@selector(activeSpaceDidChange:) name:NSWorkspaceActiveSpaceDidChangeNotification object:nil];
@@ -151,10 +172,6 @@ void MainWindow::Private::setWindowBadge(const QString &str) {
 	}
 }
 
-void MainWindow::Private::startBounce() {
-	[NSApp requestUserAttention:NSInformationalRequest];
-}
-
 void MainWindow::Private::initCustomTitle(NSWindow *window, NSView *view) {
 	[window setStyleMask:[window styleMask] | NSFullSizeContentViewWindowMask];
 	[window setTitlebarAppearsTransparent:YES];
@@ -168,12 +185,25 @@ void MainWindow::Private::initCustomTitle(NSWindow *window, NSView *view) {
 #endif // !OS_MAC_OLD
 }
 
+bool MainWindow::Private::clipboardHasText() {
+	auto currentChangeCount = static_cast<int>([_generalPasteboard changeCount]);
+	if (_generalPasteboardChangeCount != currentChangeCount) {
+		_generalPasteboardChangeCount = currentChangeCount;
+		_generalPasteboardHasText = !Application::clipboard()->text().isEmpty();
+	}
+	return _generalPasteboardHasText;
+}
+
 void MainWindow::Private::willEnterFullScreen() {
 	_public->setTitleVisible(false);
 }
 
 void MainWindow::Private::willExitFullScreen() {
 	_public->setTitleVisible(true);
+}
+
+void MainWindow::Private::activateCustomNotifications() {
+	_public->activateCustomNotifications();
 }
 
 void MainWindow::Private::enableShadow(WId winId) {
@@ -204,7 +234,7 @@ MainWindow::MainWindow()
 : icon256(qsl(":/gui/art/icon256.png"))
 , iconbig256(qsl(":/gui/art/iconbig256.png"))
 , wndIcon(QPixmap::fromImage(iconbig256, Qt::ColorOnly))
-, _private(std_::make_unique<Private>(this)) {
+, _private(std::make_unique<Private>(this)) {
 	trayImg = st::macTrayIcon.instance(QColor(0, 0, 0, 180), dbisOne);
 	trayImgSel = st::macTrayIcon.instance(QColor(255, 255, 255), dbisOne);
 
@@ -214,12 +244,13 @@ MainWindow::MainWindow()
 
 void MainWindow::closeWithoutDestroy() {
 	NSWindow *nsWindow = [reinterpret_cast<NSView*>(winId()) window];
-	bool isFullScreen = (([nsWindow styleMask] & NSFullScreenWindowMask) == NSFullScreenWindowMask);
+
+	auto isFullScreen = (([nsWindow styleMask] & NSFullScreenWindowMask) == NSFullScreenWindowMask);
 	if (isFullScreen) {
 		_hideAfterFullScreenTimer.start(3000);
 		[nsWindow toggleFullScreen:nsWindow];
 	} else {
-		hide();
+		hideAndDeactivate();
 	}
 }
 
@@ -247,7 +278,13 @@ void MainWindow::titleVisibilityChangedHook() {
 }
 
 void MainWindow::onHideAfterFullScreen() {
+	hideAndDeactivate();
+}
+
+void MainWindow::hideAndDeactivate() {
 	hide();
+	NSWindow *nsWindow = [reinterpret_cast<NSView*>(winId()) window];
+	[[NSApplication sharedApplication] hide: nsWindow];
 }
 
 QImage MainWindow::psTrayIcon(bool selected) const {
@@ -277,17 +314,14 @@ void MainWindow::psSetupTrayIcon() {
 	trayIcon->show();
 }
 
-void MainWindow::psUpdateWorkmode() {
+void MainWindow::workmodeUpdated(DBIWorkMode mode) {
 	psSetupTrayIcon();
-	if (cWorkMode() == dbiwmWindowOnly) {
+	if (mode == dbiwmWindowOnly) {
 		if (trayIcon) {
 			trayIcon->setContextMenu(0);
 			delete trayIcon;
 			trayIcon = nullptr;
 		}
-	}
-	if (auto manager = Platform::Notifications::manager()) {
-		manager->updateDelegate();
 	}
 }
 
@@ -359,8 +393,8 @@ void MainWindow::updateIconCounters() {
 		int32 size = cRetina() ? 44 : 22;
 		_placeCounter(img, size, counter, bg, (dm && muted) ? st::trayCounterFgMacInvert : st::trayCounterFg);
 		_placeCounter(imgsel, size, counter, st::trayCounterBgMacInvert, st::trayCounterFgMacInvert);
-		icon.addPixmap(App::pixmapFromImageInPlace(std_::move(img)));
-		icon.addPixmap(App::pixmapFromImageInPlace(std_::move(imgsel)), QIcon::Selected);
+		icon.addPixmap(App::pixmapFromImageInPlace(std::move(img)));
+		icon.addPixmap(App::pixmapFromImageInPlace(std::move(imgsel)), QIcon::Selected);
 		trayIcon->setIcon(icon);
 	}
 }
@@ -378,7 +412,7 @@ void MainWindow::psFirstShow() {
 
 	if ((cLaunchMode() == LaunchModeAutoStart && cStartMinimized()) || cStartInTray()) {
 		setWindowState(Qt::WindowMinimized);
-		if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
+		if (Global::WorkMode().value() == dbiwmTrayOnly || Global::WorkMode().value() == dbiwmWindowAndTray) {
 			hide();
 		} else {
 			show();
@@ -492,23 +526,38 @@ void MainWindow::psUpdateSysMenu(Qt::WindowState state) {
 void MainWindow::psUpdateMargins() {
 }
 
+void MainWindow::customNotificationCreated(QWidget *notification) {
+	_customNotifications.insert(object_ptr<CustomNotificationHandle>(notification));
+}
+
+void MainWindow::customNotificationDestroyed(CustomNotificationHandle *handle) {
+	_customNotifications.erase(handle);
+}
+
+void MainWindow::activateCustomNotifications() {
+	for (auto handle : _customNotifications) {
+		handle->activate();
+	}
+}
+
 void MainWindow::updateGlobalMenuHook() {
 	if (!App::wnd() || !positionInited()) return;
 
 	auto focused = QApplication::focusWidget();
 	bool isLogged = !!App::self(), canUndo = false, canRedo = false, canCut = false, canCopy = false, canPaste = false, canDelete = false, canSelectAll = false;
+	auto clipboardHasText = _private->clipboardHasText();
 	if (auto edit = qobject_cast<QLineEdit*>(focused)) {
 		canCut = canCopy = canDelete = edit->hasSelectedText();
 		canSelectAll = !edit->text().isEmpty();
 		canUndo = edit->isUndoAvailable();
 		canRedo = edit->isRedoAvailable();
-		canPaste = !Application::clipboard()->text().isEmpty();
+		canPaste = clipboardHasText;
 	} else if (auto edit = qobject_cast<QTextEdit*>(focused)) {
 		canCut = canCopy = canDelete = edit->textCursor().hasSelection();
 		canSelectAll = !edit->document()->isEmpty();
 		canUndo = edit->document()->isUndoAvailable();
 		canRedo = edit->document()->isRedoAvailable();
-		canPaste = !Application::clipboard()->text().isEmpty();
+		canPaste = clipboardHasText;
 	} else if (auto list = qobject_cast<HistoryInner*>(focused)) {
 		canCopy = list->canCopySelected();
 		canDelete = list->canDeleteSelected();
@@ -527,10 +576,6 @@ void MainWindow::updateGlobalMenuHook() {
 	_forceDisabled(psNewGroup, !isLogged || App::passcoded());
 	_forceDisabled(psNewChannel, !isLogged || App::passcoded());
 	_forceDisabled(psShowTelegram, App::wnd()->isActive());
-}
-
-void MainWindow::psFlash() {
-	return _private->startBounce();
 }
 
 bool MainWindow::psFilterNativeEvent(void *event) {

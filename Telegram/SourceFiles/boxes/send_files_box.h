@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "boxes/abstractbox.h"
-#include "localimageloader.h"
+#include "storage/localimageloader.h"
 
 namespace Ui {
 class Checkbox;
@@ -33,15 +33,15 @@ class SendFilesBox : public BoxContent {
 	Q_OBJECT
 
 public:
-	SendFilesBox(QWidget*, const QString &filepath, QImage image, CompressConfirm compressed, bool animated = false);
+	SendFilesBox(QWidget*, QImage image, CompressConfirm compressed);
 	SendFilesBox(QWidget*, const QStringList &files, CompressConfirm compressed);
 	SendFilesBox(QWidget*, const QString &phone, const QString &firstname, const QString &lastname);
 
-	void setConfirmedCallback(base::lambda<void(const QStringList &files, bool compressed, const QString &caption, bool ctrlShiftEnter)> &&callback) {
-		_confirmedCallback = std_::move(callback);
+	void setConfirmedCallback(base::lambda<void(const QStringList &files, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, bool compressed, const QString &caption, bool ctrlShiftEnter)> callback) {
+		_confirmedCallback = std::move(callback);
 	}
-	void setCancelledCallback(base::lambda<void()> &&callback) {
-		_cancelledCallback = std_::move(callback);
+	void setCancelledCallback(base::lambda<void()> callback) {
+		_cancelledCallback = std::move(callback);
 	}
 
 	void closeHook() override;
@@ -63,6 +63,12 @@ private slots:
 	}
 
 private:
+	void prepareSingleFileLayout();
+	void prepareDocumentLayout();
+	void tryToReadSingleFile();
+	void prepareGifPreview();
+	void clipCallback(Media::Clip::Notification notification);
+
 	void updateTitleText();
 	void updateBoxSize();
 	void updateControlsGeometry();
@@ -70,7 +76,8 @@ private:
 
 	QString _titleText;
 	QStringList _files;
-	const QImage _image;
+	QImage _image;
+	std::unique_ptr<FileLoadTask::MediaInformation> _information;
 
 	CompressConfirm _compressConfirm = CompressConfirm::None;
 	bool _animated = false;
@@ -79,9 +86,11 @@ private:
 	int _previewLeft = 0;
 	int _previewWidth = 0;
 	int _previewHeight = 0;
+	Media::Clip::ReaderPointer _gifPreview;
 
 	QPixmap _fileThumb;
 	Text _nameText;
+	bool _fileIsAudio = false;
 	bool _fileIsImage = false;
 	QString _statusText;
 	int _statusWidth = 0;
@@ -91,7 +100,7 @@ private:
 	QString _contactLastName;
 	EmptyUserpic _contactPhotoEmpty;
 
-	base::lambda<void(const QStringList &files, bool compressed, const QString &caption, bool ctrlShiftEnter)> _confirmedCallback;
+	base::lambda<void(const QStringList &files, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, bool compressed, const QString &caption, bool ctrlShiftEnter)> _confirmedCallback;
 	base::lambda<void()> _cancelledCallback;
 	bool _confirmed = false;
 
@@ -125,6 +134,8 @@ protected:
 
 private:
 	void updateBoxSize();
+	void prepareGifPreview(DocumentData *document);
+	void clipCallback(Media::Clip::Notification notification);
 
 	void saveDone(const MTPUpdates &updates);
 	bool saveFail(const RPCError &error);
@@ -135,6 +146,7 @@ private:
 	bool _doc = false;
 
 	QPixmap _thumb;
+	Media::Clip::ReaderPointer _gifPreview;
 
 	object_ptr<Ui::InputArea> _field = { nullptr };
 
@@ -145,6 +157,7 @@ private:
 	Text _name;
 	QString _status;
 	int _statusw = 0;
+	bool _isAudio = false;
 	bool _isImage = false;
 
 	bool _previewCancelled = false;

@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "localimageloader.h"
+#include "storage/localimageloader.h"
 #include "history/history_common.h"
 #include "core/single_timer.h"
 
@@ -41,7 +41,6 @@ class Panel;
 } // namespace Media
 
 namespace Ui {
-class PeerAvatarButton;
 class PlainShadow;
 class DropdownMenu;
 } // namespace Ui
@@ -93,7 +92,7 @@ public:
 
 class StackItemSection : public StackItem {
 public:
-	StackItemSection(std_::unique_ptr<Window::SectionMemento> &&memento);
+	StackItemSection(std::unique_ptr<Window::SectionMemento> &&memento);
 	~StackItemSection();
 
 	StackItemType type() const {
@@ -104,7 +103,7 @@ public:
 	}
 
 private:
-	std_::unique_ptr<Window::SectionMemento> _memento;
+	std::unique_ptr<Window::SectionMemento> _memento;
 
 };
 
@@ -158,7 +157,7 @@ public:
 
 	void showAnimated(const QPixmap &bgAnimCache, bool back = false);
 
-	void start(const MTPUser &user);
+	void start(const MTPUser *self = nullptr);
 
 	void checkStartUrl();
 	void openLocalUrl(const QString &str);
@@ -166,7 +165,6 @@ public:
 	void joinGroupByHash(const QString &hash);
 	void stickersBox(const MTPInputStickerSet &set);
 
-	void startFull(const MTPVector<MTPUser> &users);
 	bool started();
 	void applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNotifySettings &settings, History *history = 0);
 
@@ -181,6 +179,8 @@ public:
 	void dlgUpdated();
 	void dlgUpdated(Dialogs::Mode list, Dialogs::Row *row);
 	void dlgUpdated(PeerData *peer, MsgId msgId);
+
+	void showJumpToDate(PeerData *peer, QDate requestedDate);
 
 	void windowShown();
 
@@ -285,6 +285,7 @@ public:
 
 	Dialogs::IndexedList *contactsList();
 	Dialogs::IndexedList *dialogsList();
+	Dialogs::IndexedList *contactsNoDialogsList();
 
 	struct MessageToSend {
 		History *history = nullptr;
@@ -307,6 +308,7 @@ public:
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd, bool specialGif);
 
+	void jumpToDate(PeerData *peer, const QDate &date);
 	void searchMessages(const QString &query, PeerData *inPeer);
 	bool preloadOverview(PeerData *peer, MediaOverviewType type);
 	void preloadOverviews(PeerData *peer);
@@ -355,8 +357,6 @@ public:
 	void choosePeer(PeerId peerId, MsgId showAtMsgId); // does offerPeer or showPeerHistory
 	void clearBotStartToken(PeerData *peer);
 
-	void contactsReceived();
-
 	void ptsWaiterStartTimerFor(ChannelData *channel, int32 ms); // ms <= 0 - stop timer
 	void feedUpdates(const MTPUpdates &updates, uint64 randomId = 0);
 	void feedUpdate(const MTPUpdate &update);
@@ -367,7 +367,7 @@ public:
 
 	void scheduleViewIncrement(HistoryItem *item);
 
-	void fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QString &text, base::lambda<void()> &&handler)> &&callback, bool pinToggle);
+	void fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QString &text, base::lambda<void()> handler)> callback, bool pinToggle);
 
 	void gotRangeDifference(ChannelData *channel, const MTPupdates_ChannelDifference &diff);
 	void onSelfParticipantUpdated(ChannelData *channel);
@@ -518,6 +518,8 @@ private:
 	Window::SectionSlideParams prepareOverviewAnimation();
 	Window::SectionSlideParams prepareDialogsAnimation();
 
+	void startWithSelf(const MTPVector<MTPUser> &users);
+
 	void saveSectionInStack();
 
 	bool _started = false;
@@ -608,7 +610,7 @@ private:
 
 	QPointer<ConfirmBox> _forwardConfirm; // for single column layout
 	object_ptr<HistoryHider> _hider = { nullptr };
-	std_::vector_of_moveable<std_::unique_ptr<StackItem>> _stack;
+	std::vector<std::unique_ptr<StackItem>> _stack;
 	PeerData *_peerInStack = nullptr;
 	MsgId _msgIdInStack = 0;
 
@@ -693,9 +695,9 @@ private:
 	void viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint> &result, mtpRequestId req);
 	bool viewsIncrementFail(const RPCError &error, mtpRequestId req);
 
-	std_::unique_ptr<App::WallPaper> _background;
+	std::unique_ptr<App::WallPaper> _background;
 
-	std_::unique_ptr<ApiWrap> _api;
+	std::unique_ptr<ApiWrap> _api;
 
 	bool _resizingSide = false;
 	int _resizingSideShift = 0;

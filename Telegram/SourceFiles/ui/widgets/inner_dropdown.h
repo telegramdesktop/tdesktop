@@ -48,14 +48,14 @@ public:
 	void otherLeave();
 	void hideFast();
 
-	void setShowStartCallback(base::lambda<void()> &&callback) {
-		_showStartCallback = std_::move(callback);
+	void setShowStartCallback(base::lambda<void()> callback) {
+		_showStartCallback = std::move(callback);
 	}
-	void setHideStartCallback(base::lambda<void()> &&callback) {
-		_hideStartCallback = std_::move(callback);
+	void setHideStartCallback(base::lambda<void()> callback) {
+		_hideStartCallback = std::move(callback);
 	}
-	void setHiddenCallback(base::lambda<void()> &&callback) {
-		_hiddenCallback = std_::move(callback);
+	void setHiddenCallback(base::lambda<void()> callback) {
+		_hiddenCallback = std::move(callback);
 	}
 
 	bool isHiding() const {
@@ -73,8 +73,8 @@ public:
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
 	int resizeGetHeight(int newWidth) override;
@@ -107,7 +107,7 @@ private:
 	const style::InnerDropdown &_st;
 
 	PanelAnimation::Origin _origin = PanelAnimation::Origin::TopLeft;
-	std_::unique_ptr<PanelAnimation> _showAnimation;
+	std::unique_ptr<PanelAnimation> _showAnimation;
 	Animation _a_show;
 
 	bool _hiding = false;

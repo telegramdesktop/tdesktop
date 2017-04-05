@@ -52,8 +52,6 @@ Token invalidToken() {
 	return { Type::Invalid, QString(), ConstUtf8String(nullptr, 0), false };
 }
 
-
-
 } // namespace
 
 BasicTokenizedFile::BasicTokenizedFile(const QString &filepath) : reader_(filepath) {
@@ -150,6 +148,22 @@ Type BasicTokenizedFile::uniteLastTokens(Type type) {
 	token.value += tokens_.back().value;
 	tokens_.pop_back();
 	return type;
+}
+
+QString BasicTokenizedFile::getCurrentLineComment() {
+	if (lineNumber_ > singleLineComments_.size()) {
+		reader_.logError(kErrorInternal, lineNumber_) << "internal tokenizer error (line number larger than comments list size).";
+		failed_ = true;
+		return QString();
+	}
+	auto commentBytes = singleLineComments_[lineNumber_ - 1].mid(2); // Skip "//"
+	CheckedUtf8String comment(commentBytes);
+	if (!comment.isValid()) {
+		reader_.logError(kErrorIncorrectUtf8String, lineNumber_) << "incorrect UTF-8 string in the comment.";
+		failed_ = true;
+		return QString();
+	}
+	return comment.toString().trimmed();
 }
 
 Type BasicTokenizedFile::readNameOrNumber() {

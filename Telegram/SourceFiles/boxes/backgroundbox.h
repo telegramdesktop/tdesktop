@@ -40,34 +40,3 @@ private:
 	QPointer<Inner> _inner;
 
 };
-
-// This class is hold in header because it requires Qt preprocessing.
-class BackgroundBox::Inner : public TWidget, public RPCSender, private base::Subscriber {
-public:
-	Inner(QWidget *parent);
-
-	void setBackgroundChosenCallback(base::lambda<void(int index)> &&callback) {
-		_backgroundChosenCallback = std_::move(callback);
-	}
-
-	~Inner();
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-
-private:
-	void gotWallpapers(const MTPVector<MTPWallPaper> &result);
-	void updateWallpapers();
-
-	base::lambda<void(int index)> _backgroundChosenCallback;
-
-	int _bgCount = 0;
-	int _rows = 0;
-	int _over = -1;
-	int _overDown = -1;
-	std_::unique_ptr<Ui::RoundCheckbox> _check; // this is not a widget
-
-};

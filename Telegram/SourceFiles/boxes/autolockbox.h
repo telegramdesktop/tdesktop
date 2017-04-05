@@ -36,10 +36,9 @@ public:
 protected:
 	void prepare() override;
 
-private slots:
-	void onChange();
-
 private:
-	QVector<Ui::Radiobutton*> _options;
+	void durationChanged(int seconds);
+
+	std::vector<object_ptr<Ui::Radiobutton>> _options;
 
 };

@@ -18,11 +18,10 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "intro/introwidget.h"
 
 #include "lang.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "langloaderplain.h"
 #include "intro/introstart.h"
 #include "intro/introphone.h"
@@ -31,6 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "intro/intropwdcheck.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "messenger.h"
 #include "application.h"
 #include "boxes/confirmbox.h"
 #include "ui/text/text.h"
@@ -43,6 +43,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 #include "styles/style_intro.h"
 #include "styles/style_window.h"
+#include "window/themes/window_theme.h"
+#include "auth_session.h"
 
 namespace Intro {
 
@@ -208,7 +210,7 @@ void Widget::appendStep(Step *step) {
 void Widget::showResetButton() {
 	if (!_resetAccount) {
 		auto entity = object_ptr<Ui::RoundButton>(this, lang(lng_signin_reset_account), st::introResetButton);
-		_resetAccount.create(this, std_::move(entity), st::introErrorDuration);
+		_resetAccount.create(this, std::move(entity), st::introErrorDuration);
 		_resetAccount->hideFast();
 		_resetAccount->entity()->setClickedCallback([this] { resetAccount(); });
 		updateControlsGeometry();
@@ -261,8 +263,8 @@ bool Widget::resetFail(const RPCError &error) {
 
 void Widget::gotNearestDC(const MTPNearestDc &result) {
 	auto &nearest = result.c_nearestDc();
-	DEBUG_LOG(("Got nearest dc, country: %1, nearest: %2, this: %3").arg(nearest.vcountry.c_string().v.c_str()).arg(nearest.vnearest_dc.v).arg(nearest.vthis_dc.v));
-	MTP::setdc(nearest.vnearest_dc.v, true);
+	DEBUG_LOG(("Got nearest dc, country: %1, nearest: %2, this: %3").arg(qs(nearest.vcountry)).arg(nearest.vnearest_dc.v).arg(nearest.vthis_dc.v));
+	Messenger::Instance().suggestMainDcId(nearest.vnearest_dc.v);
 	auto nearestCountry = qs(nearest.vcountry);
 	if (getData()->country != nearestCountry) {
 		getData()->country = nearestCountry;
@@ -274,20 +276,11 @@ void Widget::showControls() {
 	getStep()->show();
 	_next->show();
 	_next->setText(getStep()->nextButtonText());
-	if (getStep()->hasCover()) {
-		_settings->hideFast();
-		if (_update) _update->hideFast();
-		if (_changeLanguage) _changeLanguage->showFast();
-	} else {
-		_settings->showFast();
-		if (_update) _update->showFast();
-		if (_changeLanguage) _changeLanguage->hideFast();
-	}
-	if (getStep()->hasBack()) {
-		_back->showFast();
-	} else {
-		_back->hideFast();
-	}
+	auto hasCover = getStep()->hasCover();
+	_settings->toggleFast(!hasCover);
+	if (_update) _update->toggleFast(!hasCover);
+	if (_changeLanguage) _changeLanguage->toggleFast(hasCover);
+	_back->toggleFast(getStep()->hasBack());
 }
 
 void Widget::hideControls() {
@@ -423,11 +416,20 @@ QString Widget::Step::nextButtonText() const {
 }
 
 void Widget::Step::finish(const MTPUser &user, QImage photo) {
+	if (user.type() != mtpc_user || !user.c_user().is_self()) {
+		// No idea what to do here.
+		// We could've reset intro and MTP, but this really should not happen.
+		Ui::show(Box<InformBox>("Internal error: bad user.is_self() after sign in."));
+		return;
+	}
+
+	Messenger::Instance().authSessionCreate(user.c_user().vid.v);
+
 	App::wnd()->setupMain(&user);
 
 	// "this" is already deleted here by creating the main widget.
 	if (!photo.isNull()) {
-		App::app()->uploadProfilePhoto(photo, MTP::authedId());
+		App::app()->uploadProfilePhoto(photo, AuthSession::CurrentUserId());
 	}
 }
 
@@ -578,7 +580,7 @@ void Widget::Step::prepareCoverMask() {
 		}
 		maskInts += maskIntsPerLineAdded;
 	}
-	_coverMask = App::pixmapFromImageInPlace(std_::move(mask));
+	_coverMask = App::pixmapFromImageInPlace(std::move(mask));
 }
 
 void Widget::Step::paintCover(Painter &p, int top) {
@@ -663,6 +665,14 @@ Widget::Step::Step(QWidget *parent, Data *data, bool hasCover) : TWidget(parent)
 , _title(this, _hasCover ? st::introCoverTitle : st::introTitle)
 , _description(this, object_ptr<Ui::FlatLabel>(this, _hasCover ? st::introCoverDescription : st::introDescription), st::introErrorDuration) {
 	hide();
+	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
+		if (update.paletteChanged()) {
+			if (!_coverMask.isNull()) {
+				_coverMask = QPixmap();
+				prepareCoverMask();
+			}
+		}
+	});
 }
 
 void Widget::Step::prepareShowAnimated(Step *after) {
@@ -673,8 +683,8 @@ void Widget::Step::prepareShowAnimated(Step *after) {
 	} else {
 		auto leftSnapshot = after->prepareSlideAnimation();
 		auto rightSnapshot = prepareSlideAnimation();
-		_slideAnimation = std_::make_unique<Ui::SlideAnimation>();
-		_slideAnimation->setSnapshots(std_::move(leftSnapshot), std_::move(rightSnapshot));
+		_slideAnimation = std::make_unique<Ui::SlideAnimation>();
+		_slideAnimation->setSnapshots(std::move(leftSnapshot), std::move(rightSnapshot));
 		_slideAnimation->setOverflowHidden(false);
 	}
 }
@@ -685,7 +695,7 @@ Widget::Step::CoverAnimation Widget::Step::prepareCoverAnimation(Step *after) {
 	result.description = Ui::FlatLabel::CrossFade(after->_description->entity(), _description->entity(), st::introBg, after->_description->pos(), _description->pos());
 	result.contentSnapshotWas = after->prepareContentSnapshot();
 	result.contentSnapshotNow = prepareContentSnapshot();
-	return std_::move(result);
+	return result;
 }
 
 QPixmap Widget::Step::prepareContentSnapshot() {
@@ -711,12 +721,12 @@ void Widget::Step::showAnimated(Direction direction) {
 	}
 }
 
-void Widget::Step::setGoCallback(base::lambda<void(Step *step, Direction direction)> &&callback) {
-	_goCallback = std_::move(callback);
+void Widget::Step::setGoCallback(base::lambda<void(Step *step, Direction direction)> callback) {
+	_goCallback = std::move(callback);
 }
 
-void Widget::Step::setShowResetCallback(base::lambda<void()> &&callback) {
-	_showResetCallback = std_::move(callback);
+void Widget::Step::setShowResetCallback(base::lambda<void()> callback) {
+	_showResetCallback = std::move(callback);
 }
 
 void Widget::Step::showFast() {

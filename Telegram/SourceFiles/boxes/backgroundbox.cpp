@@ -18,16 +18,46 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "boxes/backgroundbox.h"
 
 #include "lang.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "window/window_theme.h"
+#include "window/themes/window_theme.h"
 #include "styles/style_overview.h"
 #include "styles/style_boxes.h"
 #include "ui/effects/round_checkbox.h"
+#include "auth_session.h"
+
+class BackgroundBox::Inner : public TWidget, public RPCSender, private base::Subscriber {
+public:
+	Inner(QWidget *parent);
+
+	void setBackgroundChosenCallback(base::lambda<void(int index)> callback) {
+		_backgroundChosenCallback = std::move(callback);
+	}
+
+	~Inner();
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+
+private:
+	void gotWallpapers(const MTPVector<MTPWallPaper> &result);
+	void updateWallpapers();
+
+	base::lambda<void(int index)> _backgroundChosenCallback;
+
+	int _bgCount = 0;
+	int _rows = 0;
+	int _over = -1;
+	int _overDown = -1;
+	std::unique_ptr<Ui::RoundCheckbox> _check; // this is not a widget
+
+};
 
 BackgroundBox::BackgroundBox(QWidget*) {
 }
@@ -55,7 +85,7 @@ void BackgroundBox::backgroundChosen(int index) {
 }
 
 BackgroundBox::Inner::Inner(QWidget *parent) : TWidget(parent)
-, _check(std_::make_unique<Ui::RoundCheckbox>(st::overviewCheck, [this] { update(); })) {
+, _check(std::make_unique<Ui::RoundCheckbox>(st::overviewCheck, [this] { update(); })) {
 	_check->setChecked(true, Ui::RoundCheckbox::SetStyle::Fast);
 	if (App::cServerBackgrounds().isEmpty()) {
 		resize(BackgroundsInRow * (st::backgroundSize.width() + st::backgroundPadding) + st::backgroundPadding, 2 * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
@@ -64,7 +94,7 @@ BackgroundBox::Inner::Inner(QWidget *parent) : TWidget(parent)
 		updateWallpapers();
 	}
 
-	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
 		if (update.paletteChanged()) {
 			_check->invalidateCache();
@@ -78,12 +108,12 @@ void BackgroundBox::Inner::gotWallpapers(const MTPVector<MTPWallPaper> &result) 
 
 	auto oldBackground = ImagePtr(qsl(":/gui/art/bg_initial.jpg"));
 	wallpapers.push_back(App::WallPaper(Window::Theme::kInitialBackground, oldBackground, oldBackground));
-	auto &v = result.c_vector().v;
+	auto &v = result.v;
 	for_const (auto &w, v) {
 		switch (w.type()) {
 		case mtpc_wallPaper: {
 			auto &d = w.c_wallPaper();
-			auto &sizes = d.vsizes.c_vector().v;
+			auto &sizes = d.vsizes.v;
 			const MTPPhotoSize *thumb = 0, *full = 0;
 			int32 thumbLevel = -1, fullLevel = -1;
 			for (QVector<MTPPhotoSize>::const_iterator j = sizes.cbegin(), e = sizes.cend(); j != e; ++j) {
@@ -91,14 +121,14 @@ void BackgroundBox::Inner::gotWallpapers(const MTPVector<MTPWallPaper> &result) 
 				int32 w = 0, h = 0;
 				switch (j->type()) {
 				case mtpc_photoSize: {
-					auto &s = j->c_photoSize().vtype.c_string().v;
+					auto &s = j->c_photoSize().vtype.v;
 					if (s.size()) size = s[0];
 					w = j->c_photoSize().vw.v;
 					h = j->c_photoSize().vh.v;
 				} break;
 
 				case mtpc_photoCachedSize: {
-					auto &s = j->c_photoCachedSize().vtype.c_string().v;
+					auto &s = j->c_photoCachedSize().vtype.v;
 					if (s.size()) size = s[0];
 					w = j->c_photoCachedSize().vw.v;
 					h = j->c_photoCachedSize().vh.v;

@@ -48,7 +48,7 @@ public:
 	void showFromOther();
 	void hideFromOther();
 
-	using ButtonCallback = base::lambda_copy<void()>;
+	using ButtonCallback = base::lambda<void()>;
 	void setPinCallback(ButtonCallback &&callback);
 	void setCloseCallback(ButtonCallback &&callback);
 
@@ -59,8 +59,8 @@ public:
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 
 private slots:
 	void onShowStart();

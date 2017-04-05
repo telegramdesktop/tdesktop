@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "platform/win/windows_dlls.h"
 
 namespace Platform {
@@ -55,6 +54,7 @@ f_RoGetActivationFactory RoGetActivationFactory;
 f_WindowsCreateStringReference WindowsCreateStringReference;
 f_WindowsDeleteString WindowsDeleteString;
 f_PropVariantToString PropVariantToString;
+f_PSStringFromPropertyKey PSStringFromPropertyKey;
 
 HINSTANCE LibUxTheme;
 HINSTANCE LibShell32;
@@ -89,6 +89,7 @@ void start() {
 
 		LibPropSys = LoadLibrary(L"PROPSYS.DLL");
 		load(LibPropSys, "PropVariantToString", PropVariantToString);
+		load(LibPropSys, "PSStringFromPropertyKey", PSStringFromPropertyKey);
 
 		if (version >= QSysInfo::WV_WINDOWS8) {
 			LibComBase = LoadLibrary(L"COMBASE.DLL");

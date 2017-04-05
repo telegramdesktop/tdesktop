@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "settings/settings_info_widget.h"
 
 #include "styles/style_settings.h"
@@ -26,7 +25,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/labels.h"
 #include "ui/effects/widget_slide_wrap.h"
 #include "boxes/usernamebox.h"
+#include "boxes/change_phone_box.h"
 #include "observer_peer.h"
+#include "messenger.h"
 
 namespace Settings {
 
@@ -69,6 +70,12 @@ void InfoWidget::refreshMobileNumber() {
 		}
 	}
 	setLabeledText(_mobileNumber, lang(lng_profile_mobile_number), phoneText, TextWithEntities(), lang(lng_profile_copy_phone));
+	if (auto text = _mobileNumber->entity()->textLabel()) {
+		text->setRichText(textcmdLink(1, phoneText.text));
+		text->setLink(1, MakeShared<LambdaClickHandler>([] {
+			Ui::show(Box<ChangePhoneBox>());
+		}));
+	}
 }
 
 void InfoWidget::refreshUsername() {
@@ -80,7 +87,7 @@ void InfoWidget::refreshUsername() {
 		usernameText.text = '@' + self()->username;
 		copyText = lang(lng_context_copy_mention);
 	}
-	usernameText.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, usernameText.text.size(), CreateInternalLinkHttps(self()->username)));
+	usernameText.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, usernameText.text.size(), Messenger::Instance().createInternalLinkFull(self()->username)));
 	setLabeledText(_username, lang(lng_profile_username), usernameText, TextWithEntities(), copyText);
 	if (auto text = _username->entity()->textLabel()) {
 		text->setClickHandlerHook([](const ClickHandlerPtr &handler, Qt::MouseButton button) {
@@ -94,10 +101,10 @@ void InfoWidget::refreshLink() {
 	TextWithEntities linkText;
 	TextWithEntities linkTextShort;
 	if (!self()->username.isEmpty()) {
-		linkText.text = CreateInternalLinkHttps(self()->username);
+		linkText.text = Messenger::Instance().createInternalLinkFull(self()->username);
 		linkText.entities.push_back(EntityInText(EntityInTextUrl, 0, linkText.text.size()));
-		linkTextShort.text = CreateInternalLink(self()->username);
-		linkTextShort.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, linkTextShort.text.size(), CreateInternalLinkHttps(self()->username)));
+		linkTextShort.text = Messenger::Instance().createInternalLink(self()->username);
+		linkTextShort.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, linkTextShort.text.size(), Messenger::Instance().createInternalLinkFull(self()->username)));
 	}
 	setLabeledText(_link, lang(lng_profile_link), linkText, linkTextShort, QString());
 	if (auto text = _link->entity()->textLabel()) {
@@ -116,12 +123,11 @@ void InfoWidget::refreshLink() {
 }
 
 void InfoWidget::setLabeledText(object_ptr<LabeledWrap> &row, const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText) {
-	if (textWithEntities.text.isEmpty()) {
-		row->slideUp();
-	} else {
+	auto nonEmptyText = !textWithEntities.text.isEmpty();
+	if (nonEmptyText) {
 		row->entity()->setLabeledText(label, textWithEntities, shortTextWithEntities, copyText);
-		row->slideDown();
 	}
+	row->toggleAnimated(nonEmptyText);
 }
 
 InfoWidget::LabeledWidget::LabeledWidget(QWidget *parent) : TWidget(parent) {

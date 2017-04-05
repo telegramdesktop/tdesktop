@@ -46,18 +46,18 @@ protected:
 	void setDocumentLinks(DocumentData *document, bool inlinegif = false) {
 		ClickHandlerPtr open, save;
 		if (inlinegif) {
-			open.reset(new GifOpenClickHandler(document));
+			open = MakeShared<GifOpenClickHandler>(document);
 		} else {
-			open.reset(new DocumentOpenClickHandler(document));
+			open = MakeShared<DocumentOpenClickHandler>(document);
 		}
 		if (inlinegif) {
-			save.reset(new GifOpenClickHandler(document));
+			save = MakeShared<GifOpenClickHandler>(document);
 		} else if (document->voice()) {
-			save.reset(new DocumentOpenClickHandler(document));
+			save = MakeShared<DocumentOpenClickHandler>(document);
 		} else {
-			save.reset(new DocumentSaveClickHandler(document));
+			save = MakeShared<DocumentSaveClickHandler>(document);
 		}
-		setLinks(std_::move(open), std_::move(save), MakeShared<DocumentCancelClickHandler>(document));
+		setLinks(std::move(open), std::move(save), MakeShared<DocumentCancelClickHandler>(document));
 	}
 
 	// >= 0 will contain download / upload string, _statusSize = loaded bytes
@@ -99,12 +99,12 @@ protected:
 
 	struct AnimationData {
 		AnimationData(AnimationCallbacks &&radialCallbacks)
-			: radial(std_::move(radialCallbacks)) {
+			: radial(std::move(radialCallbacks)) {
 		}
 		Animation a_thumbOver;
 		Ui::RadialAnimation radial;
 	};
-	mutable std_::unique_ptr<AnimationData> _animation;
+	mutable std::unique_ptr<AnimationData> _animation;
 
 };
 
@@ -118,8 +118,8 @@ public:
 	HistoryMediaType type() const override {
 		return MediaTypePhoto;
 	}
-	HistoryPhoto *clone(HistoryItem *newParent) const override {
-		return new HistoryPhoto(newParent, *this);
+	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
+		return std::make_unique<HistoryPhoto>(newParent, *this);
 	}
 
 	void initDimensions() override;
@@ -161,16 +161,16 @@ public:
 		if (!_caption.isEmpty()) {
 			return true;
 		}
-		if (_parent->viaBot()) {
-			return true;
+		if (auto message = _parent->toHistoryMessage()) {
+			return message->viaBot()
+				|| message->Has<HistoryMessageForwarded>()
+				|| message->Has<HistoryMessageReply>()
+				|| message->displayFromName();
 		}
-		return (_parent->Has<HistoryMessageForwarded>() || _parent->Has<HistoryMessageReply>());
+		return false;
 	}
 	bool customInfoLayout() const override {
 		return _caption.isEmpty();
-	}
-	bool hideFromName() const override {
-		return true;
 	}
 	bool skipBubbleTail() const override {
 		return isBubbleBottom() && _caption.isEmpty();
@@ -205,8 +205,8 @@ public:
 	HistoryMediaType type() const override {
 		return MediaTypeVideo;
 	}
-	HistoryVideo *clone(HistoryItem *newParent) const override {
-		return new HistoryVideo(newParent, *this);
+	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
+		return std::make_unique<HistoryVideo>(newParent, *this);
 	}
 
 	void initDimensions() override;
@@ -237,6 +237,7 @@ public:
 	void attachToParent() override;
 	void detachFromParent() override;
 
+	void updateSentMedia(const MTPMessageMedia &media) override;
 	bool needReSetInlineResultMedia(const MTPMessageMedia &media) override;
 
 	bool hasReplyPreview() const override {
@@ -251,16 +252,16 @@ public:
 		if (!_caption.isEmpty()) {
 			return true;
 		}
-		if (_parent->viaBot()) {
-			return true;
+		if (auto message = _parent->toHistoryMessage()) {
+			return message->viaBot()
+				|| message->Has<HistoryMessageForwarded>()
+				|| message->Has<HistoryMessageReply>()
+				|| message->displayFromName();
 		}
-		return (_parent->Has<HistoryMessageForwarded>() || _parent->Has<HistoryMessageReply>());
+		return false;
 	}
 	bool customInfoLayout() const override {
 		return _caption.isEmpty();
-	}
-	bool hideFromName() const override {
-		return true;
 	}
 	bool skipBubbleTail() const override {
 		return isBubbleBottom() && _caption.isEmpty();
@@ -311,17 +312,42 @@ struct HistoryDocumentVoicePlayback {
 	anim::value a_progress;
 	BasicAnimation _a_progress;
 };
-struct HistoryDocumentVoice : public RuntimeComponent<HistoryDocumentVoice> {
-	HistoryDocumentVoice &operator=(HistoryDocumentVoice &&other) {
-		std::swap(_playback, other._playback);
-		return *this;
-	}
-	~HistoryDocumentVoice() {
-		delete base::take(_playback);
-	}
+class HistoryDocumentVoice : public RuntimeComponent<HistoryDocumentVoice> {
+	// We don't use float64 because components should align to pointer even on 32bit systems.
+	static constexpr float64 kFloatToIntMultiplier = 65536.;
+
+public:
 	void ensurePlayback(const HistoryDocument *interfaces) const;
 	void checkPlaybackFinished() const;
-	mutable HistoryDocumentVoicePlayback *_playback = nullptr;
+
+	mutable std::unique_ptr<HistoryDocumentVoicePlayback> _playback;
+	QSharedPointer<VoiceSeekClickHandler> _seekl;
+	mutable int _lastDurationMs = 0;
+
+	bool seeking() const {
+		return _seeking;
+	}
+	void startSeeking();
+	void stopSeeking();
+	float64 seekingStart() const {
+		return _seekingStart / kFloatToIntMultiplier;
+	}
+	void setSeekingStart(float64 seekingStart) const {
+		_seekingStart = qRound(seekingStart * kFloatToIntMultiplier);
+	}
+	float64 seekingCurrent() const {
+		return _seekingCurrent / kFloatToIntMultiplier;
+	}
+	void setSeekingCurrent(float64 seekingCurrent) {
+		_seekingCurrent = qRound(seekingCurrent * kFloatToIntMultiplier);
+	}
+
+private:
+	bool _seeking = false;
+
+	mutable int _seekingStart = 0;
+	mutable int _seekingCurrent = 0;
+
 };
 
 class HistoryDocument : public HistoryFileMedia, public RuntimeComposer {
@@ -331,8 +357,8 @@ public:
 	HistoryMediaType type() const override {
 		return _data->voice() ? MediaTypeVoiceFile : (_data->song() ? MediaTypeMusicFile : MediaTypeFile);
 	}
-	HistoryDocument *clone(HistoryItem *newParent) const override {
-		return new HistoryDocument(newParent, *this);
+	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
+		return std::make_unique<HistoryDocument>(newParent, *this);
 	}
 
 	void initDimensions() override;
@@ -340,6 +366,7 @@ public:
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
+	void updatePressed(int x, int y) override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
 		if (auto captioned = Get<HistoryDocumentCaptioned>()) {
@@ -393,6 +420,8 @@ public:
 
 	void step_voiceProgress(float64 ms, bool timer);
 
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
+
 protected:
 	float64 dataProgress() const override {
 		return _data->progress();
@@ -406,6 +435,7 @@ protected:
 
 private:
 	void createComponents(bool caption);
+	void fillNamedFromData(HistoryDocumentNamed *named);
 
 	void setStatusSize(int32 newSize, qint64 realDuration = 0) const;
 	bool updateStatusText() const; // returns showPause
@@ -426,8 +456,8 @@ public:
 	HistoryMediaType type() const override {
 		return MediaTypeGif;
 	}
-	HistoryGif *clone(HistoryItem *newParent) const override {
-		return new HistoryGif(newParent, *this);
+	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
+		return std::make_unique<HistoryGif>(newParent, *this);
 	}
 
 	void initDimensions() override;
@@ -479,16 +509,16 @@ public:
 		if (!_caption.isEmpty()) {
 			return true;
 		}
-		if (_parent->viaBot()) {
-			return true;
+		if (auto message = _parent->toHistoryMessage()) {
+			return message->viaBot()
+				|| message->Has<HistoryMessageForwarded>()
+				|| message->Has<HistoryMessageReply>()
+				|| message->displayFromName();
 		}
-		return (_parent->Has<HistoryMessageForwarded>() || _parent->Has<HistoryMessageReply>());
+		return false;
 	}
 	bool customInfoLayout() const override {
 		return _caption.isEmpty();
-	}
-	bool hideFromName() const override {
-		return true;
 	}
 	bool skipBubbleTail() const override {
 		return isBubbleBottom() && _caption.isEmpty();
@@ -523,8 +553,8 @@ public:
 	HistoryMediaType type() const override {
 		return MediaTypeSticker;
 	}
-	HistorySticker *clone(HistoryItem *newParent) const override {
-		return new HistorySticker(newParent, _data);
+	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
+		return std::make_unique<HistorySticker>(newParent, _data);
 	}
 
 	void initDimensions() override;
@@ -587,8 +617,8 @@ public:
 	HistoryMediaType type() const override {
 		return MediaTypeContact;
 	}
-	HistoryContact *clone(HistoryItem *newParent) const override {
-		return new HistoryContact(newParent, _userId, _fname, _lname, _phone);
+	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
+		return std::make_unique<HistoryContact>(newParent, _userId, _fname, _lname, _phone);
 	}
 
 	void initDimensions() override;
@@ -650,8 +680,8 @@ public:
 	HistoryMediaType type() const override {
 		return MediaTypeWebPage;
 	}
-	HistoryWebPage *clone(HistoryItem *newParent) const override {
-		return new HistoryWebPage(newParent, *this);
+	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
+		return std::make_unique<HistoryWebPage>(newParent, *this);
 	}
 
 	void initDimensions() override;
@@ -696,9 +726,7 @@ public:
 	void attachToParent() override;
 	void detachFromParent() override;
 
-	bool hasReplyPreview() const override {
-		return (_data->photo && !_data->photo->thumb->isNull()) || (_data->document && !_data->document->thumb->isNull());
-	}
+	bool hasReplyPreview() const override;
 	ImagePtr replyPreview() override;
 
 	WebPageData *webpage() {
@@ -728,7 +756,7 @@ private:
 
 	WebPageData *_data;
 	ClickHandlerPtr _openl;
-	std_::unique_ptr<HistoryMedia> _attach;
+	std::unique_ptr<HistoryMedia> _attach;
 
 	bool _asArticle = false;
 	int32 _titleLines, _descriptionLines;
@@ -750,8 +778,8 @@ public:
 	HistoryMediaType type() const override {
 		return MediaTypeGame;
 	}
-	HistoryGame *clone(HistoryItem *newParent) const override {
-		return new HistoryGame(newParent, *this);
+	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
+		return std::make_unique<HistoryGame>(newParent, *this);
 	}
 
 	void initDimensions() override;
@@ -833,7 +861,7 @@ private:
 
 	GameData *_data;
 	ClickHandlerPtr _openl;
-	std_::unique_ptr<HistoryMedia> _attach;
+	std::unique_ptr<HistoryMedia> _attach;
 
 	int32 _titleLines, _descriptionLines;
 
@@ -843,7 +871,95 @@ private:
 
 };
 
-struct LocationCoords;
+class HistoryInvoice : public HistoryMedia {
+public:
+	HistoryInvoice(HistoryItem *parent, const MTPDmessageMediaInvoice &data);
+	HistoryInvoice(HistoryItem *parent, const HistoryInvoice &other);
+	HistoryMediaType type() const override {
+		return MediaTypeInvoice;
+	}
+	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
+		return std::make_unique<HistoryInvoice>(newParent, *this);
+	}
+
+	void initDimensions() override;
+	int resizeGetHeight(int width) override;
+
+	MsgId getReceiptMsgId() const {
+		return _receiptMsgId;
+	}
+	QString getTitle() const {
+		return _title.originalText();
+	}
+	static QString fillAmountAndCurrency(int amount, const QString &currency);
+
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
+	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
+
+	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
+	bool hasTextForCopy() const override {
+		return false; // we do not add _title and _description in FullSelection text copy.
+	}
+
+	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
+		return _attach && _attach->toggleSelectionByHandlerClick(p);
+	}
+	bool dragItemByHandler(const ClickHandlerPtr &p) const override {
+		return _attach && _attach->dragItemByHandler(p);
+	}
+
+	QString notificationText() const override;
+	TextWithEntities selectedText(TextSelection selection) const override;
+
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
+
+	void attachToParent() override;
+	void detachFromParent() override;
+
+	bool hasReplyPreview() const override {
+		return _attach && _attach->hasReplyPreview();
+	}
+	ImagePtr replyPreview() override {
+		return _attach ? _attach->replyPreview() : ImagePtr();
+	}
+
+	bool needsBubble() const override {
+		return true;
+	}
+	bool customInfoLayout() const override {
+		return false;
+	}
+
+	HistoryMedia *attach() const {
+		return _attach.get();
+	}
+
+private:
+	void fillFromData(const MTPDmessageMediaInvoice &data);
+
+	TextSelection toDescriptionSelection(TextSelection selection) const {
+		return internal::unshiftSelection(selection, _title);
+	}
+	TextSelection fromDescriptionSelection(TextSelection selection) const {
+		return internal::shiftSelection(selection, _title);
+	}
+	QMargins inBubblePadding() const;
+	int bottomInfoPadding() const;
+
+	std::unique_ptr<HistoryMedia> _attach;
+
+	int _titleHeight = 0;
+	int _descriptionHeight = 0;
+	Text _title;
+	Text _description;
+	Text _status;
+
+	MsgId _receiptMsgId = 0;
+
+};
+
+class LocationCoords;
 struct LocationData;
 
 class HistoryLocation : public HistoryMedia {
@@ -853,8 +969,8 @@ public:
 	HistoryMediaType type() const override {
 		return MediaTypeLocation;
 	}
-	HistoryLocation *clone(HistoryItem *newParent) const override {
-		return new HistoryLocation(newParent, *this);
+	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
+		return std::make_unique<HistoryLocation>(newParent, *this);
 	}
 
 	void initDimensions() override;
@@ -883,10 +999,13 @@ public:
 		if (!_title.isEmpty() || !_description.isEmpty()) {
 			return true;
 		}
-		if (_parent->viaBot()) {
-			return true;
+		if (auto message = _parent->toHistoryMessage()) {
+			return message->viaBot()
+				|| message->Has<HistoryMessageForwarded>()
+				|| message->Has<HistoryMessageReply>()
+				|| message->displayFromName();
 		}
-		return (_parent->Has<HistoryMessageForwarded>() || _parent->Has<HistoryMessageReply>());
+		return false;
 	}
 	bool customInfoLayout() const override {
 		return true;

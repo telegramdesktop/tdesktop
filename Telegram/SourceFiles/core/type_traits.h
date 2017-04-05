@@ -20,16 +20,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "core/stl_subset.h"
-
 namespace base {
 
 template <typename T>
-struct custom_is_fast_copy_type : public std_::false_type {
+struct custom_is_fast_copy_type : public std::false_type {
 };
 // To make your own type a fast copy type just write:
 // template <>
-// struct base::custom_is_fast_copy_type<MyTinyType> : public std_::true_type {
+// struct base::custom_is_fast_copy_type<MyTinyType> : public std::true_type {
 // };
 
 namespace internal {
@@ -38,11 +36,11 @@ template <typename ...Types>
 struct type_list_contains;
 
 template <typename T>
-struct type_list_contains<T> : public std_::false_type {
+struct type_list_contains<T> : public std::false_type {
 };
 
 template <typename T, typename Head, typename ...Types>
-struct type_list_contains<T, Head, Types...> : public std_::integral_constant<bool, std_::is_same<Head, T>::value || type_list_contains<T, Types...>::value> {
+struct type_list_contains<T, Head, Types...> : public std::integral_constant<bool, std::is_same<Head, T>::value || type_list_contains<T, Types...>::value> {
 };
 
 template <typename T>
@@ -52,35 +50,35 @@ template <typename T>
 using is_std_signed_int = type_list_contains<T, signed char, short int, int, long int>;
 
 template <typename T>
-using is_std_integral = std_::integral_constant<bool, is_std_unsigned_int<T>::value || is_std_signed_int<T>::value || type_list_contains<T, bool, char, wchar_t>::value>;
+using is_std_integral = std::integral_constant<bool, is_std_unsigned_int<T>::value || is_std_signed_int<T>::value || type_list_contains<T, bool, char, wchar_t>::value>;
 
 template <typename T>
 using is_std_float = type_list_contains<T, float, double, long double>;
 
 template <typename T>
-using is_std_arith = std_::integral_constant<bool, is_std_integral<T>::value || is_std_float<T>::value>;
+using is_std_arith = std::integral_constant<bool, is_std_integral<T>::value || is_std_float<T>::value>;
 
 template <typename T>
-using is_std_fundamental = std_::integral_constant<bool, is_std_arith<T>::value || std_::is_same<T, void>::value>;
+using is_std_fundamental = std::integral_constant<bool, is_std_arith<T>::value || std::is_same<T, void>::value>;
 
 template <typename T>
-struct is_pointer : public std_::false_type {
+struct is_pointer : public std::false_type {
 };
 
 template <typename T>
-struct is_pointer<T*> : public std_::true_type {
+struct is_pointer<T*> : public std::true_type {
 };
 
 template <typename T>
-struct is_member_pointer : public std_::false_type {
+struct is_member_pointer : public std::false_type {
 };
 
 template <typename T, typename C>
-struct is_member_pointer<T C::*> : public std_::true_type {
+struct is_member_pointer<T C::*> : public std::true_type {
 };
 
 template <typename T>
-using is_fast_copy_type = std_::integral_constant<bool, is_std_fundamental<T>::value || is_pointer<T>::value || is_member_pointer<T>::value || custom_is_fast_copy_type<T>::value>;
+using is_fast_copy_type = std::integral_constant<bool, is_std_fundamental<T>::value || is_pointer<T>::value || is_member_pointer<T>::value || custom_is_fast_copy_type<T>::value>;
 
 template <typename T>
 struct add_const_reference {
@@ -122,7 +120,7 @@ struct type_traits {
 	using is_member_pointer = internal::is_member_pointer<T>;
 	using is_fast_copy_type = internal::is_fast_copy_type<T>;
 
-	using parameter_type = std_::conditional_t<is_fast_copy_type::value, T, internal::add_const_reference_t<T>>;
+	using parameter_type = std::conditional_t<is_fast_copy_type::value, T, internal::add_const_reference_t<T>>;
 	using pointed_type = internal::remove_pointer_t<T>;
 };
 

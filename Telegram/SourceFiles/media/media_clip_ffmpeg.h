@@ -51,9 +51,12 @@ public:
 	void pauseAudio() override;
 	void resumeAudio() override;
 
-	bool start(Mode mode, int64 &positionMs) override;
+	bool start(Mode mode, TimeMs &positionMs) override;
+	bool inspectAt(TimeMs &positionMs);
 
 	QString logData() const;
+
+	bool isGifv() const;
 
 	~FFMpegReaderImplementation();
 
@@ -105,6 +108,7 @@ private:
 	bool _frameRead = false;
 	int _skippedInvalidDataPackets = 0;
 
+	bool _hasAudioStream = false;
 	int _audioStreamId = -1;
 	uint64 _playId = 0;
 	TimeMs _lastReadVideoMs = 0;

@@ -18,15 +18,12 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
-
 #include "profile/profile_section_memento.h"
-#include "core/vector_of_moveable.h"
 #include "core/click_handler_types.h"
 #include "observer_peer.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "application.h"
+#include "messenger.h"
 #include "boxes/confirmbox.h"
 #include "layerwidget.h"
 #include "lang.h"
@@ -39,8 +36,8 @@ Q_DECLARE_METATYPE(Ui::ShowWay);
 namespace App {
 namespace internal {
 
-void CallDelayed(int duration, base::lambda<void()> &&lambda) {
-	QTimer::singleShot(duration, base::lambda_slot_once(App::app(), std_::move(lambda)), SLOT(action()));
+void CallDelayed(int duration, base::lambda_once<void()> &&lambda) {
+	QTimer::singleShot(duration, base::lambda_slot_once(App::app(), std::move(lambda)), SLOT(action()));
 }
 
 } // namespace internal
@@ -90,6 +87,10 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 		if (auto m = main()) {
 			m->app_sendBotCallback(button, msg, row, col);
 		}
+	} break;
+
+	case ButtonType::Buy: {
+		Ui::show(Box<InformBox>(lang(lng_payments_not_supported)));
 	} break;
 
 	case ButtonType::Url: {
@@ -204,7 +205,7 @@ namespace internal {
 
 void showBox(object_ptr<BoxContent> content, ShowLayerOptions options) {
 	if (auto w = App::wnd()) {
-		w->ui_showBox(std_::move(content), options);
+		w->ui_showBox(std::move(content), options);
 	}
 }
 
@@ -616,7 +617,6 @@ struct Data {
 	uint64 LaunchId = 0;
 	SingleDelayedCall HandleHistoryUpdate = { App::app(), "call_handleHistoryUpdate" };
 	SingleDelayedCall HandleUnreadCounterUpdate = { App::app(), "call_handleUnreadCounterUpdate" };
-	SingleDelayedCall HandleFileDialogQueue = { App::app(), "call_handleFileDialogQueue" };
 	SingleDelayedCall HandleDelayedPeerUpdates = { App::app(), "call_handleDelayedPeerUpdates" };
 	SingleDelayedCall HandleObservables = { App::app(), "call_handleObservables" };
 
@@ -657,6 +657,7 @@ struct Data {
 	int32 EditTimeLimit = 172800;
 	int32 StickersRecentLimit = 30;
 	int32 PinnedDialogsCountMax = 5;
+	QString InternalLinksDomain = qsl("https://t.me/");
 
 	HiddenPinnedMessagesMap HiddenPinnedMessages;
 
@@ -671,8 +672,6 @@ struct Data {
 	base::Observable<void> FeaturedStickerSetsUnreadCountChanged;
 	TimeMs LastFeaturedStickersUpdate = 0;
 	Stickers::Order ArchivedStickerSetsOrder;
-
-	MTP::DcOptions DcOptions;
 
 	CircleMasksMap CircleMasks;
 
@@ -692,7 +691,6 @@ struct Data {
 	int NotificationsCount = 3;
 	Notify::ScreenCorner NotificationsCorner = Notify::ScreenCorner::BottomRight;
 	bool NotificationsDemoIsShown = false;
-	base::Observable<Notify::ChangeType> NotifySettingsChanged;
 
 	DBIConnectionType ConnectionType = dbictAuto;
 	bool TryIPv6 = (cPlatform() == dbipWindows) ? false : true;
@@ -704,6 +702,8 @@ struct Data {
 	int AutoLock = 3600;
 	bool LocalPasscode = false;
 	base::Observable<void> LocalPasscodeChanged;
+
+	base::Variable<DBIWorkMode> WorkMode = { dbiwmWindowAndTray };
 
 	base::Observable<HistoryItem*> ItemRemoved;
 	base::Observable<void> UnreadCounterUpdate;
@@ -740,7 +740,6 @@ void finish() {
 DefineReadOnlyVar(Global, uint64, LaunchId);
 DefineRefVar(Global, SingleDelayedCall, HandleHistoryUpdate);
 DefineRefVar(Global, SingleDelayedCall, HandleUnreadCounterUpdate);
-DefineRefVar(Global, SingleDelayedCall, HandleFileDialogQueue);
 DefineRefVar(Global, SingleDelayedCall, HandleDelayedPeerUpdates);
 DefineRefVar(Global, SingleDelayedCall, HandleObservables);
 
@@ -781,6 +780,7 @@ DefineVar(Global, int32, SavedGifsLimit);
 DefineVar(Global, int32, EditTimeLimit);
 DefineVar(Global, int32, StickersRecentLimit);
 DefineVar(Global, int32, PinnedDialogsCountMax);
+DefineVar(Global, QString, InternalLinksDomain);
 
 DefineVar(Global, HiddenPinnedMessagesMap, HiddenPinnedMessages);
 
@@ -795,8 +795,6 @@ DefineVar(Global, int, FeaturedStickerSetsUnreadCount);
 DefineRefVar(Global, base::Observable<void>, FeaturedStickerSetsUnreadCountChanged);
 DefineVar(Global, TimeMs, LastFeaturedStickersUpdate);
 DefineVar(Global, Stickers::Order, ArchivedStickerSetsOrder);
-
-DefineVar(Global, MTP::DcOptions, DcOptions);
 
 DefineRefVar(Global, CircleMasksMap, CircleMasks);
 
@@ -816,7 +814,6 @@ DefineVar(Global, bool, NativeNotifications);
 DefineVar(Global, int, NotificationsCount);
 DefineVar(Global, Notify::ScreenCorner, NotificationsCorner);
 DefineVar(Global, bool, NotificationsDemoIsShown);
-DefineRefVar(Global, base::Observable<Notify::ChangeType>, NotifySettingsChanged);
 
 DefineVar(Global, DBIConnectionType, ConnectionType);
 DefineVar(Global, bool, TryIPv6);
@@ -828,6 +825,8 @@ DefineRefVar(Global, base::Observable<void>, ChooseCustomLang);
 DefineVar(Global, int, AutoLock);
 DefineVar(Global, bool, LocalPasscode);
 DefineRefVar(Global, base::Observable<void>, LocalPasscodeChanged);
+
+DefineRefVar(Global, base::Variable<DBIWorkMode>, WorkMode);
 
 DefineRefVar(Global, base::Observable<HistoryItem*>, ItemRemoved);
 DefineRefVar(Global, base::Observable<void>, UnreadCounterUpdate);

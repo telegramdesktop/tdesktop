@@ -18,14 +18,13 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "dialogs/dialogs_layout.h"
 
 #include "data/data_abstract_structure.h"
 #include "data/data_drafts.h"
 #include "dialogs/dialogs_list.h"
 #include "styles/style_dialogs.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "lang.h"
 
 namespace Dialogs {
@@ -109,15 +108,27 @@ void paintRow(Painter &p, const RippleRow *row, History *history, HistoryItem *i
 			p.restoreTextPalette();
 		}
 	} else if (!item) {
+		auto availableWidth = namewidth;
+		if (history->isPinnedDialog()) {
+			auto &icon = (active ? st::dialogsPinnedIconActive : (selected ? st::dialogsPinnedIconOver : st::dialogsPinnedIcon));
+			icon.paint(p, fullWidth - st::dialogsPadding.x() - icon.width(), texttop, fullWidth);
+			availableWidth -= icon.width() + st::dialogsUnreadPadding;
+		}
+
 		auto &color = active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService);
 		p.setFont(st::dialogsTextFont);
-		if (!history->paintSendAction(p, nameleft, texttop, namewidth, fullWidth, color, ms)) {
+		if (!history->paintSendAction(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
 			// Empty history
 		}
 	} else if (!item->isEmpty()) {
 		paintRowDate(p, date, rectForName, active, selected);
 
 		paintItemCallback(nameleft, namewidth, item);
+	} else if (history->isPinnedDialog()) {
+		auto availableWidth = namewidth;
+		auto &icon = (active ? st::dialogsPinnedIconActive : (selected ? st::dialogsPinnedIconOver : st::dialogsPinnedIcon));
+		icon.paint(p, fullWidth - st::dialogsPadding.x() - icon.width(), texttop, fullWidth);
+		availableWidth -= icon.width() + st::dialogsUnreadPadding;
 	}
 	auto sendStateIcon = ([draft, item, active, selected]() -> const style::icon* {
 		if (draft) {

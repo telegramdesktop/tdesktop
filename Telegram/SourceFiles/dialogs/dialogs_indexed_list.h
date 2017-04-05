@@ -36,6 +36,9 @@ public:
 	void adjustByPos(const RowsByLetter &links);
 	void moveToTop(PeerData *peer);
 
+	// row must belong to this indexed list all().
+	void movePinned(Row *row, int deltaSign);
+
 	// For sortMode != SortMode::Date
 	void peerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
 

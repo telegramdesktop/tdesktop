@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "core/click_handler.h"
 
 ClickHandlerHost::~ClickHandlerHost() {
@@ -39,8 +38,8 @@ bool ClickHandler::setActive(const ClickHandlerPtr &p, ClickHandlerHost *host) {
 	// other pressed click handler currently, if there is
 	// this method will be called when it is unpressed
 	if (_active && *_active) {
-		bool emitClickHandlerActiveChanged = (!_pressed || !*_pressed || *_pressed == *_active);
-		ClickHandlerPtr wasactive = *_active;
+		auto emitClickHandlerActiveChanged = (!_pressed || !*_pressed || *_pressed == *_active);
+		auto wasactive = *_active;
 		(*_active).clear();
 		if (_activeHost) {
 			if (emitClickHandlerActiveChanged) {

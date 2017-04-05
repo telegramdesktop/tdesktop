@@ -34,20 +34,22 @@ enum class MembersFilter {
 };
 using MembersAlreadyIn = OrderedSet<UserData*>;
 
-class MembersAddButton : public Ui::RippleButton {
-public:
-	MembersAddButton(QWidget *parent, const style::TwoIconButton &st);
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-	QImage prepareRippleMask() const override;
-	QPoint prepareRippleStartPosition() const override;
-
-private:
-	const style::TwoIconButton &_st;
-
-};
+// Not used for now.
+//
+//class MembersAddButton : public Ui::RippleButton {
+//public:
+//	MembersAddButton(QWidget *parent, const style::TwoIconButton &st);
+//
+//protected:
+//	void paintEvent(QPaintEvent *e) override;
+//
+//	QImage prepareRippleMask() const override;
+//	QPoint prepareRippleStartPosition() const override;
+//
+//private:
+//	const style::TwoIconButton &_st;
+//
+//};
 
 class MembersBox : public BoxContent {
 	Q_OBJECT
@@ -118,8 +120,8 @@ public slots:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
@@ -129,7 +131,7 @@ private:
 		MemberData();
 		~MemberData();
 
-		std_::unique_ptr<Ui::RippleAnimation> ripple;
+		std::unique_ptr<Ui::RippleAnimation> ripple;
 		int rippleRowTop = 0;
 		Text name;
 		QString online;

@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "media/media_child_ffmpeg_loader.h"
 
 constexpr AVSampleFormat AudioToFormat = AV_SAMPLE_FMT_S16;
@@ -33,9 +32,9 @@ VideoSoundData::~VideoSoundData() {
 	}
 }
 
-ChildFFMpegLoader::ChildFFMpegLoader(uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data) : AudioPlayerLoader(FileLocation(), QByteArray())
+ChildFFMpegLoader::ChildFFMpegLoader(uint64 videoPlayId, std::unique_ptr<VideoSoundData> &&data) : AudioPlayerLoader(FileLocation(), QByteArray())
 , _videoPlayId(videoPlayId)
-, _parentData(std_::move(data)) {
+, _parentData(std::move(data)) {
 	_frame = av_frame_alloc();
 }
 
@@ -83,7 +82,7 @@ bool ChildFFMpegLoader::open(qint64 &position) {
 		int64_t src_ch_layout = layout, dst_ch_layout = AudioToChannelLayout;
 		_srcRate = _parentData->frequency;
 		AVSampleFormat src_sample_fmt = _inputFormat, dst_sample_fmt = AudioToFormat;
-		_dstRate = (_parentData->frequency != 44100 && _parentData->frequency != 48000) ? AudioVoiceMsgFrequency : _parentData->frequency;
+		_dstRate = (_parentData->frequency != 44100 && _parentData->frequency != 48000) ? Media::Player::kDefaultFrequency : _parentData->frequency;
 
 		av_opt_set_int(_swrContext, "in_channel_layout", src_ch_layout, 0);
 		av_opt_set_int(_swrContext, "in_sample_rate", _srcRate, 0);
@@ -190,7 +189,7 @@ AudioPlayerLoader::ReadResult ChildFFMpegLoader::readFromReadyFrame(QByteArray &
 }
 
 void ChildFFMpegLoader::enqueuePackets(QQueue<FFMpeg::AVPacketDataWrap> &packets) {
-	_queue += std_::move(packets);
+	_queue += std::move(packets);
 	packets.clear();
 }
 

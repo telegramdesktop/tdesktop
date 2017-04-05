@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "media/view/media_clip_playback.h"
 
 #include "styles/style_mediaview.h"
@@ -30,17 +29,17 @@ namespace Clip {
 Playback::Playback(Ui::ContinuousSlider *slider) : _slider(slider) {
 }
 
-void Playback::updateState(const AudioPlaybackState &playbackState) {
-	qint64 position = 0, duration = playbackState.duration;
+void Playback::updateState(const Player::TrackState &state) {
+	qint64 position = 0, duration = state.duration;
 
 	auto wasDisabled = _slider->isDisabled();
 	if (wasDisabled) setDisabled(false);
 
-	_playing = !(playbackState.state & AudioPlayerStoppedMask);
-	if (_playing || playbackState.state == AudioPlayerStopped) {
-		position = playbackState.position;
-	} else if (playbackState.state == AudioPlayerStoppedAtEnd) {
-		position = playbackState.duration;
+	_playing = !Player::IsStopped(state.state);
+	if (_playing || state.state == Player::State::Stopped) {
+		position = state.position;
+	} else if (state.state == Player::State::StoppedAtEnd) {
+		position = state.duration;
 	} else {
 		position = 0;
 	}

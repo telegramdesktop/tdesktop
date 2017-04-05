@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "boxes/confirmbox.h"
 
 #include "styles/style_boxes.h"
@@ -32,7 +31,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/labels.h"
 #include "ui/toast/toast.h"
 #include "core/click_handler_types.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
+#include "auth_session.h"
 
 TextParseOptions _confirmBoxTextOptions = {
 	TextParseLinks | TextParseMultiline | TextParseRichText, // flags
@@ -41,57 +41,57 @@ TextParseOptions _confirmBoxTextOptions = {
 	Qt::LayoutDirectionAuto, // dir
 };
 
-ConfirmBox::ConfirmBox(QWidget*, const QString &text, base::lambda<void()> &&confirmedCallback, base::lambda<void()> &&cancelledCallback)
+ConfirmBox::ConfirmBox(QWidget*, const QString &text, base::lambda_once<void()> confirmedCallback, base::lambda_once<void()> cancelledCallback)
 : _confirmText(lang(lng_box_ok))
 , _cancelText(lang(lng_cancel))
 , _confirmStyle(st::defaultBoxButton)
 , _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
-, _confirmedCallback(std_::move(confirmedCallback))
-, _cancelledCallback(std_::move(cancelledCallback)) {
+, _confirmedCallback(std::move(confirmedCallback))
+, _cancelledCallback(std::move(cancelledCallback)) {
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, base::lambda<void()> &&confirmedCallback, base::lambda<void()> &&cancelledCallback)
+ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, base::lambda_once<void()> confirmedCallback, base::lambda_once<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(lang(lng_cancel))
 , _confirmStyle(st::defaultBoxButton)
 , _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
-, _confirmedCallback(std_::move(confirmedCallback))
-, _cancelledCallback(std_::move(cancelledCallback)) {
+, _confirmedCallback(std::move(confirmedCallback))
+, _cancelledCallback(std::move(cancelledCallback)) {
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, base::lambda<void()> &&confirmedCallback, base::lambda<void()> &&cancelledCallback)
+ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, base::lambda_once<void()> confirmedCallback, base::lambda_once<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(lang(lng_cancel))
 , _confirmStyle(confirmStyle)
 , _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
-, _confirmedCallback(std_::move(confirmedCallback))
-, _cancelledCallback(std_::move(cancelledCallback)) {
+, _confirmedCallback(std::move(confirmedCallback))
+, _cancelledCallback(std::move(cancelledCallback)) {
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const QString &cancelText, base::lambda<void()> &&confirmedCallback, base::lambda<void()> &&cancelledCallback)
+ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const QString &cancelText, base::lambda_once<void()> confirmedCallback, base::lambda_once<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(cancelText)
 , _confirmStyle(st::defaultBoxButton)
 , _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
-, _confirmedCallback(std_::move(confirmedCallback))
-, _cancelledCallback(std_::move(cancelledCallback)) {
+, _confirmedCallback(std::move(confirmedCallback))
+, _cancelledCallback(std::move(cancelledCallback)) {
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, const QString &cancelText, base::lambda<void()> &&confirmedCallback, base::lambda<void()> &&cancelledCallback)
+ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, const QString &cancelText, base::lambda_once<void()> confirmedCallback, base::lambda_once<void()> cancelledCallback)
 : _confirmText(confirmText)
 , _cancelText(cancelText)
 , _confirmStyle(st::defaultBoxButton)
 , _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
-, _confirmedCallback(std_::move(confirmedCallback))
-, _cancelledCallback(std_::move(cancelledCallback)) {
+, _confirmedCallback(std::move(confirmedCallback))
+, _cancelledCallback(std::move(cancelledCallback)) {
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(const InformBoxTag &, const QString &text, const QString &doneText, base::lambda_copy<void()> &&closedCallback)
+ConfirmBox::ConfirmBox(const InformBoxTag &, const QString &text, const QString &doneText, base::lambda<void()> closedCallback)
 : _confirmText(doneText)
 , _confirmStyle(st::defaultBoxButton)
 , _informative(true)
@@ -101,12 +101,11 @@ ConfirmBox::ConfirmBox(const InformBoxTag &, const QString &text, const QString 
 	init(text);
 }
 
-base::lambda<void()> ConfirmBox::generateInformCallback(const base::lambda_copy<void()> &closedCallback) {
-	auto callback = closedCallback;
-	return base::lambda_guarded(this, [this, callback] {
+base::lambda_once<void()> ConfirmBox::generateInformCallback(base::lambda<void()> closedCallback) {
+	return base::lambda_guarded(this, [this, closedCallback] {
 		closeBox();
-		if (callback) {
-			callback();
+		if (closedCallback) {
+			closedCallback();
 		}
 	});
 }
@@ -161,14 +160,14 @@ void ConfirmBox::mousePressEvent(QMouseEvent *e) {
 void ConfirmBox::mouseReleaseEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
 	updateHover();
-	if (ClickHandlerPtr activated = ClickHandler::unpressed()) {
+	if (auto activated = ClickHandler::unpressed()) {
 		Ui::hideLayer();
 		App::activateClickHandler(activated, e->button());
 	}
 	return BoxContent::mouseReleaseEvent(e);
 }
 
-void ConfirmBox::leaveEvent(QEvent *e) {
+void ConfirmBox::leaveEventHook(QEvent *e) {
 	ClickHandler::clearActive(this);
 }
 
@@ -212,10 +211,10 @@ void ConfirmBox::paintEvent(QPaintEvent *e) {
 	_text.drawLeftElided(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, width(), 16, style::al_left);
 }
 
-InformBox::InformBox(QWidget*, const QString &text, base::lambda_copy<void()> &&closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, lang(lng_box_ok), std_::move(closedCallback)) {
+InformBox::InformBox(QWidget*, const QString &text, base::lambda<void()> closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, lang(lng_box_ok), std::move(closedCallback)) {
 }
 
-InformBox::InformBox(QWidget*, const QString &text, const QString &doneText, base::lambda_copy<void()> &&closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, doneText, std_::move(closedCallback)) {
+InformBox::InformBox(QWidget*, const QString &text, const QString &doneText, base::lambda<void()> closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, doneText, std::move(closedCallback)) {
 }
 
 MaxInviteBox::MaxInviteBox(QWidget*, const QString &link)
@@ -241,14 +240,11 @@ void MaxInviteBox::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
 	if (_linkOver) {
 		Application::clipboard()->setText(_link);
-
-		Ui::Toast::Config toast;
-		toast.text = lang(lng_create_channel_link_copied);
-		Ui::Toast::Show(App::wnd(), toast);
+		Ui::Toast::Show(lang(lng_create_channel_link_copied));
 	}
 }
 
-void MaxInviteBox::leaveEvent(QEvent *e) {
+void MaxInviteBox::leaveEventHook(QEvent *e) {
 	updateSelected(QCursor::pos());
 }
 
@@ -318,8 +314,8 @@ void ConvertToSupergroupBox::convertDone(const MTPUpdates &updates) {
 	App::main()->sentUpdatesReceived(updates);
 	const QVector<MTPChat> *v = 0;
 	switch (updates.type()) {
-	case mtpc_updates: v = &updates.c_updates().vchats.c_vector().v; break;
-	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.c_vector().v; break;
+	case mtpc_updates: v = &updates.c_updates().vchats.v; break;
+	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.v; break;
 	default: LOG(("API Error: unexpected update cons %1 (ConvertToSupergroupBox::convertDone)").arg(updates.type())); break;
 	}
 
@@ -394,7 +390,7 @@ void PinMessageBox::keyPressEvent(QKeyEvent *e) {
 void PinMessageBox::pinMessage() {
 	if (_requestId) return;
 
-	MTPchannels_UpdatePinnedMessage::Flags flags = 0;
+	auto flags = MTPchannels_UpdatePinnedMessage::Flags(0);
 	if (!_notify->checked()) {
 		flags |= MTPchannels_UpdatePinnedMessage::Flag::f_silent;
 	}
@@ -573,7 +569,7 @@ ConfirmInviteBox::ConfirmInviteBox(QWidget*, const QString &title, const MTPChat
 		if (!location.isNull()) {
 			_photo = ImagePtr(location);
 			if (!_photo->loaded()) {
-				subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+				subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 				_photo->load();
 			}
 		}

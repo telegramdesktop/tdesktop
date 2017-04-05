@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "intro/introphone.h"
 
 #include "lang.h"
@@ -30,6 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/widget_fade_wrap.h"
 #include "core/click_handler_types.h"
 #include "boxes/confirmbox.h"
+#include "messenger.h"
 
 namespace Intro {
 
@@ -57,6 +57,8 @@ PhoneWidget::PhoneWidget(QWidget *parent, Widget::Data *data) : Step(parent, dat
 		_country->onChooseCountry(qsl("US"));
 	}
 	_changed = false;
+
+	Messenger::Instance().destroyStaleAuthorizationKeys();
 }
 
 void PhoneWidget::resizeEvent(QResizeEvent *e) {
@@ -92,7 +94,7 @@ void PhoneWidget::showSignup() {
 	if (!_signup) {
 		auto signupText = lng_phone_notreg(lt_link_start, textcmdStartLink(1), lt_link_end, textcmdStopLink(), lt_signup_start, textcmdStartLink(2), lt_signup_end, textcmdStopLink());
 		auto inner = object_ptr<Ui::FlatLabel>(this, signupText, Ui::FlatLabel::InitType::Rich, st::introDescription);
-		_signup.create(this, std_::move(inner), st::introErrorDuration);
+		_signup.create(this, std::move(inner), st::introErrorDuration);
 		_signup->entity()->setLink(1, MakeShared<UrlClickHandler>(qsl("https://telegram.org"), false));
 		_signup->entity()->setLink(2, MakeShared<LambdaClickHandler>([this] {
 			toSignUp();
@@ -158,8 +160,7 @@ void PhoneWidget::phoneCheckDone(const MTPauth_CheckedPhone &result) {
 
 		_checkRequest->start(1000);
 
-		MTPauth_SendCode::Flags flags = 0;
-		_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(flags), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
+		_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(0), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
 	} else {
 		showSignup();
 		_sentRequest = 0;
@@ -178,7 +179,7 @@ void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 	auto &d = result.c_auth_sentCode();
 	fillSentCodeData(d.vtype);
 	getData()->phone = _sentPhone;
-	getData()->phoneHash = d.vphone_code_hash.c_string().v.c_str();
+	getData()->phoneHash = qba(d.vphone_code_hash);
 	getData()->phoneIsRegistered = d.is_phone_registered();
 	if (d.has_next_type() && d.vnext_type.type() == mtpc_auth_codeTypeCall) {
 		getData()->callStatus = Widget::Data::CallStatus::Waiting;
@@ -195,8 +196,7 @@ void PhoneWidget::toSignUp() {
 
 	_checkRequest->start(1000);
 
-	MTPauth_SendCode::Flags flags = 0;
-	_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(flags), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
+	_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(0), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
 }
 
 bool PhoneWidget::phoneSubmitFail(const RPCError &error) {

@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/toast/toast_manager.h"
 
 #include "application.h"
@@ -40,6 +39,10 @@ Manager::Manager(QWidget *parent) : QObject(parent) {
 }
 
 Manager *Manager::instance(QWidget *parent) {
+	if (!parent) {
+		return nullptr;
+	}
+
 	_managers.createIfNull();
 	auto i = _managers->constFind(parent);
 	if (i == _managers->cend()) {
@@ -48,7 +51,7 @@ Manager *Manager::instance(QWidget *parent) {
 	return i.value();
 }
 
-void Manager::addToast(std_::unique_ptr<Instance> &&toast) {
+void Manager::addToast(std::unique_ptr<Instance> &&toast) {
 	_toasts.push_back(toast.release());
 	Instance *t = _toasts.back();
 	Widget *widget = t->_widget.get();

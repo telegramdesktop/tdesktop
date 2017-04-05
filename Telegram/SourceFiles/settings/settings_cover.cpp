@@ -18,14 +18,14 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "settings/settings_cover.h"
 
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "observer_peer.h"
 #include "lang.h"
-#include "application.h"
+#include "messenger.h"
+#include "mainwindow.h"
 #include "apiwrap.h"
 #include "profile/profile_userpic_button.h"
 #include "profile/profile_cover_drop_area.h"
@@ -34,7 +34,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/addcontactbox.h"
 #include "styles/style_settings.h"
 #include "styles/style_profile.h" // for divider
-#include "platform/platform_file_dialog.h"
+#include "platform/platform_file_utilities.h"
 
 namespace Settings {
 
@@ -58,9 +58,6 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		notifyPeerUpdated(update);
 	}));
-	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
-		notifyFileQueryUpdated(update);
-	});
 
 	connect(App::app(), SIGNAL(peerPhotoDone(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
 	connect(App::app(), SIGNAL(peerPhotoFail(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
@@ -91,10 +88,8 @@ void CoverWidget::onPhotoShow() {
 }
 
 void CoverWidget::onCancelPhotoUpload() {
-	if (auto app = App::app()) {
-		app->cancelPhotoUpdate(_self->id);
-		refreshStatusText();
-	}
+	Messenger::Instance().cancelPhotoUpdate(_self->id);
+	refreshStatusText();
 }
 
 int CoverWidget::resizeGetHeight(int newWidth) {
@@ -188,7 +183,7 @@ bool CoverWidget::mimeDataHasImage(const QMimeData *mimeData) const {
 	auto &url = urls.at(0);
 	if (!url.isLocalFile()) return false;
 
-	auto file = Platform::FileDialog::UrlToLocal(url);
+	auto file = Platform::File::UrlToLocal(url);
 
 	QFileInfo info(file);
 	if (info.isDir()) return false;
@@ -236,7 +231,7 @@ void CoverWidget::dropEvent(QDropEvent *e) {
 		if (urls.size() == 1) {
 			auto &url = urls.at(0);
 			if (url.isLocalFile()) {
-				img = App::readImage(Platform::FileDialog::UrlToLocal(url));
+				img = App::readImage(Platform::File::UrlToLocal(url));
 			}
 		}
 	}
@@ -277,19 +272,17 @@ void CoverWidget::refreshNameText() {
 }
 
 void CoverWidget::refreshStatusText() {
-	if (auto app = App::app()) {
-		if (app->isPhotoUpdating(_self->id)) {
-			_statusText = lang(lng_settings_uploading_photo);
-			_statusTextIsOnline = false;
-			if (!_cancelPhotoUpload) {
-				_cancelPhotoUpload.create(this, lang(lng_cancel), st::defaultLinkButton);
-				connect(_cancelPhotoUpload, SIGNAL(clicked()), this, SLOT(onCancelPhotoUpload()));
-				_cancelPhotoUpload->show();
-				_cancelPhotoUpload->moveToLeft(_statusPosition.x() + st::settingsStatusFont->width(_statusText) + st::settingsStatusFont->spacew, _statusPosition.y());
-			}
-			update();
-			return;
+	if (Messenger::Instance().isPhotoUpdating(_self->id)) {
+		_statusText = lang(lng_settings_uploading_photo);
+		_statusTextIsOnline = false;
+		if (!_cancelPhotoUpload) {
+			_cancelPhotoUpload.create(this, lang(lng_cancel), st::defaultLinkButton);
+			connect(_cancelPhotoUpload, SIGNAL(clicked()), this, SLOT(onCancelPhotoUpload()));
+			_cancelPhotoUpload->show();
+			_cancelPhotoUpload->moveToLeft(_statusPosition.x() + st::settingsStatusFont->width(_statusText) + st::settingsStatusFont->spacew, _statusPosition.y());
 		}
+		update();
+		return;
 	}
 
 	_cancelPhotoUpload.destroy();
@@ -306,33 +299,25 @@ void CoverWidget::refreshStatusText() {
 
 void CoverWidget::onSetPhoto() {
 	auto imageExtensions = cImgExtensions();
-	auto filter = qsl("Image files (*") + imageExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter();
+	auto filter = qsl("Image files (*") + imageExtensions.join(qsl(" *")) + qsl(");;") + FileDialog::AllFilesFilter();
+	FileDialog::GetOpenPath(lang(lng_choose_image), filter, base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
+		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
+			return;
+		}
 
-	_setPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filter);
+		QImage img;
+		if (!result.remoteContent.isEmpty()) {
+			img = App::readImage(result.remoteContent);
+		} else {
+			img = App::readImage(result.paths.front());
+		}
+
+		showSetPhotoBox(img);
+	}));
 }
 
 void CoverWidget::onEditName() {
 	Ui::show(Box<EditNameTitleBox>(self()));
-}
-
-void CoverWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {
-	if (_setPhotoFileQueryId != update.queryId) {
-		return;
-	}
-	_setPhotoFileQueryId = 0;
-
-	if (update.filePaths.isEmpty() && update.remoteContent.isEmpty()) {
-		return;
-	}
-
-	QImage img;
-	if (!update.remoteContent.isEmpty()) {
-		img = App::readImage(update.remoteContent);
-	} else {
-		img = App::readImage(update.filePaths.front());
-	}
-
-	showSetPhotoBox(img);
 }
 
 void CoverWidget::showSetPhotoBox(const QImage &img) {

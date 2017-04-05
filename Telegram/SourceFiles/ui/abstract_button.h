@@ -52,8 +52,8 @@ public:
 
 	void setAcceptBoth(bool acceptBoth = true);
 
-	void setClickedCallback(base::lambda<void()> &&callback) {
-		_clickedCallback = std_::move(callback);
+	void setClickedCallback(base::lambda<void()> callback) {
+		_clickedCallback = std::move(callback);
 	}
 
 	void setVisible(bool visible) override {
@@ -64,8 +64,8 @@ public:
 	}
 
 protected:
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;

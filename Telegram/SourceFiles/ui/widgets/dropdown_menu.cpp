@@ -15,7 +15,6 @@ GNU General Public License for more details.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/widgets/dropdown_menu.h"
 
 #include "application.h"
@@ -69,8 +68,8 @@ QAction *DropdownMenu::addAction(const QString &text, const QObject *receiver, c
 	return _menu->addAction(text, receiver, member, icon, iconOver);
 }
 
-QAction *DropdownMenu::addAction(const QString &text, base::lambda<void()> &&callback, const style::icon *icon, const style::icon *iconOver) {
-	return _menu->addAction(text, std_::move(callback), icon, iconOver);
+QAction *DropdownMenu::addAction(const QString &text, base::lambda<void()> callback, const style::icon *icon, const style::icon *iconOver) {
+	return _menu->addAction(text, std::move(callback), icon, iconOver);
 }
 
 QAction *DropdownMenu::addSeparator() {

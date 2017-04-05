@@ -30,11 +30,11 @@ class FlatLabel;
 class InformBox;
 class ConfirmBox : public BoxContent, public ClickHandlerHost {
 public:
-	ConfirmBox(QWidget*, const QString &text, base::lambda<void()> &&confirmedCallback = base::lambda<void()>(), base::lambda<void()> &&cancelledCallback = base::lambda<void()>());
-	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, base::lambda<void()> &&confirmedCallback = base::lambda<void()>(), base::lambda<void()> &&cancelledCallback = base::lambda<void()>());
-	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, base::lambda<void()> &&confirmedCallback = base::lambda<void()>(), base::lambda<void()> &&cancelledCallback = base::lambda<void()>());
-	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const QString &cancelText, base::lambda<void()> &&confirmedCallback = base::lambda<void()>(), base::lambda<void()> &&cancelledCallback = base::lambda<void()>());
-	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, const QString &cancelText, base::lambda<void()> &&confirmedCallback = base::lambda<void()>(), base::lambda<void()> &&cancelledCallback = base::lambda<void()>());
+	ConfirmBox(QWidget*, const QString &text, base::lambda_once<void()> confirmedCallback = base::lambda_once<void()>(), base::lambda_once<void()> cancelledCallback = base::lambda_once<void()>());
+	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, base::lambda_once<void()> confirmedCallback = base::lambda_once<void()>(), base::lambda_once<void()> cancelledCallback = base::lambda_once<void()>());
+	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, base::lambda_once<void()> confirmedCallback = base::lambda_once<void()>(), base::lambda_once<void()> cancelledCallback = base::lambda_once<void()>());
+	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const QString &cancelText, base::lambda_once<void()> confirmedCallback = base::lambda_once<void()>(), base::lambda_once<void()> cancelledCallback = base::lambda_once<void()>());
+	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, const QString &cancelText, base::lambda_once<void()> confirmedCallback = base::lambda_once<void()>(), base::lambda_once<void()> cancelledCallback = base::lambda_once<void()>());
 
 	void updateLink();
 
@@ -57,13 +57,13 @@ protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 
 private:
 	struct InformBoxTag {
 	};
-	ConfirmBox(const InformBoxTag &, const QString &text, const QString &doneText, base::lambda_copy<void()> &&closedCallback);
-	base::lambda<void()> generateInformCallback(const base::lambda_copy<void()> &closedCallback);
+	ConfirmBox(const InformBoxTag &, const QString &text, const QString &doneText, base::lambda<void()> closedCallback);
+	base::lambda_once<void()> generateInformCallback(base::lambda<void()> closedCallback);
 	friend class InformBox;
 
 	void confirmed();
@@ -86,15 +86,15 @@ private:
 	bool _confirmed = false;
 	bool _cancelled = false;
 	bool _strictCancel = false;
-	base::lambda<void()> _confirmedCallback;
-	base::lambda<void()> _cancelledCallback;
+	base::lambda_once<void()> _confirmedCallback;
+	base::lambda_once<void()> _cancelledCallback;
 
 };
 
 class InformBox : public ConfirmBox {
 public:
-	InformBox(QWidget*, const QString &text, base::lambda_copy<void()> &&closedCallback = base::lambda_copy<void()>());
-	InformBox(QWidget*, const QString &text, const QString &doneText, base::lambda_copy<void()> &&closedCallback = base::lambda_copy<void()>());
+	InformBox(QWidget*, const QString &text, base::lambda<void()> closedCallback = base::lambda<void()>());
+	InformBox(QWidget*, const QString &text, const QString &doneText, base::lambda<void()> closedCallback = base::lambda<void()>());
 
 };
 
@@ -109,7 +109,7 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 
 private:
 	void updateSelected(const QPoint &cursorGlobalPosition);

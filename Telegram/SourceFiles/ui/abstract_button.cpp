@@ -18,21 +18,20 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/abstract_button.h"
 
 namespace Ui {
 
-void AbstractButton::leaveEvent(QEvent *e) {
+void AbstractButton::leaveEventHook(QEvent *e) {
 	if (_state & StateFlag::Down) return;
 
 	setOver(false, StateChangeSource::ByHover);
-	return TWidget::leaveEvent(e);
+	return TWidget::leaveEventHook(e);
 }
 
-void AbstractButton::enterEvent(QEvent *e) {
+void AbstractButton::enterEventHook(QEvent *e) {
 	checkIfOver(mapFromGlobal(QCursor::pos()));
-	return TWidget::enterEvent(e);
+	return TWidget::enterEventHook(e);
 }
 
 void AbstractButton::setAcceptBoth(bool acceptBoth) {

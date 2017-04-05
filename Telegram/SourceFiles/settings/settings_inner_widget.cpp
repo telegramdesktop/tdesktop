@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "settings/settings_inner_widget.h"
 
 #include "styles/style_settings.h"
@@ -35,7 +34,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Settings {
 
-InnerWidget::InnerWidget(QWidget *parent) : TWidget(parent)
+InnerWidget::InnerWidget(QWidget *parent) : LayerInner(parent)
 , _self(App::self()) {
 	refreshBlocks();
 	subscribe(Global::RefSelfChanged(), [this]() { selfUpdated(); });

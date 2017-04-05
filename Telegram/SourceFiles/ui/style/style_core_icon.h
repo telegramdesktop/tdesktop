@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/style/style_core_color.h"
-#include "core/vector_of_moveable.h"
+#include <vector>
 
 namespace style {
 namespace internal {
@@ -96,7 +96,7 @@ public:
 	IconData(MonoIcons &&...icons) {
 		created();
 		_parts.reserve(sizeof...(MonoIcons));
-		addIcons(std_::forward<MonoIcons>(icons)...);
+		addIcons(std::forward<MonoIcons>(icons)...);
 	}
 
 	void reset() {
@@ -143,11 +143,11 @@ private:
 
 	template <typename ... MonoIcons>
 	void addIcons(MonoIcon &&icon, MonoIcons&&... icons) {
-		_parts.push_back(std_::move(icon));
-		addIcons(std_::forward<MonoIcons>(icons)...);
+		_parts.push_back(std::move(icon));
+		addIcons(std::forward<MonoIcons>(icons)...);
 	}
 
-	std_::vector_of_moveable<MonoIcon> _parts;
+	std::vector<MonoIcon> _parts;
 	mutable int _width = -1;
 	mutable int _height = -1;
 
@@ -159,7 +159,7 @@ public:
 	}
 
 	template <typename ... MonoIcons>
-	Icon(MonoIcons&&... icons) : _data(new IconData(std_::forward<MonoIcons>(icons)...)), _owner(true) {
+	Icon(MonoIcons&&... icons) : _data(new IconData(std::forward<MonoIcons>(icons)...)), _owner(true) {
 	}
 	Icon(const Icon &other) : _data(other._data) {
 	}

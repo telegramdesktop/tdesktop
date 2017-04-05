@@ -21,15 +21,18 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "window/window_title.h"
+#include "window/themes/window_theme_preview.h"
 
-namespace Window {
-namespace Theme {
+namespace Platform {
 
-int DefaultPreviewTitleHeight();
-void DefaultPreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRect body, int outerWidth);
+object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent);
 
-} // namespace Theme
-} // namespace Window
+int PreviewTitleHeight();
+void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRect body, int outerWidth);
+
+} // namespace Platform
+
+// Platform dependent implementations.
 
 #ifdef Q_OS_MAC
 #include "platform/mac/window_title_mac.h"

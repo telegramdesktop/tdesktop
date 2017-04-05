@@ -373,6 +373,12 @@ notificationSampleOpacity: 0.5;
 notificationSampleSize: size(64px, 16px);
 
 membersAboutLimitPadding: margins(0px, 12px, 0px, 12px);
+membersAbout: FlatLabel(defaultFlatLabel) {
+	width: 332px;
+	textFg: membersAboutLimitFg;
+	align: align(top);
+	style: boxLabelStyle;
+}
 
 sessionsScroll: boxLayerScroll;
 sessionsHeight: 350px;
@@ -516,6 +522,34 @@ backgroundScroll: ScrollArea(boxLayerScroll) {
 	deltab: 10px;
 }
 
+calendarTitleHeight: boxTitleHeight;
+calendarPrevious: IconButton {
+	width: calendarTitleHeight;
+	height: calendarTitleHeight;
+
+	icon: icon {{ "title_back", boxTitleFg }};
+	iconPosition: point(20px, 20px);
+
+	rippleAreaPosition: point(6px, 6px);
+	rippleAreaSize: 44px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+calendarPreviousDisabled: icon {{ "title_back", menuIconFg }};
+calendarNext: IconButton(calendarPrevious) {
+	icon: icon {{ "title_back-flip_horizontal", boxTitleFg }};
+}
+calendarNextDisabled: icon {{ "title_back-flip_horizontal", menuIconFg }};
+calendarTitleFont: boxTitleFont;
+calendarDaysFont: normalFont;
+calendarDaysFg: boxTitleAdditionalFg;
+calendarDaysHeight: 32px;
+calendarCellSize: size(48px, 40px);
+calendarCellInner: 34px;
+calendarPadding: margins(14px, 15px, 14px, 10px);
+calendarScroll: backgroundScroll;
+
 passcodeTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 20px;
 }
@@ -530,3 +564,63 @@ usernameTextStyle: TextStyle(passcodeTextStyle) {
 usernameDefaultFg: windowSubTextFg;
 
 downloadPathSkip: 10px;
+
+colorEditWidth: 390px;
+colorEditSkip: 10px;
+colorPickerSize: 256px;
+colorPickerMarkRadius: 6px;
+colorPickerMarkLine: 1px;
+colorSliderSkip: 8px;
+colorSliderArrowLeft: icon {{ "color_slider_arrow", sliderBgActive }};
+colorSliderArrowRight: icon {{ "color_slider_arrow-flip_horizontal", sliderBgActive }};
+colorSliderArrowTop: icon {{ "color_slider_arrow_vertical", sliderBgActive }};
+colorSliderArrowBottom: icon {{ "color_slider_arrow_vertical-flip_vertical", sliderBgActive }};
+colorSliderWidth: 19px;
+colorSampleSize: size(60px, 34px);
+colorFieldSkip: 13px;
+colorValueInput: InputField(defaultInputField) {
+	textMargins: margins(16px, 3px, 0px, 2px);
+	heightMin: 27px;
+}
+colorResultInput: InputField(colorValueInput) {
+}
+
+editPrivacyOptionMargin: margins(23px, 14px, 21px, 0px);
+editPrivacyPadding: margins(23px, 0px, 21px, 0px);
+editPrivacyWarningPadding: margins(23px, 14px, 21px, 0px);
+editPrivacyTitle: FlatLabel(defaultFlatLabel) {
+	width: 320px;
+	textFg: boxTitleFg;
+	maxHeight: 56px;
+	margin: margins(0px, 20px, 0px, 13px);
+	style: TextStyle(defaultTextStyle) {
+		font: boxTitleFont;
+		linkFont: boxTitleFont;
+		linkFontOver: boxTitleFont;
+	}
+}
+editPrivacyLabel: FlatLabel(defaultFlatLabel) {
+	width: 320px;
+	textFg: membersAboutLimitFg;
+	style: defaultTextStyle;
+}
+editPrivacyLinkMargin: margins(0px, 0px, 0px, 8px);
+
+changePhoneIcon: icon {
+	{ "phone_simcard_from", changePhoneSimcardFrom },
+	{ "phone_simcard_migrate", changePhoneSimcardTo, point(30px, 11px) },
+	{ "phone_simcard_to", changePhoneSimcardTo, point(78px, 0px) }
+};
+changePhoneDescription: FlatLabel(boxLabel) {
+	width: 332px;
+	align: align(top);
+}
+changePhoneIconTop: 20px;
+changePhoneDescriptionTop: 96px;
+changePhoneLabel: FlatLabel(defaultFlatLabel) {
+	width: 275px;
+	textFg: windowSubTextFg;
+}
+changePhoneError: FlatLabel(changePhoneLabel) {
+	textFg: boxTextFgError;
+}

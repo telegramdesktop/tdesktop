@@ -63,7 +63,7 @@ public:
 	struct Data {
 		QString country;
 		QString phone;
-		QString phoneHash;
+		QByteArray phoneHash;
 		bool phoneIsRegistered = false;
 
 		enum class CallStatus {
@@ -92,7 +92,7 @@ public:
 		Forward,
 		Replace,
 	};
-	class Step : public TWidget, public RPCSender {
+	class Step : public TWidget, public RPCSender, protected base::Subscriber {
 	public:
 		Step(QWidget *parent, Data *data, bool hasCover = false);
 
@@ -100,8 +100,8 @@ public:
 			setFocus();
 		}
 
-		void setGoCallback(base::lambda<void(Step *step, Direction direction)> &&callback);
-		void setShowResetCallback(base::lambda<void()> &&callback);
+		void setGoCallback(base::lambda<void(Step *step, Direction direction)> callback);
+		void setShowResetCallback(base::lambda<void()> callback);
 
 		void prepareShowAnimated(Step *after);
 		void showAnimated(Direction direction);
@@ -167,8 +167,8 @@ public:
 			CoverAnimation &operator=(CoverAnimation &&other) = default;
 			~CoverAnimation();
 
-			std_::unique_ptr<Ui::CrossFadeAnimation> title;
-			std_::unique_ptr<Ui::CrossFadeAnimation> description;
+			std::unique_ptr<Ui::CrossFadeAnimation> title;
+			std::unique_ptr<Ui::CrossFadeAnimation> description;
 
 			// From content top till the next button top.
 			QPixmap contentSnapshotWas;
@@ -200,7 +200,7 @@ public:
 
 		Animation _a_show;
 		CoverAnimation _coverAnimation;
-		std_::unique_ptr<Ui::SlideAnimation> _slideAnimation;
+		std::unique_ptr<Ui::SlideAnimation> _slideAnimation;
 		QPixmap _coverMask;
 
 	};

@@ -18,16 +18,16 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "history/field_autocomplete.h"
 
 #include "mainwindow.h"
 #include "apiwrap.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "ui/widgets/scroll_area.h"
 #include "styles/style_history.h"
 #include "styles/style_widgets.h"
 #include "styles/style_stickers.h"
+#include "auth_session.h"
 
 FieldAutocomplete::FieldAutocomplete(QWidget *parent) : TWidget(parent)
 , _scroll(this, st::mentionScroll) {
@@ -77,7 +77,7 @@ void FieldAutocomplete::showFiltered(PeerData *peer, QString query, bool addInli
 		return;
 	}
 
-	_emoji = EmojiPtr();
+	_emoji = nullptr;
 
 	query = query.toLower();
 	auto type = Type::Stickers;
@@ -147,17 +147,18 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 	internal::BotCommandRows brows;
 	StickerPack srows;
 	if (_emoji) {
+		auto original = _emoji->original();
 		QMap<uint64, uint64> setsToRequest;
 		auto &sets = Global::RefStickerSets();
 		auto &order = Global::StickerSetsOrder();
-		for (int i = 0, l = order.size(); i < l; ++i) {
-			auto it = sets.find(order.at(i));
+		for (auto i = 0, l = order.size(); i != l; ++i) {
+			auto it = sets.find(order[i]);
 			if (it != sets.cend()) {
 				if (it->emoji.isEmpty()) {
 					setsToRequest.insert(it->id, it->access);
 					it->flags |= MTPDstickerSet_ClientFlag::f_not_loaded;
 				} else if (!(it->flags & MTPDstickerSet::Flag::f_archived)) {
-					StickersByEmojiMap::const_iterator i = it->emoji.constFind(emojiGetNoColor(_emoji));
+					auto i = it->emoji.constFind(original);
 					if (i != it->emoji.cend()) {
 						srows += *i;
 					}
@@ -273,7 +274,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 				if (App::api()) App::api()->requestFullPeer(_chat);
 			} else if (!_chat->participants.isEmpty()) {
 				for (auto i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
-					UserData *user = i.key();
+					auto user = i.key();
 					if (!user->botInfo) continue;
 					if (!user->botInfo->inited && App::api()) App::api()->requestFullPeer(user);
 					if (user->botInfo->commands.isEmpty()) continue;
@@ -303,16 +304,20 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 			int32 botStatus = _chat ? _chat->botStatus : ((_channel && _channel->isMegagroup()) ? _channel->mgInfo->botStatus : -1);
 			if (_chat) {
 				for (auto i = _chat->lastAuthors.cbegin(), e = _chat->lastAuthors.cend(); i != e; ++i) {
-					UserData *user = *i;
+					auto user = *i;
 					if (!user->botInfo) continue;
 					if (!bots.contains(user)) continue;
 					if (!user->botInfo->inited && App::api()) App::api()->requestFullPeer(user);
 					if (user->botInfo->commands.isEmpty()) continue;
 					bots.remove(user);
-					for (int32 j = 0, l = user->botInfo->commands.size(); j < l; ++j) {
+					for (auto j = 0, l = user->botInfo->commands.size(); j != l; ++j) {
 						if (!listAllSuggestions) {
-							QString toFilter = (hasUsername || botStatus == 0 || botStatus == 2) ? user->botInfo->commands.at(j).command + '@' + user->username : user->botInfo->commands.at(j).command;
-							if (!toFilter.startsWith(_filter, Qt::CaseInsensitive)/* || toFilter.size() == _filter.size()*/) continue;
+							auto toFilter = (hasUsername || botStatus == 0 || botStatus == 2)
+								? user->botInfo->commands.at(j).command + '@' + user->username
+								: user->botInfo->commands.at(j).command;
+							if (!toFilter.startsWith(_filter, Qt::CaseInsensitive)/* || toFilter.size() == _filter.size()*/) {
+								continue;
+							}
 						}
 						brows.push_back(qMakePair(user, &user->botInfo->commands.at(j)));
 					}
@@ -529,7 +534,7 @@ FieldAutocompleteInner::FieldAutocompleteInner(FieldAutocomplete *parent, Mentio
 , _previewShown(false) {
 	_previewTimer.setSingleShot(true);
 	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreview()));
-	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 }
 
 void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
@@ -836,13 +841,13 @@ void FieldAutocompleteInner::mouseReleaseEvent(QMouseEvent *e) {
 	chooseSelected(FieldAutocomplete::ChooseMethod::ByClick);
 }
 
-void FieldAutocompleteInner::enterEvent(QEvent *e) {
+void FieldAutocompleteInner::enterEventHook(QEvent *e) {
 	setMouseTracking(true);
 	_mousePos = QCursor::pos();
 	onUpdateSelected(true);
 }
 
-void FieldAutocompleteInner::leaveEvent(QEvent *e) {
+void FieldAutocompleteInner::leaveEventHook(QEvent *e) {
 	setMouseTracking(false);
 	if (_sel >= 0) {
 		setSel(-1);

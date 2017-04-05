@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/text/text.h"
 
 #include <private/qharfbuzz_p.h>
@@ -26,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/click_handler_types.h"
 #include "ui/text/text_block.h"
 #include "lang.h"
-#include "pspecific.h"
+#include "platform/platform_specific.h"
 #include "boxes/confirmbox.h"
 #include "mainwindow.h"
 
@@ -132,7 +131,6 @@ const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink) 
 
 class TextParser {
 public:
-
 	static Qt::LayoutDirection stringDirection(const QString &str, int32 from, int32 to) {
 		const ushort *p = reinterpret_cast<const ushort*>(str.unicode()) + from;
 		const ushort *end = p + (to - from);
@@ -479,14 +477,14 @@ public:
 
 	void parseEmojiFromCurrent() {
 		int len = 0;
-		EmojiPtr e = emojiFromText(ptr - emojiLookback, end, &len);
+		auto e = Ui::Emoji::Find(ptr - emojiLookback, end, &len);
 		if (!e) return;
 
 		for (int l = len - emojiLookback - 1; l > 0; --l) {
 			_t->_text.push_back(*++ptr);
 		}
-		if (e->postfix && _t->_text.at(_t->_text.size() - 1).unicode() != e->postfix) {
-			_t->_text.push_back(e->postfix);
+		if (e->hasPostfix() && _t->_text.at(_t->_text.size() - 1).unicode() != Ui::Emoji::kPostfix) {
+			_t->_text.push_back(QChar(Ui::Emoji::kPostfix));
 			++len;
 		}
 
@@ -498,22 +496,17 @@ public:
 		src(text),
 		rich(options.flags & TextParseRichText),
 		multiline(options.flags & TextParseMultiline),
-		maxLnkIndex(0),
-		flags(0),
-		lnkIndex(0),
 		stopAfterWidth(QFIXED_MAX) {
 		if (options.flags & TextParseLinks) {
 			textParseEntities(src, options.flags, &entities, rich);
 		}
 		parse(options);
 	}
+
 	TextParser(Text *t, const TextWithEntities &textWithEntities, const TextParseOptions &options) : _t(t),
 		src(textWithEntities.text),
 		rich(options.flags & TextParseRichText),
 		multiline(options.flags & TextParseMultiline),
-		maxLnkIndex(0),
-		flags(0),
-		lnkIndex(0),
 		stopAfterWidth(QFIXED_MAX) {
 		auto preparsed = textWithEntities.entities;
 		if ((options.flags & TextParseLinks) && !preparsed.isEmpty()) {
@@ -541,6 +534,7 @@ public:
 		}
 		parse(options);
 	}
+
 	void parse(const TextParseOptions &options) {
 		if (options.maxw > 0 && options.maxh > 0) {
 			stopAfterWidth = ((options.maxh / _t->_st->font->height) + 1) * options.maxw;
@@ -647,11 +641,11 @@ public:
 	}
 
 private:
-
 	enum LinkDisplayStatus {
 		LinkDisplayedFull,
 		LinkDisplayedElided,
 	};
+
 	struct TextLinkData {
 		TextLinkData() = default;
 		TextLinkData(EntityInTextType type, const QString &text, const QString &data, LinkDisplayStatus displayStatus)
@@ -686,16 +680,17 @@ private:
 	typedef QMap<const QChar*, QList<int32> > RemoveFlagsMap;
 	RemoveFlagsMap removeFlags;
 
-	uint16 maxLnkIndex;
+	uint16 maxLnkIndex = 0;
 
 	// current state
-	int32 flags;
-	uint16 lnkIndex;
-	const EmojiData *emoji; // current emoji, if current word is an emoji, or zero
-	int32 blockStart; // offset in result, from which current parsed block is started
-	int32 diacs; // diac chars skipped without good char
+	int32 flags = 0;
+	uint16 lnkIndex = 0;
+	EmojiPtr emoji = nullptr; // current emoji, if current word is an emoji, or zero
+	int32 blockStart = 0; // offset in result, from which current parsed block is started
+	int32 diacs = 0; // diac chars skipped without good char
 	QFixed sumWidth, stopAfterWidth; // summary width of all added words
-	bool sumFinished, newlineAwaited;
+	bool sumFinished = false;
+	bool newlineAwaited = false;
 
 	// current char data
 	QChar ch; // current char (low surrogate, if current char is surrogate pair)
@@ -705,174 +700,109 @@ private:
 };
 
 namespace {
-	// COPIED FROM qtextengine.cpp AND MODIFIED
+// COPIED FROM qtextengine.cpp AND MODIFIED
 
-	struct BidiStatus {
-		BidiStatus() {
-			eor = QChar::DirON;
-			lastStrong = QChar::DirON;
-			last = QChar:: DirON;
-			dir = QChar::DirON;
-		}
-		QChar::Direction eor;
-		QChar::Direction lastStrong;
-		QChar::Direction last;
-		QChar::Direction dir;
-	};
+struct BidiStatus {
+	BidiStatus() {
+		eor = QChar::DirON;
+		lastStrong = QChar::DirON;
+		last = QChar:: DirON;
+		dir = QChar::DirON;
+	}
+	QChar::Direction eor;
+	QChar::Direction lastStrong;
+	QChar::Direction last;
+	QChar::Direction dir;
+};
 
-	enum { _MaxBidiLevel = 61 };
-	enum { _MaxItemLength = 4096 };
+enum { _MaxBidiLevel = 61 };
+enum { _MaxItemLength = 4096 };
 
-	struct BidiControl {
-		inline BidiControl(bool rtl)
-			: cCtx(0), base(rtl ? 1 : 0), level(rtl ? 1 : 0), override(false) {}
+struct BidiControl {
+	inline BidiControl(bool rtl)
+		: cCtx(0), base(rtl ? 1 : 0), level(rtl ? 1 : 0), override(false) {}
 
-		inline void embed(bool rtl, bool o = false) {
-			unsigned int toAdd = 1;
-			if((level%2 != 0) == rtl ) {
-				++toAdd;
-			}
-			if (level + toAdd <= _MaxBidiLevel) {
-				ctx[cCtx].level = level;
-				ctx[cCtx].override = override;
-				cCtx++;
-				override = o;
-				level += toAdd;
-			}
+	inline void embed(bool rtl, bool o = false) {
+		unsigned int toAdd = 1;
+		if((level%2 != 0) == rtl ) {
+			++toAdd;
 		}
-		inline bool canPop() const { return cCtx != 0; }
-		inline void pdf() {
-			Q_ASSERT(cCtx);
-			--cCtx;
-			level = ctx[cCtx].level;
-			override = ctx[cCtx].override;
+		if (level + toAdd <= _MaxBidiLevel) {
+			ctx[cCtx].level = level;
+			ctx[cCtx].override = override;
+			cCtx++;
+			override = o;
+			level += toAdd;
 		}
+	}
+	inline bool canPop() const { return cCtx != 0; }
+	inline void pdf() {
+		Q_ASSERT(cCtx);
+		--cCtx;
+		level = ctx[cCtx].level;
+		override = ctx[cCtx].override;
+	}
 
-		inline QChar::Direction basicDirection() const {
-			return (base ? QChar::DirR : QChar:: DirL);
-		}
-		inline unsigned int baseLevel() const {
-			return base;
-		}
-		inline QChar::Direction direction() const {
-			return ((level%2) ? QChar::DirR : QChar:: DirL);
-		}
+	inline QChar::Direction basicDirection() const {
+		return (base ? QChar::DirR : QChar:: DirL);
+	}
+	inline unsigned int baseLevel() const {
+		return base;
+	}
+	inline QChar::Direction direction() const {
+		return ((level%2) ? QChar::DirR : QChar:: DirL);
+	}
 
-		struct {
-			unsigned int level;
-			bool override;
-		} ctx[_MaxBidiLevel];
-		unsigned int cCtx;
-		const unsigned int base;
+	struct {
 		unsigned int level;
 		bool override;
-	};
+	} ctx[_MaxBidiLevel];
+	unsigned int cCtx;
+	const unsigned int base;
+	unsigned int level;
+	bool override;
+};
 
-	static void eAppendItems(QScriptAnalysis *analysis, int &start, int &stop, const BidiControl &control, QChar::Direction dir) {
-		if (start > stop)
-			return;
+static void eAppendItems(QScriptAnalysis *analysis, int &start, int &stop, const BidiControl &control, QChar::Direction dir) {
+	if (start > stop)
+		return;
 
-		int level = control.level;
+	int level = control.level;
 
-		if(dir != QChar::DirON && !control.override) {
-			// add level of run (cases I1 & I2)
-			if(level % 2) {
-				if(dir == QChar::DirL || dir == QChar::DirAN || dir == QChar::DirEN)
-					level++;
-			} else {
-				if(dir == QChar::DirR)
-					level++;
-				else if(dir == QChar::DirAN || dir == QChar::DirEN)
-					level += 2;
-			}
+	if(dir != QChar::DirON && !control.override) {
+		// add level of run (cases I1 & I2)
+		if(level % 2) {
+			if(dir == QChar::DirL || dir == QChar::DirAN || dir == QChar::DirEN)
+				level++;
+		} else {
+			if(dir == QChar::DirR)
+				level++;
+			else if(dir == QChar::DirAN || dir == QChar::DirEN)
+				level += 2;
 		}
-
-		QScriptAnalysis *s = analysis + start;
-		const QScriptAnalysis *e = analysis + stop;
-		while (s <= e) {
-			s->bidiLevel = level;
-			++s;
-		}
-		++stop;
-		start = stop;
 	}
+
+	QScriptAnalysis *s = analysis + start;
+	const QScriptAnalysis *e = analysis + stop;
+	while (s <= e) {
+		s->bidiLevel = level;
+		++s;
+	}
+	++stop;
+	start = stop;
 }
+
+} // namespace
 
 class TextPainter {
 public:
-
-	static inline uint16 _blockEnd(const Text *t, const Text::TextBlocks::const_iterator &i, const Text::TextBlocks::const_iterator &e) {
-		return (i + 1 == e) ? t->_text.size() : (*(i + 1))->from();
-	}
-	static inline uint16 _blockLength(const Text *t, const Text::TextBlocks::const_iterator &i, const Text::TextBlocks::const_iterator &e) {
-		return _blockEnd(t, i, e) - (*i)->from();
-	}
-
 	TextPainter(Painter *p, const Text *t) : _p(p), _t(t) {
 	}
 
 	~TextPainter() {
 		restoreAfterElided();
-	}
-
-	void initNextParagraph(Text::TextBlocks::const_iterator i) {
-		_parStartBlock = i;
-		Text::TextBlocks::const_iterator e = _t->_blocks.cend();
-		if (i == e) {
-			_parStart = _t->_text.size();
-			_parLength = 0;
-		} else {
-			_parStart = (*i)->from();
-			for (; i != e; ++i) {
-				if ((*i)->type() == TextBlockTNewline) {
-					break;
-				}
-			}
-			_parLength = ((i == e) ? _t->_text.size() : (*i)->from()) - _parStart;
-		}
-		_parAnalysis.resize(0);
-	}
-
-	void initParagraphBidi() {
-		if (!_parLength || !_parAnalysis.isEmpty()) return;
-
-		Text::TextBlocks::const_iterator i = _parStartBlock, e = _t->_blocks.cend(), n = i + 1;
-
-		bool ignore = false;
-		bool rtl = (_parDirection == Qt::RightToLeft);
-		if (!ignore && !rtl) {
-			ignore = true;
-			const ushort *start = reinterpret_cast<const ushort*>(_str) + _parStart;
-			const ushort *curr = start;
-			const ushort *end = start + _parLength;
-			while (curr < end) {
-				while (n != e && (*n)->from() <= _parStart + (curr - start)) {
-					i = n;
-					++n;
-				}
-				if ((*i)->type() != TextBlockTEmoji && *curr >= 0x590) {
-					ignore = false;
-					break;
-				}
-				++curr;
-			}
-		}
-
-		_parAnalysis.resize(_parLength);
-		QScriptAnalysis *analysis = _parAnalysis.data();
-
-		BidiControl control(rtl);
-
-		_parHasBidi = false;
-		if (ignore) {
-			memset(analysis, 0, _parLength * sizeof(QScriptAnalysis));
-			if (rtl) {
-				for (int i = 0; i < _parLength; ++i)
-					analysis[i].bidiLevel = 1;
-				_parHasBidi = true;
-			}
-		} else {
-			_parHasBidi = eBidiItemize(analysis, control);
+		if (_p) {
+			_p->setPen(_originalPen);
 		}
 	}
 
@@ -882,7 +812,9 @@ public:
 		_blocksSize = _t->_blocks.size();
 		if (_p) {
 			_p->setFont(_t->_st->font);
+			_textPalette = &_p->textPalette();
 			_originalPen = _p->pen();
+			_originalPenSelected = (_textPalette->selectFg->c.alphaF() == 0) ? _originalPen : _textPalette->selectFg->p;
 		}
 
 		_x = left;
@@ -904,7 +836,7 @@ public:
 		_str = _t->_text.unicode();
 
 		if (_p) {
-			auto clip = _p->hasClipping() ? _p->clipBoundingRect() : QRectF();
+			auto clip = _p->hasClipping() ? _p->clipBoundingRect() : QRect();
 			if (clip.width() > 0 || clip.height() > 0) {
 				if (_yFrom < clip.y()) _yFrom = clip.y();
 				if (_yTo < 0 || _yTo > clip.y() + clip.height()) _yTo = clip.y() + clip.height();
@@ -924,28 +856,30 @@ public:
 
 		_lineHeight = 0;
 		_fontHeight = _t->_st->font->height;
-		QFixed last_rBearing = 0, last_rPadding = 0;
+		auto last_rBearing = QFixed(0);
+		_last_rPadding = QFixed(0);
 
-		int32 blockIndex = 0;
+		auto blockIndex = 0;
 		bool longWordLine = true;
-		Text::TextBlocks::const_iterator e = _t->_blocks.cend();
-		for (Text::TextBlocks::const_iterator i = _t->_blocks.cbegin(); i != e; ++i, ++blockIndex) {
-			ITextBlock *b = *i;
-			TextBlockType _btype = b->type();
-			int32 blockHeight = countBlockHeight(b, _t->_st);
+		auto e = _t->_blocks.cend();
+		for (auto i = _t->_blocks.cbegin(); i != e; ++i, ++blockIndex) {
+			auto b = *i;
+			auto _btype = b->type();
+			auto blockHeight = countBlockHeight(b, _t->_st);
 
 			if (_btype == TextBlockTNewline) {
 				if (!_lineHeight) _lineHeight = blockHeight;
-				ushort nextStart = _blockEnd(_t, i, e);
-				if (!drawLine(nextStart, i + 1, e)) return;
+				if (!drawLine((*i)->from(), i, e)) {
+					return;
+				}
 
 				_y += _lineHeight;
 				_lineHeight = 0;
-				_lineStart = nextStart;
+				_lineStart = _t->countBlockEnd(i, e);
 				_lineStartBlock = blockIndex + 1;
 
 				last_rBearing = b->f_rbearing();
-				last_rPadding = b->f_rpadding();
+				_last_rPadding = b->f_rpadding();
 				_wLeft = _w - (b->f_width() - last_rBearing);
 				if (_elideLast && _elideRemoveFromEnd > 0 && (_y + blockHeight >= _yToElide)) {
 					_wLeft -= _elideRemoveFromEnd;
@@ -959,12 +893,11 @@ public:
 				continue;
 			}
 
-			auto b__f_lpadding = b->f_lpadding();
 			auto b__f_rbearing = b->f_rbearing();
-			QFixed newWidthLeft = _wLeft - b__f_lpadding - last_rBearing - (last_rPadding + b->f_width() - b__f_rbearing);
+			auto newWidthLeft = _wLeft - last_rBearing - (_last_rPadding + b->f_width() - b__f_rbearing);
 			if (newWidthLeft >= 0) {
 				last_rBearing = b__f_rbearing;
-				last_rPadding = b->f_rpadding();
+				_last_rPadding = b->f_rpadding();
 				_wLeft = newWidthLeft;
 
 				_lineHeight = qMax(_lineHeight, blockHeight);
@@ -974,9 +907,9 @@ public:
 			}
 
 			if (_btype == TextBlockTText) {
-				TextBlock *t = static_cast<TextBlock*>(b);
+				auto t = static_cast<TextBlock*>(b);
 				if (t->_words.isEmpty()) { // no words in this block, spaces only => layout this block in the same line
-					last_rPadding += b__f_lpadding;
+					_last_rPadding += b->f_rpadding();
 
 					_lineHeight = qMax(_lineHeight, blockHeight);
 
@@ -984,17 +917,16 @@ public:
 					continue;
 				}
 
-				QFixed f_wLeft = _wLeft; // vars for saving state of the last word start
-				int32 f_lineHeight = _lineHeight; // f points to the last word-start element of t->_words
-				for (TextBlock::TextWords::const_iterator j = t->_words.cbegin(), en = t->_words.cend(), f = j; j != en; ++j) {
-					bool wordEndsHere = (j->f_width() >= 0);
-					QFixed j_width = wordEndsHere ? j->f_width() : -j->f_width();
+				auto f_wLeft = _wLeft; // vars for saving state of the last word start
+				auto f_lineHeight = _lineHeight; // f points to the last word-start element of t->_words
+				for (auto j = t->_words.cbegin(), en = t->_words.cend(), f = j; j != en; ++j) {
+					auto wordEndsHere = (j->f_width() >= 0);
+					auto j_width = wordEndsHere ? j->f_width() : -j->f_width();
 
-					QFixed newWidthLeft = _wLeft - b__f_lpadding - last_rBearing - (last_rPadding + j_width - j->f_rbearing());
-					b__f_lpadding = 0;
+					auto newWidthLeft = _wLeft - last_rBearing - (_last_rPadding + j_width - j->f_rbearing());
 					if (newWidthLeft >= 0) {
 						last_rBearing = j->f_rbearing();
-						last_rPadding = j->f_rpadding();
+						_last_rPadding = j->f_rpadding();
 						_wLeft = newWidthLeft;
 
 						_lineHeight = qMax(_lineHeight, blockHeight);
@@ -1010,8 +942,8 @@ public:
 						continue;
 					}
 
-					int32 elidedLineHeight = qMax(_lineHeight, blockHeight);
-					bool elidedLine = _elideLast && (_y + elidedLineHeight >= _yToElide);
+					auto elidedLineHeight = qMax(_lineHeight, blockHeight);
+					auto elidedLine = _elideLast && (_y + elidedLineHeight >= _yToElide);
 					if (elidedLine) {
 						_lineHeight = elidedLineHeight;
 					} else if (f != j && !_breakEverywhere) {
@@ -1021,14 +953,16 @@ public:
 						_lineHeight = f_lineHeight;
 						j_width = (j->f_width() >= 0) ? j->f_width() : -j->f_width();
 					}
-					if (!drawLine(elidedLine ? ((j + 1 == en) ? _blockEnd(_t, i, e) : (j + 1)->from()) : j->from(), i, e)) return;
+					if (!drawLine(elidedLine ? ((j + 1 == en) ? _t->countBlockEnd(i, e) : (j + 1)->from()) : j->from(), i, e)) {
+						return;
+					}
 					_y += _lineHeight;
 					_lineHeight = qMax(0, blockHeight);
 					_lineStart = j->from();
 					_lineStartBlock = blockIndex;
 
 					last_rBearing = j->f_rbearing();
-					last_rPadding = j->f_rpadding();
+					_last_rPadding = j->f_rpadding();
 					_wLeft = _w - (j_width - last_rBearing);
 					if (_elideLast && _elideRemoveFromEnd > 0 && (_y + blockHeight >= _yToElide)) {
 						_wLeft -= _elideRemoveFromEnd;
@@ -1042,19 +976,21 @@ public:
 				continue;
 			}
 
-			int32 elidedLineHeight = qMax(_lineHeight, blockHeight);
-			bool elidedLine = _elideLast && (_y + elidedLineHeight >= _yToElide);
+			auto elidedLineHeight = qMax(_lineHeight, blockHeight);
+			auto elidedLine = _elideLast && (_y + elidedLineHeight >= _yToElide);
 			if (elidedLine) {
 				_lineHeight = elidedLineHeight;
 			}
-			if (!drawLine(elidedLine ? _blockEnd(_t, i, e) : b->from(), i, e)) return;
+			if (!drawLine(elidedLine ? _t->countBlockEnd(i, e) : b->from(), i, e)) {
+				return;
+			}
 			_y += _lineHeight;
 			_lineHeight = qMax(0, blockHeight);
 			_lineStart = b->from();
 			_lineStartBlock = blockIndex;
 
 			last_rBearing = b__f_rbearing;
-			last_rPadding = b->f_rpadding();
+			_last_rPadding = b->f_rpadding();
 			_wLeft = _w - (b->f_width() - last_rBearing);
 			if (_elideLast && _elideRemoveFromEnd > 0 && (_y + blockHeight >= _yToElide)) {
 				_wLeft -= _elideRemoveFromEnd;
@@ -1122,14 +1058,66 @@ public:
 		return _lookupResult;
 	}
 
-	const QPen &blockPen(ITextBlock *block) {
-		if (block->lnkIndex()) {
-			return _p->textPalette().linkFg->p;
+private:
+	void initNextParagraph(Text::TextBlocks::const_iterator i) {
+		_parStartBlock = i;
+		Text::TextBlocks::const_iterator e = _t->_blocks.cend();
+		if (i == e) {
+			_parStart = _t->_text.size();
+			_parLength = 0;
+		} else {
+			_parStart = (*i)->from();
+			for (; i != e; ++i) {
+				if ((*i)->type() == TextBlockTNewline) {
+					break;
+				}
+			}
+			_parLength = ((i == e) ? _t->_text.size() : (*i)->from()) - _parStart;
 		}
-		if ((block->flags() & TextBlockFCode) || (block->flags() & TextBlockFPre)) {
-			return _p->textPalette().monoFg->p;
+		_parAnalysis.resize(0);
+	}
+
+	void initParagraphBidi() {
+		if (!_parLength || !_parAnalysis.isEmpty()) return;
+
+		Text::TextBlocks::const_iterator i = _parStartBlock, e = _t->_blocks.cend(), n = i + 1;
+
+		bool ignore = false;
+		bool rtl = (_parDirection == Qt::RightToLeft);
+		if (!ignore && !rtl) {
+			ignore = true;
+			const ushort *start = reinterpret_cast<const ushort*>(_str) + _parStart;
+			const ushort *curr = start;
+			const ushort *end = start + _parLength;
+			while (curr < end) {
+				while (n != e && (*n)->from() <= _parStart + (curr - start)) {
+					i = n;
+					++n;
+				}
+				if ((*i)->type() != TextBlockTEmoji && *curr >= 0x590) {
+					ignore = false;
+					break;
+				}
+				++curr;
+			}
 		}
-		return _originalPen;
+
+		_parAnalysis.resize(_parLength);
+		QScriptAnalysis *analysis = _parAnalysis.data();
+
+		BidiControl control(rtl);
+
+		_parHasBidi = false;
+		if (ignore) {
+			memset(analysis, 0, _parLength * sizeof(QScriptAnalysis));
+			if (rtl) {
+				for (int i = 0; i < _parLength; ++i)
+					analysis[i].bidiLevel = 1;
+				_parHasBidi = true;
+			}
+		} else {
+			_parHasBidi = eBidiItemize(analysis, control);
+		}
 	}
 
 	bool drawLine(uint16 _lineEnd, const Text::TextBlocks::const_iterator &_endBlockIter, const Text::TextBlocks::const_iterator &_end) {
@@ -1143,16 +1131,19 @@ public:
 			return true;
 		}
 
-		uint16 trimmedLineEnd = _lineEnd;
+		// Trimming pending spaces, because they sometimes don't fit on the line.
+		// They also are not counted in the line width, they're in the right padding.
+		// Line width is a sum of block / word widths and paddings between them, without trailing one.
+		auto trimmedLineEnd = _lineEnd;
 		for (; trimmedLineEnd > _lineStart; --trimmedLineEnd) {
-			QChar ch = _t->_text.at(trimmedLineEnd - 1);
-			if ((ch != QChar::Space || trimmedLineEnd == _lineStart + 1) && ch != QChar::LineFeed) {
+			auto ch = _t->_text[trimmedLineEnd - 1];
+			if (ch != QChar::Space && ch != QChar::LineFeed) {
 				break;
 			}
 		}
 
-		ITextBlock *_endBlock = (_endBlockIter == _end) ? nullptr : (*_endBlockIter);
-		bool elidedLine = _elideLast && (_y + _lineHeight >= _yToElide);
+		auto _endBlock = (_endBlockIter == _end) ? nullptr : (*_endBlockIter);
+		auto elidedLine = _elideLast && (_y + _lineHeight >= _yToElide);
 		if (elidedLine) {
 			// If we decided to draw the last line elided only because of the skip block
 			// that did not fit on this line, we just draw the line till the very end.
@@ -1165,23 +1156,24 @@ public:
 			}
 		}
 
-		int blockIndex = _lineStartBlock;
-		ITextBlock *currentBlock = _t->_blocks[blockIndex];
-		ITextBlock *nextBlock = (++blockIndex < _blocksSize) ? _t->_blocks[blockIndex] : 0;
+		auto blockIndex = _lineStartBlock;
+		auto currentBlock = _t->_blocks[blockIndex];
+		auto nextBlock = (++blockIndex < _blocksSize) ? _t->_blocks[blockIndex] : nullptr;
 
 		int32 delta = (currentBlock->from() < _lineStart ? qMin(_lineStart - currentBlock->from(), 2) : 0);
 		_localFrom = _lineStart - delta;
-		int32 lineEnd = (_endBlock && _endBlock->from() < trimmedLineEnd && !elidedLine) ? qMin(uint16(trimmedLineEnd + 2), _blockEnd(_t, _endBlockIter, _end)) : trimmedLineEnd;
+		int32 lineEnd = (_endBlock && _endBlock->from() < trimmedLineEnd && !elidedLine) ? qMin(uint16(trimmedLineEnd + 2), _t->countBlockEnd(_endBlockIter, _end)) : trimmedLineEnd;
 
-		QString lineText = _t->_text.mid(_localFrom, lineEnd - _localFrom);
-		int32 lineStart = delta, lineLength = trimmedLineEnd - _lineStart;
+		auto lineText = _t->_text.mid(_localFrom, lineEnd - _localFrom);
+		auto lineStart = delta;
+		auto lineLength = trimmedLineEnd - _lineStart;
 
 		if (elidedLine) {
 			initParagraphBidi();
 			prepareElidedLine(lineText, lineStart, lineLength, _endBlock);
 		}
 
-		QFixed x = _x;
+		auto x = _x;
 		if (_align & Qt::AlignHCenter) {
 			x += (_wLeft / 2).toInt();
 		} else if (((_align & Qt::AlignLeft) && _parDirection == Qt::RightToLeft) || ((_align & Qt::AlignRight) && _parDirection == Qt::LeftToRight)) {
@@ -1230,12 +1222,12 @@ public:
 
 			if ((selectFromStart && _parDirection == Qt::LeftToRight) || (selectTillEnd && _parDirection == Qt::RightToLeft)) {
 				if (x > _x) {
-					_p->fillRect(QRectF(_x.toReal(), _y + _yDelta, (x - _x).toReal(), _fontHeight), _p->textPalette().selectBg->b);
+					fillSelectRange(_x, x);
 				}
 			}
 			if ((selectTillEnd && _parDirection == Qt::LeftToRight) || (selectFromStart && _parDirection == Qt::RightToLeft)) {
 				if (x < _x + _wLeft) {
-					_p->fillRect(QRectF((x + _w - _wLeft).toReal(), _y + _yDelta, (_x + _wLeft - x).toReal(), _fontHeight), _p->textPalette().selectBg->b);
+					fillSelectRange(x + _w - _wLeft, _x + _w);
 				}
 			}
 		}
@@ -1298,8 +1290,7 @@ public:
 
 		int32 textY = _y + _yDelta + _t->_st->font->ascent, emojiY = (_t->_st->font->height - st::emojiSize) / 2;
 
-		eSetFont(currentBlock);
-		if (_p) _p->setPen(blockPen(currentBlock));
+		applyBlockProperties(currentBlock);
 		for (int i = 0; i < nItems; ++i) {
 			int item = firstItem + visualOrder[i];
 			const QScriptItem &si = engine.layoutData->items.at(item);
@@ -1308,14 +1299,12 @@ public:
 			while (blockIndex > _lineStartBlock + 1 && _t->_blocks[blockIndex - 1]->from() > _localFrom + si.position) {
 				nextBlock = currentBlock;
 				currentBlock = _t->_blocks[--blockIndex - 1];
-				if (_p) _p->setPen(blockPen(currentBlock));
-				eSetFont(currentBlock);
+				applyBlockProperties(currentBlock);
 			}
 			while (nextBlock && nextBlock->from() <= _localFrom + si.position) {
 				currentBlock = nextBlock;
 				nextBlock = (++blockIndex < _blocksSize) ? _t->_blocks[blockIndex] : 0;
-				if (_p) _p->setPen(blockPen(currentBlock));
-				eSetFont(currentBlock);
+				applyBlockProperties(currentBlock);
 			}
 			if (si.analysis.flags >= QScriptAnalysis::TabOrObject) {
 				TextBlockType _type = currentBlock->type();
@@ -1339,20 +1328,28 @@ public:
 							}
 							return false;
 						}
-						const QChar *chFrom = _str + currentBlock->from(), *chTo = chFrom + ((nextBlock ? nextBlock->from() : _t->_text.size()) - currentBlock->from());
-						if (chTo > chFrom && (chTo - 1)->unicode() == QChar::Space) {
+
+						// Emoji with spaces after symbol lookup
+						auto chFrom = _str + currentBlock->from();
+						auto chTo = chFrom + ((nextBlock ? nextBlock->from() : _t->_text.size()) - currentBlock->from());
+						auto spacesWidth = (si.width - currentBlock->f_width());
+						auto spacesCount = 0;
+						while (chTo > chFrom && (chTo - 1)->unicode() == QChar::Space) {
+							++spacesCount;
+							--chTo;
+						}
+						if (spacesCount > 0) { // Check if we're over a space.
 							if (rtl) {
-								if (_lookupX < x + (si.width - currentBlock->f_width())) {
-									_lookupResult.symbol = (chTo - 1 - _str); // up to ending space, included, rtl
-									_lookupResult.afterSymbol = (_lookupX < x + (si.width - currentBlock->f_width()) / 2) ? true : false;
+								if (_lookupX < x + spacesWidth) {
+									_lookupResult.symbol = (chTo - _str); // up to a space, included, rtl
+									_lookupResult.afterSymbol = (_lookupX < x + (spacesWidth / 2)) ? true : false;
 									return false;
 								}
-							} else if (_lookupX >= x + currentBlock->f_width()) {
-								_lookupResult.symbol = (chTo - 1 - _str); // up to ending space, inclided, ltr
-								_lookupResult.afterSymbol = (_lookupX >= x + currentBlock->f_width() + (currentBlock->f_rpadding() / 2)) ? true : false;
+							} else if (_lookupX >= x + si.width - spacesWidth) {
+								_lookupResult.symbol = (chTo - _str); // up to a space, inclided, ltr
+								_lookupResult.afterSymbol = (_lookupX >= x + si.width - spacesWidth + (spacesWidth / 2)) ? true : false;
 								return false;
 							}
-							--chTo;
 						}
 						if (_lookupX < x + (rtl ? (si.width - currentBlock->f_width()) : 0) + (currentBlock->f_width() / 2)) {
 							_lookupResult.symbol = ((rtl && chTo > chFrom) ? (chTo - 1) : chFrom) - _str;
@@ -1364,27 +1361,29 @@ public:
 					}
 					return false;
 				} else if (_p && _type == TextBlockTEmoji) {
-					QFixed glyphX = x;
+					auto glyphX = x;
+					auto spacesWidth = (si.width - currentBlock->f_width());
 					if (rtl) {
-						glyphX += (si.width - currentBlock->f_width());
+						glyphX += spacesWidth;
 					}
 					if (_localFrom + si.position < _selection.to) {
-						const QChar *chFrom = _str + currentBlock->from(), *chTo = chFrom + ((nextBlock ? nextBlock->from() : _t->_text.size()) - currentBlock->from());
+						auto chFrom = _str + currentBlock->from();
+						auto chTo = chFrom + ((nextBlock ? nextBlock->from() : _t->_text.size()) - currentBlock->from());
 						if (_localFrom + si.position >= _selection.from) { // could be without space
 							if (chTo == chFrom || (chTo - 1)->unicode() != QChar::Space || _selection.to >= (chTo - _str)) {
-								_p->fillRect(QRectF(x.toReal(), _y + _yDelta, si.width.toReal(), _fontHeight), _p->textPalette().selectBg);
+								fillSelectRange(x, x + si.width);
 							} else { // or with space
-								_p->fillRect(QRectF(glyphX.toReal(), _y + _yDelta, currentBlock->f_width().toReal(), _fontHeight), _p->textPalette().selectBg);
+								fillSelectRange(glyphX, glyphX + currentBlock->f_width());
 							}
 						} else if (chTo > chFrom && (chTo - 1)->unicode() == QChar::Space && (chTo - 1 - _str) >= _selection.from) {
 							if (rtl) { // rtl space only
-								_p->fillRect(QRectF(x.toReal(), _y + _yDelta, (glyphX - x).toReal(), _fontHeight), _p->textPalette().selectBg->b);
+								fillSelectRange(x, glyphX);
 							} else { // ltr space only
-								_p->fillRect(QRectF((x + currentBlock->f_width()).toReal(), _y + _yDelta, (si.width - currentBlock->f_width()).toReal(), _fontHeight), _p->textPalette().selectBg);
+								fillSelectRange(x + currentBlock->f_width(), x + si.width);
 							}
 						}
 					}
-					emojiDraw(*_p, static_cast<EmojiBlock*>(currentBlock)->emoji, (glyphX + int(st::emojiPadding)).toInt(), _y + _yDelta + emojiY);
+					emojiDraw(*_p, static_cast<EmojiBlock*>(currentBlock)->emoji, (glyphX + st::emojiPadding).toInt(), _y + _yDelta + emojiY);
 //				} else if (_p && currentBlock->type() == TextBlockSkip) { // debug
 //					_p->fillRect(QRect(x.toInt(), _y, currentBlock->width(), static_cast<SkipBlock*>(currentBlock)->height()), QColor(0, 0, 0, 32));
 				}
@@ -1466,9 +1465,17 @@ public:
 				gf.width = itemWidth;
 				gf.justified = false;
 				gf.initWithScriptItem(si);
+
+				auto hasSelected = false;
+				auto hasNotSelected = true;
+				auto selectedRect = QRect();
 				if (_localFrom + itemStart < _selection.to && _localFrom + itemEnd > _selection.from) {
-					QFixed selX = x, selWidth = itemWidth;
-					if (_localFrom + itemEnd > _selection.to || _localFrom + itemStart < _selection.from) {
+					hasSelected = true;
+					auto selX = x;
+					auto selWidth = itemWidth;
+					if (_localFrom + itemStart >= _selection.from && _localFrom + itemEnd <= _selection.to) {
+						hasNotSelected = false;
+					} else {
 						selWidth = 0;
 						int itemL = itemEnd - itemStart;
 						int selStart = _selection.from - (_localFrom + itemStart), selEnd = _selection.to - (_localFrom + itemStart);
@@ -1503,15 +1510,42 @@ public:
 						}
 					}
 					if (rtl) selX = x + itemWidth - (selX - x) - selWidth;
-					_p->fillRect(QRectF(selX.toReal(), _y + _yDelta, selWidth.toReal(), _fontHeight), _p->textPalette().selectBg->b);
+					selectedRect = QRect(selX.toInt(), _y + _yDelta, (selX + selWidth).toInt() - selX.toInt(), _fontHeight);
+					fillSelectRange(selX, selX + selWidth);
 				}
-
-				_p->drawTextItem(QPointF(x.toReal(), textY), gf);
+				if (Q_UNLIKELY(hasSelected)) {
+					if (Q_UNLIKELY(hasNotSelected)) {
+						auto clippingEnabled = _p->hasClipping();
+						auto clippingRegion = _p->clipRegion();
+						_p->setClipRect(selectedRect, Qt::IntersectClip);
+						_p->setPen(*_currentPenSelected);
+						_p->drawTextItem(QPointF(x.toReal(), textY), gf);
+						_p->setClipRegion((clippingEnabled ? clippingRegion : QRegion(_p->viewport())) - selectedRect);
+						_p->setPen(*_currentPen);
+						_p->drawTextItem(QPointF(x.toReal(), textY), gf);
+						if (clippingEnabled) {
+							_p->setClipRegion(clippingRegion);
+						} else {
+							_p->setClipping(false);
+						}
+					} else {
+						_p->setPen(*_currentPenSelected);
+						_p->drawTextItem(QPointF(x.toReal(), textY), gf);
+					}
+				} else {
+					_p->setPen(*_currentPen);
+					_p->drawTextItem(QPointF(x.toReal(), textY), gf);
+				}
 			}
 
 			x += itemWidth;
 		}
 		return true;
+	}
+	void fillSelectRange(QFixed from, QFixed to) {
+		auto left = from.toInt();
+		auto width = to.toInt() - left;
+		_p->fillRect(left, _y + _yDelta, width, _fontHeight, _textPalette->selectBg);
 	}
 
 	void elideSaveBlock(int32 blockIndex, ITextBlock *&_endBlock, int32 elideStart, int32 elideWidth) {
@@ -1555,7 +1589,7 @@ public:
 		line.length = lineLength;
 		eShapeLine(line);
 
-		int32 elideWidth = _f->width(_Elide);
+		auto elideWidth = _f->elidew;
 		_wLeft = _w - elideWidth - _elideRemoveFromEnd;
 
 		int firstItem = engine.findItem(line.from), lastItem = engine.findItem(line.from + line.length - 1);
@@ -1598,10 +1632,10 @@ public:
 					glyphsEnd = si.num_glyphs;
 				}
 
-				for (int g = glyphsStart; g < glyphsEnd; ++g) {
-					QFixed adv = glyphs.effectiveAdvance(g);
+				for (auto g = glyphsStart; g < glyphsEnd; ++g) {
+					auto adv = glyphs.effectiveAdvance(g);
 					if (_wLeft < adv) {
-						int pos = itemStart;
+						auto pos = itemStart;
 						while (pos < itemEnd && logClusters[pos - si.position] < g) {
 							++pos;
 						}
@@ -1654,15 +1688,21 @@ public:
 
 	// COPIED FROM qtextengine.cpp AND MODIFIED
 	void eShapeLine(const QScriptLine &line) {
-		int item = _e->findItem(line.from), end = _e->findItem(line.from + line.length - 1);
+		int item = _e->findItem(line.from);
 		if (item == -1)
 			return;
+
+#ifdef OS_MAC_OLD
+		auto end = _e->findItem(line.from + line.length - 1);
+#else // OS_MAC_OLD
+		auto end = _e->findItem(line.from + line.length - 1, item);
+#endif // OS_MAC_OLD
 
 		int blockIndex = _lineStartBlock;
 		ITextBlock *currentBlock = _t->_blocks[blockIndex];
 		ITextBlock *nextBlock = (++blockIndex < _blocksSize) ? _t->_blocks[blockIndex] : 0;
 		eSetFont(currentBlock);
-		for (item = _e->findItem(line.from); item <= end; ++item) {
+		for (; item <= end; ++item) {
 			QScriptItem &si = _e->layoutData->items[item];
 			while (nextBlock && nextBlock->from() <= _localFrom + si.position) {
 				currentBlock = nextBlock;
@@ -2271,15 +2311,36 @@ public:
 	}
 
 private:
+	void applyBlockProperties(ITextBlock *block) {
+		eSetFont(block);
+		if (_p) {
+			if (block->lnkIndex()) {
+				_currentPen = &_textPalette->linkFg->p;
+				_currentPenSelected = &_textPalette->selectLinkFg->p;
+			} else if ((block->flags() & TextBlockFCode) || (block->flags() & TextBlockFPre)) {
+				_currentPen = &_textPalette->monoFg->p;
+				_currentPenSelected = &_textPalette->selectMonoFg->p;
+			} else {
+				_currentPen = &_originalPen;
+				_currentPenSelected = &_originalPenSelected;
+			}
+		}
+	}
 
-	Painter *_p;
-	const Text *_t;
+	Painter *_p = nullptr;
+	const style::TextPalette *_textPalette = nullptr;
+	const Text *_t = nullptr;
 	bool _elideLast = false;
 	bool _breakEverywhere = false;
-	int32 _elideRemoveFromEnd = 0;
-	style::align _align;
+	int _elideRemoveFromEnd = 0;
+	style::align _align = style::al_topleft;
 	QPen _originalPen;
-	int32 _yFrom, _yTo, _yToElide;
+	QPen _originalPenSelected;
+	const QPen *_currentPen = nullptr;
+	const QPen *_currentPenSelected = nullptr;
+	int _yFrom = 0;
+	int _yTo = 0;
+	int _yToElide = 0;
 	TextSelection _selection = { 0, 0 };
 	bool _fullWidthSelection = true;
 	const QChar *_str = nullptr;
@@ -2287,23 +2348,25 @@ private:
 	// current paragraph data
 	Text::TextBlocks::const_iterator _parStartBlock;
 	Qt::LayoutDirection _parDirection;
-	int32 _parStart, _parLength;
-	bool _parHasBidi;
+	int _parStart = 0;
+	int _parLength = 0;
+	bool _parHasBidi = false;
 	QVarLengthArray<QScriptAnalysis, 4096> _parAnalysis;
 
 	// current line data
-	QTextEngine *_e;
+	QTextEngine *_e = nullptr;
 	style::font _f;
-	QFixed _x, _w, _wLeft;
+	QFixed _x, _w, _wLeft, _last_rPadding;
 	int32 _y, _yDelta, _lineHeight, _fontHeight;
 
 	// elided hack support
-	int32 _blocksSize;
-	int32 _elideSavedIndex;
+	int _blocksSize = 0;
+	int _elideSavedIndex = 0;
 	ITextBlock *_elideSavedBlock = nullptr;
 
-	int32 _lineStart, _localFrom;
-	int32 _lineStartBlock;
+	int _lineStart = 0;
+	int _localFrom = 0;
+	int _lineStartBlock = 0;
 
 	// link and symbol resolve
 	QFixed _lookupX = 0;
@@ -2410,10 +2473,10 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 	int32 lineHeight = 0;
 	int32 result = 0, lastNewlineStart = 0;
 	QFixed _width = 0, last_rBearing = 0, last_rPadding = 0;
-	for (TextBlocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); i != e; ++i) {
-		ITextBlock *b = *i;
-		TextBlockType _btype = b->type();
-		int32 blockHeight = countBlockHeight(b, _st);
+	for (auto i = _blocks.cbegin(), e = _blocks.cend(); i != e; ++i) {
+		auto b = *i;
+		auto _btype = b->type();
+		auto blockHeight = countBlockHeight(b, _st);
 		if (_btype == TextBlockTNewline) {
 			if (!lineHeight) lineHeight = blockHeight;
 			if (initial) {
@@ -2434,16 +2497,23 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 			lineHeight = 0;
 			last_rBearing = b->f_rbearing();
 			last_rPadding = b->f_rpadding();
-			if (_maxWidth < _width) {
-				_maxWidth = _width;
-			}
+
+			accumulate_max(_maxWidth, _width);
 			_width = (b->f_width() - last_rBearing);
 			continue;
 		}
 
 		auto b__f_rbearing = b->f_rbearing(); // cache
 
-		_width += b->f_lpadding();
+		// We need to accumulate max width after each block, because
+		// some blocks have width less than -1 * previous right bearing.
+		// In that cases the _width gets _smaller_ after moving to the next block.
+		//
+		// But when we layout block and we're sure that _maxWidth is enough
+		// for all the blocks to fit on their line we check each block, even the
+		// intermediate one with a large negative right bearing.
+		accumulate_max(_maxWidth, _width);
+
 		_width += last_rBearing + (last_rPadding + b->f_width() - b__f_rbearing);
 		lineHeight = qMax(lineHeight, blockHeight);
 
@@ -2465,9 +2535,7 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 	if (_width > 0) {
 		if (!lineHeight) lineHeight = countBlockHeight(_blocks.back(), _st);
 		_minHeight += lineHeight;
-		if (_maxWidth < _width) {
-			_maxWidth = _width;
-		}
+		accumulate_max(_maxWidth, _width);
 	}
 }
 
@@ -2475,35 +2543,31 @@ void Text::setMarkedText(const style::TextStyle &st, const TextWithEntities &tex
 	_st = &st;
 	clear();
 	{
-//		QString newText; // utf16 of the text for emoji
+		// utf codes of the text display for emoji extraction
+//		auto text = textWithEntities.text;
+//		auto newText = QString();
 //		newText.reserve(8 * text.size());
+//		newText.append("\t{ ");
 //		for (const QChar *ch = text.constData(), *e = ch + text.size(); ch != e; ++ch) {
-//			if (chIsNewline(*ch)) {
-//				newText.append(*ch);
+//			if (*ch == TextCommand) {
+//				break;
+//			} else if (chIsNewline(*ch)) {
+//				newText.append("},").append(*ch).append("\t{ ");
 //			} else {
 //				if (ch->isHighSurrogate() || ch->isLowSurrogate()) {
 //					if (ch->isHighSurrogate() && (ch + 1 != e) && ((ch + 1)->isLowSurrogate())) {
-//						newText.append("0x").append(QString::number((uint32(ch->unicode()) << 16) | uint32((ch + 1)->unicode()), 16).toUpper()).append("LLU,");
+//						newText.append("0x").append(QString::number((uint32(ch->unicode()) << 16) | uint32((ch + 1)->unicode()), 16).toUpper()).append("U, ");
 //						++ch;
 //					} else {
-//						newText.append("BADx").append(QString::number(ch->unicode(), 16).toUpper()).append("LLU,");
+//						newText.append("BADx").append(QString::number(ch->unicode(), 16).toUpper()).append("U, ");
 //					}
 //				} else {
-//					newText.append("0x").append(QString::number(ch->unicode(), 16).toUpper()).append("LLU,");
+//					newText.append("0x").append(QString::number(ch->unicode(), 16).toUpper()).append("U, ");
 //				}
 //			}
 //		}
-//		newText.append("\n\n").append(text);
-//		TextParser parser(this, newText, EntitiesInText(), options);
-
-//		QString newText; // utf8 of the text for emoji sequences
-//		newText.reserve(8 * text.size());
-//		QByteArray ba = text.toUtf8();
-//		for (int32 i = 0, l = ba.size(); i < l; ++i) {
-//			newText.append("\\x").append(QString::number(uchar(ba.at(i)), 16).toLower());
-//		}
-//		newText.append("\n\n").append(text);
-//		TextParser parser(this, newText, EntitiesInText(), options);
+//		newText.append("},\n\n").append(text);
+//		TextParser parser(this, { newText, EntitiesInText() }, options);
 
 		TextParser parser(this, textWithEntities, options);
 	}
@@ -2661,7 +2725,7 @@ void Text::enumerateLines(int w, Callback callback) const {
 	QFixed widthLeft = width, last_rBearing = 0, last_rPadding = 0;
 	bool longWordLine = true;
 	for_const (auto b, _blocks) {
-		TextBlockType _btype = b->type();
+		auto _btype = b->type();
 		int blockHeight = countBlockHeight(b, _st);
 
 		if (_btype == TextBlockTNewline) {
@@ -2676,9 +2740,8 @@ void Text::enumerateLines(int w, Callback callback) const {
 			longWordLine = true;
 			continue;
 		}
-		auto b__f_lpadding = b->f_lpadding();
 		auto b__f_rbearing = b->f_rbearing();
-		QFixed newWidthLeft = widthLeft - b__f_lpadding - last_rBearing - (last_rPadding + b->f_width() - b__f_rbearing);
+		auto newWidthLeft = widthLeft - last_rBearing - (last_rPadding + b->f_width() - b__f_rbearing);
 		if (newWidthLeft >= 0) {
 			last_rBearing = b__f_rbearing;
 			last_rPadding = b->f_rpadding();
@@ -2691,9 +2754,9 @@ void Text::enumerateLines(int w, Callback callback) const {
 		}
 
 		if (_btype == TextBlockTText) {
-			TextBlock *t = static_cast<TextBlock*>(b);
+			auto t = static_cast<TextBlock*>(b);
 			if (t->_words.isEmpty()) { // no words in this block, spaces only => layout this block in the same line
-				last_rPadding += b__f_lpadding;
+				last_rPadding += b->f_rpadding();
 
 				lineHeight = qMax(lineHeight, blockHeight);
 
@@ -2701,14 +2764,13 @@ void Text::enumerateLines(int w, Callback callback) const {
 				continue;
 			}
 
-			QFixed f_wLeft = widthLeft;
+			auto f_wLeft = widthLeft;
 			int f_lineHeight = lineHeight;
 			for (auto j = t->_words.cbegin(), e = t->_words.cend(), f = j; j != e; ++j) {
 				bool wordEndsHere = (j->f_width() >= 0);
-				QFixed j_width = wordEndsHere ? j->f_width() : -j->f_width();
+				auto j_width = wordEndsHere ? j->f_width() : -j->f_width();
 
-				QFixed newWidthLeft = widthLeft - b__f_lpadding - last_rBearing - (last_rPadding + j_width - j->f_rbearing());
-				b__f_lpadding = 0;
+				auto newWidthLeft = widthLeft - last_rBearing - (last_rPadding + j_width - j->f_rbearing());
 				if (newWidthLeft >= 0) {
 					last_rBearing = j->f_rbearing();
 					last_rPadding = j->f_rpadding();
@@ -2829,6 +2891,14 @@ bool Text::isEmpty() const {
 	return _blocks.empty() || _blocks[0]->type() == TextBlockTSkip;
 }
 
+uint16 Text::countBlockEnd(const TextBlocks::const_iterator &i, const TextBlocks::const_iterator &e) const {
+	return (i + 1 == e) ? _text.size() : (*(i + 1))->from();
+}
+
+uint16 Text::countBlockLength(const Text::TextBlocks::const_iterator &i, const Text::TextBlocks::const_iterator &e) const {
+	return countBlockEnd(i, e) - (*i)->from();
+}
+
 template <typename AppendPartCallback, typename ClickHandlerStartCallback, typename ClickHandlerFinishCallback, typename FlagsChangeCallback>
 void Text::enumerateText(TextSelection selection, AppendPartCallback appendPartCallback, ClickHandlerStartCallback clickHandlerStartCallback, ClickHandlerFinishCallback clickHandlerFinishCallback, FlagsChangeCallback flagsChangeCallback) const {
 	if (isEmpty() || selection.empty()) {
@@ -2876,7 +2946,7 @@ void Text::enumerateText(TextSelection selection, AppendPartCallback appendPartC
 
 		if (!blockLnkIndex) {
 			auto rangeFrom = qMax(selection.from, blockFrom);
-			auto rangeTo = qMin(selection.to, uint16(blockFrom + TextPainter::_blockLength(this, i, e)));
+			auto rangeTo = qMin(selection.to, uint16(blockFrom + countBlockLength(i, e)));
 			if (rangeTo > rangeFrom) {
 				appendPartCallback(_text.midRef(rangeFrom, rangeTo - rangeFrom));
 			}
@@ -2975,5 +3045,6 @@ void Text::clearFields() {
 }
 
 void emojiDraw(QPainter &p, EmojiPtr e, int x, int y) {
-	p.drawPixmap(QPoint(x, y), App::emoji(), QRect(e->x * ESize, e->y * ESize, ESize, ESize));
+	auto size = Ui::Emoji::Size();
+	p.drawPixmap(QPoint(x, y), App::emoji(), QRect(e->x() * size, e->y() * size, size, size));
 }

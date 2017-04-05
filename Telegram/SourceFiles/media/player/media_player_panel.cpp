@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "media/player/media_player_panel.h"
 
 #include "media/player/media_player_cover.h"
@@ -177,7 +176,7 @@ void Panel::paintEvent(QPaintEvent *e) {
 	App::roundRect(p, shadowedRect, st::menuBg, MenuCorners, nullptr, parts);
 }
 
-void Panel::enterEvent(QEvent *e) {
+void Panel::enterEventHook(QEvent *e) {
 	if (_ignoringEnterEvents) return;
 
 	_hideTimer.stop();
@@ -186,17 +185,17 @@ void Panel::enterEvent(QEvent *e) {
 	} else {
 		_showTimer.start(0);
 	}
-	return TWidget::enterEvent(e);
+	return TWidget::enterEventHook(e);
 }
 
-void Panel::leaveEvent(QEvent *e) {
+void Panel::leaveEventHook(QEvent *e) {
 	_showTimer.stop();
 	if (_a_appearance.animating(getms())) {
 		onHideStart();
 	} else {
 		_hideTimer.start(300);
 	}
-	return TWidget::leaveEvent(e);
+	return TWidget::leaveEventHook(e);
 }
 
 void Panel::showFromOther() {
@@ -222,14 +221,14 @@ void Panel::ensureCreated() {
 
 	if (_layout == Layout::Full) {
 		_cover.create(this);
-		setPinCallback(std_::move(_pinCallback));
-		setCloseCallback(std_::move(_closeCallback));
+		setPinCallback(std::move(_pinCallback));
+		setCloseCallback(std::move(_closeCallback));
 
 		_scrollShadow.create(this, st::mediaPlayerScrollShadow, Ui::Shadow::Side::Bottom);
 	}
 	auto list = object_ptr<ListWidget>(this);
 	connect(list, SIGNAL(heightUpdated()), this, SLOT(onListHeightUpdated()));
-	_scroll->setOwnedWidget(std_::move(list));
+	_scroll->setOwnedWidget(std::move(list));
 
 	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 		if (auto window = App::wnd()) {
@@ -256,14 +255,14 @@ void Panel::performDestroy() {
 }
 
 void Panel::setPinCallback(ButtonCallback &&callback) {
-	_pinCallback = std_::move(callback);
+	_pinCallback = std::move(callback);
 	if (_cover) {
 		_cover->setPinCallback(ButtonCallback(_pinCallback));
 	}
 }
 
 void Panel::setCloseCallback(ButtonCallback &&callback) {
-	_closeCallback = std_::move(callback);
+	_closeCallback = std::move(callback);
 	if (_cover) {
 		_cover->setCloseCallback(ButtonCallback(_closeCallback));
 	}

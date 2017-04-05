@@ -45,7 +45,7 @@ public:
 
 private:
 	struct Line {
-		Line(Part was, Part now) : was(std_::move(was)), now(std_::move(now)) {
+		Line(Part was, Part now) : was(std::move(was)), now(std::move(now)) {
 		}
 		Part was;
 		Part now;
@@ -112,7 +112,7 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) override;
 
-	static std_::unique_ptr<CrossFadeAnimation> CrossFade(FlatLabel *from, FlatLabel *to, style::color bg, QPoint fromPosition = QPoint(), QPoint toPosition = QPoint());
+	static std::unique_ptr<CrossFadeAnimation> CrossFade(FlatLabel *from, FlatLabel *to, style::color bg, QPoint fromPosition = QPoint(), QPoint toPosition = QPoint());
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -120,8 +120,8 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseDoubleClickEvent(QMouseEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void focusOutEvent(QFocusEvent *e) override;
 	void focusInEvent(QFocusEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;

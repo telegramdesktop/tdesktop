@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "settings/settings_chat_settings_widget.h"
 
 #include "styles/style_settings.h"
@@ -27,7 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "boxes/emojibox.h"
@@ -63,6 +62,7 @@ int LabeledLink::resizeGetHeight(int newWidth) {
 	return _label->height();
 }
 
+#ifndef OS_WIN_STORE
 DownloadPathState::DownloadPathState(QWidget *parent) : TWidget(parent)
 , _path(this, lang(lng_download_path_label), downloadPathText(), LabeledLink::Type::Secondary, SLOT(onDownloadPath()))
 , _clear(this, lang(lng_download_path_clear)) {
@@ -146,6 +146,7 @@ void DownloadPathState::onTempDirClearFailed(int task) {
 	}
 	updateControls();
 }
+#endif // OS_WIN_STORE
 
 ChatSettingsWidget::ChatSettingsWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_chat_settings)) {
 	createControls();
@@ -164,15 +165,28 @@ void ChatSettingsWidget::createControls() {
 		_viewList->hideFast();
 	}
 
-	addChildRow(_dontAskDownloadPath, marginSub, lang(lng_download_path_dont_ask), SLOT(onDontAskDownloadPath()), !Global::AskDownloadPath());
+#ifndef OS_WIN_STORE
+	auto pathMargin = marginSub;
+#else // OS_WIN_STORE
+	auto pathMargin = marginSkip;
+#endif // OS_WIN_STORE
+	addChildRow(_dontAskDownloadPath, pathMargin, lang(lng_download_path_dont_ask), SLOT(onDontAskDownloadPath()), !Global::AskDownloadPath());
+
+#ifndef OS_WIN_STORE
 	style::margins marginPath(st::defaultBoxCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
 	addChildRow(_downloadPath, marginPath, slidedPadding);
 	if (Global::AskDownloadPath()) {
 		_downloadPath->hideFast();
 	}
+#endif // OS_WIN_STORE
 
-	addChildRow(_sendByEnter, marginSmall, qsl("send_key"), 0, lang(lng_settings_send_enter), SLOT(onSendByEnter()), !cCtrlEnter());
-	addChildRow(_sendByCtrlEnter, marginSkip, qsl("send_key"), 1, lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter), SLOT(onSendByCtrlEnter()), cCtrlEnter());
+	auto group = std::make_shared<Ui::RadioenumGroup<SendByType>>(cCtrlEnter() ? SendByType::CtrlEnter : SendByType::Enter);
+	addChildRow(_sendByEnter, marginSmall, group, SendByType::Enter, lang(lng_settings_send_enter));
+	addChildRow(_sendByCtrlEnter, marginSkip, group, SendByType::CtrlEnter, lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter));
+	group->setChangedCallback([this](SendByType value) {
+		sendByChanged(value);
+	});
+
 	addChildRow(_automaticMediaDownloadSettings, marginSmall, lang(lng_media_auto_settings), SLOT(onAutomaticMediaDownloadSettings()));
 	addChildRow(_manageStickerSets, marginSmall, lang(lng_stickers_you_have), SLOT(onManageStickerSets()));
 }
@@ -181,11 +195,7 @@ void ChatSettingsWidget::onReplaceEmoji() {
 	cSetReplaceEmojis(_replaceEmoji->checked());
 	Local::writeUserSettings();
 
-	if (_replaceEmoji->checked()) {
-		_viewList->slideDown();
-	} else {
-		_viewList->slideUp();
-	}
+	_viewList->toggleAnimated(_replaceEmoji->checked());
 }
 
 void ChatSettingsWidget::onViewList() {
@@ -195,27 +205,15 @@ void ChatSettingsWidget::onViewList() {
 void ChatSettingsWidget::onDontAskDownloadPath() {
 	Global::SetAskDownloadPath(!_dontAskDownloadPath->checked());
 	Local::writeUserSettings();
-	if (_dontAskDownloadPath->checked()) {
-		_downloadPath->slideDown();
-	} else {
-		_downloadPath->slideUp();
-	}
+#ifndef OS_WIN_STORE
+	_downloadPath->toggleAnimated(_dontAskDownloadPath->checked());
+#endif // OS_WIN_STORE
 }
 
-void ChatSettingsWidget::onSendByEnter() {
-	if (_sendByEnter->checked()) {
-		cSetCtrlEnter(false);
-		if (App::main()) App::main()->ctrlEnterSubmitUpdated();
-		Local::writeUserSettings();
-	}
-}
-
-void ChatSettingsWidget::onSendByCtrlEnter() {
-	if (_sendByCtrlEnter->checked()) {
-		cSetCtrlEnter(true);
-		if (App::main()) App::main()->ctrlEnterSubmitUpdated();
-		Local::writeUserSettings();
-	}
+void ChatSettingsWidget::sendByChanged(SendByType value) {
+	cSetCtrlEnter(value == SendByType::CtrlEnter);
+	if (App::main()) App::main()->ctrlEnterSubmitUpdated();
+	Local::writeUserSettings();
 }
 
 void ChatSettingsWidget::onAutomaticMediaDownloadSettings() {

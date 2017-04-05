@@ -20,27 +20,30 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "window/notifications_manager.h"
+#include "platform/platform_notifications_manager.h"
 
 namespace Platform {
 namespace Notifications {
 
-inline void defaultNotificationShown(QWidget *widget) {
+inline void CustomNotificationShownHook(QWidget *widget) {
 }
 
-inline bool skipAudio() {
+inline bool SkipAudio() {
 	return false;
 }
 
-inline bool skipToast() {
+inline bool SkipToast() {
 	return false;
 }
+
+inline void FlashBounce() {
+}
+
+void Finish();
 
 class Manager : public Window::Notifications::NativeManager {
 public:
-	Manager();
-
-	bool init();
+	Manager(Window::Notifications::System *system);
 
 	void clearNotification(PeerId peerId, MsgId msgId);
 	bool hasPoorSupport() const;
@@ -54,9 +57,8 @@ protected:
 	void doClearFromHistory(History *history) override;
 
 private:
-	class Impl;
-	friend class Impl;
-	std_::unique_ptr<Impl> _impl;
+	class Private;
+	const std::unique_ptr<Private> _private;
 
 };
 

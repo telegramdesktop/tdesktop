@@ -51,6 +51,7 @@ private:
 
 };
 
+#ifndef OS_WIN_STORE
 class DownloadPathState : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
@@ -85,6 +86,7 @@ private:
 	object_ptr<Ui::LinkButton> _clear;
 
 };
+#endif // OS_WIN_STORE
 
 class ChatSettingsWidget : public BlockWidget {
 	Q_OBJECT
@@ -96,20 +98,27 @@ private slots:
 	void onReplaceEmoji();
 	void onViewList();
 	void onDontAskDownloadPath();
-	void onSendByEnter();
-	void onSendByCtrlEnter();
 	void onAutomaticMediaDownloadSettings();
 	void onManageStickerSets();
 
 private:
+	enum class SendByType {
+		Enter,
+		CtrlEnter,
+	};
+	void sendByChanged(SendByType value);
 	void createControls();
 
 	object_ptr<Ui::Checkbox> _replaceEmoji = { nullptr };
 	object_ptr<Ui::WidgetSlideWrap<Ui::LinkButton>> _viewList = { nullptr };
 	object_ptr<Ui::Checkbox> _dontAskDownloadPath = { nullptr };
+
+#ifndef OS_WIN_STORE
 	object_ptr<Ui::WidgetSlideWrap<DownloadPathState>> _downloadPath = { nullptr };
-	object_ptr<Ui::Radiobutton> _sendByEnter = { nullptr };
-	object_ptr<Ui::Radiobutton> _sendByCtrlEnter = { nullptr };
+#endif // OS_WIN_STORE
+
+	object_ptr<Ui::Radioenum<SendByType>> _sendByEnter = { nullptr };
+	object_ptr<Ui::Radioenum<SendByType>> _sendByCtrlEnter = { nullptr };
 	object_ptr<Ui::LinkButton> _automaticMediaDownloadSettings = { nullptr };
 	object_ptr<Ui::LinkButton> _manageStickerSets = { nullptr };
 

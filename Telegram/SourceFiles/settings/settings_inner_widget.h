@@ -20,19 +20,21 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "settings/settings_layer.h"
+
 namespace Settings {
 
 class CoverWidget;
 class BlockWidget;
 
-class InnerWidget : public TWidget, private base::Subscriber {
+class InnerWidget : public LayerInner, private base::Subscriber {
 	Q_OBJECT
 
 public:
 	InnerWidget(QWidget *parent);
 
 	// Count new height for width=newWidth and resize to it.
-	void resizeToWidth(int newWidth, int contentLeft) {
+	void resizeToWidth(int newWidth, int contentLeft) override {
 		_contentLeft = contentLeft;
 		return TWidget::resizeToWidth(newWidth);
 	}

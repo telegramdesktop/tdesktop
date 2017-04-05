@@ -18,8 +18,9 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/text/text_entity.h"
+
+#include "auth_session.h"
 
 namespace {
 
@@ -1215,59 +1216,60 @@ bool textSplit(QString &sendingText, EntitiesInText &sendingEntities, QString &l
 			++currentEntity;
 		}
 
-#define MARK_GOOD_AS_LEVEL(level) \
-if (goodLevel <= (level)) {\
-goodLevel = (level);\
-good = ch;\
-goodEntity = currentEntity;\
-goodInEntity = inEntity;\
-goodCanBreakEntity = canBreakEntity;\
-}
-
 		if (s > half) {
 			bool inEntity = (currentEntity < entityCount) && (ch > start + leftEntities.at(currentEntity).offset()) && (ch < start + leftEntities.at(currentEntity).offset() + leftEntities.at(currentEntity).length());
 			EntityInTextType entityType = (currentEntity < entityCount) ? leftEntities.at(currentEntity).type() : EntityInTextInvalid;
 			bool canBreakEntity = (entityType == EntityInTextPre || entityType == EntityInTextCode);
 			int32 noEntityLevel = inEntity ? 0 : 1;
+
+			auto markGoodAsLevel = [&](int newLevel) {
+				if (goodLevel > newLevel) {
+					return;
+				}
+				goodLevel = newLevel;
+				good = ch;
+				goodEntity = currentEntity;
+				goodInEntity = inEntity;
+				goodCanBreakEntity = canBreakEntity;
+			};
+
 			if (inEntity && !canBreakEntity) {
-				MARK_GOOD_AS_LEVEL(0);
+				markGoodAsLevel(0);
 			} else {
 				if (chIsNewline(*ch)) {
 					if (inEntity) {
 						if (ch + 1 < end && chIsNewline(*(ch + 1))) {
-							MARK_GOOD_AS_LEVEL(12);
+							markGoodAsLevel(12);
 						} else {
-							MARK_GOOD_AS_LEVEL(11);
+							markGoodAsLevel(11);
 						}
 					} else if (ch + 1 < end && chIsNewline(*(ch + 1))) {
-						MARK_GOOD_AS_LEVEL(15);
+						markGoodAsLevel(15);
 					} else if (currentEntity < entityCount && ch + 1 == start + leftEntities.at(currentEntity).offset() && leftEntities.at(currentEntity).type() == EntityInTextPre) {
-						MARK_GOOD_AS_LEVEL(14);
+						markGoodAsLevel(14);
 					} else if (currentEntity > 0 && ch == start + leftEntities.at(currentEntity - 1).offset() + leftEntities.at(currentEntity - 1).length() && leftEntities.at(currentEntity - 1).type() == EntityInTextPre) {
-						MARK_GOOD_AS_LEVEL(14);
+						markGoodAsLevel(14);
 					} else {
-						MARK_GOOD_AS_LEVEL(13);
+						markGoodAsLevel(13);
 					}
 				} else if (chIsSpace(*ch)) {
 					if (chIsSentenceEnd(*(ch - 1))) {
-						MARK_GOOD_AS_LEVEL(9 + noEntityLevel);
+						markGoodAsLevel(9 + noEntityLevel);
 					} else if (chIsSentencePartEnd(*(ch - 1))) {
-						MARK_GOOD_AS_LEVEL(7 + noEntityLevel);
+						markGoodAsLevel(7 + noEntityLevel);
 					} else {
-						MARK_GOOD_AS_LEVEL(5 + noEntityLevel);
+						markGoodAsLevel(5 + noEntityLevel);
 					}
 				} else if (chIsWordSeparator(*(ch - 1))) {
-					MARK_GOOD_AS_LEVEL(3 + noEntityLevel);
+					markGoodAsLevel(3 + noEntityLevel);
 				} else {
-					MARK_GOOD_AS_LEVEL(1 + noEntityLevel);
+					markGoodAsLevel(1 + noEntityLevel);
 				}
 			}
 		}
 
-#undef MARK_GOOD_AS_LEVEL
-
 		int elen = 0;
-		if (EmojiPtr e = emojiFromText(ch, end, &elen)) {
+		if (auto e = Ui::Emoji::Find(ch, end, &elen)) {
 			for (int i = 0; i < elen; ++i, ++ch, ++s) {
 				if (ch->isHighSurrogate() && i + 1 < elen && (ch + 1)->isLowSurrogate()) {
 					++ch;
@@ -1375,7 +1377,7 @@ EntitiesInText entitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 				const auto &d(entity.c_inputMessageEntityMentionName());
 				auto data = ([&d]() -> QString {
 					if (d.vuser_id.type() == mtpc_inputUserSelf) {
-						return QString::number(MTP::authedId());
+						return QString::number(AuthSession::CurrentUserId());
 					} else if (d.vuser_id.type() == mtpc_inputUser) {
 						const auto &user(d.vuser_id.c_inputUser());
 						return QString::number(user.vuser_id.v) + '.' + QString::number(user.vaccess_hash.v);
@@ -1398,9 +1400,9 @@ EntitiesInText entitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 }
 
 MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool sending) {
-	MTPVector<MTPMessageEntity> result(MTP_vector<MTPMessageEntity>(0));
-	auto &v = result._vector().v;
-	for_const (const auto &link, links) {
+	auto v = QVector<MTPMessageEntity>();
+	v.reserve(links.size());
+	for_const (auto &link, links) {
 		if (link.length() <= 0) continue;
 		if (sending
 			&& link.type() != EntityInTextCode
@@ -1421,7 +1423,7 @@ MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool sending
 				UserId userId = 0;
 				uint64 accessHash = 0;
 				if (mentionNameToFields(data, &userId, &accessHash)) {
-					if (userId == MTP::authedId()) {
+					if (userId == AuthSession::CurrentUserId()) {
 						return MTP_inputUserSelf();
 					}
 					return MTP_inputUser(MTP_int(userId), MTP_long(accessHash));
@@ -1439,7 +1441,7 @@ MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool sending
 		case EntityInTextPre: v.push_back(MTP_messageEntityPre(offset, length, MTP_string(link.data()))); break;
 		}
 	}
-	return result;
+	return MTP_vector<MTPMessageEntity>(std::move(v));
 }
 
 // Some code is duplicated in flattextarea.cpp!
@@ -1927,7 +1929,7 @@ QString prepareTextWithEntities(QString result, int32 flags, EntitiesInText *inO
 	replaceStringWithEntities(qstr(">>"), QChar(187), result, inOutEntities);
 
 	if (cReplaceEmojis()) {
-		result = replaceEmojis(result, inOutEntities);
+		result = Ui::Emoji::ReplaceInText(result, inOutEntities);
 	}
 
 	trimTextWithEntities(result, inOutEntities);

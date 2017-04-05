@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "boxes/members_box.h"
 
 #include "styles/style_boxes.h"
@@ -32,33 +31,36 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/scroll_area.h"
 #include "ui/effects/ripple_animation.h"
 #include "observer_peer.h"
+#include "auth_session.h"
+#include "storage/file_download.h"
 
-
-MembersAddButton::MembersAddButton(QWidget *parent, const style::TwoIconButton &st) : RippleButton(parent, st.ripple)
-, _st(st) {
-	resize(_st.width, _st.height);
-	setCursor(style::cur_pointer);
-}
-
-void MembersAddButton::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-
-	auto ms = getms();
-	auto over = isOver();
-	auto down = isDown();
-
-	((over || down) ? _st.iconBelowOver : _st.iconBelow).paint(p, _st.iconPosition, width());
-	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms);
-	((over || down) ? _st.iconAboveOver : _st.iconAbove).paint(p, _st.iconPosition, width());
-}
-
-QImage MembersAddButton::prepareRippleMask() const {
-	return Ui::RippleAnimation::ellipseMask(QSize(_st.rippleAreaSize, _st.rippleAreaSize));
-}
-
-QPoint MembersAddButton::prepareRippleStartPosition() const {
-	return mapFromGlobal(QCursor::pos()) - _st.rippleAreaPosition;
-}
+// Not used for now.
+//
+//MembersAddButton::MembersAddButton(QWidget *parent, const style::TwoIconButton &st) : RippleButton(parent, st.ripple)
+//, _st(st) {
+//	resize(_st.width, _st.height);
+//	setCursor(style::cur_pointer);
+//}
+//
+//void MembersAddButton::paintEvent(QPaintEvent *e) {
+//	Painter p(this);
+//
+//	auto ms = getms();
+//	auto over = isOver();
+//	auto down = isDown();
+//
+//	((over || down) ? _st.iconBelowOver : _st.iconBelow).paint(p, _st.iconPosition, width());
+//	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms);
+//	((over || down) ? _st.iconAboveOver : _st.iconAbove).paint(p, _st.iconPosition, width());
+//}
+//
+//QImage MembersAddButton::prepareRippleMask() const {
+//	return Ui::RippleAnimation::ellipseMask(QSize(_st.rippleAreaSize, _st.rippleAreaSize));
+//}
+//
+//QPoint MembersAddButton::prepareRippleStartPosition() const {
+//	return mapFromGlobal(QCursor::pos()) - _st.rippleAreaPosition;
+//}
 
 MembersBox::MembersBox(QWidget*, ChannelData *channel, MembersFilter filter)
 : _channel(channel)
@@ -109,9 +111,9 @@ void MembersBox::onAdd() {
 	}
 	auto box = Box<ContactsBox>(_inner->channel(), _inner->filter(), _inner->already());
 	if (_inner->filter() == MembersFilter::Recent) {
-		Ui::show(std_::move(box));
+		Ui::show(std::move(box));
 	} else {
-		_addBox = Ui::show(std_::move(box), KeepOtherLayers);
+		_addBox = Ui::show(std::move(box), KeepOtherLayers);
 		if (_addBox) {
 			connect(_addBox, SIGNAL(adminAdded()), this, SLOT(onAdminAdded()));
 		}
@@ -133,7 +135,7 @@ MembersBox::Inner::Inner(QWidget *parent, ChannelData *channel, MembersFilter fi
 , _kickWidth(st::normalFont->width(_kickText))
 , _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.right())
 , _about(_aboutWidth) {
-	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 
 	connect(App::main(), SIGNAL(peerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)));
 	connect(App::main(), SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
@@ -181,11 +183,11 @@ void MembersBox::Inner::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void MembersBox::Inner::enterEvent(QEvent *e) {
+void MembersBox::Inner::enterEventHook(QEvent *e) {
 	setMouseTracking(true);
 }
 
-void MembersBox::Inner::leaveEvent(QEvent *e) {
+void MembersBox::Inner::leaveEventHook(QEvent *e) {
 	_mouseSelection = false;
 	setMouseTracking(false);
 	if (_selected >= 0) {
@@ -240,7 +242,7 @@ void MembersBox::Inner::addRipple(MemberData *data) {
 	auto rowTop = getSelectedRowTop();
 	if (!data->ripple) {
 		auto mask = Ui::RippleAnimation::rectMask(QSize(width(), _rowHeight));
-		data->ripple = std_::make_unique<Ui::RippleAnimation>(st::contactsRipple, std_::move(mask), [this, data] {
+		data->ripple = std::make_unique<Ui::RippleAnimation>(st::contactsRipple, std::move(mask), [this, data] {
 			updateRowWithTop(data->rippleRowTop);
 		});
 	}
@@ -342,7 +344,7 @@ void MembersBox::Inner::loadProfilePhotos() {
 
 	auto yFrom = _visibleTop;
 	auto yTo = yFrom + (_visibleBottom - _visibleTop) * 5;
-	MTP::clearLoaderPriorities();
+	AuthSession::Current().downloader().clearPriorities();
 
 	if (yTo < 0) return;
 	if (yFrom < 0) yFrom = 0;
@@ -510,8 +512,8 @@ void MembersBox::Inner::membersReceived(const MTPchannels_ChannelParticipants &r
 	_loadingRequestId = 0;
 
 	if (result.type() == mtpc_channels_channelParticipants) {
-		const auto &d(result.c_channels_channelParticipants());
-		const auto &v(d.vparticipants.c_vector().v);
+		auto &d = result.c_channels_channelParticipants();
+		auto &v = d.vparticipants.v;
 		_rows.reserve(v.size());
 		_datas.reserve(v.size());
 		_dates.reserve(v.size());

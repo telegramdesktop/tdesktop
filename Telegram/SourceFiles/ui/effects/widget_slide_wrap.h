@@ -33,13 +33,31 @@ public:
 	WidgetSlideWrap(QWidget *parent
 		, object_ptr<TWidget> entity
 		, style::margins entityPadding
-		, base::lambda<void()> &&updateCallback
+		, base::lambda<void()> updateCallback
 		, int duration = st::widgetSlideDuration);
 
-	void slideUp();
-	void slideDown();
-	void showFast();
-	void hideFast();
+	void showAnimated();
+	void hideAnimated();
+	void toggleAnimated(bool visible) {
+		if (visible) {
+			showAnimated();
+		} else {
+			hideAnimated();
+		}
+	}
+	void showFast() {
+		toggleFast(true);
+	}
+	void hideFast() {
+		toggleFast(false);
+	}
+	void toggleFast(bool visible);
+
+	void finishAnimation() {
+		_a_height.finish();
+		myEnsureResized(_entity);
+		animationCallback();
+	}
 
 	TWidget *entity() {
 		return _entity;
@@ -78,11 +96,11 @@ public:
 	WidgetSlideWrap(QWidget *parent
 		, object_ptr<Widget> entity
 		, style::margins entityPadding
-		, base::lambda<void()> &&updateCallback
+		, base::lambda<void()> updateCallback
 		, int duration = st::widgetSlideDuration) : WidgetSlideWrap<TWidget>(parent
-			, std_::move(entity)
+			, std::move(entity)
 			, entityPadding
-			, std_::move(updateCallback)
+			, std::move(updateCallback)
 			, duration) {
 	}
 	Widget *entity() {

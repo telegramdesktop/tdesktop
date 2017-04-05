@@ -22,26 +22,28 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "ui/widgets/continuous_sliders.h"
 
-struct AudioPlaybackState;
-
 namespace Media {
+namespace Player {
+struct TrackState;
+} // namespace Player
+
 namespace Clip {
 
 class Playback {
 public:
 	Playback(Ui::ContinuousSlider *slider);
 
-	void updateState(const AudioPlaybackState &playbackState);
+	void updateState(const Player::TrackState &state);
 	void updateLoadingState(float64 progress);
 
 	void setFadeOpacity(float64 opacity) {
 		_slider->setFadeOpacity(opacity);
 	}
 	void setChangeProgressCallback(Ui::ContinuousSlider::Callback &&callback) {
-		_slider->setChangeProgressCallback(std_::move(callback));
+		_slider->setChangeProgressCallback(std::move(callback));
 	}
 	void setChangeFinishedCallback(Ui::ContinuousSlider::Callback &&callback) {
-		_slider->setChangeFinishedCallback(std_::move(callback));
+		_slider->setChangeFinishedCallback(std::move(callback));
 	}
 	void setGeometry(int x, int y, int w, int h) {
 		_slider->setGeometry(x, y, w, h);

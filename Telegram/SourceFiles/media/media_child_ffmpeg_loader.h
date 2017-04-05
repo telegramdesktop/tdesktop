@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "media/media_audio_loader.h"
+#include "media/media_audio.h"
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -33,7 +34,7 @@ extern "C" {
 
 struct VideoSoundData {
 	AVCodecContext *context = nullptr;
-	int32 frequency = AudioVoiceMsgFrequency;
+	int32 frequency = Media::Player::kDefaultFrequency;
 	TimeMs length = 0;
 	~VideoSoundData();
 };
@@ -81,7 +82,7 @@ inline void freePacket(AVPacket *packet) {
 
 class ChildFFMpegLoader : public AudioPlayerLoader {
 public:
-	ChildFFMpegLoader(uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data);
+	ChildFFMpegLoader(uint64 videoPlayId, std::unique_ptr<VideoSoundData> &&data);
 
 	bool open(qint64 &position) override;
 
@@ -120,13 +121,13 @@ private:
 
 	int32 _sampleSize = 2 * sizeof(uint16);
 	int32 _format = AL_FORMAT_STEREO16;
-	int32 _srcRate = AudioVoiceMsgFrequency;
-	int32 _dstRate = AudioVoiceMsgFrequency;
+	int32 _srcRate = Media::Player::kDefaultFrequency;
+	int32 _dstRate = Media::Player::kDefaultFrequency;
 	int32 _maxResampleSamples = 1024;
 	uint8_t **_dstSamplesData = nullptr;
 
 	uint64 _videoPlayId = 0;
-	std_::unique_ptr<VideoSoundData> _parentData;
+	std::unique_ptr<VideoSoundData> _parentData;
 	AVSampleFormat _inputFormat;
 	AVFrame *_frame = nullptr;
 

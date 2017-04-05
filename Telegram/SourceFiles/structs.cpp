@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "structs.h"
 
 #include "lang.h"
@@ -26,21 +25,24 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "mainwidget.h"
 #include "application.h"
-#include "fileuploader.h"
+#include "storage/file_upload.h"
 #include "mainwindow.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "apiwrap.h"
 #include "boxes/confirmbox.h"
 #include "media/media_audio.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "history/history_media_types.h"
 #include "styles/style_history.h"
-#include "window/window_theme.h"
+#include "window/themes/window_theme.h"
+#include "auth_session.h"
+#include "messenger.h"
+#include "storage/file_download.h"
 
 namespace {
 
 int peerColorIndex(const PeerId &peer) {
-	auto myId = MTP::authedId();
+	auto myId = AuthSession::CurrentUserId();
 	auto peerId = peerToBareInt(peer);
 	auto both = (QByteArray::number(peerId) + QByteArray::number(myId)).mid(0, 15);
 	uchar md5[16];
@@ -55,24 +57,10 @@ ImagePtr generateUserpicImage(const style::icon &icon) {
 		Painter p(&data);
 		icon.paint(p, 0, 0, icon.width());
 	}
-	return ImagePtr(App::pixmapFromImageInPlace(std_::move(data)), "PNG");
+	return ImagePtr(App::pixmapFromImageInPlace(std::move(data)), "PNG");
 }
 
 } // namespace
-
-style::color peerColor(int index) {
-	static style::color peerColors[kUserColorsCount] = {
-		st::historyPeer1NameFg,
-		st::historyPeer2NameFg,
-		st::historyPeer3NameFg,
-		st::historyPeer4NameFg,
-		st::historyPeer5NameFg,
-		st::historyPeer6NameFg,
-		st::historyPeer7NameFg,
-		st::historyPeer8NameFg,
-	};
-	return peerColors[index];
-}
 
 style::color peerUserpicColor(int index) {
 	static style::color peerColors[kUserColorsCount] = {
@@ -153,7 +141,7 @@ void EmptyUserpic::Impl::fillString(const QString &name) {
 	auto ch = name.constData(), end = ch + name.size();
 	while (ch != end) {
 		auto emojiLength = 0;
-		if (auto emoji = emojiFromText(ch, end, &emojiLength)) {
+		if (auto emoji = Ui::Emoji::Find(ch, end, &emojiLength)) {
 			ch += emojiLength;
 		} else if (ch->isHighSurrogate()) {
 			++ch;
@@ -204,11 +192,11 @@ void EmptyUserpic::Impl::fillString(const QString &name) {
 
 EmptyUserpic::EmptyUserpic() = default;
 
-EmptyUserpic::EmptyUserpic(int index, const QString &name) : _impl(std_::make_unique<Impl>(index, name)) {
+EmptyUserpic::EmptyUserpic(int index, const QString &name) : _impl(std::make_unique<Impl>(index, name)) {
 }
 
 void EmptyUserpic::set(int index, const QString &name) {
-	_impl = std_::make_unique<Impl>(index, name);
+	_impl = std::make_unique<Impl>(index, name);
 }
 
 void EmptyUserpic::clear() {
@@ -238,7 +226,7 @@ QPixmap EmptyUserpic::generate(int size) {
 		Painter p(&result);
 		paint(p, 0, 0, size, size);
 	}
-	return App::pixmapFromImageInPlace(std_::move(result));
+	return App::pixmapFromImageInPlace(std::move(result));
 }
 
 EmptyUserpic::~EmptyUserpic() = default;
@@ -248,11 +236,9 @@ using UpdateFlag = Notify::PeerUpdate::Flag;
 NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
 NotifySettingsPtr globalNotifyAllPtr = UnknownNotifySettings, globalNotifyUsersPtr = UnknownNotifySettings, globalNotifyChatsPtr = UnknownNotifySettings;
 
-PeerData::PeerData(const PeerId &id) : id(id)
-, colorIndex(peerColorIndex(id))
-, color(peerColor(colorIndex)) {
+PeerData::PeerData(const PeerId &id) : id(id), _colorIndex(peerColorIndex(id)) {
 	nameText.setText(st::msgNameStyle, QString(), _textNameOptions);
-	_userpicEmpty.set(colorIndex, QString());
+	_userpicEmpty.set(_colorIndex, QString());
 }
 
 void PeerData::updateNameDelayed(const QString &newName, const QString &newNameOrPhone, const QString &newUsername) {
@@ -274,7 +260,7 @@ void PeerData::updateNameDelayed(const QString &newName, const QString &newNameO
 	name = newName;
 	nameText.setText(st::msgNameStyle, name, _textNameOptions);
 	if (!_userpic) {
-		_userpicEmpty.set(colorIndex, name);
+		_userpicEmpty.set(_colorIndex, name);
 	}
 
 	Notify::PeerUpdate update(this);
@@ -309,7 +295,7 @@ void PeerData::updateNameDelayed(const QString &newName, const QString &newNameO
 void PeerData::setUserpic(ImagePtr userpic) {
 	_userpic = userpic;
 	if (!_userpic || !_userpic->loaded()) {
-		_userpicEmpty.set(colorIndex, name);
+		_userpicEmpty.set(_colorIndex, name);
 	} else {
 		_userpicEmpty.clear();
 	}
@@ -368,7 +354,7 @@ QPixmap PeerData::genUserpic(int size) const {
 		Painter p(&result);
 		paintUserpic(p, 0, 0, size);
 	}
-	return App::pixmapFromImageInPlace(std_::move(result));
+	return App::pixmapFromImageInPlace(std::move(result));
 }
 
 QPixmap PeerData::genUserpicRounded(int size) const {
@@ -382,7 +368,7 @@ QPixmap PeerData::genUserpicRounded(int size) const {
 		Painter p(&result);
 		paintUserpicRounded(p, 0, 0, size);
 	}
-	return App::pixmapFromImageInPlace(std_::move(result));
+	return App::pixmapFromImageInPlace(std::move(result));
 }
 
 const Text &BotCommand::descriptionText() const {
@@ -502,7 +488,7 @@ void UserData::setBotInfoVersion(int version) {
 			Notify::userIsBotChanged(this);
 		}
 	} else if (!botInfo) {
-		botInfo = std_::make_unique<BotInfo>();
+		botInfo = std::make_unique<BotInfo>();
 		botInfo->version = version;
 		Notify::userIsBotChanged(this);
 	} else if (botInfo->version < version) {
@@ -528,9 +514,9 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 			botInfo->text = Text(st::msgMinWidth);
 		}
 
-		const auto &v(d.vcommands.c_vector().v);
+		auto &v = d.vcommands.v;
 		botInfo->commands.reserve(v.size());
-		bool changedCommands = false;
+		auto changedCommands = false;
 		int32 j = 0;
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
 			if (v.at(i).type() != mtpc_botCommand) continue;
@@ -873,9 +859,7 @@ PhotoData::PhotoData(const PhotoId &id, const uint64 &access, int32 date, const 
 , date(date)
 , thumb(thumb)
 , medium(medium)
-, full(full)
-, peer(0)
-, uploadingData(0) {
+, full(full) {
 }
 
 void PhotoData::automaticLoad(const HistoryItem *item) {
@@ -940,7 +924,7 @@ int32 PhotoData::loadOffset() const {
 }
 
 bool PhotoData::uploading() const {
-	return uploadingData;
+	return !!uploadingData;
 }
 
 void PhotoData::forget() {
@@ -962,10 +946,6 @@ ImagePtr PhotoData::makeReplyPreview() {
 		}
 	}
 	return replyPreview;
-}
-
-PhotoData::~PhotoData() {
-	delete base::take(uploadingData);
 }
 
 void PhotoOpenClickHandler::onClickImpl() const {
@@ -1132,12 +1112,12 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 		bool mp3 = (data->mime == qstr("audio/mp3"));
 		name = already.isEmpty() ? (mp3 ? qsl(".mp3") : qsl(".ogg")) : already;
 		filter = mp3 ? qsl("MP3 Audio (*.mp3);;") : qsl("OGG Opus Audio (*.ogg);;");
-		filter += filedialogAllFilesFilter();
+		filter += FileDialog::AllFilesFilter();
 		caption = lang(lng_save_audio);
 		prefix = qsl("audio");
 	} else if (data->isVideo()) {
 		name = already.isEmpty() ? qsl(".mov") : already;
-		filter = qsl("MOV Video (*.mov);;") + filedialogAllFilesFilter();
+		filter = qsl("MOV Video (*.mov);;") + FileDialog::AllFilesFilter();
 		caption = lang(lng_save_video);
 		prefix = qsl("video");
 	} else {
@@ -1148,7 +1128,7 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 		if (pattern.isEmpty()) {
 			filter = QString();
 		} else {
-			filter = mimeType.filterString() + qsl(";;") + filedialogAllFilesFilter();
+			filter = mimeType.filterString() + qsl(";;") + FileDialog::AllFilesFilter();
 		}
 		caption = lang(data->song() ? lng_save_audio_file : lng_save_file);
 		prefix = qsl("doc");
@@ -1161,9 +1141,9 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, HistoryItem *context, 
 	if (!data->date) return;
 
 	auto msgId = context ? context->fullId() : FullMsgId();
-	bool playVoice = data->voice() && audioPlayer();
-	bool playMusic = data->song() && audioPlayer();
-	bool playVideo = data->isVideo() && audioPlayer();
+	bool playVoice = data->voice();
+	bool playMusic = data->song();
+	bool playVideo = data->isVideo();
 	bool playAnimation = data->isAnimation();
 	auto &location = data->location(true);
 	if (auto applyTheme = data->isTheme()) {
@@ -1174,28 +1154,27 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, HistoryItem *context, 
 		}
 	}
 	if (!location.isEmpty() || (!data->data().isEmpty() && (playVoice || playMusic || playVideo || playAnimation))) {
+		using State = Media::Player::State;
 		if (playVoice) {
-			AudioMsgId playing;
-			auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Voice);
-			if (playing == AudioMsgId(data, msgId) && !(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(AudioMsgId::Type::Voice);
+			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
+			if (state.id == AudioMsgId(data, msgId) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
+				Media::Player::mixer()->pauseresume(AudioMsgId::Type::Voice);
 			} else {
-				AudioMsgId audio(data, msgId);
-				audioPlayer()->play(audio);
-				audioPlayer()->notify(audio);
+				auto audio = AudioMsgId(data, msgId);
+				Media::Player::mixer()->play(audio);
+				Media::Player::Updated().notify(audio);
 				if (App::main()) {
 					App::main()->mediaMarkRead(data);
 				}
 			}
 		} else if (playMusic) {
-			AudioMsgId playing;
-			auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
-			if (playing == AudioMsgId(data, msgId) && !(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(AudioMsgId::Type::Song);
+			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
+			if (state.id == AudioMsgId(data, msgId) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
+				Media::Player::mixer()->pauseresume(AudioMsgId::Type::Song);
 			} else {
-				AudioMsgId song(data, msgId);
-				audioPlayer()->play(song);
-				audioPlayer()->notify(song);
+				auto song = AudioMsgId(data, msgId);
+				Media::Player::mixer()->play(song);
+				Media::Player::Updated().notify(song);
 			}
 		} else if (playVideo) {
 			if (!data->data().isEmpty()) {
@@ -1206,16 +1185,14 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, HistoryItem *context, 
 			} else {
 				auto filepath = location.name();
 				if (documentIsValidMediaFile(filepath)) {
-					psOpenFile(filepath);
-				} else {
-					psShowInFolder(filepath);
+					File::Launch(filepath);
 				}
 			}
 			if (App::main()) App::main()->mediaMarkRead(data);
 		} else if (data->voice() || data->song() || data->isVideo()) {
 			auto filepath = location.name();
 			if (documentIsValidMediaFile(filepath)) {
-				psOpenFile(filepath);
+				File::Launch(filepath);
 			}
 			if (App::main()) App::main()->mediaMarkRead(data);
 		} else if (data->size < App::kImageSizeLimit) {
@@ -1233,14 +1210,14 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, HistoryItem *context, 
 						App::wnd()->showDocument(data, context);
 					}
 				} else {
-					psOpenFile(location.name());
+					File::Launch(location.name());
 				}
 				location.accessDisable();
 			} else {
-				psOpenFile(location.name());
+				File::Launch(location.name());
 			}
 		} else {
-			psOpenFile(location.name());
+			File::Launch(location.name());
 		}
 		return;
 	}
@@ -1271,10 +1248,7 @@ void DocumentSaveClickHandler::doSave(DocumentData *data, bool forceSavingAs) {
 
 	auto filepath = data->filepath(DocumentData::FilePathResolveSaveFromDataSilent, forceSavingAs);
 	if (!filepath.isEmpty() && !forceSavingAs) {
-		auto pos = QCursor::pos();
-		if (!psShowOpenWithMenu(pos.x(), pos.y(), filepath)) {
-			psOpenFile(filepath, true);
-		}
+		File::OpenWith(filepath, QCursor::pos());
 	} else {
 		auto fileinfo = QFileInfo(filepath);
 		auto filedir = filepath.isEmpty() ? QDir() : fileinfo.dir();
@@ -1360,7 +1334,7 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			auto &d = attributes[i].c_documentAttributeSticker();
 			if (type == FileDocument) {
 				type = StickerDocument;
-				_additional = std_::make_unique<StickerData>();
+				_additional = std::make_unique<StickerData>();
 			}
 			if (sticker()) {
 				sticker()->alt = qs(d.valt);
@@ -1382,10 +1356,10 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			if (type == FileDocument) {
 				if (d.is_voice()) {
 					type = VoiceDocument;
-					_additional = std_::make_unique<VoiceData>();
+					_additional = std::make_unique<VoiceData>();
 				} else {
 					type = SongDocument;
-					_additional = std_::make_unique<SongData>();
+					_additional = std::make_unique<SongData>();
 				}
 			}
 			if (voice()) {
@@ -1470,8 +1444,8 @@ void DocumentData::performActionOnLoad() {
 	auto already = loc.name();
 	auto item = _actionOnLoadMsgId.msg ? App::histItemById(_actionOnLoadMsgId) : nullptr;
 	bool showImage = !isVideo() && (size < App::kImageSizeLimit);
-	bool playVoice = voice() && audioPlayer() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen);
-	bool playMusic = song() && audioPlayer() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen);
+	bool playVoice = voice() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen);
+	bool playMusic = song() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen);
 	bool playAnimation = isAnimation() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen) && showImage && item && item->getMedia();
 	if (auto applyTheme = isTheme()) {
 		if (!loc.isEmpty() && loc.accessEnable()) {
@@ -1480,27 +1454,26 @@ void DocumentData::performActionOnLoad() {
 			return;
 		}
 	}
+	using State = Media::Player::State;
 	if (playVoice) {
 		if (loaded()) {
-			AudioMsgId playing;
-			auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Voice);
-			if (playing == AudioMsgId(this, _actionOnLoadMsgId) && !(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(AudioMsgId::Type::Voice);
-			} else if (playbackState.state & AudioPlayerStoppedMask) {
-				audioPlayer()->play(AudioMsgId(this, _actionOnLoadMsgId));
+			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
+			if (state.id == AudioMsgId(this, _actionOnLoadMsgId) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
+				Media::Player::mixer()->pauseresume(AudioMsgId::Type::Voice);
+			} else if (Media::Player::IsStopped(state.state)) {
+				Media::Player::mixer()->play(AudioMsgId(this, _actionOnLoadMsgId));
 				if (App::main()) App::main()->mediaMarkRead(this);
 			}
 		}
 	} else if (playMusic) {
 		if (loaded()) {
-			AudioMsgId playing;
-			auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
-			if (playing == AudioMsgId(this, _actionOnLoadMsgId) && !(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(AudioMsgId::Type::Song);
-			} else if (playbackState.state & AudioPlayerStoppedMask) {
-				AudioMsgId song(this, _actionOnLoadMsgId);
-				audioPlayer()->play(song);
-				audioPlayer()->notify(song);
+			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
+			if (state.id == AudioMsgId(this, _actionOnLoadMsgId) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
+				Media::Player::mixer()->pauseresume(AudioMsgId::Type::Song);
+			} else if (Media::Player::IsStopped(state.state)) {
+				auto song = AudioMsgId(this, _actionOnLoadMsgId);
+				Media::Player::mixer()->play(song);
+				Media::Player::Updated().notify(song);
 			}
 		}
 	} else if (playAnimation) {
@@ -1515,14 +1488,11 @@ void DocumentData::performActionOnLoad() {
 		if (already.isEmpty()) return;
 
 		if (_actionOnLoad == ActionOnLoadOpenWith) {
-			QPoint pos(QCursor::pos());
-			if (!psShowOpenWithMenu(pos.x(), pos.y(), already)) {
-				psOpenFile(already, true);
-			}
+			File::OpenWith(already, QCursor::pos());
 		} else if (_actionOnLoad == ActionOnLoadOpen || _actionOnLoad == ActionOnLoadPlayInline) {
 			if (voice() || song() || isVideo()) {
 				if (documentIsValidMediaFile(already)) {
-					psOpenFile(already);
+					File::Launch(already);
 				}
 				if (App::main()) App::main()->mediaMarkRead(this);
 			} else if (loc.accessEnable()) {
@@ -1533,11 +1503,11 @@ void DocumentData::performActionOnLoad() {
 						App::wnd()->showDocument(this, item);
 					}
 				} else {
-					psOpenFile(already);
+					File::Launch(already);
 				}
 				loc.accessDisable();
 			} else {
-				psOpenFile(already);
+				File::Launch(already);
 			}
 		}
 	}
@@ -1545,26 +1515,27 @@ void DocumentData::performActionOnLoad() {
 }
 
 bool DocumentData::loaded(FilePathResolveType type) const {
-	if (loading() && _loader->done()) {
-		if (_loader->fileType() == mtpc_storage_fileUnknown) {
-			_loader->deleteLater();
-			_loader->stop();
-			_loader = CancelledMtpFileLoader;
+	if (loading() && _loader->finished()) {
+		if (_loader->cancelled()) {
+			destroyLoaderDelayed(CancelledMtpFileLoader);
 		} else {
-			DocumentData *that = const_cast<DocumentData*>(this);
-			that->_location = FileLocation(mtpToStorageType(_loader->fileType()), _loader->fileName());
+			auto that = const_cast<DocumentData*>(this);
+			that->_location = FileLocation(_loader->fileName());
 			that->_data = _loader->bytes();
 			if (that->sticker() && !_loader->imagePixmap().isNull()) {
 				that->sticker()->img = ImagePtr(_data, _loader->imageFormat(), _loader->imagePixmap());
 			}
-
-			_loader->deleteLater();
-			_loader->stop();
-			_loader = nullptr;
+			destroyLoaderDelayed();
 		}
 		notifyLayoutChanged();
 	}
 	return !data().isEmpty() || !filepath(type).isEmpty();
+}
+
+void DocumentData::destroyLoaderDelayed(mtpFileLoader *newValue) const {
+	_loader->stop();
+	auto loader = std::unique_ptr<FileLoader>(std::exchange(_loader, newValue));
+	Messenger::Instance().delayedDestroyLoader(std::move(loader));
 }
 
 bool DocumentData::loading() const {
@@ -1604,8 +1575,8 @@ void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMs
 				f.write(_data);
 				f.close();
 
-				setLocation(FileLocation(StorageFilePartial, toFile));
-				Local::writeFileLocation(mediaKey(), FileLocation(mtpToStorageType(mtpc_storage_filePartial), toFile));
+				setLocation(FileLocation(toFile));
+				Local::writeFileLocation(mediaKey(), FileLocation(toFile));
 			} else if (l.accessEnable()) {
 				auto alreadyName = l.name();
 				if (alreadyName != toFile) {
@@ -1649,11 +1620,10 @@ void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMs
 void DocumentData::cancel() {
 	if (!loading()) return;
 
-	auto loader = base::take(_loader);
-	_loader = CancelledMtpFileLoader;
+	auto loader = std::exchange(_loader, CancelledMtpFileLoader);
 	loader->cancel();
-	loader->deleteLater();
 	loader->stop();
+	Messenger::Instance().delayedDestroyLoader(std::unique_ptr<FileLoader>(loader));
 
 	notifyLayoutChanged();
 	if (auto main = App::main()) {
@@ -1677,20 +1647,54 @@ void DocumentData::notifyLayoutChanged() const {
 }
 
 VoiceWaveform documentWaveformDecode(const QByteArray &encoded5bit) {
-	VoiceWaveform result((encoded5bit.size() * 8) / 5, 0);
-	for (int32 i = 0, l = result.size(); i < l; ++i) { // read each 5 bit of encoded5bit as 0-31 unsigned char
-		int32 byte = (i * 5) / 8, shift = (i * 5) % 8;
-		result[i] = (((*(uint16*)(encoded5bit.constData() + byte)) >> shift) & 0x1F);
+	auto bitsCount = static_cast<int>(encoded5bit.size() * 8);
+	auto valuesCount = bitsCount / 5;
+	if (!valuesCount) {
+		return VoiceWaveform();
 	}
+
+	// Read each 5 bit of encoded5bit as 0-31 unsigned char.
+	// We count the index of the byte in which the desired 5-bit sequence starts.
+	// And then we read a uint16 starting from that byte to guarantee to get all of those 5 bits.
+	//
+	// BUT! if it is the last byte we have, we're not allowed to read a uint16 starting with it.
+	// Because it will be an overflow (we'll access one byte after the available memory).
+	// We see, that only the last 5 bits could start in the last available byte and be problematic.
+	// So we read in a general way all the entries in a general way except the last one.
+	auto result = VoiceWaveform(valuesCount, 0);
+	auto bitsData = encoded5bit.constData();
+	for (auto i = 0, l = valuesCount - 1; i != l; ++i) {
+		auto byteIndex = (i * 5) / 8;
+		auto bitShift = (i * 5) % 8;
+		auto value = *reinterpret_cast<const uint16*>(bitsData + byteIndex);
+		result[i] = static_cast<char>((value >> bitShift) & 0x1F);
+	}
+	auto lastByteIndex = ((valuesCount - 1) * 5) / 8;
+	auto lastBitShift = ((valuesCount - 1) * 5) % 8;
+	auto lastValue = (lastByteIndex == encoded5bit.size() - 1)
+		? static_cast<uint16>(*reinterpret_cast<const uchar*>(bitsData + lastByteIndex))
+		: *reinterpret_cast<const uint16*>(bitsData + lastByteIndex);
+	result[valuesCount - 1] = static_cast<char>((lastValue >> lastBitShift) & 0x1F);
+
 	return result;
 }
 
 QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform) {
-	QByteArray result((waveform.size() * 5 + 7) / 8, 0);
-	for (int32 i = 0, l = waveform.size(); i < l; ++i) { // write each 0-31 unsigned char as 5 bit to result
-		int32 byte = (i * 5) / 8, shift = (i * 5) % 8;
-		(*(uint16*)(result.data() + byte)) |= (uint16(waveform.at(i) & 0x1F) << shift);
+	auto bitsCount = waveform.size() * 5;
+	auto bytesCount = (bitsCount + 7) / 8;
+	auto result = QByteArray(bytesCount + 1, 0);
+	auto bitsData = result.data();
+
+	// Write each 0-31 unsigned char as 5 bit to result.
+	// We reserve one extra byte to be able to dereference any of required bytes
+	// as a uint16 without overflowing, even the byte with index "bytesCount - 1".
+	for (auto i = 0, l = waveform.size(); i < l; ++i) {
+		auto byteIndex = (i * 5) / 8;
+		auto bitShift = (i * 5) % 8;
+		auto value = (static_cast<uint16>(waveform[i]) & 0x1F) << bitShift;
+		*reinterpret_cast<uint16*>(bitsData + byteIndex) |= value;
 	}
+	result.resize(bytesCount);
 	return result;
 }
 
@@ -1729,7 +1733,7 @@ QString DocumentData::filepath(FilePathResolveType type, bool forceSavingAs) con
 			if (f.open(QIODevice::WriteOnly)) {
 				if (f.write(data()) == data().size()) {
 					f.close();
-					const_cast<DocumentData*>(this)->_location = FileLocation(StorageFilePartial, filename);
+					const_cast<DocumentData*>(this)->_location = FileLocation(filename);
 					Local::writeFileLocation(mediaKey(), _location);
 					result = filename;
 				}
@@ -1786,9 +1790,7 @@ bool DocumentData::setRemoteVersion(int32 version) {
 	_data = QByteArray();
 	status = FileReady;
 	if (loading()) {
-		_loader->deleteLater();
-		_loader->stop();
-		_loader = nullptr;
+		destroyLoaderDelayed();
 	}
 	return true;
 }
@@ -1832,10 +1834,21 @@ void DocumentData::collectLocalData(DocumentData *local) {
 
 DocumentData::~DocumentData() {
 	if (loading()) {
-		_loader->deleteLater();
-		_loader->stop();
-		_loader = nullptr;
+		destroyLoaderDelayed();
 	}
+}
+
+QString DocumentData::composeNameString(const QString &filename, const QString &songTitle, const QString &songPerformer) {
+	if (songTitle.isEmpty() && songPerformer.isEmpty()) {
+		return filename.isEmpty() ? qsl("Unknown File") : filename;
+	}
+
+	if (songPerformer.isEmpty()) {
+		return songTitle;
+	}
+
+	auto trackTitle = (songTitle.isEmpty() ? qsl("Unknown Track") : songTitle);
+	return songPerformer + QString::fromUtf8(" \xe2\x80\x93 ") + trackTitle;
 }
 
 WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, DocumentData *document, PhotoData *photo, int32 duration, const QString &author, int32 pendingTill) : id(id)
@@ -1879,6 +1892,6 @@ ClickHandlerPtr peerOpenClickHandler(PeerData *peer) {
 
 MsgId clientMsgId() {
 	static MsgId currentClientMsgId = StartClientMsgId;
-	Q_ASSERT(currentClientMsgId < EndClientMsgId);
+	t_assert(currentClientMsgId < EndClientMsgId);
 	return currentClientMsgId++;
 }

@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "window/section_widget.h"
 
 #include "application.h"
@@ -48,7 +47,7 @@ void SectionWidget::showAnimated(SlideDirection direction, const SectionSlidePar
 	hideChildren();
 	showAnimatedHook();
 
-	_showAnimation = std_::make_unique<SlideAnimation>();
+	_showAnimation = std::make_unique<SlideAnimation>();
 	_showAnimation->setDirection(direction);
 	_showAnimation->setRepaintCallback([this] { update(); });
 	_showAnimation->setFinishedCallback([this] { showFinished(); });

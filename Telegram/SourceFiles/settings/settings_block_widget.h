@@ -25,8 +25,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class Checkbox;
+class RadiobuttonGroup;
 class Radiobutton;
 class LinkButton;
+template <typename Enum>
+class RadioenumGroup;
+template <typename Enum>
+class Radioenum;
 template <typename Widget>
 class WidgetSlideWrap;
 } // namespace Ui
@@ -70,7 +75,7 @@ protected:
 
 	template <typename Widget, typename ...Args>
 	Widget *addChildRow(object_ptr<Widget> &child, style::margins margin, Args&&... args) {
-		createChildRow(child, margin, std_::forward<Args>(args)...);
+		createChildRow(child, margin, std::forward<Args>(args)...);
 		addCreatedRow(child, margin);
 		return child;
 	}
@@ -79,39 +84,47 @@ private:
 	template <typename Widget, typename ...Args>
 	void createChildRow(object_ptr<Ui::WidgetSlideWrap<Widget>> &child, style::margins &margin, const style::margins &padding, Args&&... args) {
 		object_ptr<Widget> entity = { nullptr };
-		createChildRow(entity, margin, std_::forward<Args>(args)...);
-		child.create(this, std_::move(entity), padding, [this] { rowHeightUpdated(); });
+		createChildRow(entity, margin, std::forward<Args>(args)...);
+		child.create(this, std::move(entity), padding, [this] { rowHeightUpdated(); });
 		margin.setLeft(margin.left() - padding.left());
 		margin.setTop(margin.top() - padding.top());
 		margin.setRight(margin.right() - padding.right());
 		margin.setBottom(margin.bottom() - padding.bottom());
 	}
 	void createChildRow(object_ptr<Ui::Checkbox> &child, style::margins &margin, const QString &text, const char *slot, bool checked);
-	void createChildRow(object_ptr<Ui::Radiobutton> &child, style::margins &margin, const QString &group, int value, const QString &text, const char *slot, bool checked);
 	void createChildRow(object_ptr<Ui::LinkButton> &child, style::margins &margin, const QString &text, const char *slot, const style::LinkButton &st = st::boxLinkButton);
+
+	template <typename Enum>
+	void createChildRow(object_ptr<Ui::Radioenum<Enum>> &child, style::margins &margin, const std::shared_ptr<Ui::RadioenumGroup<Enum>> &group, Enum value, const QString &text) {
+		child.create(this, group, value, text, st::defaultBoxCheckbox);
+	}
 
 	void addCreatedRow(TWidget *child, const style::margins &margin);
 	void rowHeightUpdated();
 
 	template <typename Widget>
-	struct IsWidgetSlideWrap {
-		static constexpr bool value = false;
+	struct IsWidgetSlideWrap : std::false_type {
 	};
 	template <typename Widget>
-	struct IsWidgetSlideWrap<Ui::WidgetSlideWrap<Widget>> {
-		static constexpr bool value = true;
+	struct IsWidgetSlideWrap<Ui::WidgetSlideWrap<Widget>> : std::true_type {
+	};
+	template <typename Widget>
+	struct IsRadioenum : std::false_type {
+	};
+	template <typename Enum>
+	struct IsRadioenum<Ui::Radioenum<Enum>> : std::true_type {
 	};
 
 	template <typename Widget>
-	using NotImplementedYet = std_::enable_if_t<
+	using NotImplementedYet = std::enable_if_t<
 		!IsWidgetSlideWrap<Widget>::value &&
-		!std_::is_same<Widget, Ui::Checkbox>::value &&
-		!std_::is_same<Widget, Ui::Radiobutton>::value &&
-		!std_::is_same<Widget, Ui::LinkButton>::value>;
+		!IsRadioenum<Widget>::value &&
+		!std::is_same<Ui::Checkbox, Widget>::value &&
+		!std::is_same<Ui::LinkButton, Widget>::value>;
 
 	template <typename Widget, typename... Args, typename = NotImplementedYet<Widget>>
 	void createChildRow(object_ptr<Widget> &child, style::margins &margin, Args&&... args) {
-		child.create(this, std_::forward<Args>(args)...);
+		child.create(this, std::forward<Args>(args)...);
 	}
 
 	void paintTitle(Painter &p);

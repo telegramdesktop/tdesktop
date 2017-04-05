@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/effects/widget_slide_wrap.h"
 
 namespace Ui {
@@ -26,12 +25,12 @@ namespace Ui {
 WidgetSlideWrap<TWidget>::WidgetSlideWrap(QWidget *parent
 , object_ptr<TWidget> entity
 , style::margins entityPadding
-, base::lambda<void()> &&updateCallback
+, base::lambda<void()> updateCallback
 , int duration) : TWidget(parent)
-, _entity(std_::move(entity))
+, _entity(std::move(entity))
 , _padding(entityPadding)
 , _duration(duration)
-, _updateCallback(std_::move(updateCallback)) {
+, _updateCallback(std::move(updateCallback)) {
 	_entity->setParent(this);
 	auto margins = getMargins();
 	_entity->moveToLeft(margins.left() + _padding.left(), margins.top() + _padding.top());
@@ -40,7 +39,7 @@ WidgetSlideWrap<TWidget>::WidgetSlideWrap(QWidget *parent
 	resizeToWidth(_realSize.width());
 }
 
-void WidgetSlideWrap<TWidget>::slideUp() {
+void WidgetSlideWrap<TWidget>::hideAnimated() {
 	if (isHidden()) {
 		_forceHeight = 0;
 		resizeToWidth(_realSize.width());
@@ -54,7 +53,7 @@ void WidgetSlideWrap<TWidget>::slideUp() {
 	_a_height.start([this] { animationCallback(); }, _realSize.height(), 0., _duration);
 }
 
-void WidgetSlideWrap<TWidget>::slideDown() {
+void WidgetSlideWrap<TWidget>::showAnimated() {
 	if (isHidden()) {
 		show();
 	}
@@ -70,21 +69,12 @@ void WidgetSlideWrap<TWidget>::slideDown() {
 	_a_height.start([this] { animationCallback(); }, 0., _realSize.height(), _duration);
 }
 
-void WidgetSlideWrap<TWidget>::showFast() {
-	show();
+void WidgetSlideWrap<TWidget>::toggleFast(bool visible) {
+	if (visible) show();
 	_a_height.finish();
-	_forceHeight = -1;
+	_forceHeight = visible ? -1 : 0;
 	resizeToWidth(_realSize.width());
-	if (_updateCallback) {
-		_updateCallback();
-	}
-}
-
-void WidgetSlideWrap<TWidget>::hideFast() {
-	_a_height.finish();
-	_forceHeight = 0;
-	resizeToWidth(_realSize.width());
-	hide();
+	if (!visible) hide();
 	if (_updateCallback) {
 		_updateCallback();
 	}

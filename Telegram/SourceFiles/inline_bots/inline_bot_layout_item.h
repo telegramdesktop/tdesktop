@@ -91,8 +91,8 @@ public:
 		update();
 	}
 
-	static std_::unique_ptr<ItemBase> createLayout(Result *result, bool forceThumb);
-	static std_::unique_ptr<ItemBase> createLayoutGif(DocumentData *document);
+	static std::unique_ptr<ItemBase> createLayout(Result *result, bool forceThumb);
+	static std::unique_ptr<ItemBase> createLayoutGif(DocumentData *document);
 
 protected:
 	DocumentData *getResultDocument() const;

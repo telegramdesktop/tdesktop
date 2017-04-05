@@ -51,8 +51,6 @@ enum {
 	MTPDownloadSessionsCount = 2, // max 2 download sessions is created
 	MTPKillFileSessionTimeout = 5000, // how much time without upload / download causes additional session kill
 
-	MTPEnumDCTimeout = 8000, // 8 seconds timeout for help_getConfig to work (then move to other dc)
-
 	MTPDebugBufferSize = 1024 * 1024, // 1 mb start size
 
 	MaxUsersPerInvite = 100, // max users in one super group invite request
@@ -76,7 +74,6 @@ enum {
 	LocalEncryptIterCount = 4000, // key derivation iteration count
 	LocalEncryptNoPwdIterCount = 4, // key derivation iteration count without pwd (not secure anyway)
 	LocalEncryptSaltSize = 32, // 256 bit
-	LocalEncryptKeySize = 256, // 2048 bit
 
 	AnimationTimerDelta = 7,
 	ClipThreadsCount = 8,
@@ -87,7 +84,6 @@ enum {
 
 	AVBlockSize = 4096, // 4Kb for ffmpeg blocksize
 
-	SaveRecentEmojisTimeout = 3000, // 3 secs
 	SaveWindowPositionTimeout = 1000, // 1 sec
 
 	AutoSearchTimeout = 900, // 0.9 secs
@@ -97,23 +93,11 @@ enum {
 	MediaOverviewStartPerPage = 5,
 	MediaOverviewPreloadCount = 4,
 
-	AudioSimultaneousLimit = 4,
-	AudioCheckPositionTimeout = 100, // 100ms per check audio pos
-	AudioCheckPositionDelta = 2400, // update position called each 2400 samples
-	AudioFadeTimeout = 7, // 7ms
-	AudioFadeDuration = 500,
-	AudioVoiceMsgSkip = 400, // 200ms
-	AudioVoiceMsgFade = 300, // 300ms
-	AudioPreloadSamples = 2 * 48000, // preload next part if less than 5 seconds remains
-	AudioVoiceMsgFrequency = 48000, // 48 kHz
 	AudioVoiceMsgMaxLength = 100 * 60, // 100 minutes
 	AudioVoiceMsgUpdateView = 100, // 100ms
 	AudioVoiceMsgChannels = 2, // stereo
 	AudioVoiceMsgBufferSize = 256 * 1024, // 256 Kb buffers (1.3 - 3.0 secs)
 	AudioVoiceMsgInMemory = 2 * 1024 * 1024, // 2 Mb audio is hold in memory and auto loaded
-	AudioPauseDeviceTimeout = 3000, // pause in 3 secs after playing is over
-
-	WaveformSamplesCount = 100,
 
 	StickerInMemory = 2 * 1024 * 1024, // 2 Mb stickers hold in memory, auto loaded and displayed inline
 	StickerMaxSize = 2048, // 2048x2048 is a max image size for sticker
@@ -142,7 +126,6 @@ enum {
 	MaxPhotoCaption = 200,
 
 	MaxMessageSize = 4096,
-	MaxHttpRedirects = 5, // when getting external data/images
 
 	WriteMapTimeout = 1000,
 	SaveDraftTimeout = 1000, // save draft after 1 secs of not changing text
@@ -322,16 +305,6 @@ inline QString cApiAppVersion() {
 	return QString::number(AppVersion);
 }
 
-constexpr str_const AppLinksDomain = "t.me";
-
-inline QString CreateInternalLink(const QString &query) {
-	return str_const_toString(AppLinksDomain) + '/' + query;
-}
-
-inline QString CreateInternalLinkHttps(const QString &query) {
-	return qsl("https://") + CreateInternalLink(query);
-}
-
 extern QString gKeyFile;
 inline const QString &cDataFile() {
 	if (!gKeyFile.isEmpty()) return gKeyFile;
@@ -356,8 +329,6 @@ enum {
 
 	FileLoaderQueueStopTimeout = 5000,
 
-	DownloadPartSize = 64 * 1024, // 64kb for photo
-	DocumentDownloadPartSize = 128 * 1024, // 128kb for document
     UseBigFilesFrom = 10 * 1024 * 1024, // mtp big files methods used for files greater than 10mb
 	MaxFileQueries = 16, // max 16 file parts downloaded at the same time
 	MaxWebFileQueries = 8, // max 8 http[s] files downloaded at the same time

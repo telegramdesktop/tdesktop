@@ -45,11 +45,11 @@ public:
 
 	bool overlaps(const QRect &globalRect);
 
-	void setClosedCallback(base::lambda<void()> &&callback) {
-		_closedCallback = std_::move(callback);
+	void setClosedCallback(base::lambda<void()> callback) {
+		_closedCallback = std::move(callback);
 	}
-	void setResizedCallback(base::lambda<void()> &&callback) {
-		_resizedCallback = std_::move(callback);
+	void setResizedCallback(base::lambda<void()> callback) {
+		_resizedCallback = std::move(callback);
 	}
 
 protected:
@@ -204,3 +204,9 @@ private:
 	mutable QSize _cachedSize;
 
 };
+
+template <typename BoxType, typename ...Args>
+inline object_ptr<BoxType> Box(Args&&... args) {
+	auto parent = static_cast<QWidget*>(nullptr);
+	return object_ptr<BoxType>(parent, std::forward<Args>(args)...);
+}

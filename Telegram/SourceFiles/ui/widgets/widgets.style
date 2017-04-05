@@ -586,7 +586,7 @@ attentionLeftOutlineButton: OutlineButton(defaultLeftOutlineButton) {
 	textBgOver: attentionButtonBgOver;
 
 	textFg: attentionButtonFg;
-	textFgOver: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
 
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: attentionButtonBgRipple;

@@ -21,7 +21,7 @@
   'conditions': [[ 'build_win', {
     'msvs_precompiled_source': '<(src_loc)/stdafx.cpp',
     'msvs_precompiled_header': '<(src_loc)/stdafx.h',
-    'msbuild_toolset': 'v140_xp',     #Windows7.1SDK
+    'msbuild_toolset': 'v140',
     'sources': [
       '<(res_loc)/winrc/Telegram.rc',
     ],
@@ -88,5 +88,10 @@
         ],
       },
     },
+  }], [ 'build_uwp', {
+    'defines': [
+      'TDESKTOP_DISABLE_AUTOUPDATE',
+      'OS_WIN_STORE',
+    ]
   }]],
 }

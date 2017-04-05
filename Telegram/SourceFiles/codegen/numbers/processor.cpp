@@ -65,7 +65,6 @@ bool Processor::write(const Rules &rules) const {
 	common::ProjectInfo project = {
 		"codegen_style",
 		srcFile.fileName(),
-		"stdafx.h",
 		false, // forceReGenerate
 	};
 

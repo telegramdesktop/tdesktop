@@ -26,21 +26,25 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 class AudioPlayerLoader;
 class ChildFFMpegLoader;
-class AudioPlayerLoaders : public QObject {
+
+namespace Media {
+namespace Player {
+
+class Loaders : public QObject {
 	Q_OBJECT
 
 public:
-	AudioPlayerLoaders(QThread *thread);
+	Loaders(QThread *thread);
 	void startFromVideo(uint64 videoPlayId);
 	void stopFromVideo();
 	void feedFromVideo(VideoSoundPart &&part);
-	~AudioPlayerLoaders();
+	~Loaders();
 
 signals:
 	void error(const AudioMsgId &audio);
 	void needToCheck();
 
-public slots:
+	public slots:
 	void onInit();
 
 	void onStart(const AudioMsgId &audio, qint64 position);
@@ -53,9 +57,9 @@ private:
 	void clearFromVideoQueue();
 
 	AudioMsgId _audio, _song, _video;
-	std_::unique_ptr<AudioPlayerLoader> _audioLoader;
-	std_::unique_ptr<AudioPlayerLoader> _songLoader;
-	std_::unique_ptr<ChildFFMpegLoader> _videoLoader;
+	std::unique_ptr<AudioPlayerLoader> _audioLoader;
+	std::unique_ptr<AudioPlayerLoader> _songLoader;
+	std::unique_ptr<ChildFFMpegLoader> _videoLoader;
 
 	QMutex _fromVideoMutex;
 	uint64 _fromVideoPlayId;
@@ -64,7 +68,7 @@ private:
 
 	void emitError(AudioMsgId::Type type);
 	AudioMsgId clear(AudioMsgId::Type type);
-	void setStoppedState(AudioPlayer::AudioMsg *m, AudioPlayerState state = AudioPlayerStopped);
+	void setStoppedState(Mixer::Track *m, State state = State::Stopped);
 
 	enum SetupError {
 		SetupErrorAtStart = 0,
@@ -74,6 +78,9 @@ private:
 	};
 	void loadData(AudioMsgId audio, qint64 position);
 	AudioPlayerLoader *setupLoader(const AudioMsgId &audio, SetupError &err, qint64 &position);
-	AudioPlayer::AudioMsg *checkLoader(AudioMsgId::Type type);
+	Mixer::Track *checkLoader(AudioMsgId::Type type);
 
 };
+
+} // namespace Player
+} // namespace Media

@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "boxes/stickersetbox.h"
 
 #include "lang.h"
@@ -27,12 +26,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "stickers/stickers.h"
 #include "boxes/confirmbox.h"
 #include "apiwrap.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_boxes.h"
 #include "styles/style_stickers.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
+#include "auth_session.h"
+#include "messenger.h"
 
 StickerSetBox::StickerSetBox(QWidget*, const MTPInputStickerSet &set)
 : _set(set) {
@@ -68,7 +69,7 @@ void StickerSetBox::onAddStickers() {
 }
 
 void StickerSetBox::onShareStickers() {
-	auto url = CreateInternalLinkHttps(qsl("addstickers/") + _inner->shortName());
+	auto url = Messenger::Instance().createInternalLinkFull(qsl("addstickers/") + _inner->shortName());
 	QApplication::clipboard()->setText(url);
 	Ui::show(Box<InformBox>(lang(lng_stickers_copied)));
 }
@@ -110,7 +111,7 @@ StickerSetBox::Inner::Inner(QWidget *parent, const MTPInputStickerSet &set) : TW
 	MTP::send(MTPmessages_GetStickerSet(_input), rpcDone(&Inner::gotSet), rpcFail(&Inner::failedSet));
 	App::main()->updateStickers();
 
-	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 
 	setMouseTracking(true);
 
@@ -126,7 +127,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 	setCursor(style::cur_default);
 	if (set.type() == mtpc_messages_stickerSet) {
 		auto &d = set.c_messages_stickerSet();
-		auto &v = d.vdocuments.c_vector().v;
+		auto &v = d.vdocuments.v;
 		_pack.reserve(v.size());
 		_packOvers.reserve(v.size());
 		for (int i = 0, l = v.size(); i < l; ++i) {
@@ -136,21 +137,23 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			_pack.push_back(doc);
 			_packOvers.push_back(Animation());
 		}
-		auto &packs(d.vpacks.c_vector().v);
-		for (int i = 0, l = packs.size(); i < l; ++i) {
+		auto &packs = d.vpacks.v;
+		for (auto i = 0, l = packs.size(); i != l; ++i) {
 			if (packs.at(i).type() != mtpc_stickerPack) continue;
-			auto &pack(packs.at(i).c_stickerPack());
-			if (auto e = emojiGetNoColor(emojiFromText(qs(pack.vemoticon)))) {
-				auto &stickers(pack.vdocuments.c_vector().v);
+			auto &pack = packs.at(i).c_stickerPack();
+			if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon))) {
+				emoji = emoji->original();
+				auto &stickers = pack.vdocuments.v;
+
 				StickerPack p;
 				p.reserve(stickers.size());
-				for (int32 j = 0, c = stickers.size(); j < c; ++j) {
-					DocumentData *doc = App::document(stickers.at(j).v);
+				for (auto j = 0, c = stickers.size(); j != c; ++j) {
+					auto doc = App::document(stickers[j].v);
 					if (!doc || !doc->sticker()) continue;
 
 					p.push_back(doc);
 				}
-				_emoji.insert(e, p);
+				_emoji.insert(emoji, p);
 			}
 		}
 		if (d.vset.type() == mtpc_stickerSet) {
@@ -277,7 +280,7 @@ void StickerSetBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 	}
 }
 
-void StickerSetBox::Inner::leaveEvent(QEvent *e) {
+void StickerSetBox::Inner::leaveEventHook(QEvent *e) {
 	setSelected(-1);
 }
 

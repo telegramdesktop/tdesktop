@@ -79,7 +79,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_month_day" = "{day} {month}";
 "lng_month_day_year" = "{day} {month}, {year}";
-"lng_month_year" = "{month}, {year}";
+"lng_month_year" = "{month} {year}";
 
 "lng_box_ok" = "Ok";
 
@@ -133,7 +133,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_too_long" = "Je bericht is te lang";
 "lng_edit_message" = "Bericht wijzigen";
 "lng_edit_message_text" = "Nieuw bericht...";
-"lng_deleted" = "Onbekend";
+"lng_deleted" = "Verwijderd Account";
 "lng_deleted_message" = "Verwijderd bericht";
 "lng_pinned_message" = "Vastgezet bericht";
 "lng_pinned_unpin_sure" = "Wil je dit bericht losmaken?";
@@ -224,7 +224,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_crop_profile" = "Kies een vierkant voor je profielfoto";
 "lng_settings_uploading_photo" = "Foto uploaden...";
 "lng_settings_edit" = "Wijzig";
-
 "lng_settings_drop_area_subtitle" = "om als foto in te stellen";
 
 "lng_username_title" = "Gebruikersnaam";
@@ -296,6 +295,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_bg_use_default" = "Standaardthema gebruiken";
 "lng_settings_bg_from_gallery" = "Uit galerij kiezen";
 "lng_settings_bg_from_file" = "Bestand kiezen";
+"lng_settings_bg_edit_theme" = "Thema wijzigen";
 "lng_settings_bg_tile" = "Naast elkaar";
 "lng_settings_adaptive_wide" = "Adaptieve layout voor brede schermen";
 
@@ -338,7 +338,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_passcode_remove_button" = "Verwijder";
 
-"lng_passcode_turn_on" = "Toegangscode inschakelen";
+"lng_passcode_turn_on" = "Toegangscode";
 "lng_passcode_change" = "Toegangscode wijzigen";
 "lng_passcode_create" = "Toegangscode";
 "lng_passcode_remove" = "Toegangscode verwijderen";
@@ -366,7 +366,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_cloud_password_change" = "Cloud-wachtwoord wijzigen";
 "lng_cloud_password_create" = "Cloud-wachtwoord";
 "lng_cloud_password_remove" = "Cloud-wachtwoord verwijderen";
-"lng_cloud_password_set" = "Twee-staps-verificatie inschakelen";
+"lng_cloud_password_set" = "Twee-staps-verificatie";
 "lng_cloud_password_edit" = "Cloud-wachtwoord wijzigen";
 "lng_cloud_password_enter_old" = "Wachtwoord invoeren";
 "lng_cloud_password_enter_first" = "Wachtwoord invoeren";
@@ -403,7 +403,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_connection_user_ph" = "Gebruikersnaam";
 "lng_connection_password_ph" = "Wachtwoord";
 "lng_connection_save" = "Opslaan";
+
+"lng_settings_blocked_users" = "Geblokkeerde gebruikers";
+"lng_settings_last_seen_privacy" = "Laatst gezien";
+"lng_settings_groups_invite_privacy" = "Groepen";
 "lng_settings_show_sessions" = "Alle sessies weergeven";
+"lng_settings_self_destruct" = "Account verwijderen na inactiviteit";
+"lng_settings_change_phone" = "Telefoonnummer wijzigen";
+
 "lng_settings_reset" = "Beëindig alle andere sessies";
 "lng_settings_reset_sure" = "Alle apparaten behalve het huidige\napparaat uitloggen?";
 "lng_settings_reset_one_sure" = "Deze sessie beëindigen?";
@@ -427,6 +434,54 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_sessions_no_other" = "Geen andere sessies";
 "lng_sessions_other_desc" = "Je kunt in Telegram inloggen vanaf andere apparaten (mobiel,tablet,desktop) met hetzelfde telefoonnummer. Al je data zal direct worden gesynchroniseerd.";
 "lng_sessions_terminate_all" = "Beëindig alle andere sessies";
+
+"lng_blocked_list_title" = "Geblokkeerde gebruikers";
+"lng_blocked_list_unknown_phone" = "onbekend nummer";
+"lng_blocked_list_unblock" = "Deblokkeer";
+"lng_blocked_list_add" = "Blokkeer";
+"lng_blocked_list_add_title" = "Gebruikers blokkeren";
+"lng_blocked_list_already_blocked" = "al geblokkeerd";
+"lng_blocked_list_about" = "Deze gebruikers kunnen je geen berichten sturen, niet toevoegen aan groepen, je profielfoto, online status en laatst gezien niet zien.";
+"lng_blocked_list_not_found" = "Geen gebruikers.";
+
+"lng_edit_privacy_everyone" = "Iedereen";
+"lng_edit_privacy_contacts" = "Mijn contacten";
+"lng_edit_privacy_nobody" = "Niemand";
+"lng_edit_privacy_exceptions" = "Uitzonderingen";
+
+"lng_edit_privacy_lastseen_title" = "Laatst gezien";
+"lng_edit_privacy_lastseen_description" = "Je kunt instellen wie je \"laatst gezien\" mag zien:";
+"lng_edit_privacy_lastseen_warning" = "Let op: van mensen waarmee je je laatst gezien tijd niet deelt is deze voor jou ook niet zichtbaar. In plaats daarvan krijg je tijden bij benadering te zien.";
+"lng_edit_privacy_lastseen_always" = "Altijd delen met{count:| # gebruiker| # gebruikers}";
+"lng_edit_privacy_lastseen_never" = "Nooit delen met{count:| # gebruiker| # gebruikers}";
+"lng_edit_privacy_lastseen_exceptions" = "Deze instelling overschrijft de bovenstaande.";
+"lng_edit_privacy_lastseen_always_title" = "Altijd delen met";
+"lng_edit_privacy_lastseen_never_title" = "Nooit delen met";
+
+"lng_edit_privacy_groups_title" = "Wie kan mij toevoegen?";
+"lng_edit_privacy_groups_description" = "Je kunt nauwkeurig bepalen wie je aan groepen en kanalen mag toevoegen.";
+"lng_edit_privacy_groups_always" = "Altijd toestaan{count:| # gebruiker| # gebruikers}";
+"lng_edit_privacy_groups_never" = "Nooit toestaan{count:| # gebruiker| # gebruikers}";
+"lng_edit_privacy_groups_exceptions" = "Deze gebruikers altijd toestaan of verbieden je aan groepen en kanalen toe te voegen.";
+"lng_edit_privacy_groups_always_title" = "Altijd toestaan";
+"lng_edit_privacy_groups_never_title" = "Nooit toestaan";
+
+"lng_self_destruct_title" = "Account verwijderen";
+"lng_self_destruct_description" = "Als je binnen deze periode niet minimaal één keer ingelogd bent geweest zal je account worden verwijderd, inclusief alle data.";
+"lng_self_destruct_months" = "{count:_not_used_|# maand|# maanden}";
+"lng_self_destruct_years" = "{count:_not_used_|# jaar|# jaar}";
+
+"lng_change_phone_title" = "Telefoonnummer wijzigen";
+"lng_change_phone_description" = "Je kan je telefoonnummer hier wijzigen.\nAl je clouddata — berichten, bestanden, \ngroepen, contacten, etc. zullen worden \ngekopieërd naar je nieuwe nummer.\n\n[b]Let op[/b]: al je Telegram-contacten krijgen \nje [b]nieuwe nummer[/b] in hun adresboek, ervan \nuitgaande dat ze je oude nummer hadden en \nje hen niet had geblokkeerd in Telegram.";
+"lng_change_phone_warning" = "Al je Telegram-contacten krijgen je nieuwe nummer in hun adresboek, ervan uitgaande dat ze je oude nummer hadden en je hen niet had geblokkeerd in Telegram.";
+"lng_change_phone_occupied" = "Aan telefoonnummer {phone} is al een Telegram-account gekoppeld. Verwijder het account om te kunnen migreren naar het nieuwe nummer.";
+"lng_change_phone_button" = "Nummer wijzigen";
+"lng_change_phone_new_title" = "Voer je nieuwe nummer in";
+"lng_change_phone_new_description" = "We sturen een sms-bericht met verificatiecode naar je nieuwe nummer.";
+"lng_change_phone_new_submit" = "Versturen";
+"lng_change_phone_code_title" = "Code invoeren";
+"lng_change_phone_code_description" = "Een sms-bericht met verificatiecode is naar nummer {phone} verstuurd.";
+"lng_change_phone_success" = "Je telefoonnummer is gewijzigd.";
 
 "lng_preview_loading" = "Link-preview ophalen...";
 
@@ -568,6 +623,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_message_empty" = "Leeg bericht";
 "lng_message_unsupported" = "Dit bericht wordt niet ondersteund door jouw versie van Telegram Desktop. Werk bij naar de laatste versie via de instellingen of installeer vanuit {link}";
 
+"lng_duration_seconds" = "{count:_not_used_|# seconde|# seconden}";
+"lng_duration_minutes_seconds" = "{count_minutes:# min|# min|# min} {count_seconds:# sec|# sec|# sec}";
+
 "lng_action_add_user" = "{from} heeft {user} toegevoegd";
 "lng_action_add_users_many" = "{from} heeft {users} toegevoegd";
 "lng_action_add_users_and_one" = "{accumulated}, {user}";
@@ -607,6 +665,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_game_you_scored" = "Je hebt met {game} {count:# punten|# punt|# punten} behaald";
 "lng_action_game_score_no_game" = "{from} heeft {count:# punten|# punt|# punten} behaald";
 "lng_action_game_you_scored_no_game" = "Je hebt {count:# punten|# punt|# punten} behaald";
+"lng_action_call_outgoing" = "Uitgaande oproep om {time}";
+"lng_action_call_incoming" = "Inkomende oproep om {time}";
+"lng_action_call_outgoing_duration" = "Uitgaande oproep ({duration}) om {time}";
+"lng_action_call_incoming_duration" = "Inkomende oproep ({duration}) om {time}";
+"lng_action_call_incoming_missed" = "Gemiste oproep om {time}";
+"lng_action_call_outgoing_missed" = "Geannuleerde oproep om {time}";
+"lng_action_payment_done" = "Je hebt een bedrag van {amount} overgemaakt naar {user}";
+"lng_action_payment_done_for" = "Je hebt een bedrag van {amount} overgemaakt naar {user} voor {invoice}";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# lid |# leden} limiet bereikt";
 "lng_profile_migrate_body" = "Wil je een hogere limiet? Waardeer op naar een supergroep.";
@@ -1010,7 +1076,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Nieuwe optie, minimaliseer het overzicht met chats naar een overzicht van profielfoto's. Formaat wijzigen door de lijst aan te klikken en te slepen.\n— Probleem het slepen en neerzetten van afbeeldingen vanuit Firefox onder Windows opgelost.\n— Probleemoplossing en andere kleine verbeteringen.";
+"lng_new_version_text" = "— MP4/MOV-bestanden versturen als video, deze spelen direct af in Telegram.\n— Spring naar datum. Klik op de datum in een chat om naar een specifieke dag te springen.\n— Wijzig je telefoonnummer via de instellingen.\n— Privacyinstellingen voor \"laatst gezien\" en groepsuitnodigingen.\n— Geblokkeerde gebruikers beheren via instellingen.\n— Ondersteuning voor de \"Niet storen\"-functie van macOS.\n— Probleemoplossing en andere kleine verbeteringen.";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
@@ -1022,6 +1088,29 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_confirm_phone_success" = "De verwijdering van account: {phone} is geannuleerd.\nJe kunt dit venster nu sluiten.";
 "lng_confirm_phone_send" = "Stuur";
 "lng_confirm_phone_enter_code" = "Geef de code in.";
+
+"lng_theme_editor_no_keys" = "Palet bevat nog geen waarden";
+"lng_theme_editor_cant_change_theme" = "Je kunt geen nieuw thema toepassen terwijl je het kleurenpalet bewerkt. Sluit eerst de editor.";
+"lng_theme_editor_new_keys" = "Nog niet in het kleurenpalet";
+"lng_theme_editor_background_image" = "Achtergrondafbeelding";
+"lng_theme_editor_saved_to_jpg" = "Opgeslagen als JPEG, {size}";
+"lng_theme_editor_read_from_jpg" = "JPEG-afbeelding, {size}";
+"lng_theme_editor_read_from_png" = "PNG-afbeelding, {size}";
+"lng_theme_editor_export" = "Exporteren";
+"lng_theme_editor_choose_image" = "Achtergrondafbeelding kiezen";
+"lng_theme_editor_save_palette" = "Kleurenpalet opslaan";
+"lng_theme_editor_choose_name" = "Thema opslaan";
+"lng_theme_editor_error" = "Er is iets misgegaan in de editor :( Bekijk 'log.txt' voor meer info.";
+"lng_theme_editor_done" = "Exporteren van thema gelukt!";
+"lng_theme_editor_title" = "Kleurenpalet bewerken";
+"lng_theme_editor_export_button" = "Thema exporteren";
+
+"lng_payments_not_supported" = "Telegram Desktop heeft nog geen ondersteuning voor betalingen. Gebruik één van onze mobiele apps hiervoor.";
+"lng_payments_receipt_label" = "Betalingsbewijs";
+"lng_payments_receipt_label_test" = "Test betalingsbewijs";
+"lng_payments_invoice_label" = "Factuur";
+"lng_payments_invoice_label_test" = "Test Factuur";
+"lng_payments_receipt_button" = "Betalingsbewijs";
 
 // Not used
 

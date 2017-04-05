@@ -28,6 +28,12 @@
       'src_loc': '../SourceFiles',
       'gen_loc': '../GeneratedFiles',
       'mac_target': '10.10',
+      'sources': [
+        '<(src_loc)/_other/mlmain.cpp',
+        '<(src_loc)/_other/mlmain.h',
+        '<(src_loc)/_other/genlang.cpp',
+        '<(src_loc)/_other/genlang.h',
+      ],
     },
     'includes': [
       'common_executable.gypi',
@@ -39,10 +45,7 @@
       '<(gen_loc)',
     ],
     'sources': [
-      '<(src_loc)/_other/mlmain.cpp',
-      '<(src_loc)/_other/mlmain.h',
-      '<(src_loc)/_other/genlang.cpp',
-      '<(src_loc)/_other/genlang.h',
+      '<!@(python <(DEPTH)/list_sources.py <@(sources) <(qt_moc_list_sources_arg))',
     ],
   }, {
     'target_name': 'codegen_style',
@@ -123,6 +126,34 @@
       '<(src_loc)/codegen/numbers/parsed_file.h',
       '<(src_loc)/codegen/numbers/processor.cpp',
       '<(src_loc)/codegen/numbers/processor.h',
+    ],
+  }, {
+    'target_name': 'codegen_emoji',
+    'variables': {
+      'libs_loc': '../../../Libraries',
+      'src_loc': '../SourceFiles',
+      'mac_target': '10.10',
+    },
+    'includes': [
+      'common_executable.gypi',
+      'qt.gypi',
+    ],
+
+    'include_dirs': [
+      '<(src_loc)',
+    ],
+    'sources': [
+      '<(src_loc)/codegen/common/cpp_file.cpp',
+      '<(src_loc)/codegen/common/cpp_file.h',
+      '<(src_loc)/codegen/common/logging.cpp',
+      '<(src_loc)/codegen/common/logging.h',
+      '<(src_loc)/codegen/emoji/data.cpp',
+      '<(src_loc)/codegen/emoji/data.h',
+      '<(src_loc)/codegen/emoji/generator.cpp',
+      '<(src_loc)/codegen/emoji/generator.h',
+      '<(src_loc)/codegen/emoji/main.cpp',
+      '<(src_loc)/codegen/emoji/options.cpp',
+      '<(src_loc)/codegen/emoji/options.h',
     ],
   }],
 }

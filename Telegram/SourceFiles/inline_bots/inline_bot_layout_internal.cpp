@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "inline_bots/inline_bot_layout_internal.h"
 
 #include "styles/style_overview.h"
@@ -30,7 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/media_clip_reader.h"
 #include "media/player/media_player_instance.h"
 #include "history/history_location_manager.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "mainwidget.h"
 #include "lang.h"
 
@@ -304,7 +303,7 @@ void Gif::prepareThumb(int32 width, int32 height, const QSize &frame) const {
 
 void Gif::ensureAnimation() const {
 	if (!_animation) {
-		_animation = std_::make_unique<AnimationData>(animation(const_cast<Gif*>(this), &Gif::step_radial));
+		_animation = std::make_unique<AnimationData>(animation(const_cast<Gif*>(this), &Gif::step_radial));
 	}
 }
 
@@ -830,30 +829,25 @@ bool File::updateStatusText() const {
 	} else if (document->loading()) {
 		statusSize = document->loadOffset();
 	} else if (document->loaded()) {
+		using State = Media::Player::State;
 		if (document->voice()) {
 			statusSize = FileStatusSizeLoaded;
-			if (audioPlayer()) {
-				AudioMsgId playing;
-				auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Voice);
-				if (playing == AudioMsgId(document, FullMsgId()) && !(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
-					statusSize = -1 - (playbackState.position / (playbackState.frequency ? playbackState.frequency : AudioVoiceMsgFrequency));
-					realDuration = playbackState.duration / (playbackState.frequency ? playbackState.frequency : AudioVoiceMsgFrequency);
-					showPause = (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerStarting);
-				}
+			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
+			if (state.id == AudioMsgId(document, FullMsgId()) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
+				statusSize = -1 - (state.position / state.frequency);
+				realDuration = (state.duration / state.frequency);
+				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
 			}
 		} else if (document->song()) {
 			statusSize = FileStatusSizeLoaded;
-			if (audioPlayer()) {
-				AudioMsgId playing;
-				auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
-				if (playing == AudioMsgId(document, FullMsgId()) && !(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
-					statusSize = -1 - (playbackState.position / (playbackState.frequency ? playbackState.frequency : AudioVoiceMsgFrequency));
-					realDuration = playbackState.duration / (playbackState.frequency ? playbackState.frequency : AudioVoiceMsgFrequency);
-					showPause = (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerStarting);
-				}
-				if (!showPause && (playing == AudioMsgId(document, FullMsgId())) && Media::Player::exists() && Media::Player::instance()->isSeeking()) {
-					showPause = true;
-				}
+			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
+			if (state.id == AudioMsgId(document, FullMsgId()) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
+				statusSize = -1 - (state.position / state.frequency);
+				realDuration = (state.duration / state.frequency);
+				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
+			}
+			if (!showPause && (state.id == AudioMsgId(document, FullMsgId())) && Media::Player::instance()->isSeeking(AudioMsgId::Type::Song)) {
+				showPause = true;
 			}
 		} else {
 			statusSize = FileStatusSizeLoaded;
@@ -1203,7 +1197,7 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 		bool animating = (_gif && _gif->started());
 		if (displayLoading) {
 			if (!_radial) {
-				_radial = std_::make_unique<Ui::RadialAnimation>(animation(const_cast<Game*>(this), &Game::step_radial));
+				_radial = std::make_unique<Ui::RadialAnimation>(animation(const_cast<Game*>(this), &Game::step_radial));
 			}
 			if (!_radial->animating()) {
 				_radial->start(document->progress());

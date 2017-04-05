@@ -23,7 +23,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Notify {
 struct PeerUpdate;
 } // namespace Notify
-struct AudioPlaybackState;
 class AudioMsgId;
 
 namespace Media {
@@ -32,25 +31,15 @@ namespace Player {
 void start();
 void finish();
 
-// We use this method instead of checking for instance() != nullptr
-// because audioPlayer() can be destroyed at any time by an
-// error in audio playback, so we check it each time.
-bool exists();
-
 class Instance;
 Instance *instance();
 
-struct UpdatedEvent {
-	UpdatedEvent(const AudioMsgId *audioId, const AudioPlaybackState *playbackState) : audioId(audioId), playbackState(playbackState) {
-	}
-	const AudioMsgId *audioId;
-	const AudioPlaybackState *playbackState;
-};
+struct TrackState;
 
 class Instance : private base::Subscriber {
 public:
 	void play();
-	void pause();
+	void pause(AudioMsgId::Type type);
 	void stop();
 	void playPause();
 	void next();
@@ -71,11 +60,16 @@ public:
 		_repeatChangedNotifier.notify();
 	}
 
-	bool isSeeking() const {
-		return (_seeking == _current);
+	bool isSeeking(AudioMsgId::Type type) const {
+		if (type == AudioMsgId::Type::Song) {
+			return (_seeking == _current);
+		} else if (type == AudioMsgId::Type::Voice) {
+			return (_seekingVoice == _currentVoice);
+		}
+		return false;
 	}
-	void startSeeking();
-	void stopSeeking();
+	void startSeeking(AudioMsgId::Type type);
+	void stopSeeking(AudioMsgId::Type type);
 
 	const QList<FullMsgId> &playlist() const {
 		return _playlist;
@@ -90,7 +84,7 @@ public:
 	base::Observable<bool> &playerWidgetOver() {
 		return _playerWidgetOver;
 	}
-	base::Observable<UpdatedEvent> &updatedNotifier() {
+	base::Observable<TrackState> &updatedNotifier() {
 		return _updatedNotifier;
 	}
 	base::Observable<void> &playlistChangedNotifier() {
@@ -122,7 +116,7 @@ private:
 	void handleLogout();
 
 	template <typename CheckCallback>
-	void emitUpdate(CheckCallback check);
+	void emitUpdate(AudioMsgId::Type type, CheckCallback check);
 
 	AudioMsgId _current, _seeking;
 	History *_history = nullptr;
@@ -133,10 +127,12 @@ private:
 	QList<FullMsgId> _playlist;
 	bool _isPlaying = false;
 
+	AudioMsgId _currentVoice, _seekingVoice;
+
 	base::Observable<bool> _usePanelPlayer;
 	base::Observable<bool> _titleButtonOver;
 	base::Observable<bool> _playerWidgetOver;
-	base::Observable<UpdatedEvent> _updatedNotifier;
+	base::Observable<TrackState> _updatedNotifier;
 	base::Observable<void> _playlistChangedNotifier;
 	base::Observable<void> _songChangedNotifier;
 	base::Observable<void> _repeatChangedNotifier;

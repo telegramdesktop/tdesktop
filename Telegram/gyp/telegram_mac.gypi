@@ -26,24 +26,19 @@
       'CURRENT_PROJECT_VERSION': '<!(./print_version.sh)',
       'ASSETCATALOG_COMPILER_APPICON_NAME': 'AppIcon',
       'OTHER_LDFLAGS': [
-        '-lcups',
         '-lbsm',
         '-lm',
         '-lssl',
         '-lcrypto',
         '/usr/local/lib/liblzma.a',
         '/usr/local/lib/libopus.a',
-        '/usr/local/lib/libexif.a',
       ],
     },
     'include_dirs': [
       '/usr/local/include',
-      '<(libs_loc)/openssl-xcode/include'
     ],
     'library_dirs': [
       '/usr/local/lib',
-      '<(libs_loc)/libexif-0.6.20/libexif/.libs',
-      '<(libs_loc)/openssl-xcode',
     ],
     'configurations': {
       'Debug': {
@@ -67,33 +62,43 @@
   }], [ 'build_macold', {
     'xcode_settings': {
       'PRODUCT_BUNDLE_IDENTIFIER': 'com.tdesktop.Telegram',
+      'OTHER_CPLUSPLUSFLAGS': [ '-nostdinc++' ],
       'OTHER_LDFLAGS': [
-        '/usr/local/openal_old/lib/libopenal.a',
-        '/usr/local/zlib_old/lib/libz.a',
+        '-lbase',
+        '-lcrashpad_client',
+        '-lcrashpad_util',
+        '/usr/local/macold/lib/libz.a',
+        '/usr/local/macold/lib/libopenal.a',
         '/usr/local/iconv_old/lib/libiconv.a',
         '/usr/local/ffmpeg_old/lib/libavcodec.a',
         '/usr/local/ffmpeg_old/lib/libavformat.a',
         '/usr/local/ffmpeg_old/lib/libavutil.a',
         '/usr/local/ffmpeg_old/lib/libswscale.a',
         '/usr/local/ffmpeg_old/lib/libswresample.a',
-        '-lbase',
-        '-lcrashpad_client',
-        '-lcrashpad_util',
+        '/usr/local/macold/lib/libexif.a',
+        '/usr/local/macold/lib/libc++.a',
+        '/usr/local/macold/lib/libc++abi.a',
       ],
     },
     'include_dirs': [
-      '<(libs_loc)/crashpad_oldmac/crashpad',
-      '<(libs_loc)/crashpad_oldmac/crashpad/third_party/mini_chromium/mini_chromium',
+      '/usr/local/macold',
+      '/usr/local/macold/include/c++/v1',
+      '<(libs_loc)/macold/openssl-1.0.1h/include',
+      '<(libs_loc)/macold/crashpad',
+      '<(libs_loc)/macold/crashpad/third_party/mini_chromium/mini_chromium',
+    ],
+    'library_dirs': [
+      '<(libs_loc)/macold/openssl-1.0.1h',
     ],
     'configurations': {
       'Debug': {
         'library_dirs': [
-          '<(libs_loc)/crashpad_oldmac/crashpad/out/Debug',
+          '<(libs_loc)/macold/crashpad/out/Debug',
         ],
       },
       'Release': {
         'library_dirs': [
-          '<(libs_loc)/crashpad_oldmac/crashpad/out/Release',
+          '<(libs_loc)/macold/crashpad/out/Release',
         ],
       },
     },
@@ -138,6 +143,10 @@
     'include_dirs': [
       '<(libs_loc)/crashpad/crashpad',
       '<(libs_loc)/crashpad/crashpad/third_party/mini_chromium/mini_chromium',
+      '<(libs_loc)/openssl-xcode/include'
+    ],
+    'library_dirs': [
+      '<(libs_loc)/openssl-xcode',
     ],
     'configurations': {
       'Debug': {

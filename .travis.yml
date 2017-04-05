@@ -35,8 +35,8 @@ addons:
       - dpatch
       - equivs
       - fakeroot
-      - g++-4.9
-      - gcc-4.9
+      - g++-6
+      - gcc-6
       - git
       - gnome-common
       - gobject-introspection
@@ -62,8 +62,8 @@ addons:
 before_install:
   - "export TRAVIS_COMMIT_MSG=\"$(git log --format=%B --no-merges -n 1)\""
   - .travis/check.sh
-  - export CXX="g++-4.9" CC="gcc-4.9"
-  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.9 60 --slave /usr/bin/g++ g++ /usr/bin/g++-4.9
+  - export CXX="g++-6" CC="gcc-6"
+  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 60 --slave /usr/bin/g++ g++ /usr/bin/g++-6
   - sudo update-alternatives --config gcc
   - g++ --version
 

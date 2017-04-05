@@ -3,6 +3,14 @@ setlocal enabledelayedexpansion
 set "FullScriptPath=%~dp0"
 set "FullExecPath=%cd%"
 
+set "BuildPlatform=%1"
+
+if "%BuildPlatform%" neq "uwp" (
+  set "BuildUWP=0"
+) else (
+  set "BuildUWP=1"
+)
+
 if not exist "%FullScriptPath%..\..\..\TelegramPrivate" (
   echo.
   echo This script is for building the production version of Telegram Desktop.
@@ -31,7 +39,11 @@ if %BetaVersion% neq 0 (
 )
 
 echo.
-echo Building version %AppVersionStrFull% for Windows..
+if %BuildUWP% neq 0 (
+  echo Building version %AppVersionStrFull% for UWP..
+) else (
+  echo Building version %AppVersionStrFull% for Windows..
+)
 echo.
 
 set "HomePath=%FullScriptPath%.."
@@ -43,6 +55,7 @@ set "PortableFile=tportable.%AppVersionStrFull%.zip"
 set "ReleasePath=%HomePath%\..\out\Release"
 set "DeployPath=%ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStrFull%"
 set "SignPath=%HomePath%\..\..\TelegramPrivate\Sign.bat"
+set "SignAppxPath=%HomePath%\..\..\TelegramPrivate\AppxSign.bat"
 set "BinaryName=Telegram"
 set "DropboxSymbolsPath=X:\Telegram\symbols"
 set "FinalReleasePath=Y:\TBuild\tother\tsetup"
@@ -57,35 +70,59 @@ if not exist %FinalReleasePath% (
   exit /b 1
 )
 
-if %BetaVersion% neq 0 (
-  if exist %DeployPath%\ (
-    echo Deploy folder for version %AppVersionStr% already exists!
+if %BuildUWP% neq 0 (
+  if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%\AppX\ (
+    echo UWP deploy folder for version %AppVersionStr% already exists!
     exit /b 1
   )
-  if exist %ReleasePath%\%BetaKeyFile% (
-    echo Beta version key file for version %AppVersion% already exists!
+  if exist %ReleasePath%\AppX\ (
+    echo Result folder out\Release\AppX already exists!
     exit /b 1
+  )
+  if "%AlphaBetaParam%" equ "" (
+    if not exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%\ (
+      echo Deploy folder for version %AppVersionStr% does not exist!
+      exit /b 1
+    )
   )
 ) else (
-  if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%.alpha\ (
-    echo Deploy folder for version %AppVersionStr%.alpha already exists!
-    exit /b 1
-  )
-  if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%.dev\ (
-    echo Deploy folder for version %AppVersionStr%.dev already exists!
-    exit /b 1
-  )
-  if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%\ (
-    echo Deploy folder for version %AppVersionStr% already exists!
-    exit /b 1
-  )
-  if exist %ReleasePath%\tupdate%AppVersion% (
-    echo Update file for version %AppVersion% already exists!
-    exit /b 1
+  if %BetaVersion% neq 0 (
+    if exist %DeployPath%\ (
+      echo Deploy folder for version %AppVersionStr% already exists!
+      exit /b 1
+    )
+    if exist %ReleasePath%\%BetaKeyFile% (
+      echo Beta version key file for version %AppVersion% already exists!
+      exit /b 1
+    )
+  ) else (
+    if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%.alpha\ (
+      echo Deploy folder for version %AppVersionStr%.alpha already exists!
+      exit /b 1
+    )
+    if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%.dev\ (
+      echo Deploy folder for version %AppVersionStr%.dev already exists!
+      exit /b 1
+    )
+    if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%\ (
+      echo Deploy folder for version %AppVersionStr% already exists!
+      exit /b 1
+    )
+    if exist %ReleasePath%\tupdate%AppVersion% (
+      echo Update file for version %AppVersion% already exists!
+      exit /b 1
+    )
   )
 )
 
 cd "%HomePath%"
+
+if %BuildUWP% neq 0 (
+  echo uwp > build\target
+) else (
+  echo win > build\target
+)
+
 call gyp\refresh.bat
 if %errorlevel% neq 0 goto error
 
@@ -93,9 +130,9 @@ cd "%SolutionPath%"
 call ninja -C out/Release Telegram
 if %errorlevel% neq 0 goto error
 
-echo .
+echo.
 echo Version %AppVersionStrFull% build successfull. Preparing..
-echo .
+echo.
 
 echo Dumping debug symbols..
 xcopy "%ReleasePath%\%BinaryName%.exe" "%ReleasePath%\%BinaryName%.exe.exe*"
@@ -109,43 +146,45 @@ cd "%ReleasePath%"
 call "%SignPath%" "%BinaryName%.exe"
 if %errorlevel% neq 0 goto error
 
-call "%SignPath%" "Updater.exe"
-if %errorlevel% neq 0 goto error
-
-if %BetaVersion% equ 0 (
-  iscc /dMyAppVersion=%AppVersionStrSmall% /dMyAppVersionZero=%AppVersionStr% /dMyAppVersionFull=%AppVersionStrFull% "/dReleasePath=%ReleasePath%" "%FullScriptPath%setup.iss"
+if %BuildUWP% equ 0 (
+  call "%SignPath%" "Updater.exe"
   if %errorlevel% neq 0 goto error
-  if not exist "tsetup.%AppVersionStrFull%.exe" goto error
 
-  call "%SignPath%" "tsetup.%AppVersionStrFull%.exe"
-  if %errorlevel% neq 0 goto error
-)
+  if %BetaVersion% equ 0 (
+    iscc /dMyAppVersion=%AppVersionStrSmall% /dMyAppVersionZero=%AppVersionStr% /dMyAppVersionFull=%AppVersionStrFull% "/dReleasePath=%ReleasePath%" "%FullScriptPath%setup.iss"
+    if %errorlevel% neq 0 goto error
+    if not exist "tsetup.%AppVersionStrFull%.exe" goto error
 
-call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe %AlphaBetaParam%
-if %errorlevel% neq 0 goto error
-
-if %BetaVersion% neq 0 (
-  if not exist "%ReleasePath%\%BetaKeyFile%" (
-    echo Beta version key file not found!
-    exit /b 1
+    call "%SignPath%" "tsetup.%AppVersionStrFull%.exe"
+    if %errorlevel% neq 0 goto error
   )
 
-  FOR /F "tokens=1* delims= " %%i in (%ReleasePath%\%BetaKeyFile%) do set "BetaSignature=%%i"
-)
-if %errorlevel% neq 0 goto error
+  call Packer.exe -version %VersionForPacker% -path %BinaryName%.exe -path Updater.exe %AlphaBetaParam%
+  if %errorlevel% neq 0 goto error
 
-if %BetaVersion% neq 0 (
-  set "UpdateFile=%UpdateFile%_%BetaSignature%"
-  set "PortableFile=tbeta%BetaVersion%_%BetaSignature%.zip"
+  if %BetaVersion% neq 0 (
+    if not exist "%ReleasePath%\%BetaKeyFile%" (
+      echo Beta version key file not found!
+      exit /b 1
+    )
+
+    FOR /F "tokens=1* delims= " %%i in (%ReleasePath%\%BetaKeyFile%) do set "BetaSignature=%%i"
+  )
+  if %errorlevel% neq 0 goto error
+
+  if %BetaVersion% neq 0 (
+    set "UpdateFile=!UpdateFile!_!BetaSignature!"
+    set "PortableFile=tbeta!BetaVersion!_!BetaSignature!.zip"
+  )
 )
 
 for /f ^"usebackq^ eol^=^
 
 ^ delims^=^" %%a in (%ReleasePath%\%BinaryName%.exe.sym) do (
-  set "SymbolsHashLine=%%a"
-  goto symbolslinedone
-)
-:symbolslinedone
+   set "SymbolsHashLine=%%a"
+   goto symbolslinedone
+ )
+ :symbolslinedone
 FOR /F "tokens=1,2,3,4* delims= " %%i in ("%SymbolsHashLine%") do set "SymbolsHash=%%l"
 
 echo Copying %BinaryName%.exe.sym to %DropboxSymbolsPath%\%BinaryName%.exe.pdb\%SymbolsHash%
@@ -154,61 +193,85 @@ if not exist %DropboxSymbolsPath%\%BinaryName%.exe.pdb\%SymbolsHash% mkdir %Drop
 move "%ReleasePath%\%BinaryName%.exe.sym" %DropboxSymbolsPath%\%BinaryName%.exe.pdb\%SymbolsHash%\
 echo Done!
 
-if not exist "%ReleasePath%\deploy" mkdir "%ReleasePath%\deploy"
-if not exist "%ReleasePath%\deploy\%AppVersionStrMajor%" mkdir "%ReleasePath%\deploy\%AppVersionStrMajor%"
-mkdir "%DeployPath%"
-mkdir "%DeployPath%\%BinaryName%"
-if %errorlevel% neq 0 goto error
+if %BuildUWP% neq 0 (
+  cd "%HomePath%"
 
-move "%ReleasePath%\%BinaryName%.exe" "%DeployPath%\%BinaryName%\"
-move "%ReleasePath%\Updater.exe" "%DeployPath%\"
-xcopy "%ReleasePath%\%BinaryName%.pdb" "%DeployPath%\"
-xcopy "%ReleasePath%\Updater.pdb" "%DeployPath%\"
-move "%ReleasePath%\%BinaryName%.exe.pdb" "%DeployPath%\"
-move "%ReleasePath%\Updater.exe.pdb" "%DeployPath%\"
-if %BetaVersion% equ 0 (
-  move "%ReleasePath%\%SetupFile%" "%DeployPath%\"
+  mkdir "%ReleasePath%\AppX"
+  xcopy /e "Resources\uwp\AppX\*" "%ReleasePath%\AppX\"
+
+  makepri new /pr Resources\uwp\AppX\ /cf Resources\uwp\priconfig.xml /mn %ReleasePath%\AppX\AppxManifest.xml /of %ReleasePath%\AppX\resources.pri
+  if %errorlevel% neq 0 goto error
+
+  move "%ReleasePath%\%BinaryName%.exe" "%ReleasePath%\AppX\"
+
+  MakeAppx.exe pack /d "%ReleasePath%\AppX" /l /p ..\out\Release\%BinaryName%.appx
+  if %errorlevel% neq 0 goto error
+
+  rem call "%SignAppxPath%" "..\out\Release\%BinaryName%.appx"
+
+  xcopy "%ReleasePath%\%BinaryName%.pdb" "%ReleasePath%\AppX\"
+  move "%ReleasePath%\%BinaryName%.exe.pdb" "%ReleasePath%\AppX\"
+  move "%ReleasePath%\%BinaryName%.appx" "%ReleasePath%\AppX\"
+
+  if "%AlphaBetaParam%" equ "" (
+    move "%ReleasePath%\AppX" "%DeployPath%\"
+  ) else (
+    echo Leaving result in out\Release\AppX for now..
+  )
 ) else (
-  move "%ReleasePath%\%BetaKeyFile%" "%DeployPath%\"
+  if not exist "%ReleasePath%\deploy" mkdir "%ReleasePath%\deploy"
+  if not exist "%ReleasePath%\deploy\%AppVersionStrMajor%" mkdir "%ReleasePath%\deploy\%AppVersionStrMajor%"
+  mkdir "%DeployPath%"
+  mkdir "%DeployPath%\%BinaryName%"
+  if %errorlevel% neq 0 goto error
+
+  move "%ReleasePath%\%BinaryName%.exe" "%DeployPath%\%BinaryName%\"
+  move "%ReleasePath%\Updater.exe" "%DeployPath%\"
+  xcopy "%ReleasePath%\%BinaryName%.pdb" "%DeployPath%\"
+  xcopy "%ReleasePath%\Updater.pdb" "%DeployPath%\"
+  move "%ReleasePath%\%BinaryName%.exe.pdb" "%DeployPath%\"
+  move "%ReleasePath%\Updater.exe.pdb" "%DeployPath%\"
+  if %BetaVersion% equ 0 (
+    move "%ReleasePath%\%SetupFile%" "%DeployPath%\"
+  ) else (
+    move "%ReleasePath%\%BetaKeyFile%" "%DeployPath%\"
+  )
+  move "%ReleasePath%\%UpdateFile%" "%DeployPath%\"
+  if %errorlevel% neq 0 goto error
+
+  cd "%DeployPath%"
+  7z a -mx9 %PortableFile% %BinaryName%\
+  if %errorlevel% neq 0 goto error
 )
-move "%ReleasePath%\%UpdateFile%" "%DeployPath%\"
-if %errorlevel% neq 0 goto error
-
-cd "%DeployPath%"
-7z a -mx9 %PortableFile% %BinaryName%\
-if %errorlevel% neq 0 goto error
-
-echo .
-echo Version %AppVersionStrFull% is ready for deploy!
-echo .
 
 set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%"
 
-if not exist "%DeployPath%\%UpdateFile%" goto error
-if not exist "%DeployPath%\%PortableFile%" goto error
-if %BetaVersion% equ 0 (
-  if not exist "%DeployPath%\%SetupFile%" goto error
-)
-if not exist "%DeployPath%\%BinaryName%.pdb" goto error
-if not exist "%DeployPath%\%BinaryName%.exe.pdb" goto error
-if not exist "%DeployPath%\Updater.exe" goto error
-if not exist "%DeployPath%\Updater.pdb" goto error
-if not exist "%DeployPath%\Updater.exe.pdb" goto error
-if not exist "%FinalReleasePath%\%AppVersionStrMajor%" mkdir "%FinalReleasePath%\%AppVersionStrMajor%"
-if not exist "%FinalDeployPath%" mkdir "%FinalDeployPath%"
+if %BuildUWP% equ 0 (
+  echo.
+  echo Version %AppVersionStrFull% is ready for deploy!
+  echo.
 
-xcopy "%DeployPath%\%UpdateFile%" "%FinalDeployPath%\"
-xcopy "%DeployPath%\%PortableFile%" "%FinalDeployPath%\"
-if %BetaVersion% equ 0 (
-  xcopy "%DeployPath%\%SetupFile%" "%FinalDeployPath%\"
-) else (
-  xcopy "%DeployPath%\%BetaKeyFile%" "%FinalDeployPath%\" /Y
+  if not exist "%DeployPath%\%UpdateFile%" goto error
+  if not exist "%DeployPath%\%PortableFile%" goto error
+  if %BetaVersion% equ 0 (
+    if not exist "%DeployPath%\%SetupFile%" goto error
+  )
+  if not exist "%DeployPath%\%BinaryName%.pdb" goto error
+  if not exist "%DeployPath%\%BinaryName%.exe.pdb" goto error
+  if not exist "%DeployPath%\Updater.exe" goto error
+  if not exist "%DeployPath%\Updater.pdb" goto error
+  if not exist "%DeployPath%\Updater.exe.pdb" goto error
+  if not exist "%FinalReleasePath%\%AppVersionStrMajor%" mkdir "%FinalReleasePath%\%AppVersionStrMajor%"
+  if not exist "%FinalDeployPath%" mkdir "%FinalDeployPath%"
+
+  xcopy "%DeployPath%\%UpdateFile%" "%FinalDeployPath%\"
+  xcopy "%DeployPath%\%PortableFile%" "%FinalDeployPath%\"
+  if %BetaVersion% equ 0 (
+    xcopy "%DeployPath%\%SetupFile%" "%FinalDeployPath%\"
+  ) else (
+    xcopy "%DeployPath%\%BetaKeyFile%" "%FinalDeployPath%\" /Y
+  )
 )
-xcopy "%DeployPath%\%BinaryName%.pdb" "%FinalDeployPath%\"
-xcopy "%DeployPath%\%BinaryName%.exe.pdb" "%FinalDeployPath%\"
-xcopy "%DeployPath%\Updater.exe" "%FinalDeployPath%\"
-xcopy "%DeployPath%\Updater.pdb" "%FinalDeployPath%\"
-xcopy "%DeployPath%\Updater.exe.pdb" "%FinalDeployPath%\"
 
 echo Version %AppVersionStrFull% is ready!
 

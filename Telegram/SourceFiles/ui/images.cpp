@@ -18,13 +18,12 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/images.h"
 
 #include "mainwidget.h"
-#include "localstorage.h"
-
-#include "pspecific.h"
+#include "storage/localstorage.h"
+#include "platform/platform_specific.h"
+#include "messenger.h"
 
 namespace Images {
 namespace {
@@ -53,7 +52,7 @@ const QPixmap &circleMask(int width, int height) {
 			p.drawEllipse(0, 0, width, height);
 		}
 		mask.setDevicePixelRatio(cRetinaFactor());
-		i = masks.insert(key, App::pixmapFromImageInPlace(std_::move(mask)));
+		i = masks.insert(key, App::pixmapFromImageInPlace(std::move(mask)));
 	}
 	return i.value();
 }
@@ -196,7 +195,7 @@ void prepareRound(QImage &image, ImageRoundRadius radius, ImageRoundCorners corn
 	t_assert(!image.isNull());
 
 	image.setDevicePixelRatio(cRetinaFactor());
-	image = std_::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+	image = std::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
 	t_assert(!image.isNull());
 
 	QImage **masks = App::cornersMask(radius);
@@ -252,7 +251,7 @@ void prepareRound(QImage &image, QImage **cornerMasks, ImageRoundCorners corners
 QImage prepareColored(style::color add, QImage image) {
 	auto format = image.format();
 	if (format != QImage::Format_RGB32 && format != QImage::Format_ARGB32_Premultiplied) {
-		image = std_::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+		image = std::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
 	}
 
 	if (auto pix = image.bits()) {
@@ -266,12 +265,12 @@ QImage prepareColored(style::color add, QImage image) {
 			pix[i + 3] = uchar(a + ((aca * (0xFF - a)) >> 16));
 		}
 	}
-	return std_::move(image);
+	return image;
 }
 
 QImage prepareOpaque(QImage image) {
 	if (image.hasAlphaChannel()) {
-		image = std_::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+		image = std::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
 		auto ints = reinterpret_cast<uint32*>(image.bits());
 		auto bg = anim::shifted(st::imageBgTransparent->c);
 		auto width = image.width();
@@ -285,7 +284,7 @@ QImage prepareOpaque(QImage image) {
 			ints += addPerLine;
 		}
 	}
-	return std_::move(image);
+	return image;
 }
 
 QImage prepare(QImage img, int w, int h, Images::Options options, int outerw, int outerh) {
@@ -337,7 +336,7 @@ QImage prepare(QImage img, int w, int h, Images::Options options, int outerw, in
 		t_assert(!img.isNull());
 	}
 	img.setDevicePixelRatio(cRetinaFactor());
-	return std_::move(img);
+	return img;
 }
 
 } // namespace Images
@@ -354,7 +353,7 @@ Image *generateBlankImage() {
 	auto data = QImage(cIntRetinaFactor(), cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	data.fill(Qt::transparent);
 	data.setDevicePixelRatio(cRetinaFactor());
-	return internal::getImage(App::pixmapFromImageInPlace(std_::move(data)), "GIF");
+	return internal::getImage(App::pixmapFromImageInPlace(std::move(data)), "GIF");
 }
 
 Image *blank() {
@@ -364,6 +363,9 @@ Image *blank() {
 
 using StorageImages = QMap<StorageKey, StorageImage*>;
 StorageImages storageImages;
+
+using WebFileImages = QMap<StorageKey, WebFileImage*>;
+WebFileImages webFileImages;
 
 int64 globalAcquiredSize = 0;
 
@@ -378,6 +380,7 @@ uint64 SinglePixKey(Images::Options options) {
 } // namespace
 
 StorageImageLocation StorageImageLocation::Null;
+WebFileImageLocation WebFileImageLocation::Null;
 
 bool Image::isNull() const {
 	return (this == blank());
@@ -716,7 +719,7 @@ QPixmap Image::pixNoCache(int w, int h, Images::Options options, int outerw, int
 		} else if (options.testFlag(Images::Option::RoundedSmall)) {
 			Images::prepareRound(result, ImageRoundRadius::Small, corners(options));
 		}
-		return App::pixmapFromImageInPlace(std_::move(result));
+		return App::pixmapFromImageInPlace(std::move(result));
 	}
 
 	return Images::pixmap(_data.toImage(), w, h, options, outerw, outerh);
@@ -810,6 +813,9 @@ void clearStorageImages() {
 	for (auto image : base::take(webImages)) {
 		delete image;
 	}
+	for (auto image : base::take(webFileImages)) {
+		delete image;
+	}
 }
 
 void clearAllImages() {
@@ -824,13 +830,11 @@ int64 imageCacheSize() {
 }
 
 void RemoteImage::doCheckload() const {
-	if (!amLoading() || !_loader->done()) return;
+	if (!amLoading() || !_loader->finished()) return;
 
 	QPixmap data = _loader->imagePixmap(shrinkBox());
 	if (data.isNull()) {
-		_loader->deleteLater();
-		_loader->stop();
-		_loader = CancelledFileLoader;
+		destroyLoaderDelayed(CancelledFileLoader);
 		return;
 	}
 
@@ -846,11 +850,15 @@ void RemoteImage::doCheckload() const {
 
 	invalidateSizeCache();
 
-	_loader->deleteLater();
-	_loader->stop();
-	_loader = nullptr;
+	destroyLoaderDelayed();
 
 	_forgot = false;
+}
+
+void RemoteImage::destroyLoaderDelayed(FileLoader *newValue) const {
+	_loader->stop();
+	auto loader = std::unique_ptr<FileLoader>(std::exchange(_loader, newValue));
+	Messenger::Instance().delayedDestroyLoader(std::move(loader));
 }
 
 void RemoteImage::loadLocal() {
@@ -875,13 +883,15 @@ void RemoteImage::setData(QByteArray &bytes, const QByteArray &bytesFormat) {
 
 	invalidateSizeCache();
 	if (amLoading()) {
-		_loader->deleteLater();
-		_loader->stop();
-		_loader = nullptr;
+		destroyLoaderDelayed();
 	}
 	_saved = bytes;
 	_format = fmt;
 	_forgot = false;
+}
+
+bool RemoteImage::amLoading() const {
+	return _loader && _loader != CancelledFileLoader;
 }
 
 void RemoteImage::automaticLoad(const HistoryItem *item) {
@@ -930,9 +940,7 @@ RemoteImage::~RemoteImage() {
 		globalAcquiredSize -= int64(_data.width()) * _data.height() * 4;
 	}
 	if (amLoading()) {
-		_loader->deleteLater();
-		_loader->stop();
-		_loader = 0;
+		destroyLoaderDelayed();
 	}
 }
 
@@ -948,13 +956,10 @@ bool RemoteImage::displayLoading() const {
 void RemoteImage::cancel() {
 	if (!amLoading()) return;
 
-	FileLoader *l = _loader;
-	_loader = CancelledFileLoader;
-	if (l) {
-		l->cancel();
-		l->deleteLater();
-		l->stop();
-	}
+	auto loader = std::exchange(_loader, CancelledFileLoader);
+	loader->cancel();
+	loader->stop();
+	Messenger::Instance().delayedDestroyLoader(std::unique_ptr<FileLoader>(loader));
 }
 
 float64 RemoteImage::progress() const {
@@ -975,7 +980,7 @@ StorageImage::StorageImage(const StorageImageLocation &location, QByteArray &byt
 , _size(bytes.size()) {
 	setData(bytes);
 	if (!_location.isNull()) {
-		Local::writeImage(storageKey(_location), StorageImageSaved(mtpToStorageType(mtpc_storage_filePartial), bytes));
+		Local::writeImage(storageKey(_location), StorageImageSaved(bytes));
 	}
 }
 
@@ -993,6 +998,29 @@ void StorageImage::setInformation(int32 size, int32 width, int32 height) {
 }
 
 FileLoader *StorageImage::createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) {
+	if (_location.isNull()) return 0;
+	return new mtpFileLoader(&_location, _size, fromCloud, autoLoading);
+}
+
+WebFileImage::WebFileImage(const WebFileImageLocation &location, int32 size)
+: _location(location)
+, _size(size) {
+}
+
+int32 WebFileImage::countWidth() const {
+	return _location.width();
+}
+
+int32 WebFileImage::countHeight() const {
+	return _location.height();
+}
+
+void WebFileImage::setInformation(int32 size, int32 width, int32 height) {
+	_size = size;
+	_location.setSize(width, height);
+}
+
+FileLoader *WebFileImage::createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) {
 	if (_location.isNull()) return 0;
 	return new mtpFileLoader(&_location, _size, fromCloud, autoLoading);
 }
@@ -1184,8 +1212,17 @@ StorageImage *getImage(const StorageImageLocation &location, const QByteArray &b
 		QByteArray bytesArr(bytes);
 		i.value()->setData(bytesArr);
 		if (!location.isNull()) {
-			Local::writeImage(key, StorageImageSaved(mtpToStorageType(mtpc_storage_filePartial), bytes));
+			Local::writeImage(key, StorageImageSaved(bytes));
 		}
+	}
+	return i.value();
+}
+
+WebFileImage *getImage(const WebFileImageLocation &location, int32 size) {
+	auto key = storageKey(location);
+	auto i = webFileImages.constFind(key);
+	if (i == webFileImages.cend()) {
+		i = webFileImages.insert(key, new WebFileImage(location, size));
 	}
 	return i.value();
 }
@@ -1202,10 +1239,9 @@ ReadAccessEnabler::~ReadAccessEnabler() {
 	if (_bookmark && !_failed) _bookmark->disable();
 }
 
-FileLocation::FileLocation(StorageFileType type, const QString &name) : type(type), fname(name) {
+FileLocation::FileLocation(const QString &name) : fname(name) {
 	if (fname.isEmpty()) {
 		size = 0;
-		type = StorageFileUnknown;
 	} else {
 		setBookmark(psPathBookmark(name));
 
@@ -1216,7 +1252,6 @@ FileLocation::FileLocation(StorageFileType type, const QString &name) : type(typ
 				fname = QString();
 				_bookmark.clear();
 				size = 0;
-				type = StorageFileUnknown;
 			} else {
 				modified = f.lastModified();
 				size = qint32(s);
@@ -1225,7 +1260,6 @@ FileLocation::FileLocation(StorageFileType type, const QString &name) : type(typ
 			fname = QString();
 			_bookmark.clear();
 			size = 0;
-			type = StorageFileUnknown;
 		}
 	}
 }
@@ -1242,9 +1276,21 @@ bool FileLocation::check() const {
 	if (!f.isReadable()) return false;
 
 	quint64 s = f.size();
-	if (s > INT_MAX) return false;
+	if (s > INT_MAX) {
+		DEBUG_LOG(("File location check: Wrong size %1").arg(s));
+		return false;
+	}
 
-	return (f.lastModified() == modified) && (qint32(s) == size);
+	if (qint32(s) != size) {
+		DEBUG_LOG(("File location check: Wrong size %1 when should be %2").arg(s).arg(size));
+		return false;
+	}
+	auto realModified = f.lastModified();
+	if (realModified != modified) {
+		DEBUG_LOG(("File location check: Wrong last modified time %1 when should be %2").arg(realModified.toMSecsSinceEpoch()).arg(modified.toMSecsSinceEpoch()));
+		return false;
+	}
+	return true;
 }
 
 const QString &FileLocation::name() const {

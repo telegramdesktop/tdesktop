@@ -92,6 +92,11 @@
       }, {
         'build_macstore': 0,
       }],
+      [ '"<(official_build_target)" == "uwp"', {
+        'build_uwp': 1,
+      }, {
+        'build_uwp': 0,
+      }],
     ],
     'ld_lib_prefix': '<(ld_lib_prefix)',
     'ld_lib_postfix': '<(ld_lib_postfix)',

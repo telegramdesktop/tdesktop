@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/countryinput.h"
 
 #include "lang.h"
@@ -165,11 +164,11 @@ void CountryInput::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
-void CountryInput::enterEvent(QEvent *e) {
+void CountryInput::enterEventHook(QEvent *e) {
 	setMouseTracking(true);
 }
 
-void CountryInput::leaveEvent(QEvent *e) {
+void CountryInput::leaveEventHook(QEvent *e) {
 	setMouseTracking(false);
 	_active = false;
 	setCursor(style::cur_default);
@@ -366,11 +365,11 @@ void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void CountrySelectBox::Inner::enterEvent(QEvent *e) {
+void CountrySelectBox::Inner::enterEventHook(QEvent *e) {
 	setMouseTracking(true);
 }
 
-void CountrySelectBox::Inner::leaveEvent(QEvent *e) {
+void CountrySelectBox::Inner::leaveEventHook(QEvent *e) {
 	_mouseSelection = false;
 	setMouseTracking(false);
 	if (_selected >= 0) {
@@ -393,12 +392,12 @@ void CountrySelectBox::Inner::mousePressEvent(QMouseEvent *e) {
 		if (_ripples.size() <= _pressed) {
 			_ripples.reserve(_pressed + 1);
 			while (_ripples.size() <= _pressed) {
-				_ripples.push_back(std_::unique_ptr<Ui::RippleAnimation>());
+				_ripples.push_back(std::unique_ptr<Ui::RippleAnimation>());
 			}
 		}
 		if (!_ripples[_pressed]) {
 			auto mask = Ui::RippleAnimation::rectMask(QSize(width(), _rowHeight));
-			_ripples[_pressed] = std_::make_unique<Ui::RippleAnimation>(st::countryRipple, std_::move(mask), [this, index = _pressed] {
+			_ripples[_pressed] = std::make_unique<Ui::RippleAnimation>(st::countryRipple, std::move(mask), [this, index = _pressed] {
 				updateRow(index);
 			});
 			_ripples[_pressed]->add(e->pos() - QPoint(0, st::countriesSkip + _pressed * _rowHeight));

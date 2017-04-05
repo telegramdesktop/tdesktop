@@ -20,9 +20,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include <mutex>
+#include <memory>
+
 namespace base {
 
-using Task = lambda<void()>;
+using Task = lambda_once<void()>;
 
 // An attempt to create/use a TaskQueue or one of the default queues
 // after the main() has returned leads to an undefined behaviour.
@@ -69,12 +72,12 @@ private:
 	const Type type_;
 	const Priority priority_;
 
-	QList<Task*> tasks_; // TODO: std_::deque_of_moveable<Task>
-	QMutex tasks_mutex_; // Only for the main queue.
+	std::deque<Task> tasks_;
+	std::mutex tasks_mutex_; // Only for the main queue.
 
 	// Only for the other queues, not main.
 	class TaskThreadPool;
-	QWeakPointer<TaskThreadPool> weak_thread_pool_;
+	std::weak_ptr<TaskThreadPool> weak_thread_pool_;
 
 	class TaskQueueList;
 

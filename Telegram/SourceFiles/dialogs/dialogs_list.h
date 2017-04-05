@@ -51,7 +51,6 @@ public:
 		return *i;
 	}
 
-	void paint(Painter &p, int32 w, int32 hFrom, int32 hTo, PeerData *act, PeerData *sel, bool onlyBackground, TimeMs ms) const;
 	Row *addToEnd(History *history);
 	Row *adjustByName(const PeerData *peer);
 	Row *addByName(History *history);
@@ -122,7 +121,7 @@ private:
 		return row->_prev;
 	}
 
-	std_::unique_ptr<Row> _last;
+	std::unique_ptr<Row> _last;
 	Row *_begin;
 	Row *_end;
 	SortMode _sortMode;

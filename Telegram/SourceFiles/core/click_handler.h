@@ -32,7 +32,6 @@ enum ExpandLinksMode {
 
 class ClickHandlerHost {
 protected:
-
 	virtual void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
 	}
 	virtual void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) {
@@ -181,7 +180,7 @@ protected:
 
 class LambdaClickHandler : public ClickHandler {
 public:
-	LambdaClickHandler(base::lambda<void()> &&handler) : _handler(std_::move(handler)) {
+	LambdaClickHandler(base::lambda<void()> handler) : _handler(std::move(handler)) {
 	}
 	void onClick(Qt::MouseButton button) const override final {
 		if (button == Qt::LeftButton && _handler) {

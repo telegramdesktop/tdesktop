@@ -21,11 +21,78 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "boxes/abstractbox.h"
+#include "ui/widgets/input_fields.h"
 
 namespace Ui {
 class InputField;
 class FlatLabel;
 } // namespace Ui
+
+class SentCodeField : public Ui::InputField {
+public:
+	SentCodeField(QWidget *parent, const style::InputField &st, const QString &ph = QString(), const QString &val = QString()) : Ui::InputField(parent, st, ph, val) {
+		connect(this, &Ui::InputField::changed, [this] { fix(); });
+	}
+
+	void setAutoSubmit(int length, base::lambda<void()> submitCallback) {
+		_autoSubmitLength = length;
+		_submitCallback = std::move(submitCallback);
+	}
+	void setChangedCallback(base::lambda<void()> changedCallback) {
+		_changedCallback = std::move(changedCallback);
+	}
+
+private:
+	void fix();
+
+	// Flag for not calling onTextChanged() recursively.
+	bool _fixing = false;
+
+	int _autoSubmitLength = 0;
+	base::lambda<void()> _submitCallback;
+	base::lambda<void()> _changedCallback;
+
+};
+
+class SentCodeCall {
+public:
+	SentCodeCall(QObject *parent, base::lambda_once<void()> callCallback, base::lambda<void()> updateCallback);
+
+	enum class State {
+		Waiting,
+		Calling,
+		Called,
+		Disabled,
+	};
+	struct Status {
+		Status() {
+		}
+		Status(State state, int timeout) : state(state), timeout(timeout) {
+		}
+
+		State state = State::Disabled;
+		int timeout = 0;
+	};
+	void setStatus(const Status &status);
+
+	void callDone() {
+		if (_status.state == State::Calling) {
+			_status.state = State::Called;
+			if (_update) {
+				_update();
+			}
+		}
+	}
+
+	QString getText() const;
+
+private:
+	Status _status;
+	object_ptr<QTimer> _timer;
+	base::lambda_once<void()> _call;
+	base::lambda<void()> _update;
+
+};
 
 class ConfirmPhoneBox : public BoxContent, public RPCSender {
 	Q_OBJECT
@@ -36,9 +103,7 @@ public:
 	~ConfirmPhoneBox();
 
 private slots:
-	void onCallStatusTimer();
 	void onSendCode();
-	void onCodeChanged();
 
 protected:
 	void prepare() override;
@@ -51,6 +116,7 @@ private:
 	ConfirmPhoneBox(QWidget*, const QString &phone, const QString &hash);
 	friend class object_ptr<ConfirmPhoneBox>;
 
+	void sendCall();
 	void checkPhoneAndHash();
 
 	void sendCodeDone(const MTPauth_SentCode &result);
@@ -65,19 +131,6 @@ private:
 		return _phone;
 	}
 	void launch();
-
-	enum CallState {
-		Waiting,
-		Calling,
-		Called,
-		Disabled,
-	};
-	struct CallStatus {
-		CallState state;
-		int timeout;
-	};
-	void setCallStatus(const CallStatus &status);
-	QString getCallText() const;
 
 	void showError(const QString &error);
 
@@ -94,13 +147,9 @@ private:
 	mtpRequestId _checkCodeRequestId = 0;
 
 	object_ptr<Ui::FlatLabel> _about = { nullptr };
-	object_ptr<Ui::InputField> _code = { nullptr };
+	object_ptr<SentCodeField> _code = { nullptr };
 
-	// Flag for not calling onTextChanged() recursively.
-	bool _fixing = false;
 	QString _error;
-
-	CallStatus _callStatus;
-	object_ptr<QTimer> _callTimer;
+	SentCodeCall _call;
 
 };

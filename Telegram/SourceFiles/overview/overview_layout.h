@@ -107,7 +107,7 @@ protected:
 		} else {
 			save.reset(new DocumentSaveClickHandler(document));
 		}
-		setLinks(MakeShared<DocumentOpenClickHandler>(document), std_::move(save), MakeShared<DocumentCancelClickHandler>(document));
+		setLinks(MakeShared<DocumentOpenClickHandler>(document), std::move(save), MakeShared<DocumentCancelClickHandler>(document));
 	}
 
 	void step_radial(TimeMs ms, bool timer);
@@ -129,7 +129,7 @@ protected:
 		return false;
 	}
 
-	std_::unique_ptr<Ui::RadialAnimation> _radial;
+	std::unique_ptr<Ui::RadialAnimation> _radial;
 	Animation _a_iconOver;
 
 };
@@ -194,7 +194,7 @@ public:
 private:
 	void ensureCheckboxCreated();
 
-	std_::unique_ptr<PhotoVideoCheckbox> _check;
+	std::unique_ptr<PhotoVideoCheckbox> _check;
 
 	PhotoData *_data;
 	ClickHandlerPtr _link;
@@ -235,7 +235,7 @@ protected:
 private:
 	void ensureCheckboxCreated();
 
-	std_::unique_ptr<PhotoVideoCheckbox> _check;
+	std::unique_ptr<PhotoVideoCheckbox> _check;
 
 	DocumentData *_data;
 	StatusText _status;
@@ -327,7 +327,7 @@ private:
 	int32 _thumbw, _colorIndex;
 
 	bool withThumb() const {
-		return !_data->thumb->isNull() && _data->thumb->width() && _data->thumb->height();
+		return !_data->song() && !_data->thumb->isNull() && _data->thumb->width() && _data->thumb->height() && !documentIsExecutableName(_data->name);
 	}
 	bool updateStatusText();
 

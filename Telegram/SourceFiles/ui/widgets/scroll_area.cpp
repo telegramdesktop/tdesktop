@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/widgets/scroll_area.h"
 
 namespace Ui {
@@ -40,7 +39,7 @@ void ScrollShadow::changeVisibility(bool shown) {
 	setVisible(shown);
 }
 
-ScrollBar::ScrollBar(ScrollArea *parent, bool vert, const style::ScrollArea *st) : QWidget(parent)
+ScrollBar::ScrollBar(ScrollArea *parent, bool vert, const style::ScrollArea *st) : TWidget(parent)
 , _st(st)
 , _vertical(vert)
 , _hiding(_st->hiding != 0)
@@ -214,13 +213,13 @@ void ScrollBar::hideTimeout(TimeMs dt) {
 	}
 }
 
-void ScrollBar::enterEvent(QEvent *e) {
+void ScrollBar::enterEventHook(QEvent *e) {
 	_hideTimer.stop();
 	setMouseTracking(true);
 	setOver(true);
 }
 
-void ScrollBar::leaveEvent(QEvent *e) {
+void ScrollBar::leaveEventHook(QEvent *e) {
 	if (!_moving) {
 		setMouseTracking(false);
 	}
@@ -320,7 +319,7 @@ void SplittedWidgetOther::paintEvent(QPaintEvent *e) {
 	}
 }
 
-ScrollArea::ScrollArea(QWidget *parent, const style::ScrollArea &st, bool handleTouch) : QScrollArea(parent)
+ScrollArea::ScrollArea(QWidget *parent, const style::ScrollArea &st, bool handleTouch) : TWidgetHelper<QScrollArea>(parent)
 , _st(st)
 , _horizontalBar(this, false, &_st)
 , _verticalBar(this, true, &_st)
@@ -726,7 +725,7 @@ void ScrollArea::doSetOwnedWidget(object_ptr<TWidget> w) {
 		_horizontalBar->raise();
 		_verticalBar->raise();
 	}
-	_widget = std_::move(w);
+	_widget = std::move(w);
 	QScrollArea::setWidget(_widget);
 	if (_widget) {
 		_widget->setAutoFillBackground(false);
@@ -753,7 +752,7 @@ object_ptr<TWidget> ScrollArea::doTakeWidget() {
 		disconnect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onVerticalScroll()));
 	}
 	QScrollArea::takeWidget();
-	return std_::move(_widget);
+	return std::move(_widget);
 }
 
 void ScrollArea::onResizeOther() {

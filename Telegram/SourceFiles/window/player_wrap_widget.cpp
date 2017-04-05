@@ -18,17 +18,16 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "window/player_wrap_widget.h"
 
 #include "ui/widgets/shadow.h"
 
 namespace Window {
 
-PlayerWrapWidget::PlayerWrapWidget(QWidget *parent, base::lambda<void()> &&updateCallback) : Parent(parent
+PlayerWrapWidget::PlayerWrapWidget(QWidget *parent, base::lambda<void()> updateCallback) : Parent(parent
 	, object_ptr<Media::Player::Widget>(parent)
 	, style::margins(0, 0, 0, 0)
-	, std_::move(updateCallback)) {
+	, std::move(updateCallback)) {
 }
 
 void PlayerWrapWidget::resizeEvent(QResizeEvent *e) {

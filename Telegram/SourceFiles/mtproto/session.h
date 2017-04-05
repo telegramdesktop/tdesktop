@@ -20,13 +20,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "mtproto/connection.h"
 #include "mtproto/dcenter.h"
-#include "mtproto/rpc_sender.h"
 #include "core/single_timer.h"
 
 namespace MTP {
+
+class Instance;
+
 namespace internal {
+
+class Connection;
 
 class ReceivedMsgIds {
 public:
@@ -236,7 +239,7 @@ public:
 		return result * 2 + (needAck ? 1 : 0);
 	}
 
-	void clear();
+	void clear(Instance *instance);
 
 private:
 	uint64 _session = 0;
@@ -275,18 +278,19 @@ class Session : public QObject {
 	Q_OBJECT
 
 public:
-	Session(int32 dcenter);
+	Session(gsl::not_null<Instance*> instance, ShiftedDcId shiftedDcId);
 
+	void start();
 	void restart();
 	void stop();
 	void kill();
 
 	void unpaused();
 
-	int32 getDcWithShift() const;
+	ShiftedDcId getDcWithShift() const;
 
 	QReadWriteLock *keyMutex() const;
-	void notifyKeyCreated(const AuthKeyPtr &key);
+	void notifyKeyCreated(AuthKeyPtr &&key);
 	void destroyKey();
 	void notifyLayerInited(bool wasInited);
 
@@ -331,19 +335,26 @@ public slots:
 private:
 	void createDcData();
 
-	Connection *_connection;
+	void registerRequest(mtpRequestId requestId, ShiftedDcId dcWithShift);
+	mtpRequestId storeRequest(mtpRequest &request, const RPCResponseHandler &parser);
+	mtpRequest getRequest(mtpRequestId requestId);
+	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err);
 
-	bool _killed;
-	bool _needToReceive;
+	gsl::not_null<Instance*> _instance;
+	std::unique_ptr<Connection> _connection;
+
+	bool _killed = false;
+	bool _needToReceive = false;
 
 	SessionData data;
 
-	int32 dcWithShift;
+	ShiftedDcId dcWithShift = 0;
 	DcenterPtr dc;
 
-	TimeMs msSendCall, msWait;
+	TimeMs msSendCall = 0;
+	TimeMs msWait = 0;
 
-	bool _ping;
+	bool _ping = false;
 
 	QTimer timeouter;
 	SingleTimer sender;

@@ -111,8 +111,6 @@ mediaviewFileIconSize: 80px;
 
 mediaviewFileLink: defaultLinkButton;
 
-mediaviewTransparentSize: 4px;
-
 mediaviewMenu: Menu(defaultMenu) {
 	itemBg: mediaviewMenuBg;
 	itemBgOver: mediaviewMenuBgOver;

@@ -101,11 +101,6 @@ enum InfoDisplayType {
 	InfoDisplayOverBackground,
 };
 
-enum HistoryItemType {
-	HistoryItemMsg = 0,
-	HistoryItemJoined
-};
-
 struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia> {
 	void create(int32 userId);
 	void resize(int32 availw) const;
@@ -151,12 +146,12 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply> {
 	HistoryMessageReply &operator=(HistoryMessageReply &&other) {
 		replyToMsgId = other.replyToMsgId;
 		std::swap(replyToMsg, other.replyToMsg);
-		replyToLnk = std_::move(other.replyToLnk);
-		replyToName = std_::move(other.replyToName);
-		replyToText = std_::move(other.replyToText);
+		replyToLnk = std::move(other.replyToLnk);
+		replyToName = std::move(other.replyToName);
+		replyToText = std::move(other.replyToText);
 		replyToVersion = other.replyToVersion;
 		_maxReplyWidth = other._maxReplyWidth;
-		_replyToVia = std_::move(other._replyToVia);
+		_replyToVia = std::move(other._replyToVia);
 		return *this;
 	}
 	~HistoryMessageReply() {
@@ -196,7 +191,7 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply> {
 	mutable Text replyToName, replyToText;
 	mutable int replyToVersion = 0;
 	mutable int _maxReplyWidth = 0;
-	std_::unique_ptr<HistoryMessageVia> _replyToVia;
+	std::unique_ptr<HistoryMessageVia> _replyToVia;
 	int toWidth = 0;
 };
 Q_DECLARE_OPERATORS_FOR_FLAGS(HistoryMessageReply::PaintFlags);
@@ -220,6 +215,7 @@ struct HistoryMessageReplyMarkup : public RuntimeComponent<HistoryMessageReplyMa
 			SwitchInline,
 			SwitchInlineSame,
 			Game,
+			Buy,
 		};
 		Type type;
 		QString text;
@@ -232,7 +228,7 @@ struct HistoryMessageReplyMarkup : public RuntimeComponent<HistoryMessageReplyMa
 	ButtonRows rows;
 	MTPDreplyKeyboardMarkup::Flags flags = 0;
 
-	std_::unique_ptr<ReplyKeyboard> inlineKeyboard;
+	std::unique_ptr<ReplyKeyboard> inlineKeyboard;
 
 	// If >= 0 it holds the y coord of the inlineKeyboard before the last edition.
 	int oldTop = -1;
@@ -318,7 +314,7 @@ public:
 		friend class ReplyKeyboard;
 
 	};
-	typedef std_::unique_ptr<Style> StylePtr;
+	typedef std::unique_ptr<Style> StylePtr;
 
 	ReplyKeyboard(const HistoryItem *item, StylePtr &&s);
 	ReplyKeyboard(const ReplyKeyboard &other) = delete;
@@ -414,6 +410,7 @@ struct HistoryMessageUnreadBar : public RuntimeComponent<HistoryMessageUnreadBar
 	// we've seen the bar and new messages are marked as read
 	// as soon as they are added to the chat history
 	bool _freezed = false;
+
 };
 
 // HistoryMedia has a special owning smart pointer
@@ -424,33 +421,35 @@ public:
 	HistoryMediaPtr() = default;
 	HistoryMediaPtr(const HistoryMediaPtr &other) = delete;
 	HistoryMediaPtr &operator=(const HistoryMediaPtr &other) = delete;
-	HistoryMedia *data() const {
-		return _p;
+	HistoryMediaPtr(std::unique_ptr<HistoryMedia> other);
+	HistoryMediaPtr &operator=(std::unique_ptr<HistoryMedia> other);
+
+	HistoryMedia *get() const {
+		return _pointer.get();
 	}
-	void reset(HistoryMedia *p = nullptr);
-	void clear() {
-		reset();
+	void reset(std::unique_ptr<HistoryMedia> pointer = nullptr) {
+		*this = std::move(pointer);
 	}
 	bool isNull() const {
-		return data() == nullptr;
+		return !_pointer;
 	}
 
 	HistoryMedia *operator->() const {
-		return data();
+		return get();
 	}
 	HistoryMedia &operator*() const {
 		t_assert(!isNull());
-		return *data();
+		return *get();
 	}
 	explicit operator bool() const {
 		return !isNull();
 	}
 	~HistoryMediaPtr() {
-		clear();
+		reset();
 	}
 
 private:
-	HistoryMedia *_p = nullptr;
+	std::unique_ptr<HistoryMedia> _pointer;
 
 };
 
@@ -621,6 +620,8 @@ public:
 	}
 
 	virtual HistoryTextState getState(int x, int y, HistoryStateRequest request) const = 0;
+	virtual void updatePressed(int x, int y) {
+	}
 
 	virtual TextSelection adjustSelection(TextSelection selection, TextSelectType type) const {
 		return selection;
@@ -630,9 +631,6 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
-	virtual HistoryItemType type() const {
-		return HistoryItemMsg;
-	}
 	virtual bool serviceMsg() const {
 		return false;
 	}
@@ -687,7 +685,7 @@ public:
 	}
 
 	bool canDelete() const {
-		ChannelData *channel = _history->peer->asChannel();
+		auto channel = _history->peer->asChannel();
 		if (!channel) return !(_flags & MTPDmessage_ClientFlag::f_is_group_migrate);
 
 		if (id == 1) return false;
@@ -707,7 +705,7 @@ public:
 	bool canDeleteForEveryone(const QDateTime &cur) const;
 
 	bool suggestBanReportDeleteAll() const {
-		ChannelData *channel = history()->peer->asChannel();
+		auto channel = history()->peer->asChannel();
 		if (!channel || (!channel->amEditor() && !channel->amCreator())) return false;
 		return !isPost() && !out() && from()->isUser() && toHistoryMessage();
 	}
@@ -715,9 +713,7 @@ public:
 	bool hasDirectLink() const {
 		return id > 0 && _history->peer->isChannel() && _history->peer->asChannel()->isPublic() && !_history->peer->isMegagroup();
 	}
-	QString directLink() const {
-		return hasDirectLink() ? CreateInternalLinkHttps(_history->peer->asChannel()->username + '/' + QString::number(id)) : QString();
-	}
+	QString directLink() const;
 
 	int32 y;
 	MsgId id;
@@ -731,7 +727,7 @@ public:
 	}
 
 	HistoryMedia *getMedia() const {
-		return _media.data();
+		return _media.get();
 	}
 	virtual void setText(const TextWithEntities &textWithEntities) {
 	}
@@ -972,9 +968,9 @@ protected:
 template <typename T>
 class HistoryItemInstantiated {
 public:
-	template <typename ... Args>
-	static T *_create(Args ... args) {
-		T *result = new T(args ...);
+	template <typename ...Args>
+	static T *_create(Args &&... args) {
+		T *result = new T(std::forward<Args>(args)...);
 		result->finishCreate();
 		return result;
 	}

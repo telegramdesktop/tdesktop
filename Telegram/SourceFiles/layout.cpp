@@ -18,19 +18,18 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "layout.h"
 
 #include "lang.h"
 #include "mainwidget.h"
 #include "application.h"
-#include "fileuploader.h"
+#include "storage/file_upload.h"
 #include "mainwindow.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "boxes/addcontactbox.h"
 #include "boxes/confirmbox.h"
 #include "media/media_audio.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 
 TextParseOptions _textNameOptions = {
 	0, // flags
@@ -140,33 +139,6 @@ QString formatPlayedText(qint64 played, qint64 duration) {
 	return lng_duration_played(lt_played, formatDurationText(played), lt_duration, formatDurationText(duration));
 }
 
-QString documentName(DocumentData *document) {
-	SongData *song = document->song();
-	if (!song || (song->title.isEmpty() && song->performer.isEmpty())) {
-		return document->name.isEmpty() ? qsl("Unknown File") : document->name;
-	}
-
-	if (song->performer.isEmpty()) return song->title;
-
-	return song->performer + QString::fromUtf8(" \xe2\x80\x93 ") + (song->title.isEmpty() ? qsl("Unknown Track") : song->title);
-}
-
-TextWithEntities documentNameWithEntities(DocumentData *document) {
-	TextWithEntities result;
-	auto song = document->song();
-	if (!song || (song->title.isEmpty() && song->performer.isEmpty())) {
-		result.text = document->name.isEmpty() ? qsl("Unknown File") : document->name;
-		result.entities.push_back({ EntityInTextBold, 0, result.text.size() });
-	} else if (song->performer.isEmpty()) {
-		result.text = song->title;
-		result.entities.push_back({ EntityInTextBold, 0, result.text.size() });
-	} else {
-		result.text = song->performer + QString::fromUtf8(" \xe2\x80\x93 ") + (song->title.isEmpty() ? qsl("Unknown Track") : song->title);
-		result.entities.push_back({ EntityInTextBold, 0, song->performer.size() });
-	}
-	return result;
-}
-
 int32 documentColorIndex(DocumentData *document, QString &ext) {
 	int32 colorIndex = 0;
 
@@ -256,7 +228,7 @@ RoundCorners documentCorners(int32 colorIndex) {
 
 bool documentIsValidMediaFile(const QString &filepath) {
 	static StaticNeverFreedPointer<QList<QString>> validMediaTypes(([] {
-		std_::unique_ptr<QList<QString>> result = std_::make_unique<QList<QString>>();
+		std::unique_ptr<QList<QString>> result = std::make_unique<QList<QString>>();
 		*result = qsl("\
 webm mkv flv vob ogv ogg drc gif gifv mng avi mov qt wmv yuv rm rmvb asf amv mp4 m4p \
 m4v mpg mp2 mpeg mpe mpv m2v svi 3gp 3g2 mxf roq nsv f4v f4p f4a f4b wma divx evo mk3d \
@@ -264,7 +236,7 @@ mka mks mcf m2p ps ts m2ts ifo aaf avchd cam dat dsh dvr-ms m1v fla flr sol wrap
 wtv 8svx 16svx iff aiff aif aifc au bwf cdda raw wav flac la pac m4a ape ofr ofs off rka \
 shn tak tta wv brstm dts dtshd dtsma ast amr mp3 spx gsm aac mpc vqf ra ots swa vox voc \
 dwd smp aup cust mid mus sib sid ly gym vgm psf nsf mod ptb s3m xm it mt2 minipsf psflib \
-2sf dsf gsf psf2 qsf ssf usf rmj spc niff mxl xml txm ym jam mp1 mscz \
+2sf dsf gsf psf2 qsf ssf usf rmj spc niff mxl xml txm ym jam mp1 mscz\
 ").split(' ');
 		return result.release();
 	})());
@@ -272,4 +244,28 @@ dwd smp aup cust mid mus sib sid ly gym vgm psf nsf mod ptb s3m xm it mt2 minips
 	QFileInfo info(filepath);
 	auto parts = info.fileName().split('.', QString::SkipEmptyParts);
 	return !parts.isEmpty() && (validMediaTypes->indexOf(parts.back().toLower()) >= 0);
+}
+
+bool documentIsExecutableName(const QString &filename) {
+	static StaticNeverFreedPointer<QList<QString>> executableTypes(([] {
+		std::unique_ptr<QList<QString>> result = std::make_unique<QList<QString>>();
+#ifdef Q_OS_MAC
+		*result = qsl("\
+action app bin command csh osx workflow\
+").split(' ');
+#elif defined Q_OS_LINUX // Q_OS_MAC
+		*result = qsl("\
+bin csh ksh out run\
+").split(' ');
+#else // Q_OS_MAC || Q_OS_LINUX
+		*result = qsl("\
+bat bin cmd com cpl exe gadget inf ins inx isu job jse lnk msc msi \
+msp mst paf pif ps1 reg rgs sct shb shs u3p vb vbe vbs vbscript ws wsf\
+").split(' ');
+#endif // !Q_OS_MAC && !Q_OS_LINUX
+		return result.release();
+	})());
+
+	auto lastDotIndex = filename.lastIndexOf('.');
+	return (lastDotIndex >= 0) && (executableTypes->indexOf(filename.mid(lastDotIndex + 1).toLower()) >= 0);
 }

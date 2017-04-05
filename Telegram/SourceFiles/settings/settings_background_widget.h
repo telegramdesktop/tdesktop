@@ -22,7 +22,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "settings/settings_block_widget.h"
 #include "ui/effects/radial_animation.h"
-#include "ui/filedialog.h"
 
 namespace Settings {
 
@@ -42,6 +41,7 @@ protected:
 signals:
 	void chooseFromGallery();
 	void chooseFromFile();
+	void editTheme();
 	void useDefault();
 
 private:
@@ -58,6 +58,7 @@ private:
 	object_ptr<Ui::LinkButton> _useDefaultTheme = { nullptr };
 	object_ptr<Ui::LinkButton> _chooseFromGallery;
 	object_ptr<Ui::LinkButton> _chooseFromFile;
+	object_ptr<Ui::LinkButton> _editTheme;
 
 	Ui::RadialAnimation _radial;
 
@@ -72,6 +73,7 @@ public:
 private slots:
 	void onChooseFromGallery();
 	void onChooseFromFile();
+	void onEditTheme();
 	void onUseDefaultTheme();
 	void onTile();
 	void onAdaptive();
@@ -79,13 +81,10 @@ private slots:
 private:
 	void createControls();
 	void needBackgroundUpdate(bool tile);
-	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
 
 	object_ptr<BackgroundRow> _background = { nullptr };
 	object_ptr<Ui::Checkbox> _tile = { nullptr };
 	object_ptr<Ui::WidgetSlideWrap<Ui::Checkbox>> _adaptive = { nullptr };
-
-	FileDialog::QueryId _chooseFromFileQueryId = 0;
 
 };
 

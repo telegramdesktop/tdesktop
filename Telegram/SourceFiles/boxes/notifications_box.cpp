@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "boxes/notifications_box.h"
 
 #include "lang.h"
@@ -27,12 +26,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"
-#include "application.h"
-#include "localstorage.h"
+#include "mainwindow.h"
+#include "storage/localstorage.h"
+#include "auth_session.h"
+#include "window/notifications_manager.h"
 
 namespace {
 
 constexpr int kMaxNotificationsCount = 5;
+
+using ChangeType = Window::Notifications::ChangeType;
 
 } // namespace
 
@@ -191,7 +194,7 @@ void NotificationsBox::countChanged() {
 
 	if (currentCount() != Global::NotificationsCount()) {
 		Global::SetNotificationsCount(currentCount());
-		Global::RefNotifySettingsChanged().notify(Notify::ChangeType::MaxCount);
+		AuthSession::Current().notifications().settingsChanged().notify(ChangeType::MaxCount);
 		Local::writeUserSettings();
 	}
 }
@@ -250,7 +253,7 @@ void NotificationsBox::prepareNotificationSampleSmall() {
 		auto closeLeft = width - 2 * padding;
 		p.fillRect(rtlrect(closeLeft, padding, padding, padding, width), st::notificationSampleCloseFg);
 	}
-	_notificationSampleSmall = App::pixmapFromImageInPlace(std_::move(sampleImage));
+	_notificationSampleSmall = App::pixmapFromImageInPlace(std::move(sampleImage));
 	_notificationSampleSmall.setDevicePixelRatio(cRetinaFactor());
 }
 
@@ -294,7 +297,7 @@ void NotificationsBox::prepareNotificationSampleLarge() {
 		st::notifyClose.icon.paint(p, w - st::notifyClosePos.x() - st::notifyClose.width + st::notifyClose.iconPosition.x(), st::notifyClosePos.y() + st::notifyClose.iconPosition.y(), w);
 	}
 
-	_notificationSampleLarge = App::pixmapFromImageInPlace(std_::move(sampleImage));
+	_notificationSampleLarge = App::pixmapFromImageInPlace(std::move(sampleImage));
 }
 
 void NotificationsBox::removeSample(SampleWidget *widget) {
@@ -332,7 +335,7 @@ void NotificationsBox::mouseMoveEvent(QMouseEvent *e) {
 	}
 }
 
-void NotificationsBox::leaveEvent(QEvent *e) {
+void NotificationsBox::leaveEventHook(QEvent *e) {
 	clearOverCorner();
 }
 
@@ -348,7 +351,7 @@ void NotificationsBox::setOverCorner(Notify::ScreenCorner corner) {
 		_isOverCorner = true;
 		setCursor(style::cur_pointer);
 		Global::SetNotificationsDemoIsShown(true);
-		Global::RefNotifySettingsChanged().notify(Notify::ChangeType::DemoIsShown);
+		AuthSession::Current().notifications().settingsChanged().notify(ChangeType::DemoIsShown);
 	}
 	_overCorner = corner;
 
@@ -366,7 +369,7 @@ void NotificationsBox::setOverCorner(Notify::ScreenCorner corner) {
 		auto sampleLeft = (isLeft == rtl()) ? (r.x() + r.width() - st::notifyWidth - st::notifyDeltaX) : (r.x() + st::notifyDeltaX);
 		auto sampleTop = isTop ? (r.y() + st::notifyDeltaY) : (r.y() + r.height() - st::notifyDeltaY - st::notifyMinHeight);
 		for (int i = samplesLeave; i != samplesNeeded; ++i) {
-			auto widget = std_::make_unique<SampleWidget>(this, _notificationSampleLarge);
+			auto widget = std::make_unique<SampleWidget>(this, _notificationSampleLarge);
 			widget->move(sampleLeft, sampleTop + (isTop ? 1 : -1) * i * (st::notifyMinHeight + st::notifyDeltaY));
 			widget->showFast();
 			samples.push_back(widget.release());
@@ -383,7 +386,7 @@ void NotificationsBox::clearOverCorner() {
 		_isOverCorner = false;
 		setCursor(style::cur_default);
 		Global::SetNotificationsDemoIsShown(false);
-		Global::RefNotifySettingsChanged().notify(Notify::ChangeType::DemoIsShown);
+		AuthSession::Current().notifications().settingsChanged().notify(ChangeType::DemoIsShown);
 
 		for_const (auto &samples, _cornerSamples) {
 			for_const (auto widget, samples) {
@@ -410,7 +413,7 @@ void NotificationsBox::mouseReleaseEvent(QMouseEvent *e) {
 
 		if (_chosenCorner != Global::NotificationsCorner()) {
 			Global::SetNotificationsCorner(_chosenCorner);
-			Global::RefNotifySettingsChanged().notify(Notify::ChangeType::Corner);
+			AuthSession::Current().notifications().settingsChanged().notify(ChangeType::Corner);
 			Local::writeUserSettings();
 		}
 	}

@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "boxes/abstractbox.h"
-#include "core/vector_of_moveable.h"
+#include <vector>
 
 class ConfirmBox;
 
@@ -86,7 +86,7 @@ protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 
 private slots:
 	void onPreview();
@@ -111,7 +111,7 @@ private:
 		return (_setFlags & MTPDstickerSet::Flag::f_masks);
 	}
 
-	std_::vector_of_moveable<Animation> _packOvers;
+	std::vector<Animation> _packOvers;
 	StickerPack _pack;
 	StickersByEmojiMap _emoji;
 	bool _loaded = false;

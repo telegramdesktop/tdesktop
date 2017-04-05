@@ -123,7 +123,7 @@ private:
 	Tab _archived;
 	Tab *_tab = nullptr;
 
-	std_::unique_ptr<Ui::SlideAnimation> _slideAnimation;
+	std::unique_ptr<Ui::SlideAnimation> _slideAnimation;
 	object_ptr<BoxLayerTitleShadow> _titleShadow = { nullptr };
 
 	int _aboutWidth = 0;
@@ -163,11 +163,11 @@ public:
 	void setFullOrder(const Stickers::Order &order);
 	void setRemovedSets(const Stickers::Order &removed);
 
-	void setInstallSetCallback(base::lambda<void(uint64 setId)> &&callback) {
-		_installSetCallback = std_::move(callback);
+	void setInstallSetCallback(base::lambda<void(uint64 setId)> callback) {
+		_installSetCallback = std::move(callback);
 	}
-	void setLoadMoreCallback(base::lambda<void()> &&callback) {
-		_loadMoreCallback = std_::move(callback);
+	void setLoadMoreCallback(base::lambda<void()> callback) {
+		_loadMoreCallback = std::move(callback);
 	}
 
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
@@ -183,7 +183,7 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 
 signals:
 	void draggingScrollDelta(int delta);

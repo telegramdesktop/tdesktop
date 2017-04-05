@@ -22,12 +22,30 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <string>
 #include <exception>
+#include <memory>
 #include <ctime>
 
-#include <QtCore/QReadWriteLock>
-
 #include "core/build_config.h"
-#include "core/stl_subset.h"
+
+// Custom libc++ build used for old OS X versions already has this.
+#ifndef OS_MAC_OLD
+
+#if defined COMPILER_CLANG || defined COMPILER_GCC
+namespace std {
+
+template <typename T>
+constexpr std::add_const_t<T>& as_const(T& t) noexcept {
+    return t;
+}
+
+template <typename T>
+void as_const(const T&&) = delete;
+
+} // namespace std
+#endif // COMPILER_CLANG || COMPILER_GCC
+
+#endif // OS_MAC_OLD
+
 #include "core/ordered_set.h"
 
 //using uchar = unsigned char; // Qt has uchar

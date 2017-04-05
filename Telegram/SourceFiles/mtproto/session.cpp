@@ -18,14 +18,14 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
-
 #include "mtproto/session.h"
+
+#include "mtproto/connection.h"
 
 namespace MTP {
 namespace internal {
 
-void SessionData::clear() {
+void SessionData::clear(Instance *instance) {
 	RPCCallbackClears clearCallbacks;
 	{
 		QReadLocker locker1(haveSentMutex()), locker2(toResendMutex()), locker3(haveReceivedMutex()), locker4(wereAckedMutex());
@@ -66,70 +66,57 @@ void SessionData::clear() {
 		QWriteLocker locker(receivedIdsMutex());
 		receivedIds.clear();
 	}
-	clearCallbacksDelayed(clearCallbacks);
+	instance->clearCallbacksDelayed(clearCallbacks);
 }
 
-
-Session::Session(int32 requestedDcId) : QObject()
-, _connection(0)
-, _killed(false)
-, _needToReceive(false)
+Session::Session(gsl::not_null<Instance*> instance, ShiftedDcId shiftedDcId) : QObject()
+, _instance(instance)
 , data(this)
-, dcWithShift(0)
-, dc(0)
-, msSendCall(0)
-, msWait(0)
-, _ping(false) {
-	if (_killed) {
-		DEBUG_LOG(("Session Error: can't start a killed session"));
-		return;
-	}
-	if (dcWithShift) {
-		DEBUG_LOG(("Session Info: Session::start called on already started session"));
-		return;
-	}
-
-	msSendCall = msWait = 0;
-
+, dcWithShift(shiftedDcId) {
 	connect(&timeouter, SIGNAL(timeout()), this, SLOT(checkRequestsByTimer()));
 	timeouter.start(1000);
 
 	connect(&sender, SIGNAL(timeout()), this, SLOT(needToResumeAndSend()));
+}
 
-	_connection = new Connection();
-	dcWithShift = _connection->prepare(&data, requestedDcId);
-	if (!dcWithShift) {
-		delete _connection;
-		_connection = 0;
-		DEBUG_LOG(("Session Info: could not start connection to dc %1").arg(requestedDcId));
-		return;
-	}
+void Session::start() {
 	createDcData();
-	_connection->start();
+	_connection = std::make_unique<Connection>(_instance);
+	_connection->start(&data, dcWithShift);
+	if (_instance->isKeysDestroyer()) {
+		_instance->scheduleKeyDestroy(dcWithShift);
+	}
 }
 
 void Session::createDcData() {
 	if (dc) {
 		return;
 	}
-	int32 dcId = bareDcId(dcWithShift);
-
-	auto &dcs = DCMap();
-	auto dcIndex = dcs.constFind(dcId);
-	if (dcIndex == dcs.cend()) {
-		dc = DcenterPtr(new Dcenter(dcId, AuthKeyPtr()));
-		dcs.insert(dcId, dc);
-	} else {
-		dc = dcIndex.value();
-	}
+	dc = _instance->getDcById(dcWithShift);
 
 	ReadLockerAttempt lock(keyMutex());
 	data.setKey(lock ? dc->getKey() : AuthKeyPtr());
 	if (lock && dc->connectionInited()) {
 		data.setLayerWasInited(true);
 	}
-	connect(dc.data(), SIGNAL(authKeyCreated()), this, SLOT(authKeyCreatedForDC()), Qt::QueuedConnection);
-	connect(dc.data(), SIGNAL(layerWasInited(bool)), this, SLOT(layerWasInitedForDC(bool)), Qt::QueuedConnection);
+	connect(dc.get(), SIGNAL(authKeyCreated()), this, SLOT(authKeyCreatedForDC()), Qt::QueuedConnection);
+	connect(dc.get(), SIGNAL(layerWasInited(bool)), this, SLOT(layerWasInitedForDC(bool)), Qt::QueuedConnection);
+}
+
+void Session::registerRequest(mtpRequestId requestId, ShiftedDcId dcWithShift) {
+	return _instance->registerRequest(requestId, dcWithShift);
+}
+
+mtpRequestId Session::storeRequest(mtpRequest &request, const RPCResponseHandler &parser) {
+	return _instance->storeRequest(request, parser);
+}
+
+mtpRequest Session::getRequest(mtpRequestId requestId) {
+	return _instance->getRequest(requestId);
+}
+
+bool Session::rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err) { // return true if need to clean request data
+	return _instance->rpcErrorOccured(requestId, onFail, err);
 }
 
 void Session::restart() {
@@ -148,7 +135,7 @@ void Session::stop() {
 	DEBUG_LOG(("Session Info: stopping session dcWithShift %1").arg(dcWithShift));
 	if (_connection) {
 		_connection->kill();
-		_connection = 0;
+		_instance->queueQuittingConnection(std::move(_connection));
 	}
 }
 
@@ -202,18 +189,9 @@ void Session::needToResumeAndSend() {
 	}
 	if (!_connection) {
 		DEBUG_LOG(("Session Info: resuming session dcWithShift %1").arg(dcWithShift));
-		DcenterMap &dcs(DCMap());
-
-		_connection = new Connection();
-		if (!_connection->prepare(&data, dcWithShift)) {
-			delete _connection;
-			_connection = 0;
-			DEBUG_LOG(("Session Info: could not start connection to dcWithShift %1").arg(dcWithShift));
-			dcWithShift = 0;
-			return;
-		}
 		createDcData();
-		_connection->start();
+		_connection = std::make_unique<Connection>(_instance);
+		_connection->start(&data, dcWithShift);
 	}
 	if (_ping) {
 		_ping = false;
@@ -228,13 +206,15 @@ void Session::sendPong(quint64 msgId, quint64 pingId) {
 }
 
 void Session::sendMsgsStateInfo(quint64 msgId, QByteArray data) {
-	MTPMsgsStateInfo req(MTP_msgs_state_info(MTP_long(msgId), MTPstring()));
-	auto &info = req._msgs_state_info().vinfo._string().v;
-	info.resize(data.size());
+	auto info = std::string();
 	if (!data.isEmpty()) {
-		memcpy(&info[0], data.constData(), data.size());
+		info.resize(data.size());
+		auto src = gsl::as_bytes(gsl::make_span(data));
+//		auto dst = gsl::as_writeable_bytes(gsl::make_span(info));
+		auto dst = gsl::as_writeable_bytes(gsl::make_span(&info[0], info.size()));
+		base::copy_bytes(dst, src);
 	}
-	send(req);
+	send(MTPMsgsStateInfo(MTP_msgs_state_info(MTP_long(msgId), MTP_string(std::move(info)))));
 }
 
 void Session::checkRequestsByTimer() {
@@ -298,16 +278,16 @@ void Session::checkRequestsByTimer() {
 				}
 			}
 		}
-		clearCallbacksDelayed(clearCallbacks);
+		_instance->clearCallbacksDelayed(clearCallbacks);
 	}
 }
 
 void Session::onConnectionStateChange(qint32 newState) {
-	onStateChange(dcWithShift, newState);
+	_instance->onStateChange(dcWithShift, newState);
 }
 
 void Session::onResetDone() {
-	onSessionReset(dcWithShift);
+	_instance->onSessionReset(dcWithShift);
 }
 
 void Session::cancel(mtpRequestId requestId, mtpMsgId msgId) {
@@ -473,9 +453,9 @@ void Session::authKeyCreatedForDC() {
 	emit authKeyCreated();
 }
 
-void Session::notifyKeyCreated(const AuthKeyPtr &key) {
+void Session::notifyKeyCreated(AuthKeyPtr &&key) {
 	DEBUG_LOG(("AuthKey Info: Session::keyCreated(), setting, dcWithShift %1").arg(dcWithShift));
-	dc->setKey(key);
+	dc->setKey(std::move(key));
 }
 
 void Session::layerWasInitedForDC(bool wasInited) {
@@ -530,17 +510,17 @@ void Session::tryToReceive() {
 		}
 		if (requestId <= 0) {
 			if (dcWithShift == bareDcId(dcWithShift)) { // call globalCallback only in main session
-				globalCallback(response.constData(), response.constData() + response.size());
+				_instance->globalCallback(response.constData(), response.constData() + response.size());
 			}
 		} else {
-			execCallback(requestId, response.constData(), response.constData() + response.size());
+			_instance->execCallback(requestId, response.constData(), response.constData() + response.size());
 		}
 		++cnt;
 	}
 }
 
 Session::~Session() {
-	t_assert(_connection == 0);
+	t_assert(_connection == nullptr);
 }
 
 MTPrpcError rpcClientError(const QString &type, const QString &description) {

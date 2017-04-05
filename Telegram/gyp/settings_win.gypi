@@ -38,6 +38,7 @@
           'AdditionalOptions': [
             '/MP',   # Enable multi process build.
             '/EHsc', # Catch C++ exceptions only, extern C functions never throw a C++ exception.
+            '/WX',   # Treat warnings as errors.
           ],
           'TreatWChar_tAsBuiltInType': 'false',
         },
@@ -109,7 +110,7 @@
         },
       },
       'conditions': [
-        [ '"<(official_build_target)" != "" and "<(official_build_target)" != "win"', {
+        [ '"<(official_build_target)" != "" and "<(official_build_target)" != "win" and "<(official_build_target)" != "uwp"', {
           'sources': [ '__Wrong_Official_Build_Target__' ],
         }],
       ],

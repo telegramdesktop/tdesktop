@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "window/window_title.h"
+#include "platform/platform_window_title.h"
 
 namespace Ui {
 class PlainShadow;

@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "media/player/media_player_list.h"
 
 #include "media/player/media_player_instance.h"
@@ -31,9 +30,7 @@ namespace Player {
 ListWidget::ListWidget(QWidget *parent) : TWidget(parent) {
 	setMouseTracking(true);
 	playlistUpdated();
-	if (exists()) {
-		subscribe(instance()->playlistChangedNotifier(), [this] { playlistUpdated(); });
-	}
+	subscribe(instance()->playlistChangedNotifier(), [this] { playlistUpdated(); });
 	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
 		itemRemoved(item);
 	});
@@ -158,17 +155,15 @@ void ListWidget::itemRemoved(HistoryItem *item) {
 }
 
 QRect ListWidget::getCurrentTrackGeometry() const {
-	if (exists()) {
-		auto top = marginTop();
-		auto current = instance()->current();
-		auto fullMsgId = current.contextId();
-		for_const (auto layout, _list) {
-			auto layoutHeight = layout->height();
-			if (layout->getItem()->fullId() == fullMsgId) {
-				return QRect(0, top, width(), layoutHeight);
-			}
-			top += layoutHeight;
+	auto top = marginTop();
+	auto current = instance()->current();
+	auto fullMsgId = current.contextId();
+	for_const (auto layout, _list) {
+		auto layoutHeight = layout->height();
+		if (layout->getItem()->fullId() == fullMsgId) {
+			return QRect(0, top, width(), layoutHeight);
 		}
+		top += layoutHeight;
 	}
 	return QRect(0, height(), width(), 0);
 }
@@ -188,8 +183,7 @@ int ListWidget::marginTop() const {
 void ListWidget::playlistUpdated() {
 	auto newHeight = 0;
 
-	const QList<FullMsgId> emptyPlaylist;
-	auto &playlist = exists() ? instance()->playlist() : emptyPlaylist;
+	auto &playlist = instance()->playlist();
 	auto playlistSize = playlist.size();
 	auto existingSize = _list.size();
 	if (playlistSize > existingSize) {

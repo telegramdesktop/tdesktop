@@ -37,6 +37,8 @@ class FlatButton;
 class LinkButton;
 class FlatInput;
 class CrossButton;
+template <typename Widget>
+class WidgetScaledFadeWrap;
 } // namespace Ui
 
 enum DialogsSearchRequestType {
@@ -89,6 +91,7 @@ public:
 
 	Dialogs::IndexedList *contactsList();
 	Dialogs::IndexedList *dialogsList();
+	Dialogs::IndexedList *contactsNoDialogsList();
 	int32 lastSearchDate() const;
 	PeerData *lastSearchPeer() const;
 	MsgId lastSearchId() const;
@@ -112,8 +115,8 @@ public:
 
 	PeerData *updateFromParentDrag(QPoint globalPos);
 
-	void setLoadMoreCallback(base::lambda<void()> &&callback) {
-		_loadMoreCallback = std_::move(callback);
+	void setLoadMoreCallback(base::lambda<void()> callback) {
+		_loadMoreCallback = std::move(callback);
 	}
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
@@ -131,6 +134,7 @@ public slots:
 	void onMenuDestroyed(QObject*);
 
 signals:
+	void draggingScrollDelta(int delta);
 	void mustScrollTo(int scrollToTop, int scrollToBottom);
 	void dialogMoved(int movedFrom, int movedTo);
 	void searchMessages();
@@ -145,19 +149,19 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
 
 private:
 	struct ImportantSwitch;
-	using DialogsList = std_::unique_ptr<Dialogs::IndexedList>;
+	using DialogsList = std::unique_ptr<Dialogs::IndexedList>;
 	using FilteredDialogs = QVector<Dialogs::Row*>;
-	using SearchResults = std_::vector_of_moveable<std_::unique_ptr<Dialogs::FakeRow>>;
+	using SearchResults = std::vector<std::unique_ptr<Dialogs::FakeRow>>;
 	struct HashtagResult;
-	using HashtagResults = std_::vector_of_moveable<std_::unique_ptr<HashtagResult>>;
+	using HashtagResults = std::vector<std::unique_ptr<HashtagResult>>;
 	struct PeerSearchResult;
-	using PeerSearchResults = std_::vector_of_moveable<std_::unique_ptr<PeerSearchResult>>;
+	using PeerSearchResults = std::vector<std::unique_ptr<PeerSearchResult>>;
 
 	void mousePressReleased(Qt::MouseButton button);
 	void clearIrrelevantState();
@@ -165,7 +169,7 @@ private:
 		updateSelected(mapFromGlobal(QCursor::pos()));
 	}
 	void updateSelected(QPoint localPos);
-	void loadPeerPhotos(int visibleTop);
+	void loadPeerPhotos();
 	void setImportantSwitchPressed(bool pressed);
 	void setPressed(Dialogs::Row *pressed);
 	void setHashtagPressed(int pressed);
@@ -196,9 +200,9 @@ private:
 	int peerSearchOffset() const;
 	int searchedOffset() const;
 
-	void paintDialog(QPainter &p, Dialogs::Row *dialog);
-	void paintPeerSearchResult(Painter &p, const PeerSearchResult *result, int32 w, bool active, bool selected, bool onlyBackground, TimeMs ms) const;
-	void paintSearchInPeer(Painter &p, int32 w, bool onlyBackground) const;
+	void paintDialog(Painter &p, Dialogs::Row *row, int fullWidth, PeerData *active, PeerData *selected, bool onlyBackground, TimeMs ms);
+	void paintPeerSearchResult(Painter &p, const PeerSearchResult *result, int fullWidth, bool active, bool selected, bool onlyBackground, TimeMs ms) const;
+	void paintSearchInPeer(Painter &p, int fullWidth, bool onlyBackground) const;
 
 	void clearSelection();
 	void clearSearchResults(bool clearPeerSearchResults = true);
@@ -207,6 +211,16 @@ private:
 	Dialogs::IndexedList *shownDialogs() const {
 		return (Global::DialogsMode() == Dialogs::Mode::Important) ? _dialogsImportant.get() : _dialogs.get();
 	}
+
+	void checkReorderPinnedStart(QPoint localPosition);
+	int shownPinnedCount() const;
+	int updateReorderIndexGetCount();
+	bool updateReorderPinned(QPoint localPosition);
+	void finishReorderPinned();
+	void stopReorderPinned();
+	int countPinnedIndex(Dialogs::Row *ofRow);
+	void savePinnedOrder();
+	void step_pinnedShifting(TimeMs ms, bool timer);
 
 	DialogsList _dialogs;
 	DialogsList _dialogsImportant;
@@ -217,13 +231,29 @@ private:
 	bool _mouseSelection = false;
 	Qt::MouseButton _pressButton = Qt::LeftButton;
 
-	std_::unique_ptr<ImportantSwitch> _importantSwitch;
+	std::unique_ptr<ImportantSwitch> _importantSwitch;
 	bool _importantSwitchSelected = false;
 	bool _importantSwitchPressed = false;
 	Dialogs::Row *_selected = nullptr;
 	Dialogs::Row *_pressed = nullptr;
 
-	int _visibleAreaHeight = 0;
+	Dialogs::Row *_dragging = nullptr;
+	int _draggingIndex = -1;
+	int _aboveIndex = -1;
+	QPoint _dragStart;
+	struct PinnedRow {
+		anim::value yadd;
+		TimeMs animStartTime = 0;
+	};
+	std::vector<PinnedRow> _pinnedRows;
+	BasicAnimation _a_pinnedShifting;
+	QList<History*> _pinnedOrder;
+
+	// Remember the last currently dragged row top shift for updating area.
+	int _aboveTopShift = -1;
+
+	int _visibleTop = 0;
+	int _visibleBottom = 0;
 	QString _filter, _hashtagFilter;
 
 	HashtagResults _hashtagResults;
@@ -306,6 +336,7 @@ public:
 
 	Dialogs::IndexedList *contactsList();
 	Dialogs::IndexedList *dialogsList();
+	Dialogs::IndexedList *contactsNoDialogsList();
 
 	void searchMessages(const QString &query, PeerData *inPeer = 0);
 	void onSearchMore();
@@ -322,6 +353,8 @@ signals:
 	void cancelled();
 
 public slots:
+	void onDraggingScrollDelta(int delta);
+
 	void onCancel();
 	void onListScroll();
 	void activate();
@@ -338,8 +371,10 @@ public slots:
 
 	void onChooseByDrag();
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 private slots:
+	void onDraggingScrollTimer();
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void onCheckUpdateStatus();
 #endif // TDESKTOP_DISABLE_AUTOUPDATE
 
@@ -363,6 +398,7 @@ private:
 	void setSearchInPeer(PeerData *peer);
 	void showMainMenu();
 	void updateLockUnlockVisibility();
+	void updateJumpToDateVisibility(bool fast = false);
 	void updateControlsGeometry();
 	void updateForwardBar();
 
@@ -388,6 +424,7 @@ private:
 	object_ptr<Ui::IconButton> _forwardCancel = { nullptr };
 	object_ptr<Ui::IconButton> _mainMenuToggle;
 	object_ptr<Ui::FlatInput> _filter;
+	object_ptr<Ui::WidgetScaledFadeWrap<Ui::IconButton>> _jumpToDate;
 	object_ptr<Ui::CrossButton> _cancelSearch;
 	object_ptr<Ui::IconButton> _lockUnlock;
 	object_ptr<Ui::ScrollArea> _scroll;
@@ -426,5 +463,8 @@ private:
 	PeerSearchQueries _peerSearchQueries;
 
 	QPixmap _widthAnimationCache;
+
+	object_ptr<QTimer> _draggingScrollTimer = { nullptr };
+	int _draggingScrollDelta = 0;
 
 };

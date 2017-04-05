@@ -261,6 +261,7 @@ structure::Variable ParsedFile::readVariable(const QString &name) {
 		}
 		if (value.type().tag != structure::TypeTag::Struct || !value.copyOf().empty()) {
 			assertNextToken(BasicType::Semicolon);
+			result.description = file_.getCurrentLineComment();
 		}
 	}
 	return result;

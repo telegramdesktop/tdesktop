@@ -21,6 +21,78 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "core/basic_types.h"
+#include <array>
+#include <algorithm>
+#include <set>
+#include <gsl/gsl>
+
+#ifdef OS_MAC_OLD
+namespace gsl {
+
+inline span<char> make_span(QByteArray &container) {
+	return span<char>(container.begin(), container.end());
+}
+
+inline span<const char> make_span(const QByteArray &container) {
+	return span<const char>(container.begin(), container.end());
+}
+
+} // namespace gsl
+#endif // OS_MAC_OLD
+
+// Release build assertions.
+inline void t_noop() {
+}
+[[noreturn]] inline void t_assert_fail(const char *message, const char *file, int32 line) {
+	auto info = qsl("%1 %2:%3").arg(message).arg(file).arg(line);
+	LOG(("Assertion Failed! ") + info);
+	SignalHandlers::setCrashAnnotation("Assertion", info);
+
+	// Crash with access violation and generate crash report.
+	volatile int *t_assert_nullptr = nullptr;
+	*t_assert_nullptr = 0;
+
+	// Silent the possible failure to comply noreturn warning.
+	std::abort();
+}
+#define t_assert_full(condition, message, file, line) ((GSL_UNLIKELY(!(condition))) ? t_assert_fail(message, file, line) : t_noop())
+#define t_assert_c(condition, comment) t_assert_full(condition, "\"" #condition "\" (" comment ")", __FILE__, __LINE__)
+#define t_assert(condition) t_assert_full(condition, "\"" #condition "\"", __FILE__, __LINE__)
+
+// Declare our own versions of Expects() and Ensures().
+// Let them crash with reports and logging.
+#ifdef Expects
+#undef Expects
+#endif // Expects
+#define Expects(condition) t_assert_full(condition, "\"" #condition "\"", __FILE__, __LINE__)
+
+#ifdef Ensures
+#undef Ensures
+#endif // Ensures
+#define Ensures(condition) t_assert_full(condition, "\"" #condition "\"", __FILE__, __LINE__)
+
+#ifdef Unexpected
+#undef Unexpected
+#endif // Unexpected
+#define Unexpected(message) t_assert_fail("Unexpected: " message, __FILE__, __LINE__)
+
+// Define specializations for QByteArray for Qt 5.3.2, because
+// QByteArray in Qt 5.3.2 doesn't declare "pointer" subtype.
+#ifdef OS_MAC_OLD
+namespace gsl {
+
+template <>
+inline span<char> make_span<QByteArray>(QByteArray &cont) {
+	return span<char>(cont.data(), cont.size());
+}
+
+template <>
+inline span<const char> make_span(const QByteArray &cont) {
+	return span<const char>(cont.constData(), cont.size());
+}
+
+} // namespace gsl
+#endif // OS_MAC_OLD
 
 namespace base {
 
@@ -30,41 +102,35 @@ inline constexpr size_t array_size(const T(&)[N]) {
 }
 
 template <typename T>
-inline T take(T &source, T &&new_value = T()) {
-	std_::swap_moveable(new_value, source);
-	return std_::move(new_value);
+inline T take(T &source) {
+	return std::exchange(source, T());
 }
 
 namespace internal {
 
 template <typename D, typename T>
-inline constexpr D up_cast_helper(std_::true_type, T object) {
+inline constexpr D up_cast_helper(std::true_type, T object) {
 	return object;
 }
 
 template <typename D, typename T>
-inline constexpr D up_cast_helper(std_::false_type, T object) {
+inline constexpr D up_cast_helper(std::false_type, T object) {
 	return nullptr;
-}
-
-template <typename T>
-constexpr std_::add_const_t<T> &any_as_const(T &&value) noexcept {
-	return value;
 }
 
 } // namespace internal
 
 template <typename D, typename T>
 inline constexpr D up_cast(T object) {
-	using DV = std_::decay_simple_t<decltype(*D())>;
-	using TV = std_::decay_simple_t<decltype(*T())>;
-	return internal::up_cast_helper<D>(std_::integral_constant<bool, std_::is_base_of<DV, TV>::value || std_::is_same<DV, TV>::value>(), object);
+	using DV = std::decay_t<decltype(*D())>;
+	using TV = std::decay_t<decltype(*T())>;
+	return internal::up_cast_helper<D>(std::integral_constant<bool, std::is_base_of<DV, TV>::value || std::is_same<DV, TV>::value>(), object);
 }
 
 template <typename Lambda>
 class scope_guard_helper {
 public:
-	scope_guard_helper(Lambda on_scope_exit) : _handler(std_::move(on_scope_exit)) {
+	scope_guard_helper(Lambda on_scope_exit) : _handler(std::move(on_scope_exit)) {
 	}
 	void dismiss() {
 		_dismissed = true;
@@ -83,7 +149,65 @@ private:
 
 template <typename Lambda>
 scope_guard_helper<Lambda> scope_guard(Lambda on_scope_exit) {
-	return scope_guard_helper<Lambda>(std_::move(on_scope_exit));
+	return scope_guard_helper<Lambda>(std::move(on_scope_exit));
+}
+
+template <typename Container, typename T>
+inline bool contains(const Container &container, const T &value) {
+	auto end = std::end(container);
+	return std::find(std::begin(container), end, value) != end;
+}
+
+// We need a custom comparator for std::set<std::unique_ptr<T>>::find to work with pointers.
+// thanks to http://stackoverflow.com/questions/18939882/raw-pointer-lookup-for-sets-of-unique-ptrs
+template <typename T>
+struct pointer_comparator {
+	using is_transparent = std::true_type;
+
+	// helper does some magic in order to reduce the number of
+	// pairs of types we need to know how to compare: it turns
+	// everything into a pointer, and then uses `std::less<T*>`
+	// to do the comparison:
+	struct helper {
+		T *ptr = nullptr;
+		helper() = default;
+		helper(const helper &other) = default;
+		helper(T *p) : ptr(p) {
+		}
+		template <typename ...Ts>
+		helper(const std::shared_ptr<Ts...> &other) : ptr(other.get()) {
+		}
+		template <typename ...Ts>
+		helper(const std::unique_ptr<Ts...> &other) : ptr(other.get()) {
+		}
+		bool operator<(helper other) const {
+			return std::less<T*>()(ptr, other.ptr);
+		}
+	};
+
+	// without helper, we'd need 2^n different overloads, where
+	// n is the number of types we want to support (so, 8 with
+	// raw pointers, unique pointers, and shared pointers).  That
+	// seems silly.
+	// && helps enforce rvalue use only
+	bool operator()(const helper &&lhs, const helper &&rhs) const {
+		return lhs < rhs;
+	}
+
+};
+
+template <typename T>
+using set_of_unique_ptr = std::set<std::unique_ptr<T>, base::pointer_comparator<T>>;
+
+template <typename T>
+using set_of_shared_ptr = std::set<std::shared_ptr<T>, base::pointer_comparator<T>>;
+
+using byte_span = gsl::span<gsl::byte>;
+using const_byte_span = gsl::span<const gsl::byte>;
+
+inline void copy_bytes(byte_span destination, const_byte_span source) {
+	Expects(destination.size() >= source.size());
+	memcpy(destination.data(), source.data(), source.size());
 }
 
 } // namespace base
@@ -92,7 +216,7 @@ scope_guard_helper<Lambda> scope_guard(Lambda on_scope_exit) {
 // it is important for the copy-on-write Qt containers
 // if you have "QVector<T*> v" then "for (T * const p : v)" will still call QVector::detach(),
 // while "for_const (T *p, v)" won't and "for_const (T *&p, v)" won't compile
-#define for_const(range_declaration, range_expression) for (range_declaration : base::internal::any_as_const(range_expression))
+#define for_const(range_declaration, range_expression) for (range_declaration : std::as_const(range_expression))
 
 template <typename Enum>
 inline QFlags<Enum> qFlags(Enum v) {
@@ -145,21 +269,8 @@ inline void accumulate_max(T &a, const T &b) { if (a < b) a = b; }
 template <typename T>
 inline void accumulate_min(T &a, const T &b) { if (a > b) a = b; }
 
-static volatile int *t_assert_nullptr = nullptr;
-inline void t_noop() {}
-inline void t_assert_fail(const char *message, const char *file, int32 line) {
-	QString info(qsl("%1 %2:%3").arg(message).arg(file).arg(line));
-	LOG(("Assertion Failed! %1 %2:%3").arg(info));
-	SignalHandlers::setCrashAnnotation("Assertion", info);
-	*t_assert_nullptr = 0;
-}
-#define t_assert_full(condition, message, file, line) ((!(condition)) ? t_assert_fail(message, file, line) : t_noop())
-#define t_assert_c(condition, comment) t_assert_full(condition, "\"" #condition "\" (" comment ")", __FILE__, __LINE__)
-#define t_assert(condition) t_assert_full(condition, "\"" #condition "\"", __FILE__, __LINE__)
-
 class Exception : public std::exception {
 public:
-
 	Exception(const QString &msg, bool isFatal = true) : _fatal(isFatal), _msg(msg.toUtf8()) {
 		LOG(("Exception: %1").arg(msg));
 	}
@@ -176,6 +287,7 @@ public:
 private:
 	bool _fatal;
 	QByteArray _msg;
+
 };
 
 class MTPint;
@@ -247,12 +359,36 @@ private:
 };
 
 int32 hashCrc32(const void *data, uint32 len);
+
 int32 *hashSha1(const void *data, uint32 len, void *dest); // dest - ptr to 20 bytes, returns (int32*)dest
+inline std::array<char, 20> hashSha1(const void *data, int len) {
+	auto result = std::array<char, 20>();
+	hashSha1(data, len, result.data());
+	return result;
+}
+
 int32 *hashSha256(const void *data, uint32 len, void *dest); // dest - ptr to 32 bytes, returns (int32*)dest
+inline std::array<char, 32> hashSha256(const void *data, int size) {
+	auto result = std::array<char, 32>();
+	hashSha1(data, size, result.data());
+	return result;
+}
+
 int32 *hashMd5(const void *data, uint32 len, void *dest); // dest = ptr to 16 bytes, returns (int32*)dest
+inline std::array<char, 16> hashMd5(const void *data, int size) {
+	auto result = std::array<char, 16>();
+	hashMd5(data, size, result.data());
+	return result;
+}
+
 char *hashMd5Hex(const int32 *hashmd5, void *dest); // dest = ptr to 32 bytes, returns (char*)dest
 inline char *hashMd5Hex(const void *data, uint32 len, void *dest) { // dest = ptr to 32 bytes, returns (char*)dest
 	return hashMd5Hex(HashMd5(data, len).result(), dest);
+}
+inline std::array<char, 32> hashMd5Hex(const void *data, int size) {
+	auto result = std::array<char, 32>();
+	hashMd5Hex(data, size, result.data());
+	return result;
 }
 
 // good random (using openssl implementation)
@@ -418,10 +554,11 @@ enum DBIPeerReportSpamStatus {
 	dbiprsRequesting = 5, // requesting the cloud setting right now
 };
 
-inline QString strMakeFromLetters(const uint32 *letters, int32 len) {
+template <int Size>
+inline QString strMakeFromLetters(const uint32 (&letters)[Size]) {
 	QString result;
-	result.reserve(len);
-	for (int32 i = 0; i < len; ++i) {
+	result.reserve(Size);
+	for (int32 i = 0; i < Size; ++i) {
 		result.push_back(QChar((((letters[i] >> 16) & 0xFF) << 8) | (letters[i] & 0xFF)));
 	}
 	return result;
@@ -432,6 +569,7 @@ public:
 	enum class Known {
 		Unknown,
 		TDesktopTheme,
+		TDesktopPalette,
 		WebP,
 	};
 
@@ -496,7 +634,7 @@ static int32 AlmostFullArcLength = (FullArcLength - MinArcLength);
 
 template <typename T, typename... Args>
 inline QSharedPointer<T> MakeShared(Args&&... args) {
-	return QSharedPointer<T>(new T(std_::forward<Args>(args)...));
+	return QSharedPointer<T>(new T(std::forward<Args>(args)...));
 }
 
 // This pointer is used for global non-POD variables that are allocated
@@ -511,7 +649,7 @@ public:
 	template <typename... Args>
 	void createIfNull(Args&&... args) {
 		if (isNull()) {
-			reset(new T(std_::forward<Args>(args)...));
+			reset(new T(std::forward<Args>(args)...));
 		}
 	};
 

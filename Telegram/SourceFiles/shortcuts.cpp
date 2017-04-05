@@ -18,14 +18,13 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "shortcuts.h"
 
 #include "mainwindow.h"
 #include "passcodewidget.h"
 #include "mainwidget.h"
 #include "media/player/media_player_instance.h"
-#include "pspecific.h"
+#include "platform/platform_specific.h"
 #include "core/parse_helper.h"
 
 namespace ShortcutCommands {
@@ -47,7 +46,7 @@ bool lock_telegram() {
 
 bool minimize_telegram() {
 	if (auto w = App::wnd()) {
-		if (cWorkMode() == dbiwmTrayOnly) {
+		if (Global::WorkMode().value() == dbiwmTrayOnly) {
 			w->minimizeToTray();
 		} else {
 			w->setWindowState(Qt::WindowMinimized);
@@ -79,51 +78,33 @@ bool quit_telegram() {
 //}
 
 bool media_play() {
-	if (Media::Player::exists()) {
-		Media::Player::instance()->play();
-		return true;
-	}
-	return false;
+	Media::Player::instance()->play();
+	return true;
 }
 
 bool media_pause() {
-	if (Media::Player::exists()) {
-		Media::Player::instance()->pause();
-		return true;
-	}
-	return false;
+	Media::Player::instance()->pause(AudioMsgId::Type::Song);
+	return true;
 }
 
 bool media_playpause() {
-	if (Media::Player::exists()) {
-		Media::Player::instance()->playPause();
-		return true;
-	}
-	return false;
+	Media::Player::instance()->playPause();
+	return true;
 }
 
 bool media_stop() {
-	if (Media::Player::exists()) {
-		Media::Player::instance()->stop();
-		return true;
-	}
-	return false;
+	Media::Player::instance()->stop();
+	return true;
 }
 
 bool media_previous() {
-	if (Media::Player::exists()) {
-		Media::Player::instance()->previous();
-		return true;
-	}
-	return false;
+	Media::Player::instance()->previous();
+	return true;
 }
 
 bool media_next() {
-	if (Media::Player::exists()) {
-		Media::Player::instance()->next();
-		return true;
-	}
-	return false;
+	Media::Player::instance()->next();
+	return true;
 }
 
 bool search() {
@@ -269,7 +250,7 @@ QKeySequence setShortcut(const QString &keys, const QString &command) {
 		if (it == DataPtr->commands.cend()) {
 			LOG(("Warning: could not find shortcut command handler '%1'").arg(command));
 		} else {
-			auto shortcut = std_::make_unique<QShortcut>(seq, App::wnd(), nullptr, nullptr, Qt::ApplicationShortcut);
+			auto shortcut = std::make_unique<QShortcut>(seq, App::wnd(), nullptr, nullptr, Qt::ApplicationShortcut);
 			if (!DataPtr->autoRepeatCommands.contains(command)) {
 				shortcut->setAutoRepeat(false);
 			}

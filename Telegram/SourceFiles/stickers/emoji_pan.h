@@ -42,7 +42,6 @@ class RippleAnimation;
 namespace internal {
 
 constexpr int InlineItemsMaxPerRow = 5;
-constexpr int EmojiColorsCount = 5;
 
 using InlineResult = InlineBots::Result;
 using InlineResults = QList<InlineBots::Result*>;
@@ -64,7 +63,7 @@ class EmojiColorPicker : public TWidget {
 public:
 	EmojiColorPicker(QWidget *parent);
 
-	void showEmoji(uint32 code);
+	void showEmoji(EmojiPtr emoji);
 
 	void clearSelection();
 	void handleMouseMove(QPoint globalPos);
@@ -82,8 +81,8 @@ signals:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -98,7 +97,7 @@ private:
 
 	bool _ignoreShow = false;
 
-	EmojiPtr _variants[EmojiColorsCount + 1];
+	QVector<EmojiPtr> _variants;
 
 	int _selected = -1;
 	int _pressedSel = -1;
@@ -141,7 +140,7 @@ protected:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void enterFromChildEvent(QEvent *e, QWidget *child) override;
 
@@ -258,7 +257,7 @@ protected:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void enterFromChildEvent(QEvent *e, QWidget *child) override;
 
@@ -505,8 +504,8 @@ public:
 	~EmojiPan();
 
 protected:
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void otherEnter();
 	void otherLeave();
 
@@ -623,7 +622,7 @@ private:
 	int _bottom = 0;
 
 	Ui::PanelAnimation::Origin _origin = Ui::PanelAnimation::Origin::BottomRight;
-	std_::unique_ptr<Ui::PanelAnimation> _showAnimation;
+	std::unique_ptr<Ui::PanelAnimation> _showAnimation;
 	Animation _a_show;
 
 	bool _hiding = false;
@@ -633,7 +632,7 @@ private:
 	bool _inPanelGrab = false;
 
 	class SlideAnimation;
-	std_::unique_ptr<SlideAnimation> _slideAnimation;
+	std::unique_ptr<SlideAnimation> _slideAnimation;
 	Animation _a_slide;
 
 	object_ptr<Ui::IconButton> _recent;

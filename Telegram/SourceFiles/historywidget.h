@@ -20,8 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "localimageloader.h"
-#include "ui/filedialog.h"
+#include "storage/localimageloader.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"
@@ -129,8 +128,8 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseDoubleClickEvent(QMouseEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 
@@ -153,7 +152,7 @@ public slots:
 
 private slots:
 	void onScrollDateCheck();
-	void onScrollDateHide();
+	void onScrollDateHideByTimer();
 
 private:
 	void itemRemoved(HistoryItem *item);
@@ -175,6 +174,8 @@ private:
 	void toggleScrollDateShown();
 	void repaintScrollDateCallback();
 	bool displayScrollDate() const;
+	void scrollDateHide();
+	void keepScrollDateForNow();
 
 	PeerData *_peer = nullptr;
 	History *_migrated = nullptr;
@@ -203,7 +204,7 @@ private:
 		HistoryInner *_parent;
 
 	};
-	std_::unique_ptr<BotAbout> _botAbout;
+	std::unique_ptr<BotAbout> _botAbout;
 
 	HistoryWidget *_widget = nullptr;
 	Ui::ScrollArea *_scroll = nullptr;
@@ -279,6 +280,7 @@ private:
 	SingleTimer _scrollDateHideTimer;
 	HistoryItem *_scrollDateLastItem = nullptr;
 	int _scrollDateLastItemTop = 0;
+	ClickHandlerPtr _scrollDateLink;
 
 	enum class EnumItemsDirection {
 		TopToBottom,
@@ -413,8 +415,8 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 
 private:
 	void updateSelected();
@@ -430,7 +432,7 @@ private:
 	bool _forceReply = false;
 
 	QPoint _lastMousePos;
-	std_::unique_ptr<ReplyKeyboard> _impl;
+	std::unique_ptr<ReplyKeyboard> _impl;
 
 	class Style : public ReplyKeyboard::Style {
 	public:
@@ -673,7 +675,6 @@ public:
 
 	void applyCloudDraft(History *history);
 
-	void contactsReceived();
 	void updateHistoryDownPosition();
 	void updateHistoryDownVisibility();
 
@@ -734,7 +735,7 @@ protected:
 	void keyPressEvent(QKeyEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
@@ -849,7 +850,6 @@ private:
 	void recordUpdateCallback(QPoint globalPos);
 	void chooseAttach();
 	void historyDownAnimationFinish();
-	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
 	void sendButtonClicked();
 	struct SendingFilesLists {
 		QList<QUrl> nonLocalUrls;
@@ -867,10 +867,9 @@ private:
 	bool validateSendingFiles(const SendingFilesLists &lists, Callback callback);
 	template <typename SendCallback>
 	bool showSendFilesBox(object_ptr<SendFilesBox> box, const QString &insertTextOnCancel, const QString *addedComment, SendCallback callback);
-	CompressConfirm imageCompressConfirm(const QImage &image, CompressConfirm compressed, bool animated = false);
 
 	// If an empty filepath is found we upload (possible) "image" with (possible) "content".
-	void uploadFilesAfterConfirmation(const QStringList &files, const QImage &image, const QByteArray &content, SendMediaType type, QString caption);
+	void uploadFilesAfterConfirmation(const QStringList &files, const QByteArray &content, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, SendMediaType type, QString caption);
 
 	void itemRemoved(HistoryItem *item);
 
@@ -920,7 +919,7 @@ private:
 		object_ptr<Ui::IconButton> cancel;
 		object_ptr<Ui::PlainShadow> shadow;
 	};
-	std_::unique_ptr<PinnedBar> _pinnedBar;
+	std::unique_ptr<PinnedBar> _pinnedBar;
 	void updatePinnedBar(bool force = false);
 	bool pinnedMsgVisibilityUpdated();
 	void destroyPinnedBar();
@@ -1138,8 +1137,6 @@ private:
 	// so it should be a BasicAnimation, not an Animation.
 	BasicAnimation _a_recording;
 	anim::value a_recordingLevel;
-
-	FileDialog::QueryId _attachFilesQueryId = 0;
 
 	bool kbWasHidden() const;
 

@@ -27,7 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_message.h"
 #include "layout.h"
 
-class AppClass;
+class Messenger;
 class MainWindow;
 class MainWidget;
 class ApiWrap;
@@ -44,11 +44,11 @@ using GifItems = QHash<Media::Clip::Reader*, HistoryItem*>;
 using PhotosData = QHash<PhotoId, PhotoData*>;
 using DocumentsData = QHash<DocumentId, DocumentData*>;
 
-struct LocationCoords;
+class LocationCoords;
 struct LocationData;
 
 namespace App {
-	AppClass *app();
+	Messenger *app();
 	MainWindow *wnd();
 	MainWidget *main();
 	bool passcoded();
@@ -146,6 +146,7 @@ namespace App {
 	inline ChannelData *channelLoaded(ChannelId channelId) {
 		return channel(channelId, PeerData::FullLoaded);
 	}
+	void enumerateUsers(base::lambda<void(UserData*)> action);
 
 	UserData *self();
 	PeerData *peerByName(const QString &username);

@@ -123,9 +123,8 @@ def handle_style_dependencies(file_path):
     one_modified = 1
 
 file_paths = []
-file_type = ''
+request = ''
 output_file = ''
-next_file_type = 0
 next_include_dir = 0
 next_output_file = 0
 next_self = 1
@@ -133,9 +132,11 @@ for arg in sys.argv:
   if next_self != 0:
     next_self = 0
     continue
-  if next_file_type != 0:
-    next_file_type = 0
-    file_type = arg
+  if arg == '--styles' or arg == '--qrc_list' or arg == '--qrc':
+    if request == '':
+      request = arg[2:]
+    else:
+      eprint('Only one request required.')
     continue
   if next_include_dir != 0:
     next_include_dir = 0
@@ -144,13 +145,6 @@ for arg in sys.argv:
   if next_output_file != 0:
     next_output_file = 0
     output_file = arg
-    continue
-
-  type_match = re.match(r'^\-t(.*)$', arg)
-  if type_match:
-    file_type = type_match.group(1)
-    if file_type == '':
-      next_file_type = 1
     continue
 
   include_dir_match = re.match(r'^\-I(.*)$', arg)
@@ -171,19 +165,17 @@ for arg in sys.argv:
 
   file_paths.append(arg)
 
-if file_type == 'style':
+if request == 'styles':
   for file_path in file_paths:
     handle_style_dependencies(file_path)
-elif file_type == 'qrc':
+elif request == 'qrc':
   for file_path in file_paths:
     handle_qrc_dependencies(file_path)
-elif file_type == 'qrc_list':
+elif request == 'qrc_list':
   for file_path in file_paths:
     list_qrc_dependencies(file_path)
-elif file_type != '':
-  eprint('Unknown file type: ' + file_type)
 else:
-  eprint('File type was not provided.')
+  eprint('Request required.')
 
 if not os.path.isfile(output_file):
   with open(output_file, "w") as f:

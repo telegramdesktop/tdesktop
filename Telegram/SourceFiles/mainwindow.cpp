@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "mainwindow.h"
 
 #include "dialogs/dialogs_layout.h"
@@ -30,8 +29,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/zlib_help.h"
 #include "lang.h"
 #include "shortcuts.h"
+#include "messenger.h"
 #include "application.h"
-#include "pspecific.h"
+#include "platform/platform_specific.h"
 #include "passcodewidget.h"
 #include "intro/introwidget.h"
 #include "mainwidget.h"
@@ -42,14 +42,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "autoupdater.h"
 #include "mediaview.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "apiwrap.h"
 #include "settings/settings_widget.h"
 #include "platform/platform_notifications_manager.h"
 #include "window/notifications_manager.h"
-#include "window/window_theme.h"
-#include "window/window_theme_warning.h"
+#include "window/themes/window_theme.h"
+#include "window/themes/window_theme_warning.h"
 #include "window/window_main_menu.h"
+#include "core/task_queue.h"
+#include "auth_session.h"
 
 ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : TWidget(parent)
 , _reconnect(this, QString()) {
@@ -98,25 +100,12 @@ MainWindow::MainWindow() {
 	iconbig32 = iconbig256.scaledToWidth(32, Qt::SmoothTransformation);
 	iconbig64 = iconbig256.scaledToWidth(64, Qt::SmoothTransformation);
 
-	subscribe(Global::RefNotifySettingsChanged(), [this](Notify::ChangeType type) {
-		if (type == Notify::ChangeType::DesktopEnabled) {
-			updateTrayMenu();
-			notifyClear();
-		} else if (type == Notify::ChangeType::ViewParams) {
-			notifyUpdateAll();
-		} else if (type == Notify::ChangeType::IncludeMuted) {
-			Notify::unreadCounterUpdated();
-		}
-	});
-
 	resize(st::windowDefaultWidth, st::windowDefaultHeight);
 
 	setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
 
 	_inactiveTimer.setSingleShot(true);
 	connect(&_inactiveTimer, SIGNAL(timeout()), this, SLOT(onInactiveTimer()));
-
-	connect(&_notifyWaitTimer, SIGNAL(timeout()), this, SLOT(notifyShowNext()));
 
 	connect(&_autoLockTimer, SIGNAL(timeout()), this, SLOT(checkAutoLock()));
 
@@ -154,7 +143,7 @@ void MainWindow::onStateChanged(Qt::WindowState state) {
 	updateIsActive((state == Qt::WindowMinimized) ? Global::OfflineBlurTimeout() : Global::OnlineFocusTimeout());
 
 	psUpdateSysMenu(state);
-	if (state == Qt::WindowMinimized && cWorkMode() == dbiwmTrayOnly) {
+	if (state == Qt::WindowMinimized && Global::WorkMode().value() == dbiwmTrayOnly) {
 		App::wnd()->minimizeToTray();
 	}
 	savePosition(state);
@@ -163,7 +152,7 @@ void MainWindow::onStateChanged(Qt::WindowState state) {
 void MainWindow::initHook() {
 	Platform::MainWindow::initHook();
 
-	Application::instance()->installEventFilter(this);
+	QCoreApplication::instance()->installEventFilter(this);
 	connect(windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(onStateChanged(Qt::WindowState)));
 	connect(windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWindowActiveChanged()), Qt::QueuedConnection);
 }
@@ -198,7 +187,7 @@ void MainWindow::firstShow() {
 		trayIconMenu->addAction(notificationActionText, this, SLOT(toggleDisplayNotifyFromTray()))->setEnabled(true);
 		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
 	}
-	psUpdateWorkmode();
+	Global::RefWorkMode().setForced(Global::WorkMode().value(), true);
 
 	psFirstShow();
 	updateTrayMenu();
@@ -239,7 +228,7 @@ void MainWindow::clearPasscode() {
 	} else {
 		_main->showAnimated(bg, true);
 	}
-	notifyUpdateAll();
+	AuthSession::Current().notifications().updateAll();
 	updateGlobalMenu();
 
 	if (_main) {
@@ -263,7 +252,9 @@ void MainWindow::setupPasscode() {
 		setInnerFocus();
 	}
 	_shouldLockAt = 0;
-	notifyUpdateAll();
+	if (AuthSession::Exists()) {
+		AuthSession::Current().notifications().updateAll();
+	}
 	updateGlobalMenu();
 }
 
@@ -289,8 +280,6 @@ void MainWindow::checkAutoLock() {
 }
 
 void MainWindow::setupIntro() {
-	cSetContactsReceived(false);
-	cSetDialogsReceived(false);
 	if (_intro && !_intro->isHidden() && !_main) return;
 
 	Ui::hideSettingsAndLayer(true);
@@ -347,7 +336,7 @@ void MainWindow::sendServiceHistoryRequest() {
 
 	UserData *user = App::userLoaded(ServiceUserId);
 	if (!user) {
-		MTPDuser::Flags userFlags = MTPDuser::Flag::f_first_name | MTPDuser::Flag::f_phone | MTPDuser::Flag::f_status | MTPDuser::Flag::f_verified;
+		auto userFlags = MTPDuser::Flag::f_first_name | MTPDuser::Flag::f_phone | MTPDuser::Flag::f_status | MTPDuser::Flag::f_verified;
 		user = App::feedUsers(MTP_vector<MTPUser>(1, MTP_user(MTP_flags(userFlags), MTP_int(ServiceUserId), MTPlong(), MTP_string("Telegram"), MTPstring(), MTPstring(), MTP_string("42777"), MTP_userProfilePhotoEmpty(), MTP_userStatusRecently(), MTPint(), MTPstring(), MTPstring())));
 	}
 	_serviceHistoryRequest = MTP::send(MTPmessages_GetHistory(user->input, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), _main->rpcDone(&MainWidget::serviceHistoryDone), _main->rpcFail(&MainWidget::serviceHistoryFail));
@@ -358,6 +347,9 @@ void MainWindow::setupMain(const MTPUser *self) {
 	auto bg = animated ? grabInner() : QPixmap();
 
 	clearWidgets();
+
+	t_assert(AuthSession::Exists());
+
 	_main.create(bodyWidget());
 	_main->show();
 	updateControlsGeometry();
@@ -367,11 +359,7 @@ void MainWindow::setupMain(const MTPUser *self) {
 	} else {
 		_main->activate();
 	}
-	if (self) {
-		_main->start(*self);
-	} else {
-		MTP::send(MTPusers_GetUsers(MTP_vector<MTPInputUser>(1, MTP_inputUserSelf())), _main->rpcDone(&MainWidget::startFull));
-	}
+	_main->start(self);
 
 	fixOrder();
 
@@ -379,14 +367,18 @@ void MainWindow::setupMain(const MTPUser *self) {
 }
 
 void MainWindow::showSettings() {
-	if (_passcode) return;
-
 	if (isHidden()) showFromTray();
+
+	showSpecialLayer(Box<Settings::Widget>());
+}
+
+void MainWindow::showSpecialLayer(object_ptr<LayerWidget> layer) {
+	if (_passcode) return;
 
 	if (!_layerBg) {
 		_layerBg.create(bodyWidget());
 	}
-	_layerBg->showSpecialLayer(Box<Settings::Widget>());
+	_layerBg->showSpecialLayer(std::move(layer));
 }
 
 void MainWindow::showMainMenu() {
@@ -445,12 +437,12 @@ void MainWindow::ui_showBox(object_ptr<BoxContent> box, ShowLayerOptions options
 		}
 		if (options.testFlag(KeepOtherLayers)) {
 			if (options.testFlag(ShowAfterOtherLayers)) {
-				_layerBg->prependBox(std_::move(box));
+				_layerBg->prependBox(std::move(box));
 			} else {
-				_layerBg->appendBox(std_::move(box));
+				_layerBg->appendBox(std::move(box));
 			}
 		} else {
-			_layerBg->showBox(std_::move(box));
+			_layerBg->showBox(std::move(box));
 		}
 		if (options.testFlag(ForceFastShowLayer)) {
 			_layerBg->finishAnimation();
@@ -527,17 +519,37 @@ void MainWindow::hideConnecting() {
 
 void MainWindow::themeUpdated(const Window::Theme::BackgroundUpdate &data) {
 	using Type = Window::Theme::BackgroundUpdate::Type;
+
+	// We delay animating theme warning because we want all other
+	// subscribers to receive paltte changed notification before any
+	// animations (that include pixmap caches with old palette values).
 	if (data.type == Type::TestingTheme) {
 		if (!_testingThemeWarning) {
 			_testingThemeWarning.create(bodyWidget());
+			_testingThemeWarning->hide();
 			_testingThemeWarning->setGeometry(rect());
 			_testingThemeWarning->setHiddenCallback([this] { _testingThemeWarning.destroyDelayed(); });
 		}
-		_testingThemeWarning->showAnimated();
+
+		base::TaskQueue::Main().Put(base::lambda_guarded(this, [this] {
+			if (_testingThemeWarning) {
+				_testingThemeWarning->showAnimated();
+			}
+		}));
 	} else if (data.type == Type::RevertingTheme || data.type == Type::ApplyingTheme) {
-		_testingThemeWarning->hideAnimated();
-		_testingThemeWarning = nullptr;
-		setInnerFocus();
+		if (_testingThemeWarning) {
+			if (_testingThemeWarning->isHidden()) {
+				_testingThemeWarning.destroy();
+			} else {
+				base::TaskQueue::Main().Put(base::lambda_guarded(this, [this] {
+					if (_testingThemeWarning) {
+						_testingThemeWarning->hideAnimated();
+						_testingThemeWarning = nullptr;
+					}
+					setInnerFocus();
+				}));
+			}
+		}
 	}
 }
 
@@ -547,7 +559,7 @@ bool MainWindow::doWeReadServerHistory() {
 }
 
 void MainWindow::checkHistoryActivation() {
-	if (_main && MTP::authedId() && doWeReadServerHistory()) {
+	if (_main && doWeReadServerHistory()) {
 		_main->markActiveHistoryAsRead();
 	}
 }
@@ -610,14 +622,14 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
 		break;
 
 	case QEvent::ApplicationActivate:
-		if (obj == Application::instance()) {
+		if (obj == QCoreApplication::instance()) {
 			psUserActionDone();
 			QTimer::singleShot(1, this, SLOT(onWindowActiveChanged()));
 		}
 		break;
 
 	case QEvent::FileOpen:
-		if (obj == Application::instance()) {
+		if (obj == QCoreApplication::instance()) {
 			QString url = static_cast<QFileOpenEvent*>(e)->url().toEncoded().trimmed();
 			if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
 				cSetStartUrl(url.mid(0, 8192));
@@ -797,6 +809,9 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 		Ui::show(Box<InformBox>(lang(lng_passcode_need_unblock)));
 		return;
 	}
+	if (!AuthSession::Exists()) {
+		return;
+	}
 
 	bool soundNotifyChanged = false;
 	Global::SetDesktopNotify(!Global::DesktopNotify());
@@ -816,9 +831,9 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 		}
 	}
 	Local::writeUserSettings();
-	Global::RefNotifySettingsChanged().notify(Notify::ChangeType::DesktopEnabled);
+	AuthSession::Current().notifications().settingsChanged().notify(Window::Notifications::ChangeType::DesktopEnabled);
 	if (soundNotifyChanged) {
-		Global::RefNotifySettingsChanged().notify(Notify::ChangeType::SoundEnabled);
+		AuthSession::Current().notifications().settingsChanged().notify(Window::Notifications::ChangeType::SoundEnabled);
 	}
 }
 
@@ -828,18 +843,15 @@ void MainWindow::closeEvent(QCloseEvent *e) {
 		App::quit();
 	} else {
 		e->ignore();
-		if (!MTP::authedId() || !Ui::hideWindowNoQuit()) {
+		if (!AuthSession::Exists() || !Ui::hideWindowNoQuit()) {
 			App::quit();
 		}
 	}
 }
 
-void MainWindow::resizeEvent(QResizeEvent *e) {
-	Platform::MainWindow::resizeEvent(e);
-	updateControlsGeometry();
-}
-
 void MainWindow::updateControlsGeometry() {
+	Platform::MainWindow::updateControlsGeometry();
+
 	auto body = bodyWidget()->rect();
 	if (_passcode) _passcode->setGeometry(body);
 	if (_main) _main->setGeometry(body);
@@ -896,303 +908,8 @@ void MainWindow::onClearFailed(int task, void *manager) {
 	emit tempDirClearFailed(task);
 }
 
-void MainWindow::notifySchedule(History *history, HistoryItem *item) {
-	if (App::quitting() || !history->currentNotification() || !App::api()) return;
-
-	PeerData *notifyByFrom = (!history->peer->isUser() && item->mentionsMe()) ? item->from() : 0;
-
-	if (item->isSilent()) {
-		history->popNotification(item);
-		return;
-	}
-
-	bool haveSetting = (history->peer->notify != UnknownNotifySettings);
-	if (haveSetting) {
-		if (history->peer->notify != EmptyNotifySettings && history->peer->notify->mute > unixtime()) {
-			if (notifyByFrom) {
-				haveSetting = (item->from()->notify != UnknownNotifySettings);
-				if (haveSetting) {
-					if (notifyByFrom->notify != EmptyNotifySettings && notifyByFrom->notify->mute > unixtime()) {
-						history->popNotification(item);
-						return;
-					}
-				} else {
-					App::api()->requestNotifySetting(notifyByFrom);
-				}
-			} else {
-				history->popNotification(item);
-				return;
-			}
-		}
-	} else {
-		if (notifyByFrom && notifyByFrom->notify == UnknownNotifySettings) {
-			App::api()->requestNotifySetting(notifyByFrom);
-		}
-		App::api()->requestNotifySetting(history->peer);
-	}
-	if (!item->notificationReady()) {
-		haveSetting = false;
-	}
-
-	int delay = item->Has<HistoryMessageForwarded>() ? 500 : 100, t = unixtime();
-	auto ms = getms(true);
-	bool isOnline = _main->lastWasOnline(), otherNotOld = ((cOtherOnline() * 1000LL) + Global::OnlineCloudTimeout() > t * 1000LL);
-	bool otherLaterThanMe = (cOtherOnline() * 1000LL + (ms - _main->lastSetOnline()) > t * 1000LL);
-	if (!isOnline && otherNotOld && otherLaterThanMe) {
-		delay = Global::NotifyCloudDelay();
-	} else if (cOtherOnline() >= t) {
-		delay = Global::NotifyDefaultDelay();
-	}
-
-	auto when = ms + delay;
-	_notifyWhenAlerts[history].insert(when, notifyByFrom);
-	if (Global::DesktopNotify() && !Platform::Notifications::skipToast()) {
-		NotifyWhenMaps::iterator i = _notifyWhenMaps.find(history);
-		if (i == _notifyWhenMaps.end()) {
-			i = _notifyWhenMaps.insert(history, NotifyWhenMap());
-		}
-		if (i.value().constFind(item->id) == i.value().cend()) {
-			i.value().insert(item->id, when);
-		}
-		NotifyWaiters *addTo = haveSetting ? &_notifyWaiters : &_notifySettingWaiters;
-		NotifyWaiters::const_iterator it = addTo->constFind(history);
-		if (it == addTo->cend() || it->when > when) {
-			addTo->insert(history, NotifyWaiter(item->id, when, notifyByFrom));
-		}
-	}
-	if (haveSetting) {
-		if (!_notifyWaitTimer.isActive() || _notifyWaitTimer.remainingTime() > delay) {
-			_notifyWaitTimer.start(delay);
-		}
-	}
-}
-
-void MainWindow::notifyClear(History *history) {
-	if (!history) {
-		Window::Notifications::manager()->clearAll();
-
-		for (auto i = _notifyWhenMaps.cbegin(), e = _notifyWhenMaps.cend(); i != e; ++i) {
-			i.key()->clearNotifications();
-		}
-		_notifyWhenMaps.clear();
-		_notifyWhenAlerts.clear();
-		_notifyWaiters.clear();
-		_notifySettingWaiters.clear();
-		return;
-	}
-
-	Window::Notifications::manager()->clearFromHistory(history);
-
-	history->clearNotifications();
-	_notifyWhenMaps.remove(history);
-	_notifyWhenAlerts.remove(history);
-	_notifyWaiters.remove(history);
-	_notifySettingWaiters.remove(history);
-
-	_notifyWaitTimer.stop();
-	notifyShowNext();
-}
-
-void MainWindow::notifyClearFast() {
-	Window::Notifications::manager()->clearAllFast();
-
-	_notifyWhenMaps.clear();
-	_notifyWhenAlerts.clear();
-	_notifyWaiters.clear();
-	_notifySettingWaiters.clear();
-}
-
-void MainWindow::notifySettingGot() {
-	int32 t = unixtime();
-	for (NotifyWaiters::iterator i = _notifySettingWaiters.begin(); i != _notifySettingWaiters.end();) {
-		History *history = i.key();
-		bool loaded = false, muted = false;
-		if (history->peer->notify != UnknownNotifySettings) {
-			if (history->peer->notify == EmptyNotifySettings || history->peer->notify->mute <= t) {
-				loaded = true;
-			} else if (PeerData *from = i.value().notifyByFrom) {
-				if (from->notify != UnknownNotifySettings) {
-					if (from->notify == EmptyNotifySettings || from->notify->mute <= t) {
-						loaded = true;
-					} else {
-						loaded = muted = true;
-					}
-				}
-			} else {
-				loaded = muted = true;
-			}
-		}
-		if (loaded) {
-			if (HistoryItem *item = App::histItemById(history->channelId(), i.value().msg)) {
-				if (!item->notificationReady()) {
-					loaded = false;
-				}
-			} else {
-				muted = true;
-			}
-		}
-		if (loaded) {
-			if (!muted) {
-				_notifyWaiters.insert(i.key(), i.value());
-			}
-			i = _notifySettingWaiters.erase(i);
-		} else {
-			++i;
-		}
-	}
-	_notifyWaitTimer.stop();
-	notifyShowNext();
-}
-
-void MainWindow::notifyShowNext() {
-	if (App::quitting()) return;
-
-	auto ms = getms(true), nextAlert = 0LL;
-	bool alert = false;
-	int32 now = unixtime();
-	for (NotifyWhenAlerts::iterator i = _notifyWhenAlerts.begin(); i != _notifyWhenAlerts.end();) {
-		while (!i.value().isEmpty() && i.value().begin().key() <= ms) {
-			NotifySettingsPtr n = i.key()->peer->notify, f = i.value().begin().value() ? i.value().begin().value()->notify : UnknownNotifySettings;
-			while (!i.value().isEmpty() && i.value().begin().key() <= ms + 500) { // not more than one sound in 500ms from one peer - grouping
-				i.value().erase(i.value().begin());
-			}
-			if (n == EmptyNotifySettings || (n != UnknownNotifySettings && n->mute <= now)) {
-				alert = true;
-			} else if (f == EmptyNotifySettings || (f != UnknownNotifySettings && f->mute <= now)) { // notify by from()
-				alert = true;
-			}
-		}
-		if (i.value().isEmpty()) {
-			i = _notifyWhenAlerts.erase(i);
-		} else {
-			if (!nextAlert || nextAlert > i.value().begin().key()) {
-				nextAlert = i.value().begin().key();
-			}
-			++i;
-		}
-	}
-	if (alert) {
-		psFlash();
-		App::playSound();
-	}
-
-	if (_notifyWaiters.isEmpty() || !Global::DesktopNotify() || Platform::Notifications::skipToast()) {
-		if (nextAlert) {
-			_notifyWaitTimer.start(nextAlert - ms);
-		}
-		return;
-	}
-
-	while (true) {
-		auto next = 0LL;
-		HistoryItem *notifyItem = 0;
-		History *notifyHistory = 0;
-		for (NotifyWaiters::iterator i = _notifyWaiters.begin(); i != _notifyWaiters.end();) {
-			History *history = i.key();
-			if (history->currentNotification() && history->currentNotification()->id != i.value().msg) {
-				NotifyWhenMaps::iterator j = _notifyWhenMaps.find(history);
-				if (j == _notifyWhenMaps.end()) {
-					history->clearNotifications();
-					i = _notifyWaiters.erase(i);
-					continue;
-				}
-				do {
-					NotifyWhenMap::const_iterator k = j.value().constFind(history->currentNotification()->id);
-					if (k != j.value().cend()) {
-						i.value().msg = k.key();
-						i.value().when = k.value();
-						break;
-					}
-					history->skipNotification();
-				} while (history->currentNotification());
-			}
-			if (!history->currentNotification()) {
-				_notifyWhenMaps.remove(history);
-				i = _notifyWaiters.erase(i);
-				continue;
-			}
-			auto when = i.value().when;
-			if (!notifyItem || next > when) {
-				next = when;
-				notifyItem = history->currentNotification();
-				notifyHistory = history;
-			}
-			++i;
-		}
-		if (notifyItem) {
-			if (next > ms) {
-				if (nextAlert && nextAlert < next) {
-					next = nextAlert;
-					nextAlert = 0;
-				}
-				_notifyWaitTimer.start(next - ms);
-				break;
-			} else {
-				HistoryItem *fwd = notifyItem->Has<HistoryMessageForwarded>() ? notifyItem : nullptr; // forwarded notify grouping
-				int32 fwdCount = 1;
-
-				auto ms = getms(true);
-				History *history = notifyItem->history();
-				NotifyWhenMaps::iterator j = _notifyWhenMaps.find(history);
-				if (j == _notifyWhenMaps.cend()) {
-					history->clearNotifications();
-				} else {
-					HistoryItem *nextNotify = 0;
-					do {
-						history->skipNotification();
-						if (!history->hasNotification()) {
-							break;
-						}
-
-						j.value().remove((fwd ? fwd : notifyItem)->id);
-						do {
-							NotifyWhenMap::const_iterator k = j.value().constFind(history->currentNotification()->id);
-							if (k != j.value().cend()) {
-								nextNotify = history->currentNotification();
-								_notifyWaiters.insert(notifyHistory, NotifyWaiter(k.key(), k.value(), 0));
-								break;
-							}
-							history->skipNotification();
-						} while (history->hasNotification());
-						if (nextNotify) {
-							if (fwd) {
-								HistoryItem *nextFwd = nextNotify->Has<HistoryMessageForwarded>() ? nextNotify : nullptr;
-								if (nextFwd && fwd->author() == nextFwd->author() && qAbs(int64(nextFwd->date.toTime_t()) - int64(fwd->date.toTime_t())) < 2) {
-									fwd = nextFwd;
-									++fwdCount;
-								} else {
-									nextNotify = 0;
-								}
-							} else {
-								nextNotify = 0;
-							}
-						}
-					} while (nextNotify);
-				}
-
-				Window::Notifications::manager()->showNotification(notifyItem, fwdCount);
-
-				if (!history->hasNotification()) {
-					_notifyWaiters.remove(history);
-					_notifyWhenMaps.remove(history);
-					continue;
-				}
-			}
-		} else {
-			break;
-		}
-	}
-	if (nextAlert) {
-		_notifyWaitTimer.start(nextAlert - ms);
-	}
-}
-
 void MainWindow::app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
 	handler->onClick(button);
-}
-
-void MainWindow::notifyUpdateAll() {
-	Window::Notifications::manager()->updateAll();
 }
 
 QImage MainWindow::iconLarge() const {
@@ -1323,7 +1040,6 @@ void MainWindow::updateIsActiveHook() {
 }
 
 MainWindow::~MainWindow() {
-    notifyClearFast();
 	if (_clearManager) {
 		_clearManager->stop();
 		_clearManager = nullptr;
@@ -2386,47 +2102,3 @@ void NetworkSettingsWindow::updateControls() {
 		setGeometry(_parent->x() + (_parent->width() - w) / 2, _parent->y() + (_parent->height() - h) / 2, w, h);
 	}
 }
-
-ShowCrashReportWindow::ShowCrashReportWindow(const QString &text)
-: _log(this) {
-	_log.setPlainText(text);
-
-	QRect scr(QApplication::primaryScreen()->availableGeometry());
-	setGeometry(scr.x() + (scr.width() / 6), scr.y() + (scr.height() / 6), scr.width() / 2, scr.height() / 2);
-	show();
-}
-
-void ShowCrashReportWindow::resizeEvent(QResizeEvent *e) {
-	_log.setGeometry(rect().marginsRemoved(QMargins(basicSize(), basicSize(), basicSize(), basicSize())));
-}
-
-void ShowCrashReportWindow::closeEvent(QCloseEvent *e) {
-    deleteLater();
-}
-
-#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
-int showCrashReportWindow(const QString &crashdump) {
-	QString text;
-
-	QFile dump(crashdump);
-	if (dump.open(QIODevice::ReadOnly)) {
-		text = qsl("Crash dump file '%1':\n\n").arg(QFileInfo(crashdump).absoluteFilePath());
-		text += psPrepareCrashDump(dump.readAll(), crashdump);
-	} else {
-		text = qsl("ERROR: could not read crash dump file '%1'").arg(QFileInfo(crashdump).absoluteFilePath());
-	}
-
-	if (Global::started()) {
-		ShowCrashReportWindow *wnd = new ShowCrashReportWindow(text);
-		return 0;
-	}
-
-	QByteArray args[] = { QFile::encodeName(QDir::toNativeSeparators(cExeDir() + cExeName())) };
-	int a_argc = 1;
-	char *a_argv[1] = { args[0].data() };
-	QApplication app(a_argc, a_argv);
-
-	ShowCrashReportWindow *wnd = new ShowCrashReportWindow(text);
-	return app.exec();
-}
-#endif // !TDESKTOP_DISABLE_CRASH_REPORTS

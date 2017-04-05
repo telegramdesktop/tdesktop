@@ -18,12 +18,11 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "intro/introsignup.h"
 
 #include "styles/style_intro.h"
 #include "styles/style_boxes.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "boxes/photocropbox.h"
 #include "boxes/confirmbox.h"
 #include "lang.h"
@@ -31,7 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
-#include "ui/buttons/peer_avatar_button.h"
+#include "ui/special_buttons.h"
 
 namespace Intro {
 
@@ -43,14 +42,7 @@ SignupWidget::SignupWidget(QWidget *parent, Widget::Data *data) : Step(parent, d
 , _checkRequest(this) {
 	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
 
-	_photo->setClickedCallback(App::LambdaDelayed(st::defaultActiveButton.ripple.hideDuration, this, [this] {
-		auto imgExtensions = cImgExtensions();
-		auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter();
-		_readPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filter);
-	}));
-	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
-		notifyFileQueryUpdated(update);
-	});
+	setupPhotoButton();
 
 	if (_invertOrder) {
 		setTabOrder(_last, _first);
@@ -62,28 +54,30 @@ SignupWidget::SignupWidget(QWidget *parent, Widget::Data *data) : Step(parent, d
 	setMouseTracking(true);
 }
 
-void SignupWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {
-	if (_readPhotoFileQueryId != update.queryId) {
-		return;
-	}
-	_readPhotoFileQueryId = 0;
-	if (update.remoteContent.isEmpty() && update.filePaths.isEmpty()) {
-		return;
-	}
+void SignupWidget::setupPhotoButton() {
+	_photo->setClickedCallback(App::LambdaDelayed(st::defaultActiveButton.ripple.hideDuration, this, [this] {
+		auto imgExtensions = cImgExtensions();
+		auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + FileDialog::AllFilesFilter();
+		FileDialog::GetOpenPath(lang(lng_choose_image), filter, base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
+			if (result.remoteContent.isEmpty() && result.paths.isEmpty()) {
+				return;
+			}
 
-	QImage img;
-	if (!update.remoteContent.isEmpty()) {
-		img = App::readImage(update.remoteContent);
-	} else {
-		img = App::readImage(update.filePaths.front());
-	}
+			QImage img;
+			if (!result.remoteContent.isEmpty()) {
+				img = App::readImage(result.remoteContent);
+			} else {
+				img = App::readImage(result.paths.front());
+			}
 
-	if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
-		showError(lang(lng_bad_photo));
-		return;
-	}
-	auto box = Ui::show(Box<PhotoCropBox>(img, PeerId(0)));
-	connect(box, SIGNAL(ready(const QImage&)), this, SLOT(onPhotoReady(const QImage&)));
+			if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
+				showError(lang(lng_bad_photo));
+				return;
+			}
+			auto box = Ui::show(Box<PhotoCropBox>(img, PeerId(0)));
+			connect(box, SIGNAL(ready(const QImage&)), this, SLOT(onPhotoReady(const QImage&)));
+		}));
+	}));
 }
 
 void SignupWidget::resizeEvent(QResizeEvent *e) {
@@ -229,7 +223,7 @@ void SignupWidget::submit() {
 
 	_firstName = _first->getLastText().trimmed();
 	_lastName = _last->getLastText().trimmed();
-	_sentRequest = MTP::send(MTPauth_SignUp(MTP_string(getData()->phone), MTP_string(getData()->phoneHash), MTP_string(getData()->code), MTP_string(_firstName), MTP_string(_lastName)), rpcDone(&SignupWidget::nameSubmitDone), rpcFail(&SignupWidget::nameSubmitFail));
+	_sentRequest = MTP::send(MTPauth_SignUp(MTP_string(getData()->phone), MTP_bytes(getData()->phoneHash), MTP_string(getData()->code), MTP_string(_firstName), MTP_string(_lastName)), rpcDone(&SignupWidget::nameSubmitDone), rpcFail(&SignupWidget::nameSubmitFail));
 }
 
 QString SignupWidget::nextButtonText() const {

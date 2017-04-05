@@ -18,12 +18,11 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "intro/intropwdcheck.h"
 
 #include "styles/style_intro.h"
 #include "styles/style_boxes.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "boxes/confirmbox.h"
 #include "lang.h"
 #include "application.h"

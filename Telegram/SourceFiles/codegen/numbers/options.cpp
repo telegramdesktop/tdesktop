@@ -38,9 +38,9 @@ using common::logError;
 
 Options parseOptions() {
 	Options result;
-	auto args(QCoreApplication::instance()->arguments());
-	for (int i = 1, count = args.size(); i < count; ++i) { // skip first
-		const auto &arg(args.at(i));
+	auto args = QCoreApplication::instance()->arguments();
+	for (auto i = 1, count = args.size(); i < count; ++i) { // skip first
+		auto &arg = args.at(i);
 
 		// Output path
 		if (arg == "-o") {

@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/style/style_core_icon.h"
 
 namespace style {
@@ -102,7 +101,7 @@ QSize readGeneratedSize(const IconMask *mask, DBIScale scale) {
 			case dbisTwo: return QSize(width * 2, height * 2);
 			}
 		} else {
-			t_assert(!"Bad data in generated icon!");
+			Unexpected("Bad data in generated icon!");
 		}
 	}
 	return QSize();
@@ -112,7 +111,7 @@ QSize readGeneratedSize(const IconMask *mask, DBIScale scale) {
 
 MonoIcon::MonoIcon(const IconMask *mask, Color color, QPoint offset)
 : _mask(mask)
-, _color(std_::move(color))
+, _color(std::move(color))
 , _offset(offset) {
 }
 
@@ -223,20 +222,20 @@ QImage MonoIcon::instance(QColor colorOverride, DBIScale scale) const {
 		} else {
 			colorizeImage(_maskImage, colorOverride, &result);
 		}
-		return std_::move(result);
+		return result;
 	}
 	auto size = readGeneratedSize(_mask, scale);
 	if (!size.isEmpty()) {
 		auto result = QImage(size * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 		result.setDevicePixelRatio(cRetinaFactor());
 		result.fill(colorOverride);
-		return std_::move(result);
+		return result;
 	}
 	auto mask = createIconMask(_mask, scale);
 	auto result = QImage(mask.size(), QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(cRetinaFactor());
 	colorizeImage(mask, colorOverride, &result);
-	return std_::move(result);
+	return result;
 }
 
 void MonoIcon::ensureLoaded() const {
@@ -272,7 +271,7 @@ void MonoIcon::createCachedPixmap() const {
 	auto j = iconPixmaps->constFind(key);
 	if (j == iconPixmaps->cend()) {
 		auto image = colorizeImage(_maskImage, _color);
-		j = iconPixmaps->insert(key, App::pixmapFromImageInPlace(std_::move(image)));
+		j = iconPixmaps->insert(key, App::pixmapFromImageInPlace(std::move(image)));
 	}
 	_pixmap = j.value();
 	_size = _pixmap.size() / cIntRetinaFactor();
@@ -284,7 +283,7 @@ void IconData::created() {
 }
 
 void IconData::fill(QPainter &p, const QRect &rect) const {
-	if (_parts.isEmpty()) return;
+	if (_parts.empty()) return;
 
 	auto partSize = _parts[0].size();
 	for_const (auto &part, _parts) {
@@ -295,7 +294,7 @@ void IconData::fill(QPainter &p, const QRect &rect) const {
 }
 
 void IconData::fill(QPainter &p, const QRect &rect, QColor colorOverride) const {
-	if (_parts.isEmpty()) return;
+	if (_parts.empty()) return;
 
 	auto partSize = _parts[0].size();
 	for_const (auto &part, _parts) {

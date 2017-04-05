@@ -85,17 +85,25 @@ public:
 	PrivacyWidget(QWidget *parent, UserData *self);
 
 private slots:
+	void onBlockedUsers();
+	void onLastSeenPrivacy();
+	void onGroupsInvitePrivacy();
 	void onAutoLock();
 	void onShowSessions();
+	void onSelfDestruction();
 
 private:
 	void createControls();
 	void autoLockUpdated();
 
+	object_ptr<Ui::LinkButton> _blockedUsers = { nullptr };
+	object_ptr<Ui::LinkButton> _lastSeenPrivacy = { nullptr };
+	object_ptr<Ui::LinkButton> _groupsInvitePrivacy = { nullptr };
 	object_ptr<LocalPasscodeState> _localPasscodeState = { nullptr };
 	object_ptr<Ui::WidgetSlideWrap<LabeledLink>> _autoLock = { nullptr };
 	object_ptr<CloudPasswordState> _cloudPasswordState = { nullptr };
 	object_ptr<Ui::LinkButton> _showAllSessions = { nullptr };
+	object_ptr<Ui::LinkButton> _selfDestruction = { nullptr };
 
 };
 

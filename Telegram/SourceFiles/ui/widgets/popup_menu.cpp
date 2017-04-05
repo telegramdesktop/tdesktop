@@ -15,12 +15,12 @@
  Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
  Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
  */
-#include "stdafx.h"
 #include "ui/widgets/popup_menu.h"
 
 #include "ui/widgets/shadow.h"
-#include "pspecific.h"
+#include "platform/platform_specific.h"
 #include "application.h"
+#include "mainwindow.h"
 #include "lang.h"
 
 namespace Ui {
@@ -38,7 +38,7 @@ PopupMenu::PopupMenu(QWidget*, QMenu *menu, const style::PopupMenu &st) : TWidge
 
 	for (auto action : actions()) {
 		if (auto submenu = action->menu()) {
-			auto it = _submenus.insert(action, new PopupMenu(submenu, st));
+			auto it = _submenus.insert(action, new PopupMenu(nullptr, submenu, st));
 			it.value()->deleteOnHide(false);
 		}
 	}
@@ -85,8 +85,8 @@ QAction *PopupMenu::addAction(const QString &text, const QObject *receiver, cons
 	return _menu->addAction(text, receiver, member, icon, iconOver);
 }
 
-QAction *PopupMenu::addAction(const QString &text, base::lambda<void()> &&callback, const style::icon *icon, const style::icon *iconOver) {
-	return _menu->addAction(text, std_::move(callback), icon, iconOver);
+QAction *PopupMenu::addAction(const QString &text, base::lambda<void()> callback, const style::icon *icon, const style::icon *iconOver) {
+	return _menu->addAction(text, std::move(callback), icon, iconOver);
 }
 
 QAction *PopupMenu::addSeparator() {
@@ -360,8 +360,8 @@ void PopupMenu::startShowAnimation() {
 		auto cache = grabForPanelAnimation();
 		_a_opacity = base::take(opacityAnimation);
 
-		_showAnimation = std_::make_unique<PanelAnimation>(_st.animation, _origin);
-		_showAnimation->setFinalImage(std_::move(cache), QRect(_inner.topLeft() * cIntRetinaFactor(), _inner.size() * cIntRetinaFactor()));
+		_showAnimation = std::make_unique<PanelAnimation>(_st.animation, _origin);
+		_showAnimation->setFinalImage(std::move(cache), QRect(_inner.topLeft() * cIntRetinaFactor(), _inner.size() * cIntRetinaFactor()));
 		if (_useTransparency) {
 			auto corners = App::cornersMask(ImageRoundRadius::Small);
 			_showAnimation->setCornerMasks(QImage(*corners[0]), QImage(*corners[1]), QImage(*corners[2]), QImage(*corners[3]));
@@ -408,7 +408,7 @@ QImage PopupMenu::grabForPanelAnimation() {
 			}
 		}
 	}
-	return std_::move(result);
+	return result;
 }
 
 void PopupMenu::deleteOnHide(bool del) {

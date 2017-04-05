@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/abstractbox.h"
 
 namespace Ui {
+class RadiobuttonGroup;
 class Radiobutton;
 } // namespace Ui
 
@@ -38,13 +39,10 @@ protected:
 
 	void mousePressEvent(QMouseEvent *e) override;
 
-private slots:
-	void onChange();
-
 private:
-	void saveLanguage();
-	void restoreLanguage();
+	void languageChanged(int languageId);
 
-	QVector<Ui::Radiobutton*> _langs;
+	std::shared_ptr<Ui::RadiobuttonGroup> _langGroup;
+	std::vector<object_ptr<Ui::Radiobutton>> _langs;
 
 };

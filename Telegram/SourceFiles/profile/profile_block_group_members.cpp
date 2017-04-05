@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "profile/profile_block_group_members.h"
 
 #include "styles/style_profile.h"
@@ -28,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "apiwrap.h"
 #include "observer_peer.h"
+#include "auth_session.h"
 #include "lang.h"
 
 namespace Profile {
@@ -402,7 +402,7 @@ void GroupMembersWidget::setItemFlags(Item *item, ChatData *chat) {
 	auto isCreator = (peerFromUser(chat->creator) == item->peer->id);
 	auto isAdmin = chat->admins.contains(user);
 	item->hasAdminStar = isCreator || isAdmin;
-	if (item->peer->id == peerFromUser(MTP::authedId())) {
+	if (item->peer->id == AuthSession::CurrentUserPeerId()) {
 		item->hasRemoveLink = false;
 	} else if (chat->amCreator() || (chat->amAdmin() && !item->hasAdminStar)) {
 		item->hasRemoveLink = true;
@@ -468,7 +468,7 @@ bool GroupMembersWidget::addUsersToEnd(ChannelData *megagroup) {
 }
 
 void GroupMembersWidget::setItemFlags(Item *item, ChannelData *megagroup) {
-	auto amCreatorOrAdmin = (peerToUser(item->peer->id) == MTP::authedId()) && (megagroup->amCreator() || megagroup->amEditor());
+	auto amCreatorOrAdmin = (item->peer->id == AuthSession::CurrentUserPeerId()) && (megagroup->amCreator() || megagroup->amEditor());
 	auto isAdmin = megagroup->mgInfo->lastAdmins.contains(getMember(item)->user());
 	item->hasAdminStar = amCreatorOrAdmin || isAdmin;
 	if (item->peer->isSelf()) {

@@ -18,15 +18,15 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/widgets/input_fields.h"
 
 #include "ui/widgets/popup_menu.h"
 #include "mainwindow.h"
 #include "ui/countryinput.h"
-#include "window/window_theme.h"
+#include "window/themes/window_theme.h"
 #include "lang.h"
 #include "numbers.h"
+#include "messenger.h"
 
 namespace Ui {
 namespace {
@@ -133,7 +133,7 @@ QString FlatTextarea::tagsMimeType() {
 	return qsl("application/x-td-field-tags");
 }
 
-FlatTextarea::FlatTextarea(QWidget *parent, const style::FlatTextarea &st, const QString &pholder, const QString &v, const TagList &tags) : QTextEdit(parent)
+FlatTextarea::FlatTextarea(QWidget *parent, const style::FlatTextarea &st, const QString &pholder, const QString &v, const TagList &tags) : TWidgetHelper<QTextEdit>(parent)
 , _placeholderVisible(!v.length())
 , _lastTextWithTags { v, tags }
 , _st(st) {
@@ -398,11 +398,9 @@ EmojiPtr FlatTextarea::getSingleEmoji() const {
 	getSingleEmojiFragment(text, fragment);
 
 	if (!text.isEmpty()) {
-		QTextCharFormat format = fragment.charFormat();
-		QString imageName = static_cast<QTextImageFormat*>(&format)->name();
-		if (imageName.startsWith(qstr("emoji://e."))) {
-			return emojiFromUrl(imageName);
-		}
+		auto format = fragment.charFormat();
+		auto imageName = static_cast<QTextImageFormat*>(&format)->name();
+		return Ui::Emoji::FromUrl(imageName);
 	}
 	return nullptr;
 }
@@ -585,8 +583,8 @@ void FlatTextarea::insertTag(const QString &text, QString tagId) {
 	}
 }
 
-void FlatTextarea::setTagMimeProcessor(std_::unique_ptr<TagMimeProcessor> &&processor) {
-	_tagMimeProcessor = std_::move(processor);
+void FlatTextarea::setTagMimeProcessor(std::unique_ptr<TagMimeProcessor> &&processor) {
+	_tagMimeProcessor = std::move(processor);
 }
 
 void FlatTextarea::getSingleEmojiFragment(QString &text, QTextFragment &fragment) const {
@@ -617,8 +615,8 @@ void FlatTextarea::getSingleEmojiFragment(QString &text, QTextFragment &fragment
 				t = t.mid(0, end - p);
 			}
 			if (f.isImageFormat() && !t.isEmpty() && t.at(0).unicode() == QChar::ObjectReplacementCharacter) {
-				QString imageName = static_cast<QTextImageFormat*>(&f)->name();
-				if (imageName.startsWith(qstr("emoji://e."))) {
+				auto imageName = static_cast<QTextImageFormat*>(&f)->name();
+				if (Ui::Emoji::FromUrl(imageName)) {
 					fragment = fr;
 					text = t;
 					return;
@@ -771,25 +769,23 @@ QString FlatTextarea::getTextPart(int start, int end, TagList *outTagsList, bool
 				case 0xfdd0: // QTextBeginningOfFrame
 				case 0xfdd1: // QTextEndOfFrame
 				case QChar::ParagraphSeparator:
-				case QChar::LineSeparator:
-				*uc = QLatin1Char('\n');
-				break;
-				case QChar::Nbsp:
-				*uc = QLatin1Char(' ');
-				break;
-				case QChar::ObjectReplacementCharacter:
-				if (emojiText.isEmpty() && f.isImageFormat()) {
-					QString imageName = static_cast<QTextImageFormat*>(&f)->name();
-					if (imageName.startsWith(qstr("emoji://e."))) {
-						if (EmojiPtr emoji = emojiFromUrl(imageName)) {
-							emojiText = emojiString(emoji);
+				case QChar::LineSeparator: {
+					*uc = QLatin1Char('\n');
+				} break;
+				case QChar::Nbsp: {
+					*uc = QLatin1Char(' ');
+				} break;
+				case QChar::ObjectReplacementCharacter: {
+					if (emojiText.isEmpty() && f.isImageFormat()) {
+						auto imageName = static_cast<QTextImageFormat*>(&f)->name();
+						if (auto emoji = Ui::Emoji::FromUrl(imageName)) {
+							emojiText = emoji->text();
 						}
 					}
-				}
-				if (uc > ub) result.append(ub, uc - ub);
-				if (!emojiText.isEmpty()) result.append(emojiText);
-				ub = uc + 1;
-				break;
+					if (uc > ub) result.append(ub, uc - ub);
+					if (!emojiText.isEmpty()) result.append(emojiText);
+					ub = uc + 1;
+				} break;
 				}
 			}
 			if (uc > ub) result.append(ub, uc - ub);
@@ -947,10 +943,11 @@ void FlatTextarea::insertFromMimeData(const QMimeData *source) {
 
 void FlatTextarea::insertEmoji(EmojiPtr emoji, QTextCursor c) {
 	QTextImageFormat imageFormat;
-	int32 ew = ESize + st::emojiPadding * cIntRetinaFactor() * 2, eh = _st.font->height * cIntRetinaFactor();
+	auto ew = Ui::Emoji::Size() + st::emojiPadding * cIntRetinaFactor() * 2;
+	auto eh = _st.font->height * cIntRetinaFactor();
 	imageFormat.setWidth(ew / cIntRetinaFactor());
 	imageFormat.setHeight(eh / cIntRetinaFactor());
-	imageFormat.setName(qsl("emoji://e.") + QString::number(emojiKey(emoji), 16));
+	imageFormat.setName(emoji->toUrl());
 	imageFormat.setVerticalAlignment(QTextCharFormat::AlignBaseline);
 	if (c.charFormat().isAnchor()) {
 		imageFormat.setAnchor(true);
@@ -962,11 +959,9 @@ void FlatTextarea::insertEmoji(EmojiPtr emoji, QTextCursor c) {
 }
 
 QVariant FlatTextarea::loadResource(int type, const QUrl &name) {
-	QString imageName = name.toDisplayString();
-	if (imageName.startsWith(qstr("emoji://e."))) {
-		if (EmojiPtr emoji = emojiFromUrl(imageName)) {
-			return QVariant(App::emojiSingle(emoji, _st.font->height));
-		}
+	auto imageName = name.toDisplayString();
+	if (auto emoji = Ui::Emoji::FromUrl(imageName)) {
+		return QVariant(App::emojiSingle(emoji, _st.font->height));
 	}
 	return QVariant();
 }
@@ -1141,7 +1136,7 @@ void FlatTextarea::processFormatting(int insertPosition, int insertEnd) {
 				auto *ch = textStart + qMax(changedPositionInFragment, 0);
 				for (; ch < textEnd; ++ch) {
 					int emojiLength = 0;
-					if (auto emoji = emojiFromText(ch, textEnd, &emojiLength)) {
+					if (auto emoji = Ui::Emoji::Find(ch, textEnd, &emojiLength)) {
 						// Replace emoji if no current action is prepared.
 						if (action.type == ActionType::Invalid) {
 							action.type = ActionType::InsertEmoji;
@@ -1464,7 +1459,7 @@ void FlatTextarea::contextMenuEvent(QContextMenuEvent *e) {
 	}
 }
 
-FlatInput::FlatInput(QWidget *parent, const style::FlatInput &st, const QString &pholder, const QString &v) : QLineEdit(v, parent)
+FlatInput::FlatInput(QWidget *parent, const style::FlatInput &st, const QString &pholder, const QString &v) : TWidgetHelper<QLineEdit>(v, parent)
 , _oldtext(v)
 , _fullph(pholder)
 , _placeholderVisible(!v.length())
@@ -2057,25 +2052,23 @@ QString InputArea::getText(int32 start, int32 end) const {
 				case 0xfdd0: // QTextBeginningOfFrame
 				case 0xfdd1: // QTextEndOfFrame
 				case QChar::ParagraphSeparator:
-				case QChar::LineSeparator:
+				case QChar::LineSeparator: {
 					*uc = QLatin1Char('\n');
-					break;
-				case QChar::Nbsp:
+				} break;
+				case QChar::Nbsp: {
 					*uc = QLatin1Char(' ');
-					break;
-				case QChar::ObjectReplacementCharacter:
+				} break;
+				case QChar::ObjectReplacementCharacter: {
 					if (emojiText.isEmpty() && f.isImageFormat()) {
-						QString imageName = static_cast<QTextImageFormat*>(&f)->name();
-						if (imageName.startsWith(qstr("emoji://e."))) {
-							if (EmojiPtr emoji = emojiFromUrl(imageName)) {
-								emojiText = emojiString(emoji);
-							}
+						auto imageName = static_cast<QTextImageFormat*>(&f)->name();
+						if (auto emoji = Ui::Emoji::FromUrl(imageName)) {
+							emojiText = emoji->text();
 						}
 					}
 					if (uc > ub) result.append(ub, uc - ub);
 					if (!emojiText.isEmpty()) result.append(emojiText);
 					ub = uc + 1;
-					break;
+				} break;
 				}
 			}
 			if (uc > ub) result.append(ub, uc - ub);
@@ -2110,10 +2103,11 @@ bool InputArea::isRedoAvailable() const {
 
 void InputArea::insertEmoji(EmojiPtr emoji, QTextCursor c) {
 	QTextImageFormat imageFormat;
-	int32 ew = ESize + st::emojiPadding * cIntRetinaFactor() * 2, eh = _st.font->height * cIntRetinaFactor();
+	auto ew = Ui::Emoji::Size() + st::emojiPadding * cIntRetinaFactor() * 2;
+	auto eh = _st.font->height * cIntRetinaFactor();
 	imageFormat.setWidth(ew / cIntRetinaFactor());
 	imageFormat.setHeight(eh / cIntRetinaFactor());
-	imageFormat.setName(qsl("emoji://e.") + QString::number(emojiKey(emoji), 16));
+	imageFormat.setName(emoji->toUrl());
 	imageFormat.setVerticalAlignment(QTextCharFormat::AlignBaseline);
 
 	static QString objectReplacement(QChar::ObjectReplacementCharacter);
@@ -2121,18 +2115,16 @@ void InputArea::insertEmoji(EmojiPtr emoji, QTextCursor c) {
 }
 
 QVariant InputArea::Inner::loadResource(int type, const QUrl &name) {
-	QString imageName = name.toDisplayString();
-	if (imageName.startsWith(qstr("emoji://e."))) {
-		if (EmojiPtr emoji = emojiFromUrl(imageName)) {
-			return QVariant(App::emojiSingle(emoji, f()->_st.font->height));
-		}
+	auto imageName = name.toDisplayString();
+	if (auto emoji = Ui::Emoji::FromUrl(imageName)) {
+		return QVariant(App::emojiSingle(emoji, f()->_st.font->height));
 	}
 	return QVariant();
 }
 
 void InputArea::processDocumentContentsChange(int position, int charsAdded) {
 	int32 replacePosition = -1, replaceLen = 0;
-	const EmojiData *emoji = 0;
+	EmojiPtr emoji = nullptr;
 
 	static QString regular = qsl("Open Sans"), semibold = qsl("Open Sans Semibold");
 	bool checkTilde = !cRetina() && (_inner->font().pixelSize() == 13) && (_inner->font().family() == regular);
@@ -2164,7 +2156,7 @@ void InputArea::processDocumentContentsChange(int position, int charsAdded) {
 				const QChar *ch = t.constData(), *e = ch + t.size();
 				for (; ch != e; ++ch, ++fp) {
 					int32 emojiLen = 0;
-					emoji = emojiFromText(ch, e, &emojiLen);
+					emoji = Ui::Emoji::Find(ch, e, &emojiLen);
 					if (emoji) {
 						if (replacePosition >= 0) {
 							emoji = 0; // replace tilde char format first
@@ -2791,25 +2783,23 @@ QString InputField::getText(int32 start, int32 end) const {
 				case 0xfdd0: // QTextBeginningOfFrame
 				case 0xfdd1: // QTextEndOfFrame
 				case QChar::ParagraphSeparator:
-				case QChar::LineSeparator:
+				case QChar::LineSeparator: {
 					*uc = QLatin1Char('\n');
-					break;
-				case QChar::Nbsp:
+				} break;
+				case QChar::Nbsp: {
 					*uc = QLatin1Char(' ');
-					break;
-				case QChar::ObjectReplacementCharacter:
+				} break;
+				case QChar::ObjectReplacementCharacter: {
 					if (emojiText.isEmpty() && f.isImageFormat()) {
-						QString imageName = static_cast<QTextImageFormat*>(&f)->name();
-						if (imageName.startsWith(qstr("emoji://e."))) {
-							if (EmojiPtr emoji = emojiFromUrl(imageName)) {
-								emojiText = emojiString(emoji);
-							}
+						auto imageName = static_cast<QTextImageFormat*>(&f)->name();
+						if (auto emoji = Ui::Emoji::FromUrl(imageName)) {
+							emojiText = emoji->text();
 						}
 					}
 					if (uc > ub) result.append(ub, uc - ub);
 					if (!emojiText.isEmpty()) result.append(emojiText);
 					ub = uc + 1;
-					break;
+				} break;
 				}
 			}
 			if (uc > ub) result.append(ub, uc - ub);
@@ -2844,10 +2834,10 @@ bool InputField::isRedoAvailable() const {
 
 void InputField::insertEmoji(EmojiPtr emoji, QTextCursor c) {
 	QTextImageFormat imageFormat;
-	int32 ew = ESize + st::emojiPadding * cIntRetinaFactor() * 2, eh = _st.font->height * cIntRetinaFactor();
+	auto ew = Ui::Emoji::Size() + st::emojiPadding * cIntRetinaFactor() * 2, eh = _st.font->height * cIntRetinaFactor();
 	imageFormat.setWidth(ew / cIntRetinaFactor());
 	imageFormat.setHeight(eh / cIntRetinaFactor());
-	imageFormat.setName(qsl("emoji://e.") + QString::number(emojiKey(emoji), 16));
+	imageFormat.setName(emoji->toUrl());
 	imageFormat.setVerticalAlignment(QTextCharFormat::AlignBaseline);
 
 	static QString objectReplacement(QChar::ObjectReplacementCharacter);
@@ -2856,17 +2846,15 @@ void InputField::insertEmoji(EmojiPtr emoji, QTextCursor c) {
 
 QVariant InputField::Inner::loadResource(int type, const QUrl &name) {
 	QString imageName = name.toDisplayString();
-	if (imageName.startsWith(qstr("emoji://e."))) {
-		if (EmojiPtr emoji = emojiFromUrl(imageName)) {
-			return QVariant(App::emojiSingle(emoji, f()->_st.font->height));
-		}
+	if (auto emoji = Ui::Emoji::FromUrl(imageName)) {
+		return QVariant(App::emojiSingle(emoji, f()->_st.font->height));
 	}
 	return QVariant();
 }
 
 void InputField::processDocumentContentsChange(int position, int charsAdded) {
 	int32 replacePosition = -1, replaceLen = 0;
-	const EmojiData *emoji = 0;
+	EmojiPtr emoji = nullptr;
 	bool newlineFound = false;
 
 	static QString regular = qsl("Open Sans"), semibold = qsl("Open Sans Semibold"), space(' ');
@@ -2910,8 +2898,8 @@ void InputField::processDocumentContentsChange(int position, int charsAdded) {
 						break;
 					}
 
-					int32 emojiLen = 0;
-					emoji = emojiFromText(ch, e, &emojiLen);
+					auto emojiLen = 0;
+					emoji = Ui::Emoji::Find(ch, e, &emojiLen);
 					if (emoji) {
 						if (replacePosition >= 0) {
 							emoji = 0; // replace tilde char format first
@@ -3228,7 +3216,7 @@ void InputField::setErrorShown(bool error) {
 	}
 }
 
-MaskedInputField::MaskedInputField(QWidget *parent, const style::InputField &st, const QString &placeholder, const QString &val) : QLineEdit(val, parent)
+MaskedInputField::MaskedInputField(QWidget *parent, const style::InputField &st, const QString &placeholder, const QString &val) : TWidgetHelper<QLineEdit>(val, parent)
 , _st(st)
 , _oldtext(val)
 , _placeholderFull(placeholder) {
@@ -3841,8 +3829,8 @@ void PortInput::correctValue(const QString &was, int32 wasCursor, QString &now, 
 	setCorrectedText(now, nowCursor, newText, newPos);
 }
 
-UsernameInput::UsernameInput(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val, bool isLink) : MaskedInputField(parent, st, ph, val),
-_linkPlaceholder(isLink ? CreateInternalLink(QString()) : QString()) {
+UsernameInput::UsernameInput(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val, bool isLink) : MaskedInputField(parent, st, ph, val)
+, _linkPlaceholder(isLink ? Messenger::Instance().createInternalLink(QString()) : QString()) {
 	if (!_linkPlaceholder.isEmpty()) {
 		setTextMargins(style::margins(_st.textMargins.left() + _st.font->width(_linkPlaceholder), _st.textMargins.top(), _st.textMargins.right(), _st.textMargins.bottom()));
 		setPlaceholderHidden(true);

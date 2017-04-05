@@ -125,82 +125,111 @@ private:
 
 };
 
-#define T_WIDGET \
-public: \
-	TWidget *tparent() { \
-		return qobject_cast<TWidget*>(parentWidget()); \
-	} \
-	const TWidget *tparent() const { \
-		return qobject_cast<const TWidget*>(parentWidget()); \
-	} \
-	virtual void leaveToChildEvent(QEvent *e, QWidget *child) { /* e -- from enterEvent() of child TWidget */ \
-	} \
-	virtual void enterFromChildEvent(QEvent *e, QWidget *child) { /* e -- from leaveEvent() of child TWidget */ \
-	} \
-	void moveToLeft(int x, int y, int outerw = 0) { \
-		auto margins = getMargins(); \
-		x -= margins.left(); \
-		y -= margins.top(); \
-		move(rtl() ? ((outerw > 0 ? outerw : parentWidget()->width()) - x - width()) : x, y); \
-	} \
-	void moveToRight(int x, int y, int outerw = 0) { \
-		auto margins = getMargins(); \
-		x -= margins.right(); \
-		y -= margins.top(); \
-		move(rtl() ? x : ((outerw > 0 ? outerw : parentWidget()->width()) - x - width()), y); \
-	} \
-	void setGeometryToLeft(int x, int y, int w, int h, int outerw = 0) { \
-		auto margins = getMargins(); \
-		x -= margins.left(); \
-		y -= margins.top(); \
-		w -= margins.left() - margins.right(); \
-		h -= margins.top() - margins.bottom(); \
-		setGeometry(rtl() ? ((outerw > 0 ? outerw : parentWidget()->width()) - x - w) : x, y, w, h); \
-	} \
-	void setGeometryToRight(int x, int y, int w, int h, int outerw = 0) { \
-		auto margins = getMargins(); \
-		x -= margins.right(); \
-		y -= margins.top(); \
-		w -= margins.left() - margins.right(); \
-		h -= margins.top() - margins.bottom(); \
-		setGeometry(rtl() ? x : ((outerw > 0 ? outerw : parentWidget()->width()) - x - w), y, w, h); \
-	} \
-	QPoint myrtlpoint(int x, int y) const { \
-		return rtlpoint(x, y, width()); \
-	} \
-	QPoint myrtlpoint(const QPoint p) const { \
-		return rtlpoint(p, width()); \
-	} \
-	QRect myrtlrect(int x, int y, int w, int h) const { \
-		return rtlrect(x, y, w, h, width()); \
-	} \
-	QRect myrtlrect(const QRect &r) const { \
-		return rtlrect(r, width()); \
-	} \
-	void rtlupdate(const QRect &r) { \
-		update(myrtlrect(r)); \
-	} \
-	void rtlupdate(int x, int y, int w, int h) { \
-		update(myrtlrect(x, y, w, h)); \
-	} \
-protected: \
-	void enterEvent(QEvent *e) override { \
-		TWidget *p(tparent()); \
-		if (p) p->leaveToChildEvent(e, this); \
-		return enterEventHook(e); \
-	} \
-	void leaveEvent(QEvent *e) override { \
-		TWidget *p(tparent()); \
-		if (p) p->enterFromChildEvent(e, this); \
-		return leaveEventHook(e); \
+class TWidget;
+
+template <typename Base>
+class TWidgetHelper : public Base {
+public:
+	using Base::Base;
+
+	virtual QMargins getMargins() const {
+		return QMargins();
 	}
 
-class TWidget : public QWidget {
+	void moveToLeft(int x, int y, int outerw = 0) {
+		auto margins = getMargins();
+		x -= margins.left();
+		y -= margins.top();
+		Base::move(rtl() ? ((outerw > 0 ? outerw : Base::parentWidget()->width()) - x - Base::width()) : x, y);
+	}
+	void moveToRight(int x, int y, int outerw = 0) {
+		auto margins = getMargins();
+		x -= margins.right();
+		y -= margins.top();
+		Base::move(rtl() ? x : ((outerw > 0 ? outerw : Base::parentWidget()->width()) - x - Base::width()), y);
+	}
+	void setGeometryToLeft(int x, int y, int w, int h, int outerw = 0) {
+		auto margins = getMargins();
+		x -= margins.left();
+		y -= margins.top();
+		w -= margins.left() - margins.right();
+		h -= margins.top() - margins.bottom();
+		Base::setGeometry(rtl() ? ((outerw > 0 ? outerw : Base::parentWidget()->width()) - x - w) : x, y, w, h);
+	}
+	void setGeometryToRight(int x, int y, int w, int h, int outerw = 0) {
+		auto margins = getMargins();
+		x -= margins.right();
+		y -= margins.top();
+		w -= margins.left() - margins.right();
+		h -= margins.top() - margins.bottom();
+		Base::setGeometry(rtl() ? x : ((outerw > 0 ? outerw : Base::parentWidget()->width()) - x - w), y, w, h);
+	}
+	QPoint myrtlpoint(int x, int y) const {
+		return rtlpoint(x, y, Base::width());
+	}
+	QPoint myrtlpoint(const QPoint p) const {
+		return rtlpoint(p, Base::width());
+	}
+	QRect myrtlrect(int x, int y, int w, int h) const {
+		return rtlrect(x, y, w, h, Base::width());
+	}
+	QRect myrtlrect(const QRect &r) const {
+		return rtlrect(r, Base::width());
+	}
+	void rtlupdate(const QRect &r) {
+		Base::update(myrtlrect(r));
+	}
+	void rtlupdate(int x, int y, int w, int h) {
+		Base::update(myrtlrect(x, y, w, h));
+	}
+
+protected:
+	void enterEvent(QEvent *e) final override {
+		if (auto parent = tparent()) {
+			parent->leaveToChildEvent(e, this);
+		}
+		return enterEventHook(e);
+	}
+	virtual void enterEventHook(QEvent *e) {
+		return Base::enterEvent(e);
+	}
+
+	void leaveEvent(QEvent *e) final override {
+		if (auto parent = tparent()) {
+			parent->enterFromChildEvent(e, this);
+		}
+		return leaveEventHook(e);
+	}
+	virtual void leaveEventHook(QEvent *e) {
+		return Base::leaveEvent(e);
+	}
+
+	// e - from enterEvent() of child TWidget
+	virtual void leaveToChildEvent(QEvent *e, QWidget *child) {
+	}
+
+	// e - from leaveEvent() of child TWidget
+	virtual void enterFromChildEvent(QEvent *e, QWidget *child) {
+	}
+
+private:
+	TWidget *tparent() {
+		return qobject_cast<TWidget*>(Base::parentWidget());
+	}
+	const TWidget *tparent() const {
+		return qobject_cast<const TWidget*>(Base::parentWidget());
+	}
+
+	template <typename OtherBase>
+	friend class TWidgetHelper;
+
+};
+
+class TWidget : public TWidgetHelper<QWidget> {
 	Q_OBJECT
-	T_WIDGET
 
 public:
-	TWidget(QWidget *parent = nullptr) : QWidget(parent) {
+	TWidget(QWidget *parent = nullptr) : TWidgetHelper<QWidget>(parent) {
 	}
 	virtual void grabStart() {
 	}
@@ -224,10 +253,6 @@ public:
 		}
 	}
 
-	virtual QMargins getMargins() const {
-		return QMargins();
-	}
-
 	// Get the size of the widget as it should be.
 	// Negative return value means no default width.
 	virtual int naturalWidth() const {
@@ -244,6 +269,12 @@ public:
 			resize(newSize);
 			update();
 		}
+	}
+
+	// Resize to minimum of natural width and available width.
+	void resizeToNaturalWidth(int newWidth) {
+		auto maxWidth = naturalWidth();
+		resizeToWidth((maxWidth >= 0) ? qMin(newWidth, maxWidth) : newWidth);
 	}
 
 	QRect rectNoMargins() const {
@@ -276,13 +307,6 @@ signals:
 	void heightUpdated();
 
 protected:
-	void enterEventHook(QEvent *e) {
-		return QWidget::enterEvent(e);
-	}
-	void leaveEventHook(QEvent *e) {
-		return QWidget::leaveEvent(e);
-	}
-
 	// Resizes content and counts natural widget height for the desired width.
 	virtual int resizeGetHeight(int newWidth) {
 		return height();
@@ -333,13 +357,13 @@ private:
 template <typename Object>
 class object_ptr {
 public:
-	object_ptr(std_::nullptr_t) {
+	object_ptr(std::nullptr_t) {
 	}
 
 	// No default constructor, but constructors with at least
 	// one argument are simply make functions.
 	template <typename Parent, typename... Args>
-	explicit object_ptr(Parent &&parent, Args&&... args) : _object(new Object(std_::forward<Parent>(parent), std_::forward<Args>(args)...)) {
+	explicit object_ptr(Parent &&parent, Args&&... args) : _object(new Object(std::forward<Parent>(parent), std::forward<Args>(args)...)) {
 	}
 
 	object_ptr(const object_ptr &other) = delete;
@@ -347,23 +371,23 @@ public:
 	object_ptr(object_ptr &&other) : _object(base::take(other._object)) {
 	}
 	object_ptr &operator=(object_ptr &&other) {
-		auto temp = std_::move(other);
+		auto temp = std::move(other);
 		destroy();
-		std_::swap_moveable(_object, temp._object);
+		std::swap(_object, temp._object);
 		return *this;
 	}
 
-	template <typename OtherObject, typename = std_::enable_if_t<std_::is_base_of<Object, OtherObject>::value>>
+	template <typename OtherObject, typename = std::enable_if_t<std::is_base_of<Object, OtherObject>::value>>
 	object_ptr(object_ptr<OtherObject> &&other) : _object(base::take(other._object)) {
 	}
 
-	template <typename OtherObject, typename = std_::enable_if_t<std_::is_base_of<Object, OtherObject>::value>>
+	template <typename OtherObject, typename = std::enable_if_t<std::is_base_of<Object, OtherObject>::value>>
 	object_ptr &operator=(object_ptr<OtherObject> &&other) {
 		_object = base::take(other._object);
 		return *this;
 	}
 
-	object_ptr &operator=(std_::nullptr_t) {
+	object_ptr &operator=(std::nullptr_t) {
 		_object = nullptr;
 		return *this;
 	}
@@ -391,7 +415,7 @@ public:
 	template <typename Parent, typename... Args>
 	void create(Parent &&parent, Args&&... args) {
 		destroy();
-		_object = new Object(std_::forward<Parent>(parent), std_::forward<Args>(args)...);
+		_object = new Object(std::forward<Parent>(parent), std::forward<Args>(args)...);
 	}
 	void destroy() {
 		delete base::take(_object);
@@ -428,7 +452,7 @@ template <typename ResultType, typename SourceType>
 inline object_ptr<ResultType> static_object_cast(object_ptr<SourceType> source) {
 	auto result = object_ptr<ResultType>(nullptr);
 	result._object = static_cast<ResultType*>(base::take(source._object));
-	return std_::move(result);
+	return std::move(result);
 }
 
 void sendSynteticMouseEvent(QWidget *widget, QEvent::Type type, Qt::MouseButton button, const QPoint &globalPoint);

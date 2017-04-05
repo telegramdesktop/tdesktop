@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "structs.h"
 #include "dialogs/dialogs_common.h"
 #include "ui/effects/send_action_animations.h"
+#include "core/observer.h"
 
 void historyInit();
 
@@ -82,6 +83,8 @@ public:
 	void setIsPinned(History *history, bool isPinned);
 	void clearPinned();
 	int pinnedCount() const;
+	QList<History*> getPinnedOrder() const;
+	void savePinnedToServer() const;
 
 	struct SendActionAnimationUpdate {
 		History *history;
@@ -115,6 +118,7 @@ enum HistoryMediaType {
 	MediaTypeMusicFile,
 	MediaTypeVoiceFile,
 	MediaTypeGame,
+	MediaTypeInvoice,
 
 	MediaTypeCount
 };
@@ -239,7 +243,7 @@ public:
 	MsgId outboxRead(MsgId upTo);
 	MsgId outboxRead(HistoryItem *wasRead);
 
-	HistoryItem *lastImportantMessage() const;
+	HistoryItem *lastAvailableMessage() const;
 
 	int unreadCount() const {
 		return _unreadCount;
@@ -288,6 +292,7 @@ public:
 		return (_pinnedIndex > 0);
 	}
 	void setPinnedDialog(bool isPinned);
+	void setPinnedIndex(int newPinnedIndex);
 	int getPinnedIndex() const {
 		return _pinnedIndex;
 	}
@@ -375,12 +380,12 @@ public:
 	Data::Draft *editDraft() {
 		return _editDraft.get();
 	}
-	void setLocalDraft(std_::unique_ptr<Data::Draft> &&draft);
+	void setLocalDraft(std::unique_ptr<Data::Draft> &&draft);
 	void takeLocalDraft(History *from);
 	void createLocalDraftFromCloud();
-	void setCloudDraft(std_::unique_ptr<Data::Draft> &&draft);
+	void setCloudDraft(std::unique_ptr<Data::Draft> &&draft);
 	Data::Draft *createCloudDraft(Data::Draft *fromDraft);
-	void setEditDraft(std_::unique_ptr<Data::Draft> &&draft);
+	void setEditDraft(std::unique_ptr<Data::Draft> &&draft);
 	void clearLocalDraft();
 	void clearCloudDraft();
 	void clearEditDraft();
@@ -557,14 +562,14 @@ private:
 		int expectedItemsCount = 0; // optimization for block->items.reserve() call
 		HistoryBlock *block = nullptr;
 	};
-	std_::unique_ptr<BuildingBlock> _buildingFrontBlock;
+	std::unique_ptr<BuildingBlock> _buildingFrontBlock;
 
 	// Creates if necessary a new block for adding item.
 	// Depending on isBuildingFrontBlock() gets front or back block.
 	HistoryBlock *prepareBlockForAddingItem();
 
-	std_::unique_ptr<Data::Draft> _localDraft, _cloudDraft;
-	std_::unique_ptr<Data::Draft> _editDraft;
+	std::unique_ptr<Data::Draft> _localDraft, _cloudDraft;
+	std::unique_ptr<Data::Draft> _editDraft;
 
 	using TypingUsers = QMap<UserData*, TimeMs>;
 	TypingUsers _typing;
@@ -582,7 +587,7 @@ private:
 class HistoryJoined;
 class ChannelHistory : public History {
 public:
-	ChannelHistory(const PeerId &peer);
+	using History::History;
 
 	void messageDetached(HistoryItem *msg);
 
@@ -602,13 +607,11 @@ private:
 
 	void checkMaxReadMessageDate();
 
-	HistoryItem *findPrevItem(HistoryItem *item) const;
-
 	void cleared(bool leaveItems);
 
 	QDateTime _maxReadMessageDate;
 
-	HistoryJoined *_joinedMessage;
+	HistoryJoined *_joinedMessage = nullptr;
 
 	MsgId _rangeDifferenceFromId, _rangeDifferenceToId;
 	int32 _rangeDifferencePts;

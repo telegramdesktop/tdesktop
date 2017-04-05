@@ -18,10 +18,10 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "media/player/media_player_instance.h"
 
 #include "media/media_audio.h"
+#include "media/media_audio_capture.h"
 #include "observer_peer.h"
 
 namespace Media {
@@ -33,27 +33,22 @@ Instance *SingleInstance = nullptr;
 } // namespace
 
 void start() {
-	audioInit();
-	if (audioPlayer()) {
-		SingleInstance = new Instance();
-	}
-}
+	InitAudio();
+	Capture::Init();
 
-bool exists() {
-	return (audioPlayer() != nullptr);
+	SingleInstance = new Instance();
 }
 
 void finish() {
 	delete base::take(SingleInstance);
 
-	audioFinish();
+	Capture::DeInit();
+	DeInitAudio();
 }
 
 Instance::Instance() {
-	subscribe(audioPlayer(), [this](const AudioMsgId &audioId) {
-		if (audioId.type() == AudioMsgId::Type::Song) {
-			handleSongUpdate(audioId);
-		}
+	subscribe(Media::Player::Updated(), [this](const AudioMsgId &audioId) {
+		handleSongUpdate(audioId);
 	});
 	auto observeEvents = Notify::PeerUpdate::Flag::SharedMediaChanged;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
@@ -81,27 +76,33 @@ void Instance::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 }
 
 void Instance::handleSongUpdate(const AudioMsgId &audioId) {
-	emitUpdate([&audioId](const AudioMsgId &playing) {
+	emitUpdate(audioId.type(), [&audioId](const AudioMsgId &playing) {
 		return (audioId == playing);
 	});
 }
 
 void Instance::setCurrent(const AudioMsgId &audioId) {
-	if (_current != audioId) {
-		_current = audioId;
-		_isPlaying = false;
+	if (audioId.type() == AudioMsgId::Type::Song) {
+		if (_current != audioId) {
+			_current = audioId;
+			_isPlaying = false;
 
-		auto history = _history, migrated = _migrated;
-		auto item = _current ? App::histItemById(_current.contextId()) : nullptr;
-		if (item) {
-			_history = item->history()->peer->migrateTo() ? App::history(item->history()->peer->migrateTo()) : item->history();
-			_migrated = _history->peer->migrateFrom() ? App::history(_history->peer->migrateFrom()) : nullptr;
-		} else {
-			_history = _migrated = nullptr;
+			auto history = _history, migrated = _migrated;
+			auto item = _current ? App::histItemById(_current.contextId()) : nullptr;
+			if (item) {
+				_history = item->history()->peer->migrateTo() ? App::history(item->history()->peer->migrateTo()) : item->history();
+				_migrated = _history->peer->migrateFrom() ? App::history(_history->peer->migrateFrom()) : nullptr;
+			} else {
+				_history = _migrated = nullptr;
+			}
+			_songChangedNotifier.notify(true);
+			if (_history != history || _migrated != migrated) {
+				rebuildPlaylist();
+			}
 		}
-		_songChangedNotifier.notify(true);
-		if (_history != history || _migrated != migrated) {
-			rebuildPlaylist();
+	} else if (audioId.type() == AudioMsgId::Type::Voice) {
+		if (_currentVoice != audioId) {
+			_currentVoice = audioId;
 		}
 	}
 }
@@ -152,18 +153,15 @@ Instance *instance() {
 }
 
 void Instance::play() {
-	AudioMsgId playing;
-	auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
-	if (playing) {
-		if (playbackState.state & AudioPlayerStoppedMask) {
-			audioPlayer()->play(playing);
-		} else {
-			if (playbackState.state == AudioPlayerPausing || playbackState.state == AudioPlayerPaused || playbackState.state == AudioPlayerPausedAtEnd) {
-				audioPlayer()->pauseresume(AudioMsgId::Type::Song);
-			}
+	auto state = mixer()->currentState(AudioMsgId::Type::Song);
+	if (state.id) {
+		if (IsStopped(state.state)) {
+			mixer()->play(state.id);
+		} else if (IsPaused(state.state) || state.state == State::Pausing) {
+			mixer()->pauseresume(AudioMsgId::Type::Song);
 		}
 	} else if (_current) {
-		audioPlayer()->play(_current);
+		mixer()->play(_current);
 	}
 }
 
@@ -171,40 +169,38 @@ void Instance::play(const AudioMsgId &audioId) {
 	if (!audioId || !audioId.audio()->song()) {
 		return;
 	}
-	audioPlayer()->play(audioId);
+	mixer()->play(audioId);
 	setCurrent(audioId);
 	if (audioId.audio()->loading()) {
 		documentLoadProgress(audioId.audio());
 	}
 }
 
-void Instance::pause() {
-	AudioMsgId playing;
-	auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
-	if (playing) {
-		if (!(playbackState.state & AudioPlayerStoppedMask)) {
-			if (playbackState.state == AudioPlayerStarting || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(AudioMsgId::Type::Song);
+void Instance::pause(AudioMsgId::Type type) {
+	auto state = mixer()->currentState(type);
+	if (state.id) {
+		if (!IsStopped(state.state)) {
+			if (state.state == State::Starting || state.state == State::Resuming || state.state == State::Playing || state.state == State::Finishing) {
+				mixer()->pauseresume(type);
 			}
 		}
 	}
 }
 
 void Instance::stop() {
-	audioPlayer()->stop(AudioMsgId::Type::Song);
+	mixer()->stop(AudioMsgId::Type::Song);
 }
 
 void Instance::playPause() {
-	AudioMsgId playing;
-	auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
-	if (playing) {
-		if (playbackState.state & AudioPlayerStoppedMask) {
-			audioPlayer()->play(playing);
+	auto state = mixer()->currentState(AudioMsgId::Type::Song);
+	if (state.id) {
+		if (IsStopped(state.state)) {
+			mixer()->play(state.id);
 		} else {
-			audioPlayer()->pauseresume(AudioMsgId::Type::Song);
+			mixer()->pauseresume(AudioMsgId::Type::Song);
 		}
 	} else if (_current) {
-		audioPlayer()->play(_current);
+		mixer()->play(_current);
 	}
 }
 
@@ -217,64 +213,72 @@ void Instance::previous() {
 }
 
 void Instance::playPauseCancelClicked() {
-	if (isSeeking()) {
+	if (isSeeking(AudioMsgId::Type::Song)) {
 		return;
 	}
 
-	AudioMsgId playing;
-	auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
-	auto stopped = ((playbackState.state & AudioPlayerStoppedMask) || playbackState.state == AudioPlayerFinishing);
-	auto showPause = !stopped && (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerStarting);
-	auto audio = playing.audio();
+	auto state = mixer()->currentState(AudioMsgId::Type::Song);
+	auto stopped = (IsStopped(state.state) || state.state == State::Finishing);
+	auto showPause = !stopped && (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
+	auto audio = state.id.audio();
 	if (audio && audio->loading()) {
 		audio->cancel();
 	} else if (showPause) {
-		pause();
+		pause(AudioMsgId::Type::Song);
 	} else {
 		play();
 	}
 }
 
-void Instance::startSeeking() {
-	_seeking = _current;
-	pause();
-	emitUpdate([](const AudioMsgId &playing) { return true; });
+void Instance::startSeeking(AudioMsgId::Type type) {
+	if (type == AudioMsgId::Type::Song) {
+		_seeking = _current;
+	} else if (type == AudioMsgId::Type::Voice) {
+		_seekingVoice = _currentVoice;
+	}
+	pause(type);
+	emitUpdate(type, [](const AudioMsgId &playing) { return true; });
 }
 
-void Instance::stopSeeking() {
-	_seeking = AudioMsgId();
-	emitUpdate([](const AudioMsgId &playing) { return true; });
+void Instance::stopSeeking(AudioMsgId::Type type) {
+	if (type == AudioMsgId::Type::Song) {
+		_seeking = AudioMsgId();
+	} else if (type == AudioMsgId::Type::Voice) {
+		_seekingVoice = AudioMsgId();
+	}
+	emitUpdate(type, [](const AudioMsgId &playing) { return true; });
 }
 
 void Instance::documentLoadProgress(DocumentData *document) {
-	emitUpdate([document](const AudioMsgId &audioId) {
+	emitUpdate(document->song() ? AudioMsgId::Type::Song : AudioMsgId::Type::Voice, [document](const AudioMsgId &audioId) {
 		return (audioId.audio() == document);
 	});
 }
 
 template <typename CheckCallback>
-void Instance::emitUpdate(CheckCallback check) {
-	AudioMsgId playing;
-	auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
-	if (!playing || !check(playing)) {
+void Instance::emitUpdate(AudioMsgId::Type type, CheckCallback check) {
+	auto state = mixer()->currentState(type);
+	if (!state.id || !check(state.id)) {
 		return;
 	}
 
-	setCurrent(playing);
-	_updatedNotifier.notify(UpdatedEvent(&playing, &playbackState), true);
+	setCurrent(state.id);
+	_updatedNotifier.notify(state, true);
 
-	if (_isPlaying && playbackState.state == AudioPlayerStoppedAtEnd) {
-		if (_repeatEnabled) {
-			audioPlayer()->play(_current);
-		} else {
-			next();
+	if (type == AudioMsgId::Type::Song) {
+		if (_isPlaying && state.state == State::StoppedAtEnd) {
+			if (_repeatEnabled) {
+				mixer()->play(_current);
+			} else {
+				next();
+			}
 		}
-	}
-	auto isPlaying = !(playbackState.state & AudioPlayerStoppedMask);
-	if (_isPlaying != isPlaying) {
-		_isPlaying = isPlaying;
-		if (_isPlaying) {
-			preloadNext();
+		auto isPlaying = !IsStopped(state.state);
+		if (_isPlaying != isPlaying) {
+			_isPlaying = isPlaying;
+			if (_isPlaying) {
+				preloadNext();
+			}
 		}
 	}
 }

@@ -79,7 +79,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_month_day" = "{day} de {month}";
 "lng_month_day_year" = "{day} de {month} de {year}";
-"lng_month_year" = "{month}, {year}";
+"lng_month_year" = "{month} de {year}";
 
 "lng_box_ok" = "OK";
 
@@ -133,7 +133,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_too_long" = "Tu texto es demasiado largo";
 "lng_edit_message" = "Editar mensaje";
 "lng_edit_message_text" = "Mensaje nuevo...";
-"lng_deleted" = "Desconocido";
+"lng_deleted" = "Cuenta eliminada";
 "lng_deleted_message" = "Mensaje eliminado";
 "lng_pinned_message" = "Mensaje anclado";
 "lng_pinned_unpin_sure" = "¿Quieres desanclar este mensaje?";
@@ -224,7 +224,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_crop_profile" = "Selecciona el área para tu foto de perfil";
 "lng_settings_uploading_photo" = "Subiendo foto...";
 "lng_settings_edit" = "Editar";
-
 "lng_settings_drop_area_subtitle" = "para ponerla como tu foto";
 
 "lng_username_title" = "Alias";
@@ -296,6 +295,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_bg_use_default" = "Usar el tema por defecto";
 "lng_settings_bg_from_gallery" = "Elegir desde la galería";
 "lng_settings_bg_from_file" = "Elegir desde archivos";
+"lng_settings_bg_edit_theme" = "Editar tema";
 "lng_settings_bg_tile" = "Fondo con mosaico";
 "lng_settings_adaptive_wide" = "Diseño adaptable para pantallas anchas";
 
@@ -403,7 +403,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_connection_user_ph" = "Alias";
 "lng_connection_password_ph" = "Contraseña";
 "lng_connection_save" = "Guardar";
+
+"lng_settings_blocked_users" = "Usuarios bloqueados";
+"lng_settings_last_seen_privacy" = "Última conexión";
+"lng_settings_groups_invite_privacy" = "Invitación a grupos";
 "lng_settings_show_sessions" = "Mostrar todas las sesiones";
+"lng_settings_self_destruct" = "Autodestrucción de la cuenta";
+"lng_settings_change_phone" = "Cambiar número de teléfono";
+
 "lng_settings_reset" = "Cerrar todas las otras sesiones";
 "lng_settings_reset_sure" = "¿Quieres cerrar todas \nlas otras sesiones?";
 "lng_settings_reset_one_sure" = "¿Quieres cerrar esta sesión?";
@@ -427,6 +434,54 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_sessions_no_other" = "Sin otras sesiones";
 "lng_sessions_other_desc" = "Puedes iniciar sesión en Telegram desde otro móvil, tablet o computador, usando el mismo número de teléfono. Todos tus datos se sincronizarán al instante.";
 "lng_sessions_terminate_all" = "Cerrar todas las otras sesiones";
+
+"lng_blocked_list_title" = "Usuarios bloqueados";
+"lng_blocked_list_unknown_phone" = "número desconocido";
+"lng_blocked_list_unblock" = "Desbloquear";
+"lng_blocked_list_add" = "Bloquear";
+"lng_blocked_list_add_title" = "Elige un usuario para bloquear";
+"lng_blocked_list_already_blocked" = "ya está bloqueado";
+"lng_blocked_list_about" = "Los usuarios bloqueados no pueden enviarte mensajes o añadirte a grupos. No verán tus fotos de perfil ni estados de conexión.";
+"lng_blocked_list_not_found" = "No se encontraron usuarios.";
+
+"lng_edit_privacy_everyone" = "Todos";
+"lng_edit_privacy_contacts" = "Mis contactos";
+"lng_edit_privacy_nobody" = "Nadie";
+"lng_edit_privacy_exceptions" = "Añadir excepciones";
+
+"lng_edit_privacy_lastseen_title" = "Última conexión";
+"lng_edit_privacy_lastseen_description" = "Puedes elegir quién ve tu última conexión:";
+"lng_edit_privacy_lastseen_warning" = "Importante: No verás la última conexión de las personas con las que no compartes la tuya. En su lugar, se mostrarán conexiones indeterminadas (recientemente, hace unos días, hace unas semanas).";
+"lng_edit_privacy_lastseen_always" = "Compartir con{count:| # usuario| # usuarios}";
+"lng_edit_privacy_lastseen_never" = "No compartir con{count:| # usuario| # usuarios}";
+"lng_edit_privacy_lastseen_exceptions" = "Estos ajustes anularán los valores de arriba.";
+"lng_edit_privacy_lastseen_always_title" = "Compartir con";
+"lng_edit_privacy_lastseen_never_title" = "No compartir con";
+
+"lng_edit_privacy_groups_title" = "Invitación a grupos";
+"lng_edit_privacy_groups_description" = "Puedes restringir quién puede añadirte a grupos o canales con gran precisión:";
+"lng_edit_privacy_groups_always" = "Permitir{count:| # usuario| # usuarios}";
+"lng_edit_privacy_groups_never" = "No permitir{count:| # usuario| # usuarios}";
+"lng_edit_privacy_groups_exceptions" = "Estos usuarios podrán o no añadirte a grupos y canales, independiente de los ajustes de arriba.";
+"lng_edit_privacy_groups_always_title" = "Permitir";
+"lng_edit_privacy_groups_never_title" = "No permitir";
+
+"lng_self_destruct_title" = "Autodestrucción de la cuenta";
+"lng_self_destruct_description" = "Si no estás en línea durante este tiempo, al menos una vez, tu cuenta se eliminará con todos tus grupos, mensajes y contactos.";
+"lng_self_destruct_months" = "{count:_not_used_|# mes|# meses}";
+"lng_self_destruct_years" = "{count:_not_used_|# año|# años}";
+
+"lng_change_phone_title" = "Cambiar número de teléfono";
+"lng_change_phone_description" = "Puedes cambiar tu número de Telegram aquí. \nTu cuenta y todos tus datos de la nube, mensajes,\narchivos, grupos, contactos, etc., se moverán al \nnuevo número.\n\n[b]Importante[/b]: Todos tus contactos de Telegram\ntendrán tu [b]nuevo número[/b] añadido a sus \nagendas de contactos, siempre que hayan tenido \ntu número viejo y no los hayas bloqueado.";
+"lng_change_phone_warning" = "Todos tus contactos de Telegram tendrán tu número nuevo añadido a sus agendas de contactos, siempre que hayan tenido tu número viejo y no los hayas bloqueado en Telegram.";
+"lng_change_phone_occupied" = "El número {phone} ya está vinculado a una cuenta de Telegram. Por favor, elimina esa cuenta antes de migrar al nuevo número.";
+"lng_change_phone_button" = "Cambiar número";
+"lng_change_phone_new_title" = "Pon tu número nuevo";
+"lng_change_phone_new_description" = "Enviaremos un SMS con el código de confirmación a tu nuevo número.";
+"lng_change_phone_new_submit" = "Enviar";
+"lng_change_phone_code_title" = "Pon el código";
+"lng_change_phone_code_description" = "Enviamos un SMS con el código de activación a tu teléfono {phone}.";
+"lng_change_phone_success" = "Tu número de teléfono ha sido cambiado.";
 
 "lng_preview_loading" = "Obteniendo enlace...";
 
@@ -568,6 +623,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_message_empty" = "Mensaje vacío";
 "lng_message_unsupported" = "Este mensaje no es soportado por tu versión de Telegram Desktop. Por favor, actualiza a la última versión desde Ajustes o instálala desde {link}";
 
+"lng_duration_seconds" = "{count:_not_used_|# segundo|# segundos}";
+"lng_duration_minutes_seconds" = "{count_minutes:# min|# min|# min} {count_seconds:# s|# s|# s}";
+
 "lng_action_add_user" = "{from} añadió a {user}";
 "lng_action_add_users_many" = "{from} añadió a {users}";
 "lng_action_add_users_and_one" = "{accumulated}, {user}";
@@ -607,6 +665,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_game_you_scored" = "Conseguiste {count:# puntos|# punto|# puntos} en {game}";
 "lng_action_game_score_no_game" = "{from} consiguió {count:# puntos|# punto|# puntos}";
 "lng_action_game_you_scored_no_game" = "Conseguiste {count:# puntos|# punto|# puntos}";
+"lng_action_call_outgoing" = "Llamada saliente a las {time}";
+"lng_action_call_incoming" = "Llamada entrante a las {time}";
+"lng_action_call_outgoing_duration" = "Llamada saliente ({duration}) a las {time}";
+"lng_action_call_incoming_duration" = "Llamada entrante ({duration}) a las {time}";
+"lng_action_call_incoming_missed" = "Llamada perdida a las {time}";
+"lng_action_call_outgoing_missed" = "Llamada cancelada a las {time}";
+"lng_action_payment_done" = "Has transferido satisfactoriamente {amount} a {user}";
+"lng_action_payment_done_for" = "Has transferido satisfactoriamente {amount} a {name} por {invoice}";
 
 "lng_profile_migrate_reached" = "Límite de {count:_not_used_|# miembro|# miembros} alcanzado";
 "lng_profile_migrate_body" = "Para superar este límite, puedes convertir tu grupo en un supergrupo.";
@@ -1010,7 +1076,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Nueva opción para minimizar la lista de chats en una columna de imágenes de perfil. Cambia el tamaño de la lista haciendo clic y arrastrando.\n— Arrastrar y soltar arreglado para las imágenes desde Firefox en Windows.\n— Corrección de errores y otras mejoras menores.";
+"lng_new_version_text" = "— Envía archivos MP4/MOV como videos que se reproducirán dentro de Telegram.\n— Haz clic en la fecha en cualquier chat para ir a los mensajes de un día en específico.\n— Cambia tu número de teléfono en ajustes.\n— Edita quién puede ver tu última conexión y quién puede añadirte a grupos en ajustes.\n— Edita la lista de usuarios bloqueados en ajustes.\n— La aplicación ahora respeta la opción “No molestar” en las notificaciones de macOS. \n— Corrección de errores y otras mejoras menores.";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 
@@ -1022,6 +1088,29 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_confirm_phone_success" = "¡Listo!\n\nEl proceso de eliminación de la cuenta {phone} fue cancelado. Puedes cerrar esta ventana ahora.";
 "lng_confirm_phone_send" = "Enviar";
 "lng_confirm_phone_enter_code" = "Por favor, pon el código.";
+
+"lng_theme_editor_no_keys" = "Aún no hay valores en la paleta";
+"lng_theme_editor_cant_change_theme" = "No puedes aplicar nuevos temas mientras editas la paleta de colores. Por favor, cierra el editor de temas primero.";
+"lng_theme_editor_new_keys" = "Aún no está en la paleta";
+"lng_theme_editor_background_image" = "Imagen de fondo";
+"lng_theme_editor_saved_to_jpg" = "Guardado como JPEG, {size}";
+"lng_theme_editor_read_from_jpg" = "Imagen JPEG, {size}";
+"lng_theme_editor_read_from_png" = "Imagen PNG, {size}";
+"lng_theme_editor_export" = "Exportar";
+"lng_theme_editor_choose_image" = "Elige la imagen de fondo";
+"lng_theme_editor_save_palette" = "Guardar archivo de la paleta de colores";
+"lng_theme_editor_choose_name" = "Guardar archivo del tema";
+"lng_theme_editor_error" = "El editor encontró un error :( Ve “log.txt” para los detalles.";
+"lng_theme_editor_done" = "¡Tema exportado con éxito!";
+"lng_theme_editor_title" = "Editar la paleta de colores";
+"lng_theme_editor_export_button" = "Exportar tema";
+
+"lng_payments_not_supported" = "Lo sentimos, Telegram Desktop no soporta pagos todavía. Por favor, usa una de nuestras aplicaciones móviles para hacerlo.";
+"lng_payments_receipt_label" = "Recibo";
+"lng_payments_receipt_label_test" = "Recibo de prueba";
+"lng_payments_invoice_label" = "Factura";
+"lng_payments_invoice_label_test" = "Factura de prueba";
+"lng_payments_receipt_button" = "Recibo";
 
 // Not used
 

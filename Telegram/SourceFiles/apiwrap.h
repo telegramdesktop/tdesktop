@@ -41,8 +41,8 @@ public:
 	ApiWrap(QObject *parent);
 	void init();
 
-	using RequestMessageDataCallback = base::lambda_copy<void(ChannelData*, MsgId)>;
-	void requestMessageData(ChannelData *channel, MsgId msgId, const RequestMessageDataCallback &callback);
+	using RequestMessageDataCallback = base::lambda<void(ChannelData*, MsgId)>;
+	void requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback callback);
 
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);
@@ -75,6 +75,10 @@ public:
 
 	void saveDraftToCloudDelayed(History *history);
 	bool hasUnsavedDrafts() const;
+
+	void savePrivacy(const MTPInputPrivacyKey &key, QVector<MTPInputPrivacyRule> &&rules);
+	void handlePrivacyChange(mtpTypeId keyTypeId, const MTPVector<MTPPrivacyRule> &rules);
+	int onlineTillFromStatus(const MTPUserStatus &status, int currentOnlineTill);
 
 	~ApiWrap();
 
@@ -178,5 +182,13 @@ private:
 	mtpRequestId _stickersClearRecentRequestId = 0;
 	void stickersClearRecentDone(const MTPBool &result);
 	bool stickersClearRecentFail(const RPCError &result);
+
+	QMap<mtpTypeId, mtpRequestId> _privacySaveRequests;
+	void savePrivacyDone(mtpTypeId keyTypeId, const MTPaccount_PrivacyRules &result);
+	bool savePrivacyFail(mtpTypeId keyTypeId, const RPCError &error);
+
+	mtpRequestId _contactsStatusesRequestId = 0;
+	void contactsStatusesDone(const MTPVector<MTPContactStatus> &result);
+	bool contactsStatusesFail(const RPCError &error);
 
 };

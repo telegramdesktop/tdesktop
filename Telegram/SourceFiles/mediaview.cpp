@@ -18,14 +18,13 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "mediaview.h"
 
 #include "lang.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "application.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
 #include "media/media_clip_reader.h"
@@ -34,9 +33,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_history.h"
 #include "media/media_audio.h"
 #include "history/history_media_types.h"
-#include "window/window_theme_preview.h"
+#include "window/themes/window_theme_preview.h"
 #include "core/task_queue.h"
 #include "observer_peer.h"
+#include "auth_session.h"
+#include "messenger.h"
+#include "storage/file_download.h"
 
 namespace {
 
@@ -69,6 +71,7 @@ bool typeHasMediaOverview(MediaOverviewType type) {
 } // namespace
 
 MediaView::MediaView(QWidget*) : TWidget(nullptr)
+, _transparentBrush(style::transparentPlaceholderBrush())
 , _animStarted(getms())
 , _docDownload(this, lang(lng_media_download), st::mediaviewFileLink)
 , _docSaveAs(this, lang(lng_mediaview_save_as), st::mediaviewFileLink)
@@ -86,17 +89,25 @@ MediaView::MediaView(QWidget*) : TWidget(nullptr)
 
 	connect(QApplication::desktop(), SIGNAL(resized(int)), this, SLOT(onScreenResized(int)));
 
-	subscribe(FileDownload::ImageLoaded(), [this] {
-		if (!isHidden()) {
-			updateControls();
+	// While we have one mediaview for all authsessions we have to do this.
+	auto subscribeToDownloadFinished = [this] {
+		if (AuthSession::Exists()) {
+			subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
+				if (!isHidden()) {
+					updateControls();
+				}
+			});
 		}
+	};
+	subscribe(Messenger::Instance().authSessionChanged(), [this, subscribeToDownloadFinished] {
+		subscribeToDownloadFinished();
 	});
+	subscribeToDownloadFinished();
+
 	auto observeEvents = Notify::PeerUpdate::Flag::SharedMediaChanged;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		mediaOverviewUpdated(update);
 	}));
-
-	generateTransparentBrush();
 
 	setWindowFlags(Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::Tool | Qt::NoDropShadowWindowHint);
 	moveToScreen();
@@ -228,9 +239,7 @@ void MediaView::stopGif() {
 	_videoPaused = _videoStopped = _videoIsSilent = false;
 	_fullScreenVideo = false;
 	_clipController.destroy();
-	if (audioPlayer()) {
-		disconnect(audioPlayer(), SIGNAL(updated(const AudioMsgId&)), this, SLOT(onVideoPlayProgress(const AudioMsgId&)));
-	}
+	disconnect(Media::Player::mixer(), SIGNAL(updated(const AudioMsgId&)), this, SLOT(onVideoPlayProgress(const AudioMsgId&)));
 }
 
 void MediaView::documentUpdated(DocumentData *doc) {
@@ -634,7 +643,7 @@ void MediaView::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool presse
 }
 
 void MediaView::showSaveMsgFile() {
-	psShowInFolder(_saveMsgFilename);
+	File::ShowInFolder(_saveMsgFilename);
 }
 
 void MediaView::close() {
@@ -744,7 +753,7 @@ void MediaView::onSaveAs() {
 			if (pattern.isEmpty()) {
 				filter = QString();
 			} else {
-				filter = mimeType.filterString() + qsl(";;") + filedialogAllFilesFilter();
+				filter = mimeType.filterString() + qsl(";;") + FileDialog::AllFilesFilter();
 			}
 
 			psBringToBack(this);
@@ -775,14 +784,15 @@ void MediaView::onSaveAs() {
 		if (!_photo || !_photo->loaded()) return;
 
 		psBringToBack(this);
-		auto filter = qsl("JPEG Image (*.jpg);;") + filedialogAllFilesFilter();
-		auto gotName = filedialogGetSaveFile(file, lang(lng_save_photo), filter, filedialogDefaultName(qsl("photo"), qsl(".jpg")));
-		psShowOverAll(this);
-		if (gotName) {
-			if (!file.isEmpty()) {
-				_photo->full->pix().toImage().save(file, "JPG");
+		auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
+		FileDialog::GetWritePath(lang(lng_save_photo), filter, filedialogDefaultName(qsl("photo"), qsl(".jpg")), base::lambda_guarded(this, [this, photo = _photo](const QString &result) {
+			if (!result.isEmpty() && _photo == photo && photo->loaded()) {
+				photo->full->pix().toImage().save(result, "JPG");
 			}
-		}
+			psShowOverAll(this);
+		}), base::lambda_guarded(this, [this] {
+			psShowOverAll(this);
+		}));
 	}
 	activateWindow();
 	Sandbox::setActiveWindow(this);
@@ -911,9 +921,9 @@ void MediaView::onSaveCancel() {
 void MediaView::onShowInFolder() {
 	if (!_doc) return;
 
-	QString filepath = _doc->filepath(DocumentData::FilePathResolveChecked);
+	auto filepath = _doc->filepath(DocumentData::FilePathResolveChecked);
 	if (!filepath.isEmpty()) {
-		psShowInFolder(filepath);
+		File::ShowInFolder(filepath);
 	}
 }
 
@@ -1158,7 +1168,7 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 	}
 
 	_zoomToScreen = 0;
-	MTP::clearLoaderPriorities();
+	AuthSession::Current().downloader().clearPriorities();
 	_full = -1;
 	_current = QPixmap();
 	_down = OverNone;
@@ -1188,6 +1198,7 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 }
 
 void MediaView::destroyThemePreview() {
+	_themePreviewId = 0;
 	_themePreviewShown = false;
 	_themePreview.reset();
 	_themeApply.destroy();
@@ -1407,7 +1418,7 @@ void MediaView::createClipReader() {
 		_current = _doc->thumb->pixNoCache(_doc->thumb->width(), _doc->thumb->height(), Images::Option::Smooth | Images::Option::Blurred, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
 	auto mode = _doc->isVideo() ? Media::Clip::Reader::Mode::Video : Media::Clip::Reader::Mode::Gif;
-	_gif = std_::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), [this](Media::Clip::Notification notification) {
+	_gif = std::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), [this](Media::Clip::Notification notification) {
 		clipCallback(notification);
 	}, mode);
 
@@ -1427,19 +1438,19 @@ void MediaView::initThemePreview() {
 		_themePreviewShown = true;
 		auto path = _doc->location().name();
 		auto id = _themePreviewId = rand_value<uint64>();
-		auto ready = base::lambda_guarded(this, [this, id](std_::unique_ptr<Window::Theme::Preview> result) {
+		auto ready = base::lambda_guarded(this, [this, id](std::unique_ptr<Window::Theme::Preview> result) {
 			if (id != _themePreviewId) {
 				return;
 			}
 			_themePreviewId = 0;
-			_themePreview = std_::move(result);
+			_themePreview = std::move(result);
 			if (_themePreview) {
 				_themeApply.create(this, lang(lng_theme_preview_apply), st::themePreviewApplyButton);
 				_themeApply->show();
 				_themeApply->setClickedCallback([this] {
-					auto preview = std_::move(_themePreview);
+					auto preview = std::move(_themePreview);
 					close();
-					Window::Theme::Apply(std_::move(preview));
+					Window::Theme::Apply(std::move(preview));
 				});
 				_themeCancel.create(this, lang(lng_cancel), st::themePreviewCancelButton);
 				_themeCancel->show();
@@ -1448,24 +1459,15 @@ void MediaView::initThemePreview() {
 			}
 			update();
 		});
-		struct mutable_ready {
-			mutable_ready(decltype(ready) value) : value(std_::move(value)) {
-			}
-			mutable decltype(ready) value;
-		};
-		struct mutable_result {
-			mutable_result(std_::unique_ptr<Window::Theme::Preview> value) : value(std_::move(value)) {
-			}
-			mutable std_::unique_ptr<Window::Theme::Preview> value;
-		};
+
 		Window::Theme::CurrentData current;
 		current.backgroundId = Window::Theme::Background()->id();
 		current.backgroundImage = Window::Theme::Background()->pixmap();
 		current.backgroundTiled = Window::Theme::Background()->tile();
-		base::TaskQueue::Normal().Put([path, current, callback = mutable_ready(std_::move(ready))]() {
+		base::TaskQueue::Normal().Put([ready = std::move(ready), path, current]() mutable {
 			auto preview = Window::Theme::GeneratePreview(path, current);
-			base::TaskQueue::Main().Put([result = mutable_result(std_::move(preview)), callback = std_::move(callback.value)]() {
-				callback(std_::move(result.value));
+			base::TaskQueue::Main().Put([ready = std::move(ready), result = std::move(preview)]() mutable {
+				ready(std::move(result));
 			});
 		});
 		location.accessDisable();
@@ -1487,9 +1489,7 @@ void MediaView::createClipController() {
 	connect(_clipController, SIGNAL(toFullScreenPressed()), this, SLOT(onVideoToggleFullScreen()));
 	connect(_clipController, SIGNAL(fromFullScreenPressed()), this, SLOT(onVideoToggleFullScreen()));
 
-	if (audioPlayer()) {
-		connect(audioPlayer(), SIGNAL(updated(const AudioMsgId&)), this, SLOT(onVideoPlayProgress(const AudioMsgId&)));
-	}
+	connect(Media::Player::mixer(), SIGNAL(updated(const AudioMsgId&)), this, SLOT(onVideoPlayProgress(const AudioMsgId&)));
 }
 
 void MediaView::setClipControllerGeometry() {
@@ -1532,7 +1532,7 @@ void MediaView::restartVideoAtSeekPosition(TimeMs positionMs) {
 	if (_current.isNull()) {
 		_current = _gif->current(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), ImageRoundRadius::None, ImageRoundCorner::None, getms());
 	}
-	_gif = std_::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), [this](Media::Clip::Notification notification) {
+	_gif = std::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), [this](Media::Clip::Notification notification) {
 		clipCallback(notification);
 	}, Media::Clip::Reader::Mode::Video, positionMs);
 
@@ -1540,8 +1540,8 @@ void MediaView::restartVideoAtSeekPosition(TimeMs positionMs) {
 	_videoPaused = _videoIsSilent = _videoStopped = false;
 	_videoPositionMs = positionMs;
 
-	AudioPlaybackState state;
-	state.state = AudioPlayerPlaying;
+	Media::Player::TrackState state;
+	state.state = Media::Player::State::Playing;
 	state.position = _videoPositionMs;
 	state.duration = _videoDurationMs;
 	state.frequency = _videoFrequencyMs;
@@ -1585,16 +1585,15 @@ void MediaView::onVideoPlayProgress(const AudioMsgId &audioId) {
 		return;
 	}
 
-	t_assert(audioPlayer() != nullptr);
-	auto state = audioPlayer()->currentVideoState(_gif->playId());
+	auto state = Media::Player::mixer()->currentVideoState(_gif->playId());
 	if (state.duration) {
 		updateVideoPlaybackState(state);
 	}
 }
 
-void MediaView::updateVideoPlaybackState(const AudioPlaybackState &state) {
+void MediaView::updateVideoPlaybackState(const Media::Player::TrackState &state) {
 	if (state.frequency) {
-		if (state.state & AudioPlayerStoppedMask) {
+		if (Media::Player::IsStopped(state.state)) {
 			_videoStopped = true;
 		}
 		_clipController->updatePlayback(state);
@@ -1605,13 +1604,13 @@ void MediaView::updateVideoPlaybackState(const AudioPlaybackState &state) {
 }
 
 void MediaView::updateSilentVideoPlaybackState() {
-	AudioPlaybackState state;
+	Media::Player::TrackState state;
 	if (_videoPaused) {
-		state.state = AudioPlayerPaused;
+		state.state = Media::Player::State::Paused;
 	} else if (_videoPositionMs == _videoDurationMs) {
-		state.state = AudioPlayerStoppedAtEnd;
+		state.state = Media::Player::State::StoppedAtEnd;
 	} else {
-		state.state = AudioPlayerPlaying;
+		state.state = Media::Player::State::Playing;
 	}
 	state.position = _videoPositionMs;
 	state.duration = _videoDurationMs;
@@ -2656,9 +2655,9 @@ void MediaView::setVisible(bool visible) {
 	}
 	TWidget::setVisible(visible);
 	if (visible) {
-		Sandbox::installEventFilter(this);
+		QCoreApplication::instance()->installEventFilter(this);
 	} else {
-		Sandbox::removeEventFilter(this);
+		QCoreApplication::instance()->removeEventFilter(this);
 
 		stopGif();
 		destroyThemePreview();
@@ -2772,19 +2771,6 @@ void MediaView::loadBack() {
 	}
 }
 
-void MediaView::generateTransparentBrush() {
-	auto size = st::mediaviewTransparentSize * cIntRetinaFactor();
-	auto transparent = QImage(2 * size, 2 * size, QImage::Format_ARGB32_Premultiplied);
-	transparent.fill(st::mediaviewTransparentBg->c);
-	{
-		Painter p(&transparent);
-		p.fillRect(rtlrect(0, size, size, size, 2 * size), st::mediaviewTransparentFg);
-		p.fillRect(rtlrect(size, 0, size, size, 2 * size), st::mediaviewTransparentFg);
-	}
-	transparent.setDevicePixelRatio(cRetinaFactor());
-	_transparentBrush = QBrush(transparent);
-}
-
 MediaView::LastChatPhoto MediaView::computeLastOverviewChatPhoto() {
 	LastChatPhoto emptyResult = { nullptr, nullptr };
 	auto lastPhotoInOverview = [&emptyResult](auto history, auto list) -> LastChatPhoto {
@@ -2827,20 +2813,20 @@ void MediaView::userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mt
 		_loadRequest = 0;
 	}
 
-	const QVector<MTPPhoto> *v = 0;
+	const QVector<MTPPhoto> *v = nullptr;
 	switch (photos.type()) {
 	case mtpc_photos_photos: {
-		const auto &d(photos.c_photos_photos());
+		auto &d = photos.c_photos_photos();
 		App::feedUsers(d.vusers);
-		v = &d.vphotos.c_vector().v;
+		v = &d.vphotos.v;
 		u->photosCount = 0;
 	} break;
 
 	case mtpc_photos_photosSlice: {
-		const auto &d(photos.c_photos_photosSlice());
+		auto &d = photos.c_photos_photosSlice();
 		App::feedUsers(d.vusers);
 		u->photosCount = d.vcount.v;
-		v = &d.vphotos.c_vector().v;
+		v = &d.vphotos.v;
 	} break;
 
 	default: return;

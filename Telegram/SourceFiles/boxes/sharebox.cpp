@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "boxes/sharebox.h"
 
 #include "dialogs/dialogs_indexed_list.h"
@@ -29,7 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "core/qthelp_url.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "boxes/confirmbox.h"
 #include "apiwrap.h"
 #include "ui/toast/toast.h"
@@ -37,13 +36,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_media_types.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
-#include "window/window_theme.h"
+#include "window/themes/window_theme.h"
 #include "boxes/contactsbox.h"
+#include "auth_session.h"
+#include "messenger.h"
 
 ShareBox::ShareBox(QWidget*, CopyCallback &&copyCallback, SubmitCallback &&submitCallback, FilterCallback &&filterCallback)
-: _copyCallback(std_::move(copyCallback))
-, _submitCallback(std_::move(submitCallback))
-, _filterCallback(std_::move(filterCallback))
+: _copyCallback(std::move(copyCallback))
+, _submitCallback(std::move(submitCallback))
+, _filterCallback(std::move(filterCallback))
 , _select(this, st::contactsMultiSelect, lang(lng_participant_filter))
 , _searchTimer(this) {
 }
@@ -54,7 +55,7 @@ void ShareBox::prepare() {
 
 	setTitle(lang(lng_share_title));
 
-	_inner = setInnerWidget(object_ptr<Inner>(this, std_::move(_filterCallback)), getTopScrollSkip());
+	_inner = setInnerWidget(object_ptr<Inner>(this, std::move(_filterCallback)), getTopScrollSkip());
 	connect(_inner, SIGNAL(mustScrollTo(int,int)), this, SLOT(onMustScrollTo(int,int)));
 
 	createButtons();
@@ -143,7 +144,7 @@ void ShareBox::peopleReceived(const MTPcontacts_Found &result, mtpRequestId requ
 			auto &found = result.c_contacts_found();
 			App::feedUsers(found.vusers);
 			App::feedChats(found.vchats);
-			_inner->peopleReceived(query, found.vresults.c_vector().v);
+			_inner->peopleReceived(query, found.vresults.v);
 		} break;
 		}
 
@@ -272,8 +273,8 @@ void ShareBox::scrollAnimationCallback() {
 }
 
 ShareBox::Inner::Inner(QWidget *parent, ShareBox::FilterCallback &&filterCallback) : TWidget(parent)
-, _filterCallback(std_::move(filterCallback))
-, _chatsIndexed(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add)) {
+, _filterCallback(std::move(filterCallback))
+, _chatsIndexed(std::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add)) {
 	_rowsTop = st::shareRowsTop;
 	_rowHeight = st::shareRowHeight;
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -294,7 +295,7 @@ ShareBox::Inner::Inner(QWidget *parent, ShareBox::FilterCallback &&filterCallbac
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		notifyPeerUpdated(update);
 	}));
-	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
 		if (update.paletteChanged()) {
@@ -435,7 +436,7 @@ void ShareBox::Inner::loadProfilePhotos(int yFrom) {
 	yFrom *= _columnCount;
 	yTo *= _columnCount;
 
-	MTP::clearLoaderPriorities();
+	AuthSession::Current().downloader().clearPriorities();
 	if (_filter.isEmpty()) {
 		if (!_chatsIndexed->isEmpty()) {
 			auto i = _chatsIndexed->cfind(yFrom, _rowHeight);
@@ -512,7 +513,7 @@ void ShareBox::Inner::paintChat(Painter &p, TimeMs ms, Chat *chat, int index) {
 	chat->name.drawLeftElided(p, x + nameLeft, y + nameTop, nameWidth, outerWidth, 2, style::al_top, 0, -1, 0, true);
 }
 
-ShareBox::Inner::Chat::Chat(PeerData *peer, const base::lambda_copy<void()> &updateCallback)
+ShareBox::Inner::Chat::Chat(PeerData *peer, base::lambda<void()> updateCallback)
 : peer(peer)
 , checkbox(st::sharePhotoCheckbox, updateCallback, PaintUserpicCallback(peer))
 , name(st::sharePhotoCheckbox.imageRadius * 2) {
@@ -578,11 +579,11 @@ void ShareBox::Inner::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void ShareBox::Inner::enterEvent(QEvent *e) {
+void ShareBox::Inner::enterEventHook(QEvent *e) {
 	setMouseTracking(true);
 }
 
-void ShareBox::Inner::leaveEvent(QEvent *e) {
+void ShareBox::Inner::leaveEventHook(QEvent *e) {
 	setMouseTracking(false);
 }
 
@@ -648,8 +649,8 @@ void ShareBox::Inner::peerUnselected(PeerData *peer) {
 	changePeerCheckState(chat, false, ChangeStateWay::SkipCallback);
 }
 
-void ShareBox::Inner::setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> &&callback) {
-	_peerSelectedChangedCallback = std_::move(callback);
+void ShareBox::Inner::setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> callback) {
+	_peerSelectedChangedCallback = std::move(callback);
 }
 
 void ShareBox::Inner::changePeerCheckState(Chat *chat, bool checked, ChangeStateWay useCallback) {
@@ -814,7 +815,7 @@ QString appendShareGameScoreUrl(const QString &url, const FullMsgId &fullId) {
 	auto channel = fullId.channel ? App::channelLoaded(fullId.channel) : static_cast<ChannelData*>(nullptr);
 	auto channelAccessHash = channel ? channel->access : 0ULL;
 	auto channelAccessHashInts = reinterpret_cast<int32*>(&channelAccessHash);
-	shareHashDataInts[0] = MTP::authedId();
+	shareHashDataInts[0] = AuthSession::CurrentUserId();
 	shareHashDataInts[1] = fullId.channel;
 	shareHashDataInts[2] = fullId.msg;
 	shareHashDataInts[3] = channelAccessHashInts[0];
@@ -870,11 +871,9 @@ void shareGameScoreFromItem(HistoryItem *item) {
 						if (media->type() == MediaTypeGame) {
 							auto shortName = static_cast<HistoryGame*>(media)->game()->shortName;
 
-							QApplication::clipboard()->setText(CreateInternalLinkHttps(bot->username + qsl("?game=") + shortName));
+							QApplication::clipboard()->setText(Messenger::Instance().createInternalLinkFull(bot->username + qsl("?game=") + shortName));
 
-							Ui::Toast::Config toast;
-							toast.text = lang(lng_share_game_link_copied);
-							Ui::Toast::Show(App::wnd(), toast);
+							Ui::Toast::Show(lang(lng_share_game_link_copied));
 						}
 					}
 				}
@@ -892,15 +891,12 @@ void shareGameScoreFromItem(HistoryItem *item) {
 			}
 			data->requests.remove(requestId);
 			if (data->requests.empty()) {
-				Ui::Toast::Config toast;
-				toast.text = lang(lng_share_done);
-				Ui::Toast::Show(App::wnd(), toast);
-
+				Ui::Toast::Show(lang(lng_share_done));
 				Ui::hideLayer();
 			}
 		};
 
-		MTPmessages_ForwardMessages::Flags sendFlags = MTPmessages_ForwardMessages::Flag::f_with_my_score;
+		auto sendFlags = MTPmessages_ForwardMessages::Flag::f_with_my_score;
 		MTPVector<MTPint> msgIds = MTP_vector<MTPint>(1, MTP_int(data->msgId.msg));
 		if (auto main = App::main()) {
 			if (auto item = App::histItemById(data->msgId)) {
@@ -908,7 +904,7 @@ void shareGameScoreFromItem(HistoryItem *item) {
 					MTPVector<MTPlong> random = MTP_vector<MTPlong>(1, rand_value<MTPlong>());
 					auto request = MTPmessages_ForwardMessages(MTP_flags(sendFlags), item->history()->peer->input, msgIds, random, peer->input);
 					auto callback = doneCallback;
-					auto requestId = MTP::send(request, rpcDone(std_::move(callback)));
+					auto requestId = MTP::send(request, rpcDone(std::move(callback)));
 					data->requests.insert(requestId);
 				}
 			}
@@ -923,7 +919,7 @@ void shareGameScoreFromItem(HistoryItem *item) {
 		}
 		return false;
 	};
-	Ui::show(Box<ShareBox>(std_::move(copyCallback), std_::move(submitCallback), std_::move(filterCallback)));
+	Ui::show(Box<ShareBox>(std::move(copyCallback), std::move(submitCallback), std::move(filterCallback)));
 }
 
 } // namespace
@@ -958,7 +954,7 @@ void shareGameScoreByHash(const QString &hash) {
 	}
 
 	auto hashDataInts = reinterpret_cast<int32*>(hashData.data());
-	if (hashDataInts[0] != MTP::authedId()) {
+	if (!AuthSession::Exists() || hashDataInts[0] != AuthSession::CurrentUserId()) {
 		Ui::show(Box<InformBox>(lang(lng_share_wrong_user)));
 		return;
 	}

@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/effects/round_checkbox.h"
 
 namespace Ui {
@@ -53,13 +52,13 @@ void prepareCheckCaches(const style::RoundCheckbox *st, bool displayInactive, QP
 		auto ellipse = QRect((wideSize - size) / 2, (wideSize - size) / 2, size, size);
 		st->check.paint(p, ellipse.topLeft(), wideSize);
 	}
-	checkBgCache = App::pixmapFromImageInPlace(std_::move(cache));
-	checkFullCache = App::pixmapFromImageInPlace(std_::move(cacheIcon));
+	checkBgCache = App::pixmapFromImageInPlace(std::move(cache));
+	checkFullCache = App::pixmapFromImageInPlace(std::move(cacheIcon));
 }
 
 } // namespace
 
-RoundCheckbox::RoundCheckbox(const style::RoundCheckbox &st, const base::lambda_copy<void()> &updateCallback)
+RoundCheckbox::RoundCheckbox(const style::RoundCheckbox &st, base::lambda<void()> updateCallback)
 : _st(st)
 , _updateCallback(updateCallback) {
 }
@@ -117,7 +116,7 @@ void RoundCheckbox::paint(Painter &p, TimeMs ms, int x, int y, int outerWidth, f
 
 void RoundCheckbox::setChecked(bool newChecked, SetStyle speed) {
 	if (_checked == newChecked) {
-		if (speed != SetStyle::Animated && !_icons.isEmpty()) {
+		if (speed != SetStyle::Animated && !_icons.empty()) {
 			_icons.back().fadeIn.finish();
 			_icons.back().fadeOut.finish();
 		}
@@ -197,7 +196,7 @@ void RoundCheckbox::prepareWideCheckIconCache(Icon *icon) {
 		p.drawPixmapLeft(QRect(0, 0, divider, iconSize), cacheWidth, _wideCheckFullCache, QRect(0, 0, divider * cIntRetinaFactor(), _wideCheckFullCache.height()));
 		p.drawPixmapLeft(QRect(divider, 0, iconSize - divider, iconSize), cacheWidth, _wideCheckBgCache, QRect(cacheDivider, 0, _wideCheckBgCache.width() - cacheDivider, _wideCheckBgCache.height()));
 	}
-	icon->wideCheckCache = App::pixmapFromImageInPlace(std_::move(wideCache));
+	icon->wideCheckCache = App::pixmapFromImageInPlace(std::move(wideCache));
 	icon->wideCheckCache.setDevicePixelRatio(cRetinaFactor());
 }
 
@@ -217,7 +216,7 @@ void RoundCheckbox::prepareInactiveCache() {
 		p.setBrush(_st.bgInactive);
 		p.drawEllipse(ellipse);
 	}
-	_inactiveCacheBg = App::pixmapFromImageInPlace(std_::move(cacheBg));
+	_inactiveCacheBg = App::pixmapFromImageInPlace(std::move(cacheBg));
 
 	{
 		Painter p(&cacheFg);
@@ -229,13 +228,13 @@ void RoundCheckbox::prepareInactiveCache() {
 		p.setBrush(Qt::NoBrush);
 		p.drawEllipse(ellipse);
 	}
-	_inactiveCacheFg = App::pixmapFromImageInPlace(std_::move(cacheFg));
+	_inactiveCacheFg = App::pixmapFromImageInPlace(std::move(cacheFg));
 }
 
-RoundImageCheckbox::RoundImageCheckbox(const style::RoundImageCheckbox &st, const base::lambda_copy<void()> &updateCallback, PaintRoundImage &&paintRoundImage)
+RoundImageCheckbox::RoundImageCheckbox(const style::RoundImageCheckbox &st, base::lambda<void()> updateCallback, PaintRoundImage &&paintRoundImage)
 : _st(st)
 , _updateCallback(updateCallback)
-, _paintRoundImage(std_::move(paintRoundImage))
+, _paintRoundImage(std::move(paintRoundImage))
 , _check(_st.check, _updateCallback) {
 }
 
@@ -314,7 +313,7 @@ void RoundImageCheckbox::prepareWideCache() {
 			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
 			_paintRoundImage(p, (wideSize - size) / 2, (wideSize - size) / 2, wideSize, size);
 		}
-		_wideCache = App::pixmapFromImageInPlace(std_::move(cache));
+		_wideCache = App::pixmapFromImageInPlace(std::move(cache));
 	}
 }
 

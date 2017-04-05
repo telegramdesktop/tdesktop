@@ -18,11 +18,10 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "boxes/sessionsbox.h"
 
 #include "lang.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "countries.h"
@@ -92,7 +91,7 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 	if (result.type() != mtpc_account_authorizations) {
 		return;
 	}
-	auto &v = result.c_account_authorizations().vauthorizations.c_vector().v;
+	auto &v = result.c_account_authorizations().vauthorizations.v;
 	_list.reserve(v.size());
 
 	const CountriesByISO2 &countries(countriesByISO2());
@@ -330,7 +329,7 @@ void SessionsBox::Inner::onTerminateAll() {
 			_terminateBox->closeBox();
 			_terminateBox = nullptr;
 		}
-//		MTP::send(MTPauth_ResetAuthorizations(), rpcDone(&Inner::terminateAllDone), rpcFail(&Inner::terminateAllFail));
+		MTP::send(MTPauth_ResetAuthorizations(), rpcDone(&Inner::terminateAllDone), rpcFail(&Inner::terminateAllFail));
 		emit terminateAll();
 	})), KeepOtherLayers);
 }

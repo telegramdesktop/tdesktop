@@ -19,8 +19,6 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 
-#include "stdafx.h"
-
 #include "autoupdater.h"
 
 #include <openssl/rsa.h>
@@ -35,7 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #endif // else of Q_OS_WIN
 
 #include "application.h"
-#include "pspecific.h"
+#include "platform/platform_specific.h"
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 

@@ -20,7 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "core/vector_of_moveable.h"
+#include <vector>
+#include <deque>
 #include "core/type_traits.h"
 
 namespace base {
@@ -117,7 +118,7 @@ public:
 		if (!_data) {
 			_data = MakeShared<ObservableData<EventType, Handler>>(this);
 		}
-		return _data->append(std_::move(handler));
+		return _data->append(std::move(handler));
 	}
 
 private:
@@ -133,7 +134,7 @@ class BaseObservable<EventType, Handler, true> : public internal::CommonObservab
 public:
 	void notify(EventType event, bool sync = false) {
 		if (this->_data) {
-			this->_data->notify(std_::move(event), sync);
+			this->_data->notify(std::move(event), sync);
 		}
 	}
 
@@ -144,12 +145,13 @@ class BaseObservable<EventType, Handler, false> : public internal::CommonObserva
 public:
 	void notify(EventType &&event, bool sync = false) {
 		if (this->_data) {
-			this->_data->notify(std_::move(event), sync);
+			this->_data->notify(std::move(event), sync);
 		}
 	}
 	void notify(const EventType &event, bool sync = false) {
 		if (this->_data) {
-			this->_data->notify(EventType(event), sync);
+			auto event_copy = event;
+			this->_data->notify(std::move(event_copy), sync);
 		}
 	}
 
@@ -166,7 +168,7 @@ public:
 	}
 
 	Subscription append(Handler &&handler) {
-		auto node = new Node(_observable->_data, std_::move(handler));
+		auto node = new Node(_observable->_data, std::move(handler));
 		if (_begin) {
 			_end->next = node;
 			node->prev = _end;
@@ -183,7 +185,7 @@ public:
 
 private:
 	struct Node : public Subscription::Node {
-		Node(const QSharedPointer<BaseObservableData> &observer, Handler &&handler) : Subscription::Node(observer), handler(std_::move(handler)) {
+		Node(const QSharedPointer<BaseObservableData> &observer, Handler &&handler) : Subscription::Node(observer), handler(std::move(handler)) {
 		}
 		Handler handler;
 	};
@@ -253,7 +255,7 @@ public:
 			sync = false;
 		}
 		if (sync) {
-			_events.push_back(std_::move(event));
+			_events.push_back(std::move(event));
 			callHandlers();
 		} else {
 			if (!this->_callHandlers) {
@@ -264,7 +266,7 @@ public:
 			if (_events.empty()) {
 				RegisterPendingObservable(&this->_callHandlers);
 			}
-			_events.push_back(std_::move(event));
+			_events.push_back(std::move(event));
 		}
 	}
 
@@ -285,7 +287,7 @@ private:
 		UnregisterActiveObservable(&this->_callHandlers);
 	}
 
-	std_::vector_of_moveable<EventType> _events;
+	std::deque<EventType> _events;
 	bool _handling = false;
 
 };
@@ -375,7 +377,7 @@ public:
 
 	void setForced(parameter_type<Type> newValue, bool sync = false) {
 		_value = newValue;
-		_observable.notify(_value, sync);
+		changed().notify(_value, sync);
 	}
 
 	void set(parameter_type<Type> newValue, bool sync = false) {
@@ -387,16 +389,16 @@ public:
 	template <typename Callback>
 	void process(Callback callback, bool sync = false) {
 		callback(_value);
-		_observable.notify(_value, sync);
+		changed().notify(_value, sync);
 	}
 
-	Observable<Type> &observable() {
-		return _observable;
+	Observable<Type> &changed() const {
+		return _changed;
 	}
 
 private:
 	Type _value;
-	Observable<Type> _observable;
+	mutable Observable<Type> _changed;
 
 };
 
@@ -404,30 +406,31 @@ class Subscriber {
 protected:
 	template <typename EventType, typename Handler, typename Lambda>
 	int subscribe(base::Observable<EventType, Handler> &observable, Lambda &&handler) {
-		_subscriptions.push_back(observable.add_subscription(std_::forward<Lambda>(handler)));
+		_subscriptions.push_back(observable.add_subscription(std::forward<Lambda>(handler)));
 		return _subscriptions.size();
 	}
 
 	template <typename EventType, typename Handler, typename Lambda>
 	int subscribe(base::Observable<EventType, Handler> *observable, Lambda &&handler) {
-		return subscribe(*observable, std_::forward<Lambda>(handler));
+		return subscribe(*observable, std::forward<Lambda>(handler));
 	}
 
 	template <typename Type, typename Lambda>
-	int subscribe(base::Variable<Type> &variable, Lambda &&handler) {
-		return subscribe(variable.observable(), std_::forward<Lambda>(handler));
+	int subscribe(const base::Variable<Type> &variable, Lambda &&handler) {
+		return subscribe(variable.changed(), std::forward<Lambda>(handler));
 	}
 
 	template <typename Type, typename Lambda>
-	int subscribe(base::Variable<Type> *variable, Lambda &&handler) {
-		return subscribe(variable->observable(), std_::forward<Lambda>(handler));
+	int subscribe(const base::Variable<Type> *variable, Lambda &&handler) {
+		return subscribe(variable->changed(), std::forward<Lambda>(handler));
 	}
 
 	void unsubscribe(int index) {
 		if (!index) return;
-		t_assert(index > 0 && index <= _subscriptions.size());
+		auto count = static_cast<int>(_subscriptions.size());
+		t_assert(index > 0 && index <= count);
 		_subscriptions[index - 1].destroy();
-		if (index == _subscriptions.size()) {
+		if (index == count) {
 			while (index > 0 && !_subscriptions[--index]) {
 				_subscriptions.pop_back();
 			}
@@ -442,7 +445,7 @@ protected:
 	}
 
 private:
-	std_::vector_of_moveable<base::Subscription> _subscriptions;
+	std::vector<base::Subscription> _subscriptions;
 
 };
 

@@ -24,30 +24,52 @@ void initLocationManager();
 void reinitLocationManager();
 void deinitLocationManager();
 
-struct LocationCoords {
-	LocationCoords() : lat(0), lon(0) {
+class LocationCoords {
+public:
+	LocationCoords() = default;
+	LocationCoords(float64 lat, float64 lon) : _lat(lat), _lon(lon) {
 	}
-	LocationCoords(float64 lat, float64 lon) : lat(lat), lon(lon) {
+	LocationCoords(const MTPDgeoPoint &point) : _lat(point.vlat.v), _lon(point.vlong.v) {
 	}
-	LocationCoords(const MTPDgeoPoint &point) : lat(point.vlat.v), lon(point.vlong.v) {
+
+	QString latAsString() const {
+		return asString(_lat);
 	}
-	float64 lat, lon;
-};
-inline bool operator==(const LocationCoords &a, const LocationCoords &b) {
-	return (a.lat == b.lat) && (a.lon == b.lon);
-}
-inline bool operator<(const LocationCoords &a, const LocationCoords &b) {
-	return (a.lat < b.lat) || ((a.lat == b.lat) && (a.lon < b.lon));
-}
-inline uint qHash(const LocationCoords &t, uint seed = 0) {
+	QString lonAsString() const {
+		return asString(_lon);
+	}
+	MTPGeoPoint toMTP() const {
+		return MTP_geoPoint(MTP_double(_lon), MTP_double(_lat));
+	}
+
+private:
+	static QString asString(float64 value) {
+		static constexpr auto kPrecision = 6;
+		return QString::number(value, 'f', kPrecision);
+	}
+
+	friend inline bool operator==(const LocationCoords &a, const LocationCoords &b) {
+		return (a._lat == b._lat) && (a._lon == b._lon);
+	}
+
+	friend inline bool operator<(const LocationCoords &a, const LocationCoords &b) {
+		return (a._lat < b._lat) || ((a._lat == b._lat) && (a._lon < b._lon));
+	}
+
+	friend inline uint qHash(const LocationCoords &t, uint seed = 0) {
 #ifndef OS_MAC_OLD
-	return qHash(QtPrivate::QHashCombine().operator()(qHash(t.lat), t.lon), seed);
+		return qHash(QtPrivate::QHashCombine().operator()(qHash(t._lat), t._lon), seed);
 #else // OS_MAC_OLD
-	uint h1 = qHash(t.lat, seed);
-	uint h2 = qHash(t.lon, seed);
-	return ((h1 << 16) | (h1 >> 16)) ^ h2 ^ seed;
+		uint h1 = qHash(t._lat, seed);
+		uint h2 = qHash(t._lon, seed);
+		return ((h1 << 16) | (h1 >> 16)) ^ h2 ^ seed;
 #endif // OS_MAC_OLD
-}
+	}
+
+	float64 _lat = 0;
+	float64 _lon = 0;
+
+};
 
 struct LocationData {
 	LocationData(const LocationCoords &coords) : coords(coords), loading(false) {

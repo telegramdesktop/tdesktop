@@ -18,8 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
-
 #include "styles/style_overview.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"
@@ -27,13 +25,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/addcontactbox.h"
 #include "boxes/confirmbox.h"
 #include "boxes/photocropbox.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "window/top_bar_widget.h"
-#include "window/window_theme.h"
+#include "window/themes/window_theme.h"
 #include "lang.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -44,6 +42,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_service_layout.h"
 #include "media/media_audio.h"
 #include "observer_peer.h"
+#include "auth_session.h"
+#include "storage/file_download.h"
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
@@ -61,7 +61,7 @@ OverviewInner::OverviewInner(OverviewWidget *overview, Ui::ScrollArea *scroll, P
 , _cancelSearch(this, st::dialogsCancelSearch)
 , _itemsToBeLoaded(LinksOverviewPerPage * 2)
 , _width(st::windowMinWidth) {
-	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(AuthSession::Current().downloader().taskFinished(), [this] { update(); });
 	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
 		itemRemoved(item);
 	});
@@ -204,26 +204,26 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 	}
 
 	if (_searchRequest == req) {
-		const QVector<MTPMessage> *messages = 0;
+		const QVector<MTPMessage> *messages = nullptr;
 		switch (result.type()) {
 		case mtpc_messages_messages: {
-			auto &d(result.c_messages_messages());
+			auto &d = result.c_messages_messages();
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
-			messages = &d.vmessages.c_vector().v;
+			messages = &d.vmessages.v;
 			_searchedCount = messages->size();
 		} break;
 
 		case mtpc_messages_messagesSlice: {
-			auto &d(result.c_messages_messagesSlice());
+			auto &d = result.c_messages_messagesSlice();
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
-			messages = &d.vmessages.c_vector().v;
+			messages = &d.vmessages.v;
 			_searchedCount = d.vcount.v;
 		} break;
 
 		case mtpc_messages_channelMessages: {
-			auto &d(result.c_messages_channelMessages());
+			auto &d = result.c_messages_channelMessages();
 			if (_peer && _peer->isChannel()) {
 				_peer->asChannel()->ptsReceived(d.vpts.v);
 			} else {
@@ -231,7 +231,7 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 			}
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
-			messages = &d.vmessages.c_vector().v;
+			messages = &d.vmessages.v;
 			_searchedCount = d.vcount.v;
 		} break;
 		}
@@ -742,14 +742,12 @@ void OverviewInner::preloadMore() {
 		if (!_searchRequest) {
 			MTPmessagesFilter filter = (_type == OverviewLinks) ? MTP_inputMessagesFilterUrl() : MTP_inputMessagesFilterDocument();
 			if (!_searchFull) {
-				MTPmessages_Search::Flags flags = 0;
-				_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(flags), _history->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, _lastSearchId ? SearchFromOffset : SearchFromStart), rpcFail(&OverviewInner::searchFailed, _lastSearchId ? SearchFromOffset : SearchFromStart));
+				_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(0), _history->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, _lastSearchId ? SearchFromOffset : SearchFromStart), rpcFail(&OverviewInner::searchFailed, _lastSearchId ? SearchFromOffset : SearchFromStart));
 				if (!_lastSearchId) {
 					_searchQueries.insert(_searchRequest, _searchQuery);
 				}
 			} else if (_migrated && !_searchFullMigrated) {
-				MTPmessages_Search::Flags flags = 0;
-				_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(flags), _migrated->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchMigratedId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, _lastSearchMigratedId ? SearchMigratedFromOffset : SearchMigratedFromStart), rpcFail(&OverviewInner::searchFailed, _lastSearchMigratedId ? SearchMigratedFromOffset : SearchMigratedFromStart));
+				_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(0), _migrated->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_lastSearchMigratedId), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, _lastSearchMigratedId ? SearchMigratedFromOffset : SearchMigratedFromStart), rpcFail(&OverviewInner::searchFailed, _lastSearchMigratedId ? SearchMigratedFromOffset : SearchMigratedFromStart));
 			}
 		}
 	} else if (App::main()) {
@@ -1137,21 +1135,20 @@ void OverviewInner::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-void OverviewInner::enterEvent(QEvent *e) {
-	return QWidget::enterEvent(e);
+void OverviewInner::enterEventHook(QEvent *e) {
+	return TWidget::enterEventHook(e);
 }
 
-void OverviewInner::leaveEvent(QEvent *e) {
-	if (_selectedMsgId) {
-		repaintItem(_selectedMsgId, -1);
-		_selectedMsgId = 0;
+void OverviewInner::leaveEventHook(QEvent *e) {
+	if (auto selectedMsgId = base::take(_selectedMsgId)) {
+		repaintItem(selectedMsgId, -1);
 	}
 	ClickHandler::clearActive();
 	if (!ClickHandler::getPressed() && _cursor != style::cur_default) {
 		_cursor = style::cur_default;
 		setCursor(_cursor);
 	}
-	return QWidget::leaveEvent(e);
+	return TWidget::leaveEventHook(e);
 }
 
 void OverviewInner::resizeEvent(QResizeEvent *e) {
@@ -1406,8 +1403,8 @@ void OverviewInner::goToMessage() {
 }
 
 void OverviewInner::forwardMessage() {
-	HistoryItem *item = App::contextItem();
-	if (!item || item->type() != HistoryItemMsg || item->serviceMsg()) return;
+	auto item = App::contextItem();
+	if (!item || item->id < 0) return;
 
 	App::main()->forwardLayer();
 }
@@ -1417,8 +1414,8 @@ MsgId OverviewInner::complexMsgId(const HistoryItem *item) const {
 }
 
 void OverviewInner::selectMessage() {
-	HistoryItem *item = App::contextItem();
-	if (!item || item->type() != HistoryItemMsg || item->serviceMsg()) return;
+	auto item = App::contextItem();
+	if (!item || item->id < 0) return;
 
 	if (!_selected.isEmpty() && _selected.cbegin().value() != FullSelection) {
 		_selected.clear();
@@ -1441,7 +1438,7 @@ void OverviewInner::showContextInFolder() {
 	if (auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLnk.data())) {
 		auto filepath = lnkDocument->document()->filepath(DocumentData::FilePathResolveChecked);
 		if (!filepath.isEmpty()) {
-			psShowInFolder(filepath);
+			File::ShowInFolder(filepath);
 		}
 	}
 }
@@ -1469,9 +1466,8 @@ bool OverviewInner::onSearchMessages(bool searchCache) {
 	} else if (_searchQuery != q) {
 		_searchQuery = q;
 		_searchFull = _searchFullMigrated = false;
-		MTPmessages_Search::Flags flags = 0;
-		MTPmessagesFilter filter = (_type == OverviewLinks) ? MTP_inputMessagesFilterUrl() : MTP_inputMessagesFilterDocument();
-		_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(flags), _history->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, SearchFromStart), rpcFail(&OverviewInner::searchFailed, SearchFromStart));
+		auto filter = (_type == OverviewLinks) ? MTP_inputMessagesFilterUrl() : MTP_inputMessagesFilterDocument();
+		_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(0), _history->peer->input, MTP_string(_searchQuery), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(SearchPerPage)), rpcDone(&OverviewInner::searchReceived, SearchFromStart), rpcFail(&OverviewInner::searchFailed, SearchFromStart));
 		_searchQueries.insert(_searchRequest, _searchQuery);
 	}
 	return false;
@@ -1920,7 +1916,7 @@ void OverviewWidget::clear() {
 }
 
 void OverviewWidget::onScroll() {
-	MTP::clearLoaderPriorities();
+	AuthSession::Current().downloader().clearPriorities();
 	int32 preloadThreshold = _scroll->height() * 5;
 	bool needToPreload = false;
 	do {
@@ -2091,11 +2087,10 @@ int32 OverviewWidget::lastScrollTop() const {
 }
 
 int32 OverviewWidget::countBestScroll() const {
-	if (type() == OverviewMusicFiles && audioPlayer()) {
-		AudioMsgId playing;
-		audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
-		if (playing) {
-			int32 top = _inner->itemTop(playing.contextId());
+	if (type() == OverviewMusicFiles) {
+		auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
+		if (state.id) {
+			int32 top = _inner->itemTop(state.id.contextId());
 			if (top >= 0) {
 				return snap(top - int(_scroll->height() - (st::msgPadding.top() + st::mediaThumbSize + st::msgPadding.bottom())) / 2, 0, _scroll->scrollTopMax());
 			}
@@ -2275,7 +2270,7 @@ void OverviewWidget::onForwardSelected() {
 
 void OverviewWidget::confirmDeleteContextItem() {
 	auto item = App::contextItem();
-	if (!item || item->type() != HistoryItemMsg) return;
+	if (!item) return;
 
 	if (auto message = item->toHistoryMessage()) {
 		if (message->uploading()) {
@@ -2298,7 +2293,7 @@ void OverviewWidget::deleteContextItem(bool forEveryone) {
 	Ui::hideLayer();
 
 	auto item = App::contextItem();
-	if (!item || item->type() != HistoryItemMsg) {
+	if (!item) {
 		return;
 	}
 

@@ -28,9 +28,8 @@ namespace Ui {
 
 static UserData * const LookingUpInlineBot = SharedMemoryLocation<UserData, 0>();
 
-class FlatTextarea : public QTextEdit, private base::Subscriber {
+class FlatTextarea : public TWidgetHelper<QTextEdit>, private base::Subscriber {
 	Q_OBJECT
-	T_WIDGET
 
 public:
 	using TagList = TextWithTags::Tags;
@@ -110,11 +109,7 @@ public:
 		virtual ~TagMimeProcessor() {
 		}
 	};
-	void setTagMimeProcessor(std_::unique_ptr<TagMimeProcessor> &&processor);
-
-	QMargins getMargins() const {
-		return QMargins();
-	}
+	void setTagMimeProcessor(std::unique_ptr<TagMimeProcessor> &&processor);
 
 public slots:
 	void onTouchTimer();
@@ -135,13 +130,6 @@ signals:
 	void linksChanged();
 
 protected:
-	void enterEventHook(QEvent *e) {
-		return QTextEdit::enterEvent(e);
-	}
-	void leaveEventHook(QEvent *e) {
-		return QTextEdit::leaveEvent(e);
-	}
-
 	bool viewportEvent(QEvent *e) override;
 	void touchEvent(QTouchEvent *e);
 	void paintEvent(QPaintEvent *e) override;
@@ -207,7 +195,7 @@ private:
 	int _realInsertPosition = -1;
 	int _realCharsAdded = 0;
 
-	std_::unique_ptr<TagMimeProcessor> _tagMimeProcessor;
+	std::unique_ptr<TagMimeProcessor> _tagMimeProcessor;
 
 	const style::FlatTextarea &_st;
 
@@ -243,9 +231,8 @@ inline bool operator!=(const FlatTextarea::LinkRange &a, const FlatTextarea::Lin
 	return !(a == b);
 }
 
-class FlatInput : public QLineEdit, private base::Subscriber {
+class FlatInput : public TWidgetHelper<QLineEdit>, private base::Subscriber {
 	Q_OBJECT
-	T_WIDGET
 
 public:
 	FlatInput(QWidget *parent, const style::FlatInput &st, const QString &ph = QString(), const QString &val = QString());
@@ -264,10 +251,6 @@ public:
 		return _oldtext;
 	}
 
-	QMargins getMargins() const {
-		return QMargins();
-	}
-
 public slots:
 	void onTextChange(const QString &text);
 	void onTextEdited();
@@ -282,13 +265,6 @@ signals:
 	void blurred();
 
 protected:
-	void enterEventHook(QEvent *e) {
-		return QLineEdit::enterEvent(e);
-	}
-	void leaveEventHook(QEvent *e) {
-		return QLineEdit::leaveEvent(e);
-	}
-
 	bool event(QEvent *e) override;
 	void touchEvent(QTouchEvent *e);
 	void paintEvent(QPaintEvent *e) override;
@@ -694,9 +670,8 @@ private:
 	bool _correcting = false;
 };
 
-class MaskedInputField : public QLineEdit, private base::Subscriber {
+class MaskedInputField : public TWidgetHelper<QLineEdit>, private base::Subscriber {
 	Q_OBJECT
-	T_WIDGET
 
 public:
 	MaskedInputField(QWidget *parent, const style::InputField &st, const QString &placeholder = QString(), const QString &val = QString());
@@ -729,10 +704,6 @@ public:
 		startPlaceholderAnimation();
 	}
 
-	QMargins getMargins() const {
-		return QMargins();
-	}
-
 public slots:
 	void onTextChange(const QString &text);
 	void onCursorPositionChanged(int oldPosition, int position);
@@ -760,13 +731,6 @@ protected:
 	void keyPressEvent(QKeyEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
-
-	void enterEventHook(QEvent *e) {
-		return QLineEdit::enterEvent(e);
-	}
-	void leaveEventHook(QEvent *e) {
-		return QLineEdit::leaveEvent(e);
-	}
 
 	virtual void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) {
 	}

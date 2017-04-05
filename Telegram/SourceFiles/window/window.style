@@ -30,7 +30,7 @@ windowDefaultHeight: 600px;
 windowShadow: icon {{ "window_shadow", windowShadowFg }};
 windowShadowShift: 1px;
 
-adaptiveChatWideWidth: 860px;
+adaptiveChatWideWidth: 880px;
 
 notifyBorder: windowShadowFgFallback;
 notifyBorderWidth: 1px;
@@ -266,6 +266,12 @@ topBarInfoButton: PeerAvatarButton {
 	photoSize: 42px;
 }
 topBarSlideDuration: 200;
+
+themeEditorSampleSize: size(90px, 51px);
+themeEditorMargin: margins(17px, 10px, 17px, 10px);
+themeEditorDescriptionSkip: 10px;
+themeEditorNameFont: font(15px semibold);
+themeEditorCopyNameFont: font(fsize semibold);
 
 // Mac specific
 

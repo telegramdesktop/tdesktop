@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "settings/settings_block_widget.h"
 
 #include "styles/style_settings.h"
@@ -91,13 +90,8 @@ void BlockWidget::createChildRow(object_ptr<Ui::Checkbox> &child, style::margins
 	connect(child, SIGNAL(changed()), this, slot);
 }
 
-void BlockWidget::createChildRow(object_ptr<Ui::Radiobutton> &child, style::margins &margin, const QString &group, int value, const QString &text, const char *slot, bool checked) {
-	child .create(this, group, value, text, checked, st::defaultBoxCheckbox);
-	connect(child, SIGNAL(changed()), this, slot);
-}
-
 void BlockWidget::createChildRow(object_ptr<Ui::LinkButton> &child, style::margins &margin, const QString &text, const char *slot, const style::LinkButton &st) {
-	child .create(this, text, st);
+	child.create(this, text, st);
 	connect(child, SIGNAL(clicked()), this, slot);
 }
 

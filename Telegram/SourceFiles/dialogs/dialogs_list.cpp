@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "dialogs/dialogs_list.h"
 
 #include "dialogs/dialogs_layout.h"
@@ -28,7 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Dialogs {
 
 List::List(SortMode sortMode)
-: _last(std_::make_unique<Row>(nullptr, nullptr, nullptr, 0))
+: _last(std::make_unique<Row>(nullptr, nullptr, nullptr, 0))
 , _begin(_last.get())
 , _end(_last.get())
 , _sortMode(sortMode)
@@ -44,20 +43,6 @@ void List::adjustCurrent(int32 y, int32 h) const {
 	}
 	while (_current->_pos + 1 <= pos && _current->_next != _end) {
 		_current = _current->_next;
-	}
-}
-
-void List::paint(Painter &p, int32 w, int32 hFrom, int32 hTo, PeerData *act, PeerData *sel, bool onlyBackground, TimeMs ms) const {
-	adjustCurrent(hFrom, st::dialogsRowHeight);
-
-	Row *row = _current;
-	p.translate(0, row->_pos * st::dialogsRowHeight);
-	while (row != _end && row->_pos * st::dialogsRowHeight < hTo) {
-		bool active = (row->history()->peer == act) || (row->history()->peer->migrateTo() && row->history()->peer->migrateTo() == act);
-		bool selected = (row->history()->peer == sel);
-		Layout::RowPainter::paint(p, row, w, active, selected, onlyBackground, ms);
-		row = row->_next;
-		p.translate(0, st::dialogsRowHeight);
 	}
 }
 

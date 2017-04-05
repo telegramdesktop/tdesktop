@@ -80,8 +80,6 @@ elif [ "$BuildTarget" == "macstore" ]; then
   echo "Building version $AppVersionStrFull for Mac App Store.."
   ReleasePath="$HomePath/../out/Release"
   BinaryName="Telegram Desktop"
-  DropboxPath="/Volumes/Storage/Dropbox/Telegram/deploy/$AppVersionStrMajor"
-  DropboxDeployPath="$DropboxPath/$AppVersionStrFull"
 else
   Error "Invalid target!"
 fi
@@ -344,7 +342,6 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
 
       cp -v "$DeployPath/$UpdateFile" "$DeployToPath/"
       cp -v "$DeployPath/$SetupFile" "$DeployToPath/"
-      cp -rv "$DeployPath/$BinaryName.app.dSYM" "$DeployToPath/"
       if [ "$BetaVersion" != "0" ]; then
         cp -v "$DeployPath/$BetaKeyFile" "$DeployToPath/"
       fi
@@ -358,10 +355,6 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     rm "$ReleasePath/$BinaryName.app/Contents/MacOS/$BinaryName"
     rm "$ReleasePath/$BinaryName.app/Contents/Info.plist"
     rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
-
-    mkdir -p "$DropboxDeployPath"
-    cp -rv "$DeployPath/$BinaryName.app" "$DropboxDeployPath/"
-    cp -rv "$DeployPath/$BinaryName.app.dSYM" "$DropboxDeployPath/"
   fi
 fi
 

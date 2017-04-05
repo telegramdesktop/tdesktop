@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "history/history_item.h"
 
 #include "lang.h"
@@ -28,7 +27,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
 #include "ui/effects/ripple_animation.h"
-#include "fileuploader.h"
+#include "storage/file_upload.h"
+#include "auth_session.h"
+#include "messenger.h"
 
 namespace {
 
@@ -99,7 +100,7 @@ QString ReplyMarkupClickHandler::buttonText() const {
 ReplyKeyboard::ReplyKeyboard(const HistoryItem *item, StylePtr &&s)
 	: _item(item)
 	, _a_selected(animation(this, &ReplyKeyboard::step_selected))
-	, _st(std_::move(s)) {
+	, _st(std::move(s)) {
 	if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 		_rows.reserve(markup->rows.size());
 		for (int i = 0, l = markup->rows.size(); i != l; ++i) {
@@ -197,7 +198,7 @@ bool ReplyKeyboard::isEnoughSpace(int width, const style::BotKeyboardButton &st)
 }
 
 void ReplyKeyboard::setStyle(StylePtr &&st) {
-	_st = std_::move(st);
+	_st = std::move(st);
 }
 
 int ReplyKeyboard::naturalWidth() const {
@@ -270,7 +271,6 @@ void ReplyKeyboard::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool act
 	}
 }
 
-
 ReplyKeyboard::ButtonCoords ReplyKeyboard::findButtonCoordsByClickHandler(const ClickHandlerPtr &p) {
 	for (int i = 0, rows = _rows.size(); i != rows; ++i) {
 		auto &row = _rows[i];
@@ -293,7 +293,7 @@ void ReplyKeyboard::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pr
 		if (pressed) {
 			if (!button.ripple) {
 				auto mask = Ui::RippleAnimation::roundRectMask(button.rect.size(), _st->buttonRadius());
-				button.ripple = MakeShared<Ui::RippleAnimation>(_st->_st->ripple, std_::move(mask), [this] { _st->repaint(_item); });
+				button.ripple = MakeShared<Ui::RippleAnimation>(_st->_st->ripple, std::move(mask), [this] { _st->repaint(_item); });
 			}
 			button.ripple->add(_savedCoords - button.rect.topLeft());
 		} else {
@@ -402,7 +402,7 @@ void HistoryMessageReplyMarkup::createFromButtonRows(const QVector<MTPKeyboardBu
 		switch (row.type()) {
 		case mtpc_keyboardButtonRow: {
 			auto &r = row.c_keyboardButtonRow();
-			auto &b = r.vbuttons.c_vector().v;
+			auto &b = r.vbuttons.v;
 			if (!b.isEmpty()) {
 				ButtonRow buttonRow;
 				buttonRow.reserve(b.size());
@@ -439,6 +439,10 @@ void HistoryMessageReplyMarkup::createFromButtonRows(const QVector<MTPKeyboardBu
 						auto &buttonData = button.c_keyboardButtonGame();
 						buttonRow.push_back({ Button::Type::Game, qs(buttonData.vtext), QByteArray(), 0 });
 					} break;
+					case mtpc_keyboardButtonBuy: {
+						auto &buttonData = button.c_keyboardButtonBuy();
+						buttonRow.push_back({ Button::Type::Buy, qs(buttonData.vtext), QByteArray(), 0 });
+					}
 					}
 				}
 				if (!buttonRow.isEmpty()) rows.push_back(buttonRow);
@@ -458,14 +462,14 @@ void HistoryMessageReplyMarkup::create(const MTPReplyMarkup &markup) {
 		auto &d = markup.c_replyKeyboardMarkup();
 		flags = d.vflags.v;
 
-		createFromButtonRows(d.vrows.c_vector().v);
+		createFromButtonRows(d.vrows.v);
 	} break;
 
 	case mtpc_replyInlineMarkup: {
 		auto &d = markup.c_replyInlineMarkup();
 		flags = MTPDreplyKeyboardMarkup::Flags(0) | MTPDreplyKeyboardMarkup_ClientFlag::f_inline;
 
-		createFromButtonRows(d.vrows.c_vector().v);
+		createFromButtonRows(d.vrows.v);
 	} break;
 
 	case mtpc_replyKeyboardHide: {
@@ -538,15 +542,21 @@ void HistoryMessageDate::paint(Painter &p, int y, int w) const {
 	HistoryLayout::ServiceMessagePainter::paintDate(p, _text, _width, y, w);
 }
 
-void HistoryMediaPtr::reset(HistoryMedia *p) {
-	if (_p) {
-		_p->detachFromParent();
-		delete _p;
+HistoryMediaPtr::HistoryMediaPtr(std::unique_ptr<HistoryMedia> pointer) : _pointer(std::move(pointer)) {
+	if (_pointer) {
+		_pointer->attachToParent();
 	}
-	_p = p;
-	if (_p) {
-		_p->attachToParent();
+}
+
+HistoryMediaPtr &HistoryMediaPtr::operator=(std::unique_ptr<HistoryMedia> pointer) {
+	if (_pointer) {
+		_pointer->detachFromParent();
 	}
+	_pointer = std::move(pointer);
+	if (_pointer) {
+		_pointer->attachToParent();
+	}
+	return *this;
 }
 
 namespace internal {
@@ -650,7 +660,7 @@ void HistoryItem::destroy() {
 	// All this must be done for all items manually in History::clear(false)!
 	eraseFromOverview();
 
-	bool wasAtBottom = history()->loadedAtBottom();
+	auto wasAtBottom = history()->loadedAtBottom();
 	_history->removeNotification(this);
 	detach();
 	if (history()->isChannel()) {
@@ -744,7 +754,7 @@ void HistoryItem::setId(MsgId newId) {
 }
 
 bool HistoryItem::canEdit(const QDateTime &cur) const {
-	auto messageToMyself = (peerToUser(_history->peer->id) == MTP::authedId());
+	auto messageToMyself = (_history->peer->id == AuthSession::CurrentUserPeerId());
 	auto messageTooOld = messageToMyself ? false : (date.secsTo(cur) >= Global::EditTimeLimit());
 	if (id < 0 || messageTooOld) return false;
 
@@ -773,7 +783,7 @@ bool HistoryItem::canEdit(const QDateTime &cur) const {
 }
 
 bool HistoryItem::canDeleteForEveryone(const QDateTime &cur) const {
-	auto messageToMyself = (peerToUser(_history->peer->id) == MTP::authedId());
+	auto messageToMyself = (_history->peer->id == AuthSession::CurrentUserPeerId());
 	auto messageTooOld = messageToMyself ? false : (date.secsTo(cur) >= Global::EditTimeLimit());
 	if (id < 0 || messageToMyself || messageTooOld) return false;
 	if (history()->peer->isChannel()) return false;
@@ -784,6 +794,9 @@ bool HistoryItem::canDeleteForEveryone(const QDateTime &cur) const {
 	return false;
 }
 
+QString HistoryItem::directLink() const {
+	return hasDirectLink() ? Messenger::Instance().createInternalLinkFull(_history->peer->asChannel()->username + '/' + QString::number(id)) : QString();
+}
 bool HistoryItem::unread() const {
 	// Messages from myself are always read.
 	if (history()->peer->isSelf()) return false;

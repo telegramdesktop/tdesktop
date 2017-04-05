@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "media/media_audio.h"
 #include "media/media_audio_loader.h"
 
 extern "C" {
@@ -49,7 +50,7 @@ public:
 	~AbstractFFMpegLoader();
 
 protected:
-	int32 freq = AudioVoiceMsgFrequency;
+	int32 freq = Media::Player::kDefaultFrequency;
 	TimeMs len = 0;
 
 	uchar *ioBuffer = nullptr;
@@ -89,8 +90,8 @@ private:
 	ReadResult readFromReadyFrame(QByteArray &result, int64 &samplesAdded);
 
 	int32 fmt = AL_FORMAT_STEREO16;
-	int32 srcRate = AudioVoiceMsgFrequency;
-	int32 dstRate = AudioVoiceMsgFrequency;
+	int32 srcRate = Media::Player::kDefaultFrequency;
+	int32 dstRate = Media::Player::kDefaultFrequency;
 	int32 maxResampleSamples = 1024;
 	uint8_t **dstSamplesData = nullptr;
 

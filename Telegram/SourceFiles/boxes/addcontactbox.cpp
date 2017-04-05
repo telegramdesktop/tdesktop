@@ -18,27 +18,27 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "boxes/addcontactbox.h"
 
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
 #include "lang.h"
-#include "application.h"
+#include "messenger.h"
 #include "boxes/contactsbox.h"
 #include "boxes/confirmbox.h"
 #include "boxes/photocropbox.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
 #include "ui/toast/toast.h"
-#include "ui/buttons/peer_avatar_button.h"
+#include "ui/special_buttons.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "observer_peer.h"
+#include "auth_session.h"
 
 AddContactBox::AddContactBox(QWidget*, QString fname, QString lname, QString phone)
 : _first(this, st::defaultInputField, lang(lng_signup_firstname), fname)
@@ -194,10 +194,10 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 	auto &d = res.c_contacts_importedContacts();
 	App::feedUsers(d.vusers);
 
-	auto &v = d.vimported.c_vector().v;
+	auto &v = d.vimported.v;
 	UserData *user = nullptr;
 	if (!v.isEmpty()) {
-		const auto &c(v.front().c_importedContact());
+		auto &c = v.front().c_importedContact();
 		if (c.vclient_id.v != _contactId) return;
 
 		user = App::userLoaded(c.vuser_id.v);
@@ -270,16 +270,33 @@ void GroupInfoBox::prepare() {
 	addButton(lang(_creating == CreatingGroupChannel ? lng_create_group_create : lng_create_group_next), [this] { onNext(); });
 	addButton(lang(_fromTypeChoose ? lng_create_group_back : lng_cancel), [this] { closeBox(); });
 
-	_photo->setClickedCallback(App::LambdaDelayed(st::defaultActiveButton.ripple.hideDuration, this, [this] {
-		auto imgExtensions = cImgExtensions();
-		auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter();
-		_setPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filter);
-	}));
-	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
-		notifyFileQueryUpdated(update);
-	});
+	setupPhotoButton();
 
 	updateMaxHeight();
+}
+
+void GroupInfoBox::setupPhotoButton() {
+	_photo->setClickedCallback(App::LambdaDelayed(st::defaultActiveButton.ripple.hideDuration, this, [this] {
+		auto imgExtensions = cImgExtensions();
+		auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + FileDialog::AllFilesFilter();
+		FileDialog::GetOpenPath(lang(lng_choose_image), filter, base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
+			if (result.remoteContent.isEmpty() && result.paths.isEmpty()) {
+				return;
+			}
+
+			QImage img;
+			if (!result.remoteContent.isEmpty()) {
+				img = App::readImage(result.remoteContent);
+			} else {
+				img = App::readImage(result.paths.front());
+			}
+			if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
+				return;
+			}
+			auto box = Ui::show(Box<PhotoCropBox>(img, (_creating == CreatingGroupChannel) ? peerFromChannel(0) : peerFromChat(0)), KeepOtherLayers);
+			connect(box, SIGNAL(ready(const QImage&)), this, SLOT(onPhotoReady(const QImage&)));
+		}));
+	}));
 }
 
 void GroupInfoBox::setInnerFocus() {
@@ -325,7 +342,7 @@ void GroupInfoBox::onNext() {
 		Ui::show(Box<ContactsBox>(title, _photoImage), KeepOtherLayers);
 	} else {
 		bool mega = false;
-		MTPchannels_CreateChannel::Flags flags = mega ? MTPchannels_CreateChannel::Flag::f_megagroup : MTPchannels_CreateChannel::Flag::f_broadcast;
+		auto flags = mega ? MTPchannels_CreateChannel::Flag::f_megagroup : MTPchannels_CreateChannel::Flag::f_broadcast;
 		_creationRequestId = MTP::send(MTPchannels_CreateChannel(MTP_flags(flags), MTP_string(title), MTP_string(description)), rpcDone(&GroupInfoBox::creationDone), rpcFail(&GroupInfoBox::creationFail));
 	}
 }
@@ -335,8 +352,8 @@ void GroupInfoBox::creationDone(const MTPUpdates &updates) {
 
 	const QVector<MTPChat> *v = 0;
 	switch (updates.type()) {
-	case mtpc_updates: v = &updates.c_updates().vchats.c_vector().v; break;
-	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.c_vector().v; break;
+	case mtpc_updates: v = &updates.c_updates().vchats.v; break;
+	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.v; break;
 	default: LOG(("API Error: unexpected update cons %1 (GroupInfoBox::creationDone)").arg(updates.type())); break;
 	}
 
@@ -394,28 +411,6 @@ void GroupInfoBox::updateMaxHeight() {
 	setDimensions(st::boxWideWidth, newHeight);
 }
 
-void GroupInfoBox::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {
-	if (_setPhotoFileQueryId != update.queryId) {
-		return;
-	}
-	_setPhotoFileQueryId = 0;
-	if (update.remoteContent.isEmpty() && update.filePaths.isEmpty()) {
-		return;
-	}
-
-	QImage img;
-	if (!update.remoteContent.isEmpty()) {
-		img = App::readImage(update.remoteContent);
-	} else {
-		img = App::readImage(update.filePaths.front());
-	}
-	if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
-		return;
-	}
-	auto box = Ui::show(Box<PhotoCropBox>(img, (_creating == CreatingGroupChannel) ? peerFromChannel(0) : peerFromChat(0)), KeepOtherLayers);
-	connect(box, SIGNAL(ready(const QImage&)), this, SLOT(onPhotoReady(const QImage&)));
-}
-
 void GroupInfoBox::onPhotoReady(const QImage &img) {
 	_photoImage = img;
 	_photo->setImage(_photoImage);
@@ -424,8 +419,9 @@ void GroupInfoBox::onPhotoReady(const QImage &img) {
 SetupChannelBox::SetupChannelBox(QWidget*, ChannelData *channel, bool existing)
 : _channel(channel)
 , _existing(existing)
-, _public(this, qsl("channel_privacy"), 0, lang(channel->isMegagroup() ? lng_create_public_group_title : lng_create_public_channel_title), true, st::defaultBoxCheckbox)
-, _private(this, qsl("channel_privacy"), 1, lang(channel->isMegagroup() ? lng_create_private_group_title : lng_create_private_channel_title), false, st::defaultBoxCheckbox)
+, _privacyGroup(std::make_shared<Ui::RadioenumGroup<Privacy>>(Privacy::Public))
+, _public(this, _privacyGroup, Privacy::Public, lang(channel->isMegagroup() ? lng_create_public_group_title : lng_create_public_channel_title), st::defaultBoxCheckbox)
+, _private(this, _privacyGroup, Privacy::Private, lang(channel->isMegagroup() ? lng_create_private_group_title : lng_create_private_channel_title), st::defaultBoxCheckbox)
 , _aboutPublicWidth(st::boxWideWidth - st::boxPadding.left() - st::boxButtonPadding.right() - st::newGroupPadding.left() - st::defaultBoxCheckbox.textPosition.x())
 , _aboutPublic(st::defaultTextStyle, lang(channel->isMegagroup() ? lng_create_public_group_about : lng_create_public_channel_about), _defaultOptions, _aboutPublicWidth)
 , _aboutPrivate(st::defaultTextStyle, lang(channel->isMegagroup() ? lng_create_private_group_about : lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth)
@@ -443,13 +439,12 @@ void SetupChannelBox::prepare() {
 	addButton(lang(_existing ? lng_cancel : lng_create_group_skip), [this] { closeBox(); });
 
 	connect(_link, SIGNAL(changed()), this, SLOT(onChange()));
-	_link->setVisible(_public->checked());
+	_link->setVisible(_privacyGroup->value() == Privacy::Public);
 
 	_checkTimer.setSingleShot(true);
 	connect(&_checkTimer, SIGNAL(timeout()), this, SLOT(onCheck()));
 
-	connect(_public, SIGNAL(changed()), this, SLOT(onPrivacyChange()));
-	connect(_private, SIGNAL(changed()), this, SLOT(onPrivacyChange()));
+	_privacyGroup->setChangedCallback([this](Privacy value) { privacyChanged(value); });
 
 	updateMaxHeight();
 }
@@ -464,7 +459,7 @@ void SetupChannelBox::setInnerFocus() {
 
 void SetupChannelBox::updateMaxHeight() {
 	auto newHeight = st::boxPadding.top() + st::newGroupPadding.top() + _public->heightNoMargins() + _aboutPublicHeight + st::newGroupSkip + _private->heightNoMargins() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom();
-	if (!_channel->isMegagroup() || _public->checked()) {
+	if (!_channel->isMegagroup() || _privacyGroup->value() == Privacy::Public) {
 		newHeight += st::newGroupLinkPadding.top() + _link->height() + st::newGroupLinkPadding.bottom();
 	}
 	setDimensions(st::boxWideWidth, newHeight);
@@ -541,15 +536,12 @@ void SetupChannelBox::mouseMoveEvent(QMouseEvent *e) {
 
 void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
 	if (_linkOver) {
-		Application::clipboard()->setText(_channel->inviteLink());
-
-		Ui::Toast::Config toast;
-		toast.text = lang(lng_create_channel_link_copied);
-		Ui::Toast::Show(App::wnd(), toast);
+		QGuiApplication::clipboard()->setText(_channel->inviteLink());
+		Ui::Toast::Show(lang(lng_create_channel_link_copied));
 	}
 }
 
-void SetupChannelBox::leaveEvent(QEvent *e) {
+void SetupChannelBox::leaveEventHook(QEvent *e) {
 	updateSelected(QCursor::pos());
 }
 
@@ -571,7 +563,7 @@ void SetupChannelBox::closeHook() {
 }
 
 void SetupChannelBox::onSave() {
-	if (!_public->checked()) {
+	if (_privacyGroup->value() == Privacy::Private) {
 		if (_existing) {
 			_sentUsername = QString();
 			_saveRequestId = MTP::send(MTPchannels_UpdateUsername(_channel->inputChannel, MTP_string(_sentUsername)), rpcDone(&SetupChannelBox::onUpdateDone), rpcFail(&SetupChannelBox::onUpdateFail));
@@ -641,13 +633,13 @@ void SetupChannelBox::onCheck() {
 	}
 }
 
-void SetupChannelBox::onPrivacyChange() {
-	if (_public->checked()) {
+void SetupChannelBox::privacyChanged(Privacy value) {
+	if (value == Privacy::Public) {
 		if (_tooMuchUsernames) {
-			_private->setChecked(true);
+			_privacyGroup->setValue(Privacy::Private);
 			Ui::show(Box<RevokePublicLinkBox>(base::lambda_guarded(this, [this] {
 				_tooMuchUsernames = false;
-				_public->setChecked(true);
+				_privacyGroup->setValue(Privacy::Public);
 				onCheck();
 			})), KeepOtherLayers);
 			return;
@@ -720,8 +712,7 @@ bool SetupChannelBox::onCheckFail(const RPCError &error) {
 			showRevokePublicLinkBoxForEdit();
 		} else {
 			_tooMuchUsernames = true;
-			_private->setChecked(true);
-			onPrivacyChange();
+			_privacyGroup->setValue(Privacy::Private);
 		}
 		return true;
 	} else if (err == qstr("USERNAME_INVALID")) {
@@ -758,8 +749,7 @@ bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
 			showRevokePublicLinkBoxForEdit();
 		} else {
 			_tooMuchUsernames = true;
-			_private->setChecked(true);
-			onPrivacyChange();
+			_privacyGroup->setValue(Privacy::Private);
 		}
 		return true;
 	}
@@ -862,7 +852,7 @@ void EditNameTitleBox::onSave() {
 	}
 	_sentName = first;
 	if (_peer == App::self()) {
-		MTPaccount_UpdateProfile::Flags flags = MTPaccount_UpdateProfile::Flag::f_first_name | MTPaccount_UpdateProfile::Flag::f_last_name;
+		auto flags = MTPaccount_UpdateProfile::Flag::f_first_name | MTPaccount_UpdateProfile::Flag::f_last_name;
 		_requestId = MTP::send(MTPaccount_UpdateProfile(MTP_flags(flags), MTP_string(first), MTP_string(last), MTPstring()), rpcDone(&EditNameTitleBox::onSaveSelfDone), rpcFail(&EditNameTitleBox::onSaveSelfFail));
 	} else if (_peer->isChat()) {
 		_requestId = MTP::send(MTPmessages_EditChatTitle(_peer->asChat()->inputChat, MTP_string(first)), rpcDone(&EditNameTitleBox::onSaveChatDone), rpcFail(&EditNameTitleBox::onSaveChatFail));
@@ -1114,11 +1104,11 @@ void EditChannelBox::onSaveSignDone(const MTPUpdates &updates) {
 	closeBox();
 }
 
-RevokePublicLinkBox::RevokePublicLinkBox(QWidget*, base::lambda<void()> &&revokeCallback)
+RevokePublicLinkBox::RevokePublicLinkBox(QWidget*, base::lambda<void()> revokeCallback)
 : _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _revokeWidth(st::normalFont->width(lang(lng_channels_too_much_public_revoke)))
 , _aboutRevoke(this, lang(lng_channels_too_much_public_about), Ui::FlatLabel::InitType::Simple, st::aboutRevokePublicLabel)
-, _revokeCallback(std_::move(revokeCallback)) {
+, _revokeCallback(std::move(revokeCallback)) {
 }
 
 void RevokePublicLinkBox::prepare() {
@@ -1128,7 +1118,7 @@ void RevokePublicLinkBox::prepare() {
 
 	addButton(lang(lng_cancel), [this] { closeBox(); });
 
-	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 
 	updateMaxHeight();
 }
@@ -1173,7 +1163,7 @@ void RevokePublicLinkBox::mouseReleaseEvent(QMouseEvent *e) {
 	setCursor((_selected || _pressed) ? style::cur_pointer : style::cur_default);
 	if (pressed && pressed == _selected) {
 		auto text_method = pressed->isMegagroup() ? lng_channels_too_much_public_revoke_confirm_group : lng_channels_too_much_public_revoke_confirm_channel;
-		auto text = text_method(lt_link, CreateInternalLink(pressed->userName()), lt_group, pressed->name);
+		auto text = text_method(lt_link, Messenger::Instance().createInternalLink(pressed->userName()), lt_group, pressed->name);
 		auto confirmText = lang(lng_channels_too_much_public_revoke);
 		_weakRevokeConfirmBox = Ui::show(Box<ConfirmBox>(text, confirmText, base::lambda_guarded(this, [this, pressed]() {
 			if (_revokeRequestId) return;
@@ -1226,15 +1216,15 @@ void RevokePublicLinkBox::paintChat(Painter &p, const ChatRow &row, bool selecte
 
 void RevokePublicLinkBox::getPublicDone(const MTPmessages_Chats &result) {
 	if (auto chats = Api::getChatsFromMessagesChats(result)) {
-		for_const (auto &chat, chats->c_vector().v) {
+		for_const (auto &chat, chats->v) {
 			if (auto peer = App::feedChat(chat)) {
 				if (!peer->isChannel() || peer->userName().isEmpty()) continue;
 
 				ChatRow row;
 				row.peer = peer;
 				row.name.setText(st::contactsNameStyle, peer->name, _textNameOptions);
-				row.status.setText(st::defaultTextStyle, CreateInternalLink(textcmdLink(1, peer->userName())), _textDlgOptions);
-				_rows.push_back(std_::move(row));
+				row.status.setText(st::defaultTextStyle, Messenger::Instance().createInternalLink(textcmdLink(1, peer->userName())), _textDlgOptions);
+				_rows.push_back(std::move(row));
 			}
 		}
 	}

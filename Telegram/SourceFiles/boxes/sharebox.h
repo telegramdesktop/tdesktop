@@ -22,7 +22,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "boxes/abstractbox.h"
 #include "core/observer.h"
-#include "core/vector_of_moveable.h"
 #include "ui/effects/round_checkbox.h"
 
 namespace Dialogs {
@@ -115,7 +114,7 @@ class ShareBox::Inner : public TWidget, public RPCSender, private base::Subscrib
 public:
 	Inner(QWidget *parent, ShareBox::FilterCallback &&filterCallback);
 
-	void setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> &&callback);
+	void setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> callback);
 	void peerUnselected(PeerData *peer);
 
 	QVector<PeerData*> selected() const;
@@ -140,8 +139,8 @@ signals:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
@@ -154,7 +153,7 @@ private:
 	int displayedChatsCount() const;
 
 	struct Chat {
-		Chat(PeerData *peer, const base::lambda_copy<void()> &updateCallback);
+		Chat(PeerData *peer, base::lambda<void()> updateCallback);
 
 		PeerData *peer;
 		Ui::RoundImageCheckbox checkbox;
@@ -194,7 +193,7 @@ private:
 	int _upon = -1;
 
 	ShareBox::FilterCallback _filterCallback;
-	std_::unique_ptr<Dialogs::IndexedList> _chatsIndexed;
+	std::unique_ptr<Dialogs::IndexedList> _chatsIndexed;
 	QString _filter;
 	using FilteredDialogs = QVector<Dialogs::Row*>;
 	FilteredDialogs _filtered;

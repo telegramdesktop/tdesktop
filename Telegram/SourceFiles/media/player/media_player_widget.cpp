@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "media/player/media_player_widget.h"
 
 #include "ui/widgets/labels.h"
@@ -37,7 +36,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Media {
 namespace Player {
 
-using State = PlayButtonLayout::State;
+using ButtonState = PlayButtonLayout::State;
 
 class Widget::PlayButton : public Ui::RippleButton {
 public:
@@ -92,7 +91,7 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 , _repeatTrack(this, st::mediaPlayerRepeatButton)
 , _close(this, st::mediaPlayerClose)
 , _shadow(this, st::shadowFg)
-, _playback(std_::make_unique<Clip::Playback>(new Ui::FilledSlider(this, st::mediaPlayerPlayback))) {
+, _playback(std::make_unique<Clip::Playback>(new Ui::FilledSlider(this, st::mediaPlayerPlayback))) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setMouseTracking(true);
 	resize(width(), st::mediaPlayerHeight + st::lineWidth);
@@ -107,9 +106,7 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 		handleSeekFinished(value);
 	});
 	_playPause->setClickedCallback([this] {
-		if (exists()) {
-			instance()->playPauseCancelClicked();
-		}
+		instance()->playPauseCancelClicked();
 	});
 
 	updateVolumeToggleIcon();
@@ -124,27 +121,22 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 		instance()->toggleRepeat();
 	});
 
-	if (exists()) {
-		subscribe(instance()->repeatChangedNotifier(), [this] {
-			updateRepeatTrackIcon();
-		});
-		subscribe(instance()->playlistChangedNotifier(), [this] {
-			handlePlaylistUpdate();
-		});
-		subscribe(instance()->updatedNotifier(), [this](const UpdatedEvent &e) {
-			handleSongUpdate(e);
-		});
-		subscribe(instance()->songChangedNotifier(), [this] {
-			handleSongChange();
-		});
+	subscribe(instance()->repeatChangedNotifier(), [this] {
+		updateRepeatTrackIcon();
+	});
+	subscribe(instance()->playlistChangedNotifier(), [this] {
+		handlePlaylistUpdate();
+	});
+	subscribe(instance()->updatedNotifier(), [this](const TrackState &state) {
+		handleSongUpdate(state);
+	});
+	subscribe(instance()->songChangedNotifier(), [this] {
 		handleSongChange();
-		if (auto player = audioPlayer()) {
-			AudioMsgId playing;
-			auto playbackState = player->currentState(&playing, AudioMsgId::Type::Song);
-			handleSongUpdate(UpdatedEvent(&playing, &playbackState));
-			_playPause->finishTransform();
-		}
-	}
+	});
+	handleSongChange();
+
+	handleSongUpdate(mixer()->currentState(AudioMsgId::Type::Song));
+	_playPause->finishTransform();
 }
 
 void Widget::updateVolumeToggleIcon() {
@@ -164,7 +156,7 @@ void Widget::updateVolumeToggleIcon() {
 }
 
 void Widget::setCloseCallback(CloseCallback &&callback) {
-	_close->setClickedCallback(std_::move(callback));
+	_close->setClickedCallback(std::move(callback));
 }
 
 void Widget::setShadowGeometryToLeft(int x, int y, int w, int h) {
@@ -201,9 +193,8 @@ void Widget::handleSeekProgress(float64 progress) {
 	if (_seekPositionMs != positionMs) {
 		_seekPositionMs = positionMs;
 		updateTimeLabel();
-		if (exists()) {
-			instance()->startSeeking();
-		}
+
+		instance()->startSeeking(AudioMsgId::Type::Song);
 	}
 }
 
@@ -213,15 +204,13 @@ void Widget::handleSeekFinished(float64 progress) {
 	auto positionMs = snap(static_cast<TimeMs>(progress * _lastDurationMs), 0LL, _lastDurationMs);
 	_seekPositionMs = -1;
 
-	AudioMsgId playing;
-	auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
-	if (playing && playbackState.duration) {
-		audioPlayer()->seek(qRound(progress * playbackState.duration));
+	auto type = AudioMsgId::Type::Song;
+	auto state = mixer()->currentState(type);
+	if (state.id && state.duration) {
+		mixer()->seek(type, qRound(progress * state.duration));
 	}
 
-	if (exists()) {
-		instance()->stopSeeking();
-	}
+	instance()->stopSeeking(AudioMsgId::Type::Song);
 }
 
 void Widget::resizeEvent(QResizeEvent *e) {
@@ -243,7 +232,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void Widget::leaveEvent(QEvent *e) {
+void Widget::leaveEventHook(QEvent *e) {
 	updateOverLabelsState(false);
 }
 
@@ -260,9 +249,7 @@ void Widget::updateOverLabelsState(QPoint pos) {
 }
 
 void Widget::updateOverLabelsState(bool over) {
-	if (exists()) {
-		instance()->playerWidgetOver().notify(over, true);
-	}
+	instance()->playerWidgetOver().notify(over, true);
 }
 
 void Widget::updatePlayPrevNextPositions() {
@@ -311,52 +298,50 @@ void Widget::updateRepeatTrackIcon() {
 	_repeatTrack->setRippleColorOverride(repeating ? nullptr : &st::mediaPlayerRepeatDisabledRippleBg);
 }
 
-void Widget::handleSongUpdate(const UpdatedEvent &e) {
-	auto &audioId = *e.audioId;
-	auto &playbackState = *e.playbackState;
-	if (!audioId || !audioId.audio()->song()) {
+void Widget::handleSongUpdate(const TrackState &state) {
+	if (!state.id.audio() || !state.id.audio()->song()) {
 		return;
 	}
 
-	if (audioId.audio()->loading()) {
-		_playback->updateLoadingState(audioId.audio()->progress());
+	if (state.id.audio()->loading()) {
+		_playback->updateLoadingState(state.id.audio()->progress());
 	} else {
-		_playback->updateState(*e.playbackState);
+		_playback->updateState(state);
 	}
 
-	auto stopped = ((playbackState.state & AudioPlayerStoppedMask) || playbackState.state == AudioPlayerFinishing);
-	auto showPause = !stopped && (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerStarting);
-	if (exists() && instance()->isSeeking()) {
+	auto stopped = (IsStopped(state.state) || state.state == State::Finishing);
+	auto showPause = !stopped && (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
+	if (instance()->isSeeking(AudioMsgId::Type::Song)) {
 		showPause = true;
 	}
-	auto state = [audio = audioId.audio(), showPause] {
+	auto buttonState = [audio = state.id.audio(), showPause] {
 		if (audio->loading()) {
-			return State::Cancel;
+			return ButtonState::Cancel;
 		} else if (showPause) {
-			return State::Pause;
+			return ButtonState::Pause;
 		}
-		return State::Play;
+		return ButtonState::Play;
 	};
-	_playPause->setState(state());
+	_playPause->setState(buttonState());
 
-	updateTimeText(audioId, playbackState);
+	updateTimeText(state);
 }
 
-void Widget::updateTimeText(const AudioMsgId &audioId, const AudioPlaybackState &playbackState) {
+void Widget::updateTimeText(const TrackState &state) {
 	QString time;
 	qint64 position = 0, duration = 0, display = 0;
-	auto frequency = (playbackState.frequency ? playbackState.frequency : AudioVoiceMsgFrequency);
-	if (!(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
-		display = position = playbackState.position;
-		duration = playbackState.duration;
+	auto frequency = state.frequency;
+	if (!IsStopped(state.state) && state.state != State::Finishing) {
+		display = position = state.position;
+		duration = state.duration;
 	} else {
-		display = playbackState.duration ? playbackState.duration : (audioId.audio()->song()->duration * frequency);
+		display = state.duration ? state.duration : (state.id.audio()->song()->duration * frequency);
 	}
 
-	_lastDurationMs = (playbackState.duration * 1000LL) / frequency;
+	_lastDurationMs = (state.duration * 1000LL) / frequency;
 
-	if (audioId.audio()->loading()) {
-		_time = QString::number(qRound(audioId.audio()->progress() * 100)) + '%';
+	if (state.id.audio()->loading()) {
+		_time = QString::number(qRound(state.id.audio()->progress() * 100)) + '%';
 		_playback->setDisabled(true);
 	} else {
 		display = display / frequency;
@@ -425,16 +410,12 @@ void Widget::createPrevNextButtons() {
 		_previousTrack.create(this, st::mediaPlayerPreviousButton);
 		_previousTrack->show();
 		_previousTrack->setClickedCallback([this]() {
-			if (exists()) {
-				instance()->previous();
-			}
+			instance()->previous();
 		});
 		_nextTrack.create(this, st::mediaPlayerNextButton);
 		_nextTrack->show();
 		_nextTrack->setClickedCallback([this]() {
-			if (exists()) {
-				instance()->next();
-			}
+			instance()->next();
 		});
 		updatePlayPrevNextPositions();
 	}

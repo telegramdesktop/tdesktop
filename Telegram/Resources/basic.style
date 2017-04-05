@@ -24,6 +24,9 @@ TextPalette {
 	linkFg: color;
 	monoFg: color;
 	selectBg: color;
+	selectFg: color;
+	selectLinkFg: color;
+	selectMonoFg: color;
 	selectOverlay: color;
 }
 
@@ -52,6 +55,9 @@ defaultTextPalette: TextPalette {
 	linkFg: windowActiveTextFg;
 	monoFg: windowSubTextFg;
 	selectBg: msgInBgSelected;
+	selectFg: transparent; // use painter current pen instead
+	selectLinkFg: historyLinkInFgSelected;
+	selectMonoFg: msgInMonoFgSelected;
 	selectOverlay: msgSelectOverlay;
 }
 defaultTextStyle: TextStyle {
@@ -125,6 +131,9 @@ serviceTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: msgServiceFg;
 	monoFg: msgServiceFg;
 	selectBg: msgServiceBgSelected;
+	selectFg: msgServiceFg;
+	selectLinkFg: msgServiceFg;
+	selectMonoFg: msgServiceFg;
 	selectOverlay: msgServiceBgSelected;
 }
 serviceTextStyle: TextStyle(defaultTextStyle) {
@@ -133,14 +142,30 @@ serviceTextStyle: TextStyle(defaultTextStyle) {
 	linkFontOver: font(fsize semibold underline);
 }
 inTextPalette: TextPalette(defaultTextPalette) {
+	linkFg: historyLinkInFg;
 	monoFg: msgInMonoFg;
 	selectBg: msgInBgSelected;
+	selectFg: historyTextInFgSelected;
+	selectLinkFg: historyLinkInFgSelected;
+	selectMonoFg: msgInMonoFgSelected;
 	selectOverlay: msgSelectOverlay;
 }
+inTextPaletteSelected: TextPalette(inTextPalette) {
+	linkFg: historyLinkInFgSelected;
+	monoFg: msgInMonoFgSelected;
+}
 outTextPalette: TextPalette(defaultTextPalette) {
+	linkFg: historyLinkOutFg;
 	monoFg: msgOutMonoFg;
 	selectBg: msgOutBgSelected;
+	selectFg: historyTextOutFgSelected;
+	selectLinkFg: historyLinkOutFgSelected;
+	selectMonoFg: msgOutMonoFgSelected;
 	selectOverlay: msgSelectOverlay;
+}
+outTextPaletteSelected: TextPalette(outTextPalette) {
+	linkFg: historyLinkOutFgSelected;
+	monoFg: msgOutMonoFgSelected;
 }
 fwdTextStyle: TextStyle(semiboldTextStyle) {
 	linkFontOver: semiboldFont;
@@ -156,6 +181,16 @@ inFwdTextPaletteSelected: TextPalette(defaultTextPalette) {
 }
 outFwdTextPaletteSelected: TextPalette(defaultTextPalette) {
 	linkFg: msgOutServiceFgSelected;
+}
+inSemiboldPalette: TextPalette(inTextPalette) {
+	linkFg: msgInServiceFg;
+	selectFg: msgInServiceFgSelected;
+	selectLinkFg: msgInServiceFgSelected;
+}
+outSemiboldPalette: TextPalette(outTextPalette) {
+	linkFg: msgOutServiceFg;
+	selectFg: msgOutServiceFgSelected;
+	selectLinkFg: msgOutServiceFgSelected;
 }
 
 mediaPadding: margins(0px, 0px, 0px, 0px);
@@ -268,8 +303,6 @@ toastFadeOutDuration: 1000;
 
 historyReplyCancelIcon: icon {{ "box_button_close", historyReplyCancelFg }};
 historyReplyCancelIconOver: icon {{ "box_button_close", historyReplyCancelFgOver }};
-boxSearchCancelIcon: icon {{ "box_button_close", boxSearchCancelIconFg }};
-boxSearchCancelIconOver: icon {{ "box_button_close", boxSearchCancelIconFgOver }};
 boxTitleCloseIcon: icon {{ "box_button_close", boxTitleCloseFg }};
 boxTitleCloseIconOver: icon {{ "box_button_close", boxTitleCloseFgOver }};
 
@@ -277,3 +310,5 @@ notifyFadeRight: icon {{ "fade_horizontal", notificationBg }};
 
 stickerIconLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanCategories }};
 stickerIconRight: icon {{ "fade_horizontal", emojiPanCategories }};
+
+transparentPlaceholderSize: 4px;

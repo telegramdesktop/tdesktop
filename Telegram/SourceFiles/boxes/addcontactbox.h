@@ -21,7 +21,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "boxes/abstractbox.h"
-#include "ui/filedialog.h"
 
 class ConfirmBox;
 
@@ -32,7 +31,10 @@ class PhoneInput;
 class InputArea;
 class UsernameInput;
 class Checkbox;
-class Radiobutton;
+template <typename Enum>
+class RadioenumGroup;
+template <typename Enum>
+class Radioenum;
 class LinkButton;
 class NewAvatarButton;
 } // namespace Ui
@@ -103,7 +105,7 @@ private slots:
 	}
 
 private:
-	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
+	void setupPhotoButton();
 
 	void creationDone(const MTPUpdates &updates);
 	bool creationFail(const RPCError &e);
@@ -125,8 +127,6 @@ private:
 	mtpRequestId _creationRequestId = 0;
 	ChannelData *_createdChannel = nullptr;
 
-	FileDialog::QueryId _setPhotoFileQueryId = 0;
-
 };
 
 class SetupChannelBox : public BoxContent, public RPCSender {
@@ -146,16 +146,19 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 
 private slots:
 	void onSave();
 	void onChange();
 	void onCheck();
 
-	void onPrivacyChange();
-
 private:
+	enum class Privacy {
+		Public,
+		Private,
+	};
+	void privacyChanged(Privacy value);
 	void updateSelected(const QPoint &cursorGlobalPosition);
 
 	void onUpdateDone(const MTPBool &result);
@@ -172,8 +175,9 @@ private:
 	ChannelData *_channel = nullptr;
 	bool _existing = false;
 
-	object_ptr<Ui::Radiobutton> _public;
-	object_ptr<Ui::Radiobutton> _private;
+	std::shared_ptr<Ui::RadioenumGroup<Privacy>> _privacyGroup;
+	object_ptr<Ui::Radioenum<Privacy>> _public;
+	object_ptr<Ui::Radioenum<Privacy>> _private;
 	int32 _aboutPublicWidth, _aboutPublicHeight;
 	Text _aboutPublic, _aboutPrivate;
 
@@ -278,7 +282,7 @@ private:
 
 class RevokePublicLinkBox : public BoxContent, public RPCSender {
 public:
-	RevokePublicLinkBox(QWidget*, base::lambda<void()> &&revokeCallback);
+	RevokePublicLinkBox(QWidget*, base::lambda<void()> revokeCallback);
 
 protected:
 	void prepare() override;
