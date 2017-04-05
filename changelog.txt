@@ -1,3 +1,8 @@
+1.0.29 (05.04.17)
+
+- Improved Emoji, Stickers, and Saved GIFs panel.
+- Bug fixes and other minor improvements.
+
 1.0.28 alpha (03.04.17)
 
 - Better Emoji & Stickers & Saved GIFs panel.

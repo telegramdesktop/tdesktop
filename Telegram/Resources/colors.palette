@@ -462,6 +462,8 @@ changePhoneSimcardTo: notificationSampleNameFg; // change phone number box right
 mainMenuBg: windowBg; // main menu background
 mainMenuCoverBg: dialogsBgActive; // main menu top cover background
 mainMenuCoverFg: windowFgActive; // main menu top cover text
+mainMenuCloudFg: activeButtonFg;
+mainMenuCloudBg: #2785bf | activeButtonBgRipple;
 
 mediaPlayerBg: windowBg; // audio file player background
 mediaPlayerActiveFg: windowBgActive; // audio file player playback progress already played part

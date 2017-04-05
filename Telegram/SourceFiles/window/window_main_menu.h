@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 namespace Ui {
+class IconButton;
 class FlatLabel;
 class Menu;
 } // namespace Ui
@@ -50,6 +51,7 @@ private:
 	void updateConnectionState();
 
 	object_ptr<Profile::UserpicButton> _userpicButton = { nullptr };
+	object_ptr<Ui::IconButton> _cloudButton = { nullptr };
 	object_ptr<Ui::Menu> _menu;
 	object_ptr<Ui::FlatLabel> _telegram;
 	object_ptr<Ui::FlatLabel> _version;

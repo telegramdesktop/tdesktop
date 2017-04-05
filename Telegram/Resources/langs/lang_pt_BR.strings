@@ -774,12 +774,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_recent_stickers" = "Usados frequentemente";
 "lng_switch_stickers" = "Stickers";
-"lng_switch_stickers_gifs" = "GIFs e Stickers";
 "lng_switch_emoji" = "Emoji";
+"lng_switch_gifs" = "GIFs";
 "lng_stickers_featured_add" = "Adicionar";
+"lng_gifs_search" = "Buscar GIFs";
 
-"lng_saved_gifs" = "GIFs Salvos";
-"lng_inline_bot_results" = "Resultados de {inline_bot}";
 "lng_inline_bot_no_results" = "Nenhum resultado";
 "lng_inline_bot_via" = "via {inline_bot}";
 
@@ -1076,7 +1075,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras melhorias menores";
-"lng_new_version_text" = "— Envie arquivos MP4/MOV como vídeos que serão reproduzidos dentro do Telegram.\n— Clique em uma data na conversa para pular para o dia específico.\n— Altere seu número nas Configurações.\n— Edite quem pode ver suas opções de visto por último e quem pode te adicionar em grupos nas Configurações.\n— Edite a lista de usuários bloqueados nas Configurações.\n— O aplicativo agora respeita ao \"Não Perturbe\" nas notificações do macOS.\n— Resolução de bugs e outras melhorias.";
+"lng_new_version_text" = "— Melhorias no painel de Emoji, Stickers e GIFs Salvos.\n— Resolução de bugs e outras melhorias menores";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 

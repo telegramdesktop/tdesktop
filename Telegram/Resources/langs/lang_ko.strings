@@ -774,12 +774,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_recent_stickers" = "자주 사용";
 "lng_switch_stickers" = "스티커";
-"lng_switch_stickers_gifs" = "GIF & 스티커";
 "lng_switch_emoji" = "이모티콘";
+"lng_switch_gifs" = "GIF";
 "lng_stickers_featured_add" = "추가";
+"lng_gifs_search" = "GIF 검색";
 
-"lng_saved_gifs" = "저장된 GIF";
-"lng_inline_bot_results" = "{inline_bot} 결과";
 "lng_inline_bot_no_results" = "결과 없음";
 "lng_inline_bot_via" = "{inline_bot} 결과";
 
@@ -1076,7 +1075,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 텔레그램내에서 바로 MP4/MOV 파일 재생\n— 특정날자로 이동하여 대화내역 확인\n— 설정에서 전화번호 변경\n— 개인정보 설정화면에서 마지막 접속 및 그룹 초대 허용설정\n— 설정에서 차단된 사용자 리스트 수정\n— OSX 알림설정인 \"Do Not Disturb\" 설정 반영\n— 버그 수정 및 일부 기능 향상";
+"lng_new_version_text" = "— 이모티콘, 스티커 및 GIF 저장 패널 기능 향상\n— 버그 수정 및 일부 기능 향상";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

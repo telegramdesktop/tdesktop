@@ -98,6 +98,16 @@ mainMenuCoverHeight: 140px;
 mainMenuUserpicLeft: 24px;
 mainMenuUserpicTop: 22px;
 mainMenuUserpicSize: 48px;
+mainMenuCloudButton: IconButton {
+	width: 68px;
+	height: 68px;
+
+	icon: icon {
+		{ "menu_cloud", mainMenuCloudFg },
+	};
+	iconPosition: point(24px, 24px);
+}
+mainMenuCloudSize: 32px;
 mainMenuCoverTextLeft: 30px;
 mainMenuCoverNameTop: 88px;
 mainMenuCoverStatusTop: 106px;

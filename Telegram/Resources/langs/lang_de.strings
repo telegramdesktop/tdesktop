@@ -774,12 +774,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_recent_stickers" = "Häufig genutzt";
 "lng_switch_stickers" = "Sticker";
-"lng_switch_stickers_gifs" = "GIFs & Sticker";
 "lng_switch_emoji" = "Emoji";
+"lng_switch_gifs" = "GIFs";
 "lng_stickers_featured_add" = "Hinzufügen";
+"lng_gifs_search" = "Suche GIFs";
 
-"lng_saved_gifs" = "Gespeicherte GIFs";
-"lng_inline_bot_results" = "Ergebnisse von {inline_bot}";
 "lng_inline_bot_no_results" = "Keine Ergebnisse";
 "lng_inline_bot_via" = "via {inline_bot}";
 
@@ -1076,7 +1075,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Sende MP4/MOV Dateien als Videos. Sie werden dann direkt in der App abgespielt.\n— Schnell zu einem bestimmten Datum springen: Tippe auf das Datum im Chat und springe so direkt zu einem anderen Tag.\n— Neue Einstellungen: Telefonnummer ändern, \"zuletzt gesehen\" Status und Gruppeneinladungen in den Telegram-Einstellungen.\n— Die App hält sich an die \"Nicht stören\" Einstellungen bei macOS.\n— Fehlerbehebungen und kleinere Verbesserungen.";
+"lng_new_version_text" = "— Emoji-, Sticker- und GIF-Panel wurden optimiert.\n— Fehlerbehebungen und Softwareoptimierungen";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

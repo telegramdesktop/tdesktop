@@ -679,7 +679,7 @@ void Messenger::checkMapVersion() {
 			QString versionFeatures;
 			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000028) {
 				versionFeatures = QString::fromUtf8("\xE2\x80\x94 Better Emoji & Stickers & Saved GIFs panel.\n\xE2\x80\x94 Bug fixes and other minor improvements.");
-			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000026) {
+			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000029) {
 				versionFeatures = langNewVersionText();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
