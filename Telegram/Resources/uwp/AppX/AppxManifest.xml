@@ -7,7 +7,7 @@
    xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
    IgnorableNamespaces="uap uap2 uap3 rescap">
   <Identity Name="TelegramMessengerLLP.TelegramDesktop"
-    ProcessorArchitecture="x64"
+    ProcessorArchitecture="ARCHITECTURE"
     Publisher="CN=536BC709-8EE1-4478-AF22-F0F0F26FF64A"
     Version="1.0.29.0" />
   <Properties>
@@ -28,7 +28,7 @@
   <Applications>
     <Application Id="Telegram.TelegramDesktop.Store" Executable="Telegram.exe" EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
-       BackgroundColor="transparent"
+       BackgroundColor="#1e94d0"
        DisplayName="Telegram Desktop"
        Square150x150Logo="Assets\logo150\logo150.png"
        Square44x44Logo="Assets\logo44\logo44.png"

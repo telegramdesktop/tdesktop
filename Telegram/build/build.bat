@@ -3,14 +3,6 @@ setlocal enabledelayedexpansion
 set "FullScriptPath=%~dp0"
 set "FullExecPath=%cd%"
 
-set "BuildPlatform=%1"
-
-if "%BuildPlatform%" neq "uwp" (
-  set "BuildUWP=0"
-) else (
-  set "BuildUWP=1"
-)
-
 if not exist "%FullScriptPath%..\..\..\TelegramPrivate" (
   echo.
   echo This script is for building the production version of Telegram Desktop.
@@ -18,6 +10,14 @@ if not exist "%FullScriptPath%..\..\..\TelegramPrivate" (
   echo For building custom versions please visit the build instructions page at:
   echo https://github.com/telegramdesktop/tdesktop/#build-instructions
   exit /b
+)
+
+FOR /F "tokens=1* delims= " %%i in (%FullScriptPath%target) do set "BuildTarget=%%i"
+
+if "%BuildTarget%" equ "uwp" (
+  set "BuildUWP=1"
+) else (
+  set "BuildUWP=0"
 )
 
 FOR /F "tokens=1,2* delims= " %%i in (%FullScriptPath%version) do set "%%i=%%j"
@@ -71,57 +71,40 @@ if not exist %FinalReleasePath% (
 )
 
 if %BuildUWP% neq 0 (
-  if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%\AppX\ (
-    echo UWP deploy folder for version %AppVersionStr% already exists!
-    exit /b 1
-  )
   if exist %ReleasePath%\AppX\ (
     echo Result folder out\Release\AppX already exists!
     exit /b 1
   )
-  if "%AlphaBetaParam%" equ "" (
-    if not exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%\ (
-      echo Deploy folder for version %AppVersionStr% does not exist!
-      exit /b 1
-    )
+)
+if %BetaVersion% neq 0 (
+  if exist %DeployPath%\ (
+    echo Deploy folder for version %AppVersionStr% already exists!
+    exit /b 1
+  )
+  if exist %ReleasePath%\%BetaKeyFile% (
+    echo Beta version key file for version %AppVersion% already exists!
+    exit /b 1
   )
 ) else (
-  if %BetaVersion% neq 0 (
-    if exist %DeployPath%\ (
-      echo Deploy folder for version %AppVersionStr% already exists!
-      exit /b 1
-    )
-    if exist %ReleasePath%\%BetaKeyFile% (
-      echo Beta version key file for version %AppVersion% already exists!
-      exit /b 1
-    )
-  ) else (
-    if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%.alpha\ (
-      echo Deploy folder for version %AppVersionStr%.alpha already exists!
-      exit /b 1
-    )
-    if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%.dev\ (
-      echo Deploy folder for version %AppVersionStr%.dev already exists!
-      exit /b 1
-    )
-    if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%\ (
-      echo Deploy folder for version %AppVersionStr% already exists!
-      exit /b 1
-    )
-    if exist %ReleasePath%\tupdate%AppVersion% (
-      echo Update file for version %AppVersion% already exists!
-      exit /b 1
-    )
+  if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%.alpha\ (
+    echo Deploy folder for version %AppVersionStr%.alpha already exists!
+    exit /b 1
+  )
+  if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%.dev\ (
+    echo Deploy folder for version %AppVersionStr%.dev already exists!
+    exit /b 1
+  )
+  if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%\ (
+    echo Deploy folder for version %AppVersionStr% already exists!
+    exit /b 1
+  )
+  if exist %ReleasePath%\tupdate%AppVersion% (
+    echo Update file for version %AppVersion% already exists!
+    exit /b 1
   )
 )
 
 cd "%HomePath%"
-
-if %BuildUWP% neq 0 (
-  echo uwp > build\target
-) else (
-  echo win > build\target
-)
 
 call gyp\refresh.bat
 if %errorlevel% neq 0 goto error
@@ -196,27 +179,47 @@ echo Done!
 if %BuildUWP% neq 0 (
   cd "%HomePath%"
 
-  mkdir "%ReleasePath%\AppX"
-  xcopy /e "Resources\uwp\AppX\*" "%ReleasePath%\AppX\"
+  mkdir "%ReleasePath%\AppX_x86"
+  xcopy "Resources\uwp\AppX\*" "%ReleasePath%\AppX_x86\" /E
+  set "ResourcePath=%ReleasePath%\AppX_x86\AppxManifest.xml"
+  call :repl "Argument= (ProcessorArchitecture=)&quot;ARCHITECTURE&quot;/ $1&quot;x86&quot;" "Filename=!ResourcePath!" || goto error
 
-  makepri new /pr Resources\uwp\AppX\ /cf Resources\uwp\priconfig.xml /mn %ReleasePath%\AppX\AppxManifest.xml /of %ReleasePath%\AppX\resources.pri
+  makepri new /pr Resources\uwp\AppX\ /cf Resources\uwp\priconfig.xml /mn %ReleasePath%\AppX_x86\AppxManifest.xml /of %ReleasePath%\AppX_x86\resources.pri
   if %errorlevel% neq 0 goto error
 
-  move "%ReleasePath%\%BinaryName%.exe" "%ReleasePath%\AppX\"
+  xcopy "%ReleasePath%\%BinaryName%.exe" "%ReleasePath%\AppX_x86\"
 
-  MakeAppx.exe pack /d "%ReleasePath%\AppX" /l /p ..\out\Release\%BinaryName%.appx
+  MakeAppx.exe pack /d "%ReleasePath%\AppX_x86" /l /p ..\out\Release\%BinaryName%.x86.appx
   if %errorlevel% neq 0 goto error
 
-  rem call "%SignAppxPath%" "..\out\Release\%BinaryName%.appx"
+  mkdir "%ReleasePath%\AppX_x64"
+  xcopy "Resources\uwp\AppX\*" "%ReleasePath%\AppX_x64\" /E
+  set "ResourcePath=%ReleasePath%\AppX_x64\AppxManifest.xml"
+  call :repl "Argument= (ProcessorArchitecture=)&quot;ARCHITECTURE&quot;/ $1&quot;x64&quot;" "Filename=!ResourcePath!" || goto error
 
-  xcopy "%ReleasePath%\%BinaryName%.pdb" "%ReleasePath%\AppX\"
-  move "%ReleasePath%\%BinaryName%.exe.pdb" "%ReleasePath%\AppX\"
-  move "%ReleasePath%\%BinaryName%.appx" "%ReleasePath%\AppX\"
+  makepri new /pr Resources\uwp\AppX\ /cf Resources\uwp\priconfig.xml /mn %ReleasePath%\AppX_x64\AppxManifest.xml /of %ReleasePath%\AppX_x64\resources.pri
+  if %errorlevel% neq 0 goto error
+
+  xcopy "%ReleasePath%\%BinaryName%.exe" "%ReleasePath%\AppX_x64\"
+
+  MakeAppx.exe pack /d "%ReleasePath%\AppX_x64" /l /p ..\out\Release\%BinaryName%.x64.appx
+  if %errorlevel% neq 0 goto error
+
+  if not exist "%ReleasePath%\deploy" mkdir "%ReleasePath%\deploy"
+  if not exist "%ReleasePath%\deploy\%AppVersionStrMajor%" mkdir "%ReleasePath%\deploy\%AppVersionStrMajor%"
+  mkdir "%DeployPath%"
+
+  xcopy "%ReleasePath%\%BinaryName%.pdb" "%DeployPath%\"
+  move "%ReleasePath%\%BinaryName%.exe.pdb" "%DeployPath%\"
+  move "%ReleasePath%\%BinaryName%.x86.appx" "%DeployPath%\"
+  move "%ReleasePath%\%BinaryName%.x64.appx" "%DeployPath%\"
+  move "%ReleasePath%\%BinaryName%.exe" "%DeployPath%\"
 
   if "%AlphaBetaParam%" equ "" (
-    move "%ReleasePath%\AppX" "%DeployPath%\"
+    move "%ReleasePath%\AppX_x86" "%DeployPath%\AppX_x86"
+    move "%ReleasePath%\AppX_x64" "%DeployPath%\AppX_x64"
   ) else (
-    echo Leaving result in out\Release\AppX for now..
+    echo Leaving result in out\Release\AppX_arch for now..
   )
 ) else (
   if not exist "%ReleasePath%\deploy" mkdir "%ReleasePath%\deploy"
@@ -264,10 +267,10 @@ if %BuildUWP% equ 0 (
   if not exist "%FinalReleasePath%\%AppVersionStrMajor%" mkdir "%FinalReleasePath%\%AppVersionStrMajor%"
   if not exist "%FinalDeployPath%" mkdir "%FinalDeployPath%"
 
-  xcopy "%DeployPath%\%UpdateFile%" "%FinalDeployPath%\"
-  xcopy "%DeployPath%\%PortableFile%" "%FinalDeployPath%\"
+  xcopy "%DeployPath%\%UpdateFile%" "%FinalDeployPath%\" /Y
+  xcopy "%DeployPath%\%PortableFile%" "%FinalDeployPath%\" /Y
   if %BetaVersion% equ 0 (
-    xcopy "%DeployPath%\%SetupFile%" "%FinalDeployPath%\"
+    xcopy "%DeployPath%\%SetupFile%" "%FinalDeployPath%\" /Y
   ) else (
     xcopy "%DeployPath%\%BetaKeyFile%" "%FinalDeployPath%\" /Y
   )
@@ -288,5 +291,27 @@ exit /b
     set ErrorCode=666
   )
   cd "%FullExecPath%"
+  exit /b !ErrorCode!
+)
+
+:repl
+(
+  set %1
+  set %2
+  set "TempFilename=!Filename!__tmp__"
+  cscript //Nologo "%FullScriptPath%replace.vbs" "Replace" "!Argument!" < "!Filename!" > "!TempFilename!" || goto :repl_finish
+  xcopy /Y !TempFilename! !Filename! >NUL || goto :repl_finish
+  goto :repl_finish
+)
+
+:repl_finish
+(
+  set ErrorCode=%errorlevel%
+  if !ErrorCode! neq 0 (
+    echo Replace error !ErrorCode!
+    echo While replacing "%Replace%"
+    echo In file "%Filename%"
+  )
+  del %TempFilename%
   exit /b !ErrorCode!
 )
