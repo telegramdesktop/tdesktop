@@ -88,6 +88,9 @@ GifsListWidget::Footer::Footer(gsl::not_null<GifsListWidget*> parent) : InnerFoo
 		_pan->searchForGifs(_field->getLastText());
 	});
 	_cancel->moveToRight(st::gifsSearchCancelPosition.x(), st::gifsSearchCancelPosition.y());
+	_cancel->setClickedCallback([this] {
+		_field->setText(QString());
+	});
 }
 
 void GifsListWidget::Footer::stealFocus() {
