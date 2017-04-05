@@ -696,8 +696,8 @@ void Messenger::prepareToDestroy() {
 	_window.reset();
 
 	// Some MTP requests can be cancelled from data clearing.
-	_delayedDestroyedLoaders.clear();
 	App::clearHistories();
+	_delayedDestroyedLoaders.clear();
 	authSessionDestroy();
 
 	_mtproto.reset();
