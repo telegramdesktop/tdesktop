@@ -1,41 +1,41 @@
-## Build instructions for GYP/CMake under Ubuntu 12.04
+##Build instructions for GYP/CMake under Ubuntu 16.04
 
-### Prepare
+###Prepare
 
-* Install git by command **sudo apt-get install git** in Terminal
-* Install g++ by command **sudo apt-get install g++** in Terminal
+* Install git by command **sudo apt install git** in Terminal
+* Install g++ by command **sudo apt install g++** in Terminal
 
-You need to install g++ version 6 manually by such commands
+You need to install g++ version 4.9 manually by such commands
 
 * sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-* sudo apt-get update
-* sudo apt-get install gcc-6 g++-6
-* sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 60
-* sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 60
+* sudo apt update
+* sudo apt install gcc-4.9 g++-4.9
+* sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.9 21
+* sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.9 21
 
-### Prepare folder
+###Prepare folder
 
 Choose a folder for the future build, for example **/home/user/TBuild** There you will have two folders, **Libraries** for third-party libs and **tdesktop** (or **tdesktop-master**) for the app.
 
-### Clone source code
+###Clone source code
 
 By git – in Terminal go to **/home/user/TBuild** and run
 
-    git clone --recursive https://github.com/telegramdesktop/tdesktop.git
+    git clone https://github.com/telegramdesktop/tdesktop.git
 
-### Prepare libraries
+###Prepare libraries
 
 Install dev libraries
 
-    sudo apt-get install libexif-dev liblzma-dev libz-dev libssl-dev libappindicator-dev libunity-dev libicu-dev libdee-dev
+    sudo apt install libexif-dev liblzma-dev libz-dev libssl-dev libappindicator-dev libunity-dev libicu-dev libdrm-dev libtool
 
-#### zlib 1.2.8
+####zlib 1.2.8
 
-http://www.zlib.net/ > Download [**zlib source code, version 1.2.8, tarball format**](http://zlib.net/fossils/zlib-1.2.8.tar.gz)
+http://www.zlib.net/ > Download [**zlib source code, version 1.2.8, zipfile format**](https://sourceforge.net/projects/libpng/files/zlib/1.2.11/zlib-1.2.11.tar.gz/download?use_mirror=freefr&download=)
 
 Extract to **/home/user/TBuild/Libraries**
 
-##### Building library
+#####Building library
 
 In Terminal go to **/home/user/TBuild/Libraries/zlib-1.2.8** and run:
 
@@ -45,7 +45,7 @@ In Terminal go to **/home/user/TBuild/Libraries/zlib-1.2.8** and run:
 
 Install audio libraries
 
-#### Opus codec 1.1
+####Opus codec 1.1
 
 Download [opus-1.1 sources](http://downloads.xiph.org/releases/opus/opus-1.1.tar.gz) from http://www.opus-codec.org/downloads, extract to **/home/user/TBuild/Libraries**, go to **/home/user/TBuild/Libraries/opus-1.1** and run
 
@@ -53,7 +53,7 @@ Download [opus-1.1 sources](http://downloads.xiph.org/releases/opus/opus-1.1.tar
     make
     sudo make install
 
-#### FFmpeg
+####FFmpeg
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
 
@@ -75,16 +75,16 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
     cd ffmpeg
     git checkout release/3.2
 
-    sudo apt-get update
-    sudo apt-get -y --force-yes install autoconf automake build-essential libass-dev libfreetype6-dev libgpac-dev libsdl1.2-dev libtheora-dev libtool libva-dev libvdpau-dev libvorbis-dev libxcb1-dev libxcb-shm0-dev libxcb-xfixes0-dev pkg-config texi2html zlib1g-dev
-    sudo apt-get install yasm
+    sudo apt update
+    sudo apt -y --force-yes install autoconf automake build-essential libass-dev libfreetype6-dev libgpac-dev libsdl1.2-dev libtheora-dev libtool libva-dev libvdpau-dev libvorbis-dev libxcb1-dev libxcb-shm0-dev libxcb-xfixes0-dev pkg-config texi2html zlib1g-dev
+    sudo apt install yasm
 
     ./configure --prefix=/usr/local --disable-programs --disable-doc --disable-everything --enable-protocol=file --enable-libopus --enable-decoder=aac --enable-decoder=aac_latm --enable-decoder=aasc --enable-decoder=flac --enable-decoder=gif --enable-decoder=h264 --enable-decoder=h264_vdpau --enable-decoder=mp1 --enable-decoder=mp1float --enable-decoder=mp2 --enable-decoder=mp2float --enable-decoder=mp3 --enable-decoder=mp3adu --enable-decoder=mp3adufloat --enable-decoder=mp3float --enable-decoder=mp3on4 --enable-decoder=mp3on4float --enable-decoder=mpeg4 --enable-decoder=mpeg4_vdpau --enable-decoder=msmpeg4v2 --enable-decoder=msmpeg4v3 --enable-decoder=opus --enable-decoder=vorbis --enable-decoder=wavpack --enable-decoder=wmalossless --enable-decoder=wmapro --enable-decoder=wmav1 --enable-decoder=wmav2 --enable-decoder=wmavoice --enable-encoder=libopus --enable-hwaccel=h264_vaapi --enable-hwaccel=h264_vdpau --enable-hwaccel=mpeg4_vaapi --enable-hwaccel=mpeg4_vdpau --enable-parser=aac --enable-parser=aac_latm --enable-parser=flac --enable-parser=h264 --enable-parser=mpeg4video --enable-parser=mpegaudio --enable-parser=opus --enable-parser=vorbis --enable-demuxer=aac --enable-demuxer=flac --enable-demuxer=gif --enable-demuxer=h264 --enable-demuxer=mov --enable-demuxer=mp3 --enable-demuxer=ogg --enable-demuxer=wav --enable-muxer=ogg --enable-muxer=opus
 
     make
     sudo make install
 
-#### PortAudio 19
+####PortAudio 19
 
 [Download portaudio sources](http://www.portaudio.com/archives/pa_stable_v19_20140130.tgz) from **http://www.portaudio.com/download.html**, extract to **/home/user/TBuild/Libraries**, go to **/home/user/TBuild/Libraries/portaudio** and run
 
@@ -92,7 +92,7 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
     make
     sudo make install
 
-#### OpenAL Soft
+####OpenAL Soft
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
 
@@ -100,34 +100,34 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
 
 then go to **/home/user/TBuild/Libraries/openal-soft/build** and run
 
-    sudo apt-get install cmake
+    sudo apt install cmake
     cmake -D LIBTYPE:STRING=STATIC ..
     make
     sudo make install
 
-#### OpenSSL
+####OpenSSL
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
 
     git clone https://github.com/openssl/openssl
     cd openssl
-    git checkout OpenSSL_1_0_1-stable
+    git checkout OpenSSL_1_0_2-stable
     ./config
     make
     sudo make install
 
-#### libxkbcommon (required for Fcitx Qt plugin)
+####libxkbcommon (required for Fcitx Qt plugin)
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
 
-    sudo apt-get install xutils-dev bison python-xcbgen
+    sudo apt install xutils-dev bison python-xcbgen
     git clone https://github.com/xkbcommon/libxkbcommon.git
     cd libxkbcommon
     ./autogen.sh --disable-x11
     make
     sudo make install
 
-#### Qt 5.6.2, slightly patched
+####Qt 5.6.2, slightly patched
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
 
@@ -139,15 +139,15 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
     cd qtimageformats && git checkout v5.6.2 && cd ..
     cd qtbase && git checkout v5.6.2 && cd ..
 
-##### Apply the patch
+#####Apply the patch
 
     cd qtbase && git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_2.diff && cd ..
 
-##### Building library
+#####Building library
 
 Install some packages for Qt (see **/home/user/TBuild/Libraries/qt5_6_2/qtbase/src/plugins/platforms/xcb/README**)
 
-    sudo apt-get install libxcb1-dev libxcb-image0-dev libxcb-keysyms1-dev libxcb-icccm4-dev libxcb-render-util0-dev libxcb-util0-dev libxrender-dev libasound-dev libpulse-dev libxcb-sync0-dev libxcb-xfixes0-dev libxcb-randr0-dev libx11-xcb-dev libffi-dev
+    sudo apt install libxcb1-dev libxcb-image0-dev libxcb-keysyms1-dev libxcb-icccm4-dev libxcb-render-util0-dev libxcb-util0-dev libxrender-dev libasound-dev libpulse-dev libxcb-sync0-dev libxcb-xfixes0-dev libxcb-randr0-dev libx11-xcb-dev libffi-dev
 
 In Terminal go to **/home/user/TBuild/Libraries/qt5_6_2** and there run
 
@@ -157,7 +157,7 @@ In Terminal go to **/home/user/TBuild/Libraries/qt5_6_2** and there run
 
 building (**make** command) will take really long time.
 
-#### Google Breakpad
+####Google Breakpad
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
 
@@ -168,7 +168,7 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
     make
     make install
 
-#### GYP and CMake
+####GYP and CMake
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
 
@@ -181,11 +181,25 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
     ./configure
     make
 
-### Building Telegram Desktop
+###Building Telegram Desktop
 
 In Terminal go to **/home/user/TBuild/tdesktop/Telegram** and run
 
     gyp/refresh.sh
+
+Before compiling tdesktop check if you have in the folder /usr/lib/ the following libraries:
+
+- libicutu.a
+- libicui18n.a
+- libicuuc.a
+- libicudata.a
+
+If you haven't this on /usr/lib/ check if they are in /usr/lib/x86_64-linux-gnu/ (change x86_64_linux_gnu into i386_linux_gnu if your computer is 32 bit), depending if so do this symbolic link:
+
+    sudo ln -s /usr/lib/x86_64-linux-gnu/libicutu.a /usr/lib/libicutu.a
+    sudo ln -s /usr/lib/x86_64-linux-gnu/libicui18n.a /usr/lib/libicui18n.a
+    sudo ln -s /usr/lib/x86_64-linux-gnu/libicuuc.a /usr/lib/libicuuc.a
+    sudo ln -s /usr/lib/x86_64-linux-gnu/libicudata.a /usr/lib/libicudata.a
 
 To make Debug version go to **/home/user/TBuild/tdesktop/out/Debug** and run
 

@@ -40,6 +40,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 * [Visual Studio 2015][msvc]
 * [Xcode 8][xcode]
 * [GYP/CMake on GNU/Linux][cmake]
+* [GYP/CMake on Ubuntu 14.04+][ubuntu14]
 
 [//]: # (LINKS)
 [telegram]: https://telegram.org
@@ -51,3 +52,4 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 [xcode]: doc/building-xcode.md
 [xcode_old]: doc/building-xcode-old.md
 [cmake]: doc/building-cmake.md
+[ubuntu14]: doc/building-cmake_Ubuntu14.04+.md
