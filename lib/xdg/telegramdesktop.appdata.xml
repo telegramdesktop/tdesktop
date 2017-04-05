@@ -8,6 +8,10 @@
     <description>
        <p>Fast and secure desktop app, perfectly synced with your mobile phone.</p>
     </description>
+    <categories>
+        <category>Network</category>
+        <category>InstantMessaging</category>
+    </categories>
     <url type="homepage">https://desktop.telegram.org/</url>
     <url type="bugtracker">https://github.com/telegramdesktop/tdesktop/issues</url>
     <screenshots>
