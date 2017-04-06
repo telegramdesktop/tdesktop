@@ -184,7 +184,6 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
 
     git clone git://code.qt.io/qt/qt5.git qt5_3_2
     cd qt5_3_2
-    git checkout 5.3
     perl init-repository --module-subset=qtbase,qtimageformats
     git checkout v5.3.2
     cd qtimageformats && git checkout v5.3.2 && cd ..

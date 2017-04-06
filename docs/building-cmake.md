@@ -133,7 +133,6 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
 
     git clone git://code.qt.io/qt/qt5.git qt5_6_2
     cd qt5_6_2
-    git checkout 5.6
     perl init-repository --module-subset=qtbase,qtimageformats
     git checkout v5.6.2
     cd qtimageformats && git checkout v5.6.2 && cd ..

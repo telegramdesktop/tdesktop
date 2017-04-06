@@ -38,7 +38,6 @@ Preparation
       rm -rf "$qt_dir"
       git clone git://code.qt.io/qt/qt5.git
       cd "$qt_dir"
-      git checkout 5.6
       perl init-repository --module-subset=qtbase,qtimageformats
       git checkout v$_qtver
       cd qtimageformats
