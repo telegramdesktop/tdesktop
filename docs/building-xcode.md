@@ -221,14 +221,22 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
 
 In Terminal go to **/Users/user/TBuild/Libraries** and run:
 
-    export PATH=/Users/user/TBuild/Libraries/depot_tools:$PATH:/Users/user/TBuild/Libraries/gyp
-    mkdir crashpad
+    git clone https://chromium.googlesource.com/crashpad/crashpad.git
     cd crashpad
-    fetch crashpad
-    cd crashpad/third_party/mini_chromium/mini_chromium
-    git apply ../../../../../../tdesktop/Telegram/Patches/mini_chromium.diff
+    git checkout feb3aa3923
+    cd third_party/mini_chromium
+    git clone https://chromium.googlesource.com/chromium/mini_chromium
+    cd mini_chromium
+    git checkout 7c5b0c1ab4
+    git apply ../../../../../tdesktop/Telegram/Patches/mini_chromium.diff
+    cd ../../gtest
+    git clone https://chromium.googlesource.com/external/github.com/google/googletest gtest
+    cd gtest
+    git checkout d62d6c6556
     cd ../../../
+
     build/gyp_crashpad.py -Dmac_deployment_target=10.8
+    ninja -C out/Debug
     ninja -C out/Release
 
 #### Prepare GYP

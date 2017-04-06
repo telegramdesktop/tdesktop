@@ -233,6 +233,7 @@ In Terminal go to **/Users/user/TBuild/Libraries/macold** and run:
     git clone https://chromium.googlesource.com/external/github.com/google/googletest gtest
     cd gtest
     git checkout d62d6c6556
+    cd ../../../
 
     build/gyp_crashpad.py -Dmac_deployment_target=10.6
     ninja -C out/Debug

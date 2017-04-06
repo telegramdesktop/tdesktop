@@ -123,7 +123,7 @@
       'postbuild_name': 'Copy crashpad_handler to Helpers',
       'action': [
         'cp',
-        '<(libs_loc)/crashpad_oldmac/crashpad/out/${CONFIGURATION}/crashpad_handler',
+        '<(libs_loc)/macold/crashpad/out/${CONFIGURATION}/crashpad_handler',
         '${BUILT_PRODUCTS_DIR}/Telegram.app/Contents/Helpers/',
       ],
     }],
@@ -141,8 +141,8 @@
       ],
     },
     'include_dirs': [
-      '<(libs_loc)/crashpad/crashpad',
-      '<(libs_loc)/crashpad/crashpad/third_party/mini_chromium/mini_chromium',
+      '<(libs_loc)/crashpad',
+      '<(libs_loc)/crashpad/third_party/mini_chromium/mini_chromium',
       '<(libs_loc)/openssl-xcode/include'
     ],
     'library_dirs': [
@@ -151,12 +151,12 @@
     'configurations': {
       'Debug': {
         'library_dirs': [
-          '<(libs_loc)/crashpad/crashpad/out/Debug',
+          '<(libs_loc)/crashpad/out/Debug',
         ],
       },
       'Release': {
         'library_dirs': [
-          '<(libs_loc)/crashpad/crashpad/out/Release',
+          '<(libs_loc)/crashpad/out/Release',
         ],
       },
     },
@@ -190,7 +190,7 @@
       'postbuild_name': 'Copy crashpad_client to Helpers',
       'action': [
         'cp',
-        '<(libs_loc)/crashpad/crashpad/out/${CONFIGURATION}/crashpad_handler',
+        '<(libs_loc)/crashpad/out/${CONFIGURATION}/crashpad_handler',
         '${BUILT_PRODUCTS_DIR}/Telegram.app/Contents/Helpers/',
       ],
     }],
