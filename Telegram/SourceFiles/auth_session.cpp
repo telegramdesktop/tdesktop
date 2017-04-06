@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "auth_session.h"
 
+#include "apiwrap.h"
 #include "messenger.h"
 #include "storage/file_download.h"
 #include "window/notifications_manager.h"
@@ -75,6 +76,7 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 
 AuthSession::AuthSession(UserId userId)
 : _userId(userId)
+, _api(std::make_unique<ApiWrap>())
 , _downloader(std::make_unique<Storage::Downloader>())
 , _notifications(std::make_unique<Window::Notifications::System>(this)) {
 	Expects(_userId != 0);

@@ -191,7 +191,7 @@ namespace App {
 	}
 
 	ApiWrap *api() {
-		return main() ? main()->api() : 0;
+		return AuthSession::Exists() ? &AuthSession::Current().api() : nullptr;
 	}
 
 namespace {

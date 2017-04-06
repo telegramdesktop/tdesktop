@@ -249,7 +249,7 @@ void PhoneWidget::activate() {
 void PhoneWidget::finished() {
 	Step::finished();
 	_checkRequest->stop();
-	rpcClear();
+	rpcInvalidate();
 
 	cancelled();
 }

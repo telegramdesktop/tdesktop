@@ -925,9 +925,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 
 		DEBUG_LOG(("MTP Info: user found, dc %1, uid %2").arg(dcId).arg(userId));
 		Messenger::Instance().setMtpMainDcId(dcId);
-		if (userId) {
-			Messenger::Instance().authSessionCreate(UserId(userId));
-		}
+		Messenger::Instance().setAuthSessionUserId(userId);
 	} break;
 
 	case dbiKey: {
@@ -1709,7 +1707,7 @@ void _writeUserSettings() {
 			recentEmojiPreloadData.push_back(qMakePair(item.first->id(), item.second));
 		}
 	}
-	auto userDataInstance = AuthSessionDataCache ? AuthSessionDataCache.get() : AuthSession::Exists() ? &AuthSession::Current().data() : nullptr;
+	auto userDataInstance = AuthSessionDataCache ? AuthSessionDataCache.get() : Messenger::Instance().getAuthSessionData();
 	auto userData = userDataInstance ? userDataInstance->serialize() : QByteArray();
 
 	uint32 size = 21 * (sizeof(quint32) + sizeof(qint32));
@@ -2065,12 +2063,7 @@ ReadMapState _readMap(const QByteArray &pass) {
 	_readUserSettings();
 	_readMtpData();
 
-	if (AuthSessionDataCache) {
-		if (AuthSession::Exists()) {
-			AuthSession::Current().data().copyFrom(*AuthSessionDataCache);
-		}
-		AuthSessionDataCache.reset();
-	}
+	Messenger::Instance().setAuthSessionData(std::move(AuthSessionDataCache));
 
 	LOG(("Map read time: %1").arg(getms() - ms));
 	if (_oldSettingsVersion < AppVersion) {

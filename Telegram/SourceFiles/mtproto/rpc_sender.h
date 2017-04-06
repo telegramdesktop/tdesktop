@@ -837,14 +837,12 @@ public:
 
 protected:
 	void rpcInvalidate() {
-		for (DoneHandlers::iterator i = _rpcDoneHandlers.begin(), e = _rpcDoneHandlers.end(); i != e; ++i) {
-			(*i)->invalidate();
+		for (auto handler : base::take(_rpcDoneHandlers)) {
+			handler->invalidate();
 		}
-		_rpcDoneHandlers.clear();
-		for (FailHandlers::iterator i = _rpcFailHandlers.begin(), e = _rpcFailHandlers.end(); i != e; ++i) {
-			(*i)->invalidate();
+		for (auto handler : base::take(_rpcFailHandlers)) {
+			handler->invalidate();
 		}
-		_rpcFailHandlers.clear();
 	}
 
 };

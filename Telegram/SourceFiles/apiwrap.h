@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "core/single_timer.h"
+#include "mtproto/sender.h"
 
 namespace Api {
 
@@ -34,10 +35,9 @@ inline const MTPVector<MTPChat> *getChatsFromMessagesChats(const MTPmessages_Cha
 
 } // namespace Api
 
-class ApiWrap : public QObject, public RPCSender {
+class ApiWrap : public QObject, private MTP::Sender {
 public:
-	ApiWrap(QObject *parent);
-	void init();
+	ApiWrap();
 
 	using RequestMessageDataCallback = base::lambda<void(ChannelData*, MsgId)>;
 	void requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback callback);
@@ -45,12 +45,12 @@ public:
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);
 	void requestPeers(const QList<PeerData*> &peers);
-	void requestLastParticipants(ChannelData *peer, bool fromStart = true);
-	void requestBots(ChannelData *peer);
+	void requestLastParticipants(ChannelData *channel, bool fromStart = true);
+	void requestBots(ChannelData *channel);
 	void requestParticipantsCountDelayed(ChannelData *channel);
 
 	void processFullPeer(PeerData *peer, const MTPmessages_ChatFull &result);
-	void processFullPeer(PeerData *peer, const MTPUserFull &result);
+	void processFullPeer(UserData *user, const MTPUserFull &result);
 
 	void requestSelfParticipant(ChannelData *channel);
 	void kickParticipant(PeerData *peer, UserData *user);
@@ -87,105 +87,72 @@ public:
 	~ApiWrap();
 
 private:
+	struct MessageDataRequest {
+		using Callbacks = QList<RequestMessageDataCallback>;
+		mtpRequestId requestId = 0;
+		Callbacks callbacks;
+	};
+	using MessageDataRequests = QMap<MsgId, MessageDataRequest>;
+
 	void updatesReceived(const MTPUpdates &updates);
 
 	void resolveMessageDatas();
-	void gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
-	struct MessageDataRequest {
-		using Callbacks = QList<RequestMessageDataCallback>;
-		mtpRequestId req = 0;
-		Callbacks callbacks;
-	};
-	typedef QMap<MsgId, MessageDataRequest> MessageDataRequests;
-	MessageDataRequests _messageDataRequests;
-	typedef QMap<ChannelData*, MessageDataRequests> ChannelMessageDataRequests;
-	ChannelMessageDataRequests _channelMessageDataRequests;
-	SingleQueuedInvokation _messageDataResolveDelayed;
-	typedef QVector<MTPint> MessageIds;
-	MessageIds collectMessageIds(const MessageDataRequests &requests);
+	void gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId requestId);
+
+	QVector<MTPint> collectMessageIds(const MessageDataRequests &requests);
 	MessageDataRequests *messageDataRequests(ChannelData *channel, bool onlyExisting = false);
 
 	void gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mtpRequestId req);
-	void gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestId req);
-	bool gotPeerFullFailed(PeerData *peer, const RPCError &err);
-	typedef QMap<PeerData*, mtpRequestId> PeerRequests;
-	PeerRequests _fullPeerRequests;
+	void gotUserFull(UserData *user, const MTPUserFull &result, mtpRequestId req);
+	void lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelParticipants &result, mtpRequestId req);
+	void resolveWebPages();
+	void gotWebPages(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
+	void gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result);
 
-	void gotChat(PeerData *peer, const MTPmessages_Chats &result);
-	void gotUser(PeerData *peer, const MTPVector<MTPUser> &result);
-	void gotChats(const MTPmessages_Chats &result);
-	void gotUsers(const MTPVector<MTPUser> &result);
-	bool gotPeerFailed(PeerData *peer, const RPCError &err);
+	PeerData *notifySettingReceived(MTPInputNotifyPeer peer, const MTPPeerNotifySettings &settings);
+
+	void stickerSetDisenabled(mtpRequestId requestId);
+	void stickersSaveOrder();
+
+	MessageDataRequests _messageDataRequests;
+	QMap<ChannelData*, MessageDataRequests> _channelMessageDataRequests;
+	SingleQueuedInvokation _messageDataResolveDelayed;
+
+	using PeerRequests = QMap<PeerData*, mtpRequestId>;
+	PeerRequests _fullPeerRequests;
 	PeerRequests _peerRequests;
 
-	void lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelParticipants &result, mtpRequestId req);
-	bool lastParticipantsFail(ChannelData *peer, const RPCError &error, mtpRequestId req);
-	PeerRequests _participantsRequests, _botsRequests;
+	PeerRequests _participantsRequests;
+	PeerRequests _botsRequests;
 
 	typedef QPair<PeerData*, UserData*> KickRequest;
 	typedef QMap<KickRequest, mtpRequestId> KickRequests;
-	void kickParticipantDone(KickRequest kick, const MTPUpdates &updates, mtpRequestId req);
-	bool kickParticipantFail(KickRequest kick, const RPCError &error, mtpRequestId req);
 	KickRequests _kickRequests;
 
-	void gotSelfParticipant(ChannelData *channel, const MTPchannels_ChannelParticipant &result);
-	bool gotSelfParticipantFail(ChannelData *channel, const RPCError &error);
-	typedef QMap<ChannelData*, mtpRequestId> SelfParticipantRequests;
-	SelfParticipantRequests _selfParticipantRequests;
+	QMap<ChannelData*, mtpRequestId> _selfParticipantRequests;
 
-	void resolveWebPages();
-	void gotWebPages(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
-	typedef QMap<WebPageData*, mtpRequestId> WebPagesPending;
-	WebPagesPending _webPagesPending;
+	QMap<WebPageData*, mtpRequestId> _webPagesPending;
 	SingleTimer _webPagesTimer;
 
 	QMap<uint64, QPair<uint64, mtpRequestId> > _stickerSetRequests;
-	void gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result);
-	bool gotStickerSetFail(uint64 setId, const RPCError &error);
 
 	QMap<ChannelData*, mtpRequestId> _channelAmInRequests;
-	void channelAmInUpdated(ChannelData *channel);
-	void channelAmInDone(ChannelData *channel, const MTPUpdates &updates);
-	bool channelAmInFail(ChannelData *channel, const RPCError &error);
-
 	QMap<UserData*, mtpRequestId> _blockRequests;
-	void blockDone(UserData *user, const MTPBool &result);
-	void unblockDone(UserData *user, const MTPBool &result);
-	bool blockFail(UserData *user, const RPCError &error);
-
 	QMap<PeerData*, mtpRequestId> _exportInviteRequests;
-	void exportInviteDone(PeerData *peer, const MTPExportedChatInvite &result);
-	bool exportInviteFail(PeerData *peer, const RPCError &error);
 
 	QMap<PeerData*, mtpRequestId> _notifySettingRequests;
-	void notifySettingDone(MTPInputNotifyPeer peer, const MTPPeerNotifySettings &settings);
-	PeerData *notifySettingReceived(MTPInputNotifyPeer peer, const MTPPeerNotifySettings &settings);
-	bool notifySettingFail(PeerData *peer, const RPCError &error);
 
 	QMap<History*, mtpRequestId> _draftsSaveRequestIds;
 	SingleTimer _draftsSaveTimer;
-	void saveCloudDraftDone(History *history, const MTPBool &result, mtpRequestId requestId);
-	bool saveCloudDraftFail(History *history, const RPCError &error, mtpRequestId requestId);
 
 	OrderedSet<mtpRequestId> _stickerSetDisenableRequests;
-	void stickerSetDisenableDone(const MTPmessages_StickerSetInstallResult &result, mtpRequestId req);
-	bool stickerSetDisenableFail(const RPCError &error, mtpRequestId req);
 	Stickers::Order _stickersOrder;
 	mtpRequestId _stickersReorderRequestId = 0;
-	void stickersSaveOrder();
-	void stickersReorderDone(const MTPBool &result);
-	bool stickersReorderFail(const RPCError &result);
 	mtpRequestId _stickersClearRecentRequestId = 0;
-	void stickersClearRecentDone(const MTPBool &result);
-	bool stickersClearRecentFail(const RPCError &result);
 
 	QMap<mtpTypeId, mtpRequestId> _privacySaveRequests;
-	void savePrivacyDone(mtpTypeId keyTypeId, const MTPaccount_PrivacyRules &result);
-	bool savePrivacyFail(mtpTypeId keyTypeId, const RPCError &error);
 
 	mtpRequestId _contactsStatusesRequestId = 0;
-	void contactsStatusesDone(const MTPVector<MTPContactStatus> &result);
-	bool contactsStatusesFail(const RPCError &error);
 
 	base::Observable<PeerData*> _fullPeerUpdated;
 

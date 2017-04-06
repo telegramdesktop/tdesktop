@@ -28,6 +28,7 @@ class Instance;
 } // namespace MTP
 
 class AuthSession;
+class AuthSessionData;
 class MainWidget;
 class FileUploader;
 class Translator;
@@ -57,10 +58,17 @@ public:
 		return _dcOptions.get();
 	}
 
+	// Set from legacy storage.
 	void setMtpMainDcId(MTP::DcId mainDcId);
 	void setMtpKey(MTP::DcId dcId, const MTP::AuthKey::Data &keyData);
+	void setAuthSessionUserId(UserId userId);
+	void setAuthSessionData(std::unique_ptr<AuthSessionData> data);
+	AuthSessionData *getAuthSessionData();
+
+	// Serialization.
 	QByteArray serializeMtpAuthorization() const;
 	void setMtpAuthorization(const QByteArray &serialized);
+
 	void startMtp();
 	MTP::Instance *mtp() {
 		return _mtproto.get();

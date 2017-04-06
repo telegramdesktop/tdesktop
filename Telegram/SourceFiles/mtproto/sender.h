@@ -287,6 +287,10 @@ public:
 
 	SentRequestWrap request(mtpRequestId requestId) noexcept WARN_UNUSED_RESULT;
 
+	void requestSendDelayed() {
+		MTP::sendAnything();
+	}
+
 private:
 	class RequestWrap {
 	public:

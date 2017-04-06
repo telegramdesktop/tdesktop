@@ -30,6 +30,8 @@ class System;
 } // namespace Notifications
 } // namespace Window
 
+class ApiWrap;
+
 enum class EmojiPanelTab {
 	Emoji,
 	Stickers,
@@ -121,12 +123,17 @@ public:
 		return _data;
 	}
 
+	ApiWrap &api() {
+		return *_api;
+	}
+
 	~AuthSession();
 
 private:
-	UserId _userId = 0;
+	const UserId _userId = 0;
 	AuthSessionData _data;
 
+	const std::unique_ptr<ApiWrap> _api;
 	const std::unique_ptr<Storage::Downloader> _downloader;
 	const std::unique_ptr<Window::Notifications::System> _notifications;
 

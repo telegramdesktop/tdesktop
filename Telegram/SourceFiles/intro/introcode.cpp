@@ -170,7 +170,7 @@ void CodeWidget::finished() {
 	Step::finished();
 	_checkRequest->stop();
 	_callTimer->stop();
-	rpcClear();
+	rpcInvalidate();
 
 	cancelled();
 	_sentCode.clear();

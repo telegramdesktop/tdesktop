@@ -345,11 +345,6 @@ public:
 	void searchMessages(const QString &query, PeerData *inPeer = 0);
 	void onSearchMore();
 
-	void rpcClear() override {
-		_inner->rpcClear();
-		RPCSender::rpcClear();
-	}
-
 	void notify_userIsContactChanged(UserData *user, bool fromThisApp);
 	void notify_historyMuteUpdated(History *history);
 

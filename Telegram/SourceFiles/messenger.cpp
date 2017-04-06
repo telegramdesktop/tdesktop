@@ -50,6 +50,8 @@ Messenger *Messenger::InstancePointer() {
 }
 
 struct Messenger::Private {
+	UserId authSessionUserId = 0;
+	std::unique_ptr<AuthSessionData> authSessionData;
 	MTP::Instance::Config mtpConfig;
 	MTP::AuthKeysList mtpKeysToDestroy;
 };
@@ -159,12 +161,12 @@ Messenger::Messenger() : QObject()
 }
 
 void Messenger::setMtpMainDcId(MTP::DcId mainDcId) {
-	t_assert(!_mtproto);
+	Expects(!_mtproto);
 	_private->mtpConfig.mainDcId = mainDcId;
 }
 
 void Messenger::setMtpKey(MTP::DcId dcId, const MTP::AuthKey::Data &keyData) {
-	t_assert(!_mtproto);
+	Expects(!_mtproto);
 	_private->mtpConfig.keys.push_back(std::make_shared<MTP::AuthKey>(MTP::AuthKey::Type::ReadFromFile, dcId, keyData));
 }
 
@@ -213,9 +215,27 @@ QByteArray Messenger::serializeMtpAuthorization() const {
 	return serialize(_private->mtpConfig.mainDcId, keys, keysToDestroy);
 }
 
+void Messenger::setAuthSessionUserId(UserId userId) {
+	Expects(!authSession());
+	_private->authSessionUserId = userId;
+}
+
+void Messenger::setAuthSessionData(std::unique_ptr<AuthSessionData> data) {
+	Expects(!authSession());
+	_private->authSessionData = std::move(data);
+}
+
+AuthSessionData *Messenger::getAuthSessionData() {
+	if (_private->authSessionUserId) {
+		return _private->authSessionData.get();
+	} else if (AuthSession::Exists()) {
+		return &AuthSession::Current().data();
+	}
+	return nullptr;
+}
+
 void Messenger::setMtpAuthorization(const QByteArray &serialized) {
-	t_assert(!_mtproto);
-	t_assert(!authSession());
+	Expects(!_mtproto);
 
 	auto readonly = serialized;
 	QBuffer buffer(&readonly);
@@ -233,9 +253,7 @@ void Messenger::setMtpAuthorization(const QByteArray &serialized) {
 		return;
 	}
 
-	if (userId) {
-		authSessionCreate(userId);
-	}
+	setAuthSessionUserId(userId);
 	_private->mtpConfig.mainDcId = mainDcId;
 
 	auto readKeys = [&stream](auto &keys) {
@@ -261,7 +279,7 @@ void Messenger::setMtpAuthorization(const QByteArray &serialized) {
 }
 
 void Messenger::startMtp() {
-	t_assert(!_mtproto);
+	Expects(!_mtproto);
 	_mtproto = std::make_unique<MTP::Instance>(_dcOptions.get(), MTP::Instance::Mode::Normal, base::take(_private->mtpConfig));
 	_private->mtpConfig.mainDcId = _mtproto->mainDcId();
 
@@ -278,6 +296,16 @@ void Messenger::startMtp() {
 
 	if (!_private->mtpKeysToDestroy.empty()) {
 		destroyMtpKeys(base::take(_private->mtpKeysToDestroy));
+	}
+
+	if (_private->authSessionUserId) {
+		authSessionCreate(base::take(_private->authSessionUserId));
+	}
+	if (_private->authSessionData) {
+		if (_authSession) {
+			_authSession->data().copyFrom(*_private->authSessionData);
+		}
+		_private->authSessionData.reset();
 	}
 }
 
@@ -583,12 +611,15 @@ void Messenger::onSwitchTestMode() {
 }
 
 void Messenger::authSessionCreate(UserId userId) {
+	Expects(_mtproto != nullptr);
 	_authSession = std::make_unique<AuthSession>(userId);
 	authSessionChanged().notify();
 }
 
 void Messenger::authSessionDestroy() {
 	_authSession.reset();
+	_private->authSessionData.reset();
+	_private->authSessionUserId = 0;
 	authSessionChanged().notify();
 }
 

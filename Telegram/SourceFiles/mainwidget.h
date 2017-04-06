@@ -55,7 +55,6 @@ struct SectionSlideParams;
 } // namespace Window
 
 class MainWindow;
-class ApiWrap;
 class ConfirmBox;
 class DialogsWidget;
 class HistoryWidget;
@@ -334,7 +333,6 @@ public:
 	void checkChatBackground();
 	ImagePtr newBackgroundThumb();
 
-	ApiWrap *api();
 	void messageDataReceived(ChannelData *channel, MsgId msgId);
 	void updateBotKeyboard(History *h);
 
@@ -373,8 +371,6 @@ public:
 	void onSelfParticipantUpdated(ChannelData *channel);
 
 	bool contentOverlapped(const QRect &globalRect);
-
-	void rpcClear() override;
 
 	bool isItemVisible(HistoryItem *item);
 
@@ -667,8 +663,6 @@ private:
 	bool viewsIncrementFail(const RPCError &error, mtpRequestId req);
 
 	std::unique_ptr<App::WallPaper> _background;
-
-	std::unique_ptr<ApiWrap> _api;
 
 	bool _resizingSide = false;
 	int _resizingSideShift = 0;

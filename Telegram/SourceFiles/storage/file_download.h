@@ -192,7 +192,7 @@ public:
 	}
 
 	void stop() override {
-		rpcClear();
+		rpcInvalidate();
 	}
 
 	~mtpFileLoader();

@@ -82,8 +82,7 @@ MainWidget::MainWidget(QWidget *parent, std::unique_ptr<Window::Controller> cont
 , _dialogs(this, _controller.get())
 , _history(this, _controller.get())
 , _playerPlaylist(this, Media::Player::Panel::Layout::OnlyPlaylist)
-, _playerPanel(this, Media::Player::Panel::Layout::Full)
-, _api(new ApiWrap(this)) {
+, _playerPanel(this, Media::Player::Panel::Layout::Full) {
 	Messenger::Instance().mtp()->setUpdatesHandler(rpcDone(&MainWidget::updateReceived));
 	Messenger::Instance().mtp()->setGlobalFailHandler(rpcFail(&MainWidget::updateFail));
 
@@ -110,7 +109,7 @@ MainWidget::MainWidget(QWidget *parent, std::unique_ptr<Window::Controller> cont
 			handleAudioUpdate(audioId);
 		}
 	});
-	subscribe(_api->fullPeerUpdated(), [this](PeerData *peer) {
+	subscribe(AuthSession::Current().api().fullPeerUpdated(), [this](PeerData *peer) {
 		emit peerUpdated(peer);
 	});
 	subscribe(Global::RefDialogsListFocused(), [this](bool) {
@@ -178,8 +177,6 @@ MainWidget::MainWidget(QWidget *parent, std::unique_ptr<Window::Controller> cont
 	orderWidgets();
 
 	_sideResizeArea->installEventFilter(this);
-
-	_api->init();
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	Sandbox::startUpdateCheck();
@@ -478,14 +475,6 @@ void MainWidget::onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data)
 		Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
 		_history->confirmSendingFiles(data);
 	}
-}
-
-void MainWidget::rpcClear() {
-	_history->rpcClear();
-	_dialogs->rpcClear();
-	if (_overview) _overview->rpcClear();
-	if (_api) _api->rpcClear();
-	RPCSender::rpcClear();
 }
 
 bool MainWidget::isItemVisible(HistoryItem *item) {
@@ -1861,10 +1850,6 @@ void MainWidget::checkChatBackground() {
 
 ImagePtr MainWidget::newBackgroundThumb() {
 	return _background ? _background->thumb : ImagePtr();
-}
-
-ApiWrap *MainWidget::api() {
-	return _api.get();
 }
 
 void MainWidget::messageDataReceived(ChannelData *channel, MsgId msgId) {
@@ -4549,7 +4534,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 			if (peerId) {
 				if (auto item = App::histItemById(peerToChannel(peerId), d.vid.v)) {
 					if (d.has_entities() && !mentionUsersLoaded(d.ventities)) {
-						api()->requestMessageData(item->history()->peer->asChannel(), item->id, ApiWrap::RequestMessageDataCallback());
+						AuthSession::Current().api().requestMessageData(item->history()->peer->asChannel(), item->id, ApiWrap::RequestMessageDataCallback());
 					}
 					auto entities = d.has_entities() ? entitiesFromMTP(d.ventities.v) : EntitiesInText();
 					item->setText({ text, entities });
