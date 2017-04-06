@@ -1918,7 +1918,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 		}
 	}
 	if (displayMute) {
-		auto muteRect = rtlrect(rthumb.x() + (rthumb.width() - st::historyVideoMessageMuteSize) / 2, rthumb.y() + rthumb.height() - st::msgDateImgDelta - st::historyVideoMessageMuteSize, st::historyVideoMessageMuteSize, st::historyVideoMessageMuteSize, _width);
+		auto muteRect = rtlrect(rthumb.x() + (rthumb.width() - st::historyVideoMessageMuteSize) / 2, rthumb.y() + st::msgDateImgDelta, st::historyVideoMessageMuteSize, st::historyVideoMessageMuteSize, _width);
 		p.setPen(Qt::NoPen);
 		p.setBrush(selected ? st::msgDateImgBgSelected : st::msgDateImgBg);
 		PainterHighQualityEnabler hq(p);
@@ -1955,6 +1955,23 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 	} else if (_parent->getMedia() == this && (isRound || _data->uploading() || App::hoveredItem() == _parent)) {
 		auto fullRight = skipx + width;
 		auto fullBottom = skipy + height;
+		if (isRound && !outbg) {
+			auto infoWidth = _parent->infoWidth();
+
+			// This is just some arbitrary point,
+			// the main idea is to make info left aligned here.
+			fullRight += infoWidth - st::normalFont->height;
+
+			auto maxRight = _parent->history()->width - st::msgMargin.left();
+			if (_parent->history()->canHaveFromPhotos()) {
+				maxRight -= st::msgMargin.right();
+			} else {
+				maxRight -= st::msgMargin.left();
+			}
+			if (fullRight > maxRight) {
+				fullRight = maxRight;
+			}
+		}
 		_parent->drawInfo(p, fullRight, fullBottom, 2 * skipx + width, selected, isRound ? InfoDisplayOverBackground : InfoDisplayOverImage);
 	}
 }
