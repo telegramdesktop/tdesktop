@@ -376,9 +376,7 @@ void MainWindow::showSettings() {
 void MainWindow::showSpecialLayer(object_ptr<LayerWidget> layer) {
 	if (_passcode) return;
 
-	if (!_layerBg) {
-		_layerBg.create(bodyWidget());
-	}
+	ensureLayerCreated();
 	_layerBg->showSpecialLayer(std::move(layer));
 }
 
@@ -387,17 +385,29 @@ void MainWindow::showMainMenu() {
 
 	if (isHidden()) showFromTray();
 
+	ensureLayerCreated();
+	_layerBg->showMainMenu();
+}
+
+void MainWindow::ensureLayerCreated() {
 	if (!_layerBg) {
 		_layerBg.create(bodyWidget());
+		enableGifPauseReason(Window::GifPauseReason::Layer);
 	}
-	_layerBg->showMainMenu();
+}
+
+void MainWindow::destroyLayerDelayed() {
+	if (_layerBg) {
+		_layerBg.destroyDelayed();
+		disableGifPauseReason(Window::GifPauseReason::Layer);
+	}
 }
 
 void MainWindow::ui_hideSettingsAndLayer(ShowLayerOptions options) {
 	if (_layerBg) {
 		_layerBg->hideAll();
 		if (options.testFlag(ForceFastShowLayer)) {
-			_layerBg.destroyDelayed();
+			destroyLayerDelayed();
 		}
 	}
 }
@@ -433,9 +443,7 @@ PasscodeWidget *MainWindow::passcodeWidget() {
 
 void MainWindow::ui_showBox(object_ptr<BoxContent> box, ShowLayerOptions options) {
 	if (box) {
-		if (!_layerBg) {
-			_layerBg.create(bodyWidget());
-		}
+		ensureLayerCreated();
 		if (options.testFlag(KeepOtherLayers)) {
 			if (options.testFlag(ShowAfterOtherLayers)) {
 				_layerBg->prependBox(std::move(box));
@@ -452,7 +460,7 @@ void MainWindow::ui_showBox(object_ptr<BoxContent> box, ShowLayerOptions options
 		if (_layerBg) {
 			_layerBg->hideTopLayer();
 			if (options.testFlag(ForceFastShowLayer) && !_layerBg->layerShown()) {
-				_layerBg.destroyDelayed();
+				destroyLayerDelayed();
 			}
 		}
 		hideMediaview();
@@ -566,7 +574,7 @@ void MainWindow::checkHistoryActivation() {
 }
 
 void MainWindow::layerHidden() {
-	_layerBg.destroyDelayed();
+	destroyLayerDelayed();
 	hideMediaview();
 	setInnerFocus();
 	checkHistoryActivation();
@@ -762,6 +770,7 @@ void MainWindow::noMain(MainWidget *was) {
 void MainWindow::noLayerStack(LayerStackWidget *was) {
 	if (was == _layerBg) {
 		_layerBg = nullptr;
+		disableGifPauseReason(Window::GifPauseReason::Layer);
 	}
 }
 

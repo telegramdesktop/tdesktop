@@ -198,6 +198,9 @@ private:
 	void showConnecting(const QString &text, const QString &reconnect = QString());
 	void hideConnecting();
 
+	void ensureLayerCreated();
+	void destroyLayerDelayed();
+
 	void themeUpdated(const Window::Theme::BackgroundUpdate &data);
 
 	QPixmap grabInner();

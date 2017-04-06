@@ -537,7 +537,6 @@ void LayerStackWidget::showBox(object_ptr<BoxContent> box) {
 void LayerStackWidget::prepareForAnimation() {
 	if (isHidden()) {
 		show();
-		App::wnd()->enableGifPauseReason(Window::GifPauseReason::Layer);
 	}
 	if (_mainMenu) {
 		_mainMenu->hide();
