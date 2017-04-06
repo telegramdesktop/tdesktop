@@ -1060,7 +1060,7 @@ bool EditChannelBox::onSaveFail(const RPCError &error, mtpRequestId req) {
 		if (err == qstr("CHAT_ABOUT_NOT_MODIFIED")) {
 			if (_channel->setAbout(_sentDescription)) {
 				if (App::api()) {
-					emit App::api()->fullPeerUpdated(_channel);
+					App::api()->fullPeerUpdated().notify(_channel);
 				}
 			}
 			saveSign();
@@ -1090,7 +1090,7 @@ void EditChannelBox::onSaveDescriptionDone(const MTPBool &result) {
 	_saveDescriptionRequestId = 0;
 	if (_channel->setAbout(_sentDescription)) {
 		if (App::api()) {
-			emit App::api()->fullPeerUpdated(_channel);
+			App::api()->fullPeerUpdated().notify(_channel);
 		}
 	}
 	saveSign();

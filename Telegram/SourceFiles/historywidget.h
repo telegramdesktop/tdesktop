@@ -286,7 +286,7 @@ private:
 
 	bool _scrollDateShown = false;
 	Animation _scrollDateOpacity;
-	SingleDelayedCall _scrollDateCheck = { this, "onScrollDateCheck" };
+	SingleQueuedInvokation _scrollDateCheck;
 	SingleTimer _scrollDateHideTimer;
 	HistoryItem *_scrollDateLastItem = nullptr;
 	int _scrollDateLastItemTop = 0;
@@ -358,12 +358,11 @@ private:
 
 };
 
-class HistoryWidget;
 class ReportSpamPanel : public TWidget {
 	Q_OBJECT
 
 public:
-	ReportSpamPanel(HistoryWidget *parent);
+	ReportSpamPanel(QWidget *parent);
 
 	void setReported(bool reported, PeerData *onPeer);
 
@@ -767,7 +766,6 @@ public slots:
 	void onPreviewTimeout();
 
 	void peerUpdated(PeerData *data);
-	void onFullPeerUpdated(PeerData *data);
 
 	void onPhotoUploaded(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
 	void onDocumentUploaded(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
@@ -856,6 +854,7 @@ private:
 		bool allFilesForCompress = true;
 	};
 
+	void fullPeerUpdated(PeerData *peer);
 	void topBarClick();
 
 	void animationCallback();

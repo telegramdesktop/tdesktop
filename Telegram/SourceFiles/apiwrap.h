@@ -35,8 +35,6 @@ inline const MTPVector<MTPChat> *getChatsFromMessagesChats(const MTPmessages_Cha
 } // namespace Api
 
 class ApiWrap : public QObject, public RPCSender {
-	Q_OBJECT
-
 public:
 	ApiWrap(QObject *parent);
 	void init();
@@ -49,6 +47,7 @@ public:
 	void requestPeers(const QList<PeerData*> &peers);
 	void requestLastParticipants(ChannelData *peer, bool fromStart = true);
 	void requestBots(ChannelData *peer);
+	void requestParticipantsCountDelayed(ChannelData *channel);
 
 	void processFullPeer(PeerData *peer, const MTPmessages_ChatFull &result);
 	void processFullPeer(PeerData *peer, const MTPUserFull &result);
@@ -73,6 +72,7 @@ public:
 	void exportInviteLink(PeerData *peer);
 	void requestNotifySetting(PeerData *peer);
 
+	void saveDraftsToCloud();
 	void saveDraftToCloudDelayed(History *history);
 	bool hasUnsavedDrafts() const;
 
@@ -80,21 +80,16 @@ public:
 	void handlePrivacyChange(mtpTypeId keyTypeId, const MTPVector<MTPPrivacyRule> &rules);
 	int onlineTillFromStatus(const MTPUserStatus &status, int currentOnlineTill);
 
+	base::Observable<PeerData*> &fullPeerUpdated() {
+		return _fullPeerUpdated;
+	}
+
 	~ApiWrap();
-
-signals:
-	void fullPeerUpdated(PeerData *peer);
-
-public slots:
-	void resolveMessageDatas();
-	void resolveWebPages();
-
-	void delayedRequestParticipantsCount();
-	void saveDraftsToCloud();
 
 private:
 	void updatesReceived(const MTPUpdates &updates);
 
+	void resolveMessageDatas();
 	void gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
 	struct MessageDataRequest {
 		using Callbacks = QList<RequestMessageDataCallback>;
@@ -105,7 +100,7 @@ private:
 	MessageDataRequests _messageDataRequests;
 	typedef QMap<ChannelData*, MessageDataRequests> ChannelMessageDataRequests;
 	ChannelMessageDataRequests _channelMessageDataRequests;
-	SingleDelayedCall *_messageDataResolveDelayed;
+	SingleQueuedInvokation _messageDataResolveDelayed;
 	typedef QVector<MTPint> MessageIds;
 	MessageIds collectMessageIds(const MessageDataRequests &requests);
 	MessageDataRequests *messageDataRequests(ChannelData *channel, bool onlyExisting = false);
@@ -138,6 +133,7 @@ private:
 	typedef QMap<ChannelData*, mtpRequestId> SelfParticipantRequests;
 	SelfParticipantRequests _selfParticipantRequests;
 
+	void resolveWebPages();
 	void gotWebPages(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
 	typedef QMap<WebPageData*, mtpRequestId> WebPagesPending;
 	WebPagesPending _webPagesPending;
@@ -190,5 +186,7 @@ private:
 	mtpRequestId _contactsStatusesRequestId = 0;
 	void contactsStatusesDone(const MTPVector<MTPContactStatus> &result);
 	bool contactsStatusesFail(const RPCError &error);
+
+	base::Observable<PeerData*> _fullPeerUpdated;
 
 };

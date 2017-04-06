@@ -328,28 +328,23 @@ void myEnsureResized(QWidget *target);
 QPixmap myGrab(TWidget *target, QRect rect = QRect(), QColor bg = QColor(255, 255, 255, 0));
 QImage myGrabImage(TWidget *target, QRect rect = QRect(), QColor bg = QColor(255, 255, 255, 0));
 
-class SingleDelayedCall : public QObject {
-	Q_OBJECT
-
+class SingleQueuedInvokation : public QObject {
 public:
-	SingleDelayedCall(QObject *parent, const char *member) : QObject(parent), _member(member) {
+	SingleQueuedInvokation(base::lambda<void()> callback) : _callback(callback) {
 	}
 	void call() {
-		if (_pending.testAndSetOrdered(0, 1)) {
-			QMetaObject::invokeMethod(this, "makeDelayedCall", Qt::QueuedConnection);
-		}
-	}
-
-private slots:
-	void makeDelayedCall() {
-		if (_pending.testAndSetOrdered(1, 0)) {
-			QMetaObject::invokeMethod(parent(), _member);
+		if (_pending.testAndSetAcquire(0, 1)) {
+			InvokeQueued(this, [this] {
+				if (_pending.testAndSetRelease(1, 0)) {
+					_callback();
+				}
+			});
 		}
 	}
 
 private:
+	base::lambda<void()> _callback;
 	QAtomicInt _pending = { 0 };
-	const char *_member;
 
 };
 

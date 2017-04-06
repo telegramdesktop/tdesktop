@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"
-#include "messenger.h"
+#include "auth_session.h"
 
 namespace Images {
 namespace {
@@ -858,7 +858,7 @@ void RemoteImage::doCheckload() const {
 void RemoteImage::destroyLoaderDelayed(FileLoader *newValue) const {
 	_loader->stop();
 	auto loader = std::unique_ptr<FileLoader>(std::exchange(_loader, newValue));
-	Messenger::Instance().delayedDestroyLoader(std::move(loader));
+	AuthSession::Current().downloader().delayedDestroyLoader(std::move(loader));
 }
 
 void RemoteImage::loadLocal() {
@@ -959,7 +959,7 @@ void RemoteImage::cancel() {
 	auto loader = std::exchange(_loader, CancelledFileLoader);
 	loader->cancel();
 	loader->stop();
-	Messenger::Instance().delayedDestroyLoader(std::unique_ptr<FileLoader>(loader));
+	AuthSession::Current().downloader().delayedDestroyLoader(std::unique_ptr<FileLoader>(loader));
 }
 
 float64 RemoteImage::progress() const {

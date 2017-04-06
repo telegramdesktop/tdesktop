@@ -312,25 +312,21 @@ void ConvertToSupergroupBox::convertToSupergroup() {
 void ConvertToSupergroupBox::convertDone(const MTPUpdates &updates) {
 	Ui::hideLayer();
 	App::main()->sentUpdatesReceived(updates);
-	const QVector<MTPChat> *v = 0;
-	switch (updates.type()) {
-	case mtpc_updates: v = &updates.c_updates().vchats.v; break;
-	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.v; break;
-	default: LOG(("API Error: unexpected update cons %1 (ConvertToSupergroupBox::convertDone)").arg(updates.type())); break;
-	}
 
-	PeerData *peer = 0;
-	if (v && !v->isEmpty()) {
-		for (int32 i = 0, l = v->size(); i < l; ++i) {
-			if (v->at(i).type() == mtpc_channel) {
-				peer = App::channel(v->at(i).c_channel().vid.v);
-				Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
-				QTimer::singleShot(ReloadChannelMembersTimeout, App::api(), SLOT(delayedRequestParticipantsCount()));
+	auto handleChats = [](auto &mtpChats) {
+		for_const (auto &mtpChat, mtpChats.v) {
+			if (mtpChat.type() == mtpc_channel) {
+				auto channel = App::channel(mtpChat.c_channel().vid.v);
+				Ui::showPeerHistory(channel, ShowAtUnreadMsgId);
+				App::api()->requestParticipantsCountDelayed(channel);
 			}
 		}
-	}
-	if (!peer) {
-		LOG(("API Error: channel not found in updates (ProfileInner::migrateDone)"));
+	};
+
+	switch (updates.type()) {
+	case mtpc_updates: handleChats(updates.c_updates().vchats); break;
+	case mtpc_updatesCombined: handleChats(updates.c_updatesCombined().vchats); break;
+	default: LOG(("API Error: unexpected update cons %1 (ConvertToSupergroupBox::convertDone)").arg(updates.type())); break;
 	}
 }
 

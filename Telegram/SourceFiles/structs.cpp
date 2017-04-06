@@ -1535,7 +1535,7 @@ bool DocumentData::loaded(FilePathResolveType type) const {
 void DocumentData::destroyLoaderDelayed(mtpFileLoader *newValue) const {
 	_loader->stop();
 	auto loader = std::unique_ptr<FileLoader>(std::exchange(_loader, newValue));
-	Messenger::Instance().delayedDestroyLoader(std::move(loader));
+	AuthSession::Current().downloader().delayedDestroyLoader(std::move(loader));
 }
 
 bool DocumentData::loading() const {
@@ -1620,10 +1620,10 @@ void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMs
 void DocumentData::cancel() {
 	if (!loading()) return;
 
-	auto loader = std::exchange(_loader, CancelledMtpFileLoader);
+	auto loader = std::unique_ptr<FileLoader>(std::exchange(_loader, CancelledMtpFileLoader));
 	loader->cancel();
 	loader->stop();
-	Messenger::Instance().delayedDestroyLoader(std::unique_ptr<FileLoader>(loader));
+	AuthSession::Current().downloader().delayedDestroyLoader(std::move(loader));
 
 	notifyLayoutChanged();
 	if (auto main = App::main()) {

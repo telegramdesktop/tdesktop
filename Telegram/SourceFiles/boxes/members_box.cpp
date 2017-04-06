@@ -62,6 +62,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 //	return mapFromGlobal(QCursor::pos()) - _st.rippleAreaPosition;
 //}
 
+namespace {
+
+constexpr auto kReloadChannelAdminsTimeout = 1000; // 1 second wait before reload admins in channel after adding
+
+} // namespace
+
 MembersBox::MembersBox(QWidget*, ChannelData *channel, MembersFilter filter)
 : _channel(channel)
 , _filter(filter) {
@@ -124,7 +130,7 @@ void MembersBox::onAdminAdded() {
 	if (!_addBox) return;
 	_addBox->closeBox();
 	_addBox = nullptr;
-	_loadTimer->start(ReloadChannelMembersTimeout);
+	_loadTimer->start(kReloadChannelAdminsTimeout);
 }
 
 MembersBox::Inner::Inner(QWidget *parent, ChannelData *channel, MembersFilter filter) : TWidget(parent)

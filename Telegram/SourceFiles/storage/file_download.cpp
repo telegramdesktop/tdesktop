@@ -29,6 +29,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Storage {
 
+Downloader::Downloader()
+: _delayedLoadersDestroyer([this] { _delayedDestroyedLoaders.clear(); }) {
+}
+
+void Downloader::delayedDestroyLoader(std::unique_ptr<FileLoader> loader) {
+	_delayedDestroyedLoaders.push_back(std::move(loader));
+	_delayedLoadersDestroyer.call();
+}
+
 void Downloader::clearPriorities() {
 	++_priority;
 }

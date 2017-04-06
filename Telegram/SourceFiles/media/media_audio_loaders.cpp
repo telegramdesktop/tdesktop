@@ -27,7 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Media {
 namespace Player {
 
-Loaders::Loaders(QThread *thread) : _fromVideoNotify(this, "onVideoSoundAdded") {
+Loaders::Loaders(QThread *thread) : _fromVideoNotify([this] { videoSoundAdded(); }) {
 	moveToThread(thread);
 	connect(thread, SIGNAL(started()), this, SLOT(onInit()));
 	connect(thread, SIGNAL(finished()), this, SLOT(deleteLater()));
@@ -59,7 +59,7 @@ void Loaders::stopFromVideo() {
 	startFromVideo(0);
 }
 
-void Loaders::onVideoSoundAdded() {
+void Loaders::videoSoundAdded() {
 	bool waitingAndAdded = false;
 	{
 		QMutexLocker lock(&_fromVideoMutex);

@@ -102,7 +102,6 @@ MainWidget::MainWidget(QWidget *parent, std::unique_ptr<Window::Controller> cont
 	connect(&_byPtsTimer, SIGNAL(timeout()), this, SLOT(onGetDifferenceTimeByPts()));
 	connect(&_byMinChannelTimer, SIGNAL(timeout()), this, SLOT(getDifference()));
 	connect(&_failDifferenceTimer, SIGNAL(timeout()), this, SLOT(onGetDifferenceTimeAfterFail()));
-	connect(_api.get(), SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
 	connect(this, SIGNAL(peerUpdated(PeerData*)), _history, SLOT(peerUpdated(PeerData*)));
 	connect(_history, SIGNAL(historyShown(History*,MsgId)), this, SLOT(onHistoryShown(History*,MsgId)));
 	connect(&updateNotifySettingTimer, SIGNAL(timeout()), this, SLOT(onUpdateNotifySettings()));
@@ -111,7 +110,9 @@ MainWidget::MainWidget(QWidget *parent, std::unique_ptr<Window::Controller> cont
 			handleAudioUpdate(audioId);
 		}
 	});
-
+	subscribe(_api->fullPeerUpdated(), [this](PeerData *peer) {
+		emit peerUpdated(peer);
+	});
 	subscribe(Global::RefDialogsListFocused(), [this](bool) {
 		updateDialogsWidthAnimated();
 	});
@@ -2797,13 +2798,7 @@ bool MainWidget::deleteChannelFailed(const RPCError &error) {
 
 void MainWidget::inviteToChannelDone(ChannelData *channel, const MTPUpdates &updates) {
 	sentUpdatesReceived(updates);
-	QTimer::singleShot(ReloadChannelMembersTimeout, this, SLOT(onActiveChannelUpdateFull()));
-}
-
-void MainWidget::onActiveChannelUpdateFull() {
-	if (activePeer() && activePeer()->isChannel()) {
-		activePeer()->asChannel()->updateFull(true);
-	}
+	App::api()->requestParticipantsCountDelayed(channel);
 }
 
 void MainWidget::historyToDown(History *history) {
@@ -3828,10 +3823,6 @@ void MainWidget::stickersBox(const MTPInputStickerSet &set) {
 
 void MainWidget::onStickersInstalled(uint64 setId) {
 	_history->stickersInstalled(setId);
-}
-
-void MainWidget::onFullPeerUpdated(PeerData *peer) {
-	emit peerUpdated(peer);
 }
 
 void MainWidget::onSelfParticipantUpdated(ChannelData *channel) {
@@ -5062,7 +5053,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			if (channel->isMegagroup()) {
 				channel->mgInfo->pinnedMsgId = d.vid.v;
 				if (App::api()) {
-					emit App::api()->fullPeerUpdated(channel);
+					App::api()->fullPeerUpdated().notify(channel);
 				}
 			}
 		}

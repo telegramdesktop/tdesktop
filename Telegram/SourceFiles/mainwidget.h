@@ -444,10 +444,8 @@ public slots:
 	void onUpdateMuted();
 
 	void onStickersInstalled(uint64 setId);
-	void onFullPeerUpdated(PeerData *peer);
 
 	void onViewsIncrement();
-	void onActiveChannelUpdateFull();
 
 	void ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId, Ui::ShowWay way);
 	void ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId);

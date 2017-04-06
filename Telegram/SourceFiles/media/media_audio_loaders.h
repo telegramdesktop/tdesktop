@@ -51,9 +51,8 @@ signals:
 	void onLoad(const AudioMsgId &audio);
 	void onCancel(const AudioMsgId &audio);
 
-	void onVideoSoundAdded();
-
 private:
+	void videoSoundAdded();
 	void clearFromVideoQueue();
 
 	AudioMsgId _audio, _song, _video;
@@ -64,7 +63,7 @@ private:
 	QMutex _fromVideoMutex;
 	uint64 _fromVideoPlayId;
 	QQueue<FFMpeg::AVPacketDataWrap> _fromVideoQueue;
-	SingleDelayedCall _fromVideoNotify;
+	SingleQueuedInvokation _fromVideoNotify;
 
 	void emitError(AudioMsgId::Type type);
 	AudioMsgId clear(AudioMsgId::Type type);

@@ -55,8 +55,7 @@ struct Messenger::Private {
 };
 
 Messenger::Messenger() : QObject()
-, _private(std::make_unique<Private>())
-, _delayedLoadersDestroyer(this, "onDelayedDestroyLoaders") {
+, _private(std::make_unique<Private>()) {
 	t_assert(SingleInstance == nullptr);
 	SingleInstance = this;
 
@@ -697,7 +696,6 @@ void Messenger::prepareToDestroy() {
 
 	// Some MTP requests can be cancelled from data clearing.
 	App::clearHistories();
-	_delayedDestroyedLoaders.clear();
 	authSessionDestroy();
 
 	_mtproto.reset();
@@ -731,13 +729,4 @@ Messenger::~Messenger() {
 
 MainWindow *Messenger::mainWindow() {
 	return _window.get();
-}
-
-void Messenger::delayedDestroyLoader(std::unique_ptr<FileLoader> loader) {
-	_delayedDestroyedLoaders.push_back(std::move(loader));
-	_delayedLoadersDestroyer.call();
-}
-
-void Messenger::onDelayedDestroyLoaders() {
-	_delayedDestroyedLoaders.clear();
 }

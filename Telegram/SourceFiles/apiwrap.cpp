@@ -33,23 +33,29 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/themes/window_theme.h"
 #include "window/notifications_manager.h"
 
+namespace {
+
+constexpr auto kReloadChannelMembersTimeout = 1000; // 1 second wait before reload members in channel after adding
+
+} // namespace
+
 ApiWrap::ApiWrap(QObject *parent) : QObject(parent)
-, _messageDataResolveDelayed(new SingleDelayedCall(this, "resolveMessageDatas")) {
+, _messageDataResolveDelayed([this] { resolveMessageDatas(); }) {
 	Window::Theme::Background()->start();
 
-	connect(&_webPagesTimer, SIGNAL(timeout()), this, SLOT(resolveWebPages()));
-	connect(&_draftsSaveTimer, SIGNAL(timeout()), this, SLOT(saveDraftsToCloud()));
+	connect(&_webPagesTimer, &QTimer::timeout, this, [this] { resolveWebPages(); });
+	connect(&_draftsSaveTimer, &QTimer::timeout, this, [this] { saveDraftsToCloud(); });
 }
 
 void ApiWrap::init() {
 }
 
 void ApiWrap::requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback callback) {
-	MessageDataRequest &req(channel ? _channelMessageDataRequests[channel][msgId] : _messageDataRequests[msgId]);
+	auto &req = (channel ? _channelMessageDataRequests[channel][msgId] : _messageDataRequests[msgId]);
 	if (callback) {
 		req.callbacks.append(callback);
 	}
-	if (!req.req) _messageDataResolveDelayed->call();
+	if (!req.req) _messageDataResolveDelayed.call();
 }
 
 ApiWrap::MessageIds ApiWrap::collectMessageIds(const MessageDataRequests &requests) {
@@ -202,7 +208,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 				if (auto user = App::userLoaded(b.vuser_id.v)) {
 					user->setBotInfo(item);
 					App::clearPeerUpdated(user);
-					emit fullPeerUpdated(user);
+					fullPeerUpdated().notify(user);
 				}
 			} break;
 			}
@@ -274,7 +280,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 				if (auto user = App::userLoaded(b.vuser_id.v)) {
 					user->setBotInfo(item);
 					App::clearPeerUpdated(user);
-					emit fullPeerUpdated(user);
+					fullPeerUpdated().notify(user);
 				}
 			} break;
 			}
@@ -320,7 +326,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		requestPeer(peer);
 	}
 	App::clearPeerUpdated(peer);
-	emit fullPeerUpdated(peer);
+	fullPeerUpdated().notify(peer);
 }
 
 void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestId req) {
@@ -353,7 +359,7 @@ void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestI
 		}
 	}
 	App::clearPeerUpdated(peer);
-	emit fullPeerUpdated(peer);
+	fullPeerUpdated().notify(peer);
 }
 
 bool ApiWrap::gotPeerFullFailed(PeerData *peer, const RPCError &error) {
@@ -563,7 +569,7 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 	}
 
 	peer->mgInfo->botStatus = botStatus;
-	if (App::main()) emit fullPeerUpdated(peer);
+	if (App::main()) fullPeerUpdated().notify(peer);
 }
 
 bool ApiWrap::lastParticipantsFail(ChannelData *peer, const RPCError &error, mtpRequestId req) {
@@ -669,7 +675,7 @@ void ApiWrap::kickParticipantDone(KickRequest kick, const MTPUpdates &result, mt
 		}
 	}
 	Notify::peerUpdatedDelayed(kick.first, Notify::PeerUpdate::Flag::MembersChanged);
-	emit fullPeerUpdated(kick.first);
+	fullPeerUpdated().notify(kick.first);
 }
 
 bool ApiWrap::kickParticipantFail(KickRequest kick, const RPCError &error, mtpRequestId req) {
@@ -1345,10 +1351,10 @@ void ApiWrap::resolveWebPages() {
 	if (m < INT_MAX) _webPagesTimer.start(m * 1000);
 }
 
-void ApiWrap::delayedRequestParticipantsCount() {
-	if (App::main() && App::main()->peer() && App::main()->peer()->isChannel()) {
-		requestFullPeer(App::main()->peer());
-	}
+void ApiWrap::requestParticipantsCountDelayed(ChannelData *channel) {
+	QTimer::singleShot(kReloadChannelMembersTimeout, this, [this, channel] {
+		channel->updateFull(true);
+	});
 }
 
 void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId req) {

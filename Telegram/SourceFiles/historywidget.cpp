@@ -152,7 +152,8 @@ HistoryInner::HistoryInner(HistoryWidget *historyWidget, Ui::ScrollArea *scroll,
 , _migrated(history->peer->migrateFrom() ? App::history(history->peer->migrateFrom()->id) : nullptr)
 , _history(history)
 , _widget(historyWidget)
-, _scroll(scroll) {
+, _scroll(scroll)
+, _scrollDateCheck([this] { onScrollDateCheck(); }) {
 	_touchSelectTimer.setSingleShot(true);
 	connect(&_touchSelectTimer, SIGNAL(timeout()), this, SLOT(onTouchSelect()));
 
@@ -2585,7 +2586,7 @@ void MessageField::focusInEvent(QFocusEvent *e) {
 	emit focused();
 }
 
-ReportSpamPanel::ReportSpamPanel(HistoryWidget *parent) : TWidget(parent),
+ReportSpamPanel::ReportSpamPanel(QWidget *parent) : TWidget(parent),
 _report(this, lang(lng_report_spam), st::reportSpamHide),
 _hide(this, lang(lng_report_spam_hide), st::reportSpamHide),
 _clear(this, lang(lng_profile_delete_conversation)) {
@@ -3369,8 +3370,9 @@ void HistoryWidget::start() {
 	connect(App::main(), SIGNAL(stickersUpdated()), this, SLOT(onStickersUpdated()));
 	updateRecentStickers();
 	AuthSession::Current().data().savedGifsUpdated().notify();
-
-	connect(App::api(), SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
+	subscribe(App::api()->fullPeerUpdated(), [this](PeerData *peer) {
+		fullPeerUpdated(peer);
+	});
 }
 
 void HistoryWidget::onStickersUpdated() {
@@ -8397,8 +8399,8 @@ void HistoryWidget::onCancel() {
 	}
 }
 
-void HistoryWidget::onFullPeerUpdated(PeerData *data) {
-	if (_list && data == _peer) {
+void HistoryWidget::fullPeerUpdated(PeerData *peer) {
+	if (_list && peer == _peer) {
 		bool newCanSendMessages = canSendMessages(_peer);
 		if (newCanSendMessages != _canSendMessages) {
 			_canSendMessages = newCanSendMessages;
@@ -8422,9 +8424,9 @@ void HistoryWidget::onFullPeerUpdated(PeerData *data) {
 
 void HistoryWidget::peerUpdated(PeerData *data) {
 	if (data && data == _peer) {
-		if (data->migrateTo()) {
-			Ui::showPeerHistory(data->migrateTo(), ShowAtUnreadMsgId);
-			QTimer::singleShot(ReloadChannelMembersTimeout, App::api(), SLOT(delayedRequestParticipantsCount()));
+		if (auto channel = data->migrateTo()) {
+			Ui::showPeerHistory(channel, ShowAtUnreadMsgId);
+			App::api()->requestParticipantsCountDelayed(channel);
 			return;
 		}
 		QString restriction = _peer->restrictionReason();

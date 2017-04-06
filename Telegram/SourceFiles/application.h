@@ -51,8 +51,6 @@ public slots:
 	void startApplication(); // will be done in exec()
 	void closeApplication(); // will be done in aboutToQuit()
 
-	void onMainThreadTask();
-
 private:
 	typedef QPair<QLocalSocket*, QByteArray> LocalClient;
 	typedef QList<LocalClient> LocalClients;

@@ -292,10 +292,10 @@ void start();
 void finish();
 
 DeclareReadOnlyVar(uint64, LaunchId);
-DeclareRefVar(SingleDelayedCall, HandleHistoryUpdate);
-DeclareRefVar(SingleDelayedCall, HandleUnreadCounterUpdate);
-DeclareRefVar(SingleDelayedCall, HandleDelayedPeerUpdates);
-DeclareRefVar(SingleDelayedCall, HandleObservables);
+DeclareRefVar(SingleQueuedInvokation, HandleHistoryUpdate);
+DeclareRefVar(SingleQueuedInvokation, HandleUnreadCounterUpdate);
+DeclareRefVar(SingleQueuedInvokation, HandleDelayedPeerUpdates);
+DeclareRefVar(SingleQueuedInvokation, HandleObservables);
 
 DeclareVar(Adaptive::WindowLayout, AdaptiveWindowLayout);
 DeclareVar(Adaptive::ChatLayout, AdaptiveChatLayout);

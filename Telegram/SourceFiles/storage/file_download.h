@@ -27,10 +27,14 @@ namespace Storage {
 
 class Downloader final {
 public:
+	Downloader();
+
 	int currentPriority() const {
 		return _priority;
 	}
 	void clearPriorities();
+
+	void delayedDestroyLoader(std::unique_ptr<FileLoader> loader);
 
 	base::Observable<void> &taskFinished() {
 		return _taskFinishedObservable;
@@ -39,6 +43,9 @@ public:
 private:
 	base::Observable<void> _taskFinishedObservable;
 	int _priority = 1;
+
+	SingleQueuedInvokation _delayedLoadersDestroyer;
+	std::vector<std::unique_ptr<FileLoader>> _delayedDestroyedLoaders;
 
 };
 

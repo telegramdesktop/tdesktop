@@ -105,8 +105,10 @@ public:
 	void handleAppActivated();
 	void handleAppDeactivated();
 
-	// Temporary here, when all Images and Documents are owned by AuthSession it'll have this.
-	void delayedDestroyLoader(std::unique_ptr<FileLoader> loader);
+	void call_handleHistoryUpdate();
+	void call_handleUnreadCounterUpdate();
+	void call_handleDelayedPeerUpdates();
+	void call_handleObservables();
 
 signals:
 	void peerPhotoDone(PeerId peer);
@@ -114,7 +116,6 @@ signals:
 
 public slots:
 	void onAllKeysDestroyed();
-	void onDelayedDestroyLoaders();
 
 	void photoUpdated(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
 
@@ -124,11 +125,6 @@ public slots:
 
 	void killDownloadSessions();
 	void onAppStateChanged(Qt::ApplicationState state);
-
-	void call_handleHistoryUpdate();
-	void call_handleUnreadCounterUpdate();
-	void call_handleDelayedPeerUpdates();
-	void call_handleObservables();
 
 private:
 	void destroyMtpKeys(MTP::AuthKeysList &&keys);
@@ -153,8 +149,5 @@ private:
 	std::unique_ptr<MTP::Instance> _mtprotoForKeysDestroy;
 	std::unique_ptr<AuthSession> _authSession;
 	base::Observable<void> _authSessionChanged;
-
-	SingleDelayedCall _delayedLoadersDestroyer;
-	std::vector<std::unique_ptr<FileLoader>> _delayedDestroyedLoaders;
 
 };

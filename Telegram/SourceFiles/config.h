@@ -142,7 +142,6 @@ enum {
 	SessionsShortPollTimeout = 60000,
 
 	ChoosePeerByDragTimeout = 1000, // 1 second mouse not moved to choose dialog when dragging a file
-	ReloadChannelMembersTimeout = 1000, // 1 second wait before reload members in channel after adding
 };
 
 inline bool isNotificationsUser(uint64 id) {
