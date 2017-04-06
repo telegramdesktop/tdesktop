@@ -18,15 +18,15 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stickers/gifs_list_widget.h"
+#include "chat_helpers/gifs_list_widget.h"
 
-#include "styles/style_stickers.h"
+#include "styles/style_chat_helpers.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/effects/ripple_animation.h"
 #include "boxes/stickers_box.h"
 #include "inline_bots/inline_bot_result.h"
-#include "stickers/stickers.h"
+#include "chat_helpers/stickers.h"
 #include "storage/localstorage.h"
 #include "lang.h"
 #include "mainwindow.h"

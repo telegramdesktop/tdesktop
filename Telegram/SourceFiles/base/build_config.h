@@ -31,7 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #elif defined(_WIN32) // __APPLE__ || __linux__
 #define OS_WIN 1
 #else // __APPLE__ || __linux__ || _WIN32
-#error Please add support for your platform in core/build_config.h
+#error Please add support for your platform in base/build_config.h
 #endif // else for __APPLE__ || __linux__ || _WIN32
 
 // For access to standard POSIXish features, use OS_POSIX instead of a
@@ -48,7 +48,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #elif defined(_MSC_VER) // __clang__ || __GNUC__
 #define COMPILER_MSVC 1
 #else // _MSC_VER || __clang__ || __GNUC__
-#error Please add support for your compiler in core/build_config.h
+#error Please add support for your compiler in base/build_config.h
 #endif // else for _MSC_VER || __clang__ || __GNUC__
 
 // Processor architecture detection.
@@ -61,7 +61,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #define ARCH_CPU_X86 1
 #define ARCH_CPU_32_BITS 1
 #else
-#error Please add support for your architecture in core/build_config.h
+#error Please add support for your architecture in base/build_config.h
 #endif
 
 #if defined(COMPILER_GCC) || defined(COMPILER_CLANG)

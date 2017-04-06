@@ -26,8 +26,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/file_upload.h"
 #include "mainwindow.h"
 #include "core/file_utilities.h"
-#include "boxes/addcontactbox.h"
-#include "boxes/confirmbox.h"
+#include "boxes/add_contact_box.h"
+#include "boxes/confirm_box.h"
 #include "media/media_audio.h"
 #include "storage/localstorage.h"
 

@@ -20,8 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "boxes/abstractbox.h"
-#include "core/observer.h"
+#include "boxes/abstract_box.h"
+#include "base/observer.h"
 
 namespace Ui {
 template <typename Enum>

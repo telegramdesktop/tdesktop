@@ -22,9 +22,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "lang.h"
 #include "platform/platform_specific.h"
-#include "boxes/confirmbox.h"
-#include "core/qthelp_regex.h"
-#include "core/qthelp_url.h"
+#include "boxes/confirm_box.h"
+#include "base/qthelp_regex.h"
+#include "base/qthelp_url.h"
 #include "storage/localstorage.h"
 #include "ui/widgets/tooltip.h"
 #include "core/file_utilities.h"

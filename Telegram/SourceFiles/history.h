@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "structs.h"
 #include "dialogs/dialogs_common.h"
 #include "ui/effects/send_action_animations.h"
-#include "core/observer.h"
+#include "base/observer.h"
 
 void historyInit();
 

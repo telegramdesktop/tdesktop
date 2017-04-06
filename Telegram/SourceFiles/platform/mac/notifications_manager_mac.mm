@@ -24,7 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "platform/mac/mac_utilities.h"
 #include "styles/style_window.h"
 #include "mainwindow.h"
-#include "core/task_queue.h"
+#include "base/task_queue.h"
 
 #include <Cocoa/Cocoa.h>
 

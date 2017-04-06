@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "storage/localstorage.h"
 #include "platform/platform_file_utilities.h"
-#include "core/task_queue.h"
+#include "base/task_queue.h"
 
 bool filedialogGetSaveFile(QString &file, const QString &caption, const QString &filter, const QString &initialPath) {
 	QStringList files;

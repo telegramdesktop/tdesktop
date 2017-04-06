@@ -34,7 +34,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/media_audio.h"
 #include "history/history_media_types.h"
 #include "window/themes/window_theme_preview.h"
-#include "core/task_queue.h"
+#include "base/task_queue.h"
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "messenger.h"

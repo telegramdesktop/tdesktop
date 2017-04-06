@@ -18,15 +18,15 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "boxes/addcontactbox.h"
+#include "boxes/add_contact_box.h"
 
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
 #include "lang.h"
 #include "messenger.h"
-#include "boxes/contactsbox.h"
-#include "boxes/confirmbox.h"
-#include "boxes/photocropbox.h"
+#include "boxes/contacts_box.h"
+#include "boxes/confirm_box.h"
+#include "boxes/photo_crop_box.h"
 #include "core/file_utilities.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"

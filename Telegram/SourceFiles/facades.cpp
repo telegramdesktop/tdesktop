@@ -24,10 +24,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "messenger.h"
-#include "boxes/confirmbox.h"
+#include "boxes/confirm_box.h"
 #include "layerwidget.h"
 #include "lang.h"
-#include "core/observer.h"
+#include "base/observer.h"
 
 Q_DECLARE_METATYPE(ClickHandlerPtr);
 Q_DECLARE_METATYPE(Qt::MouseButton);

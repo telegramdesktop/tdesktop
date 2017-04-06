@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <vector>
 #include <deque>
-#include "core/type_traits.h"
+#include "base/type_traits.h"
 
 namespace base {
 namespace internal {

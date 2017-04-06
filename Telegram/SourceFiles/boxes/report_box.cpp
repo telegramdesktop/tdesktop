@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "styles/style_boxes.h"
 #include "styles/style_profile.h"
-#include "boxes/confirmbox.h"
+#include "boxes/confirm_box.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"

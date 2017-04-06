@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "langloaderplain.h"
 
-#include "core/parse_helper.h"
+#include "base/parse_helper.h"
 
 bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 	using base::parse::skipWhitespaces;

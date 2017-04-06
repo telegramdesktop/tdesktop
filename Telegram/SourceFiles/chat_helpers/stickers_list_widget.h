@@ -20,8 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "stickers/emoji_panel.h"
-#include "core/variant.h"
+#include "chat_helpers/emoji_panel.h"
+#include "base/variant.h"
 
 namespace Ui {
 class LinkButton;

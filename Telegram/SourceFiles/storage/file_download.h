@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "core/observer.h"
+#include "base/observer.h"
 #include "storage/localimageloader.h" // for TaskId
 
 namespace Storage {

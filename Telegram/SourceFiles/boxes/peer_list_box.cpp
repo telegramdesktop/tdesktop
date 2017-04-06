@@ -34,7 +34,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/widget_slide_wrap.h"
 #include "lang.h"
 #include "ui/effects/round_checkbox.h"
-#include "boxes/contactsbox.h"
+#include "boxes/contacts_box.h"
 #include "window/themes/window_theme.h"
 
 PeerListBox::PeerListBox(QWidget*, std::unique_ptr<Controller> controller)

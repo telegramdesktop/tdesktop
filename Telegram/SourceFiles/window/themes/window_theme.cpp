@@ -22,11 +22,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "mainwidget.h"
 #include "storage/localstorage.h"
-#include "core/parse_helper.h"
-#include "core/zlib_help.h"
+#include "base/parse_helper.h"
+#include "base/zlib_help.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
-#include "boxes/backgroundbox.h"
+#include "boxes/background_box.h"
 
 namespace Window {
 namespace Theme {

@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang.h"
 
 #include "media/media_clip_reader.h"
-#include "boxes/abstractbox.h"
+#include "boxes/abstract_box.h"
 #include "layerwidget.h"
 #include "application.h"
 #include "mainwindow.h"
@@ -29,7 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/file_utilities.h"
 #include "styles/style_boxes.h"
 #include "styles/style_widgets.h"
-#include "styles/style_stickers.h"
+#include "styles/style_chat_helpers.h"
 #include "ui/widgets/shadow.h"
 #include "window/window_main_menu.h"
 #include "auth_session.h"

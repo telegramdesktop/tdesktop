@@ -25,9 +25,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/labels.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/effects/widget_fade_wrap.h"
-#include "boxes/confirmphonebox.h"
+#include "boxes/confirm_phone_box.h"
 #include "ui/toast/toast.h"
-#include "boxes/confirmbox.h"
+#include "boxes/confirm_box.h"
 
 namespace {
 

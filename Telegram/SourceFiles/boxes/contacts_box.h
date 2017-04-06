@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "boxes/abstractbox.h"
+#include "boxes/abstract_box.h"
 #include "core/single_timer.h"
 #include "ui/effects/round_checkbox.h"
 #include "boxes/members_box.h"

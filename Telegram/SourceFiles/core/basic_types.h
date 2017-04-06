@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <memory>
 #include <ctime>
 
-#include "core/build_config.h"
+#include "base/build_config.h"
 
 // Custom libc++ build used for old OS X versions already has this.
 #ifndef OS_MAC_OLD
@@ -46,7 +46,7 @@ void as_const(const T&&) = delete;
 
 #endif // OS_MAC_OLD
 
-#include "core/ordered_set.h"
+#include "base/ordered_set.h"
 
 //using uchar = unsigned char; // Qt has uchar
 using int16 = qint16;

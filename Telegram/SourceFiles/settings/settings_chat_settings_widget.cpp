@@ -29,11 +29,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/localstorage.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "boxes/emojibox.h"
+#include "boxes/emoji_box.h"
 #include "boxes/stickers_box.h"
-#include "boxes/downloadpathbox.h"
-#include "boxes/connectionbox.h"
-#include "boxes/confirmbox.h"
+#include "boxes/download_path_box.h"
+#include "boxes/connection_box.h"
+#include "boxes/confirm_box.h"
 
 namespace Settings {
 

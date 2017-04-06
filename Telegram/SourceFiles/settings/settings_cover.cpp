@@ -29,9 +29,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "profile/profile_userpic_button.h"
 #include "profile/profile_cover_drop_area.h"
-#include "boxes/confirmbox.h"
-#include "boxes/photocropbox.h"
-#include "boxes/addcontactbox.h"
+#include "boxes/confirm_box.h"
+#include "boxes/photo_crop_box.h"
+#include "boxes/add_contact_box.h"
 #include "styles/style_settings.h"
 #include "styles/style_profile.h" // for divider
 #include "platform/platform_file_utilities.h"

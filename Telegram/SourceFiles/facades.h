@@ -20,8 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "core/type_traits.h"
-#include "core/observer.h"
+#include "base/type_traits.h"
+#include "base/observer.h"
 
 class LayerWidget;
 class BoxContent;

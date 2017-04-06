@@ -18,7 +18,7 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "boxes/confirmbox.h"
+#include "boxes/confirm_box.h"
 
 #include "styles/style_boxes.h"
 #include "lang.h"

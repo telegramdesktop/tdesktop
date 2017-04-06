@@ -20,10 +20,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "history/history_drag_area.h"
 
-#include "styles/style_stickers.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_boxes.h"
-#include "boxes/confirmbox.h"
-#include "boxes/stickersetbox.h"
+#include "boxes/confirm_box.h"
+#include "boxes/sticker_set_box.h"
 #include "inline_bots/inline_bot_result.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "dialogs/dialogs_layout.h"

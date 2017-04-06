@@ -39,7 +39,7 @@ using std::end;
 using InputId = vector<uint32>;
 using InputCategory = vector<InputId>;
 
-// copied from emojibox.cpp
+// copied from emoji_box.cpp
 struct Replace {
 	InputId code;
 	const char *replace;

@@ -59,7 +59,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/basic_types.h"
 #include "logs.h"
 #include "core/utils.h"
-#include "core/lambda.h"
+#include "base/lambda.h"
 #include "config.h"
 
 #include "mtproto/facade.h"

@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/abstract_button.h"
-#include "core/observer.h"
+#include "base/observer.h"
 
 namespace Notify {
 struct PeerUpdate;

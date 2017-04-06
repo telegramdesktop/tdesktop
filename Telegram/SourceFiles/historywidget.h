@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"
 #include "history/history_common.h"
-#include "history/field_autocomplete.h"
+#include "chat_helpers/field_autocomplete.h"
 #include "window/section_widget.h"
 #include "core/single_timer.h"
 

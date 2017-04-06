@@ -26,7 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/localstorage.h"
 #include "autoupdater.h"
 #include "window/notifications_manager.h"
-#include "core/task_queue.h"
+#include "base/task_queue.h"
 #include "messenger.h"
 
 namespace {

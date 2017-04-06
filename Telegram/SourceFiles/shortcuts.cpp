@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "media/player/media_player_instance.h"
 #include "platform/platform_specific.h"
-#include "core/parse_helper.h"
+#include "base/parse_helper.h"
 
 namespace ShortcutCommands {
 

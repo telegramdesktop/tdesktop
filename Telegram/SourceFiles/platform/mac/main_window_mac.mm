@@ -25,8 +25,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/localstorage.h"
 #include "window/notifications_manager_default.h"
 #include "platform/platform_notifications_manager.h"
-#include "boxes/contactsbox.h"
-#include "boxes/aboutbox.h"
+#include "boxes/contacts_box.h"
+#include "boxes/about_box.h"
 #include "lang.h"
 #include "platform/mac/mac_utilities.h"
 

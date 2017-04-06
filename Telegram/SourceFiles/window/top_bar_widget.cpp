@@ -21,8 +21,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/top_bar_widget.h"
 
 #include "styles/style_window.h"
-#include "boxes/addcontactbox.h"
-#include "boxes/confirmbox.h"
+#include "boxes/add_contact_box.h"
+#include "boxes/confirm_box.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "shortcuts.h"
