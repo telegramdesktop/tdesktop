@@ -84,6 +84,11 @@ build() {
   # Guideline Support Library
   getGSL
 
+  if [[ $BUILD_VERSION == *"prepare_dependencies"* ]]; then
+    success_msg "Dependencies were prepared successfully! :)"
+    exit 0
+  fi
+
   # Configure the build
   if [[ $BUILD_VERSION == *"disable_autoupdate"* ]]; then
     GYP_DEFINES+=",TDESKTOP_DISABLE_AUTOUPDATE"
