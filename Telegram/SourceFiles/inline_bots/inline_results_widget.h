@@ -34,6 +34,10 @@ class RoundButton;
 class RippleAnimation;
 } // namesapce Ui
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 namespace InlineBots {
 
 class Result;
@@ -58,7 +62,7 @@ class Inner : public TWidget, public Context, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	Inner(QWidget *parent);
+	Inner(QWidget *parent, gsl::not_null<Window::Controller*> controller);
 
 	void hideFinish(bool completely);
 
@@ -111,6 +115,8 @@ private:
 
 	void refreshSwitchPmButton(const CacheEntry *entry);
 
+	gsl::not_null<Window::Controller*> _controller;
+
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
 
@@ -158,7 +164,7 @@ class Widget : public TWidget, private MTP::Sender {
 	Q_OBJECT
 
 public:
-	Widget(QWidget *parent);
+	Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller);
 
 	void moveBottom(int bottom);
 
@@ -227,6 +233,8 @@ private:
 	void recountContentMaxHeight();
 	bool refreshInlineRows(int *added = nullptr);
 	void inlineResultsDone(const MTPmessages_BotResults &result);
+
+	gsl::not_null<Window::Controller*> _controller;
 
 	int _contentMaxHeight = 0;
 	int _contentHeight = 0;

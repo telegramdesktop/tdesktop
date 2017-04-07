@@ -20,3 +20,34 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "window/window_controller.h"
 
+#include "window/main_window.h"
+
+namespace Window {
+
+void Controller::enableGifPauseReason(GifPauseReason reason) {
+	if (!(_gifPauseReasons & reason)) {
+		auto notify = (static_cast<int>(_gifPauseReasons) < static_cast<int>(reason));
+		_gifPauseReasons |= reason;
+		if (notify) {
+			_gifPauseLevelChanged.notify();
+		}
+	}
+}
+
+void Controller::disableGifPauseReason(GifPauseReason reason) {
+	if (_gifPauseReasons & reason) {
+		_gifPauseReasons &= ~qFlags(reason);
+		if (static_cast<int>(_gifPauseReasons) < static_cast<int>(reason)) {
+			_gifPauseLevelChanged.notify();
+		}
+	}
+}
+
+bool Controller::isGifPausedAtLeastFor(GifPauseReason reason) const {
+	if (reason == GifPauseReason::Any) {
+		return (_gifPauseReasons != 0) || !window()->isActive();
+	}
+	return (static_cast<int>(_gifPauseReasons) >= 2 * static_cast<int>(reason)) || !window()->isActive();
+}
+
+} // namespace Window

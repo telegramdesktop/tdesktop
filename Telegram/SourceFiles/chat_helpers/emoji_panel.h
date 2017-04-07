@@ -36,6 +36,10 @@ class RippleAnimation;
 class SettingsSlider;
 } // namesapce Ui
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 namespace ChatHelpers {
 
 class EmojiListWidget;
@@ -46,7 +50,7 @@ class EmojiPanel : public TWidget {
 	Q_OBJECT
 
 public:
-	EmojiPanel(QWidget *parent);
+	EmojiPanel(QWidget *parent, gsl::not_null<Window::Controller*> controller);
 
 	void moveBottom(int bottom);
 
@@ -234,7 +238,7 @@ class EmojiPanel::Inner : public TWidget {
 	Q_OBJECT
 
 public:
-	Inner(QWidget *parent);
+	Inner(QWidget *parent, gsl::not_null<Window::Controller*> controller);
 
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
@@ -265,6 +269,10 @@ signals:
 	void saveConfigDelayed(int delay);
 
 protected:
+	gsl::not_null<Window::Controller*> controller() const {
+		return _controller;
+	}
+
 	virtual int countHeight() = 0;
 	virtual InnerFooter *getFooter() const = 0;
 	virtual void processHideFinished() {
@@ -273,6 +281,8 @@ protected:
 	}
 
 private:
+	gsl::not_null<Window::Controller*> _controller;
+
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
 

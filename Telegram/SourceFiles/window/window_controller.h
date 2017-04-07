@@ -22,9 +22,25 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Window {
 
+enum class GifPauseReason {
+	Any = 0,
+	InlineResults = (1 << 0),
+	SavedGifs = (1 << 1),
+	Layer = (1 << 2),
+	MediaPreview = (1 << 3),
+};
+Q_DECLARE_FLAGS(GifPauseReasons, GifPauseReason);
+Q_DECLARE_OPERATORS_FOR_FLAGS(GifPauseReasons);
+
+class MainWindow;
+
 class Controller {
 public:
-	Controller(MainWindow *window) : _window(window) {
+	Controller(gsl::not_null<MainWindow*> window) : _window(window) {
+	}
+
+	gsl::not_null<MainWindow*> window() const {
+		return _window;
 	}
 
 	// This is needed for History TopBar updating when searchInPeer
@@ -40,10 +56,21 @@ public:
 		return _historyPeerChanged;
 	}
 
+	void enableGifPauseReason(GifPauseReason reason);
+	void disableGifPauseReason(GifPauseReason reason);
+	base::Observable<void> &gifPauseLevelChanged() {
+		return _gifPauseLevelChanged;
+	}
+	bool isGifPausedAtLeastFor(GifPauseReason reason) const;
+
 private:
 	gsl::not_null<MainWindow*> _window;
+
 	base::Observable<PeerData*> _searchInPeerChanged;
 	base::Observable<PeerData*> _historyPeerChanged;
+
+	GifPauseReasons _gifPauseReasons = { 0 };
+	base::Observable<void> _gifPauseLevelChanged;
 
 };
 

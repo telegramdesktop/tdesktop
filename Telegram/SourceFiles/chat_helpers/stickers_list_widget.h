@@ -23,6 +23,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "chat_helpers/emoji_panel.h"
 #include "base/variant.h"
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 namespace Ui {
 class LinkButton;
 } // namespace Ui
@@ -35,7 +39,7 @@ class StickersListWidget : public EmojiPanel::Inner, private base::Subscriber, p
 	Q_OBJECT
 
 public:
-	StickersListWidget(QWidget *parent);
+	StickersListWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller);
 
 	void refreshRecent() override;
 	void preloadImages() override;

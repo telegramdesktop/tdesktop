@@ -31,7 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 #include "media/media_clip_reader.h"
-#include "mainwindow.h"
+#include "window/window_controller.h"
 
 namespace {
 
@@ -61,7 +61,7 @@ SendFilesBox::SendFilesBox(QWidget*, const QStringList &files, CompressConfirm c
 }
 
 void SendFilesBox::prepareSingleFileLayout() {
-	t_assert(_files.size() == 1);
+	Expects(_files.size() == 1);
 	if (!_files.front().isEmpty()) {
 		tryToReadSingleFile();
 	}
@@ -231,6 +231,8 @@ SendFilesBox::SendFilesBox(QWidget*, const QString &phone, const QString &firstn
 }
 
 void SendFilesBox::prepare() {
+	Expects(controller() != nullptr);
+
 	if (_files.size() > 1) {
 		updateTitleText();
 	}
@@ -331,7 +333,7 @@ void SendFilesBox::paintEvent(QPaintEvent *e) {
 		}
 		if (_gifPreview && _gifPreview->started()) {
 			auto s = QSize(_previewWidth, _previewHeight);
-			auto paused = App::wnd()->isGifPausedAtLeastFor(Window::GifPauseReason::Layer);
+			auto paused = controller()->isGifPausedAtLeastFor(Window::GifPauseReason::Layer);
 			auto frame = _gifPreview->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, ImageRoundCorner::None, paused ? 0 : getms());
 			p.drawPixmap(_previewLeft, st::boxPhotoPadding.top(), frame);
 		} else {
@@ -673,7 +675,7 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 		}
 		if (_gifPreview && _gifPreview->started()) {
 			auto s = QSize(_thumbw, _thumbh);
-			auto paused = App::wnd()->isGifPausedAtLeastFor(Window::GifPauseReason::Layer);
+			auto paused = controller()->isGifPausedAtLeastFor(Window::GifPauseReason::Layer);
 			auto frame = _gifPreview->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, ImageRoundCorner::None, paused ? 0 : getms());
 			p.drawPixmap(_thumbx, st::boxPhotoPadding.top(), frame);
 		} else {

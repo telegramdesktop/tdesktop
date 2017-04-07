@@ -74,13 +74,13 @@ StackItemSection::StackItemSection(std::unique_ptr<Window::SectionMemento> &&mem
 StackItemSection::~StackItemSection() {
 }
 
-MainWidget::MainWidget(QWidget *parent, std::unique_ptr<Window::Controller> controller) : TWidget(parent)
-, _controller(std::move(controller))
+MainWidget::MainWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
+, _controller(controller)
 , _dialogsWidth(st::dialogsWidthMin)
 , _sideShadow(this, st::shadowFg)
 , _sideResizeArea(this)
-, _dialogs(this, _controller.get())
-, _history(this, _controller.get())
+, _dialogs(this, _controller)
+, _history(this, _controller)
 , _playerPlaylist(this, Media::Player::Panel::Layout::OnlyPlaylist)
 , _playerPanel(this, Media::Player::Panel::Layout::Full) {
 	Messenger::Instance().mtp()->setUpdatesHandler(rpcDone(&MainWidget::updateReceived));
@@ -1872,6 +1872,8 @@ void MainWidget::setInnerFocus() {
 			_overview->activate();
 		} else if (!_hider && _wideSection) {
 			_wideSection->setInnerFocus();
+		} else if (!_hider && _thirdSection) {
+			_thirdSection->setInnerFocus();
 		} else {
 			dialogsActivate();
 		}
@@ -1879,6 +1881,8 @@ void MainWidget::setInnerFocus() {
 		_overview->activate();
 	} else if (_wideSection) {
 		_wideSection->setInnerFocus();
+	} else if (_thirdSection) {
+		_thirdSection->setInnerFocus();
 	} else {
 		_history->setInnerFocus();
 	}
@@ -2372,7 +2376,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 		_wideSection->deleteLater();
 		_wideSection = nullptr;
 	}
-	_overview.create(this, _controller.get(), peer, type);
+	_overview.create(this, _controller, peer, type);
 	updateControlsGeometry();
 
 	// Send a fake update.
@@ -4198,8 +4202,6 @@ MainWidget::~MainWidget() {
 		delete hider;
 	}
 	Messenger::Instance().mtp()->clearGlobalHandlers();
-
-	if (App::wnd()) App::wnd()->noMain(this);
 }
 
 void MainWidget::updateOnline(bool gotOtherOffline) {

@@ -412,7 +412,7 @@ void StickersListWidget::Footer::step_icons(TimeMs ms, bool timer) {
 	}
 }
 
-StickersListWidget::StickersListWidget(QWidget *parent) : Inner(parent)
+StickersListWidget::StickersListWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : Inner(parent, controller)
 , _section(Section::Stickers)
 , _addText(lang(lng_stickers_featured_add).toUpper())
 , _addWidth(st::stickersTrendingAdd.font->width(_addText))

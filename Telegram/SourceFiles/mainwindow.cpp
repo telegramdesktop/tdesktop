@@ -200,6 +200,7 @@ void MainWindow::clearWidgetsHook() {
 	auto wasMain = (_main != nullptr);
 	_passcode.destroyDelayed();
 	_main.destroy();
+	_controller.reset();
 	_intro.destroy();
 	if (wasMain) {
 		App::clearHistories();
@@ -351,7 +352,8 @@ void MainWindow::setupMain(const MTPUser *self) {
 
 	t_assert(AuthSession::Exists());
 
-	_main.create(bodyWidget(), std::make_unique<Window::Controller>(this));
+	_controller = std::make_unique<Window::Controller>(this);
+	_main.create(bodyWidget(), controller());
 	_main->show();
 	updateControlsGeometry();
 
@@ -391,15 +393,19 @@ void MainWindow::showMainMenu() {
 
 void MainWindow::ensureLayerCreated() {
 	if (!_layerBg) {
-		_layerBg.create(bodyWidget());
-		enableGifPauseReason(Window::GifPauseReason::Layer);
+		_layerBg.create(bodyWidget(), _controller.get());
+		if (_controller) {
+			_controller->enableGifPauseReason(Window::GifPauseReason::Layer);
+		}
 	}
 }
 
 void MainWindow::destroyLayerDelayed() {
 	if (_layerBg) {
 		_layerBg.destroyDelayed();
-		disableGifPauseReason(Window::GifPauseReason::Layer);
+		if (_controller) {
+			_controller->disableGifPauseReason(Window::GifPauseReason::Layer);
+		}
 	}
 }
 
@@ -474,7 +480,7 @@ bool MainWindow::ui_isLayerShown() {
 void MainWindow::ui_showMediaPreview(DocumentData *document) {
 	if (!document || ((!document->isAnimation() || !document->loaded()) && !document->sticker())) return;
 	if (!_mediaPreview) {
-		_mediaPreview.create(bodyWidget());
+		_mediaPreview.create(bodyWidget(), controller());
 		updateControlsGeometry();
 	}
 	if (_mediaPreview->isHidden()) {
@@ -486,7 +492,7 @@ void MainWindow::ui_showMediaPreview(DocumentData *document) {
 void MainWindow::ui_showMediaPreview(PhotoData *photo) {
 	if (!photo) return;
 	if (!_mediaPreview) {
-		_mediaPreview.create(bodyWidget());
+		_mediaPreview.create(bodyWidget(), controller());
 		updateControlsGeometry();
 	}
 	if (_mediaPreview->isHidden()) {
@@ -761,16 +767,12 @@ void MainWindow::noIntro(Intro::Widget *was) {
 	}
 }
 
-void MainWindow::noMain(MainWidget *was) {
-	if (was == _main) {
-		_main = nullptr;
-	}
-}
-
 void MainWindow::noLayerStack(LayerStackWidget *was) {
 	if (was == _layerBg) {
 		_layerBg = nullptr;
-		disableGifPauseReason(Window::GifPauseReason::Layer);
+		if (_controller) {
+			_controller->disableGifPauseReason(Window::GifPauseReason::Layer);
+		}
 	}
 }
 

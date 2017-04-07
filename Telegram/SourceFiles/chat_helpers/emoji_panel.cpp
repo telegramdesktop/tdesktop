@@ -279,15 +279,15 @@ void EmojiPanel::Tab::saveScrollTop() {
 	_scrollTop = widget()->getVisibleTop();
 }
 
-EmojiPanel::EmojiPanel(QWidget *parent) : TWidget(parent)
+EmojiPanel::EmojiPanel(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
 , _tabsSlider(this, st::emojiTabs)
 , _topShadow(this, st::shadowFg)
 , _bottomShadow(this, st::shadowFg)
 , _scroll(this, st::emojiScroll)
 , _tabs { {
-	Tab { TabType::Emoji, object_ptr<EmojiListWidget>(this) },
-	Tab { TabType::Stickers, object_ptr<StickersListWidget>(this) },
-	Tab { TabType::Gifs, object_ptr<GifsListWidget>(this) },
+	Tab { TabType::Emoji, object_ptr<EmojiListWidget>(this, controller) },
+	Tab { TabType::Stickers, object_ptr<StickersListWidget>(this, controller) },
+	Tab { TabType::Gifs, object_ptr<GifsListWidget>(this, controller) },
 } }
 , _currentTabType(AuthSession::Current().data().emojiPanelTab()) {
 	resize(QRect(0, 0, st::emojiPanWidth, st::emojiPanMaxHeight).marginsAdded(innerPadding()).size());
@@ -879,7 +879,8 @@ void EmojiPanel::scrollToY(int y) {
 	_topShadow->update();
 }
 
-EmojiPanel::Inner::Inner(QWidget *parent) : TWidget(parent) {
+EmojiPanel::Inner::Inner(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
+, _controller(controller) {
 }
 
 void EmojiPanel::Inner::setVisibleTopBottom(int visibleTop, int visibleBottom) {

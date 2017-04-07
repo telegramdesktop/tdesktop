@@ -33,6 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/shadow.h"
 #include "window/window_main_menu.h"
 #include "auth_session.h"
+#include "window/window_controller.h"
 
 namespace {
 
@@ -311,7 +312,8 @@ void LayerStackWidget::BackgroundWidget::animationCallback() {
 	checkIfDone();
 }
 
-LayerStackWidget::LayerStackWidget(QWidget *parent) : TWidget(parent)
+LayerStackWidget::LayerStackWidget(QWidget *parent, Window::Controller *controller) : TWidget(parent)
+, _controller(controller)
 , _background(this) {
 	setGeometry(parentWidget()->rect());
 	hide();
@@ -565,7 +567,6 @@ void LayerStackWidget::animationDone() {
 	}
 	if (hidden) {
 		App::wnd()->layerFinishedHide(this);
-		App::wnd()->disableGifPauseReason(Window::GifPauseReason::Layer);
 	} else {
 		showFinished();
 	}
@@ -622,7 +623,7 @@ LayerWidget *LayerStackWidget::pushBox(object_ptr<BoxContent> box) {
 		if (oldLayer->inFocusChain()) setFocus();
 		oldLayer->hide();
 	}
-	auto layer = object_ptr<AbstractBox>(this, std::move(box));
+	auto layer = object_ptr<AbstractBox>(this, _controller, std::move(box));
 	_layers.push_back(layer);
 	initChildLayer(layer);
 
@@ -644,7 +645,7 @@ void LayerStackWidget::prependBox(object_ptr<BoxContent> box) {
 	if (_layers.empty()) {
 		return showBox(std::move(box));
 	}
-	auto layer = object_ptr<AbstractBox>(this, std::move(box));
+	auto layer = object_ptr<AbstractBox>(this, _controller, std::move(box));
 	layer->hide();
 	_layers.push_front(layer);
 	initChildLayer(layer);
@@ -719,7 +720,8 @@ LayerStackWidget::~LayerStackWidget() {
 	if (App::wnd()) App::wnd()->noLayerStack(this);
 }
 
-MediaPreviewWidget::MediaPreviewWidget(QWidget *parent) : TWidget(parent)
+MediaPreviewWidget::MediaPreviewWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
+, _controller(controller)
 , _emojiSize(Ui::Emoji::Size(Ui::Emoji::Index() + 1) / cIntRetinaFactor()) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
@@ -735,7 +737,7 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 	if (!_a_shown.animating()) {
 		if (_hiding) {
 			hide();
-			App::wnd()->disableGifPauseReason(Window::GifPauseReason::MediaPreview);
+			_controller->disableGifPauseReason(Window::GifPauseReason::MediaPreview);
 			return;
 		}
 	} else {
@@ -792,7 +794,7 @@ void MediaPreviewWidget::startShow() {
 	if (isHidden() || _a_shown.animating()) {
 		if (isHidden()) {
 			show();
-			App::wnd()->enableGifPauseReason(Window::GifPauseReason::MediaPreview);
+			_controller->enableGifPauseReason(Window::GifPauseReason::MediaPreview);
 		}
 		_hiding = false;
 		_a_shown.start([this] { update(); }, 0., 1., st::stickerPreviewDuration);
@@ -926,7 +928,7 @@ QPixmap MediaPreviewWidget::currentImage() const {
 			}
 			if (_gif && _gif->started()) {
 				auto s = currentDimensions();
-				auto paused = App::wnd()->isGifPausedAtLeastFor(Window::GifPauseReason::MediaPreview);
+				auto paused = _controller->isGifPausedAtLeastFor(Window::GifPauseReason::MediaPreview);
 				return _gif->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, ImageRoundCorner::None, paused ? 0 : getms());
 			}
 			if (_cacheStatus != CacheThumbLoaded && _document->thumb->loaded()) {

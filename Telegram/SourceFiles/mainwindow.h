@@ -43,6 +43,7 @@ namespace Theme {
 struct BackgroundUpdate;
 class WarningWidget;
 } // namespace Theme
+class Controller;
 } // namespace Window
 
 namespace Ui {
@@ -78,6 +79,10 @@ public:
 	MainWindow();
 	~MainWindow();
 
+	Window::Controller *controller() const {
+		return _controller.get();
+	}
+
 	void firstShow();
 
 	void inactivePress(bool inactive);
@@ -103,7 +108,6 @@ public:
 	void activate();
 
 	void noIntro(Intro::Widget *was);
-	void noMain(MainWidget *was);
 	void noLayerStack(LayerStackWidget *was);
 	void layerFinishedHide(LayerStackWidget *was);
 
@@ -218,6 +222,7 @@ private:
 	QList<DelayedServiceMsg> _delayedServiceMsgs;
 	mtpRequestId _serviceHistoryRequest = 0;
 
+	std::unique_ptr<Window::Controller> _controller;
 	object_ptr<PasscodeWidget> _passcode = { nullptr };
 	object_ptr<Intro::Widget> _intro = { nullptr };
 	object_ptr<MainWidget> _main = { nullptr };

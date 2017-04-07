@@ -30,6 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/localstorage.h"
 #include "lang.h"
 #include "mainwindow.h"
+#include "window/window_controller.h"
 
 namespace ChatHelpers {
 namespace {
@@ -115,7 +116,7 @@ void GifsListWidget::Footer::processPanelHideFinished() {
 	_field->setText(QString());
 }
 
-GifsListWidget::GifsListWidget(QWidget *parent) : Inner(parent)
+GifsListWidget::GifsListWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : Inner(parent, controller)
 , _section(Section::Gifs) {
 	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, countHeight());
 
@@ -137,8 +138,8 @@ GifsListWidget::GifsListWidget(QWidget *parent) : Inner(parent)
 	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
 		update();
 	});
-	subscribe(App::wnd()->gifPauseLevelChanged(), [this] {
-		if (!App::wnd()->isGifPausedAtLeastFor(Window::GifPauseReason::SavedGifs)) {
+	subscribe(controller->gifPauseLevelChanged(), [this] {
+		if (!this->controller()->isGifPausedAtLeastFor(Window::GifPauseReason::SavedGifs)) {
 			update();
 		}
 	});
@@ -253,7 +254,7 @@ void GifsListWidget::paintInlineItems(Painter &p, QRect clip) {
 		p.drawText(QRect(0, 0, width(), (height() / 3) * 2 + st::normalFont->height), lang(lng_inline_bot_no_results), style::al_center);
 		return;
 	}
-	auto gifPaused = App::wnd()->isGifPausedAtLeastFor(Window::GifPauseReason::SavedGifs);
+	auto gifPaused = controller()->isGifPausedAtLeastFor(Window::GifPauseReason::SavedGifs);
 	InlineBots::Layout::PaintContext context(getms(), false, gifPaused, false);
 
 	auto top = st::stickerPanPadding;
@@ -388,7 +389,7 @@ EmojiPanel::InnerFooter *GifsListWidget::getFooter() const {
 
 void GifsListWidget::processHideFinished() {
 	clearSelection();
-	App::wnd()->disableGifPauseReason(Window::GifPauseReason::SavedGifs);
+	controller()->disableGifPauseReason(Window::GifPauseReason::SavedGifs);
 }
 
 void GifsListWidget::processPanelHideFinished() {
@@ -749,7 +750,7 @@ void GifsListWidget::afterShown() {
 	if (_footer) {
 		_footer->stealFocus();
 	}
-	App::wnd()->enableGifPauseReason(Window::GifPauseReason::SavedGifs);
+	controller()->enableGifPauseReason(Window::GifPauseReason::SavedGifs);
 }
 
 void GifsListWidget::beforeHiding() {

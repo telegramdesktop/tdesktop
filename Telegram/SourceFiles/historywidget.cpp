@@ -147,7 +147,8 @@ private:
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
-HistoryInner::HistoryInner(HistoryWidget *historyWidget, Ui::ScrollArea *scroll, History *history) : TWidget(nullptr)
+HistoryInner::HistoryInner(HistoryWidget *historyWidget, gsl::not_null<Window::Controller*> controller, Ui::ScrollArea *scroll, History *history) : TWidget(nullptr)
+, _controller(controller)
 , _peer(history->peer)
 , _migrated(history->peer->migrateFrom() ? App::history(history->peer->migrateFrom()->id) : nullptr)
 , _history(history)
@@ -170,8 +171,8 @@ HistoryInner::HistoryInner(HistoryWidget *historyWidget, Ui::ScrollArea *scroll,
 	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
 		itemRemoved(item);
 	});
-	subscribe(App::wnd()->gifPauseLevelChanged(), [this] {
-		if (!App::wnd()->isGifPausedAtLeastFor(Window::GifPauseReason::Any)) {
+	subscribe(_controller->gifPauseLevelChanged(), [this] {
+		if (!_controller->isGifPausedAtLeastFor(Window::GifPauseReason::Any)) {
 			update();
 		}
 	});
@@ -3224,7 +3225,7 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 , _recordCancelWidth(st::historyRecordFont->width(lang(lng_record_cancel)))
 , _a_recording(animation(this, &HistoryWidget::step_recording))
 , _kbScroll(this, st::botKbScroll)
-, _emojiPanel(this)
+, _emojiPanel(this, controller)
 , _attachDragDocument(this)
 , _attachDragPhoto(this)
 , _fileLoader(this, FileLoaderQueueStopTimeout)
@@ -3438,7 +3439,7 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 			inlineBotChanged();
 		}
 		if (!_inlineResults) {
-			_inlineResults.create(this);
+			_inlineResults.create(this, _controller);
 			_inlineResults->setResultSelectedCallback([this](InlineBots::Result *result, UserData *bot) {
 				onInlineResultSend(result, bot);
 			});
@@ -4489,7 +4490,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		}
 
 		_scroll->hide();
-		_list = _scroll->setOwnedWidget(object_ptr<HistoryInner>(this, _scroll, _history));
+		_list = _scroll->setOwnedWidget(object_ptr<HistoryInner>(this, _controller, _scroll, _history));
 		_list->show();
 
 		_updateHistoryItems.stop();

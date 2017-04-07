@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Window {
 class MainMenu;
+class Controller;
 } // namespace Window
 
 class LayerWidget : public TWidget {
@@ -83,8 +84,11 @@ class LayerStackWidget : public TWidget {
 	Q_OBJECT
 
 public:
-	LayerStackWidget(QWidget *parent);
+	LayerStackWidget(QWidget *parent, Window::Controller *controller);
 
+	Window::Controller *controller() const {
+		return _controller;
+	}
 	void finishAnimation();
 
 	void showBox(object_ptr<BoxContent> box);
@@ -149,8 +153,9 @@ private:
 		return const_cast<LayerStackWidget*>(this)->currentLayer();
 	}
 
-	using Layers = QList<LayerWidget*>;
-	Layers _layers;
+	Window::Controller *_controller = nullptr;
+
+	QList<LayerWidget*> _layers;
 
 	object_ptr<LayerWidget> _specialLayer = { nullptr };
 	object_ptr<Window::MainMenu> _mainMenu = { nullptr };
@@ -164,7 +169,7 @@ class MediaPreviewWidget : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	MediaPreviewWidget(QWidget *parent);
+	MediaPreviewWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller);
 
 	void showPreview(DocumentData *document);
 	void showPreview(PhotoData *photo);
@@ -182,6 +187,8 @@ private:
 	void startShow();
 	void fillEmojiString();
 	void resetGifAndCache();
+
+	gsl::not_null<Window::Controller*> _controller;
 
 	Animation _a_shown;
 	bool _hiding = false;

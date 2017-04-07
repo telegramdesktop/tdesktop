@@ -194,7 +194,8 @@ void BoxContent::paintEvent(QPaintEvent *e) {
 	}
 }
 
-AbstractBox::AbstractBox(QWidget *parent, object_ptr<BoxContent> content) : LayerWidget(parent)
+AbstractBox::AbstractBox(QWidget *parent, Window::Controller *controller, object_ptr<BoxContent> content) : LayerWidget(parent)
+, _controller(controller)
 , _content(std::move(content)) {
 	_content->setParent(this);
 	_content->setDelegate(this);

@@ -35,6 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "auth_session.h"
+#include "window/window_controller.h"
 
 namespace InlineBots {
 namespace Layout {
@@ -45,7 +46,8 @@ constexpr auto kInlineBotRequestDelay = 400;
 
 } // namespace
 
-Inner::Inner(QWidget *parent) : TWidget(parent) {
+Inner::Inner(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
+, _controller(controller) {
 	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, st::emojiPanMinHeight);
 
 	setMouseTracking(true);
@@ -60,8 +62,8 @@ Inner::Inner(QWidget *parent) : TWidget(parent) {
 	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
 		update();
 	});
-	subscribe(App::wnd()->gifPauseLevelChanged(), [this] {
-		if (!App::wnd()->isGifPausedAtLeastFor(Window::GifPauseReason::InlineResults)) {
+	subscribe(controller->gifPauseLevelChanged(), [this] {
+		if (!_controller->isGifPausedAtLeastFor(Window::GifPauseReason::InlineResults)) {
 			update();
 		}
 	});
@@ -106,7 +108,7 @@ void Inner::paintInlineItems(Painter &p, const QRect &r) {
 		p.drawText(QRect(0, 0, width(), (height() / 3) * 2 + st::normalFont->height), lang(lng_inline_bot_no_results), style::al_center);
 		return;
 	}
-	auto gifPaused = App::wnd()->isGifPausedAtLeastFor(Window::GifPauseReason::InlineResults);
+	auto gifPaused = _controller->isGifPausedAtLeastFor(Window::GifPauseReason::InlineResults);
 	InlineBots::Layout::PaintContext context(getms(), false, gifPaused, false);
 
 	auto top = st::stickerPanPadding;
@@ -658,7 +660,8 @@ void Inner::onSwitchPm() {
 
 } // namespace internal
 
-Widget::Widget(QWidget *parent) : TWidget(parent)
+Widget::Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
+, _controller(controller)
 , _contentMaxHeight(st::emojiPanMaxHeight)
 , _contentHeight(_contentMaxHeight)
 , _scroll(this, st::inlineBotsScroll) {
@@ -669,7 +672,7 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 	_scroll->resize(st::emojiPanWidth - st::buttonRadius, _contentHeight);
 
 	_scroll->move(verticalRect().topLeft());
-	_inner = _scroll->setOwnedWidget(object_ptr<internal::Inner>(this));
+	_inner = _scroll->setOwnedWidget(object_ptr<internal::Inner>(this, controller));
 
 	_inner->moveToLeft(0, 0, _scroll->width());
 
@@ -872,7 +875,7 @@ Widget::~Widget() = default;
 
 void Widget::hideFinished() {
 	hide();
-	App::wnd()->disableGifPauseReason(Window::GifPauseReason::InlineResults);
+	_controller->disableGifPauseReason(Window::GifPauseReason::InlineResults);
 
 	_inner->hideFinish(true);
 	_a_show.finish();
@@ -893,7 +896,7 @@ void Widget::showStarted() {
 		recountContentMaxHeight();
 		_inner->preloadImages();
 		show();
-		App::wnd()->enableGifPauseReason(Window::GifPauseReason::InlineResults);
+		_controller->enableGifPauseReason(Window::GifPauseReason::InlineResults);
 		startShowAnimation();
 	} else if (_hiding) {
 		startOpacityAnimation(false);

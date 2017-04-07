@@ -22,6 +22,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "chat_helpers/emoji_panel.h"
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 namespace ChatHelpers {
 
 constexpr auto kEmojiSectionCount = 8;
@@ -84,7 +88,7 @@ class EmojiListWidget : public EmojiPanel::Inner {
 	Q_OBJECT
 
 public:
-	EmojiListWidget(QWidget *parent);
+	EmojiListWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller);
 
 	using Section = Ui::Emoji::Section;
 

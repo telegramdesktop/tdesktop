@@ -302,7 +302,7 @@ void EmojiColorPicker::drawVariant(Painter &p, int variant) {
 	p.drawPixmapLeft(w.x() + (st::emojiPanSize.width() - (esize / cIntRetinaFactor())) / 2, w.y() + (st::emojiPanSize.height() - (esize / cIntRetinaFactor())) / 2, width(), App::emojiLarge(), QRect(_variants[variant]->x() * esize, _variants[variant]->y() * esize, esize, esize));
 }
 
-EmojiListWidget::EmojiListWidget(QWidget *parent) : Inner(parent)
+EmojiListWidget::EmojiListWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : Inner(parent, controller)
 , _picker(this) {
 	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, countHeight());
 

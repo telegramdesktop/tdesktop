@@ -34,13 +34,17 @@ namespace Ui {
 class RoundButton;
 } // namespace Ui
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 namespace ChatHelpers {
 
 class GifsListWidget : public EmojiPanel::Inner, public InlineBots::Layout::Context, private base::Subscriber, private MTP::Sender {
 	Q_OBJECT
 
 public:
-	GifsListWidget(QWidget *parent);
+	GifsListWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller);
 
 	void refreshRecent() override;
 	void preloadImages() override;

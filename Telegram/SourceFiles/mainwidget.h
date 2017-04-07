@@ -142,7 +142,7 @@ class MainWidget : public TWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	MainWidget(QWidget *parent, std::unique_ptr<Window::Controller> controller);
+	MainWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller);
 
 	bool needBackButton();
 
@@ -495,7 +495,7 @@ private:
 
 	void saveSectionInStack();
 
-	std::unique_ptr<Window::Controller> _controller;
+	gsl::not_null<Window::Controller*> _controller;
 	bool _started = false;
 
 	SelectedItemSet _toForward;
@@ -570,6 +570,7 @@ private:
 	object_ptr<DialogsWidget> _dialogs;
 	object_ptr<HistoryWidget> _history;
 	object_ptr<Window::SectionWidget> _wideSection = { nullptr };
+	object_ptr<Window::SectionWidget> _thirdSection = { nullptr };
 	object_ptr<OverviewWidget> _overview = { nullptr };
 
 	object_ptr<Window::PlayerWrapWidget> _player = { nullptr };

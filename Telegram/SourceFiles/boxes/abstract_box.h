@@ -31,6 +31,10 @@ template <typename Widget>
 class WidgetFadeWrap;
 } // namespace Ui
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 class BoxLayerTitleShadow : public Ui::PlainShadow {
 public:
 	BoxLayerTitleShadow(QWidget *parent);
@@ -39,6 +43,8 @@ public:
 
 class BoxContentDelegate {
 public:
+	virtual Window::Controller *controller() const = 0;
+
 	virtual void setLayerType(bool layerType) = 0;
 	virtual void setTitle(const QString &title, const QString &additional) = 0;
 
@@ -60,8 +66,6 @@ class BoxContent : public TWidget, protected base::Subscriber {
 public:
 	BoxContent() {
 		setAttribute(Qt::WA_OpaquePaintEvent);
-	}
-	BoxContent(QWidget*) : BoxContent() {
 	}
 
 	bool isBoxShown() const {
@@ -106,6 +110,10 @@ public slots:
 
 protected:
 	virtual void prepare() = 0;
+
+	Window::Controller *controller() {
+		return getDelegate()->controller();
+	}
 
 	void setLayerType(bool layerType) {
 		getDelegate()->setLayerType(layerType);
@@ -165,7 +173,7 @@ private:
 	object_ptr<TWidget> doTakeInnerWidget();
 
 	BoxContentDelegate *getDelegate() const {
-		t_assert(_delegate != nullptr);
+		Expects(_delegate != nullptr);
 		return _delegate;
 	}
 	BoxContentDelegate *_delegate = nullptr;
@@ -183,8 +191,11 @@ private:
 
 class AbstractBox : public LayerWidget, public BoxContentDelegate, protected base::Subscriber {
 public:
-	AbstractBox(QWidget *parent, object_ptr<BoxContent> content);
+	AbstractBox(QWidget *parent, Window::Controller *controller, object_ptr<BoxContent> content);
 
+	Window::Controller *controller() const override {
+		return _controller;
+	}
 	void parentResized() override;
 
 	void setLayerType(bool layerType) override;
@@ -235,6 +246,7 @@ private:
 	int countRealHeight() const;
 	void updateSize();
 
+	Window::Controller *_controller = nullptr;
 	int _fullHeight = 0;
 
 	bool _noContentMargin = false;

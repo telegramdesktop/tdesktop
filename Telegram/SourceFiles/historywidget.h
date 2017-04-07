@@ -70,7 +70,7 @@ class HistoryInner : public TWidget, public Ui::AbstractTooltipShower, private b
 	Q_OBJECT
 
 public:
-	HistoryInner(HistoryWidget *historyWidget, Ui::ScrollArea *scroll, History *history);
+	HistoryInner(HistoryWidget *historyWidget, gsl::not_null<Window::Controller*> controller, Ui::ScrollArea *scroll, History *history);
 
 	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages);
 	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages);
@@ -186,6 +186,8 @@ private:
 	bool displayScrollDate() const;
 	void scrollDateHide();
 	void keepScrollDateForNow();
+
+	gsl::not_null<Window::Controller*> _controller;
 
 	PeerData *_peer = nullptr;
 	History *_migrated = nullptr;
