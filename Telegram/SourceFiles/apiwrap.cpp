@@ -36,15 +36,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace {
 
 constexpr auto kReloadChannelMembersTimeout = 1000; // 1 second wait before reload members in channel after adding
+constexpr auto kSaveCloudDraftTimeout = 1000; // save draft to the cloud with 1 sec extra delay
 constexpr auto kSmallDelayMs = 5;
 
 } // namespace
 
-ApiWrap::ApiWrap() : _messageDataResolveDelayed([this] { resolveMessageDatas(); }) {
+ApiWrap::ApiWrap()
+: _messageDataResolveDelayed([this] { resolveMessageDatas(); })
+, _webPagesTimer([this] { resolveWebPages(); })
+, _draftsSaveTimer([this] { saveDraftsToCloud(); }) {
 	Window::Theme::Background()->start();
-
-	connect(&_webPagesTimer, &QTimer::timeout, [this] { resolveWebPages(); });
-	connect(&_draftsSaveTimer, &QTimer::timeout, [this] { saveDraftsToCloud(); });
 }
 
 void ApiWrap::requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback callback) {
@@ -948,7 +949,7 @@ void ApiWrap::requestNotifySetting(PeerData *peer) {
 void ApiWrap::saveDraftToCloudDelayed(History *history) {
 	_draftsSaveRequestIds.insert(history, 0);
 	if (!_draftsSaveTimer.isActive()) {
-		_draftsSaveTimer.start(SaveCloudDraftTimeout);
+		_draftsSaveTimer.callOnce(kSaveCloudDraftTimeout);
 	}
 }
 
@@ -1263,20 +1264,22 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 void ApiWrap::requestWebPageDelayed(WebPageData *page) {
 	if (page->pendingTill <= 0) return;
 	_webPagesPending.insert(page, 0);
-	int32 left = (page->pendingTill - unixtime()) * 1000;
+	auto left = (page->pendingTill - unixtime()) * 1000;
 	if (!_webPagesTimer.isActive() || left <= _webPagesTimer.remainingTime()) {
-		_webPagesTimer.start((left < 0 ? 0 : left) + 1);
+		_webPagesTimer.callOnce((left < 0 ? 0 : left) + 1);
 	}
 }
 
 void ApiWrap::clearWebPageRequest(WebPageData *page) {
 	_webPagesPending.remove(page);
-	if (_webPagesPending.isEmpty() && _webPagesTimer.isActive()) _webPagesTimer.stop();
+	if (_webPagesPending.isEmpty() && _webPagesTimer.isActive()) {
+		_webPagesTimer.cancel();
+	}
 }
 
 void ApiWrap::clearWebPageRequests() {
 	_webPagesPending.clear();
-	_webPagesTimer.stop();
+	_webPagesTimer.cancel();
 }
 
 void ApiWrap::resolveWebPages() {
@@ -1342,11 +1345,13 @@ void ApiWrap::resolveWebPages() {
 		}
 	}
 
-	if (m < INT_MAX) _webPagesTimer.start(m * 1000);
+	if (m < INT_MAX) {
+		_webPagesTimer.callOnce(m * 1000);
+	}
 }
 
 void ApiWrap::requestParticipantsCountDelayed(ChannelData *channel) {
-	QTimer::singleShot(kReloadChannelMembersTimeout, this, [this, channel] {
+	_participantsCountRequestTimer.call(kReloadChannelMembersTimeout, [this, channel] {
 		channel->updateFull(true);
 	});
 }

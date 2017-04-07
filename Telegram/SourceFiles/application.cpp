@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "autoupdater.h"
 #include "window/notifications_manager.h"
 #include "messenger.h"
+#include "base/timer.h"
 
 namespace {
 
@@ -546,6 +547,7 @@ void adjustSingleTimers() {
 	if (auto a = application()) {
 		a->adjustSingleTimers();
 	}
+	base::Timer::Adjust();
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE

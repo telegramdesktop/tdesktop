@@ -362,7 +362,7 @@ private:
 	}
 
 	gsl::not_null<Instance*> _instance;
-	std::set<RequestWrap, RequestWrapComparator> _requests;
+	std::set<RequestWrap, RequestWrapComparator> _requests; // Better to use flatmap.
 
 };
 

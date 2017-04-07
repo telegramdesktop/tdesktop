@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "base/timer.h"
 #include "core/single_timer.h"
 #include "mtproto/sender.h"
 
@@ -35,7 +36,7 @@ inline const MTPVector<MTPChat> *getChatsFromMessagesChats(const MTPmessages_Cha
 
 } // namespace Api
 
-class ApiWrap : public QObject, private MTP::Sender {
+class ApiWrap : private MTP::Sender {
 public:
 	ApiWrap();
 
@@ -124,6 +125,7 @@ private:
 
 	PeerRequests _participantsRequests;
 	PeerRequests _botsRequests;
+	base::DelayedCallTimer _participantsCountRequestTimer;
 
 	typedef QPair<PeerData*, UserData*> KickRequest;
 	typedef QMap<KickRequest, mtpRequestId> KickRequests;
@@ -132,7 +134,7 @@ private:
 	QMap<ChannelData*, mtpRequestId> _selfParticipantRequests;
 
 	QMap<WebPageData*, mtpRequestId> _webPagesPending;
-	SingleTimer _webPagesTimer;
+	base::Timer _webPagesTimer;
 
 	QMap<uint64, QPair<uint64, mtpRequestId> > _stickerSetRequests;
 
@@ -143,7 +145,7 @@ private:
 	QMap<PeerData*, mtpRequestId> _notifySettingRequests;
 
 	QMap<History*, mtpRequestId> _draftsSaveRequestIds;
-	SingleTimer _draftsSaveTimer;
+	base::Timer _draftsSaveTimer;
 
 	OrderedSet<mtpRequestId> _stickerSetDisenableRequests;
 	Stickers::Order _stickersOrder;
