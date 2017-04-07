@@ -1052,8 +1052,11 @@ void PeerListBox::Inner::setVisibleTopBottom(int visibleTop, int visibleBottom) 
 
 void PeerListBox::Inner::setSelected(Selected selected) {
 	updateRow(_selected.index);
-	_selected = selected;
-	updateRow(_selected.index);
+	if (_selected != selected) {
+		_selected = selected;
+		updateRow(_selected.index);
+		setCursor(_selected.action ? style::cur_pointer : style::cur_default);
+	}
 }
 
 void PeerListBox::Inner::restoreSelection() {
@@ -1069,7 +1072,7 @@ void PeerListBox::Inner::updateSelection() {
 	auto in = parentWidget()->rect().contains(parentWidget()->mapFromGlobal(_lastMousePosition));
 	auto selected = Selected();
 	auto rowsPointY = point.y() - rowsTop;
-	selected.index.value = (in && rowsPointY >= 0) ? snap(rowsPointY / _rowHeight, 0, shownRowsCount() - 1) : -1;
+	selected.index.value = (in && rowsPointY >= 0 && rowsPointY < shownRowsCount() * _rowHeight) ? (rowsPointY / _rowHeight) : -1;
 	if (selected.index.value >= 0) {
 		auto row = getRow(selected.index);
 		if (row->disabled()) {
@@ -1086,10 +1089,7 @@ void PeerListBox::Inner::updateSelection() {
 			}
 		}
 	}
-	if (_selected != selected) {
-		setSelected(selected);
-		setCursor(_selected.action ? style::cur_pointer : style::cur_default);
-	}
+	setSelected(selected);
 }
 
 void PeerListBox::Inner::peerUpdated(PeerData *peer) {

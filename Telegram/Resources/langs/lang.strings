@@ -496,6 +496,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_create_public_link" = "Create public link";
 "lng_profile_edit_public_link" = "Edit public link";
 "lng_profile_manage_admins" = "Manage administrators";
+"lng_profile_manage_blocklist" = "Manage blocked users";
 "lng_profile_common_groups" = "{count:_not_used_|# group|# groups} in common";
 "lng_profile_common_groups_section" = "Groups in common";
 "lng_profile_participants_section" = "Members";
@@ -574,6 +575,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_channel_add_admin" = "Add Administrator";
 "lng_channel_admin_sure" = "Add {user} to administrators?";
 "lng_channel_admins_too_much" = "Sorry, you have reached the limit of the administrators. Please remove one administrator first.";
+
+"lng_group_blocked_list_about" = "Blocked users are removed from the group and can only come back if invited by an admin.\nInvite links don't work for them.";
 
 "lng_chat_all_members_admins" = "All Members Are Admins";
 "lng_chat_about_all_admins" = "Group members can add new members, edit name and photo of the group.";

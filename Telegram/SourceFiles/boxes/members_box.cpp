@@ -514,80 +514,81 @@ void MembersBox::Inner::onPeerNameChanged(PeerData *peer, const PeerData::Names 
 }
 
 void MembersBox::Inner::membersReceived(const MTPchannels_ChannelParticipants &result, mtpRequestId req) {
+	Expects(result.type() == mtpc_channels_channelParticipants);
+
 	clear();
 	_loadingRequestId = 0;
 
-	if (result.type() == mtpc_channels_channelParticipants) {
-		auto &d = result.c_channels_channelParticipants();
-		auto &v = d.vparticipants.v;
-		_rows.reserve(v.size());
-		_datas.reserve(v.size());
-		_dates.reserve(v.size());
-		_roles.reserve(v.size());
+	auto &d = result.c_channels_channelParticipants();
+	auto &v = d.vparticipants.v;
+	_rows.reserve(v.size());
+	_datas.reserve(v.size());
+	_dates.reserve(v.size());
+	_roles.reserve(v.size());
 
-		if (_filter == MembersFilter::Recent && _channel->membersCount() < d.vcount.v) {
-			_channel->setMembersCount(d.vcount.v);
-			if (App::main()) emit App::main()->peerUpdated(_channel);
-		} else if (_filter == MembersFilter::Admins && _channel->adminsCount() < d.vcount.v) {
-			_channel->setAdminsCount(d.vcount.v);
-			if (App::main()) emit App::main()->peerUpdated(_channel);
+	if (_filter == MembersFilter::Recent && _channel->membersCount() < d.vcount.v) {
+		_channel->setMembersCount(d.vcount.v);
+		if (App::main()) emit App::main()->peerUpdated(_channel);
+	} else if (_filter == MembersFilter::Admins && _channel->adminsCount() < d.vcount.v) {
+		_channel->setAdminsCount(d.vcount.v);
+		if (App::main()) emit App::main()->peerUpdated(_channel);
+	}
+	App::feedUsers(d.vusers);
+
+	for (QVector<MTPChannelParticipant>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
+		int32 userId = 0, addedTime = 0;
+		MemberRole role = MemberRole::None;
+		switch (i->type()) {
+		case mtpc_channelParticipant:
+			userId = i->c_channelParticipant().vuser_id.v;
+			addedTime = i->c_channelParticipant().vdate.v;
+			break;
+		case mtpc_channelParticipantSelf:
+			role = MemberRole::Self;
+			userId = i->c_channelParticipantSelf().vuser_id.v;
+			addedTime = i->c_channelParticipantSelf().vdate.v;
+			break;
+		case mtpc_channelParticipantModerator:
+			role = MemberRole::Moderator;
+			userId = i->c_channelParticipantModerator().vuser_id.v;
+			addedTime = i->c_channelParticipantModerator().vdate.v;
+			break;
+		case mtpc_channelParticipantEditor:
+			role = MemberRole::Editor;
+			userId = i->c_channelParticipantEditor().vuser_id.v;
+			addedTime = i->c_channelParticipantEditor().vdate.v;
+			break;
+		case mtpc_channelParticipantKicked:
+			userId = i->c_channelParticipantKicked().vuser_id.v;
+			addedTime = i->c_channelParticipantKicked().vdate.v;
+			role = MemberRole::Kicked;
+			break;
+		case mtpc_channelParticipantCreator:
+			userId = i->c_channelParticipantCreator().vuser_id.v;
+			addedTime = _channel->date;
+			role = MemberRole::Creator;
+			break;
 		}
-		App::feedUsers(d.vusers);
-
-		for (QVector<MTPChannelParticipant>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
-			int32 userId = 0, addedTime = 0;
-			MemberRole role = MemberRole::None;
-			switch (i->type()) {
-			case mtpc_channelParticipant:
-				userId = i->c_channelParticipant().vuser_id.v;
-				addedTime = i->c_channelParticipant().vdate.v;
-				break;
-			case mtpc_channelParticipantSelf:
-				role = MemberRole::Self;
-				userId = i->c_channelParticipantSelf().vuser_id.v;
-				addedTime = i->c_channelParticipantSelf().vdate.v;
-				break;
-			case mtpc_channelParticipantModerator:
-				role = MemberRole::Moderator;
-				userId = i->c_channelParticipantModerator().vuser_id.v;
-				addedTime = i->c_channelParticipantModerator().vdate.v;
-				break;
-			case mtpc_channelParticipantEditor:
-				role = MemberRole::Editor;
-				userId = i->c_channelParticipantEditor().vuser_id.v;
-				addedTime = i->c_channelParticipantEditor().vdate.v;
-				break;
-			case mtpc_channelParticipantKicked:
-				userId = i->c_channelParticipantKicked().vuser_id.v;
-				addedTime = i->c_channelParticipantKicked().vdate.v;
-				role = MemberRole::Kicked;
-				break;
-			case mtpc_channelParticipantCreator:
-				userId = i->c_channelParticipantCreator().vuser_id.v;
-				addedTime = _channel->date;
-				role = MemberRole::Creator;
-				break;
-			}
-			if (UserData *user = App::userLoaded(userId)) {
-				_rows.push_back(user);
-				_dates.push_back(date(addedTime));
-				_roles.push_back(role);
-				_datas.push_back(0);
-			}
-		}
-
-		// update admins if we got all of them
-		if (_filter == MembersFilter::Admins && _channel->isMegagroup() && _rows.size() < Global::ChatSizeMax()) {
-			_channel->mgInfo->lastAdmins.clear();
-			for (int32 i = 0, l = _rows.size(); i != l; ++i) {
-				if (_roles.at(i) == MemberRole::Creator || _roles.at(i) == MemberRole::Editor) {
-					_channel->mgInfo->lastAdmins.insert(_rows.at(i));
-				}
-			}
-
-			Notify::peerUpdatedDelayed(_channel, Notify::PeerUpdate::Flag::AdminsChanged);
+		if (UserData *user = App::userLoaded(userId)) {
+			_rows.push_back(user);
+			_dates.push_back(date(addedTime));
+			_roles.push_back(role);
+			_datas.push_back(0);
 		}
 	}
+
+	// update admins if we got all of them
+	if (_filter == MembersFilter::Admins && _channel->isMegagroup() && _rows.size() < Global::ChatSizeMax()) {
+		_channel->mgInfo->lastAdmins.clear();
+		for (int32 i = 0, l = _rows.size(); i != l; ++i) {
+			if (_roles.at(i) == MemberRole::Creator || _roles.at(i) == MemberRole::Editor) {
+				_channel->mgInfo->lastAdmins.insert(_rows.at(i));
+			}
+		}
+
+		Notify::peerUpdatedDelayed(_channel, Notify::PeerUpdate::Flag::AdminsChanged);
+	}
+
 	if (_rows.isEmpty()) {
 		_rows.push_back(App::self());
 		_dates.push_back(date(MTP_int(_channel->date)));

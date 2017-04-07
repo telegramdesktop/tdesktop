@@ -25,7 +25,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/checkbox.h"
 #include "boxes/confirm_box.h"
 #include "boxes/contacts_box.h"
+#include "boxes/peer_list_box.h"
 #include "observer_peer.h"
+#include "auth_session.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
 #include "lang.h"
@@ -33,6 +35,126 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h" // tmp
 
 namespace Profile {
+namespace {
+
+constexpr auto kBlockedPerPage = 40;
+
+class BlockedBoxController : public PeerListBox::Controller, private base::Subscriber, private MTP::Sender {
+public:
+	BlockedBoxController(ChannelData *channel) : _channel(channel) {
+	}
+
+	void prepare() override;
+	void rowClicked(PeerListBox::Row *row) override;
+	void rowActionClicked(PeerListBox::Row *row) override;
+	void preloadRows() override;
+
+private:
+	bool appendRow(UserData *user);
+	bool prependRow(UserData *user);
+	std::unique_ptr<PeerListBox::Row> createRow(UserData *user) const;
+
+	ChannelData *_channel = nullptr;
+	int _offset = 0;
+	mtpRequestId _loadRequestId = 0;
+	bool _allLoaded = false;
+
+};
+
+void BlockedBoxController::prepare() {
+	view()->setTitle(lang(lng_blocked_list_title));
+	view()->addButton(lang(lng_close), [this] { view()->closeBox(); });
+	view()->setAboutText(lang(lng_contacts_loading));
+	view()->refreshRows();
+
+	preloadRows();
+}
+
+void BlockedBoxController::preloadRows() {
+	if (_loadRequestId || _allLoaded) {
+		return;
+	}
+
+	_loadRequestId = request(MTPchannels_GetParticipants(_channel->inputChannel, MTP_channelParticipantsKicked(), MTP_int(_offset), MTP_int(kBlockedPerPage))).done([this](const MTPchannels_ChannelParticipants &result) {
+		Expects(result.type() == mtpc_channels_channelParticipants);
+
+		_loadRequestId = 0;
+
+		if (!_offset) {
+			view()->setAboutText(lang(lng_group_blocked_list_about));
+		}
+		auto &participants = result.c_channels_channelParticipants();
+		App::feedUsers(participants.vusers);
+
+		auto &list = participants.vparticipants.v;
+		if (list.isEmpty()) {
+			_allLoaded = true;
+		} else {
+			for_const (auto &participant, list) {
+				++_offset;
+				if (participant.type() != mtpc_channelParticipantKicked) {
+					LOG(("API Error: Non kicked participant got while requesting for kicked participants: %1").arg(participant.type()));
+					continue;
+				}
+				auto &kicked = participant.c_channelParticipantKicked();
+				auto userId = kicked.vuser_id.v;
+				if (auto user = App::userLoaded(userId)) {
+					appendRow(user);
+				}
+			}
+		}
+		view()->refreshRows();
+	}).fail([this](const RPCError &error) {
+		_loadRequestId = 0;
+	}).send();
+}
+
+void BlockedBoxController::rowClicked(PeerListBox::Row *row) {
+	Ui::showPeerHistoryAsync(row->peer()->id, ShowAtUnreadMsgId);
+}
+
+void BlockedBoxController::rowActionClicked(PeerListBox::Row *row) {
+	auto user = row->peer()->asUser();
+	Expects(user != nullptr);
+
+	view()->removeRow(row);
+	view()->refreshRows();
+
+	AuthSession::Current().api().unblockParticipant(_channel, user);
+}
+
+bool BlockedBoxController::appendRow(UserData *user) {
+	if (view()->findRow(user)) {
+		return false;
+	}
+	view()->appendRow(createRow(user));
+	return true;
+}
+
+bool BlockedBoxController::prependRow(UserData *user) {
+	if (view()->findRow(user)) {
+		return false;
+	}
+	view()->prependRow(createRow(user));
+	return true;
+}
+
+std::unique_ptr<PeerListBox::Row> BlockedBoxController::createRow(UserData *user) const {
+	auto row = std::make_unique<PeerListBox::Row>(user);
+	row->setActionLink(lang(lng_blocked_list_unblock));
+	auto status = [user]() -> QString {
+		if (user->botInfo) {
+			return lang(lng_status_bot);
+		} else if (user->phone().isEmpty()) {
+			return lang(lng_blocked_list_unknown_phone);
+		}
+		return App::formatPhone(user->phone());
+	};
+	row->setCustomStatus(status());
+	return row;
+}
+
+} // namespace
 
 using UpdateFlag = Notify::PeerUpdate::Flag;
 
@@ -49,6 +171,7 @@ SettingsWidget::SettingsWidget(QWidget *parent, PeerData *peer) : BlockWidget(pa
 		if (channel->amCreator()) {
 			observeEvents |= UpdateFlag::UsernameChanged | UpdateFlag::InviteLinkChanged;
 		}
+		observeEvents |= UpdateFlag::ChannelAmEditor | UpdateFlag::BlockedUsersChanged;
 	}
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		notifyPeerUpdated(update);
@@ -74,6 +197,9 @@ void SettingsWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 	if (update.flags & (UpdateFlag::ChatCanEdit)) {
 		refreshManageAdminsButton();
 	}
+	if ((update.flags & UpdateFlag::ChannelAmEditor) || (update.flags & UpdateFlag::BlockedUsersChanged)) {
+		refreshManageBlockedUsersButton();
+	}
 
 	contentSizeUpdated();
 }
@@ -95,6 +221,7 @@ int SettingsWidget::resizeGetHeight(int newWidth) {
 		newHeight += button->height();
 	};
 	moveLink(_manageAdmins);
+	moveLink(_manageBlockedUsers);
 	moveLink(_inviteLink);
 
 	newHeight += st::profileBlockMarginBottom;
@@ -104,6 +231,7 @@ int SettingsWidget::resizeGetHeight(int newWidth) {
 void SettingsWidget::refreshButtons() {
 	refreshEnableNotifications();
 	refreshManageAdminsButton();
+	refreshManageBlockedUsersButton();
 	refreshInviteLinkButton();
 }
 
@@ -118,11 +246,11 @@ void SettingsWidget::refreshEnableNotifications() {
 }
 
 void SettingsWidget::refreshManageAdminsButton() {
-	auto hasManageAdmins = [this]() {
+	auto hasManageAdmins = [this] {
 		if (auto chat = peer()->asChat()) {
 			return (chat->amCreator() && chat->canEdit());
-		} else if (auto channel = peer()->asChannel()) {
-			return (channel->amCreator() && channel->isMegagroup());
+		} else if (auto channel = peer()->asMegagroup()) {
+			return channel->amCreator();
 		}
 		return false;
 	};
@@ -131,6 +259,21 @@ void SettingsWidget::refreshManageAdminsButton() {
 		_manageAdmins.create(this, lang(lng_profile_manage_admins), st::defaultLeftOutlineButton);
 		_manageAdmins->show();
 		connect(_manageAdmins, SIGNAL(clicked()), this, SLOT(onManageAdmins()));
+	}
+}
+
+void SettingsWidget::refreshManageBlockedUsersButton() {
+	auto hasManageBlockedUsers = [this] {
+		if (auto channel = peer()->asMegagroup()) {
+			return (channel->amCreator() || channel->amEditor()) && (channel->kickedCount() > 0);
+		}
+		return false;
+	};
+	_manageBlockedUsers.destroy();
+	if (hasManageBlockedUsers()) {
+		_manageBlockedUsers.create(this, lang(lng_profile_manage_blocklist), st::defaultLeftOutlineButton);
+		_manageBlockedUsers->show();
+		connect(_manageBlockedUsers, SIGNAL(clicked()), this, SLOT(onManageBlockedUsers()));
 	}
 }
 
@@ -166,6 +309,12 @@ void SettingsWidget::onManageAdmins() {
 		Ui::show(Box<ContactsBox>(chat, MembersFilter::Admins));
 	} else if (auto channel = peer()->asChannel()) {
 		Ui::show(Box<MembersBox>(channel, MembersFilter::Admins));
+	}
+}
+
+void SettingsWidget::onManageBlockedUsers() {
+	if (auto channel = peer()->asMegagroup()) {
+		Ui::show(Box<PeerListBox>(std::make_unique<BlockedBoxController>(channel)));
 	}
 }
 

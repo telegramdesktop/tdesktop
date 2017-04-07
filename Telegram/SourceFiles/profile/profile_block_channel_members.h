@@ -42,7 +42,7 @@ protected:
 	// Resizes content and counts natural widget height for the desired width.
 	int resizeGetHeight(int newWidth) override;
 
-	private slots:
+private slots:
 	void onAdmins();
 	void onMembers();
 

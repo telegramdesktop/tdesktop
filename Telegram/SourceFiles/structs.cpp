@@ -717,6 +717,13 @@ void ChannelData::setAdminsCount(int newAdminsCount) {
 	}
 }
 
+void ChannelData::setKickedCount(int newKickedCount) {
+	if (_kickedCount != newKickedCount) {
+		_kickedCount = newKickedCount;
+		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::BlockedUsersChanged);
+	}
+}
+
 void ChannelData::flagsUpdated() {
 	if (isMegagroup()) {
 		if (!mgInfo) {

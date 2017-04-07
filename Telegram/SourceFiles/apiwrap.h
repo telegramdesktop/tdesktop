@@ -55,6 +55,7 @@ public:
 
 	void requestSelfParticipant(ChannelData *channel);
 	void kickParticipant(PeerData *peer, UserData *user);
+	void unblockParticipant(PeerData *peer, UserData *user);
 
 	void requestWebPageDelayed(WebPageData *page);
 	void clearWebPageRequest(WebPageData *page);

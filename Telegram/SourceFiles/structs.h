@@ -740,6 +740,11 @@ public:
 	}
 	void setAdminsCount(int newAdminsCount);
 
+	int kickedCount() const {
+		return _kickedCount;
+	}
+	void setKickedCount(int newKickedCount);
+
 	int32 date = 0;
 	int version = 0;
 	MTPDchannel::Flags flags = { 0 };
@@ -880,6 +885,7 @@ private:
 
 	int _membersCount = 1;
 	int _adminsCount = 1;
+	int _kickedCount = 0;
 
 	QString _restrictionReason;
 	QString _about;

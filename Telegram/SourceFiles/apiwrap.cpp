@@ -300,6 +300,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		channel->setAbout(qs(f.vabout));
 		channel->setMembersCount(f.has_participants_count() ? f.vparticipants_count.v : 0);
 		channel->setAdminsCount(f.has_admins_count() ? f.vadmins_count.v : 0);
+		channel->setKickedCount(f.has_kicked_count() ? f.vkicked_count.v : 0);
 		channel->setInviteLink((f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString());
 		if (auto h = App::historyLoaded(channel->id)) {
 			if (h->inboxReadBefore < f.vread_inbox_max_id.v + 1) {
@@ -651,8 +652,10 @@ void ApiWrap::kickParticipant(PeerData *peer, UserData *user) {
 	auto kick = KickRequest(peer, user);
 	if (_kickRequests.contains(kick)) return;
 
-	if (peer->isChannel()) {
-		auto requestId = request(MTPchannels_KickFromChannel(peer->asChannel()->inputChannel, user->inputUser, MTP_bool(true))).done([this, peer, user](const MTPUpdates &result) {
+	if (auto channel = peer->asChannel()) {
+		auto requestId = request(MTPchannels_KickFromChannel(channel->inputChannel, user->inputUser, MTP_bool(true))).done([this, peer, user](const MTPUpdates &result) {
+			App::main()->sentUpdatesReceived(result);
+
 			_kickRequests.remove(KickRequest(peer, user));
 			if (auto channel = peer->asMegagroup()) {
 				auto megagroupInfo = channel->mgInfo;
@@ -668,6 +671,7 @@ void ApiWrap::kickParticipant(PeerData *peer, UserData *user) {
 					megagroupInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
 					megagroupInfo->lastParticipantsCount = 0;
 				}
+				channel->setKickedCount(channel->kickedCount() + 1);
 				if (megagroupInfo->lastAdmins.contains(user)) {
 					megagroupInfo->lastAdmins.remove(user);
 					if (channel->adminsCount() > 1) {
@@ -682,6 +686,30 @@ void ApiWrap::kickParticipant(PeerData *peer, UserData *user) {
 			}
 			Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
 			fullPeerUpdated().notify(peer);
+		}).fail([this, kick](const RPCError &error) {
+			_kickRequests.remove(kick);
+		}).send();
+
+		_kickRequests.insert(kick, requestId);
+	}
+}
+
+void ApiWrap::unblockParticipant(PeerData *peer, UserData *user) {
+	auto kick = KickRequest(peer, user);
+	if (_kickRequests.contains(kick)) return;
+
+	if (auto channel = peer->asChannel()) {
+		auto requestId = request(MTPchannels_KickFromChannel(channel->inputChannel, user->inputUser, MTP_bool(false))).done([this, peer, user](const MTPUpdates &result) {
+			App::main()->sentUpdatesReceived(result);
+
+			_kickRequests.remove(KickRequest(peer, user));
+			if (auto channel = peer->asMegagroup()) {
+				if (channel->kickedCount() > 0) {
+					channel->setKickedCount(channel->kickedCount() - 1);
+				} else {
+					channel->updateFull(true);
+				}
+			}
 		}).fail([this, kick](const RPCError &error) {
 			_kickRequests.remove(kick);
 		}).send();
