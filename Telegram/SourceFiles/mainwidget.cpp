@@ -30,6 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/top_bar_widget.h"
 #include "data/data_drafts.h"
 #include "ui/widgets/dropdown_menu.h"
+#include "chat_helpers/message_field.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "dialogswidget.h"
@@ -1167,7 +1168,7 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 
 	saveRecentHashtags(textWithTags.text);
 
-	EntitiesInText sendingEntities, leftEntities = entitiesFromTextTags(textWithTags.tags);
+	EntitiesInText sendingEntities, leftEntities = ConvertTextTagsToEntities(textWithTags.tags);
 	auto prepareFlags = itemTextOptions(history, App::self()).flags;
 	QString sendingText, leftText = prepareTextWithEntities(textWithTags.text, prepareFlags, &leftEntities);
 

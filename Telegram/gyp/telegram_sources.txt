@@ -79,6 +79,8 @@
 <(src_loc)/boxes/stickers_box.h
 <(src_loc)/boxes/username_box.cpp
 <(src_loc)/boxes/username_box.h
+<(src_loc)/chat_helpers/bot_keyboard.cpp
+<(src_loc)/chat_helpers/bot_keyboard.h
 <(src_loc)/chat_helpers/emoji_panel.cpp
 <(src_loc)/chat_helpers/emoji_panel.h
 <(src_loc)/chat_helpers/emoji_list_widget.cpp
@@ -89,6 +91,8 @@
 <(src_loc)/chat_helpers/field_autocomplete.h
 <(src_loc)/chat_helpers/gifs_list_widget.cpp
 <(src_loc)/chat_helpers/gifs_list_widget.h
+<(src_loc)/chat_helpers/message_field.cpp
+<(src_loc)/chat_helpers/message_field.h
 <(src_loc)/chat_helpers/stickers.cpp
 <(src_loc)/chat_helpers/stickers.h
 <(src_loc)/chat_helpers/stickers_list_widget.cpp
@@ -123,6 +127,8 @@
 <(src_loc)/history/history_drag_area.h
 <(src_loc)/history/history_item.cpp
 <(src_loc)/history/history_item.h
+<(src_loc)/history/history_inner_widget.cpp
+<(src_loc)/history/history_inner_widget.h
 <(src_loc)/history/history_location_manager.cpp
 <(src_loc)/history/history_location_manager.h
 <(src_loc)/history/history_media.h

@@ -32,6 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/confirm_box.h"
 #include "window/themes/window_theme.h"
 #include "window/notifications_manager.h"
+#include "chat_helpers/message_field.h"
 
 namespace {
 
@@ -1128,7 +1129,7 @@ void ApiWrap::saveDraftsToCloud() {
 		if (!textWithTags.tags.isEmpty()) {
 			flags |= MTPmessages_SaveDraft::Flag::f_entities;
 		}
-		auto entities = linksToMTP(entitiesFromTextTags(textWithTags.tags), true);
+		auto entities = linksToMTP(ConvertTextTagsToEntities(textWithTags.tags), true);
 
 		cloudDraft->saveRequestId = request(MTPmessages_SaveDraft(MTP_flags(flags), MTP_int(cloudDraft->msgId), history->peer->input, MTP_string(textWithTags.text), entities)).done([this, history](const MTPBool &result, mtpRequestId requestId) {
 			if (auto cloudDraft = history->cloudDraft()) {

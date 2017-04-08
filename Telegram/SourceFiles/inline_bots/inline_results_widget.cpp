@@ -28,7 +28,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "inline_bots/inline_bot_result.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "dialogs/dialogs_layout.h"
-#include "historywidget.h"
 #include "storage/localstorage.h"
 #include "lang.h"
 #include "mainwindow.h"
@@ -36,6 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "auth_session.h"
 #include "window/window_controller.h"
+#include "ui/widgets/scroll_area.h"
 
 namespace InlineBots {
 namespace Layout {
