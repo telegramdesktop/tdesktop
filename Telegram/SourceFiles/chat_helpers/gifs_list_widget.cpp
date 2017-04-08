@@ -43,7 +43,7 @@ constexpr auto kSearchBotUsername = "gif";
 
 } // namespace
 
-class GifsListWidget::Footer : public EmojiPanel::InnerFooter {
+class GifsListWidget::Footer : public TabbedPanel::InnerFooter {
 public:
 	Footer(gsl::not_null<GifsListWidget*> parent);
 
@@ -145,7 +145,7 @@ GifsListWidget::GifsListWidget(QWidget *parent, gsl::not_null<Window::Controller
 	});
 }
 
-object_ptr<EmojiPanel::InnerFooter> GifsListWidget::createFooter() {
+object_ptr<TabbedPanel::InnerFooter> GifsListWidget::createFooter() {
 	Expects(_footer == nullptr);
 	auto result = object_ptr<Footer>(this);
 	_footer = result;
@@ -383,7 +383,7 @@ void GifsListWidget::clearSelection() {
 	update();
 }
 
-EmojiPanel::InnerFooter *GifsListWidget::getFooter() const {
+TabbedPanel::InnerFooter *GifsListWidget::getFooter() const {
 	return _footer;
 }
 

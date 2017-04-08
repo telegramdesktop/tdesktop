@@ -54,7 +54,7 @@ struct StickerIcon {
 
 };
 
-class StickersListWidget::Footer : public EmojiPanel::InnerFooter {
+class StickersListWidget::Footer : public TabbedPanel::InnerFooter {
 public:
 	Footer(gsl::not_null<StickersListWidget*> parent);
 
@@ -433,7 +433,7 @@ StickersListWidget::StickersListWidget(QWidget *parent, gsl::not_null<Window::Co
 	});
 }
 
-object_ptr<EmojiPanel::InnerFooter> StickersListWidget::createFooter() {
+object_ptr<TabbedPanel::InnerFooter> StickersListWidget::createFooter() {
 	Expects(_footer == nullptr);
 	auto result = object_ptr<Footer>(this);
 	_footer = result;
@@ -984,7 +984,7 @@ void StickersListWidget::clearSelection() {
 	update();
 }
 
-EmojiPanel::InnerFooter *StickersListWidget::getFooter() const {
+TabbedPanel::InnerFooter *StickersListWidget::getFooter() const {
 	return _footer;
 }
 

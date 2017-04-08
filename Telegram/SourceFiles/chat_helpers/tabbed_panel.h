@@ -46,11 +46,11 @@ class EmojiListWidget;
 class StickersListWidget;
 class GifsListWidget;
 
-class EmojiPanel : public TWidget {
+class TabbedPanel : public TWidget {
 	Q_OBJECT
 
 public:
-	EmojiPanel(QWidget *parent, gsl::not_null<Window::Controller*> controller);
+	TabbedPanel(QWidget *parent, gsl::not_null<Window::Controller*> controller);
 
 	void moveBottom(int bottom);
 
@@ -67,7 +67,7 @@ public:
 	void showAnimated();
 	void hideAnimated();
 
-	~EmojiPanel();
+	~TabbedPanel();
 
 	class Inner;
 	class InnerFooter;
@@ -234,7 +234,7 @@ private:
 
 };
 
-class EmojiPanel::Inner : public TWidget {
+class TabbedPanel::Inner : public TWidget {
 	Q_OBJECT
 
 public:
@@ -288,7 +288,7 @@ private:
 
 };
 
-class EmojiPanel::InnerFooter : public TWidget {
+class TabbedPanel::InnerFooter : public TWidget {
 public:
 	InnerFooter(QWidget *parent);
 

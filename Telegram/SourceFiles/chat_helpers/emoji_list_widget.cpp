@@ -34,7 +34,7 @@ constexpr auto kSaveRecentEmojiTimeout = 3000;
 
 } // namespace
 
-class EmojiListWidget::Footer : public EmojiPanel::InnerFooter {
+class EmojiListWidget::Footer : public TabbedPanel::InnerFooter {
 public:
 	Footer(gsl::not_null<EmojiListWidget*> parent);
 
@@ -330,7 +330,7 @@ void EmojiListWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
 	}
 }
 
-object_ptr<EmojiPanel::InnerFooter> EmojiListWidget::createFooter() {
+object_ptr<TabbedPanel::InnerFooter> EmojiListWidget::createFooter() {
 	Expects(_footer == nullptr);
 	auto result = object_ptr<Footer>(this);
 	_footer = result;
@@ -664,7 +664,7 @@ Ui::Emoji::Section EmojiListWidget::currentSection(int yOffset) const {
 	return static_cast<Section>(sectionInfoByOffset(yOffset).section);
 }
 
-EmojiPanel::InnerFooter *EmojiListWidget::getFooter() const {
+TabbedPanel::InnerFooter *EmojiListWidget::getFooter() const {
 	return _footer;
 }
 

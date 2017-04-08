@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "chat_helpers/emoji_panel.h"
+#include "chat_helpers/tabbed_panel.h"
 
 namespace Window {
 class Controller;
@@ -84,7 +84,7 @@ private:
 
 };
 
-class EmojiListWidget : public EmojiPanel::Inner {
+class EmojiListWidget : public TabbedPanel::Inner {
 	Q_OBJECT
 
 public:
@@ -95,7 +95,7 @@ public:
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 	void refreshRecent() override;
 	void clearSelection() override;
-	object_ptr<EmojiPanel::InnerFooter> createFooter() override;
+	object_ptr<TabbedPanel::InnerFooter> createFooter() override;
 
 	void showEmojiSection(Section section);
 	Section currentSection(int yOffset) const;
@@ -121,7 +121,7 @@ protected:
 	void enterFromChildEvent(QEvent *e, QWidget *child) override;
 	bool event(QEvent *e) override;
 
-	EmojiPanel::InnerFooter *getFooter() const override;
+	TabbedPanel::InnerFooter *getFooter() const override;
 	void processHideFinished() override;
 	int countHeight() override;
 

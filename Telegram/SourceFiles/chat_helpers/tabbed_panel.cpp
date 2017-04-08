@@ -18,7 +18,7 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "chat_helpers/emoji_panel.h"
+#include "chat_helpers/tabbed_panel.h"
 
 #include "chat_helpers/emoji_list_widget.h"
 #include "chat_helpers/stickers_list_widget.h"
@@ -40,7 +40,7 @@ constexpr auto kSaveChosenTabTimeout = 1000;
 
 } // namespace
 
-class EmojiPanel::SlideAnimation : public Ui::RoundShadowAnimation {
+class TabbedPanel::SlideAnimation : public Ui::RoundShadowAnimation {
 public:
 	enum class Direction {
 		LeftToRight,
@@ -75,7 +75,7 @@ private:
 
 };
 
-void EmojiPanel::SlideAnimation::setFinalImages(Direction direction, QImage &&left, QImage &&right, QRect inner) {
+void TabbedPanel::SlideAnimation::setFinalImages(Direction direction, QImage &&left, QImage &&right, QRect inner) {
 	Expects(!started());
 	_direction = direction;
 	_leftImage = QPixmap::fromImage(std::move(left).convertToFormat(QImage::Format_ARGB32_Premultiplied), Qt::ColorOnly);
@@ -111,7 +111,7 @@ void EmojiPanel::SlideAnimation::setFinalImages(Direction direction, QImage &&le
 	_painterCategoriesTop = _painterInnerBottom - st::emojiCategory.height;
 }
 
-void EmojiPanel::SlideAnimation::start() {
+void TabbedPanel::SlideAnimation::start() {
 	t_assert(!_leftImage.isNull());
 	t_assert(!_rightImage.isNull());
 	RoundShadowAnimation::start(_width, _height, _leftImage.devicePixelRatio());
@@ -127,7 +127,7 @@ void EmojiPanel::SlideAnimation::start() {
 	_frameIntsPerLineAdd = (_width - _innerWidth) + _frameIntsPerLineAdded;
 }
 
-void EmojiPanel::SlideAnimation::paintFrame(QPainter &p, float64 dt, float64 opacity) {
+void TabbedPanel::SlideAnimation::paintFrame(QPainter &p, float64 dt, float64 opacity) {
 	t_assert(started());
 	t_assert(dt >= 0.);
 
@@ -258,7 +258,7 @@ void EmojiPanel::SlideAnimation::paintFrame(QPainter &p, float64 dt, float64 opa
 	p.drawImage(outerLeft / cIntRetinaFactor(), outerTop / cIntRetinaFactor(), _frame, outerLeft, outerTop, outerRight - outerLeft, outerBottom - outerTop);
 }
 
-EmojiPanel::Tab::Tab(TabType type, object_ptr<Inner> widget)
+TabbedPanel::Tab::Tab(TabType type, object_ptr<Inner> widget)
 : _type(type)
 , _widget(std::move(widget))
 , _weak(_widget)
@@ -266,20 +266,20 @@ EmojiPanel::Tab::Tab(TabType type, object_ptr<Inner> widget)
 	_footer->setParent(_widget->parentWidget());
 }
 
-object_ptr<EmojiPanel::Inner> EmojiPanel::Tab::takeWidget() {
+object_ptr<TabbedPanel::Inner> TabbedPanel::Tab::takeWidget() {
 	return std::move(_widget);
 }
 
-void EmojiPanel::Tab::returnWidget(object_ptr<Inner> widget) {
+void TabbedPanel::Tab::returnWidget(object_ptr<Inner> widget) {
 	_widget = std::move(widget);
 	Ensures(_widget == _weak);
 }
 
-void EmojiPanel::Tab::saveScrollTop() {
+void TabbedPanel::Tab::saveScrollTop() {
 	_scrollTop = widget()->getVisibleTop();
 }
 
-EmojiPanel::EmojiPanel(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
+TabbedPanel::TabbedPanel(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
 , _tabsSlider(this, st::emojiTabs)
 , _topShadow(this, st::shadowFg)
 , _bottomShadow(this, st::shadowFg)
@@ -353,12 +353,12 @@ EmojiPanel::EmojiPanel(QWidget *parent, gsl::not_null<Window::Controller*> contr
 	hideChildren();
 }
 
-void EmojiPanel::moveBottom(int bottom) {
+void TabbedPanel::moveBottom(int bottom) {
 	_bottom = bottom;
 	updateContentHeight();
 }
 
-void EmojiPanel::updateContentHeight() {
+void TabbedPanel::updateContentHeight() {
 	auto addedHeight = innerPadding().top() + marginTop() + marginBottom() + innerPadding().bottom();
 	auto wantedContentHeight = qRound(st::emojiPanHeightRatio * _bottom) - addedHeight;
 	auto contentHeight = snap(wantedContentHeight, st::emojiPanMinHeight, st::emojiPanMaxHeight);
@@ -394,21 +394,21 @@ void EmojiPanel::updateContentHeight() {
 	update();
 }
 
-void EmojiPanel::onWndActiveChanged() {
+void TabbedPanel::onWndActiveChanged() {
 	if (!App::wnd()->windowHandle()->isActive() && !isHidden()) {
 		leaveEvent(0);
 	}
 }
 
-void EmojiPanel::onSaveConfig() {
+void TabbedPanel::onSaveConfig() {
 	Local::writeUserSettings();
 }
 
-void EmojiPanel::onSaveConfigDelayed(int delay) {
+void TabbedPanel::onSaveConfigDelayed(int delay) {
 	_saveConfigTimer.start(delay);
 }
 
-void EmojiPanel::paintEvent(QPaintEvent *e) {
+void TabbedPanel::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto ms = getms();
@@ -457,7 +457,7 @@ void EmojiPanel::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void EmojiPanel::paintSlideFrame(Painter &p, TimeMs ms) {
+void TabbedPanel::paintSlideFrame(Painter &p, TimeMs ms) {
 	Ui::Shadow::paint(p, innerRect(), width(), st::emojiPanAnimation.shadow);
 
 	auto inner = innerRect();
@@ -468,7 +468,7 @@ void EmojiPanel::paintSlideFrame(Painter &p, TimeMs ms) {
 	_slideAnimation->paintFrame(p, slideDt, _a_opacity.current(_hiding ? 0. : 1.));
 }
 
-void EmojiPanel::paintContent(Painter &p) {
+void TabbedPanel::paintContent(Painter &p) {
 	auto inner = innerRect();
 	auto topPart = QRect(inner.x(), inner.y(), inner.width(), _tabsSlider->height() + st::buttonRadius);
 	App::roundRect(p, topPart, st::emojiPanBg, ImageRoundRadius::Small, App::RectPart::TopFull | App::RectPart::NoTopBottom);
@@ -486,28 +486,28 @@ void EmojiPanel::paintContent(Painter &p) {
 	p.fillRect(myrtlrect(inner.x(), sidesTop, st::buttonRadius, sidesHeight), st::emojiPanBg);
 }
 
-int EmojiPanel::marginTop() const {
+int TabbedPanel::marginTop() const {
 	return _tabsSlider->height() - st::lineWidth;
 }
 
-int EmojiPanel::marginBottom() const {
+int TabbedPanel::marginBottom() const {
 	return st::emojiCategory.height;
 }
 
-void EmojiPanel::moveByBottom() {
+void TabbedPanel::moveByBottom() {
 	moveToRight(0, y());
 	updateContentHeight();
 }
 
-void EmojiPanel::enterEventHook(QEvent *e) {
+void TabbedPanel::enterEventHook(QEvent *e) {
 	showAnimated();
 }
 
-bool EmojiPanel::preventAutoHide() const {
+bool TabbedPanel::preventAutoHide() const {
 	return stickers()->preventAutoHide();
 }
 
-void EmojiPanel::leaveEventHook(QEvent *e) {
+void TabbedPanel::leaveEventHook(QEvent *e) {
 	if (preventAutoHide()) {
 		return;
 	}
@@ -520,11 +520,11 @@ void EmojiPanel::leaveEventHook(QEvent *e) {
 	return TWidget::leaveEventHook(e);
 }
 
-void EmojiPanel::otherEnter() {
+void TabbedPanel::otherEnter() {
 	showAnimated();
 }
 
-void EmojiPanel::otherLeave() {
+void TabbedPanel::otherLeave() {
 	if (preventAutoHide()) {
 		return;
 	}
@@ -537,7 +537,7 @@ void EmojiPanel::otherLeave() {
 	}
 }
 
-void EmojiPanel::hideFast() {
+void TabbedPanel::hideFast() {
 	if (isHidden()) return;
 
 	_hideTimer.stop();
@@ -546,14 +546,14 @@ void EmojiPanel::hideFast() {
 	hideFinished();
 }
 
-void EmojiPanel::refreshStickers() {
+void TabbedPanel::refreshStickers() {
 	stickers()->refreshStickers();
 	if (isHidden() || _currentTabType != TabType::Stickers) {
 		stickers()->preloadImages();
 	}
 }
 
-void EmojiPanel::opacityAnimationCallback() {
+void TabbedPanel::opacityAnimationCallback() {
 	update();
 	if (!_a_opacity.animating()) {
 		if (_hiding) {
@@ -566,13 +566,13 @@ void EmojiPanel::opacityAnimationCallback() {
 	}
 }
 
-void EmojiPanel::hideByTimerOrLeave() {
+void TabbedPanel::hideByTimerOrLeave() {
 	if (isHidden() || preventAutoHide()) return;
 
 	hideAnimated();
 }
 
-void EmojiPanel::prepareCache() {
+void TabbedPanel::prepareCache() {
 	if (_a_opacity.animating()) return;
 
 	auto showAnimation = base::take(_a_show);
@@ -588,7 +588,7 @@ void EmojiPanel::prepareCache() {
 	}
 }
 
-void EmojiPanel::startOpacityAnimation(bool hiding) {
+void TabbedPanel::startOpacityAnimation(bool hiding) {
 	if (!_scroll->isHidden()) {
 		currentTab()->widget()->beforeHiding();
 	}
@@ -599,7 +599,7 @@ void EmojiPanel::startOpacityAnimation(bool hiding) {
 	_a_opacity.start([this] { opacityAnimationCallback(); }, _hiding ? 1. : 0., _hiding ? 0. : 1., st::emojiPanDuration);
 }
 
-void EmojiPanel::startShowAnimation() {
+void TabbedPanel::startShowAnimation() {
 	if (!_a_show.animating()) {
 		auto image = grabForComplexAnimation(GrabType::Panel);
 
@@ -614,7 +614,7 @@ void EmojiPanel::startShowAnimation() {
 	_a_show.start([this] { update(); }, 0., 1., st::emojiPanShowDuration);
 }
 
-QImage EmojiPanel::grabForComplexAnimation(GrabType type) {
+QImage TabbedPanel::grabForComplexAnimation(GrabType type) {
 	auto cache = base::take(_cache);
 	auto opacityAnimation = base::take(_a_opacity);
 	auto slideAnimationData = base::take(_slideAnimation);
@@ -646,7 +646,7 @@ QImage EmojiPanel::grabForComplexAnimation(GrabType type) {
 	return result;
 }
 
-void EmojiPanel::hideAnimated() {
+void TabbedPanel::hideAnimated() {
 	if (isHidden()) return;
 	if (_hiding) return;
 
@@ -658,9 +658,9 @@ void EmojiPanel::hideAnimated() {
 	}
 }
 
-EmojiPanel::~EmojiPanel() = default;
+TabbedPanel::~TabbedPanel() = default;
 
-void EmojiPanel::hideFinished() {
+void TabbedPanel::hideFinished() {
 	hide();
 	for (auto &tab : _tabs) {
 		tab.widget()->panelHideFinished();
@@ -675,13 +675,13 @@ void EmojiPanel::hideFinished() {
 	scrollToY(0);
 }
 
-void EmojiPanel::showAnimated() {
+void TabbedPanel::showAnimated() {
 	_hideTimer.stop();
 	_hideAfterSlide = false;
 	showStarted();
 }
 
-void EmojiPanel::showStarted() {
+void TabbedPanel::showStarted() {
 	if (isHidden()) {
 		emit updateStickers();
 		currentTab()->widget()->refreshRecent();
@@ -696,7 +696,7 @@ void EmojiPanel::showStarted() {
 	}
 }
 
-bool EmojiPanel::eventFilter(QObject *obj, QEvent *e) {
+bool TabbedPanel::eventFilter(QObject *obj, QEvent *e) {
 	if (e->type() == QEvent::Enter) {
 		otherEnter();
 	} else if (e->type() == QEvent::Leave) {
@@ -711,7 +711,7 @@ bool EmojiPanel::eventFilter(QObject *obj, QEvent *e) {
 	return false;
 }
 
-void EmojiPanel::stickersInstalled(uint64 setId) {
+void TabbedPanel::stickersInstalled(uint64 setId) {
 	_tabsSlider->setActiveSection(static_cast<int>(TabType::Stickers));
 	if (isHidden()) {
 		moveByBottom();
@@ -724,11 +724,11 @@ void EmojiPanel::stickersInstalled(uint64 setId) {
 	showAnimated();
 }
 
-void EmojiPanel::setInlineQueryPeer(PeerData *peer) {
+void TabbedPanel::setInlineQueryPeer(PeerData *peer) {
 	gifs()->setInlineQueryPeer(peer);
 }
 
-void EmojiPanel::showAll() {
+void TabbedPanel::showAll() {
 	currentTab()->footer()->show();
 	_scroll->show();
 	_topShadow->show();
@@ -736,36 +736,36 @@ void EmojiPanel::showAll() {
 	_tabsSlider->show();
 }
 
-void EmojiPanel::hideForSliding() {
+void TabbedPanel::hideForSliding() {
 	hideChildren();
 	_tabsSlider->show();
 	_topShadow->show();
 	currentTab()->widget()->clearSelection();
 }
 
-void EmojiPanel::onScroll() {
+void TabbedPanel::onScroll() {
 	auto scrollTop = _scroll->scrollTop();
 	auto scrollBottom = scrollTop + _scroll->height();
 	currentTab()->widget()->setVisibleTopBottom(scrollTop, scrollBottom);
 }
 
-style::margins EmojiPanel::innerPadding() const {
+style::margins TabbedPanel::innerPadding() const {
 	return st::emojiPanMargins;
 }
 
-QRect EmojiPanel::innerRect() const {
+QRect TabbedPanel::innerRect() const {
 	return rect().marginsRemoved(innerPadding());
 }
 
-QRect EmojiPanel::horizontalRect() const {
+QRect TabbedPanel::horizontalRect() const {
 	return innerRect().marginsRemoved(style::margins(0, st::buttonRadius, 0, st::buttonRadius));
 }
 
-QRect EmojiPanel::verticalRect() const {
+QRect TabbedPanel::verticalRect() const {
 	return innerRect().marginsRemoved(style::margins(st::buttonRadius, 0, st::buttonRadius, 0));
 }
 
-void EmojiPanel::createTabsSlider() {
+void TabbedPanel::createTabsSlider() {
 	auto sections = QStringList();
 	sections.push_back(lang(lng_switch_emoji).toUpper());
 	sections.push_back(lang(lng_switch_stickers).toUpper());
@@ -782,7 +782,7 @@ void EmojiPanel::createTabsSlider() {
 	_topShadow->setGeometry(_tabsSlider->x(), _tabsSlider->bottomNoMargins() - st::lineWidth, _tabsSlider->width(), st::lineWidth);
 }
 
-void EmojiPanel::switchTab() {
+void TabbedPanel::switchTab() {
 	auto tab = _tabsSlider->activeSection();
 	t_assert(tab >= 0 && tab < Tab::kCount);
 	auto newTabType = static_cast<TabType>(tab);
@@ -835,19 +835,19 @@ void EmojiPanel::switchTab() {
 	onSaveConfigDelayed(kSaveChosenTabTimeout);
 }
 
-gsl::not_null<EmojiListWidget*> EmojiPanel::emoji() const {
+gsl::not_null<EmojiListWidget*> TabbedPanel::emoji() const {
 	return static_cast<EmojiListWidget*>(getTab(TabType::Emoji)->widget().get());
 }
 
-gsl::not_null<StickersListWidget*> EmojiPanel::stickers() const {
+gsl::not_null<StickersListWidget*> TabbedPanel::stickers() const {
 	return static_cast<StickersListWidget*>(getTab(TabType::Stickers)->widget().get());
 }
 
-gsl::not_null<GifsListWidget*> EmojiPanel::gifs() const {
+gsl::not_null<GifsListWidget*> TabbedPanel::gifs() const {
 	return static_cast<GifsListWidget*>(getTab(TabType::Gifs)->widget().get());
 }
 
-void EmojiPanel::setWidgetToScrollArea() {
+void TabbedPanel::setWidgetToScrollArea() {
 	_scroll->setOwnedWidget(currentTab()->takeWidget());
 	_scroll->disableScroll(false);
 	currentTab()->widget()->moveToLeft(0, 0);
@@ -857,13 +857,13 @@ void EmojiPanel::setWidgetToScrollArea() {
 	onScroll();
 }
 
-void EmojiPanel::onCheckForHide() {
+void TabbedPanel::onCheckForHide() {
 	if (!rect().contains(mapFromGlobal(QCursor::pos()))) {
 		_hideTimer.start(3000);
 	}
 }
 
-bool EmojiPanel::overlaps(const QRect &globalRect) const {
+bool TabbedPanel::overlaps(const QRect &globalRect) const {
 	if (isHidden() || !_cache.isNull()) return false;
 
 	auto testRect = QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size());
@@ -872,18 +872,18 @@ bool EmojiPanel::overlaps(const QRect &globalRect) const {
 		|| inner.marginsRemoved(QMargins(0, st::buttonRadius, 0, st::buttonRadius)).contains(testRect);
 }
 
-void EmojiPanel::scrollToY(int y) {
+void TabbedPanel::scrollToY(int y) {
 	_scroll->scrollToY(y);
 
 	// Qt render glitch workaround, shadow sometimes disappears if we just scroll to y.
 	_topShadow->update();
 }
 
-EmojiPanel::Inner::Inner(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
+TabbedPanel::Inner::Inner(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
 , _controller(controller) {
 }
 
-void EmojiPanel::Inner::setVisibleTopBottom(int visibleTop, int visibleBottom) {
+void TabbedPanel::Inner::setVisibleTopBottom(int visibleTop, int visibleBottom) {
 	auto oldVisibleHeight = getVisibleBottom() - getVisibleTop();
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
@@ -893,14 +893,14 @@ void EmojiPanel::Inner::setVisibleTopBottom(int visibleTop, int visibleBottom) {
 	}
 }
 
-void EmojiPanel::Inner::hideFinished() {
+void TabbedPanel::Inner::hideFinished() {
 	processHideFinished();
 	if (auto footer = getFooter()) {
 		footer->processHideFinished();
 	}
 }
 
-void EmojiPanel::Inner::panelHideFinished() {
+void TabbedPanel::Inner::panelHideFinished() {
 	hideFinished();
 	processPanelHideFinished();
 	if (auto footer = getFooter()) {
@@ -908,7 +908,7 @@ void EmojiPanel::Inner::panelHideFinished() {
 	}
 }
 
-EmojiPanel::InnerFooter::InnerFooter(QWidget *parent) : TWidget(parent) {
+TabbedPanel::InnerFooter::InnerFooter(QWidget *parent) : TWidget(parent) {
 	resize(st::emojiPanWidth, st::emojiCategory.height);
 }
 

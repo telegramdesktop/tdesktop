@@ -43,7 +43,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_inner_widget.h"
 #include "profile/profile_block_group_members.h"
 #include "core/click_handler_types.h"
-#include "chat_helpers/emoji_panel.h"
+#include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/bot_keyboard.h"
 #include "chat_helpers/message_field.h"
 #include "lang.h"
@@ -484,7 +484,7 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 , _recordCancelWidth(st::historyRecordFont->width(lang(lng_record_cancel)))
 , _a_recording(animation(this, &HistoryWidget::step_recording))
 , _kbScroll(this, st::botKbScroll)
-, _emojiPanel(this, _controller)
+, _tabbedPanel(this, _controller)
 , _attachDragDocument(this)
 , _attachDragPhoto(this)
 , _fileLoader(this, FileLoaderQueueStopTimeout)
@@ -515,11 +515,11 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 	connect(_field, SIGNAL(linksChanged()), this, SLOT(onPreviewCheck()));
 	connect(App::wnd()->windowHandle(), SIGNAL(visibleChanged(bool)), this, SLOT(onWindowVisibleChanged()));
 	connect(&_scrollTimer, SIGNAL(timeout()), this, SLOT(onScrollTimer()));
-	connect(_emojiPanel, SIGNAL(emojiSelected(EmojiPtr)), _field, SLOT(onEmojiInsert(EmojiPtr)));
-	connect(_emojiPanel, SIGNAL(stickerSelected(DocumentData*)), this, SLOT(onStickerSend(DocumentData*)));
-	connect(_emojiPanel, SIGNAL(photoSelected(PhotoData*)), this, SLOT(onPhotoSend(PhotoData*)));
-	connect(_emojiPanel, SIGNAL(inlineResultSelected(InlineBots::Result*,UserData*)), this, SLOT(onInlineResultSend(InlineBots::Result*,UserData*)));
-	connect(_emojiPanel, SIGNAL(updateStickers()), this, SLOT(updateStickers()));
+	connect(_tabbedPanel, SIGNAL(emojiSelected(EmojiPtr)), _field, SLOT(onEmojiInsert(EmojiPtr)));
+	connect(_tabbedPanel, SIGNAL(stickerSelected(DocumentData*)), this, SLOT(onStickerSend(DocumentData*)));
+	connect(_tabbedPanel, SIGNAL(photoSelected(PhotoData*)), this, SLOT(onPhotoSend(PhotoData*)));
+	connect(_tabbedPanel, SIGNAL(inlineResultSelected(InlineBots::Result*,UserData*)), this, SLOT(onInlineResultSend(InlineBots::Result*,UserData*)));
+	connect(_tabbedPanel, SIGNAL(updateStickers()), this, SLOT(updateStickers()));
 	connect(&_sendActionStopTimer, SIGNAL(timeout()), this, SLOT(onCancelSendAction()));
 	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreviewTimeout()));
 	connect(Media::Capture::instance(), SIGNAL(error()), this, SLOT(onRecordError()));
@@ -597,13 +597,13 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 	_silent->hide();
 	_botCommandStart->hide();
 
-	_attachEmoji->installEventFilter(_emojiPanel);
+	_attachEmoji->installEventFilter(_tabbedPanel);
 
 	connect(_botKeyboardShow, SIGNAL(clicked()), this, SLOT(onKbToggle()));
 	connect(_botKeyboardHide, SIGNAL(clicked()), this, SLOT(onKbToggle()));
 	connect(_botCommandStart, SIGNAL(clicked()), this, SLOT(onCmdStart()));
 
-	_emojiPanel->hide();
+	_tabbedPanel->hide();
 	_attachDragDocument->hide();
 	_attachDragPhoto->hide();
 
@@ -638,7 +638,7 @@ void HistoryWidget::start() {
 }
 
 void HistoryWidget::onStickersUpdated() {
-	_emojiPanel->refreshStickers();
+	_tabbedPanel->refreshStickers();
 	updateStickersByEmoji();
 }
 
@@ -725,7 +725,7 @@ void HistoryWidget::orderWidgets() {
 	if (_inlineResults) {
 		_inlineResults->raise();
 	}
-	_emojiPanel->raise();
+	_tabbedPanel->raise();
 	_attachDragDocument->raise();
 	_attachDragPhoto->raise();
 }
@@ -916,11 +916,11 @@ void HistoryWidget::updateSendAction(History *history, SendAction::Type type, in
 }
 
 void HistoryWidget::updateRecentStickers() {
-	_emojiPanel->refreshStickers();
+	_tabbedPanel->refreshStickers();
 }
 
 void HistoryWidget::stickersInstalled(uint64 setId) {
-	_emojiPanel->stickersInstalled(setId);
+	_tabbedPanel->stickersInstalled(setId);
 }
 
 void HistoryWidget::sendActionDone(const MTPBool &result, mtpRequestId req) {
@@ -1695,7 +1695,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		_peer = App::peer(peerId);
 		_channel = peerToChannel(_peer->id);
 		_canSendMessages = canSendMessages(_peer);
-		_emojiPanel->setInlineQueryPeer(_peer);
+		_tabbedPanel->setInlineQueryPeer(_peer);
 	}
 	updateTopBarSelection();
 
@@ -1847,7 +1847,7 @@ bool HistoryWidget::contentOverlapped(const QRect &globalRect) {
 	return (_attachDragDocument->overlaps(globalRect)
 			|| _attachDragPhoto->overlaps(globalRect)
 			|| _fieldAutocomplete->overlaps(globalRect)
-			|| _emojiPanel->overlaps(globalRect)
+			|| _tabbedPanel->overlaps(globalRect)
 			|| (_inlineResults && _inlineResults->overlaps(globalRect)));
 }
 
@@ -1979,7 +1979,7 @@ void HistoryWidget::updateControlsVisibility() {
 		_botKeyboardShow->hide();
 		_botKeyboardHide->hide();
 		_botCommandStart->hide();
-		_emojiPanel->hide();
+		_tabbedPanel->hide();
 		if (_inlineResults) {
 			_inlineResults->hide();
 		}
@@ -2040,7 +2040,7 @@ void HistoryWidget::updateControlsVisibility() {
 		_botKeyboardShow->hide();
 		_botKeyboardHide->hide();
 		_botCommandStart->hide();
-		_emojiPanel->hide();
+		_tabbedPanel->hide();
 		if (_inlineResults) {
 			_inlineResults->hide();
 		}
@@ -2154,7 +2154,7 @@ void HistoryWidget::updateControlsVisibility() {
 		_botKeyboardShow->hide();
 		_botKeyboardHide->hide();
 		_botCommandStart->hide();
-		_emojiPanel->hide();
+		_tabbedPanel->hide();
 		if (_inlineResults) {
 			_inlineResults->hide();
 		}
@@ -2675,7 +2675,7 @@ bool HistoryWidget::saveEditMsgFail(History *history, const RPCError &error, mtp
 
 void HistoryWidget::hideSelectorControlsAnimated() {
 	_fieldAutocomplete->hideAnimated();
-	_emojiPanel->hideAnimated();
+	_tabbedPanel->hideAnimated();
 	if (_inlineResults) {
 		_inlineResults->hideAnimated();
 	}
@@ -3790,7 +3790,7 @@ void HistoryWidget::moveFieldControls() {
 		_kbScroll->setGeometry(0, bottom, width(), keyboardHeight);
 	}
 
-// _attachToggle ------- _inlineResults ---------------------------------- _emojiPanel ------- _fieldBarCancel
+// _attachToggle ------- _inlineResults --------------------------------- _tabbedPanel ------- _fieldBarCancel
 // (_attachDocument|_attachPhoto) _field (_silent|_cmdStart|_kbShow) (_kbHide|_attachEmoji) [_broadcast] _send
 // (_botStart|_unblock|_joinChannel|_muteUnmute)
 
@@ -3810,7 +3810,7 @@ void HistoryWidget::moveFieldControls() {
 	if (_inlineResults) {
 		_inlineResults->moveBottom(_field->y() - st::historySendPadding);
 	}
-	_emojiPanel->moveBottom(buttonsBottom);
+	_tabbedPanel->moveBottom(buttonsBottom);
 
 	auto fullWidthButtonRect = QRect(0, bottom - _botStart->height(), width(), _botStart->height());
 	_botStart->setGeometry(fullWidthButtonRect);

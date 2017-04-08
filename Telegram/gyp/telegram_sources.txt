@@ -81,12 +81,8 @@
 <(src_loc)/boxes/username_box.h
 <(src_loc)/chat_helpers/bot_keyboard.cpp
 <(src_loc)/chat_helpers/bot_keyboard.h
-<(src_loc)/chat_helpers/emoji_panel.cpp
-<(src_loc)/chat_helpers/emoji_panel.h
 <(src_loc)/chat_helpers/emoji_list_widget.cpp
 <(src_loc)/chat_helpers/emoji_list_widget.h
-<(src_loc)/chat_helpers/emoji_section.cpp
-<(src_loc)/chat_helpers/emoji_section.h
 <(src_loc)/chat_helpers/field_autocomplete.cpp
 <(src_loc)/chat_helpers/field_autocomplete.h
 <(src_loc)/chat_helpers/gifs_list_widget.cpp
@@ -97,6 +93,8 @@
 <(src_loc)/chat_helpers/stickers.h
 <(src_loc)/chat_helpers/stickers_list_widget.cpp
 <(src_loc)/chat_helpers/stickers_list_widget.h
+<(src_loc)/chat_helpers/tabbed_panel.cpp
+<(src_loc)/chat_helpers/tabbed_panel.h
 <(src_loc)/core/basic_types.h
 <(src_loc)/core/click_handler.cpp
 <(src_loc)/core/click_handler.h

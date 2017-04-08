@@ -57,7 +57,7 @@ class TopBarWidget;
 } // namespace Window
 
 namespace ChatHelpers {
-class EmojiPanel;
+class TabbedPanel;
 } // namespace ChatHelpers
 
 class DragArea;
@@ -780,7 +780,7 @@ private:
 	QTimer _membersDropdownShowTimer;
 
 	object_ptr<InlineBots::Layout::Widget> _inlineResults = { nullptr };
-	object_ptr<ChatHelpers::EmojiPanel> _emojiPanel;
+	object_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;
 	DragState _attachDrag = DragStateNone;
 	object_ptr<DragArea> _attachDragDocument, _attachDragPhoto;
 

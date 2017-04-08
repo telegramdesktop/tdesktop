@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "chat_helpers/emoji_panel.h"
+#include "chat_helpers/tabbed_panel.h"
 #include "inline_bots/inline_bot_layout_item.h"
 
 namespace InlineBots {
@@ -40,7 +40,7 @@ class Controller;
 
 namespace ChatHelpers {
 
-class GifsListWidget : public EmojiPanel::Inner, public InlineBots::Layout::Context, private base::Subscriber, private MTP::Sender {
+class GifsListWidget : public TabbedPanel::Inner, public InlineBots::Layout::Context, private base::Subscriber, private MTP::Sender {
 	Q_OBJECT
 
 public:
@@ -49,7 +49,7 @@ public:
 	void refreshRecent() override;
 	void preloadImages() override;
 	void clearSelection() override;
-	object_ptr<EmojiPanel::InnerFooter> createFooter() override;
+	object_ptr<TabbedPanel::InnerFooter> createFooter() override;
 
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
@@ -77,7 +77,7 @@ protected:
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void enterFromChildEvent(QEvent *e, QWidget *child) override;
 
-	EmojiPanel::InnerFooter *getFooter() const override;
+	TabbedPanel::InnerFooter *getFooter() const override;
 	void processHideFinished() override;
 	void processPanelHideFinished() override;
 	int countHeight() override;
