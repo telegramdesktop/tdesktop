@@ -43,6 +43,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/tooltip.h"
 #include "storage/serialize_common.h"
 #include "window/window_controller.h"
+#include "chat_helpers/spellcheck.h"
 
 namespace {
 
@@ -398,8 +399,14 @@ void Messenger::loadLanguage() {
 			LOG(("Lang load warnings: %1").arg(loader.warnings()));
 		}
 	}
+
 	_translator = std::make_unique<Translator>();
 	QCoreApplication::instance()->installTranslator(_translator.get());
+
+	_spellHelperSet = std::make_unique<ChatHelpers::SpellHelperSet>();
+	_spellHelperSet->addLanguages({LanguageCodes[languageDefault]});
+	if (cLang() > languageDefault && cLang() < languageCount)
+		_spellHelperSet->addLanguages({LanguageCodes[cLang()]});
 }
 
 void Messenger::startLocalStorage() {
@@ -788,6 +795,8 @@ Messenger::~Messenger() {
 	ThirdParty::finish();
 
 	SingleInstance = nullptr;
+	
+	_spellHelperSet.reset();
 }
 
 MainWindow *Messenger::mainWindow() {

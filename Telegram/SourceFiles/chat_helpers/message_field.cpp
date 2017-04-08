@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/popup_menu.h"
 #include "mainwindow.h"
 #include "auth_session.h"
+#include "chat_helpers/spellcheck.h"
 
 namespace {
 
@@ -97,9 +98,8 @@ TextWithTags::Tags ConvertEntitiesToTextTags(const EntitiesInText &entities) {
 
 MessageField::MessageField(QWidget *parent, gsl::not_null<Window::Controller*> controller, const style::FlatTextarea &st, const QString &ph, const QString &val) : Ui::FlatTextarea(parent, st, ph, val)
 , _controller(controller)
-, _spellHighlighter(this, &_spellHelperSet)
+, _spellHighlighter(this)
 {
-	_spellHelperSet.addLanguages({"ru_RU", "en_US"});
 
 	setMinHeight(st::historySendSize.height() - 2 * st::historySendPadding);
 	setMaxHeight(st::historyComposeFieldMaxHeight);
@@ -173,9 +173,9 @@ void MessageField::contextMenuEvent(QContextMenuEvent *e) {
 			if (!inCode) {
 				QString word = newTextCursor.selectedText();
 
-				if (!_spellHelperSet.isWordCorrect(word)) {
+				if (!ChatHelpers::SpellHelperSet::Instance().isWordCorrect(word)) {
 					menu->addSeparator();
-					for (auto &vec : _spellHelperSet.getSuggestions(word))
+					for (auto &vec : ChatHelpers::SpellHelperSet::Instance().getSuggestions(word))
 						for (auto &suggestion : vec) {
 							menu->addAction(suggestion, [this, newTextCursor, suggestion]() {
 								QTextCursor oldTextCursor = textCursor();

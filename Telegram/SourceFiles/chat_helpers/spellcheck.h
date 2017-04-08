@@ -69,24 +69,39 @@ public:
 private:
 	std::unique_ptr<Hunspell> _hunspell;
 	QTextCodec *_codec;
+
 };
 
-class SpellHelperSet {
+class SpellHelperSet final {
 public:
-	void addLanguages(QStringList languages);
-	bool isWordCorrect(const QString &word);
-	bool isWordCorrect(const QStringRef &word);
-	QList<QVector<QString>> getSuggestions(const QString &word);
+	SpellHelperSet();
+
+	SpellHelperSet(const SpellHelperSet &other) = delete;
+	SpellHelperSet &operator=(const SpellHelperSet &other) = delete;
+
+	~SpellHelperSet();
+
+	static SpellHelperSet *InstancePointer();
+	static SpellHelperSet &Instance() {
+		auto result = InstancePointer();
+		t_assert(result != nullptr);
+		return *result;
+	}
+
+	void addLanguages(const QStringList &languages);
+	bool isWordCorrect(const QString &word) const;
+	bool isWordCorrect(const QStringRef &word) const;
+	QList<QVector<QString>> getSuggestions(const QString &word) const;
 
 private:
 	std::map<QString, std::unique_ptr<HunspellHelper>> _helpers;
+
 };
 
 class SpellHighlighter : public QSyntaxHighlighter {
 public:
-	SpellHighlighter(QTextEdit *textEdit, SpellHelperSet *helperSet)
+	SpellHighlighter(QTextEdit *textEdit)
 	: QSyntaxHighlighter(textEdit->document()) {
-		_helperSet = helperSet;
 		//_underlineFmt.setFontUnderline(true);
 		_underlineFmt.setUnderlineStyle(QTextCharFormat::SpellCheckUnderline);
 	}
@@ -95,7 +110,7 @@ private:
 	void highlightBlock(const QString &text) final;
 	
 	QTextCharFormat _underlineFmt;
-	SpellHelperSet *_helperSet;
+
 };
 
 struct CodeblockInfo {

@@ -21,9 +21,29 @@
 
 #include "chat_helpers/spellcheck.h"
 
+namespace {
+
+	ChatHelpers::SpellHelperSet *SingleInstance = nullptr;
+
+} // namespace
+
 namespace ChatHelpers {
 
-void SpellHelperSet::addLanguages(QStringList languages) {
+SpellHelperSet *SpellHelperSet::InstancePointer() {
+	return SingleInstance;
+}
+
+SpellHelperSet::SpellHelperSet() {
+	t_assert(SingleInstance == nullptr);
+	SingleInstance = this;
+}
+
+SpellHelperSet::~SpellHelperSet() {
+	t_assert(SingleInstance == this);
+	_helpers.clear();
+}
+
+void SpellHelperSet::addLanguages(const QStringList &languages) {
 	for (const auto &lang : languages) {
 		if (_helpers.count(lang) == 0) {
 			auto helper = std::unique_ptr<HunspellHelper>(std::make_unique<HunspellHelper>(lang.toLatin1()));
@@ -34,7 +54,7 @@ void SpellHelperSet::addLanguages(QStringList languages) {
 	}
 }
 
-bool SpellHelperSet::isWordCorrect(const QString &word) {
+bool SpellHelperSet::isWordCorrect(const QString &word) const {
 	if (_helpers.empty())
 		return true;
 
@@ -49,7 +69,7 @@ bool SpellHelperSet::isWordCorrect(const QString &word) {
 	return isCorrect;
 }
 
-bool SpellHelperSet::isWordCorrect(const QStringRef &word) {
+bool SpellHelperSet::isWordCorrect(const QStringRef &word) const {
 	if (_helpers.empty())
 		return true;
 
@@ -64,7 +84,7 @@ bool SpellHelperSet::isWordCorrect(const QStringRef &word) {
 	return isCorrect;
 }
 
-QList<QVector<QString>> SpellHelperSet::getSuggestions(const QString &word) {
+QList<QVector<QString>> SpellHelperSet::getSuggestions(const QString &word) const {
 	QList<QVector<QString>> result;
 
 	for (auto &&helper : _helpers) {
@@ -85,7 +105,7 @@ void SpellHighlighter::highlightBlock(const QString &text) {
 	int codepos = 0;
 	for (auto &ref : text.splitRef(QRegExp("\\b"))) {
 		if (!skip) {
-			if (!code && !_helperSet->isWordCorrect(ref))
+			if (!code && !SpellHelperSet::InstancePointer()->isWordCorrect(ref))
 				setFormat(ref.position(), ref.size(), _underlineFmt);
 		} else {
 			if (ref.contains("```")) {
