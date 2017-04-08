@@ -22,6 +22,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "ui/widgets/input_fields.h"
 
+// For now, until SpellCheckerSet is turned into singletone
+#include "chat_helpers/spellcheck.h"
+
 class HistoryWidget;
 namespace Window {
 class Controller;
@@ -55,9 +58,12 @@ protected:
 	void dropEvent(QDropEvent *e) override;
 	bool canInsertFromMimeData(const QMimeData *source) const override;
 	void insertFromMimeData(const QMimeData *source) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 private:
 	gsl::not_null<Window::Controller*> _controller;
 	base::lambda<bool(const QMimeData *data)> _insertFromMimeDataHook;
+	ChatHelpers::SpellHelperSet _spellHelperSet;
+	object_ptr<ChatHelpers::SpellHighlighter> _spellHighlighter;
 
 };

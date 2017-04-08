@@ -553,6 +553,8 @@
 <(src_loc)/stdafx.h
 <(src_loc)/structs.cpp
 <(src_loc)/structs.h
+<(src_loc)/chat_helpers/spellcheck.cpp
+<(src_loc)/chat_helpers/spellcheck.h
 
 platforms: !win
 <(minizip_loc)/crypt.h
