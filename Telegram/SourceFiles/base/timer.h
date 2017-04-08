@@ -67,7 +67,7 @@ protected:
 	void timerEvent(QTimerEvent *e) override;
 
 private:
-	enum class Repeat {
+	enum class Repeat : unsigned {
 		Interval   = 0,
 		SingleShot = 1,
 	};
@@ -77,6 +77,13 @@ private:
 	void setTimeout(TimeMs timeout);
 	int timeout() const;
 
+	void setRepeat(Repeat repeat) {
+		_repeat = static_cast<unsigned>(repeat);
+	}
+	Repeat repeat() const {
+		return static_cast<Repeat>(_repeat);
+	}
+
 	base::lambda<void()> _callback;
 	TimeMs _next = 0;
 	int _timeout = 0;
@@ -84,7 +91,7 @@ private:
 
 	Qt::TimerType _type : 2;
 	bool _adjusted : 1;
-	Repeat _repeat : 1;
+	unsigned _repeat : 1;
 
 };
 

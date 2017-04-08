@@ -33,8 +33,8 @@ QObject *TimersAdjuster() {
 Timer::Timer(base::lambda<void()> callback) : QObject(nullptr)
 , _callback(std::move(callback))
 , _type(Qt::PreciseTimer)
-, _adjusted(false)
-, _repeat(Repeat::Interval) {
+, _adjusted(false) {
+	setRepeat(Repeat::Interval);
 	connect(TimersAdjuster(), &QObject::destroyed, this, [this] { adjust(); }, Qt::QueuedConnection);
 }
 
@@ -42,7 +42,7 @@ void Timer::start(TimeMs timeout, Qt::TimerType type, Repeat repeat) {
 	cancel();
 
 	_type = type;
-	_repeat = repeat;
+	setRepeat(repeat);
 	_adjusted = false;
 	setTimeout(timeout);
 	_timerId = startTimer(_timeout, _type);
@@ -91,9 +91,9 @@ int Timer::timeout() const {
 }
 
 void Timer::timerEvent(QTimerEvent *e) {
-	if (_repeat == Repeat::Interval) {
+	if (repeat() == Repeat::Interval) {
 		if (_adjusted) {
-			start(_timeout, _type, _repeat);
+			start(_timeout, _type, repeat());
 		} else {
 			_next = getms(true) + _timeout;
 		}
