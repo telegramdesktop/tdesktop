@@ -169,6 +169,10 @@ SettingsSlider::SettingsSlider(QWidget *parent, const style::SettingsSlider &st)
 	setSelectOnPress(_st.ripple.showDuration == 0);
 }
 
+void SettingsSlider::setRippleTopRoundRadius(int radius) {
+	_rippleTopRoundRadius = radius;
+}
+
 const style::font &SettingsSlider::getLabelFont() const {
 	return _st.labelFont;
 }
@@ -218,12 +222,12 @@ void SettingsSlider::startRipple(int sectionIndex) {
 
 QImage SettingsSlider::prepareRippleMask(int sectionIndex, const Section &section) {
 	auto size = QSize(section.width, height() - _st.rippleBottomSkip);
-	if (!_st.rippleRoundRadius || (sectionIndex > 0 && sectionIndex + 1 < getSectionsCount())) {
+	if (!_rippleTopRoundRadius || (sectionIndex > 0 && sectionIndex + 1 < getSectionsCount())) {
 		return RippleAnimation::rectMask(size);
 	}
 	return RippleAnimation::maskByDrawer(size, false, [this, sectionIndex, width = section.width](QPainter &p) {
-		auto plusRadius = _st.rippleRoundRadius + 1;
-		p.drawRoundedRect(0, 0, width, height() + plusRadius, _st.rippleRoundRadius, _st.rippleRoundRadius);
+		auto plusRadius = _rippleTopRoundRadius + 1;
+		p.drawRoundedRect(0, 0, width, height() + plusRadius, _rippleTopRoundRadius, _rippleTopRoundRadius);
 		if (sectionIndex > 0) {
 			p.fillRect(0, 0, plusRadius, plusRadius, p.brush());
 		}

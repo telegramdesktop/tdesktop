@@ -142,6 +142,7 @@ StickersBox::StickersBox(QWidget*, Section section)
 , _installed(0, this, Section::Installed)
 , _featured(1, this, Section::Featured)
 , _archived(2, this, Section::Archived) {
+	_tabs->setRippleTopRoundRadius(st::boxRadius);
 }
 
 StickersBox::StickersBox(QWidget*, const Stickers::Order &archivedIds)

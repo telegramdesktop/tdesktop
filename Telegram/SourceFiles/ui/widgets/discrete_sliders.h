@@ -103,6 +103,8 @@ class SettingsSlider : public DiscreteSlider {
 public:
 	SettingsSlider(QWidget *parent, const style::SettingsSlider &st = st::defaultSettingsSlider);
 
+	void setRippleTopRoundRadius(int radius);
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
@@ -118,6 +120,7 @@ private:
 	void resizeSections(int newWidth);
 
 	const style::SettingsSlider &_st;
+	int _rippleTopRoundRadius = 0;
 
 
 };

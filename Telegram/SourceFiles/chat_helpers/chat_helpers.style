@@ -67,9 +67,7 @@ stickersRemoveSkip: 4px;
 stickersReorderIcon: icon {{ "stickers_reorder", menuIconFg }};
 stickersReorderSkip: 13px;
 
-stickersTabs: SettingsSlider(defaultTabsSlider) {
-	rippleRoundRadius: boxRadius;
-}
+stickersTabs: defaultTabsSlider;
 
 stickerEmojiSkip: 5px;
 
@@ -109,9 +107,7 @@ stickersSettingsUnreadPosition: point(4px, 5px);
 
 emojiPanMargins: margins(10px, 10px, 10px, 10px);
 
-emojiTabs: SettingsSlider(defaultTabsSlider) {
-	rippleRoundRadius: buttonRadius;
-}
+emojiTabs: defaultTabsSlider;
 emojiScroll: defaultSolidScroll;
 emojiRecent: icon {{ "emoji_recent", emojiIconFg }};
 emojiRecentActive: icon {{ "emoji_recent", emojiIconFgActive }};

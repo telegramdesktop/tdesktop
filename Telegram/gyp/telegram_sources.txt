@@ -95,6 +95,10 @@
 <(src_loc)/chat_helpers/stickers_list_widget.h
 <(src_loc)/chat_helpers/tabbed_panel.cpp
 <(src_loc)/chat_helpers/tabbed_panel.h
+<(src_loc)/chat_helpers/tabbed_section.cpp
+<(src_loc)/chat_helpers/tabbed_section.h
+<(src_loc)/chat_helpers/tabbed_selector.cpp
+<(src_loc)/chat_helpers/tabbed_selector.h
 <(src_loc)/core/basic_types.h
 <(src_loc)/core/click_handler.cpp
 <(src_loc)/core/click_handler.h

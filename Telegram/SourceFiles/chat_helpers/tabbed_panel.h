@@ -24,17 +24,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/panel_animation.h"
 #include "mtproto/sender.h"
 #include "auth_session.h"
+#include "base/timer.h"
 
 namespace InlineBots {
 class Result;
 } // namespace InlineBots
-
-namespace Ui {
-class PlainShadow;
-class ScrollArea;
-class RippleAnimation;
-class SettingsSlider;
-} // namesapce Ui
 
 namespace Window {
 class Controller;
@@ -42,9 +36,7 @@ class Controller;
 
 namespace ChatHelpers {
 
-class EmojiListWidget;
-class StickersListWidget;
-class GifsListWidget;
+class TabbedSelector;
 
 class TabbedPanel : public TWidget {
 	Q_OBJECT
@@ -67,10 +59,9 @@ public:
 	void showAnimated();
 	void hideAnimated();
 
-	~TabbedPanel();
+	void refreshStickers();
 
-	class Inner;
-	class InnerFooter;
+	~TabbedPanel();
 
 protected:
 	void enterEventHook(QEvent *e) override;
@@ -81,19 +72,9 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
-public slots:
-	void refreshStickers();
-
 private slots:
-	void hideByTimerOrLeave();
-
 	void onWndActiveChanged();
-	void onScroll();
-
 	void onCheckForHide();
-
-	void onSaveConfig();
-	void onSaveConfigDelayed(int delay);
 
 signals:
 	void emojiSelected(EmojiPtr emoji);
@@ -104,48 +85,8 @@ signals:
 	void updateStickers();
 
 private:
-	using TabType = EmojiPanelTab;
-	class Tab {
-	public:
-		static constexpr auto kCount = 3;
-
-		Tab(TabType type, object_ptr<Inner> widget);
-
-		object_ptr<Inner> takeWidget();
-		void returnWidget(object_ptr<Inner> widget);
-
-		TabType type() const {
-			return _type;
-		}
-		gsl::not_null<Inner*> widget() const {
-			return _weak;
-		}
-		gsl::not_null<InnerFooter*> footer() const {
-			return _footer;
-		}
-
-		void saveScrollTop();
-		void saveScrollTop(int scrollTop) {
-			_scrollTop = scrollTop;
-		}
-		int getScrollTop() const {
-			return _scrollTop;
-		}
-
-	private:
-		TabType _type = TabType::Emoji;
-		object_ptr<Inner> _widget = { nullptr };
-		QPointer<Inner> _weak;
-		object_ptr<InnerFooter> _footer;
-		int _scrollTop = 0;
-
-	};
-
-	int marginTop() const;
-	int marginBottom() const;
+	void hideByTimerOrLeave();
 	void moveByBottom();
-	void paintSlideFrame(Painter &p, TimeMs ms);
-	void paintContent(Painter &p);
 
 	style::margins innerPadding() const;
 
@@ -160,16 +101,10 @@ private:
 	// This one is allowed to be not rounded.
 	QRect verticalRect() const;
 
-	enum class GrabType {
-		Panel,
-		Slide,
-	};
-	QImage grabForComplexAnimation(GrabType type);
+	QImage grabForAnimation();
 	void startShowAnimation();
 	void startOpacityAnimation(bool hiding);
 	void prepareCache();
-
-	void scrollToY(int y);
 
 	void opacityAnimationCallback();
 
@@ -179,35 +114,11 @@ private:
 	bool preventAutoHide() const;
 	void updateContentHeight();
 
-	void showAll();
-	void hideForSliding();
-
-	void setWidgetToScrollArea();
-	void createTabsSlider();
-	void switchTab();
-	gsl::not_null<Tab*> getTab(TabType type) {
-		return &_tabs[static_cast<int>(type)];
-	}
-	gsl::not_null<const Tab*> getTab(TabType type) const {
-		return &_tabs[static_cast<int>(type)];
-	}
-	gsl::not_null<Tab*> currentTab() {
-		return getTab(_currentTabType);
-	}
-	gsl::not_null<const Tab*> currentTab() const {
-		return getTab(_currentTabType);
-	}
-	gsl::not_null<EmojiListWidget*> emoji() const;
-	gsl::not_null<StickersListWidget*> stickers() const;
-	gsl::not_null<GifsListWidget*> gifs() const;
+	object_ptr<TabbedSelector> _selector;
 
 	int _contentMaxHeight = 0;
 	int _contentHeight = 0;
-
-	int _width = 0;
-	int _height = 0;
 	int _bottom = 0;
-	int _footerTop = 0;
 
 	std::unique_ptr<Ui::PanelAnimation> _showAnimation;
 	Animation _a_show;
@@ -216,88 +127,7 @@ private:
 	bool _hideAfterSlide = false;
 	QPixmap _cache;
 	Animation _a_opacity;
-	QTimer _hideTimer;
-	bool _inComplrexGrab = false;
-
-	class SlideAnimation;
-	std::unique_ptr<SlideAnimation> _slideAnimation;
-	Animation _a_slide;
-
-	object_ptr<Ui::SettingsSlider> _tabsSlider = { nullptr };
-	object_ptr<Ui::PlainShadow> _topShadow;
-	object_ptr<Ui::PlainShadow> _bottomShadow;
-	object_ptr<Ui::ScrollArea> _scroll;
-	std::array<Tab, Tab::kCount> _tabs;
-	TabType _currentTabType = TabType::Emoji;
-
-	QTimer _saveConfigTimer;
-
-};
-
-class TabbedPanel::Inner : public TWidget {
-	Q_OBJECT
-
-public:
-	Inner(QWidget *parent, gsl::not_null<Window::Controller*> controller);
-
-	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
-
-	int getVisibleTop() const {
-		return _visibleTop;
-	}
-	int getVisibleBottom() const {
-		return _visibleBottom;
-	}
-
-	virtual void refreshRecent() = 0;
-	virtual void preloadImages() {
-	}
-	void hideFinished();
-	void panelHideFinished();
-	virtual void clearSelection() = 0;
-
-	virtual void afterShown() {
-	}
-	virtual void beforeHiding() {
-	}
-
-	virtual object_ptr<InnerFooter> createFooter() = 0;
-
-signals:
-	void scrollToY(int y);
-	void disableScroll(bool disabled);
-	void saveConfigDelayed(int delay);
-
-protected:
-	gsl::not_null<Window::Controller*> controller() const {
-		return _controller;
-	}
-
-	virtual int countHeight() = 0;
-	virtual InnerFooter *getFooter() const = 0;
-	virtual void processHideFinished() {
-	}
-	virtual void processPanelHideFinished() {
-	}
-
-private:
-	gsl::not_null<Window::Controller*> _controller;
-
-	int _visibleTop = 0;
-	int _visibleBottom = 0;
-
-};
-
-class TabbedPanel::InnerFooter : public TWidget {
-public:
-	InnerFooter(QWidget *parent);
-
-protected:
-	virtual void processHideFinished() {
-	}
-	virtual void processPanelHideFinished() {
-	}
-	friend class Inner;
+	base::Timer _hideTimer;
 
 };
 

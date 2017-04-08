@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "chat_helpers/tabbed_panel.h"
+#include "chat_helpers/tabbed_selector.h"
 #include "base/variant.h"
 
 namespace Window {
@@ -35,7 +35,7 @@ namespace ChatHelpers {
 
 struct StickerIcon;
 
-class StickersListWidget : public TabbedPanel::Inner, private base::Subscriber, private MTP::Sender {
+class StickersListWidget : public TabbedSelector::Inner, private base::Subscriber, private MTP::Sender {
 	Q_OBJECT
 
 public:
@@ -44,7 +44,7 @@ public:
 	void refreshRecent() override;
 	void preloadImages() override;
 	void clearSelection() override;
-	object_ptr<TabbedPanel::InnerFooter> createFooter() override;
+	object_ptr<TabbedSelector::InnerFooter> createFooter() override;
 
 	void showStickerSet(uint64 setId);
 
@@ -72,7 +72,7 @@ protected:
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void enterFromChildEvent(QEvent *e, QWidget *child) override;
 
-	TabbedPanel::InnerFooter *getFooter() const override;
+	TabbedSelector::InnerFooter *getFooter() const override;
 	void processHideFinished() override;
 	void processPanelHideFinished() override;
 	int countHeight() override;

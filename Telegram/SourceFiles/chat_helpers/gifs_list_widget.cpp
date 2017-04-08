@@ -39,11 +39,11 @@ constexpr auto kSaveChosenTabTimeout = 1000;
 constexpr auto kSearchRequestDelay = 400;
 constexpr auto kStickersPanelPerRow = Stickers::kPanelPerRow;
 constexpr auto kInlineItemsMaxPerRow = 5;
-constexpr auto kSearchBotUsername = "gif";
+constexpr auto kSearchBotUsername = str_const("gif");
 
 } // namespace
 
-class GifsListWidget::Footer : public TabbedPanel::InnerFooter {
+class GifsListWidget::Footer : public TabbedSelector::InnerFooter {
 public:
 	Footer(gsl::not_null<GifsListWidget*> parent);
 
@@ -145,7 +145,7 @@ GifsListWidget::GifsListWidget(QWidget *parent, gsl::not_null<Window::Controller
 	});
 }
 
-object_ptr<TabbedPanel::InnerFooter> GifsListWidget::createFooter() {
+object_ptr<TabbedSelector::InnerFooter> GifsListWidget::createFooter() {
 	Expects(_footer == nullptr);
 	auto result = object_ptr<Footer>(this);
 	_footer = result;
@@ -383,7 +383,7 @@ void GifsListWidget::clearSelection() {
 	update();
 }
 
-TabbedPanel::InnerFooter *GifsListWidget::getFooter() const {
+TabbedSelector::InnerFooter *GifsListWidget::getFooter() const {
 	return _footer;
 }
 
@@ -803,7 +803,8 @@ void GifsListWidget::searchForGifs(const QString &query) {
 	}
 
 	if (!_searchBot && !_searchBotRequestId) {
-		_searchBotRequestId = request(MTPcontacts_ResolveUsername(MTP_string(kSearchBotUsername))).done([this](const MTPcontacts_ResolvedPeer &result) {
+		auto username = str_const_toString(kSearchBotUsername);
+		_searchBotRequestId = request(MTPcontacts_ResolveUsername(MTP_string(username))).done([this](const MTPcontacts_ResolvedPeer &result) {
 			Expects(result.type() == mtpc_contacts_resolvedPeer);
 			auto &data = result.c_contacts_resolvedPeer();
 			App::feedUsers(data.vusers);

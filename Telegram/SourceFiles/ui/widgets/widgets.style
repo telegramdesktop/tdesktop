@@ -675,7 +675,6 @@ SettingsSlider {
 	labelFgActive: color;
 	duration: int;
 	rippleBottomSkip: pixels;
-	rippleRoundRadius: pixels;
 	rippleBg: color;
 	rippleBgActive: color;
 	ripple: RippleAnimation;
