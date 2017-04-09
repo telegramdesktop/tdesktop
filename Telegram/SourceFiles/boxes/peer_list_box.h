@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "boxes/abstract_box.h"
+#include "mtproto/sender.h"
 
 namespace Ui {
 class RippleAnimation;
@@ -245,7 +246,7 @@ private:
 };
 
 // This class is hold in header because it requires Qt preprocessing.
-class PeerListBox::Inner : public TWidget, public RPCSender, private base::Subscriber {
+class PeerListBox::Inner : public TWidget, private MTP::Sender, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -376,7 +377,6 @@ private:
 	bool globalSearchInCache();
 	void globalSearchOnServer();
 	void globalSearchDone(const MTPcontacts_Found &result, mtpRequestId requestId);
-	bool globalSearchFail(const RPCError &error, mtpRequestId requestId);
 	bool globalSearchLoading() const;
 	void clearGlobalSearchRows();
 

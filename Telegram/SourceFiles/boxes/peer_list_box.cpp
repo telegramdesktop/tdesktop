@@ -948,6 +948,7 @@ void PeerListBox::Inner::searchQueryChanged(QString query) {
 			}
 		}
 		if (_searchMode == SearchMode::Global) {
+			_globalSearchRequestId = 0;
 			needGlobalSearch();
 		}
 		refreshRows();
@@ -978,23 +979,27 @@ bool PeerListBox::Inner::globalSearchInCache() {
 
 void PeerListBox::Inner::globalSearchOnServer() {
 	_globalSearchQuery = _searchQuery;
-	_globalSearchRequestId = MTP::send(MTPcontacts_Search(MTP_string(_globalSearchQuery), MTP_int(SearchPeopleLimit)), ::rpcDone(base::lambda_guarded(this, [this](const MTPcontacts_Found &result, mtpRequestId requestId) {
+	_globalSearchRequestId = request(MTPcontacts_Search(MTP_string(_globalSearchQuery), MTP_int(SearchPeopleLimit))).done([this](const MTPcontacts_Found &result, mtpRequestId requestId) {
 		globalSearchDone(result, requestId);
-	})), ::rpcFail(base::lambda_guarded(this, [this](const RPCError &error, mtpRequestId requestId) {
-		return globalSearchFail(error, requestId);
-	})));
+	}).fail([this](const RPCError &error, mtpRequestId requestId) {
+		if (_globalSearchRequestId == requestId) {
+			_globalSearchRequestId = 0;
+			refreshRows();
+		}
+	}).send();
 	_globalSearchQueries.emplace(_globalSearchRequestId, _globalSearchQuery);
 }
 
 void PeerListBox::Inner::globalSearchDone(const MTPcontacts_Found &result, mtpRequestId requestId) {
 	auto query = _globalSearchQuery;
-	auto it = _globalSearchQueries.find(requestId);
-	if (it != _globalSearchQueries.cend()) {
-		query = it->second;
-		_globalSearchCache[query] = result;
-		_globalSearchQueries.erase(it);
+	if (requestId) {
+		auto it = _globalSearchQueries.find(requestId);
+		if (it != _globalSearchQueries.cend()) {
+			query = it->second;
+			_globalSearchCache[query] = result;
+			_globalSearchQueries.erase(it);
+		}
 	}
-
 	if (_globalSearchRequestId == requestId) {
 		_globalSearchRequestId = 0;
 		if (result.type() == mtpc_contacts_found) {
@@ -1021,16 +1026,6 @@ void PeerListBox::Inner::globalSearchDone(const MTPcontacts_Found &result, mtpRe
 		refreshRows();
 		updateSelection();
 	}
-}
-
-bool PeerListBox::Inner::globalSearchFail(const RPCError &error, mtpRequestId requestId) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	if (_globalSearchRequestId == requestId) {
-		_globalSearchRequestId = 0;
-		refreshRows();
-	}
-	return true;
 }
 
 bool PeerListBox::Inner::globalSearchLoading() const {
