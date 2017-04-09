@@ -74,7 +74,8 @@ struct DialogsInner::PeerSearchResult {
 	Dialogs::RippleRow row;
 };
 
-DialogsInner::DialogsInner(QWidget *parent, QWidget *main) : SplittedWidget(parent)
+DialogsInner::DialogsInner(QWidget *parent, gsl::not_null<Window::Controller*> controller, QWidget *main) : SplittedWidget(parent)
+, _controller(controller)
 , _dialogs(std::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Date))
 , _contactsNoDialogs(std::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Name))
 , _contacts(std::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Name))
@@ -1674,7 +1675,7 @@ void DialogsInner::refresh(bool toTop) {
 		emit mustScrollTo(0, 0);
 		loadPeerPhotos();
 	}
-	Global::RefDialogsListDisplayForced().set(_searchInPeer || !_filter.isEmpty(), true);
+	_controller->dialogsListDisplayForced().set(_searchInPeer || !_filter.isEmpty(), true);
 	update();
 }
 
@@ -1722,7 +1723,7 @@ void DialogsInner::searchInPeer(PeerData *peer) {
 	} else {
 		_cancelSearchInPeer->hide();
 	}
-	Global::RefDialogsListDisplayForced().set(_searchInPeer || !_filter.isEmpty(), true);
+	_controller->dialogsListDisplayForced().set(_searchInPeer || !_filter.isEmpty(), true);
 }
 
 void DialogsInner::clearFilter() {
@@ -2274,7 +2275,7 @@ DialogsWidget::DialogsWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 , _cancelSearch(this, st::dialogsCancelSearch)
 , _lockUnlock(this, st::dialogsLock)
 , _scroll(this, st::dialogsScroll) {
-	_inner = _scroll->setOwnedWidget(object_ptr<DialogsInner>(this, parent));
+	_inner = _scroll->setOwnedWidget(object_ptr<DialogsInner>(this, _controller, parent));
 	connect(_inner, SIGNAL(draggingScrollDelta(int)), this, SLOT(onDraggingScrollDelta(int)));
 	connect(_inner, SIGNAL(mustScrollTo(int,int)), _scroll, SLOT(scrollToY(int,int)));
 	connect(_inner, SIGNAL(dialogMoved(int,int)), this, SLOT(onDialogMoved(int,int)));

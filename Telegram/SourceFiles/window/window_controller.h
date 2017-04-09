@@ -36,6 +36,8 @@ class MainWindow;
 
 class Controller {
 public:
+	static constexpr auto kDefaultDialogsWidthRatio = 5. / 14;
+
 	Controller(gsl::not_null<MainWindow*> window) : _window(window) {
 	}
 
@@ -63,6 +65,24 @@ public:
 	}
 	bool isGifPausedAtLeastFor(GifPauseReason reason) const;
 
+	struct ColumnLayout {
+		int bodyWidth;
+		int dialogsWidth;
+		Adaptive::WindowLayout windowLayout;
+	};
+	ColumnLayout computeColumnLayout();
+	bool provideChatWidth(int requestedWidth);
+
+	base::Variable<float64> &dialogsWidthRatio() {
+		return _dialogsWidthRatio;
+	}
+	base::Variable<bool> &dialogsListFocused() {
+		return _dialogsListFocused;
+	}
+	base::Variable<bool> &dialogsListDisplayForced() {
+		return _dialogsListDisplayForced;
+	}
+
 private:
 	gsl::not_null<MainWindow*> _window;
 
@@ -71,6 +91,10 @@ private:
 
 	GifPauseReasons _gifPauseReasons = { 0 };
 	base::Observable<void> _gifPauseLevelChanged;
+
+	base::Variable<float64> _dialogsWidthRatio = { kDefaultDialogsWidthRatio };
+	base::Variable<bool> _dialogsListFocused = { false };
+	base::Variable<bool> _dialogsListDisplayForced = { false };
 
 };
 

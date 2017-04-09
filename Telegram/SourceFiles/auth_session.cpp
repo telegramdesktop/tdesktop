@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "messenger.h"
 #include "storage/file_download.h"
+#include "storage/localstorage.h"
 #include "window/notifications_manager.h"
 
 QByteArray AuthSessionData::serialize() const {
@@ -40,6 +41,7 @@ QByteArray AuthSessionData::serialize() const {
 		stream.setVersion(QDataStream::Qt_5_1);
 		stream << static_cast<qint32>(_variables.emojiPanelTab);
 		stream << qint32(_variables.lastSeenWarningSeen ? 1 : 0);
+		stream << qint32(_variables.tabbedSelectorSectionEnabled ? 1 : 0);
 	}
 	return result;
 }
@@ -58,8 +60,12 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	stream.setVersion(QDataStream::Qt_5_1);
 	qint32 emojiPanTab = static_cast<qint32>(EmojiPanelTab::Emoji);
 	qint32 lastSeenWarningSeen = 0;
+	qint32 tabbedSelectorSectionEnabled = 1;
 	stream >> emojiPanTab;
 	stream >> lastSeenWarningSeen;
+	if (!stream.atEnd()) {
+		stream >> tabbedSelectorSectionEnabled;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: Bad data for AuthSessionData::constructFromSerialized()"));
 		return;
@@ -72,6 +78,7 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	case EmojiPanelTab::Gifs: _variables.emojiPanelTab = uncheckedTab; break;
 	}
 	_variables.lastSeenWarningSeen = (lastSeenWarningSeen == 1);
+	_variables.tabbedSelectorSectionEnabled = (tabbedSelectorSectionEnabled == 1);
 }
 
 AuthSession::AuthSession(UserId userId)
@@ -80,6 +87,9 @@ AuthSession::AuthSession(UserId userId)
 , _downloader(std::make_unique<Storage::Downloader>())
 , _notifications(std::make_unique<Window::Notifications::System>(this)) {
 	Expects(_userId != 0);
+	_saveDataTimer.setCallback([this] {
+		Local::writeUserSettings();
+	});
 }
 
 bool AuthSession::Exists() {
@@ -107,6 +117,11 @@ bool AuthSession::validateSelf(const MTPUser &user) {
 		return false;
 	}
 	return true;
+}
+
+void AuthSession::saveDataDelayed(TimeMs delay) {
+	Expects(this == &AuthSession::Current());
+	_saveDataTimer.callOnce(delay);
 }
 
 AuthSession::~AuthSession() = default;

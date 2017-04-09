@@ -144,7 +144,7 @@ class MainWidget : public TWidget, public RPCSender, private base::Subscriber {
 public:
 	MainWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller);
 
-	bool needBackButton();
+	bool isSectionShown() const;
 
 	// Temporary methods, while top bar was not done inside HistoryWidget / OverviewWidget.
 	bool paintTopBar(Painter &, int decreaseWidth, TimeMs ms);
@@ -481,9 +481,8 @@ private:
 	void overviewLoaded(History *history, const MTPmessages_Messages &result, mtpRequestId req);
 	void mediaOverviewUpdated(const Notify::PeerUpdate &update);
 
-	Window::SectionSlideParams prepareShowAnimation(bool willHaveTopBarShadow);
+	Window::SectionSlideParams prepareShowAnimation(bool willHaveTopBarShadow, bool willHaveTabbedSection);
 	void showNewWideSection(const Window::SectionMemento *memento, bool back, bool saveInStack);
-	bool isSectionShown() const;
 
 	// All this methods use the prepareShowAnimation().
 	Window::SectionSlideParams prepareWideSectionAnimation(Window::SectionWidget *section);

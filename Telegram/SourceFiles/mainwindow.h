@@ -199,6 +199,7 @@ private slots:
 	void onWindowActiveChanged();
 
 private:
+	void checkAuthSession();
 	void showConnecting(const QString &text, const QString &reconnect = QString());
 	void hideConnecting();
 

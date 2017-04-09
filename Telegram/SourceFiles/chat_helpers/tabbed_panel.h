@@ -21,18 +21,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/twidget.h"
-#include "ui/effects/panel_animation.h"
-#include "mtproto/sender.h"
-#include "auth_session.h"
 #include "base/timer.h"
-
-namespace InlineBots {
-class Result;
-} // namespace InlineBots
 
 namespace Window {
 class Controller;
 } // namespace Window
+
+namespace Ui {
+class PanelAnimation;
+} // namespace Ui
 
 namespace ChatHelpers {
 
@@ -43,7 +40,10 @@ class TabbedPanel : public TWidget {
 
 public:
 	TabbedPanel(QWidget *parent, gsl::not_null<Window::Controller*> controller);
+	TabbedPanel(QWidget *parent, gsl::not_null<Window::Controller*> controller, object_ptr<TabbedSelector> selector);
 
+	object_ptr<TabbedSelector> takeSelector();
+	QPointer<TabbedSelector> getSelector() const;
 	void moveBottom(int bottom);
 
 	void hideFast();
@@ -54,12 +54,10 @@ public:
 	void stickersInstalled(uint64 setId);
 
 	bool overlaps(const QRect &globalRect) const;
-	void setInlineQueryPeer(PeerData *peer);
 
 	void showAnimated();
 	void hideAnimated();
-
-	void refreshStickers();
+	void toggleAnimated();
 
 	~TabbedPanel();
 
@@ -74,19 +72,13 @@ protected:
 
 private slots:
 	void onWndActiveChanged();
-	void onCheckForHide();
-
-signals:
-	void emojiSelected(EmojiPtr emoji);
-	void stickerSelected(DocumentData *sticker);
-	void photoSelected(PhotoData *photo);
-	void inlineResultSelected(InlineBots::Result *result, UserData *bot);
-
-	void updateStickers();
 
 private:
 	void hideByTimerOrLeave();
 	void moveByBottom();
+	bool isDestroying() const {
+		return !_selector;
+	}
 
 	style::margins innerPadding() const;
 

@@ -19,3 +19,40 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
+
+#include "ui/twidget.h"
+
+namespace Window {
+class Controller;
+} // namespace Window
+
+namespace ChatHelpers {
+
+class TabbedSelector;
+
+class TabbedSection : public TWidget {
+public:
+	TabbedSection(QWidget *parent, gsl::not_null<Window::Controller*> controller);
+	TabbedSection(QWidget *parent, gsl::not_null<Window::Controller*> controller, object_ptr<TabbedSelector> selector);
+
+	void beforeHiding();
+	void afterShown();
+	void setCancelledCallback(base::lambda<void()> callback) {
+		_cancelledCallback = std::move(callback);
+	}
+
+	object_ptr<TabbedSelector> takeSelector();
+	QPointer<TabbedSelector> getSelector() const;
+
+	void stickersInstalled(uint64 setId);
+
+protected:
+	void resizeEvent(QResizeEvent *e) override;
+
+private:
+	object_ptr<TabbedSelector> _selector;
+	base::lambda<void()> _cancelledCallback;
+
+};
+
+} // namespace ChatHelpers

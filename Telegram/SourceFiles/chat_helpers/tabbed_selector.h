@@ -24,7 +24,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/panel_animation.h"
 #include "mtproto/sender.h"
 #include "auth_session.h"
-#include "base/timer.h"
 
 namespace InlineBots {
 class Result;
@@ -78,8 +77,6 @@ protected:
 
 private slots:
 	void onScroll();
-
-	void onSaveConfigDelayed(int delay);
 
 signals:
 	void emojiSelected(EmojiPtr emoji);
@@ -175,8 +172,6 @@ private:
 	object_ptr<Ui::ScrollArea> _scroll;
 	std::array<Tab, Tab::kCount> _tabs;
 	TabType _currentTabType = TabType::Emoji;
-
-	base::Timer _saveConfigTimer;
 
 };
 

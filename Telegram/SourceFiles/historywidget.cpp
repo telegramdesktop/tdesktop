@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_window.h"
 #include "styles/style_boxes.h"
 #include "styles/style_profile.h"
+#include "styles/style_chat_helpers.h"
 #include "boxes/confirm_box.h"
 #include "boxes/send_files_box.h"
 #include "boxes/share_box.h"
@@ -44,6 +45,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "profile/profile_block_group_members.h"
 #include "core/click_handler_types.h"
 #include "chat_helpers/tabbed_panel.h"
+#include "chat_helpers/tabbed_section.h"
+#include "chat_helpers/tabbed_selector.h"
 #include "chat_helpers/bot_keyboard.h"
 #include "chat_helpers/message_field.h"
 #include "lang.h"
@@ -71,6 +74,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace {
 
 constexpr auto kStickersUpdateTimeout = 3600000; // update not more than once in an hour
+constexpr auto kSaveTabbedSelectorSectionTimeout = 1000;
 
 ApiWrap::RequestMessageDataCallback replyEditMessageDataCallback() {
 	return [](ChannelData *channel, MsgId msgId) {
@@ -468,14 +472,13 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 , _scroll(this, st::historyScroll, false)
 , _historyDown(_scroll, st::historyToDown)
 , _fieldAutocomplete(this)
-, _reportSpamPanel(this)
 , _send(this)
 , _unblock(this, lang(lng_unblock_button).toUpper(), st::historyUnblock)
 , _botStart(this, lang(lng_bot_start).toUpper(), st::historyComposeButton)
 , _joinChannel(this, lang(lng_channel_join).toUpper(), st::historyComposeButton)
 , _muteUnmute(this, lang(lng_channel_mute).toUpper(), st::historyComposeButton)
 , _attachToggle(this, st::historyAttach)
-, _attachEmoji(this, st::historyAttachEmoji)
+, _tabbedSelectorToggle(this, st::historyAttachEmoji)
 , _botKeyboardShow(this, st::historyBotKeyboardShow)
 , _botKeyboardHide(this, st::historyBotKeyboardHide)
 , _botCommandStart(this, st::historyBotCommandStart)
@@ -485,6 +488,7 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 , _a_recording(animation(this, &HistoryWidget::step_recording))
 , _kbScroll(this, st::botKbScroll)
 , _tabbedPanel(this, _controller)
+, _tabbedSelector(_tabbedPanel->getSelector())
 , _attachDragDocument(this)
 , _attachDragPhoto(this)
 , _fileLoader(this, FileLoaderQueueStopTimeout)
@@ -494,9 +498,6 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 	connect(_topBar, &Window::TopBarWidget::clicked, this, [this] { topBarClick(); });
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
-	connect(_reportSpamPanel, SIGNAL(reportClicked()), this, SLOT(onReportSpamClicked()));
-	connect(_reportSpamPanel, SIGNAL(hideClicked()), this, SLOT(onReportSpamHide()));
-	connect(_reportSpamPanel, SIGNAL(clearClicked()), this, SLOT(onReportSpamClear()));
 	connect(_historyDown, SIGNAL(clicked()), this, SLOT(onHistoryToEnd()));
 	connect(_fieldBarCancel, SIGNAL(clicked()), this, SLOT(onFieldBarCancel()));
 	_send->setClickedCallback([this] { sendButtonClicked(); });
@@ -515,11 +516,11 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 	connect(_field, SIGNAL(linksChanged()), this, SLOT(onPreviewCheck()));
 	connect(App::wnd()->windowHandle(), SIGNAL(visibleChanged(bool)), this, SLOT(onWindowVisibleChanged()));
 	connect(&_scrollTimer, SIGNAL(timeout()), this, SLOT(onScrollTimer()));
-	connect(_tabbedPanel, SIGNAL(emojiSelected(EmojiPtr)), _field, SLOT(onEmojiInsert(EmojiPtr)));
-	connect(_tabbedPanel, SIGNAL(stickerSelected(DocumentData*)), this, SLOT(onStickerSend(DocumentData*)));
-	connect(_tabbedPanel, SIGNAL(photoSelected(PhotoData*)), this, SLOT(onPhotoSend(PhotoData*)));
-	connect(_tabbedPanel, SIGNAL(inlineResultSelected(InlineBots::Result*,UserData*)), this, SLOT(onInlineResultSend(InlineBots::Result*,UserData*)));
-	connect(_tabbedPanel, SIGNAL(updateStickers()), this, SLOT(updateStickers()));
+	connect(_tabbedSelector, SIGNAL(emojiSelected(EmojiPtr)), _field, SLOT(onEmojiInsert(EmojiPtr)));
+	connect(_tabbedSelector, SIGNAL(stickerSelected(DocumentData*)), this, SLOT(onStickerSend(DocumentData*)));
+	connect(_tabbedSelector, SIGNAL(photoSelected(PhotoData*)), this, SLOT(onPhotoSend(PhotoData*)));
+	connect(_tabbedSelector, SIGNAL(inlineResultSelected(InlineBots::Result*,UserData*)), this, SLOT(onInlineResultSend(InlineBots::Result*,UserData*)));
+	connect(_tabbedSelector, SIGNAL(updateStickers()), this, SLOT(updateStickers()));
 	connect(&_sendActionStopTimer, SIGNAL(timeout()), this, SLOT(onCancelSendAction()));
 	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreviewTimeout()));
 	connect(Media::Capture::instance(), SIGNAL(error()), this, SLOT(onRecordError()));
@@ -587,17 +588,15 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 	_send->setRecordUpdateCallback([this](QPoint globalPos) { recordUpdateCallback(globalPos); });
 	_send->setRecordAnimationCallback([this] { updateField(); });
 
-	_reportSpamPanel->move(0, 0);
-	_reportSpamPanel->hide();
-
 	_attachToggle->hide();
-	_attachEmoji->hide();
+	_tabbedSelectorToggle->hide();
 	_botKeyboardShow->hide();
 	_botKeyboardHide->hide();
 	_silent->hide();
 	_botCommandStart->hide();
 
-	_attachEmoji->installEventFilter(_tabbedPanel);
+	_tabbedSelectorToggle->installEventFilter(_tabbedPanel);
+	_tabbedSelectorToggle->setClickedCallback([this] { toggleTabbedSelectorMode(); });
 
 	connect(_botKeyboardShow, SIGNAL(clicked()), this, SLOT(onKbToggle()));
 	connect(_botKeyboardHide, SIGNAL(clicked()), this, SLOT(onKbToggle()));
@@ -638,7 +637,7 @@ void HistoryWidget::start() {
 }
 
 void HistoryWidget::onStickersUpdated() {
-	_tabbedPanel->refreshStickers();
+	_tabbedSelector->refreshStickers();
 	updateStickersByEmoji();
 }
 
@@ -717,17 +716,43 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 }
 
 void HistoryWidget::orderWidgets() {
-	_reportSpamPanel->raise();
+	if (_reportSpamPanel) {
+		_reportSpamPanel->raise();
+	}
 	_topShadow->raise();
+	if (_rightShadow) {
+		_rightShadow->raise();
+	}
 	if (_membersDropdown) {
 		_membersDropdown->raise();
 	}
 	if (_inlineResults) {
 		_inlineResults->raise();
 	}
-	_tabbedPanel->raise();
+	if (_tabbedPanel) {
+		_tabbedPanel->raise();
+	}
 	_attachDragDocument->raise();
 	_attachDragPhoto->raise();
+}
+
+void HistoryWidget::setReportSpamStatus(DBIPeerReportSpamStatus status) {
+	if (_reportSpamStatus == status) {
+		return;
+	}
+	_reportSpamStatus = status;
+	if (_reportSpamStatus == dbiprsShowButton || _reportSpamStatus == dbiprsReportSent) {
+		_reportSpamPanel.create(this);
+		connect(_reportSpamPanel, SIGNAL(reportClicked()), this, SLOT(onReportSpamClicked()));
+		connect(_reportSpamPanel, SIGNAL(hideClicked()), this, SLOT(onReportSpamHide()));
+		connect(_reportSpamPanel, SIGNAL(clearClicked()), this, SLOT(onReportSpamClear()));
+		_reportSpamPanel->setReported(_reportSpamStatus == dbiprsReportSent, _peer);
+		_reportSpamPanel->show();
+		orderWidgets();
+		updateControlsGeometry();
+	} else {
+		_reportSpamPanel.destroy();
+	}
 }
 
 void HistoryWidget::updateStickersByEmoji() {
@@ -916,11 +941,15 @@ void HistoryWidget::updateSendAction(History *history, SendAction::Type type, in
 }
 
 void HistoryWidget::updateRecentStickers() {
-	_tabbedPanel->refreshStickers();
+	_tabbedSelector->refreshStickers();
 }
 
 void HistoryWidget::stickersInstalled(uint64 setId) {
-	_tabbedPanel->stickersInstalled(setId);
+	if (_tabbedPanel) {
+		_tabbedPanel->stickersInstalled(setId);
+	} else if (_tabbedSection) {
+		_tabbedSection->stickersInstalled(setId);
+	}
 }
 
 void HistoryWidget::sendActionDone(const MTPBool &result, mtpRequestId req) {
@@ -1020,7 +1049,7 @@ void HistoryWidget::notify_botCommandsChanged(UserData *user) {
 }
 
 void HistoryWidget::notify_inlineBotRequesting(bool requesting) {
-	_attachEmoji->setLoading(requesting);
+	_tabbedSelectorToggle->setLoading(requesting);
 }
 
 void HistoryWidget::notify_replyMarkupUpdated(const HistoryItem *item) {
@@ -1512,7 +1541,6 @@ void HistoryWidget::setReplyReturns(PeerId peer, const QList<MsgId> &replyReturn
 			_replyReturn = App::histItemById(_channel, _replyReturns.back());
 		}
 	}
-	updateControlsVisibility();
 }
 
 void HistoryWidget::calcNextReplyReturn() {
@@ -1678,7 +1706,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	_saveEditMsgRequestId = 0;
 	_replyEditMsg = nullptr;
 	_editMsgId = _replyToId = 0;
-	_previewData = 0;
+	_previewData = nullptr;
 	_previewCache.clear();
 	_fieldBarCancel->hide();
 
@@ -1695,7 +1723,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		_peer = App::peer(peerId);
 		_channel = peerToChannel(_peer->id);
 		_canSendMessages = canSendMessages(_peer);
-		_tabbedPanel->setInlineQueryPeer(_peer);
+		_tabbedSelector->setInlineQueryPeer(_peer);
 	}
 	updateTopBarSelection();
 
@@ -1775,7 +1803,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		applyDraft(false);
 		_send->finishAnimation();
 
-		resizeEvent(nullptr);
+		updateControlsGeometry();
 		if (!_previewCancelled) {
 			onPreviewParse();
 		}
@@ -1847,68 +1875,69 @@ bool HistoryWidget::contentOverlapped(const QRect &globalRect) {
 	return (_attachDragDocument->overlaps(globalRect)
 			|| _attachDragPhoto->overlaps(globalRect)
 			|| _fieldAutocomplete->overlaps(globalRect)
-			|| _tabbedPanel->overlaps(globalRect)
+			|| (_tabbedPanel && _tabbedPanel->overlaps(globalRect))
 			|| (_inlineResults && _inlineResults->overlaps(globalRect)));
 }
 
 void HistoryWidget::updateReportSpamStatus() {
 	if (!_peer || (_peer->isUser() && (_peer->id == AuthSession::CurrentUserPeerId() || isNotificationsUser(_peer->id) || isServiceUser(_peer->id) || _peer->asUser()->botInfo))) {
-		_reportSpamStatus = dbiprsHidden;
+		setReportSpamStatus(dbiprsHidden);
 		return;
 	} else if (!_firstLoadRequest && _history->isEmpty()) {
-		_reportSpamStatus = dbiprsNoButton;
+		setReportSpamStatus(dbiprsNoButton);
 		if (cReportSpamStatuses().contains(_peer->id)) {
 			cRefReportSpamStatuses().remove(_peer->id);
 			Local::writeReportSpamStatuses();
 		}
 		return;
 	} else {
-		ReportSpamStatuses::const_iterator i = cReportSpamStatuses().constFind(_peer->id);
+		auto i = cReportSpamStatuses().constFind(_peer->id);
 		if (i != cReportSpamStatuses().cend()) {
-			_reportSpamStatus = i.value();
-			if (_reportSpamStatus == dbiprsNoButton) {
-				_reportSpamStatus = dbiprsHidden;
+			if (i.value() == dbiprsNoButton) {
+				setReportSpamStatus(dbiprsHidden);
 				if (!_peer->isUser() || _peer->asUser()->contact < 1) {
 					MTP::send(MTPmessages_HideReportSpam(_peer->input));
 				}
 
 				cRefReportSpamStatuses().insert(_peer->id, _reportSpamStatus);
 				Local::writeReportSpamStatuses();
-			} else if (_reportSpamStatus == dbiprsShowButton) {
-				requestReportSpamSetting();
+			} else {
+				setReportSpamStatus(i.value());
+				if (_reportSpamStatus == dbiprsShowButton) {
+					requestReportSpamSetting();
+				}
 			}
-			_reportSpamPanel->setReported(_reportSpamStatus == dbiprsReportSent, _peer);
 			return;
 		} else if (_peer->migrateFrom()) { // migrate report status
 			i = cReportSpamStatuses().constFind(_peer->migrateFrom()->id);
 			if (i != cReportSpamStatuses().cend()) {
-				_reportSpamStatus = i.value();
-				if (_reportSpamStatus == dbiprsNoButton) {
-					_reportSpamStatus = dbiprsHidden;
+				if (i.value() == dbiprsNoButton) {
+					setReportSpamStatus(dbiprsHidden);
 					if (!_peer->isUser() || _peer->asUser()->contact < 1) {
 						MTP::send(MTPmessages_HideReportSpam(_peer->input));
 					}
-				} else if (_reportSpamStatus == dbiprsShowButton) {
-					requestReportSpamSetting();
+				} else {
+					setReportSpamStatus(i.value());
+					if (_reportSpamStatus == dbiprsShowButton) {
+						requestReportSpamSetting();
+					}
 				}
 				cRefReportSpamStatuses().insert(_peer->id, _reportSpamStatus);
 				Local::writeReportSpamStatuses();
-
-				_reportSpamPanel->setReported(_reportSpamStatus == dbiprsReportSent, _peer);
 				return;
 			}
 		}
 	}
+	auto status = dbiprsRequesting;
 	if (!AuthSession::Current().data().contactsLoaded().value() || _firstLoadRequest) {
-		_reportSpamStatus = dbiprsUnknown;
+		status = dbiprsUnknown;
 	} else if (_peer->isUser() && _peer->asUser()->contact > 0) {
-		_reportSpamStatus = dbiprsHidden;
+		status = dbiprsHidden;
 	} else {
-		_reportSpamStatus = dbiprsRequesting;
 		requestReportSpamSetting();
 	}
+	setReportSpamStatus(status);
 	if (_reportSpamStatus == dbiprsHidden) {
-		_reportSpamPanel->setReported(false, _peer);
 		cRefReportSpamStatuses().insert(_peer->id, _reportSpamStatus);
 		Local::writeReportSpamStatuses();
 	}
@@ -1925,11 +1954,13 @@ void HistoryWidget::reportSpamSettingDone(const MTPPeerSettings &result, mtpRequ
 
 	_reportSpamSettingRequestId = 0;
 	if (result.type() == mtpc_peerSettings) {
-		const auto &d(result.c_peerSettings());
-		DBIPeerReportSpamStatus status = d.is_report_spam() ? dbiprsShowButton : dbiprsHidden;
+		auto &d = result.c_peerSettings();
+		auto status = d.is_report_spam() ? dbiprsShowButton : dbiprsHidden;
 		if (status != _reportSpamStatus) {
-			_reportSpamStatus = status;
-			_reportSpamPanel->setReported(false, _peer);
+			setReportSpamStatus(status);
+			if (_reportSpamPanel) {
+				_reportSpamPanel->setReported(false, _peer);
+			}
 
 			cRefReportSpamStatuses().insert(_peer->id, _reportSpamStatus);
 			Local::writeReportSpamStatuses();
@@ -1961,35 +1992,20 @@ void HistoryWidget::updateControlsVisibility() {
 	}
 	updateHistoryDownVisibility();
 	if (!_history || _a_show.animating()) {
-		_reportSpamPanel->hide();
-		_scroll->hide();
-		_kbScroll->hide();
-		_send->hide();
-		_unblock->hide();
-		_botStart->hide();
-		_joinChannel->hide();
-		_muteUnmute->hide();
-		_fieldAutocomplete->hide();
-		_field->hide();
-		_fieldBarCancel->hide();
-		_attachToggle->hide();
-		_attachEmoji->hide();
-		_silent->hide();
-		_historyDown->hide();
-		_botKeyboardShow->hide();
-		_botKeyboardHide->hide();
-		_botCommandStart->hide();
-		_tabbedPanel->hide();
-		if (_inlineResults) {
-			_inlineResults->hide();
+		if (_tabbedSection && !_tabbedSection->isHidden()) {
+			_tabbedSection->beforeHiding();
 		}
-		if (_pinnedBar) {
-			_pinnedBar->cancel->hide();
-			_pinnedBar->shadow->hide();
-		}
+		hideChildren();
 		return;
 	}
 
+	if (_tabbedSection) {
+		if (_tabbedSection->isHidden()) {
+			_tabbedSection->show();
+			_tabbedSection->afterShown();
+		}
+		_rightShadow->show();
+	}
 	if (_pinnedBar) {
 		_pinnedBar->cancel->show();
 		_pinnedBar->shadow->show();
@@ -1999,10 +2015,8 @@ void HistoryWidget::updateControlsVisibility() {
 	} else if (!_firstLoadRequest && _scroll->isHidden()) {
 		_scroll->show();
 	}
-	if (_reportSpamStatus == dbiprsShowButton || _reportSpamStatus == dbiprsReportSent) {
+	if (_reportSpamPanel) {
 		_reportSpamPanel->show();
-	} else {
-		_reportSpamPanel->hide();
 	}
 	if (isBlocked() || isJoinChannel() || isMuteUnmute()) {
 		if (isBlocked()) {
@@ -2036,17 +2050,19 @@ void HistoryWidget::updateControlsVisibility() {
 		_kbScroll->hide();
 		_fieldBarCancel->hide();
 		_attachToggle->hide();
-		_attachEmoji->hide();
+		_tabbedSelectorToggle->hide();
 		_botKeyboardShow->hide();
 		_botKeyboardHide->hide();
 		_botCommandStart->hide();
-		_tabbedPanel->hide();
+		if (_tabbedPanel) {
+			_tabbedPanel->hide();
+		}
 		if (_inlineResults) {
 			_inlineResults->hide();
 		}
 		if (!_field->isHidden()) {
 			_field->hide();
-			resizeEvent(0);
+			updateControlsGeometry();
 			update();
 		}
 	} else if (_canSendMessages) {
@@ -2062,7 +2078,7 @@ void HistoryWidget::updateControlsVisibility() {
 			_kbShown = false;
 			_send->hide();
 			_field->hide();
-			_attachEmoji->hide();
+			_tabbedSelectorToggle->hide();
 			_botKeyboardShow->hide();
 			_botKeyboardHide->hide();
 			_botCommandStart->hide();
@@ -2079,7 +2095,7 @@ void HistoryWidget::updateControlsVisibility() {
 			updateSendButtonType();
 			if (_recording) {
 				_field->hide();
-				_attachEmoji->hide();
+				_tabbedSelectorToggle->hide();
 				_botKeyboardShow->hide();
 				_botKeyboardHide->hide();
 				_botCommandStart->hide();
@@ -2094,19 +2110,19 @@ void HistoryWidget::updateControlsVisibility() {
 				_field->show();
 				if (_kbShown) {
 					_kbScroll->show();
-					_attachEmoji->hide();
+					_tabbedSelectorToggle->hide();
 					_botKeyboardHide->show();
 					_botKeyboardShow->hide();
 					_botCommandStart->hide();
 				} else if (_kbReplyTo) {
 					_kbScroll->hide();
-					_attachEmoji->show();
+					_tabbedSelectorToggle->show();
 					_botKeyboardHide->hide();
 					_botKeyboardShow->hide();
 					_botCommandStart->hide();
 				} else {
 					_kbScroll->hide();
-					_attachEmoji->show();
+					_tabbedSelectorToggle->show();
 					_botKeyboardHide->hide();
 					if (_keyboard->hasMarkup()) {
 						_botKeyboardShow->show();
@@ -2131,7 +2147,7 @@ void HistoryWidget::updateControlsVisibility() {
 			if (_editMsgId || _replyToId || readyToForward() || (_previewData && _previewData->pendingTill >= 0) || _kbReplyTo) {
 				if (_fieldBarCancel->isHidden()) {
 					_fieldBarCancel->show();
-					resizeEvent(0);
+					updateControlsGeometry();
 					update();
 				}
 			} else {
@@ -2150,18 +2166,20 @@ void HistoryWidget::updateControlsVisibility() {
 		_kbScroll->hide();
 		_fieldBarCancel->hide();
 		_attachToggle->hide();
-		_attachEmoji->hide();
+		_tabbedSelectorToggle->hide();
 		_botKeyboardShow->hide();
 		_botKeyboardHide->hide();
 		_botCommandStart->hide();
-		_tabbedPanel->hide();
+		if (_tabbedPanel) {
+			_tabbedPanel->hide();
+		}
 		if (_inlineResults) {
 			_inlineResults->hide();
 		}
 		_kbScroll->hide();
 		if (!_field->isHidden()) {
 			_field->hide();
-			resizeEvent(0);
+			updateControlsGeometry();
 			update();
 		}
 	}
@@ -2373,7 +2391,7 @@ void HistoryWidget::historyLoaded() {
 }
 
 void HistoryWidget::windowShown() {
-	resizeEvent(0);
+	updateControlsGeometry();
 }
 
 bool HistoryWidget::doWeReadServerHistory() const {
@@ -2675,7 +2693,9 @@ bool HistoryWidget::saveEditMsgFail(History *history, const RPCError &error, mtp
 
 void HistoryWidget::hideSelectorControlsAnimated() {
 	_fieldAutocomplete->hideAnimated();
-	_tabbedPanel->hideAnimated();
+	if (_tabbedPanel) {
+		_tabbedPanel->hideAnimated();
+	}
 	if (_inlineResults) {
 		_inlineResults->hideAnimated();
 	}
@@ -2894,30 +2914,15 @@ void HistoryWidget::showAnimated(Window::SlideDirection direction, const Window:
 	historyDownAnimationFinish();
 	_topShadow->setVisible(params.withTopBarShadow ? false : true);
 	_cacheOver = App::main()->grabForShowAnimation(params);
-	_topShadow->setVisible(params.withTopBarShadow ? true : false);
 
-	_topBar->hide();
-	_scroll->hide();
-	_kbScroll->hide();
-	_reportSpamPanel->hide();
-	_historyDown->hide();
-	_attachToggle->hide();
-	_attachEmoji->hide();
-	_fieldAutocomplete->hide();
-	_silent->hide();
-	_botKeyboardShow->hide();
-	_botKeyboardHide->hide();
-	_botCommandStart->hide();
-	_field->hide();
-	_fieldBarCancel->hide();
-	_send->hide();
-	_unblock->hide();
-	_botStart->hide();
-	_joinChannel->hide();
-	_muteUnmute->hide();
-	if (_pinnedBar) {
-		_pinnedBar->shadow->hide();
-		_pinnedBar->cancel->hide();
+	if (_tabbedSection && !_tabbedSection->isHidden()) {
+		_tabbedSection->beforeHiding();
+	}
+	hideChildren();
+	if (params.withTopBarShadow) _topShadow->show();
+	if (params.withTabbedSection && _tabbedSection) {
+		_tabbedSection->show();
+		_tabbedSection->afterShown();
 	}
 
 	if (_showDirection == Window::SlideDirection::FromLeft) {
@@ -2937,8 +2942,6 @@ void HistoryWidget::showAnimated(Window::SlideDirection direction, const Window:
 void HistoryWidget::animationCallback() {
 	update();
 	if (!_a_show.animating()) {
-		_topShadow->setVisible(_peer != nullptr);
-		_topBar->setVisible(_peer != nullptr);
 		historyDownAnimationFinish();
 		_cacheUnder = _cacheOver = QPixmap();
 		doneShow();
@@ -3588,11 +3591,11 @@ void HistoryWidget::onKbToggle(bool manual) {
 			_history->lastKeyboardHiddenId = 0;
 		}
 	}
-	resizeEvent(0);
+	updateControlsGeometry();
 	if (_botKeyboardHide->isHidden() && canWriteMessage() && !_a_show.animating()) {
-		_attachEmoji->show();
+		_tabbedSelectorToggle->show();
 	} else {
-		_attachEmoji->hide();
+		_tabbedSelectorToggle->hide();
 	}
 	updateField();
 }
@@ -3694,6 +3697,67 @@ void HistoryWidget::topBarClick() {
 	}
 }
 
+void HistoryWidget::updateTabbedSelectorSectionShown() {
+	auto tabbedSelectorSectionEnabled = AuthSession::Current().data().tabbedSelectorSectionEnabled();
+	auto shown = tabbedSelectorSectionEnabled && (width() >= minimalWidthForTabbedSelectorSection());
+	auto shownNow = (_tabbedSection != nullptr);
+	if (shown == shownNow) {
+		return;
+	}
+
+	if (shown) {
+		_tabbedSection.create(this, _controller, _tabbedPanel->takeSelector());
+		_tabbedSection->setCancelledCallback([this] { setInnerFocus(); });
+		_rightShadow.create(this, st::shadowFg);
+		auto destroyingPanel = std::move(_tabbedPanel);
+		updateControlsVisibility();
+	} else {
+		_tabbedPanel.create(this, _controller, _tabbedSection->takeSelector());
+		_tabbedSelectorToggle->installEventFilter(_tabbedPanel);
+		_tabbedSection.destroy();
+		_rightShadow.destroy();
+	}
+	orderWidgets();
+}
+
+int HistoryWidget::minimalWidthForTabbedSelectorSection() const {
+	return st::windowMinWidth + st::emojiPanWidth;
+}
+
+void HistoryWidget::toggleTabbedSelectorMode() {
+	auto sectionEnabled = AuthSession::Current().data().tabbedSelectorSectionEnabled();
+	if (_tabbedSection) {
+		AuthSession::Current().data().setTabbedSelectorSectionEnabled(false);
+		AuthSession::Current().saveDataDelayed(kSaveTabbedSelectorSectionTimeout);
+		updateTabbedSelectorSectionShown();
+		recountChatWidth();
+		updateControlsGeometry();
+	} else if (_controller->provideChatWidth(minimalWidthForTabbedSelectorSection())) {
+		if (!AuthSession::Current().data().tabbedSelectorSectionEnabled()) {
+			AuthSession::Current().data().setTabbedSelectorSectionEnabled(true);
+			AuthSession::Current().saveDataDelayed(kSaveTabbedSelectorSectionTimeout);
+		}
+		updateTabbedSelectorSectionShown();
+		recountChatWidth();
+		updateControlsGeometry();
+	} else {
+		t_assert(_tabbedPanel != nullptr);
+		_tabbedPanel->toggleAnimated();
+	}
+}
+
+void HistoryWidget::recountChatWidth() {
+	_chatWidth = width();
+	if (_tabbedSection) {
+		_chatWidth -= _tabbedSection->width();
+	}
+	auto layout = (_chatWidth < st::adaptiveChatWideWidth) ? Adaptive::ChatLayout::Normal : Adaptive::ChatLayout::Wide;
+	if (layout != Global::AdaptiveChatLayout()) {
+		Global::SetAdaptiveChatLayout(layout);
+		Adaptive::Changed().notify(true);
+	}
+}
+
 void HistoryWidget::updateOnlineDisplay() {
 	if (!_history) return;
 
@@ -3783,36 +3847,38 @@ void HistoryWidget::moveFieldControls() {
 	auto keyboardHeight = 0;
 	auto bottom = height();
 	auto maxKeyboardHeight = st::historyComposeFieldMaxHeight - _field->height();
-	_keyboard->resizeToWidth(width(), maxKeyboardHeight);
+	_keyboard->resizeToWidth(_chatWidth, maxKeyboardHeight);
 	if (_kbShown) {
 		keyboardHeight = qMin(_keyboard->height(), maxKeyboardHeight);
 		bottom -= keyboardHeight;
-		_kbScroll->setGeometry(0, bottom, width(), keyboardHeight);
+		_kbScroll->setGeometryToLeft(0, bottom, _chatWidth, keyboardHeight);
 	}
 
-// _attachToggle ------- _inlineResults --------------------------------- _tabbedPanel ------- _fieldBarCancel
-// (_attachDocument|_attachPhoto) _field (_silent|_cmdStart|_kbShow) (_kbHide|_attachEmoji) [_broadcast] _send
+// _attachToggle --------- _inlineResults -------------------------------------- _tabbedPanel --------- _fieldBarCancel
+// (_attachDocument|_attachPhoto) _field (_silent|_cmdStart|_kbShow) (_kbHide|_tabbedSelectorToggle) [_broadcast] _send
 // (_botStart|_unblock|_joinChannel|_muteUnmute)
 
 	auto buttonsBottom = bottom - _attachToggle->height();
 	auto left = 0;
 	_attachToggle->moveToLeft(left, buttonsBottom); left += _attachToggle->width();
 	_field->moveToLeft(left, bottom - _field->height() - st::historySendPadding);
-	auto right = st::historySendRight;
+	auto right = (width() - _chatWidth) + st::historySendRight;
 	_send->moveToRight(right, buttonsBottom); right += _send->width();
-	_attachEmoji->moveToRight(right, buttonsBottom);
+	_tabbedSelectorToggle->moveToRight(right, buttonsBottom);
 	_botKeyboardHide->moveToRight(right, buttonsBottom); right += _botKeyboardHide->width();
 	_botKeyboardShow->moveToRight(right, buttonsBottom);
 	_botCommandStart->moveToRight(right, buttonsBottom);
 	_silent->moveToRight(right, buttonsBottom);
 
-	_fieldBarCancel->moveToRight(0, _field->y() - st::historySendPadding - _fieldBarCancel->height());
+	_fieldBarCancel->moveToRight(width() - _chatWidth, _field->y() - st::historySendPadding - _fieldBarCancel->height());
 	if (_inlineResults) {
 		_inlineResults->moveBottom(_field->y() - st::historySendPadding);
 	}
-	_tabbedPanel->moveBottom(buttonsBottom);
+	if (_tabbedPanel) {
+		_tabbedPanel->moveBottom(buttonsBottom);
+	}
 
-	auto fullWidthButtonRect = QRect(0, bottom - _botStart->height(), width(), _botStart->height());
+	auto fullWidthButtonRect = myrtlrect(0, bottom - _botStart->height(), _chatWidth, _botStart->height());
 	_botStart->setGeometry(fullWidthButtonRect);
 	_unblock->setGeometry(fullWidthButtonRect);
 	_joinChannel->setGeometry(fullWidthButtonRect);
@@ -3821,9 +3887,9 @@ void HistoryWidget::moveFieldControls() {
 
 void HistoryWidget::updateFieldSize() {
 	auto kbShowShown = _history && !_kbShown && _keyboard->hasMarkup();
-	auto fieldWidth = width() - _attachToggle->width() - st::historySendRight;
+	auto fieldWidth = _chatWidth - _attachToggle->width() - st::historySendRight;
 	fieldWidth -= _send->width();
-	fieldWidth -= _attachEmoji->width();
+	fieldWidth -= _tabbedSelectorToggle->width();
 	if (kbShowShown) fieldWidth -= _botKeyboardShow->width();
 	if (_cmdStartShown) fieldWidth -= _botCommandStart->width();
 	if (hasSilentToggle()) fieldWidth -= _silent->width();
@@ -4297,8 +4363,10 @@ void HistoryWidget::reportSpamDone(PeerData *peer, const MTPBool &result, mtpReq
 		cRefReportSpamStatuses().insert(peer->id, dbiprsReportSent);
 		Local::writeReportSpamStatuses();
 	}
-	_reportSpamStatus = dbiprsReportSent;
-	_reportSpamPanel->setReported(_reportSpamStatus == dbiprsReportSent, peer);
+	setReportSpamStatus(dbiprsReportSent);
+	if (_reportSpamPanel) {
+		_reportSpamPanel->setReported(_reportSpamStatus == dbiprsReportSent, peer);
+	}
 }
 
 bool HistoryWidget::reportSpamFail(const RPCError &error, mtpRequestId req) {
@@ -4317,7 +4385,7 @@ void HistoryWidget::onReportSpamHide() {
 
 		MTP::send(MTPmessages_HideReportSpam(_peer->input));
 	}
-	_reportSpamStatus = dbiprsHidden;
+	setReportSpamStatus(dbiprsHidden);
 	updateControlsVisibility();
 }
 
@@ -4366,7 +4434,7 @@ void HistoryWidget::grapWithoutTopBarShadow() {
 
 void HistoryWidget::grabFinish() {
 	_inGrab = false;
-	resizeEvent(0);
+	updateControlsGeometry();
 	_topShadow->show();
 }
 
@@ -4421,30 +4489,31 @@ void HistoryWidget::notify_handlePendingHistoryUpdate() {
 }
 
 void HistoryWidget::resizeEvent(QResizeEvent *e) {
-	auto layout = (width() < st::adaptiveChatWideWidth) ? Adaptive::ChatLayout::Normal : Adaptive::ChatLayout::Wide;
-	if (layout != Global::AdaptiveChatLayout()) {
-		Global::SetAdaptiveChatLayout(layout);
-		Adaptive::Changed().notify(true);
-	}
+	updateTabbedSelectorSectionShown();
+	recountChatWidth();
 	updateControlsGeometry();
 }
 
 void HistoryWidget::updateControlsGeometry() {
-	_topBar->setGeometryToLeft(0, 0, width(), st::topBarHeight);
-	_reportSpamPanel->resize(width(), _reportSpamPanel->height());
+	if (_tabbedSection) {
+		_tabbedSection->setGeometryToRight(0, 0, st::emojiPanWidth, height());
+	}
+	_topBar->setGeometryToLeft(0, 0, _chatWidth, st::topBarHeight);
 
 	moveFieldControls();
 
 	auto scrollAreaTop = _topBar->bottomNoMargins();
 	if (_pinnedBar) {
-		_pinnedBar->cancel->move(width() - _pinnedBar->cancel->width(), scrollAreaTop);
+		_pinnedBar->cancel->moveToLeft(_chatWidth - _pinnedBar->cancel->width(), scrollAreaTop);
 		scrollAreaTop += st::historyReplyHeight;
-		_pinnedBar->shadow->setGeometry(0, scrollAreaTop, width(), st::lineWidth);
+		_pinnedBar->shadow->setGeometryToLeft(0, scrollAreaTop, _chatWidth, st::lineWidth);
 	}
 	if (_scroll->y() != scrollAreaTop) {
-		_scroll->move(0, scrollAreaTop);
-		_reportSpamPanel->move(0, scrollAreaTop);
+		_scroll->moveToLeft(0, scrollAreaTop);
 		_fieldAutocomplete->setBoundings(_scroll->geometry());
+	}
+	if (_reportSpamPanel) {
+		_reportSpamPanel->setGeometryToLeft(0, _scroll->y(), _chatWidth, _reportSpamPanel->height());
 	}
 
 	updateListSize(false, false, { ScrollChangeAdd, App::main() ? App::main()->contentScrollAddToY() : 0 });
@@ -4474,8 +4543,12 @@ void HistoryWidget::updateControlsGeometry() {
 	break;
 	}
 
-	_topShadow->resize(width() - ((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0), st::lineWidth);
-	_topShadow->moveToLeft((!Adaptive::OneColumn() && !_inGrab) ? st::lineWidth : 0, _topBar->bottomNoMargins());
+	if (_rightShadow) {
+		_rightShadow->setGeometryToLeft(_chatWidth - st::lineWidth, 0, st::lineWidth, height());
+	}
+	auto topShadowLeft = (Adaptive::OneColumn() || _inGrab) ? 0 : st::lineWidth;
+	auto topShadowRight = _rightShadow ? st::lineWidth : 0;
+	_topShadow->setGeometryToLeft(topShadowLeft, _topBar->bottomNoMargins(), _chatWidth - topShadowLeft - topShadowRight, st::lineWidth);
 }
 
 void HistoryWidget::itemRemoved(HistoryItem *item) {
@@ -4540,9 +4613,9 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 	}
 	int wasScrollTop = _scroll->scrollTop();
 	bool wasAtBottom = wasScrollTop + 1 > _scroll->scrollTopMax();
-	bool needResize = (_scroll->width() != width()) || (_scroll->height() != newScrollHeight);
+	bool needResize = (_scroll->width() != _chatWidth) || (_scroll->height() != newScrollHeight);
 	if (needResize) {
-		_scroll->resize(width(), newScrollHeight);
+		_scroll->resize(_chatWidth, newScrollHeight);
 		// on initial updateListSize we didn't put the _scroll->scrollTop correctly yet
 		// so visibleAreaUpdated() call will erase it with the new (undefined) value
 		if (!initial) {
@@ -4737,11 +4810,11 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 			if (!_a_show.animating()) {
 				if (hasMarkup) {
 					_kbScroll->show();
-					_attachEmoji->hide();
+					_tabbedSelectorToggle->hide();
 					_botKeyboardHide->show();
 				} else {
 					_kbScroll->hide();
-					_attachEmoji->show();
+					_tabbedSelectorToggle->show();
 					_botKeyboardHide->hide();
 				}
 				_botKeyboardShow->hide();
@@ -4760,7 +4833,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 		} else {
 			if (!_a_show.animating()) {
 				_kbScroll->hide();
-				_attachEmoji->show();
+				_tabbedSelectorToggle->show();
 				_botKeyboardHide->hide();
 				_botKeyboardShow->show();
 				_botCommandStart->hide();
@@ -4776,7 +4849,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 	} else {
 		if (!_scroll->isHidden()) {
 			_kbScroll->hide();
-			_attachEmoji->show();
+			_tabbedSelectorToggle->show();
 			_botKeyboardHide->hide();
 			_botKeyboardShow->hide();
 			_botCommandStart->show();
@@ -4789,7 +4862,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 			updateMouseTracking();
 		}
 	}
-	resizeEvent(0);
+	updateControlsGeometry();
 	update();
 }
 
@@ -5000,7 +5073,7 @@ void HistoryWidget::updatePinnedBar(bool force) {
 			_peer->asChannel()->mgInfo->pinnedMsgId = 0;
 		}
 		destroyPinnedBar();
-		resizeEvent(0);
+		updateControlsGeometry();
 	}
 }
 
@@ -5052,7 +5125,7 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 		if (_scroll->scrollTop() != unreadBarTop()) {
 			_scroll->scrollToY(_scroll->scrollTop() - st::historyReplyHeight);
 		}
-		resizeEvent(0);
+		updateControlsGeometry();
 	}
 	return result;
 }
@@ -5227,7 +5300,7 @@ void HistoryWidget::onReplyToMessage() {
 		if (!_field->isHidden()) _fieldBarCancel->show();
 		updateMouseTracking();
 		updateReplyToName();
-		resizeEvent(0);
+		updateControlsGeometry();
 		updateField();
 	}
 
@@ -5282,7 +5355,7 @@ void HistoryWidget::onEditMessage() {
 		updateFieldPlaceholder();
 		updateMouseTracking();
 		updateReplyToName();
-		resizeEvent(nullptr);
+		updateControlsGeometry();
 		updateField();
 
 		_saveDraftText = true;
@@ -5308,7 +5381,7 @@ void HistoryWidget::onUnpinMessage() {
 
 		_peer->asChannel()->mgInfo->pinnedMsgId = 0;
 		if (pinnedMsgVisibilityUpdated()) {
-			resizeEvent(0);
+			updateControlsGeometry();
 			update();
 		}
 
@@ -5327,7 +5400,7 @@ void HistoryWidget::onPinnedHide() {
 	if (!_peer || !_peer->isMegagroup()) return;
 	if (!_peer->asChannel()->mgInfo->pinnedMsgId) {
 		if (pinnedMsgVisibilityUpdated()) {
-			resizeEvent(0);
+			updateControlsGeometry();
 			update();
 		}
 		return;
@@ -5339,7 +5412,7 @@ void HistoryWidget::onPinnedHide() {
 		Global::RefHiddenPinnedMessages().insert(_peer->id, _peer->asChannel()->mgInfo->pinnedMsgId);
 		Local::writeUserSettings();
 		if (pinnedMsgVisibilityUpdated()) {
-			resizeEvent(0);
+			updateControlsGeometry();
 			update();
 		}
 	}
@@ -5372,7 +5445,7 @@ bool HistoryWidget::cancelReply(bool lastKeyboardUsed) {
 
 		updateBotKeyboard();
 
-		resizeEvent(0);
+		updateControlsGeometry();
 		update();
 	} else if (auto localDraft = (_history ? _history->localDraft() : nullptr)) {
 		if (localDraft->msgId) {
@@ -5404,7 +5477,7 @@ void HistoryWidget::cancelReplyAfterMediaSend(bool lastKeyboardUsed) {
 
 int HistoryWidget::countMembersDropdownHeightMax() const {
 	int result = height() - st::membersInnerDropdown.padding.top() - st::membersInnerDropdown.padding.bottom();
-	result -= _attachEmoji->height();
+	result -= _tabbedSelectorToggle->height();
 	accumulate_min(result, st::membersInnerHeightMax);
 	return result;
 }
@@ -5440,7 +5513,7 @@ void HistoryWidget::cancelEdit() {
 	updateBotKeyboard();
 	updateFieldPlaceholder();
 
-	resizeEvent(nullptr);
+	updateControlsGeometry();
 	update();
 }
 
@@ -5604,7 +5677,7 @@ void HistoryWidget::updatePreview() {
 		_fieldBarCancel->hide();
 		updateMouseTracking();
 	}
-	resizeEvent(0);
+	updateControlsGeometry();
 	update();
 }
 
@@ -5911,8 +5984,8 @@ void HistoryWidget::updateReplyToName() {
 }
 
 void HistoryWidget::updateField() {
-	int32 fy = _scroll->y() + _scroll->height();
-	update(0, fy, width(), height() - fy);
+	auto fieldAreaTop = _scroll->y() + _scroll->height();
+	rtlupdate(0, fieldAreaTop, _chatWidth, height() - fieldAreaTop);
 }
 
 void HistoryWidget::drawField(Painter &p, const QRect &rect) {
@@ -5936,7 +6009,7 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 		backh += st::historyReplyHeight;
 	}
 	bool drawPreview = (_previewData && _previewData->pendingTill >= 0) && !_replyForwardPressed;
-	p.fillRect(0, backy, width(), backh, st::historyReplyBg);
+	p.fillRect(myrtlrect(0, backy, _chatWidth, backh), st::historyReplyBg);
 	if (_editMsgId || _replyToId || (!hasForward && _kbReplyTo)) {
 		int32 replyLeft = st::historyReplySkip;
 		(_editMsgId ? st::historyEditIcon : st::historyReplyIcon).paint(p, st::historyReplyIconPosition + QPoint(0, backy), width());
@@ -5954,14 +6027,14 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 				if (_editMsgId) {
 					paintEditHeader(p, rect, replyLeft, backy);
 				} else {
-					_replyToName.drawElided(p, replyLeft, backy + st::msgReplyPadding.top(), width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
+					_replyToName.drawElided(p, replyLeft, backy + st::msgReplyPadding.top(), _chatWidth - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 				}
 				p.setPen(((drawMsgText->toHistoryMessage() && drawMsgText->toHistoryMessage()->emptyText()) || drawMsgText->serviceMsg()) ? st::historyComposeAreaFgService : st::historyComposeAreaFg);
-				_replyEditMsgText.drawElided(p, replyLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
+				_replyEditMsgText.drawElided(p, replyLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, _chatWidth - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 			} else {
 				p.setFont(st::msgDateFont);
 				p.setPen(st::historyComposeAreaFgService);
-				p.drawText(replyLeft, backy + st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->elided(lang(lng_profile_loading), width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right()));
+				p.drawText(replyLeft, backy + st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->elided(lang(lng_profile_loading), _chatWidth - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right()));
 			}
 		}
 	} else if (from && text) {
@@ -5981,7 +6054,7 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 			p.setPen(st::historyReplyNameFg);
 			from->drawElided(p, forwardLeft, backy + st::msgReplyPadding.top(), width() - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 			p.setPen(serviceColor ? st::historyComposeAreaFgService : st::historyComposeAreaFg);
-			text->drawElided(p, forwardLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
+			text->drawElided(p, forwardLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, _chatWidth - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 		}
 	}
 	if (drawPreview) {
@@ -6001,9 +6074,9 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 			previewLeft += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
 		}
 		p.setPen(st::historyReplyNameFg);
-		_previewTitle.drawElided(p, previewLeft, backy + st::msgReplyPadding.top(), width() - previewLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
+		_previewTitle.drawElided(p, previewLeft, backy + st::msgReplyPadding.top(), _chatWidth - previewLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 		p.setPen(st::historyComposeAreaFg);
-		_previewDescription.drawElided(p, previewLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - previewLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
+		_previewDescription.drawElided(p, previewLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, _chatWidth - previewLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 	}
 }
 
@@ -6015,12 +6088,12 @@ constexpr int FullDayInMs = 86400 * 1000;
 } // namespace
 
 void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int top) const {
-	if (!rect.intersects(QRect(left, top, width() - left, st::normalFont->height))) {
+	if (!rect.intersects(myrtlrect(left, top, _chatWidth - left, st::normalFont->height))) {
 		return;
 	}
 
 	p.setFont(st::msgServiceNameFont);
-	p.drawText(left, top + st::msgReplyPadding.top() + st::msgServiceNameFont->ascent, lang(lng_edit_message));
+	p.drawTextLeft(left, top + st::msgReplyPadding.top() + st::msgServiceNameFont->ascent, width(), lang(lng_edit_message));
 
 	if (!_replyEditMsg) return;
 
@@ -6045,7 +6118,7 @@ void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int
 	}
 
 	// Restart timer only if we are sure that we've painted the whole timer.
-	if (rect.contains(QRect(left, top, width() - left, st::normalFont->height)) && updateIn > 0) {
+	if (rect.contains(myrtlrect(left, top, _chatWidth - left, st::normalFont->height)) && updateIn > 0) {
 		_updateEditTimeLeftDisplay.start(updateIn);
 	}
 
@@ -6064,17 +6137,17 @@ void HistoryWidget::drawRecording(Painter &p, float64 recordActive) {
 	auto d = 2 * qRound(st::historyRecordSignalMin + (delta * (st::historyRecordSignalMax - st::historyRecordSignalMin)));
 	{
 		PainterHighQualityEnabler hq(p);
-		p.drawEllipse(_attachToggle->x() + (_attachEmoji->width() - d) / 2, _attachToggle->y() + (_attachToggle->height() - d) / 2, d, d);
+		p.drawEllipse(_attachToggle->x() + (_tabbedSelectorToggle->width() - d) / 2, _attachToggle->y() + (_attachToggle->height() - d) / 2, d, d);
 	}
 
 	auto duration = formatDurationText(_recordingSamples / Media::Player::kDefaultFrequency);
 	p.setFont(st::historyRecordFont);
 
 	p.setPen(st::historyRecordDurationFg);
-	p.drawText(_attachToggle->x() + _attachEmoji->width(), _attachToggle->y() + st::historyRecordTextTop + st::historyRecordFont->ascent, duration);
+	p.drawText(_attachToggle->x() + _tabbedSelectorToggle->width(), _attachToggle->y() + st::historyRecordTextTop + st::historyRecordFont->ascent, duration);
 
-	int32 left = _attachToggle->x() + _attachEmoji->width() + st::historyRecordFont->width(duration) + ((_send->width() - st::historyRecordVoice.width()) / 2);
-	int32 right = width() - _send->width();
+	int32 left = _attachToggle->x() + _tabbedSelectorToggle->width() + st::historyRecordFont->width(duration) + ((_send->width() - st::historyRecordVoice.width()) / 2);
+	int32 right = _chatWidth - _send->width();
 
 	p.setPen(anim::pen(st::historyRecordCancel, st::historyRecordCancelActive, 1. - recordActive));
 	p.drawText(left + (right - left - _recordCancelWidth) / 2, _attachToggle->y() + st::historyRecordTextTop + st::historyRecordFont->ascent, lang(lng_record_cancel));
@@ -6087,10 +6160,10 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 	Text *from = 0, *text = 0;
 	bool serviceColor = false, hasForward = readyToForward();
 	ImagePtr preview;
-	p.fillRect(0, top, width(), st::historyReplyHeight, st::historyPinnedBg);
+	p.fillRect(myrtlrect(0, top, _chatWidth, st::historyReplyHeight), st::historyPinnedBg);
 
 	top += st::msgReplyPadding.top();
-	QRect rbar(rtlrect(st::msgReplyBarSkip + st::msgReplyBarPos.x(), top + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height(), width()));
+	QRect rbar(rtlrect(st::msgReplyBarSkip + st::msgReplyBarPos.x(), top + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height(), _chatWidth));
 	p.fillRect(rbar, st::msgInReplyBarColor);
 
 	int32 left = st::msgReplyBarSkip + st::msgReplyBarSkip;
@@ -6108,11 +6181,11 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 		p.drawText(left, top + st::msgServiceNameFont->ascent, lang(lng_pinned_message));
 
 		p.setPen(((_pinnedBar->msg->toHistoryMessage() && _pinnedBar->msg->toHistoryMessage()->emptyText()) || _pinnedBar->msg->serviceMsg()) ? st::historyComposeAreaFgService : st::historyComposeAreaFg);
-		_pinnedBar->text.drawElided(p, left, top + st::msgServiceNameFont->height, width() - left - _pinnedBar->cancel->width() - st::msgReplyPadding.right());
+		_pinnedBar->text.drawElided(p, left, top + st::msgServiceNameFont->height, _chatWidth - left - _pinnedBar->cancel->width() - st::msgReplyPadding.right());
 	} else {
 		p.setFont(st::msgDateFont);
 		p.setPen(st::historyComposeAreaFgService);
-		p.drawText(left, top + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->elided(lang(lng_profile_loading), width() - left - _pinnedBar->cancel->width() - st::msgReplyPadding.right()));
+		p.drawText(left, top + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->elided(lang(lng_profile_loading), _chatWidth - left - _pinnedBar->cancel->width() - st::msgReplyPadding.right()));
 	}
 }
 
@@ -6134,10 +6207,11 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 	_historyDownShown.step(ms);
 	auto progress = _a_show.current(ms, 1.);
 	if (_a_show.animating()) {
+		auto animationWidth = (!_tabbedSection || _tabbedSection->isHidden()) ? width() : _chatWidth;
 		auto retina = cIntRetinaFactor();
 		auto fromLeft = (_showDirection == Window::SlideDirection::FromLeft);
 		auto coordUnder = fromLeft ? anim::interpolate(-st::slideShift, 0, progress) : anim::interpolate(0, -st::slideShift, progress);
-		auto coordOver = fromLeft ? anim::interpolate(0, width(), progress) : anim::interpolate(width(), 0, progress);
+		auto coordOver = fromLeft ? anim::interpolate(0, animationWidth, progress) : anim::interpolate(animationWidth, 0, progress);
 		auto shadow = fromLeft ? (1. - progress) : progress;
 		if (coordOver > 0) {
 			p.drawPixmap(QRect(0, 0, coordOver, height()), _cacheUnder, QRect(-coordUnder * retina, 0, coordOver * retina, height() * retina));
@@ -6151,7 +6225,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
-	QRect fill(0, 0, width(), App::main()->height());
+	QRect fill(0, 0, _history ? _chatWidth : width(), App::main()->height());
 	auto fromy = App::main()->backgroundFromY();
 	auto x = 0, y = 0;
 	QPixmap cached = App::main()->cachedBackground(fill, x, y);

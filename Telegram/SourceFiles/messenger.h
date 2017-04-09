@@ -33,6 +33,10 @@ class MainWidget;
 class FileUploader;
 class Translator;
 
+namespace Local {
+struct StoredAuthSession;
+} // namespace Local
+
 class Messenger final : public QObject, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
@@ -62,7 +66,7 @@ public:
 	void setMtpMainDcId(MTP::DcId mainDcId);
 	void setMtpKey(MTP::DcId dcId, const MTP::AuthKey::Data &keyData);
 	void setAuthSessionUserId(UserId userId);
-	void setAuthSessionData(std::unique_ptr<AuthSessionData> data);
+	void setAuthSessionFromStorage(std::unique_ptr<Local::StoredAuthSession> data);
 	AuthSessionData *getAuthSessionData();
 
 	// Serialization.

@@ -107,7 +107,11 @@ stickersSettingsUnreadPosition: point(4px, 5px);
 
 emojiPanMargins: margins(10px, 10px, 10px, 10px);
 
-emojiTabs: defaultTabsSlider;
+emojiTabs: SettingsSlider(defaultTabsSlider) {
+	height: 55px;
+	barTop: 52px;
+	labelTop: 19px;
+}
 emojiScroll: defaultSolidScroll;
 emojiRecent: icon {{ "emoji_recent", emojiIconFg }};
 emojiRecentActive: icon {{ "emoji_recent", emojiIconFgActive }};

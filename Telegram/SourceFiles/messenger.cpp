@@ -38,6 +38,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_location_manager.h"
 #include "ui/widgets/tooltip.h"
 #include "storage/serialize_common.h"
+#include "window/window_controller.h"
 
 namespace {
 
@@ -51,7 +52,7 @@ Messenger *Messenger::InstancePointer() {
 
 struct Messenger::Private {
 	UserId authSessionUserId = 0;
-	std::unique_ptr<AuthSessionData> authSessionData;
+	std::unique_ptr<Local::StoredAuthSession> storedAuthSession;
 	MTP::Instance::Config mtpConfig;
 	MTP::AuthKeysList mtpKeysToDestroy;
 };
@@ -220,14 +221,14 @@ void Messenger::setAuthSessionUserId(UserId userId) {
 	_private->authSessionUserId = userId;
 }
 
-void Messenger::setAuthSessionData(std::unique_ptr<AuthSessionData> data) {
+void Messenger::setAuthSessionFromStorage(std::unique_ptr<Local::StoredAuthSession> data) {
 	Expects(!authSession());
-	_private->authSessionData = std::move(data);
+	_private->storedAuthSession = std::move(data);
 }
 
 AuthSessionData *Messenger::getAuthSessionData() {
 	if (_private->authSessionUserId) {
-		return _private->authSessionData.get();
+		return _private->storedAuthSession ? &_private->storedAuthSession->data : nullptr;
 	} else if (AuthSession::Exists()) {
 		return &AuthSession::Current().data();
 	}
@@ -301,11 +302,15 @@ void Messenger::startMtp() {
 	if (_private->authSessionUserId) {
 		authSessionCreate(base::take(_private->authSessionUserId));
 	}
-	if (_private->authSessionData) {
+	if (_private->storedAuthSession) {
 		if (_authSession) {
-			_authSession->data().copyFrom(*_private->authSessionData);
+			_authSession->data().copyFrom(_private->storedAuthSession->data);
+			if (auto window = App::wnd()) {
+				t_assert(window->controller() != nullptr);
+				window->controller()->dialogsWidthRatio().set(_private->storedAuthSession->dialogsWidthRatio);
+			}
 		}
-		_private->authSessionData.reset();
+		_private->storedAuthSession.reset();
 	}
 }
 
@@ -613,14 +618,14 @@ void Messenger::onSwitchTestMode() {
 void Messenger::authSessionCreate(UserId userId) {
 	Expects(_mtproto != nullptr);
 	_authSession = std::make_unique<AuthSession>(userId);
-	authSessionChanged().notify();
+	authSessionChanged().notify(true);
 }
 
 void Messenger::authSessionDestroy() {
 	_authSession.reset();
-	_private->authSessionData.reset();
+	_private->storedAuthSession.reset();
 	_private->authSessionUserId = 0;
-	authSessionChanged().notify();
+	authSessionChanged().notify(true);
 }
 
 void Messenger::setInternalLinkDomain(const QString &domain) const {

@@ -391,10 +391,6 @@ DeclareRefVar(base::Observable<HistoryItem*>, ItemRemoved);
 DeclareRefVar(base::Observable<void>, UnreadCounterUpdate);
 DeclareRefVar(base::Observable<void>, PeerChooseCancel);
 
-DeclareVar(float64, DialogsWidthRatio);
-DeclareRefVar(base::Variable<bool>, DialogsListFocused);
-DeclareRefVar(base::Variable<bool>, DialogsListDisplayForced);
-
 } // namespace Global
 
 namespace Adaptive {

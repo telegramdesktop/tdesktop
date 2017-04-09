@@ -103,7 +103,10 @@ void GifsListWidget::Footer::stealFocus() {
 
 void GifsListWidget::Footer::returnFocus() {
 	if (_focusTakenFrom) {
-		_focusTakenFrom->setFocus();
+		if (_field->hasFocus()) {
+			_focusTakenFrom->setFocus();
+		}
+		_focusTakenFrom = nullptr;
 	}
 }
 

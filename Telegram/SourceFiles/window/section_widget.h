@@ -30,6 +30,7 @@ class SectionMemento;
 struct SectionSlideParams {
 	QPixmap oldContentCache;
 	bool withTopBarShadow = false;
+	bool withTabbedSection = false;
 
 	explicit operator bool() const {
 		return !oldContentCache.isNull();

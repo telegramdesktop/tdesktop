@@ -110,13 +110,23 @@ MainWindow::MainWindow() {
 
 	connect(&_autoLockTimer, SIGNAL(timeout()), this, SLOT(checkAutoLock()));
 
-	subscribe(Global::RefSelfChanged(), [this]() { updateGlobalMenu(); });
+	subscribe(Global::RefSelfChanged(), [this] { updateGlobalMenu(); });
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &data) {
 		themeUpdated(data);
 	});
+	subscribe(Messenger::Instance().authSessionChanged(), [this] { checkAuthSession(); });
+	checkAuthSession();
 
 	setAttribute(Qt::WA_NoSystemBackground);
 	setAttribute(Qt::WA_OpaquePaintEvent);
+}
+
+void MainWindow::checkAuthSession() {
+	if (AuthSession::Exists()) {
+		_controller = std::make_unique<Window::Controller>(this);
+	} else {
+		_controller = nullptr;
+	}
 }
 
 void MainWindow::inactivePress(bool inactive) {
@@ -200,7 +210,6 @@ void MainWindow::clearWidgetsHook() {
 	auto wasMain = (_main != nullptr);
 	_passcode.destroyDelayed();
 	_main.destroy();
-	_controller.reset();
 	_intro.destroy();
 	if (wasMain) {
 		App::clearHistories();
@@ -352,7 +361,7 @@ void MainWindow::setupMain(const MTPUser *self) {
 
 	t_assert(AuthSession::Exists());
 
-	_controller = std::make_unique<Window::Controller>(this);
+
 	_main.create(bodyWidget(), controller());
 	_main->show();
 	updateControlsGeometry();

@@ -54,7 +54,7 @@ struct StickerIcon {
 
 };
 
-class StickersListWidget::Footer : public TabbedSelector::InnerFooter {
+class StickersListWidget::Footer : public TabbedSelector::InnerFooter, private base::Subscriber {
 public:
 	Footer(gsl::not_null<StickersListWidget*> parent);
 
@@ -112,6 +112,10 @@ StickersListWidget::Footer::Footer(gsl::not_null<StickersListWidget*> parent) : 
 	setMouseTracking(true);
 
 	_iconsLeft = (st::emojiPanWidth - kVisibleIconsCount * st::emojiCategory.width) / 2;
+
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
+		update();
+	});
 }
 
 template <typename Callback>
@@ -905,13 +909,13 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			emit selected(set.pack[sticker->index]);
 		} else if (auto set = base::get_if<OverSet>(&pressed)) {
 			t_assert(set->section >= 0 && set->section < sets.size());
-			emit displaySet(sets[set->section].id);
+			displaySet(sets[set->section].id);
 		} else if (auto button = base::get_if<OverButton>(&pressed)) {
 			t_assert(button->section >= 0 && button->section < sets.size());
 			if (_section == Section::Featured) {
-				emit installSet(sets[button->section].id);
+				installSet(sets[button->section].id);
 			} else {
-				emit removeSet(sets[button->section].id);
+				removeSet(sets[button->section].id);
 			}
 		}
 	}
@@ -1385,22 +1389,22 @@ void StickersListWidget::installSet(quint64 setId) {
 void StickersListWidget::removeSet(quint64 setId) {
 	auto &sets = Global::StickerSets();
 	auto it = sets.constFind(setId);
-	if (it != sets.cend() && !(it->flags & MTPDstickerSet::Flag::f_official)) {
+	if (it != sets.cend()) {
 		_removingSetId = it->id;
 		auto text = lng_stickers_remove_pack(lt_sticker_pack, it->title);
 		Ui::show(Box<ConfirmBox>(text, lang(lng_box_remove), base::lambda_guarded(this, [this] {
 			Ui::hideLayer();
 			auto &sets = Global::RefStickerSets();
 			auto it = sets.find(_removingSetId);
-			if (it != sets.cend() && !(it->flags & MTPDstickerSet::Flag::f_official)) {
+			if (it != sets.cend()) {
 				if (it->id && it->access) {
 					request(MTPmessages_UninstallStickerSet(MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access)))).send();
 				} else if (!it->shortName.isEmpty()) {
 					request(MTPmessages_UninstallStickerSet(MTP_inputStickerSetShortName(MTP_string(it->shortName)))).send();
 				}
-				bool writeRecent = false;
-				RecentStickerPack &recent(cGetRecentStickers());
-				for (RecentStickerPack::iterator i = recent.begin(); i != recent.cend();) {
+				auto writeRecent = false;
+				auto &recent = cGetRecentStickers();
+				for (auto i = recent.begin(); i != recent.cend();) {
 					if (it->stickers.indexOf(i->first) >= 0) {
 						i = recent.erase(i);
 						writeRecent = true;

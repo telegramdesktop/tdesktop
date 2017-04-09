@@ -20,3 +20,54 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "chat_helpers/tabbed_section.h"
 
+#include "styles/style_chat_helpers.h"
+#include "chat_helpers/tabbed_selector.h"
+
+namespace ChatHelpers {
+
+TabbedSection::TabbedSection(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TabbedSection(parent, controller, object_ptr<TabbedSelector>(this, controller)) {
+}
+
+TabbedSection::TabbedSection(QWidget *parent, gsl::not_null<Window::Controller*> controller, object_ptr<TabbedSelector> selector) : TWidget(parent)
+, _selector(std::move(selector)) {
+	resize(st::emojiPanWidth, st::emojiPanMaxHeight);
+
+	_selector->setParent(this);
+	_selector->setRoundRadius(0);
+	_selector->setGeometry(rect());
+	_selector->showStarted();
+	_selector->show();
+	connect(_selector, &TabbedSelector::cancelled, this, [this] {
+		if (_cancelledCallback) {
+			_cancelledCallback();
+		}
+	});
+
+	setAttribute(Qt::WA_OpaquePaintEvent, true);
+}
+
+void TabbedSection::beforeHiding() {
+	_selector->beforeHiding();
+}
+
+void TabbedSection::afterShown() {
+	_selector->afterShown();
+}
+
+void TabbedSection::resizeEvent(QResizeEvent *e) {
+	_selector->setGeometry(rect());
+}
+
+object_ptr<TabbedSelector> TabbedSection::takeSelector() {
+	return std::move(_selector);
+}
+
+QPointer<TabbedSelector> TabbedSection::getSelector() const {
+	return _selector.data();
+}
+
+void TabbedSection::stickersInstalled(uint64 setId) {
+	_selector->stickersInstalled(setId);
+}
+
+} // namespace ChatHelpers

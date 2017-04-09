@@ -35,6 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "apiwrap.h"
 #include "auth_session.h"
+#include "window/window_controller.h"
 
 #include <openssl/evp.h>
 
@@ -638,12 +639,12 @@ enum class WriteMapWhen {
 	Soon,
 };
 
-std::unique_ptr<AuthSessionData> AuthSessionDataCache;
-AuthSessionData &GetAuthSessionDataCache() {
-	if (!AuthSessionDataCache) {
-		AuthSessionDataCache = std::make_unique<AuthSessionData>();
+std::unique_ptr<StoredAuthSession> StoredAuthSessionCache;
+StoredAuthSession &GetStoredAuthSessionCache() {
+	if (!StoredAuthSessionCache) {
+		StoredAuthSessionCache = std::make_unique<StoredAuthSession>();
 	}
-	return *AuthSessionDataCache;
+	return *StoredAuthSessionCache;
 }
 
 void _writeMap(WriteMapWhen when = WriteMapWhen::Soon);
@@ -1010,7 +1011,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		if (!_checkStreamStatus(stream)) return false;
 
 		Global::SetDialogsModeEnabled(enabled == 1);
-		Dialogs::Mode mode = Dialogs::Mode::All;
+		auto mode = Dialogs::Mode::All;
 		if (enabled) {
 			mode = static_cast<Dialogs::Mode>(modeInt);
 			if (mode != Dialogs::Mode::All && mode != Dialogs::Mode::Important) {
@@ -1086,7 +1087,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		Global::SetDialogsWidthRatio(v / 1000000.);
+		GetStoredAuthSessionCache().dialogsWidthRatio = v / 1000000.;
 	} break;
 
 	case dbiLastSeenWarningSeenOld: {
@@ -1094,7 +1095,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		GetAuthSessionDataCache().setLastSeenWarningSeen(v == 1);
+		GetStoredAuthSessionCache().data.setLastSeenWarningSeen(v == 1);
 	} break;
 
 	case dbiAuthSessionData: {
@@ -1102,7 +1103,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		GetAuthSessionDataCache().constructFromSerialized(v);
+		GetStoredAuthSessionCache().data.constructFromSerialized(v);
 	} break;
 
 	case dbiWorkMode: {
@@ -1707,8 +1708,9 @@ void _writeUserSettings() {
 			recentEmojiPreloadData.push_back(qMakePair(item.first->id(), item.second));
 		}
 	}
-	auto userDataInstance = AuthSessionDataCache ? AuthSessionDataCache.get() : Messenger::Instance().getAuthSessionData();
+	auto userDataInstance = StoredAuthSessionCache ? &StoredAuthSessionCache->data : Messenger::Instance().getAuthSessionData();
 	auto userData = userDataInstance ? userDataInstance->serialize() : QByteArray();
+	auto dialogsWidthRatio = StoredAuthSessionCache ? StoredAuthSessionCache->dialogsWidthRatio : (App::wnd() ? App::wnd()->controller()->dialogsWidthRatio().value() : Window::Controller::kDefaultDialogsWidthRatio);
 
 	uint32 size = 21 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::stringSize(Global::AskDownloadPath() ? QString() : Global::DownloadPath()) + Serialize::bytearraySize(Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
@@ -1753,7 +1755,7 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiDialogsMode) << qint32(Global::DialogsModeEnabled() ? 1 : 0) << static_cast<qint32>(Global::DialogsMode());
 	data.stream << quint32(dbiModerateMode) << qint32(Global::ModerateModeEnabled() ? 1 : 0);
 	data.stream << quint32(dbiAutoPlay) << qint32(cAutoPlayGif() ? 1 : 0);
-	data.stream << quint32(dbiDialogsWidthRatio) << qint32(snap(qRound(Global::DialogsWidthRatio() * 1000000), 0, 1000000));
+	data.stream << quint32(dbiDialogsWidthRatio) << qint32(snap(qRound(dialogsWidthRatio * 1000000), 0, 1000000));
 	data.stream << quint32(dbiUseExternalVideoPlayer) << qint32(cUseExternalVideoPlayer());
 	if (!userData.isEmpty()) {
 		data.stream << quint32(dbiAuthSessionData) << userData;
@@ -2063,7 +2065,7 @@ ReadMapState _readMap(const QByteArray &pass) {
 	_readUserSettings();
 	_readMtpData();
 
-	Messenger::Instance().setAuthSessionData(std::move(AuthSessionDataCache));
+	Messenger::Instance().setAuthSessionFromStorage(std::move(StoredAuthSessionCache));
 
 	LOG(("Map read time: %1").arg(getms() - ms));
 	if (_oldSettingsVersion < AppVersion) {
@@ -2360,7 +2362,7 @@ void reset() {
 	_savedGifsKey = 0;
 	_backgroundKey = _userSettingsKey = _recentHashtagsAndBotsKey = _savedPeersKey = 0;
 	_oldMapVersion = _oldSettingsVersion = 0;
-	AuthSessionDataCache.reset();
+	StoredAuthSessionCache.reset();
 	_mapChanged = true;
 	_writeMap(WriteMapWhen::Now);
 

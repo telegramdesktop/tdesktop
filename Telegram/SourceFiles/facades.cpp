@@ -682,10 +682,6 @@ struct Data {
 	base::Observable<void> UnreadCounterUpdate;
 	base::Observable<void> PeerChooseCancel;
 
-	float64 DialogsWidthRatio = 5. / 14;
-	base::Variable<bool> DialogsListFocused = { false };
-	base::Variable<bool> DialogsListDisplayForced = { false };
-
 };
 
 } // namespace internal
@@ -804,9 +800,5 @@ DefineRefVar(Global, base::Variable<DBIWorkMode>, WorkMode);
 DefineRefVar(Global, base::Observable<HistoryItem*>, ItemRemoved);
 DefineRefVar(Global, base::Observable<void>, UnreadCounterUpdate);
 DefineRefVar(Global, base::Observable<void>, PeerChooseCancel);
-
-DefineVar(Global, float64, DialogsWidthRatio);
-DefineRefVar(Global, base::Variable<bool>, DialogsListFocused);
-DefineRefVar(Global, base::Variable<bool>, DialogsListDisplayForced);
 
 } // namespace Global

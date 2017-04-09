@@ -58,6 +58,8 @@ class TopBarWidget;
 
 namespace ChatHelpers {
 class TabbedPanel;
+class TabbedSection;
+class TabbedSelector;
 } // namespace ChatHelpers
 
 class DragArea;
@@ -476,6 +478,11 @@ private:
 
 	void fullPeerUpdated(PeerData *peer);
 	void topBarClick();
+	void toggleTabbedSelectorMode();
+	void updateTabbedSelectorSectionShown();
+	void recountChatWidth();
+	int minimalWidthForTabbedSelectorSection() const;
+	void setReportSpamStatus(DBIPeerReportSpamStatus status);
 
 	void animationCallback();
 	void updateOverStates(QPoint pos);
@@ -529,6 +536,7 @@ private:
 	int _replyToNameVersion = 0;
 	void updateReplyToName();
 
+	int _chatWidth = 0;
 	MsgId _editMsgId = 0;
 
 	HistoryItem *_replyEditMsg = nullptr;
@@ -739,7 +747,7 @@ private:
 	bool showRecordButton() const;
 	bool showInlineBotCancel() const;
 
-	object_ptr<ReportSpamPanel> _reportSpamPanel;
+	object_ptr<ReportSpamPanel> _reportSpamPanel = { nullptr };
 
 	object_ptr<Ui::SendButton> _send;
 	object_ptr<Ui::FlatButton> _unblock;
@@ -749,7 +757,7 @@ private:
 	mtpRequestId _unblockRequest = 0;
 	mtpRequestId _reportSpamRequest = 0;
 	object_ptr<Ui::IconButton> _attachToggle;
-	object_ptr<Ui::EmojiButton> _attachEmoji;
+	object_ptr<Ui::EmojiButton> _tabbedSelectorToggle;
 	object_ptr<Ui::IconButton> _botKeyboardShow;
 	object_ptr<Ui::IconButton> _botKeyboardHide;
 	object_ptr<Ui::IconButton> _botCommandStart;
@@ -781,6 +789,8 @@ private:
 
 	object_ptr<InlineBots::Layout::Widget> _inlineResults = { nullptr };
 	object_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;
+	object_ptr<ChatHelpers::TabbedSection> _tabbedSection = { nullptr };
+	QPointer<ChatHelpers::TabbedSelector> _tabbedSelector;
 	DragState _attachDrag = DragStateNone;
 	object_ptr<DragArea> _attachDragDocument, _attachDragPhoto;
 
@@ -814,6 +824,7 @@ private:
 	QTimer _saveDraftTimer, _saveCloudDraftTimer;
 
 	object_ptr<Ui::PlainShadow> _topShadow;
+	object_ptr<Ui::PlainShadow> _rightShadow = { nullptr };
 	bool _inGrab = false;
 
 };

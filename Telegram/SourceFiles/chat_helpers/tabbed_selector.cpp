@@ -292,28 +292,35 @@ TabbedSelector::TabbedSelector(QWidget *parent, gsl::not_null<Window::Controller
 , _currentTabType(AuthSession::Current().data().emojiPanelTab()) {
 	resize(st::emojiPanWidth, st::emojiPanMaxHeight);
 
+	for (auto &tab : _tabs) {
+		tab.footer()->hide();
+		tab.widget()->hide();
+	}
+
 	createTabsSlider();
 
-	_scroll->resize(st::emojiPanWidth - st::buttonRadius, height() - marginTop() - marginBottom());
-	_scroll->move(st::buttonRadius, marginTop());
+	_scroll->setGeometryToLeft(st::buttonRadius, marginTop(), st::emojiPanWidth - st::buttonRadius, height() - marginTop() - marginBottom());
 	setWidgetToScrollArea();
 
 	_bottomShadow->setGeometry(_tabsSlider->x(), _scroll->y() + _scroll->height() - st::lineWidth, _tabsSlider->width(), st::lineWidth);
 
 	for (auto &tab : _tabs) {
-		connect(tab.widget(), &Inner::scrollToY, this, [this, tab = &tab](int y) {
+		auto widget = tab.widget();
+		connect(widget, &Inner::scrollToY, this, [this, tab = &tab](int y) {
 			if (tab == currentTab()) {
 				scrollToY(y);
 			} else {
 				tab->saveScrollTop(y);
 			}
 		});
-		connect(tab.widget(), &Inner::disableScroll, this, [this, tab = &tab](bool disabled) {
+		connect(widget, &Inner::disableScroll, this, [this, tab = &tab](bool disabled) {
 			if (tab == currentTab()) {
 				_scroll->disableScroll(disabled);
 			}
 		});
-		connect(tab.widget(), SIGNAL(saveConfigDelayed(int)), this, SLOT(onSaveConfigDelayed(int)));
+		connect(widget, &Inner::saveConfigDelayed, this, [this](int delay) {
+			AuthSession::Current().saveDataDelayed(delay);
+		});
 	}
 
 	connect(stickers(), SIGNAL(scrollUpdated()), this, SLOT(onScroll()));
@@ -326,8 +333,6 @@ TabbedSelector::TabbedSelector(QWidget *parent, gsl::not_null<Window::Controller
 	connect(gifs(), SIGNAL(selected(InlineBots::Result*, UserData*)), this, SIGNAL(inlineResultSelected(InlineBots::Result*, UserData*)));
 	connect(gifs(), SIGNAL(cancelled()), this, SIGNAL(cancelled()));
 
-	_saveConfigTimer.setCallback([this] { Local::writeUserSettings(); });
-
 	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
 	}
@@ -338,8 +343,7 @@ TabbedSelector::TabbedSelector(QWidget *parent, gsl::not_null<Window::Controller
 
 	//	setAttribute(Qt::WA_AcceptTouchEvents);
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
-
-	hideChildren();
+	showAll();
 }
 
 void TabbedSelector::resizeEvent(QResizeEvent *e) {
@@ -361,10 +365,6 @@ void TabbedSelector::resizeEvent(QResizeEvent *e) {
 	}
 
 	update();
-}
-
-void TabbedSelector::onSaveConfigDelayed(int delay) {
-	_saveConfigTimer.callOnce(delay);
 }
 
 void TabbedSelector::paintEvent(QPaintEvent *e) {
@@ -593,7 +593,7 @@ void TabbedSelector::switchTab() {
 	update();
 
 	AuthSession::Current().data().setEmojiPanelTab(_currentTabType);
-	onSaveConfigDelayed(kSaveChosenTabTimeout);
+	AuthSession::Current().saveDataDelayed(kSaveChosenTabTimeout);
 }
 
 gsl::not_null<EmojiListWidget*> TabbedSelector::emoji() const {

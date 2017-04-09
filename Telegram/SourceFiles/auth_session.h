@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "base/timer.h"
+
 namespace Storage {
 class Downloader;
 } // namespace Storage
@@ -71,11 +73,18 @@ public:
 	void setEmojiPanelTab(EmojiPanelTab tab) {
 		_variables.emojiPanelTab = tab;
 	}
+	bool tabbedSelectorSectionEnabled() const {
+		return _variables.tabbedSelectorSectionEnabled;
+	}
+	void setTabbedSelectorSectionEnabled(bool enabled) {
+		_variables.tabbedSelectorSectionEnabled = enabled;
+	}
 
 private:
 	struct Variables {
 		bool lastSeenWarningSeen = false;
 		EmojiPanelTab emojiPanelTab = EmojiPanelTab::Emoji;
+		bool tabbedSelectorSectionEnabled = true;
 	};
 
 	base::Variable<bool> _contactsLoaded = { false };
@@ -122,6 +131,7 @@ public:
 	AuthSessionData &data() {
 		return _data;
 	}
+	void saveDataDelayed(TimeMs delay);
 
 	ApiWrap &api() {
 		return *_api;
@@ -132,6 +142,7 @@ public:
 private:
 	const UserId _userId = 0;
 	AuthSessionData _data;
+	base::Timer _saveDataTimer;
 
 	const std::unique_ptr<ApiWrap> _api;
 	const std::unique_ptr<Storage::Downloader> _downloader;

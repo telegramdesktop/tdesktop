@@ -339,17 +339,24 @@ void MainWindow::showRightColumn(object_ptr<TWidget> widget) {
 	}
 	auto nowRightWidth = _rightColumn ? _rightColumn->width() : 0;
 	setMinimumWidth(st::windowMinWidth + nowRightWidth);
-	auto nowWidth = width();
-
 	if (!isMaximized()) {
-		auto desktop = QDesktopWidget().availableGeometry(this);
-		auto newWidth = qMin(wasWidth + nowRightWidth - wasRightWidth, desktop.width());
-		auto newLeft = qMin(x(), desktop.x() + desktop.width() - newWidth);
-		if (x() != newLeft || width() != newWidth) {
-			setGeometry(newLeft, y(), newWidth, height());
-		} else {
-			updateControlsGeometry();
-		}
+		tryToExtendWidthBy(wasWidth + nowRightWidth - wasRightWidth - width());
+	} else {
+		updateControlsGeometry();
+	}
+}
+
+bool MainWindow::canExtendWidthBy(int addToWidth) {
+	auto desktop = QDesktopWidget().availableGeometry(this);
+	return (width() + addToWidth) <= desktop.width();
+}
+
+void MainWindow::tryToExtendWidthBy(int addToWidth) {
+	auto desktop = QDesktopWidget().availableGeometry(this);
+	auto newWidth = qMin(width() + addToWidth, desktop.width());
+	auto newLeft = qMin(x(), desktop.x() + desktop.width() - newWidth);
+	if (x() != newLeft || width() != newWidth) {
+		setGeometry(newLeft, y(), newWidth, height());
 	} else {
 		updateControlsGeometry();
 	}

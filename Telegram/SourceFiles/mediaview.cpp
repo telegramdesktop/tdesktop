@@ -99,7 +99,7 @@ MediaView::MediaView(QWidget*) : TWidget(nullptr)
 			});
 		}
 	};
-	subscribe(Messenger::Instance().authSessionChanged(), [this, subscribeToDownloadFinished] {
+	subscribe(Messenger::Instance().authSessionChanged(), [subscribeToDownloadFinished] {
 		subscribeToDownloadFinished();
 	});
 	subscribeToDownloadFinished();

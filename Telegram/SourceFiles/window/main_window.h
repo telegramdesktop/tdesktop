@@ -69,6 +69,8 @@ public:
 	QWidget *filedialogParent();
 
 	void showRightColumn(object_ptr<TWidget> widget);
+	bool canExtendWidthBy(int addToWidth);
+	void tryToExtendWidthBy(int addToWidth);
 
 	virtual void updateTrayMenu(bool force = false) {
 	}

@@ -113,11 +113,14 @@ MainWidget::MainWidget(QWidget *parent, gsl::not_null<Window::Controller*> contr
 	subscribe(AuthSession::Current().api().fullPeerUpdated(), [this](PeerData *peer) {
 		emit peerUpdated(peer);
 	});
-	subscribe(Global::RefDialogsListFocused(), [this](bool) {
+	subscribe(_controller->dialogsListFocused(), [this](bool) {
 		updateDialogsWidthAnimated();
 	});
-	subscribe(Global::RefDialogsListDisplayForced(), [this](bool) {
+	subscribe(_controller->dialogsListDisplayForced(), [this](bool) {
 		updateDialogsWidthAnimated();
+	});
+	subscribe(_controller->dialogsWidthRatio(), [this](float64) {
+		updateControlsGeometry();
 	});
 
 	QCoreApplication::instance()->installEventFilter(this);
@@ -2141,7 +2144,7 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 		}
 	}
 
-	Global::RefDialogsListFocused().set(false, true);
+	_controller->dialogsListFocused().set(false, true);
 	_a_dialogsWidth.finish();
 
 	bool back = (way == Ui::ShowWay::Backward || !peerId);
@@ -2348,7 +2351,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 		return;
 	}
 
-	Global::RefDialogsListFocused().set(false, true);
+	_controller->dialogsListFocused().set(false, true);
 	_a_dialogsWidth.finish();
 
 	auto animatedShow = [this] {
@@ -2411,9 +2414,10 @@ void MainWidget::showWideSection(const Window::SectionMemento &memento) {
 	showNewWideSection(&memento, false, true);
 }
 
-Window::SectionSlideParams MainWidget::prepareShowAnimation(bool willHaveTopBarShadow) {
+Window::SectionSlideParams MainWidget::prepareShowAnimation(bool willHaveTopBarShadow, bool willHaveTabbedSection) {
 	Window::SectionSlideParams result;
 	result.withTopBarShadow = willHaveTopBarShadow;
+	result.withTabbedSection = willHaveTabbedSection;
 	if (selectingPeer() && Adaptive::OneColumn()) {
 		result.withTopBarShadow = false;
 	} else if (_wideSection) {
@@ -2422,6 +2426,9 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(bool willHaveTopBarS
 		}
 	} else if (!_overview && !_history->peer()) {
 		result.withTopBarShadow = false;
+	}
+	if ((selectingPeer() && Adaptive::OneColumn()) || !_history->peer()) {
+		result.withTabbedSection = false;
 	}
 
 	if (_player) {
@@ -2480,25 +2487,25 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(bool willHaveTopBarS
 }
 
 Window::SectionSlideParams MainWidget::prepareWideSectionAnimation(Window::SectionWidget *section) {
-	return prepareShowAnimation(section->hasTopBarShadow());
+	return prepareShowAnimation(section->hasTopBarShadow(), false);
 }
 
 Window::SectionSlideParams MainWidget::prepareHistoryAnimation(PeerId historyPeerId) {
-	return prepareShowAnimation(historyPeerId != 0);
+	return prepareShowAnimation(historyPeerId != 0, historyPeerId != 0);
 }
 
 Window::SectionSlideParams MainWidget::prepareOverviewAnimation() {
-	return prepareShowAnimation(true);
+	return prepareShowAnimation(true, false);
 }
 
 Window::SectionSlideParams MainWidget::prepareDialogsAnimation() {
-	return prepareShowAnimation(false);
+	return prepareShowAnimation(false, false);
 }
 
 void MainWidget::showNewWideSection(const Window::SectionMemento *memento, bool back, bool saveInStack) {
 	QPixmap animCache;
 
-	Global::RefDialogsListFocused().set(false, true);
+	_controller->dialogsListFocused().set(false, true);
 	_a_dialogsWidth.finish();
 
 	auto newWideGeometry = QRect(_history->x(), _playerHeight, _history->width(), height() - _playerHeight);
@@ -3058,22 +3065,21 @@ bool MainWidget::eventFilter(QObject *o, QEvent *e) {
 		} else if (e->type() == QEvent::MouseButtonRelease) {
 			_resizingSide = false;
 			if (!Adaptive::OneColumn()) {
-				Global::SetDialogsWidthRatio(float64(_dialogsWidth) / width());
+				_controller->dialogsWidthRatio().set(float64(_dialogsWidth) / width(), true);
 			}
 			Local::writeUserSettings();
 		} else if (e->type() == QEvent::MouseMove && _resizingSide) {
 			auto newWidth = mouseLeft() - _resizingSideShift;
-			Global::SetDialogsWidthRatio(float64(newWidth) / width());
-			updateControlsGeometry();
+			_controller->dialogsWidthRatio().set(float64(newWidth) / width(), true);
 		}
 	} else if (e->type() == QEvent::FocusIn) {
 		if (auto widget = qobject_cast<QWidget*>(o)) {
 			if (_history == widget || _history->isAncestorOf(widget)
 				|| (_overview && (_overview == widget || _overview->isAncestorOf(widget)))
 				|| (_wideSection && (_wideSection == widget || _wideSection->isAncestorOf(widget)))) {
-				Global::RefDialogsListFocused().set(false, false);
+				_controller->dialogsListFocused().set(false);
 			} else if (_dialogs == widget || _dialogs->isAncestorOf(widget)) {
-				Global::RefDialogsListFocused().set(true, false);
+				_controller->dialogsListFocused().set(true);
 			}
 		}
 	} else if (e->type() == QEvent::MouseButtonPress) {
@@ -3094,60 +3100,12 @@ void MainWidget::handleAdaptiveLayoutUpdate() {
 }
 
 void MainWidget::updateWindowAdaptiveLayout() {
-	auto layout = Adaptive::WindowLayout::OneColumn;
-
-	auto dialogsWidth = qRound(width() * Global::DialogsWidthRatio());
-	auto historyWidth = width() - dialogsWidth;
-	accumulate_max(historyWidth, st::windowMinWidth);
-	dialogsWidth = width() - historyWidth;
-
-	auto useOneColumnLayout = [this, dialogsWidth] {
-		auto someSectionShown = !selectingPeer() && isSectionShown();
-		if (dialogsWidth < st::dialogsPadding.x() && (Adaptive::OneColumn() || someSectionShown)) {
-			return true;
-		}
-		if (width() < st::windowMinWidth + st::dialogsWidthMin) {
-			return true;
-		}
-		return false;
-	};
-	auto useSmallColumnLayout = [this, dialogsWidth] {
-		// used if useOneColumnLayout() == false.
-		if (dialogsWidth < st::dialogsWidthMin / 2) {
-			return true;
-		}
-		return false;
-	};
-	if (useOneColumnLayout()) {
-		dialogsWidth = width();
-	} else if (useSmallColumnLayout()) {
-		layout = Adaptive::WindowLayout::SmallColumn;
-		auto forceWideDialogs = [this] {
-			if (Global::DialogsListDisplayForced().value()) {
-				return true;
-			} else if (Global::DialogsListFocused().value()) {
-				return true;
-			}
-			return !isSectionShown();
-		};
-		if (forceWideDialogs()) {
-			dialogsWidth = st::dialogsWidthMin;
-		} else {
-			dialogsWidth = st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPadding.x();
-		}
-	} else {
-		layout = Adaptive::WindowLayout::Normal;
-		accumulate_max(dialogsWidth, st::dialogsWidthMin);
-	}
-	_dialogsWidth = dialogsWidth;
-	if (layout != Global::AdaptiveWindowLayout()) {
-		Global::SetAdaptiveWindowLayout(layout);
+	auto layout = _controller->computeColumnLayout();
+	_dialogsWidth = layout.dialogsWidth;
+	if (layout.windowLayout != Global::AdaptiveWindowLayout()) {
+		Global::SetAdaptiveWindowLayout(layout.windowLayout);
 		Adaptive::Changed().notify(true);
 	}
-}
-
-bool MainWidget::needBackButton() {
-	return isSectionShown();
 }
 
 bool MainWidget::paintTopBar(Painter &p, int decreaseWidth, TimeMs ms) {
