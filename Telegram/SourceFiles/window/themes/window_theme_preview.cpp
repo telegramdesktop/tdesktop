@@ -336,14 +336,14 @@ void Generator::generateData() {
 	_bubbles.back().outbg = true;
 	_bubbles.back().status = Status::Received;
 	addDateBubble("December 26");
-	addTextBubble("Twenty years from now you will be more disappointed by the things that you didn't do than by the ones you did do, so throw off the bowlines, sail away from safe harbor, catch the trade winds in your sails.", "9:00", Status::Received);
+	addTextBubble("Twenty years from now you will be more disappointed by the things that you didn't do than by the ones you did do, so throw off the bowlines, sail away from safe harbor, catch the trade winds in your sails.", "10:00", Status::Received);
 	_bubbles.back().tail = false;
 	_bubbles.back().outbg = true;
-	addTextBubble("Mark Twain said that " + QString() + QChar(9757) + QChar(55356) + QChar(57339), "9:00", Status::Received);
+	addTextBubble("Mark Twain said that " + QString() + QChar(9757) + QChar(55356) + QChar(57339), "10:00", Status::Received);
 	_bubbles.back().outbg = true;
 	_bubbles.back().attached = true;
 	_bubbles.back().tail = true;
-	addTextBubble("Reminds me of a Chinese proverb: the best time to plant a tree was 20 years ago. The second best time is now.", "9:00", Status::None);
+	addTextBubble("Reminds me of a Chinese proverb: the best time to plant a tree was 20 years ago. The second best time is now.", "11:00", Status::None);
 	_bubbles.back().replyName.setText(st::msgNameStyle, "Alex Cassio", _textNameOptions);
 	_bubbles.back().replyText.setText(st::messageTextStyle, "Mark Twain said that " + QString() + QChar(9757) + QChar(55356) + QChar(57339), _textDlgOptions);
 }
