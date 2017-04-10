@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "numbers.h"
 #include "messenger.h"
+#include "chat_helpers/spellcheck.h"
 
 namespace Ui {
 namespace {
@@ -1213,6 +1214,47 @@ void FlatTextarea::processFormatting(int insertPosition, int insertEnd) {
 	}
 }
 
+void FlatTextarea::processSpelling(int insertPosition, int charsAdded, int removePosition, int charsRemoved) {
+	auto underlineFmt = QTextCharFormat();
+	underlineFmt.setUnderlineStyle(QTextCharFormat::SpellCheckUnderline);
+	underlineFmt.setUnderlineColor(st::spellUnderline->c);
+	auto noUnderlineFmt = QTextCharFormat();
+	noUnderlineFmt.setUnderlineStyle(QTextCharFormat::NoUnderline);
+
+	// \b - split the string into an alternating seq of non-word and word tokens
+	auto split_regexp = QRegExp("\\b");
+
+	auto doc = document();
+	QTextCursor c(doc->docHandle(), 0);
+
+	auto checkBlocksFromTo = [this, &c, &doc, &underlineFmt, &noUnderlineFmt, &split_regexp](int from, int to) {
+		auto fromBlock = doc->findBlock(from);
+		auto tillBlock = doc->findBlock(to);
+		if (tillBlock.isValid()) tillBlock = tillBlock.next();
+
+		for (auto block = fromBlock; block != tillBlock; block = block.next()) {
+			auto blockPosition = block.position();
+			auto text = block.text();
+			bool skip = true;
+			for (auto &ref : text.splitRef(split_regexp)) {
+				c.setPosition(blockPosition + ref.position());
+				c.setPosition(blockPosition + ref.position() + ref.length(), QTextCursor::KeepAnchor);
+				if (skip) {
+					c.mergeCharFormat(noUnderlineFmt);
+				} else {
+					if (ChatHelpers::SpellHelperSet::InstancePointer()->isWordCorrect(ref))
+						c.mergeCharFormat(noUnderlineFmt);
+					else
+						c.mergeCharFormat(underlineFmt);
+				}
+				skip = !skip;
+			}
+		}
+	};
+	checkBlocksFromTo(insertPosition, insertPosition + charsAdded);
+	if (removePosition != insertPosition) checkBlocksFromTo(removePosition, removePosition);
+}
+
 void FlatTextarea::onDocumentContentsChange(int position, int charsRemoved, int charsAdded) {
 	if (_correcting) return;
 
@@ -1267,6 +1309,8 @@ void FlatTextarea::onDocumentContentsChange(int position, int charsRemoved, int 
 	} else {
 		parseLinks();
 	}
+
+	processSpelling(insertPosition, charsAdded, removePosition, charsRemoved);
 
 	if (document()->availableRedoSteps() > 0) {
 		QTextCursor(document()->docHandle(), 0).endEditBlock();
@@ -1457,6 +1501,21 @@ void FlatTextarea::dropEvent(QDropEvent *e) {
 
 void FlatTextarea::contextMenuEvent(QContextMenuEvent *e) {
 	if (auto menu = createStandardContextMenu()) {
+		auto newTextCursor = cursorForPosition(e->pos());
+		newTextCursor.select(QTextCursor::WordUnderCursor);
+		QString word = newTextCursor.selectedText();
+		if (!ChatHelpers::SpellHelperSet::Instance().isWordCorrect(word)) {
+			menu->addSeparator();
+			for (auto &vec : ChatHelpers::SpellHelperSet::Instance().getSuggestions(word))
+				for (auto &suggestion : vec) {
+					menu->addAction(suggestion, [this, newTextCursor, suggestion]() {
+					auto oldTextCursor = textCursor();
+					setTextCursor(newTextCursor);
+					textCursor().insertText(suggestion);
+					setTextCursor(oldTextCursor);
+				});
+			}
+		}
 		(new Ui::PopupMenu(nullptr, menu))->popup(e->globalPos());
 	}
 }

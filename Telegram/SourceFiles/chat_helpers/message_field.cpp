@@ -24,10 +24,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/qthelp_regex.h"
 #include "styles/style_history.h"
 #include "window/window_controller.h"
-#include "ui/widgets/popup_menu.h"
 #include "mainwindow.h"
 #include "auth_session.h"
-#include "chat_helpers/spellcheck.h"
 
 namespace {
 
@@ -97,10 +95,7 @@ TextWithTags::Tags ConvertEntitiesToTextTags(const EntitiesInText &entities) {
 }
 
 MessageField::MessageField(QWidget *parent, gsl::not_null<Window::Controller*> controller, const style::FlatTextarea &st, const QString &ph, const QString &val) : Ui::FlatTextarea(parent, st, ph, val)
-, _controller(controller)
-, _spellHighlighter(this)
-{
-
+, _controller(controller) {
 	setMinHeight(st::historySendSize.height() - 2 * st::historySendPadding);
 	setMaxHeight(st::historyComposeFieldMaxHeight);
 
@@ -154,41 +149,4 @@ void MessageField::insertFromMimeData(const QMimeData *source) {
 void MessageField::focusInEvent(QFocusEvent *e) {
 	FlatTextarea::focusInEvent(e);
 	emit focused();
-}
-
-void MessageField::contextMenuEvent(QContextMenuEvent *e) {
-	if (auto menu = createStandardContextMenu()) {
-		QTextCursor newTextCursor = cursorForPosition(e->pos());
-		newTextCursor.select(QTextCursor::WordUnderCursor);
-		auto codeBlocks = static_cast<ChatHelpers::CodeBlocksData *>(newTextCursor.block().userData());
-		if (codeBlocks != nullptr) {
-			bool inCode = false;
-			auto pos = newTextCursor.positionInBlock();
-			for (auto blk : codeBlocks->codeBlocks) {
-				if (pos - blk.len < blk.pos) {
-					if (pos > blk.pos) inCode = true;
-					break;
-				}
-			}
-			if (!inCode) {
-				QString word = newTextCursor.selectedText();
-
-				if (!ChatHelpers::SpellHelperSet::Instance().isWordCorrect(word)) {
-					menu->addSeparator();
-					for (auto &vec : ChatHelpers::SpellHelperSet::Instance().getSuggestions(word))
-						for (auto &suggestion : vec) {
-							menu->addAction(suggestion, [this, newTextCursor, suggestion]() {
-								QTextCursor oldTextCursor = textCursor();
-								setTextCursor(newTextCursor);
-								textCursor().clearSelection();
-								textCursor().insertText(suggestion);
-								setTextCursor(oldTextCursor);
-							});
-						}
-				}
-			}
-		}
-
-		(new Ui::PopupMenu(nullptr, menu))->popup(e->globalPos());
-	}
 }

@@ -98,28 +98,4 @@ private:
 
 };
 
-class SpellHighlighter : public QSyntaxHighlighter {
-public:
-	SpellHighlighter(QTextEdit *textEdit)
-	: QSyntaxHighlighter(textEdit->document()) {
-		//_underlineFmt.setFontUnderline(true);
-		_underlineFmt.setUnderlineStyle(QTextCharFormat::SpellCheckUnderline);
-	}
-
-private:
-	void highlightBlock(const QString &text) final;
-	
-	QTextCharFormat _underlineFmt;
-
-};
-
-struct CodeblockInfo {
-	int pos;
-	int len;
-};
-
-struct CodeBlocksData : public QTextBlockUserData {
-	QList<CodeblockInfo> codeBlocks;
-};
-
 } // namespace ChatHelpers

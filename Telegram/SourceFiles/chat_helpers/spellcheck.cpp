@@ -95,37 +95,4 @@ QList<QVector<QString>> SpellHelperSet::getSuggestions(const QString &word) cons
 	return result;
 }
 
-void SpellHighlighter::highlightBlock(const QString &text) {
-	// If the theme was changed, color would be changed too 
-	_underlineFmt.setUnderlineColor(st::spellUnderline->c);
-	// Ownership gets transfered with setCurrentBlockUserData
-	auto *codeBlocks = new CodeBlocksData();
-	// \b - split the string into an alternating seq of non-word and word tokens
-	bool skip = true, code = previousBlockState() != -1;
-	int codepos = 0;
-	for (auto &ref : text.splitRef(QRegExp("\\b"))) {
-		if (!skip) {
-			if (!code && !SpellHelperSet::InstancePointer()->isWordCorrect(ref))
-				setFormat(ref.position(), ref.size(), _underlineFmt);
-		} else {
-			if (ref.contains("```")) {
-				if (code) {
-					CodeblockInfo info{codepos, ref.position() + ref.length() - codepos};
-					codeBlocks->codeBlocks.append(info);
-					auto fmt = QTextCharFormat();
-				} else {
-					codepos = ref.position();
-				}
-				code = !code;
-			}
-		}
-		skip = !skip;
-	}
-	if (code) {
-		setCurrentBlockState(1);
-		codeBlocks->codeBlocks.append({codepos, text.length() - codepos});
-	}
-	setCurrentBlockUserData(codeBlocks);
-}
-
 } //namespace ChatHelpers

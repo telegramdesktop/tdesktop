@@ -168,6 +168,12 @@ private:
 	// Rule 4 applies only if we inserted chars not in the middle of a tag (but at the end).
 	void processFormatting(int changedPosition, int changedEnd);
 
+	// After any characters added we must respell them
+	// Since spellcheck is disabled for words user is currently typing,
+	// it checks previous and next words if whitespace is inserted
+	void processSpelling(int insertPosition, int charsAdded, int removePosition, int charsRemoved);
+
+
 	bool heightAutoupdated();
 
 	int placeholderSkipWidth() const;

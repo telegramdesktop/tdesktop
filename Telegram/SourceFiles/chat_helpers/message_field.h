@@ -27,10 +27,6 @@ namespace Window {
 class Controller;
 } // namespace Window
 
-namespace ChatHelpers {
-class SpellHighlighter;
-} // namespace ChatHelpers
-
 QString ConvertTagToMimeTag(const QString &tagId);
 
 EntitiesInText ConvertTextTagsToEntities(const TextWithTags::Tags &tags);
@@ -59,11 +55,9 @@ protected:
 	void dropEvent(QDropEvent *e) override;
 	bool canInsertFromMimeData(const QMimeData *source) const override;
 	void insertFromMimeData(const QMimeData *source) override;
-	void contextMenuEvent(QContextMenuEvent *e) override;
 
 private:
 	gsl::not_null<Window::Controller*> _controller;
 	base::lambda<bool(const QMimeData *data)> _insertFromMimeDataHook;
-	object_ptr<ChatHelpers::SpellHighlighter> _spellHighlighter;
 
 };

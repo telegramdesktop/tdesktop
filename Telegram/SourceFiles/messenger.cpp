@@ -404,9 +404,10 @@ void Messenger::loadLanguage() {
 	QCoreApplication::instance()->installTranslator(_translator.get());
 
 	_spellHelperSet = std::make_unique<ChatHelpers::SpellHelperSet>();
-	_spellHelperSet->addLanguages({LanguageCodes[languageDefault]});
+	QStringList langs(QString::fromUtf8(LanguageCodes[languageDefault].c_str(), LanguageCodes[languageDefault].size()));
 	if (cLang() > languageDefault && cLang() < languageCount)
-		_spellHelperSet->addLanguages({LanguageCodes[cLang()]});
+		langs.append(QString::fromUtf8(LanguageCodes[cLang()].c_str(), LanguageCodes[cLang()].size()));
+	_spellHelperSet->addLanguages(langs);
 }
 
 void Messenger::startLocalStorage() {
