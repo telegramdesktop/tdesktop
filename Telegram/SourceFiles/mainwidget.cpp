@@ -5721,5 +5721,13 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	////// Cloud langpacks
+	case mtpc_updateLangPack: {
+		auto &langpack = update.c_updateLangPack();
+	} break;
+
+	case mtpc_updateLangPackTooLong: {
+	} break;
+
 	}
 }

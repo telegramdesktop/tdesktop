@@ -420,6 +420,8 @@ updateBotWebhookJSONQuery#9b9240a6 query_id:long data:DataJSON timeout:int = Upd
 updateBotShippingQuery#e0cdc940 query_id:long user_id:int payload:bytes shipping_address:PostAddress = Update;
 updateBotPrecheckoutQuery#5d2f3aa9 flags:# query_id:long user_id:int payload:bytes info:flags.0?PaymentRequestedInfo shipping_option_id:flags.1?string currency:string total_amount:long = Update;
 updatePhoneCall#ab0f6b1e phone_call:PhoneCall = Update;
+updateLangPackTooLong#10c2404b = Update;
+updateLangPack#56022f4d difference:LangPackDifference = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -446,7 +448,7 @@ upload.fileCdnRedirect#1508485a dc_id:int file_token:bytes encryption_key:bytes 
 
 dcOption#5d8c6cc flags:# ipv6:flags.0?true media_only:flags.1?true tcpo_only:flags.2?true cdn:flags.3?true id:int ip_address:string port:int = DcOption;
 
-config#cb601684 flags:# phonecalls_enabled:flags.1?true date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int megagroup_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int push_chat_period_ms:int push_chat_limit:int saved_gifs_limit:int edit_time_limit:int rating_e_decay:int stickers_recent_limit:int tmp_sessions:flags.0?int pinned_dialogs_count_max:int call_receive_timeout_ms:int call_ring_timeout_ms:int call_connect_timeout_ms:int call_packet_timeout_ms:int me_url_prefix:string disabled_features:Vector<DisabledFeature> = Config;
+config#7feec888 flags:# phonecalls_enabled:flags.1?true date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int megagroup_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int push_chat_period_ms:int push_chat_limit:int saved_gifs_limit:int edit_time_limit:int rating_e_decay:int stickers_recent_limit:int tmp_sessions:flags.0?int pinned_dialogs_count_max:int call_receive_timeout_ms:int call_ring_timeout_ms:int call_connect_timeout_ms:int call_packet_timeout_ms:int me_url_prefix:string suggested_lang_code:flags.2?string lang_pack_version:flags.2?int disabled_features:Vector<DisabledFeature> = Config;
 
 nearestDc#8e1a1775 country:string this_dc:int nearest_dc:int = NearestDc;
 
@@ -844,6 +846,8 @@ account.tmpPassword#db64fd34 tmp_password:bytes valid_until:int = account.TmpPas
 
 shippingOption#b6213cdf id:string title:string prices:Vector<LabeledPrice> = ShippingOption;
 
+inputStickerSetItem#ffa0a496 flags:# document:InputDocument emoji:string mask_coords:flags.0?MaskCoords = InputStickerSetItem;
+
 inputPhoneCall#1e36fded id:long access_hash:long = InputPhoneCall;
 
 phoneCallEmpty#5366c915 id:long = PhoneCall;
@@ -866,11 +870,19 @@ cdnPublicKey#c982eaba dc_id:int public_key:string = CdnPublicKey;
 
 cdnConfig#5725e40a public_keys:Vector<CdnPublicKey> = CdnConfig;
 
+langPackString#cad181f6 key:string value:string = LangPackString;
+langPackStringPluralized#6c47ac9f flags:# key:string zero_value:flags.0?string one_value:flags.1?string two_value:flags.2?string few_value:flags.3?string many_value:flags.4?string other_value:string = LangPackString;
+langPackStringDeleted#2979eeb2 key:string = LangPackString;
+
+langPackDifference#f385c1f6 lang_code:string from_version:int version:int strings:Vector<LangPackString> = LangPackDifference;
+
+langPackLanguage#117698f1 name:string native_name:string lang_code:string = LangPackLanguage;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
 invokeAfterMsgs#3dc4b4f0 {X:Type} msg_ids:Vector<long> query:!X = X;
-initConnection#69796de9 {X:Type} api_id:int device_model:string system_version:string app_version:string lang_code:string query:!X = X;
+initConnection#c7481da6 {X:Type} api_id:int device_model:string system_version:string app_version:string system_lang_code:string lang_pack:string lang_code:string query:!X = X;
 invokeWithLayer#da9b0d0d {X:Type} layer:int query:!X = X;
 invokeWithoutUpdates#bf9459b7 {X:Type} query:!X = X;
 
@@ -1023,6 +1035,7 @@ messages.reorderPinnedDialogs#959ff644 flags:# force:flags.0?true order:Vector<I
 messages.getPinnedDialogs#e254d64e = messages.PeerDialogs;
 messages.setBotShippingResults#e5f672fa flags:# query_id:long error:flags.0?string shipping_options:flags.1?Vector<ShippingOption> = Bool;
 messages.setBotPrecheckoutResults#9c2dd95 flags:# success:flags.1?true query_id:long error:flags.0?string = Bool;
+messages.uploadMedia#519bc2b1 peer:InputPeer media:InputMedia = MessageMedia;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#25939651 flags:# pts:int pts_total_limit:flags.0?int date:int qts:int = updates.Difference;
@@ -1089,6 +1102,8 @@ payments.sendPaymentForm#2b8879b3 flags:# msg_id:int requested_info_id:flags.0?s
 payments.getSavedInfo#227d824b = payments.SavedInfo;
 payments.clearSavedInfo#d83d70c1 flags:# credentials:flags.0?true info:flags.1?true = Bool;
 
+stickers.createStickerSet#4da2730c flags:# masks:flags.0?true user_id:InputUser title:string short_name:string stickers:Vector<InputStickerSetItem> = Bool;
+
 phone.getCallConfig#55451fa9 = DataJSON;
 phone.requestCall#5b95b3d4 user_id:InputUser random_id:int g_a_hash:bytes protocol:PhoneCallProtocol = phone.PhoneCall;
 phone.acceptCall#3bd2b4a0 peer:InputPhoneCall g_b:bytes protocol:PhoneCallProtocol = phone.PhoneCall;
@@ -1098,4 +1113,9 @@ phone.discardCall#78d413a6 peer:InputPhoneCall duration:int reason:PhoneCallDisc
 phone.setCallRating#1c536a34 peer:InputPhoneCall rating:int comment:string = Updates;
 phone.saveCallDebug#277add7e peer:InputPhoneCall debug:DataJSON = Bool;
 
-// LAYER 66
+langpack.getLangPack#9ab5c58e lang_code:string = LangPackDifference;
+langpack.getStrings#2e1ee318 lang_code:string keys:Vector<string> = Vector<LangPackString>;
+langpack.getDifference#b2e4d7d from_version:int = LangPackDifference;
+langpack.getLanguages#800fd57d = Vector<LangPackLanguage>;
+
+// LAYER 67

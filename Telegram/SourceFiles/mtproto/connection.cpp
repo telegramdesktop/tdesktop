@@ -781,9 +781,10 @@ void ConnectionPrivate::tryToSend() {
 	int32 initSize = 0, initSizeInInts = 0;
 	if (needsLayer) {
 		auto langCode = (cLang() == languageTest || cLang() == languageDefault) ? Sandbox::LangSystemISO() : str_const_toString(LanguageCodes[cLang()]);
+		auto langPack = "tdesktop";
 		auto deviceModel = (_dcType == DcType::Cdn) ? "n/a" : cApiDeviceModel();
 		auto systemVersion = (_dcType == DcType::Cdn) ? "n/a" : cApiSystemVersion();
-		initWrapper = MTPInitConnection<mtpRequest>(MTP_int(ApiId), MTP_string(deviceModel), MTP_string(systemVersion), MTP_string(cApiAppVersion()), MTP_string(langCode), mtpRequest());
+		initWrapper = MTPInitConnection<mtpRequest>(MTP_int(ApiId), MTP_string(deviceModel), MTP_string(systemVersion), MTP_string(cApiAppVersion()), MTP_string(langCode), MTP_string(langPack), MTP_string(langCode), mtpRequest());
 		initSizeInInts = (initWrapper.innerLength() >> 2) + 2;
 		initSize = initSizeInInts * sizeof(mtpPrime);
 	}
