@@ -3654,7 +3654,7 @@ QRect HistoryWidget::getMembersShowAreaGeometry() const {
 	int membersTextWidth = _titlePeerTextWidth;
 	int membersTextHeight = st::topBarHeight - membersTextTop;
 
-	return rtlrect(membersTextLeft, membersTextTop, membersTextWidth, membersTextHeight, width());
+	return myrtlrect(membersTextLeft, membersTextTop, membersTextWidth, membersTextHeight);
 }
 
 void HistoryWidget::setMembersShowAreaActive(bool active) {
@@ -6093,7 +6093,7 @@ void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int
 	}
 
 	p.setFont(st::msgServiceNameFont);
-	p.drawTextLeft(left, top + st::msgReplyPadding.top() + st::msgServiceNameFont->ascent, width(), lang(lng_edit_message));
+	p.drawTextLeft(left, top + st::msgReplyPadding.top(), width(), lang(lng_edit_message));
 
 	if (!_replyEditMsg) return;
 
@@ -6163,7 +6163,7 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 	p.fillRect(myrtlrect(0, top, _chatWidth, st::historyReplyHeight), st::historyPinnedBg);
 
 	top += st::msgReplyPadding.top();
-	QRect rbar(rtlrect(st::msgReplyBarSkip + st::msgReplyBarPos.x(), top + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height(), _chatWidth));
+	QRect rbar(myrtlrect(st::msgReplyBarSkip + st::msgReplyBarPos.x(), top + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height()));
 	p.fillRect(rbar, st::msgInReplyBarColor);
 
 	int32 left = st::msgReplyBarSkip + st::msgReplyBarSkip;
