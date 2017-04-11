@@ -32,6 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "core/click_handler_types.h"
 #include "auth_session.h"
+#include "mainwidget.h"
 
 namespace Window {
 
@@ -81,7 +82,7 @@ void MainMenu::checkSelf() {
 	if (auto self = App::self()) {
 		auto showSelfChat = [] {
 			if (auto self = App::self()) {
-				Ui::showPeerHistory(App::history(self), ShowAtUnreadMsgId);
+				App::main()->choosePeer(self->id, ShowAtUnreadMsgId);
 			}
 		};
 		_userpicButton.create(this, self, st::mainMenuUserpicSize);
