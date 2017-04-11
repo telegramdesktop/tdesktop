@@ -147,6 +147,7 @@ private:
 
 	QMap<History*, mtpRequestId> _draftsSaveRequestIds;
 	base::Timer _draftsSaveTimer;
+	base::Timer _quitSavingDraftsTimer;
 
 	OrderedSet<mtpRequestId> _stickerSetDisenableRequests;
 	Stickers::Order _stickersOrder;

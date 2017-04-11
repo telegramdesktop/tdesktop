@@ -2466,9 +2466,6 @@ namespace {
 		if (auto apiwrap = api()) {
 			if (apiwrap->hasUnsavedDrafts()) {
 				apiwrap->saveDraftsToCloud();
-				QTimer::singleShot(SaveDraftBeforeQuitTimeout, [] {
-					QCoreApplication::quit();
-				});
 				return;
 			}
 		}

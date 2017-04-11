@@ -38,6 +38,7 @@ namespace {
 
 constexpr auto kReloadChannelMembersTimeout = 1000; // 1 second wait before reload members in channel after adding
 constexpr auto kSaveCloudDraftTimeout = 1000; // save draft to the cloud with 1 sec extra delay
+constexpr auto kSaveDraftBeforeQuitTimeout = 1500; // give the app 1.5 secs to save drafts to cloud when quitting
 constexpr auto kSmallDelayMs = 5;
 
 } // namespace
@@ -45,7 +46,8 @@ constexpr auto kSmallDelayMs = 5;
 ApiWrap::ApiWrap()
 : _messageDataResolveDelayed([this] { resolveMessageDatas(); })
 , _webPagesTimer([this] { resolveWebPages(); })
-, _draftsSaveTimer([this] { saveDraftsToCloud(); }) {
+, _draftsSaveTimer([this] { saveDraftsToCloud(); })
+, _quitSavingDraftsTimer([] { App::allDraftsSaved(); }) {
 	Window::Theme::Background()->start();
 }
 
@@ -1164,6 +1166,8 @@ void ApiWrap::saveDraftsToCloud() {
 	}
 	if (_draftsSaveRequestIds.isEmpty()) {
 		App::allDraftsSaved(); // can quit the application
+	} else if (App::quitting() && !_quitSavingDraftsTimer.isActive()) {
+		_quitSavingDraftsTimer.callOnce(kSaveDraftBeforeQuitTimeout);
 	}
 }
 

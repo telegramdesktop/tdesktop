@@ -333,10 +333,6 @@ TabbedSelector::TabbedSelector(QWidget *parent, gsl::not_null<Window::Controller
 	connect(gifs(), SIGNAL(selected(InlineBots::Result*, UserData*)), this, SIGNAL(inlineResultSelected(InlineBots::Result*, UserData*)));
 	connect(gifs(), SIGNAL(cancelled()), this, SIGNAL(cancelled()));
 
-	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
-		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
-	}
-
 	_topShadow->raise();
 	_bottomShadow->raise();
 	_tabsSlider->raise();
