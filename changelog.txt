@@ -1,3 +1,8 @@
+1.0.30 alpha (11.04.17)
+
+- The new Emoji, Stickers, and Saved GIFs panel becomes a separate space on the right when Telegram is running in a wide enough window.
+- Manage blocked users list in your supergroups.
+
 1.0.29 (05.04.17)
 
 - Improved Emoji, Stickers, and Saved GIFs panel.
