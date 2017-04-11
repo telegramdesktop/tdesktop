@@ -8,10 +8,10 @@ To make it easier for us to help you please enter detailed information below.
 2. 
 3. 
 
-### Expected behaviour
+### Expected behavior
 Tell us what should happen
 
-### Actual behaviour
+### Actual behavior
 Tell us what happens instead
 
 ### Configuration
