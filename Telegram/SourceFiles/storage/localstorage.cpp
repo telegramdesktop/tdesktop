@@ -1710,7 +1710,16 @@ void _writeUserSettings() {
 	}
 	auto userDataInstance = StoredAuthSessionCache ? &StoredAuthSessionCache->data : Messenger::Instance().getAuthSessionData();
 	auto userData = userDataInstance ? userDataInstance->serialize() : QByteArray();
-	auto dialogsWidthRatio = StoredAuthSessionCache ? StoredAuthSessionCache->dialogsWidthRatio : (App::wnd() ? App::wnd()->controller()->dialogsWidthRatio().value() : Window::Controller::kDefaultDialogsWidthRatio);
+	auto dialogsWidthRatio = [] {
+		if (StoredAuthSessionCache) {
+			return StoredAuthSessionCache->dialogsWidthRatio;
+		} else if (auto window = App::wnd()) {
+			if (auto controller = window->controller()) {
+				return controller->dialogsWidthRatio().value();
+			}
+		}
+		return Window::Controller::kDefaultDialogsWidthRatio;
+	};
 
 	uint32 size = 21 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::stringSize(Global::AskDownloadPath() ? QString() : Global::DownloadPath()) + Serialize::bytearraySize(Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
@@ -1755,7 +1764,7 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiDialogsMode) << qint32(Global::DialogsModeEnabled() ? 1 : 0) << static_cast<qint32>(Global::DialogsMode());
 	data.stream << quint32(dbiModerateMode) << qint32(Global::ModerateModeEnabled() ? 1 : 0);
 	data.stream << quint32(dbiAutoPlay) << qint32(cAutoPlayGif() ? 1 : 0);
-	data.stream << quint32(dbiDialogsWidthRatio) << qint32(snap(qRound(dialogsWidthRatio * 1000000), 0, 1000000));
+	data.stream << quint32(dbiDialogsWidthRatio) << qint32(snap(qRound(dialogsWidthRatio() * 1000000), 0, 1000000));
 	data.stream << quint32(dbiUseExternalVideoPlayer) << qint32(cUseExternalVideoPlayer());
 	if (!userData.isEmpty()) {
 		data.stream << quint32(dbiAuthSessionData) << userData;
