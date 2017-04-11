@@ -301,6 +301,10 @@ void StickersBox::refreshTabs() {
 	if ((_tab == &_archived && !_tabIndices.contains(Section::Archived))
 		|| (_tab == &_featured && !_tabIndices.contains(Section::Featured))) {
 		switchTab();
+	} else if (_tab == &_archived) {
+		_tabs->setActiveSectionFast(_tabIndices.indexOf(Section::Archived));
+	} else if (_tab == &_featured) {
+		_tabs->setActiveSectionFast(_tabIndices.indexOf(Section::Featured));
 	}
 	updateTabsGeometry();
 }
@@ -410,6 +414,7 @@ void StickersBox::switchTab() {
 	_tab->widget()->show();
 	rebuildList();
 	onScrollToY(_tab->getScrollTop());
+	setInnerVisible(true);
 	auto nowCache = grabContentCache();
 	auto nowIndex = _tab->index();
 

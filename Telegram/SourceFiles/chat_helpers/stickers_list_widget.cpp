@@ -61,6 +61,7 @@ public:
 	void preloadImages();
 	void validateSelectedIcon(uint64 setId, ValidateIconAnimations animations);
 	void refreshIcons(ValidateIconAnimations animations);
+	bool hasOnlyFeaturedSets() const;
 
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 
@@ -184,10 +185,13 @@ void StickersListWidget::Footer::leaveToChildEvent(QEvent *e, QWidget *child) {
 
 void StickersListWidget::Footer::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	paintStickerSettingsIcon(p);
 
 	if (_icons.isEmpty()) {
 		return;
+	}
+
+	if (!hasOnlyFeaturedSets()) {
+		paintStickerSettingsIcon(p);
 	}
 
 	auto selxrel = _iconsLeft + qRound(_iconSelX.current());
@@ -242,7 +246,7 @@ void StickersListWidget::Footer::mousePressEvent(QMouseEvent *e) {
 	updateSelected();
 
 	if (_iconOver == _icons.size()) {
-		Ui::show(Box<StickersBox>(StickersBox::Section::Installed));
+		Ui::show(Box<StickersBox>(hasOnlyFeaturedSets() ? StickersBox::Section::Featured : StickersBox::Section::Installed));
 	} else {
 		_iconDown = _iconOver;
 		_iconsMouseDown = _iconsMousePos;
@@ -336,7 +340,9 @@ void StickersListWidget::Footer::updateSelected() {
 	if (rtl()) x = width() - x;
 	x -= _iconsLeft;
 	if (x >= st::emojiCategory.width * (kVisibleIconsCount - 1) && x < st::emojiCategory.width * kVisibleIconsCount && y >= _iconsTop && y < _iconsTop + st::emojiCategory.height) {
-		newOver = _icons.size();
+		if (!_icons.isEmpty() && !hasOnlyFeaturedSets()) {
+			newOver = _icons.size();
+		}
 	} else if (!_icons.isEmpty()) {
 		if (y >= _iconsTop && y < _iconsTop + st::emojiCategory.height && x >= 0 && x < (kVisibleIconsCount - 1) * st::emojiCategory.width && x < _icons.size() * st::emojiCategory.width) {
 			x += qRound(_iconsX.current());
@@ -371,6 +377,10 @@ void StickersListWidget::Footer::refreshIcons(ValidateIconAnimations animations)
 	updateSelected();
 	_pan->validateSelectedIcon(animations);
 	update();
+}
+
+bool StickersListWidget::Footer::hasOnlyFeaturedSets() const {
+	return (_icons.size() == 1) && (_icons[0].setId == Stickers::FeaturedSetId);
 }
 
 void StickersListWidget::Footer::paintStickerSettingsIcon(Painter &p) const {
@@ -1029,11 +1039,14 @@ void StickersListWidget::refreshStickers() {
 		resize(width(), newHeight);
 	}
 
-	_settings->setVisible(_section == Section::Stickers && _mySets.isEmpty());
-
 	if (_footer) {
 		_footer->refreshIcons(ValidateIconAnimations::None);
+		if (_footer->hasOnlyFeaturedSets() && _section != Section::Featured) {
+			showStickerSet(Stickers::FeaturedSetId);
+		}
 	}
+
+	_settings->setVisible(_section == Section::Stickers && _mySets.isEmpty());
 
 	_lastMousePosition = QCursor::pos();
 	updateSelected();

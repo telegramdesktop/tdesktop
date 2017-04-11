@@ -254,7 +254,8 @@ void GifsListWidget::paintInlineItems(Painter &p, QRect clip) {
 	if (_rows.isEmpty()) {
 		p.setFont(st::normalFont);
 		p.setPen(st::noContactsColor);
-		p.drawText(QRect(0, 0, width(), (height() / 3) * 2 + st::normalFont->height), lang(lng_inline_bot_no_results), style::al_center);
+		auto text = lang(_inlineQuery.isEmpty() ? lng_gifs_no_saved : lng_inline_bot_no_results);
+		p.drawText(QRect(0, 0, width(), (height() / 3) * 2 + st::normalFont->height), text, style::al_center);
 		return;
 	}
 	auto gifPaused = controller()->isGifPausedAtLeastFor(Window::GifPauseReason::SavedGifs);
@@ -392,7 +393,6 @@ TabbedSelector::InnerFooter *GifsListWidget::getFooter() const {
 
 void GifsListWidget::processHideFinished() {
 	clearSelection();
-	controller()->disableGifPauseReason(Window::GifPauseReason::SavedGifs);
 }
 
 void GifsListWidget::processPanelHideFinished() {
@@ -753,7 +753,6 @@ void GifsListWidget::afterShown() {
 	if (_footer) {
 		_footer->stealFocus();
 	}
-	controller()->enableGifPauseReason(Window::GifPauseReason::SavedGifs);
 }
 
 void GifsListWidget::beforeHiding() {

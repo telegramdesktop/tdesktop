@@ -106,6 +106,7 @@ private:
 	bool preventAutoHide() const;
 	void updateContentHeight();
 
+	gsl::not_null<Window::Controller*> _controller;
 	object_ptr<TabbedSelector> _selector;
 
 	int _contentMaxHeight = 0;

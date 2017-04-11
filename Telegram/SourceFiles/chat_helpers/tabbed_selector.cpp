@@ -377,8 +377,7 @@ void TabbedSelector::paintEvent(QPaintEvent *e) {
 		paintSlideFrame(p, ms);
 		if (!_a_slide.animating()) {
 			_slideAnimation.reset();
-			showAll();
-			currentTab()->widget()->afterShown();
+			afterShown();
 			emit slideFinished();
 		}
 	} else {
@@ -482,6 +481,9 @@ void TabbedSelector::showStarted() {
 void TabbedSelector::beforeHiding() {
 	if (!_scroll->isHidden()) {
 		currentTab()->widget()->beforeHiding();
+		if (_beforeHidingCallback) {
+			_beforeHidingCallback(_currentTabType);
+		}
 	}
 }
 
@@ -489,6 +491,9 @@ void TabbedSelector::afterShown() {
 	if (!_a_slide.animating()) {
 		showAll();
 		currentTab()->widget()->afterShown();
+		if (_afterShownCallback) {
+			_afterShownCallback(_currentTabType);
+		}
 	}
 }
 
@@ -555,9 +560,7 @@ void TabbedSelector::switchTab() {
 	auto wasTab = _currentTabType;
 	currentTab()->saveScrollTop();
 
-	if (!_scroll->isHidden()) {
-		currentTab()->widget()->beforeHiding();
-	}
+	beforeHiding();
 
 	auto wasCache = grabForAnimation();
 

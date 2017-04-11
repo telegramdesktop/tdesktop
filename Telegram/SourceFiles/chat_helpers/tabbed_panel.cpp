@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/shadow.h"
 #include "styles/style_chat_helpers.h"
 #include "chat_helpers/tabbed_selector.h"
+#include "window/window_controller.h"
 #include "mainwindow.h"
 
 namespace ChatHelpers {
@@ -37,9 +38,20 @@ TabbedPanel::TabbedPanel(QWidget *parent, gsl::not_null<Window::Controller*> con
 }
 
 TabbedPanel::TabbedPanel(QWidget *parent, gsl::not_null<Window::Controller*> controller, object_ptr<TabbedSelector> selector) : TWidget(parent)
+, _controller(controller)
 , _selector(std::move(selector)) {
 	_selector->setParent(this);
 	_selector->setRoundRadius(st::buttonRadius);
+	_selector->setAfterShownCallback([this](EmojiPanelTab tab) {
+		if (tab == EmojiPanelTab::Gifs) {
+			_controller->enableGifPauseReason(Window::GifPauseReason::SavedGifs);
+		}
+	});
+	_selector->setBeforeHidingCallback([this](EmojiPanelTab tab) {
+		if (tab == EmojiPanelTab::Gifs) {
+			_controller->disableGifPauseReason(Window::GifPauseReason::SavedGifs);
+		}
+	});
 
 	resize(QRect(0, 0, st::emojiPanWidth, st::emojiPanMaxHeight).marginsAdded(innerPadding()).size());
 
@@ -307,9 +319,10 @@ void TabbedPanel::toggleAnimated() {
 }
 
 object_ptr<TabbedSelector> TabbedPanel::takeSelector() {
-	auto result = std::move(_selector);
-	hideAnimated();
-	return result;
+	if (!isHidden() && !_hiding) {
+		startOpacityAnimation(true);
+	}
+	return std::move(_selector);
 }
 
 QPointer<TabbedSelector> TabbedPanel::getSelector() const {

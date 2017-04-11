@@ -66,6 +66,14 @@ public:
 		return _a_slide.animating();
 	}
 
+	using TabType = EmojiPanelTab;
+	void setAfterShownCallback(base::lambda<void(TabType)> callback) {
+		_afterShownCallback = std::move(callback);
+	}
+	void setBeforeHidingCallback(base::lambda<void(TabType)> callback) {
+		_beforeHidingCallback = std::move(callback);
+	}
+
 	~TabbedSelector();
 
 	class Inner;
@@ -91,7 +99,6 @@ signals:
 	void checkForHide();
 
 private:
-	using TabType = EmojiPanelTab;
 	class Tab {
 	public:
 		static constexpr auto kCount = 3;
@@ -172,6 +179,9 @@ private:
 	object_ptr<Ui::ScrollArea> _scroll;
 	std::array<Tab, Tab::kCount> _tabs;
 	TabType _currentTabType = TabType::Emoji;
+
+	base::lambda<void(TabType)> _afterShownCallback;
+	base::lambda<void(TabType)> _beforeHidingCallback;
 
 };
 

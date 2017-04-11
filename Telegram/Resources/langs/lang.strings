@@ -781,8 +781,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_switch_gifs" = "GIFs";
 "lng_stickers_featured_add" = "Add";
 "lng_gifs_search" = "Search GIFs";
+"lng_gifs_no_saved" = "You have no saved GIFs yet.";
 
-"lng_inline_bot_no_results" = "No results";
+"lng_inline_bot_no_results" = "No results.";
 "lng_inline_bot_via" = "via {inline_bot}";
 
 "lng_box_remove" = "Remove";

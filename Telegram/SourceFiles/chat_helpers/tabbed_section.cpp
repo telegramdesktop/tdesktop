@@ -42,6 +42,8 @@ TabbedSection::TabbedSection(QWidget *parent, gsl::not_null<Window::Controller*>
 			_cancelledCallback();
 		}
 	});
+	_selector->setAfterShownCallback(base::lambda<void(EmojiPanelTab)>());
+	_selector->setBeforeHidingCallback(base::lambda<void(EmojiPanelTab)>());
 
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
 }
@@ -59,6 +61,7 @@ void TabbedSection::resizeEvent(QResizeEvent *e) {
 }
 
 object_ptr<TabbedSelector> TabbedSection::takeSelector() {
+	_selector->beforeHiding();
 	return std::move(_selector);
 }
 
