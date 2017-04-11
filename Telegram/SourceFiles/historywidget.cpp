@@ -3679,7 +3679,7 @@ void HistoryWidget::onMembersDropdownShow() {
 		_membersDropdown->resizeToWidth(st::membersInnerWidth);
 
 		_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());
-		_membersDropdown->moveToLeft(0, 0);
+		_membersDropdown->moveToLeft(0, _topBar->height());
 		_membersDropdown->setHiddenCallback([this] { _membersDropdown.destroyDelayed(); });
 	}
 	_membersDropdown->otherEnter();

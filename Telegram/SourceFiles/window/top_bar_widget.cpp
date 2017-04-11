@@ -108,7 +108,7 @@ void TopBarWidget::showMenu() {
 	if (auto main = App::main()) {
 		if (auto peer = main->peer()) {
 			if (!_menu) {
-				_menu.create(App::main());
+				_menu.create(parentWidget());
 				_menu->setHiddenCallback([that = weak(this), menu = _menu.data()] {
 					menu->deleteLater();
 					if (that && that->_menu == menu) {
@@ -130,7 +130,7 @@ void TopBarWidget::showMenu() {
 				App::main()->fillPeerMenu(peer, [this](const QString &text, base::lambda<void()> callback) {
 					return _menu->addAction(text, std::move(callback));
 				}, false);
-				_menu->moveToRight(st::topBarMenuPosition.x(), st::topBarMenuPosition.y());
+				_menu->moveToRight((parentWidget()->width() - width()) + st::topBarMenuPosition.x(), st::topBarMenuPosition.y());
 				_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
 			}
 		}
