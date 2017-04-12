@@ -179,6 +179,7 @@ void CreateImplementationsMap() {
 	Type recordTypes[] = {
 		Type::RecordVideo,
 		Type::RecordVoice,
+		Type::RecordRound,
 	};
 	for_const (auto type, recordTypes) {
 		Implementations->insert(type, &RecordAnimation::kMeta);
@@ -188,6 +189,7 @@ void CreateImplementationsMap() {
 		Type::UploadPhoto,
 		Type::UploadVideo,
 		Type::UploadVoice,
+		Type::UploadRound,
 	};
 	for_const (auto type, uploadTypes) {
 		Implementations->insert(type, &UploadAnimation::kMeta);

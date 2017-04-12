@@ -889,6 +889,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_user_action_record_audio" = "{user} is recording a voice message";
 "lng_send_action_upload_audio" = "sending a voice message";
 "lng_user_action_upload_audio" = "{user} is sending a voice message";
+"lng_send_action_record_round" = "recording a video message";
+"lng_user_action_record_round" = "{user} is recording a video message";
+"lng_send_action_upload_round" = "sending a video message";
+"lng_user_action_upload_round" = "{user} is sending a video message";
 "lng_send_action_upload_photo" = "sending a photo";
 "lng_user_action_upload_photo" = "{user} is sending a photo";
 "lng_send_action_upload_file" = "sending a file";

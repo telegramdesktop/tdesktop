@@ -1514,6 +1514,8 @@ struct SendAction {
 		UploadVideo,
 		RecordVoice,
 		UploadVoice,
+		RecordRound,
+		UploadRound,
 		UploadPhoto,
 		UploadFile,
 		ChooseLocation,
