@@ -222,11 +222,11 @@ bool MediaView::fileBubbleShown() const {
 bool MediaView::gifShown() const {
 	if (_gif && _gif->ready()) {
 		if (!_gif->started()) {
-			if ((_doc->isVideo() || _doc->isRoundVideo()) && _autoplayVideoDocument != _doc && !_gif->videoPaused()) {
+			if (_doc && (_doc->isVideo() || _doc->isRoundVideo()) && _autoplayVideoDocument != _doc && !_gif->videoPaused()) {
 				_gif->pauseResumeVideo();
 				const_cast<MediaView*>(this)->_videoPaused = _gif->videoPaused();
 			}
-			auto rounding = _doc->isRoundVideo() ? ImageRoundRadius::Ellipse : ImageRoundRadius::None;
+			auto rounding = (_doc && _doc->isRoundVideo()) ? ImageRoundRadius::Ellipse : ImageRoundRadius::None;
 			_gif->start(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), rounding, ImageRoundCorner::All);
 			const_cast<MediaView*>(this)->_current = QPixmap();
 		}
@@ -829,7 +829,7 @@ void MediaView::clipCallback(Media::Clip::Notification notification) {
 				_videoStopped = true;
 				updateSilentVideoPlaybackState();
 			} else {
-				_videoIsSilent = (_doc->isVideo() || _doc->isRoundVideo()) && !_gif->hasAudio();
+				_videoIsSilent = _doc && (_doc->isVideo() || _doc->isRoundVideo()) && !_gif->hasAudio();
 				_videoDurationMs = _gif->getDurationMs();
 				_videoPositionMs = _gif->getPositionMs();
 				if (_videoIsSilent) {
@@ -1386,7 +1386,7 @@ void MediaView::displayFinished() {
 
 Images::Options MediaView::videoThumbOptions() const {
 	auto options = Images::Option::Smooth | Images::Option::Blurred;
-	if (_doc->isRoundVideo()) {
+	if (_doc && _doc->isRoundVideo()) {
 		options |= Images::Option::Circled;
 	}
 	return options;
@@ -1484,6 +1484,7 @@ void MediaView::initThemePreview() {
 }
 
 void MediaView::createClipController() {
+	Expects(_doc != nullptr);
 	if (!_doc->isVideo() && !_doc->isRoundVideo()) return;
 
 	_clipController.create(this);
@@ -1539,7 +1540,7 @@ void MediaView::restartVideoAtSeekPosition(TimeMs positionMs) {
 	_autoplayVideoDocument = _doc;
 
 	if (_current.isNull()) {
-		auto rounding = _doc->isRoundVideo() ? ImageRoundRadius::Ellipse : ImageRoundRadius::None;
+		auto rounding = (_doc && _doc->isRoundVideo()) ? ImageRoundRadius::Ellipse : ImageRoundRadius::None;
 		_current = _gif->current(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), rounding, ImageRoundCorner::All, getms());
 	}
 	_gif = std::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), [this](Media::Clip::Notification notification) {
@@ -1648,7 +1649,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 		for (int i = 0, l = region.rectCount(); i < l; ++i) {
 			p.fillRect(rs.at(i), st::mediaviewVideoBg);
 		}
-		if (_doc->isRoundVideo()) {
+		if (_doc && _doc->isRoundVideo()) {
 			p.setCompositionMode(m);
 		}
 	} else {
@@ -1683,7 +1684,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 	if (_photo || fileShown()) {
 		QRect imgRect(_x, _y, _w, _h);
 		if (imgRect.intersects(r)) {
-			auto rounding = _doc->isRoundVideo() ? ImageRoundRadius::Ellipse : ImageRoundRadius::None;
+			auto rounding = (_doc && _doc->isRoundVideo()) ? ImageRoundRadius::Ellipse : ImageRoundRadius::None;
 			auto toDraw = _current.isNull() ? _gif->current(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), rounding, ImageRoundCorner::None, ms) : _current;
 			if (!_gif && (!_doc || !_doc->sticker() || _doc->sticker()->img->isNull()) && toDraw.hasAlpha()) {
 				p.fillRect(imgRect, _transparentBrush);
