@@ -587,7 +587,6 @@ namespace Global {
 namespace internal {
 
 struct Data {
-	uint64 LaunchId = 0;
 	SingleQueuedInvokation HandleHistoryUpdate = { [] { App::app()->call_handleHistoryUpdate(); } };
 	SingleQueuedInvokation HandleUnreadCounterUpdate = { [] { App::app()->call_handleUnreadCounterUpdate(); } };
 	SingleQueuedInvokation HandleDelayedPeerUpdates = { [] { App::app()->call_handleDelayedPeerUpdates(); } };
@@ -697,8 +696,6 @@ bool started() {
 
 void start() {
 	GlobalData = new internal::Data();
-
-	memset_rand(&GlobalData->LaunchId, sizeof(GlobalData->LaunchId));
 }
 
 void finish() {
@@ -706,7 +703,6 @@ void finish() {
 	GlobalData = nullptr;
 }
 
-DefineReadOnlyVar(Global, uint64, LaunchId);
 DefineRefVar(Global, SingleQueuedInvokation, HandleHistoryUpdate);
 DefineRefVar(Global, SingleQueuedInvokation, HandleUnreadCounterUpdate);
 DefineRefVar(Global, SingleQueuedInvokation, HandleDelayedPeerUpdates);

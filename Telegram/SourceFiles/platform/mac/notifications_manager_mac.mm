@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_window.h"
 #include "mainwindow.h"
 #include "base/task_queue.h"
+#include "base/variant.h"
 
 #include <thread>
 #include <Cocoa/Cocoa.h>
@@ -55,7 +56,7 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 @interface NotificationDelegate : NSObject<NSUserNotificationCenterDelegate> {
 }
 
-- (id) initWithManager:(base::weak_unique_ptr<Manager>)manager;
+- (id) initWithManager:(base::weak_unique_ptr<Manager>)manager managerId:(uint64)managerId;
 - (void) userNotificationCenter:(NSUserNotificationCenter*)center didActivateNotification:(NSUserNotification*)notification;
 - (BOOL) userNotificationCenter:(NSUserNotificationCenter*)center shouldPresentNotification:(NSUserNotification*)notification;
 
@@ -63,22 +64,24 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 
 @implementation NotificationDelegate {
 	base::weak_unique_ptr<Manager> _manager;
+	uint64 _managerId;
 
 }
 
-- (id) initWithManager:(base::weak_unique_ptr<Manager>)manager {
+- (id) initWithManager:(base::weak_unique_ptr<Manager>)manager managerId:(uint64)managerId {
 	if (self = [super init]) {
 		_manager = manager;
+		_managerId = managerId;
 	}
 	return self;
 }
 
 - (void) userNotificationCenter:(NSUserNotificationCenter *)center didActivateNotification:(NSUserNotification *)notification {
 	NSDictionary *notificationUserInfo = [notification userInfo];
-	NSNumber *launchIdObject = [notificationUserInfo objectForKey:@"launch"];
-	auto notificationLaunchId = launchIdObject ? [launchIdObject unsignedLongLongValue] : 0ULL;
-	DEBUG_LOG(("Received notification with instance %1, mine: %2").arg(notificationLaunchId).arg(Global::LaunchId()));
-	if (notificationLaunchId != Global::LaunchId()) { // other app instance notification
+	NSNumber *managerIdObject = [notificationUserInfo objectForKey:@"manager"];
+	auto notificationManagerId = managerIdObject ? [managerIdObject unsignedLongLongValue] : 0ULL;
+	DEBUG_LOG(("Received notification with instance %1, mine: %2").arg(notificationManagerId).arg(_managerId));
+	if (notificationManagerId != _managerId) { // other app instance notification
 		base::TaskQueue::Main().Put([] {
 			// Usually we show and activate main window when the application
 			// is activated (receives applicationDidBecomeActive: notification).
@@ -182,12 +185,37 @@ public:
 	~Private();
 
 private:
+	template <typename Task>
+	void putClearTask(Task task);
+
+	void clearingThreadLoop();
+
+	const uint64 _managerId = 0;
+	QString _managerIdString;
+
 	NotificationDelegate *_delegate = nullptr;
+
+	std::thread _clearingThread;
+	std::mutex _clearingMutex;
+	std::condition_variable _clearingCondition;
+
+	struct ClearFromHistory {
+		PeerId peerId;
+	};
+	struct ClearAll {
+	};
+	struct ClearFinish {
+	};
+	using ClearTask = base::variant<ClearFromHistory, ClearAll, ClearFinish>;
+	std::vector<ClearTask> _clearingTasks;
 
 };
 
 Manager::Private::Private(Manager *manager)
-: _delegate([[NotificationDelegate alloc] initWithManager:manager]) {
+: _managerId(rand_value<uint64>())
+, _managerIdString(QString::number(_managerId))
+, _delegate([[NotificationDelegate alloc] initWithManager:manager managerId:_managerId])
+, _clearingThread([this] { clearingThreadLoop(); }) {
 	updateDelegate();
 	subscribe(Global::RefWorkMode(), [this](DBIWorkMode mode) {
 		// We need to update the delegate _after_ the tray icon change was done in Qt.
@@ -203,11 +231,11 @@ void Manager::Private::showNotification(PeerData *peer, MsgId msgId, const QStri
 
 	NSUserNotification *notification = [[[NSUserNotification alloc] init] autorelease];
 	if ([notification respondsToSelector:@selector(setIdentifier:)]) {
-		auto identifier = QString::number(Global::LaunchId()) + '_' + QString::number(peer->id) + '_' + QString::number(msgId);
+		auto identifier = _managerIdString + '_' + QString::number(peer->id) + '_' + QString::number(msgId);
 		auto identifierValue = Q2NSString(identifier);
 		[notification setIdentifier:identifierValue];
 	}
-	[notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer->id],@"peer",[NSNumber numberWithInt:msgId],@"msgid",[NSNumber numberWithUnsignedLongLong:Global::LaunchId()],@"launch",nil]];
+	[notification setUserInfo:[NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithUnsignedLongLong:peer->id],@"peer",[NSNumber numberWithInt:msgId],@"msgid",[NSNumber numberWithUnsignedLongLong:_managerId],@"manager",nil]];
 
 	[notification setTitle:Q2NSString(title)];
 	[notification setSubtitle:Q2NSString(subtitle)];
@@ -230,34 +258,68 @@ void Manager::Private::showNotification(PeerData *peer, MsgId msgId, const QStri
 	}
 }
 
-void Manager::Private::clearAll() {
-	NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
-	NSArray *notificationsList = [center deliveredNotifications];
-	for (id notification in notificationsList) {
-		NSDictionary *notificationUserInfo = [notification userInfo];
-		NSNumber *launchIdObject = [notificationUserInfo objectForKey:@"launch"];
-		auto notificationLaunchId = launchIdObject ? [launchIdObject unsignedLongLongValue] : 0ULL;
-		if (notificationLaunchId == Global::LaunchId()) {
-			[center removeDeliveredNotification:notification];
+void Manager::Private::clearingThreadLoop() {
+	auto finished = false;
+	while (!finished) {
+		auto clearAll = false;
+		auto clearFromPeers = std::set<PeerId>(); // Better to use flatmap.
+		{
+			std::unique_lock<std::mutex> lock(_clearingMutex);
+
+			while (_clearingTasks.empty()) {
+				_clearingCondition.wait(lock);
+			}
+			for (auto &task : _clearingTasks) {
+				if (base::get_if<ClearFinish>(&task)) {
+					finished = true;
+					clearAll = true;
+				} else if (base::get_if<ClearAll>(&task)) {
+					clearAll = true;
+				} else if (auto fromHistory = base::get_if<ClearFromHistory>(&task)) {
+					clearFromPeers.insert(fromHistory->peerId);
+				}
+			}
+			_clearingTasks.clear();
+		}
+
+		auto clearByPeer = [&clearFromPeers](NSDictionary *notificationUserInfo) {
+			if (NSNumber *peerObject = [notificationUserInfo objectForKey:@"peer"]) {
+				auto notificationPeerId = [peerObject unsignedLongLongValue];
+				if (notificationPeerId) {
+					return (clearFromPeers.find(notificationPeerId) != clearFromPeers.cend());
+				}
+			}
+			return true;
+		};
+
+		NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
+		NSArray *notificationsList = [center deliveredNotifications];
+		for (id notification in notificationsList) {
+			NSDictionary *notificationUserInfo = [notification userInfo];
+			NSNumber *managerIdObject = [notificationUserInfo objectForKey:@"manager"];
+			auto notificationManagerId = managerIdObject ? [managerIdObject unsignedLongLongValue] : 0ULL;
+			if (notificationManagerId == _managerId) {
+				if (clearAll || clearByPeer(notificationUserInfo)) {
+					[center removeDeliveredNotification:notification];
+				}
+			}
 		}
 	}
 }
 
-void Manager::Private::clearFromHistory(History *history) {
-	unsigned long long peerId = history->peer->id;
+template <typename Task>
+void Manager::Private::putClearTask(Task task) {
+	std::unique_lock<std::mutex> lock(_clearingMutex);
+	_clearingTasks.push_back(task);
+	_clearingCondition.notify_one();
+}
 
-	NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
-	NSArray *notificationsList = [center deliveredNotifications];
-	for (id notification in notificationsList) {
-		NSDictionary *notificationUserInfo = [notification userInfo];
-		NSNumber *launchIdObject = [notificationUserInfo objectForKey:@"launch"];
-		NSNumber *peerObject = [notificationUserInfo objectForKey:@"peer"];
-		auto notificationLaunchId = launchIdObject ? [launchIdObject unsignedLongLongValue] : 0ULL;
-		auto notificationPeerId = peerObject ? [peerObject unsignedLongLongValue] : 0ULL;
-		if (notificationPeerId == peerId && notificationLaunchId == Global::LaunchId()) {
-			[center removeDeliveredNotification:notification];
-		}
-	}
+void Manager::Private::clearAll() {
+	putClearTask(ClearAll());
+}
+
+void Manager::Private::clearFromHistory(History *history) {
+	putClearTask(ClearFromHistory { history->peer->id });
 }
 
 void Manager::Private::updateDelegate() {
@@ -266,7 +328,8 @@ void Manager::Private::updateDelegate() {
 }
 
 Manager::Private::~Private() {
-	clearAll();
+	putClearTask(ClearFinish());
+	_clearingThread.join();
 	[_delegate release];
 }
 

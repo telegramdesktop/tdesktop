@@ -291,7 +291,6 @@ bool started();
 void start();
 void finish();
 
-DeclareReadOnlyVar(uint64, LaunchId);
 DeclareRefVar(SingleQueuedInvokation, HandleHistoryUpdate);
 DeclareRefVar(SingleQueuedInvokation, HandleUnreadCounterUpdate);
 DeclareRefVar(SingleQueuedInvokation, HandleDelayedPeerUpdates);
