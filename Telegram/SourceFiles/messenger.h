@@ -154,8 +154,8 @@ private:
 
 	std::unique_ptr<MainWindow> _window;
 	FileUploader *_uploader = nullptr;
-	Translator *_translator = nullptr;
 
+	std::unique_ptr<Translator> _translator;
 	std::unique_ptr<MTP::DcOptions> _dcOptions;
 	std::unique_ptr<MTP::Instance> _mtproto;
 	std::unique_ptr<MTP::Instance> _mtprotoForKeysDestroy;

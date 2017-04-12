@@ -33,22 +33,22 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 		++from;
 	}
 
-	QByteArray varName = QByteArray(nameStart, from - nameStart);
+	auto varName = QLatin1String(nameStart, from - nameStart);
 
-	if (from == end || *from != '"') throw Exception(QString("Expected quote after key name '%1'!").arg(QLatin1String(varName)));
+	if (from == end || *from != '"') throw Exception(QString("Expected quote after key name '%1'!").arg(varName));
 	++from;
 
-	if (!skipWhitespaces(from, end)) throw Exception(QString("Unexpected end of file in key '%1'!").arg(QLatin1String(varName)));
-	if (*from != '=') throw Exception(QString("'=' expected in key '%1'!").arg(QLatin1String(varName)));
+	if (!skipWhitespaces(from, end)) throw Exception(QString("Unexpected end of file in key '%1'!").arg(varName));
+	if (*from != '=') throw Exception(QString("'=' expected in key '%1'!").arg(varName));
 
-	if (!skipWhitespaces(++from, end)) throw Exception(QString("Unexpected end of file in key '%1'!").arg(QLatin1String(varName)));
-	if (*from != '"') throw Exception(QString("Expected string after '=' in key '%1'!").arg(QLatin1String(varName)));
+	if (!skipWhitespaces(++from, end)) throw Exception(QString("Unexpected end of file in key '%1'!").arg(varName));
+	if (*from != '"') throw Exception(QString("Expected string after '=' in key '%1'!").arg(varName));
 
 	LangKey varKey = keyIndex(varName);
 	bool feedingValue = request.isEmpty();
 	if (feedingValue) {
 		if (varKey == lngkeys_cnt) {
-			warning(QString("Unknown key '%1'!").arg(QLatin1String(varName)));
+			warning(QString("Unknown key '%1'!").arg(varName));
 		}
 	} else if (!readingAll && !request.contains(varKey)) {
 		varKey = lngkeys_cnt;
@@ -60,10 +60,10 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 	const char *start = ++from;
 	while (from < end && *from != '"') {
 		if (*from == '\n') {
-			throw Exception(QString("Unexpected end of string in key '%1'!").arg(QLatin1String(varName)));
+			throw Exception(QString("Unexpected end of string in key '%1'!").arg(varName));
 		}
 		if (*from == '\\') {
-			if (from + 1 >= end) throw Exception(QString("Unexpected end of file in key '%1'!").arg(QLatin1String(varName)));
+			if (from + 1 >= end) throw Exception(QString("Unexpected end of file in key '%1'!").arg(varName));
 			if (*(from + 1) == '"' || *(from + 1) == '\\' || *(from + 1) == '{') {
 				if (readingValue && from > start) varValue.append(start, from - start);
 				start = ++from;
@@ -83,26 +83,26 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 			}
 			if (from == tagStart) {
 				readingValue = false;
-				warning(QString("Expected tag name in key '%1'!").arg(QLatin1String(varName)));
+				warning(QString("Expected tag name in key '%1'!").arg(varName));
 				continue;
 			}
-			QByteArray tagName = QByteArray(tagStart, int(from - tagStart));
+			auto tagName = QLatin1String(tagStart, int(from - tagStart));
 
-			if (from == end || (*from != '}' && *from != ':')) throw Exception(QString("Expected '}' or ':' after tag name in key '%1'!").arg(QLatin1String(varName)));
+			if (from == end || (*from != '}' && *from != ':')) throw Exception(QString("Expected '}' or ':' after tag name in key '%1'!").arg(varName));
 
 			ushort index = tagIndex(tagName);
 			if (index == lngtags_cnt) {
 				readingValue = false;
-				warning(QString("Tag '%1' not found in key '%2', not using value.").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+				warning(QString("Tag '%1' not found in key '%2', not using value.").arg(tagName).arg(varName));
 				continue;
 			}
 
 			if (!tagReplaced(varKey, index)) {
 				readingValue = false;
-				warning(QString("Unexpected tag '%1' in key '%2', not using value.").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+				warning(QString("Unexpected tag '%1' in key '%2', not using value.").arg(tagName).arg(varName));
 				continue;
 			}
-			if (tagsUsed.contains(index)) throw Exception(QString("Tag '%1' double used in key '%2'!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+			if (tagsUsed.contains(index)) throw Exception(QString("Tag '%1' double used in key '%2'!").arg(tagName).arg(varName));
 			tagsUsed.insert(index, true);
 
 			QString tagReplacer(4, TextCommand);
@@ -119,15 +119,15 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 				while (from < end && *from != '"' && *from != '}') {
 					if (*from == '|') {
 						if (from > start) subvarValue.append(start, int(from - start));
-						if (countedIndex >= lngtags_max_counted_values) throw Exception(QString("Too many values inside counted tag '%1' in '%2' key!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+						if (countedIndex >= lngtags_max_counted_values) throw Exception(QString("Too many values inside counted tag '%1' in '%2' key!").arg(tagName).arg(varName));
 						LangKey subkey = subkeyIndex(varKey, index, countedIndex++);
 						if (subkey == lngkeys_cnt) {
 							readingValue = false;
-							warning(QString("Unexpected counted tag '%1' in key '%2', not using value.").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+							warning(QString("Unexpected counted tag '%1' in key '%2', not using value.").arg(tagName).arg(varName));
 							break;
 						} else {
 							if (feedingValue) {
-								if (!feedKeyValue(subkey, QString::fromUtf8(subvarValue))) throw Exception(QString("Tag '%1' is not counted in key '%2'!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+								if (!feedKeyValue(subkey, QString::fromUtf8(subvarValue))) throw Exception(QString("Tag '%1' is not counted in key '%2'!").arg(tagName).arg(varName));
 							} else {
 								foundKeyValue(subkey);
 							}
@@ -137,10 +137,10 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 						start = from + 1;
 					}
 					if (*from == '\n') {
-						throw Exception(QString("Unexpected end of string inside counted tag '%1' in '%2' key!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+						throw Exception(QString("Unexpected end of string inside counted tag '%1' in '%2' key!").arg(tagName).arg(varName));
 					}
 					if (*from == '\\') {
-						if (from + 1 >= end) throw Exception(QString("Unexpected end of file inside counted tag '%1' in '%2' key!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+						if (from + 1 >= end) throw Exception(QString("Unexpected end of file inside counted tag '%1' in '%2' key!").arg(tagName).arg(varName));
 						if (*(from + 1) == '"' || *(from + 1) == '\\' || *(from + 1) == '{' || *(from + 1) == '#') {
 							if (from > start) subvarValue.append(start, int(from - start));
 							start = ++from;
@@ -152,9 +152,9 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 							start = (++from) + 1;
 						}
 					} else if (*from == '{') {
-						throw Exception(QString("Unexpected tag inside counted tag '%1' in '%2' key!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+						throw Exception(QString("Unexpected tag inside counted tag '%1' in '%2' key!").arg(tagName).arg(varName));
 					} else if (*from == '#') {
-						if (foundtag) throw Exception(QString("Replacement '#' double used inside counted tag '%1' in '%2' key!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+						if (foundtag) throw Exception(QString("Replacement '#' double used inside counted tag '%1' in '%2' key!").arg(tagName).arg(varName));
 						foundtag = true;
 						if (from > start) subvarValue.append(start, int(from - start));
 						subvarValue.append(tagReplacer.toUtf8());
@@ -163,20 +163,20 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 					++from;
 				}
 				if (!readingValue) continue;
-				if (from >= end) throw Exception(QString("Unexpected end of file inside counted tag '%1' in '%2' key!").arg(QString::fromUtf8(tagName)).arg(QString::fromUtf8(varName)));
-				if (*from == '"') throw Exception(QString("Unexpected end of string inside counted tag '%1' in '%2' key!").arg(QString::fromUtf8(tagName)).arg(QString::fromUtf8(varName)));
+				if (from >= end) throw Exception(QString("Unexpected end of file inside counted tag '%1' in '%2' key!").arg(tagName).arg(varName));
+				if (*from == '"') throw Exception(QString("Unexpected end of string inside counted tag '%1' in '%2' key!").arg(tagName).arg(varName));
 
 				if (from > start) subvarValue.append(start, int(from - start));
-				if (countedIndex >= lngtags_max_counted_values) throw Exception(QString("Too many values inside counted tag '%1' in '%2' key!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+				if (countedIndex >= lngtags_max_counted_values) throw Exception(QString("Too many values inside counted tag '%1' in '%2' key!").arg(tagName).arg(varName));
 
 				LangKey subkey = subkeyIndex(varKey, index, countedIndex++);
 				if (subkey == lngkeys_cnt) {
 					readingValue = false;
-					warning(QString("Unexpected counted tag '%1' in key '%2', not using value.").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+					warning(QString("Unexpected counted tag '%1' in key '%2', not using value.").arg(tagName).arg(varName));
 					break;
 				} else {
 					if (feedingValue) {
-						if (!feedKeyValue(subkey, QString::fromUtf8(subvarValue))) throw Exception(QString("Tag '%1' is not counted in key '%2'!").arg(QLatin1String(tagName)).arg(QLatin1String(varName)));
+						if (!feedKeyValue(subkey, QString::fromUtf8(subvarValue))) throw Exception(QString("Tag '%1' is not counted in key '%2'!").arg(tagName).arg(varName));
 					} else {
 						foundKeyValue(subkey);
 					}
@@ -186,17 +186,17 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 		}
 		++from;
 	}
-	if (from >= end) throw Exception(QString("Unexpected end of file in key '%1'!").arg(QLatin1String(varName)));
+	if (from >= end) throw Exception(QString("Unexpected end of file in key '%1'!").arg(varName));
 	if (readingValue && from > start) varValue.append(start, from - start);
 
-	if (!skipWhitespaces(++from, end)) throw Exception(QString("Unexpected end of file in key '%1'!").arg(QLatin1String(varName)));
-	if (*from != ';') throw Exception(QString("';' expected after \"value\" in key '%1'!").arg(QLatin1String(varName)));
+	if (!skipWhitespaces(++from, end)) throw Exception(QString("Unexpected end of file in key '%1'!").arg(varName));
+	if (*from != ';') throw Exception(QString("';' expected after \"value\" in key '%1'!").arg(varName));
 
 	skipWhitespaces(++from, end);
 
 	if (readingValue) {
 		if (feedingValue) {
-			if (!feedKeyValue(varKey, QString::fromUtf8(varValue))) throw Exception(QString("Could not write value in key '%1'!").arg(QLatin1String(varName)));
+			if (!feedKeyValue(varKey, QString::fromUtf8(varValue))) throw Exception(QString("Could not write value in key '%1'!").arg(varName));
 		} else {
 			foundKeyValue(varKey);
 			result.insert(varKey, QString::fromUtf8(varValue));

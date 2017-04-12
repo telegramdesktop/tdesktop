@@ -1133,11 +1133,11 @@ void initPxValues() {\n\
 	if (cRetina()) return;\n\
 \n\
 	switch (cScale()) {\n";
-	for (int i = 1, scalesCount = scales.size(); i < scalesCount; ++i) {
-		source_->stream() << "\tcase " << scaleNames.at(i) << ":\n";
+	for (int i = 1, scalesCount = _scales.size(); i < scalesCount; ++i) {
+		source_->stream() << "\tcase " << _scaleNames.at(i) << ":\n";
 		for (auto it = pxValues_.cbegin(), e = pxValues_.cend(); it != e; ++it) {
 			auto value = it.key();
-			int adjusted = structure::data::pxAdjust(value, scales.at(i));
+			int adjusted = structure::data::pxAdjust(value, _scales.at(i));
 			if (adjusted != value) {
 				source_->stream() << "\t\t" << pxValueName(value) << " = " << adjusted << ";\n";
 			}

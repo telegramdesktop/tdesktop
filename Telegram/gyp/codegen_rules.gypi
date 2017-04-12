@@ -80,7 +80,7 @@
   }, {
     'action_name': 'codegen_lang',
     'inputs': [
-      '<(PRODUCT_DIR)/MetaLang<(exe_ext)',
+      '<(PRODUCT_DIR)/codegen_lang<(exe_ext)',
       '<(res_loc)/langs/lang.strings',
     ],
     'outputs': [
@@ -88,9 +88,9 @@
       '<(SHARED_INTERMEDIATE_DIR)/lang_auto.h',
     ],
     'action': [
-      '<(PRODUCT_DIR)/MetaLang<(exe_ext)',
-      '-lang_in', '<(res_loc)/langs/lang.strings',
-      '-lang_out', '<(SHARED_INTERMEDIATE_DIR)/lang_auto',
+      '<(PRODUCT_DIR)/codegen_lang<(exe_ext)',
+      '-o<(SHARED_INTERMEDIATE_DIR)', '<(res_loc)/langs/lang.strings',
+      '-w<(PRODUCT_DIR)/../..',
     ],
     'message': 'codegen_lang-ing lang.strings..',
     'process_outputs_as_sources': 1,
@@ -107,6 +107,7 @@
     'action': [
       '<(PRODUCT_DIR)/codegen_numbers<(exe_ext)',
       '-o<(SHARED_INTERMEDIATE_DIR)', '<(res_loc)/numbers.txt',
+      '-w<(PRODUCT_DIR)/../..',
     ],
     'message': 'codegen_numbers-ing numbers.txt..',
     'process_outputs_as_sources': 1,

@@ -22,6 +22,35 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "langloaderplain.h"
 
+LangString LangString::tag(ushort tag, const QString &replacement) {
+	for (const QChar *s = constData(), *ch = s, *e = ch + size(); ch != e;) {
+		if (*ch == TextCommand) {
+			if (ch + 3 < e && (ch + 1)->unicode() == TextCommandLangTag && *(ch + 3) == TextCommand) {
+				if ((ch + 2)->unicode() == 0x0020 + tag) {
+					LangString result;
+					result.reserve(size() + replacement.size() - 4);
+					if (ch > s) result.append(midRef(0, ch - s));
+					result.append(replacement);
+					if (ch + 4 < e) result.append(midRef(ch - s + 4));
+					return result;
+				} else {
+					ch += 4;
+				}
+			} else {
+				const QChar *next = textSkipCommand(ch, e);
+				if (next == ch) {
+					++ch;
+				} else {
+					ch = next;
+				}
+			}
+		} else {
+			++ch;
+		}
+	}
+	return *this;
+}
+
 LangString langCounted(ushort key0, ushort tag, float64 value) { // current lang dependent
 	int v = qFloor(value);
 	QString sv;

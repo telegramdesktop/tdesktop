@@ -21,36 +21,39 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include <memory>
+#include <map>
+#include <set>
+#include <functional>
 #include <QtCore/QString>
-#include "codegen/style/options.h"
+#include <QtCore/QSet>
+#include "codegen/common/cpp_file.h"
+#include "codegen/lang/parsed_file.h"
 
 namespace codegen {
-namespace style {
-namespace structure {
-class Module;
-} // namespace structure
-class ParsedFile;
+namespace lang {
 
-// Walks through a file, parses it and parses dependency files if necessary.
-// Uses Generator class to produce the final output.
-class Processor {
+class Generator {
 public:
-	explicit Processor(const Options &options);
-	Processor(const Processor &other) = delete;
-	Processor &operator=(const Processor &other) = delete;
+	Generator(const Langpack &langpack, const QString &destBasePath, const common::ProjectInfo &project);
+	Generator(const Generator &other) = delete;
+	Generator &operator=(const Generator &other) = delete;
 
-	// Returns 0 on success.
-	int launch();
-
-	~Processor();
+	bool writeHeader();
+	bool writeSource();
 
 private:
-	bool write(const structure::Module &module) const;
+	QString getFullKey(const Langpack::Entry &entry);
+	bool isTagPlural(const QString &key, const QString &tag) const;
 
-	std::unique_ptr<ParsedFile> parser_;
-	const Options &options_;
+	template <typename ComputeResult>
+	void writeSetSearch(const std::set<QString, std::greater<QString>> &set, ComputeResult computeResult, const QString &invalidResult);
+
+	const Langpack &langpack_;
+	QString basePath_, baseName_;
+	const common::ProjectInfo &project_;
+	std::unique_ptr<common::CppFile> source_, header_;
 
 };
 
-} // namespace style
+} // namespace lang
 } // namespace codegen

@@ -18,14 +18,15 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "codegen/numbers/options.h"
+#include "codegen/lang/options.h"
 
 #include <ostream>
 #include <QtCore/QCoreApplication>
+#include <QtCore/QDir>
 #include "codegen/common/logging.h"
 
 namespace codegen {
-namespace numbers {
+namespace lang {
 namespace {
 
 constexpr int kErrorOutputPathExpected      = 902;
@@ -40,7 +41,7 @@ using common::logError;
 Options parseOptions() {
 	Options result;
 	auto args = QCoreApplication::instance()->arguments();
-	for (auto i = 1, count = args.size(); i < count; ++i) { // skip first
+	for (int i = 1, count = args.size(); i < count; ++i) { // skip first
 		auto &arg = args.at(i);
 
 		// Output path
@@ -82,5 +83,5 @@ Options parseOptions() {
 	return result;
 }
 
-} // namespace numbers
+} // namespace lang
 } // namespace codegen

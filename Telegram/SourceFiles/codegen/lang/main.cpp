@@ -18,6 +18,19 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include <QtCore/QTimer>
+#include <QtCore/QCoreApplication>
 
-#include "genlang.h"
+#include "codegen/lang/options.h"
+#include "codegen/lang/processor.h"
+
+int main(int argc, char *argv[]) {
+	QCoreApplication app(argc, argv);
+
+	auto options = codegen::lang::parseOptions();
+	if (options.inputPath.isEmpty()) {
+		return -1;
+	}
+
+	codegen::lang::Processor processor(options);
+	return processor.launch();
+}

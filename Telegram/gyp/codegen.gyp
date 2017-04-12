@@ -22,18 +22,10 @@
     'common.gypi',
   ],
   'targets': [{
-    'target_name': 'MetaLang',
+    'target_name': 'codegen_lang',
     'variables': {
-      'libs_loc': '../../../Libraries',
       'src_loc': '../SourceFiles',
-      'gen_loc': '../GeneratedFiles',
       'mac_target': '10.10',
-      'sources': [
-        '<(src_loc)/_other/mlmain.cpp',
-        '<(src_loc)/_other/mlmain.h',
-        '<(src_loc)/_other/genlang.cpp',
-        '<(src_loc)/_other/genlang.h',
-      ],
     },
     'includes': [
       'common_executable.gypi',
@@ -42,15 +34,33 @@
 
     'include_dirs': [
       '<(src_loc)',
-      '<(gen_loc)',
     ],
     'sources': [
-      '<!@(python <(DEPTH)/list_sources.py <@(sources) <(qt_moc_list_sources_arg))',
+      '<(src_loc)/codegen/common/basic_tokenized_file.cpp',
+      '<(src_loc)/codegen/common/basic_tokenized_file.h',
+      '<(src_loc)/codegen/common/checked_utf8_string.cpp',
+      '<(src_loc)/codegen/common/checked_utf8_string.h',
+      '<(src_loc)/codegen/common/clean_file.cpp',
+      '<(src_loc)/codegen/common/clean_file.h',
+      '<(src_loc)/codegen/common/clean_file_reader.h',
+      '<(src_loc)/codegen/common/const_utf8_string.h',
+      '<(src_loc)/codegen/common/cpp_file.cpp',
+      '<(src_loc)/codegen/common/cpp_file.h',
+      '<(src_loc)/codegen/common/logging.cpp',
+      '<(src_loc)/codegen/common/logging.h',
+      '<(src_loc)/codegen/lang/generator.cpp',
+      '<(src_loc)/codegen/lang/generator.h',
+      '<(src_loc)/codegen/lang/main.cpp',
+      '<(src_loc)/codegen/lang/options.cpp',
+      '<(src_loc)/codegen/lang/options.h',
+      '<(src_loc)/codegen/lang/parsed_file.cpp',
+      '<(src_loc)/codegen/lang/parsed_file.h',
+      '<(src_loc)/codegen/lang/processor.cpp',
+      '<(src_loc)/codegen/lang/processor.h',
     ],
   }, {
     'target_name': 'codegen_style',
     'variables': {
-      'libs_loc': '../../../Libraries',
       'src_loc': '../SourceFiles',
       'mac_target': '10.10',
     },
@@ -92,7 +102,6 @@
   }, {
     'target_name': 'codegen_numbers',
     'variables': {
-      'libs_loc': '../../../Libraries',
       'src_loc': '../SourceFiles',
       'mac_target': '10.10',
     },
@@ -130,7 +139,6 @@
   }, {
     'target_name': 'codegen_emoji',
     'variables': {
-      'libs_loc': '../../../Libraries',
       'src_loc': '../SourceFiles',
       'mac_target': '10.10',
     },

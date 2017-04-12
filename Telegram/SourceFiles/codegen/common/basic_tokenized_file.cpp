@@ -192,6 +192,9 @@ Type BasicTokenizedFile::readString() {
 	while (!reader_.atEnd()) {
 		auto ch = reader_.currentChar();
 		if (ch == '"') {
+			if (reader_.currentPtr() > offset) {
+				value.append(offset, reader_.currentPtr() - offset);
+			}
 			break;
 		}
 		if (ch == '\n') {
@@ -200,15 +203,15 @@ Type BasicTokenizedFile::readString() {
 			return Type::Invalid;
 		}
 		if (ch == '\\') {
+			if (reader_.currentPtr() > offset) {
+				value.append(offset, reader_.currentPtr() - offset);
+			}
 			reader_.skipChar();
 			ch = reader_.currentChar();
 			if (reader_.atEnd() || ch == '\n') {
 				reader_.logError(kErrorUnterminatedStringLiteral, lineNumber_) << "unterminated string literal.";
 				failed_ = true;
 				return Type::Invalid;
-			}
-			if (reader_.currentPtr() > offset + 1) {
-				value.append(offset, reader_.currentPtr() - offset - 1);
 			}
 			offset = reader_.currentPtr() + 1;
 			if (ch == 'n') {
@@ -220,8 +223,6 @@ Type BasicTokenizedFile::readString() {
 			} else if (ch == '\\') {
 				value.append('\\');
 			}
-		} else {
-			value.append(ch);
 		}
 		reader_.skipChar();
 	}

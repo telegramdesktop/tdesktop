@@ -386,7 +386,8 @@ void Messenger::loadLanguage() {
 			LOG(("Lang load warnings: %1").arg(loader.warnings()));
 		}
 	}
-	QCoreApplication::instance()->installTranslator(_translator = new Translator());
+	_translator = std::make_unique<Translator>();
+	QCoreApplication::instance()->installTranslator(_translator.get());
 }
 
 void Messenger::startLocalStorage() {
@@ -751,7 +752,6 @@ Messenger::~Messenger() {
 	deinitLocationManager();
 
 	delete base::take(_uploader);
-	delete base::take(_translator);
 
 	Window::Theme::Unload();
 

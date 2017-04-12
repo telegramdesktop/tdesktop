@@ -22,17 +22,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <memory>
 #include <QtCore/QString>
-#include "codegen/style/options.h"
+#include "codegen/lang/options.h"
 
 namespace codegen {
-namespace style {
-namespace structure {
-class Module;
-} // namespace structure
+namespace lang {
 class ParsedFile;
+struct Langpack;
 
-// Walks through a file, parses it and parses dependency files if necessary.
-// Uses Generator class to produce the final output.
+// Walks through a file, parses it and generates the output.
 class Processor {
 public:
 	explicit Processor(const Options &options);
@@ -45,12 +42,12 @@ public:
 	~Processor();
 
 private:
-	bool write(const structure::Module &module) const;
+	bool write(const Langpack &langpack) const;
 
 	std::unique_ptr<ParsedFile> parser_;
 	const Options &options_;
 
 };
 
-} // namespace style
+} // namespace lang
 } // namespace codegen
