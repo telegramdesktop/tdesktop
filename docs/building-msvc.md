@@ -37,6 +37,11 @@ Choose a folder for the future build, for example **D:\\TBuild\\**. There you wi
 
 All commands (if not stated otherwise) will be launched from **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder).
 
+#### Note on D:\\TBuild
+part of the scripts are explicity looking for that path. If you want to use another path, or maybe you don't even have a D drive - you can map a network drive as follows (from cmd):
+
+    net use D: \\localhost\c$\base_folder_for_telegram_dev
+
 ## Clone source code
 
 Go to **D:\\TBuild**
@@ -158,7 +163,7 @@ Go to **D:\\TBuild\\Libraries** and run
     cd ffmpeg
     git checkout release/3.2
 
-http://msys2.github.io/ > Download [msys2-x86_64-20150512.exe](http://sourceforge.net/projects/msys2/files/Base/x86_64/msys2-x86_64-20150512.exe/download) and install to **D:\\msys64**
+http://msys2.github.io/ > Download [msys2-x86_64-20161025.exe](http://repo.msys2.org/distrib/x86_64/msys2-x86_64-20161025.exe) and install to **D:\\msys64**
 
 #### Building libraries
 
@@ -202,7 +207,7 @@ While still running the VS2015 x86 Native Tools Command Prompt, go to **D:\\msys
 
 #### Install Windows SDKs
 
-If you didn't install Windows SDKs before, you need to install them now. To install the SDKs just open Telegram solution at **D:\TBuild\tdesktop\Telegram.sln** and on startup Visual Studio 2015 will popup dialog box and ask to download and install extra components (including Windows 7 SDK).
+If you didn't install Windows SDKs before, you need to install them now. To install the SDKs just open Telegram solution at **D:\TBuild\tdesktop\Telegram.sln** ([jump here to generate Telegram.sln](#setup-gypninja-and-generate-vs-solution)) and on startup Visual Studio 2015 will popup dialog box and ask to download and install extra components (including Windows 7 SDK).
 
 If you already have Windows SDKs then find the library folder and correct it at configure's command below (like **C:\Program Files (x86)\Windows Kits\8.0\Lib\win8\um\x86**).
 
@@ -273,17 +278,20 @@ run `git reset --hard HEAD` and execute `gclient` again
     git clone https://chromium.googlesource.com/external/gyp
     SET PATH=%PATH%;D:\TBuild\Libraries\gyp;D:\TBuild\Libraries\ninja;
     cd ..\tdesktop\Telegram
+    
+Also, actually add **D:\\TBuild\\Libraries\\ninja\\** (not just for running the **gyp** command) to your path environment variable, since Telegram need it for the build process.
 
 If you want to pass a build define (like `TDESKTOP_DISABLE_AUTOUPDATE` or `TDESKTOP_DISABLE_NETWORK_PROXY`), call `set TDESKTOP_BUILD_DEFINES=TDESKTOP_DISABLE_AUTOUPDATE,TDESKTOP_DISABLE_NETWORK_PROXY,...` (comma seperated string)
 
-After, call `gyp\refresh.bat`
+After, call `gyp\refresh.bat` (python 2.7 needed)
 
 #### Configure VS
 
 * Launch VS2015 for configuring Qt5Package
 * QT5 > Qt Options > Add
   * Version name: **Qt 5.6.22Win32**
-  * Path: **D:\TBuild\Libraries\qt5_6_2\qtbase**
+  * Path: **D:\TBuild\Libraries\qt5_6_2\qtbase** 
+    * If you made a network map, here you should use the real path! (e.g *C:\base_folder_for_telegram_dev* or what you used at the beginning)
 * Default Qt/Win version: **Qt 5.6.2 Win32** – **OK** - You may need to restart Visual Studio for this to take effect.
 
 #### Build the project
