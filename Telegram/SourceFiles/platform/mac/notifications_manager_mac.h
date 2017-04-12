@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "platform/platform_notifications_manager.h"
+#include "base/weak_unique_ptr.h"
 
 namespace Platform {
 namespace Notifications {
@@ -28,7 +29,7 @@ namespace Notifications {
 bool SkipAudio();
 bool SkipToast();
 
-class Manager : public Window::Notifications::NativeManager {
+class Manager : public Window::Notifications::NativeManager, public base::enable_weak_from_this {
 public:
 	Manager(Window::Notifications::System *system);
 	~Manager();

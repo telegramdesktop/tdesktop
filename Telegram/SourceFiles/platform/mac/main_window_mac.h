@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "platform/platform_main_window.h"
 #include "platform/mac/specific_mac_p.h"
+#include "base/timer.h"
 
 namespace Platform {
 
@@ -64,9 +65,6 @@ public slots:
 	void psMacPaste();
 	void psMacDelete();
 	void psMacSelectAll();
-
-private slots:
-	void onHideAfterFullScreen();
 
 protected:
 	bool eventFilter(QObject *obj, QEvent *evt) override;
@@ -119,7 +117,7 @@ private:
 	mutable bool psIdle;
 	mutable QTimer psIdleTimer;
 
-	QTimer _hideAfterFullScreenTimer;
+	base::Timer _hideAfterFullScreenTimer;
 
 	QMenuBar psMainMenu;
 	QAction *psLogout = nullptr;

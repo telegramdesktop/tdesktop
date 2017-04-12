@@ -26,12 +26,19 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "platform/mac/mac_utilities.h"
 #include "styles/style_window.h"
 #include "lang.h"
+#include "base/timer.h"
 
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
 #include <IOKit/IOKitLib.h>
 #include <IOKit/hidsystem/ev_keymap.h>
 #include <SPMediaKeyTap.h>
+
+namespace {
+
+constexpr auto kIgnoreActivationTimeoutMs = 1500;
+
+} // namespace
 
 using Platform::Q2NSString;
 using Platform::NSlang;
@@ -48,10 +55,11 @@ using Platform::NS2QString;
 
 - (id)debugQuickLookObject;
 
-@end
+@end // @interface qVisualize
 
 @implementation qVisualize {
 	NSString *value;
+
 }
 
 + (id)bytearr:(const QByteArray &)arr {
@@ -78,59 +86,68 @@ using Platform::NS2QString;
 	return value;
 }
 
-@end
+@end // @implementation qVisualize
 
 @interface ApplicationDelegate : NSObject<NSApplicationDelegate> {
-
-SPMediaKeyTap *keyTap;
-BOOL watchingMediaKeys;
-
 }
 
-- (BOOL)applicationShouldHandleReopen:(NSApplication *)theApplication hasVisibleWindows:(BOOL)flag;
-- (void)applicationDidFinishLaunching:(NSNotification *)aNotification;
-- (void)applicationDidBecomeActive:(NSNotification *)aNotification;
-- (void)receiveWakeNote:(NSNotification*)note;
-- (void)setWatchingMediaKeys:(BOOL)watching;
-- (BOOL)isWatchingMediaKeys;
-- (void)mediaKeyTap:(SPMediaKeyTap*)keyTap receivedMediaKeyEvent:(NSEvent*)event;
+- (BOOL) applicationShouldHandleReopen:(NSApplication *)theApplication hasVisibleWindows:(BOOL)flag;
+- (void) applicationDidFinishLaunching:(NSNotification *)aNotification;
+- (void) applicationDidBecomeActive:(NSNotification *)aNotification;
+- (void) receiveWakeNote:(NSNotification*)note;
 
-@end
+- (void) setWatchingMediaKeys:(bool)watching;
+- (bool) isWatchingMediaKeys;
+- (void) mediaKeyTap:(SPMediaKeyTap*)keyTap receivedMediaKeyEvent:(NSEvent*)event;
+
+- (void) ignoreApplicationActivationRightNow;
+
+@end // @interface ApplicationDelegate
 
 ApplicationDelegate *_sharedDelegate = nil;
 
 @implementation ApplicationDelegate {
+	SPMediaKeyTap *_keyTap;
+	bool _watchingMediaKeys;
+	bool _ignoreActivation;
+	base::Timer _ignoreActivationStop;
 }
 
-- (BOOL)applicationShouldHandleReopen:(NSApplication *)theApplication hasVisibleWindows:(BOOL)flag {
+- (BOOL) applicationShouldHandleReopen:(NSApplication *)theApplication hasVisibleWindows:(BOOL)flag {
 	if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
 	return YES;
 }
 
-- (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
-	keyTap = nullptr;
-	watchingMediaKeys = false;
+- (void) applicationDidFinishLaunching:(NSNotification *)aNotification {
+	_keyTap = nullptr;
+	_watchingMediaKeys = false;
+	_ignoreActivation = false;
+	_ignoreActivationStop.setCallback([self] {
+		_ignoreActivation = false;
+	});
 #ifndef OS_MAC_STORE
 	if ([SPMediaKeyTap usesGlobalMediaKeyTap]) {
-		keyTap = [[SPMediaKeyTap alloc] initWithDelegate:self];
+		_keyTap = [[SPMediaKeyTap alloc] initWithDelegate:self];
 	} else {
 		LOG(("Media key monitoring disabled"));
 	}
 #endif // else for !OS_MAC_STORE
 }
 
-- (void)applicationDidBecomeActive:(NSNotification *)aNotification {
+- (void) applicationDidBecomeActive:(NSNotification *)aNotification {
 	if (auto messenger = Messenger::InstancePointer()) {
-		messenger->handleAppActivated();
-		if (auto window = App::wnd()) {
-			if (window->isHidden()) {
-				window->showFromTray();
+		if (!_ignoreActivation) {
+			messenger->handleAppActivated();
+			if (auto window = App::wnd()) {
+				if (window->isHidden()) {
+					window->showFromTray();
+				}
 			}
 		}
 	}
 }
 
-- (void)receiveWakeNote:(NSNotification*)aNotification {
+- (void) receiveWakeNote:(NSNotification*)aNotification {
 	if (auto messenger = Messenger::InstancePointer()) {
 		messenger->checkLocalTime();
 	}
@@ -139,38 +156,43 @@ ApplicationDelegate *_sharedDelegate = nil;
 	Media::Player::DetachFromDeviceByTimer();
 }
 
-- (void)setWatchingMediaKeys:(BOOL)watching {
-	if (watchingMediaKeys != watching) {
-		watchingMediaKeys = watching;
-		if (keyTap) {
+- (void) setWatchingMediaKeys:(bool)watching {
+	if (_watchingMediaKeys != watching) {
+		_watchingMediaKeys = watching;
+		if (_keyTap) {
 #ifndef OS_MAC_STORE
-			if (watchingMediaKeys) {
-				[keyTap startWatchingMediaKeys];
+			if (_watchingMediaKeys) {
+				[_keyTap startWatchingMediaKeys];
 			} else {
-				[keyTap stopWatchingMediaKeys];
+				[_keyTap stopWatchingMediaKeys];
 			}
 #endif // else for !OS_MAC_STORE
 		}
 	}
 }
 
-- (BOOL)isWatchingMediaKeys {
-	return watchingMediaKeys;
+- (bool) isWatchingMediaKeys {
+	return _watchingMediaKeys;
 }
 
-- (void)mediaKeyTap:(SPMediaKeyTap*)keyTap receivedMediaKeyEvent:(NSEvent*)e {
+- (void) mediaKeyTap:(SPMediaKeyTap*)keyTap receivedMediaKeyEvent:(NSEvent*)e {
 	if (e && [e type] == NSSystemDefined && [e subtype] == SPSystemDefinedEventMediaKeys) {
 		objc_handleMediaKeyEvent(e);
 	}
 }
 
-@end
+- (void) ignoreApplicationActivationRightNow {
+	_ignoreActivation = true;
+	_ignoreActivationStop.callOnce(kIgnoreActivationTimeoutMs);
+}
+
+@end // @implementation ApplicationDelegate
 
 namespace Platform {
 
 void SetWatchingMediaKeys(bool watching) {
 	if (_sharedDelegate) {
-		[_sharedDelegate setWatchingMediaKeys:(watching ? YES : NO)];
+		[_sharedDelegate setWatchingMediaKeys:watching];
 	}
 }
 
@@ -327,12 +349,19 @@ void objc_start() {
 															   name: NSWorkspaceDidWakeNotification object: NULL];
 }
 
+void objc_ignoreApplicationActivationRightNow() {
+	if (_sharedDelegate) {
+		[_sharedDelegate ignoreApplicationActivationRightNow];
+	}
+}
+
 namespace {
 	NSURL *_downloadPathUrl = nil;
 }
 
 void objc_finish() {
 	[_sharedDelegate release];
+	_sharedDelegate = nil;
 	if (_downloadPathUrl) {
 		[_downloadPathUrl stopAccessingSecurityScopedResource];
 		_downloadPathUrl = nil;

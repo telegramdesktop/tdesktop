@@ -37,6 +37,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <IOKit/hidsystem/ev_keymap.h>
 #include <SPMediaKeyTap.h>
 
+namespace {
+
+// When we close a window that is fullscreen we first leave the fullscreen
+// mode and after that hide the window. This is a timeout for elaving the
+// fullscreen mode, after that we'll hide the window no matter what.
+constexpr auto kHideAfterFullscreenTimeoutMs = 3000;
+
+} // namespace
+
 @interface MainWindowObserver : NSObject {
 }
 
@@ -48,7 +57,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 - (void) windowWillEnterFullScreen:(NSNotification *)aNotification;
 - (void) windowWillExitFullScreen:(NSNotification *)aNotification;
 
-@end
+@end // @interface MainWindowObserver
 
 namespace Platform {
 
@@ -105,8 +114,7 @@ public:
 } // namespace Platform
 
 @implementation MainWindowObserver {
-
-MainWindow::Private *_private;
+	MainWindow::Private *_private;
 
 }
 
@@ -141,7 +149,7 @@ MainWindow::Private *_private;
 	_private->willExitFullScreen();
 }
 
-@end
+@end // @implementation MainWindowObserver
 
 namespace Platform {
 
@@ -239,8 +247,7 @@ MainWindow::MainWindow()
 	trayImg = st::macTrayIcon.instance(QColor(0, 0, 0, 180), dbisOne);
 	trayImgSel = st::macTrayIcon.instance(QColor(255, 255, 255), dbisOne);
 
-	_hideAfterFullScreenTimer.setSingleShot(true);
-	connect(&_hideAfterFullScreenTimer, SIGNAL(timeout()), this, SLOT(onHideAfterFullScreen()));
+	_hideAfterFullScreenTimer.setCallback([this] { hideAndDeactivate(); });
 }
 
 void MainWindow::closeWithoutDestroy() {
@@ -248,7 +255,7 @@ void MainWindow::closeWithoutDestroy() {
 
 	auto isFullScreen = (([nsWindow styleMask] & NSFullScreenWindowMask) == NSFullScreenWindowMask);
 	if (isFullScreen) {
-		_hideAfterFullScreenTimer.start(3000);
+		_hideAfterFullScreenTimer.callOnce(kHideAfterFullscreenTimeoutMs);
 		[nsWindow toggleFullScreen:nsWindow];
 	} else {
 		hideAndDeactivate();
@@ -257,8 +264,7 @@ void MainWindow::closeWithoutDestroy() {
 
 void MainWindow::stateChangedHook(Qt::WindowState state) {
 	if (_hideAfterFullScreenTimer.isActive()) {
-		_hideAfterFullScreenTimer.stop();
-		QTimer::singleShot(0, this, SLOT(onHideAfterFullScreen()));
+		_hideAfterFullScreenTimer.callOnce(0);
 	}
 }
 
@@ -278,14 +284,8 @@ void MainWindow::titleVisibilityChangedHook() {
 	updateTitleCounter();
 }
 
-void MainWindow::onHideAfterFullScreen() {
-	hideAndDeactivate();
-}
-
 void MainWindow::hideAndDeactivate() {
 	hide();
-	NSWindow *nsWindow = [reinterpret_cast<NSView*>(winId()) window];
-	[[NSApplication sharedApplication] hide: nsWindow];
 }
 
 QImage MainWindow::psTrayIcon(bool selected) const {

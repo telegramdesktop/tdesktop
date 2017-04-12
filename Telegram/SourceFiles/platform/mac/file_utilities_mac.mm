@@ -51,13 +51,17 @@ QString strNeedToRefresh2() {
 	NSString *fullname;
 	NSURL *app;
 	NSImage *icon;
+
 }
+
 @property (nonatomic, retain) NSString *fullname;
 @property (nonatomic, retain) NSURL *app;
 @property (nonatomic, retain) NSImage *icon;
-@end
+
+@end // @interface OpenWithApp
 
 @implementation OpenWithApp
+
 @synthesize fullname, app, icon;
 
 - (void) dealloc {
@@ -67,7 +71,7 @@ QString strNeedToRefresh2() {
 	[super dealloc];
 }
 
-@end
+@end // @implementation OpenWithApp
 
 @interface OpenFileWithInterface : NSObject {
 }
@@ -77,7 +81,7 @@ QString strNeedToRefresh2() {
 - (void) itemChosen:(id)sender;
 - (void) dealloc;
 
-@end
+@end // @interface OpenFileWithInterface
 
 @implementation OpenFileWithInterface {
 	NSString *toOpen;
@@ -89,6 +93,7 @@ QString strNeedToRefresh2() {
 	NSMutableArray *apps;
 
 	NSMenu *menu;
+
 }
 
 - (void) fillAppByUrl:(NSURL*)url bundle:(NSString**)bundle name:(NSString**)name version:(NSString**)version icon:(NSImage**)icon {
@@ -233,13 +238,13 @@ QString strNeedToRefresh2() {
 	[super dealloc];
 }
 
-@end
+@end // @implementation OpenFileWithInterface
 
 @interface NSURL(CompareUrls)
 
 - (BOOL) isEquivalent:(NSURL *)aURL;
 
-@end
+@end // @interface NSURL(CompareUrls)
 
 @implementation NSURL(CompareUrls)
 
@@ -253,7 +258,7 @@ QString strNeedToRefresh2() {
 	return YES;
 }
 
-@end
+@end // @implementation NSURL(CompareUrls)
 
 @interface ChooseApplicationDelegate : NSObject<NSOpenSavePanelDelegate> {
 }
@@ -264,7 +269,7 @@ QString strNeedToRefresh2() {
 - (void) menuDidClose;
 - (void) dealloc;
 
-@end
+@end // @interface ChooseApplicationDelegate
 
 @implementation ChooseApplicationDelegate {
 	BOOL onlyRecommended;
@@ -275,6 +280,7 @@ QString strNeedToRefresh2() {
 	NSImageView *icon;
 	NSString *recom;
 	NSView *accessory;
+
 }
 
 - (id) init:(NSArray *)recommendedApps withPanel:(NSOpenPanel *)creator withSelector:(NSPopUpButton *)menu withGood:(NSTextField *)goodLabel withBad:(NSTextField *)badLabel withIcon:(NSImageView *)badIcon withAccessory:(NSView *)acc {
@@ -379,7 +385,7 @@ QString strNeedToRefresh2() {
 	[super dealloc];
 }
 
-@end
+@end // @implementation ChooseApplicationDelegate
 
 namespace Platform {
 namespace File {

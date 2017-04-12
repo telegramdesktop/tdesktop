@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "base/task_queue.h"
 
+#include <thread>
 #include <Cocoa/Cocoa.h>
 
 namespace {
@@ -54,19 +55,18 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 @interface NotificationDelegate : NSObject<NSUserNotificationCenterDelegate> {
 }
 
-- (id) initWithManager:(std::shared_ptr<Manager*>)manager;
-- (void)userNotificationCenter:(NSUserNotificationCenter *)center didActivateNotification:(NSUserNotification *)notification;
-- (BOOL)userNotificationCenter:(NSUserNotificationCenter *)center shouldPresentNotification:(NSUserNotification *)notification;
+- (id) initWithManager:(base::weak_unique_ptr<Manager>)manager;
+- (void) userNotificationCenter:(NSUserNotificationCenter*)center didActivateNotification:(NSUserNotification*)notification;
+- (BOOL) userNotificationCenter:(NSUserNotificationCenter*)center shouldPresentNotification:(NSUserNotification*)notification;
 
-@end
+@end // @interface NotificationDelegate
 
 @implementation NotificationDelegate {
-
-std::weak_ptr<Manager*> _manager;
+	base::weak_unique_ptr<Manager> _manager;
 
 }
 
-- (id) initWithManager:(std::shared_ptr<Manager*>)manager {
+- (id) initWithManager:(base::weak_unique_ptr<Manager>)manager {
 	if (self = [super init]) {
 		_manager = manager;
 	}
@@ -77,14 +77,27 @@ std::weak_ptr<Manager*> _manager;
 	NSDictionary *notificationUserInfo = [notification userInfo];
 	NSNumber *launchIdObject = [notificationUserInfo objectForKey:@"launch"];
 	auto notificationLaunchId = launchIdObject ? [launchIdObject unsignedLongLongValue] : 0ULL;
-	DEBUG_LOG(("Received notification with instance %1").arg(notificationLaunchId));
+	DEBUG_LOG(("Received notification with instance %1, mine: %2").arg(notificationLaunchId).arg(Global::LaunchId()));
 	if (notificationLaunchId != Global::LaunchId()) { // other app instance notification
+		base::TaskQueue::Main().Put([] {
+			// Usually we show and activate main window when the application
+			// is activated (receives applicationDidBecomeActive: notification).
+			//
+			// This is used for window show in Cmd+Tab switching to the application.
+			//
+			// But when a notification arrives sometimes macOS still activates the app
+			// and we receive applicationDidBecomeActive: notification even if the
+			// notification was sent by another instance of the application. In that case
+			// we set a flag for a couple of seconds to ignore this app activation.
+			objc_ignoreApplicationActivationRightNow();
+		});
 		return;
 	}
 
 	NSNumber *peerObject = [notificationUserInfo objectForKey:@"peer"];
 	auto notificationPeerId = peerObject ? [peerObject unsignedLongLongValue] : 0ULL;
 	if (!notificationPeerId) {
+		LOG(("App Error: A notification with unknown peer was received"));
 		return;
 	}
 
@@ -92,23 +105,27 @@ std::weak_ptr<Manager*> _manager;
 	auto notificationMsgId = msgObject ? [msgObject intValue] : 0;
 	if (notification.activationType == NSUserNotificationActivationTypeReplied) {
 		auto notificationReply = QString::fromUtf8([[[notification response] string] UTF8String]);
-		if (auto manager = _manager.lock()) {
-			(*manager)->notificationReplied(notificationPeerId, notificationMsgId, notificationReply);
-		}
+		base::TaskQueue::Main().Put([manager = _manager, notificationPeerId, notificationMsgId, notificationReply] {
+			if (manager) {
+				manager->notificationReplied(notificationPeerId, notificationMsgId, notificationReply);
+			}
+		});
 	} else if (notification.activationType == NSUserNotificationActivationTypeContentsClicked) {
-		if (auto manager = _manager.lock()) {
-			(*manager)->notificationActivated(notificationPeerId, notificationMsgId);
-		}
+		base::TaskQueue::Main().Put([manager = _manager, notificationPeerId, notificationMsgId] {
+			if (manager) {
+				manager->notificationActivated(notificationPeerId, notificationMsgId);
+			}
+		});
 	}
 
 	[center removeDeliveredNotification: notification];
 }
 
-- (BOOL)userNotificationCenter:(NSUserNotificationCenter *)center shouldPresentNotification:(NSUserNotification *)notification {
+- (BOOL) userNotificationCenter:(NSUserNotificationCenter *)center shouldPresentNotification:(NSUserNotification *)notification {
 	return YES;
 }
 
-@end
+@end // @implementation NotificationDelegate
 
 namespace Platform {
 namespace Notifications {
@@ -156,6 +173,7 @@ void CustomNotificationShownHook(QWidget *widget) {
 class Manager::Private : public QObject, private base::Subscriber {
 public:
 	Private(Manager *manager);
+
 	void showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton);
 	void clearAll();
 	void clearFromHistory(History *history);
@@ -164,14 +182,12 @@ public:
 	~Private();
 
 private:
-	std::shared_ptr<Manager*> _guarded;
 	NotificationDelegate *_delegate = nullptr;
 
 };
 
 Manager::Private::Private(Manager *manager)
-: _guarded(std::make_shared<Manager*>(manager))
-, _delegate([[NotificationDelegate alloc] initWithManager:_guarded]) {
+: _delegate([[NotificationDelegate alloc] initWithManager:manager]) {
 	updateDelegate();
 	subscribe(Global::RefWorkMode(), [this](DBIWorkMode mode) {
 		// We need to update the delegate _after_ the tray icon change was done in Qt.
@@ -225,7 +241,6 @@ void Manager::Private::clearAll() {
 			[center removeDeliveredNotification:notification];
 		}
 	}
-	[center removeAllDeliveredNotifications];
 }
 
 void Manager::Private::clearFromHistory(History *history) {
