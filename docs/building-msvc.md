@@ -39,7 +39,9 @@ All commands (if not stated otherwise) will be launched from **VS2015 x86 Native
 
 #### A note on D:\\TBuild
 
-As part of the scripts are explicity looking for *D:\TBuild*, we need it to be available even if we want to locate the folder elsewhere.  If you want to use another path (don't have a D drive, or any other reason) - you can map a network drive as follows (from cmd): `net use D: \\localhost\c$\base_folder_for_telegram_dev`
+***In case you don't have a *D* drive, or prefer to use another working directory.***
+Since all of the examples and commands here are using the *D* drive, you might find it more comfortable to map the drive to a folder you of your choice. 
+For example, to map *D:\\* to *C:\\base_folder_for_telegram_dev*, open the cmd and execute: `net use D: \\localhost\c$\base_folder_for_telegram_dev`.
 
 ## Clone source code
 
@@ -278,7 +280,7 @@ run `git reset --hard HEAD` and execute `gclient` again
     SET PATH=%PATH%;D:\TBuild\Libraries\gyp;D:\TBuild\Libraries\ninja;
     cd ..\tdesktop\Telegram
     
-Also, actually add **D:\\TBuild\\Libraries\\ninja\\** (not just for running the **gyp** command) to your path environment variable, since Telegram need it for the build process.
+Also, actually add **D:\\TBuild\\Libraries\\ninja\\** (not just for running the **gyp** command) to your path environment variable, since Telegram needs it for the build process.
 
 If you want to pass a build define (like `TDESKTOP_DISABLE_AUTOUPDATE` or `TDESKTOP_DISABLE_NETWORK_PROXY`), call `set TDESKTOP_BUILD_DEFINES=TDESKTOP_DISABLE_AUTOUPDATE,TDESKTOP_DISABLE_NETWORK_PROXY,...` (comma seperated string)
 
