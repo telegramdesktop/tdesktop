@@ -46,7 +46,7 @@ void Downloader::requestedAmountIncrement(MTP::DcId dcId, int index, int amount)
 	Expects(index >= 0 && index < MTP::kDownloadSessionsCount);
 	auto it = _requestedBytesAmount.find(dcId);
 	if (it == _requestedBytesAmount.cend()) {
-		it = _requestedBytesAmount.emplace(dcId, RequestedInDc { 0 }).first;
+		it = _requestedBytesAmount.emplace(dcId, RequestedInDc { { 0 } }).first;
 	}
 	it->second[index] += amount;
 	if (it->second[index]) {
