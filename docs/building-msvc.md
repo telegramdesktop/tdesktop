@@ -37,10 +37,9 @@ Choose a folder for the future build, for example **D:\\TBuild\\**. There you wi
 
 All commands (if not stated otherwise) will be launched from **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder).
 
-#### Note on D:\\TBuild
-part of the scripts are explicity looking for that path. If you want to use another path, or maybe you don't even have a D drive - you can map a network drive as follows (from cmd):
+#### A note on D:\\TBuild
 
-    net use D: \\localhost\c$\base_folder_for_telegram_dev
+As part of the scripts are explicity looking for *D:\TBuild*, we need it to be available even if we want to locate the folder elsewhere.  If you want to use another path (don't have a D drive, or any other reason) - you can map a network drive as follows (from cmd): `net use D: \\localhost\c$\base_folder_for_telegram_dev`
 
 ## Clone source code
 
@@ -163,7 +162,7 @@ Go to **D:\\TBuild\\Libraries** and run
     cd ffmpeg
     git checkout release/3.2
 
-http://msys2.github.io/ > Download [msys2-x86_64-20161025.exe](http://repo.msys2.org/distrib/x86_64/msys2-x86_64-20161025.exe) and install to **D:\\msys64**
+http://www.msys2.org/ > Download the latest version and install it to **D:\\msys64**
 
 #### Building libraries
 
