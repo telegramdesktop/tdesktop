@@ -32,6 +32,8 @@ namespace codegen {
 namespace lang {
 namespace {
 
+constexpr auto kMaxPluralVariants = 6;
+
 char hexChar(uchar ch) {
 	if (ch < 10) {
 		return '0' + ch;
@@ -139,8 +141,8 @@ LangString langCounted(ushort key0, ushort tag, float64 value);\n\
 	}
 	header_->stream() << "\
 \n\
-constexpr auto lngtags_cnt = 70;\n\
-constexpr auto lngtags_max_counted_values = 6;\n\
+constexpr auto lngtags_cnt = " << langpack_.tags.size() << ";\n\
+constexpr auto lngtags_max_counted_values = " << kMaxPluralVariants << ";\n\
 \n\
 enum LangKey {\n";
 	for (auto &entry : langpack_.entries) {
