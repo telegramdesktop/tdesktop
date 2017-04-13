@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/notifications_utilities.h"
 #include "platform/linux/linux_libnotify.h"
 #include "platform/linux/linux_libs.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "base/task_queue.h"
 
 namespace Platform {

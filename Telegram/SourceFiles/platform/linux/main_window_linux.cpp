@@ -27,7 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "messenger.h"
 #include "application.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 
 namespace Platform {

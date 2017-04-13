@@ -32,7 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/input_fields.h"
 #include "window/top_bar_widget.h"
 #include "window/themes/window_theme.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "overviewwidget.h"

@@ -29,7 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_chat_helpers.h"
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "data/data_abstract_structure.h"
 #include "history/history_service_layout.h"
 #include "history/history_location_manager.h"

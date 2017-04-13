@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "messenger.h"
 #include "boxes/contacts_box.h"
 #include "boxes/confirm_box.h"

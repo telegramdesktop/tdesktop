@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_calls.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "calls/calls_call.h"
 #include "calls/calls_instance.h"
 #include "styles/style_boxes.h"

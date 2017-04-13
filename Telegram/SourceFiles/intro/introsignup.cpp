@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/file_utilities.h"
 #include "boxes/photo_crop_box.h"
 #include "boxes/confirm_box.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "application.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"

@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "structs.h"
 
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "observer_peer.h"
 #include "mainwidget.h"

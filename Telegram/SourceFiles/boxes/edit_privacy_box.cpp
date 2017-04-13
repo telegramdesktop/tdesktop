@@ -27,7 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/widget_slide_wrap.h"
 #include "boxes/peer_list_box.h"
 #include "apiwrap.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 
 namespace {
 

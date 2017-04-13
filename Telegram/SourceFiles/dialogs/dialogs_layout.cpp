@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_list.h"
 #include "styles/style_dialogs.h"
 #include "storage/localstorage.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 
 namespace Dialogs {
 namespace Layout {

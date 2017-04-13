@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "data/data_drafts.h"
 #include "observer_peer.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "application.h"
 #include "mainwindow.h"
 #include "messenger.h"

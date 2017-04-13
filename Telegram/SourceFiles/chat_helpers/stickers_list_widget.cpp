@@ -27,7 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "inline_bots/inline_bot_result.h"
 #include "chat_helpers/stickers.h"
 #include "storage/localstorage.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "dialogs/dialogs_layout.h"
 #include "boxes/sticker_set_box.h"

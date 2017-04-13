@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "platform/win/windows_app_user_model_id.h"
 #include "platform/win/windows_dlls.h"
 #include "platform/win/windows_event_filter.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "history/history_location_manager.h"

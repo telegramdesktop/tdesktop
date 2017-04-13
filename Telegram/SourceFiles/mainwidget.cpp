@@ -37,7 +37,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "historywidget.h"
 #include "history/history_service_layout.h"
 #include "overviewwidget.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "boxes/add_contact_box.h"
 #include "storage/file_upload.h"
 #include "messenger.h"

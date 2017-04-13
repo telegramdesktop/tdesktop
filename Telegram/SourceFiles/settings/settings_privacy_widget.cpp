@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/widget_slide_wrap.h"
 #include "ui/widgets/buttons.h"
 #include "styles/style_settings.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "application.h"
 #include "platform/platform_specific.h"
 #include "boxes/sessions_box.h"

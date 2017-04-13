@@ -27,7 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <openssl/md5.h>
 #include <openssl/rand.h>
 #include "zlib.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "base/openssl_help.h"
 
 #include "mtproto/rsa_public_key.h"

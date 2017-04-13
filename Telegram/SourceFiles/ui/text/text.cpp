@@ -24,7 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "core/click_handler_types.h"
 #include "ui/text/text_block.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "platform/platform_specific.h"
 #include "boxes/confirm_box.h"
 #include "mainwindow.h"

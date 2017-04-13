@@ -18,7 +18,7 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "langloaderplain.h"
+#include "lang/lang_file_parser.h"
 
 #include "base/parse_helper.h"
 
@@ -45,12 +45,12 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 	if (*from != '"') throw Exception(QString("Expected string after '=' in key '%1'!").arg(varName));
 
 	LangKey varKey = keyIndex(varName);
-	bool feedingValue = request.isEmpty();
+	bool feedingValue = request.empty();
 	if (feedingValue) {
 		if (varKey == lngkeys_cnt) {
 			warning(QString("Unknown key '%1'!").arg(varName));
 		}
-	} else if (!readingAll && !request.contains(varKey)) {
+	} else if (!readingAll && request.find(varKey) == request.end()) {
 		varKey = lngkeys_cnt;
 	}
 	bool readingValue = (varKey != lngkeys_cnt);
@@ -206,7 +206,7 @@ bool LangLoaderPlain::readKeyValue(const char *&from, const char *end) {
 	return true;
 }
 
-LangLoaderPlain::LangLoaderPlain(const QString &file, const LangLoaderRequest &request) : file(file), request(request), readingAll(request.contains(lngkeys_cnt)) {
+LangLoaderPlain::LangLoaderPlain(const QString &file, const std::set<LangKey> &request) : file(file), request(request), readingAll(request.find(lngkeys_cnt) != request.end()) {
 	QFile f(file);
 	if (!f.open(QIODevice::ReadOnly)) {
 		error(qsl("Could not open input file!"));

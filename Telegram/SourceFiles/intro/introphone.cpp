@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "intro/introphone.h"
 
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "application.h"
 #include "intro/introcode.h"
 #include "styles/style_intro.h"

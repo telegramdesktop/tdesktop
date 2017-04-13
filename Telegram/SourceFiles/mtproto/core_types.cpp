@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "zlib.h"
 
-#include "lang.h"
+#include "lang/lang_keys.h"
 
 QString mtpWrapNumber(float64 number) {
 	return QString::number(number);

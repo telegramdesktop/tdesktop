@@ -18,7 +18,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "platform/linux/specific_linux.h"
 
 #include "platform/linux/linux_libs.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "application.h"
 #include "mainwidget.h"
 #include "mainwindow.h"

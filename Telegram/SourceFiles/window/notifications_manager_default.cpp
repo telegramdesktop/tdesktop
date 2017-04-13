@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "platform/platform_notifications_manager.h"
 #include "application.h"
 #include "messenger.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "dialogs/dialogs_layout.h"

@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "data/data_abstract_structure.h"
 #include "styles/style_history.h"
 #include "mainwidget.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 
 namespace HistoryLayout {
 namespace {

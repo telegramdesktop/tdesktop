@@ -26,7 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/media_clip_reader.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
 
 namespace {

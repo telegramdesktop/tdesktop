@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_location_manager.h"
 
 #include "mainwidget.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "platform/platform_specific.h"
 
 namespace {

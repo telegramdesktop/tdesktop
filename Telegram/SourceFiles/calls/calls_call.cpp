@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "auth_session.h"
 #include "mainwidget.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
 #include "boxes/rate_call_box.h"
 #include "calls/calls_instance.h"

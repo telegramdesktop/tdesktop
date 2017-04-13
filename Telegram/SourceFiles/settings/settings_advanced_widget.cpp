@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "settings/settings_advanced_widget.h"
 
 #include "styles/style_settings.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "boxes/connection_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/about_box.h"

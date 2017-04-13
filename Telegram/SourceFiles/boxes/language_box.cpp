@@ -20,14 +20,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "boxes/language_box.h"
 
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "storage/localstorage.h"
 #include "boxes/confirm_box.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "langloaderplain.h"
+#include "lang/lang_file_parser.h"
 #include "styles/style_boxes.h"
 
 void LanguageBox::prepare() {
@@ -48,7 +48,7 @@ void LanguageBox::prepare() {
 	for (auto i = 0; i != languageCount; ++i) {
 		LangLoaderResult result;
 		if (i) {
-			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[i].c_str() + qsl(".strings"), langLoaderRequest(lng_language_name));
+			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[i].c_str() + qsl(".strings"), { lng_language_name });
 			result = loader.found();
 		} else {
 			result.insert(lng_language_name, langOriginal(lng_language_name));
@@ -66,7 +66,7 @@ void LanguageBox::prepare() {
 void LanguageBox::mousePressEvent(QMouseEvent *e) {
 	if ((e->modifiers() & Qt::CTRL) && (e->modifiers() & Qt::ALT) && (e->modifiers() & Qt::SHIFT)) {
 		for (int32 i = 1; i < languageCount; ++i) {
-			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[i].c_str() + qsl(".strings"), langLoaderRequest(lngkeys_cnt));
+			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[i].c_str() + qsl(".strings"), { lngkeys_cnt });
 			if (!loader.errors().isEmpty()) {
 				Ui::show(Box<InformBox>(qsl("Lang \"") + LanguageCodes[i].c_str() + qsl("\" error :(\n\nError: ") + loader.errors()));
 				return;
@@ -90,10 +90,10 @@ void LanguageBox::languageChanged(int languageId) {
 
 	LangLoaderResult result;
 	if (languageId > 0) {
-		LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[languageId].c_str() + qsl(".strings"), langLoaderRequest(lng_sure_save_language, lng_cancel, lng_box_ok));
+		LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[languageId].c_str() + qsl(".strings"), { lng_sure_save_language, lng_cancel, lng_box_ok });
 		result = loader.found();
 	} else if (languageId == languageTest) {
-		LangLoaderPlain loader(cLangFile(), langLoaderRequest(lng_sure_save_language, lng_cancel, lng_box_ok));
+		LangLoaderPlain loader(cLangFile(), { lng_sure_save_language, lng_cancel, lng_box_ok });
 		result = loader.found();
 	}
 	auto text = result.value(lng_sure_save_language, langOriginal(lng_sure_save_language)),

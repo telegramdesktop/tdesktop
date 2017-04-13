@@ -30,7 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/scroll_area.h"
 #include "storage/localstorage.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "mainwindow.h"
 
 namespace ChatHelpers {

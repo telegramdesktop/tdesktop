@@ -32,7 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/labels.h"
 #include "ui/effects/widget_slide_wrap.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "ui/effects/round_checkbox.h"
 #include "boxes/contacts_box.h"
 #include "window/themes/window_theme.h"

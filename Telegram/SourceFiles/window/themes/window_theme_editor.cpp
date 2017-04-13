@@ -40,7 +40,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/toast/toast.h"
 #include "core/file_utilities.h"
 #include "boxes/edit_color_box.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 
 namespace Window {
 namespace Theme {

@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "storage/localstorage.h"
 #include "platform/win/windows_dlls.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 
 #include <Shlwapi.h>
 #include <Windowsx.h>

@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "lang.h"
+#include "lang/lang_keys.h"
 
 #include <Cocoa/Cocoa.h>
 

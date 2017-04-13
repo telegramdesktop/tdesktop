@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "settings/settings_general_widget.h"
 
 #include "styles/style_settings.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "ui/effects/widget_slide_wrap.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
@@ -33,7 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/confirm_box.h"
 #include "boxes/about_box.h"
 #include "core/file_utilities.h"
-#include "langloaderplain.h"
+#include "lang/lang_file_parser.h"
 #include "autoupdater.h"
 
 namespace Settings {
@@ -213,7 +213,7 @@ void GeneralWidget::chooseCustomLang() {
 		}
 
 		_testLanguage = QFileInfo(result.paths.front()).absoluteFilePath();
-		LangLoaderPlain loader(_testLanguage, langLoaderRequest(lng_sure_save_language, lng_cancel, lng_box_ok));
+		LangLoaderPlain loader(_testLanguage, { lng_sure_save_language, lng_cancel, lng_box_ok });
 		if (loader.errors().isEmpty()) {
 			LangLoaderResult result = loader.found();
 			auto text = result.value(lng_sure_save_language, langOriginal(lng_sure_save_language)),

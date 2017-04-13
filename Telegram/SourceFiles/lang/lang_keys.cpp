@@ -18,9 +18,9 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "lang.h"
+#include "lang/lang_keys.h"
 
-#include "langloaderplain.h"
+#include "lang/lang_file_parser.h"
 
 LangString LangString::tag(ushort tag, const QString &replacement) {
 	for (const QChar *s = constData(), *ch = s, *e = ch + size(); ch != e;) {
@@ -96,7 +96,7 @@ QString langNewVersionText() {
 QString langNewVersionTextForLang(int langId) {
 	LangLoaderResult result;
 	if (langId) {
-		LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[langId].c_str() + qsl(".strings"), langLoaderRequest(lng_language_name, NEW_VER_KEY));
+		LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[langId].c_str() + qsl(".strings"), { lng_language_name, NEW_VER_KEY });
 		result = loader.found();
 	} else {
 		result.insert(lng_language_name, langOriginal(lng_language_name));

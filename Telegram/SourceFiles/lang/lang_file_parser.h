@@ -20,38 +20,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "lang.h"
-
-using LangLoaderRequest = OrderedSet<LangKey>;
-
-template <typename ...Args>
-struct LangLoaderRequestHelper;
-
-template <>
-struct LangLoaderRequestHelper<> {
-	static inline void fill(LangLoaderRequest &result) {
-	}
-};
-
-template <typename Arg, typename ...Args>
-struct LangLoaderRequestHelper<Arg, Args...> {
-	static inline void fill(LangLoaderRequest &result, Arg arg, Args ...args) {
-		result.insert(arg);
-		LangLoaderRequestHelper<Args...>::fill(result, args...);
-	}
-};
-
-template <typename ...Args>
-inline LangLoaderRequest langLoaderRequest(Args ...args) {
-	LangLoaderRequest result;
-	LangLoaderRequestHelper<Args...>::fill(result, args...);
-	return result;
-}
+#include "lang/lang_keys.h"
 
 using LangLoaderResult = QMap<LangKey, LangString>;
 class LangLoaderPlain : public LangLoader {
 public:
-	LangLoaderPlain(const QString &file, const LangLoaderRequest &request = LangLoaderRequest());
+	LangLoaderPlain(const QString &file, const std::set<LangKey> &request = std::set<LangKey>());
 
 	LangLoaderResult found() const {
 		return result;
@@ -59,7 +33,7 @@ public:
 
 protected:
 	QString file;
-	LangLoaderRequest request;
+	std::set<LangKey> request;
 
 	bool readKeyValue(const char *&from, const char *end);
 

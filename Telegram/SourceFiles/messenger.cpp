@@ -29,7 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "calls/calls_instance.h"
-#include "langloaderplain.h"
+#include "lang/lang_file_parser.h"
 #include "observer_peer.h"
 #include "storage/file_upload.h"
 #include "mainwidget.h"

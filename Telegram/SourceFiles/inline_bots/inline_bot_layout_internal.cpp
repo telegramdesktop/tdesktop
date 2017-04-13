@@ -31,7 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_location_manager.h"
 #include "storage/localstorage.h"
 #include "auth_session.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 
 namespace InlineBots {
 namespace Layout {

@@ -24,7 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "ui/countryinput.h"
 #include "window/themes/window_theme.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "numbers.h"
 #include "messenger.h"
 

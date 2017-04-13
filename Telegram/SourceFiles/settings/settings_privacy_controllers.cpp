@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "settings/settings_privacy_controllers.h"
 
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "observer_peer.h"
 #include "mainwidget.h"

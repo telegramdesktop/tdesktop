@@ -21,7 +21,7 @@
 #include "platform/platform_specific.h"
 #include "application.h"
 #include "mainwindow.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 
 namespace Ui {
 

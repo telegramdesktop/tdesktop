@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/media_audio.h"
 #include "platform/mac/mac_utilities.h"
 #include "styles/style_window.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "base/timer.h"
 
 #include <Cocoa/Cocoa.h>

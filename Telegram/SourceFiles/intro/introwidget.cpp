@@ -20,9 +20,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "intro/introwidget.h"
 
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "storage/localstorage.h"
-#include "langloaderplain.h"
+#include "lang/lang_file_parser.h"
 #include "intro/introstart.h"
 #include "intro/introphone.h"
 #include "intro/introcode.h"
@@ -64,7 +64,7 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 	if (cLang() == languageDefault) {
 		auto systemLangId = Sandbox::LangSystem();
 		if (systemLangId != languageDefault) {
-			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[systemLangId].c_str() + qsl(".strings"), langLoaderRequest(lng_switch_to_this));
+			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[systemLangId].c_str() + qsl(".strings"), { lng_switch_to_this });
 			QString text = loader.found().value(lng_switch_to_this);
 			if (!text.isEmpty()) {
 				_changeLanguage.create(this, object_ptr<Ui::LinkButton>(this, text), st::introCoverDuration);

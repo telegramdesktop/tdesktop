@@ -50,7 +50,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "chat_helpers/tabbed_selector.h"
 #include "chat_helpers/bot_keyboard.h"
 #include "chat_helpers/message_field.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "application.h"
 #include "mainwidget.h"
 #include "mainwindow.h"

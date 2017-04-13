@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "styles/style_calls.h"
 #include "styles/style_boxes.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "observer_peer.h"
 #include "ui/effects/ripple_animation.h"
 #include "calls/calls_instance.h"

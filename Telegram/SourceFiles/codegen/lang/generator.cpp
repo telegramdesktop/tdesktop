@@ -181,7 +181,7 @@ inline LangString " << entry.key << "(" << params.join(QString(", ")) << ") {\n\
 bool Generator::writeSource() {
 	source_ = std::make_unique<common::CppFile>(basePath_ + ".cpp", project_);
 
-	source_->include("lang.h").pushNamespace().stream() << "\
+	source_->include("lang/lang_keys.h").pushNamespace().stream() << "\
 const char *_langKeyNames[lngkeys_cnt] = {\n\
 \n";
 	for (auto &entry : langpack_.entries) {

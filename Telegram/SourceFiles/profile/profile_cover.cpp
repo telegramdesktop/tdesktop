@@ -31,7 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/confirm_box.h"
 #include "boxes/contacts_box.h"
 #include "boxes/photo_crop_box.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "mainwindow.h"

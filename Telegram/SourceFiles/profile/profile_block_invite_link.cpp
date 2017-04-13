@@ -26,7 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/confirm_box.h"
 #include "observer_peer.h"
 #include "mainwindow.h"
-#include "lang.h"
+#include "lang/lang_keys.h"
 
 namespace Profile {
 

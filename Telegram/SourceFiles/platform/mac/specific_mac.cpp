@@ -17,7 +17,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "platform/mac/specific_mac.h"
 
-#include "lang.h"
+#include "lang/lang_keys.h"
 #include "application.h"
 #include "mainwidget.h"
 #include "historywidget.h"
