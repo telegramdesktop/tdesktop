@@ -30,6 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "calls/calls_instance.h"
 #include "lang/lang_file_parser.h"
+#include "lang/lang_translator.h"
 #include "observer_peer.h"
 #include "storage/file_upload.h"
 #include "mainwidget.h"
@@ -380,7 +381,7 @@ void Messenger::loadLanguage() {
 	}
 	if (cLang() == languageTest) {
 		if (QFileInfo(cLangFile()).exists()) {
-			LangLoaderPlain loader(cLangFile());
+			Lang::FileParser loader(cLangFile());
 			cSetLangErrors(loader.errors());
 			if (!cLangErrors().isEmpty()) {
 				LOG(("Lang load errors: %1").arg(cLangErrors()));
@@ -391,14 +392,14 @@ void Messenger::loadLanguage() {
 			cSetLang(languageDefault);
 		}
 	} else if (cLang() > languageDefault && cLang() < languageCount) {
-		LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[cLang()].c_str() + qsl(".strings"));
+		Lang::FileParser loader(qsl(":/langs/lang_") + LanguageCodes[cLang()].c_str() + qsl(".strings"));
 		if (!loader.errors().isEmpty()) {
 			LOG(("Lang load errors: %1").arg(loader.errors()));
 		} else if (!loader.warnings().isEmpty()) {
 			LOG(("Lang load warnings: %1").arg(loader.warnings()));
 		}
 	}
-	_translator = std::make_unique<Translator>();
+	_translator = std::make_unique<Lang::Translator>();
 	QCoreApplication::instance()->installTranslator(_translator.get());
 }
 

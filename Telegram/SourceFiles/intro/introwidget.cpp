@@ -64,8 +64,8 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 	if (cLang() == languageDefault) {
 		auto systemLangId = Sandbox::LangSystem();
 		if (systemLangId != languageDefault) {
-			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[systemLangId].c_str() + qsl(".strings"), { lng_switch_to_this });
-			QString text = loader.found().value(lng_switch_to_this);
+			Lang::FileParser loader(qsl(":/langs/lang_") + LanguageCodes[systemLangId].c_str() + qsl(".strings"), { lng_switch_to_this });
+			auto text = loader.found().value(lng_switch_to_this);
 			if (!text.isEmpty()) {
 				_changeLanguage.create(this, object_ptr<Ui::LinkButton>(this, text), st::introCoverDuration);
 				_changeLanguage->entity()->setClickedCallback([this, systemLangId] { changeLanguage(systemLangId); });

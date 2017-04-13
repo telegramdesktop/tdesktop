@@ -213,9 +213,9 @@ void GeneralWidget::chooseCustomLang() {
 		}
 
 		_testLanguage = QFileInfo(result.paths.front()).absoluteFilePath();
-		LangLoaderPlain loader(_testLanguage, { lng_sure_save_language, lng_cancel, lng_box_ok });
+		Lang::FileParser loader(_testLanguage, { lng_sure_save_language, lng_cancel, lng_box_ok });
 		if (loader.errors().isEmpty()) {
-			LangLoaderResult result = loader.found();
+			auto result = loader.found();
 			auto text = result.value(lng_sure_save_language, langOriginal(lng_sure_save_language)),
 				save = result.value(lng_box_ok, langOriginal(lng_box_ok)),
 				cancel = result.value(lng_cancel, langOriginal(lng_cancel));

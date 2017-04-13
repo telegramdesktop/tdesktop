@@ -88,11 +88,11 @@ void AboutBox::keyPressEvent(QKeyEvent *e) {
 }
 
 QString telegramFaqLink() {
-	QString result = qsl("https://telegram.org/faq");
+	auto result = qsl("https://telegram.org/faq");
 	if (cLang() > languageDefault && cLang() < languageCount) {
 		const char *code = LanguageCodes[cLang()].c_str();
 		if (qstr("de") == code || qstr("es") == code || qstr("it") == code || qstr("ko") == code) {
-			result += qsl("/") + code;
+			result += '/' + code;
 		} else if (qstr("pt_BR") == code) {
 			result += qsl("/br");
 		}

@@ -46,9 +46,9 @@ void LanguageBox::prepare() {
 		y += _langs.back()->heightNoMargins() + st::boxOptionListSkip;
 	}
 	for (auto i = 0; i != languageCount; ++i) {
-		LangLoaderResult result;
+		Lang::FileParser::Result result;
 		if (i) {
-			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[i].c_str() + qsl(".strings"), { lng_language_name });
+			Lang::FileParser loader(qsl(":/langs/lang_") + LanguageCodes[i].c_str() + qsl(".strings"), { lng_language_name });
 			result = loader.found();
 		} else {
 			result.insert(lng_language_name, langOriginal(lng_language_name));
@@ -66,12 +66,12 @@ void LanguageBox::prepare() {
 void LanguageBox::mousePressEvent(QMouseEvent *e) {
 	if ((e->modifiers() & Qt::CTRL) && (e->modifiers() & Qt::ALT) && (e->modifiers() & Qt::SHIFT)) {
 		for (int32 i = 1; i < languageCount; ++i) {
-			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[i].c_str() + qsl(".strings"), { lngkeys_cnt });
+			Lang::FileParser loader(qsl(":/langs/lang_") + LanguageCodes[i].c_str() + qsl(".strings"), { kLangKeysCount });
 			if (!loader.errors().isEmpty()) {
 				Ui::show(Box<InformBox>(qsl("Lang \"") + LanguageCodes[i].c_str() + qsl("\" error :(\n\nError: ") + loader.errors()));
 				return;
 			} else if (!loader.warnings().isEmpty()) {
-				QString warn = loader.warnings();
+				auto warn = loader.warnings();
 				if (warn.size() > 256) warn = warn.mid(0, 253) + qsl("...");
 				Ui::show(Box<InformBox>(qsl("Lang \"") + LanguageCodes[i].c_str() + qsl("\" warnings :(\n\nWarnings: ") + warn));
 				return;
@@ -88,12 +88,12 @@ void LanguageBox::languageChanged(int languageId) {
 		return;
 	}
 
-	LangLoaderResult result;
+	Lang::FileParser::Result result;
 	if (languageId > 0) {
-		LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[languageId].c_str() + qsl(".strings"), { lng_sure_save_language, lng_cancel, lng_box_ok });
+		Lang::FileParser loader(qsl(":/langs/lang_") + LanguageCodes[languageId].c_str() + qsl(".strings"), { lng_sure_save_language, lng_cancel, lng_box_ok });
 		result = loader.found();
 	} else if (languageId == languageTest) {
-		LangLoaderPlain loader(cLangFile(), { lng_sure_save_language, lng_cancel, lng_box_ok });
+		Lang::FileParser loader(cLangFile(), { lng_sure_save_language, lng_cancel, lng_box_ok });
 		result = loader.found();
 	}
 	auto text = result.value(lng_sure_save_language, langOriginal(lng_sure_save_language)),

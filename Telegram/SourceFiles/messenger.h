@@ -47,6 +47,10 @@ class Instance;
 } // namespace Audio
 } // namespace Media
 
+namespace Lang {
+class Translator;
+} // namespace Lang
+
 class Messenger final : public QObject, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
@@ -189,7 +193,7 @@ private:
 	std::unique_ptr<MainWindow> _window;
 	FileUploader *_uploader = nullptr;
 
-	std::unique_ptr<Translator> _translator;
+	std::unique_ptr<Lang::Translator> _translator;
 	std::unique_ptr<MTP::DcOptions> _dcOptions;
 	std::unique_ptr<MTP::Instance> _mtproto;
 	std::unique_ptr<MTP::Instance> _mtprotoForKeysDestroy;

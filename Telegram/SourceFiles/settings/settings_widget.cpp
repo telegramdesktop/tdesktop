@@ -121,6 +121,10 @@ void fillCodes() {
 			}
 		});
 	});
+	Codes.insert(qsl("newversiontext"), [] {
+		App::wnd()->serviceNotificationLocal(langNewVersionText());
+	});
+
 	auto audioFilters = qsl("Audio files (*.wav *.mp3);;") + FileDialog::AllFilesFilter();
 	auto audioKeys = {
 		qsl("msg_incoming"),

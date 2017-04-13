@@ -1455,38 +1455,6 @@ Dialogs::IndexedList *MainWidget::contactsNoDialogsList() {
 	return _dialogs->contactsNoDialogsList();
 }
 
-namespace {
-QString parseCommandFromMessage(History *history, const QString &message) {
-	if (history->peer->id != peerFromUser(ServiceUserId)) {
-		return QString();
-	}
-	if (message.size() < 3 || message.at(0) != '*' || message.at(message.size() - 1) != '*') {
-		return QString();
-	}
-	QString command = message.mid(1, message.size() - 2);
-	QStringList commands;
-	commands.push_back(qsl("new_version_text"));
-	commands.push_back(qsl("all_new_version_texts"));
-	if (commands.indexOf(command) < 0) {
-		return QString();
-	}
-	return command;
-}
-
-void executeParsedCommand(const QString &command) {
-	if (command.isEmpty() || !App::wnd()) {
-		return;
-	}
-	if (command == qsl("new_version_text")) {
-		App::wnd()->serviceNotificationLocal(langNewVersionText());
-	} else if (command == qsl("all_new_version_texts")) {
-		for (int i = 0; i < languageCount; ++i) {
-			App::wnd()->serviceNotificationLocal(langNewVersionTextForLang(i));
-		}
-	}
-}
-} // namespace
-
 void MainWidget::sendMessage(const MessageToSend &message) {
 	auto history = message.history;
 	auto &textWithTags = message.textWithTags;
@@ -1503,11 +1471,10 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 	auto prepareFlags = itemTextOptions(history, App::self()).flags;
 	QString sendingText, leftText = prepareTextWithEntities(textWithTags.text, prepareFlags, &leftEntities);
 
-	QString command = parseCommandFromMessage(history, textWithTags.text);
 	HistoryItem *lastMessage = nullptr;
 
 	MsgId replyTo = (message.replyTo < 0) ? _history->replyToId() : message.replyTo;
-	while (command.isEmpty() && textSplit(sendingText, sendingEntities, leftText, leftEntities, MaxMessageSize)) {
+	while (textSplit(sendingText, sendingEntities, leftText, leftEntities, MaxMessageSize)) {
 		FullMsgId newId(peerToChannel(history->peer->id), clientMsgId());
 		uint64 randomId = rand_value<uint64>();
 
@@ -1561,8 +1528,6 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 	history->lastSentMsg = lastMessage;
 
 	finishForwarding(history, message.silent);
-
-	executeParsedCommand(command);
 }
 
 void MainWidget::saveRecentHashtags(const QString &text) {

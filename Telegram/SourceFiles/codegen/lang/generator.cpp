@@ -118,31 +118,18 @@ Generator::Generator(const Langpack &langpack, const QString &destBasePath, cons
 
 bool Generator::writeHeader() {
 	header_ = std::make_unique<common::CppFile>(basePath_ + ".h", project_);
-	header_->stream() << "\
-class LangString : public QString {\n\
-public:\n\
-	LangString() = default;\n\
-	LangString(const QString &str) : QString(str) {\n\
-	}\n\
-	LangString &operator=(const QString &str) {\n\
-		QString::operator=(str);\n\
-		return *this;\n\
-	}\n\
+	header_->include("lang/lang_tag.h").newline().pushNamespace("Lang").stream() << "\
 \n\
-	LangString tag(ushort tag, const QString &replacement);\n\
-\n\
-};\n\
-\n\
-LangString langCounted(ushort key0, ushort tag, float64 value);\n\
+constexpr auto kTagsCount = " << langpack_.tags.size() << ";\n\
+constexpr auto kTagsPluralVariants = " << kMaxPluralVariants << ";\n\
 \n";
+
+	header_->popNamespace().newline();
 	auto index = 0;
 	for (auto &tag : langpack_.tags) {
 		header_->stream() << "enum lngtag_" << tag.tag << " { lt_" << tag.tag << " = " << index++ << " };\n";
 	}
 	header_->stream() << "\
-\n\
-constexpr auto lngtags_cnt = " << langpack_.tags.size() << ";\n\
-constexpr auto lngtags_max_counted_values = " << kMaxPluralVariants << ";\n\
 \n\
 enum LangKey {\n";
 	for (auto &entry : langpack_.entries) {
@@ -150,39 +137,52 @@ enum LangKey {\n";
 	}
 	header_->stream() << "\
 \n\
-	lngkeys_cnt,\n\
+	kLangKeysCount,\n\
 };\n\
 \n\
-LangString lang(LangKey key);\n\
+QString lang(LangKey key);\n\
 \n\
-LangString langOriginal(LangKey key);\n\
+QString langOriginal(LangKey key);\n\
 \n";
 	for (auto &entry : langpack_.entries) {
 		if (!entry.tags.empty()) {
 			auto &key = entry.key;
 			auto params = QStringList();
-			auto invokations = QStringList();
+			auto applyTags = QStringList();
 			for (auto &tagData : entry.tags) {
 				auto &tag = tagData.tag;
 				auto isPlural = isTagPlural(key, tag);
 				params.push_back("lngtag_" + tag + ", " + (isPlural ? "float64 " : "const QString &") + tag + "__val");
-				invokations.push_back("tag(lt_" + tag + ", " + (isPlural ? ("langCounted(" + key + "__" + tag + "0, lt_" + tag + ", " + tag + "__val)") : (tag + "__val")) + ")");
+				applyTags.push_back("\tresult = Lang::Tag(result, lt_" + tag + ", " + (isPlural ? ("Lang::Plural(" + key + "__" + tag + "0, lt_" + tag + ", " + tag + "__val)") : (tag + "__val")) + ");");
 			}
 			header_->stream() << "\
-inline LangString " << entry.key << "(" << params.join(QString(", ")) << ") {\n\
-	return lang(" << entry.key << "__tagged)." << invokations.join('.') << ";\n\
+inline QString " << entry.key << "(" << params.join(QString(", ")) << ") {\n\
+	auto result = lang(" << entry.key << "__tagged);\n\
+" << applyTags.join('\n') << ";\n\
+	return result;\n\
 }\n\
 \n";
 		}
 	}
+
+	header_->pushNamespace("Lang").stream() << "\
+\n\
+const char *GetKeyName(LangKey key);\n\
+ushort GetTagIndex(QLatin1String tag);\n\
+LangKey GetKeyIndex(QLatin1String key);\n\
+LangKey GetSubkeyIndex(LangKey key, ushort tag, ushort index);\n\
+bool IsTagReplaced(LangKey key, ushort tag);\n\
+void FeedKeyValue(LangKey key, const QString &value);\n\
+\n";
+
 	return header_->finalize();
 }
 
 bool Generator::writeSource() {
 	source_ = std::make_unique<common::CppFile>(basePath_ + ".cpp", project_);
 
-	source_->include("lang/lang_keys.h").pushNamespace().stream() << "\
-const char *_langKeyNames[lngkeys_cnt] = {\n\
+	source_->include("lang/lang_keys.h").pushNamespace("Lang").pushNamespace().stream() << "\
+const char *KeyNames[kLangKeysCount] = {\n\
 \n";
 	for (auto &entry : langpack_.entries) {
 		source_->stream() << "\"" << entry.key << "\",\n";
@@ -191,15 +191,15 @@ const char *_langKeyNames[lngkeys_cnt] = {\n\
 \n\
 };\n\
 \n\
-LangString _langValues[lngkeys_cnt], _langValuesOriginal[lngkeys_cnt];\n\
+QString Values[kLangKeysCount], OriginalValues[kLangKeysCount];\n\
 \n\
 void set(LangKey key, const QString &val) {\n\
-	_langValues[key] = val;\n\
+	Values[key] = val;\n\
 }\n\
 \n\
-class LangInit {\n\
+class Initializer {\n\
 public:\n\
-	LangInit() {\n";
+	Initializer() {\n";
 	for (auto &entry : langpack_.entries) {
 		source_->stream() << "\t\tset(" << getFullKey(entry) << ", QString::fromUtf8(" << stringToEncodedString(entry.value) << "));\n";
 	}
@@ -208,24 +208,16 @@ public:\n\
 \n\
 };\n\
 \n\
-LangInit _langInit;\n\
+Initializer Instance;\n\
 \n";
 
 	source_->popNamespace().stream() << "\
 \n\
-LangString lang(LangKey key) {\n\
-	return (key < 0 || key > lngkeys_cnt) ? QString() : _langValues[key];\n\
+const char *GetKeyName(LangKey key) {\n\
+	return (key < 0 || key >= kLangKeysCount) ? \"\" : KeyNames[key];\n\
 }\n\
 \n\
-LangString langOriginal(LangKey key) {\n\
-	return (key < 0 || key > lngkeys_cnt || _langValuesOriginal[key] == qsl(\"{}\")) ? QString() : (_langValuesOriginal[key].isEmpty() ? _langValues[key] : _langValuesOriginal[key]);\n\
-}\n\
-\n\
-const char *langKeyName(LangKey key) {\n\
-	return (key < 0 || key > lngkeys_cnt) ? \"\" : _langKeyNames[key];\n\
-}\n\
-\n\
-ushort LangLoader::tagIndex(QLatin1String tag) const {\n\
+ushort GetTagIndex(QLatin1String tag) {\n\
 	auto size = tag.size();\n\
 	auto data = tag.data();\n";
 
@@ -236,12 +228,12 @@ ushort LangLoader::tagIndex(QLatin1String tag) const {\n\
 
 	writeSetSearch(tagsSet, [](const QString &tag) {
 		return "lt_" + tag;
-	}, "lngtags_cnt");
+	}, "kTagsCount");
 
 	source_->stream() << "\
 }\n\
 \n\
-LangKey LangLoader::keyIndex(QLatin1String key) const {\n\
+LangKey GetKeyIndex(QLatin1String key) {\n\
 	auto size = key.size();\n\
 	auto data = key.data();\n";
 
@@ -262,12 +254,41 @@ LangKey LangLoader::keyIndex(QLatin1String key) const {\n\
 	writeSetSearch(keysSet, [&taggedKeys](const QString &key) {
 		auto it = taggedKeys.find(key);
 		return (it != taggedKeys.end()) ? it->second : key;
-	}, "lngkeys_cnt");
+	}, "kLangKeysCount");
 
 	source_->stream() << "\
 }\n\
 \n\
-bool LangLoader::tagReplaced(LangKey key, ushort tag) const {\n\
+LangKey GetSubkeyIndex(LangKey key, ushort tag, ushort index) {\n\
+	if (index >= kTagsPluralVariants) return kLangKeysCount;\n\
+\n\
+	switch (key) {\n";
+
+	for (auto &entry : langpack_.entries) {
+		auto cases = QString();
+		for (auto &tag : entry.tags) {
+			if (isTagPlural(entry.key, tag.tag)) {
+				cases += "\t\t\tcase lt_" + tag.tag + ": return LangKey(" + entry.key + "__" + tag.tag + "0 + index);\n";
+			}
+		}
+		if (cases.isEmpty()) {
+			continue;
+		}
+		source_->stream() << "\
+	case " << entry.key << "__tagged: {\n\
+		switch (tag) {\n\
+" << cases << "\
+		}\n\
+	} break;\n";
+	}
+
+	source_->stream() << "\
+	}\n\
+\n\
+	return kLangKeysCount;\n\
+}\n\
+\n\
+bool IsTagReplaced(LangKey key, ushort tag) {\n\
 	switch (key) {\n";
 
 	for (auto &entry : langpack_.entries) {
@@ -293,45 +314,23 @@ bool LangLoader::tagReplaced(LangKey key, ushort tag) const {\n\
 	return false;\n\
 }\n\
 \n\
-LangKey LangLoader::subkeyIndex(LangKey key, ushort tag, ushort index) const {\n\
-	if (index >= lngtags_max_counted_values) return lngkeys_cnt;\n\
-\n\
-	switch (key) {\n";
-
-	for (auto &entry : langpack_.entries) {
-		auto cases = QString();
-		for (auto &tag : entry.tags) {
-			if (isTagPlural(entry.key, tag.tag)) {
-				cases += "\t\t\tcase lt_" + tag.tag + ": return LangKey(" + entry.key + "__" + tag.tag + "0 + index);\n";
-			}
-		}
-		if (cases.isEmpty()) {
-			continue;
-		}
-		source_->stream() << "\
-	case " << entry.key << "__tagged: {\n\
-		switch (tag) {\n\
-" << cases << "\
-		}\n\
-	} break;\n";
-	}
-
-	source_->stream() << "\
+void FeedKeyValue(LangKey key, const QString &value) {\n\
+	Expects(key >= 0 && key < kLangKeysCount);\n\
+	if (OriginalValues[key].isEmpty()) {\n\
+		OriginalValues[key] = Values[key].isEmpty() ? qsl(\"{}\") : Values[key];\n\
 	}\n\
+	Values[key] = value;\n\
+}\n\
+\n";
+
+	source_->popNamespace().stream() << "\
 \n\
-	return lngkeys_cnt;\n\
+QString lang(LangKey key) {\n\
+	return (key < 0 || key >= kLangKeysCount) ? QString() : Lang::Values[key];\n\
 }\n\
 \n\
-bool LangLoader::feedKeyValue(LangKey key, const QString &value) {\n\
-	if (key < lngkeys_cnt) {\n\
-		_found[key] = 1;\n\
-		if (_langValuesOriginal[key].isEmpty()) {\n\
-			_langValuesOriginal[key] = _langValues[key].isEmpty() ? qsl(\"{}\") : _langValues[key];\n\
-		}\n\
-		_langValues[key] = value;\n\
-		return true;\n\
-	}\n\
-	return false;\n\
+QString langOriginal(LangKey key) {\n\
+	return (key < 0 || key >= kLangKeysCount || Lang::OriginalValues[key] == qsl(\"{}\")) ? QString() : (Lang::OriginalValues[key].isEmpty() ? Lang::Values[key] : Lang::OriginalValues[key]);\n\
 }\n";
 
 	return source_->finalize();

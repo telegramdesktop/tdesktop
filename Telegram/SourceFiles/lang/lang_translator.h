@@ -20,45 +20,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "lang/lang_keys.h"
-
 namespace Lang {
 
-class FileParser {
+class Translator : public QTranslator {
 public:
-	using Result = QMap<LangKey, QString>;
-
-	FileParser(const QString &file, const std::set<LangKey> &request = std::set<LangKey>());
-
-	const QString &errors() const;
-	const QString &warnings() const;
-
-	Result found() const {
-		return _result;
-	}
-
-private:
-	bool feedKeyValue(LangKey key, const QString &value);
-	void foundKeyValue(LangKey key);
-
-	void error(const QString &text) {
-		_errorsList.push_back(text);
-	}
-	void warning(const QString &text) {
-		_warningsList.push_back(text);
-	}
-	bool readKeyValue(const char *&from, const char *end);
-
-	mutable QStringList _errorsList, _warningsList;
-	mutable QString _errors, _warnings;
-	mutable bool _checked = false;
-	std::array<bool, kLangKeysCount> _found = { { false } };
-
-	QString _filePath;
-	std::set<LangKey> _request;
-
-	bool _readingAll = false;
-	Result _result;
+	QString translate(const char *context, const char *sourceText, const char *disambiguation = 0, int n = -1) const override;
 
 };
 

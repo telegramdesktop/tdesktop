@@ -353,7 +353,7 @@ bool HistoryHider::offerPeer(PeerId peer) {
 		return false;
 	}
 	_offered = App::peer(peer);
-	LangString phrase;
+	auto phrase = QString();
 	QString recipient = _offered->isUser() ? _offered->name : '\xAB' + _offered->name + '\xBB';
 	if (_sharedContact) {
 		phrase = lng_forward_share_contact(lt_recipient, recipient);
