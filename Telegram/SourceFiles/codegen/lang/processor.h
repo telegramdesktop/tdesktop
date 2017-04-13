@@ -27,7 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace codegen {
 namespace lang {
 class ParsedFile;
-struct Langpack;
+struct LangPack;
 
 // Walks through a file, parses it and generates the output.
 class Processor {
@@ -42,7 +42,7 @@ public:
 	~Processor();
 
 private:
-	bool write(const Langpack &langpack) const;
+	bool write(const LangPack &langpack) const;
 
 	std::unique_ptr<ParsedFile> parser_;
 	const Options &options_;

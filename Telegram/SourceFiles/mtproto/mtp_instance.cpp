@@ -23,10 +23,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/dc_options.h"
 #include "storage/localstorage.h"
 #include "auth_session.h"
+#include "apiwrap.h"
 #include "messenger.h"
 #include "mtproto/connection.h"
 #include "mtproto/sender.h"
 #include "mtproto/rsa_public_key.h"
+#include "lang/lang_instance.h"
+#include "base/timer.h"
 
 namespace MTP {
 
@@ -46,8 +49,10 @@ public:
 
 	DcOptions *dcOptions();
 
-	void configLoadRequest();
-	void cdnConfigLoadRequest();
+	void requestConfig();
+	void requestCDNConfig();
+	void requestLangPackDifference();
+	void applyLangPackDifference(const MTPLangPackDifference &difference);
 
 	void restart();
 	void restart(ShiftedDcId shiftedDcId);
@@ -124,6 +129,8 @@ private:
 
 	void checkDelayedRequests();
 
+	void switchLangPackId(const QString &id);
+
 	Instance *_instance = nullptr;
 	DcOptions *_dcOptions = nullptr;
 	Instance::Mode _mode = Instance::Mode::Normal;
@@ -174,7 +181,9 @@ private:
 	base::lambda<void(ShiftedDcId shiftedDcId, int32 state)> _stateChangedHandler;
 	base::lambda<void(ShiftedDcId shiftedDcId)> _sessionResetHandler;
 
-	SingleTimer _checkDelayedTimer;
+	base::Timer _checkDelayedTimer;
+
+	mtpRequestId _langPackRequestId = 0;
 
 	// Debug flag to find out how we end up crashing.
 	bool MustNotCreateSessions = false;
@@ -232,13 +241,12 @@ void Instance::Private::start(Config &&config) {
 		_mainSession->start();
 	}
 
-	_checkDelayedTimer.setTimeoutHandler([this] {
-		checkDelayedRequests();
-	});
+	_checkDelayedTimer.setCallback([this] { checkDelayedRequests(); });
 
 	t_assert((_mainDcId == Config::kNoneMainDc) == isKeysDestroyer());
 	if (!isKeysDestroyer()) {
-		configLoadRequest();
+		requestConfig();
+		requestLangPackDifference();
 	}
 }
 
@@ -263,11 +271,11 @@ void Instance::Private::setMainDcId(DcId mainDcId) {
 }
 
 DcId Instance::Private::mainDcId() const {
-	t_assert(_mainDcId != Config::kNoneMainDc);
+	Expects(_mainDcId != Config::kNoneMainDc);
 	return _mainDcId;
 }
 
-void Instance::Private::configLoadRequest() {
+void Instance::Private::requestConfig() {
 	if (_configLoader) {
 		return;
 	}
@@ -279,7 +287,7 @@ void Instance::Private::configLoadRequest() {
 	_configLoader->load();
 }
 
-void Instance::Private::cdnConfigLoadRequest() {
+void Instance::Private::requestCDNConfig() {
 	if (_cdnConfigLoadRequestId || _mainDcId == Config::kNoneMainDc) {
 		return;
 	}
@@ -293,6 +301,58 @@ void Instance::Private::cdnConfigLoadRequest() {
 
 		emit _instance->cdnConfigLoaded();
 	}).send();
+}
+
+
+void Instance::Private::requestLangPackDifference() {
+	auto &langpack = Lang::Current();
+	if (langpack.isCustom() || _langPackRequestId) {
+		return;
+	}
+
+	auto version = langpack.version();
+	if (version > 0) {
+		_langPackRequestId = request(MTPlangpack_GetDifference(MTP_int(version))).done([this](const MTPLangPackDifference &result) {
+			_langPackRequestId = 0;
+			applyLangPackDifference(result);
+		}).fail([this](const RPCError &error) {
+			_langPackRequestId = 0;
+		}).send();
+	} else {
+		_langPackRequestId = request(MTPlangpack_GetLangPack()).done([this](const MTPLangPackDifference &result) {
+			_langPackRequestId = 0;
+			applyLangPackDifference(result);
+		}).fail([this](const RPCError &error) {
+			_langPackRequestId = 0;
+		}).send();
+	}
+}
+
+void Instance::Private::applyLangPackDifference(const MTPLangPackDifference &difference) {
+	Expects(difference.type() == mtpc_langPackDifference);
+	auto &current = Lang::Current();
+	if (current.isCustom()) {
+		return;
+	}
+
+	auto &langpack = difference.c_langPackDifference();
+	switchLangPackId(qs(langpack.vlang_code));
+	if (current.version() < langpack.vfrom_version.v) {
+		requestLangPackDifference();
+	} else if (!langpack.vstrings.v.isEmpty()) {
+		current.applyDifference(langpack);
+		Local::writeLangPack();
+	} else {
+		LOG(("Lang Info: Up to date."));
+	}
+}
+
+void Instance::Private::switchLangPackId(const QString &id) {
+	auto &current = Lang::Current();
+	if (current.id() != id) {
+		current = Lang::Instance(id, Lang::Instance::CreateFromIdTag());
+		restart(maindc());
+	}
 }
 
 void Instance::Private::restart() {
@@ -639,7 +699,7 @@ void Instance::Private::checkDelayedRequests() {
 	}
 
 	if (!_delayedRequests.empty()) {
-		_checkDelayedTimer.start(_delayedRequests.front().second - now);
+		_checkDelayedTimer.callOnce(_delayedRequests.front().second - now);
 	}
 }
 
@@ -1261,12 +1321,24 @@ DcId Instance::mainDcId() const {
 	return _private->mainDcId();
 }
 
-void Instance::configLoadRequest() {
-	_private->configLoadRequest();
+QString Instance::cloudLangCode() const {
+	return Lang::Current().cloudLangCode();
 }
 
-void Instance::cdnConfigLoadRequest() {
-	_private->cdnConfigLoadRequest();
+void Instance::requestConfig() {
+	_private->requestConfig();
+}
+
+void Instance::requestCDNConfig() {
+	_private->requestCDNConfig();
+}
+
+void Instance::requestLangPackDifference() {
+	_private->requestLangPackDifference();
+}
+
+void Instance::applyLangPackDifference(const MTPLangPackDifference &difference) {
+	_private->applyLangPackDifference(difference);
 }
 
 void Instance::connectionFinished(internal::Connection *connection) {

@@ -67,6 +67,7 @@ struct Messenger::Private {
 
 Messenger::Messenger() : QObject()
 , _private(std::make_unique<Private>())
+, _langpack(std::make_unique<Lang::Instance>())
 , _audio(std::make_unique<Media::Audio::Instance>())
 , _logo(Window::LoadLogo())
 , _logoNoMargin(Window::LoadLogoNoMargin()) {
@@ -96,7 +97,10 @@ Messenger::Messenger() : QObject()
 		cSetConfigScale(dbisOne);
 		cSetRealScale(dbisOne);
 	}
-	loadLanguage();
+
+	_translator = std::make_unique<Lang::Translator>();
+	QCoreApplication::instance()->installTranslator(_translator.get());
+
 	style::startManager();
 	anim::startManager();
 	historyInit();
@@ -202,12 +206,7 @@ QByteArray Messenger::serializeMtpAuthorization() const {
 		size += keysSize(keys) + keysSize(keysToDestroy);
 		result.reserve(size);
 		{
-			QBuffer buffer(&result);
-			if (!buffer.open(QIODevice::WriteOnly)) {
-				LOG(("MTP Error: could not open buffer to serialize mtp authorization."));
-				return result;
-			}
-			QDataStream stream(&buffer);
+			QDataStream stream(&result, QIODevice::WriteOnly);
 			stream.setVersion(QDataStream::Qt_5_1);
 
 			auto currentUserId = AuthSession::Exists() ? AuthSession::CurrentUserId() : 0;
@@ -251,13 +250,7 @@ AuthSessionData *Messenger::getAuthSessionData() {
 void Messenger::setMtpAuthorization(const QByteArray &serialized) {
 	Expects(!_mtproto);
 
-	auto readonly = serialized;
-	QBuffer buffer(&readonly);
-	if (!buffer.open(QIODevice::ReadOnly)) {
-		LOG(("MTP Error: could not open serialized mtp authorization for reading."));
-		return;
-	}
-	QDataStream stream(&buffer);
+	QDataStream stream(serialized);
 	stream.setVersion(QDataStream::Qt_5_1);
 
 	auto userId = Serialize::read<qint32>(stream);
@@ -375,34 +368,6 @@ void Messenger::destroyStaleAuthorizationKeys() {
 	}
 }
 
-void Messenger::loadLanguage() {
-	if (cLang() < languageTest) {
-		cSetLang(Sandbox::LangSystem());
-	}
-	if (cLang() == languageTest) {
-		if (QFileInfo(cLangFile()).exists()) {
-			Lang::FileParser loader(cLangFile());
-			cSetLangErrors(loader.errors());
-			if (!cLangErrors().isEmpty()) {
-				LOG(("Lang load errors: %1").arg(cLangErrors()));
-			} else if (!loader.warnings().isEmpty()) {
-				LOG(("Lang load warnings: %1").arg(loader.warnings()));
-			}
-		} else {
-			cSetLang(languageDefault);
-		}
-	} else if (cLang() > languageDefault && cLang() < languageCount) {
-		Lang::FileParser loader(qsl(":/langs/lang_") + LanguageCodes[cLang()].c_str() + qsl(".strings"));
-		if (!loader.errors().isEmpty()) {
-			LOG(("Lang load errors: %1").arg(loader.errors()));
-		} else if (!loader.warnings().isEmpty()) {
-			LOG(("Lang load warnings: %1").arg(loader.warnings()));
-		}
-	}
-	_translator = std::make_unique<Lang::Translator>();
-	QCoreApplication::instance()->installTranslator(_translator.get());
-}
-
 void Messenger::startLocalStorage() {
 	_dcOptions = std::make_unique<MTP::DcOptions>();
 	_dcOptions->constructFromBuiltIn();
@@ -417,7 +382,7 @@ void Messenger::startLocalStorage() {
 	});
 	subscribe(authSessionChanged(), [this] {
 		if (_mtproto) {
-			_mtproto->configLoadRequest();
+			_mtproto->requestConfig();
 		}
 	});
 }

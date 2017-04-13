@@ -123,6 +123,15 @@ public:
 		_layerInited = was;
 	}
 
+	QString langCode() const {
+		QReadLocker locker(&_lock);
+		return _langCode;
+	}
+	void setLangCode(const QString &code) {
+		QWriteLocker locker(&_lock);
+		_langCode = code;
+	}
+
 	void setSalt(uint64 salt) {
 		QWriteLocker locker(&_lock);
 		_salt = salt;
@@ -259,6 +268,7 @@ private:
 	AuthKeyPtr _authKey;
 	bool _keyChecked = false;
 	bool _layerInited = false;
+	QString _langCode;
 
 	mtpPreRequestMap _toSend; // map of request_id -> request, that is waiting to be sent
 	mtpRequestMap _haveSent; // map of msg_id -> request, that was sent, msDate = 0 for msgs_state_req (no resend / state req), msDate = 0, seqNo = 0 for containers

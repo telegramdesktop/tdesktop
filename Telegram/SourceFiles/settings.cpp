@@ -42,8 +42,6 @@ QString gWorkingDir, gExeDir, gExeName;
 QStringList gSendPaths;
 QString gStartUrl;
 
-QString gLangErrors;
-
 QString gDialogLastPath, gDialogHelperPath; // optimize QFileDialog
 
 bool gStartMinimized = false;

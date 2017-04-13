@@ -30,7 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace codegen {
 namespace lang {
 
-struct Langpack {
+struct LangPack {
 	struct Tag {
 		QString tag;
 	};
@@ -53,7 +53,7 @@ public:
 
 	bool read();
 
-	Langpack getResult() {
+	LangPack getResult() {
 		return result_;
 	}
 
@@ -84,14 +84,14 @@ private:
 	BasicToken assertNextToken(BasicToken::Type type);
 
 	void addEntity(const QString &key, const QString &value);
-	QString extractTagsData(const QString &value, Langpack *to);
-	QString extractTagData(const QString &tag, Langpack *to);
+	QString extractTagsData(const QString &value, LangPack *to);
+	QString extractTagData(const QString &tag, LangPack *to);
 
 	QString filePath_;
 	common::BasicTokenizedFile file_;
 	Options options_;
 	bool failed_ = false;
-	Langpack result_;
+	LangPack result_;
 
 };
 

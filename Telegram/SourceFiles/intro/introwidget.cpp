@@ -47,12 +47,21 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "auth_session.h"
 
 namespace Intro {
+namespace {
+
+constexpr str_const kDefaultCountry = "US";
+
+} // namespace
 
 Widget::Widget(QWidget *parent) : TWidget(parent)
 , _back(this, object_ptr<Ui::IconButton>(this, st::introBackButton), st::introSlideDuration)
 , _settings(this, object_ptr<Ui::RoundButton>(this, lang(lng_menu_settings), st::defaultBoxButton), st::introCoverDuration)
 , _next(this, QString(), st::introNextButton) {
-	getData()->country = psCurrentCountry();
+	auto country = Platform::SystemCountry();
+	if (country.isEmpty()) {
+		country = str_const_toString(kDefaultCountry);
+	}
+	getData()->country = country;
 
 	_back->entity()->setClickedCallback([this] { historyMove(Direction::Back); });
 	_back->hideFast();
@@ -61,20 +70,20 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 
 	_settings->entity()->setClickedCallback([] { App::wnd()->showSettings(); });
 
-	if (cLang() == languageDefault) {
-		auto systemLangId = Sandbox::LangSystem();
-		if (systemLangId != languageDefault) {
-			Lang::FileParser loader(qsl(":/langs/lang_") + LanguageCodes[systemLangId].c_str() + qsl(".strings"), { lng_switch_to_this });
-			auto text = loader.found().value(lng_switch_to_this);
-			if (!text.isEmpty()) {
-				_changeLanguage.create(this, object_ptr<Ui::LinkButton>(this, text), st::introCoverDuration);
-				_changeLanguage->entity()->setClickedCallback([this, systemLangId] { changeLanguage(systemLangId); });
-			}
-		}
-	} else {
-		_changeLanguage.create(this, object_ptr<Ui::LinkButton>(this, langOriginal(lng_switch_to_this)), st::introCoverDuration);
-		_changeLanguage->entity()->setClickedCallback([this] { changeLanguage(languageDefault); });
-	}
+	//if (cLang() == languageDefault) {
+	//	auto systemLangId = Sandbox::LangSystem();
+	//	if (systemLangId != languageDefault) {
+	//		Lang::FileParser loader(qsl(":/langs/lang_") + LanguageCodes[systemLangId].c_str() + qsl(".strings"), { lng_switch_to_this });
+	//		auto text = loader.found().value(lng_switch_to_this);
+	//		if (!text.isEmpty()) {
+	//			_changeLanguage.create(this, object_ptr<Ui::LinkButton>(this, text), st::introCoverDuration);
+	//			_changeLanguage->entity()->setClickedCallback([this, systemLangId] { changeLanguage(systemLangId); });
+	//		}
+	//	}
+	//} else {
+	//	_changeLanguage.create(this, object_ptr<Ui::LinkButton>(this, Lang::GetOriginalValue(lng_switch_to_this)), st::introCoverDuration);
+	//	_changeLanguage->entity()->setClickedCallback([this] { changeLanguage(languageDefault); });
+	//}
 
 	MTP::send(MTPhelp_GetNearestDc(), rpcDone(&Widget::gotNearestDC));
 

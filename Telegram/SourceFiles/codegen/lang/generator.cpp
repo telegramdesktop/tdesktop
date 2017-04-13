@@ -24,7 +24,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <functional>
 #include <QtCore/QDir>
 #include <QtCore/QSet>
-#include <QtCore/QBuffer>
 #include <QtGui/QImage>
 #include <QtGui/QPainter>
 
@@ -109,7 +108,7 @@ QString stringToBinaryArray(const std::string &str) {
 
 } // namespace
 
-Generator::Generator(const Langpack &langpack, const QString &destBasePath, const common::ProjectInfo &project)
+Generator::Generator(const LangPack &langpack, const QString &destBasePath, const common::ProjectInfo &project)
 : langpack_(langpack)
 , basePath_(destBasePath)
 , baseName_(QFileInfo(basePath_).baseName())
@@ -141,8 +140,6 @@ enum LangKey {\n";
 };\n\
 \n\
 QString lang(LangKey key);\n\
-\n\
-QString langOriginal(LangKey key);\n\
 \n";
 	for (auto &entry : langpack_.entries) {
 		if (!entry.tags.empty()) {
@@ -172,7 +169,7 @@ ushort GetTagIndex(QLatin1String tag);\n\
 LangKey GetKeyIndex(QLatin1String key);\n\
 LangKey GetSubkeyIndex(LangKey key, ushort tag, ushort index);\n\
 bool IsTagReplaced(LangKey key, ushort tag);\n\
-void FeedKeyValue(LangKey key, const QString &value);\n\
+QString GetOriginalValue(LangKey key);\n\
 \n";
 
 	return header_->finalize();
@@ -191,26 +188,47 @@ const char *KeyNames[kLangKeysCount] = {\n\
 \n\
 };\n\
 \n\
-QString Values[kLangKeysCount], OriginalValues[kLangKeysCount];\n\
-\n\
-void set(LangKey key, const QString &val) {\n\
-	Values[key] = val;\n\
-}\n\
-\n\
-class Initializer {\n\
-public:\n\
-	Initializer() {\n";
+QChar DefaultData[] = {";
+	auto count = 0;
+	auto fulllength = 0;
 	for (auto &entry : langpack_.entries) {
-		source_->stream() << "\t\tset(" << getFullKey(entry) << ", QString::fromUtf8(" << stringToEncodedString(entry.value) << "));\n";
+		for (auto ch : entry.value) {
+			if (fulllength > 0) source_->stream() << ",";
+			if (!count++) {
+				source_->stream() << "\n";
+			} else {
+				if (count == 12) {
+					count = 0;
+				}
+				source_->stream() << " ";
+			}
+			source_->stream() << "0x" << QString::number(ch.unicode(), 16);
+			++fulllength;
+		}
 	}
-	source_->stream() << "\
-	}\n\
+	source_->stream() << " };\n\
 \n\
-};\n\
-\n\
-Initializer Instance;\n\
-\n";
-
+int Offsets[] = {";
+	count = 0;
+	auto offset = 0;
+	auto writeOffset = [this, &count, &offset] {
+		if (offset > 0) source_->stream() << ",";
+		if (!count++) {
+			source_->stream() << "\n";
+		} else {
+			if (count == 12) {
+				count = 0;
+			}
+			source_->stream() << " ";
+		}
+		source_->stream() << offset;
+	};
+	for (auto &entry : langpack_.entries) {
+		writeOffset();
+		offset += entry.value.size();
+	}
+	writeOffset();
+	source_->stream() << " };\n";
 	source_->popNamespace().stream() << "\
 \n\
 const char *GetKeyName(LangKey key) {\n\
@@ -314,24 +332,12 @@ bool IsTagReplaced(LangKey key, ushort tag) {\n\
 	return false;\n\
 }\n\
 \n\
-void FeedKeyValue(LangKey key, const QString &value) {\n\
+QString GetOriginalValue(LangKey key) {\n\
 	Expects(key >= 0 && key < kLangKeysCount);\n\
-	if (OriginalValues[key].isEmpty()) {\n\
-		OriginalValues[key] = Values[key].isEmpty() ? qsl(\"{}\") : Values[key];\n\
-	}\n\
-	Values[key] = value;\n\
+	auto offset = Offsets[key];\n\
+	return QString::fromRawData(DefaultData + offset, Offsets[key + 1] - offset);\n\
 }\n\
 \n";
-
-	source_->popNamespace().stream() << "\
-\n\
-QString lang(LangKey key) {\n\
-	return (key < 0 || key >= kLangKeysCount) ? QString() : Lang::Values[key];\n\
-}\n\
-\n\
-QString langOriginal(LangKey key) {\n\
-	return (key < 0 || key >= kLangKeysCount || Lang::OriginalValues[key] == qsl(\"{}\")) ? QString() : (Lang::OriginalValues[key].isEmpty() ? Lang::Values[key] : Lang::OriginalValues[key]);\n\
-}\n";
 
 	return source_->finalize();
 }
@@ -473,7 +479,7 @@ void Generator::writeSetSearch(const std::set<QString, std::greater<QString>> &s
 	return " << invalidResult << ";\n";
 }
 
-QString Generator::getFullKey(const Langpack::Entry &entry) {
+QString Generator::getFullKey(const LangPack::Entry &entry) {
 	if (entry.tags.empty()) {
 		return entry.key;
 	}

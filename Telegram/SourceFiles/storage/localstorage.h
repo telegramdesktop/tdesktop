@@ -163,6 +163,8 @@ bool hasTheme();
 QString themePaletteAbsolutePath();
 bool copyThemeColorsToPalette(const QString &file);
 
+void writeLangPack();
+
 void writeRecentHashtagsAndBots();
 void readRecentHashtagsAndBots();
 

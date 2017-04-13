@@ -179,6 +179,8 @@
 <(src_loc)/intro/introstart.h
 <(src_loc)/lang/lang_file_parser.cpp
 <(src_loc)/lang/lang_file_parser.h
+<(src_loc)/lang/lang_instance.cpp
+<(src_loc)/lang/lang_instance.h
 <(src_loc)/lang/lang_keys.cpp
 <(src_loc)/lang/lang_keys.h
 <(src_loc)/lang/lang_tag.cpp

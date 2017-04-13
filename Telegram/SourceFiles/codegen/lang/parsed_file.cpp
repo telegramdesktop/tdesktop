@@ -128,7 +128,7 @@ common::LogStream ParsedFile::logErrorBadString() {
 	return logError(kErrorBadString);
 }
 
-QString ParsedFile::extractTagsData(const QString &value, Langpack *to) {
+QString ParsedFile::extractTagsData(const QString &value, LangPack *to) {
 	auto tagStart = value.indexOf('{');
 	if (tagStart < 0) {
 		return value;
@@ -157,7 +157,7 @@ QString ParsedFile::extractTagsData(const QString &value, Langpack *to) {
 	return finalValue;
 }
 
-QString ParsedFile::extractTagData(const QString &tagText, Langpack *to) {
+QString ParsedFile::extractTagData(const QString &tagText, LangPack *to) {
 	auto numericPart = tagText.indexOf(':');
 	auto tag = (numericPart > 0) ? tagText.mid(0, numericPart) : tagText;
 	if (!ValidateTag(tag)) {
@@ -190,7 +190,7 @@ QString ParsedFile::extractTagData(const QString &tagText, Langpack *to) {
 		}
 		auto index = 0;
 		for (auto &part : numericParts) {
-			auto numericPartEntry = Langpack::Entry();
+			auto numericPartEntry = LangPack::Entry();
 			numericPartEntry.key = tag + QString::number(index++);
 			if (part.indexOf('#') != part.lastIndexOf('#')) {
 				logErrorBadString() << "bad option for plural key part in tag: '" << tagText.toStdString() << "', too many '#'.";
@@ -211,14 +211,14 @@ void ParsedFile::addEntity(const QString &key, const QString &value) {
 			return;
 		}
 	}
-	auto tagsData = Langpack();
-	auto entry = Langpack::Entry();
+	auto tagsData = LangPack();
+	auto entry = LangPack::Entry();
 	entry.key = key;
 	entry.value = extractTagsData(value, &tagsData);
 	entry.tags = tagsData.tags;
 	result_.entries.push_back(entry);
 	for (auto &pluralEntry : tagsData.entries) {
-		auto taggedEntry = Langpack::Entry();
+		auto taggedEntry = LangPack::Entry();
 		taggedEntry.key = key + "__" + pluralEntry.key;
 		taggedEntry.value = pluralEntry.value;
 		result_.entries.push_back(taggedEntry);

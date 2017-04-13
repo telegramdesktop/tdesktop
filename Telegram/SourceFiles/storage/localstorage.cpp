@@ -538,8 +538,8 @@ enum {
 	dbiNotifyView = 0x1c,
 	dbiSendToMenu = 0x1d,
 	dbiCompressPastedImage = 0x1e,
-	dbiLang = 0x1f,
-	dbiLangFile = 0x20,
+	dbiLangOld = 0x1f,
+	dbiLangFileOld = 0x20,
 	dbiTileBackground = 0x21,
 	dbiAutoLock = 0x22,
 	dbiDialogLastPath = 0x23,
@@ -568,13 +568,14 @@ enum {
 	dbiNativeNotifications = 0x44,
 	dbiNotificationsCount  = 0x45,
 	dbiNotificationsCorner = 0x46,
-	dbiTheme = 0x47,
+	dbiThemeKey = 0x47,
 	dbiDialogsWidthRatio = 0x48,
 	dbiUseExternalVideoPlayer = 0x49,
 	dbiDcOptions = 0x4a,
 	dbiMtpAuthorization = 0x4b,
 	dbiLastSeenWarningSeenOld = 0x4c,
 	dbiAuthSessionData = 0x4d,
+	dbiLangPackKey = 0x4e,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -625,6 +626,7 @@ FileKey _recentHashtagsAndBotsKey = 0;
 bool _recentHashtagsAndBotsWereRead = false;
 
 FileKey _savedPeersKey = 0;
+FileKey _langPackKey = 0;
 
 typedef QMap<StorageKey, FileDesc> StorageMap;
 StorageMap _imagesMap, _stickerImagesMap, _audiosMap;
@@ -850,11 +852,17 @@ void _readReportSpamStatuses() {
 }
 
 struct ReadSettingsContext {
+	int legacyLanguageId = Lang::kLegacyLanguageNone;
+	QString legacyLanguageFile;
 	MTP::DcOptions dcOptions;
 };
 
 void applyReadContext(ReadSettingsContext &&context) {
 	Messenger::Instance().dcOptions()->addFromOther(std::move(context.dcOptions));
+	if (context.legacyLanguageId != Lang::kLegacyLanguageNone) {
+		Lang::Current().fillFromLegacy(context.legacyLanguageId, context.legacyLanguageFile);
+		writeLangPack();
+	}
 }
 
 bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSettingsContext &context) {
@@ -1142,12 +1150,20 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		};
 	} break;
 
-	case dbiTheme: {
+	case dbiThemeKey: {
 		quint64 themeKey = 0;
 		stream >> themeKey;
 		if (!_checkStreamStatus(stream)) return false;
 
 		_themeKey = themeKey;
+	} break;
+
+	case dbiLangPackKey: {
+		quint64 langPackKey = 0;
+		stream >> langPackKey;
+		if (!_checkStreamStatus(stream)) return false;
+
+		_langPackKey = langPackKey;
 	} break;
 
 	case dbiTryIPv6: {
@@ -1205,22 +1221,20 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		cSetRealScale(s);
 	} break;
 
-	case dbiLang: {
+	case dbiLangOld: {
 		qint32 v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		if (v == languageTest || (v >= 0 && v < languageCount)) {
-			cSetLang(v);
-		}
+		context.legacyLanguageId = v;
 	} break;
 
-	case dbiLangFile: {
+	case dbiLangFileOld: {
 		QString v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		cSetLangFile(v);
+		context.legacyLanguageFile = v;
 	} break;
 
 	case dbiWindowPosition: {
@@ -2212,9 +2226,10 @@ void finish() {
 }
 
 void readTheme();
+void readLangPack();
 
 void start() {
-	t_assert(_manager == 0);
+	Expects(!_manager);
 
 	_manager = new internal::Manager();
 	_localLoader = new TaskQueue(0, FileLoaderQueueStopTimeout);
@@ -2269,6 +2284,7 @@ void start() {
 	_settingsSalt = salt;
 
 	readTheme();
+	readLangPack();
 
 	applyReadContext(std::move(context));
 }
@@ -2301,7 +2317,10 @@ void writeSettings() {
 		size += Serialize::stringSize(proxy.host) + sizeof(qint32) + Serialize::stringSize(proxy.user) + Serialize::stringSize(proxy.password);
 	}
 	if (_themeKey) {
-		size += sizeof(quint32) + 2 * sizeof(quint64);
+		size += sizeof(quint32) + sizeof(quint64);
+	}
+	if (_langPackKey) {
+		size += sizeof(quint32) + sizeof(quint64);
 	}
 	size += sizeof(quint32) + sizeof(qint32) * 7;
 
@@ -2318,9 +2337,7 @@ void writeSettings() {
 	data.stream << quint32(dbiAutoUpdate) << qint32(cAutoUpdate());
 	data.stream << quint32(dbiLastUpdateCheck) << qint32(cLastUpdateCheck());
 	data.stream << quint32(dbiScale) << qint32(cConfigScale());
-	data.stream << quint32(dbiLang) << qint32(cLang());
 	data.stream << quint32(dbiDcOptions) << dcOptionsSerialized;
-	data.stream << quint32(dbiLangFile) << cLangFile();
 
 	data.stream << quint32(dbiConnectionType) << qint32(Global::ConnectionType());
 	if (Global::ConnectionType() == dbictHttpProxy || Global::ConnectionType() == dbictTcpProxy) {
@@ -2329,7 +2346,10 @@ void writeSettings() {
 	}
 	data.stream << quint32(dbiTryIPv6) << qint32(Global::TryIPv6());
 	if (_themeKey) {
-		data.stream << quint32(dbiTheme) << quint64(_themeKey);
+		data.stream << quint32(dbiThemeKey) << quint64(_themeKey);
+	}
+	if (_langPackKey) {
+		data.stream << quint32(dbiLangPackKey) << quint64(_langPackKey);
 	}
 
 	TWindowPos pos(cWindowPos());
@@ -3808,7 +3828,7 @@ void writeTheme(const QString &pathRelative, const QString &pathAbsolute, const 
 
 	_themePaletteAbsolutePath = Window::Theme::IsPaletteTestingPath(pathAbsolute) ? pathAbsolute : QString();
 	if (!_themeKey) {
-		_themeKey = genKey();
+		_themeKey = genKey(FileOption::Safe);
 		writeSettings();
 	}
 
@@ -3837,6 +3857,32 @@ void readTheme() {
 
 bool hasTheme() {
 	return (_themeKey != 0);
+}
+
+void readLangPack() {
+	FileReadDescriptor langpack;
+	if (!_langPackKey || !readEncryptedFile(langpack, _langPackKey, FileOption::Safe, SettingsKey)) {
+		return;
+	}
+	auto data = QByteArray();
+	langpack.stream >> data;
+	if (langpack.stream.status() == QDataStream::Ok) {
+		Lang::Current().fillFromSerialized(data);
+	}
+}
+
+void writeLangPack() {
+	auto langpack = Lang::Current().serialize();
+	if (!_langPackKey) {
+		_langPackKey = genKey(FileOption::Safe);
+		writeSettings();
+	}
+
+	EncryptedDescriptor data(Serialize::bytearraySize(langpack));
+	data.stream << langpack;
+
+	FileWriteDescriptor file(_langPackKey, FileOption::Safe);
+	file.writeEncrypted(data, SettingsKey);
 }
 
 QString themePaletteAbsolutePath() {

@@ -305,9 +305,6 @@ inline const QString &cTempDir() {
 	return res;
 }
 
-static const char *DefaultCountry = "US";
-static const char *DefaultLanguage = "en";
-
 enum {
 	DialogsFirstLoad = 20, // first dialogs part size requested
 	DialogsPerPage = 500, // next dialogs part size

@@ -117,8 +117,6 @@ private:
 	object_ptr<Ui::WidgetSlideWrap<Ui::Checkbox>> _startMinimized = { nullptr };
 	object_ptr<Ui::Checkbox> _addInSendTo = { nullptr };
 
-	QString _testLanguage;
-
 };
 
 } // namespace Settings

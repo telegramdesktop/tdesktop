@@ -212,17 +212,16 @@ void GeneralWidget::chooseCustomLang() {
 			return;
 		}
 
-		_testLanguage = QFileInfo(result.paths.front()).absoluteFilePath();
-		Lang::FileParser loader(_testLanguage, { lng_sure_save_language, lng_cancel, lng_box_ok });
+		auto filePath = result.paths.front();
+		Lang::FileParser loader(filePath, { lng_sure_save_language, lng_cancel, lng_box_ok });
 		if (loader.errors().isEmpty()) {
 			auto result = loader.found();
-			auto text = result.value(lng_sure_save_language, langOriginal(lng_sure_save_language)),
-				save = result.value(lng_box_ok, langOriginal(lng_box_ok)),
-				cancel = result.value(lng_cancel, langOriginal(lng_cancel));
-			Ui::show(Box<ConfirmBox>(text, save, cancel, base::lambda_guarded(this, [this] {
-				cSetLangFile(_testLanguage);
-				cSetLang(languageTest);
-				Local::writeSettings();
+			auto text = result.value(lng_sure_save_language, Lang::GetOriginalValue(lng_sure_save_language)),
+				save = result.value(lng_box_ok, Lang::GetOriginalValue(lng_box_ok)),
+				cancel = result.value(lng_cancel, Lang::GetOriginalValue(lng_cancel));
+			Ui::show(Box<ConfirmBox>(text, save, cancel, base::lambda_guarded(this, [this, filePath] {
+				Lang::Current() = Lang::Instance(filePath, Lang::Instance::CreateFromCustomFileTag());
+				Local::writeLangPack();
 				onRestart();
 			})));
 		} else {

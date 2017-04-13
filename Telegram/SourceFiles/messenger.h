@@ -48,6 +48,7 @@ class Instance;
 } // namespace Media
 
 namespace Lang {
+class Instance;
 class Translator;
 } // namespace Lang
 
@@ -104,6 +105,9 @@ public:
 	// AuthSession component.
 	AuthSession *authSession() {
 		return _authSession.get();
+	}
+	Lang::Instance &langpack() {
+		return *_langpack;
 	}
 	void authSessionCreate(UserId userId);
 	void authSessionDestroy();
@@ -175,7 +179,6 @@ public slots:
 private:
 	void destroyMtpKeys(MTP::AuthKeysList &&keys);
 	void startLocalStorage();
-	void loadLanguage();
 
 	friend void App::quit();
 	static void QuitAttempt();
@@ -193,6 +196,7 @@ private:
 	std::unique_ptr<MainWindow> _window;
 	FileUploader *_uploader = nullptr;
 
+	std::unique_ptr<Lang::Instance> _langpack;
 	std::unique_ptr<Lang::Translator> _translator;
 	std::unique_ptr<MTP::DcOptions> _dcOptions;
 	std::unique_ptr<MTP::Instance> _mtproto;

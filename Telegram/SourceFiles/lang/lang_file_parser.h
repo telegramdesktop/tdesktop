@@ -28,7 +28,10 @@ class FileParser {
 public:
 	using Result = QMap<LangKey, QString>;
 
-	FileParser(const QString &file, const std::set<LangKey> &request = std::set<LangKey>());
+	FileParser(const QString &file, const std::set<LangKey> &request);
+	FileParser(const QByteArray &content, base::lambda<void(QLatin1String key, const QByteArray &value)> callback);
+
+	static QByteArray ReadFile(const QString &absolutePath, const QString &relativePath);
 
 	const QString &errors() const;
 	const QString &warnings() const;
@@ -38,11 +41,11 @@ public:
 	}
 
 private:
-	bool feedKeyValue(LangKey key, const QString &value);
-	void foundKeyValue(LangKey key);
+	void parse();
 
-	void error(const QString &text) {
+	bool error(const QString &text) {
 		_errorsList.push_back(text);
+		return false;
 	}
 	void warning(const QString &text) {
 		_warningsList.push_back(text);
@@ -51,13 +54,11 @@ private:
 
 	mutable QStringList _errorsList, _warningsList;
 	mutable QString _errors, _warnings;
-	mutable bool _checked = false;
-	std::array<bool, kLangKeysCount> _found = { { false } };
 
-	QString _filePath;
-	std::set<LangKey> _request;
+	const QByteArray _content;
+	const std::set<LangKey> _request;
+	const base::lambda<void(QLatin1String key, const QByteArray &value)> _callback;
 
-	bool _readingAll = false;
 	Result _result;
 
 };

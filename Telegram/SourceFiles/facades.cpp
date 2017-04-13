@@ -412,9 +412,6 @@ namespace Sandbox {
 namespace internal {
 
 struct Data {
-	QString LangSystemISO;
-	int32 LangSystem = languageDefault;
-
 	QByteArray LastCrashDump;
 	ProxyData PreLaunchProxy;
 };
@@ -523,16 +520,6 @@ void start() {
 		base::TaskQueue::ProcessMainTasks();
 	});
 	SandboxData = std::make_unique<internal::Data>();
-
-	SandboxData->LangSystemISO = psCurrentLanguage();
-	if (SandboxData->LangSystemISO.isEmpty()) SandboxData->LangSystemISO = qstr("en");
-	auto l = LangSystemISO().toLatin1();
-	for (auto i = 0; i < languageCount; ++i) {
-		if (l.at(0) == LanguageCodes[i][0] && l.at(1) == LanguageCodes[i][1]) {
-			SandboxData->LangSystem = i;
-			break;
-		}
-	}
 }
 
 bool started() {
@@ -548,8 +535,6 @@ uint64 UserTag() {
 	return SandboxUserTag;
 }
 
-DefineReadOnlyVar(Sandbox, QString, LangSystemISO);
-DefineReadOnlyVar(Sandbox, int32, LangSystem);
 DefineVar(Sandbox, QByteArray, LastCrashDump);
 DefineVar(Sandbox, ProxyData, PreLaunchProxy);
 

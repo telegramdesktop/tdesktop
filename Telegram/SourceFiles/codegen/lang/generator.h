@@ -34,7 +34,7 @@ namespace lang {
 
 class Generator {
 public:
-	Generator(const Langpack &langpack, const QString &destBasePath, const common::ProjectInfo &project);
+	Generator(const LangPack &langpack, const QString &destBasePath, const common::ProjectInfo &project);
 	Generator(const Generator &other) = delete;
 	Generator &operator=(const Generator &other) = delete;
 
@@ -42,13 +42,13 @@ public:
 	bool writeSource();
 
 private:
-	QString getFullKey(const Langpack::Entry &entry);
+	QString getFullKey(const LangPack::Entry &entry);
 	bool isTagPlural(const QString &key, const QString &tag) const;
 
 	template <typename ComputeResult>
 	void writeSetSearch(const std::set<QString, std::greater<QString>> &set, ComputeResult computeResult, const QString &invalidResult);
 
-	const Langpack &langpack_;
+	const LangPack &langpack_;
 	QString basePath_, baseName_;
 	const common::ProjectInfo &project_;
 	std::unique_ptr<common::CppFile> source_, header_;

@@ -76,6 +76,8 @@ Session::Session(gsl::not_null<Instance*> instance, ShiftedDcId shiftedDcId) : Q
 	connect(&timeouter, SIGNAL(timeout()), this, SLOT(checkRequestsByTimer()));
 	timeouter.start(1000);
 
+	data.setLangCode(instance->cloudLangCode());
+
 	connect(&sender, SIGNAL(timeout()), this, SLOT(needToResumeAndSend()));
 }
 
@@ -124,6 +126,7 @@ void Session::restart() {
 		DEBUG_LOG(("Session Error: can't restart a killed session"));
 		return;
 	}
+	data.setLangCode(_instance->cloudLangCode());
 	emit needToRestart();
 }
 

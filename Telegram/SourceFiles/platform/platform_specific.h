@@ -20,14 +20,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#ifdef Q_OS_MAC
-#include "platform/mac/specific_mac.h"
-#elif defined Q_OS_LINUX // Q_OS_MAC
-#include "platform/linux/specific_linux.h"
-#elif defined Q_OS_WIN // Q_OS_MAC || Q_OS_LINUX
-#include "platform/win/specific_win.h"
-#endif // Q_OS_MAC || Q_OS_LINUX || Q_OS_WIN
-
 namespace Platform {
 
 void start();
@@ -40,6 +32,9 @@ void InitOnTopPanel(QWidget *panel);
 void DeInitOnTopPanel(QWidget *panel);
 void ReInitOnTopPanel(QWidget *panel);
 
+QString SystemLanguage();
+QString SystemCountry();
+
 namespace ThirdParty {
 
 void start();
@@ -47,3 +42,11 @@ void finish();
 
 } // namespace ThirdParty
 } // namespace Platform
+
+#ifdef Q_OS_MAC
+#include "platform/mac/specific_mac.h"
+#elif defined Q_OS_LINUX // Q_OS_MAC
+#include "platform/linux/specific_linux.h"
+#elif defined Q_OS_WIN // Q_OS_MAC || Q_OS_LINUX
+#include "platform/win/specific_win.h"
+#endif // Q_OS_MAC || Q_OS_LINUX || Q_OS_WIN

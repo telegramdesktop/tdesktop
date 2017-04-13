@@ -118,14 +118,6 @@ QRect computeSourceRect(const QImage &image) {
 	return result;
 }
 
-QString computeId(Id id) {
-	auto idAsParams = QStringList();
-	for (auto i = 0, size = id.size(); i != size; ++i) {
-		idAsParams.push_back("0x" + QString::number(id[i].unicode(), 16));
-	}
-	return "internal::ComputeId(" + idAsParams.join(", ") + ")";
-}
-
 } // namespace
 
 Generator::Generator(const Options &options) : project_(Project)
@@ -305,20 +297,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {\n\
 	return index ? &Items[index - 1] : nullptr;\n\
 }\n\
 \n\
-inline QString ComputeId(gsl::span<ushort> utf16) {\n\
-	auto result = QString();\n\
-	result.reserve(utf16.size());\n\
-	for (auto ch : utf16) {\n\
-		result.append(QChar(ch));\n\
-	}\n\
-	return result;\n\
-}\n\
-\n\
 void Init() {\n\
 	auto id = IdData;\n\
 	Items.reserve(base::array_size(Data));\n\
 	for (auto &data : Data) {\n\
-		Items.emplace_back(ComputeId(gsl::make_span(id, data.idSize)), data.column, data.row, data.postfixed, data.variated, data.original ? &Items[data.original - 1] : nullptr, One::CreationTag());\n\
+		Items.emplace_back(QString::fromRawData(id, data.idSize), data.column, data.row, data.postfixed, data.variated, data.original ? &Items[data.original - 1] : nullptr, One::CreationTag());\n\
 		id += data.idSize;\n\
 	}\n\
 }\n\
@@ -429,7 +412,7 @@ struct DataStruct {\n\
 	bool variated;\n\
 };\n\
 \n\
-ushort IdData[] = {";
+QChar IdData[] = {";
 	auto count = 0;
 	auto fulllength = 0;
 	if (!enumerateWholeList([this, &count, &fulllength](Id id, int column, int row, bool isPostfixed, bool isVariated, bool isColored, int original) {

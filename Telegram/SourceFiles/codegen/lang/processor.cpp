@@ -51,7 +51,7 @@ int Processor::launch() {
 	return 0;
 }
 
-bool Processor::write(const Langpack &langpack) const {
+bool Processor::write(const LangPack &langpack) const {
 	bool forceReGenerate = false;
 	QDir dir(options_.outputPath);
 	if (!dir.mkpath(".")) {

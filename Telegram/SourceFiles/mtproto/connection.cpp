@@ -780,7 +780,7 @@ void ConnectionPrivate::tryToSend() {
 	MTPInitConnection<mtpRequest> initWrapper;
 	int32 initSize = 0, initSizeInInts = 0;
 	if (needsLayer) {
-		auto langCode = (cLang() == languageTest || cLang() == languageDefault) ? Sandbox::LangSystemISO() : str_const_toString(LanguageCodes[cLang()]);
+		auto langCode = sessionData->langCode();
 		auto langPack = "tdesktop";
 		auto deviceModel = (_dcType == DcType::Cdn) ? "n/a" : cApiDeviceModel();
 		auto systemVersion = (_dcType == DcType::Cdn) ? "n/a" : cApiSystemVersion();
@@ -1031,7 +1031,7 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 		DEBUG_LOG(("MTP Info: DC %1 options for IPv4 over HTTP not found, waiting for config").arg(_shiftedDcId));
 		if (Global::TryIPv6() && noIPv6) DEBUG_LOG(("MTP Info: DC %1 options for IPv6 over HTTP not found, waiting for config").arg(_shiftedDcId));
 		connect(_instance, SIGNAL(configLoaded()), this, SLOT(onConfigLoaded()), Qt::UniqueConnection);
-		InvokeQueued(_instance, [instance = _instance] { instance->configLoadRequest(); });
+		InvokeQueued(_instance, [instance = _instance] { instance->requestConfig(); });
 		return;
 	}
 
@@ -1231,7 +1231,7 @@ void ConnectionPrivate::finishAndDestroy() {
 
 void ConnectionPrivate::requestCDNConfig() {
 	connect(_instance, SIGNAL(cdnConfigLoaded()), this, SLOT(onCDNConfigLoaded()), Qt::UniqueConnection);
-	InvokeQueued(_instance, [instance = _instance] { instance->cdnConfigLoadRequest(); });
+	InvokeQueued(_instance, [instance = _instance] { instance->requestCDNConfig(); });
 }
 
 void ConnectionPrivate::handleReceived() {

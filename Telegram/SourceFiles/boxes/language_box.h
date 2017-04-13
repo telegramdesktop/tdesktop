@@ -21,13 +21,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "boxes/abstract_box.h"
+#include "mtproto/sender.h"
 
 namespace Ui {
 class RadiobuttonGroup;
 class Radiobutton;
 } // namespace Ui
 
-class LanguageBox : public BoxContent {
+class LanguageBox : public BoxContent, private MTP::Sender {
 	Q_OBJECT
 
 public:
@@ -36,8 +37,6 @@ public:
 
 protected:
 	void prepare() override;
-
-	void mousePressEvent(QMouseEvent *e) override;
 
 private:
 	void languageChanged(int languageId);

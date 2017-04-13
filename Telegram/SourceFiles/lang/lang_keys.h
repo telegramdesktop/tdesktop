@@ -20,18 +20,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "lang_auto.h"
+#include "lang/lang_instance.h"
 
-constexpr const str_const LanguageCodes[] = {
-	"en",
-	"it",
-	"es",
-	"de",
-	"nl",
-	"pt_BR",
-	"ko",
-};
-constexpr const int languageTest = -1, languageDefault = 0, languageCount = base::array_size(LanguageCodes);
+inline QString lang(LangKey key) {
+	return Lang::Current().getValue(key);
+}
 
 template <typename WithYear, typename WithoutYear>
 inline QString langDateMaybeWithYear(QDate date, WithYear withYear, WithoutYear withoutYear) {

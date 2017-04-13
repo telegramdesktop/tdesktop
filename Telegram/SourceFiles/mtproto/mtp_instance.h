@@ -53,6 +53,7 @@ public:
 	void suggestMainDcId(DcId mainDcId);
 	void setMainDcId(DcId mainDcId);
 	DcId mainDcId() const;
+	QString cloudLangCode() const;
 
 	void setKeyForWrite(DcId dcId, const AuthKeyPtr &key);
 	AuthKeysList getKeysForWrite() const;
@@ -119,9 +120,10 @@ public:
 	bool isKeysDestroyer() const;
 	void scheduleKeyDestroy(ShiftedDcId shiftedDcId);
 
-	void configLoadRequest();
-
-	void cdnConfigLoadRequest();
+	void requestConfig();
+	void requestCDNConfig();
+	void requestLangPackDifference();
+	void applyLangPackDifference(const MTPLangPackDifference &difference);
 
 	~Instance();
 

@@ -322,16 +322,6 @@ void psActivateProcess(uint64 pid) {
 	}
 }
 
-QString psCurrentCountry() {
-	QString country = objc_currentCountry();
-	return country.isEmpty() ? QString::fromLatin1(DefaultCountry) : country;
-}
-
-QString psCurrentLanguage() {
-	QString lng = objc_currentLang();
-	return lng.isEmpty() ? QString::fromLatin1(DefaultLanguage) : lng;
-}
-
 QString psAppDataPath() {
 	return objc_appDataPath();
 }
@@ -402,6 +392,15 @@ void StartTranslucentPaint(QPainter &p, QPaintEvent *e) {
 	p.fillRect(e->rect(), Qt::transparent);
 	p.setCompositionMode(QPainter::CompositionMode_SourceOver);
 #endif // OS_MAC_OLD
+}
+
+QString SystemCountry() {
+	QString country = objc_currentCountry();
+	return country.isEmpty() ? QString::fromLatin1(DefaultCountry) : country;
+}
+
+QString SystemLanguage() {
+	return objc_currentLang();
 }
 
 } // namespace Platform

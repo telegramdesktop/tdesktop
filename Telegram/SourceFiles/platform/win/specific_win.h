@@ -43,6 +43,15 @@ inline void DeInitOnTopPanel(QWidget *panel) {
 inline void ReInitOnTopPanel(QWidget *panel) {
 }
 
+namespace ThirdParty {
+
+inline void start() {
+}
+
+inline void finish() {
+}
+
+} // namespace ThirdParty
 } // namespace Platform
 
 inline QString psServerPrefix() {
@@ -66,8 +75,6 @@ void psClearInitLogs();
 
 void psActivateProcess(uint64 pid = 0);
 QString psLocalServerPrefix();
-QString psCurrentCountry();
-QString psCurrentLanguage();
 QString psAppDataPath();
 QString psAppDataPathOld();
 QString psDownloadPath();

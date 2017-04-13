@@ -40,6 +40,8 @@ class ApiWrap : private MTP::Sender {
 public:
 	ApiWrap();
 
+	void applyUpdates(const MTPUpdates &updates, uint64 sentMessageRandomId = 0);
+
 	using RequestMessageDataCallback = base::lambda<void(ChannelData*, MsgId)>;
 	void requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback callback);
 

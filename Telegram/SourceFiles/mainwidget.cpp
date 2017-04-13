@@ -5264,7 +5264,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateConfig: {
-		Messenger::Instance().mtp()->configLoadRequest();
+		Messenger::Instance().mtp()->requestConfig();
 	} break;
 
 	case mtpc_updateUserPhone: {
@@ -5689,9 +5689,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	////// Cloud langpacks
 	case mtpc_updateLangPack: {
 		auto &langpack = update.c_updateLangPack();
+		Messenger::Instance().mtp()->applyLangPackDifference(langpack.vdifference);
 	} break;
 
 	case mtpc_updateLangPackTooLong: {
+		Messenger::Instance().mtp()->requestLangPackDifference();
 	} break;
 
 	}

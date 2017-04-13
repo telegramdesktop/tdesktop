@@ -51,6 +51,10 @@ ApiWrap::ApiWrap()
 	Window::Theme::Background()->start();
 }
 
+void ApiWrap::applyUpdates(const MTPUpdates &updates, uint64 sentMessageRandomId) {
+	App::main()->feedUpdates(updates, sentMessageRandomId);
+}
+
 void ApiWrap::requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback callback) {
 	auto &req = (channel ? _channelMessageDataRequests[channel][msgId] : _messageDataRequests[msgId]);
 	if (callback) {
@@ -112,10 +116,6 @@ void ApiWrap::resolveMessageDatas() {
 		}
 		++j;
 	}
-}
-
-void ApiWrap::updatesReceived(const MTPUpdates &updates) {
-	App::main()->sentUpdatesReceived(updates);
 }
 
 void ApiWrap::gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &msgs, mtpRequestId requestId) {
@@ -658,7 +658,7 @@ void ApiWrap::kickParticipant(PeerData *peer, UserData *user) {
 
 	if (auto channel = peer->asChannel()) {
 		auto requestId = request(MTPchannels_KickFromChannel(channel->inputChannel, user->inputUser, MTP_bool(true))).done([this, peer, user](const MTPUpdates &result) {
-			App::main()->sentUpdatesReceived(result);
+			applyUpdates(result);
 
 			_kickRequests.remove(KickRequest(peer, user));
 			if (auto channel = peer->asMegagroup()) {
@@ -704,7 +704,7 @@ void ApiWrap::unblockParticipant(PeerData *peer, UserData *user) {
 
 	if (auto channel = peer->asChannel()) {
 		auto requestId = request(MTPchannels_KickFromChannel(channel->inputChannel, user->inputUser, MTP_bool(false))).done([this, peer, user](const MTPUpdates &result) {
-			App::main()->sentUpdatesReceived(result);
+			applyUpdates(result);
 
 			_kickRequests.remove(KickRequest(peer, user));
 			if (auto channel = peer->asMegagroup()) {
@@ -877,7 +877,7 @@ void ApiWrap::joinChannel(ChannelData *channel) {
 	} else if (!_channelAmInRequests.contains(channel)) {
 		auto requestId = request(MTPchannels_JoinChannel(channel->inputChannel)).done([this, channel](const MTPUpdates &result) {
 			_channelAmInRequests.remove(channel);
-			updatesReceived(result);
+			applyUpdates(result);
 		}).fail([this, channel](const RPCError &error) {
 			if (error.type() == qstr("CHANNELS_TOO_MUCH")) {
 				Ui::show(Box<InformBox>(lang(lng_join_channel_error)));
@@ -895,7 +895,7 @@ void ApiWrap::leaveChannel(ChannelData *channel) {
 	} else if (!_channelAmInRequests.contains(channel)) {
 		auto requestId = request(MTPchannels_LeaveChannel(channel->inputChannel)).done([this, channel](const MTPUpdates &result) {
 			_channelAmInRequests.remove(channel);
-			updatesReceived(result);
+			applyUpdates(result);
 		}).fail([this, channel](const RPCError &error) {
 			_channelAmInRequests.remove(channel);
 		}).send();
