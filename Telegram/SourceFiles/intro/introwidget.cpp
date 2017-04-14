@@ -153,20 +153,12 @@ void Widget::historyMove(Direction direction) {
 	if (direction == Direction::Back || direction == Direction::Replace) {
 		delete base::take(wasStep);
 	}
-	if (getStep()->hasBack()) {
-		_back->showAnimated();
-	} else {
-		_back->hideAnimated();
-	}
-	if (getStep()->hasCover()) {
-		_settings->hideAnimated();
-		if (_update) _update->hideAnimated();
-		if (_changeLanguage) _changeLanguage->showAnimated();
-	} else {
-		_settings->showAnimated();
-		if (_update) _update->showAnimated();
-		if (_changeLanguage) _changeLanguage->hideAnimated();
-	}
+	_back->toggleAnimated(getStep()->hasBack());
+
+	auto stepHasCover = getStep()->hasCover();
+	_settings->toggleAnimated(!stepHasCover);
+	if (_update) _update->toggleAnimated(!stepHasCover);
+	if (_changeLanguage) _changeLanguage->toggleAnimated(stepHasCover);
 	_next->setText(getStep()->nextButtonText());
 	if (_resetAccount) _resetAccount->hideAnimated();
 	getStep()->showAnimated(direction);

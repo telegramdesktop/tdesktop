@@ -93,7 +93,10 @@ AuthSession::AuthSession(UserId userId)
 }
 
 bool AuthSession::Exists() {
-	return (Messenger::Instance().authSession() != nullptr);
+	if (auto messenger = Messenger::InstancePointer()) {
+		return (messenger->authSession() != nullptr);
+	}
+	return false;
 }
 
 AuthSession &AuthSession::Current() {
