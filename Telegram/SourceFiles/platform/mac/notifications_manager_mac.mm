@@ -214,8 +214,7 @@ private:
 Manager::Private::Private(Manager *manager)
 : _managerId(rand_value<uint64>())
 , _managerIdString(QString::number(_managerId))
-, _delegate([[NotificationDelegate alloc] initWithManager:manager managerId:_managerId])
-, _clearingThread([this] { clearingThreadLoop(); }) {
+, _delegate([[NotificationDelegate alloc] initWithManager:manager managerId:_managerId]) {
 	updateDelegate();
 	subscribe(Global::RefWorkMode(), [this](DBIWorkMode mode) {
 		// We need to update the delegate _after_ the tray icon change was done in Qt.
@@ -309,6 +308,10 @@ void Manager::Private::clearingThreadLoop() {
 
 template <typename Task>
 void Manager::Private::putClearTask(Task task) {
+	if (!_clearingThread.joinable()) {
+		_clearingThread = std::thread([this] { clearingThreadLoop(); });
+	}
+
 	std::unique_lock<std::mutex> lock(_clearingMutex);
 	_clearingTasks.push_back(task);
 	_clearingCondition.notify_one();
@@ -328,8 +331,10 @@ void Manager::Private::updateDelegate() {
 }
 
 Manager::Private::~Private() {
-	putClearTask(ClearFinish());
-	_clearingThread.join();
+	if (_clearingThread.joinable()) {
+		putClearTask(ClearFinish());
+		_clearingThread.join();
+	}
 	[_delegate release];
 }
 
