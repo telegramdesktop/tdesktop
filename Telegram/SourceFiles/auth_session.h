@@ -79,6 +79,12 @@ public:
 	void setTabbedSelectorSectionEnabled(bool enabled) {
 		_variables.tabbedSelectorSectionEnabled = enabled;
 	}
+	void setLastTimeVideoPlayedAt(TimeMs time) {
+		_lastTimeVideoPlayedAt = time;
+	}
+	TimeMs lastTimeVideoPlayedAt() const {
+		return _lastTimeVideoPlayedAt;
+	}
 
 private:
 	struct Variables {
@@ -92,10 +98,11 @@ private:
 	base::Observable<void> _moreChatsLoaded;
 	base::Observable<void> _savedGifsUpdated;
 	Variables _variables;
+	TimeMs _lastTimeVideoPlayedAt = 0;
 
 };
 
-class AuthSession final {
+class AuthSession final : private base::Subscriber {
 public:
 	AuthSession(UserId userId);
 
@@ -137,12 +144,18 @@ public:
 		return *_api;
 	}
 
+	void checkAutoLock();
+	void checkAutoLockIn(TimeMs time);
+
 	~AuthSession();
 
 private:
 	const UserId _userId = 0;
 	AuthSessionData _data;
 	base::Timer _saveDataTimer;
+
+	TimeMs _shouldLockAt = 0;
+	base::Timer _autoLockTimer;
 
 	const std::unique_ptr<ApiWrap> _api;
 	const std::unique_ptr<Storage::Downloader> _downloader;

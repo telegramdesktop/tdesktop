@@ -129,7 +129,7 @@ Messenger::Messenger() : QObject()
 
 	DEBUG_LOG(("Application Info: showing."));
 	if (state == Local::ReadMapPassNeeded) {
-		_window->setupPasscode();
+		setupPasscode();
 	} else {
 		if (AuthSession::Exists()) {
 			_window->setupMain();
@@ -726,6 +726,17 @@ void Messenger::checkMapVersion() {
 			}
 		}
 	}
+}
+
+void Messenger::setupPasscode() {
+	_window->setupPasscode();
+	_passcodedChanged.notify();
+}
+
+void Messenger::clearPasscode() {
+	cSetPasscodeBadTries(0);
+	_window->clearPasscode();
+	_passcodedChanged.notify();
 }
 
 void Messenger::prepareToDestroy() {

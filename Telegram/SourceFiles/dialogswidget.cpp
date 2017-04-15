@@ -45,6 +45,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "autoupdater.h"
 #include "observer_peer.h"
 #include "auth_session.h"
+#include "messenger.h"
 #include "window/notifications_manager.h"
 #include "ui/effects/widget_fade_wrap.h"
 #include "window/window_controller.h"
@@ -2305,7 +2306,7 @@ DialogsWidget::DialogsWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 	subscribe(Global::RefLocalPasscodeChanged(), [this] { updateLockUnlockVisibility(); });
 	_lockUnlock->setClickedCallback([this] {
 		_lockUnlock->setIconOverride(&st::dialogsUnlockIcon, &st::dialogsUnlockIconOver);
-		App::wnd()->setupPasscode();
+		Messenger::Instance().setupPasscode();
 		_lockUnlock->setIconOverride(nullptr);
 	});
 	_mainMenuToggle->setClickedCallback([this] { showMainMenu(); });

@@ -1600,6 +1600,8 @@ void MediaView::onVideoPlayProgress(const AudioMsgId &audioId) {
 	if (state.duration) {
 		updateVideoPlaybackState(state);
 	}
+
+	AuthSession::Current().data().setLastTimeVideoPlayedAt(getms(true));
 }
 
 void MediaView::updateVideoPlaybackState(const Media::Player::TrackState &state) {

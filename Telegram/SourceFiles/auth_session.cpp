@@ -25,6 +25,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/file_download.h"
 #include "storage/localstorage.h"
 #include "window/notifications_manager.h"
+#include "platform/platform_specific.h"
+
+namespace {
+
+constexpr auto kAutoLockTimeoutLateMs = TimeMs(3000);
+
+} // namespace
 
 QByteArray AuthSessionData::serialize() const {
 	auto size = sizeof(qint32) * 2;
@@ -85,10 +92,15 @@ AuthSession::AuthSession(UserId userId)
 : _userId(userId)
 , _api(std::make_unique<ApiWrap>())
 , _downloader(std::make_unique<Storage::Downloader>())
-, _notifications(std::make_unique<Window::Notifications::System>(this)) {
+, _notifications(std::make_unique<Window::Notifications::System>(this))
+, _autoLockTimer([this] { checkAutoLock(); }) {
 	Expects(_userId != 0);
 	_saveDataTimer.setCallback([this] {
 		Local::writeUserSettings();
+	});
+	subscribe(Messenger::Instance().passcodedChanged(), [this] {
+		_shouldLockAt = 0;
+		notifications().updateAll();
 	});
 }
 
@@ -125,6 +137,31 @@ bool AuthSession::validateSelf(const MTPUser &user) {
 void AuthSession::saveDataDelayed(TimeMs delay) {
 	Expects(this == &AuthSession::Current());
 	_saveDataTimer.callOnce(delay);
+}
+
+void AuthSession::checkAutoLock() {
+	if (!Global::LocalPasscode() || App::passcoded()) return;
+
+	Messenger::Instance().checkLocalTime();
+	auto now = getms(true);
+	auto shouldLockInMs = Global::AutoLock() * 1000LL;
+	auto idleForMs = psIdleTime();
+	auto notPlayingVideoForMs = now - data().lastTimeVideoPlayedAt();
+	auto checkTimeMs = qMin(idleForMs, notPlayingVideoForMs);
+	if (checkTimeMs >= shouldLockInMs || (_shouldLockAt > 0 && now > _shouldLockAt + kAutoLockTimeoutLateMs)) {
+		Messenger::Instance().setupPasscode();
+	} else {
+		_shouldLockAt = now + (shouldLockInMs - checkTimeMs);
+		_autoLockTimer.callOnce(shouldLockInMs - checkTimeMs);
+	}
+}
+
+void AuthSession::checkAutoLockIn(TimeMs time) {
+	if (_autoLockTimer.isActive()) {
+		auto remain = _autoLockTimer.remainingTime();
+		if (remain > 0 && remain <= time) return;
+	}
+	_autoLockTimer.callOnce(time);
 }
 
 AuthSession::~AuthSession() = default;

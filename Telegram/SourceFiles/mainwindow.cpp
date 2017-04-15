@@ -108,13 +108,12 @@ MainWindow::MainWindow() {
 	_inactiveTimer.setSingleShot(true);
 	connect(&_inactiveTimer, SIGNAL(timeout()), this, SLOT(onInactiveTimer()));
 
-	connect(&_autoLockTimer, SIGNAL(timeout()), this, SLOT(checkAutoLock()));
-
 	subscribe(Global::RefSelfChanged(), [this] { updateGlobalMenu(); });
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &data) {
 		themeUpdated(data);
 	});
 	subscribe(Messenger::Instance().authSessionChanged(), [this] { checkAuthSession(); });
+	subscribe(Messenger::Instance().passcodedChanged(), [this] { updateGlobalMenu(); });
 	checkAuthSession();
 
 	setAttribute(Qt::WA_NoSystemBackground);
@@ -237,12 +236,8 @@ void MainWindow::clearPasscode() {
 	if (_intro) {
 		_intro->showAnimated(bg, true);
 	} else {
+		t_assert(_main != nullptr);
 		_main->showAnimated(bg, true);
-	}
-	AuthSession::Current().notifications().updateAll();
-	updateGlobalMenu();
-
-	if (_main) {
 		_main->checkStartUrl();
 	}
 }
@@ -261,32 +256,6 @@ void MainWindow::setupPasscode() {
 		_passcode->showAnimated(bg);
 	} else {
 		setInnerFocus();
-	}
-	_shouldLockAt = 0;
-	if (AuthSession::Exists()) {
-		AuthSession::Current().notifications().updateAll();
-	}
-	updateGlobalMenu();
-}
-
-void MainWindow::checkAutoLockIn(int msec) {
-	if (_autoLockTimer.isActive()) {
-		int remain = _autoLockTimer.remainingTime();
-		if (remain > 0 && remain <= msec) return;
-	}
-	_autoLockTimer.start(msec);
-}
-
-void MainWindow::checkAutoLock() {
-	if (!Global::LocalPasscode() || App::passcoded()) return;
-
-	App::app()->checkLocalTime();
-	auto ms = getms(true), idle = psIdleTime(), should = Global::AutoLock() * 1000LL;
-	if (idle >= should || (_shouldLockAt > 0 && ms > _shouldLockAt + 3000LL)) {
-		setupPasscode();
-	} else {
-		_shouldLockAt = ms + (should - idle);
-		_autoLockTimer.start(should - idle);
 	}
 }
 

@@ -90,7 +90,6 @@ public:
 
 	void setupPasscode();
 	void clearPasscode();
-	void checkAutoLockIn(int msec);
 	void setupIntro();
 	void setupMain(const MTPUser *user = nullptr);
 	void serviceNotification(const TextWithEntities &message, const MTPMessageMedia &media = MTP_messageMediaEmpty(), int32 date = 0, bool force = false);
@@ -164,8 +163,6 @@ protected:
 	void updateControlsGeometry() override;
 
 public slots:
-	void checkAutoLock();
-
 	void showSettings();
 	void layerHidden();
 	void setInnerFocus();
@@ -237,9 +234,6 @@ private:
 
 	bool _inactivePress = false;
 	QTimer _inactiveTimer;
-
-	SingleTimer _autoLockTimer;
-	TimeMs _shouldLockAt = 0;
 
 };
 

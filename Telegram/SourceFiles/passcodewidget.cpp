@@ -59,8 +59,7 @@ void PasscodeWidget::onSubmit() {
 
 	if (App::main()) {
 		if (Local::checkPasscode(_passcode->text().toUtf8())) {
-			cSetPasscodeBadTries(0);
-			App::wnd()->clearPasscode(); // Destroys this widget.
+			Messenger::Instance().clearPasscode(); // Destroys this widget.
 			return;
 		} else {
 			cSetPasscodeBadTries(cPasscodeBadTries() + 1);

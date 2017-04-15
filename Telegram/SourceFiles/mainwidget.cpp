@@ -3501,7 +3501,7 @@ void MainWidget::ptsApplySkippedUpdates() {
 }
 
 void MainWidget::feedDifference(const MTPVector<MTPUser> &users, const MTPVector<MTPChat> &chats, const MTPVector<MTPMessage> &msgs, const MTPVector<MTPUpdate> &other) {
-	App::wnd()->checkAutoLock();
+	AuthSession::Current().checkAutoLock();
 	App::feedUsers(users);
 	App::feedChats(chats);
 	feedMessageIds(other);
@@ -4167,7 +4167,7 @@ MainWidget::~MainWidget() {
 
 void MainWidget::updateOnline(bool gotOtherOffline) {
 	if (this != App::main()) return;
-	App::wnd()->checkAutoLock();
+	AuthSession::Current().checkAutoLock();
 
 	bool isOnline = App::wnd()->isActive();
 	int updateIn = Global::OnlineUpdatePeriod();
@@ -4262,7 +4262,7 @@ void MainWidget::checkIdleFinish() {
 void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 	if (end <= from) return;
 
-	App::wnd()->checkAutoLock();
+	AuthSession::Current().checkAutoLock();
 
 	if (mtpTypeId(*from) == mtpc_new_session_created) {
 		try {

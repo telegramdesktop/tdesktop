@@ -113,6 +113,11 @@ public:
 
 	void checkLocalTime();
 	void checkMapVersion();
+	void setupPasscode();
+	void clearPasscode();
+	base::Observable<void> &passcodedChanged() {
+		return _passcodedChanged;
+	}
 
 	void handleAppActivated();
 	void handleAppDeactivated();
@@ -161,5 +166,6 @@ private:
 	std::unique_ptr<MTP::Instance> _mtprotoForKeysDestroy;
 	std::unique_ptr<AuthSession> _authSession;
 	base::Observable<void> _authSessionChanged;
+	base::Observable<void> _passcodedChanged;
 
 };

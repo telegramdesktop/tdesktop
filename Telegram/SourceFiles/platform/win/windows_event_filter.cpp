@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "platform/win/windows_event_filter.h"
 
 #include "mainwindow.h"
+#include "auth_session.h"
 
 namespace Platform {
 namespace {
@@ -73,7 +74,9 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 	switch (msg) {
 
 	case WM_TIMECHANGE: {
-		App::wnd()->checkAutoLockIn(100);
+		if (AuthSession::Exists()) {
+			AuthSession::Current().checkAutoLockIn(100);
+		}
 	} return false;
 
 	case WM_WTSSESSION_CHANGE: {
