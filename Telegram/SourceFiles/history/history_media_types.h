@@ -555,6 +555,8 @@ protected:
 	}
 
 private:
+	QString mediaTypeString() const;
+
 	gsl::not_null<DocumentData*> _data;
 	int32 _thumbw = 1;
 	int32 _thumbh = 1;

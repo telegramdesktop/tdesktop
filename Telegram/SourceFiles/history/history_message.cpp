@@ -2115,7 +2115,14 @@ HistoryService::PreparedText HistoryService::preparePinnedText() {
 			case MediaTypeVideo: return lang(lng_action_pinned_media_video);
 			case MediaTypeContact: return lang(lng_action_pinned_media_contact);
 			case MediaTypeFile: return lang(lng_action_pinned_media_file);
-			case MediaTypeGif: return lang(lng_action_pinned_media_gif);
+			case MediaTypeGif: {
+				if (auto document = media->getDocument()) {
+					if (document->isRoundVideo()) {
+						return lang(lng_action_pinned_media_video_message);
+					}
+				}
+				return lang(lng_action_pinned_media_gif);
+			} break;
 			case MediaTypeSticker: {
 				auto emoji = static_cast<HistorySticker*>(media)->emoji();
 				if (emoji.isEmpty()) {

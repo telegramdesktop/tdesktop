@@ -657,6 +657,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_video" = "a video";
 "lng_action_pinned_media_audio" = "an audio file";
 "lng_action_pinned_media_voice" = "a voice message";
+"lng_action_pinned_media_video_message" = "a video message";
 "lng_action_pinned_media_file" = "a file";
 "lng_action_pinned_media_gif" = "a GIF animation";
 "lng_action_pinned_media_contact" = "a contact information";
@@ -810,6 +811,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_in_dlg_audio_file" = "Audio file";
 "lng_in_dlg_contact" = "Contact";
 "lng_in_dlg_audio" = "Voice message";
+"lng_in_dlg_video_message" = "Video message";
 "lng_in_dlg_file" = "File";
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} Sticker";

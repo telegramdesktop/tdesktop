@@ -2020,15 +2020,19 @@ HistoryTextState HistoryGif::getState(int x, int y, HistoryStateRequest request)
 }
 
 QString HistoryGif::notificationText() const {
-	return captionedNotificationText(qsl("GIF"), _caption);
+	return captionedNotificationText(mediaTypeString(), _caption);
 }
 
 QString HistoryGif::inDialogsText() const {
-	return captionedInDialogsText(qsl("GIF"), _caption);
+	return captionedInDialogsText(mediaTypeString(), _caption);
 }
 
 TextWithEntities HistoryGif::selectedText(TextSelection selection) const {
-	return captionedSelectedText(qsl("GIF"), _caption, selection);
+	return captionedSelectedText(mediaTypeString(), _caption, selection);
+}
+
+QString HistoryGif::mediaTypeString() const {
+	return _data->isRoundVideo() ? lang(lng_in_dlg_video_message) : qsl("GIF");
 }
 
 void HistoryGif::setStatusSize(int32 newSize) const {
