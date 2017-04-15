@@ -1,3 +1,7 @@
+1.0.33 alpha (16.04.17)
+
+- Bug fixes and other minor improvements.
+
 1.0.32 alpha (12.04.17)
 
 - Testing a build with the latest API layer.
