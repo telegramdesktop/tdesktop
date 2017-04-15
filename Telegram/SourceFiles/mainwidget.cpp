@@ -4016,7 +4016,9 @@ void MainWidget::updateNotifySetting(PeerData *peer, NotifySettingStatus notify,
 	}
 	if (peer->notify != EmptyNotifySettings && peer->notify != UnknownNotifySettings) {
 		if (notify != NotifySettingDontChange) {
-			peer->notify->sound = (notify == NotifySettingSetMuted) ? "" : "default";
+			if ((notify != NotifySettingSetMuted) && peer->notify->sound.isEmpty()) {
+				peer->notify->sound = qsl("default");
+			}
 			peer->notify->mute = (notify == NotifySettingSetMuted) ? (unixtime() + muteFor) : 0;
 		}
 		if (silent == SilentNotifiesSetSilent) {
