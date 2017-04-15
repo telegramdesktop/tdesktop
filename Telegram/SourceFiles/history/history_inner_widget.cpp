@@ -1200,6 +1200,10 @@ void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
 	}
 }
 
+void HistoryInner::contextMenuEvent(QContextMenuEvent *e) {
+	showContextMenu(e);
+}
+
 void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	if (_menu) {
 		_menu->deleteLater();

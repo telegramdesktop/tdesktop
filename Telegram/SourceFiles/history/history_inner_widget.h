@@ -41,8 +41,6 @@ public:
 	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages);
 	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages);
 
-	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
-
 	TextWithEntities getSelectedText() const;
 
 	void dragActionStart(const QPoint &screenPos, Qt::MouseButton button = Qt::LeftButton);
@@ -108,8 +106,9 @@ protected:
 	void leaveEventHook(QEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
-	public slots:
+public slots:
 	void onUpdateSelected();
 	void onParentGeometryChanged();
 
@@ -126,11 +125,13 @@ protected:
 	void onTouchScrollTimer();
 	void onDragExec();
 
-	private slots:
+private slots:
 	void onScrollDateCheck();
 	void onScrollDateHideByTimer();
 
 private:
+	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
+
 	void itemRemoved(HistoryItem *item);
 	void savePhotoToFile(PhotoData *photo);
 	void saveDocumentToFile(DocumentData *document);

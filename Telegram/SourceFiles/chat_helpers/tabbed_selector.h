@@ -61,6 +61,9 @@ public:
 	void beforeHiding();
 	void afterShown();
 
+	int marginTop() const;
+	int marginBottom() const;
+
 	bool preventAutoHide() const;
 	bool isSliding() const {
 		return _a_slide.animating();
@@ -135,8 +138,6 @@ private:
 
 	};
 
-	int marginTop() const;
-	int marginBottom() const;
 	void paintSlideFrame(Painter &p, TimeMs ms);
 	void paintContent(Painter &p);
 

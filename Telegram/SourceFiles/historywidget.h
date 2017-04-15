@@ -363,7 +363,6 @@ protected:
 	void leaveEventHook(QEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
-	void contextMenuEvent(QContextMenuEvent *e) override;
 
 signals:
 	void cancelled();

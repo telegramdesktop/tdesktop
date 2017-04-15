@@ -3610,12 +3610,6 @@ void HistoryWidget::onCmdStart() {
 	setFieldText({ qsl("/"), TextWithTags::Tags() }, 0, Ui::FlatTextarea::AddToUndoHistory);
 }
 
-void HistoryWidget::contextMenuEvent(QContextMenuEvent *e) {
-	if (!_list) return;
-
-	return _list->showContextMenu(e);
-}
-
 void HistoryWidget::forwardMessage() {
 	auto item = App::contextItem();
 	if (!item || item->id < 0 || item->serviceMsg()) return;
