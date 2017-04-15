@@ -57,7 +57,9 @@ Download [opus-1.1 sources](http://downloads.xiph.org/releases/opus/opus-1.1.tar
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
 
-    git clone git://anongit.freedesktop.org/git/libva
+    sudo apt-get install libxi-dev libxmu-dev x11proto-xf86vidmode-dev
+    sudo apt-get install git autoconf automake libtool
+    git clone https://github.com/01org/libva.git
     cd libva
     ./autogen.sh --enable-static
     make
@@ -111,7 +113,7 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
 
     git clone https://github.com/openssl/openssl
     cd openssl
-    git checkout OpenSSL_1_0_1-stable
+    git checkout OpenSSL_1_0_2-stable
     ./config
     make
     sudo make install
@@ -180,6 +182,13 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
     cd ../cmake-3.6.2
     ./configure
     make
+
+###Linking Libraries
+
+    sudo ln -s /usr/lib/x86_64-linux-gnu/libicutu.a /usr/lib/libicutu.a
+    sudo ln -s /usr/lib/x86_64-linux-gnu/libicui18n.a /usr/lib/libicui18n.a
+    sudo ln -s /usr/lib/x86_64-linux-gnu/libicuuc.a /usr/lib/libicuuc.a
+    sudo ln -s /usr/lib/x86_64-linux-gnu/libicudata.a /usr/lib/libicudata.a
 
 ###Building Telegram Desktop
 
