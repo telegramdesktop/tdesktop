@@ -43,6 +43,8 @@ public:
 	void requestedAmountIncrement(MTP::DcId dcId, int index, int amount);
 	int chooseDcIndexForRequest(MTP::DcId dcId) const;
 
+	~Downloader();
+
 private:
 	base::Observable<void> _taskFinishedObservable;
 	int _priority = 1;

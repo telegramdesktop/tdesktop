@@ -69,6 +69,13 @@ int Downloader::chooseDcIndexForRequest(MTP::DcId dcId) const {
 	return result;
 }
 
+Downloader::~Downloader() {
+	// The file loaders have pointer to downloader and they cancel
+	// requests in destructor where they use that pointer, so all
+	// of them need to be destroyed before any internal state of Downloader.
+	_delayedDestroyedLoaders.clear();
+}
+
 } // namespace Storage
 
 namespace {
