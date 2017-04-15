@@ -72,6 +72,7 @@ namespace Media {
 namespace Player {
 namespace {
 
+constexpr auto kVideoVolumeRound = 10000;
 constexpr auto kPreloadSamples = 2LL * 48000; // preload next part if less than 2 seconds remains
 constexpr auto kFadeDuration = TimeMs(500);
 constexpr auto kCheckPlaybackPositionTimeout = TimeMs(100); // 100ms per check audio position
@@ -394,7 +395,7 @@ float64 ComputeVolume(AudioMsgId::Type type) {
 	switch (type) {
 	case AudioMsgId::Type::Voice: return suppressAllGain;
 	case AudioMsgId::Type::Song: return suppressSongGain * Global::SongVolume();
-	case AudioMsgId::Type::Video: return suppressSongGain * Global::VideoVolume();
+	case AudioMsgId::Type::Video: return suppressSongGain * mixer()->getVideoVolume();
 	}
 	return 1.;
 }
@@ -553,7 +554,8 @@ void Mixer::Track::resetStream() {
 }
 
 Mixer::Mixer()
-: _fader(new Fader(&_faderThread))
+: _videoVolume(kVideoVolumeRound)
+, _fader(new Fader(&_faderThread))
 , _loader(new Loaders(&_loaderThread)) {
 	connect(this, SIGNAL(faderOnTimer()), _fader, SLOT(onTimer()), Qt::QueuedConnection);
 	connect(this, SIGNAL(suppressSong()), _fader, SLOT(onSuppressSong()));
@@ -1232,6 +1234,14 @@ void Mixer::reattachTracks() {
 
 		emit faderOnTimer();
 	}
+}
+
+void Mixer::setVideoVolume(float64 volume) {
+	_videoVolume.storeRelease(qRound(volume * kVideoVolumeRound));
+}
+
+float64 Mixer::getVideoVolume() const {
+	return float64(_videoVolume.loadAcquire()) / kVideoVolumeRound;
 }
 
 Fader::Fader(QThread *thread) : QObject()

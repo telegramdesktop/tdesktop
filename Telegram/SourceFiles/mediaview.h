@@ -154,6 +154,7 @@ private:
 	};
 
 	void showSaveMsgFile();
+	void updateMixerVideoVolume() const;
 
 	void dropdownHidden();
 	void updateDocSize();

@@ -1773,6 +1773,9 @@ int HistoryGif::resizeGetHeight(int width) {
 			auto roundCorners = (isRound || inWebPage) ? ImageRoundCorner::All : ((isBubbleTop() ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)
 				| ((isBubbleBottom() && _caption.isEmpty()) ? (ImageRoundCorner::BottomLeft | ImageRoundCorner::BottomRight) : ImageRoundCorner::None));
 			_gif->start(_thumbw, _thumbh, _width, _height, roundRadius, roundCorners);
+			if (isRound) {
+				Media::Player::mixer()->setVideoVolume(1.);
+			}
 		}
 	} else {
 		_width = qMax(_width, gifMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));

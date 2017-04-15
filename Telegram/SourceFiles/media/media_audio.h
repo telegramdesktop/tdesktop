@@ -122,6 +122,10 @@ public:
 	void reattachIfNeeded();
 	void reattachTracks();
 
+	// Thread safe.
+	void setVideoVolume(float64 volume);
+	float64 getVideoVolume() const;
+
 	~Mixer();
 
 private slots:
@@ -208,6 +212,7 @@ private:
 	Track _songTracks[kTogetherLimit];
 
 	Track _videoTrack;
+	QAtomicInt _videoVolume;
 	uint64 _lastVideoPlayId = 0;
 	TimeMs _lastVideoPlaybackWhen = 0;
 	TimeMs _lastVideoPlaybackCorrectedMs = 0;

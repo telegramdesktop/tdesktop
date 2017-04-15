@@ -229,6 +229,8 @@ bool MediaView::gifShown() const {
 			auto rounding = (_doc && _doc->isRoundVideo()) ? ImageRoundRadius::Ellipse : ImageRoundRadius::None;
 			_gif->start(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), rounding, ImageRoundCorner::All);
 			const_cast<MediaView*>(this)->_current = QPixmap();
+			updateMixerVideoVolume();
+			Global::RefVideoVolumeChanged().notify();
 		}
 		return true;// _gif->state() != Media::Clip::State::Error;
 	}
@@ -645,6 +647,12 @@ void MediaView::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool presse
 
 void MediaView::showSaveMsgFile() {
 	File::ShowInFolder(_saveMsgFilename);
+}
+
+void MediaView::updateMixerVideoVolume() const {
+	if (_doc && (_doc->isVideo() || _doc->isRoundVideo())) {
+		Media::Player::mixer()->setVideoVolume(Global::VideoVolume());
+	}
 }
 
 void MediaView::close() {
@@ -1571,6 +1579,7 @@ void MediaView::onVideoSeekFinished(TimeMs positionMs) {
 
 void MediaView::onVideoVolumeChanged(float64 volume) {
 	Global::SetVideoVolume(volume);
+	updateMixerVideoVolume();
 	Global::RefVideoVolumeChanged().notify();
 }
 
