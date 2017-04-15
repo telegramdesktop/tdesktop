@@ -61,7 +61,12 @@ void CrossFadeAnimation::paintFrame(Painter &p, float64 positionReady, float64 a
 void CrossFadeAnimation::paintLine(Painter &p, const Line &line, float64 positionReady, float64 alphaWas, float64 alphaNow) {
 	auto &snapshotWas = line.was.snapshot;
 	auto &snapshotNow = line.now.snapshot;
-	t_assert(!snapshotWas.isNull() || !snapshotNow.isNull());
+	if (snapshotWas.isNull() && snapshotNow.isNull()) {
+		// This can happen if both labels have an empty line or if one
+		// label has an empty line where the second one already ended.
+		// In this case lineWidth is zero and snapshot is null.
+		return;
+	}
 
 	auto positionWas = line.was.position;
 	auto positionNow = line.now.position;
