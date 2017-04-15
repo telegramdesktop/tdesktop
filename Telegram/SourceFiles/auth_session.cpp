@@ -90,10 +90,10 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 
 AuthSession::AuthSession(UserId userId)
 : _userId(userId)
+, _autoLockTimer([this] { checkAutoLock(); })
 , _api(std::make_unique<ApiWrap>())
 , _downloader(std::make_unique<Storage::Downloader>())
-, _notifications(std::make_unique<Window::Notifications::System>(this))
-, _autoLockTimer([this] { checkAutoLock(); }) {
+, _notifications(std::make_unique<Window::Notifications::System>(this)) {
 	Expects(_userId != 0);
 	_saveDataTimer.setCallback([this] {
 		Local::writeUserSettings();
