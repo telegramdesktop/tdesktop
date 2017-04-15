@@ -1826,6 +1826,8 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 			}
 		}
 		updateStatusText();
+	} else if (_gif && _gif->mode() == Media::Clip::Reader::Mode::Video) {
+		updateStatusText();
 	}
 	auto radial = isRadialAnimation(ms);
 
@@ -2040,7 +2042,11 @@ QString HistoryGif::mediaTypeString() const {
 
 void HistoryGif::setStatusSize(int32 newSize) const {
 	if (_data->isRoundVideo()) {
-		_statusText = formatDurationText(_data->duration());
+		if (newSize < 0) {
+			_statusText = formatDurationText(-newSize - 1);
+		} else {
+			_statusText = formatDurationText(_data->duration());
+		}
 	} else {
 		HistoryFileMedia::setStatusSize(newSize, _data->size, -2, 0);
 	}
@@ -2057,6 +2063,10 @@ void HistoryGif::updateStatusText() const {
 		statusSize = _data->loadOffset();
 	} else if (_data->loaded()) {
 		statusSize = FileStatusSizeLoaded;
+		if (_gif && _gif->mode() == Media::Clip::Reader::Mode::Video) {
+			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Video);
+			statusSize = -1 - (state.position / state.frequency);
+		}
 	} else {
 		statusSize = FileStatusSizeReady;
 	}
