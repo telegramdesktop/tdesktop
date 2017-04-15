@@ -25,7 +25,7 @@ GOTO:EOF
 
 :getDependencies
     call:logInfo "Clone dependencies repository"
-    git clone -q --branch=master https://github.com/telegramdesktop/dependencies_windows.git %LIB_DIR%
+    git clone -q --depth 1 --branch=master https://github.com/telegramdesktop/dependencies_windows.git %LIB_DIR%
     cd %LIB_DIR%
     call prepare.bat
 GOTO:EOF
