@@ -77,7 +77,7 @@ STDMETHODIMP DeviceListener::OnPropertyValueChanged(LPCWSTR device_id, const PRO
 
 	constexpr auto kKeyBufferSize = 1024;
 	WCHAR keyBuffer[kKeyBufferSize] = { 0 };
-	auto hr = Dlls::PSStringFromPropertyKey(key, keyBuffer, kKeyBufferSize);
+	auto hr = Dlls::PSStringFromPropertyKey ? Dlls::PSStringFromPropertyKey(key, keyBuffer, kKeyBufferSize) : E_FAIL;
 	auto keyName = Dlls::PSStringFromPropertyKey ? (SUCCEEDED(hr) ? '"' + QString::fromWCharArray(keyBuffer) + '"' : QString("unknown")) : QString("unsupported");
 
 	// BAD GUID { 0xD4EF3098, 0xC967, 0x4A4E, { 0xB2, 0x19, 0xAC, 0xB6, 0xDA, 0x1D, 0xC3, 0x73 } };
