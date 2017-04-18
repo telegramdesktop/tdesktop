@@ -60,7 +60,7 @@ void System::createManager() {
 void System::schedule(History *history, HistoryItem *item) {
 	if (App::quitting() || !history->currentNotification() || !App::api()) return;
 
-	PeerData *notifyByFrom = (!history->peer->isUser() && item->mentionsMe()) ? item->from() : 0;
+	auto notifyByFrom = (!history->peer->isUser() && item->mentionsMe()) ? item->from() : nullptr;
 
 	if (item->isSilent()) {
 		history->popNotification(item);

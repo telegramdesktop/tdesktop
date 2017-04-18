@@ -43,8 +43,13 @@ void queryDoNotDisturbState() {
 	}
 	LastSettingsQueryMs = ms;
 
-	id userDefaultsValue = [[[NSUserDefaults alloc] initWithSuiteName:@"com.apple.notificationcenterui"] objectForKey:@"doNotDisturb"];
-	DoNotDisturbEnabled = [userDefaultsValue boolValue];
+	auto userDefaults = [NSUserDefaults alloc];
+	if ([userDefaults respondsToSelector:@selector(initWithSuiteName:)]) {
+		id userDefaultsValue = [[[NSUserDefaults alloc] initWithSuiteName:@"com.apple.notificationcenterui_test"] objectForKey:@"doNotDisturb"];
+		DoNotDisturbEnabled = ([userDefaultsValue boolValue] == YES);
+	} else {
+		DoNotDisturbEnabled = false;
+	}
 }
 
 using Manager = Platform::Notifications::Manager;
