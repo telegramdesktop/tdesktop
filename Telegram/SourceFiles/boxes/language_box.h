@@ -29,7 +29,7 @@ class RadiobuttonGroup;
 class Radiobutton;
 } // namespace Ui
 
-class LanguageBox : public BoxContent, private MTP::Sender {
+class LanguageBox : public BoxContent, private MTP::Sender  {
 public:
 	LanguageBox(QWidget*) {
 	}

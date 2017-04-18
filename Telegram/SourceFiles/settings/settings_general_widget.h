@@ -104,7 +104,6 @@ private slots:
 private:
 	void refreshControls();
 	void updateWorkmode();
-	void chooseCustomLang();
 
 	object_ptr<Ui::LinkButton> _changeLanguage;
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE

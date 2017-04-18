@@ -671,8 +671,6 @@ struct Data {
 	ProxyData ConnectionProxy;
 	base::Observable<void> ConnectionTypeChanged;
 
-	base::Observable<void> ChooseCustomLang;
-
 	int AutoLock = 3600;
 	bool LocalPasscode = false;
 	base::Observable<void> LocalPasscodeChanged;
@@ -792,8 +790,6 @@ DefineVar(Global, DBIConnectionType, ConnectionType);
 DefineVar(Global, bool, TryIPv6);
 DefineVar(Global, ProxyData, ConnectionProxy);
 DefineRefVar(Global, base::Observable<void>, ConnectionTypeChanged);
-
-DefineRefVar(Global, base::Observable<void>, ChooseCustomLang);
 
 DefineVar(Global, int, AutoLock);
 DefineVar(Global, bool, LocalPasscode);

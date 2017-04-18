@@ -382,8 +382,6 @@ DeclareVar(bool, TryIPv6);
 DeclareVar(ProxyData, ConnectionProxy);
 DeclareRefVar(base::Observable<void>, ConnectionTypeChanged);
 
-DeclareRefVar(base::Observable<void>, ChooseCustomLang);
-
 DeclareVar(int, AutoLock);
 DeclareVar(bool, LocalPasscode);
 DeclareRefVar(base::Observable<void>, LocalPasscodeChanged);

@@ -31,7 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang/lang_cloud_manager.h"
 #include "styles/style_boxes.h"
 
-class LanguageBox::Inner : public TWidget {
+class LanguageBox::Inner : public TWidget, private base::Subscriber {
 public:
 	Inner(QWidget *parent, gsl::not_null<Languages*> languages);
 
@@ -39,6 +39,7 @@ public:
 	void refresh();
 
 private:
+	void activateCurrent();
 	void languageChanged(int languageIndex);
 
 	gsl::not_null<Languages*> _languages;
@@ -51,6 +52,9 @@ LanguageBox::Inner::Inner(QWidget *parent, gsl::not_null<Languages*> languages) 
 , _languages(languages) {
 	_group = std::make_shared<Ui::RadiobuttonGroup>(0);
 	_group->setChangedCallback([this](int value) { languageChanged(value); });
+	subscribe(Lang::Current().updated(), [this] {
+		activateCurrent();
+	});
 }
 
 void LanguageBox::Inner::setSelected(int index) {
@@ -80,10 +84,29 @@ void LanguageBox::Inner::refresh() {
 void LanguageBox::Inner::languageChanged(int languageIndex) {
 	Expects(languageIndex >= 0 && languageIndex < _languages->size());
 
+	auto currentId = Lang::Current().id();
 	auto languageId = (*_languages)[languageIndex].id;
-	if (languageId != qsl("custom")) {
+	if (languageId == currentId) {
+		return;
+	}
+
+	if (languageId == qsl("custom")) {
+		activateCurrent();
+		Lang::Current().chooseCustomFile();
+	} else {
 		Lang::CurrentCloudManager().switchToLanguage(languageId);
 	}
+}
+
+void LanguageBox::Inner::activateCurrent() {
+	auto currentId = Lang::Current().id();
+	for (auto i = 0, count = _languages->size(); i != count; ++i) {
+		if ((*_languages)[i].id == currentId) {
+			_group->setValue(i);
+			return;
+		}
+	}
+	refresh();
 }
 
 void LanguageBox::prepare() {
@@ -125,7 +148,7 @@ void LanguageBox::refreshLanguages() {
 	auto currentIndex = -1;
 	_languages.push_back({ qsl("en"), qsl("English") });
 	for (auto &language : list) {
-		auto isCurrent = (language.id == currentId);
+		auto isCurrent = (language.id == currentId) || (language.id == Lang::DefaultLanguageId() && currentId.isEmpty());
 		if (language.id != qstr("en")) {
 			if (isCurrent) {
 				currentIndex = _languages.size();

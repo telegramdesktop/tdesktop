@@ -61,7 +61,7 @@ void fillCodes() {
 		}));
 	});
 	Codes.insert(qsl("loadlang"), [] {
-		Global::RefChooseCustomLang().notify();
+		Lang::Current().chooseCustomFile();
 	});
 	Codes.insert(qsl("debugfiles"), [] {
 		if (!cDebug()) return;

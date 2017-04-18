@@ -160,7 +160,6 @@ void UpdateStateRow::onFailed() {
 GeneralWidget::GeneralWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_general))
 , _changeLanguage(this, lang(lng_settings_change_lang), st::boxLinkButton) {
 	connect(_changeLanguage, SIGNAL(clicked()), this, SLOT(onChangeLanguage()));
-	subscribe(Global::RefChooseCustomLang(), [this]() { chooseCustomLang(); });
 	refreshControls();
 }
 
@@ -206,35 +205,9 @@ void GeneralWidget::refreshControls() {
 	}
 }
 
-void GeneralWidget::chooseCustomLang() {
-	auto filter = qsl("Language files (*.strings)");
-	auto title = qsl("Choose language .strings file");
-	FileDialog::GetOpenPath(title, filter, base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
-		if (result.paths.isEmpty()) {
-			return;
-		}
-
-		auto filePath = result.paths.front();
-		Lang::FileParser loader(filePath, { lng_sure_save_language, lng_cancel, lng_box_ok });
-		if (loader.errors().isEmpty()) {
-			auto result = loader.found();
-			auto text = result.value(lng_sure_save_language, Lang::GetOriginalValue(lng_sure_save_language)),
-				save = result.value(lng_box_ok, Lang::GetOriginalValue(lng_box_ok)),
-				cancel = result.value(lng_cancel, Lang::GetOriginalValue(lng_cancel));
-			Ui::show(Box<ConfirmBox>(text, save, cancel, base::lambda_guarded(this, [this, filePath] {
-				Lang::Current().switchToCustomFile(filePath);
-				Local::writeLangPack();
-				onRestart();
-			})));
-		} else {
-			Ui::show(Box<InformBox>("Custom lang failed :(\n\nError: " + loader.errors()));
-		}
-	}));
-}
-
 void GeneralWidget::onChangeLanguage() {
 	if ((_changeLanguage->clickModifiers() & Qt::ShiftModifier) && (_changeLanguage->clickModifiers() & Qt::AltModifier)) {
-		chooseCustomLang();
+		Lang::Current().chooseCustomFile();
 		return;
 	}
 	auto manager = Messenger::Instance().langCloudManager();

@@ -25,6 +25,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/serialize_common.h"
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"
+#include "core/file_utilities.h"
+#include "boxes/confirm_box.h"
 
 namespace Lang {
 namespace {
@@ -239,9 +241,29 @@ void Instance::switchToId(const QString &id) {
 	_id = id;
 }
 
+void Instance::chooseCustomFile() {
+	auto filter = qsl("Language files (*.strings)");
+	auto title = qsl("Choose language .strings file");
+	FileDialog::GetOpenPath(title, filter, [weak = base::weak_unique_ptr<Instance>(this)](const FileDialog::OpenResult &result) {
+		if (!weak || result.paths.isEmpty()) {
+			return;
+		}
+
+		auto filePath = result.paths.front();
+		Lang::FileParser loader(filePath, { lng_language_name });
+		if (loader.errors().isEmpty()) {
+			weak->switchToCustomFile(filePath);
+		} else {
+			Ui::show(Box<InformBox>("Custom lang failed :(\n\nError: " + loader.errors()));
+		}
+	});
+}
+
 void Instance::switchToCustomFile(const QString &filePath) {
 	reset();
 	fillFromCustomFile(filePath);
+	Local::writeLangPack();
+	updated().notify();
 }
 
 void Instance::reset() {

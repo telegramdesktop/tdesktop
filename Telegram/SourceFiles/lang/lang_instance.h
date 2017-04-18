@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "lang_auto.h"
+#include "base/weak_unique_ptr.h"
 
 namespace Lang {
 
@@ -33,12 +34,13 @@ QString DefaultLanguageId();
 class Instance;
 Instance &Current();
 
-class Instance {
+class Instance : public base::enable_weak_from_this {
 public:
 	Instance() {
 		fillDefaults();
 	}
 	void switchToId(const QString &id);
+	void chooseCustomFile();
 	void switchToCustomFile(const QString &filePath);
 
 	Instance(const Instance &other) = delete;
