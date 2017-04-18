@@ -28,6 +28,11 @@ constexpr auto kLegacyLanguageNone = -2;
 constexpr auto kLegacyCustomLanguage = -1;
 constexpr auto kLegacyDefaultLanguage = 0;
 
+QString DefaultLanguageId();
+
+class Instance;
+Instance &Current();
+
 class Instance {
 public:
 	Instance() {
@@ -41,7 +46,6 @@ public:
 	Instance(Instance &&other) = default;
 	Instance &operator=(Instance &&other) = default;
 
-	static QString DefaultLanguageId();
 	QString cloudLangCode() const;
 
 	QString id() const {
@@ -92,7 +96,5 @@ private:
 	std::map<QByteArray, QByteArray> _nonDefaultValues;
 
 };
-
-Instance &Current();
 
 } // namespace Lang

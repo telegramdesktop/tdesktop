@@ -5690,11 +5690,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	////// Cloud langpacks
 	case mtpc_updateLangPack: {
 		auto &langpack = update.c_updateLangPack();
-		Messenger::Instance().langCloudManager()->applyLangPackDifference(langpack.vdifference);
+		Lang::CurrentCloudManager().applyLangPackDifference(langpack.vdifference);
 	} break;
 
 	case mtpc_updateLangPackTooLong: {
-		Messenger::Instance().langCloudManager()->requestLangPackDifference();
+		Lang::CurrentCloudManager().requestLangPackDifference();
 	} break;
 
 	}

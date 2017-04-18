@@ -52,7 +52,7 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
-	void selfUpdated();
+	void fullRebuild();
 	void refreshBlocks();
 
 	// Returns the new height value.

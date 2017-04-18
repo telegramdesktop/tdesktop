@@ -87,9 +87,9 @@ void LanguageBox::Inner::languageChanged(int languageIndex) {
 }
 
 void LanguageBox::prepare() {
-	refreshLangItems();
+	refreshLang();
 	subscribe(Lang::Current().updated(), [this] {
-		refreshLangItems();
+		refreshLang();
 	});
 
 	_inner = setInnerWidget(object_ptr<Inner>(this, &_languages), st::boxLayerScroll);
@@ -100,7 +100,7 @@ void LanguageBox::prepare() {
 	});
 }
 
-void LanguageBox::refreshLangItems() {
+void LanguageBox::refreshLang() {
 	clearButtons();
 	addButton(lang(lng_box_ok), [this] { closeBox(); });
 

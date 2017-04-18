@@ -37,7 +37,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Settings {
 
 LocalPasscodeState::LocalPasscodeState(QWidget *parent) : TWidget(parent)
-, _edit(this, lang(Global::LocalPasscode() ? lng_passcode_change : lng_passcode_turn_on), st::boxLinkButton)
+, _edit(this, GetEditPasscodeText(), st::boxLinkButton)
 , _turnOff(this, lang(lng_passcode_turn_off), st::boxLinkButton) {
 	updateControls();
 	connect(_edit, SIGNAL(clicked()), this, SLOT(onEdit()));
@@ -60,9 +60,13 @@ void LocalPasscodeState::onTurnOff() {
 }
 
 void LocalPasscodeState::updateControls() {
-	_edit->setText(lang(Global::LocalPasscode() ? lng_passcode_change : lng_passcode_turn_on));
+	_edit->setText(GetEditPasscodeText());
 	_edit->moveToLeft(0, 0);
 	_turnOff->setVisible(Global::LocalPasscode());
+}
+
+QString LocalPasscodeState::GetEditPasscodeText() {
+	return lang(Global::LocalPasscode() ? lng_passcode_change : lng_passcode_turn_on);
 }
 
 CloudPasswordState::CloudPasswordState(QWidget *parent) : TWidget(parent)
@@ -169,6 +173,10 @@ PrivacyWidget::PrivacyWidget(QWidget *parent, UserData *self) : BlockWidget(pare
 	subscribe(Global::RefLocalPasscodeChanged(), [this]() { autoLockUpdated(); });
 }
 
+QString PrivacyWidget::GetAutoLockText() {
+	return (Global::AutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, Global::AutoLock() / 60) : lng_passcode_autolock_hours(lt_count, Global::AutoLock() / 3600);
+}
+
 void PrivacyWidget::createControls() {
 	style::margins marginSmall(0, 0, 0, st::settingsSmallSkip);
 	style::margins marginSkip(0, 0, 0, st::settingsSkip);
@@ -180,7 +188,7 @@ void PrivacyWidget::createControls() {
 	addChildRow(_groupsInvitePrivacy, marginSmall, lang(lng_settings_groups_invite_privacy), SLOT(onGroupsInvitePrivacy()));
 	addChildRow(_localPasscodeState, marginSmall);
 	auto label = lang(psIdleSupported() ? lng_passcode_autolock_away : lng_passcode_autolock_inactive);
-	auto value = (Global::AutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, Global::AutoLock() / 60) : lng_passcode_autolock_hours(lt_count, Global::AutoLock() / 3600);
+	auto value = GetAutoLockText();
 	addChildRow(_autoLock, marginSmall, slidedPadding, label, value, LabeledLink::Type::Primary, SLOT(onAutoLock()));
 	if (!Global::LocalPasscode()) {
 		_autoLock->hideFast();
@@ -192,7 +200,7 @@ void PrivacyWidget::createControls() {
 
 void PrivacyWidget::autoLockUpdated() {
 	if (Global::LocalPasscode()) {
-		auto value = (Global::AutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, Global::AutoLock() / 60) : lng_passcode_autolock_hours(lt_count, Global::AutoLock() / 3600);
+		auto value = GetAutoLockText();
 		_autoLock->entity()->link()->setText(value);
 		resizeToWidth(width());
 	}

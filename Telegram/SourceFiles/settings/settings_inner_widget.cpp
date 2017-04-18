@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "settings/settings_inner_widget.h"
 
+#include "lang/lang_instance.h"
 #include "styles/style_settings.h"
 #include "settings/settings_cover.h"
 #include "settings/settings_block_widget.h"
@@ -37,10 +38,11 @@ namespace Settings {
 InnerWidget::InnerWidget(QWidget *parent) : LayerInner(parent)
 , _self(App::self()) {
 	refreshBlocks();
-	subscribe(Global::RefSelfChanged(), [this]() { selfUpdated(); });
+	subscribe(Global::RefSelfChanged(), [this] { fullRebuild(); });
+	subscribe(Lang::Current().updated(), [this] { fullRebuild(); });
 }
 
-void InnerWidget::selfUpdated() {
+void InnerWidget::fullRebuild() {
 	_self = App::self();
 	refreshBlocks();
 

@@ -39,6 +39,8 @@ private slots:
 	void onTurnOff();
 
 private:
+	static QString GetEditPasscodeText();
+
 	void updateControls();
 
 	object_ptr<Ui::LinkButton> _edit;
@@ -94,6 +96,8 @@ private slots:
 	void onSelfDestruction();
 
 private:
+	static QString GetAutoLockText();
+
 	void createControls();
 	void autoLockUpdated();
 

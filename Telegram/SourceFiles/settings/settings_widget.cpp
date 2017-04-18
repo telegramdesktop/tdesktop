@@ -197,11 +197,21 @@ void codesFeedString(const QString &text) {
 } // namespace
 
 Widget::Widget(QWidget *parent) {
-	setTitle(lang(lng_menu_settings));
+	refreshLang();
+	subscribe(Lang::Current().updated(), [this] {
+		refreshLang();
+	});
+
 	_inner = setInnerWidget(object_ptr<InnerWidget>(this));
 	setCloseClickHandler([]() {
 		Ui::hideSettingsAndLayer();
 	});
+}
+
+void Widget::refreshLang() {
+	setTitle(lang(lng_menu_settings));
+
+	update();
 }
 
 void Widget::showFinished() {

@@ -43,10 +43,6 @@ LabeledLink::LabeledLink(QWidget *parent, const QString &label, const QString &t
 	connect(_link, SIGNAL(clicked()), parent, slot);
 }
 
-void LabeledLink::setLink(const QString &text) {
-	_link.create(this, text);
-}
-
 Ui::LinkButton *LabeledLink::link() const {
 	return _link;
 }

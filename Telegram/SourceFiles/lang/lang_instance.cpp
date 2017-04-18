@@ -230,6 +230,10 @@ bool ValueParser::parse() {
 
 } // namespace
 
+QString DefaultLanguageId() {
+	return str_const_toString(kDefaultLanguage);
+}
+
 void Instance::switchToId(const QString &id) {
 	reset();
 	_id = id;
@@ -260,16 +264,12 @@ void Instance::fillDefaults() {
 	}
 }
 
-QString Instance::DefaultLanguageId() {
-	return str_const_toString(kDefaultLanguage);
-}
-
 QString Instance::cloudLangCode() const {
 	if (isCustom() || id().isEmpty()) {
 		if (_systemLanguage.isEmpty()) {
 			_systemLanguage = Platform::SystemLanguage();
 			if (_systemLanguage.isEmpty()) {
-				_systemLanguage = Instance::DefaultLanguageId();
+				_systemLanguage = DefaultLanguageId();
 			}
 		}
 		return _systemLanguage;
@@ -410,7 +410,9 @@ void Instance::fillFromLegacy(int legacyId, const QString &legacyPath) {
 }
 
 void Instance::applyDifference(const MTPDlangPackDifference &difference) {
-	Expects(qs(difference.vlang_code) == _id);
+	auto updateLanguageId = qs(difference.vlang_code);
+	auto isValidUpdate = (updateLanguageId == _id) || (_id.isEmpty() && updateLanguageId == DefaultLanguageId());
+	Expects(isValidUpdate);
 	Expects(difference.vfrom_version.v <= _version);
 
 	_version = difference.vversion.v;

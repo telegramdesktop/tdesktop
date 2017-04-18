@@ -42,7 +42,7 @@ private:
 
 	void refresh();
 	void refreshLanguages();
-	void refreshLangItems();
+	void refreshLang();
 
 	Languages _languages;
 

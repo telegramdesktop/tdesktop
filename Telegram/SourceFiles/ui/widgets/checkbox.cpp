@@ -39,20 +39,30 @@ Checkbox::Checkbox(QWidget *parent, const QString &text, bool checked, const sty
 , _st(st)
 , _text(_st.style, text, _checkboxOptions)
 , _checked(checked) {
-	if (_st.width <= 0) {
-		resizeToWidth(_text.maxWidth() - _st.width);
-	} else {
-		resizeToWidth(_st.width);
-	}
-	_checkRect = myrtlrect(_st.margin.left(), _st.margin.top(), _st.diameter, _st.diameter);
+	resizeToText();
 
 	connect(this, SIGNAL(clicked()), this, SLOT(onClicked()));
 
 	setCursor(style::cur_pointer);
 }
 
+void Checkbox::setText(const QString &text) {
+	_text.setText(_st.style, text, _checkboxOptions);
+	resizeToText();
+	update();
+}
+
 bool Checkbox::checked() const {
 	return _checked;
+}
+
+void Checkbox::resizeToText() {
+	if (_st.width <= 0) {
+		resizeToWidth(_text.maxWidth() - _st.width);
+	} else {
+		resizeToWidth(_st.width);
+	}
+	_checkRect = myrtlrect(_st.margin.left(), _st.margin.top(), _st.diameter, _st.diameter);
 }
 
 void Checkbox::setChecked(bool checked, NotifyAboutChange notify) {

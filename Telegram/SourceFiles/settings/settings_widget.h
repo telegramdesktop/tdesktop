@@ -26,11 +26,13 @@ namespace Settings {
 
 class InnerWidget;
 
-class Widget : public Layer {
+class Widget : public Layer, private base::Subscriber {
 	Q_OBJECT
 
 public:
 	Widget(QWidget*);
+
+	void refreshLang();
 
 	void showFinished() override;
 	void parentResized() override;

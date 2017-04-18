@@ -31,6 +31,8 @@ class Checkbox : public RippleButton {
 public:
 	Checkbox(QWidget *parent, const QString &text, bool checked = false, const style::Checkbox &st = st::defaultCheckbox);
 
+	void setText(const QString &text);
+
 	bool checked() const;
 	enum class NotifyAboutChange {
 		Notify,
@@ -61,6 +63,8 @@ signals:
 	void changed();
 
 private:
+	void resizeToText();
+
 	const style::Checkbox &_st;
 
 	Text _text;

@@ -36,8 +36,6 @@ public:
 	};
 	LabeledLink(QWidget *parent, const QString &label, const QString &text, Type type, const char *slot);
 
-	void setLink(const QString &text);
-
 	Ui::LinkButton *link() const;
 
 	int naturalWidth() const override;

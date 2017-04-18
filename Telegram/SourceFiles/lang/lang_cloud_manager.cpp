@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "messenger.h"
 #include "apiwrap.h"
 #include "auth_session.h"
+#include "boxes/confirm_box.h"
 
 namespace Lang {
 
@@ -35,12 +36,11 @@ CloudManager::CloudManager(Instance &langpack, gsl::not_null<MTP::Instance*> mtp
 }
 
 void CloudManager::requestLangPackDifference() {
-	auto &langpack = Lang::Current();
-	if (langpack.isCustom() || _langPackRequestId) {
+	if (_langpack.isCustom() || _langPackRequestId) {
 		return;
 	}
 
-	auto version = langpack.version();
+	auto version = _langpack.version();
 	if (version > 0) {
 		_langPackRequestId = request(MTPlangpack_GetDifference(MTP_int(version))).done([this](const MTPLangPackDifference &result) {
 			_langPackRequestId = 0;
@@ -60,24 +60,24 @@ void CloudManager::requestLangPackDifference() {
 
 void CloudManager::applyLangPackDifference(const MTPLangPackDifference &difference) {
 	Expects(difference.type() == mtpc_langPackDifference);
-	auto &current = Lang::Current();
-	if (current.isCustom()) {
+	if (_langpack.isCustom()) {
 		return;
 	}
 
 	auto &langpack = difference.c_langPackDifference();
-	switchLangPackId(qs(langpack.vlang_code));
-	if (current.version() < langpack.vfrom_version.v) {
-		requestLangPackDifference();
-	} else if (!langpack.vstrings.v.isEmpty()) {
-		current.applyDifference(langpack);
-		Local::writeLangPack();
-		auto fullLangPackUpdated = (langpack.vfrom_version.v == 0);
-		if (fullLangPackUpdated) {
-			Lang::Current().updated().notify();
+	auto langpackId = qs(langpack.vlang_code);
+	if (needToApplyLangPack(langpackId)) {
+		applyLangPackData(langpack);
+	} else if (_langpack.id().isEmpty()) {
+		_offerSwitchToId = langpackId;
+		if (langpack.vfrom_version.v == 0) {
+			_offerSwitchToData = std::make_unique<MTPLangPackDifference>(difference);
+		} else {
+			_offerSwitchToData.reset();
 		}
+		offerSwitchLangPack();
 	} else {
-		LOG(("Lang Info: Up to date."));
+		LOG(("Lang Warning: Ignoring update for '%1' because our language is '%2'").arg(langpackId).arg(_langpack.id()));
 	}
 }
 
@@ -99,19 +99,96 @@ void CloudManager::requestLanguageList() {
 	}).send();
 }
 
+bool CloudManager::needToApplyLangPack(const QString &id) {
+	auto currentId = _langpack.id();
+	if (currentId == id) {
+		return true;
+	} else if (currentId.isEmpty() && id == DefaultLanguageId()) {
+		return true;
+	}
+	return false;
+}
+
+void CloudManager::offerSwitchLangPack() {
+	Expects(!_offerSwitchToId.isEmpty());
+	Expects(_offerSwitchToId != DefaultLanguageId());
+
+	if (!showOfferSwitchBox()) {
+		subscribe(languageListChanged(), [this] {
+			showOfferSwitchBox();
+		});
+		requestLanguageList();
+	}
+}
+
+QString CloudManager::findOfferedLanguageName() {
+	for_const (auto &language, _languages) {
+		if (language.id == _offerSwitchToId) {
+			return language.name;
+		}
+	}
+	return QString();
+}
+
+bool CloudManager::showOfferSwitchBox() {
+	auto name = findOfferedLanguageName();
+	if (name.isEmpty()) {
+		return false;
+	}
+
+	Ui::show(Box<ConfirmBox>("Do you want to switch your language to " + name + "? You can always change your language in Settings.", "Change", lang(lng_cancel), [this] {
+		Ui::hideLayer();
+		if (_offerSwitchToId.isEmpty()) {
+			return;
+		}
+		if (_offerSwitchToData) {
+			t_assert(_offerSwitchToData->type() == mtpc_langPackDifference);
+			applyLangPackData(base::take(_offerSwitchToData)->c_langPackDifference());
+		} else {
+			switchToLanguage(_offerSwitchToId);
+		}
+	}, [this] {
+		Ui::hideLayer();
+		changeIdAndReInitConnection(DefaultLanguageId());
+		Local::writeLangPack();
+	}));
+	return true;
+}
+
+void CloudManager::applyLangPackData(const MTPDlangPackDifference &data) {
+	switchLangPackId(qs(data.vlang_code));
+	if (_langpack.version() < data.vfrom_version.v) {
+		requestLangPackDifference();
+	} else if (!data.vstrings.v.isEmpty()) {
+		_langpack.applyDifference(data);
+		Local::writeLangPack();
+		auto fullLangPackUpdated = (data.vfrom_version.v == 0);
+		if (fullLangPackUpdated) {
+			_langpack.updated().notify();
+		}
+	} else {
+		LOG(("Lang Info: Up to date."));
+	}
+}
+
 void CloudManager::switchToLanguage(const QString &id) {
 	switchLangPackId(id);
 	requestLangPackDifference();
 }
 
 void CloudManager::switchLangPackId(const QString &id) {
-	auto &current = Lang::Current();
-	if (current.id() != id) {
-		current.switchToId(id);
-
-		auto mtproto = requestMTP();
-		mtproto->reInitConnection(mtproto->mainDcId());
+	auto currentId = _langpack.id();
+	auto notChanged = (currentId == id) || (currentId.isEmpty() && id == DefaultLanguageId());
+	if (!notChanged) {
+		changeIdAndReInitConnection(id);
 	}
+}
+
+void CloudManager::changeIdAndReInitConnection(const QString &id) {
+	_langpack.switchToId(id);
+
+	auto mtproto = requestMTP();
+	mtproto->reInitConnection(mtproto->mainDcId());
 }
 
 CloudManager &CurrentCloudManager() {
