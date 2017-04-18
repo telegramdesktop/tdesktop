@@ -177,6 +177,8 @@
 <(src_loc)/intro/introsignup.h
 <(src_loc)/intro/introstart.cpp
 <(src_loc)/intro/introstart.h
+<(src_loc)/lang/lang_cloud_manager.cpp
+<(src_loc)/lang/lang_cloud_manager.h
 <(src_loc)/lang/lang_file_parser.cpp
 <(src_loc)/lang/lang_file_parser.h
 <(src_loc)/lang/lang_instance.cpp

@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "lang/lang_cloud_manager.h"
 #include "boxes/abstract_box.h"
 #include "mtproto/sender.h"
 
@@ -29,8 +30,6 @@ class Radiobutton;
 } // namespace Ui
 
 class LanguageBox : public BoxContent, private MTP::Sender {
-	Q_OBJECT
-
 public:
 	LanguageBox(QWidget*) {
 	}
@@ -39,9 +38,15 @@ protected:
 	void prepare() override;
 
 private:
-	void languageChanged(int languageId);
+	using Languages = Lang::CloudManager::Languages;
 
-	std::shared_ptr<Ui::RadiobuttonGroup> _langGroup;
-	std::vector<object_ptr<Ui::Radiobutton>> _langs;
+	void refresh();
+	void refreshLanguages();
+	void refreshLangItems();
+
+	Languages _languages;
+
+	class Inner;
+	QPointer<Inner> _inner;
 
 };

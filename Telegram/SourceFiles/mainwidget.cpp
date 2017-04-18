@@ -38,6 +38,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_service_layout.h"
 #include "overviewwidget.h"
 #include "lang/lang_keys.h"
+#include "lang/lang_cloud_manager.h"
 #include "boxes/add_contact_box.h"
 #include "storage/file_upload.h"
 #include "messenger.h"
@@ -5689,11 +5690,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	////// Cloud langpacks
 	case mtpc_updateLangPack: {
 		auto &langpack = update.c_updateLangPack();
-		Messenger::Instance().mtp()->applyLangPackDifference(langpack.vdifference);
+		Messenger::Instance().langCloudManager()->applyLangPackDifference(langpack.vdifference);
 	} break;
 
 	case mtpc_updateLangPackTooLong: {
-		Messenger::Instance().mtp()->requestLangPackDifference();
+		Messenger::Instance().langCloudManager()->requestLangPackDifference();
 	} break;
 
 	}

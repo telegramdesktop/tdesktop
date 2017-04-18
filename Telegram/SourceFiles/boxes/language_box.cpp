@@ -28,81 +28,119 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "lang/lang_instance.h"
+#include "lang/lang_cloud_manager.h"
 #include "styles/style_boxes.h"
 
+class LanguageBox::Inner : public TWidget {
+public:
+	Inner(QWidget *parent, gsl::not_null<Languages*> languages);
+
+	void setSelected(int index);
+	void refresh();
+
+private:
+	void languageChanged(int languageIndex);
+
+	gsl::not_null<Languages*> _languages;
+	std::shared_ptr<Ui::RadiobuttonGroup> _group;
+	std::vector<object_ptr<Ui::Radiobutton>> _buttons;
+
+};
+
+LanguageBox::Inner::Inner(QWidget *parent, gsl::not_null<Languages*> languages) : TWidget(parent)
+, _languages(languages) {
+	_group = std::make_shared<Ui::RadiobuttonGroup>(0);
+	_group->setChangedCallback([this](int value) { languageChanged(value); });
+}
+
+void LanguageBox::Inner::setSelected(int index) {
+	_group->setValue(index);
+}
+
+void LanguageBox::Inner::refresh() {
+	for (auto &button : _buttons) {
+		button.destroy();
+	}
+	_buttons.clear();
+
+	auto y = st::boxOptionListPadding.top();
+	_buttons.reserve(_languages->size());
+	auto index = 0;
+	for_const (auto &language, *_languages) {
+		_buttons.emplace_back(this, _group, index++, language.name, st::langsButton);
+		auto button = _buttons.back().data();
+		button->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), y + st::langsButton.margin.top());
+		button->show();
+		y += button->heightNoMargins() + st::boxOptionListSkip;
+	}
+	auto newHeight = y + st::boxOptionListPadding.bottom() + st::boxPadding.bottom();
+	resize(st::langsWidth, newHeight);
+}
+
+void LanguageBox::Inner::languageChanged(int languageIndex) {
+	Expects(languageIndex >= 0 && languageIndex < _languages->size());
+
+	auto languageId = (*_languages)[languageIndex].id;
+	if (languageId != qsl("custom")) {
+		Lang::CurrentCloudManager().switchToLanguage(languageId);
+	}
+}
+
 void LanguageBox::prepare() {
+	refreshLangItems();
+	subscribe(Lang::Current().updated(), [this] {
+		refreshLangItems();
+	});
+
+	_inner = setInnerWidget(object_ptr<Inner>(this, &_languages), st::boxLayerScroll);
+
+	refresh();
+	subscribe(Lang::CurrentCloudManager().languageListChanged(), [this] {
+		refresh();
+	});
+}
+
+void LanguageBox::refreshLangItems() {
+	clearButtons();
 	addButton(lang(lng_box_ok), [this] { closeBox(); });
 
 	setTitle(lang(lng_languages));
 
-	request(MTPlangpack_GetLanguages()).done([this](const MTPVector<MTPLangPackLanguage> &result) {
-		auto currentId = Lang::Current().id();
-		auto currentFound = false;
-		std::vector<QString> languageIds = { qsl("en") };
-		std::vector<QString> languageNames = { qsl("English") };
-		for (auto &language : result.v) {
-			t_assert(language.type() == mtpc_langPackLanguage);
-			auto &data = language.c_langPackLanguage();
-			auto languageId = qs(data.vlang_code);
-			auto languageName = qs(data.vname);
-			if (languageId != qstr("en")) {
-				languageIds.push_back(languageId);
-				languageNames.push_back(languageName);
-			}
-		}
-		if (currentId == qstr("custom")) {
-			languageIds.insert(languageIds.begin(), currentId);
-			languageNames.insert(languageNames.begin(), qsl("Custom LangPack"));
-			currentFound = true;
-		}
-
-		auto languageCount = languageIds.size();
-		_langGroup = std::make_shared<Ui::RadiobuttonGroup>(cLang());
-		auto y = st::boxOptionListPadding.top();
-		_langs.reserve(languageCount);
-		for (auto i = 0; i != languageCount; ++i) {
-			if (!currentFound && languageIds[i] == currentId) {
-				currentFound = true;
-			}
-			_langs.emplace_back(this, _langGroup, i, languageNames[i], st::langsButton);
-			auto button = _langs.back().data();
-			button->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), y + st::langsButton.margin.top());
-			button->show();
-			y += button->heightNoMargins() + st::boxOptionListSkip;
-		}
-		_langGroup->setChangedCallback([this](int value) { languageChanged(value); });
-
-		setDimensions(st::langsWidth, st::boxOptionListPadding.top() + languageCount * st::langsButton.height + languageCount * st::boxOptionListSkip + st::boxOptionListPadding.bottom() + st::boxPadding.bottom());
-	}).fail([this](const RPCError &error) {
-		closeBox();
-	}).send();
-
-	setDimensions(st::langsWidth, st::langsWidth);
+	update();
 }
 
-void LanguageBox::languageChanged(int languageId) {
-	//Expects(languageId == languageTest || (languageId >= 0 && languageId < base::array_size(LanguageCodes)));
+void LanguageBox::refresh() {
+	refreshLanguages();
 
-	//if (languageId == cLang()) {
-	//	return;
-	//}
+	_inner->refresh();
+	auto maxHeight = st::boxOptionListPadding.top() + _languages.size() * (st::langsButton.height + st::boxOptionListSkip) + st::boxOptionListPadding.bottom() + st::boxPadding.bottom();
+	setDimensions(st::langsWidth, qMin(maxHeight, st::boxMaxListHeight));
+}
 
-	//Lang::FileParser::Result result;
-	//if (languageId > 0) {
-	//	Lang::FileParser loader(qsl(":/langs/lang_") + LanguageCodes[languageId].c_str() + qsl(".strings"), { lng_sure_save_language, lng_cancel, lng_box_ok });
-	//	result = loader.found();
-	//} else if (languageId == languageTest) {
-	//	Lang::FileParser loader(cLangFile(), { lng_sure_save_language, lng_cancel, lng_box_ok });
-	//	result = loader.found();
-	//}
-	//auto text = result.value(lng_sure_save_language, Lang::GetOriginalValue(lng_sure_save_language)),
-	//	save = result.value(lng_box_ok, Lang::GetOriginalValue(lng_box_ok)),
-	//	cancel = result.value(lng_cancel, Lang::GetOriginalValue(lng_cancel));
-	//Ui::show(Box<ConfirmBox>(text, save, cancel, base::lambda_guarded(this, [this, languageId] {
-	//	cSetLang(languageId);
-	//	Local::writeSettings();
-	//	App::restart();
-	//}), base::lambda_guarded(this, [this] {
-	//	_langGroup->setValue(cLang());
-	//})), KeepOtherLayers);
+void LanguageBox::refreshLanguages() {
+	_languages = Languages();
+	auto list = Lang::CurrentCloudManager().languageList();
+	_languages.reserve(list.size() + 1);
+	auto currentId = Lang::Current().id();
+	auto currentIndex = -1;
+	_languages.push_back({ qsl("en"), qsl("English") });
+	for (auto &language : list) {
+		auto isCurrent = (language.id == currentId);
+		if (language.id != qstr("en")) {
+			if (isCurrent) {
+				currentIndex = _languages.size();
+			}
+			_languages.push_back(language);
+		} else if (isCurrent) {
+			currentIndex = 0;
+		}
+	}
+	if (currentId == qstr("custom")) {
+		_languages.insert(_languages.begin(), { currentId, qsl("Custom LangPack") });
+		currentIndex = 0;
+	} else if (currentIndex < 0) {
+		currentIndex = _languages.size();
+		_languages.push_back({ currentId, lang(lng_language_name) });
+	}
+	_inner->setSelected(currentIndex);
 }

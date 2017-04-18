@@ -22,15 +22,25 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "messenger.h"
 #include "lang/lang_file_parser.h"
-#include "platform/platform_specific.h"
 #include "storage/serialize_common.h"
 #include "storage/localstorage.h"
+#include "platform/platform_specific.h"
 
 namespace Lang {
 namespace {
 
 constexpr auto kDefaultLanguage = str_const("en");
 constexpr auto kLangValuesLimit = 20000;
+
+constexpr str_const kLegacyLanguages[] = {
+	"en",
+	"it",
+	"es",
+	"de",
+	"nl",
+	"pt_BR",
+	"ko",
+};
 
 class ValueParser {
 public:
@@ -220,14 +230,38 @@ bool ValueParser::parse() {
 
 } // namespace
 
-void Instance::fillDefaults() {
+void Instance::switchToId(const QString &id) {
+	reset();
+	_id = id;
+}
+
+void Instance::switchToCustomFile(const QString &filePath) {
+	reset();
+	fillFromCustomFile(filePath);
+}
+
+void Instance::reset() {
 	_values.clear();
+	_nonDefaultValues.clear();
+	_legacyId = kLegacyLanguageNone;
+	_customFilePathAbsolute = QString();
+	_customFilePathRelative = QString();
+	_customFileContent = QByteArray();
+	_version = 0;
+
+	fillDefaults();
+}
+
+void Instance::fillDefaults() {
+	Expects(_values.empty());
 	_values.reserve(kLangKeysCount);
 	for (auto i = 0; i != kLangKeysCount; ++i) {
 		_values.emplace_back(GetOriginalValue(LangKey(i)));
 	}
-	_id = str_const_toString(kDefaultLanguage);
-	_legacyId = kLegacyDefaultLanguage;
+}
+
+QString Instance::DefaultLanguageId() {
+	return str_const_toString(kDefaultLanguage);
 }
 
 QString Instance::cloudLangCode() const {
@@ -235,7 +269,7 @@ QString Instance::cloudLangCode() const {
 		if (_systemLanguage.isEmpty()) {
 			_systemLanguage = Platform::SystemLanguage();
 			if (_systemLanguage.isEmpty()) {
-				_systemLanguage = str_const_toString(kDefaultLanguage);
+				_systemLanguage = Instance::DefaultLanguageId();
 			}
 		}
 		return _systemLanguage;

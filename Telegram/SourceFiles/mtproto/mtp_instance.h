@@ -89,6 +89,7 @@ public:
 	int32 state(mtpRequestId requestId); // < 0 means waiting for such count of ms
 	void killSession(ShiftedDcId shiftedDcId);
 	void stopSession(ShiftedDcId shiftedDcId);
+	void reInitConnection(DcId dcId);
 	void logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail);
 
 	internal::DcenterPtr getDcById(ShiftedDcId shiftedDcId);
@@ -122,8 +123,6 @@ public:
 
 	void requestConfig();
 	void requestCDNConfig();
-	void requestLangPackDifference();
-	void applyLangPackDifference(const MTPLangPackDifference &difference);
 
 	~Instance();
 
@@ -138,7 +137,6 @@ signals:
 
 private slots:
 	void onKeyDestroyed(qint32 shiftedDcId);
-	void onClearKilledSessions();
 
 private:
 	internal::Session *getSession(ShiftedDcId shiftedDcId);

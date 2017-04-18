@@ -33,7 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace MTP {
 
-class Instance::Private : public Sender {
+class Instance::Private : private Sender {
 public:
 	Private(Instance *instance, DcOptions *options, Instance::Mode mode);
 
@@ -51,8 +51,6 @@ public:
 
 	void requestConfig();
 	void requestCDNConfig();
-	void requestLangPackDifference();
-	void applyLangPackDifference(const MTPLangPackDifference &difference);
 
 	void restart();
 	void restart(ShiftedDcId shiftedDcId);
@@ -64,6 +62,7 @@ public:
 	void killSession(ShiftedDcId shiftedDcId);
 	void killSession(std::unique_ptr<internal::Session> session);
 	void stopSession(ShiftedDcId shiftedDcId);
+	void reInitConnection(DcId dcId);
 	void logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail);
 
 	internal::DcenterPtr getDcById(ShiftedDcId shiftedDcId);
@@ -129,8 +128,6 @@ private:
 
 	void checkDelayedRequests();
 
-	void switchLangPackId(const QString &id);
-
 	Instance *_instance = nullptr;
 	DcOptions *_dcOptions = nullptr;
 	Instance::Mode _mode = Instance::Mode::Normal;
@@ -182,8 +179,6 @@ private:
 	base::lambda<void(ShiftedDcId shiftedDcId)> _sessionResetHandler;
 
 	base::Timer _checkDelayedTimer;
-
-	mtpRequestId _langPackRequestId = 0;
 
 	// Debug flag to find out how we end up crashing.
 	bool MustNotCreateSessions = false;
@@ -246,7 +241,6 @@ void Instance::Private::start(Config &&config) {
 	t_assert((_mainDcId == Config::kNoneMainDc) == isKeysDestroyer());
 	if (!isKeysDestroyer()) {
 		requestConfig();
-		requestLangPackDifference();
 	}
 }
 
@@ -301,58 +295,6 @@ void Instance::Private::requestCDNConfig() {
 
 		emit _instance->cdnConfigLoaded();
 	}).send();
-}
-
-
-void Instance::Private::requestLangPackDifference() {
-	auto &langpack = Lang::Current();
-	if (langpack.isCustom() || _langPackRequestId) {
-		return;
-	}
-
-	auto version = langpack.version();
-	if (version > 0) {
-		_langPackRequestId = request(MTPlangpack_GetDifference(MTP_int(version))).done([this](const MTPLangPackDifference &result) {
-			_langPackRequestId = 0;
-			applyLangPackDifference(result);
-		}).fail([this](const RPCError &error) {
-			_langPackRequestId = 0;
-		}).send();
-	} else {
-		_langPackRequestId = request(MTPlangpack_GetLangPack()).done([this](const MTPLangPackDifference &result) {
-			_langPackRequestId = 0;
-			applyLangPackDifference(result);
-		}).fail([this](const RPCError &error) {
-			_langPackRequestId = 0;
-		}).send();
-	}
-}
-
-void Instance::Private::applyLangPackDifference(const MTPLangPackDifference &difference) {
-	Expects(difference.type() == mtpc_langPackDifference);
-	auto &current = Lang::Current();
-	if (current.isCustom()) {
-		return;
-	}
-
-	auto &langpack = difference.c_langPackDifference();
-	switchLangPackId(qs(langpack.vlang_code));
-	if (current.version() < langpack.vfrom_version.v) {
-		requestLangPackDifference();
-	} else if (!langpack.vstrings.v.isEmpty()) {
-		current.applyDifference(langpack);
-		Local::writeLangPack();
-	} else {
-		LOG(("Lang Info: Up to date."));
-	}
-}
-
-void Instance::Private::switchLangPackId(const QString &id) {
-	auto &current = Lang::Current();
-	if (current.id() != id) {
-		current = Lang::Instance(id, Lang::Instance::CreateFromIdTag());
-		restart(maindc());
-	}
 }
 
 void Instance::Private::restart() {
@@ -477,7 +419,9 @@ void Instance::Private::killSession(ShiftedDcId shiftedDcId) {
 		_sessions.emplace(_mainDcId, std::move(main));
 		_mainSession->start();
 	}
-	QMetaObject::invokeMethod(_instance, "onClearKilledSessions", Qt::QueuedConnection);
+	InvokeQueued(_instance, [this] {
+		clearKilledSessions();
+	});
 }
 
 void Instance::Private::clearKilledSessions() {
@@ -491,6 +435,11 @@ void Instance::Private::stopSession(ShiftedDcId shiftedDcId) {
 			it->second->stop();
 		}
 	}
+}
+
+void Instance::Private::reInitConnection(DcId dcId) {
+	killSession(dcId);
+	getSession(dcId)->notifyLayerInited(false);
 }
 
 void Instance::Private::logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail) {
@@ -1333,14 +1282,6 @@ void Instance::requestCDNConfig() {
 	_private->requestCDNConfig();
 }
 
-void Instance::requestLangPackDifference() {
-	_private->requestLangPackDifference();
-}
-
-void Instance::applyLangPackDifference(const MTPLangPackDifference &difference) {
-	_private->applyLangPackDifference(difference);
-}
-
 void Instance::connectionFinished(internal::Connection *connection) {
 	_private->connectionFinished(connection);
 }
@@ -1379,6 +1320,10 @@ void Instance::killSession(ShiftedDcId shiftedDcId) {
 
 void Instance::stopSession(ShiftedDcId shiftedDcId) {
 	_private->stopSession(shiftedDcId);
+}
+
+void Instance::reInitConnection(DcId dcId) {
+	_private->reInitConnection(dcId);
 }
 
 void Instance::logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail) {
@@ -1487,10 +1432,6 @@ void Instance::scheduleKeyDestroy(ShiftedDcId shiftedDcId) {
 
 void Instance::onKeyDestroyed(qint32 shiftedDcId) {
 	_private->completedKeyDestroy(shiftedDcId);
-}
-
-void Instance::onClearKilledSessions() {
-	_private->clearKilledSessions();
 }
 
 Instance::~Instance() {

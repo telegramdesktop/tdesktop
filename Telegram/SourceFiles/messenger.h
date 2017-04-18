@@ -50,6 +50,7 @@ class Instance;
 namespace Lang {
 class Instance;
 class Translator;
+class CloudManager;
 } // namespace Lang
 
 class Messenger final : public QObject, public RPCSender, private base::Subscriber {
@@ -108,6 +109,9 @@ public:
 	}
 	Lang::Instance &langpack() {
 		return *_langpack;
+	}
+	Lang::CloudManager *langCloudManager() {
+		return _langCloudManager.get();
 	}
 	void authSessionCreate(UserId userId);
 	void authSessionDestroy();
@@ -197,6 +201,7 @@ private:
 	FileUploader *_uploader = nullptr;
 
 	std::unique_ptr<Lang::Instance> _langpack;
+	std::unique_ptr<Lang::CloudManager> _langCloudManager;
 	std::unique_ptr<Lang::Translator> _translator;
 	std::unique_ptr<MTP::DcOptions> _dcOptions;
 	std::unique_ptr<MTP::Instance> _mtproto;

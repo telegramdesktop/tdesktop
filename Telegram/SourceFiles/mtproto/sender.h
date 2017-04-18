@@ -288,12 +288,15 @@ public:
 	SentRequestWrap request(mtpRequestId requestId) noexcept WARN_UNUSED_RESULT;
 
 	void requestSendDelayed() {
-		MTP::sendAnything();
+		_instance->sendAnything();
 	}
 	void requestCancellingDiscard() {
 		for (auto &request : _requests) {
 			request.handled();
 		}
+	}
+	gsl::not_null<Instance*> requestMTP() const {
+		return _instance;
 	}
 
 private:

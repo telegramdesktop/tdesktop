@@ -357,9 +357,9 @@ class Observable : public internal::BaseObservable<EventType, Handler, base::typ
 public:
 	Observable() = default;
 	Observable(const Observable &other) = delete;
-	Observable(Observable &&other) = default;
+	Observable(Observable &&other) = delete;
 	Observable &operator=(const Observable &other) = delete;
-	Observable &operator=(Observable &&other) = default;
+	Observable &operator=(Observable &&other) = delete;
 
 };
 

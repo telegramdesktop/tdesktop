@@ -34,6 +34,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/about_box.h"
 #include "core/file_utilities.h"
 #include "lang/lang_file_parser.h"
+#include "lang/lang_cloud_manager.h"
+#include "messenger.h"
 #include "autoupdater.h"
 
 namespace Settings {
@@ -220,7 +222,7 @@ void GeneralWidget::chooseCustomLang() {
 				save = result.value(lng_box_ok, Lang::GetOriginalValue(lng_box_ok)),
 				cancel = result.value(lng_cancel, Lang::GetOriginalValue(lng_cancel));
 			Ui::show(Box<ConfirmBox>(text, save, cancel, base::lambda_guarded(this, [this, filePath] {
-				Lang::Current() = Lang::Instance(filePath, Lang::Instance::CreateFromCustomFileTag());
+				Lang::Current().switchToCustomFile(filePath);
 				Local::writeLangPack();
 				onRestart();
 			})));
@@ -233,9 +235,19 @@ void GeneralWidget::chooseCustomLang() {
 void GeneralWidget::onChangeLanguage() {
 	if ((_changeLanguage->clickModifiers() & Qt::ShiftModifier) && (_changeLanguage->clickModifiers() & Qt::AltModifier)) {
 		chooseCustomLang();
+		return;
+	}
+	auto manager = Messenger::Instance().langCloudManager();
+	if (manager->languageList().isEmpty()) {
+		_languagesLoadedSubscription = subscribe(manager->languageListChanged(), [this] {
+			unsubscribe(base::take(_languagesLoadedSubscription));
+			Ui::show(Box<LanguageBox>());
+		});
 	} else {
+		unsubscribe(base::take(_languagesLoadedSubscription));
 		Ui::show(Box<LanguageBox>());
 	}
+	manager->requestLanguageList();
 }
 
 void GeneralWidget::onRestart() {

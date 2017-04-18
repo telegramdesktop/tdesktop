@@ -27,35 +27,22 @@ namespace Lang {
 constexpr auto kLegacyLanguageNone = -2;
 constexpr auto kLegacyCustomLanguage = -1;
 constexpr auto kLegacyDefaultLanguage = 0;
-constexpr str_const kLegacyLanguages[] = {
-	"en",
-	"it",
-	"es",
-	"de",
-	"nl",
-	"pt_BR",
-	"ko",
-};
 
 class Instance {
 public:
 	Instance() {
 		fillDefaults();
 	}
-	struct CreateFromIdTag {};
-	Instance(const QString &id, CreateFromIdTag) {
-		fillDefaults();
-		_id = id;
-	}
-	struct CreateFromCustomFileTag {};
-	Instance(const QString &filePath, CreateFromCustomFileTag) {
-		fillDefaults();
-		fillFromCustomFile(filePath);
-	}
+	void switchToId(const QString &id);
+	void switchToCustomFile(const QString &filePath);
+
 	Instance(const Instance &other) = delete;
 	Instance &operator=(const Instance &other) = delete;
 	Instance(Instance &&other) = default;
 	Instance &operator=(Instance &&other) = default;
+
+	static QString DefaultLanguageId();
+	QString cloudLangCode() const;
 
 	QString id() const {
 		return _id;
@@ -66,13 +53,15 @@ public:
 	int version() const {
 		return _version;
 	}
-	QString cloudLangCode() const;
 
 	QByteArray serialize() const;
 	void fillFromSerialized(const QByteArray &data);
 	void fillFromLegacy(int legacyId, const QString &legacyPath);
 
 	void applyDifference(const MTPDlangPackDifference &difference);
+	base::Observable<void> &updated() {
+		return _updated;
+	}
 
 	QString getValue(LangKey key) {
 		Expects(key >= 0 && key < kLangKeysCount);
@@ -83,6 +72,7 @@ public:
 private:
 	void applyValue(const QByteArray &key, const QByteArray &value);
 	void resetValue(const QByteArray &key);
+	void reset();
 	void fillDefaults();
 	void fillFromCustomFile(const QString &filePath);
 	void loadFromContent(const QByteArray &content);
@@ -94,6 +84,8 @@ private:
 	QString _customFilePathRelative;
 	QByteArray _customFileContent;
 	int _version = 0;
+	base::Observable<void> _updated;
+
 	mutable QString _systemLanguage;
 
 	std::vector<QString> _values;

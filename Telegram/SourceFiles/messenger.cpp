@@ -31,6 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "calls/calls_instance.h"
 #include "lang/lang_file_parser.h"
 #include "lang/lang_translator.h"
+#include "lang/lang_cloud_manager.h"
 #include "observer_peer.h"
 #include "storage/file_upload.h"
 #include "mainwidget.h"
@@ -318,6 +319,8 @@ void Messenger::startMtp() {
 		}
 		_private->storedAuthSession.reset();
 	}
+
+	_langCloudManager = std::make_unique<Lang::CloudManager>(langpack(), mtp());
 }
 
 void Messenger::destroyMtpKeys(MTP::AuthKeysList &&keys) {
