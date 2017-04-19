@@ -32,6 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/dropdown_menu.h"
 #include "dialogs/dialogs_layout.h"
 #include "window/window_controller.h"
+#include "calls/calls_instance.h"
 
 namespace Window {
 
@@ -42,6 +43,7 @@ TopBarWidget::TopBarWidget(QWidget *parent, gsl::not_null<Window::Controller*> c
 , _delete(this, lang(lng_selected_delete), st::defaultActiveButton)
 , _info(this, nullptr, st::topBarInfoButton)
 , _mediaType(this, lang(lng_media_type), st::topBarButton)
+, _call(this, st::topBarCall)
 , _search(this, st::topBarSearch)
 , _menuToggle(this, st::topBarMenuToggle) {
 	_forward->setClickedCallback([this] { onForwardSelection(); });
@@ -50,6 +52,7 @@ TopBarWidget::TopBarWidget(QWidget *parent, gsl::not_null<Window::Controller*> c
 	_delete->setWidthChangedCallback([this] { updateControlsGeometry(); });
 	_clearSelection->setClickedCallback([this] { onClearSelection(); });
 	_info->setClickedCallback([this] { onInfoClicked(); });
+	_call->setClickedCallback([this] { onCall(); });
 	_search->setClickedCallback([this] { onSearch(); });
 	_menuToggle->setClickedCallback([this] { showMenu(); });
 
@@ -100,6 +103,16 @@ void TopBarWidget::onSearch() {
 	if (auto main = App::main()) {
 		if (auto peer = main->peer()) {
 			main->searchInPeer(peer);
+		}
+	}
+}
+
+void TopBarWidget::onCall() {
+	if (auto main = App::main()) {
+		if (auto peer = main->peer()) {
+			if (auto user = peer->asUser()) {
+				Calls::Current().startOutgoingCall(user);
+			}
 		}
 	}
 }
@@ -177,6 +190,9 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 		if (!_menuToggle->isHidden()) {
 			decreaseWidth += _menuToggle->width();
 		}
+		if (!_call->isHidden()) {
+			decreaseWidth += _call->width();
+		}
 		if (!_search->isHidden()) {
 			decreaseWidth += _search->width();
 		}
@@ -252,10 +268,18 @@ void TopBarWidget::updateControlsGeometry() {
 	_delete->moveToLeft(buttonsLeft, selectedButtonsTop);
 	_clearSelection->moveToRight(st::topBarActionSkip, selectedButtonsTop);
 
-	_info->moveToRight(0, otherButtonsTop);
-	_menuToggle->moveToRight(0, otherButtonsTop);
-	_mediaType->moveToRight(0, otherButtonsTop);
-	_search->moveToRight(_info->isHidden() ? _menuToggle->width() : _info->width(), otherButtonsTop);
+	auto right = 0;
+	_info->moveToRight(right, otherButtonsTop);
+	_menuToggle->moveToRight(right, otherButtonsTop);
+	_mediaType->moveToRight(right, otherButtonsTop);
+	if (_info->isHidden()) {
+		right += _menuToggle->width();
+	} else {
+		right += _info->width();
+	}
+	_call->moveToRight(right, otherButtonsTop);
+	if (!_call->isHidden()) right += _call->width();
+	_search->moveToRight(right, otherButtonsTop);
 }
 
 void TopBarWidget::animationFinished() {
@@ -283,8 +307,10 @@ void TopBarWidget::showAll() {
 			_menuToggle->show();
 		}
 		_search->show();
+		_call->setVisible(historyPeer->isUser());
 	} else {
 		_search->hide();
+		_call->hide();
 		_info->hide();
 		_menuToggle->hide();
 		_menu.destroy();

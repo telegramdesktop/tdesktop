@@ -21,17 +21,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "mtproto/sender.h"
-#include "base/weak_unique_ptr.h"
-
-class AuthSession;
-
-namespace tgvoip {
-class VoIPController;
-} // namespace tgvoip
+#include "calls/calls_call.h"
 
 namespace Calls {
 
-class Instance : public base::enable_weak_from_this, private MTP::Sender {
+class Instance : private MTP::Sender, private Call::Delegate {
 public:
 	Instance();
 
@@ -42,24 +36,20 @@ public:
 	~Instance();
 
 private:
-	void initiateActualCall();
-	void callFailed();
+	gsl::not_null<Call::Delegate*> getCallDelegate() {
+		return static_cast<Call::Delegate*>(this);
+	}
+	DhConfig getDhConfig() const override {
+		return _dhConfig;
+	}
+	void callFinished(gsl::not_null<Call*> call, const MTPPhoneCallDiscardReason &reason) override;
+	void callFailed(gsl::not_null<Call*> call) override;
 
-	static constexpr auto kSaltSize = 256;
-	static constexpr auto kAuthKeySize = 256;
+	void handleCallUpdate(const MTPPhoneCall &call);
 
-	int32 _dhConfigVersion = 0;
-	int32 _dhConfigG = 0;
-	QByteArray _dhConfigP;
+	DhConfig _dhConfig;
 
-	QByteArray _g_a;
-	std::array<unsigned char, kSaltSize> _salt;
-	std::array<unsigned char, kAuthKeySize> _authKey;
-	uint64 _callId = 0;
-	uint64 _accessHash = 0;
-	uint64 _keyFingerprint = 0;
-
-	std::unique_ptr<tgvoip::VoIPController> _controller;
+	std::unique_ptr<Call> _currentCall;
 
 };
 

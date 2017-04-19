@@ -65,6 +65,7 @@ private:
 	void onDeleteSelection();
 	void onClearSelection();
 	void onInfoClicked();
+	void onCall();
 	void onSearch();
 	void showMenu();
 
@@ -85,6 +86,7 @@ private:
 	object_ptr<Ui::PeerAvatarButton> _info;
 	object_ptr<Ui::RoundButton> _mediaType;
 
+	object_ptr<Ui::IconButton> _call;
 	object_ptr<Ui::IconButton> _search;
 	object_ptr<Ui::IconButton> _menuToggle;
 	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
