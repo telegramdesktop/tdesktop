@@ -15,6 +15,9 @@ matrix:
   fast_finish: true
 
 install:
+  - .\.appveyor\check.bat
+
+before_build:
   - .\.appveyor\install.bat
 
 build:
