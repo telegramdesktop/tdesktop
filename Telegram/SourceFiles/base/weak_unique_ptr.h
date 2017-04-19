@@ -86,3 +86,15 @@ private:
 };
 
 } // namespace base
+
+#ifdef QT_VERSION
+template <typename Lambda>
+inline void InvokeQueued(base::enable_weak_from_this *context, Lambda &&lambda) {
+	QObject proxy;
+	QObject::connect(&proxy, &QObject::destroyed, QCoreApplication::instance(), [guard = base::weak_unique_ptr<base::enable_weak_from_this>(context), lambda = std::forward<Lambda>(lambda)] {
+		if (guard) {
+			lambda();
+		}
+	}, Qt::QueuedConnection);
+}
+#endif // QT_VERSION

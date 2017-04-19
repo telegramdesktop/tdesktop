@@ -67,6 +67,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "auth_session.h"
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
+#include "calls/calls_instance.h"
 
 StackItemSection::StackItemSection(std::unique_ptr<Window::SectionMemento> &&memento) : StackItem(nullptr)
 , _memento(std::move(memento)) {
@@ -4854,7 +4855,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updatePhoneCall: {
-		auto &d = update.c_updatePhoneCall();
+		Calls::Current().handleUpdate(update.c_updatePhoneCall());
 	} break;
 
 	case mtpc_updateUserBlocked: {

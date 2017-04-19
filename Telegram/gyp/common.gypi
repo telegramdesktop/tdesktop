@@ -59,7 +59,7 @@
       'build_mac%': '<(build_mac)',
       'build_linux%': '<(build_linux)',
 
-      'official_build_target%': '<!(python <(DEPTH)/official.py --read-target)',
+      'official_build_target%': '',
     },
     'build_os%': '<(build_os)',
     'build_win%': '<(build_win)',

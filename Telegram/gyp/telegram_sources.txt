@@ -79,6 +79,8 @@
 <(src_loc)/boxes/stickers_box.h
 <(src_loc)/boxes/username_box.cpp
 <(src_loc)/boxes/username_box.h
+<(src_loc)/calls/calls_instance.cpp
+<(src_loc)/calls/calls_instance.h
 <(src_loc)/chat_helpers/bot_keyboard.cpp
 <(src_loc)/chat_helpers/bot_keyboard.h
 <(src_loc)/chat_helpers/emoji_list_widget.cpp

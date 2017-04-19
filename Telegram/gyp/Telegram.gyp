@@ -30,10 +30,9 @@
       'libs_loc': '<(libs_loc)',
       'src_loc': '../SourceFiles',
       'res_loc': '../Resources',
-      'submodules_loc': '../../third_party',
-      'third_party_loc': '../ThirdParty',
-      'minizip_loc': '<(third_party_loc)/minizip',
-      'sp_media_key_tap_loc': '<(third_party_loc)/SPMediaKeyTap',
+      'submodules_loc': '../ThirdParty',
+      'minizip_loc': '<(submodules_loc)/minizip',
+      'sp_media_key_tap_loc': '<(submodules_loc)/SPMediaKeyTap',
       'style_files': [
         '<(res_loc)/colors.palette',
         '<(res_loc)/basic.style',
@@ -79,10 +78,12 @@
       'codegen.gyp:codegen_numbers',
       'codegen.gyp:codegen_style',
       'utils.gyp:Updater',
+      '../ThirdParty/libtgvoip/libtgvoip.gyp:libtgvoip',
     ],
 
     'defines': [
       'AL_LIBTYPE_STATIC',
+      'TGVOIP_USE_CXX11_LIB',
       '<!@(python -c "for s in \'<(build_defines)\'.split(\',\'): print(s)")',
     ],
 
@@ -95,6 +96,7 @@
       '<(libs_loc)/zlib-1.2.8',
       '<(libs_loc)/ffmpeg',
       '<(libs_loc)/openal-soft/include',
+      '<(libs_loc)/opus/include',
       '<(minizip_loc)',
       '<(sp_media_key_tap_loc)',
       '<(submodules_loc)/GSL/include',

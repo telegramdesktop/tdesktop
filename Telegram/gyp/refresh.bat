@@ -6,6 +6,12 @@ set "FullExecPath=%cd%"
 set "Silence=>nul"
 if "%1" == "-v" set "Silence="
 
+if exist "%FullScriptPath%..\build\target" (
+  FOR /F "tokens=1* delims= " %%i in (%FullScriptPath%..\build\target) do set "BuildTarget=%%i"
+) else (
+  set "BuildTarget="
+)
+
 rem strangely linking of Release Telegram build complains about the absence of lib.pdb
 if exist "%FullScriptPath%..\..\..\Libraries\openssl\tmp32\lib.pdb" (
   if not exist "%FullScriptPath%..\..\..\Libraries\openssl\Release\lib\lib.pdb" (
@@ -22,9 +28,9 @@ if not "%TDESKTOP_BUILD_DEFINES%" == "" (
 set GYP_MSVS_VERSION=2015
 
 cd "%FullScriptPath%"
-call gyp --depth=. --generator-output=../.. -Goutput_dir=out !BUILD_DEFINES! Telegram.gyp --format=ninja
+call gyp --depth=. --generator-output=../.. -Goutput_dir=out !BUILD_DEFINES! -Dofficial_build_target=%BuildTarget% Telegram.gyp --format=ninja
 if %errorlevel% neq 0 goto error
-call gyp --depth=. --generator-output=../.. -Goutput_dir=out !BUILD_DEFINES! Telegram.gyp --format=msvs-ninja
+call gyp --depth=. --generator-output=../.. -Goutput_dir=out !BUILD_DEFINES! -Dofficial_build_target=%BuildTarget% Telegram.gyp --format=msvs-ninja
 if %errorlevel% neq 0 goto error
 cd ../..
 

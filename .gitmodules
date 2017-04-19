@@ -1,6 +1,9 @@
-[submodule "third_party/GSL"]
-	path = third_party/GSL
-	url = https://github.com/Microsoft/GSL.git
-[submodule "third_party/variant"]
-	path = third_party/variant
+[submodule "Telegram/ThirdParty/libtgvoip"]
+	path = Telegram/ThirdParty/libtgvoip
+	url = https://github.com/telegramdesktop/libtgvoip
+[submodule "Telegram/ThirdParty/variant"]
+	path = Telegram/ThirdParty/variant
 	url = https://github.com/mapbox/variant
+[submodule "Telegram/ThirdParty/GSL"]
+	path = Telegram/ThirdParty/GSL
+	url = https://github.com/Microsoft/GSL.git

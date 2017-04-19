@@ -130,7 +130,7 @@
     'qt_version%': '<(qt_version)',
     'conditions': [
       [ 'build_win', {
-        'qt_loc': '../../../Libraries/qt<(qt_version_loc)/qtbase',
+        'qt_loc': '<(DEPTH)/../../../Libraries/qt<(qt_version_loc)/qtbase',
       }, {
         'qt_loc': '<(qt_loc_unix)',
       }],
