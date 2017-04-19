@@ -210,6 +210,10 @@ inline void copy_bytes(byte_span destination, const_byte_span source) {
 	memcpy(destination.data(), source.data(), source.size());
 }
 
+inline void set_bytes(byte_span destination, gsl::byte value) {
+	memset(destination.data(), gsl::to_integer<unsigned char>(value), destination.size());
+}
+
 } // namespace base
 
 // using for_const instead of plain range-based for loop to ensure usage of const_iterator

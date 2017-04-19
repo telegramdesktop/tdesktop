@@ -507,3 +507,15 @@ mediaviewTransparentFg: #cccccc; // another transparent filling part
 
 // notification
 notificationBg: windowBg; // custom notification window background
+
+// calls
+callBg: #26282cf2;
+callNameFg: #ffffff;
+callFingerprintBg: #00000066;
+callStatusFg: #aaabac;
+callIconFg: #ffffff;
+callAnswerBg: #64c15b;
+callAnswerRipple: #52b149;
+callHangupBg: #d75a5a;
+callHangupRipple: #c04646;
+callMuteRipple: #ffffff12;

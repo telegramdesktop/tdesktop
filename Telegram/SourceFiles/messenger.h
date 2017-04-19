@@ -50,6 +50,7 @@ public:
 	~Messenger();
 
 	MainWindow *mainWindow();
+	QPoint getPointForCallPanelCenter() const;
 
 	static Messenger *InstancePointer();
 	static Messenger &Instance() {

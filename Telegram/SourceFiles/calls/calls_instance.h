@@ -25,7 +25,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Calls {
 
-class Instance : private MTP::Sender, private Call::Delegate {
+class Panel;
+
+class Instance : private MTP::Sender, private Call::Delegate, private base::Subscriber {
 public:
 	Instance();
 
@@ -42,14 +44,17 @@ private:
 	DhConfig getDhConfig() const override {
 		return _dhConfig;
 	}
-	void callFinished(gsl::not_null<Call*> call, const MTPPhoneCallDiscardReason &reason) override;
+	void callFinished(gsl::not_null<Call*> call) override;
 	void callFailed(gsl::not_null<Call*> call) override;
+	void createCall(gsl::not_null<UserData*> user, Call::Type type);
+	void refreshDhConfig();
 
 	void handleCallUpdate(const MTPPhoneCall &call);
 
 	DhConfig _dhConfig;
 
 	std::unique_ptr<Call> _currentCall;
+	std::unique_ptr<Panel> _currentCallPanel;
 
 };
 

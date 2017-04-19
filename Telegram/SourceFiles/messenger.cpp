@@ -777,3 +777,12 @@ Messenger::~Messenger() {
 MainWindow *Messenger::mainWindow() {
 	return _window.get();
 }
+
+QPoint Messenger::getPointForCallPanelCenter() const {
+	Expects(_window != nullptr);
+	Expects(_window->windowHandle() != nullptr);
+	if (_window->isActive()) {
+		return _window->geometry().center();
+	}
+	return _window->windowHandle()->screen()->geometry().center();
+}

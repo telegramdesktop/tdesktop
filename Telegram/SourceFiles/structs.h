@@ -377,11 +377,12 @@ public:
 		return _openLink;
 	}
 
+	ImagePtr currentUserpic() const;
+
 protected:
 	void updateNameDelayed(const QString &newName, const QString &newNameOrPhone, const QString &newUsername);
 
 	ImagePtr _userpic;
-	ImagePtr currentUserpic() const;
 	mutable EmptyUserpic _userpicEmpty;
 
 private:

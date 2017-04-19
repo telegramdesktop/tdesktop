@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/connection.h"
 #include "auth_session.h"
 #include "calls/calls_call.h"
+#include "calls/calls_panel.h"
 
 namespace Calls {
 
@@ -32,14 +33,32 @@ void Instance::startOutgoingCall(gsl::not_null<UserData*> user) {
 	if (_currentCall) {
 		return; // Already in a call.
 	}
+	createCall(user, Call::Type::Outgoing);
+}
 
-	_currentCall = std::make_unique<Call>(getCallDelegate(), user);
-	request(MTPmessages_GetDhConfig(MTP_int(_dhConfig.version), MTP_int(Call::kSaltSize))).done([this, call = base::weak_unique_ptr<Call>(_currentCall)](const MTPmessages_DhConfig &result) {
-		if (!call) {
-			DEBUG_LOG(("API Warning: call was destroyed before got dhConfig."));
-			return;
-		}
+void Instance::callFinished(gsl::not_null<Call*> call) {
+	if (_currentCall.get() == call) {
+		_currentCallPanel.reset();
+		_currentCall.reset();
+	}
+}
 
+void Instance::callFailed(gsl::not_null<Call*> call) {
+	if (_currentCall.get() == call) {
+		_currentCallPanel.reset();
+		_currentCall.reset();
+	}
+}
+
+void Instance::createCall(gsl::not_null<UserData*> user, Call::Type type) {
+	_currentCall = std::make_unique<Call>(getCallDelegate(), user, type);
+	_currentCallPanel = std::make_unique<Panel>(_currentCall.get());
+	refreshDhConfig();
+}
+
+void Instance::refreshDhConfig() {
+	Expects(_currentCall != nullptr);
+	request(MTPmessages_GetDhConfig(MTP_int(_dhConfig.version), MTP_int(Call::kRandomPowerSize))).done([this, call = base::weak_unique_ptr<Call>(_currentCall)](const MTPmessages_DhConfig &result) {
 		auto random = base::const_byte_span();
 		switch (result.type()) {
 		case mtpc_messages_dhConfig: {
@@ -67,32 +86,22 @@ void Instance::startOutgoingCall(gsl::not_null<UserData*> user) {
 		default: Unexpected("Type in messages.getDhConfig");
 		}
 
-		if (random.size() != Call::kSaltSize) {
+		if (random.size() != Call::kRandomPowerSize) {
 			LOG(("API Error: dhConfig random bytes wrong size: %1").arg(random.size()));
 			callFailed(call.get());
 			return;
 		}
-		call->startOutgoing(random);
+		if (call) {
+			call->start(random);
+		}
 	}).fail([this, call = base::weak_unique_ptr<Call>(_currentCall)](const RPCError &error) {
 		if (!call) {
 			DEBUG_LOG(("API Warning: call was destroyed before got dhConfig."));
 			return;
 		}
-
 		callFailed(call.get());
 	}).send();
-}
 
-void Instance::callFinished(gsl::not_null<Call*> call, const MTPPhoneCallDiscardReason &reason) {
-	if (_currentCall.get() == call) {
-		_currentCall.reset();
-	}
-}
-
-void Instance::callFailed(gsl::not_null<Call*> call) {
-	if (_currentCall.get() == call) {
-		_currentCall.reset();
-	}
 }
 
 void Instance::handleUpdate(const MTPDupdatePhoneCall& update) {
@@ -101,10 +110,18 @@ void Instance::handleUpdate(const MTPDupdatePhoneCall& update) {
 
 void Instance::handleCallUpdate(const MTPPhoneCall &call) {
 	if (call.type() == mtpc_phoneCallRequested) {
-		if (_currentCall) {
-			// discard ?
+		auto &phoneCall = call.c_phoneCallRequested();
+		auto user = App::userLoaded(phoneCall.vadmin_id.v);
+		if (!user) {
+			LOG(("API Error: User not loaded for phoneCallRequested."));
+		} else if (user->isSelf()) {
+			LOG(("API Error: Self found in phoneCallRequested."));
+		}
+		if (_currentCall || !user || user->isSelf()) {
+			request(MTPphone_DiscardCall(MTP_inputPhoneCall(phoneCall.vid, phoneCall.vaccess_hash), MTP_int(0), MTP_phoneCallDiscardReasonBusy(), MTP_long(0))).send();
 		} else {
-			// show call
+			createCall(user, Call::Type::Incoming);
+			_currentCall->handleUpdate(call);
 		}
 	} else if (!_currentCall || !_currentCall->handleUpdate(call)) {
 		DEBUG_LOG(("API Warning: unexpected phone call update %1").arg(call.type()));

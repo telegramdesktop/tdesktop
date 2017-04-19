@@ -352,6 +352,11 @@ MultiSelect {
 	fieldCancelSkip: pixels;
 }
 
+CallButton {
+	button: IconButton;
+	bg: color;
+}
+
 Menu {
 	skip: pixels;
 

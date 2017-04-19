@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "base/weak_unique_ptr.h"
 #include "mtproto/sender.h"
+#include "base/timer.h"
 
 namespace tgvoip {
 class VoIPController;
@@ -40,43 +41,97 @@ public:
 	class Delegate {
 	public:
 		virtual DhConfig getDhConfig() const = 0;
-		virtual void callFinished(gsl::not_null<Call*> call, const MTPPhoneCallDiscardReason &reason) = 0;
+		virtual void callFinished(gsl::not_null<Call*> call) = 0;
 		virtual void callFailed(gsl::not_null<Call*> call) = 0;
 
 	};
 
-	static constexpr auto kSaltSize = 256;
+	static constexpr auto kRandomPowerSize = 256;
 
-	Call(gsl::not_null<Delegate*> instance, gsl::not_null<UserData*> user);
+	enum class Type {
+		Incoming,
+		Outgoing,
+	};
+	Call(gsl::not_null<Delegate*> delegate, gsl::not_null<UserData*> user, Type type);
 
-	void startOutgoing(base::const_byte_span random);
+	Type type() const {
+		return _type;
+	}
+	gsl::not_null<UserData*> user() const {
+		return _user;
+	}
+
+	void start(base::const_byte_span random);
 	bool handleUpdate(const MTPPhoneCall &call);
+
+	enum State {
+		WaitingInit,
+		WaitingInitAck,
+		Established,
+		Failed,
+		HangingUp,
+		Ended,
+		ExchangingKeys,
+		Waiting,
+		Requesting,
+		WaitingIncoming,
+		Ringing,
+		Busy,
+	};
+	State state() const {
+		return _state;
+	}
+	base::Observable<State> &stateChanged() {
+		return _stateChanged;
+	}
+	void setMute(bool mute);
+
+	void answer();
+	void hangup();
+	void decline();
 
 	~Call();
 
 private:
 	static constexpr auto kAuthKeySize = 256;
+	static constexpr auto kSha256Size = 32;
 
-	void generateSalt(base::const_byte_span random);
+	void finish(const MTPPhoneCallDiscardReason &reason);
+	void startOutgoing();
+	void startIncoming();
+
+	void generateRandomPower(base::const_byte_span random);
 	void handleControllerStateChange(tgvoip::VoIPController *controller, int state);
 	void createAndStartController(const MTPDphoneCall &call);
-	void destroyController();
 
-	template <typename Type>
-	bool checkCallCommonFields(const Type &call);
+	template <typename T>
+	bool checkCallCommonFields(const T &call);
 	bool checkCallFields(const MTPDphoneCall &call);
 	bool checkCallFields(const MTPDphoneCallAccepted &call);
 
 	void confirmAcceptedCall(const MTPDphoneCallAccepted &call);
+	void startConfirmedCall(const MTPDphoneCall &call);
+	void setState(State state);
+	void setStateQueued(State state);
 
-	void failed();
-
-	DhConfig _dhConfig;
 	gsl::not_null<Delegate*> _delegate;
 	gsl::not_null<UserData*> _user;
-	std::vector<gsl::byte> _g_a;
-	std::array<gsl::byte, kSaltSize> _salt;
+	Type _type = Type::Outgoing;
+	State _state = State::WaitingInit;
+	bool _finishAfterRequestingCall = false;
+	base::Observable<State> _stateChanged;
+	TimeMs _startTime = 0;
+	base::DelayedCallTimer _hangupByTimeoutTimer;
+	bool _mute = false;
+
+	DhConfig _dhConfig;
+	std::vector<gsl::byte> _ga;
+	std::vector<gsl::byte> _gb;
+	std::array<gsl::byte, kSha256Size> _gaHash;
+	std::array<gsl::byte, kRandomPowerSize> _randomPower;
 	std::array<gsl::byte, kAuthKeySize> _authKey;
+	MTPPhoneCallProtocol _protocol;
+
 	uint64 _id = 0;
 	uint64 _accessHash = 0;
 	uint64 _keyFingerprint = 0;

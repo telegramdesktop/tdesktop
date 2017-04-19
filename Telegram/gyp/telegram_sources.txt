@@ -3,6 +3,7 @@
 <(src_loc)/base/observer.cpp
 <(src_loc)/base/observer.h
 <(src_loc)/base/ordered_set.h
+<(src_loc)/base/openssl_help.h
 <(src_loc)/base/parse_helper.cpp
 <(src_loc)/base/parse_helper.h
 <(src_loc)/base/qthelp_regex.h
@@ -83,6 +84,8 @@
 <(src_loc)/calls/calls_call.h
 <(src_loc)/calls/calls_instance.cpp
 <(src_loc)/calls/calls_instance.h
+<(src_loc)/calls/calls_panel.cpp
+<(src_loc)/calls/calls_panel.h
 <(src_loc)/chat_helpers/bot_keyboard.cpp
 <(src_loc)/chat_helpers/bot_keyboard.h
 <(src_loc)/chat_helpers/emoji_list_widget.cpp

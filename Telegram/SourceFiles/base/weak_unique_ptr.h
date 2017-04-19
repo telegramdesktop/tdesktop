@@ -24,7 +24,7 @@ namespace base {
 
 class enable_weak_from_this;
 
-template <typename T, typename = std::enable_if_t<std::is_base_of<enable_weak_from_this, T>::value>>
+template <typename T>
 class weak_unique_ptr;
 
 class enable_weak_from_this {
@@ -42,12 +42,12 @@ public:
 	}
 
 private:
-	template <typename Child, typename>
+	template <typename Child>
 	friend class weak_unique_ptr;
 
 	std::shared_ptr<enable_weak_from_this*> getGuarded() {
 		if (!_guarded) {
-			_guarded = std::make_shared<enable_weak_from_this*>(this);
+			_guarded = std::make_shared<enable_weak_from_this*>(static_cast<enable_weak_from_this*>(this));
 		}
 		return _guarded;
 	}
@@ -56,7 +56,7 @@ private:
 
 };
 
-template <typename T, typename>
+template <typename T>
 class weak_unique_ptr {
 public:
 	weak_unique_ptr() = default;

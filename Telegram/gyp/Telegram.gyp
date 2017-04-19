@@ -37,6 +37,7 @@
         '<(res_loc)/colors.palette',
         '<(res_loc)/basic.style',
         '<(src_loc)/boxes/boxes.style',
+        '<(src_loc)/calls/calls.style',
         '<(src_loc)/dialogs/dialogs.style',
         '<(src_loc)/history/history.style',
         '<(src_loc)/intro/intro.style',
