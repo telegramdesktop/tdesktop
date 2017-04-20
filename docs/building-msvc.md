@@ -41,7 +41,7 @@ All commands (if not stated otherwise) will be launched from **VS2015 x86 Native
 
 ***In case you don't have a *D* drive, or prefer to use another working directory.***
 Since all of the examples and commands here are using the *D* drive, you might find it more comfortable to map the drive to a folder you of your choice. 
-For example, to map *D:\\* to *C:\\base_folder_for_telegram_dev*, open the cmd and execute: `net use D: \\localhost\c$\base_folder_for_telegram_dev`.
+For example, to map *D:\\* to *C:\\base_folder_for_telegram_dev*, open the cmd and execute: `subst D: C:\base_folder_for_telegram_dev`.
 
 ## Clone source code
 
