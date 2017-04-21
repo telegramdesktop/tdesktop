@@ -790,6 +790,12 @@ public:
 		}
 		return author();
 	}
+	MsgId idOriginal() const {
+		if (auto fwd = Get<HistoryMessageForwarded>()) {
+			return fwd->_originalId;
+		}
+		return id;
+	}
 
 	// count > 0 - creates the unread bar if necessary and
 	// sets unread messages count if bar is not freezed yet

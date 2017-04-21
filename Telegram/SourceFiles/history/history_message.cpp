@@ -457,7 +457,7 @@ HistoryMessage::HistoryMessage(History *history, MsgId id, MTPDmessage::Flags fl
 	config.authorIdOriginal = fwd->authorOriginal()->id;
 	config.fromIdOriginal = fwd->fromOriginal()->id;
 	if (fwd->authorOriginal()->isChannel()) {
-		config.originalId = fwd->id;
+		config.originalId = fwd->idOriginal();
 	}
 	auto fwdViaBot = fwd->viaBot();
 	if (fwdViaBot) config.viaBotId = peerToUser(fwdViaBot->id);
