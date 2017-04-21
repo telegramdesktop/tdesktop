@@ -766,9 +766,7 @@ bool HistoryItem::canEdit(const QDateTime &cur) const {
 		}
 
 		if (auto media = msg->getMedia()) {
-			if (media->canEditCaption()) {
-				return true;
-			} else if (media->type() != MediaTypeWebPage) {
+			if (!media->canEditCaption() && media->type() != MediaTypeWebPage) {
 				return false;
 			}
 		}
