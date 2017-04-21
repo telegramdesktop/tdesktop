@@ -933,7 +933,7 @@ void HistoryWidget::updateSendAction(History *history, SendAction::Type type, in
 			case Type::RecordVoice: action = MTP_sendMessageRecordAudioAction(); break;
 			case Type::UploadVoice: action = MTP_sendMessageUploadAudioAction(MTP_int(progress)); break;
 			case Type::RecordRound: action = MTP_sendMessageRecordRoundAction(); break;
-			case Type::UploadRound: action = MTP_sendMessageUploadRoundAction(); break;
+			case Type::UploadRound: action = MTP_sendMessageUploadRoundAction(MTP_int(progress)); break;
 			case Type::UploadPhoto: action = MTP_sendMessageUploadPhotoAction(MTP_int(progress)); break;
 			case Type::UploadFile: action = MTP_sendMessageUploadDocumentAction(MTP_int(progress)); break;
 			case Type::ChooseLocation: action = MTP_sendMessageGeoLocationAction(); break;

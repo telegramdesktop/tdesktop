@@ -505,7 +505,7 @@ sendMessageGeoLocationAction#176f8ba1 = SendMessageAction;
 sendMessageChooseContactAction#628cbc6f = SendMessageAction;
 sendMessageGamePlayAction#dd6a8f48 = SendMessageAction;
 sendMessageRecordRoundAction#88f27fbc = SendMessageAction;
-sendMessageUploadRoundAction#bb718624 = SendMessageAction;
+sendMessageUploadRoundAction#243e1c66 progress:int = SendMessageAction;
 
 contacts.found#1aa1f784 results:Vector<Peer> chats:Vector<Chat> users:Vector<User> = contacts.Found;
 
@@ -794,6 +794,7 @@ pageBlockEmbed#cde200d1 flags:# full_width:flags.0?true allow_scrolling:flags.3?
 pageBlockEmbedPost#292c7be9 url:string webpage_id:long author_photo_id:long author:string date:int blocks:Vector<PageBlock> caption:RichText = PageBlock;
 pageBlockCollage#8b31c4f items:Vector<PageBlock> caption:RichText = PageBlock;
 pageBlockSlideshow#130c8963 items:Vector<PageBlock> caption:RichText = PageBlock;
+pageBlockChannel#ef1751b5 channel:Chat = PageBlock;
 
 pagePart#8dee6c44 blocks:Vector<PageBlock> photos:Vector<Photo> videos:Vector<Document> = Page;
 pageFull#d7a19d69 blocks:Vector<PageBlock> photos:Vector<Photo> videos:Vector<Document> = Page;
