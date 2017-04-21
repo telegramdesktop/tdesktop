@@ -496,6 +496,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_create_public_link" = "공개 링크 생성";
 "lng_profile_edit_public_link" = "공개링크 수정";
 "lng_profile_manage_admins" = "관리자 관리";
+"lng_profile_manage_blocklist" = "차단된 사용자 관리";
 "lng_profile_common_groups" = "{count:_not_used_|# 그룹|# 그룹} 공통";
 "lng_profile_common_groups_section" = "공통 그룹";
 "lng_profile_participants_section" = "사용자";
@@ -574,6 +575,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_channel_add_admin" = "관리자 추가";
 "lng_channel_admin_sure" = "{user}를 관리자로 추가하시겠습니까?";
 "lng_channel_admins_too_much" = "죄송합니다, 관리자의 최대허용치입니다. 다른 관리자를 삭제해주세요";
+
+"lng_group_blocked_list_about" = "차단된 사용자들은 그룹에서 추방이 되며 관리자의 초대로만 재입장이 가능합니다.\n초대링크는 작동되지 않습니다.";
 
 "lng_chat_all_members_admins" = "모든 구성원이 관리자입니다";
 "lng_chat_about_all_admins" = "그룹에 있는 모든 구성원은 상대 초대, 이름 및 사진을 수정할 수 있습니다.";
@@ -654,6 +657,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_video" = "동영상";
 "lng_action_pinned_media_audio" = "오디오 파일";
 "lng_action_pinned_media_voice" = "음성 메시지";
+"lng_action_pinned_media_video_message" = "비디오 메시지";
 "lng_action_pinned_media_file" = "파일";
 "lng_action_pinned_media_gif" = "GIF 파일";
 "lng_action_pinned_media_contact" = "연락처 정보";
@@ -778,6 +782,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_switch_gifs" = "GIF";
 "lng_stickers_featured_add" = "추가";
 "lng_gifs_search" = "GIF 검색";
+"lng_gifs_no_saved" = "아직 저장된 GIF파일이 없습니다.";
 
 "lng_inline_bot_no_results" = "결과 없음";
 "lng_inline_bot_via" = "{inline_bot} 결과";
@@ -806,6 +811,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_in_dlg_audio_file" = "음성 파일";
 "lng_in_dlg_contact" = "연락처";
 "lng_in_dlg_audio" = "음성 메시지";
+"lng_in_dlg_video_message" = "비디오 메시지";
 "lng_in_dlg_file" = "파일";
 "lng_in_dlg_sticker" = "스티커";
 "lng_in_dlg_sticker_emoji" = "{emoji} 스티커";
@@ -885,6 +891,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_user_action_record_audio" = "{user}님이 오디오를 녹음 중입니다";
 "lng_send_action_upload_audio" = "음성 메시지 전송 중";
 "lng_user_action_upload_audio" = "{user}님이 음성 메시지는 전송 중입니다";
+"lng_send_action_record_round" = "비디오 메시지를 녹화 중";
+"lng_user_action_record_round" = "{user}님이 비디오 메시지 녹화 중";
+"lng_send_action_upload_round" = "비디오 메시지 전송 중";
+"lng_user_action_upload_round" = "{user}님이 비디오 메시지 전송 중";
 "lng_send_action_upload_photo" = "사진 전송 중";
 "lng_user_action_upload_photo" = "{user}님이 사진을 전송 중입니다";
 "lng_send_action_upload_file" = "파일 전송 중";

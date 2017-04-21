@@ -496,6 +496,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_create_public_link" = "Publieke link maken";
 "lng_profile_edit_public_link" = "Publieke link wijzigen";
 "lng_profile_manage_admins" = "Beheerders wijzigen";
+"lng_profile_manage_blocklist" = "Geblokkeerde gebruikers";
 "lng_profile_common_groups" = "gedeelde {count:_not_used_|# groep|# groepen}";
 "lng_profile_common_groups_section" = "Gedeelde groepen";
 "lng_profile_participants_section" = "Leden";
@@ -574,6 +575,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_channel_add_admin" = "Beheerder toevoegen";
 "lng_channel_admin_sure" = "{user} aan beheerders toevoegen?";
 "lng_channel_admins_too_much" = "Je hebt het maximum aantal beheerders voor deze groep bereikt, Verwijder er eerst één.";
+
+"lng_group_blocked_list_about" = "Geblokkeerde gebruikers worden verwijderd uit de groep, terugkeren kan alleen op uitnodiging van een beheerder.\nUitnodigingslinks werken niet voor hen.";
 
 "lng_chat_all_members_admins" = "Iedereen is beheerder";
 "lng_chat_about_all_admins" = "Iedereen mag leden toevoegen en de groepsfoto of naam wijzigen.";
@@ -654,6 +657,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_video" = "een video";
 "lng_action_pinned_media_audio" = "een audiobestand";
 "lng_action_pinned_media_voice" = "een spraakbericht";
+"lng_action_pinned_media_video_message" = "een videobericht";
 "lng_action_pinned_media_file" = "een bestand";
 "lng_action_pinned_media_gif" = "een GIF";
 "lng_action_pinned_media_contact" = "een contact";
@@ -778,8 +782,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_switch_gifs" = "GIF's";
 "lng_stickers_featured_add" = "Toevoegen";
 "lng_gifs_search" = "GIF's zoeken";
+"lng_gifs_no_saved" = "Je hebt nog geen GIF's opgeslagen.";
 
-"lng_inline_bot_no_results" = "Geen resultaten";
+"lng_inline_bot_no_results" = "Geen resultaten.";
 "lng_inline_bot_via" = "via {inline_bot}";
 
 "lng_box_remove" = "Verwijder";
@@ -806,6 +811,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_in_dlg_audio_file" = "Audiobestand";
 "lng_in_dlg_contact" = "Contact";
 "lng_in_dlg_audio" = "Spraakbericht";
+"lng_in_dlg_video_message" = "Videobericht";
 "lng_in_dlg_file" = "Bestand";
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} Sticker";
@@ -885,6 +891,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_user_action_record_audio" = "{user} neemt spraakbericht op";
 "lng_send_action_upload_audio" = "spraakbericht versturen";
 "lng_user_action_upload_audio" = "{user} verstuurt spraakbericht";
+"lng_send_action_record_round" = "videobericht opnemen";
+"lng_user_action_record_round" = "{user} neemt videobericht op";
+"lng_send_action_upload_round" = "videobericht versturen";
+"lng_user_action_upload_round" = "{user} verstuurt videobericht";
 "lng_send_action_upload_photo" = "foto versturen";
 "lng_user_action_upload_photo" = "{user} verstuurt een foto";
 "lng_send_action_upload_file" = "bestand versturen";

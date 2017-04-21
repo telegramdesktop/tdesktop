@@ -496,6 +496,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_create_public_link" = "Öffentlichen Link erstellen";
 "lng_profile_edit_public_link" = "Öffentlichen Link bearbeiten";
 "lng_profile_manage_admins" = "Administratoren verwalten";
+"lng_profile_manage_blocklist" = "Blockierte Nutzer verwalten";
 "lng_profile_common_groups" = "{count:_not_used_|# gemeinsame Gruppe|# gemeinsame Gruppen}";
 "lng_profile_common_groups_section" = "Gemeinsame Gruppen";
 "lng_profile_participants_section" = "Teilnehmer";
@@ -574,6 +575,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_channel_add_admin" = "Administrator hinzufügen";
 "lng_channel_admin_sure" = "Soll {user} Administrator werden?";
 "lng_channel_admins_too_much" = "Leider kannst du keine weiteren Admins dieser Gruppe hinzufügen, bitte erst welche löschen.";
+
+"lng_group_blocked_list_about" = "Blockierte Nutzer werden aus der Gruppe entfernt und können nur durch einen Admin hinzugefügt werden.\n\nEinladungslinks funktionieren nicht.";
 
 "lng_chat_all_members_admins" = "Alle Mitglieder Sind Admins";
 "lng_chat_about_all_admins" = "Gruppenmitglieder können neue Leute hinzufügen sowie den Gruppennamen und das Bild ändern.";
@@ -654,6 +657,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_video" = "ein Video";
 "lng_action_pinned_media_audio" = "eine Audiodatei";
 "lng_action_pinned_media_voice" = "eine Sprachnachricht";
+"lng_action_pinned_media_video_message" = "eine Videonachricht";
 "lng_action_pinned_media_file" = "eine Datei";
 "lng_action_pinned_media_gif" = "ein GIF";
 "lng_action_pinned_media_contact" = "einen Kontakt";
@@ -778,8 +782,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_switch_gifs" = "GIFs";
 "lng_stickers_featured_add" = "Hinzufügen";
 "lng_gifs_search" = "Suche GIFs";
+"lng_gifs_no_saved" = "Du hast noch keine GIFs gespeichert.";
 
-"lng_inline_bot_no_results" = "Keine Ergebnisse";
+"lng_inline_bot_no_results" = "Keine Ergebnisse.";
 "lng_inline_bot_via" = "via {inline_bot}";
 
 "lng_box_remove" = "Entfernen";
@@ -806,6 +811,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_in_dlg_audio_file" = "Audiodatei";
 "lng_in_dlg_contact" = "Kontakt";
 "lng_in_dlg_audio" = "Sprachnachricht";
+"lng_in_dlg_video_message" = "Videonachricht";
 "lng_in_dlg_file" = "Datei";
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} Sticker";
@@ -885,6 +891,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_user_action_record_audio" = "{user} nimmt Sprachnachricht auf";
 "lng_send_action_upload_audio" = "sendet Sprachnachricht";
 "lng_user_action_upload_audio" = "{user} sendet Sprachnachricht";
+"lng_send_action_record_round" = "nimmt Videonachricht auf";
+"lng_user_action_record_round" = "{user} nimmt Videonachricht auf";
+"lng_send_action_upload_round" = "sendet eine Videonachricht";
+"lng_user_action_upload_round" = "{user} sendet eine Videonachricht";
 "lng_send_action_upload_photo" = "sendet ein Bild";
 "lng_user_action_upload_photo" = "{user} sendet ein Bild";
 "lng_send_action_upload_file" = "sendet eine Datei";
@@ -1075,7 +1085,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Emoji-, Sticker- und GIF-Panel wurden optimiert.\n— Fehlerbehebungen und Softwareoptimierungen";
+"lng_new_version_text" = "— Emoji-, Sticker- und GIF-Panel wurden optimiert.\n— Fehlerbehebungen und Softwareoptimierungen.";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 
