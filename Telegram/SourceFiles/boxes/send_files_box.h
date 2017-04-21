@@ -139,6 +139,8 @@ private:
 	void saveDone(const MTPUpdates &updates);
 	bool saveFail(const RPCError &error);
 
+	int errorTopSkip() const;
+
 	FullMsgId _msgId;
 	bool _animated = false;
 	bool _photo = false;

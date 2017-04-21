@@ -1,3 +1,7 @@
+1.0.34 alpha (21.04.17)
+
+- Bug fixes and other minor improvements.
+
 1.0.33 alpha (16.04.17)
 
 - Bug fixes and other minor improvements.

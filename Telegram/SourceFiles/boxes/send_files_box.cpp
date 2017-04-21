@@ -628,7 +628,7 @@ void EditCaptionBox::onCaptionResized() {
 }
 
 void EditCaptionBox::updateBoxSize() {
-	auto newHeight = st::boxPhotoPadding.top() + st::boxPhotoCaptionSkip + _field->height() + st::normalFont->height;
+	auto newHeight = st::boxPhotoPadding.top() + st::boxPhotoCaptionSkip + _field->height() + errorTopSkip() + st::normalFont->height;
 	if (_photo || _animated) {
 		newHeight += _thumbh;
 	} else if (_thumbw) {
@@ -639,6 +639,10 @@ void EditCaptionBox::updateBoxSize() {
 		newHeight += st::boxTitleFont->height;
 	}
 	setDimensions(st::boxWideWidth, newHeight);
+}
+
+int EditCaptionBox::errorTopSkip() const {
+	return (st::boxButtonPadding.top() / 2);
 }
 
 void EditCaptionBox::paintEvent(QPaintEvent *e) {
@@ -731,14 +735,14 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 	if (!_error.isEmpty()) {
 		p.setFont(st::normalFont);
 		p.setPen(st::boxTextFgError);
-		p.drawTextLeft(_field->x(), _field->y() + _field->height() + (st::boxButtonPadding.top() / 2), width(), _error);
+		p.drawTextLeft(_field->x(), _field->y() + _field->height() + errorTopSkip(), width(), _error);
 	}
 }
 
 void EditCaptionBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 	_field->resize(st::boxWideWidth - st::boxPhotoPadding.left() - st::boxPhotoPadding.right(), _field->height());
-	_field->moveToLeft(st::boxPhotoPadding.left(), height() - st::normalFont->height - _field->height());
+	_field->moveToLeft(st::boxPhotoPadding.left(), height() - st::normalFont->height - errorTopSkip() - _field->height());
 }
 
 void EditCaptionBox::setInnerFocus() {
@@ -748,7 +752,7 @@ void EditCaptionBox::setInnerFocus() {
 void EditCaptionBox::onSave(bool ctrlShiftEnter) {
 	if (_saveRequestId) return;
 
-	HistoryItem *item = App::histItemById(_msgId);
+	auto item = App::histItemById(_msgId);
 	if (!item) {
 		_error = lang(lng_edit_deleted);
 		update();
