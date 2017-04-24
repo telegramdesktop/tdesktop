@@ -1723,6 +1723,8 @@ void HistoryGif::initDimensions() {
 				_minh += st::msgPadding.bottom();
 			}
 		}
+	} else if (isSeparateRoundVideo()) {
+		_maxw += additionalWidth();
 	}
 }
 
@@ -1790,6 +1792,21 @@ int HistoryGif::resizeGetHeight(int width) {
 				_height += st::msgPadding.bottom();
 			}
 		}
+	} else if (isSeparateRoundVideo()) {
+		auto via = _parent->Get<HistoryMessageVia>();
+		auto reply = _parent->Get<HistoryMessageReply>();
+		if (via || reply) {
+			_width += additionalWidth(via, reply);
+			accumulate_min(_width, width);
+			auto usew = _maxw - additionalWidth(via, reply);
+			auto availw = _width - usew - st::msgReplyPadding.left() - st::msgReplyPadding.left() - st::msgReplyPadding.left();
+			if (via) {
+				via->resize(availw);
+			}
+			if (reply) {
+				reply->resize(availw);
+			}
+		}
 	}
 
 	return _height;
@@ -1811,6 +1828,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 	int32 skipx = 0, skipy = 0, width = _width, height = _height;
 	bool bubble = _parent->hasBubble();
 	bool out = _parent->out(), isPost = _parent->isPost(), outbg = out && !isPost;
+	auto isChildMedia = (_parent->getMedia() != this);
 
 	auto captionw = width - st::msgPadding.left() - st::msgPadding.right();
 
@@ -1847,11 +1865,22 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 		App::roundShadow(p, 0, 0, width, _height, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);
 	}
 
-	QRect rthumb(rtlrect(skipx, skipy, width, height, _width));
+	auto usex = 0, usew = width;
+	auto via = (!isRound || isChildMedia) ? nullptr : _parent->Get<HistoryMessageVia>();
+	auto reply = (!isRound || isChildMedia) ? nullptr : _parent->Get<HistoryMessageReply>();
+	if (via || reply) {
+		usew = _maxw - additionalWidth(via, reply);
+		if (isPost) {
+		} else if (out) {
+			usex = _width - usew;
+		}
+	}
+	if (rtl()) usex = _width - usex - usew;
 
-	auto inWebPage = (_parent->getMedia() != this);
-	auto roundRadius = isRound ? ImageRoundRadius::Ellipse : inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
-	auto roundCorners = (isRound || inWebPage) ? ImageRoundCorner::All : ((isBubbleTop() ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)
+	QRect rthumb(rtlrect(usex + skipx, skipy, usew, height, _width));
+
+	auto roundRadius = isRound ? ImageRoundRadius::Ellipse : isChildMedia ? ImageRoundRadius::Small : ImageRoundRadius::Large;
+	auto roundCorners = (isRound || isChildMedia) ? ImageRoundCorner::All : ((isBubbleTop() ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)
 		| ((isBubbleBottom() && _caption.isEmpty()) ? (ImageRoundCorner::BottomLeft | ImageRoundCorner::BottomRight) : ImageRoundCorner::None));
 	if (animating) {
 		auto paused = App::wnd()->controller()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
@@ -1862,9 +1891,9 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 				displayMute = true;
 			}
 		}
-		p.drawPixmap(rthumb.topLeft(), _gif->current(_thumbw, _thumbh, width, height, roundRadius, roundCorners, paused ? 0 : ms));
+		p.drawPixmap(rthumb.topLeft(), _gif->current(_thumbw, _thumbh, usew, height, roundRadius, roundCorners, paused ? 0 : ms));
 	} else {
-		p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(_thumbw, _thumbh, width, height, roundRadius, roundCorners));
+		p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(_thumbw, _thumbh, usew, height, roundRadius, roundCorners));
 	}
 	if (selected) {
 		App::complexOverlayRect(p, rthumb, roundRadius, roundCorners);
@@ -1935,7 +1964,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 		auto mediaUnread = _parent->isMediaUnread();
 		auto statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
 		auto statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
-		auto statusX = skipx + st::msgDateImgDelta + st::msgDateImgPadding.x();
+		auto statusX = usex + skipx + st::msgDateImgDelta + st::msgDateImgPadding.x();
 		auto statusY = skipy + height - st::msgDateImgDelta - statusH + st::msgDateImgPadding.y();
 		if (_parent->isMediaUnread()) {
 			statusW += st::mediaUnreadSkip + st::mediaUnreadSize;
@@ -1953,12 +1982,41 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 				p.drawEllipse(rtlrect(statusX - st::msgDateImgPadding.x() + statusW - st::msgDateImgPadding.x() - st::mediaUnreadSize, statusY + st::mediaUnreadTop, st::mediaUnreadSize, st::mediaUnreadSize, _width));
 			}
 		}
+		if (!isChildMedia && (via || reply)) {
+			int rectw = _width - usew - st::msgReplyPadding.left();
+			int recth = st::msgReplyPadding.top() + st::msgReplyPadding.bottom();
+			if (via) {
+				recth += st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
+			}
+			if (reply) {
+				recth += st::msgReplyBarSize.height();
+			}
+			int rectx = isPost ? (usew + st::msgReplyPadding.left()) : (out ? 0 : (usew + st::msgReplyPadding.left()));
+			int recty = skipy;
+			if (rtl()) rectx = _width - rectx - rectw;
+
+			App::roundRect(p, rectx, recty, rectw, recth, selected ? st::msgServiceBgSelected : st::msgServiceBg, selected ? StickerSelectedCorners : StickerCorners);
+			rectx += st::msgReplyPadding.left();
+			rectw -= st::msgReplyPadding.left() + st::msgReplyPadding.right();
+			if (via) {
+				p.drawTextLeft(rectx, recty + st::msgReplyPadding.top(), 2 * rectx + rectw, via->_text);
+				int skip = st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
+				recty += skip;
+			}
+			if (reply) {
+				HistoryMessageReply::PaintFlags flags = 0;
+				if (selected) {
+					flags |= HistoryMessageReply::PaintSelected;
+				}
+				reply->paint(p, _parent, rectx, recty, rectw, flags);
+			}
+		}
 	}
 	if (!_caption.isEmpty()) {
 		p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
 		_caption.draw(p, st::msgPadding.left(), skipy + height + st::mediaPadding.bottom() + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, selection);
-	} else if (_parent->getMedia() == this && (isRound || _data->uploading() || App::hoveredItem() == _parent)) {
-		auto fullRight = skipx + width;
+	} else if (!isChildMedia && (isRound || _data->uploading() || App::hoveredItem() == _parent)) {
+		auto fullRight = skipx + usex + usew;
 		auto fullBottom = skipy + height;
 		if (isRound && !outbg) {
 			auto infoWidth = _parent->infoWidth();
@@ -2006,14 +2064,59 @@ HistoryTextState HistoryGif::getState(int x, int y, HistoryStateRequest request)
 		width -= st::mediaPadding.left() + st::mediaPadding.right();
 		height -= skipy + st::mediaPadding.bottom();
 	}
-	if (x >= skipx && y >= skipy && x < skipx + width && y < skipy + height) {
+	auto out = _parent->out(), isPost = _parent->isPost();
+	auto isChildMedia = (_parent->getMedia() != this);
+	auto isRound = _data->isRoundVideo();
+	auto usew = width, usex = 0;
+	auto via = (!isRound || isChildMedia) ? nullptr : _parent->Get<HistoryMessageVia>();
+	auto reply = (!isRound || isChildMedia) ? nullptr : _parent->Get<HistoryMessageReply>();
+	if (via || reply) {
+		usew = _maxw - additionalWidth(via, reply);
+		if (isPost) {
+		} else if (out) {
+			usex = _width - usew;
+		}
+	}
+	if (rtl()) usex = _width - usex - usew;
+
+	if (via || reply) {
+		int rectw = width - usew - st::msgReplyPadding.left();
+		int recth = st::msgReplyPadding.top() + st::msgReplyPadding.bottom();
+		if (via) {
+			recth += st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
+		}
+		if (reply) {
+			recth += st::msgReplyBarSize.height();
+		}
+		int rectx = isPost ? (usew + st::msgReplyPadding.left()) : (out ? 0 : (usew + st::msgReplyPadding.left()));
+		int recty = skipy;
+		if (rtl()) rectx = _width - rectx - rectw;
+
+		if (via) {
+			int viah = st::msgReplyPadding.top() + st::msgServiceNameFont->height + (reply ? 0 : st::msgReplyPadding.bottom());
+			if (x >= rectx && y >= recty && x < rectx + rectw && y < recty + viah) {
+				result.link = via->_lnk;
+				return result;
+			}
+			int skip = st::msgServiceNameFont->height + (reply ? 2 * st::msgReplyPadding.top() : 0);
+			recty += skip;
+			recth -= skip;
+		}
+		if (reply) {
+			if (x >= rectx && y >= recty && x < rectx + rectw && y < recty + recth) {
+				result.link = reply->replyToLink();
+				return result;
+			}
+		}
+	}
+	if (x >= usex + skipx && y >= skipy && x < usex + skipx + usew && y < skipy + height) {
 		if (_data->uploading()) {
 			result.link = _cancell;
 		} else if (!_gif || !cAutoPlayGif() || _data->isRoundVideo()) {
 			result.link = _data->loaded() ? _openl : (_data->loading() ? _cancell : _savel);
 		}
-		if (_parent->getMedia() == this) {
-			int32 fullRight = skipx + width, fullBottom = skipy + height;
+		if (!isChildMedia) {
+			int32 fullRight = usex + skipx + usew, fullBottom = skipy + height;
 			bool inDate = _parent->pointInTime(fullRight, fullBottom, x, y, InfoDisplayOverImage);
 			if (inDate) {
 				result.cursor = HistoryInDateCursorState;
@@ -2042,6 +2145,7 @@ QString HistoryGif::mediaTypeString() const {
 
 void HistoryGif::setStatusSize(int32 newSize) const {
 	if (_data->isRoundVideo()) {
+		_statusSize = newSize;
 		if (newSize < 0) {
 			_statusText = formatDurationText(-newSize - 1);
 		} else {
@@ -2095,6 +2199,17 @@ bool HistoryGif::needReSetInlineResultMedia(const MTPMessageMedia &media) {
 
 ImagePtr HistoryGif::replyPreview() {
 	return _data->makeReplyPreview();
+}
+
+int HistoryGif::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply) const {
+	int result = 0;
+	if (via) {
+		accumulate_max(result, st::msgReplyPadding.left() + st::msgReplyPadding.left() + via->_maxWidth + st::msgReplyPadding.left());
+	}
+	if (reply) {
+		accumulate_max(result, st::msgReplyPadding.left() + reply->replyToWidth());
+	}
+	return result;
 }
 
 bool HistoryGif::playInline(bool autoplay) {
@@ -2403,6 +2518,10 @@ void HistorySticker::updateSentMedia(const MTPMessageMedia &media) {
 
 bool HistorySticker::needReSetInlineResultMedia(const MTPMessageMedia &media) {
 	return needReSetInlineResultDocument(media, _data);
+}
+
+ImagePtr HistorySticker::replyPreview() {
+	return _data->makeReplyPreview();
 }
 
 int HistorySticker::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply) const {

@@ -1755,7 +1755,12 @@ ImagePtr DocumentData::makeReplyPreview() {
 			int w = thumb->width(), h = thumb->height();
 			if (w <= 0) w = 1;
 			if (h <= 0) h = 1;
-			replyPreview = ImagePtr(w > h ? thumb->pix(w * st::msgReplyBarSize.height() / h, st::msgReplyBarSize.height()) : thumb->pix(st::msgReplyBarSize.height()), "PNG");
+			auto thumbSize = (w > h) ? QSize(w * st::msgReplyBarSize.height() / h, st::msgReplyBarSize.height()) : QSize(st::msgReplyBarSize.height(), h * st::msgReplyBarSize.height() / w);
+			thumbSize *= cIntRetinaFactor();
+			auto options = Images::Option::Smooth | (isRoundVideo() ? Images::Option::Circled : Images::Option::None);
+			auto outerSize = st::msgReplyBarSize.height() * cIntRetinaFactor();
+			auto image = thumb->pixNoCache(thumbSize.width(), thumbSize.height(), options, outerSize, outerSize);
+			replyPreview = ImagePtr(image, "PNG");
 		} else {
 			thumb->load();
 		}

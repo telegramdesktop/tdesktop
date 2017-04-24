@@ -555,7 +555,14 @@ protected:
 	}
 
 private:
+	int additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply) const;
+	int additionalWidth() const {
+		return additionalWidth(_parent->Get<HistoryMessageVia>(), _parent->Get<HistoryMessageReply>());
+	}
 	QString mediaTypeString() const;
+	bool isSeparateRoundVideo() const {
+		return _data->isRoundVideo() && (_parent->getMedia() == this);
+	}
 
 	gsl::not_null<DocumentData*> _data;
 	int32 _thumbw = 1;
@@ -607,6 +614,11 @@ public:
 
 	void updateSentMedia(const MTPMessageMedia &media) override;
 	bool needReSetInlineResultMedia(const MTPMessageMedia &media) override;
+
+	bool hasReplyPreview() const override {
+		return !_data->thumb->isNull();
+	}
+	ImagePtr replyPreview() override;
 
 	bool needsBubble() const override {
 		return false;
