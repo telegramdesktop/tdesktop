@@ -28,7 +28,7 @@ namespace MTP {
 class AuthKey {
 public:
 	static constexpr auto kSize = 256; // 2048 bits.
-	using Data = std::array<char, kSize>;
+	using Data = std::array<gsl::byte, kSize>;
 	using KeyId = uint64;
 
 	enum class Type {
@@ -94,11 +94,23 @@ public:
 	}
 
 	void write(QDataStream &to) const {
-		to.writeRawData(_key.data(), _key.size());
+		to.writeRawData(reinterpret_cast<const char*>(_key.data()), _key.size());
 	}
 
 	bool equals(const std::shared_ptr<AuthKey> &other) const {
 		return other ? (_key == other->_key) : false;
+	}
+
+	static void FillData(Data &authKey, base::const_byte_span computedAuthKey) {
+		auto computedAuthKeySize = computedAuthKey.size();
+		t_assert(computedAuthKeySize <= kSize);
+		auto authKeyBytes = gsl::make_span(authKey);
+		if (computedAuthKeySize < kSize) {
+			base::set_bytes(authKeyBytes.subspan(0, kSize - computedAuthKeySize), gsl::byte());
+			base::copy_bytes(authKeyBytes.subspan(kSize - computedAuthKeySize), computedAuthKey);
+		} else {
+			base::copy_bytes(authKeyBytes, computedAuthKey);
+		}
 	}
 
 private:
@@ -111,7 +123,7 @@ private:
 
 	Type _type = Type::Generated;
 	DcId _dcId = 0;
-	Data _key = { { 0 } };
+	Data _key = { { gsl::byte{} } };
 	KeyId _keyId = 0;
 
 };

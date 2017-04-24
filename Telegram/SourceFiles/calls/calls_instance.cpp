@@ -63,7 +63,7 @@ void Instance::refreshDhConfig() {
 		switch (result.type()) {
 		case mtpc_messages_dhConfig: {
 			auto &config = result.c_messages_dhConfig();
-			if (!MTP::IsPrimeAndGood(config.vp.v, config.vg.v)) {
+			if (!MTP::IsPrimeAndGood(bytesFromMTP(config.vp), config.vg.v)) {
 				LOG(("API Error: bad p/g received in dhConfig."));
 				callFailed(call.get());
 				return;

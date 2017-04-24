@@ -21,8 +21,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "base/weak_unique_ptr.h"
-#include "mtproto/sender.h"
 #include "base/timer.h"
+#include "mtproto/sender.h"
+#include "mtproto/auth_key.h"
 
 namespace tgvoip {
 class VoIPController;
@@ -93,14 +94,13 @@ public:
 	~Call();
 
 private:
-	static constexpr auto kAuthKeySize = 256;
 	static constexpr auto kSha256Size = 32;
 
 	void finish(const MTPPhoneCallDiscardReason &reason);
 	void startOutgoing();
 	void startIncoming();
 
-	void generateRandomPower(base::const_byte_span random);
+	void generateModExpFirst(base::const_byte_span randomSeed);
 	void handleControllerStateChange(tgvoip::VoIPController *controller, int state);
 	void createAndStartController(const MTPDphoneCall &call);
 
@@ -129,7 +129,7 @@ private:
 	std::vector<gsl::byte> _gb;
 	std::array<gsl::byte, kSha256Size> _gaHash;
 	std::array<gsl::byte, kRandomPowerSize> _randomPower;
-	std::array<gsl::byte, kAuthKeySize> _authKey;
+	MTP::AuthKey::Data _authKey;
 	MTPPhoneCallProtocol _protocol;
 
 	uint64 _id = 0;

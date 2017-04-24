@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <openssl/bn.h>
 #include <openssl/sha.h>
+#include <openssl/rand.h>
 
 namespace openssl {
 
@@ -98,9 +99,69 @@ public:
 			_failed = true;
 		}
 	}
+	void setSub(const BigNum &a, const BigNum &b) {
+		if (a.failed() || b.failed()) {
+			_failed = true;
+		} else if (!BN_sub(raw(), a.raw(), b.raw())) {
+			_failed = true;
+		}
+	}
+	void setSubWord(unsigned int word) {
+		if (failed()) {
+			return;
+		} else if (!BN_sub_word(raw(), word)) {
+			_failed = true;
+		}
+	}
+	unsigned int setDivWord(unsigned int word) {
+		Expects(word != 0);
+		if (failed()) {
+			return (BN_ULONG)-1;
+		}
+
+		auto result = BN_div_word(raw(), word);
+		if (result == (BN_ULONG)-1) {
+			_failed = true;
+		}
+		return result;
+	}
 
 	bool isNegative() const {
-		return BN_is_negative(raw());
+		return failed() ? false : BN_is_negative(raw());
+	}
+
+	bool isPrime(const Context &context = Context()) const {
+		if (failed()) {
+			return false;
+		}
+		constexpr auto kMillerRabinIterationCount = 30;
+		auto result = BN_is_prime_ex(raw(), kMillerRabinIterationCount, context.raw(), NULL);
+		if (result == 1) {
+			return true;
+		} else if (result != 0) {
+			_failed = true;
+		}
+		return false;
+	}
+
+	unsigned int modWord(unsigned int word) const {
+		Expects(word != 0);
+		if (failed()) {
+			return (BN_ULONG)-1;
+		}
+
+		auto result = BN_mod_word(raw(), word);
+		if (result == (BN_ULONG)-1) {
+			_failed = true;
+		}
+		return result;
+	}
+
+	int bitsSize() const {
+		return failed() ? 0 : BN_num_bits(raw());
+	}
+	int bytesSize() const {
+		return failed() ? 0 : BN_num_bytes(raw());
 	}
 
 	std::vector<gsl::byte> getBytes() const {
@@ -125,11 +186,23 @@ public:
 		return _failed;
 	}
 
+	static BigNum ModExp(const BigNum &base, const BigNum &power, const openssl::BigNum &mod) {
+		BigNum result;
+		result.setModExp(base, power, mod);
+		return result;
+	}
+
 private:
 	BIGNUM _data;
-	bool _failed = false;
+	mutable bool _failed = false;
 
 };
+
+inline BigNum operator-(const BigNum &a, const BigNum &b) {
+	BigNum result;
+	result.setSub(a, b);
+	return result;
+}
 
 inline std::array<gsl::byte, SHA256_DIGEST_LENGTH> Sha256(base::const_byte_span bytes) {
 	auto result = std::array<gsl::byte, SHA256_DIGEST_LENGTH>();
@@ -141,6 +214,10 @@ inline std::array<gsl::byte, SHA_DIGEST_LENGTH> Sha1(base::const_byte_span bytes
 	auto result = std::array<gsl::byte, SHA_DIGEST_LENGTH>();
 	SHA1(reinterpret_cast<const unsigned char*>(bytes.data()), bytes.size(), reinterpret_cast<unsigned char*>(result.data()));
 	return result;
+}
+
+inline int FillRandom(base::byte_span bytes) {
+	return RAND_bytes(reinterpret_cast<unsigned char*>(bytes.data()), bytes.size());
 }
 
 } // namespace openssl

@@ -24,9 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "calls/calls_instance.h"
 #include "base/openssl_help.h"
-
-#include <openssl/rand.h>
-#include <openssl/sha.h>
+#include "mtproto/connection.h"
 
 #ifdef slots
 #undef slots
@@ -59,25 +57,6 @@ void ConvertEndpoint(std::vector<tgvoip::Endpoint> &ep, const MTPDphoneConnectio
 	ep.push_back(Endpoint((int64_t)mtc.vid.v, (uint16_t)mtc.vport.v, ipv4, ipv6, EP_TYPE_UDP_RELAY, (unsigned char*)mtc.vpeer_tag.v.data()));
 }
 
-std::vector<gsl::byte> ComputeModExp(const DhConfig &config, const openssl::BigNum &base, const std::array<gsl::byte, Call::kRandomPowerSize> &randomPower) {
-	using namespace openssl;
-
-	BigNum resultBN;
-	resultBN.setModExp(base, BigNum(randomPower), BigNum(config.p));
-	auto result = resultBN.getBytes();
-	constexpr auto kMaxModExpSize = 256;
-	t_assert(result.size() <= kMaxModExpSize);
-	return result;
-}
-
-std::vector<gsl::byte> ComputeModExpFirst(const DhConfig &config, const std::array<gsl::byte, Call::kRandomPowerSize> &randomPower) {
-	return ComputeModExp(config, openssl::BigNum(config.g), randomPower);
-}
-
-std::vector<gsl::byte> ComputeModExpFinal(const DhConfig &config, base::const_byte_span first, const std::array<gsl::byte, Call::kRandomPowerSize> &randomPower) {
-	return ComputeModExp(config, openssl::BigNum(first), randomPower);
-}
-
 constexpr auto kFingerprintDataSize = 256;
 uint64 ComputeFingerprint(const std::array<gsl::byte, kFingerprintDataSize> &authKey) {
 	auto hash = openssl::Sha1(authKey);
@@ -102,11 +81,20 @@ Call::Call(gsl::not_null<Delegate*> delegate, gsl::not_null<UserData*> user, Typ
 	}
 }
 
-void Call::generateRandomPower(base::const_byte_span random) {
-	Expects(random.size() == _randomPower.size());
-	memset_rand(_randomPower.data(), _randomPower.size());
-	for (auto i = 0, count = int(_randomPower.size()); i != count; i++) {
-		_randomPower[i] ^= random[i];
+void Call::generateModExpFirst(base::const_byte_span randomSeed) {
+	auto first = MTP::CreateModExp(_dhConfig.g, _dhConfig.p, randomSeed);
+	if (first.modexp.empty()) {
+		LOG(("Call Error: Could not compute mod-exp first."));
+		setState(State::Failed);
+		return;
+	}
+
+	_randomPower = first.randomPower;
+	if (_type == Type::Incoming) {
+		_gb = std::move(first.modexp);
+	} else {
+		_ga = std::move(first.modexp);
+		_gaHash = openssl::Sha256(_ga);
 	}
 }
 
@@ -117,27 +105,21 @@ void Call::start(base::const_byte_span random) {
 	t_assert(_dhConfig.g != 0);
 	t_assert(!_dhConfig.p.empty());
 
-	generateRandomPower(random);
-
-	if (_type == Type::Outgoing) {
-		startOutgoing();
-	} else {
-		startIncoming();
+	generateModExpFirst(random);
+	if (_state != State::Failed) {
+		if (_type == Type::Outgoing) {
+			startOutgoing();
+		} else {
+			startIncoming();
+		}
 	}
 }
 
 void Call::startOutgoing() {
-	_ga = ComputeModExpFirst(_dhConfig, _randomPower);
-	if (_ga.empty()) {
-		LOG(("Call Error: Could not compute mod-exp first."));
-		setState(State::Failed);
-		return;
-	}
-	_gaHash = openssl::Sha256(_ga);
-	auto randomID = rand_value<int32>();
+	Expects(_type == Type::Outgoing);
 
 	setState(State::Requesting);
-	request(MTPphone_RequestCall(_user->inputUser, MTP_int(randomID), MTP_bytes(_gaHash), MTP_phoneCallProtocol(MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p | MTPDphoneCallProtocol::Flag::f_udp_reflector), MTP_int(kMinLayer), MTP_int(kMaxLayer)))).done([this](const MTPphone_PhoneCall &result) {
+	request(MTPphone_RequestCall(_user->inputUser, MTP_int(rand_value<int32>()), MTP_bytes(_gaHash), MTP_phoneCallProtocol(MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p | MTPDphoneCallProtocol::Flag::f_udp_reflector), MTP_int(kMinLayer), MTP_int(kMaxLayer)))).done([this](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 		auto &call = result.c_phone_phoneCall();
 		App::feedUsers(call.vusers);
@@ -163,17 +145,17 @@ void Call::startOutgoing() {
 }
 
 void Call::startIncoming() {
-	setState(State::Ringing);
+	Expects(_type == Type::Incoming);
+
+	request(MTPphone_ReceivedCall(MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)))).done([this](const MTPBool &result) {
+		setState(State::Ringing);
+	}).fail([this](const RPCError &error) {
+		setState(State::Failed);
+	}).send();
 }
 
 void Call::answer() {
 	Expects(_type == Type::Incoming);
-	_gb = ComputeModExpFirst(_dhConfig, _randomPower);
-	if (_gb.empty()) {
-		LOG(("Call Error: Could not compute mod-exp first."));
-		setState(State::Failed);
-		return;
-	}
 
 	setState(State::ExchangingKeys);
 	request(MTPphone_AcceptCall(MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)), MTP_bytes(_gb), _protocol)).done([this](const MTPphone_PhoneCall &result) {
@@ -300,23 +282,15 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 	Expects(_type == Type::Outgoing);
 
-	// TODO check isGoodGaAndGb
-	auto computedAuthKey = ComputeModExpFinal(_dhConfig, byteVectorFromMTP(call.vg_b), _randomPower);
+	auto firstBytes = bytesFromMTP(call.vg_b);
+	auto computedAuthKey = MTP::CreateAuthKey(firstBytes, _randomPower, _dhConfig.p);
 	if (computedAuthKey.empty()) {
 		LOG(("Call Error: Could not compute mod-exp final."));
 		setState(State::Failed);
 		return;
 	}
 
-	auto computedAuthKeySize = computedAuthKey.size();
-	t_assert(computedAuthKeySize <= kAuthKeySize);
-	auto authKeyBytes = gsl::make_span(_authKey);
-	if (computedAuthKeySize < kAuthKeySize) {
-		base::set_bytes(authKeyBytes.subspan(0, kAuthKeySize - computedAuthKeySize), gsl::byte());
-		base::copy_bytes(authKeyBytes.subspan(kAuthKeySize - computedAuthKeySize), computedAuthKey);
-	} else {
-		base::copy_bytes(authKeyBytes, computedAuthKey);
-	}
+	MTP::AuthKey::FillData(_authKey, computedAuthKey);
 	_keyFingerprint = ComputeFingerprint(_authKey);
 
 	setState(State::ExchangingKeys);
@@ -346,23 +320,14 @@ void Call::startConfirmedCall(const MTPDphoneCall &call) {
 		return;
 	}
 
-	// TODO check isGoodGaAndGb
-	auto computedAuthKey = ComputeModExpFinal(_dhConfig, firstBytes, _randomPower);
+	auto computedAuthKey = MTP::CreateAuthKey(firstBytes, _randomPower, _dhConfig.p);
 	if (computedAuthKey.empty()) {
 		LOG(("Call Error: Could not compute mod-exp final."));
 		setState(State::Failed);
 		return;
 	}
 
-	auto computedAuthKeySize = computedAuthKey.size();
-	t_assert(computedAuthKeySize <= kAuthKeySize);
-	auto authKeyBytes = gsl::make_span(_authKey);
-	if (computedAuthKeySize < kAuthKeySize) {
-		base::set_bytes(authKeyBytes.subspan(0, kAuthKeySize - computedAuthKeySize), gsl::byte());
-		base::copy_bytes(authKeyBytes.subspan(kAuthKeySize - computedAuthKeySize), computedAuthKey);
-	} else {
-		base::copy_bytes(authKeyBytes, computedAuthKey);
-	}
+	MTP::AuthKey::FillData(_authKey, computedAuthKey);
 	_keyFingerprint = ComputeFingerprint(_authKey);
 
 	createAndStartController(call);

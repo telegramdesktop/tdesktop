@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "core/basic_types.h"
 #include <array>
+#include <vector>
 #include <algorithm>
 #include <set>
 #include <gsl/gsl>
@@ -204,6 +205,9 @@ using set_of_shared_ptr = std::set<std::shared_ptr<T>, base::pointer_comparator<
 
 using byte_span = gsl::span<gsl::byte>;
 using const_byte_span = gsl::span<const gsl::byte>;
+using byte_vector = std::vector<gsl::byte>;
+template <size_t N>
+using byte_array = std::array<gsl::byte, N>;
 
 inline void copy_bytes(byte_span destination, const_byte_span source) {
 	Expects(destination.size() >= source.size());
@@ -212,6 +216,11 @@ inline void copy_bytes(byte_span destination, const_byte_span source) {
 
 inline void set_bytes(byte_span destination, gsl::byte value) {
 	memset(destination.data(), gsl::to_integer<unsigned char>(value), destination.size());
+}
+
+inline int compare_bytes(const_byte_span a, const_byte_span b) {
+	auto aSize = a.size(), bSize = b.size();
+	return (aSize > bSize) ? 1 : (aSize < bSize) ? -1 : memcmp(a.data(), b.data(), aSize);
 }
 
 } // namespace base
