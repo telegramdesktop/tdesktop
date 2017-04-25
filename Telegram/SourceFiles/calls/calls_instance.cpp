@@ -37,22 +37,25 @@ void Instance::startOutgoingCall(gsl::not_null<UserData*> user) {
 }
 
 void Instance::callFinished(gsl::not_null<Call*> call) {
-	if (_currentCall.get() == call) {
-		_currentCallPanel.reset();
-		_currentCall.reset();
-	}
+	destroyCall(call);
 }
 
 void Instance::callFailed(gsl::not_null<Call*> call) {
+	destroyCall(call);
+}
+
+void Instance::destroyCall(gsl::not_null<Call*> call) {
 	if (_currentCall.get() == call) {
 		_currentCallPanel.reset();
 		_currentCall.reset();
+		_currentCallChanged.notify(nullptr, true);
 	}
 }
 
 void Instance::createCall(gsl::not_null<UserData*> user, Call::Type type) {
 	_currentCall = std::make_unique<Call>(getCallDelegate(), user, type);
 	_currentCallPanel = std::make_unique<Panel>(_currentCall.get());
+	_currentCallChanged.notify(_currentCall.get(), true);
 	refreshDhConfig();
 }
 
@@ -106,6 +109,12 @@ void Instance::refreshDhConfig() {
 
 void Instance::handleUpdate(const MTPDupdatePhoneCall& update) {
 	handleCallUpdate(update.vphone_call);
+}
+
+void Instance::showInfoPanel(gsl::not_null<Call*> call) {
+	if (_currentCall.get() == call) {
+		_currentCallPanel->showAndActivate();
+	}
 }
 
 void Instance::handleCallUpdate(const MTPPhoneCall &call) {

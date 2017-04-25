@@ -148,9 +148,12 @@ void Call::startOutgoing() {
 
 void Call::startIncoming() {
 	Expects(_type == Type::Incoming);
+	Expects(_state == State::Starting);
 
 	request(MTPphone_ReceivedCall(MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)))).done([this](const MTPBool &result) {
-		setState(State::WaitingIncoming);
+		if (_state == State::Starting) {
+			setState(State::WaitingIncoming);
+		}
 	}).fail([this](const RPCError &error) {
 		setState(State::Failed);
 	}).send();
@@ -159,6 +162,9 @@ void Call::startIncoming() {
 void Call::answer() {
 	Expects(_type == Type::Incoming);
 
+	if (_state != State::Starting && _state != State::WaitingIncoming) {
+		return;
+	}
 	setState(State::ExchangingKeys);
 	request(MTPphone_AcceptCall(MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)), MTP_bytes(_gb), _protocol)).done([this](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
@@ -359,8 +365,6 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	if (!checkCallFields(call)) {
 		return;
 	}
-
-	setState(State::Established);
 
 	voip_config_t config;
 	config.data_saving = DATA_SAVING_NEVER;

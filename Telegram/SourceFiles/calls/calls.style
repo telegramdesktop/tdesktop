@@ -107,3 +107,30 @@ callStatus: FlatLabel(defaultFlatLabel) {
 callFingerprintPadding: margins(9px, 4px, 9px, 5px);
 callFingerprintSkip: 3px;
 callFingerprintBottom: 8px;
+
+callBarHeight: 38px;
+callBarMuteToggle: IconButton {
+	width: 41px;
+	height: 38px;
+
+	icon: icon {{ "call_record_active", callBarFg }};
+	iconPosition: point(9px, 8px);
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: callBarMuteRipple;
+	}
+	rippleAreaPosition: point(5px, 3px);
+	rippleAreaSize: 32px;
+}
+callBarUnmuteIcon: icon {{ "call_record_muted", callBarFg }};
+callBarRightSkip: 12px;
+callBarSkip: 10px;
+callBarHangup: IconButton(callBarMuteToggle) {
+	icon: icon {{ "call_discard", callBarFg }};
+	iconPosition: point(9px, 11px);
+}
+callBarLabel: LabelSimple(defaultLabelSimple) {
+	font: semiboldFont;
+	textFg: callBarFg;
+}
+callBarLabelTop: 10px;

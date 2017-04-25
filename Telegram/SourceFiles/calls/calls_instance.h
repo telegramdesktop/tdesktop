@@ -32,8 +32,12 @@ public:
 	Instance();
 
 	void startOutgoingCall(gsl::not_null<UserData*> user);
-
 	void handleUpdate(const MTPDupdatePhoneCall &update);
+	void showInfoPanel(gsl::not_null<Call*> call);
+
+	base::Observable<Call*> &currentCallChanged() {
+		return _currentCallChanged;
+	}
 
 	~Instance();
 
@@ -48,6 +52,7 @@ private:
 	void callFailed(gsl::not_null<Call*> call) override;
 	void createCall(gsl::not_null<UserData*> user, Call::Type type);
 	void refreshDhConfig();
+	void destroyCall(gsl::not_null<Call*> call);
 
 	void handleCallUpdate(const MTPPhoneCall &call);
 
@@ -55,6 +60,7 @@ private:
 
 	std::unique_ptr<Call> _currentCall;
 	std::unique_ptr<Panel> _currentCallPanel;
+	base::Observable<Call*> _currentCallChanged;
 
 };
 

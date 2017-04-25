@@ -1134,6 +1134,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_call_status_ringing" = "ringing...";
 "lng_call_status_busy" = "line busy";
 
+"lng_call_bar_info" = "Show call info";
+"lng_call_bar_hangup" = "End call";
+
 // Not used
 
 "lng_topbar_info" = "Info";

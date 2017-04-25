@@ -229,6 +229,9 @@ dialogsUnreadBgActive: dialogsTextFgActive; // chat list unread badge background
 dialogsUnreadBgMutedActive: dialogsDraftFgActive; // chat list unread badge background for muted chat for current (active) chat
 dialogsUnreadFgActive: dialogsBgActive; // chat list unread badge text for current (active) chat
 
+dialogsRippleBg: windowBgRipple;
+dialogsRippleBgActive: activeButtonBgRipple;
+
 dialogsForwardBg: dialogsBgActive; // forwarding panel background (when forwarding messages in the smallest window size)
 dialogsForwardFg: dialogsNameFgActive; // forwarding panel text (when forwarding messages in the smallest window size)
 
@@ -519,3 +522,9 @@ callAnswerRipple: #52b149;
 callHangupBg: #d75a5a;
 callHangupRipple: #c04646;
 callMuteRipple: #ffffff12;
+
+callBarBg: dialogsBgActive;
+callBarMuteRipple: dialogsRippleBgActive;
+callBarBgMuted: #8f8f8f | dialogsUnreadBgMuted;
+callBarUnmuteRipple: #7f7f7f | shadowFg;
+callBarFg: dialogsNameFgActive;

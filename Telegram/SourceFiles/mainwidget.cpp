@@ -68,6 +68,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
 #include "calls/calls_instance.h"
+#include "calls/calls_top_bar.h"
 
 StackItemSection::StackItemSection(std::unique_ptr<Window::SectionMemento> &&memento) : StackItem(nullptr)
 , _memento(std::move(memento)) {
@@ -111,6 +112,7 @@ MainWidget::MainWidget(QWidget *parent, gsl::not_null<Window::Controller*> contr
 			handleAudioUpdate(audioId);
 		}
 	});
+	subscribe(AuthSession::Current().calls().currentCallChanged(), [this](Calls::Call *call) { setCurrentCall(call); });
 	subscribe(AuthSession::Current().api().fullPeerUpdated(), [this](PeerData *peer) {
 		emit peerUpdated(peer);
 	});
@@ -1631,6 +1633,55 @@ void MainWidget::playerHeightUpdated() {
 	}
 }
 
+void MainWidget::setCurrentCall(Calls::Call *call) {
+	_currentCall = call;
+	if (_currentCall) {
+		subscribe(_currentCall->stateChanged(), [this](Calls::Call::State state) {
+			using State = Calls::Call::State;
+			if (state == State::Established) {
+				createCallTopBar();
+			} else {
+				destroyCallTopBar();
+			}
+		});
+	} else {
+		destroyCallTopBar();
+	}
+}
+
+void MainWidget::createCallTopBar() {
+	Expects(_currentCall != nullptr);
+	_callTopBar.create(this, object_ptr<Calls::TopBar>(this, _currentCall), style::margins(0, 0, 0, 0), [this] { callTopBarHeightUpdated(); });
+	orderWidgets();
+	if (_a_show.animating()) {
+		_callTopBar->showFast();
+		_callTopBar->hide();
+	} else {
+		_callTopBar->hideFast();
+		_callTopBar->showAnimated();
+		_callTopBarHeight = _contentScrollAddToY = _callTopBar->height();
+		updateControlsGeometry();
+	}
+}
+
+void MainWidget::destroyCallTopBar() {
+	if (_callTopBar) {
+		_callTopBar->hideAnimated();
+	}
+}
+
+void MainWidget::callTopBarHeightUpdated() {
+	auto callTopBarHeight = _callTopBar ? _callTopBar->height() : 0;
+	if (!callTopBarHeight && !_currentCall) {
+		_callTopBar.destroyDelayed();
+	}
+	if (callTopBarHeight != _callTopBarHeight) {
+		_contentScrollAddToY += callTopBarHeight - _callTopBarHeight;
+		_callTopBarHeight = callTopBarHeight;
+		updateControlsGeometry();
+	}
+}
+
 void MainWidget::documentLoadProgress(FileLoader *loader) {
 	if (auto documentId = loader ? loader->objId() : 0) {
 		documentLoadProgress(App::document(documentId));
@@ -2467,8 +2518,9 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(bool willHaveTopBarS
 		_playerPlaylist->hide();
 	}
 
+	auto sectionTop = getSectionTop();
 	if (selectingPeer() && Adaptive::OneColumn()) {
-		result.oldContentCache = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
+		result.oldContentCache = myGrab(this, QRect(0, sectionTop, _dialogsWidth, height() - sectionTop));
 	} else if (_wideSection) {
 		result.oldContentCache = _wideSection->grabForShowAnimation(result);
 	} else {
@@ -2480,10 +2532,10 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(bool willHaveTopBarS
 			_history->grabStart();
 		}
 		if (Adaptive::OneColumn()) {
-			result.oldContentCache = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
+			result.oldContentCache = myGrab(this, QRect(0, sectionTop, _dialogsWidth, height() - sectionTop));
 		} else {
 			_sideShadow->hide();
-			result.oldContentCache = myGrab(this, QRect(_dialogsWidth, _playerHeight, width() - _dialogsWidth, height() - _playerHeight));
+			result.oldContentCache = myGrab(this, QRect(_dialogsWidth, sectionTop, width() - _dialogsWidth, height() - sectionTop));
 			_sideShadow->show();
 		}
 		if (_overview) _overview->grabFinish();
@@ -2528,7 +2580,8 @@ void MainWidget::showNewWideSection(const Window::SectionMemento *memento, bool 
 	_controller->dialogsListFocused().set(false, true);
 	_a_dialogsWidth.finish();
 
-	auto newWideGeometry = QRect(_history->x(), _playerHeight, _history->width(), height() - _playerHeight);
+	auto sectionTop = getSectionTop();
+	auto newWideGeometry = QRect(_history->x(), sectionTop, _history->width(), height() - sectionTop);
 	auto newWideSection = memento->createWidget(this, newWideGeometry);
 	auto animatedShow = [this] {
 		if (_a_show.animating() || App::passcoded()) {
@@ -2622,6 +2675,9 @@ void MainWidget::showBackFromStack() {
 
 void MainWidget::orderWidgets() {
 	_dialogs->raise();
+	if (_callTopBar) {
+		_callTopBar->raise();
+	}
 	if (_player) {
 		_player->raise();
 	}
@@ -2660,11 +2716,12 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 		_playerPlaylist->hide();
 	}
 
+	auto sectionTop = getSectionTop();
 	if (Adaptive::OneColumn()) {
-		result = myGrab(this, QRect(0, _playerHeight, _dialogsWidth, height() - _playerHeight));
+		result = myGrab(this, QRect(0, sectionTop, _dialogsWidth, height() - sectionTop));
 	} else {
 		_sideShadow->hide();
-		result = myGrab(this, QRect(_dialogsWidth, _playerHeight, width() - _dialogsWidth, height() - _playerHeight));
+		result = myGrab(this, QRect(_dialogsWidth, sectionTop, width() - _dialogsWidth, height() - sectionTop));
 		_sideShadow->show();
 	}
 	if (playerVolumeVisible) {
@@ -2884,6 +2941,10 @@ void MainWidget::paintEvent(QPaintEvent *e) {
 	}
 }
 
+int MainWidget::getSectionTop() const {
+	return _callTopBarHeight + _playerHeight;
+}
+
 void MainWidget::hideAll() {
 	_dialogs->hide();
 	_history->hide();
@@ -2985,14 +3046,19 @@ void MainWidget::updateControlsGeometry() {
 	if (!_a_dialogsWidth.animating()) {
 		_dialogs->stopWidthAnimation();
 	}
+	auto sectionTop = getSectionTop();
 	auto dialogsWidth = qRound(_a_dialogsWidth.current(_dialogsWidth));
 	if (Adaptive::OneColumn()) {
+		if (_callTopBar) {
+			_callTopBar->resizeToWidth(dialogsWidth);
+			_callTopBar->moveToLeft(0, 0);
+		}
 		if (_player) {
 			_player->resizeToWidth(dialogsWidth);
-			_player->moveToLeft(0, 0);
+			_player->moveToLeft(0, _callTopBarHeight);
 		}
-		_dialogs->setGeometry(0, _playerHeight, dialogsWidth, height() - _playerHeight);
-		_history->setGeometry(0, _playerHeight, dialogsWidth, height() - _playerHeight);
+		_dialogs->setGeometry(0, sectionTop, dialogsWidth, height() - sectionTop);
+		_history->setGeometry(0, sectionTop, dialogsWidth, height() - sectionTop);
 		if (_hider) _hider->setGeometry(0, 0, dialogsWidth, height());
 	} else {
 		accumulate_min(dialogsWidth, width() - st::windowMinWidth);
@@ -3000,11 +3066,15 @@ void MainWidget::updateControlsGeometry() {
 
 		_dialogs->setGeometryToLeft(0, 0, dialogsWidth, height());
 		_sideShadow->setGeometryToLeft(dialogsWidth, 0, st::lineWidth, height());
+		if (_callTopBar) {
+			_callTopBar->resizeToWidth(sectionWidth);
+			_callTopBar->moveToLeft(dialogsWidth, 0);
+		}
 		if (_player) {
 			_player->resizeToWidth(sectionWidth);
-			_player->moveToLeft(dialogsWidth, 0);
+			_player->moveToLeft(dialogsWidth, _callTopBarHeight);
 		}
-		_history->setGeometryToLeft(dialogsWidth, _playerHeight, sectionWidth, height() - _playerHeight);
+		_history->setGeometryToLeft(dialogsWidth, sectionTop, sectionWidth, height() - sectionTop);
 		if (_hider) {
 			_hider->setGeometryToLeft(dialogsWidth, 0, sectionWidth, height());
 		}
@@ -3021,7 +3091,7 @@ void MainWidget::updateControlsGeometry() {
 	};
 	_sideResizeArea->setVisible(isSideResizeAreaVisible());
 	if (_wideSection) {
-		auto wideSectionGeometry = QRect(_history->x(), _playerHeight, _history->width(), height() - _playerHeight);
+		auto wideSectionGeometry = QRect(_history->x(), sectionTop, _history->width(), height() - sectionTop);
 		_wideSection->setGeometryWithTopMoved(wideSectionGeometry, _contentScrollAddToY);
 	}
 	if (_overview) _overview->setGeometry(_history->geometry());
@@ -3151,7 +3221,7 @@ void MainWidget::setMembersShowAreaActive(bool active) {
 }
 
 int MainWidget::backgroundFromY() const {
-	return -_playerHeight;
+	return -getSectionTop();
 }
 
 void MainWidget::onHistoryShown(History *history, MsgId atMsgId) {

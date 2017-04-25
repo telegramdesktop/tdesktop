@@ -67,6 +67,7 @@ public:
 	bool handleUpdate(const MTPPhoneCall &call);
 
 	enum State {
+		Starting,
 		WaitingInit,
 		WaitingInitAck,
 		Established,
@@ -127,7 +128,7 @@ private:
 	gsl::not_null<Delegate*> _delegate;
 	gsl::not_null<UserData*> _user;
 	Type _type = Type::Outgoing;
-	State _state = State::WaitingInit;
+	State _state = State::Starting;
 	bool _finishAfterRequestingCall = false;
 	base::Observable<State> _stateChanged;
 	TimeMs _startTime = 0;

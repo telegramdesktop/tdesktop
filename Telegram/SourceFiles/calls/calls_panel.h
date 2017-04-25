@@ -35,12 +35,15 @@ class Panel : public TWidget, private base::Subscriber {
 public:
 	Panel(gsl::not_null<Call*> call);
 
+	void showAndActivate();
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
+	bool event(QEvent *e) override;
 
 private:
 	using State = Call::State;
@@ -49,6 +52,7 @@ private:
 	void initControls();
 	void initLayout();
 	void initGeometry();
+	void hideDeactivated();
 	void createBottomImage();
 	void createDefaultCacheImage();
 	void refreshCacheImageUserPhoto();

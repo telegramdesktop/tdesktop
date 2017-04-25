@@ -85,6 +85,26 @@ private:
 
 };
 
+template <typename T>
+inline bool operator==(const weak_unique_ptr<T> &pointer, std::nullptr_t) {
+	return (pointer.get() == nullptr);
+}
+
+template <typename T>
+inline bool operator==(std::nullptr_t, const weak_unique_ptr<T> &pointer) {
+	return (pointer == nullptr);
+}
+
+template <typename T>
+inline bool operator!=(const weak_unique_ptr<T> &pointer, std::nullptr_t) {
+	return !(pointer == nullptr);
+}
+
+template <typename T>
+inline bool operator!=(std::nullptr_t, const weak_unique_ptr<T> &pointer) {
+	return !(pointer == nullptr);
+}
+
 } // namespace base
 
 #ifdef QT_VERSION

@@ -101,7 +101,28 @@ Panel::Panel(gsl::not_null<Call*> call)
 , _status(this, st::callStatus) {
 	initControls();
 	initLayout();
+	showAndActivate();
+}
+
+void Panel::showAndActivate() {
 	show();
+	raise();
+	setWindowState(windowState() | Qt::WindowActive);
+	activateWindow();
+	setFocus();
+}
+
+bool Panel::event(QEvent *e) {
+	if (e->type() == QEvent::WindowDeactivate) {
+		if (_call && _call->state() == State::Established) {
+			hideDeactivated();
+		}
+	}
+	return TWidget::event(e);
+}
+
+void Panel::hideDeactivated() {
+	hide();
 }
 
 void Panel::initControls() {
@@ -144,7 +165,7 @@ void Panel::initControls() {
 void Panel::initLayout() {
 	hide();
 
-	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint) | /*Qt::WindowStaysOnTopHint | */Qt::BypassWindowManagerHint | Qt::NoDropShadowWindowHint | Qt::Tool);
+	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint) | Qt::WindowStaysOnTopHint | Qt::BypassWindowManagerHint | Qt::NoDropShadowWindowHint | Qt::Tool);
 	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
 	setAttribute(Qt::WA_NoSystemBackground, true);
 	setAttribute(Qt::WA_TranslucentBackground, true);
@@ -362,9 +383,8 @@ void Panel::mouseReleaseEvent(QMouseEvent *e) {
 void Panel::stateChanged(State state) {
 	updateStatusText(state);
 	if (_answer
-		&& state != State::WaitingIncoming
-		&& state != State::WaitingInit
-		&& state != State::WaitingInitAck) {
+		&& state != State::Starting
+		&& state != State::WaitingIncoming) {
 		_answer.destroy();
 		updateControlsGeometry();
 	}
@@ -372,11 +392,15 @@ void Panel::stateChanged(State state) {
 		_fingerprint = ComputeEmojiFingerprint(_call.get());
 		update();
 	}
+	if (state == State::Established && !isActiveWindow()) {
+		hideDeactivated();
+	}
 }
 
 void Panel::updateStatusText(State state) {
 	auto statusText = [this, state]() -> QString {
 		switch (state) {
+		case State::Starting:
 		case State::WaitingInit:
 		case State::WaitingInitAck: return lang(lng_call_status_connecting);
 		case State::Established: {

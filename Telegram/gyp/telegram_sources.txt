@@ -88,6 +88,8 @@
 <(src_loc)/calls/calls_instance.h
 <(src_loc)/calls/calls_panel.cpp
 <(src_loc)/calls/calls_panel.h
+<(src_loc)/calls/calls_top_bar.cpp
+<(src_loc)/calls/calls_top_bar.h
 <(src_loc)/chat_helpers/bot_keyboard.cpp
 <(src_loc)/chat_helpers/bot_keyboard.h
 <(src_loc)/chat_helpers/emoji_list_widget.cpp
