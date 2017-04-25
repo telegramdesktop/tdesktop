@@ -48,6 +48,7 @@ public:
 	};
 
 	static constexpr auto kRandomPowerSize = 256;
+	static constexpr auto kSha256Size = 32;
 
 	enum class Type {
 		Incoming,
@@ -85,17 +86,26 @@ public:
 	base::Observable<State> &stateChanged() {
 		return _stateChanged;
 	}
+
 	void setMute(bool mute);
+	bool isMute() const {
+		return _mute;
+	}
+	base::Observable<bool> &muteChanged() {
+		return _muteChanged;
+	}
+
+	TimeMs getDurationMs() const;
 
 	void answer();
 	void hangup();
-	void decline();
+
+	bool isKeyShaForFingerprintReady() const;
+	std::array<gsl::byte, kSha256Size> getKeyShaForFingerprint() const;
 
 	~Call();
 
 private:
-	static constexpr auto kSha256Size = 32;
-
 	void finish(const MTPPhoneCallDiscardReason &reason);
 	void startOutgoing();
 	void startIncoming();
@@ -123,6 +133,7 @@ private:
 	TimeMs _startTime = 0;
 	base::DelayedCallTimer _hangupByTimeoutTimer;
 	bool _mute = false;
+	base::Observable<bool> _muteChanged;
 
 	DhConfig _dhConfig;
 	std::vector<gsl::byte> _ga;

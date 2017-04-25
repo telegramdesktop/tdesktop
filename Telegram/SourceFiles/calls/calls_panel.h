@@ -21,6 +21,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "base/weak_unique_ptr.h"
+#include "calls/calls_call.h"
+#include "base/timer.h"
 
 namespace Ui {
 class IconButton;
@@ -28,8 +30,6 @@ class FlatLabel;
 } // namespace Ui
 
 namespace Calls {
-
-class Call;
 
 class Panel : public TWidget, private base::Subscriber {
 public:
@@ -43,6 +43,9 @@ protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 
 private:
+	using State = Call::State;
+	using Type = Call::Type;
+
 	void initControls();
 	void initLayout();
 	void initGeometry();
@@ -55,7 +58,11 @@ private:
 	bool isGoodUserPhoto(PhotoData *photo);
 	void createUserpicCache(ImagePtr image);
 
-	void callDestroyed();
+	void updateControlsGeometry();
+	void updateStatusGeometry();
+	void stateChanged(State state);
+	void updateStatusText(State state);
+	void startDurationUpdateTimer(TimeMs currentDuration);
 
 	base::weak_unique_ptr<Call> _call;
 	gsl::not_null<UserData*> _user;
@@ -77,11 +84,14 @@ private:
 	object_ptr<Ui::FlatLabel> _status;
 	std::vector<EmojiPtr> _fingerprint;
 
+	base::Timer _updateDurationTimer;
+
 	QPixmap _userPhoto;
 	PhotoId _userPhotoId = 0;
 	bool _userPhotoFull = false;
 
 	QPixmap _bottomCache;
+
 	QPixmap _cache;
 
 };

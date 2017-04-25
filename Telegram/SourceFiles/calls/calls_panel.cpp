@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "calls/calls_panel.h"
 
-#include "calls/calls_call.h"
+#include "calls/calls_emoji_fingerprint.h"
 #include "styles/style_calls.h"
 #include "styles/style_history.h"
 #include "ui/widgets/buttons.h"
@@ -28,8 +28,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/shadow.h"
 #include "messenger.h"
+#include "lang.h"
 #include "auth_session.h"
 #include "apiwrap.h"
+#include "observer_peer.h"
 #include "platform/platform_specific.h"
 
 namespace Calls {
@@ -95,25 +97,21 @@ Panel::Panel(gsl::not_null<Call*> call)
 , _user(call->user())
 , _hangup(this, st::callHangup)
 , _mute(this, st::callMuteToggle)
-, _name(this)
-, _status(this) {
+, _name(this, st::callName)
+, _status(this, st::callStatus) {
 	initControls();
 	initLayout();
 	show();
 }
 
 void Panel::initControls() {
-	subscribe(_call->stateChanged(), [this](Call::State state) {
-		if (state == Call::State::Failed || state == Call::State::Ended) {
-			callDestroyed();
-		}
-	});
+	subscribe(_call->stateChanged(), [this](State state) { stateChanged(state); });
 	_hangup->setClickedCallback([this] {
 		if (_call) {
 			_call->hangup();
 		}
 	});
-	if (_call->type() == Call::Type::Incoming) {
+	if (_call->type() == Type::Incoming) {
 		_answer.create(this, st::callAnswer);
 		_answer->setClickedCallback([this] {
 			if (_call) {
@@ -121,6 +119,26 @@ void Panel::initControls() {
 			}
 		});
 	}
+	_mute->setClickedCallback([this] {
+		_call->setMute(!_call->isMute());
+	});
+	subscribe(_call->muteChanged(), [this](bool mute) {
+		_mute->setIconOverride(mute ? &st::callUnmuteIcon : nullptr);
+	});
+	_name->setText(App::peerName(_call->user()));
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::NameChanged, [this](const Notify::PeerUpdate &update) {
+		if (!_call || update.peer != _call->user()) {
+			return;
+		}
+		_name->setText(App::peerName(_call->user()));
+		updateControlsGeometry();
+	}));
+	updateStatusText(_call->state());
+	_updateDurationTimer.setCallback([this] {
+		if (_call) {
+			updateStatusText(_call->state());
+		}
+	});
 }
 
 void Panel::initLayout() {
@@ -214,6 +232,7 @@ void Panel::initGeometry() {
 	auto rect = QRect(0, 0, st::callWidth, st::callHeight);
 	setGeometry(rect.translated(center - rect.center()).marginsAdded(_padding));
 	createBottomImage();
+	updateControlsGeometry();
 }
 
 void Panel::createBottomImage() {
@@ -268,6 +287,13 @@ void Panel::refreshCacheImageUserPhoto() {
 }
 
 void Panel::resizeEvent(QResizeEvent *e) {
+	updateControlsGeometry();
+}
+
+void Panel::updateControlsGeometry() {
+	_name->moveToLeft((width() - _name->width()) / 2, _contentTop + st::callNameTop);
+	updateStatusGeometry();
+
 	auto controlsTop = _contentTop + st::callControlsTop;
 	if (_answer) {
 		auto bothWidth = _answer->width() + st::callControlsSkip + _hangup->width();
@@ -279,6 +305,10 @@ void Panel::resizeEvent(QResizeEvent *e) {
 	_mute->moveToRight(_padding.right() + st::callMuteRight, controlsTop);
 }
 
+void Panel::updateStatusGeometry() {
+	_status->moveToLeft((width() - _status->width()) / 2, _contentTop + st::callStatusTop);
+}
+
 void Panel::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (_useTransparency) {
@@ -286,6 +316,21 @@ void Panel::paintEvent(QPaintEvent *e) {
 	} else {
 		p.drawPixmapLeft(0, 0, width(), _userPhoto);
 		p.fillRect(myrtlrect(0, st::callWidth, width(), height() - st::callWidth), st::callBg);
+	}
+
+	if (!_fingerprint.empty()) {
+		auto realSize = Ui::Emoji::Size(Ui::Emoji::Index() + 1);
+		auto size = realSize / cIntRetinaFactor();
+		auto count = _fingerprint.size();
+		auto rectWidth = count * size + (count - 1) * st::callFingerprintSkip;
+		auto rectHeight = size;
+		auto left = (width() - rectWidth) / 2;
+		auto top = _contentTop - st::callFingerprintBottom - st::callFingerprintPadding.bottom() - size;
+		App::roundRect(p, QRect(left, top, rectWidth, rectHeight).marginsAdded(st::callFingerprintPadding), st::callFingerprintBg, ImageRoundRadius::Small);
+		for (auto emoji : _fingerprint) {
+			p.drawPixmap(QPoint(left, top), App::emojiLarge(), QRect(emoji->x() * realSize, emoji->y() * realSize, realSize, realSize));
+			left += st::callFingerprintSkip + size;
+		}
 	}
 }
 
@@ -314,7 +359,54 @@ void Panel::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
-void Panel::callDestroyed() {
+void Panel::stateChanged(State state) {
+	updateStatusText(state);
+	if (_answer
+		&& state != State::WaitingIncoming
+		&& state != State::WaitingInit
+		&& state != State::WaitingInitAck) {
+		_answer.destroy();
+		updateControlsGeometry();
+	}
+	if (_fingerprint.empty() && _call && _call->isKeyShaForFingerprintReady()) {
+		_fingerprint = ComputeEmojiFingerprint(_call.get());
+		update();
+	}
+}
+
+void Panel::updateStatusText(State state) {
+	auto statusText = [this, state]() -> QString {
+		switch (state) {
+		case State::WaitingInit:
+		case State::WaitingInitAck: return lang(lng_call_status_connecting);
+		case State::Established: {
+			if (_call) {
+				auto durationMs = _call->getDurationMs();
+				auto durationSeconds = durationMs / 1000;
+				startDurationUpdateTimer(durationMs);
+				return formatDurationText(durationSeconds);
+			}
+			return lang(lng_call_status_ended);
+		} break;
+		case State::Failed: return lang(lng_call_status_failed);
+		case State::HangingUp: return lang(lng_call_status_hanging);
+		case State::Ended: return lang(lng_call_status_ended);
+		case State::ExchangingKeys: return lang(lng_call_status_exchanging);
+		case State::Waiting: return lang(lng_call_status_waiting);
+		case State::Requesting: return lang(lng_call_status_requesting);
+		case State::WaitingIncoming: return lang(lng_call_status_incoming);
+		case State::Ringing: return lang(lng_call_status_ringing);
+		case State::Busy: return lang(lng_call_status_busy);
+		}
+		Unexpected("State in stateChanged()");
+	};
+	_status->setText(statusText());
+	updateStatusGeometry();
+}
+
+void Panel::startDurationUpdateTimer(TimeMs currentDuration) {
+	auto msTillNextSecond = 1000 - (currentDuration % 1000);
+	_updateDurationTimer.callOnce(msTillNextSecond + 5);
 }
 
 } // namespace Calls

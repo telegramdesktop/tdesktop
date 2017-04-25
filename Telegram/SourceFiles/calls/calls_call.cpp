@@ -45,6 +45,8 @@ namespace {
 constexpr auto kMinLayer = 65;
 constexpr auto kMaxLayer = 65; // MTP::CurrentLayer?
 constexpr auto kHangupTimeoutMs = 5000; // TODO read from server config
+constexpr auto kReceiveTimeoutMs = 5000; // TODO read from server config call_receive_timeout_ms
+constexpr auto kRingTimeoutMs = 5000; // TODO read from server config call_ring_timeout_ms
 
 using tgvoip::Endpoint;
 
@@ -148,7 +150,7 @@ void Call::startIncoming() {
 	Expects(_type == Type::Incoming);
 
 	request(MTPphone_ReceivedCall(MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)))).done([this](const MTPBool &result) {
-		setState(State::Ringing);
+		setState(State::WaitingIncoming);
 	}).fail([this](const RPCError &error) {
 		setState(State::Failed);
 	}).send();
@@ -179,16 +181,32 @@ void Call::setMute(bool mute) {
 	if (_controller) {
 		_controller->SetMicMute(_mute);
 	}
+	_muteChanged.notify(_mute);
+}
+
+TimeMs Call::getDurationMs() const {
+	return _startTime ? (getms(true) - _startTime) : 0;
 }
 
 void Call::hangup() {
 	auto missed = (_state == State::Ringing || (_state == State::Waiting && _type == Type::Outgoing));
-	auto reason = missed ? MTP_phoneCallDiscardReasonMissed() : MTP_phoneCallDiscardReasonHangup();
+	auto declined = (_state == State::WaitingIncoming);
+	auto reason = missed ? MTP_phoneCallDiscardReasonMissed() :
+		declined ? MTP_phoneCallDiscardReasonBusy() : MTP_phoneCallDiscardReasonHangup();
 	finish(reason);
 }
 
-void Call::decline() {
-	finish(MTP_phoneCallDiscardReasonBusy());
+bool Call::isKeyShaForFingerprintReady() const {
+	return (_keyFingerprint != 0);
+}
+
+std::array<gsl::byte, Call::kSha256Size> Call::getKeyShaForFingerprint() const {
+	Expects(isKeyShaForFingerprintReady());
+	Expects(!_ga.empty());
+	auto encryptedChatAuthKey = base::byte_vector(_authKey.size() + _ga.size(), gsl::byte {});
+	base::copy_bytes(gsl::make_span(encryptedChatAuthKey).subspan(0, _authKey.size()), _authKey);
+	base::copy_bytes(gsl::make_span(encryptedChatAuthKey).subspan(_authKey.size(), _ga.size()), _ga);
+	return openssl::Sha256(encryptedChatAuthKey);
 }
 
 bool Call::handleUpdate(const MTPPhoneCall &call) {
@@ -231,6 +249,9 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 		auto &data = call.c_phoneCallWaiting();
 		if (data.vid.v != _id) {
 			return false;
+		}
+		if (_state == State::Waiting && data.vreceive_date.v != 0) {
+			setState(State::Ringing);
 		}
 	} return true;
 
@@ -319,6 +340,7 @@ void Call::startConfirmedCall(const MTPDphoneCall &call) {
 		setState(State::Failed);
 		return;
 	}
+	_ga = base::byte_vector(firstBytes.begin(), firstBytes.end());
 
 	auto computedAuthKey = MTP::CreateAuthKey(firstBytes, _randomPower, _dhConfig.p);
 	if (computedAuthKey.empty()) {
@@ -456,7 +478,8 @@ void Call::setState(State state) {
 			_delegate->callFailed(this);
 			break;
 		case State::Busy:
-			_hangupByTimeoutTimer.call(kHangupTimeoutMs, [this] { setState(State::Ended); });
+			setState(State::Ended);
+//			_hangupByTimeoutTimer.call(kHangupTimeoutMs, [this] { setState(State::Ended); });
 			// TODO play sound
 			break;
 		}
@@ -478,7 +501,7 @@ void Call::finish(const MTPPhoneCallDiscardReason &reason) {
 	}
 
 	setState(State::HangingUp);
-	auto duration = _startTime ? static_cast<int>((getms(true) - _startTime) / 1000) : 0;
+	auto duration = getDurationMs() / 1000;
 	auto connectionId = _controller ? _controller->GetPreferredRelayID() : 0;
 	_hangupByTimeoutTimer.call(kHangupTimeoutMs, [this] { setState(State::Ended); });
 	request(MTPphone_DiscardCall(MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)), MTP_int(duration), reason, MTP_long(connectionId))).done([this](const MTPUpdates &result) {

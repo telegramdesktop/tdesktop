@@ -78,3 +78,32 @@ callUnmuteIcon: icon {{ "call_record_muted", callIconFg }};
 callControlsTop: 84px;
 callControlsSkip: 8px;
 callMuteRight: 12px;
+
+callNameTop: 15px;
+callName: FlatLabel(defaultFlatLabel) {
+	width: 260px;
+	maxHeight: 24px;
+	textFg: callNameFg;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(21px semibold);
+		linkFont: font(21px semibold);
+		linkFontOver: font(21px semibold underline);
+	}
+}
+callStatusTop: 46px;
+callStatus: FlatLabel(defaultFlatLabel) {
+	width: 260px;
+	maxHeight: 20px;
+	textFg: callStatusFg;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+		linkFont: font(14px);
+		linkFontOver: font(14px underline);
+	}
+}
+
+callFingerprintPadding: margins(9px, 4px, 9px, 5px);
+callFingerprintSkip: 3px;
+callFingerprintBottom: 8px;

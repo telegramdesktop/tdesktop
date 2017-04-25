@@ -676,6 +676,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_call_incoming_duration" = "Incoming call ({duration}) at {time}";
 "lng_action_call_incoming_missed" = "Missed call at {time}";
 "lng_action_call_outgoing_missed" = "Cancelled call at {time}";
+"lng_action_call_incoming_declined" = "Declined call at {time}";
 "lng_action_payment_done" = "You have just successfully transferred {amount} to {user}";
 "lng_action_payment_done_for" = "You have just successfully transferred {amount} to {user} for {invoice}";
 
@@ -1121,6 +1122,17 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_payments_invoice_label" = "Invoice";
 "lng_payments_invoice_label_test" = "Test invoice";
 "lng_payments_receipt_button" = "Receipt";
+
+"lng_call_status_incoming" = "is calling you...";
+"lng_call_status_connecting" = "connecting...";
+"lng_call_status_exchanging" = "exchanging encryption keys...";
+"lng_call_status_waiting" = "waiting...";
+"lng_call_status_requesting" = "requesting...";
+"lng_call_status_hanging" = "hanging up...";
+"lng_call_status_ended" = "call ended";
+"lng_call_status_failed" = "failed to connect";
+"lng_call_status_ringing" = "ringing...";
+"lng_call_status_busy" = "line busy";
 
 // Not used
 

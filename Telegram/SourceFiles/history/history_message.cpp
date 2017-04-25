@@ -1988,9 +1988,14 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			return lng_duration_seconds(lt_count, duration);
 		})();
 		auto wasMissed = [&action] {
-			if (action.has_reason()) switch (action.vreason.type()) {
-			case mtpc_phoneCallDiscardReasonBusy:
-			case mtpc_phoneCallDiscardReasonMissed: return true;
+			if (action.has_reason()) {
+				return (action.vreason.type() == mtpc_phoneCallDiscardReasonMissed);
+			}
+			return false;
+		};
+		auto wasBusy = [&action] {
+			if (action.has_reason()) {
+				return (action.vreason.type() == mtpc_phoneCallDiscardReasonBusy);
 			}
 			return false;
 		};
@@ -2005,6 +2010,8 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		} else {
 			if (wasMissed()) {
 				result.text = lng_action_call_incoming_missed(lt_time, timeText);
+			} else if (wasBusy()) {
+				result.text = lng_action_call_incoming_declined(lt_time, timeText);
 			} else if (duration) {
 				result.text = lng_action_call_incoming_duration(lt_duration, durationText, lt_time, timeText);
 			} else {
