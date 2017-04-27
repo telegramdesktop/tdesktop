@@ -1987,20 +1987,9 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			}
 			return lng_duration_seconds(lt_count, duration);
 		})();
-		auto wasMissed = [&action] {
-			if (action.has_reason()) {
-				return (action.vreason.type() == mtpc_phoneCallDiscardReasonMissed);
-			}
-			return false;
-		};
-		auto wasBusy = [&action] {
-			if (action.has_reason()) {
-				return (action.vreason.type() == mtpc_phoneCallDiscardReasonBusy);
-			}
-			return false;
-		};
+		auto info = this->Get<HistoryMessageCallInfo>();
 		if (out()) {
-			if (wasMissed()) {
+			if (info && info->reason == HistoryMessageCallInfo::Reason::Missed) {
 				result.text = lng_action_call_outgoing_missed(lt_time, timeText);
 			} else if (duration) {
 				result.text = lng_action_call_outgoing_duration(lt_duration, durationText, lt_time, timeText);
@@ -2008,9 +1997,9 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 				result.text = lng_action_call_outgoing(lt_time, timeText);
 			}
 		} else {
-			if (wasMissed()) {
+			if (info && info->reason == HistoryMessageCallInfo::Reason::Missed) {
 				result.text = lng_action_call_incoming_missed(lt_time, timeText);
-			} else if (wasBusy()) {
+			} else if (info && info->reason == HistoryMessageCallInfo::Reason::Busy) {
 				result.text = lng_action_call_incoming_declined(lt_time, timeText);
 			} else if (duration) {
 				result.text = lng_action_call_incoming_duration(lt_duration, durationText, lt_time, timeText);
@@ -2449,6 +2438,22 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 		auto amount = message.vaction.c_messageActionPaymentSent().vtotal_amount.v;
 		auto currency = qs(message.vaction.c_messageActionPaymentSent().vcurrency);
 		Get<HistoryServicePayment>()->amount = HistoryInvoice::fillAmountAndCurrency(amount, currency);
+	} else if (message.vaction.type() == mtpc_messageActionPhoneCall) {
+		using Reason = HistoryMessageCallInfo::Reason;
+		auto &action = message.vaction.c_messageActionPhoneCall();
+		auto reason = ([&action] {
+			if (action.has_reason()) {
+				switch (action.vreason.type()) {
+				case mtpc_phoneCallDiscardReasonBusy: return Reason::Busy;
+				case mtpc_phoneCallDiscardReasonMissed: return Reason::Missed;
+				}
+			}
+			return Reason::None;
+		})();
+		if (reason != Reason::None) {
+			UpdateComponents(HistoryMessageCallInfo::Bit());
+			Get<HistoryMessageCallInfo>()->reason = reason;
+		}
 	}
 	if (message.has_reply_to_msg_id()) {
 		if (message.vaction.type() == mtpc_messageActionPinMessage) {

@@ -29,6 +29,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "boxes/contacts_box.h"
 #include "boxes/about_box.h"
+#include "boxes/peer_list_box.h"
+#include "calls/calls_box_controller.h"
 #include "lang.h"
 #include "core/click_handler_types.h"
 #include "observer_peer.h"
@@ -61,6 +63,9 @@ MainMenu::MainMenu(QWidget *parent) : TWidget(parent)
 	_menu->addAction(lang(lng_menu_contacts), [] {
 		Ui::show(Box<ContactsBox>());
 	}, &st::mainMenuContacts, &st::mainMenuContactsOver);
+	_menu->addAction(lang(lng_menu_calls), [] {
+		Ui::show(Box<PeerListBox>(std::make_unique<Calls::BoxController>()));
+	}, &st::mainMenuCalls, &st::mainMenuCallsOver);
 	_menu->addAction(lang(lng_menu_settings), [] {
 		App::wnd()->showSettings();
 	}, &st::mainMenuSettings, &st::mainMenuSettingsOver);

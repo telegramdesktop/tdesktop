@@ -80,6 +80,8 @@
 <(src_loc)/boxes/stickers_box.h
 <(src_loc)/boxes/username_box.cpp
 <(src_loc)/boxes/username_box.h
+<(src_loc)/calls/calls_box_controller.cpp
+<(src_loc)/calls/calls_box_controller.h
 <(src_loc)/calls/calls_call.cpp
 <(src_loc)/calls/calls_call.h
 <(src_loc)/calls/calls_emoji_fingerprint.cpp

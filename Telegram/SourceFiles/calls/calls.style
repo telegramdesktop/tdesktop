@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 using "basic.style";
 
 using "ui/widgets/widgets.style";
+using "window/window.style";
 
 callWidth: 300px;
 callHeight: 470px;
@@ -134,3 +135,21 @@ callBarLabel: LabelSimple(defaultLabelSimple) {
 	textFg: callBarFg;
 }
 callBarLabelTop: 10px;
+
+callArrowPosition: point(-2px, 1px);
+callArrowIn: icon {{ "call_arrow_in", callArrowFg }};
+callArrowOut: icon {{ "call_arrow_out", callArrowFg }};
+callArrowMissed: icon {{ "call_arrow_in", callArrowMissedFg }};
+callArrowSkip: 4px;
+callReDial: IconButton {
+	width: 40px;
+	height: 56px;
+
+	icon: mainMenuCalls;
+	iconOver: mainMenuCallsOver;
+	iconPosition: point(-1px, -1px);
+
+	ripple: defaultRippleAnimation;
+	rippleAreaPosition: point(4px, 12px);
+	rippleAreaSize: 32px;
+}

@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_switch_to_this" = "Switch to English";
 
 "lng_menu_contacts" = "Contacts";
+"lng_menu_calls" = "Calls";
 "lng_menu_settings" = "Settings";
 "lng_menu_about" = "About";
 "lng_menu_update" = "Update";
@@ -1136,6 +1137,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_call_bar_info" = "Show call info";
 "lng_call_bar_hangup" = "End call";
+
+"lng_call_box_title" = "Calls";
+"lng_call_box_about" = "Your history of Telegram calls will be here.";
+"lng_call_box_status_today" = "{time}";
+"lng_call_box_status_yesterday" = "Yesterday at {time}";
+"lng_call_box_status_date" = "{date} at {time}";
+"lng_call_box_status_group" = "({count}) {status}";
 
 // Not used
 

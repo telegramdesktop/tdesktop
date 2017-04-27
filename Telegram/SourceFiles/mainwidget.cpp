@@ -2842,10 +2842,9 @@ void MainWidget::jumpToDate(PeerData *peer, const QDate &date) {
 		if (auto list = getMessagesList()) {
 			App::feedMsgs(*list, NewMessageExisting);
 			for (auto &message : *list) {
-				if (auto id = idFromMessage(message)) {
-					Ui::showPeerHistory(peer, id);
-					return;
-				}
+				auto id = idFromMessage(message);
+				Ui::showPeerHistory(peer, id);
+				return;
 			}
 		}
 		Ui::showPeerHistory(peer, ShowAtUnreadMsgId);

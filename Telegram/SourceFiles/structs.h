@@ -154,7 +154,7 @@ inline MsgId idFromMessage(const MTPmessage &msg) {
 	case mtpc_message: return msg.c_message().vid.v;
 	case mtpc_messageService: return msg.c_messageService().vid.v;
 	}
-	return 0;
+	Unexpected("Type in idFromMessage()");
 }
 inline TimeId dateFromMessage(const MTPmessage &msg) {
 	switch (msg.type()) {

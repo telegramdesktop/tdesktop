@@ -413,6 +413,15 @@ struct HistoryMessageUnreadBar : public RuntimeComponent<HistoryMessageUnreadBar
 
 };
 
+struct HistoryMessageCallInfo : public RuntimeComponent<HistoryMessageCallInfo> {
+	enum class Reason {
+		None,
+		Missed,
+		Busy,
+	};
+	Reason reason = Reason::None;
+};
+
 // HistoryMedia has a special owning smart pointer
 // which regs/unregs this media to the holding HistoryItem
 class HistoryMedia;

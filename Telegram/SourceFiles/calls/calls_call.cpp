@@ -366,7 +366,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		return;
 	}
 
-	voip_config_t config;
+	voip_config_t config = { 0 };
 	config.data_saving = DATA_SAVING_NEVER;
 	config.enableAEC = true;
 	config.enableNS = true;

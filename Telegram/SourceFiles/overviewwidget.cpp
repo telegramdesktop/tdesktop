@@ -253,9 +253,9 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 			if (type == SearchMigratedFromStart) {
 				_lastSearchMigratedId = 0;
 			}
-			for (QVector<MTPMessage>::const_iterator i = messages->cbegin(), e = messages->cend(); i != e; ++i) {
-				HistoryItem *item = App::histories().addNewMessage(*i, NewMessageExisting);
-				MsgId msgId = item ? item->id : idFromMessage(*i);
+			for (auto i = messages->cbegin(), e = messages->cend(); i != e; ++i) {
+				auto item = App::histories().addNewMessage(*i, NewMessageExisting);
+				auto msgId = item ? item->id : idFromMessage(*i);
 				if (migratedSearch) {
 					if (item) _searchResults.push_front(-item->id);
 					_lastSearchMigratedId = msgId;

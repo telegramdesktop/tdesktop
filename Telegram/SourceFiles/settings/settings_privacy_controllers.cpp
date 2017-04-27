@@ -56,7 +56,7 @@ void BlockUserBoxController::prepareViewHook() {
 
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserIsBlocked, [this](const Notify::PeerUpdate &update) {
 		if (auto user = update.peer->asUser()) {
-			if (auto row = view()->findRow(user)) {
+			if (auto row = view()->findRow(user->id)) {
 				updateIsBlocked(row, user);
 				view()->updateRow(row);
 			}
@@ -177,7 +177,7 @@ void BlockedBoxController::handleBlockedEvent(UserData *user) {
 			view()->refreshRows();
 			view()->onScrollToY(0);
 		}
-	} else if (auto row = view()->findRow(user)) {
+	} else if (auto row = view()->findRow(user->id)) {
 		view()->removeRow(row);
 		view()->refreshRows();
 	}
@@ -188,7 +188,7 @@ void BlockedBoxController::blockUser() {
 }
 
 bool BlockedBoxController::appendRow(UserData *user) {
-	if (view()->findRow(user)) {
+	if (view()->findRow(user->id)) {
 		return false;
 	}
 	view()->appendRow(createRow(user));
@@ -196,7 +196,7 @@ bool BlockedBoxController::appendRow(UserData *user) {
 }
 
 bool BlockedBoxController::prependRow(UserData *user) {
-	if (view()->findRow(user)) {
+	if (view()->findRow(user->id)) {
 		return false;
 	}
 	view()->prependRow(createRow(user));
@@ -204,7 +204,7 @@ bool BlockedBoxController::prependRow(UserData *user) {
 }
 
 std::unique_ptr<PeerListBox::Row> BlockedBoxController::createRow(UserData *user) const {
-	auto row = std::make_unique<PeerListBox::Row>(user);
+	auto row = std::make_unique<PeerListRowWithLink>(user);
 	row->setActionLink(lang(lng_blocked_list_unblock));
 	auto status = [user]() -> QString {
 		if (user->botInfo) {
@@ -215,7 +215,7 @@ std::unique_ptr<PeerListBox::Row> BlockedBoxController::createRow(UserData *user
 		return App::formatPhone(user->phone());
 	};
 	row->setCustomStatus(status());
-	return row;
+	return std::move(row);
 }
 
 MTPInputPrivacyKey LastSeenPrivacyController::key() {

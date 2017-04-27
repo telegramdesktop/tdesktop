@@ -166,6 +166,9 @@ contactsStatusFgOnline: windowActiveTextFg; // contacts (and some other) box row
 photoCropFadeBg: layerBg; // avatar crop box fade background (when choosing a new photo in Settings or for a group)
 photoCropPointFg: #ffffff7f; // avatar crop box corner rectangles (when choosing a new photo in Settings or for a group)
 
+callArrowFg: #2ab32a | boxTextFgGood; // received phone call arrow (in calls list box)
+callArrowMissedFg: #dd5b4a | boxTextFgError; // missed phone call arrow (in calls list box)
+
 // intro
 introBg: windowBg; // login background
 introTitleFg: windowBoldFg; // login title text
@@ -267,6 +270,12 @@ historyIconFgInverted: windowFgActive; // media message tick / double tick icon 
 historySendingOutIconFg: #98d292; // outbox sending message icon (clock)
 historySendingInIconFg: #a0adb5; // inbox sending message icon (clock) (like in sent messages to yourself or in sent messages to a channel)
 historySendingInvertedIconFg: #ffffffc8; // media sending message icon (clock) (like in sent photo)
+historyCallArrowInFg: callArrowFg; // received phone call arrow
+historyCallArrowInFgSelected: callArrowFg; // received phone call arrow in a selected message
+historyCallArrowMissedInFg: callArrowMissedFg; // missed phone call arrow
+historyCallArrowMissedInFgSelected: callArrowMissedFg; // missed phone call arrow in a selected message
+historyCallArrowOutFg: historyCallArrowInFg; // outgoing phone call arrow
+historyCallArrowOutFgSelected: historyCallArrowInFgSelected; // outgoing phone call arrow
 
 historyUnreadBarBg: #fcfbfa; // new unread messages bar background
 historyUnreadBarBorder: shadowFg; // new unread messages bar shadow
@@ -512,19 +521,19 @@ mediaviewTransparentFg: #cccccc; // another transparent filling part
 notificationBg: windowBg; // custom notification window background
 
 // calls
-callBg: #26282cf2;
-callNameFg: #ffffff;
-callFingerprintBg: #00000066;
-callStatusFg: #aaabac;
-callIconFg: #ffffff;
-callAnswerBg: #64c15b;
-callAnswerRipple: #52b149;
-callHangupBg: #d75a5a;
-callHangupRipple: #c04646;
-callMuteRipple: #ffffff12;
+callBg: #26282cf2; // phone call popup background
+callNameFg: #ffffff; // phone call popup name text
+callFingerprintBg: #00000066; // phone call popup emoji fingerprint background
+callStatusFg: #aaabac; // phone call popup status text
+callIconFg: #ffffff; // phone call popup answer, hangup and mute mic icon
+callAnswerBg: #64c15b; // phone call popup answer button background
+callAnswerRipple: #52b149; // phone call popup answer button ripple effect
+callHangupBg: #d75a5a; // phone call popup hangup button background
+callHangupRipple: #c04646; // phone call popup hangup button ripple effect
+callMuteRipple: #ffffff12; // phone call popup mute mic ripple effect
 
-callBarBg: dialogsBgActive;
-callBarMuteRipple: dialogsRippleBgActive;
-callBarBgMuted: #8f8f8f | dialogsUnreadBgMuted;
-callBarUnmuteRipple: #7f7f7f | shadowFg;
-callBarFg: dialogsNameFgActive;
+callBarBg: dialogsBgActive; // active phone call bar background
+callBarMuteRipple: dialogsRippleBgActive; // active phone call bar mute and hangup button ripple effect
+callBarBgMuted: #8f8f8f | dialogsUnreadBgMuted; // phone call bar with muted mic background
+callBarUnmuteRipple: #7f7f7f | shadowFg; // phone call bar with muted mic mute and hangup button ripple effect
+callBarFg: dialogsNameFgActive; // phone call bar text and icons

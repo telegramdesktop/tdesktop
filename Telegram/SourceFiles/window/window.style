@@ -94,30 +94,30 @@ titleUnreadCounterTop: 5px;
 titleUnreadCounterRight: 35px;
 
 mainMenuWidth: 274px;
-mainMenuCoverHeight: 140px;
+mainMenuCoverHeight: 134px;
 mainMenuUserpicLeft: 24px;
-mainMenuUserpicTop: 22px;
+mainMenuUserpicTop: 20px;
 mainMenuUserpicSize: 48px;
 mainMenuCloudButton: IconButton {
-	width: 68px;
-	height: 68px;
+	width: 64px;
+	height: 64px;
 
 	icon: icon {
 		{ "menu_cloud", mainMenuCloudFg },
 	};
-	iconPosition: point(24px, 24px);
+	iconPosition: point(22px, 22px);
 }
 mainMenuCloudSize: 32px;
 mainMenuCoverTextLeft: 30px;
-mainMenuCoverNameTop: 88px;
-mainMenuCoverStatusTop: 106px;
+mainMenuCoverNameTop: 84px;
+mainMenuCoverStatusTop: 102px;
 mainMenuSkip: 13px;
 mainMenu: Menu(defaultMenu) {
 	itemFg: windowBoldFg;
 	itemFgOver: windowBoldFgOver;
 	itemFont: semiboldFont;
-	itemIconPosition: point(28px, 11px);
-	itemPadding: margins(76px, 14px, 28px, 14px);
+	itemIconPosition: point(28px, 10px);
+	itemPadding: margins(76px, 13px, 28px, 13px);
 }
 mainMenuNewGroup: icon {{ "menu_new_group", menuIconFg }};
 mainMenuNewGroupOver: icon {{ "menu_new_group", menuIconFgOver }};
@@ -125,6 +125,8 @@ mainMenuNewChannel: icon {{ "menu_new_channel", menuIconFg }};
 mainMenuNewChannelOver: icon {{ "menu_new_channel", menuIconFgOver }};
 mainMenuContacts: icon {{ "menu_contacts", menuIconFg }};
 mainMenuContactsOver: icon {{ "menu_contacts", menuIconFgOver }};
+mainMenuCalls: icon {{ "menu_calls", menuIconFg }};
+mainMenuCallsOver: icon {{ "menu_calls", menuIconFgOver }};
 mainMenuSettings: icon {{ "menu_settings", menuIconFg }};
 mainMenuSettingsOver: icon {{ "menu_settings", menuIconFgOver }};
 mainMenuHelp: icon {{ "menu_help", menuIconFg }};
