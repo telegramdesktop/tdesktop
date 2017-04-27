@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "window/section_widget.h"
+#include "window/top_bar_widget.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/scroll_area.h"
 
@@ -90,7 +91,7 @@ public:
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void repaintItem(const HistoryItem *msg);
 
-	void getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const;
+	Window::TopBarWidget::SelectedState getSelectionState() const;
 	void clearSelectedItems(bool onlyTextSelection = false);
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
 
@@ -395,8 +396,6 @@ private:
 
 	QTimer _scrollTimer;
 	int32 _scrollDelta = 0;
-
-	int32 _selCount = 0;
 
 	object_ptr<Ui::PlainShadow> _topShadow;
 	bool _inGrab = false;

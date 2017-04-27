@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "ui/effects/ripple_animation.h"
 #include "calls/calls_instance.h"
+#include "history/history_media_types.h"
 
 namespace Calls {
 namespace {
@@ -86,7 +87,7 @@ private:
 		return false;
 	}
 	QSize actionSize() const override {
-		return QSize(st::callReDial.width, st::callReDial.height);
+		return peer()->isUser() ? QSize(st::callReDial.width, st::callReDial.height) : QSize();
 	}
 	QMargins actionMargins() const override {
 		return QMargins(0, 0, 0, 0);
@@ -157,10 +158,12 @@ void BoxController::Row::refreshStatus() {
 BoxController::Row::Type BoxController::Row::ComputeType(HistoryItem *item) {
 	if (item->out()) {
 		return Type::Out;
-	} else if (auto call = item->Get<HistoryMessageCallInfo>()) {
-		using Reason = HistoryMessageCallInfo::Reason;
-		if (call->reason == Reason::Busy || call->reason == Reason::Missed) {
-			return Type::Missed;
+	} else if (auto media = item->getMedia()) {
+		if (media->type() == MediaTypeCall) {
+			auto reason = static_cast<HistoryCall*>(media)->reason();
+			if (reason == HistoryCall::FinishReason::Busy || reason == HistoryCall::FinishReason::Missed) {
+				return Type::Missed;
+			}
 		}
 	}
 	return Type::In;
@@ -243,7 +246,7 @@ void BoxController::rowClicked(PeerListBox::Row *row) {
 
 void BoxController::rowActionClicked(PeerListBox::Row *row) {
 	auto user = row->peer()->asUser();
-	Expects(user != nullptr);
+	t_assert(user != nullptr);
 
 	Current().startOutgoingCall(user);
 }
@@ -258,7 +261,7 @@ void BoxController::receivedCalls(const QVector<MTPMessage> &result) {
 		auto peerId = peerFromMessage(message);
 		if (auto peer = App::peerLoaded(peerId)) {
 			auto item = App::histories().addNewMessage(message, NewMessageExisting);
-			appendRow(item);
+			insertRow(item, InsertWay::Append);
 		} else {
 			LOG(("API Error: a search results with not loaded peer %1").arg(peerId));
 		}
@@ -269,12 +272,14 @@ void BoxController::receivedCalls(const QVector<MTPMessage> &result) {
 	view()->refreshRows();
 }
 
-bool BoxController::appendRow(HistoryItem *item) {
+bool BoxController::insertRow(HistoryItem *item, InsertWay way) {
 	if (auto row = rowForItem(item)) {
-		row->addItem(item);
-		return false;
+		if (row->canAddItem(item)) {
+			row->addItem(item);
+			return false;
+		}
 	}
-	view()->appendRow(createRow(item));
+	(way == InsertWay::Append) ? view()->appendRow(createRow(item)) : view()->prependRow(createRow(item));
 	view()->reorderRows([](auto &begin, auto &end) {
 		std::sort(begin, end, [](auto &a, auto &b) {
 			return static_cast<Row&>(*a).maxItemId() > static_cast<Row&>(*a).maxItemId();
@@ -283,29 +288,17 @@ bool BoxController::appendRow(HistoryItem *item) {
 	return true;
 }
 
-bool BoxController::prependRow(HistoryItem *item) {
-	if (auto row = rowForItem(item)) {
-		row->addItem(item);
-		return false;
-	}
-	view()->prependRow(createRow(item));
-	return true;
-}
-
 BoxController::Row *BoxController::rowForItem(HistoryItem *item) {
 	auto v = view();
-	auto checkForReturn = [item](Row *row) {
-		return row->canAddItem(item) ? row : nullptr;
-	};
 	if (auto fullRowsCount = v->fullRowsCount()) {
 		auto itemId = item->id;
 		auto lastRow = static_cast<Row*>(v->rowAt(fullRowsCount - 1));
 		if (itemId < lastRow->minItemId()) {
-			return checkForReturn(lastRow);
+			return lastRow;
 		}
 		auto firstRow = static_cast<Row*>(v->rowAt(0));
 		if (itemId > firstRow->maxItemId()) {
-			return checkForReturn(firstRow);
+			return firstRow;
 		}
 
 		// Binary search. Invariant:
@@ -332,7 +325,7 @@ BoxController::Row *BoxController::rowForItem(HistoryItem *item) {
 				return possibleResult;
 			}
 		}
-		return checkForReturn(result);
+		return result;
 	}
 	return nullptr;
 }

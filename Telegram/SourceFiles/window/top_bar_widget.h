@@ -39,8 +39,15 @@ class TopBarWidget : public TWidget, private base::Subscriber {
 public:
 	TopBarWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller);
 
+	struct SelectedState {
+		bool textSelected = false;
+		int count = 0;
+		int canDeleteCount = 0;
+		int canForwardCount = 0;
+	};
+
 	void showAll();
-	void showSelected(int selectedCount, bool canDelete = false);
+	void showSelected(SelectedState state);
 	void animationFinished();
 	void updateMembersShowArea();
 
@@ -77,6 +84,7 @@ private:
 	PeerData *_searchInPeer = nullptr;
 	int _selectedCount = 0;
 	bool _canDelete = false;
+	bool _canForward = false;
 
 	Animation _selectedShown;
 

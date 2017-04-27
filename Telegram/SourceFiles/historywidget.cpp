@@ -982,7 +982,7 @@ void HistoryWidget::setInnerFocus() {
 	if (_scroll->isHidden()) {
 		setFocus();
 	} else if (_list) {
-		if (_selCount || (_list && _list->wasSelectedText()) || _recording || isBotStart() || isBlocked() || !_canSendMessages) {
+		if (_nonEmptySelection || (_list && _list->wasSelectedText()) || _recording || isBotStart() || isBlocked() || !_canSendMessages) {
 			_list->setFocus();
 		} else {
 			_field->setFocus();
@@ -1748,8 +1748,8 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	_titlePeerTextWidth = 0;
 
 	noSelectingScroll();
-	_selCount = 0;
-	_topBar->showSelected(0);
+	_nonEmptySelection = false;
+	_topBar->showSelected(Window::TopBarWidget::SelectedState {});
 
 	App::hoveredItem(nullptr);
 	App::pressedItem(nullptr);
@@ -5864,7 +5864,7 @@ void HistoryWidget::deleteSelectedItems(bool forEveryone) {
 }
 
 void HistoryWidget::onListEscapePressed() {
-	if (_selCount && _list) {
+	if (_nonEmptySelection && _list) {
 		onClearSelected();
 	} else {
 		onCancel();
@@ -5915,18 +5915,17 @@ void HistoryWidget::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
 
 void HistoryWidget::updateTopBarSelection() {
 	if (!_list) {
-		_topBar->showSelected(0);
+		_topBar->showSelected(Window::TopBarWidget::SelectedState {});
 		return;
 	}
 
-	int32 selectedForForward, selectedForDelete;
-	_list->getSelectionState(selectedForForward, selectedForDelete);
-	_selCount = selectedForForward ? selectedForForward : selectedForDelete;
-	_topBar->showSelected(_selCount > 0 ? _selCount : 0, (selectedForDelete == selectedForForward));
+	auto selectedState = _list->getSelectionState();
+	_nonEmptySelection = (selectedState.count > 0) || selectedState.textSelected;
+	_topBar->showSelected(selectedState);
 	updateControlsVisibility();
 	updateListSize();
 	if (!Ui::isLayerShown() && !App::passcoded()) {
-		if (_selCount || (_list && _list->wasSelectedText()) || _recording || isBotStart() || isBlocked() || !_canSendMessages) {
+		if (_nonEmptySelection || (_list && _list->wasSelectedText()) || _recording || isBotStart() || isBlocked() || !_canSendMessages) {
 			_list->setFocus();
 		} else {
 			_field->setFocus();

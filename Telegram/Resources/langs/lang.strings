@@ -671,13 +671,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_game_you_scored" = "You scored {count:#|#|#} in {game}";
 "lng_action_game_score_no_game" = "{from} scored {count:#|#|#}";
 "lng_action_game_you_scored_no_game" = "You scored {count:#|#|#}";
-"lng_action_call_outgoing" = "Outgoing call at {time}";
-"lng_action_call_incoming" = "Incoming call at {time}";
-"lng_action_call_outgoing_duration" = "Outgoing call ({duration}) at {time}";
-"lng_action_call_incoming_duration" = "Incoming call ({duration}) at {time}";
-"lng_action_call_incoming_missed" = "Missed call at {time}";
-"lng_action_call_outgoing_missed" = "Cancelled call at {time}";
-"lng_action_call_incoming_declined" = "Declined call at {time}";
 "lng_action_payment_done" = "You have just successfully transferred {amount} to {user}";
 "lng_action_payment_done_for" = "You have just successfully transferred {amount} to {user} for {invoice}";
 
@@ -1144,6 +1137,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_call_box_status_yesterday" = "Yesterday at {time}";
 "lng_call_box_status_date" = "{date} at {time}";
 "lng_call_box_status_group" = "({count}) {status}";
+
+"lng_call_outgoing" = "Outgoing call";
+"lng_call_incoming" = "Incoming call";
+"lng_call_missed" = "Missed call";
+"lng_call_cancelled" = "Cancelled call";
+"lng_call_declined" = "Declined call";
+"lng_call_duration_info" = "{time}, {duration}";
+"lng_call_type_and_duration" = "{type} ({duration})";
 
 // Not used
 

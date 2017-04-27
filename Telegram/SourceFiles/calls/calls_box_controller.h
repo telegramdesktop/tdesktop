@@ -38,8 +38,11 @@ private:
 	class Row;
 	Row *rowForItem(HistoryItem *item);
 
-	bool appendRow(HistoryItem *item);
-	bool prependRow(HistoryItem *item);
+	enum class InsertWay {
+		Append,
+		Prepend,
+	};
+	bool insertRow(HistoryItem *item, InsertWay way);
 	std::unique_ptr<PeerListBox::Row> createRow(HistoryItem *item) const;
 
 	MsgId _offsetId = 0;

@@ -110,6 +110,7 @@ enum HistoryMediaType {
 	MediaTypePhoto,
 	MediaTypeVideo,
 	MediaTypeContact,
+	MediaTypeCall,
 	MediaTypeFile,
 	MediaTypeGif,
 	MediaTypeSticker,

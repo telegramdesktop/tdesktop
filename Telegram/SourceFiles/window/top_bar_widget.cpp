@@ -263,7 +263,9 @@ void TopBarWidget::updateControlsGeometry() {
 	selectedButtonsTop += (height() - _forward->height()) / 2;
 
 	_forward->moveToLeft(buttonsLeft, selectedButtonsTop);
-	buttonsLeft += _forward->width() + st::topBarActionSkip;
+	if (!_forward->isHidden()) {
+		buttonsLeft += _forward->width() + st::topBarActionSkip;
+	}
 
 	_delete->moveToLeft(buttonsLeft, selectedButtonsTop);
 	_clearSelection->moveToRight(st::topBarActionSkip, selectedButtonsTop);
@@ -293,7 +295,7 @@ void TopBarWidget::showAll() {
 
 	_clearSelection->show();
 	_delete->setVisible(_canDelete);
-	_forward->show();
+	_forward->setVisible(_canForward);
 
 	_mediaType->setVisible(App::main() ? App::main()->showMediaTypeSwitch() : false);
 	if (historyPeer && !overviewPeer) {
@@ -349,17 +351,20 @@ void TopBarWidget::updateMembersShowArea() {
 	_membersShowArea->setGeometry(App::main()->getMembersShowAreaGeometry());
 }
 
-void TopBarWidget::showSelected(int selectedCount, bool canDelete) {
-	if (_selectedCount == selectedCount && _canDelete == canDelete) {
+void TopBarWidget::showSelected(SelectedState state) {
+	auto canDelete = (state.count > 0 && state.count == state.canDeleteCount);
+	auto canForward = (state.count > 0 && state.count == state.canForwardCount);
+	if (_selectedCount == state.count && _canDelete == canDelete && _canForward == canForward) {
 		return;
 	}
-	if (selectedCount == 0) {
+	if (state.count == 0) {
 		// Don't change the visible buttons if the selection is cancelled.
 		canDelete = _canDelete;
+		canForward = _canForward;
 	}
 
 	auto wasSelected = (_selectedCount > 0);
-	_selectedCount = selectedCount;
+	_selectedCount = state.count;
 	if (_selectedCount > 0) {
 		_forward->setNumbersText(_selectedCount);
 		_delete->setNumbersText(_selectedCount);
@@ -369,8 +374,9 @@ void TopBarWidget::showSelected(int selectedCount, bool canDelete) {
 		}
 	}
 	auto hasSelected = (_selectedCount > 0);
-	if (_canDelete != canDelete) {
+	if (_canDelete != canDelete || _canForward != canForward) {
 		_canDelete = canDelete;
+		_canForward = canForward;
 		showAll();
 	}
 	if (wasSelected != hasSelected) {

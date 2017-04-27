@@ -1007,8 +1007,11 @@ void HistoryInner::onDragExec() {
 
 		auto drag = std::make_unique<QDrag>(App::wnd());
 		if (!urls.isEmpty()) mimeData->setUrls(urls);
-		if (uponSelected && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection && !Adaptive::OneColumn()) {
-			mimeData->setData(qsl("application/x-td-forward-selected"), "1");
+		if (uponSelected && !Adaptive::OneColumn()) {
+			auto selectedState = getSelectionState();
+			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
+				mimeData->setData(qsl("application/x-td-forward-selected"), "1");
+			}
 		}
 		drag->setMimeData(mimeData);
 		drag->exec(Qt::CopyAction);
@@ -1213,9 +1216,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		dragActionUpdate(e->globalPos());
 	}
 
-	int32 selectedForForward, selectedForDelete;
-	getSelectionState(selectedForForward, selectedForDelete);
-	bool canSendMessages = _widget->canSendMessages(_peer);
+	auto selectedState = getSelectionState();
+	auto canSendMessages = _widget->canSendMessages(_peer);
 
 	// -2 - has full selected items, but not over, -1 - has selection, but no over, 0 - no selection, 1 - over text, 2 - over full selected items
 	int32 isUponSelected = 0, hasSelected = 0;;
@@ -1296,8 +1298,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_copy_post_link), _widget, SLOT(onCopyPostLink()));
 		}
 		if (isUponSelected > 1) {
-			_menu->addAction(lang(lng_context_forward_selected), _widget, SLOT(onForwardSelected()));
-			if (selectedForDelete == selectedForForward) {
+			if (selectedState.count > 0 && selectedState.canForwardCount == selectedState.count) {
+				_menu->addAction(lang(lng_context_forward_selected), _widget, SLOT(onForwardSelected()));
+			}
+			if (selectedState.count > 0 && selectedState.canDeleteCount == selectedState.count) {
 				_menu->addAction(lang(lng_context_delete_selected), base::lambda_guarded(this, [this] {
 					_widget->confirmDeleteSelectedItems();
 				}));
@@ -1305,7 +1309,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_clear_selection), _widget, SLOT(onClearSelected()));
 		} else if (App::hoveredLinkItem()) {
 			if (isUponSelected != -2) {
-				if (dynamic_cast<HistoryMessage*>(App::hoveredLinkItem()) && App::hoveredLinkItem()->id > 0) {
+				if (App::hoveredLinkItem()->canForward()) {
 					_menu->addAction(lang(lng_context_forward_msg), _widget, SLOT(forwardMessage()))->setEnabled(true);
 				}
 				if (App::hoveredLinkItem()->canDelete()) {
@@ -1321,9 +1325,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	} else { // maybe cursor on some text history item?
 		bool canDelete = item && item->canDelete() && (item->id > 0 || !item->serviceMsg());
-		bool canForward = item && (item->id > 0) && !item->serviceMsg();
+		bool canForward = item && item->canForward();
 
-		HistoryMessage *msg = dynamic_cast<HistoryMessage*>(item);
+		auto msg = dynamic_cast<HistoryMessage*>(item);
 		if (isUponSelected > 0) {
 			_menu->addAction(lang(lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
 			if (item && item->id > 0 && isUponSelected != 2) {
@@ -1391,7 +1395,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 		}
 
-		QString linkCopyToClipboardText = _contextMenuLnk ? _contextMenuLnk->copyToClipboardContextItemText() : QString();
+		auto linkCopyToClipboardText = _contextMenuLnk ? _contextMenuLnk->copyToClipboardContextItemText() : QString();
 		if (!linkCopyToClipboardText.isEmpty()) {
 			_menu->addAction(linkCopyToClipboardText, this, SLOT(copyContextUrl()))->setEnabled(true);
 		}
@@ -1399,8 +1403,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_copy_post_link), _widget, SLOT(onCopyPostLink()));
 		}
 		if (isUponSelected > 1) {
-			_menu->addAction(lang(lng_context_forward_selected), _widget, SLOT(onForwardSelected()));
-			if (selectedForDelete == selectedForForward) {
+			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
+				_menu->addAction(lang(lng_context_forward_selected), _widget, SLOT(onForwardSelected()));
+			}
+			if (selectedState.count > 0 && selectedState.count == selectedState.canDeleteCount) {
 				_menu->addAction(lang(lng_context_delete_selected), base::lambda_guarded(this, [this] {
 					_widget->confirmDeleteSelectedItems();
 				}));
@@ -1595,9 +1601,8 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 		setToClipboard(getSelectedText(), QClipboard::FindBuffer);
 #endif // Q_OS_MAC
 	} else if (e == QKeySequence::Delete) {
-		int32 selectedForForward, selectedForDelete;
-		getSelectionState(selectedForForward, selectedForDelete);
-		if (!_selected.isEmpty() && selectedForDelete == selectedForForward) {
+		auto selectedState = getSelectionState();
+		if (selectedState.count > 0 && selectedState.canDeleteCount == selectedState.count) {
 			_widget->confirmDeleteSelectedItems();
 		}
 	} else {
@@ -1957,25 +1962,26 @@ bool HistoryInner::canCopySelected() const {
 }
 
 bool HistoryInner::canDeleteSelected() const {
-	if (_selected.isEmpty() || _selected.cbegin().value() != FullSelection) return false;
-	int32 selectedForForward, selectedForDelete;
-	getSelectionState(selectedForForward, selectedForDelete);
-	return (selectedForForward == selectedForDelete);
+	auto selectedState = getSelectionState();
+	return (selectedState.count > 0) && (selectedState.count == selectedState.canDeleteCount);
 }
 
-void HistoryInner::getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const {
-	selectedForForward = selectedForDelete = 0;
+Window::TopBarWidget::SelectedState HistoryInner::getSelectionState() const {
+	auto result = Window::TopBarWidget::SelectedState {};
 	for (auto i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
 		if (i.value() == FullSelection) {
+			++result.count;
 			if (i.key()->canDelete()) {
-				++selectedForDelete;
+				++result.canDeleteCount;
 			}
-			++selectedForForward;
+			if (i.key()->canForward()) {
+				++result.canForwardCount;
+			}
+		} else {
+			result.textSelected = true;
 		}
 	}
-	if (!selectedForDelete && !selectedForForward && !_selected.isEmpty()) { // text selection
-		selectedForForward = -1;
-	}
+	return result;
 }
 
 void HistoryInner::clearSelectedItems(bool onlyTextSelection) {
@@ -1989,8 +1995,8 @@ void HistoryInner::clearSelectedItems(bool onlyTextSelection) {
 void HistoryInner::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
 	if (_selected.isEmpty() || _selected.cbegin().value() != FullSelection) return;
 
-	for (SelectedItems::const_iterator i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
-		HistoryItem *item = i.key();
+	for (auto i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
+		auto item = i.key();
 		if (item && item->toHistoryMessage() && item->id > 0) {
 			if (item->history() == _migrated) {
 				sel.insert(item->id - ServerMaxMsgId, item);
@@ -2437,7 +2443,7 @@ void HistoryInner::applyDragSelection(SelectedItems *toItems) const {
 QString HistoryInner::tooltipText() const {
 	if (_dragCursorState == HistoryInDateCursorState && _dragAction == NoDrag) {
 		if (App::hoveredItem()) {
-			QString dateText = App::hoveredItem()->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat));
+			auto dateText = App::hoveredItem()->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat));
 			if (auto edited = App::hoveredItem()->Get<HistoryMessageEdited>()) {
 				dateText += '\n' + lng_edited_date(lt_date, edited->_editDate.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)));
 			}
@@ -2449,7 +2455,7 @@ QString HistoryInner::tooltipText() const {
 				return forwarded->_text.originalText(AllTextSelection, ExpandLinksNone);
 			}
 		}
-	} else if (ClickHandlerPtr lnk = ClickHandler::getActive()) {
+	} else if (auto lnk = ClickHandler::getActive()) {
 		return lnk->tooltip();
 	}
 	return QString();

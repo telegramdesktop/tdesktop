@@ -31,6 +31,7 @@ Instance::Instance() = default;
 
 void Instance::startOutgoingCall(gsl::not_null<UserData*> user) {
 	if (_currentCall) {
+		_currentCallPanel->showAndActivate();
 		return; // Already in a call.
 	}
 	createCall(user, Call::Type::Outgoing);

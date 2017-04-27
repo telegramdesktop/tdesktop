@@ -794,7 +794,7 @@ private:
 	DragState _attachDrag = DragStateNone;
 	object_ptr<DragArea> _attachDragDocument, _attachDragPhoto;
 
-	int32 _selCount; // < 0 - text selected, focus list, not _field
+	bool _nonEmptySelection = false;
 
 	TaskQueue _fileLoader;
 	TextUpdateEvents _textUpdateEvents = (TextUpdateEvent::SaveDraft | TextUpdateEvent::SendTyping);

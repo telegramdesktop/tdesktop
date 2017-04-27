@@ -580,7 +580,12 @@ void OverviewInner::onDragExec() {
 	QList<QUrl> urls;
 	bool forwardSelected = false;
 	if (uponSelected) {
-		forwardSelected = !_selected.isEmpty() && _selected.cbegin().value() == FullSelection && !Adaptive::OneColumn();
+		if (!Adaptive::OneColumn()) {
+			auto selectedState = getSelectionState();
+			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
+				forwardSelected = true;
+			}
+		}
 	} else if (pressedHandler) {
 		sel = pressedHandler->dragText();
 		//if (!sel.isEmpty() && sel.at(0) != '/' && sel.at(0) != '@' && sel.at(0) != '#') {
@@ -1176,8 +1181,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	}
 
-	int32 selectedForForward, selectedForDelete;
-	getSelectionState(selectedForForward, selectedForDelete);
+	auto selectedState = getSelectionState();
 
 	// -2 - has full selected items, but not over, 0 - no selection, 2 - over full selected items
 	int32 isUponSelected = 0, hasSelected = 0;
@@ -1223,8 +1227,10 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 		}
 		if (isUponSelected > 1) {
-			_menu->addAction(lang(lng_context_forward_selected), _overview, SLOT(onForwardSelected()));
-			if (selectedForDelete == selectedForForward) {
+			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
+				_menu->addAction(lang(lng_context_forward_selected), _overview, SLOT(onForwardSelected()));
+			}
+			if (selectedState.count > 0 && selectedState.count == selectedState.canDeleteCount) {
 				_menu->addAction(lang(lng_context_delete_selected), base::lambda_guarded(this, [this] {
 					_overview->confirmDeleteSelectedItems();
 				}));
@@ -1232,7 +1238,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_clear_selection), _overview, SLOT(onClearSelected()));
 		} else if (App::hoveredLinkItem()) {
 			if (isUponSelected != -2) {
-				if (App::hoveredLinkItem()->toHistoryMessage()) {
+				if (App::hoveredLinkItem()->canForward()) {
 					_menu->addAction(lang(lng_context_forward_msg), this, SLOT(forwardMessage()))->setEnabled(true);
 				}
 				if (App::hoveredLinkItem()->canDelete()) {
@@ -1256,8 +1262,10 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		_menu->addAction(lang(lng_context_to_msg), this, SLOT(goToMessage()))->setEnabled(true);
 		if (isUponSelected > 1) {
-			_menu->addAction(lang(lng_context_forward_selected), _overview, SLOT(onForwardSelected()));
-			if (selectedForDelete == selectedForForward) {
+			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
+				_menu->addAction(lang(lng_context_forward_selected), _overview, SLOT(onForwardSelected()));
+			}
+			if (selectedState.count > 0 && selectedState.count == selectedState.canDeleteCount) {
 				_menu->addAction(lang(lng_context_delete_selected), base::lambda_guarded(this, [this] {
 					_overview->confirmDeleteSelectedItems();
 				}));
@@ -1265,7 +1273,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_clear_selection), _overview, SLOT(onClearSelected()));
 		} else {
 			if (isUponSelected != -2) {
-				if (App::mousedItem()->toHistoryMessage()) {
+				if (App::mousedItem()->canForward()) {
 					_menu->addAction(lang(lng_context_forward_msg), this, SLOT(forwardMessage()))->setEnabled(true);
 				}
 				if (App::mousedItem()->canDelete()) {
@@ -1546,21 +1554,22 @@ void OverviewInner::onMenuDestroy(QObject *obj) {
 	}
 }
 
-void OverviewInner::getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const {
-	selectedForForward = selectedForDelete = 0;
-	for (SelectedItems::const_iterator i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
+Window::TopBarWidget::SelectedState OverviewInner::getSelectionState() const {
+	auto result = Window::TopBarWidget::SelectedState {};
+	for (auto i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
 		if (i.value() == FullSelection) {
-			if (HistoryItem *item = App::histItemById(itemChannel(i.key()), itemMsgId(i.key()))) {
+			if (auto item = App::histItemById(itemChannel(i.key()), itemMsgId(i.key()))) {
+				++result.count;
+				if (item->canForward()) {
+					++result.canForwardCount;
+				}
 				if (item->canDelete()) {
-					++selectedForDelete;
+					++result.canDeleteCount;
 				}
 			}
-			++selectedForForward;
 		}
 	}
-	if (!selectedForDelete && !selectedForForward && !_selected.isEmpty()) { // text selection
-		selectedForForward = -1;
-	}
+	return result;
 }
 
 void OverviewInner::clearSelectedItems(bool onlyTextSelection) {
@@ -2045,8 +2054,6 @@ MediaOverviewType OverviewWidget::type() const {
 }
 
 void OverviewWidget::switchType(MediaOverviewType type) {
-	_selCount = 0;
-
 	disconnect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 
 	_inner->setSelectMode(false);
@@ -2062,7 +2069,7 @@ void OverviewWidget::switchType(MediaOverviewType type) {
 	_header = _header.toUpper();
 
 	noSelectingScroll();
-	_topBar->showSelected(0);
+	_topBar->showSelected(Window::TopBarWidget::SelectedState {});
 	updateTopBarSelection();
 	scrollReset();
 
@@ -2086,12 +2093,10 @@ bool OverviewWidget::contentOverlapped(const QRect &globalRect) {
 }
 
 void OverviewWidget::updateTopBarSelection() {
-	int32 selectedForForward, selectedForDelete;
-	_inner->getSelectionState(selectedForForward, selectedForDelete);
-	_selCount = selectedForForward ? selectedForForward : selectedForDelete;
-	_inner->setSelectMode(_selCount > 0);
+	auto selectedState = _inner->getSelectionState();
+	_inner->setSelectMode(selectedState.count > 0);
 	if (App::main()) {
-		_topBar->showSelected(_selCount > 0 ? _selCount : 0, (selectedForDelete == selectedForForward));
+		_topBar->showSelected(selectedState);
 		_topBar->update();
 	}
 	if (App::wnd() && !Ui::isLayerShown()) {

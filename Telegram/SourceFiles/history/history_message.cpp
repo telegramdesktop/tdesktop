@@ -423,6 +423,25 @@ HistoryMessage::HistoryMessage(History *history, const MTPDmessage &msg)
 	setText(textWithEntities);
 }
 
+HistoryMessage::HistoryMessage(History *history, const MTPDmessageService &msg)
+	: HistoryItem(history, msg.vid.v, mtpCastFlags(msg.vflags.v), ::date(msg.vdate), msg.has_from_id() ? msg.vfrom_id.v : 0) {
+	CreateConfig config;
+
+	if (msg.has_reply_to_msg_id()) config.replyTo = msg.vreply_to_msg_id.v;
+
+	createComponents(config);
+
+	switch (msg.vaction.type()) {
+	case mtpc_messageActionPhoneCall: {
+		_media = std::make_unique<HistoryCall>(this, msg.vaction.c_messageActionPhoneCall());
+	} break;
+
+	default: Unexpected("Service message action type in HistoryMessage.");
+	}
+
+	setText(TextWithEntities {});
+}
+
 namespace {
 
 MTPDmessage::Flags newForwardedFlags(PeerData *p, int32 from, HistoryMessage *fwd) {
@@ -1972,44 +1991,6 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
-	auto preparePhoneCallText = [this](const MTPDmessageActionPhoneCall &action) {
-		auto result = PreparedText {};
-		auto timeText = date.toString(cTimeFormat());
-		auto duration = action.has_duration() ? qMax(action.vduration.v, 0) : 0;
-		auto durationText = ([duration]() -> QString {
-			if (!duration) {
-				return QString();
-			}
-			if (duration >= 60) {
-				auto minutes = duration / 60;
-				auto seconds = duration % 60;
-				return lng_duration_minutes_seconds(lt_count_minutes, minutes, lt_count_seconds, seconds);
-			}
-			return lng_duration_seconds(lt_count, duration);
-		})();
-		auto info = this->Get<HistoryMessageCallInfo>();
-		if (out()) {
-			if (info && info->reason == HistoryMessageCallInfo::Reason::Missed) {
-				result.text = lng_action_call_outgoing_missed(lt_time, timeText);
-			} else if (duration) {
-				result.text = lng_action_call_outgoing_duration(lt_duration, durationText, lt_time, timeText);
-			} else {
-				result.text = lng_action_call_outgoing(lt_time, timeText);
-			}
-		} else {
-			if (info && info->reason == HistoryMessageCallInfo::Reason::Missed) {
-				result.text = lng_action_call_incoming_missed(lt_time, timeText);
-			} else if (info && info->reason == HistoryMessageCallInfo::Reason::Busy) {
-				result.text = lng_action_call_incoming_declined(lt_time, timeText);
-			} else if (duration) {
-				result.text = lng_action_call_incoming_duration(lt_duration, durationText, lt_time, timeText);
-			} else {
-				result.text = lng_action_call_incoming(lt_time, timeText);
-			}
-		}
-		return result;
-	};
-
 	auto messageText = PreparedText {};
 
 	switch (action.type()) {
@@ -2026,7 +2007,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	case mtpc_messageActionChannelMigrateFrom: messageText.text = lang(lng_action_group_migrate); break;
 	case mtpc_messageActionPinMessage: messageText = preparePinnedText(); break;
 	case mtpc_messageActionGameScore: messageText = prepareGameScoreText(); break;
-	case mtpc_messageActionPhoneCall: messageText = preparePhoneCallText(action.c_messageActionPhoneCall()); break;
+	case mtpc_messageActionPhoneCall: Unexpected("PhoneCall type in HistoryService.");
 	case mtpc_messageActionPaymentSent: messageText = preparePaymentSentText(); break;
 	default: messageText.text = lang(lng_message_empty); break;
 	}
@@ -2438,22 +2419,6 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 		auto amount = message.vaction.c_messageActionPaymentSent().vtotal_amount.v;
 		auto currency = qs(message.vaction.c_messageActionPaymentSent().vcurrency);
 		Get<HistoryServicePayment>()->amount = HistoryInvoice::fillAmountAndCurrency(amount, currency);
-	} else if (message.vaction.type() == mtpc_messageActionPhoneCall) {
-		using Reason = HistoryMessageCallInfo::Reason;
-		auto &action = message.vaction.c_messageActionPhoneCall();
-		auto reason = ([&action] {
-			if (action.has_reason()) {
-				switch (action.vreason.type()) {
-				case mtpc_phoneCallDiscardReasonBusy: return Reason::Busy;
-				case mtpc_phoneCallDiscardReasonMissed: return Reason::Missed;
-				}
-			}
-			return Reason::None;
-		})();
-		if (reason != Reason::None) {
-			UpdateComponents(HistoryMessageCallInfo::Bit());
-			Get<HistoryMessageCallInfo>()->reason = reason;
-		}
 	}
 	if (message.has_reply_to_msg_id()) {
 		if (message.vaction.type() == mtpc_messageActionPinMessage) {

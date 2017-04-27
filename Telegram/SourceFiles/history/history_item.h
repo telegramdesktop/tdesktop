@@ -413,15 +413,6 @@ struct HistoryMessageUnreadBar : public RuntimeComponent<HistoryMessageUnreadBar
 
 };
 
-struct HistoryMessageCallInfo : public RuntimeComponent<HistoryMessageCallInfo> {
-	enum class Reason {
-		None,
-		Missed,
-		Busy,
-	};
-	Reason reason = Reason::None;
-};
-
 // HistoryMedia has a special owning smart pointer
 // which regs/unregs this media to the holding HistoryItem
 class HistoryMedia;
@@ -694,6 +685,7 @@ public:
 	}
 
 	bool canPin() const;
+	bool canForward() const;
 	bool canEdit(const QDateTime &cur) const;
 	bool canDelete() const;
 	bool canDeleteForEveryone(const QDateTime &cur) const;
@@ -974,6 +966,7 @@ public:
 		result->finishCreate();
 		return result;
 	}
+
 };
 
 ClickHandlerPtr goToMessageClickHandler(PeerData *peer, MsgId msgId);
