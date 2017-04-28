@@ -39,6 +39,10 @@ public:
 		return _currentCallChanged;
 	}
 
+	base::Observable<FullMsgId> &newServiceMessage() {
+		return _newServiceMessage;
+	}
+
 	~Instance();
 
 private:
@@ -61,6 +65,7 @@ private:
 	std::unique_ptr<Call> _currentCall;
 	std::unique_ptr<Panel> _currentCallPanel;
 	base::Observable<Call*> _currentCallChanged;
+	base::Observable<FullMsgId> _newServiceMessage;
 
 };
 

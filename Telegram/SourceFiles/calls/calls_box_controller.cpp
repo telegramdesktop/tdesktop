@@ -196,6 +196,11 @@ void BoxController::prepare() {
 			view()->refreshRows();
 		}
 	});
+	subscribe(Current().newServiceMessage(), [this](const FullMsgId &msgId) {
+		if (auto item = App::histItemById(msgId)) {
+			insertRow(item, InsertWay::Prepend);
+		}
+	});
 
 	view()->setTitle(lang(lng_call_box_title));
 	view()->addButton(lang(lng_close), [this] { view()->closeBox(); });

@@ -150,6 +150,6 @@ callReDial: IconButton {
 	iconPosition: point(-1px, -1px);
 
 	ripple: defaultRippleAnimation;
-	rippleAreaPosition: point(4px, 12px);
-	rippleAreaSize: 32px;
+	rippleAreaPosition: point(0px, 8px);
+	rippleAreaSize: 40px;
 }

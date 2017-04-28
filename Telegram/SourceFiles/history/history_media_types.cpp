@@ -2809,6 +2809,8 @@ HistoryCall::HistoryCall(HistoryItem *parent, const MTPDmessageActionPhoneCall &
 			_duration = 0;
 		}
 	}
+
+	Calls::Current().newServiceMessage().notify(_parent->fullId());
 }
 
 HistoryCall::FinishReason HistoryCall::GetReason(const MTPDmessageActionPhoneCall &call) {
