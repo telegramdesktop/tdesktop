@@ -55,12 +55,17 @@ private:
 	void callFinished(gsl::not_null<Call*> call) override;
 	void callFailed(gsl::not_null<Call*> call) override;
 	void createCall(gsl::not_null<UserData*> user, Call::Type type);
-	void refreshDhConfig();
 	void destroyCall(gsl::not_null<Call*> call);
+
+	void refreshDhConfig();
+	void refreshServerConfig();
 
 	void handleCallUpdate(const MTPPhoneCall &call);
 
 	DhConfig _dhConfig;
+
+	TimeMs _lastServerConfigUpdateTime = 0;
+	mtpRequestId _serverConfigRequestId = 0;
 
 	std::unique_ptr<Call> _currentCall;
 	std::unique_ptr<Panel> _currentCallPanel;

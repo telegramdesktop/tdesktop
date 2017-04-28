@@ -26,6 +26,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "calls/calls_panel.h"
 
 namespace Calls {
+namespace {
+
+constexpr auto kServerConfigUpdateTimeoutMs = 24 * 3600 * TimeMs(1000);
+
+} // namespace
 
 Instance::Instance() = default;
 
@@ -57,6 +62,7 @@ void Instance::createCall(gsl::not_null<UserData*> user, Call::Type type) {
 	_currentCall = std::make_unique<Call>(getCallDelegate(), user, type);
 	_currentCallPanel = std::make_unique<Panel>(_currentCall.get());
 	_currentCallChanged.notify(_currentCall.get(), true);
+	refreshServerConfig();
 	refreshDhConfig();
 }
 
@@ -105,7 +111,69 @@ void Instance::refreshDhConfig() {
 		}
 		callFailed(call.get());
 	}).send();
+}
 
+void Instance::refreshServerConfig() {
+	if (_serverConfigRequestId) {
+		return;
+	}
+	if (_lastServerConfigUpdateTime && (getms(true) - _lastServerConfigUpdateTime) < kServerConfigUpdateTimeoutMs) {
+		return;
+	}
+	_serverConfigRequestId = request(MTPphone_GetCallConfig()).done([this](const MTPDataJSON &result) {
+		_serverConfigRequestId = 0;
+		_lastServerConfigUpdateTime = getms(true);
+
+		auto configUpdate = std::map<std::string, std::string>();
+		auto bytes = bytesFromMTP(result.c_dataJSON().vdata);
+		auto error = QJsonParseError { 0, QJsonParseError::NoError };
+		auto document = QJsonDocument::fromJson(QByteArray::fromRawData(reinterpret_cast<const char*>(bytes.data()), bytes.size()), &error);
+		if (error.error != QJsonParseError::NoError) {
+			LOG(("API Error: Faild to parse call config JSON, error: %1").arg(error.errorString()));
+			return;
+		} else if (!document.isObject()) {
+			LOG(("API Error: Not an object received in call config JSON."));
+			return;
+		}
+
+		auto parseValue = [](QJsonValueRef data) -> std::string {
+			switch (data.type()) {
+			case QJsonValue::String: return data.toString().toStdString();
+			case QJsonValue::Double: return QString::number(data.toDouble(), 'f').toStdString();
+			case QJsonValue::Bool: return data.toBool() ? "true" : "false";
+			case QJsonValue::Null: {
+				LOG(("API Warning: null field in call config JSON."));
+			} return "null";
+			case QJsonValue::Undefined: {
+				LOG(("API Warning: undefined field in call config JSON."));
+			} return "undefined";
+			case QJsonValue::Object:
+			case QJsonValue::Array: {
+				LOG(("API Warning: complex field in call config JSON."));
+				QJsonDocument serializer;
+				if (data.isArray()) {
+					serializer.setArray(data.toArray());
+				} else {
+					serializer.setObject(data.toObject());
+				}
+				auto byteArray = serializer.toJson(QJsonDocument::Compact);
+				return std::string(byteArray.constData(), byteArray.size());
+			} break;
+			}
+			Unexpected("Type in Json parse.");
+		};
+
+		auto object = document.object();
+		for (auto i = object.begin(), e = object.end(); i != e; ++i) {
+			auto key = i.key().toStdString();
+			auto value = parseValue(i.value());
+			configUpdate[key] = value;
+		}
+
+		UpdateConfig(configUpdate);
+	}).fail([this](const RPCError &error) {
+		_serverConfigRequestId = 0;
+	}).send();
 }
 
 void Instance::handleUpdate(const MTPDupdatePhoneCall& update) {

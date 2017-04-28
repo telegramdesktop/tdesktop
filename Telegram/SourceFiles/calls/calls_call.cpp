@@ -530,4 +530,8 @@ Call::~Call() {
 	}
 }
 
+void UpdateConfig(const std::map<std::string, std::string> &data) {
+	tgvoip::ServerConfig::GetSharedInstance()->Update(data);
+}
+
 } // namespace Calls

@@ -152,4 +152,6 @@ private:
 
 };
 
+void UpdateConfig(const std::map<std::string, std::string> &data);
+
 } // namespace Calls
