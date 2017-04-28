@@ -508,6 +508,18 @@ public:
 	}
 	void setBlockStatus(BlockStatus blockStatus);
 
+	enum class CallsStatus {
+		Unknown,
+		Enabled,
+		Disabled,
+		Private,
+	};
+	CallsStatus callsStatus() const {
+		return _callsStatus;
+	}
+	bool hasCalls() const;
+	void setCallsStatus(CallsStatus callsStatus);
+
 	typedef QList<PhotoData*> Photos;
 	Photos photos;
 	int photosCount = -1; // -1 not loaded, 0 all loaded
@@ -536,6 +548,7 @@ private:
 	QString _about;
 	QString _phone;
 	BlockStatus _blockStatus = BlockStatus::Unknown;
+	CallsStatus _callsStatus = CallsStatus::Unknown;
 	int _commonChatsCount = 0;
 
 	static constexpr const uint64 NoAccess = 0xFFFFFFFFFFFFFFFFULL;

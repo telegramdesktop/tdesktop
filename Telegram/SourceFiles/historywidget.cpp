@@ -2916,7 +2916,7 @@ void HistoryWidget::showAnimated(Window::SlideDirection direction, const Window:
 
 	_cacheUnder = params.oldContentCache;
 	show();
-	_topBar->showAll();
+	_topBar->updateControlsVisibility();
 	historyDownAnimationFinish();
 	_topShadow->setVisible(params.withTopBarShadow ? false : true);
 	_cacheOver = App::main()->grabForShowAnimation(params);
@@ -5760,7 +5760,7 @@ void HistoryWidget::peerUpdated(PeerData *data) {
 		if (App::api()) {
 			if (data->isChat() && data->asChat()->noParticipantInfo()) {
 				App::api()->requestFullPeer(data);
-			} else if (data->isUser() && data->asUser()->blockStatus() == UserData::BlockStatus::Unknown) {
+			} else if (data->isUser() && (data->asUser()->blockStatus() == UserData::BlockStatus::Unknown || data->asUser()->callsStatus() == UserData::CallsStatus::Unknown)) {
 				App::api()->requestFullPeer(data);
 			} else if (data->isMegagroup() && !data->asChannel()->mgInfo->botStatus) {
 				App::api()->requestBots(data->asChannel());

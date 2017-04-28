@@ -402,6 +402,11 @@ void Messenger::startLocalStorage() {
 			}
 		}
 	});
+	subscribe(authSessionChanged(), [this] {
+		if (_mtproto) {
+			_mtproto->configLoadRequest();
+		}
+	});
 }
 
 void Messenger::regPhotoUpdate(const PeerId &peer, const FullMsgId &msgId) {

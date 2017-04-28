@@ -4893,6 +4893,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		Messenger::Instance().dcOptions()->addFromList(d.vdc_options);
 	} break;
 
+	case mtpc_updateConfig: {
+		Messenger::Instance().mtp()->configLoadRequest();
+	} break;
+
 	case mtpc_updateUserPhone: {
 		auto &d = update.c_updateUserPhone();
 		if (auto user = App::userLoaded(d.vuser_id.v)) {

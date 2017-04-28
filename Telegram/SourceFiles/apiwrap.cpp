@@ -362,6 +362,7 @@ void ApiWrap::gotUserFull(UserData *user, const MTPUserFull &result, mtpRequestI
 		user->setBotInfoVersion(-1);
 	}
 	user->setBlockStatus(d.is_blocked() ? UserData::BlockStatus::Blocked : UserData::BlockStatus::NotBlocked);
+	user->setCallsStatus(d.is_phone_calls_private() ? UserData::CallsStatus::Private : d.is_phone_calls_available() ? UserData::CallsStatus::Enabled : UserData::CallsStatus::Disabled);
 	user->setAbout(d.has_about() ? qs(d.vabout) : QString());
 	user->setCommonChatsCount(d.vcommon_chats_count.v);
 

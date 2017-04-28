@@ -49,6 +49,7 @@ private:
 	void checkSelf();
 	void updateControlsGeometry();
 	void updatePhone();
+	void refreshMenu();
 
 	object_ptr<Profile::UserpicButton> _userpicButton = { nullptr };
 	object_ptr<Ui::IconButton> _cloudButton = { nullptr };

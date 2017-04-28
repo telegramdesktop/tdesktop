@@ -46,7 +46,7 @@ public:
 		int canForwardCount = 0;
 	};
 
-	void showAll();
+	void updateControlsVisibility();
 	void showSelected(SelectedState state);
 	void animationFinished();
 	void updateMembersShowArea();

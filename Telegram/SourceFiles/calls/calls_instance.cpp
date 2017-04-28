@@ -197,6 +197,8 @@ void Instance::handleCallUpdate(const MTPPhoneCall &call) {
 		}
 		if (_currentCall || !user || user->isSelf()) {
 			request(MTPphone_DiscardCall(MTP_inputPhoneCall(phoneCall.vid, phoneCall.vaccess_hash), MTP_int(0), MTP_phoneCallDiscardReasonBusy(), MTP_long(0))).send();
+		} else if (phoneCall.vdate.v + Global::CallRingTimeoutMs() / 1000 < unixtime()) {
+			LOG(("Ignoring too old call."));
 		} else {
 			createCall(user, Call::Type::Incoming);
 			_currentCall->handleUpdate(call);

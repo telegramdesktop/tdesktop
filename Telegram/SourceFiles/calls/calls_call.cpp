@@ -44,9 +44,7 @@ namespace {
 
 constexpr auto kMinLayer = 65;
 constexpr auto kMaxLayer = 65; // MTP::CurrentLayer?
-constexpr auto kHangupTimeoutMs = 5000; // TODO read from server config
-constexpr auto kReceiveTimeoutMs = 5000; // TODO read from server config call_receive_timeout_ms
-constexpr auto kRingTimeoutMs = 5000; // TODO read from server config call_ring_timeout_ms
+constexpr auto kHangupTimeoutMs = 5000;
 
 using tgvoip::Endpoint;
 
@@ -80,6 +78,7 @@ Call::Call(gsl::not_null<Delegate*> delegate, gsl::not_null<UserData*> user, Typ
 , _type(type) {
 	if (_type == Type::Outgoing) {
 		setState(State::Requesting);
+		_discardByTimeoutTimer.setCallback([this] { hangup(); });
 	}
 }
 
@@ -132,10 +131,12 @@ void Call::startOutgoing() {
 		}
 
 		setState(State::Waiting);
+
 		if (_finishAfterRequestingCall) {
 			hangup();
 			return;
 		}
+		_discardByTimeoutTimer.callOnce(Global::CallReceiveTimeoutMs());
 
 		auto &phoneCall = call.vphone_call.c_phoneCallWaiting();
 		_id = phoneCall.vid.v;
@@ -228,7 +229,6 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			LOG(("Call Error: Wrong call participant_id %1, expected %2.").arg(data.vparticipant_id.v).arg(AuthSession::CurrentUserId()));
 			setState(State::Failed);
 			return true;
-
 		}
 		_id = data.vid.v;
 		_accessHash = data.vaccess_hash.v;
@@ -257,6 +257,7 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			return false;
 		}
 		if (_state == State::Waiting && data.vreceive_date.v != 0) {
+			_discardByTimeoutTimer.callOnce(Global::CallRingTimeoutMs());
 			setState(State::Ringing);
 		}
 	} return true;
@@ -362,6 +363,7 @@ void Call::startConfirmedCall(const MTPDphoneCall &call) {
 }
 
 void Call::createAndStartController(const MTPDphoneCall &call) {
+	_discardByTimeoutTimer.cancel();
 	if (!checkCallFields(call)) {
 		return;
 	}
@@ -371,8 +373,8 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	config.enableAEC = true;
 	config.enableNS = true;
 	config.enableAGC = true;
-	config.init_timeout = 30;
-	config.recv_timeout = 10;
+	config.init_timeout = Global::CallConnectTimeoutMs() / 1000;
+	config.recv_timeout = Global::CallPacketTimeoutMs() / 1000;
 
 	std::vector<Endpoint> endpoints;
 	ConvertEndpoint(endpoints, call.vconnection.c_phoneConnection());
@@ -492,7 +494,7 @@ void Call::setState(State state) {
 
 void Call::finish(const MTPPhoneCallDiscardReason &reason) {
 	if (_state == State::Requesting) {
-		_hangupByTimeoutTimer.call(kHangupTimeoutMs, [this] { setState(State::Ended); });
+		_finishByTimeoutTimer.call(kHangupTimeoutMs, [this] { setState(State::Ended); });
 		_finishAfterRequestingCall = true;
 		return;
 	}
@@ -507,7 +509,7 @@ void Call::finish(const MTPPhoneCallDiscardReason &reason) {
 	setState(State::HangingUp);
 	auto duration = getDurationMs() / 1000;
 	auto connectionId = _controller ? _controller->GetPreferredRelayID() : 0;
-	_hangupByTimeoutTimer.call(kHangupTimeoutMs, [this] { setState(State::Ended); });
+	_finishByTimeoutTimer.call(kHangupTimeoutMs, [this] { setState(State::Ended); });
 	request(MTPphone_DiscardCall(MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)), MTP_int(duration), reason, MTP_long(connectionId))).done([this](const MTPUpdates &result) {
 		// This could be destroyed by updates, so we set Ended after
 		// updates being handled, but in a guarded way.

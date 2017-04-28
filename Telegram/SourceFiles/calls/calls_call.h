@@ -132,7 +132,9 @@ private:
 	bool _finishAfterRequestingCall = false;
 	base::Observable<State> _stateChanged;
 	TimeMs _startTime = 0;
-	base::DelayedCallTimer _hangupByTimeoutTimer;
+	base::DelayedCallTimer _finishByTimeoutTimer;
+	base::Timer _discardByTimeoutTimer;
+
 	bool _mute = false;
 	base::Observable<bool> _muteChanged;
 

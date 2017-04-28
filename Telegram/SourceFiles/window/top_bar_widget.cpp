@@ -33,6 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_layout.h"
 #include "window/window_controller.h"
 #include "calls/calls_instance.h"
+#include "observer_peer.h"
 
 namespace Window {
 
@@ -77,9 +78,15 @@ TopBarWidget::TopBarWidget(QWidget *parent, gsl::not_null<Window::Controller*> c
 			rtlupdate(0, 0, width(), height());
 		}
 	});
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserHasCalls, [this](const Notify::PeerUpdate &update) {
+		if (update.peer->isUser()) {
+			updateControlsVisibility();
+		}
+	}));
+	subscribe(Global::RefPhoneCallsEnabledChanged(), [this] { updateControlsVisibility(); });
 
 	setCursor(style::cur_pointer);
-	showAll();
+	updateControlsVisibility();
 }
 
 void TopBarWidget::onForwardSelection() {
@@ -95,7 +102,7 @@ void TopBarWidget::onClearSelection() {
 }
 
 void TopBarWidget::onInfoClicked() {
-	PeerData *p = App::main() ? App::main()->historyPeer() : 0;
+	auto p = App::main() ? App::main()->historyPeer() : nullptr;
 	if (p) Ui::showPeerProfile(p);
 }
 
@@ -190,11 +197,11 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 		if (!_menuToggle->isHidden()) {
 			decreaseWidth += _menuToggle->width();
 		}
-		if (!_call->isHidden()) {
-			decreaseWidth += _call->width();
-		}
 		if (!_search->isHidden()) {
 			decreaseWidth += _search->width();
+		}
+		if (!_call->isHidden()) {
+			decreaseWidth += _call->width();
 		}
 		auto paintCounter = App::main()->paintTopBar(p, decreaseWidth, ms);
 		p.restore();
@@ -279,17 +286,17 @@ void TopBarWidget::updateControlsGeometry() {
 	} else {
 		right += _info->width();
 	}
-	_call->moveToRight(right, otherButtonsTop);
-	if (!_call->isHidden()) right += _call->width();
 	_search->moveToRight(right, otherButtonsTop);
+	right += _search->width();
+	_call->moveToRight(right, otherButtonsTop);
 }
 
 void TopBarWidget::animationFinished() {
 	updateMembersShowArea();
-	showAll();
+	updateControlsVisibility();
 }
 
-void TopBarWidget::showAll() {
+void TopBarWidget::updateControlsVisibility() {
 	auto historyPeer = App::main() ? App::main()->historyPeer() : nullptr;
 	auto overviewPeer = App::main() ? App::main()->overviewPeer() : nullptr;
 
@@ -309,7 +316,11 @@ void TopBarWidget::showAll() {
 			_menuToggle->show();
 		}
 		_search->show();
-		_call->setVisible(historyPeer->isUser());
+		auto callsEnabled = false;
+		if (auto user = historyPeer->asUser()) {
+			callsEnabled = Global::PhoneCallsEnabled() && user->hasCalls();
+		}
+		_call->setVisible(callsEnabled);
 	} else {
 		_search->hide();
 		_call->hide();
@@ -377,7 +388,7 @@ void TopBarWidget::showSelected(SelectedState state) {
 	if (_canDelete != canDelete || _canForward != canForward) {
 		_canDelete = canDelete;
 		_canForward = canForward;
-		showAll();
+		updateControlsVisibility();
 	}
 	if (wasSelected != hasSelected) {
 		setCursor(hasSelected ? style::cur_default : style::cur_pointer);
@@ -396,7 +407,7 @@ void TopBarWidget::selectedShowCallback() {
 
 void TopBarWidget::updateAdaptiveLayout() {
 	updateMembersShowArea();
-	showAll();
+	updateControlsVisibility();
 	if (!Adaptive::OneColumn()) {
 		unsubscribe(base::take(_unreadCounterSubscription));
 	} else if (!_unreadCounterSubscription) {

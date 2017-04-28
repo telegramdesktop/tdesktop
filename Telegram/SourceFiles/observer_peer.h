@@ -59,6 +59,7 @@ struct PeerUpdate {
 		UserOnlineChanged      = 0x00200000U,
 		BotCanAddToGroups      = 0x00400000U,
 		UserCommonChatsChanged = 0x00800000U,
+		UserHasCalls           = 0x01000000U,
 
 		// For chats
 		ChatCanEdit            = 0x00010000U,

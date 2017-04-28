@@ -2149,7 +2149,7 @@ void OverviewWidget::showAnimated(Window::SlideDirection direction, const Window
 
 	_cacheUnder = params.oldContentCache;
 	show();
-	_topBar->showAll();
+	_topBar->updateControlsVisibility();
 	_topShadow->setVisible(params.withTopBarShadow ? false : true);
 	_cacheOver = App::main()->grabForShowAnimation(params);
 	_topShadow->setVisible(params.withTopBarShadow ? true : false);

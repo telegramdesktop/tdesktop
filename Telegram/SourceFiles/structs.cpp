@@ -578,6 +578,17 @@ void UserData::setBlockStatus(BlockStatus blockStatus) {
 	}
 }
 
+void UserData::setCallsStatus(CallsStatus callsStatus) {
+	if (callsStatus != _callsStatus) {
+		_callsStatus = callsStatus;
+		Notify::peerUpdatedDelayed(this, UpdateFlag::UserHasCalls);
+	}
+}
+
+bool UserData::hasCalls() const {
+	return (callsStatus() != CallsStatus::Disabled) && (callsStatus() != CallsStatus::Unknown);
+}
+
 void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Local::readPeer as well
 	PhotoId newPhotoId = photoId;
 	ImagePtr newPhoto = _userpic;
