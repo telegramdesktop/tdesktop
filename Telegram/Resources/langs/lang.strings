@@ -408,6 +408,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_settings_blocked_users" = "Blocked users";
 "lng_settings_last_seen_privacy" = "Last seen privacy";
+"lng_settings_calls_privacy" = "Phone calls privacy";
 "lng_settings_groups_invite_privacy" = "Group invite settings";
 "lng_settings_show_sessions" = "Show all sessions";
 "lng_settings_self_destruct" = "Account self-destruct settings";
@@ -467,6 +468,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_privacy_groups_exceptions" = "These users will or will not be able to add you to groups and channels regardless of the settings above.";
 "lng_edit_privacy_groups_always_title" = "Always allow";
 "lng_edit_privacy_groups_never_title" = "Never allow";
+
+"lng_edit_privacy_calls_title" = "Phone calls privacy";
+"lng_edit_privacy_calls_description" = "You can restrict who can call you:";
+"lng_edit_privacy_calls_always" = "Always allow{count:| # user| # users}";
+"lng_edit_privacy_calls_never" = "Never allow{count:| # user| # users}";
+"lng_edit_privacy_calls_exceptions" = "These users will or will not be able to call you regardless of the settings above.";
+"lng_edit_privacy_calls_always_title" = "Always allow";
+"lng_edit_privacy_calls_never_title" = "Never allow";
 
 "lng_self_destruct_title" = "Account self-destruction";
 "lng_self_destruct_description" = "If you don't come online at least once within this period, your account will be deleted along with all groups, messages and contacts.";

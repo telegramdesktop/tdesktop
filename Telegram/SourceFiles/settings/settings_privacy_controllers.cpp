@@ -308,4 +308,36 @@ QString GroupsInvitePrivacyController::exceptionsDescription() {
 	return lang(lng_edit_privacy_groups_exceptions);
 }
 
+MTPInputPrivacyKey CallsPrivacyController::key() {
+	return MTP_inputPrivacyKeyPhoneCall();
+}
+
+QString CallsPrivacyController::title() {
+	return lang(lng_edit_privacy_calls_title);
+}
+
+QString CallsPrivacyController::description() {
+	return lang(lng_edit_privacy_calls_description);
+}
+
+QString CallsPrivacyController::exceptionLinkText(Exception exception, int count) {
+	switch (exception) {
+	case Exception::Always: return lng_edit_privacy_calls_always(lt_count, count);
+	case Exception::Never: return lng_edit_privacy_calls_never(lt_count, count);
+	}
+	Unexpected("Invalid exception value.");
+}
+
+QString CallsPrivacyController::exceptionBoxTitle(Exception exception) {
+	switch (exception) {
+	case Exception::Always: return lang(lng_edit_privacy_calls_always_title);
+	case Exception::Never: return lang(lng_edit_privacy_calls_never_title);
+	}
+	Unexpected("Invalid exception value.");
+}
+
+QString CallsPrivacyController::exceptionsDescription() {
+	return lang(lng_edit_privacy_calls_exceptions);
+}
+
 } // namespace Settings
