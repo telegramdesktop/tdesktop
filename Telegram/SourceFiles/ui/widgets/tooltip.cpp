@@ -24,6 +24,14 @@ namespace Ui {
 
 Tooltip *TooltipInstance = nullptr;
 
+bool AbstractTooltipShower::tooltipWindowActive() const {
+	if (auto window = App::wnd()) {
+		window->updateIsActive(0);
+		return window->isActive();
+	}
+	return false;
+}
+
 const style::Tooltip *AbstractTooltipShower::tooltipSt() const {
 	return &st::defaultTooltip;
 }
@@ -49,13 +57,7 @@ Tooltip::Tooltip() : TWidget(nullptr) {
 
 void Tooltip::onShow() {
 	if (_shower) {
-		auto text = QString();
-		if (auto window = App::wnd()) {
-			window->updateIsActive(0);
-			if (window->isActive()) {
-				text = _shower->tooltipText();
-			}
-		}
+		auto text = _shower->tooltipWindowActive() ? _shower->tooltipText() : QString();
 		if (text.isEmpty()) {
 			Hide();
 		} else {

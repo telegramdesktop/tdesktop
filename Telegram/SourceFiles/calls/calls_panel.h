@@ -21,8 +21,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "base/weak_unique_ptr.h"
-#include "calls/calls_call.h"
 #include "base/timer.h"
+#include "calls/calls_call.h"
+#include "ui/widgets/tooltip.h"
 
 namespace Ui {
 class IconButton;
@@ -31,7 +32,7 @@ class FlatLabel;
 
 namespace Calls {
 
-class Panel : public TWidget, private base::Subscriber {
+class Panel : public TWidget, private base::Subscriber, private Ui::AbstractTooltipShower {
 public:
 	Panel(gsl::not_null<Call*> call);
 
@@ -43,11 +44,18 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
+	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	bool event(QEvent *e) override;
 
 private:
 	using State = Call::State;
 	using Type = Call::Type;
+
+	// AbstractTooltipShower interface
+	QString tooltipText() const override;
+	QPoint tooltipPos() const override;
+	bool tooltipWindowActive() const override;
 
 	void initControls();
 	void initLayout();
@@ -68,6 +76,7 @@ private:
 	void stateChanged(State state);
 	void updateStatusText(State state);
 	void startDurationUpdateTimer(TimeMs currentDuration);
+	void fillFingerprint();
 
 	base::weak_unique_ptr<Call> _call;
 	gsl::not_null<UserData*> _user;
@@ -90,6 +99,7 @@ private:
 	object_ptr<Ui::FlatLabel> _name;
 	object_ptr<Ui::FlatLabel> _status;
 	std::vector<EmojiPtr> _fingerprint;
+	QRect _fingerprintArea;
 
 	base::Timer _updateDurationTimer;
 

@@ -27,8 +27,10 @@ class AbstractTooltipShower {
 public:
 	virtual QString tooltipText() const = 0;
 	virtual QPoint tooltipPos() const = 0;
+	virtual bool tooltipWindowActive() const;
 	virtual const style::Tooltip *tooltipSt() const;
 	virtual ~AbstractTooltipShower();
+
 };
 
 class Tooltip : public TWidget {

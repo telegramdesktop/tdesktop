@@ -35,6 +35,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "platform/platform_specific.h"
 
 namespace Calls {
+namespace {
+
+constexpr auto kTooltipShowTimeoutMs = 1000;
+
+} // namespace
 
 class Panel::Button : public Ui::RippleButton {
 public:
@@ -105,6 +110,7 @@ Panel::Panel(gsl::not_null<Call*> call)
 , _mute(this, st::callMuteToggle)
 , _name(this, st::callName)
 , _status(this, st::callStatus) {
+	setMouseTracking(true);
 	initControls();
 	initLayout();
 	showAndActivate();
@@ -358,14 +364,12 @@ void Panel::paintEvent(QPaintEvent *e) {
 	}
 
 	if (!_fingerprint.empty()) {
+		App::roundRect(p, _fingerprintArea, st::callFingerprintBg, ImageRoundRadius::Small);
+
 		auto realSize = Ui::Emoji::Size(Ui::Emoji::Index() + 1);
 		auto size = realSize / cIntRetinaFactor();
-		auto count = _fingerprint.size();
-		auto rectWidth = count * size + (count - 1) * st::callFingerprintSkip;
-		auto rectHeight = size;
-		auto left = (width() - rectWidth) / 2;
-		auto top = _contentTop - st::callFingerprintBottom - st::callFingerprintPadding.bottom() - size;
-		App::roundRect(p, QRect(left, top, rectWidth, rectHeight).marginsAdded(st::callFingerprintPadding), st::callFingerprintBg, ImageRoundRadius::Small);
+		auto left = _fingerprintArea.left() + st::callFingerprintPadding.left();
+		auto top = _fingerprintArea.top() + st::callFingerprintPadding.top();
 		for (auto emoji : _fingerprint) {
 			p.drawPixmap(QPoint(left, top), App::emojiLarge(), QRect(emoji->x() * realSize, emoji->y() * realSize, realSize, realSize));
 			left += st::callFingerprintSkip + size;
@@ -384,11 +388,16 @@ void Panel::mousePressEvent(QMouseEvent *e) {
 
 void Panel::mouseMoveEvent(QMouseEvent *e) {
 	if (_dragging) {
+		Ui::Tooltip::Hide();
 		if (!(e->buttons() & Qt::LeftButton)) {
 			_dragging = false;
 		} else {
 			move(_dragStartMyPosition + (e->globalPos() - _dragStartMousePosition));
 		}
+	} else if (_fingerprintArea.contains(e->pos())) {
+		Ui::Tooltip::Show(kTooltipShowTimeoutMs, this);
+	} else {
+		Ui::Tooltip::Hide();
 	}
 }
 
@@ -396,6 +405,26 @@ void Panel::mouseReleaseEvent(QMouseEvent *e) {
 	if (e->button() == Qt::LeftButton) {
 		_dragging = false;
 	}
+}
+
+void Panel::leaveEventHook(QEvent *e) {
+	Ui::Tooltip::Hide();
+}
+
+void Panel::leaveToChildEvent(QEvent *e, QWidget *child) {
+	Ui::Tooltip::Hide();
+}
+
+QString Panel::tooltipText() const {
+	return lng_call_fingerprint_tooltip(lt_user, App::peerName(_user));
+}
+
+QPoint Panel::tooltipPos() const {
+	return QCursor::pos();
+}
+
+bool Panel::tooltipWindowActive() const {
+	return !isHidden();
 }
 
 void Panel::stateChanged(State state) {
@@ -425,12 +454,26 @@ void Panel::stateChanged(State state) {
 	}
 
 	if (_fingerprint.empty() && _call && _call->isKeyShaForFingerprintReady()) {
-		_fingerprint = ComputeEmojiFingerprint(_call.get());
-		update();
+		fillFingerprint();
 	}
 	if (state == State::Established && !isActiveWindow()) {
 		hideDeactivated();
 	}
+}
+
+void Panel::fillFingerprint() {
+	_fingerprint = ComputeEmojiFingerprint(_call.get());
+
+	auto realSize = Ui::Emoji::Size(Ui::Emoji::Index() + 1);
+	auto size = realSize / cIntRetinaFactor();
+	auto count = _fingerprint.size();
+	auto rectWidth = count * size + (count - 1) * st::callFingerprintSkip;
+	auto rectHeight = size;
+	auto left = (width() - rectWidth) / 2;
+	auto top = _contentTop - st::callFingerprintBottom - st::callFingerprintPadding.bottom() - size;
+	_fingerprintArea = QRect(left, top, rectWidth, rectHeight).marginsAdded(st::callFingerprintPadding);
+
+	update();
 }
 
 void Panel::updateStatusText(State state) {
