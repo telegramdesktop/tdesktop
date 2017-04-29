@@ -234,7 +234,6 @@ namespace App {
 	};
 	void quit();
 	bool quitting();
-	void allDraftsSaved();
 	LaunchState launchState();
 	void setLaunchState(LaunchState state);
 	void restart();

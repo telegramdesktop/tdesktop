@@ -43,6 +43,8 @@ public:
 		return _newServiceMessage;
 	}
 
+	bool isQuitPrevent();
+
 	~Instance();
 
 private:

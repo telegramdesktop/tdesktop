@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "calls/calls_instance.h"
 
 #include "mtproto/connection.h"
+#include "messenger.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "lang.h"
@@ -70,6 +71,11 @@ void Instance::destroyCall(gsl::not_null<Call*> call) {
 		_currentCallPanel.reset();
 		_currentCall.reset();
 		_currentCallChanged.notify(nullptr, true);
+
+		if (App::quitting()) {
+			LOG(("Calls::Instance doesn't prevent quit any more."));
+		}
+		Messenger::Instance().quitPreventFinished();
 	}
 }
 
@@ -199,6 +205,18 @@ void Instance::showInfoPanel(gsl::not_null<Call*> call) {
 	if (_currentCall.get() == call) {
 		_currentCallPanel->showAndActivate();
 	}
+}
+
+bool Instance::isQuitPrevent() {
+	if (!_currentCall) {
+		return false;
+	}
+	_currentCall->hangup();
+	if (!_currentCall) {
+		return false;
+	}
+	LOG(("Calls::Instance prevents quit, saving drafts..."));
+	return true;
 }
 
 void Instance::handleCallUpdate(const MTPPhoneCall &call) {

@@ -22,6 +22,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "base/observer.h"
 
+namespace App {
+void quit();
+} // namespace App
+
 namespace MTP {
 class DcOptions;
 class Instance;
@@ -120,6 +124,8 @@ public:
 		return _passcodedChanged;
 	}
 
+	void quitPreventFinished();
+
 	void handleAppActivated();
 	void handleAppDeactivated();
 
@@ -148,6 +154,10 @@ private:
 	void destroyMtpKeys(MTP::AuthKeysList &&keys);
 	void startLocalStorage();
 	void loadLanguage();
+
+	friend void App::quit();
+	static void QuitAttempt();
+	void quitDelayed();
 
 	QMap<FullMsgId, PeerId> photoUpdates;
 

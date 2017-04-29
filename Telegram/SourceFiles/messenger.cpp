@@ -20,12 +20,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "messenger.h"
 
+#include "base/timer.h"
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"
 #include "mainwindow.h"
 #include "application.h"
 #include "shortcuts.h"
 #include "auth_session.h"
+#include "apiwrap.h"
+#include "calls/calls_instance.h"
 #include "langloaderplain.h"
 #include "observer_peer.h"
 #include "storage/file_upload.h"
@@ -42,6 +45,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace {
 
+constexpr auto kQuitPreventTimeoutMs = 1500;
+
 Messenger *SingleInstance = nullptr;
 
 } // namespace
@@ -55,6 +60,7 @@ struct Messenger::Private {
 	std::unique_ptr<Local::StoredAuthSession> storedAuthSession;
 	MTP::Instance::Config mtpConfig;
 	MTP::AuthKeysList mtpKeysToDestroy;
+	base::Timer quitTimer;
 };
 
 Messenger::Messenger() : QObject()
@@ -790,4 +796,34 @@ QPoint Messenger::getPointForCallPanelCenter() const {
 		return _window->geometry().center();
 	}
 	return _window->windowHandle()->screen()->geometry().center();
+}
+
+void Messenger::QuitAttempt() {
+	auto prevents = false;
+	if (!Sandbox::isSavingSession() && AuthSession::Exists()) {
+		if (AuthSession::Current().api().isQuitPrevent()) {
+			prevents = true;
+		}
+		if (AuthSession::Current().calls().isQuitPrevent()) {
+			prevents = true;
+		}
+	}
+	if (prevents) {
+		Instance().quitDelayed();
+	} else {
+		QCoreApplication::quit();
+	}
+}
+
+void Messenger::quitPreventFinished() {
+	if (App::quitting()) {
+		QuitAttempt();
+	}
+}
+
+void Messenger::quitDelayed() {
+	if (!_private->quitTimer.isActive()) {
+		_private->quitTimer.setCallback([] { QCoreApplication::quit(); });
+		_private->quitTimer.callOnce(kQuitPreventTimeoutMs);
+	}
 }
