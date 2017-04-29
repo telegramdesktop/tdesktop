@@ -44,6 +44,7 @@ public:
 		virtual DhConfig getDhConfig() const = 0;
 		virtual void callFinished(gsl::not_null<Call*> call) = 0;
 		virtual void callFailed(gsl::not_null<Call*> call) = 0;
+		virtual void callRedial(gsl::not_null<Call*> call) = 0;
 
 	};
 
@@ -100,6 +101,7 @@ public:
 
 	void answer();
 	void hangup();
+	void redial();
 
 	bool isKeyShaForFingerprintReady() const;
 	std::array<gsl::byte, kSha256Size> getKeyShaForFingerprint() const;
@@ -127,6 +129,7 @@ private:
 	void setState(State state);
 	void setStateQueued(State state);
 	void setFailedQueued(int error);
+	void destroyController();
 
 	gsl::not_null<Delegate*> _delegate;
 	gsl::not_null<UserData*> _user;

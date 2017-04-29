@@ -71,6 +71,12 @@ void Panel::Button::paintEvent(QPaintEvent *e) {
 
 	auto down = isDown();
 	auto position = _st.button.iconPosition;
+	if (position.x() < 0) {
+		position.setX((width() - _st.button.icon.width()) / 2);
+	}
+	if (position.y() < 0) {
+		position.setY((height() - _st.button.icon.height()) / 2);
+	}
 	_st.button.icon.paint(p, position, width());
 }
 
@@ -127,19 +133,12 @@ void Panel::hideDeactivated() {
 
 void Panel::initControls() {
 	subscribe(_call->stateChanged(), [this](State state) { stateChanged(state); });
-	_hangup->setClickedCallback([this] {
-		if (_call) {
-			_call->hangup();
-		}
-	});
 	if (_call->type() == Type::Incoming) {
 		_answer.create(this, st::callAnswer);
-		_answer->setClickedCallback([this] {
-			if (_call) {
-				_call->answer();
-			}
-		});
 	}
+
+	refreshCallbacks();
+
 	_mute->setClickedCallback([this] {
 		_call->setMute(!_call->isMute());
 	});
@@ -160,6 +159,22 @@ void Panel::initControls() {
 			updateStatusText(_call->state());
 		}
 	});
+}
+
+void Panel::refreshCallbacks() {
+	auto safeSetCallback = [this](auto &&button, auto &&callback) {
+		if (button) {
+			button->setClickedCallback([this, callback] {
+				if (_call) {
+					callback(_call.get());
+				}
+			});
+		};
+	};
+	safeSetCallback(_answer, [](gsl::not_null<Call*> call) { call->answer(); });
+	safeSetCallback(_redial, [](gsl::not_null<Call*> call) { call->redial(); });
+	safeSetCallback(_hangup, [](gsl::not_null<Call*> call) { call->hangup(); });
+	safeSetCallback(_cancel, [](gsl::not_null<Call*> call) { call->hangup(); });
 }
 
 void Panel::initLayout() {
@@ -316,11 +331,14 @@ void Panel::updateControlsGeometry() {
 	updateStatusGeometry();
 
 	auto controlsTop = _contentTop + st::callControlsTop;
-	if (_answer) {
-		auto bothWidth = _answer->width() + st::callControlsSkip + _hangup->width();
-		_hangup->moveToLeft((width() - bothWidth) / 2, controlsTop);
-		_answer->moveToRight((width() - bothWidth) / 2, controlsTop);
+	if (_answer || _redial) {
+		auto bothWidth = (_answer ? _answer : _redial)->width() + st::callControlsSkip + (_hangup ? _hangup : _cancel)->width();
+		if (_hangup) _hangup->moveToLeft((width() - bothWidth) / 2, controlsTop);
+		if (_cancel) _cancel->moveToLeft((width() - bothWidth) / 2, controlsTop);
+		if (_answer) _answer->moveToRight((width() - bothWidth) / 2, controlsTop);
+		if (_redial) _redial->moveToRight((width() - bothWidth) / 2, controlsTop);
 	} else {
+		t_assert(_hangup != nullptr);
 		_hangup->moveToLeft((width() - _hangup->width()) / 2, controlsTop);
 	}
 	_mute->moveToRight(_padding.right() + st::callMuteRight, controlsTop);
@@ -382,12 +400,30 @@ void Panel::mouseReleaseEvent(QMouseEvent *e) {
 
 void Panel::stateChanged(State state) {
 	updateStatusText(state);
-	if (_answer
-		&& state != State::Starting
-		&& state != State::WaitingIncoming) {
-		_answer.destroy();
+
+	auto buttonsUpdated = false;
+	auto syncButton = [this, &buttonsUpdated](auto &&button, bool exists, auto &&style) {
+		if (exists == (button != nullptr)) {
+			return;
+		}
+		if (exists) {
+			button.create(this, style);
+			button->show();
+		} else {
+			button.destroy();
+		}
+		buttonsUpdated = true;
+	};
+	syncButton(_answer, (state == State::Starting) || (state == State::WaitingIncoming), st::callAnswer);
+	syncButton(_hangup, (state != State::Busy), st::callHangup);
+	syncButton(_redial, (state == State::Busy), st::callAnswer);
+	syncButton(_cancel, (state == State::Busy), st::callCancel);
+
+	if (buttonsUpdated) {
+		refreshCallbacks();
 		updateControlsGeometry();
 	}
+
 	if (_fingerprint.empty() && _call && _call->isKeyShaForFingerprintReady()) {
 		_fingerprint = ComputeEmojiFingerprint(_call.get());
 		update();

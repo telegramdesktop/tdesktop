@@ -52,6 +52,7 @@ private:
 	void initControls();
 	void initLayout();
 	void initGeometry();
+	void refreshCallbacks();
 	void hideDeactivated();
 	void createBottomImage();
 	void createDefaultCacheImage();
@@ -81,8 +82,10 @@ private:
 
 	class Button;
 	object_ptr<Ui::IconButton> _close = { nullptr };
-	object_ptr<Button> _answer = { nullptr };
 	object_ptr<Button> _hangup;
+	object_ptr<Button> _cancel = { nullptr };
+	object_ptr<Button> _answer = { nullptr };
+	object_ptr<Button> _redial = { nullptr };
 	object_ptr<Ui::IconButton> _mute;
 	object_ptr<Ui::FlatLabel> _name;
 	object_ptr<Ui::FlatLabel> _status;

@@ -54,6 +54,7 @@ private:
 	}
 	void callFinished(gsl::not_null<Call*> call) override;
 	void callFailed(gsl::not_null<Call*> call) override;
+	void callRedial(gsl::not_null<Call*> call) override;
 	void createCall(gsl::not_null<UserData*> user, Call::Type type);
 	void destroyCall(gsl::not_null<Call*> call);
 

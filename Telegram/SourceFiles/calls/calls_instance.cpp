@@ -59,6 +59,12 @@ void Instance::callFailed(gsl::not_null<Call*> call) {
 	destroyCall(call);
 }
 
+void Instance::callRedial(gsl::not_null<Call*> call) {
+	if (_currentCall.get() == call) {
+		refreshDhConfig();
+	}
+}
+
 void Instance::destroyCall(gsl::not_null<Call*> call) {
 	if (_currentCall.get() == call) {
 		_currentCallPanel.reset();

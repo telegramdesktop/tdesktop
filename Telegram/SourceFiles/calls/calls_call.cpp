@@ -78,9 +78,10 @@ Call::Call(gsl::not_null<Delegate*> delegate, gsl::not_null<UserData*> user, Typ
 : _delegate(delegate)
 , _user(user)
 , _type(type) {
+	_discardByTimeoutTimer.setCallback([this] { hangup(); });
+
 	if (_type == Type::Outgoing) {
 		setState(State::Requesting);
-		_discardByTimeoutTimer.setCallback([this] { hangup(); });
 	}
 }
 
@@ -198,11 +199,26 @@ TimeMs Call::getDurationMs() const {
 }
 
 void Call::hangup() {
-	auto missed = (_state == State::Ringing || (_state == State::Waiting && _type == Type::Outgoing));
-	auto declined = (_state == State::WaitingIncoming);
-	auto reason = missed ? MTP_phoneCallDiscardReasonMissed() :
-		declined ? MTP_phoneCallDiscardReasonBusy() : MTP_phoneCallDiscardReasonHangup();
-	finish(reason);
+	if (_state == State::Busy) {
+		// Cancel call instead of redial.
+		setState(Call::Ended);
+	} else {
+		auto missed = (_state == State::Ringing || (_state == State::Waiting && _type == Type::Outgoing));
+		auto declined = (_state == State::WaitingIncoming);
+		auto reason = missed ? MTP_phoneCallDiscardReasonMissed() :
+			declined ? MTP_phoneCallDiscardReasonBusy() : MTP_phoneCallDiscardReasonHangup();
+		finish(reason);
+	}
+}
+
+void Call::redial() {
+	if (_state != State::Busy) {
+		return;
+	}
+	t_assert(_controller == nullptr);
+	_type = Type::Outgoing;
+	setState(State::Requesting);
+	_delegate->callRedial(this);
 }
 
 bool Call::isKeyShaForFingerprintReady() const {
@@ -490,8 +506,7 @@ void Call::setState(State state) {
 			_delegate->callFailed(this);
 			break;
 		case State::Busy:
-			setState(State::Ended);
-//			_hangupByTimeoutTimer.call(kHangupTimeoutMs, [this] { setState(State::Ended); });
+			destroyController();
 			// TODO play sound
 			break;
 		}
@@ -552,12 +567,16 @@ void Call::handleControllerError(int error) {
 	setState(State::Failed);
 }
 
-Call::~Call() {
+void Call::destroyController() {
 	if (_controller) {
 		DEBUG_LOG(("Call Info: Destroying call controller.."));
 		_controller.reset();
 		DEBUG_LOG(("Call Info: Call controller destroyed."));
 	}
+}
+
+Call::~Call() {
+	destroyController();
 }
 
 void UpdateConfig(const std::map<std::string, std::string> &data) {

@@ -42,7 +42,7 @@ callButton: IconButton {
 	width: 64px;
 	height: 64px;
 
-	iconPosition: point(20px, 20px);
+	iconPosition: point(-1px, -1px);
 
 	rippleAreaPosition: point(8px, 8px);
 	rippleAreaSize: 48px;
@@ -61,12 +61,20 @@ callAnswer: CallButton {
 callHangup: CallButton {
 	button: IconButton(callButton) {
 		icon: icon {{ "call_discard", callIconFg }};
-		iconPosition: point(20px, 24px);
 		ripple: RippleAnimation(defaultRippleAnimation) {
 			color: callHangupRipple;
 		}
 	}
 	bg: callHangupBg;
+}
+callCancel: CallButton {
+	button: IconButton(callButton) {
+		icon: icon {{ "box_button_close", callCancelFg }};
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: callCancelRipple;
+		}
+	}
+	bg: callCancelBg;
 }
 callMuteToggle: IconButton(callButton) {
 	icon: icon {{ "call_record_active", callIconFg }};
