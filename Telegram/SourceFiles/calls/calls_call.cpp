@@ -22,6 +22,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "auth_session.h"
 #include "mainwidget.h"
+#include "lang.h"
+#include "boxes/confirm_box.h"
 #include "calls/calls_instance.h"
 #include "base/openssl_help.h"
 #include "mtproto/connection.h"
@@ -143,7 +145,7 @@ void Call::startOutgoing() {
 		_accessHash = phoneCall.vaccess_hash.v;
 		handleUpdate(call.vphone_call);
 	}).fail([this](const RPCError &error) {
-		setState(State::Failed);
+		handleRequestError(error);
 	}).send();
 }
 
@@ -156,7 +158,7 @@ void Call::startIncoming() {
 			setState(State::WaitingIncoming);
 		}
 	}).fail([this](const RPCError &error) {
-		setState(State::Failed);
+		handleRequestError(error);
 	}).send();
 }
 
@@ -179,7 +181,7 @@ void Call::answer() {
 
 		handleUpdate(call.vphone_call);
 	}).fail([this](const RPCError &error) {
-		setState(State::Failed);
+		handleRequestError(error);
 	}).send();
 }
 
@@ -283,6 +285,9 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 				MTP::send(MTPphone_SaveCallDebug(MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)), MTP_dataJSON(MTP_string(debugLog))));
 			}
 		}
+		if (data.has_reason() && data.vreason.type() == mtpc_phoneCallDiscardReasonDisconnect) {
+			LOG(("Call Info: Discarded with DISCONNECT reason."));
+		}
 		if (data.has_reason() && data.vreason.type() == mtpc_phoneCallDiscardReasonBusy) {
 			setState(State::Busy);
 		} else {
@@ -334,7 +339,7 @@ void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 
 		createAndStartController(call.vphone_call.c_phoneCall());
 	}).fail([this](const RPCError &error) {
-		setState(State::Failed);
+		handleRequestError(error);
 	}).send();
 }
 
@@ -419,8 +424,9 @@ void Call::handleControllerStateChange(tgvoip::VoIPController *controller, int s
 	} break;
 
 	case STATE_FAILED: {
-		DEBUG_LOG(("Call Info: State changed to Failed."));
-		setStateQueued(State::Failed);
+		auto error = controller->GetLastError();
+		LOG(("Call Info: State changed to Failed, error: %1.").arg(error));
+		setFailedQueued(error);
 	} break;
 
 	default: LOG(("Call Error: Unexpected state in handleStateChange: %1").arg(state));
@@ -522,6 +528,28 @@ void Call::finish(const MTPPhoneCallDiscardReason &reason) {
 
 void Call::setStateQueued(State state) {
 	InvokeQueued(this, [this, state] { setState(state); });
+}
+
+void Call::setFailedQueued(int error) {
+	InvokeQueued(this, [this, error] { handleControllerError(error); });
+}
+
+void Call::handleRequestError(const RPCError &error) {
+	if (error.type() == qstr("USER_PRIVACY_RESTRICTED")) {
+		Ui::show(Box<InformBox>(lng_call_error_not_available(lt_user, App::peerName(_user))));
+	} else if (error.type() == qstr("PARTICIPANT_VERSION_OUTDATED")) {
+		Ui::show(Box<InformBox>(lng_call_error_outdated(lt_user, App::peerName(_user))));
+	} else if (error.type() == qstr("CALL_PROTOCOL_LAYER_INVALID")) {
+		Ui::show(Box<InformBox>(lng_call_error_incompatible(lt_user, App::peerName(_user))));
+	}
+	setState(State::Failed);
+}
+
+void Call::handleControllerError(int error) {
+	if (error == TGVOIP_ERROR_INCOMPATIBLE) {
+		Ui::show(Box<InformBox>(lng_call_error_incompatible(lt_user, App::peerName(_user))));
+	}
+	setState(State::Failed);
 }
 
 Call::~Call() {

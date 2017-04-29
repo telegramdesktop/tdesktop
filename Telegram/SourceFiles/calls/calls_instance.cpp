@@ -22,6 +22,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "mtproto/connection.h"
 #include "auth_session.h"
+#include "apiwrap.h"
+#include "lang.h"
+#include "boxes/confirm_box.h"
 #include "calls/calls_call.h"
 #include "calls/calls_panel.h"
 
@@ -38,6 +41,12 @@ void Instance::startOutgoingCall(gsl::not_null<UserData*> user) {
 	if (_currentCall) {
 		_currentCallPanel->showAndActivate();
 		return; // Already in a call.
+	}
+	if (user->callsStatus() == UserData::CallsStatus::Private) {
+		// Request full user once more to refresh the setting in case it was changed.
+		AuthSession::Current().api().requestFullPeer(user);
+		Ui::show(Box<InformBox>(lng_call_error_not_available(lt_user, App::peerName(user))));
+		return;
 	}
 	createCall(user, Call::Type::Outgoing);
 }

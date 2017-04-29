@@ -107,6 +107,8 @@ public:
 	~Call();
 
 private:
+	void handleRequestError(const RPCError &error);
+	void handleControllerError(int error);
 	void finish(const MTPPhoneCallDiscardReason &reason);
 	void startOutgoing();
 	void startIncoming();
@@ -124,6 +126,7 @@ private:
 	void startConfirmedCall(const MTPDphoneCall &call);
 	void setState(State state);
 	void setStateQueued(State state);
+	void setFailedQueued(int error);
 
 	gsl::not_null<Delegate*> _delegate;
 	gsl::not_null<UserData*> _user;
