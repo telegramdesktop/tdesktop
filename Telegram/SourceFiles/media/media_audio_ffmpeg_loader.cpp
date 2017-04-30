@@ -171,7 +171,15 @@ bool FFMpegLoader::open(qint64 &position) {
 		return false;
 	}
 
-	uint64_t layout = codecParams->channel_layout;
+	auto layout = codecParams->channel_layout;
+	if (!layout) {
+		auto channelsCount = codecParams->channels;
+		switch (channelsCount) {
+		case 1: layout = AV_CH_LAYOUT_MONO; break;
+		case 2: layout = AV_CH_LAYOUT_STEREO; break;
+		default: LOG(("Audio Error: Unknown channel layout for %1 channels.").arg(channelsCount)); break;
+		}
+	}
 	inputFormat = codecContext->sample_fmt;
 	switch (layout) {
 	case AV_CH_LAYOUT_MONO:

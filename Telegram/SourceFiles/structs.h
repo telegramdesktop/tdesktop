@@ -1206,6 +1206,9 @@ public:
 	bool isTheme() const {
 		return name.endsWith(qstr(".tdesktop-theme"), Qt::CaseInsensitive) || name.endsWith(qstr(".tdesktop-palette"), Qt::CaseInsensitive);
 	}
+	bool tryPlaySong() const {
+		return (song() != nullptr) || mime.startsWith(qstr("audio/"), Qt::CaseInsensitive);
+	}
 	bool isMusic() const {
 		if (auto s = song()) {
 			return (s->duration > 0);
@@ -1347,10 +1350,10 @@ private:
 	void setTypeFromAudio() {
 		if (_audio->voice()) {
 			_type = Type::Voice;
-		} else if (_audio->song()) {
-			_type = Type::Song;
 		} else if (_audio->isVideo()) {
 			_type = Type::Video;
+		} else if (_audio->tryPlaySong()) {
+			_type = Type::Song;
 		} else {
 			_type = Type::Unknown;
 		}

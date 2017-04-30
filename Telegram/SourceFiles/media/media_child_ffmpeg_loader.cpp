@@ -42,7 +42,15 @@ bool ChildFFMpegLoader::open(qint64 &position) {
 	int res = 0;
 	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 
-	uint64_t layout = _parentData->context->channel_layout;
+	auto layout = _parentData->context->channel_layout;
+	if (!layout) {
+		auto channelsCount = _parentData->context->channels;
+		switch (channelsCount) {
+		case 1: layout = AV_CH_LAYOUT_MONO; break;
+		case 2: layout = AV_CH_LAYOUT_STEREO; break;
+		default: LOG(("Audio Error: Unknown channel layout for %1 channels.").arg(channelsCount)); break;
+		}
+	}
 	_inputFormat = _parentData->context->sample_fmt;
 	switch (layout) {
 	case AV_CH_LAYOUT_MONO:

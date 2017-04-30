@@ -1149,7 +1149,7 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, HistoryItem *context, 
 
 	auto msgId = context ? context->fullId() : FullMsgId();
 	bool playVoice = data->voice();
-	bool playMusic = data->song();
+	bool playMusic = data->tryPlaySong();
 	bool playVideo = data->isVideo();
 	bool playAnimation = data->isAnimation();
 	auto &location = data->location(true);

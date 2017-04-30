@@ -299,7 +299,7 @@ void Widget::updateRepeatTrackIcon() {
 }
 
 void Widget::handleSongUpdate(const TrackState &state) {
-	if (!state.id.audio() || !state.id.audio()->song()) {
+	if (!state.id.audio()) {
 		return;
 	}
 
@@ -334,8 +334,10 @@ void Widget::updateTimeText(const TrackState &state) {
 	if (!IsStopped(state.state) && state.state != State::Finishing) {
 		display = position = state.position;
 		duration = state.duration;
-	} else {
-		display = state.duration ? state.duration : (state.id.audio()->song()->duration * frequency);
+	} else if (state.duration) {
+		display = state.duration;
+	} else if (state.id.audio()->song()) {
+		display = (state.id.audio()->song()->duration * frequency);
 	}
 
 	_lastDurationMs = (state.duration * 1000LL) / frequency;
@@ -369,13 +371,10 @@ void Widget::updateTimeLabel() {
 void Widget::handleSongChange() {
 	auto &current = instance()->current();
 	auto song = current.audio()->song();
-	if (!song) {
-		return;
-	}
 
 	TextWithEntities textWithEntities;
-	if (song->performer.isEmpty()) {
-		textWithEntities.text = song->title.isEmpty() ? (current.audio()->name.isEmpty() ? qsl("Unknown Track") : current.audio()->name) : song->title;
+	if (!song || song->performer.isEmpty()) {
+		textWithEntities.text = (!song || song->title.isEmpty()) ? (current.audio()->name.isEmpty() ? qsl("Unknown Track") : current.audio()->name) : song->title;
 	} else {
 		auto title = song->title.isEmpty() ? qsl("Unknown Track") : textClean(song->title);
 		textWithEntities.text = song->performer + QString::fromUtf8(" \xe2\x80\x93 ") + title;
