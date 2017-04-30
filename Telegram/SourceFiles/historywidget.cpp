@@ -3631,7 +3631,7 @@ bool HistoryWidget::paintTopBar(Painter &p, int decreaseWidth, TimeMs ms) {
 	auto nameleft = st::topBarArrowPadding.right() + increaseLeft;
 	auto nametop = st::topBarArrowPadding.top();
 	auto statustop = st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height;
-	auto namewidth = width() - decreaseWidth - nameleft - st::topBarArrowPadding.right();
+	auto namewidth = _chatWidth - decreaseWidth - nameleft - st::topBarArrowPadding.right();
 	p.setFont(st::dialogsTextFont);
 	if (!_history->paintSendAction(p, nameleft, statustop, namewidth, width(), st::historyStatusFgTyping, ms)) {
 		p.setPen(_titlePeerTextOnline ? st::historyStatusFgActive : st::historyStatusFg);
