@@ -454,10 +454,13 @@ HistoryMessage::HistoryMessage(History *history, MsgId id, MTPDmessage::Flags fl
 	: HistoryItem(history, id, newForwardedFlags(history->peer, from, fwd) | flags, date, from) {
 	CreateConfig config;
 
-	config.authorIdOriginal = fwd->authorOriginal()->id;
-	config.fromIdOriginal = fwd->fromOriginal()->id;
-	if (fwd->authorOriginal()->isChannel()) {
-		config.originalId = fwd->idOriginal();
+	if (fwd->Has<HistoryMessageForwarded>() || !fwd->history()->peer->isSelf()) {
+		// Server doesn't add "fwd_from" to non-forwarded messages from chat with yourself.
+		config.authorIdOriginal = fwd->authorOriginal()->id;
+		config.fromIdOriginal = fwd->fromOriginal()->id;
+		if (fwd->authorOriginal()->isChannel()) {
+			config.originalId = fwd->idOriginal();
+		}
 	}
 	auto fwdViaBot = fwd->viaBot();
 	if (fwdViaBot) config.viaBotId = peerToUser(fwdViaBot->id);
