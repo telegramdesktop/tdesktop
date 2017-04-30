@@ -1758,7 +1758,7 @@ ImagePtr DocumentData::makeReplyPreview() {
 			auto thumbSize = (w > h) ? QSize(w * st::msgReplyBarSize.height() / h, st::msgReplyBarSize.height()) : QSize(st::msgReplyBarSize.height(), h * st::msgReplyBarSize.height() / w);
 			thumbSize *= cIntRetinaFactor();
 			auto options = Images::Option::Smooth | (isRoundVideo() ? Images::Option::Circled : Images::Option::None);
-			auto outerSize = st::msgReplyBarSize.height() * cIntRetinaFactor();
+			auto outerSize = st::msgReplyBarSize.height();
 			auto image = thumb->pixNoCache(thumbSize.width(), thumbSize.height(), options, outerSize, outerSize);
 			replyPreview = ImagePtr(image, "PNG");
 		} else {
