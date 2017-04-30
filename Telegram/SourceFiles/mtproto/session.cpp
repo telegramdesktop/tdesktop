@@ -29,42 +29,42 @@ void SessionData::clear(Instance *instance) {
 	RPCCallbackClears clearCallbacks;
 	{
 		QReadLocker locker1(haveSentMutex()), locker2(toResendMutex()), locker3(haveReceivedMutex()), locker4(wereAckedMutex());
-		mtpResponseMap::const_iterator end = haveReceived.cend();
-		clearCallbacks.reserve(haveSent.size() + wereAcked.size());
-		for (mtpRequestMap::const_iterator i = haveSent.cbegin(), e = haveSent.cend(); i != e; ++i) {
-			mtpRequestId requestId = i.value()->requestId;
-			if (haveReceived.find(requestId) == end) {
+		auto receivedResponsesEnd = _receivedResponses.cend();
+		clearCallbacks.reserve(_haveSent.size() + _wereAcked.size());
+		for (auto i = _haveSent.cbegin(), e = _haveSent.cend(); i != e; ++i) {
+			auto requestId = i.value()->requestId;
+			if (!_receivedResponses.contains(requestId)) {
 				clearCallbacks.push_back(requestId);
 			}
 		}
-		for (mtpRequestIdsMap::const_iterator i = toResend.cbegin(), e = toResend.cend(); i != e; ++i) {
-			mtpRequestId requestId = i.value();
-			if (haveReceived.find(requestId) == end) {
+		for (auto i = _toResend.cbegin(), e = _toResend.cend(); i != e; ++i) {
+			auto requestId = i.value();
+			if (!_receivedResponses.contains(requestId)) {
 				clearCallbacks.push_back(requestId);
 			}
 		}
-		for (mtpRequestIdsMap::const_iterator i = wereAcked.cbegin(), e = wereAcked.cend(); i != e; ++i) {
-			mtpRequestId requestId = i.value();
-			if (haveReceived.find(requestId) == end) {
+		for (auto i = _wereAcked.cbegin(), e = _wereAcked.cend(); i != e; ++i) {
+			auto requestId = i.value();
+			if (!_receivedResponses.contains(requestId)) {
 				clearCallbacks.push_back(requestId);
 			}
 		}
 	}
 	{
 		QWriteLocker locker(haveSentMutex());
-		haveSent.clear();
+		_haveSent.clear();
 	}
 	{
 		QWriteLocker locker(toResendMutex());
-		toResend.clear();
+		_toResend.clear();
 	}
 	{
 		QWriteLocker locker(wereAckedMutex());
-		wereAcked.clear();
+		_wereAcked.clear();
 	}
 	{
 		QWriteLocker locker(receivedIdsMutex());
-		receivedIds.clear();
+		_receivedIds.clear();
 	}
 	instance->clearCallbacksDelayed(clearCallbacks);
 }
@@ -494,28 +494,37 @@ void Session::tryToReceive() {
 		_needToReceive = true;
 		return;
 	}
-	int32 cnt = 0;
 	while (true) {
-		mtpRequestId requestId;
-		mtpResponse response;
+		auto requestId = mtpRequestId(0);
+		auto isUpdate = false;
+		auto message = SerializedMessage();
 		{
 			QWriteLocker locker(data.haveReceivedMutex());
-			mtpResponseMap &responses(data.haveReceivedMap());
-			mtpResponseMap::iterator i = responses.begin();
-			if (i == responses.end()) return;
-
-			requestId = i.key();
-			response = i.value();
-			responses.erase(i);
+			auto &responses = data.haveReceivedResponses();
+			auto response = responses.begin();
+			if (response == responses.cend()) {
+				auto &updates = data.haveReceivedUpdates();
+				auto update = updates.begin();
+				if (update == updates.cend()) {
+					return;
+				} else {
+					message = std::move(*update);
+					isUpdate = true;
+					updates.pop_front();
+				}
+			} else {
+				requestId = response.key();
+				message = std::move(response.value());
+				responses.erase(response);
+			}
 		}
-		if (requestId <= 0) {
+		if (isUpdate) {
 			if (dcWithShift == bareDcId(dcWithShift)) { // call globalCallback only in main session
-				_instance->globalCallback(response.constData(), response.constData() + response.size());
+				_instance->globalCallback(message.constData(), message.constData() + message.size());
 			}
 		} else {
-			_instance->execCallback(requestId, response.constData(), response.constData() + response.size());
+			_instance->execCallback(requestId, message.constData(), message.constData() + message.size());
 		}
-		++cnt;
 	}
 }
 

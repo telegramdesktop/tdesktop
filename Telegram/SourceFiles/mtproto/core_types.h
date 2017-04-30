@@ -119,23 +119,6 @@ inline void mtpRequest::write(mtpBuffer &to) const {
     memcpy(to.data() + was, value->constData() + 8, s * sizeof(mtpPrime));
 }
 
-class mtpResponse : public mtpBuffer {
-public:
-	mtpResponse() {
-	}
-	mtpResponse(const mtpBuffer &v) : mtpBuffer(v) {
-	}
-	mtpResponse &operator=(const mtpBuffer &v) {
-		mtpBuffer::operator=(v);
-		return (*this);
-	}
-	bool needAck() const {
-		if (size() < 8) return false;
-		uint32 seqNo = *(uint32*)(constData() + 6);
-		return (seqNo & 0x01) ? true : false;
-	}
-};
-
 using mtpPreRequestMap = QMap<mtpRequestId, mtpRequest>;
 using mtpRequestMap = QMap<mtpMsgId, mtpRequest>;
 using mtpMsgIdsSet = QMap<mtpMsgId, bool>;
@@ -153,8 +136,6 @@ public:
 		return size() ? (--e).key() : 0;
 	}
 };
-
-using mtpResponseMap = QMap<mtpRequestId, mtpResponse>;
 
 class mtpErrorUnexpected : public Exception {
 public:

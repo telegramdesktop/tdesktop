@@ -85,6 +85,16 @@ private:
 
 };
 
+using SerializedMessage = mtpBuffer;
+
+inline bool ResponseNeedsAck(const SerializedMessage &response) {
+	if (response.size() < 8) {
+		return false;
+	}
+	auto seqNo = *(uint32*)(response.constData() + 6);
+	return (seqNo & 0x01) ? true : false;
+}
+
 class Session;
 class SessionData {
 public:
@@ -94,31 +104,31 @@ public:
 	void setSession(uint64 session) {
 		DEBUG_LOG(("MTP Info: setting server_session: %1").arg(session));
 
-		QWriteLocker locker(&lock);
+		QWriteLocker locker(&_lock);
 		if (_session != session) {
 			_session = session;
 			_messagesSent = 0;
 		}
 	}
 	uint64 getSession() const {
-		QReadLocker locker(&lock);
+		QReadLocker locker(&_lock);
 		return _session;
 	}
 	bool layerWasInited() const {
-		QReadLocker locker(&lock);
+		QReadLocker locker(&_lock);
 		return _layerInited;
 	}
 	void setLayerWasInited(bool was) {
-		QWriteLocker locker(&lock);
+		QWriteLocker locker(&_lock);
 		_layerInited = was;
 	}
 
 	void setSalt(uint64 salt) {
-		QWriteLocker locker(&lock);
+		QWriteLocker locker(&_lock);
 		_salt = salt;
 	}
 	uint64 getSalt() const {
-		QReadLocker locker(&lock);
+		QReadLocker locker(&_lock);
 		return _salt;
 	}
 
@@ -131,7 +141,7 @@ public:
 			_authKey = key;
 
 			DEBUG_LOG(("MTP Info: new auth key set in SessionData, id %1, setting random server_session %2").arg(key ? key->keyId() : 0).arg(session));
-			QWriteLocker locker(&lock);
+			QWriteLocker locker(&_lock);
 			if (_session != session) {
 				_session = session;
 				_messagesSent = 0;
@@ -141,88 +151,85 @@ public:
 	}
 
 	bool isCheckedKey() const {
-		QReadLocker locker(&lock);
+		QReadLocker locker(&_lock);
 		return _keyChecked;
 	}
 	void setCheckedKey(bool checked) {
-		QWriteLocker locker(&lock);
+		QWriteLocker locker(&_lock);
 		_keyChecked = checked;
 	}
 
 	QReadWriteLock *keyMutex() const;
 
 	QReadWriteLock *toSendMutex() const {
-		return &toSendLock;
+		return &_toSendLock;
 	}
 	QReadWriteLock *haveSentMutex() const {
-		return &haveSentLock;
+		return &_haveSentLock;
 	}
 	QReadWriteLock *toResendMutex() const {
-		return &toResendLock;
+		return &_toResendLock;
 	}
 	QReadWriteLock *wereAckedMutex() const {
-		return &wereAckedLock;
+		return &_wereAckedLock;
 	}
 	QReadWriteLock *receivedIdsMutex() const {
-		return &receivedIdsLock;
+		return &_receivedIdsLock;
 	}
 	QReadWriteLock *haveReceivedMutex() const {
-		return &haveReceivedLock;
+		return &_haveReceivedLock;
 	}
 	QReadWriteLock *stateRequestMutex() const {
-		return &stateRequestLock;
+		return &_stateRequestLock;
 	}
 
 	mtpPreRequestMap &toSendMap() {
-		return toSend;
+		return _toSend;
 	}
 	const mtpPreRequestMap &toSendMap() const {
-		return toSend;
+		return _toSend;
 	}
 	mtpRequestMap &haveSentMap() {
-		return haveSent;
+		return _haveSent;
 	}
 	const mtpRequestMap &haveSentMap() const {
-		return haveSent;
+		return _haveSent;
 	}
 	mtpRequestIdsMap &toResendMap() { // msgId -> requestId, on which toSend: requestId -> request for resended requests
-		return toResend;
+		return _toResend;
 	}
 	const mtpRequestIdsMap &toResendMap() const {
-		return toResend;
+		return _toResend;
 	}
 	ReceivedMsgIds &receivedIdsSet() {
-		return receivedIds;
+		return _receivedIds;
 	}
 	const ReceivedMsgIds &receivedIdsSet() const {
-		return receivedIds;
+		return _receivedIds;
 	}
 	mtpRequestIdsMap &wereAckedMap() {
-		return wereAcked;
+		return _wereAcked;
 	}
 	const mtpRequestIdsMap &wereAckedMap() const {
-		return wereAcked;
+		return _wereAcked;
 	}
-	mtpResponseMap &haveReceivedMap() {
-		return haveReceived;
+	QMap<mtpRequestId, SerializedMessage> &haveReceivedResponses() {
+		return _receivedResponses;
 	}
-	const mtpResponseMap &haveReceivedMap() const {
-		return haveReceived;
+	const QMap<mtpRequestId, SerializedMessage> &haveReceivedResponses() const {
+		return _receivedResponses;
+	}
+	QList<SerializedMessage> &haveReceivedUpdates() {
+		return _receivedUpdates;
+	}
+	const QList<SerializedMessage> &haveReceivedUpdates() const {
+		return _receivedUpdates;
 	}
 	mtpMsgIdsSet &stateRequestMap() {
-		return stateRequest;
+		return _stateRequest;
 	}
 	const mtpMsgIdsSet &stateRequestMap() const {
-		return stateRequest;
-	}
-
-	mtpRequestId nextFakeRequestId() { // must be locked by haveReceivedMutex()
-		if (haveReceived.isEmpty() || haveReceived.cbegin().key() > 0) {
-			_fakeRequestId = -2000000000;
-		} else {
-			++_fakeRequestId;
-		}
-		return _fakeRequestId;
+		return _stateRequest;
 	}
 
 	Session *owner() {
@@ -233,8 +240,8 @@ public:
 	}
 
 	uint32 nextRequestSeqNumber(bool needAck = true) {
-		QWriteLocker locker(&lock);
-		uint32 result(_messagesSent);
+		QWriteLocker locker(&_lock);
+		auto result = _messagesSent;
 		_messagesSent += (needAck ? 1 : 0);
 		return result * 2 + (needAck ? 1 : 0);
 	}
@@ -246,7 +253,6 @@ private:
 	uint64 _salt = 0;
 
 	uint32 _messagesSent = 0;
-	mtpRequestId _fakeRequestId = -2000000000;
 
 	Session *_owner = nullptr;
 
@@ -254,23 +260,25 @@ private:
 	bool _keyChecked = false;
 	bool _layerInited = false;
 
-	mtpPreRequestMap toSend; // map of request_id -> request, that is waiting to be sent
-	mtpRequestMap haveSent; // map of msg_id -> request, that was sent, msDate = 0 for msgs_state_req (no resend / state req), msDate = 0, seqNo = 0 for containers
-	mtpRequestIdsMap toResend; // map of msg_id -> request_id, that request_id -> request lies in toSend and is waiting to be resent
-	ReceivedMsgIds receivedIds; // set of received msg_id's, for checking new msg_ids
-	mtpRequestIdsMap wereAcked; // map of msg_id -> request_id, this msg_ids already were acked or do not need ack
-	mtpResponseMap haveReceived; // map of request_id -> response, that should be processed in other thread
-	mtpMsgIdsSet stateRequest; // set of msg_id's, whose state should be requested
+	mtpPreRequestMap _toSend; // map of request_id -> request, that is waiting to be sent
+	mtpRequestMap _haveSent; // map of msg_id -> request, that was sent, msDate = 0 for msgs_state_req (no resend / state req), msDate = 0, seqNo = 0 for containers
+	mtpRequestIdsMap _toResend; // map of msg_id -> request_id, that request_id -> request lies in toSend and is waiting to be resent
+	ReceivedMsgIds _receivedIds; // set of received msg_id's, for checking new msg_ids
+	mtpRequestIdsMap _wereAcked; // map of msg_id -> request_id, this msg_ids already were acked or do not need ack
+	mtpMsgIdsSet _stateRequest; // set of msg_id's, whose state should be requested
+
+	QMap<mtpRequestId, SerializedMessage> _receivedResponses; // map of request_id -> response that should be processed in the main thread
+	QList<SerializedMessage> _receivedUpdates; // list of updates that should be processed in the main thread
 
 	// mutexes
-	mutable QReadWriteLock lock;
-	mutable QReadWriteLock toSendLock;
-	mutable QReadWriteLock haveSentLock;
-	mutable QReadWriteLock toResendLock;
-	mutable QReadWriteLock receivedIdsLock;
-	mutable QReadWriteLock wereAckedLock;
-	mutable QReadWriteLock haveReceivedLock;
-	mutable QReadWriteLock stateRequestLock;
+	mutable QReadWriteLock _lock;
+	mutable QReadWriteLock _toSendLock;
+	mutable QReadWriteLock _haveSentLock;
+	mutable QReadWriteLock _toResendLock;
+	mutable QReadWriteLock _receivedIdsLock;
+	mutable QReadWriteLock _wereAckedLock;
+	mutable QReadWriteLock _haveReceivedLock;
+	mutable QReadWriteLock _stateRequestLock;
 
 };
 

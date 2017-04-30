@@ -1479,9 +1479,9 @@ void ConnectionPrivate::handleReceived() {
 		bool emitSignal = false;
 		{
 			QReadLocker locker(sessionData->haveReceivedMutex());
-			emitSignal = !sessionData->haveReceivedMap().isEmpty();
+			emitSignal = !sessionData->haveReceivedResponses().isEmpty() || !sessionData->haveReceivedUpdates().isEmpty();
 			if (emitSignal) {
-				DEBUG_LOG(("MTP Info: emitting needToReceive() - need to parse in another thread, haveReceivedMap.size() = %1").arg(sessionData->haveReceivedMap().size()));
+				DEBUG_LOG(("MTP Info: emitting needToReceive() - need to parse in another thread, %1 responses, %2 updates.").arg(sessionData->haveReceivedResponses().size()).arg(sessionData->haveReceivedUpdates().size()));
 			}
 		}
 
@@ -1908,7 +1908,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 
 	case mtpc_rpc_result: {
 		if (from + 3 > end) throw mtpErrorInsufficient();
-		mtpResponse response;
+		auto response = SerializedMessage();
 
 		MTPlong reqMsgId;
 		reqMsgId.read(++from, end);
@@ -1943,10 +1943,11 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 			sessionData->owner()->notifyLayerInited(true);
 		}
 
-		mtpRequestId requestId = wasSent(reqMsgId.v);
+		auto requestId = wasSent(reqMsgId.v);
 		if (requestId && requestId != mtpRequestId(0xFFFFFFFF)) {
+			// Save rpc_result for processing in the main thread.
 			QWriteLocker locker(sessionData->haveReceivedMutex());
-			sessionData->haveReceivedMap().insert(requestId, response); // save rpc_result for processing in main mtp thread
+			sessionData->haveReceivedResponses().insert(requestId, response);
 		} else {
 			DEBUG_LOG(("RPC Info: requestId not found for msgId %1").arg(reqMsgId.v));
 		}
@@ -1986,10 +1987,9 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 		mtpBuffer update(from - start);
 		if (from > start) memcpy(update.data(), start, (from - start) * sizeof(mtpPrime));
 
+		// Notify main process about new session - need to get difference.
 		QWriteLocker locker(sessionData->haveReceivedMutex());
-		mtpResponseMap &haveReceived(sessionData->haveReceivedMap());
-		mtpRequestId fakeRequestId = sessionData->nextFakeRequestId();
-		haveReceived.insert(fakeRequestId, mtpResponse(update)); // notify main process about new session - need to get difference
+		sessionData->haveReceivedUpdates().push_back(SerializedMessage(update));
 	} return HandleResult::Success;
 
 	case mtpc_ping: {
@@ -2044,10 +2044,9 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 		mtpBuffer update(end - from);
 		if (end > from) memcpy(update.data(), from, (end - from) * sizeof(mtpPrime));
 
+		// Notify main process about the new updates.
 		QWriteLocker locker(sessionData->haveReceivedMutex());
-		mtpResponseMap &haveReceived(sessionData->haveReceivedMap());
-		mtpRequestId fakeRequestId = sessionData->nextFakeRequestId();
-		haveReceived.insert(fakeRequestId, mtpResponse(update)); // notify main process about new updates
+		sessionData->haveReceivedUpdates().push_back(SerializedMessage(update));
 
 		if (cons != mtpc_updatesTooLong && cons != mtpc_updateShortMessage && cons != mtpc_updateShortChatMessage && cons != mtpc_updateShortSentMessage && cons != mtpc_updateShort && cons != mtpc_updatesCombined && cons != mtpc_updates) {
 			LOG(("Message Error: unknown constructor %1").arg(cons)); // maybe new api?..
