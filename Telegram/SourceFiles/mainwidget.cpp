@@ -1046,6 +1046,9 @@ bool MainWidget::sendMessageFail(const RPCError &error) {
 	if (error.type() == qstr("PEER_FLOOD")) {
 		Ui::show(Box<InformBox>(PeerFloodErrorText(PeerFloodType::Send)));
 		return true;
+	} else if (error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
+		Ui::show(Box<InformBox>(lang(lng_group_not_accessible)));
+		return true;
 	}
 	return false;
 }
