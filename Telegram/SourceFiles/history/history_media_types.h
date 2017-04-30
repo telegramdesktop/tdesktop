@@ -555,9 +555,9 @@ protected:
 	}
 
 private:
-	int additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply) const;
+	int additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply, const HistoryMessageForwarded *forwarded) const;
 	int additionalWidth() const {
-		return additionalWidth(_parent->Get<HistoryMessageVia>(), _parent->Get<HistoryMessageReply>());
+		return additionalWidth(_parent->Get<HistoryMessageVia>(), _parent->Get<HistoryMessageReply>(), _parent->Get<HistoryMessageForwarded>());
 	}
 	QString mediaTypeString() const;
 	bool isSeparateRoundVideo() const {

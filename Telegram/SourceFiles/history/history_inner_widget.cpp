@@ -2445,8 +2445,8 @@ QString HistoryInner::tooltipText() const {
 		}
 	} else if (_dragCursorState == HistoryInForwardedCursorState && _dragAction == NoDrag) {
 		if (App::hoveredItem()) {
-			if (HistoryMessageForwarded *fwd = App::hoveredItem()->Get<HistoryMessageForwarded>()) {
-				return fwd->_text.originalText(AllTextSelection, ExpandLinksNone);
+			if (auto forwarded = App::hoveredItem()->Get<HistoryMessageForwarded>()) {
+				return forwarded->_text.originalText(AllTextSelection, ExpandLinksNone);
 			}
 		}
 	} else if (ClickHandlerPtr lnk = ClickHandler::getActive()) {

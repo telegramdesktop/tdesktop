@@ -166,8 +166,12 @@ private:
 	void applyEditionToEmpty();
 
 	bool displayForwardedFrom() const {
-		if (auto fwd = Get<HistoryMessageForwarded>()) {
-			return Has<HistoryMessageVia>() || !_media || !_media->isDisplayed() || fwd->_authorOriginal->isChannel() || !_media->hideForwardedFrom();
+		if (auto forwarded = Get<HistoryMessageForwarded>()) {
+			return Has<HistoryMessageVia>()
+				|| !_media
+				|| !_media->isDisplayed()
+				|| !_media->hideForwardedFrom()
+				|| forwarded->_authorOriginal->isChannel();
 		}
 		return false;
 	}

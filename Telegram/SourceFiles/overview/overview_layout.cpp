@@ -643,8 +643,8 @@ void Voice::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, i
 }
 
 void Voice::updateName() {
-	int32 version = 0;
-	if (const HistoryMessageForwarded *fwd = _parent->Get<HistoryMessageForwarded>()) {
+	auto version = 0;
+	if (auto forwarded = _parent->Get<HistoryMessageForwarded>()) {
 		if (_parent->fromOriginal()->isChannel()) {
 			_name.setText(st::semiboldTextStyle, lng_forwarded_channel(lt_channel, App::peerName(_parent->fromOriginal())), _textNameOptions);
 		} else {

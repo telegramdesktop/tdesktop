@@ -36,6 +36,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace {
 
+constexpr auto kMaxGifForwardedBarLines = 4;
+
 TextParseOptions _webpageTitleOptions = {
 	TextParseMultiline | TextParseRichText, // flags
 	0, // maxw
@@ -1724,7 +1726,13 @@ void HistoryGif::initDimensions() {
 			}
 		}
 	} else if (isSeparateRoundVideo()) {
-		_maxw += additionalWidth();
+		auto via = _parent->Get<HistoryMessageVia>();
+		auto reply = _parent->Get<HistoryMessageReply>();
+		auto forwarded = _parent->Get<HistoryMessageForwarded>();
+		if (forwarded) {
+			forwarded->create(via);
+		}
+		_maxw += additionalWidth(via, reply, forwarded);
 	}
 }
 
@@ -1795,12 +1803,14 @@ int HistoryGif::resizeGetHeight(int width) {
 	} else if (isSeparateRoundVideo()) {
 		auto via = _parent->Get<HistoryMessageVia>();
 		auto reply = _parent->Get<HistoryMessageReply>();
-		if (via || reply) {
-			_width += additionalWidth(via, reply);
+		auto forwarded = _parent->Get<HistoryMessageForwarded>();
+		if (via || reply || forwarded) {
+			auto additional = additionalWidth(via, reply, forwarded);
+			_width += additional;
 			accumulate_min(_width, width);
-			auto usew = _maxw - additionalWidth(via, reply);
+			auto usew = _maxw - additional;
 			auto availw = _width - usew - st::msgReplyPadding.left() - st::msgReplyPadding.left() - st::msgReplyPadding.left();
-			if (via) {
+			if (!forwarded && via) {
 				via->resize(availw);
 			}
 			if (reply) {
@@ -1868,8 +1878,9 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 	auto usex = 0, usew = width;
 	auto via = (!isRound || isChildMedia) ? nullptr : _parent->Get<HistoryMessageVia>();
 	auto reply = (!isRound || isChildMedia) ? nullptr : _parent->Get<HistoryMessageReply>();
-	if (via || reply) {
-		usew = _maxw - additionalWidth(via, reply);
+	auto forwarded = (!isRound || isChildMedia) ? nullptr : _parent->Get<HistoryMessageForwarded>();
+	if (via || reply || forwarded) {
+		usew = _maxw - additionalWidth(via, reply, forwarded);
 		if (isPost) {
 		} else if (out) {
 			usex = _width - usew;
@@ -1982,10 +1993,15 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 				p.drawEllipse(rtlrect(statusX - st::msgDateImgPadding.x() + statusW - st::msgDateImgPadding.x() - st::mediaUnreadSize, statusY + st::mediaUnreadTop, st::mediaUnreadSize, st::mediaUnreadSize, _width));
 			}
 		}
-		if (!isChildMedia && (via || reply)) {
-			int rectw = _width - usew - st::msgReplyPadding.left();
-			int recth = st::msgReplyPadding.top() + st::msgReplyPadding.bottom();
-			if (via) {
+		if (!isChildMedia && (via || reply || forwarded)) {
+			auto rectw = _width - usew - st::msgReplyPadding.left();
+			auto innerw = rectw - (st::msgReplyPadding.left() + st::msgReplyPadding.right());
+			auto recth = st::msgReplyPadding.top() + st::msgReplyPadding.bottom();
+			auto forwardedHeightReal = forwarded ? forwarded->_text.countHeight(innerw) : 0;
+			auto forwardedHeight = qMin(forwardedHeightReal, kMaxGifForwardedBarLines * st::msgServiceNameFont->height);
+			if (forwarded) {
+				recth += forwardedHeight;
+			} else if (via) {
 				recth += st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
 			}
 			if (reply) {
@@ -1996,9 +2012,16 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 			if (rtl()) rectx = _width - rectx - rectw;
 
 			App::roundRect(p, rectx, recty, rectw, recth, selected ? st::msgServiceBgSelected : st::msgServiceBg, selected ? StickerSelectedCorners : StickerCorners);
+			p.setPen(st::msgServiceFg);
 			rectx += st::msgReplyPadding.left();
-			rectw -= st::msgReplyPadding.left() + st::msgReplyPadding.right();
-			if (via) {
+			rectw = innerw;
+			if (forwarded) {
+				p.setTextPalette(st::serviceTextPalette);
+				auto breakEverywhere = (forwardedHeightReal > forwardedHeight);
+				forwarded->_text.drawElided(p, rectx, recty + st::msgReplyPadding.top(), rectw, kMaxGifForwardedBarLines, style::al_left, 0, -1, 0, breakEverywhere);
+				p.restoreTextPalette();
+			} else if (via) {
+				p.setFont(st::msgDateFont);
 				p.drawTextLeft(rectx, recty + st::msgReplyPadding.top(), 2 * rectx + rectw, via->_text);
 				int skip = st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
 				recty += skip;
@@ -2070,8 +2093,9 @@ HistoryTextState HistoryGif::getState(int x, int y, HistoryStateRequest request)
 	auto usew = width, usex = 0;
 	auto via = (!isRound || isChildMedia) ? nullptr : _parent->Get<HistoryMessageVia>();
 	auto reply = (!isRound || isChildMedia) ? nullptr : _parent->Get<HistoryMessageReply>();
-	if (via || reply) {
-		usew = _maxw - additionalWidth(via, reply);
+	auto forwarded = (!isRound || isChildMedia) ? nullptr : _parent->Get<HistoryMessageForwarded>();
+	if (via || reply || forwarded) {
+		usew = _maxw - additionalWidth(via, reply, forwarded);
 		if (isPost) {
 		} else if (out) {
 			usex = _width - usew;
@@ -2079,20 +2103,44 @@ HistoryTextState HistoryGif::getState(int x, int y, HistoryStateRequest request)
 	}
 	if (rtl()) usex = _width - usex - usew;
 
-	if (via || reply) {
-		int rectw = width - usew - st::msgReplyPadding.left();
-		int recth = st::msgReplyPadding.top() + st::msgReplyPadding.bottom();
-		if (via) {
+	if (via || reply || forwarded) {
+		auto rectw = width - usew - st::msgReplyPadding.left();
+		auto innerw = rectw - (st::msgReplyPadding.left() + st::msgReplyPadding.right());
+		auto recth = st::msgReplyPadding.top() + st::msgReplyPadding.bottom();
+		auto forwardedHeightReal = forwarded ? forwarded->_text.countHeight(innerw) : 0;
+		auto forwardedHeight = qMin(forwardedHeightReal, kMaxGifForwardedBarLines * st::msgServiceNameFont->height);
+		if (forwarded) {
+			recth += forwardedHeight;
+		} else if (via) {
 			recth += st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
 		}
 		if (reply) {
 			recth += st::msgReplyBarSize.height();
 		}
-		int rectx = isPost ? (usew + st::msgReplyPadding.left()) : (out ? 0 : (usew + st::msgReplyPadding.left()));
-		int recty = skipy;
+		auto rectx = isPost ? (usew + st::msgReplyPadding.left()) : (out ? 0 : (usew + st::msgReplyPadding.left()));
+		auto recty = skipy;
 		if (rtl()) rectx = _width - rectx - rectw;
 
-		if (via) {
+		if (forwarded) {
+			if (x >= rectx && y >= recty && x < rectx + rectw && y < recty + st::msgReplyPadding.top() + forwardedHeight) {
+				auto breakEverywhere = (forwardedHeightReal > forwardedHeight);
+				auto textRequest = request.forText();
+				if (breakEverywhere) {
+					textRequest.flags |= Text::StateRequest::Flag::BreakEverywhere;
+				}
+				result = forwarded->_text.getState(x - rectx - st::msgReplyPadding.left(), y - recty - st::msgReplyPadding.top(), innerw, textRequest);
+				result.symbol = 0;
+				result.afterSymbol = false;
+				if (breakEverywhere) {
+					result.cursor = HistoryInForwardedCursorState;
+				} else {
+					result.cursor = HistoryDefaultCursorState;
+				}
+				return result;
+			}
+			recty += forwardedHeight;
+			recth -= forwardedHeight;
+		} else if (via) {
 			int viah = st::msgReplyPadding.top() + st::msgServiceNameFont->height + (reply ? 0 : st::msgReplyPadding.bottom());
 			if (x >= rectx && y >= recty && x < rectx + rectw && y < recty + viah) {
 				result.link = via->_lnk;
@@ -2201,9 +2249,11 @@ ImagePtr HistoryGif::replyPreview() {
 	return _data->makeReplyPreview();
 }
 
-int HistoryGif::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply) const {
+int HistoryGif::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply, const HistoryMessageForwarded *forwarded) const {
 	int result = 0;
-	if (via) {
+	if (forwarded) {
+		accumulate_max(result, st::msgReplyPadding.left() + st::msgReplyPadding.left() + forwarded->_text.maxWidth() + st::msgReplyPadding.right());
+	} else if (via) {
 		accumulate_max(result, st::msgReplyPadding.left() + st::msgReplyPadding.left() + via->_maxWidth + st::msgReplyPadding.left());
 	}
 	if (reply) {
@@ -2400,9 +2450,11 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, T
 			recty -= st::msgDateImgDelta;
 
 			App::roundRect(p, rectx, recty, rectw, recth, selected ? st::msgServiceBgSelected : st::msgServiceBg, selected ? StickerSelectedCorners : StickerCorners);
+			p.setPen(st::msgServiceFg);
 			rectx += st::msgReplyPadding.left();
 			rectw -= st::msgReplyPadding.left() + st::msgReplyPadding.right();
 			if (via) {
+				p.setFont(st::msgDateFont);
 				p.drawTextLeft(rectx, recty + st::msgReplyPadding.top(), 2 * rectx + rectw, via->_text);
 				int skip = st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
 				recty += skip;

@@ -631,10 +631,10 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	if (auto edited = Get<HistoryMessageEdited>()) {
 		edited->create(config.editDate, date);
 	}
-	if (auto fwd = Get<HistoryMessageForwarded>()) {
-		fwd->_authorOriginal = App::peer(config.authorIdOriginal);
-		fwd->_fromOriginal = App::peer(config.fromIdOriginal);
-		fwd->_originalId = config.originalId;
+	if (auto forwarded = Get<HistoryMessageForwarded>()) {
+		forwarded->_authorOriginal = App::peer(config.authorIdOriginal);
+		forwarded->_fromOriginal = App::peer(config.fromIdOriginal);
+		forwarded->_originalId = config.originalId;
 	}
 	if (auto markup = Get<HistoryMessageReplyMarkup>()) {
 		if (config.mtpMarkup) {
@@ -777,10 +777,10 @@ void HistoryMessage::initDimensions() {
 
 	updateMediaInBubbleState();
 	if (drawBubble()) {
-		auto fwd = Get<HistoryMessageForwarded>();
+		auto forwarded = Get<HistoryMessageForwarded>();
 		auto via = Get<HistoryMessageVia>();
-		if (fwd) {
-			fwd->create(via);
+		if (forwarded) {
+			forwarded->create(via);
 		}
 
 		auto mediaDisplayed = false;
@@ -816,17 +816,17 @@ void HistoryMessage::initDimensions() {
 			_minh += st::msgPadding.top() + st::msgPadding.bottom();
 			if (displayFromName()) {
 				auto namew = st::msgPadding.left() + author()->nameText.maxWidth() + st::msgPadding.right();
-				if (via && !fwd) {
+				if (via && !forwarded) {
 					namew += st::msgServiceFont->spacew + via->_maxWidth;
 				}
 				if (namew > _maxw) _maxw = namew;
-			} else if (via && !fwd) {
+			} else if (via && !forwarded) {
 				if (st::msgPadding.left() + via->_maxWidth + st::msgPadding.right() > _maxw) {
 					_maxw = st::msgPadding.left() + via->_maxWidth + st::msgPadding.right();
 				}
 			}
-			if (fwd) {
-				auto _namew = st::msgPadding.left() + fwd->_text.maxWidth() + st::msgPadding.right();
+			if (forwarded) {
+				auto _namew = st::msgPadding.left() + forwarded->_text.maxWidth() + st::msgPadding.right();
 				if (via) {
 					_namew += st::msgServiceFont->spacew + via->_maxWidth;
 				}
@@ -1015,10 +1015,10 @@ TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {
 		result.entities = textResult.entities;
 		appendTextWithEntities(result, std::move(mediaResult));
 	}
-	if (auto fwd = Get<HistoryMessageForwarded>()) {
+	if (auto forwarded = Get<HistoryMessageForwarded>()) {
 		if (selection == FullSelection) {
-			auto fwdinfo = fwd->_text.originalTextWithEntities(AllTextSelection, ExpandLinksAll);
-			TextWithEntities wrapped;
+			auto fwdinfo = forwarded->_text.originalTextWithEntities(AllTextSelection, ExpandLinksAll);
+			auto wrapped = TextWithEntities();
 			wrapped.text.reserve(fwdinfo.text.size() + 4 + result.text.size());
 			wrapped.entities.reserve(fwdinfo.entities.size() + result.entities.size());
 			wrapped.text.append('[');
@@ -1414,9 +1414,9 @@ void HistoryMessage::paintFromName(Painter &p, QRect &trect, bool selected) cons
 		}
 		author()->nameText.drawElided(p, trect.left(), trect.top(), trect.width());
 
-		auto fwd = Get<HistoryMessageForwarded>();
+		auto forwarded = Get<HistoryMessageForwarded>();
 		auto via = Get<HistoryMessageVia>();
-		if (via && !fwd && trect.width() > author()->nameText.maxWidth() + st::msgServiceFont->spacew) {
+		if (via && !forwarded && trect.width() > author()->nameText.maxWidth() + st::msgServiceFont->spacew) {
 			bool outbg = out() && !isPost();
 			p.setPen(selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg));
 			p.drawText(trect.left() + author()->nameText.maxWidth() + st::msgServiceFont->spacew, trect.top() + st::msgServiceFont->ascent, via->_text);
@@ -1433,13 +1433,13 @@ void HistoryMessage::paintForwardedInfo(Painter &p, QRect &trect, bool selected)
 		p.setPen(selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg));
 		p.setFont(serviceFont);
 
-		auto fwd = Get<HistoryMessageForwarded>();
-		bool breakEverywhere = (fwd->_text.countHeight(trect.width()) > 2 * serviceFont->height);
+		auto forwarded = Get<HistoryMessageForwarded>();
+		auto breakEverywhere = (forwarded->_text.countHeight(trect.width()) > 2 * serviceFont->height);
 		p.setTextPalette(selected ? (outbg ? st::outFwdTextPaletteSelected : st::inFwdTextPaletteSelected) : (outbg ? st::outFwdTextPalette : st::inFwdTextPalette));
-		fwd->_text.drawElided(p, trect.x(), trect.y(), trect.width(), 2, style::al_left, 0, -1, 0, breakEverywhere);
+		forwarded->_text.drawElided(p, trect.x(), trect.y(), trect.width(), 2, style::al_left, 0, -1, 0, breakEverywhere);
 		p.setTextPalette(selected ? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected) : (outbg ? st::outTextPalette : st::inTextPalette));
 
-		trect.setY(trect.y() + (((fwd->_text.maxWidth() > trect.width()) ? 2 : 1) * serviceFont->height));
+		trect.setY(trect.y() + (((forwarded->_text.maxWidth() > trect.width()) ? 2 : 1) * serviceFont->height));
 	}
 }
 
@@ -1513,7 +1513,7 @@ int HistoryMessage::performResizeGetHeight(int width) {
 		width = st::msgMaxWidth;
 	}
 	if (drawBubble()) {
-		auto fwd = Get<HistoryMessageForwarded>();
+		auto forwarded = Get<HistoryMessageForwarded>();
 		auto reply = Get<HistoryMessageReply>();
 		auto via = Get<HistoryMessageVia>();
 
@@ -1555,7 +1555,7 @@ int HistoryMessage::performResizeGetHeight(int width) {
 			countPositionAndSize(l, w);
 			fromNameUpdated(w);
 			_height += st::msgNameFont->height;
-		} else if (via && !fwd) {
+		} else if (via && !forwarded) {
 			int32 l = 0, w = 0;
 			countPositionAndSize(l, w);
 			via->resize(w - st::msgPadding.left() - st::msgPadding.right());
@@ -1565,7 +1565,7 @@ int HistoryMessage::performResizeGetHeight(int width) {
 		if (displayForwardedFrom()) {
 			int32 l = 0, w = 0;
 			countPositionAndSize(l, w);
-			int32 fwdheight = ((fwd->_text.maxWidth() > (w - st::msgPadding.left() - st::msgPadding.right())) ? 2 : 1) * st::semiboldFont->height;
+			int32 fwdheight = ((forwarded->_text.maxWidth() > (w - st::msgPadding.left() - st::msgPadding.right())) ? 2 : 1) * st::semiboldFont->height;
 			_height += fwdheight;
 		}
 
@@ -1722,8 +1722,8 @@ void HistoryMessage::updatePressed(int x, int y) {
 		} else {
 			if (displayFromName()) trect.setTop(trect.top() + st::msgNameFont->height);
 			if (displayForwardedFrom()) {
-				auto fwd = Get<HistoryMessageForwarded>();
-				auto fwdheight = ((fwd->_text.maxWidth() > trect.width()) ? 2 : 1) * st::semiboldFont->height;
+				auto forwarded = Get<HistoryMessageForwarded>();
+				auto fwdheight = ((forwarded->_text.maxWidth() > trect.width()) ? 2 : 1) * st::semiboldFont->height;
 				trect.setTop(trect.top() + fwdheight);
 			}
 			if (Get<HistoryMessageReply>()) {
@@ -1760,9 +1760,9 @@ bool HistoryMessage::getStateFromName(int x, int y, QRect &trect, HistoryTextSta
 				outResult->link = author()->openLink();
 				return true;
 			}
-			auto fwd = Get<HistoryMessageForwarded>();
+			auto forwarded = Get<HistoryMessageForwarded>();
 			auto via = Get<HistoryMessageVia>();
-			if (via && !fwd && x >= trect.left() + author()->nameText.maxWidth() + st::msgServiceFont->spacew && x < trect.left() + author()->nameText.maxWidth() + st::msgServiceFont->spacew + via->_width) {
+			if (via && !forwarded && x >= trect.left() + author()->nameText.maxWidth() + st::msgServiceFont->spacew && x < trect.left() + author()->nameText.maxWidth() + st::msgServiceFont->spacew + via->_width) {
 				outResult->link = via->_lnk;
 				return true;
 			}
@@ -1774,15 +1774,15 @@ bool HistoryMessage::getStateFromName(int x, int y, QRect &trect, HistoryTextSta
 
 bool HistoryMessage::getStateForwardedInfo(int x, int y, QRect &trect, HistoryTextState *outResult, const HistoryStateRequest &request) const {
 	if (displayForwardedFrom()) {
-		auto fwd = Get<HistoryMessageForwarded>();
-		int32 fwdheight = ((fwd->_text.maxWidth() > trect.width()) ? 2 : 1) * st::semiboldFont->height;
+		auto forwarded = Get<HistoryMessageForwarded>();
+		auto fwdheight = ((forwarded->_text.maxWidth() > trect.width()) ? 2 : 1) * st::semiboldFont->height;
 		if (y >= trect.top() && y < trect.top() + fwdheight) {
-			bool breakEverywhere = (fwd->_text.countHeight(trect.width()) > 2 * st::semiboldFont->height);
+			auto breakEverywhere = (forwarded->_text.countHeight(trect.width()) > 2 * st::semiboldFont->height);
 			auto textRequest = request.forText();
 			if (breakEverywhere) {
 				textRequest.flags |= Text::StateRequest::Flag::BreakEverywhere;
 			}
-			*outResult = fwd->_text.getState(x - trect.left(), y - trect.top(), trect.width(), textRequest);
+			*outResult = forwarded->_text.getState(x - trect.left(), y - trect.top(), trect.width(), textRequest);
 			outResult->symbol = 0;
 			outResult->afterSymbol = false;
 			if (breakEverywhere) {

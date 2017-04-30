@@ -779,20 +779,20 @@ public:
 	}
 
 	PeerData *fromOriginal() const {
-		if (auto fwd = Get<HistoryMessageForwarded>()) {
-			return fwd->_fromOriginal;
+		if (auto forwarded = Get<HistoryMessageForwarded>()) {
+			return forwarded->_fromOriginal;
 		}
 		return from();
 	}
 	PeerData *authorOriginal() const {
-		if (auto fwd = Get<HistoryMessageForwarded>()) {
-			return fwd->_authorOriginal;
+		if (auto forwarded = Get<HistoryMessageForwarded>()) {
+			return forwarded->_authorOriginal;
 		}
 		return author();
 	}
 	MsgId idOriginal() const {
-		if (auto fwd = Get<HistoryMessageForwarded>()) {
-			return fwd->_originalId;
+		if (auto forwarded = Get<HistoryMessageForwarded>()) {
+			return forwarded->_originalId;
 		}
 		return id;
 	}
