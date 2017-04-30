@@ -1079,9 +1079,10 @@ struct FormattingAction {
 
 void FlatTextarea::processFormatting(int insertPosition, int insertEnd) {
 	// Tilde formatting.
-	auto regularFont = qsl("Open Sans"), semiboldFont = qsl("Open Sans Semibold");
-	bool tildeFormatting = !cRetina() && (font().pixelSize() == 13) && (font().family() == regularFont);
-	bool isTildeFragment = false;
+	auto tildeFormatting = !cRetina() && (font().pixelSize() == 13) && (font().family() == qstr("Open Sans"));
+	auto isTildeFragment = false;
+	auto tildeRegularFont = tildeFormatting ? qsl("Open Sans") : QString();
+	auto tildeFixedFont = tildeFormatting ? Fonts::GetOverride(qsl("Open Sans Semibold")) : QString();
 
 	// First tag handling (the one we inserted text to).
 	bool startTagFound = false;
@@ -1118,7 +1119,7 @@ void FlatTextarea::processFormatting(int insertPosition, int insertEnd) {
 
 				auto charFormat = fragment.charFormat();
 				if (tildeFormatting) {
-					isTildeFragment = (charFormat.fontFamily() == semiboldFont);
+					isTildeFragment = (charFormat.fontFamily() == tildeFixedFont);
 				}
 
 				auto fragmentText = fragment.text();
@@ -1202,7 +1203,7 @@ void FlatTextarea::processFormatting(int insertPosition, int insertEnd) {
 				c.mergeCharFormat(format);
 			} else if (action.type == ActionType::TildeFont) {
 				QTextCharFormat format;
-				format.setFontFamily(action.isTilde ? semiboldFont : regularFont);
+				format.setFontFamily(action.isTilde ? tildeFixedFont : tildeRegularFont);
 				c.mergeCharFormat(format);
 				insertPosition = action.intervalEnd;
 			}
@@ -2126,9 +2127,11 @@ void InputArea::processDocumentContentsChange(int position, int charsAdded) {
 	int32 replacePosition = -1, replaceLen = 0;
 	EmojiPtr emoji = nullptr;
 
-	static QString regular = qsl("Open Sans"), semibold = qsl("Open Sans Semibold");
-	bool checkTilde = !cRetina() && (_inner->font().pixelSize() == 13) && (_inner->font().family() == regular);
-	bool wasTildeFragment = false;
+	// Tilde formatting.
+	auto tildeFormatting = !cRetina() && (font().pixelSize() == 13) && (font().family() == qstr("Open Sans"));
+	auto isTildeFragment = false;
+	auto tildeRegularFont = tildeFormatting ? qsl("Open Sans") : QString();
+	auto tildeFixedFont = tildeFormatting ? Fonts::GetOverride(qsl("Open Sans Semibold")) : QString();
 
 	QTextDocument *doc(_inner->document());
 	QTextCursor c(_inner->textCursor());
@@ -2148,8 +2151,8 @@ void InputArea::processDocumentContentsChange(int position, int charsAdded) {
 					continue;
 				}
 
-				if (checkTilde) {
-					wasTildeFragment = (fragment.charFormat().fontFamily() == semibold);
+				if (tildeFormatting) {
+					isTildeFragment = (fragment.charFormat().fontFamily() == tildeFixedFont);
 				}
 
 				QString t(fragment.text());
@@ -2167,9 +2170,9 @@ void InputArea::processDocumentContentsChange(int position, int charsAdded) {
 						break;
 					}
 
-					if (checkTilde && fp >= position) { // tilde fix in OpenSans
+					if (tildeFormatting && fp >= position) { // tilde fix in OpenSans
 						bool tilde = (ch->unicode() == '~');
-						if ((tilde && !wasTildeFragment) || (!tilde && wasTildeFragment)) {
+						if ((tilde && !isTildeFragment) || (!tilde && isTildeFragment)) {
 							if (replacePosition < 0) {
 								replacePosition = fp;
 								replaceLen = 1;
@@ -2201,7 +2204,7 @@ void InputArea::processDocumentContentsChange(int position, int charsAdded) {
 				insertEmoji(emoji, c);
 			} else {
 				QTextCharFormat format;
-				format.setFontFamily(wasTildeFragment ? regular : semibold);
+				format.setFontFamily(isTildeFragment ? tildeRegularFont : tildeFixedFont);
 				c.mergeCharFormat(format);
 			}
 			charsAdded -= replacePosition + replaceLen - position;
@@ -2857,9 +2860,11 @@ void InputField::processDocumentContentsChange(int position, int charsAdded) {
 	EmojiPtr emoji = nullptr;
 	bool newlineFound = false;
 
-	static QString regular = qsl("Open Sans"), semibold = qsl("Open Sans Semibold"), space(' ');
-	bool checkTilde = !cRetina() && (_inner->font().pixelSize() == 13) && (_inner->font().family() == regular);
-	bool wasTildeFragment = false;
+	// Tilde formatting.
+	auto tildeFormatting = !cRetina() && (font().pixelSize() == 13) && (font().family() == qstr("Open Sans"));
+	auto isTildeFragment = false;
+	auto tildeRegularFont = tildeFormatting ? qsl("Open Sans") : QString();
+	auto tildeFixedFont = tildeFormatting ? Fonts::GetOverride(qsl("Open Sans Semibold")) : QString();
 
 	QTextDocument *doc(_inner->document());
 	QTextCursor c(_inner->textCursor());
@@ -2879,8 +2884,8 @@ void InputField::processDocumentContentsChange(int position, int charsAdded) {
 					continue;
 				}
 
-				if (checkTilde) {
-					wasTildeFragment = (fragment.charFormat().fontFamily() == semibold);
+				if (tildeFormatting) {
+					isTildeFragment = (fragment.charFormat().fontFamily() == tildeFixedFont);
 				}
 
 				QString t(fragment.text());
@@ -2910,9 +2915,9 @@ void InputField::processDocumentContentsChange(int position, int charsAdded) {
 						break;
 					}
 
-					if (checkTilde && fp >= position) { // tilde fix in OpenSans
+					if (tildeFormatting && fp >= position) { // tilde fix in OpenSans
 						bool tilde = (ch->unicode() == '~');
-						if ((tilde && !wasTildeFragment) || (!tilde && wasTildeFragment)) {
+						if ((tilde && !isTildeFragment) || (!tilde && isTildeFragment)) {
 							if (replacePosition < 0) {
 								replacePosition = fp;
 								replaceLen = 1;
@@ -2948,14 +2953,14 @@ void InputField::processDocumentContentsChange(int position, int charsAdded) {
 			c.setPosition(replacePosition + replaceLen, QTextCursor::KeepAnchor);
 			if (newlineFound) {
 				QTextCharFormat format;
-				format.setFontFamily(regular);
+				format.setFontFamily(font().family());
 				c.mergeCharFormat(format);
-				c.insertText(space);
+				c.insertText(" ");
 			} else if (emoji) {
 				insertEmoji(emoji, c);
 			} else {
 				QTextCharFormat format;
-				format.setFontFamily(wasTildeFragment ? regular : semibold);
+				format.setFontFamily(isTildeFragment ? tildeRegularFont : tildeFixedFont);
 				c.mergeCharFormat(format);
 			}
 			charsAdded -= replacePosition + replaceLen - position;

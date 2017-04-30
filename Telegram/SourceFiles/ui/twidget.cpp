@@ -22,16 +22,96 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 
 namespace Fonts {
+namespace {
+
+bool ValidateFont(const QString &familyName, int flags = 0) {
+	QFont checkFont(familyName);
+	checkFont.setPixelSize(13);
+	checkFont.setBold(flags & style::internal::FontBold);
+	checkFont.setItalic(flags & style::internal::FontItalic);
+	checkFont.setUnderline(flags & style::internal::FontUnderline);
+	checkFont.setStyleStrategy(QFont::PreferQuality);
+	auto realFamily = QFontInfo(checkFont).family();
+	if (realFamily.trimmed().compare(familyName, Qt::CaseInsensitive)) {
+		LOG(("Font Error: could not resolve '%1' font, got '%2' after feeding '%3'.").arg(familyName).arg(realFamily));
+		return false;
+	}
+
+	auto metrics = QFontMetrics(checkFont);
+	if (!metrics.height()) {
+		LOG(("Font Error: got a zero height in '%1'.").arg(familyName));
+		return false;
+	}
+
+	return true;
+}
+
+bool LoadCustomFont(const QString &filePath, const QString &familyName, int flags = 0) {
+	auto regularId = QFontDatabase::addApplicationFont(filePath);
+	if (regularId < 0) {
+		LOG(("Font Error: could not add '%1'.").arg(filePath));
+		return false;
+	}
+
+	auto found = [&familyName, regularId] {
+		for (auto &family : QFontDatabase::applicationFontFamilies(regularId)) {
+			if (!family.trimmed().compare(familyName, Qt::CaseInsensitive)) {
+				return true;
+			}
+		}
+		return false;
+	};
+	if (!found()) {
+		LOG(("Font Error: could not locate '%1' font in '%2'.").arg(familyName).arg(filePath));
+		return false;
+	}
+
+	return ValidateFont(familyName, flags);
+}
 
 bool Started = false;
-void start() {
-	if (!Started) {
-		Started = true;
+QString OpenSansOverride;
+QString OpenSansSemiboldOverride;
 
-		QFontDatabase::addApplicationFont(qsl(":/gui/fonts/OpenSans-Regular.ttf"));
-		QFontDatabase::addApplicationFont(qsl(":/gui/fonts/OpenSans-Bold.ttf"));
-		QFontDatabase::addApplicationFont(qsl(":/gui/fonts/OpenSans-Semibold.ttf"));
+} // namespace
+
+void Start() {
+	if (Started) {
+		return;
 	}
+	Started = true;
+
+	auto regular = LoadCustomFont(qsl(":/gui/fonts/OpenSans-Regular.ttf"), qsl("Open Sans"));
+	auto bold = LoadCustomFont(qsl(":/gui/fonts/OpenSans-Bold.ttf"), qsl("Open Sans"), style::internal::FontBold);
+	auto semibold = LoadCustomFont(qsl(":/gui/fonts/OpenSans-Semibold.ttf"), qsl("Open Sans Semibold"));
+
+#ifdef Q_OS_WIN
+	// Attempt to workaround a strange font bug with Open Sans Semibold not loading.
+	// See https://github.com/telegramdesktop/tdesktop/issues/3276 for details.
+	// Crash happens on "options.maxh / _t->_st->font->height" with "division by zero".
+	// In that place "_t->_st->font" is "semiboldFont" is "font(13 "Open Sans Semibold").
+	if (QSysInfo::WindowsVersion >= QSysInfo::WV_WINDOWS10) {
+		if (!regular || !bold) {
+			if (ValidateFont(qsl("Segoe UI")) && ValidateFont(qsl("Segoe UI"), style::internal::FontBold)) {
+				OpenSansOverride = qsl("Segoe UI");
+			}
+		}
+		if (!semibold) {
+			if (ValidateFont(qsl("Segoe UI Semibold"))) {
+				OpenSansSemiboldOverride = qsl("Segoe UI Semibold");
+			}
+		}
+	}
+#endif // Q_OS_WIN
+}
+
+QString GetOverride(const QString &familyName) {
+	if (familyName == qstr("Open Sans")) {
+		return OpenSansOverride.isEmpty() ? familyName : OpenSansOverride;
+	} else if (familyName == qstr("Open Sans Semibold")) {
+		return OpenSansSemiboldOverride.isEmpty() ? familyName : OpenSansSemiboldOverride;
+	}
+	return familyName;
 }
 
 } // Fonts

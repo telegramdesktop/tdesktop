@@ -62,7 +62,7 @@ Messenger::Messenger() : QObject()
 	t_assert(SingleInstance == nullptr);
 	SingleInstance = this;
 
-	Fonts::start();
+	Fonts::Start();
 
 	ThirdParty::start();
 	Global::start();

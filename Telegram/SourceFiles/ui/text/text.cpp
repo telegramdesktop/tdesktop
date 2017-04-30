@@ -567,7 +567,7 @@ public:
 
 		ch = emojiLookback = 0;
 		lastSkipped = false;
-		checkTilde = !cRetina() && _t->_st->font->size() == 13 && _t->_st->font->flags() == 0; // tilde Open Sans fix
+		checkTilde = !cRetina() && (_t->_st->font->size() == 13) && (_t->_st->font->flags() == 0) && (_t->_st->font->f.family() == qstr("Open Sans")); // tilde Open Sans fix
 		for (; ptr <= end; ++ptr) {
 			while (checkEntities() || (rich && checkCommand())) {
 			}

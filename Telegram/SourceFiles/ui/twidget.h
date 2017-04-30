@@ -21,8 +21,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 namespace Fonts {
-	void start();
-}
+
+void Start();
+QString GetOverride(const QString &familyName);
+
+} // namespace
 
 class Painter : public QPainter {
 public:

@@ -56,7 +56,12 @@ int registerFontFamily(const QString &family) {
 	return result;
 }
 
-FontData::FontData(int size, uint32 flags, int family, Font *other) : f(fontFamilies[family]), m(f), _size(size), _flags(flags), _family(family) {
+FontData::FontData(int size, uint32 flags, int family, Font *other)
+: f(Fonts::GetOverride(fontFamilies[family]))
+, m(f)
+, _size(size)
+, _flags(flags)
+, _family(family) {
 	if (other) {
 		memcpy(modified, other, sizeof(modified));
 	} else {
