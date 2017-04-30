@@ -713,8 +713,8 @@ void Messenger::checkMapVersion() {
 	if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000030) {
-				versionFeatures = QString::fromUtf8("\xE2\x80\x94 The new Emoji, Stickers, and Saved GIFs panel becomes a separate space on the right when Telegram is running in a wide enough window.\n\xE2\x80\x94 Manage blocked users list in your supergroups.");
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000035) {
+				versionFeatures = QString::fromUtf8("\xE2\x80\x94 Chat admins can delete other participants' messages.\n\xE2\x80\x94 Bug fixes and other minor improvements.");
 			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000029) {
 				versionFeatures = langNewVersionText();
 			} else {
