@@ -1085,7 +1085,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras melhorias menores";
-"lng_new_version_text" = "— Melhorias no painel de Emoji, Stickers e GIFs Salvos.\n— Resolução de bugs e outras melhorias menores.";
+"lng_new_version_text" = "— O novo painel de Emoji, Stickers e GIFs Salvos se torna um espaço separado à direita quando o Telegram está rodando em uma janela ampla o suficiente.\n— Gerencie a lista de usuários bloqueados em seus supergrupos.";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 

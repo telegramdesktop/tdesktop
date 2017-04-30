@@ -1085,7 +1085,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 이모티콘, 스티커 및 GIF 저장 패널 기능 향상\n— 버그 수정 및 일부 기능 향상";
+"lng_new_version_text" = "— 윈도우 넓이가 충분할때 새로운 이모티콘, 스티커와 저장된 GIF 패널이 오른쪽에 별도로 표시가 됩니다.\n— 슈퍼그룹에서 차단된 사용자 리스트 관리기능";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

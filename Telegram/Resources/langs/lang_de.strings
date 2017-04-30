@@ -1085,7 +1085,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Emoji-, Sticker- und GIF-Panel wurden optimiert.\n— Fehlerbehebungen und Softwareoptimierungen.";
+"lng_new_version_text" = "— Emojis, Sticker und gespeicherte GIFs werden (je nach Fenstergröße) in einem eigenen Bereich auf der rechten Seite angezeigt.\n— Verwaltung blockierter Nutzer in Supergruppen wurde hinzugefügt.";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

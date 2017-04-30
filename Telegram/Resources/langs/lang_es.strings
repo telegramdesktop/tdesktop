@@ -343,9 +343,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_passcode_create" = "Código de acceso";
 "lng_passcode_remove" = "Quitar código de acceso";
 "lng_passcode_turn_off" = "Desactivar";
-"lng_passcode_autolock" = "Bloqueo automático";
-"lng_passcode_autolock_away" = "Bloqueo automático si estoy fuera:";
-"lng_passcode_autolock_inactive" = "Bloqueo automático si estoy inactivo:";
+"lng_passcode_autolock" = "Autobloqueo";
+"lng_passcode_autolock_away" = "Autobloqueo si estoy fuera:";
+"lng_passcode_autolock_inactive" = "Autobloqueo si estoy inactivo:";
 "lng_passcode_autolock_minutes" = "{count:_not_used_|# minuto|# minutos}";
 "lng_passcode_autolock_hours" = "{count:_not_used_|# hora|# horas}";
 "lng_passcode_enter_old" = "Pon el código de acceso actual";
@@ -759,10 +759,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_media_video" = "Vídeo";
 "lng_media_audio" = "Mensaje de voz";
 
-"lng_media_auto_settings" = "Ajustes de descarga automática de multimedia";
-"lng_media_auto_photo" = "Descarga automática de fotos";
-"lng_media_auto_audio" = "Descarga automática de audio";
-"lng_media_auto_gif" = "Descarga automática de GIF";
+"lng_media_auto_settings" = "Ajustes de autodescarga de multimedia";
+"lng_media_auto_photo" = "Autodescarga de fotos";
+"lng_media_auto_audio" = "Autodescarga de audio";
+"lng_media_auto_gif" = "Autodescarga de GIF";
 "lng_media_auto_private_chats" = "Chats";
 "lng_media_auto_groups" = "Grupos y canales";
 "lng_media_auto_play" = "Autorreproducir";
@@ -1085,7 +1085,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Mejoras en el panel de emojis, stickers y GIF guardados.\n— Corrección de errores y otras mejoras menores.";
+"lng_new_version_text" = "— El nuevo panel de emojis, stickers y GIF se despliega en un espacio separado, a la derecha, cuando la ventana de Telegram es lo suficientemente amplia.\n— Administra la lista de usuarios bloqueados en tus supergrupos.";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 

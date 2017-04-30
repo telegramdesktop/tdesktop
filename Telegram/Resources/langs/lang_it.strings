@@ -657,7 +657,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_video" = "un video";
 "lng_action_pinned_media_audio" = "un file audio";
 "lng_action_pinned_media_voice" = "un messaggio vocale";
-"lng_action_pinned_media_video_message" = "un video messaggio";
+"lng_action_pinned_media_video_message" = "un videomessaggio";
 "lng_action_pinned_media_file" = "un file";
 "lng_action_pinned_media_gif" = "una GIF";
 "lng_action_pinned_media_contact" = "un contatto";
@@ -811,7 +811,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_in_dlg_audio_file" = "File audio";
 "lng_in_dlg_contact" = "Contatto";
 "lng_in_dlg_audio" = "Messaggio vocale";
-"lng_in_dlg_video_message" = "Video messaggio";
+"lng_in_dlg_video_message" = "Videomessaggio";
 "lng_in_dlg_file" = "File";
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} Sticker";
@@ -891,10 +891,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_user_action_record_audio" = "{user} sta registrando un audio";
 "lng_send_action_upload_audio" = "sta inviando un audio";
 "lng_user_action_upload_audio" = "{user} sta inviando un audio";
-"lng_send_action_record_round" = "sta registrando un video messaggio";
-"lng_user_action_record_round" = "{user} sta registrando un video messaggio";
-"lng_send_action_upload_round" = "sta inviando un video messaggio";
-"lng_user_action_upload_round" = "{user} sta inviando un video messaggio";
+"lng_send_action_record_round" = "sta registrando un videomessaggio";
+"lng_user_action_record_round" = "{user} sta registrando un videomessaggio";
+"lng_send_action_upload_round" = "sta inviando un videomessaggio";
+"lng_user_action_upload_round" = "{user} sta inviando un videomessaggio";
 "lng_send_action_upload_photo" = "sta inviando una foto";
 "lng_user_action_upload_photo" = "{user} sta inviando una foto";
 "lng_send_action_upload_file" = "sta inviando un file";
@@ -1081,11 +1081,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_theme_preview_invalid" = "Dati non validi in questo file tema.";
 "lng_theme_preview_apply" = "Applica questo tema";
 
-"lng_new_authorization" = "{name},\nAbbiamo rilevato un accesso al tuo account da un nuovo dispositivo {day}, {date} alle {time}\n\nDispositivo: {device}\nPosizione: {location}\n\nSe non sei tu, puoi andare nelle Impostazioni – Mostra tutte le sessioni e terminare quella sessione.\n\nSe credi che qualcuno si sia collegato al tuo account contro il tuo volere, puoi attivare la verifica in due passaggi nelle Impostazioni. \n\nSinceramente, \nIl Team di Telegram";
+"lng_new_authorization" = "{name},\nAbbiamo rilevato un accesso al tuo account da un nuovo dispositivo {day}, {date} alle {time}\n\nDispositivo: {device}\nPosizione: {location}\n\nSe non sei tu, puoi andare nelle Impostazioni – Mostra tutte le sessioni e terminare quella sessione.\n\nSe credi che qualcuno si sia collegato al tuo account contro il tuo volere, puoi attivare la verifica in due passaggi nelle Impostazioni. \n\nCordiali saluti, \nil team di Telegram";
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Risoluzione di problemi e altri miglioramenti minori";
-"lng_new_version_text" = "— Miglioramenti nel pannello Emoji, Sticker e GIF salvate.\n— Risoluzione di problemi e altri miglioramenti minori.";
+"lng_new_version_text" = "— Il nuovo pannello Emoji, Sticker e GIF salvate diventa uno spazio separato sulla destra quando Telegram è attivo in una finestra abbastanza grande.\n— Gestisci gli utenti bloccati nei tuoi supergruppi.";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

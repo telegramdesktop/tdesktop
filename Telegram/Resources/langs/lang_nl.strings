@@ -1085,7 +1085,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Verbeterd paneel voor Emoji's, stickers en opgeslagen GIF's.\n— Probleemoplossing en andere kleine verbeteringen.";
+"lng_new_version_text" = "— Een nieuw paneel voor Emoji's, stickers en GIF's is zichtbaar bij afdoende vensterbreedte.\n— Je kunt vanaf nu geblokkeerde gebruikers in supergroepen beheren.";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
