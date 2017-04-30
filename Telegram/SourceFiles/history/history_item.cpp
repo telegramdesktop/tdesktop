@@ -796,8 +796,20 @@ bool HistoryItem::canDeleteForEveryone(const QDateTime &cur) const {
 }
 
 QString HistoryItem::directLink() const {
-	return hasDirectLink() ? Messenger::Instance().createInternalLinkFull(_history->peer->asChannel()->username + '/' + QString::number(id)) : QString();
+	if (hasDirectLink()) {
+		auto query = _history->peer->asChannel()->username + '/' + QString::number(id);
+		if (auto media = getMedia()) {
+			if (auto document = media->getDocument()) {
+				if (document->isRoundVideo()) {
+					return qsl("https://telesco.pe/") + query;
+				}
+			}
+		}
+		return Messenger::Instance().createInternalLinkFull(query);
+	}
+	return QString();
 }
+
 bool HistoryItem::unread() const {
 	// Messages from myself are always read.
 	if (history()->peer->isSelf()) return false;

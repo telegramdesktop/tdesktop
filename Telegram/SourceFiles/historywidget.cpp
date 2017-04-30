@@ -5422,10 +5422,10 @@ void HistoryWidget::onPinnedHide() {
 }
 
 void HistoryWidget::onCopyPostLink() {
-	HistoryItem *to = App::contextItem();
-	if (!to || !to->hasDirectLink()) return;
+	auto item = App::contextItem();
+	if (!item || !item->hasDirectLink()) return;
 
-	QApplication::clipboard()->setText(to->directLink());
+	QApplication::clipboard()->setText(item->directLink());
 }
 
 bool HistoryWidget::lastForceReplyReplied(const FullMsgId &replyTo) const {
