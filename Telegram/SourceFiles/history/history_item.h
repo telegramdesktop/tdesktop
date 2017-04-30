@@ -684,24 +684,9 @@ public:
 		return _text.isEmpty();
 	}
 
-	bool canDelete() const {
-		auto channel = _history->peer->asChannel();
-		if (!channel) return !(_flags & MTPDmessage_ClientFlag::f_is_group_migrate);
-
-		if (id == 1) return false;
-		if (channel->amCreator()) return true;
-		if (isPost()) {
-			if (channel->amEditor() && out()) return true;
-			return false;
-		}
-		return (channel->amEditor() || channel->amModerator() || out());
-	}
-
-	bool canPin() const {
-		return id > 0 && _history->peer->isMegagroup() && (_history->peer->asChannel()->amEditor() || _history->peer->asChannel()->amCreator()) && toHistoryMessage();
-	}
-
+	bool canPin() const;
 	bool canEdit(const QDateTime &cur) const;
+	bool canDelete() const;
 	bool canDeleteForEveryone(const QDateTime &cur) const;
 
 	bool suggestBanReportDeleteAll() const {

@@ -753,6 +753,10 @@ void HistoryItem::setId(MsgId newId) {
 	}
 }
 
+bool HistoryItem::canPin() const {
+	return id > 0 && _history->peer->isMegagroup() && (_history->peer->asChannel()->amEditor() || _history->peer->asChannel()->amCreator()) && toHistoryMessage();
+}
+
 bool HistoryItem::canEdit(const QDateTime &cur) const {
 	auto messageToMyself = (_history->peer->id == AuthSession::CurrentUserPeerId());
 	auto messageTooOld = messageToMyself ? false : (date.secsTo(cur) >= Global::EditTimeLimit());
@@ -779,20 +783,49 @@ bool HistoryItem::canEdit(const QDateTime &cur) const {
 	return false;
 }
 
+bool HistoryItem::canDelete() const {
+	auto channel = _history->peer->asChannel();
+	if (!channel) {
+		return !(_flags & MTPDmessage_ClientFlag::f_is_group_migrate);
+	}
+
+	if (id == 1) {
+		return false;
+	}
+	if (channel->amCreator()) {
+		return true;
+	}
+	if (isPost()) {
+		if (channel->amEditor() && out()) {
+			return true;
+		}
+		return false;
+	}
+	return (channel->amEditor() || channel->amModerator() || out());
+}
+
 bool HistoryItem::canDeleteForEveryone(const QDateTime &cur) const {
 	auto messageToMyself = (_history->peer->id == AuthSession::CurrentUserPeerId());
 	auto messageTooOld = messageToMyself ? false : (date.secsTo(cur) >= Global::EditTimeLimit());
-	if (id < 0 || messageToMyself || messageTooOld) {
+	if (id < 0 || messageToMyself || messageTooOld || isPost()) {
 		return false;
 	}
 	if (history()->peer->isChannel()) {
 		return false;
 	}
-
-	if (auto msg = toHistoryMessage()) {
-		return !isPost() && out();
+	if (!toHistoryMessage()) {
+		return false;
 	}
-	return false;
+	if (!out()) {
+		if (auto chat = history()->peer->asChat()) {
+			if (!chat->amCreator() && (!chat->amAdmin() || !chat->adminsEnabled())) {
+				return false;
+			}
+		} else {
+			return false;
+		}
+	}
+	return true;
 }
 
 QString HistoryItem::directLink() const {
