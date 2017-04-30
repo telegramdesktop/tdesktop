@@ -1971,7 +1971,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 		(selected ? st::historyVideoMessageMuteSelected : st::historyVideoMessageMute).paintInCenter(p, muteRect);
 	}
 
-	if (isRound) {
+	if (!isChildMedia && isRound) {
 		auto mediaUnread = _parent->isMediaUnread();
 		auto statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
 		auto statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
@@ -1993,7 +1993,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 				p.drawEllipse(rtlrect(statusX - st::msgDateImgPadding.x() + statusW - st::msgDateImgPadding.x() - st::mediaUnreadSize, statusY + st::mediaUnreadTop, st::mediaUnreadSize, st::mediaUnreadSize, _width));
 			}
 		}
-		if (!isChildMedia && (via || reply || forwarded)) {
+		if (via || reply || forwarded) {
 			auto rectw = _width - usew - st::msgReplyPadding.left();
 			auto innerw = rectw - (st::msgReplyPadding.left() + st::msgReplyPadding.right());
 			auto recth = st::msgReplyPadding.top() + st::msgReplyPadding.bottom();
@@ -2225,6 +2225,14 @@ void HistoryGif::updateStatusText() const {
 	if (statusSize != _statusSize) {
 		setStatusSize(statusSize);
 	}
+}
+
+QString HistoryGif::additionalInfoString() const {
+	if (_data->isRoundVideo()) {
+		updateStatusText();
+		return _statusText;
+	}
+	return QString();
 }
 
 void HistoryGif::attachToParent() {
@@ -2946,6 +2954,9 @@ void HistoryWebPage::initDimensions() {
 		}
 		accumulate_max(_maxw, maxMediaWidth);
 		_minh += _attach->minHeight() - bubble.top() - bubble.bottom();
+		if (!_attach->additionalInfoString().isEmpty()) {
+			_minh += bottomInfoPadding();
+		}
 	}
 	if (_data->type == WebPageVideo && _data->duration) {
 		_duration = formatDurationText(_data->duration);
@@ -3042,7 +3053,9 @@ int HistoryWebPage::resizeGetHeight(int width) {
 
 			_attach->resizeGetHeight(width + bubble.left() + bubble.right());
 			_height += _attach->height() - bubble.top() - bubble.bottom();
-			if (isBubbleBottom() && _attach->customInfoLayout() && _attach->currentWidth() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
+			if (!_attach->additionalInfoString().isEmpty()) {
+				_height += bottomInfoPadding();
+			} else if (isBubbleBottom() && _attach->customInfoLayout() && _attach->currentWidth() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
 				_height += bottomInfoPadding();
 			}
 		}
@@ -3069,7 +3082,12 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, T
 	auto tshift = padding.top();
 	auto bshift = padding.bottom();
 	width -= padding.left() + padding.right();
-	if (_asArticle || (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->currentWidth() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right())) {
+	auto attachAdditionalInfoText = _attach ? _attach->additionalInfoString() : QString();
+	if (_asArticle) {
+		bshift += bottomInfoPadding();
+	} else if (!attachAdditionalInfoText.isEmpty()) {
+		bshift += bottomInfoPadding();
+	} else if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->currentWidth() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
 		bshift += bottomInfoPadding();
 	}
 
@@ -3161,6 +3179,12 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, T
 		}
 
 		p.translate(-attachLeft, -attachTop);
+
+		if (!attachAdditionalInfoText.isEmpty()) {
+			p.setFont(st::msgDateFont);
+			p.setPen(selected ? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected) : (outbg ? st::msgOutDateFg : st::msgInDateFg));
+			p.drawTextLeft(st::msgPadding.left(), bar.y() + bar.height() + st::mediaInBubbleSkip, _width, attachAdditionalInfoText);
+		}
 	}
 }
 

@@ -532,6 +532,8 @@ public:
 	bool customInfoLayout() const override {
 		return _caption.isEmpty();
 	}
+	QString additionalInfoString() const override;
+
 	bool skipBubbleTail() const override {
 		return isBubbleBottom() && _caption.isEmpty();
 	}
