@@ -490,8 +490,7 @@ EditCaptionBox::EditCaptionBox(QWidget*, HistoryMedia *media, FullMsgId msgId) :
 	}
 	caption = media->getCaption().text;
 
-	if ((!_animated && (dimensions.isEmpty() || doc)) || image->isNull()) {
-		_animated = false;
+	if (!_animated && (dimensions.isEmpty() || doc || image->isNull())) {
 		if (image->isNull()) {
 			_thumbw = 0;
 		} else {
