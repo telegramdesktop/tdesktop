@@ -90,16 +90,16 @@ void Start() {
 	// See https://github.com/telegramdesktop/tdesktop/issues/3276 for details.
 	// Crash happens on "options.maxh / _t->_st->font->height" with "division by zero".
 	// In that place "_t->_st->font" is "semiboldFont" is "font(13 "Open Sans Semibold").
-	if (QSysInfo::WindowsVersion >= QSysInfo::WV_WINDOWS10) {
-		if (!regular || !bold) {
-			if (ValidateFont(qsl("Segoe UI")) && ValidateFont(qsl("Segoe UI"), style::internal::FontBold)) {
-				OpenSansOverride = qsl("Segoe UI");
-			}
+	if (!regular || !bold) {
+		if (ValidateFont(qsl("Segoe UI")) && ValidateFont(qsl("Segoe UI"), style::internal::FontBold)) {
+			OpenSansOverride = qsl("Segoe UI");
+			LOG(("Fonts Info: Using Segoe UI instead of Open Sans."));
 		}
-		if (!semibold) {
-			if (ValidateFont(qsl("Segoe UI Semibold"))) {
-				OpenSansSemiboldOverride = qsl("Segoe UI Semibold");
-			}
+	}
+	if (!semibold) {
+		if (ValidateFont(qsl("Segoe UI Semibold"))) {
+			OpenSansSemiboldOverride = qsl("Segoe UI Semibold");
+			LOG(("Fonts Info: Using Segoe UI Semibold instead of Open Sans Semibold."));
 		}
 	}
 #endif // Q_OS_WIN
