@@ -790,6 +790,7 @@ private:
 	object_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;
 	object_ptr<ChatHelpers::TabbedSection> _tabbedSection = { nullptr };
 	QPointer<ChatHelpers::TabbedSelector> _tabbedSelector;
+	bool _tabbedSectionUsed = false;
 	DragState _attachDrag = DragStateNone;
 	object_ptr<DragArea> _attachDragDocument, _attachDragPhoto;
 

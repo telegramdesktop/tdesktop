@@ -3699,13 +3699,17 @@ void HistoryWidget::topBarClick() {
 
 void HistoryWidget::updateTabbedSelectorSectionShown() {
 	auto tabbedSelectorSectionEnabled = AuthSession::Current().data().tabbedSelectorSectionEnabled();
-	auto shown = tabbedSelectorSectionEnabled && (width() >= minimalWidthForTabbedSelectorSection());
-	auto shownNow = (_tabbedSection != nullptr);
-	if (shown == shownNow) {
+	auto useTabbedSection = tabbedSelectorSectionEnabled && (width() >= minimalWidthForTabbedSelectorSection());
+	if (_tabbedSectionUsed == useTabbedSection) {
 		return;
 	}
+	_tabbedSectionUsed = useTabbedSection;
 
-	if (shown) {
+	// Use a separate bool flag instead of just (_tabbedSection != nullptr), because
+	// _tabbedPanel->takeSelector() calls QWidget::render(), which calls
+	// sendPendingMoveAndResizeEvents() for all widgets in the window, which can lead
+	// to a new HistoryWidget::resizeEvent() call and an infinite recursion here.
+	if (_tabbedSectionUsed) {
 		_tabbedSection.create(this, _controller, _tabbedPanel->takeSelector());
 		_tabbedSection->setCancelledCallback([this] { setInnerFocus(); });
 		_rightShadow.create(this, st::shadowFg);
