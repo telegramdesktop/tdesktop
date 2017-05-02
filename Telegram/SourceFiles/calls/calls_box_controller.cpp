@@ -113,16 +113,16 @@ BoxController::Row::Row(HistoryItem *item) : PeerListBox::Row(item->history()->p
 }
 
 void BoxController::Row::paintStatusText(Painter &p, int x, int y, int outerWidth, bool selected) {
-	auto &icon = ([this] {
+	auto icon = ([this] {
 		switch (_type) {
-		case Type::In: return st::callArrowIn;
-		case Type::Out: return st::callArrowOut;
-		case Type::Missed: return st::callArrowMissed;
+		case Type::In: return &st::callArrowIn;
+		case Type::Out: return &st::callArrowOut;
+		case Type::Missed: return &st::callArrowMissed;
 		}
 		Unexpected("_type in Calls::BoxController::Row::paintStatusText().");
 	})();
-	icon.paint(p, x + st::callArrowPosition.x(), y + st::callArrowPosition.y(), outerWidth);
-	x += + st::callArrowPosition.x() + icon.width() + st::callArrowSkip;
+	icon->paint(p, x + st::callArrowPosition.x(), y + st::callArrowPosition.y(), outerWidth);
+	x += + st::callArrowPosition.x() + icon->width() + st::callArrowSkip;
 
 	PeerListBox::Row::paintStatusText(p, x, y, outerWidth, selected);
 }
@@ -285,7 +285,7 @@ bool BoxController::insertRow(HistoryItem *item, InsertWay way) {
 		}
 	}
 	(way == InsertWay::Append) ? view()->appendRow(createRow(item)) : view()->prependRow(createRow(item));
-	view()->reorderRows([](auto &begin, auto &end) {
+	view()->reorderRows([](auto &&begin, auto &&end) {
 		std::sort(begin, end, [](auto &a, auto &b) {
 			return static_cast<Row&>(*a).maxItemId() > static_cast<Row&>(*a).maxItemId();
 		});

@@ -405,6 +405,9 @@ bool TransparentWindowsSupported(QPoint globalPosition) {
 	return false;
 }
 
+void InitOnTopPanel(QWidget *panel) {
+}
+
 namespace ThirdParty {
 
 void start() {

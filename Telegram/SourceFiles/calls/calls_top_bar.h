@@ -48,6 +48,7 @@ private:
 	void updateDurationText();
 	void updateControlsGeometry();
 	void startDurationUpdateTimer(TimeMs currentDuration);
+	void setMuted(bool mute);
 
 	base::weak_unique_ptr<Call> _call;
 

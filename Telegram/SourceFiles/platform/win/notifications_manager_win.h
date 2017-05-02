@@ -25,9 +25,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Platform {
 namespace Notifications {
 
-inline void CustomNotificationShownHook(QWidget *widget) {
-}
-
 class Manager : public Window::Notifications::NativeManager {
 public:
 	Manager(Window::Notifications::System *system);

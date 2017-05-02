@@ -184,8 +184,6 @@ void Panel::refreshCallbacks() {
 }
 
 void Panel::initLayout() {
-	hide();
-
 	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint) | Qt::WindowStaysOnTopHint | Qt::BypassWindowManagerHint | Qt::NoDropShadowWindowHint | Qt::Tool);
 	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
 	setAttribute(Qt::WA_NoSystemBackground, true);
@@ -203,6 +201,8 @@ void Panel::initLayout() {
 		refreshUserPhoto();
 	});
 	createDefaultCacheImage();
+
+	Platform::InitOnTopPanel(this);
 }
 
 void Panel::processUserPhoto() {
@@ -235,7 +235,7 @@ void Panel::refreshUserPhoto() {
 
 void Panel::createUserpicCache(ImagePtr image) {
 	auto size = st::callWidth * cIntRetinaFactor();
-	auto options = _useTransparency ? (Images::Option::RoundedLarge | Images::Option::RoundedTopLeft | Images::Option::RoundedTopRight | Images::Option::Smooth) : 0;
+	auto options = _useTransparency ? (Images::Option::RoundedLarge | Images::Option::RoundedTopLeft | Images::Option::RoundedTopRight | Images::Option::Smooth) : Images::Option::None;
 	auto width = image->width();
 	auto height = image->height();
 	if (width > height) {
@@ -245,7 +245,7 @@ void Panel::createUserpicCache(ImagePtr image) {
 		height = qMax((height * size) / width, 1);
 		width = size;
 	}
-	_userPhoto = image->pixNoCache(width, height, options, size, size);
+	_userPhoto = image->pixNoCache(width, height, options, st::callWidth, st::callWidth);
 	if (cRetina()) _userPhoto.setDevicePixelRatio(cRetinaFactor());
 
 	refreshCacheImageUserPhoto();
@@ -301,7 +301,8 @@ void Panel::createDefaultCacheImage() {
 	if (!_useTransparency || !_cache.isNull()) {
 		return;
 	}
-	auto cache = QImage(size(), QImage::Format_ARGB32_Premultiplied);
+	auto cache = QImage(size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	cache.setDevicePixelRatio(cRetinaFactor());
 	cache.fill(Qt::transparent);
 	{
 		Painter p(&cache);
@@ -317,7 +318,8 @@ void Panel::createDefaultCacheImage() {
 }
 
 void Panel::refreshCacheImageUserPhoto() {
-	auto cache = QImage(size(), QImage::Format_ARGB32_Premultiplied);
+	auto cache = QImage(size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	cache.setDevicePixelRatio(cRetinaFactor());
 	cache.fill(Qt::transparent);
 	{
 		Painter p(&cache);

@@ -199,7 +199,6 @@ void Manager::showNextFromQueue() {
 			queued.item,
 			queued.forwardedCount,
 			startPosition, startShift, shiftDirection);
-		Platform::Notifications::CustomNotificationShownHook(notification.get());
 		_notifications.push_back(std::move(notification));
 		--count;
 	} while (count > 0 && !_queuedNotifications.empty());
@@ -353,9 +352,11 @@ Widget::Widget(Manager *manager, QPoint startPosition, int shift, Direction shif
 , _a_shift(animation(this, &Widget::step_shift)) {
 	setWindowOpacity(0.);
 
-	setWindowFlags(qFlags(Qt::Tool) | Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::NoDropShadowWindowHint);
-	setAttribute(Qt::WA_OpaquePaintEvent);
+	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint) | Qt::WindowStaysOnTopHint | Qt::BypassWindowManagerHint | Qt::NoDropShadowWindowHint | Qt::Tool);
 	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
+	setAttribute(Qt::WA_OpaquePaintEvent);
+
+	Platform::InitOnTopPanel(this);
 
 	_a_opacity.start([this] { opacityAnimationCallback(); }, 0., 1., st::notifyFastAnim);
 }

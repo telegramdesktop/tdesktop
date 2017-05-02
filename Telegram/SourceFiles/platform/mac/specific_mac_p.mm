@@ -36,7 +36,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace {
 
-constexpr auto kIgnoreActivationTimeoutMs = 1500;
+constexpr auto kIgnoreActivationTimeoutMs = 500;
 
 } // namespace
 
@@ -196,12 +196,33 @@ void SetWatchingMediaKeys(bool watching) {
 	}
 }
 
-} // namespace Platform
+void InitOnTopPanel(QWidget *panel) {
+	Expects(!panel->windowHandle());
 
-void objc_holdOnTop(WId winId) {
-	NSWindow *wnd = [reinterpret_cast<NSView *>(winId) window];
-	[wnd setHidesOnDeactivate:NO];
+	// Force creating windowHandle() without creating the platform window yet.
+	panel->setAttribute(Qt::WA_NativeWindow, true);
+	panel->windowHandle()->setProperty("_td_macNonactivatingPanelMask", QVariant(true));
+	panel->setAttribute(Qt::WA_NativeWindow, false);
+
+	panel->createWinId();
+
+	auto platformWindow = [reinterpret_cast<NSView*>(panel->winId()) window];
+	t_assert([platformWindow isKindOfClass:[NSPanel class]]);
+
+	auto platformPanel = static_cast<NSPanel*>(platformWindow);
+	[platformPanel setLevel:NSPopUpMenuWindowLevel];
+	[platformPanel setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces|NSWindowCollectionBehaviorStationary|NSWindowCollectionBehaviorFullScreenAuxiliary|NSWindowCollectionBehaviorIgnoresCycle];
+	[platformPanel setFloatingPanel:YES];
+	[platformPanel setHidesOnDeactivate:NO];
+
+	if (auto window = App::wnd()) {
+		window->customNotificationCreated(panel);
+	}
+
+	objc_ignoreApplicationActivationRightNow();
 }
+
+} // namespace Platform
 
 bool objc_darkMode() {
 	bool result = false;

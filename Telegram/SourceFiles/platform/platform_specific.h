@@ -36,6 +36,8 @@ void finish();
 void SetWatchingMediaKeys(bool watching);
 bool TransparentWindowsSupported(QPoint globalPosition);
 
+void InitOnTopPanel(QWidget *panel);
+
 namespace ThirdParty {
 
 void start();

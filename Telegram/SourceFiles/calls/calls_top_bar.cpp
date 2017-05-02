@@ -45,11 +45,9 @@ void TopBar::initControls() {
 	_mute->setClickedCallback([this] {
 		_call->setMute(!_call->isMute());
 	});
+	setMuted(_call->isMute());
 	subscribe(_call->muteChanged(), [this](bool mute) {
-		_mute->setIconOverride(mute ? &st::callBarUnmuteIcon : nullptr);
-		_mute->setRippleColorOverride(mute ? &st::callBarUnmuteRipple : nullptr);
-		_hangup->setRippleColorOverride(mute ? &st::callBarUnmuteRipple : nullptr);
-		_muted = mute;
+		setMuted(mute);
 		update();
 	});
 	_info->setClickedCallback([this] {
@@ -64,6 +62,13 @@ void TopBar::initControls() {
 	});
 	_updateDurationTimer.setCallback([this] { updateDurationText(); });
 	updateDurationText();
+}
+
+void TopBar::setMuted(bool mute) {
+	_mute->setIconOverride(mute ? &st::callBarUnmuteIcon : nullptr);
+	_mute->setRippleColorOverride(mute ? &st::callBarUnmuteRipple : nullptr);
+	_hangup->setRippleColorOverride(mute ? &st::callBarUnmuteRipple : nullptr);
+	_muted = mute;
 }
 
 void TopBar::updateDurationText() {

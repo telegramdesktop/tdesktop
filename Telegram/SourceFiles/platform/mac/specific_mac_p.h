@@ -20,7 +20,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 // e is NSEvent*
 bool objc_handleMediaKeyEvent(void *e);
 
-void objc_holdOnTop(WId winId);
 bool objc_darkMode();
 void objc_showOverAll(WId winId, bool canFocus = true);
 void objc_bringToBack(WId winId);
