@@ -48,9 +48,6 @@ public:
 		return _customTitleHeight;
 	}
 
-	// It is placed here while the window handles activeSpaceDidChange event.
-	void customNotificationCreated(QWidget *notification);
-
 	~MainWindow();
 
 	class Private;
@@ -104,15 +101,8 @@ private:
 	void updateTitleCounter();
 	void updateIconCounters();
 
-	class CustomNotificationHandle;
-	friend class CustomNotificationHandle;
-	void customNotificationDestroyed(CustomNotificationHandle *handle);
-	void activateCustomNotifications();
-
 	friend class Private;
 	std::unique_ptr<Private> _private;
-
-	std::set<CustomNotificationHandle*> _customNotifications;
 
 	mutable bool psIdle;
 	mutable QTimer psIdleTimer;

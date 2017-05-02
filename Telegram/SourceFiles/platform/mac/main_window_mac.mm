@@ -73,7 +73,6 @@ public:
 
 	void willEnterFullScreen();
 	void willExitFullScreen();
-	void activateCustomNotifications();
 
 	void initCustomTitle(NSWindow *window, NSView *view);
 
@@ -92,25 +91,6 @@ private:
 
 };
 
-class MainWindow::CustomNotificationHandle : public QObject {
-public:
-	CustomNotificationHandle(QWidget *parent) : QObject(parent) {
-	}
-
-	void activate() {
-		auto widget = static_cast<QWidget*>(parent());
-		NSWindow *wnd = [reinterpret_cast<NSView *>(widget->winId()) window];
-		[wnd orderFront:wnd];
-	}
-
-	~CustomNotificationHandle() {
-		if (auto window = App::wnd()) {
-			window->customNotificationDestroyed(this);
-		}
-	}
-
-};
-
 } // namespace Platform
 
 @implementation MainWindowObserver {
@@ -126,7 +106,6 @@ public:
 }
 
 - (void) activeSpaceDidChange:(NSNotification *)aNotification {
-	_private->activateCustomNotifications();
 }
 
 - (void) darkModeChanged:(NSNotification *)aNotification {
@@ -209,10 +188,6 @@ void MainWindow::Private::willEnterFullScreen() {
 
 void MainWindow::Private::willExitFullScreen() {
 	_public->setTitleVisible(true);
-}
-
-void MainWindow::Private::activateCustomNotifications() {
-	_public->activateCustomNotifications();
 }
 
 void MainWindow::Private::enableShadow(WId winId) {
@@ -525,20 +500,6 @@ void MainWindow::psUpdateSysMenu(Qt::WindowState state) {
 }
 
 void MainWindow::psUpdateMargins() {
-}
-
-void MainWindow::customNotificationCreated(QWidget *notification) {
-	_customNotifications.insert(object_ptr<CustomNotificationHandle>(notification));
-}
-
-void MainWindow::customNotificationDestroyed(CustomNotificationHandle *handle) {
-	_customNotifications.erase(handle);
-}
-
-void MainWindow::activateCustomNotifications() {
-	for (auto handle : _customNotifications) {
-		handle->activate();
-	}
 }
 
 void MainWindow::updateGlobalMenuHook() {

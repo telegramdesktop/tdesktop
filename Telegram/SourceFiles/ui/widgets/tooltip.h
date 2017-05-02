@@ -17,6 +17,8 @@
  */
 #pragma once
 
+#include "base/timer.h"
+
 namespace style {
 struct Tooltip;
 } // namespace style
@@ -41,9 +43,7 @@ public:
 	static void Hide();
 
 private slots:
-	void onShow();
 	void onWndActiveChanged();
-	void onHideByLeave();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -52,6 +52,8 @@ protected:
 	bool eventFilter(QObject *o, QEvent *e) override;
 
 private:
+	void performShow();
+
 	Tooltip();
 	~Tooltip();
 
@@ -59,14 +61,15 @@ private:
 
 	friend class AbstractTooltipShower;
 	const AbstractTooltipShower *_shower = nullptr;
-	QTimer _showTimer;
+	base::Timer _showTimer;
 
 	Text _text;
 	QPoint _point;
 
 	const style::Tooltip *_st = nullptr;
 
-	QTimer _hideByLeaveTimer;
+	base::Timer _hideByLeaveTimer;
+	bool _isEventFilter = false;
 	bool _useTransparency = true;
 
 };

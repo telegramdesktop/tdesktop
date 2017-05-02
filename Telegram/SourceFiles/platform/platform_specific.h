@@ -34,9 +34,11 @@ void start();
 void finish();
 
 void SetWatchingMediaKeys(bool watching);
-bool TransparentWindowsSupported(QPoint globalPosition);
-
+bool TranslucentWindowsSupported(QPoint globalPosition);
+void StartTranslucentPaint(QPainter &p, QPaintEvent *e);
 void InitOnTopPanel(QWidget *panel);
+void DeInitOnTopPanel(QWidget *panel);
+void ReInitOnTopPanel(QWidget *panel);
 
 namespace ThirdParty {
 

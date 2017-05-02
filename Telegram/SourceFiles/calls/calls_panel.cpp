@@ -184,7 +184,7 @@ void Panel::refreshCallbacks() {
 }
 
 void Panel::initLayout() {
-	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint) | Qt::WindowStaysOnTopHint | Qt::BypassWindowManagerHint | Qt::NoDropShadowWindowHint | Qt::Tool);
+	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint) | Qt::WindowStaysOnTopHint | Qt::BypassWindowManagerHint | Qt::NoDropShadowWindowHint | Qt::Dialog);
 	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
 	setAttribute(Qt::WA_NoSystemBackground, true);
 	setAttribute(Qt::WA_TranslucentBackground, true);
@@ -267,8 +267,9 @@ bool Panel::isGoodUserPhoto(PhotoData *photo) {
 
 void Panel::initGeometry() {
 	auto center = Messenger::Instance().getPointForCallPanelCenter();
-	_useTransparency = Platform::TransparentWindowsSupported(center);
-	_padding = _useTransparency ? st::callShadow.extend : style::margins();
+	_useTransparency = Platform::TranslucentWindowsSupported(center);
+	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
+	_padding = _useTransparency ? st::callShadow.extend : style::margins(st::lineWidth, st::lineWidth, st::lineWidth, st::lineWidth);
 	_contentTop = _padding.top() + st::callWidth;
 	auto screen = QApplication::desktop()->screenGeometry(center);
 	auto rect = QRect(0, 0, st::callWidth, st::callHeight);
@@ -359,10 +360,17 @@ void Panel::updateStatusGeometry() {
 void Panel::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (_useTransparency) {
+		Platform::StartTranslucentPaint(p, e);
 		p.drawPixmapLeft(0, 0, width(), _cache);
 	} else {
-		p.drawPixmapLeft(0, 0, width(), _userPhoto);
-		p.fillRect(myrtlrect(0, st::callWidth, width(), height() - st::callWidth), st::callBg);
+		p.drawPixmapLeft(_padding.left(), _padding.top(), width(), _userPhoto);
+		auto callBgOpaque = st::callBg->c;
+		callBgOpaque.setAlpha(255);
+		auto brush = QBrush(callBgOpaque);
+		p.fillRect(0, 0, width(), _padding.top(), brush);
+		p.fillRect(myrtlrect(0, _padding.top(), _padding.left(), _contentTop - _padding.top()), brush);
+		p.fillRect(myrtlrect(width() - _padding.right(), _padding.top(), _padding.right(), _contentTop - _padding.top()), brush);
+		p.fillRect(0, _contentTop, width(), height() - _contentTop, brush);
 	}
 
 	if (!_fingerprint.empty()) {
@@ -381,10 +389,16 @@ void Panel::paintEvent(QPaintEvent *e) {
 
 void Panel::mousePressEvent(QMouseEvent *e) {
 	auto dragArea = myrtlrect(_padding.left(), _padding.top(), st::callWidth, st::callWidth);
-	if (e->button() == Qt::LeftButton && dragArea.contains(e->pos())) {
-		_dragging = true;
-		_dragStartMousePosition = e->globalPos();
-		_dragStartMyPosition = QPoint(x(), y());
+	if (e->button() == Qt::LeftButton) {
+		if (dragArea.contains(e->pos())) {
+			_dragging = true;
+			_dragStartMousePosition = e->globalPos();
+			_dragStartMyPosition = QPoint(x(), y());
+		} else if (!rect().contains(e->pos())) {
+			if (_call && _call->state() == State::Established) {
+				hideDeactivated();
+			}
+		}
 	}
 }
 
@@ -458,8 +472,15 @@ void Panel::stateChanged(State state) {
 	if (_fingerprint.empty() && _call && _call->isKeyShaForFingerprintReady()) {
 		fillFingerprint();
 	}
-	if (state == State::Established && !isActiveWindow()) {
-		hideDeactivated();
+	if ((state == State::Starting) || (state == State::WaitingIncoming)) {
+		Platform::ReInitOnTopPanel(this);
+	} else {
+		Platform::DeInitOnTopPanel(this);
+	}
+	if (state == State::Established) {
+		if (!isActiveWindow()) {
+			hideDeactivated();
+		}
 	}
 }
 

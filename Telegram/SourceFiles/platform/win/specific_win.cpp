@@ -527,16 +527,6 @@ void finish() {
 	EventFilter::destroy();
 }
 
-void SetWatchingMediaKeys(bool watching) {
-}
-
-bool TransparentWindowsSupported(QPoint globalPosition) {
-	return true;
-}
-
-void InitOnTopPanel(QWidget *panel) {
-}
-
 namespace ThirdParty {
 
 void start() {

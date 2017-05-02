@@ -215,11 +215,25 @@ void InitOnTopPanel(QWidget *panel) {
 	[platformPanel setFloatingPanel:YES];
 	[platformPanel setHidesOnDeactivate:NO];
 
-	if (auto window = App::wnd()) {
-		window->customNotificationCreated(panel);
-	}
-
 	objc_ignoreApplicationActivationRightNow();
+}
+
+void DeInitOnTopPanel(QWidget *panel) {
+	auto platformWindow = [reinterpret_cast<NSView*>(panel->winId()) window];
+	t_assert([platformWindow isKindOfClass:[NSPanel class]]);
+
+	auto platformPanel = static_cast<NSPanel*>(platformWindow);
+	auto newBehavior = ([platformPanel collectionBehavior] & (~NSWindowCollectionBehaviorCanJoinAllSpaces)) | NSWindowCollectionBehaviorMoveToActiveSpace;
+	[platformPanel setCollectionBehavior:newBehavior];
+}
+
+void ReInitOnTopPanel(QWidget *panel) {
+	auto platformWindow = [reinterpret_cast<NSView*>(panel->winId()) window];
+	t_assert([platformWindow isKindOfClass:[NSPanel class]]);
+
+	auto platformPanel = static_cast<NSPanel*>(platformWindow);
+	auto newBehavior = ([platformPanel collectionBehavior] & (~NSWindowCollectionBehaviorMoveToActiveSpace)) | NSWindowCollectionBehaviorCanJoinAllSpaces;
+	[platformPanel setCollectionBehavior:newBehavior];
 }
 
 } // namespace Platform

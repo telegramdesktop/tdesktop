@@ -19,6 +19,23 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "platform/mac/specific_mac_p.h"
 
+namespace Platform {
+
+inline bool TranslucentWindowsSupported(QPoint globalPosition) {
+	return true;
+}
+
+namespace ThirdParty {
+
+inline void start() {
+}
+
+inline void finish() {
+}
+
+} // namespace ThirdParty
+} // namespace Platform
+
 inline QString psServerPrefix() {
 #ifndef OS_MAC_STORE
     return qsl("/tmp/");

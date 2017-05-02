@@ -20,6 +20,25 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <execinfo.h>
 #include <signal.h>
 
+namespace Platform {
+
+inline void SetWatchingMediaKeys(bool watching) {
+}
+
+inline void StartTranslucentPaint(QPainter &p, QPaintEvent *e) {
+}
+
+inline void InitOnTopPanel(QWidget *panel) {
+}
+
+inline void DeInitOnTopPanel(QWidget *panel) {
+}
+
+inline void ReInitOnTopPanel(QWidget *panel) {
+}
+
+} // namespace Platform
+
 inline QString psServerPrefix() {
     return qsl("/tmp/");
 }

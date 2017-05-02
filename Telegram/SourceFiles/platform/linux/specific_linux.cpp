@@ -377,10 +377,7 @@ void finish() {
 	_psEventFilter = nullptr;
 }
 
-void SetWatchingMediaKeys(bool watching) {
-}
-
-bool TransparentWindowsSupported(QPoint globalPosition) {
+bool TranslucentWindowsSupported(QPoint globalPosition) {
 	if (auto app = static_cast<QGuiApplication*>(QCoreApplication::instance())) {
 		if (auto native = app->platformNativeInterface()) {
 			if (auto desktop = QApplication::desktop()) {
@@ -403,9 +400,6 @@ bool TransparentWindowsSupported(QPoint globalPosition) {
 		}
 	}
 	return false;
-}
-
-void InitOnTopPanel(QWidget *panel) {
 }
 
 namespace ThirdParty {
