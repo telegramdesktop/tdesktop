@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "lang.h"
 #include "boxes/confirm_box.h"
+#include "boxes/rate_call_box.h"
 #include "calls/calls_instance.h"
 #include "base/openssl_help.h"
 #include "mtproto/connection.h"
@@ -300,6 +301,9 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			if (!debugLog.empty()) {
 				MTP::send(MTPphone_SaveCallDebug(MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)), MTP_dataJSON(MTP_string(debugLog))));
 			}
+		}
+		if (data.is_need_rating() && _id && _accessHash) {
+			Ui::show(Box<RateCallBox>(_id, _accessHash));
 		}
 		if (data.has_reason() && data.vreason.type() == mtpc_phoneCallDiscardReasonDisconnect) {
 			LOG(("Call Info: Discarded with DISCONNECT reason."));

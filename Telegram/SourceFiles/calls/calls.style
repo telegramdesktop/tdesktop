@@ -161,3 +161,26 @@ callReDial: IconButton {
 	rippleAreaPosition: point(0px, 8px);
 	rippleAreaSize: 40px;
 }
+
+callRatingPadding: margins(24px, 26px, 24px, 8px);
+callRatingStar: IconButton {
+	width: 36px;
+	height: 36px;
+
+	icon: icon {{ "call_rating", windowSubTextFg }};
+	iconPosition: point(-1px, -1px);
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 36px;
+}
+callRatingStarFilled: icon {{ "call_rating_filled", lightButtonFg }};
+callRatingStarLeft: -7px;
+callRatingStarTop: 6px;
+callRatingComment: InputField(defaultInputField) {
+	textMargins: margins(1px, 26px, 1px, 4px);
+	heightMax: 135px;
+}
+callRatingCommentTop: 2px;

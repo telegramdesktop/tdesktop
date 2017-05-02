@@ -64,6 +64,8 @@
 <(src_loc)/boxes/passcode_box.h
 <(src_loc)/boxes/photo_crop_box.cpp
 <(src_loc)/boxes/photo_crop_box.h
+<(src_loc)/boxes/rate_call_box.cpp
+<(src_loc)/boxes/rate_call_box.h
 <(src_loc)/boxes/report_box.cpp
 <(src_loc)/boxes/report_box.h
 <(src_loc)/boxes/self_destruction_box.cpp

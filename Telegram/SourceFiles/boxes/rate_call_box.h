@@ -21,24 +21,23 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "boxes/abstract_box.h"
+#include "mtproto/sender.h"
 
 namespace Ui {
-template <typename Enum>
-class RadioenumGroup;
-template <typename Enum>
-class Radioenum;
 class InputArea;
+class FlatLabel;
+class IconButton;
 } // namespace Ui
 
-class ReportBox : public BoxContent, public RPCSender {
+class RateCallBox : public BoxContent, private MTP::Sender {
 	Q_OBJECT
 
 public:
-	ReportBox(QWidget*, PeerData *peer);
+	RateCallBox(QWidget*, uint64 callId, uint64 callAccessHash);
 
 private slots:
-	void onReport();
-	void onReasonResized();
+	void onSend();
+	void onCommentResized();
 	void onClose() {
 		closeBox();
 	}
@@ -50,26 +49,16 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	enum class Reason {
-		Spam,
-		Violence,
-		Pornography,
-		Other,
-	};
-	void reasonChanged(Reason reason);
 	void updateMaxHeight();
+	void ratingChanged(int value);
 
-	void reportDone(const MTPBool &result);
-	bool reportFail(const RPCError &error);
+	uint64 _callId = 0;
+	uint64 _callAccessHash = 0;
+	int _rating = 0;
 
-	PeerData *_peer;
-
-	std::shared_ptr<Ui::RadioenumGroup<Reason>> _reasonGroup;
-	object_ptr<Ui::Radioenum<Reason>> _reasonSpam;
-	object_ptr<Ui::Radioenum<Reason>> _reasonViolence;
-	object_ptr<Ui::Radioenum<Reason>> _reasonPornography;
-	object_ptr<Ui::Radioenum<Reason>> _reasonOther;
-	object_ptr<Ui::InputArea> _reasonOtherText = { nullptr };
+	object_ptr<Ui::FlatLabel> _label;
+	std::vector<object_ptr<Ui::IconButton>> _stars;
+	object_ptr<Ui::InputArea> _comment = { nullptr };
 
 	mtpRequestId _requestId = 0;
 

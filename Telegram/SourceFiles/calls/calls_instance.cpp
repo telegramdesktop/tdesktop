@@ -29,6 +29,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "calls/calls_call.h"
 #include "calls/calls_panel.h"
 
+
+#include "boxes/rate_call_box.h"
 namespace Calls {
 namespace {
 
