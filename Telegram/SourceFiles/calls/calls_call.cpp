@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "calls/calls_instance.h"
 #include "base/openssl_help.h"
 #include "mtproto/connection.h"
+#include "media/media_audio_track.h"
 
 #ifdef slots
 #undef slots
@@ -84,6 +85,7 @@ Call::Call(gsl::not_null<Delegate*> delegate, gsl::not_null<UserData*> user, Typ
 	if (_type == Type::Outgoing) {
 		setState(State::Requesting);
 	}
+	startWaitingTrack();
 }
 
 void Call::generateModExpFirst(base::const_byte_span randomSeed) {
@@ -219,7 +221,15 @@ void Call::redial() {
 	t_assert(_controller == nullptr);
 	_type = Type::Outgoing;
 	setState(State::Requesting);
+	startWaitingTrack();
 	_delegate->callRedial(this);
+}
+
+void Call::startWaitingTrack() {
+	_waitingTrack = Media::Audio::Current().createTrack();
+	auto trackFileName = (_type == Type::Outgoing) ? qsl(":/sounds/call_outgoing.mp3") : qsl(":/sounds/call_incoming.mp3");
+	_waitingTrack->fillFromFile(trackFileName);
+	_waitingTrack->playInLoop();
 }
 
 bool Call::isKeyShaForFingerprintReady() const {
@@ -494,24 +504,41 @@ bool Call::checkCallFields(const MTPDphoneCallAccepted &call) {
 
 void Call::setState(State state) {
 	if (_state != state) {
+		auto wasBusy = (_state == State::Busy);
+
 		_state = state;
 		_stateChanged.notify(state, true);
 
+		if (true
+			&& _state != State::Starting
+			&& _state != State::Requesting
+			&& _state != State::Waiting
+			&& _state != State::WaitingIncoming
+			&& _state != State::Ringing) {
+			_waitingTrack.reset();
+		}
 		switch (_state) {
-		case State::WaitingInit:
-		case State::WaitingInitAck:
 		case State::Established:
 			_startTime = getms(true);
 			break;
+		case State::ExchangingKeys:
+			_delegate->playSound(Delegate::Sound::Connecting);
+			break;
 		case State::Ended:
+			if (!wasBusy) {
+				_delegate->playSound(Delegate::Sound::Ended);
+			}
 			_delegate->callFinished(this);
 			break;
 		case State::Failed:
+			if (!wasBusy) {
+				_delegate->playSound(Delegate::Sound::Ended);
+			}
 			_delegate->callFailed(this);
 			break;
 		case State::Busy:
 			destroyController();
-			// TODO play sound
+			_delegate->playSound(Delegate::Sound::Busy);
 			break;
 		}
 	}

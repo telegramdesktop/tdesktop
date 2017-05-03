@@ -25,6 +25,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/sender.h"
 #include "mtproto/auth_key.h"
 
+namespace Media {
+namespace Audio {
+class Track;
+} // namespace Audio
+} // namespace Media
+
 namespace tgvoip {
 class VoIPController;
 } // namespace tgvoip
@@ -45,6 +51,13 @@ public:
 		virtual void callFinished(gsl::not_null<Call*> call) = 0;
 		virtual void callFailed(gsl::not_null<Call*> call) = 0;
 		virtual void callRedial(gsl::not_null<Call*> call) = 0;
+
+		enum class Sound {
+			Connecting,
+			Busy,
+			Ended,
+		};
+		virtual void playSound(Sound sound) = 0;
 
 	};
 
@@ -114,6 +127,7 @@ private:
 	void finish(const MTPPhoneCallDiscardReason &reason);
 	void startOutgoing();
 	void startIncoming();
+	void startWaitingTrack();
 
 	void generateModExpFirst(base::const_byte_span randomSeed);
 	void handleControllerStateChange(tgvoip::VoIPController *controller, int state);
@@ -157,6 +171,8 @@ private:
 	uint64 _keyFingerprint = 0;
 
 	std::unique_ptr<tgvoip::VoIPController> _controller;
+
+	std::unique_ptr<Media::Audio::Track> _waitingTrack;
 
 };
 

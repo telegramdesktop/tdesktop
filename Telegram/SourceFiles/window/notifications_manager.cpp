@@ -362,7 +362,7 @@ void System::ensureSoundCreated() {
 	}
 
 	_soundTrack = Media::Audio::Current().createTrack();
-	_soundTrack->fillFromFile(qsl(":/gui/art/newmsg.wav"));
+	_soundTrack->fillFromFile(qsl(":/sounds/msg_incoming.mp3"));
 }
 
 void System::updateAll() {

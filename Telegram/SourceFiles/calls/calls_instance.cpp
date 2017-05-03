@@ -28,7 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/confirm_box.h"
 #include "calls/calls_call.h"
 #include "calls/calls_panel.h"
-
+#include "media/media_audio_track.h"
 
 #include "boxes/rate_call_box.h"
 namespace Calls {
@@ -41,9 +41,10 @@ constexpr auto kServerConfigUpdateTimeoutMs = 24 * 3600 * TimeMs(1000);
 Instance::Instance() = default;
 
 void Instance::startOutgoingCall(gsl::not_null<UserData*> user) {
-	if (_currentCall) {
+	finishCurrentBusyCall();
+	if (_currentCall) { // Already in a call.
 		_currentCallPanel->showAndActivate();
-		return; // Already in a call.
+		return;
 	}
 	if (user->callsStatus() == UserData::CallsStatus::Private) {
 		// Request full user once more to refresh the setting in case it was changed.
@@ -65,6 +66,34 @@ void Instance::callFailed(gsl::not_null<Call*> call) {
 void Instance::callRedial(gsl::not_null<Call*> call) {
 	if (_currentCall.get() == call) {
 		refreshDhConfig();
+	}
+}
+
+void Instance::playSound(Sound sound) {
+	switch (sound) {
+	case Sound::Busy: {
+		if (!_callBusyTrack) {
+			_callBusyTrack = Media::Audio::Current().createTrack();
+			_callBusyTrack->fillFromFile(qsl(":/sounds/call_busy.mp3"));
+		}
+		_callBusyTrack->playOnce();
+	} break;
+
+	case Sound::Ended: {
+		if (!_callEndedTrack) {
+			_callEndedTrack = Media::Audio::Current().createTrack();
+			_callEndedTrack->fillFromFile(qsl(":/sounds/call_end.mp3"));
+		}
+		_callEndedTrack->playOnce();
+	} break;
+
+	case Sound::Connecting: {
+		if (!_callConnectingTrack) {
+			_callConnectingTrack = Media::Audio::Current().createTrack();
+			_callConnectingTrack->fillFromFile(qsl(":/sounds/call_connect.mp3"));
+		}
+		_callConnectingTrack->playOnce();
+	} break;
 	}
 }
 
@@ -230,6 +259,7 @@ void Instance::handleCallUpdate(const MTPPhoneCall &call) {
 		} else if (user->isSelf()) {
 			LOG(("API Error: Self found in phoneCallRequested."));
 		}
+		finishCurrentBusyCall();
 		if (_currentCall || !user || user->isSelf()) {
 			request(MTPphone_DiscardCall(MTP_inputPhoneCall(phoneCall.vid, phoneCall.vaccess_hash), MTP_int(0), MTP_phoneCallDiscardReasonBusy(), MTP_long(0))).send();
 		} else if (phoneCall.vdate.v + Global::CallRingTimeoutMs() / 1000 < unixtime()) {
@@ -240,6 +270,12 @@ void Instance::handleCallUpdate(const MTPPhoneCall &call) {
 		}
 	} else if (!_currentCall || !_currentCall->handleUpdate(call)) {
 		DEBUG_LOG(("API Warning: unexpected phone call update %1").arg(call.type()));
+	}
+}
+
+void Instance::finishCurrentBusyCall() {
+	if (_currentCall && _currentCall->state() == Call::State::Busy) {
+		_currentCall->hangup();
 	}
 }
 

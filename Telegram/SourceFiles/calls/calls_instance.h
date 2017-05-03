@@ -23,6 +23,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/sender.h"
 #include "calls/calls_call.h"
 
+namespace Media {
+namespace Audio {
+class Track;
+} // namespace Audio
+} // namespace Media
+
 namespace Calls {
 
 class Panel;
@@ -57,12 +63,15 @@ private:
 	void callFinished(gsl::not_null<Call*> call) override;
 	void callFailed(gsl::not_null<Call*> call) override;
 	void callRedial(gsl::not_null<Call*> call) override;
+	using Sound = Call::Delegate::Sound;
+	void playSound(Sound sound) override;
 	void createCall(gsl::not_null<UserData*> user, Call::Type type);
 	void destroyCall(gsl::not_null<Call*> call);
 
 	void refreshDhConfig();
 	void refreshServerConfig();
 
+	void finishCurrentBusyCall();
 	void handleCallUpdate(const MTPPhoneCall &call);
 
 	DhConfig _dhConfig;
@@ -74,6 +83,10 @@ private:
 	std::unique_ptr<Panel> _currentCallPanel;
 	base::Observable<Call*> _currentCallChanged;
 	base::Observable<FullMsgId> _newServiceMessage;
+
+	std::unique_ptr<Media::Audio::Track> _callConnectingTrack;
+	std::unique_ptr<Media::Audio::Track> _callEndedTrack;
+	std::unique_ptr<Media::Audio::Track> _callBusyTrack;
 
 };
 
