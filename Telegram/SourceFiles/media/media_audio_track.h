@@ -35,22 +35,37 @@ public:
 	void fillFromFile(const FileLocation &location);
 	void fillFromFile(const QString &filePath);
 
-	void playOnce();
-	void playInLoop();
+	void playOnce() {
+		playWithLooping(false);
+	}
+	void playInLoop() {
+		playWithLooping(true);
+	}
 
+	bool isLooping() const {
+		return _looping;
+	}
+	bool isActive() const {
+		return _active;
+	}
 	bool failed() const {
 		return _failed;
 	}
 
+	int64 getLengthMs() const {
+		return _lengthMs;
+	}
+
 	void detachFromDevice();
 	void reattachToDevice();
-	bool isActive() const;
 	void updateState();
 
 	~Track();
 
 private:
-	void createSource();
+	void finish();
+	void ensureSourceCreated();
+	void playWithLooping(bool looping);
 
 	gsl::not_null<Instance*> _instance;
 
@@ -97,6 +112,8 @@ private:
 	friend class Track;
 	void registerTrack(Track *track);
 	void unregisterTrack(Track *track);
+	void trackStarted(Track *track);
+	void trackFinished(Track *track);
 
 private:
 	std::set<Track*> _tracks;

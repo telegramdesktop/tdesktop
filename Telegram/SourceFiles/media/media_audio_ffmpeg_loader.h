@@ -39,19 +39,19 @@ public:
 
 	bool open(qint64 &position) override;
 
-	TimeMs duration() override {
-		return len;
+	int64 samplesCount() override {
+		return _samplesCount;
 	}
 
-	int32 frequency() override {
-		return freq;
+	int32 samplesFrequency() override {
+		return _samplesFrequency;
 	}
 
 	~AbstractFFMpegLoader();
 
 protected:
-	int32 freq = Media::Player::kDefaultFrequency;
-	TimeMs len = 0;
+	int32 _samplesFrequency = Media::Player::kDefaultFrequency;
+	int64 _samplesCount = 0;
 
 	uchar *ioBuffer = nullptr;
 	AVIOContext *ioContext = nullptr;

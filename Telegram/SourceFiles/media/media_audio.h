@@ -43,9 +43,6 @@ void ScheduleDetachFromDeviceSafe();
 void ScheduleDetachIfNotUsedSafe();
 void StopDetachIfNotUsedSafe();
 
-// Thread: Main.
-void PlayNotify();
-
 } // namespace Audio
 
 namespace Player {
@@ -103,7 +100,7 @@ struct TrackState {
 	AudioMsgId id;
 	State state = State::Stopped;
 	int64 position = 0;
-	TimeMs duration = 0;
+	int64 length = 0;
 	int frequency = kDefaultFrequency;
 };
 
@@ -164,7 +161,7 @@ signals:
 
 	void suppressSong();
 	void unsuppressSong();
-	void suppressAll();
+	void suppressAll(qint64 duration);
 
 private:
 	bool fadedStop(AudioMsgId::Type type, bool *fadedStart = 0);
@@ -269,7 +266,7 @@ public slots:
 
 	void onSuppressSong();
 	void onUnsuppressSong();
-	void onSuppressAll();
+	void onSuppressAll(qint64 duration);
 	void onSongVolumeChanged();
 	void onVideoVolumeChanged();
 
@@ -293,6 +290,7 @@ private:
 	bool _videoVolumeChanged = false;
 	anim::value _suppressAllGain, _suppressSongGain;
 	TimeMs _suppressAllStart = 0;
+	TimeMs _suppressAllEnd = 0;
 	TimeMs _suppressSongStart = 0;
 
 };

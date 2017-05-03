@@ -206,8 +206,8 @@ void Widget::handleSeekFinished(float64 progress) {
 
 	auto type = AudioMsgId::Type::Song;
 	auto state = mixer()->currentState(type);
-	if (state.id && state.duration) {
-		mixer()->seek(type, qRound(progress * state.duration));
+	if (state.id && state.length) {
+		mixer()->seek(type, qRound(progress * state.length));
 	}
 
 	instance()->stopSeeking(AudioMsgId::Type::Song);
@@ -329,18 +329,18 @@ void Widget::handleSongUpdate(const TrackState &state) {
 
 void Widget::updateTimeText(const TrackState &state) {
 	QString time;
-	qint64 position = 0, duration = 0, display = 0;
+	qint64 position = 0, length = 0, display = 0;
 	auto frequency = state.frequency;
 	if (!IsStopped(state.state) && state.state != State::Finishing) {
 		display = position = state.position;
-		duration = state.duration;
-	} else if (state.duration) {
-		display = state.duration;
+		length = state.length;
+	} else if (state.length) {
+		display = state.length;
 	} else if (state.id.audio()->song()) {
 		display = (state.id.audio()->song()->duration * frequency);
 	}
 
-	_lastDurationMs = (state.duration * 1000LL) / frequency;
+	_lastDurationMs = (state.length * 1000LL) / frequency;
 
 	if (state.id.audio()->loading()) {
 		_time = QString::number(qRound(state.id.audio()->progress() * 100)) + '%';

@@ -221,7 +221,6 @@ namespace App {
 
 	void initMedia();
 	void deinitMedia();
-	void playSound();
 
 	void checkImageCacheSize();
 

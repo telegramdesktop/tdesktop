@@ -34,6 +34,7 @@ namespace {
 
 constexpr auto kMaxFileSize = 10 * 1024 * 1024;
 constexpr auto kDetachDeviceTimeout = TimeMs(500); // destroy the audio device after 500ms of silence
+constexpr auto kTrackUpdateTimeout = TimeMs(100);
 
 ALuint CreateSource() {
 	auto source = ALuint(0);
@@ -90,8 +91,8 @@ void Track::fillFromData(base::byte_vector &&data) {
 	} while (true);
 
 	_alFormat = loader.format();
-	_lengthMs = loader.duration();
-	_sampleRate = loader.frequency();
+	_sampleRate = loader.samplesFrequency();
+	_lengthMs = (loader.samplesCount() * TimeMs(1000)) / _sampleRate;
 }
 
 void Track::fillFromFile(const FileLocation &location) {
@@ -126,34 +127,29 @@ void Track::fillFromFile(const QString &filePath) {
 	}
 }
 
-void Track::playOnce() {
+void Track::playWithLooping(bool looping) {
+	_active = true;
 	if (failed() || _samples.empty()) {
-		_instance->trackFinished().notify(this, true);
+		finish();
 		return;
 	}
-	createSource();
+	ensureSourceCreated();
 	alSourceStop(_alSource);
-	_looping = false;
-	alSourcei(_alSource, AL_LOOPING, 0);
-	_active = true;
+	_looping = looping;
+	alSourcei(_alSource, AL_LOOPING, _looping ? 1 : 0);
 	alSourcePlay(_alSource);
-	emit Media::Player::mixer()->faderOnTimer();
+	_instance->trackStarted(this);
 }
 
-void Track::playInLoop() {
-	if (failed()) {
-		return;
+void Track::finish() {
+	if (_active) {
+		_active = false;
+		_instance->trackFinished(this);
 	}
-	createSource();
-	alSourceStop(_alSource);
-	_looping = true;
-	alSourcei(_alSource, AL_LOOPING, 1);
-	_active = true;
-	alSourcePlay(_alSource);
-	emit Media::Player::mixer()->faderOnTimer();
+	_alPosition = 0;
 }
 
-void Track::createSource() {
+void Track::ensureSourceCreated() {
 	if (alIsSource(_alSource)) {
 		return;
 	}
@@ -181,13 +177,7 @@ void Track::updateState() {
 	auto state = ALint(0);
 	alGetSourcei(_alSource, AL_SOURCE_STATE, &state);
 	if (state != AL_PLAYING) {
-		_alPosition = 0;
-		if (_active) {
-			_active = false;
-			if (!_looping) {
-				_instance->trackFinished().notify(this, true);
-			}
-		}
+		finish();
 	} else {
 		auto currentPosition = ALint(0);
 		alGetSourcei(_alSource, AL_SAMPLE_OFFSET, &currentPosition);
@@ -211,15 +201,11 @@ void Track::reattachToDevice() {
 	if (!isActive() || alIsSource(_alSource)) {
 		return;
 	}
-	createSource();
+	ensureSourceCreated();
 
 	alSourcei(_alSource, AL_LOOPING, _looping ? 1 : 0);
 	alSourcei(_alSource, AL_SAMPLE_OFFSET, static_cast<ALint>(_alPosition));
 	alSourcePlay(_alSource);
-}
-
-bool Track::isActive() const {
-	return _active;
 }
 
 Track::~Track() {
@@ -240,7 +226,6 @@ Instance::Instance() {
 			Audio::StopDetachIfNotUsedSafe();
 		}
 	});
-	_updateTimer.callEach(100);
 
 	_detachFromDeviceTimer.setCallback([this] {
 		_detachFromDeviceForce = false;
@@ -262,6 +247,23 @@ void Instance::registerTrack(Track *track) {
 
 void Instance::unregisterTrack(Track *track) {
 	_tracks.erase(track);
+}
+
+void Instance::trackStarted(Track *track) {
+	stopDetachIfNotUsed();
+	if (!_updateTimer.isActive()) {
+		_updateTimer.callEach(kTrackUpdateTimeout);
+	}
+}
+
+void Instance::trackFinished(Track *track) {
+	if (!hasActiveTracks()) {
+		_updateTimer.cancel();
+		scheduleDetachIfNotUsed();
+	}
+	if (track->isLooping()) {
+		trackFinished().notify(track, true);
+	}
 }
 
 void Instance::detachTracks() {

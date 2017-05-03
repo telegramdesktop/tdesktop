@@ -2432,12 +2432,6 @@ namespace {
 		return i.value();
 	}
 
-	void playSound() {
-		if (Global::SoundNotify() && !Platform::Notifications::SkipAudio()) {
-			Media::Audio::PlayNotify();
-		}
-	}
-
 	void checkImageCacheSize() {
 		int64 nowImageCacheSize = imageCacheSize();
 		if (nowImageCacheSize > serviceImageCacheSize + MemoryForImageCache) {

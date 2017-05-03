@@ -22,6 +22,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "platform/platform_notifications_manager.h"
 #include "window/notifications_manager_default.h"
+#include "media/media_audio_track.h"
+#include "media/media_audio.h"
 #include "lang.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -235,7 +237,12 @@ void System::showNext() {
 	}
 	if (alert) {
 		Platform::Notifications::FlashBounce();
-		App::playSound();
+		if (Global::SoundNotify() && !Platform::Notifications::SkipAudio()) {
+			ensureSoundCreated();
+			_soundTrack->playOnce();
+			emit Media::Player::mixer()->suppressAll(_soundTrack->getLengthMs());
+			emit Media::Player::mixer()->faderOnTimer();
+		}
 	}
 
 	if (_waiters.isEmpty() || !Global::DesktopNotify() || Platform::Notifications::SkipToast()) {
@@ -349,6 +356,15 @@ void System::showNext() {
 	}
 }
 
+void System::ensureSoundCreated() {
+	if (_soundTrack) {
+		return;
+	}
+
+	_soundTrack = Media::Audio::Current().createTrack();
+	_soundTrack->fillFromFile(qsl(":/gui/art/newmsg.wav"));
+}
+
 void System::updateAll() {
 	_manager->updateAll();
 }
@@ -414,6 +430,8 @@ void NativeManager::doShowNotification(HistoryItem *item, int forwardedCount) {
 
 	doShowNativeNotification(item->history()->peer, item->id, title, subtitle, text, options.hideNameAndPhoto, options.hideReplyButton);
 }
+
+System::~System() = default;
 
 } // namespace Notifications
 } // namespace Window

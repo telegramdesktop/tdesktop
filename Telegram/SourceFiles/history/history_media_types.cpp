@@ -1535,7 +1535,7 @@ bool HistoryDocument::updateStatusText() const {
 					bool was = (voice->_playback != nullptr);
 					voice->ensurePlayback(this);
 					if (!was || state.position != voice->_playback->_position) {
-						float64 prg = state.duration ? snap(float64(state.position) / state.duration, 0., 1.) : 0.;
+						auto prg = state.length ? snap(float64(state.position) / state.length, 0., 1.) : 0.;
 						if (voice->_playback->_position < state.position) {
 							voice->_playback->a_progress.start(prg);
 						} else {
@@ -1544,11 +1544,11 @@ bool HistoryDocument::updateStatusText() const {
 						voice->_playback->_position = state.position;
 						voice->_playback->_a_progress.start();
 					}
-					voice->_lastDurationMs = static_cast<int>((state.duration * 1000LL) / state.frequency); // Bad :(
+					voice->_lastDurationMs = static_cast<int>((state.length * 1000LL) / state.frequency); // Bad :(
 				}
 
 				statusSize = -1 - (state.position / state.frequency);
-				realDuration = (state.duration / state.frequency);
+				realDuration = (state.length / state.frequency);
 				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
 			} else {
 				if (auto voice = Get<HistoryDocumentVoice>()) {
@@ -1562,7 +1562,7 @@ bool HistoryDocument::updateStatusText() const {
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
 			if (state.id == AudioMsgId(_data, _parent->fullId()) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
 				statusSize = -1 - (state.position / state.frequency);
-				realDuration = (state.duration / state.frequency);
+				realDuration = (state.length / state.frequency);
 				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
 			} else {
 			}
@@ -1605,9 +1605,9 @@ void HistoryDocument::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool 
 		} else if (!pressed && voice->seeking()) {
 			auto type = AudioMsgId::Type::Voice;
 			auto state = Media::Player::mixer()->currentState(type);
-			if (state.id == AudioMsgId(_data, _parent->fullId()) && state.duration) {
+			if (state.id == AudioMsgId(_data, _parent->fullId()) && state.length) {
 				auto currentProgress = voice->seekingCurrent();
-				auto currentPosition = qRound(currentProgress * state.duration);
+				auto currentPosition = qRound(currentProgress * state.length);
 				Media::Player::mixer()->seek(type, currentPosition);
 
 				voice->ensurePlayback(this);

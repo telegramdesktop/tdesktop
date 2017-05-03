@@ -66,11 +66,11 @@ bool AbstractFFMpegLoader::open(qint64 &position) {
 		return false;
 	}
 
-	freq = fmtContext->streams[streamId]->codecpar->sample_rate;
+	_samplesFrequency = fmtContext->streams[streamId]->codecpar->sample_rate;
 	if (fmtContext->streams[streamId]->duration == AV_NOPTS_VALUE) {
-		len = (fmtContext->duration * freq) / AV_TIME_BASE;
+		_samplesCount = (fmtContext->duration * _samplesFrequency) / AV_TIME_BASE;
 	} else {
-		len = (fmtContext->streams[streamId]->duration * freq * fmtContext->streams[streamId]->time_base.num) / fmtContext->streams[streamId]->time_base.den;
+		_samplesCount = (fmtContext->streams[streamId]->duration * _samplesFrequency * fmtContext->streams[streamId]->time_base.num) / fmtContext->streams[streamId]->time_base.den;
 	}
 
 	return true;
@@ -241,7 +241,7 @@ bool FFMpegLoader::open(qint64 &position) {
 		sampleSize = -1; // convert needed
 	break;
 	}
-	if (freq != 44100 && freq != 48000) {
+	if (_samplesFrequency != 44100 && _samplesFrequency != 48000) {
 		sampleSize = -1; // convert needed
 	}
 
@@ -252,9 +252,9 @@ bool FFMpegLoader::open(qint64 &position) {
 			return false;
 		}
 		int64_t src_ch_layout = layout, dst_ch_layout = AudioToChannelLayout;
-		srcRate = freq;
+		srcRate = _samplesFrequency;
 		AVSampleFormat src_sample_fmt = inputFormat, dst_sample_fmt = AudioToFormat;
-		dstRate = (freq != 44100 && freq != 48000) ? Media::Player::kDefaultFrequency : freq;
+		dstRate = (_samplesFrequency != 44100 && _samplesFrequency != 48000) ? Media::Player::kDefaultFrequency : _samplesFrequency;
 
 		av_opt_set_int(swrContext, "in_channel_layout", src_ch_layout, 0);
 		av_opt_set_int(swrContext, "in_sample_rate", srcRate, 0);
@@ -269,8 +269,8 @@ bool FFMpegLoader::open(qint64 &position) {
 		}
 
 		sampleSize = AudioToChannels * sizeof(short);
-		freq = dstRate;
-		len = av_rescale_rnd(len, dstRate, srcRate, AV_ROUND_UP);
+		_samplesFrequency = dstRate;
+		_samplesCount = av_rescale_rnd(_samplesCount, dstRate, srcRate, AV_ROUND_UP);
 		position = av_rescale_rnd(position, dstRate, srcRate, AV_ROUND_DOWN);
 		fmt = AL_FORMAT_STEREO16;
 
@@ -281,7 +281,7 @@ bool FFMpegLoader::open(qint64 &position) {
 		}
 	}
 	if (position) {
-		int64 ts = (position * fmtContext->streams[streamId]->time_base.den) / (freq * fmtContext->streams[streamId]->time_base.num);
+		int64 ts = (position * fmtContext->streams[streamId]->time_base.den) / (_samplesFrequency * fmtContext->streams[streamId]->time_base.num);
 		if (av_seek_frame(fmtContext, streamId, ts, AVSEEK_FLAG_ANY) < 0) {
 			if (av_seek_frame(fmtContext, streamId, ts, 0) < 0) {
 			}

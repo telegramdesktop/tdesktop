@@ -28,6 +28,12 @@ class Manager;
 } // namespace Notifications
 } // namespace Platform
 
+namespace Media {
+namespace Audio {
+class Track;
+} // namespace Audio
+} // namespace Media
+
 namespace Window {
 namespace Notifications {
 
@@ -79,8 +85,11 @@ public:
 		return _authSession;
 	}
 
+	~System();
+
 private:
 	void showNext();
+	void ensureSoundCreated();
 
 	AuthSession *_authSession = nullptr;
 
@@ -106,6 +115,8 @@ private:
 	std::unique_ptr<Manager> _manager;
 
 	base::Observable<ChangeType> _settingsChanged;
+
+	std::unique_ptr<Media::Audio::Track> _soundTrack;
 
 };
 

@@ -28,8 +28,8 @@ public:
 	virtual bool check(const FileLocation &file, const QByteArray &data);
 
 	virtual bool open(qint64 &position) = 0;
-	virtual TimeMs duration() = 0;
-	virtual int32 frequency() = 0;
+	virtual int64 samplesCount() = 0;
+	virtual int32 samplesFrequency() = 0;
 	virtual int32 format() = 0;
 
 	enum class ReadResult {
