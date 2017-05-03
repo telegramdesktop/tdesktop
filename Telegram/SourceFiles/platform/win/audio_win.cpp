@@ -105,7 +105,7 @@ STDMETHODIMP DeviceListener::OnPropertyValueChanged(LPCWSTR device_id, const PRO
 //		|| key.fmtid == pkey_AudioUnknown2
 		|| false) {
 		LOG(("Audio Info: OnPropertyValueChanged(%1, %2) scheduling detach from audio device.").arg(deviceName).arg(keyName));
-		Media::Player::DetachFromDeviceByTimer();
+		Media::Audio::ScheduleDetachFromDeviceSafe();
 	} else {
 		DEBUG_LOG(("Audio Info: OnPropertyValueChanged(%1, %2) unknown, skipping.").arg(deviceName).arg(keyName));
 	}
@@ -115,7 +115,7 @@ STDMETHODIMP DeviceListener::OnPropertyValueChanged(LPCWSTR device_id, const PRO
 STDMETHODIMP DeviceListener::OnDeviceStateChanged(LPCWSTR device_id, DWORD new_state) {
 	auto deviceName = device_id ? '"' + QString::fromWCharArray(device_id) + '"' : QString("nullptr");
 	LOG(("Audio Info: OnDeviceStateChanged(%1, %2) scheduling detach from audio device.").arg(deviceName).arg(new_state));
-	Media::Player::DetachFromDeviceByTimer();
+	Media::Audio::ScheduleDetachFromDeviceSafe();
 	return S_OK;
 }
 
@@ -127,7 +127,7 @@ STDMETHODIMP DeviceListener::OnDefaultDeviceChanged(EDataFlow flow, ERole role, 
 	}
 
 	LOG(("Audio Info: OnDefaultDeviceChanged() scheduling detach from audio device, flow %1, role %2, new_default_device_id: %3").arg(flow).arg(role).arg(new_default_device_id ? '"' + QString::fromWCharArray(new_default_device_id) + '"' : QString("nullptr")));
-	Media::Player::DetachFromDeviceByTimer();
+	Media::Audio::ScheduleDetachFromDeviceSafe();
 
 	return S_OK;
 }

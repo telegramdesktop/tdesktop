@@ -26,6 +26,28 @@ struct VideoSoundData;
 struct VideoSoundPart;
 
 namespace Media {
+namespace Audio {
+
+// Thread: Main.
+void Start();
+void Finish();
+
+// Thread: Main. Locks: AudioMutex.
+bool IsAttachedToDevice();
+
+// Thread: Any. Must be locked: AudioMutex.
+bool AttachToDevice();
+
+// Thread: Any.
+void ScheduleDetachFromDeviceSafe();
+void ScheduleDetachIfNotUsedSafe();
+void StopDetachIfNotUsedSafe();
+
+// Thread: Main.
+void PlayNotify();
+
+} // namespace Audio
+
 namespace Player {
 
 constexpr auto kDefaultFrequency = 48000; // 48 kHz
@@ -35,13 +57,7 @@ constexpr auto kWaveformSamplesCount = 100;
 class Fader;
 class Loaders;
 
-void InitAudio();
-void DeInitAudio();
-
 base::Observable<AudioMsgId> &Updated();
-void DetachFromDeviceByTimer();
-
-void PlayNotify();
 
 float64 ComputeVolume(AudioMsgId::Type type);
 
@@ -117,12 +133,16 @@ public:
 
 	void clearStoppedAtStart(const AudioMsgId &audio);
 
-	void detachFromDeviceByTimer();
+	// Thread: Main. Must be locked: AudioMutex.
 	void detachTracks();
+
+	// Thread: Main. Must be locked: AudioMutex.
 	void reattachIfNeeded();
+
+	// Thread: Any. Must be locked: AudioMutex.
 	void reattachTracks();
 
-	// Thread safe.
+	// Thread: Any.
 	void setVideoVolume(float64 volume);
 	float64 getVideoVolume() const;
 
@@ -236,7 +256,6 @@ class Fader : public QObject {
 
 public:
 	Fader(QThread *thread);
-	void keepAttachedToDevice();
 
 signals:
 	void error(const AudioMsgId &audio);
@@ -245,11 +264,8 @@ signals:
 	void needToPreload(const AudioMsgId &audio);
 
 public slots:
-	void onDetachFromDeviceByTimer(bool force);
-
 	void onInit();
 	void onTimer();
-	void onDetachFromDeviceTimer();
 
 	void onSuppressSong();
 	void onUnsuppressSong();
@@ -279,25 +295,27 @@ private:
 	TimeMs _suppressAllStart = 0;
 	TimeMs _suppressSongStart = 0;
 
-	QTimer _detachFromDeviceTimer;
-	QMutex _detachFromDeviceMutex;
-	bool _detachFromDeviceForce = false;
-
 };
 
 FileLoadTask::Song PrepareForSending(const QString &fname, const QByteArray &data);
 
-} // namespace Player
-} // namespace Media
-
 namespace internal {
 
-QMutex *audioPlayerMutex();
-bool audioCheckError();
-
-// AudioMutex must be locked.
+// Thread: Any. Must be locked: AudioMutex.
 bool CheckAudioDeviceConnected();
 
+// Thread: Main. Locks: AudioMutex.
+void DetachFromDevice();
+
+// Thread: Any.
+QMutex *audioPlayerMutex();
+
+// Thread: Any.
+bool audioCheckError();
+
 } // namespace internal
+
+} // namespace Player
+} // namespace Media
 
 VoiceWaveform audioCountWaveform(const FileLocation &file, const QByteArray &data);

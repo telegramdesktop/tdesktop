@@ -195,7 +195,7 @@ void Loaders::loadData(AudioMsgId audio, qint64 position) {
 	}
 
 	if (started) {
-		mixer()->reattachTracks();
+		Audio::AttachToDevice();
 
 		track->started();
 		if (!internal::audioCheckError()) {
@@ -329,7 +329,7 @@ AudioPlayerLoader *Loaders::setupLoader(const AudioMsgId &audio, SetupError &err
 			_videoLoader = std::make_unique<ChildFFMpegLoader>(track->videoPlayId, std::move(track->videoData));
 			l = _videoLoader.get();
 		} else {
-			*loader = std::make_unique<FFMpegLoader>(track->file, track->data);
+			*loader = std::make_unique<FFMpegLoader>(track->file, track->data, base::byte_vector());
 			l = loader->get();
 		}
 

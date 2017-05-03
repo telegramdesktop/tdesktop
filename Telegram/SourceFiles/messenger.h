@@ -41,6 +41,12 @@ namespace Local {
 struct StoredAuthSession;
 } // namespace Local
 
+namespace Media {
+namespace Audio {
+class Instance;
+} // namespace Audio
+} // namespace Media
+
 class Messenger final : public QObject, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
@@ -50,7 +56,6 @@ public:
 	Messenger(const Messenger &other) = delete;
 	Messenger &operator=(const Messenger &other) = delete;
 
-	void prepareToDestroy();
 	~Messenger();
 
 	MainWindow *mainWindow();
@@ -63,6 +68,7 @@ public:
 		return *result;
 	}
 
+	// MTProto components.
 	MTP::DcOptions *dcOptions() {
 		return _dcOptions.get();
 	}
@@ -85,6 +91,7 @@ public:
 	void suggestMainDcId(MTP::DcId mainDcId);
 	void destroyStaleAuthorizationKeys();
 
+	// AuthSession component.
 	AuthSession *authSession() {
 		return _authSession.get();
 	}
@@ -92,6 +99,11 @@ public:
 	void authSessionDestroy();
 	base::Observable<void> &authSessionChanged() {
 		return _authSessionChanged;
+	}
+
+	// Media component.
+	Media::Audio::Instance &audio() {
+		return *_audio;
 	}
 
 	void setInternalLinkDomain(const QString &domain) const;
@@ -178,5 +190,7 @@ private:
 	std::unique_ptr<AuthSession> _authSession;
 	base::Observable<void> _authSessionChanged;
 	base::Observable<void> _passcodedChanged;
+
+	std::unique_ptr<Media::Audio::Instance> _audio;
 
 };

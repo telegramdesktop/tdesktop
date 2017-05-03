@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 class AudioPlayerLoader {
 public:
-	AudioPlayerLoader(const FileLocation &file, const QByteArray &data);
+	AudioPlayerLoader(const FileLocation &file, const QByteArray &data, base::byte_vector &&bytes);
 	virtual ~AudioPlayerLoader();
 
 	virtual bool check(const FileLocation &file, const QByteArray &data);
@@ -46,12 +46,13 @@ public:
 	bool holdsSavedDecodedSamples() const;
 
 protected:
-	FileLocation file;
-	bool access = false;
-	QByteArray data;
+	FileLocation _file;
+	bool _access = false;
+	QByteArray _data;
+	base::byte_vector _bytes;
 
-	QFile f;
-	int32 dataPos = 0;
+	QFile _f;
+	int _dataPos = 0;
 
 	bool openFile();
 

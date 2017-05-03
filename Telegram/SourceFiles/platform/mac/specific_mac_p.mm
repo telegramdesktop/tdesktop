@@ -153,7 +153,7 @@ ApplicationDelegate *_sharedDelegate = nil;
 	}
 
 	LOG(("Audio Info: -receiveWakeNote: received, scheduling detach from audio device"));
-	Media::Player::DetachFromDeviceByTimer();
+	Media::Audio::ScheduleDetachFromDeviceSafe();
 }
 
 - (void) setWatchingMediaKeys:(bool)watching {

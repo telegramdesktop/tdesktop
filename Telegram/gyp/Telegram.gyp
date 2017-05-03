@@ -84,6 +84,7 @@
 
     'defines': [
       'AL_LIBTYPE_STATIC',
+      'AL_ALEXT_PROTOTYPES',
       'TGVOIP_USE_CXX11_LIB',
       '<!@(python -c "for s in \'<(build_defines)\'.split(\',\'): print(s)")',
     ],

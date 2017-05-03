@@ -2434,7 +2434,7 @@ namespace {
 
 	void playSound() {
 		if (Global::SoundNotify() && !Platform::Notifications::SkipAudio()) {
-			Media::Player::PlayNotify();
+			Media::Audio::PlayNotify();
 		}
 	}
 

@@ -36,6 +36,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/dc_options.h"
 #include "mtproto/mtp_instance.h"
 #include "media/player/media_player_instance.h"
+#include "media/media_audio_track.h"
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
 #include "history/history_location_manager.h"
@@ -64,7 +65,8 @@ struct Messenger::Private {
 };
 
 Messenger::Messenger() : QObject()
-, _private(std::make_unique<Private>()) {
+, _private(std::make_unique<Private>())
+, _audio(std::make_unique<Media::Audio::Instance>()) {
 	t_assert(SingleInstance == nullptr);
 	SingleInstance = this;
 
@@ -750,7 +752,9 @@ void Messenger::clearPasscode() {
 	_passcodedChanged.notify();
 }
 
-void Messenger::prepareToDestroy() {
+Messenger::~Messenger() {
+	Expects(SingleInstance == this);
+
 	_window.reset();
 
 	// Some MTP requests can be cancelled from data clearing.
@@ -759,11 +763,6 @@ void Messenger::prepareToDestroy() {
 
 	_mtproto.reset();
 	_mtprotoForKeysDestroy.reset();
-}
-
-Messenger::~Messenger() {
-	t_assert(SingleInstance == this);
-	SingleInstance = nullptr;
 
 	Shortcuts::finish();
 
@@ -783,6 +782,8 @@ Messenger::~Messenger() {
 	Local::finish();
 	Global::finish();
 	ThirdParty::finish();
+
+	SingleInstance = nullptr;
 }
 
 MainWindow *Messenger::mainWindow() {

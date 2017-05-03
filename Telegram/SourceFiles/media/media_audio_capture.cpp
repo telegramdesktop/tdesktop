@@ -24,8 +24,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <AL/al.h>
 #include <AL/alc.h>
-
-#define AL_ALEXT_PROTOTYPES
 #include <AL/alext.h>
 
 #include <numeric>
@@ -51,13 +49,13 @@ bool ErrorHappened(ALCdevice *device) {
 
 } // namespace
 
-void Init() {
+void Start() {
 	t_assert(CaptureInstance == nullptr);
 	CaptureInstance = new Instance();
 	instance()->check();
 }
 
-void DeInit() {
+void Finish() {
 	delete base::take(CaptureInstance);
 }
 

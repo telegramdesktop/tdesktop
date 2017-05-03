@@ -207,6 +207,8 @@
 <(src_loc)/media/media_audio_loader.h
 <(src_loc)/media/media_audio_loaders.cpp
 <(src_loc)/media/media_audio_loaders.h
+<(src_loc)/media/media_audio_track.cpp
+<(src_loc)/media/media_audio_track.h
 <(src_loc)/media/media_child_ffmpeg_loader.cpp
 <(src_loc)/media/media_child_ffmpeg_loader.h
 <(src_loc)/media/media_clip_ffmpeg.cpp
@@ -266,6 +268,7 @@
 <(src_loc)/platform/linux/specific_linux.h
 <(src_loc)/platform/mac/file_utilities_mac.mm
 <(src_loc)/platform/mac/file_utilities_mac.h
+<(src_loc)/platform/mac/mac_iconv_helper.c
 <(src_loc)/platform/mac/mac_utilities.mm
 <(src_loc)/platform/mac/mac_utilities.h
 <(src_loc)/platform/mac/main_window_mac.mm
