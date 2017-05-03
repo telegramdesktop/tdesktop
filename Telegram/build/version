@@ -2,5 +2,5 @@ AppVersion         1000035
 AppVersionStrMajor 1.0
 AppVersionStrSmall 1.0.35
 AppVersionStr      1.0.35
-AlphaChannel       1
-BetaVersion        0
+AlphaChannel       0
+BetaVersion        1000035001

@@ -137,6 +137,7 @@ void Track::playWithLooping(bool looping) {
 	alSourceStop(_alSource);
 	_looping = looping;
 	alSourcei(_alSource, AL_LOOPING, _looping ? 1 : 0);
+	alSourcef(_alSource, AL_GAIN, _volume);
 	alSourcePlay(_alSource);
 	_instance->trackStarted(this);
 }
