@@ -1291,7 +1291,7 @@ void StickersListWidget::setSelected(OverState newSelected) {
 				if (_section == Section::Featured) {
 					rtlupdate(featuredAddRect(button->section));
 				} else {
-					rtlupdate(featuredAddRect(button->section)); // TODO
+					rtlupdate(removeButtonRect(button->section));
 				}
 			}
 		};
