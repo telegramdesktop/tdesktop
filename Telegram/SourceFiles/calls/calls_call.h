@@ -119,6 +119,8 @@ public:
 	bool isKeyShaForFingerprintReady() const;
 	std::array<gsl::byte, kSha256Size> getKeyShaForFingerprint() const;
 
+	QString getDebugLog() const;
+
 	~Call();
 
 private:

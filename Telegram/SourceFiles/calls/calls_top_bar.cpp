@@ -26,8 +26,52 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "calls/calls_call.h"
 #include "calls/calls_instance.h"
+#include "styles/style_boxes.h"
+#include "boxes/abstract_box.h"
+#include "base/timer.h"
 
 namespace Calls {
+namespace {
+
+constexpr auto kUpdateDebugTimeoutMs = TimeMs(500);
+
+class DebugInfoBox : public BoxContent {
+public:
+	DebugInfoBox(QWidget*, base::weak_unique_ptr<Call> call);
+
+protected:
+	void prepare() override;
+
+private:
+	void updateText();
+
+	base::weak_unique_ptr<Call> _call;
+	QPointer<Ui::FlatLabel> _text;
+	base::Timer _updateTextTimer;
+
+};
+
+DebugInfoBox::DebugInfoBox(QWidget*, base::weak_unique_ptr<Call> call) : _call(call) {
+}
+
+void DebugInfoBox::prepare() {
+	setTitle("Call Debug");
+	addButton(lang(lng_close), [this] { closeBox(); });
+	_text = setInnerWidget(object_ptr<Ui::FlatLabel>(this, st::callDebugLabel));
+	_text->setSelectable(true);
+	updateText();
+	_updateTextTimer.setCallback([this] { updateText(); });
+	_updateTextTimer.callEach(kUpdateDebugTimeoutMs);
+	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
+}
+
+void DebugInfoBox::updateText() {
+	if (auto call = _call.get()) {
+		_text->setText(call->getDebugLog());
+	}
+}
+
+} // namespace
 
 TopBar::TopBar(QWidget *parent, const base::weak_unique_ptr<Call> &call) : TWidget(parent)
 , _call(call)
@@ -52,7 +96,11 @@ void TopBar::initControls() {
 	});
 	_info->setClickedCallback([this] {
 		if (auto call = _call.get()) {
-			Current().showInfoPanel(call);
+			if (cDebug() && (_info->clickModifiers() & Qt::ControlModifier)) {
+				Ui::show(Box<DebugInfoBox>(_call));
+			} else {
+				Current().showInfoPanel(call);
+			}
 		}
 	});
 	_hangup->setClickedCallback([this] {

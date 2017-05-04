@@ -225,6 +225,15 @@ void Call::redial() {
 	_delegate->callRedial(this);
 }
 
+QString Call::getDebugLog() const {
+	constexpr auto kDebugLimit = 4096;
+	auto bytes = base::byte_vector(kDebugLimit, gsl::byte {});
+	_controller->GetDebugString(reinterpret_cast<char*>(bytes.data()), bytes.size());
+	auto end = std::find(bytes.begin(), bytes.end(), gsl::byte {});
+	auto size = (end - bytes.begin());
+	return QString::fromUtf8(reinterpret_cast<const char*>(bytes.data()), size);
+}
+
 void Call::startWaitingTrack() {
 	_waitingTrack = Media::Audio::Current().createTrack();
 	auto trackFileName = (_type == Type::Outgoing) ? qsl(":/sounds/call_outgoing.mp3") : qsl(":/sounds/call_incoming.mp3");
