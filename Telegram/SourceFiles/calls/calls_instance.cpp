@@ -41,8 +41,7 @@ constexpr auto kServerConfigUpdateTimeoutMs = 24 * 3600 * TimeMs(1000);
 Instance::Instance() = default;
 
 void Instance::startOutgoingCall(gsl::not_null<UserData*> user) {
-	finishCurrentBusyCall();
-	if (_currentCall) { // Already in a call.
+	if (alreadyInCall()) { // Already in a call.
 		_currentCallPanel->showAndActivate();
 		return;
 	}
@@ -111,8 +110,15 @@ void Instance::destroyCall(gsl::not_null<Call*> call) {
 }
 
 void Instance::createCall(gsl::not_null<UserData*> user, Call::Type type) {
-	_currentCall = std::make_unique<Call>(getCallDelegate(), user, type);
-	_currentCallPanel = std::make_unique<Panel>(_currentCall.get());
+	auto call = std::make_unique<Call>(getCallDelegate(), user, type);;
+	if (_currentCall) {
+		_currentCallPanel->replaceCall(call.get());
+		std::swap(_currentCall, call);
+		call->hangup();
+	} else {
+		_currentCallPanel = std::make_unique<Panel>(call.get());
+		_currentCall = std::move(call);
+	}
 	_currentCallChanged.notify(_currentCall.get(), true);
 	refreshServerConfig();
 	refreshDhConfig();
@@ -259,10 +265,9 @@ void Instance::handleCallUpdate(const MTPPhoneCall &call) {
 		} else if (user->isSelf()) {
 			LOG(("API Error: Self found in phoneCallRequested."));
 		}
-		finishCurrentBusyCall();
-		if (_currentCall || !user || user->isSelf()) {
+		if (alreadyInCall() || !user || user->isSelf()) {
 			request(MTPphone_DiscardCall(MTP_inputPhoneCall(phoneCall.vid, phoneCall.vaccess_hash), MTP_int(0), MTP_phoneCallDiscardReasonBusy(), MTP_long(0))).send();
-		} else if (phoneCall.vdate.v + Global::CallRingTimeoutMs() / 1000 < unixtime()) {
+		} else if (phoneCall.vdate.v + (Global::CallRingTimeoutMs() / 1000) < unixtime()) {
 			LOG(("Ignoring too old call."));
 		} else {
 			createCall(user, Call::Type::Incoming);
@@ -273,10 +278,8 @@ void Instance::handleCallUpdate(const MTPPhoneCall &call) {
 	}
 }
 
-void Instance::finishCurrentBusyCall() {
-	if (_currentCall && _currentCall->state() == Call::State::Busy) {
-		_currentCall->hangup();
-	}
+bool Instance::alreadyInCall() {
+	return (_currentCall && _currentCall->state() != Call::State::Busy);
 }
 
 Instance::~Instance() = default;

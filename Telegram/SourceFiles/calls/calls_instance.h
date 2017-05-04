@@ -71,7 +71,7 @@ private:
 	void refreshDhConfig();
 	void refreshServerConfig();
 
-	void finishCurrentBusyCall();
+	bool alreadyInCall();
 	void handleCallUpdate(const MTPPhoneCall &call);
 
 	DhConfig _dhConfig;

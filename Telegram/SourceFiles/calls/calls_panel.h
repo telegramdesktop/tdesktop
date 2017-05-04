@@ -38,6 +38,8 @@ public:
 
 	void showAndActivate();
 
+	void replaceCall(gsl::not_null<Call*> call);
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
@@ -58,6 +60,7 @@ private:
 	bool tooltipWindowActive() const override;
 
 	void initControls();
+	void reinitControls();
 	void initLayout();
 	void initGeometry();
 	void refreshCallbacks();
@@ -89,9 +92,11 @@ private:
 	QPoint _dragStartMousePosition;
 	QPoint _dragStartMyPosition;
 
+	int _stateChangedSubscription = 0;
+
 	class Button;
 	object_ptr<Ui::IconButton> _close = { nullptr };
-	object_ptr<Button> _hangup;
+	object_ptr<Button> _hangup = { nullptr };
 	object_ptr<Button> _cancel = { nullptr };
 	object_ptr<Button> _answer = { nullptr };
 	object_ptr<Button> _redial = { nullptr };

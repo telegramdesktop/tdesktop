@@ -106,7 +106,6 @@ QImage Panel::Button::prepareRippleMask() const {
 Panel::Panel(gsl::not_null<Call*> call)
 : _call(call)
 , _user(call->user())
-, _hangup(this, st::callHangup)
 , _mute(this, st::callMuteToggle)
 , _name(this, st::callName)
 , _status(this, st::callStatus) {
@@ -124,6 +123,13 @@ void Panel::showAndActivate() {
 	setFocus();
 }
 
+void Panel::replaceCall(gsl::not_null<Call*> call) {
+	_call = call;
+	_user = call->user();
+	reinitControls();
+	updateControlsGeometry();
+}
+
 bool Panel::event(QEvent *e) {
 	if (e->type() == QEvent::WindowDeactivate) {
 		if (_call && _call->state() == State::Established) {
@@ -138,20 +144,12 @@ void Panel::hideDeactivated() {
 }
 
 void Panel::initControls() {
-	subscribe(_call->stateChanged(), [this](State state) { stateChanged(state); });
-	if (_call->type() == Type::Incoming) {
-		_answer.create(this, st::callAnswer);
-	}
-
-	refreshCallbacks();
-
 	_mute->setClickedCallback([this] {
 		_call->setMute(!_call->isMute());
 	});
 	subscribe(_call->muteChanged(), [this](bool mute) {
 		_mute->setIconOverride(mute ? &st::callUnmuteIcon : nullptr);
 	});
-	_name->setText(App::peerName(_call->user()));
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::NameChanged, [this](const Notify::PeerUpdate &update) {
 		if (!_call || update.peer != _call->user()) {
 			return;
@@ -159,12 +157,22 @@ void Panel::initControls() {
 		_name->setText(App::peerName(_call->user()));
 		updateControlsGeometry();
 	}));
-	updateStatusText(_call->state());
 	_updateDurationTimer.setCallback([this] {
 		if (_call) {
 			updateStatusText(_call->state());
 		}
 	});
+
+	reinitControls();
+}
+
+void Panel::reinitControls() {
+	unsubscribe(_stateChangedSubscription);
+	_stateChangedSubscription = subscribe(_call->stateChanged(), [this](State state) { stateChanged(state); });
+	stateChanged(_call->state());
+
+	_name->setText(App::peerName(_call->user()));
+	updateStatusText(_call->state());
 }
 
 void Panel::refreshCallbacks() {
@@ -459,11 +467,12 @@ void Panel::stateChanged(State state) {
 		}
 		buttonsUpdated = true;
 	};
-	syncButton(_answer, (state == State::Starting) || (state == State::WaitingIncoming), st::callAnswer);
-	syncButton(_hangup, (state != State::Busy), st::callHangup);
-	syncButton(_redial, (state == State::Busy), st::callAnswer);
-	syncButton(_cancel, (state == State::Busy), st::callCancel);
-
+	if (_call) {
+		syncButton(_answer, (_call->type() == Call::Type::Incoming) && ((state == State::Starting) || (state == State::WaitingIncoming)), st::callAnswer);
+		syncButton(_hangup, (state != State::Busy), st::callHangup);
+		syncButton(_redial, (state == State::Busy), st::callAnswer);
+		syncButton(_cancel, (state == State::Busy), st::callCancel);
+	}
 	if (buttonsUpdated) {
 		refreshCallbacks();
 		updateControlsGeometry();

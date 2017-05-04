@@ -62,8 +62,17 @@ public:
 	weak_unique_ptr() = default;
 	weak_unique_ptr(T *value) : _guarded(value ? value->getGuarded() : std::shared_ptr<enable_weak_from_this*>()) {
 	}
-	weak_unique_ptr(const std::unique_ptr<T> &value) : _guarded(value ? value->getGuarded() : std::shared_ptr<enable_weak_from_this*>()) {
+	weak_unique_ptr(const std::unique_ptr<T> &value) : weak_unique_ptr(value.get()) {
 	}
+
+	weak_unique_ptr &operator=(T *value) {
+		_guarded = value ? value->getGuarded() : std::shared_ptr<enable_weak_from_this*>();
+		return *this;
+	}
+	weak_unique_ptr &operator=(const std::unique_ptr<T> &value) {
+		return (*this = value.get());
+	}
+
 	T *get() const noexcept {
 		if (auto shared = _guarded.lock()) {
 			return static_cast<T*>(*shared);
