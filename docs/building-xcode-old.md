@@ -126,21 +126,13 @@ In Terminal go to **/Users/user/TBuild/Libraries/openal-soft/build** and there r
 
 #### Opus codec
 
-Download sources [opus-1.1.tar.gz](http://downloads.xiph.org/releases/opus/opus-1.1.tar.gz) from http://www.opus-codec.org/downloads/, extract to **/Users/user/TBuild/Libraries** and rename to have **/Users/user/TBuild/Libraries/opus/configure**
+In Terminal go to **/Users/user/TBuild/Libraries/macold** and there run
 
-##### Building libraries
-
-Download [pkg-config 0.28](http://pkgconfig.freedesktop.org/releases/pkg-config-0.28.tar.gz) from http://pkg-config.freedesktop.org, extract it to **/Users/user/TBuild/Libraries**
-
-In Terminal go to **/Users/user/TBuild/Libraries/pkg-config-0.28** and run
-
-    ./configure --with-internal-glib
-    make
-    sudo make install
-
-then go to **/Users/user/TBuild/Libraries/opus** and there run
-
-    ./configure
+    git clone https://github.com/xiph/opus
+    cd opus
+    git checkout v1.2-alpha2
+    ./autogen.sh
+    CFLAGS="-mmacosx-version-min=10.6" CPPFLAGS="-mmacosx-version-min=10.6" LDFLAGS="-mmacosx-version-min=10.6" ./configure --prefix=/usr/local/macold
     make
     sudo make install
 

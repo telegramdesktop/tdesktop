@@ -105,38 +105,20 @@ In Terminal go to **/Users/user/TBuild/Libraries/libexif-0.6.20** and there run
 Get sources by git – in Terminal go to **/Users/user/TBuild/Libraries** and run
 
     git clone git://repo.or.cz/openal-soft.git
-
-to have **/Users/user/TBuild/Libraries/openal-soft/CMakeLists.txt**
-
-##### Building library
-
-In Terminal go to **/Users/user/TBuild/Libraries/openal-soft/build** and there run
-
+    cd openal-soft/build
     cmake -D LIBTYPE:STRING=STATIC -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=10.8 ..
     make
     sudo make install
 
 #### Opus codec
-##### Get the source code
 
-* Download sources [opus-1.1.tar.gz](http://downloads.xiph.org/releases/opus/opus-1.1.tar.gz) from http://www.opus-codec.org/downloads/
-* Extract them to **/Users/user/TBuild/Libraries**
-* Rename opus-1.1 to opus to have **/Users/user/TBuild/Libraries/opus/configure**
+In Terminal go to **/Users/user/TBuild/Libraries** and there run
 
-##### Building library
-
-* Download [pkg-config 0.28](http://pkgconfig.freedesktop.org/releases/pkg-config-0.28.tar.gz) from http://pkg-config.freedesktop.org
-* Extract it to **/Users/user/TBuild/Libraries**
-
-In Terminal go to **/Users/user/TBuild/Libraries/pkg-config-0.28** and run:
-
-    ./configure --with-internal-glib
-    make
-    sudo make install
-
-then go to **/Users/user/TBuild/Libraries/opus** and run:
-
-    ./configure
+    git clone https://github.com/xiph/opus
+    cd opus
+    git checkout v1.2-alpha2
+    ./autogen.sh
+    CFLAGS="-mmacosx-version-min=10.8" CPPFLAGS="-mmacosx-version-min=10.8" LDFLAGS="-mmacosx-version-min=10.8" ./configure
     make
     sudo make install
 
