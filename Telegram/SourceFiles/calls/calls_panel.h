@@ -37,8 +37,8 @@ public:
 	Panel(gsl::not_null<Call*> call);
 
 	void showAndActivate();
-
 	void replaceCall(gsl::not_null<Call*> call);
+	void hideAndDestroy();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -80,8 +80,11 @@ private:
 	void updateStatusText(State state);
 	void startDurationUpdateTimer(TimeMs currentDuration);
 	void fillFingerprint();
+	void toggleOpacityAnimation(bool visible);
+	void finishAnimation();
+	void destroyDelayed();
 
-	base::weak_unique_ptr<Call> _call;
+	Call *_call = nullptr;
 	gsl::not_null<UserData*> _user;
 
 	bool _useTransparency = true;
@@ -112,8 +115,9 @@ private:
 	PhotoId _userPhotoId = 0;
 	bool _userPhotoFull = false;
 
+	Animation _opacityAnimation;
+	QPixmap _animationCache;
 	QPixmap _bottomCache;
-
 	QPixmap _cache;
 
 };

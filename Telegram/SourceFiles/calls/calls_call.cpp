@@ -203,8 +203,7 @@ TimeMs Call::getDurationMs() const {
 
 void Call::hangup() {
 	if (_state == State::Busy) {
-		// Cancel call instead of redial.
-		setState(Call::Ended);
+		_delegate->callFinished(this);
 	} else {
 		auto missed = (_state == State::Ringing || (_state == State::Waiting && _type == Type::Outgoing));
 		auto declined = (_state == State::WaitingIncoming);
@@ -513,8 +512,6 @@ bool Call::checkCallFields(const MTPDphoneCallAccepted &call) {
 
 void Call::setState(State state) {
 	if (_state != state) {
-		auto wasBusy = (_state == State::Busy);
-
 		_state = state;
 		_stateChanged.notify(state, true);
 
@@ -534,15 +531,11 @@ void Call::setState(State state) {
 			_delegate->playSound(Delegate::Sound::Connecting);
 			break;
 		case State::Ended:
-			if (!wasBusy) {
-				_delegate->playSound(Delegate::Sound::Ended);
-			}
+			_delegate->playSound(Delegate::Sound::Ended);
 			_delegate->callFinished(this);
 			break;
 		case State::Failed:
-			if (!wasBusy) {
-				_delegate->playSound(Delegate::Sound::Ended);
-			}
+			_delegate->playSound(Delegate::Sound::Ended);
 			_delegate->callFailed(this);
 			break;
 		case State::Busy:

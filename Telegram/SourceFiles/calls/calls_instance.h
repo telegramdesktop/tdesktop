@@ -67,6 +67,7 @@ private:
 	void playSound(Sound sound) override;
 	void createCall(gsl::not_null<UserData*> user, Call::Type type);
 	void destroyCall(gsl::not_null<Call*> call);
+	void destroyCurrentPanel();
 
 	void refreshDhConfig();
 	void refreshServerConfig();
@@ -83,6 +84,7 @@ private:
 	std::unique_ptr<Panel> _currentCallPanel;
 	base::Observable<Call*> _currentCallChanged;
 	base::Observable<FullMsgId> _newServiceMessage;
+	std::vector<QPointer<Panel>> _pendingPanels;
 
 	std::unique_ptr<Media::Audio::Track> _callConnectingTrack;
 	std::unique_ptr<Media::Audio::Track> _callEndedTrack;

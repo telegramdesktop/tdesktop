@@ -98,7 +98,7 @@ void Instance::playSound(Sound sound) {
 
 void Instance::destroyCall(gsl::not_null<Call*> call) {
 	if (_currentCall.get() == call) {
-		_currentCallPanel.reset();
+		destroyCurrentPanel();
 		_currentCall.reset();
 		_currentCallChanged.notify(nullptr, true);
 
@@ -107,6 +107,14 @@ void Instance::destroyCall(gsl::not_null<Call*> call) {
 		}
 		Messenger::Instance().quitPreventFinished();
 	}
+}
+
+void Instance::destroyCurrentPanel() {
+	_pendingPanels.erase(std::remove_if(_pendingPanels.begin(), _pendingPanels.end(), [](auto &&panel) {
+		return !panel;
+	}), _pendingPanels.end());
+	_pendingPanels.push_back(_currentCallPanel.release());
+	_pendingPanels.back()->hideAndDestroy(); // Always queues the destruction.
 }
 
 void Instance::createCall(gsl::not_null<UserData*> user, Call::Type type) {
@@ -282,7 +290,13 @@ bool Instance::alreadyInCall() {
 	return (_currentCall && _currentCall->state() != Call::State::Busy);
 }
 
-Instance::~Instance() = default;
+Instance::~Instance() {
+	for (auto panel : _pendingPanels) {
+		if (panel) {
+			delete panel;
+		}
+	}
+}
 
 Instance &Current() {
 	return AuthSession::Current().calls();

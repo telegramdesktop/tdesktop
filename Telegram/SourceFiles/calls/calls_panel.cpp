@@ -33,6 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "observer_peer.h"
 #include "platform/platform_specific.h"
+#include "base/task_queue.h"
 
 namespace Calls {
 namespace {
@@ -145,7 +146,9 @@ void Panel::hideDeactivated() {
 
 void Panel::initControls() {
 	_mute->setClickedCallback([this] {
-		_call->setMute(!_call->isMute());
+		if (_call) {
+			_call->setMute(!_call->isMute());
+		}
 	});
 	subscribe(_call->muteChanged(), [this](bool mute) {
 		_mute->setIconOverride(mute ? &st::callUnmuteIcon : nullptr);
@@ -167,6 +170,8 @@ void Panel::initControls() {
 }
 
 void Panel::reinitControls() {
+	Expects(_call != nullptr);
+
 	unsubscribe(_stateChangedSubscription);
 	_stateChangedSubscription = subscribe(_call->stateChanged(), [this](State state) { stateChanged(state); });
 	stateChanged(_call->state());
@@ -180,7 +185,7 @@ void Panel::refreshCallbacks() {
 		if (button) {
 			button->setClickedCallback([this, callback] {
 				if (_call) {
-					callback(_call.get());
+					callback(_call);
 				}
 			});
 		};
@@ -209,8 +214,45 @@ void Panel::initLayout() {
 		refreshUserPhoto();
 	});
 	createDefaultCacheImage();
+	toggleOpacityAnimation(true);
 
 	Platform::InitOnTopPanel(this);
+}
+
+void Panel::toggleOpacityAnimation(bool visible) {
+	if (_useTransparency) {
+		if (_animationCache.isNull()) {
+			_animationCache = myGrab(this);
+			hideChildren();
+		}
+		_opacityAnimation.start([this] { update(); }, visible ? 0. : 1., visible ? 1. : 0., st::callPanelDuration, visible ? anim::easeOutCirc : anim::easeInCirc);
+	}
+}
+
+void Panel::finishAnimation() {
+	_animationCache = QPixmap();
+	if (_call) {
+		showChildren();
+	} else {
+		destroyDelayed();
+	}
+}
+
+void Panel::destroyDelayed() {
+	hide();
+	base::TaskQueue::Main().Put([weak = QPointer<Panel>(this)] {
+		if (weak) {
+			delete weak.data();
+		}
+	});
+}
+
+void Panel::hideAndDestroy() {
+	toggleOpacityAnimation(false);
+	_call = nullptr;
+	if (_animationCache.isNull()) {
+		destroyDelayed();
+	}
 }
 
 void Panel::processUserPhoto() {
@@ -367,6 +409,23 @@ void Panel::updateStatusGeometry() {
 
 void Panel::paintEvent(QPaintEvent *e) {
 	Painter p(this);
+	if (!_animationCache.isNull()) {
+		auto opacity = _opacityAnimation.current(getms(), _call ? 1. : 0.);
+		if (!_opacityAnimation.animating()) {
+			finishAnimation();
+			if (!_call) return;
+		} else {
+			p.setOpacity(opacity);
+
+			PainterHighQualityEnabler hq(p);
+			auto marginRatio = (1. - opacity) / 5;
+			auto marginWidth = qRound(width() * marginRatio);
+			auto marginHeight = qRound(height() * marginRatio);
+			p.drawPixmap(rect().marginsRemoved(QMargins(marginWidth, marginHeight, marginWidth, marginHeight)), _animationCache, QRect(QPoint(0, 0), _animationCache.size()));
+			return;
+		}
+	}
+
 	if (_useTransparency) {
 		Platform::StartTranslucentPaint(p, e);
 		p.drawPixmapLeft(0, 0, width(), _cache);
@@ -472,15 +531,16 @@ void Panel::stateChanged(State state) {
 		syncButton(_hangup, (state != State::Busy), st::callHangup);
 		syncButton(_redial, (state == State::Busy), st::callAnswer);
 		syncButton(_cancel, (state == State::Busy), st::callCancel);
+
+		if (_fingerprint.empty() && _call->isKeyShaForFingerprintReady()) {
+			fillFingerprint();
+		}
 	}
 	if (buttonsUpdated) {
 		refreshCallbacks();
 		updateControlsGeometry();
 	}
 
-	if (_fingerprint.empty() && _call && _call->isKeyShaForFingerprintReady()) {
-		fillFingerprint();
-	}
 	if ((state == State::Starting) || (state == State::WaitingIncoming)) {
 		Platform::ReInitOnTopPanel(this);
 	} else {
@@ -494,7 +554,8 @@ void Panel::stateChanged(State state) {
 }
 
 void Panel::fillFingerprint() {
-	_fingerprint = ComputeEmojiFingerprint(_call.get());
+	Expects(_call != nullptr);
+	_fingerprint = ComputeEmojiFingerprint(_call);
 
 	auto realSize = Ui::Emoji::Size(Ui::Emoji::Index() + 1);
 	auto size = realSize / cIntRetinaFactor();
