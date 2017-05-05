@@ -57,6 +57,7 @@ callAnswer: CallButton {
 		}
 	}
 	bg: callAnswerBg;
+	angle: 135.;
 }
 callHangup: CallButton {
 	button: IconButton(callButton) {
@@ -188,4 +189,4 @@ callRatingCommentTop: 2px;
 callDebugLabel: FlatLabel(defaultFlatLabel) {
 	margin: margins(24px, 0px, 24px, 0px);
 }
-callPanelDuration: 200;
+callPanelDuration: 150;

@@ -52,6 +52,9 @@ public:
 	bool animating() const {
 		return _animation.animating();
 	}
+	bool visible() const {
+		return _visible;
+	}
 
 private:
 	void startAnimation(int duration);
@@ -116,6 +119,10 @@ public:
 	}
 	void finishAnimation() {
 		_animation.finish();
+	}
+
+	bool isHiddenOrHiding() const {
+		return !_animation.visible();
 	}
 
 	TWidget *entity() {

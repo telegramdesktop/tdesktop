@@ -28,6 +28,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Ui {
 class IconButton;
 class FlatLabel;
+template <typename Widget>
+class WidgetFadeWrap;
 } // namespace Ui
 
 namespace Calls {
@@ -63,7 +65,6 @@ private:
 	void reinitControls();
 	void initLayout();
 	void initGeometry();
-	void refreshCallbacks();
 	void hideDeactivated();
 	void createBottomImage();
 	void createDefaultCacheImage();
@@ -75,8 +76,10 @@ private:
 	void createUserpicCache(ImagePtr image);
 
 	void updateControlsGeometry();
+	void updateHangupGeometry();
 	void updateStatusGeometry();
 	void stateChanged(State state);
+	void showControls();
 	void updateStatusText(State state);
 	void startDurationUpdateTimer(TimeMs currentDuration);
 	void fillFingerprint();
@@ -98,11 +101,11 @@ private:
 	int _stateChangedSubscription = 0;
 
 	class Button;
-	object_ptr<Ui::IconButton> _close = { nullptr };
-	object_ptr<Button> _hangup = { nullptr };
-	object_ptr<Button> _cancel = { nullptr };
-	object_ptr<Button> _answer = { nullptr };
-	object_ptr<Button> _redial = { nullptr };
+	object_ptr<Button> _answerHangupRedial;
+	object_ptr<Ui::WidgetFadeWrap<Button>> _decline;
+	object_ptr<Ui::WidgetFadeWrap<Button>> _cancel;
+	bool _hangupShown = false;
+	Animation _hangupShownProgress;
 	object_ptr<Ui::IconButton> _mute;
 	object_ptr<Ui::FlatLabel> _name;
 	object_ptr<Ui::FlatLabel> _status;
@@ -111,6 +114,7 @@ private:
 
 	base::Timer _updateDurationTimer;
 
+	bool _visible = false;
 	QPixmap _userPhoto;
 	PhotoId _userPhotoId = 0;
 	bool _userPhotoFull = false;
