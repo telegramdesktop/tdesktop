@@ -671,10 +671,13 @@ void Panel::stateChanged(State state) {
 		}
 	}
 
-	if ((state == State::Starting) || (state == State::WaitingIncoming)) {
-		Platform::ReInitOnTopPanel(this);
-	} else {
-		Platform::DeInitOnTopPanel(this);
+	if (windowHandle()) {
+		// First stateChanged() is called before the first Platform::InitOnTopPanel(this).
+		if ((state == State::Starting) || (state == State::WaitingIncoming)) {
+			Platform::ReInitOnTopPanel(this);
+		} else {
+			Platform::DeInitOnTopPanel(this);
+		}
 	}
 	if (state == State::Established) {
 		if (!isActiveWindow()) {

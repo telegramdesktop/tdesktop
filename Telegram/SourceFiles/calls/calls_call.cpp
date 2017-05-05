@@ -523,6 +523,14 @@ void Call::setState(State state) {
 			&& _state != State::Ringing) {
 			_waitingTrack.reset();
 		}
+		if (false
+			|| _state == State::Ended
+			|| _state == State::Failed
+			|| _state == State::Busy) {
+			// Destroy controller before destroying Call Panel,
+			// so that the panel hide animation is smooth.
+			destroyController();
+		}
 		switch (_state) {
 		case State::Established:
 			_startTime = getms(true);
@@ -539,7 +547,6 @@ void Call::setState(State state) {
 			_delegate->callFailed(this);
 			break;
 		case State::Busy:
-			destroyController();
 			_delegate->playSound(Delegate::Sound::Busy);
 			break;
 		}
