@@ -23,6 +23,7 @@
       '<(res_loc)/qrc/telegram.qrc',
       '<(res_loc)/qrc/telegram_emoji.qrc',
       '<(res_loc)/qrc/telegram_emoji_large.qrc',
+      '<(res_loc)/qrc/telegram_sounds.qrc',
     ],
   },
   'conditions': [
