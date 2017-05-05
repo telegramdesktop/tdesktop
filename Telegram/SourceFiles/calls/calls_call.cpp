@@ -136,18 +136,19 @@ void Call::startOutgoing() {
 			return;
 		}
 
+		auto &phoneCall = call.vphone_call;
+		auto &waitingCall = phoneCall.c_phoneCallWaiting();
+		_id = waitingCall.vid.v;
+		_accessHash = waitingCall.vaccess_hash.v;
 		setState(State::Waiting);
 
 		if (_finishAfterRequestingCall) {
 			hangup();
 			return;
 		}
-		_discardByTimeoutTimer.callOnce(Global::CallReceiveTimeoutMs());
 
-		auto &phoneCall = call.vphone_call.c_phoneCallWaiting();
-		_id = phoneCall.vid.v;
-		_accessHash = phoneCall.vaccess_hash.v;
-		handleUpdate(call.vphone_call);
+		_discardByTimeoutTimer.callOnce(Global::CallReceiveTimeoutMs());
+		handleUpdate(phoneCall);
 	}).fail([this](const RPCError &error) {
 		handleRequestError(error);
 	}).send();

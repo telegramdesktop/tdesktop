@@ -87,7 +87,9 @@ TopBar::TopBar(QWidget *parent, const base::weak_unique_ptr<Call> &call) : TWidg
 
 void TopBar::initControls() {
 	_mute->setClickedCallback([this] {
-		_call->setMute(!_call->isMute());
+		if (auto call = _call.get()) {
+			call->setMute(!call->isMute());
+		}
 	});
 	setMuted(_call->isMute());
 	subscribe(_call->muteChanged(), [this](bool mute) {
@@ -104,8 +106,8 @@ void TopBar::initControls() {
 		}
 	});
 	_hangup->setClickedCallback([this] {
-		if (_call) {
-			_call->hangup();
+		if (auto call = _call.get()) {
+			call->hangup();
 		}
 	});
 	_updateDurationTimer.setCallback([this] { updateDurationText(); });
