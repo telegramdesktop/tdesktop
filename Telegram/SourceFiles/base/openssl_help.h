@@ -113,7 +113,7 @@ public:
 			_failed = true;
 		}
 	}
-	unsigned int setDivWord(unsigned int word) {
+	BN_ULONG setDivWord(BN_ULONG word) {
 		Expects(word != 0);
 		if (failed()) {
 			return (BN_ULONG)-1;
@@ -144,7 +144,7 @@ public:
 		return false;
 	}
 
-	unsigned int modWord(unsigned int word) const {
+	BN_ULONG modWord(BN_ULONG word) const {
 		Expects(word != 0);
 		if (failed()) {
 			return (BN_ULONG)-1;
