@@ -34,6 +34,8 @@ GOTO:EOF
     call:logInfo "Setup GYP/Ninja and generate VS solution"
     cd %LIB_DIR%
     git clone https://chromium.googlesource.com/external/gyp
+    cd gyp
+    git checkout a478c1ab51
     SET PATH=%PATH%;C:\TBuild\Libraries\gyp;C:\TBuild\Libraries\ninja;
     cd %SRC_DIR%
     git submodule init

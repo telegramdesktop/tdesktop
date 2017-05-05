@@ -22,8 +22,14 @@ import glob, re, binascii, os, sys
 
 input_file = ''
 output_path = ''
+next_output_path = False
 for arg in sys.argv[1:]:
-  if re.match(r'^-o(.+)', arg):
+  if next_output_path:
+    next_output_path = False
+    output_path = arg
+  elif arg == '-o':
+    next_output_path = True
+  elif re.match(r'^-o(.+)', arg):
     output_path = arg[2:]
   else:
     input_file = arg

@@ -277,8 +277,10 @@ run `git reset --hard HEAD` and execute `gclient` again
 <!-- -->
 
     git clone https://chromium.googlesource.com/external/gyp
+    cd gyp
+    git checkout a478c1ab51
     SET PATH=%PATH%;D:\TBuild\Libraries\gyp;D:\TBuild\Libraries\ninja;
-    cd ..\tdesktop\Telegram
+    cd ..\..\tdesktop\Telegram
 
 Also, actually add **D:\\TBuild\\Libraries\\ninja\\** (not just for running the **gyp** command) to your path environment variable, since Telegram needs it for the build process.
 
