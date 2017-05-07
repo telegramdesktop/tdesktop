@@ -48,7 +48,7 @@ protected:
 private:
 	void checkSelf();
 	void updateControlsGeometry();
-	void updateConnectionState();
+	void updatePhone();
 
 	object_ptr<Profile::UserpicButton> _userpicButton = { nullptr };
 	object_ptr<Ui::IconButton> _cloudButton = { nullptr };
@@ -57,7 +57,7 @@ private:
 	object_ptr<Ui::FlatLabel> _version;
 
 	bool _showFinished = false;
-	QString _connectionText;
+	QString _phoneText;
 
 };
 

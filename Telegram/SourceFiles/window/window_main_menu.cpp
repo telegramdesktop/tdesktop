@@ -31,6 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/about_box.h"
 #include "lang.h"
 #include "core/click_handler_types.h"
+#include "observer_peer.h"
 #include "auth_session.h"
 #include "mainwidget.h"
 
@@ -74,8 +75,12 @@ MainMenu::MainMenu(QWidget *parent) : TWidget(parent)
 	_version->setLink(2, MakeShared<LambdaClickHandler>([] { Ui::show(Box<AboutBox>()); }));
 
 	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
-	subscribe(Global::RefConnectionTypeChanged(), [this] { updateConnectionState(); });
-	updateConnectionState();
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserPhoneChanged, [this](const Notify::PeerUpdate &update) {
+		if (update.peer->isSelf()) {
+			updatePhone();
+		}
+	}));
+	updatePhone();
 }
 
 void MainMenu::checkSelf() {
@@ -125,12 +130,11 @@ void MainMenu::updateControlsGeometry() {
 	_version->moveToLeft(st::mainMenuFooterLeft, height() - st::mainMenuVersionBottom - _version->height());
 }
 
-void MainMenu::updateConnectionState() {
-	auto state = MTP::dcstate();
-	if (state == MTP::ConnectingState || state == MTP::DisconnectedState || state < 0) {
-		_connectionText = lang(lng_status_connecting);
+void MainMenu::updatePhone() {
+	if (auto self = App::self()) {
+		_phoneText = App::formatPhone(self->phone());
 	} else {
-		_connectionText = lang(lng_status_online);
+		_phoneText = QString();
 	}
 	update();
 }
@@ -146,7 +150,7 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 		if (auto self = App::self()) {
 			self->nameText.drawLeftElided(p, st::mainMenuCoverTextLeft, st::mainMenuCoverNameTop, width() - 2 * st::mainMenuCoverTextLeft, width());
 			p.setFont(st::normalFont);
-			p.drawTextLeft(st::mainMenuCoverTextLeft, st::mainMenuCoverStatusTop, width(), _connectionText);
+			p.drawTextLeft(st::mainMenuCoverTextLeft, st::mainMenuCoverStatusTop, width(), _phoneText);
 		}
 		if (_cloudButton) {
 			PainterHighQualityEnabler hq(p);
