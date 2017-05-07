@@ -419,6 +419,18 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	config.enableAGC = true;
 	config.init_timeout = Global::CallConnectTimeoutMs() / 1000;
 	config.recv_timeout = Global::CallPacketTimeoutMs() / 1000;
+	if (cDebug()) {
+		auto callLogFolder = cWorkingDir() + qsl("DebugLogs");
+		auto callLogPath = callLogFolder + qsl("/last_call_log.txt");
+		auto callLogNative = QFile::encodeName(QDir::toNativeSeparators(callLogPath));
+		auto callLogBytesSrc = gsl::as_bytes(gsl::make_span(callLogNative));
+		auto callLogBytesDst = gsl::as_writeable_bytes(gsl::make_span(config.logFilePath));
+		if (callLogBytesSrc.size() + 1 <= callLogBytesDst.size()) { // +1 - zero-terminator
+			QFile(callLogPath).remove();
+			QDir().mkpath(callLogFolder);
+			base::copy_bytes(callLogBytesDst, callLogBytesSrc);
+		}
+	}
 
 	std::vector<Endpoint> endpoints;
 	ConvertEndpoint(endpoints, call.vconnection.c_phoneConnection());
