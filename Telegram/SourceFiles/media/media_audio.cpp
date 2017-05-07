@@ -1552,8 +1552,17 @@ public:
 		QVector<uint16> peaks;
 		peaks.reserve(Media::Player::kWaveformSamplesCount);
 
-		int32 fmt = format();
-		uint16 peak = 0;
+		auto fmt = format();
+		auto peak = uint16(0);
+		auto callback = [&peak, &sumbytes, &peaks, countbytes](uint16 sample) {
+			accumulate_max(peak, sample);
+			sumbytes += Media::Player::kWaveformSamplesCount;
+			if (sumbytes >= countbytes) {
+				sumbytes -= countbytes;
+				peaks.push_back(peak);
+				peak = 0;
+			}
+		};
 		while (processed < countbytes) {
 			buffer.resize(0);
 
@@ -1566,37 +1575,11 @@ public:
 				continue;
 			}
 
-			const char *data = buffer.data();
+			auto sampleBytes = gsl::as_bytes(gsl::make_span(buffer));
 			if (fmt == AL_FORMAT_MONO8 || fmt == AL_FORMAT_STEREO8) {
-				for (int32 i = 0, l = buffer.size(); i + int32(sizeof(uchar)) <= l;) {
-					uint16 sample = qAbs((int32(*(uchar*)(data + i)) - 128) * 256);
-					if (peak < sample) {
-						peak = sample;
-					}
-
-					i += sizeof(uchar);
-					sumbytes += Media::Player::kWaveformSamplesCount;
-					if (sumbytes >= countbytes) {
-						sumbytes -= countbytes;
-						peaks.push_back(peak);
-						peak = 0;
-					}
-				}
+				Media::Audio::IterateSamples<uchar>(sampleBytes, callback);
 			} else if (fmt == AL_FORMAT_MONO16 || fmt == AL_FORMAT_STEREO16) {
-				for (int32 i = 0, l = buffer.size(); i + int32(sizeof(uint16)) <= l;) {
-					uint16 sample = qAbs(int32(*(int16*)(data + i)));
-					if (peak < sample) {
-						peak = sample;
-					}
-
-					i += sizeof(uint16);
-					sumbytes += sizeof(uint16) * Media::Player::kWaveformSamplesCount;
-					if (sumbytes >= countbytes) {
-						sumbytes -= countbytes;
-						peaks.push_back(peak);
-						peak = 0;
-					}
-				}
+				Media::Audio::IterateSamples<int16>(sampleBytes, callback);
 			}
 			processed += sampleSize * samples;
 		}

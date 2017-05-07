@@ -113,6 +113,7 @@ private:
 	QRect _fingerprintArea;
 
 	base::Timer _updateDurationTimer;
+	base::Timer _updateOuterRippleTimer;
 
 	bool _visible = false;
 	QPixmap _userPhoto;

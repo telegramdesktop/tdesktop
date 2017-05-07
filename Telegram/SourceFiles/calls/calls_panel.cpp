@@ -48,6 +48,7 @@ public:
 	Button(QWidget *parent, const style::CallButton &stFrom, const style::CallButton *stTo = nullptr);
 
 	void setProgress(float64 progress);
+	void setOuterValue(float64 value);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -68,6 +69,9 @@ private:
 	QImage _bgMask, _bg;
 	QPixmap _bgFrom, _bgTo;
 	QImage _iconMixedMask, _iconFrom, _iconTo, _iconMixed;
+
+	float64 _outerValue = 0.;
+	Animation _outerAnimation;
 
 };
 
@@ -108,6 +112,17 @@ Panel::Button::Button(QWidget *parent, const style::CallButton &stFrom, const st
 	}
 }
 
+void Panel::Button::setOuterValue(float64 value) {
+	if (_outerValue != value) {
+		_outerAnimation.start([this] {
+			if (_progress == 0. || _progress == 1.) {
+				update();
+			}
+		}, _outerValue, value, Call::kSoundSampleMs);
+		_outerValue = value;
+	}
+}
+
 void Panel::Button::setProgress(float64 progress) {
 	_progress = progress;
 	update();
@@ -116,9 +131,30 @@ void Panel::Button::setProgress(float64 progress) {
 void Panel::Button::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
+	auto ms = getms();
+	auto bgPosition = myrtlpoint(_stFrom->button.rippleAreaPosition);
 	auto paintFrom = (_progress == 0.) || !_stTo;
 	auto paintTo = !paintFrom && (_progress == 1.);
-	auto bgPosition = myrtlpoint(_stFrom->button.rippleAreaPosition);
+
+	auto outerValue = _outerAnimation.current(ms, _outerValue);
+	if (outerValue > 0.) {
+		auto outerRadius = paintFrom ? _stFrom->outerRadius : paintTo ? _stTo->outerRadius : (_stFrom->outerRadius * (1. - _progress) + _stTo->outerRadius * _progress);
+		auto outerPixels = outerValue * outerRadius;
+		auto outerRect = QRectF(myrtlrect(bgPosition.x(), bgPosition.y(), _stFrom->button.rippleAreaSize, _stFrom->button.rippleAreaSize));
+		outerRect = outerRect.marginsAdded(QMarginsF(outerPixels, outerPixels, outerPixels, outerPixels));
+
+		PainterHighQualityEnabler hq(p);
+		if (paintFrom) {
+			p.setBrush(_stFrom->outerBg);
+		} else if (paintTo) {
+			p.setBrush(_stTo->outerBg);
+		} else {
+			p.setBrush(anim::brush(_stFrom->outerBg, _stTo->outerBg, _progress));
+		}
+		p.setPen(Qt::NoPen);
+		p.drawEllipse(outerRect);
+	}
+
 	if (paintFrom) {
 		p.drawPixmap(bgPosition, _bgFrom);
 	} else if (paintTo) {
@@ -127,8 +163,6 @@ void Panel::Button::paintEvent(QPaintEvent *e) {
 		style::colorizeImage(_bgMask, anim::color(_stFrom->bg, _stTo->bg, _progress), &_bg);
 		p.drawImage(bgPosition, _bg);
 	}
-
-	auto ms = getms();
 
 	auto rippleColorInterpolated = QColor();
 	auto rippleColorOverride = &rippleColorInterpolated;
@@ -267,6 +301,14 @@ void Panel::initControls() {
 	_updateDurationTimer.setCallback([this] {
 		if (_call) {
 			updateStatusText(_call->state());
+		}
+	});
+	_updateOuterRippleTimer.setCallback([this] {
+		if (_call) {
+			_answerHangupRedial->setOuterValue(_call->getWaitingSoundPeakValue());
+		} else {
+			_answerHangupRedial->setOuterValue(0.);
+			_updateOuterRippleTimer.cancel();
 		}
 	});
 	_answerHangupRedial->setClickedCallback([this] {
@@ -652,22 +694,28 @@ void Panel::stateChanged(State state) {
 	updateStatusText(state);
 
 	if (_call) {
-		auto toggleButton = [this](auto &&button, bool visible) {
-			if (isHidden()) {
-				button->toggleFast(visible);
-			} else {
-				button->toggleAnimated(visible);
+		if ((state != State::HangingUp) && (state != State::Ended) && (state != State::Failed)) {
+			auto toggleButton = [this](auto &&button, bool visible) {
+				if (isHidden()) {
+					button->toggleFast(visible);
+				} else {
+					button->toggleAnimated(visible);
+				}
+			};
+			auto waitingIncoming = (_call->type() == Call::Type::Incoming) && ((state == State::Starting) || (state == State::WaitingIncoming));
+			if (waitingIncoming) {
+				_updateOuterRippleTimer.callEach(Call::kSoundSampleMs);
 			}
-		};
-		toggleButton(_decline, (_call->type() == Call::Type::Incoming) && ((state == State::Starting) || (state == State::WaitingIncoming)));
-		toggleButton(_cancel, (state == State::Busy));
-		auto hangupShown = _decline->isHiddenOrHiding() && _cancel->isHiddenOrHiding();
-		if (_hangupShown != hangupShown) {
-			_hangupShown = hangupShown;
-			_hangupShownProgress.start([this] { updateHangupGeometry(); }, _hangupShown ? 0. : 1., _hangupShown ? 1. : 0., st::callPanelDuration, anim::sineInOut);
-		}
-		if (_fingerprint.empty() && _call->isKeyShaForFingerprintReady()) {
-			fillFingerprint();
+			toggleButton(_decline, waitingIncoming);
+			toggleButton(_cancel, (state == State::Busy));
+			auto hangupShown = _decline->isHiddenOrHiding() && _cancel->isHiddenOrHiding();
+			if (_hangupShown != hangupShown) {
+				_hangupShown = hangupShown;
+				_hangupShownProgress.start([this] { updateHangupGeometry(); }, _hangupShown ? 0. : 1., _hangupShown ? 1. : 0., st::callPanelDuration, anim::sineInOut);
+			}
+			if (_fingerprint.empty() && _call->isKeyShaForFingerprintReady()) {
+				fillFingerprint();
+			}
 		}
 	}
 

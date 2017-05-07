@@ -43,6 +43,9 @@ void ScheduleDetachFromDeviceSafe();
 void ScheduleDetachIfNotUsedSafe();
 void StopDetachIfNotUsedSafe();
 
+template <typename Callback>
+void IterateSamples();
+
 } // namespace Audio
 
 namespace Player {
@@ -317,3 +320,27 @@ bool audioCheckError();
 } // namespace Media
 
 VoiceWaveform audioCountWaveform(const FileLocation &file, const QByteArray &data);
+
+namespace Media {
+namespace Audio {
+
+FORCE_INLINE uint16 ReadOneSample(uchar data) {
+	return qAbs((static_cast<int16>(data) - 0x80) * 0x100);
+}
+
+FORCE_INLINE uint16 ReadOneSample(int16 data) {
+	return qAbs(data);
+}
+
+template <typename SampleType, typename Callback>
+void IterateSamples(base::const_byte_span bytes, Callback &&callback) {
+	auto samplesPointer = reinterpret_cast<const SampleType*>(bytes.data());
+	auto samplesCount = bytes.size() / sizeof(SampleType);
+	auto samplesData = gsl::make_span(samplesPointer, samplesCount);
+	for (auto sampleData : samplesData) {
+		callback(ReadOneSample(sampleData));
+	}
+}
+
+} // namespace Audio
+} // namespace Media

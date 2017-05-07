@@ -39,12 +39,12 @@ callShadow: Shadow {
 }
 
 callButton: IconButton {
-	width: 64px;
-	height: 64px;
+	width: 72px;
+	height: 72px;
 
 	iconPosition: point(-1px, -1px);
 
-	rippleAreaPosition: point(8px, 8px);
+	rippleAreaPosition: point(12px, 12px);
 	rippleAreaSize: 48px;
 	ripple: defaultRippleAnimation;
 }
@@ -58,6 +58,8 @@ callAnswer: CallButton {
 	}
 	bg: callAnswerBg;
 	angle: 135.;
+	outerRadius: 12px;
+	outerBg: callAnswerBgOuter;
 }
 callHangup: CallButton {
 	button: IconButton(callButton) {
@@ -67,6 +69,7 @@ callHangup: CallButton {
 		}
 	}
 	bg: callHangupBg;
+	outerBg: callHangupBg;
 }
 callCancel: CallButton {
 	button: IconButton(callButton) {
@@ -76,6 +79,7 @@ callCancel: CallButton {
 		}
 	}
 	bg: callCancelBg;
+	outerBg: callCancelBg;
 }
 callMuteToggle: IconButton(callButton) {
 	icon: icon {{ "call_record_active", callIconFg }};
@@ -85,9 +89,9 @@ callMuteToggle: IconButton(callButton) {
 }
 callUnmuteIcon: icon {{ "call_record_muted", callIconFg }};
 
-callControlsTop: 84px;
-callControlsSkip: 8px;
-callMuteRight: 12px;
+callControlsTop: 80px;
+callControlsSkip: 0px;
+callMuteRight: 8px;
 
 callNameTop: 15px;
 callName: FlatLabel(defaultFlatLabel) {

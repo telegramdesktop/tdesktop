@@ -58,6 +58,10 @@ Track::Track(gsl::not_null<Instance*> instance) : _instance(instance) {
 	_instance->registerTrack(this);
 }
 
+void Track::samplePeakEach(TimeMs peakDuration) {
+	_peakDurationMs = peakDuration;
+}
+
 void Track::fillFromData(base::byte_vector &&data) {
 	FFMpegLoader loader(FileLocation(), QByteArray(), std::move(data));
 
@@ -66,15 +70,40 @@ void Track::fillFromData(base::byte_vector &&data) {
 		_failed = true;
 		return;
 	}
-
+	auto format = loader.format();
+	_peakEachPosition = _peakDurationMs ? ((loader.samplesFrequency() * _peakDurationMs) / 1000) : 0;
+	auto peaksCount = _peakEachPosition ? (loader.samplesCount() / _peakEachPosition) : 0;
+	_peaks.reserve(peaksCount);
+	auto peakValue = uint16(0);
+	auto peakSamples = 0;
+	auto peakEachSample = (format == AL_FORMAT_STEREO8 || format == AL_FORMAT_STEREO16) ? (_peakEachPosition * 2) : _peakEachPosition;
+	_peakValueMin = 0x7FFF;
+	_peakValueMax = 0;
+	auto peakCallback = [this, &peakValue, &peakSamples, peakEachSample](uint16 sample) {
+		accumulate_max(peakValue, sample);
+		if (++peakSamples >= peakEachSample) {
+			peakSamples -= peakEachSample;
+			_peaks.push_back(peakValue);
+			accumulate_max(_peakValueMax, peakValue);
+			accumulate_min(_peakValueMin, peakValue);
+			peakValue = 0;
+		}
+	};
 	do {
 		auto buffer = QByteArray();
-		int64 samplesAdded = 0;
+		auto samplesAdded = int64(0);
 		auto result = loader.readMore(buffer, samplesAdded);
 		if (samplesAdded > 0) {
-			auto bufferBytes = reinterpret_cast<const gsl::byte*>(buffer.constData());
+			auto sampleBytes = gsl::as_bytes(gsl::make_span(buffer));
 			_samplesCount += samplesAdded;
-			_samples.insert(_samples.end(), bufferBytes, bufferBytes + buffer.size());
+			_samples.insert(_samples.end(), sampleBytes.data(), sampleBytes.data() + sampleBytes.size());
+			if (peaksCount) {
+				if (format == AL_FORMAT_MONO8 || format == AL_FORMAT_STEREO8) {
+					Media::Audio::IterateSamples<uchar>(sampleBytes, peakCallback);
+				} else if (format == AL_FORMAT_MONO16 || format == AL_FORMAT_STEREO16) {
+					Media::Audio::IterateSamples<int16>(sampleBytes, peakCallback);
+				}
+			}
 		}
 
 		using Result = AudioPlayerLoader::ReadResult;
@@ -175,6 +204,7 @@ void Track::updateState() {
 		return;
 	}
 
+	_stateUpdatedAt = getms();
 	auto state = ALint(0);
 	alGetSourcei(_alSource, AL_SOURCE_STATE, &state);
 	if (state != AL_PLAYING) {
@@ -184,6 +214,19 @@ void Track::updateState() {
 		alGetSourcei(_alSource, AL_SAMPLE_OFFSET, &currentPosition);
 		_alPosition = currentPosition;
 	}
+}
+
+float64 Track::getPeakValue(TimeMs when) const {
+	if (!isActive() || !_samplesCount || _peaks.empty() || _peakValueMin == _peakValueMax) {
+		return 0.;
+	}
+	auto sampleIndex = (_alPosition + ((when - _stateUpdatedAt) * _sampleRate / 1000));
+	while (sampleIndex < 0) {
+		sampleIndex += _samplesCount;
+	}
+	sampleIndex = sampleIndex % _samplesCount;
+	auto peakIndex = (sampleIndex / _peakEachPosition) % _peaks.size();
+	return (_peaks[peakIndex] - _peakValueMin) / float64(_peakValueMax - _peakValueMin);
 }
 
 void Track::detachFromDevice() {

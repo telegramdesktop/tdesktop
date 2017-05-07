@@ -31,6 +31,8 @@ class Track {
 public:
 	Track(gsl::not_null<Instance*> instance);
 
+	void samplePeakEach(TimeMs peakDuration);
+
 	void fillFromData(base::byte_vector &&data);
 	void fillFromFile(const FileLocation &location);
 	void fillFromFile(const QString &filePath);
@@ -55,6 +57,7 @@ public:
 	int64 getLengthMs() const {
 		return _lengthMs;
 	}
+	float64 getPeakValue(TimeMs when) const;
 
 	void detachFromDevice();
 	void reattachToDevice();
@@ -78,7 +81,14 @@ private:
 	int32 _sampleRate = 0;
 	base::byte_vector _samples;
 
+	TimeMs _peakDurationMs = 0;
+	int _peakEachPosition = 0;
+	std::vector<uint16> _peaks;
+	uint16 _peakValueMin = 0;
+	uint16 _peakValueMax = 0;
+
 	TimeMs _lengthMs = 0;
+	TimeMs _stateUpdatedAt = 0;
 
 	int32 _alFormat = 0;
 	int64 _alPosition = 0;

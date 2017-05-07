@@ -29,6 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/openssl_help.h"
 #include "mtproto/connection.h"
 #include "media/media_audio_track.h"
+#include "calls/calls_panel.h"
 
 #ifdef slots
 #undef slots
@@ -237,8 +238,17 @@ QString Call::getDebugLog() const {
 void Call::startWaitingTrack() {
 	_waitingTrack = Media::Audio::Current().createTrack();
 	auto trackFileName = (_type == Type::Outgoing) ? qsl(":/sounds/call_outgoing.mp3") : qsl(":/sounds/call_incoming.mp3");
+	_waitingTrack->samplePeakEach(kSoundSampleMs);
 	_waitingTrack->fillFromFile(trackFileName);
 	_waitingTrack->playInLoop();
+}
+
+float64 Call::getWaitingSoundPeakValue() const {
+	if (_waitingTrack) {
+		auto when = getms() + kSoundSampleMs / 4;
+		return _waitingTrack->getPeakValue(when);
+	}
+	return 0.;
 }
 
 bool Call::isKeyShaForFingerprintReady() const {

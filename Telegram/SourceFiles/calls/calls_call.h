@@ -63,6 +63,7 @@ public:
 
 	static constexpr auto kRandomPowerSize = 256;
 	static constexpr auto kSha256Size = 32;
+	static constexpr auto kSoundSampleMs = 100;
 
 	enum class Type {
 		Incoming,
@@ -111,6 +112,7 @@ public:
 	}
 
 	TimeMs getDurationMs() const;
+	float64 getWaitingSoundPeakValue() const;
 
 	void answer();
 	void hangup();

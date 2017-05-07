@@ -528,6 +528,7 @@ callStatusFg: #aaabac; // phone call popup status text
 callIconFg: #ffffff; // phone call popup answer, hangup and mute mic icon
 callAnswerBg: #64c15b; // phone call popup answer button background
 callAnswerRipple: #52b149; // phone call popup answer button ripple effect
+callAnswerBgOuter: #50eb4126; // phone call popup answer button outer ripple effect
 callHangupBg: #d75a5a; // phone call popup hangup button background
 callHangupRipple: #c04646; // phone call popup hangup button ripple effect
 callCancelBg: #ffffff; // phone call popup line busy cancel button background
