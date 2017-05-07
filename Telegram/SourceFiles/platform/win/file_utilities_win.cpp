@@ -266,9 +266,16 @@ void UnsafeLaunch(const QString &filepath) {
 }
 
 void UnsafeShowInFolder(const QString &filepath) {
-	auto pathEscaped = QDir::toNativeSeparators(filepath).replace('"', qsl("\"\""));
-	auto wstringParam = (qstr("/select,") + pathEscaped).toStdWString();
-	ShellExecute(0, 0, L"explorer", wstringParam.c_str(), 0, SW_SHOWNORMAL);
+	auto nativePath = QDir::toNativeSeparators(filepath);
+	auto wstringPath = nativePath.toStdWString();
+	if (auto pidl = ILCreateFromPathW(wstringPath.c_str())) {
+		SHOpenFolderAndSelectItems(pidl, 0, nullptr, 0);
+		ILFree(pidl);
+	} else {
+		auto pathEscaped = nativePath.replace('"', qsl("\"\""));
+		auto wstringParam = (qstr("/select,") + pathEscaped).toStdWString();
+		ShellExecute(0, 0, L"explorer", wstringParam.c_str(), 0, SW_SHOWNORMAL);
+	}
 }
 
 void PostprocessDownloaded(const QString &filepath) {
