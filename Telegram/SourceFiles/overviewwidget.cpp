@@ -1319,22 +1319,7 @@ int32 OverviewInner::resizeToWidth(int32 nwidth, int32 scrollTop, int32 minHeigh
 	_search->setGeometry(_rowsLeft, st::linksSearchTop, _rowWidth, _search->height());
 	_cancelSearch->moveToLeft(_rowsLeft + _rowWidth - _cancelSearch->width(), _search->y());
 
-	if (_type == OverviewPhotos || _type == OverviewVideos) {
-		for (int32 i = 0, l = _items.size(); i < l; ++i) {
-			_items.at(i)->resizeGetHeight(_rowWidth);
-		}
-		_height = countHeight();
-	} else {
-		bool resize = (_type == OverviewLinks);
-		if (resize) _height = 0;
-		for (int32 i = 0, l = _items.size(); i < l; ++i) {
-			int32 h = _items.at(i)->resizeGetHeight(_rowWidth);
-			if (resize) {
-				_items.at(i)->Get<Overview::Layout::Info>()->top = _height + (_reversed ? h : 0);
-				_height += h;
-			}
-		}
-	}
+	resizeItems();
 	recountMargins();
 
 	resize(_width, _marginTop + _height + _marginBottom);
@@ -1344,6 +1329,32 @@ int32 OverviewInner::resizeToWidth(int32 nwidth, int32 scrollTop, int32 minHeigh
         return newRow * int32(_rowWidth + st::overviewPhotoSkip) + _resizeSkip - minHeight;
     }
     return scrollTop;
+}
+
+void OverviewInner::resizeItems() {
+	if (_type == OverviewPhotos || _type == OverviewVideos || _type == OverviewLinks) {
+		resizeAndRepositionItems();
+	} else {
+		for (auto i = 0, l = _items.size(); i != l; ++i) {
+			_items.at(i)->resizeGetHeight(_rowWidth);
+		}
+	}
+}
+
+void OverviewInner::resizeAndRepositionItems() {
+	if (_type == OverviewPhotos || _type == OverviewVideos) {
+		for (auto i = 0, l = _items.size(); i < l; ++i) {
+			_items.at(i)->resizeGetHeight(_rowWidth);
+		}
+		_height = countHeight();
+	} else {
+		_height = 0;
+		for (auto i = 0, l = _items.size(); i < l; ++i) {
+			auto h = _items.at(i)->resizeGetHeight(_rowWidth);
+			_items.at(i)->Get<Overview::Layout::Info>()->top = _height + (_reversed ? h : 0);
+			_height += h;
+		}
+	}
 }
 
 void OverviewInner::dropResizeIndex() {
@@ -1751,6 +1762,8 @@ void OverviewInner::itemRemoved(HistoryItem *item) {
 		}
 		delete j.value();
 		_layoutItems.erase(j);
+
+		resizeAndRepositionItems();
 	}
 
 	if (_dragSelFrom == msgId || _dragSelTo == msgId) {
@@ -1798,16 +1811,15 @@ void OverviewInner::repaintItem(const HistoryItem *msg) {
 	}
 }
 
-int32 OverviewInner::countHeight() {
-	int32 result = _height;
+int OverviewInner::countHeight() {
 	if (_type == OverviewPhotos || _type == OverviewVideos) {
-		int32 count = _items.size();
-		int32 migratedFullCount = _migrated ? _migrated->overviewCount(_type) : 0;
-		int32 fullCount = migratedFullCount + _history->overviewCount(_type);
-		int32 rows = (count / _photosInRow) + ((count % _photosInRow) ? 1 : 0);
-		result = (_rowWidth + st::overviewPhotoSkip) * rows + st::overviewPhotoSkip;
+		auto count = _items.size();
+		auto migratedFullCount = _migrated ? _migrated->overviewCount(_type) : 0;
+		auto fullCount = migratedFullCount + _history->overviewCount(_type);
+		auto rows = (count / _photosInRow) + ((count % _photosInRow) ? 1 : 0);
+		return (_rowWidth + st::overviewPhotoSkip) * rows + st::overviewPhotoSkip;
 	}
-	return result;
+	return _height;
 }
 
 void OverviewInner::recountMargins() {

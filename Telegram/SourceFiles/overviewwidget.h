@@ -139,6 +139,8 @@ public slots:
 private:
 	void saveDocumentToFile(DocumentData *document);
 	void invalidateCache();
+	void resizeItems();
+	void resizeAndRepositionItems();
 
 	void itemRemoved(HistoryItem *item);
 	MsgId complexMsgId(const HistoryItem *item) const;
@@ -165,7 +167,7 @@ private:
 	void addSelectionRange(int32 selFrom, int32 selTo, History *history);
 
 	void recountMargins();
-	int32 countHeight();
+	int countHeight();
 
 	OverviewWidget *_overview;
 	Ui::ScrollArea *_scroll;
