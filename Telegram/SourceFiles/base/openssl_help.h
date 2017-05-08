@@ -164,12 +164,12 @@ public:
 		return failed() ? 0 : BN_num_bytes(raw());
 	}
 
-	std::vector<gsl::byte> getBytes() const {
+	base::byte_vector getBytes() const {
 		if (failed()) {
-			return std::vector<gsl::byte>();
+			return base::byte_vector();
 		}
 		auto length = BN_num_bytes(raw());
-		auto result = std::vector<gsl::byte>(length, gsl::byte());
+		auto result = base::byte_vector(length, gsl::byte());
 		auto resultSize = BN_bn2bin(raw(), reinterpret_cast<unsigned char*>(result.data()));
 		t_assert(resultSize == length);
 		return result;
@@ -204,14 +204,14 @@ inline BigNum operator-(const BigNum &a, const BigNum &b) {
 	return result;
 }
 
-inline std::array<gsl::byte, SHA256_DIGEST_LENGTH> Sha256(base::const_byte_span bytes) {
-	auto result = std::array<gsl::byte, SHA256_DIGEST_LENGTH>();
+inline base::byte_array<SHA256_DIGEST_LENGTH> Sha256(base::const_byte_span bytes) {
+	auto result = base::byte_array<SHA256_DIGEST_LENGTH>();
 	SHA256(reinterpret_cast<const unsigned char*>(bytes.data()), bytes.size(), reinterpret_cast<unsigned char*>(result.data()));
 	return result;
 }
 
-inline std::array<gsl::byte, SHA_DIGEST_LENGTH> Sha1(base::const_byte_span bytes) {
-	auto result = std::array<gsl::byte, SHA_DIGEST_LENGTH>();
+inline base::byte_array<SHA_DIGEST_LENGTH> Sha1(base::const_byte_span bytes) {
+	auto result = base::byte_array<SHA_DIGEST_LENGTH>();
 	SHA1(reinterpret_cast<const unsigned char*>(bytes.data()), bytes.size(), reinterpret_cast<unsigned char*>(result.data()));
 	return result;
 }

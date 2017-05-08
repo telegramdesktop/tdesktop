@@ -73,7 +73,7 @@ void Instance::playSound(Sound sound) {
 	case Sound::Busy: {
 		if (!_callBusyTrack) {
 			_callBusyTrack = Media::Audio::Current().createTrack();
-			_callBusyTrack->fillFromFile(qsl(":/sounds/call_busy.mp3"));
+			_callBusyTrack->fillFromFile(AuthSession::Current().data().getSoundPath(qsl("call_busy")));
 		}
 		_callBusyTrack->playOnce();
 	} break;
@@ -81,7 +81,7 @@ void Instance::playSound(Sound sound) {
 	case Sound::Ended: {
 		if (!_callEndedTrack) {
 			_callEndedTrack = Media::Audio::Current().createTrack();
-			_callEndedTrack->fillFromFile(qsl(":/sounds/call_end.mp3"));
+			_callEndedTrack->fillFromFile(AuthSession::Current().data().getSoundPath(qsl("call_end")));
 		}
 		_callEndedTrack->playOnce();
 	} break;
@@ -89,7 +89,7 @@ void Instance::playSound(Sound sound) {
 	case Sound::Connecting: {
 		if (!_callConnectingTrack) {
 			_callConnectingTrack = Media::Audio::Current().createTrack();
-			_callConnectingTrack->fillFromFile(qsl(":/sounds/call_connect.mp3"));
+			_callConnectingTrack->fillFromFile(AuthSession::Current().data().getSoundPath(qsl("call_connect")));
 		}
 		_callConnectingTrack->playOnce();
 	} break;

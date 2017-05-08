@@ -89,12 +89,20 @@ public:
 	TimeMs lastTimeVideoPlayedAt() const {
 		return _lastTimeVideoPlayedAt;
 	}
+	void setSoundOverride(const QString &key, const QString &path) {
+		_variables.soundOverrides.insert(key, path);
+	}
+	void clearSoundOverrides() {
+		_variables.soundOverrides.clear();
+	}
+	QString getSoundPath(const QString &key) const;
 
 private:
 	struct Variables {
 		bool lastSeenWarningSeen = false;
 		EmojiPanelTab emojiPanelTab = EmojiPanelTab::Emoji;
 		bool tabbedSelectorSectionEnabled = true;
+		QMap<QString, QString> soundOverrides;
 	};
 
 	base::Variable<bool> _contactsLoaded = { false };

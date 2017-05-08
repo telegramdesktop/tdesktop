@@ -39,6 +39,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/file_utilities.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
+#include "media/media_audio_track.h"
 
 namespace Settings {
 namespace {
@@ -47,22 +48,22 @@ QString SecretText;
 QMap<QString, base::lambda<void()>> Codes;
 
 void fillCodes() {
-	Codes.insert(qsl("debugmode"), []() {
+	Codes.insert(qsl("debugmode"), [] {
 		QString text = cDebug() ? qsl("Do you want to disable DEBUG logs?") : qsl("Do you want to enable DEBUG logs?\n\nAll network events will be logged.");
 		Ui::show(Box<ConfirmBox>(text, [] {
 			App::app()->onSwitchDebugMode();
 		}));
 	});
-	Codes.insert(qsl("testmode"), []() {
+	Codes.insert(qsl("testmode"), [] {
 		auto text = cTestMode() ? qsl("Do you want to disable TEST mode?") : qsl("Do you want to enable TEST mode?\n\nYou will be switched to test cloud.");
 		Ui::show(Box<ConfirmBox>(text, [] {
 			App::app()->onSwitchTestMode();
 		}));
 	});
-	Codes.insert(qsl("loadlang"), []() {
+	Codes.insert(qsl("loadlang"), [] {
 		Global::RefChooseCustomLang().notify();
 	});
-	Codes.insert(qsl("debugfiles"), []() {
+	Codes.insert(qsl("debugfiles"), [] {
 		if (!cDebug()) return;
 		if (DebugLogging::FileLoader()) {
 			Global::RefDebugLoggingFlags() &= ~DebugLogging::FileLoaderFlag;
@@ -71,16 +72,16 @@ void fillCodes() {
 		}
 		Ui::show(Box<InformBox>(DebugLogging::FileLoader() ? qsl("Enabled file download logging") : qsl("Disabled file download logging")));
 	});
-	Codes.insert(qsl("crashplease"), []() {
+	Codes.insert(qsl("crashplease"), [] {
 		Unexpected("Crashed in Settings!");
 	});
-	Codes.insert(qsl("workmode"), []() {
+	Codes.insert(qsl("workmode"), [] {
 		auto text = Global::DialogsModeEnabled() ? qsl("Disable work mode?") : qsl("Enable work mode?");
 		Ui::show(Box<ConfirmBox>(text, [] {
 			App::app()->onSwitchWorkMode();
 		}));
 	});
-	Codes.insert(qsl("moderate"), []() {
+	Codes.insert(qsl("moderate"), [] {
 		auto text = Global::ModerateModeEnabled() ? qsl("Disable moderate mode?") : qsl("Enable moderate mode?");
 		Ui::show(Box<ConfirmBox>(text, []() {
 			Global::SetModerateModeEnabled(!Global::ModerateModeEnabled());
@@ -88,22 +89,22 @@ void fillCodes() {
 			Ui::hideLayer();
 		}));
 	});
-	Codes.insert(qsl("getdifference"), []() {
+	Codes.insert(qsl("getdifference"), [] {
 		if (auto main = App::main()) {
 			main->getDifference();
 		}
 	});
-	Codes.insert(qsl("loadcolors"), []() {
+	Codes.insert(qsl("loadcolors"), [] {
 		FileDialog::GetOpenPath("Open palette file", "Palette (*.tdesktop-palette)", [](const FileDialog::OpenResult &result) {
 			if (!result.paths.isEmpty()) {
 				Window::Theme::Apply(result.paths.front());
 			}
 		});
 	});
-	Codes.insert(qsl("edittheme"), []() {
+	Codes.insert(qsl("edittheme"), [] {
 		Window::Theme::Editor::Start();
 	});
-	Codes.insert(qsl("videoplayer"), []() {
+	Codes.insert(qsl("videoplayer"), [] {
 		auto text = cUseExternalVideoPlayer() ? qsl("Use internal video player?") : qsl("Use external video player?");
 		Ui::show(Box<ConfirmBox>(text, [] {
 			cSetUseExternalVideoPlayer(!cUseExternalVideoPlayer());
@@ -111,7 +112,7 @@ void fillCodes() {
 			Ui::hideLayer();
 		}));
 	});
-	Codes.insert(qsl("endpoints"), []() {
+	Codes.insert(qsl("endpoints"), [] {
 		FileDialog::GetOpenPath("Open DC endpoints", "DC Endpoints (*.tdesktop-endpoints)", [](const FileDialog::OpenResult &result) {
 			if (!result.paths.isEmpty()) {
 				if (!Messenger::Instance().mtp()->dcOptions()->loadFromFile(result.paths.front())) {
@@ -119,6 +120,42 @@ void fillCodes() {
 				}
 			}
 		});
+	});
+	auto audioFilters = qsl("Audio files (*.wav *.mp3);;") + FileDialog::AllFilesFilter();
+	auto audioKeys = {
+		qsl("msg_incoming"),
+		qsl("call_incoming"),
+		qsl("call_outgoing"),
+		qsl("call_busy"),
+		qsl("call_connect"),
+		qsl("call_end"),
+	};
+	for (auto &key : audioKeys) {
+		Codes.insert(key, [audioFilters, key] {
+			if (!AuthSession::Exists()) {
+				return;
+			}
+
+			FileDialog::GetOpenPath("Open audio file", audioFilters, [key](const FileDialog::OpenResult &result) {
+				if (AuthSession::Exists() && !result.paths.isEmpty()) {
+					auto track = Media::Audio::Current().createTrack();
+					track->fillFromFile(result.paths.front());
+					if (track->failed()) {
+						Ui::show(Box<InformBox>("Could not audio :( Errors in 'log.txt'."));
+					} else {
+						AuthSession::Current().data().setSoundOverride(key, result.paths.front());
+						Local::writeUserSettings();
+					}
+				}
+			});
+		});
+	}
+	Codes.insert(qsl("sounds_reset"), [] {
+		if (AuthSession::Exists()) {
+			AuthSession::Current().data().clearSoundOverrides();
+			Local::writeUserSettings();
+			Ui::show(Box<InformBox>("All sound overrides were reset."));
+		}
 	});
 }
 

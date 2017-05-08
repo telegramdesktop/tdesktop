@@ -237,7 +237,7 @@ QString Call::getDebugLog() const {
 
 void Call::startWaitingTrack() {
 	_waitingTrack = Media::Audio::Current().createTrack();
-	auto trackFileName = (_type == Type::Outgoing) ? qsl(":/sounds/call_outgoing.mp3") : qsl(":/sounds/call_incoming.mp3");
+	auto trackFileName = AuthSession::Current().data().getSoundPath((_type == Type::Outgoing) ? qsl("call_outgoing") : qsl("call_incoming"));
 	_waitingTrack->samplePeakEach(kSoundSampleMs);
 	_waitingTrack->fillFromFile(trackFileName);
 	_waitingTrack->playInLoop();
@@ -255,7 +255,7 @@ bool Call::isKeyShaForFingerprintReady() const {
 	return (_keyFingerprint != 0);
 }
 
-std::array<gsl::byte, Call::kSha256Size> Call::getKeyShaForFingerprint() const {
+base::byte_array<Call::kSha256Size> Call::getKeyShaForFingerprint() const {
 	Expects(isKeyShaForFingerprintReady());
 	Expects(!_ga.empty());
 	auto encryptedChatAuthKey = base::byte_vector(_authKey.size() + _ga.size(), gsl::byte {});

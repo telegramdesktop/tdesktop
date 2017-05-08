@@ -362,7 +362,7 @@ void System::ensureSoundCreated() {
 	}
 
 	_soundTrack = Media::Audio::Current().createTrack();
-	_soundTrack->fillFromFile(qsl(":/sounds/msg_incoming.mp3"));
+	_soundTrack->fillFromFile(AuthSession::Current().data().getSoundPath(qsl("msg_incoming")));
 }
 
 void System::updateAll() {
