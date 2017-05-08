@@ -128,6 +128,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_error_phone_flood" = "Sorry, you have deleted and re-created your account too many times recently. Please wait for a few days before signing up again.";
 "lng_error_start_minimized_passcoded" = "You have set a local passcode, so the app can't be launched minimized. App will ask you to enter the passcode before it can start working.";
 "lng_error_pinned_max" = "Sorry, you can pin no more than {count:_not_used_|# chat|# chats} to the top.";
+"lng_error_public_groups_denied" = "Unfortunately, you were banned from participating in public groups.\n{more_info}";
 
 "lng_edit_deleted" = "This message was deleted";
 "lng_edit_too_long" = "Your message text is too long";
@@ -1085,7 +1086,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— The new Emoji, Stickers, and Saved GIFs panel becomes a separate space on the right when Telegram is running in a wide enough window.\n— Manage blocked users list in your supergroups.";
+"lng_new_version_text" = "— The new Emoji, Stickers, and Saved GIFs panel becomes a separate space on the right when Telegram is running in a wide enough window.\n— Manage blocked users list in your supergroups.\n— Chat admins can delete messages by other members";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

@@ -1047,7 +1047,8 @@ bool MainWidget::sendMessageFail(const RPCError &error) {
 		Ui::show(Box<InformBox>(PeerFloodErrorText(PeerFloodType::Send)));
 		return true;
 	} else if (error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
-		Ui::show(Box<InformBox>(lang(lng_group_not_accessible)));
+		auto link = textcmdLink(Messenger::Instance().createInternalLinkFull(qsl("spambot")), lang(lng_cant_more_info));
+		Ui::show(Box<InformBox>(lng_error_public_groups_denied(lt_more_info, link)));
 		return true;
 	}
 	return false;
@@ -1171,7 +1172,6 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 	if (!history || !_history->canSendMessages(history->peer)) {
 		return;
 	}
-
 	saveRecentHashtags(textWithTags.text);
 
 	EntitiesInText sendingEntities, leftEntities = ConvertTextTagsToEntities(textWithTags.tags);
