@@ -253,7 +253,7 @@ void Instance::showInfoPanel(gsl::not_null<Call*> call) {
 }
 
 bool Instance::isQuitPrevent() {
-	if (!_currentCall) {
+	if (!_currentCall || _currentCall->isIncomingWaiting()) {
 		return false;
 	}
 	_currentCall->hangup();

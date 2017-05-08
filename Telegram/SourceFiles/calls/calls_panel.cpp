@@ -318,7 +318,7 @@ void Panel::initControls() {
 		auto state = _call->state();
 		if (state == State::Busy) {
 			_call->redial();
-		} else if ((_call->type() == Call::Type::Incoming) && ((state == State::Starting) || (state == State::WaitingIncoming))) {
+		} else if (_call->isIncomingWaiting()) {
 			_call->answer();
 		} else {
 			_call->hangup();
@@ -702,11 +702,11 @@ void Panel::stateChanged(State state) {
 					button->toggleAnimated(visible);
 				}
 			};
-			auto waitingIncoming = (_call->type() == Call::Type::Incoming) && ((state == State::Starting) || (state == State::WaitingIncoming));
-			if (waitingIncoming) {
+			auto incomingWaiting = _call->isIncomingWaiting();
+			if (incomingWaiting) {
 				_updateOuterRippleTimer.callEach(Call::kSoundSampleMs);
 			}
-			toggleButton(_decline, waitingIncoming);
+			toggleButton(_decline, incomingWaiting);
 			toggleButton(_cancel, (state == State::Busy));
 			auto hangupShown = _decline->isHiddenOrHiding() && _cancel->isHiddenOrHiding();
 			if (_hangupShown != hangupShown) {

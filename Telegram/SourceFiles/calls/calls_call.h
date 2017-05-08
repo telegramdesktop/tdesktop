@@ -77,6 +77,7 @@ public:
 	gsl::not_null<UserData*> user() const {
 		return _user;
 	}
+	bool isIncomingWaiting() const;
 
 	void start(base::const_byte_span random);
 	bool handleUpdate(const MTPPhoneCall &call);

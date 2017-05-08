@@ -106,6 +106,13 @@ void Call::generateModExpFirst(base::const_byte_span randomSeed) {
 	}
 }
 
+bool Call::isIncomingWaiting() const {
+	if (type() != Call::Type::Incoming) {
+		return false;
+	}
+	return (_state == State::Starting) || (_state == State::WaitingIncoming);
+}
+
 void Call::start(base::const_byte_span random) {
 	// Save config here, because it is possible that it changes between
 	// different usages inside the same call.
