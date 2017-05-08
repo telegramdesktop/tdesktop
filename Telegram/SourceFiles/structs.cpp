@@ -1123,8 +1123,15 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 		caption = lang(lng_save_audio);
 		prefix = qsl("audio");
 	} else if (data->isVideo()) {
-		name = already.isEmpty() ? qsl(".mov") : already;
-		filter = qsl("MOV Video (*.mov);;") + FileDialog::AllFilesFilter();
+		name = already.isEmpty() ? data->name : already;
+		if (name.isEmpty()) {
+			name = pattern.isEmpty() ? qsl(".mov") : pattern.replace('*', QString());
+		}
+		if (pattern.isEmpty()) {
+			filter = qsl("MOV Video (*.mov);;") + FileDialog::AllFilesFilter();
+		} else {
+			filter = mimeType.filterString() + qsl(";;") + FileDialog::AllFilesFilter();
+		}
 		caption = lang(lng_save_video);
 		prefix = qsl("video");
 	} else {
