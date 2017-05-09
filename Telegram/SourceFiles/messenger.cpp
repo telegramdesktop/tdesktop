@@ -726,8 +726,8 @@ void Messenger::checkMapVersion() {
 	if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000035) {
-				versionFeatures = QString::fromUtf8("\xE2\x80\x94 Chat admins can delete other participants' messages.\n\xE2\x80\x94 Bug fixes and other minor improvements.");
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000036) {
+				versionFeatures = QString::fromUtf8("\xE2\x80\x94 Telegram Calls are now available on desktops: secure, crystal-clear, constantly improved by artificial intelligence.\n\xE2\x80\x94 Bug fixes and other minor improvements.");
 			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000029) {
 				versionFeatures = langNewVersionText();
 			} else {

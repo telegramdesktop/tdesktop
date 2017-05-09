@@ -1,3 +1,8 @@
+1.0.36 alpha (09.05.17)
+
+- Telegram Calls are now available on desktops: secure, crystal-clear, constantly improved by artificial intelligence.
+- Bug fixes and other minor improvements.
+
 1.0.35 alpha (30.04.17)
 
 - Chat admins can delete other participants' messages.
