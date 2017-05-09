@@ -694,7 +694,10 @@ void Panel::stateChanged(State state) {
 	updateStatusText(state);
 
 	if (_call) {
-		if ((state != State::HangingUp) && (state != State::Ended) && (state != State::Failed)) {
+		if ((state != State::HangingUp)
+			&& (state != State::Ended)
+			&& (state != State::FailedHangingUp)
+			&& (state != State::Failed)) {
 			auto toggleButton = [this](auto &&button, bool visible) {
 				if (isHidden()) {
 					button->toggleFast(visible);
@@ -765,6 +768,7 @@ void Panel::updateStatusText(State state) {
 			}
 			return lang(lng_call_status_ended);
 		} break;
+		case State::FailedHangingUp:
 		case State::Failed: return lang(lng_call_status_failed);
 		case State::HangingUp: return lang(lng_call_status_hanging);
 		case State::Ended: return lang(lng_call_status_ended);

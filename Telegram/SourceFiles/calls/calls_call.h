@@ -87,6 +87,7 @@ public:
 		WaitingInit,
 		WaitingInitAck,
 		Established,
+		FailedHangingUp,
 		Failed,
 		HangingUp,
 		Ended,
@@ -127,9 +128,14 @@ public:
 	~Call();
 
 private:
+	enum class FinishType {
+		None,
+		Ended,
+		Failed,
+	};
 	void handleRequestError(const RPCError &error);
 	void handleControllerError(int error);
-	void finish(const MTPPhoneCallDiscardReason &reason);
+	void finish(FinishType type, const MTPPhoneCallDiscardReason &reason = MTP_phoneCallDiscardReasonDisconnect());
 	void startOutgoing();
 	void startIncoming();
 	void startWaitingTrack();
@@ -154,7 +160,7 @@ private:
 	gsl::not_null<UserData*> _user;
 	Type _type = Type::Outgoing;
 	State _state = State::Starting;
-	bool _finishAfterRequestingCall = false;
+	FinishType _finishAfterRequestingCall = FinishType::None;
 	base::Observable<State> _stateChanged;
 	TimeMs _startTime = 0;
 	base::DelayedCallTimer _finishByTimeoutTimer;
