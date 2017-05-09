@@ -56,7 +56,6 @@ private:
 	uint64 _callAccessHash = 0;
 	int _rating = 0;
 
-	object_ptr<Ui::FlatLabel> _label;
 	std::vector<object_ptr<Ui::IconButton>> _stars;
 	object_ptr<Ui::InputArea> _comment = { nullptr };
 

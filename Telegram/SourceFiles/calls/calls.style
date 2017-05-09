@@ -167,7 +167,7 @@ callReDial: IconButton {
 	rippleAreaSize: 40px;
 }
 
-callRatingPadding: margins(24px, 26px, 24px, 8px);
+callRatingPadding: margins(24px, 26px, 24px, 0px);
 callRatingStar: IconButton {
 	width: 36px;
 	height: 36px;
@@ -182,13 +182,12 @@ callRatingStar: IconButton {
 	rippleAreaSize: 36px;
 }
 callRatingStarFilled: icon {{ "call_rating_filled", lightButtonFg }};
-callRatingStarLeft: -7px;
-callRatingStarTop: 6px;
+callRatingStarTop: 4px;
 callRatingComment: InputField(defaultInputField) {
 	textMargins: margins(1px, 26px, 1px, 4px);
 	heightMax: 135px;
 }
-callRatingCommentTop: 2px;
+callRatingCommentTop: 8px;
 
 callDebugLabel: FlatLabel(defaultFlatLabel) {
 	margin: margins(24px, 0px, 24px, 0px);

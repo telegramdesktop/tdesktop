@@ -38,11 +38,13 @@ constexpr auto kMaxRating = 5;
 
 RateCallBox::RateCallBox(QWidget*, uint64 callId, uint64 callAccessHash)
 : _callId(callId)
-, _callAccessHash(callAccessHash)
-, _label(this, lang(lng_call_rate_label), Ui::FlatLabel::InitType::Simple, st::boxLabel) {
+, _callAccessHash(callAccessHash) {
 }
 
 void RateCallBox::prepare() {
+	auto titleWidth = st::boxWideWidth - 2 * st::boxTitlePosition.x();
+	auto titleText = st::boxTitleFont->elided(lang(lng_call_rate_label), titleWidth);
+	setTitle(titleText);
 	addButton(lang(lng_cancel), [this] { closeBox(); });
 
 	for (auto i = 0; i < kMaxRating; ++i) {
@@ -57,9 +59,9 @@ void RateCallBox::prepare() {
 void RateCallBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
-	_label->moveToLeft(st::callRatingPadding.left(), st::callRatingPadding.top());
-	auto starLeft = st::callRatingPadding.left() + st::callRatingStarLeft;
-	auto starTop = _label->bottomNoMargins() + st::callRatingStarTop;
+	auto starsWidth = (_stars.size() * st::callRatingStar.width);
+	auto starLeft = (width() - starsWidth) / 2;
+	auto starTop = st::callRatingStarTop;
 	for (auto &star : _stars) {
 		star->moveToLeft(starLeft, starTop);
 		starLeft += star->width();
@@ -128,9 +130,9 @@ void RateCallBox::onSend() {
 }
 
 void RateCallBox::updateMaxHeight() {
-	auto newHeight = st::callRatingPadding.top() + _label->heightNoMargins() + st::callRatingStarTop + _stars.back()->heightNoMargins() + st::callRatingPadding.bottom();
+	auto newHeight = st::callRatingPadding.top() + st::callRatingStarTop + _stars.back()->heightNoMargins() + st::callRatingPadding.bottom();
 	if (_comment) {
 		newHeight += st::callRatingCommentTop + _comment->height();
 	}
-	setDimensions(st::boxWidth, newHeight);
+	setDimensions(st::boxWideWidth, newHeight);
 }
