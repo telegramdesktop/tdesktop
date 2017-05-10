@@ -620,6 +620,7 @@ buildTelegram() {
       -Dlinux_path_qt=$QT_PATH \
       -Dlinux_path_breakpad=$BREAKPAD_PATH \
       -Dlinux_path_libexif_lib=/usr/local/lib \
+      -Dlinux_path_opus_include=/usr/include/opus \
       -Dlinux_lib_ssl=-lssl \
       -Dlinux_lib_crypto=-lcrypto \
       -Dlinux_lib_icu=-licuuc\ -licutu\ -licui18n \

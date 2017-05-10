@@ -33,12 +33,14 @@
       'linux_path_va%': '/usr/local',
       'linux_path_vdpau%': '/usr/local',
       'linux_path_breakpad%': '<(libs_loc)/breakpad',
+      'linux_path_opus_include%': '<(libs_loc)/opus/include',
     },
     'include_dirs': [
       '/usr/local/include',
       '<(linux_path_ffmpeg)/include',
       '<(linux_path_openal)/include',
       '<(linux_path_breakpad)/include/breakpad',
+      '<(linux_path_opus_include)',
     ],
     'library_dirs': [
       '/usr/local/lib',
