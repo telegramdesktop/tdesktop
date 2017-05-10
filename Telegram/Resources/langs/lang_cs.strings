@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_switch_to_this" = "Přepnout do Češtiny";
 
 "lng_menu_contacts" = "Kontakty";
+"lng_menu_calls" = "Hovory";
 "lng_menu_settings" = "Nastavení";
 "lng_menu_about" = "O Aplikaci";
 "lng_menu_update" = "Aktualizovat";
@@ -129,6 +130,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_error_phone_flood" = "Bohužel, v poslední době jsi svůj účet smazal(a) a obnovil(a) příliš mnohokrát. Před dalším přihlášením prosím počkej pár dnů.";
 "lng_error_start_minimized_passcoded" = "Nastavil(a) jsi lokální heslo, aplikace nemůže startovat minimalizovaná. Aplikace tě vyzve k zadání hesla před tím, než ji budeš moci používat.";
 "lng_error_pinned_max" = "Bohužel, nemůžeš zadat PIN pro více než {count:_not_used_|# konverzace|# konverzací}.";
+"lng_error_public_groups_denied" = "Bohužel, byl jsi zabanován a nemůžeš se účastnit veřejných skupin.\n{more_info}";
 
 "lng_edit_deleted" = "Zpráva byla smazána";
 "lng_edit_too_long" = "Text tvé zprávy je příliš dlouhý";
@@ -407,6 +409,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_settings_blocked_users" = "Zablokovaní uživatelé";
 "lng_settings_last_seen_privacy" = "Soukromí - uživatelský stav";
+"lng_settings_calls_privacy" = "Soukromí - Hovory";
 "lng_settings_groups_invite_privacy" = "Nastavení pozvánek do skupin";
 "lng_settings_show_sessions" = "Zobrazit všechny konekce";
 "lng_settings_self_destruct" = "Nastavení samo-zničení účtu";
@@ -466,6 +469,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_privacy_groups_exceptions" = "Tito uživatelé tě budou / nebudou moci pozvat do skupin a kanálů, nezávisle na nastavení výše.";
 "lng_edit_privacy_groups_always_title" = "Vždy povolit";
 "lng_edit_privacy_groups_never_title" = "Nikdy nepovolit";
+
+"lng_edit_privacy_calls_title" = "Soukromí - hovory";
+"lng_edit_privacy_calls_description" = "Můžeš nastavit, kdo ti může zavolat:";
+"lng_edit_privacy_calls_always" = "Vždy povolit{count:| # uživatel| # uživatelů}";
+"lng_edit_privacy_calls_never" = "Nikdy nepovolit{count:| # uživatel| # uživatelů}";
+"lng_edit_privacy_calls_exceptions" = "Tito uživatelé ti budou / nebudou moci zavolat, nezávisle na nastavení výše.";
+"lng_edit_privacy_calls_always_title" = "Vždy povolit";
+"lng_edit_privacy_calls_never_title" = "Nikdy nepovolit";
 
 "lng_self_destruct_title" = "Samo-zničení účtu";
 "lng_self_destruct_description" = "Pokud nebudeš online alespoň jednou za tuto dobu, tvůj účet bude kompletně smazán se všemi kontakty, zprávami, i soubory.";
@@ -670,12 +681,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_game_you_scored" = "Skóroval(a) jsi {count:#|#|#} v {game}";
 "lng_action_game_score_no_game" = "{from} skóroval(a) {count:#|#|#}";
 "lng_action_game_you_scored_no_game" = "Skóroval(a) jsi {count:#|#|#}";
-"lng_action_call_outgoing" = "Odchozí hovor v {time}";
-"lng_action_call_incoming" = "Příchozí hovor v {time}";
-"lng_action_call_outgoing_duration" = "Odchozí hovor ({duration}) v {time}";
-"lng_action_call_incoming_duration" = "Příchozí hovor ({duration}) v {time}";
-"lng_action_call_incoming_missed" = "Zmeškaný hovor v {time}";
-"lng_action_call_outgoing_missed" = "Zrušený hovor v {time}";
 "lng_action_payment_done" = "Úspěšně jsi zaplatil(a) {amount} uživateli {user}";
 "lng_action_payment_done_for" = "Úspěšně jsi zaplatil(a) {amount} uživateli {user} za {invoice}";
 
@@ -1086,7 +1091,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop byl aktualizovaný na verzi {version}\n\n{changes}\n\nPlný výpis změn je k dispozici zde:\n{link}";
 "lng_new_version_minor" = "— Opravené chyby a další vylepšení";
-"lng_new_version_text" = "— Nové Emoji, Samolepky, a panel s uloženými GIFy, Telegram nyní běží v širokém okně.\n— Správa blokovaných uživatelů v superskupinách.";
+"lng_new_version_text" = "— Nové Emoji, Samolepky, a panel s uloženými GIFy, Telegram nyní běží v širokém okně.\n— Správa blokovaných uživatelů v superskupinách. \nAdmini chatu můžou mazat zprávy ostatních členů";
 
 "lng_menu_insert_unicode" = "Vlož Unicode kontrolní charakter";
 
@@ -1121,6 +1126,44 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_payments_invoice_label" = "Faktura";
 "lng_payments_invoice_label_test" = "Test Faktury";
 "lng_payments_receipt_button" = "Účet";
+
+"lng_call_status_incoming" = "to volá...";
+"lng_call_status_connecting" = "připojuji...";
+"lng_call_status_exchanging" = "vyměňuji šifrovací klíče...";
+"lng_call_status_waiting" = "čekám...";
+"lng_call_status_requesting" = "přijímám...";
+"lng_call_status_hanging" = "zavěšuji...";
+"lng_call_status_ended" = "hovor ukončen";
+"lng_call_status_failed" = "připojení selhalo";
+"lng_call_status_ringing" = "vyzvánění...";
+"lng_call_status_busy" = "linka obsazena";
+"lng_call_fingerprint_tooltip" = "Pokud jsou emoji na obrazovce uživatele {user} stejné, je tento hovor 100% zabezpečený";
+
+"lng_call_error_not_available" = "Bohužel, uživatel {user} neakceptuje hovory.";
+"lng_call_error_incompatible" = "Aplikace uživatele {user} používá nekompatibilní protokol. Aby jsi si s ním mohl volat, musí aplikaci nejdříve aktualizovat.";
+"lng_call_error_outdated" = "Aplikace uživatele {user} nepodporuje hovory. Aby jsi si s ním mohl volat, musí aplikaci nejdříve aktualizovat.";
+"lng_call_error_audio_io" = "Vypadá to na problém s tvým přehrávacím zařízením. Přesvědči se prosím, že jsou tvé reproduktory správně zapojeny, že tvůj mikrofon správně funguje, a zkus to znovu.";
+
+"lng_call_bar_info" = "Zobrazit informace o hovoru";
+"lng_call_bar_hangup" = "Ukončit hovor";
+
+"lng_call_box_title" = "Hovory";
+"lng_call_box_about" = "Neuskutečnil jsi žádné hovory.";
+"lng_call_box_status_today" = "{time}";
+"lng_call_box_status_yesterday" = "Včera v {time}";
+"lng_call_box_status_date" = "{date} v {time}";
+"lng_call_box_status_group" = "({count}) {status}";
+
+"lng_call_outgoing" = "Odchozí hovor";
+"lng_call_incoming" = "Příchozí hovor";
+"lng_call_missed" = "Zmeškaný hovor";
+"lng_call_cancelled" = "Zrušený hovor";
+"lng_call_declined" = "Odmítnutý hovor";
+"lng_call_duration_info" = "{time}, {duration}";
+"lng_call_type_and_duration" = "{type} ({duration})";
+
+"lng_call_rate_label" = "Prosím, ohodnoť kvalitu uskutečněného hovoru";
+"lng_call_rate_comment" = "Komentář (volitelné)";
 
 // Not used
 
