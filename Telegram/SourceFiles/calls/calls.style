@@ -167,7 +167,7 @@ callReDial: IconButton {
 	rippleAreaSize: 40px;
 }
 
-callRatingPadding: margins(24px, 26px, 24px, 0px);
+callRatingPadding: margins(24px, 12px, 24px, 0px);
 callRatingStar: IconButton {
 	width: 36px;
 	height: 36px;
