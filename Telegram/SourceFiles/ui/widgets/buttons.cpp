@@ -481,7 +481,7 @@ void RoundButton::paintEvent(QPaintEvent *e) {
 		p.setPen((over || down) ? _st.numbersTextFgOver : _st.numbersTextFg);
 		_numbers->paint(p, textLeft, textTop, width());
 	}
-	_st.icon.paint(p, QPoint(_st.padding.left(), _st.padding.right()), width());
+	_st.icon.paint(p, QPoint(_st.padding.left(), _st.padding.top()), width());
 }
 
 QImage RoundButton::prepareRippleMask() const {

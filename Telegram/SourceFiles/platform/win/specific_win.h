@@ -22,6 +22,29 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <windows.h>
 
+namespace Platform {
+
+inline void SetWatchingMediaKeys(bool watching) {
+}
+
+inline bool TranslucentWindowsSupported(QPoint globalPosition) {
+	return true;
+}
+
+inline void StartTranslucentPaint(QPainter &p, QPaintEvent *e) {
+}
+
+inline void InitOnTopPanel(QWidget *panel) {
+}
+
+inline void DeInitOnTopPanel(QWidget *panel) {
+}
+
+inline void ReInitOnTopPanel(QWidget *panel) {
+}
+
+} // namespace Platform
+
 inline QString psServerPrefix() {
 	return qsl("Global\\");
 }

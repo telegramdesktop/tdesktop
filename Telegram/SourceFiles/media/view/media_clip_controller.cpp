@@ -122,20 +122,20 @@ void Controller::updatePlayPauseResumeState(const Player::TrackState &state) {
 }
 
 void Controller::updateTimeTexts(const Player::TrackState &state) {
-	qint64 position = 0, duration = state.duration;
+	qint64 position = 0, length = state.length;
 
 	if (!Player::IsStopped(state.state) && state.state != Player::State::Finishing) {
 		position = state.position;
 	} else if (state.state == Player::State::StoppedAtEnd) {
-		position = state.duration;
+		position = state.length;
 	} else {
 		position = 0;
 	}
 	auto playFrequency = state.frequency;
 	auto playAlready = position / playFrequency;
-	auto playLeft = (state.duration / playFrequency) - playAlready;
+	auto playLeft = (state.length / playFrequency) - playAlready;
 
-	_lastDurationMs = (state.duration * 1000LL) / playFrequency;
+	_lastDurationMs = (state.length * 1000LL) / playFrequency;
 
 	_timeAlready = formatDurationText(playAlready);
 	auto minus = QChar(8722);

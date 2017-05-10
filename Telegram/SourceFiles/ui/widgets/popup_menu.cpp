@@ -107,11 +107,9 @@ PopupMenu::Actions &PopupMenu::actions() {
 void PopupMenu::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-#ifdef OS_MAC_OLD
-	p.setCompositionMode(QPainter::CompositionMode_Source);
-	p.fillRect(e->rect(), Qt::transparent);
-	p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-#endif // OS_MAC_OLD
+	if (_useTransparency) {
+		Platform::StartTranslucentPaint(p, e);
+	}
 
 	auto ms = getms();
 	if (_a_show.animating(ms)) {
@@ -425,7 +423,8 @@ void PopupMenu::showMenu(const QPoint &p, PopupMenu *parent, TriggeredSource sou
 	auto origin = PanelAnimation::Origin::TopLeft;
 	auto w = p - QPoint(0, _padding.top());
 	auto r = Sandbox::screenGeometry(p);
-	_useTransparency = Platform::TransparentWindowsSupported(p);
+	_useTransparency = Platform::TranslucentWindowsSupported(p);
+	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
 	handleCompositingUpdate();
 	if (rtl()) {
 		if (w.x() - width() < r.x() - _padding.left()) {

@@ -757,6 +757,21 @@ bool HistoryItem::canPin() const {
 	return id > 0 && _history->peer->isMegagroup() && (_history->peer->asChannel()->amEditor() || _history->peer->asChannel()->amCreator()) && toHistoryMessage();
 }
 
+bool HistoryItem::canForward() const {
+	if (id < 0) {
+		return false;
+	}
+	if (auto message = toHistoryMessage()) {
+		if (auto media = message->getMedia()) {
+			if (media->type() == MediaTypeCall) {
+				return false;
+			}
+		}
+		return true;
+	}
+	return false;
+}
+
 bool HistoryItem::canEdit(const QDateTime &cur) const {
 	auto messageToMyself = (_history->peer->id == AuthSession::CurrentUserPeerId());
 	auto messageTooOld = messageToMyself ? false : (date.secsTo(cur) >= Global::EditTimeLimit());
@@ -815,6 +830,11 @@ bool HistoryItem::canDeleteForEveryone(const QDateTime &cur) const {
 	}
 	if (!toHistoryMessage()) {
 		return false;
+	}
+	if (auto media = getMedia()) {
+		if (media->type() == MediaTypeCall) {
+			return false;
+		}
 	}
 	if (!out()) {
 		if (auto chat = history()->peer->asChat()) {

@@ -575,14 +575,22 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	Global::SetOnlineCloudTimeout(data.vonline_cloud_timeout_ms.v);
 	Global::SetNotifyCloudDelay(data.vnotify_cloud_delay_ms.v);
 	Global::SetNotifyDefaultDelay(data.vnotify_default_delay_ms.v);
-	Global::SetChatBigSize(data.vchat_big_size.v); // ?
-	Global::SetPushChatPeriod(data.vpush_chat_period_ms.v); // ?
-	Global::SetPushChatLimit(data.vpush_chat_limit.v); // ?
+	Global::SetChatBigSize(data.vchat_big_size.v);
+	Global::SetPushChatPeriod(data.vpush_chat_period_ms.v);
+	Global::SetPushChatLimit(data.vpush_chat_limit.v);
 	Global::SetSavedGifsLimit(data.vsaved_gifs_limit.v);
-	Global::SetEditTimeLimit(data.vedit_time_limit.v); // ?
+	Global::SetEditTimeLimit(data.vedit_time_limit.v);
 	Global::SetStickersRecentLimit(data.vstickers_recent_limit.v);
 	Global::SetPinnedDialogsCountMax(data.vpinned_dialogs_count_max.v);
 	Messenger::Instance().setInternalLinkDomain(qs(data.vme_url_prefix));
+	Global::SetCallReceiveTimeoutMs(data.vcall_receive_timeout_ms.v);
+	Global::SetCallRingTimeoutMs(data.vcall_ring_timeout_ms.v);
+	Global::SetCallConnectTimeoutMs(data.vcall_connect_timeout_ms.v);
+	Global::SetCallPacketTimeoutMs(data.vcall_packet_timeout_ms.v);
+	if (Global::PhoneCallsEnabled() != data.is_phonecalls_enabled()) {
+		Global::SetPhoneCallsEnabled(data.is_phonecalls_enabled());
+		Global::RefPhoneCallsEnabledChanged().notify();
+	}
 
 	Local::writeSettings();
 

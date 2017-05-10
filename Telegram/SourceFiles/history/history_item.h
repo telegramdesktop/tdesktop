@@ -685,6 +685,7 @@ public:
 	}
 
 	bool canPin() const;
+	bool canForward() const;
 	bool canEdit(const QDateTime &cur) const;
 	bool canDelete() const;
 	bool canDeleteForEveryone(const QDateTime &cur) const;
@@ -965,6 +966,7 @@ public:
 		result->finishCreate();
 		return result;
 	}
+
 };
 
 ClickHandlerPtr goToMessageClickHandler(PeerData *peer, MsgId msgId);

@@ -253,9 +253,9 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 			if (type == SearchMigratedFromStart) {
 				_lastSearchMigratedId = 0;
 			}
-			for (QVector<MTPMessage>::const_iterator i = messages->cbegin(), e = messages->cend(); i != e; ++i) {
-				HistoryItem *item = App::histories().addNewMessage(*i, NewMessageExisting);
-				MsgId msgId = item ? item->id : idFromMessage(*i);
+			for (auto i = messages->cbegin(), e = messages->cend(); i != e; ++i) {
+				auto item = App::histories().addNewMessage(*i, NewMessageExisting);
+				auto msgId = item ? item->id : idFromMessage(*i);
 				if (migratedSearch) {
 					if (item) _searchResults.push_front(-item->id);
 					_lastSearchMigratedId = msgId;
@@ -580,7 +580,12 @@ void OverviewInner::onDragExec() {
 	QList<QUrl> urls;
 	bool forwardSelected = false;
 	if (uponSelected) {
-		forwardSelected = !_selected.isEmpty() && _selected.cbegin().value() == FullSelection && !Adaptive::OneColumn();
+		if (!Adaptive::OneColumn()) {
+			auto selectedState = getSelectionState();
+			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
+				forwardSelected = true;
+			}
+		}
 	} else if (pressedHandler) {
 		sel = pressedHandler->dragText();
 		//if (!sel.isEmpty() && sel.at(0) != '/' && sel.at(0) != '@' && sel.at(0) != '#') {
@@ -1176,8 +1181,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	}
 
-	int32 selectedForForward, selectedForDelete;
-	getSelectionState(selectedForForward, selectedForDelete);
+	auto selectedState = getSelectionState();
 
 	// -2 - has full selected items, but not over, 0 - no selection, 2 - over full selected items
 	int32 isUponSelected = 0, hasSelected = 0;
@@ -1223,8 +1227,10 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 		}
 		if (isUponSelected > 1) {
-			_menu->addAction(lang(lng_context_forward_selected), _overview, SLOT(onForwardSelected()));
-			if (selectedForDelete == selectedForForward) {
+			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
+				_menu->addAction(lang(lng_context_forward_selected), _overview, SLOT(onForwardSelected()));
+			}
+			if (selectedState.count > 0 && selectedState.count == selectedState.canDeleteCount) {
 				_menu->addAction(lang(lng_context_delete_selected), base::lambda_guarded(this, [this] {
 					_overview->confirmDeleteSelectedItems();
 				}));
@@ -1232,7 +1238,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_clear_selection), _overview, SLOT(onClearSelected()));
 		} else if (App::hoveredLinkItem()) {
 			if (isUponSelected != -2) {
-				if (App::hoveredLinkItem()->toHistoryMessage()) {
+				if (App::hoveredLinkItem()->canForward()) {
 					_menu->addAction(lang(lng_context_forward_msg), this, SLOT(forwardMessage()))->setEnabled(true);
 				}
 				if (App::hoveredLinkItem()->canDelete()) {
@@ -1256,8 +1262,10 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		_menu->addAction(lang(lng_context_to_msg), this, SLOT(goToMessage()))->setEnabled(true);
 		if (isUponSelected > 1) {
-			_menu->addAction(lang(lng_context_forward_selected), _overview, SLOT(onForwardSelected()));
-			if (selectedForDelete == selectedForForward) {
+			if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
+				_menu->addAction(lang(lng_context_forward_selected), _overview, SLOT(onForwardSelected()));
+			}
+			if (selectedState.count > 0 && selectedState.count == selectedState.canDeleteCount) {
 				_menu->addAction(lang(lng_context_delete_selected), base::lambda_guarded(this, [this] {
 					_overview->confirmDeleteSelectedItems();
 				}));
@@ -1265,7 +1273,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_clear_selection), _overview, SLOT(onClearSelected()));
 		} else {
 			if (isUponSelected != -2) {
-				if (App::mousedItem()->toHistoryMessage()) {
+				if (App::mousedItem()->canForward()) {
 					_menu->addAction(lang(lng_context_forward_msg), this, SLOT(forwardMessage()))->setEnabled(true);
 				}
 				if (App::mousedItem()->canDelete()) {
@@ -1319,22 +1327,7 @@ int32 OverviewInner::resizeToWidth(int32 nwidth, int32 scrollTop, int32 minHeigh
 	_search->setGeometry(_rowsLeft, st::linksSearchTop, _rowWidth, _search->height());
 	_cancelSearch->moveToLeft(_rowsLeft + _rowWidth - _cancelSearch->width(), _search->y());
 
-	if (_type == OverviewPhotos || _type == OverviewVideos) {
-		for (int32 i = 0, l = _items.size(); i < l; ++i) {
-			_items.at(i)->resizeGetHeight(_rowWidth);
-		}
-		_height = countHeight();
-	} else {
-		bool resize = (_type == OverviewLinks);
-		if (resize) _height = 0;
-		for (int32 i = 0, l = _items.size(); i < l; ++i) {
-			int32 h = _items.at(i)->resizeGetHeight(_rowWidth);
-			if (resize) {
-				_items.at(i)->Get<Overview::Layout::Info>()->top = _height + (_reversed ? h : 0);
-				_height += h;
-			}
-		}
-	}
+	resizeItems();
 	recountMargins();
 
 	resize(_width, _marginTop + _height + _marginBottom);
@@ -1344,6 +1337,32 @@ int32 OverviewInner::resizeToWidth(int32 nwidth, int32 scrollTop, int32 minHeigh
         return newRow * int32(_rowWidth + st::overviewPhotoSkip) + _resizeSkip - minHeight;
     }
     return scrollTop;
+}
+
+void OverviewInner::resizeItems() {
+	if (_type == OverviewPhotos || _type == OverviewVideos || _type == OverviewLinks) {
+		resizeAndRepositionItems();
+	} else {
+		for (auto i = 0, l = _items.size(); i != l; ++i) {
+			_items.at(i)->resizeGetHeight(_rowWidth);
+		}
+	}
+}
+
+void OverviewInner::resizeAndRepositionItems() {
+	if (_type == OverviewPhotos || _type == OverviewVideos) {
+		for (auto i = 0, l = _items.size(); i < l; ++i) {
+			_items.at(i)->resizeGetHeight(_rowWidth);
+		}
+		_height = countHeight();
+	} else {
+		_height = 0;
+		for (auto i = 0, l = _items.size(); i < l; ++i) {
+			auto h = _items.at(i)->resizeGetHeight(_rowWidth);
+			_items.at(i)->Get<Overview::Layout::Info>()->top = _height + (_reversed ? h : 0);
+			_height += h;
+		}
+	}
 }
 
 void OverviewInner::dropResizeIndex() {
@@ -1535,21 +1554,22 @@ void OverviewInner::onMenuDestroy(QObject *obj) {
 	}
 }
 
-void OverviewInner::getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const {
-	selectedForForward = selectedForDelete = 0;
-	for (SelectedItems::const_iterator i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
+Window::TopBarWidget::SelectedState OverviewInner::getSelectionState() const {
+	auto result = Window::TopBarWidget::SelectedState {};
+	for (auto i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
 		if (i.value() == FullSelection) {
-			if (HistoryItem *item = App::histItemById(itemChannel(i.key()), itemMsgId(i.key()))) {
+			if (auto item = App::histItemById(itemChannel(i.key()), itemMsgId(i.key()))) {
+				++result.count;
+				if (item->canForward()) {
+					++result.canForwardCount;
+				}
 				if (item->canDelete()) {
-					++selectedForDelete;
+					++result.canDeleteCount;
 				}
 			}
-			++selectedForForward;
 		}
 	}
-	if (!selectedForDelete && !selectedForForward && !_selected.isEmpty()) { // text selection
-		selectedForForward = -1;
-	}
+	return result;
 }
 
 void OverviewInner::clearSelectedItems(bool onlyTextSelection) {
@@ -1751,6 +1771,8 @@ void OverviewInner::itemRemoved(HistoryItem *item) {
 		}
 		delete j.value();
 		_layoutItems.erase(j);
+
+		resizeAndRepositionItems();
 	}
 
 	if (_dragSelFrom == msgId || _dragSelTo == msgId) {
@@ -1798,16 +1820,15 @@ void OverviewInner::repaintItem(const HistoryItem *msg) {
 	}
 }
 
-int32 OverviewInner::countHeight() {
-	int32 result = _height;
+int OverviewInner::countHeight() {
 	if (_type == OverviewPhotos || _type == OverviewVideos) {
-		int32 count = _items.size();
-		int32 migratedFullCount = _migrated ? _migrated->overviewCount(_type) : 0;
-		int32 fullCount = migratedFullCount + _history->overviewCount(_type);
-		int32 rows = (count / _photosInRow) + ((count % _photosInRow) ? 1 : 0);
-		result = (_rowWidth + st::overviewPhotoSkip) * rows + st::overviewPhotoSkip;
+		auto count = _items.size();
+		auto migratedFullCount = _migrated ? _migrated->overviewCount(_type) : 0;
+		auto fullCount = migratedFullCount + _history->overviewCount(_type);
+		auto rows = (count / _photosInRow) + ((count % _photosInRow) ? 1 : 0);
+		return (_rowWidth + st::overviewPhotoSkip) * rows + st::overviewPhotoSkip;
 	}
-	return result;
+	return _height;
 }
 
 void OverviewInner::recountMargins() {
@@ -2033,8 +2054,6 @@ MediaOverviewType OverviewWidget::type() const {
 }
 
 void OverviewWidget::switchType(MediaOverviewType type) {
-	_selCount = 0;
-
 	disconnect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 
 	_inner->setSelectMode(false);
@@ -2050,7 +2069,7 @@ void OverviewWidget::switchType(MediaOverviewType type) {
 	_header = _header.toUpper();
 
 	noSelectingScroll();
-	_topBar->showSelected(0);
+	_topBar->showSelected(Window::TopBarWidget::SelectedState {});
 	updateTopBarSelection();
 	scrollReset();
 
@@ -2074,12 +2093,10 @@ bool OverviewWidget::contentOverlapped(const QRect &globalRect) {
 }
 
 void OverviewWidget::updateTopBarSelection() {
-	int32 selectedForForward, selectedForDelete;
-	_inner->getSelectionState(selectedForForward, selectedForDelete);
-	_selCount = selectedForForward ? selectedForForward : selectedForDelete;
-	_inner->setSelectMode(_selCount > 0);
+	auto selectedState = _inner->getSelectionState();
+	_inner->setSelectMode(selectedState.count > 0);
 	if (App::main()) {
-		_topBar->showSelected(_selCount > 0 ? _selCount : 0, (selectedForDelete == selectedForForward));
+		_topBar->showSelected(selectedState);
 		_topBar->update();
 	}
 	if (App::wnd() && !Ui::isLayerShown()) {
@@ -2132,7 +2149,7 @@ void OverviewWidget::showAnimated(Window::SlideDirection direction, const Window
 
 	_cacheUnder = params.oldContentCache;
 	show();
-	_topBar->showAll();
+	_topBar->updateControlsVisibility();
 	_topShadow->setVisible(params.withTopBarShadow ? false : true);
 	_cacheOver = App::main()->grabForShowAnimation(params);
 	_topShadow->setVisible(params.withTopBarShadow ? true : false);

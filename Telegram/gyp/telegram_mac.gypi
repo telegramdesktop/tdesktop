@@ -31,7 +31,6 @@
         '-lssl',
         '-lcrypto',
         '/usr/local/lib/liblzma.a',
-        '/usr/local/lib/libopus.a',
       ],
     },
     'include_dirs': [
@@ -68,6 +67,7 @@
         '-lcrashpad_client',
         '-lcrashpad_util',
         '/usr/local/macold/lib/libz.a',
+        '/usr/local/macold/lib/libopus.a',
         '/usr/local/macold/lib/libopenal.a',
         '/usr/local/macold/lib/libiconv.a',
         '/usr/local/macold/lib/libavcodec.a',
@@ -131,6 +131,7 @@
     'xcode_settings': {
       'OTHER_LDFLAGS': [
         '/usr/local/lib/libz.a',
+        '/usr/local/lib/libopus.a',
         '/usr/local/lib/libopenal.a',
         '/usr/local/lib/libiconv.a',
         '/usr/local/lib/libavcodec.a',

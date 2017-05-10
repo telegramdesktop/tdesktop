@@ -578,6 +578,17 @@ void UserData::setBlockStatus(BlockStatus blockStatus) {
 	}
 }
 
+void UserData::setCallsStatus(CallsStatus callsStatus) {
+	if (callsStatus != _callsStatus) {
+		_callsStatus = callsStatus;
+		Notify::peerUpdatedDelayed(this, UpdateFlag::UserHasCalls);
+	}
+}
+
+bool UserData::hasCalls() const {
+	return (callsStatus() != CallsStatus::Disabled) && (callsStatus() != CallsStatus::Unknown);
+}
+
 void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Local::readPeer as well
 	PhotoId newPhotoId = photoId;
 	ImagePtr newPhoto = _userpic;
@@ -1123,8 +1134,15 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 		caption = lang(lng_save_audio);
 		prefix = qsl("audio");
 	} else if (data->isVideo()) {
-		name = already.isEmpty() ? qsl(".mov") : already;
-		filter = qsl("MOV Video (*.mov);;") + FileDialog::AllFilesFilter();
+		name = already.isEmpty() ? data->name : already;
+		if (name.isEmpty()) {
+			name = pattern.isEmpty() ? qsl(".mov") : pattern.replace('*', QString());
+		}
+		if (pattern.isEmpty()) {
+			filter = qsl("MOV Video (*.mov);;") + FileDialog::AllFilesFilter();
+		} else {
+			filter = mimeType.filterString() + qsl(";;") + FileDialog::AllFilesFilter();
+		}
 		caption = lang(lng_save_video);
 		prefix = qsl("video");
 	} else {

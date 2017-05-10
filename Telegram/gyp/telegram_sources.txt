@@ -3,6 +3,7 @@
 <(src_loc)/base/observer.cpp
 <(src_loc)/base/observer.h
 <(src_loc)/base/ordered_set.h
+<(src_loc)/base/openssl_help.h
 <(src_loc)/base/parse_helper.cpp
 <(src_loc)/base/parse_helper.h
 <(src_loc)/base/qthelp_regex.h
@@ -63,6 +64,8 @@
 <(src_loc)/boxes/passcode_box.h
 <(src_loc)/boxes/photo_crop_box.cpp
 <(src_loc)/boxes/photo_crop_box.h
+<(src_loc)/boxes/rate_call_box.cpp
+<(src_loc)/boxes/rate_call_box.h
 <(src_loc)/boxes/report_box.cpp
 <(src_loc)/boxes/report_box.h
 <(src_loc)/boxes/self_destruction_box.cpp
@@ -79,6 +82,18 @@
 <(src_loc)/boxes/stickers_box.h
 <(src_loc)/boxes/username_box.cpp
 <(src_loc)/boxes/username_box.h
+<(src_loc)/calls/calls_box_controller.cpp
+<(src_loc)/calls/calls_box_controller.h
+<(src_loc)/calls/calls_call.cpp
+<(src_loc)/calls/calls_call.h
+<(src_loc)/calls/calls_emoji_fingerprint.cpp
+<(src_loc)/calls/calls_emoji_fingerprint.h
+<(src_loc)/calls/calls_instance.cpp
+<(src_loc)/calls/calls_instance.h
+<(src_loc)/calls/calls_panel.cpp
+<(src_loc)/calls/calls_panel.h
+<(src_loc)/calls/calls_top_bar.cpp
+<(src_loc)/calls/calls_top_bar.h
 <(src_loc)/chat_helpers/bot_keyboard.cpp
 <(src_loc)/chat_helpers/bot_keyboard.h
 <(src_loc)/chat_helpers/emoji_list_widget.cpp
@@ -192,6 +207,8 @@
 <(src_loc)/media/media_audio_loader.h
 <(src_loc)/media/media_audio_loaders.cpp
 <(src_loc)/media/media_audio_loaders.h
+<(src_loc)/media/media_audio_track.cpp
+<(src_loc)/media/media_audio_track.h
 <(src_loc)/media/media_child_ffmpeg_loader.cpp
 <(src_loc)/media/media_child_ffmpeg_loader.h
 <(src_loc)/media/media_clip_ffmpeg.cpp
@@ -251,6 +268,7 @@
 <(src_loc)/platform/linux/specific_linux.h
 <(src_loc)/platform/mac/file_utilities_mac.mm
 <(src_loc)/platform/mac/file_utilities_mac.h
+<(src_loc)/platform/mac/mac_iconv_helper.c
 <(src_loc)/platform/mac/mac_utilities.mm
 <(src_loc)/platform/mac/mac_utilities.h
 <(src_loc)/platform/mac/main_window_mac.mm

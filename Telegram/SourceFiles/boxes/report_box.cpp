@@ -71,7 +71,7 @@ void ReportBox::reasonChanged(Reason reason) {
 			_reasonOtherText->resize(width() - (st::boxPadding.left() + st::boxOptionListPadding.left() + st::boxPadding.right()), _reasonOtherText->height());
 
 			updateMaxHeight();
-			connect(_reasonOtherText, SIGNAL(resized()), this, SLOT(onDescriptionResized()));
+			connect(_reasonOtherText, SIGNAL(resized()), this, SLOT(onReasonResized()));
 			connect(_reasonOtherText, SIGNAL(submitted(bool)), this, SLOT(onReport()));
 			connect(_reasonOtherText, SIGNAL(cancelled()), this, SLOT(onClose()));
 		}
@@ -90,7 +90,7 @@ void ReportBox::setInnerFocus() {
 	}
 }
 
-void ReportBox::onDescriptionResized() {
+void ReportBox::onReasonResized() {
 	updateMaxHeight();
 	update();
 }

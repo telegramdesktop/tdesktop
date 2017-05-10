@@ -3,12 +3,19 @@
     <file alias="fonts/OpenSans-Regular.ttf">../fonts/OpenSans-Regular.ttf</file>
     <file alias="fonts/OpenSans-Bold.ttf">../fonts/OpenSans-Bold.ttf</file>
     <file alias="fonts/OpenSans-Semibold.ttf">../fonts/OpenSans-Semibold.ttf</file>
-    <file alias="art/newmsg.wav">../art/newmsg.wav</file>
     <file alias="art/bg.jpg">../art/bg.jpg</file>
     <file alias="art/bg_initial.jpg">../art/bg_initial.jpg</file>
     <file alias="art/icon256.png">../art/icon256.png</file>
     <file alias="art/iconbig256.png">../art/iconbig256.png</file>
     <file alias="art/sunrise.jpg">../art/sunrise.jpg</file>
+  </qresource>
+  <qresource prefix="/sounds">
+    <file alias="msg_incoming.mp3">../sounds/msg_incoming.mp3</file>
+    <file alias="call_incoming.mp3">../sounds/call_incoming.mp3</file>
+    <file alias="call_outgoing.mp3">../sounds/call_outgoing.mp3</file>
+    <file alias="call_busy.mp3">../sounds/call_busy.mp3</file>
+    <file alias="call_connect.mp3">../sounds/call_connect.mp3</file>
+    <file alias="call_end.mp3">../sounds/call_end.mp3</file>
   </qresource>
   <qresource prefix="/qt-project.org">
     <file>qmime/freedesktop.org.xml</file>

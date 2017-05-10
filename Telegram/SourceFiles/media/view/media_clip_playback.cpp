@@ -30,7 +30,7 @@ Playback::Playback(Ui::ContinuousSlider *slider) : _slider(slider) {
 }
 
 void Playback::updateState(const Player::TrackState &state) {
-	qint64 position = 0, duration = state.duration;
+	qint64 position = 0, length = state.length;
 
 	auto wasDisabled = _slider->isDisabled();
 	if (wasDisabled) setDisabled(false);
@@ -39,22 +39,22 @@ void Playback::updateState(const Player::TrackState &state) {
 	if (_playing || state.state == Player::State::Stopped) {
 		position = state.position;
 	} else if (state.state == Player::State::StoppedAtEnd) {
-		position = state.duration;
+		position = state.length;
 	} else {
 		position = 0;
 	}
 
 	float64 progress = 0.;
-	if (position > duration) {
+	if (position > length) {
 		progress = 1.;
-	} else if (duration) {
-		progress = duration ? snap(float64(position) / duration, 0., 1.) : 0.;
+	} else if (length) {
+		progress = length ? snap(float64(position) / length, 0., 1.) : 0.;
 	}
-	if (duration != _duration || position != _position || wasDisabled) {
-		auto animated = (duration && _duration && progress > _slider->value());
+	if (length != _length || position != _position || wasDisabled) {
+		auto animated = (length && _length&& progress > _slider->value());
 		_slider->setValue(progress, animated);
 		_position = position;
-		_duration = duration;
+		_length = length;
 	}
 	_slider->update();
 }

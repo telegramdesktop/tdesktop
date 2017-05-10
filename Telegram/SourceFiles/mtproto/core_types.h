@@ -707,6 +707,16 @@ inline MTPbytes MTP_bytes(const QByteArray &v) {
 inline MTPbytes MTP_bytes(QByteArray &&v) {
 	return MTPbytes(std::move(v));
 }
+inline MTPbytes MTP_bytes(base::const_byte_span bytes) {
+	return MTP_bytes(QByteArray(reinterpret_cast<const char*>(bytes.data()), bytes.size()));
+}
+inline MTPbytes MTP_bytes(const std::vector<gsl::byte> &bytes) {
+	return MTP_bytes(gsl::make_span(bytes));
+}
+template <size_t N>
+inline MTPbytes MTP_bytes(const std::array<gsl::byte, N> &bytes) {
+	return MTP_bytes(gsl::make_span(bytes));
+}
 
 inline bool operator==(const MTPstring &a, const MTPstring &b) {
 	return a.v == b.v;
@@ -721,6 +731,15 @@ inline QString qs(const MTPstring &v) {
 
 inline QByteArray qba(const MTPstring &v) {
 	return v.v;
+}
+
+inline base::const_byte_span bytesFromMTP(const MTPbytes &v) {
+	return gsl::as_bytes(gsl::make_span(v.v));
+}
+
+inline std::vector<gsl::byte> byteVectorFromMTP(const MTPbytes &v) {
+	auto bytes = bytesFromMTP(v);
+	return std::vector<gsl::byte>(bytes.cbegin(), bytes.cend());
 }
 
 template <typename T>

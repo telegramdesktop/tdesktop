@@ -154,7 +154,7 @@ inline MsgId idFromMessage(const MTPmessage &msg) {
 	case mtpc_message: return msg.c_message().vid.v;
 	case mtpc_messageService: return msg.c_messageService().vid.v;
 	}
-	return 0;
+	Unexpected("Type in idFromMessage()");
 }
 inline TimeId dateFromMessage(const MTPmessage &msg) {
 	switch (msg.type()) {
@@ -377,11 +377,12 @@ public:
 		return _openLink;
 	}
 
+	ImagePtr currentUserpic() const;
+
 protected:
 	void updateNameDelayed(const QString &newName, const QString &newNameOrPhone, const QString &newUsername);
 
 	ImagePtr _userpic;
-	ImagePtr currentUserpic() const;
 	mutable EmptyUserpic _userpicEmpty;
 
 private:
@@ -507,6 +508,18 @@ public:
 	}
 	void setBlockStatus(BlockStatus blockStatus);
 
+	enum class CallsStatus {
+		Unknown,
+		Enabled,
+		Disabled,
+		Private,
+	};
+	CallsStatus callsStatus() const {
+		return _callsStatus;
+	}
+	bool hasCalls() const;
+	void setCallsStatus(CallsStatus callsStatus);
+
 	typedef QList<PhotoData*> Photos;
 	Photos photos;
 	int photosCount = -1; // -1 not loaded, 0 all loaded
@@ -535,6 +548,7 @@ private:
 	QString _about;
 	QString _phone;
 	BlockStatus _blockStatus = BlockStatus::Unknown;
+	CallsStatus _callsStatus = CallsStatus::Unknown;
 	int _commonChatsCount = 0;
 
 	static constexpr const uint64 NoAccess = 0xFFFFFFFFFFFFFFFFULL;

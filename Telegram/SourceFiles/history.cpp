@@ -835,7 +835,11 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 
 	case mtpc_messageService: {
 		auto &m = msg.c_messageService();
-		result = HistoryService::create(this, m);
+		if (m.vaction.type() == mtpc_messageActionPhoneCall) {
+			result = HistoryMessage::create(this, m);
+		} else {
+			result = HistoryService::create(this, m);
+		}
 
 		if (applyServiceAction) {
 			auto &action = m.vaction;

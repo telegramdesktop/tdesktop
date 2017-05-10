@@ -29,7 +29,15 @@ namespace MTP {
 
 class Instance;
 
-bool IsPrimeAndGood(const QByteArray &data, int g);
+bool IsPrimeAndGood(base::const_byte_span primeBytes, int g);
+struct ModExpFirst {
+	static constexpr auto kRandomPowerSize = 256;
+
+	std::vector<gsl::byte> modexp;
+	std::array<gsl::byte, kRandomPowerSize> randomPower;
+};
+ModExpFirst CreateModExp(int g, base::const_byte_span primeBytes, base::const_byte_span randomSeed);
+std::vector<gsl::byte> CreateAuthKey(base::const_byte_span firstBytes, base::const_byte_span randomBytes, base::const_byte_span primeBytes);
 
 namespace internal {
 
@@ -185,7 +193,7 @@ private:
 
 	bool setState(int32 state, int32 ifState = Connection::UpdateAlways);
 
-	std::string encryptPQInnerRSA(const MTPP_Q_inner_data &data, const MTP::internal::RSAPublicKey &key);
+	base::byte_vector encryptPQInnerRSA(const MTPP_Q_inner_data &data, const MTP::internal::RSAPublicKey &key);
 	std::string encryptClientDHInner(const MTPClient_DH_Inner_Data &data);
 
 	Instance *_instance = nullptr;
@@ -272,9 +280,9 @@ private:
 		uint32 msgs_sent = 0;
 	};
 	struct AuthKeyCreateStrings {
-		QByteArray dh_prime;
-		QByteArray g_a;
-		AuthKey::Data auth_key = { { 0 } };
+		std::vector<gsl::byte> dh_prime;
+		std::vector<gsl::byte> g_a;
+		AuthKey::Data auth_key = { { gsl::byte{} } };
 	};
 	std::unique_ptr<AuthKeyCreateData> _authKeyData;
 	std::unique_ptr<AuthKeyCreateStrings> _authKeyStrings;

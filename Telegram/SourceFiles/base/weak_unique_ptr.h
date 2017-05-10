@@ -24,7 +24,7 @@ namespace base {
 
 class enable_weak_from_this;
 
-template <typename T, typename = std::enable_if_t<std::is_base_of<enable_weak_from_this, T>::value>>
+template <typename T>
 class weak_unique_ptr;
 
 class enable_weak_from_this {
@@ -42,12 +42,12 @@ public:
 	}
 
 private:
-	template <typename Child, typename>
+	template <typename Child>
 	friend class weak_unique_ptr;
 
 	std::shared_ptr<enable_weak_from_this*> getGuarded() {
 		if (!_guarded) {
-			_guarded = std::make_shared<enable_weak_from_this*>(this);
+			_guarded = std::make_shared<enable_weak_from_this*>(static_cast<enable_weak_from_this*>(this));
 		}
 		return _guarded;
 	}
@@ -56,14 +56,23 @@ private:
 
 };
 
-template <typename T, typename>
+template <typename T>
 class weak_unique_ptr {
 public:
 	weak_unique_ptr() = default;
 	weak_unique_ptr(T *value) : _guarded(value ? value->getGuarded() : std::shared_ptr<enable_weak_from_this*>()) {
 	}
-	weak_unique_ptr(const std::unique_ptr<T> &value) : _guarded(value ? value->getGuarded() : std::shared_ptr<enable_weak_from_this*>()) {
+	weak_unique_ptr(const std::unique_ptr<T> &value) : weak_unique_ptr(value.get()) {
 	}
+
+	weak_unique_ptr &operator=(T *value) {
+		_guarded = value ? value->getGuarded() : std::shared_ptr<enable_weak_from_this*>();
+		return *this;
+	}
+	weak_unique_ptr &operator=(const std::unique_ptr<T> &value) {
+		return (*this = value.get());
+	}
+
 	T *get() const noexcept {
 		if (auto shared = _guarded.lock()) {
 			return static_cast<T*>(*shared);
@@ -85,4 +94,36 @@ private:
 
 };
 
+template <typename T>
+inline bool operator==(const weak_unique_ptr<T> &pointer, std::nullptr_t) {
+	return (pointer.get() == nullptr);
+}
+
+template <typename T>
+inline bool operator==(std::nullptr_t, const weak_unique_ptr<T> &pointer) {
+	return (pointer == nullptr);
+}
+
+template <typename T>
+inline bool operator!=(const weak_unique_ptr<T> &pointer, std::nullptr_t) {
+	return !(pointer == nullptr);
+}
+
+template <typename T>
+inline bool operator!=(std::nullptr_t, const weak_unique_ptr<T> &pointer) {
+	return !(pointer == nullptr);
+}
+
 } // namespace base
+
+#ifdef QT_VERSION
+template <typename Lambda>
+inline void InvokeQueued(base::enable_weak_from_this *context, Lambda &&lambda) {
+	QObject proxy;
+	QObject::connect(&proxy, &QObject::destroyed, QCoreApplication::instance(), [guard = base::weak_unique_ptr<base::enable_weak_from_this>(context), lambda = std::forward<Lambda>(lambda)] {
+		if (guard) {
+			lambda();
+		}
+	}, Qt::QueuedConnection);
+}
+#endif // QT_VERSION

@@ -483,7 +483,7 @@ index 83c960d..03ae969 100755
  }
  @end
 diff --git a/src/plugins/platforms/cocoa/qcocoawindow.mm b/src/plugins/platforms/cocoa/qcocoawindow.mm
-index 4d0458a..fde238a 100644
+index 4d0458a..3357a5e 100644
 --- a/src/plugins/platforms/cocoa/qcocoawindow.mm
 +++ b/src/plugins/platforms/cocoa/qcocoawindow.mm
 @@ -167,7 +167,8 @@ static bool isMouseEvent(NSEvent *ev)
@@ -496,7 +496,24 @@ index 4d0458a..fde238a 100644
          NSPoint loc = [theEvent locationInWindow];
          NSRect windowFrame = [self.window legacyConvertRectFromScreen:[self.window frame]];
          NSRect contentFrame = [[self.window contentView] frame];
-@@ -914,6 +915,19 @@ void QCocoaWindow::setWindowFilePath(const QString &filePath)
+@@ -795,6 +796,16 @@ NSUInteger QCocoaWindow::windowStyleMask(Qt::WindowFlags flags)
+ {
+     Qt::WindowType type = static_cast<Qt::WindowType>(int(flags & Qt::WindowType_Mask));
+     NSInteger styleMask = NSBorderlessWindowMask;
++
++    // Patch: allow creating panels floating on all spaces in macOS.
++    // If you call "setCollectionBehavior:NSWindowCollectionBehaviorFullScreenAuxiliary" before
++    // setting the "NSNonactivatingPanelMask" bit in the style mask it won't work after that.
++    // So we need a way to set that bit before Qt sets collection behavior the way it does.
++    QVariant nonactivatingPanelMask = window()->property("_td_macNonactivatingPanelMask");
++    if (nonactivatingPanelMask.isValid() && nonactivatingPanelMask.toBool()) {
++        styleMask |= NSNonactivatingPanelMask;
++    }
++
+     if (flags & Qt::FramelessWindowHint)
+         return styleMask;
+     if ((type & Qt::Popup) == Qt::Popup) {
+@@ -914,6 +925,19 @@ void QCocoaWindow::setWindowFilePath(const QString &filePath)
      [m_nsWindow setRepresentedFilename: fi.exists() ? QCFString::toNSString(filePath) : @""];
  }
  
@@ -516,7 +533,7 @@ index 4d0458a..fde238a 100644
  void QCocoaWindow::setWindowIcon(const QIcon &icon)
  {
      QCocoaAutoReleasePool pool;
-@@ -929,7 +943,10 @@ void QCocoaWindow::setWindowIcon(const QIcon &icon)
+@@ -929,7 +953,10 @@ void QCocoaWindow::setWindowIcon(const QIcon &icon)
      if (icon.isNull()) {
          [iconButton setImage:nil];
      } else {

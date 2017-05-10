@@ -124,8 +124,8 @@ void PeerListBox::prependRow(std::unique_ptr<Row> row) {
 	_inner->prependRow(std::move(row));
 }
 
-PeerListBox::Row *PeerListBox::findRow(PeerData *peer) {
-	return _inner->findRow(peer);
+PeerListBox::Row *PeerListBox::findRow(RowId id) {
+	return _inner->findRow(id);
 }
 
 void PeerListBox::updateRow(Row *row) {
@@ -156,6 +156,10 @@ int PeerListBox::fullRowsCount() const {
 	return _inner->fullRowsCount();
 }
 
+PeerListBox::Row *PeerListBox::rowAt(int index) const {
+	return _inner->rowAt(index);
+}
+
 void PeerListBox::setAboutText(const QString &aboutText) {
 	if (aboutText.isEmpty()) {
 		setAbout(nullptr);
@@ -180,7 +184,7 @@ void PeerListBox::setSearchMode(SearchMode mode) {
 		_select->entity()->setQueryChangedCallback([this](const QString &query) { searchQueryChanged(query); });
 		_select->entity()->setItemRemovedCallback([this](uint64 itemId) {
 			if (auto peer = App::peerLoaded(itemId)) {
-				if (auto row = findRow(peer)) {
+				if (auto row = findRow(peer->id)) {
 					_inner->changeCheckState(row, false, Row::SetStyle::Animated);
 					update();
 				}
@@ -250,21 +254,14 @@ bool PeerListBox::isRowSelected(PeerData *peer) const {
 	return _select->entity()->hasItem(peer->id);
 }
 
-PeerListBox::Row::Row(PeerData *peer) : _peer(peer) {
+PeerListBox::Row::Row(PeerData *peer) : Row(peer, peer->id) {
+}
+
+PeerListBox::Row::Row(PeerData *peer, RowId id) : _id(id), _peer(peer) {
 }
 
 bool PeerListBox::Row::checked() const {
 	return _checkbox && _checkbox->checked();
-}
-
-void PeerListBox::Row::setActionLink(const QString &action) {
-	_action = action;
-	refreshActionLink();
-}
-
-void PeerListBox::Row::refreshActionLink() {
-	if (!_initialized) return;
-	_actionWidth = _action.isEmpty() ? 0 : st::normalFont->width(_action);
 }
 
 void PeerListBox::Row::setCustomStatus(const QString &status) {
@@ -288,27 +285,11 @@ void PeerListBox::Row::refreshStatus() {
 	}
 }
 
-PeerListBox::Row::StatusType PeerListBox::Row::statusType() const {
-	return _statusType;
-}
-
 void PeerListBox::Row::refreshName() {
 	if (!_initialized) {
 		return;
 	}
 	_name.setText(st::contactsNameStyle, peer()->name, _textNameOptions);
-}
-
-QString PeerListBox::Row::status() const {
-	return _status;
-}
-
-QString PeerListBox::Row::action() const {
-	return _action;
-}
-
-int PeerListBox::Row::actionWidth() const {
-	return _actionWidth;
 }
 
 PeerListBox::Row::~Row() = default;
@@ -317,6 +298,12 @@ void PeerListBox::Row::invalidatePixmapsCache() {
 	if (_checkbox) {
 		_checkbox->invalidateCache();
 	}
+}
+
+void PeerListBox::Row::paintStatusText(Painter &p, int x, int y, int outerWidth, bool selected) {
+	auto statusHasOnlineColor = (_statusType == Row::StatusType::Online);
+	p.setPen(statusHasOnlineColor ? st::contactsStatusFgOnline : (selected ? st::contactsStatusFgOver : st::contactsStatusFg));
+	p.drawTextLeft(x, y, outerWidth, _status);
 }
 
 template <typename UpdateCallback>
@@ -399,7 +386,6 @@ void PeerListBox::Row::lazyInitialize() {
 		return;
 	}
 	_initialized = true;
-	refreshActionLink();
 	refreshName();
 	refreshStatus();
 }
@@ -431,7 +417,7 @@ PeerListBox::Inner::Inner(QWidget *parent, Controller *controller) : TWidget(par
 }
 
 void PeerListBox::Inner::appendRow(std::unique_ptr<Row> row) {
-	if (_rowsByPeer.find(row->peer()) == _rowsByPeer.cend()) {
+	if (_rowsById.find(row->id()) == _rowsById.cend()) {
 		row->setAbsoluteIndex(_rows.size());
 		addRowEntry(row.get());
 		_rows.push_back(std::move(row));
@@ -440,7 +426,7 @@ void PeerListBox::Inner::appendRow(std::unique_ptr<Row> row) {
 
 void PeerListBox::Inner::appendGlobalSearchRow(std::unique_ptr<Row> row) {
 	Expects(showingSearch());
-	if (_rowsByPeer.find(row->peer()) == _rowsByPeer.cend()) {
+	if (_rowsById.find(row->id()) == _rowsById.cend()) {
 		row->setAbsoluteIndex(_globalSearchRows.size());
 		row->setIsGlobalSearchResult(true);
 		addRowEntry(row.get());
@@ -456,11 +442,13 @@ void PeerListBox::Inner::changeCheckState(Row *row, bool checked, Row::SetStyle 
 }
 
 void PeerListBox::Inner::addRowEntry(Row *row) {
-	_rowsByPeer.emplace(row->peer(), row);
+	_rowsById.emplace(row->id(), row);
+	_rowsByPeer[row->peer()].push_back(row);
 	if (addingToSearchIndex()) {
 		addToSearchIndex(row);
 	}
 	if (_searchMode != SearchMode::None) {
+		t_assert(row->id() == row->peer()->id);
 		if (_controller->view()->isRowSelected(row->peer())) {
 			changeCheckState(row, true, Row::SetStyle::Fast);
 		}
@@ -511,7 +499,7 @@ void PeerListBox::Inner::removeFromSearchIndex(Row *row) {
 }
 
 void PeerListBox::Inner::prependRow(std::unique_ptr<Row> row) {
-	if (_rowsByPeer.find(row->peer()) == _rowsByPeer.cend()) {
+	if (_rowsById.find(row->id()) == _rowsById.cend()) {
 		addRowEntry(row.get());
 		_rows.insert(_rows.begin(), std::move(row));
 		refreshIndices();
@@ -525,9 +513,9 @@ void PeerListBox::Inner::refreshIndices() {
 	}
 }
 
-PeerListBox::Row *PeerListBox::Inner::findRow(PeerData *peer) {
-	auto it = _rowsByPeer.find(peer);
-	return (it == _rowsByPeer.cend()) ? nullptr : it->second;
+PeerListBox::Row *PeerListBox::Inner::findRow(RowId id) {
+	auto it = _rowsById.find(id);
+	return (it == _rowsById.cend()) ? nullptr : it->second;
 }
 
 void PeerListBox::Inner::removeRow(Row *row) {
@@ -541,7 +529,9 @@ void PeerListBox::Inner::removeRow(Row *row) {
 	setSelected(Selected());
 	setPressed(Selected());
 
-	_rowsByPeer.erase(row->peer());
+	_rowsById.erase(row->id());
+	auto &byPeer = _rowsByPeer[row->peer()];
+	byPeer.erase(std::remove(byPeer.begin(), byPeer.end(), row), byPeer.end());
 	removeFromSearchIndex(row);
 	_filterResults.erase(std::find(_filterResults.begin(), _filterResults.end(), row), _filterResults.end());
 	eraseFrom.erase(eraseFrom.begin() + index);
@@ -554,6 +544,11 @@ void PeerListBox::Inner::removeRow(Row *row) {
 
 int PeerListBox::Inner::fullRowsCount() const {
 	return _rows.size();
+}
+
+PeerListBox::Row *PeerListBox::Inner::rowAt(int index) const {
+	Expects(index >= 0 && index < _rows.size());
+	return _rows[index].get();
 }
 
 void PeerListBox::Inner::setAbout(object_ptr<Ui::FlatLabel> about) {
@@ -688,14 +683,20 @@ void PeerListBox::Inner::mousePressEvent(QMouseEvent *e) {
 	updateSelection();
 
 	setPressed(_selected);
-	if (!_selected.action) {
-		if (auto row = getRow(_selected.index)) {
+	if (auto row = getRow(_selected.index)) {
+		auto updateCallback = [this, row, hint = _selected.index] {
+			updateRow(row, hint);
+		};
+		if (_selected.action) {
+			auto actionRect = getActionRect(row, _selected.index);
+			if (!actionRect.isEmpty()) {
+				auto point = mapFromGlobal(QCursor::pos()) - actionRect.topLeft();
+				row->addActionRipple(point, std::move(updateCallback));
+			}
+		} else {
 			auto size = QSize(width(), _rowHeight);
 			auto point = mapFromGlobal(QCursor::pos()) - QPoint(0, getRowTop(_selected.index));
-			auto hint = _selected.index;
-			row->addRipple(size, point, [this, row, hint] {
-				updateRow(row, hint);
-			});
+			row->addRipple(size, point, std::move(updateCallback));
 		}
 	}
 }
@@ -720,6 +721,7 @@ void PeerListBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 void PeerListBox::Inner::setPressed(Selected pressed) {
 	if (auto row = getRow(_pressed.index)) {
 		row->stopLastRipple();
+		row->stopLastActionRipple();
 	}
 	_pressed = pressed;
 }
@@ -741,11 +743,15 @@ void PeerListBox::Inner::paintRow(Painter &p, TimeMs ms, RowIndex index) {
 
 	p.setPen(st::contactsNameFg);
 
-	auto actionWidth = row->actionWidth();
+	auto actionSize = row->actionSize();
+	auto actionMargins = actionSize.isEmpty() ? QMargins() : row->actionMargins();
 	auto &name = row->name();
 	auto namex = st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left();
-	auto namew = width() - namex - st::contactsPadding.right() - (actionWidth ? (actionWidth + st::contactsCheckPosition.x() * 2) : 0);
-	if (peer->isVerified()) {
+	auto namew = width() - namex - st::contactsPadding.right();
+	if (!actionSize.isEmpty()) {
+		namew -= actionMargins.left() + actionSize.width() + actionMargins.right();
+	}
+	if (row->needsVerifiedIcon()) {
 		auto icon = &st::dialogsVerifiedIcon;
 		namew -= icon->width();
 		icon->paint(p, namex + qMin(name.maxWidth(), namew), st::contactsPadding.top() + st::contactsNameTop, width());
@@ -753,12 +759,10 @@ void PeerListBox::Inner::paintRow(Painter &p, TimeMs ms, RowIndex index) {
 	p.setPen(anim::pen(st::contactsNameFg, st::contactsNameCheckedFg, row->checkedRatio()));
 	name.drawLeftElided(p, namex, st::contactsPadding.top() + st::contactsNameTop, namew, width());
 
-	if (actionWidth) {
-		p.setFont(actionSelected ? st::linkOverFont : st::linkFont);
-		p.setPen(actionSelected ? st::defaultLinkButton.overColor : st::defaultLinkButton.color);
-		auto actionRight = st::contactsPadding.right() + st::contactsCheckPosition.x();
-		auto actionTop = (_rowHeight - st::normalFont->height) / 2;
-		p.drawTextRight(actionRight, actionTop, width(), row->action(), actionWidth);
+	if (!actionSize.isEmpty()) {
+		auto actionLeft = width() - st::contactsPadding.right() - actionMargins.right() - actionSize.width();
+		auto actionTop = actionMargins.top();
+		row->paintAction(p, ms, actionLeft, actionTop, width(), actionSelected);
 	}
 
 	p.setFont(st::contactsStatusFont);
@@ -788,9 +792,7 @@ void PeerListBox::Inner::paintRow(Painter &p, TimeMs ms, RowIndex index) {
 			p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width(), '@' + username);
 		}
 	} else {
-		auto statusHasOnlineColor = (row->statusType() == Row::StatusType::Online);
-		p.setPen(statusHasOnlineColor ? st::contactsStatusFgOnline : (selected ? st::contactsStatusFgOver : st::contactsStatusFg));
-		p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width(), row->status());
+		row->paintStatusText(p, namex, st::contactsPadding.top() + st::contactsStatusTop, width(), selected);
 	}
 }
 
@@ -1014,10 +1016,11 @@ void PeerListBox::Inner::globalSearchDone(const MTPcontacts_Found &result, mtpRe
 
 			for_const (auto &mtpPeer, contacts.vresults.v) {
 				if (auto peer = App::peerLoaded(peerFromMTP(mtpPeer))) {
-					if (findRow(peer)) {
+					if (findRow(peer->id)) {
 						continue;
 					}
 					if (auto row = _controller->createGlobalRow(peer)) {
+						t_assert(row->id() == row->peer()->id);
 						appendGlobalSearchRow(std::move(row));
 					}
 				}
@@ -1073,18 +1076,25 @@ void PeerListBox::Inner::updateSelection() {
 		if (row->disabled()) {
 			selected = Selected();
 		} else {
-			auto actionRight = st::contactsPadding.right() + st::contactsCheckPosition.x();
-			auto actionTop = (_rowHeight - st::normalFont->height) / 2;
-			auto actionWidth = row->actionWidth();
-			auto actionLeft = width() - actionWidth - actionRight;
-			auto rowTop = getRowTop(selected.index);
-			auto actionRect = myrtlrect(actionLeft, rowTop + actionTop, actionWidth, st::normalFont->height);
-			if (actionRect.contains(point)) {
+			if (getActionRect(row, selected.index).contains(point)) {
 				selected.action = true;
 			}
 		}
 	}
 	setSelected(selected);
+}
+
+QRect PeerListBox::Inner::getActionRect(Row *row, RowIndex index) const {
+	auto actionSize = row->actionSize();
+	if (actionSize.isEmpty()) {
+		return QRect();
+	}
+	auto actionMargins = row->actionMargins();
+	auto actionRight = st::contactsPadding.right() + actionMargins.right();
+	auto actionTop = actionMargins.top();
+	auto actionLeft = width() - actionRight - actionSize.width();
+	auto rowTop = getRowTop(index);
+	return myrtlrect(actionLeft, rowTop + actionTop, actionSize.width(), actionSize.height());
 }
 
 void PeerListBox::Inner::peerUpdated(PeerData *peer) {
@@ -1180,13 +1190,45 @@ PeerListBox::Inner::RowIndex PeerListBox::Inner::findRowIndex(Row *row, RowIndex
 }
 
 void PeerListBox::Inner::onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
-	if (auto row = findRow(peer)) {
-		if (addingToSearchIndex()) {
-			addToSearchIndex(row);
+	auto byPeer = _rowsByPeer.find(peer);
+	if (byPeer != _rowsByPeer.cend()) {
+		for (auto row : byPeer->second) {
+			if (addingToSearchIndex()) {
+				addToSearchIndex(row);
+			}
+			row->refreshName();
+			updateRow(row);
 		}
-		row->refreshName();
-		updateRow(row);
 	}
+}
+
+void PeerListRowWithLink::setActionLink(const QString &action) {
+	_action = action;
+	refreshActionLink();
+}
+
+void PeerListRowWithLink::refreshActionLink() {
+	if (!isInitialized()) return;
+	_actionWidth = _action.isEmpty() ? 0 : st::normalFont->width(_action);
+}
+
+void PeerListRowWithLink::lazyInitialize() {
+	Row::lazyInitialize();
+	refreshActionLink();
+}
+
+QSize PeerListRowWithLink::actionSize() const {
+	return QSize(_actionWidth, st::normalFont->height);
+}
+
+QMargins PeerListRowWithLink::actionMargins() const {
+	return QMargins(st::contactsCheckPosition.x(), (st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom() - st::normalFont->height) / 2, st::contactsCheckPosition.x(), 0);
+}
+
+void PeerListRowWithLink::paintAction(Painter &p, TimeMs ms, int x, int y, int outerWidth, bool actionSelected) {
+	p.setFont(actionSelected ? st::linkOverFont : st::linkFont);
+	p.setPen(actionSelected ? st::defaultLinkButton.overColor : st::defaultLinkButton.color);
+	p.drawTextLeft(x, y, outerWidth, _action, _actionWidth);
 }
 
 void ChatsListBoxController::prepare() {
@@ -1254,7 +1296,7 @@ std::unique_ptr<PeerListBox::Row> ChatsListBoxController::createGlobalRow(PeerDa
 }
 
 bool ChatsListBoxController::appendRow(History *history) {
-	if (auto row = view()->findRow(history->peer)) {
+	if (auto row = view()->findRow(history->peer->id)) {
 		updateRowHook(static_cast<Row*>(row));
 		return false;
 	}

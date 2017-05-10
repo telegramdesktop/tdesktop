@@ -48,10 +48,14 @@ In Terminal go to **/home/user/TBuild/Libraries/zlib-1.2.8** and run:
 
 Install audio libraries
 
-#### Opus codec 1.1
+#### Opus codec
 
-Download [opus-1.1 sources](http://downloads.xiph.org/releases/opus/opus-1.1.tar.gz) from http://www.opus-codec.org/downloads, extract to **/home/user/TBuild/Libraries**, go to **/home/user/TBuild/Libraries/opus-1.1** and run
+In Terminal go to **/home/user/TBuild/Libraries** and run
 
+    git clone https://github.com/xiph/opus
+    cd opus
+    git checkout v1.2-alpha2
+    ./autogen.sh
     ./configure
     make
     sudo make install

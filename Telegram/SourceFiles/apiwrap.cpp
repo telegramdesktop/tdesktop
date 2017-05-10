@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "application.h"
 #include "mainwindow.h"
+#include "messenger.h"
 #include "mainwidget.h"
 #include "historywidget.h"
 #include "storage/localstorage.h"
@@ -46,8 +47,7 @@ constexpr auto kSmallDelayMs = 5;
 ApiWrap::ApiWrap()
 : _messageDataResolveDelayed([this] { resolveMessageDatas(); })
 , _webPagesTimer([this] { resolveWebPages(); })
-, _draftsSaveTimer([this] { saveDraftsToCloud(); })
-, _quitSavingDraftsTimer([] { App::allDraftsSaved(); }) {
+, _draftsSaveTimer([this] { saveDraftsToCloud(); }) {
 	Window::Theme::Background()->start();
 }
 
@@ -362,6 +362,7 @@ void ApiWrap::gotUserFull(UserData *user, const MTPUserFull &result, mtpRequestI
 		user->setBotInfoVersion(-1);
 	}
 	user->setBlockStatus(d.is_blocked() ? UserData::BlockStatus::Blocked : UserData::BlockStatus::NotBlocked);
+	user->setCallsStatus(d.is_phone_calls_private() ? UserData::CallsStatus::Private : d.is_phone_calls_available() ? UserData::CallsStatus::Enabled : UserData::CallsStatus::Disabled);
 	user->setAbout(d.has_about() ? qs(d.vabout) : QString());
 	user->setCommonChatsCount(d.vcommon_chats_count.v);
 
@@ -984,10 +985,6 @@ void ApiWrap::saveDraftToCloudDelayed(History *history) {
 	}
 }
 
-bool ApiWrap::hasUnsavedDrafts() const {
-	return !_draftsSaveRequestIds.isEmpty();
-}
-
 void ApiWrap::savePrivacy(const MTPInputPrivacyKey &key, QVector<MTPInputPrivacyRule> &&rules) {
 	auto keyTypeId = key.type();
 	auto it = _privacySaveRequests.find(keyTypeId);
@@ -1143,9 +1140,7 @@ void ApiWrap::saveDraftsToCloud() {
 			auto i = _draftsSaveRequestIds.find(history);
 			if (i != _draftsSaveRequestIds.cend() && i.value() == requestId) {
 				_draftsSaveRequestIds.remove(history);
-				if (_draftsSaveRequestIds.isEmpty()) {
-					App::allDraftsSaved(); // can quit the application
-				}
+				checkQuitPreventFinished();
 			}
 		}).fail([this, history](const RPCError &error, mtpRequestId requestId) {
 			if (auto cloudDraft = history->cloudDraft()) {
@@ -1156,18 +1151,29 @@ void ApiWrap::saveDraftsToCloud() {
 			auto i = _draftsSaveRequestIds.find(history);
 			if (i != _draftsSaveRequestIds.cend() && i.value() == requestId) {
 				_draftsSaveRequestIds.remove(history);
-				if (_draftsSaveRequestIds.isEmpty()) {
-					App::allDraftsSaved(); // can quit the application
-				}
+				checkQuitPreventFinished();
 			}
 		}).send();
 
 		i.value() = cloudDraft->saveRequestId;
 	}
+}
+
+bool ApiWrap::isQuitPrevent() {
 	if (_draftsSaveRequestIds.isEmpty()) {
-		App::allDraftsSaved(); // can quit the application
-	} else if (App::quitting() && !_quitSavingDraftsTimer.isActive()) {
-		_quitSavingDraftsTimer.callOnce(kSaveDraftBeforeQuitTimeout);
+		return false;
+	}
+	LOG(("ApiWrap prevents quit, saving drafts..."));
+	saveDraftsToCloud();
+	return true;
+}
+
+void ApiWrap::checkQuitPreventFinished() {
+	if (_draftsSaveRequestIds.isEmpty()) {
+		if (App::quitting()) {
+			LOG(("ApiWrap doesn't prevent quit any more."));
+		}
+		Messenger::Instance().quitPreventFinished();
 	}
 }
 

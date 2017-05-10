@@ -1562,7 +1562,7 @@ void MediaView::restartVideoAtSeekPosition(TimeMs positionMs) {
 	Media::Player::TrackState state;
 	state.state = Media::Player::State::Playing;
 	state.position = _videoPositionMs;
-	state.duration = _videoDurationMs;
+	state.length = _videoDurationMs;
 	state.frequency = _videoFrequencyMs;
 	updateVideoPlaybackState(state);
 }
@@ -1606,7 +1606,7 @@ void MediaView::onVideoPlayProgress(const AudioMsgId &audioId) {
 	}
 
 	auto state = Media::Player::mixer()->currentVideoState(_gif->playId());
-	if (state.duration) {
+	if (state.length) {
 		updateVideoPlaybackState(state);
 	}
 
@@ -1635,7 +1635,7 @@ void MediaView::updateSilentVideoPlaybackState() {
 		state.state = Media::Player::State::Playing;
 	}
 	state.position = _videoPositionMs;
-	state.duration = _videoDurationMs;
+	state.length = _videoDurationMs;
 	state.frequency = _videoFrequencyMs;
 	updateVideoPlaybackState(state);
 }

@@ -152,8 +152,8 @@ void CoverWidget::handleSeekFinished(float64 progress) {
 
 	auto type = AudioMsgId::Type::Song;
 	auto state = Media::Player::mixer()->currentState(type);
-	if (state.id && state.duration) {
-		Media::Player::mixer()->seek(type, qRound(progress * state.duration));
+	if (state.id && state.length) {
+		Media::Player::mixer()->seek(type, qRound(progress * state.length));
 	}
 
 	instance()->stopSeeking(type);
@@ -256,16 +256,16 @@ void CoverWidget::handleSongUpdate(const TrackState &state) {
 
 void CoverWidget::updateTimeText(const TrackState &state) {
 	QString time;
-	qint64 position = 0, duration = 0, display = 0;
+	qint64 position = 0, length = 0, display = 0;
 	auto frequency = state.frequency;
 	if (!IsStopped(state.state) && state.state != State::Finishing) {
 		display = position = state.position;
-		duration = state.duration;
+		length = state.length;
 	} else {
-		display = state.duration ? state.duration : (state.id.audio()->song()->duration * frequency);
+		length = state.length ? state.length : (state.id.audio()->song()->duration * frequency);
 	}
 
-	_lastDurationMs = (state.duration * 1000LL) / frequency;
+	_lastDurationMs = (state.length * 1000LL) / frequency;
 
 	if (state.id.audio()->loading()) {
 		_time = QString::number(qRound(state.id.audio()->progress() * 100)) + '%';

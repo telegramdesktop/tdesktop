@@ -168,16 +168,6 @@ void FlashBounce() {
 	[NSApp requestUserAttention:NSInformationalRequest];
 }
 
-void CustomNotificationShownHook(QWidget *widget) {
-	widget->hide();
-	objc_holdOnTop(widget->winId());
-	widget->show();
-	psShowOverAll(widget, false);
-	if (auto window = App::wnd()) {
-		window->customNotificationCreated(widget);
-	}
-}
-
 class Manager::Private : public QObject, private base::Subscriber {
 public:
 	Private(Manager *manager);

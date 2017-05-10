@@ -61,10 +61,32 @@ QByteArray EscapeShell(const QByteArray &content) {
 } // namespace internal
 
 void UnsafeShowInFolder(const QString &filepath) {
-	Ui::hideLayer(true);
-	auto result = system(("xdg-open " + internal::EscapeShell(QFile::encodeName(QFileInfo(filepath).absoluteDir().absolutePath()))).constData());
-	if (result) {
-		LOG(("Failed to launch xdg-open"));
+	Ui::hideLayer(true); // Hide mediaview to make other apps visible.
+
+	auto absolutePath = QFileInfo(filepath).absoluteFilePath();
+	QProcess process;
+	process.start("xdg-mime", QStringList() << "query" << "default" << "inode/directory");
+	process.waitForFinished();
+	auto output = QString::fromLatin1(process.readLine().simplified());
+	auto command = qsl("xdg-open");
+	auto arguments = QStringList();
+	if (output == qstr("dolphin.desktop") || output == qstr("org.kde.dolphin.desktop")) {
+		command = qsl("dolphin");
+		arguments << "--select" << absolutePath;
+	} else if (output == qstr("nautilus.desktop") || output == qstr("org.gnome.Nautilus.desktop") || output == qstr("nautilus-folder-handler.desktop")) {
+		command = qsl("nautilus");
+		arguments << "--no-desktop" << absolutePath;
+	} else if (output == qstr("nemo.desktop")) {
+		command = qsl("nemo");
+		arguments << "--no-desktop" << absolutePath;
+	} else if (output == qstr("konqueror.desktop") || output == qstr("kfmclient_dir.desktop")) {
+		command = qsl("konqueror");
+		arguments << "--select" << absolutePath;
+	} else {
+		arguments << QFileInfo(filepath).absoluteDir().absolutePath();
+	}
+	if (!process.startDetached(command, arguments)) {
+		LOG(("Failed to launch '%1 %2'").arg(command).arg(arguments.join(' ')));
 	}
 }
 

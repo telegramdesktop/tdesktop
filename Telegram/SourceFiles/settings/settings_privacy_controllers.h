@@ -82,4 +82,19 @@ public:
 
 };
 
+class CallsPrivacyController : public EditPrivacyBox::Controller, private base::Subscriber {
+public:
+	using Option = EditPrivacyBox::Option;
+	using Exception = EditPrivacyBox::Exception;
+
+	MTPInputPrivacyKey key() override;
+
+	QString title() override;
+	QString description() override;
+	QString exceptionLinkText(Exception exception, int count) override;
+	QString exceptionBoxTitle(Exception exception) override;
+	QString exceptionsDescription() override;
+
+};
+
 } // namespace Settings

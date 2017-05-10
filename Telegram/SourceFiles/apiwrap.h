@@ -74,9 +74,7 @@ public:
 	void exportInviteLink(PeerData *peer);
 	void requestNotifySetting(PeerData *peer);
 
-	void saveDraftsToCloud();
 	void saveDraftToCloudDelayed(History *history);
-	bool hasUnsavedDrafts() const;
 
 	void savePrivacy(const MTPInputPrivacyKey &key, QVector<MTPInputPrivacyRule> &&rules);
 	void handlePrivacyChange(mtpTypeId keyTypeId, const MTPVector<MTPPrivacyRule> &rules);
@@ -85,6 +83,8 @@ public:
 	base::Observable<PeerData*> &fullPeerUpdated() {
 		return _fullPeerUpdated;
 	}
+
+	bool isQuitPrevent();
 
 	~ApiWrap();
 
@@ -97,6 +97,9 @@ private:
 	using MessageDataRequests = QMap<MsgId, MessageDataRequest>;
 
 	void updatesReceived(const MTPUpdates &updates);
+	void checkQuitPreventFinished();
+
+	void saveDraftsToCloud();
 
 	void resolveMessageDatas();
 	void gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId requestId);
@@ -147,7 +150,6 @@ private:
 
 	QMap<History*, mtpRequestId> _draftsSaveRequestIds;
 	base::Timer _draftsSaveTimer;
-	base::Timer _quitSavingDraftsTimer;
 
 	OrderedSet<mtpRequestId> _stickerSetDisenableRequests;
 	Stickers::Order _stickersOrder;

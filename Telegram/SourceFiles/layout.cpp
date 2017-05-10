@@ -127,6 +127,15 @@ QString formatDurationText(qint64 duration) {
 	return (hours ? QString::number(hours) + ':' : QString()) + (minutes >= 10 ? QString() : QString('0')) + QString::number(minutes) + ':' + (seconds >= 10 ? QString() : QString('0')) + QString::number(seconds);
 }
 
+QString formatDurationWords(qint64 duration) {
+	if (duration > 59) {
+		auto minutes = (duration / 60);
+		auto seconds = (duration % 60);
+		return lng_duration_minutes_seconds(lt_count_minutes, minutes, lt_count_seconds, seconds);
+	}
+	return lng_duration_seconds(lt_count, duration);
+}
+
 QString formatDurationAndSizeText(qint64 duration, qint64 size) {
 	return lng_duration_and_size(lt_duration, formatDurationText(duration), lt_size, formatSizeText(size));
 }

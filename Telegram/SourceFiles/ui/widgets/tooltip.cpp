@@ -19,10 +19,19 @@
 
 #include "mainwindow.h"
 #include "styles/style_widgets.h"
+#include "platform/platform_specific.h"
 
 namespace Ui {
 
 Tooltip *TooltipInstance = nullptr;
+
+bool AbstractTooltipShower::tooltipWindowActive() const {
+	if (auto window = App::wnd()) {
+		window->updateIsActive(0);
+		return window->isActive();
+	}
+	return false;
+}
 
 const style::Tooltip *AbstractTooltipShower::tooltipSt() const {
 	return &st::defaultTooltip;
@@ -37,25 +46,19 @@ AbstractTooltipShower::~AbstractTooltipShower() {
 Tooltip::Tooltip() : TWidget(nullptr) {
 	TooltipInstance = this;
 
-	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint) | Qt::BypassWindowManagerHint | Qt::ToolTip | Qt::NoDropShadowWindowHint);
+	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint) | Qt::BypassWindowManagerHint | Qt::NoDropShadowWindowHint | Qt::ToolTip);
 	setAttribute(Qt::WA_NoSystemBackground, true);
 	setAttribute(Qt::WA_TranslucentBackground, true);
 
-	_showTimer.setSingleShot(true);
-	connect(&_showTimer, SIGNAL(timeout()), this, SLOT(onShow()));
+	_showTimer.setCallback([this] { performShow(); });
+	_hideByLeaveTimer.setCallback([this] { Hide(); });
 
 	connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
 }
 
-void Tooltip::onShow() {
+void Tooltip::performShow() {
 	if (_shower) {
-		auto text = QString();
-		if (auto window = App::wnd()) {
-			window->updateIsActive(0);
-			if (window->isActive()) {
-				text = _shower->tooltipText();
-			}
-		}
+		auto text = _shower->tooltipWindowActive() ? _shower->tooltipText() : QString();
 		if (text.isEmpty()) {
 			Hide();
 		} else {
@@ -72,19 +75,15 @@ void Tooltip::onWndActiveChanged() {
 
 bool Tooltip::eventFilter(QObject *o, QEvent *e) {
 	if (e->type() == QEvent::Leave) {
-		_hideByLeaveTimer.start(10);
+		_hideByLeaveTimer.callOnce(10);
 	} else if (e->type() == QEvent::Enter) {
-		_hideByLeaveTimer.stop();
+		_hideByLeaveTimer.cancel();
 	} else if (e->type() == QEvent::MouseMove) {
 		if ((QCursor::pos() - _point).manhattanLength() > QApplication::startDragDistance()) {
 			Hide();
 		}
 	}
 	return TWidget::eventFilter(o, e);
-}
-
-void Tooltip::onHideByLeave() {
-	Hide();
 }
 
 Tooltip::~Tooltip() {
@@ -94,10 +93,7 @@ Tooltip::~Tooltip() {
 }
 
 void Tooltip::popup(const QPoint &m, const QString &text, const style::Tooltip *st) {
-	if (!_hideByLeaveTimer.isSingleShot()) {
-		_hideByLeaveTimer.setSingleShot(true);
-		connect(&_hideByLeaveTimer, SIGNAL(timeout()), this, SLOT(onHideByLeave()));
-
+	if (!_isEventFilter) {
 		QCoreApplication::instance()->installEventFilter(this);
 	}
 
@@ -105,7 +101,7 @@ void Tooltip::popup(const QPoint &m, const QString &text, const style::Tooltip *
 	_st = st;
 	_text = Text(_st->textStyle, text, _textPlainOptions, _st->widthMax, true);
 
-	_useTransparency = Platform::TransparentWindowsSupported(_point);
+	_useTransparency = Platform::TranslucentWindowsSupported(_point);
 	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
 
 	int32 addw = 2 * st::lineWidth + _st->textPadding.left() + _st->textPadding.right();
@@ -148,18 +144,16 @@ void Tooltip::popup(const QPoint &m, const QString &text, const style::Tooltip *
 
 	setGeometry(QRect(p, s));
 
-	_hideByLeaveTimer.stop();
+	_hideByLeaveTimer.cancel();
 	show();
 }
 
 void Tooltip::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-#ifdef OS_MAC_OLD
-	p.setCompositionMode(QPainter::CompositionMode_Source);
-	p.fillRect(e->rect(), Qt::transparent);
-	p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-#endif // OS_MAC_OLD
+	if (_useTransparency) {
+		Platform::StartTranslucentPaint(p, e);
+	}
 
 	if (_useTransparency) {
 		p.setPen(_st->textBorder);
@@ -192,17 +186,17 @@ void Tooltip::Show(int32 delay, const AbstractTooltipShower *shower) {
 	}
 	TooltipInstance->_shower = shower;
 	if (delay >= 0) {
-		TooltipInstance->_showTimer.start(delay);
+		TooltipInstance->_showTimer.callOnce(delay);
 	} else {
-		TooltipInstance->onShow();
+		TooltipInstance->performShow();
 	}
 }
 
 void Tooltip::Hide() {
 	if (auto instance = TooltipInstance) {
 		TooltipInstance = nullptr;
-		instance->_showTimer.stop();
-		instance->_hideByLeaveTimer.stop();
+		instance->_showTimer.cancel();
+		instance->_hideByLeaveTimer.cancel();
 		instance->hide();
 		instance->deleteLater();
 	}

@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/localimageloader.h"
 #include "history/history_common.h"
 #include "core/single_timer.h"
+#include "base/weak_unique_ptr.h"
 
 namespace Notify {
 struct PeerUpdate;
@@ -43,6 +44,8 @@ class Panel;
 namespace Ui {
 class PlainShadow;
 class DropdownMenu;
+template <typename Widget>
+class WidgetSlideWrap;
 } // namespace Ui
 
 namespace Window {
@@ -53,6 +56,11 @@ class SectionMemento;
 class SectionWidget;
 struct SectionSlideParams;
 } // namespace Window
+
+namespace Calls {
+class Call;
+class TopBar;
+} // namespace Calls
 
 class MainWindow;
 class ConfirmBox;
@@ -471,6 +479,11 @@ private:
 	void closeBothPlayers();
 	void playerHeightUpdated();
 
+	void setCurrentCall(Calls::Call *call);
+	void createCallTopBar();
+	void destroyCallTopBar();
+	void callTopBarHeightUpdated();
+
 	void sendReadRequest(PeerData *peer, MsgId upTo);
 	void channelReadDone(PeerData *peer, const MTPBool &result);
 	void historyReadDone(PeerData *peer, const MTPmessages_AffectedMessages &result);
@@ -549,6 +562,8 @@ private:
 	void inviteImportDone(const MTPUpdates &result);
 	bool inviteImportFail(const RPCError &error);
 
+	int getSectionTop() const;
+
 	void hideAll();
 	void showAll();
 
@@ -572,6 +587,9 @@ private:
 	object_ptr<Window::SectionWidget> _thirdSection = { nullptr };
 	object_ptr<OverviewWidget> _overview = { nullptr };
 
+	base::weak_unique_ptr<Calls::Call> _currentCall;
+	object_ptr<Ui::WidgetSlideWrap<Calls::TopBar>> _callTopBar = { nullptr };
+
 	object_ptr<Window::PlayerWrapWidget> _player = { nullptr };
 	object_ptr<Media::Player::VolumeWidget> _playerVolume = { nullptr };
 	object_ptr<Media::Player::Panel> _playerPlaylist;
@@ -585,6 +603,7 @@ private:
 	MsgId _msgIdInStack = 0;
 
 	int _playerHeight = 0;
+	int _callTopBarHeight = 0;
 	int _contentScrollAddToY = 0;
 
 	int32 updDate = 0;

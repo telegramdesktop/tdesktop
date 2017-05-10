@@ -38,7 +38,7 @@ public:
 
 private slots:
 	void onReport();
-	void onDescriptionResized();
+	void onReasonResized();
 	void onClose() {
 		closeBox();
 	}

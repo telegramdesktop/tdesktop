@@ -336,6 +336,12 @@ DeclareVar(int32, EditTimeLimit);
 DeclareVar(int32, StickersRecentLimit);
 DeclareVar(int32, PinnedDialogsCountMax);
 DeclareVar(QString, InternalLinksDomain);
+DeclareVar(int32, CallReceiveTimeoutMs);
+DeclareVar(int32, CallRingTimeoutMs);
+DeclareVar(int32, CallConnectTimeoutMs);
+DeclareVar(int32, CallPacketTimeoutMs);
+DeclareVar(bool, PhoneCallsEnabled);
+DeclareRefVar(base::Observable<void>, PhoneCallsEnabledChanged);
 
 typedef QMap<PeerId, MsgId> HiddenPinnedMessagesMap;
 DeclareVar(HiddenPinnedMessagesMap, HiddenPinnedMessages);

@@ -32,6 +32,10 @@ class System;
 } // namespace Notifications
 } // namespace Window
 
+namespace Calls {
+class Instance;
+} // namespace Calls
+
 class ApiWrap;
 
 enum class EmojiPanelTab {
@@ -85,12 +89,20 @@ public:
 	TimeMs lastTimeVideoPlayedAt() const {
 		return _lastTimeVideoPlayedAt;
 	}
+	void setSoundOverride(const QString &key, const QString &path) {
+		_variables.soundOverrides.insert(key, path);
+	}
+	void clearSoundOverrides() {
+		_variables.soundOverrides.clear();
+	}
+	QString getSoundPath(const QString &key) const;
 
 private:
 	struct Variables {
 		bool lastSeenWarningSeen = false;
 		EmojiPanelTab emojiPanelTab = EmojiPanelTab::Emoji;
 		bool tabbedSelectorSectionEnabled = true;
+		QMap<QString, QString> soundOverrides;
 	};
 
 	base::Variable<bool> _contactsLoaded = { false };
@@ -144,6 +156,10 @@ public:
 		return *_api;
 	}
 
+	Calls::Instance &calls() {
+		return *_calls;
+	}
+
 	void checkAutoLock();
 	void checkAutoLockIn(TimeMs time);
 
@@ -158,6 +174,7 @@ private:
 	base::Timer _autoLockTimer;
 
 	const std::unique_ptr<ApiWrap> _api;
+	const std::unique_ptr<Calls::Instance> _calls;
 	const std::unique_ptr<Storage::Downloader> _downloader;
 	const std::unique_ptr<Window::Notifications::System> _notifications;
 

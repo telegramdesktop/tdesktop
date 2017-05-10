@@ -46,10 +46,10 @@ public:
 	, _cache(cache) {
 		resize(cache.width() / cache.devicePixelRatio(), cache.height() / cache.devicePixelRatio());
 
+		setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint) | Qt::WindowStaysOnTopHint | Qt::BypassWindowManagerHint | Qt::NoDropShadowWindowHint | Qt::Tool);
 		setAttribute(Qt::WA_MacAlwaysShowToolWindow);
 		setAttribute(Qt::WA_TransparentForMouseEvents);
 		setAttribute(Qt::WA_OpaquePaintEvent);
-		setWindowFlags(Qt::Tool | Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::NoDropShadowWindowHint);
 
 		setWindowOpacity(0.);
 		show();

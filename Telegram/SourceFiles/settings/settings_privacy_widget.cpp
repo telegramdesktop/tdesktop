@@ -176,6 +176,7 @@ void PrivacyWidget::createControls() {
 
 	addChildRow(_blockedUsers, marginSmall, lang(lng_settings_blocked_users), SLOT(onBlockedUsers()));
 	addChildRow(_lastSeenPrivacy, marginSmall, lang(lng_settings_last_seen_privacy), SLOT(onLastSeenPrivacy()));
+	addChildRow(_callsPrivacy, marginSmall, lang(lng_settings_calls_privacy), SLOT(onCallsPrivacy()));
 	addChildRow(_groupsInvitePrivacy, marginSmall, lang(lng_settings_groups_invite_privacy), SLOT(onGroupsInvitePrivacy()));
 	addChildRow(_localPasscodeState, marginSmall);
 	auto label = lang(psIdleSupported() ? lng_passcode_autolock_away : lng_passcode_autolock_inactive);
@@ -204,6 +205,10 @@ void PrivacyWidget::onBlockedUsers() {
 
 void PrivacyWidget::onLastSeenPrivacy() {
 	Ui::show(Box<EditPrivacyBox>(std::make_unique<LastSeenPrivacyController>()));
+}
+
+void PrivacyWidget::onCallsPrivacy() {
+	Ui::show(Box<EditPrivacyBox>(std::make_unique<CallsPrivacyController>()));
 }
 
 void PrivacyWidget::onGroupsInvitePrivacy() {

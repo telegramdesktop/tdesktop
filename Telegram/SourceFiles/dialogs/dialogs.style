@@ -26,9 +26,9 @@ dialogsUnreadFont: font(12px bold);
 dialogsUnreadHeight: 19px;
 dialogsUnreadPadding: 5px;
 
-dialogsRipple: defaultRippleAnimation;
-dialogsRippleBg: windowBgRipple;
-dialogsRippleBgActive: activeButtonBgRipple;
+dialogsRipple: RippleAnimation(defaultRippleAnimation) {
+	color: dialogsRippleBg;
+}
 
 dialogsTextFont: font(fsize);
 dialogsTextStyle: TextStyle(defaultTextStyle) {

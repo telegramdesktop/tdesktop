@@ -396,6 +396,25 @@ historyUnreadBarFont: semiboldFont;
 historyForwardChooseMargins: margins(30px, 10px, 30px, 10px);
 historyForwardChooseFont: font(16px);
 
+historyCallArrowIn: icon {{ "call_arrow_in", historyCallArrowInFg }};
+historyCallArrowInSelected: icon {{ "call_arrow_in", historyCallArrowInFgSelected }};
+historyCallArrowMissedIn: icon {{ "call_arrow_in", historyCallArrowMissedInFg }};
+historyCallArrowMissedInSelected: icon {{ "call_arrow_in", historyCallArrowMissedInFgSelected }};
+historyCallArrowOut: icon {{ "call_arrow_out", historyCallArrowOutFg }};
+historyCallArrowOutSelected: icon {{ "call_arrow_out", historyCallArrowOutFgSelected }};
+historyCallWidth: 240px;
+historyCallHeight: 56px;
+historyCallInIcon: icon {{ "menu_calls", msgFileInBg }};
+historyCallInIconSelected: icon {{ "menu_calls", msgFileInBgSelected }};
+historyCallOutIcon: icon {{ "menu_calls", msgFileOutBg }};
+historyCallOutIconSelected: icon {{ "menu_calls", msgFileOutBgSelected }};
+historyCallIconPosition: point(17px, 18px);
+historyCallLeft: 16px;
+historyCallTop: 9px;
+historyCallStatusTop: 29px;
+historyCallStatusSkip: 4px;
+historyCallArrowPosition: point(-1px, 1px);
+
 msgFileMenuSize: size(36px, 36px);
 msgFileSize: 44px;
 msgFilePadding: margins(14px, 12px, 11px, 12px);

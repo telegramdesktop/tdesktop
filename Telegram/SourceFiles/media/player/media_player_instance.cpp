@@ -33,8 +33,8 @@ Instance *SingleInstance = nullptr;
 } // namespace
 
 void start() {
-	InitAudio();
-	Capture::Init();
+	Audio::Start();
+	Capture::Start();
 
 	SingleInstance = new Instance();
 }
@@ -42,8 +42,8 @@ void start() {
 void finish() {
 	delete base::take(SingleInstance);
 
-	Capture::DeInit();
-	DeInitAudio();
+	Capture::Finish();
+	Audio::Finish();
 }
 
 Instance::Instance() {

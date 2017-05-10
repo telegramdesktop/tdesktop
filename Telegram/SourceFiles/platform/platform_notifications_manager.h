@@ -25,7 +25,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Platform {
 namespace Notifications {
 
-void CustomNotificationShownHook(QWidget *widget);
 bool SkipAudio();
 bool SkipToast();
 

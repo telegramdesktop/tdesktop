@@ -2432,12 +2432,6 @@ namespace {
 		return i.value();
 	}
 
-	void playSound() {
-		if (Global::SoundNotify() && !Platform::Notifications::SkipAudio()) {
-			Media::Player::PlayNotify();
-		}
-	}
-
 	void checkImageCacheSize() {
 		int64 nowImageCacheSize = imageCacheSize();
 		if (nowImageCacheSize > serviceImageCacheSize + MemoryForImageCache) {
@@ -2463,23 +2457,11 @@ namespace {
 		if (auto mainwidget = main()) {
 			mainwidget->saveDraftToCloud();
 		}
-		if (auto apiwrap = api()) {
-			if (apiwrap->hasUnsavedDrafts()) {
-				apiwrap->saveDraftsToCloud();
-				return;
-			}
-		}
-		QCoreApplication::quit();
+		Messenger::QuitAttempt();
 	}
 
 	bool quitting() {
 		return _launchState != Launched;
-	}
-
-	void allDraftsSaved() {
-		if (quitting()) {
-			QCoreApplication::quit();
-		}
 	}
 
 	LaunchState launchState() {

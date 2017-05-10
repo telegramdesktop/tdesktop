@@ -24,8 +24,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "messenger.h"
 #include "storage/file_download.h"
 #include "storage/localstorage.h"
+#include "storage/serialize_common.h"
 #include "window/notifications_manager.h"
 #include "platform/platform_specific.h"
+#include "calls/calls_instance.h"
 
 namespace {
 
@@ -34,7 +36,10 @@ constexpr auto kAutoLockTimeoutLateMs = TimeMs(3000);
 } // namespace
 
 QByteArray AuthSessionData::serialize() const {
-	auto size = sizeof(qint32) * 2;
+	auto size = sizeof(qint32) * 4;
+	for (auto i = _variables.soundOverrides.cbegin(), e = _variables.soundOverrides.cend(); i != e; ++i) {
+		size += Serialize::stringSize(i.key()) + Serialize::stringSize(i.value());
+	}
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -49,6 +54,10 @@ QByteArray AuthSessionData::serialize() const {
 		stream << static_cast<qint32>(_variables.emojiPanelTab);
 		stream << qint32(_variables.lastSeenWarningSeen ? 1 : 0);
 		stream << qint32(_variables.tabbedSelectorSectionEnabled ? 1 : 0);
+		stream << qint32(_variables.soundOverrides.size());
+		for (auto i = _variables.soundOverrides.cbegin(), e = _variables.soundOverrides.cend(); i != e; ++i) {
+			stream << i.key() << i.value();
+		}
 	}
 	return result;
 }
@@ -68,10 +77,22 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	qint32 emojiPanTab = static_cast<qint32>(EmojiPanelTab::Emoji);
 	qint32 lastSeenWarningSeen = 0;
 	qint32 tabbedSelectorSectionEnabled = 1;
+	QMap<QString, QString> soundOverrides;
 	stream >> emojiPanTab;
 	stream >> lastSeenWarningSeen;
 	if (!stream.atEnd()) {
 		stream >> tabbedSelectorSectionEnabled;
+	}
+	if (!stream.atEnd()) {
+		auto count = qint32(0);
+		stream >> count;
+		if (stream.status() == QDataStream::Ok) {
+			for (auto i = 0; i != count; ++i) {
+				QString key, value;
+				stream >> key >> value;
+				soundOverrides[key] = value;
+			}
+		}
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: Bad data for AuthSessionData::constructFromSerialized()"));
@@ -86,12 +107,22 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	}
 	_variables.lastSeenWarningSeen = (lastSeenWarningSeen == 1);
 	_variables.tabbedSelectorSectionEnabled = (tabbedSelectorSectionEnabled == 1);
+	_variables.soundOverrides = std::move(soundOverrides);
+}
+
+QString AuthSessionData::getSoundPath(const QString &key) const {
+	auto it = _variables.soundOverrides.constFind(key);
+	if (it != _variables.soundOverrides.end()) {
+		return it.value();
+	}
+	return qsl(":/sounds/") + key + qsl(".mp3");
 }
 
 AuthSession::AuthSession(UserId userId)
 : _userId(userId)
 , _autoLockTimer([this] { checkAutoLock(); })
 , _api(std::make_unique<ApiWrap>())
+, _calls(std::make_unique<Calls::Instance>())
 , _downloader(std::make_unique<Storage::Downloader>())
 , _notifications(std::make_unique<Window::Notifications::System>(this)) {
 	Expects(_userId != 0);

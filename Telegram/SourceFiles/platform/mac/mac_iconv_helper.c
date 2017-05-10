@@ -1,4 +1,4 @@
-'''
+/*
 This file is part of Telegram Desktop,
 the official desktop version of Telegram messaging app, see https://telegram.org
 
@@ -16,21 +16,30 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014 John Preston, https://desktop.telegram.org
-'''
-import sys
-import os
-import re
+Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+*/
+#include <iconv.h>
 
-my_path = os.path.dirname(os.path.realpath(__file__)).replace('\\', '/')
+#ifdef iconv_open
+#undef iconv_open
+#endif // iconv_open
 
-if len(sys.argv) > 1 and sys.argv[1] == '--read-target':
-  target_path = my_path + '/../build/target'
-  if os.path.isfile(target_path):
-    with open(target_path) as f:
-      for line in f:
-        cleanline = re.sub(r'^\s*|\s*$', '', line);
-        if cleanline != '':
-          print(cleanline);
-else:
-  print('This is a helper script, it should not be called directly.')
+#ifdef iconv
+#undef iconv
+#endif // iconv
+
+#ifdef iconv_close
+#undef iconv_close
+#endif // iconv_close
+
+iconv_t iconv_open(const char* tocode, const char* fromcode) {
+	return libiconv_open(tocode, fromcode);
+}
+
+size_t iconv(iconv_t cd, char** inbuf, size_t *inbytesleft, char** outbuf, size_t *outbytesleft) {
+	return libiconv(cd, inbuf, inbytesleft, outbuf, outbytesleft);
+}
+
+int iconv_close(iconv_t cd) {
+	return libiconv_close(cd);
+}

@@ -94,11 +94,11 @@ public:
 		return _format;
 	}
 
-	TimeMs duration() override {
+	int64 samplesCount() override {
 		return _parentData->length;
 	}
 
-	int32 frequency() override {
+	int32 samplesFrequency() override {
 		return _parentData->frequency;
 	}
 

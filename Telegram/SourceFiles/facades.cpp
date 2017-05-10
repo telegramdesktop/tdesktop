@@ -630,6 +630,12 @@ struct Data {
 	int32 StickersRecentLimit = 30;
 	int32 PinnedDialogsCountMax = 5;
 	QString InternalLinksDomain = qsl("https://t.me/");
+	int32 CallReceiveTimeoutMs = 20000;
+	int32 CallRingTimeoutMs = 90000;
+	int32 CallConnectTimeoutMs = 30000;
+	int32 CallPacketTimeoutMs = 10000;
+	bool PhoneCallsEnabled = true;
+	base::Observable<void> PhoneCallsEnabledChanged;
 
 	HiddenPinnedMessagesMap HiddenPinnedMessages;
 
@@ -746,6 +752,12 @@ DefineVar(Global, int32, EditTimeLimit);
 DefineVar(Global, int32, StickersRecentLimit);
 DefineVar(Global, int32, PinnedDialogsCountMax);
 DefineVar(Global, QString, InternalLinksDomain);
+DefineVar(Global, int32, CallReceiveTimeoutMs);
+DefineVar(Global, int32, CallRingTimeoutMs);
+DefineVar(Global, int32, CallConnectTimeoutMs);
+DefineVar(Global, int32, CallPacketTimeoutMs);
+DefineVar(Global, bool, PhoneCallsEnabled);
+DefineRefVar(Global, base::Observable<void>, PhoneCallsEnabledChanged);
 
 DefineVar(Global, HiddenPinnedMessagesMap, HiddenPinnedMessages);
 

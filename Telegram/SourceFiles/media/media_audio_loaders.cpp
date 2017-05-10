@@ -195,7 +195,7 @@ void Loaders::loadData(AudioMsgId audio, qint64 position) {
 	}
 
 	if (started) {
-		mixer()->reattachTracks();
+		Audio::AttachToDevice();
 
 		track->started();
 		if (!internal::audioCheckError()) {
@@ -209,7 +209,7 @@ void Loaders::loadData(AudioMsgId audio, qint64 position) {
 		track->fadeStartPosition = position;
 
 		track->format = l->format();
-		track->frequency = l->frequency();
+		track->frequency = l->samplesFrequency();
 	}
 	if (samplesCount) {
 		track->ensureStreamCreated();
@@ -248,7 +248,7 @@ void Loaders::loadData(AudioMsgId audio, qint64 position) {
 
 	if (finished) {
 		track->loaded = true;
-		track->state.duration = track->bufferedPosition + track->bufferedLength;
+		track->state.length = track->bufferedPosition + track->bufferedLength;
 		clear(type);
 	}
 
@@ -329,7 +329,7 @@ AudioPlayerLoader *Loaders::setupLoader(const AudioMsgId &audio, SetupError &err
 			_videoLoader = std::make_unique<ChildFFMpegLoader>(track->videoPlayId, std::move(track->videoData));
 			l = _videoLoader.get();
 		} else {
-			*loader = std::make_unique<FFMpegLoader>(track->file, track->data);
+			*loader = std::make_unique<FFMpegLoader>(track->file, track->data, base::byte_vector());
 			l = loader->get();
 		}
 
@@ -337,13 +337,13 @@ AudioPlayerLoader *Loaders::setupLoader(const AudioMsgId &audio, SetupError &err
 			track->state.state = State::StoppedAtStart;
 			return nullptr;
 		}
-		int64 duration = l->duration();
-		if (duration <= 0) {
+		auto length = l->samplesCount();
+		if (length <= 0) {
 			track->state.state = State::StoppedAtStart;
 			return nullptr;
 		}
-		track->state.duration = duration;
-		track->state.frequency = l->frequency();
+		track->state.length = length;
+		track->state.frequency = l->samplesFrequency();
 		if (!track->state.frequency) track->state.frequency = kDefaultFrequency;
 		err = SetupNoErrorStarted;
 	} else if (track->loaded) {

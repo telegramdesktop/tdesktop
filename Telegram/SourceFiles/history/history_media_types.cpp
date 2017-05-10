@@ -33,6 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_location_manager.h"
 #include "window/window_controller.h"
 #include "styles/style_history.h"
+#include "calls/calls_instance.h"
 
 namespace {
 
@@ -1534,7 +1535,7 @@ bool HistoryDocument::updateStatusText() const {
 					bool was = (voice->_playback != nullptr);
 					voice->ensurePlayback(this);
 					if (!was || state.position != voice->_playback->_position) {
-						float64 prg = state.duration ? snap(float64(state.position) / state.duration, 0., 1.) : 0.;
+						auto prg = state.length ? snap(float64(state.position) / state.length, 0., 1.) : 0.;
 						if (voice->_playback->_position < state.position) {
 							voice->_playback->a_progress.start(prg);
 						} else {
@@ -1543,11 +1544,11 @@ bool HistoryDocument::updateStatusText() const {
 						voice->_playback->_position = state.position;
 						voice->_playback->_a_progress.start();
 					}
-					voice->_lastDurationMs = static_cast<int>((state.duration * 1000LL) / state.frequency); // Bad :(
+					voice->_lastDurationMs = static_cast<int>((state.length * 1000LL) / state.frequency); // Bad :(
 				}
 
 				statusSize = -1 - (state.position / state.frequency);
-				realDuration = (state.duration / state.frequency);
+				realDuration = (state.length / state.frequency);
 				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
 			} else {
 				if (auto voice = Get<HistoryDocumentVoice>()) {
@@ -1561,7 +1562,7 @@ bool HistoryDocument::updateStatusText() const {
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
 			if (state.id == AudioMsgId(_data, _parent->fullId()) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
 				statusSize = -1 - (state.position / state.frequency);
-				realDuration = (state.duration / state.frequency);
+				realDuration = (state.length / state.frequency);
 				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
 			} else {
 			}
@@ -1604,9 +1605,9 @@ void HistoryDocument::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool 
 		} else if (!pressed && voice->seeking()) {
 			auto type = AudioMsgId::Type::Voice;
 			auto state = Media::Player::mixer()->currentState(type);
-			if (state.id == AudioMsgId(_data, _parent->fullId()) && state.duration) {
+			if (state.id == AudioMsgId(_data, _parent->fullId()) && state.length) {
 				auto currentProgress = voice->seekingCurrent();
-				auto currentPosition = qRound(currentProgress * state.duration);
+				auto currentPosition = qRound(currentProgress * state.length);
 				Media::Player::mixer()->seek(type, currentPosition);
 
 				voice->ensurePlayback(this);
@@ -2785,6 +2786,125 @@ void HistoryContact::updateSentMedia(const MTPMessageMedia &media) {
 			attachToParent();
 		}
 	}
+}
+
+HistoryCall::HistoryCall(HistoryItem *parent, const MTPDmessageActionPhoneCall &call) : HistoryMedia(parent)
+, _reason(GetReason(call)) {
+	if (_parent->out()) {
+		_text = lang(_reason == FinishReason::Missed ? lng_call_cancelled : lng_call_outgoing);
+	} else if (_reason == FinishReason::Missed) {
+		_text = lang(lng_call_missed);
+	} else if (_reason == FinishReason::Busy) {
+		_text = lang(lng_call_declined);
+	} else {
+		_text = lang(lng_call_incoming);
+	}
+	_duration = call.has_duration() ? call.vduration.v : 0;
+
+	_status = _parent->date.time().toString(cTimeFormat());
+	if (_duration) {
+		if (_reason != FinishReason::Missed && _reason != FinishReason::Busy) {
+			_status = lng_call_duration_info(lt_time, _status, lt_duration, formatDurationWords(_duration));
+		} else {
+			_duration = 0;
+		}
+	}
+
+	Calls::Current().newServiceMessage().notify(_parent->fullId());
+}
+
+HistoryCall::FinishReason HistoryCall::GetReason(const MTPDmessageActionPhoneCall &call) {
+	if (call.has_reason()) {
+		switch (call.vreason.type()) {
+		case mtpc_phoneCallDiscardReasonBusy: return FinishReason::Busy;
+		case mtpc_phoneCallDiscardReasonDisconnect: return FinishReason::Disconnected;
+		case mtpc_phoneCallDiscardReasonHangup: return FinishReason::Hangup;
+		case mtpc_phoneCallDiscardReasonMissed: return FinishReason::Missed;
+		}
+		Unexpected("Call reason type.");
+	}
+	return FinishReason::Hangup;
+}
+
+void HistoryCall::initDimensions() {
+	_maxw = st::msgFileMinWidth;
+
+	_link = MakeShared<LambdaClickHandler>([peer = _parent->history()->peer] {
+		if (auto user = peer->asUser()) {
+			Calls::Current().startOutgoingCall(user);
+		}
+	});
+
+	_maxw = st::historyCallWidth;
+	_minh = st::historyCallHeight;
+	if (!isBubbleTop()) {
+		_minh -= st::msgFileTopMinus;
+	}
+	_height = _minh;
+}
+
+void HistoryCall::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
+	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
+	auto skipx = 0, skipy = 0, width = _width, height = _height;
+
+	auto out = _parent->out(), isPost = _parent->isPost(), outbg = out && !isPost;
+	auto selected = (selection == FullSelection);
+
+	if (width >= _maxw) {
+		width = _maxw;
+	}
+
+	auto nameleft = 0, nametop = 0, nameright = 0, statustop = 0;
+	auto topMinus = isBubbleTop() ? 0 : st::msgFileTopMinus;
+
+	nameleft = st::historyCallLeft;
+	nametop = st::historyCallTop - topMinus;
+	nameright = st::msgFilePadding.left();
+	statustop = st::historyCallStatusTop - topMinus;
+
+	auto namewidth = width - nameleft - nameright;
+
+	p.setFont(st::semiboldFont);
+	p.setPen(outbg ? (selected ? st::historyFileNameOutFgSelected : st::historyFileNameOutFg) : (selected ? st::historyFileNameInFgSelected : st::historyFileNameInFg));
+	p.drawTextLeft(nameleft, nametop, width, _text);
+
+	auto statusleft = nameleft;
+	auto missed = (_reason == FinishReason::Missed || _reason == FinishReason::Busy);
+	auto &arrow = outbg ? (selected ? st::historyCallArrowOutSelected : st::historyCallArrowOut) : missed ? (selected ? st::historyCallArrowMissedInSelected : st::historyCallArrowMissedIn) : (selected ? st::historyCallArrowInSelected : st::historyCallArrowIn);
+	arrow.paint(p, statusleft + st::historyCallArrowPosition.x(), statustop + st::historyCallArrowPosition.y(), width);
+	statusleft += arrow.width() + st::historyCallStatusSkip;
+
+	auto &statusFg = outbg ? (selected ? st::mediaOutFgSelected : st::mediaOutFg) : (selected ? st::mediaInFgSelected : st::mediaInFg);
+	p.setFont(st::normalFont);
+	p.setPen(statusFg);
+	p.drawTextLeft(statusleft, statustop, width, _status);
+
+	auto &icon = outbg ? (selected ? st::historyCallOutIconSelected : st::historyCallOutIcon) : (selected ? st::historyCallInIconSelected : st::historyCallInIcon);
+	icon.paint(p, width - st::historyCallIconPosition.x() - icon.width(), st::historyCallIconPosition.y() - topMinus, width);
+}
+
+HistoryTextState HistoryCall::getState(int x, int y, HistoryStateRequest request) const {
+	HistoryTextState result;
+	if (x >= 0 && y >= 0 && x < _width && y < _height) {
+		result.link = _link;
+		return result;
+	}
+	return result;
+}
+
+QString HistoryCall::notificationText() const {
+	auto result = _text;
+	if (_duration > 0) {
+		result = lng_call_type_and_duration(lt_type, result, lt_duration, formatDurationWords(_duration));
+	}
+	return result;
+}
+
+TextWithEntities HistoryCall::selectedText(TextSelection selection) const {
+	if (selection != FullSelection) {
+		return TextWithEntities();
+	}
+	return { qsl("[ ") + _text + qsl(" ]"), EntitiesInText() };
 }
 
 namespace {

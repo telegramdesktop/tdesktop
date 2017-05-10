@@ -396,19 +396,14 @@ void finish() {
 	objc_finish();
 }
 
-bool TransparentWindowsSupported(QPoint globalPosition) {
-	return true;
+void StartTranslucentPaint(QPainter &p, QPaintEvent *e) {
+#ifdef OS_MAC_OLD
+	p.setCompositionMode(QPainter::CompositionMode_Source);
+	p.fillRect(e->rect(), Qt::transparent);
+	p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+#endif // OS_MAC_OLD
 }
 
-namespace ThirdParty {
-
-void start() {
-}
-
-void finish() {
-}
-
-} // namespace ThirdParty
 } // namespace Platform
 
 void psNewVersion() {

@@ -56,7 +56,7 @@ void BlockUserBoxController::prepareViewHook() {
 
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserIsBlocked, [this](const Notify::PeerUpdate &update) {
 		if (auto user = update.peer->asUser()) {
-			if (auto row = view()->findRow(user)) {
+			if (auto row = view()->findRow(user->id)) {
 				updateIsBlocked(row, user);
 				view()->updateRow(row);
 			}
@@ -177,7 +177,7 @@ void BlockedBoxController::handleBlockedEvent(UserData *user) {
 			view()->refreshRows();
 			view()->onScrollToY(0);
 		}
-	} else if (auto row = view()->findRow(user)) {
+	} else if (auto row = view()->findRow(user->id)) {
 		view()->removeRow(row);
 		view()->refreshRows();
 	}
@@ -188,7 +188,7 @@ void BlockedBoxController::blockUser() {
 }
 
 bool BlockedBoxController::appendRow(UserData *user) {
-	if (view()->findRow(user)) {
+	if (view()->findRow(user->id)) {
 		return false;
 	}
 	view()->appendRow(createRow(user));
@@ -196,7 +196,7 @@ bool BlockedBoxController::appendRow(UserData *user) {
 }
 
 bool BlockedBoxController::prependRow(UserData *user) {
-	if (view()->findRow(user)) {
+	if (view()->findRow(user->id)) {
 		return false;
 	}
 	view()->prependRow(createRow(user));
@@ -204,7 +204,7 @@ bool BlockedBoxController::prependRow(UserData *user) {
 }
 
 std::unique_ptr<PeerListBox::Row> BlockedBoxController::createRow(UserData *user) const {
-	auto row = std::make_unique<PeerListBox::Row>(user);
+	auto row = std::make_unique<PeerListRowWithLink>(user);
 	row->setActionLink(lang(lng_blocked_list_unblock));
 	auto status = [user]() -> QString {
 		if (user->botInfo) {
@@ -215,7 +215,7 @@ std::unique_ptr<PeerListBox::Row> BlockedBoxController::createRow(UserData *user
 		return App::formatPhone(user->phone());
 	};
 	row->setCustomStatus(status());
-	return row;
+	return std::move(row);
 }
 
 MTPInputPrivacyKey LastSeenPrivacyController::key() {
@@ -306,6 +306,38 @@ QString GroupsInvitePrivacyController::exceptionBoxTitle(Exception exception) {
 
 QString GroupsInvitePrivacyController::exceptionsDescription() {
 	return lang(lng_edit_privacy_groups_exceptions);
+}
+
+MTPInputPrivacyKey CallsPrivacyController::key() {
+	return MTP_inputPrivacyKeyPhoneCall();
+}
+
+QString CallsPrivacyController::title() {
+	return lang(lng_edit_privacy_calls_title);
+}
+
+QString CallsPrivacyController::description() {
+	return lang(lng_edit_privacy_calls_description);
+}
+
+QString CallsPrivacyController::exceptionLinkText(Exception exception, int count) {
+	switch (exception) {
+	case Exception::Always: return lng_edit_privacy_calls_always(lt_count, count);
+	case Exception::Never: return lng_edit_privacy_calls_never(lt_count, count);
+	}
+	Unexpected("Invalid exception value.");
+}
+
+QString CallsPrivacyController::exceptionBoxTitle(Exception exception) {
+	switch (exception) {
+	case Exception::Always: return lang(lng_edit_privacy_calls_always_title);
+	case Exception::Never: return lang(lng_edit_privacy_calls_never_title);
+	}
+	Unexpected("Invalid exception value.");
+}
+
+QString CallsPrivacyController::exceptionsDescription() {
+	return lang(lng_edit_privacy_calls_exceptions);
 }
 
 } // namespace Settings

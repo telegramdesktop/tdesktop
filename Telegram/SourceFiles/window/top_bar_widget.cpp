@@ -32,6 +32,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/dropdown_menu.h"
 #include "dialogs/dialogs_layout.h"
 #include "window/window_controller.h"
+#include "calls/calls_instance.h"
+#include "observer_peer.h"
 
 namespace Window {
 
@@ -42,6 +44,7 @@ TopBarWidget::TopBarWidget(QWidget *parent, gsl::not_null<Window::Controller*> c
 , _delete(this, lang(lng_selected_delete), st::defaultActiveButton)
 , _info(this, nullptr, st::topBarInfoButton)
 , _mediaType(this, lang(lng_media_type), st::topBarButton)
+, _call(this, st::topBarCall)
 , _search(this, st::topBarSearch)
 , _menuToggle(this, st::topBarMenuToggle) {
 	_forward->setClickedCallback([this] { onForwardSelection(); });
@@ -50,6 +53,7 @@ TopBarWidget::TopBarWidget(QWidget *parent, gsl::not_null<Window::Controller*> c
 	_delete->setWidthChangedCallback([this] { updateControlsGeometry(); });
 	_clearSelection->setClickedCallback([this] { onClearSelection(); });
 	_info->setClickedCallback([this] { onInfoClicked(); });
+	_call->setClickedCallback([this] { onCall(); });
 	_search->setClickedCallback([this] { onSearch(); });
 	_menuToggle->setClickedCallback([this] { showMenu(); });
 
@@ -74,9 +78,15 @@ TopBarWidget::TopBarWidget(QWidget *parent, gsl::not_null<Window::Controller*> c
 			rtlupdate(0, 0, width(), height());
 		}
 	});
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserHasCalls, [this](const Notify::PeerUpdate &update) {
+		if (update.peer->isUser()) {
+			updateControlsVisibility();
+		}
+	}));
+	subscribe(Global::RefPhoneCallsEnabledChanged(), [this] { updateControlsVisibility(); });
 
 	setCursor(style::cur_pointer);
-	showAll();
+	updateControlsVisibility();
 }
 
 void TopBarWidget::onForwardSelection() {
@@ -92,7 +102,7 @@ void TopBarWidget::onClearSelection() {
 }
 
 void TopBarWidget::onInfoClicked() {
-	PeerData *p = App::main() ? App::main()->historyPeer() : 0;
+	auto p = App::main() ? App::main()->historyPeer() : nullptr;
 	if (p) Ui::showPeerProfile(p);
 }
 
@@ -100,6 +110,16 @@ void TopBarWidget::onSearch() {
 	if (auto main = App::main()) {
 		if (auto peer = main->peer()) {
 			main->searchInPeer(peer);
+		}
+	}
+}
+
+void TopBarWidget::onCall() {
+	if (auto main = App::main()) {
+		if (auto peer = main->peer()) {
+			if (auto user = peer->asUser()) {
+				Calls::Current().startOutgoingCall(user);
+			}
 		}
 	}
 }
@@ -180,6 +200,9 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 		if (!_search->isHidden()) {
 			decreaseWidth += _search->width();
 		}
+		if (!_call->isHidden()) {
+			decreaseWidth += _call->width();
+		}
 		auto paintCounter = App::main()->paintTopBar(p, decreaseWidth, ms);
 		p.restore();
 
@@ -247,29 +270,39 @@ void TopBarWidget::updateControlsGeometry() {
 	selectedButtonsTop += (height() - _forward->height()) / 2;
 
 	_forward->moveToLeft(buttonsLeft, selectedButtonsTop);
-	buttonsLeft += _forward->width() + st::topBarActionSkip;
+	if (!_forward->isHidden()) {
+		buttonsLeft += _forward->width() + st::topBarActionSkip;
+	}
 
 	_delete->moveToLeft(buttonsLeft, selectedButtonsTop);
 	_clearSelection->moveToRight(st::topBarActionSkip, selectedButtonsTop);
 
-	_info->moveToRight(0, otherButtonsTop);
-	_menuToggle->moveToRight(0, otherButtonsTop);
-	_mediaType->moveToRight(0, otherButtonsTop);
-	_search->moveToRight(_info->isHidden() ? _menuToggle->width() : _info->width(), otherButtonsTop);
+	auto right = 0;
+	_info->moveToRight(right, otherButtonsTop);
+	_menuToggle->moveToRight(right, otherButtonsTop);
+	_mediaType->moveToRight(right, otherButtonsTop);
+	if (_info->isHidden()) {
+		right += _menuToggle->width();
+	} else {
+		right += _info->width();
+	}
+	_search->moveToRight(right, otherButtonsTop);
+	right += _search->width();
+	_call->moveToRight(right, otherButtonsTop);
 }
 
 void TopBarWidget::animationFinished() {
 	updateMembersShowArea();
-	showAll();
+	updateControlsVisibility();
 }
 
-void TopBarWidget::showAll() {
+void TopBarWidget::updateControlsVisibility() {
 	auto historyPeer = App::main() ? App::main()->historyPeer() : nullptr;
 	auto overviewPeer = App::main() ? App::main()->overviewPeer() : nullptr;
 
 	_clearSelection->show();
 	_delete->setVisible(_canDelete);
-	_forward->show();
+	_forward->setVisible(_canForward);
 
 	_mediaType->setVisible(App::main() ? App::main()->showMediaTypeSwitch() : false);
 	if (historyPeer && !overviewPeer) {
@@ -283,8 +316,14 @@ void TopBarWidget::showAll() {
 			_menuToggle->show();
 		}
 		_search->show();
+		auto callsEnabled = false;
+		if (auto user = historyPeer->asUser()) {
+			callsEnabled = Global::PhoneCallsEnabled() && user->hasCalls();
+		}
+		_call->setVisible(callsEnabled);
 	} else {
 		_search->hide();
+		_call->hide();
 		_info->hide();
 		_menuToggle->hide();
 		_menu.destroy();
@@ -323,17 +362,20 @@ void TopBarWidget::updateMembersShowArea() {
 	_membersShowArea->setGeometry(App::main()->getMembersShowAreaGeometry());
 }
 
-void TopBarWidget::showSelected(int selectedCount, bool canDelete) {
-	if (_selectedCount == selectedCount && _canDelete == canDelete) {
+void TopBarWidget::showSelected(SelectedState state) {
+	auto canDelete = (state.count > 0 && state.count == state.canDeleteCount);
+	auto canForward = (state.count > 0 && state.count == state.canForwardCount);
+	if (_selectedCount == state.count && _canDelete == canDelete && _canForward == canForward) {
 		return;
 	}
-	if (selectedCount == 0) {
+	if (state.count == 0) {
 		// Don't change the visible buttons if the selection is cancelled.
 		canDelete = _canDelete;
+		canForward = _canForward;
 	}
 
 	auto wasSelected = (_selectedCount > 0);
-	_selectedCount = selectedCount;
+	_selectedCount = state.count;
 	if (_selectedCount > 0) {
 		_forward->setNumbersText(_selectedCount);
 		_delete->setNumbersText(_selectedCount);
@@ -343,9 +385,10 @@ void TopBarWidget::showSelected(int selectedCount, bool canDelete) {
 		}
 	}
 	auto hasSelected = (_selectedCount > 0);
-	if (_canDelete != canDelete) {
+	if (_canDelete != canDelete || _canForward != canForward) {
 		_canDelete = canDelete;
-		showAll();
+		_canForward = canForward;
+		updateControlsVisibility();
 	}
 	if (wasSelected != hasSelected) {
 		setCursor(hasSelected ? style::cur_default : style::cur_pointer);
@@ -364,7 +407,7 @@ void TopBarWidget::selectedShowCallback() {
 
 void TopBarWidget::updateAdaptiveLayout() {
 	updateMembersShowArea();
-	showAll();
+	updateControlsVisibility();
 	if (!Adaptive::OneColumn()) {
 		unsubscribe(base::take(_unreadCounterSubscription));
 	} else if (!_unreadCounterSubscription) {

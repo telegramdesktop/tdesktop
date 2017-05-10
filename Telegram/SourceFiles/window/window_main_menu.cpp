@@ -29,8 +29,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "boxes/contacts_box.h"
 #include "boxes/about_box.h"
+#include "boxes/peer_list_box.h"
+#include "calls/calls_box_controller.h"
 #include "lang.h"
 #include "core/click_handler_types.h"
+#include "observer_peer.h"
 #include "auth_session.h"
 #include "mainwidget.h"
 
@@ -51,6 +54,27 @@ MainMenu::MainMenu(QWidget *parent) : TWidget(parent)
 	_menu->setTriggeredCallback([](QAction *action, int actionTop, Ui::Menu::TriggeredSource source) {
 		emit action->triggered();
 	});
+	refreshMenu();
+
+	_telegram->setRichText(textcmdLink(1, qsl("Telegram Desktop")));
+	_telegram->setLink(1, MakeShared<UrlClickHandler>(qsl("https://desktop.telegram.org")));
+	_version->setRichText(textcmdLink(1, lng_settings_current_version(lt_version, currentVersionText())) + QChar(' ') + QChar(8211) + QChar(' ') + textcmdLink(2, lang(lng_menu_about)));
+	_version->setLink(1, MakeShared<UrlClickHandler>(qsl("https://desktop.telegram.org/changelog")));
+	_version->setLink(2, MakeShared<LambdaClickHandler>([] { Ui::show(Box<AboutBox>()); }));
+
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserPhoneChanged, [this](const Notify::PeerUpdate &update) {
+		if (update.peer->isSelf()) {
+			updatePhone();
+		}
+	}));
+	subscribe(Global::RefPhoneCallsEnabledChanged(), [this] { refreshMenu(); });
+	updatePhone();
+}
+
+void MainMenu::refreshMenu() {
+	_menu->clearActions();
 	_menu->addAction(lang(lng_create_group_title), [] {
 		App::wnd()->onShowNewGroup();
 	}, &st::mainMenuNewGroup, &st::mainMenuNewGroupOver);
@@ -60,6 +84,11 @@ MainMenu::MainMenu(QWidget *parent) : TWidget(parent)
 	_menu->addAction(lang(lng_menu_contacts), [] {
 		Ui::show(Box<ContactsBox>());
 	}, &st::mainMenuContacts, &st::mainMenuContactsOver);
+	if (Global::PhoneCallsEnabled()) {
+		_menu->addAction(lang(lng_menu_calls), [] {
+			Ui::show(Box<PeerListBox>(std::make_unique<Calls::BoxController>()));
+		}, &st::mainMenuCalls, &st::mainMenuCallsOver);
+	}
 	_menu->addAction(lang(lng_menu_settings), [] {
 		App::wnd()->showSettings();
 	}, &st::mainMenuSettings, &st::mainMenuSettingsOver);
@@ -67,15 +96,7 @@ MainMenu::MainMenu(QWidget *parent) : TWidget(parent)
 		QDesktopServices::openUrl(telegramFaqLink());
 	}, &st::mainMenuHelp, &st::mainMenuHelpOver);
 
-	_telegram->setRichText(textcmdLink(1, qsl("Telegram Desktop")));
-	_telegram->setLink(1, MakeShared<UrlClickHandler>(qsl("https://desktop.telegram.org")));
-	_version->setRichText(textcmdLink(1, lng_settings_current_version(lt_version, currentVersionText())) + QChar(' ') + QChar(8211) + QChar(' ') + textcmdLink(2, lang(lng_menu_about)));
-	_version->setLink(1, MakeShared<UrlClickHandler>(qsl("https://desktop.telegram.org/changelog")));
-	_version->setLink(2, MakeShared<LambdaClickHandler>([] { Ui::show(Box<AboutBox>()); }));
-
-	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
-	subscribe(Global::RefConnectionTypeChanged(), [this] { updateConnectionState(); });
-	updateConnectionState();
+	updatePhone();
 }
 
 void MainMenu::checkSelf() {
@@ -125,12 +146,11 @@ void MainMenu::updateControlsGeometry() {
 	_version->moveToLeft(st::mainMenuFooterLeft, height() - st::mainMenuVersionBottom - _version->height());
 }
 
-void MainMenu::updateConnectionState() {
-	auto state = MTP::dcstate();
-	if (state == MTP::ConnectingState || state == MTP::DisconnectedState || state < 0) {
-		_connectionText = lang(lng_status_connecting);
+void MainMenu::updatePhone() {
+	if (auto self = App::self()) {
+		_phoneText = App::formatPhone(self->phone());
 	} else {
-		_connectionText = lang(lng_status_online);
+		_phoneText = QString();
 	}
 	update();
 }
@@ -146,7 +166,7 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 		if (auto self = App::self()) {
 			self->nameText.drawLeftElided(p, st::mainMenuCoverTextLeft, st::mainMenuCoverNameTop, width() - 2 * st::mainMenuCoverTextLeft, width());
 			p.setFont(st::normalFont);
-			p.drawTextLeft(st::mainMenuCoverTextLeft, st::mainMenuCoverStatusTop, width(), _connectionText);
+			p.drawTextLeft(st::mainMenuCoverTextLeft, st::mainMenuCoverStatusTop, width(), _phoneText);
 		}
 		if (_cloudButton) {
 			PainterHighQualityEnabler hq(p);

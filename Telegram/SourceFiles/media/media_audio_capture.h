@@ -25,8 +25,8 @@ struct AVFrame;
 namespace Media {
 namespace Capture {
 
-void Init();
-void DeInit();
+void Start();
+void Finish();
 
 class Instance : public QObject {
 	Q_OBJECT

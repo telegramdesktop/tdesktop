@@ -22,6 +22,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "base/observer.h"
 
+namespace App {
+void quit();
+} // namespace App
+
 namespace MTP {
 class DcOptions;
 class Instance;
@@ -37,6 +41,12 @@ namespace Local {
 struct StoredAuthSession;
 } // namespace Local
 
+namespace Media {
+namespace Audio {
+class Instance;
+} // namespace Audio
+} // namespace Media
+
 class Messenger final : public QObject, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
@@ -46,10 +56,10 @@ public:
 	Messenger(const Messenger &other) = delete;
 	Messenger &operator=(const Messenger &other) = delete;
 
-	void prepareToDestroy();
 	~Messenger();
 
 	MainWindow *mainWindow();
+	QPoint getPointForCallPanelCenter() const;
 
 	static Messenger *InstancePointer();
 	static Messenger &Instance() {
@@ -58,6 +68,7 @@ public:
 		return *result;
 	}
 
+	// MTProto components.
 	MTP::DcOptions *dcOptions() {
 		return _dcOptions.get();
 	}
@@ -80,6 +91,7 @@ public:
 	void suggestMainDcId(MTP::DcId mainDcId);
 	void destroyStaleAuthorizationKeys();
 
+	// AuthSession component.
 	AuthSession *authSession() {
 		return _authSession.get();
 	}
@@ -87,6 +99,11 @@ public:
 	void authSessionDestroy();
 	base::Observable<void> &authSessionChanged() {
 		return _authSessionChanged;
+	}
+
+	// Media component.
+	Media::Audio::Instance &audio() {
+		return *_audio;
 	}
 
 	void setInternalLinkDomain(const QString &domain) const;
@@ -119,6 +136,8 @@ public:
 		return _passcodedChanged;
 	}
 
+	void quitPreventFinished();
+
 	void handleAppActivated();
 	void handleAppDeactivated();
 
@@ -148,6 +167,10 @@ private:
 	void startLocalStorage();
 	void loadLanguage();
 
+	friend void App::quit();
+	static void QuitAttempt();
+	void quitDelayed();
+
 	QMap<FullMsgId, PeerId> photoUpdates;
 
 	QMap<MTP::DcId, TimeMs> killDownloadSessionTimes;
@@ -167,5 +190,7 @@ private:
 	std::unique_ptr<AuthSession> _authSession;
 	base::Observable<void> _authSessionChanged;
 	base::Observable<void> _passcodedChanged;
+
+	std::unique_ptr<Media::Audio::Instance> _audio;
 
 };

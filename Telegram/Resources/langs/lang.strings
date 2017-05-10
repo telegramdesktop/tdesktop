@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_switch_to_this" = "Switch to English";
 
 "lng_menu_contacts" = "Contacts";
+"lng_menu_calls" = "Calls";
 "lng_menu_settings" = "Settings";
 "lng_menu_about" = "About";
 "lng_menu_update" = "Update";
@@ -128,6 +129,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_error_phone_flood" = "Sorry, you have deleted and re-created your account too many times recently. Please wait for a few days before signing up again.";
 "lng_error_start_minimized_passcoded" = "You have set a local passcode, so the app can't be launched minimized. App will ask you to enter the passcode before it can start working.";
 "lng_error_pinned_max" = "Sorry, you can pin no more than {count:_not_used_|# chat|# chats} to the top.";
+"lng_error_public_groups_denied" = "Unfortunately, you were banned from participating in public groups.\n{more_info}";
 
 "lng_edit_deleted" = "This message was deleted";
 "lng_edit_too_long" = "Your message text is too long";
@@ -406,6 +408,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_settings_blocked_users" = "Blocked users";
 "lng_settings_last_seen_privacy" = "Last seen privacy";
+"lng_settings_calls_privacy" = "Phone calls privacy";
 "lng_settings_groups_invite_privacy" = "Group invite settings";
 "lng_settings_show_sessions" = "Show all sessions";
 "lng_settings_self_destruct" = "Account self-destruct settings";
@@ -465,6 +468,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_privacy_groups_exceptions" = "These users will or will not be able to add you to groups and channels regardless of the settings above.";
 "lng_edit_privacy_groups_always_title" = "Always allow";
 "lng_edit_privacy_groups_never_title" = "Never allow";
+
+"lng_edit_privacy_calls_title" = "Phone calls privacy";
+"lng_edit_privacy_calls_description" = "You can restrict who can call you:";
+"lng_edit_privacy_calls_always" = "Always allow{count:| # user| # users}";
+"lng_edit_privacy_calls_never" = "Never allow{count:| # user| # users}";
+"lng_edit_privacy_calls_exceptions" = "These users will or will not be able to call you regardless of the settings above.";
+"lng_edit_privacy_calls_always_title" = "Always allow";
+"lng_edit_privacy_calls_never_title" = "Never allow";
 
 "lng_self_destruct_title" = "Account self-destruction";
 "lng_self_destruct_description" = "If you don't come online at least once within this period, your account will be deleted along with all groups, messages and contacts.";
@@ -669,12 +680,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_game_you_scored" = "You scored {count:#|#|#} in {game}";
 "lng_action_game_score_no_game" = "{from} scored {count:#|#|#}";
 "lng_action_game_you_scored_no_game" = "You scored {count:#|#|#}";
-"lng_action_call_outgoing" = "Outgoing call at {time}";
-"lng_action_call_incoming" = "Incoming call at {time}";
-"lng_action_call_outgoing_duration" = "Outgoing call ({duration}) at {time}";
-"lng_action_call_incoming_duration" = "Incoming call ({duration}) at {time}";
-"lng_action_call_incoming_missed" = "Missed call at {time}";
-"lng_action_call_outgoing_missed" = "Cancelled call at {time}";
 "lng_action_payment_done" = "You have just successfully transferred {amount} to {user}";
 "lng_action_payment_done_for" = "You have just successfully transferred {amount} to {user} for {invoice}";
 
@@ -1085,7 +1090,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— The new Emoji, Stickers, and Saved GIFs panel becomes a separate space on the right when Telegram is running in a wide enough window.\n— Manage blocked users list in your supergroups.";
+"lng_new_version_text" = "— The new Emoji, Stickers, and Saved GIFs panel becomes a separate space on the right when Telegram is running in a wide enough window.\n— Manage blocked users list in your supergroups.\n— Chat admins can delete messages by other members";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 
@@ -1120,6 +1125,44 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_payments_invoice_label" = "Invoice";
 "lng_payments_invoice_label_test" = "Test invoice";
 "lng_payments_receipt_button" = "Receipt";
+
+"lng_call_status_incoming" = "is calling you...";
+"lng_call_status_connecting" = "connecting...";
+"lng_call_status_exchanging" = "exchanging encryption keys...";
+"lng_call_status_waiting" = "waiting...";
+"lng_call_status_requesting" = "requesting...";
+"lng_call_status_hanging" = "hanging up...";
+"lng_call_status_ended" = "call ended";
+"lng_call_status_failed" = "failed to connect";
+"lng_call_status_ringing" = "ringing...";
+"lng_call_status_busy" = "line busy";
+"lng_call_fingerprint_tooltip" = "If emoji on {user}'s screen are the same, this call is 100% secure";
+
+"lng_call_error_not_available" = "Sorry, {user} doesn't accept calls.";
+"lng_call_error_incompatible" = "{user}'s app is using an incompatible protocol. They need to update their app before you can call them.";
+"lng_call_error_outdated" = "{user}'s app does not support calls. They need to update their app before you can call them.";
+"lng_call_error_audio_io" = "There seems to be a problem with audio playback on your computer. Please make sure that your computer's speakers and microphone are working and try again.";
+
+"lng_call_bar_info" = "Show call info";
+"lng_call_bar_hangup" = "End call";
+
+"lng_call_box_title" = "Calls";
+"lng_call_box_about" = "You didn't make any calls yet.";
+"lng_call_box_status_today" = "{time}";
+"lng_call_box_status_yesterday" = "Yesterday at {time}";
+"lng_call_box_status_date" = "{date} at {time}";
+"lng_call_box_status_group" = "({count}) {status}";
+
+"lng_call_outgoing" = "Outgoing call";
+"lng_call_incoming" = "Incoming call";
+"lng_call_missed" = "Missed call";
+"lng_call_cancelled" = "Cancelled call";
+"lng_call_declined" = "Declined call";
+"lng_call_duration_info" = "{time}, {duration}";
+"lng_call_type_and_duration" = "{type} ({duration})";
+
+"lng_call_rate_label" = "Please rate the quality of your call";
+"lng_call_rate_comment" = "Comment (optional)";
 
 // Not used
 

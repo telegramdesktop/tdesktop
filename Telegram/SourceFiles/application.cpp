@@ -319,10 +319,7 @@ void Application::closeApplication() {
 	if (App::launchState() == App::QuitProcessed) return;
 	App::setLaunchState(App::QuitProcessed);
 
-	if (_messengerInstance) {
-		Messenger::Instance().prepareToDestroy();
-		_messengerInstance.reset();
-	}
+	_messengerInstance.reset();
 
 	Sandbox::finish();
 

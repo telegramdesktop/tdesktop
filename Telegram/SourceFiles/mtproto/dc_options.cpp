@@ -229,15 +229,15 @@ QByteArray DcOptions::serialize() const {
 	}
 	struct SerializedPublicKey {
 		DcId dcId;
-		QByteArray n;
-		QByteArray e;
+		base::byte_vector n;
+		base::byte_vector e;
 	};
 	std::vector<SerializedPublicKey> publicKeys;
 	publicKeys.reserve(count);
 	for (auto &keysInDc : _cdnPublicKeys) {
 		for (auto &entry : keysInDc.second) {
 			publicKeys.push_back({ keysInDc.first, entry.second.getN(), entry.second.getE() });
-			size += sizeof(qint32) + Serialize::bytearraySize(publicKeys.back().n) + Serialize::bytearraySize(publicKeys.back().e);
+			size += sizeof(qint32) + Serialize::bytesSize(publicKeys.back().n) + Serialize::bytesSize(publicKeys.back().e);
 		}
 	}
 
@@ -260,7 +260,7 @@ QByteArray DcOptions::serialize() const {
 		}
 		stream << qint32(publicKeys.size());
 		for (auto &key : publicKeys) {
-			stream << qint32(key.dcId) << key.n << key.e;
+			stream << qint32(key.dcId) << Serialize::bytes(key.n) << Serialize::bytes(key.e);
 		}
 	}
 	return result;
@@ -309,8 +309,8 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 
 		for (auto i = 0; i != count; ++i) {
 			qint32 dcId = 0;
-			QByteArray n, e;
-			stream >> dcId >> n >> e;
+			base::byte_vector n, e;
+			stream >> dcId >> Serialize::bytes(n) >> Serialize::bytes(e);
 			if (stream.status() != QDataStream::Ok) {
 				LOG(("MTP Error: Bad data for CDN config inside DcOptions::constructFromSerialized()"));
 				return;

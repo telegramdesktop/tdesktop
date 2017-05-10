@@ -34,24 +34,24 @@ extern "C" {
 
 class AbstractFFMpegLoader : public AudioPlayerLoader {
 public:
-	AbstractFFMpegLoader(const FileLocation &file, const QByteArray &data) : AudioPlayerLoader(file, data) {
+	AbstractFFMpegLoader(const FileLocation &file, const QByteArray &data, base::byte_vector &&bytes) : AudioPlayerLoader(file, data, std::move(bytes)) {
 	}
 
 	bool open(qint64 &position) override;
 
-	TimeMs duration() override {
-		return len;
+	int64 samplesCount() override {
+		return _samplesCount;
 	}
 
-	int32 frequency() override {
-		return freq;
+	int32 samplesFrequency() override {
+		return _samplesFrequency;
 	}
 
 	~AbstractFFMpegLoader();
 
 protected:
-	int32 freq = Media::Player::kDefaultFrequency;
-	TimeMs len = 0;
+	int32 _samplesFrequency = Media::Player::kDefaultFrequency;
+	int64 _samplesCount = 0;
 
 	uchar *ioBuffer = nullptr;
 	AVIOContext *ioContext = nullptr;
@@ -64,6 +64,8 @@ protected:
 private:
 	static int _read_data(void *opaque, uint8_t *buf, int buf_size);
 	static int64_t _seek_data(void *opaque, int64_t offset, int whence);
+	static int _read_bytes(void *opaque, uint8_t *buf, int buf_size);
+	static int64_t _seek_bytes(void *opaque, int64_t offset, int whence);
 	static int _read_file(void *opaque, uint8_t *buf, int buf_size);
 	static int64_t _seek_file(void *opaque, int64_t offset, int whence);
 
@@ -71,7 +73,7 @@ private:
 
 class FFMpegLoader : public AbstractFFMpegLoader {
 public:
-	FFMpegLoader(const FileLocation &file, const QByteArray &data);
+	FFMpegLoader(const FileLocation &file, const QByteArray &data, base::byte_vector &&bytes);
 
 	bool open(qint64 &position) override;
 

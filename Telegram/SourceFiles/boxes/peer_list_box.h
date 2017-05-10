@@ -33,14 +33,15 @@ class FlatLabel;
 } // namespace Ui
 
 class PeerListBox : public BoxContent {
-	Q_OBJECT
-
 	class Inner;
 
 public:
+	using RowId = uint64;
+
 	class Row {
 	public:
 		Row(PeerData *peer);
+		Row(PeerData *peer, RowId id);
 
 		void setDisabled(bool disabled) {
 			_disabled = disabled;
@@ -52,9 +53,11 @@ public:
 		// added to the box it is always false.
 		bool checked() const;
 
-		void setActionLink(const QString &action);
 		PeerData *peer() const {
 			return _peer;
+		}
+		RowId id() const {
+			return _id;
 		}
 
 		void setCustomStatus(const QString &status);
@@ -62,10 +65,34 @@ public:
 
 		virtual ~Row();
 
+	protected:
+		virtual void paintStatusText(Painter &p, int x, int y, int outerWidth, bool selected);
+
+		bool isInitialized() const {
+			return _initialized;
+		}
+		virtual void lazyInitialize();
+
 	private:
 		// Inner interface.
 		friend class PeerListBox;
 		friend class Inner;
+
+		virtual bool needsVerifiedIcon() const {
+			return _peer->isVerified();
+		}
+		virtual QSize actionSize() const {
+			return QSize();
+		}
+		virtual QMargins actionMargins() const {
+			return QMargins();
+		}
+		virtual void addActionRipple(QPoint point, base::lambda<void()> updateCallback) {
+		}
+		virtual void stopLastActionRipple() {
+		}
+		virtual void paintAction(Painter &p, TimeMs ms, int x, int y, int outerWidth, bool actionSelected) {
+		}
 
 		void refreshName();
 		const Text &name() const {
@@ -78,12 +105,6 @@ public:
 			Custom,
 		};
 		void refreshStatus();
-		StatusType statusType() const;
-		QString status() const;
-
-		void refreshActionLink();
-		QString action() const;
-		int actionWidth() const;
 
 		void setAbsoluteIndex(int index) {
 			_absoluteIndex = index;
@@ -128,13 +149,12 @@ public:
 			return _nameFirstChars;
 		}
 
-		void lazyInitialize();
-
 	private:
 		void createCheckbox(base::lambda<void()> updateCallback);
 		void setCheckedInternal(bool checked, SetStyle style);
 		void paintDisabledCheckUserpic(Painter &p, int x, int y, int outerWidth) const;
 
+		RowId _id = 0;
 		PeerData *_peer = nullptr;
 		bool _initialized = false;
 		std::unique_ptr<Ui::RippleAnimation> _ripple;
@@ -142,8 +162,6 @@ public:
 		Text _name;
 		QString _status;
 		StatusType _statusType = StatusType::Online;
-		QString _action;
-		int _actionWidth = 0;
 		bool _disabled = false;
 		int _absoluteIndex = -1;
 		OrderedSet<QChar> _nameFirstChars;
@@ -187,14 +205,17 @@ public:
 	// Interface for the controller.
 	void appendRow(std::unique_ptr<Row> row);
 	void prependRow(std::unique_ptr<Row> row);
-	Row *findRow(PeerData *peer);
+	Row *findRow(RowId id);
 	void updateRow(Row *row);
 	void removeRow(Row *row);
 	void setRowChecked(Row *row, bool checked);
 	int fullRowsCount() const;
+	Row *rowAt(int index) const;
 	void setAboutText(const QString &aboutText);
 	void setAbout(object_ptr<Ui::FlatLabel> about);
 	void refreshRows();
+
+	// Search works only with RowId == peer->id.
 	enum class SearchMode {
 		None,
 		Local,
@@ -265,12 +286,13 @@ public:
 	// Interface for the controller.
 	void appendRow(std::unique_ptr<Row> row);
 	void prependRow(std::unique_ptr<Row> row);
-	Row *findRow(PeerData *peer);
+	Row *findRow(RowId id);
 	void updateRow(Row *row) {
 		updateRow(row, RowIndex());
 	}
 	void removeRow(Row *row);
 	int fullRowsCount() const;
+	Row *rowAt(int index) const;
 	void setAbout(object_ptr<Ui::FlatLabel> about);
 	void refreshRows();
 	void setSearchMode(SearchMode mode);
@@ -353,6 +375,7 @@ private:
 	int getRowTop(RowIndex row) const;
 	Row *getRow(RowIndex element);
 	RowIndex findRowIndex(Row *row, RowIndex hint = RowIndex());
+	QRect getActionRect(Row *row, RowIndex index) const;
 
 	void paintRow(Painter &p, TimeMs ms, RowIndex index);
 
@@ -390,7 +413,8 @@ private:
 	bool _mouseSelection = false;
 
 	std::vector<std::unique_ptr<Row>> _rows;
-	std::map<PeerData*, Row*> _rowsByPeer;
+	std::map<RowId, Row*> _rowsById;
+	std::map<PeerData*, std::vector<Row*>> _rowsByPeer;
 
 	SearchMode _searchMode = SearchMode::None;
 	std::map<QChar, std::vector<Row*>> _searchIndex;
@@ -417,6 +441,26 @@ template <typename ReorderCallback>
 inline void PeerListBox::reorderRows(ReorderCallback &&callback) {
 	_inner->reorderRows(std::forward<ReorderCallback>(callback));
 }
+
+class PeerListRowWithLink : public PeerListBox::Row {
+public:
+	using Row::Row;
+
+	void setActionLink(const QString &action);
+
+protected:
+	void lazyInitialize() override;
+
+private:
+	void refreshActionLink();
+	QSize actionSize() const override;
+	QMargins actionMargins() const override;
+	void paintAction(Painter &p, TimeMs ms, int x, int y, int outerWidth, bool actionSelected) override;
+
+	QString _action;
+	int _actionWidth = 0;
+
+};
 
 class ChatsListBoxController : public PeerListBox::Controller, protected base::Subscriber {
 public:
