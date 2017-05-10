@@ -1,3 +1,7 @@
+1.0.37 alpha (10.05.17)
+
+- Multiple crash fixes.
+
 1.0.36 alpha (09.05.17)
 
 - Telegram Calls are now available on desktops: secure, crystal-clear, constantly improved by artificial intelligence.

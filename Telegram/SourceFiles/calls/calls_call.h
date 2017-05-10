@@ -161,6 +161,7 @@ private:
 	Type _type = Type::Outgoing;
 	State _state = State::Starting;
 	FinishType _finishAfterRequestingCall = FinishType::None;
+	bool _answerAfterDhConfigReceived = false;
 	base::Observable<State> _stateChanged;
 	TimeMs _startTime = 0;
 	base::DelayedCallTimer _finishByTimeoutTimer;
