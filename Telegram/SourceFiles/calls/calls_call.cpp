@@ -121,19 +121,21 @@ void Call::start(base::const_byte_span random) {
 	t_assert(!_dhConfig.p.empty());
 
 	generateModExpFirst(random);
-	if (_state != State::Failed && _state != State::FailedHangingUp) {
+	if (_state == State::Starting || _state == State::Requesting) {
 		if (_type == Type::Outgoing) {
 			startOutgoing();
 		} else {
 			startIncoming();
 		}
+	} else if (_state == State::ExchangingKeys && _answerAfterDhConfigReceived) {
+		answer();
 	}
 }
 
 void Call::startOutgoing() {
 	Expects(_type == Type::Outgoing);
+	Expects(_state == State::Requesting);
 
-	setState(State::Requesting);
 	request(MTPphone_RequestCall(_user->inputUser, MTP_int(rand_value<int32>()), MTP_bytes(_gaHash), MTP_phoneCallProtocol(MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p | MTPDphoneCallProtocol::Flag::f_udp_reflector), MTP_int(kMinLayer), MTP_int(kMaxLayer)))).done([this](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 
@@ -184,9 +186,17 @@ void Call::answer() {
 	Expects(_type == Type::Incoming);
 
 	if (_state != State::Starting && _state != State::WaitingIncoming) {
-		return;
+		if (_state != State::ExchangingKeys || !_answerAfterDhConfigReceived) {
+			return;
+		}
 	}
 	setState(State::ExchangingKeys);
+	if (_gb.empty()) {
+		_answerAfterDhConfigReceived = true;
+		return;
+	} else {
+		_answerAfterDhConfigReceived = false;
+	}
 	request(MTPphone_AcceptCall(MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)), MTP_bytes(_gb), _protocol)).done([this](const MTPphone_PhoneCall &result) {
 		Expects(result.type() == mtpc_phone_phoneCall);
 		auto &call = result.c_phone_phoneCall();
@@ -234,6 +244,7 @@ void Call::redial() {
 	t_assert(_controller == nullptr);
 	_type = Type::Outgoing;
 	setState(State::Requesting);
+	_answerAfterDhConfigReceived = false;
 	startWaitingTrack();
 	_delegate->callRedial(this);
 }
