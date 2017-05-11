@@ -695,9 +695,6 @@ private:
 
 	PeerData *_peer = nullptr;
 
-	// cache current _peer in _clearPeer when showing clear history box
-	PeerData *_clearPeer = nullptr;
-
 	ChannelId _channel = NoChannel;
 	bool _canSendMessages = false;
 	MsgId _showAtMsgId = ShowAtUnreadMsgId;

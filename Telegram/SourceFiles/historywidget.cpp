@@ -746,6 +746,7 @@ void HistoryWidget::setReportSpamStatus(DBIPeerReportSpamStatus status) {
 	}
 	_reportSpamStatus = status;
 	if (_reportSpamStatus == dbiprsShowButton || _reportSpamStatus == dbiprsReportSent) {
+		t_assert(_peer != nullptr);
 		_reportSpamPanel.create(this);
 		connect(_reportSpamPanel, SIGNAL(reportClicked()), this, SLOT(onReportSpamClicked()));
 		connect(_reportSpamPanel, SIGNAL(hideClicked()), this, SLOT(onReportSpamHide()));
@@ -4350,28 +4351,30 @@ void HistoryWidget::onDocumentFailed(const FullMsgId &newId) {
 }
 
 void HistoryWidget::onReportSpamClicked() {
-	_clearPeer = _peer;
 	auto text = lang(_peer->isUser() ? lng_report_spam_sure : ((_peer->isChat() || _peer->isMegagroup()) ? lng_report_spam_sure_group : lng_report_spam_sure_channel));
-	Ui::show(Box<ConfirmBox>(text, lang(lng_report_spam_ok), st::attentionBoxButton, base::lambda_guarded(this, [this] {
+	Ui::show(Box<ConfirmBox>(text, lang(lng_report_spam_ok), st::attentionBoxButton, base::lambda_guarded(this, [this, peer = _peer] {
 		if (_reportSpamRequest) return;
 
 		Ui::hideLayer();
-		if (_clearPeer->isUser()) MTP::send(MTPcontacts_Block(_clearPeer->asUser()->inputUser), rpcDone(&HistoryWidget::blockDone, _clearPeer), RPCFailHandlerPtr(), 0, 5);
-		_reportSpamRequest = MTP::send(MTPmessages_ReportSpam(_clearPeer->input), rpcDone(&HistoryWidget::reportSpamDone, _clearPeer), rpcFail(&HistoryWidget::reportSpamFail));
+		if (auto user = peer->asUser()) {
+			MTP::send(MTPcontacts_Block(user->inputUser), rpcDone(&HistoryWidget::blockDone, peer), RPCFailHandlerPtr(), 0, 5);
+		}
+		_reportSpamRequest = MTP::send(MTPmessages_ReportSpam(peer->input), rpcDone(&HistoryWidget::reportSpamDone, peer), rpcFail(&HistoryWidget::reportSpamFail));
 	})));
 }
 
 void HistoryWidget::reportSpamDone(PeerData *peer, const MTPBool &result, mtpRequestId req) {
+	Expects(peer != nullptr);
 	if (req == _reportSpamRequest) {
 		_reportSpamRequest = 0;
 	}
-	if (peer) {
-		cRefReportSpamStatuses().insert(peer->id, dbiprsReportSent);
-		Local::writeReportSpamStatuses();
-	}
-	setReportSpamStatus(dbiprsReportSent);
-	if (_reportSpamPanel) {
-		_reportSpamPanel->setReported(_reportSpamStatus == dbiprsReportSent, peer);
+	cRefReportSpamStatuses().insert(peer->id, dbiprsReportSent);
+	Local::writeReportSpamStatuses();
+	if (_peer == peer) {
+		setReportSpamStatus(dbiprsReportSent);
+		if (_reportSpamPanel) {
+			_reportSpamPanel->setReported(_reportSpamStatus == dbiprsReportSent, peer);
+		}
 	}
 }
 
@@ -4396,18 +4399,18 @@ void HistoryWidget::onReportSpamHide() {
 }
 
 void HistoryWidget::onReportSpamClear() {
-	_clearPeer = _peer;
-	if (_clearPeer->isUser()) {
-		App::main()->deleteConversation(_clearPeer);
-	} else if (_clearPeer->isChat()) {
+	Expects(_peer != nullptr);
+	if (_peer->isUser()) {
+		App::main()->deleteConversation(_peer);
+	} else if (auto chat = _peer->asChat()) {
 		App::main()->showBackFromStack();
-		MTP::send(MTPmessages_DeleteChatUser(_clearPeer->asChat()->inputChat, App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, _clearPeer), App::main()->rpcFail(&MainWidget::leaveChatFailed, _clearPeer));
-	} else if (_clearPeer->isChannel()) {
+		MTP::send(MTPmessages_DeleteChatUser(chat->inputChat, App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, _peer), App::main()->rpcFail(&MainWidget::leaveChatFailed, _peer));
+	} else if (auto channel = _peer->asChannel()) {
 		App::main()->showBackFromStack();
-		if (_clearPeer->migrateFrom()) {
-			App::main()->deleteConversation(_clearPeer->migrateFrom());
+		if (channel->migrateFrom()) {
+			App::main()->deleteConversation(channel->migrateFrom());
 		}
-		MTP::send(MTPchannels_LeaveChannel(_clearPeer->asChannel()->inputChannel), App::main()->rpcDone(&MainWidget::sentUpdatesReceived));
+		MTP::send(MTPchannels_LeaveChannel(channel->inputChannel), App::main()->rpcDone(&MainWidget::sentUpdatesReceived));
 	}
 }
 
