@@ -2387,10 +2387,11 @@ void DialogsWidget::startWidthAnimation() {
 	auto grabGeometry = QRect(scrollGeometry.x(), scrollGeometry.y(), st::dialogsWidthMin, scrollGeometry.height());
 	_scroll->setGeometry(grabGeometry);
 	myEnsureResized(_scroll);
-	_widthAnimationCache = QPixmap(grabGeometry.size() * cIntRetinaFactor());
-	_widthAnimationCache.setDevicePixelRatio(cRetinaFactor());
-	_widthAnimationCache.fill(Qt::transparent);
-	_scroll->render(&_widthAnimationCache, QPoint(0, 0), QRect(QPoint(0, 0), grabGeometry.size()), QWidget::DrawChildren | QWidget::IgnoreMask);
+	auto image = QImage(grabGeometry.size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	image.setDevicePixelRatio(cRetinaFactor());
+	image.fill(Qt::transparent);
+	_scroll->render(&image, QPoint(0, 0), QRect(QPoint(0, 0), grabGeometry.size()), QWidget::DrawChildren | QWidget::IgnoreMask);
+	_widthAnimationCache = App::pixmapFromImageInPlace(std::move(image));
 	_scroll->setGeometry(scrollGeometry);
 	_scroll->hide();
 }
