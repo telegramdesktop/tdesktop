@@ -20,7 +20,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <mutex>
 #include <memory>
 
 namespace base {
@@ -73,7 +72,7 @@ private:
 	const Priority priority_;
 
 	std::deque<Task> tasks_;
-	std::mutex tasks_mutex_; // Only for the main queue.
+	QMutex tasks_mutex_; // Only for the main queue.
 
 	// Only for the other queues, not main.
 	class TaskThreadPool;

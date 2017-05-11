@@ -71,12 +71,12 @@ private:
 	void ThreadFunction();
 
 	std::vector<std::thread> threads_;
-	std::mutex queues_mutex_;
+	QMutex queues_mutex_;
 
 	// queues_mutex_ must be locked when working with the list.
 	TaskQueueList queue_list_;
 
-	std::condition_variable thread_condition_;
+	QWaitCondition thread_condition_;
 	bool stopped_ = false;
 	int tasks_in_process_ = 0;
 	int background_tasks_in_process_ = 0;
@@ -175,7 +175,7 @@ TaskQueue *TaskQueue::TaskQueueList::TakeFirst(int list_index_) {
 }
 
 void TaskQueue::TaskThreadPool::AddQueueTask(TaskQueue *queue, Task &&task) {
-	std::unique_lock<std::mutex> lock(queues_mutex_);
+	QMutexLocker lock(&queues_mutex_);
 
 	queue->tasks_.push_back(std::move(task));
 	auto list_was_empty = queue_list_.Empty(kAllQueuesList);
@@ -195,12 +195,12 @@ void TaskQueue::TaskThreadPool::AddQueueTask(TaskQueue *queue, Task &&task) {
 		});
 	} else if (some_threads_are_vacant) {
 		t_assert(threads_count > tasks_in_process_);
-		thread_condition_.notify_one();
+		thread_condition_.wakeOne();
 	}
 }
 
 void TaskQueue::TaskThreadPool::RemoveQueue(TaskQueue *queue) {
-	std::unique_lock<std::mutex> lock(queues_mutex_);
+	QMutexLocker lock(&queues_mutex_);
 	if (queue_list_.IsInList(queue)) {
 		queue_list_.Unregister(queue);
 	}
@@ -211,11 +211,11 @@ void TaskQueue::TaskThreadPool::RemoveQueue(TaskQueue *queue) {
 
 TaskQueue::TaskThreadPool::~TaskThreadPool() {
 	{
-		std::unique_lock<std::mutex> lock(queues_mutex_);
+		QMutexLocker lock(&queues_mutex_);
 		queue_list_.Clear();
 		stopped_ = true;
 	}
-	thread_condition_.notify_all();
+	thread_condition_.wakeAll();
 	for (auto &thread : threads_) {
 		thread.join();
 	}
@@ -241,7 +241,7 @@ void TaskQueue::TaskThreadPool::ThreadFunction() {
 	while (true) {
 		Task task;
 		{
-			std::unique_lock<std::mutex> lock(queues_mutex_);
+			QMutexLocker lock(&queues_mutex_);
 
 			// Finish the previous task processing.
 			if (task_was_processed) {
@@ -267,7 +267,7 @@ void TaskQueue::TaskThreadPool::ThreadFunction() {
 				if (stopped_) {
 					return;
 				}
-				thread_condition_.wait(lock);
+				thread_condition_.wait(&queues_mutex_);
 			}
 
 			// Select a task we will be processing.
@@ -321,7 +321,7 @@ TaskQueue::~TaskQueue() {
 
 void TaskQueue::Put(Task &&task) {
 	if (type_ == Type::Main) {
-		std::unique_lock<std::mutex> lock(tasks_mutex_);
+		QMutexLocker lock(&tasks_mutex_);
 		tasks_.push_back(std::move(task));
 
 		Sandbox::MainThreadTaskAdded();
@@ -352,7 +352,7 @@ void TaskQueue::ProcessMainTasks(TimeMs max_time_spent) { // static
 bool TaskQueue::ProcessOneMainTask() { // static
 	Task task;
 	{
-		std::unique_lock<std::mutex> lock(Main().tasks_mutex_);
+		QMutexLocker lock(&Main().tasks_mutex_);
 		auto &tasks = Main().tasks_;
 		if (tasks.empty()) {
 			return false;
