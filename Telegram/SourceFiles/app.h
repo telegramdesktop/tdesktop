@@ -268,6 +268,7 @@ namespace App {
 
 	void regGifItem(Media::Clip::Reader *reader, HistoryItem *item);
 	void unregGifItem(Media::Clip::Reader *reader);
+	void stopRoundVideoPlayback();
 	void stopGifItems();
 
 	void regMuted(PeerData *peer, int32 changeIn);

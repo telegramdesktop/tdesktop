@@ -2645,10 +2645,23 @@ namespace {
 
 	void stopGifItems() {
 		if (!::gifItems.isEmpty()) {
-			GifItems gifs = ::gifItems;
-			for (GifItems::const_iterator i = gifs.cbegin(), e = gifs.cend(); i != e; ++i) {
-				if (HistoryMedia *media = i.value()->getMedia()) {
+			auto gifs = ::gifItems;
+			for_const (auto item, gifs) {
+				if (auto media = item->getMedia()) {
 					media->stopInline();
+				}
+			}
+		}
+	}
+
+	void stopRoundVideoPlayback() {
+		if (!::gifItems.isEmpty()) {
+			auto gifs = ::gifItems;
+			for_const (auto item, gifs) {
+				if (auto media = item->getMedia()) {
+					if (media->isRoundVideoPlaying()) {
+						media->stopInline();
+					}
 				}
 			}
 		}

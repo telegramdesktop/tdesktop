@@ -2304,8 +2304,12 @@ bool HistoryGif::playInline(bool autoplay) {
 	return true;
 }
 
+bool HistoryGif::isRoundVideoPlaying() const {
+	return (_gif && _gif->mode() == Media::Clip::Reader::Mode::Video);
+}
+
 void HistoryGif::stopInline() {
-	if (_gif && _gif->mode() == Media::Clip::Reader::Mode::Video) {
+	if (isRoundVideoPlaying()) {
 		App::wnd()->controller()->disableGifPauseReason(Window::GifPauseReason::RoundPlaying);
 	}
 	clearClipReader();

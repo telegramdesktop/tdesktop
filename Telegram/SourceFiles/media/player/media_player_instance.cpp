@@ -23,6 +23,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/media_audio.h"
 #include "media/media_audio_capture.h"
 #include "observer_peer.h"
+#include "messenger.h"
+#include "auth_session.h"
+#include "calls/calls_instance.h"
 
 namespace Media {
 namespace Player {
@@ -59,6 +62,22 @@ Instance::Instance() {
 			handleLogout();
 		}
 	});
+
+	// While we have one Media::Player::Instance for all authsessions we have to do this.
+	auto handleAuthSessionChange = [this] {
+		if (AuthSession::Exists()) {
+			subscribe(AuthSession::Current().calls().currentCallChanged(), [this](Calls::Call *call) {
+				if (call) {
+					pause(AudioMsgId::Type::Voice);
+					pause(AudioMsgId::Type::Song);
+				}
+			});
+		}
+	};
+	subscribe(Messenger::Instance().authSessionChanged(), [handleAuthSessionChange] {
+		handleAuthSessionChange();
+	});
+	handleAuthSessionChange();
 }
 
 void Instance::notifyPeerUpdated(const Notify::PeerUpdate &update) {

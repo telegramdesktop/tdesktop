@@ -128,7 +128,9 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 		handlePlaylistUpdate();
 	});
 	subscribe(instance()->updatedNotifier(), [this](const TrackState &state) {
-		handleSongUpdate(state);
+		if (state.id.type() == AudioMsgId::Type::Song) {
+			handleSongUpdate(state);
+		}
 	});
 	subscribe(instance()->songChangedNotifier(), [this] {
 		handleSongChange();

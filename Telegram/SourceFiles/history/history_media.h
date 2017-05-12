@@ -113,6 +113,9 @@ public:
 	}
 	virtual void stopInline() {
 	}
+	virtual bool isRoundVideoPlaying() const {
+		return false;
+	}
 
 	virtual void attachToParent() {
 	}

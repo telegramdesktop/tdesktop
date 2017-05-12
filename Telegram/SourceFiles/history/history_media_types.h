@@ -499,6 +499,7 @@ public:
 
 	bool playInline(bool autoplay) override;
 	void stopInline() override;
+	bool isRoundVideoPlaying() const override;
 
 	void attachToParent() override;
 	void detachFromParent() override;

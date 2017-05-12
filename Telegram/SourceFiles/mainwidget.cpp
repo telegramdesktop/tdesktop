@@ -1644,6 +1644,7 @@ void MainWidget::setCurrentCall(Calls::Call *call) {
 				destroyCallTopBar();
 			}
 		});
+		App::stopRoundVideoPlayback();
 	} else {
 		destroyCallTopBar();
 	}
