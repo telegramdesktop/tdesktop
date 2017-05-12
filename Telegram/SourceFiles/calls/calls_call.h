@@ -91,6 +91,7 @@ public:
 		Failed,
 		HangingUp,
 		Ended,
+		EndedByOtherDevice,
 		ExchangingKeys,
 		Waiting,
 		Requesting,

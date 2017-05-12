@@ -364,8 +364,10 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 		}
 		if (data.has_reason() && data.vreason.type() == mtpc_phoneCallDiscardReasonBusy) {
 			setState(State::Busy);
-		} else {
+		} else if (_type == Type::Outgoing || _state == State::HangingUp) {
 			setState(State::Ended);
+		} else {
+			setState(State::EndedByOtherDevice);
 		}
 	} return true;
 
@@ -579,6 +581,7 @@ void Call::setState(State state) {
 		}
 		if (false
 			|| _state == State::Ended
+			|| _state == State::EndedByOtherDevice
 			|| _state == State::Failed
 			|| _state == State::Busy) {
 			// Destroy controller before destroying Call Panel,
@@ -594,6 +597,8 @@ void Call::setState(State state) {
 			break;
 		case State::Ended:
 			_delegate->playSound(Delegate::Sound::Ended);
+			// fallthrough
+		case State::EndedByOtherDevice:
 			_delegate->callFinished(this);
 			break;
 		case State::Failed:
@@ -618,6 +623,7 @@ void Call::finish(FinishType type, const MTPPhoneCallDiscardReason &reason) {
 	}
 	if (_state == State::HangingUp
 		|| _state == State::FailedHangingUp
+		|| _state == State::EndedByOtherDevice
 		|| _state == State::Ended
 		|| _state == State::Failed) {
 		return;
