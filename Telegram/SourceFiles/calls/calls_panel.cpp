@@ -29,12 +29,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/widget_fade_wrap.h"
 #include "messenger.h"
+#include "mainwindow.h"
 #include "lang.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "observer_peer.h"
 #include "platform/platform_specific.h"
 #include "base/task_queue.h"
+#include "window/main_window.h"
 
 namespace Calls {
 namespace {
@@ -248,6 +250,7 @@ Panel::Panel(gsl::not_null<Call*> call)
 , _name(this, st::callName)
 , _status(this, st::callStatus) {
 	setMouseTracking(true);
+	setWindowIcon(Window::CreateIcon());
 	initControls();
 	initLayout();
 	showAndActivate();
@@ -639,6 +642,10 @@ void Panel::paintEvent(QPaintEvent *e) {
 			left += st::callFingerprintSkip + size;
 		}
 	}
+}
+
+void Panel::closeEvent(QCloseEvent *e) {
+	_call->hangup();
 }
 
 void Panel::mousePressEvent(QMouseEvent *e) {

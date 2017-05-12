@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/platform_notifications_manager.h"
 #include "mainwindow.h"
+#include "messenger.h"
 #include "application.h"
 #include "lang.h"
 #include "storage/localstorage.h"
@@ -80,7 +81,7 @@ QImage _trayIconImageGen() {
 	bool muted = App::histories().unreadOnlyMuted();
 	if (_trayIconImage.isNull() || _trayIconImage.width() != _trayIconSize || muted != _trayIconMuted || counterSlice != _trayIconCount) {
 		if (_trayIconImageBack.isNull() || _trayIconImageBack.width() != _trayIconSize) {
-			_trayIconImageBack = App::wnd()->iconLarge().scaled(_trayIconSize, _trayIconSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+			_trayIconImageBack = Messenger::Instance().logo().scaled(_trayIconSize, _trayIconSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 			_trayIconImageBack = _trayIconImageBack.convertToFormat(QImage::Format_ARGB32);
 			int w = _trayIconImageBack.width(), h = _trayIconImageBack.height(), perline = _trayIconImageBack.bytesPerLine();
 			uchar *bytes = _trayIconImageBack.bits();
@@ -182,19 +183,12 @@ UnityLauncherEntry *_psUnityLauncherEntry = nullptr;
 
 } // namespace
 
-MainWindow::MainWindow()
-: icon256(qsl(":/gui/art/icon256.png"))
-, iconbig256(icon256)
-, wndIcon(QIcon::fromTheme("telegram", QIcon(QPixmap::fromImage(icon256, Qt::ColorOnly)))) {
+MainWindow::MainWindow() {
 	connect(&_psCheckStatusIconTimer, SIGNAL(timeout()), this, SLOT(psStatusIconCheck()));
 	_psCheckStatusIconTimer.setSingleShot(false);
 
 	connect(&_psUpdateIndicatorTimer, SIGNAL(timeout()), this, SLOT(psUpdateIndicator()));
 	_psUpdateIndicatorTimer.setSingleShot(true);
-}
-
-void MainWindow::initHook() {
-	setWindowIcon(wndIcon);
 }
 
 bool MainWindow::hasTrayIcon() const {
@@ -252,7 +246,7 @@ void MainWindow::psSetupTrayIcon() {
 				QByteArray path = QFile::encodeName(iconFile.absoluteFilePath());
 				icon = QIcon(path.constData());
 			} else {
-				icon = QIcon(QPixmap::fromImage(App::wnd()->iconLarge(), Qt::ColorOnly));
+				icon = Window::CreateIcon();
 			}
 			trayIcon->setIcon(icon);
 
@@ -323,9 +317,9 @@ void MainWindow::unreadCounterChangedHook() {
 }
 
 void MainWindow::updateIconCounters() {
-	setWindowIcon(wndIcon);
+	updateWindowIcon();
 
-	int32 counter = App::histories().unreadBadge();
+	auto counter = App::histories().unreadBadge();
 
 #ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
 	if (_psUnityLauncherEntry) {

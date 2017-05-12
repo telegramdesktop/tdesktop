@@ -92,8 +92,6 @@ protected:
 
 	QSystemTrayIcon *trayIcon = nullptr;
 	Ui::PopupMenu *trayIconMenu = nullptr;
-	QImage icon256, iconbig256;
-	QIcon wndIcon;
 
 	void psTrayMenuUpdated();
 	void psSetupTrayIcon();

@@ -60,6 +60,12 @@ public:
 
 	MainWindow *mainWindow();
 	QPoint getPointForCallPanelCenter() const;
+	QImage logo() const {
+		return _logo;
+	}
+	QImage logoNoMargin() const {
+		return _logoNoMargin;
+	}
 
 	static Messenger *InstancePointer();
 	static Messenger &Instance() {
@@ -192,5 +198,7 @@ private:
 	base::Observable<void> _passcodedChanged;
 
 	std::unique_ptr<Media::Audio::Instance> _audio;
+	QImage _logo;
+	QImage _logoNoMargin;
 
 };

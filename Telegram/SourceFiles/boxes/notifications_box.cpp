@@ -26,10 +26,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"
-#include "mainwindow.h"
+#include "messenger.h"
 #include "storage/localstorage.h"
 #include "auth_session.h"
 #include "window/notifications_manager.h"
+#include "platform/platform_specific.h"
 
 namespace {
 
@@ -259,7 +260,7 @@ void NotificationsBox::prepareNotificationSampleSmall() {
 
 void NotificationsBox::prepareNotificationSampleUserpic() {
 	if (_notificationSampleUserpic.isNull()) {
-		_notificationSampleUserpic = App::pixmapFromImageInPlace(App::wnd()->iconLarge().scaled(st::notifyPhotoSize * cIntRetinaFactor(), st::notifyPhotoSize * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+		_notificationSampleUserpic = App::pixmapFromImageInPlace(Messenger::Instance().logoNoMargin().scaled(st::notifyPhotoSize * cIntRetinaFactor(), st::notifyPhotoSize * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
 		_notificationSampleUserpic.setDevicePixelRatio(cRetinaFactor());
 	}
 }

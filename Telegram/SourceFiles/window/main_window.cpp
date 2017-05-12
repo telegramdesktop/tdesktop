@@ -25,13 +25,39 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "platform/platform_window_title.h"
 #include "window/themes/window_theme.h"
 #include "mediaview.h"
+#include "messenger.h"
 #include "mainwindow.h"
 
 namespace Window {
 
+QImage LoadLogo() {
+	return QImage(qsl(":/gui/art/logo_256.png"));
+}
+
+QImage LoadLogoNoMargin() {
+	return QImage(qsl(":/gui/art/logo_256_no_margin.png"));
+}
+
+QIcon CreateOfficialIcon() {
+	auto useNoMarginLogo = (cPlatform() == dbipMac);
+	if (auto messenger = Messenger::InstancePointer()) {
+		return QIcon(App::pixmapFromImageInPlace(useNoMarginLogo ? messenger->logoNoMargin() : messenger->logo()));
+	}
+	return QIcon(App::pixmapFromImageInPlace(useNoMarginLogo ? LoadLogoNoMargin() : LoadLogo()));
+}
+
+QIcon CreateIcon() {
+	auto result = CreateOfficialIcon();
+	if (cPlatform() == dbipLinux32 || cPlatform() == dbipLinux64) {
+		return QIcon::fromTheme("telegram", result);
+	}
+	return result;
+}
+
 MainWindow::MainWindow() : QWidget()
 , _positionUpdatedTimer(this)
 , _body(this)
+, _icon(CreateIcon())
 , _titleText(qsl("Telegram"))
 , _isActiveTimer(this) {
 	subscribe(Theme::Background(), [this](const Theme::BackgroundUpdate &data) {
@@ -156,8 +182,13 @@ void MainWindow::createMediaView() {
 	_mediaView.create(nullptr);
 }
 
+void MainWindow::updateWindowIcon() {
+	setWindowIcon(_icon);
+}
+
 void MainWindow::init() {
 	initHook();
+	updateWindowIcon();
 
 	_positionUpdatedTimer->setSingleShot(true);
 	connect(_positionUpdatedTimer, SIGNAL(timeout()), this, SLOT(savePositionByTimer()));

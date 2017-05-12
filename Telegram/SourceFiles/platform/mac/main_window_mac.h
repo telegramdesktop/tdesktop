@@ -68,6 +68,7 @@ protected:
 
 	void stateChangedHook(Qt::WindowState state) override;
 	void initHook() override;
+	void updateWindowIcon() override;
 	void titleVisibilityChangedHook() override;
 	void unreadCounterChangedHook() override;
 
@@ -82,8 +83,6 @@ protected:
 
 	QSystemTrayIcon *trayIcon = nullptr;
 	QMenu *trayIconMenu = nullptr;
-	QImage icon256, iconbig256;
-	QIcon wndIcon;
 
 	QImage trayImg, trayImgSel;
 

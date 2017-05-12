@@ -61,6 +61,8 @@ private:
 	using Notification = internal::Notification;
 	using HideAllButton = internal::HideAllButton;
 
+	QPixmap hiddenUserpicPlaceholder() const;
+
 	void doUpdateAll() override;
 	void doShowNotification(HistoryItem *item, int forwardedCount) override;
 	void doClearAll() override;
@@ -110,6 +112,8 @@ private:
 	std::deque<QueuedNotification> _queuedNotifications;
 
 	Animation _demoMasterOpacity;
+
+	mutable QPixmap _hiddenUserpicPlaceholder;
 
 };
 

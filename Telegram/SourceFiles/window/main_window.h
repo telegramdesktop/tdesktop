@@ -28,6 +28,10 @@ namespace Window {
 
 class TitleWidget;
 
+QImage LoadLogo();
+QImage LoadLogoNoMargin();
+QIcon CreateIcon();
+
 class MainWindow : public QWidget, protected base::Subscriber {
 	Q_OBJECT
 
@@ -107,6 +111,8 @@ protected:
 	virtual void clearWidgetsHook() {
 	}
 
+	virtual void updateWindowIcon();
+
 	virtual void stateChangedHook(Qt::WindowState state) {
 	}
 
@@ -164,6 +170,7 @@ private:
 	object_ptr<TWidget> _body;
 	object_ptr<TWidget> _rightColumn = { nullptr };
 
+	QIcon _icon;
 	QString _titleText;
 
 	object_ptr<QTimer> _isActiveTimer;

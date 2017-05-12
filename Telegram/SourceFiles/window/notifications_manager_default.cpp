@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "platform/platform_notifications_manager.h"
 #include "application.h"
-#include "mainwindow.h"
+#include "messenger.h"
 #include "lang.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -33,6 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_window.h"
 #include "storage/file_download.h"
 #include "auth_session.h"
+#include "platform/platform_specific.h"
 
 namespace Window {
 namespace Notifications {
@@ -73,6 +74,14 @@ Manager::Manager(System *system) : Notifications::Manager(system) {
 		settingsChanged(change);
 	});
 	_inputCheckTimer.setTimeoutHandler([this] { checkLastInput(); });
+}
+
+QPixmap Manager::hiddenUserpicPlaceholder() const {
+	if (_hiddenUserpicPlaceholder.isNull()) {
+		_hiddenUserpicPlaceholder = App::pixmapFromImageInPlace(Messenger::Instance().logoNoMargin().scaled(st::notifyPhotoSize, st::notifyPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+		_hiddenUserpicPlaceholder.setDevicePixelRatio(cRetinaFactor());
+	}
+	return _hiddenUserpicPlaceholder;
 }
 
 bool Manager::hasReplyingNotification() const {
@@ -625,9 +634,7 @@ void Notification::updateNotifyDisplay() {
 			_history->peer->loadUserpic(true, true);
 			_history->peer->paintUserpicLeft(p, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width(), st::notifyPhotoSize);
 		} else {
-			static QPixmap icon = App::pixmapFromImageInPlace(App::wnd()->iconLarge().scaled(st::notifyPhotoSize, st::notifyPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
-			icon.setDevicePixelRatio(cRetinaFactor());
-			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), icon);
+			p.drawPixmap(st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), manager()->hiddenUserpicPlaceholder());
 		}
 
 		int32 itemWidth = w - st::notifyPhotoPos.x() - st::notifyPhotoSize - st::notifyTextLeft - st::notifyClosePos.x() - st::notifyClose.width;

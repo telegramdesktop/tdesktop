@@ -44,6 +44,7 @@ public:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
+	void closeEvent(QCloseEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;

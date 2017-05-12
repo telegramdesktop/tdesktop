@@ -66,8 +66,12 @@ struct Messenger::Private {
 
 Messenger::Messenger() : QObject()
 , _private(std::make_unique<Private>())
-, _audio(std::make_unique<Media::Audio::Instance>()) {
-	t_assert(SingleInstance == nullptr);
+, _audio(std::make_unique<Media::Audio::Instance>())
+, _logo(Window::LoadLogo())
+, _logoNoMargin(Window::LoadLogoNoMargin()) {
+	Expects(!_logo.isNull());
+	Expects(!_logoNoMargin.isNull());
+	Expects(SingleInstance == nullptr);
 	SingleInstance = this;
 
 	Fonts::Start();

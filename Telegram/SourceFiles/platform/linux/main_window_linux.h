@@ -51,7 +51,6 @@ public slots:
 	void psUpdateIndicator();
 
 protected:
-	void initHook() override;
 	void unreadCounterChangedHook() override;
 
 	bool hasTrayIcon() const override;
@@ -60,8 +59,6 @@ protected:
 
 	QSystemTrayIcon *trayIcon = nullptr;
 	QMenu *trayIconMenu = nullptr;
-	QImage icon256, iconbig256;
-	QIcon wndIcon;
 
 	void psTrayMenuUpdated();
 	void psSetupTrayIcon();

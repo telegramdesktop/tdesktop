@@ -5,8 +5,8 @@
     <file alias="fonts/OpenSans-Semibold.ttf">../fonts/OpenSans-Semibold.ttf</file>
     <file alias="art/bg.jpg">../art/bg.jpg</file>
     <file alias="art/bg_initial.jpg">../art/bg_initial.jpg</file>
-    <file alias="art/icon256.png">../art/icon256.png</file>
-    <file alias="art/iconbig256.png">../art/iconbig256.png</file>
+    <file alias="art/logo_256.png">../art/logo_256.png</file>
+    <file alias="art/logo_256_no_margin.png">../art/logo_256_no_margin.png</file>
     <file alias="art/sunrise.jpg">../art/sunrise.jpg</file>
   </qresource>
   <qresource prefix="/sounds">

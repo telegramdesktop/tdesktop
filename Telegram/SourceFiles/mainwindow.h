@@ -123,8 +123,6 @@ public:
 	TempDirState localStorageState();
 	void tempDirDelete(int task);
 
-	QImage iconLarge() const;
-
 	void sendPaths();
 
 	void changingMsgId(HistoryItem *row, MsgId newId) override;

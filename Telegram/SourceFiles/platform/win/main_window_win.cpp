@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "platform/win/windows_dlls.h"
 #include "window/notifications_manager.h"
 #include "mainwindow.h"
+#include "messenger.h"
 #include "application.h"
 #include "lang.h"
 #include "storage/localstorage.h"
@@ -610,10 +611,7 @@ bool handleSessionNotification = false;
 UINT MainWindow::_taskbarCreatedMsgId = 0;
 
 MainWindow::MainWindow()
-: icon256(qsl(":/gui/art/icon256.png"))
-, iconbig256(qsl(":/gui/art/iconbig256.png"))
-, wndIcon(QPixmap::fromImage(icon256, Qt::ColorOnly))
-, ps_tbHider_hWnd(createTaskbarHider()) {
+: ps_tbHider_hWnd(createTaskbarHider()) {
 	if (!_taskbarCreatedMsgId) {
 		_taskbarCreatedMsgId = RegisterWindowMessage(L"TaskbarButtonCreated");
 	}
@@ -682,7 +680,7 @@ void MainWindow::psSetupTrayIcon() {
 	if (!trayIcon) {
 		trayIcon = new QSystemTrayIcon(this);
 
-		QIcon icon(QPixmap::fromImage(App::wnd()->iconLarge(), Qt::ColorOnly));
+		auto icon = QIcon(App::pixmapFromImageInPlace(Messenger::Instance().logoNoMargin()));
 
 		trayIcon->setIcon(icon);
 		trayIcon->setToolTip(str_const_toString(AppName));
@@ -796,8 +794,6 @@ void MainWindow::initHook() {
 	}
 
 	psInitSysMenu();
-
-	setWindowIcon(wndIcon);
 }
 
 Q_DECLARE_METATYPE(QMargins);
