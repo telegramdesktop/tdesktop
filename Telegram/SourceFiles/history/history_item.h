@@ -529,9 +529,7 @@ public:
 
 		_block = block;
 		_indexInBlock = index;
-		if (pendingResize()) {
-			_history->setHasPendingResizedItems();
-		}
+		setPendingResize();
 	}
 	void setIndexInBlock(int index) {
 		Expects(_block != nullptr);
@@ -540,13 +538,9 @@ public:
 		_indexInBlock = index;
 	}
 	int indexInBlock() const {
-		if (_indexInBlock >= 0) {
-			t_assert(_block != nullptr);
-			t_assert(_block->items.at(_indexInBlock) == this);
-		} else if (_block != nullptr) {
-			t_assert(_indexInBlock >= 0);
-			t_assert(_block->items.at(_indexInBlock) == this);
-		}
+		Expects((_indexInBlock >= 0) == (_block != nullptr));
+		Expects((_block == nullptr) || (_block->items[_indexInBlock] == this));
+
 		return _indexInBlock;
 	}
 	bool out() const {
