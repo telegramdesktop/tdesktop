@@ -85,8 +85,9 @@ Call::Call(gsl::not_null<Delegate*> delegate, gsl::not_null<UserData*> user, Typ
 
 	if (_type == Type::Outgoing) {
 		setState(State::Requesting);
+	} else {
+		startWaitingTrack();
 	}
-	startWaitingTrack();
 }
 
 void Call::generateModExpFirst(base::const_byte_span randomSeed) {
@@ -327,9 +328,10 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 		if (data.vid.v != _id) {
 			return false;
 		}
-		if (_state == State::Waiting && data.vreceive_date.v != 0) {
+		if (_type == Type::Outgoing && _state == State::Waiting && data.vreceive_date.v != 0) {
 			_discardByTimeoutTimer.callOnce(Global::CallRingTimeoutMs());
 			setState(State::Ringing);
+			startWaitingTrack();
 		}
 	} return true;
 
