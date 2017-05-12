@@ -578,7 +578,6 @@ TextSelection shiftSelection(TextSelection selection, const Text &byText) {
 } // namespace internal
 
 HistoryItem::HistoryItem(History *history, MsgId msgId, MTPDmessage::Flags flags, QDateTime msgDate, int32 from) : HistoryElement()
-, y(0)
 , id(msgId)
 , date(msgDate)
 , _from(from ? App::user(from) : history->peer)

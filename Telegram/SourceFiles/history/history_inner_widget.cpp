@@ -152,7 +152,7 @@ int binarySearchBlocksOrItems(const T &list, int edge) {
 	auto start = 0, end = static_cast<int>(list.size());
 	while (end - start > 1) {
 		auto middle = (start + end) / 2;
-		auto top = list[middle]->y;
+		auto top = list[middle]->y();
 		auto chooseLeft = (TopToBottom ? (top <= edge) : (top < edge));
 		if (chooseLeft) {
 			start = middle;
@@ -182,14 +182,14 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 
 	// binary search for itemIndex of the first item that is not completely below the visible area
 	auto block = history->blocks.at(blockIndex);
-	auto blocktop = historytop + block->y;
-	auto blockbottom = blocktop + block->height;
+	auto blocktop = historytop + block->y();
+	auto blockbottom = blocktop + block->height();
 	auto itemIndex = binarySearchBlocksOrItems<TopToBottom>(block->items, searchEdge - blocktop);
 
 	while (true) {
 		while (true) {
 			auto item = block->items.at(itemIndex);
-			auto itemtop = blocktop + item->y;
+			auto itemtop = blocktop + item->y();
 			auto itembottom = itemtop + item->height();
 
 			// binary search should've skipped all the items that are above / below the visible area
@@ -205,7 +205,7 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 					debugValue("blockIndex", blockIndex);
 					debugValue("history->blocks.size()", history->blocks.size());
 					debugValue("blocktop", blocktop);
-					debugValue("block->height", block->height);
+					debugValue("block->height", block->height());
 					debugValue("itemIndex", itemIndex);
 					debugValue("block->items.size()", block->items.size());
 					debugValue("itemtop", itemtop);
@@ -214,10 +214,10 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 					debugValue("_visibleAreaTop", _visibleAreaTop);
 					debugValue("_visibleAreaBottom", _visibleAreaBottom);
 					for (int i = 0; i != qMin(history->blocks.size(), 5); ++i) {
-						debugValue("y[" + QString::number(i) + "]", history->blocks[i]->y);
-						debugValue("h[" + QString::number(i) + "]", history->blocks[i]->height);
+						debugValue("y[" + QString::number(i) + "]", history->blocks[i]->y());
+						debugValue("h[" + QString::number(i) + "]", history->blocks[i]->height());
 						for (int j = 0; j != qMin(history->blocks[i]->items.size(), 5); ++j) {
-							debugValue("y[" + QString::number(i) + "][" + QString::number(j) + "]", history->blocks[i]->items[j]->y);
+							debugValue("y[" + QString::number(i) + "][" + QString::number(j) + "]", history->blocks[i]->items[j]->y());
 							debugValue("h[" + QString::number(i) + "][" + QString::number(j) + "]", history->blocks[i]->items[j]->height());
 						}
 					}
@@ -225,8 +225,8 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 						auto y = 0;
 						for (int i = 0; i != history->blocks.size(); ++i) {
 							auto innery = 0;
-							if (history->blocks[i]->y != y) {
-								debugInfo.append("bad_block_y" + QString::number(i) + ":" + QString::number(history->blocks[i]->y) + "!=" + QString::number(y));
+							if (history->blocks[i]->y() != y) {
+								debugInfo.append("bad_block_y" + QString::number(i) + ":" + QString::number(history->blocks[i]->y()) + "!=" + QString::number(y));
 								return false;
 							}
 							for (int j = 0; j != history->blocks[i]->items.size(); ++j) {
@@ -235,14 +235,14 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 								} else if (history->blocks[i]->items[j]->pendingResize()) {
 									debugInfo.append("pending_resize" + QString::number(i) + "," + QString::number(j));
 								}
-								if (history->blocks[i]->items[j]->y != innery) {
-									debugInfo.append("bad_item_y" + QString::number(i) + "," + QString::number(j) + ":" + QString::number(history->blocks[i]->items[j]->y) + "!=" + QString::number(innery));
+								if (history->blocks[i]->items[j]->y() != innery) {
+									debugInfo.append("bad_item_y" + QString::number(i) + "," + QString::number(j) + ":" + QString::number(history->blocks[i]->items[j]->y()) + "!=" + QString::number(innery));
 									return false;
 								}
 								innery += history->blocks[i]->items[j]->height();
 							}
-							if (history->blocks[i]->height != innery) {
-								debugInfo.append("bad_block_height" + QString::number(i) + ":" + QString::number(history->blocks[i]->height) + "!=" + QString::number(innery));
+							if (history->blocks[i]->height() != innery) {
+								debugInfo.append("bad_block_height" + QString::number(i) + ":" + QString::number(history->blocks[i]->height()) + "!=" + QString::number(innery));
 								return false;
 							}
 							y += innery;
@@ -305,9 +305,9 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 				return;
 			}
 		}
-		block = history->blocks.at(blockIndex);
-		blocktop = historytop + block->y;
-		blockbottom = blocktop + block->height;
+		block = history->blocks[blockIndex];
+		blocktop = historytop + block->y();
+		blockbottom = blocktop + block->height();
 		if (TopToBottom) {
 			itemIndex = 0;
 		} else {
@@ -472,14 +472,16 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			seltoy += _dragSelTo->height();
 		}
 
-		int32 mtop = migratedTop(), htop = historyTop(), hdrawtop = historyDrawTop();
+		auto mtop = migratedTop();
+		auto htop = historyTop();
+		auto hdrawtop = historyDrawTop();
 		if (mtop >= 0) {
-			int32 iBlock = (_curHistory == _migrated ? _curBlock : (_migrated->blocks.size() - 1));
-			HistoryBlock *block = _migrated->blocks[iBlock];
-			int32 iItem = (_curHistory == _migrated ? _curItem : (block->items.size() - 1));
-			HistoryItem *item = block->items[iItem];
+			auto iBlock = (_curHistory == _migrated ? _curBlock : (_migrated->blocks.size() - 1));
+			auto block = _migrated->blocks[iBlock];
+			auto iItem = (_curHistory == _migrated ? _curItem : (block->items.size() - 1));
+			auto item = block->items[iItem];
 
-			int32 y = mtop + block->y + item->y;
+			auto y = mtop + block->y() + item->y();
 			p.save();
 			p.translate(0, y);
 			if (r.y() < y + item->height()) while (y < drawToY) {
@@ -518,17 +520,17 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			p.restore();
 		}
 		if (htop >= 0) {
-			int32 iBlock = (_curHistory == _history ? _curBlock : 0);
-			HistoryBlock *block = _history->blocks[iBlock];
-			int32 iItem = (_curHistory == _history ? _curItem : 0);
-			HistoryItem *item = block->items[iItem];
+			auto iBlock = (_curHistory == _history ? _curBlock : 0);
+			auto block = _history->blocks[iBlock];
+			auto iItem = (_curHistory == _history ? _curItem : 0);
+			auto item = block->items[iItem];
 
-			QRect historyRect = r.intersected(QRect(0, hdrawtop, width(), r.top() + r.height()));
-			int32 y = htop + block->y + item->y;
+			auto historyRect = r.intersected(QRect(0, hdrawtop, width(), r.top() + r.height()));
+			auto y = htop + block->y() + item->y();
 			p.save();
 			p.translate(0, y);
 			while (y < drawToY) {
-				int32 h = item->height();
+				auto h = item->height();
 				if (historyRect.y() < y + h && hdrawtop < y + h) {
 					TextSelection sel;
 					if (y >= selfromy && y < seltoy) {
@@ -1902,23 +1904,23 @@ void HistoryInner::adjustCurrent(int32 y, History *history) const {
 		_curBlock = history->blocks.size() - 1;
 		_curItem = 0;
 	}
-	while (history->blocks.at(_curBlock)->y > y && _curBlock > 0) {
+	while (history->blocks[_curBlock]->y() > y && _curBlock > 0) {
 		--_curBlock;
 		_curItem = 0;
 	}
-	while (history->blocks.at(_curBlock)->y + history->blocks.at(_curBlock)->height <= y && _curBlock + 1 < history->blocks.size()) {
+	while (history->blocks[_curBlock]->y() + history->blocks[_curBlock]->height() <= y && _curBlock + 1 < history->blocks.size()) {
 		++_curBlock;
 		_curItem = 0;
 	}
-	HistoryBlock *block = history->blocks.at(_curBlock);
+	auto block = history->blocks[_curBlock];
 	if (_curItem >= block->items.size()) {
 		_curItem = block->items.size() - 1;
 	}
-	int by = block->y;
-	while (block->items.at(_curItem)->y + by > y && _curItem > 0) {
+	auto by = block->y();
+	while (block->items[_curItem]->y() + by > y && _curItem > 0) {
 		--_curItem;
 	}
-	while (block->items.at(_curItem)->y + block->items.at(_curItem)->height() + by <= y && _curItem + 1 < block->items.size()) {
+	while (block->items[_curItem]->y() + block->items[_curItem]->height() + by <= y && _curItem + 1 < block->items.size()) {
 		++_curItem;
 	}
 }
@@ -2300,14 +2302,15 @@ int HistoryInner::historyHeight() const {
 }
 
 int HistoryInner::historyScrollTop() const {
-	int htop = historyTop(), mtop = migratedTop();
+	auto htop = historyTop();
+	auto mtop = migratedTop();
 	if (htop >= 0 && _history->scrollTopItem) {
 		t_assert(!_history->scrollTopItem->detached());
-		return htop + _history->scrollTopItem->block()->y + _history->scrollTopItem->y + _history->scrollTopOffset;
+		return htop + _history->scrollTopItem->block()->y() + _history->scrollTopItem->y() + _history->scrollTopOffset;
 	}
 	if (mtop >= 0 && _migrated->scrollTopItem) {
 		t_assert(!_migrated->scrollTopItem->detached());
-		return mtop + _migrated->scrollTopItem->block()->y + _migrated->scrollTopItem->y + _migrated->scrollTopOffset;
+		return mtop + _migrated->scrollTopItem->block()->y() + _migrated->scrollTopItem->y() + _migrated->scrollTopOffset;
 	}
 	return ScrollMax;
 }
@@ -2331,7 +2334,7 @@ int HistoryInner::itemTop(const HistoryItem *item) const { // -1 if should not b
 	if (item->detached()) return -1;
 
 	int top = (item->history() == _history) ? historyTop() : (item->history() == _migrated ? migratedTop() : -2);
-	return (top < 0) ? top : (top + item->y + item->block()->y);
+	return (top < 0) ? top : (top + item->y() + item->block()->y());
 }
 
 void HistoryInner::notifyIsBotChanged() {

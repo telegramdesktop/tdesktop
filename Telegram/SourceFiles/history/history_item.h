@@ -156,8 +156,8 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply> {
 	}
 	~HistoryMessageReply() {
 		// clearData() should be called by holder
-		t_assert(replyToMsg == nullptr);
-		t_assert(_replyToVia == nullptr);
+		Expects(replyToMsg == nullptr);
+		Expects(_replyToVia == nullptr);
 	}
 
 	bool updateData(HistoryMessage *holder, bool force = false);
@@ -438,7 +438,7 @@ public:
 		return get();
 	}
 	HistoryMedia &operator*() const {
-		t_assert(!isNull());
+		Expects(!isNull());
 		return *get();
 	}
 	explicit operator bool() const {
@@ -522,10 +522,10 @@ public:
 		return !_block;
 	}
 	void attachToBlock(HistoryBlock *block, int index) {
-		t_assert(_block == nullptr);
-		t_assert(_indexInBlock < 0);
-		t_assert(block != nullptr);
-		t_assert(index >= 0);
+		Expects(_block == nullptr);
+		Expects(_indexInBlock < 0);
+		Expects(block != nullptr);
+		Expects(index >= 0);
 
 		_block = block;
 		_indexInBlock = index;
@@ -534,8 +534,8 @@ public:
 		}
 	}
 	void setIndexInBlock(int index) {
-		t_assert(_block != nullptr);
-		t_assert(index >= 0);
+		Expects(_block != nullptr);
+		Expects(index >= 0);
 
 		_indexInBlock = index;
 	}
@@ -575,7 +575,7 @@ public:
 		return (_flags & MTPDmessage::Flag::f_reply_markup);
 	}
 	MTPDreplyKeyboardMarkup::Flags replyKeyboardFlags() const {
-		t_assert(definesReplyKeyboard());
+		Expects(definesReplyKeyboard());
 		if (auto markup = Get<HistoryMessageReplyMarkup>()) {
 			return markup->flags;
 		}
@@ -701,7 +701,12 @@ public:
 	}
 	QString directLink() const;
 
-	int32 y;
+	int y() const {
+		return _y;
+	}
+	void setY(int y) {
+		_y = y;
+	}
 	MsgId id;
 	QDateTime date;
 
@@ -950,6 +955,9 @@ protected:
 	int _textHeight = 0;
 
 	HistoryMediaPtr _media;
+
+private:
+	int _y = 0;
 
 };
 

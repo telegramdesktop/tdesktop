@@ -75,6 +75,9 @@ namespace {
 
 constexpr auto kStickersUpdateTimeout = 3600000; // update not more than once in an hour
 constexpr auto kSaveTabbedSelectorSectionTimeout = 1000;
+constexpr auto kMessagesPerPageFirst = 30;
+constexpr auto kMessagesPerPage = 50;
+constexpr auto kPreloadHeightsCount = 3; // when 3 screens to scroll left make a preload request
 
 ApiWrap::RequestMessageDataCallback replyEditMessageDataCallback() {
 	return [](ChannelData *channel, MsgId msgId) {
@@ -2255,7 +2258,7 @@ bool HistoryWidget::messagesFailed(const RPCError &error, mtpRequestId requestId
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (error.type() == qstr("CHANNEL_PRIVATE") || error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA") || error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
-		PeerData *was = _peer;
+		auto was = _peer;
 		App::main()->showBackFromStack();
 		Ui::show(Box<InformBox>(lang((was && was->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
 		return true;
@@ -2437,8 +2440,10 @@ bool HistoryWidget::historyHasNotFreezedUnreadBar(History *history) const {
 void HistoryWidget::firstLoadMessages() {
 	if (!_history || _firstLoadRequest) return;
 
-	PeerData *from = _peer;
-	int32 offset_id = 0, offset = 0, loadCount = MessagesPerPage;
+	auto from = _peer;
+	auto offset_id = 0;
+	auto offset = 0;
+	auto loadCount = kMessagesPerPage;
 	if (_showAtMsgId == ShowAtUnreadMsgId) {
 		if (_migrated && _migrated->unreadCount()) {
 			_history->getReadyFor(_showAtMsgId);
@@ -2454,7 +2459,7 @@ void HistoryWidget::firstLoadMessages() {
 		}
 	} else if (_showAtMsgId == ShowAtTheEndMsgId) {
 		_history->getReadyFor(_showAtMsgId);
-		loadCount = MessagesFirstLoad;
+		loadCount = kMessagesPerPageFirst;
 	} else if (_showAtMsgId > 0) {
 		_history->getReadyFor(_showAtMsgId);
 		offset = -loadCount / 2;
@@ -2486,8 +2491,9 @@ void HistoryWidget::loadMessages() {
 		return;
 	}
 
-	MsgId offset_id = from->minMsgId();
-	int32 offset = 0, loadCount = offset_id ? MessagesPerPage : MessagesFirstLoad;
+	auto offset_id = from->minMsgId();
+	auto offset = 0;
+	auto loadCount = offset_id ? kMessagesPerPage : kMessagesPerPageFirst;
 
 	_preloadRequest = MTP::send(MTPmessages_GetHistory(from->peer->input, MTP_int(offset_id), MTP_int(0), MTP_int(offset), MTP_int(loadCount), MTP_int(0), MTP_int(0)), rpcDone(&HistoryWidget::messagesReceived, from->peer), rpcFail(&HistoryWidget::messagesFailed));
 }
@@ -2505,9 +2511,9 @@ void HistoryWidget::loadMessagesDown() {
 		return;
 	}
 
-	int32 loadCount = MessagesPerPage, offset = -loadCount;
-
-	MsgId offset_id = from->maxMsgId();
+	auto loadCount = kMessagesPerPage;
+	auto offset = -loadCount;
+	auto offset_id = from->maxMsgId();
 	if (!offset_id) {
 		if (loadMigrated || !_migrated) return;
 		++offset_id;
@@ -2523,8 +2529,10 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 	clearDelayedShowAt();
 	_delayedShowAtMsgId = showAtMsgId;
 
-	PeerData *from = _peer;
-	int32 offset_id = 0, offset = 0, loadCount = MessagesPerPage;
+	auto from = _peer;
+	auto offset_id = 0;
+	auto offset = 0;
+	auto loadCount = kMessagesPerPage;
 	if (_delayedShowAtMsgId == ShowAtUnreadMsgId) {
 		if (_migrated && _migrated->unreadCount()) {
 			from = _migrated->peer;
@@ -2534,10 +2542,10 @@ void HistoryWidget::delayedShowAt(MsgId showAtMsgId) {
 			offset = -loadCount / 2;
 			offset_id = _history->inboxReadBefore;
 		} else {
-			loadCount = MessagesFirstLoad;
+			loadCount = kMessagesPerPageFirst;
 		}
 	} else if (_delayedShowAtMsgId == ShowAtTheEndMsgId) {
-		loadCount = MessagesFirstLoad;
+		loadCount = kMessagesPerPageFirst;
 	} else if (_delayedShowAtMsgId > 0) {
 		offset = -loadCount / 2;
 		offset_id = _delayedShowAtMsgId;
@@ -2578,11 +2586,11 @@ void HistoryWidget::preloadHistoryIfNeeded() {
 	updateHistoryDownVisibility();
 
 	int st = _scroll->scrollTop(), stm = _scroll->scrollTopMax(), sh = _scroll->height();
-	if (st + PreloadHeightsCount * sh > stm) {
+	if (st + kPreloadHeightsCount * sh >= stm) {
 		loadMessagesDown();
 	}
 
-	if (st < PreloadHeightsCount * sh) {
+	if (st <= kPreloadHeightsCount * sh) {
 		loadMessages();
 	}
 

@@ -622,14 +622,13 @@ private:
 
 class HistoryBlock {
 public:
-	HistoryBlock(History *hist) : history(hist), _indexInHistory(-1) {
+	HistoryBlock(gsl::not_null<History*> history) : _history(history) {
 	}
 
 	HistoryBlock(const HistoryBlock &) = delete;
 	HistoryBlock &operator=(const HistoryBlock &) = delete;
 
-	typedef QVector<HistoryItem*> Items;
-	Items items;
+	QVector<HistoryItem*> items;
 
 	void clear(bool leaveItems = false);
 	~HistoryBlock() {
@@ -638,31 +637,45 @@ public:
 	void removeItem(HistoryItem *item);
 
 	int resizeGetHeight(int newWidth, bool resizeAllItems);
-	int y = 0;
-	int height = 0;
-	History *history;
+	int y() const {
+		return _y;
+	}
+	void setY(int y) {
+		_y = y;
+	}
+	int height() const {
+		return _height;
+	}
+	gsl::not_null<History*> history() const {
+		return _history;
+	}
 
 	HistoryBlock *previousBlock() const {
-		t_assert(_indexInHistory >= 0);
+		Expects(_indexInHistory >= 0);
 
-		return (_indexInHistory > 0) ? history->blocks.at(_indexInHistory - 1) : nullptr;
+		return (_indexInHistory > 0) ? _history->blocks.at(_indexInHistory - 1) : nullptr;
 	}
 	HistoryBlock *nextBlock() const {
-		t_assert(_indexInHistory >= 0);
+		Expects(_indexInHistory >= 0);
 
-		return (_indexInHistory + 1 < history->blocks.size()) ? history->blocks.at(_indexInHistory + 1) : nullptr;
+		return (_indexInHistory + 1 < _history->blocks.size()) ? _history->blocks.at(_indexInHistory + 1) : nullptr;
 	}
 	void setIndexInHistory(int index) {
 		_indexInHistory = index;
 	}
 	int indexInHistory() const {
-		t_assert(_indexInHistory >= 0);
-		t_assert(history->blocks.at(_indexInHistory) == this);
+		Expects(_indexInHistory >= 0);
+		Expects(_indexInHistory < _history->blocks.size());
+		Expects(_history->blocks[_indexInHistory] == this);
 
 		return _indexInHistory;
 	}
 
 protected:
-	int _indexInHistory;
+	const gsl::not_null<History*> _history;
+
+	int _y = 0;
+	int _height = 0;
+	int _indexInHistory = -1;
 
 };
