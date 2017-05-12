@@ -605,6 +605,7 @@ void Panel::paintEvent(QPaintEvent *e) {
 			finishAnimation();
 			if (!_call || isHidden()) return;
 		} else {
+			Platform::StartTranslucentPaint(p, e);
 			p.setOpacity(opacity);
 
 			PainterHighQualityEnabler hq(p);
