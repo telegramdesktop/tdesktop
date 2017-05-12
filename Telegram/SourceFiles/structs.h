@@ -244,6 +244,7 @@ public:
 
 	void paint(Painter &p, int x, int y, int outerWidth, int size) const;
 	void paintRounded(Painter &p, int x, int y, int outerWidth, int size) const;
+	void paintSquare(Painter &p, int x, int y, int outerWidth, int size) const;
 	QPixmap generate(int size);
 	StorageKey uniqueKey() const;
 
@@ -345,6 +346,7 @@ public:
 		paintUserpic(p, rtl() ? (w - x - size) : x, y, size);
 	}
 	void paintUserpicRounded(Painter &p, int x, int y, int size) const;
+	void paintUserpicSquare(Painter &p, int x, int y, int size) const;
 	void loadUserpic(bool loadFirst = false, bool prior = true) {
 		_userpic->load(loadFirst, prior);
 	}

@@ -449,27 +449,34 @@ void Panel::refreshUserPhoto() {
 		_userPhotoFull = true;
 		createUserpicCache(photo->full);
 	} else if (_userPhoto.isNull()) {
-		if (auto userpic = _user->currentUserpic()) {
-			createUserpicCache(userpic);
-		}
+		createUserpicCache(_user->currentUserpic());
 	}
 }
 
 void Panel::createUserpicCache(ImagePtr image) {
 	auto size = st::callWidth * cIntRetinaFactor();
 	auto options = _useTransparency ? (Images::Option::RoundedLarge | Images::Option::RoundedTopLeft | Images::Option::RoundedTopRight | Images::Option::Smooth) : Images::Option::None;
-	auto width = image->width();
-	auto height = image->height();
-	if (width > height) {
-		width = qMax((width * size) / height, 1);
-		height = size;
+	if (image) {
+		auto width = image->width();
+		auto height = image->height();
+		if (width > height) {
+			width = qMax((width * size) / height, 1);
+			height = size;
+		} else {
+			height = qMax((height * size) / width, 1);
+			width = size;
+		}
+		_userPhoto = image->pixNoCache(width, height, options, st::callWidth, st::callWidth);
+		if (cRetina()) _userPhoto.setDevicePixelRatio(cRetinaFactor());
 	} else {
-		height = qMax((height * size) / width, 1);
-		width = size;
+		auto filled = QImage(QSize(st::callWidth, st::callWidth) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+		{
+			Painter p(&filled);
+			EmptyUserpic(_user->colorIndex(), _user->name).paintSquare(p, 0, 0, st::callWidth, st::callWidth);
+		}
+		Images::prepareRound(filled, ImageRoundRadius::Large, ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight);
+		_userPhoto = App::pixmapFromImageInPlace(std::move(filled));
 	}
-	_userPhoto = image->pixNoCache(width, height, options, st::callWidth, st::callWidth);
-	if (cRetina()) _userPhoto.setDevicePixelRatio(cRetinaFactor());
-
 	refreshCacheImageUserPhoto();
 
 	update();

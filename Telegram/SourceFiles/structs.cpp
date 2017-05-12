@@ -84,6 +84,7 @@ public:
 
 	void paint(Painter &p, int x, int y, int size);
 	void paintRounded(Painter &p, int x, int y, int size);
+	void paintSquare(Painter &p, int x, int y, int size);
 	StorageKey uniqueKey() const;
 
 private:
@@ -123,6 +124,12 @@ void EmptyUserpic::Impl::paint(Painter &p, int x, int y, int size) {
 void EmptyUserpic::Impl::paintRounded(Painter &p, int x, int y, int size) {
 	paint(p, x, y, size, [&p, x, y, size] {
 		p.drawRoundedRect(x, y, size, size, st::buttonRadius, st::buttonRadius);
+	});
+}
+
+void EmptyUserpic::Impl::paintSquare(Painter &p, int x, int y, int size) {
+	paint(p, x, y, size, [&p, x, y, size] {
+		p.fillRect(x, y, size, size, p.brush());
 	});
 }
 
@@ -204,17 +211,22 @@ void EmptyUserpic::clear() {
 }
 
 void EmptyUserpic::paint(Painter &p, int x, int y, int outerWidth, int size) const {
-	t_assert(_impl != nullptr);
+	Expects(_impl != nullptr);
 	_impl->paint(p, rtl() ? (outerWidth - x - size) : x, y, size);
 }
 
 void EmptyUserpic::paintRounded(Painter &p, int x, int y, int outerWidth, int size) const {
-	t_assert(_impl != nullptr);
+	Expects(_impl != nullptr);
 	_impl->paintRounded(p, rtl() ? (outerWidth - x - size) : x, y, size);
 }
 
+void EmptyUserpic::paintSquare(Painter &p, int x, int y, int outerWidth, int size) const {
+	Expects(_impl != nullptr);
+	_impl->paintSquare(p, rtl() ? (outerWidth - x - size) : x, y, size);
+}
+
 StorageKey EmptyUserpic::uniqueKey() const {
-	t_assert(_impl != nullptr);
+	Expects(_impl != nullptr);
 	return _impl->uniqueKey();
 }
 
@@ -325,6 +337,14 @@ void PeerData::paintUserpicRounded(Painter &p, int x, int y, int size) const {
 		p.drawPixmap(x, y, userpic->pixRounded(size, size, ImageRoundRadius::Small));
 	} else {
 		_userpicEmpty.paintRounded(p, x, y, x + size + x, size);
+	}
+}
+
+void PeerData::paintUserpicSquare(Painter &p, int x, int y, int size) const {
+	if (auto userpic = currentUserpic()) {
+		p.drawPixmap(x, y, userpic->pix(size, size));
+	} else {
+		_userpicEmpty.paintSquare(p, x, y, x + size + x, size);
 	}
 }
 
