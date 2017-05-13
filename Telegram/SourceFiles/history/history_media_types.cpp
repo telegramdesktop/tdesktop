@@ -2973,7 +2973,7 @@ void HistoryWebPage::initDimensions() {
 	}
 
 	// init layout
-	QString title(_data->title.isEmpty() ? _data->author : _data->title);
+	auto title = textOneLine(_data->title.isEmpty() ? _data->author : _data->title);
 	if (!_data->description.isEmpty() && title.isEmpty() && _data->siteName.isEmpty() && !_data->url.isEmpty()) {
 		_data->siteName = siteNameFromUrl(_data->url);
 	}
@@ -3489,7 +3489,7 @@ void HistoryGame::initDimensions() {
 		_openl = MakeShared<ReplyMarkupClickHandler>(_parent, 0, 0);
 	}
 
-	auto title = _data->title;
+	auto title = textOneLine(_data->title);
 
 	// init attach
 	if (!_attach) {
@@ -3932,7 +3932,7 @@ void HistoryInvoice::fillFromData(const MTPDmessageMediaInvoice &data) {
 	if (!description.isEmpty()) {
 		_description.setText(st::webPageDescriptionStyle, description, _webpageDescriptionOptions);
 	}
-	auto title = qs(data.vtitle);
+	auto title = textOneLine(qs(data.vtitle));
 	if (!title.isEmpty()) {
 		_title.setText(st::webPageTitleStyle, title, _webpageTitleOptions);
 	}

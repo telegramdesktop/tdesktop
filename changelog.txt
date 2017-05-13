@@ -1,3 +1,10 @@
+1.0.38 alpha (13.05.17)
+
+- Fix crashes in Windows XP.
+- Fix calls in Linux without SSE4.1 support.
+- PulseAudio support in calls.
+- Bug fixes and other minor improvements.
+
 1.0.37 alpha (10.05.17)
 
 - Multiple crash fixes.
