@@ -3160,6 +3160,7 @@ bool MainWidget::eventFilter(QObject *o, QEvent *e) {
 			Local::writeUserSettings();
 		} else if (e->type() == QEvent::MouseMove && _resizingSide) {
 			auto newWidth = mouseLeft() - _resizingSideShift;
+			accumulate_max(newWidth, _controller->dialogsSmallColumnWidth());
 			_controller->dialogsWidthRatio().set(float64(newWidth) / width(), true);
 		}
 	} else if (e->type() == QEvent::FocusIn) {
@@ -3191,6 +3192,19 @@ void MainWidget::handleAdaptiveLayoutUpdate() {
 
 void MainWidget::updateWindowAdaptiveLayout() {
 	auto layout = _controller->computeColumnLayout();
+	if (layout.windowLayout == Adaptive::WindowLayout::OneColumn) {
+		auto chatWidth = layout.dialogsWidth;
+		if (AuthSession::Current().data().tabbedSelectorSectionEnabled()
+			&& chatWidth >= _history->minimalWidthForTabbedSelectorSection()) {
+			chatWidth -= _history->tabbedSelectorSectionWidth();
+		}
+		if (chatWidth >= st::dialogsWidthMin + st::windowMinWidth) {
+			// Switch layout back to normal in a wide enough window.
+			layout.windowLayout = Adaptive::WindowLayout::Normal;
+			layout.dialogsWidth = st::dialogsWidthMin;
+			_controller->dialogsWidthRatio().set(float64(layout.dialogsWidth) / layout.bodyWidth, true);
+		}
+	}
 	_dialogsWidth = layout.dialogsWidth;
 	if (layout.windowLayout != Global::AdaptiveWindowLayout()) {
 		Global::SetAdaptiveWindowLayout(layout.windowLayout);

@@ -3735,8 +3735,12 @@ void HistoryWidget::updateTabbedSelectorSectionShown() {
 	orderWidgets();
 }
 
+int HistoryWidget::tabbedSelectorSectionWidth() const {
+	return st::emojiPanWidth;
+}
+
 int HistoryWidget::minimalWidthForTabbedSelectorSection() const {
-	return st::windowMinWidth + st::emojiPanWidth;
+	return st::windowMinWidth + tabbedSelectorSectionWidth();
 }
 
 void HistoryWidget::toggleTabbedSelectorMode() {

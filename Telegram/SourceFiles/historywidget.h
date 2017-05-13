@@ -200,6 +200,8 @@ public:
 	void unreadCountChanged(History *history);
 
 	QRect historyRect() const;
+	int tabbedSelectorSectionWidth() const;
+	int minimalWidthForTabbedSelectorSection() const;
 
 	void updateSendAction(History *history, SendAction::Type type, int32 progress = 0);
 	void cancelSendAction(History *history, SendAction::Type type);
@@ -480,7 +482,6 @@ private:
 	void toggleTabbedSelectorMode();
 	void updateTabbedSelectorSectionShown();
 	void recountChatWidth();
-	int minimalWidthForTabbedSelectorSection() const;
 	void setReportSpamStatus(DBIPeerReportSpamStatus status);
 
 	void animationCallback();

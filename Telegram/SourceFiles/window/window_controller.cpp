@@ -53,6 +53,10 @@ bool Controller::isGifPausedAtLeastFor(GifPauseReason reason) const {
 	return (static_cast<int>(_gifPauseReasons) >= 2 * static_cast<int>(reason)) || !window()->isActive();
 }
 
+int Controller::dialogsSmallColumnWidth() const {
+	return st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPadding.x();
+}
+
 Controller::ColumnLayout Controller::computeColumnLayout() {
 	auto layout = Adaptive::WindowLayout::OneColumn;
 
@@ -94,7 +98,7 @@ Controller::ColumnLayout Controller::computeColumnLayout() {
 		if (forceWideDialogs()) {
 			dialogsWidth = st::dialogsWidthMin;
 		} else {
-			dialogsWidth = st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPadding.x();
+			dialogsWidth = dialogsSmallColumnWidth();
 		}
 	} else {
 		layout = Adaptive::WindowLayout::Normal;

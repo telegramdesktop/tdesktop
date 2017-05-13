@@ -72,6 +72,7 @@ public:
 		Adaptive::WindowLayout windowLayout;
 	};
 	ColumnLayout computeColumnLayout();
+	int dialogsSmallColumnWidth() const;
 	bool provideChatWidth(int requestedWidth);
 
 	base::Variable<float64> &dialogsWidthRatio() {
