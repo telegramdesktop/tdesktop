@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_switch_to_this" = "Auf Deutsch zurücksetzen";
 
 "lng_menu_contacts" = "Kontakte";
+"lng_menu_calls" = "Anrufe";
 "lng_menu_settings" = "Einstellungen";
 "lng_menu_about" = "Über";
 "lng_menu_update" = "Update";
@@ -128,6 +129,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_error_phone_flood" = "Du hast dein Konto leider zu oft gelöscht. Bitte warte einige Tage, erst dann kannst du dich erneut registrieren.";
 "lng_error_start_minimized_passcoded" = "Du hast den lokalen Pincode-Schutz aktiviert, deshalb kannst du die App nicht minimiert starten. Die App muss dich vorher nach dem Pincode fragen.";
 "lng_error_pinned_max" = "Du kannst nicht mehr als  {count:_not_used_|# Chat|# Chats} oben anheften.";
+"lng_error_public_groups_denied" = "Leider kannst du an keinen öffentlichen Gruppen mehr teilnehmen.\n{more_info}";
 
 "lng_edit_deleted" = "Diese Nachricht wurde gelöscht";
 "lng_edit_too_long" = "Der Text ist leider zu lang";
@@ -406,6 +408,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_settings_blocked_users" = "Blockierte Nutzer";
 "lng_settings_last_seen_privacy" = "Zuletzt gesehen";
+"lng_settings_calls_privacy" = "Anrufe";
 "lng_settings_groups_invite_privacy" = "Gruppen";
 "lng_settings_show_sessions" = "Sitzungen";
 "lng_settings_self_destruct" = "Kontolöschung bei Inaktivität";
@@ -465,6 +468,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_privacy_groups_exceptions" = "Hier kannst du Nutzer hinzufügen, für die eine Ausnahme gemacht werden soll.";
 "lng_edit_privacy_groups_always_title" = "Immer erlauben";
 "lng_edit_privacy_groups_never_title" = "Niemals erlauben";
+
+"lng_edit_privacy_calls_title" = "Anrufe";
+"lng_edit_privacy_calls_description" = "Du kannst festlegen, wer dich anrufen darf:";
+"lng_edit_privacy_calls_always" = "Immer erlauben{count:| # Kontakt| # Kontakte}";
+"lng_edit_privacy_calls_never" = "Niemals erlauben{count:| # Kontakt| # Kontakte}";
+"lng_edit_privacy_calls_exceptions" = "Hier kannst du Nutzer hinzufügen, für die eine Ausnahme gemacht werden soll.";
+"lng_edit_privacy_calls_always_title" = "Immer erlauben";
+"lng_edit_privacy_calls_never_title" = "Niemals erlauben";
 
 "lng_self_destruct_title" = "Automatische Kontolöschung";
 "lng_self_destruct_description" = "Wenn du dich innerhalb dieser Zeit nicht anmeldest, wird dein Konto mit allen Nachrichten, Gruppen und Kontakten gelöscht.";
@@ -611,7 +622,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_create_channel_crop" = "Sichtbaren Bereich für Bild wählen";
 
 "lng_failed_add_participant" = "Kann Teilnehmer nicht hinzufügen. Später erneut versuchen.";
-"lng_failed_add_not_mutual" = "Wenn man eine Gruppe verlässt, kann nur ein gemeinsamer Kontakt die Person erneut  einladen (beide Seiten müssen die Nummer \ndes anderen gespeichert haben).";
+"lng_failed_add_not_mutual" = "Wenn man eine Gruppe verlässt, kann nur ein gemeinsamer Kontakt die Person erneut  einladen (beide Seiten müssen die Nummer des anderen gespeichert haben).";
 "lng_failed_add_not_mutual_channel" = "Wenn man einen Kanal verlässt, kann nur ein gemeinsamer Kontakt die Person erneut  einladen (beide Seiten müssen die Nummer \ndes anderen gespeichert haben).";
 
 "lng_sure_delete_contact" = "Bist du sicher, dass du {contact} von deinen Kontakten löschen willst?";
@@ -669,12 +680,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_game_you_scored" = "Du hast {count:# Punkte|# Punkt|# Punkte} bei {game} erzielt";
 "lng_action_game_score_no_game" = "{from} erzielte {count:# Punkte|# Punkt|# Punkte}";
 "lng_action_game_you_scored_no_game" = "Du hast {count:# Punkte erzielt|# Punkt erzielt|# Punkte erzielt}";
-"lng_action_call_outgoing" = "Ausgehender Anruf um {time}";
-"lng_action_call_incoming" = "Eingehender Anruf um {time}";
-"lng_action_call_outgoing_duration" = "Ausgehender Anruf ({duration}) um {time}";
-"lng_action_call_incoming_duration" = "Eingehender Anruf ({duration}) um {time}";
-"lng_action_call_incoming_missed" = "Verpasster Anruf um {time}";
-"lng_action_call_outgoing_missed" = "Abgebrochener Anruf um {time}";
 "lng_action_payment_done" = "Du hast erfolgreich {amount} an {user} übermittelt";
 "lng_action_payment_done_for" = "Du hast erfolgreich {amount} an {user} für {invoice} übermittelt";
 
@@ -1085,7 +1090,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Emojis, Sticker und gespeicherte GIFs werden (je nach Fenstergröße) in einem eigenen Bereich auf der rechten Seite angezeigt.\n— Verwaltung blockierter Nutzer in Supergruppen wurde hinzugefügt.";
+"lng_new_version_text" = "— Telegram Anrufe sind nun auf dem Desktop verfügbar: Sicher, kristallklar und ständige Verbesserungen durch künstliche Intelligenz.\n— Emojis, Sticker und gespeicherte GIFs werden (je nach Fenstergröße) in einem eigenen Bereich auf der rechten Seite angezeigt. Öffnen/Schliessen: Einfach das Emoji Symbol im Chat antippen.\n— Verwaltung blockierter Nutzer in Supergruppen wurde hinzugefügt.\n— Chat Admins können Nachrichten von anderen Mitgliedern löschen.";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 
@@ -1120,6 +1125,44 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_payments_invoice_label" = "Rechnung";
 "lng_payments_invoice_label_test" = "Test-Rechnung";
 "lng_payments_receipt_button" = "Beleg";
+
+"lng_call_status_incoming" = "ruft dich an...";
+"lng_call_status_connecting" = "verbinden...";
+"lng_call_status_exchanging" = "tausche Verschlüsselungsschlüssel aus...";
+"lng_call_status_waiting" = "warte...";
+"lng_call_status_requesting" = "anfordern...";
+"lng_call_status_hanging" = "lege auf...";
+"lng_call_status_ended" = "Anruf beendet";
+"lng_call_status_failed" = "Verbindung nicht möglich";
+"lng_call_status_ringing" = "es klingelt...";
+"lng_call_status_busy" = "besetzt";
+"lng_call_fingerprint_tooltip" = "Wenn diese Emoji genau so bei {user} aussehen, ist euer Anruf 100% sicher.";
+
+"lng_call_error_not_available" = "{user} akzeptiert leider keine Anrufe.";
+"lng_call_error_incompatible" = "{user}s App ist nicht mit unserem Protokoll kompatibel. Dein Chatpartner muss seine App aktualisieren, bevor du anrufen kannst.";
+"lng_call_error_outdated" = "{user}s App unterstützt keine Anrufe. Dein Chatpartner muss seine App aktualisieren, bevor du anrufen kannst.";
+"lng_call_error_audio_io" = "Leider gibt es ein Problem mit der Audiowiedergabe auf deinem Computer. Bitte stelle sicher, dass Lautsprecher und Mikrofon funktionieren und probiere es erneut.";
+
+"lng_call_bar_info" = "Anrufinfo anzeigen";
+"lng_call_bar_hangup" = "Anruf beenden";
+
+"lng_call_box_title" = "Anrufe";
+"lng_call_box_about" = "Du hast noch keine Anrufe geführt.";
+"lng_call_box_status_today" = "{time}";
+"lng_call_box_status_yesterday" = "Gestern um {time}";
+"lng_call_box_status_date" = "{date} um {time}";
+"lng_call_box_status_group" = "({count}) {status}";
+
+"lng_call_outgoing" = "Ausgehender Anruf";
+"lng_call_incoming" = "Eingehender Anruf";
+"lng_call_missed" = "Verpasster Anruf";
+"lng_call_cancelled" = "Abgebrochener Anruf";
+"lng_call_declined" = "Abgelehnter Anruf";
+"lng_call_duration_info" = "{time}, {duration}";
+"lng_call_type_and_duration" = "{type} ({duration})";
+
+"lng_call_rate_label" = "Gesprächsqualität bewerten";
+"lng_call_rate_comment" = "Beschreibung (optional)";
 
 // Not used
 

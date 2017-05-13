@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_switch_to_this" = "한국어로 변경";
 
 "lng_menu_contacts" = "주소록";
+"lng_menu_calls" = "전화";
 "lng_menu_settings" = "설정";
 "lng_menu_about" = "정보";
 "lng_menu_update" = "업데이트";
@@ -128,6 +129,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_error_phone_flood" = "죄송합니다, 너무 많이 계정 재가입이 최근에 이루어졌습니다. 다시 재가입까지 몇일 기다려주시기 바랍니다.";
 "lng_error_start_minimized_passcoded" = "잠금코드를 설정하였기 때문에 앱이 최소화된 상태에서 시작할 수 없습니다. 앱이 시작하기 전에 잠금코드 입력이 필요합니다.";
 "lng_error_pinned_max" = "죄송합니다, {count:_not_used_|# 대화|# 대화} 이상은 맨위 고정을 할 수 없습니다.";
+"lng_error_public_groups_denied" = "죄송하지만, 회원님은 공개그룹 참여에 제한 되었습니다.\n{more_info}";
 
 "lng_edit_deleted" = "메시지는 삭제 되었습니다.";
 "lng_edit_too_long" = "메시지 길이가 너무 깁니다.";
@@ -406,6 +408,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_settings_blocked_users" = "차단된 사용자";
 "lng_settings_last_seen_privacy" = "접속 시간 개인설정";
+"lng_settings_calls_privacy" = "전화 보안";
 "lng_settings_groups_invite_privacy" = "그룹 초대 설정";
 "lng_settings_show_sessions" = "모든 세션 보기";
 "lng_settings_self_destruct" = "계정 자동탈퇴 설정";
@@ -465,6 +468,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_privacy_groups_exceptions" = "위의 설정과 무관하여 이 사용자는 회원님을 그룹이나 채널로 초대할 수 없습니다.";
 "lng_edit_privacy_groups_always_title" = "항상 허용";
 "lng_edit_privacy_groups_never_title" = "허용 안함";
+
+"lng_edit_privacy_calls_title" = "전화 보안";
+"lng_edit_privacy_calls_description" = "전화대상을 제한할 수 있습니다";
+"lng_edit_privacy_calls_always" = "항상 허용{count:| # user| # users}";
+"lng_edit_privacy_calls_never" = "허용 안함{count:| # user| # users}";
+"lng_edit_privacy_calls_exceptions" = "위의 설정과 무관하여 이 사용자는 회원님을 전화를 하거나 할 수 없게 됩니다.";
+"lng_edit_privacy_calls_always_title" = "항상 허용";
+"lng_edit_privacy_calls_never_title" = "허용 안함";
 
 "lng_self_destruct_title" = "계정 자동탈퇴";
 "lng_self_destruct_description" = "이 기간동안 최소한 한번도 온라인이 안될 경우 이 계정은 그룹대화, 일반대화 및 연락처 모두가 삭제됩니다.";
@@ -669,12 +680,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_game_you_scored" = "{game} 에서 {count:#|#|#} 점 획득";
 "lng_action_game_score_no_game" = "{from} 에서 {count:#|#|#} 점 획득";
 "lng_action_game_you_scored_no_game" = "{count:#|#|#} 점 획득";
-"lng_action_call_outgoing" = "{time}에 발신한 전화";
-"lng_action_call_incoming" = "{time}에 수신한 전화";
-"lng_action_call_outgoing_duration" = "{time}에 ({duration}) 동안 발신한 전화";
-"lng_action_call_incoming_duration" = "{time}에 ({duration}) 동안 수신한 전화";
-"lng_action_call_incoming_missed" = "{time}에 부재중 전화";
-"lng_action_call_outgoing_missed" = "{time}에 취소한 전화";
 "lng_action_payment_done" = "{amount}만큼 {user}에게 성공적으로 전송하였습니다.";
 "lng_action_payment_done_for" = "{invoice}에 대하여 {user}에게 {amount}만큼 전송하였습니다.";
 
@@ -1085,7 +1090,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 윈도우 넓이가 충분할때 새로운 이모티콘, 스티커와 저장된 GIF 패널이 오른쪽에 별도로 표시가 됩니다.\n— 슈퍼그룹에서 차단된 사용자 리스트 관리기능";
+"lng_new_version_text" = "— 텔레그램 통화를 소개합니다:안전하고, 깨끗하며 인공지능을 통하여 지속적으로 향상됩니다. \n— 넓이가 충분할 경우 이모티콘, 스티커와 저장된 GIF 패널이 오른쪽에 별도로 패널로 표시 됩니다.\n— 슈퍼그룹에서 차단된 사용자 관리가 가능해집니다.\n— 대화방 관리자는 다른 사용자의 메시지 삭제가 가능해집니다";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 
@@ -1120,6 +1125,44 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_payments_invoice_label" = "인보이스";
 "lng_payments_invoice_label_test" = "테스트 인보이스";
 "lng_payments_receipt_button" = "영수증";
+
+"lng_call_status_incoming" = "님으로 부터 전화가 오고 있습니다...";
+"lng_call_status_connecting" = "연결중...";
+"lng_call_status_exchanging" = "암호화 키 교환중...";
+"lng_call_status_waiting" = "기다리는중...";
+"lng_call_status_requesting" = "요청중..";
+"lng_call_status_hanging" = "전화 끊는 중...";
+"lng_call_status_ended" = "전화 종료";
+"lng_call_status_failed" = "연결 실패";
+"lng_call_status_ringing" = "전화중..";
+"lng_call_status_busy" = "통화중";
+"lng_call_fingerprint_tooltip" = "{user}님 화면과 이모티콘이 동일하다면, 이 통화는 100% 안전합니다";
+
+"lng_call_error_not_available" = "죄송하지만, {user}는 전화 수신거부 상태입니다.";
+"lng_call_error_incompatible" = "{user}님 앱이 현재 적합하지 않은 프로토콜을 사용하고 있습니다. 전화를 하시려면 상대방 앱을 업데이트해야합니다.";
+"lng_call_error_outdated" = "{user}님의 앱이 전화를 지원하고 있지 않습니다. 상대방 앱을 업데이트 해야합니다.";
+"lng_call_error_audio_io" = "회원님 컴퓨터의 음성 재생에 문제가 있습니다. 스피커와 마이크가 작동을 하는지 확인 후 다시 시도해주세요.";
+
+"lng_call_bar_info" = "전화 정보 보기";
+"lng_call_bar_hangup" = "통화종료";
+
+"lng_call_box_title" = "전화";
+"lng_call_box_about" = "아직 전화내역이 없습니다";
+"lng_call_box_status_today" = "{time}";
+"lng_call_box_status_yesterday" = "어제 {time}";
+"lng_call_box_status_date" = "{date}  {time}";
+"lng_call_box_status_group" = "({count}) {status}";
+
+"lng_call_outgoing" = "발신 전화";
+"lng_call_incoming" = "수신 전화";
+"lng_call_missed" = "부재중 전화";
+"lng_call_cancelled" = "취소한 전화";
+"lng_call_declined" = "거부한 전화";
+"lng_call_duration_info" = "{time}, {duration}";
+"lng_call_type_and_duration" = "{type} ({duration})";
+
+"lng_call_rate_label" = "통화품질을 평가해주세요";
+"lng_call_rate_comment" = "의견 (선택사항)";
 
 // Not used
 

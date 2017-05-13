@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_switch_to_this" = "Overschakelen naar Nederlands";
 
 "lng_menu_contacts" = "Contacten";
+"lng_menu_calls" = "Spraakoproepen";
 "lng_menu_settings" = "Instellingen";
 "lng_menu_about" = "Over";
 "lng_menu_update" = "Bijwerken";
@@ -128,6 +129,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_error_phone_flood" = "Je hebt in korte tijd je account veelvuldig verwijderd en opnieuw aangemaakt. Probeer het over een aantal dagen nog eens.";
 "lng_error_start_minimized_passcoded" = "Je hebt een toegangscode ingesteld, deze zal ingegeven moeten worden na het starten, geminimaliseerd starten kan daarom niet.";
 "lng_error_pinned_max" = "Sorry, je kunt niet meer dan {count:_not_used_|# chat|# chats} vastzetten.";
+"lng_error_public_groups_denied" = "Sorry, je mag niet meer deelnemen aan publieke groepen.\n{more_info}";
 
 "lng_edit_deleted" = "Bericht is gewist";
 "lng_edit_too_long" = "Je bericht is te lang";
@@ -277,9 +279,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_update_fail" = "Controleren op updates mislukt";
 "lng_settings_workmode_tray" = "Pictogram in systeemvak weergeven";
 "lng_settings_workmode_window" = "Pictogram op taakbalk weergeven";
-"lng_settings_auto_start" = "Telegram uitvoeren bij opstarten";
+"lng_settings_auto_start" = "Uitvoeren bij opstarten";
 "lng_settings_start_min" = "Minimaliseren bij uitvoeren";
-"lng_settings_add_sendto" = "Telegram toevoegen aan \"Kopiëren naar\"-menu";
+"lng_settings_add_sendto" = "Toevoegen aan \"Kopiëren naar\"-menu";
 "lng_settings_section_scale" = "Interfaceschaal";
 "lng_settings_scale_auto" = "Auto ({cur})";
 
@@ -406,6 +408,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_settings_blocked_users" = "Geblokkeerde gebruikers";
 "lng_settings_last_seen_privacy" = "Laatst gezien";
+"lng_settings_calls_privacy" = "Oproepen";
 "lng_settings_groups_invite_privacy" = "Groepen";
 "lng_settings_show_sessions" = "Alle sessies weergeven";
 "lng_settings_self_destruct" = "Account verwijderen na inactiviteit";
@@ -465,6 +468,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_privacy_groups_exceptions" = "Deze gebruikers altijd toestaan of verbieden je aan groepen en kanalen toe te voegen.";
 "lng_edit_privacy_groups_always_title" = "Altijd toestaan";
 "lng_edit_privacy_groups_never_title" = "Nooit toestaan";
+
+"lng_edit_privacy_calls_title" = "Oproepen";
+"lng_edit_privacy_calls_description" = "Je kunt bepalen wie jou mag bellen:";
+"lng_edit_privacy_calls_always" = "Altijd toestaan{count:| # gebruiker| # gebruikers}";
+"lng_edit_privacy_calls_never" = "Nooit toestaan{count:| # gebruiker| # gebruikers}";
+"lng_edit_privacy_calls_exceptions" = "Deze gebruikers altijd toestaan of verbieden om je te bellen.";
+"lng_edit_privacy_calls_always_title" = "Altijd toestaan";
+"lng_edit_privacy_calls_never_title" = "Nooit toestaan";
 
 "lng_self_destruct_title" = "Account verwijderen";
 "lng_self_destruct_description" = "Als je binnen deze periode niet minimaal één keer ingelogd bent geweest zal je account worden verwijderd, inclusief alle data.";
@@ -669,12 +680,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_game_you_scored" = "Je hebt met {game} {count:# punten|# punt|# punten} behaald";
 "lng_action_game_score_no_game" = "{from} heeft {count:# punten|# punt|# punten} behaald";
 "lng_action_game_you_scored_no_game" = "Je hebt {count:# punten|# punt|# punten} behaald";
-"lng_action_call_outgoing" = "Uitgaande oproep om {time}";
-"lng_action_call_incoming" = "Inkomende oproep om {time}";
-"lng_action_call_outgoing_duration" = "Uitgaande oproep ({duration}) om {time}";
-"lng_action_call_incoming_duration" = "Inkomende oproep ({duration}) om {time}";
-"lng_action_call_incoming_missed" = "Gemiste oproep om {time}";
-"lng_action_call_outgoing_missed" = "Geannuleerde oproep om {time}";
 "lng_action_payment_done" = "Je hebt een bedrag van {amount} overgemaakt naar {user}";
 "lng_action_payment_done_for" = "Je hebt een bedrag van {amount} overgemaakt naar {user} voor {invoice}";
 
@@ -1085,7 +1090,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Een nieuw paneel voor Emoji's, stickers en GIF's is zichtbaar bij afdoende vensterbreedte.\n— Je kunt vanaf nu geblokkeerde gebruikers in supergroepen beheren.";
+"lng_new_version_text" = "— Telegram-oproepen op de desktop: veilig, glashelder geluid en constante verbeteringen dankzij kunstmatige intelligentie.\n— Het nieuwe Emoji, Stickers en opgeslagen GIF's-paneel krijgt een eigen plek aan de rechterkant als Telegram in een breed genoeg venster actief is.\n— Beheer geblokkeerde gebruikers in je supergroepen.\n— Beheerders kunnen berichten van andere leden verwijderen.";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
@@ -1120,6 +1125,44 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_payments_invoice_label" = "Factuur";
 "lng_payments_invoice_label_test" = "Test Factuur";
 "lng_payments_receipt_button" = "Betalingsbewijs";
+
+"lng_call_status_incoming" = "belt je...";
+"lng_call_status_connecting" = "verbinden...";
+"lng_call_status_exchanging" = "encryptiesleutels uitwisselen...";
+"lng_call_status_waiting" = "wachten...";
+"lng_call_status_requesting" = "aanvragen...";
+"lng_call_status_hanging" = "hangt op...";
+"lng_call_status_ended" = "oproep beëindigd";
+"lng_call_status_failed" = "verbinden mislukt";
+"lng_call_status_ringing" = "gaat over...";
+"lng_call_status_busy" = "bezet";
+"lng_call_fingerprint_tooltip" = "Als deze emoji's gelijk zijn bij {user} is dit gesprek 100% veilig.";
+
+"lng_call_error_not_available" = "{user} neemt geen oproepen aan.";
+"lng_call_error_incompatible" = "{user}'s app gebruikt een niet-ondersteund protocol en zal eerst een update moeten uitvoeren.";
+"lng_call_error_outdated" = "{user}'s app heeft nog geen ondersteuning voor spraakoproepen en zal eerst een update moeten uitvoeren.";
+"lng_call_error_audio_io" = "Er lijkt iets mis te gaan met het afspelen van audio op je computer. Zorg dat je microfoon en luidsprekers werken en probeer het opnieuw.";
+
+"lng_call_bar_info" = "Oproepinformatie";
+"lng_call_bar_hangup" = "Nu beëindigen";
+
+"lng_call_box_title" = "Spraakoproepen";
+"lng_call_box_about" = "Nog geen oproepen.";
+"lng_call_box_status_today" = "{time}";
+"lng_call_box_status_yesterday" = "Gisteren om {time}";
+"lng_call_box_status_date" = "{date} om {time}";
+"lng_call_box_status_group" = "({count}) {status}";
+
+"lng_call_outgoing" = "Uitgaande oproep";
+"lng_call_incoming" = "Inkomende oproep";
+"lng_call_missed" = "Gemiste oproep";
+"lng_call_cancelled" = "Geannuleerde oproep";
+"lng_call_declined" = "Geweigerde oproep";
+"lng_call_duration_info" = "{time}, {duration}";
+"lng_call_type_and_duration" = "{type} ({duration})";
+
+"lng_call_rate_label" = "Beoordeel de kwaliteit van je oproep";
+"lng_call_rate_comment" = "Opmerking (optioneel)";
 
 // Not used
 

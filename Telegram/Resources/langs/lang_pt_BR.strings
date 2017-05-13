@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_switch_to_this" = "Trocar para Português (Brasil)";
 
 "lng_menu_contacts" = "Contatos";
+"lng_menu_calls" = "Chamadas";
 "lng_menu_settings" = "Configurações";
 "lng_menu_about" = "Sobre";
 "lng_menu_update" = "Atualizar";
@@ -128,6 +129,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_error_phone_flood" = "Desculpe, você apagou e recriou sua conta muitas vezes recentemente. Aguarde alguns dias antes de tentar novamente.";
 "lng_error_start_minimized_passcoded" = "Você tem uma senha de bloqueio, então o aplicativo não pode iniciar minimizado. O app precisa de sua senha para iniciar.";
 "lng_error_pinned_max" = "Você não pode fixar mais de {count:_not_used_|# conversa|# conversas} no topo.";
+"lng_error_public_groups_denied" = "Infelizmente, você foi banido de participar em grupos públicos.\n{more_info}";
 
 "lng_edit_deleted" = "Essa mensagem foi apagada";
 "lng_edit_too_long" = "Sua mensagem está muito longa";
@@ -406,6 +408,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_settings_blocked_users" = "Usuários bloqueados";
 "lng_settings_last_seen_privacy" = "Visto por último";
+"lng_settings_calls_privacy" = "Chamadas de voz";
 "lng_settings_groups_invite_privacy" = "Grupos";
 "lng_settings_show_sessions" = "Exibir todas as sessões";
 "lng_settings_self_destruct" = "Configurações de auto-destruição da conta";
@@ -465,6 +468,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_privacy_groups_exceptions" = "Esses usuários poderão ou não te adicionar em grupos e canais dependendo de suas configurações.";
 "lng_edit_privacy_groups_always_title" = "Sempre permitir";
 "lng_edit_privacy_groups_never_title" = "Nunca permitir";
+
+"lng_edit_privacy_calls_title" = "Chamadas";
+"lng_edit_privacy_calls_description" = "Você pode restringir quem te ligou:";
+"lng_edit_privacy_calls_always" = "Sempre permitir{count:| # usuário| # usuários}";
+"lng_edit_privacy_calls_never" = "Nunca permitir{count:| # usuário| # usuários}";
+"lng_edit_privacy_calls_exceptions" = "Esses usuários poderão ou não te ligar dependendo de suas configurações.";
+"lng_edit_privacy_calls_always_title" = "Sempre permitir";
+"lng_edit_privacy_calls_never_title" = "Nunca permitir";
 
 "lng_self_destruct_title" = "Auto-destruição da conta";
 "lng_self_destruct_description" = "Se você não ficar online ao menos uma vez nesse período, sua conta será apagada junto com seus grupos, mensagens e contatos.";
@@ -669,12 +680,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_game_you_scored" = "Você marcou {count:# pontos|# ponto|# pontos} em {game}";
 "lng_action_game_score_no_game" = "{from} marcou {count:# pontos|# ponto|# pontos}";
 "lng_action_game_you_scored_no_game" = "Você marcou {count:# pontos|# ponto|# pontos}";
-"lng_action_call_outgoing" = "Chamada efetuada às {time}";
-"lng_action_call_incoming" = "Chamada recebida às {time}";
-"lng_action_call_outgoing_duration" = "Chamada efetuada ({duration}) às {time}";
-"lng_action_call_incoming_duration" = "Chamada recebida ({duration}) às {time}";
-"lng_action_call_incoming_missed" = "Chamada perdida às {time}";
-"lng_action_call_outgoing_missed" = "Chamada cancelada às {time}";
 "lng_action_payment_done" = "Você transferiu com sucesso {amount} para {user}";
 "lng_action_payment_done_for" = "Você transferiu com sucesso {amount} para {user} por {invoice}";
 
@@ -1085,7 +1090,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras melhorias menores";
-"lng_new_version_text" = "— O novo painel de Emoji, Stickers e GIFs Salvos se torna um espaço separado à direita quando o Telegram está rodando em uma janela ampla o suficiente.\n— Gerencie a lista de usuários bloqueados em seus supergrupos.";
+"lng_new_version_text" = "— Chamadas do Telegram estão agora disponíveis para desktops: seguras, cristalinas e constantemente aprimoradas por inteligência artificial.\n— O novo painel de Emojis, Stickers e GIFs Salvos se torna um espaço separado à direita quando o Telegram é executado em janelas muito largas.\n— Gerenciamento da lista de usuários bloqueados em seus supergrupos.\n— Administradores podem apagar mensagens de outros membros.";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 
@@ -1120,6 +1125,44 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_payments_invoice_label" = "Fatura";
 "lng_payments_invoice_label_test" = "Fatura de test";
 "lng_payments_receipt_button" = "Recibo";
+
+"lng_call_status_incoming" = "está te ligando...";
+"lng_call_status_connecting" = "conectando...";
+"lng_call_status_exchanging" = "trocando chaves criptográficas...";
+"lng_call_status_waiting" = "esperando...";
+"lng_call_status_requesting" = "requisitando...";
+"lng_call_status_hanging" = "cancelando...";
+"lng_call_status_ended" = "chamada encerrada";
+"lng_call_status_failed" = "falha ao conectar";
+"lng_call_status_ringing" = "tocando...";
+"lng_call_status_busy" = "linha ocupada";
+"lng_call_fingerprint_tooltip" = "Se esses emojis são os mesmos na tela de {user}, essa chamada é 100% segura.";
+
+"lng_call_error_not_available" = "Desculpe, {user} não aceita chamadas.";
+"lng_call_error_incompatible" = "O aplicativo de {user} usa um protocolo incompatível. O aplicativo desse usuário precisa ser atualizado para que você possa chamá-lo.";
+"lng_call_error_outdated" = "O aplicativo de {user} não suporta chamadas. O aplicativo desse usuário precisa ser atualizado para que você possa chamá-lo.";
+"lng_call_error_audio_io" = "Parece haver um problema com a reprodução de áudio em seu computador. Verifique se os auto-falantes e microfone estão funcionando e tente novamente.";
+
+"lng_call_bar_info" = "Informações da Chamada";
+"lng_call_bar_hangup" = "Encerrar chamada";
+
+"lng_call_box_title" = "Chamadas";
+"lng_call_box_about" = "Você não fez nenhuma ligação ainda.";
+"lng_call_box_status_today" = "{time}";
+"lng_call_box_status_yesterday" = "Ontem às {time}";
+"lng_call_box_status_date" = "{date} às {time}";
+"lng_call_box_status_group" = "({count}) {status}";
+
+"lng_call_outgoing" = "Chamada efetuada";
+"lng_call_incoming" = "Chamada recebida";
+"lng_call_missed" = "Chamada perdida";
+"lng_call_cancelled" = "Chamada cancelada";
+"lng_call_declined" = "Chamada recusada";
+"lng_call_duration_info" = "{time}, {duration}";
+"lng_call_type_and_duration" = "{type} ({duration})";
+
+"lng_call_rate_label" = "Avalie a qualidade de sua chamada";
+"lng_call_rate_comment" = "Comentário (opcional)";
 
 // Not used
 
