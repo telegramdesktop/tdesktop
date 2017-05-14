@@ -732,7 +732,7 @@ void Messenger::checkMapVersion() {
 			QString versionFeatures;
 			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000036) {
 				versionFeatures = QString::fromUtf8("\xE2\x80\x94 Telegram Calls are now available on desktops: secure, crystal-clear, constantly improved by artificial intelligence.\n\xE2\x80\x94 Bug fixes and other minor improvements.");
-			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000029) {
+			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1001000) {
 				versionFeatures = langNewVersionText();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
