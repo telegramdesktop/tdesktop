@@ -1143,7 +1143,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_call_error_outdated" = "La app de {user} no soporta llamadas. Debe actualizar su app para recibir tu llamada.";
 "lng_call_error_audio_io" = "Parece existir un problema con la reproducción de audio en tu PC. Por favor, verifica que tu altavoz y micrófono están funcionando y reinténtalo.";
 
-"lng_call_bar_info" = "Información";
 "lng_call_bar_hangup" = "Terminar llamada";
 
 "lng_call_box_title" = "Llamadas";

@@ -147,6 +147,14 @@ callBarLabel: LabelSimple(defaultLabelSimple) {
 	font: semiboldFont;
 	textFg: callBarFg;
 }
+callBarInfoLabel: FlatLabel(defaultFlatLabel) {
+	maxHeight: 28px;
+	align: align(top);
+	textFg: callBarFg;
+	style: TextStyle(defaultTextStyle) {
+		font: semiboldFont;
+	}
+}
 callBarLabelTop: 10px;
 
 callArrowPosition: point(-2px, 1px);

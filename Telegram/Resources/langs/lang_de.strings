@@ -1143,7 +1143,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_call_error_outdated" = "{user}s App unterstützt keine Anrufe. Dein Chatpartner muss seine App aktualisieren, bevor du anrufen kannst.";
 "lng_call_error_audio_io" = "Leider gibt es ein Problem mit der Audiowiedergabe auf deinem Computer. Bitte stelle sicher, dass Lautsprecher und Mikrofon funktionieren und probiere es erneut.";
 
-"lng_call_bar_info" = "Anrufinfo anzeigen";
 "lng_call_bar_hangup" = "Anruf beenden";
 
 "lng_call_box_title" = "Anrufe";

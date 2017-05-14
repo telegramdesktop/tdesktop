@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "calls/calls_call.h"
 #include "calls/calls_instance.h"
 #include "styles/style_boxes.h"
+#include "observer_peer.h"
 #include "boxes/abstract_box.h"
 #include "base/timer.h"
 
@@ -76,7 +77,8 @@ void DebugInfoBox::updateText() {
 TopBar::TopBar(QWidget *parent, const base::weak_unique_ptr<Call> &call) : TWidget(parent)
 , _call(call)
 , _durationLabel(this, st::callBarLabel)
-, _infoLabel(this, st::callBarLabel, lang(lng_call_bar_info).toUpper())
+, _fullInfoLabel(this, st::callBarInfoLabel)
+, _shortInfoLabel(this, st::callBarInfoLabel)
 , _hangupLabel(this, st::callBarLabel, lang(lng_call_bar_hangup).toUpper())
 , _mute(this, st::callBarMuteToggle)
 , _info(this)
@@ -96,6 +98,14 @@ void TopBar::initControls() {
 		setMuted(mute);
 		update();
 	});
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::NameChanged, [this](const Notify::PeerUpdate &update) {
+		if (auto call = _call.get()) {
+			if (update.peer == call->user()) {
+				updateInfoLabels();
+			}
+		}
+	}));
+	setInfoLabels();
 	_info->setClickedCallback([this] {
 		if (auto call = _call.get()) {
 			if (cDebug() && (_info->clickModifiers() & Qt::ControlModifier)) {
@@ -112,6 +122,21 @@ void TopBar::initControls() {
 	});
 	_updateDurationTimer.setCallback([this] { updateDurationText(); });
 	updateDurationText();
+}
+
+void TopBar::updateInfoLabels() {
+	setInfoLabels();
+	updateControlsGeometry();
+}
+
+void TopBar::setInfoLabels() {
+	if (auto call = _call.get()) {
+		auto user = call->user();
+		auto fullName = App::peerName(user);
+		auto shortName = user->firstName;
+		_fullInfoLabel->setText(fullName.toUpper());
+		_shortInfoLabel->setText(shortName.toUpper());
+	}
 }
 
 void TopBar::setMuted(bool mute) {
@@ -155,13 +180,23 @@ void TopBar::updateControlsGeometry() {
 	_hangup->setGeometryToRight(0, 0, right, height());
 	_info->setGeometryToLeft(_mute->width(), 0, width() - _mute->width() - _hangup->width(), height());
 
-	auto minPadding = qMax(left, right);
+	auto fullWidth = _fullInfoLabel->naturalWidth();
+	auto showFull = (left + fullWidth + right <= width());
+	_fullInfoLabel->setVisible(showFull);
+	_shortInfoLabel->setVisible(!showFull);
 
-	auto infoLeft = (width() - _infoLabel->width()) / 2;
-	if (infoLeft < minPadding) {
-		infoLeft = left + (width() - left - right - _infoLabel->width()) / 2;
-	}
-	_infoLabel->moveToLeft(infoLeft, st::callBarLabelTop);
+	auto setInfoLabelGeometry = [this, left, right](auto &&infoLabel) {
+		auto minPadding = qMax(left, right);
+		auto infoWidth = infoLabel->naturalWidth();
+		auto infoLeft = (width() - infoWidth) / 2;
+		if (infoLeft < minPadding) {
+			infoLeft = left;
+			infoWidth = width() - left - right;
+		}
+		infoLabel->setGeometryToLeft(infoLeft, st::callBarLabelTop, infoWidth, st::callBarInfoLabel.style.font->height);
+	};
+	setInfoLabelGeometry(_fullInfoLabel);
+	setInfoLabelGeometry(_shortInfoLabel);
 }
 
 void TopBar::paintEvent(QPaintEvent *e) {

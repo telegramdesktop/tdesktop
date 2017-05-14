@@ -1143,7 +1143,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_call_error_outdated" = "L'app di {user} non supporta le chiamate. Deve aggiornare la sua app prima che tu possa chiamarlo.";
 "lng_call_error_audio_io" = "Sembra esserci un problema con la riproduzione audio del tuo computer. Per favore assicurati che gli altoparlanti e il microfono del tuo computer stiano funzionando e riprova.";
 
-"lng_call_bar_info" = "Info chiamata";
 "lng_call_bar_hangup" = "Termina chiamata";
 
 "lng_call_box_title" = "Chiamate";

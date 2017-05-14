@@ -1143,7 +1143,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_call_error_outdated" = "{user}님의 앱이 전화를 지원하고 있지 않습니다. 상대방 앱을 업데이트 해야합니다.";
 "lng_call_error_audio_io" = "회원님 컴퓨터의 음성 재생에 문제가 있습니다. 스피커와 마이크가 작동을 하는지 확인 후 다시 시도해주세요.";
 
-"lng_call_bar_info" = "전화 정보 보기";
 "lng_call_bar_hangup" = "통화종료";
 
 "lng_call_box_title" = "전화";

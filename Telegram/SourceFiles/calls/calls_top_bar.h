@@ -27,6 +27,7 @@ namespace Ui {
 class IconButton;
 class AbstractButton;
 class LabelSimple;
+class FlatLabel;
 } // namespace Ui
 
 namespace Calls {
@@ -45,6 +46,8 @@ protected:
 
 private:
 	void initControls();
+	void updateInfoLabels();
+	void setInfoLabels();
 	void updateDurationText();
 	void updateControlsGeometry();
 	void startDurationUpdateTimer(TimeMs currentDuration);
@@ -54,7 +57,8 @@ private:
 
 	bool _muted = false;
 	object_ptr<Ui::LabelSimple> _durationLabel;
-	object_ptr<Ui::LabelSimple> _infoLabel;
+	object_ptr<Ui::FlatLabel> _fullInfoLabel;
+	object_ptr<Ui::FlatLabel> _shortInfoLabel;
 	object_ptr<Ui::LabelSimple> _hangupLabel;
 	object_ptr<Ui::IconButton> _mute;
 	object_ptr<Ui::AbstractButton> _info;

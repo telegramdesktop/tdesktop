@@ -1143,7 +1143,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_call_error_outdated" = "{user}'s app heeft nog geen ondersteuning voor spraakoproepen en zal eerst een update moeten uitvoeren.";
 "lng_call_error_audio_io" = "Er lijkt iets mis te gaan met het afspelen van audio op je computer. Zorg dat je microfoon en luidsprekers werken en probeer het opnieuw.";
 
-"lng_call_bar_info" = "Oproepinformatie";
 "lng_call_bar_hangup" = "Nu beëindigen";
 
 "lng_call_box_title" = "Spraakoproepen";
