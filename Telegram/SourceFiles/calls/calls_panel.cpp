@@ -646,7 +646,9 @@ void Panel::paintEvent(QPaintEvent *e) {
 }
 
 void Panel::closeEvent(QCloseEvent *e) {
-	_call->hangup();
+	if (_call) {
+		_call->hangup();
+	}
 }
 
 void Panel::mousePressEvent(QMouseEvent *e) {
