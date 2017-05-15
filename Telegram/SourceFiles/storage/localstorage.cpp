@@ -3271,7 +3271,7 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 
 		if (setId == Stickers::DefaultSetId) {
 			setTitle = lang(lng_stickers_default_set);
-			setFlags |= qFlags(MTPDstickerSet::Flag::f_official | MTPDstickerSet_ClientFlag::f_special);
+			setFlags |= MTPDstickerSet::Flag::f_official | MTPDstickerSet_ClientFlag::f_special;
 			if (readingInstalled && outOrder && stickers.version < 9061) {
 				outOrder->push_front(setId);
 			}
