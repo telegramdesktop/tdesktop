@@ -809,12 +809,17 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 }
 
 void HistoryInner::mouseMoveEvent(QMouseEvent *e) {
+	static auto lastGlobalPosition = e->globalPos();
+	auto reallyMoved = (lastGlobalPosition != e->globalPos());
 	auto buttonsPressed = (e->buttons() & (Qt::LeftButton | Qt::MiddleButton));
 	if (!buttonsPressed && _dragAction != NoDrag) {
 		mouseReleaseEvent(e);
 	}
-	if (!buttonsPressed || ClickHandler::getPressed() == _scrollDateLink) {
-		keepScrollDateForNow();
+	if (reallyMoved) {
+		lastGlobalPosition = e->globalPos();
+		if (!buttonsPressed || (_scrollDateLink && ClickHandler::getPressed() == _scrollDateLink)) {
+			keepScrollDateForNow();
+		}
 	}
 	dragActionUpdate(e->globalPos());
 }
@@ -1727,6 +1732,7 @@ void HistoryInner::setFirstLoading(bool loading) {
 }
 
 void HistoryInner::visibleAreaUpdated(int top, int bottom) {
+	auto scrolledUp = (top < _visibleAreaTop);
 	_visibleAreaTop = top;
 	_visibleAreaBottom = bottom;
 
@@ -1757,7 +1763,11 @@ void HistoryInner::visibleAreaUpdated(int top, int bottom) {
 			}
 		}
 	}
-	_scrollDateCheck.call();
+	if (scrolledUp) {
+		_scrollDateCheck.call();
+	} else {
+		onScrollDateHideByTimer();
+	}
 }
 
 bool HistoryInner::displayScrollDate() const {
@@ -1791,7 +1801,7 @@ void HistoryInner::onScrollDateCheck() {
 
 void HistoryInner::onScrollDateHideByTimer() {
 	_scrollDateHideTimer.stop();
-	if (ClickHandler::getPressed() != _scrollDateLink) {
+	if (!_scrollDateLink || ClickHandler::getPressed() != _scrollDateLink) {
 		scrollDateHide();
 	}
 }
