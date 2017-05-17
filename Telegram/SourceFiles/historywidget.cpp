@@ -3751,17 +3751,19 @@ void HistoryWidget::checkTabbedSelectorToggleTooltip() {
 		if (!_tabbedSelectorToggleTooltipShown) {
 			auto shownCount = AuthSession::Current().data().tabbedSelectorSectionTooltipShown();
 			if (shownCount < kTabbedSelectorToggleTooltipCount) {
-				AuthSession::Current().data().setTabbedSelectorSectionTooltipShown(shownCount + 1);
-				AuthSession::Current().saveDataDelayed(kTabbedSelectorToggleTooltipTimeoutMs);
-
 				_tabbedSelectorToggleTooltipShown = true;
 				_tabbedSelectorToggleTooltip.create(this, object_ptr<Ui::FlatLabel>(this, lang(lng_emoji_hide_panel), Ui::FlatLabel::InitType::Simple, st::defaultImportantTooltipLabel), st::defaultImportantTooltip);
-				updateTabbedSelectorToggleTooltipGeometry();
 				_tabbedSelectorToggleTooltip->setHiddenCallback([this] {
 					_tabbedSelectorToggleTooltip.destroy();
 				});
-				_tabbedSelectorToggleTooltip->hideAfter(kTabbedSelectorToggleTooltipTimeoutMs);
-				_tabbedSelectorToggleTooltip->toggleAnimated(true);
+				InvokeQueued(_tabbedSelectorToggleTooltip, [this, shownCount] {
+					AuthSession::Current().data().setTabbedSelectorSectionTooltipShown(shownCount + 1);
+					AuthSession::Current().saveDataDelayed(kTabbedSelectorToggleTooltipTimeoutMs);
+
+					updateTabbedSelectorToggleTooltipGeometry();
+					_tabbedSelectorToggleTooltip->hideAfter(kTabbedSelectorToggleTooltipTimeoutMs);
+					_tabbedSelectorToggleTooltip->toggleAnimated(true);
+				});
 			}
 		}
 	} else {
