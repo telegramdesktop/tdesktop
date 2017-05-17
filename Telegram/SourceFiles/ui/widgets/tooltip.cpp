@@ -153,9 +153,7 @@ void Tooltip::paintEvent(QPaintEvent *e) {
 
 	if (_useTransparency) {
 		Platform::StartTranslucentPaint(p, e);
-	}
 
-	if (_useTransparency) {
 		p.setPen(_st->textBorder);
 		p.setBrush(_st->textBg);
 		PainterHighQualityEnabler hq(p);
@@ -334,7 +332,9 @@ void ImportantTooltip::checkAnimationFinish() {
 		_cache = QPixmap();
 		showChildren();
 		setVisible(_visible);
-		if (!_visible && _hiddenCallback) {
+		if (_visible) {
+			update();
+		} else if (_hiddenCallback) {
 			_hiddenCallback();
 		}
 	}
@@ -383,7 +383,6 @@ void ImportantTooltip::paintEvent(QPaintEvent *e) {
 
 	auto inner = countInner();
 	if (_useTransparency) {
-		Platform::StartTranslucentPaint(p, e);
 		if (!_cache.isNull()) {
 			auto opacity = _visibleAnimation.current(_visible ? 1. : 0.);
 			p.setOpacity(opacity);
