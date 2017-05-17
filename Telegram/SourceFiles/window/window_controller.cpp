@@ -57,14 +57,14 @@ int Controller::dialogsSmallColumnWidth() const {
 	return st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPadding.x();
 }
 
-Controller::ColumnLayout Controller::computeColumnLayout() {
+Controller::ColumnLayout Controller::computeColumnLayout() const {
 	auto layout = Adaptive::WindowLayout::OneColumn;
 
 	auto bodyWidth = window()->bodyWidget()->width();
 	auto dialogsWidth = qRound(bodyWidth * dialogsWidthRatio().value());
-	auto historyWidth = bodyWidth - dialogsWidth;
-	accumulate_max(historyWidth, st::windowMinWidth);
-	dialogsWidth = bodyWidth - historyWidth;
+	auto chatWidth = bodyWidth - dialogsWidth;
+	accumulate_max(chatWidth, st::windowMinWidth);
+	dialogsWidth = bodyWidth - chatWidth;
 
 	auto useOneColumnLayout = [this, bodyWidth, dialogsWidth] {
 		auto someSectionShown = !App::main()->selectingPeer() && App::main()->isSectionShown();
@@ -76,15 +76,17 @@ Controller::ColumnLayout Controller::computeColumnLayout() {
 		}
 		return false;
 	};
+
 	auto useSmallColumnLayout = [this, dialogsWidth] {
-		// used if useOneColumnLayout() == false.
+		// Used if useOneColumnLayout() == false.
 		if (dialogsWidth < st::dialogsWidthMin / 2) {
 			return true;
 		}
 		return false;
 	};
+
 	if (useOneColumnLayout()) {
-		dialogsWidth = bodyWidth;
+		dialogsWidth = chatWidth = bodyWidth;
 	} else if (useSmallColumnLayout()) {
 		layout = Adaptive::WindowLayout::SmallColumn;
 		auto forceWideDialogs = [this] {
@@ -100,31 +102,35 @@ Controller::ColumnLayout Controller::computeColumnLayout() {
 		} else {
 			dialogsWidth = dialogsSmallColumnWidth();
 		}
+		chatWidth = bodyWidth - dialogsWidth;
 	} else {
 		layout = Adaptive::WindowLayout::Normal;
 		accumulate_max(dialogsWidth, st::dialogsWidthMin);
+		chatWidth = bodyWidth - dialogsWidth;
 	}
-	return { bodyWidth, dialogsWidth, layout };
+	return { bodyWidth, dialogsWidth, chatWidth, layout };
 }
 
-bool Controller::provideChatWidth(int requestedWidth) {
+bool Controller::canProvideChatWidth(int requestedWidth) const {
 	auto currentLayout = computeColumnLayout();
-	auto chatWidth = currentLayout.bodyWidth - currentLayout.dialogsWidth;
-	if (currentLayout.windowLayout == Adaptive::WindowLayout::OneColumn) {
-		chatWidth = currentLayout.bodyWidth;
-	}
-	if (chatWidth >= requestedWidth) {
+	auto extendBy = requestedWidth - currentLayout.chatWidth;
+	if (extendBy <= 0) {
 		return true;
 	}
-	if (!window()->canExtendWidthBy(requestedWidth - chatWidth)) {
-		return false;
+	return window()->canExtendWidthBy(extendBy);
+}
+
+void Controller::provideChatWidth(int requestedWidth) {
+	auto currentLayout = computeColumnLayout();
+	auto extendBy = requestedWidth - currentLayout.chatWidth;
+	if (extendBy <= 0) {
+		return;
 	}
-	window()->tryToExtendWidthBy(requestedWidth - chatWidth);
+	window()->tryToExtendWidthBy(extendBy);
 	auto newLayout = computeColumnLayout();
 	if (newLayout.windowLayout != Adaptive::WindowLayout::OneColumn) {
 		dialogsWidthRatio().set(float64(newLayout.bodyWidth - requestedWidth) / newLayout.bodyWidth, true);
 	}
-	return true;
 }
 
 } // namespace Window

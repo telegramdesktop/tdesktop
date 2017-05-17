@@ -69,19 +69,30 @@ public:
 	struct ColumnLayout {
 		int bodyWidth;
 		int dialogsWidth;
+		int chatWidth;
 		Adaptive::WindowLayout windowLayout;
 	};
-	ColumnLayout computeColumnLayout();
+	ColumnLayout computeColumnLayout() const;
 	int dialogsSmallColumnWidth() const;
-	bool provideChatWidth(int requestedWidth);
+	bool canProvideChatWidth(int requestedWidth) const;
+	void provideChatWidth(int requestedWidth);
 
 	base::Variable<float64> &dialogsWidthRatio() {
+		return _dialogsWidthRatio;
+	}
+	const base::Variable<float64> &dialogsWidthRatio() const {
 		return _dialogsWidthRatio;
 	}
 	base::Variable<bool> &dialogsListFocused() {
 		return _dialogsListFocused;
 	}
+	const base::Variable<bool> &dialogsListFocused() const {
+		return _dialogsListFocused;
+	}
 	base::Variable<bool> &dialogsListDisplayForced() {
+		return _dialogsListDisplayForced;
+	}
+	const base::Variable<bool> &dialogsListDisplayForced() const {
 		return _dialogsListDisplayForced;
 	}
 

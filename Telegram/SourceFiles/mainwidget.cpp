@@ -3192,6 +3192,9 @@ void MainWidget::handleAdaptiveLayoutUpdate() {
 
 void MainWidget::updateWindowAdaptiveLayout() {
 	auto layout = _controller->computeColumnLayout();
+
+	// Check if we are in a single-column layout in a wide enough window
+	// for the normal layout. If so, switch to the normal layout.
 	if (layout.windowLayout == Adaptive::WindowLayout::OneColumn) {
 		auto chatWidth = layout.dialogsWidth;
 		if (AuthSession::Current().data().tabbedSelectorSectionEnabled()
@@ -3205,6 +3208,7 @@ void MainWidget::updateWindowAdaptiveLayout() {
 			_controller->dialogsWidthRatio().set(float64(layout.dialogsWidth) / layout.bodyWidth, true);
 		}
 	}
+
 	_dialogsWidth = layout.dialogsWidth;
 	if (layout.windowLayout != Global::AdaptiveWindowLayout()) {
 		Global::SetAdaptiveWindowLayout(layout.windowLayout);

@@ -3787,11 +3787,12 @@ void HistoryWidget::toggleTabbedSelectorMode() {
 		updateTabbedSelectorSectionShown();
 		recountChatWidth();
 		updateControlsGeometry();
-	} else if (_controller->provideChatWidth(minimalWidthForTabbedSelectorSection())) {
+	} else if (_controller->canProvideChatWidth(minimalWidthForTabbedSelectorSection())) {
 		if (!AuthSession::Current().data().tabbedSelectorSectionEnabled()) {
 			AuthSession::Current().data().setTabbedSelectorSectionEnabled(true);
 			AuthSession::Current().saveDataDelayed(kSaveTabbedSelectorSectionTimeoutMs);
 		}
+		_controller->provideChatWidth(minimalWidthForTabbedSelectorSection());
 		updateTabbedSelectorSectionShown();
 		recountChatWidth();
 		updateControlsGeometry();
