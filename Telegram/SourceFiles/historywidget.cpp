@@ -3779,8 +3779,16 @@ int HistoryWidget::minimalWidthForTabbedSelectorSection() const {
 	return st::windowMinWidth + tabbedSelectorSectionWidth();
 }
 
+bool HistoryWidget::willSwitchToTabbedSelectorWithWidth(int newWidth) const {
+	if (!AuthSession::Current().data().tabbedSelectorSectionEnabled()) {
+		return false;
+	} else if (_tabbedSectionUsed) {
+		return false;
+	}
+	return (newWidth >= minimalWidthForTabbedSelectorSection());
+}
+
 void HistoryWidget::toggleTabbedSelectorMode() {
-	auto sectionEnabled = AuthSession::Current().data().tabbedSelectorSectionEnabled();
 	if (_tabbedSection) {
 		AuthSession::Current().data().setTabbedSelectorSectionEnabled(false);
 		AuthSession::Current().saveDataDelayed(kSaveTabbedSelectorSectionTimeoutMs);

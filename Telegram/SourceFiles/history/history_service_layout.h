@@ -22,6 +22,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace HistoryLayout {
 
+int WideChatWidth();
+
 struct PaintContext {
 	PaintContext(TimeMs ms, const QRect &clip, TextSelection selection)
 		: ms(ms)

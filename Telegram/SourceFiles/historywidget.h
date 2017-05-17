@@ -202,6 +202,7 @@ public:
 	QRect historyRect() const;
 	int tabbedSelectorSectionWidth() const;
 	int minimalWidthForTabbedSelectorSection() const;
+	bool willSwitchToTabbedSelectorWithWidth(int newWidth) const;
 
 	void updateSendAction(History *history, SendAction::Type type, int32 progress = 0);
 	void cancelSendAction(History *history, SendAction::Type type);

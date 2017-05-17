@@ -167,7 +167,7 @@ void paintPreparedDate(Painter &p, const QString &dateText, int dateTextWidth, i
 	int left = st::msgServiceMargin.left();
 	int maxwidth = w;
 	if (Adaptive::ChatWide()) {
-		maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
+		maxwidth = qMin(maxwidth, WideChatWidth());
 	}
 	w = maxwidth - st::msgServiceMargin.left() - st::msgServiceMargin.left();
 
@@ -181,6 +181,10 @@ void paintPreparedDate(Painter &p, const QString &dateText, int dateTextWidth, i
 }
 
 } // namepsace
+
+int WideChatWidth() {
+	return st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left();
+}
 
 void ServiceMessagePainter::paint(Painter &p, const HistoryService *message, const PaintContext &context, int height) {
 	int left = 0, width = 0;

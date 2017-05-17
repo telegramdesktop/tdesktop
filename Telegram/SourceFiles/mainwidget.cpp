@@ -35,6 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "dialogswidget.h"
 #include "historywidget.h"
+#include "history/history_service_layout.h"
 #include "overviewwidget.h"
 #include "lang.h"
 #include "boxes/add_contact_box.h"
@@ -3192,11 +3193,12 @@ void MainWidget::handleAdaptiveLayoutUpdate() {
 
 void MainWidget::updateWindowAdaptiveLayout() {
 	auto layout = _controller->computeColumnLayout();
+	auto dialogsWidthRatio = _controller->dialogsWidthRatio().value();
 
 	// Check if we are in a single-column layout in a wide enough window
 	// for the normal layout. If so, switch to the normal layout.
 	if (layout.windowLayout == Adaptive::WindowLayout::OneColumn) {
-		auto chatWidth = layout.dialogsWidth;
+		auto chatWidth = layout.chatWidth;
 		if (AuthSession::Current().data().tabbedSelectorSectionEnabled()
 			&& chatWidth >= _history->minimalWidthForTabbedSelectorSection()) {
 			chatWidth -= _history->tabbedSelectorSectionWidth();
@@ -3205,9 +3207,34 @@ void MainWidget::updateWindowAdaptiveLayout() {
 			// Switch layout back to normal in a wide enough window.
 			layout.windowLayout = Adaptive::WindowLayout::Normal;
 			layout.dialogsWidth = st::dialogsWidthMin;
-			_controller->dialogsWidthRatio().set(float64(layout.dialogsWidth) / layout.bodyWidth, true);
+			layout.chatWidth = layout.bodyWidth - layout.dialogsWidth;
+			dialogsWidthRatio = float64(layout.dialogsWidth) / layout.bodyWidth;
 		}
 	}
+
+	// Check if we are going to create the third column and shrink the
+	// dialogs widget to provide a wide enough chat history column.
+	// Don't shrink the column on the first call, when window is inited.
+	if (layout.windowLayout == Adaptive::WindowLayout::Normal
+		&& _controller->window()->positionInited()) {
+		auto chatWidth = layout.chatWidth;
+		if (_history->willSwitchToTabbedSelectorWithWidth(chatWidth)) {
+			auto thirdColumnWidth = _history->tabbedSelectorSectionWidth();
+			auto twoColumnsWidth = (layout.bodyWidth - thirdColumnWidth);
+			auto sameRatioChatWidth = twoColumnsWidth - qRound(dialogsWidthRatio * twoColumnsWidth);
+			auto desiredChatWidth = qMax(sameRatioChatWidth, HistoryLayout::WideChatWidth());
+			chatWidth -= thirdColumnWidth;
+			auto extendChatBy = desiredChatWidth - chatWidth;
+			accumulate_min(extendChatBy, layout.dialogsWidth - st::dialogsWidthMin);
+			if (extendChatBy > 0) {
+				layout.dialogsWidth -= extendChatBy;
+				layout.chatWidth += extendChatBy;
+				dialogsWidthRatio = float64(layout.dialogsWidth) / layout.bodyWidth;
+			}
+		}
+	}
+
+	_controller->dialogsWidthRatio().set(dialogsWidthRatio, true);
 
 	_dialogsWidth = layout.dialogsWidth;
 	if (layout.windowLayout != Global::AdaptiveWindowLayout()) {
