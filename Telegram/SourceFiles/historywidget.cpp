@@ -35,6 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/inner_dropdown.h"
 #include "ui/widgets/dropdown_menu.h"
+#include "ui/widgets/labels.h"
 #include "ui/effects/ripple_animation.h"
 #include "inline_bots/inline_bot_result.h"
 #include "data/data_drafts.h"
@@ -74,10 +75,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace {
 
 constexpr auto kStickersUpdateTimeout = 3600000; // update not more than once in an hour
-constexpr auto kSaveTabbedSelectorSectionTimeout = 1000;
+constexpr auto kSaveTabbedSelectorSectionTimeoutMs = 1000;
 constexpr auto kMessagesPerPageFirst = 30;
 constexpr auto kMessagesPerPage = 50;
 constexpr auto kPreloadHeightsCount = 3; // when 3 screens to scroll left make a preload request
+constexpr auto kTabbedSelectorToggleTooltipTimeoutMs = 3000;
+constexpr auto kTabbedSelectorToggleTooltipCount = 3;
 
 ApiWrap::RequestMessageDataCallback replyEditMessageDataCallback() {
 	return [](ChannelData *channel, MsgId msgId) {
@@ -738,6 +741,9 @@ void HistoryWidget::orderWidgets() {
 	}
 	if (_tabbedPanel) {
 		_tabbedPanel->raise();
+	}
+	if (_tabbedSelectorToggleTooltip) {
+		_tabbedSelectorToggleTooltip->raise();
 	}
 	_attachDragDocument->raise();
 	_attachDragPhoto->raise();
@@ -2195,6 +2201,7 @@ void HistoryWidget::updateControlsVisibility() {
 			update();
 		}
 	}
+	checkTabbedSelectorToggleTooltip();
 	updateMouseTracking();
 }
 
@@ -3723,6 +3730,7 @@ void HistoryWidget::updateTabbedSelectorSectionShown() {
 	if (_tabbedSectionUsed) {
 		_tabbedSection.create(this, _controller, _tabbedPanel->takeSelector());
 		_tabbedSection->setCancelledCallback([this] { setInnerFocus(); });
+		_tabbedSelectorToggle->setColorOverrides(&st::historyAttachEmojiActive, &st::historyRecordVoiceFgActive, &st::historyRecordVoiceRippleBgActive);
 		_rightShadow.create(this, st::shadowFg);
 		auto destroyingPanel = std::move(_tabbedPanel);
 		updateControlsVisibility();
@@ -3730,9 +3738,35 @@ void HistoryWidget::updateTabbedSelectorSectionShown() {
 		_tabbedPanel.create(this, _controller, _tabbedSection->takeSelector());
 		_tabbedSelectorToggle->installEventFilter(_tabbedPanel);
 		_tabbedSection.destroy();
+		_tabbedSelectorToggle->setColorOverrides(nullptr, nullptr, nullptr);
 		_rightShadow.destroy();
+		_tabbedSelectorToggleTooltipShown = false;
 	}
+	checkTabbedSelectorToggleTooltip();
 	orderWidgets();
+}
+
+void HistoryWidget::checkTabbedSelectorToggleTooltip() {
+	if (_tabbedSection && !_tabbedSection->isHidden() && !_tabbedSelectorToggle->isHidden()) {
+		if (!_tabbedSelectorToggleTooltipShown) {
+			auto shownCount = AuthSession::Current().data().tabbedSelectorSectionTooltipShown();
+			if (shownCount < kTabbedSelectorToggleTooltipCount) {
+				AuthSession::Current().data().setTabbedSelectorSectionTooltipShown(shownCount + 1);
+				AuthSession::Current().saveDataDelayed(kTabbedSelectorToggleTooltipTimeoutMs);
+
+				_tabbedSelectorToggleTooltipShown = true;
+				_tabbedSelectorToggleTooltip.create(this, object_ptr<Ui::FlatLabel>(this, lang(lng_emoji_hide_panel), Ui::FlatLabel::InitType::Simple, st::defaultImportantTooltipLabel), st::defaultImportantTooltip);
+				updateTabbedSelectorToggleTooltipGeometry();
+				_tabbedSelectorToggleTooltip->setHiddenCallback([this] {
+					_tabbedSelectorToggleTooltip.destroy();
+				});
+				_tabbedSelectorToggleTooltip->hideAfter(kTabbedSelectorToggleTooltipTimeoutMs);
+				_tabbedSelectorToggleTooltip->toggleAnimated(true);
+			}
+		}
+	} else {
+		_tabbedSelectorToggleTooltip.destroy();
+	}
 }
 
 int HistoryWidget::tabbedSelectorSectionWidth() const {
@@ -3747,14 +3781,14 @@ void HistoryWidget::toggleTabbedSelectorMode() {
 	auto sectionEnabled = AuthSession::Current().data().tabbedSelectorSectionEnabled();
 	if (_tabbedSection) {
 		AuthSession::Current().data().setTabbedSelectorSectionEnabled(false);
-		AuthSession::Current().saveDataDelayed(kSaveTabbedSelectorSectionTimeout);
+		AuthSession::Current().saveDataDelayed(kSaveTabbedSelectorSectionTimeoutMs);
 		updateTabbedSelectorSectionShown();
 		recountChatWidth();
 		updateControlsGeometry();
 	} else if (_controller->provideChatWidth(minimalWidthForTabbedSelectorSection())) {
 		if (!AuthSession::Current().data().tabbedSelectorSectionEnabled()) {
 			AuthSession::Current().data().setTabbedSelectorSectionEnabled(true);
-			AuthSession::Current().saveDataDelayed(kSaveTabbedSelectorSectionTimeout);
+			AuthSession::Current().saveDataDelayed(kSaveTabbedSelectorSectionTimeoutMs);
 		}
 		updateTabbedSelectorSectionShown();
 		recountChatWidth();
@@ -3884,6 +3918,7 @@ void HistoryWidget::moveFieldControls() {
 	auto right = (width() - _chatWidth) + st::historySendRight;
 	_send->moveToRight(right, buttonsBottom); right += _send->width();
 	_tabbedSelectorToggle->moveToRight(right, buttonsBottom);
+	updateTabbedSelectorToggleTooltipGeometry();
 	_botKeyboardHide->moveToRight(right, buttonsBottom); right += _botKeyboardHide->width();
 	_botKeyboardShow->moveToRight(right, buttonsBottom);
 	_botCommandStart->moveToRight(right, buttonsBottom);
@@ -3902,6 +3937,15 @@ void HistoryWidget::moveFieldControls() {
 	_unblock->setGeometry(fullWidthButtonRect);
 	_joinChannel->setGeometry(fullWidthButtonRect);
 	_muteUnmute->setGeometry(fullWidthButtonRect);
+}
+
+void HistoryWidget::updateTabbedSelectorToggleTooltipGeometry() {
+	if (_tabbedSelectorToggleTooltip) {
+		auto toggle = _tabbedSelectorToggle->geometry();
+		auto margin = st::historyAttachEmojiTooltipDelta;
+		auto margins = QMargins(margin, margin, margin, margin);
+		_tabbedSelectorToggleTooltip->pointAt(toggle.marginsRemoved(margins));
+	}
 }
 
 void HistoryWidget::updateFieldSize() {

@@ -90,17 +90,17 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 	auto ms = getms();
 
 	p.fillRect(e->rect(), st::historyComposeAreaBg);
-	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms);
+	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms, _rippleOverride ? &(*_rippleOverride)->c : nullptr);
 
 	auto loading = a_loading.current(ms, _loading ? 1 : 0);
 	p.setOpacity(1 - loading);
 
 	auto over = isOver();
-	auto icon = &(over ? _st.iconOver : _st.icon);
+	auto icon = _iconOverride ? _iconOverride : &(over ? _st.iconOver : _st.icon);
 	icon->paint(p, _st.iconPosition, width());
 
 	p.setOpacity(1.);
-	auto pen = (over ? st::historyEmojiCircleFgOver : st::historyEmojiCircleFg)->p;
+	auto pen = _colorOverride ? (*_colorOverride)->p : (over ? st::historyEmojiCircleFgOver : st::historyEmojiCircleFg)->p;
 	pen.setWidth(st::historyEmojiCircleLine);
 	pen.setCapStyle(Qt::RoundCap);
 	p.setPen(pen);
@@ -128,6 +128,13 @@ void EmojiButton::setLoading(bool loading) {
 			_a_loading.stop();
 		}
 	}
+}
+
+void EmojiButton::setColorOverrides(const style::icon *iconOverride, const style::color *colorOverride, const style::color *rippleOverride) {
+	_iconOverride = iconOverride;
+	_colorOverride = colorOverride;
+	_rippleOverride = rippleOverride;
+	update();
 }
 
 void EmojiButton::onStateChanged(State was, StateChangeSource source) {

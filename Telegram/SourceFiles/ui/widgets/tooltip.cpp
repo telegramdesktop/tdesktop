@@ -202,4 +202,213 @@ void Tooltip::Hide() {
 	}
 }
 
+ImportantTooltip::ImportantTooltip(QWidget *parent, object_ptr<TWidget> content, const style::ImportantTooltip &st) : TWidget(parent)
+, _st(st)
+, _content(std::move(content)) {
+	_content->setParent(this);
+	_hideTimer.setCallback([this] { toggleAnimated(false); });
+	hide();
+}
+
+void ImportantTooltip::pointAt(QRect area, Side side) {
+	if (_area == area && _side == side) {
+		return;
+	}
+	setArea(area);
+	countApproachSide(side);
+	updateGeometry();
+	update();
+}
+
+void ImportantTooltip::setArea(QRect area) {
+	Expects(parentWidget() != nullptr);
+	_area = area;
+	auto point = parentWidget()->mapToGlobal(_area.center());
+	_useTransparency = Platform::TranslucentWindowsSupported(point);
+	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
+
+	auto contentWidth = parentWidget()->rect().marginsRemoved(_st.padding).width();
+	accumulate_min(contentWidth, _content->naturalWidth());
+	_content->resizeToWidth(contentWidth);
+
+	auto size = _content->rect().marginsAdded(_st.padding).size();
+	if (_useTransparency) {
+		size.setHeight(size.height() + _st.arrow);
+	}
+	if (size.width() < 2 * (_st.arrowSkipMin + _st.arrow)) {
+		size.setWidth(2 * (_st.arrowSkipMin + _st.arrow));
+	}
+	resize(size);
+}
+
+void ImportantTooltip::countApproachSide(Side preferSide) {
+	Expects(parentWidget() != nullptr);
+	auto requiredSpace = countInner().height() + _st.shift;
+	if (_useTransparency) {
+		requiredSpace += _st.arrow;
+	}
+	auto available = parentWidget()->rect();
+	auto availableAbove = _area.y() - available.y();
+	auto availableBelow = (available.y() + available.height()) - (_area.y() + _area.height());
+	auto allowedAbove = (availableAbove >= requiredSpace + _st.margin.top());
+	auto allowedBelow = (availableBelow >= requiredSpace + _st.margin.bottom());
+	if ((allowedAbove && allowedBelow) || (!allowedAbove && !allowedBelow)) {
+		_side = preferSide;
+	} else {
+		_side = (allowedAbove ? SideFlag::Up : SideFlag::Down) | (preferSide & (SideFlag::Left | SideFlag::Center | SideFlag::Right));
+	}
+	if (_useTransparency) {
+		auto arrow = QImage(QSize(_st.arrow * 2, _st.arrow) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+		arrow.fill(Qt::transparent);
+		arrow.setDevicePixelRatio(cRetinaFactor());
+		{
+			Painter p(&arrow);
+			PainterHighQualityEnabler hq(p);
+
+			QPainterPath path;
+			path.moveTo(0, 0);
+			path.lineTo(2 * _st.arrow, 0);
+			path.lineTo(_st.arrow, _st.arrow);
+			path.lineTo(0, 0);
+			p.fillPath(path, _st.bg);
+		}
+		if (_side & SideFlag::Down) {
+			arrow = std::move(arrow).transformed(QTransform(1, 0, 0, -1, 0, 0));
+		}
+		_arrow = App::pixmapFromImageInPlace(std::move(arrow));
+	}
+}
+
+void ImportantTooltip::toggleAnimated(bool visible) {
+	if (_visible == isHidden()) {
+		setVisible(_visible);
+	}
+	if (_visible != visible) {
+		updateGeometry();
+		_visible = visible;
+		refreshAnimationCache();
+		if (_visible) {
+			show();
+		} else if (isHidden()) {
+			return;
+		}
+		hideChildren();
+		_visibleAnimation.start([this] { animationCallback(); }, _visible ? 0. : 1., _visible ? 1. : 0., _st.duration, anim::easeOutCirc);
+	}
+}
+
+void ImportantTooltip::hideAfter(TimeMs timeout) {
+	_hideTimer.callOnce(timeout);
+}
+
+void ImportantTooltip::animationCallback() {
+	updateGeometry();
+	update();
+	checkAnimationFinish();
+}
+
+void ImportantTooltip::refreshAnimationCache() {
+	if (_cache.isNull() && _useTransparency) {
+		auto animation = base::take(_visibleAnimation);
+		auto visible = std::exchange(_visible, true);
+		showChildren();
+		_cache = myGrab(this);
+		_visible = base::take(visible);
+		_visibleAnimation = base::take(animation);
+	}
+}
+
+void ImportantTooltip::toggleFast(bool visible) {
+	if (_visible == isHidden()) {
+		setVisible(_visible);
+	}
+	if (_visibleAnimation.animating() || _visible != visible) {
+		_visibleAnimation.finish();
+		_visible = visible;
+		checkAnimationFinish();
+	}
+}
+
+void ImportantTooltip::checkAnimationFinish() {
+	if (!_visibleAnimation.animating()) {
+		_cache = QPixmap();
+		showChildren();
+		setVisible(_visible);
+		if (!_visible && _hiddenCallback) {
+			_hiddenCallback();
+		}
+	}
+}
+
+void ImportantTooltip::updateGeometry() {
+	Expects(parentWidget() != nullptr);
+	auto parent = parentWidget();
+	auto areaMiddle = _area.x() + (_area.width() / 2);
+	auto left = areaMiddle - (width() / 2);
+	if (_side & SideFlag::Left) {
+		left = areaMiddle + _st.arrowSkip - width();
+	} else if (_side & SideFlag::Right) {
+		left = areaMiddle - _st.arrowSkip;
+	}
+	accumulate_min(left, parent->width() - _st.margin.right() - width());
+	accumulate_max(left, _st.margin.left());
+	accumulate_max(left, areaMiddle + _st.arrow + _st.arrowSkipMin - width());
+	accumulate_min(left, areaMiddle - _st.arrow - _st.arrowSkipMin);
+
+	auto countTop = [this] {
+		auto shift = anim::interpolate(_st.shift, 0, _visibleAnimation.current(_visible ? 1. : 0.));
+		if (_side & SideFlag::Up) {
+			return _area.y() - height() - shift;
+		}
+		return _area.y() + _area.height() + shift;
+	};
+	move(left, countTop());
+}
+
+void ImportantTooltip::resizeEvent(QResizeEvent *e) {
+	auto inner = countInner();
+	auto contentTop = _st.padding.top();
+	if (_useTransparency && (_side & SideFlag::Down)) {
+		contentTop += _st.arrow;
+	}
+	_content->moveToLeft(_st.padding.left(), contentTop);
+}
+
+QRect ImportantTooltip::countInner() const {
+	return _content->geometry().marginsAdded(_st.padding);
+}
+
+void ImportantTooltip::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	auto inner = countInner();
+	if (_useTransparency) {
+		Platform::StartTranslucentPaint(p, e);
+		if (!_cache.isNull()) {
+			auto opacity = _visibleAnimation.current(_visible ? 1. : 0.);
+			p.setOpacity(opacity);
+			p.drawPixmap(0, 0, _cache);
+		} else {
+			if (!_visible) {
+				return;
+			}
+			p.setBrush(_st.bg);
+			p.setPen(Qt::NoPen);
+			{
+				PainterHighQualityEnabler hq(p);
+				p.drawRoundedRect(inner, _st.radius, _st.radius);
+			}
+			auto areaMiddle = _area.x() + (_area.width() / 2) - x();
+			auto arrowLeft = areaMiddle - _st.arrow;
+			if (_side & SideFlag::Up) {
+				p.drawPixmapLeft(arrowLeft, inner.y() + inner.height(), width(), _arrow);
+			} else {
+				p.drawPixmapLeft(arrowLeft, inner.y() - _st.arrow, width(), _arrow);
+			}
+		}
+	} else {
+		p.fillRect(inner, QColor(_st.bg->c.red(), _st.bg->c.green(), _st.bg->c.blue()));
+	}
+}
+
 } // namespace Ui

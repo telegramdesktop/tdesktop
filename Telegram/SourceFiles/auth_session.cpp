@@ -58,6 +58,7 @@ QByteArray AuthSessionData::serialize() const {
 		for (auto i = _variables.soundOverrides.cbegin(), e = _variables.soundOverrides.cend(); i != e; ++i) {
 			stream << i.key() << i.value();
 		}
+		stream << qint32(_variables.tabbedSelectorSectionTooltipShown);
 	}
 	return result;
 }
@@ -77,6 +78,7 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	qint32 emojiPanTab = static_cast<qint32>(EmojiPanelTab::Emoji);
 	qint32 lastSeenWarningSeen = 0;
 	qint32 tabbedSelectorSectionEnabled = 1;
+	qint32 tabbedSelectorSectionTooltipShown = 0;
 	QMap<QString, QString> soundOverrides;
 	stream >> emojiPanTab;
 	stream >> lastSeenWarningSeen;
@@ -94,6 +96,9 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 			}
 		}
 	}
+	if (!stream.atEnd()) {
+		stream >> tabbedSelectorSectionTooltipShown;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: Bad data for AuthSessionData::constructFromSerialized()"));
 		return;
@@ -108,6 +113,7 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	_variables.lastSeenWarningSeen = (lastSeenWarningSeen == 1);
 	_variables.tabbedSelectorSectionEnabled = (tabbedSelectorSectionEnabled == 1);
 	_variables.soundOverrides = std::move(soundOverrides);
+	_variables.tabbedSelectorSectionTooltipShown = tabbedSelectorSectionTooltipShown;
 }
 
 QString AuthSessionData::getSoundPath(const QString &key) const {

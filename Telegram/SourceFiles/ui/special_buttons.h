@@ -55,6 +55,7 @@ public:
 	EmojiButton(QWidget *parent, const style::IconButton &st);
 
 	void setLoading(bool loading);
+	void setColorOverrides(const style::icon *iconOverride, const style::color *colorOverride, const style::color *rippleOverride);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -64,17 +65,21 @@ protected:
 	QPoint prepareRippleStartPosition() const override;
 
 private:
+	void step_loading(TimeMs ms, bool timer) {
+		if (timer) {
+			update();
+		}
+	}
+
 	const style::IconButton &_st;
 
 	bool _loading = false;
 	Animation a_loading;
 	BasicAnimation _a_loading;
 
-	void step_loading(TimeMs ms, bool timer) {
-		if (timer) {
-			update();
-		}
-	}
+	const style::icon *_iconOverride = nullptr;
+	const style::color *_colorOverride = nullptr;
+	const style::color *_rippleOverride = nullptr;
 
 };
 

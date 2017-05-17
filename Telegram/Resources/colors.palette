@@ -541,3 +541,7 @@ callBarMuteRipple: dialogsRippleBgActive; // active phone call bar mute and hang
 callBarBgMuted: #8f8f8f | dialogsUnreadBgMuted; // phone call bar with muted mic background
 callBarUnmuteRipple: #7f7f7f | shadowFg; // phone call bar with muted mic mute and hangup button ripple effect
 callBarFg: dialogsNameFgActive; // phone call bar text and icons
+
+importantTooltipBg: toastBg;
+importantTooltipFg: toastFg;
+importantTooltipFgLink: mediaviewTextLinkFg;

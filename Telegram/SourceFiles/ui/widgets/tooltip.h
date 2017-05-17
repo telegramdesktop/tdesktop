@@ -21,6 +21,7 @@
 
 namespace style {
 struct Tooltip;
+struct ImportantTooltip;
 } // namespace style
 
 namespace Ui {
@@ -73,5 +74,57 @@ private:
 	bool _useTransparency = true;
 
 };
+
+class ImportantTooltip : public TWidget {
+public:
+	ImportantTooltip(QWidget *parent, object_ptr<TWidget> content, const style::ImportantTooltip &st);
+
+	enum class SideFlag {
+		Up     = 0x01,
+		Down   = 0x02,
+		Left   = 0x04,
+		Center = 0x08,
+		Right  = 0x0c,
+	};
+	Q_DECLARE_FLAGS(Side, SideFlag);
+	void pointAt(QRect area, Side preferSide = Side(SideFlag::Up) | SideFlag::Left);
+
+	void toggleAnimated(bool visible);
+	void toggleFast(bool visible);
+	void hideAfter(TimeMs timeout);
+
+	void setHiddenCallback(base::lambda<void()> callback) {
+		_hiddenCallback = std::move(callback);
+	}
+
+protected:
+	void resizeEvent(QResizeEvent *e);
+	void paintEvent(QPaintEvent *e);
+
+private:
+	void animationCallback();
+	QRect countInner() const;
+	void setArea(QRect area);
+	void countApproachSide(Side preferSide);
+	void updateGeometry();
+	void checkAnimationFinish();
+	void refreshAnimationCache();
+
+	base::Timer _hideTimer;
+	const style::ImportantTooltip &_st;
+	object_ptr<TWidget> _content;
+	QRect _area;
+	Side _side = Side(SideFlag::Up) | SideFlag::Left;
+	QPixmap _arrow;
+
+	Animation _visibleAnimation;
+	bool _visible = false;
+	base::lambda<void()> _hiddenCallback;
+	bool _useTransparency = true;
+	QPixmap _cache;
+
+};
+
+Q_DECLARE_OPERATORS_FOR_FLAGS(ImportantTooltip::Side);
 
 } // namespace Ui

@@ -96,12 +96,19 @@ public:
 		_variables.soundOverrides.clear();
 	}
 	QString getSoundPath(const QString &key) const;
+	void setTabbedSelectorSectionTooltipShown(int shown) {
+		_variables.tabbedSelectorSectionTooltipShown = shown;
+	}
+	int tabbedSelectorSectionTooltipShown() const {
+		return _variables.tabbedSelectorSectionTooltipShown;
+	}
 
 private:
 	struct Variables {
 		bool lastSeenWarningSeen = false;
 		EmojiPanelTab emojiPanelTab = EmojiPanelTab::Emoji;
 		bool tabbedSelectorSectionEnabled = true;
+		int tabbedSelectorSectionTooltipShown = 0;
 		QMap<QString, QString> soundOverrides;
 	};
 
