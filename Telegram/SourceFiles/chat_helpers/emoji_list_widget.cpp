@@ -75,7 +75,8 @@ EmojiListWidget::Footer::Footer(gsl::not_null<EmojiListWidget*> parent) : InnerF
 }
 
 void EmojiListWidget::Footer::processPanelHideFinished() {
-	setCurrentSectionIcon(Section::Recent);
+	// Preserve panel state through visibility toggles.
+	//setCurrentSectionIcon(Section::Recent);
 }
 
 void EmojiListWidget::Footer::setCurrentSectionIcon(Section section) {

@@ -461,8 +461,6 @@ void TabbedSelector::hideFinished() {
 	}
 	_a_slide.finish();
 	_slideAnimation.reset();
-
-	scrollToY(0);
 }
 
 void TabbedSelector::showStarted() {

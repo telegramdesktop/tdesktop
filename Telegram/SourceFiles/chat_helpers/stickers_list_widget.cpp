@@ -1009,11 +1009,12 @@ void StickersListWidget::processHideFinished() {
 void StickersListWidget::processPanelHideFinished() {
 	clearInstalledLocally();
 
-	// Reset to the recent stickers section.
-	if (_section == Section::Featured && (!_footer || !_footer->hasOnlyFeaturedSets())) {
-		_section = Section::Stickers;
-		validateSelectedIcon(ValidateIconAnimations::None);
-	}
+	// Preserve panel state through visibility toggles.
+	//// Reset to the recent stickers section.
+	//if (_section == Section::Featured && (!_footer || !_footer->hasOnlyFeaturedSets())) {
+	//	_section = Section::Stickers;
+	//	validateSelectedIcon(ValidateIconAnimations::None);
+	//}
 }
 
 void StickersListWidget::refreshStickers() {

@@ -116,7 +116,8 @@ void GifsListWidget::Footer::paintEvent(QPaintEvent *e) {
 }
 
 void GifsListWidget::Footer::processPanelHideFinished() {
-	_field->setText(QString());
+	// Preserve panel state through visibility toggles.
+	//_field->setText(QString());
 }
 
 GifsListWidget::GifsListWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : Inner(parent, controller)
@@ -407,7 +408,8 @@ void GifsListWidget::processPanelHideFinished() {
 			result->forget();
 		}
 	};
-	clearInlineRows(false);
+	// Preserve panel state through visibility toggles.
+	//clearInlineRows(false);
 	for_const (auto &item, _gifLayouts) {
 		itemForget(item.second);
 	}
