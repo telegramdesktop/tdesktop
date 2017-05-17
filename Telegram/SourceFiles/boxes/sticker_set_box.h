@@ -59,8 +59,6 @@ private:
 	class Inner;
 	QPointer<Inner> _inner;
 
-	QString _title;
-
 };
 
 // This class is hold in header because it requires Qt preprocessing.
@@ -73,7 +71,7 @@ public:
 	bool loaded() const;
 	int32 notInstalled() const;
 	bool official() const;
-	QString title() const;
+	TextWithEntities title() const;
 	QString shortName() const;
 
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
@@ -117,7 +115,7 @@ private:
 	bool _loaded = false;
 	uint64 _setId = 0;
 	uint64 _setAccess = 0;
-	QString _title, _setTitle, _setShortName;
+	QString _setTitle, _setShortName;
 	int32 _setCount = 0;
 	int32 _setHash = 0;
 	MTPDstickerSet::Flags _setFlags = 0;

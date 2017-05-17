@@ -204,7 +204,8 @@ void ContactsBox::updateTitle() {
 		auto addingAdmin = _channel && (_membersFilter == MembersFilter::Admins);
 		auto title = lang(addingAdmin ? lng_channel_add_admin : lng_profile_add_participant);
 		auto additional = (addingAdmin || (_inner->channel() && !_inner->channel()->isMegagroup())) ? QString() : QString("%1 / %2").arg(_inner->selectedCount()).arg(Global::MegagroupSizeMax());
-		setTitle(title, additional);
+		setTitle(title);
+		setAdditionalTitle(additional);
 	} else if (_inner->sharingBotGame()) {
 		setTitle(lang(lng_bot_choose_chat));
 	} else if (_inner->bot()) {

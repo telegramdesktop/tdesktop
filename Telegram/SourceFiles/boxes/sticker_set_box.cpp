@@ -165,7 +165,6 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 		if (d.vset.type() == mtpc_stickerSet) {
 			auto &s = d.vset.c_stickerSet();
 			_setTitle = stickerSetTitle(s);
-			_title = st::boxTitleFont->elided(_setTitle, width() - st::boxTitlePosition.x() - st::boxTitleHeight);
 			_setShortName = qs(s.vshort_name);
 			_setId = s.vid.v;
 			_setAccess = s.vaccess_hash.v;
@@ -428,8 +427,19 @@ bool StickerSetBox::Inner::official() const {
 	return _loaded && _setShortName.isEmpty();
 }
 
-QString StickerSetBox::Inner::title() const {
-	return _loaded ? (_pack.isEmpty() ? lang(lng_attach_failed) : _title) : lang(lng_contacts_loading);
+TextWithEntities StickerSetBox::Inner::title() const {
+	auto text = _setTitle;
+	auto entities = EntitiesInText();
+	if (_loaded) {
+		if (_pack.isEmpty()) {
+			text = lang(lng_attach_failed);
+		} else {
+			textParseEntities(text, TextParseMentions, &entities);
+		}
+	} else {
+		text = lang(lng_contacts_loading);
+	}
+	return { text, entities };
 }
 
 QString StickerSetBox::Inner::shortName() const {

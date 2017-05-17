@@ -27,6 +27,7 @@ namespace Ui {
 class RoundButton;
 class IconButton;
 class ScrollArea;
+class FlatLabel;
 template <typename Widget>
 class WidgetFadeWrap;
 } // namespace Ui
@@ -46,7 +47,9 @@ public:
 	virtual Window::Controller *controller() const = 0;
 
 	virtual void setLayerType(bool layerType) = 0;
-	virtual void setTitle(const QString &title, const QString &additional) = 0;
+	virtual void setTitle(const QString &title) = 0;
+	virtual void setTitle(const TextWithEntities &title) = 0;
+	virtual void setAdditionalTitle(const QString &additional) = 0;
 
 	virtual void clearButtons() = 0;
 	virtual QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> clickCallback, const style::RoundButton &st) = 0;
@@ -75,8 +78,14 @@ public:
 		getDelegate()->closeBox();
 	}
 
-	void setTitle(const QString &title, const QString &additional = QString()) {
-		getDelegate()->setTitle(title, additional);
+	void setTitle(const QString &title) {
+		getDelegate()->setTitle(title);
+	}
+	void setTitle(const TextWithEntities &title) {
+		getDelegate()->setTitle(title);
+	}
+	void setAdditionalTitle(const QString &additional) {
+		getDelegate()->setAdditionalTitle(additional);
 	}
 
 	void clearButtons() {
@@ -199,7 +208,9 @@ public:
 	void parentResized() override;
 
 	void setLayerType(bool layerType) override;
-	void setTitle(const QString &title, const QString &additional) override;
+	void setTitle(const QString &title) override;
+	void setTitle(const TextWithEntities &title) override;
+	void setAdditionalTitle(const QString &additional) override;
 
 	void clearButtons() override;
 	QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> clickCallback, const style::RoundButton &st) override;
@@ -235,7 +246,8 @@ protected:
 	}
 
 private:
-	void paintTitle(Painter &p, const QString &title, const QString &additional = QString());
+	void paintAdditionalTitle(Painter &p);
+	void updateTitlePosition();
 
 	bool hasTitle() const;
 	int titleHeight() const;
@@ -253,8 +265,10 @@ private:
 	int _maxContentHeight = 0;
 	object_ptr<BoxContent> _content;
 
-	QString _title;
+	object_ptr<Ui::FlatLabel> _title = { nullptr };
 	QString _additionalTitle;
+	int _titleLeft = 0;
+	int _titleTop = 0;
 	bool _layerType = false;
 
 	std::vector<object_ptr<Ui::RoundButton>> _buttons;

@@ -73,6 +73,15 @@ boxRoundShadow: Shadow {
 }
 
 boxTitleFont: font(17px semibold);
+boxTitle: FlatLabel(defaultFlatLabel) {
+	textFg: boxTitleFg;
+	maxHeight: 24px;
+	style: TextStyle(defaultTextStyle) {
+		font: boxTitleFont;
+		linkFont: boxTitleFont;
+		linkFontOver: font(17px semibold underline);
+	}
+}
 boxTitlePosition: point(23px, 20px);
 boxTitleHeight: 56px;
 boxLayerTitlePosition: point(23px, 16px);

@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/widget_fade_wrap.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/widgets/labels.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 
@@ -203,6 +204,7 @@ AbstractBox::AbstractBox(QWidget *parent, Window::Controller *controller, object
 
 void AbstractBox::setLayerType(bool layerType) {
 	_layerType = layerType;
+	updateTitlePosition();
 }
 
 int AbstractBox::titleHeight() const {
@@ -236,23 +238,15 @@ void AbstractBox::paintEvent(QPaintEvent *e) {
 			p.fillRect(rect, st::boxBg);
 		}
 	}
-	if (!_title.isEmpty() && clip.intersects(QRect(0, 0, width(), titleHeight()))) {
-		paintTitle(p, _title, _additionalTitle);
+	if (!_additionalTitle.isEmpty() && clip.intersects(QRect(0, 0, width(), titleHeight()))) {
+		paintAdditionalTitle(p);
 	}
 }
 
-void AbstractBox::paintTitle(Painter &p, const QString &title, const QString &additional) {
-	p.setFont(st::boxTitleFont);
-	p.setPen(st::boxTitleFg);
-	auto titleWidth = st::boxTitleFont->width(title);
-	auto titleLeft = _layerType ? st::boxLayerTitlePosition.x() : st::boxTitlePosition.x();
-	auto titleTop = _layerType ? st::boxLayerTitlePosition.y() : st::boxTitlePosition.y();
-	p.drawTextLeft(titleLeft, titleTop, width(), title, titleWidth);
-	if (!additional.isEmpty()) {
-		p.setFont(st::boxLayerTitleAdditionalFont);
-		p.setPen(st::boxTitleAdditionalFg);
-		p.drawTextLeft(titleLeft + titleWidth + st::boxLayerTitleAdditionalSkip, titleTop + st::boxTitleFont->ascent - st::boxLayerTitleAdditionalFont->ascent, width(), additional);
-	}
+void AbstractBox::paintAdditionalTitle(Painter &p) {
+	p.setFont(st::boxLayerTitleAdditionalFont);
+	p.setPen(st::boxTitleAdditionalFg);
+	p.drawTextLeft(_titleLeft + (_title ? _title->width() : 0) + st::boxLayerTitleAdditionalSkip, _titleTop + st::boxTitleFont->ascent - st::boxLayerTitleAdditionalFont->ascent, width(), _additionalTitle);
 }
 
 void AbstractBox::parentResized() {
@@ -262,18 +256,33 @@ void AbstractBox::parentResized() {
 	update();
 }
 
-void AbstractBox::setTitle(const QString &title, const QString &additional) {
+void AbstractBox::setTitle(const QString &title) {
+	setTitle({ title, EntitiesInText() });
+}
+
+void AbstractBox::setTitle(const TextWithEntities &title) {
 	auto wasTitle = hasTitle();
-	_title = title;
-	_additionalTitle = additional;
-	update();
+	if (!title.text.isEmpty()) {
+		if (!_title) {
+			_title.create(this, st::boxTitle);
+		}
+		_title->setMarkedText(title);
+		updateTitlePosition();
+	} else {
+		_title.destroy();
+	}
 	if (wasTitle != hasTitle()) {
 		updateSize();
 	}
 }
 
+void AbstractBox::setAdditionalTitle(const QString &additional) {
+	_additionalTitle = additional;
+	update();
+}
+
 bool AbstractBox::hasTitle() const {
-	return !_title.isEmpty() || !_additionalTitle.isEmpty();
+	return (_title != nullptr) || !_additionalTitle.isEmpty();
 }
 
 void AbstractBox::updateSize() {
@@ -292,6 +301,15 @@ void AbstractBox::updateButtonsPositions() {
 			button->moveToRight(right, top);
 			right += button->width() + padding.left();
 		}
+	}
+}
+
+void AbstractBox::updateTitlePosition() {
+	_titleLeft = _layerType ? st::boxLayerTitlePosition.x() : st::boxTitlePosition.x();
+	_titleTop = _layerType ? st::boxLayerTitlePosition.y() : st::boxTitlePosition.y();
+	if (_title) {
+		_title->resizeToWidth(qMin(_title->naturalWidth(), width() - _titleLeft * 2));
+		_title->moveToLeft(_titleLeft, _titleTop);
 	}
 }
 
@@ -358,6 +376,7 @@ int AbstractBox::contentTop() const {
 
 void AbstractBox::resizeEvent(QResizeEvent *e) {
 	updateButtonsPositions();
+	updateTitlePosition();
 
 	auto top = contentTop();
 	_content->resize(width(), height() - top - buttonsHeight());
