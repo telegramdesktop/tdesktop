@@ -780,6 +780,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_emoji_category5" = "여행 및 장소";
 "lng_emoji_category6" = "물건";
 "lng_emoji_category7" = "심볼 및 국기";
+"lng_emoji_hide_panel" = "이모티콘 사이드바를 숨기시려면 여기를 클릭해주세요";
 
 "lng_recent_stickers" = "자주 사용";
 "lng_switch_stickers" = "스티커";

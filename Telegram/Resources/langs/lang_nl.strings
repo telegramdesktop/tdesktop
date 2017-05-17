@@ -780,6 +780,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_emoji_category5" = "Reizen & plekken";
 "lng_emoji_category6" = "Objecten";
 "lng_emoji_category7" = "Symbolen en vlaggen";
+"lng_emoji_hide_panel" = "Klik om het emojipaneel te verbergen";
 
 "lng_recent_stickers" = "Veelgebruikt";
 "lng_switch_stickers" = "Stickers";
