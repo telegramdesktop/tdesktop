@@ -1848,9 +1848,14 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 			response.resize(end - from);
 			memcpy(response.data(), from, (end - from) * sizeof(mtpPrime));
 		}
-		if (!sessionData->layerWasInited()) {
-			sessionData->setLayerWasInited(true);
-			sessionData->owner()->notifyLayerInited(true);
+		if (typeId != mtpc_rpc_error) {
+			// An error could be some RPC_CALL_FAIL or other error inside
+			// the initConnection, so we're not sure yet that it was inited.
+			// Wait till a good response is received.
+			if (!sessionData->layerWasInited()) {
+				sessionData->setLayerWasInited(true);
+				sessionData->owner()->notifyLayerInited(true);
+			}
 		}
 
 		auto requestId = wasSent(reqMsgId.v);
