@@ -2297,7 +2297,17 @@ void HistoryGif::updateStatusText() const {
 		statusSize = FileStatusSizeLoaded;
 		if (_gif && _gif->mode() == Media::Clip::Reader::Mode::Video) {
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Video);
-			statusSize = -1 - (state.position / state.frequency);
+			if (state.length) {
+				auto position = int64(0);
+				if (!Media::Player::IsStopped(state.state) && state.state != Media::Player::State::Finishing) {
+					position = state.position;
+				} else if (state.state == Media::Player::State::StoppedAtEnd) {
+					position = state.length;
+				}
+				statusSize = -1 - ((state.length - position) / state.frequency);
+			} else {
+				statusSize = -1 - _data->duration();
+			}
 		}
 	} else {
 		statusSize = FileStatusSizeReady;
