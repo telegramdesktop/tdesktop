@@ -851,6 +851,7 @@ public:
 	}
 
 	void clipCallback(Media::Clip::Notification notification);
+	void audioTrackUpdated();
 
 	~HistoryItem();
 

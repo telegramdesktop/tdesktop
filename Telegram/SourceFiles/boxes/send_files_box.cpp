@@ -145,7 +145,7 @@ void SendFilesBox::prepareGifPreview() {
 		return _animated;
 	};
 	if (createGifPreview()) {
-		_gifPreview = Media::Clip::MakeReader(FileLocation(_files.front()), QByteArray(), [this](Media::Clip::Notification notification) {
+		_gifPreview = Media::Clip::MakeReader(_files.front(), [this](Media::Clip::Notification notification) {
 			clipCallback(notification);
 		});
 		if (_gifPreview) _gifPreview->setAutoplay();
@@ -575,7 +575,7 @@ void EditCaptionBox::prepareGifPreview(DocumentData *document) {
 	};
 	auto createGifPreviewResult = createGifPreview(); // Clang freeze workaround.
 	if (createGifPreviewResult) {
-		_gifPreview = Media::Clip::MakeReader(document->location(), document->data(), [this](Media::Clip::Notification notification) {
+		_gifPreview = Media::Clip::MakeReader(document, _msgId, [this](Media::Clip::Notification notification) {
 			clipCallback(notification);
 		});
 		if (_gifPreview) _gifPreview->setAutoplay();

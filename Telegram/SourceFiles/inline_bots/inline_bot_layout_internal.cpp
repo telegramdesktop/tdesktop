@@ -139,7 +139,7 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 	bool loaded = document->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
 	if (loaded && !_gif && !_gif.isBad()) {
 		auto that = const_cast<Gif*>(this);
-		that->_gif = Media::Clip::MakeReader(document->location(), document->data(), [that](Media::Clip::Notification notification) {
+		that->_gif = Media::Clip::MakeReader(document, FullMsgId(), [that](Media::Clip::Notification notification) {
 			that->clipCallback(notification);
 		});
 		if (_gif) _gif->setAutoplay();
@@ -1191,7 +1191,7 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 		bool loaded = document->loaded(), loading = document->loading(), displayLoading = document->displayLoading();
 		if (loaded && !_gif && !_gif.isBad()) {
 			auto that = const_cast<Game*>(this);
-			that->_gif = Media::Clip::MakeReader(document->location(), document->data(), [that](Media::Clip::Notification notification) {
+			that->_gif = Media::Clip::MakeReader(document, FullMsgId(), [that](Media::Clip::Notification notification) {
 				that->clipCallback(notification);
 			});
 			if (_gif) _gif->setAutoplay();

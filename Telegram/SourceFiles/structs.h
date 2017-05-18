@@ -1337,15 +1337,9 @@ public:
 		Video,
 	};
 
-	AudioMsgId() {
-	}
-	AudioMsgId(DocumentData *audio, const FullMsgId &msgId) : _audio(audio), _contextId(msgId) {
+	AudioMsgId() = default;
+	AudioMsgId(DocumentData *audio, const FullMsgId &msgId, uint32 playId = 0) : _audio(audio), _contextId(msgId), _playId(playId) {
 		setTypeFromAudio();
-	}
-	AudioMsgId(DocumentData *audio, ChannelId channelId, MsgId msgId) : _audio(audio), _contextId(channelId, msgId) {
-		setTypeFromAudio();
-	}
-	AudioMsgId(Type type) : _type(type) {
 	}
 
 	Type type() const {
@@ -1357,14 +1351,17 @@ public:
 	FullMsgId contextId() const {
 		return _contextId;
 	}
+	uint32 playId() const {
+		return _playId;
+	}
 
 	explicit operator bool() const {
-		return _audio || (_type == Type::Video);
+		return _audio != nullptr;
 	}
 
 private:
 	void setTypeFromAudio() {
-		if (_audio->voice()) {
+		if (_audio->voice() || _audio->isRoundVideo()) {
 			_type = Type::Voice;
 		} else if (_audio->isVideo()) {
 			_type = Type::Video;
@@ -1378,14 +1375,24 @@ private:
 	DocumentData *_audio = nullptr;
 	Type _type = Type::Unknown;
 	FullMsgId _contextId;
+	uint32 _playId = 0;
 
 };
 
 inline bool operator<(const AudioMsgId &a, const AudioMsgId &b) {
-	return quintptr(a.audio()) < quintptr(b.audio()) || (quintptr(a.audio()) == quintptr(b.audio()) && a.contextId() < b.contextId());
+	if (quintptr(a.audio()) < quintptr(b.audio())) {
+		return true;
+	} else if (quintptr(b.audio()) < quintptr(a.audio())) {
+		return false;
+	} else if (a.contextId() < b.contextId()) {
+		return true;
+	} else if (b.contextId() < a.contextId()) {
+		return false;
+	}
+	return (a.playId() < b.playId());
 }
 inline bool operator==(const AudioMsgId &a, const AudioMsgId &b) {
-	return a.audio() == b.audio() && a.contextId() == b.contextId();
+	return a.audio() == b.audio() && a.contextId() == b.contextId() && a.playId() == b.playId();
 }
 inline bool operator!=(const AudioMsgId &a, const AudioMsgId &b) {
 	return !(a == b);

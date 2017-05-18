@@ -35,13 +35,14 @@ extern "C" {
 struct VideoSoundData {
 	AVCodecContext *context = nullptr;
 	int32 frequency = Media::Player::kDefaultFrequency;
-	TimeMs length = 0;
+	int64 length = 0;
 	~VideoSoundData();
 };
 
 struct VideoSoundPart {
 	AVPacket *packet = nullptr;
-	uint64 videoPlayId = 0;
+	AudioMsgId audio;
+	uint32 playId = 0;
 };
 
 namespace FFMpeg {
@@ -82,7 +83,7 @@ inline void freePacket(AVPacket *packet) {
 
 class ChildFFMpegLoader : public AudioPlayerLoader {
 public:
-	ChildFFMpegLoader(uint64 videoPlayId, std::unique_ptr<VideoSoundData> &&data);
+	ChildFFMpegLoader(std::unique_ptr<VideoSoundData> &&data);
 
 	bool open(qint64 &position) override;
 
@@ -103,11 +104,8 @@ public:
 	}
 
 	ReadResult readMore(QByteArray &result, int64 &samplesAdded) override;
-	void enqueuePackets(QQueue<FFMpeg::AVPacketDataWrap> &packets);
+	void enqueuePackets(QQueue<FFMpeg::AVPacketDataWrap> &packets) override;
 
-	uint64 playId() const {
-		return _videoPlayId;
-	}
 	bool eofReached() const {
 		return _eofReached;
 	}
@@ -126,7 +124,6 @@ private:
 	int32 _maxResampleSamples = 1024;
 	uint8_t **_dstSamplesData = nullptr;
 
-	uint64 _videoPlayId = 0;
 	std::unique_ptr<VideoSoundData> _parentData;
 	AVSampleFormat _inputFormat;
 	AVFrame *_frame = nullptr;

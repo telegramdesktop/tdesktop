@@ -258,7 +258,7 @@ private:
 	bool _pressed = false;
 	int32 _dragging = 0;
 	QPixmap _current;
-	std::unique_ptr<Media::Clip::Reader> _gif;
+	Media::Clip::ReaderPointer _gif;
 	int32 _full = -1; // -1 - thumb, 0 - medium, 1 - full
 
 	// Video without audio stream playback information.

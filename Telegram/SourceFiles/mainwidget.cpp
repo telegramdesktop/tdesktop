@@ -1553,6 +1553,7 @@ void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 
 	if (auto item = App::histItemById(audioId.contextId())) {
 		Ui::repaintHistoryItem(item);
+		item->audioTrackUpdated();
 	}
 	if (auto items = InlineBots::Layout::documentItems()) {
 		for (auto item : items->value(audioId.audio())) {

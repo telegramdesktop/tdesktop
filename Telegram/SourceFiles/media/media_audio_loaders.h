@@ -35,8 +35,6 @@ class Loaders : public QObject {
 
 public:
 	Loaders(QThread *thread);
-	void startFromVideo(uint64 videoPlayId);
-	void stopFromVideo();
 	void feedFromVideo(VideoSoundPart &&part);
 	~Loaders();
 
@@ -58,11 +56,10 @@ private:
 	AudioMsgId _audio, _song, _video;
 	std::unique_ptr<AudioPlayerLoader> _audioLoader;
 	std::unique_ptr<AudioPlayerLoader> _songLoader;
-	std::unique_ptr<ChildFFMpegLoader> _videoLoader;
+	std::unique_ptr<AudioPlayerLoader> _videoLoader;
 
 	QMutex _fromVideoMutex;
-	uint64 _fromVideoPlayId;
-	QQueue<FFMpeg::AVPacketDataWrap> _fromVideoQueue;
+	QMap<AudioMsgId, QQueue<FFMpeg::AVPacketDataWrap>> _fromVideoQueues;
 	SingleQueuedInvokation _fromVideoNotify;
 
 	void emitError(AudioMsgId::Type type);

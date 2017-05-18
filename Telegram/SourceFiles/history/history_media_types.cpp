@@ -1840,9 +1840,6 @@ int HistoryGif::resizeGetHeight(int width) {
 			auto roundCorners = (isRound || inWebPage) ? ImageRoundCorner::All : ((isBubbleTop() ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)
 				| ((isBubbleBottom() && _caption.isEmpty()) ? (ImageRoundCorner::BottomLeft | ImageRoundCorner::BottomRight) : ImageRoundCorner::None));
 			_gif->start(_thumbw, _thumbh, _width, _height, roundRadius, roundCorners);
-			if (isRound) {
-				Media::Player::mixer()->setVideoVolume(1.);
-			}
 		}
 	} else {
 		_width = qMax(_width, gifMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
@@ -2325,18 +2322,20 @@ void HistoryGif::updateStatusText() const {
 		if (_gif && _gif->mode() == Media::Clip::Reader::Mode::Video) {
 			statusSize = -1 - _data->duration();
 
-			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Video);
-			if (state.length) {
-				auto position = int64(0);
-				if (!Media::Player::IsStopped(state.state) && state.state != Media::Player::State::Finishing) {
-					position = state.position;
-				} else if (state.state == Media::Player::State::StoppedAtEnd) {
-					position = state.length;
+			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
+			if (state.id == _gif->audioMsgId()) {
+				if (state.length) {
+					auto position = int64(0);
+					if (!Media::Player::IsStopped(state.state) && state.state != Media::Player::State::Finishing) {
+						position = state.position;
+					} else if (state.state == Media::Player::State::StoppedAtEnd) {
+						position = state.length;
+					}
+					accumulate_max(statusSize, -1 - int((state.length - position) / state.frequency + 1));
 				}
-				accumulate_max(statusSize, -1 - int((state.length - position) / state.frequency + 1));
-			}
-			if (_roundPlayback) {
-				_roundPlayback->updateState(state);
+				if (_roundPlayback) {
+					_roundPlayback->updateState(state);
+				}
 			}
 		}
 	} else {
@@ -2395,8 +2394,14 @@ bool HistoryGif::playInline(bool autoplay) {
 	if (_data->isRoundVideo() && _gif) {
 		// Stop autoplayed silent video when we start playback by click.
 		// Stop finished video message when autoplay starts.
-		if ((!autoplay && _gif->mode() == Mode::Gif)
-			|| (autoplay && _gif->mode() == Mode::Video && _gif->state() == Media::Clip::State::Finished)) {
+		if (!autoplay) {
+			if (_gif->mode() == Mode::Gif) {
+				stopInline();
+			} else {
+				_gif->pauseResumeVideo();
+				return true;
+			}
+		} else if (autoplay && _gif->mode() == Mode::Video && _gif->state() == Media::Clip::State::Finished) {
 			stopInline();
 		}
 	}
@@ -2407,7 +2412,7 @@ bool HistoryGif::playInline(bool autoplay) {
 			App::stopGifItems();
 		}
 		auto mode = (!autoplay && _data->isRoundVideo()) ? Mode::Video : Mode::Gif;
-		setClipReader(Media::Clip::MakeReader(_data->location(), _data->data(), [this](Media::Clip::Notification notification) {
+		setClipReader(Media::Clip::MakeReader(_data, _parent->fullId(), [this](Media::Clip::Notification notification) {
 			_parent->clipCallback(notification);
 		}, mode));
 		if (mode == Mode::Video) {

@@ -113,6 +113,7 @@ CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 	updateVolumeToggleIcon();
 	_volumeToggle->setClickedCallback([this]() {
 		Global::SetSongVolume((Global::SongVolume() > 0) ? 0. : Global::RememberedSongVolume());
+		mixer()->setSongVolume(Global::SongVolume());
 		Global::RefSongVolumeChanged().notify();
 	});
 	subscribe(Global::RefSongVolumeChanged(), [this] { updateVolumeToggleIcon(); });

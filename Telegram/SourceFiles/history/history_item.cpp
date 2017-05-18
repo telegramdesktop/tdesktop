@@ -29,6 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/ripple_animation.h"
 #include "storage/file_upload.h"
 #include "auth_session.h"
+#include "media/media_audio.h"
 #include "messenger.h"
 
 namespace {
@@ -947,7 +948,7 @@ void HistoryItem::clipCallback(Media::Clip::Notification notification) {
 		return;
 	}
 
-	auto reader = media ? media->getClipReader() : nullptr;
+	auto reader = media->getClipReader();
 	if (!reader) {
 		return;
 	}
@@ -980,6 +981,32 @@ void HistoryItem::clipCallback(Media::Clip::Notification notification) {
 			Ui::repaintHistoryItem(this);
 		}
 	} break;
+	}
+}
+
+void HistoryItem::audioTrackUpdated() {
+	auto media = getMedia();
+	if (!media) {
+		return;
+	}
+
+	auto reader = media->getClipReader();
+	if (!reader || reader->mode() != Media::Clip::Reader::Mode::Video) {
+		return;
+	}
+
+	auto audio = reader->audioMsgId();
+	auto current = Media::Player::mixer()->currentState(audio.type());
+	if (current.id != audio || Media::Player::IsStopped(current.state) || current.state == Media::Player::State::Finishing) {
+		media->stopInline();
+	} else if (Media::Player::IsPaused(current.state) || current.state == Media::Player::State::Pausing) {
+		if (!reader->videoPaused()) {
+			reader->pauseResumeVideo();
+		}
+	} else {
+		if (reader->videoPaused()) {
+			reader->pauseResumeVideo();
+		}
 	}
 }
 

@@ -61,7 +61,9 @@ public:
 		Video,
 	};
 
-	Reader(const FileLocation &location, const QByteArray &data, Callback &&callback, Mode mode = Mode::Gif, TimeMs seekMs = 0);
+	Reader(const QString &filepath, Callback &&callback, Mode mode = Mode::Gif, TimeMs seekMs = 0);
+	Reader(gsl::not_null<DocumentData*> document, FullMsgId msgId, Callback &&callback, Mode mode = Mode::Gif, TimeMs seekMs = 0);
+
 	static void callback(Reader *reader, int threadIndex, Notification notification); // reader can be deleted
 
 	void setAutoplay() {
@@ -71,8 +73,8 @@ public:
 		return _autoplay;
 	}
 
-	uint64 playId() const {
-		return _playId;
+	AudioMsgId audioMsgId() const {
+		return _audioMsgId;
 	}
 	TimeMs seekPositionMs() const {
 		return _seekPositionMs;
@@ -126,13 +128,14 @@ public:
 	~Reader();
 
 private:
+	void init(const FileLocation &location, const QByteArray &data);
 
 	Callback _callback;
 	Mode _mode;
 
 	State _state = State::Reading;
 
-	uint64 _playId;
+	AudioMsgId _audioMsgId;
 	bool _hasAudio = false;
 	TimeMs _durationMs = 0;
 	TimeMs _seekPositionMs = 0;
@@ -157,9 +160,9 @@ private:
 		TimeMs positionMs = 0;
 	};
 	mutable Frame _frames[3];
-	Frame *frameToShow(int *index = 0) const; // 0 means not ready
-	Frame *frameToWrite(int *index = 0) const; // 0 means not ready
-	Frame *frameToWriteNext(bool check, int *index = 0) const;
+	Frame *frameToShow(int *index = nullptr) const; // 0 means not ready
+	Frame *frameToWrite(int *index = nullptr) const; // 0 means not ready
+	Frame *frameToWriteNext(bool check, int *index = nullptr) const;
 	void moveToNextShow() const;
 	void moveToNextWrite() const;
 

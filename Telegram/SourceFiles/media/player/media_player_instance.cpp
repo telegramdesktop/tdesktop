@@ -176,8 +176,8 @@ void Instance::play() {
 	if (state.id) {
 		if (IsStopped(state.state)) {
 			mixer()->play(state.id);
-		} else if (IsPaused(state.state) || state.state == State::Pausing) {
-			mixer()->pauseresume(AudioMsgId::Type::Song);
+		} else {
+			mixer()->resume(state.id);
 		}
 	} else if (_current) {
 		mixer()->play(_current);
@@ -198,16 +198,15 @@ void Instance::play(const AudioMsgId &audioId) {
 void Instance::pause(AudioMsgId::Type type) {
 	auto state = mixer()->currentState(type);
 	if (state.id) {
-		if (!IsStopped(state.state)) {
-			if (state.state == State::Starting || state.state == State::Resuming || state.state == State::Playing || state.state == State::Finishing) {
-				mixer()->pauseresume(type);
-			}
-		}
+		mixer()->pause(state.id);
 	}
 }
 
 void Instance::stop() {
-	mixer()->stop(AudioMsgId::Type::Song);
+	auto state = mixer()->currentState(AudioMsgId::Type::Song);
+	if (state.id) {
+		mixer()->stop(state.id);
+	}
 }
 
 void Instance::playPause() {
@@ -215,8 +214,10 @@ void Instance::playPause() {
 	if (state.id) {
 		if (IsStopped(state.state)) {
 			mixer()->play(state.id);
+		} else if (IsPaused(state.state) || state.state == State::Pausing) {
+			mixer()->resume(state.id);
 		} else {
-			mixer()->pauseresume(AudioMsgId::Type::Song);
+			mixer()->pause(state.id);
 		}
 	} else if (_current) {
 		mixer()->play(_current);

@@ -276,9 +276,6 @@ mediaPlayerSuppressDuration: 150;
 
 botDescSkip: 8px;
 
-suppressAll: 0.2;
-suppressSong: 0.05;
-
 inlineResultsLeft: 11px;
 inlineResultsSkip: 3px;
 inlineMediaHeight: 96px;

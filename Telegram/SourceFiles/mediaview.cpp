@@ -1257,7 +1257,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 			} else if (_doc->isTheme()) {
 				initThemePreview();
 			} else {
-				const FileLocation &location(_doc->location(true));
+				auto &location = _doc->location(true);
 				if (location.accessEnable()) {
 					if (QImageReader(location.name()).canRead()) {
 						_current = App::pixmapFromImageInPlace(App::readImage(location.name(), 0, false));
@@ -1441,7 +1441,7 @@ void MediaView::createClipReader() {
 		_current = _doc->thumb->pixNoCache(_doc->thumb->width(), _doc->thumb->height(), videoThumbOptions(), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
 	auto mode = (_doc->isVideo() || _doc->isRoundVideo()) ? Media::Clip::Reader::Mode::Video : Media::Clip::Reader::Mode::Gif;
-	_gif = std::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), [this](Media::Clip::Notification notification) {
+	_gif = Media::Clip::MakeReader(_doc, FullMsgId(_channel, _msgid), [this](Media::Clip::Notification notification) {
 		clipCallback(notification);
 	}, mode);
 
@@ -1557,7 +1557,7 @@ void MediaView::restartVideoAtSeekPosition(TimeMs positionMs) {
 		auto rounding = (_doc && _doc->isRoundVideo()) ? ImageRoundRadius::Ellipse : ImageRoundRadius::None;
 		_current = _gif->current(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), rounding, ImageRoundCorner::All, getms());
 	}
-	_gif = std::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), [this](Media::Clip::Notification notification) {
+	_gif = Media::Clip::MakeReader(_doc, FullMsgId(_channel, _msgid), [this](Media::Clip::Notification notification) {
 		clipCallback(notification);
 	}, Media::Clip::Reader::Mode::Video, positionMs);
 
@@ -1607,16 +1607,17 @@ void MediaView::onVideoToggleFullScreen() {
 }
 
 void MediaView::onVideoPlayProgress(const AudioMsgId &audioId) {
-	if (audioId.type() != AudioMsgId::Type::Video || !_gif) {
+	if (!_gif || _gif->audioMsgId() != audioId) {
 		return;
 	}
 
-	auto state = Media::Player::mixer()->currentVideoState(_gif->playId());
-	if (state.length) {
-		updateVideoPlaybackState(state);
+	auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Video);
+	if (state.id == _gif->audioMsgId()) {
+		if (state.length) {
+			updateVideoPlaybackState(state);
+		}
+		AuthSession::Current().data().setLastTimeVideoPlayedAt(getms(true));
 	}
-
-	AuthSession::Current().data().setLastTimeVideoPlayedAt(getms(true));
 }
 
 void MediaView::updateVideoPlaybackState(const Media::Player::TrackState &state) {

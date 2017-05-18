@@ -20,6 +20,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+namespace FFMpeg {
+struct AVPacketDataWrap;
+} // namespace FFMpeg
+
 class AudioPlayerLoader {
 public:
 	AudioPlayerLoader(const FileLocation &file, const QByteArray &data, base::byte_vector &&bytes);
@@ -40,6 +44,9 @@ public:
 		EndOfFile,
 	};
 	virtual ReadResult readMore(QByteArray &samples, int64 &samplesCount) = 0;
+	virtual void enqueuePackets(QQueue<FFMpeg::AVPacketDataWrap> &packets) {
+		Unexpected("enqueuePackets() call on not ChildFFMpegLoader.");
+	}
 
 	void saveDecodedSamples(QByteArray *samples, int64 *samplesCount);
 	void takeSavedDecodedSamples(QByteArray *samples, int64 *samplesCount);

@@ -74,6 +74,7 @@ void VolumeController::setVolume(float64 volume) {
 void VolumeController::applyVolumeChange(float64 volume) {
 	if (volume != Global::SongVolume()) {
 		Global::SetSongVolume(volume);
+		mixer()->setSongVolume(Global::SongVolume());
 		Global::RefSongVolumeChanged().notify();
 	}
 }
