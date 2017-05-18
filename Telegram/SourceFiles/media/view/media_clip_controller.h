@@ -24,6 +24,7 @@ namespace Ui {
 class LabelSimple;
 class FadeAnimation;
 class IconButton;
+class MediaSlider;
 } // namespace Ui
 
 namespace Media {
@@ -86,6 +87,7 @@ private:
 	TimeMs _lastDurationMs = 0;
 
 	object_ptr<Ui::IconButton> _playPauseResume;
+	object_ptr<Ui::MediaSlider> _playbackSlider;
 	std::unique_ptr<Playback> _playback;
 	object_ptr<VolumeController> _volumeController;
 	object_ptr<Ui::IconButton> _fullScreenToggle;

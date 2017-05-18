@@ -38,7 +38,7 @@ public:
 	}
 
 	float64 value() const;
-	void setValue(float64 value, bool animated);
+	void setValue(float64 value);
 	void setFadeOpacity(float64 opacity);
 	void setDisabled(bool disabled);
 	bool isDisabled() const {
@@ -69,9 +69,8 @@ protected:
 	float64 fadeOpacity() const {
 		return _fadeOpacity;
 	}
-	float64 getCurrentValue(TimeMs ms) {
-		_a_value.step(ms);
-		return _mouseDown ? _downValue : a_value.current();
+	float64 getCurrentValue() {
+		return _mouseDown ? _downValue : _value;
 	}
 	float64 getCurrentOverFactor(TimeMs ms) {
 		return _disabled ? 0. : _a_over.current(ms, _over ? 1. : 0.);
@@ -91,7 +90,6 @@ private:
 		return _byWheelFinished != nullptr;
 	}
 
-	void step_value(float64 ms, bool timer);
 	void setOver(bool over);
 	float64 computeValue(const QPoint &pos) const;
 	void updateDownValueFromPos(const QPoint &pos);
@@ -107,10 +105,7 @@ private:
 	bool _over = false;
 	Animation _a_over;
 
-	// This can animate for a very long time (like in music playing),
-	// so it should be a BasicAnimation, not an Animation.
-	anim::value a_value;
-	BasicAnimation _a_value;
+	float64 _value = 0.;
 
 	bool _mouseDown = false;
 	float64 _downValue = 0.;

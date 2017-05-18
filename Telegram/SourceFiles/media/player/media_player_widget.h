@@ -27,6 +27,7 @@ class FlatLabel;
 class LabelSimple;
 class IconButton;
 class PlainShadow;
+class FilledSlider;
 } // namespace Ui
 
 namespace Media {
@@ -101,6 +102,7 @@ private:
 	object_ptr<Ui::IconButton> _repeatTrack;
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<Ui::PlainShadow> _shadow = { nullptr };
+	object_ptr<Ui::FilledSlider> _playbackSlider;
 	std::unique_ptr<Clip::Playback> _playback;
 
 };

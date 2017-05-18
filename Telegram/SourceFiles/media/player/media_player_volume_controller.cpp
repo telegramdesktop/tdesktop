@@ -45,12 +45,10 @@ VolumeController::VolumeController(QWidget *parent) : TWidget(parent)
 	});
 	subscribe(Global::RefSongVolumeChanged(), [this] {
 		if (!_slider->isChanging()) {
-			_slider->setValue(Global::SongVolume(), true);
+			_slider->setValue(Global::SongVolume());
 		}
 	});
-
-	auto animated = false;
-	setVolume(Global::SongVolume(), animated);
+	setVolume(Global::SongVolume());
 
 	resize(st::mediaPlayerPanelVolumeWidth, 2 * st::mediaPlayerPanelPlaybackPadding + st::mediaPlayerPanelPlayback.width);
 }
@@ -65,8 +63,8 @@ void VolumeController::resizeEvent(QResizeEvent *e) {
 	_slider->setGeometry(rect());
 }
 
-void VolumeController::setVolume(float64 volume, bool animated) {
-	_slider->setValue(volume, animated);
+void VolumeController::setVolume(float64 volume) {
+	_slider->setValue(volume);
 	if (volume > 0) {
 		Global::SetRememberedSongVolume(volume);
 	}

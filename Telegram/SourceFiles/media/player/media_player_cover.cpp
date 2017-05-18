@@ -72,7 +72,8 @@ CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 , _nameLabel(this, st::mediaPlayerName)
 , _timeLabel(this, st::mediaPlayerTime)
 , _close(this, st::mediaPlayerPanelClose)
-, _playback(std::make_unique<Clip::Playback>(new Ui::MediaSlider(this, st::mediaPlayerPanelPlayback)))
+, _playbackSlider(this, st::mediaPlayerPanelPlayback)
+, _playback(std::make_unique<Clip::Playback>())
 , _playPause(this)
 , _volumeToggle(this, st::mediaPlayerVolumeToggle)
 , _volumeController(this)
@@ -86,11 +87,19 @@ CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 	_timeLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 	setMouseTracking(true);
 
-	_playback->setChangeProgressCallback([this](float64 value) {
-		handleSeekProgress(value);
+	_playback->setInLoadingStateChangedCallback([this](bool loading) {
+		_playbackSlider->setDisabled(loading);
 	});
-	_playback->setChangeFinishedCallback([this](float64 value) {
+	_playback->setValueChangedCallback([this](float64 value) {
+		_playbackSlider->setValue(value);
+	});
+	_playbackSlider->setChangeProgressCallback([this](float64 value) {
+		handleSeekProgress(value);
+		_playback->setValue(value, false);
+	});
+	_playbackSlider->setChangeFinishedCallback([this](float64 value) {
 		handleSeekFinished(value);
+		_playback->setValue(value, false);
 	});
 	_playPause->setClickedCallback([this] {
 		instance()->playPauseCancelClicked();
@@ -168,7 +177,7 @@ void CoverWidget::resizeEvent(QResizeEvent *e) {
 
 	int skip = (st::mediaPlayerPanelPlayback.seekSize.width() / 2);
 	int length = (width() - 2 * st::mediaPlayerPanelPadding + st::mediaPlayerPanelPlayback.seekSize.width());
-	_playback->setGeometry(st::mediaPlayerPanelPadding - skip, st::mediaPlayerPanelPlaybackTop, length, 2 * st::mediaPlayerPanelPlaybackPadding + st::mediaPlayerPanelPlayback.width);
+	_playbackSlider->setGeometry(st::mediaPlayerPanelPadding - skip, st::mediaPlayerPanelPlaybackTop, length, 2 * st::mediaPlayerPanelPlaybackPadding + st::mediaPlayerPanelPlayback.width);
 
 	auto top = st::mediaPlayerPanelVolumeToggleTop;
 	auto right = st::mediaPlayerPanelPlayLeft;
@@ -269,11 +278,11 @@ void CoverWidget::updateTimeText(const TrackState &state) {
 
 	if (state.id.audio()->loading()) {
 		_time = QString::number(qRound(state.id.audio()->progress() * 100)) + '%';
-		_playback->setDisabled(true);
+		_playbackSlider->setDisabled(true);
 	} else {
 		display = display / frequency;
 		_time = formatDurationText(display);
-		_playback->setDisabled(false);
+		_playbackSlider->setDisabled(false);
 	}
 	if (_seekPositionMs < 0) {
 		updateTimeLabel();

@@ -91,7 +91,8 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 , _repeatTrack(this, st::mediaPlayerRepeatButton)
 , _close(this, st::mediaPlayerClose)
 , _shadow(this, st::shadowFg)
-, _playback(std::make_unique<Clip::Playback>(new Ui::FilledSlider(this, st::mediaPlayerPlayback))) {
+, _playbackSlider(this, st::mediaPlayerPlayback)
+, _playback(std::make_unique<Clip::Playback>()) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setMouseTracking(true);
 	resize(width(), st::mediaPlayerHeight + st::lineWidth);
@@ -99,11 +100,19 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 	_nameLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_timeLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	_playback->setChangeProgressCallback([this](float64 value) {
-		handleSeekProgress(value);
+	_playback->setInLoadingStateChangedCallback([this](bool loading) {
+		_playbackSlider->setDisabled(loading);
 	});
-	_playback->setChangeFinishedCallback([this](float64 value) {
+	_playback->setValueChangedCallback([this](float64 value) {
+		_playbackSlider->setValue(value);
+	});
+	_playbackSlider->setChangeProgressCallback([this](float64 value) {
+		handleSeekProgress(value);
+		_playback->setValue(value, false);
+	});
+	_playbackSlider->setChangeFinishedCallback([this](float64 value) {
 		handleSeekFinished(value);
+		_playback->setValue(value, false);
 	});
 	_playPause->setClickedCallback([this] {
 		instance()->playPauseCancelClicked();
@@ -167,12 +176,12 @@ void Widget::setShadowGeometryToLeft(int x, int y, int w, int h) {
 
 void Widget::showShadow() {
 	_shadow->show();
-	_playback->show();
+	_playbackSlider->show();
 }
 
 void Widget::hideShadow() {
 	_shadow->hide();
-	_playback->hide();
+	_playbackSlider->hide();
 }
 
 QPoint Widget::getPositionForVolumeWidget() const {
@@ -223,7 +232,7 @@ void Widget::resizeEvent(QResizeEvent *e) {
 
 	updatePlayPrevNextPositions();
 
-	_playback->setGeometry(0, height() - st::mediaPlayerPlayback.fullWidth, width(), st::mediaPlayerPlayback.fullWidth);
+	_playbackSlider->setGeometry(0, height() - st::mediaPlayerPlayback.fullWidth, width(), st::mediaPlayerPlayback.fullWidth);
 }
 
 void Widget::paintEvent(QPaintEvent *e) {
@@ -346,11 +355,11 @@ void Widget::updateTimeText(const TrackState &state) {
 
 	if (state.id.audio()->loading()) {
 		_time = QString::number(qRound(state.id.audio()->progress() * 100)) + '%';
-		_playback->setDisabled(true);
+		_playbackSlider->setDisabled(true);
 	} else {
 		display = display / frequency;
 		_time = formatDurationText(display);
-		_playback->setDisabled(false);
+		_playbackSlider->setDisabled(false);
 	}
 	if (_seekPositionMs < 0) {
 		updateTimeLabel();

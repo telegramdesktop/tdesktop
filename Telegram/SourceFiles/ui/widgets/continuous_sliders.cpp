@@ -27,13 +27,8 @@ constexpr auto kByWheelFinishedTimeout = 1000;
 
 } // namespace
 
-ContinuousSlider::ContinuousSlider(QWidget *parent) : TWidget(parent)
-, _a_value(animation(this, &ContinuousSlider::step_value)) {
+ContinuousSlider::ContinuousSlider(QWidget *parent) : TWidget(parent) {
 	setCursor(style::cur_pointer);
-}
-
-float64 ContinuousSlider::value() const {
-	return a_value.current();
 }
 
 void ContinuousSlider::setDisabled(bool disabled) {
@@ -50,7 +45,7 @@ void ContinuousSlider::setMoveByWheel(bool move) {
 			_byWheelFinished = std::make_unique<SingleTimer>();
 			_byWheelFinished->setTimeoutHandler([this] {
 				if (_changeFinishedCallback) {
-					_changeFinishedCallback(getCurrentValue(getms()));
+					_changeFinishedCallback(getCurrentValue());
 				}
 			});
 		} else {
@@ -59,31 +54,14 @@ void ContinuousSlider::setMoveByWheel(bool move) {
 	}
 }
 
-void ContinuousSlider::setValue(float64 value, bool animated) {
-	if (animated) {
-		a_value.start(value);
-		_a_value.start();
-	} else {
-		a_value = anim::value(value, value);
-		_a_value.stop();
-	}
+void ContinuousSlider::setValue(float64 value) {
+	_value = value;
 	update();
 }
 
 void ContinuousSlider::setFadeOpacity(float64 opacity) {
 	_fadeOpacity = opacity;
 	update();
-}
-
-void ContinuousSlider::step_value(float64 ms, bool timer) {
-	float64 dt = ms / (2 * AudioVoiceMsgUpdateView);
-	if (dt >= 1) {
-		_a_value.stop();
-		a_value.finish();
-	} else {
-		a_value.update(qMin(dt, 1.), anim::linear);
-	}
-	if (timer) update();
 }
 
 void ContinuousSlider::mouseMoveEvent(QMouseEvent *e) {
@@ -115,8 +93,7 @@ void ContinuousSlider::mouseReleaseEvent(QMouseEvent *e) {
 		if (_changeFinishedCallback) {
 			_changeFinishedCallback(_downValue);
 		}
-		a_value = anim::value(_downValue, _downValue);
-		_a_value.stop();
+		_value = _downValue;
 		update();
 	}
 }
@@ -139,8 +116,8 @@ void ContinuousSlider::wheelEvent(QWheelEvent *e) {
 		deltaX *= -1;
 	}
 	auto delta = (qAbs(deltaX) > qAbs(deltaY)) ? deltaX : deltaY;
-	auto finalValue = snap(a_value.to() + delta * coef, 0., 1.);
-	setValue(finalValue, false);
+	auto finalValue = snap(_value + delta * coef, 0., 1.);
+	setValue(finalValue);
 	if (_changeProgressCallback) {
 		_changeProgressCallback(finalValue);
 	}
@@ -197,7 +174,7 @@ void FilledSlider::paintEvent(QPaintEvent *e) {
 	auto lineWidthRounded = qFloor(lineWidth);
 	auto lineWidthPartial = lineWidth - lineWidthRounded;
 	auto seekRect = getSeekRect();
-	auto value = getCurrentValue(ms);
+	auto value = getCurrentValue();
 	auto from = seekRect.x(), mid = qRound(from + value * seekRect.width()), end = from + seekRect.width();
 	if (mid > from) {
 		p.setOpacity(masterOpacity);
@@ -244,7 +221,7 @@ void MediaSlider::paintEvent(QPaintEvent *e) {
 	auto disabled = isDisabled();
 	auto over = getCurrentOverFactor(ms);
 	auto seekRect = getSeekRect();
-	auto value = getCurrentValue(ms);
+	auto value = getCurrentValue();
 
 	// invert colors and value for vertical
 	if (!horizontal) value = 1. - value;

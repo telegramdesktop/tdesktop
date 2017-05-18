@@ -26,6 +26,7 @@ namespace Ui {
 class FlatLabel;
 class LabelSimple;
 class IconButton;
+class MediaSlider;
 } // namespace Ui
 
 namespace Media {
@@ -80,6 +81,7 @@ private:
 	object_ptr<Ui::FlatLabel> _nameLabel;
 	object_ptr<Ui::LabelSimple> _timeLabel;
 	object_ptr<Ui::IconButton> _close;
+	object_ptr<Ui::MediaSlider> _playbackSlider;
 	std::unique_ptr<Clip::Playback> _playback;
 	object_ptr<Ui::IconButton> _previousTrack = { nullptr };
 	object_ptr<PlayButton> _playPause;

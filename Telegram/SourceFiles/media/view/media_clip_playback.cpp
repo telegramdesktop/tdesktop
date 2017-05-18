@@ -26,14 +26,19 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Media {
 namespace Clip {
 
-Playback::Playback(Ui::ContinuousSlider *slider) : _slider(slider) {
+Playback::Playback() : _a_value(animation(this, &Playback::step_value)) {
 }
 
 void Playback::updateState(const Player::TrackState &state) {
 	qint64 position = 0, length = state.length;
 
-	auto wasDisabled = _slider->isDisabled();
-	if (wasDisabled) setDisabled(false);
+	auto wasInLoadingState = _inLoadingState;
+	if (wasInLoadingState) {
+		_inLoadingState = false;
+		if (_inLoadingStateChanged) {
+			_inLoadingStateChanged(false);
+		}
+	}
 
 	_playing = !Player::IsStopped(state.state);
 	if (_playing || state.state == Player::State::Stopped) {
@@ -44,25 +49,60 @@ void Playback::updateState(const Player::TrackState &state) {
 		position = 0;
 	}
 
-	float64 progress = 0.;
+	auto progress = 0.;
 	if (position > length) {
 		progress = 1.;
 	} else if (length) {
 		progress = length ? snap(float64(position) / length, 0., 1.) : 0.;
 	}
-	if (length != _length || position != _position || wasDisabled) {
-		auto animated = (length && _length&& progress > _slider->value());
-		_slider->setValue(progress, animated);
+	if (length != _length || position != _position || wasInLoadingState) {
+		auto animated = (length && _length && progress > value());
+		setValue(progress, animated);
 		_position = position;
 		_length = length;
 	}
-	_slider->update();
 }
 
 void Playback::updateLoadingState(float64 progress) {
-	setDisabled(true);
-	auto animated = progress > _slider->value();
-	_slider->setValue(progress, animated);
+	if (!_inLoadingState) {
+		_inLoadingState = true;
+		if (_inLoadingStateChanged) {
+			_inLoadingStateChanged(true);
+		}
+	}
+	auto animated = (progress > value());
+	setValue(progress, animated);
+}
+
+
+float64 Playback::value() const {
+	return a_value.current();
+}
+
+void Playback::setValue(float64 value, bool animated) {
+	if (animated) {
+		a_value.start(value);
+		_a_value.start();
+	} else {
+		a_value = anim::value(value, value);
+		_a_value.stop();
+	}
+	if (_valueChanged) {
+		_valueChanged(a_value.current());
+	}
+}
+
+void Playback::step_value(float64 ms, bool timer) {
+	auto dt = ms / (2 * AudioVoiceMsgUpdateView);
+	if (dt >= 1) {
+		_a_value.stop();
+		a_value.finish();
+	} else {
+		a_value.update(qMin(dt, 1.), anim::linear);
+	}
+	if (timer && _valueChanged) {
+		_valueChanged(a_value.current());
+	}
 }
 
 } // namespace Clip

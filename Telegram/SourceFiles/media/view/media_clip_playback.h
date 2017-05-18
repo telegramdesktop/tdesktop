@@ -31,41 +31,31 @@ namespace Clip {
 
 class Playback {
 public:
-	Playback(Ui::ContinuousSlider *slider);
+	Playback();
+
+	void setValueChangedCallback(base::lambda<void(float64)> callback) {
+		_valueChanged = std::move(callback);
+	}
+	void setInLoadingStateChangedCallback(base::lambda<void(bool)> callback) {
+		_inLoadingStateChanged = std::move(callback);
+	}
+	void setValue(float64 value, bool animated);
 
 	void updateState(const Player::TrackState &state);
 	void updateLoadingState(float64 progress);
 
-	void setFadeOpacity(float64 opacity) {
-		_slider->setFadeOpacity(opacity);
-	}
-	void setChangeProgressCallback(Ui::ContinuousSlider::Callback &&callback) {
-		_slider->setChangeProgressCallback(std::move(callback));
-	}
-	void setChangeFinishedCallback(Ui::ContinuousSlider::Callback &&callback) {
-		_slider->setChangeFinishedCallback(std::move(callback));
-	}
-	void setGeometry(int x, int y, int w, int h) {
-		_slider->setGeometry(x, y, w, h);
-	}
-	void hide() {
-		_slider->hide();
-	}
-	void show() {
-		_slider->show();
-	}
-	void moveToLeft(int x, int y) {
-		_slider->moveToLeft(x, y);
-	}
-	void resize(int w, int h) {
-		_slider->resize(w, h);
-	}
-	void setDisabled(bool disabled) {
-		_slider->setDisabled(disabled);
-	}
-
 private:
-	Ui::ContinuousSlider *_slider;
+	float64 value() const;
+	void step_value(float64 ms, bool timer);
+
+	// This can animate for a very long time (like in music playing),
+	// so it should be a BasicAnimation, not an Animation.
+	anim::value a_value;
+	BasicAnimation _a_value;
+	base::lambda<void(float64)> _valueChanged;
+
+	bool _inLoadingState = false;
+	base::lambda<void(bool)> _inLoadingStateChanged;
 
 	int64 _position = 0;
 	int64 _length = 0;
