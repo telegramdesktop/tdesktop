@@ -589,6 +589,24 @@ TextWithEntities HistoryPhoto::selectedText(TextSelection selection) const {
 	return captionedSelectedText(lang(lng_in_dlg_photo), _caption, selection);
 }
 
+int32 HistoryPhoto::addToOverview(AddToOverviewMethod method) {
+	auto result = int32(0);
+	if (_parent->toHistoryMessage()) {
+		result |= addToOneOverview(OverviewPhotos, method);
+	} else {
+		result |= addToOneOverview(OverviewChatPhotos, method);
+	}
+	return result;
+}
+
+void HistoryPhoto::eraseFromOverview() {
+	if (_parent->toHistoryMessage()) {
+		eraseFromOneOverview(OverviewPhotos);
+	} else {
+		eraseFromOneOverview(OverviewChatPhotos);
+	}
+}
+
 ImagePtr HistoryPhoto::replyPreview() {
 	return _data->makeReplyPreview();
 }
@@ -863,6 +881,14 @@ QString HistoryVideo::inDialogsText() const {
 
 TextWithEntities HistoryVideo::selectedText(TextSelection selection) const {
 	return captionedSelectedText(lang(lng_in_dlg_video), _caption, selection);
+}
+
+int32 HistoryVideo::addToOverview(AddToOverviewMethod method) {
+	return addToOneOverview(OverviewVideos, method);
+}
+
+void HistoryVideo::eraseFromOverview() {
+	eraseFromOneOverview(OverviewVideos);
 }
 
 void HistoryVideo::updateStatusText() const {
@@ -1472,6 +1498,34 @@ TextWithEntities HistoryDocument::selectedText(TextSelection selection) const {
 		result = captionedSelectedText(fullType, caption, selection);
 	});
 	return result;
+}
+
+int32 HistoryDocument::addToOverview(AddToOverviewMethod method) {
+	auto result = int32(0);
+	if (_data->voice()) {
+		result |= addToOneOverview(OverviewVoiceFiles, method);
+		result |= addToOneOverview(OverviewRoundVoiceFiles, method);
+	} else if (_data->song()) {
+		if (_data->isMusic()) {
+			result |= addToOneOverview(OverviewMusicFiles, method);
+		}
+	} else {
+		result |= addToOneOverview(OverviewFiles, method);
+	}
+	return result;
+}
+
+void HistoryDocument::eraseFromOverview() {
+	if (_data->voice()) {
+		eraseFromOneOverview(OverviewVoiceFiles);
+		eraseFromOneOverview(OverviewRoundVoiceFiles);
+	} else if (_data->song()) {
+		if (_data->isMusic()) {
+			eraseFromOneOverview(OverviewMusicFiles);
+		}
+	} else {
+		eraseFromOneOverview(OverviewFiles);
+	}
 }
 
 template <typename Callback>
@@ -2186,6 +2240,28 @@ QString HistoryGif::inDialogsText() const {
 
 TextWithEntities HistoryGif::selectedText(TextSelection selection) const {
 	return captionedSelectedText(mediaTypeString(), _caption, selection);
+}
+
+int32 HistoryGif::addToOverview(AddToOverviewMethod method) {
+	auto result = int32(0);
+	if (_data->isRoundVideo()) {
+		result |= addToOneOverview(OverviewRoundVoiceFiles, method);
+	} else if (_data->isGifv()) {
+		result |= addToOneOverview(OverviewGIFs, method);
+	} else {
+		result |= addToOneOverview(OverviewFiles, method);
+	}
+	return result;
+}
+
+void HistoryGif::eraseFromOverview() {
+	if (_data->isRoundVideo()) {
+		eraseFromOneOverview(OverviewRoundVoiceFiles);
+	} else if (_data->isGifv()) {
+		eraseFromOneOverview(OverviewGIFs);
+	} else {
+		eraseFromOneOverview(OverviewFiles);
+	}
 }
 
 QString HistoryGif::mediaTypeString() const {

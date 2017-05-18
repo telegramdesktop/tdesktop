@@ -47,30 +47,6 @@ inline void initTextOptions() {
 	_textDlgOptions.maxw = st::dialogsWidthMax * 2;
 }
 
-MediaOverviewType messageMediaToOverviewType(HistoryMedia *media) {
-	switch (media->type()) {
-	case MediaTypePhoto: return OverviewPhotos;
-	case MediaTypeVideo: return OverviewVideos;
-	case MediaTypeFile: return OverviewFiles;
-	case MediaTypeMusicFile: return media->getDocument()->isMusic() ? OverviewMusicFiles : OverviewCount;
-	case MediaTypeVoiceFile: return OverviewVoiceFiles;
-	case MediaTypeGif: {
-		auto document = media->getDocument();
-		return (document->isGifv() || document->isRoundVideo()) ? OverviewCount : OverviewFiles;
-	} break;
-	default: break;
-	}
-	return OverviewCount;
-}
-
-MediaOverviewType serviceMediaToOverviewType(HistoryMedia *media) {
-	switch (media->type()) {
-	case MediaTypePhoto: return OverviewChatPhotos;
-	default: break;
-	}
-	return OverviewCount;
-}
-
 ApiWrap::RequestMessageDataCallback historyDependentItemCallback(const FullMsgId &msgId) {
 	return [dependent = msgId](ChannelData *channel, MsgId msgId) {
 		if (auto item = App::histItemById(dependent)) {
@@ -987,13 +963,8 @@ int32 HistoryMessage::addToOverview(AddToOverviewMethod method) {
 	if (!indexInOverview()) return 0;
 
 	int32 result = 0;
-	if (HistoryMedia *media = getMedia()) {
-		MediaOverviewType type = messageMediaToOverviewType(media);
-		if (type != OverviewCount) {
-			if (history()->addToOverview(type, id, method)) {
-				result |= (1 << type);
-			}
-		}
+	if (auto media = getMedia()) {
+		result |= media->addToOverview(method);
 	}
 	if (hasTextLinks()) {
 		if (history()->addToOverview(OverviewLinks, id, method)) {
@@ -1004,11 +975,8 @@ int32 HistoryMessage::addToOverview(AddToOverviewMethod method) {
 }
 
 void HistoryMessage::eraseFromOverview() {
-	if (HistoryMedia *media = getMedia()) {
-		MediaOverviewType type = messageMediaToOverviewType(media);
-		if (type != OverviewCount) {
-			history()->eraseFromOverview(type, id);
-		}
+	if (auto media = getMedia()) {
+		media->eraseFromOverview();
 	}
 	if (hasTextLinks()) {
 		history()->eraseFromOverview(OverviewLinks, id);
@@ -2464,22 +2432,14 @@ int32 HistoryService::addToOverview(AddToOverviewMethod method) {
 
 	int32 result = 0;
 	if (auto media = getMedia()) {
-		MediaOverviewType type = serviceMediaToOverviewType(media);
-		if (type != OverviewCount) {
-			if (history()->addToOverview(type, id, method)) {
-				result |= (1 << type);
-			}
-		}
+		result |= media->addToOverview(method);
 	}
 	return result;
 }
 
 void HistoryService::eraseFromOverview() {
 	if (auto media = getMedia()) {
-		MediaOverviewType type = serviceMediaToOverviewType(media);
-		if (type != OverviewCount) {
-			history()->eraseFromOverview(type, id);
-		}
+		media->eraseFromOverview();
 	}
 }
 

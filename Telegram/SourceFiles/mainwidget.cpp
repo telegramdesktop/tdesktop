@@ -1347,20 +1347,6 @@ bool MainWidget::preloadOverview(PeerData *peer, MediaOverviewType type) {
 	return true;
 }
 
-void MainWidget::preloadOverviews(PeerData *peer) {
-	History *h = App::history(peer->id);
-	bool sending = false;
-	for (int32 i = 0; i < OverviewCount; ++i) {
-		auto type = MediaOverviewType(i);
-		if (type != OverviewChatPhotos && preloadOverview(peer, type)) {
-			sending = true;
-		}
-	}
-	if (sending) {
-		MTP::sendAnything();
-	}
-}
-
 void MainWidget::overviewPreloaded(PeerData *peer, const MTPmessages_Messages &result, mtpRequestId req) {
 	MediaOverviewType type = OverviewCount;
 	for (int32 i = 0; i < OverviewCount; ++i) {

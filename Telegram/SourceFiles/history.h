@@ -125,13 +125,15 @@ enum HistoryMediaType {
 };
 
 enum MediaOverviewType {
-	OverviewPhotos     = 0,
-	OverviewVideos     = 1,
-	OverviewMusicFiles = 2,
-	OverviewFiles      = 3,
-	OverviewVoiceFiles = 4,
-	OverviewLinks      = 5,
-	OverviewChatPhotos = 6,
+	OverviewPhotos          = 0,
+	OverviewVideos          = 1,
+	OverviewMusicFiles      = 2,
+	OverviewFiles           = 3,
+	OverviewVoiceFiles      = 4,
+	OverviewLinks           = 5,
+	OverviewChatPhotos      = 6,
+	OverviewRoundVoiceFiles = 7,
+	OverviewGIFs            = 8,
 
 	OverviewCount
 };
@@ -143,6 +145,7 @@ inline MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
 	case OverviewMusicFiles: return MTP_inputMessagesFilterMusic();
 	case OverviewFiles: return MTP_inputMessagesFilterDocument();
 	case OverviewVoiceFiles: return MTP_inputMessagesFilterVoice();
+	case OverviewRoundVoiceFiles: return MTP_inputMessagesFilterRoundVoice();
 	case OverviewLinks: return MTP_inputMessagesFilterUrl();
 	case OverviewChatPhotos: return MTP_inputMessagesFilterChatPhotos();
 	case OverviewCount: break;

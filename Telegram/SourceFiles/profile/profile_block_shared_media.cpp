@@ -58,9 +58,14 @@ SharedMediaWidget::SharedMediaWidget(QWidget *parent, PeerData *peer) : BlockWid
 		notifyPeerUpdated(update);
 	}));
 
-	App::main()->preloadOverviews(peer);
-	if (_migrated) {
-		App::main()->preloadOverviews(_migrated->peer);
+	for (auto i = 0; i != OverviewCount; ++i) {
+		auto type = static_cast<MediaOverviewType>(i);
+		if (!getButtonText(type, 1).isEmpty()) {
+			App::main()->preloadOverview(peer, type);
+			if (_migrated) {
+				App::main()->preloadOverview(_migrated->peer, type);
+			}
+		}
 	}
 
 	refreshButtons();

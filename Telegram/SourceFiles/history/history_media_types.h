@@ -139,6 +139,9 @@ public:
 	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
+	int32 addToOverview(AddToOverviewMethod method) override;
+	void eraseFromOverview() override;
+
 	PhotoData *photo() const {
 		return _data;
 	}
@@ -228,6 +231,9 @@ public:
 	QString notificationText() const override;
 	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
+
+	int32 addToOverview(AddToOverviewMethod method) override;
+	void eraseFromOverview() override;
 
 	DocumentData *getDocument() override {
 		return _data;
@@ -388,6 +394,9 @@ public:
 	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
+	int32 addToOverview(AddToOverviewMethod method) override;
+	void eraseFromOverview() override;
+
 	bool uploading() const override {
 		return _data->uploading();
 	}
@@ -485,6 +494,9 @@ public:
 	QString notificationText() const override;
 	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
+
+	int32 addToOverview(AddToOverviewMethod method) override;
+	void eraseFromOverview() override;
 
 	bool uploading() const override {
 		return _data->uploading();
