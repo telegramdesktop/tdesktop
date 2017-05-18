@@ -16,6 +16,7 @@
 /Telegram/Resources/art/grid_200x.png
 /Telegram/Resources/art/sprite_125x.png
 /Telegram/Resources/art/sprite_150x.png
+/Telegram/Debug/
 /Telegram/*.user
 *.vcxproj*
 *.sln

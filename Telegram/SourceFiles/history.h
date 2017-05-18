@@ -138,22 +138,6 @@ enum MediaOverviewType {
 	OverviewCount
 };
 
-inline MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
-	switch (type) {
-	case OverviewPhotos: return MTP_inputMessagesFilterPhotos();
-	case OverviewVideos: return MTP_inputMessagesFilterVideo();
-	case OverviewMusicFiles: return MTP_inputMessagesFilterMusic();
-	case OverviewFiles: return MTP_inputMessagesFilterDocument();
-	case OverviewVoiceFiles: return MTP_inputMessagesFilterVoice();
-	case OverviewRoundVoiceFiles: return MTP_inputMessagesFilterRoundVoice();
-	case OverviewLinks: return MTP_inputMessagesFilterUrl();
-	case OverviewChatPhotos: return MTP_inputMessagesFilterChatPhotos();
-	case OverviewCount: break;
-	default: type = OverviewCount; break;
-	}
-	return MTPMessagesFilter();
-}
-
 struct TextWithTags {
 	struct Tag {
 		int offset, length;

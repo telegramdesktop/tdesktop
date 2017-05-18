@@ -1291,6 +1291,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
 			} else {
 				if (document->loaded() && document->isGifv()) {
+					if (!cAutoPlayGif()) {
+						_menu->addAction(lang(lng_context_open_gif), this, SLOT(openContextGif()))->setEnabled(true);
+					}
 					_menu->addAction(lang(lng_context_save_gif), this, SLOT(saveContextGif()))->setEnabled(true);
 				}
 				if (!document->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
@@ -1384,6 +1387,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 								_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
 							} else {
 								if (document->isGifv()) {
+									if (!cAutoPlayGif()) {
+										_menu->addAction(lang(lng_context_open_gif), this, SLOT(openContextGif()))->setEnabled(true);
+									}
 									_menu->addAction(lang(lng_context_save_gif), this, SLOT(saveContextGif()))->setEnabled(true);
 								}
 								if (!document->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
@@ -1520,6 +1526,16 @@ void HistoryInner::showContextInFolder() {
 
 void HistoryInner::saveDocumentToFile(DocumentData *document) {
 	DocumentSaveClickHandler::doSave(document, true);
+}
+
+void HistoryInner::openContextGif() {
+	if (auto item = App::contextItem()) {
+		if (auto media = item->getMedia()) {
+			if (auto document = media->getDocument()) {
+				App::wnd()->showDocument(document, item);
+			}
+		}
+	}
 }
 
 void HistoryInner::saveContextGif() {

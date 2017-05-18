@@ -1707,6 +1707,7 @@ HistoryGif::HistoryGif(HistoryItem *parent, DocumentData *document, const QStrin
 , _data(document)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
 	setDocumentLinks(_data, true);
+	_openInMediaviewLink = MakeShared<DocumentOpenClickHandler>(_data);
 
 	setStatusSize(FileStatusSizeReady);
 
@@ -2217,6 +2218,8 @@ HistoryTextState HistoryGif::getState(int x, int y, HistoryStateRequest request)
 			result.link = _cancell;
 		} else if (!_gif || !cAutoPlayGif() || _data->isRoundVideo()) {
 			result.link = _data->loaded() ? _openl : (_data->loading() ? _cancell : _savel);
+		} else {
+			result.link = _openInMediaviewLink;
 		}
 		if (!isChildMedia) {
 			int32 fullRight = usex + skipx + usew, fullBottom = skipy + height;

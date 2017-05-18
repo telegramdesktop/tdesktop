@@ -958,6 +958,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_context_delete_file" = "Delete File";
 "lng_context_close_file" = "Close File";
 "lng_context_copy_text" = "Copy Text";
+"lng_context_open_gif" = "Open GIF";
 "lng_context_save_gif" = "Save GIF";
 "lng_context_to_msg" = "Go To Message";
 "lng_context_reply_msg" = "Reply";

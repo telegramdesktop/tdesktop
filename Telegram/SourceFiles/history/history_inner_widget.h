@@ -118,6 +118,7 @@ public slots:
 	void cancelContextDownload();
 	void showContextInFolder();
 	void saveContextGif();
+	void openContextGif();
 	void copyContextText();
 	void copySelectedText();
 

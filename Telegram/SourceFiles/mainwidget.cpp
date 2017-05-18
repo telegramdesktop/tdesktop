@@ -71,6 +71,25 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "calls/calls_instance.h"
 #include "calls/calls_top_bar.h"
 
+namespace {
+
+MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
+	switch (type) {
+	case OverviewPhotos: return MTP_inputMessagesFilterPhotos();
+	case OverviewVideos: return MTP_inputMessagesFilterVideo();
+	case OverviewMusicFiles: return MTP_inputMessagesFilterMusic();
+	case OverviewFiles: return MTP_inputMessagesFilterDocument();
+	case OverviewVoiceFiles: return MTP_inputMessagesFilterVoice();
+	case OverviewRoundVoiceFiles: return MTP_inputMessagesFilterRoundVoice();
+	case OverviewGIFs: return MTP_inputMessagesFilterGif();
+	case OverviewLinks: return MTP_inputMessagesFilterUrl();
+	case OverviewChatPhotos: return MTP_inputMessagesFilterChatPhotos();
+	default: return MTP_inputMessagesFilterEmpty();
+	}
+}
+
+} // namespace
+
 StackItemSection::StackItemSection(std::unique_ptr<Window::SectionMemento> &&memento) : StackItem(nullptr)
 , _memento(std::move(memento)) {
 }
@@ -1335,11 +1354,13 @@ void MainWidget::searchMessages(const QString &query, PeerData *inPeer) {
 }
 
 bool MainWidget::preloadOverview(PeerData *peer, MediaOverviewType type) {
-	MTPMessagesFilter filter = typeToMediaFilter(type);
-	if (type == OverviewCount) return false;
+	auto filter = typeToMediaFilter(type);
+	if (filter.type() == mtpc_inputMessagesFilterEmpty) {
+		return false;
+	}
 
-	History *h = App::history(peer->id);
-	if (h->overviewCountLoaded(type) || _overviewPreload[type].contains(peer)) {
+	auto history = App::history(peer->id);
+	if (history->overviewCountLoaded(type) || _overviewPreload[type].contains(peer)) {
 		return false;
 	}
 
@@ -1399,13 +1420,17 @@ bool MainWidget::overviewFailed(PeerData *peer, const RPCError &error, mtpReques
 void MainWidget::loadMediaBack(PeerData *peer, MediaOverviewType type, bool many) {
 	if (_overviewLoad[type].constFind(peer) != _overviewLoad[type].cend()) return;
 
-	History *history = App::history(peer->id);
-	if (history->overviewLoaded(type)) return;
+	auto history = App::history(peer->id);
+	if (history->overviewLoaded(type)) {
+		return;
+	}
 
-	MsgId minId = history->overviewMinId(type);
-	int32 limit = (many || history->overview[type].size() > MediaOverviewStartPerPage) ? SearchPerPage : MediaOverviewStartPerPage;
-	MTPMessagesFilter filter = typeToMediaFilter(type);
-	if (type == OverviewCount) return;
+	auto minId = history->overviewMinId(type);
+	auto limit = (many || history->overview[type].size() > MediaOverviewStartPerPage) ? SearchPerPage : MediaOverviewStartPerPage;
+	auto filter = typeToMediaFilter(type);
+	if (filter.type() == mtpc_inputMessagesFilterEmpty) {
+		return;
+	}
 
 	_overviewLoad[type].insert(peer, MTP::send(MTPmessages_Search(MTP_flags(0), peer->input, MTPstring(), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(minId), MTP_int(limit)), rpcDone(&MainWidget::overviewLoaded, history)));
 }

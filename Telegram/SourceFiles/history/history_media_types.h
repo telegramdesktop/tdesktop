@@ -580,6 +580,7 @@ private:
 	}
 
 	gsl::not_null<DocumentData*> _data;
+	ClickHandlerPtr _openInMediaviewLink;
 	int32 _thumbw = 1;
 	int32 _thumbh = 1;
 	Text _caption;

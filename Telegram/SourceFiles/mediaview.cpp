@@ -368,7 +368,7 @@ void MediaView::updateControls() {
 		_dateNav = myrtlrect(st::mediaviewTextLeft, height() - st::mediaviewTextTop, st::mediaviewFont->width(_dateText), st::mediaviewFont->height);
 	}
 	updateHeader();
-	if (_photo || (_history && (_overview == OverviewPhotos || _overview == OverviewChatPhotos || _overview == OverviewFiles || _overview == OverviewVideos))) {
+	if (_photo || (_history && _overview != OverviewCount)) {
 		_leftNavVisible = (_index > 0) || (_index == 0 && (
 			(!_msgmigrated && _history && _history->overview[_overview].size() < _history->overviewCount(_overview)) ||
 			(_msgmigrated && _migrated && _migrated->overview[_overview].size() < _migrated->overviewCount(_overview)) ||
@@ -1152,7 +1152,7 @@ void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
 	_canForward = _msgid > 0;
 	_canDelete = context ? context->canDelete() : false;
 	if (_history) {
-		_overview = doc->isVideo() ? OverviewVideos : OverviewFiles;
+		_overview = doc->isGifv() ? OverviewGIFs : doc->isVideo() ? OverviewVideos : OverviewFiles;
 		findCurrent();
 	}
 	if (doc->isVideo() || doc->isRoundVideo()) {
@@ -2153,7 +2153,7 @@ bool MediaView::moveToNext(int32 delta) {
 		}
 		return false;
 	}
-	if ((_history && _overview != OverviewPhotos && _overview != OverviewChatPhotos && _overview != OverviewFiles && _overview != OverviewVideos) || (_overview == OverviewCount && !_user)) {
+	if (_overview == OverviewCount && (_history || !_user)) {
 		return false;
 	}
 	if (_msgmigrated && !_history->overviewLoaded(_overview)) {
