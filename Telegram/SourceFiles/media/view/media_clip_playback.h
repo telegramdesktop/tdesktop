@@ -40,12 +40,12 @@ public:
 		_inLoadingStateChanged = std::move(callback);
 	}
 	void setValue(float64 value, bool animated);
+	float64 value() const;
 
 	void updateState(const Player::TrackState &state);
 	void updateLoadingState(float64 progress);
 
 private:
-	float64 value() const;
 	void step_value(float64 ms, bool timer);
 
 	// This can animate for a very long time (like in music playing),

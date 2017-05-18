@@ -25,6 +25,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Media {
 namespace Clip {
+namespace {
+
+constexpr auto kPlaybackAnimationDurationMs = TimeMs(200);
+
+} // namespace
 
 Playback::Playback() : _a_value(animation(this, &Playback::step_value)) {
 }
@@ -53,11 +58,16 @@ void Playback::updateState(const Player::TrackState &state) {
 	if (position > length) {
 		progress = 1.;
 	} else if (length) {
-		progress = length ? snap(float64(position) / length, 0., 1.) : 0.;
+		progress = snap(float64(position) / length, 0., 1.);
 	}
+	auto animatedPosition = position + (state.frequency * kPlaybackAnimationDurationMs / 1000);
+	auto animatedProgress = length ? qMax(float64(animatedPosition) / length, 0.) : 0.;
 	if (length != _length || position != _position || wasInLoadingState) {
-		auto animated = (length && _length && progress > value());
-		setValue(progress, animated);
+		if (auto animated = (length && _length && animatedProgress > value())) {
+			setValue(animatedProgress, animated);
+		} else {
+			setValue(progress, animated);
+		}
 		_position = position;
 		_length = length;
 	}
@@ -74,9 +84,8 @@ void Playback::updateLoadingState(float64 progress) {
 	setValue(progress, animated);
 }
 
-
 float64 Playback::value() const {
-	return a_value.current();
+	return qMin(a_value.current(), 1.);
 }
 
 void Playback::setValue(float64 value, bool animated) {
@@ -93,12 +102,12 @@ void Playback::setValue(float64 value, bool animated) {
 }
 
 void Playback::step_value(float64 ms, bool timer) {
-	auto dt = ms / (2 * AudioVoiceMsgUpdateView);
-	if (dt >= 1) {
+	auto dt = ms / kPlaybackAnimationDurationMs;
+	if (dt >= 1.) {
 		_a_value.stop();
 		a_value.finish();
 	} else {
-		a_value.update(qMin(dt, 1.), anim::linear);
+		a_value.update(dt, anim::linear);
 	}
 	if (timer && _valueChanged) {
 		_valueChanged(a_value.current());

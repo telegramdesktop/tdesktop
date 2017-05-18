@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/media_audio.h"
 #include "media/media_clip_reader.h"
 #include "media/player/media_player_instance.h"
+#include "media/view/media_clip_playback.h"
 #include "boxes/confirm_box.h"
 #include "boxes/add_contact_box.h"
 #include "core/click_handler_types.h"
@@ -1959,9 +1960,35 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 			}
 		}
 		p.drawPixmap(rthumb.topLeft(), _gif->current(_thumbw, _thumbh, usew, height, roundRadius, roundCorners, paused ? 0 : ms));
+
+		if (displayMute) {
+			_roundPlayback.reset();
+		} else if (_roundPlayback) {
+			auto value = _roundPlayback->value();
+			if (value > 0.) {
+				auto pen = st::historyVideoMessageProgressFg->p;
+				auto was = p.pen();
+				pen.setWidth(st::radialLine);
+				pen.setCapStyle(Qt::RoundCap);
+				p.setPen(pen);
+				p.setOpacity(st::historyVideoMessageProgressOpacity);
+
+				auto from = QuarterArcLength;
+				auto len = -qRound(FullArcLength * value);
+				auto stepInside = st::radialLine / 2;
+				{
+					PainterHighQualityEnabler hq(p);
+					p.drawArc(rthumb.marginsRemoved(QMargins(stepInside, stepInside, stepInside, stepInside)), from, len);
+				}
+
+				p.setPen(was);
+				p.setOpacity(1.);
+			}
+		}
 	} else {
 		p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(_thumbw, _thumbh, usew, height, roundRadius, roundCorners));
 	}
+
 	if (selected) {
 		App::complexOverlayRect(p, rthumb, roundRadius, roundCorners);
 	}
@@ -2296,6 +2323,8 @@ void HistoryGif::updateStatusText() const {
 	} else if (_data->loaded()) {
 		statusSize = FileStatusSizeLoaded;
 		if (_gif && _gif->mode() == Media::Clip::Reader::Mode::Video) {
+			statusSize = -1 - _data->duration();
+
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Video);
 			if (state.length) {
 				auto position = int64(0);
@@ -2304,9 +2333,10 @@ void HistoryGif::updateStatusText() const {
 				} else if (state.state == Media::Player::State::StoppedAtEnd) {
 					position = state.length;
 				}
-				statusSize = -1 - ((state.length - position) / state.frequency);
-			} else {
-				statusSize = -1 - _data->duration();
+				accumulate_max(statusSize, -1 - int((state.length - position) / state.frequency + 1));
+			}
+			if (_roundPlayback) {
+				_roundPlayback->updateState(state);
 			}
 		}
 	} else {
@@ -2381,6 +2411,10 @@ bool HistoryGif::playInline(bool autoplay) {
 			_parent->clipCallback(notification);
 		}, mode));
 		if (mode == Mode::Video) {
+			_roundPlayback = std::make_unique<Media::Clip::Playback>();
+			_roundPlayback->setValueChangedCallback([this](float64 value) {
+				Ui::repaintHistoryItem(_parent);
+			});
 			if (App::main()) {
 				App::main()->mediaMarkRead(_data);
 			}

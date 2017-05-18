@@ -312,9 +312,15 @@ void Mixer::Track::reattach(AudioMsgId::Type type) {
 	}
 
 	alSourcei(stream.source, AL_SAMPLE_OFFSET, qMax(state.position - bufferedPosition, 0LL));
-	if (IsActive(state.state)) {
+	if (!IsStopped(state.state)) {
 		alSourcef(stream.source, AL_GAIN, ComputeVolume(type));
 		alSourcePlay(stream.source);
+		if (IsPaused(state.state)) {
+			// We must always start the source if we want the AL_SAMPLE_OFFSET to be applied.
+			// Otherwise it won't be read by alGetSource and we'll get a corrupt position.
+			// So in case of a paused source we start it and then immediately pause it.
+			alSourcePause(stream.source);
+		}
 	}
 }
 
@@ -539,7 +545,6 @@ void Mixer::resetFadeStartPosition(AudioMsgId::Type type, int positionInBuffered
 		if (track->isStreamCreated()) {
 			ALint currentPosition = 0;
 			alGetSourcei(track->stream.source, AL_SAMPLE_OFFSET, &currentPosition);
-
 			if (Audio::PlaybackErrorHappened()) {
 				setStoppedState(track, State::StoppedAtError);
 				onError(track->state.id);

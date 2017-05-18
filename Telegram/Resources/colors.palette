@@ -395,6 +395,8 @@ historyFileThumbIconFgSelected: msgInBgSelected; // selected file with thumbnail
 historyFileThumbRadialFg: historyFileThumbIconFg; // file with thumbnail (or photo / video) radial download animation line
 historyFileThumbRadialFgSelected: historyFileThumbIconFgSelected; // selected file with thumbnail (or photo / video) radial download animation line
 
+historyVideoMessageProgressFg: historyFileThumbIconFg; // radial playback progress in round video messages
+
 msgWaveformInActive: windowBgActive; // inbox voice message active waveform lines (like played part of currently playing voice message)
 msgWaveformInActiveSelected: #51a3d3; // inbox selected voice message active waveform lines (like played part of currently playing voice message)
 msgWaveformInInactive: #d4dee6; // inbox voice message inactive waveform lines (like upcoming part of currently playing voice message)

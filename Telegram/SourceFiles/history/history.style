@@ -444,3 +444,4 @@ msgWaveformMax: 20px;
 historyVideoMessageMute: icon {{ "volume_mute", historyFileThumbIconFg }};
 historyVideoMessageMuteSelected: icon {{ "volume_mute", historyFileThumbIconFgSelected }};
 historyVideoMessageMuteSize: 25px;
+historyVideoMessageProgressOpacity: 0.72;

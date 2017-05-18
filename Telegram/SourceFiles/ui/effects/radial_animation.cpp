@@ -70,10 +70,11 @@ void RadialAnimation::step(TimeMs ms) {
 }
 
 void RadialAnimation::draw(Painter &p, const QRect &inner, int32 thickness, style::color color) {
-	float64 o = p.opacity();
+	auto o = p.opacity();
 	p.setOpacity(o * _opacity);
 
-	QPen pen(color->p), was(p.pen());
+	auto pen = color->p;
+	auto was = p.pen();
 	pen.setWidth(thickness);
 	pen.setCapStyle(Qt::RoundCap);
 	p.setPen(pen);

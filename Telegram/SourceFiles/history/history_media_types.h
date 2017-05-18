@@ -22,6 +22,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "ui/effects/radial_animation.h"
 
+namespace Media {
+namespace Clip {
+class Playback;
+} // namespace Clip
+} // namespace Media
+
 void historyInitMedia();
 
 class HistoryFileMedia : public HistoryMedia {
@@ -585,6 +591,7 @@ private:
 	int32 _thumbh = 1;
 	Text _caption;
 
+	mutable std::unique_ptr<Media::Clip::Playback> _roundPlayback;
 	Media::Clip::ReaderPointer _gif;
 
 	void setStatusSize(int32 newSize) const;
