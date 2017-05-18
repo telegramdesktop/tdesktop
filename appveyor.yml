@@ -21,7 +21,7 @@ before_build:
   - .\.appveyor\install.bat
 
 build:
-  project: Telegram.sln
+  project: Telegram\Telegram.sln
 
 artifacts:
   - path: out\Debug\Telegram.exe

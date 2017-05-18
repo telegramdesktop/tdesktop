@@ -624,7 +624,7 @@ buildTelegram() {
       -Dlinux_lib_ssl=-lssl \
       -Dlinux_lib_crypto=-lcrypto \
       -Dlinux_lib_icu=-licuuc\ -licutu\ -licui18n \
-      --depth=. --generator-output=../.. --format=cmake -Goutput_dir=out \
+      --depth=. --generator-output=.. --format=cmake -Goutput_dir=../out \
       Telegram.gyp
   cd "$UPSTREAM/out/Debug"
 
