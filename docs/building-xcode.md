@@ -233,4 +233,4 @@ In Terminal go to **/home/user/TBuild/tdesktop/Telegram** and run
 
     gyp/refresh.sh
 
-Then launch Xcode, open **/Users/user/TBuild/tdesktop/Telegram.xcodeproj** and build for Debug / Release.
+Then launch Xcode, open **/Users/user/TBuild/tdesktop/Telegram/Telegram.xcodeproj** and build for Debug / Release.

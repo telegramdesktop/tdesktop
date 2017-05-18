@@ -300,6 +300,6 @@ After, call `gyp\refresh.bat` (python 2.7 needed)
 
 #### Build the project
 
-* File > Open > Project/Solution > **D:\TBuild\tdesktop\Telegram.sln**
+* File > Open > Project/Solution > **D:\TBuild\tdesktop\Telegram\Telegram.sln**
 * Select Telegram project and press Build > Build Telegram (Debug and Release configurations)
 * The result Telegram.exe will be located in **D:\TBuild\tdesktop\out\Debug** (and **Release**)

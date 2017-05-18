@@ -28,9 +28,9 @@ if not "%TDESKTOP_BUILD_DEFINES%" == "" (
 set GYP_MSVS_VERSION=2015
 
 cd "%FullScriptPath%"
-call gyp --depth=. --generator-output=../.. -Goutput_dir=out !BUILD_DEFINES! -Dofficial_build_target=%BuildTarget% Telegram.gyp --format=ninja
+call gyp --depth=. --generator-output=.. -Goutput_dir=../out !BUILD_DEFINES! -Dofficial_build_target=%BuildTarget% Telegram.gyp --format=ninja
 if %errorlevel% neq 0 goto error
-call gyp --depth=. --generator-output=../.. -Goutput_dir=out !BUILD_DEFINES! -Dofficial_build_target=%BuildTarget% Telegram.gyp --format=msvs-ninja
+call gyp --depth=. --generator-output=.. -Goutput_dir=../out !BUILD_DEFINES! -Dofficial_build_target=%BuildTarget% Telegram.gyp --format=msvs-ninja
 if %errorlevel% neq 0 goto error
 cd ../..
 
