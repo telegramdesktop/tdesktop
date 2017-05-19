@@ -156,7 +156,7 @@ void ListWidget::itemRemoved(HistoryItem *item) {
 
 QRect ListWidget::getCurrentTrackGeometry() const {
 	auto top = marginTop();
-	auto current = instance()->current();
+	auto current = instance()->current(AudioMsgId::Type::Song);
 	auto fullMsgId = current.contextId();
 	for_const (auto layout, _list) {
 		auto layoutHeight = layout->height();
@@ -183,7 +183,7 @@ int ListWidget::marginTop() const {
 void ListWidget::playlistUpdated() {
 	auto newHeight = 0;
 
-	auto &playlist = instance()->playlist();
+	auto &playlist = instance()->playlist(AudioMsgId::Type::Song);
 	auto playlistSize = playlist.size();
 	auto existingSize = _list.size();
 	if (playlistSize > existingSize) {

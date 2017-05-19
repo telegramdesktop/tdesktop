@@ -1675,6 +1675,17 @@ void HistoryDocument::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool 
 	HistoryFileMedia::clickHandlerPressedChanged(p, pressed);
 }
 
+bool HistoryDocument::playInline(bool autoplay) {
+	if (_data->voice()) {
+		DocumentOpenClickHandler::doOpen(_data, _parent, ActionOnLoadPlayInline);
+		return true;
+	} else if (_data->song()) {
+		Media::Player::instance()->play(AudioMsgId(_data, _parent->fullId()));
+		return true;
+	}
+	return false;
+}
+
 void HistoryDocument::attachToParent() {
 	App::regDocumentItem(_data, _parent);
 }

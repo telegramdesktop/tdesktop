@@ -115,7 +115,7 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 		_playback->setValue(value, false);
 	});
 	_playPause->setClickedCallback([this] {
-		instance()->playPauseCancelClicked();
+		instance()->playPauseCancelClicked(AudioMsgId::Type::Song);
 	});
 
 	updateVolumeToggleIcon();
@@ -128,7 +128,7 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 
 	updateRepeatTrackIcon();
 	_repeatTrack->setClickedCallback([this] {
-		instance()->toggleRepeat();
+		instance()->toggleRepeat(AudioMsgId::Type::Song);
 	});
 
 	subscribe(instance()->repeatChangedNotifier(), [this] {
@@ -305,7 +305,7 @@ void Widget::updateLabelsGeometry() {
 }
 
 void Widget::updateRepeatTrackIcon() {
-	auto repeating = instance()->repeatEnabled();
+	auto repeating = instance()->repeatEnabled(AudioMsgId::Type::Song);
 	_repeatTrack->setIconOverride(repeating ? nullptr : &st::mediaPlayerRepeatDisabledIcon, repeating ? nullptr : &st::mediaPlayerRepeatDisabledIconOver);
 	_repeatTrack->setRippleColorOverride(repeating ? nullptr : &st::mediaPlayerRepeatDisabledRippleBg);
 }
@@ -381,7 +381,7 @@ void Widget::updateTimeLabel() {
 }
 
 void Widget::handleSongChange() {
-	auto &current = instance()->current();
+	auto &current = instance()->current(AudioMsgId::Type::Song);
 	auto song = current.audio()->song();
 
 	TextWithEntities textWithEntities;
@@ -398,8 +398,8 @@ void Widget::handleSongChange() {
 }
 
 void Widget::handlePlaylistUpdate() {
-	auto &current = instance()->current();
-	auto &playlist = instance()->playlist();
+	auto &current = instance()->current(AudioMsgId::Type::Song);
+	auto &playlist = instance()->playlist(AudioMsgId::Type::Song);
 	auto index = playlist.indexOf(current.contextId());
 	if (!current || index < 0) {
 		destroyPrevNextButtons();

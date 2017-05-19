@@ -411,6 +411,8 @@ public:
 		return _data;
 	}
 
+	bool playInline(bool autoplay) override;
+
 	void attachToParent() override;
 	void detachFromParent() override;
 

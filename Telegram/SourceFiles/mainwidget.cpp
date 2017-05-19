@@ -1604,7 +1604,7 @@ void MainWidget::closeBothPlayers() {
 	Media::Player::instance()->usePanelPlayer().notify(false, true);
 	_playerPanel->hideIgnoringEnterEvents();
 	_playerPlaylist->hideIgnoringEnterEvents();
-	Media::Player::instance()->stop();
+	Media::Player::instance()->stop(AudioMsgId::Type::Song);
 
 	Shortcuts::disableMediaShortcuts();
 }

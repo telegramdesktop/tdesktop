@@ -102,12 +102,12 @@ CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 		_playback->setValue(value, false);
 	});
 	_playPause->setClickedCallback([this] {
-		instance()->playPauseCancelClicked();
+		instance()->playPauseCancelClicked(AudioMsgId::Type::Song);
 	});
 
 	updateRepeatTrackIcon();
 	_repeatTrack->setClickedCallback([this] {
-		instance()->toggleRepeat();
+		instance()->toggleRepeat(AudioMsgId::Type::Song);
 	});
 
 	updateVolumeToggleIcon();
@@ -232,7 +232,7 @@ void CoverWidget::updateLabelPositions() {
 }
 
 void CoverWidget::updateRepeatTrackIcon() {
-	_repeatTrack->setIconOverride(instance()->repeatEnabled() ? nullptr : &st::mediaPlayerRepeatInactiveIcon);
+	_repeatTrack->setIconOverride(instance()->repeatEnabled(AudioMsgId::Type::Song) ? nullptr : &st::mediaPlayerRepeatInactiveIcon);
 }
 
 void CoverWidget::handleSongUpdate(const TrackState &state) {
@@ -305,7 +305,7 @@ void CoverWidget::updateTimeLabel() {
 }
 
 void CoverWidget::handleSongChange() {
-	auto &current = instance()->current();
+	auto &current = instance()->current(AudioMsgId::Type::Song);
 	auto song = current.audio()->song();
 	if (!song) {
 		return;
@@ -325,8 +325,8 @@ void CoverWidget::handleSongChange() {
 }
 
 void CoverWidget::handlePlaylistUpdate() {
-	auto &current = instance()->current();
-	auto &playlist = instance()->playlist();
+	auto &current = instance()->current(AudioMsgId::Type::Song);
+	auto &playlist = instance()->playlist(AudioMsgId::Type::Song);
 	auto index = playlist.indexOf(current.contextId());
 	if (!current || index < 0) {
 		destroyPrevNextButtons();
