@@ -208,7 +208,7 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 	case WM_SYSCOMMAND: {
 		if (wParam == SC_MOUSEMENU) {
 			POINTS p = MAKEPOINTS(lParam);
-			App::wnd()->psUpdateSysMenu(App::wnd()->windowHandle()->windowState());
+			App::wnd()->updateSystemMenu(App::wnd()->windowHandle()->windowState());
 			TrackPopupMenu(App::wnd()->psMenu(), TPM_LEFTALIGN | TPM_TOPALIGN | TPM_LEFTBUTTON, p.x, p.y, 0, hWnd, 0);
 		}
 	} return false;

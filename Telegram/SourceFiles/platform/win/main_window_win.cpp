@@ -829,13 +829,17 @@ void MainWindow::psFirstShow() {
 	}
 }
 
+void MainWindow::stateChangedHook(Qt::WindowState state) {
+	updateSystemMenu(state);
+}
+
 void MainWindow::psInitSysMenu() {
 	Qt::WindowStates states = windowState();
 	ps_menu = GetSystemMenu(ps_hWnd, FALSE);
-	psUpdateSysMenu(windowHandle()->windowState());
+	updateSystemMenu(windowHandle()->windowState());
 }
 
-void MainWindow::psUpdateSysMenu(Qt::WindowState state) {
+void MainWindow::updateSystemMenu(Qt::WindowState state) {
 	if (!ps_menu) return;
 
 	int menuToDisable = SC_RESTORE;

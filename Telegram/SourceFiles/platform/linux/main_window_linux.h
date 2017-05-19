@@ -32,7 +32,6 @@ public:
 
 	void psFirstShow();
 	void psInitSysMenu();
-	void psUpdateSysMenu(Qt::WindowState state);
 	void psUpdateMargins();
 
 	void psRefreshTaskbarIcon() {

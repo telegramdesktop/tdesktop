@@ -496,9 +496,6 @@ void MainWindow::psMacSelectAll() {
 void MainWindow::psInitSysMenu() {
 }
 
-void MainWindow::psUpdateSysMenu(Qt::WindowState state) {
-}
-
 void MainWindow::psUpdateMargins() {
 }
 

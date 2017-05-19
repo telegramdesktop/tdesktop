@@ -100,6 +100,8 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 	void savePosition(Qt::WindowState state = Qt::WindowActive);
+	void handleStateChanged(Qt::WindowState state);
+	void handleActiveChanged();
 
 	virtual void initHook() {
 	}

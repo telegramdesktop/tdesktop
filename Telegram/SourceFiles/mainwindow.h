@@ -24,7 +24,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "platform/platform_main_window.h"
 #include "core/single_timer.h"
 
-class MediaView;
 class PasscodeWidget;
 class MainWidget;
 class LayerStackWidget;
@@ -187,11 +186,6 @@ signals:
 	void tempDirCleared(int task);
 	void tempDirClearFailed(int task);
 	void checkNewAuthorization();
-
-private slots:
-	void onStateChanged(Qt::WindowState state);
-
-	void onWindowActiveChanged();
 
 private:
 	void checkAuthSession();

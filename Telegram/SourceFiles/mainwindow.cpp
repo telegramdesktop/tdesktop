@@ -148,33 +148,11 @@ void MainWindow::onInactiveTimer() {
 	inactivePress(false);
 }
 
-void MainWindow::onStateChanged(Qt::WindowState state) {
-	stateChangedHook(state);
-
-	psUserActionDone();
-
-	updateIsActive((state == Qt::WindowMinimized) ? Global::OfflineBlurTimeout() : Global::OnlineFocusTimeout());
-
-	psUpdateSysMenu(state);
-	if (state == Qt::WindowMinimized && Global::WorkMode().value() == dbiwmTrayOnly) {
-		App::wnd()->minimizeToTray();
-	}
-	savePosition(state);
-}
-
 void MainWindow::initHook() {
 	Platform::MainWindow::initHook();
 
 	QCoreApplication::instance()->installEventFilter(this);
-	connect(windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(onStateChanged(Qt::WindowState)));
-	connect(windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWindowActiveChanged()), Qt::QueuedConnection);
-}
-
-void MainWindow::onWindowActiveChanged() {
-	checkHistoryActivation();
-	QTimer::singleShot(1, base::lambda_slot_once(this, [this] {
-		updateTrayMenu();
-	}), SLOT(action()));
+	connect(windowHandle(), &QWindow::activeChanged, this, [this] { checkHistoryActivation(); }, Qt::QueuedConnection);
 }
 
 void MainWindow::firstShow() {
@@ -332,7 +310,6 @@ void MainWindow::setupMain(const MTPUser *self) {
 	clearWidgets();
 
 	t_assert(AuthSession::Exists());
-
 
 	_main.create(bodyWidget(), controller());
 	_main->show();
@@ -589,7 +566,7 @@ void MainWindow::setInnerFocus() {
 	}
 }
 
-bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
+bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 	switch (e->type()) {
 	case QEvent::MouseButtonPress:
 	case QEvent::KeyPress:
@@ -620,14 +597,16 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
 		break;
 
 	case QEvent::ApplicationActivate:
-		if (obj == QCoreApplication::instance()) {
+		if (object == QCoreApplication::instance()) {
 			psUserActionDone();
-			QTimer::singleShot(1, this, SLOT(onWindowActiveChanged()));
+			App::CallDelayed(1, this, [this] {
+				handleActiveChanged();
+			});
 		}
 		break;
 
 	case QEvent::FileOpen:
-		if (obj == QCoreApplication::instance()) {
+		if (object == QCoreApplication::instance()) {
 			QString url = static_cast<QFileOpenEvent*>(e)->url().toEncoded().trimmed();
 			if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
 				cSetStartUrl(url.mid(0, 8192));
@@ -640,21 +619,23 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
 		break;
 
 	case QEvent::WindowStateChange:
-		if (obj == this) {
-			Qt::WindowState state = (windowState() & Qt::WindowMinimized) ? Qt::WindowMinimized : ((windowState() & Qt::WindowMaximized) ? Qt::WindowMaximized : ((windowState() & Qt::WindowFullScreen) ? Qt::WindowFullScreen : Qt::WindowNoState));
-			onStateChanged(state);
+		if (object == this) {
+			auto state = (windowState() & Qt::WindowMinimized) ? Qt::WindowMinimized :
+				((windowState() & Qt::WindowMaximized) ? Qt::WindowMaximized :
+				((windowState() & Qt::WindowFullScreen) ? Qt::WindowFullScreen : Qt::WindowNoState));
+			handleStateChanged(state);
 		}
 		break;
 
 	case QEvent::Move:
 	case QEvent::Resize:
-		if (obj == this) {
+		if (object == this) {
 			positionUpdated();
 		}
 		break;
 	}
 
-	return Platform::MainWindow::eventFilter(obj, e);
+	return Platform::MainWindow::eventFilter(object, e);
 }
 
 void MainWindow::updateTrayMenu(bool force) {
@@ -774,10 +755,10 @@ void MainWindow::fixOrder() {
 
 void MainWindow::showFromTray(QSystemTrayIcon::ActivationReason reason) {
 	if (reason != QSystemTrayIcon::Context) {
-		QTimer::singleShot(1, base::lambda_slot_once(this, [this] {
+		App::CallDelayed(1, this, [this] {
 			updateTrayMenu();
 			updateGlobalMenu();
-		}), SLOT(action()));
+		});
         activate();
 		Notify::unreadCounterUpdated();
 	}

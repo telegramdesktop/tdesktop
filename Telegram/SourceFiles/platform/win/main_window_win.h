@@ -40,7 +40,7 @@ public:
 
 	void psFirstShow();
 	void psInitSysMenu();
-	void psUpdateSysMenu(Qt::WindowState state);
+	void updateSystemMenu(Qt::WindowState state);
 	void psUpdateMargins();
 
 	void psRefreshTaskbarIcon();
@@ -85,6 +85,8 @@ protected:
 	void initHook() override;
 	int32 screenNameChecksum(const QString &name) const override;
 	void unreadCounterChangedHook() override;
+
+	void stateChangedHook(Qt::WindowState state) override;
 
 	bool hasTrayIcon() const override {
 		return trayIcon;

@@ -190,6 +190,9 @@ void MainWindow::init() {
 	initHook();
 	updateWindowIcon();
 
+	connect(windowHandle(), &QWindow::activeChanged, this, [this] { handleActiveChanged(); }, Qt::QueuedConnection);
+	connect(windowHandle(), &QWindow::windowStateChanged, this, [this](Qt::WindowState state) { handleStateChanged(state); });
+
 	_positionUpdatedTimer->setSingleShot(true);
 	connect(_positionUpdatedTimer, SIGNAL(timeout()), this, SLOT(savePositionByTimer()));
 
@@ -201,6 +204,26 @@ void MainWindow::init() {
 
 	initSize();
 	updateUnreadCounter();
+}
+
+void MainWindow::handleStateChanged(Qt::WindowState state) {
+	stateChangedHook(state);
+	updateIsActive((state == Qt::WindowMinimized) ? Global::OfflineBlurTimeout() : Global::OnlineFocusTimeout());
+	psUserActionDone();
+	if (state == Qt::WindowMinimized && Global::WorkMode().value() == dbiwmTrayOnly) {
+		minimizeToTray();
+	}
+	savePosition(state);
+}
+
+void MainWindow::handleActiveChanged() {
+	if (isActiveWindow() && _mediaView && !_mediaView->isHidden()) {
+		_mediaView->activateWindow();
+		_mediaView->setFocus();
+	}
+	App::CallDelayed(1, this, [this] {
+		updateTrayMenu();
+	});
 }
 
 void MainWindow::updatePalette() {
