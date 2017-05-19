@@ -28,6 +28,7 @@ constexpr const str_const LanguageCodes[] = {
 	"es",
 	"de",
 	"nl",
+	"ua",
 	"pt_BR",
 	"ko",
 };
