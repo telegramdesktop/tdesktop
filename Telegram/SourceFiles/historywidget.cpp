@@ -4467,18 +4467,21 @@ void HistoryWidget::onReportSpamHide() {
 
 void HistoryWidget::onReportSpamClear() {
 	Expects(_peer != nullptr);
-	if (_peer->isUser()) {
-		App::main()->deleteConversation(_peer);
-	} else if (auto chat = _peer->asChat()) {
-		App::main()->showBackFromStack();
-		MTP::send(MTPmessages_DeleteChatUser(chat->inputChat, App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, _peer), App::main()->rpcFail(&MainWidget::leaveChatFailed, _peer));
-	} else if (auto channel = _peer->asChannel()) {
-		App::main()->showBackFromStack();
-		if (channel->migrateFrom()) {
-			App::main()->deleteConversation(channel->migrateFrom());
+	InvokeQueued(App::main(), [peer = _peer] {
+		if (peer->isUser()) {
+			App::main()->deleteConversation(peer);
+		} else if (auto chat = peer->asChat()) {
+			MTP::send(MTPmessages_DeleteChatUser(chat->inputChat, App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, peer), App::main()->rpcFail(&MainWidget::leaveChatFailed, peer));
+		} else if (auto channel = peer->asChannel()) {
+			if (channel->migrateFrom()) {
+				App::main()->deleteConversation(channel->migrateFrom());
+			}
+			MTP::send(MTPchannels_LeaveChannel(channel->inputChannel), App::main()->rpcDone(&MainWidget::sentUpdatesReceived));
 		}
-		MTP::send(MTPchannels_LeaveChannel(channel->inputChannel), App::main()->rpcDone(&MainWidget::sentUpdatesReceived));
-	}
+	});
+
+	// Invalidates _peer.
+	App::main()->showBackFromStack();
 }
 
 void HistoryWidget::peerMessagesUpdated(PeerId peer) {
