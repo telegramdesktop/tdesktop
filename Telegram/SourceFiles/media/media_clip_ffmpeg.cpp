@@ -218,18 +218,6 @@ TimeMs FFMpegReaderImplementation::durationMs() const {
 	return (_fmtContext->streams[_streamId]->duration * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
 }
 
-void FFMpegReaderImplementation::pauseAudio() {
-	if (_audioStreamId >= 0) {
-		Player::mixer()->pause(_audioMsgId, true);
-	}
-}
-
-void FFMpegReaderImplementation::resumeAudio() {
-	if (_audioStreamId >= 0) {
-		Player::mixer()->resume(_audioMsgId, true);
-	}
-}
-
 bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const QSize &size) {
 	Expects(_frameRead);
 	_frameRead = false;
@@ -425,7 +413,7 @@ bool FFMpegReaderImplementation::start(Mode mode, TimeMs &positionMs) {
 		positionMs = countPacketMs(&packet);
 	}
 
-	if (_audioStreamId >= 0) {
+	if (hasAudio()) {
 		auto position = (positionMs * soundData->frequency) / 1000LL;
 		Player::mixer()->play(_audioMsgId, std::move(soundData), position);
 	}
@@ -480,10 +468,6 @@ QString FFMpegReaderImplementation::logData() const {
 }
 
 FFMpegReaderImplementation::~FFMpegReaderImplementation() {
-	if (_audioStreamId >= 0) {
-		Player::mixer()->stop(_audioMsgId);
-	}
-
 	clearPacketQueue();
 
 	if (_frameRead) {

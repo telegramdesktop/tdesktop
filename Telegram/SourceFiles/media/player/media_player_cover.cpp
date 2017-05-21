@@ -117,17 +117,25 @@ CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 		Global::RefSongVolumeChanged().notify();
 	});
 	subscribe(Global::RefSongVolumeChanged(), [this] { updateVolumeToggleIcon(); });
-	subscribe(instance()->repeatChangedNotifier(), [this] {
-		updateRepeatTrackIcon();
+	subscribe(instance()->repeatChangedNotifier(), [this](AudioMsgId::Type type) {
+		if (type == AudioMsgId::Type::Song) {
+			updateRepeatTrackIcon();
+		}
 	});
-	subscribe(instance()->playlistChangedNotifier(), [this] {
-		handlePlaylistUpdate();
+	subscribe(instance()->playlistChangedNotifier(), [this](AudioMsgId::Type type) {
+		if (type == AudioMsgId::Type::Song) {
+			handlePlaylistUpdate();
+		}
 	});
 	subscribe(instance()->updatedNotifier(), [this](const TrackState &state) {
-		handleSongUpdate(state);
+		if (state.id.type() == AudioMsgId::Type::Song) {
+			handleSongUpdate(state);
+		}
 	});
-	subscribe(instance()->songChangedNotifier(), [this] {
-		handleSongChange();
+	subscribe(instance()->trackChangedNotifier(), [this](AudioMsgId::Type type) {
+		if (type == AudioMsgId::Type::Song) {
+			handleSongChange();
+		}
 	});
 	handleSongChange();
 
@@ -246,7 +254,7 @@ void CoverWidget::handleSongUpdate(const TrackState &state) {
 		_playback->updateState(state);
 	}
 
-	auto stopped = (IsStopped(state.state) || state.state == State::Finishing);
+	auto stopped = IsStoppedOrStopping(state.state);
 	auto showPause = !stopped && (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
 	if (instance()->isSeeking(AudioMsgId::Type::Song)) {
 		showPause = true;
@@ -268,7 +276,7 @@ void CoverWidget::updateTimeText(const TrackState &state) {
 	QString time;
 	qint64 position = 0, length = 0, display = 0;
 	auto frequency = state.frequency;
-	if (!IsStopped(state.state) && state.state != State::Finishing) {
+	if (!IsStoppedOrStopping(state.state)) {
 		display = position = state.position;
 		length = state.length;
 	} else {
@@ -305,7 +313,7 @@ void CoverWidget::updateTimeLabel() {
 }
 
 void CoverWidget::handleSongChange() {
-	auto &current = instance()->current(AudioMsgId::Type::Song);
+	auto current = instance()->current(AudioMsgId::Type::Song);
 	auto song = current.audio()->song();
 	if (!song) {
 		return;
@@ -325,8 +333,8 @@ void CoverWidget::handleSongChange() {
 }
 
 void CoverWidget::handlePlaylistUpdate() {
-	auto &current = instance()->current(AudioMsgId::Type::Song);
-	auto &playlist = instance()->playlist(AudioMsgId::Type::Song);
+	auto current = instance()->current(AudioMsgId::Type::Song);
+	auto playlist = instance()->playlist(AudioMsgId::Type::Song);
 	auto index = playlist.indexOf(current.contextId());
 	if (!current || index < 0) {
 		destroyPrevNextButtons();

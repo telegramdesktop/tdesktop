@@ -42,10 +42,6 @@ public:
 	bool hasAudio() const override {
 		return false;
 	}
-	void pauseAudio() override {
-	}
-	void resumeAudio() override {
-	}
 
 	bool start(Mode mode, TimeMs &positionMs) override;
 

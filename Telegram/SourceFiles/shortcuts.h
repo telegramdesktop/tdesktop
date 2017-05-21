@@ -36,4 +36,4 @@ void disableMediaShortcuts();
 
 void finish();
 
-}
+} // namespace Shortcuts

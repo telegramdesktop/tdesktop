@@ -48,8 +48,6 @@ public:
 	bool hasAudio() const override {
 		return (_audioStreamId >= 0);
 	}
-	void pauseAudio() override;
-	void resumeAudio() override;
 
 	bool start(Mode mode, TimeMs &positionMs) override;
 	bool inspectAt(TimeMs &positionMs);

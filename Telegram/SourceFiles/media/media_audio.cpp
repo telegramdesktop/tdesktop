@@ -596,12 +596,12 @@ bool Mixer::fadedStop(AudioMsgId::Type type, bool *fadedStart) {
 	case State::Starting:
 	case State::Resuming:
 	case State::Playing: {
-		current->state.state = State::Finishing;
+		current->state.state = State::Stopping;
 		resetFadeStartPosition(type);
 		if (fadedStart) *fadedStart = true;
 	} break;
 	case State::Pausing: {
-		current->state.state = State::Finishing;
+		current->state.state = State::Stopping;
 		if (fadedStart) *fadedStart = true;
 	} break;
 	case State::Paused:
@@ -642,7 +642,7 @@ void Mixer::play(const AudioMsgId &audio, std::unique_ptr<VideoSoundData> videoD
 					current->state.state = State::Pausing;
 					resetFadeStartPosition(type);
 				} break;
-				case State::Finishing: {
+				case State::Stopping: {
 					current->state.state = State::Pausing;
 				} break;
 
@@ -781,7 +781,7 @@ void Mixer::pause(const AudioMsgId &audio, bool fast) {
 			}
 		} break;
 
-		case State::Finishing: {
+		case State::Stopping: {
 			track->state.state = fast ? State::Paused : State::Pausing;
 		} break;
 		}
@@ -874,7 +874,7 @@ void Mixer::seek(AudioMsgId::Type type, int64 position) {
 	auto fastSeek = (position >= current->bufferedPosition && position < current->bufferedPosition + current->bufferedLength - (current->loaded ? 0 : kDefaultFrequency));
 	if (!streamCreated) {
 		fastSeek = false;
-	} else if (IsStopped(current->state.state) || (current->state.state == State::Finishing)) {
+	} else if (IsStoppedOrStopping(current->state.state)) {
 		fastSeek = false;
 	}
 	if (fastSeek) {
@@ -908,7 +908,7 @@ void Mixer::seek(AudioMsgId::Type type, int64 position) {
 			emit unsuppressSong();
 		}
 	} break;
-	case State::Finishing:
+	case State::Stopping:
 	case State::Stopped:
 	case State::StoppedAtEnd:
 	case State::StoppedAtError:
@@ -931,6 +931,29 @@ void Mixer::stop(const AudioMsgId &audio) {
 
 		current = track->state.id;
 		fadedStop(type);
+		if (type == AudioMsgId::Type::Voice) {
+			emit unsuppressSong();
+		} else if (type == AudioMsgId::Type::Video) {
+			track->clear();
+		}
+	}
+	if (current) emit updated(current);
+}
+
+void Mixer::stop(const AudioMsgId &audio, State state) {
+	Expects(IsStopped(state));
+
+	AudioMsgId current;
+	{
+		QMutexLocker lock(&AudioMutex);
+		auto type = audio.type();
+		auto track = trackForType(type);
+		if (!track || track->state.id != audio || IsStopped(track->state.state)) {
+			return;
+		}
+
+		current = track->state.id;
+		setStoppedState(track, state);
 		if (type == AudioMsgId::Type::Voice) {
 			emit unsuppressSong();
 		} else if (type == AudioMsgId::Type::Video) {
@@ -1012,11 +1035,7 @@ void Mixer::reattachIfNeeded() {
 	auto reattachNeeded = [this] {
 		auto isPlayingState = [](const Track &track) {
 			auto state = track.state.state;
-			return (state == State::Starting)
-				|| (state == State::Playing)
-				|| (state == State::Finishing)
-				|| (state == State::Pausing)
-				|| (state == State::Resuming);
+			return (state == State::Playing) || IsFading(state);
 		};
 		for (auto i = 0; i != kTogetherLimit; ++i) {
 			if (isPlayingState(*trackForType(AudioMsgId::Type::Voice, i))
@@ -1174,7 +1193,7 @@ int32 Fader::updateOnePlayback(Mixer::Track *track, bool &hasPlaying, bool &hasF
 	}
 
 	switch (track->state.state) {
-	case State::Finishing:
+	case State::Stopping:
 	case State::Pausing:
 	case State::Starting:
 	case State::Resuming: {
@@ -1186,29 +1205,33 @@ int32 Fader::updateOnePlayback(Mixer::Track *track, bool &hasPlaying, bool &hasF
 	}
 
 	auto fullPosition = track->bufferedPosition + positionInBuffered;
-	if (fading && (state == AL_PLAYING || !track->loading)) {
-		auto fadingForSamplesCount = (fullPosition - track->fadeStartPosition);
-
-		if (state != AL_PLAYING) {
+	if (state != AL_PLAYING && !track->loading) {
+		if (fading || playing) {
 			fading = false;
-			if (track->stream.source) {
+			playing = false;
+			if (track->isStreamCreated()) {
 				alSourceStop(track->stream.source);
 				alSourcef(track->stream.source, AL_GAIN, 1);
 				if (errorHappened()) return EmitError;
 			}
 			if (track->state.state == State::Pausing) {
 				track->state.state = State::PausedAtEnd;
+			} else if (track->state.state == State::Stopping) {
+				setStoppedState(track, State::Stopped);
 			} else {
 				setStoppedState(track, State::StoppedAtEnd);
 			}
 			emitSignals |= EmitStopped;
-		} else if (TimeMs(1000) * fadingForSamplesCount >= kFadeDuration * track->state.frequency) {
+		}
+	} else if (fading && state == AL_PLAYING) {
+		auto fadingForSamplesCount = (fullPosition - track->fadeStartPosition);
+		if (TimeMs(1000) * fadingForSamplesCount >= kFadeDuration * track->state.frequency) {
 			fading = false;
 			alSourcef(track->stream.source, AL_GAIN, 1. * volumeMultiplier);
 			if (errorHappened()) return EmitError;
 
 			switch (track->state.state) {
-			case State::Finishing: {
+			case State::Stopping: {
 				alSourceStop(track->stream.source);
 				if (errorHappened()) return EmitError;
 
@@ -1229,23 +1252,14 @@ int32 Fader::updateOnePlayback(Mixer::Track *track, bool &hasPlaying, bool &hasF
 			}
 		} else {
 			auto newGain = TimeMs(1000) * fadingForSamplesCount / float64(kFadeDuration * track->state.frequency);
-			if (track->state.state == State::Pausing || track->state.state == State::Finishing) {
+			if (track->state.state == State::Pausing || track->state.state == State::Stopping) {
 				newGain = 1. - newGain;
 			}
 			alSourcef(track->stream.source, AL_GAIN, newGain * volumeMultiplier);
 			if (errorHappened()) return EmitError;
 		}
-	} else if (playing && (state == AL_PLAYING || !track->loading)) {
-		if (state != AL_PLAYING) {
-			playing = false;
-			if (track->isStreamCreated()) {
-				alSourceStop(track->stream.source);
-				alSourcef(track->stream.source, AL_GAIN, 1);
-				if (errorHappened()) return EmitError;
-			}
-			setStoppedState(track, State::StoppedAtEnd);
-			emitSignals |= EmitStopped;
-		} else if (volumeChanged) {
+	} else if (playing && state == AL_PLAYING) {
+		if (volumeChanged) {
 			alSourcef(track->stream.source, AL_GAIN, 1. * volumeMultiplier);
 			if (errorHappened()) return EmitError;
 		}

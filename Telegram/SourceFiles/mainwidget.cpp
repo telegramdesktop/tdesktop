@@ -186,6 +186,14 @@ MainWidget::MainWidget(QWidget *parent, gsl::not_null<Window::Controller*> contr
 			_playerPlaylist->hideFromOther();
 		}
 	});
+	subscribe(Media::Player::instance()->tracksFinishedNotifier(), [this](AudioMsgId::Type type) {
+		if (type == AudioMsgId::Type::Voice) {
+			auto songState = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
+			if (!songState.id || IsStoppedOrStopping(songState.state)) {
+				closeBothPlayers();
+			}
+		}
+	});
 
 	subscribe(Adaptive::Changed(), [this]() { handleAdaptiveLayoutUpdate(); });
 
@@ -1540,14 +1548,9 @@ void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 		}
 	}
 
-	if (state.id == audioId && audioId.type() == AudioMsgId::Type::Song) {
-		if (!Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
-			if (!_playerUsingPanel && !_player) {
-				createPlayer();
-			}
-		} else if (_player && _player->isHidden() && !_playerUsingPanel) {
-			_player.destroyDelayed();
-			_playerVolume.destroyDelayed();
+	if (state.id == audioId && (audioId.type() == AudioMsgId::Type::Song || audioId.type() == AudioMsgId::Type::Voice)) {
+		if (!Media::Player::IsStoppedOrStopping(state.state)) {
+			createPlayer();
 		}
 	}
 
@@ -1604,30 +1607,38 @@ void MainWidget::closeBothPlayers() {
 	Media::Player::instance()->usePanelPlayer().notify(false, true);
 	_playerPanel->hideIgnoringEnterEvents();
 	_playerPlaylist->hideIgnoringEnterEvents();
+	Media::Player::instance()->stop(AudioMsgId::Type::Voice);
 	Media::Player::instance()->stop(AudioMsgId::Type::Song);
 
 	Shortcuts::disableMediaShortcuts();
 }
 
 void MainWidget::createPlayer() {
-	_player.create(this, [this] { playerHeightUpdated(); });
-	_player->entity()->setCloseCallback([this] { closeBothPlayers(); });
-	_playerVolume.create(this);
-	_player->entity()->volumeWidgetCreated(_playerVolume);
-	orderWidgets();
-	if (_a_show.animating()) {
-		_player->showFast();
-		_player->hide();
-	} else {
-		_player->hideFast();
-		if (_player) {
+	if (_playerUsingPanel) {
+		return;
+	}
+	if (!_player) {
+		_player.create(this, [this] { playerHeightUpdated(); });
+		_player->entity()->setCloseCallback([this] { closeBothPlayers(); });
+		_playerVolume.create(this);
+		_player->entity()->volumeWidgetCreated(_playerVolume);
+		orderWidgets();
+		if (_a_show.animating()) {
+			_player->showFast();
+			_player->hide();
+			Shortcuts::enableMediaShortcuts();
+		} else {
+			_player->hideFast();
+		}
+	}
+	if (_player && _player->isHiddenOrHiding()) {
+		if (!_a_show.animating()) {
 			_player->showAnimated();
 			_playerHeight = _contentScrollAddToY = _player->contentHeight();
 			updateControlsGeometry();
+			Shortcuts::enableMediaShortcuts();
 		}
 	}
-
-	Shortcuts::enableMediaShortcuts();
 }
 
 void MainWidget::playerHeightUpdated() {
@@ -1638,8 +1649,8 @@ void MainWidget::playerHeightUpdated() {
 		updateControlsGeometry();
 	}
 	if (!_playerHeight && _player->isHidden()) {
-		auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
-		if (state.id && Media::Player::IsStopped(state.state)) {
+		auto state = Media::Player::mixer()->currentState(Media::Player::instance()->getActiveType());
+		if (!state.id || Media::Player::IsStoppedOrStopping(state.state)) {
 			_playerVolume.destroyDelayed();
 			_player.destroyDelayed();
 		}

@@ -666,7 +666,7 @@ bool Voice::updateStatusText() {
 		statusSize = FileStatusSizeLoaded;
 		using State = Media::Player::State;
 		auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
-		if (state.id == AudioMsgId(_data, _parent->fullId()) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
+		if (state.id == AudioMsgId(_data, _parent->fullId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
 			statusSize = -1 - (state.position / state.frequency);
 			realDuration = (state.length / state.frequency);
 			showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
@@ -950,7 +950,7 @@ bool Document::updateStatusText() {
 			statusSize = FileStatusSizeLoaded;
 			using State = Media::Player::State;
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
-			if (state.id == AudioMsgId(_data, _parent->fullId()) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
+			if (state.id == AudioMsgId(_data, _parent->fullId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
 				statusSize = -1 - (state.position / state.frequency);
 				realDuration = (state.length / state.frequency);
 				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);

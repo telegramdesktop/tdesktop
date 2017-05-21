@@ -133,10 +133,10 @@ void Controller::updatePlayPauseResumeState(const Player::TrackState &state) {
 void Controller::updateTimeTexts(const Player::TrackState &state) {
 	qint64 position = 0, length = state.length;
 
-	if (!Player::IsStopped(state.state) && state.state != Player::State::Finishing) {
-		position = state.position;
-	} else if (state.state == Player::State::StoppedAtEnd) {
+	if (Player::IsStoppedAtEnd(state.state)) {
 		position = state.length;
+	} else if (!Player::IsStoppedOrStopping(state.state)) {
+		position = state.position;
 	} else {
 		position = 0;
 	}

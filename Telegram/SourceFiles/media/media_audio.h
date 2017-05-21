@@ -69,7 +69,7 @@ enum class State {
 
 	Starting = 0x08,
 	Playing = 0x10,
-	Finishing = 0x18,
+	Stopping = 0x18,
 	Pausing = 0x20,
 	Paused = 0x28,
 	PausedAtEnd = 0x30,
@@ -83,6 +83,14 @@ inline bool IsStopped(State state) {
 		|| (state == State::StoppedAtStart);
 }
 
+inline bool IsStoppedOrStopping(State state) {
+	return IsStopped(state) || (state == State::Stopping);
+}
+
+inline bool IsStoppedAtEnd(State state) {
+	return (state == State::StoppedAtEnd);
+}
+
 inline bool IsPaused(State state) {
 	return (state == State::Paused)
 		|| (state == State::PausedAtEnd);
@@ -90,7 +98,7 @@ inline bool IsPaused(State state) {
 
 inline bool IsFading(State state) {
 	return (state == State::Starting)
-		|| (state == State::Finishing)
+		|| (state == State::Stopping)
 		|| (state == State::Pausing)
 		|| (state == State::Resuming);
 }
@@ -119,6 +127,7 @@ public:
 	void resume(const AudioMsgId &audio, bool fast = false);
 	void seek(AudioMsgId::Type type, int64 position); // type == AudioMsgId::Type::Song
 	void stop(const AudioMsgId &audio);
+	void stop(const AudioMsgId &audio, State state);
 
 	// Video player audio stream interface.
 	void feedFromVideo(VideoSoundPart &&part);

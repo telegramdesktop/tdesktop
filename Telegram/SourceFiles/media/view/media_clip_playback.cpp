@@ -46,10 +46,10 @@ void Playback::updateState(const Player::TrackState &state) {
 	}
 
 	_playing = !Player::IsStopped(state.state);
-	if (_playing || state.state == Player::State::Stopped) {
-		position = state.position;
-	} else if (state.state == Player::State::StoppedAtEnd) {
+	if (Player::IsStoppedAtEnd(state.state)) {
 		position = state.length;
+	} else if (!Player::IsStoppedOrStopping(state.state)) {
+		position = state.position;
 	} else {
 		position = 0;
 	}

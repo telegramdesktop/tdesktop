@@ -997,7 +997,7 @@ void HistoryItem::audioTrackUpdated() {
 
 	auto audio = reader->audioMsgId();
 	auto current = Media::Player::mixer()->currentState(audio.type());
-	if (current.id != audio || Media::Player::IsStopped(current.state) || current.state == Media::Player::State::Finishing) {
+	if (current.id != audio || Media::Player::IsStoppedOrStopping(current.state)) {
 		media->stopInline();
 	} else if (Media::Player::IsPaused(current.state) || current.state == Media::Player::State::Pausing) {
 		if (!reader->videoPaused()) {

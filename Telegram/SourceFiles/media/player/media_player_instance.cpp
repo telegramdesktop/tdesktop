@@ -86,7 +86,7 @@ AudioMsgId::Type Instance::getActiveType() const {
 	auto voiceData = getData(AudioMsgId::Type::Voice);
 	if (voiceData->current) {
 		auto state = mixer()->currentState(voiceData->type);
-		if (IsActive(state.state)) {
+		if (voiceData->current == state.id && !IsStoppedOrStopping(state.state)) {
 			return voiceData->type;
 		}
 	}
@@ -136,7 +136,7 @@ void Instance::setCurrent(const AudioMsgId &audioId) {
 				data->history = nullptr;
 				data->migrated = nullptr;
 			}
-			_songChangedNotifier.notify(true);
+			_trackChangedNotifier.notify(data->type, true);
 			if (data->history != history || data->migrated != migrated) {
 				rebuildPlaylist(data);
 			}
@@ -163,25 +163,27 @@ void Instance::rebuildPlaylist(Data *data) {
 			data->playlist.push_back(FullMsgId(data->history->channelId(), msgId));
 		}
 	}
-	_playlistChangedNotifier.notify(true);
+	_playlistChangedNotifier.notify(data->type, true);
 }
 
-void Instance::moveInPlaylist(Data *data, int delta) {
+bool Instance::moveInPlaylist(Data *data, int delta) {
 	Expects(data != nullptr);
 
 	auto index = data->playlist.indexOf(data->current.contextId());
 	auto newIndex = index + delta;
 	if (!data->current || index < 0 || newIndex < 0 || newIndex >= data->playlist.size()) {
 		rebuildPlaylist(data);
-		return;
+		return false;
 	}
 
 	auto msgId = data->playlist[newIndex];
 	if (auto item = App::histItemById(msgId)) {
 		if (auto media = item->getMedia()) {
 			media->playInline();
+			return true;
 		}
 	}
+	return false;
 }
 
 Instance *instance() {
@@ -254,16 +256,18 @@ void Instance::playPause(AudioMsgId::Type type) {
 	}
 }
 
-void Instance::next(AudioMsgId::Type type) {
+bool Instance::next(AudioMsgId::Type type) {
 	if (auto data = getData(type)) {
-		moveInPlaylist(data, 1);
+		return moveInPlaylist(data, 1);
 	}
+	return false;
 }
 
-void Instance::previous(AudioMsgId::Type type) {
+bool Instance::previous(AudioMsgId::Type type) {
 	if (auto data = getData(type)) {
-		moveInPlaylist(data, -1);
+		return moveInPlaylist(data, -1);
 	}
+	return false;
 }
 
 void Instance::playPauseCancelClicked(AudioMsgId::Type type) {
@@ -272,7 +276,7 @@ void Instance::playPauseCancelClicked(AudioMsgId::Type type) {
 	}
 
 	auto state = mixer()->currentState(type);
-	auto stopped = (IsStopped(state.state) || state.state == State::Finishing);
+	auto stopped = IsStoppedOrStopping(state.state);
 	auto showPause = !stopped && (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
 	auto audio = state.id.audio();
 	if (audio && audio->loading()) {
@@ -319,8 +323,8 @@ void Instance::emitUpdate(AudioMsgId::Type type, CheckCallback check) {
 		if (data->isPlaying && state.state == State::StoppedAtEnd) {
 			if (data->repeatEnabled) {
 				play(data->current);
-			} else {
-				next(type);
+			} else if (!next(type)) {
+				_tracksFinishedNotifier.notify(type);
 			}
 		}
 		auto isPlaying = !IsStopped(state.state);

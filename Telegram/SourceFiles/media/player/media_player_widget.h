@@ -45,8 +45,7 @@ class Widget : public TWidget, private base::Subscriber {
 public:
 	Widget(QWidget *parent);
 
-	using CloseCallback = base::lambda<void()>;
-	void setCloseCallback(CloseCallback &&callback);
+	void setCloseCallback(base::lambda<void()> callback);
 
 	void setShadowGeometryToLeft(int x, int y, int w, int h);
 	void showShadow();
@@ -81,6 +80,8 @@ private:
 
 	void updateVolumeToggleIcon();
 
+	void checkForTypeChange();
+	void setType(AudioMsgId::Type type);
 	void handleSongUpdate(const TrackState &state);
 	void handleSongChange();
 	void handlePlaylistUpdate();
@@ -91,6 +92,13 @@ private:
 	TimeMs _seekPositionMs = -1;
 	TimeMs _lastDurationMs = 0;
 	QString _time;
+
+	// We display all the controls according to _type.
+	// We switch to Type::Voice if a voice/video message is played.
+	// We switch to Type::Song only if _voiceIsActive == false.
+	// We change _voiceIsActive to false only manually or from tracksFinished().
+	AudioMsgId::Type _type = AudioMsgId::Type::Unknown;
+	bool _voiceIsActive = false;
 
 	class PlayButton;
 	object_ptr<Ui::FlatLabel> _nameLabel;

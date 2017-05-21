@@ -836,7 +836,7 @@ bool File::updateStatusText() const {
 		if (document->voice()) {
 			statusSize = FileStatusSizeLoaded;
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
-			if (state.id == AudioMsgId(document, FullMsgId()) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
+			if (state.id == AudioMsgId(document, FullMsgId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
 				statusSize = -1 - (state.position / state.frequency);
 				realDuration = (state.length / state.frequency);
 				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
@@ -844,7 +844,7 @@ bool File::updateStatusText() const {
 		} else if (document->song()) {
 			statusSize = FileStatusSizeLoaded;
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
-			if (state.id == AudioMsgId(document, FullMsgId()) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
+			if (state.id == AudioMsgId(document, FullMsgId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
 				statusSize = -1 - (state.position / state.frequency);
 				realDuration = (state.length / state.frequency);
 				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);

@@ -1427,7 +1427,7 @@ HistoryTextState HistoryDocument::getState(int x, int y, HistoryStateRequest req
 		auto waveformbottom = st::msgFilePadding.top() - topMinus + st::msgWaveformMax + st::msgWaveformMin;
 		if (x >= nameleft && x < nameleft + namewidth && y >= nametop && y < waveformbottom) {
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
-			if (state.id == AudioMsgId(_data, _parent->fullId()) && !Media::Player::IsStopped(state.state)) {
+			if (state.id == AudioMsgId(_data, _parent->fullId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
 				if (!voice->seeking()) {
 					voice->setSeekingStart((x - nameleft) / float64(namewidth));
 				}
@@ -1585,7 +1585,7 @@ bool HistoryDocument::updateStatusText() const {
 		statusSize = FileStatusSizeLoaded;
 		if (_data->voice()) {
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
-			if (state.id == AudioMsgId(_data, _parent->fullId()) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
+			if (state.id == AudioMsgId(_data, _parent->fullId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
 				if (auto voice = Get<HistoryDocumentVoice>()) {
 					bool was = (voice->_playback != nullptr);
 					voice->ensurePlayback(this);
@@ -1615,7 +1615,7 @@ bool HistoryDocument::updateStatusText() const {
 			}
 		} else if (_data->song()) {
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
-			if (state.id == AudioMsgId(_data, _parent->fullId()) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
+			if (state.id == AudioMsgId(_data, _parent->fullId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
 				statusSize = -1 - (state.position / state.frequency);
 				realDuration = (state.length / state.frequency);
 				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
@@ -2337,10 +2337,10 @@ void HistoryGif::updateStatusText() const {
 			if (state.id == _gif->audioMsgId()) {
 				if (state.length) {
 					auto position = int64(0);
-					if (!Media::Player::IsStopped(state.state) && state.state != Media::Player::State::Finishing) {
-						position = state.position;
-					} else if (state.state == Media::Player::State::StoppedAtEnd) {
+					if (Media::Player::IsStoppedAtEnd(state.state)) {
 						position = state.length;
+					} else if (!Media::Player::IsStoppedOrStopping(state.state)) {
+						position = state.position;
 					}
 					accumulate_max(statusSize, -1 - int((state.length - position) / state.frequency + 1));
 				}

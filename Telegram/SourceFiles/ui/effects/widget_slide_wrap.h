@@ -53,6 +53,10 @@ public:
 	}
 	void toggleFast(bool visible);
 
+	bool isHiddenOrHiding() const {
+		return isHidden() || (_a_height.animating() && _hiding);
+	}
+
 	void finishAnimation() {
 		_a_height.finish();
 		myEnsureResized(_entity);

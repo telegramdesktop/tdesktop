@@ -42,8 +42,10 @@ public:
 	void pause(AudioMsgId::Type type);
 	void stop(AudioMsgId::Type type);
 	void playPause(AudioMsgId::Type type);
-	void next(AudioMsgId::Type type);
-	void previous(AudioMsgId::Type type);
+	bool next(AudioMsgId::Type type);
+	bool previous(AudioMsgId::Type type);
+
+	AudioMsgId::Type getActiveType() const;
 
 	void play() {
 		play(getActiveType());
@@ -57,11 +59,11 @@ public:
 	void playPause() {
 		playPause(getActiveType());
 	}
-	void next() {
-		next(getActiveType());
+	bool next() {
+		return next(getActiveType());
 	}
-	void previous() {
-		previous(getActiveType());
+	bool previous() {
+		return previous(getActiveType());
 	}
 
 	void playPauseCancelClicked(AudioMsgId::Type type);
@@ -83,7 +85,7 @@ public:
 	void toggleRepeat(AudioMsgId::Type type) {
 		if (auto data = getData(type)) {
 			data->repeatEnabled = !data->repeatEnabled;
-			_repeatChangedNotifier.notify();
+			_repeatChangedNotifier.notify(type);
 		}
 	}
 
@@ -115,13 +117,16 @@ public:
 	base::Observable<TrackState> &updatedNotifier() {
 		return _updatedNotifier;
 	}
-	base::Observable<void> &playlistChangedNotifier() {
+	base::Observable<AudioMsgId::Type> &tracksFinishedNotifier() {
+		return _tracksFinishedNotifier;
+	}
+	base::Observable<AudioMsgId::Type> &playlistChangedNotifier() {
 		return _playlistChangedNotifier;
 	}
-	base::Observable<void> &songChangedNotifier() {
-		return _songChangedNotifier;
+	base::Observable<AudioMsgId::Type> &trackChangedNotifier() {
+		return _trackChangedNotifier;
 	}
-	base::Observable<void> &repeatChangedNotifier() {
+	base::Observable<AudioMsgId::Type> &repeatChangedNotifier() {
 		return _repeatChangedNotifier;
 	}
 
@@ -148,8 +153,6 @@ private:
 		bool isPlaying = false;
 	};
 
-	AudioMsgId::Type getActiveType() const;
-
 	// Observed notifications.
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
 	void handleSongUpdate(const AudioMsgId &audioId);
@@ -157,7 +160,7 @@ private:
 	void checkPeerUpdate(AudioMsgId::Type type, const Notify::PeerUpdate &update);
 	void setCurrent(const AudioMsgId &audioId);
 	void rebuildPlaylist(Data *data);
-	void moveInPlaylist(Data *data, int delta);
+	bool moveInPlaylist(Data *data, int delta);
 	void preloadNext(Data *data);
 	void handleLogout();
 
@@ -189,9 +192,10 @@ private:
 	base::Observable<bool> _titleButtonOver;
 	base::Observable<bool> _playerWidgetOver;
 	base::Observable<TrackState> _updatedNotifier;
-	base::Observable<void> _playlistChangedNotifier;
-	base::Observable<void> _songChangedNotifier;
-	base::Observable<void> _repeatChangedNotifier;
+	base::Observable<AudioMsgId::Type> _tracksFinishedNotifier;
+	base::Observable<AudioMsgId::Type> _playlistChangedNotifier;
+	base::Observable<AudioMsgId::Type> _trackChangedNotifier;
+	base::Observable<AudioMsgId::Type> _repeatChangedNotifier;
 
 };
 

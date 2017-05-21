@@ -55,8 +55,6 @@ public:
 
 	virtual TimeMs durationMs() const = 0;
 	virtual bool hasAudio() const = 0;
-	virtual void pauseAudio() = 0;
-	virtual void resumeAudio() = 0;
 
 	virtual bool start(Mode mode, TimeMs &positionMs) = 0;
 

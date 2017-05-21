@@ -30,7 +30,7 @@ namespace Player {
 ListWidget::ListWidget(QWidget *parent) : TWidget(parent) {
 	setMouseTracking(true);
 	playlistUpdated();
-	subscribe(instance()->playlistChangedNotifier(), [this] { playlistUpdated(); });
+	subscribe(instance()->playlistChangedNotifier(), [this](AudioMsgId::Type type) { playlistUpdated(); });
 	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
 		itemRemoved(item);
 	});
@@ -183,7 +183,7 @@ int ListWidget::marginTop() const {
 void ListWidget::playlistUpdated() {
 	auto newHeight = 0;
 
-	auto &playlist = instance()->playlist(AudioMsgId::Type::Song);
+	auto playlist = instance()->playlist(AudioMsgId::Type::Song);
 	auto playlistSize = playlist.size();
 	auto existingSize = _list.size();
 	if (playlistSize > existingSize) {

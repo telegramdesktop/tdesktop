@@ -421,8 +421,8 @@ public:
 		}
 		if (!_started) {
 			_started = true;
-			if (!_videoPausedAtMs) {
-				_implementation->resumeAudio();
+			if (!_videoPausedAtMs && _hasAudio) {
+				Player::mixer()->resume(_audioMsgId, true);
 			}
 		}
 
@@ -436,7 +436,7 @@ public:
 		auto frameMs = _seekPositionMs + ms - _animationStarted;
 		auto readResult = _implementation->readFramesTill(frameMs, ms);
 		if (readResult == internal::ReaderImplementation::ReadResult::EndOfFile) {
-			stop();
+			stop(Player::State::StoppedAtEnd);
 			_state = State::Finished;
 			return ProcessResult::Finished;
 		} else if (readResult == internal::ReaderImplementation::ReadResult::Error) {
@@ -501,7 +501,9 @@ public:
 		if (_videoPausedAtMs) return; // Paused already.
 
 		_videoPausedAtMs = ms;
-		_implementation->pauseAudio();
+		if (_hasAudio) {
+			Player::mixer()->pause(_audioMsgId, true);
+		}
 	}
 
 	void resumeVideo(TimeMs ms) {
@@ -512,17 +514,22 @@ public:
 		_nextFrameWhen += delta;
 
 		_videoPausedAtMs = 0;
-		_implementation->resumeAudio();
+		if (_hasAudio) {
+			Player::mixer()->resume(_audioMsgId, true);
+		}
 	}
 
 	ProcessResult error() {
-		stop();
+		stop(Player::State::StoppedAtError);
 		_state = State::Error;
 		return ProcessResult::Error;
 	}
 
-	void stop() {
+	void stop(Player::State audioState) {
 		_implementation = nullptr;
+		if (_hasAudio) {
+			Player::mixer()->stop(_audioMsgId, audioState);
+		}
 
 		if (_location) {
 			if (_accessed) {
@@ -534,7 +541,7 @@ public:
 	}
 
 	~ReaderPrivate() {
-		stop();
+		stop(Player::State::Stopped);
 		_data.clear();
 	}
 

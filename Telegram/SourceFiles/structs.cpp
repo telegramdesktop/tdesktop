@@ -1202,7 +1202,7 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, HistoryItem *context, 
 		using State = Media::Player::State;
 		if (playVoice) {
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
-			if (state.id == AudioMsgId(data, msgId) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
+			if (state.id == AudioMsgId(data, msgId) && !Media::Player::IsStoppedOrStopping(state.state)) {
 				if (Media::Player::IsPaused(state.state) || state.state == State::Pausing) {
 					Media::Player::mixer()->resume(state.id);
 				} else {
@@ -1218,7 +1218,7 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, HistoryItem *context, 
 			}
 		} else if (playMusic) {
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
-			if (state.id == AudioMsgId(data, msgId) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
+			if (state.id == AudioMsgId(data, msgId) && !Media::Player::IsStoppedOrStopping(state.state)) {
 				if (Media::Player::IsPaused(state.state) || state.state == State::Pausing) {
 					Media::Player::mixer()->resume(state.id);
 				} else {
@@ -1510,7 +1510,7 @@ void DocumentData::performActionOnLoad() {
 	if (playVoice) {
 		if (loaded()) {
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
-			if (state.id == AudioMsgId(this, _actionOnLoadMsgId) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
+			if (state.id == AudioMsgId(this, _actionOnLoadMsgId) && !Media::Player::IsStoppedOrStopping(state.state)) {
 				if (Media::Player::IsPaused(state.state) || state.state == State::Pausing) {
 					Media::Player::mixer()->resume(state.id);
 				} else {
@@ -1524,7 +1524,7 @@ void DocumentData::performActionOnLoad() {
 	} else if (playMusic) {
 		if (loaded()) {
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
-			if (state.id == AudioMsgId(this, _actionOnLoadMsgId) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
+			if (state.id == AudioMsgId(this, _actionOnLoadMsgId) && !Media::Player::IsStoppedOrStopping(state.state)) {
 				if (Media::Player::IsPaused(state.state) || state.state == State::Pausing) {
 					Media::Player::mixer()->resume(state.id);
 				} else {
