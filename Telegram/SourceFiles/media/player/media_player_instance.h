@@ -105,6 +105,14 @@ public:
 		return QList<FullMsgId>();
 	}
 
+	struct Switch {
+		AudioMsgId from;
+		FullMsgId to;
+	};
+
+	base::Observable<Switch> &switchToNextNotifier() {
+		return _switchToNextNotifier;
+	}
 	base::Observable<bool> &usePanelPlayer() {
 		return _usePanelPlayer;
 	}
@@ -160,7 +168,7 @@ private:
 	void checkPeerUpdate(AudioMsgId::Type type, const Notify::PeerUpdate &update);
 	void setCurrent(const AudioMsgId &audioId);
 	void rebuildPlaylist(Data *data);
-	bool moveInPlaylist(Data *data, int delta);
+	bool moveInPlaylist(Data *data, int delta, bool autonext);
 	void preloadNext(Data *data);
 	void handleLogout();
 
@@ -188,6 +196,7 @@ private:
 	Data _songData;
 	Data _voiceData;
 
+	base::Observable<Switch> _switchToNextNotifier;
 	base::Observable<bool> _usePanelPlayer;
 	base::Observable<bool> _titleButtonOver;
 	base::Observable<bool> _playerWidgetOver;

@@ -59,6 +59,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/file_upload.h"
 #include "media/media_audio.h"
 #include "media/media_audio_capture.h"
+#include "media/player/media_player_instance.h"
 #include "storage/localstorage.h"
 #include "apiwrap.h"
 #include "window/top_bar_widget.h"
@@ -81,6 +82,8 @@ constexpr auto kMessagesPerPage = 50;
 constexpr auto kPreloadHeightsCount = 3; // when 3 screens to scroll left make a preload request
 constexpr auto kTabbedSelectorToggleTooltipTimeoutMs = 3000;
 constexpr auto kTabbedSelectorToggleTooltipCount = 3;
+constexpr auto kScrollToVoiceAfterScrolledMs = 1000;
+constexpr auto kSkipRepaintWhileScrollMs = 100;
 
 ApiWrap::RequestMessageDataCallback replyEditMessageDataCallback() {
 	return [](ChannelData *channel, MsgId msgId) {
@@ -633,8 +636,66 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 			updateControlsVisibility();
 		}
 	});
+	subscribe(Media::Player::instance()->switchToNextNotifier(), [this](const Media::Player::Instance::Switch &pair) {
+		if (pair.from.type() == AudioMsgId::Type::Voice) {
+			scrollToCurrentVoiceMessage(pair.from.contextId(), pair.to);
+		}
+	});
 
 	orderWidgets();
+}
+
+void HistoryWidget::scrollToCurrentVoiceMessage(FullMsgId fromId, FullMsgId toId) {
+	if (getms() <= _lastUserScrolled + kScrollToVoiceAfterScrolledMs) {
+		return;
+	}
+	if (!_list) {
+		return;
+	}
+
+	auto from = App::histItemById(fromId);
+	auto to = App::histItemById(toId);
+	if (!from || !to) {
+		return;
+	}
+
+	// If history has pending resize items, the scrollTopItem won't be updated.
+	// And the scrollTop will be reset back to scrollTopItem + scrollTopOffset.
+	notify_handlePendingHistoryUpdate();
+
+	auto fromTop = _list->itemTop(from);
+	auto toTop = _list->itemTop(to);
+	if (fromTop < 0 || toTop < 0) {
+		return;
+	}
+
+	auto scrollTop = _scroll->scrollTop();
+	auto scrollBottom = scrollTop + _scroll->height();
+	auto fromBottom = fromTop + from->height();
+	if (fromTop < scrollBottom && fromBottom > scrollTop) {
+		auto toBottom = toTop + to->height();
+		if ((toTop < scrollTop && toBottom < scrollBottom) || (toTop > scrollTop && toBottom > scrollBottom)) {
+			auto scrollTo = snap(itemTopForHighlight(to), 0, _scroll->scrollTopMax());
+			_scrollToMediaMessageAnimation.finish();
+			_scrollToMediaMessageAnimation.start([this, toId] {
+				auto toTop = _list->itemTop(App::histItemById(toId));
+				if (toTop < 0) {
+					_scrollToMediaMessageAnimation.finish();
+				} else {
+					synteticScrollToY(qRound(_scrollToMediaMessageAnimation.current()) + toTop);
+				}
+			}, scrollTop - toTop, scrollTo - toTop, 200, anim::sineInOut);
+		}
+	}
+}
+
+int HistoryWidget::itemTopForHighlight(HistoryItem *item) const {
+	auto itemTop = _list->itemTop(item);
+	auto heightLeft = (_scroll->height() - item->height());
+	if (heightLeft <= 0) {
+		return itemTop;
+	}
+	return qMax(itemTop - (heightLeft / 2), 0);
 }
 
 void HistoryWidget::start() {
@@ -2235,7 +2296,7 @@ void HistoryWidget::historyToDown(History *history) {
 		migrated->forgetScrollState();
 	}
 	if (history == _history) {
-		_scroll->scrollToY(_scroll->scrollTopMax());
+		synteticScrollToY(_scroll->scrollTopMax());
 	}
 }
 
@@ -2571,6 +2632,9 @@ void HistoryWidget::onScroll() {
 	App::checkImageCacheSize();
 	preloadHistoryIfNeeded();
 	visibleAreaUpdated();
+	if (!_synteticScrollEvent) {
+		_lastUserScrolled = getms();
+	}
 }
 
 void HistoryWidget::visibleAreaUpdated() {
@@ -2613,9 +2677,9 @@ void HistoryWidget::preloadHistoryIfNeeded() {
 		}
 	}
 
-	if (st != _lastScroll) {
+	if (st != _lastScrollTop) {
 		_lastScrolled = getms();
-		_lastScroll = st;
+		_lastScrollTop = st;
 	}
 }
 
@@ -4531,10 +4595,10 @@ bool HistoryWidget::isItemVisible(HistoryItem *item) {
 void HistoryWidget::ui_repaintHistoryItem(const HistoryItem *item) {
 	if (_peer && _list && (item->history() == _history || (_migrated && item->history() == _migrated))) {
 		auto ms = getms();
-		if (_lastScrolled + 100 <= ms) {
+		if (_lastScrolled + kSkipRepaintWhileScrollMs <= ms) {
 			_list->repaintItem(item);
 		} else {
-			_updateHistoryItems.start(_lastScrolled + 100 - ms);
+			_updateHistoryItems.start(_lastScrolled + kSkipRepaintWhileScrollMs - ms);
 		}
 	}
 }
@@ -4543,10 +4607,10 @@ void HistoryWidget::onUpdateHistoryItems() {
 	if (!_list) return;
 
 	auto ms = getms();
-	if (_lastScrolled + 100 <= ms) {
+	if (_lastScrolled + kSkipRepaintWhileScrollMs <= ms) {
 		_list->update();
 	} else {
-		_updateHistoryItems.start(_lastScrolled + 100 - ms);
+		_updateHistoryItems.start(_lastScrolled + kSkipRepaintWhileScrollMs - ms);
 	}
 }
 
@@ -4732,7 +4796,7 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 		if (_scroll->scrollTop() == toY) {
 			visibleAreaUpdated();
 		} else {
-			_scroll->scrollToY(toY);
+			synteticScrollToY(toY);
 		}
 		return;
 	}
@@ -4745,27 +4809,27 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 	if (initial && (_history->scrollTopItem || (_migrated && _migrated->scrollTopItem))) {
 		toY = _list->historyScrollTop();
 	} else if (initial && _migrated && _showAtMsgId < 0 && -_showAtMsgId < ServerMaxMsgId) {
-		HistoryItem *item = App::histItemById(0, -_showAtMsgId);
-		int32 iy = _list->itemTop(item);
+		auto item = App::histItemById(0, -_showAtMsgId);
+		auto iy = _list->itemTop(item);
 		if (iy < 0) {
 			setMsgId(0);
 			_histInited = false;
 			return updateListSize(initial, false, change);
 		} else {
-			toY = (_scroll->height() > item->height()) ? qMax(iy - (_scroll->height() - item->height()) / 2, 0) : iy;
+			toY = itemTopForHighlight(item);
 			_animActiveStart = getms();
 			_animActiveTimer.start(AnimationTimerDelta);
 			_activeAnimMsgId = _showAtMsgId;
 		}
 	} else if (initial && _showAtMsgId > 0) {
-		HistoryItem *item = App::histItemById(_channel, _showAtMsgId);
-		int32 iy = _list->itemTop(item);
+		auto item = App::histItemById(_channel, _showAtMsgId);
+		auto iy = _list->itemTop(item);
 		if (iy < 0) {
 			setMsgId(0);
 			_histInited = false;
 			return updateListSize(initial, false, change);
 		} else {
-			toY = (_scroll->height() > item->height()) ? qMax(iy - (_scroll->height() - item->height()) / 2, 0) : iy;
+			toY = itemTopForHighlight(item);
 			_animActiveStart = getms();
 			_animActiveTimer.start(AnimationTimerDelta);
 			_activeAnimMsgId = _showAtMsgId;
@@ -4806,7 +4870,7 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 	if (_scroll->scrollTop() == toY) {
 		visibleAreaUpdated();
 	} else {
-		_scroll->scrollToY(toY);
+		synteticScrollToY(toY);
 	}
 }
 
@@ -5187,7 +5251,7 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 			result = true;
 
 			if (_scroll->scrollTop() != unreadBarTop()) {
-				_scroll->scrollToY(_scroll->scrollTop() + st::historyReplyHeight);
+				synteticScrollToY(_scroll->scrollTop() + st::historyReplyHeight);
 			}
 		} else if (_pinnedBar->msgId != pinnedMsgId) {
 			_pinnedBar->msgId = pinnedMsgId;
@@ -5202,7 +5266,7 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 		destroyPinnedBar();
 		result = true;
 		if (_scroll->scrollTop() != unreadBarTop()) {
-			_scroll->scrollToY(_scroll->scrollTop() - st::historyReplyHeight);
+			synteticScrollToY(_scroll->scrollTop() - st::historyReplyHeight);
 		}
 		updateControlsGeometry();
 	}
@@ -6390,7 +6454,7 @@ QPoint HistoryWidget::clampMousePosition(QPoint point) {
 }
 
 void HistoryWidget::onScrollTimer() {
-	int32 d = (_scrollDelta > 0) ? qMin(_scrollDelta * 3 / 20 + 1, int32(MaxScrollSpeed)) : qMax(_scrollDelta * 3 / 20 - 1, -int32(MaxScrollSpeed));
+	auto d = (_scrollDelta > 0) ? qMin(_scrollDelta * 3 / 20 + 1, int32(MaxScrollSpeed)) : qMax(_scrollDelta * 3 / 20 - 1, -int32(MaxScrollSpeed));
 	_scroll->scrollToY(_scroll->scrollTop() + d);
 }
 
@@ -6419,6 +6483,12 @@ bool HistoryWidget::touchScroll(const QPoint &delta) {
 
 	_scroll->scrollToY(scNew);
 	return true;
+}
+
+void HistoryWidget::synteticScrollToY(int y) {
+	_synteticScrollEvent = true;
+	_scroll->scrollToY(y);
+	_synteticScrollEvent = false;
 }
 
 HistoryWidget::~HistoryWidget() = default;

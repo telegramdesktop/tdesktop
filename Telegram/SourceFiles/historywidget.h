@@ -643,6 +643,13 @@ private:
 	// Counts scrollTop for placing the scroll right at the unread
 	// messages bar, choosing from _history and _migrated unreadBar.
 	int unreadBarTop() const;
+	int itemTopForHighlight(HistoryItem *item) const;
+	void scrollToCurrentVoiceMessage(FullMsgId fromId, FullMsgId toId);
+
+	// Scroll to current y without updating the _lastUserScrolled time.
+	// Used to distinguish between user scrolls and syntetic scrolls.
+	// This one is syntetic.
+	void synteticScrollToY(int y);
 
 	void saveGifDone(DocumentData *doc, const MTPBool &result);
 
@@ -721,9 +728,13 @@ private:
 	bool _histInited = false; // initial updateListSize() called
 	int _addToScroll = 0;
 
-	int _lastScroll = 0;// gifs optimization
+	int _lastScrollTop = 0; // gifs optimization
 	TimeMs _lastScrolled = 0;
 	QTimer _updateHistoryItems;
+
+	TimeMs _lastUserScrolled = 0;
+	bool _synteticScrollEvent = false;
+	Animation _scrollToMediaMessageAnimation;
 
 	Animation _historyDownShown;
 	bool _historyDownIsShown = false;

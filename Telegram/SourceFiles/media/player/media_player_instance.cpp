@@ -166,7 +166,7 @@ void Instance::rebuildPlaylist(Data *data) {
 	_playlistChangedNotifier.notify(data->type, true);
 }
 
-bool Instance::moveInPlaylist(Data *data, int delta) {
+bool Instance::moveInPlaylist(Data *data, int delta, bool autonext) {
 	Expects(data != nullptr);
 
 	auto index = data->playlist.indexOf(data->current.contextId());
@@ -179,6 +179,9 @@ bool Instance::moveInPlaylist(Data *data, int delta) {
 	auto msgId = data->playlist[newIndex];
 	if (auto item = App::histItemById(msgId)) {
 		if (auto media = item->getMedia()) {
+			if (autonext) {
+				_switchToNextNotifier.notify({ data->current, msgId });
+			}
 			media->playInline();
 			return true;
 		}
@@ -258,14 +261,14 @@ void Instance::playPause(AudioMsgId::Type type) {
 
 bool Instance::next(AudioMsgId::Type type) {
 	if (auto data = getData(type)) {
-		return moveInPlaylist(data, 1);
+		return moveInPlaylist(data, 1, false);
 	}
 	return false;
 }
 
 bool Instance::previous(AudioMsgId::Type type) {
 	if (auto data = getData(type)) {
-		return moveInPlaylist(data, -1);
+		return moveInPlaylist(data, -1, false);
 	}
 	return false;
 }
@@ -323,7 +326,7 @@ void Instance::emitUpdate(AudioMsgId::Type type, CheckCallback check) {
 		if (data->isPlaying && state.state == State::StoppedAtEnd) {
 			if (data->repeatEnabled) {
 				play(data->current);
-			} else if (!next(type)) {
+			} else if (!moveInPlaylist(data, 1, true)) {
 				_tracksFinishedNotifier.notify(type);
 			}
 		}
