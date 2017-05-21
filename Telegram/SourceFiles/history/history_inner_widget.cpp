@@ -194,66 +194,6 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 
 			// binary search should've skipped all the items that are above / below the visible area
 			if (TopToBottom) {
-				if (itembottom <= _visibleAreaTop && (cAlphaVersion() || cBetaVersion())) {
-					// Debugging a crash
-					auto debugInfo = QStringList();
-					auto debugValue = [&debugInfo](const QString &name, int value) {
-						debugInfo.append(name + ":" + QString::number(value));
-					};
-					debugValue("historytop", historytop);
-					debugValue("history->height", history->height);
-					debugValue("blockIndex", blockIndex);
-					debugValue("history->blocks.size()", history->blocks.size());
-					debugValue("blocktop", blocktop);
-					debugValue("block->height", block->height());
-					debugValue("itemIndex", itemIndex);
-					debugValue("block->items.size()", block->items.size());
-					debugValue("itemtop", itemtop);
-					debugValue("item->height()", item->height());
-					debugValue("itembottom", itembottom);
-					debugValue("_visibleAreaTop", _visibleAreaTop);
-					debugValue("_visibleAreaBottom", _visibleAreaBottom);
-					for (int i = 0; i != qMin(history->blocks.size(), 5); ++i) {
-						debugValue("y[" + QString::number(i) + "]", history->blocks[i]->y());
-						debugValue("h[" + QString::number(i) + "]", history->blocks[i]->height());
-						for (int j = 0; j != qMin(history->blocks[i]->items.size(), 5); ++j) {
-							debugValue("y[" + QString::number(i) + "][" + QString::number(j) + "]", history->blocks[i]->items[j]->y());
-							debugValue("h[" + QString::number(i) + "][" + QString::number(j) + "]", history->blocks[i]->items[j]->height());
-						}
-					}
-					auto valid = [history, &debugInfo] {
-						auto y = 0;
-						for (int i = 0; i != history->blocks.size(); ++i) {
-							auto innery = 0;
-							if (history->blocks[i]->y() != y) {
-								debugInfo.append("bad_block_y" + QString::number(i) + ":" + QString::number(history->blocks[i]->y()) + "!=" + QString::number(y));
-								return false;
-							}
-							for (int j = 0; j != history->blocks[i]->items.size(); ++j) {
-								if (history->blocks[i]->items[j]->pendingInitDimensions()) {
-									debugInfo.append("pending_item_init" + QString::number(i) + "," + QString::number(j));
-								} else if (history->blocks[i]->items[j]->pendingResize()) {
-									debugInfo.append("pending_resize" + QString::number(i) + "," + QString::number(j));
-								}
-								if (history->blocks[i]->items[j]->y() != innery) {
-									debugInfo.append("bad_item_y" + QString::number(i) + "," + QString::number(j) + ":" + QString::number(history->blocks[i]->items[j]->y()) + "!=" + QString::number(innery));
-									return false;
-								}
-								innery += history->blocks[i]->items[j]->height();
-							}
-							if (history->blocks[i]->height() != innery) {
-								debugInfo.append("bad_block_height" + QString::number(i) + ":" + QString::number(history->blocks[i]->height()) + "!=" + QString::number(innery));
-								return false;
-							}
-							y += innery;
-						}
-						return true;
-					};
-					if (!valid()) {
-						debugValue("pending_init", history->hasPendingResizedItems() ? 1 : 0);
-					}
-					SignalHandlers::setCrashAnnotation("DebugInfo", debugInfo.join(','));
-				}
 				t_assert(itembottom > _visibleAreaTop);
 			} else {
 				t_assert(itemtop < _visibleAreaBottom);
@@ -2351,15 +2291,15 @@ int HistoryInner::historyTop() const {
 }
 
 int HistoryInner::historyDrawTop() const {
-	int his = historyTop();
-	return (his >= 0) ? (his + _historySkipHeight) : -1;
+	auto top = historyTop();
+	return (top >= 0) ? (top + _historySkipHeight) : -1;
 }
 
 int HistoryInner::itemTop(const HistoryItem *item) const { // -1 if should not be visible, -2 if bad history()
 	if (!item) return -2;
 	if (item->detached()) return -1;
 
-	int top = (item->history() == _history) ? historyTop() : (item->history() == _migrated ? migratedTop() : -2);
+	auto top = (item->history() == _history) ? historyTop() : (item->history() == _migrated ? migratedTop() : -2);
 	return (top < 0) ? top : (top + item->y() + item->block()->y());
 }
 
