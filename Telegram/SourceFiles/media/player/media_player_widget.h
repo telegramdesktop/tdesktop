@@ -62,6 +62,8 @@ protected:
 
 	void leaveEventHook(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
 	void handleSeekProgress(float64 progress);
@@ -99,6 +101,9 @@ private:
 	// We change _voiceIsActive to false only manually or from tracksFinished().
 	AudioMsgId::Type _type = AudioMsgId::Type::Unknown;
 	bool _voiceIsActive = false;
+
+	bool _labelsOver = false;
+	bool _labelsDown = false;
 
 	class PlayButton;
 	object_ptr<Ui::FlatLabel> _nameLabel;

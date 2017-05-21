@@ -281,6 +281,23 @@ void Widget::mouseMoveEvent(QMouseEvent *e) {
 	updateOverLabelsState(e->pos());
 }
 
+void Widget::mousePressEvent(QMouseEvent *e) {
+	_labelsDown = _labelsOver;
+}
+
+void Widget::mouseReleaseEvent(QMouseEvent *e) {
+	if (auto downLabels = base::take(_labelsDown)) {
+		if (_labelsOver == downLabels) {
+			if (_type == AudioMsgId::Type::Voice) {
+				auto current = instance()->current(_type);
+				if (auto item = App::histItemById(current.contextId())) {
+					Ui::showPeerHistoryAtItem(item);
+				}
+			}
+		}
+	}
+}
+
 void Widget::updateOverLabelsState(QPoint pos) {
 	auto left = getLabelsLeft();
 	auto right = getLabelsRight();
@@ -290,7 +307,11 @@ void Widget::updateOverLabelsState(QPoint pos) {
 }
 
 void Widget::updateOverLabelsState(bool over) {
-	instance()->playerWidgetOver().notify(over, true);
+	_labelsOver = over;
+	auto pressShowsItem = _labelsOver && (_type == AudioMsgId::Type::Voice);
+	setCursor(pressShowsItem ? style::cur_pointer : style::cur_default);
+	auto showPlaylist = over && (_type == AudioMsgId::Type::Song);
+	instance()->playerWidgetOver().notify(showPlaylist, true);
 }
 
 void Widget::updatePlayPrevNextPositions() {
@@ -365,6 +386,7 @@ void Widget::setType(AudioMsgId::Type type) {
 		updateLabelsGeometry();
 		handleSongChange();
 		handleSongUpdate(mixer()->currentState(_type));
+		updateOverLabelsState(_labelsOver);
 	}
 }
 
