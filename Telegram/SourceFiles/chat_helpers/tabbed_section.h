@@ -20,17 +20,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/twidget.h"
-
-namespace Window {
-class Controller;
-} // namespace Window
+#include "window/section_widget.h"
 
 namespace ChatHelpers {
 
 class TabbedSelector;
 
-class TabbedSection : public TWidget {
+class TabbedSection : public Window::AbstractSectionWidget {
 public:
 	TabbedSection(QWidget *parent, gsl::not_null<Window::Controller*> controller);
 	TabbedSection(QWidget *parent, gsl::not_null<Window::Controller*> controller, object_ptr<TabbedSelector> selector);
@@ -45,6 +41,10 @@ public:
 	QPointer<TabbedSelector> getSelector() const;
 
 	void stickersInstalled(uint64 setId);
+
+	// Float player interface.
+	bool wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) override;
+	QRect rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;

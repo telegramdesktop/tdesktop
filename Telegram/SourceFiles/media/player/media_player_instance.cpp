@@ -179,11 +179,13 @@ bool Instance::moveInPlaylist(Data *data, int delta, bool autonext) {
 	auto msgId = data->playlist[newIndex];
 	if (auto item = App::histItemById(msgId)) {
 		if (auto media = item->getMedia()) {
-			if (autonext) {
-				_switchToNextNotifier.notify({ data->current, msgId });
+			if (auto document = media->getDocument()) {
+				if (autonext) {
+					_switchToNextNotifier.notify({ data->current, msgId });
+				}
+				DocumentOpenClickHandler::doOpen(media->getDocument(), item, ActionOnLoadPlayInline);
+				return true;
 			}
-			media->playInline();
-			return true;
 		}
 	}
 	return false;

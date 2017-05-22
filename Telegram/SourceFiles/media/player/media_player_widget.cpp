@@ -207,7 +207,7 @@ void Widget::setShadowGeometryToLeft(int x, int y, int w, int h) {
 
 void Widget::showShadow() {
 	_shadow->show();
-	_playbackSlider->show();
+	_playbackSlider->setVisible(_type == AudioMsgId::Type::Song);
 }
 
 void Widget::hideShadow() {
@@ -382,7 +382,9 @@ void Widget::setType(AudioMsgId::Type type) {
 		_type = type;
 		_repeatTrack->setVisible(_type == AudioMsgId::Type::Song);
 		_volumeToggle->setVisible(_type == AudioMsgId::Type::Song);
-		_playbackSlider->setVisible(_type == AudioMsgId::Type::Song);
+		if (!_shadow->isHidden()) {
+			_playbackSlider->setVisible(_type == AudioMsgId::Type::Song);
+		}
 		updateLabelsGeometry();
 		handleSongChange();
 		handleSongUpdate(mixer()->currentState(_type));

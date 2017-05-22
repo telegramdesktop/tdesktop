@@ -272,6 +272,17 @@ QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, 
 	return frame->pix;
 }
 
+QPixmap Reader::current() {
+	Expects(_mode == Mode::Video);
+
+	auto frame = frameToShow();
+	t_assert(frame != nullptr);
+
+	frame->displayed.storeRelease(1);
+	moveToNextShow();
+	return frame->pix;
+}
+
 bool Reader::ready() const {
 	if (_width && _height) return true;
 

@@ -170,20 +170,33 @@ public:
 	QPoint myrtlpoint(int x, int y) const {
 		return rtlpoint(x, y, Base::width());
 	}
-	QPoint myrtlpoint(const QPoint p) const {
-		return rtlpoint(p, Base::width());
+	QPoint myrtlpoint(const QPoint point) const {
+		return rtlpoint(point, Base::width());
 	}
 	QRect myrtlrect(int x, int y, int w, int h) const {
 		return rtlrect(x, y, w, h, Base::width());
 	}
-	QRect myrtlrect(const QRect &r) const {
-		return rtlrect(r, Base::width());
+	QRect myrtlrect(const QRect &rect) const {
+		return rtlrect(rect, Base::width());
 	}
-	void rtlupdate(const QRect &r) {
-		Base::update(myrtlrect(r));
+	void rtlupdate(const QRect &rect) {
+		Base::update(myrtlrect(rect));
 	}
 	void rtlupdate(int x, int y, int w, int h) {
 		Base::update(myrtlrect(x, y, w, h));
+	}
+
+	QPoint mapFromGlobal(const QPoint &point) const {
+		return Base::mapFromGlobal(point);
+	}
+	QPoint mapToGlobal(const QPoint &point) const {
+		return Base::mapToGlobal(point);
+	}
+	QRect mapFromGlobal(const QRect &rect) const {
+		return QRect(mapFromGlobal(rect.topLeft()), rect.size());
+	}
+	QRect mapToGlobal(const QRect &rect) {
+		return QRect(mapToGlobal(rect.topLeft()), rect.size());
 	}
 
 protected:

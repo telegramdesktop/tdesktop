@@ -22,11 +22,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Window {
 
+class Controller;
 class SectionWidget;
 
 class SectionMemento {
 public:
-	virtual object_ptr<Window::SectionWidget> createWidget(QWidget *parent, const QRect &geometry) const = 0;
+	virtual object_ptr<Window::SectionWidget> createWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, const QRect &geometry) const = 0;
 	virtual ~SectionMemento() {
 	}
 

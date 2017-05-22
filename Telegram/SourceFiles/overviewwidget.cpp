@@ -1917,9 +1917,8 @@ OverviewInner::~OverviewInner() {
 	clear();
 }
 
-OverviewWidget::OverviewWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, PeerData *peer, MediaOverviewType type) : TWidget(parent)
-, _controller(controller)
-, _topBar(this, _controller)
+OverviewWidget::OverviewWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, PeerData *peer, MediaOverviewType type) : Window::AbstractSectionWidget(parent, controller)
+, _topBar(this, controller)
 , _scroll(this, st::settingsScroll, false)
 , _mediaType(this, st::defaultDropdownMenu)
 , _topShadow(this, st::shadowFg) {
@@ -2111,6 +2110,14 @@ int32 OverviewWidget::lastWidth() const {
 
 int32 OverviewWidget::lastScrollTop() const {
 	return _scroll->scrollTop();
+}
+
+bool OverviewWidget::wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) {
+	return _scroll->viewportEvent(e);
+}
+
+QRect OverviewWidget::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) {
+	return mapToGlobal(_scroll->geometry());
 }
 
 int32 OverviewWidget::countBestScroll() const {

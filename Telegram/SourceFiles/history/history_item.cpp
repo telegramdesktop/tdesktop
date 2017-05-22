@@ -973,6 +973,7 @@ void HistoryItem::clipCallback(Media::Clip::Notification notification) {
 		if (!stopped) {
 			setPendingInitDimensions();
 			Notify::historyItemLayoutChanged(this);
+			Global::RefPendingRepaintItems().insert(this);
 		}
 	} break;
 

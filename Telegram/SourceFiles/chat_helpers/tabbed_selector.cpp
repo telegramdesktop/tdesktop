@@ -453,6 +453,14 @@ QImage TabbedSelector::grabForAnimation() {
 	return result;
 }
 
+bool TabbedSelector::wheelEventFromFloatPlayer(QEvent *e) {
+	return _scroll->viewportEvent(e);
+}
+
+QRect TabbedSelector::rectForFloatPlayer() {
+	return mapToGlobal(_scroll->geometry());
+}
+
 TabbedSelector::~TabbedSelector() = default;
 
 void TabbedSelector::hideFinished() {

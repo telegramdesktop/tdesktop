@@ -181,6 +181,8 @@
 <(src_loc)/media/player/media_player_button.h
 <(src_loc)/media/player/media_player_cover.cpp
 <(src_loc)/media/player/media_player_cover.h
+<(src_loc)/media/player/media_player_float.cpp
+<(src_loc)/media/player/media_player_float.h
 <(src_loc)/media/player/media_player_instance.cpp
 <(src_loc)/media/player/media_player_instance.h
 <(src_loc)/media/player/media_player_list.cpp

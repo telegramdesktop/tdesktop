@@ -28,7 +28,7 @@ namespace ChatHelpers {
 TabbedSection::TabbedSection(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TabbedSection(parent, controller, object_ptr<TabbedSelector>(this, controller)) {
 }
 
-TabbedSection::TabbedSection(QWidget *parent, gsl::not_null<Window::Controller*> controller, object_ptr<TabbedSelector> selector) : TWidget(parent)
+TabbedSection::TabbedSection(QWidget *parent, gsl::not_null<Window::Controller*> controller, object_ptr<TabbedSelector> selector) : Window::AbstractSectionWidget(parent, controller)
 , _selector(std::move(selector)) {
 	resize(st::emojiPanWidth, st::emojiPanMaxHeight);
 
@@ -71,6 +71,14 @@ QPointer<TabbedSelector> TabbedSection::getSelector() const {
 
 void TabbedSection::stickersInstalled(uint64 setId) {
 	_selector->stickersInstalled(setId);
+}
+
+bool TabbedSection::wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) {
+	return _selector->wheelEventFromFloatPlayer(e);
+}
+
+QRect TabbedSection::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) {
+	return _selector->rectForFloatPlayer();
 }
 
 } // namespace ChatHelpers

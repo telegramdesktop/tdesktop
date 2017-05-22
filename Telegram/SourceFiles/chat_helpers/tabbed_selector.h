@@ -77,6 +77,10 @@ public:
 		_beforeHidingCallback = std::move(callback);
 	}
 
+	// Float player interface.
+	bool wheelEventFromFloatPlayer(QEvent *e);
+	QRect rectForFloatPlayer();
+
 	~TabbedSelector();
 
 	class Inner;

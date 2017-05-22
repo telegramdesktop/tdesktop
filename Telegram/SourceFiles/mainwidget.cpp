@@ -57,6 +57,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/player/media_player_widget.h"
 #include "media/player/media_player_volume_controller.h"
 #include "media/player/media_player_instance.h"
+#include "media/player/media_player_float.h"
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
 #include "window/themes/window_theme.h"
@@ -95,6 +96,12 @@ StackItemSection::StackItemSection(std::unique_ptr<Window::SectionMemento> &&mem
 }
 
 StackItemSection::~StackItemSection() {
+}
+
+template <typename ToggleCallback>
+MainWidget::Float::Float(QWidget *parent, HistoryItem *item, ToggleCallback callback) : widget(parent, item, [this, toggle = std::move(callback)](bool visible) {
+	toggle(this, visible);
+}) {
 }
 
 MainWidget::MainWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
@@ -194,6 +201,11 @@ MainWidget::MainWidget(QWidget *parent, gsl::not_null<Window::Controller*> contr
 			}
 		}
 	});
+	subscribe(Media::Player::instance()->trackChangedNotifier(), [this](AudioMsgId::Type type) {
+		if (type == AudioMsgId::Type::Voice) {
+			checkCurrentFloatPlayer();
+		}
+	});
 
 	subscribe(Adaptive::Changed(), [this]() { handleAdaptiveLayoutUpdate(); });
 
@@ -216,6 +228,114 @@ MainWidget::MainWidget(QWidget *parent, gsl::not_null<Window::Controller*> contr
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	Sandbox::startUpdateCheck();
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
+}
+
+void MainWidget::checkCurrentFloatPlayer() {
+	auto state = Media::Player::instance()->current(AudioMsgId::Type::Voice);
+	auto fullId = state.contextId();
+	auto last = currentFloatPlayer();
+	if (!last || last->widget->itemId() != fullId) {
+		if (last) {
+			last->widget->detach();
+		}
+		if (auto item = App::histItemById(fullId)) {
+			if (auto media = item->getMedia()) {
+				if (auto document = media->getDocument()) {
+					if (document->isRoundVideo()) {
+						_playerFloats.push_back(std::make_unique<Float>(this, item, [this](Float *instance, bool visible) {
+							toggleFloatPlayer(instance, visible);
+						}));
+						toggleFloatPlayer(currentFloatPlayer(), true);
+					}
+				}
+			}
+		}
+	}
+}
+
+void MainWidget::toggleFloatPlayer(Float *instance, bool visible) {
+	if (instance->visible != visible) {
+		instance->visible = visible;
+		instance->visibleAnimation.start([this, instance] {
+			updateFloatPlayerPosition(instance);
+		}, visible ? 0. : 1., visible ? 1. : 0., st::slideDuration, visible ? anim::easeOutCirc : anim::linear);
+		updateFloatPlayerPosition(instance);
+	}
+}
+
+void MainWidget::updateFloatPlayerPosition(Float *instance) {
+	auto visible = instance->visibleAnimation.current(instance->visible ? 1. : 0.);
+	if (visible == 0. && !instance->visible) {
+		instance->widget->hide();
+		if (instance->widget->detached()) {
+			InvokeQueued(instance->widget, [this, instance] {
+				removeFloatPlayer(instance);
+			});
+		}
+		return;
+	}
+
+	instance->widget->setOpacity(visible * visible);
+	if (instance->widget->isHidden()) {
+		instance->widget->show();
+	}
+
+	auto column = instance->column;
+	auto section = getFloatPlayerSection(&column);
+	auto rect = section->rectForFloatPlayer(column, instance->column);
+	auto position = rect.topLeft();
+	if (Window::IsBottomCorner(instance->corner)) {
+		position.setY(position.y() + rect.height() - instance->widget->height());
+	}
+	if (Window::IsRightCorner(instance->corner)) {
+		position.setX(position.x() + rect.width() - instance->widget->width());
+	}
+	position = mapFromGlobal(position);
+
+	auto hiddenTop = Window::IsTopCorner(instance->corner) ? -instance->widget->height() : height();
+	auto visibleTop = position.y();
+	instance->widget->move(position.x(), anim::interpolate(hiddenTop, visibleTop, visible));
+}
+
+void MainWidget::removeFloatPlayer(Float *instance) {
+	auto widget = std::move(instance->widget);
+	auto i = std::find_if(_playerFloats.begin(), _playerFloats.end(), [instance](auto &item) {
+		return (item.get() == instance);
+	});
+	t_assert(i != _playerFloats.end());
+	_playerFloats.erase(i);
+
+	// ~QWidget() can call HistoryInner::enterEvent() which can
+	// lead to repaintHistoryItem() and we'll have an instance
+	// in _playerFloats with destroyed widget. So we destroy the
+	// instance first and only after that destroy the widget.
+	widget.destroy();
+}
+
+Window::AbstractSectionWidget *MainWidget::getFloatPlayerSection(gsl::not_null<Window::Column*> column) {
+	if (!Adaptive::Normal()) {
+		*column = Adaptive::OneColumn() ? Window::Column::First : Window::Column::Second;
+		if (Adaptive::OneColumn() && selectingPeer()) {
+			return _dialogs;
+		} else if (_overview) {
+			return _overview;
+		} else if (_wideSection) {
+			return _wideSection;
+		} else if (!Adaptive::OneColumn() || _history->peer()) {
+			return _history;
+		}
+		return _dialogs;
+	}
+	if (*column == Window::Column::First) {
+		return _dialogs;
+	}
+	*column = Window::Column::Second;
+	if (_overview) {
+		return _overview;
+	} else if (_wideSection) {
+		return _wideSection;
+	}
+	return _history;
 }
 
 bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
@@ -573,11 +693,17 @@ void MainWidget::ui_repaintHistoryItem(const HistoryItem *item) {
 	_playerPlaylist->ui_repaintHistoryItem(item);
 	_playerPanel->ui_repaintHistoryItem(item);
 	if (_overview) _overview->ui_repaintHistoryItem(item);
+	if (auto last = currentFloatPlayer()) {
+		last->widget->ui_repaintHistoryItem(item);
+	}
 }
 
 void MainWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
 	_history->notify_historyItemLayoutChanged(item);
 	if (_overview) _overview->notify_historyItemLayoutChanged(item);
+	if (auto last = currentFloatPlayer()) {
+		last->widget->ui_repaintHistoryItem(item);
+	}
 }
 
 void MainWidget::notify_historyMuteUpdated(History *history) {
@@ -2331,6 +2457,8 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 			_overview = nullptr;
 		}
 	}
+
+	updateControlsGeometry();
 	if (onlyDialogs) {
 		_history->hide();
 		if (!_a_show.animating()) {
@@ -2342,9 +2470,7 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 			}
 		}
 	} else {
-		if (noPeer) {
-			updateControlsGeometry();
-		} else if (wasActivePeer != activePeer()) {
+		if (!noPeer && wasActivePeer != activePeer()) {
 			if (activePeer()->isChannel()) {
 				activePeer()->asChannel()->ptsWaitingForShortPoll(WaitForChannelGetDifference);
 			}
@@ -2527,6 +2653,9 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(bool willHaveTopBarS
 		result.withTabbedSection = false;
 	}
 
+	for (auto &instance : _playerFloats) {
+		instance->widget->hide();
+	}
 	if (_player) {
 		_player->hideShadow();
 	}
@@ -2579,6 +2708,11 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(bool willHaveTopBarS
 	if (_player) {
 		_player->showShadow();
 	}
+	for (auto &instance : _playerFloats) {
+		if (instance->visible) {
+			instance->widget->show();
+		}
+	}
 
 	return result;
 }
@@ -2607,7 +2741,7 @@ void MainWidget::showNewWideSection(const Window::SectionMemento *memento, bool 
 
 	auto sectionTop = getSectionTop();
 	auto newWideGeometry = QRect(_history->x(), sectionTop, _history->width(), height() - sectionTop);
-	auto newWideSection = memento->createWidget(this, newWideGeometry);
+	auto newWideSection = memento->createWidget(this, _controller, newWideGeometry);
 	auto animatedShow = [this] {
 		if (_a_show.animating() || App::passcoded()) {
 			return false;
@@ -2713,6 +2847,9 @@ void MainWidget::orderWidgets() {
 	_sideResizeArea->raise();
 	_playerPlaylist->raise();
 	_playerPanel->raise();
+	for (auto &instance : _playerFloats) {
+		instance->widget->raise();
+	}
 	if (_hider) _hider->raise();
 }
 
@@ -2725,6 +2862,9 @@ QRect MainWidget::historyRect() const {
 
 QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &params) {
 	QPixmap result;
+	for (auto &instance : _playerFloats) {
+		instance->widget->hide();
+	}
 	if (_player) {
 		_player->hideShadow();
 	}
@@ -2761,6 +2901,11 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 	if (_player) {
 		_player->showShadow();
 	}
+	for (auto &instance : _playerFloats) {
+		if (instance->visible) {
+			instance->widget->show();
+		}
+	}
 	return result;
 }
 
@@ -2786,7 +2931,7 @@ void MainWidget::dlgUpdated(PeerData *peer, MsgId msgId) {
 }
 
 void MainWidget::showJumpToDate(PeerData *peer, QDate requestedDate) {
-	t_assert(peer != nullptr);
+	Expects(peer != nullptr);
 	auto currentPeerDate = [peer] {
 		if (auto history = App::historyLoaded(peer)) {
 			if (history->scrollTopItem) {
@@ -3122,6 +3267,9 @@ void MainWidget::updateControlsGeometry() {
 	updateMediaPlayerPosition();
 	updateMediaPlaylistPosition(_playerPlaylist->x());
 	_contentScrollAddToY = 0;
+	for (auto &instance : _playerFloats) {
+		updateFloatPlayerPosition(instance.get());
+	}
 }
 
 void MainWidget::updateDialogsWidthAnimated() {
@@ -3201,6 +3349,14 @@ bool MainWidget::eventFilter(QObject *o, QEvent *e) {
 		if (static_cast<QMouseEvent*>(e)->button() == Qt::BackButton) {
 			showBackFromStack();
 			return true;
+		}
+	} else if (e->type() == QEvent::Wheel && !_playerFloats.empty()) {
+		for (auto &instance : _playerFloats) {
+			if (instance->widget == o) {
+				auto column = instance->column;
+				auto section = getFloatPlayerSection(&column);
+				return section->wheelEventFromFloatPlayer(e, column, instance->column);
+			}
 		}
 	}
 	return TWidget::eventFilter(o, e);

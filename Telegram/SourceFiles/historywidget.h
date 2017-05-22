@@ -161,7 +161,7 @@ private:
 
 };
 
-class HistoryWidget : public TWidget, public RPCSender, private base::Subscriber {
+class HistoryWidget final : public Window::AbstractSectionWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -336,6 +336,10 @@ public:
 	void confirmDeleteSelectedItems();
 	void deleteContextItem(bool forEveryone);
 	void deleteSelectedItems(bool forEveryone);
+
+	// Float player interface.
+	bool wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) override;
+	QRect rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) override;
 
 	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col);
 
@@ -531,8 +535,6 @@ private:
 
 	void hideSelectorControlsAnimated();
 	int countMembersDropdownHeightMax() const;
-
-	gsl::not_null<Window::Controller*> _controller;
 
 	MsgId _replyToId = 0;
 	Text _replyToName;

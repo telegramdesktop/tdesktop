@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "profile/profile_section_memento.h"
 #include "core/click_handler_types.h"
+#include "media/media_clip_reader.h"
 #include "observer_peer.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -348,8 +349,8 @@ void inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKey
 }
 
 bool switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo) {
-	if (auto m = App::main()) {
-		return m->notify_switchInlineBotButtonReceived(query, samePeerBot, samePeerReplyTo);
+	if (auto main = App::main()) {
+		return main->notify_switchInlineBotButtonReceived(query, samePeerBot, samePeerReplyTo);
 	}
 	return false;
 }
@@ -367,13 +368,23 @@ void historyMuteUpdated(History *history) {
 }
 
 void handlePendingHistoryUpdate() {
-	if (MainWidget *m = App::main()) {
-		m->notify_handlePendingHistoryUpdate();
+	if (auto main = App::main()) {
+		main->notify_handlePendingHistoryUpdate();
 	}
-	for_const (HistoryItem *item, Global::PendingRepaintItems()) {
+	for (auto item : base::take(Global::RefPendingRepaintItems())) {
 		Ui::repaintHistoryItem(item);
+
+		// Start the video if it is waiting for that.
+		if (item->pendingInitDimensions()) {
+			if (auto media = item->getMedia()) {
+				if (auto reader = media->getClipReader()) {
+					if (!reader->started() && reader->mode() == Media::Clip::Reader::Mode::Video) {
+						item->history()->resizeGetHeight(item->history()->width);
+					}
+				}
+			}
+		}
 	}
-	Global::RefPendingRepaintItems().clear();
 }
 
 void unreadCounterUpdated() {

@@ -478,10 +478,9 @@ QPoint SilentToggle::tooltipPos() const {
 	return QCursor::pos();
 }
 
-HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
-, _controller(controller)
+HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : Window::AbstractSectionWidget(parent, controller)
 , _fieldBarCancel(this, st::historyReplyCancel)
-, _topBar(this, _controller)
+, _topBar(this, controller)
 , _scroll(this, st::historyScroll, false)
 , _historyDown(_scroll, st::historyToDown)
 , _fieldAutocomplete(this)
@@ -496,11 +495,11 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 , _botKeyboardHide(this, st::historyBotKeyboardHide)
 , _botCommandStart(this, st::historyBotCommandStart)
 , _silent(this)
-, _field(this, _controller, st::historyComposeField, lang(lng_message_ph))
+, _field(this, controller, st::historyComposeField, lang(lng_message_ph))
 , _recordCancelWidth(st::historyRecordFont->width(lang(lng_record_cancel)))
 , _a_recording(animation(this, &HistoryWidget::step_recording))
 , _kbScroll(this, st::botKbScroll)
-, _tabbedPanel(this, _controller)
+, _tabbedPanel(this, controller)
 , _tabbedSelector(_tabbedPanel->getSelector())
 , _attachDragDocument(this)
 , _attachDragPhoto(this)
@@ -770,7 +769,7 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 			inlineBotChanged();
 		}
 		if (!_inlineResults) {
-			_inlineResults.create(this, _controller);
+			_inlineResults.create(this, controller());
 			_inlineResults->setResultSelectedCallback([this](InlineBots::Result *result, UserData *bot) {
 				onInlineResultSend(result, bot);
 			});
@@ -1856,7 +1855,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		}
 
 		_scroll->hide();
-		_list = _scroll->setOwnedWidget(object_ptr<HistoryInner>(this, _controller, _scroll, _history));
+		_list = _scroll->setOwnedWidget(object_ptr<HistoryInner>(this, controller(), _scroll, _history));
 		_list->show();
 
 		_updateHistoryItems.stop();
@@ -1904,7 +1903,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	App::main()->dlgUpdated(wasHistory ? wasHistory->peer : nullptr, wasMsgId);
 	emit historyShown(_history, _showAtMsgId);
 
-	_controller->historyPeerChanged().notify(_peer, true);
+	controller()->historyPeerChanged().notify(_peer, true);
 	update();
 }
 
@@ -3411,6 +3410,22 @@ bool HistoryWidget::eventFilter(QObject *obj, QEvent *e) {
 	return TWidget::eventFilter(obj, e);
 }
 
+bool HistoryWidget::wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) {
+	if (playerColumn == Window::Column::Third && _tabbedSection) {
+		auto tabbedColumn = (myColumn == Window::Column::First) ? Window::Column::Second : Window::Column::Third;
+		return _tabbedSection->wheelEventFromFloatPlayer(e, tabbedColumn, playerColumn);
+	}
+	return _scroll->viewportEvent(e);
+}
+
+QRect HistoryWidget::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) {
+	if (playerColumn == Window::Column::Third && _tabbedSection) {
+		auto tabbedColumn = (myColumn == Window::Column::First) ? Window::Column::Second : Window::Column::Third;
+		return mapToGlobal(_tabbedSection->rectForFloatPlayer(tabbedColumn, playerColumn));
+	}
+	return mapToGlobal(_scroll->geometry());
+}
+
 DragState HistoryWidget::getDragState(const QMimeData *d) {
 	if (!d
 		|| d->hasFormat(qsl("application/x-td-forward-selected"))
@@ -3792,14 +3807,14 @@ void HistoryWidget::updateTabbedSelectorSectionShown() {
 	// sendPendingMoveAndResizeEvents() for all widgets in the window, which can lead
 	// to a new HistoryWidget::resizeEvent() call and an infinite recursion here.
 	if (_tabbedSectionUsed) {
-		_tabbedSection.create(this, _controller, _tabbedPanel->takeSelector());
+		_tabbedSection.create(this, controller(), _tabbedPanel->takeSelector());
 		_tabbedSection->setCancelledCallback([this] { setInnerFocus(); });
 		_tabbedSelectorToggle->setColorOverrides(&st::historyAttachEmojiActive, &st::historyRecordVoiceFgActive, &st::historyRecordVoiceRippleBgActive);
 		_rightShadow.create(this, st::shadowFg);
 		auto destroyingPanel = std::move(_tabbedPanel);
 		updateControlsVisibility();
 	} else {
-		_tabbedPanel.create(this, _controller, _tabbedSection->takeSelector());
+		_tabbedPanel.create(this, controller(), _tabbedSection->takeSelector());
 		_tabbedSelectorToggle->installEventFilter(_tabbedPanel);
 		_tabbedSection.destroy();
 		_tabbedSelectorToggle->setColorOverrides(nullptr, nullptr, nullptr);
@@ -3859,12 +3874,12 @@ void HistoryWidget::toggleTabbedSelectorMode() {
 		updateTabbedSelectorSectionShown();
 		recountChatWidth();
 		updateControlsGeometry();
-	} else if (_controller->canProvideChatWidth(minimalWidthForTabbedSelectorSection())) {
+	} else if (controller()->canProvideChatWidth(minimalWidthForTabbedSelectorSection())) {
 		if (!AuthSession::Current().data().tabbedSelectorSectionEnabled()) {
 			AuthSession::Current().data().setTabbedSelectorSectionEnabled(true);
 			AuthSession::Current().saveDataDelayed(kSaveTabbedSelectorSectionTimeoutMs);
 		}
-		_controller->provideChatWidth(minimalWidthForTabbedSelectorSection());
+		controller()->provideChatWidth(minimalWidthForTabbedSelectorSection());
 		updateTabbedSelectorSectionShown();
 		recountChatWidth();
 		updateControlsGeometry();

@@ -32,7 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Profile {
 
-Widget::Widget(QWidget *parent, PeerData *peer) : Window::SectionWidget(parent)
+Widget::Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller, PeerData *peer) : Window::SectionWidget(parent, controller)
 , _scroll(this, st::settingsScroll)
 , _fixedBar(this, peer)
 , _fixedBarShadow(this, object_ptr<Ui::PlainShadow>(this, st::shadowFg)) {
@@ -159,6 +159,14 @@ void Widget::showFinishedHook() {
 		_fixedBarShadow->hide();
 	}
 	_inner->showFinished();
+}
+
+bool Widget::wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) {
+	return _scroll->viewportEvent(e);
+}
+
+QRect Widget::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) {
+	return mapToGlobal(_scroll->geometry());
 }
 
 } // namespace Profile

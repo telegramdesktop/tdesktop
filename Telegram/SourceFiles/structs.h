@@ -175,6 +175,9 @@ static const WebPageId CancelledWebPageId = 0xFFFFFFFFFFFFFFFFULL;
 inline bool operator==(const FullMsgId &a, const FullMsgId &b) {
 	return (a.channel == b.channel) && (a.msg == b.msg);
 }
+inline bool operator!=(const FullMsgId &a, const FullMsgId &b) {
+	return !(a == b);
+}
 inline bool operator<(const FullMsgId &a, const FullMsgId &b) {
 	if (a.msg < b.msg) return true;
 	if (a.msg > b.msg) return false;

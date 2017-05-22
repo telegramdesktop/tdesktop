@@ -2265,15 +2265,14 @@ void DialogsWidget::UpdateButton::paintEvent(QPaintEvent *e) {
 	}
 }
 
-DialogsWidget::DialogsWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
-, _controller(controller)
+DialogsWidget::DialogsWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : Window::AbstractSectionWidget(parent, controller)
 , _mainMenuToggle(this, st::dialogsMenuToggle)
 , _filter(this, st::dialogsFilter, lang(lng_dlg_filter))
 , _jumpToDate(this, object_ptr<Ui::IconButton>(this, st::dialogsCalendar))
 , _cancelSearch(this, st::dialogsCancelSearch)
 , _lockUnlock(this, st::dialogsLock)
 , _scroll(this, st::dialogsScroll) {
-	_inner = _scroll->setOwnedWidget(object_ptr<DialogsInner>(this, _controller, parent));
+	_inner = _scroll->setOwnedWidget(object_ptr<DialogsInner>(this, controller, parent));
 	connect(_inner, SIGNAL(draggingScrollDelta(int)), this, SLOT(onDraggingScrollDelta(int)));
 	connect(_inner, SIGNAL(mustScrollTo(int,int)), _scroll, SLOT(scrollToY(int,int)));
 	connect(_inner, SIGNAL(dialogMoved(int,int)), this, SLOT(onDialogMoved(int,int)));
@@ -2432,6 +2431,14 @@ void DialogsWidget::showAnimated(Window::SlideDirection direction, const Window:
 		std::swap(_cacheUnder, _cacheOver);
 	}
 	_a_show.start([this] { animationCallback(); }, 0., 1., st::slideDuration, Window::SlideAnimation::transition());
+}
+
+bool DialogsWidget::wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) {
+	return _scroll->viewportEvent(e);
+}
+
+QRect DialogsWidget::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) {
+	return mapToGlobal(_scroll->geometry());
 }
 
 void DialogsWidget::animationCallback() {
@@ -2986,7 +2993,7 @@ void DialogsWidget::setSearchInPeer(PeerData *peer) {
 	_searchInMigrated = newSearchInPeer ? newSearchInPeer->migrateFrom() : nullptr;
 	if (newSearchInPeer != _searchInPeer) {
 		_searchInPeer = newSearchInPeer;
-		_controller->searchInPeerChanged().notify(_searchInPeer, true);
+		controller()->searchInPeerChanged().notify(_searchInPeer, true);
 		updateJumpToDateVisibility();
 	}
 	_inner->searchInPeer(_searchInPeer);

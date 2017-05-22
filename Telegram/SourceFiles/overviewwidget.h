@@ -286,7 +286,7 @@ private:
 	Ui::PopupMenu *_menu = nullptr;
 };
 
-class OverviewWidget : public TWidget, public RPCSender {
+class OverviewWidget : public Window::AbstractSectionWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -351,6 +351,10 @@ public:
 	void deleteContextItem(bool forEveryone);
 	void deleteSelectedItems(bool forEveryone);
 
+	// Float player interface.
+	bool wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) override;
+	QRect rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) override;
+
 	void ui_repaintHistoryItem(const HistoryItem *item);
 
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
@@ -374,8 +378,6 @@ public slots:
 private:
 	void topBarClick();
 	void animationCallback();
-
-	gsl::not_null<Window::Controller*> _controller;
 
 	object_ptr<Ui::AbstractButton> _backAnimationButton = { nullptr };
 	object_ptr<Window::TopBarWidget> _topBar;

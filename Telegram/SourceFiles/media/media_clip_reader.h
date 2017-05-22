@@ -82,6 +82,7 @@ public:
 
 	void start(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius, ImageRoundCorners corners);
 	QPixmap current(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius, ImageRoundCorners corners, TimeMs ms);
+	QPixmap current();
 	QPixmap frameOriginal() const {
 		if (auto frame = frameToShow()) {
 			auto result = QPixmap::fromImage(frame->original);
@@ -91,7 +92,7 @@ public:
 		return QPixmap();
 	}
 	bool currentDisplayed() const {
-		Frame *frame = frameToShow();
+		auto frame = frameToShow();
 		return frame ? (frame->displayed.loadAcquire() != 0) : true;
 	}
 	bool autoPausedGif() const {
@@ -107,7 +108,7 @@ public:
 
 	State state() const;
 	bool started() const {
-		int step = _step.loadAcquire();
+		auto step = _step.loadAcquire();
 		return (step == WaitingForFirstFrameStep) || (step >= 0);
 	}
 	bool ready() const;

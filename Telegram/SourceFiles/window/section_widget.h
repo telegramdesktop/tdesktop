@@ -25,6 +25,60 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Window {
 
+class Controller;
+
+enum class Column {
+	First,
+	Second,
+	Third,
+};
+
+enum class Corner {
+	TopLeft,
+	TopRight,
+	BottomLeft,
+	BottomRight,
+};
+
+inline bool IsTopCorner(Corner corner) {
+	return (corner == Corner::TopLeft) || (corner == Corner::TopRight);
+}
+
+inline bool IsBottomCorner(Corner corner) {
+	return !IsTopCorner(corner);
+}
+
+inline bool IsLeftCorner(Corner corner) {
+	return (corner == Corner::TopLeft) || (corner == Corner::BottomLeft);
+}
+
+inline bool IsRightCorner(Corner corner) {
+	return !IsLeftCorner(corner);
+}
+
+class AbstractSectionWidget : public TWidget, protected base::Subscriber {
+public:
+	AbstractSectionWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent), _controller(controller) {
+	}
+
+	// Float player interface.
+	virtual bool wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) {
+		return false;
+	}
+	virtual QRect rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) {
+		return mapToGlobal(rect());
+	}
+
+protected:
+	gsl::not_null<Window::Controller*> controller() const {
+		return _controller;
+	}
+
+private:
+	gsl::not_null<Window::Controller*> _controller;
+
+};
+
 class SectionMemento;
 
 struct SectionSlideParams {
@@ -37,12 +91,9 @@ struct SectionSlideParams {
 	}
 };
 
-class SectionWidget : public TWidget, protected base::Subscriber {
-	Q_OBJECT
-
+class SectionWidget : public AbstractSectionWidget {
 public:
-
-	SectionWidget(QWidget *parent);
+	SectionWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller);
 
 	virtual PeerData *peerForDialogs() const {
 		return nullptr;

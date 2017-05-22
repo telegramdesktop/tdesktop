@@ -42,8 +42,8 @@ constexpr int kCommonGroupsPerPage = 40;
 
 } // namespace
 
-object_ptr<Window::SectionWidget> SectionMemento::createWidget(QWidget *parent, const QRect &geometry) const {
-	auto result = object_ptr<Widget>(parent, _peer);
+object_ptr<Window::SectionWidget> SectionMemento::createWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, const QRect &geometry) const {
+	auto result = object_ptr<Widget>(parent, controller, _peer);
 	result->setInternalState(geometry, this);
 	return std::move(result);
 }
@@ -337,7 +337,7 @@ InnerWidget::~InnerWidget() {
 	}
 }
 
-Widget::Widget(QWidget *parent, PeerData *peer) : Window::SectionWidget(parent)
+Widget::Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller, PeerData *peer) : Window::SectionWidget(parent, controller)
 , _scroll(this, st::settingsScroll)
 , _fixedBar(this)
 , _fixedBarShadow(this, st::shadowFg) {
@@ -445,6 +445,14 @@ void Widget::showAnimatedHook() {
 
 void Widget::showFinishedHook() {
 	_fixedBar->setAnimatingMode(false);
+}
+
+bool Widget::wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) {
+	return _scroll->viewportEvent(e);
+}
+
+QRect Widget::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) {
+	return mapToGlobal(_scroll->geometry());
 }
 
 } // namespace CommonGroups

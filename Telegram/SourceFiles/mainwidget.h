@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_common.h"
 #include "core/single_timer.h"
 #include "base/weak_unique_ptr.h"
+#include "window/section_widget.h"
 
 namespace Notify {
 struct PeerUpdate;
@@ -38,6 +39,7 @@ namespace Player {
 class Widget;
 class VolumeWidget;
 class Panel;
+class Float;
 } // namespace Player
 } // namespace Media
 
@@ -460,6 +462,35 @@ protected:
 	bool eventFilter(QObject *o, QEvent *e) override;
 
 private:
+	struct Float {
+		template <typename ToggleCallback>
+		Float(QWidget *parent, HistoryItem *item, ToggleCallback callback);
+
+		bool visible = false;
+		Animation visibleAnimation;
+		Window::Corner corner = Window::Corner::TopRight;
+		Window::Column column = Window::Column::Second;
+		QPoint position;
+		object_ptr<Media::Player::Float> widget;
+	};
+
+	using ChannelGetDifferenceTime = QMap<ChannelData*, TimeMs>;
+	enum class ChannelDifferenceRequest {
+		Unknown,
+		PtsGapOrShortPoll,
+		AfterFail,
+	};
+
+	struct DeleteHistoryRequest {
+		PeerData *peer;
+		bool justClearHistory;
+	};
+
+	struct DeleteAllFromUserParams {
+		ChannelData *channel;
+		UserData *from;
+	};
+
 	void animationCallback();
 	void handleAdaptiveLayoutUpdate();
 	void updateWindowAdaptiveLayout();
@@ -506,6 +537,63 @@ private:
 
 	void saveSectionInStack();
 
+	void getChannelDifference(ChannelData *channel, ChannelDifferenceRequest from = ChannelDifferenceRequest::Unknown);
+	void gotDifference(const MTPupdates_Difference &diff);
+	bool failDifference(const RPCError &e);
+	void feedDifference(const MTPVector<MTPUser> &users, const MTPVector<MTPChat> &chats, const MTPVector<MTPMessage> &msgs, const MTPVector<MTPUpdate> &other);
+	void gotState(const MTPupdates_State &state);
+	void updSetState(int32 pts, int32 date, int32 qts, int32 seq);
+	void gotChannelDifference(ChannelData *channel, const MTPupdates_ChannelDifference &diff);
+	bool failChannelDifference(ChannelData *channel, const RPCError &err);
+	void failDifferenceStartTimerFor(ChannelData *channel);
+
+	void feedUpdateVector(const MTPVector<MTPUpdate> &updates, bool skipMessageIds = false);
+	void feedMessageIds(const MTPVector<MTPUpdate> &updates);
+
+	void deleteHistoryPart(DeleteHistoryRequest request, const MTPmessages_AffectedHistory &result);
+	void deleteAllFromUserPart(DeleteAllFromUserParams params, const MTPmessages_AffectedHistory &result);
+
+	void updateReceived(const mtpPrime *from, const mtpPrime *end);
+	bool updateFail(const RPCError &e);
+
+	void usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, const MTPcontacts_ResolvedPeer &result);
+	bool usernameResolveFail(QString name, const RPCError &error);
+
+	void inviteCheckDone(QString hash, const MTPChatInvite &invite);
+	bool inviteCheckFail(const RPCError &error);
+	void inviteImportDone(const MTPUpdates &result);
+	bool inviteImportFail(const RPCError &error);
+
+	int getSectionTop() const;
+
+	void hideAll();
+	void showAll();
+
+	void overviewPreloaded(PeerData *data, const MTPmessages_Messages &result, mtpRequestId req);
+	bool overviewFailed(PeerData *data, const RPCError &error, mtpRequestId req);
+
+	void clearCachedBackground();
+	void checkCurrentFloatPlayer();
+	void toggleFloatPlayer(Float *instance, bool visible);
+	void updateFloatPlayerPosition(Float *instance);
+	void removeFloatPlayer(Float *instance);
+	Float *currentFloatPlayer() const {
+		return _playerFloats.empty() ? nullptr : _playerFloats.back().get();
+	}
+	Window::AbstractSectionWidget *getFloatPlayerSection(gsl::not_null<Window::Column*> column);
+
+	bool ptsUpdated(int32 pts, int32 ptsCount);
+	bool ptsUpdated(int32 pts, int32 ptsCount, const MTPUpdates &updates);
+	bool ptsUpdated(int32 pts, int32 ptsCount, const MTPUpdate &update);
+	void ptsApplySkippedUpdates();
+	bool requestingDifference() const {
+		return _ptsWaiter.requesting();
+	}
+	bool getDifferenceTimeChanged(ChannelData *channel, int32 ms, ChannelGetDifferenceTime &channelCurTime, TimeMs &curTime);
+
+	void viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint> &result, mtpRequestId req);
+	bool viewsIncrementFail(const RPCError &error, mtpRequestId req);
+
 	gsl::not_null<Window::Controller*> _controller;
 	bool _started = false;
 
@@ -520,56 +608,7 @@ private:
 
 	SingleTimer _updateMutedTimer;
 
-	enum class ChannelDifferenceRequest {
-		Unknown,
-		PtsGapOrShortPoll,
-		AfterFail,
-	};
-	void getChannelDifference(ChannelData *channel, ChannelDifferenceRequest from = ChannelDifferenceRequest::Unknown);
-	void gotDifference(const MTPupdates_Difference &diff);
-	bool failDifference(const RPCError &e);
-	void feedDifference(const MTPVector<MTPUser> &users, const MTPVector<MTPChat> &chats, const MTPVector<MTPMessage> &msgs, const MTPVector<MTPUpdate> &other);
-	void gotState(const MTPupdates_State &state);
-	void updSetState(int32 pts, int32 date, int32 qts, int32 seq);
-	void gotChannelDifference(ChannelData *channel, const MTPupdates_ChannelDifference &diff);
-	bool failChannelDifference(ChannelData *channel, const RPCError &err);
-	void failDifferenceStartTimerFor(ChannelData *channel);
-
-	void feedUpdateVector(const MTPVector<MTPUpdate> &updates, bool skipMessageIds = false);
-	void feedMessageIds(const MTPVector<MTPUpdate> &updates);
-
-	struct DeleteHistoryRequest {
-		PeerData *peer;
-		bool justClearHistory;
-	};
-	void deleteHistoryPart(DeleteHistoryRequest request, const MTPmessages_AffectedHistory &result);
-	struct DeleteAllFromUserParams {
-		ChannelData *channel;
-		UserData *from;
-	};
-	void deleteAllFromUserPart(DeleteAllFromUserParams params, const MTPmessages_AffectedHistory &result);
-
-	void updateReceived(const mtpPrime *from, const mtpPrime *end);
-	bool updateFail(const RPCError &e);
-
-	void usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, const MTPcontacts_ResolvedPeer &result);
-	bool usernameResolveFail(QString name, const RPCError &error);
-
-	void inviteCheckDone(QString hash, const MTPChatInvite &invite);
-	bool inviteCheckFail(const RPCError &error);
 	QString _inviteHash;
-	void inviteImportDone(const MTPUpdates &result);
-	bool inviteImportFail(const RPCError &error);
-
-	int getSectionTop() const;
-
-	void hideAll();
-	void showAll();
-
-	void overviewPreloaded(PeerData *data, const MTPmessages_Messages &result, mtpRequestId req);
-	bool overviewFailed(PeerData *data, const RPCError &error, mtpRequestId req);
-
-	void clearCachedBackground();
 
 	Animation _a_show;
 	bool _showBack = false;
@@ -594,6 +633,7 @@ private:
 	object_ptr<Media::Player::Panel> _playerPlaylist;
 	object_ptr<Media::Player::Panel> _playerPanel;
 	bool _playerUsingPanel = false;
+	std::vector<std::unique_ptr<Float>> _playerFloats;
 
 	QPointer<ConfirmBox> _forwardConfirm; // for single column layout
 	object_ptr<HistoryHider> _hider = { nullptr };
@@ -610,21 +650,11 @@ private:
 	int32 updSeq = 0;
 	SingleTimer noUpdatesTimer;
 
-	bool ptsUpdated(int32 pts, int32 ptsCount);
-	bool ptsUpdated(int32 pts, int32 ptsCount, const MTPUpdates &updates);
-	bool ptsUpdated(int32 pts, int32 ptsCount, const MTPUpdate &update);
-	void ptsApplySkippedUpdates();
 	PtsWaiter _ptsWaiter;
-	bool requestingDifference() const {
-		return _ptsWaiter.requesting();
-	}
 
-	typedef QMap<ChannelData*, TimeMs> ChannelGetDifferenceTime;
 	ChannelGetDifferenceTime _channelGetDifferenceTimeByPts, _channelGetDifferenceTimeAfterFail;
 	TimeMs _getDifferenceTimeByPts = 0;
 	TimeMs _getDifferenceTimeAfterFail = 0;
-
-	bool getDifferenceTimeChanged(ChannelData *channel, int32 ms, ChannelGetDifferenceTime &channelCurTime, TimeMs &curTime);
 
 	SingleTimer _byPtsTimer;
 
@@ -677,8 +707,6 @@ private:
 	typedef QMap<mtpRequestId, PeerData*> ViewsIncrementByRequest;
 	ViewsIncrementByRequest _viewsIncrementByRequest;
 	SingleTimer _viewsIncrementTimer;
-	void viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint> &result, mtpRequestId req);
-	bool viewsIncrementFail(const RPCError &error, mtpRequestId req);
 
 	std::unique_ptr<App::WallPaper> _background;
 

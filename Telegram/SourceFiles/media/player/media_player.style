@@ -241,3 +241,6 @@ mediaPlayerFileLayout: OverviewFileLayout(overviewFileLayout) {
 	songIconBg: mediaPlayerActiveFg;
 	songOverBg: mediaPlayerActiveFg;
 }
+
+mediaPlayerFloatSize: 128px;
+mediaPlayerFloatMargin: 12px;

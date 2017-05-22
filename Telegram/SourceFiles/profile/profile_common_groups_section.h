@@ -43,7 +43,7 @@ public:
 	SectionMemento(PeerData *peer) : _peer(peer) {
 	}
 
-	object_ptr<Window::SectionWidget> createWidget(QWidget *parent, const QRect &geometry) const override;
+	object_ptr<Window::SectionWidget> createWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, const QRect &geometry) const override;
 
 	PeerData *getPeer() const {
 		return _peer;
@@ -171,7 +171,7 @@ class Widget final : public Window::SectionWidget {
 	Q_OBJECT
 
 public:
-	Widget(QWidget *parent, PeerData *peer);
+	Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller, PeerData *peer);
 
 	PeerData *peer() const;
 	PeerData *peerForDialogs() const override {
@@ -188,6 +188,10 @@ public:
 	std::unique_ptr<Window::SectionMemento> createMemento() const override;
 
 	void setInternalState(const QRect &geometry, const SectionMemento *memento);
+
+	// Float player interface.
+	bool wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) override;
+	QRect rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
