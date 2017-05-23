@@ -42,6 +42,9 @@ public:
 	bool detached() const {
 		return !_item;
 	}
+	void resetMouseState() {
+		_down = false;
+	}
 	void ui_repaintHistoryItem(const HistoryItem *item) {
 		if (item == _item) {
 			repaintItem();
@@ -49,7 +52,10 @@ public:
 	}
 
 protected:
-	void paintEvent(QPaintEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void mouseDoubleClickEvent(QMouseEvent *e) override;
 
 private:
 	Clip::Reader *getReader() const;
@@ -67,6 +73,7 @@ private:
 
 	QPixmap _shadow;
 	QImage _frame;
+	bool _down = false;
 
 	std::unique_ptr<Clip::Playback> _roundPlayback;
 

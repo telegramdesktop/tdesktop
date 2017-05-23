@@ -50,6 +50,30 @@ Float::Float(QWidget *parent, HistoryItem *item, base::lambda<void(bool visible)
 			detach();
 		}
 	});
+
+	setCursor(style::cur_pointer);
+}
+
+void Float::mousePressEvent(QMouseEvent *e) {
+	_down = true;
+}
+
+void Float::mouseReleaseEvent(QMouseEvent *e) {
+	if (_down && _item) {
+		if (auto media = _item->getMedia()) {
+			media->playInline();
+		}
+	}
+}
+
+void Float::mouseDoubleClickEvent(QMouseEvent *e) {
+	if (_item) {
+		// Handle second click.
+		if (auto media = _item->getMedia()) {
+			media->playInline();
+		}
+		Ui::showPeerHistoryAtItem(_item);
+	}
 }
 
 void Float::detach() {
