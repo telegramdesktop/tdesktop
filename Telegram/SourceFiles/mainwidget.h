@@ -463,8 +463,8 @@ protected:
 
 private:
 	struct Float {
-		template <typename ToggleCallback>
-		Float(QWidget *parent, HistoryItem *item, ToggleCallback callback);
+		template <typename ToggleCallback, typename DraggedCallback>
+		Float(QWidget *parent, HistoryItem *item, ToggleCallback callback, DraggedCallback dragged);
 
 		bool hiddenByWidget = false;
 		bool hiddenByHistory = false;
@@ -472,7 +472,8 @@ private:
 		Animation visibleAnimation;
 		Window::Corner corner = Window::Corner::TopRight;
 		Window::Column column = Window::Column::Second;
-		QPoint position;
+		QPoint dragFrom;
+		Animation draggedAnimation;
 		object_ptr<Media::Player::Float> widget;
 	};
 
@@ -584,6 +585,8 @@ private:
 		return _playerFloats.empty() ? nullptr : _playerFloats.back().get();
 	}
 	Window::AbstractSectionWidget *getFloatPlayerSection(gsl::not_null<Window::Column*> column);
+	void finishFloatPlayerDrag(Float *instance, bool closed);
+	void updateFloatPlayerColumnCorner(QPoint center);
 
 	bool ptsUpdated(int32 pts, int32 ptsCount);
 	bool ptsUpdated(int32 pts, int32 ptsCount, const MTPUpdates &updates);
@@ -637,6 +640,8 @@ private:
 	object_ptr<Media::Player::Panel> _playerPanel;
 	bool _playerUsingPanel = false;
 	std::vector<std::unique_ptr<Float>> _playerFloats;
+	Window::Corner _playerFloatCorner = Window::Corner::TopRight;
+	Window::Column _playerFloatColumn = Window::Column::Second;
 
 	QPointer<ConfirmBox> _forwardConfirm; // for single column layout
 	object_ptr<HistoryHider> _hider = { nullptr };

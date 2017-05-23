@@ -29,9 +29,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Media {
 namespace Player {
 
-Float::Float(QWidget *parent, HistoryItem *item, base::lambda<void(bool visible)> toggleCallback) : TWidget(parent)
+Float::Float(QWidget *parent, HistoryItem *item, base::lambda<void(bool visible)> toggleCallback, base::lambda<void(bool closed)> draggedCallback) : TWidget(parent)
 , _item(item)
-, _toggleCallback(std::move(toggleCallback)) {
+, _toggleCallback(std::move(toggleCallback))
+, _draggedCallback(std::move(draggedCallback)) {
 	auto media = _item->getMedia();
 	t_assert(media != nullptr);
 
@@ -56,13 +57,55 @@ Float::Float(QWidget *parent, HistoryItem *item, base::lambda<void(bool visible)
 
 void Float::mousePressEvent(QMouseEvent *e) {
 	_down = true;
+	_downPoint = e->pos();
+}
+
+void Float::mouseMoveEvent(QMouseEvent *e) {
+	if (_down && (e->pos() - _downPoint).manhattanLength() > QApplication::startDragDistance()) {
+		_down = false;
+		_drag = true;
+		_dragLocalPoint = e->pos();
+	} else if (_drag) {
+		auto delta = (e->pos() - _dragLocalPoint);
+		move(pos() + delta);
+		setOpacity(outRatio());
+	}
+}
+
+float64 Float::outRatio() const {
+	auto parent = parentWidget()->rect();
+	auto min = 1.;
+	if (x() < parent.x()) {
+		accumulate_min(min, 1. - (parent.x() - x()) / float64(width()));
+	}
+	if (y() < parent.y()) {
+		accumulate_min(min, 1. - (parent.y() - y()) / float64(height()));
+	}
+	if (x() + width() > parent.x() + parent.width()) {
+		accumulate_min(min, 1. - (x() + width() - parent.x() - parent.width()) / float64(width()));
+	}
+	if (y() + height() > parent.y() + parent.height()) {
+		accumulate_min(min, 1. - (y() + height() - parent.y() - parent.height()) / float64(height()));
+	}
+	return snap(min, 0., 1.);
 }
 
 void Float::mouseReleaseEvent(QMouseEvent *e) {
-	if (_down && _item) {
-		if (auto media = _item->getMedia()) {
+	if (_down) {
+		_down = false;
+		if (auto media = _item ? _item->getMedia() : nullptr) {
 			media->playInline();
 		}
+	}
+	if (_drag) {
+		finishDrag(outRatio() < 0.5);
+	}
+}
+
+void Float::finishDrag(bool closed) {
+	_drag = false;
+	if (_draggedCallback) {
+		_draggedCallback(closed);
 	}
 }
 

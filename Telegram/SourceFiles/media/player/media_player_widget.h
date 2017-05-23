@@ -46,7 +46,7 @@ public:
 	Widget(QWidget *parent);
 
 	void setCloseCallback(base::lambda<void()> callback);
-
+	void stopAndClose();
 	void setShadowGeometryToLeft(int x, int y, int w, int h);
 	void showShadow();
 	void hideShadow();
@@ -101,6 +101,7 @@ private:
 	// We change _voiceIsActive to false only manually or from tracksFinished().
 	AudioMsgId::Type _type = AudioMsgId::Type::Unknown;
 	bool _voiceIsActive = false;
+	base::lambda<void()> _closeCallback;
 
 	bool _labelsOver = false;
 	bool _labelsDown = false;

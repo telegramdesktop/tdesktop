@@ -187,18 +187,23 @@ void Widget::updateVolumeToggleIcon() {
 }
 
 void Widget::setCloseCallback(base::lambda<void()> callback) {
-	_close->setClickedCallback([this, callback = std::move(callback)] {
-		_voiceIsActive = false;
-		if (_type == AudioMsgId::Type::Voice) {
-			auto songData = instance()->current(AudioMsgId::Type::Song);
-			auto songState = mixer()->currentState(AudioMsgId::Type::Song);
-			if (songData == songState.id && !IsStoppedOrStopping(songState.state)) {
-				instance()->stop(AudioMsgId::Type::Voice);
-				return;
-			}
+	_closeCallback = std::move(callback);
+	_close->setClickedCallback([this] { stopAndClose(); });
+}
+
+void Widget::stopAndClose() {
+	_voiceIsActive = false;
+	if (_type == AudioMsgId::Type::Voice) {
+		auto songData = instance()->current(AudioMsgId::Type::Song);
+		auto songState = mixer()->currentState(AudioMsgId::Type::Song);
+		if (songData == songState.id && !IsStoppedOrStopping(songState.state)) {
+			instance()->stop(AudioMsgId::Type::Voice);
+			return;
 		}
-		callback();
-	});
+	}
+	if (_closeCallback) {
+		_closeCallback();
+	}
 }
 
 void Widget::setShadowGeometryToLeft(int x, int y, int w, int h) {

@@ -98,9 +98,11 @@ StackItemSection::StackItemSection(std::unique_ptr<Window::SectionMemento> &&mem
 StackItemSection::~StackItemSection() {
 }
 
-template <typename ToggleCallback>
-MainWidget::Float::Float(QWidget *parent, HistoryItem *item, ToggleCallback callback) : widget(parent, item, [this, toggle = std::move(callback)](bool visible) {
+template <typename ToggleCallback, typename DraggedCallback>
+MainWidget::Float::Float(QWidget *parent, HistoryItem *item, ToggleCallback toggle, DraggedCallback dragged) : widget(parent, item, [this, toggle = std::move(toggle)](bool visible) {
 	toggle(this, visible);
+}, [this, dragged = std::move(dragged)](bool closed) {
+	dragged(this, closed);
 }) {
 }
 
@@ -248,7 +250,11 @@ void MainWidget::checkCurrentFloatPlayer() {
 						_playerFloats.push_back(std::make_unique<Float>(this, item, [this](Float *instance, bool visible) {
 							instance->hiddenByWidget = !visible;
 							toggleFloatPlayer(instance);
+						}, [this](Float *instance, bool closed) {
+							finishFloatPlayerDrag(instance, closed);
 						}));
+						currentFloatPlayer()->corner = _playerFloatCorner;
+						currentFloatPlayer()->column = _playerFloatColumn;
 						checkFloatPlayerVisibility();
 					}
 				}
@@ -313,8 +319,15 @@ void MainWidget::updateFloatPlayerPosition(Float *instance) {
 	position = mapFromGlobal(position);
 
 	auto hiddenTop = Window::IsTopCorner(instance->corner) ? -instance->widget->height() : height();
-	auto visibleTop = position.y();
-	instance->widget->move(position.x(), anim::interpolate(hiddenTop, visibleTop, visible));
+	position.setY(anim::interpolate(hiddenTop, position.y(), visible));
+	if (!instance->widget->dragged()) {
+		auto dragged = instance->draggedAnimation.current(1.);
+		if (dragged < 1.) {
+			position.setX(anim::interpolate(instance->dragFrom.x(), position.x(), dragged));
+			position.setY(anim::interpolate(instance->dragFrom.y(), position.y(), dragged));
+		}
+		instance->widget->move(position);
+	}
 }
 
 void MainWidget::removeFloatPlayer(Float *instance) {
@@ -356,6 +369,77 @@ Window::AbstractSectionWidget *MainWidget::getFloatPlayerSection(gsl::not_null<W
 		return _wideSection;
 	}
 	return _history;
+}
+
+void MainWidget::updateFloatPlayerColumnCorner(QPoint center) {
+	Expects(!_playerFloats.empty());
+	auto size = _playerFloats.back()->widget->size();
+	auto min = INT_MAX;
+	auto checkSection = [this, center, size, &min](Window::AbstractSectionWidget *widget, Window::Column myColumn, Window::Column playerColumn) {
+		auto rect = mapFromGlobal(widget->rectForFloatPlayer(myColumn, playerColumn));
+		auto left = rect.x() + (size.width() / 2);
+		auto right = rect.x() + rect.width() - (size.width() / 2);
+		auto top = rect.y() + (size.height() / 2);
+		auto bottom = rect.y() + rect.height() - (size.height() / 2);
+		auto checkCorner = [this, playerColumn, &min](int distance, Window::Corner corner) {
+			if (min > distance) {
+				min = distance;
+				_playerFloatColumn = playerColumn;
+				_playerFloatCorner = corner;
+			}
+		};
+		checkCorner((QPoint(left, top) - center).manhattanLength(), Window::Corner::TopLeft);
+		checkCorner((QPoint(right, top) - center).manhattanLength(), Window::Corner::TopRight);
+		checkCorner((QPoint(left, bottom) - center).manhattanLength(), Window::Corner::BottomLeft);
+		checkCorner((QPoint(right, bottom) - center).manhattanLength(), Window::Corner::BottomRight);
+	};
+
+	if (!Adaptive::Normal()) {
+		if (Adaptive::OneColumn() && selectingPeer()) {
+			checkSection(_dialogs, Window::Column::First, Window::Column::First);
+		} else if (_overview) {
+			checkSection(_overview, Window::Column::Second, Window::Column::Second);
+		} else if (_wideSection) {
+			checkSection(_wideSection, Window::Column::Second, Window::Column::Second);
+		} else if (!Adaptive::OneColumn() || _history->peer()) {
+			checkSection(_history, Window::Column::Second, Window::Column::Second);
+			checkSection(_history, Window::Column::Second, Window::Column::Third);
+		} else {
+			checkSection(_dialogs, Window::Column::First, Window::Column::First);
+		}
+	} else {
+		checkSection(_dialogs, Window::Column::First, Window::Column::First);
+		if (_overview) {
+			checkSection(_overview, Window::Column::Second, Window::Column::Second);
+		} else if (_wideSection) {
+			checkSection(_wideSection, Window::Column::Second, Window::Column::Second);
+		} else {
+			checkSection(_history, Window::Column::Second, Window::Column::Second);
+			checkSection(_history, Window::Column::Second, Window::Column::Third);
+		}
+	}
+}
+
+void MainWidget::finishFloatPlayerDrag(Float *instance, bool closed) {
+	instance->dragFrom = instance->widget->pos();
+
+	updateFloatPlayerColumnCorner(instance->widget->geometry().center());
+	instance->column = _playerFloatColumn;
+	instance->corner = _playerFloatCorner;
+
+	instance->draggedAnimation.finish();
+	instance->draggedAnimation.start([this, instance] { updateFloatPlayerPosition(instance); }, 0., 1., st::slideDuration, anim::sineInOut);
+	updateFloatPlayerPosition(instance);
+
+	if (closed) {
+		if (auto item = instance->widget->item()) {
+			auto voiceData = Media::Player::instance()->current(AudioMsgId::Type::Voice);
+			if (_player && voiceData.contextId() == item->fullId()) {
+				_player->entity()->stopAndClose();
+			}
+		}
+		instance->widget->detach();
+	}
 }
 
 bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
@@ -1816,7 +1900,6 @@ void MainWidget::setCurrentCall(Calls::Call *call) {
 				destroyCallTopBar();
 			}
 		});
-		App::stopRoundVideoPlayback();
 	} else {
 		destroyCallTopBar();
 	}

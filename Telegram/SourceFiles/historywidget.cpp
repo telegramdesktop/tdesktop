@@ -2631,7 +2631,7 @@ void HistoryWidget::onScroll() {
 }
 
 bool HistoryWidget::isItemCompletelyHidden(HistoryItem *item) const {
-	auto top = _list->itemTop(item);
+	auto top = _list ? _list->itemTop(item) : -2;
 	if (top < 0) {
 		return true;
 	}
@@ -3428,7 +3428,7 @@ bool HistoryWidget::wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn
 QRect HistoryWidget::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) {
 	if (playerColumn == Window::Column::Third && _tabbedSection) {
 		auto tabbedColumn = (myColumn == Window::Column::First) ? Window::Column::Second : Window::Column::Third;
-		return mapToGlobal(_tabbedSection->rectForFloatPlayer(tabbedColumn, playerColumn));
+		return _tabbedSection->rectForFloatPlayer(tabbedColumn, playerColumn);
 	}
 	return mapToGlobal(_scroll->geometry());
 }

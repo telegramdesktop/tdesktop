@@ -316,7 +316,7 @@ void Mixer::Track::reattach(AudioMsgId::Type type) {
 	}
 
 	alSourcei(stream.source, AL_SAMPLE_OFFSET, qMax(state.position - bufferedPosition, 0LL));
-	if (!IsStopped(state.state)) {
+	if (!IsStopped(state.state) && state.state != State::PausedAtEnd) {
 		alSourcef(stream.source, AL_GAIN, ComputeVolume(type));
 		alSourcePlay(stream.source);
 		if (IsPaused(state.state)) {
@@ -781,6 +781,7 @@ void Mixer::pause(const AudioMsgId &audio, bool fast) {
 			}
 		} break;
 
+		case State::Pausing:
 		case State::Stopping: {
 			track->state.state = fast ? State::Paused : State::Pausing;
 		} break;

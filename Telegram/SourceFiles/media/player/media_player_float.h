@@ -29,21 +29,29 @@ namespace Player {
 
 class Float : public TWidget, private base::Subscriber {
 public:
-	Float(QWidget *parent, HistoryItem *item, base::lambda<void(bool visible)> toggleCallback);
+	Float(QWidget *parent, HistoryItem *item, base::lambda<void(bool visible)> toggleCallback, base::lambda<void(bool closed)> draggedCallback);
 
 	HistoryItem *item() const {
 		return _item;
 	}
 	void setOpacity(float64 opacity) {
-		_opacity = opacity;
-		update();
+		if (_opacity != opacity) {
+			_opacity = opacity;
+			update();
+		}
 	}
 	void detach();
 	bool detached() const {
 		return !_item;
 	}
+	bool dragged() const {
+		return _drag;
+	}
 	void resetMouseState() {
 		_down = false;
+		if (_drag) {
+			finishDrag(false);
+		}
 	}
 	void ui_repaintHistoryItem(const HistoryItem *item) {
 		if (item == _item) {
@@ -53,11 +61,13 @@ public:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseDoubleClickEvent(QMouseEvent *e) override;
 
 private:
+	float64 outRatio() const;
 	Clip::Reader *getReader() const;
 	void repaintItem();
 	void prepareShadow();
@@ -65,6 +75,7 @@ private:
 	bool fillFrame();
 	QRect getInnerRect() const;
 	void updatePlayback();
+	void finishDrag(bool closed);
 
 	HistoryItem *_item = nullptr;
 	base::lambda<void(bool visible)> _toggleCallback;
@@ -74,6 +85,11 @@ private:
 	QPixmap _shadow;
 	QImage _frame;
 	bool _down = false;
+	QPoint _downPoint;
+
+	bool _drag = false;
+	QPoint _dragLocalPoint;
+	base::lambda<void(bool closed)> _draggedCallback;
 
 	std::unique_ptr<Clip::Playback> _roundPlayback;
 

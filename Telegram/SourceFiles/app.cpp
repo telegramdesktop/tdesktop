@@ -2648,18 +2648,7 @@ namespace {
 			auto gifs = ::gifItems;
 			for_const (auto item, gifs) {
 				if (auto media = item->getMedia()) {
-					media->stopInline();
-				}
-			}
-		}
-	}
-
-	void stopRoundVideoPlayback() {
-		if (!::gifItems.isEmpty()) {
-			auto gifs = ::gifItems;
-			for_const (auto item, gifs) {
-				if (auto media = item->getMedia()) {
-					if (media->isRoundVideoPlaying()) {
+					if (!media->isRoundVideoPlaying()) {
 						media->stopInline();
 					}
 				}
