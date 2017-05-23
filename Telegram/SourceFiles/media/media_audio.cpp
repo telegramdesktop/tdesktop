@@ -887,7 +887,6 @@ void Mixer::seek(AudioMsgId::Type type, int64 position) {
 		resetFadeStartPosition(type, position - current->bufferedPosition);
 	} else {
 		setStoppedState(current);
-		if (streamCreated) alSourceStop(current->stream.source);
 	}
 	switch (current->state.state) {
 	case State::Pausing:
@@ -1009,6 +1008,10 @@ TrackState Mixer::currentState(AudioMsgId::Type type) {
 void Mixer::setStoppedState(Track *current, State state) {
 	current->state.state = state;
 	current->state.position = 0;
+	if (current->isStreamCreated()) {
+		alSourceStop(current->stream.source);
+		alSourcef(current->stream.source, AL_GAIN, 1);
+	}
 }
 
 void Mixer::clearStoppedAtStart(const AudioMsgId &audio) {
@@ -1209,18 +1212,14 @@ int32 Fader::updateOnePlayback(Mixer::Track *track, bool &hasPlaying, bool &hasF
 		if (fading || playing) {
 			fading = false;
 			playing = false;
-			if (track->isStreamCreated()) {
-				alSourceStop(track->stream.source);
-				alSourcef(track->stream.source, AL_GAIN, 1);
-				if (errorHappened()) return EmitError;
-			}
 			if (track->state.state == State::Pausing) {
-				track->state.state = State::PausedAtEnd;
+				setStoppedState(track, State::PausedAtEnd);
 			} else if (track->state.state == State::Stopping) {
 				setStoppedState(track, State::Stopped);
 			} else {
 				setStoppedState(track, State::StoppedAtEnd);
 			}
+			if (errorHappened()) return EmitError;
 			emitSignals |= EmitStopped;
 		}
 	} else if (fading && state == AL_PLAYING) {
@@ -1232,9 +1231,6 @@ int32 Fader::updateOnePlayback(Mixer::Track *track, bool &hasPlaying, bool &hasF
 
 			switch (track->state.state) {
 			case State::Stopping: {
-				alSourceStop(track->stream.source);
-				if (errorHappened()) return EmitError;
-
 				setStoppedState(track);
 				state = AL_STOPPED;
 			} break;
@@ -1284,8 +1280,7 @@ int32 Fader::updateOnePlayback(Mixer::Track *track, bool &hasPlaying, bool &hasF
 }
 
 void Fader::setStoppedState(Mixer::Track *track, State state) {
-	track->state.state = state;
-	track->state.position = 0;
+	mixer()->setStoppedState(track, state);
 }
 
 void Fader::onSuppressSong() {

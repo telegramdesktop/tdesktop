@@ -466,6 +466,8 @@ private:
 		template <typename ToggleCallback>
 		Float(QWidget *parent, HistoryItem *item, ToggleCallback callback);
 
+		bool hiddenByWidget = false;
+		bool hiddenByHistory = false;
 		bool visible = false;
 		Animation visibleAnimation;
 		Window::Corner corner = Window::Corner::TopRight;
@@ -574,7 +576,8 @@ private:
 
 	void clearCachedBackground();
 	void checkCurrentFloatPlayer();
-	void toggleFloatPlayer(Float *instance, bool visible);
+	void toggleFloatPlayer(Float *instance);
+	void checkFloatPlayerVisibility();
 	void updateFloatPlayerPosition(Float *instance);
 	void removeFloatPlayer(Float *instance);
 	Float *currentFloatPlayer() const {

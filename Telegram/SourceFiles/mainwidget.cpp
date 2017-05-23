@@ -152,6 +152,9 @@ MainWidget::MainWidget(QWidget *parent, gsl::not_null<Window::Controller*> contr
 	subscribe(_controller->dialogsWidthRatio(), [this](float64) {
 		updateControlsGeometry();
 	});
+	subscribe(_controller->floatPlayerAreaUpdated(), [this] {
+		checkFloatPlayerVisibility();
+	});
 
 	QCoreApplication::instance()->installEventFilter(this);
 
@@ -234,7 +237,7 @@ void MainWidget::checkCurrentFloatPlayer() {
 	auto state = Media::Player::instance()->current(AudioMsgId::Type::Voice);
 	auto fullId = state.contextId();
 	auto last = currentFloatPlayer();
-	if (!last || last->widget->itemId() != fullId) {
+	if (!last || last->widget->detached() || last->widget->item()->fullId() != fullId) {
 		if (last) {
 			last->widget->detach();
 		}
@@ -243,9 +246,10 @@ void MainWidget::checkCurrentFloatPlayer() {
 				if (auto document = media->getDocument()) {
 					if (document->isRoundVideo()) {
 						_playerFloats.push_back(std::make_unique<Float>(this, item, [this](Float *instance, bool visible) {
-							toggleFloatPlayer(instance, visible);
+							instance->hiddenByWidget = !visible;
+							toggleFloatPlayer(instance);
 						}));
-						toggleFloatPlayer(currentFloatPlayer(), true);
+						checkFloatPlayerVisibility();
 					}
 				}
 			}
@@ -253,14 +257,30 @@ void MainWidget::checkCurrentFloatPlayer() {
 	}
 }
 
-void MainWidget::toggleFloatPlayer(Float *instance, bool visible) {
+void MainWidget::toggleFloatPlayer(Float *instance) {
+	auto visible = !instance->hiddenByHistory && !instance->hiddenByWidget && !instance->widget->detached();
 	if (instance->visible != visible) {
+		instance->widget->resetMouseState();
 		instance->visible = visible;
 		instance->visibleAnimation.start([this, instance] {
 			updateFloatPlayerPosition(instance);
 		}, visible ? 0. : 1., visible ? 1. : 0., st::slideDuration, visible ? anim::easeOutCirc : anim::linear);
 		updateFloatPlayerPosition(instance);
 	}
+}
+
+void MainWidget::checkFloatPlayerVisibility() {
+	auto instance = currentFloatPlayer();
+	if (!instance) {
+		return;
+	}
+
+	if (_history->isHidden() || _history->isItemCompletelyHidden(instance->widget->item())) {
+		instance->hiddenByHistory = false;
+	} else {
+		instance->hiddenByHistory = true;
+	}
+	toggleFloatPlayer(instance);
 }
 
 void MainWidget::updateFloatPlayerPosition(Float *instance) {
@@ -755,6 +775,7 @@ void MainWidget::noHider(HistoryHider *destroyed) {
 				} else {
 					_history->showAnimated(Window::SlideDirection::FromRight, animationParams);
 				}
+				checkFloatPlayerVisibility();
 			}
 		} else {
 			if (_forwardConfirm) {
@@ -796,6 +817,7 @@ void MainWidget::hiderLayer(object_ptr<HistoryHider> h) {
 		updateControlsGeometry();
 		_dialogs->activate();
 	}
+	checkFloatPlayerVisibility();
 }
 
 void MainWidget::forwardLayer(int forwardSelected) {
@@ -2498,6 +2520,8 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 		}
 		_dialogs->update();
 	}
+
+	checkFloatPlayerVisibility();
 }
 
 PeerData *MainWidget::ui_getPeerForMouseAction() {
@@ -2625,6 +2649,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 	_history->hide();
 	if (Adaptive::OneColumn()) _dialogs->hide();
 
+	checkFloatPlayerVisibility();
 	orderWidgets();
 }
 
@@ -2784,6 +2809,7 @@ void MainWidget::showNewWideSection(const Window::SectionMemento *memento, bool 
 		_wideSection->showFast();
 	}
 
+	checkFloatPlayerVisibility();
 	orderWidgets();
 }
 
@@ -3128,6 +3154,9 @@ void MainWidget::hideAll() {
 		_player->hide();
 		_playerHeight = 0;
 	}
+	for (auto &instance : _playerFloats) {
+		instance->widget->hide();
+	}
 }
 
 void MainWidget::showAll() {
@@ -3199,6 +3228,12 @@ void MainWidget::showAll() {
 		_playerHeight = _player->contentHeight();
 	}
 	updateControlsGeometry();
+	if (auto instance = currentFloatPlayer()) {
+		checkFloatPlayerVisibility();
+		if (instance->visible) {
+			instance->widget->show();
+		}
+	}
 
 	App::wnd()->checkHistoryActivation();
 }

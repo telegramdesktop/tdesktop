@@ -180,6 +180,7 @@ public:
 	void dragLeaveEvent(QDragLeaveEvent *e) override;
     void dropEvent(QDropEvent *e) override;
 
+	bool isItemCompletelyHidden(HistoryItem *item) const;
 	void updateTopBarSelection();
 
 	bool paintTopBar(Painter &p, int decreaseWidth, TimeMs ms);

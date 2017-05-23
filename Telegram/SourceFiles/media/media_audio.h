@@ -231,6 +231,7 @@ private:
 
 	};
 
+	// Thread: Any. Must be locked: AudioMutex.
 	void setStoppedState(Track *current, State state = State::Stopped);
 
 	Track *trackForType(AudioMsgId::Type type, int index = -1); // -1 uses currentIndex(type)

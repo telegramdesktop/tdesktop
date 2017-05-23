@@ -65,6 +65,9 @@ public:
 		return _gifPauseLevelChanged;
 	}
 	bool isGifPausedAtLeastFor(GifPauseReason reason) const;
+	base::Observable<void> &floatPlayerAreaUpdated() {
+		return _floatPlayerAreaUpdated;
+	}
 
 	struct ColumnLayout {
 		int bodyWidth;
@@ -104,6 +107,7 @@ private:
 
 	GifPauseReasons _gifPauseReasons = { 0 };
 	base::Observable<void> _gifPauseLevelChanged;
+	base::Observable<void> _floatPlayerAreaUpdated;
 
 	base::Variable<float64> _dialogsWidthRatio = { kDefaultDialogsWidthRatio };
 	base::Variable<bool> _dialogsListFocused = { false };

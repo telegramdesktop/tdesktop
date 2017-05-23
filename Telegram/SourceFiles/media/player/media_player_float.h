@@ -31,8 +31,8 @@ class Float : public TWidget, private base::Subscriber {
 public:
 	Float(QWidget *parent, HistoryItem *item, base::lambda<void(bool visible)> toggleCallback);
 
-	FullMsgId itemId() const {
-		return _item ? _item->fullId() : FullMsgId();
+	HistoryItem *item() const {
+		return _item;
 	}
 	void setOpacity(float64 opacity) {
 		_opacity = opacity;

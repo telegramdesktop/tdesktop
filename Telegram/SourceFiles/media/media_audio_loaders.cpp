@@ -125,8 +125,7 @@ AudioMsgId Loaders::clear(AudioMsgId::Type type) {
 }
 
 void Loaders::setStoppedState(Mixer::Track *track, State state) {
-	track->state.state = state;
-	track->state.position = 0;
+	mixer()->setStoppedState(track, state);
 }
 
 void Loaders::emitError(AudioMsgId::Type type) {

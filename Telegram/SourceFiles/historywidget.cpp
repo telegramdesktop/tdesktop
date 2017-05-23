@@ -662,16 +662,10 @@ void HistoryWidget::scrollToCurrentVoiceMessage(FullMsgId fromId, FullMsgId toId
 	// And the scrollTop will be reset back to scrollTopItem + scrollTopOffset.
 	notify_handlePendingHistoryUpdate();
 
-	auto fromTop = _list->itemTop(from);
 	auto toTop = _list->itemTop(to);
-	if (fromTop < 0 || toTop < 0) {
-		return;
-	}
-
-	auto scrollTop = _scroll->scrollTop();
-	auto scrollBottom = scrollTop + _scroll->height();
-	auto fromBottom = fromTop + from->height();
-	if (fromTop < scrollBottom && fromBottom > scrollTop) {
+	if (toTop >= 0 && !isItemCompletelyHidden(from)) {
+		auto scrollTop = _scroll->scrollTop();
+		auto scrollBottom = scrollTop + _scroll->height();
 		auto toBottom = toTop + to->height();
 		if ((toTop < scrollTop && toBottom < scrollBottom) || (toTop > scrollTop && toBottom > scrollBottom)) {
 			auto scrollTo = snap(itemTopForHighlight(to), 0, _scroll->scrollTopMax());
@@ -2636,10 +2630,22 @@ void HistoryWidget::onScroll() {
 	}
 }
 
+bool HistoryWidget::isItemCompletelyHidden(HistoryItem *item) const {
+	auto top = _list->itemTop(item);
+	if (top < 0) {
+		return true;
+	}
+
+	auto bottom = top + item->height();
+	auto scrollTop = _scroll->scrollTop();
+	auto scrollBottom = scrollTop + _scroll->height();
+	return (top >= scrollBottom || bottom <= scrollTop);
+}
+
 void HistoryWidget::visibleAreaUpdated() {
 	if (_list && !_scroll->isHidden()) {
-		int scrollTop = _scroll->scrollTop();
-		int scrollBottom = scrollTop + _scroll->height();
+		auto scrollTop = _scroll->scrollTop();
+		auto scrollBottom = scrollTop + _scroll->height();
 		_list->visibleAreaUpdated(scrollTop, scrollBottom);
 		if (_history->loadedAtBottom() && (_history->unreadCount() > 0 || (_migrated && _migrated->unreadCount() > 0))) {
 			auto showFrom = (_migrated && _migrated->showFrom) ? _migrated->showFrom : (_history ? _history->showFrom : nullptr);
@@ -2647,6 +2653,7 @@ void HistoryWidget::visibleAreaUpdated() {
 				historyWasRead(ReadServerHistoryChecks::OnlyIfUnread);
 			}
 		}
+		controller()->floatPlayerAreaUpdated().notify(true);
 	}
 }
 
