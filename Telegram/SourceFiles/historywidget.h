@@ -698,6 +698,8 @@ private:
 		setFieldText(TextWithTags(), events, undoHistoryAction);
 	}
 
+	void animatedScrollToItem(MsgId msgId);
+	void highlightMessage(HistoryItem *context);
 	void updateDragAreas();
 
 	// when scroll position or scroll area size changed this method
