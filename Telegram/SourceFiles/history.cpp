@@ -1859,12 +1859,14 @@ void History::setLastMessage(HistoryItem *msg) {
 }
 
 bool History::needUpdateInChatList() const {
-	if (inChatList(Dialogs::Mode::All) || isPinnedDialog()) {
+	if (inChatList(Dialogs::Mode::All)) {
 		return true;
 	} else if (peer->migrateTo()) {
 		return false;
+	} else if (isPinnedDialog()) {
+		return true;
 	}
-	return (!peer->isChannel() || peer->asChannel()->amIn());
+	return !peer->isChannel() || peer->asChannel()->amIn();
 }
 
 void History::setChatsListDate(const QDateTime &date) {
