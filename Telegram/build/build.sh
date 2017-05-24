@@ -196,7 +196,6 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
   fi
 
   gyp/refresh.sh
-  cd ../
   xcodebuild -project Telegram.xcodeproj -alltargets -configuration Release build
 
   if [ ! -d "$ReleasePath/$BinaryName.app" ]; then
