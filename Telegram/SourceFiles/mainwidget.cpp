@@ -74,6 +74,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace {
 
+constexpr auto kSaveFloatPlayerPositionTimeoutMs = TimeMs(1000);
+
 MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
 	switch (type) {
 	case OverviewPhotos: return MTP_inputMessagesFilterPhotos();
@@ -99,7 +101,10 @@ StackItemSection::~StackItemSection() {
 }
 
 template <typename ToggleCallback, typename DraggedCallback>
-MainWidget::Float::Float(QWidget *parent, HistoryItem *item, ToggleCallback toggle, DraggedCallback dragged) : widget(parent, item, [this, toggle = std::move(toggle)](bool visible) {
+MainWidget::Float::Float(QWidget *parent, HistoryItem *item, ToggleCallback toggle, DraggedCallback dragged)
+: column(Window::Column::Second)
+, corner(Window::Corner::TopRight)
+, widget(parent, item, [this, toggle = std::move(toggle)](bool visible) {
 	toggle(this, visible);
 }, [this, dragged = std::move(dragged)](bool closed) {
 	dragged(this, closed);
@@ -253,8 +258,8 @@ void MainWidget::checkCurrentFloatPlayer() {
 						}, [this](Float *instance, bool closed) {
 							finishFloatPlayerDrag(instance, closed);
 						}));
-						currentFloatPlayer()->corner = _playerFloatCorner;
-						currentFloatPlayer()->column = _playerFloatColumn;
+						currentFloatPlayer()->column = AuthSession::Current().data().floatPlayerColumn();
+						currentFloatPlayer()->corner = AuthSession::Current().data().floatPlayerCorner();
 						checkFloatPlayerVisibility();
 					}
 				}
@@ -375,17 +380,19 @@ void MainWidget::updateFloatPlayerColumnCorner(QPoint center) {
 	Expects(!_playerFloats.empty());
 	auto size = _playerFloats.back()->widget->size();
 	auto min = INT_MAX;
-	auto checkSection = [this, center, size, &min](Window::AbstractSectionWidget *widget, Window::Column myColumn, Window::Column playerColumn) {
+	auto column = AuthSession::Current().data().floatPlayerColumn();
+	auto corner = AuthSession::Current().data().floatPlayerCorner();
+	auto checkSection = [this, center, size, &min, &column, &corner](Window::AbstractSectionWidget *widget, Window::Column myColumn, Window::Column playerColumn) {
 		auto rect = mapFromGlobal(widget->rectForFloatPlayer(myColumn, playerColumn));
 		auto left = rect.x() + (size.width() / 2);
 		auto right = rect.x() + rect.width() - (size.width() / 2);
 		auto top = rect.y() + (size.height() / 2);
 		auto bottom = rect.y() + rect.height() - (size.height() / 2);
-		auto checkCorner = [this, playerColumn, &min](int distance, Window::Corner corner) {
+		auto checkCorner = [this, playerColumn, &min, &column, &corner](int distance, Window::Corner checked) {
 			if (min > distance) {
 				min = distance;
-				_playerFloatColumn = playerColumn;
-				_playerFloatCorner = corner;
+				column = playerColumn;
+				corner = checked;
 			}
 		};
 		checkCorner((QPoint(left, top) - center).manhattanLength(), Window::Corner::TopLeft);
@@ -418,14 +425,22 @@ void MainWidget::updateFloatPlayerColumnCorner(QPoint center) {
 			checkSection(_history, Window::Column::Second, Window::Column::Third);
 		}
 	}
+	if (AuthSession::Current().data().floatPlayerColumn() != column) {
+		AuthSession::Current().data().setFloatPlayerColumn(column);
+		AuthSession::Current().saveDataDelayed(kSaveFloatPlayerPositionTimeoutMs);
+	}
+	if (AuthSession::Current().data().floatPlayerCorner() != corner) {
+		AuthSession::Current().data().setFloatPlayerCorner(corner);
+		AuthSession::Current().saveDataDelayed(kSaveFloatPlayerPositionTimeoutMs);
+	}
 }
 
 void MainWidget::finishFloatPlayerDrag(Float *instance, bool closed) {
 	instance->dragFrom = instance->widget->pos();
 
 	updateFloatPlayerColumnCorner(instance->widget->geometry().center());
-	instance->column = _playerFloatColumn;
-	instance->corner = _playerFloatCorner;
+	instance->column = AuthSession::Current().data().floatPlayerColumn();
+	instance->corner = AuthSession::Current().data().floatPlayerCorner();
 
 	instance->draggedAnimation.finish();
 	instance->draggedAnimation.start([this, instance] { updateFloatPlayerPosition(instance); }, 0., 1., st::slideDuration, anim::sineInOut);

@@ -30,6 +30,8 @@ namespace Window {
 namespace Notifications {
 class System;
 } // namespace Notifications
+enum class Column;
+enum class Corner;
 } // namespace Window
 
 namespace Calls {
@@ -102,14 +104,30 @@ public:
 	int tabbedSelectorSectionTooltipShown() const {
 		return _variables.tabbedSelectorSectionTooltipShown;
 	}
+	void setFloatPlayerColumn(Window::Column column) {
+		_variables.floatPlayerColumn = column;
+	}
+	Window::Column floatPlayerColumn() const {
+		return _variables.floatPlayerColumn;
+	}
+	void setFloatPlayerCorner(Window::Corner corner) {
+		_variables.floatPlayerCorner = corner;
+	}
+	Window::Corner floatPlayerCorner() const {
+		return _variables.floatPlayerCorner;
+	}
 
 private:
 	struct Variables {
+		Variables();
+
 		bool lastSeenWarningSeen = false;
 		EmojiPanelTab emojiPanelTab = EmojiPanelTab::Emoji;
 		bool tabbedSelectorSectionEnabled = true;
 		int tabbedSelectorSectionTooltipShown = 0;
 		QMap<QString, QString> soundOverrides;
+		Window::Column floatPlayerColumn;
+		Window::Corner floatPlayerCorner;
 	};
 
 	base::Variable<bool> _contactsLoaded = { false };

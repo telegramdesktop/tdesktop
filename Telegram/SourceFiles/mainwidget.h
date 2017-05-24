@@ -24,7 +24,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_common.h"
 #include "core/single_timer.h"
 #include "base/weak_unique_ptr.h"
-#include "window/section_widget.h"
 
 namespace Notify {
 struct PeerUpdate;
@@ -56,7 +55,10 @@ class PlayerWrapWidget;
 class TopBarWidget;
 class SectionMemento;
 class SectionWidget;
+class AbstractSectionWidget;
 struct SectionSlideParams;
+enum class Column;
+enum class Corner;
 } // namespace Window
 
 namespace Calls {
@@ -470,8 +472,8 @@ private:
 		bool hiddenByHistory = false;
 		bool visible = false;
 		Animation visibleAnimation;
-		Window::Corner corner = Window::Corner::TopRight;
-		Window::Column column = Window::Column::Second;
+		Window::Column column;
+		Window::Corner corner;
 		QPoint dragFrom;
 		Animation draggedAnimation;
 		object_ptr<Media::Player::Float> widget;
@@ -640,8 +642,6 @@ private:
 	object_ptr<Media::Player::Panel> _playerPanel;
 	bool _playerUsingPanel = false;
 	std::vector<std::unique_ptr<Float>> _playerFloats;
-	Window::Corner _playerFloatCorner = Window::Corner::TopRight;
-	Window::Column _playerFloatColumn = Window::Column::Second;
 
 	QPointer<ConfirmBox> _forwardConfirm; // for single column layout
 	object_ptr<HistoryHider> _hider = { nullptr };

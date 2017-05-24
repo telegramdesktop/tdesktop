@@ -28,12 +28,18 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/notifications_manager.h"
 #include "platform/platform_specific.h"
 #include "calls/calls_instance.h"
+#include "window/section_widget.h"
 
 namespace {
 
 constexpr auto kAutoLockTimeoutLateMs = TimeMs(3000);
 
 } // namespace
+
+AuthSessionData::Variables::Variables()
+: floatPlayerColumn(Window::Column::Second)
+, floatPlayerCorner(Window::Corner::TopRight) {
+}
 
 QByteArray AuthSessionData::serialize() const {
 	auto size = sizeof(qint32) * 4;
@@ -59,6 +65,8 @@ QByteArray AuthSessionData::serialize() const {
 			stream << i.key() << i.value();
 		}
 		stream << qint32(_variables.tabbedSelectorSectionTooltipShown);
+		stream << qint32(_variables.floatPlayerColumn);
+		stream << qint32(_variables.floatPlayerCorner);
 	}
 	return result;
 }
@@ -79,6 +87,8 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	qint32 lastSeenWarningSeen = 0;
 	qint32 tabbedSelectorSectionEnabled = 1;
 	qint32 tabbedSelectorSectionTooltipShown = 0;
+	qint32 floatPlayerColumn = static_cast<qint32>(Window::Column::Second);
+	qint32 floatPlayerCorner = static_cast<qint32>(Window::Corner::TopRight);
 	QMap<QString, QString> soundOverrides;
 	stream >> emojiPanTab;
 	stream >> lastSeenWarningSeen;
@@ -99,6 +109,9 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> tabbedSelectorSectionTooltipShown;
 	}
+	if (!stream.atEnd()) {
+		stream >> floatPlayerColumn >> floatPlayerCorner;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: Bad data for AuthSessionData::constructFromSerialized()"));
 		return;
@@ -114,6 +127,19 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	_variables.tabbedSelectorSectionEnabled = (tabbedSelectorSectionEnabled == 1);
 	_variables.soundOverrides = std::move(soundOverrides);
 	_variables.tabbedSelectorSectionTooltipShown = tabbedSelectorSectionTooltipShown;
+	auto uncheckedColumn = static_cast<Window::Column>(floatPlayerColumn);
+	switch (uncheckedColumn) {
+	case Window::Column::First:
+	case Window::Column::Second:
+	case Window::Column::Third: _variables.floatPlayerColumn = uncheckedColumn; break;
+	}
+	auto uncheckedCorner = static_cast<Window::Corner>(floatPlayerCorner);
+	switch (uncheckedCorner) {
+	case Window::Corner::TopLeft:
+	case Window::Corner::TopRight:
+	case Window::Corner::BottomLeft:
+	case Window::Corner::BottomRight: _variables.floatPlayerCorner = uncheckedCorner; break;
+	}
 }
 
 QString AuthSessionData::getSoundPath(const QString &key) const {
