@@ -41,6 +41,12 @@ class Controller;
 
 namespace ChatHelpers {
 
+enum class SelectorTab {
+	Emoji,
+	Stickers,
+	Gifs,
+};
+
 class EmojiListWidget;
 class StickersListWidget;
 class GifsListWidget;
@@ -69,11 +75,10 @@ public:
 		return _a_slide.animating();
 	}
 
-	using TabType = EmojiPanelTab;
-	void setAfterShownCallback(base::lambda<void(TabType)> callback) {
+	void setAfterShownCallback(base::lambda<void(SelectorTab)> callback) {
 		_afterShownCallback = std::move(callback);
 	}
-	void setBeforeHidingCallback(base::lambda<void(TabType)> callback) {
+	void setBeforeHidingCallback(base::lambda<void(SelectorTab)> callback) {
 		_beforeHidingCallback = std::move(callback);
 	}
 
@@ -110,12 +115,12 @@ private:
 	public:
 		static constexpr auto kCount = 3;
 
-		Tab(TabType type, object_ptr<Inner> widget);
+		Tab(SelectorTab type, object_ptr<Inner> widget);
 
 		object_ptr<Inner> takeWidget();
 		void returnWidget(object_ptr<Inner> widget);
 
-		TabType type() const {
+		SelectorTab type() const {
 			return _type;
 		}
 		gsl::not_null<Inner*> widget() const {
@@ -134,7 +139,7 @@ private:
 		}
 
 	private:
-		TabType _type = TabType::Emoji;
+		SelectorTab _type = SelectorTab::Emoji;
 		object_ptr<Inner> _widget = { nullptr };
 		QPointer<Inner> _weak;
 		object_ptr<InnerFooter> _footer;
@@ -155,10 +160,10 @@ private:
 	void setWidgetToScrollArea();
 	void createTabsSlider();
 	void switchTab();
-	gsl::not_null<Tab*> getTab(TabType type) {
+	gsl::not_null<Tab*> getTab(SelectorTab type) {
 		return &_tabs[static_cast<int>(type)];
 	}
-	gsl::not_null<const Tab*> getTab(TabType type) const {
+	gsl::not_null<const Tab*> getTab(SelectorTab type) const {
 		return &_tabs[static_cast<int>(type)];
 	}
 	gsl::not_null<Tab*> currentTab() {
@@ -183,10 +188,10 @@ private:
 	object_ptr<Ui::PlainShadow> _bottomShadow;
 	object_ptr<Ui::ScrollArea> _scroll;
 	std::array<Tab, Tab::kCount> _tabs;
-	TabType _currentTabType = TabType::Emoji;
+	SelectorTab _currentTabType = SelectorTab::Emoji;
 
-	base::lambda<void(TabType)> _afterShownCallback;
-	base::lambda<void(TabType)> _beforeHidingCallback;
+	base::lambda<void(SelectorTab)> _afterShownCallback;
+	base::lambda<void(SelectorTab)> _beforeHidingCallback;
 
 };
 

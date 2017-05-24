@@ -29,6 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "platform/platform_specific.h"
 #include "calls/calls_instance.h"
 #include "window/section_widget.h"
+#include "chat_helpers/tabbed_selector.h"
 
 namespace {
 
@@ -37,7 +38,8 @@ constexpr auto kAutoLockTimeoutLateMs = TimeMs(3000);
 } // namespace
 
 AuthSessionData::Variables::Variables()
-: floatPlayerColumn(Window::Column::Second)
+: selectorTab(ChatHelpers::SelectorTab::Emoji)
+, floatPlayerColumn(Window::Column::Second)
 , floatPlayerCorner(Window::Corner::TopRight) {
 }
 
@@ -57,7 +59,7 @@ QByteArray AuthSessionData::serialize() const {
 
 		QDataStream stream(&buffer);
 		stream.setVersion(QDataStream::Qt_5_1);
-		stream << static_cast<qint32>(_variables.emojiPanelTab);
+		stream << static_cast<qint32>(_variables.selectorTab);
 		stream << qint32(_variables.lastSeenWarningSeen ? 1 : 0);
 		stream << qint32(_variables.tabbedSelectorSectionEnabled ? 1 : 0);
 		stream << qint32(_variables.soundOverrides.size());
@@ -83,14 +85,14 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	}
 	QDataStream stream(&buffer);
 	stream.setVersion(QDataStream::Qt_5_1);
-	qint32 emojiPanTab = static_cast<qint32>(EmojiPanelTab::Emoji);
+	qint32 selectorTab = static_cast<qint32>(ChatHelpers::SelectorTab::Emoji);
 	qint32 lastSeenWarningSeen = 0;
 	qint32 tabbedSelectorSectionEnabled = 1;
 	qint32 tabbedSelectorSectionTooltipShown = 0;
 	qint32 floatPlayerColumn = static_cast<qint32>(Window::Column::Second);
 	qint32 floatPlayerCorner = static_cast<qint32>(Window::Corner::TopRight);
 	QMap<QString, QString> soundOverrides;
-	stream >> emojiPanTab;
+	stream >> selectorTab;
 	stream >> lastSeenWarningSeen;
 	if (!stream.atEnd()) {
 		stream >> tabbedSelectorSectionEnabled;
@@ -117,11 +119,11 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 		return;
 	}
 
-	auto uncheckedTab = static_cast<EmojiPanelTab>(emojiPanTab);
+	auto uncheckedTab = static_cast<ChatHelpers::SelectorTab>(selectorTab);
 	switch (uncheckedTab) {
-	case EmojiPanelTab::Emoji:
-	case EmojiPanelTab::Stickers:
-	case EmojiPanelTab::Gifs: _variables.emojiPanelTab = uncheckedTab; break;
+	case ChatHelpers::SelectorTab::Emoji:
+	case ChatHelpers::SelectorTab::Stickers:
+	case ChatHelpers::SelectorTab::Gifs: _variables.selectorTab = uncheckedTab; break;
 	}
 	_variables.lastSeenWarningSeen = (lastSeenWarningSeen == 1);
 	_variables.tabbedSelectorSectionEnabled = (tabbedSelectorSectionEnabled == 1);

@@ -38,13 +38,11 @@ namespace Calls {
 class Instance;
 } // namespace Calls
 
-class ApiWrap;
+namespace ChatHelpers {
+enum class SelectorTab;
+} // namespace ChatHelpers
 
-enum class EmojiPanelTab {
-	Emoji,
-	Stickers,
-	Gifs,
-};
+class ApiWrap;
 
 class AuthSessionData final {
 public:
@@ -73,11 +71,11 @@ public:
 	void setLastSeenWarningSeen(bool lastSeenWarningSeen) {
 		_variables.lastSeenWarningSeen = lastSeenWarningSeen;
 	}
-	EmojiPanelTab emojiPanelTab() const {
-		return _variables.emojiPanelTab;
+	ChatHelpers::SelectorTab selectorTab() const {
+		return _variables.selectorTab;
 	}
-	void setEmojiPanelTab(EmojiPanelTab tab) {
-		_variables.emojiPanelTab = tab;
+	void setSelectorTab(ChatHelpers::SelectorTab tab) {
+		_variables.selectorTab = tab;
 	}
 	bool tabbedSelectorSectionEnabled() const {
 		return _variables.tabbedSelectorSectionEnabled;
@@ -122,7 +120,7 @@ private:
 		Variables();
 
 		bool lastSeenWarningSeen = false;
-		EmojiPanelTab emojiPanelTab = EmojiPanelTab::Emoji;
+		ChatHelpers::SelectorTab selectorTab;
 		bool tabbedSelectorSectionEnabled = true;
 		int tabbedSelectorSectionTooltipShown = 0;
 		QMap<QString, QString> soundOverrides;

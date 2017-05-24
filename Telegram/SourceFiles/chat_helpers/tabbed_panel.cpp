@@ -42,13 +42,13 @@ TabbedPanel::TabbedPanel(QWidget *parent, gsl::not_null<Window::Controller*> con
 , _selector(std::move(selector)) {
 	_selector->setParent(this);
 	_selector->setRoundRadius(st::buttonRadius);
-	_selector->setAfterShownCallback([this](EmojiPanelTab tab) {
-		if (tab == EmojiPanelTab::Gifs) {
+	_selector->setAfterShownCallback([this](SelectorTab tab) {
+		if (tab == SelectorTab::Gifs) {
 			_controller->enableGifPauseReason(Window::GifPauseReason::SavedGifs);
 		}
 	});
-	_selector->setBeforeHidingCallback([this](EmojiPanelTab tab) {
-		if (tab == EmojiPanelTab::Gifs) {
+	_selector->setBeforeHidingCallback([this](SelectorTab tab) {
+		if (tab == SelectorTab::Gifs) {
 			_controller->disableGifPauseReason(Window::GifPauseReason::SavedGifs);
 		}
 	});

@@ -258,7 +258,7 @@ void TabbedSelector::SlideAnimation::paintFrame(QPainter &p, float64 dt, float64
 	p.drawImage(outerLeft / cIntRetinaFactor(), outerTop / cIntRetinaFactor(), _frame, outerLeft, outerTop, outerRight - outerLeft, outerBottom - outerTop);
 }
 
-TabbedSelector::Tab::Tab(TabType type, object_ptr<Inner> widget)
+TabbedSelector::Tab::Tab(SelectorTab type, object_ptr<Inner> widget)
 : _type(type)
 , _widget(std::move(widget))
 , _weak(_widget)
@@ -285,11 +285,11 @@ TabbedSelector::TabbedSelector(QWidget *parent, gsl::not_null<Window::Controller
 , _bottomShadow(this, st::shadowFg)
 , _scroll(this, st::emojiScroll)
 , _tabs { {
-	Tab { TabType::Emoji, object_ptr<EmojiListWidget>(this, controller) },
-	Tab { TabType::Stickers, object_ptr<StickersListWidget>(this, controller) },
-	Tab { TabType::Gifs, object_ptr<GifsListWidget>(this, controller) },
+	Tab { SelectorTab::Emoji, object_ptr<EmojiListWidget>(this, controller) },
+	Tab { SelectorTab::Stickers, object_ptr<StickersListWidget>(this, controller) },
+	Tab { SelectorTab::Gifs, object_ptr<GifsListWidget>(this, controller) },
 } }
-, _currentTabType(AuthSession::Current().data().emojiPanelTab()) {
+, _currentTabType(AuthSession::Current().data().selectorTab()) {
 	resize(st::emojiPanWidth, st::emojiPanMaxHeight);
 
 	for (auto &tab : _tabs) {
@@ -394,7 +394,7 @@ void TabbedSelector::paintSlideFrame(Painter &p, TimeMs ms) {
 }
 
 void TabbedSelector::paintContent(Painter &p) {
-	auto showSectionIcons = (_currentTabType != TabType::Gifs);
+	auto showSectionIcons = (_currentTabType != SelectorTab::Gifs);
 	auto &bottomBg = showSectionIcons ? st::emojiPanCategories : st::emojiPanBg;
 	if (_roundRadius > 0) {
 		auto topPart = QRect(0, 0, width(), _tabsSlider->height() + _roundRadius);
@@ -424,7 +424,7 @@ int TabbedSelector::marginBottom() const {
 
 void TabbedSelector::refreshStickers() {
 	stickers()->refreshStickers();
-	if (isHidden() || _currentTabType != TabType::Stickers) {
+	if (isHidden() || _currentTabType != SelectorTab::Stickers) {
 		stickers()->preloadImages();
 	}
 }
@@ -500,7 +500,7 @@ void TabbedSelector::afterShown() {
 }
 
 void TabbedSelector::stickersInstalled(uint64 setId) {
-	_tabsSlider->setActiveSection(static_cast<int>(TabType::Stickers));
+	_tabsSlider->setActiveSection(static_cast<int>(SelectorTab::Stickers));
 	stickers()->showStickerSet(setId);
 }
 
@@ -512,7 +512,7 @@ void TabbedSelector::showAll() {
 	currentTab()->footer()->show();
 	_scroll->show();
 	_topShadow->show();
-	_bottomShadow->setVisible(_currentTabType == TabType::Gifs);
+	_bottomShadow->setVisible(_currentTabType == SelectorTab::Gifs);
 	_tabsSlider->show();
 }
 
@@ -554,7 +554,7 @@ void TabbedSelector::createTabsSlider() {
 void TabbedSelector::switchTab() {
 	auto tab = _tabsSlider->activeSection();
 	t_assert(tab >= 0 && tab < Tab::kCount);
-	auto newTabType = static_cast<TabType>(tab);
+	auto newTabType = static_cast<SelectorTab>(tab);
 	if (_currentTabType == newTabType) {
 		return;
 	}
@@ -597,20 +597,20 @@ void TabbedSelector::switchTab() {
 	_a_slide.start([this] { update(); }, 0., 1., st::emojiPanSlideDuration, anim::linear);
 	update();
 
-	AuthSession::Current().data().setEmojiPanelTab(_currentTabType);
+	AuthSession::Current().data().setSelectorTab(_currentTabType);
 	AuthSession::Current().saveDataDelayed(kSaveChosenTabTimeout);
 }
 
 gsl::not_null<EmojiListWidget*> TabbedSelector::emoji() const {
-	return static_cast<EmojiListWidget*>(getTab(TabType::Emoji)->widget().get());
+	return static_cast<EmojiListWidget*>(getTab(SelectorTab::Emoji)->widget().get());
 }
 
 gsl::not_null<StickersListWidget*> TabbedSelector::stickers() const {
-	return static_cast<StickersListWidget*>(getTab(TabType::Stickers)->widget().get());
+	return static_cast<StickersListWidget*>(getTab(SelectorTab::Stickers)->widget().get());
 }
 
 gsl::not_null<GifsListWidget*> TabbedSelector::gifs() const {
-	return static_cast<GifsListWidget*>(getTab(TabType::Gifs)->widget().get());
+	return static_cast<GifsListWidget*>(getTab(SelectorTab::Gifs)->widget().get());
 }
 
 void TabbedSelector::setWidgetToScrollArea() {
