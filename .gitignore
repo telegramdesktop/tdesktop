@@ -2,6 +2,7 @@
 /Debug/
 /Release/
 /Deploy/
+/ThirdParty/
 /Telegram/build/target
 /Telegram/GeneratedFiles/
 /Telegram/SourceFiles/art/grid.png

@@ -730,8 +730,8 @@ void Messenger::checkMapVersion() {
 	if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000036) {
-				versionFeatures = QString::fromUtf8("\xE2\x80\x94 Telegram Calls are now available on desktops: secure, crystal-clear, constantly improved by artificial intelligence.\n\xE2\x80\x94 Bug fixes and other minor improvements.");
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1001003) {
+				versionFeatures = QString::fromUtf8("\xE2\x80\x94 Improved video messages playback.\n\xE2\x80\x94 Video and audio messages now play one after another.");
 			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1001000) {
 				versionFeatures = langNewVersionText();
 			} else {
