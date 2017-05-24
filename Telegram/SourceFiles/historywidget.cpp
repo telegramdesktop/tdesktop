@@ -4789,6 +4789,8 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 
 		_fieldAutocomplete->setBoundings(_scroll->geometry());
 		_historyDown->moveToRight(st::historyToDownPosition.x(), _scroll->y() + _scroll->height() - _historyDown->height() - st::historyToDownPosition.y());
+
+		controller()->floatPlayerAreaUpdated().notify(true);
 	}
 
 	_list->recountHeight();

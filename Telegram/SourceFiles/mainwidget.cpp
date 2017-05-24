@@ -292,6 +292,7 @@ void MainWidget::checkFloatPlayerVisibility() {
 		instance->hiddenByHistory = true;
 	}
 	toggleFloatPlayer(instance);
+	updateFloatPlayerPosition(instance);
 }
 
 void MainWidget::updateFloatPlayerPosition(Float *instance) {

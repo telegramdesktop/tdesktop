@@ -3094,7 +3094,11 @@ void DialogsWidget::updateControlsGeometry() {
 		_updateTelegram->setGeometry(0, height() - updateHeight, width(), updateHeight);
 		scrollHeight -= updateHeight;
 	}
+	auto wasScrollHeight = _scroll->height();
 	_scroll->setGeometry(0, scrollTop, width(), scrollHeight);
+	if (scrollHeight != wasScrollHeight) {
+		controller()->floatPlayerAreaUpdated().notify(true);
+	}
 	if (addToScroll) {
 		_scroll->scrollToY(newScrollTop);
 	} else {
