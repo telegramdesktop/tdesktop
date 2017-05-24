@@ -140,7 +140,7 @@ void Float::prepareShadow() {
 		auto extend = 2 * st::lineWidth;
 		p.drawEllipse(getInnerRect().marginsAdded(QMargins(extend, extend, extend, extend)));
 	}
-	_shadow = App::pixmapFromImageInPlace(Images::prepareBlur(shadow));
+	_shadow = App::pixmapFromImageInPlace(Images::prepareBlur(std::move(shadow)));
 }
 
 QRect Float::getInnerRect() const {
@@ -161,7 +161,7 @@ void Float::paintEvent(QPaintEvent *e) {
 	auto inner = getInnerRect();
 	p.drawImage(inner.topLeft(), _frame);
 
-	auto progress = _roundPlayback ? _roundPlayback->value() : 1.;
+	auto progress = _roundPlayback ? _roundPlayback->value(getms()) : 1.;
 	if (progress > 0.) {
 		auto pen = st::historyVideoMessageProgressFg->p;
 		auto was = p.pen();

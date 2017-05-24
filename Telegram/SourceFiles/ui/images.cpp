@@ -60,9 +60,11 @@ const QPixmap &circleMask(int width, int height) {
 } // namespace
 
 QImage prepareBlur(QImage img) {
-	QImage::Format fmt = img.format();
+	auto ratio = img.devicePixelRatio();
+	auto fmt = img.format();
 	if (fmt != QImage::Format_RGB32 && fmt != QImage::Format_ARGB32_Premultiplied) {
 		img = img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+		img.setDevicePixelRatio(ratio);
 		t_assert(!img.isNull());
 	}
 
@@ -85,8 +87,9 @@ QImage prepareBlur(QImage img) {
 					p.fillRect(0, 0, w, h, Qt::transparent);
 					p.drawImage(QRect(radius, radius, w - 2 * radius, h - 2 * radius), img, QRect(0, 0, w, h));
 				}
-				QImage was = img;
-				img = imgsmall;
+				imgsmall.setDevicePixelRatio(ratio);
+				auto was = img;
+				img = std::move(imgsmall);
 				imgsmall = QImage();
 				t_assert(!img.isNull());
 
@@ -293,7 +296,7 @@ QImage prepareOpaque(QImage image) {
 QImage prepare(QImage img, int w, int h, Images::Options options, int outerw, int outerh) {
 	t_assert(!img.isNull());
 	if (options.testFlag(Images::Option::Blurred)) {
-		img = prepareBlur(img);
+		img = prepareBlur(std::move(img));
 		t_assert(!img.isNull());
 	}
 	if (w <= 0 || (w == img.width() && (h <= 0 || h == img.height()))) {
@@ -752,7 +755,7 @@ QPixmap Image::pixBlurredColoredNoCache(style::color add, int32 w, int32 h) cons
 	restore();
 	if (_data.isNull()) return blank()->pix();
 
-	QImage img = Images::prepareBlur(_data.toImage());
+	auto img = Images::prepareBlur(_data.toImage());
 	if (h <= 0) {
 		img = img.scaledToWidth(w, Qt::SmoothTransformation);
 	} else {

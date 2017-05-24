@@ -242,7 +242,7 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		if (_goodLoaded || _data->thumb->loaded()) {
 			auto img = (_data->loaded() ? _data->full : (_data->medium->loaded() ? _data->medium : _data->thumb))->pix().toImage();
 			if (!_goodLoaded) {
-				img = Images::prepareBlur(img);
+				img = Images::prepareBlur(std::move(img));
 			}
 			if (img.width() == img.height()) {
 				if (img.width() != size) {
@@ -344,7 +344,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		_thumbLoaded = thumbLoaded;
 
 		if (_thumbLoaded && !_data->thumb->isNull()) {
-			int32 size = _width * cIntRetinaFactor();
+			auto size = _width * cIntRetinaFactor();
 			auto img = Images::prepareBlur(_data->thumb->pix().toImage());
 			if (img.width() == img.height()) {
 				if (img.width() != size) {

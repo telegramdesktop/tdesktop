@@ -88,6 +88,11 @@ float64 Playback::value() const {
 	return qMin(a_value.current(), 1.);
 }
 
+float64 Playback::value(TimeMs ms) {
+	_a_value.step(ms);
+	return value();
+}
+
 void Playback::setValue(float64 value, bool animated) {
 	if (animated) {
 		a_value.start(value);

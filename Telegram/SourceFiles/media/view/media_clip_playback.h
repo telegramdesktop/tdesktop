@@ -41,6 +41,7 @@ public:
 	}
 	void setValue(float64 value, bool animated);
 	float64 value() const;
+	float64 value(TimeMs ms);
 
 	void updateState(const Player::TrackState &state);
 	void updateLoadingState(float64 progress);

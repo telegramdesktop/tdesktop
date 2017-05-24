@@ -1972,7 +1972,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 		if (displayMute) {
 			_roundPlayback.reset();
 		} else if (_roundPlayback) {
-			auto value = _roundPlayback->value();
+			auto value = _roundPlayback->value(ms);
 			if (value > 0.) {
 				auto pen = st::historyVideoMessageProgressFg->p;
 				auto was = p.pen();
