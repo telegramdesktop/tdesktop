@@ -40,7 +40,7 @@ constexpr auto kAutoLockTimeoutLateMs = TimeMs(3000);
 AuthSessionData::Variables::Variables()
 : selectorTab(ChatHelpers::SelectorTab::Emoji)
 , floatPlayerColumn(Window::Column::Second)
-, floatPlayerCorner(Window::Corner::TopRight) {
+, floatPlayerCorner(RectPart::TopRight) {
 }
 
 QByteArray AuthSessionData::serialize() const {
@@ -90,7 +90,7 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	qint32 tabbedSelectorSectionEnabled = 1;
 	qint32 tabbedSelectorSectionTooltipShown = 0;
 	qint32 floatPlayerColumn = static_cast<qint32>(Window::Column::Second);
-	qint32 floatPlayerCorner = static_cast<qint32>(Window::Corner::TopRight);
+	qint32 floatPlayerCorner = static_cast<qint32>(RectPart::TopRight);
 	QMap<QString, QString> soundOverrides;
 	stream >> selectorTab;
 	stream >> lastSeenWarningSeen;
@@ -135,12 +135,12 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	case Window::Column::Second:
 	case Window::Column::Third: _variables.floatPlayerColumn = uncheckedColumn; break;
 	}
-	auto uncheckedCorner = static_cast<Window::Corner>(floatPlayerCorner);
+	auto uncheckedCorner = static_cast<RectPart>(floatPlayerCorner);
 	switch (uncheckedCorner) {
-	case Window::Corner::TopLeft:
-	case Window::Corner::TopRight:
-	case Window::Corner::BottomLeft:
-	case Window::Corner::BottomRight: _variables.floatPlayerCorner = uncheckedCorner; break;
+	case RectPart::TopLeft:
+	case RectPart::TopRight:
+	case RectPart::BottomLeft:
+	case RectPart::BottomRight: _variables.floatPlayerCorner = uncheckedCorner; break;
 	}
 }
 

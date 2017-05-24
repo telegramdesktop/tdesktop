@@ -58,7 +58,6 @@ class SectionWidget;
 class AbstractSectionWidget;
 struct SectionSlideParams;
 enum class Column;
-enum class Corner;
 } // namespace Window
 
 namespace Calls {
@@ -256,7 +255,7 @@ public:
 	void onShareContact(const PeerId &peer, UserData *contact);
 	bool onSendPaths(const PeerId &peer);
 	void onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data);
-	bool selectingPeer(bool withConfirm = false);
+	bool selectingPeer(bool withConfirm = false) const;
 	bool selectingPeerForInlineSwitch();
 	void offerPeer(PeerId peer);
 	void dialogsActivate();
@@ -471,11 +470,13 @@ private:
 		bool hiddenByWidget = false;
 		bool hiddenByHistory = false;
 		bool visible = false;
+		RectPart animationSide;
 		Animation visibleAnimation;
 		Window::Column column;
-		Window::Corner corner;
+		RectPart corner;
 		QPoint dragFrom;
 		Animation draggedAnimation;
+		bool hiddenByDrag = false;
 		object_ptr<Media::Player::Float> widget;
 	};
 
@@ -579,16 +580,19 @@ private:
 
 	void clearCachedBackground();
 	void checkCurrentFloatPlayer();
-	void toggleFloatPlayer(Float *instance);
+	void toggleFloatPlayer(gsl::not_null<Float*> instance);
 	void checkFloatPlayerVisibility();
-	void updateFloatPlayerPosition(Float *instance);
-	void removeFloatPlayer(Float *instance);
+	void updateFloatPlayerPosition(gsl::not_null<Float*> instance);
+	void removeFloatPlayer(gsl::not_null<Float*> instance);
 	Float *currentFloatPlayer() const {
 		return _playerFloats.empty() ? nullptr : _playerFloats.back().get();
 	}
-	Window::AbstractSectionWidget *getFloatPlayerSection(gsl::not_null<Window::Column*> column);
-	void finishFloatPlayerDrag(Float *instance, bool closed);
+	Window::AbstractSectionWidget *getFloatPlayerSection(gsl::not_null<Window::Column*> column) const;
+	void finishFloatPlayerDrag(gsl::not_null<Float*> instance, bool closed);
 	void updateFloatPlayerColumnCorner(QPoint center);
+	QPoint getFloatPlayerPosition(gsl::not_null<Float*> instance) const;
+	QPoint getFloatPlayerHiddenPosition(QPoint position, QSize size, RectPart side) const;
+	RectPart getFloatPlayerSide(QPoint center) const;
 
 	bool ptsUpdated(int32 pts, int32 ptsCount);
 	bool ptsUpdated(int32 pts, int32 ptsCount, const MTPUpdates &updates);

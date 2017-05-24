@@ -33,29 +33,6 @@ enum class Column {
 	Third,
 };
 
-enum class Corner {
-	TopLeft,
-	TopRight,
-	BottomLeft,
-	BottomRight,
-};
-
-inline bool IsTopCorner(Corner corner) {
-	return (corner == Corner::TopLeft) || (corner == Corner::TopRight);
-}
-
-inline bool IsBottomCorner(Corner corner) {
-	return !IsTopCorner(corner);
-}
-
-inline bool IsLeftCorner(Corner corner) {
-	return (corner == Corner::TopLeft) || (corner == Corner::BottomLeft);
-}
-
-inline bool IsRightCorner(Corner corner) {
-	return !IsLeftCorner(corner);
-}
-
 class AbstractSectionWidget : public TWidget, protected base::Subscriber {
 public:
 	AbstractSectionWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent), _controller(controller) {

@@ -27,6 +27,54 @@ QString GetOverride(const QString &familyName);
 
 } // namespace
 
+enum class RectPart {
+	None = 0,
+
+	TopLeft = (1 << 0),
+	Top = (1 << 1),
+	TopRight = (1 << 2),
+	Left = (1 << 3),
+	Center = (1 << 4),
+	Right = (1 << 5),
+	BottomLeft = (1 << 6),
+	Bottom = (1 << 7),
+	BottomRight = (1 << 8),
+
+	FullTop = TopLeft | Top | TopRight,
+	NoTopBottom = Left | Center | Right,
+	FullBottom = BottomLeft | Bottom | BottomRight,
+	NoTop = NoTopBottom | FullBottom,
+	NoBottom = FullTop | NoTopBottom,
+
+	FullLeft = TopLeft | Left | BottomLeft,
+	NoLeftRight = Top | Center | Bottom,
+	FullRight = TopRight | Right | BottomRight,
+	NoLeft = NoLeftRight | FullRight,
+	NoRight = FullLeft | NoLeftRight,
+
+	CornersMask = TopLeft | TopRight | BottomLeft | BottomRight,
+	SidesMask = Top | Bottom | Left | Right,
+
+	All = FullTop | NoTop,
+};
+Q_DECLARE_FLAGS(RectParts, RectPart);
+
+inline bool IsTopCorner(RectPart corner) {
+	return (corner == RectPart::TopLeft) || (corner == RectPart::TopRight);
+}
+
+inline bool IsBottomCorner(RectPart corner) {
+	return (corner == RectPart::BottomLeft) || (corner == RectPart::BottomRight);
+}
+
+inline bool IsLeftCorner(RectPart corner) {
+	return (corner == RectPart::TopLeft) || (corner == RectPart::BottomLeft);
+}
+
+inline bool IsRightCorner(RectPart corner) {
+	return (corner == RectPart::TopRight) || (corner == RectPart::BottomRight);
+}
+
 class Painter : public QPainter {
 public:
 	explicit Painter(QPaintDevice *device) : QPainter(device) {

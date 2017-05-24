@@ -40,6 +40,9 @@ public:
 			update();
 		}
 	}
+	float64 countOpacityByParent() const {
+		return outRatio();
+	}
 	void detach();
 	bool detached() const {
 		return !_item;

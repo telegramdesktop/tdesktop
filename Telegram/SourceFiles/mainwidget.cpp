@@ -102,8 +102,9 @@ StackItemSection::~StackItemSection() {
 
 template <typename ToggleCallback, typename DraggedCallback>
 MainWidget::Float::Float(QWidget *parent, HistoryItem *item, ToggleCallback toggle, DraggedCallback dragged)
-: column(Window::Column::Second)
-, corner(Window::Corner::TopRight)
+: animationSide(RectPart::Right)
+, column(Window::Column::Second)
+, corner(RectPart::TopRight)
 , widget(parent, item, [this, toggle = std::move(toggle)](bool visible) {
 	toggle(this, visible);
 }, [this, dragged = std::move(dragged)](bool closed) {
@@ -252,10 +253,10 @@ void MainWidget::checkCurrentFloatPlayer() {
 			if (auto media = item->getMedia()) {
 				if (auto document = media->getDocument()) {
 					if (document->isRoundVideo()) {
-						_playerFloats.push_back(std::make_unique<Float>(this, item, [this](Float *instance, bool visible) {
+						_playerFloats.push_back(std::make_unique<Float>(this, item, [this](gsl::not_null<Float*> instance, bool visible) {
 							instance->hiddenByWidget = !visible;
 							toggleFloatPlayer(instance);
-						}, [this](Float *instance, bool closed) {
+						}, [this](gsl::not_null<Float*> instance, bool closed) {
 							finishFloatPlayerDrag(instance, closed);
 						}));
 						currentFloatPlayer()->column = AuthSession::Current().data().floatPlayerColumn();
@@ -268,11 +269,15 @@ void MainWidget::checkCurrentFloatPlayer() {
 	}
 }
 
-void MainWidget::toggleFloatPlayer(Float *instance) {
+void MainWidget::toggleFloatPlayer(gsl::not_null<Float*> instance) {
 	auto visible = !instance->hiddenByHistory && !instance->hiddenByWidget && !instance->widget->detached();
 	if (instance->visible != visible) {
 		instance->widget->resetMouseState();
 		instance->visible = visible;
+		if (!instance->visibleAnimation.animating() && !instance->hiddenByDrag) {
+			auto finalRect = QRect(getFloatPlayerPosition(instance), instance->widget->size());
+			instance->animationSide = getFloatPlayerSide(finalRect.center());
+		}
 		instance->visibleAnimation.start([this, instance] {
 			updateFloatPlayerPosition(instance);
 		}, visible ? 0. : 1., visible ? 1. : 0., st::slideDuration, visible ? anim::easeOutCirc : anim::linear);
@@ -295,7 +300,7 @@ void MainWidget::checkFloatPlayerVisibility() {
 	updateFloatPlayerPosition(instance);
 }
 
-void MainWidget::updateFloatPlayerPosition(Float *instance) {
+void MainWidget::updateFloatPlayerPosition(gsl::not_null<Float*> instance) {
 	auto visible = instance->visibleAnimation.current(instance->visible ? 1. : 0.);
 	if (visible == 0. && !instance->visible) {
 		instance->widget->hide();
@@ -307,27 +312,25 @@ void MainWidget::updateFloatPlayerPosition(Float *instance) {
 		return;
 	}
 
-	instance->widget->setOpacity(visible * visible);
-	if (instance->widget->isHidden()) {
-		instance->widget->show();
-	}
-
-	auto column = instance->column;
-	auto section = getFloatPlayerSection(&column);
-	auto rect = section->rectForFloatPlayer(column, instance->column);
-	auto position = rect.topLeft();
-	if (Window::IsBottomCorner(instance->corner)) {
-		position.setY(position.y() + rect.height() - instance->widget->height());
-	}
-	if (Window::IsRightCorner(instance->corner)) {
-		position.setX(position.x() + rect.width() - instance->widget->width());
-	}
-	position = mapFromGlobal(position);
-
-	auto hiddenTop = Window::IsTopCorner(instance->corner) ? -instance->widget->height() : height();
-	position.setY(anim::interpolate(hiddenTop, position.y(), visible));
 	if (!instance->widget->dragged()) {
+		if (instance->widget->isHidden()) {
+			instance->widget->show();
+		}
+
 		auto dragged = instance->draggedAnimation.current(1.);
+		auto position = QPoint();
+		if (instance->hiddenByDrag) {
+			instance->widget->setOpacity(instance->widget->countOpacityByParent());
+			position = getFloatPlayerHiddenPosition(instance->dragFrom, instance->widget->size(), instance->animationSide);
+		} else {
+			instance->widget->setOpacity(visible * visible);
+			position = getFloatPlayerPosition(instance);
+			if (visible < 1.) {
+				auto hiddenPosition = getFloatPlayerHiddenPosition(position, instance->widget->size(), instance->animationSide);
+				position.setX(anim::interpolate(hiddenPosition.x(), position.x(), visible));
+				position.setY(anim::interpolate(hiddenPosition.y(), position.y(), visible));
+			}
+		}
 		if (dragged < 1.) {
 			position.setX(anim::interpolate(instance->dragFrom.x(), position.x(), dragged));
 			position.setY(anim::interpolate(instance->dragFrom.y(), position.y(), dragged));
@@ -336,7 +339,46 @@ void MainWidget::updateFloatPlayerPosition(Float *instance) {
 	}
 }
 
-void MainWidget::removeFloatPlayer(Float *instance) {
+QPoint MainWidget::getFloatPlayerHiddenPosition(QPoint position, QSize size, RectPart side) const {
+	switch (side) {
+	case RectPart::Left: return QPoint(-size.width(), position.y());
+	case RectPart::Top: return QPoint(position.x(), -size.height());
+	case RectPart::Right: return QPoint(width(), position.y());
+	case RectPart::Bottom: return QPoint(position.x(), height());
+	}
+	Unexpected("Bad side in MainWidget::getFloatPlayerHiddenPosition().");
+}
+
+QPoint MainWidget::getFloatPlayerPosition(gsl::not_null<Float*> instance) const {
+	auto column = instance->column;
+	auto section = getFloatPlayerSection(&column);
+	auto rect = section->rectForFloatPlayer(column, instance->column);
+	auto position = rect.topLeft();
+	if (IsBottomCorner(instance->corner)) {
+		position.setY(position.y() + rect.height() - instance->widget->height());
+	}
+	if (IsRightCorner(instance->corner)) {
+		position.setX(position.x() + rect.width() - instance->widget->width());
+	}
+	return mapFromGlobal(position);
+}
+
+RectPart MainWidget::getFloatPlayerSide(QPoint center) const {
+	auto left = qAbs(center.x());
+	auto right = qAbs(width() - center.x());
+	auto top = qAbs(center.y());
+	auto bottom = qAbs(height() - center.y());
+	if (left < right && left < top && left < bottom) {
+		return RectPart::Left;
+	} else if (right < top && right < bottom) {
+		return RectPart::Right;
+	} else if (top < bottom) {
+		return RectPart::Top;
+	}
+	return RectPart::Bottom;
+}
+
+void MainWidget::removeFloatPlayer(gsl::not_null<Float*> instance) {
 	auto widget = std::move(instance->widget);
 	auto i = std::find_if(_playerFloats.begin(), _playerFloats.end(), [instance](auto &item) {
 		return (item.get() == instance);
@@ -351,7 +393,7 @@ void MainWidget::removeFloatPlayer(Float *instance) {
 	widget.destroy();
 }
 
-Window::AbstractSectionWidget *MainWidget::getFloatPlayerSection(gsl::not_null<Window::Column*> column) {
+Window::AbstractSectionWidget *MainWidget::getFloatPlayerSection(gsl::not_null<Window::Column*> column) const {
 	if (!Adaptive::Normal()) {
 		*column = Adaptive::OneColumn() ? Window::Column::First : Window::Column::Second;
 		if (Adaptive::OneColumn() && selectingPeer()) {
@@ -389,17 +431,17 @@ void MainWidget::updateFloatPlayerColumnCorner(QPoint center) {
 		auto right = rect.x() + rect.width() - (size.width() / 2);
 		auto top = rect.y() + (size.height() / 2);
 		auto bottom = rect.y() + rect.height() - (size.height() / 2);
-		auto checkCorner = [this, playerColumn, &min, &column, &corner](int distance, Window::Corner checked) {
+		auto checkCorner = [this, playerColumn, &min, &column, &corner](int distance, RectPart checked) {
 			if (min > distance) {
 				min = distance;
 				column = playerColumn;
 				corner = checked;
 			}
 		};
-		checkCorner((QPoint(left, top) - center).manhattanLength(), Window::Corner::TopLeft);
-		checkCorner((QPoint(right, top) - center).manhattanLength(), Window::Corner::TopRight);
-		checkCorner((QPoint(left, bottom) - center).manhattanLength(), Window::Corner::BottomLeft);
-		checkCorner((QPoint(right, bottom) - center).manhattanLength(), Window::Corner::BottomRight);
+		checkCorner((QPoint(left, top) - center).manhattanLength(), RectPart::TopLeft);
+		checkCorner((QPoint(right, top) - center).manhattanLength(), RectPart::TopRight);
+		checkCorner((QPoint(left, bottom) - center).manhattanLength(), RectPart::BottomLeft);
+		checkCorner((QPoint(right, bottom) - center).manhattanLength(), RectPart::BottomRight);
 	};
 
 	if (!Adaptive::Normal()) {
@@ -436,10 +478,14 @@ void MainWidget::updateFloatPlayerColumnCorner(QPoint center) {
 	}
 }
 
-void MainWidget::finishFloatPlayerDrag(Float *instance, bool closed) {
+void MainWidget::finishFloatPlayerDrag(gsl::not_null<Float*> instance, bool closed) {
 	instance->dragFrom = instance->widget->pos();
-
-	updateFloatPlayerColumnCorner(instance->widget->geometry().center());
+	auto center = instance->widget->geometry().center();
+	if (closed) {
+		instance->hiddenByDrag = true;
+		instance->animationSide = getFloatPlayerSide(center);
+	}
+	updateFloatPlayerColumnCorner(center);
 	instance->column = AuthSession::Current().data().floatPlayerColumn();
 	instance->corner = AuthSession::Current().data().floatPlayerCorner();
 
@@ -1001,7 +1047,7 @@ void MainWidget::inlineSwitchLayer(const QString &botAndQuery) {
 	hiderLayer(object_ptr<HistoryHider>(this, botAndQuery));
 }
 
-bool MainWidget::selectingPeer(bool withConfirm) {
+bool MainWidget::selectingPeer(bool withConfirm) const {
 	return _hider ? (withConfirm ? _hider->withConfirm() : true) : false;
 }
 

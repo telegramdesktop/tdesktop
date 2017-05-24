@@ -31,7 +31,6 @@ namespace Notifications {
 class System;
 } // namespace Notifications
 enum class Column;
-enum class Corner;
 } // namespace Window
 
 namespace Calls {
@@ -108,10 +107,10 @@ public:
 	Window::Column floatPlayerColumn() const {
 		return _variables.floatPlayerColumn;
 	}
-	void setFloatPlayerCorner(Window::Corner corner) {
+	void setFloatPlayerCorner(RectPart corner) {
 		_variables.floatPlayerCorner = corner;
 	}
-	Window::Corner floatPlayerCorner() const {
+	RectPart floatPlayerCorner() const {
 		return _variables.floatPlayerCorner;
 	}
 
@@ -125,7 +124,7 @@ private:
 		int tabbedSelectorSectionTooltipShown = 0;
 		QMap<QString, QString> soundOverrides;
 		Window::Column floatPlayerColumn;
-		Window::Corner floatPlayerCorner;
+		RectPart floatPlayerCorner;
 	};
 
 	base::Variable<bool> _contactsLoaded = { false };
