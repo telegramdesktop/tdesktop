@@ -676,54 +676,56 @@ void HistoryWidget::scrollToCurrentVoiceMessage(FullMsgId fromId, FullMsgId toId
 void HistoryWidget::animatedScrollToItem(MsgId msgId) {
 	Expects(_history != nullptr);
 
-	auto animatedScrollAttachedToItem = [this](HistoryItem *item, int scrollTo) {
-		auto itemTop = _list->itemTop(item);
-		if (itemTop < 0) {
-			return false;
-		}
+	auto to = App::histItemById(_channel, msgId);
+	if (_list->itemTop(to) < 0) {
+		return;
+	}
 
-		auto maxAnimatedDelta = _scroll->height();
-		auto transition = anim::sineInOut;
-		auto scrollTop = _scroll->scrollTop();
-		if (scrollTo > scrollTop + maxAnimatedDelta) {
-			scrollTop = scrollTo - maxAnimatedDelta;
-			synteticScrollToY(scrollTop);
-			transition = anim::easeOutCubic;
-		} else if (scrollTo + maxAnimatedDelta < scrollTop) {
-			scrollTop = scrollTo + maxAnimatedDelta;
-			synteticScrollToY(scrollTop);
-			transition = anim::easeOutCubic;
-		}
-		_scrollToMediaMessageAnimation.finish();
-		_scrollToMediaMessageAnimation.start([this, itemId = item->fullId()] {
-			auto itemTop = _list->itemTop(App::histItemById(itemId));
-			if (itemTop < 0) {
-				_scrollToMediaMessageAnimation.finish();
-			} else {
-				synteticScrollToY(qRound(_scrollToMediaMessageAnimation.current()) + itemTop);
-			}
-		}, scrollTop - itemTop, scrollTo - itemTop, st::slideDuration, anim::sineInOut);
-		return true;
-	};
+	auto scrollTo = snap(itemTopForHighlight(to), 0, _scroll->scrollTopMax());
+	animatedScrollToY(scrollTo, to);
+}
 
-	if (msgId == ShowAtUnreadMsgId) {
-		// Special case "scroll to bottom".
-		auto scrollTo = _scroll->scrollTopMax();
+void HistoryWidget::animatedScrollToY(int scrollTo, HistoryItem *attachTo) {
+	Expects(_history != nullptr);
 
-		// Attach our scroll animation to some item.
-		auto item = _history->isEmpty() ? nullptr : _history->blocks.back()->items.back();
-		if (animatedScrollAttachedToItem(item, scrollTo)) {
-			return;
-		}
-
-		// If something went wrong we just scroll without animation.
+	// Attach our scroll animation to some item.
+	auto itemTop = _list->itemTop(attachTo);
+	if (itemTop < 0 && !_history->isEmpty()) {
+		attachTo = _history->blocks.back()->items.back();
+		itemTop = _list->itemTop(attachTo);
+	}
+	if (itemTop < 0) {
 		synteticScrollToY(scrollTo);
 		return;
 	}
 
-	auto to = App::histItemById(_channel, msgId);
-	auto scrollTo = snap(itemTopForHighlight(to), 0, _scroll->scrollTopMax());
-	animatedScrollAttachedToItem(to, scrollTo);
+	_scrollToAnimation.finish();
+	auto maxAnimatedDelta = _scroll->height();
+	auto transition = anim::sineInOut;
+	auto scrollTop = _scroll->scrollTop();
+	if (scrollTo > scrollTop + maxAnimatedDelta) {
+		scrollTop = scrollTo - maxAnimatedDelta;
+		synteticScrollToY(scrollTop);
+		transition = anim::easeOutCubic;
+	} else if (scrollTo + maxAnimatedDelta < scrollTop) {
+		scrollTop = scrollTo + maxAnimatedDelta;
+		synteticScrollToY(scrollTop);
+		transition = anim::easeOutCubic;
+	}
+	_scrollToAnimation.start([this, itemId = attachTo->fullId()] { scrollToAnimationCallback(itemId); }, scrollTop - itemTop, scrollTo - itemTop, st::slideDuration, anim::sineInOut);
+}
+
+void HistoryWidget::scrollToAnimationCallback(FullMsgId attachToId) {
+	auto itemTop = _list->itemTop(App::histItemById(attachToId));
+	if (itemTop < 0) {
+		_scrollToAnimation.finish();
+	} else {
+		synteticScrollToY(qRound(_scrollToAnimation.current()) + itemTop);
+	}
+	if (!_scrollToAnimation.animating()) {
+		preloadHistoryByScroll();
+		checkReplyReturns();
+	}
 }
 
 void HistoryWidget::highlightMessage(HistoryItem *context) {
@@ -744,8 +746,10 @@ void HistoryWidget::highlightMessage(HistoryItem *context) {
 	}
 }
 
-int HistoryWidget::itemTopForHighlight(HistoryItem *item) const {
+int HistoryWidget::itemTopForHighlight(gsl::not_null<HistoryItem*> item) const {
 	auto itemTop = _list->itemTop(item);
+	t_assert(itemTop >= 0);
+
 	auto heightLeft = (_scroll->height() - item->height());
 	if (heightLeft <= 0) {
 		return itemTop;
@@ -1095,10 +1099,10 @@ void HistoryWidget::sendActionDone(const MTPBool &result, mtpRequestId req) {
 
 void HistoryWidget::activate() {
 	if (_history) {
-		if (!_histInited) {
-			updateListSize(true);
+		if (!_historyInited) {
+			updateHistoryGeometry(true);
 		} else if (hasPendingResizedItems()) {
-			updateListSize();
+			updateHistoryGeometry();
 		}
 	}
 	if (App::wnd()) App::wnd()->setInnerFocus();
@@ -1249,7 +1253,7 @@ void HistoryWidget::notify_migrateUpdated(PeerData *peer) {
 				} else {
 					_migrated = migrated;
 					_list->notifyMigrateUpdated();
-					updateListSize();
+					updateHistoryGeometry();
 				}
 			}
 		} else if (_migrated && _migrated->peer == peer && peer->migrateTo() != _peer) {
@@ -1697,7 +1701,7 @@ void HistoryWidget::fastShowAtEnd(History *h) {
 		clearAllLoadRequests();
 
 		setMsgId(ShowAtUnreadMsgId);
-		_histInited = false;
+		_historyInited = false;
 
 		if (h->isReadyFor(_showAtMsgId)) {
 			historyLoaded();
@@ -1788,9 +1792,10 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 				}
 
 				setMsgId(showAtMsgId);
-				if (_histInited) {
-					animatedScrollToItem(_showAtMsgId);
-					highlightMessage(App::histItemById(_channel, _showAtMsgId));
+				if (_historyInited) {
+					auto item = getItemFromHistoryOrMigrated(_showAtMsgId);
+					animatedScrollToY(countInitialScrollTop(), item);
+					highlightMessage(item);
 				} else {
 					historyLoaded();
 				}
@@ -1829,6 +1834,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 		destroyUnreadBar();
 		destroyPinnedBar();
+		_scrollToAnimation.finish();
 		_history = _migrated = nullptr;
 		_peer = nullptr;
 		_channel = NoChannel;
@@ -1853,7 +1859,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	clearInlineBot();
 
 	_showAtMsgId = showAtMsgId;
-	_histInited = false;
+	_historyInited = false;
 
 	if (peerId) {
 		_peer = App::peer(peerId);
@@ -2517,7 +2523,7 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 
 		setMsgId(_delayedShowAtMsgId);
 
-		_histInited = false;
+		_historyInited = false;
 		historyLoaded();
 	}
 }
@@ -2723,34 +2729,62 @@ void HistoryWidget::visibleAreaUpdated() {
 }
 
 void HistoryWidget::preloadHistoryIfNeeded() {
-	if (_firstLoadRequest || _scroll->isHidden() || !_peer) return;
+	if (_firstLoadRequest || _scroll->isHidden() || !_peer) {
+		return;
+	}
 
 	updateHistoryDownVisibility();
+	if (!_scrollToAnimation.animating()) {
+		preloadHistoryByScroll();
+		checkReplyReturns();
+	}
 
-	int st = _scroll->scrollTop(), stm = _scroll->scrollTopMax(), sh = _scroll->height();
-	if (st + kPreloadHeightsCount * sh >= stm) {
+	auto scrollTop = _scroll->scrollTop();
+	if (scrollTop != _lastScrollTop) {
+		_lastScrolled = getms();
+		_lastScrollTop = scrollTop;
+	}
+}
+
+void HistoryWidget::preloadHistoryByScroll() {
+	if (_firstLoadRequest || _scroll->isHidden() || !_peer) {
+		return;
+	}
+
+	auto scrollTop = _scroll->scrollTop();
+	auto scrollTopMax = _scroll->scrollTopMax();
+	auto scrollHeight = _scroll->height();
+	if (scrollTop + kPreloadHeightsCount * scrollHeight >= scrollTopMax) {
 		loadMessagesDown();
 	}
-
-	if (st <= kPreloadHeightsCount * sh) {
+	if (scrollTop <= kPreloadHeightsCount * scrollHeight) {
 		loadMessages();
 	}
+}
 
+void HistoryWidget::checkReplyReturns() {
+	if (_firstLoadRequest || _scroll->isHidden() || !_peer) {
+		return;
+	}
+	auto scrollTop = _scroll->scrollTop();
+	auto scrollTopMax = _scroll->scrollTopMax();
+	auto scrollHeight = _scroll->height();
 	while (_replyReturn) {
-		bool below = (_replyReturn->detached() && _replyReturn->history() == _history && !_history->isEmpty() && _replyReturn->id < _history->blocks.back()->items.back()->id);
-		if (!below) below = (_replyReturn->detached() && _replyReturn->history() == _migrated && !_history->isEmpty());
-		if (!below) below = (_replyReturn->detached() && _migrated && _replyReturn->history() == _migrated && !_migrated->isEmpty() && _replyReturn->id < _migrated->blocks.back()->items.back()->id);
-		if (!below && !_replyReturn->detached()) below = (st >= stm) || (_list->itemTop(_replyReturn) < st + sh / 2);
+		auto below = (_replyReturn->detached() && _replyReturn->history() == _history && !_history->isEmpty() && _replyReturn->id < _history->blocks.back()->items.back()->id);
+		if (!below) {
+			below = (_replyReturn->detached() && _replyReturn->history() == _migrated && !_history->isEmpty());
+		}
+		if (!below) {
+			below = (_replyReturn->detached() && _migrated && _replyReturn->history() == _migrated && !_migrated->isEmpty() && _replyReturn->id < _migrated->blocks.back()->items.back()->id);
+		}
+		if (!below && !_replyReturn->detached()) {
+			below = (scrollTop >= scrollTopMax) || (_list->itemTop(_replyReturn) < scrollTop + scrollHeight / 2);
+		}
 		if (below) {
 			calcNextReplyReturn();
 		} else {
 			break;
 		}
-	}
-
-	if (st != _lastScrollTop) {
-		_lastScrolled = getms();
-		_lastScrollTop = st;
 	}
 }
 
@@ -3113,10 +3147,10 @@ void HistoryWidget::doneShow() {
 	updateReportSpamStatus();
 	updateBotKeyboard();
 	updateControlsVisibility();
-	if (!_histInited) {
-		updateListSize(true);
+	if (!_historyInited) {
+		updateHistoryGeometry(true);
 	} else if (hasPendingResizedItems()) {
-		updateListSize();
+		updateHistoryGeometry();
 	}
 	preloadHistoryIfNeeded();
 	if (App::wnd()) {
@@ -4150,7 +4184,7 @@ void HistoryWidget::inlineBotChanged() {
 
 void HistoryWidget::onFieldResize() {
 	moveFieldControls();
-	updateListSize();
+	updateHistoryGeometry();
 	updateField();
 }
 
@@ -4637,7 +4671,7 @@ void HistoryWidget::onReportSpamClear() {
 
 void HistoryWidget::peerMessagesUpdated(PeerId peer) {
 	if (_peer && _list && peer == _peer->id) {
-		updateListSize();
+		updateHistoryGeometry();
 		updateBotKeyboard();
 		if (!_scroll->isHidden()) {
 			bool unblock = isBlocked(), botStart = isBotStart(), joinChannel = isJoinChannel(), muteUnmute = isMuteUnmute();
@@ -4712,8 +4746,8 @@ void HistoryWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
 }
 
 void HistoryWidget::notify_handlePendingHistoryUpdate() {
-	if (hasPendingResizedItems()) {
-		updateListSize();
+	if (hasPendingResizedItems() || _updateHistoryGeometryRequired) {
+		updateHistoryGeometry();
 		_list->update();
 	}
 }
@@ -4746,7 +4780,7 @@ void HistoryWidget::updateControlsGeometry() {
 		_reportSpamPanel->setGeometryToLeft(0, _scroll->y(), _chatWidth, _reportSpamPanel->height());
 	}
 
-	updateListSize(false, false, { ScrollChangeAdd, App::main() ? App::main()->contentScrollAddToY() : 0 });
+	updateHistoryGeometry(false, false, { ScrollChangeAdd, App::main() ? App::main()->contentScrollAddToY() : 0 });
 
 	updateFieldSize();
 
@@ -4818,8 +4852,64 @@ MsgId HistoryWidget::replyToId() const {
 	return _replyToId ? _replyToId : (_kbReplyTo ? _kbReplyTo->id : 0);
 }
 
-void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollChange &change) {
-	if (!_history || (initial && _histInited) || (!initial && !_histInited)) return;
+int HistoryWidget::countInitialScrollTop() {
+	auto result = ScrollMax;
+	if (_history->scrollTopItem || (_migrated && _migrated->scrollTopItem)) {
+		result = _list->historyScrollTop();
+	} else if (_showAtMsgId && (_showAtMsgId > 0 && -_showAtMsgId < ServerMaxMsgId)) {
+		auto item = getItemFromHistoryOrMigrated(_showAtMsgId);
+		auto itemTop = _list->itemTop(item);
+		if (itemTop < 0) {
+			setMsgId(0);
+			return countInitialScrollTop();
+		} else {
+			result = itemTopForHighlight(item);
+			highlightMessage(item);
+		}
+	} else if (_history->unreadBar || (_migrated && _migrated->unreadBar)) {
+		result = unreadBarTop();
+	} else {
+		return countAutomaticScrollTop();
+	}
+	return qMin(result, _scroll->scrollTopMax());
+}
+
+int HistoryWidget::countAutomaticScrollTop() {
+	auto result = ScrollMax;
+	if (_migrated && _migrated->showFrom) {
+		result = _list->itemTop(_migrated->showFrom);
+		if (result < _scroll->scrollTopMax() + HistoryMessageUnreadBar::height() - HistoryMessageUnreadBar::marginTop()) {
+			_migrated->addUnreadBar();
+			if (hasPendingResizedItems()) {
+				updateListSize();
+			}
+			if (_migrated->unreadBar) {
+				setMsgId(ShowAtUnreadMsgId);
+				result = countInitialScrollTop();
+				App::wnd()->checkHistoryActivation();
+				return result;
+			}
+		}
+	} else if (_history->showFrom) {
+		result = _list->itemTop(_history->showFrom);
+		if (result < _scroll->scrollTopMax() + HistoryMessageUnreadBar::height() - HistoryMessageUnreadBar::marginTop()) {
+			_history->addUnreadBar();
+			if (hasPendingResizedItems()) {
+				updateListSize();
+			}
+			if (_history->unreadBar) {
+				setMsgId(ShowAtUnreadMsgId);
+				result = countInitialScrollTop();
+				App::wnd()->checkHistoryActivation();
+				return result;
+			}
+		}
+	}
+	return qMin(result, _scroll->scrollTopMax());
+}
+
+void HistoryWidget::updateHistoryGeometry(bool initial, bool loadedDown, const ScrollChange &change) {
+	if (!_history || (initial && _historyInited) || (!initial && !_historyInited)) return;
 	if (_firstLoadRequest || _a_show.animating()) {
 		return; // scrollTopMax etc are not working after recountHeight()
 	}
@@ -4858,16 +4948,8 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 		controller()->floatPlayerAreaUpdated().notify(true);
 	}
 
-	_list->recountHeight();
-
-	bool washidden = _scroll->isHidden();
-	if (washidden) {
-		_scroll->show();
-	}
-	_list->updateSize();
-	if (washidden) {
-		_scroll->hide();
-	}
+	updateListSize();
+	_updateHistoryGeometryRequired = false;
 
 	if ((!initial && !wasAtBottom) || (loadedDown && (!_history->showFrom || _history->unreadBar || _history->loadedAtBottom()) && (!_migrated || !_migrated->showFrom || _migrated->unreadBar || _history->loadedAtBottom()))) {
 		int toY = _list->historyScrollTop();
@@ -4891,69 +4973,27 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 	}
 
 	if (initial) {
-		_histInited = true;
+		_historyInited = true;
 	}
-
-	int32 toY = ScrollMax;
-	if (initial && (_history->scrollTopItem || (_migrated && _migrated->scrollTopItem))) {
-		toY = _list->historyScrollTop();
-	} else if (initial && _migrated && _showAtMsgId < 0 && -_showAtMsgId < ServerMaxMsgId) {
-		auto item = App::histItemById(0, -_showAtMsgId);
-		auto iy = _list->itemTop(item);
-		if (iy < 0) {
-			setMsgId(0);
-			_histInited = false;
-			return updateListSize(initial, false, change);
-		} else {
-			toY = itemTopForHighlight(item);
-			highlightMessage(item);
-		}
-	} else if (initial && _showAtMsgId > 0) {
-		auto item = App::histItemById(_channel, _showAtMsgId);
-		auto iy = _list->itemTop(item);
-		if (iy < 0) {
-			setMsgId(0);
-			_histInited = false;
-			return updateListSize(initial, false, change);
-		} else {
-			toY = itemTopForHighlight(item);
-			highlightMessage(item);
-		}
-	} else if (initial && (_history->unreadBar || (_migrated && _migrated->unreadBar))) {
-		toY = unreadBarTop();
-	} else if (_migrated && _migrated->showFrom) {
-		toY = _list->itemTop(_migrated->showFrom);
-		if (toY < _scroll->scrollTopMax() + HistoryMessageUnreadBar::height() - HistoryMessageUnreadBar::marginTop()) {
-			_migrated->addUnreadBar();
-			if (_migrated->unreadBar) {
-				setMsgId(ShowAtUnreadMsgId);
-				_histInited = false;
-				updateListSize(true);
-				App::wnd()->checkHistoryActivation();
-				return;
-			}
-		}
-	} else if (_history->showFrom) {
-		toY = _list->itemTop(_history->showFrom);
-		if (toY < _scroll->scrollTopMax() + st::historyUnreadBarHeight) {
-			_history->addUnreadBar();
-			if (_history->unreadBar) {
-				setMsgId(ShowAtUnreadMsgId);
-				_histInited = false;
-				updateListSize(true);
-				App::wnd()->checkHistoryActivation();
-				return;
-			}
-		}
-	} else {
-	}
-	auto scrollMax = _scroll->scrollTopMax();
-	accumulate_min(toY, scrollMax);
-	if (_scroll->scrollTop() == toY) {
+	auto newScrollTop = initial ? countInitialScrollTop() : countAutomaticScrollTop();
+	if (_scroll->scrollTop() == newScrollTop) {
 		visibleAreaUpdated();
 	} else {
-		synteticScrollToY(toY);
+		synteticScrollToY(newScrollTop);
 	}
+}
+
+void HistoryWidget::updateListSize() {
+	_list->recountHeight();
+	auto washidden = _scroll->isHidden();
+	if (washidden) {
+		_scroll->show();
+	}
+	_list->updateSize();
+	if (washidden) {
+		_scroll->hide();
+	}
+	_updateHistoryGeometryRequired = true;
 }
 
 int HistoryWidget::unreadBarTop() const {
@@ -4979,9 +5019,9 @@ int HistoryWidget::unreadBarTop() const {
 void HistoryWidget::addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages) {
 	_list->messagesReceived(peer, messages);
 	if (!_firstLoadRequest) {
-		updateListSize();
+		updateHistoryGeometry();
 		if (_animActiveTimer.isActive() && _activeAnimMsgId > 0 && _migrated && !_migrated->isEmpty() && _migrated->loadedAtBottom() && _migrated->blocks.back()->items.back()->isGroupMigrate() && _list->historyTop() != _list->historyDrawTop() && _history) {
-			HistoryItem *animActiveItem = App::histItemById(_history->channelId(), _activeAnimMsgId);
+			auto animActiveItem = App::histItemById(_history->channelId(), _activeAnimMsgId);
 			if (animActiveItem && animActiveItem->isGroupMigrate()) {
 				_activeAnimMsgId = -_migrated->blocks.back()->items.back()->id;
 			}
@@ -4993,7 +5033,7 @@ void HistoryWidget::addMessagesToFront(PeerData *peer, const QVector<MTPMessage>
 void HistoryWidget::addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages) {
 	_list->messagesReceivedDown(peer, messages);
 	if (!_firstLoadRequest) {
-		updateListSize(false, true, { ScrollChangeNoJumpToBottom, 0 });
+		updateHistoryGeometry(false, true, { ScrollChangeNoJumpToBottom, 0 });
 	}
 }
 
@@ -5976,7 +6016,7 @@ void HistoryWidget::peerUpdated(PeerData *data) {
 		if (pinnedMsgVisibilityUpdated()) {
 			resize = true;
 		}
-		updateListSize();
+		updateHistoryGeometry();
 		if (_peer->isChannel()) updateReportSpamStatus();
 		if (App::api()) {
 			if (data->isChat() && data->asChat()->noParticipantInfo()) {
@@ -6102,13 +6142,22 @@ void HistoryWidget::onClearSelected() {
 	if (_list) _list->clearSelectedItems();
 }
 
+HistoryItem *HistoryWidget::getItemFromHistoryOrMigrated(MsgId genericMsgId) const {
+	if (genericMsgId < 0 && -genericMsgId < ServerMaxMsgId && _migrated) {
+		return App::histItemById(_migrated->channelId(), -genericMsgId);
+	}
+	return App::histItemById(_channel, genericMsgId);
+}
+
 void HistoryWidget::onAnimActiveStep() {
 	if (!_history || !_activeAnimMsgId || (_activeAnimMsgId < 0 && (!_migrated || -_activeAnimMsgId >= ServerMaxMsgId))) {
 		return _animActiveTimer.stop();
 	}
 
-	HistoryItem *item = (_activeAnimMsgId < 0 && -_activeAnimMsgId < ServerMaxMsgId && _migrated) ? App::histItemById(_migrated->channelId(), -_activeAnimMsgId) : App::histItemById(_channel, _activeAnimMsgId);
-	if (!item || item->detached()) return _animActiveTimer.stop();
+	auto item = getItemFromHistoryOrMigrated(_activeAnimMsgId);
+	if (!item || item->detached()) {
+		return _animActiveTimer.stop();
+	}
 
 	if (getms() - _animActiveStart > st::activeFadeInDuration + st::activeFadeOutDuration) {
 		stopAnimActive();
@@ -6144,7 +6193,7 @@ void HistoryWidget::updateTopBarSelection() {
 	_nonEmptySelection = (selectedState.count > 0) || selectedState.textSelected;
 	_topBar->showSelected(selectedState);
 	updateControlsVisibility();
-	updateListSize();
+	updateHistoryGeometry();
 	if (!Ui::isLayerShown() && !App::passcoded()) {
 		if (_nonEmptySelection || (_list && _list->wasSelectedText()) || _recording || isBotStart() || isBlocked() || !_canSendMessages) {
 			_list->setFocus();
