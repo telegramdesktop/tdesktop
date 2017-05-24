@@ -384,7 +384,7 @@ void TabbedSelector::paintEvent(QPaintEvent *e) {
 void TabbedSelector::paintSlideFrame(Painter &p, TimeMs ms) {
 	if (_roundRadius > 0) {
 		auto topPart = QRect(0, 0, width(), _tabsSlider->height() + _roundRadius);
-		App::roundRect(p, topPart, st::emojiPanBg, ImageRoundRadius::Small, App::RectPart::TopFull | App::RectPart::NoTopBottom);
+		App::roundRect(p, topPart, st::emojiPanBg, ImageRoundRadius::Small, RectPart::FullTop | RectPart::NoTopBottom);
 	} else {
 		p.fillRect(0, 0, width(), _tabsSlider->height(), st::emojiPanBg);
 	}
@@ -398,10 +398,10 @@ void TabbedSelector::paintContent(Painter &p) {
 	auto &bottomBg = showSectionIcons ? st::emojiPanCategories : st::emojiPanBg;
 	if (_roundRadius > 0) {
 		auto topPart = QRect(0, 0, width(), _tabsSlider->height() + _roundRadius);
-		App::roundRect(p, topPart, st::emojiPanBg, ImageRoundRadius::Small, App::RectPart::TopFull | App::RectPart::NoTopBottom);
+		App::roundRect(p, topPart, st::emojiPanBg, ImageRoundRadius::Small, RectPart::FullTop | RectPart::NoTopBottom);
 
 		auto bottomPart = QRect(0, _footerTop - _roundRadius, width(), st::emojiCategory.height + _roundRadius);
-		auto bottomParts = App::RectPart::NoTopBottom | App::RectPart::BottomFull;
+		auto bottomParts = RectPart::NoTopBottom | RectPart::FullBottom;
 		App::roundRect(p, bottomPart, bottomBg, ImageRoundRadius::Small, bottomParts);
 	} else {
 		p.fillRect(0, 0, width(), _tabsSlider->height(), st::emojiPanBg);

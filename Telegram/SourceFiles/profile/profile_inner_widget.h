@@ -77,14 +77,10 @@ private:
 		OneColumn,
 		TwoColumn,
 	};
-	enum class BlockSide {
-		Left,
-		Right,
-	};
 	int countBlocksLeft(int newWidth) const;
 	Mode countBlocksMode(int newWidth) const;
 	int countLeftColumnWidth(int newWidth) const;
-	int countBlocksHeight(BlockSide countSide) const;
+	int countBlocksHeight(RectPart countSide) const;
 	void resizeBlocks(int newWidth);
 	void refreshBlocksPositions();
 
@@ -110,7 +106,7 @@ private:
 	int _leftColumnWidth = 0; // Caching countLeftColumnWidth() result.
 	struct Block {
 		BlockWidget *block;
-		BlockSide side;
+		RectPart side;
 	};
 	QList<Block> _blocks;
 

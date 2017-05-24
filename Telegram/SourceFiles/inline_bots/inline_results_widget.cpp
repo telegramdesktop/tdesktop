@@ -778,7 +778,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 
 void Widget::paintContent(Painter &p) {
 	auto inner = innerRect();
-	App::roundRect(p, inner, st::emojiPanBg, ImageRoundRadius::Small, App::RectPart::TopFull | App::RectPart::BottomFull);
+	App::roundRect(p, inner, st::emojiPanBg, ImageRoundRadius::Small, RectPart::FullTop | RectPart::FullBottom);
 
 	auto horizontal = horizontalRect();
 	auto sidesTop = horizontal.y();

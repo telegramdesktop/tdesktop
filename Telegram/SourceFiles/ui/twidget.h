@@ -55,9 +55,10 @@ enum class RectPart {
 	CornersMask = TopLeft | TopRight | BottomLeft | BottomRight,
 	SidesMask = Top | Bottom | Left | Right,
 
-	All = FullTop | NoTop,
+	Full = FullTop | NoTop,
 };
 Q_DECLARE_FLAGS(RectParts, RectPart);
+Q_DECLARE_OPERATORS_FOR_FLAGS(RectParts);
 
 inline bool IsTopCorner(RectPart corner) {
 	return (corner == RectPart::TopLeft) || (corner == RectPart::TopRight);

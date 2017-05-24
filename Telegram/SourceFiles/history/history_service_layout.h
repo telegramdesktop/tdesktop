@@ -54,11 +54,6 @@ void paintEmpty(Painter &p, int width, int height);
 
 void serviceColorsUpdated();
 
-enum class BubbleTail {
-	None,
-	Left,
-	Right,
-};
-void paintBubble(Painter &p, QRect rect, int outerWidth, bool selected, bool outbg, BubbleTail tail);
+void paintBubble(Painter &p, QRect rect, int outerWidth, bool selected, bool outbg, RectPart tailSide);
 
 } // namespace HistoryLayout

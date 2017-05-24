@@ -208,7 +208,7 @@ ImportantTooltip::ImportantTooltip(QWidget *parent, object_ptr<TWidget> content,
 	hide();
 }
 
-void ImportantTooltip::pointAt(QRect area, Side side) {
+void ImportantTooltip::pointAt(QRect area, RectParts side) {
 	if (_area == area && _side == side) {
 		return;
 	}
@@ -239,7 +239,7 @@ void ImportantTooltip::setArea(QRect area) {
 	resize(size);
 }
 
-void ImportantTooltip::countApproachSide(Side preferSide) {
+void ImportantTooltip::countApproachSide(RectParts preferSide) {
 	Expects(parentWidget() != nullptr);
 	auto requiredSpace = countInner().height() + _st.shift;
 	if (_useTransparency) {
@@ -253,7 +253,7 @@ void ImportantTooltip::countApproachSide(Side preferSide) {
 	if ((allowedAbove && allowedBelow) || (!allowedAbove && !allowedBelow)) {
 		_side = preferSide;
 	} else {
-		_side = (allowedAbove ? SideFlag::Up : SideFlag::Down) | (preferSide & (SideFlag::Left | SideFlag::Center | SideFlag::Right));
+		_side = (allowedAbove ? RectPart::Top : RectPart::Bottom) | (preferSide & (RectPart::Left | RectPart::Center | RectPart::Right));
 	}
 	if (_useTransparency) {
 		auto arrow = QImage(QSize(_st.arrow * 2, _st.arrow) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
@@ -270,7 +270,7 @@ void ImportantTooltip::countApproachSide(Side preferSide) {
 			path.lineTo(0, 0);
 			p.fillPath(path, _st.bg);
 		}
-		if (_side & SideFlag::Down) {
+		if (_side & RectPart::Bottom) {
 			arrow = std::move(arrow).transformed(QTransform(1, 0, 0, -1, 0, 0));
 		}
 		_arrow = App::pixmapFromImageInPlace(std::move(arrow));
@@ -345,9 +345,9 @@ void ImportantTooltip::updateGeometry() {
 	auto parent = parentWidget();
 	auto areaMiddle = _area.x() + (_area.width() / 2);
 	auto left = areaMiddle - (width() / 2);
-	if (_side & SideFlag::Left) {
+	if (_side & RectPart::Left) {
 		left = areaMiddle + _st.arrowSkip - width();
-	} else if (_side & SideFlag::Right) {
+	} else if (_side & RectPart::Right) {
 		left = areaMiddle - _st.arrowSkip;
 	}
 	accumulate_min(left, parent->width() - _st.margin.right() - width());
@@ -357,7 +357,7 @@ void ImportantTooltip::updateGeometry() {
 
 	auto countTop = [this] {
 		auto shift = anim::interpolate(_st.shift, 0, _visibleAnimation.current(_visible ? 1. : 0.));
-		if (_side & SideFlag::Up) {
+		if (_side & RectPart::Top) {
 			return _area.y() - height() - shift;
 		}
 		return _area.y() + _area.height() + shift;
@@ -368,7 +368,7 @@ void ImportantTooltip::updateGeometry() {
 void ImportantTooltip::resizeEvent(QResizeEvent *e) {
 	auto inner = countInner();
 	auto contentTop = _st.padding.top();
-	if (_useTransparency && (_side & SideFlag::Down)) {
+	if (_useTransparency && (_side & RectPart::Bottom)) {
 		contentTop += _st.arrow;
 	}
 	_content->moveToLeft(_st.padding.left(), contentTop);
@@ -399,7 +399,7 @@ void ImportantTooltip::paintEvent(QPaintEvent *e) {
 			}
 			auto areaMiddle = _area.x() + (_area.width() / 2) - x();
 			auto arrowLeft = areaMiddle - _st.arrow;
-			if (_side & SideFlag::Up) {
+			if (_side & RectPart::Top) {
 				p.drawPixmapLeft(arrowLeft, inner.y() + inner.height(), width(), _arrow);
 			} else {
 				p.drawPixmapLeft(arrowLeft, inner.y() - _st.arrow, width(), _arrow);

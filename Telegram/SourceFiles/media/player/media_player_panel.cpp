@@ -165,14 +165,13 @@ void Panel::paintEvent(QPaintEvent *e) {
 	}
 
 	// draw shadow
-	using Side = Ui::Shadow::Side;
 	auto shadowedRect = myrtlrect(contentLeft(), contentTop(), contentWidth(), contentHeight());
-	auto shadowedSides = (rtl() ? Side::Right : Side::Left) | Side::Bottom;
+	auto shadowedSides = (rtl() ? RectPart::Right : RectPart::Left) | RectPart::Bottom;
 	if (_layout != Layout::Full) {
-		shadowedSides |= (rtl() ? Side::Left : Side::Right) | Side::Top;
+		shadowedSides |= (rtl() ? RectPart::Left : RectPart::Right) | RectPart::Top;
 	}
 	Ui::Shadow::paint(p, shadowedRect, width(), st::defaultRoundShadow, shadowedSides);
-	auto parts = App::RectPart::Full;
+	auto parts = RectPart::Full;
 	App::roundRect(p, shadowedRect, st::menuBg, MenuCorners, nullptr, parts);
 }
 
@@ -224,7 +223,7 @@ void Panel::ensureCreated() {
 		setPinCallback(std::move(_pinCallback));
 		setCloseCallback(std::move(_closeCallback));
 
-		_scrollShadow.create(this, st::mediaPlayerScrollShadow, Ui::Shadow::Side::Bottom);
+		_scrollShadow.create(this, st::mediaPlayerScrollShadow, RectPart::Bottom);
 	}
 	auto list = object_ptr<ListWidget>(this);
 	connect(list, SIGNAL(heightUpdated()), this, SLOT(onListHeightUpdated()));

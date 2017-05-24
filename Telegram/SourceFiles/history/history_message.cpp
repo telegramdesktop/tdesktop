@@ -1336,7 +1336,7 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, T
 		auto r = QRect(left, top, width, height - top - marginBottom());
 
 		auto skipTail = isAttachedToNext() || (_media && _media->skipBubbleTail()) || (keyboard != nullptr);
-		auto displayTail = skipTail ? HistoryLayout::BubbleTail::None : (outbg && !Adaptive::ChatWide()) ? HistoryLayout::BubbleTail::Right : HistoryLayout::BubbleTail::Left;
+		auto displayTail = skipTail ? RectPart::None : (outbg && !Adaptive::ChatWide()) ? RectPart::Right : RectPart::Left;
 		HistoryLayout::paintBubble(p, r, _history->width, selected, outbg, displayTail);
 
 		QRect trect(r.marginsAdded(-st::msgPadding));

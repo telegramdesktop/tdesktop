@@ -141,10 +141,9 @@ void VolumeWidget::paintEvent(QPaintEvent *e) {
 
 	// draw shadow
 	auto shadowedRect = rect().marginsRemoved(getMargin());
-	using ShadowSide = Ui::Shadow::Side;
-	auto shadowedSides = ShadowSide::Left | ShadowSide::Right | ShadowSide::Bottom;
+	auto shadowedSides = RectPart::Left | RectPart::Right | RectPart::Bottom;
 	Ui::Shadow::paint(p, shadowedRect, width(), st::defaultRoundShadow, shadowedSides);
-	auto parts = App::RectPart::NoTopBottom | App::RectPart::BottomFull;
+	auto parts = RectPart::NoTopBottom | RectPart::FullBottom;
 	App::roundRect(p, QRect(shadowedRect.x(), -st::buttonRadius, shadowedRect.width(), shadowedRect.y() + shadowedRect.height() + st::buttonRadius), st::menuBg, MenuCorners, nullptr, parts);
 }
 

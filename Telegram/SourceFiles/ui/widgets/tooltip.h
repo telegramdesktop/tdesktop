@@ -79,15 +79,7 @@ class ImportantTooltip : public TWidget {
 public:
 	ImportantTooltip(QWidget *parent, object_ptr<TWidget> content, const style::ImportantTooltip &st);
 
-	enum class SideFlag {
-		Up     = 0x01,
-		Down   = 0x02,
-		Left   = 0x04,
-		Center = 0x08,
-		Right  = 0x0c,
-	};
-	Q_DECLARE_FLAGS(Side, SideFlag);
-	void pointAt(QRect area, Side preferSide = Side(SideFlag::Up) | SideFlag::Left);
+	void pointAt(QRect area, RectParts preferSide = RectPart::Top | RectPart::Left);
 
 	void toggleAnimated(bool visible);
 	void toggleFast(bool visible);
@@ -105,7 +97,7 @@ private:
 	void animationCallback();
 	QRect countInner() const;
 	void setArea(QRect area);
-	void countApproachSide(Side preferSide);
+	void countApproachSide(RectParts preferSide);
 	void updateGeometry();
 	void checkAnimationFinish();
 	void refreshAnimationCache();
@@ -114,7 +106,7 @@ private:
 	const style::ImportantTooltip &_st;
 	object_ptr<TWidget> _content;
 	QRect _area;
-	Side _side = Side(SideFlag::Up) | SideFlag::Left;
+	RectParts _side = RectPart::Top | RectPart::Left;
 	QPixmap _arrow;
 
 	Animation _visibleAnimation;
@@ -124,7 +116,5 @@ private:
 	QPixmap _cache;
 
 };
-
-Q_DECLARE_OPERATORS_FOR_FLAGS(ImportantTooltip::Side);
 
 } // namespace Ui

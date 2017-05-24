@@ -79,9 +79,9 @@ void ConnectingWidget::set(const QString &text, const QString &reconnect) {
 void ConnectingWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto sides = Ui::Shadow::Side::Top | Ui::Shadow::Side::Right;
+	auto sides = RectPart::Top | RectPart::Right;
 	Ui::Shadow::paint(p, QRect(0, st::boxRoundShadow.extend.top(), width() - st::boxRoundShadow.extend.right(), height() - st::boxRoundShadow.extend.top()), width(), st::boxRoundShadow, sides);
-	auto parts = App::RectPart::Top | App::RectPart::TopRight | App::RectPart::Center | App::RectPart::Right;
+	auto parts = RectPart::Top | RectPart::TopRight | RectPart::Center | RectPart::Right;
 	App::roundRect(p, QRect(-st::boxRadius, st::boxRoundShadow.extend.top(), width() - st::boxRoundShadow.extend.right() + st::boxRadius, height() - st::boxRoundShadow.extend.top() + st::boxRadius), st::boxBg, BoxCorners, nullptr, parts);
 
 	p.setFont(st::normalFont);

@@ -520,7 +520,7 @@ void Panel::createBottomImage() {
 	image.fill(Qt::transparent);
 	{
 		Painter p(&image);
-		Ui::Shadow::paint(p, QRect(_padding.left(), 0, st::callWidth, bottomHeight - _padding.bottom()), width(), st::callShadow, Ui::Shadow::Side::Left | Ui::Shadow::Side::Right | Ui::Shadow::Side::Bottom);
+		Ui::Shadow::paint(p, QRect(_padding.left(), 0, st::callWidth, bottomHeight - _padding.bottom()), width(), st::callShadow, RectPart::Left | RectPart::Right | RectPart::Bottom);
 		p.setCompositionMode(QPainter::CompositionMode_Source);
 		p.setBrush(st::callBg);
 		p.setPen(Qt::NoPen);
@@ -556,7 +556,7 @@ void Panel::refreshCacheImageUserPhoto() {
 	cache.fill(Qt::transparent);
 	{
 		Painter p(&cache);
-		Ui::Shadow::paint(p, QRect(_padding.left(), _padding.top(), st::callWidth, st::callWidth), width(), st::callShadow, Ui::Shadow::Side::Top | Ui::Shadow::Side::Left | Ui::Shadow::Side::Right);
+		Ui::Shadow::paint(p, QRect(_padding.left(), _padding.top(), st::callWidth, st::callWidth), width(), st::callShadow, RectPart::Top | RectPart::Left | RectPart::Right);
 		p.drawPixmapLeft(_padding.left(), _padding.top(), width(), _userPhoto);
 		p.drawPixmapLeft(0, _padding.top() + st::callWidth, width(), _bottomCache);
 	}

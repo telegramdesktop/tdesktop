@@ -38,23 +38,14 @@ private:
 
 class Shadow : public TWidget {
 public:
-	enum class Side {
-		Left = 0x01,
-		Top = 0x02,
-		Right = 0x04,
-		Bottom = 0x08,
-	};
-	Q_DECLARE_FLAGS(Sides, Side);
-	Q_DECLARE_FRIEND_OPERATORS_FOR_FLAGS(Sides);
-
-	Shadow(QWidget *parent, const style::Shadow &st, Sides sides = Side::Left | Side::Top | Side::Right | Side::Bottom) : TWidget(parent)
+	Shadow(QWidget *parent, const style::Shadow &st, RectParts sides = RectPart::Left | RectPart::Top | RectPart::Right | RectPart::Bottom) : TWidget(parent)
 	, _st(st)
 	, _sides(sides) {
 	}
 
-	static void paint(Painter &p, const QRect &box, int outerWidth, const style::Shadow &st, Sides sides = Side::Left | Side::Top | Side::Right | Side::Bottom);
+	static void paint(Painter &p, const QRect &box, int outerWidth, const style::Shadow &st, RectParts sides = RectPart::Left | RectPart::Top | RectPart::Right | RectPart::Bottom);
 
-	static QPixmap grab(TWidget *target, const style::Shadow &shadow, Sides sides = Side::Left | Side::Top | Side::Right | Side::Bottom);
+	static QPixmap grab(TWidget *target, const style::Shadow &shadow, RectParts sides = RectPart::Left | RectPart::Top | RectPart::Right | RectPart::Bottom);
 
 protected:
 	void paintEvent(QPaintEvent *e) override {
@@ -64,9 +55,8 @@ protected:
 
 private:
 	const style::Shadow &_st;
-	Sides _sides;
+	RectParts _sides;
 
 };
-Q_DECLARE_OPERATORS_FOR_FLAGS(Shadow::Sides);
 
 } // namespace Ui

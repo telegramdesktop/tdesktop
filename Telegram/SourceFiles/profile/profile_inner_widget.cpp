@@ -48,22 +48,22 @@ void InnerWidget::createBlocks() {
 	auto channel = _peer->asChannel();
 	auto megagroup = _peer->isMegagroup() ? channel : nullptr;
 	if (user || channel || megagroup) {
-		_blocks.push_back({ new InfoWidget(this, _peer), BlockSide::Right });
+		_blocks.push_back({ new InfoWidget(this, _peer), RectPart::Right });
 	}
-	_blocks.push_back({ new SettingsWidget(this, _peer), BlockSide::Right });
+	_blocks.push_back({ new SettingsWidget(this, _peer), RectPart::Right });
 	if (chat || channel || megagroup) {
-		_blocks.push_back({ new InviteLinkWidget(this, _peer), BlockSide::Right });
+		_blocks.push_back({ new InviteLinkWidget(this, _peer), RectPart::Right });
 	}
-	_blocks.push_back({ new SharedMediaWidget(this, _peer), BlockSide::Right });
+	_blocks.push_back({ new SharedMediaWidget(this, _peer), RectPart::Right });
 	if (channel && !megagroup) {
-		_blocks.push_back({ new ChannelMembersWidget(this, _peer), BlockSide::Right });
+		_blocks.push_back({ new ChannelMembersWidget(this, _peer), RectPart::Right });
 	}
-	_blocks.push_back({ new ActionsWidget(this, _peer), BlockSide::Right });
+	_blocks.push_back({ new ActionsWidget(this, _peer), RectPart::Right });
 	if (chat || megagroup) {
 		auto membersWidget = new GroupMembersWidget(this, _peer);
 		connect(membersWidget, SIGNAL(onlineCountUpdated(int)), _cover, SLOT(onOnlineCountUpdated(int)));
 		_cover->onOnlineCountUpdated(membersWidget->onlineCount());
-		_blocks.push_back({ membersWidget, BlockSide::Left });
+		_blocks.push_back({ membersWidget, RectPart::Left });
 	}
 	for_const (auto &blockData, _blocks) {
 		connect(blockData.block, SIGNAL(heightUpdated()), this, SLOT(onBlockHeightUpdated()));
@@ -118,8 +118,8 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	p.fillRect(e->rect(), st::profileBg);
 
 	if (_mode == Mode::TwoColumn) {
-		int leftHeight = countBlocksHeight(BlockSide::Left);
-		int rightHeight = countBlocksHeight(BlockSide::Right);
+		int leftHeight = countBlocksHeight(RectPart::Left);
+		int rightHeight = countBlocksHeight(RectPart::Right);
 		int shadowHeight = rightHeight;// qMin(leftHeight, rightHeight);
 
 		int shadowLeft = _blocksLeft + _leftColumnWidth + _columnDivider;
@@ -134,7 +134,7 @@ void InnerWidget::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-int InnerWidget::countBlocksHeight(BlockSide countSide) const {
+int InnerWidget::countBlocksHeight(RectPart countSide) const {
 	int result = 0;
 	for_const (auto &blockData, _blocks) {
 		if (blockData.side != countSide || blockData.block->isHidden()) {
@@ -156,7 +156,7 @@ InnerWidget::Mode InnerWidget::countBlocksMode(int newWidth) const {
 	bool hasLeftWidget = false, hasRightWidget = false;
 	for_const (auto &blockData, _blocks) {
 		if (!blockData.block->isHidden()) {
-			if (blockData.side == BlockSide::Left) {
+			if (blockData.side == RectPart::Left) {
 				hasLeftWidget = true;
 			} else {
 				hasRightWidget = true;
@@ -187,7 +187,7 @@ int InnerWidget::countLeftColumnWidth(int newWidth) const {
 }
 
 void InnerWidget::refreshBlocksPositions() {
-	auto layoutBlocks = [this](BlockSide layoutSide, int left) {
+	auto layoutBlocks = [this](RectPart layoutSide, int left) {
 		int top = _blocksTop;
 		for_const (auto &blockData, _blocks) {
 			if (_mode == Mode::TwoColumn && blockData.side != layoutSide) {
@@ -202,9 +202,9 @@ void InnerWidget::refreshBlocksPositions() {
 			top += blockData.block->height();
 		}
 	};
-	layoutBlocks(BlockSide::Left, _blocksLeft);
+	layoutBlocks(RectPart::Left, _blocksLeft);
 	if (_mode == Mode::TwoColumn) {
-		layoutBlocks(BlockSide::Right, _blocksLeft + _leftColumnWidth + _columnDivider);
+		layoutBlocks(RectPart::Right, _blocksLeft + _leftColumnWidth + _columnDivider);
 	}
 }
 
@@ -214,7 +214,7 @@ void InnerWidget::resizeBlocks(int newWidth) {
 		if (_mode == Mode::OneColumn) {
 			blockWidth -= _blocksLeft;
 		} else {
-			if (blockData.side == BlockSide::Left) {
+			if (blockData.side == RectPart::Left) {
 				blockWidth = _leftColumnWidth;
 			} else {
 				blockWidth -= _leftColumnWidth + _columnDivider;
@@ -244,11 +244,11 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 }
 
 int InnerWidget::countHeight() const {
-	int newHeight = _cover->height();
-	int leftHeight = countBlocksHeight(BlockSide::Left);
-	int rightHeight = countBlocksHeight(BlockSide::Right);
+	auto newHeight = _cover->height();
+	auto leftHeight = countBlocksHeight(RectPart::Left);
+	auto rightHeight = countBlocksHeight(RectPart::Right);
 
-	int blocksHeight = (_mode == Mode::OneColumn) ? (leftHeight + rightHeight) : qMax(leftHeight, rightHeight);
+	auto blocksHeight = (_mode == Mode::OneColumn) ? (leftHeight + rightHeight) : qMax(leftHeight, rightHeight);
 	newHeight += st::profileBlocksTop + blocksHeight + st::profileBlocksBottom;
 
 	return newHeight;

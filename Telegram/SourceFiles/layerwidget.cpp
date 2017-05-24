@@ -223,20 +223,20 @@ void LayerStackWidget::BackgroundWidget::paintEvent(QPaintEvent *e) {
 	if (_mainMenuCache.isNull() && mainMenuRight > 0) {
 		// All cache images are taken together with their shadows,
 		// so we paint shadow only when there is no cache.
-		Ui::Shadow::paint(p, myrtlrect(0, 0, mainMenuRight, height()), width(), st::boxRoundShadow, Ui::Shadow::Side::Right);
+		Ui::Shadow::paint(p, myrtlrect(0, 0, mainMenuRight, height()), width(), st::boxRoundShadow, RectPart::Right);
 	}
 
 	if (_specialLayerCache.isNull() && !specialLayerBox.isEmpty()) {
 		// All cache images are taken together with their shadows,
 		// so we paint shadow only when there is no cache.
-		auto sides = Ui::Shadow::Side::Left | Ui::Shadow::Side::Right;
+		auto sides = RectPart::Left | RectPart::Right;
 		auto topCorners = (specialLayerBox.y() > 0);
 		auto bottomCorners = (specialLayerBox.y() + specialLayerBox.height() < height());
 		if (topCorners) {
-			sides |= Ui::Shadow::Side::Top;
+			sides |= RectPart::Top;
 		}
 		if (bottomCorners) {
-			sides |= Ui::Shadow::Side::Bottom;
+			sides |= RectPart::Bottom;
 		}
 		if (topCorners || bottomCorners) {
 			p.setClipRegion(QRegion(rect()) - specialLayerBox.marginsRemoved(QMargins(st::boxRadius, 0, st::boxRadius, 0)) - specialLayerBox.marginsRemoved(QMargins(0, st::boxRadius, 0, st::boxRadius)));
@@ -247,8 +247,8 @@ void LayerStackWidget::BackgroundWidget::paintEvent(QPaintEvent *e) {
 			// In case of painting the shadow above the special layer we get
 			// glitches in the corners, so we need to paint the corners once more.
 			p.setClipping(false);
-			auto parts = (topCorners ? (App::RectPart::TopLeft | App::RectPart::TopRight) : App::RectPart::None)
-				| (bottomCorners ? (App::RectPart::BottomLeft | App::RectPart::BottomRight) : App::RectPart::None);
+			auto parts = (topCorners ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
+				| (bottomCorners ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None);
 			App::roundRect(p, specialLayerBox, st::boxBg, BoxCorners, nullptr, parts);
 		}
 	}
@@ -387,12 +387,12 @@ void LayerStackWidget::setCacheImages() {
 	auto bodyCache = QPixmap(), mainMenuCache = QPixmap();
 	auto specialLayerCache = QPixmap();
 	if (_specialLayer) {
-		auto sides = Ui::Shadow::Side::Left | Ui::Shadow::Side::Right;
+		auto sides = RectPart::Left | RectPart::Right;
 		if (_specialLayer->y() > 0) {
-			sides |= Ui::Shadow::Side::Top;
+			sides |= RectPart::Top;
 		}
 		if (_specialLayer->y() + _specialLayer->height() < height()) {
-			sides |= Ui::Shadow::Side::Bottom;
+			sides |= RectPart::Bottom;
 		}
 		specialLayerCache = Ui::Shadow::grab(_specialLayer, st::boxRoundShadow, sides);
 	}
@@ -408,7 +408,7 @@ void LayerStackWidget::setCacheImages() {
 		hideChildren();
 		bodyCache = myGrab(App::wnd()->bodyWidget());
 		showChildren();
-		mainMenuCache = Ui::Shadow::grab(_mainMenu, st::boxRoundShadow, Ui::Shadow::Side::Right);
+		mainMenuCache = Ui::Shadow::grab(_mainMenu, st::boxRoundShadow, RectPart::Right);
 	}
 	setAttribute(Qt::WA_OpaquePaintEvent, !bodyCache.isNull());
 	updateLayerBoxes();

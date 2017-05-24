@@ -22,11 +22,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 
-void Shadow::paint(Painter &p, const QRect &box, int outerWidth, const style::Shadow &st, Sides sides) {
-	auto left = (sides & Side::Left);
-	auto top = (sides & Side::Top);
-	auto right = (sides & Side::Right);
-	auto bottom = (sides & Side::Bottom);
+void Shadow::paint(Painter &p, const QRect &box, int outerWidth, const style::Shadow &st, RectParts sides) {
+	auto left = (sides & RectPart::Left);
+	auto top = (sides & RectPart::Top);
+	auto right = (sides & RectPart::Right);
+	auto bottom = (sides & RectPart::Bottom);
 	if (left) {
 		auto from = box.y();
 		auto to = from + box.height();
@@ -77,14 +77,14 @@ void Shadow::paint(Painter &p, const QRect &box, int outerWidth, const style::Sh
 	}
 }
 
-QPixmap Shadow::grab(TWidget *target, const style::Shadow &shadow, Sides sides) {
+QPixmap Shadow::grab(TWidget *target, const style::Shadow &shadow, RectParts sides) {
 	myEnsureResized(target);
 	auto rect = target->rect();
 	auto extend = QMargins(
-		(sides & Side::Left) ? shadow.extend.left() : 0,
-		(sides & Side::Top) ? shadow.extend.top() : 0,
-		(sides & Side::Right) ? shadow.extend.right() : 0,
-		(sides & Side::Bottom) ? shadow.extend.bottom() : 0
+		(sides & RectPart::Left) ? shadow.extend.left() : 0,
+		(sides & RectPart::Top) ? shadow.extend.top() : 0,
+		(sides & RectPart::Right) ? shadow.extend.right() : 0,
+		(sides & RectPart::Bottom) ? shadow.extend.bottom() : 0
 	);
 	auto full = QRect(0, 0, extend.left() + rect.width() + extend.right(), extend.top() + rect.height() + extend.bottom());
 	auto result = QPixmap(full.size() * cIntRetinaFactor());
