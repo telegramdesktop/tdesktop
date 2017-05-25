@@ -4747,8 +4747,12 @@ void HistoryWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
 
 void HistoryWidget::notify_handlePendingHistoryUpdate() {
 	if (hasPendingResizedItems() || _updateHistoryGeometryRequired) {
-		updateHistoryGeometry();
-		_list->update();
+		if (_list) {
+			updateHistoryGeometry();
+			_list->update();
+		} else {
+			_updateHistoryGeometryRequired = false;
+		}
 	}
 }
 
