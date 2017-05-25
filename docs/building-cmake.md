@@ -4,6 +4,7 @@
 
 * Install git by command **sudo apt-get install git** in Terminal
 * Install g++ by command **sudo apt-get install g++** in Terminal
+* Install libtool and automake by command **sudo apt-get install libtool automake** in Terminal
 
 You need to install g++ version 6 manually by such commands
 
@@ -61,7 +62,7 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
 
-    git clone git://anongit.freedesktop.org/git/libva
+    git clone https://github.com/01org/libva.git
     cd libva
     ./autogen.sh --enable-static
     make
