@@ -583,9 +583,7 @@ private:
 		return additionalWidth(_parent->Get<HistoryMessageVia>(), _parent->Get<HistoryMessageReply>(), _parent->Get<HistoryMessageForwarded>());
 	}
 	QString mediaTypeString() const;
-	bool isSeparateRoundVideo() const {
-		return _data->isRoundVideo() && (_parent->getMedia() == this);
-	}
+	bool isSeparateRoundVideo() const;
 
 	gsl::not_null<DocumentData*> _data;
 	ClickHandlerPtr _openInMediaviewLink;

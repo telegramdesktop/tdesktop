@@ -1941,9 +1941,10 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 	}
 
 	auto usex = 0, usew = width;
-	auto via = (!isRound || isChildMedia) ? nullptr : _parent->Get<HistoryMessageVia>();
-	auto reply = (!isRound || isChildMedia) ? nullptr : _parent->Get<HistoryMessageReply>();
-	auto forwarded = (!isRound || isChildMedia) ? nullptr : _parent->Get<HistoryMessageForwarded>();
+	auto separateRoundVideo = isSeparateRoundVideo();
+	auto via = separateRoundVideo ? _parent->Get<HistoryMessageVia>() : nullptr;
+	auto reply = separateRoundVideo ? _parent->Get<HistoryMessageReply>() : nullptr;
+	auto forwarded = separateRoundVideo ? _parent->Get<HistoryMessageForwarded>() : nullptr;
 	if (via || reply || forwarded) {
 		usew = _maxw - additionalWidth(via, reply, forwarded);
 		if (isPost) {
@@ -2180,11 +2181,11 @@ HistoryTextState HistoryGif::getState(int x, int y, HistoryStateRequest request)
 	}
 	auto out = _parent->out(), isPost = _parent->isPost();
 	auto isChildMedia = (_parent->getMedia() != this);
-	auto isRound = _data->isRoundVideo();
 	auto usew = width, usex = 0;
-	auto via = (!isRound || isChildMedia) ? nullptr : _parent->Get<HistoryMessageVia>();
-	auto reply = (!isRound || isChildMedia) ? nullptr : _parent->Get<HistoryMessageReply>();
-	auto forwarded = (!isRound || isChildMedia) ? nullptr : _parent->Get<HistoryMessageForwarded>();
+	auto separateRoundVideo = isSeparateRoundVideo();
+	auto via = separateRoundVideo ? _parent->Get<HistoryMessageVia>() : nullptr;
+	auto reply = separateRoundVideo ? _parent->Get<HistoryMessageReply>() : nullptr;
+	auto forwarded = separateRoundVideo ? _parent->Get<HistoryMessageForwarded>() : nullptr;
 	if (via || reply || forwarded) {
 		usew = _maxw - additionalWidth(via, reply, forwarded);
 		if (isPost) {
@@ -2304,6 +2305,10 @@ void HistoryGif::eraseFromOverview() {
 
 QString HistoryGif::mediaTypeString() const {
 	return _data->isRoundVideo() ? lang(lng_in_dlg_video_message) : qsl("GIF");
+}
+
+bool HistoryGif::isSeparateRoundVideo() const {
+	return _data->isRoundVideo() && (_parent->getMedia() == this) && !_parent->hasBubble();
 }
 
 void HistoryGif::setStatusSize(int32 newSize) const {

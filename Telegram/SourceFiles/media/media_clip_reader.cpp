@@ -223,6 +223,9 @@ void Reader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, Image
 }
 
 QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, ImageRoundRadius radius, ImageRoundCorners corners, TimeMs ms) {
+	Expects(outerw > 0);
+	Expects(outerh > 0);
+
 	auto frame = frameToShow();
 	t_assert(frame != nullptr);
 
