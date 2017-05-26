@@ -690,11 +690,12 @@ void HistoryWidget::animatedScrollToY(int scrollTo, HistoryItem *attachTo) {
 
 	// Attach our scroll animation to some item.
 	auto itemTop = _list->itemTop(attachTo);
+	auto scrollTop = _scroll->scrollTop();
 	if (itemTop < 0 && !_history->isEmpty()) {
 		attachTo = _history->blocks.back()->items.back();
 		itemTop = _list->itemTop(attachTo);
 	}
-	if (itemTop < 0) {
+	if (itemTop < 0 || (scrollTop == scrollTo)) {
 		synteticScrollToY(scrollTo);
 		return;
 	}
@@ -702,7 +703,6 @@ void HistoryWidget::animatedScrollToY(int scrollTo, HistoryItem *attachTo) {
 	_scrollToAnimation.finish();
 	auto maxAnimatedDelta = _scroll->height();
 	auto transition = anim::sineInOut;
-	auto scrollTop = _scroll->scrollTop();
 	if (scrollTo > scrollTop + maxAnimatedDelta) {
 		scrollTop = scrollTo - maxAnimatedDelta;
 		synteticScrollToY(scrollTop);
@@ -4918,7 +4918,7 @@ void HistoryWidget::updateHistoryGeometry(bool initial, bool loadedDown, const S
 		return; // scrollTopMax etc are not working after recountHeight()
 	}
 
-	int newScrollHeight = height() - _topBar->height();
+	auto newScrollHeight = height() - _topBar->height();
 	if (isBlocked() || isBotStart() || isJoinChannel() || isMuteUnmute()) {
 		newScrollHeight -= _unblock->height();
 	} else {
@@ -4935,9 +4935,10 @@ void HistoryWidget::updateHistoryGeometry(bool initial, bool loadedDown, const S
 	if (_pinnedBar) {
 		newScrollHeight -= st::historyReplyHeight;
 	}
-	int wasScrollTop = _scroll->scrollTop();
-	bool wasAtBottom = wasScrollTop + 1 > _scroll->scrollTopMax();
-	bool needResize = (_scroll->width() != _chatWidth) || (_scroll->height() != newScrollHeight);
+	auto wasScrollTop = _scroll->scrollTop();
+	auto wasScrollTopMax = _scroll->scrollTopMax();
+	auto wasAtBottom = wasScrollTop + 1 > wasScrollTopMax;
+	auto needResize = (_scroll->width() != _chatWidth) || (_scroll->height() != newScrollHeight);
 	if (needResize) {
 		_scroll->resize(_chatWidth, newScrollHeight);
 		// on initial updateListSize we didn't put the _scroll->scrollTop correctly yet
@@ -4956,7 +4957,7 @@ void HistoryWidget::updateHistoryGeometry(bool initial, bool loadedDown, const S
 	_updateHistoryGeometryRequired = false;
 
 	if ((!initial && !wasAtBottom) || (loadedDown && (!_history->showFrom || _history->unreadBar || _history->loadedAtBottom()) && (!_migrated || !_migrated->showFrom || _migrated->unreadBar || _history->loadedAtBottom()))) {
-		int toY = _list->historyScrollTop();
+		auto toY = _list->historyScrollTop();
 		if (change.type == ScrollChangeAdd) {
 			toY += change.value;
 		} else if (change.type == ScrollChangeNoJumpToBottom) {
@@ -4978,6 +4979,7 @@ void HistoryWidget::updateHistoryGeometry(bool initial, bool loadedDown, const S
 
 	if (initial) {
 		_historyInited = true;
+		_scrollToAnimation.finish();
 	}
 	auto newScrollTop = initial ? countInitialScrollTop() : countAutomaticScrollTop();
 	if (_scroll->scrollTop() == newScrollTop) {
