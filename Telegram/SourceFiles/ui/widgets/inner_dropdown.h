@@ -142,8 +142,8 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
-	const style::InnerDropdown &_st;
 	object_ptr<TWidget> _child;
+	const style::InnerDropdown &_st;
 
 };
 
