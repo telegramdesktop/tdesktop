@@ -176,9 +176,11 @@ void PeerListWidget::mousePressReleased(Qt::MouseButton button) {
 			ripple->lastStop();
 		}
 		if (pressed == _selected && pressedRemove == _selectedRemove && button == Qt::LeftButton) {
-			if (auto &callback = (pressedRemove ? _removedCallback : _selectedCallback)) {
-				callback(_items[pressed]->peer);
-			}
+			InvokeQueued(this, [this, pressedRemove, peer = _items[pressed]->peer] {
+				if (auto &callback = (pressedRemove ? _removedCallback : _selectedCallback)) {
+					callback(peer);
+				}
+			});
 		}
 	}
 	setCursor(_selectedRemove ? style::cur_pointer : style::cur_default);
