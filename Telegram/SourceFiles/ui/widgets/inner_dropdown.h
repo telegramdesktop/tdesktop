@@ -33,7 +33,11 @@ class InnerDropdown : public TWidget {
 public:
 	InnerDropdown(QWidget *parent, const style::InnerDropdown &st = st::defaultInnerDropdown);
 
-	void setOwnedWidget(TWidget *widget);
+	template <typename Widget>
+	QPointer<Widget> setOwnedWidget(object_ptr<Widget> widget) {
+		auto result = doSetOwnedWidget(std::move(widget));
+		return QPointer<Widget>(static_cast<Widget*>(result.data()));
+	}
 
 	bool overlaps(const QRect &globalRect) {
 		if (isHidden() || _a_show.animating() || _a_opacity.animating()) return false;
@@ -90,6 +94,7 @@ private slots:
 	}
 
 private:
+	QPointer<TWidget> doSetOwnedWidget(object_ptr<TWidget> widget);
 	QImage grabForPanelAnimation();
 	void startShowAnimation();
 	void startOpacityAnimation(bool hiding);
@@ -128,7 +133,7 @@ private:
 
 class InnerDropdown::Container : public TWidget {
 public:
-	Container(QWidget *parent, TWidget *child, const style::InnerDropdown &st);
+	Container(QWidget *parent, object_ptr<TWidget> child, const style::InnerDropdown &st);
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
 	void resizeToContent();
@@ -138,6 +143,7 @@ protected:
 
 private:
 	const style::InnerDropdown &_st;
+	object_ptr<TWidget> _child;
 
 };
 

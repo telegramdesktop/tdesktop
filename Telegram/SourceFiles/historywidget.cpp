@@ -84,6 +84,7 @@ constexpr auto kTabbedSelectorToggleTooltipTimeoutMs = 3000;
 constexpr auto kTabbedSelectorToggleTooltipCount = 3;
 constexpr auto kScrollToVoiceAfterScrolledMs = 1000;
 constexpr auto kSkipRepaintWhileScrollMs = 100;
+constexpr auto kShowMembersDropdownTimeoutMs = 300;
 
 ApiWrap::RequestMessageDataCallback replyEditMessageDataCallback() {
 	return [](ChannelData *channel, MsgId msgId) {
@@ -1834,6 +1835,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 		destroyUnreadBar();
 		destroyPinnedBar();
+		_membersDropdown.destroy();
 		_scrollToAnimation.finish();
 		_history = _migrated = nullptr;
 		_peer = nullptr;
@@ -3868,7 +3870,7 @@ void HistoryWidget::setMembersShowAreaActive(bool active) {
 		if (_membersDropdown) {
 			_membersDropdown->otherEnter();
 		} else if (!_membersDropdownShowTimer.isActive()) {
-			_membersDropdownShowTimer.start(300);
+			_membersDropdownShowTimer.start(kShowMembersDropdownTimeoutMs);
 		}
 	} else if (_membersDropdown) {
 		_membersDropdown->otherLeave();
@@ -3878,7 +3880,7 @@ void HistoryWidget::setMembersShowAreaActive(bool active) {
 void HistoryWidget::onMembersDropdownShow() {
 	if (!_membersDropdown) {
 		_membersDropdown.create(this, st::membersInnerDropdown);
-		_membersDropdown->setOwnedWidget(new Profile::GroupMembersWidget(_membersDropdown, _peer, Profile::GroupMembersWidget::TitleVisibility::Hidden, st::membersInnerItem));
+		_membersDropdown->setOwnedWidget(object_ptr<Profile::GroupMembersWidget>(this, _peer, Profile::GroupMembersWidget::TitleVisibility::Hidden, st::membersInnerItem));
 		_membersDropdown->resizeToWidth(st::membersInnerWidth);
 
 		_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());

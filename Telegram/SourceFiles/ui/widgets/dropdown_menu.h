@@ -100,7 +100,7 @@ private:
 	const style::DropdownMenu &_st;
 	base::lambda<void()> _hiddenCallback;
 
-	object_ptr<Ui::Menu> _menu;
+	QPointer<Ui::Menu> _menu;
 
 	// Not ready with submenus yet.
 	//using Submenus = QMap<QAction*, SubmenuPointer>;

@@ -23,15 +23,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Ui {
 
 DropdownMenu::DropdownMenu(QWidget *parent, const style::DropdownMenu &st) : InnerDropdown(parent, st.wrap)
-, _st(st)
-, _menu(this, _st.menu) {
+, _st(st) {
+	_menu = setOwnedWidget(object_ptr<Ui::Menu>(this, _st.menu));
 	init();
 }
 
 // Not ready with submenus yet.
 //DropdownMenu::DropdownMenu(QWidget *parent, QMenu *menu, const style::DropdownMenu &st) : InnerDropdown(parent, st.wrap)
-//, _st(st)
-//, _menu(this, menu, _st.menu) {
+//, _st(st) {
+//	_menu = setOwnedWidget(object_ptr<Ui::Menu>(this, menu, _st.menu));
 //	init();
 //
 //	for (auto action : actions()) {
@@ -44,8 +44,6 @@ DropdownMenu::DropdownMenu(QWidget *parent, const style::DropdownMenu &st) : Inn
 
 void DropdownMenu::init() {
 	InnerDropdown::setHiddenCallback([this] { hideFinish(); });
-
-	setOwnedWidget(_menu);
 
 	_menu->setResizedCallback([this] { resizeToContent(); });
 	_menu->setActivatedCallback([this](QAction *action, int actionTop, TriggeredSource source) {

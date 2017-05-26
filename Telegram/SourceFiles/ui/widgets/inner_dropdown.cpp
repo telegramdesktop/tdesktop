@@ -49,13 +49,15 @@ InnerDropdown::InnerDropdown(QWidget *parent, const style::InnerDropdown &st) : 
 	hide();
 }
 
-void InnerDropdown::setOwnedWidget(TWidget *widget) {
+QPointer<TWidget> InnerDropdown::doSetOwnedWidget(object_ptr<TWidget> widget) {
+	auto result = QPointer<TWidget>(widget);
 	connect(widget, SIGNAL(heightUpdated()), this, SLOT(onWidgetHeightUpdated()));
-	auto container = _scroll->setOwnedWidget(object_ptr<Container>(_scroll, widget, _st));
+	auto container = _scroll->setOwnedWidget(object_ptr<Container>(_scroll, std::move(widget), _st));
 	container->resizeToWidth(_scroll->width());
 	container->moveToLeft(0, 0);
 	container->show();
-	widget->show();
+	result->show();
+	return result;
 }
 
 void InnerDropdown::setMaxHeight(int newMaxHeight) {
@@ -320,15 +322,15 @@ int InnerDropdown::resizeGetHeight(int newWidth) {
 	return newHeight;
 }
 
-InnerDropdown::Container::Container(QWidget *parent, TWidget *child, const style::InnerDropdown &st) : TWidget(parent), _st(st) {
-	child->setParent(this);
-	child->moveToLeft(_st.scrollPadding.left(), _st.scrollPadding.top());
+InnerDropdown::Container::Container(QWidget *parent, object_ptr<TWidget> child, const style::InnerDropdown &st) : TWidget(parent)
+, _child(std::move(child))
+, _st(st) {
+	_child->setParent(this);
+	_child->moveToLeft(_st.scrollPadding.left(), _st.scrollPadding.top());
 }
 
 void InnerDropdown::Container::setVisibleTopBottom(int visibleTop, int visibleBottom) {
-	if (auto child = static_cast<TWidget*>(children().front())) {
-		child->setVisibleTopBottom(visibleTop - _st.scrollPadding.top(), visibleBottom - _st.scrollPadding.top());
-	}
+	_child->setVisibleTopBottom(visibleTop - _st.scrollPadding.top(), visibleBottom - _st.scrollPadding.top());
 }
 
 void InnerDropdown::Container::resizeToContent() {
@@ -346,11 +348,9 @@ void InnerDropdown::Container::resizeToContent() {
 int InnerDropdown::Container::resizeGetHeight(int newWidth) {
 	auto innerWidth = newWidth - _st.scrollPadding.left() - _st.scrollPadding.right();
 	auto result = _st.scrollPadding.top() + _st.scrollPadding.bottom();
-	if (auto child = static_cast<TWidget*>(children().front())) {
-		child->resizeToWidth(innerWidth);
-		child->moveToLeft(_st.scrollPadding.left(), _st.scrollPadding.top());
-		result += child->height();
-	}
+	_child->resizeToWidth(innerWidth);
+	_child->moveToLeft(_st.scrollPadding.left(), _st.scrollPadding.top());
+	result += _child->height();
 	return result;
 }
 
