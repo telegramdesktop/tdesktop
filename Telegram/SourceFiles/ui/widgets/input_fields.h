@@ -273,6 +273,7 @@ protected:
 	void keyPressEvent(QKeyEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
+	void inputMethodEvent(QInputMethodEvent *e) override;
 
 	virtual void correctValue(const QString &was, QString &now);
 
@@ -294,6 +295,7 @@ private:
 	bool _placeholderVisible = true;
 	Animation _a_placeholderFocused;
 	Animation _a_placeholderVisible;
+	bool _lastPreEditTextNotEmpty = false;
 
 	const style::FlatInput &_st;
 
@@ -720,6 +722,13 @@ signals:
 	void blurred();
 
 protected:
+	QString getDisplayedText() const {
+		auto result = getLastText();
+		if (!_lastPreEditText.isEmpty()) {
+			result = result.mid(0, _oldcursor) + _lastPreEditText + result.mid(_oldcursor);
+		}
+		return result;
+	}
 	void startBorderAnimation();
 	void startPlaceholderAnimation();
 
@@ -731,6 +740,7 @@ protected:
 	void keyPressEvent(QKeyEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
+	void inputMethodEvent(QInputMethodEvent *e) override;
 
 	virtual void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) {
 	}
@@ -762,6 +772,7 @@ private:
 
 	QString _oldtext;
 	int _oldcursor = 0;
+	QString _lastPreEditText;
 
 	bool _undoAvailable = false;
 	bool _redoAvailable = false;

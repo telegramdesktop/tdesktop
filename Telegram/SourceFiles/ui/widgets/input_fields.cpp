@@ -1331,7 +1331,8 @@ void FlatTextarea::setPlaceholder(const QString &ph, int32 afterSymbols) {
 }
 
 void FlatTextarea::updatePlaceholder() {
-	auto placeholderVisible = (getTextWithTags().text.size() <= _phAfter);
+	auto textSize = (getTextWithTags().text.size() + textCursor().block().layout()->preeditAreaText().size());
+	auto placeholderVisible = (textSize <= _phAfter);
 	if (_placeholderVisible != placeholderVisible) {
 		_placeholderVisible = placeholderVisible;
 		_a_placeholderVisible.start([this] { update(); }, _placeholderVisible ? 0. : 1., _placeholderVisible ? 1. : 0., _st.phDuration);
@@ -1645,10 +1646,25 @@ QSize FlatInput::minimumSizeHint() const {
 }
 
 void FlatInput::updatePlaceholder() {
-	auto placeholderVisible = text().isEmpty();
+	auto hasText = !text().isEmpty();
+	if (!hasText) {
+		hasText = _lastPreEditTextNotEmpty;
+	} else {
+		_lastPreEditTextNotEmpty = false;
+	}
+	auto placeholderVisible = !hasText;
 	if (_placeholderVisible != placeholderVisible) {
 		_placeholderVisible = placeholderVisible;
 		_a_placeholderVisible.start([this] { update(); }, _placeholderVisible ? 0. : 1., _placeholderVisible ? 1. : 0., _st.phDuration);
+	}
+}
+
+void FlatInput::inputMethodEvent(QInputMethodEvent *e) {
+	QLineEdit::inputMethodEvent(e);
+	auto lastPreEditTextNotEmpty = !e->preeditString().isEmpty();
+	if (_lastPreEditTextNotEmpty != lastPreEditTextNotEmpty) {
+		_lastPreEditTextNotEmpty = lastPreEditTextNotEmpty;
+		updatePlaceholder();
 	}
 }
 
@@ -2707,7 +2723,7 @@ void InputField::setFocused(bool focused) {
 }
 
 void InputField::startPlaceholderAnimation() {
-	auto placeholderShifted = (_focused && _st.placeholderScale > 0.) || !getLastText().isEmpty() || _forcePlaceholderHidden;
+	auto placeholderShifted = _forcePlaceholderHidden || (_focused && _st.placeholderScale > 0.) || !getLastText().isEmpty();
 	if (_placeholderShifted != placeholderShifted) {
 		_placeholderShifted = placeholderShifted;
 		_a_placeholderShifted.start([this] { update(); }, _placeholderShifted ? 0. : 1., _placeholderShifted ? 1. : 0., _st.duration);
@@ -3495,6 +3511,12 @@ void MaskedInputField::contextMenuEvent(QContextMenuEvent *e) {
 	}
 }
 
+void MaskedInputField::inputMethodEvent(QInputMethodEvent *e) {
+	QLineEdit::inputMethodEvent(e);
+	_lastPreEditText = e->preeditString();
+	update();
+}
+
 void MaskedInputField::showError() {
 	setErrorShown(true);
 	if (!hasFocus()) {
@@ -3538,7 +3560,7 @@ void MaskedInputField::setPlaceholderHidden(bool forcePlaceholderHidden) {
 }
 
 void MaskedInputField::startPlaceholderAnimation() {
-	auto placeholderShifted = (_focused && _st.placeholderScale > 0.) || !getLastText().isEmpty() || _forcePlaceholderHidden;
+	auto placeholderShifted = _forcePlaceholderHidden || (_focused && _st.placeholderScale > 0.) || !getLastText().isEmpty();
 	if (_placeholderShifted != placeholderShifted) {
 		_placeholderShifted = placeholderShifted;
 		_a_placeholderShifted.start([this] { update(); }, _placeholderShifted ? 0. : 1., _placeholderShifted ? 1. : 0., _st.duration);
@@ -3681,8 +3703,8 @@ PhonePartInput::PhonePartInput(QWidget *parent, const style::InputField &st) : M
 }
 
 void PhonePartInput::paintAdditionalPlaceholder(Painter &p, TimeMs ms) {
-	auto t = getLastText();
 	if (!_pattern.isEmpty()) {
+		auto t = getDisplayedText();
 		auto ph = _additionalPlaceholder.mid(t.size());
 		if (!ph.isEmpty()) {
 			p.setClipRect(rect());
@@ -3901,7 +3923,7 @@ void PhoneInput::clearText() {
 
 void PhoneInput::paintAdditionalPlaceholder(Painter &p, TimeMs ms) {
 	if (!_pattern.isEmpty()) {
-		auto t = getLastText();
+		auto t = getDisplayedText();
 		auto ph = _additionalPlaceholder.mid(t.size());
 		if (!ph.isEmpty()) {
 			p.setClipRect(rect());
