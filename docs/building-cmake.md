@@ -61,7 +61,7 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
 
-    git clone git://anongit.freedesktop.org/git/libva
+    git clone https://github.com/01org/libva.git
     cd libva
     ./autogen.sh --enable-static
     make
