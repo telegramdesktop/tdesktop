@@ -597,9 +597,13 @@ namespace {
 bool QuietHoursEnabled = false;
 DWORD QuietHoursValue = 0;
 
+// Thanks https://stackoverflow.com/questions/35600128/get-windows-quiet-hours-from-win32-or-c-sharp-api
 void queryQuietHours() {
-	if (QSysInfo::windowsVersion() < QSysInfo::WV_WINDOWS8_1) {
-		// No system quiet hours in Windows prior to Windows 8.1
+	if (QSysInfo::windowsVersion() < QSysInfo::WV_WINDOWS10) {
+		// There are quiet hours in Windows starting from Windows 8.1
+		// But there were several reports about the notifications being shut
+		// down according to the registry while no quiet hours were enabled.
+		// So we try this method only starting with Windows 10.
 		return;
 	}
 
