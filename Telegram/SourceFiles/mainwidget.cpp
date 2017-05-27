@@ -3575,7 +3575,7 @@ void MainWidget::updateWindowAdaptiveLayout() {
 	// dialogs widget to provide a wide enough chat history column.
 	// Don't shrink the column on the first call, when window is inited.
 	if (layout.windowLayout == Adaptive::WindowLayout::Normal
-		&& _controller->window()->positionInited()) {
+		&& _started && _controller->window()->positionInited()) {
 		auto chatWidth = layout.chatWidth;
 		if (_history->willSwitchToTabbedSelectorWithWidth(chatWidth)) {
 			auto thirdColumnWidth = _history->tabbedSelectorSectionWidth();
