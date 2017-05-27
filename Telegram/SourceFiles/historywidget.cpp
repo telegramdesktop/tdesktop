@@ -1794,6 +1794,9 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 				setMsgId(showAtMsgId);
 				if (_historyInited) {
+					countHistoryShowFrom();
+					destroyUnreadBar();
+
 					auto item = getItemFromHistoryOrMigrated(_showAtMsgId);
 					animatedScrollToY(countInitialScrollTop(), item);
 					highlightMessage(item);
