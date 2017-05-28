@@ -636,7 +636,7 @@ buildTelegram() {
 check() {
   local filePath="$UPSTREAM/out/Debug/Telegram"
   if test -f "$filePath"; then
-    success_msg "Build successful done! :)"
+    success_msg "Build successfully done! :)"
 
     local size;
     size=$(stat -c %s "$filePath")
