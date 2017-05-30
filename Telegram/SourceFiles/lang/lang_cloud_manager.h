@@ -51,6 +51,13 @@ public:
 	void applyLangPackDifference(const MTPLangPackDifference &difference);
 
 	void switchToLanguage(const QString &id);
+	void setSuggestedLanguage(const QString &langCode);
+	QString suggestedLanguage() const {
+		return _suggestedLanguage;
+	}
+	base::Observable<void> &firstLanguageSuggestion() {
+		return _firstLanguageSuggestion;
+	}
 
 private:
 	void offerSwitchLangPack();
@@ -70,6 +77,10 @@ private:
 
 	QString _offerSwitchToId;
 	std::unique_ptr<MTPLangPackDifference> _offerSwitchToData;
+
+	QString _suggestedLanguage;
+	bool _languageWasSuggested = false;
+	base::Observable<void> _firstLanguageSuggestion;
 
 };
 

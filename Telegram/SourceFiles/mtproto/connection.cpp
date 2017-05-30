@@ -780,11 +780,12 @@ void ConnectionPrivate::tryToSend() {
 	MTPInitConnection<mtpRequest> initWrapper;
 	int32 initSize = 0, initSizeInInts = 0;
 	if (needsLayer) {
-		auto langCode = sessionData->langCode();
+		auto systemLangCode = sessionData->systemLangCode();
+		auto cloudLangCode = sessionData->cloudLangCode();
 		auto langPack = "tdesktop";
 		auto deviceModel = (_dcType == DcType::Cdn) ? "n/a" : cApiDeviceModel();
 		auto systemVersion = (_dcType == DcType::Cdn) ? "n/a" : cApiSystemVersion();
-		initWrapper = MTPInitConnection<mtpRequest>(MTP_int(ApiId), MTP_string(deviceModel), MTP_string(systemVersion), MTP_string(cApiAppVersion()), MTP_string(langCode), MTP_string(langPack), MTP_string(langCode), mtpRequest());
+		initWrapper = MTPInitConnection<mtpRequest>(MTP_int(ApiId), MTP_string(deviceModel), MTP_string(systemVersion), MTP_string(cApiAppVersion()), MTP_string(systemLangCode), MTP_string(langPack), MTP_string(cloudLangCode), mtpRequest());
 		initSizeInInts = (initWrapper.innerLength() >> 2) + 2;
 		initSize = initSizeInInts * sizeof(mtpPrime);
 	}

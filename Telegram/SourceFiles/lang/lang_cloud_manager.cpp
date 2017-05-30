@@ -49,12 +49,32 @@ void CloudManager::requestLangPackDifference() {
 			_langPackRequestId = 0;
 		}).send();
 	} else {
-		_langPackRequestId = request(MTPlangpack_GetLangPack()).done([this](const MTPLangPackDifference &result) {
+		_langPackRequestId = request(MTPlangpack_GetLangPack(MTP_string(_langpack.cloudLangCode()))).done([this](const MTPLangPackDifference &result) {
 			_langPackRequestId = 0;
 			applyLangPackDifference(result);
 		}).fail([this](const RPCError &error) {
 			_langPackRequestId = 0;
 		}).send();
+	}
+}
+
+void CloudManager::setSuggestedLanguage(const QString &langCode) {
+	if (_langpack.id().isEmpty()
+		&& !langCode.isEmpty()
+		&& langCode != Lang::DefaultLanguageId()) {
+		_suggestedLanguage = langCode;
+	} else {
+		_suggestedLanguage = QString();
+	}
+
+	if (!_languageWasSuggested) {
+		_languageWasSuggested = true;
+		_firstLanguageSuggestion.notify();
+
+		if (AuthSession::Exists() && !_suggestedLanguage.isEmpty()) {
+			_offerSwitchToId = _suggestedLanguage;
+			offerSwitchLangPack();
+		}
 	}
 }
 
@@ -68,14 +88,6 @@ void CloudManager::applyLangPackDifference(const MTPLangPackDifference &differen
 	auto langpackId = qs(langpack.vlang_code);
 	if (needToApplyLangPack(langpackId)) {
 		applyLangPackData(langpack);
-	} else if (_langpack.id().isEmpty()) {
-		_offerSwitchToId = langpackId;
-		if (langpack.vfrom_version.v == 0) {
-			_offerSwitchToData = std::make_unique<MTPLangPackDifference>(difference);
-		} else {
-			_offerSwitchToData.reset();
-		}
-		offerSwitchLangPack();
 	} else {
 		LOG(("Lang Warning: Ignoring update for '%1' because our language is '%2'").arg(langpackId).arg(_langpack.id()));
 	}

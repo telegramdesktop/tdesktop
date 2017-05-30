@@ -53,6 +53,7 @@ public:
 	void suggestMainDcId(DcId mainDcId);
 	void setMainDcId(DcId mainDcId);
 	DcId mainDcId() const;
+	QString systemLangCode() const;
 	QString cloudLangCode() const;
 
 	void setKeyForWrite(DcId dcId, const AuthKeyPtr &key);

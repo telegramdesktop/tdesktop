@@ -29,6 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/sender.h"
 #include "mtproto/rsa_public_key.h"
 #include "lang/lang_instance.h"
+#include "lang/lang_cloud_manager.h"
 #include "base/timer.h"
 
 namespace MTP {
@@ -600,6 +601,7 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 		Global::SetPhoneCallsEnabled(data.is_phonecalls_enabled());
 		Global::RefPhoneCallsEnabledChanged().notify();
 	}
+	Lang::CurrentCloudManager().setSuggestedLanguage(data.has_suggested_lang_code() ? qs(data.vsuggested_lang_code) : QString());
 
 	Local::writeSettings();
 
@@ -1082,6 +1084,8 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 			session->sendPrepared(request);
 		}
 		return true;
+	} else if (err == qstr("CONNECTION_LANG_CODE_INVALID")) {
+		Lang::CurrentCloudManager().switchToLanguage(qsl("en"));
 	} else if (err == qstr("MSG_WAIT_FAILED")) {
 		mtpRequest request;
 		{
@@ -1268,6 +1272,10 @@ void Instance::setMainDcId(DcId mainDcId) {
 
 DcId Instance::mainDcId() const {
 	return _private->mainDcId();
+}
+
+QString Instance::systemLangCode() const {
+	return Lang::Current().systemLangCode();
 }
 
 QString Instance::cloudLangCode() const {

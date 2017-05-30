@@ -48,6 +48,7 @@ public:
 	Instance(Instance &&other) = default;
 	Instance &operator=(Instance &&other) = default;
 
+	QString systemLangCode() const;
 	QString cloudLangCode() const;
 
 	QString id() const {

@@ -376,8 +376,8 @@ QString SystemCountry() {
 
 namespace {
 
-QString GetLangCodeById(int lngId) {
-	int primary = lngId & 0xFF;
+QString GetLangCodeById(unsigned lngId) {
+	auto primary = (lngId & 0xFFU);
 	switch (primary) {
 	case 0x36: return qsl("af");
 	case 0x1C: return qsl("sq");
@@ -498,37 +498,42 @@ QString GetLangCodeById(int lngId) {
 } // namespace
 
 QString SystemLanguage() {
-	int chCount = GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SNAME, 0, 0);
-	if (chCount && chCount < 128) {
-		WCHAR wstrLocale[128];
-		int len = GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SNAME, wstrLocale, chCount);
-		if (!len) {
+	constexpr auto kMaxLanguageLength = 128;
+
+	auto uiLanguageId = GetUserDefaultUILanguage();
+	auto uiLanguageLength = GetLocaleInfo(uiLanguageId, LOCALE_SNAME, nullptr, 0);
+	if (uiLanguageLength > 0 && uiLanguageLength < kMaxLanguageLength) {
+		WCHAR uiLanguageWideString[kMaxLanguageLength] = { 0 };
+		uiLanguageLength = GetLocaleInfo(uiLanguageId, LOCALE_SNAME, uiLanguageWideString, uiLanguageLength);
+		if (uiLanguageLength <= 0) {
 			return QString();
 		}
-		QString locale = QString::fromStdWString(std::wstring(wstrLocale));
-		QRegularExpressionMatch m = QRegularExpression("(^|[^a-z])([a-z]{2})-").match(locale);
-		if (m.hasMatch()) {
-			return m.captured(2);
-		}
+		return QString::fromWCharArray(uiLanguageWideString);
 	}
-	chCount = GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_ILANGUAGE, 0, 0);
-	if (chCount && chCount < 128) {
-		WCHAR wstrLocale[128];
-		int len = GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_ILANGUAGE, wstrLocale, chCount), lngId = 0;
-		if (len < 5) return QString();
+	auto uiLanguageCodeLength = GetLocaleInfo(uiLanguageId, LOCALE_ILANGUAGE, nullptr, 0);
+	if (uiLanguageCodeLength > 0 && uiLanguageCodeLength < kMaxLanguageLength) {
+		WCHAR uiLanguageCodeWideString[kMaxLanguageLength] = { 0 };
+		uiLanguageCodeLength = GetLocaleInfo(uiLanguageId, LOCALE_ILANGUAGE, uiLanguageCodeWideString, uiLanguageCodeLength);
+		if (uiLanguageCodeLength <= 0) {
+			return QString();
+		}
 
-		for (int i = 0; i < 4; ++i) {
-			WCHAR ch = wstrLocale[i];
-			lngId *= 16;
+		auto languageCode = 0U;
+		for (auto i = 0; i != uiLanguageCodeLength; ++i) {
+			auto ch = uiLanguageCodeWideString[i];
+			if (!ch) {
+				break;
+			}
+			languageCode *= 0x10U;
 			if (ch >= WCHAR('0') && ch <= WCHAR('9')) {
-				lngId += (ch - WCHAR('0'));
+				languageCode += static_cast<unsigned>(int(ch) - int(WCHAR('0')));
 			} else if (ch >= WCHAR('A') && ch <= WCHAR('F')) {
-				lngId += (10 + ch - WCHAR('A'));
+				languageCode += static_cast<unsigned>(0x0A + int(ch) - int(WCHAR('A')));
 			} else {
 				return QString();
 			}
 		}
-		return GetLangCodeById(lngId);
+		return GetLangCodeById(languageCode);
 	}
 	return QString();
 }

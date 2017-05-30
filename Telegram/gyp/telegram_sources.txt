@@ -289,7 +289,7 @@
 <(src_loc)/platform/mac/main_window_mac.h
 <(src_loc)/platform/mac/notifications_manager_mac.mm
 <(src_loc)/platform/mac/notifications_manager_mac.h
-<(src_loc)/platform/mac/specific_mac.cpp
+<(src_loc)/platform/mac/specific_mac.mm
 <(src_loc)/platform/mac/specific_mac.h
 <(src_loc)/platform/mac/specific_mac_p.mm
 <(src_loc)/platform/mac/specific_mac_p.h

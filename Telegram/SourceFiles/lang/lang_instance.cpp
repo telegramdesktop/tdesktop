@@ -286,15 +286,26 @@ void Instance::fillDefaults() {
 	}
 }
 
-QString Instance::cloudLangCode() const {
-	if (isCustom() || id().isEmpty()) {
+QString Instance::systemLangCode() const {
+	if (_systemLanguage.isEmpty()) {
+		_systemLanguage = Platform::SystemLanguage();
 		if (_systemLanguage.isEmpty()) {
-			_systemLanguage = Platform::SystemLanguage();
+			auto uiLanguages = QLocale::system().uiLanguages();
+			if (!uiLanguages.isEmpty()) {
+				_systemLanguage = uiLanguages.front();
+			}
 			if (_systemLanguage.isEmpty()) {
 				_systemLanguage = DefaultLanguageId();
 			}
 		}
-		return _systemLanguage;
+//		_systemLanguage = "de"; // TESTING
+	}
+	return _systemLanguage;
+}
+
+QString Instance::cloudLangCode() const {
+	if (isCustom() || id().isEmpty()) {
+		return DefaultLanguageId();
 	}
 	return id();
 }
