@@ -119,7 +119,7 @@ NotificationsBox::NotificationsBox(QWidget *parent)
 }
 
 void NotificationsBox::prepare() {
-	addButton(lang(lng_close), [this] { closeBox(); });
+	addButton(langFactory(lng_close), [this] { closeBox(); });
 
 	_sampleOpacities.reserve(kMaxNotificationsCount);
 	for (int i = 0; i != kMaxNotificationsCount; ++i) {

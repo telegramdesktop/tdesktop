@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/cross_animation.h"
+#include "lang/lang_instance.h"
 
 namespace Ui {
 
@@ -351,20 +352,21 @@ void RoundButton::Numbers::paint(Painter &p, int x, int y, int outerWidth) {
 	p.setOpacity(1.);
 }
 
-RoundButton::RoundButton(QWidget *parent, const QString &text, const style::RoundButton &st) : RippleButton(parent, st.ripple)
-, _fullText(text)
+RoundButton::RoundButton(QWidget *parent, base::lambda<QString()> textFactory, const style::RoundButton &st) : RippleButton(parent, st.ripple)
+, _textFactory(std::move(textFactory))
 , _st(st) {
-	updateText();
+	subscribe(Lang::Current().updated(), [this] { refreshText(); });
+	refreshText();
 }
 
 void RoundButton::setTextTransform(TextTransform transform) {
 	_transform = transform;
-	updateText();
+	refreshText();
 }
 
-void RoundButton::setText(const QString &text) {
-	_fullText = text;
-	updateText();
+void RoundButton::setText(base::lambda<QString()> textFactory) {
+	_textFactory = std::move(textFactory);
+	refreshText();
 }
 
 void RoundButton::setNumbersText(const QString &numbersText, int numbers) {
@@ -376,7 +378,7 @@ void RoundButton::setNumbersText(const QString &numbersText, int numbers) {
 		}
 		_numbers->setText(numbersText, numbers);
 	}
-	updateText();
+	refreshText();
 }
 
 void RoundButton::setWidthChangedCallback(base::lambda<void()> callback) {
@@ -408,16 +410,17 @@ void RoundButton::setFullWidth(int newFullWidth) {
 	resizeToText();
 }
 
-void RoundButton::updateText() {
-	if (_transform == TextTransform::ToUpper) {
-		_text = _fullText.toUpper();
-	} else {
-		_text = _fullText;
-	}
+void RoundButton::refreshText() {
+	_text = computeFullText();
 	_textWidth = _text.isEmpty() ? 0 : _st.font->width(_text);
 
 	resizeToText();
 	update();
+}
+
+QString RoundButton::computeFullText() const {
+	auto result = _textFactory ? _textFactory() : QString();
+	return (_transform == TextTransform::ToUpper) ? result.toUpper() : result;
 }
 
 void RoundButton::resizeToText() {
@@ -428,11 +431,7 @@ void RoundButton::resizeToText() {
 		resize(innerWidth - _st.width + _st.padding.left() + _st.padding.right(), _st.height + _st.padding.top() + _st.padding.bottom());
 	} else {
 		if (_st.width < innerWidth + (_st.height - _st.font->height)) {
-			auto fullText = _fullText;
-			if (_transform == TextTransform::ToUpper) {
-				fullText = std::move(fullText).toUpper();
-			}
-			_text = _st.font->elided(fullText, qMax(_st.width - (_st.height - _st.font->height), 1));
+			_text = _st.font->elided(computeFullText(), qMax(_st.width - (_st.height - _st.font->height), 1));
 			_textWidth = _st.font->width(_text);
 		}
 		resize(_st.width + _st.padding.left() + _st.padding.right(), _st.height + _st.padding.top() + _st.padding.bottom());

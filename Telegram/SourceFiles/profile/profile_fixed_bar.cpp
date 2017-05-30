@@ -49,6 +49,8 @@ FixedBar::FixedBar(QWidget *parent, PeerData *peer) : TWidget(parent)
 , _peerChannel(peer->asChannel())
 , _peerMegagroup(peer->isMegagroup() ? _peerChannel : nullptr)
 , _backButton(this, lang(lng_menu_back)) {
+	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
+
 	_backButton->moveToLeft(0, 0);
 	connect(_backButton, SIGNAL(clicked()), this, SLOT(onBack()));
 
@@ -97,36 +99,36 @@ void FixedBar::refreshRightActions() {
 
 void FixedBar::setUserActions() {
 	if (_peerUser->canShareThisContact()) {
-		addRightAction(RightActionType::ShareContact, lang(lng_profile_top_bar_share_contact), SLOT(onShareContact()));
+		addRightAction(RightActionType::ShareContact, langFactory(lng_profile_top_bar_share_contact), SLOT(onShareContact()));
 	}
 	if (_peerUser->isContact()) {
-		addRightAction(RightActionType::EditContact, lang(lng_profile_edit_contact), SLOT(onEditContact()));
-		addRightAction(RightActionType::DeleteContact, lang(lng_profile_delete_contact), SLOT(onDeleteContact()));
+		addRightAction(RightActionType::EditContact, langFactory(lng_profile_edit_contact), SLOT(onEditContact()));
+		addRightAction(RightActionType::DeleteContact, langFactory(lng_profile_delete_contact), SLOT(onDeleteContact()));
 	} else if (_peerUser->canAddContact()) {
-		addRightAction(RightActionType::AddContact, lang(lng_profile_add_contact), SLOT(onAddContact()));
+		addRightAction(RightActionType::AddContact, langFactory(lng_profile_add_contact), SLOT(onAddContact()));
 	}
 }
 
 void FixedBar::setChatActions() {
 	if (_peerChat->canEdit()) {
-		addRightAction(RightActionType::EditGroup, lang(lng_profile_edit_contact), SLOT(onEditGroup()));
+		addRightAction(RightActionType::EditGroup, langFactory(lng_profile_edit_contact), SLOT(onEditGroup()));
 	}
-	addRightAction(RightActionType::LeaveGroup, lang(lng_profile_delete_and_exit), SLOT(onLeaveGroup()));
+	addRightAction(RightActionType::LeaveGroup, langFactory(lng_profile_delete_and_exit), SLOT(onLeaveGroup()));
 }
 
 void FixedBar::setMegagroupActions() {
 	if (_peerMegagroup->amCreator() || _peerMegagroup->amEditor()) {
-		addRightAction(RightActionType::EditChannel, lang(lng_profile_edit_contact), SLOT(onEditChannel()));
+		addRightAction(RightActionType::EditChannel, langFactory(lng_profile_edit_contact), SLOT(onEditChannel()));
 	}
 }
 
 void FixedBar::setChannelActions() {
 	if (_peerChannel->amCreator()) {
-		addRightAction(RightActionType::EditChannel, lang(lng_profile_edit_contact), SLOT(onEditChannel()));
+		addRightAction(RightActionType::EditChannel, langFactory(lng_profile_edit_contact), SLOT(onEditChannel()));
 	}
 }
 
-void FixedBar::addRightAction(RightActionType type, const QString &text, const char *slot) {
+void FixedBar::addRightAction(RightActionType type, base::lambda<QString()> textFactory, const char *slot) {
 	if (_rightActions.size() > _currentAction) {
 		if (_rightActions.at(_currentAction).type == type) {
 			++_currentAction;
@@ -138,7 +140,7 @@ void FixedBar::addRightAction(RightActionType type, const QString &text, const c
 	}
 	_rightActions[_currentAction].type = type;
 	delete _rightActions[_currentAction].button;
-	_rightActions[_currentAction].button = new Ui::RoundButton(this, text, st::profileFixedBarButton);
+	_rightActions[_currentAction].button = new Ui::RoundButton(this, std::move(textFactory), st::profileFixedBarButton);
 	connect(_rightActions[_currentAction].button, SIGNAL(clicked()), this, slot);
 	bool showButton = !_animatingMode && (type != RightActionType::ShareContact || !_hideShareContactButton);
 	_rightActions[_currentAction].button->setVisible(showButton);
@@ -193,18 +195,26 @@ void FixedBar::onLeaveGroup() {
 int FixedBar::resizeGetHeight(int newWidth) {
 	int newHeight = 0;
 
-	int buttonLeft = newWidth;
-	for (auto i = _rightActions.cend(), b = _rightActions.cbegin(); i != b;) {
-		--i;
-		buttonLeft -= i->button->width();
-		i->button->moveToLeft(buttonLeft, 0);
-	}
+	updateButtonsGeometry(newWidth);
 
 	_backButton->resizeToWidth(newWidth);
 	_backButton->moveToLeft(0, 0);
 	newHeight += _backButton->height();
 
 	return newHeight;
+}
+
+void FixedBar::updateButtonsGeometry(int newWidth) {
+	int buttonLeft = newWidth;
+	for (auto i = _rightActions.cend(), b = _rightActions.cbegin(); i != b;) {
+		--i;
+		buttonLeft -= i->button->width();
+		i->button->moveToLeft(buttonLeft, 0);
+	}
+}
+
+void FixedBar::refreshLang() {
+	InvokeQueued(this, [this] { updateButtonsGeometry(width()); });
 }
 
 void FixedBar::setAnimatingMode(bool enabled) {

@@ -41,9 +41,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "auth_session.h"
 
 AddContactBox::AddContactBox(QWidget*, QString fname, QString lname, QString phone)
-: _first(this, st::defaultInputField, lang(lng_signup_firstname), fname)
-, _last(this, st::defaultInputField, lang(lng_signup_lastname), lname)
-, _phone(this, st::defaultInputField, lang(lng_contact_phone), phone)
+: _first(this, st::defaultInputField, langFactory(lng_signup_firstname), fname)
+, _last(this, st::defaultInputField, langFactory(lng_signup_lastname), lname)
+, _phone(this, st::defaultInputField, langFactory(lng_contact_phone), phone)
 , _invertOrder(langFirstNameGoesSecond()) {
 	if (!phone.isEmpty()) {
 		_phone->setDisabled(true);
@@ -52,9 +52,9 @@ AddContactBox::AddContactBox(QWidget*, QString fname, QString lname, QString pho
 
 AddContactBox::AddContactBox(QWidget*, UserData *user)
 : _user(user)
-, _first(this, st::defaultInputField, lang(lng_signup_firstname), user->firstName)
-, _last(this, st::defaultInputField, lang(lng_signup_lastname), user->lastName)
-, _phone(this, st::defaultInputField, lang(lng_contact_phone), user->phone())
+, _first(this, st::defaultInputField, langFactory(lng_signup_firstname), user->firstName)
+, _last(this, st::defaultInputField, langFactory(lng_signup_lastname), user->lastName)
+, _phone(this, st::defaultInputField, langFactory(lng_contact_phone), user->phone())
 , _invertOrder(langFirstNameGoesSecond()) {
 	_phone->setDisabled(true);
 }
@@ -64,10 +64,10 @@ void AddContactBox::prepare() {
 		setTabOrder(_last, _first);
 	}
 	if (_user) {
-		setTitle(lang(lng_edit_contact_title));
+		setTitle(langFactory(lng_edit_contact_title));
 	} else {
-		bool readyToAdd = !_phone->getLastText().isEmpty() && (!_first->getLastText().isEmpty() || !_last->getLastText().isEmpty());
-		setTitle(lang(readyToAdd ? lng_confirm_contact_data : lng_enter_contact_data));
+		auto readyToAdd = !_phone->getLastText().isEmpty() && (!_first->getLastText().isEmpty() || !_last->getLastText().isEmpty());
+		setTitle(langFactory(readyToAdd ? lng_confirm_contact_data : lng_enter_contact_data));
 	}
 	updateButtons();
 
@@ -236,10 +236,10 @@ void AddContactBox::onRetry() {
 void AddContactBox::updateButtons() {
 	clearButtons();
 	if (_retrying) {
-		addButton(lang(lng_try_other_contact), [this] { onRetry(); });
+		addButton(langFactory(lng_try_other_contact), [this] { onRetry(); });
 	} else {
-		addButton(lang(_user ? lng_settings_save : lng_add_contact), [this] { onSave(); });
-		addButton(lang(lng_cancel), [this] { closeBox(); });
+		addButton(langFactory(_user ? lng_settings_save : lng_add_contact), [this] { onSave(); });
+		addButton(langFactory(lng_cancel), [this] { closeBox(); });
 	}
 }
 
@@ -247,7 +247,7 @@ GroupInfoBox::GroupInfoBox(QWidget*, CreatingGroupType creating, bool fromTypeCh
 : _creating(creating)
 , _fromTypeChoose(fromTypeChoose)
 , _photo(this, st::newGroupPhotoSize, st::newGroupPhotoIconPosition)
-, _title(this, st::defaultInputField, lang(_creating == CreatingGroupChannel ? lng_dlg_new_channel_name : lng_dlg_new_group_name)) {
+, _title(this, st::defaultInputField, langFactory(_creating == CreatingGroupChannel ? lng_dlg_new_channel_name : lng_dlg_new_group_name)) {
 }
 
 void GroupInfoBox::prepare() {
@@ -256,7 +256,7 @@ void GroupInfoBox::prepare() {
 	_title->setMaxLength(MaxGroupChannelTitle);
 
 	if (_creating == CreatingGroupChannel) {
-		_description.create(this, st::newGroupDescription, lang(lng_create_group_description));
+		_description.create(this, st::newGroupDescription, langFactory(lng_create_group_description));
 		_description->show();
 		_description->setMaxLength(MaxChannelDescription);
 
@@ -267,8 +267,8 @@ void GroupInfoBox::prepare() {
 
 	connect(_title, SIGNAL(submitted(bool)), this, SLOT(onNameSubmit()));
 
-	addButton(lang(_creating == CreatingGroupChannel ? lng_create_group_create : lng_create_group_next), [this] { onNext(); });
-	addButton(lang(_fromTypeChoose ? lng_create_group_back : lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(_creating == CreatingGroupChannel ? lng_create_group_create : lng_create_group_next), [this] { onNext(); });
+	addButton(langFactory(_fromTypeChoose ? lng_create_group_back : lng_cancel), [this] { closeBox(); });
 
 	setupPhotoButton();
 
@@ -425,7 +425,7 @@ SetupChannelBox::SetupChannelBox(QWidget*, ChannelData *channel, bool existing)
 , _aboutPublicWidth(st::boxWideWidth - st::boxPadding.left() - st::boxButtonPadding.right() - st::newGroupPadding.left() - st::defaultBoxCheckbox.textPosition.x())
 , _aboutPublic(st::defaultTextStyle, lang(channel->isMegagroup() ? lng_create_public_group_about : lng_create_public_channel_about), _defaultOptions, _aboutPublicWidth)
 , _aboutPrivate(st::defaultTextStyle, lang(channel->isMegagroup() ? lng_create_private_group_about : lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth)
-, _link(this, st::setupChannelLink, QString(), channel->username, true) {
+, _link(this, st::setupChannelLink, base::lambda<QString()>(), channel->username, true) {
 }
 
 void SetupChannelBox::prepare() {
@@ -435,8 +435,8 @@ void SetupChannelBox::prepare() {
 
 	_checkRequestId = MTP::send(MTPchannels_CheckUsername(_channel->inputChannel, MTP_string("preston")), RPCDoneHandlerPtr(), rpcFail(&SetupChannelBox::onFirstCheckFail));
 
-	addButton(lang(lng_settings_save), [this] { onSave(); });
-	addButton(lang(_existing ? lng_cancel : lng_create_group_skip), [this] { closeBox(); });
+	addButton(langFactory(lng_settings_save), [this] { onSave(); });
+	addButton(langFactory(_existing ? lng_cancel : lng_create_group_skip), [this] { closeBox(); });
 
 	connect(_link, SIGNAL(changed()), this, SLOT(onChange()));
 	_link->setVisible(_privacyGroup->value() == Privacy::Public);
@@ -758,26 +758,26 @@ bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
 	return true;
 }
 
-EditNameTitleBox::EditNameTitleBox(QWidget*, PeerData *peer)
+EditNameTitleBox::EditNameTitleBox(QWidget*, gsl::not_null<PeerData*> peer)
 : _peer(peer)
-, _first(this, st::defaultInputField, lang(peer->isUser() ? lng_signup_firstname : lng_dlg_new_group_name), peer->isUser() ? peer->asUser()->firstName : peer->name)
-, _last(this, st::defaultInputField, lang(lng_signup_lastname), peer->isUser() ? peer->asUser()->lastName : QString())
+, _first(this, st::defaultInputField, langFactory(_peer->isUser() ? lng_signup_firstname : lng_dlg_new_group_name), _peer->isUser() ? _peer->asUser()->firstName : _peer->name)
+, _last(this, st::defaultInputField, langFactory(lng_signup_lastname), peer->isUser() ? peer->asUser()->lastName : QString())
 , _invertOrder(!peer->isChat() && langFirstNameGoesSecond()) {
 }
 
 void EditNameTitleBox::prepare() {
 	auto newHeight = st::contactPadding.top() + _first->height();
 	if (_peer->isUser()) {
-		setTitle(lang(_peer == App::self() ? lng_edit_self_title : lng_edit_contact_title));
+		setTitle(langFactory(_peer->isSelf() ? lng_edit_self_title : lng_edit_contact_title));
 		newHeight += st::contactSkip + _last->height();
 	} else if (_peer->isChat()) {
-		setTitle(lang(lng_edit_group_title));
+		setTitle(langFactory(lng_edit_group_title));
 	}
 	newHeight += st::boxPadding.bottom() + st::contactPadding.bottom();
 	setDimensions(st::boxWideWidth, newHeight);
 
-	addButton(lang(lng_settings_save), [this] { onSave(); });
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_settings_save), [this] { onSave(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 	if (_invertOrder) {
 		setTabOrder(_last, _first);
 	}
@@ -913,17 +913,17 @@ void EditNameTitleBox::onSaveChatDone(const MTPUpdates &updates) {
 
 EditChannelBox::EditChannelBox(QWidget*, ChannelData *channel)
 : _channel(channel)
-, _title(this, st::defaultInputField, lang(channel->isMegagroup() ? lng_dlg_new_group_name : lng_dlg_new_channel_name), _channel->name)
-, _description(this, st::newGroupDescription, lang(lng_create_group_description), _channel->about())
+, _title(this, st::defaultInputField, langFactory(_channel->isMegagroup() ? lng_dlg_new_group_name : lng_dlg_new_channel_name), _channel->name)
+, _description(this, st::newGroupDescription, langFactory(lng_create_group_description), _channel->about())
 , _sign(this, lang(lng_edit_sign_messages), channel->addsSignature(), st::defaultBoxCheckbox)
 , _publicLink(this, lang(channel->isPublic() ? lng_profile_edit_public_link : lng_profile_create_public_link), st::boxLinkButton) {
 }
 
 void EditChannelBox::prepare() {
-	setTitle(lang(_channel->isMegagroup() ? lng_edit_group : lng_edit_channel_title));
+	setTitle(langFactory(_channel->isMegagroup() ? lng_edit_group : lng_edit_channel_title));
 
-	addButton(lang(lng_settings_save), [this] { onSave(); });
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_settings_save), [this] { onSave(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	connect(App::main(), SIGNAL(peerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)), this, SLOT(peerUpdated(PeerData*)));
 
@@ -1116,7 +1116,7 @@ void RevokePublicLinkBox::prepare() {
 
 	MTP::send(MTPchannels_GetAdminedPublicChannels(), rpcDone(&RevokePublicLinkBox::getPublicDone), rpcFail(&RevokePublicLinkBox::getPublicFail));
 
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 

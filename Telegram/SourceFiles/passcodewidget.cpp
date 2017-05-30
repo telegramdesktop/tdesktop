@@ -33,8 +33,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "auth_session.h"
 
 PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
-, _passcode(this, st::passcodeInput, lang(lng_passcode_ph))
-, _submit(this, lang(lng_passcode_submit), st::passcodeSubmit)
+, _passcode(this, st::passcodeInput, langFactory(lng_passcode_ph))
+, _submit(this, langFactory(lng_passcode_submit), st::passcodeSubmit)
 , _logout(this, lang(lng_passcode_logout)) {
 	connect(_passcode, SIGNAL(changed()), this, SLOT(onChanged()));
 	connect(_passcode, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));

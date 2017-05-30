@@ -31,7 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "messenger.h"
 
 UsernameBox::UsernameBox(QWidget*)
-: _username(this, st::defaultInputField, qsl("@username"), App::self()->username, false)
+: _username(this, st::defaultInputField, [] { return qsl("@username"); }, App::self()->username, false)
 , _link(this, QString(), st::boxLinkButton)
 , _about(st::boxWidth - st::usernamePadding.left())
 , _checkTimer(this) {
@@ -40,10 +40,10 @@ UsernameBox::UsernameBox(QWidget*)
 void UsernameBox::prepare() {
 	_goodText = App::self()->username.isEmpty() ? QString() : lang(lng_username_available);
 
-	setTitle(lang(lng_username_title));
+	setTitle(langFactory(lng_username_title));
 
-	addButton(lang(lng_settings_save), [this] { onSave(); });
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_settings_save), [this] { onSave(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	connect(_username, SIGNAL(changed()), this, SLOT(onChanged()));
 	connect(_username, SIGNAL(submitted(bool)), this, SLOT(onSave()));

@@ -31,10 +31,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 
 ConnectionBox::ConnectionBox(QWidget *parent)
-: _hostInput(this, st::connectionHostInputField, lang(lng_connection_host_ph), Global::ConnectionProxy().host)
-, _portInput(this, st::connectionPortInputField, lang(lng_connection_port_ph), QString::number(Global::ConnectionProxy().port))
-, _userInput(this, st::connectionUserInputField, lang(lng_connection_user_ph), Global::ConnectionProxy().user)
-, _passwordInput(this, st::connectionPasswordInputField, lang(lng_connection_password_ph), Global::ConnectionProxy().password)
+: _hostInput(this, st::connectionHostInputField, langFactory(lng_connection_host_ph), Global::ConnectionProxy().host)
+, _portInput(this, st::connectionPortInputField, langFactory(lng_connection_port_ph), QString::number(Global::ConnectionProxy().port))
+, _userInput(this, st::connectionUserInputField, langFactory(lng_connection_user_ph), Global::ConnectionProxy().user)
+, _passwordInput(this, st::connectionPasswordInputField, langFactory(lng_connection_password_ph), Global::ConnectionProxy().password)
 , _typeGroup(std::make_shared<Ui::RadioenumGroup<DBIConnectionType>>(Global::ConnectionType()))
 , _autoRadio(this, _typeGroup, dbictAuto, lang(lng_connection_auto_rb), st::defaultBoxCheckbox)
 , _httpProxyRadio(this, _typeGroup, dbictHttpProxy, lang(lng_connection_http_proxy_rb), st::defaultBoxCheckbox)
@@ -43,10 +43,10 @@ ConnectionBox::ConnectionBox(QWidget *parent)
 }
 
 void ConnectionBox::prepare() {
-	setTitle(lang(lng_connection_header));
+	setTitle(langFactory(lng_connection_header));
 
-	addButton(lang(lng_connection_save), [this] { onSave(); });
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_connection_save), [this] { onSave(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	_typeGroup->setChangedCallback([this](DBIConnectionType value) { typeChanged(value); });
 
@@ -215,8 +215,8 @@ AutoDownloadBox::AutoDownloadBox(QWidget *parent)
 }
 
 void AutoDownloadBox::prepare() {
-	addButton(lang(lng_connection_save), [this] { onSave(); });
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_connection_save), [this] { onSave(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	setDimensions(st::boxWidth, 3 * _sectionHeight - st::autoDownloadTopDelta + st::setLittleSkip + _gifPlay->heightNoMargins() + st::setLittleSkip);
 }

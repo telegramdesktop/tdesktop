@@ -39,9 +39,10 @@ AboutBox::AboutBox(QWidget *parent)
 }
 
 void AboutBox::prepare() {
-	setTitle(qsl("Telegram Desktop"));
+	constexpr auto test = std::is_convertible<const char*, QString>::value;
+	setTitle([] { return qsl("Telegram Desktop"); });
 
-	addButton(lang(lng_close), [this] { closeBox(); });
+	addButton(langFactory(lng_close), [this] { closeBox(); });
 
 	_text3->setRichText(lng_about_text_3(lt_faq_open, qsl("[a href=\"%1\"]").arg(telegramFaqLink()), lt_faq_close, qsl("[/a]")));
 

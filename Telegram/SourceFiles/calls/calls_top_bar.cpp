@@ -56,8 +56,9 @@ DebugInfoBox::DebugInfoBox(QWidget*, base::weak_unique_ptr<Call> call) : _call(c
 }
 
 void DebugInfoBox::prepare() {
-	setTitle("Call Debug");
-	addButton(lang(lng_close), [this] { closeBox(); });
+	setTitle([] { return QString("Call Debug"); });
+
+	addButton(langFactory(lng_close), [this] { closeBox(); });
 	_text = setInnerWidget(object_ptr<Ui::FlatLabel>(this, st::callDebugLabel));
 	_text->setSelectable(true);
 	updateText();

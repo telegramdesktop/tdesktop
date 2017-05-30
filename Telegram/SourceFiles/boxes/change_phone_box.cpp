@@ -113,10 +113,10 @@ private:
 };
 
 void ChangePhoneBox::EnterPhone::prepare() {
-	setTitle(lang(lng_change_phone_title));
+	setTitle(langFactory(lng_change_phone_title));
 
 	auto phoneValue = QString();
-	_phone.create(this, st::defaultInputField, lang(lng_change_phone_new_title), phoneValue);
+	_phone.create(this, st::defaultInputField, langFactory(lng_change_phone_new_title), phoneValue);
 
 	_phone->resize(st::boxWidth - 2 * st::boxPadding.left(), _phone->height());
 	_phone->moveToLeft(st::boxPadding.left(), st::boxLittleSkip);
@@ -128,8 +128,8 @@ void ChangePhoneBox::EnterPhone::prepare() {
 
 	setDimensions(st::boxWidth, description->bottomNoMargins() + st::boxLittleSkip);
 
-	addButton(lang(lng_change_phone_new_submit), [this] { submit(); });
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_change_phone_new_submit), [this] { submit(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 }
 
 void ChangePhoneBox::EnterPhone::submit() {
@@ -206,14 +206,14 @@ ChangePhoneBox::EnterCode::EnterCode(QWidget*, const QString &phone, const QStri
 }
 
 void ChangePhoneBox::EnterCode::prepare() {
-	setTitle(lang(lng_change_phone_title));
+	setTitle(langFactory(lng_change_phone_title));
 
 	auto descriptionText = lng_change_phone_code_description(lt_phone, textcmdStartSemibold() + App::formatPhone(_phone) + textcmdStopSemibold());
 	auto description = object_ptr<Ui::FlatLabel>(this, descriptionText, Ui::FlatLabel::InitType::Rich, st::changePhoneLabel);
 	description->moveToLeft(st::boxPadding.left(), 0);
 
 	auto phoneValue = QString();
-	_code.create(this, st::defaultInputField, lang(lng_change_phone_code_title), phoneValue);
+	_code.create(this, st::defaultInputField, langFactory(lng_change_phone_code_title), phoneValue);
 	_code->setAutoSubmit(_codeLength, [this] { submit(); });
 	_code->setChangedCallback([this] { hideError(); });
 
@@ -228,8 +228,8 @@ void ChangePhoneBox::EnterCode::prepare() {
 		updateCall();
 	}
 
-	addButton(lang(lng_change_phone_new_submit), [this] { submit(); });
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_change_phone_new_submit), [this] { submit(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 }
 
 int ChangePhoneBox::EnterCode::countHeight() {
@@ -302,13 +302,13 @@ bool ChangePhoneBox::EnterCode::sendCodeFail(const RPCError &error) {
 }
 
 void ChangePhoneBox::prepare() {
-	setTitle(lang(lng_change_phone_title));
-	addButton(lang(lng_change_phone_button), [] {
+	setTitle(langFactory(lng_change_phone_title));
+	addButton(langFactory(lng_change_phone_button), [] {
 		Ui::show(Box<ConfirmBox>(lang(lng_change_phone_warning), [] {
 			Ui::show(Box<EnterPhone>());
 		}));
 	});
-	addButton(lang(lng_cancel), [this] {
+	addButton(langFactory(lng_cancel), [this] {
 		closeBox();
 	});
 

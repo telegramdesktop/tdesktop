@@ -335,12 +335,12 @@ public:
 	}
 
 	// Copy / move construct / assign from an arbitrary type.
-	template <typename Lambda, typename = decltype(std::declval<Lambda>()(std::declval<Args>()...))>
+	template <typename Lambda, typename = std::enable_if_t<std::is_convertible<decltype(std::declval<Lambda>()(std::declval<Args>()...)),Return>::value>>
 	lambda_once(Lambda other) {
 		data_.vtable = &lambda_internal::vtable_once<Lambda, Return, Args...>::instance;
 		lambda_internal::vtable_once<Lambda, Return, Args...>::construct_move_lambda_method(data_.storage, &other);
 	}
-	template <typename Lambda, typename = decltype(std::declval<Lambda>()(std::declval<Args>()...))>
+	template <typename Lambda, typename = std::enable_if_t<std::is_convertible<decltype(std::declval<Lambda>()(std::declval<Args>()...)),Return>::value>>
 	lambda_once &operator=(Lambda other) {
 		if (data_.vtable) {
 			data_.vtable->destruct(data_.storage);
@@ -414,11 +414,11 @@ public:
 	}
 
 	// Copy / move construct / assign from an arbitrary type.
-	template <typename Lambda, typename = decltype(std::declval<Lambda>()(std::declval<Args>()...))>
+	template <typename Lambda, typename = std::enable_if_t<std::is_convertible<decltype(std::declval<Lambda>()(std::declval<Args>()...)),Return>::value>>
 	lambda(Lambda other) : Parent(&lambda_internal::vtable<Lambda, Return, Args...>::instance, typename Parent::Private()) {
 		lambda_internal::vtable<Lambda, Return, Args...>::construct_move_lambda_method(this->data_.storage, &other);
 	}
-	template <typename Lambda, typename = decltype(std::declval<Lambda>()(std::declval<Args>()...))>
+	template <typename Lambda, typename = std::enable_if_t<std::is_convertible<decltype(std::declval<Lambda>()(std::declval<Args>()...)),Return>::value>>
 	lambda &operator=(Lambda other) {
 		if (this->data_.vtable) {
 			this->data_.vtable->destruct(this->data_.storage);

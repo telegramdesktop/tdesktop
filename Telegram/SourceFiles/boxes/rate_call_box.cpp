@@ -42,10 +42,8 @@ RateCallBox::RateCallBox(QWidget*, uint64 callId, uint64 callAccessHash)
 }
 
 void RateCallBox::prepare() {
-	auto titleWidth = st::boxWideWidth - 2 * st::boxTitlePosition.x();
-	auto titleText = st::boxTitleFont->elided(lang(lng_call_rate_label), titleWidth);
-	setTitle(titleText);
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	setTitle(langFactory(lng_call_rate_label));
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	for (auto i = 0; i < kMaxRating; ++i) {
 		_stars.push_back(object_ptr<Ui::IconButton>(this, st::callRatingStar));
@@ -75,8 +73,8 @@ void RateCallBox::ratingChanged(int value) {
 	Expects(value > 0 && value <= kMaxRating);
 	if (!_rating) {
 		clearButtons();
-		addButton(lang(lng_send_button), [this] { onSend(); });
-		addButton(lang(lng_cancel), [this] { closeBox(); });
+		addButton(langFactory(lng_send_button), [this] { onSend(); });
+		addButton(langFactory(lng_cancel), [this] { closeBox(); });
 	}
 	_rating = value;
 
@@ -86,7 +84,7 @@ void RateCallBox::ratingChanged(int value) {
 	}
 	if (value < kMaxRating) {
 		if (!_comment) {
-			_comment.create(this, st::callRatingComment, lang(lng_call_rate_comment));
+			_comment.create(this, st::callRatingComment, langFactory(lng_call_rate_comment));
 			_comment->show();
 			_comment->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
 			_comment->setMaxLength(MaxPhotoCaption);

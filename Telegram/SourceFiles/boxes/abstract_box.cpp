@@ -33,12 +33,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 BoxLayerTitleShadow::BoxLayerTitleShadow(QWidget *parent) : Ui::PlainShadow(parent, st::boxLayerTitleShadow) {
 }
 
-QPointer<Ui::RoundButton> BoxContent::addButton(const QString &text, base::lambda<void()> clickCallback) {
-	return addButton(text, std::move(clickCallback), st::defaultBoxButton);
+QPointer<Ui::RoundButton> BoxContent::addButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback) {
+	return addButton(std::move(textFactory), std::move(clickCallback), st::defaultBoxButton);
 }
 
-QPointer<Ui::RoundButton> BoxContent::addLeftButton(const QString &text, base::lambda<void()> clickCallback) {
-	return getDelegate()->addLeftButton(text, std::move(clickCallback), st::defaultBoxButton);
+QPointer<Ui::RoundButton> BoxContent::addLeftButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback) {
+	return getDelegate()->addLeftButton(std::move(textFactory), std::move(clickCallback), st::defaultBoxButton);
 }
 
 void BoxContent::setInner(object_ptr<TWidget> inner) {
@@ -198,6 +198,7 @@ void BoxContent::paintEvent(QPaintEvent *e) {
 AbstractBox::AbstractBox(QWidget *parent, Window::Controller *controller, object_ptr<BoxContent> content) : LayerWidget(parent)
 , _controller(controller)
 , _content(std::move(content)) {
+	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 	_content->setParent(this);
 	_content->setDelegate(this);
 }
@@ -256,17 +257,18 @@ void AbstractBox::parentResized() {
 	update();
 }
 
-void AbstractBox::setTitle(const QString &title) {
-	setTitle({ title, EntitiesInText() });
+void AbstractBox::setTitle(base::lambda<TextWithEntities()> titleFactory) {
+	_titleFactory = std::move(titleFactory);
+	refreshTitle();
 }
 
-void AbstractBox::setTitle(const TextWithEntities &title) {
+void AbstractBox::refreshTitle() {
 	auto wasTitle = hasTitle();
-	if (!title.text.isEmpty()) {
+	if (_titleFactory) {
 		if (!_title) {
 			_title.create(this, st::boxTitle);
 		}
-		_title->setMarkedText(title);
+		_title->setMarkedText(_titleFactory());
 		updateTitlePosition();
 	} else {
 		_title.destroy();
@@ -276,9 +278,20 @@ void AbstractBox::setTitle(const TextWithEntities &title) {
 	}
 }
 
-void AbstractBox::setAdditionalTitle(const QString &additional) {
-	_additionalTitle = additional;
+void AbstractBox::setAdditionalTitle(base::lambda<QString()> additionalFactory) {
+	_additionalTitleFactory = std::move(additionalFactory);
+	refreshAdditionalTitle();
+}
+
+void AbstractBox::refreshAdditionalTitle() {
+	_additionalTitle = _additionalTitleFactory ? _additionalTitleFactory() : QString();
 	update();
+}
+
+void AbstractBox::refreshLang() {
+	refreshTitle();
+	refreshAdditionalTitle();
+	InvokeQueued(this, [this] { updateButtonsPositions(); });
 }
 
 bool AbstractBox::hasTitle() const {
@@ -320,8 +333,8 @@ void AbstractBox::clearButtons() {
 	_leftButton.destroy();
 }
 
-QPointer<Ui::RoundButton> AbstractBox::addButton(const QString &text, base::lambda<void()> clickCallback, const style::RoundButton &st) {
-	_buttons.push_back(object_ptr<Ui::RoundButton>(this, text, st));
+QPointer<Ui::RoundButton> AbstractBox::addButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback, const style::RoundButton &st) {
+	_buttons.push_back(object_ptr<Ui::RoundButton>(this, std::move(textFactory), st));
 	auto result = QPointer<Ui::RoundButton>(_buttons.back());
 	result->setClickedCallback(std::move(clickCallback));
 	result->show();
@@ -329,8 +342,8 @@ QPointer<Ui::RoundButton> AbstractBox::addButton(const QString &text, base::lamb
 	return result;
 }
 
-QPointer<Ui::RoundButton> AbstractBox::addLeftButton(const QString &text, base::lambda<void()> clickCallback, const style::RoundButton &st) {
-	_leftButton = object_ptr<Ui::RoundButton>(this, text, st);
+QPointer<Ui::RoundButton> AbstractBox::addLeftButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback, const style::RoundButton &st) {
+	_leftButton = object_ptr<Ui::RoundButton>(this, std::move(textFactory), st);
 	auto result = QPointer<Ui::RoundButton>(_leftButton);
 	result->setClickedCallback(std::move(clickCallback));
 	result->show();

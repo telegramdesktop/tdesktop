@@ -26,7 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 
 void SelfDestructionBox::prepare() {
-	setTitle(lang(lng_self_destruct_title));
+	setTitle(langFactory(lng_self_destruct_title));
 
 	_ttlValues = { 30, 90, 180, 365 };
 
@@ -42,7 +42,7 @@ void SelfDestructionBox::prepare() {
 	auto loading = object_ptr<Ui::FlatLabel>(this, lang(lng_contacts_loading), Ui::FlatLabel::InitType::Simple, st::membersAbout);
 	loading->moveToLeft((st::boxWidth - loading->width()) / 2, boxHeight / 3);
 
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	request(MTPaccount_GetAccountTTL()).done([this, loading = std::move(loading)](const MTPAccountDaysTTL &result) mutable {
 		Expects(result.type() == mtpc_accountDaysTTL);
@@ -72,10 +72,10 @@ void SelfDestructionBox::prepare() {
 		showChildren();
 
 		clearButtons();
-		addButton(lang(lng_settings_save), [this, group] {
+		addButton(langFactory(lng_settings_save), [this, group] {
 			MTP::send(MTPaccount_SetAccountTTL(MTP_accountDaysTTL(MTP_int(group->value()))));
 			closeBox();
 		});
-		addButton(lang(lng_cancel), [this] { closeBox(); });
+		addButton(langFactory(lng_cancel), [this] { closeBox(); });
 	}).send();
 }

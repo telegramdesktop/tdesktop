@@ -64,6 +64,8 @@ private slots:
 	void onLeaveGroup();
 
 private:
+	void refreshLang();
+	void updateButtonsGeometry(int newWidth);
 	void notifyPeerUpdate(const Notify::PeerUpdate &update);
 
 	void refreshRightActions();
@@ -83,7 +85,7 @@ private:
 		ShareContact,
 	};
 
-	void addRightAction(RightActionType type, const QString &text, const char *slot);
+	void addRightAction(RightActionType type, base::lambda<QString()> textFactory, const char *slot);
 	void applyHideShareContactButton();
 
 	PeerData *_peer;

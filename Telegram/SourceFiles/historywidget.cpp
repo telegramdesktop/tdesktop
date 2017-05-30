@@ -169,41 +169,42 @@ void ReportSpamPanel::setReported(bool reported, PeerData *onPeer) {
 
 HistoryHider::HistoryHider(MainWidget *parent, bool forwardSelected) : TWidget(parent)
 , _forwardSelected(forwardSelected)
-, _send(this, lang(lng_forward_send), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::defaultBoxButton) {
+, _send(this, langFactory(lng_forward_send), st::defaultBoxButton)
+, _cancel(this, langFactory(lng_cancel), st::defaultBoxButton) {
 	init();
 }
 
 HistoryHider::HistoryHider(MainWidget *parent, UserData *sharedContact) : TWidget(parent)
 , _sharedContact(sharedContact)
-, _send(this, lang(lng_forward_send), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::defaultBoxButton) {
+, _send(this, langFactory(lng_forward_send), st::defaultBoxButton)
+, _cancel(this, langFactory(lng_cancel), st::defaultBoxButton) {
 	init();
 }
 
 HistoryHider::HistoryHider(MainWidget *parent) : TWidget(parent)
 , _sendPath(true)
-, _send(this, lang(lng_forward_send), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::defaultBoxButton) {
+, _send(this, langFactory(lng_forward_send), st::defaultBoxButton)
+, _cancel(this, langFactory(lng_cancel), st::defaultBoxButton) {
 	init();
 }
 
 HistoryHider::HistoryHider(MainWidget *parent, const QString &botAndQuery) : TWidget(parent)
 , _botAndQuery(botAndQuery)
-, _send(this, lang(lng_forward_send), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::defaultBoxButton) {
+, _send(this, langFactory(lng_forward_send), st::defaultBoxButton)
+, _cancel(this, langFactory(lng_cancel), st::defaultBoxButton) {
 	init();
 }
 
 HistoryHider::HistoryHider(MainWidget *parent, const QString &url, const QString &text) : TWidget(parent)
 , _shareUrl(url)
 , _shareText(text)
-, _send(this, lang(lng_forward_send), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::defaultBoxButton) {
+, _send(this, langFactory(lng_forward_send), st::defaultBoxButton)
+, _cancel(this, langFactory(lng_cancel), st::defaultBoxButton) {
 	init();
 }
 
 void HistoryHider::init() {
+	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 	connect(_send, SIGNAL(clicked()), this, SLOT(forward()));
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(startHide()));
 	subscribe(Global::RefPeerChooseCancel(), [this] { startHide(); });
@@ -212,6 +213,10 @@ void HistoryHider::init() {
 
 	resizeEvent(0);
 	_a_opacity.start([this] { update(); }, 0., 1., st::boxDuration);
+}
+
+void HistoryHider::refreshLang() {
+	InvokeQueued(this, [this] { updateControlsGeometry(); });
 }
 
 bool HistoryHider::withConfirm() const {
@@ -326,6 +331,10 @@ MainWidget *HistoryHider::parent() {
 }
 
 void HistoryHider::resizeEvent(QResizeEvent *e) {
+	updateControlsGeometry();
+}
+
+void HistoryHider::updateControlsGeometry() {
 	auto w = st::boxWidth;
 	auto h = st::boxPadding.top() + st::boxPadding.bottom();
 	if (_offered) {
@@ -496,7 +505,7 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 , _botKeyboardHide(this, st::historyBotKeyboardHide)
 , _botCommandStart(this, st::historyBotCommandStart)
 , _silent(this)
-, _field(this, controller, st::historyComposeField, lang(lng_message_ph))
+, _field(this, controller, st::historyComposeField, langFactory(lng_message_ph))
 , _recordCancelWidth(st::historyRecordFont->width(lang(lng_record_cancel)))
 , _a_recording(animation(this, &HistoryWidget::step_recording))
 , _kbScroll(this, st::botKbScroll)
@@ -4213,12 +4222,13 @@ void HistoryWidget::onCheckFieldAutocomplete() {
 
 void HistoryWidget::updateFieldPlaceholder() {
 	if (_editMsgId) {
-		_field->setPlaceholder(lang(lng_edit_message_text));
+		_field->setPlaceholder(langFactory(lng_edit_message_text));
 	} else {
 		if (_inlineBot && _inlineBot != Ui::LookingUpInlineBot) {
-			_field->setPlaceholder(_inlineBot->botInfo->inlinePlaceholder.mid(1), _inlineBot->username.size() + 2);
+			auto text = _inlineBot->botInfo->inlinePlaceholder.mid(1);
+			_field->setPlaceholder([text] { return text; }, _inlineBot->username.size() + 2);
 		} else {
-			_field->setPlaceholder(lang((_history && _history->isChannel() && !_history->isMegagroup()) ? (_silent->checked() ? lng_broadcast_silent_ph : lng_broadcast_ph) : lng_message_ph));
+			_field->setPlaceholder(langFactory((_history && _history->isChannel() && !_history->isMegagroup()) ? (_silent->checked() ? lng_broadcast_silent_ph : lng_broadcast_ph) : lng_message_ph));
 		}
 	}
 	updateSendButtonType();

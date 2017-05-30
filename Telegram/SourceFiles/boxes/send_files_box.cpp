@@ -46,7 +46,7 @@ bool ValidatePhotoDimensions(int width, int height) {
 SendFilesBox::SendFilesBox(QWidget*, QImage image, CompressConfirm compressed)
 : _image(image)
 , _compressConfirm(compressed)
-, _caption(this, st::confirmCaptionArea, lang(lng_photo_caption)) {
+, _caption(this, st::confirmCaptionArea, langFactory(lng_photo_caption)) {
 	_files.push_back(QString());
 	prepareSingleFileLayout();
 }
@@ -54,7 +54,7 @@ SendFilesBox::SendFilesBox(QWidget*, QImage image, CompressConfirm compressed)
 SendFilesBox::SendFilesBox(QWidget*, const QStringList &files, CompressConfirm compressed)
 : _files(files)
 , _compressConfirm(compressed)
-, _caption(this, st::confirmCaptionArea, lang(_files.size() > 1 ? lng_photos_comment : lng_photo_caption)) {
+, _caption(this, st::confirmCaptionArea, langFactory(_files.size() > 1 ? lng_photos_comment : lng_photo_caption)) {
 	if (_files.size() == 1) {
 		prepareSingleFileLayout();
 	}
@@ -237,8 +237,8 @@ void SendFilesBox::prepare() {
 		updateTitleText();
 	}
 
-	_send = addButton(lang(lng_send_button), [this] { onSend(); });
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	_send = addButton(langFactory(lng_send_button), [this] { onSend(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	if (_compressConfirm != CompressConfirm::None) {
 		auto compressed = (_compressConfirm == CompressConfirm::Auto) ? cCompressPastedImage() : (_compressConfirm == CompressConfirm::Yes);
@@ -258,13 +258,13 @@ void SendFilesBox::prepare() {
 	updateBoxSize();
 }
 
-QString SendFilesBox::getSendButtonText() const {
+base::lambda<QString()> SendFilesBox::getSendButtonText() const {
 	if (!_contactPhone.isEmpty()) {
-		return lang(lng_send_button);
+		return langFactory(lng_send_button);
 	} else if (_compressed && _compressed->checked()) {
-		return lng_send_photos(lt_count, _files.size());
+		return [count = _files.size()] { return lng_send_photos(lt_count, count); };
 	}
-	return lng_send_files(lt_count, _files.size());
+	return [count = _files.size()] { return lng_send_files(lt_count, count); };
 }
 
 void SendFilesBox::onCompressedChange() {
@@ -564,7 +564,7 @@ EditCaptionBox::EditCaptionBox(QWidget*, HistoryMedia *media, FullMsgId msgId) :
 	}
 	t_assert(_animated || _photo || _doc);
 
-	_field.create(this, st::confirmCaptionArea, lang(lng_photo_caption), caption);
+	_field.create(this, st::confirmCaptionArea, langFactory(lng_photo_caption), caption);
 	_field->setMaxLength(MaxPhotoCaption);
 	_field->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
 }
@@ -607,8 +607,8 @@ void EditCaptionBox::clipCallback(Media::Clip::Notification notification) {
 }
 
 void EditCaptionBox::prepare() {
-	addButton(lang(lng_settings_save), [this] { onSave(); });
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_settings_save), [this] { onSave(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	updateBoxSize();
 	connect(_field, SIGNAL(submitted(bool)), this, SLOT(onSave(bool)));

@@ -2267,7 +2267,7 @@ void DialogsWidget::UpdateButton::paintEvent(QPaintEvent *e) {
 
 DialogsWidget::DialogsWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : Window::AbstractSectionWidget(parent, controller)
 , _mainMenuToggle(this, st::dialogsMenuToggle)
-, _filter(this, st::dialogsFilter, lang(lng_dlg_filter))
+, _filter(this, st::dialogsFilter, langFactory(lng_dlg_filter))
 , _jumpToDate(this, object_ptr<Ui::IconButton>(this, st::dialogsCalendar))
 , _cancelSearch(this, st::dialogsCancelSearch)
 , _lockUnlock(this, st::dialogsLock)

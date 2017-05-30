@@ -131,6 +131,8 @@ signals:
 	void forwarded();
 
 private:
+	void refreshLang();
+	void updateControlsGeometry();
 	void animationCallback();
 	void init();
 	MainWidget *parent();

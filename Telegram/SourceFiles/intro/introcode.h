@@ -35,7 +35,7 @@ class CodeInput final : public Ui::MaskedInputField {
 	Q_OBJECT
 
 public:
-	CodeInput(QWidget *parent, const style::InputField &st, const QString &ph);
+	CodeInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory);
 
 	void setDigitsCountMax(int digitsCount);
 

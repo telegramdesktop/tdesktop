@@ -220,6 +220,8 @@ private slots:
 	void onReplyCancel();
 
 private:
+	void refreshLang();
+	void updateReplyGeometry();
 	bool canReply() const;
 
 	void unlinkHistoryInManager();

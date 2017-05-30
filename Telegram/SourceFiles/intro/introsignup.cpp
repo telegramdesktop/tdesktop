@@ -36,29 +36,35 @@ namespace Intro {
 
 SignupWidget::SignupWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
 , _photo(this, st::introPhotoSize, st::introPhotoIconPosition)
-, _first(this, st::introName, lang(lng_signup_firstname))
-, _last(this, st::introName, lang(lng_signup_lastname))
+, _first(this, st::introName, langFactory(lng_signup_firstname))
+, _last(this, st::introName, langFactory(lng_signup_lastname))
 , _invertOrder(langFirstNameGoesSecond())
 , _checkRequest(this) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
+	if (_invertOrder) {
+		setTabOrder(_last, _first);
+	} else {
+		setTabOrder(_first, _last);
+	}
 
 	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
 
 	setupPhotoButton();
 
-	if (_invertOrder) {
-		setTabOrder(_last, _first);
-	}
 	setErrorCentered(true);
 
-	setTitleText([] { return lang(lng_signup_title); });
-	setDescriptionText([] { return lang(lng_signup_desc); });
+	setTitleText(langFactory(lng_signup_title));
+	setDescriptionText(langFactory(lng_signup_desc));
 	setMouseTracking(true);
 }
 
 void SignupWidget::refreshLang() {
-	_first->setPlaceholder(lang(lng_signup_firstname));
-	_last->setPlaceholder(lang(lng_signup_lastname));
+	_invertOrder = langFirstNameGoesSecond();
+	if (_invertOrder) {
+		setTabOrder(_last, _first);
+	} else {
+		setTabOrder(_first, _last);
+	}
 	updateControlsGeometry();
 }
 
@@ -79,7 +85,7 @@ void SignupWidget::setupPhotoButton() {
 			}
 
 			if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
-				showError([] { return lang(lng_bad_photo); });
+				showError(langFactory(lng_bad_photo));
 				return;
 			}
 			auto box = Ui::show(Box<PhotoCropBox>(img, PeerId(0)));
@@ -155,7 +161,7 @@ void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
 	stopCheck();
 	auto &d = result.c_auth_authorization();
 	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
-		showError([] { return lang(lng_server_error); });
+		showError(langFactory(lng_server_error));
 		return;
 	}
 	finish(d.vuser, _photoImage);
@@ -164,7 +170,7 @@ void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
 bool SignupWidget::nameSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		stopCheck();
-		showError([] { return lang(lng_flood_error); });
+		showError(langFactory(lng_flood_error));
 		if (_invertOrder) {
 			_first->setFocus();
 		} else {
@@ -185,11 +191,11 @@ bool SignupWidget::nameSubmitFail(const RPCError &error) {
 		goBack();
 		return true;
 	} else if (err == "FIRSTNAME_INVALID") {
-		showError([] { return lang(lng_bad_name); });
+		showError(langFactory(lng_bad_name));
 		_first->setFocus();
 		return true;
 	} else if (err == "LASTNAME_INVALID") {
-		showError([] { return lang(lng_bad_name); });
+		showError(langFactory(lng_bad_name));
 		_last->setFocus();
 		return true;
 	}
@@ -197,7 +203,7 @@ bool SignupWidget::nameSubmitFail(const RPCError &error) {
 		auto text = err + ": " + error.description();
 		showError([text] { return text; });
 	} else {
-		showError([] { return lang(lng_server_error); });
+		showError(langFactory(lng_server_error));
 	}
 	if (_invertOrder) {
 		_last->setFocus();

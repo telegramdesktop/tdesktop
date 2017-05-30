@@ -325,10 +325,10 @@ void MultiSelect::Inner::Item::setOver(bool over) {
 	}
 }
 
-MultiSelect::MultiSelect(QWidget *parent, const style::MultiSelect &st, const QString &placeholder) : TWidget(parent)
+MultiSelect::MultiSelect(QWidget *parent, const style::MultiSelect &st, base::lambda<QString()> placeholderFactory) : TWidget(parent)
 , _st(st)
 , _scroll(this, _st.scroll) {
-	_inner = _scroll->setOwnedWidget(object_ptr<Inner>(this, st, placeholder, [this](int activeTop, int activeBottom) {
+	_inner = _scroll->setOwnedWidget(object_ptr<Inner>(this, st, std::move(placeholderFactory), [this](int activeTop, int activeBottom) {
 		scrollTo(activeTop, activeBottom);
 	}));
 	_scroll->installEventFilter(this);
@@ -443,10 +443,10 @@ int MultiSelect::resizeGetHeight(int newWidth) {
 	return newHeight;
 }
 
-MultiSelect::Inner::Inner(QWidget *parent, const style::MultiSelect &st, const QString &placeholder, ScrollCallback callback) : TWidget(parent)
+MultiSelect::Inner::Inner(QWidget *parent, const style::MultiSelect &st, base::lambda<QString()> placeholder, ScrollCallback callback) : TWidget(parent)
 , _st(st)
 , _scrollCallback(std::move(callback))
-, _field(this, _st.field, placeholder)
+, _field(this, _st.field, std::move(placeholder))
 , _cancel(this, _st.fieldCancel) {
 	_field->customUpDown(true);
 	connect(_field, SIGNAL(focused()), this, SLOT(onFieldFocused()));

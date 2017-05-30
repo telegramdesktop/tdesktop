@@ -80,6 +80,8 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
+	void refreshLang();
+
 	// Observed notifications.
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
 
@@ -99,7 +101,7 @@ private:
 	void setChannelButtons();
 
 	void clearButtons();
-	void addButton(const QString &text, const char *slot, const style::RoundButton *replacementStyle = nullptr);
+	void addButton(base::lambda<QString()> textFactory, const char *slot, const style::RoundButton *replacementStyle = nullptr);
 
 	void paintDivider(Painter &p);
 

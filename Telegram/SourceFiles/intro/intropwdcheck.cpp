@@ -37,9 +37,9 @@ PwdCheckWidget::PwdCheckWidget(QWidget *parent, Widget::Data *data) : Step(paren
 , _salt(getData()->pwdSalt)
 , _hasRecovery(getData()->hasRecovery)
 , _hint(getData()->pwdHint)
-, _pwdField(this, st::introPassword, lang(lng_signin_password))
+, _pwdField(this, st::introPassword, langFactory(lng_signin_password))
 , _pwdHint(this, st::introPasswordHint)
-, _codeField(this, st::introPassword, lang(lng_signin_code))
+, _codeField(this, st::introPassword, langFactory(lng_signin_code))
 , _toRecover(this, lang(lng_signin_recover))
 , _toPassword(this, lang(lng_signin_try_password))
 , _checkRequest(this) {
@@ -51,7 +51,7 @@ PwdCheckWidget::PwdCheckWidget(QWidget *parent, Widget::Data *data) : Step(paren
 	connect(_pwdField, SIGNAL(changed()), this, SLOT(onInputChange()));
 	connect(_codeField, SIGNAL(changed()), this, SLOT(onInputChange()));
 
-	setTitleText([] { return lang(lng_signin_title); });
+	setTitleText(langFactory(lng_signin_title));
 	updateDescriptionText();
 	setErrorBelowLink(true);
 
@@ -67,8 +67,6 @@ PwdCheckWidget::PwdCheckWidget(QWidget *parent, Widget::Data *data) : Step(paren
 }
 
 void PwdCheckWidget::refreshLang() {
-	if (_pwdField) _pwdField->setPlaceholder(lang(lng_signin_password));
-	if (_codeField) _codeField->setPlaceholder(lang(lng_signin_code));
 	if (_toRecover) _toRecover->setText(lang(lng_signin_recover));
 	if (_toPassword) _toPassword->setText(lang(lng_signin_try_password));
 	updateControlsGeometry();
@@ -135,7 +133,7 @@ void PwdCheckWidget::pwdSubmitDone(bool recover, const MTPauth_Authorization &re
 	}
 	auto &d = result.c_auth_authorization();
 	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
-		showError([] { return lang(lng_server_error); });
+		showError(langFactory(lng_server_error));
 		return;
 	}
 	finish(d.vuser);
@@ -145,7 +143,7 @@ bool PwdCheckWidget::pwdSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		_sentRequest = 0;
 		stopCheck();
-		showError([] { return lang(lng_flood_error); });
+		showError(langFactory(lng_flood_error));
 		_pwdField->showError();
 		return true;
 	}
@@ -155,7 +153,7 @@ bool PwdCheckWidget::pwdSubmitFail(const RPCError &error) {
 	stopCheck();
 	auto &err = error.type();
 	if (err == qstr("PASSWORD_HASH_INVALID")) {
-		showError([] { return lang(lng_signin_bad_password); });
+		showError(langFactory(lng_signin_bad_password));
 		_pwdField->selectAll();
 		_pwdField->showError();
 		return true;
@@ -166,7 +164,7 @@ bool PwdCheckWidget::pwdSubmitFail(const RPCError &error) {
 		auto text = err + ": " + error.description();
 		showError([text] { return text; });
 	} else {
-		showError([] { return lang(lng_server_error); });
+		showError(langFactory(lng_server_error));
 	}
 	_pwdField->setFocus();
 	return false;
@@ -174,7 +172,7 @@ bool PwdCheckWidget::pwdSubmitFail(const RPCError &error) {
 
 bool PwdCheckWidget::codeSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
-		showError([] { return lang(lng_flood_error); });
+		showError(langFactory(lng_flood_error));
 		_codeField->showError();
 		return true;
 	}
@@ -194,7 +192,7 @@ bool PwdCheckWidget::codeSubmitFail(const RPCError &error) {
 		onToPassword();
 		return true;
 	} else if (err == qstr("CODE_INVALID")) {
-		showError([] { return lang(lng_signin_wrong_code); });
+		showError(langFactory(lng_signin_wrong_code));
 		_codeField->selectAll();
 		_codeField->showError();
 		return true;
@@ -203,7 +201,7 @@ bool PwdCheckWidget::codeSubmitFail(const RPCError &error) {
 		auto text = err + ": " + error.description();
 		showError([text] { return text; });
 	} else {
-		showError([] { return lang(lng_server_error); });
+		showError(langFactory(lng_server_error));
 	}
 	_codeField->setFocus();
 	return false;

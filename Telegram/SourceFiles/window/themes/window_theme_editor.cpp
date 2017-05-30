@@ -581,10 +581,10 @@ ThemeExportBox::ThemeExportBox(QWidget*, const QByteArray &paletteContent, const
 }
 
 void ThemeExportBox::prepare() {
-	setTitle(lang(lng_theme_editor_background_image));
+	setTitle(langFactory(lng_theme_editor_background_image));
 
-	addButton(lang(lng_theme_editor_export), [this] { exportTheme(); });
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_theme_editor_export), [this] { exportTheme(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	auto height = st::settingsSmallSkip + st::settingsBackgroundSize + st::settingsSmallSkip + _tileBackground->height();
 
@@ -704,7 +704,7 @@ void ThemeExportBox::exportTheme() {
 Editor::Editor(QWidget*, const QString &path)
 : _scroll(this, st::settingsScroll)
 , _close(this, st::contactsMultiSelect.fieldCancel)
-, _select(this, st::contactsMultiSelect, lang(lng_country_ph))
+, _select(this, st::contactsMultiSelect, langFactory(lng_country_ph))
 , _leftShadow(this)
 , _topShadow(this)
 , _export(this, lang(lng_theme_editor_export_button).toUpper(), st::dialogsUpdateButton) {

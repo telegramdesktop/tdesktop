@@ -153,6 +153,7 @@ private:
 		OverVideo,
 	};
 
+	void refreshLang();
 	void showSaveMsgFile();
 	void updateMixerVideoVolume() const;
 

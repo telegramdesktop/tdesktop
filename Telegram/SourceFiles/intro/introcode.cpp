@@ -30,7 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Intro {
 
-CodeInput::CodeInput(QWidget *parent, const style::InputField &st, const QString &ph) : Ui::MaskedInputField(parent, st, ph) {
+CodeInput::CodeInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory) : Ui::MaskedInputField(parent, st, std::move(placeholderFactory)) {
 }
 
 void CodeInput::setDigitsCountMax(int digitsCount) {
@@ -82,7 +82,7 @@ void CodeInput::correctValue(const QString &was, int wasCursor, QString &now, in
 
 CodeWidget::CodeWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
 , _noTelegramCode(this, lang(lng_code_no_telegram), st::introLink)
-, _code(this, st::introCode, lang(lng_code_ph))
+, _code(this, st::introCode, langFactory(lng_code_ph))
 , _callTimer(this)
 , _callStatus(getData()->callStatus)
 , _callTimeout(getData()->callTimeout)
@@ -104,13 +104,12 @@ CodeWidget::CodeWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
 
 void CodeWidget::refreshLang() {
 	if (_noTelegramCode) _noTelegramCode->setText(lang(lng_code_no_telegram));
-	if (_code) _code->setPlaceholder(lang(lng_code_ph));
 	updateDescText();
 	updateControlsGeometry();
 }
 
 void CodeWidget::updateDescText() {
-	setDescriptionText([byTelegram = getData()->codeByTelegram] { return lang(byTelegram ? lng_code_telegram : lng_code_desc); });
+	setDescriptionText(langFactory(getData()->codeByTelegram ? lng_code_telegram : lng_code_desc));
 	if (getData()->codeByTelegram) {
 		_noTelegramCode->show();
 		_callTimer->stop();
@@ -221,7 +220,7 @@ void CodeWidget::codeSubmitDone(const MTPauth_Authorization &result) {
 	_sentRequest = 0;
 	auto &d = result.c_auth_authorization();
 	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
-		showCodeError([] { return lang(lng_server_error); });
+		showCodeError(langFactory(lng_server_error));
 		return;
 	}
 	cSetLoggedPhoneNumber(getData()->phone);
@@ -232,7 +231,7 @@ bool CodeWidget::codeSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		stopCheck();
 		_sentRequest = 0;
-		showCodeError([] { return lang(lng_flood_error); });
+		showCodeError(langFactory(lng_flood_error));
 		return true;
 	}
 	if (MTP::isDefaultHandledError(error)) return false;
@@ -244,7 +243,7 @@ bool CodeWidget::codeSubmitFail(const RPCError &error) {
 		goBack();
 		return true;
 	} else if (err == qstr("PHONE_CODE_EMPTY") || err == qstr("PHONE_CODE_INVALID")) {
-		showCodeError([] { return lang(lng_bad_code); });
+		showCodeError(langFactory(lng_bad_code));
 		return true;
 	} else if (err == qstr("PHONE_NUMBER_UNOCCUPIED")) { // success, need to signUp
 		getData()->code = _sentCode;
@@ -260,7 +259,7 @@ bool CodeWidget::codeSubmitFail(const RPCError &error) {
 		auto text = err + ": " + error.description();
 		showCodeError([text] { return text; });
 	} else {
-		showCodeError([] { return lang(lng_server_error); });
+		showCodeError(langFactory(lng_server_error));
 	}
 	return false;
 }
@@ -338,7 +337,7 @@ void CodeWidget::onNoTelegramCode() {
 
 void CodeWidget::noTelegramCodeDone(const MTPauth_SentCode &result) {
 	if (result.type() != mtpc_auth_sentCode) {
-		showCodeError([] { return lang(lng_server_error); });
+		showCodeError(langFactory(lng_server_error));
 		return;
 	}
 
@@ -358,7 +357,7 @@ void CodeWidget::noTelegramCodeDone(const MTPauth_SentCode &result) {
 
 bool CodeWidget::noTelegramCodeFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
-		showCodeError([] { return lang(lng_flood_error); });
+		showCodeError(langFactory(lng_flood_error));
 		return true;
 	}
 	if (MTP::isDefaultHandledError(error)) return false;
@@ -367,7 +366,7 @@ bool CodeWidget::noTelegramCodeFail(const RPCError &error) {
 		auto text = error.type() + ": " + error.description();
 		showCodeError([text] { return text; });
 	} else {
-		showCodeError([] { return lang(lng_server_error); });
+		showCodeError(langFactory(lng_server_error));
 	}
 	return false;
 }

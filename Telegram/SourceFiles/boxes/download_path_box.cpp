@@ -39,10 +39,10 @@ DownloadPathBox::DownloadPathBox(QWidget *parent)
 }
 
 void DownloadPathBox::prepare() {
-	addButton(lang(lng_connection_save), [this] { save(); });
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_connection_save), [this] { save(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
-	setTitle(lang(lng_download_path_header));
+	setTitle(langFactory(lng_download_path_header));
 
 	_group->setChangedCallback([this](Directory value) { radioChanged(value); });
 

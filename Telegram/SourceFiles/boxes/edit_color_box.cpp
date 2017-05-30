@@ -643,7 +643,7 @@ EditColorBox::EditColorBox(QWidget*, const QString &title, QColor current) : Box
 }
 
 void EditColorBox::prepare() {
-	setTitle(_title);
+	setTitle([this] { return _title; });
 
 	connect(_hueField, SIGNAL(changed()), this, SLOT(onFieldChanged()));
 	connect(_saturationField, SIGNAL(changed()), this, SLOT(onFieldChanged()));
@@ -661,8 +661,8 @@ void EditColorBox::prepare() {
 	connect(_blueField, SIGNAL(submitted(bool)), this, SLOT(onFieldSubmitted()));
 	connect(_result, SIGNAL(submitted(bool)), this, SLOT(onFieldSubmitted()));
 
-	addButton(lang(lng_settings_save), [this] { saveColor(); });
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_settings_save), [this] { saveColor(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	auto height = st::colorEditSkip + st::colorPickerSize + st::colorEditSkip + st::colorSliderWidth + st::colorEditSkip;
 	setDimensions(st::colorEditWidth, height);

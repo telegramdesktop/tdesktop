@@ -210,14 +210,14 @@ void ConfirmPhoneBox::prepare() {
 	}
 	_about->setMarkedText(aboutText);
 
-	_code.create(this, st::confirmPhoneCodeField, lang(lng_code_ph));
+	_code.create(this, st::confirmPhoneCodeField, langFactory(lng_code_ph));
 	_code->setAutoSubmit(_sentCodeLength, [this] { onSendCode(); });
 	_code->setChangedCallback([this] { showError(QString()); });
 
-	setTitle(lang(lng_confirm_phone_title));
+	setTitle(langFactory(lng_confirm_phone_title));
 
-	addButton(lang(lng_confirm_phone_send), [this] { onSendCode(); });
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_confirm_phone_send), [this] { onSendCode(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	setDimensions(st::boxWidth, st::usernamePadding.top() + _code->height() + st::usernameSkip + _about->height() + st::usernameSkip);
 

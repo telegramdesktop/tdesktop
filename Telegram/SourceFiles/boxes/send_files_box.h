@@ -72,7 +72,7 @@ private:
 	void updateTitleText();
 	void updateBoxSize();
 	void updateControlsGeometry();
-	QString getSendButtonText() const;
+	base::lambda<QString()> getSendButtonText() const;
 
 	QString _titleText;
 	QStringList _files;

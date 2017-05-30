@@ -82,6 +82,8 @@ MediaView::MediaView(QWidget*) : TWidget(nullptr)
 , _a_state(animation(this, &MediaView::step_state))
 , _dropdown(this, st::mediaviewDropdownMenu)
 , _dropdownShowTimer(this) {
+	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
+
 	TextCustomTagsMap custom;
 	custom.insert(QChar('c'), qMakePair(textcmdStartLink(1), textcmdStopLink()));
 	_saveMsgText.setRichText(st::mediaviewSaveMsgStyle, lang(lng_mediaview_saved), _textDlgOptions, custom);
@@ -146,6 +148,10 @@ MediaView::MediaView(QWidget*) : TWidget(nullptr)
 	_dropdown->setHiddenCallback([this] { dropdownHidden(); });
 	_dropdownShowTimer->setSingleShot(true);
 	connect(_dropdownShowTimer, SIGNAL(timeout()), this, SLOT(onDropdown()));
+}
+
+void MediaView::refreshLang() {
+	InvokeQueued(this, [this] { updateThemePreviewGeometry(); });
 }
 
 void MediaView::moveToScreen() {
@@ -1468,14 +1474,14 @@ void MediaView::initThemePreview() {
 			_themePreviewId = 0;
 			_themePreview = std::move(result);
 			if (_themePreview) {
-				_themeApply.create(this, lang(lng_theme_preview_apply), st::themePreviewApplyButton);
+				_themeApply.create(this, langFactory(lng_theme_preview_apply), st::themePreviewApplyButton);
 				_themeApply->show();
 				_themeApply->setClickedCallback([this] {
 					auto preview = std::move(_themePreview);
 					close();
 					Window::Theme::Apply(std::move(preview));
 				});
-				_themeCancel.create(this, lang(lng_cancel), st::themePreviewCancelButton);
+				_themeCancel.create(this, langFactory(lng_cancel), st::themePreviewCancelButton);
 				_themeCancel->show();
 				_themeCancel->setClickedCallback([this] { close(); });
 				updateControls();

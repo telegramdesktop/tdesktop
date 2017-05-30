@@ -70,7 +70,7 @@ private:
 
 GifsListWidget::Footer::Footer(gsl::not_null<GifsListWidget*> parent) : InnerFooter(parent)
 , _pan(parent)
-, _field(this, st::gifsSearchField, lang(lng_gifs_search))
+, _field(this, st::gifsSearchField, langFactory(lng_gifs_search))
 , _cancel(this, st::gifsSearchCancel) {
 	_field->resize(width() - st::gifsSearchFieldPosition.x() - st::gifsSearchCancelPosition.x() - st::gifsSearchCancel.width, _field->height());
 	_field->moveToLeft(st::gifsSearchFieldPosition.x(), st::gifsSearchFieldPosition.y());

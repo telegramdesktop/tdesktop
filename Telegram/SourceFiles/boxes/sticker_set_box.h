@@ -71,7 +71,7 @@ public:
 	bool loaded() const;
 	int32 notInstalled() const;
 	bool official() const;
-	TextWithEntities title() const;
+	base::lambda<TextWithEntities()> title() const;
 	QString shortName() const;
 
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;

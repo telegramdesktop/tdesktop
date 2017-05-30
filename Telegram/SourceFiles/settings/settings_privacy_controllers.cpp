@@ -51,8 +51,8 @@ private:
 };
 
 void BlockUserBoxController::prepareViewHook() {
-	view()->setTitle(lang(lng_blocked_list_add_title));
-	view()->addButton(lang(lng_cancel), [this] { view()->closeBox(); });
+	view()->setTitle(langFactory(lng_blocked_list_add_title));
+	view()->addButton(langFactory(lng_cancel), [this] { view()->closeBox(); });
 
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserIsBlocked, [this](const Notify::PeerUpdate &update) {
 		if (auto user = update.peer->asUser()) {
@@ -94,9 +94,9 @@ std::unique_ptr<BlockUserBoxController::Row> BlockUserBoxController::createRow(H
 } // namespace
 
 void BlockedBoxController::prepare() {
-	view()->setTitle(lang(lng_blocked_list_title));
-	view()->addButton(lang(lng_close), [this] { view()->closeBox(); });
-	view()->addLeftButton(lang(lng_blocked_list_add), [this] { blockUser(); });
+	view()->setTitle(langFactory(lng_blocked_list_title));
+	view()->addButton(langFactory(lng_close), [this] { view()->closeBox(); });
+	view()->addLeftButton(langFactory(lng_blocked_list_add), [this] { blockUser(); });
 	view()->setAboutText(lang(lng_contacts_loading));
 	view()->refreshRows();
 

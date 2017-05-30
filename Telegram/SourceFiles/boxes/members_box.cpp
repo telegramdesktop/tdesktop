@@ -74,14 +74,14 @@ MembersBox::MembersBox(QWidget*, ChannelData *channel, MembersFilter filter)
 }
 
 void MembersBox::prepare() {
-	setTitle(lang(_filter == MembersFilter::Recent ? lng_channel_members : lng_channel_admins));
+	setTitle(langFactory((_filter == MembersFilter::Recent) ? lng_channel_members : lng_channel_admins));
 
 	_inner = setInnerWidget(object_ptr<Inner>(this, _channel, _filter), st::boxLayerScroll);
 
 	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
-	addButton(lang(lng_close), [this] { closeBox(); });
+	addButton(langFactory(lng_close), [this] { closeBox(); });
 	if (_channel->amCreator() && (_channel->membersCount() < (_channel->isMegagroup() ? Global::MegagroupSizeMax() : Global::ChatSizeMax()) || (!_channel->isMegagroup() && !_channel->isPublic()) || _filter == MembersFilter::Admins)) {
-		addLeftButton(lang((_filter == MembersFilter::Admins) ? lng_channel_add_admin : lng_channel_add_members), [this] { onAdd(); });
+		addLeftButton(langFactory((_filter == MembersFilter::Admins) ? lng_channel_add_admin : lng_channel_add_members), [this] { onAdd(); });
 	}
 
 	connect(_inner, SIGNAL(mustScrollTo(int, int)), this, SLOT(onScrollToY(int, int)));

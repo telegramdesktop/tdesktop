@@ -35,9 +35,9 @@ SessionsBox::SessionsBox(QWidget*)
 }
 
 void SessionsBox::prepare() {
-	setTitle(lang(lng_sessions_other_header));
+	setTitle(langFactory(lng_sessions_other_header));
 
-	addButton(lang(lng_close), [this] { closeBox(); });
+	addButton(langFactory(lng_close), [this] { closeBox(); });
 
 	setDimensions(st::boxWideWidth, st::sessionsHeight);
 

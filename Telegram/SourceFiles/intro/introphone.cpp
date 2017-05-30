@@ -48,8 +48,8 @@ PhoneWidget::PhoneWidget(QWidget *parent, Widget::Data *data) : Step(parent, dat
 	connect(_code, SIGNAL(changed()), this, SLOT(onInputChange()));
 	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
 
-	setTitleText([] { return lang(lng_phone_title); });
-	setDescriptionText([] { return lang(lng_phone_desc); });
+	setTitleText(langFactory(lng_phone_title));
+	setDescriptionText(langFactory(lng_phone_desc));
 	subscribe(getData()->updated, [this] { countryChanged(); });
 	setErrorCentered(true);
 
@@ -90,7 +90,7 @@ void PhoneWidget::hidePhoneError() {
 }
 
 void PhoneWidget::showSignup() {
-	showPhoneError([] { return lang(lng_bad_phone_noreg); });
+	showPhoneError(langFactory(lng_bad_phone_noreg));
 	if (!_signup) {
 		auto signupText = lng_phone_notreg(lt_link_start, textcmdStartLink(1), lt_link_end, textcmdStopLink(), lt_signup_start, textcmdStartLink(2), lt_signup_end, textcmdStopLink());
 		auto inner = object_ptr<Ui::FlatLabel>(this, signupText, Ui::FlatLabel::InitType::Rich, st::introDescription);
@@ -121,7 +121,7 @@ void PhoneWidget::submit() {
 	if (_sentRequest || isHidden()) return;
 
 	if (!App::isValidPhone(fullNumber())) {
-		showPhoneError([] { return lang(lng_bad_phone); });
+		showPhoneError(langFactory(lng_bad_phone));
 		_phone->setFocus();
 		return;
 	}
@@ -172,7 +172,7 @@ void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 	_sentRequest = 0;
 
 	if (result.type() != mtpc_auth_sentCode) {
-		showPhoneError([] { return lang(lng_server_error); });
+		showPhoneError(langFactory(lng_server_error));
 		return;
 	}
 
@@ -203,7 +203,7 @@ bool PhoneWidget::phoneSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		stopCheck();
 		_sentRequest = 0;
-		showPhoneError([] { return lang(lng_flood_error); });
+		showPhoneError(langFactory(lng_flood_error));
 		return true;
 	}
 	if (MTP::isDefaultHandledError(error)) return false;
@@ -215,14 +215,14 @@ bool PhoneWidget::phoneSubmitFail(const RPCError &error) {
 		Ui::show(Box<InformBox>(lang(lng_error_phone_flood)));
 		return true;
 	} else if (err == qstr("PHONE_NUMBER_INVALID")) { // show error
-		showPhoneError([] { return lang(lng_bad_phone); });
+		showPhoneError(langFactory(lng_bad_phone));
 		return true;
 	}
 	if (cDebug()) { // internal server error
 		auto text = err + ": " + error.description();
 		showPhoneError([text] { return text; });
 	} else {
-		showPhoneError([] { return lang(lng_server_error); });
+		showPhoneError(langFactory(lng_server_error));
 	}
 	return false;
 }

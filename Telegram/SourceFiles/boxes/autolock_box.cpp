@@ -27,9 +27,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 
 void AutoLockBox::prepare() {
-	setTitle(lang(lng_passcode_autolock));
+	setTitle(langFactory(lng_passcode_autolock));
 
-	addButton(lang(lng_box_ok), [this] { closeBox(); });
+	addButton(langFactory(lng_box_ok), [this] { closeBox(); });
 
 	auto options = { 60, 300, 3600, 18000 };
 

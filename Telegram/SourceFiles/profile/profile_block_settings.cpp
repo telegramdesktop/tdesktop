@@ -62,8 +62,8 @@ private:
 };
 
 void BlockedBoxController::prepare() {
-	view()->setTitle(lang(lng_blocked_list_title));
-	view()->addButton(lang(lng_close), [this] { view()->closeBox(); });
+	view()->setTitle(langFactory(lng_blocked_list_title));
+	view()->addButton(langFactory(lng_close), [this] { view()->closeBox(); });
 	view()->setAboutText(lang(lng_contacts_loading));
 	view()->refreshRows();
 

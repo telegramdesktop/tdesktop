@@ -45,7 +45,7 @@ ShareBox::ShareBox(QWidget*, CopyCallback &&copyCallback, SubmitCallback &&submi
 : _copyCallback(std::move(copyCallback))
 , _submitCallback(std::move(submitCallback))
 , _filterCallback(std::move(filterCallback))
-, _select(this, st::contactsMultiSelect, lang(lng_participant_filter))
+, _select(this, st::contactsMultiSelect, langFactory(lng_participant_filter))
 , _searchTimer(this) {
 }
 
@@ -53,7 +53,7 @@ void ShareBox::prepare() {
 	_select->resizeToWidth(st::boxWideWidth);
 	myEnsureResized(_select);
 
-	setTitle(lang(lng_share_title));
+	setTitle(langFactory(lng_share_title));
 
 	_inner = setInnerWidget(object_ptr<Inner>(this, std::move(_filterCallback)), getTopScrollSkip());
 	connect(_inner, SIGNAL(mustScrollTo(int,int)), this, SLOT(onMustScrollTo(int,int)));
@@ -207,11 +207,11 @@ void ShareBox::updateButtons() {
 void ShareBox::createButtons() {
 	clearButtons();
 	if (_hasSelected) {
-		addButton(lang(lng_share_confirm), [this] { onSubmit(); });
+		addButton(langFactory(lng_share_confirm), [this] { onSubmit(); });
 	} else {
-		addButton(lang(lng_share_copy_link), [this] { onCopyLink(); });
+		addButton(langFactory(lng_share_copy_link), [this] { onCopyLink(); });
 	}
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 }
 
 void ShareBox::onFilterUpdate(const QString &query) {

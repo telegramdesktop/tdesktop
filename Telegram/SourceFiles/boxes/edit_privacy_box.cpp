@@ -33,7 +33,7 @@ namespace {
 
 class PrivacyExceptionsBoxController : public ChatsListBoxController {
 public:
-	PrivacyExceptionsBoxController(const QString &title, const QVector<UserData*> &selected, base::lambda_once<void(QVector<UserData*> &&result)> saveCallback);
+	PrivacyExceptionsBoxController(base::lambda<QString()> titleFactory, const QVector<UserData*> &selected, base::lambda_once<void(QVector<UserData*> &&result)> saveCallback);
 	void rowClicked(PeerListBox::Row *row) override;
 
 protected:
@@ -41,21 +41,21 @@ protected:
 	std::unique_ptr<Row> createRow(History *history) override;
 
 private:
-	QString _title;
+	base::lambda<QString()> _titleFactory;
 	QVector<UserData*> _selected;
 	base::lambda_once<void(QVector<UserData*> &&result)> _saveCallback;
 
 };
 
-PrivacyExceptionsBoxController::PrivacyExceptionsBoxController(const QString &title, const QVector<UserData*> &selected, base::lambda_once<void(QVector<UserData*> &&result)> saveCallback)
-: _title(title)
+PrivacyExceptionsBoxController::PrivacyExceptionsBoxController(base::lambda<QString()> titleFactory, const QVector<UserData*> &selected, base::lambda_once<void(QVector<UserData*> &&result)> saveCallback)
+: _titleFactory(std::move(titleFactory))
 , _selected(selected)
 , _saveCallback(std::move(saveCallback)) {
 }
 
 void PrivacyExceptionsBoxController::prepareViewHook() {
-	view()->setTitle(_title);
-	view()->addButton(lang(lng_settings_save), [this] {
+	view()->setTitle(_titleFactory);
+	view()->addButton(langFactory(lng_settings_save), [this] {
 		auto peers = view()->collectSelectedRows();
 		auto users = QVector<UserData*>();
 		if (!peers.empty()) {
@@ -69,7 +69,7 @@ void PrivacyExceptionsBoxController::prepareViewHook() {
 		_saveCallback(std::move(users));
 		view()->closeBox();
 	});
-	view()->addButton(lang(lng_cancel), [this] { view()->closeBox(); });
+	view()->addButton(langFactory(lng_cancel), [this] { view()->closeBox(); });
 	view()->addSelectedRows(_selected);
 }
 
@@ -96,8 +96,8 @@ EditPrivacyBox::EditPrivacyBox(QWidget*, std::unique_ptr<Controller> controller)
 void EditPrivacyBox::prepare() {
 	_controller->setView(this);
 
-	setTitle(_controller->title());
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	setTitle([this] { return _controller->title(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	loadData();
 
@@ -174,7 +174,9 @@ int EditPrivacyBox::countDefaultHeight(int newWidth) {
 }
 
 void EditPrivacyBox::editExceptionUsers(Exception exception) {
-	auto controller = std::make_unique<PrivacyExceptionsBoxController>(_controller->exceptionBoxTitle(exception), exceptionUsers(exception), base::lambda_guarded(this, [this, exception](QVector<UserData*> &&users) {
+	auto controller = std::make_unique<PrivacyExceptionsBoxController>(base::lambda_guarded(this, [this, exception] {
+		return _controller->exceptionBoxTitle(exception);
+	}), exceptionUsers(exception), base::lambda_guarded(this, [this, exception](QVector<UserData*> &&users) {
 		exceptionUsers(exception) = std::move(users);
 		exceptionLink(exception)->entity()->setText(exceptionLinkText(exception));
 		auto removeFrom = ([exception] {
@@ -292,14 +294,14 @@ void EditPrivacyBox::createWidgets() {
 	createLabel(_exceptionsDescription, _controller->exceptionsDescription(), st::editPrivacyLabel);
 
 	clearButtons();
-	addButton(lang(lng_settings_save), [this] {
+	addButton(langFactory(lng_settings_save), [this] {
 		auto someAreDisallowed = (_option != Option::Everyone) || !_neverUsers.empty();
 		_controller->confirmSave(someAreDisallowed, base::lambda_guarded(this, [this] {
 			App::api()->savePrivacy(_controller->key(), collectResult());
 			closeBox();
 		}));
 	});
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	_optionGroup->setChangedCallback([this](Option value) {
 		_option = value;

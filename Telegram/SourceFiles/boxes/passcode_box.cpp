@@ -31,11 +31,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 PasscodeBox::PasscodeBox(QWidget*, bool turningOff)
 : _turningOff(turningOff)
 , _about(st::boxWidth - st::boxPadding.left() * 1.5)
-, _oldPasscode(this, st::defaultInputField, lang(lng_passcode_enter_old))
-, _newPasscode(this, st::defaultInputField, lang(Global::LocalPasscode() ? lng_passcode_enter_new : lng_passcode_enter_first))
-, _reenterPasscode(this, st::defaultInputField, lang(lng_passcode_confirm_new))
-, _passwordHint(this, st::defaultInputField, lang(lng_cloud_password_hint))
-, _recoverEmail(this, st::defaultInputField, lang(lng_cloud_password_email))
+, _oldPasscode(this, st::defaultInputField, langFactory(lng_passcode_enter_old))
+, _newPasscode(this, st::defaultInputField, langFactory(Global::LocalPasscode() ? lng_passcode_enter_new : lng_passcode_enter_first))
+, _reenterPasscode(this, st::defaultInputField, langFactory(lng_passcode_confirm_new))
+, _passwordHint(this, st::defaultInputField, langFactory(lng_cloud_password_hint))
+, _recoverEmail(this, st::defaultInputField, langFactory(lng_cloud_password_email))
 , _recover(this, lang(lng_signin_recover)) {
 }
 
@@ -46,34 +46,34 @@ PasscodeBox::PasscodeBox(QWidget*, const QByteArray &newSalt, const QByteArray &
 , _curSalt(curSalt)
 , _hasRecovery(hasRecovery)
 , _about(st::boxWidth - st::boxPadding.left() * 1.5)
-, _oldPasscode(this, st::defaultInputField, lang(lng_cloud_password_enter_old))
-, _newPasscode(this, st::defaultInputField, lang(curSalt.isEmpty() ? lng_cloud_password_enter_first : lng_cloud_password_enter_new))
-, _reenterPasscode(this, st::defaultInputField, lang(lng_cloud_password_confirm_new))
-, _passwordHint(this, st::defaultInputField, lang(curSalt.isEmpty() ? lng_cloud_password_hint : lng_cloud_password_change_hint))
-, _recoverEmail(this, st::defaultInputField, lang(lng_cloud_password_email))
+, _oldPasscode(this, st::defaultInputField, langFactory(lng_cloud_password_enter_old))
+, _newPasscode(this, st::defaultInputField, langFactory(curSalt.isEmpty() ? lng_cloud_password_enter_first : lng_cloud_password_enter_new))
+, _reenterPasscode(this, st::defaultInputField, langFactory(lng_cloud_password_confirm_new))
+, _passwordHint(this, st::defaultInputField, langFactory(curSalt.isEmpty() ? lng_cloud_password_hint : lng_cloud_password_change_hint))
+, _recoverEmail(this, st::defaultInputField, langFactory(lng_cloud_password_email))
 , _recover(this, lang(lng_signin_recover)) {
 	if (!hint.isEmpty()) _hintText.setText(st::passcodeTextStyle, lng_signin_hint(lt_password_hint, hint));
 }
 
 void PasscodeBox::prepare() {
-	addButton(lang(_turningOff ? lng_passcode_remove_button : lng_settings_save), [this] { onSave(); });
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(_turningOff ? lng_passcode_remove_button : lng_settings_save), [this] { onSave(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	_about.setRichText(st::passcodeTextStyle, lang(_cloudPwd ? lng_cloud_password_about : lng_passcode_about));
 	_aboutHeight = _about.countHeight(st::boxWidth - st::boxPadding.left() * 1.5);
 	if (_turningOff) {
 		_oldPasscode->show();
-		setTitle(lang(_cloudPwd ? lng_cloud_password_remove : lng_passcode_remove));
+		setTitle(langFactory(_cloudPwd ? lng_cloud_password_remove : lng_passcode_remove));
 		setDimensions(st::boxWidth, st::passcodePadding.top() + _oldPasscode->height() + st::passcodeTextLine + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeTextLine : 0) + st::passcodeAboutSkip + _aboutHeight + st::passcodePadding.bottom());
 	} else {
 		auto has = _cloudPwd ? (!_curSalt.isEmpty()) : Global::LocalPasscode();
 		if (has) {
 			_oldPasscode->show();
-			setTitle(lang(_cloudPwd ? lng_cloud_password_change : lng_passcode_change));
+			setTitle(langFactory(_cloudPwd ? lng_cloud_password_change : lng_passcode_change));
 			setDimensions(st::boxWidth, st::passcodePadding.top() + _oldPasscode->height() + st::passcodeTextLine + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeTextLine : 0) + _newPasscode->height() + st::passcodeLittleSkip + _reenterPasscode->height() + st::passcodeSkip + (_cloudPwd ? _passwordHint->height() + st::passcodeLittleSkip : 0) + st::passcodeAboutSkip + _aboutHeight + st::passcodePadding.bottom());
 		} else {
 			_oldPasscode->hide();
-			setTitle(lang(_cloudPwd ? lng_cloud_password_create : lng_passcode_create));
+			setTitle(langFactory(_cloudPwd ? lng_cloud_password_create : lng_passcode_create));
 			setDimensions(st::boxWidth, st::passcodePadding.top() + _newPasscode->height() + st::passcodeLittleSkip + _reenterPasscode->height() + st::passcodeSkip + (_cloudPwd ? _passwordHint->height() + st::passcodeLittleSkip : 0) + st::passcodeAboutSkip + _aboutHeight + (_cloudPwd ? (st::passcodeLittleSkip + _recoverEmail->height() + st::passcodeSkip) : st::passcodePadding.bottom()));
 		}
 	}
@@ -421,14 +421,14 @@ bool PasscodeBox::recoverStartFail(const RPCError &error) {
 
 RecoverBox::RecoverBox(QWidget*, const QString &pattern)
 : _pattern(st::normalFont->elided(lng_signin_recover_hint(lt_recover_email, pattern), st::boxWidth - st::boxPadding.left() * 1.5))
-, _recoverCode(this, st::defaultInputField, lang(lng_signin_code)) {
+, _recoverCode(this, st::defaultInputField, langFactory(lng_signin_code)) {
 }
 
 void RecoverBox::prepare() {
-	setTitle(lang(lng_signin_recover_title));
+	setTitle(langFactory(lng_signin_recover_title));
 
-	addButton(lang(lng_passcode_submit), [this] { onSubmit(); });
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_passcode_submit), [this] { onSubmit(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	setDimensions(st::boxWidth, st::passcodePadding.top() + st::passcodePadding.bottom() + st::passcodeTextLine + _recoverCode->height() + st::passcodeTextLine);
 

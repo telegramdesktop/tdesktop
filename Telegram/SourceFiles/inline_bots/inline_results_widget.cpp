@@ -382,12 +382,13 @@ void Inner::refreshSwitchPmButton(const CacheEntry *entry) {
 		_switchPmStartToken.clear();
 	} else {
 		if (!_switchPmButton) {
-			_switchPmButton.create(this, QString(), st::switchPmButton);
+			_switchPmButton.create(this, base::lambda<QString()>(), st::switchPmButton);
 			_switchPmButton->show();
 			_switchPmButton->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 			connect(_switchPmButton, SIGNAL(clicked()), this, SLOT(onSwitchPm()));
 		}
-		_switchPmButton->setText(entry->switchPmText); // doesn't perform text.toUpper()
+		auto text = entry->switchPmText;
+		_switchPmButton->setText([text] { return text; }); // doesn't perform text.toUpper()
 		_switchPmStartToken = entry->switchPmStartToken;
 		auto buttonTop = st::stickerPanPadding;
 		_switchPmButton->move(st::inlineResultsLeft - st::buttonRadius, buttonTop);

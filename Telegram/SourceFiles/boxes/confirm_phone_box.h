@@ -30,7 +30,7 @@ class FlatLabel;
 
 class SentCodeField : public Ui::InputField {
 public:
-	SentCodeField(QWidget *parent, const style::InputField &st, const QString &ph = QString(), const QString &val = QString()) : Ui::InputField(parent, st, ph, val) {
+	SentCodeField(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory = base::lambda<QString()>(), const QString &val = QString()) : Ui::InputField(parent, st, std::move(placeholderFactory), val) {
 		connect(this, &Ui::InputField::changed, [this] { fix(); });
 	}
 

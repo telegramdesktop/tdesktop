@@ -109,11 +109,11 @@ private:
 
 };
 
-class RoundButton : public RippleButton {
+class RoundButton : public RippleButton, private base::Subscriber {
 public:
-	RoundButton(QWidget *parent, const QString &text, const style::RoundButton &st);
+	RoundButton(QWidget *parent, base::lambda<QString()> textFactory, const style::RoundButton &st);
 
-	void setText(const QString &text);
+	void setText(base::lambda<QString()> textFactory);
 
 	void setNumbersText(const QString &numbersText) {
 		setNumbersText(numbersText, numbersText.toInt());
@@ -144,12 +144,14 @@ protected:
 	QPoint prepareRippleStartPosition() const override;
 
 private:
+	void refreshText();
+	QString computeFullText() const;
 	void setNumbersText(const QString &numbersText, int numbers);
 	void numbersAnimationCallback();
-	void updateText();
 	void resizeToText();
 
-	QString _text, _fullText;
+	QString _text;
+	base::lambda<QString()> _textFactory;
 	int _textWidth;
 
 	class Numbers;

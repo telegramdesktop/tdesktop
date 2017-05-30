@@ -486,7 +486,9 @@ Notification::Notification(Manager *manager, History *history, PeerData *peer, P
 , _started(GetTickCount())
 #endif // Q_OS_WIN
 , _close(this, st::notifyClose)
-, _reply(this, lang(lng_notification_reply), st::defaultBoxButton) {
+, _reply(this, langFactory(lng_notification_reply), st::defaultBoxButton) {
+	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
+
 	auto position = computePosition(st::notifyMinHeight);
 	updateGeometry(position.x(), position.y(), st::notifyWidth, st::notifyMinHeight);
 
@@ -507,7 +509,7 @@ Notification::Notification(Manager *manager, History *history, PeerData *peer, P
 		showReplyField();
 	});
 	_replyPadding = st::notifyMinHeight - st::notifyPhotoPos.y() - st::notifyPhotoSize;
-	_reply->moveToRight(_replyPadding, height() - _reply->height() - _replyPadding);
+	updateReplyGeometry();
 	_reply->hide();
 
 	prepareActionsCache();
@@ -526,6 +528,14 @@ Notification::Notification(Manager *manager, History *history, PeerData *peer, P
 	});
 
 	show();
+}
+
+void Notification::updateReplyGeometry() {
+	_reply->moveToRight(_replyPadding, height() - _reply->height() - _replyPadding);
+}
+
+void Notification::refreshLang() {
+	InvokeQueued(this, [this] { updateReplyGeometry(); });
 }
 
 void Notification::prepareActionsCache() {
@@ -743,7 +753,7 @@ void Notification::showReplyField() {
 	_background->setGeometry(0, st::notifyMinHeight, width(), st::notifySendReply.height + st::notifyBorderWidth);
 	_background->show();
 
-	_replyArea.create(this, st::notifyReplyArea, lang(lng_message_ph), QString());
+	_replyArea.create(this, st::notifyReplyArea, langFactory(lng_message_ph), QString());
 	_replyArea->resize(width() - st::notifySendReply.width - 2 * st::notifyBorderWidth, st::notifySendReply.height);
 	_replyArea->moveToLeft(st::notifyBorderWidth, st::notifyMinHeight);
 	_replyArea->show();

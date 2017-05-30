@@ -72,6 +72,7 @@ private:
 
 	PhotoData *validatePhoto() const;
 
+	void refreshButtonsGeometry(int newWidth);
 	void refreshNameGeometry(int newWidth);
 	void refreshNameText();
 	void refreshStatusText();

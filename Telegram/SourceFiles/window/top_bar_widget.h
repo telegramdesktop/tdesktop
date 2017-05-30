@@ -65,6 +65,7 @@ signals:
 	void clicked();
 
 private:
+	void refreshLang();
 	void updateControlsGeometry();
 	void selectedShowCallback();
 

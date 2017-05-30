@@ -36,7 +36,7 @@ class MessageField final : public Ui::FlatTextarea {
 	Q_OBJECT
 
 public:
-	MessageField(QWidget *parent, gsl::not_null<Window::Controller*> controller, const style::FlatTextarea &st, const QString &ph = QString(), const QString &val = QString());
+	MessageField(QWidget *parent, gsl::not_null<Window::Controller*> controller, const style::FlatTextarea &st, base::lambda<QString()> placeholderFactory = base::lambda<QString()>(), const QString &val = QString());
 
 	bool hasSendText() const;
 

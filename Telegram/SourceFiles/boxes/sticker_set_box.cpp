@@ -46,7 +46,7 @@ StickerSetBox::StickerSetBox(QWidget*, const MTPInputStickerSet &set)
 }
 
 void StickerSetBox::prepare() {
-	setTitle(lang(lng_contacts_loading));
+	setTitle(langFactory(lng_contacts_loading));
 
 	_inner = setInnerWidget(object_ptr<Inner>(this, _set), st::stickersScroll);
 	connect(App::main(), SIGNAL(stickersUpdated()), this, SLOT(onStickersUpdated()));
@@ -89,16 +89,16 @@ void StickerSetBox::updateButtons() {
 	clearButtons();
 	if (_inner->loaded()) {
 		if (_inner->notInstalled()) {
-			addButton(lang(lng_stickers_add_pack), [this] { onAddStickers(); });
-			addButton(lang(lng_cancel), [this] { closeBox(); });
+			addButton(langFactory(lng_stickers_add_pack), [this] { onAddStickers(); });
+			addButton(langFactory(lng_cancel), [this] { closeBox(); });
 		} else if (_inner->official()) {
-			addButton(lang(lng_about_done), [this] { closeBox(); });
+			addButton(langFactory(lng_about_done), [this] { closeBox(); });
 		} else {
-			addButton(lang(lng_stickers_share_pack), [this] { onShareStickers(); });
-			addButton(lang(lng_cancel), [this] { closeBox(); });
+			addButton(langFactory(lng_stickers_share_pack), [this] { onShareStickers(); });
+			addButton(langFactory(lng_cancel), [this] { closeBox(); });
 		}
 	} else {
-		addButton(lang(lng_cancel), [this] { closeBox(); });
+		addButton(langFactory(lng_cancel), [this] { closeBox(); });
 	}
 	update();
 }
@@ -427,19 +427,19 @@ bool StickerSetBox::Inner::official() const {
 	return _loaded && _setShortName.isEmpty();
 }
 
-TextWithEntities StickerSetBox::Inner::title() const {
+base::lambda<TextWithEntities()> StickerSetBox::Inner::title() const {
 	auto text = _setTitle;
 	auto entities = EntitiesInText();
 	if (_loaded) {
 		if (_pack.isEmpty()) {
-			text = lang(lng_attach_failed);
+			return [] { return TextWithEntities { lang(lng_attach_failed), EntitiesInText() }; };
 		} else {
 			textParseEntities(text, TextParseMentions, &entities);
 		}
 	} else {
-		text = lang(lng_contacts_loading);
+		return [] { return TextWithEntities { lang(lng_contacts_loading), EntitiesInText() }; };
 	}
-	return { text, entities };
+	return [text, entities] { return TextWithEntities { text, entities }; };
 }
 
 QString StickerSetBox::Inner::shortName() const {

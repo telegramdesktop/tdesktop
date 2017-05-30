@@ -56,8 +56,8 @@ constexpr str_const kDefaultCountry = "US";
 
 Widget::Widget(QWidget *parent) : TWidget(parent)
 , _back(this, object_ptr<Ui::IconButton>(this, st::introBackButton), st::introSlideDuration)
-, _settings(this, object_ptr<Ui::RoundButton>(this, lang(lng_menu_settings), st::defaultBoxButton), st::introCoverDuration)
-, _next(this, QString(), st::introNextButton) {
+, _settings(this, object_ptr<Ui::RoundButton>(this, langFactory(lng_menu_settings), st::defaultBoxButton), st::introCoverDuration)
+, _next(this, base::lambda<QString()>(), st::introNextButton) {
 	auto country = Platform::SystemCountry();
 	if (country.isEmpty()) {
 		country = str_const_toString(kDefaultCountry);
@@ -98,11 +98,7 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 }
 
 void Widget::refreshLang() {
-	if (_settings) _settings->entity()->setText(lang(lng_menu_settings));
-	if (_update) _update->entity()->setText(lang(lng_menu_update));
-	if (_resetAccount) _resetAccount->entity()->setText(lang(lng_signin_reset_account));
-	if (_next) _next->setText(getStep()->nextButtonText());
-	updateControlsGeometry();
+	InvokeQueued(this, [this] { updateControlsGeometry(); });
 }
 
 void Widget::createLanguageLink() {
@@ -139,7 +135,7 @@ void Widget::createLanguageLink() {
 void Widget::onCheckUpdateStatus() {
 	if (Sandbox::updatingState() == Application::UpdatingReady) {
 		if (_update) return;
-		_update.create(this, object_ptr<Ui::RoundButton>(this, lang(lng_menu_update), st::defaultBoxButton), st::introCoverDuration);
+		_update.create(this, object_ptr<Ui::RoundButton>(this, langFactory(lng_menu_update), st::defaultBoxButton), st::introCoverDuration);
 		if (!_a_show.animating()) _update->show();
 		_update->entity()->setClickedCallback([] {
 			checkReadyUpdate();
@@ -192,7 +188,7 @@ void Widget::historyMove(Direction direction) {
 	_settings->toggleAnimated(!stepHasCover);
 	if (_update) _update->toggleAnimated(!stepHasCover);
 	if (_changeLanguage) _changeLanguage->toggleAnimated(getStep()->hasChangeLanguage());
-	_next->setText(getStep()->nextButtonText());
+	_next->setText([this] { return getStep()->nextButtonText(); });
 	if (_resetAccount) _resetAccount->hideAnimated();
 	getStep()->showAnimated(direction);
 	fixOrder();
@@ -233,7 +229,7 @@ void Widget::appendStep(Step *step) {
 
 void Widget::showResetButton() {
 	if (!_resetAccount) {
-		auto entity = object_ptr<Ui::RoundButton>(this, lang(lng_signin_reset_account), st::introResetButton);
+		auto entity = object_ptr<Ui::RoundButton>(this, langFactory(lng_signin_reset_account), st::introResetButton);
 		_resetAccount.create(this, std::move(entity), st::introErrorDuration);
 		_resetAccount->hideFast();
 		_resetAccount->entity()->setClickedCallback([this] { resetAccount(); });
@@ -274,7 +270,7 @@ void Widget::resetAccount() {
 				Ui::show(Box<InformBox>(lang(lng_signin_reset_cancelled)));
 			} else {
 				Ui::hideLayer();
-				getStep()->showError([] { return lang(lng_server_error); });
+				getStep()->showError(langFactory(lng_server_error));
 			}
 		}).send();
 	})));
@@ -296,7 +292,7 @@ void Widget::getNearestDC() {
 void Widget::showControls() {
 	getStep()->show();
 	_next->show();
-	_next->setText(getStep()->nextButtonText());
+	_next->setText([this] { return getStep()->nextButtonText(); });
 	auto hasCover = getStep()->hasCover();
 	_settings->toggleFast(!hasCover);
 	if (_update) _update->toggleFast(!hasCover);

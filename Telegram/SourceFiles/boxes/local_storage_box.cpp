@@ -32,9 +32,9 @@ LocalStorageBox::LocalStorageBox(QWidget *parent)
 }
 
 void LocalStorageBox::prepare() {
-	setTitle(lang(lng_local_storage_title));
+	setTitle(langFactory(lng_local_storage_title));
 
-	addButton(lang(lng_box_ok), [this] { closeBox(); });
+	addButton(langFactory(lng_box_ok), [this] { closeBox(); });
 
 	_clear->setClickedCallback([this] { clearStorage(); });
 

@@ -199,7 +199,7 @@ class EditNameTitleBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	EditNameTitleBox(QWidget*, PeerData *peer);
+	EditNameTitleBox(QWidget*, gsl::not_null<PeerData*> peer);
 
 protected:
 	void setInnerFocus() override;
@@ -218,7 +218,7 @@ private:
 	void onSaveChatDone(const MTPUpdates &updates);
 	bool onSaveChatFail(const RPCError &e);
 
-	PeerData *_peer;
+	gsl::not_null<PeerData*> _peer;
 
 	object_ptr<Ui::InputField> _first;
 	object_ptr<Ui::InputField> _last;

@@ -38,10 +38,10 @@ ReportBox::ReportBox(QWidget*, PeerData *peer) : _peer(peer)
 }
 
 void ReportBox::prepare() {
-	setTitle(lang(_peer->isUser() ? lng_report_bot_title : (_peer->isMegagroup() ? lng_report_group_title : lng_report_title)));
+	setTitle(langFactory(_peer->isUser() ? lng_report_bot_title : (_peer->isMegagroup() ? lng_report_group_title : lng_report_title)));
 
-	addButton(lang(lng_report_button), [this] { onReport(); });
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_report_button), [this] { onReport(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	_reasonGroup->setChangedCallback([this](Reason value) { reasonChanged(value); });
 
@@ -64,7 +64,7 @@ void ReportBox::resizeEvent(QResizeEvent *e) {
 void ReportBox::reasonChanged(Reason reason) {
 	if (reason == Reason::Other) {
 		if (!_reasonOtherText) {
-			_reasonOtherText.create(this, st::profileReportReasonOther, lang(lng_report_reason_description));
+			_reasonOtherText.create(this, st::profileReportReasonOther, langFactory(lng_report_reason_description));
 			_reasonOtherText->show();
 			_reasonOtherText->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
 			_reasonOtherText->setMaxLength(MaxPhotoCaption);

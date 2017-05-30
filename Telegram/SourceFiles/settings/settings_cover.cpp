@@ -43,8 +43,8 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 , _userpicButton(this, _self)
 , _name(this, st::settingsNameLabel)
 , _editNameInline(this, st::settingsEditButton)
-, _setPhoto(this, lang(lng_settings_upload), st::settingsPrimaryButton)
-, _editName(this, lang(lng_settings_edit), st::settingsSecondaryButton) {
+, _setPhoto(this, langFactory(lng_settings_upload), st::settingsPrimaryButton)
+, _editName(this, langFactory(lng_settings_edit), st::settingsSecondaryButton) {
 	setAcceptDrops(true);
 
 	_name->setSelectable(true);
@@ -105,14 +105,7 @@ int CoverWidget::resizeGetHeight(int newWidth) {
 		_cancelPhotoUpload->moveToLeft(_statusPosition.x() + st::settingsStatusFont->width(_statusText) + st::settingsStatusFont->spacew, _statusPosition.y(), newWidth);
 	}
 
-	int buttonLeft = _userpicButton->x() + _userpicButton->width() + st::settingsButtonLeft;
-	int buttonsRight = newWidth - st::settingsButtonSkip;
-	_setPhoto->moveToLeft(buttonLeft, _userpicButton->y() + st::settingsButtonTop, newWidth);
-	buttonLeft += _setPhoto->width() + st::settingsButtonSkip;
-	_editName->moveToLeft(buttonLeft, _setPhoto->y(), newWidth);
-	_editNameVisible = (buttonLeft + _editName->width() + st::settingsButtonSkip <= newWidth);
-	_editName->setVisible(_editNameVisible);
-
+	refreshButtonsGeometry(newWidth);
 	refreshNameGeometry(newWidth);
 
 	newHeight += st::settingsPhotoSize;
@@ -125,6 +118,16 @@ int CoverWidget::resizeGetHeight(int newWidth) {
 
 	resizeDropArea();
 	return newHeight;
+}
+
+void CoverWidget::refreshButtonsGeometry(int newWidth) {
+	int buttonLeft = _userpicButton->x() + _userpicButton->width() + st::settingsButtonLeft;
+	int buttonsRight = newWidth - st::settingsButtonSkip;
+	_setPhoto->moveToLeft(buttonLeft, _userpicButton->y() + st::settingsButtonTop, newWidth);
+	buttonLeft += _setPhoto->width() + st::settingsButtonSkip;
+	_editName->moveToLeft(buttonLeft, _setPhoto->y(), newWidth);
+	_editNameVisible = (buttonLeft + _editName->width() + st::settingsButtonSkip <= newWidth);
+	_editName->setVisible(_editNameVisible);
 }
 
 void CoverWidget::refreshNameGeometry(int newWidth) {

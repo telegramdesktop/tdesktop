@@ -212,11 +212,11 @@ void CountryInput::setText(const QString &newText) {
 }
 
 CountrySelectBox::CountrySelectBox(QWidget*)
-: _select(this, st::contactsMultiSelect, lang(lng_country_ph)) {
+: _select(this, st::contactsMultiSelect, langFactory(lng_country_ph)) {
 }
 
 void CountrySelectBox::prepare() {
-	setTitle(lang(lng_country_select));
+	setTitle(langFactory(lng_country_select));
 
 	_select->resizeToWidth(st::boxWidth);
 	_select->setQueryChangedCallback([this](const QString &query) { onFilterUpdate(query); });
@@ -224,7 +224,7 @@ void CountrySelectBox::prepare() {
 
 	_inner = setInnerWidget(object_ptr<Inner>(this), st::countriesScroll, _select->height());
 
-	addButton(lang(lng_close), [this] { closeBox(); });
+	addButton(langFactory(lng_close), [this] { closeBox(); });
 
 	setDimensions(st::boxWidth, st::boxMaxListHeight);
 

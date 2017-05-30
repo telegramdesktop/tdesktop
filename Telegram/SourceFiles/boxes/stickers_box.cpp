@@ -230,7 +230,7 @@ void StickersBox::prepare() {
 	} else if (_section == Section::Archived) {
 		requestArchivedSets();
 	} else if (_section == Section::ArchivedPart) {
-		setTitle(lang(lng_stickers_archived));
+		setTitle(langFactory(lng_stickers_archived));
 	}
 	if (Global::ArchivedStickerSetsOrder().isEmpty()) {
 		preloadArchivedSets();
@@ -252,7 +252,7 @@ void StickersBox::prepare() {
 	_archived.widget()->setInstallSetCallback([this](uint64 setId) { installSet(setId); });
 	_archived.widget()->setLoadMoreCallback([this] { loadMoreArchived(); });
 
-	addButton(lang(lng_about_done), [this] { closeBox(); });
+	addButton(langFactory(lng_about_done), [this] { closeBox(); });
 
 	if (_section == Section::Installed) {
 		_tab = &_installed;

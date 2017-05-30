@@ -42,7 +42,7 @@ PeerListBox::PeerListBox(QWidget*, std::unique_ptr<Controller> controller)
 }
 
 object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>> PeerListBox::createMultiSelect() {
-	auto entity = object_ptr<Ui::MultiSelect>(this, st::contactsMultiSelect, lang(lng_participant_filter));
+	auto entity = object_ptr<Ui::MultiSelect>(this, st::contactsMultiSelect, langFactory(lng_participant_filter));
 	auto margins = style::margins(0, 0, 0, 0);
 	auto callback = [this] { updateScrollSkips(); };
 	return object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>>(this, std::move(entity), margins, std::move(callback));

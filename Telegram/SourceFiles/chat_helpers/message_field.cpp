@@ -94,7 +94,7 @@ TextWithTags::Tags ConvertEntitiesToTextTags(const EntitiesInText &entities) {
 	return result;
 }
 
-MessageField::MessageField(QWidget *parent, gsl::not_null<Window::Controller*> controller, const style::FlatTextarea &st, const QString &ph, const QString &val) : Ui::FlatTextarea(parent, st, ph, val)
+MessageField::MessageField(QWidget *parent, gsl::not_null<Window::Controller*> controller, const style::FlatTextarea &st, base::lambda<QString()> placeholderFactory, const QString &val) : Ui::FlatTextarea(parent, st, std::move(placeholderFactory), val)
 , _controller(controller) {
 	setMinHeight(st::historySendSize.height() - 2 * st::historySendPadding);
 	setMaxHeight(st::historyComposeFieldMaxHeight);

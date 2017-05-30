@@ -39,14 +39,16 @@ namespace Window {
 
 TopBarWidget::TopBarWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
 , _controller(controller)
-, _clearSelection(this, lang(lng_selected_clear), st::topBarClearButton)
-, _forward(this, lang(lng_selected_forward), st::defaultActiveButton)
-, _delete(this, lang(lng_selected_delete), st::defaultActiveButton)
+, _clearSelection(this, langFactory(lng_selected_clear), st::topBarClearButton)
+, _forward(this, langFactory(lng_selected_forward), st::defaultActiveButton)
+, _delete(this, langFactory(lng_selected_delete), st::defaultActiveButton)
 , _info(this, nullptr, st::topBarInfoButton)
-, _mediaType(this, lang(lng_media_type), st::topBarButton)
+, _mediaType(this, langFactory(lng_media_type), st::topBarButton)
 , _call(this, st::topBarCall)
 , _search(this, st::topBarSearch)
 , _menuToggle(this, st::topBarMenuToggle) {
+	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
+
 	_forward->setClickedCallback([this] { onForwardSelection(); });
 	_forward->setWidthChangedCallback([this] { updateControlsGeometry(); });
 	_delete->setClickedCallback([this] { onDeleteSelection(); });
@@ -87,6 +89,10 @@ TopBarWidget::TopBarWidget(QWidget *parent, gsl::not_null<Window::Controller*> c
 
 	setCursor(style::cur_pointer);
 	updateControlsVisibility();
+}
+
+void TopBarWidget::refreshLang() {
+	InvokeQueued(this, [this] { updateControlsGeometry(); });
 }
 
 void TopBarWidget::onForwardSelection() {

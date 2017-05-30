@@ -44,6 +44,8 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	void refreshLang();
+	void updateControlsGeometry();
 	void setSecondsLeft(int secondsLeft);
 	void startAnimation(bool hiding);
 	void updateText();

@@ -125,9 +125,9 @@ void LanguageBox::prepare() {
 
 void LanguageBox::refreshLang() {
 	clearButtons();
-	addButton(lang(lng_box_ok), [this] { closeBox(); });
+	addButton(langFactory(lng_box_ok), [this] { closeBox(); });
 
-	setTitle(lang(lng_languages));
+	setTitle(langFactory(lng_languages));
 
 	update();
 }

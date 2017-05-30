@@ -115,9 +115,9 @@ void ConfirmBox::init(const QString &text) {
 }
 
 void ConfirmBox::prepare() {
-	addButton(_confirmText, [this] { confirmed(); }, _confirmStyle);
+	addButton([this] { return _confirmText; }, [this] { confirmed(); }, _confirmStyle);
 	if (!_informative) {
-		addButton(_cancelText, [this] { _cancelled = true; closeBox(); });
+		addButton([this] { return _cancelText; }, [this] { _cancelled = true; closeBox(); });
 	}
 	textUpdated();
 }
@@ -225,7 +225,7 @@ MaxInviteBox::MaxInviteBox(QWidget*, const QString &link)
 void MaxInviteBox::prepare() {
 	setMouseTracking(true);
 
-	addButton(lang(lng_box_ok), [this] { closeBox(); });
+	addButton(langFactory(lng_box_ok), [this] { closeBox(); });
 
 	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right();
 	_textHeight = qMin(_text.countHeight(_textWidth), 16 * st::boxLabelStyle.lineHeight);
@@ -293,10 +293,10 @@ void ConvertToSupergroupBox::prepare() {
 	text.push_back(lang(lng_profile_convert_feature3));
 	text.push_back(lang(lng_profile_convert_feature4));
 
-	setTitle(lang(lng_profile_convert_title));
+	setTitle(langFactory(lng_profile_convert_title));
 
-	addButton(lang(lng_profile_convert_confirm), [this] { convertToSupergroup(); });
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_profile_convert_confirm), [this] { convertToSupergroup(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	_text.setText(st::boxLabelStyle, text.join('\n'), _confirmBoxTextOptions);
 	_note.setText(st::boxLabelStyle, lng_profile_convert_warning(lt_bold_start, textcmdStartSemibold(), lt_bold_end, textcmdStopSemibold()), _confirmBoxTextOptions);
@@ -363,8 +363,8 @@ PinMessageBox::PinMessageBox(QWidget*, ChannelData *channel, MsgId msgId)
 }
 
 void PinMessageBox::prepare() {
-	addButton(lang(lng_pinned_pin), [this] { pinMessage(); });
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_pinned_pin), [this] { pinMessage(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	setDimensions(st::boxWidth, st::boxPadding.top() + _text->height() + st::boxMediumSkip + _notify->heightNoMargins() + st::boxPadding.bottom());
 }
@@ -471,8 +471,8 @@ void DeleteMessagesBox::prepare() {
 	}
 	_text.create(this, text, Ui::FlatLabel::InitType::Simple, st::boxLabel);
 
-	addButton(lang(lng_box_delete), [this] { deleteAndClear(); });
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_box_delete), [this] { deleteAndClear(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	auto fullHeight = st::boxPadding.top() + _text->height() + st::boxPadding.bottom();
 	if (_moderateFrom) {
@@ -576,12 +576,12 @@ ConfirmInviteBox::ConfirmInviteBox(QWidget*, const QString &title, const MTPChat
 }
 
 void ConfirmInviteBox::prepare() {
-	addButton(lang(lng_group_invite_join), [this] {
+	addButton(langFactory(lng_group_invite_join), [this] {
 		if (auto main = App::main()) {
 			main->onInviteImport();
 		}
 	});
-	addButton(lang(lng_cancel), [this] { closeBox(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	if (_participants.size() > 4) {
 		_participants.resize(4);

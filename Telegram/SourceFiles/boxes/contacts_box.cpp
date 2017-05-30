@@ -113,24 +113,24 @@ void ContactsBox::prepare() {
 	updateTitle();
 	if (_chat) {
 		if (_membersFilter == MembersFilter::Admins) {
-			addButton(lang(lng_settings_save), [this] { saveChatAdmins(); });
+			addButton(langFactory(lng_settings_save), [this] { saveChatAdmins(); });
 		} else {
-			addButton(lang(lng_participant_invite), [this] { inviteParticipants(); });
+			addButton(langFactory(lng_participant_invite), [this] { inviteParticipants(); });
 		}
-		addButton(lang(lng_cancel), [this] { closeBox(); });
+		addButton(langFactory(lng_cancel), [this] { closeBox(); });
 	} else if (_channel) {
 		if (_membersFilter != MembersFilter::Admins) {
-			addButton(lang(lng_participant_invite), [this] { inviteParticipants(); });
+			addButton(langFactory(lng_participant_invite), [this] { inviteParticipants(); });
 		}
-		addButton(lang((_creating == CreatingGroupChannel) ? lng_create_group_skip : lng_cancel), [this] { closeBox(); });
+		addButton(langFactory((_creating == CreatingGroupChannel) ? lng_create_group_skip : lng_cancel), [this] { closeBox(); });
 	} else if (_bot) {
-		addButton(lang(lng_close), [this] { closeBox(); });
+		addButton(langFactory(lng_close), [this] { closeBox(); });
 	} else if (_creating == CreatingGroupGroup) {
-		addButton(lang(lng_create_group_create), [this] { createGroup(); });
-		addButton(lang(lng_create_group_back), [this] { closeBox(); });
+		addButton(langFactory(lng_create_group_create), [this] { createGroup(); });
+		addButton(langFactory(lng_create_group_back), [this] { closeBox(); });
 	} else {
-		addButton(lang(lng_close), [this] { closeBox(); });
-		addLeftButton(lang(lng_profile_add_contact), [] { App::wnd()->onShowAddContact(); });
+		addButton(langFactory(lng_close), [this] { closeBox(); });
+		addLeftButton(langFactory(lng_profile_add_contact), [] { App::wnd()->onShowAddContact(); });
 	}
 
 	_inner->setPeerSelectedChangedCallback([this](PeerData *peer, bool checked) {
@@ -199,19 +199,18 @@ bool ContactsBox::onSearchByUsername(bool searchCache) {
 
 void ContactsBox::updateTitle() {
 	if (_chat && _membersFilter == MembersFilter::Admins) {
-		setTitle(lang(lng_channel_admins));
+		setTitle(langFactory(lng_channel_admins));
 	} else if (_chat || _creating != CreatingGroupNone) {
 		auto addingAdmin = _channel && (_membersFilter == MembersFilter::Admins);
-		auto title = lang(addingAdmin ? lng_channel_add_admin : lng_profile_add_participant);
 		auto additional = (addingAdmin || (_inner->channel() && !_inner->channel()->isMegagroup())) ? QString() : QString("%1 / %2").arg(_inner->selectedCount()).arg(Global::MegagroupSizeMax());
-		setTitle(title);
-		setAdditionalTitle(additional);
+		setTitle(langFactory(addingAdmin ? lng_channel_add_admin : lng_profile_add_participant));
+		setAdditionalTitle([additional] { return additional; });
 	} else if (_inner->sharingBotGame()) {
-		setTitle(lang(lng_bot_choose_chat));
+		setTitle(langFactory(lng_bot_choose_chat));
 	} else if (_inner->bot()) {
-		setTitle(lang(lng_bot_choose_group));
+		setTitle(langFactory(lng_bot_choose_group));
 	} else {
-		setTitle(lang(lng_contacts_header));
+		setTitle(langFactory(lng_contacts_header));
 	}
 }
 
@@ -287,7 +286,7 @@ void ContactsBox::keyPressEvent(QKeyEvent *e) {
 }
 
 object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>> ContactsBox::createMultiSelect() {
-	auto entity = object_ptr<Ui::MultiSelect>(this, st::contactsMultiSelect, lang(lng_participant_filter));
+	auto entity = object_ptr<Ui::MultiSelect>(this, st::contactsMultiSelect, langFactory(lng_participant_filter));
 	auto margins = style::margins(0, 0, 0, 0);
 	auto callback = [this] { updateScrollSkips(); };
 	return object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>>(this, std::move(entity), margins, std::move(callback));
