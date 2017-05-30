@@ -111,6 +111,9 @@ public:
 		bool animating() const;
 
 		bool hasCover() const;
+		bool hasChangeLanguage() const {
+			return hasCover() || hasChangeLanguageNoCover();
+		}
 		virtual bool hasBack() const;
 		virtual void activate();
 		virtual void cancelled();
@@ -124,9 +127,9 @@ public:
 
 		void setErrorCentered(bool centered);
 		void setErrorBelowLink(bool below);
-		void showError(const QString &text);
+		void showError(base::lambda<QString()> textFactory);
 		void hideError() {
-			showError(QString());
+			showError(base::lambda<QString()>());
 		}
 
 		~Step();
@@ -135,8 +138,8 @@ public:
 		void paintEvent(QPaintEvent *e) override;
 		void resizeEvent(QResizeEvent *e) override;
 
-		void setTitleText(QString richText);
-		void setDescriptionText(QString richText);
+		void setTitleText(base::lambda<QString()> richTitleTextFactory);
+		void setDescriptionText(base::lambda<QString()> richDescriptionTextFactory);
 		bool paintAnimated(Painter &p, QRect clip);
 
 		void fillSentCodeData(const MTPauth_SentCodeType &type);
@@ -161,6 +164,9 @@ public:
 		void showResetButton() {
 			if (_showResetCallback) _showResetCallback();
 		}
+		virtual bool hasChangeLanguageNoCover() const {
+			return false;
+		}
 
 	private:
 		struct CoverAnimation {
@@ -178,6 +184,10 @@ public:
 		};
 		void updateLabelsPosition();
 		void paintContentSnapshot(Painter &p, const QPixmap &snapshot, float64 alpha, float64 howMuchHidden);
+		void refreshError();
+		void refreshTitle();
+		void refreshDescription();
+		void refreshLang();
 
 		CoverAnimation prepareCoverAnimation(Step *step);
 		QPixmap prepareContentSnapshot();
@@ -193,11 +203,13 @@ public:
 		base::lambda<void()> _showResetCallback;
 
 		object_ptr<Ui::FlatLabel> _title;
+		base::lambda<QString()> _titleTextFactory;
 		object_ptr<Ui::WidgetFadeWrap<Ui::FlatLabel>> _description;
+		base::lambda<QString()> _descriptionTextFactory;
 
 		bool _errorCentered = false;
 		bool _errorBelowLink = false;
-		QString _errorText;
+		base::lambda<QString()> _errorTextFactory;
 		object_ptr<Ui::WidgetFadeWrap<Ui::FlatLabel>> _error = { nullptr };
 
 		Animation _a_show;
@@ -208,6 +220,7 @@ public:
 	};
 
 private:
+	void refreshLang();
 	void animationCallback();
 	void createLanguageLink();
 
@@ -219,7 +232,6 @@ private:
 	void fixOrder();
 	void showControls();
 	void hideControls();
-	void moveControls();
 	QRect calculateStepRect() const;
 
 	void showResetButton();

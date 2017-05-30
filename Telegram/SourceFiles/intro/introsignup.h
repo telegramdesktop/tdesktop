@@ -52,6 +52,8 @@ private slots:
 
 private:
 	void setupPhotoButton();
+	void refreshLang();
+	void updateControlsGeometry();
 
 	void nameSubmitDone(const MTPauth_Authorization &result);
 	bool nameSubmitFail(const RPCError &error);

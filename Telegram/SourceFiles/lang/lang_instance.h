@@ -55,7 +55,7 @@ public:
 		return _id;
 	}
 	bool isCustom() const {
-		return id() == qstr("custom");
+		return (_id == qstr("custom") || _id == qstr("TEST_X") || _id == qstr("TEST_0"));
 	}
 	int version() const {
 		return _version;

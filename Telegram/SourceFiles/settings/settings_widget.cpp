@@ -198,9 +198,7 @@ void codesFeedString(const QString &text) {
 
 Widget::Widget(QWidget *parent) {
 	refreshLang();
-	subscribe(Lang::Current().updated(), [this] {
-		refreshLang();
-	});
+	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 
 	_inner = setInnerWidget(object_ptr<InnerWidget>(this));
 	setCloseClickHandler([]() {

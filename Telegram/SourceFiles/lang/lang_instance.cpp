@@ -230,6 +230,21 @@ bool ValueParser::parse() {
 	return true;
 }
 
+QString PrepareTestValue(const QString &current, QChar filler) {
+	auto size = current.size();
+	auto result = QString(size + 1, filler);
+	auto inCommand = false;
+	for (auto i = 0; i != size; ++i) {
+		auto ch = current[i];
+		auto newInCommand = (ch.unicode() == TextCommand) ? (!inCommand) : inCommand;
+		if (inCommand || newInCommand || ch.isSpace()) {
+			result[i + 1] = ch;
+		}
+		inCommand = newInCommand;
+	}
+	return result;
+}
+
 } // namespace
 
 QString DefaultLanguageId() {
@@ -239,6 +254,12 @@ QString DefaultLanguageId() {
 void Instance::switchToId(const QString &id) {
 	reset();
 	_id = id;
+	if (_id == qstr("TEST_X") || _id == qstr("TEST_0")) {
+		for (auto &value : _values) {
+			value = PrepareTestValue(value, _id[5]);
+		}
+		_updated.notify();
+	}
 }
 
 void Instance::chooseCustomFile() {
@@ -263,7 +284,7 @@ void Instance::switchToCustomFile(const QString &filePath) {
 	reset();
 	fillFromCustomFile(filePath);
 	Local::writeLangPack();
-	updated().notify();
+	_updated.notify();
 }
 
 void Instance::reset() {
@@ -488,6 +509,7 @@ void Instance::applyDifference(const MTPDlangPackDifference &difference) {
 			resetValue(key);
 		});
 	}
+	_updated.notify();
 }
 
 std::map<LangKey, QString> Instance::ParseStrings(const MTPVector<MTPLangPackString> &strings) {

@@ -27,6 +27,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
 #include "base/zlib_help.h"
+#include "lang/lang_cloud_manager.h"
+#include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
 #include "shortcuts.h"
 #include "messenger.h"
@@ -53,6 +55,29 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/task_queue.h"
 #include "auth_session.h"
 #include "window/window_controller.h"
+
+namespace {
+
+// Code for testing languages is F7-F6-F7-F8
+void FeedLangTestingKey(int key) {
+	static auto codeState = 0;
+	if ((codeState == 0 && key == Qt::Key_F7)
+		|| (codeState == 1 && key == Qt::Key_F6)
+		|| (codeState == 2 && key == Qt::Key_F7)
+		|| (codeState == 3 && key == Qt::Key_F8)) {
+		++codeState;
+	} else {
+		codeState = 0;
+	}
+	if (codeState == 4) {
+		codeState = 0;
+
+		auto testLanguageId = (Lang::Current().id() == qstr("TEST_X")) ? qsl("TEST_0") : qsl("TEST_X");
+		Lang::CurrentCloudManager().switchToLanguage(testLanguageId);
+	}
+}
+
+} // namespace
 
 ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : TWidget(parent)
 , _reconnect(this, QString()) {
@@ -568,8 +593,13 @@ void MainWindow::setInnerFocus() {
 
 bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 	switch (e->type()) {
-	case QEvent::MouseButtonPress:
 	case QEvent::KeyPress:
+		if (cDebug() && e->type() == QEvent::KeyPress && object == windowHandle()) {
+			auto key = static_cast<QKeyEvent*>(e)->key();
+			FeedLangTestingKey(key);
+		}
+		[[fallthrough]];
+	case QEvent::MouseButtonPress:
 	case QEvent::TouchBegin:
 	case QEvent::Wheel:
 		psUserActionDone();

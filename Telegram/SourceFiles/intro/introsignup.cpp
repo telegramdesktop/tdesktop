@@ -40,6 +40,8 @@ SignupWidget::SignupWidget(QWidget *parent, Widget::Data *data) : Step(parent, d
 , _last(this, st::introName, lang(lng_signup_lastname))
 , _invertOrder(langFirstNameGoesSecond())
 , _checkRequest(this) {
+	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
+
 	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
 
 	setupPhotoButton();
@@ -49,9 +51,15 @@ SignupWidget::SignupWidget(QWidget *parent, Widget::Data *data) : Step(parent, d
 	}
 	setErrorCentered(true);
 
-	setTitleText(lang(lng_signup_title));
-	setDescriptionText(lang(lng_signup_desc));
+	setTitleText([] { return lang(lng_signup_title); });
+	setDescriptionText([] { return lang(lng_signup_desc); });
 	setMouseTracking(true);
+}
+
+void SignupWidget::refreshLang() {
+	_first->setPlaceholder(lang(lng_signup_firstname));
+	_last->setPlaceholder(lang(lng_signup_lastname));
+	updateControlsGeometry();
 }
 
 void SignupWidget::setupPhotoButton() {
@@ -71,7 +79,7 @@ void SignupWidget::setupPhotoButton() {
 			}
 
 			if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
-				showError(lang(lng_bad_photo));
+				showError([] { return lang(lng_bad_photo); });
 				return;
 			}
 			auto box = Ui::show(Box<PhotoCropBox>(img, PeerId(0)));
@@ -82,7 +90,10 @@ void SignupWidget::setupPhotoButton() {
 
 void SignupWidget::resizeEvent(QResizeEvent *e) {
 	Step::resizeEvent(e);
+	updateControlsGeometry();
+}
 
+void SignupWidget::updateControlsGeometry() {
 	auto photoRight = contentLeft() + st::introNextButton.width;
 	auto photoTop = contentTop() + st::introPhotoTop;
 	_photo->moveToLeft(photoRight - _photo->width(), photoTop);
@@ -144,7 +155,7 @@ void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
 	stopCheck();
 	auto &d = result.c_auth_authorization();
 	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
-		showError(lang(lng_server_error));
+		showError([] { return lang(lng_server_error); });
 		return;
 	}
 	finish(d.vuser, _photoImage);
@@ -153,7 +164,7 @@ void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
 bool SignupWidget::nameSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		stopCheck();
-		showError(lang(lng_flood_error));
+		showError([] { return lang(lng_flood_error); });
 		if (_invertOrder) {
 			_first->setFocus();
 		} else {
@@ -174,18 +185,19 @@ bool SignupWidget::nameSubmitFail(const RPCError &error) {
 		goBack();
 		return true;
 	} else if (err == "FIRSTNAME_INVALID") {
-		showError(lang(lng_bad_name));
+		showError([] { return lang(lng_bad_name); });
 		_first->setFocus();
 		return true;
 	} else if (err == "LASTNAME_INVALID") {
-		showError(lang(lng_bad_name));
+		showError([] { return lang(lng_bad_name); });
 		_last->setFocus();
 		return true;
 	}
 	if (cDebug()) { // internal server error
-		showError(err + ": " + error.description());
+		auto text = err + ": " + error.description();
+		showError([text] { return text; });
 	} else {
-		showError(lang(lng_server_error));
+		showError([] { return lang(lng_server_error); });
 	}
 	if (_invertOrder) {
 		_last->setFocus();
@@ -196,7 +208,7 @@ bool SignupWidget::nameSubmitFail(const RPCError &error) {
 }
 
 void SignupWidget::onInputChange() {
-	showError(QString());
+	hideError();
 }
 
 void SignupWidget::submit() {
@@ -219,7 +231,7 @@ void SignupWidget::submit() {
 		}
 	}
 
-	showError(QString());
+	hideError();
 
 	_firstName = _first->getLastText().trimmed();
 	_lastName = _last->getLastText().trimmed();

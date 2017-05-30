@@ -1621,6 +1621,11 @@ void FlatInput::resizeEvent(QResizeEvent *e) {
 	return QLineEdit::resizeEvent(e);
 }
 
+void FlatInput::setPlaceholder(const QString &ph) {
+	_fullph = ph;
+	updatePlaceholderText();
+}
+
 void FlatInput::updatePlaceholderText() {
 	int32 availw = width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1;
 	if (_st.font->width(_fullph) > availw) {
@@ -2464,6 +2469,12 @@ void InputArea::createPlaceholderPath() {
 	}
 }
 
+void InputArea::setPlaceholder(const QString &ph) {
+	_placeholderFull = ph;
+	createPlaceholderPath();
+	update();
+}
+
 void InputArea::showError() {
 	setErrorShown(true);
 	if (!hasFocus()) {
@@ -3222,6 +3233,12 @@ void InputField::createPlaceholderPath() {
 	}
 }
 
+void InputField::setPlaceholder(const QString &ph) {
+	_placeholderFull = ph;
+	createPlaceholderPath();
+	update();
+}
+
 void InputField::showError() {
 	setErrorShown(true);
 	if (!hasFocus()) {
@@ -3503,6 +3520,12 @@ void MaskedInputField::createPlaceholderPath() {
 	} else {
 		_placeholder = _st.placeholderFont->elided(_placeholderFull, availableWidth);
 	}
+}
+
+void MaskedInputField::setPlaceholder(const QString &ph) {
+	_placeholderFull = ph;
+	createPlaceholderPath();
+	update();
 }
 
 void MaskedInputField::contextMenuEvent(QContextMenuEvent *e) {

@@ -78,11 +78,13 @@ private slots:
 
 private:
 	void updateCallText();
+	void refreshLang();
+	void updateControlsGeometry();
 
 	void codeSubmitDone(const MTPauth_Authorization &result);
 	bool codeSubmitFail(const RPCError &error);
 
-	void showCodeError(const QString &text);
+	void showCodeError(base::lambda<QString()> textFactory);
 	void callDone(const MTPauth_SentCode &v);
 	void gotPassword(const MTPaccount_Password &result);
 

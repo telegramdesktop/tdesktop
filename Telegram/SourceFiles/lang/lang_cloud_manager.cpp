@@ -59,8 +59,7 @@ void CloudManager::requestLangPackDifference() {
 }
 
 void CloudManager::setSuggestedLanguage(const QString &langCode) {
-	if (_langpack.id().isEmpty()
-		&& !langCode.isEmpty()
+	if (!langCode.isEmpty()
 		&& langCode != Lang::DefaultLanguageId()) {
 		_suggestedLanguage = langCode;
 	} else {
@@ -71,7 +70,7 @@ void CloudManager::setSuggestedLanguage(const QString &langCode) {
 		_languageWasSuggested = true;
 		_firstLanguageSuggestion.notify();
 
-		if (AuthSession::Exists() && !_suggestedLanguage.isEmpty()) {
+		if (AuthSession::Exists() && _langpack.id().isEmpty() && !_suggestedLanguage.isEmpty()) {
 			_offerSwitchToId = _suggestedLanguage;
 			offerSwitchLangPack();
 		}
@@ -174,10 +173,6 @@ void CloudManager::applyLangPackData(const MTPDlangPackDifference &data) {
 	} else if (!data.vstrings.v.isEmpty()) {
 		_langpack.applyDifference(data);
 		Local::writeLangPack();
-		auto fullLangPackUpdated = (data.vfrom_version.v == 0);
-		if (fullLangPackUpdated) {
-			_langpack.updated().notify();
-		}
 	} else {
 		LOG(("Lang Info: Up to date."));
 	}

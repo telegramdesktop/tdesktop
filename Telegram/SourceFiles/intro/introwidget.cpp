@@ -71,13 +71,16 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 
 	_settings->entity()->setClickedCallback([] { App::wnd()->showSettings(); });
 
-	subscribe(Lang::CurrentCloudManager().firstLanguageSuggestion(), [this] { createLanguageLink(); });
-	createLanguageLink();
-
 	getNearestDC();
 
 	appendStep(new StartWidget(this, getData()));
 	fixOrder();
+
+	subscribe(Lang::CurrentCloudManager().firstLanguageSuggestion(), [this] { createLanguageLink(); });
+	createLanguageLink();
+	if (_changeLanguage) _changeLanguage->finishAnimation();
+
+	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 
 	show();
 	showControls();
@@ -94,14 +97,26 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 }
 
+void Widget::refreshLang() {
+	if (_settings) _settings->entity()->setText(lang(lng_menu_settings));
+	if (_update) _update->entity()->setText(lang(lng_menu_update));
+	if (_resetAccount) _resetAccount->entity()->setText(lang(lng_signin_reset_account));
+	if (_next) _next->setText(getStep()->nextButtonText());
+	updateControlsGeometry();
+}
+
 void Widget::createLanguageLink() {
 	if (_changeLanguage) return;
 
 	auto createLink = [this](const QString &text, const QString &languageId) {
 		_changeLanguage.create(this, object_ptr<Ui::LinkButton>(this, text), st::introCoverDuration);
+		_changeLanguage->show();
+		_changeLanguage->hideFast();
 		_changeLanguage->entity()->setClickedCallback([this, languageId] {
 			Lang::CurrentCloudManager().switchToLanguage(languageId);
 		});
+		_changeLanguage->toggleAnimated(getStep()->hasChangeLanguage());
+		updateControlsGeometry();
 	};
 
 	auto currentId = Lang::Current().id();
@@ -124,7 +139,7 @@ void Widget::createLanguageLink() {
 void Widget::onCheckUpdateStatus() {
 	if (Sandbox::updatingState() == Application::UpdatingReady) {
 		if (_update) return;
-		_update.create(this, object_ptr<Ui::RoundButton>(this, lang(lng_menu_update).toUpper(), st::defaultBoxButton), st::introCoverDuration);
+		_update.create(this, object_ptr<Ui::RoundButton>(this, lang(lng_menu_update), st::defaultBoxButton), st::introCoverDuration);
 		if (!_a_show.animating()) _update->show();
 		_update->entity()->setClickedCallback([] {
 			checkReadyUpdate();
@@ -176,7 +191,7 @@ void Widget::historyMove(Direction direction) {
 	auto stepHasCover = getStep()->hasCover();
 	_settings->toggleAnimated(!stepHasCover);
 	if (_update) _update->toggleAnimated(!stepHasCover);
-	if (_changeLanguage) _changeLanguage->toggleAnimated(stepHasCover);
+	if (_changeLanguage) _changeLanguage->toggleAnimated(getStep()->hasChangeLanguage());
 	_next->setText(getStep()->nextButtonText());
 	if (_resetAccount) _resetAccount->hideAnimated();
 	getStep()->showAnimated(direction);
@@ -259,7 +274,7 @@ void Widget::resetAccount() {
 				Ui::show(Box<InformBox>(lang(lng_signin_reset_cancelled)));
 			} else {
 				Ui::hideLayer();
-				getStep()->showError(lang(lng_server_error));
+				getStep()->showError([] { return lang(lng_server_error); });
 			}
 		}).send();
 	})));
@@ -285,7 +300,7 @@ void Widget::showControls() {
 	auto hasCover = getStep()->hasCover();
 	_settings->toggleFast(!hasCover);
 	if (_update) _update->toggleFast(!hasCover);
-	if (_changeLanguage) _changeLanguage->toggleFast(hasCover);
+	if (_changeLanguage) _changeLanguage->toggleFast(getStep()->hasChangeLanguage());
 	_back->toggleFast(getStep()->hasBack());
 }
 
@@ -370,9 +385,6 @@ void Widget::resizeEvent(QResizeEvent *e) {
 	}
 
 	updateControlsGeometry();
-}
-
-void Widget::moveControls() {
 }
 
 void Widget::updateControlsGeometry() {
@@ -468,13 +480,30 @@ void Widget::Step::updateLabelsPosition() {
 	}
 }
 
-void Widget::Step::setTitleText(QString richText) {
-	_title->setRichText(richText);
+void Widget::Step::setTitleText(base::lambda<QString()> richTitleTextFactory) {
+	_titleTextFactory = std::move(richTitleTextFactory);
+	refreshTitle();
 	updateLabelsPosition();
 }
 
-void Widget::Step::setDescriptionText(QString richText) {
-	_description->entity()->setRichText(richText);
+void Widget::Step::refreshTitle() {
+	_title->setRichText(_titleTextFactory());
+}
+
+void Widget::Step::setDescriptionText(base::lambda<QString()> richDescriptionTextFactory) {
+	_descriptionTextFactory = std::move(richDescriptionTextFactory);
+	refreshDescription();
+	updateLabelsPosition();
+}
+
+void Widget::Step::refreshDescription() {
+	_description->entity()->setRichText(_descriptionTextFactory());
+}
+
+void Widget::Step::refreshLang() {
+	refreshTitle();
+	refreshDescription();
+	refreshError();
 	updateLabelsPosition();
 }
 
@@ -650,16 +679,21 @@ void Widget::Step::setErrorBelowLink(bool below) {
 	}
 }
 
-void Widget::Step::showError(const QString &text) {
-	_errorText = text;
-	if (_errorText.isEmpty()) {
+void Widget::Step::showError(base::lambda<QString()> textFactory) {
+	_errorTextFactory = std::move(textFactory);
+	refreshError();
+	updateLabelsPosition();
+}
+
+void Widget::Step::refreshError() {
+	if (!_errorTextFactory) {
 		if (_error) _error->hideAnimated();
 	} else {
 		if (!_error) {
 			_error.create(this, object_ptr<Ui::FlatLabel>(this, _errorCentered ? st::introErrorCentered : st::introError), st::introErrorDuration);
 			_error->hideFast();
 		}
-		_error->entity()->setText(text);
+		_error->entity()->setText(_errorTextFactory());
 		updateLabelsPosition();
 		_error->showAnimated();
 	}
@@ -679,6 +713,7 @@ Widget::Step::Step(QWidget *parent, Data *data, bool hasCover) : TWidget(parent)
 			}
 		}
 	});
+	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 }
 
 void Widget::Step::prepareShowAnimated(Step *after) {
@@ -755,7 +790,7 @@ bool Widget::Step::hasBack() const {
 void Widget::Step::activate() {
 	_title->show();
 	_description->show();
-	if (!_errorText.isEmpty()) {
+	if (_errorTextFactory) {
 		_error->showFast();
 	}
 }

@@ -30,8 +30,8 @@ namespace Intro {
 
 StartWidget::StartWidget(QWidget *parent, Widget::Data *data) : Step(parent, data, true) {
 	setMouseTracking(true);
-	setTitleText(qsl("Telegram Desktop"));
-	setDescriptionText(lang(lng_intro_about));
+	setTitleText([] { return qsl("Telegram Desktop"); });
+	setDescriptionText([] { return lang(lng_intro_about); });
 	show();
 }
 

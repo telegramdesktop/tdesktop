@@ -238,6 +238,7 @@ public:
 	FlatInput(QWidget *parent, const style::FlatInput &st, const QString &ph = QString(), const QString &val = QString());
 
 	void updatePlaceholder();
+	void setPlaceholder(const QString &ph);
 	const QString &placeholder() const;
 	QRect placeholderRect() const;
 
@@ -325,6 +326,7 @@ public:
 	const QString &getLastText() const {
 		return _oldtext;
 	}
+	void setPlaceholder(const QString &ph);
 	void setDisplayFocused(bool focused);
 	void finishAnimations();
 	void setFocusFast() {
@@ -503,6 +505,7 @@ public:
 	const QString &getLastText() const {
 		return _oldtext;
 	}
+	void setPlaceholder(const QString &ph);
 	void setPlaceholderHidden(bool forcePlaceholderHidden);
 	void setDisplayFocused(bool focused);
 	void finishAnimations();
@@ -689,6 +692,7 @@ public:
 	const QString &getLastText() const {
 		return _oldtext;
 	}
+	void setPlaceholder(const QString &ph);
 	void setPlaceholderHidden(bool forcePlaceholderHidden);
 	void setDisplayFocused(bool focused);
 	void finishAnimations();
