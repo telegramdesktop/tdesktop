@@ -111,9 +111,6 @@ public:
 		bool animating() const;
 
 		bool hasCover() const;
-		bool hasChangeLanguage() const {
-			return hasCover() || hasChangeLanguageNoCover();
-		}
 		virtual bool hasBack() const;
 		virtual void activate();
 		virtual void cancelled();
@@ -163,9 +160,6 @@ public:
 		}
 		void showResetButton() {
 			if (_showResetCallback) _showResetCallback();
-		}
-		virtual bool hasChangeLanguageNoCover() const {
-			return false;
 		}
 
 	private:

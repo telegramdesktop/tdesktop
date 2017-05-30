@@ -69,6 +69,9 @@ PwdCheckWidget::PwdCheckWidget(QWidget *parent, Widget::Data *data) : Step(paren
 void PwdCheckWidget::refreshLang() {
 	if (_toRecover) _toRecover->setText(lang(lng_signin_recover));
 	if (_toPassword) _toPassword->setText(lang(lng_signin_try_password));
+	if (!_hint.isEmpty()) {
+		_pwdHint->setText(lng_signin_hint(lt_password_hint, _hint));
+	}
 	updateControlsGeometry();
 }
 

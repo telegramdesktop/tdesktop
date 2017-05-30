@@ -84,18 +84,9 @@ void LanguageBox::Inner::refresh() {
 void LanguageBox::Inner::languageChanged(int languageIndex) {
 	Expects(languageIndex >= 0 && languageIndex < _languages->size());
 
-	auto currentId = Lang::Current().id();
+	activateCurrent();
 	auto languageId = (*_languages)[languageIndex].id;
-	if (languageId == currentId) {
-		return;
-	}
-
-	if (languageId == qsl("custom")) {
-		activateCurrent();
-		Lang::Current().chooseCustomFile();
-	} else {
-		Lang::CurrentCloudManager().switchToLanguage(languageId);
-	}
+	Lang::CurrentCloudManager().switchToLanguage(languageId);
 }
 
 void LanguageBox::Inner::activateCurrent() {

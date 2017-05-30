@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "mtproto/sender.h"
+#include "base/weak_unique_ptr.h"
 
 namespace MTP {
 class Instance;
@@ -30,7 +31,7 @@ namespace Lang {
 
 class Instance;
 
-class CloudManager : private MTP::Sender, private base::Subscriber {
+class CloudManager : public base::enable_weak_from_this, private MTP::Sender, private base::Subscriber {
 public:
 	CloudManager(Instance &langpack, gsl::not_null<MTP::Instance*> mtproto);
 
@@ -50,7 +51,9 @@ public:
 	void requestLangPackDifference();
 	void applyLangPackDifference(const MTPLangPackDifference &difference);
 
-	void switchToLanguage(const QString &id);
+	void resetToDefault();
+	void switchToLanguage(QString id);
+	void switchToTestLanguage();
 	void setSuggestedLanguage(const QString &langCode);
 	QString suggestedLanguage() const {
 		return _suggestedLanguage;
@@ -60,6 +63,10 @@ public:
 	}
 
 private:
+	bool canApplyWithoutRestart(const QString &id) const;
+	void performSwitchToCustom();
+	void performSwitch(const QString &id);
+	void performSwitchAndRestart(const QString &id);
 	void offerSwitchLangPack();
 	bool showOfferSwitchBox();
 	QString findOfferedLanguageName();
@@ -76,11 +83,13 @@ private:
 	mtpRequestId _languagesRequestId = 0;
 
 	QString _offerSwitchToId;
-	std::unique_ptr<MTPLangPackDifference> _offerSwitchToData;
+	bool _restartAfterSwitch = false;
 
 	QString _suggestedLanguage;
 	bool _languageWasSuggested = false;
 	base::Observable<void> _firstLanguageSuggestion;
+
+	mtpRequestId _switchingToLanguageRequest = 0;
 
 };
 

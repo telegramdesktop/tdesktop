@@ -1335,7 +1335,7 @@ void FlatTextarea::refreshPlaceholder() {
 	auto skipWidth = placeholderSkipWidth();
 	auto placeholderText = _placeholderFactory ? _placeholderFactory() : QString();
 	_placeholder = _st.font->elided(placeholderText, width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1 - skipWidth);
-	if (_placeholderVisible) update();
+	update();
 }
 
 void FlatTextarea::updatePlaceholder() {
@@ -2477,12 +2477,12 @@ void InputArea::refreshPlaceholder() {
 	} else {
 		_placeholder = _st.placeholderFont->elided(placeholderText, availableWidth);
 	}
+	update();
 }
 
 void InputArea::setPlaceholder(base::lambda<QString()> placeholderFactory) {
 	_placeholderFactory = std::move(placeholderFactory);
 	refreshPlaceholder();
-	update();
 }
 
 void InputArea::showError() {
@@ -3243,12 +3243,12 @@ void InputField::refreshPlaceholder() {
 	} else {
 		_placeholder = _st.placeholderFont->elided(placeholderText, availableWidth);
 	}
+	update();
 }
 
 void InputField::setPlaceholder(base::lambda<QString()> placeholderFactory) {
 	_placeholderFactory = std::move(placeholderFactory);
 	refreshPlaceholder();
-	update();
 }
 
 void InputField::showError() {
@@ -3534,12 +3534,12 @@ void MaskedInputField::refreshPlaceholder() {
 	} else {
 		_placeholder = _st.placeholderFont->elided(placeholderText, availableWidth);
 	}
+	update();
 }
 
 void MaskedInputField::setPlaceholder(base::lambda<QString()> placeholderFactory) {
 	_placeholderFactory = std::move(placeholderFactory);
 	refreshPlaceholder();
-	update();
 }
 
 void MaskedInputField::contextMenuEvent(QContextMenuEvent *e) {

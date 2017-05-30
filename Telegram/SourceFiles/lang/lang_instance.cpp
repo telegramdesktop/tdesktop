@@ -21,12 +21,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang/lang_instance.h"
 
 #include "messenger.h"
-#include "lang/lang_file_parser.h"
 #include "storage/serialize_common.h"
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"
-#include "core/file_utilities.h"
 #include "boxes/confirm_box.h"
+#include "lang/lang_file_parser.h"
 
 namespace Lang {
 namespace {
@@ -262,24 +261,6 @@ void Instance::switchToId(const QString &id) {
 	}
 }
 
-void Instance::chooseCustomFile() {
-	auto filter = qsl("Language files (*.strings)");
-	auto title = qsl("Choose language .strings file");
-	FileDialog::GetOpenPath(title, filter, [weak = base::weak_unique_ptr<Instance>(this)](const FileDialog::OpenResult &result) {
-		if (!weak || result.paths.isEmpty()) {
-			return;
-		}
-
-		auto filePath = result.paths.front();
-		Lang::FileParser loader(filePath, { lng_language_name });
-		if (loader.errors().isEmpty()) {
-			weak->switchToCustomFile(filePath);
-		} else {
-			Ui::show(Box<InformBox>("Custom lang failed :(\n\nError: " + loader.errors()));
-		}
-	});
-}
-
 void Instance::switchToCustomFile(const QString &filePath) {
 	reset();
 	fillFromCustomFile(filePath);
@@ -319,7 +300,6 @@ QString Instance::systemLangCode() const {
 				_systemLanguage = DefaultLanguageId();
 			}
 		}
-		_systemLanguage = "de"; // TESTING
 	}
 	return _systemLanguage;
 }

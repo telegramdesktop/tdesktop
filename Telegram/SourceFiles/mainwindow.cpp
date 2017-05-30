@@ -71,9 +71,7 @@ void FeedLangTestingKey(int key) {
 	}
 	if (codeState == 4) {
 		codeState = 0;
-
-		auto testLanguageId = (Lang::Current().id() == qstr("TEST_X")) ? qsl("TEST_0") : qsl("TEST_X");
-		Lang::CurrentCloudManager().switchToLanguage(testLanguageId);
+		Lang::CurrentCloudManager().switchToTestLanguage();
 	}
 }
 

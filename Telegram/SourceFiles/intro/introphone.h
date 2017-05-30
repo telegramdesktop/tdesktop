@@ -53,10 +53,6 @@ public:
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 
-	bool hasChangeLanguageNoCover() const override {
-		return true;
-	}
-
 private slots:
 	void onInputChange();
 	void onCheckRequest();

@@ -207,7 +207,7 @@ void GeneralWidget::refreshControls() {
 
 void GeneralWidget::onChangeLanguage() {
 	if ((_changeLanguage->clickModifiers() & Qt::ShiftModifier) && (_changeLanguage->clickModifiers() & Qt::AltModifier)) {
-		Lang::Current().chooseCustomFile();
+		Lang::CurrentCloudManager().switchToLanguage(qsl("custom"));
 		return;
 	}
 	auto manager = Messenger::Instance().langCloudManager();

@@ -1085,7 +1085,7 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 		}
 		return true;
 	} else if (err == qstr("CONNECTION_LANG_CODE_INVALID")) {
-		Lang::CurrentCloudManager().switchToLanguage(qsl("en"));
+		Lang::CurrentCloudManager().resetToDefault();
 	} else if (err == qstr("MSG_WAIT_FAILED")) {
 		mtpRequest request;
 		{

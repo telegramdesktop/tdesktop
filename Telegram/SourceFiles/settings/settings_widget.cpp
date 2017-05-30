@@ -33,6 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/localstorage.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
+#include "lang/lang_cloud_manager.h"
 #include "messenger.h"
 #include "mtproto/mtp_instance.h"
 #include "mtproto/dc_options.h"
@@ -61,7 +62,7 @@ void fillCodes() {
 		}));
 	});
 	Codes.insert(qsl("loadlang"), [] {
-		Lang::Current().chooseCustomFile();
+		Lang::CurrentCloudManager().switchToLanguage(qsl("custom"));
 	});
 	Codes.insert(qsl("debugfiles"), [] {
 		if (!cDebug()) return;

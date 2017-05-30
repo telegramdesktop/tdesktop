@@ -34,13 +34,12 @@ QString DefaultLanguageId();
 class Instance;
 Instance &Current();
 
-class Instance : public base::enable_weak_from_this {
+class Instance {
 public:
 	Instance() {
 		fillDefaults();
 	}
 	void switchToId(const QString &id);
-	void chooseCustomFile();
 	void switchToCustomFile(const QString &filePath);
 
 	Instance(const Instance &other) = delete;

@@ -113,7 +113,7 @@ void Widget::createLanguageLink() {
 		_changeLanguage->entity()->setClickedCallback([this, languageId] {
 			Lang::CurrentCloudManager().switchToLanguage(languageId);
 		});
-		_changeLanguage->toggleAnimated(getStep()->hasChangeLanguage());
+		_changeLanguage->toggleAnimated(!_resetAccount);
 		updateControlsGeometry();
 	};
 
@@ -189,7 +189,7 @@ void Widget::historyMove(Direction direction) {
 	auto stepHasCover = getStep()->hasCover();
 	_settings->toggleAnimated(!stepHasCover);
 	if (_update) _update->toggleAnimated(!stepHasCover);
-	if (_changeLanguage) _changeLanguage->toggleAnimated(getStep()->hasChangeLanguage());
+	if (_changeLanguage) _changeLanguage->toggleAnimated(!_resetAccount);
 	_next->setText([this] { return getStep()->nextButtonText(); });
 	if (_resetAccount) _resetAccount->hideAnimated();
 	getStep()->showAnimated(direction);
@@ -238,6 +238,7 @@ void Widget::showResetButton() {
 		updateControlsGeometry();
 	}
 	_resetAccount->showAnimated();
+	if (_changeLanguage) _changeLanguage->hideAnimated();
 }
 
 void Widget::resetAccount() {
@@ -298,7 +299,7 @@ void Widget::showControls() {
 	auto hasCover = getStep()->hasCover();
 	_settings->toggleFast(!hasCover);
 	if (_update) _update->toggleFast(!hasCover);
-	if (_changeLanguage) _changeLanguage->toggleFast(getStep()->hasChangeLanguage());
+	if (_changeLanguage) _changeLanguage->toggleFast(!_resetAccount);
 	_back->toggleFast(getStep()->hasBack());
 }
 
