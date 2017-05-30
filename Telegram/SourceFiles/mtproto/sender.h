@@ -186,9 +186,6 @@ class Sender {
 		gsl::not_null<Sender*> sender() const noexcept {
 			return _sender;
 		}
-		gsl::not_null<Instance*> instance() const noexcept {
-			return _sender->_instance;
-		}
 		void registerRequest(mtpRequestId requestId) {
 			_sender->requestRegister(requestId);
 		}
@@ -205,7 +202,7 @@ class Sender {
 	};
 
 public:
-	Sender(gsl::not_null<Instance*> instance = MainInstance()) noexcept : _instance(instance) {
+	Sender() noexcept {
 	}
 
 	template <typename Request>
@@ -255,7 +252,7 @@ public:
 		}
 
 		mtpRequestId send() {
-			auto id = instance()->send(_request, takeOnDone(), takeOnFail(), takeDcId(), takeCanWait(), takeAfter());
+			auto id = MainInstance()->send(_request, takeOnDone(), takeOnFail(), takeDcId(), takeCanWait(), takeAfter());
 			registerRequest(id);
 			return id;
 		}
@@ -288,7 +285,7 @@ public:
 	SentRequestWrap request(mtpRequestId requestId) noexcept WARN_UNUSED_RESULT;
 
 	void requestSendDelayed() {
-		_instance->sendAnything();
+		MainInstance()->sendAnything();
 	}
 	void requestCancellingDiscard() {
 		for (auto &request : _requests) {
@@ -296,30 +293,28 @@ public:
 		}
 	}
 	gsl::not_null<Instance*> requestMTP() const {
-		return _instance;
+		return MainInstance();
 	}
 
 private:
 	class RequestWrap {
 	public:
-		RequestWrap(Instance *instance, mtpRequestId requestId) noexcept : _instance(instance), _id(requestId) {
+		RequestWrap(Instance *instance, mtpRequestId requestId) noexcept : _id(requestId) {
 		}
 
 		mtpRequestId id() const noexcept {
 			return _id;
 		}
 		void handled() const noexcept {
-			_instance = nullptr;
 		}
 
 		~RequestWrap() {
-			if (_instance) {
-				_instance->cancel(_id);
+			if (auto instance = MainInstance()) {
+				instance->cancel(_id);
 			}
 		}
 
 	private:
-		mutable Instance *_instance = nullptr;
 		mtpRequestId _id = 0;
 
 	};
@@ -353,7 +348,7 @@ private:
 	friend class SentRequestWrap;
 
 	void requestRegister(mtpRequestId requestId) {
-		_requests.emplace(_instance, requestId);
+		_requests.emplace(MainInstance(), requestId);
 	}
 	void requestHandled(mtpRequestId requestId) {
 		auto it = _requests.find(requestId);
@@ -369,7 +364,6 @@ private:
 		}
 	}
 
-	gsl::not_null<Instance*> _instance;
 	std::set<RequestWrap, RequestWrapComparator> _requests; // Better to use flatmap.
 
 };

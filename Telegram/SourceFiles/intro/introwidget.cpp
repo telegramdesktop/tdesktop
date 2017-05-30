@@ -98,6 +98,8 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 }
 
 void Widget::refreshLang() {
+	_changeLanguage.destroy();
+	createLanguageLink();
 	InvokeQueued(this, [this] { updateControlsGeometry(); });
 }
 
@@ -118,7 +120,9 @@ void Widget::createLanguageLink() {
 	auto currentId = Lang::Current().id();
 	auto defaultId = Lang::DefaultLanguageId();
 	auto suggestedId = Lang::CurrentCloudManager().suggestedLanguage();
-	if (!suggestedId.isEmpty() && suggestedId != currentId) {
+	if (!currentId.isEmpty() && currentId != defaultId) {
+		createLink(Lang::GetOriginalValue(lng_switch_to_this), defaultId);
+	} else if (!suggestedId.isEmpty() && suggestedId != currentId) {
 		request(MTPlangpack_GetStrings(MTP_string(suggestedId), MTP_vector<MTPstring>(1, MTP_string("lng_switch_to_this")))).done([this, suggestedId, createLink](const MTPVector<MTPLangPackString> &result) {
 			auto strings = Lang::Instance::ParseStrings(result);
 			auto it = strings.find(lng_switch_to_this);
@@ -126,8 +130,6 @@ void Widget::createLanguageLink() {
 				createLink(it->second, suggestedId);
 			}
 		}).send();
-	} else if (!currentId.isEmpty() && currentId != defaultId) {
-		createLink(Lang::GetOriginalValue(lng_switch_to_this), defaultId);
 	}
 }
 

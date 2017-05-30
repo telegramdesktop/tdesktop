@@ -186,7 +186,7 @@ private:
 
 };
 
-Instance::Private::Private(Instance *instance, DcOptions *options, Instance::Mode mode) : Sender(instance), _instance(instance)
+Instance::Private::Private(Instance *instance, DcOptions *options, Instance::Mode mode) : Sender(), _instance(instance)
 , _dcOptions(options)
 , _mode(mode) {
 }
