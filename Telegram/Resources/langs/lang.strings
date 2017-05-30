@@ -1092,7 +1092,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— Telegram Calls are now available on desktops: secure, crystal-clear, constantly improved by artificial intelligence.\n— The new Emoji, Stickers, and Saved GIFs panel becomes a separate space on the right when Telegram is running in a wide enough window.\n— Manage blocked users list in your supergroups.\n— Chat admins can delete messages by other members";
+"lng_new_version_text" = "— Improved video messages: radial playback progress, Picture-in-Picture support, duration countdown.\n— Voice and video messages now automatically play one after another.";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

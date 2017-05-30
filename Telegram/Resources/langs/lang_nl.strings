@@ -958,6 +958,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_context_delete_file" = "Bestand verwijderen";
 "lng_context_close_file" = "Bestand sluiten";
 "lng_context_copy_text" = "Tekst kopiëren";
+"lng_context_open_gif" = "Gif openen";
 "lng_context_save_gif" = "GIF opslaan";
 "lng_context_to_msg" = "Naar bericht gaan";
 "lng_context_reply_msg" = "Antwoord";
@@ -1091,7 +1092,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Telegram-oproepen op de desktop: veilig, glashelder geluid en constante verbeteringen dankzij kunstmatige intelligentie.\n— Het nieuwe Emoji, Stickers en opgeslagen GIF's-paneel krijgt een eigen plek aan de rechterkant als Telegram in een breed genoeg venster actief is.\n— Beheer geblokkeerde gebruikers in je supergroepen.\n— Beheerders kunnen berichten van andere leden verwijderen.";
+"lng_new_version_text" = "— Verbeteringen in videoberichten: Voortgangsindicator in frame, Picture-In-Picture-modus, weergave van afspeelduur.\n— Spraak- en videoberichten spelen nu automatisch achter elkaar af.";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
@@ -1163,6 +1164,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_call_rate_label" = "Beoordeel de kwaliteit van je oproep";
 "lng_call_rate_comment" = "Opmerking (optioneel)";
+
+"lng_player_message_today" = "vandaag om {time}";
+"lng_player_message_yesterday" = "Gisteren om {time}";
+"lng_player_message_date" = "{date} om {time}";
 
 // Not used
 

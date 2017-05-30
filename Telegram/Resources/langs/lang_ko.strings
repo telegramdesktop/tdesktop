@@ -958,6 +958,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_context_delete_file" = "파일 삭제";
 "lng_context_close_file" = "파일 닫기";
 "lng_context_copy_text" = "텍스트 복사";
+"lng_context_open_gif" = "GIF 열기";
 "lng_context_save_gif" = "GIF 저장";
 "lng_context_to_msg" = "메시지로 이동";
 "lng_context_reply_msg" = "답장";
@@ -1091,7 +1092,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 텔레그램 통화를 소개합니다:안전하고, 깨끗하며 인공지능을 통하여 지속적으로 향상됩니다. \n— 넓이가 충분할 경우 이모티콘, 스티커와 저장된 GIF 패널이 오른쪽에 별도로 패널로 표시 됩니다.\n— 슈퍼그룹에서 차단된 사용자 관리가 가능해집니다.\n— 대화방 관리자는 다른 사용자의 메시지 삭제가 가능해집니다";
+"lng_new_version_text" = "— 영상 메시지 향상 : 원모양 재생 현황, 화면속 화면 지원, 재생시간 카운트다운\n— 음성 및 영상 메시지 순차적 자동재생";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 
@@ -1163,6 +1164,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_call_rate_label" = "통화품질을 평가해주세요";
 "lng_call_rate_comment" = "의견 (선택사항)";
+
+"lng_player_message_today" = "오늘 {time}";
+"lng_player_message_yesterday" = "어제 {time}";
+"lng_player_message_date" = "{date}  {time}";
 
 // Not used
 

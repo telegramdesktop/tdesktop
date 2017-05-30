@@ -958,6 +958,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_context_delete_file" = "Apagar Arquivo";
 "lng_context_close_file" = "Fechar Arquivo";
 "lng_context_copy_text" = "Copiar Texto";
+"lng_context_open_gif" = "Abrir GIF";
 "lng_context_save_gif" = "Salvar GIF";
 "lng_context_to_msg" = "Ir Para Mensagem";
 "lng_context_reply_msg" = "Responder";
@@ -1091,7 +1092,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras melhorias menores";
-"lng_new_version_text" = "— Chamadas do Telegram estão agora disponíveis para desktops: seguras, cristalinas e constantemente aprimoradas por inteligência artificial.\n— O novo painel de Emojis, Stickers e GIFs Salvos se torna um espaço separado à direita quando o Telegram é executado em janelas muito largas.\n— Gerenciamento da lista de usuários bloqueados em seus supergrupos.\n— Administradores podem apagar mensagens de outros membros.";
+"lng_new_version_text" = "— Melhorias nas vídeo mensagens: progresso de reprodução, suporte à Picture-in-Picture, contador de duração.\n— Mensagens de voz e de vídeo agora são tocadas automaticamente uma após a outra.";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 
@@ -1142,7 +1143,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_call_error_not_available" = "Desculpe, {user} não aceita chamadas.";
 "lng_call_error_incompatible" = "O aplicativo de {user} usa um protocolo incompatível. O aplicativo desse usuário precisa ser atualizado para que você possa chamá-lo.";
 "lng_call_error_outdated" = "O aplicativo de {user} não suporta chamadas. O aplicativo desse usuário precisa ser atualizado para que você possa chamá-lo.";
-"lng_call_error_audio_io" = "Parece haver um problema com a reprodução de áudio em seu computador. Verifique se os auto-falantes e microfone estão funcionando e tente novamente.";
+"lng_call_error_audio_io" = "Parece haver um problema com a reprodução de áudio em seu computador. Verifique se os alto-falantes e microfone estão funcionando e tente novamente.";
 
 "lng_call_bar_hangup" = "Encerrar chamada";
 
@@ -1163,6 +1164,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_call_rate_label" = "Avalie a qualidade de sua chamada";
 "lng_call_rate_comment" = "Comentário (opcional)";
+
+"lng_player_message_today" = "Hoje às {time}";
+"lng_player_message_yesterday" = "Ontem às {time}";
+"lng_player_message_date" = "{date} às {time}";
 
 // Not used
 

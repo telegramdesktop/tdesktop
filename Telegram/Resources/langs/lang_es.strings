@@ -958,6 +958,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_context_delete_file" = "Eliminar archivo";
 "lng_context_close_file" = "Cerrar archivo";
 "lng_context_copy_text" = "Copiar texto";
+"lng_context_open_gif" = "Abrir GIF";
 "lng_context_save_gif" = "Guardar GIF";
 "lng_context_to_msg" = "Ir al mensaje";
 "lng_context_reply_msg" = "Responder";
@@ -1091,7 +1092,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Las llamadas de Telegram ahora están disponibles en Telegram Desktop: seguras, nítidas y constantemente mejoradas a través de la inteligencia artificial.\n— El nuevo panel de emojis, stickers y GIF se transforma en una sección separada, a la derecha cuando Telegram está siendo utilizada en una pantalla suficientemente ancha.\n— Administra los usuarios bloqueados en tus supergrupos.\n— Los administradores de chats pueden eliminar mensajes de otros miembros.";
+"lng_new_version_text" = "— Videomensajes mejorados: barra de progreso circular, soporte para Picture-in-Picture y cuenta regresiva de la duración.\n— Los mensajes de voz y de video ahora se reproducen automáticamente uno tras otro.";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 
@@ -1163,6 +1164,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_call_rate_label" = "Evalúa la calidad de tu llamada";
 "lng_call_rate_comment" = "Comentario (opcional)";
+
+"lng_player_message_today" = "Hoy a las {time}";
+"lng_player_message_yesterday" = "Ayer a las {time}";
+"lng_player_message_date" = "{date} a las {time}";
 
 // Not used
 
