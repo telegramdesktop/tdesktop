@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 bool _debug = false;
 
-wstring exeName, exeDir, updateTo;
+wstring updaterName, updaterDir, updateTo, exeName;
 
 bool equal(const wstring &a, const wstring &b) {
 	return !_wcsicmp(a.c_str(), b.c_str());
@@ -203,11 +203,16 @@ bool update() {
 				}
 			} else {
 				wstring tofname = updateTo + fname.substr(updDir.size() + 1);
-				if (equal(tofname, exeName)) { // bad update - has Updater.exe - delete all dir
-					writeLog(L"Error: bad update, has Updater.exe! '" + tofname + L"' equal '" + exeName + L"'");
+				if (equal(tofname, updaterName)) { // bad update - has Updater.exe - delete all dir
+					writeLog(L"Error: bad update, has Updater.exe! '" + tofname + L"' equal '" + updaterName + L"'");
 					delFolder();
 					return false;
-				} else if (equal(fname, readyFilePath)) {
+				} else if (equal(tofname, updateTo + L"Telegram.exe") && exeName != L"Telegram.exe") {
+					wstring fullBinaryPath = updateTo + exeName;
+					writeLog(L"Target binary found: '" + tofname + L"', changing to '" + fullBinaryPath + L"'");
+					tofname = fullBinaryPath;
+				}
+				if (equal(fname, readyFilePath)) {
 					writeLog(L"Skipped ready file '" + fname + L"'");
 				} else {
 					from.push_back(fname);
@@ -362,20 +367,31 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 						updateTo[i] = L'\\';
 					}
 				}
+			} else if (equal(args[i], L"-exename") && ++i < argsCount) {
+				exeName = args[i];
+				for (int i = 0, l = exeName.size(); i < l; ++i) {
+					if (exeName[i] == L'/' || exeName[i] == L'\\') {
+						exeName = L"Telegram.exe";
+						break;
+					}
+				}
 			}
+		}
+		if (exeName.empty()) {
+			exeName = L"Telegram.exe";
 		}
 		if (needupdate) writeLog(L"Need to update!");
 		if (autostart) writeLog(L"From autostart!");
 		if (writeprotected) writeLog(L"Write Protected folder!");
 
-		exeName = args[0];
-		writeLog(L"Exe name is: " + exeName);
-		if (exeName.size() > 11) {
-			if (equal(exeName.substr(exeName.size() - 11), L"Updater.exe")) {
-				exeDir = exeName.substr(0, exeName.size() - 11);
-				writeLog(L"Exe dir is: " + exeDir);
+		updaterName = args[0];
+		writeLog(L"Updater name is: " + updaterName);
+		if (updaterName.size() > 11) {
+			if (equal(updaterName.substr(updaterName.size() - 11), L"Updater.exe")) {
+				updaterDir = updaterName.substr(0, updaterName.size() - 11);
+				writeLog(L"Updater dir is: " + updaterDir);
 				if (!writeprotected) {
-					updateTo = exeDir;
+					updateTo = updaterDir;
 				}
 				writeLog(L"Update to: " + updateTo);
 				if (needupdate && update()) {
@@ -416,7 +432,7 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 			if (SUCCEEDED(hres)) {
 				IPersistFile* ppf;
 
-				wstring exe = updateTo + L"Telegram.exe", dir = updateTo;
+				wstring exe = updateTo + exeName, dir = updateTo;
 				psl->SetArguments((targs.size() ? targs.substr(1) : targs).c_str());
 				psl->SetPath(exe.c_str());
 				psl->SetWorkingDirectory(dir.c_str());
@@ -453,10 +469,10 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 		}
 	}
 	if (!executed) {
-		ShellExecute(0, 0, (updateTo + L"Telegram.exe").c_str(), (L"-noupdate" + targs).c_str(), 0, SW_SHOWNORMAL);
+		ShellExecute(0, 0, (updateTo + exeName).c_str(), (L"-noupdate" + targs).c_str(), 0, SW_SHOWNORMAL);
 	}
 
-	writeLog(L"Executed Telegram.exe, closing log and quitting..");
+	writeLog(L"Executed '" + exeName + L"', closing log and quitting..");
 	closeLog();
 
 	return 0;
