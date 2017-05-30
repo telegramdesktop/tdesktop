@@ -66,6 +66,7 @@ public:
 	void fillFromLegacy(int legacyId, const QString &legacyPath);
 
 	void applyDifference(const MTPDlangPackDifference &difference);
+	static std::map<LangKey, QString> ParseStrings(const MTPVector<MTPLangPackString> &strings);
 	base::Observable<void> &updated() {
 		return _updated;
 	}
@@ -77,6 +78,16 @@ public:
 	}
 
 private:
+	// SetCallback takes two QByteArrays: key, value.
+	// It is called for all key-value pairs in string.
+	// ResetCallback takes one QByteArray: key.
+	template <typename SetCallback, typename ResetCallback>
+	static void HandleString(const MTPLangPackString &mtpString, SetCallback setCallback, ResetCallback resetCallback);
+
+	// Writes each key-value pair in the result container.
+	template <typename Result>
+	static void ParseKeyValue(const QByteArray &key, const QByteArray &value, Result &result);
+
 	void applyValue(const QByteArray &key, const QByteArray &value);
 	void resetValue(const QByteArray &key);
 	void reset();

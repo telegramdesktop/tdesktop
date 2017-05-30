@@ -44,6 +44,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_intro.h"
 #include "styles/style_window.h"
 #include "window/themes/window_theme.h"
+#include "lang/lang_cloud_manager.h"
 #include "auth_session.h"
 
 namespace Intro {
@@ -70,22 +71,10 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 
 	_settings->entity()->setClickedCallback([] { App::wnd()->showSettings(); });
 
-	//if (cLang() == languageDefault) {
-	//	auto systemLangId = Sandbox::LangSystem();
-	//	if (systemLangId != languageDefault) {
-	//		Lang::FileParser loader(qsl(":/langs/lang_") + LanguageCodes[systemLangId].c_str() + qsl(".strings"), { lng_switch_to_this });
-	//		auto text = loader.found().value(lng_switch_to_this);
-	//		if (!text.isEmpty()) {
-	//			_changeLanguage.create(this, object_ptr<Ui::LinkButton>(this, text), st::introCoverDuration);
-	//			_changeLanguage->entity()->setClickedCallback([this, systemLangId] { changeLanguage(systemLangId); });
-	//		}
-	//	}
-	//} else {
-	//	_changeLanguage.create(this, object_ptr<Ui::LinkButton>(this, Lang::GetOriginalValue(lng_switch_to_this)), st::introCoverDuration);
-	//	_changeLanguage->entity()->setClickedCallback([this] { changeLanguage(languageDefault); });
-	//}
+	subscribe(Lang::CurrentCloudManager().firstLanguageSuggestion(), [this] { createLanguageLink(); });
+	createLanguageLink();
 
-	MTP::send(MTPhelp_GetNearestDc(), rpcDone(&Widget::gotNearestDC));
+	getNearestDC();
 
 	appendStep(new StartWidget(this, getData()));
 	fixOrder();
@@ -105,6 +94,32 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 }
 
+void Widget::createLanguageLink() {
+	if (_changeLanguage) return;
+
+	auto createLink = [this](const QString &text, const QString &languageId) {
+		_changeLanguage.create(this, object_ptr<Ui::LinkButton>(this, text), st::introCoverDuration);
+		_changeLanguage->entity()->setClickedCallback([this, languageId] {
+			Lang::CurrentCloudManager().switchToLanguage(languageId);
+		});
+	};
+
+	auto currentId = Lang::Current().id();
+	auto defaultId = Lang::DefaultLanguageId();
+	auto suggestedId = Lang::CurrentCloudManager().suggestedLanguage();
+	if (!suggestedId.isEmpty() && suggestedId != currentId) {
+		request(MTPlangpack_GetStrings(MTP_string(suggestedId), MTP_vector<MTPstring>(1, MTP_string("lng_switch_to_this")))).done([this, suggestedId, createLink](const MTPVector<MTPLangPackString> &result) {
+			auto strings = Lang::Instance::ParseStrings(result);
+			auto it = strings.find(lng_switch_to_this);
+			if (it != strings.end()) {
+				createLink(it->second, suggestedId);
+			}
+		}).send();
+	} else if (!currentId.isEmpty() && currentId != defaultId) {
+		createLink(Lang::GetOriginalValue(lng_switch_to_this), defaultId);
+	}
+}
+
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 void Widget::onCheckUpdateStatus() {
 	if (Sandbox::updatingState() == Application::UpdatingReady) {
@@ -122,12 +137,6 @@ void Widget::onCheckUpdateStatus() {
 	updateControlsGeometry();
 }
 #endif // TDESKTOP_DISABLE_AUTOUPDATE
-
-void Widget::changeLanguage(int32 languageId) {
-	cSetLang(languageId);
-	Local::writeSettings();
-	App::restart();
-}
 
 void Widget::setInnerFocus() {
 	if (getStep()->animating()) {
@@ -223,53 +232,50 @@ void Widget::resetAccount() {
 
 	Ui::show(Box<ConfirmBox>(lang(lng_signin_sure_reset), lang(lng_signin_reset), st::attentionBoxButton, base::lambda_guarded(this, [this] {
 		if (_resetRequest) return;
-		_resetRequest = MTP::send(MTPaccount_DeleteAccount(MTP_string("Forgot password")), rpcDone(&Widget::resetDone), rpcFail(&Widget::resetFail));
+		_resetRequest = request(MTPaccount_DeleteAccount(MTP_string("Forgot password"))).done([this](const MTPBool &result) {
+			_resetRequest = 0;
+
+			Ui::hideLayer();
+			moveToStep(new SignupWidget(this, getData()), Direction::Replace);
+		}).fail([this](const RPCError &error) {
+			_resetRequest = 0;
+
+			auto type = error.type();
+			if (type.startsWith(qstr("2FA_CONFIRM_WAIT_"))) {
+				int seconds = type.mid(qstr("2FA_CONFIRM_WAIT_").size()).toInt();
+				int days = (seconds + 59) / 86400;
+				int hours = ((seconds + 59) % 86400) / 3600;
+				int minutes = ((seconds + 59) % 3600) / 60;
+				QString when;
+				if (days > 0) {
+					when = lng_signin_reset_in_days(lt_count_days, days, lt_count_hours, hours, lt_count_minutes, minutes);
+				} else if (hours > 0) {
+					when = lng_signin_reset_in_hours(lt_count_hours, hours, lt_count_minutes, minutes);
+				} else {
+					when = lng_signin_reset_in_minutes(lt_count_minutes, minutes);
+				}
+				Ui::show(Box<InformBox>(lng_signin_reset_wait(lt_phone_number, App::formatPhone(getData()->phone), lt_when, when)));
+			} else if (type == qstr("2FA_RECENT_CONFIRM")) {
+				Ui::show(Box<InformBox>(lang(lng_signin_reset_cancelled)));
+			} else {
+				Ui::hideLayer();
+				getStep()->showError(lang(lng_server_error));
+			}
+		}).send();
 	})));
 }
 
-void Widget::resetDone(const MTPBool &result) {
-	Ui::hideLayer();
-	moveToStep(new SignupWidget(this, getData()), Direction::Replace);
-}
-
-bool Widget::resetFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	_resetRequest = 0;
-
-	auto type = error.type();
-	if (type.startsWith(qstr("2FA_CONFIRM_WAIT_"))) {
-		int seconds = type.mid(qstr("2FA_CONFIRM_WAIT_").size()).toInt();
-		int days = (seconds + 59) / 86400;
-		int hours = ((seconds + 59) % 86400) / 3600;
-		int minutes = ((seconds + 59) % 3600) / 60;
-		QString when;
-		if (days > 0) {
-			when = lng_signin_reset_in_days(lt_count_days, days, lt_count_hours, hours, lt_count_minutes, minutes);
-		} else if (hours > 0) {
-			when = lng_signin_reset_in_hours(lt_count_hours, hours, lt_count_minutes, minutes);
-		} else {
-			when = lng_signin_reset_in_minutes(lt_count_minutes, minutes);
+void Widget::getNearestDC() {
+	request(MTPhelp_GetNearestDc()).done([this](const MTPNearestDc &result) {
+		auto &nearest = result.c_nearestDc();
+		DEBUG_LOG(("Got nearest dc, country: %1, nearest: %2, this: %3").arg(qs(nearest.vcountry)).arg(nearest.vnearest_dc.v).arg(nearest.vthis_dc.v));
+		Messenger::Instance().suggestMainDcId(nearest.vnearest_dc.v);
+		auto nearestCountry = qs(nearest.vcountry);
+		if (getData()->country != nearestCountry) {
+			getData()->country = nearestCountry;
+			getData()->updated.notify();
 		}
-		Ui::show(Box<InformBox>(lng_signin_reset_wait(lt_phone_number, App::formatPhone(getData()->phone), lt_when, when)));
-	} else if (type == qstr("2FA_RECENT_CONFIRM")) {
-		Ui::show(Box<InformBox>(lang(lng_signin_reset_cancelled)));
-	} else {
-		Ui::hideLayer();
-		getStep()->showError(lang(lng_server_error));
-	}
-	return true;
-}
-
-void Widget::gotNearestDC(const MTPNearestDc &result) {
-	auto &nearest = result.c_nearestDc();
-	DEBUG_LOG(("Got nearest dc, country: %1, nearest: %2, this: %3").arg(qs(nearest.vcountry)).arg(nearest.vnearest_dc.v).arg(nearest.vthis_dc.v));
-	Messenger::Instance().suggestMainDcId(nearest.vnearest_dc.v);
-	auto nearestCountry = qs(nearest.vcountry);
-	if (getData()->country != nearestCountry) {
-		getData()->country = nearestCountry;
-		getData()->updated.notify();
-	}
+	}).send();
 }
 
 void Widget::showControls() {

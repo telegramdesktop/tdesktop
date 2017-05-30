@@ -734,6 +734,10 @@ Messenger::~Messenger() {
 	App::clearHistories();
 	authSessionDestroy();
 
+	// The langpack manager should be destroyed before MTProto instance,
+	// because it is MTP::Sender and it may have pending requests.
+	_langCloudManager.reset();
+
 	_mtproto.reset();
 	_mtprotoForKeysDestroy.reset();
 

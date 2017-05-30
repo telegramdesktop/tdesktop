@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "mtproto/sender.h"
+
 namespace Ui {
 class IconButton;
 class RoundButton;
@@ -33,7 +35,7 @@ class WidgetFadeWrap;
 
 namespace Intro {
 
-class Widget : public TWidget, public RPCSender {
+class Widget : public TWidget, private MTP::Sender, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -207,8 +209,8 @@ public:
 
 private:
 	void animationCallback();
+	void createLanguageLink();
 
-	void changeLanguage(int32 languageId);
 	void updateControlsGeometry();
 	Data *getData() {
 		return &_data;
@@ -222,14 +224,7 @@ private:
 
 	void showResetButton();
 	void resetAccount();
-	void resetDone(const MTPBool &result);
-	bool resetFail(const RPCError &error);
 
-	Animation _a_show;
-	bool _showBack = false;
-	QPixmap _cacheUnder, _cacheOver;
-
-	QVector<Step*> _stepHistory;
 	Step *getStep(int skip = 0) {
 		t_assert(_stepHistory.size() + skip > 0);
 		return _stepHistory.at(_stepHistory.size() - skip - 1);
@@ -238,7 +233,13 @@ private:
 	void moveToStep(Step *step, Direction direction);
 	void appendStep(Step *step);
 
-	void gotNearestDC(const MTPNearestDc &dc);
+	void getNearestDC();
+
+	Animation _a_show;
+	bool _showBack = false;
+	QPixmap _cacheUnder, _cacheOver;
+
+	QVector<Step*> _stepHistory;
 
 	Data _data;
 

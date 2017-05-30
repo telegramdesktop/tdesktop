@@ -298,7 +298,7 @@ QString Instance::systemLangCode() const {
 				_systemLanguage = DefaultLanguageId();
 			}
 		}
-//		_systemLanguage = "de"; // TESTING
+		_systemLanguage = "de"; // TESTING
 	}
 	return _systemLanguage;
 }
@@ -442,6 +442,38 @@ void Instance::fillFromLegacy(int legacyId, const QString &legacyPath) {
 	}
 }
 
+template <typename SetCallback, typename ResetCallback>
+void Instance::HandleString(const MTPLangPackString &mtpString, SetCallback setCallback, ResetCallback resetCallback) {
+	switch (mtpString.type()) {
+	case mtpc_langPackString: {
+		auto &string = mtpString.c_langPackString();
+		setCallback(qba(string.vkey), qba(string.vvalue));
+	} break;
+
+	case mtpc_langPackStringPluralized: {
+		auto &string = mtpString.c_langPackStringPluralized();
+		auto key = qba(string.vkey);
+		setCallback(key + "#zero", string.has_zero_value() ? qba(string.vzero_value) : QByteArray());
+		setCallback(key + "#one", string.has_one_value() ? qba(string.vone_value) : QByteArray());
+		setCallback(key + "#two", string.has_two_value() ? qba(string.vtwo_value) : QByteArray());
+		setCallback(key + "#few", string.has_few_value() ? qba(string.vfew_value) : QByteArray());
+		setCallback(key + "#many", string.has_many_value() ? qba(string.vmany_value) : QByteArray());
+		setCallback(key + "#other", qba(string.vother_value));
+	} break;
+
+	case mtpc_langPackStringDeleted: {
+		auto &string = mtpString.c_langPackStringDeleted();
+		auto key = qba(string.vkey);
+		resetCallback(key);
+		for (auto plural : { "#zero", "#one", "#two", "#few", "#many", "#other" }) {
+			resetCallback(key + plural);
+		}
+	} break;
+
+	default: Unexpected("LangPack string type in applyUpdate().");
+	}
+}
+
 void Instance::applyDifference(const MTPDlangPackDifference &difference) {
 	auto updateLanguageId = qs(difference.vlang_code);
 	auto isValidUpdate = (updateLanguageId == _id) || (_id.isEmpty() && updateLanguageId == DefaultLanguageId());
@@ -450,35 +482,49 @@ void Instance::applyDifference(const MTPDlangPackDifference &difference) {
 
 	_version = difference.vversion.v;
 	for_const (auto &mtpString, difference.vstrings.v) {
-		switch (mtpString.type()) {
-		case mtpc_langPackString: {
-			auto &string = mtpString.c_langPackString();
-			applyValue(qba(string.vkey), qba(string.vvalue));
-		} break;
-
-		case mtpc_langPackStringPluralized: {
-			auto &string = mtpString.c_langPackStringPluralized();
-			auto key = qba(string.vkey);
-			applyValue(key + "#zero", string.has_zero_value() ? qba(string.vzero_value) : QByteArray());
-			applyValue(key + "#one", string.has_one_value() ? qba(string.vone_value) : QByteArray());
-			applyValue(key + "#two", string.has_two_value() ? qba(string.vtwo_value) : QByteArray());
-			applyValue(key + "#few", string.has_few_value() ? qba(string.vfew_value) : QByteArray());
-			applyValue(key + "#many", string.has_many_value() ? qba(string.vmany_value) : QByteArray());
-			applyValue(key + "#other", qba(string.vother_value));
-		} break;
-
-		case mtpc_langPackStringDeleted: {
-			auto &string = mtpString.c_langPackStringDeleted();
-			auto key = qba(string.vkey);
+		HandleString(mtpString, [this](auto &&key, auto &&value) {
+			applyValue(key, value);
+		}, [this](auto &&key) {
 			resetValue(key);
-			for (auto plural : { "#zero", "#one", "#two", "#few", "#many", "#other" }) {
-				resetValue(key + plural);
-			}
-		} break;
+		});
+	}
+}
 
-		default: Unexpected("LangPack string type in applyUpdate().");
+std::map<LangKey, QString> Instance::ParseStrings(const MTPVector<MTPLangPackString> &strings) {
+	auto result = std::map<LangKey, QString>();
+	for (auto &mtpString : strings.v) {
+		HandleString(mtpString, [&result](auto &&key, auto &&value) {
+			ParseKeyValue(key, value, result);
+		}, [&result](auto &&key) {
+			auto keyIndex = GetKeyIndex(QLatin1String(key));
+			if (keyIndex != kLangKeysCount) {
+				result.erase(keyIndex);
+			}
+		});
+	}
+	return result;
+}
+
+template <typename Result>
+void Instance::ParseKeyValue(const QByteArray &key, const QByteArray &value, Result &result) {
+	auto keyIndex = GetKeyIndex(QLatin1String(key));
+	if (keyIndex == kLangKeysCount) {
+		LOG(("Lang Error: Unknown key '%1'").arg(QString::fromLatin1(key)));
+		return;
+	}
+
+	ValueParser parser(key, keyIndex, value);
+	if (parser.parse()) {
+		result[keyIndex] = parser.takeResult();
+		for (auto &plural : parser.takePluralValues()) {
+			result[plural.first] = plural.second;
 		}
 	}
+}
+
+void Instance::applyValue(const QByteArray &key, const QByteArray &value) {
+	_nonDefaultValues[key] = value;
+	ParseKeyValue(key, value, _values);
 }
 
 void Instance::resetValue(const QByteArray &key) {
@@ -487,27 +533,6 @@ void Instance::resetValue(const QByteArray &key) {
 	auto keyIndex = GetKeyIndex(QLatin1String(key));
 	if (keyIndex != kLangKeysCount) {
 		_values[keyIndex] = GetOriginalValue(keyIndex);
-	}
-}
-
-void Instance::applyValue(const QByteArray &key, const QByteArray &value) {
-	_nonDefaultValues[key] = value;
-
-	auto pluralValues = std::map<ushort, QString>();
-	auto keyIndex = GetKeyIndex(QLatin1String(key));
-	if (keyIndex == kLangKeysCount) {
-		LOG(("Lang Error: Unknown key '%1'").arg(QString::fromLatin1(key)));
-		return;
-	}
-
-	ValueParser parser(key, keyIndex, value);
-	if (!parser.parse()) {
-		return;
-	}
-
-	_values[keyIndex] = parser.takeResult();
-	for (auto &plural : parser.takePluralValues()) {
-		_values[plural.first] = plural.second;
 	}
 }
 

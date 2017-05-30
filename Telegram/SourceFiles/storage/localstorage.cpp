@@ -2309,7 +2309,6 @@ void writeSettings() {
 
 	quint32 size = 12 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::bytearraySize(dcOptionsSerialized);
-	size += sizeof(quint32) + Serialize::stringSize(cLangFile());
 
 	size += sizeof(quint32) + sizeof(qint32);
 	if (Global::ConnectionType() == dbictHttpProxy || Global::ConnectionType() == dbictTcpProxy) {
