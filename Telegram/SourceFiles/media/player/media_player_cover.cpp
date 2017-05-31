@@ -94,12 +94,12 @@ CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 		_playbackSlider->setValue(value);
 	});
 	_playbackSlider->setChangeProgressCallback([this](float64 value) {
-		handleSeekProgress(value);
 		_playback->setValue(value, false);
+		handleSeekProgress(value);
 	});
 	_playbackSlider->setChangeFinishedCallback([this](float64 value) {
-		handleSeekFinished(value);
 		_playback->setValue(value, false);
+		handleSeekFinished(value);
 	});
 	_playPause->setClickedCallback([this] {
 		instance()->playPauseCancelClicked(AudioMsgId::Type::Song);
