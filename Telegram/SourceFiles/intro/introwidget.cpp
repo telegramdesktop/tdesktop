@@ -440,6 +440,15 @@ void Widget::Step::finish(const MTPUser &user, QImage photo) {
 		return;
 	}
 
+	// Save the default language if we've suggested some other and user ignored it.
+	auto currentId = Lang::Current().id();
+	auto defaultId = Lang::DefaultLanguageId();
+	auto suggestedId = Lang::CurrentCloudManager().suggestedLanguage();
+	if (currentId.isEmpty() && !suggestedId.isEmpty() && suggestedId != defaultId) {
+		Lang::Current().switchToId(defaultId);
+		Local::writeLangPack();
+	}
+
 	Messenger::Instance().authSessionCreate(user.c_user().vid.v);
 	Local::writeMtpData();
 	App::wnd()->setupMain(&user);
