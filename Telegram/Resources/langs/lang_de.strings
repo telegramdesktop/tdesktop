@@ -138,10 +138,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_deleted" = "Gelöschtes Konto";
 "lng_deleted_message" = "Gelöschte Nachricht";
 "lng_pinned_message" = "Angeheftete Nachricht";
-"lng_pinned_unpin_sure" = "Angeheftete Nachricht entfernen?";
+"lng_pinned_unpin_sure" = "Nachricht nicht mehr anheften?";
 "lng_pinned_pin_sure" = "Möchtest du diese Nachricht anheften?";
 "lng_pinned_pin" = "Anheften";
-"lng_pinned_unpin" = "Entfernen";
+"lng_pinned_unpin" = "Nicht mehr anheften";
 "lng_pinned_notify" = "Alle benachrichtigen";
 
 "lng_intro_about" = "Willkommen in der offiziellen Telegram Desktop App.\nDie App ist schnell und sicher.";
