@@ -75,6 +75,11 @@ public:
 		Expects(_values.size() == kLangKeysCount);
 		return _values[key];
 	}
+	bool isNonDefaultPlural(LangKey key) {
+		Expects(key >= 0 && key < kLangKeysCount);
+		Expects(_nonDefaultSet.size() == kLangKeysCount);
+		return _nonDefaultSet[key] || _nonDefaultSet[key + 1] || _nonDefaultSet[key + 2] || _nonDefaultSet[key + 3] || _nonDefaultSet[key + 4] || _nonDefaultSet[key + 5];
+	}
 
 private:
 	// SetCallback takes two QByteArrays: key, value.
@@ -85,7 +90,7 @@ private:
 
 	// Writes each key-value pair in the result container.
 	template <typename Result>
-	static void ParseKeyValue(const QByteArray &key, const QByteArray &value, Result &result);
+	static LangKey ParseKeyValue(const QByteArray &key, const QByteArray &value, Result &result);
 
 	void applyValue(const QByteArray &key, const QByteArray &value);
 	void resetValue(const QByteArray &key);
@@ -94,6 +99,7 @@ private:
 	void fillFromCustomFile(const QString &filePath);
 	void loadFromContent(const QByteArray &content);
 	void loadFromCustomContent(const QString &absolutePath, const QString &relativePath, const QByteArray &content);
+	void updatePluralRules();
 
 	QString _id;
 	int _legacyId = kLegacyLanguageNone;
@@ -106,6 +112,7 @@ private:
 	mutable QString _systemLanguage;
 
 	std::vector<QString> _values;
+	std::vector<uchar> _nonDefaultSet;
 	std::map<QByteArray, QByteArray> _nonDefaultValues;
 
 };

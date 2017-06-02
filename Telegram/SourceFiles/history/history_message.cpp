@@ -2158,9 +2158,9 @@ HistoryService::PreparedText HistoryService::prepareGameScoreText() {
 		result.links.push_back(fromLink());
 		auto gameTitle = computeGameTitle();
 		if (gameTitle.isEmpty()) {
-			result.text = lng_action_game_score_no_game(lt_from, fromLinkText(), lt_count, scoreNumber);
+			result.text = lng_action_game_score_no_game(lt_count, scoreNumber, lt_from, fromLinkText());
 		} else {
-			result.text = lng_action_game_score(lt_from, fromLinkText(), lt_count, scoreNumber, lt_game, gameTitle);
+			result.text = lng_action_game_score(lt_count, scoreNumber, lt_from, fromLinkText(), lt_game, gameTitle);
 		}
 	}
 	return result;

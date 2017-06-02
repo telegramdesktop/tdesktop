@@ -31,8 +31,6 @@ namespace codegen {
 namespace lang {
 namespace {
 
-constexpr auto kMaxPluralVariants = 6;
-
 char hexChar(uchar ch) {
 	if (ch < 10) {
 		return '0' + ch;
@@ -120,7 +118,6 @@ bool Generator::writeHeader() {
 	header_->include("lang/lang_tag.h").newline().pushNamespace("Lang").stream() << "\
 \n\
 constexpr auto kTagsCount = " << langpack_.tags.size() << ";\n\
-constexpr auto kTagsPluralVariants = " << kMaxPluralVariants << ";\n\
 \n";
 
 	header_->popNamespace().newline();
@@ -141,21 +138,26 @@ enum LangKey {\n";
 \n\
 QString lang(LangKey key);\n\
 \n";
+
 	for (auto &entry : langpack_.entries) {
-		if (!entry.tags.empty()) {
-			auto &key = entry.key;
-			auto params = QStringList();
-			auto applyTags = QStringList();
-			for (auto &tagData : entry.tags) {
-				auto &tag = tagData.tag;
-				auto isPlural = isTagPlural(key, tag);
-				params.push_back("lngtag_" + tag + ", " + (isPlural ? "float64 " : "const QString &") + tag + "__val");
-				applyTags.push_back("\tresult = Lang::Tag(result, lt_" + tag + ", " + (isPlural ? ("Lang::Plural(" + key + "__" + tag + "0, lt_" + tag + ", " + tag + "__val)") : (tag + "__val")) + ");");
+		auto isPlural = !entry.keyBase.isEmpty();
+		auto &key = entry.key;
+		auto params = QStringList();
+		auto applyTags = QStringList();
+		for (auto &tagData : entry.tags) {
+			auto &tag = tagData.tag;
+			auto isPluralTag = isPlural && (tag == kPluralTag);
+			params.push_back("lngtag_" + tag + ", " + (isPluralTag ? "float64 " : "const QString &") + tag + "__val");
+			if (!isPluralTag) {
+				applyTags.push_back("\tresult = Lang::Tag(result, lt_" + tag + ", " + tag + "__val);\n");
 			}
+		}
+		if (!entry.tags.empty() && (!isPlural || key == ComputePluralKey(entry.keyBase, 0))) {
+			auto initialString = isPlural ? ("Lang::Plural(" + key + ", lt_" + kPluralTag + ", " + kPluralTag + "__val)") : ("lang(" + getFullKey(entry) + ")");
 			header_->stream() << "\
-inline QString " << entry.key << "(" << params.join(QString(", ")) << ") {\n\
-	auto result = lang(" << entry.key << "__tagged);\n\
-" << applyTags.join('\n') << ";\n\
+inline QString " << (isPlural ? entry.keyBase : key) << "(" << params.join(QString(", ")) << ") {\n\
+	auto result = " << initialString << ";\n\
+" << applyTags.join(QString()) << "\
 	return result;\n\
 }\n\
 \n";
@@ -167,7 +169,6 @@ inline QString " << entry.key << "(" << params.join(QString(", ")) << ") {\n\
 const char *GetKeyName(LangKey key);\n\
 ushort GetTagIndex(QLatin1String tag);\n\
 LangKey GetKeyIndex(QLatin1String key);\n\
-LangKey GetSubkeyIndex(LangKey key, ushort tag, ushort index);\n\
 bool IsTagReplaced(LangKey key, ushort tag);\n\
 QString GetOriginalValue(LangKey key);\n\
 \n";
@@ -258,15 +259,19 @@ LangKey GetKeyIndex(QLatin1String key) {\n\
 	auto taggedKeys = std::map<QString, QString>();
 	auto keysSet = std::set<QString, std::greater<QString>>();
 	for (auto &entry : langpack_.entries) {
-		if (entry.key.mid(0, entry.key.size() - 1).endsWith("__count")) {
-			continue;
+		if (!entry.keyBase.isEmpty()) {
+			for (auto i = 0; i != kPluralPartCount; ++i) {
+				auto keyName = entry.keyBase + '#' + kPluralParts[i];
+				taggedKeys.emplace(keyName, ComputePluralKey(entry.keyBase, i));
+				keysSet.insert(keyName);
+			}
+		} else {
+			auto full = getFullKey(entry);
+			if (full != entry.key) {
+				taggedKeys.emplace(entry.key, full);
+			}
+			keysSet.insert(entry.key);
 		}
-
-		auto full = getFullKey(entry);
-		if (full != entry.key) {
-			taggedKeys.emplace(entry.key, full);
-		}
-		keysSet.insert(entry.key);
 	}
 
 	writeSetSearch(keysSet, [&taggedKeys](const QString &key) {
@@ -277,44 +282,28 @@ LangKey GetKeyIndex(QLatin1String key) {\n\
 	source_->stream() << "\
 }\n\
 \n\
-LangKey GetSubkeyIndex(LangKey key, ushort tag, ushort index) {\n\
-	if (index >= kTagsPluralVariants) return kLangKeysCount;\n\
-\n\
-	switch (key) {\n";
-
-	for (auto &entry : langpack_.entries) {
-		auto cases = QString();
-		for (auto &tag : entry.tags) {
-			if (isTagPlural(entry.key, tag.tag)) {
-				cases += "\t\t\tcase lt_" + tag.tag + ": return LangKey(" + entry.key + "__" + tag.tag + "0 + index);\n";
-			}
-		}
-		if (cases.isEmpty()) {
-			continue;
-		}
-		source_->stream() << "\
-	case " << entry.key << "__tagged: {\n\
-		switch (tag) {\n\
-" << cases << "\
-		}\n\
-	} break;\n";
-	}
-
-	source_->stream() << "\
-	}\n\
-\n\
-	return kLangKeysCount;\n\
-}\n\
-\n\
 bool IsTagReplaced(LangKey key, ushort tag) {\n\
 	switch (key) {\n";
 
+	auto lastWrittenPluralEntry = QString();
 	for (auto &entry : langpack_.entries) {
 		if (entry.tags.empty()) {
 			continue;
 		}
+		if (!entry.keyBase.isEmpty()) {
+			if (entry.keyBase == lastWrittenPluralEntry) {
+				continue;
+			}
+			lastWrittenPluralEntry = entry.keyBase;
+			for (auto i = 0; i != kPluralPartCount; ++i) {
+				source_->stream() << "\
+	case " << ComputePluralKey(entry.keyBase, i) << ":" << ((i + 1 == kPluralPartCount) ? " {" : "") << "\n";
+			}
+		} else {
+			source_->stream() << "\
+	case " << getFullKey(entry) << ": {\n";
+		}
 		source_->stream() << "\
-	case " << entry.key << "__tagged: {\n\
 		switch (tag) {\n";
 		for (auto &tag : entry.tags) {
 			source_->stream() << "\
@@ -480,20 +469,10 @@ void Generator::writeSetSearch(const std::set<QString, std::greater<QString>> &s
 }
 
 QString Generator::getFullKey(const LangPack::Entry &entry) {
-	if (entry.tags.empty()) {
+	if (!entry.keyBase.isEmpty() || entry.tags.empty()) {
 		return entry.key;
 	}
 	return entry.key + "__tagged";
-}
-
-bool Generator::isTagPlural(const QString &key, const QString &tag) const {
-	auto searchForKey = key + "__" + tag + "0";
-	for (auto &entry : langpack_.entries) {
-		if (entry.key == searchForKey) {
-			return true;
-		}
-	}
-	return false;
 }
 
 } // namespace lang

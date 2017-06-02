@@ -898,11 +898,13 @@ ContactsBox::Inner::ContactData *ContactsBox::Inner::contactData(Dialogs::Row *r
 				data->statusText = App::onlineText(peer->asUser(), _time);
 				data->statusHasOnlineColor = App::onlineColorUse(peer->asUser(), _time);
 			} else if (peer->isChat()) {
-				ChatData *chat = peer->asChat();
+				auto chat = peer->asChat();
 				if (!chat->amIn()) {
 					data->statusText = lang(lng_chat_status_unaccessible);
-				} else {
+				} else if (chat->count > 0) {
 					data->statusText = lng_chat_status_members(lt_count, chat->count);
+				} else {
+					data->statusText = lang(lng_group_status);
 				}
 			} else if (peer->isMegagroup()) {
 				data->statusText = lang(lng_group_status);

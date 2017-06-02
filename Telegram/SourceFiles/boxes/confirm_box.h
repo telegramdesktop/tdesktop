@@ -200,7 +200,7 @@ private:
 
 class ConfirmInviteBox : public BoxContent, public RPCSender {
 public:
-	ConfirmInviteBox(QWidget*, const QString &title, const MTPChatPhoto &photo, int count, const QVector<UserData*> &participants);
+	ConfirmInviteBox(QWidget*, const QString &title, bool isChannel, const MTPChatPhoto &photo, int count, const QVector<UserData*> &participants);
 
 protected:
 	void prepare() override;

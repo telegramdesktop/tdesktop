@@ -326,7 +326,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 		}
 
 		if (_state == SearchedState || !_searchResults.empty()) {
-			QString text = lng_search_found_results(lt_count, _searchResults.empty() ? 0 : (_searchedMigratedCount + _searchedCount));
+			auto text = _searchResults.empty() ? lang(lng_search_no_results) : lng_search_found_results(lt_count, _searchedMigratedCount + _searchedCount);
 			p.fillRect(0, 0, fullWidth, st::searchedBarHeight, st::searchedBarBg);
 			if (!paintingOther) {
 				p.setFont(st::searchedBarFont);

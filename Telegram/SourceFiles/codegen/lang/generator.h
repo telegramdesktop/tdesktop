@@ -43,7 +43,6 @@ public:
 
 private:
 	QString getFullKey(const LangPack::Entry &entry);
-	bool isTagPlural(const QString &key, const QString &tag) const;
 
 	template <typename ComputeResult>
 	void writeSetSearch(const std::set<QString, std::greater<QString>> &set, ComputeResult computeResult, const QString &invalidResult);

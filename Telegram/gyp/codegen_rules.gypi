@@ -65,7 +65,7 @@
       '<(PRODUCT_DIR)/codegen_style<(exe_ext)',
       '-I', '<(res_loc)', '-I', '<(src_loc)',
       '-o', '<(SHARED_INTERMEDIATE_DIR)/styles',
-      '-w', '<(PRODUCT_DIR)/../..',
+      '-w', '<(PRODUCT_DIR)/..',
 
       # GYP/Ninja bug workaround: if we specify just <(RULE_INPUT_PATH)
       # the <(RULE_INPUT_ROOT) variables won't be available in Ninja,
@@ -90,7 +90,7 @@
     'action': [
       '<(PRODUCT_DIR)/codegen_lang<(exe_ext)',
       '-o', '<(SHARED_INTERMEDIATE_DIR)', '<(res_loc)/langs/lang.strings',
-      '-w', '<(PRODUCT_DIR)/../..',
+      '-w', '<(PRODUCT_DIR)/..',
     ],
     'message': 'codegen_lang-ing lang.strings..',
     'process_outputs_as_sources': 1,
@@ -107,7 +107,7 @@
     'action': [
       '<(PRODUCT_DIR)/codegen_numbers<(exe_ext)',
       '-o', '<(SHARED_INTERMEDIATE_DIR)', '<(res_loc)/numbers.txt',
-      '-w', '<(PRODUCT_DIR)/../..',
+      '-w', '<(PRODUCT_DIR)/..',
     ],
     'message': 'codegen_numbers-ing numbers.txt..',
     'process_outputs_as_sources': 1,
@@ -158,7 +158,7 @@
       '<(PRODUCT_DIR)/codegen_style<(exe_ext)',
       '-I', '<(res_loc)', '-I', '<(src_loc)',
       '-o', '<(SHARED_INTERMEDIATE_DIR)/styles',
-      '-w', '<(PRODUCT_DIR)/../..',
+      '-w', '<(PRODUCT_DIR)/..',
 
       # GYP/Ninja bug workaround: if we specify just <(RULE_INPUT_PATH)
       # the <(RULE_INPUT_ROOT) variables won't be available in Ninja,

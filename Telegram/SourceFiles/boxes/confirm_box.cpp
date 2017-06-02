@@ -547,14 +547,18 @@ void DeleteMessagesBox::deleteAndClear() {
 	Ui::hideLayer();
 }
 
-ConfirmInviteBox::ConfirmInviteBox(QWidget*, const QString &title, const MTPChatPhoto &photo, int count, const QVector<UserData*> &participants)
+ConfirmInviteBox::ConfirmInviteBox(QWidget*, const QString &title, bool isChannel, const MTPChatPhoto &photo, int count, const QVector<UserData*> &participants)
 : _title(this, st::confirmInviteTitle)
 , _status(this, st::confirmInviteStatus)
 , _participants(participants) {
 	_title->setText(title);
 	QString status;
 	if (_participants.isEmpty() || _participants.size() >= count) {
-		status = lng_chat_status_members(lt_count, count);
+		if (count > 0) {
+			status = lng_chat_status_members(lt_count, count);
+		} else {
+			status = lang(isChannel ? lng_channel_status : lng_group_status);
+		}
 	} else {
 		status = lng_group_invite_members(lt_count, count);
 	}

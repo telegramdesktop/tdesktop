@@ -196,7 +196,7 @@ void CloudManager::switchToLanguage(QString id) {
 	if (id.isEmpty()) {
 		id = DefaultLanguageId();
 	}
-	if (_langpack.id() == id) {
+	if (_langpack.id() == id && id != qstr("custom")) {
 		return;
 	}
 

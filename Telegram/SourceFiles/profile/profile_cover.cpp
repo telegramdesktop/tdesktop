@@ -373,23 +373,29 @@ void CoverWidget::refreshStatusText() {
 	}
 
 	_cancelPhotoUpload.destroy();
-	int currentTime = unixtime();
+	auto currentTime = unixtime();
 	if (_peerUser) {
 		_statusText = App::onlineText(_peerUser, currentTime, true);
 		_statusTextIsOnline = App::onlineColorUse(_peerUser, currentTime);
 	} else if (_peerChat && _peerChat->amIn()) {
-		int fullCount = qMax(_peerChat->count, _peerChat->participants.size());
+		auto fullCount = qMax(_peerChat->count, _peerChat->participants.size());
 		if (_onlineCount > 0 && _onlineCount <= fullCount) {
-			_statusText = lng_chat_status_members_online(lt_count, fullCount, lt_count_online, _onlineCount);
-		} else {
+			auto membersCount = lng_chat_status_members(lt_count, fullCount);
+			auto onlineCount = lng_chat_status_online(lt_count, _onlineCount);
+			_statusText = lng_chat_status_members_online(lt_members_count, membersCount, lt_online_count, onlineCount);
+		} else if (_peerChat->count > 0) {
 			_statusText = lng_chat_status_members(lt_count, _peerChat->count);
+		} else {
+			_statusText = lang(lng_group_status);
 		}
 	} else if (_peerChannel) {
-		int fullCount = _peerChannel->membersCount();
+		auto fullCount = _peerChannel->membersCount();
 		if (_onlineCount > 0 && _onlineCount <= fullCount) {
-			_statusText = lng_chat_status_members_online(lt_count, fullCount, lt_count_online, _onlineCount);
-		} else if (fullCount > 0 ) {
-			_statusText = lng_chat_status_members(lt_count, _peerChannel->membersCount());
+			auto membersCount = lng_chat_status_members(lt_count, fullCount);
+			auto onlineCount = lng_chat_status_online(lt_count, _onlineCount);
+			_statusText = lng_chat_status_members_online(lt_members_count, membersCount, lt_online_count, onlineCount);
+		} else if (fullCount > 0) {
+			_statusText = lng_chat_status_members(lt_count, fullCount);
 		} else {
 			_statusText = lang(_peerChannel->isMegagroup() ? lng_group_status : lng_channel_status);
 		}

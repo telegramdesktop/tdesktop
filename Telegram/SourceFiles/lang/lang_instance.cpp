@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "platform/platform_specific.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_file_parser.h"
+#include "base/qthelp_regex.h"
 
 namespace Lang {
 namespace {
@@ -43,6 +44,10 @@ constexpr str_const kLegacyLanguages[] = {
 	"ko",
 };
 
+QString ConvertLegacyLanguageId(const QString &languageId) {
+	return languageId.toLower().replace('_', '-');
+}
+
 class ValueParser {
 public:
 	ValueParser(const QByteArray &key, LangKey keyIndex, const QByteArray &value);
@@ -51,17 +56,11 @@ public:
 		Expects(!_failed);
 		return std::move(_result);
 	}
-	std::map<LangKey, QString> takePluralValues() {
-		Expects(!_failed);
-		return std::move(_plural);
-	}
 
 	bool parse();
 
 private:
 	void appendToResult(const char *nextBegin);
-	void appendToPlural(const char *nextBegin);
-	bool feedPluralValue();
 	bool logError(const QString &text);
 	bool readTag();
 
@@ -72,16 +71,11 @@ private:
 	ushort _currentTagIndex = 0;
 	QString _currentTagReplacer;
 
-	QString _pluralValue;
-	int _pluralIndex = 0;
-	bool _pluralNumericFound = false;
-
 	bool _failed = true;
 
 	const char *_begin, *_ch, *_end;
 
 	QString _result;
-	std::map<LangKey, QString> _plural;
 	OrderedSet<ushort> _tagsUsed;
 
 };
@@ -98,29 +92,6 @@ void ValueParser::appendToResult(const char *nextBegin) {
 	if (_ch > _begin) _result.append(QString::fromUtf8(_begin, _ch - _begin));
 	_begin = nextBegin;
 }
-
-void ValueParser::appendToPlural(const char *nextBegin) {
-	if (_ch > _begin) _pluralValue.append(QString::fromUtf8(_begin, _ch - _begin));
-	_begin = nextBegin;
-}
-
-bool ValueParser::feedPluralValue() {
-	appendToPlural(_ch + 1);
-
-	if (_pluralIndex >= kTagsPluralVariants) {
-		return logError("Too many values inside counted tag");
-	}
-	auto pluralKeyIndex = GetSubkeyIndex(_keyIndex, _currentTagIndex, _pluralIndex);
-	if (pluralKeyIndex == kLangKeysCount) {
-		return logError("Unexpected counted tag");
-	} else {
-		_plural.emplace(pluralKeyIndex, _pluralValue);
-	}
-	++_pluralIndex;
-	_pluralValue = QString();
-	_pluralNumericFound = false;
-	return true;
-};
 
 bool ValueParser::logError(const QString &text) {
 	_failed = true;
@@ -149,8 +120,8 @@ bool ValueParser::readTag() {
 	}
 
 	_currentTag = QLatin1String(tagStart, _ch - tagStart);
-	if (_ch == _end || (*_ch != '}' && *_ch != ':')) {
-		return logError("Expected '}' or ':' after tag name");
+	if (_ch == _end || *_ch != '}') {
+		return logError("Expected '}' after tag name");
 	}
 
 	_currentTagIndex = GetTagIndex(_currentTag);
@@ -189,39 +160,6 @@ bool ValueParser::parse() {
 			_result.append(_currentTagReplacer);
 
 			_begin = _ch + 1;
-			if (*_ch == ':') {
-				_pluralIndex = 0;
-				while (_ch != _end && *_ch != '}') {
-					if (*_ch == '|') {
-						if (!feedPluralValue()) {
-							return false;
-						}
-					} else if (*_ch == '\\') {
-						if (_ch + 1 >= _end) {
-							return logError("Unexpected end of file inside counted tag");
-						}
-						if (*(_ch + 1) == '{' || *(_ch + 1) == '#' || *(_ch + 1) == '}') {
-							appendToPlural(_ch + 1);
-						}
-					} else if (*_ch == '{') {
-						return logError("Unexpected tag inside counted tag");
-					} else if (*_ch == '#') {
-						if (_pluralNumericFound) {
-							return logError("Replacement '#' double used inside counted tag");
-						}
-						_pluralNumericFound = true;
-						appendToPlural(_ch + 1);
-						_pluralValue.append(_currentTagReplacer);
-					}
-					++_ch;
-				}
-				if (_ch == _end) {
-					return logError("Unexpected end of value inside counted tag");
-				}
-				if (!feedPluralValue()) {
-					return false;
-				}
-			}
 			_currentTag = QLatin1String();
 		}
 	}
@@ -259,6 +197,7 @@ void Instance::switchToId(const QString &id) {
 		}
 		_updated.notify();
 	}
+	updatePluralRules();
 }
 
 void Instance::switchToCustomFile(const QString &filePath) {
@@ -271,6 +210,7 @@ void Instance::switchToCustomFile(const QString &filePath) {
 void Instance::reset() {
 	_values.clear();
 	_nonDefaultValues.clear();
+	_nonDefaultSet.clear();
 	_legacyId = kLegacyLanguageNone;
 	_customFilePathAbsolute = QString();
 	_customFilePathRelative = QString();
@@ -286,6 +226,7 @@ void Instance::fillDefaults() {
 	for (auto i = 0; i != kLangKeysCount; ++i) {
 		_values.emplace_back(GetOriginalValue(LangKey(i)));
 	}
+	_nonDefaultSet = std::vector<uchar>(kLangKeysCount, 0);
 }
 
 QString Instance::systemLangCode() const {
@@ -388,6 +329,7 @@ void Instance::fillFromSerialized(const QByteArray &data) {
 	for (auto i = 0, count = nonDefaultValuesCount * 2; i != count; i += 2) {
 		applyValue(nonDefaultStrings[i], nonDefaultStrings[i + 1]);
 	}
+	updatePluralRules();
 }
 
 void Instance::loadFromContent(const QByteArray &content) {
@@ -416,6 +358,7 @@ void Instance::fillFromCustomFile(const QString &filePath) {
 	auto content = Lang::FileParser::ReadFile(absolutePath, relativePath);
 	if (!content.isEmpty()) {
 		loadFromCustomContent(absolutePath, relativePath, content);
+		updatePluralRules();
 	}
 }
 
@@ -441,6 +384,8 @@ void Instance::fillFromLegacy(int legacyId, const QString &legacyPath) {
 			loadFromContent(content);
 		}
 	}
+	_id = ConvertLegacyLanguageId(_id);
+	updatePluralRules();
 }
 
 template <typename SetCallback, typename ResetCallback>
@@ -508,25 +453,41 @@ std::map<LangKey, QString> Instance::ParseStrings(const MTPVector<MTPLangPackStr
 }
 
 template <typename Result>
-void Instance::ParseKeyValue(const QByteArray &key, const QByteArray &value, Result &result) {
+LangKey Instance::ParseKeyValue(const QByteArray &key, const QByteArray &value, Result &result) {
 	auto keyIndex = GetKeyIndex(QLatin1String(key));
 	if (keyIndex == kLangKeysCount) {
 		LOG(("Lang Error: Unknown key '%1'").arg(QString::fromLatin1(key)));
-		return;
+		return kLangKeysCount;
 	}
 
 	ValueParser parser(key, keyIndex, value);
 	if (parser.parse()) {
 		result[keyIndex] = parser.takeResult();
-		for (auto &plural : parser.takePluralValues()) {
-			result[plural.first] = plural.second;
-		}
+		return keyIndex;
 	}
+	return kLangKeysCount;
 }
 
 void Instance::applyValue(const QByteArray &key, const QByteArray &value) {
 	_nonDefaultValues[key] = value;
-	ParseKeyValue(key, value, _values);
+	auto index = ParseKeyValue(key, value, _values);
+	if (index != kLangKeysCount) {
+		_nonDefaultSet[index] = 1;
+	}
+}
+
+void Instance::updatePluralRules() {
+	auto id = _id;
+	if (isCustom()) {
+		auto path = _customFilePathAbsolute.isEmpty() ? _customFilePathRelative : _customFilePathAbsolute;
+		auto name = QFileInfo(path).fileName();
+		if (auto match = qthelp::regex_match("_([a-z]{2,3})(_[A-Z]{2,3}|\\-[a-z]{2,3})?\\.", name)) {
+			id = match->captured(1);
+		}
+	} else if (auto match = qthelp::regex_match("^([a-z]{2,3})(_[A-Z]{2,3}|\\-[a-z]{2,3})$", id)) {
+		id = match->captured(1);
+	}
+	UpdatePluralRules(id);
 }
 
 void Instance::resetValue(const QByteArray &key) {

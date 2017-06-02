@@ -130,8 +130,10 @@ QString formatDurationText(qint64 duration) {
 QString formatDurationWords(qint64 duration) {
 	if (duration > 59) {
 		auto minutes = (duration / 60);
+		auto minutesCount = lng_duration_minsec_minutes(lt_count, minutes);
 		auto seconds = (duration % 60);
-		return lng_duration_minutes_seconds(lt_count_minutes, minutes, lt_count_seconds, seconds);
+		auto secondsCount = lng_duration_minsec_seconds(lt_count, seconds);
+		return lng_duration_minutes_seconds(lt_minutes_count, minutesCount, lt_seconds_count, secondsCount);
 	}
 	return lng_duration_seconds(lt_count, duration);
 }

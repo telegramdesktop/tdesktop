@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Lang {
 
 QString Tag(const QString &original, ushort tag, const QString &replacement);
-QString Plural(ushort key0, ushort tag, float64 value);
+QString Plural(ushort keyBase, ushort tag, float64 value);
+void UpdatePluralRules(const QString &languageId);
 
 } // namespace Lang

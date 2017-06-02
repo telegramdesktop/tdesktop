@@ -617,7 +617,7 @@ void MainWidget::updateForwardingTexts() {
 			version += from->nameVersion;
 		}
 		if (fromUsers.size() > 2) {
-			from = lng_forwarding_from(lt_user, fromUsers.at(0)->shortName(), lt_count, fromUsers.size() - 1);
+			from = lng_forwarding_from(lt_count, fromUsers.size() - 1, lt_user, fromUsers.at(0)->shortName());
 		} else if (fromUsers.size() < 2) {
 			from = fromUsers.at(0)->name;
 		} else {
@@ -4307,7 +4307,7 @@ bool MainWidget::usernameResolveFail(QString name, const RPCError &error) {
 void MainWidget::inviteCheckDone(QString hash, const MTPChatInvite &invite) {
 	switch (invite.type()) {
 	case mtpc_chatInvite: {
-		auto &d(invite.c_chatInvite());
+		auto &d = invite.c_chatInvite();
 
 		QVector<UserData*> participants;
 		if (d.has_participants()) {
@@ -4320,7 +4320,8 @@ void MainWidget::inviteCheckDone(QString hash, const MTPChatInvite &invite) {
 			}
 		}
 		_inviteHash = hash;
-		Ui::show(Box<ConfirmInviteBox>(qs(d.vtitle), d.vphoto, d.vparticipants_count.v, participants));
+		auto isChannel = d.is_channel() && !d.is_megagroup();
+		Ui::show(Box<ConfirmInviteBox>(qs(d.vtitle), isChannel, d.vphoto, d.vparticipants_count.v, participants));
 	} break;
 
 	case mtpc_chatInviteAlready: {

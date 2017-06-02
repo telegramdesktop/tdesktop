@@ -88,7 +88,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_continue" = "Continue";
 "lng_close" = "Close";
 "lng_connecting" = "Connecting...";
-"lng_reconnecting" = "Reconnect {count:now|in # s|in # s}...";
+"lng_reconnecting#one" = "Reconnect in {count} s...";
+"lng_reconnecting#other" = "Reconnect in {count} s...";
 "lng_reconnecting_try_now" = "Try now";
 
 "lng_status_service_notifications" = "service notifications";
@@ -102,8 +103,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_status_last_month" = "last seen within a month";
 "lng_status_invisible" = "invisible";
 "lng_status_lastseen_now" = "last seen just now";
-"lng_status_lastseen_minutes" = "last seen {count:_not_used_|# minute|# minutes} ago";
-"lng_status_lastseen_hours" = "last seen {count:_not_used_|# hour|# hours} ago";
+"lng_status_lastseen_minutes#one" = "last seen {count} minute ago";
+"lng_status_lastseen_minutes#other" = "last seen {count} minutes ago";
+"lng_status_lastseen_hours#one" = "last seen {count} hour ago";
+"lng_status_lastseen_hours#other" = "last seen {count} hours ago";
 "lng_status_lastseen_today" = "last seen today at {time}";
 "lng_status_lastseen_yesterday" = "last seen yesterday at {time}";
 "lng_status_lastseen_date" = "last seen {date}";
@@ -112,14 +115,20 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_status_connecting" = "connecting...";
 
 "lng_chat_status_unaccessible" = "group is inaccessible";
-"lng_chat_status_members" = "{count:no members|# member|# members}";
-"lng_chat_status_members_online" = "{count:_not_used_|# member|# members}, {count_online:_not_used_|# online|# online}";
+"lng_chat_status_no_members" = "no members";
+"lng_chat_status_members#one" = "{count} member";
+"lng_chat_status_members#other" = "{count} members";
+"lng_chat_status_online#one" = "{count} online";
+"lng_chat_status_online#other" = "{count} online";
+"lng_chat_status_members_online" = "{members_count}, {online_count}";
 
 "lng_channel_status" = "channel";
 "lng_group_status" = "group";
 
-"lng_channel_members_link" = "{count:_not_used_|# member|# members}";
-"lng_channel_admins_link" = "{count:_not_used_|# administrator|# administrators}";
+"lng_channel_members_link#one" = "{count} member";
+"lng_channel_members_link#other" = "{count} members";
+"lng_channel_admins_link#one" = "{count} administrator";
+"lng_channel_admins_link#other" = "{count} administrators";
 
 "lng_server_error" = "Internal server error.";
 "lng_flood_error" = "Too many tries. Please try again later.";
@@ -128,7 +137,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_join_channel_error" = "Sorry, you have joined too many channels and supergroups. Please leave some before joining.";
 "lng_error_phone_flood" = "Sorry, you have deleted and re-created your account too many times recently. Please wait for a few days before signing up again.";
 "lng_error_start_minimized_passcoded" = "You have set a local passcode, so the app can't be launched minimized. App will ask you to enter the passcode before it can start working.";
-"lng_error_pinned_max" = "Sorry, you can pin no more than {count:_not_used_|# chat|# chats} to the top.";
+"lng_error_pinned_max#one" = "Sorry, you can pin no more than {count} chat to the top.";
+"lng_error_pinned_max#other" = "Sorry, you can pin no more than {count} chats to the top.";
 "lng_error_public_groups_denied" = "Unfortunately, you were banned from participating in public groups.\n{more_info}";
 
 "lng_edit_deleted" = "This message was deleted";
@@ -198,9 +208,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_signin_sure_reset" = "Warning!\n\nYou will lose all your chats and messages, along with any media and files you shared!\n\nDo you want to reset your account?";
 "lng_signin_reset" = "Reset";
 "lng_signin_reset_wait" = "Since the account {phone_number} is active and protected by a password, we will delete it in 1 week for security purposes. You can cancel this process at any time.\n\nYou’ll be able to reset your account in:\n{when}";
-"lng_signin_reset_in_days" = "{count_days:0 days|# day|# days} {count_hours:0 hours|# hour|# hours} {count_minutes:0 minutes|# minute|# minutes}";
-"lng_signin_reset_in_hours" = "{count_hours:0 hours|# hour|# hours} {count_minutes:0 minutes|# minute|# minutes}";
-"lng_signin_reset_in_minutes" = "{count_minutes:0 minutes|# minute|# minutes}";
+"lng_signin_reset_days#one" = "{count} day";
+"lng_signin_reset_days#other" = "{count} days";
+"lng_signin_reset_hours#one" = "{count} hour";
+"lng_signin_reset_hours#other" = "{count} hours";
+"lng_signin_reset_minutes#one" = "{count} minute";
+"lng_signin_reset_minutes#other" = "{count} minutes";
+"lng_signin_reset_in_days" = "{days_count} {hours_count} {minutes_count}";
+"lng_signin_reset_in_hours" = "{hours_count} {minutes_count}";
 "lng_signin_reset_cancelled" = "Your recent attempts to reset this account have been cancelled by its active user. Please try again in 7 days.";
 
 "lng_signup_title" = "Your Info";
@@ -303,7 +318,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_backgrounds_header" = "Choose your new chat background";
 "lng_theme_sure_keep" = "Keep this color theme?";
-"lng_theme_reverting" = "Reverting to the old color theme in {count:_not_used_|# second|# seconds}.";
+"lng_theme_reverting#one" = "Reverting to the old color theme in {count} second.";
+"lng_theme_reverting#other" = "Reverting to the old color theme in {count} seconds.";
 "lng_theme_keep_changes" = "Keep changes";
 "lng_theme_revert" = "Revert";
 
@@ -329,8 +345,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_local_storage_title" = "Local storage";
 "lng_settings_no_data_cached" = "No cached data found!";
-"lng_settings_images_cached" = "{count:_not_used_|# image|# images}, {size}";
-"lng_settings_audios_cached" = "{count:_not_used_|# voice message|# voice messages}, {size}";
+"lng_settings_images_cached#one" = "{count} image, {size}";
+"lng_settings_images_cached#other" = "{count} images, {size}";
+"lng_settings_audios_cached#one" = "{count} voice message, {size}";
+"lng_settings_audios_cached#other" = "{count} voice messages, {size}";
 "lng_local_storage_clear" = "Clear all";
 "lng_local_storage_clearing" = "Clearing...";
 "lng_local_storage_cleared" = "Cleared!";
@@ -348,8 +366,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_passcode_autolock" = "Auto-Lock";
 "lng_passcode_autolock_away" = "Auto-Lock if away for:";
 "lng_passcode_autolock_inactive" = "Auto-Lock if inactive for:";
-"lng_passcode_autolock_minutes" = "{count:_not_used_|# minute|# minutes}";
-"lng_passcode_autolock_hours" = "{count:_not_used_|# hour|# hours}";
+"lng_passcode_autolock_minutes#one" = "{count} minute";
+"lng_passcode_autolock_minutes#other" = "{count} minutes";
+"lng_passcode_autolock_hours#one" = "{count} hour";
+"lng_passcode_autolock_hours#other" = "{count} hours";
 "lng_passcode_enter_old" = "Enter current passcode";
 "lng_passcode_enter_first" = "Enter a passcode";
 "lng_passcode_enter_new" = "Enter new passcode";
@@ -455,32 +475,46 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_privacy_lastseen_title" = "Last seen privacy";
 "lng_edit_privacy_lastseen_description" = "You can choose who can see your last seen time:";
 "lng_edit_privacy_lastseen_warning" = "Important: you won't be able to see Last Seen times for people with whom you don't share your Last Seen time. Approximate last seen will be shown instead (recently, within a week, within a month).";
-"lng_edit_privacy_lastseen_always" = "Always share with{count:| # user| # users}";
-"lng_edit_privacy_lastseen_never" = "Never share with{count:| # user| # users}";
+"lng_edit_privacy_lastseen_always_empty" = "Always share with";
+"lng_edit_privacy_lastseen_always#one" = "Always share with {count} user";
+"lng_edit_privacy_lastseen_always#other" = "Always share with {count} users";
+"lng_edit_privacy_lastseen_never_empty" = "Never share with";
+"lng_edit_privacy_lastseen_never#one" = "Never share with {count} user";
+"lng_edit_privacy_lastseen_never#other" = "Never share with {count} users";
 "lng_edit_privacy_lastseen_exceptions" = "These settings will override the values above.";
 "lng_edit_privacy_lastseen_always_title" = "Always share with";
 "lng_edit_privacy_lastseen_never_title" = "Never share with";
 
 "lng_edit_privacy_groups_title" = "Group invite settings";
 "lng_edit_privacy_groups_description" = "You can choose who can add you to groups and channels with granular precision:";
-"lng_edit_privacy_groups_always" = "Always allow{count:| # user| # users}";
-"lng_edit_privacy_groups_never" = "Never allow{count:| # user| # users}";
+"lng_edit_privacy_groups_always_empty" = "Always allow";
+"lng_edit_privacy_groups_always#one" = "Always allow {count} user";
+"lng_edit_privacy_groups_always#other" = "Always allow {count} users";
+"lng_edit_privacy_groups_never_empty" = "Never allow";
+"lng_edit_privacy_groups_never#one" = "Never allow {count} user";
+"lng_edit_privacy_groups_never#other" = "Never allow {count} users";
 "lng_edit_privacy_groups_exceptions" = "These users will or will not be able to add you to groups and channels regardless of the settings above.";
 "lng_edit_privacy_groups_always_title" = "Always allow";
 "lng_edit_privacy_groups_never_title" = "Never allow";
 
 "lng_edit_privacy_calls_title" = "Phone calls privacy";
 "lng_edit_privacy_calls_description" = "You can restrict who can call you:";
-"lng_edit_privacy_calls_always" = "Always allow{count:| # user| # users}";
-"lng_edit_privacy_calls_never" = "Never allow{count:| # user| # users}";
+"lng_edit_privacy_calls_always_empty" = "Always allow";
+"lng_edit_privacy_calls_always#one" = "Always allow {count} user";
+"lng_edit_privacy_calls_always#other" = "Always allow {count} users";
+"lng_edit_privacy_calls_never_empty" = "Never allow";
+"lng_edit_privacy_calls_never#one" = "Never allow {count} user";
+"lng_edit_privacy_calls_never#other" = "Never allow {count} users";
 "lng_edit_privacy_calls_exceptions" = "These users will or will not be able to call you regardless of the settings above.";
 "lng_edit_privacy_calls_always_title" = "Always allow";
 "lng_edit_privacy_calls_never_title" = "Never allow";
 
 "lng_self_destruct_title" = "Account self-destruction";
 "lng_self_destruct_description" = "If you don't come online at least once within this period, your account will be deleted along with all groups, messages and contacts.";
-"lng_self_destruct_months" = "{count:_not_used_|# month|# months}";
-"lng_self_destruct_years" = "{count:_not_used_|# year|# years}";
+"lng_self_destruct_months#one" = "{count} month";
+"lng_self_destruct_months#other" = "{count} months";
+"lng_self_destruct_years#one" = "{count} year";
+"lng_self_destruct_years#other" = "{count} years";
 
 "lng_change_phone_title" = "Change phone number";
 "lng_change_phone_description" = "You can change your Telegram number\nhere. Your account and all your cloud data\n— messages, media, contacts, etc. will be\nmoved to the new number.\n\n[b]Important[/b]: all your Telegram contacts will\nget your [b]new number[/b] added to their address\nbook, provided they had your old number and\nyou haven't blocked them in Telegram.";
@@ -508,7 +542,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_edit_public_link" = "Edit public link";
 "lng_profile_manage_admins" = "Manage administrators";
 "lng_profile_manage_blocklist" = "Manage blocked users";
-"lng_profile_common_groups" = "{count:_not_used_|# group|# groups} in common";
+"lng_profile_common_groups#one" = "{count} group in common";
+"lng_profile_common_groups#other" = "{count} groups in common";
 "lng_profile_common_groups_section" = "Groups in common";
 "lng_profile_participants_section" = "Members";
 "lng_profile_info_section" = "Info";
@@ -548,17 +583,23 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_loading" = "Loading...";
 "lng_profile_shared_media" = "Shared media";
 "lng_profile_no_media" = "No media in this conversation.";
-"lng_profile_photos" = "{count:_not_used_|# photo|# photos}";
+"lng_profile_photos#one" = "{count} photo";
+"lng_profile_photos#other" = "{count} photos";
 "lng_profile_photos_header" = "Photos";
-"lng_profile_videos" = "{count:_not_used_|# video|# videos}";
+"lng_profile_videos#one" = "{count} video";
+"lng_profile_videos#other" = "{count} videos";
 "lng_profile_videos_header" = "Videos";
-"lng_profile_songs" = "{count:_not_used_|# audio file|# audio files}";
+"lng_profile_songs#one" = "{count} audio file";
+"lng_profile_songs#other" = "{count} audio files";
 "lng_profile_songs_header" = "Audio files";
-"lng_profile_files" = "{count:_not_used_|# file|# files}";
+"lng_profile_files#one" = "{count} file";
+"lng_profile_files#other" = "{count} files";
 "lng_profile_files_header" = "Files";
-"lng_profile_audios" = "{count:_not_used_|# voice message|# voice messages}";
+"lng_profile_audios#one" = "{count} voice message";
+"lng_profile_audios#other" = "{count} voice messages";
 "lng_profile_audios_header" = "Voice messages";
-"lng_profile_shared_links" = "{count:_not_used_|# shared link|# shared links}";
+"lng_profile_shared_links#one" = "{count} shared link";
+"lng_profile_shared_links#other" = "{count} shared links";
 "lng_profile_shared_links_header" = "Shared links";
 "lng_profile_copy_phone" = "Copy Phone Number";
 "lng_profile_copy_fullname" = "Copy Name";
@@ -581,7 +622,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_channel_add_admins" = "New administrator";
 "lng_channel_add_members" = "Add members";
 "lng_channel_members" = "Members";
-"lng_channel_only_last_shown" = "Only the last {count:_not_used_|# member is|# members are} shown here";
+"lng_channel_only_last_shown#one" = "Only the last {count} member is shown here";
+"lng_channel_only_last_shown#other" = "Only the last {count} members are shown here";
 "lng_channel_admins" = "Administrators";
 "lng_channel_add_admin" = "Add Administrator";
 "lng_channel_admin_sure" = "Add {user} to administrators?";
@@ -595,7 +637,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_participant_filter" = "Search";
 "lng_participant_invite" = "Invite";
-"lng_participant_invite_sorry" = "Sorry, you can only add the first {count:_not_used|# member|# members} to a channel personally.\n\nFrom now on, people will need to join via your invite link.";
+"lng_participant_invite_sorry#one" = "Sorry, you can only add the first {count} member to a channel personally.\n\nFrom now on, people will need to join via your invite link.";
+"lng_participant_invite_sorry#other" = "Sorry, you can only add the first {count} members to a channel personally.\n\nFrom now on, people will need to join via your invite link.";
 "lng_create_group_back" = "Back";
 "lng_create_group_next" = "Next";
 "lng_create_group_create" = "Create";
@@ -637,8 +680,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_message_empty" = "Empty Message";
 "lng_message_unsupported" = "This message is not supported by your version of Telegram Desktop. Please update to the last version in Settings or install it from {link}";
 
-"lng_duration_seconds" = "{count:_not_used_|# second|# seconds}";
-"lng_duration_minutes_seconds" = "{count_minutes:# min|# min|# min} {count_seconds:# sec|# sec|# sec}";
+"lng_duration_seconds#one" = "{count} second";
+"lng_duration_seconds#other" = "{count} seconds";
+"lng_duration_minsec_minutes#one" = "{count} min";
+"lng_duration_minsec_minutes#other" = "{count} min";
+"lng_duration_minsec_seconds#one" = "{count} sec";
+"lng_duration_minsec_seconds#other" = "{count} sec";
+"lng_duration_minutes_seconds" = "{minutes_count} {seconds_count}";
 
 "lng_action_add_user" = "{from} added {user}";
 "lng_action_add_users_many" = "{from} added {users}";
@@ -676,18 +724,24 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_sticker" = "a sticker";
 "lng_action_pinned_media_emoji_sticker" = "a {emoji} sticker";
 "lng_action_pinned_media_game" = "the game «{game}»";
-"lng_action_game_score" = "{from} scored {count:#|#|#} in {game}";
-"lng_action_game_you_scored" = "You scored {count:#|#|#} in {game}";
-"lng_action_game_score_no_game" = "{from} scored {count:#|#|#}";
-"lng_action_game_you_scored_no_game" = "You scored {count:#|#|#}";
+"lng_action_game_score#one" = "{from} scored {count} in {game}";
+"lng_action_game_score#other" = "{from} scored {count} in {game}";
+"lng_action_game_you_scored#one" = "You scored {count} in {game}";
+"lng_action_game_you_scored#other" = "You scored {count} in {game}";
+"lng_action_game_score_no_game#one" = "{from} scored {count}";
+"lng_action_game_score_no_game#other" = "{from} scored {count}";
+"lng_action_game_you_scored_no_game#one" = "You scored {count}";
+"lng_action_game_you_scored_no_game#other" = "You scored {count}";
 "lng_action_payment_done" = "You have just successfully transferred {amount} to {user}";
 "lng_action_payment_done_for" = "You have just successfully transferred {amount} to {user} for {invoice}";
 
-"lng_profile_migrate_reached" = "{count:_not_used_|# member|# members} limit reached";
+"lng_profile_migrate_reached#one" = "{count} member limit reached";
+"lng_profile_migrate_reached#other" = "{count} members limit reached";
 "lng_profile_migrate_body" = "To get over this limit, you can upgrade your group to a supergroup.";
 "lng_profile_migrate_learn_more" = "Learn more »";
 "lng_profile_migrate_about" = "If you'd like to go over this limit, you can upgrade your group to a supergroup. In supergroups:";
-"lng_profile_migrate_feature1" = "— The members limit is {count:_not_used_|# user|# users}";
+"lng_profile_migrate_feature1#one" = "— The members limit is {count} user";
+"lng_profile_migrate_feature1#other" = "— The members limit is {count} users";
 "lng_profile_migrate_feature2" = "— New members see the entire chat history";
 "lng_profile_migrate_feature3" = "— Admins delete messages for everyone";
 "lng_profile_migrate_feature4" = "— Notifications are muted by default";
@@ -702,7 +756,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_convert_feature4" = "— Creator can set a public link for the group";
 "lng_profile_convert_warning" = "{bold_start}Note:{bold_end} This action can not be undone";
 "lng_profile_convert_confirm" = "Convert";
-"lng_profile_add_more_after_upgrade" = "You will be able to add up to {count:_not_used_|# member|# members} after you upgrade your group to a supergroup.";
+"lng_profile_add_more_after_upgrade#one" = "You will be able to add up to {count} member after you upgrade your group to a supergroup.";
+"lng_profile_add_more_after_upgrade#other" = "You will be able to add up to {count} members after you upgrade your group to a supergroup.";
 
 "lng_channel_not_accessible" = "Sorry, this channel is not accessible.";
 "lng_group_not_accessible" = "Sorry, this group is not accessible.";
@@ -717,7 +772,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_group_invite_want_join_channel" = "Do you want to join the channel «{title}»?";
 "lng_group_invite_join" = "Join";
 
-"lng_group_invite_members" = "{count:_not_used_|# member|# members}, among them:";
+"lng_group_invite_members#one" = "{count} member, among them:";
+"lng_group_invite_members#other" = "{count} members, among them:";
 
 "lng_group_invite_link" = "Invite link:";
 "lng_group_invite_create" = "Create an invite link";
@@ -810,7 +866,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_stickers_you_have" = "Manage and reorder sticker packs";
 "lng_stickers_featured" = "Trending Stickers";
 "lng_stickers_return" = "Undo";
-"lng_stickers_count" = "{count:Loading...|# sticker|# stickers}";
+"lng_stickers_count#one" = "{count} sticker";
+"lng_stickers_count#other" = "{count} stickers";
 "lng_stickers_masks_pack" = "This is a pack of mask stickers. You can use them in the photo editor on our mobile apps.";
 
 "lng_in_dlg_photo" = "Photo";
@@ -885,11 +942,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_typing" = "typing";
 "lng_user_typing" = "{user} is typing";
 "lng_users_typing" = "{user} and {second_user} are typing";
-"lng_many_typing" = "{count:_not_used_|# is|# are} typing";
+"lng_many_typing#one" = "{count} is typing";
+"lng_many_typing#other" = "{count} are typing";
 "lng_playing_game" = "playing a game";
 "lng_user_playing_game" = "{user} is playing a game";
 "lng_users_playing_game" = "{user} and {second_user} are playing a game";
-"lng_many_playing_game" = "{count:_not_used_|# is|# are} playing a game";
+"lng_many_playing_game#one" = "{count} is playing a game";
+"lng_many_playing_game#other" = "{count} are playing a game";
 "lng_send_action_record_video" = "recording a video";
 "lng_user_action_record_video" = "{user} is recording a video";
 "lng_send_action_upload_video" = "sending a video";
@@ -910,7 +969,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_user_action_geo_location" = "{user} is picking a location";
 "lng_send_action_choose_contact" = "choosing a contact";
 "lng_user_action_choose_contact" = "{user} is choosing a contact";
-"lng_unread_bar" = "{count:_not_used_|# unread message|# unread messages}";
+"lng_unread_bar#one" = "{count} unread message";
+"lng_unread_bar#other" = "{count} unread messages";
 
 "lng_maps_point" = "Location";
 "lng_save_photo" = "Save image";
@@ -977,15 +1037,20 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_really_send_image" = "Do you want to send this image?";
 "lng_really_send_file" = "Do you want to send this file?";
 "lng_really_share_contact" = "Do you want to share this contact?";
-"lng_send_images_compress" = "Compress {count:_not_used_|image|images}";
+"lng_send_images_compress#one" = "Compress image";
+"lng_send_images_compress#other" = "Compress images";
 "lng_send_image_non_local" = "Could not send a non local file: {name}";
 "lng_send_image_empty" = "Could not send an empty file: {name}";
 "lng_send_image_too_large" = "Could not send a file, because it is larger than 1500 MB: {name}";
 "lng_send_folder" = "Could not send «{name}» because it is a directory :(";
-"lng_send_images_selected" = "{count:_not_used_|# image|# images} selected";
-"lng_send_photos" = "Send {count:_not_used_|# photo|# photos}";
-"lng_send_files_selected" = "{count:_not_used_|# file|# files} selected";
-"lng_send_files" = "Send {count:_not_used_|# file|# files}";
+"lng_send_images_selected#one" = "{count} image selected";
+"lng_send_images_selected#other" = "{count} images selected";
+"lng_send_photos#one" = "Send {count} photo";
+"lng_send_photos#other" = "Send {count} photos";
+"lng_send_files_selected#one" = "{count} file selected";
+"lng_send_files_selected#other" = "{count} files selected";
+"lng_send_files#one" = "Send {count} file";
+"lng_send_files#other" = "Send {count} files";
 
 "lng_forward_choose" = "Choose recipient...";
 "lng_forward_cant" = "Sorry, no way to forward here :(";
@@ -994,8 +1059,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_forward_send_file_confirm" = "Send «{name}» to {recipient}?";
 "lng_forward_send_files_confirm" = "Send selected files to {recipient}?";
 "lng_forward_send" = "Send";
-"lng_forward_messages" = "{count:_not_used_|Forwarded message|# forwarded messages}";
-"lng_forwarding_from" = "{user} and {count:_not_used_|# other|# others}";
+"lng_forward_messages#one" = "{count} forwarded message";
+"lng_forward_messages#other" = "{count} forwarded messages";
+"lng_forwarding_from#one" = "{user} and {count} other";
+"lng_forwarding_from#other" = "{user} and {count} others";
 "lng_forwarding_from_two" = "{user} and {second_user}";
 "lng_inline_switch_choose" = "Choose conversation...";
 "lng_inline_switch_cant" = "Sorry, no way to write here :(";
@@ -1041,15 +1108,20 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_selected_clear" = "Cancel";
 "lng_selected_delete" = "Delete";
 "lng_selected_forward" = "Forward";
-"lng_selected_count" = "{count:_not_used_|# message|# messages}";
+"lng_selected_count#one" = "{count} message";
+"lng_selected_count#other" = "{count} messages";
 "lng_selected_cancel_sure_this" = "Cancel uploading?";
 "lng_selected_upload_stop" = "Stop";
 "lng_selected_delete_sure_this" = "Do you want to delete this message?";
-"lng_selected_delete_sure" = "Do you want to delete {count:_not_used_|# message|# messages}?";
+"lng_selected_delete_sure#one" = "Do you want to delete {count} message?";
+"lng_selected_delete_sure#other" = "Do you want to delete {count} messages?";
 "lng_delete_photo_sure" = "Do you want to delete this photo?";
-"lng_delete_for_everyone_hint" = "This will delete {count:_not_used_|it|them} for everyone in this chat.";
-"lng_delete_for_me_chat_hint" = "This will delete {count:_not_used_|it|them} just for you, not for other participants of the chat.";
-"lng_delete_for_me_hint" = "This will delete {count:_not_used_|it|them} just for you.";
+"lng_delete_for_everyone_hint#one" = "This will delete it for everyone in this chat.";
+"lng_delete_for_everyone_hint#other" = "This will delete them for everyone in this chat.";
+"lng_delete_for_me_chat_hint#one" = "This will delete it just for you, not for other participants of the chat.";
+"lng_delete_for_me_chat_hint#other" = "This will delete them just for you, not for other participants of the chat.";
+"lng_delete_for_me_hint#one" = "This will delete it just for you.";
+"lng_delete_for_me_hint#other" = "This will delete them just for you.";
 "lng_delete_for_everyone_check" = "Delete for everyone";
 "lng_delete_for_other_check" = "Delete for {user}";
 "lng_box_delete" = "Delete";
@@ -1061,7 +1133,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_about_text_3" = "Visit {faq_open}Telegram FAQ{faq_close} for more info.";
 "lng_about_done" = "Done";
 
-"lng_search_found_results" = "{count:No messages found|Found # message|Found # messages}";
+"lng_search_no_results" = "No messages found";
+"lng_search_found_results#one" = "Found {count} message";
+"lng_search_found_results#other" = "Found {count} messages";
 "lng_search_global_results" = "Global search results";
 
 "lng_media_save_progress" = "{ready} of {total} {mb}";

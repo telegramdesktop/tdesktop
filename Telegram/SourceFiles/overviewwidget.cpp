@@ -810,7 +810,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 	} else if (_inSearch && _searchResults.isEmpty() && _searchFull && (!_migrated || _searchFullMigrated) && !_searchTimer.isActive()) {
 		p.setFont(st::noContactsFont->f);
 		p.setPen(st::noContactsColor->p);
-		p.drawText(QRect(_rowsLeft, _marginTop, _rowWidth, _marginTop), lng_search_found_results(lt_count, 0), style::al_center);
+		p.drawText(QRect(_rowsLeft, _marginTop, _rowWidth, _marginTop), lang(lng_search_no_results), style::al_center);
 		return;
 	}
 

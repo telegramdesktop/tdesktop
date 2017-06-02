@@ -236,8 +236,8 @@ QString LastSeenPrivacyController::warning() {
 
 QString LastSeenPrivacyController::exceptionLinkText(Exception exception, int count) {
 	switch (exception) {
-	case Exception::Always: return lng_edit_privacy_lastseen_always(lt_count, count);
-	case Exception::Never: return lng_edit_privacy_lastseen_never(lt_count, count);
+	case Exception::Always: return (count > 0) ? lng_edit_privacy_lastseen_always(lt_count, count) : lang(lng_edit_privacy_lastseen_always_empty);
+	case Exception::Never: return (count > 0) ? lng_edit_privacy_lastseen_never(lt_count, count) : lang(lng_edit_privacy_lastseen_never_empty);
 	}
 	Unexpected("Invalid exception value.");
 }
@@ -290,8 +290,8 @@ QString GroupsInvitePrivacyController::description() {
 
 QString GroupsInvitePrivacyController::exceptionLinkText(Exception exception, int count) {
 	switch (exception) {
-	case Exception::Always: return lng_edit_privacy_groups_always(lt_count, count);
-	case Exception::Never: return lng_edit_privacy_groups_never(lt_count, count);
+	case Exception::Always: return (count > 0) ? lng_edit_privacy_groups_always(lt_count, count) : lang(lng_edit_privacy_groups_always_empty);
+	case Exception::Never: return (count > 0) ? lng_edit_privacy_groups_never(lt_count, count) : lang(lng_edit_privacy_groups_never_empty);
 	}
 	Unexpected("Invalid exception value.");
 }
@@ -322,8 +322,8 @@ QString CallsPrivacyController::description() {
 
 QString CallsPrivacyController::exceptionLinkText(Exception exception, int count) {
 	switch (exception) {
-	case Exception::Always: return lng_edit_privacy_calls_always(lt_count, count);
-	case Exception::Never: return lng_edit_privacy_calls_never(lt_count, count);
+	case Exception::Always: return (count > 0) ? lng_edit_privacy_calls_always(lt_count, count) : lang(lng_edit_privacy_calls_always_empty);
+	case Exception::Never: return (count > 0) ? lng_edit_privacy_calls_never(lt_count, count) : lang(lng_edit_privacy_calls_never_empty);
 	}
 	Unexpected("Invalid exception value.");
 }

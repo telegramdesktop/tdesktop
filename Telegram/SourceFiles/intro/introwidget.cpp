@@ -256,17 +256,18 @@ void Widget::resetAccount() {
 
 			auto type = error.type();
 			if (type.startsWith(qstr("2FA_CONFIRM_WAIT_"))) {
-				int seconds = type.mid(qstr("2FA_CONFIRM_WAIT_").size()).toInt();
-				int days = (seconds + 59) / 86400;
-				int hours = ((seconds + 59) % 86400) / 3600;
-				int minutes = ((seconds + 59) % 3600) / 60;
-				QString when;
+				auto seconds = type.mid(qstr("2FA_CONFIRM_WAIT_").size()).toInt();
+				auto days = (seconds + 59) / 86400;
+				auto hours = ((seconds + 59) % 86400) / 3600;
+				auto minutes = ((seconds + 59) % 3600) / 60;
+				auto when = lng_signin_reset_minutes(lt_count, minutes);
 				if (days > 0) {
-					when = lng_signin_reset_in_days(lt_count_days, days, lt_count_hours, hours, lt_count_minutes, minutes);
+					auto daysCount = lng_signin_reset_days(lt_count, days);
+					auto hoursCount = lng_signin_reset_hours(lt_count, hours);
+					when = lng_signin_reset_in_days(lt_days_count, daysCount, lt_hours_count, hoursCount, lt_minutes_count, when);
 				} else if (hours > 0) {
-					when = lng_signin_reset_in_hours(lt_count_hours, hours, lt_count_minutes, minutes);
-				} else {
-					when = lng_signin_reset_in_minutes(lt_count_minutes, minutes);
+					auto hoursCount = lng_signin_reset_hours(lt_count, hours);
+					when = lng_signin_reset_in_hours(lt_hours_count, hoursCount, lt_minutes_count, when);
 				}
 				Ui::show(Box<InformBox>(lng_signin_reset_wait(lt_phone_number, App::formatPhone(getData()->phone), lt_when, when)));
 			} else if (type == qstr("2FA_RECENT_CONFIRM")) {

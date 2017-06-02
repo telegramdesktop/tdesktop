@@ -713,9 +713,11 @@ void StickersBox::Inner::paintRow(Painter &p, int index, TimeMs ms) {
 		}
 	}
 
+	auto statusText = (s->count > 0) ? lng_stickers_count(lt_count, s->count) : lang(lng_contacts_loading);
+
 	p.setFont(st::contactsStatusFont);
 	p.setPen(st::contactsStatusFg);
-	p.drawTextLeft(statusx, statusy, width(), lng_stickers_count(lt_count, s->count));
+	p.drawTextLeft(statusx, statusy, width(), statusText);
 
 	p.setOpacity(1);
 	if (xadd || yadd) p.translate(-xadd, -yadd);
