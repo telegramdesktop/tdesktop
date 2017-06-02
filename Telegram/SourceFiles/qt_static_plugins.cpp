@@ -36,4 +36,5 @@ Q_IMPORT_PLUGIN(QNetworkManagerEnginePlugin)
 Q_IMPORT_PLUGIN(QComposePlatformInputContextPlugin)
 Q_IMPORT_PLUGIN(QIbusPlatformInputContextPlugin)
 Q_IMPORT_PLUGIN(QFcitxPlatformInputContextPlugin)
+Q_IMPORT_PLUGIN(QHimePlatformInputContextPlugin)
 #endif // Q_OS_WIN | Q_OS_MAC | Q_OS_LINUX
