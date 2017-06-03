@@ -30,6 +30,8 @@ constexpr const str_const LanguageCodes[] = {
 	"nl",
 	"pt_BR",
 	"ko",
+	"ru",
+	"uk",
 };
 constexpr const int languageTest = -1, languageDefault = 0, languageCount = base::array_size(LanguageCodes);
 
