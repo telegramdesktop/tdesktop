@@ -609,7 +609,7 @@ ContactsBox::Inner::Inner(QWidget *parent, UserData *bot) : TWidget(parent)
 		addDialogsToList([](PeerData *peer) {
 			if (peer->isChat() && peer->asChat()->canEdit()) {
 				return true;
-			} else if (peer->isMegagroup() && (peer->asChannel()->amCreator() || peer->asChannel()->amEditor())) {
+			} else if (peer->isMegagroup() && peer->asChannel()->canAddMembers()) {
 				return true;
 			}
 			return false;
@@ -1414,7 +1414,7 @@ void ContactsBox::Inner::chooseParticipant() {
 				if (_addAdminBox) _addAdminBox->deleteLater();
 				_addAdminBox = Ui::show(Box<ConfirmBox>(lng_channel_admin_sure(lt_user, _addAdmin->firstName), base::lambda_guarded(this, [this] {
 					if (_addAdminRequestId) return;
-					_addAdminRequestId = MTP::send(MTPchannels_EditAdmin(_channel->inputChannel, _addAdmin->inputUser, MTP_channelRoleEditor()), rpcDone(&Inner::addAdminDone), rpcFail(&Inner::addAdminFail));
+//					_addAdminRequestId = MTP::send(MTPchannels_EditAdmin(_channel->inputChannel, _addAdmin->inputUser, MTP_channelRoleEditor()), rpcDone(&Inner::addAdminDone), rpcFail(&Inner::addAdminFail));
 				})), KeepOtherLayers);
 			} else if (sharingBotGame()) {
 				_addToPeer = peer;

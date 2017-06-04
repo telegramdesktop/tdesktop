@@ -754,7 +754,13 @@ void HistoryItem::setId(MsgId newId) {
 }
 
 bool HistoryItem::canPin() const {
-	return id > 0 && _history->peer->isMegagroup() && (_history->peer->asChannel()->amEditor() || _history->peer->asChannel()->amCreator()) && toHistoryMessage();
+	if (id < 0 || !_history->peer->isMegagroup() || !toHistoryMessage()) {
+		return false;
+	}
+	if (auto channel = _history->peer->asMegagroup()) {
+		return channel->canPinMessages();
+	}
+	return false;
 }
 
 bool HistoryItem::canForward() const {
@@ -773,27 +779,28 @@ bool HistoryItem::canForward() const {
 }
 
 bool HistoryItem::canEdit(const QDateTime &cur) const {
-	auto messageToMyself = (_history->peer->id == AuthSession::CurrentUserPeerId());
+	auto messageToMyself = _history->peer->isSelf();
 	auto messageTooOld = messageToMyself ? false : (date.secsTo(cur) >= Global::EditTimeLimit());
 	if (id < 0 || messageTooOld) {
 		return false;
 	}
 
-	if (auto msg = toHistoryMessage()) {
-		if (msg->Has<HistoryMessageVia>() || msg->Has<HistoryMessageForwarded>()) {
+	if (auto message = toHistoryMessage()) {
+		if (message->Has<HistoryMessageVia>() || message->Has<HistoryMessageForwarded>()) {
 			return false;
 		}
 
-		if (auto media = msg->getMedia()) {
+		if (auto media = message->getMedia()) {
 			if (!media->canEditCaption() && media->type() != MediaTypeWebPage) {
 				return false;
 			}
 		}
-		if (isPost()) {
-			auto channel = _history->peer->asChannel();
-			return (channel->amCreator() || (channel->amEditor() && out()));
+		if (out() || messageToMyself) {
+			return true;
 		}
-		return out() || messageToMyself;
+		if (auto channel = _history->peer->asChannel()) {
+			return channel->canDeleteMessages();
+		}
 	}
 	return false;
 }
@@ -811,16 +818,16 @@ bool HistoryItem::canDelete() const {
 		return true;
 	}
 	if (isPost()) {
-		if (channel->amEditor() && out()) {
+		if (out()) {
 			return true;
 		}
 		return false;
 	}
-	return (channel->amEditor() || channel->amModerator() || out());
+	return (channel->canDeleteMessages() || out());
 }
 
 bool HistoryItem::canDeleteForEveryone(const QDateTime &cur) const {
-	auto messageToMyself = (_history->peer->id == AuthSession::CurrentUserPeerId());
+	auto messageToMyself = _history->peer->isSelf();
 	auto messageTooOld = messageToMyself ? false : (date.secsTo(cur) >= Global::EditTimeLimit());
 	if (id < 0 || messageToMyself || messageTooOld || isPost()) {
 		return false;
@@ -846,6 +853,22 @@ bool HistoryItem::canDeleteForEveryone(const QDateTime &cur) const {
 		}
 	}
 	return true;
+}
+
+bool HistoryItem::suggestBanReport() const {
+	auto channel = history()->peer->asChannel();
+	if (!channel || !channel->canBanMembers()) {
+		return false;
+	}
+	return !isPost() && !out() && from()->isUser() && toHistoryMessage();
+}
+
+bool HistoryItem::suggestDeleteAllReport() const {
+	auto channel = history()->peer->asChannel();
+	if (!channel || !channel->canDeleteMessages()) {
+		return false;
+	}
+	return !isPost() && !out() && from()->isUser() && toHistoryMessage();
 }
 
 QString HistoryItem::directLink() const {

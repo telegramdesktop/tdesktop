@@ -75,7 +75,7 @@ void BlockedBoxController::preloadRows() {
 		return;
 	}
 
-	_loadRequestId = request(MTPchannels_GetParticipants(_channel->inputChannel, MTP_channelParticipantsKicked(), MTP_int(_offset), MTP_int(kBlockedPerPage))).done([this](const MTPchannels_ChannelParticipants &result) {
+	_loadRequestId = request(MTPchannels_GetParticipants(_channel->inputChannel, MTP_channelParticipantsKicked(MTP_string("")), MTP_int(_offset), MTP_int(kBlockedPerPage))).done([this](const MTPchannels_ChannelParticipants &result) {
 		Expects(result.type() == mtpc_channels_channelParticipants);
 
 		_loadRequestId = 0;
@@ -92,11 +92,15 @@ void BlockedBoxController::preloadRows() {
 		} else {
 			for_const (auto &participant, list) {
 				++_offset;
-				if (participant.type() != mtpc_channelParticipantKicked) {
-					LOG(("API Error: Non kicked participant got while requesting for kicked participants: %1").arg(participant.type()));
+				if (participant.type() != mtpc_channelParticipantBanned) {
+					LOG(("API Error: Non banned participant got while requesting for kicked participants: %1").arg(participant.type()));
 					continue;
 				}
-				auto &kicked = participant.c_channelParticipantKicked();
+				auto &kicked = participant.c_channelParticipantBanned();
+				if (!kicked.is_left()) {
+					LOG(("API Error: Non left participant got while requesting for kicked participants."));
+					continue;
+				}
 				auto userId = kicked.vuser_id.v;
 				if (auto user = App::userLoaded(userId)) {
 					appendRow(user);
@@ -265,7 +269,7 @@ void SettingsWidget::refreshManageAdminsButton() {
 void SettingsWidget::refreshManageBlockedUsersButton() {
 	auto hasManageBlockedUsers = [this] {
 		if (auto channel = peer()->asMegagroup()) {
-			return (channel->amCreator() || channel->amEditor()) && (channel->kickedCount() > 0);
+			return channel->canBanMembers() && (channel->kickedCount() > 0);
 		}
 		return false;
 	};

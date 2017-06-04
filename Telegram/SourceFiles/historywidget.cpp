@@ -5384,9 +5384,9 @@ void HistoryWidget::updatePinnedBar(bool force) {
 }
 
 bool HistoryWidget::pinnedMsgVisibilityUpdated() {
-	bool result = false;
-	MsgId pinnedMsgId = (_peer && _peer->isMegagroup()) ? _peer->asChannel()->mgInfo->pinnedMsgId : 0;
-	if (pinnedMsgId && !_peer->asChannel()->amCreator() && !_peer->asChannel()->amEditor()) {
+	auto result = false;
+	auto pinnedMsgId = (_peer && _peer->isMegagroup()) ? _peer->asChannel()->mgInfo->pinnedMsgId : 0;
+	if (pinnedMsgId && !_peer->asChannel()->canPinMessages()) {
 		Global::HiddenPinnedMessagesMap::const_iterator it = Global::HiddenPinnedMessages().constFind(_peer->id);
 		if (it != Global::HiddenPinnedMessages().cend()) {
 			if (it.value() == pinnedMsgId) {
@@ -5715,7 +5715,7 @@ void HistoryWidget::onPinnedHide() {
 		return;
 	}
 
-	if (_peer->asChannel()->amCreator() || _peer->asChannel()->amEditor()) {
+	if (_peer->asChannel()->canPinMessages()) {
 		onUnpinMessage();
 	} else {
 		Global::RefHiddenPinnedMessages().insert(_peer->id, _peer->asChannel()->mgInfo->pinnedMsgId);

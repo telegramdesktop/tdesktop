@@ -822,12 +822,20 @@ for restype in typesList:
 for childName in parentFlagsList:
   parentName = parentFlags[childName];
   for flag in parentFlagsCheck[childName]:
-    if (not flag in parentFlagsCheck[parentName]):
-      print('Flag ' + flag + ' not found in ' + parentName + ' which should be a flags-parent of ' + childName);
-      error
-    elif (parentFlagsCheck[childName][flag] != parentFlagsCheck[parentName][flag]):
-      print('Flag ' + flag + ' has different value in ' + parentName + ' which should be a flags-parent of ' + childName);
-      error
+#
+# 'channelForbidden' has 'until_date' flag and 'channel' doesn't have it.
+# But as long as flags don't collide this is not a problem.
+#
+#    if (not flag in parentFlagsCheck[parentName]):
+#      print('Flag ' + flag + ' not found in ' + parentName + ' which should be a flags-parent of ' + childName);
+#      error
+#
+    if (flag in parentFlagsCheck[parentName]):
+      if (parentFlagsCheck[childName][flag] != parentFlagsCheck[parentName][flag]):
+        print('Flag ' + flag + ' has different value in ' + parentName + ' which should be a flags-parent of ' + childName);
+        error
+    else:
+      parentFlagsCheck[parentName][flag] = parentFlagsCheck[childName][flag];
   inlineMethods += 'inline ' + parentName + '::Flags mtpCastFlags(' + childName + '::Flags flags) { return ' + parentName + '::Flags(QFlag(flags)); }\n';
   inlineMethods += 'inline ' + parentName + '::Flags mtpCastFlags(MTPflags<' + childName + '::Flags> flags) { return mtpCastFlags(flags.v); }\n';
 

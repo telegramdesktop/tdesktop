@@ -583,9 +583,14 @@ public:
 	UserId creator = 0;
 
 	MTPDchat::Flags flags = 0;
-	bool isForbidden = false;
+	bool isForbidden() const {
+		return _isForbidden;
+	}
+	void setIsForbidden(bool forbidden) {
+		_isForbidden = forbidden;
+	}
 	bool amIn() const {
-		return !isForbidden && !haveLeft() && !wasKicked();
+		return !isForbidden() && !haveLeft() && !wasKicked();
 	}
 	bool canEdit() const {
 		return !isDeactivated() && (amCreator() || (adminsEnabled() ? amAdmin() : amIn()));
@@ -633,6 +638,7 @@ public:
 	}
 
 private:
+	bool _isForbidden = false;
 	QString _inviteLink;
 
 };
@@ -764,6 +770,25 @@ public:
 	}
 	void setKickedCount(int newKickedCount);
 
+	bool haveLeft() const {
+		return flags & MTPDchannel::Flag::f_left;
+	}
+	bool amIn() const {
+		return !isForbidden() && !haveLeft();
+	}
+	bool addsSignature() const {
+		return flags & MTPDchannel::Flag::f_signatures;
+	}
+	bool isForbidden() const {
+		return _isForbidden;
+	}
+	void setIsForbidden(bool forbidden) {
+		_isForbidden = forbidden;
+	}
+	bool isVerified() const {
+		return flags & MTPDchannel::Flag::f_verified;
+	}
+
 	int32 date = 0;
 	int version = 0;
 	MTPDchannel::Flags flags = { 0 };
@@ -794,22 +819,43 @@ public:
 		return flags & MTPDchannel::Flag::f_creator;
 	}
 	bool amEditor() const {
-		return flags & MTPDchannel::Flag::f_editor;
+		return hasAdminRights();
 	}
-	bool amModerator() const {
-		return flags & MTPDchannel::Flag::f_moderator;
+	const MTPDchannelAdminRights &adminRights() const {
+		return _adminRights.c_channelAdminRights();
 	}
-	bool haveLeft() const {
-		return flags & MTPDchannel::Flag::f_left;
+	void setAdminRights(const MTPChannelAdminRights &rights) {
+		_adminRights = rights;
 	}
-	bool wasKicked() const {
-		return flags & MTPDchannel::Flag::f_kicked;
+	bool hasAdminRights() const {
+		return (adminRights().vflags.v != 0);
 	}
-	bool amIn() const {
-		return !isForbidden && !haveLeft() && !wasKicked();
+	const MTPDchannelBannedRights &bannedRights() const {
+		return _bannedRights.c_channelBannedRights();
+	}
+	void setBannedRights(const MTPChannelBannedRights &rights) {
+		_bannedRights = rights;
+	}
+	bool hasBannedRights() const {
+		return (bannedRights().vflags.v != 0);
+	}
+	bool hasBannedRights(int32 now) const {
+		return hasBannedRights() && (bannedRights().vuntil_date.v > now);
+	}
+	bool canBanMembers() const {
+		return adminRights().is_ban_users() || amCreator();
+	}
+	bool canDeleteMessages() const {
+		return adminRights().is_delete_messages() || amCreator();
+	}
+	bool canAddMembers() const {
+		return adminRights().is_invite_users() || amCreator() || (amIn() && (flags & MTPDchannel::Flag::f_democracy));
+	}
+	bool canPinMessages() const {
+		return adminRights().is_pin_messages() || amCreator();
 	}
 	bool canPublish() const {
-		return amCreator() || amEditor();
+		return adminRights().is_post_messages() || amCreator();
 	}
 	bool canWrite() const {
 		return amIn() && (canPublish() || !isBroadcast());
@@ -818,29 +864,18 @@ public:
 		return flagsFull & MTPDchannelFull::Flag::f_can_view_participants;
 	}
 	bool canViewAdmins() const {
-		return (isMegagroup() || amCreator() || amEditor() || amModerator());
+		return (isMegagroup() || hasAdminRights() || amCreator());
 	}
-	bool addsSignature() const {
-		return flags & MTPDchannel::Flag::f_signatures;
-	}
-	bool isForbidden = true;
-	bool isVerified() const {
-		return flags & MTPDchannel::Flag::f_verified;
-	}
-	bool canAddMembers() const {
-		return amCreator() || amEditor() || (amIn() && (flags & MTPDchannel::Flag::f_democracy));
-	}
-	bool canEditPhoto() const {
-		return amCreator() || (amEditor() && isMegagroup());
+	bool canEditInformation() const {
+		return adminRights().is_change_info() || amCreator();
 	}
 	bool canEditUsername() const {
 		return amCreator() && (flagsFull & MTPDchannelFull::Flag::f_can_set_username);
 	}
 	bool canDelete() const {
-		return amCreator() && (membersCount() <= 1000);
+		constexpr auto kDeleteChannelMembersLimit = 1000;
+		return amCreator() && (membersCount() <= kDeleteChannelMembersLimit);
 	}
-
-//	ImagePtr photoFull;
 
 	void setInviteLink(const QString &newInviteLink);
 	QString inviteLink() const {
@@ -902,9 +937,13 @@ private:
 	PtsWaiter _ptsWaiter;
 	TimeMs _lastFullUpdate = 0;
 
+	bool _isForbidden = true;
 	int _membersCount = 1;
 	int _adminsCount = 1;
 	int _kickedCount = 0;
+
+	MTPChannelAdminRights _adminRights = MTP_channelAdminRights(MTP_flags(0));
+	MTPChannelBannedRights _bannedRights = MTP_channelBannedRights(MTP_flags(0), MTP_int(0));
 
 	QString _restrictionReason;
 	QString _about;

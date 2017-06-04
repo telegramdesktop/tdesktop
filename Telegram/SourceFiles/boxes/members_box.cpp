@@ -231,9 +231,9 @@ void MembersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 					auto text = (_filter == MembersFilter::Recent ? (_channel->isMegagroup() ? lng_profile_sure_kick : lng_profile_sure_kick_channel) : lng_profile_sure_kick_admin)(lt_user, _kickConfirm->firstName);
 					_kickBox = Ui::show(Box<ConfirmBox>(text, base::lambda_guarded(this, [this] {
 						if (_filter == MembersFilter::Recent) {
-							_kickRequestId = MTP::send(MTPchannels_KickFromChannel(_channel->inputChannel, _kickConfirm->inputUser, MTP_bool(true)), rpcDone(&Inner::kickDone), rpcFail(&Inner::kickFail));
+//							_kickRequestId = MTP::send(MTPchannels_KickFromChannel(_channel->inputChannel, _kickConfirm->inputUser, MTP_bool(true)), rpcDone(&Inner::kickDone), rpcFail(&Inner::kickFail));
 						} else {
-							_kickRequestId = MTP::send(MTPchannels_EditAdmin(_channel->inputChannel, _kickConfirm->inputUser, MTP_channelRoleEmpty()), rpcDone(&Inner::kickAdminDone), rpcFail(&Inner::kickFail));
+	//						_kickRequestId = MTP::send(MTPchannels_EditAdmin(_channel->inputChannel, _kickConfirm->inputUser, MTP_channelRoleEmpty()), rpcDone(&Inner::kickAdminDone), rpcFail(&Inner::kickFail));
 						}
 					})), KeepOtherLayers);
 				}
@@ -433,9 +433,9 @@ MembersBox::Inner::MemberData *MembersBox::Inner::data(int32 index) {
 	result->online = App::onlineText(_rows[index], t);// lng_mediaview_date_time(lt_date, _dates[index].date().toString(qsl("dd.MM.yy")), lt_time, _dates[index].time().toString(cTimeFormat()));
 	result->onlineColor = App::onlineColorUse(_rows[index], t);
 	if (_filter == MembersFilter::Recent) {
-		result->canKick = (_channel->amCreator() || _channel->amEditor() || _channel->amModerator()) ? (_roles[index] == MemberRole::None) : false;
+		result->canKick = _channel->canBanMembers() ? (_roles[index] == MemberRole::None) : false;
 	} else if (_filter == MembersFilter::Admins) {
-		result->canKick = _channel->amCreator() ? (_roles[index] == MemberRole::Editor || _roles[index] == MemberRole::Moderator) : false;
+		result->canKick = _channel->amCreator() ? (_roles[index] == MemberRole::Admin) : false;
 	} else {
 		result->canKick = false;
 	}
@@ -548,28 +548,22 @@ void MembersBox::Inner::membersReceived(const MTPchannels_ChannelParticipants &r
 			userId = i->c_channelParticipantSelf().vuser_id.v;
 			addedTime = i->c_channelParticipantSelf().vdate.v;
 			break;
-		case mtpc_channelParticipantModerator:
-			role = MemberRole::Moderator;
-			userId = i->c_channelParticipantModerator().vuser_id.v;
-			addedTime = i->c_channelParticipantModerator().vdate.v;
-			break;
-		case mtpc_channelParticipantEditor:
-			role = MemberRole::Editor;
-			userId = i->c_channelParticipantEditor().vuser_id.v;
-			addedTime = i->c_channelParticipantEditor().vdate.v;
-			break;
-		case mtpc_channelParticipantKicked:
-			userId = i->c_channelParticipantKicked().vuser_id.v;
-			addedTime = i->c_channelParticipantKicked().vdate.v;
-			role = MemberRole::Kicked;
+		case mtpc_channelParticipantAdmin:
+			role = MemberRole::Admin;
+			userId = i->c_channelParticipantAdmin().vuser_id.v;
+			addedTime = i->c_channelParticipantAdmin().vdate.v;
 			break;
 		case mtpc_channelParticipantCreator:
 			userId = i->c_channelParticipantCreator().vuser_id.v;
 			addedTime = _channel->date;
 			role = MemberRole::Creator;
 			break;
+		case mtpc_channelParticipantBanned:
+			userId = i->c_channelParticipantBanned().vuser_id.v;
+			addedTime = i->c_channelParticipantBanned().vdate.v;
+			role = MemberRole::Kicked;
 		}
-		if (UserData *user = App::userLoaded(userId)) {
+		if (auto user = App::userLoaded(userId)) {
 			_rows.push_back(user);
 			_dates.push_back(date(addedTime));
 			_roles.push_back(role);
@@ -581,7 +575,7 @@ void MembersBox::Inner::membersReceived(const MTPchannels_ChannelParticipants &r
 	if (_filter == MembersFilter::Admins && _channel->isMegagroup() && _rows.size() < Global::ChatSizeMax()) {
 		_channel->mgInfo->lastAdmins.clear();
 		for (int32 i = 0, l = _rows.size(); i != l; ++i) {
-			if (_roles.at(i) == MemberRole::Creator || _roles.at(i) == MemberRole::Editor) {
+			if (_roles.at(i) == MemberRole::Creator || _roles.at(i) == MemberRole::Admin) {
 				_channel->mgInfo->lastAdmins.insert(_rows.at(i));
 			}
 		}

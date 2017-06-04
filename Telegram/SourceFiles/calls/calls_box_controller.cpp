@@ -215,7 +215,7 @@ void BoxController::preloadRows() {
 		return;
 	}
 
-	_loadRequestId = request(MTPmessages_Search(MTP_flags(0), MTP_inputPeerEmpty(), MTP_string(QString()), MTP_inputMessagesFilterPhoneCalls(MTP_flags(0)), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_offsetId), MTP_int(_offsetId ? kFirstPageCount : kPerPageCount))).done([this](const MTPmessages_Messages &result) {
+	_loadRequestId = request(MTPmessages_Search(MTP_flags(0), MTP_inputPeerEmpty(), MTP_string(QString()), MTP_inputUserEmpty(), MTP_inputMessagesFilterPhoneCalls(MTP_flags(0)), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(_offsetId), MTP_int(_offsetId ? kFirstPageCount : kPerPageCount))).done([this](const MTPmessages_Messages &result) {
 		_loadRequestId = 0;
 
 		auto handleResult = [this](auto &data) {

@@ -74,13 +74,13 @@ void GroupMembersWidget::addAdmin(PeerData *selectedPeer) {
 		if (auto chat = peer()->asChat()) {
 			// not supported
 		} else if (auto channel = peer()->asMegagroup()) {
-			MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, MTP_channelRoleEditor()), rpcDone(base::lambda_guarded(this, [this, channel, user](const MTPUpdates &result) {
-				if (App::main()) App::main()->sentUpdatesReceived(result);
-				channel->mgInfo->lastAdmins.insert(user);
-				channel->setAdminsCount(channel->adminsCount() + 1);
-				if (App::main()) emit App::main()->peerUpdated(channel);
-				Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::AdminsChanged);
-			})));
+			//MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, MTP_channelRoleEditor()), rpcDone(base::lambda_guarded(this, [this, channel, user](const MTPUpdates &result) {
+			//	if (App::main()) App::main()->sentUpdatesReceived(result);
+			//	channel->mgInfo->lastAdmins.insert(user);
+			//	channel->setAdminsCount(channel->adminsCount() + 1);
+			//	if (App::main()) emit App::main()->peerUpdated(channel);
+			//	Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::AdminsChanged);
+			//})));
 		}
 	})));
 }
@@ -93,15 +93,15 @@ void GroupMembersWidget::removeAdmin(PeerData *selectedPeer) {
 		if (auto chat = peer()->asChat()) {
 			// not supported
 		} else if (auto channel = peer()->asMegagroup()) {
-			MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, MTP_channelRoleEmpty()), rpcDone(base::lambda_guarded(this, [this, channel, user](const MTPUpdates &result) {
-				if (App::main()) App::main()->sentUpdatesReceived(result);
-				channel->mgInfo->lastAdmins.remove(user);
-				if (channel->adminsCount() > 1) {
-					channel->setAdminsCount(channel->adminsCount() - 1);
-					if (App::main()) emit App::main()->peerUpdated(channel);
-				}
-				Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::AdminsChanged);
-			})));
+			//MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, MTP_channelRoleEmpty()), rpcDone(base::lambda_guarded(this, [this, channel, user](const MTPUpdates &result) {
+			//	if (App::main()) App::main()->sentUpdatesReceived(result);
+			//	channel->mgInfo->lastAdmins.remove(user);
+			//	if (channel->adminsCount() > 1) {
+			//		channel->setAdminsCount(channel->adminsCount() - 1);
+			//		if (App::main()) emit App::main()->peerUpdated(channel);
+			//	}
+			//	Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::AdminsChanged);
+			//})));
 		}
 	})));
 }
@@ -326,7 +326,7 @@ void GroupMembersWidget::checkSelfAdmin(ChatData *chat) {
 void GroupMembersWidget::checkSelfAdmin(ChannelData *megagroup) {
 	if (megagroup->mgInfo->lastParticipants.isEmpty()) return;
 
-	bool amAdmin = (megagroup->amCreator() || megagroup->amEditor());
+	auto amAdmin = megagroup->hasAdminRights() || megagroup->amCreator();
 	auto self = App::self();
 	if (amAdmin && !megagroup->mgInfo->lastAdmins.contains(self)) {
 		megagroup->mgInfo->lastAdmins.insert(self);
@@ -468,12 +468,12 @@ bool GroupMembersWidget::addUsersToEnd(ChannelData *megagroup) {
 }
 
 void GroupMembersWidget::setItemFlags(Item *item, ChannelData *megagroup) {
-	auto amCreatorOrAdmin = (item->peer->id == AuthSession::CurrentUserPeerId()) && (megagroup->amCreator() || megagroup->amEditor());
+	auto amCreatorOrAdmin = item->peer->isSelf() && (megagroup->hasAdminRights() || megagroup->amCreator());
 	auto isAdmin = megagroup->mgInfo->lastAdmins.contains(getMember(item)->user());
 	item->hasAdminStar = amCreatorOrAdmin || isAdmin;
 	if (item->peer->isSelf()) {
 		item->hasRemoveLink = false;
-	} else if (megagroup->amCreator() || (megagroup->amEditor() && !item->hasAdminStar)) {
+	} else if (megagroup->amCreator() || (megagroup->canBanMembers() && !item->hasAdminStar)) {
 		item->hasRemoveLink = true;
 	} else {
 		item->hasRemoveLink = false;

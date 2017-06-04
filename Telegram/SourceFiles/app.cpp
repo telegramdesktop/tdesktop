@@ -640,7 +640,7 @@ namespace {
 			cdata->flags = d.vflags.v;
 
 			cdata->count = d.vparticipants_count.v;
-			cdata->isForbidden = false;
+			cdata->setIsForbidden(false);
 			if (canEdit != cdata->canEdit()) {
 				update.flags |= UpdateFlag::ChatCanEdit;
 			}
@@ -659,13 +659,13 @@ namespace {
 			cdata->count = -1;
 			cdata->invalidateParticipants();
 			cdata->flags = 0;
-			cdata->isForbidden = true;
+			cdata->setIsForbidden(true);
 			if (canEdit != cdata->canEdit()) {
 				update.flags |= UpdateFlag::ChatCanEdit;
 			}
 		} break;
 		case mtpc_channel: {
-			auto &d(chat.c_channel());
+			auto &d = chat.c_channel();
 
 			auto peerId = peerFromChannel(d.vid.v);
 			minimal = d.is_min();
@@ -681,7 +681,7 @@ namespace {
 
 			auto cdata = data->asChannel();
 			auto wasInChannel = cdata->amIn();
-			auto canEditPhoto = cdata->canEditPhoto();
+			auto canEditInformation = cdata->canEditInformation();
 			auto canViewAdmins = cdata->canViewAdmins();
 			auto canViewMembers = cdata->canViewMembers();
 			auto canAddMembers = cdata->canAddMembers();
@@ -691,6 +691,12 @@ namespace {
 				auto mask = MTPDchannel::Flag::f_broadcast | MTPDchannel::Flag::f_verified | MTPDchannel::Flag::f_megagroup | MTPDchannel::Flag::f_democracy;
 				cdata->flags = (cdata->flags & ~mask) | (d.vflags.v & mask);
 			} else {
+				if (d.has_admin_rights() || cdata->hasAdminRights()) {
+					cdata->setAdminRights(d.has_admin_rights() ? d.vadmin_rights : MTP_channelAdminRights(MTP_flags(0)));
+				}
+				if (d.has_banned_rights() || cdata->hasBannedRights()) {
+					cdata->setBannedRights(d.has_banned_rights() ? d.vbanned_rights : MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
+				}
 				cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
 				cdata->access = d.vaccess_hash.v;
 				cdata->date = d.vdate.v;
@@ -709,11 +715,11 @@ namespace {
 			QString uname = d.has_username() ? textOneLine(qs(d.vusername)) : QString();
 			cdata->setName(qs(d.vtitle), uname);
 
-			cdata->isForbidden = false;
+			cdata->setIsForbidden(false);
 			cdata->setPhoto(d.vphoto);
 
 			if (wasInChannel != cdata->amIn()) update.flags |= UpdateFlag::ChannelAmIn;
-			if (canEditPhoto != cdata->canEditPhoto()) update.flags |= UpdateFlag::ChannelCanEditPhoto;
+			if (canEditInformation != cdata->canEditInformation()) update.flags |= UpdateFlag::ChannelCanEditInformation;
 			if (canViewAdmins != cdata->canViewAdmins()) update.flags |= UpdateFlag::ChannelCanViewAdmins;
 			if (canViewMembers != cdata->canViewMembers()) update.flags |= UpdateFlag::ChannelCanViewMembers;
 			if (canAddMembers != cdata->canAddMembers()) update.flags |= UpdateFlag::ChannelCanAddMembers;
@@ -731,7 +737,7 @@ namespace {
 
 			auto cdata = data->asChannel();
 			auto wasInChannel = cdata->amIn();
-			auto canEditPhoto = cdata->canEditPhoto();
+			auto canEditInformation = cdata->canEditInformation();
 			auto canViewAdmins = cdata->canViewAdmins();
 			auto canViewMembers = cdata->canViewMembers();
 			auto canAddMembers = cdata->canAddMembers();
@@ -743,16 +749,23 @@ namespace {
 			cdata->flags = (cdata->flags & ~mask) | (mtpCastFlags(d.vflags) & mask);
 			cdata->flagsUpdated();
 
+			if (cdata->hasAdminRights()) {
+				cdata->setAdminRights(MTP_channelAdminRights(MTP_flags(0)));
+			}
+			if (cdata->hasBannedRights()) {
+				cdata->setBannedRights(MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
+			}
+
 			cdata->setName(qs(d.vtitle), QString());
 
 			cdata->access = d.vaccess_hash.v;
 			cdata->setPhoto(MTP_chatPhotoEmpty());
 			cdata->date = 0;
 			cdata->setMembersCount(0);
-			cdata->isForbidden = true;
+			cdata->setIsForbidden(true);
 
 			if (wasInChannel != cdata->amIn()) update.flags |= UpdateFlag::ChannelAmIn;
-			if (canEditPhoto != cdata->canEditPhoto()) update.flags |= UpdateFlag::ChannelCanEditPhoto;
+			if (canEditInformation != cdata->canEditInformation()) update.flags |= UpdateFlag::ChannelCanEditInformation;
 			if (canViewAdmins != cdata->canViewAdmins()) update.flags |= UpdateFlag::ChannelCanViewAdmins;
 			if (canViewMembers != cdata->canViewMembers()) update.flags |= UpdateFlag::ChannelCanViewMembers;
 			if (canAddMembers != cdata->canAddMembers()) update.flags |= UpdateFlag::ChannelCanAddMembers;

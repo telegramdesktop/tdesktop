@@ -188,9 +188,8 @@ private:
 		None,
 		Self,
 		Creator,
-		Editor,
-		Moderator,
-		Kicked
+		Admin,
+		Kicked,
 	};
 
 	bool _loading = true;

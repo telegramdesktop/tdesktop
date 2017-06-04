@@ -117,7 +117,7 @@ void FixedBar::setChatActions() {
 }
 
 void FixedBar::setMegagroupActions() {
-	if (_peerMegagroup->amCreator() || _peerMegagroup->amEditor()) {
+	if (_peerMegagroup->amCreator() || _peerMegagroup->canEditInformation()) {
 		addRightAction(RightActionType::EditChannel, langFactory(lng_profile_edit_contact), SLOT(onEditChannel()));
 	}
 }

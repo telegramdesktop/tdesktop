@@ -189,6 +189,8 @@ private:
 	bool _singleItem = false;
 	UserData *_moderateFrom = nullptr;
 	ChannelData *_moderateInChannel = nullptr;
+	bool _moderateBan = false;
+	bool _moderateDeleteAll = false;
 
 	object_ptr<Ui::FlatLabel> _text = { nullptr };
 	object_ptr<Ui::Checkbox> _forEveryone = { nullptr };

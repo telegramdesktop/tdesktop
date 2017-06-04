@@ -45,7 +45,7 @@ using UpdateFlag = Notify::PeerUpdate::Flag;
 const auto ButtonsUpdateFlags = UpdateFlag::UserCanShareContact
 	| UpdateFlag::BotCanAddToGroups
 	| UpdateFlag::ChatCanEdit
-	| UpdateFlag::ChannelCanEditPhoto
+	| UpdateFlag::ChannelCanEditInformation
 	| UpdateFlag::ChannelCanAddMembers
 	| UpdateFlag::ChannelAmIn;
 
@@ -232,9 +232,9 @@ void CoverWidget::dropAreaHidden(CoverDropArea *dropArea) {
 bool CoverWidget::canEditPhoto() const {
 	if (_peerChat && _peerChat->canEdit()) {
 		return true;
-	} else if (_peerMegagroup && _peerMegagroup->canEditPhoto()) {
+	} else if (_peerMegagroup && _peerMegagroup->canEditInformation()) {
 		return true;
-	} else if (_peerChannel && _peerChannel->canEditPhoto()) {
+	} else if (_peerChannel && _peerChannel->canEditInformation()) {
 		return true;
 	}
 	return false;
@@ -437,7 +437,7 @@ void CoverWidget::setChatButtons() {
 
 void CoverWidget::setMegagroupButtons() {
 	if (_peerMegagroup->amIn()) {
-		if (_peerMegagroup->canEditPhoto()) {
+		if (_peerMegagroup->canEditInformation()) {
 			addButton(langFactory(lng_profile_set_group_photo), SLOT(onSetPhoto()));
 		}
 	} else {

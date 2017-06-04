@@ -408,9 +408,13 @@ bool PinMessageBox::pinFail(const RPCError &error) {
 
 DeleteMessagesBox::DeleteMessagesBox(QWidget*, HistoryItem *item, bool suggestModerateActions) : _singleItem(true) {
 	_ids.push_back(item->fullId());
-	if (suggestModerateActions && item->suggestBanReportDeleteAll()) {
-		_moderateFrom = item->from()->asUser();
-		_moderateInChannel = item->history()->peer->asChannel();
+	if (suggestModerateActions) {
+		_moderateBan = item->suggestBanReport();
+		_moderateDeleteAll = item->suggestDeleteAllReport();
+		if (_moderateBan || _moderateDeleteAll) {
+			_moderateFrom = item->from()->asUser();
+			_moderateInChannel = item->history()->peer->asChannel();
+		}
 	}
 }
 
@@ -428,9 +432,13 @@ void DeleteMessagesBox::prepare() {
 	if (_moderateFrom) {
 		t_assert(_moderateInChannel != nullptr);
 		text = lang(lng_selected_delete_sure_this);
-		_banUser.create(this, lang(lng_ban_user), false, st::defaultBoxCheckbox);
+		if (_moderateBan) {
+			_banUser.create(this, lang(lng_ban_user), false, st::defaultBoxCheckbox);
+		}
 		_reportSpam.create(this, lang(lng_report_spam), false, st::defaultBoxCheckbox);
-		_deleteAll.create(this, lang(lng_delete_all_from), false, st::defaultBoxCheckbox);
+		if (_moderateDeleteAll) {
+			_deleteAll.create(this, lang(lng_delete_all_from), false, st::defaultBoxCheckbox);
+		}
 	} else {
 		text = _singleItem ? lang(lng_selected_delete_sure_this) : lng_selected_delete_sure(lt_count, _ids.size());
 		auto canDeleteAllForEveryone = true;
@@ -476,7 +484,14 @@ void DeleteMessagesBox::prepare() {
 
 	auto fullHeight = st::boxPadding.top() + _text->height() + st::boxPadding.bottom();
 	if (_moderateFrom) {
-		fullHeight += st::boxMediumSkip + _banUser->heightNoMargins() + st::boxLittleSkip + _reportSpam->heightNoMargins() + st::boxLittleSkip + _deleteAll->heightNoMargins();
+		fullHeight += st::boxMediumSkip;
+		if (_banUser) {
+			fullHeight += _banUser->heightNoMargins() + st::boxLittleSkip;
+		}
+		fullHeight += _reportSpam->heightNoMargins();
+		if (_deleteAll) {
+			fullHeight += st::boxLittleSkip + _deleteAll->heightNoMargins();
+		}
 	} else if (_forEveryone) {
 		fullHeight += st::boxMediumSkip + _forEveryone->heightNoMargins();
 	}
@@ -487,9 +502,16 @@ void DeleteMessagesBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 	_text->moveToLeft(st::boxPadding.left(), st::boxPadding.top());
 	if (_moderateFrom) {
-		_banUser->moveToLeft(st::boxPadding.left(), _text->bottomNoMargins() + st::boxMediumSkip);
-		_reportSpam->moveToLeft(st::boxPadding.left(), _banUser->bottomNoMargins() + st::boxLittleSkip);
-		_deleteAll->moveToLeft(st::boxPadding.left(), _reportSpam->bottomNoMargins() + st::boxLittleSkip);
+		auto top = _text->bottomNoMargins() + st::boxMediumSkip;
+		if (_banUser) {
+			_banUser->moveToLeft(st::boxPadding.left(), top);
+			top += _banUser->heightNoMargins() + st::boxLittleSkip;
+		}
+		_reportSpam->moveToLeft(st::boxPadding.left(), top);
+		top += _reportSpam->heightNoMargins() + st::boxLittleSkip;
+		if (_deleteAll) {
+			_deleteAll->moveToLeft(st::boxPadding.left(), top);
+		}
 	} else if (_forEveryone) {
 		_forEveryone->moveToLeft(st::boxPadding.left(), _text->bottomNoMargins() + st::boxMediumSkip);
 	}
@@ -509,13 +531,13 @@ void DeleteMessagesBox::deleteAndClear() {
 	}
 
 	if (_moderateFrom) {
-		if (_banUser->checked()) {
-			MTP::send(MTPchannels_KickFromChannel(_moderateInChannel->inputChannel, _moderateFrom->inputUser, MTP_boolTrue()), App::main()->rpcDone(&MainWidget::sentUpdatesReceived));
+		if (_banUser && _banUser->checked()) {
+//			MTP::send(MTPchannels_KickFromChannel(_moderateInChannel->inputChannel, _moderateFrom->inputUser, MTP_boolTrue()), App::main()->rpcDone(&MainWidget::sentUpdatesReceived));
 		}
 		if (_reportSpam->checked()) {
 			MTP::send(MTPchannels_ReportSpam(_moderateInChannel->inputChannel, _moderateFrom->inputUser, MTP_vector<MTPint>(1, MTP_int(_ids[0].msg))));
 		}
-		if (_deleteAll->checked()) {
+		if (_deleteAll && _deleteAll->checked()) {
 			App::main()->deleteAllFromUser(_moderateInChannel, _moderateFrom);
 		}
 	}

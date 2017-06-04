@@ -218,9 +218,9 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 	auto &vc = d.vchats.v;
 	auto badVersion = false;
 	if (peer->isChat()) {
-		badVersion = (!vc.isEmpty() && vc.at(0).type() == mtpc_chat && vc.at(0).c_chat().vversion.v < peer->asChat()->version);
+		badVersion = (!vc.isEmpty() && vc[0].type() == mtpc_chat && vc[0].c_chat().vversion.v < peer->asChat()->version);
 	} else if (peer->isChannel()) {
-		badVersion = (!vc.isEmpty() && vc.at(0).type() == mtpc_channel && vc.at(0).c_channel().vversion.v < peer->asChannel()->version);
+		badVersion = (!vc.isEmpty() && vc[0].type() == mtpc_channel && vc[0].c_channel().vversion.v < peer->asChannel()->version);
 	}
 
 	App::feedUsers(d.vusers);
@@ -342,16 +342,16 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 	}
 
 	if (req) {
-		QMap<PeerData*, mtpRequestId>::iterator i = _fullPeerRequests.find(peer);
+		auto i = _fullPeerRequests.find(peer);
 		if (i != _fullPeerRequests.cend() && i.value() == req) {
 			_fullPeerRequests.erase(i);
 		}
 	}
 	if (badVersion) {
-		if (peer->isChat()) {
-			peer->asChat()->version = vc.at(0).c_chat().vversion.v;
-		} else if (peer->isChannel()) {
-			peer->asChannel()->version = vc.at(0).c_channel().vversion.v;
+		if (auto chat = peer->asChat()) {
+			chat->version = vc[0].c_chat().vversion.v;
+		} else if (auto channel = peer->asChannel()) {
+			channel->version = vc[0].c_channel().vversion.v;
 		}
 		requestPeer(peer);
 	}
@@ -403,18 +403,18 @@ void ApiWrap::requestPeer(PeerData *peer) {
 			if (auto chats = Api::getChatsFromMessagesChats(result)) {
 				auto &v = chats->v;
 				bool badVersion = false;
-				if (peer->isChat()) {
-					badVersion = (!v.isEmpty() && v.at(0).type() == mtpc_chat && v.at(0).c_chat().vversion.v < peer->asChat()->version);
-				} else if (peer->isChannel()) {
-					badVersion = (!v.isEmpty() && v.at(0).type() == mtpc_channel && v.at(0).c_chat().vversion.v < peer->asChannel()->version);
+				if (auto chat = peer->asChat()) {
+					badVersion = (!v.isEmpty() && v[0].type() == mtpc_chat && v[0].c_chat().vversion.v < chat->version);
+				} else if (auto channel = peer->asChannel()) {
+					badVersion = (!v.isEmpty() && v[0].type() == mtpc_channel && v[0].c_channel().vversion.v < channel->version);
 				}
 				auto chat = App::feedChats(*chats);
 				if (chat == peer) {
 					if (badVersion) {
-						if (peer->isChat()) {
-							peer->asChat()->version = v.at(0).c_chat().vversion.v;
-						} else if (peer->isChannel()) {
-							peer->asChannel()->version = v.at(0).c_channel().vversion.v;
+						if (auto chat = peer->asChat()) {
+							chat->version = v[0].c_chat().vversion.v;
+						} else if (auto channel = peer->asChannel()) {
+							channel->version = v[0].c_channel().vversion.v;
 						}
 						requestPeer(peer);
 					}
@@ -478,7 +478,7 @@ void ApiWrap::requestLastParticipants(ChannelData *channel, bool fromStart) {
 		return;
 	}
 
-	auto needAdmins = channel->amEditor();
+	auto needAdmins = channel->canViewAdmins();
 	auto adminsOutdated = (channel->mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsAdminsOutdated) != 0;
 	if ((needAdmins && adminsOutdated) || channel->lastParticipantsCountOutdated()) {
 		fromStart = true;
@@ -560,11 +560,14 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 		switch (participant.type()) {
 		case mtpc_channelParticipant: userId = participant.c_channelParticipant().vuser_id.v; break;
 		case mtpc_channelParticipantSelf: userId = participant.c_channelParticipantSelf().vuser_id.v; break;
-		case mtpc_channelParticipantModerator: userId = participant.c_channelParticipantModerator().vuser_id.v; break;
-		case mtpc_channelParticipantEditor: userId = participant.c_channelParticipantEditor().vuser_id.v; admin = true; break;
-		case mtpc_channelParticipantKicked: userId = participant.c_channelParticipantKicked().vuser_id.v; break;
+		case mtpc_channelParticipantAdmin: userId = participant.c_channelParticipantAdmin().vuser_id.v; admin = true; break;
+		case mtpc_channelParticipantBanned: userId = participant.c_channelParticipantBanned().vuser_id.v; break;
 		case mtpc_channelParticipantCreator: userId = participant.c_channelParticipantCreator().vuser_id.v; admin = true; break;
 		}
+		if (!userId) {
+			continue;
+		}
+
 		auto u = App::user(userId);
 		if (bots) {
 			if (u->botInfo) {
@@ -642,17 +645,11 @@ void ApiWrap::requestSelfParticipant(ChannelData *channel) {
 			channel->inviter = _session->userId();
 			channel->inviteDate = date(MTP_int(channel->date));
 		} break;
-		case mtpc_channelParticipantModerator: {
-			auto &d = p.vparticipant.c_channelParticipantModerator();
+		case mtpc_channelParticipantAdmin: {
+			auto &d = p.vparticipant.c_channelParticipantAdmin();
 			channel->inviter = d.vinviter_id.v;
 			channel->inviteDate = date(d.vdate);
 		} break;
-		case mtpc_channelParticipantEditor: {
-			auto &d = p.vparticipant.c_channelParticipantEditor();
-			channel->inviter = d.vinviter_id.v;
-			channel->inviteDate = date(d.vdate);
-		} break;
-
 		}
 
 		if (App::main()) App::main()->onSelfParticipantUpdated(channel);
@@ -671,44 +668,44 @@ void ApiWrap::kickParticipant(PeerData *peer, UserData *user) {
 	if (_kickRequests.contains(kick)) return;
 
 	if (auto channel = peer->asChannel()) {
-		auto requestId = request(MTPchannels_KickFromChannel(channel->inputChannel, user->inputUser, MTP_bool(true))).done([this, peer, user](const MTPUpdates &result) {
-			applyUpdates(result);
+		//auto requestId = request(MTPchannels_KickFromChannel(channel->inputChannel, user->inputUser, MTP_bool(true))).done([this, peer, user](const MTPUpdates &result) {
+		//	applyUpdates(result);
 
-			_kickRequests.remove(KickRequest(peer, user));
-			if (auto channel = peer->asMegagroup()) {
-				auto megagroupInfo = channel->mgInfo;
+		//	_kickRequests.remove(KickRequest(peer, user));
+		//	if (auto channel = peer->asMegagroup()) {
+		//		auto megagroupInfo = channel->mgInfo;
 
-				auto i = megagroupInfo->lastParticipants.indexOf(user);
-				if (i >= 0) {
-					megagroupInfo->lastParticipants.removeAt(i);
-				}
+		//		auto i = megagroupInfo->lastParticipants.indexOf(user);
+		//		if (i >= 0) {
+		//			megagroupInfo->lastParticipants.removeAt(i);
+		//		}
 
-				if (channel->membersCount() > 1) {
-					channel->setMembersCount(channel->membersCount() - 1);
-				} else {
-					megagroupInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
-					megagroupInfo->lastParticipantsCount = 0;
-				}
-				channel->setKickedCount(channel->kickedCount() + 1);
-				if (megagroupInfo->lastAdmins.contains(user)) {
-					megagroupInfo->lastAdmins.remove(user);
-					if (channel->adminsCount() > 1) {
-						channel->setAdminsCount(channel->adminsCount() - 1);
-					}
-					Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::AdminsChanged);
-				}
-				megagroupInfo->bots.remove(user);
-				if (megagroupInfo->bots.isEmpty() && megagroupInfo->botStatus > 0) {
-					megagroupInfo->botStatus = -1;
-				}
-			}
-			Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
-			fullPeerUpdated().notify(peer);
-		}).fail([this, kick](const RPCError &error) {
-			_kickRequests.remove(kick);
-		}).send();
+		//		if (channel->membersCount() > 1) {
+		//			channel->setMembersCount(channel->membersCount() - 1);
+		//		} else {
+		//			megagroupInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
+		//			megagroupInfo->lastParticipantsCount = 0;
+		//		}
+		//		channel->setKickedCount(channel->kickedCount() + 1);
+		//		if (megagroupInfo->lastAdmins.contains(user)) {
+		//			megagroupInfo->lastAdmins.remove(user);
+		//			if (channel->adminsCount() > 1) {
+		//				channel->setAdminsCount(channel->adminsCount() - 1);
+		//			}
+		//			Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::AdminsChanged);
+		//		}
+		//		megagroupInfo->bots.remove(user);
+		//		if (megagroupInfo->bots.isEmpty() && megagroupInfo->botStatus > 0) {
+		//			megagroupInfo->botStatus = -1;
+		//		}
+		//	}
+		//	Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
+		//	fullPeerUpdated().notify(peer);
+		//}).fail([this, kick](const RPCError &error) {
+		//	_kickRequests.remove(kick);
+		//}).send();
 
-		_kickRequests.insert(kick, requestId);
+		//_kickRequests.insert(kick, requestId);
 	}
 }
 
@@ -717,22 +714,22 @@ void ApiWrap::unblockParticipant(PeerData *peer, UserData *user) {
 	if (_kickRequests.contains(kick)) return;
 
 	if (auto channel = peer->asChannel()) {
-		auto requestId = request(MTPchannels_KickFromChannel(channel->inputChannel, user->inputUser, MTP_bool(false))).done([this, peer, user](const MTPUpdates &result) {
-			applyUpdates(result);
+		//auto requestId = request(MTPchannels_KickFromChannel(channel->inputChannel, user->inputUser, MTP_bool(false))).done([this, peer, user](const MTPUpdates &result) {
+		//	applyUpdates(result);
 
-			_kickRequests.remove(KickRequest(peer, user));
-			if (auto channel = peer->asMegagroup()) {
-				if (channel->kickedCount() > 0) {
-					channel->setKickedCount(channel->kickedCount() - 1);
-				} else {
-					channel->updateFull(true);
-				}
-			}
-		}).fail([this, kick](const RPCError &error) {
-			_kickRequests.remove(kick);
-		}).send();
+		//	_kickRequests.remove(KickRequest(peer, user));
+		//	if (auto channel = peer->asMegagroup()) {
+		//		if (channel->kickedCount() > 0) {
+		//			channel->setKickedCount(channel->kickedCount() - 1);
+		//		} else {
+		//			channel->updateFull(true);
+		//		}
+		//	}
+		//}).fail([this, kick](const RPCError &error) {
+		//	_kickRequests.remove(kick);
+		//}).send();
 
-		_kickRequests.insert(kick, requestId);
+		//_kickRequests.insert(kick, requestId);
 	}
 }
 

@@ -684,12 +684,8 @@ public:
 	bool canEdit(const QDateTime &cur) const;
 	bool canDelete() const;
 	bool canDeleteForEveryone(const QDateTime &cur) const;
-
-	bool suggestBanReportDeleteAll() const {
-		auto channel = history()->peer->asChannel();
-		if (!channel || (!channel->amEditor() && !channel->amCreator())) return false;
-		return !isPost() && !out() && from()->isUser() && toHistoryMessage();
-	}
+	bool suggestBanReport() const;
+	bool suggestDeleteAllReport() const;
 
 	bool hasDirectLink() const {
 		return id > 0 && _history->peer->isChannel() && _history->peer->asChannel()->isPublic() && !_history->peer->isMegagroup();
