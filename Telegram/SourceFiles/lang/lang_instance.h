@@ -29,6 +29,20 @@ constexpr auto kLegacyLanguageNone = -2;
 constexpr auto kLegacyCustomLanguage = -1;
 constexpr auto kLegacyDefaultLanguage = 0;
 
+constexpr str_const kLegacyLanguages[] = {
+	"en",
+	"it",
+	"es",
+	"de",
+	"nl",
+	"pt_BR",
+	"ko",
+};
+
+inline QString ConvertLegacyLanguageId(const QString &languageId) {
+	return languageId.toLower().replace('_', '-');
+}
+
 QString DefaultLanguageId();
 
 class Instance;

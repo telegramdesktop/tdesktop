@@ -71,7 +71,7 @@ void LanguageBox::Inner::refresh() {
 	_buttons.reserve(_languages->size());
 	auto index = 0;
 	for_const (auto &language, *_languages) {
-		_buttons.emplace_back(this, _group, index++, language.name, st::langsButton);
+		_buttons.emplace_back(this, _group, index++, language.nativeName, st::langsButton);
 		auto button = _buttons.back().data();
 		button->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), y + st::langsButton.margin.top());
 		button->show();
@@ -141,7 +141,7 @@ void LanguageBox::refreshLanguages() {
 	_languages.reserve(list.size() + 1);
 	auto currentId = Lang::Current().id();
 	auto currentIndex = -1;
-	_languages.push_back({ qsl("en"), qsl("English") });
+	_languages.push_back({ qsl("en"), qsl("English"), qsl("English") });
 	for (auto &language : list) {
 		auto isCurrent = (language.id == currentId) || (language.id == Lang::DefaultLanguageId() && currentId.isEmpty());
 		if (language.id != qstr("en")) {
@@ -154,11 +154,11 @@ void LanguageBox::refreshLanguages() {
 		}
 	}
 	if (currentId == qstr("custom")) {
-		_languages.insert(_languages.begin(), { currentId, qsl("Custom LangPack") });
+		_languages.insert(_languages.begin(), { currentId, qsl("Custom LangPack"), qsl("Custom LangPack") });
 		currentIndex = 0;
 	} else if (currentIndex < 0) {
 		currentIndex = _languages.size();
-		_languages.push_back({ currentId, lang(lng_language_name) });
+		_languages.push_back({ currentId, lang(lng_language_name), lang(lng_language_name) });
 	}
 	_inner->setSelected(currentIndex);
 }

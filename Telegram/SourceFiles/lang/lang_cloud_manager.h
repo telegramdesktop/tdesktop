@@ -38,6 +38,7 @@ public:
 	struct Language {
 		QString id;
 		QString name;
+		QString nativeName;
 	};
 	using Languages = QVector<Language>;
 

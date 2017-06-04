@@ -34,20 +34,6 @@ namespace {
 constexpr auto kDefaultLanguage = str_const("en");
 constexpr auto kLangValuesLimit = 20000;
 
-constexpr str_const kLegacyLanguages[] = {
-	"en",
-	"it",
-	"es",
-	"de",
-	"nl",
-	"pt_BR",
-	"ko",
-};
-
-QString ConvertLegacyLanguageId(const QString &languageId) {
-	return languageId.toLower().replace('_', '-');
-}
-
 class ValueParser {
 public:
 	ValueParser(const QByteArray &key, LangKey keyIndex, const QByteArray &value);
@@ -365,16 +351,23 @@ void Instance::fillFromCustomFile(const QString &filePath) {
 void Instance::fillFromLegacy(int legacyId, const QString &legacyPath) {
 	if (legacyId == kLegacyDefaultLanguage) {
 		_legacyId = legacyId;
-		_id = str_const_toString(kLegacyLanguages[legacyId]);
+
+		// We suppose that user didn't switch to the default language,
+		// so we will suggest him to switch to his language if we get it.
+		//
+		// The old available languages (de/it/nl/ko/es/pt_BR) won't be
+		// suggested anyway, because everyone saw the suggestion in intro.
+		_id = QString();// str_const_toString(kLegacyLanguages[legacyId]);
 	} else if (legacyId == kLegacyCustomLanguage) {
 		auto absolutePath = QFileInfo(legacyPath).absoluteFilePath();
 		auto relativePath = QDir().relativeFilePath(absolutePath);
 		auto content = Lang::FileParser::ReadFile(absolutePath, relativePath);
 		if (!content.isEmpty()) {
+			_legacyId = legacyId;
 			loadFromCustomContent(absolutePath, relativePath, content);
 		}
 	} else if (legacyId > kLegacyDefaultLanguage && legacyId < base::array_size(kLegacyLanguages)) {
-		auto languageId = str_const_toString(kLegacyLanguages[_legacyId]);
+		auto languageId = str_const_toString(kLegacyLanguages[legacyId]);
 		auto resourcePath = qsl(":/langs/lang_") + languageId + qsl(".strings");
 		auto content = Lang::FileParser::ReadFile(resourcePath, resourcePath);
 		if (!content.isEmpty()) {
