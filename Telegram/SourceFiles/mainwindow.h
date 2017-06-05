@@ -92,7 +92,6 @@ public:
 	void setupIntro();
 	void setupMain(const MTPUser *user = nullptr);
 	void serviceNotification(const TextWithEntities &message, const MTPMessageMedia &media = MTP_messageMediaEmpty(), int32 date = 0, bool force = false);
-	void serviceNotificationLocal(QString text);
 	void sendServiceHistoryRequest();
 	void showDelayedServiceMsgs();
 

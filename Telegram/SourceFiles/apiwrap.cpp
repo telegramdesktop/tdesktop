@@ -44,11 +44,25 @@ constexpr auto kSmallDelayMs = 5;
 
 } // namespace
 
-ApiWrap::ApiWrap()
-: _messageDataResolveDelayed([this] { resolveMessageDatas(); })
+ApiWrap::ApiWrap(gsl::not_null<AuthSession*> session)
+: _session(session)
+, _messageDataResolveDelayed([this] { resolveMessageDatas(); })
 , _webPagesTimer([this] { resolveWebPages(); })
 , _draftsSaveTimer([this] { saveDraftsToCloud(); }) {
+}
+
+void ApiWrap::start() {
 	Window::Theme::Background()->start();
+	auto oldVersion = Local::oldMapVersion();
+	if (oldVersion > 0 && oldVersion < AppVersion) {
+		_changelogSubscription = subscribe(_session->data().moreChatsLoaded(), [this, oldVersion] {
+			auto oldVersionString = qsl("%1.%2.%3").arg(oldVersion / 1000000).arg((oldVersion % 1000000) / 1000).arg(oldVersion % 1000);
+			request(MTPhelp_GetAppChangelog(MTP_string(oldVersionString))).done([this](const MTPUpdates &result) {
+				applyUpdates(result);
+			}).send();
+			unsubscribe(base::take(_changelogSubscription));
+		});
+	}
 }
 
 void ApiWrap::applyUpdates(const MTPUpdates &updates, uint64 sentMessageRandomId) {
@@ -625,7 +639,7 @@ void ApiWrap::requestSelfParticipant(ChannelData *channel) {
 		} break;
 		case mtpc_channelParticipantCreator: {
 			auto &d = p.vparticipant.c_channelParticipantCreator();
-			channel->inviter = AuthSession::CurrentUserId();
+			channel->inviter = _session->userId();
 			channel->inviteDate = date(MTP_int(channel->date));
 		} break;
 		case mtpc_channelParticipantModerator: {
@@ -1197,7 +1211,7 @@ PeerData *ApiWrap::notifySettingReceived(MTPInputNotifyPeer notifyPeer, const MT
 		}
 	} break;
 	}
-	AuthSession::Current().notifications().checkDelayed();
+	_session->notifications().checkDelayed();
 	return requestedPeer;
 }
 

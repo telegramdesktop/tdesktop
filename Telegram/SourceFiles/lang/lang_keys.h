@@ -124,6 +124,4 @@ inline QString langDateTimeFull(const QDateTime &date) {
 	return lng_mediaview_date_time(lt_date, langDayOfMonthFull(date.date()), lt_time, date.time().toString(cTimeFormat()));
 }
 
-QString langNewVersionText();
-
 bool langFirstNameGoesSecond();

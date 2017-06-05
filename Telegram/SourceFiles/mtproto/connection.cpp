@@ -785,7 +785,7 @@ void ConnectionPrivate::tryToSend() {
 		auto langPack = "tdesktop";
 		auto deviceModel = (_dcType == DcType::Cdn) ? "n/a" : cApiDeviceModel();
 		auto systemVersion = (_dcType == DcType::Cdn) ? "n/a" : cApiSystemVersion();
-		initWrapper = MTPInitConnection<mtpRequest>(MTP_int(ApiId), MTP_string(deviceModel), MTP_string(systemVersion), MTP_string(cApiAppVersion()), MTP_string(systemLangCode), MTP_string(langPack), MTP_string(cloudLangCode), mtpRequest());
+		initWrapper = MTPInitConnection<mtpRequest>(MTP_int(ApiId), MTP_string(deviceModel), MTP_string(systemVersion), MTP_string(str_const_toString(AppVersionStr)), MTP_string(systemLangCode), MTP_string(langPack), MTP_string(cloudLangCode), mtpRequest());
 		initSizeInInts = (initWrapper.innerLength() >> 2) + 2;
 		initSize = initSizeInInts * sizeof(mtpPrime);
 	}

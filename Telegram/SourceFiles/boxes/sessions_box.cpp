@@ -117,8 +117,8 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 			if (appVer == QString::number(appVer.toInt())) {
 				int32 ver = appVer.toInt();
 				appVer = QString("%1.%2").arg(ver / 1000000).arg((ver % 1000000) / 1000) + ((ver % 1000) ? ('.' + QString::number(ver % 1000)) : QString());
-			} else {
-				appVer = QString();
+			//} else {
+			//	appVer = QString();
 			}
 		} else {
 			appName = qs(d.vapp_name);// +qsl(" for ") + qs(d.vplatform);

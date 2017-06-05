@@ -77,8 +77,6 @@ void PasscodeWidget::onSubmit() {
 			} else {
 				App::wnd()->setupIntro();
 			}
-
-			App::app()->checkMapVersion();
 		} else {
 			cSetPasscodeBadTries(cPasscodeBadTries() + 1);
 			cSetPasscodeLastTry(getms(true));

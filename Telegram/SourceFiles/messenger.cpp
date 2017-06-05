@@ -165,10 +165,6 @@ Messenger::Messenger() : QObject()
 	QNetworkProxyFactory::setUseSystemConfiguration(true);
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 
-	if (state != Local::ReadMapPassNeeded) {
-		checkMapVersion();
-	}
-
 	_window->updateIsActive(Global::OnlineFocusTimeout());
 
 	if (!Shortcuts::errors().isEmpty()) {
@@ -693,25 +689,6 @@ void Messenger::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId) {
 	FullMsgId newId(peerToChannel(peerId), clientMsgId());
 	App::app()->regPhotoUpdate(peerId, newId);
 	App::uploader()->uploadMedia(newId, ready);
-}
-
-void Messenger::checkMapVersion() {
-	if (Local::oldMapVersion() < AppVersion) {
-		if (Local::oldMapVersion()) {
-			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1001003) {
-				versionFeatures = QString::fromUtf8("\xE2\x80\x94 Improved video messages playback.\n\xE2\x80\x94 Video and audio messages now play one after another.");
-			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1001000) {
-				versionFeatures = langNewVersionText();
-			} else {
-				versionFeatures = lang(lng_new_version_minor).trimmed();
-			}
-			if (!versionFeatures.isEmpty()) {
-				versionFeatures = lng_new_version_wrap(lt_version, QString::fromLatin1(AppVersionStr.c_str()), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/changelog"));
-				_window->serviceNotificationLocal(versionFeatures);
-			}
-		}
-	}
 }
 
 void Messenger::setupPasscode() {

@@ -155,7 +155,7 @@ QString AuthSessionData::getSoundPath(const QString &key) const {
 AuthSession::AuthSession(UserId userId)
 : _userId(userId)
 , _autoLockTimer([this] { checkAutoLock(); })
-, _api(std::make_unique<ApiWrap>())
+, _api(std::make_unique<ApiWrap>(this))
 , _calls(std::make_unique<Calls::Instance>())
 , _downloader(std::make_unique<Storage::Downloader>())
 , _notifications(std::make_unique<Window::Notifications::System>(this)) {
@@ -167,6 +167,7 @@ AuthSession::AuthSession(UserId userId)
 		_shouldLockAt = 0;
 		notifications().updateAll();
 	});
+	_api->start();
 }
 
 bool AuthSession::Exists() {

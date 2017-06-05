@@ -22,20 +22,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "lang/lang_file_parser.h"
 
-//#define NEW_VER_TAG lt_link
-//#define NEW_VER_TAG_VALUE "https://telegram.org/blog/desktop-1-0"
-
-QString langNewVersionText() {
-#ifdef NEW_VER_TAG
-	return lng_new_version_text(NEW_VER_TAG, QString::fromUtf8(NEW_VER_TAG_VALUE));
-#else // NEW_VER_TAG
-	return lang(lng_new_version_text);
-#endif // NEW_VER_TAG
-}
-
-#undef NEW_VER_TAG_VALUE
-#undef NEW_VER_TAG
-
 bool langFirstNameGoesSecond() {
 	auto fullname = lang(lng_full_name__tagged);
 	for (auto begin = fullname.constData(), ch = begin, end = ch + fullname.size(); ch != end; ++ch) {

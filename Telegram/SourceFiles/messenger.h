@@ -147,7 +147,6 @@ public:
 	void killDownloadSessionsStop(MTP::DcId dcId);
 
 	void checkLocalTime();
-	void checkMapVersion();
 	void setupPasscode();
 	void clearPasscode();
 	base::Observable<void> &passcodedChanged() {

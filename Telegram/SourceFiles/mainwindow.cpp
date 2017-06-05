@@ -303,12 +303,6 @@ void MainWindow::serviceNotification(const TextWithEntities &message, const MTPM
 	_main->serviceNotification(message, media, date);
 }
 
-void MainWindow::serviceNotificationLocal(QString text) {
-	EntitiesInText entities;
-	textParseEntities(text, _historyTextNoMonoOptions.flags, &entities);
-	serviceNotification({ text, entities });
-}
-
 void MainWindow::showDelayedServiceMsgs() {
 	for (auto &delayed : base::take(_delayedServiceMsgs)) {
 		serviceNotification(delayed.message, delayed.media, delayed.date, true);

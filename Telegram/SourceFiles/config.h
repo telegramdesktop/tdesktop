@@ -289,9 +289,6 @@ inline const char *cApiSystemVersion() {
 	return "Linux";
 #endif
 }
-inline QString cApiAppVersion() {
-	return QString::number(AppVersion);
-}
 
 extern QString gKeyFile;
 inline const QString &cDataFile() {
