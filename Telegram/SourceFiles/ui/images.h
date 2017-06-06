@@ -201,10 +201,10 @@ enum class Option {
 Q_DECLARE_FLAGS(Options, Option);
 Q_DECLARE_OPERATORS_FOR_FLAGS(Options);
 
-QImage prepare(QImage img, int w, int h, Options options, int outerw, int outerh);
+QImage prepare(QImage img, int w, int h, Options options, int outerw, int outerh, const style::color *colored = nullptr);
 
-inline QPixmap pixmap(QImage img, int w, int h, Options options, int outerw, int outerh) {
-	return QPixmap::fromImage(prepare(img, w, h, options, outerw, outerh), Qt::ColorOnly);
+inline QPixmap pixmap(QImage img, int w, int h, Options options, int outerw, int outerh, const style::color *colored = nullptr) {
+	return QPixmap::fromImage(prepare(img, w, h, options, outerw, outerh, colored), Qt::ColorOnly);
 }
 
 } // namespace Images
@@ -247,11 +247,11 @@ public:
 	const QPixmap &pixBlurred(int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixColored(style::color add, int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixBlurredColored(style::color add, int32 w = 0, int32 h = 0) const;
-	const QPixmap &pixSingle(int32 w, int32 h, int32 outerw, int32 outerh, ImageRoundRadius radius, ImageRoundCorners corners = ImageRoundCorner::All) const;
+	const QPixmap &pixSingle(int32 w, int32 h, int32 outerw, int32 outerh, ImageRoundRadius radius, ImageRoundCorners corners = ImageRoundCorner::All, const style::color *colored = nullptr) const;
 	const QPixmap &pixBlurredSingle(int32 w, int32 h, int32 outerw, int32 outerh, ImageRoundRadius radius, ImageRoundCorners corners = ImageRoundCorner::All) const;
 	const QPixmap &pixCircled(int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixBlurredCircled(int32 w = 0, int32 h = 0) const;
-	QPixmap pixNoCache(int w = 0, int h = 0, Images::Options options = 0, int outerw = -1, int outerh = -1) const;
+	QPixmap pixNoCache(int w = 0, int h = 0, Images::Options options = 0, int outerw = -1, int outerh = -1, const style::color *colored = nullptr) const;
 	QPixmap pixColoredNoCache(style::color add, int32 w = 0, int32 h = 0, bool smooth = false) const;
 	QPixmap pixBlurredColoredNoCache(style::color add, int32 w, int32 h = 0) const;
 
