@@ -590,7 +590,7 @@ bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 			auto key = static_cast<QKeyEvent*>(e)->key();
 			FeedLangTestingKey(key);
 		}
-		[[fallthrough]];
+		// [[fallthrough]];
 	case QEvent::MouseButtonPress:
 	case QEvent::TouchBegin:
 	case QEvent::Wheel:
