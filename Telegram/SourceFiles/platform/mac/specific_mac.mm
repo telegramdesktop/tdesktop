@@ -26,8 +26,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "passcodewidget.h"
 #include "mainwindow.h"
 #include "history/history_location_manager.h"
+#include "platform/mac/mac_utilities.h"
 
 #include <execinfo.h>
+
+#include <Cocoa/Cocoa.h>
+#include <CoreFoundation/CFURL.h>
+#include <IOKit/IOKitLib.h>
+#include <IOKit/hidsystem/ev_keymap.h>
+#include <SPMediaKeyTap.h>
 
 namespace {
 
@@ -395,12 +402,24 @@ void StartTranslucentPaint(QPainter &p, QPaintEvent *e) {
 }
 
 QString SystemCountry() {
-	QString country = objc_currentCountry();
-	return country.isEmpty() ? QString::fromLatin1(DefaultCountry) : country;
+	NSLocale *currentLocale = [NSLocale currentLocale];  // get the current locale.
+	NSString *countryCode = [currentLocale objectForKey:NSLocaleCountryCode];
+	return countryCode ? NS2QString(countryCode) : QString();
 }
 
 QString SystemLanguage() {
-	return objc_currentLang();
+	if (auto currentLocale = [NSLocale currentLocale]) { // get the current locale.
+		if (NSString *collator = [currentLocale objectForKey:NSLocaleCollatorIdentifier]) {
+			return NS2QString(collator);
+		}
+		if (NSString *identifier = [currentLocale objectForKey:NSLocaleIdentifier]) {
+			return NS2QString(identifier);
+		}
+		if (NSString *language = [currentLocale objectForKey:NSLocaleLanguageCode]) {
+			return NS2QString(language);
+		}
+	}
+	return QString();
 }
 
 } // namespace Platform

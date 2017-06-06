@@ -78,14 +78,14 @@ QString PrepareCommandString(int index) {
 
 } // namespace
 
-const std::array<QString, kPluralPartCount> kPluralParts = {
+const std::array<QString, kPluralPartCount> kPluralParts = { {
 	"zero",
 	"one",
 	"two",
 	"few",
 	"many",
 	"other",
-};
+} };
 
 const QString kPluralTag = "count";
 
