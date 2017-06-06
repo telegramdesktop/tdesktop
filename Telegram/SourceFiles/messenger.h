@@ -31,6 +31,10 @@ class DcOptions;
 class Instance;
 } // namespace MTP
 
+namespace ChatHelpers {
+class SpellHelperSet;
+} // namespace ChatHelpers
+
 class AuthSession;
 class AuthSessionData;
 class MainWidget;
@@ -200,5 +204,7 @@ private:
 	std::unique_ptr<Media::Audio::Instance> _audio;
 	QImage _logo;
 	QImage _logoNoMargin;
+	
+	std::unique_ptr<ChatHelpers::SpellHelperSet> _spellHelperSet;
 
 };
