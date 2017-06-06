@@ -197,6 +197,7 @@ enum class Option {
 	RoundedBottomLeft = 0x080,
 	RoundedBottomRight = 0x100,
 	Colored = 0x200,
+	TransparentBackground = 0x400,
 };
 Q_DECLARE_FLAGS(Options, Option);
 Q_DECLARE_OPERATORS_FOR_FLAGS(Options);

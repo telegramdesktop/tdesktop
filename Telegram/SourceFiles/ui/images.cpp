@@ -312,8 +312,11 @@ QImage prepare(QImage img, int w, int h, Images::Options options, int outerw, in
 		outerh *= cIntRetinaFactor();
 		if (outerw != w || outerh != h) {
 			img.setDevicePixelRatio(cRetinaFactor());
-			QImage result(outerw, outerh, QImage::Format_ARGB32_Premultiplied);
+			auto result = QImage(outerw, outerh, QImage::Format_ARGB32_Premultiplied);
 			result.setDevicePixelRatio(cRetinaFactor());
+			if (options & Images::Option::TransparentBackground) {
+				result.fill(Qt::transparent);
+			}
 			{
 				QPainter p(&result);
 				if (w < outerw || h < outerh) {
