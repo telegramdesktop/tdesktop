@@ -25,6 +25,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/round_checkbox.h"
 #include "boxes/members_box.h"
 
+class EditAdminBox;
+
 namespace Dialogs {
 class Row;
 class IndexedList;
@@ -249,7 +251,7 @@ private:
 	void updateSelectedRow();
 	int getRowTopWithPeer(PeerData *peer) const;
 	void updateRowWithPeer(PeerData *peer);
-	void addAdminDone(const MTPUpdates &result, mtpRequestId req);
+	void addAdminDone(MTPChannelAdminRights rights, const MTPUpdates &result, mtpRequestId req);
 	bool addAdminFail(const RPCError &error, mtpRequestId req);
 
 	void paintDialog(Painter &p, TimeMs ms, PeerData *peer, ContactData *data, bool sel);
@@ -293,7 +295,7 @@ private:
 	PeerData *_addToPeer = nullptr;
 	UserData *_addAdmin = nullptr;
 	mtpRequestId _addAdminRequestId = 0;
-	QPointer<ConfirmBox> _addAdminBox;
+	QPointer<EditAdminBox> _addAdminBox;
 
 	int32 _time;
 

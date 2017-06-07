@@ -707,8 +707,7 @@ private:
 struct MegagroupInfo {
 	typedef QList<UserData*> LastParticipants;
 	LastParticipants lastParticipants;
-	typedef OrderedSet<UserData*> LastAdmins;
-	LastAdmins lastAdmins;
+	QMap<UserData*, MTPChannelAdminRights> lastAdmins;
 	typedef OrderedSet<PeerData*> MarkupSenders;
 	MarkupSenders markupSenders;
 	typedef OrderedSet<UserData*> Bots;

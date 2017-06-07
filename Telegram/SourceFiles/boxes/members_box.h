@@ -194,14 +194,11 @@ private:
 
 	bool _loading = true;
 	mtpRequestId _loadingRequestId = 0;
-	typedef QVector<UserData*> MemberRows;
-	typedef QVector<QDateTime> MemberDates;
-	typedef QVector<MemberRole> MemberRoles;
-	typedef QVector<MemberData*> MemberDatas;
-	MemberRows _rows;
-	MemberDates _dates;
-	MemberRoles _roles;
-	MemberDatas _datas;
+	QVector<UserData*> _rows;
+	QVector<QDateTime> _dates;
+	QVector<MemberRole> _roles;
+	QVector<MTPChannelAdminRights> _adminRights;
+	QVector<MemberData*> _datas;
 
 	int _aboutWidth = 0;
 	Text _about;

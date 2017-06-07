@@ -1244,6 +1244,32 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_player_message_yesterday" = "Yesterday at {time}";
 "lng_player_message_date" = "{date} at {time}";
 
+"lng_rights_edit_admin" = "Edit administrator";
+"lng_rights_edit_admin_header" = "What can this admin do?";
+"lng_rights_about_add_admins_yes" = "This admin will be able to add new admins with the same (or more limited) permissions than they have.";
+"lng_rights_about_add_admins_no" = "This admin will not be able to add new admins.";
+"lng_rights_user_restrictions" = "User restrictions";
+"lng_rights_user_restrictions_header" = "What can this user do?";
+
+"lng_rights_channel_info" = "Change channel info";
+"lng_rights_channel_post" = "Post messages";
+"lng_rights_channel_edit" = "Edit messages of others";
+"lng_rights_group_info" = "Change group info";
+"lng_rights_group_ban" = "Ban users";
+"lng_rights_group_invite" = "Add users";
+"lng_rights_group_invite_link" = "Invite users via link";
+"lng_rights_group_pin" = "Pin messages";
+"lng_rights_delete" = "Delete messages of others";
+"lng_rights_add_admins" = "Add new admins";
+"lng_rights_chat_read" = "Read messages";
+"lng_rights_chat_send_text" = "Send messages";
+"lng_rights_chat_send_media" = "Send media";
+"lng_rights_chat_send_stickers" = "Send stickers & GIFs";
+"lng_rights_chat_send_links" = "Embed links";
+"lng_rights_chat_banned_until" = "Banned until: {when}";
+"lng_rights_chat_banned_forever" = "Forever";
+"lng_rights_chat_banned_block" = "Block and remove from group";
+
 // Not used
 
 "lng_topbar_info" = "Info";

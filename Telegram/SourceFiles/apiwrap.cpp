@@ -553,16 +553,17 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 	auto needBotsInfos = false;
 	auto botStatus = peer->mgInfo->botStatus;
 	auto keyboardBotFound = !h || !h->lastKeyboardFrom;
+	auto emptyRights = MTP_channelAdminRights(MTP_flags(0));
 	for_const (auto &participant, v) {
 		auto userId = UserId(0);
-		bool admin = false;
+		auto rights = emptyRights;
 
 		switch (participant.type()) {
 		case mtpc_channelParticipant: userId = participant.c_channelParticipant().vuser_id.v; break;
 		case mtpc_channelParticipantSelf: userId = participant.c_channelParticipantSelf().vuser_id.v; break;
-		case mtpc_channelParticipantAdmin: userId = participant.c_channelParticipantAdmin().vuser_id.v; admin = true; break;
+		case mtpc_channelParticipantAdmin: userId = participant.c_channelParticipantAdmin().vuser_id.v; rights = participant.c_channelParticipantAdmin().vadmin_rights; break;
 		case mtpc_channelParticipantBanned: userId = participant.c_channelParticipantBanned().vuser_id.v; break;
-		case mtpc_channelParticipantCreator: userId = participant.c_channelParticipantCreator().vuser_id.v; admin = true; break;
+		case mtpc_channelParticipantCreator: userId = participant.c_channelParticipantCreator().vuser_id.v; break;
 		}
 		if (!userId) {
 			continue;
@@ -583,7 +584,9 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 		} else {
 			if (peer->mgInfo->lastParticipants.indexOf(u) < 0) {
 				peer->mgInfo->lastParticipants.push_back(u);
-				if (admin) peer->mgInfo->lastAdmins.insert(u);
+				if (rights.c_channelAdminRights().vflags.v) {
+					peer->mgInfo->lastAdmins.insert(u, rights);
+				}
 				if (u->botInfo) {
 					peer->mgInfo->bots.insert(u);
 					if (peer->mgInfo->botStatus != 0 && peer->mgInfo->botStatus < 2) {

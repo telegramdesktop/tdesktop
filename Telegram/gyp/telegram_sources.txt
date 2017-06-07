@@ -46,6 +46,8 @@
 <(src_loc)/boxes/download_path_box.h
 <(src_loc)/boxes/edit_color_box.cpp
 <(src_loc)/boxes/edit_color_box.h
+<(src_loc)/boxes/edit_participant_box.cpp
+<(src_loc)/boxes/edit_participant_box.h
 <(src_loc)/boxes/edit_privacy_box.cpp
 <(src_loc)/boxes/edit_privacy_box.h
 <(src_loc)/boxes/emoji_box.cpp

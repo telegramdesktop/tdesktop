@@ -39,6 +39,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/ripple_animation.h"
 #include "boxes/photo_crop_box.h"
 #include "boxes/confirm_box.h"
+#include "boxes/edit_participant_box.h"
 #include "window/themes/window_theme.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
@@ -736,7 +737,7 @@ void ContactsBox::Inner::onAllAdminsChanged() {
 	update();
 }
 
-void ContactsBox::Inner::addAdminDone(const MTPUpdates &result, mtpRequestId req) {
+void ContactsBox::Inner::addAdminDone(MTPChannelAdminRights rights, const MTPUpdates &result, mtpRequestId req) {
 	if (App::main()) App::main()->sentUpdatesReceived(result);
 	if (req != _addAdminRequestId) return;
 
@@ -747,7 +748,7 @@ void ContactsBox::Inner::addAdminDone(const MTPUpdates &result, mtpRequestId req
 			_channel->mgInfo->lastParticipants.push_front(_addAdmin);
 			update.flags |= Notify::PeerUpdate::Flag::MembersChanged;
 		}
-		_channel->mgInfo->lastAdmins.insert(_addAdmin);
+		_channel->mgInfo->lastAdmins.insert(_addAdmin, rights);
 		update.flags |= Notify::PeerUpdate::Flag::AdminsChanged;
 		if (_addAdmin->botInfo) {
 			_channel->mgInfo->bots.insert(_addAdmin);
@@ -1412,9 +1413,14 @@ void ContactsBox::Inner::chooseParticipant() {
 					_addAdminRequestId = 0;
 				}
 				if (_addAdminBox) _addAdminBox->deleteLater();
-				_addAdminBox = Ui::show(Box<ConfirmBox>(lng_channel_admin_sure(lt_user, _addAdmin->firstName), base::lambda_guarded(this, [this] {
+				using Right = MTPDchannelAdminRights::Flag;
+				auto defaultRights = _channel->isMegagroup()
+					? (Right::f_change_info | Right::f_delete_messages | Right::f_ban_users | Right::f_invite_users | Right::f_invite_link | Right::f_pin_messages)
+					: (Right::f_change_info | Right::f_post_messages | Right::f_edit_messages | Right::f_delete_messages);
+				auto currentRights = (_channel->isMegagroup() ? _channel->mgInfo->lastAdmins : QMap<UserData*, MTPChannelAdminRights>()).value(_addAdmin, MTP_channelAdminRights(MTP_flags(defaultRights)));
+				_addAdminBox = Ui::show(Box<EditAdminBox>(_channel, _addAdmin, currentRights, base::lambda_guarded(this, [this](const MTPChannelAdminRights &rights) {
 					if (_addAdminRequestId) return;
-//					_addAdminRequestId = MTP::send(MTPchannels_EditAdmin(_channel->inputChannel, _addAdmin->inputUser, MTP_channelRoleEditor()), rpcDone(&Inner::addAdminDone), rpcFail(&Inner::addAdminFail));
+					_addAdminRequestId = MTP::send(MTPchannels_EditAdmin(_channel->inputChannel, _addAdmin->inputUser, rights), rpcDone(&Inner::addAdminDone, rights), rpcFail(&Inner::addAdminFail));
 				})), KeepOtherLayers);
 			} else if (sharingBotGame()) {
 				_addToPeer = peer;

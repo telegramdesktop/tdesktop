@@ -535,9 +535,11 @@ void MembersBox::Inner::membersReceived(const MTPchannels_ChannelParticipants &r
 	}
 	App::feedUsers(d.vusers);
 
+	auto emptyRights = MTP_channelAdminRights(MTP_flags(0));
 	for (QVector<MTPChannelParticipant>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
 		int32 userId = 0, addedTime = 0;
-		MemberRole role = MemberRole::None;
+		auto role = MemberRole::None;
+		auto rights = emptyRights;
 		switch (i->type()) {
 		case mtpc_channelParticipant:
 			userId = i->c_channelParticipant().vuser_id.v;
@@ -552,6 +554,7 @@ void MembersBox::Inner::membersReceived(const MTPchannels_ChannelParticipants &r
 			role = MemberRole::Admin;
 			userId = i->c_channelParticipantAdmin().vuser_id.v;
 			addedTime = i->c_channelParticipantAdmin().vdate.v;
+			rights = i->c_channelParticipantAdmin().vadmin_rights;
 			break;
 		case mtpc_channelParticipantCreator:
 			userId = i->c_channelParticipantCreator().vuser_id.v;
@@ -567,7 +570,8 @@ void MembersBox::Inner::membersReceived(const MTPchannels_ChannelParticipants &r
 			_rows.push_back(user);
 			_dates.push_back(date(addedTime));
 			_roles.push_back(role);
-			_datas.push_back(0);
+			_adminRights.push_back(rights);
+			_datas.push_back(nullptr);
 		}
 	}
 
@@ -575,8 +579,8 @@ void MembersBox::Inner::membersReceived(const MTPchannels_ChannelParticipants &r
 	if (_filter == MembersFilter::Admins && _channel->isMegagroup() && _rows.size() < Global::ChatSizeMax()) {
 		_channel->mgInfo->lastAdmins.clear();
 		for (int32 i = 0, l = _rows.size(); i != l; ++i) {
-			if (_roles.at(i) == MemberRole::Creator || _roles.at(i) == MemberRole::Admin) {
-				_channel->mgInfo->lastAdmins.insert(_rows.at(i));
+			if (_roles[i] == MemberRole::Admin) {
+				_channel->mgInfo->lastAdmins.insert(_rows[i], _adminRights[i]);
 			}
 		}
 
@@ -587,7 +591,7 @@ void MembersBox::Inner::membersReceived(const MTPchannels_ChannelParticipants &r
 		_rows.push_back(App::self());
 		_dates.push_back(date(MTP_int(_channel->date)));
 		_roles.push_back(MemberRole::Self);
-		_datas.push_back(0);
+		_datas.push_back(nullptr);
 	}
 
 	clearSel();

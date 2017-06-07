@@ -768,8 +768,8 @@ void ChannelData::flagsUpdated() {
 
 void ChannelData::selfAdminUpdated() {
 	if (isMegagroup()) {
-		if (amEditor()) {
-			mgInfo->lastAdmins.insert(App::self());
+		if (hasAdminRights()) {
+			mgInfo->lastAdmins.insert(App::self(), _adminRights);
 		} else {
 			mgInfo->lastAdmins.remove(App::self());
 		}
