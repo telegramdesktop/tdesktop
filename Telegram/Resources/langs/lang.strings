@@ -223,7 +223,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_settings_save" = "Save";
 "lng_settings_upload" = "Set Profile Photo";
-"lng_settings_crop_profile" = "Select a square area for your profile photo";
+"lng_settings_crop_profile" = "Select a circular area for your profile photo";
 "lng_settings_uploading_photo" = "Uploading photo...";
 "lng_settings_edit" = "Edit";
 "lng_settings_drop_area_subtitle" = "to set it as your photo";
