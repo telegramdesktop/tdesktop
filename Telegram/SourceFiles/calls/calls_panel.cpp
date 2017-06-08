@@ -473,6 +473,7 @@ void Panel::createUserpicCache(ImagePtr image) {
 		if (cRetina()) _userPhoto.setDevicePixelRatio(cRetinaFactor());
 	} else {
 		auto filled = QImage(QSize(st::callWidth, st::callWidth) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+		filled.setDevicePixelRatio(cRetinaFactor());
 		{
 			Painter p(&filled);
 			EmptyUserpic(_user->colorIndex(), _user->name).paintSquare(p, 0, 0, st::callWidth, st::callWidth);
