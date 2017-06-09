@@ -795,11 +795,18 @@ bool HistoryItem::canEdit(const QDateTime &cur) const {
 				return false;
 			}
 		}
-		if (out() || messageToMyself) {
+		if (messageToMyself) {
 			return true;
 		}
 		if (auto channel = _history->peer->asChannel()) {
-			return channel->canDeleteMessages();
+			if (channel->canEditMessages()) {
+				return true;
+			}
+			if (out()) {
+				return !isPost() || channel->canPublish();
+			}
+		} else {
+			return out();
 		}
 	}
 	return false;
@@ -814,16 +821,13 @@ bool HistoryItem::canDelete() const {
 	if (id == 1) {
 		return false;
 	}
-	if (channel->amCreator()) {
+	if (channel->canDeleteMessages()) {
 		return true;
 	}
-	if (isPost()) {
-		if (out()) {
-			return true;
-		}
-		return false;
+	if (out() && toHistoryMessage()) {
+		return isPost() ? channel->canPublish() : true;
 	}
-	return (channel->canDeleteMessages() || out());
+	return false;
 }
 
 bool HistoryItem::canDeleteForEveryone(const QDateTime &cur) const {
@@ -857,10 +861,11 @@ bool HistoryItem::canDeleteForEveryone(const QDateTime &cur) const {
 
 bool HistoryItem::suggestBanReport() const {
 	auto channel = history()->peer->asChannel();
-	if (!channel || !channel->canBanMembers()) {
+	auto fromUser = from()->asUser();
+	if (!channel || !fromUser || !channel->canRestrictUser(fromUser)) {
 		return false;
 	}
-	return !isPost() && !out() && from()->isUser() && toHistoryMessage();
+	return !isPost() && !out() && toHistoryMessage();
 }
 
 bool HistoryItem::suggestDeleteAllReport() const {

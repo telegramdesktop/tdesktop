@@ -31,8 +31,7 @@ namespace Profile {
 using UpdateFlag = Notify::PeerUpdate::Flag;
 
 ChannelMembersWidget::ChannelMembersWidget(QWidget *parent, PeerData *peer) : BlockWidget(parent, peer, lang(lng_profile_participants_section)) {
-	auto observeEvents = UpdateFlag::ChannelCanViewAdmins
-		| UpdateFlag::ChannelCanViewMembers
+	auto observeEvents = UpdateFlag::ChannelRightsChanged
 		| UpdateFlag::AdminsChanged
 		| UpdateFlag::MembersChanged;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
@@ -47,10 +46,10 @@ void ChannelMembersWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 		return;
 	}
 
-	if (update.flags & (UpdateFlag::ChannelCanViewAdmins | UpdateFlag::AdminsChanged)) {
+	if (update.flags & (UpdateFlag::ChannelRightsChanged | UpdateFlag::AdminsChanged)) {
 		refreshAdmins();
 	}
-	if (update.flags & (UpdateFlag::ChannelCanViewMembers | UpdateFlag::MembersChanged)) {
+	if (update.flags & (UpdateFlag::ChannelRightsChanged | UpdateFlag::MembersChanged)) {
 		refreshMembers();
 	}
 	refreshVisibility();

@@ -938,7 +938,7 @@ void EditChannelBox::prepare() {
 
 	connect(_publicLink, SIGNAL(clicked()), this, SLOT(onPublicLink()));
 	_publicLink->setVisible(_channel->canEditUsername());
-	_sign->setVisible(!_channel->isMegagroup());
+	_sign->setVisible(canEditSignatures());
 
 	updateMaxHeight();
 }
@@ -969,10 +969,14 @@ void EditChannelBox::onDescriptionResized() {
 	update();
 }
 
+bool EditChannelBox::canEditSignatures() const {
+	return _channel->amCreator() && !_channel->isMegagroup();
+}
+
 void EditChannelBox::updateMaxHeight() {
 	auto newHeight = st::newGroupInfoPadding.top() + _title->height();
 	newHeight += st::newGroupDescriptionPadding.top() + _description->height() + st::newGroupDescriptionPadding.bottom();
-	if (!_channel->isMegagroup()) {
+	if (canEditSignatures()) {
 		newHeight += st::newGroupPublicLinkPadding.top() + _sign->heightNoMargins() + st::newGroupPublicLinkPadding.bottom();
 	}
 	if (_channel->canEditUsername()) {
@@ -993,10 +997,10 @@ void EditChannelBox::resizeEvent(QResizeEvent *e) {
 
 	_sign->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _description->y() + _description->height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
 
-	if (_channel->isMegagroup()) {
-		_publicLink->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _description->y() + _description->height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
-	} else {
+	if (canEditSignatures()) {
 		_publicLink->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _sign->bottomNoMargins() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
+	} else {
+		_publicLink->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _description->y() + _description->height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
 	}
 }
 
@@ -1031,7 +1035,7 @@ void EditChannelBox::saveDescription() {
 }
 
 void EditChannelBox::saveSign() {
-	if (_channel->isMegagroup() || _channel->addsSignature() == _sign->checked()) {
+	if (!canEditSignatures() || _channel->addsSignature() == _sign->checked()) {
 		closeBox();
 	} else {
 		_saveSignRequestId = MTP::send(MTPchannels_ToggleSignatures(_channel->inputChannel, MTP_bool(_sign->checked())), rpcDone(&EditChannelBox::onSaveSignDone), rpcFail(&EditChannelBox::onSaveFail));

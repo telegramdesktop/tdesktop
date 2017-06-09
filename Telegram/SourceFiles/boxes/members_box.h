@@ -68,6 +68,7 @@ protected:
 
 private:
 	void onAdd();
+	void refreshButtons();
 
 	ChannelData *_channel = nullptr;
 	MembersFilter _filter = MembersFilter::Recent;
@@ -86,12 +87,10 @@ class MembersBox::Inner : public TWidget, public RPCSender, private base::Subscr
 	Q_OBJECT
 
 public:
-	Inner(QWidget *parent, ChannelData *channel, MembersFilter filter);
+	Inner(QWidget *parent, gsl::not_null<ChannelData*> channel, MembersFilter filter);
 
 	void selectSkip(int32 dir);
 	void selectSkipPage(int32 h, int32 dir);
-
-	void chooseParticipant();
 
 	void refresh();
 
@@ -127,20 +126,34 @@ protected:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
-	struct MemberData {
-		MemberData();
-		~MemberData();
-
-		std::unique_ptr<Ui::RippleAnimation> ripple;
-		int rippleRowTop = 0;
-		Text name;
-		QString online;
-		bool onlineColor;
-		bool canKick;
+	struct RowData;
+	enum class MemberRole {
+		None,
+		Self,
+		Creator,
+		Admin,
+		Restricted,
+		Kicked,
 	};
-	void addRipple(MemberData *data);
-	void stopLastRipple(MemberData *data);
+	struct Member {
+		Member(gsl::not_null<UserData*> user);
+		Member(Member &&other);
+		Member &operator=(Member &&other);
+		~Member();
+
+		gsl::not_null<UserData*> user;
+		QDateTime date;
+		MemberRole role = MemberRole::None;
+		bool adminCanEdit = false;
+		MTPChannelAdminRights adminRights;
+		MTPChannelBannedRights restrictedRights;
+		std::unique_ptr<RowData> data;
+	};
+	void addRipple(gsl::not_null<RowData*> data);
+	void stopLastRipple(gsl::not_null<RowData*> data);
 	void setPressed(int pressed);
+	void chooseParticipant();
+	void actionPressed(Member &row);
 
 	void updateSelection();
 	void loadProfilePhotos();
@@ -148,17 +161,15 @@ private:
 	void updateRowWithTop(int rowTop);
 	int getSelectedRowTop() const;
 	void updateSelectedRow();
-	MemberData *data(int32 index);
+	void ensureData(Member &row);
 
-	void paintDialog(Painter &p, TimeMs ms, PeerData *peer, MemberData *data, bool selected, bool kickSelected);
+	void paintDialog(Painter &p, TimeMs ms, Member &row, bool selected, bool kickSelected);
 
 	void membersReceived(const MTPchannels_ChannelParticipants &result, mtpRequestId req);
 	bool membersFailed(const RPCError &error, mtpRequestId req);
 
-	void kickDone(const MTPUpdates &result, mtpRequestId req);
-	void kickAdminDone(const MTPUpdates &result, mtpRequestId req);
-	bool kickFail(const RPCError &error, mtpRequestId req);
-	void removeKicked();
+	bool kickFail(const RPCError &error);
+	void removeKicked(UserData *kicked);
 
 	void clear();
 
@@ -166,7 +177,7 @@ private:
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
 
-	ChannelData *_channel = nullptr;
+	gsl::not_null<ChannelData*> _channel;
 	MembersFilter _filter;
 
 	QString _kickText;
@@ -179,26 +190,11 @@ private:
 	int _kickPressed = -1;
 	bool _mouseSelection = false;
 
-	UserData *_kickConfirm = nullptr;
-	mtpRequestId _kickRequestId = 0;
-
-	QPointer<ConfirmBox> _kickBox;
-
-	enum class MemberRole {
-		None,
-		Self,
-		Creator,
-		Admin,
-		Kicked,
-	};
+	QPointer<BoxContent> _kickBox;
 
 	bool _loading = true;
 	mtpRequestId _loadingRequestId = 0;
-	QVector<UserData*> _rows;
-	QVector<QDateTime> _dates;
-	QVector<MemberRole> _roles;
-	QVector<MTPChannelAdminRights> _adminRights;
-	QVector<MemberData*> _datas;
+	std::vector<Member> _rows;
 
 	int _aboutWidth = 0;
 	Text _about;

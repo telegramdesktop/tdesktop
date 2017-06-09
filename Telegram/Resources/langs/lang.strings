@@ -140,6 +140,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_error_pinned_max#one" = "Sorry, you can pin no more than {count} chat to the top.";
 "lng_error_pinned_max#other" = "Sorry, you can pin no more than {count} chats to the top.";
 "lng_error_public_groups_denied" = "Unfortunately, you were banned from participating in public groups.\n{more_info}";
+"lng_error_cant_edit_admin" = "Sorry, you can't edit permissions for this admin.";
+"lng_error_cant_add_member" = "Sorry, you can't add the bot to this group.";
 
 "lng_edit_deleted" = "This message was deleted";
 "lng_edit_too_long" = "Your message text is too long";
@@ -577,6 +579,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_delete_and_exit" = "Leave";
 "lng_profile_kick" = "Remove";
 "lng_profile_admin" = "admin";
+"lng_profile_edit_admin" = "Edit";
 "lng_profile_sure_kick" = "Remove {user} from the group?";
 "lng_profile_sure_kick_channel" = "Remove {user} from the channel?";
 "lng_profile_sure_kick_admin" = "Remove {user} from administrators?";
@@ -993,7 +996,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_context_unpin_from_top" = "Unpin from top";
 
 "lng_context_promote_admin" = "Promote to admin";
-"lng_context_remove_admin" = "Remove from admins";
+"lng_context_edit_permissions" = "Edit permissions";
+"lng_context_restrict_user" = "Restrict user";
 "lng_context_remove_from_group" = "Remove from group";
 
 "lng_context_copy_link" = "Copy Link";
@@ -1246,7 +1250,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_rights_edit_admin" = "Edit administrator";
 "lng_rights_edit_admin_header" = "What can this admin do?";
-"lng_rights_about_add_admins_yes" = "This admin will be able to add new admins with the same (or more limited) permissions than they have.";
+"lng_rights_about_add_admins_yes" = "This admin will be able to add new admins with the same (or more limited) permissions.";
 "lng_rights_about_add_admins_no" = "This admin will not be able to add new admins.";
 "lng_rights_user_restrictions" = "User restrictions";
 "lng_rights_user_restrictions_header" = "What can this user do?";
@@ -1254,12 +1258,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_rights_channel_info" = "Change channel info";
 "lng_rights_channel_post" = "Post messages";
 "lng_rights_channel_edit" = "Edit messages of others";
+"lng_rights_channel_delete" = "Delete messages of others";
 "lng_rights_group_info" = "Change group info";
 "lng_rights_group_ban" = "Ban users";
 "lng_rights_group_invite" = "Add users";
-"lng_rights_group_invite_link" = "Invite users via link";
+//"lng_rights_group_invite_link" = "Invite users via link";
 "lng_rights_group_pin" = "Pin messages";
-"lng_rights_delete" = "Delete messages of others";
+"lng_rights_group_delete" = "Delete messages";
 "lng_rights_add_admins" = "Add new admins";
 "lng_rights_chat_read" = "Read messages";
 "lng_rights_chat_send_text" = "Send messages";

@@ -619,16 +619,11 @@ public:
 	bool isMigrated() const {
 		return flags & MTPDchat::Flag::f_migrated_to;
 	}
-	typedef QMap<UserData*, int> Participants;
-	Participants participants;
-	typedef OrderedSet<UserData*> InvitedByMe;
-	InvitedByMe invitedByMe;
-	typedef OrderedSet<UserData*> Admins;
-	Admins admins;
-	typedef QList<UserData*> LastAuthors;
-	LastAuthors lastAuthors;
-	typedef OrderedSet<PeerData*> MarkupSenders;
-	MarkupSenders markupSenders;
+	QMap<gsl::not_null<UserData*>, int> participants;
+	OrderedSet<gsl::not_null<UserData*>> invitedByMe;
+	OrderedSet<gsl::not_null<UserData*>> admins;
+	QList<gsl::not_null<UserData*>> lastAuthors;
+	OrderedSet<gsl::not_null<PeerData*>> markupSenders;
 	int botStatus = 0; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 //	ImagePtr photoFull;
 
@@ -705,14 +700,26 @@ private:
 };
 
 struct MegagroupInfo {
-	typedef QList<UserData*> LastParticipants;
-	LastParticipants lastParticipants;
-	QMap<UserData*, MTPChannelAdminRights> lastAdmins;
-	typedef OrderedSet<PeerData*> MarkupSenders;
-	MarkupSenders markupSenders;
-	typedef OrderedSet<UserData*> Bots;
-	Bots bots;
+	struct Admin {
+		explicit Admin(MTPChannelAdminRights rights) : rights(rights) {
+		}
+		Admin(MTPChannelAdminRights rights, bool canEdit) : rights(rights), canEdit(canEdit) {
+		}
+		MTPChannelAdminRights rights;
+		bool canEdit = false;
+	};
+	struct Restricted {
+		explicit Restricted(MTPChannelBannedRights rights) : rights(rights) {
+		}
+		MTPChannelBannedRights rights;
+	};
+	QList<gsl::not_null<UserData*>> lastParticipants;
+	QMap<gsl::not_null<UserData*>, Admin> lastAdmins;
+	QMap<gsl::not_null<UserData*>, Restricted> lastRestricted;
+	OrderedSet<gsl::not_null<PeerData*>> markupSenders;
+	OrderedSet<gsl::not_null<UserData*>> bots;
 
+	UserData *creator = nullptr; // nullptr means unknown
 	int botStatus = 0; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 	MsgId pinnedMsgId = 0;
 	bool joinedMessageFound = false;
@@ -764,6 +771,11 @@ public:
 	}
 	void setAdminsCount(int newAdminsCount);
 
+	int restrictedCount() const {
+		return _restrictedCount;
+	}
+	void setRestrictedCount(int newRestrictedCount);
+
 	int kickedCount() const {
 		return _kickedCount;
 	}
@@ -788,11 +800,15 @@ public:
 		return flags & MTPDchannel::Flag::f_verified;
 	}
 
+	static MTPChannelBannedRights KickedRestrictedRights();
+	void applyEditAdmin(gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights);
+	void applyEditBanned(gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights);
+
 	int32 date = 0;
 	int version = 0;
 	MTPDchannel::Flags flags = { 0 };
 	MTPDchannelFull::Flags flagsFull = { 0 };
-	MegagroupInfo *mgInfo = nullptr;
+	std::unique_ptr<MegagroupInfo> mgInfo;
 	bool lastParticipantsCountOutdated() const {
 		if (!mgInfo || !(mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsCountOutdated)) {
 			return false;
@@ -804,7 +820,6 @@ public:
 		return true;
 	}
 	void flagsUpdated();
-	void selfAdminUpdated();
 	bool isMegagroup() const {
 		return flags & MTPDchannel::Flag::f_megagroup;
 	}
@@ -817,38 +832,43 @@ public:
 	bool amCreator() const {
 		return flags & MTPDchannel::Flag::f_creator;
 	}
-	bool amEditor() const {
-		return hasAdminRights();
+	const MTPChannelAdminRights &adminRightsBoxed() const {
+		return _adminRights;
 	}
 	const MTPDchannelAdminRights &adminRights() const {
 		return _adminRights.c_channelAdminRights();
 	}
-	void setAdminRights(const MTPChannelAdminRights &rights) {
-		_adminRights = rights;
-	}
+	void setAdminRights(const MTPChannelAdminRights &rights);
 	bool hasAdminRights() const {
 		return (adminRights().vflags.v != 0);
 	}
-	const MTPDchannelBannedRights &bannedRights() const {
-		return _bannedRights.c_channelBannedRights();
+	const MTPChannelBannedRights &restrictedRightsBoxed() const {
+		return _restrictedRights;
 	}
-	void setBannedRights(const MTPChannelBannedRights &rights) {
-		_bannedRights = rights;
+	const MTPDchannelBannedRights &restrictedRights() const {
+		return _restrictedRights.c_channelBannedRights();
 	}
-	bool hasBannedRights() const {
-		return (bannedRights().vflags.v != 0);
+	void setRestrictedRights(const MTPChannelBannedRights &rights);
+	bool hasRestrictedRights() const {
+		return (restrictedRights().vflags.v != 0);
 	}
-	bool hasBannedRights(int32 now) const {
-		return hasBannedRights() && (bannedRights().vuntil_date.v > now);
+	bool hasRestrictedRights(int32 now) const {
+		return hasRestrictedRights() && (restrictedRights().vuntil_date.v > now);
 	}
 	bool canBanMembers() const {
 		return adminRights().is_ban_users() || amCreator();
+	}
+	bool canEditMessages() const {
+		return adminRights().is_edit_messages() || amCreator();
 	}
 	bool canDeleteMessages() const {
 		return adminRights().is_delete_messages() || amCreator();
 	}
 	bool canAddMembers() const {
 		return adminRights().is_invite_users() || amCreator() || (amIn() && (flags & MTPDchannel::Flag::f_democracy));
+	}
+	bool canAddAdmins() const {
+		return adminRights().is_add_admins() || amCreator();
 	}
 	bool canPinMessages() const {
 		return adminRights().is_pin_messages() || amCreator();
@@ -857,7 +877,7 @@ public:
 		return adminRights().is_post_messages() || amCreator();
 	}
 	bool canWrite() const {
-		return amIn() && (canPublish() || !isBroadcast());
+		return amIn() && (canPublish() || (!isBroadcast() && !restrictedRights().is_send_messages()));
 	}
 	bool canViewMembers() const {
 		return flagsFull & MTPDchannelFull::Flag::f_can_view_participants;
@@ -875,10 +895,15 @@ public:
 		constexpr auto kDeleteChannelMembersLimit = 1000;
 		return amCreator() && (membersCount() <= kDeleteChannelMembersLimit);
 	}
+	bool canEditAdmin(gsl::not_null<UserData*> user) const;
+	bool canRestrictUser(gsl::not_null<UserData*> user) const;
 
 	void setInviteLink(const QString &newInviteLink);
 	QString inviteLink() const {
 		return _inviteLink;
+	}
+	bool canHaveInviteLink() const {
+		return adminRights().is_invite_link() || amCreator();
 	}
 
 	int32 inviter = 0; // > 0 - user who invited me to channel, < 0 - not in channel
@@ -930,19 +955,20 @@ public:
 		_restrictionReason = reason;
 	}
 
-	~ChannelData();
-
 private:
+	bool canNotEditLastAdmin(gsl::not_null<UserData*> user) const;
+
 	PtsWaiter _ptsWaiter;
 	TimeMs _lastFullUpdate = 0;
 
 	bool _isForbidden = true;
 	int _membersCount = 1;
 	int _adminsCount = 1;
+	int _restrictedCount = 0;
 	int _kickedCount = 0;
 
 	MTPChannelAdminRights _adminRights = MTP_channelAdminRights(MTP_flags(0));
-	MTPChannelBannedRights _bannedRights = MTP_channelBannedRights(MTP_flags(0), MTP_int(0));
+	MTPChannelBannedRights _restrictedRights = MTP_channelBannedRights(MTP_flags(0), MTP_int(0));
 
 	QString _restrictionReason;
 	QString _about;

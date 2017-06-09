@@ -900,9 +900,9 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 				if (peer->isMegagroup()) {
 					if (auto user = App::userLoaded(uid)) {
 						auto channel = peer->asChannel();
-						auto megagroupInfo = channel->mgInfo;
+						auto &megagroupInfo = channel->mgInfo;
 
-						int32 index = megagroupInfo->lastParticipants.indexOf(user);
+						auto index = megagroupInfo->lastParticipants.indexOf(user);
 						if (index >= 0) {
 							megagroupInfo->lastParticipants.removeAt(index);
 							Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
@@ -1117,20 +1117,24 @@ HistoryItem *History::addNewItem(HistoryItem *adding, bool newMsg) {
 
 	adding->addToOverview(AddToOverviewNew);
 	if (adding->from()->id) {
-		if (adding->from()->isUser()) {
-			QList<UserData*> *lastAuthors = 0;
-			if (peer->isChat()) {
-				lastAuthors = &peer->asChat()->lastAuthors;
-			} else if (peer->isMegagroup()) {
-				lastAuthors = &peer->asChannel()->mgInfo->lastParticipants;
+		if (auto user = adding->from()->asUser()) {
+			auto getLastAuthors = [this]() -> QList<gsl::not_null<UserData*>>* {
+				if (auto chat = peer->asChat()) {
+					return &chat->lastAuthors;
+				} else if (auto channel = peer->asMegagroup()) {
+					return &channel->mgInfo->lastParticipants;
+				}
+				return nullptr;
+			};
+			if (auto channel = peer->asMegagroup()) {
 				if (adding->from()->asUser()->botInfo) {
-					peer->asChannel()->mgInfo->bots.insert(adding->from()->asUser());
-					if (peer->asChannel()->mgInfo->botStatus != 0 && peer->asChannel()->mgInfo->botStatus < 2) {
-						peer->asChannel()->mgInfo->botStatus = 2;
+					channel->mgInfo->bots.insert(adding->from()->asUser());
+					if (channel->mgInfo->botStatus != 0 && channel->mgInfo->botStatus < 2) {
+						channel->mgInfo->botStatus = 2;
 					}
 				}
 			}
-			if (lastAuthors) {
+			if (auto lastAuthors = getLastAuthors()) {
 				int prev = lastAuthors->indexOf(adding->from()->asUser());
 				if (prev > 0) {
 					lastAuthors->removeAt(prev);
@@ -1146,15 +1150,17 @@ HistoryItem *History::addNewItem(HistoryItem *adding, bool newMsg) {
 			}
 		}
 		if (adding->definesReplyKeyboard()) {
-			MTPDreplyKeyboardMarkup::Flags markupFlags = adding->replyKeyboardFlags();
+			auto markupFlags = adding->replyKeyboardFlags();
 			if (!(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_selective) || adding->mentionsMe()) {
-				OrderedSet<PeerData*> *markupSenders = 0;
-				if (peer->isChat()) {
-					markupSenders = &peer->asChat()->markupSenders;
-				} else if (peer->isMegagroup()) {
-					markupSenders = &peer->asChannel()->mgInfo->markupSenders;
-				}
-				if (markupSenders) {
+				auto getMarkupSenders = [this]() -> OrderedSet<gsl::not_null<PeerData*>>* {
+					if (auto chat = peer->asChat()) {
+						return &chat->markupSenders;
+					} else if (auto channel = peer->asMegagroup()) {
+						return &channel->mgInfo->markupSenders;
+					}
+					return nullptr;
+				};
+				if (auto markupSenders = getMarkupSenders()) {
 					markupSenders->insert(adding->from());
 				}
 				if (markupFlags & MTPDreplyKeyboardMarkup_ClientFlag::f_zero) { // zero markup means replyKeyboardHide
@@ -1299,8 +1305,8 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 	} else if (loadedAtBottom()) { // add photos to overview and authors to lastAuthors
 		bool channel = isChannel();
 		int32 mask = 0;
-		QList<UserData*> *lastAuthors = nullptr;
-		OrderedSet<PeerData*> *markupSenders = nullptr;
+		QList<gsl::not_null<UserData*>> *lastAuthors = nullptr;
+		OrderedSet<gsl::not_null<PeerData*>> *markupSenders = nullptr;
 		if (peer->isChat()) {
 			lastAuthors = &peer->asChat()->lastAuthors;
 			markupSenders = &peer->asChat()->markupSenders;

@@ -681,11 +681,9 @@ namespace {
 
 			auto cdata = data->asChannel();
 			auto wasInChannel = cdata->amIn();
-			auto canEditInformation = cdata->canEditInformation();
 			auto canViewAdmins = cdata->canViewAdmins();
 			auto canViewMembers = cdata->canViewMembers();
 			auto canAddMembers = cdata->canAddMembers();
-			auto wasEditor = cdata->amEditor();
 
 			if (minimal) {
 				auto mask = MTPDchannel::Flag::f_broadcast | MTPDchannel::Flag::f_verified | MTPDchannel::Flag::f_megagroup | MTPDchannel::Flag::f_democracy;
@@ -694,8 +692,8 @@ namespace {
 				if (d.has_admin_rights() || cdata->hasAdminRights()) {
 					cdata->setAdminRights(d.has_admin_rights() ? d.vadmin_rights : MTP_channelAdminRights(MTP_flags(0)));
 				}
-				if (d.has_banned_rights() || cdata->hasBannedRights()) {
-					cdata->setBannedRights(d.has_banned_rights() ? d.vbanned_rights : MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
+				if (d.has_banned_rights() || cdata->hasRestrictedRights()) {
+					cdata->setRestrictedRights(d.has_banned_rights() ? d.vbanned_rights : MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
 				}
 				cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
 				cdata->access = d.vaccess_hash.v;
@@ -719,14 +717,9 @@ namespace {
 			cdata->setPhoto(d.vphoto);
 
 			if (wasInChannel != cdata->amIn()) update.flags |= UpdateFlag::ChannelAmIn;
-			if (canEditInformation != cdata->canEditInformation()) update.flags |= UpdateFlag::ChannelCanEditInformation;
-			if (canViewAdmins != cdata->canViewAdmins()) update.flags |= UpdateFlag::ChannelCanViewAdmins;
-			if (canViewMembers != cdata->canViewMembers()) update.flags |= UpdateFlag::ChannelCanViewMembers;
-			if (canAddMembers != cdata->canAddMembers()) update.flags |= UpdateFlag::ChannelCanAddMembers;
-			if (wasEditor != cdata->amEditor()) {
-				cdata->selfAdminUpdated();
-				update.flags |= (UpdateFlag::ChannelAmEditor | UpdateFlag::AdminsChanged);
-			}
+			if (canViewAdmins != cdata->canViewAdmins()
+				|| canViewMembers != cdata->canViewMembers()
+				|| canAddMembers != cdata->canAddMembers()) update.flags |= UpdateFlag::ChannelRightsChanged;
 		} break;
 		case mtpc_channelForbidden: {
 			auto &d(chat.c_channelForbidden());
@@ -737,11 +730,9 @@ namespace {
 
 			auto cdata = data->asChannel();
 			auto wasInChannel = cdata->amIn();
-			auto canEditInformation = cdata->canEditInformation();
 			auto canViewAdmins = cdata->canViewAdmins();
 			auto canViewMembers = cdata->canViewMembers();
 			auto canAddMembers = cdata->canAddMembers();
-			auto wasEditor = cdata->amEditor();
 
 			cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
 
@@ -752,8 +743,8 @@ namespace {
 			if (cdata->hasAdminRights()) {
 				cdata->setAdminRights(MTP_channelAdminRights(MTP_flags(0)));
 			}
-			if (cdata->hasBannedRights()) {
-				cdata->setBannedRights(MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
+			if (cdata->hasRestrictedRights()) {
+				cdata->setRestrictedRights(MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
 			}
 
 			cdata->setName(qs(d.vtitle), QString());
@@ -765,14 +756,9 @@ namespace {
 			cdata->setIsForbidden(true);
 
 			if (wasInChannel != cdata->amIn()) update.flags |= UpdateFlag::ChannelAmIn;
-			if (canEditInformation != cdata->canEditInformation()) update.flags |= UpdateFlag::ChannelCanEditInformation;
-			if (canViewAdmins != cdata->canViewAdmins()) update.flags |= UpdateFlag::ChannelCanViewAdmins;
-			if (canViewMembers != cdata->canViewMembers()) update.flags |= UpdateFlag::ChannelCanViewMembers;
-			if (canAddMembers != cdata->canAddMembers()) update.flags |= UpdateFlag::ChannelCanAddMembers;
-			if (wasEditor != cdata->amEditor()) {
-				cdata->selfAdminUpdated();
-				update.flags |= (UpdateFlag::ChannelAmEditor | UpdateFlag::AdminsChanged);
-			}
+			if (canViewAdmins != cdata->canViewAdmins()
+				|| canViewMembers != cdata->canViewMembers()
+				|| canAddMembers != cdata->canAddMembers()) update.flags |= UpdateFlag::ChannelRightsChanged;
 		} break;
 		}
 		if (!data) {
@@ -825,10 +811,10 @@ namespace {
 				auto &v = d.vparticipants.v;
 				chat->count = v.size();
 				int32 pversion = chat->participants.isEmpty() ? 1 : (chat->participants.begin().value() + 1);
-				chat->invitedByMe = ChatData::InvitedByMe();
-				chat->admins = ChatData::Admins();
+				chat->invitedByMe.clear();
+				chat->admins.clear();
 				chat->flags &= ~MTPDchat::Flag::f_admin;
-				for (QVector<MTPChatParticipant>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
+				for (auto i = v.cbegin(), e = v.cend(); i != e; ++i) {
 					int32 uid = 0, inviter = 0;
 					switch (i->type()) {
 					case mtpc_chatParticipantCreator: {
@@ -870,7 +856,7 @@ namespace {
 					History *h = App::historyLoaded(chat->id);
 					bool found = !h || !h->lastKeyboardFrom;
 					int32 botStatus = -1;
-					for (ChatData::Participants::iterator i = chat->participants.begin(), e = chat->participants.end(); i != e;) {
+					for (auto i = chat->participants.begin(), e = chat->participants.end(); i != e;) {
 						if (i.value() < pversion) {
 							i = chat->participants.erase(i);
 						} else {
@@ -976,7 +962,7 @@ namespace {
 						chat->count--;
 					}
 				} else {
-					ChatData::Participants::iterator i = chat->participants.find(user);
+					auto i = chat->participants.find(user);
 					if (i != chat->participants.end()) {
 						chat->participants.erase(i);
 						chat->count--;
@@ -993,7 +979,7 @@ namespace {
 					}
 					if (chat->botStatus > 0 && user->botInfo) {
 						int32 botStatus = -1;
-						for (ChatData::Participants::const_iterator j = chat->participants.cbegin(), e = chat->participants.cend(); j != e; ++j) {
+						for (auto j = chat->participants.cbegin(), e = chat->participants.cend(); j != e; ++j) {
 							if (j.key()->botInfo) {
 								if (true || botStatus > 0/* || !j.key()->botInfo->readsAllHistory*/) {
 									botStatus = 2;

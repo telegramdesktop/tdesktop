@@ -105,8 +105,8 @@ private:
 	void saveAdminsDone(const MTPUpdates &result);
 	void saveSelectedAdmins();
 	void getAdminsDone(const MTPmessages_ChatFull &result);
-	void setAdminDone(UserData *user, const MTPBool &result);
-	void removeAdminDone(UserData *user, const MTPBool &result);
+	void setAdminDone(gsl::not_null<UserData*> user, const MTPBool &result);
+	void removeAdminDone(gsl::not_null<UserData*> user, const MTPBool &result);
 	bool saveAdminsFail(const RPCError &error);
 	bool editAdminFail(const RPCError &error);
 
@@ -163,7 +163,7 @@ public:
 	void selectSkip(int32 dir);
 	void selectSkipPage(int32 h, int32 dir);
 
-	QVector<UserData*> selected();
+	std::vector<gsl::not_null<UserData*>> selected();
 	QVector<MTPInputUser> selectedInputs();
 	bool allAdmins() const;
 	void setAllAdminsChangedCallback(base::lambda<void()> allAdminsChangedCallback) {
@@ -268,9 +268,14 @@ private:
 	template <typename FilterCallback>
 	void addDialogsToList(FilterCallback callback);
 
+	PeerData *selectedPeer() const;
 	bool usingMultiSelect() const {
 		return (_chat != nullptr) || (_creating != CreatingGroupNone && (!_channel || _membersFilter != MembersFilter::Admins));
 	}
+	void changeMultiSelectCheckState();
+	void addSelectedAsChannelAdmin();
+	void shareBotGameToSelected();
+	void addBotToSelectedGroup();
 
 	base::lambda<void(PeerData *peer, bool selected)> _peerSelectedChangedCallback;
 

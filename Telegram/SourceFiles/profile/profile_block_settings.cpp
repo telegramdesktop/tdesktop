@@ -172,10 +172,7 @@ SettingsWidget::SettingsWidget(QWidget *parent, PeerData *peer) : BlockWidget(pa
 			observeEvents |= UpdateFlag::ChatCanEdit | UpdateFlag::InviteLinkChanged;
 		}
 	} else if (auto channel = peer->asChannel()) {
-		if (channel->amCreator()) {
-			observeEvents |= UpdateFlag::UsernameChanged | UpdateFlag::InviteLinkChanged;
-		}
-		observeEvents |= UpdateFlag::ChannelAmEditor | UpdateFlag::BlockedUsersChanged;
+		observeEvents |= UpdateFlag::ChannelRightsChanged | UpdateFlag::BlockedUsersChanged | UpdateFlag::UsernameChanged | UpdateFlag::InviteLinkChanged;
 	}
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		notifyPeerUpdated(update);
@@ -195,13 +192,13 @@ void SettingsWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 	if (update.flags & UpdateFlag::NotificationsEnabled) {
 		refreshEnableNotifications();
 	}
-	if (update.flags & (UpdateFlag::ChatCanEdit | UpdateFlag::UsernameChanged | UpdateFlag::InviteLinkChanged)) {
+	if (update.flags & (UpdateFlag::ChannelRightsChanged | UpdateFlag::ChatCanEdit | UpdateFlag::UsernameChanged | UpdateFlag::InviteLinkChanged)) {
 		refreshInviteLinkButton();
 	}
-	if (update.flags & (UpdateFlag::ChatCanEdit)) {
+	if (update.flags & (UpdateFlag::ChannelRightsChanged | UpdateFlag::ChatCanEdit)) {
 		refreshManageAdminsButton();
 	}
-	if ((update.flags & UpdateFlag::ChannelAmEditor) || (update.flags & UpdateFlag::BlockedUsersChanged)) {
+	if (update.flags & (UpdateFlag::ChannelRightsChanged | UpdateFlag::BlockedUsersChanged)) {
 		refreshManageBlockedUsersButton();
 	}
 
@@ -254,7 +251,7 @@ void SettingsWidget::refreshManageAdminsButton() {
 		if (auto chat = peer()->asChat()) {
 			return (chat->amCreator() && chat->canEdit());
 		} else if (auto channel = peer()->asMegagroup()) {
-			return channel->amCreator();
+			return channel->hasAdminRights() || channel->amCreator();
 		}
 		return false;
 	};
@@ -269,7 +266,7 @@ void SettingsWidget::refreshManageAdminsButton() {
 void SettingsWidget::refreshManageBlockedUsersButton() {
 	auto hasManageBlockedUsers = [this] {
 		if (auto channel = peer()->asMegagroup()) {
-			return channel->canBanMembers() && (channel->kickedCount() > 0);
+			return channel->canBanMembers() && (channel->kickedCount() > 0 || channel->restrictedCount() > 0);
 		}
 		return false;
 	};
@@ -288,7 +285,7 @@ void SettingsWidget::refreshInviteLinkButton() {
 				return lang(chat->inviteLink().isEmpty() ? lng_group_invite_create : lng_group_invite_create_new);
 			}
 		} else if (auto channel = peer()->asChannel()) {
-			if (channel->amCreator() && !channel->isPublic()) {
+			if (channel->canHaveInviteLink() && !channel->isPublic()) {
 				return lang(channel->inviteLink().isEmpty() ? lng_group_invite_create : lng_group_invite_create_new);
 			}
 		}

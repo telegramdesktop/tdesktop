@@ -38,7 +38,7 @@ using UpdateFlag = Notify::PeerUpdate::Flag;
 const auto ButtonsUpdateFlags = UpdateFlag::UserCanShareContact
 	| UpdateFlag::UserIsContact
 	| UpdateFlag::ChatCanEdit
-	| UpdateFlag::ChannelAmEditor;
+	| UpdateFlag::ChannelRightsChanged;
 
 } // namespace
 
@@ -117,13 +117,13 @@ void FixedBar::setChatActions() {
 }
 
 void FixedBar::setMegagroupActions() {
-	if (_peerMegagroup->amCreator() || _peerMegagroup->canEditInformation()) {
+	if (_peerMegagroup->canEditInformation()) {
 		addRightAction(RightActionType::EditChannel, langFactory(lng_profile_edit_contact), SLOT(onEditChannel()));
 	}
 }
 
 void FixedBar::setChannelActions() {
-	if (_peerChannel->amCreator()) {
+	if (_peerChannel->canEditInformation()) {
 		addRightAction(RightActionType::EditChannel, langFactory(lng_profile_edit_contact), SLOT(onEditChannel()));
 	}
 }

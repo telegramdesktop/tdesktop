@@ -4111,7 +4111,7 @@ void HistoryWidget::updateOnlineDisplayTimer() {
 		ChatData *chat = _peer->asChat();
 		if (chat->participants.isEmpty()) return;
 
-		for (ChatData::Participants::const_iterator i = chat->participants.cbegin(), e = chat->participants.cend(); i != e; ++i) {
+		for (auto i = chat->participants.cbegin(), e = chat->participants.cend(); i != e; ++i) {
 			int32 onlineWillChangeIn = App::onlineWillChangeIn(i.key(), t);
 			if (onlineWillChangeIn < minIn) {
 				minIn = onlineWillChangeIn;

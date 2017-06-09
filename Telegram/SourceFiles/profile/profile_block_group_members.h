@@ -67,8 +67,8 @@ private:
 	// Observed notifications.
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
 
-	void addAdmin(gsl::not_null<UserData*> user);
-	void removeAdmin(gsl::not_null<UserData*> user);
+	void editAdmin(gsl::not_null<UserData*> user);
+	void restrictUser(gsl::not_null<UserData*> user);
 	void removePeer(PeerData *selectedPeer);
 	void refreshMembers();
 	void fillChatMembers(ChatData *chat);
@@ -76,7 +76,6 @@ private:
 	void sortMembers();
 	void updateOnlineCount();
 	void checkSelfAdmin(ChatData *chat);
-	void checkSelfAdmin(ChannelData *megagroup);
 	void refreshLimitReached();
 
 	void preloadMore();

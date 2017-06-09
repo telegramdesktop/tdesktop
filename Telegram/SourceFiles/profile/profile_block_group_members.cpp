@@ -67,41 +67,35 @@ GroupMembersWidget::GroupMembersWidget(QWidget *parent, PeerData *peer, TitleVis
 	refreshMembers();
 }
 
-void GroupMembersWidget::addAdmin(gsl::not_null<UserData*> user) {
+void GroupMembersWidget::editAdmin(gsl::not_null<UserData*> user) {
 	auto megagroup = peer()->asMegagroup();
 	if (!megagroup) {
 		return; // not supported
 	}
-	auto currentRights = megagroup->mgInfo->lastAdmins.value(user, MTP_channelAdminRights(MTP_flags(0)));
+	auto defaultAdmin = MegagroupInfo::Admin { EditAdminBox::DefaultRights(megagroup) };
+	auto currentRights = megagroup->mgInfo->lastAdmins.value(user, defaultAdmin).rights;
 	Ui::show(Box<EditAdminBox>(megagroup, user, currentRights, base::lambda_guarded(this, [this, megagroup, user](const MTPChannelAdminRights &rights) {
 		Ui::hideLayer();
 		MTP::send(MTPchannels_EditAdmin(megagroup->inputChannel, user->inputUser, rights), rpcDone(base::lambda_guarded(this, [this, megagroup, user, rights](const MTPUpdates &result) {
 			if (App::main()) App::main()->sentUpdatesReceived(result);
-			megagroup->mgInfo->lastAdmins.insert(user, rights);
-			megagroup->setAdminsCount(megagroup->adminsCount() + 1);
-			if (App::main()) emit App::main()->peerUpdated(megagroup);
-			Notify::peerUpdatedDelayed(megagroup, Notify::PeerUpdate::Flag::AdminsChanged);
+			megagroup->applyEditAdmin(user, rights);
 		})));
 	})));
 }
 
-void GroupMembersWidget::removeAdmin(gsl::not_null<UserData*> user) {
-	auto text = lng_profile_sure_kick_admin(lt_user, user->firstName);
-	Ui::show(Box<ConfirmBox>(text, lang(lng_box_remove), base::lambda_guarded(this, [this, user] {
+void GroupMembersWidget::restrictUser(gsl::not_null<UserData*> user) {
+	auto megagroup = peer()->asMegagroup();
+	if (!megagroup) {
+		return; // not supported
+	}
+	auto defaultRestricted = MegagroupInfo::Restricted { EditRestrictedBox::DefaultRights(megagroup) };
+	auto currentRights = megagroup->mgInfo->lastRestricted.value(user, defaultRestricted).rights;
+	Ui::show(Box<EditRestrictedBox>(megagroup, user, currentRights, base::lambda_guarded(this, [this, megagroup, user](const MTPChannelBannedRights &rights) {
 		Ui::hideLayer();
-		if (auto chat = peer()->asChat()) {
-			// not supported
-		} else if (auto channel = peer()->asMegagroup()) {
-			MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, MTP_channelAdminRights(MTP_flags(0))), rpcDone(base::lambda_guarded(this, [this, channel, user](const MTPUpdates &result) {
-				if (App::main()) App::main()->sentUpdatesReceived(result);
-				channel->mgInfo->lastAdmins.remove(user);
-				if (channel->adminsCount() > 1) {
-					channel->setAdminsCount(channel->adminsCount() - 1);
-					if (App::main()) emit App::main()->peerUpdated(channel);
-				}
-				Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::AdminsChanged);
-			})));
-		}
+		MTP::send(MTPchannels_EditBanned(megagroup->inputChannel, user->inputUser, rights), rpcDone(base::lambda_guarded(this, [this, megagroup, user, rights](const MTPUpdates &result) {
+			if (App::main()) App::main()->sentUpdatesReceived(result);
+			megagroup->applyEditBanned(user, rights);
+		})));
 	})));
 }
 
@@ -163,7 +157,7 @@ void GroupMembersWidget::refreshUserOnline(UserData *user) {
 
 void GroupMembersWidget::preloadMore() {
 	if (auto megagroup = peer()->asMegagroup()) {
-		auto megagroupInfo = megagroup->mgInfo;
+		auto &megagroupInfo = megagroup->mgInfo;
 		if (!megagroupInfo->lastParticipants.isEmpty() && megagroupInfo->lastParticipants.size() < megagroup->membersCount()) {
 			App::api()->requestLastParticipants(megagroup, false);
 		}
@@ -222,16 +216,22 @@ Ui::PopupMenu *GroupMembersWidget::fillPeerMenu(PeerData *selectedPeer) {
 				}
 				return false;
 			};
-			if (channel && channel->amCreator() && !item->hasAdminStar) {
-				result->addAction(lang(lng_context_promote_admin), base::lambda_guarded(this, [this, user] {
-					addAdmin(user);
-				}));
-			} else if (canRemoveAdmin()) {
-				result->addAction(lang(lng_context_remove_admin), base::lambda_guarded(this, [this, user] {
-					removeAdmin(user);
-				}));
-			}
-			if (item->hasRemoveLink) {
+			if (channel) {
+				if (channel->canEditAdmin(user)) {
+					auto label = lang(item->hasAdminStar ? lng_context_edit_permissions : lng_context_promote_admin);
+					result->addAction(label, base::lambda_guarded(this, [this, user] {
+						editAdmin(user);
+					}));
+				}
+				if (channel->canRestrictUser(user)) {
+					result->addAction(lang(lng_context_restrict_user), base::lambda_guarded(this, [this, user] {
+						restrictUser(user);
+					}));
+					result->addAction(lang(lng_context_remove_from_group), base::lambda_guarded(this, [this, selectedPeer] {
+						removePeer(selectedPeer);
+					}));
+				}
+			} else if (item->hasRemoveLink) {
 				result->addAction(lang(lng_context_remove_from_group), base::lambda_guarded(this, [this, selectedPeer] {
 					removePeer(selectedPeer);
 				}));
@@ -280,8 +280,7 @@ void GroupMembersWidget::refreshMembers() {
 		fillChatMembers(chat);
 		refreshLimitReached();
 	} else if (auto megagroup = peer()->asMegagroup()) {
-		checkSelfAdmin(megagroup);
-		auto megagroupInfo = megagroup->mgInfo;
+		auto &megagroupInfo = megagroup->mgInfo;
 		if (megagroupInfo->lastParticipants.isEmpty() || megagroup->lastParticipantsCountOutdated()) {
 			App::api()->requestLastParticipants(megagroup);
 		}
@@ -321,18 +320,6 @@ void GroupMembersWidget::checkSelfAdmin(ChatData *chat) {
 		chat->admins.insert(self);
 	} else if (!chat->amAdmin() && chat->admins.contains(self)) {
 		chat->admins.remove(self);
-	}
-}
-
-void GroupMembersWidget::checkSelfAdmin(ChannelData *megagroup) {
-	if (megagroup->mgInfo->lastParticipants.isEmpty()) return;
-
-	auto amAdmin = megagroup->hasAdminRights();
-	auto self = App::self();
-	if (amAdmin && !megagroup->mgInfo->lastAdmins.contains(self)) {
-		megagroup->selfAdminUpdated();
-	} else if (!amAdmin && megagroup->mgInfo->lastAdmins.contains(self)) {
-		megagroup->selfAdminUpdated();
 	}
 }
 
@@ -470,11 +457,14 @@ bool GroupMembersWidget::addUsersToEnd(ChannelData *megagroup) {
 
 void GroupMembersWidget::setItemFlags(Item *item, ChannelData *megagroup) {
 	auto amCreatorOrAdmin = item->peer->isSelf() && (megagroup->hasAdminRights() || megagroup->amCreator());
-	auto isAdmin = megagroup->mgInfo->lastAdmins.contains(getMember(item)->user());
-	item->hasAdminStar = amCreatorOrAdmin || isAdmin;
+	auto adminIt = megagroup->mgInfo->lastAdmins.constFind(getMember(item)->user());
+	auto isAdmin = (adminIt != megagroup->mgInfo->lastAdmins.cend());
+	auto isCreator = megagroup->mgInfo->creator == item->peer;
+	auto adminCanEdit = isAdmin && adminIt->canEdit;
+	item->hasAdminStar = amCreatorOrAdmin || isAdmin || isCreator;
 	if (item->peer->isSelf()) {
 		item->hasRemoveLink = false;
-	} else if (megagroup->amCreator() || (megagroup->canBanMembers() && !item->hasAdminStar)) {
+	} else if (megagroup->amCreator() || (megagroup->canBanMembers() && (!item->hasAdminStar || adminCanEdit))) {
 		item->hasRemoveLink = true;
 	} else {
 		item->hasRemoveLink = false;

@@ -255,6 +255,7 @@ private slots:
 
 private:
 	void updateMaxHeight();
+	bool canEditSignatures() const;
 
 	void onSaveTitleDone(const MTPUpdates &updates);
 	void onSaveDescriptionDone(const MTPBool &result);
