@@ -238,7 +238,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_settings_save" = "Save";
 "lng_settings_upload" = "Set Profile Photo";
-"lng_settings_crop_profile" = "Select a square area for your profile photo";
+"lng_settings_crop_profile" = "Select an area for your profile photo";
 "lng_settings_uploading_photo" = "Uploading photo...";
 "lng_settings_edit" = "Edit";
 "lng_settings_drop_area_subtitle" = "to set it as your photo";
@@ -661,8 +661,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_create_channel_link_available" = "This link is available";
 "lng_create_channel_link_copied" = "Link copied to clipboard";
 
-"lng_create_group_crop" = "Select a square area for group photo";
-"lng_create_channel_crop" = "Select a square area for channel photo";
+"lng_create_group_crop" = "Select an area for group photo";
+"lng_create_channel_crop" = "Select an area for channel photo";
 
 "lng_failed_add_participant" = "Could not add user. Please try again later.";
 "lng_failed_add_not_mutual" = "Sorry, if a person leaves a group, only a mutual contact can bring them back (they need to have your phone number, and you need theirs).";
