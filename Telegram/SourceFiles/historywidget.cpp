@@ -4891,7 +4891,7 @@ int HistoryWidget::countInitialScrollTop() {
 	auto result = ScrollMax;
 	if (_history->scrollTopItem || (_migrated && _migrated->scrollTopItem)) {
 		result = _list->historyScrollTop();
-	} else if (_showAtMsgId && (_showAtMsgId > 0 && -_showAtMsgId < ServerMaxMsgId)) {
+	} else if (_showAtMsgId && (_showAtMsgId > 0 || -_showAtMsgId < ServerMaxMsgId)) {
 		auto item = getItemFromHistoryOrMigrated(_showAtMsgId);
 		auto itemTop = _list->itemTop(item);
 		if (itemTop < 0) {
