@@ -2947,10 +2947,9 @@ void DialogsWidget::updateDragInScroll(bool inScroll) {
 void DialogsWidget::dropEvent(QDropEvent *e) {
 	_chooseByDragTimer.stop();
 	if (_scroll->geometry().contains(e->pos())) {
-		PeerData *p = _inner->updateFromParentDrag(mapToGlobal(e->pos()));
-		if (p) {
+		if (auto peer = _inner->updateFromParentDrag(mapToGlobal(e->pos()))) {
 			e->acceptProposedAction();
-			App::main()->onFilesOrForwardDrop(p->id, e->mimeData());
+			App::main()->onFilesOrForwardDrop(peer->id, e->mimeData());
 		}
 	}
 }

@@ -68,6 +68,7 @@ public:
 	bool hasThumbDisplay() const;
 
 	void addToHistory(History *history, MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate, UserId viaBotId, MsgId replyToId) const;
+	QString getErrorOnSend(History *history) const;
 
 	// interface for Layout:: usage
 	bool getLocationCoords(LocationCoords *outLocation) const;

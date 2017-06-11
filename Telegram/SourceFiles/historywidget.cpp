@@ -85,6 +85,8 @@ constexpr auto kTabbedSelectorToggleTooltipCount = 3;
 constexpr auto kScrollToVoiceAfterScrolledMs = 1000;
 constexpr auto kSkipRepaintWhileScrollMs = 100;
 constexpr auto kShowMembersDropdownTimeoutMs = 300;
+constexpr auto kDisplayEditTimeWarningMs = 300 * 1000;
+constexpr auto kFullDayInMs = 86400 * 1000;
 
 ApiWrap::RequestMessageDataCallback replyEditMessageDataCallback() {
 	return [](ChannelData *channel, MsgId msgId) {
@@ -363,8 +365,16 @@ bool HistoryHider::offerPeer(PeerId peer) {
 	}
 	_offered = App::peer(peer);
 	auto phrase = QString();
-	QString recipient = _offered->isUser() ? _offered->name : '\xAB' + _offered->name + '\xBB';
+	auto recipient = _offered->isUser() ? _offered->name : '\xAB' + _offered->name + '\xBB';
 	if (_sharedContact) {
+		if (!_offered->canWrite()) {
+			Ui::show(Box<InformBox>(lang(lng_forward_share_cant)));
+			_offered = nullptr;
+			_toText.setText(st::boxLabelStyle, QString());
+			_toTextWidth = 0;
+			resizeEvent(nullptr);
+			return false;
+		}
 		phrase = lng_forward_share_contact(lt_recipient, recipient);
 	} else if (_sendPath) {
 		auto toId = _offered->id;
@@ -650,6 +660,11 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 			scrollToCurrentVoiceMessage(pair.from.contextId(), pair.to);
 		}
 	});
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::ChannelRightsChanged, [this](const Notify::PeerUpdate &update) {
+		if (update.peer == _peer) {
+			onPreviewCheck();
+		}
+	}));
 
 	orderWidgets();
 }
@@ -1879,7 +1894,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		_peer = App::peer(peerId);
 		_channel = peerToChannel(_peer->id);
 		_canSendMessages = canSendMessages(_peer);
-		_tabbedSelector->setInlineQueryPeer(_peer);
+		_tabbedSelector->setCurrentPeer(_peer);
 	}
 	updateTopBarSelection();
 
@@ -2141,6 +2156,13 @@ bool HistoryWidget::canWriteMessage() const {
 	if (!_history || !_canSendMessages) return false;
 	if (isBlocked() || isJoinChannel() || isMuteUnmute() || isBotStart()) return false;
 	return true;
+}
+
+bool HistoryWidget::isRestrictedWrite() const {
+	if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
+		return megagroup->restrictedRights().is_send_messages();
+	}
+	return false;
 }
 
 void HistoryWidget::updateControlsVisibility() {
@@ -3198,7 +3220,13 @@ void HistoryWidget::step_recording(float64 ms, bool timer) {
 }
 
 void HistoryWidget::chooseAttach() {
-	if (!_history) return;
+	if (!_peer || !_peer->canWrite()) return;
+	if (auto megagroup = _peer->asMegagroup()) {
+		if (megagroup->restrictedRights().is_send_media()) {
+			Ui::show(Box<InformBox>(lang(lng_restricted_send_media)));
+			return;
+		}
+	}
 
 	auto filter = FileDialog::AllFilesFilter() + qsl(";;Image files (*") + cImgExtensions().join(qsl(" *")) + qsl(")");
 
@@ -3297,6 +3325,13 @@ void HistoryWidget::recordStartCallback() {
 	if (!Media::Capture::instance()->available()) {
 		return;
 	}
+	if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
+		if (megagroup->restrictedRights().is_send_media()) {
+			Ui::show(Box<InformBox>(lang(lng_restricted_send_media)));
+			return;
+		}
+	}
+
 	emit Media::Capture::instance()->start();
 
 	_recording = _inField = true;
@@ -4307,6 +4342,12 @@ bool HistoryWidget::confirmSendingFiles(const QStringList &files, CompressConfir
 }
 
 bool HistoryWidget::confirmSendingFiles(const SendingFilesLists &lists, CompressConfirm compressed, const QString *addedComment) {
+	if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
+		if (megagroup->restrictedRights().is_send_media()) {
+			Ui::show(Box<InformBox>(lang(lng_restricted_send_media)));
+			return false;
+		}
+	}
 	return validateSendingFiles(lists, [this, &lists, compressed, addedComment](const QStringList &files) {
 		auto insertTextOnCancel = QString();
 		auto sendCallback = [this](const QStringList &files, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, bool compressed, const QString &caption, MsgId replyTo) {
@@ -4955,6 +4996,8 @@ void HistoryWidget::updateHistoryGeometry(bool initial, bool loadedDown, const S
 	} else {
 		if (_canSendMessages) {
 			newScrollHeight -= (_field->height() + 2 * st::historySendPadding);
+		} else if (isRestrictedWrite()) {
+			newScrollHeight -= _unblock->height();
 		}
 		if (_editMsgId || replyToId() || readyToForward() || (_previewData && _previewData->pendingTill >= 0)) {
 			newScrollHeight -= st::historyReplyHeight;
@@ -5268,15 +5311,33 @@ void HistoryWidget::onFieldTabbed() {
 }
 
 bool HistoryWidget::onStickerSend(DocumentData *sticker) {
+	if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
+		if (megagroup->restrictedRights().is_send_stickers()) {
+			Ui::show(Box<InformBox>(lang(lng_restricted_send_stickers)), KeepOtherLayers);
+			return false;
+		}
+	}
 	return sendExistingDocument(sticker, QString());
 }
 
 void HistoryWidget::onPhotoSend(PhotoData *photo) {
+	if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
+		if (megagroup->restrictedRights().is_send_media()) {
+			Ui::show(Box<InformBox>(lang(lng_restricted_send_media)), KeepOtherLayers);
+			return;
+		}
+	}
 	sendExistingPhoto(photo, QString());
 }
 
 void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot) {
 	if (!_history || !result || !canSendMessages(_peer)) return;
+
+	auto errorText = result->getErrorOnSend(_history);
+	if (!errorText.isEmpty()) {
+		Ui::show(Box<InformBox>(errorText));
+		return;
+	}
 
 	App::main()->readServerHistory(_history);
 	fastShowAtEnd(_history);
@@ -5867,8 +5928,7 @@ void HistoryWidget::onStickerPackInfo() {
 }
 
 void HistoryWidget::previewCancel() {
-	MTP::cancel(_previewRequest);
-	_previewRequest = 0;
+	MTP::cancel(base::take(_previewRequest));
 	_previewData = nullptr;
 	_previewLinks.clear();
 	updatePreview();
@@ -5884,11 +5944,25 @@ void HistoryWidget::onPreviewParse() {
 }
 
 void HistoryWidget::onPreviewCheck() {
-	if (_previewCancelled) return;
-	QStringList linksList = _field->linksList();
-	QString newLinks = linksList.join(' ');
+	auto previewRestricted = [this] {
+		if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
+			if (megagroup->restrictedRights().is_embed_links()) {
+				return true;
+			}
+		}
+		return false;
+	};
+	if (_previewCancelled || previewRestricted()) {
+		MTP::cancel(base::take(_previewRequest));
+		_previewData = nullptr;
+		_previewLinks.clear();
+		update();
+		return;
+	}
+	auto linksList = _field->linksList();
+	auto newLinks = linksList.join(' ');
 	if (newLinks != _previewLinks) {
-		MTP::cancel(_previewRequest);
+		MTP::cancel(base::take(_previewRequest));
 		_previewLinks = newLinks;
 		if (_previewLinks.isEmpty()) {
 			if (_previewData && _previewData->pendingTill >= 0) previewCancel();
@@ -6397,12 +6471,14 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 	}
 }
 
-namespace {
+void HistoryWidget::drawRestrictedWrite(Painter &p) {
+	auto rect = myrtlrect(0, height() - _unblock->height(), _chatWidth, _unblock->height());
+	p.fillRect(rect, st::historyReplyBg);
 
-constexpr int DisplayEditTimeWarningMs = 300 * 1000;
-constexpr int FullDayInMs = 86400 * 1000;
-
-} // namespace
+	p.setFont(st::normalFont);
+	p.setPen(st::windowSubTextFg);
+	p.drawText(rect.marginsRemoved(QMargins(st::historySendPadding, 0, st::historySendPadding, 0)), lang(lng_restricted_send_message), style::al_center);
+}
 
 void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int top) const {
 	if (!rect.intersects(myrtlrect(left, top, _chatWidth - left, st::normalFont->height))) {
@@ -6421,8 +6497,8 @@ void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int
 	auto editTimeLeft = (Global::EditTimeLimit() * 1000LL) - timeSinceMessage;
 	if (editTimeLeft < 2) {
 		editTimeLeftText = qsl("0:00");
-	} else if (editTimeLeft > DisplayEditTimeWarningMs) {
-		updateIn = static_cast<int>(qMin(editTimeLeft - DisplayEditTimeWarningMs, qint64(FullDayInMs)));
+	} else if (editTimeLeft > kDisplayEditTimeWarningMs) {
+		updateIn = static_cast<int>(qMin(editTimeLeft - kDisplayEditTimeWarningMs, qint64(kFullDayInMs)));
 	} else {
 		updateIn = static_cast<int>(editTimeLeft % 1000);
 		if (!updateIn) {
@@ -6583,6 +6659,8 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 			if (!_send->isHidden() && _recording) {
 				drawRecording(p, _send->recordActiveRatio());
 			}
+		} else if (isRestrictedWrite()) {
+			drawRestrictedWrite(p);
 		}
 		if (_pinnedBar && !_pinnedBar->cancel->isHidden()) {
 			drawPinnedBar(p);

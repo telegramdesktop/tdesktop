@@ -523,6 +523,7 @@ private:
 
 	bool historyHasNotFreezedUnreadBar(History *history) const;
 	bool canWriteMessage() const;
+	bool isRestrictedWrite() const;
 	void orderWidgets();
 
 	void clearInlineBot();
@@ -577,6 +578,7 @@ private:
 	void paintEditHeader(Painter &p, const QRect &rect, int left, int top) const;
 	void drawRecording(Painter &p, float64 recordActive);
 	void drawPinnedBar(Painter &p);
+	void drawRestrictedWrite(Painter &p);
 
 	void updateMouseTracking();
 

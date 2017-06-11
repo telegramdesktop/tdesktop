@@ -290,6 +290,10 @@ void Result::addToHistory(History *history, MTPDmessage::Flags flags, MsgId msgI
 	sendData->addToHistory(this, history, flags, msgId, fromId, mtpDate, viaBotId, replyToId, markup);
 }
 
+QString Result::getErrorOnSend(History *history) const {
+	return sendData->getErrorOnSend(this, history);
+}
+
 bool Result::getLocationCoords(LocationCoords *outLocation) const {
 	return sendData->getLocationCoords(outLocation);
 }

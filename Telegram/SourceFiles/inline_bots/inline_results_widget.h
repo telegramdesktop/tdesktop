@@ -31,6 +31,7 @@ class ScrollArea;
 class IconButton;
 class LinkButton;
 class RoundButton;
+class FlatLabel;
 class RippleAnimation;
 } // namesapce Ui
 
@@ -68,7 +69,7 @@ public:
 
 	void clearSelection();
 
-	int refreshInlineRows(UserData *bot, const CacheEntry *results, bool resultsDeleted);
+	int refreshInlineRows(PeerData *queryPeer, UserData *bot, const CacheEntry *results, bool resultsDeleted);
 	void inlineBotChanged();
 	void hideInlineRowsPanel();
 	void clearInlineRowsPanel();
@@ -110,6 +111,8 @@ private:
 	static constexpr bool kRefreshIconsNoAnimation = false;
 
 	void updateSelected();
+	void checkRestrictedPeer();
+	bool isRestrictedView();
 
 	void paintInlineItems(Painter &p, const QRect &r);
 
@@ -120,13 +123,16 @@ private:
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
 
-	UserData *_inlineBot;
+	UserData *_inlineBot = nullptr;
+	PeerData *_inlineQueryPeer = nullptr;
 	TimeMs _lastScrolled = 0;
 	QTimer _updateInlineItems;
 	bool _inlineWithThumb = false;
 
 	object_ptr<Ui::RoundButton> _switchPmButton = { nullptr };
 	QString _switchPmStartToken;
+
+	object_ptr<Ui::FlatLabel> _restrictedLabel = { nullptr };
 
 	struct Row {
 		int height = 0;

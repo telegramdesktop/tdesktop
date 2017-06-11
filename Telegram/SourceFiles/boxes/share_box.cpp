@@ -884,6 +884,25 @@ void shareGameScoreFromItem(HistoryItem *item) {
 		if (!data->requests.empty()) {
 			return; // Share clicked already.
 		}
+		if (result.empty()) {
+			return;
+		}
+
+		auto restrictedEverywhere = true;
+		auto restrictedSomewhere = false;
+		for_const (auto peer, result) {
+			if (auto megagroup = peer->asMegagroup()) {
+				if (megagroup->restrictedRights().is_send_games()) {
+					restrictedSomewhere = true;
+					continue;
+				}
+			}
+			restrictedEverywhere = false;
+		}
+		if (restrictedEverywhere) {
+			Ui::show(Box<InformBox>(lang(lng_restricted_send_inline)), KeepOtherLayers);
+			return;
+		}
 
 		auto doneCallback = [data](const MTPUpdates &updates, mtpRequestId requestId) {
 			if (auto main = App::main()) {
@@ -901,6 +920,12 @@ void shareGameScoreFromItem(HistoryItem *item) {
 		if (auto main = App::main()) {
 			if (auto item = App::histItemById(data->msgId)) {
 				for_const (auto peer, result) {
+					if (auto megagroup = peer->asMegagroup()) {
+						if (megagroup->restrictedRights().is_send_games()) {
+							continue;
+						}
+					}
+
 					MTPVector<MTPlong> random = MTP_vector<MTPlong>(1, rand_value<MTPlong>());
 					auto request = MTPmessages_ForwardMessages(MTP_flags(sendFlags), item->history()->peer->input, msgIds, random, peer->input);
 					auto callback = doneCallback;

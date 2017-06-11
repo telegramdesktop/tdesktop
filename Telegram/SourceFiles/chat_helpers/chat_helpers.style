@@ -28,6 +28,11 @@ switchPmButton: RoundButton(defaultBoxButton) {
 	height: 34px;
 	textTop: 7px;
 }
+stickersRestrictedLabel: FlatLabel(defaultFlatLabel) {
+	width: 320px;
+	align: align(center);
+	textFg: noContactsColor;
+}
 
 stickersTrendingHeader: 45px;
 stickersTrendingSkip: 15px;

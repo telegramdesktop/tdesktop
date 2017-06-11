@@ -141,7 +141,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_error_pinned_max#other" = "Sorry, you can pin no more than {count} chats to the top.";
 "lng_error_public_groups_denied" = "Unfortunately, you were banned from participating in public groups.\n{more_info}";
 "lng_error_cant_edit_admin" = "Sorry, you can't edit permissions for this admin.";
-"lng_error_cant_add_member" = "Sorry, you can't add the bot to this group.";
+"lng_error_cant_add_member" = "Sorry, you can't add the bot to this group. Ask a group admin to do it.";
 
 "lng_edit_deleted" = "This message was deleted";
 "lng_edit_too_long" = "Your message text is too long";
@@ -1060,8 +1060,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_forward_cant" = "Sorry, no way to forward here :(";
 "lng_forward_confirm" = "Forward to {recipient}?";
 "lng_forward_share_contact" = "Share contact to {recipient}?";
+"lng_forward_share_cant" = "Sorry, no way to share contact here :(";
 "lng_forward_send_file_confirm" = "Send «{name}» to {recipient}?";
 "lng_forward_send_files_confirm" = "Send selected files to {recipient}?";
+"lng_forward_send_files_cant" = "Sorry, no way to send media here :(";
 "lng_forward_send" = "Send";
 "lng_forward_messages#one" = "{count} forwarded message";
 "lng_forward_messages#other" = "{count} forwarded messages";
@@ -1274,6 +1276,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_rights_chat_banned_until" = "Banned until: {when}";
 "lng_rights_chat_banned_forever" = "Forever";
 "lng_rights_chat_banned_block" = "Block and remove from group";
+
+"lng_restricted_send_message" = "The admins of this group restricted you from writing here.";
+"lng_restricted_send_media" = "The admins of this group restricted you from posting media content here.";
+"lng_restricted_send_stickers" = "The admins of this group restricted you from posting stickers here.";
+"lng_restricted_send_gifs" = "The admins of this group restricted you from posting GIFs here.";
+"lng_restricted_send_inline" = "The admins of this group restricted you from posting inline content here.";
 
 // Not used
 

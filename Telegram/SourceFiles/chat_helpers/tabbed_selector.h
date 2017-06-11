@@ -33,6 +33,7 @@ namespace Ui {
 class PlainShadow;
 class ScrollArea;
 class SettingsSlider;
+class FlatLabel;
 } // namesapce Ui
 
 namespace Window {
@@ -51,7 +52,7 @@ class EmojiListWidget;
 class StickersListWidget;
 class GifsListWidget;
 
-class TabbedSelector : public TWidget {
+class TabbedSelector : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -60,7 +61,7 @@ public:
 	void setRoundRadius(int radius);
 	void refreshStickers();
 	void stickersInstalled(uint64 setId);
-	void setInlineQueryPeer(PeerData *peer);
+	void setCurrentPeer(PeerData *peer);
 
 	void hideFinished();
 	void showStarted();
@@ -150,6 +151,9 @@ private:
 	void paintSlideFrame(Painter &p, TimeMs ms);
 	void paintContent(Painter &p);
 
+	void checkRestrictedPeer();
+	bool isRestrictedView();
+
 	QImage grabForAnimation();
 
 	void scrollToY(int y);
@@ -157,6 +161,7 @@ private:
 	void showAll();
 	void hideForSliding();
 
+	bool hasSectionIcons() const;
 	void setWidgetToScrollArea();
 	void createTabsSlider();
 	void switchTab();
@@ -178,6 +183,7 @@ private:
 
 	int _roundRadius = 0;
 	int _footerTop = 0;
+	PeerData *_currentPeer = nullptr;
 
 	class SlideAnimation;
 	std::unique_ptr<SlideAnimation> _slideAnimation;
@@ -187,6 +193,7 @@ private:
 	object_ptr<Ui::PlainShadow> _topShadow;
 	object_ptr<Ui::PlainShadow> _bottomShadow;
 	object_ptr<Ui::ScrollArea> _scroll;
+	object_ptr<Ui::FlatLabel> _restrictedLabel = { nullptr };
 	std::array<Tab, Tab::kCount> _tabs;
 	SelectorTab _currentTabType = SelectorTab::Emoji;
 

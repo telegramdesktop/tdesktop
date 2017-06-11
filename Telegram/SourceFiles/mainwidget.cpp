@@ -77,7 +77,7 @@ namespace {
 
 constexpr auto kSaveFloatPlayerPositionTimeoutMs = TimeMs(1000);
 
-MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
+MTPMessagesFilter TypeToMediaFilter(MediaOverviewType &type) {
 	switch (type) {
 	case OverviewPhotos: return MTP_inputMessagesFilterPhotos();
 	case OverviewVideos: return MTP_inputMessagesFilterVideo();
@@ -90,6 +90,64 @@ MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
 	case OverviewChatPhotos: return MTP_inputMessagesFilterChatPhotos();
 	default: return MTP_inputMessagesFilterEmpty();
 	}
+}
+
+bool HasMediaItems(const SelectedItemSet &items) {
+	for_const (auto item, items) {
+		if (auto media = item->getMedia()) {
+			switch (media->type()) {
+			case MediaTypePhoto:
+			case MediaTypeVideo:
+			case MediaTypeFile:
+			case MediaTypeMusicFile:
+			case MediaTypeVoiceFile: return true;
+			case MediaTypeGif: return media->getDocument()->isRoundVideo();
+			}
+		}
+	}
+	return false;
+}
+
+bool HasStickerItems(const SelectedItemSet &items) {
+	for_const (auto item, items) {
+		if (auto media = item->getMedia()) {
+			switch (media->type()) {
+			case MediaTypeSticker: return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool HasGifItems(const SelectedItemSet &items) {
+	for_const (auto item, items) {
+		if (auto media = item->getMedia()) {
+			switch (media->type()) {
+			case MediaTypeGif: return !media->getDocument()->isRoundVideo();
+			}
+		}
+	}
+	return false;
+}
+
+bool HasGameItems(const SelectedItemSet &items) {
+	for_const (auto item, items) {
+		if (auto media = item->getMedia()) {
+			switch (media->type()) {
+			case MediaTypeGame: return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool HasInlineItems(const SelectedItemSet &items) {
+	for_const (auto item, items) {
+		if (item->viaBot()) {
+			return true;
+		}
+	}
+	return false;
 }
 
 } // namespace
@@ -505,22 +563,33 @@ void MainWidget::finishFloatPlayerDrag(gsl::not_null<Float*> instance, bool clos
 	}
 }
 
-bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
-	PeerData *p = App::peer(peer);
-	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->isInaccessible())) {
-		Ui::show(Box<InformBox>(lang(lng_forward_cant)));
+bool MainWidget::onForward(const PeerId &peerId, ForwardWhatMessages what) {
+	Expects(peerId != 0);
+	auto peer = App::peer(peerId);
+	auto finishWithError = [this, what](const QString &error) {
+		Ui::show(Box<InformBox>(error));
+		if (what == ForwardPressedMessage || what == ForwardPressedLinkMessage) {
+			// We've already released the mouse button, so the forwarding is cancelled.
+			if (_hider) {
+				_hider->startHide();
+				noHider(_hider);
+			}
+		}
 		return false;
+	};
+	if (!peer->canWrite()) {
+		return finishWithError(lang(lng_forward_cant));
 	}
-	_history->cancelReply();
-	_toForward.clear();
+
+	auto toForward = SelectedItemSet();
 	if (what == ForwardSelectedMessages) {
 		if (_overview) {
-			_overview->fillSelectedItems(_toForward, false);
+			_overview->fillSelectedItems(toForward, false);
 		} else {
-			_history->fillSelectedItems(_toForward, false);
+			_history->fillSelectedItems(toForward, false);
 		}
 	} else {
-		HistoryItem *item = 0;
+		auto item = (HistoryItem*)nullptr;
 		if (what == ForwardContextMessage) {
 			item = App::contextItem();
 		} else if (what == ForwardPressedMessage) {
@@ -529,9 +598,25 @@ bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
 			item = App::pressedLinkItem();
 		}
 		if (item && item->toHistoryMessage() && item->id > 0) {
-			_toForward.insert(item->id, item);
+			toForward.insert(item->id, item);
 		}
 	}
+	if (auto megagroup = peer->asMegagroup()) {
+		if (megagroup->restrictedRights().is_send_media() && HasMediaItems(toForward)) {
+			return finishWithError(lang(lng_restricted_send_media));
+		} else if (megagroup->restrictedRights().is_send_stickers() && HasStickerItems(toForward)) {
+			return finishWithError(lang(lng_restricted_send_stickers));
+		} else if (megagroup->restrictedRights().is_send_gifs() && HasGifItems(toForward)) {
+			return finishWithError(lang(lng_restricted_send_gifs));
+		} else if (megagroup->restrictedRights().is_send_games() && HasGameItems(toForward)) {
+			return finishWithError(lang(lng_restricted_send_inline));
+		} else if (megagroup->restrictedRights().is_send_inline() && HasInlineItems(toForward)) {
+			return finishWithError(lang(lng_restricted_send_inline));
+		}
+	}
+
+	_toForward = toForward;
+	_history->cancelReply();
 	updateForwardingItemRemovedSubscription();
 	updateForwardingTexts();
 	Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
@@ -777,23 +862,40 @@ void MainWidget::onUpdateMuted() {
 	App::updateMuted();
 }
 
-void MainWidget::onShareContact(const PeerId &peer, UserData *contact) {
-	_history->onShareContact(peer, contact);
+void MainWidget::onShareContact(const PeerId &peerId, UserData *contact) {
+	_history->onShareContact(peerId, contact);
 }
 
-bool MainWidget::onSendPaths(const PeerId &peer) {
+bool MainWidget::onSendPaths(const PeerId &peerId) {
+	Expects(peerId != 0);
+	auto peer = App::peer(peerId);
+	if (!peer->canWrite()) {
+		Ui::show(Box<InformBox>(lang(lng_forward_send_files_cant)));
+		return false;
+	} else if (auto megagroup = peer->asMegagroup()) {
+		if (megagroup->restrictedRights().is_send_media()) {
+			Ui::show(Box<InformBox>(lang(lng_restricted_send_media)));
+			return false;
+		}
+	}
 	Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
 	return _history->confirmSendingFiles(cSendPaths());
 }
 
-void MainWidget::onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data) {
+void MainWidget::onFilesOrForwardDrop(const PeerId &peerId, const QMimeData *data) {
+	Expects(peerId != 0);
 	if (data->hasFormat(qsl("application/x-td-forward-selected"))) {
-		onForward(peer, ForwardSelectedMessages);
+		onForward(peerId, ForwardSelectedMessages);
 	} else if (data->hasFormat(qsl("application/x-td-forward-pressed-link"))) {
-		onForward(peer, ForwardPressedLinkMessage);
+		onForward(peerId, ForwardPressedLinkMessage);
 	} else if (data->hasFormat(qsl("application/x-td-forward-pressed"))) {
-		onForward(peer, ForwardPressedMessage);
+		onForward(peerId, ForwardPressedMessage);
 	} else {
+		auto peer = App::peer(peerId);
+		if (!peer->canWrite()) {
+			Ui::show(Box<InformBox>(lang(lng_forward_send_files_cant)));
+			return;
+		}
 		Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
 		_history->confirmSendingFiles(data);
 	}
@@ -1622,7 +1724,7 @@ void MainWidget::searchMessages(const QString &query, PeerData *inPeer) {
 }
 
 bool MainWidget::preloadOverview(PeerData *peer, MediaOverviewType type) {
-	auto filter = typeToMediaFilter(type);
+	auto filter = TypeToMediaFilter(type);
 	if (filter.type() == mtpc_inputMessagesFilterEmpty) {
 		return false;
 	}
@@ -1695,7 +1797,7 @@ void MainWidget::loadMediaBack(PeerData *peer, MediaOverviewType type, bool many
 
 	auto minId = history->overviewMinId(type);
 	auto limit = (many || history->overview[type].size() > MediaOverviewStartPerPage) ? SearchPerPage : MediaOverviewStartPerPage;
-	auto filter = typeToMediaFilter(type);
+	auto filter = TypeToMediaFilter(type);
 	if (filter.type() == mtpc_inputMessagesFilterEmpty) {
 		return;
 	}
