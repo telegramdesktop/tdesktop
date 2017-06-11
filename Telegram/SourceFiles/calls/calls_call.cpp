@@ -231,7 +231,7 @@ void Call::hangup() {
 		_delegate->callFinished(this);
 	} else {
 		auto missed = (_state == State::Ringing || (_state == State::Waiting && _type == Type::Outgoing));
-		auto declined = (_state == State::WaitingIncoming);
+		auto declined = isIncomingWaiting();
 		auto reason = missed ? MTP_phoneCallDiscardReasonMissed() :
 			declined ? MTP_phoneCallDiscardReasonBusy() : MTP_phoneCallDiscardReasonHangup();
 		finish(FinishType::Ended, reason);
