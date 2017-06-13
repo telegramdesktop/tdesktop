@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/confirm_box.h"
 #include "boxes/contacts_box.h"
 #include "boxes/peer_list_box.h"
+#include "boxes/edit_participant_box.h"
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "mainwidget.h"
@@ -39,33 +40,168 @@ namespace {
 
 constexpr auto kBlockedPerPage = 40;
 
-class BlockedBoxController : public PeerListBox::Controller, private base::Subscriber, private MTP::Sender {
+class BlockedBoxSearchController : public PeerListSearchController, private MTP::Sender {
 public:
-	BlockedBoxController(ChannelData *channel) : _channel(channel) {
+	BlockedBoxSearchController(gsl::not_null<ChannelData*> channel, bool restricted, gsl::not_null<std::map<UserData*, MTPChannelBannedRights>*> rights);
+
+	void searchQuery(const QString &query) override;
+	bool isLoading() override;
+
+private:
+	bool searchInCache();
+	void searchOnServer();
+	void searchDone(const MTPchannels_ChannelParticipants &result, mtpRequestId requestId);
+
+	gsl::not_null<ChannelData*> _channel;
+	bool _restricted = false;
+	gsl::not_null<std::map<UserData*, MTPChannelBannedRights>*> _rights;
+
+	base::Timer _timer;
+	QString _query;
+	mtpRequestId _requestId = 0;
+	int _offset = 0;
+	bool _allLoaded = false;
+	std::map<QString, MTPchannels_ChannelParticipants> _cache;
+	std::map<mtpRequestId, QString> _queries;
+
+};
+
+BlockedBoxSearchController::BlockedBoxSearchController(gsl::not_null<ChannelData*> channel, bool restricted, gsl::not_null<std::map<UserData*, MTPChannelBannedRights>*> rights)
+: _channel(channel)
+, _restricted(restricted)
+, _rights(rights) {
+	_timer.setCallback([this] { searchOnServer(); });
+}
+
+void BlockedBoxSearchController::searchQuery(const QString &query) {
+	if (_query != query) {
+		_query = query;
+		_offset = 0;
+		_requestId = 0;
+		if (!_query.isEmpty() && !searchInCache()) {
+			_timer.callOnce(AutoSearchTimeout);
+		} else {
+			_timer.cancel();
+		}
+	}
+}
+
+bool BlockedBoxSearchController::searchInCache() {
+	auto it = _cache.find(_query);
+	if (it != _cache.cend()) {
+		_requestId = 0;
+		searchDone(it->second, _requestId);
+		return true;
+	}
+	return false;
+}
+
+void BlockedBoxSearchController::searchOnServer() {
+	Expects(!_query.isEmpty());
+	auto filter = _restricted ? MTP_channelParticipantsBanned(MTP_string(_query)) : MTP_channelParticipantsKicked(MTP_string(_query));
+	_requestId = request(MTPchannels_GetParticipants(_channel->inputChannel, filter , MTP_int(_offset), MTP_int(kBlockedPerPage))).done([this](const MTPchannels_ChannelParticipants &result, mtpRequestId requestId) {
+		searchDone(result, requestId);
+	}).fail([this](const RPCError &error, mtpRequestId requestId) {
+		if (_requestId == requestId) {
+			_requestId = 0;
+			_allLoaded = true;
+			delegate()->peerListSearchRefreshRows();
+		}
+	}).send();
+	_queries.emplace(_requestId, _query);
+}
+
+void BlockedBoxSearchController::searchDone(const MTPchannels_ChannelParticipants &result, mtpRequestId requestId) {
+	Expects(result.type() == mtpc_channels_channelParticipants);
+
+	auto &participants = result.c_channels_channelParticipants();
+	auto query = _query;
+	if (requestId) {
+		App::feedUsers(participants.vusers);
+		auto it = _queries.find(requestId);
+		if (it != _queries.cend()) {
+			query = it->second;
+			_cache[query] = result;
+			_queries.erase(it);
+		}
 	}
 
+	if (_requestId == requestId) {
+		_requestId = 0;
+		auto &list = participants.vparticipants.v;
+		if (list.isEmpty()) {
+			_allLoaded = true;
+		} else {
+			for_const (auto &participant, list) {
+				++_offset;
+				if (participant.type() == mtpc_channelParticipantBanned) {
+					auto &banned = participant.c_channelParticipantBanned();
+					auto userId = banned.vuser_id.v;
+					if (auto user = App::userLoaded(userId)) {
+						delegate()->peerListSearchAddRow(user);
+						(*_rights)[user] = banned.vbanned_rights;
+					}
+				} else {
+					LOG(("API Error: Non kicked participant got while requesting for kicked participants: %1").arg(participant.type()));
+					continue;
+				}
+			}
+		}
+		delegate()->peerListSearchRefreshRows();
+	}
+}
+
+bool BlockedBoxSearchController::isLoading() {
+	return _timer.isActive() || _requestId;
+}
+
+class BlockedBoxController : public PeerListController, private base::Subscriber, private MTP::Sender, public base::enable_weak_from_this {
+public:
+	BlockedBoxController(gsl::not_null<ChannelData*> channel, bool restricted);
+
 	void prepare() override;
-	void rowClicked(PeerListBox::Row *row) override;
-	void rowActionClicked(PeerListBox::Row *row) override;
+	void rowClicked(gsl::not_null<PeerListRow*> row) override;
+	void rowActionClicked(gsl::not_null<PeerListRow*> row) override;
 	void preloadRows() override;
+	bool searchInLocal() override {
+		return false;
+	}
+
+	void peerListSearchAddRow(gsl::not_null<PeerData*> peer) override;
 
 private:
 	bool appendRow(UserData *user);
 	bool prependRow(UserData *user);
-	std::unique_ptr<PeerListBox::Row> createRow(UserData *user) const;
+	std::unique_ptr<PeerListRow> createRow(UserData *user) const;
 
-	ChannelData *_channel = nullptr;
+	gsl::not_null<ChannelData*> _channel;
+	bool _restricted = false;
 	int _offset = 0;
 	mtpRequestId _loadRequestId = 0;
 	bool _allLoaded = false;
+	std::map<UserData*, MTPChannelBannedRights> _rights;
+	QPointer<EditRestrictedBox> _editBox;
 
 };
 
+void BlockedBoxController::peerListSearchAddRow(gsl::not_null<PeerData*> peer) {
+	PeerListController::peerListSearchAddRow(peer);
+	if (_restricted && delegate()->peerListFullRowsCount() > 0) {
+		setDescriptionText(QString());
+	}
+}
+
+BlockedBoxController::BlockedBoxController(gsl::not_null<ChannelData*> channel, bool restricted) : PeerListController(std::make_unique<BlockedBoxSearchController>(channel, restricted, &_rights))
+, _channel(channel)
+, _restricted(restricted) {
+}
+
 void BlockedBoxController::prepare() {
-	view()->setTitle(langFactory(lng_blocked_list_title));
-	view()->addButton(langFactory(lng_close), [this] { view()->closeBox(); });
-	view()->setAboutText(lang(lng_contacts_loading));
-	view()->refreshRows();
+	delegate()->peerListSetSearchMode(PeerListSearchMode::Complex);
+	delegate()->peerListSetTitle(langFactory(_restricted ? lng_restricted_list_title : lng_blocked_list_title));
+	setDescriptionText(lang(lng_contacts_loading));
+	setSearchNoResultsText(lang(lng_blocked_list_not_found));
+	delegate()->peerListRefreshRows();
 
 	preloadRows();
 }
@@ -75,13 +211,14 @@ void BlockedBoxController::preloadRows() {
 		return;
 	}
 
-	_loadRequestId = request(MTPchannels_GetParticipants(_channel->inputChannel, MTP_channelParticipantsKicked(MTP_string("")), MTP_int(_offset), MTP_int(kBlockedPerPage))).done([this](const MTPchannels_ChannelParticipants &result) {
+	auto filter = _restricted ? MTP_channelParticipantsBanned(MTP_string(QString())) : MTP_channelParticipantsKicked(MTP_string(QString()));
+	_loadRequestId = request(MTPchannels_GetParticipants(_channel->inputChannel, filter, MTP_int(_offset), MTP_int(kBlockedPerPage))).done([this](const MTPchannels_ChannelParticipants &result) {
 		Expects(result.type() == mtpc_channels_channelParticipants);
 
 		_loadRequestId = 0;
 
 		if (!_offset) {
-			view()->setAboutText(lang(lng_group_blocked_list_about));
+			setDescriptionText(_restricted ? QString() : lang(lng_group_blocked_list_about));
 		}
 		auto &participants = result.c_channels_channelParticipants();
 		App::feedUsers(participants.vusers);
@@ -92,69 +229,90 @@ void BlockedBoxController::preloadRows() {
 		} else {
 			for_const (auto &participant, list) {
 				++_offset;
-				if (participant.type() != mtpc_channelParticipantBanned) {
-					LOG(("API Error: Non banned participant got while requesting for kicked participants: %1").arg(participant.type()));
+				if (participant.type() == mtpc_channelParticipantBanned) {
+					auto &banned = participant.c_channelParticipantBanned();
+					auto userId = banned.vuser_id.v;
+					if (auto user = App::userLoaded(userId)) {
+						appendRow(user);
+						_rights[user] = banned.vbanned_rights;
+					}
+				} else {
+					LOG(("API Error: Non kicked participant got while requesting for kicked participants: %1").arg(participant.type()));
 					continue;
-				}
-				auto &kicked = participant.c_channelParticipantBanned();
-				if (!kicked.is_left()) {
-					LOG(("API Error: Non left participant got while requesting for kicked participants."));
-					continue;
-				}
-				auto userId = kicked.vuser_id.v;
-				if (auto user = App::userLoaded(userId)) {
-					appendRow(user);
 				}
 			}
 		}
-		view()->refreshRows();
+		delegate()->peerListRefreshRows();
 	}).fail([this](const RPCError &error) {
 		_loadRequestId = 0;
 	}).send();
 }
 
-void BlockedBoxController::rowClicked(PeerListBox::Row *row) {
+void BlockedBoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
 	Ui::showPeerHistoryAsync(row->peer()->id, ShowAtUnreadMsgId);
 }
 
-void BlockedBoxController::rowActionClicked(PeerListBox::Row *row) {
+void BlockedBoxController::rowActionClicked(gsl::not_null<PeerListRow*> row) {
 	auto user = row->peer()->asUser();
 	Expects(user != nullptr);
 
-	view()->removeRow(row);
-	view()->refreshRows();
+	if (_restricted) {
+		auto it = _rights.find(user);
+		t_assert(it != _rights.cend());
+		auto weak = base::weak_unique_ptr<BlockedBoxController>(this);
+		_editBox = Ui::show(Box<EditRestrictedBox>(_channel, user, it->second, [megagroup = _channel.get(), user, weak](const MTPChannelBannedRights &rights) {
+			MTP::send(MTPchannels_EditBanned(megagroup->inputChannel, user->inputUser, rights), rpcDone([megagroup, user, weak, rights](const MTPUpdates &result) {
+				if (App::main()) App::main()->sentUpdatesReceived(result);
+				megagroup->applyEditBanned(user, rights);
+				if (weak) {
+					weak->_editBox->closeBox();
+					if (rights.c_channelBannedRights().vflags.v == 0 || rights.c_channelBannedRights().is_view_messages()) {
+						if (auto row = weak->delegate()->peerListFindRow(user->id)) {
+							weak->delegate()->peerListRemoveRow(row);
+							weak->delegate()->peerListRefreshRows();
+							if (!weak->delegate()->peerListFullRowsCount()) {
+								weak->setDescriptionText(lang(lng_blocked_list_not_found));
+							}
+						}
+					} else {
+						weak->_rights[user] = rights;
+					}
+				}
+			}));
+		}), KeepOtherLayers);
+	} else {
+		delegate()->peerListRemoveRow(row);
+		delegate()->peerListRefreshRows();
 
-	AuthSession::Current().api().unblockParticipant(_channel, user);
+		AuthSession::Current().api().unblockParticipant(_channel, user);
+	}
 }
 
 bool BlockedBoxController::appendRow(UserData *user) {
-	if (view()->findRow(user->id)) {
+	if (delegate()->peerListFindRow(user->id)) {
 		return false;
 	}
-	view()->appendRow(createRow(user));
+	delegate()->peerListAppendRow(createRow(user));
+	if (_restricted) {
+		setDescriptionText(QString());
+	}
 	return true;
 }
 
 bool BlockedBoxController::prependRow(UserData *user) {
-	if (view()->findRow(user->id)) {
+	if (delegate()->peerListFindRow(user->id)) {
 		return false;
 	}
-	view()->prependRow(createRow(user));
+	delegate()->peerListPrependRow(createRow(user));
+	if (_restricted) {
+		setDescriptionText(QString());
+	}
 	return true;
 }
 
-std::unique_ptr<PeerListBox::Row> BlockedBoxController::createRow(UserData *user) const {
+std::unique_ptr<PeerListRow> BlockedBoxController::createRow(UserData *user) const {
 	auto row = std::make_unique<PeerListRowWithLink>(user);
-	row->setActionLink(lang(lng_blocked_list_unblock));
-	auto status = [user]() -> QString {
-		if (user->botInfo) {
-			return lang(lng_status_bot);
-		} else if (user->phone().isEmpty()) {
-			return lang(lng_blocked_list_unknown_phone);
-		}
-		return App::formatPhone(user->phone());
-	};
-	row->setCustomStatus(status());
+	row->setActionLink(lang(_restricted ? lng_profile_edit_permissions : lng_blocked_list_unblock));
 	return std::move(row);
 }
 
@@ -223,6 +381,7 @@ int SettingsWidget::resizeGetHeight(int newWidth) {
 	};
 	moveLink(_manageAdmins);
 	moveLink(_manageBlockedUsers);
+	moveLink(_manageRestrictedUsers);
 	moveLink(_inviteLink);
 
 	newHeight += st::profileBlockMarginBottom;
@@ -266,7 +425,7 @@ void SettingsWidget::refreshManageAdminsButton() {
 void SettingsWidget::refreshManageBlockedUsersButton() {
 	auto hasManageBlockedUsers = [this] {
 		if (auto channel = peer()->asMegagroup()) {
-			return channel->canBanMembers() && (channel->kickedCount() > 0 || channel->restrictedCount() > 0);
+			return channel->canBanMembers() && (channel->kickedCount() > 0);
 		}
 		return false;
 	};
@@ -275,6 +434,19 @@ void SettingsWidget::refreshManageBlockedUsersButton() {
 		_manageBlockedUsers.create(this, lang(lng_profile_manage_blocklist), st::defaultLeftOutlineButton);
 		_manageBlockedUsers->show();
 		connect(_manageBlockedUsers, SIGNAL(clicked()), this, SLOT(onManageBlockedUsers()));
+	}
+
+	auto hasManageRestrictedUsers = [this] {
+		if (auto channel = peer()->asMegagroup()) {
+			return channel->canBanMembers() && (channel->restrictedCount() > 0);
+		}
+		return false;
+	};
+	_manageRestrictedUsers.destroy();
+	if (hasManageRestrictedUsers()) {
+		_manageRestrictedUsers.create(this, lang(lng_profile_manage_restrictedlist), st::defaultLeftOutlineButton);
+		_manageRestrictedUsers->show();
+		connect(_manageRestrictedUsers, SIGNAL(clicked()), this, SLOT(onManageRestrictedUsers()));
 	}
 }
 
@@ -315,7 +487,17 @@ void SettingsWidget::onManageAdmins() {
 
 void SettingsWidget::onManageBlockedUsers() {
 	if (auto channel = peer()->asMegagroup()) {
-		Ui::show(Box<PeerListBox>(std::make_unique<BlockedBoxController>(channel)));
+		Ui::show(Box<PeerListBox>(std::make_unique<BlockedBoxController>(channel, false), [](PeerListBox *box) {
+			box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
+		}));
+	}
+}
+
+void SettingsWidget::onManageRestrictedUsers() {
+	if (auto channel = peer()->asMegagroup()) {
+		Ui::show(Box<PeerListBox>(std::make_unique<BlockedBoxController>(channel, true), [](PeerListBox *box) {
+			box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
+		}));
 	}
 }
 

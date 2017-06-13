@@ -90,13 +90,13 @@ void GroupMembersWidget::restrictUser(gsl::not_null<UserData*> user) {
 	}
 	auto defaultRestricted = MegagroupInfo::Restricted { EditRestrictedBox::DefaultRights(megagroup) };
 	auto currentRights = megagroup->mgInfo->lastRestricted.value(user, defaultRestricted).rights;
-	Ui::show(Box<EditRestrictedBox>(megagroup, user, currentRights, base::lambda_guarded(this, [this, megagroup, user](const MTPChannelBannedRights &rights) {
+	Ui::show(Box<EditRestrictedBox>(megagroup, user, currentRights, [megagroup, user](const MTPChannelBannedRights &rights) {
 		Ui::hideLayer();
-		MTP::send(MTPchannels_EditBanned(megagroup->inputChannel, user->inputUser, rights), rpcDone(base::lambda_guarded(this, [this, megagroup, user, rights](const MTPUpdates &result) {
+		MTP::send(MTPchannels_EditBanned(megagroup->inputChannel, user->inputUser, rights), rpcDone([megagroup, user, rights](const MTPUpdates &result) {
 			if (App::main()) App::main()->sentUpdatesReceived(result);
 			megagroup->applyEditBanned(user, rights);
-		})));
-	})));
+		}));
+	}));
 }
 
 void GroupMembersWidget::removePeer(PeerData *selectedPeer) {

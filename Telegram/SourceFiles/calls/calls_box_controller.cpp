@@ -36,7 +36,7 @@ constexpr auto kPerPageCount = 100;
 
 } // namespace
 
-class BoxController::Row : public PeerListBox::Row {
+class BoxController::Row : public PeerListRow {
 public:
 	Row(HistoryItem *item);
 
@@ -77,12 +77,10 @@ public:
 		return _items.front()->id;
 	}
 
-protected:
 	void paintStatusText(Painter &p, int x, int y, int outerWidth, bool selected) override;
 	void addActionRipple(QPoint point, base::lambda<void()> updateCallback) override;
 	void stopLastActionRipple() override;
 
-private:
 	bool needsVerifiedIcon() const override {
 		return false;
 	}
@@ -94,6 +92,7 @@ private:
 	}
 	void paintAction(Painter &p, TimeMs ms, int x, int y, int outerWidth, bool actionSelected) override;
 
+private:
 	void refreshStatus();
 	static Type ComputeType(HistoryItem *item);
 
@@ -105,7 +104,7 @@ private:
 
 };
 
-BoxController::Row::Row(HistoryItem *item) : PeerListBox::Row(item->history()->peer, item->id)
+BoxController::Row::Row(HistoryItem *item) : PeerListRow(item->history()->peer, item->id)
 , _items(1, item)
 , _date(item->date.date())
 , _type(ComputeType(item)) {
@@ -124,7 +123,7 @@ void BoxController::Row::paintStatusText(Painter &p, int x, int y, int outerWidt
 	icon->paint(p, x + st::callArrowPosition.x(), y + st::callArrowPosition.y(), outerWidth);
 	x += + st::callArrowPosition.x() + icon->width() + st::callArrowSkip;
 
-	PeerListBox::Row::paintStatusText(p, x, y, outerWidth, selected);
+	PeerListRow::paintStatusText(p, x, y, outerWidth, selected);
 }
 
 void BoxController::Row::paintAction(Painter &p, TimeMs ms, int x, int y, int outerWidth, bool actionSelected) {
@@ -188,12 +187,12 @@ void BoxController::prepare() {
 		if (auto row = rowForItem(item)) {
 			row->itemRemoved(item);
 			if (!row->hasItems()) {
-				view()->removeRow(row);
-				if (!view()->fullRowsCount()) {
+				delegate()->peerListRemoveRow(row);
+				if (!delegate()->peerListFullRowsCount()) {
 					refreshAbout();
 				}
 			}
-			view()->refreshRows();
+			delegate()->peerListRefreshRows();
 		}
 	});
 	subscribe(Current().newServiceMessage(), [this](const FullMsgId &msgId) {
@@ -202,10 +201,9 @@ void BoxController::prepare() {
 		}
 	});
 
-	view()->setTitle(langFactory(lng_call_box_title));
-	view()->addButton(langFactory(lng_close), [this] { view()->closeBox(); });
-	view()->setAboutText(lang(lng_contacts_loading));
-	view()->refreshRows();
+	delegate()->peerListSetTitle(langFactory(lng_call_box_title));
+	setDescriptionText(lang(lng_contacts_loading));
+	delegate()->peerListRefreshRows();
 
 	preloadRows();
 }
@@ -240,16 +238,16 @@ void BoxController::preloadRows() {
 }
 
 void BoxController::refreshAbout() {
-	view()->setAboutText(view()->fullRowsCount() ? QString() : lang(lng_call_box_about));
+	setDescriptionText(delegate()->peerListFullRowsCount() ? QString() : lang(lng_call_box_about));
 }
 
-void BoxController::rowClicked(PeerListBox::Row *row) {
-	auto itemsRow = static_cast<Row*>(row);
+void BoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
+	auto itemsRow = static_cast<Row*>(row.get());
 	auto itemId = itemsRow->maxItemId();
 	Ui::showPeerHistoryAsync(row->peer()->id, itemId);
 }
 
-void BoxController::rowActionClicked(PeerListBox::Row *row) {
+void BoxController::rowActionClicked(gsl::not_null<PeerListRow*> row) {
 	auto user = row->peer()->asUser();
 	t_assert(user != nullptr);
 
@@ -274,7 +272,7 @@ void BoxController::receivedCalls(const QVector<MTPMessage> &result) {
 	}
 
 	refreshAbout();
-	view()->refreshRows();
+	delegate()->peerListRefreshRows();
 }
 
 bool BoxController::insertRow(HistoryItem *item, InsertWay way) {
@@ -284,24 +282,22 @@ bool BoxController::insertRow(HistoryItem *item, InsertWay way) {
 			return false;
 		}
 	}
-	(way == InsertWay::Append) ? view()->appendRow(createRow(item)) : view()->prependRow(createRow(item));
-	view()->reorderRows([](auto &&begin, auto &&end) {
-		std::sort(begin, end, [](auto &a, auto &b) {
-			return static_cast<Row&>(*a).maxItemId() > static_cast<Row&>(*a).maxItemId();
-		});
+	(way == InsertWay::Append) ? delegate()->peerListAppendRow(createRow(item)) : delegate()->peerListPrependRow(createRow(item));
+	delegate()->peerListSortRows([](PeerListRow &a, PeerListRow &b) {
+		return static_cast<Row&>(a).maxItemId() > static_cast<Row&>(b).maxItemId();
 	});
 	return true;
 }
 
 BoxController::Row *BoxController::rowForItem(HistoryItem *item) {
-	auto v = view();
-	if (auto fullRowsCount = v->fullRowsCount()) {
+	auto v = delegate();
+	if (auto fullRowsCount = v->peerListFullRowsCount()) {
 		auto itemId = item->id;
-		auto lastRow = static_cast<Row*>(v->rowAt(fullRowsCount - 1));
+		auto lastRow = static_cast<Row*>(v->peerListRowAt(fullRowsCount - 1).get());
 		if (itemId < lastRow->minItemId()) {
 			return lastRow;
 		}
-		auto firstRow = static_cast<Row*>(v->rowAt(0));
+		auto firstRow = static_cast<Row*>(v->peerListRowAt(0).get());
 		if (itemId > firstRow->maxItemId()) {
 			return firstRow;
 		}
@@ -313,18 +309,18 @@ BoxController::Row *BoxController::rowForItem(HistoryItem *item) {
 		auto right = fullRowsCount;
 		while (left + 1 < right) {
 			auto middle = (right + left) / 2;
-			auto middleRow = static_cast<Row*>(v->rowAt(middle));
+			auto middleRow = static_cast<Row*>(v->peerListRowAt(middle).get());
 			if (middleRow->maxItemId() >= itemId) {
 				left = middle;
 			} else {
 				right = middle;
 			}
 		}
-		auto result = static_cast<Row*>(v->rowAt(left));
+		auto result = static_cast<Row*>(v->peerListRowAt(left).get());
 		// Check for rowAt(left)->minItemId > itemId > rowAt(left + 1)->maxItemId.
 		// In that case we sometimes need to return rowAt(left + 1), not rowAt(left).
 		if (result->minItemId() > itemId && left + 1 < fullRowsCount) {
-			auto possibleResult = static_cast<Row*>(v->rowAt(left + 1));
+			auto possibleResult = static_cast<Row*>(v->peerListRowAt(left + 1).get());
 			t_assert(possibleResult->maxItemId() < itemId);
 			if (possibleResult->canAddItem(item)) {
 				return possibleResult;
@@ -335,7 +331,7 @@ BoxController::Row *BoxController::rowForItem(HistoryItem *item) {
 	return nullptr;
 }
 
-std::unique_ptr<PeerListBox::Row> BoxController::createRow(HistoryItem *item) const {
+std::unique_ptr<PeerListRow> BoxController::createRow(HistoryItem *item) const {
 	auto row = std::make_unique<Row>(item);
 	return std::move(row);
 }

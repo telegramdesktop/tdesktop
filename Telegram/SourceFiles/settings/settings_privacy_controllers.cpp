@@ -35,36 +35,40 @@ constexpr auto kBlockedPerPage = 40;
 
 class BlockUserBoxController : public ChatsListBoxController {
 public:
-	void rowClicked(PeerListBox::Row *row) override;
+	void rowClicked(gsl::not_null<PeerListRow*> row) override;
+
+	void setBlockUserCallback(base::lambda<void(gsl::not_null<UserData*> user)> callback) {
+		_blockUserCallback = std::move(callback);
+	}
 
 protected:
 	void prepareViewHook() override;
-	std::unique_ptr<Row> createRow(History *history) override;
+	std::unique_ptr<Row> createRow(gsl::not_null<History*> history) override;
 	void updateRowHook(Row *row) override {
 		updateIsBlocked(row, row->peer()->asUser());
-		view()->updateRow(row);
+		delegate()->peerListUpdateRow(row);
 	}
 
 private:
-	void updateIsBlocked(PeerListBox::Row *row, UserData *user) const;
+	void updateIsBlocked(gsl::not_null<PeerListRow*> row, UserData *user) const;
+
+	base::lambda<void(gsl::not_null<UserData*> user)> _blockUserCallback;
 
 };
 
 void BlockUserBoxController::prepareViewHook() {
-	view()->setTitle(langFactory(lng_blocked_list_add_title));
-	view()->addButton(langFactory(lng_cancel), [this] { view()->closeBox(); });
-
+	delegate()->peerListSetTitle(langFactory(lng_blocked_list_add_title));
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserIsBlocked, [this](const Notify::PeerUpdate &update) {
 		if (auto user = update.peer->asUser()) {
-			if (auto row = view()->findRow(user->id)) {
+			if (auto row = delegate()->peerListFindRow(user->id)) {
 				updateIsBlocked(row, user);
-				view()->updateRow(row);
+				delegate()->peerListUpdateRow(row);
 			}
 		}
 	}));
 }
 
-void BlockUserBoxController::updateIsBlocked(PeerListBox::Row *row, UserData *user) const {
+void BlockUserBoxController::updateIsBlocked(gsl::not_null<PeerListRow*> row, UserData *user) const {
 	auto blocked = user->isBlocked();
 	row->setDisabled(blocked);
 	if (blocked) {
@@ -74,15 +78,11 @@ void BlockUserBoxController::updateIsBlocked(PeerListBox::Row *row, UserData *us
 	}
 }
 
-void BlockUserBoxController::rowClicked(PeerListBox::Row *row) {
-	auto user = row->peer()->asUser();
-	Expects(user != nullptr);
-
-	App::api()->blockUser(user);
-	view()->closeBox();
+void BlockUserBoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
+	_blockUserCallback(row->peer()->asUser());
 }
 
-std::unique_ptr<BlockUserBoxController::Row> BlockUserBoxController::createRow(History *history) {
+std::unique_ptr<BlockUserBoxController::Row> BlockUserBoxController::createRow(gsl::not_null<History*> history) {
 	if (auto user = history->peer->asUser()) {
 		auto row = std::make_unique<Row>(history);
 		updateIsBlocked(row.get(), user);
@@ -94,11 +94,9 @@ std::unique_ptr<BlockUserBoxController::Row> BlockUserBoxController::createRow(H
 } // namespace
 
 void BlockedBoxController::prepare() {
-	view()->setTitle(langFactory(lng_blocked_list_title));
-	view()->addButton(langFactory(lng_close), [this] { view()->closeBox(); });
-	view()->addLeftButton(langFactory(lng_blocked_list_add), [this] { blockUser(); });
-	view()->setAboutText(lang(lng_contacts_loading));
-	view()->refreshRows();
+	delegate()->peerListSetTitle(langFactory(lng_blocked_list_title));
+	setDescriptionText(lang(lng_contacts_loading));
+	delegate()->peerListRefreshRows();
 
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserIsBlocked, [this](const Notify::PeerUpdate &update) {
 		if (auto user = update.peer->asUser()) {
@@ -118,7 +116,7 @@ void BlockedBoxController::preloadRows() {
 		_loadRequestId = 0;
 
 		if (!_offset) {
-			view()->setAboutText(lang(lng_blocked_list_about));
+			setDescriptionText(lang(lng_blocked_list_about));
 		}
 
 		auto handleContactsBlocked = [](auto &list) {
@@ -140,11 +138,11 @@ void BlockedBoxController::preloadRows() {
 	}).send();
 }
 
-void BlockedBoxController::rowClicked(PeerListBox::Row *row) {
+void BlockedBoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
 	Ui::showPeerHistoryAsync(row->peer()->id, ShowAtUnreadMsgId);
 }
 
-void BlockedBoxController::rowActionClicked(PeerListBox::Row *row) {
+void BlockedBoxController::rowActionClicked(gsl::not_null<PeerListRow*> row) {
 	auto user = row->peer()->asUser();
 	Expects(user != nullptr);
 
@@ -168,42 +166,50 @@ void BlockedBoxController::receivedUsers(const QVector<MTPContactBlocked> &resul
 			user->setBlockStatus(UserData::BlockStatus::Blocked);
 		}
 	}
-	view()->refreshRows();
+	delegate()->peerListRefreshRows();
 }
 
 void BlockedBoxController::handleBlockedEvent(UserData *user) {
 	if (user->isBlocked()) {
 		if (prependRow(user)) {
-			view()->refreshRows();
-			view()->onScrollToY(0);
+			delegate()->peerListRefreshRows();
+			delegate()->peerListScrollToTop();
 		}
-	} else if (auto row = view()->findRow(user->id)) {
-		view()->removeRow(row);
-		view()->refreshRows();
+	} else if (auto row = delegate()->peerListFindRow(user->id)) {
+		delegate()->peerListRemoveRow(row);
+		delegate()->peerListRefreshRows();
 	}
 }
 
-void BlockedBoxController::blockUser() {
-	Ui::show(Box<PeerListBox>(std::make_unique<BlockUserBoxController>()), KeepOtherLayers);
+void BlockedBoxController::BlockNewUser() {
+	auto controller = std::make_unique<BlockUserBoxController>();
+	auto initBox = [controller = controller.get()](PeerListBox *box) {
+		controller->setBlockUserCallback([box](gsl::not_null<UserData*> user) {
+			App::api()->blockUser(user);
+			box->closeBox();
+		});
+		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
+	};
+	Ui::show(Box<PeerListBox>(std::move(controller), std::move(initBox)), KeepOtherLayers);
 }
 
 bool BlockedBoxController::appendRow(UserData *user) {
-	if (view()->findRow(user->id)) {
+	if (delegate()->peerListFindRow(user->id)) {
 		return false;
 	}
-	view()->appendRow(createRow(user));
+	delegate()->peerListAppendRow(createRow(user));
 	return true;
 }
 
 bool BlockedBoxController::prependRow(UserData *user) {
-	if (view()->findRow(user->id)) {
+	if (delegate()->peerListFindRow(user->id)) {
 		return false;
 	}
-	view()->prependRow(createRow(user));
+	delegate()->peerListPrependRow(createRow(user));
 	return true;
 }
 
-std::unique_ptr<PeerListBox::Row> BlockedBoxController::createRow(UserData *user) const {
+std::unique_ptr<PeerListRow> BlockedBoxController::createRow(UserData *user) const {
 	auto row = std::make_unique<PeerListRowWithLink>(user);
 	row->setActionLink(lang(lng_blocked_list_unblock));
 	auto status = [user]() -> QString {

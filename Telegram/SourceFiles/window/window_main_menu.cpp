@@ -86,7 +86,9 @@ void MainMenu::refreshMenu() {
 	}, &st::mainMenuContacts, &st::mainMenuContactsOver);
 	if (Global::PhoneCallsEnabled()) {
 		_menu->addAction(lang(lng_menu_calls), [] {
-			Ui::show(Box<PeerListBox>(std::make_unique<Calls::BoxController>()));
+			Ui::show(Box<PeerListBox>(std::make_unique<Calls::BoxController>(), [](PeerListBox *box) {
+				box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
+			}));
 		}, &st::mainMenuCalls, &st::mainMenuCallsOver);
 	}
 	_menu->addAction(lang(lng_menu_settings), [] {

@@ -163,7 +163,7 @@ MembersBox::Inner::Inner(QWidget *parent, gsl::not_null<ChannelData*> channel, M
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _channel(channel)
 , _filter(filter)
-, _kickText(lang((filter == MembersFilter::Admins) ? lng_profile_edit_admin : lng_profile_kick))
+, _kickText(lang((filter == MembersFilter::Admins) ? lng_profile_edit_permissions : lng_profile_kick))
 , _kickWidth(st::normalFont->width(_kickText))
 , _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.right())
 , _about(_aboutWidth) {

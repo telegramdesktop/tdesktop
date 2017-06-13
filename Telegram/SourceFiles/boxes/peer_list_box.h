@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "boxes/abstract_box.h"
 #include "mtproto/sender.h"
+#include "base/timer.h"
 
 namespace Ui {
 class RippleAnimation;
@@ -32,216 +33,298 @@ class WidgetSlideWrap;
 class FlatLabel;
 } // namespace Ui
 
-class PeerListBox : public BoxContent {
+using PeerListRowId = uint64;
+class PeerListRow {
+public:
+	PeerListRow(gsl::not_null<PeerData*> peer);
+	PeerListRow(gsl::not_null<PeerData*> peer, PeerListRowId id);
+
+	void setDisabled(bool disabled) {
+		_disabled = disabled;
+	}
+
+	// Checked state is controlled by the box with multiselect,
+	// not by the row itself, so there is no setChecked() method.
+	// We can query the checked state from row, but before it is
+	// added to the box it is always false.
+	bool checked() const;
+
+	gsl::not_null<PeerData*> peer() const {
+		return _peer;
+	}
+	PeerListRowId id() const {
+		return _id;
+	}
+
+	void setCustomStatus(const QString &status);
+	void clearCustomStatus();
+
+	virtual ~PeerListRow();
+
+	// Box interface.
+	virtual bool needsVerifiedIcon() const {
+		return _peer->isVerified();
+	}
+	virtual QSize actionSize() const {
+		return QSize();
+	}
+	virtual QMargins actionMargins() const {
+		return QMargins();
+	}
+	virtual void addActionRipple(QPoint point, base::lambda<void()> updateCallback) {
+	}
+	virtual void stopLastActionRipple() {
+	}
+	virtual void paintAction(Painter &p, TimeMs ms, int x, int y, int outerWidth, bool actionSelected) {
+	}
+
+	void refreshName();
+	const Text &name() const {
+		return _name;
+	}
+
+	enum class StatusType {
+		Online,
+		LastSeen,
+		Custom,
+	};
+	void refreshStatus();
+
+	void setAbsoluteIndex(int index) {
+		_absoluteIndex = index;
+	}
+	int absoluteIndex() const {
+		return _absoluteIndex;
+	}
+	bool disabled() const {
+		return _disabled;
+	}
+	bool isSearchResult() const {
+		return _isSearchResult;
+	}
+	void setIsSearchResult(bool isSearchResult) {
+		_isSearchResult = isSearchResult;
+	}
+
+	enum class SetStyle {
+		Animated,
+		Fast,
+	};
+	template <typename UpdateCallback>
+	void setChecked(bool checked, SetStyle style, UpdateCallback callback) {
+		if (checked && !_checkbox) {
+			createCheckbox(std::move(callback));
+		}
+		setCheckedInternal(checked, style);
+	}
+	void invalidatePixmapsCache();
+
+	template <typename UpdateCallback>
+	void addRipple(QSize size, QPoint point, UpdateCallback updateCallback);
+	void stopLastRipple();
+	void paintRipple(Painter &p, TimeMs ms, int x, int y, int outerWidth);
+	void paintUserpic(Painter &p, TimeMs ms, int x, int y, int outerWidth);
+	float64 checkedRatio();
+
+	void setNameFirstChars(const OrderedSet<QChar> &nameFirstChars) {
+		_nameFirstChars = nameFirstChars;
+	}
+	const OrderedSet<QChar> &nameFirstChars() const {
+		return _nameFirstChars;
+	}
+
+	virtual void lazyInitialize();
+	virtual void paintStatusText(Painter &p, int x, int y, int outerWidth, bool selected);
+
+protected:
+	bool isInitialized() const {
+		return _initialized;
+	}
+
+private:
+	void createCheckbox(base::lambda<void()> updateCallback);
+	void setCheckedInternal(bool checked, SetStyle style);
+	void paintDisabledCheckUserpic(Painter &p, int x, int y, int outerWidth) const;
+
+	PeerListRowId _id = 0;
+	gsl::not_null<PeerData*> _peer;
+	bool _initialized = false;
+	std::unique_ptr<Ui::RippleAnimation> _ripple;
+	std::unique_ptr<Ui::RoundImageCheckbox> _checkbox;
+	Text _name;
+	QString _status;
+	StatusType _statusType = StatusType::Online;
+	bool _disabled = false;
+	int _absoluteIndex = -1;
+	OrderedSet<QChar> _nameFirstChars;
+	bool _isSearchResult = false;
+
+};
+
+enum class PeerListSearchMode {
+	None,
+	Local,
+	Complex,
+};
+
+class PeerListDelegate {
+public:
+	virtual void peerListSetTitle(base::lambda<QString()> title) = 0;
+	virtual void peerListSetDescription(object_ptr<Ui::FlatLabel> description) = 0;
+	virtual void peerListSetSearchLoading(object_ptr<Ui::FlatLabel> loading) = 0;
+	virtual void peerListSetSearchNoResults(object_ptr<Ui::FlatLabel> noResults) = 0;
+	virtual void peerListSetSearchMode(PeerListSearchMode mode) = 0;
+	virtual void peerListAppendRow(std::unique_ptr<PeerListRow> row) = 0;
+	virtual void peerListAppendSearchRow(std::unique_ptr<PeerListRow> row) = 0;
+	virtual void peerListAppendFoundRow(gsl::not_null<PeerListRow*> row) = 0;
+	virtual void peerListPrependRow(std::unique_ptr<PeerListRow> row) = 0;
+	virtual void peerListUpdateRow(gsl::not_null<PeerListRow*> row) = 0;
+	virtual bool peerListIsRowSelected(gsl::not_null<PeerData*> peer) = 0;
+	virtual void peerListRemoveRow(gsl::not_null<PeerListRow*> row) = 0;
+	virtual void peerListSetRowChecked(gsl::not_null<PeerListRow*> row, bool checked) = 0;
+	virtual gsl::not_null<PeerListRow*> peerListRowAt(int index) = 0;
+	virtual void peerListRefreshRows() = 0;
+	virtual void peerListScrollToTop() = 0;
+	virtual int peerListFullRowsCount() = 0;
+	virtual PeerListRow *peerListFindRow(PeerListRowId id) = 0;
+	virtual void peerListSortRows(base::lambda<bool(PeerListRow &a, PeerListRow &b)> compare) = 0;
+	virtual void peerListPartitionRows(base::lambda<bool(PeerListRow &a)> border) = 0;
+
+	template <typename PeerDataRange>
+	void peerListAddSelectedRows(PeerDataRange &&range) {
+		for (auto peer : range) {
+			peerListAddSelectedRowInBunch(peer);
+		}
+		peerListFinishSelectedRowsBunch();
+	}
+
+	virtual std::vector<gsl::not_null<PeerData*>> peerListCollectSelectedRows() = 0;
+	virtual ~PeerListDelegate() = default;
+
+private:
+	virtual void peerListAddSelectedRowInBunch(gsl::not_null<PeerData*> peer) = 0;
+	virtual void peerListFinishSelectedRowsBunch() = 0;
+
+};
+
+class PeerListSearchDelegate {
+public:
+	virtual void peerListSearchAddRow(gsl::not_null<PeerData*> peer) = 0;
+	virtual void peerListSearchRefreshRows() = 0;
+	virtual ~PeerListSearchDelegate() = default;
+
+};
+
+class PeerListSearchController {
+public:
+	virtual void searchQuery(const QString &query) = 0;
+	virtual bool isLoading() = 0;
+	virtual ~PeerListSearchController() = default;
+
+	void setDelegate(gsl::not_null<PeerListSearchDelegate*> delegate) {
+		_delegate = delegate;
+	}
+
+protected:
+	gsl::not_null<PeerListSearchDelegate*> delegate() const {
+		return _delegate;
+	}
+
+private:
+	PeerListSearchDelegate *_delegate = nullptr;
+
+};
+
+class PeerListController : public PeerListSearchDelegate {
+public:
+	// Search works only with RowId == peer->id.
+	PeerListController(std::unique_ptr<PeerListSearchController> searchController = nullptr);
+
+	void setDelegate(gsl::not_null<PeerListDelegate*> delegate) {
+		_delegate = delegate;
+		prepare();
+	}
+
+	virtual void prepare() = 0;
+	virtual void rowClicked(gsl::not_null<PeerListRow*> row) = 0;
+	virtual void rowActionClicked(gsl::not_null<PeerListRow*> row) {
+	}
+	virtual void preloadRows() {
+	}
+	bool isSearchLoading() const {
+		return _searchController ? _searchController->isLoading() : false;
+	}
+	virtual std::unique_ptr<PeerListRow> createSearchRow(gsl::not_null<PeerData*> peer) {
+		return std::unique_ptr<PeerListRow>();
+	}
+
+	bool isRowSelected(gsl::not_null<PeerData*> peer) {
+		return delegate()->peerListIsRowSelected(peer);
+	}
+
+	virtual bool searchInLocal() {
+		return true;
+	}
+	void search(const QString &query);
+
+	void peerListSearchAddRow(gsl::not_null<PeerData*> peer) override;
+	void peerListSearchRefreshRows() override;
+
+	virtual ~PeerListController() = default;
+
+protected:
+	gsl::not_null<PeerListDelegate*> delegate() const {
+		return _delegate;
+	}
+
+	void setDescriptionText(const QString &text);
+	void setSearchLoadingText(const QString &text);
+	void setSearchNoResultsText(const QString &text);
+	void setDescription(object_ptr<Ui::FlatLabel> description) {
+		delegate()->peerListSetDescription(std::move(description));
+	}
+	void setSearchLoading(object_ptr<Ui::FlatLabel> loading) {
+		delegate()->peerListSetSearchLoading(std::move(loading));
+	}
+	void setSearchNoResults(object_ptr<Ui::FlatLabel> noResults) {
+		delegate()->peerListSetSearchNoResults(std::move(noResults));
+	}
+
+private:
+	PeerListDelegate *_delegate = nullptr;
+	std::unique_ptr<PeerListSearchController> _searchController = nullptr;
+
+};
+
+class PeerListBox : public BoxContent, public PeerListDelegate {
 	class Inner;
 
 public:
-	using RowId = uint64;
+	PeerListBox(QWidget*, std::unique_ptr<PeerListController> controller, base::lambda<void(PeerListBox*)> init);
 
-	class Row {
-	public:
-		Row(PeerData *peer);
-		Row(PeerData *peer, RowId id);
-
-		void setDisabled(bool disabled) {
-			_disabled = disabled;
-		}
-
-		// Checked state is controlled by the box with multiselect,
-		// not by the row itself, so there is no setChecked() method.
-		// We can query the checked state from row, but before it is
-		// added to the box it is always false.
-		bool checked() const;
-
-		PeerData *peer() const {
-			return _peer;
-		}
-		RowId id() const {
-			return _id;
-		}
-
-		void setCustomStatus(const QString &status);
-		void clearCustomStatus();
-
-		virtual ~Row();
-
-	protected:
-		virtual void paintStatusText(Painter &p, int x, int y, int outerWidth, bool selected);
-
-		bool isInitialized() const {
-			return _initialized;
-		}
-		virtual void lazyInitialize();
-
-	private:
-		// Inner interface.
-		friend class PeerListBox;
-		friend class Inner;
-
-		virtual bool needsVerifiedIcon() const {
-			return _peer->isVerified();
-		}
-		virtual QSize actionSize() const {
-			return QSize();
-		}
-		virtual QMargins actionMargins() const {
-			return QMargins();
-		}
-		virtual void addActionRipple(QPoint point, base::lambda<void()> updateCallback) {
-		}
-		virtual void stopLastActionRipple() {
-		}
-		virtual void paintAction(Painter &p, TimeMs ms, int x, int y, int outerWidth, bool actionSelected) {
-		}
-
-		void refreshName();
-		const Text &name() const {
-			return _name;
-		}
-
-		enum class StatusType {
-			Online,
-			LastSeen,
-			Custom,
-		};
-		void refreshStatus();
-
-		void setAbsoluteIndex(int index) {
-			_absoluteIndex = index;
-		}
-		int absoluteIndex() const {
-			return _absoluteIndex;
-		}
-		bool disabled() const {
-			return _disabled;
-		}
-		bool isGlobalSearchResult() const {
-			return _isGlobalSearchResult;
-		}
-		void setIsGlobalSearchResult(bool isGlobalSearchResult) {
-			_isGlobalSearchResult = isGlobalSearchResult;
-		}
-
-		enum class SetStyle {
-			Animated,
-			Fast,
-		};
-		template <typename UpdateCallback>
-		void setChecked(bool checked, SetStyle style, UpdateCallback callback) {
-			if (checked && !_checkbox) {
-				createCheckbox(std::move(callback));
-			}
-			setCheckedInternal(checked, style);
-		}
-		void invalidatePixmapsCache();
-
-		template <typename UpdateCallback>
-		void addRipple(QSize size, QPoint point, UpdateCallback updateCallback);
-		void stopLastRipple();
-		void paintRipple(Painter &p, TimeMs ms, int x, int y, int outerWidth);
-		void paintUserpic(Painter &p, TimeMs ms, int x, int y, int outerWidth);
-		float64 checkedRatio();
-
-		void setNameFirstChars(const OrderedSet<QChar> &nameFirstChars) {
-			_nameFirstChars = nameFirstChars;
-		}
-		const OrderedSet<QChar> &nameFirstChars() const {
-			return _nameFirstChars;
-		}
-
-	private:
-		void createCheckbox(base::lambda<void()> updateCallback);
-		void setCheckedInternal(bool checked, SetStyle style);
-		void paintDisabledCheckUserpic(Painter &p, int x, int y, int outerWidth) const;
-
-		RowId _id = 0;
-		PeerData *_peer = nullptr;
-		bool _initialized = false;
-		std::unique_ptr<Ui::RippleAnimation> _ripple;
-		std::unique_ptr<Ui::RoundImageCheckbox> _checkbox;
-		Text _name;
-		QString _status;
-		StatusType _statusType = StatusType::Online;
-		bool _disabled = false;
-		int _absoluteIndex = -1;
-		OrderedSet<QChar> _nameFirstChars;
-		bool _isGlobalSearchResult = false;
-
-	};
-
-	class Controller {
-	public:
-		virtual void prepare() = 0;
-		virtual void rowClicked(Row *row) = 0;
-		virtual void rowActionClicked(Row *row) {
-		}
-		virtual void preloadRows() {
-		}
-		virtual std::unique_ptr<Row> createGlobalRow(PeerData *peer) {
-			return std::unique_ptr<Row>();
-		}
-
-		virtual ~Controller() = default;
-
-	protected:
-		PeerListBox *view() const {
-			return _view;
-		}
-
-	private:
-		void setView(PeerListBox *box) {
-			_view = box;
-			prepare();
-		}
-
-		PeerListBox *_view = nullptr;
-
-		friend class PeerListBox;
-		friend class Inner;
-
-	};
-	PeerListBox(QWidget*, std::unique_ptr<Controller> controller);
-
-	// Interface for the controller.
-	void appendRow(std::unique_ptr<Row> row);
-	void prependRow(std::unique_ptr<Row> row);
-	Row *findRow(RowId id);
-	void updateRow(Row *row);
-	void removeRow(Row *row);
-	void setRowChecked(Row *row, bool checked);
-	int fullRowsCount() const;
-	Row *rowAt(int index) const;
-	void setAboutText(const QString &aboutText);
-	void setAbout(object_ptr<Ui::FlatLabel> about);
-	void refreshRows();
-
-	// Search works only with RowId == peer->id.
-	enum class SearchMode {
-		None,
-		Local,
-		Global,
-	};
-	void setSearchMode(SearchMode mode);
-	void setSearchNoResultsText(const QString &noResultsText);
-	void setSearchNoResults(object_ptr<Ui::FlatLabel> searchNoResults);
-	void setSearchLoadingText(const QString &searchLoadingText);
-	void setSearchLoading(object_ptr<Ui::FlatLabel> searchLoading);
-
-	template <typename PeerDataRange>
-	void addSelectedRows(PeerDataRange &&range) {
-		Expects(_select != nullptr);
-		for (auto peer : range) {
-			addSelectItem(peer, Row::SetStyle::Fast);
-		}
-		finishSelectItemsBunch();
+	void peerListSetTitle(base::lambda<QString()> title) override {
+		setTitle(std::move(title));
 	}
-	QVector<PeerData*> collectSelectedRows() const;
-
-	// callback takes two iterators, like [](auto &begin, auto &end).
-	template <typename ReorderCallback>
-	void reorderRows(ReorderCallback &&callback);
-
-	bool isRowSelected(PeerData *peer) const;
+	void peerListSetDescription(object_ptr<Ui::FlatLabel> description) override;
+	void peerListSetSearchLoading(object_ptr<Ui::FlatLabel> loading) override;
+	void peerListSetSearchNoResults(object_ptr<Ui::FlatLabel> noResults) override;
+	void peerListSetSearchMode(PeerListSearchMode mode) override;
+	void peerListAppendRow(std::unique_ptr<PeerListRow> row) override;
+	void peerListAppendSearchRow(std::unique_ptr<PeerListRow> row) override;
+	void peerListAppendFoundRow(gsl::not_null<PeerListRow*> row) override;
+	void peerListPrependRow(std::unique_ptr<PeerListRow> row) override;
+	void peerListUpdateRow(gsl::not_null<PeerListRow*> row) override;
+	void peerListRemoveRow(gsl::not_null<PeerListRow*> row) override;
+	void peerListSetRowChecked(gsl::not_null<PeerListRow*> row, bool checked) override;
+	gsl::not_null<PeerListRow*> peerListRowAt(int index) override;
+	bool peerListIsRowSelected(gsl::not_null<PeerData*> peer) override;
+	std::vector<gsl::not_null<PeerData*>> peerListCollectSelectedRows() override;
+	void peerListRefreshRows() override;
+	void peerListScrollToTop() override;
+	int peerListFullRowsCount() override;
+	PeerListRow *peerListFindRow(PeerListRowId id) override;
+	void peerListSortRows(base::lambda<bool(PeerListRow &a, PeerListRow &b)> compare) override;
+	void peerListPartitionRows(base::lambda<bool(PeerListRow &a)> border) override;
 
 protected:
 	void prepare() override;
@@ -251,8 +334,12 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	void addSelectItem(PeerData *peer, Row::SetStyle style);
-	void finishSelectItemsBunch();
+	void peerListAddSelectedRowInBunch(gsl::not_null<PeerData*> peer) override {
+		addSelectItem(peer, PeerListRow::SetStyle::Fast);
+	}
+	void peerListFinishSelectedRowsBunch() override;
+
+	void addSelectItem(gsl::not_null<PeerData*> peer, PeerListRow::SetStyle style);
 	object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>> createMultiSelect();
 	int getTopScrollSkip() const;
 	void updateScrollSkips();
@@ -262,16 +349,17 @@ private:
 
 	QPointer<Inner> _inner;
 
-	std::unique_ptr<Controller> _controller;
+	std::unique_ptr<PeerListController> _controller;
+	base::lambda<void(PeerListBox*)> _init;
 
 };
 
 // This class is hold in header because it requires Qt preprocessing.
-class PeerListBox::Inner : public TWidget, private MTP::Sender, private base::Subscriber {
+class PeerListBox::Inner : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	Inner(QWidget *parent, Controller *controller);
+	Inner(QWidget *parent, gsl::not_null<PeerListController*> controller);
 
 	void selectSkip(int direction);
 	void selectSkipPage(int height, int direction);
@@ -284,22 +372,24 @@ public:
 	void submitted();
 
 	// Interface for the controller.
-	void appendRow(std::unique_ptr<Row> row);
-	void prependRow(std::unique_ptr<Row> row);
-	Row *findRow(RowId id);
-	void updateRow(Row *row) {
+	void appendRow(std::unique_ptr<PeerListRow> row);
+	void appendSearchRow(std::unique_ptr<PeerListRow> row);
+	void appendFoundRow(gsl::not_null<PeerListRow*> row);
+	void prependRow(std::unique_ptr<PeerListRow> row);
+	PeerListRow *findRow(PeerListRowId id);
+	void updateRow(gsl::not_null<PeerListRow*> row) {
 		updateRow(row, RowIndex());
 	}
-	void removeRow(Row *row);
+	void removeRow(gsl::not_null<PeerListRow*> row);
 	int fullRowsCount() const;
-	Row *rowAt(int index) const;
-	void setAbout(object_ptr<Ui::FlatLabel> about);
+	gsl::not_null<PeerListRow*> rowAt(int index) const;
+	void setDescription(object_ptr<Ui::FlatLabel> description);
+	void setSearchLoading(object_ptr<Ui::FlatLabel> loading);
+	void setSearchNoResults(object_ptr<Ui::FlatLabel> noResults);
 	void refreshRows();
-	void setSearchMode(SearchMode mode);
-	void setSearchNoResults(object_ptr<Ui::FlatLabel> searchNoResults);
-	void setSearchLoading(object_ptr<Ui::FlatLabel> searchLoading);
 
-	void changeCheckState(Row *row, bool checked, Row::SetStyle style);
+	void setSearchMode(PeerListSearchMode mode);
+	void changeCheckState(gsl::not_null<PeerListRow*> row, bool checked, PeerListRow::SetStyle style);
 
 	template <typename ReorderCallback>
 	void reorderRows(ReorderCallback &&callback) {
@@ -327,7 +417,6 @@ protected:
 
 private:
 	void refreshIndices();
-	void appendGlobalSearchRow(std::unique_ptr<Row> row);
 
 	void invalidatePixmapsCache();
 
@@ -370,19 +459,19 @@ private:
 	void loadProfilePhotos();
 	void checkScrollForPreload();
 
-	void updateRow(Row *row, RowIndex hint);
+	void updateRow(gsl::not_null<PeerListRow*> row, RowIndex hint);
 	void updateRow(RowIndex row);
 	int getRowTop(RowIndex row) const;
-	Row *getRow(RowIndex element);
-	RowIndex findRowIndex(Row *row, RowIndex hint = RowIndex());
-	QRect getActionRect(Row *row, RowIndex index) const;
+	PeerListRow *getRow(RowIndex element);
+	RowIndex findRowIndex(gsl::not_null<PeerListRow*> row, RowIndex hint = RowIndex());
+	QRect getActionRect(gsl::not_null<PeerListRow*> row, RowIndex index) const;
 
 	void paintRow(Painter &p, TimeMs ms, RowIndex index);
 
-	void addRowEntry(Row *row);
-	void addToSearchIndex(Row *row);
+	void addRowEntry(gsl::not_null<PeerListRow*> row);
+	void addToSearchIndex(gsl::not_null<PeerListRow*> row);
 	bool addingToSearchIndex() const;
-	void removeFromSearchIndex(Row *row);
+	void removeFromSearchIndex(gsl::not_null<PeerListRow*> row);
 	bool showingSearch() const {
 		return !_searchQuery.isEmpty();
 	}
@@ -396,14 +485,11 @@ private:
 
 	int labelHeight() const;
 
-	void needGlobalSearch();
-	bool globalSearchInCache();
-	void globalSearchOnServer();
-	void globalSearchDone(const MTPcontacts_Found &result, mtpRequestId requestId);
-	bool globalSearchLoading() const;
-	void clearGlobalSearchRows();
+	void clearSearchRows();
 
-	Controller *_controller = nullptr;
+	gsl::not_null<PeerListController*> _controller;
+	PeerListSearchMode _searchMode = PeerListSearchMode::None;
+
 	int _rowHeight = 0;
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
@@ -412,43 +498,30 @@ private:
 	Selected _pressed;
 	bool _mouseSelection = false;
 
-	std::vector<std::unique_ptr<Row>> _rows;
-	std::map<RowId, Row*> _rowsById;
-	std::map<PeerData*, std::vector<Row*>> _rowsByPeer;
+	std::vector<std::unique_ptr<PeerListRow>> _rows;
+	std::map<PeerListRowId, gsl::not_null<PeerListRow*>> _rowsById;
+	std::map<PeerData*, std::vector<gsl::not_null<PeerListRow*>>> _rowsByPeer;
 
-	SearchMode _searchMode = SearchMode::None;
-	std::map<QChar, std::vector<Row*>> _searchIndex;
+	std::map<QChar, std::vector<gsl::not_null<PeerListRow*>>> _searchIndex;
 	QString _searchQuery;
-	std::vector<Row*> _filterResults;
+	std::vector<gsl::not_null<PeerListRow*>> _filterResults;
 
-	object_ptr<Ui::FlatLabel> _about = { nullptr };
+	object_ptr<Ui::FlatLabel> _description = { nullptr };
 	object_ptr<Ui::FlatLabel> _searchNoResults = { nullptr };
 	object_ptr<Ui::FlatLabel> _searchLoading = { nullptr };
 
 	QPoint _lastMousePosition;
 
-	std::vector<std::unique_ptr<Row>> _globalSearchRows;
-	object_ptr<SingleTimer> _globalSearchTimer = { nullptr };
-	QString _globalSearchQuery;
-	QString _globalSearchHighlight;
-	mtpRequestId _globalSearchRequestId = 0;
-	std::map<QString, MTPcontacts_Found> _globalSearchCache;
-	std::map<mtpRequestId, QString> _globalSearchQueries;
+	std::vector<std::unique_ptr<PeerListRow>> _searchRows;
 
 };
 
-template <typename ReorderCallback>
-inline void PeerListBox::reorderRows(ReorderCallback &&callback) {
-	_inner->reorderRows(std::forward<ReorderCallback>(callback));
-}
-
-class PeerListRowWithLink : public PeerListBox::Row {
+class PeerListRowWithLink : public PeerListRow {
 public:
-	using Row::Row;
+	using PeerListRow::PeerListRow;
 
 	void setActionLink(const QString &action);
 
-protected:
 	void lazyInitialize() override;
 
 private:
@@ -462,25 +535,47 @@ private:
 
 };
 
-class ChatsListBoxController : public PeerListBox::Controller, protected base::Subscriber {
+class PeerListGlobalSearchController : public PeerListSearchController, private MTP::Sender {
 public:
+	PeerListGlobalSearchController();
+
+	void searchQuery(const QString &query) override;
+	bool isLoading() override;
+
+private:
+	bool searchInCache();
+	void searchOnServer();
+	void searchDone(const MTPcontacts_Found &result, mtpRequestId requestId);
+
+	base::Timer _timer;
+	QString _query;
+	mtpRequestId _requestId = 0;
+	std::map<QString, MTPcontacts_Found> _cache;
+	std::map<mtpRequestId, QString> _queries;
+
+};
+
+class ChatsListBoxController : public PeerListController, protected base::Subscriber {
+public:
+	ChatsListBoxController(std::unique_ptr<PeerListSearchController> searchController = std::make_unique<PeerListGlobalSearchController>());
+
 	void prepare() override final;
-	std::unique_ptr<PeerListBox::Row> createGlobalRow(PeerData *peer) override final;
+	std::unique_ptr<PeerListRow> createSearchRow(gsl::not_null<PeerData*> peer) override final;
 
 protected:
-	class Row : public PeerListBox::Row {
+	class Row : public PeerListRow {
 	public:
-		Row(History *history) : PeerListBox::Row(history->peer), _history(history) {
+		Row(gsl::not_null<History*> history) : PeerListRow(history->peer), _history(history) {
 		}
-		History *history() const {
+		gsl::not_null<History*> history() const {
 			return _history;
 		}
 
 	private:
-		History *_history = nullptr;
+		gsl::not_null<History*> _history;
 
 	};
-	virtual std::unique_ptr<Row> createRow(History *history) = 0;
+	virtual std::unique_ptr<Row> createRow(gsl::not_null<History*> history) = 0;
 	virtual void prepareViewHook() = 0;
 	virtual void updateRowHook(Row *row) {
 	}

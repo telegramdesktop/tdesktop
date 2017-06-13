@@ -47,6 +47,7 @@ private slots:
 	void onNotificationsChange();
 	void onManageAdmins();
 	void onManageBlockedUsers();
+	void onManageRestrictedUsers();
 	void onInviteLink();
 
 private:
@@ -65,6 +66,7 @@ private:
 	// In channels: creator of supergroup can see this link.
 	object_ptr<Ui::LeftOutlineButton> _manageAdmins = { nullptr };
 	object_ptr<Ui::LeftOutlineButton> _manageBlockedUsers = { nullptr };
+	object_ptr<Ui::LeftOutlineButton> _manageRestrictedUsers = { nullptr };
 	object_ptr<Ui::LeftOutlineButton> _inviteLink = { nullptr };
 
 };

@@ -26,21 +26,22 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Settings {
 
-class BlockedBoxController : public PeerListBox::Controller, private base::Subscriber, private MTP::Sender {
+class BlockedBoxController : public PeerListController, private base::Subscriber, private MTP::Sender {
 public:
 	void prepare() override;
-	void rowClicked(PeerListBox::Row *row) override;
-	void rowActionClicked(PeerListBox::Row *row) override;
+	void rowClicked(gsl::not_null<PeerListRow*> row) override;
+	void rowActionClicked(gsl::not_null<PeerListRow*> row) override;
 	void preloadRows() override;
+
+	static void BlockNewUser();
 
 private:
 	void receivedUsers(const QVector<MTPContactBlocked> &result);
 	void handleBlockedEvent(UserData *user);
-	void blockUser();
 
 	bool appendRow(UserData *user);
 	bool prependRow(UserData *user);
-	std::unique_ptr<PeerListBox::Row> createRow(UserData *user) const;
+	std::unique_ptr<PeerListRow> createRow(UserData *user) const;
 
 	int _offset = 0;
 	mtpRequestId _loadRequestId = 0;

@@ -24,11 +24,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Calls {
 
-class BoxController : public PeerListBox::Controller, private base::Subscriber, private MTP::Sender {
+class BoxController : public PeerListController, private base::Subscriber, private MTP::Sender {
 public:
 	void prepare() override;
-	void rowClicked(PeerListBox::Row *row) override;
-	void rowActionClicked(PeerListBox::Row *row) override;
+	void rowClicked(gsl::not_null<PeerListRow*> row) override;
+	void rowActionClicked(gsl::not_null<PeerListRow*> row) override;
 	void preloadRows() override;
 
 private:
@@ -43,7 +43,7 @@ private:
 		Prepend,
 	};
 	bool insertRow(HistoryItem *item, InsertWay way);
-	std::unique_ptr<PeerListBox::Row> createRow(HistoryItem *item) const;
+	std::unique_ptr<PeerListRow> createRow(HistoryItem *item) const;
 
 	MsgId _offsetId = 0;
 	mtpRequestId _loadRequestId = 0;

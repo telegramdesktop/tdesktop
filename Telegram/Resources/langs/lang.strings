@@ -544,6 +544,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_edit_public_link" = "Edit public link";
 "lng_profile_manage_admins" = "Manage administrators";
 "lng_profile_manage_blocklist" = "Manage blocked users";
+"lng_profile_manage_restrictedlist" = "Manage restricted users";
 "lng_profile_common_groups#one" = "{count} group in common";
 "lng_profile_common_groups#other" = "{count} groups in common";
 "lng_profile_common_groups_section" = "Groups in common";
@@ -579,7 +580,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_delete_and_exit" = "Leave";
 "lng_profile_kick" = "Remove";
 "lng_profile_admin" = "admin";
-"lng_profile_edit_admin" = "Edit";
+"lng_profile_edit_permissions" = "Edit";
 "lng_profile_sure_kick" = "Remove {user} from the group?";
 "lng_profile_sure_kick_channel" = "Remove {user} from the channel?";
 "lng_profile_sure_kick_admin" = "Remove {user} from administrators?";
@@ -1282,6 +1283,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_restricted_send_stickers" = "The admins of this group restricted you from posting stickers here.";
 "lng_restricted_send_gifs" = "The admins of this group restricted you from posting GIFs here.";
 "lng_restricted_send_inline" = "The admins of this group restricted you from posting inline content here.";
+
+"lng_restricted_list_title" = "Restricted users";
 
 // Not used
 
