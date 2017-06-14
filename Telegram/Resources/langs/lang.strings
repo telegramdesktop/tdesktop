@@ -630,8 +630,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_channel_only_last_shown#other" = "Only the last {count} members are shown here";
 "lng_channel_admins" = "Administrators";
 "lng_channel_add_admin" = "Add Administrator";
-"lng_channel_admin_sure" = "Add {user} to administrators?";
 "lng_channel_admins_too_much" = "Sorry, you have reached the limit of the administrators. Please remove one administrator first.";
+"lng_channel_admin_status_creator" = "Creator";
+"lng_channel_admin_status_promoted_by" = "Promoted by {user}";
 
 "lng_group_blocked_list_about" = "Blocked users are removed from the group and can only come back if invited by an admin.\nInvite links don't work for them.";
 
