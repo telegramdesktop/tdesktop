@@ -916,7 +916,7 @@ void HideAllButton::paintEvent(QPaintEvent *e) {
 	p.fillRect(width() - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorderWidth, height() - 2 * st::notifyBorderWidth, st::notifyBorder);
 
 	p.setFont(st::defaultLinkButton.font);
-	p.setPen(st::defaultLinkButton.color);
+	p.setPen(_mouseOver ? st::lightButtonFgOver : st::lightButtonFg);
 	p.drawText(rect(), lang(lng_notification_hide_all), style::al_center);
 }
 
