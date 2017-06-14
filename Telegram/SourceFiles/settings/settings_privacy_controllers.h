@@ -31,7 +31,7 @@ public:
 	void prepare() override;
 	void rowClicked(gsl::not_null<PeerListRow*> row) override;
 	void rowActionClicked(gsl::not_null<PeerListRow*> row) override;
-	void preloadRows() override;
+	void loadMoreRows() override;
 
 	static void BlockNewUser();
 

@@ -33,8 +33,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 
-#include "mainwindow.h" // tmp
-
 namespace Profile {
 namespace {
 
@@ -46,6 +44,7 @@ public:
 
 	void searchQuery(const QString &query) override;
 	bool isLoading() override;
+	bool loadMoreRows() override;
 
 private:
 	bool searchInCache();
@@ -62,7 +61,33 @@ private:
 	int _offset = 0;
 	bool _allLoaded = false;
 	std::map<QString, MTPchannels_ChannelParticipants> _cache;
-	std::map<mtpRequestId, QString> _queries;
+	std::map<mtpRequestId, std::pair<QString, int>> _queries; // query, offset
+
+};
+
+class BlockedBoxController : public PeerListController, private base::Subscriber, private MTP::Sender, public base::enable_weak_from_this {
+public:
+	BlockedBoxController(gsl::not_null<ChannelData*> channel, bool restricted);
+
+	void prepare() override;
+	void rowClicked(gsl::not_null<PeerListRow*> row) override;
+	void rowActionClicked(gsl::not_null<PeerListRow*> row) override;
+	void loadMoreRows() override;
+
+	void peerListSearchAddRow(gsl::not_null<PeerData*> peer) override;
+
+private:
+	bool appendRow(UserData *user);
+	bool prependRow(UserData *user);
+	std::unique_ptr<PeerListRow> createRow(UserData *user) const;
+
+	gsl::not_null<ChannelData*> _channel;
+	bool _restricted = false;
+	int _offset = 0;
+	mtpRequestId _loadRequestId = 0;
+	bool _allLoaded = false;
+	std::map<UserData*, MTPChannelBannedRights> _rights;
+	QPointer<EditRestrictedBox> _editBox;
 
 };
 
@@ -78,6 +103,7 @@ void BlockedBoxSearchController::searchQuery(const QString &query) {
 		_query = query;
 		_offset = 0;
 		_requestId = 0;
+		_allLoaded = false;
 		if (!_query.isEmpty() && !searchInCache()) {
 			_timer.callOnce(AutoSearchTimeout);
 		} else {
@@ -98,17 +124,7 @@ bool BlockedBoxSearchController::searchInCache() {
 
 void BlockedBoxSearchController::searchOnServer() {
 	Expects(!_query.isEmpty());
-	auto filter = _restricted ? MTP_channelParticipantsBanned(MTP_string(_query)) : MTP_channelParticipantsKicked(MTP_string(_query));
-	_requestId = request(MTPchannels_GetParticipants(_channel->inputChannel, filter , MTP_int(_offset), MTP_int(kBlockedPerPage))).done([this](const MTPchannels_ChannelParticipants &result, mtpRequestId requestId) {
-		searchDone(result, requestId);
-	}).fail([this](const RPCError &error, mtpRequestId requestId) {
-		if (_requestId == requestId) {
-			_requestId = 0;
-			_allLoaded = true;
-			delegate()->peerListSearchRefreshRows();
-		}
-	}).send();
-	_queries.emplace(_requestId, _query);
+	loadMoreRows();
 }
 
 void BlockedBoxSearchController::searchDone(const MTPchannels_ChannelParticipants &result, mtpRequestId requestId) {
@@ -120,8 +136,10 @@ void BlockedBoxSearchController::searchDone(const MTPchannels_ChannelParticipant
 		App::feedUsers(participants.vusers);
 		auto it = _queries.find(requestId);
 		if (it != _queries.cend()) {
-			query = it->second;
-			_cache[query] = result;
+			query = it->second.first; // query
+			if (it->second.second == 0) { // offset
+				_cache[query] = result;
+			}
 			_queries.erase(it);
 		}
 	}
@@ -155,34 +173,25 @@ bool BlockedBoxSearchController::isLoading() {
 	return _timer.isActive() || _requestId;
 }
 
-class BlockedBoxController : public PeerListController, private base::Subscriber, private MTP::Sender, public base::enable_weak_from_this {
-public:
-	BlockedBoxController(gsl::not_null<ChannelData*> channel, bool restricted);
-
-	void prepare() override;
-	void rowClicked(gsl::not_null<PeerListRow*> row) override;
-	void rowActionClicked(gsl::not_null<PeerListRow*> row) override;
-	void preloadRows() override;
-	bool searchInLocal() override {
+bool BlockedBoxSearchController::loadMoreRows() {
+	if (_query.isEmpty()) {
 		return false;
 	}
-
-	void peerListSearchAddRow(gsl::not_null<PeerData*> peer) override;
-
-private:
-	bool appendRow(UserData *user);
-	bool prependRow(UserData *user);
-	std::unique_ptr<PeerListRow> createRow(UserData *user) const;
-
-	gsl::not_null<ChannelData*> _channel;
-	bool _restricted = false;
-	int _offset = 0;
-	mtpRequestId _loadRequestId = 0;
-	bool _allLoaded = false;
-	std::map<UserData*, MTPChannelBannedRights> _rights;
-	QPointer<EditRestrictedBox> _editBox;
-
-};
+	if (!_allLoaded && !isLoading()) {
+		auto filter = _restricted ? MTP_channelParticipantsBanned(MTP_string(_query)) : MTP_channelParticipantsKicked(MTP_string(_query));
+		_requestId = request(MTPchannels_GetParticipants(_channel->inputChannel, filter, MTP_int(_offset), MTP_int(kBlockedPerPage))).done([this](const MTPchannels_ChannelParticipants &result, mtpRequestId requestId) {
+			searchDone(result, requestId);
+		}).fail([this](const RPCError &error, mtpRequestId requestId) {
+			if (_requestId == requestId) {
+				_requestId = 0;
+				_allLoaded = true;
+				delegate()->peerListSearchRefreshRows();
+			}
+		}).send();
+		_queries.emplace(_requestId, std::make_pair(_query, _offset));
+	}
+	return true;
+}
 
 void BlockedBoxController::peerListSearchAddRow(gsl::not_null<PeerData*> peer) {
 	PeerListController::peerListSearchAddRow(peer);
@@ -203,10 +212,13 @@ void BlockedBoxController::prepare() {
 	setSearchNoResultsText(lang(lng_blocked_list_not_found));
 	delegate()->peerListRefreshRows();
 
-	preloadRows();
+	loadMoreRows();
 }
 
-void BlockedBoxController::preloadRows() {
+void BlockedBoxController::loadMoreRows() {
+	if (searchController()->loadMoreRows()) {
+		return;
+	}
 	if (_loadRequestId || _allLoaded) {
 		return;
 	}
@@ -269,10 +281,10 @@ void BlockedBoxController::rowActionClicked(gsl::not_null<PeerListRow*> row) {
 					if (rights.c_channelBannedRights().vflags.v == 0 || rights.c_channelBannedRights().is_view_messages()) {
 						if (auto row = weak->delegate()->peerListFindRow(user->id)) {
 							weak->delegate()->peerListRemoveRow(row);
-							weak->delegate()->peerListRefreshRows();
 							if (!weak->delegate()->peerListFullRowsCount()) {
 								weak->setDescriptionText(lang(lng_blocked_list_not_found));
 							}
+							weak->delegate()->peerListRefreshRows();
 						}
 					} else {
 						weak->_rights[user] = rights;

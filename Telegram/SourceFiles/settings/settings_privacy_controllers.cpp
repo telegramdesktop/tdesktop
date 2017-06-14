@@ -104,10 +104,10 @@ void BlockedBoxController::prepare() {
 		}
 	}));
 
-	preloadRows();
+	loadMoreRows();
 }
 
-void BlockedBoxController::preloadRows() {
+void BlockedBoxController::loadMoreRows() {
 	if (_loadRequestId || _allLoaded) {
 		return;
 	}

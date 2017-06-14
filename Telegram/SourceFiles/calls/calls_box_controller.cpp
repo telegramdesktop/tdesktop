@@ -205,10 +205,10 @@ void BoxController::prepare() {
 	setDescriptionText(lang(lng_contacts_loading));
 	delegate()->peerListRefreshRows();
 
-	preloadRows();
+	loadMoreRows();
 }
 
-void BoxController::preloadRows() {
+void BoxController::loadMoreRows() {
 	if (_loadRequestId || _allLoaded) {
 		return;
 	}

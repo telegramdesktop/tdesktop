@@ -219,6 +219,7 @@ class PeerListSearchController {
 public:
 	virtual void searchQuery(const QString &query) = 0;
 	virtual bool isLoading() = 0;
+	virtual bool loadMoreRows() = 0;
 	virtual ~PeerListSearchController() = default;
 
 	void setDelegate(gsl::not_null<PeerListSearchDelegate*> delegate) {
@@ -249,7 +250,7 @@ public:
 	virtual void rowClicked(gsl::not_null<PeerListRow*> row) = 0;
 	virtual void rowActionClicked(gsl::not_null<PeerListRow*> row) {
 	}
-	virtual void preloadRows() {
+	virtual void loadMoreRows() {
 	}
 	bool isSearchLoading() const {
 		return _searchController ? _searchController->isLoading() : false;
@@ -275,6 +276,9 @@ public:
 protected:
 	gsl::not_null<PeerListDelegate*> delegate() const {
 		return _delegate;
+	}
+	PeerListSearchController *searchController() const {
+		return _searchController.get();
 	}
 
 	void setDescriptionText(const QString &text);
@@ -541,6 +545,9 @@ public:
 
 	void searchQuery(const QString &query) override;
 	bool isLoading() override;
+	bool loadMoreRows() override {
+		return false;
+	}
 
 private:
 	bool searchInCache();

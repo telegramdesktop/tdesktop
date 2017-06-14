@@ -970,7 +970,7 @@ void PeerListBox::Inner::loadProfilePhotos() {
 
 void PeerListBox::Inner::checkScrollForPreload() {
 	if (_visibleBottom + PreloadHeightsCount * (_visibleBottom - _visibleTop) > height()) {
-		_controller->preloadRows();
+		_controller->loadMoreRows();
 	}
 }
 

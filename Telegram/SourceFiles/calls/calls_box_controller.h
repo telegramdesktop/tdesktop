@@ -29,7 +29,7 @@ public:
 	void prepare() override;
 	void rowClicked(gsl::not_null<PeerListRow*> row) override;
 	void rowActionClicked(gsl::not_null<PeerListRow*> row) override;
-	void preloadRows() override;
+	void loadMoreRows() override;
 
 private:
 	void receivedCalls(const QVector<MTPMessage> &result);
