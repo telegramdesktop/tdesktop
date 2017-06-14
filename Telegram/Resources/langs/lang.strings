@@ -1264,8 +1264,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_rights_channel_delete" = "Delete messages of others";
 "lng_rights_group_info" = "Change group info";
 "lng_rights_group_ban" = "Ban users";
+"lng_rights_group_invite_link" = "Invite users via link";
 "lng_rights_group_invite" = "Add users";
-//"lng_rights_group_invite_link" = "Invite users via link";
 "lng_rights_group_pin" = "Pin messages";
 "lng_rights_group_delete" = "Delete messages";
 "lng_rights_add_admins" = "Add new admins";

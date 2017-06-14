@@ -864,8 +864,11 @@ public:
 	bool canDeleteMessages() const {
 		return adminRights().is_delete_messages() || amCreator();
 	}
+	bool anyoneCanAddMembers() const {
+		return (flags & MTPDchannel::Flag::f_democracy);
+	}
 	bool canAddMembers() const {
-		return adminRights().is_invite_users() || amCreator() || (amIn() && (flags & MTPDchannel::Flag::f_democracy));
+		return adminRights().is_invite_users() || amCreator() || (anyoneCanAddMembers() && amIn() && !hasRestrictedRights());
 	}
 	bool canAddAdmins() const {
 		return adminRights().is_add_admins() || amCreator();

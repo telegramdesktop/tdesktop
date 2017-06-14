@@ -185,25 +185,24 @@ void EditAdminBox::prepare() {
 
 	addControl(object_ptr<Ui::FlatLabel>(this, lang(lng_rights_edit_admin_header), Ui::FlatLabel::InitType::Simple, st::boxLabel));
 
-	auto addCheckbox = [this](Flag flag, const QString &text) {
+	auto addCheckbox = [this](Flags flags, const QString &text) {
 		if (!channel()->amCreator()) {
-			if (!(channel()->adminRights().vflags.v & flag)) {
+			if (!(channel()->adminRights().vflags.v & flags)) {
 				return; // Don't add options that we don't have ourselves.
 			}
 		}
-		auto checked = (_rights.c_channelAdminRights().vflags.v & flag) != 0;
+		auto checked = (_rights.c_channelAdminRights().vflags.v & flags) != 0;
 		auto control = addControl(object_ptr<Ui::Checkbox>(this, text, checked, st::defaultBoxCheckbox));
 		connect(control, &Ui::Checkbox::changed, this, [this, control] {
 			applyDependencies(control);
 		}, Qt::QueuedConnection);
-		_checkboxes.emplace(flag, control);
+		_checkboxes.emplace(flags, control);
 	};
 	if (channel()->isMegagroup()) {
 		addCheckbox(Flag::f_change_info, lang(lng_rights_group_info));
 		addCheckbox(Flag::f_delete_messages, lang(lng_rights_group_delete));
 		addCheckbox(Flag::f_ban_users, lang(lng_rights_group_ban));
-		addCheckbox(Flag::f_invite_users, lang(lng_rights_group_invite));
-//		addCheckbox(Flag::f_invite_link, lang(lng_rights_group_invite_link));
+		addCheckbox(Flag::f_invite_users | Flag::f_invite_link, lang(channel()->anyoneCanAddMembers() ? lng_rights_group_invite_link : lng_rights_group_invite));
 		addCheckbox(Flag::f_pin_messages, lang(lng_rights_group_pin));
 		addCheckbox(Flag::f_add_admins, lang(lng_rights_add_admins));
 	} else {
@@ -233,6 +232,10 @@ void EditAdminBox::prepare() {
 			} else {
 				newFlags &= ~checkbox.first;
 			}
+		}
+		if (!channel()->amCreator()) {
+			// Leave only rights that we have so we could save them.
+			newFlags &= channel()->adminRights().vflags.v;
 		}
 		_saveCallback(MTP_channelAdminRights(MTP_flags(newFlags)));
 	});
