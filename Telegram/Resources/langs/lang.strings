@@ -142,6 +142,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_error_public_groups_denied" = "Unfortunately, you were banned from participating in public groups.\n{more_info}";
 "lng_error_cant_edit_admin" = "Sorry, you can't edit permissions for this admin.";
 "lng_error_cant_add_member" = "Sorry, you can't add the bot to this group. Ask a group admin to do it.";
+"lng_error_cant_add_admin_invite" = "Sorry, you can't add this user as an admin because they are not a member of this group and you are not allowed to invite them.";
+"lng_error_cant_add_admin_unban" = "Sorry, you can't add this user as an admin because they are in the blacklist and you can't unban them.";
+"lng_error_cant_ban_admin" = "Sorry, you can't ban this user because they are an admin in this group and you are not allowed to demote them.";
+"lng_sure_add_admin_invite" = "This user is not a member of this group. Add them to the group and promote them to admin?";
+"lng_sure_add_admin_unban" = "This user is currently restricted or banned in this group. Are you sure you want to unban and promote them?";
+"lng_sure_ban_admin" = "This user is an admin in this group. Are you sure you want to go ahead and restrict them?";
+"lng_sure_ban_user_group" = "Ban {user} in the group?";
 
 "lng_edit_deleted" = "This message was deleted";
 "lng_edit_too_long" = "Your message text is too long";
@@ -543,7 +550,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_create_public_link" = "Create public link";
 "lng_profile_edit_public_link" = "Edit public link";
 "lng_profile_manage_admins" = "Manage administrators";
-"lng_profile_manage_blocklist" = "Manage blocked users";
+"lng_profile_manage_blocklist" = "Manage banned users";
 "lng_profile_manage_restrictedlist" = "Manage restricted users";
 "lng_profile_common_groups#one" = "{count} group in common";
 "lng_profile_common_groups#other" = "{count} groups in common";
@@ -625,6 +632,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_channel_add_admins" = "New administrator";
 "lng_channel_add_members" = "Add members";
+"lng_channel_add_banned" = "Ban user";
+"lng_channel_add_restricted" = "Restrict user";
 "lng_channel_members" = "Members";
 "lng_channel_only_last_shown#one" = "Only the last {count} member is shown here";
 "lng_channel_only_last_shown#other" = "Only the last {count} members are shown here";
@@ -634,7 +643,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_channel_admin_status_creator" = "Creator";
 "lng_channel_admin_status_promoted_by" = "Promoted by {user}";
 
-"lng_group_blocked_list_about" = "Blocked users are removed from the group and can only come back if invited by an admin.\nInvite links don't work for them.";
+"lng_group_blocked_list_about" = "Banned users are removed from the group and can only come back if invited by an admin.\nInvite links don't work for them.";
 
 "lng_chat_all_members_admins" = "All Members Are Admins";
 "lng_chat_about_all_admins" = "Group members can add new members, edit name and photo of the group.";
@@ -1275,9 +1284,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_rights_chat_send_media" = "Send media";
 "lng_rights_chat_send_stickers" = "Send stickers & GIFs";
 "lng_rights_chat_send_links" = "Embed links";
-"lng_rights_chat_banned_until" = "Banned until: {when}";
+"lng_rights_chat_banned_until" = "Restricted until: {when}";
 "lng_rights_chat_banned_forever" = "Forever";
-"lng_rights_chat_banned_block" = "Block and remove from group";
+"lng_rights_chat_banned_block" = "Ban and remove from group";
 
 "lng_restricted_send_message" = "The admins of this group restricted you from writing here.";
 "lng_restricted_send_media" = "The admins of this group restricted you from posting media content here.";
@@ -1286,6 +1295,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_restricted_send_inline" = "The admins of this group restricted you from posting inline content here.";
 
 "lng_restricted_list_title" = "Restricted users";
+"lng_banned_list_title" = "Banned users";
 
 // Not used
 

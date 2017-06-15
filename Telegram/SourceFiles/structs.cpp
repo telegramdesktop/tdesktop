@@ -751,14 +751,14 @@ void ChannelData::setAdminsCount(int newAdminsCount) {
 void ChannelData::setRestrictedCount(int newRestrictedCount) {
 	if (_restrictedCount != newRestrictedCount) {
 		_restrictedCount = newRestrictedCount;
-		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::BlockedUsersChanged);
+		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::BannedUsersChanged);
 	}
 }
 
 void ChannelData::setKickedCount(int newKickedCount) {
 	if (_kickedCount != newKickedCount) {
 		_kickedCount = newKickedCount;
-		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::BlockedUsersChanged);
+		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::BannedUsersChanged);
 	}
 }
 
@@ -810,7 +810,7 @@ void ChannelData::applyEditAdmin(gsl::not_null<UserData*> user, const MTPChannel
 }
 
 void ChannelData::applyEditBanned(gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights) {
-	auto flags = Notify::PeerUpdate::Flag::BlockedUsersChanged | Notify::PeerUpdate::Flag::None;
+	auto flags = Notify::PeerUpdate::Flag::BannedUsersChanged | Notify::PeerUpdate::Flag::None;
 	if (mgInfo) {
 		if (mgInfo->lastAdmins.contains(user)) { // If rights are empty - still remove admin? TODO check
 			mgInfo->lastAdmins.remove(user);
@@ -922,7 +922,7 @@ void ChannelData::setAdminRights(const MTPChannelAdminRights &rights) {
 			mgInfo->lastAdmins.remove(App::self());
 		}
 	}
-	Notify::peerUpdatedDelayed(this, UpdateFlag::ChannelRightsChanged | UpdateFlag::AdminsChanged | UpdateFlag::BlockedUsersChanged);
+	Notify::peerUpdatedDelayed(this, UpdateFlag::ChannelRightsChanged | UpdateFlag::AdminsChanged | UpdateFlag::BannedUsersChanged);
 }
 
 void ChannelData::setRestrictedRights(const MTPChannelBannedRights &rights) {
@@ -942,7 +942,7 @@ void ChannelData::setRestrictedRights(const MTPChannelBannedRights &rights) {
 			mgInfo->lastRestricted.remove(App::self());
 		}
 	}
-	Notify::peerUpdatedDelayed(this, UpdateFlag::ChannelRightsChanged | UpdateFlag::AdminsChanged | UpdateFlag::BlockedUsersChanged);
+	Notify::peerUpdatedDelayed(this, UpdateFlag::ChannelRightsChanged | UpdateFlag::AdminsChanged | UpdateFlag::BannedUsersChanged);
 }
 
 uint64 PtsWaiter::ptsKey(PtsSkippedQueue queue) {
