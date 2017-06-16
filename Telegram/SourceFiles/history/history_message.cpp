@@ -87,6 +87,38 @@ style::color fromNameFgSelected(int index) {
 	return colors[index];
 }
 
+MTPDmessage::Flags newForwardedFlags(PeerData *peer, int32 from, HistoryMessage *fwd) {
+	auto result = newMessageFlags(peer) | MTPDmessage::Flag::f_fwd_from;
+	if (from) {
+		result |= MTPDmessage::Flag::f_from_id;
+	}
+	if (fwd->Has<HistoryMessageVia>()) {
+		result |= MTPDmessage::Flag::f_via_bot_id;
+	}
+	if (auto channel = peer->asChannel()) {
+		if (auto media = fwd->getMedia()) {
+			if (media->type() == MediaTypeWebPage) {
+				// Drop web page if we're not allowed to send it.
+				if (channel->restrictedRights().is_embed_links()) {
+					result &= MTPDmessage::Flag::f_media;
+				}
+			}
+		}
+	} else {
+		if (auto media = fwd->getMedia()) {
+			if (media->type() == MediaTypeVoiceFile) {
+				result |= MTPDmessage::Flag::f_media_unread;
+//			} else if (media->type() == MediaTypeVideo) {
+//				result |= MTPDmessage::flag_media_unread;
+			}
+		}
+	}
+	if (fwd->hasViews()) {
+		result |= MTPDmessage::Flag::f_views;
+	}
+	return result;
+}
+
 } // namespace
 
 void historyInitMessages() {
@@ -371,7 +403,7 @@ int HistoryMessage::KeyboardStyle::minButtonWidth(HistoryMessageReplyMarkup::But
 }
 
 HistoryMessage::HistoryMessage(History *history, const MTPDmessage &msg)
-	: HistoryItem(history, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.has_from_id() ? msg.vfrom_id.v : 0) {
+: HistoryItem(history, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.has_from_id() ? msg.vfrom_id.v : 0) {
 	CreateConfig config;
 
 	if (msg.has_fwd_from() && msg.vfwd_from.type() == mtpc_messageFwdHeader) {
@@ -401,7 +433,7 @@ HistoryMessage::HistoryMessage(History *history, const MTPDmessage &msg)
 }
 
 HistoryMessage::HistoryMessage(History *history, const MTPDmessageService &msg)
-	: HistoryItem(history, msg.vid.v, mtpCastFlags(msg.vflags.v), ::date(msg.vdate), msg.has_from_id() ? msg.vfrom_id.v : 0) {
+: HistoryItem(history, msg.vid.v, mtpCastFlags(msg.vflags.v), ::date(msg.vdate), msg.has_from_id() ? msg.vfrom_id.v : 0) {
 	CreateConfig config;
 
 	if (msg.has_reply_to_msg_id()) config.replyTo = msg.vreply_to_msg_id.v;
@@ -419,35 +451,8 @@ HistoryMessage::HistoryMessage(History *history, const MTPDmessageService &msg)
 	setText(TextWithEntities {});
 }
 
-namespace {
-
-MTPDmessage::Flags newForwardedFlags(PeerData *p, int32 from, HistoryMessage *fwd) {
-	MTPDmessage::Flags result = newMessageFlags(p) | MTPDmessage::Flag::f_fwd_from;
-	if (from) {
-		result |= MTPDmessage::Flag::f_from_id;
-	}
-	if (fwd->Has<HistoryMessageVia>()) {
-		result |= MTPDmessage::Flag::f_via_bot_id;
-	}
-	if (!p->isChannel()) {
-		if (HistoryMedia *media = fwd->getMedia()) {
-			if (media->type() == MediaTypeVoiceFile) {
-				result |= MTPDmessage::Flag::f_media_unread;
-//			} else if (media->type() == MediaTypeVideo) {
-//				result |= MTPDmessage::flag_media_unread;
-			}
-		}
-	}
-	if (fwd->hasViews()) {
-		result |= MTPDmessage::Flag::f_views;
-	}
-	return result;
-}
-
-} // namespace
-
 HistoryMessage::HistoryMessage(History *history, MsgId id, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *fwd)
-	: HistoryItem(history, id, newForwardedFlags(history->peer, from, fwd) | flags, date, from) {
+: HistoryItem(history, id, newForwardedFlags(history->peer, from, fwd) | flags, date, from) {
 	CreateConfig config;
 
 	if (fwd->Has<HistoryMessageForwarded>() || !fwd->history()->peer->isSelf()) {
@@ -470,13 +475,24 @@ HistoryMessage::HistoryMessage(History *history, MsgId id, MTPDmessage::Flags fl
 
 	// Copy inline keyboard when forwarding messages with a game.
 	auto mediaOriginal = fwd->getMedia();
-	if (mediaOriginal && mediaOriginal->type() == MediaTypeGame) {
+	auto mediaType = mediaOriginal ? mediaOriginal->type() : MediaTypeCount;
+	if (mediaOriginal && mediaType == MediaTypeGame) {
 		config.inlineMarkup = fwd->inlineReplyMarkup();
 	}
 
 	createComponents(config);
 
-	if (mediaOriginal) {
+	auto cloneMedia = [this, history, mediaType] {
+		if (mediaType == MediaTypeWebPage) {
+			if (auto channel = history->peer->asChannel()) {
+				if (channel->restrictedRights().is_embed_links()) {
+					return false;
+				}
+			}
+		}
+		return (mediaType != MediaTypeCount);
+	};
+	if (cloneMedia()) {
 		_media = mediaOriginal->clone(this);
 	}
 	setText(fwd->originalText());
