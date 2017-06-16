@@ -459,7 +459,7 @@ newGroupNamePosition: point(27px, 5px);
 newGroupDescriptionPadding: margins(0px, 13px, 0px, 4px);
 newGroupDescription: InputField(defaultInputField) {
 	textMargins: margins(1px, 26px, 1px, 4px);
-	heightMax: 135px;
+	heightMax: 116px;
 }
 
 setupChannelLink: InputField(defaultInputField) {

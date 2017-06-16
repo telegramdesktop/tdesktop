@@ -234,7 +234,7 @@ class EditChannelBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	EditChannelBox(QWidget*, ChannelData *channel);
+	EditChannelBox(QWidget*, gsl::not_null<ChannelData*> channel);
 
 protected:
 	void prepare() override;
@@ -242,6 +242,7 @@ protected:
 
 	void keyPressEvent(QKeyEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
 
 private slots:
 	void peerUpdated(PeerData *peer);
@@ -256,26 +257,38 @@ private slots:
 private:
 	void updateMaxHeight();
 	bool canEditSignatures() const;
+	bool canEditInvites() const;
 
-	void onSaveTitleDone(const MTPUpdates &updates);
+	void onSaveTitleDone(const MTPUpdates &result);
 	void onSaveDescriptionDone(const MTPBool &result);
-	void onSaveSignDone(const MTPUpdates &updates);
-	bool onSaveFail(const RPCError &e, mtpRequestId req);
+	void onSaveSignDone(const MTPUpdates &result);
+	void onSaveInvitesDone(const MTPUpdates &result);
+	bool onSaveFail(const RPCError &error, mtpRequestId req);
 
 	void saveDescription();
 	void saveSign();
+	void saveInvites();
 
-	ChannelData *_channel;
+	gsl::not_null<ChannelData*> _channel;
 
 	object_ptr<Ui::InputField> _title;
 	object_ptr<Ui::InputArea> _description;
 	object_ptr<Ui::Checkbox> _sign;
+
+	enum class Invites {
+		Everybody,
+		OnlyAdmins,
+	};
+	std::shared_ptr<Ui::RadioenumGroup<Invites>> _inviteGroup;
+	object_ptr<Ui::Radioenum<Invites>> _inviteEverybody;
+	object_ptr<Ui::Radioenum<Invites>> _inviteOnlyAdmins;
 
 	object_ptr<Ui::LinkButton> _publicLink;
 
 	mtpRequestId _saveTitleRequestId = 0;
 	mtpRequestId _saveDescriptionRequestId = 0;
 	mtpRequestId _saveSignRequestId = 0;
+	mtpRequestId _saveInvitesRequestId = 0;
 
 	QString _sentTitle, _sentDescription;
 

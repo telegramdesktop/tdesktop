@@ -911,11 +911,14 @@ void EditNameTitleBox::onSaveChatDone(const MTPUpdates &updates) {
 	closeBox();
 }
 
-EditChannelBox::EditChannelBox(QWidget*, ChannelData *channel)
+EditChannelBox::EditChannelBox(QWidget*, gsl::not_null<ChannelData*> channel)
 : _channel(channel)
 , _title(this, st::defaultInputField, langFactory(_channel->isMegagroup() ? lng_dlg_new_group_name : lng_dlg_new_channel_name), _channel->name)
 , _description(this, st::newGroupDescription, langFactory(lng_create_group_description), _channel->about())
 , _sign(this, lang(lng_edit_sign_messages), channel->addsSignature(), st::defaultBoxCheckbox)
+, _inviteGroup(std::make_shared<Ui::RadioenumGroup<Invites>>(channel->anyoneCanAddMembers() ? Invites::Everybody : Invites::OnlyAdmins))
+, _inviteEverybody(this, _inviteGroup, Invites::Everybody, lang(lng_edit_group_invites_everybody))
+, _inviteOnlyAdmins(this, _inviteGroup, Invites::OnlyAdmins, lang(lng_edit_group_invites_only_admins))
 , _publicLink(this, lang(channel->isPublic() ? lng_profile_edit_public_link : lng_profile_create_public_link), st::boxLinkButton) {
 }
 
@@ -970,7 +973,11 @@ void EditChannelBox::onDescriptionResized() {
 }
 
 bool EditChannelBox::canEditSignatures() const {
-	return _channel->amCreator() && !_channel->isMegagroup();
+	return _channel->canEditInformation() && !_channel->isMegagroup();
+}
+
+bool EditChannelBox::canEditInvites() const {
+	return _channel->canEditInformation() && _channel->isMegagroup();
 }
 
 void EditChannelBox::updateMaxHeight() {
@@ -978,6 +985,10 @@ void EditChannelBox::updateMaxHeight() {
 	newHeight += st::newGroupDescriptionPadding.top() + _description->height() + st::newGroupDescriptionPadding.bottom();
 	if (canEditSignatures()) {
 		newHeight += st::newGroupPublicLinkPadding.top() + _sign->heightNoMargins() + st::newGroupPublicLinkPadding.bottom();
+	}
+	if (canEditInvites()) {
+		newHeight += st::boxTitleHeight + _inviteEverybody->heightNoMargins();
+		newHeight += st::boxLittleSkip + _inviteOnlyAdmins->heightNoMargins();
 	}
 	if (_channel->canEditUsername()) {
 		newHeight += st::newGroupPublicLinkPadding.top() + _publicLink->height() + st::newGroupPublicLinkPadding.bottom();
@@ -997,15 +1008,31 @@ void EditChannelBox::resizeEvent(QResizeEvent *e) {
 
 	_sign->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _description->y() + _description->height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
 
+	_inviteEverybody->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _description->y() + _description->height() + st::boxTitleHeight);
+	_inviteOnlyAdmins->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _inviteEverybody->bottomNoMargins() + st::boxLittleSkip);
+
 	if (canEditSignatures()) {
 		_publicLink->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _sign->bottomNoMargins() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
+	} else if (canEditInvites()) {
+		_publicLink->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _inviteOnlyAdmins->bottomNoMargins() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
 	} else {
 		_publicLink->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _description->y() + _description->height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
 	}
 }
 
+void EditChannelBox::paintEvent(QPaintEvent *e) {
+	BoxContent::paintEvent(e);
+
+	if (canEditInvites()) {
+		Painter p(this);
+		p.setPen(st::boxTitleFg);
+		p.setFont(st::autoDownloadTitleFont);
+		p.drawTextLeft(st::boxTitlePosition.x(), _description->y() + _description->height() + st::boxTitlePosition.y(), width(), lang(lng_edit_group_who_invites));
+	}
+}
+
 void EditChannelBox::onSave() {
-	if (_saveTitleRequestId || _saveDescriptionRequestId || _saveSignRequestId) return;
+	if (_saveTitleRequestId || _saveDescriptionRequestId || _saveSignRequestId || _saveInvitesRequestId) return;
 
 	QString title = prepareText(_title->getLastText()), description = prepareText(_description->getLastText(), true);
 	if (title.isEmpty()) {
@@ -1036,9 +1063,17 @@ void EditChannelBox::saveDescription() {
 
 void EditChannelBox::saveSign() {
 	if (!canEditSignatures() || _channel->addsSignature() == _sign->checked()) {
-		closeBox();
+		saveInvites();
 	} else {
 		_saveSignRequestId = MTP::send(MTPchannels_ToggleSignatures(_channel->inputChannel, MTP_bool(_sign->checked())), rpcDone(&EditChannelBox::onSaveSignDone), rpcFail(&EditChannelBox::onSaveFail));
+	}
+}
+
+void EditChannelBox::saveInvites() {
+	if (!canEditInvites() || _channel->anyoneCanAddMembers() == (_inviteGroup->value() == Invites::Everybody)) {
+		closeBox();
+	} else {
+		_saveInvitesRequestId = MTP::send(MTPchannels_ToggleInvites(_channel->inputChannel, MTP_bool(_inviteGroup->value() == Invites::Everybody)), rpcDone(&EditChannelBox::onSaveInvitesDone), rpcFail(&EditChannelBox::onSaveFail));
 	}
 }
 
@@ -1075,6 +1110,12 @@ bool EditChannelBox::onSaveFail(const RPCError &error, mtpRequestId req) {
 	} else if (req == _saveSignRequestId) {
 		_saveSignRequestId = 0;
 		if (err == qstr("CHAT_NOT_MODIFIED")) {
+			saveInvites();
+			return true;
+		}
+	} else if (req == _saveInvitesRequestId) {
+		_saveInvitesRequestId = 0;
+		if (err == qstr("CHAT_NOT_MODIFIED")) {
 			closeBox();
 			return true;
 		}
@@ -1082,11 +1123,9 @@ bool EditChannelBox::onSaveFail(const RPCError &error, mtpRequestId req) {
 	return true;
 }
 
-void EditChannelBox::onSaveTitleDone(const MTPUpdates &updates) {
+void EditChannelBox::onSaveTitleDone(const MTPUpdates &result) {
 	_saveTitleRequestId = 0;
-	if (App::main()) {
-		App::main()->sentUpdatesReceived(updates);
-	}
+	AuthSession::Current().api().applyUpdates(result);
 	saveDescription();
 }
 
@@ -1100,11 +1139,15 @@ void EditChannelBox::onSaveDescriptionDone(const MTPBool &result) {
 	saveSign();
 }
 
-void EditChannelBox::onSaveSignDone(const MTPUpdates &updates) {
+void EditChannelBox::onSaveSignDone(const MTPUpdates &result) {
 	_saveSignRequestId = 0;
-	if (App::main()) {
-		App::main()->sentUpdatesReceived(updates);
-	}
+	AuthSession::Current().api().applyUpdates(result);
+	saveInvites();
+}
+
+void EditChannelBox::onSaveInvitesDone(const MTPUpdates &result) {
+	_saveSignRequestId = 0;
+	AuthSession::Current().api().applyUpdates(result);
 	closeBox();
 }
 
