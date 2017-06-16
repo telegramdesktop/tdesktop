@@ -93,7 +93,7 @@ public:
 
 	Window::TopBarWidget::SelectedState getSelectionState() const;
 	void clearSelectedItems(bool onlyTextSelection = false);
-	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
+	SelectedItemSet getSelectedItems() const;
 
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
@@ -331,7 +331,7 @@ public:
 
 	bool touchScroll(const QPoint &delta);
 
-	void fillSelectedItems(SelectedItemSet &sel, bool forDelete);
+	SelectedItemSet getSelectedItems() const;
 
 	void updateAfterDrag();
 

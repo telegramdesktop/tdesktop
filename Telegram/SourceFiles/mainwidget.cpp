@@ -583,11 +583,7 @@ bool MainWidget::onForward(const PeerId &peerId, ForwardWhatMessages what) {
 
 	auto toForward = SelectedItemSet();
 	if (what == ForwardSelectedMessages) {
-		if (_overview) {
-			_overview->fillSelectedItems(toForward, false);
-		} else {
-			_history->fillSelectedItems(toForward, false);
-		}
+		toForward = _overview ? _overview->getSelectedItems() : _history->getSelectedItems();
 	} else {
 		auto item = (HistoryItem*)nullptr;
 		if (what == ForwardContextMessage) {
@@ -615,13 +611,10 @@ bool MainWidget::onForward(const PeerId &peerId, ForwardWhatMessages what) {
 		}
 	}
 
-	_toForward = toForward;
+	App::history(peer)->setForwardDraft(toForward);
 	_history->cancelReply();
-	updateForwardingItemRemovedSubscription();
-	updateForwardingTexts();
 	Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 	_history->onClearSelected();
-	_history->updateForwarding();
 	return true;
 }
 
@@ -665,93 +658,17 @@ bool MainWidget::onInlineSwitchChosen(const PeerId &peer, const QString &botAndQ
 	return true;
 }
 
-bool MainWidget::hasForwardingItems() {
-	return !_toForward.isEmpty();
-}
-
-void MainWidget::fillForwardingInfo(Text *&from, Text *&text, bool &serviceColor, ImagePtr &preview) {
-	if (_toForward.isEmpty()) return;
-	int32 version = 0;
-	for (SelectedItemSet::const_iterator i = _toForward.cbegin(), e = _toForward.cend(); i != e; ++i) {
-		version += i.value()->authorOriginal()->nameVersion;
-	}
-	if (version != _toForwardNameVersion) {
-		updateForwardingTexts();
-	}
-	from = &_toForwardFrom;
-	text = &_toForwardText;
-	serviceColor = (_toForward.size() > 1) || _toForward.cbegin().value()->getMedia() || _toForward.cbegin().value()->serviceMsg();
-	if (_toForward.size() < 2 && _toForward.cbegin().value()->getMedia() && _toForward.cbegin().value()->getMedia()->hasReplyPreview()) {
-		preview = _toForward.cbegin().value()->getMedia()->replyPreview();
-	}
-}
-
-void MainWidget::updateForwardingTexts() {
-	int32 version = 0;
-	QString from, text;
-	if (!_toForward.isEmpty()) {
-		QMap<PeerData*, bool> fromUsersMap;
-		QVector<PeerData*> fromUsers;
-		fromUsers.reserve(_toForward.size());
-		for (SelectedItemSet::const_iterator i = _toForward.cbegin(), e = _toForward.cend(); i != e; ++i) {
-			PeerData *from = i.value()->authorOriginal();
-			if (!fromUsersMap.contains(from)) {
-				fromUsersMap.insert(from, true);
-				fromUsers.push_back(from);
-			}
-			version += from->nameVersion;
-		}
-		if (fromUsers.size() > 2) {
-			from = lng_forwarding_from(lt_count, fromUsers.size() - 1, lt_user, fromUsers.at(0)->shortName());
-		} else if (fromUsers.size() < 2) {
-			from = fromUsers.at(0)->name;
-		} else {
-			from = lng_forwarding_from_two(lt_user, fromUsers.at(0)->shortName(), lt_second_user, fromUsers.at(1)->shortName());
-		}
-
-		if (_toForward.size() < 2) {
-			text = _toForward.cbegin().value()->inReplyText();
-		} else {
-			text = lng_forward_messages(lt_count, _toForward.size());
-		}
-	}
-	_toForwardFrom.setText(st::msgNameStyle, from, _textNameOptions);
-	_toForwardText.setText(st::messageTextStyle, textClean(text), _textDlgOptions);
-	_toForwardNameVersion = version;
-}
-
-void MainWidget::updateForwardingItemRemovedSubscription() {
-	if (_toForward.isEmpty()) {
-		unsubscribe(_forwardingItemRemovedSubscription);
-		_forwardingItemRemovedSubscription = 0;
-	} else if (!_forwardingItemRemovedSubscription) {
-		_forwardingItemRemovedSubscription = subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
-			auto i = _toForward.find(item->id);
-			if (i == _toForward.cend() || i.value() != item) {
-				i = _toForward.find(item->id - ServerMaxMsgId);
-			}
-			if (i != _toForward.cend() && i.value() == item) {
-				_toForward.erase(i);
-				updateForwardingItemRemovedSubscription();
-				updateForwardingTexts();
-			}
-		});
-	}
-}
-
-void MainWidget::cancelForwarding() {
-	if (_toForward.isEmpty()) return;
-
-	_toForward.clear();
-	_history->cancelForwarding();
-	updateForwardingItemRemovedSubscription();
+void MainWidget::cancelForwarding(History *history) {
+	history->setForwardDraft(SelectedItemSet());
+	_history->updateForwarding();
 }
 
 void MainWidget::finishForwarding(History *history, bool silent) {
 	if (!history) return;
 
-	if (!_toForward.isEmpty()) {
-		bool genClientSideMessage = (_toForward.size() < 2);
+	auto toForward = history->validateForwardDraft();
+	if (!toForward.isEmpty()) {
+		auto genClientSideMessage = (toForward.size() < 2);
 		PeerData *forwardFrom = 0;
 		App::main()->readServerHistory(history);
 
@@ -773,16 +690,17 @@ void MainWidget::finishForwarding(History *history, bool silent) {
 
 		QVector<MTPint> ids;
 		QVector<MTPlong> randomIds;
-		ids.reserve(_toForward.size());
-		randomIds.reserve(_toForward.size());
-		for (SelectedItemSet::const_iterator i = _toForward.cbegin(), e = _toForward.cend(); i != e; ++i) {
-			uint64 randomId = rand_value<uint64>();
+		ids.reserve(toForward.size());
+		randomIds.reserve(toForward.size());
+		for (auto i = toForward.cbegin(), e = toForward.cend(); i != e; ++i) {
+			auto randomId = rand_value<uint64>();
 			if (genClientSideMessage) {
-				FullMsgId newId(peerToChannel(history->peer->id), clientMsgId());
-				auto msg = static_cast<HistoryMessage*>(_toForward.cbegin().value());
-				auto messageFromId = showFromName ? AuthSession::CurrentUserId() : 0;
-				history->addNewForwarded(newId.msg, flags, date(MTP_int(unixtime())), messageFromId, msg);
-				App::historyRegRandom(randomId, newId);
+				if (auto message = i.value()->toHistoryMessage()) {
+					auto newId = FullMsgId(peerToChannel(history->peer->id), clientMsgId());
+					auto messageFromId = showFromName ? AuthSession::CurrentUserId() : 0;
+					history->addNewForwarded(newId.msg, flags, date(MTP_int(unixtime())), messageFromId, message);
+					App::historyRegRandom(randomId, newId);
+				}
 			}
 			if (forwardFrom != i.value()->history()->peer) {
 				if (forwardFrom) {
@@ -801,7 +719,7 @@ void MainWidget::finishForwarding(History *history, bool silent) {
 			_history->peerMessagesUpdated();
 		}
 
-		cancelForwarding();
+		cancelForwarding(history);
 	}
 
 	historyToDown(history);
@@ -1076,12 +994,7 @@ void MainWidget::forwardLayer(int forwardSelected) {
 void MainWidget::deleteLayer(int selectedCount) {
 	if (selectedCount) {
 		auto forDelete = true;
-		SelectedItemSet selected;
-		if (_overview) {
-			_overview->fillSelectedItems(selected, forDelete);
-		} else {
-			_history->fillSelectedItems(selected, forDelete);
-		}
+		auto selected = _overview ? _overview->getSelectedItems() : _history->getSelectedItems();
 		if (!selected.isEmpty()) {
 			Ui::show(Box<DeleteMessagesBox>(selected));
 		}

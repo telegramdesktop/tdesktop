@@ -262,7 +262,7 @@ public:
 	uint64 animActiveTimeStart(const HistoryItem *msg) const;
 	void stopAnimActive();
 
-	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
+	SelectedItemSet getSelectedItems() const;
 	void itemEdited(HistoryItem *item);
 
 	void updateScrollColors();
@@ -272,8 +272,9 @@ public:
 	bool lastForceReplyReplied(const FullMsgId &replyTo = FullMsgId(NoChannel, -1)) const;
 	bool cancelReply(bool lastKeyboardUsed = false);
 	void cancelEdit();
-	void updateForwarding(bool force = false);
-	void cancelForwarding(); // called by MainWidget
+	void updateForwarding();
+	void updateForwardingTexts();
+	void updateForwardingItemRemovedSubscription();
 
 	void clearReplyReturns();
 	void pushReplyReturn(HistoryItem *item);
@@ -540,10 +541,17 @@ private:
 	void hideSelectorControlsAnimated();
 	int countMembersDropdownHeightMax() const;
 
+	void updateReplyToName();
+	void checkForwardingInfo();
+
 	MsgId _replyToId = 0;
 	Text _replyToName;
 	int _replyToNameVersion = 0;
-	void updateReplyToName();
+
+	SelectedItemSet _toForward;
+	Text _toForwardFrom, _toForwardText;
+	int _toForwardNameVersion = 0;
+	int _forwardingItemRemovedSubscription = 0;
 
 	int _chatWidth = 0;
 	MsgId _editMsgId = 0;

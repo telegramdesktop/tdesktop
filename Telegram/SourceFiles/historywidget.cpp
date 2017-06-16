@@ -1795,6 +1795,8 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 	if (_history) {
 		if (_peer->id == peerId && !reload) {
+			updateForwarding();
+
 			bool canShowNow = _history->isReadyFor(showAtMsgId);
 			if (!canShowNow) {
 				delayedShowAt(showAtMsgId);
@@ -1930,6 +1932,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 		_history = App::history(_peer->id);
 		_migrated = _peer->migrateFrom() ? App::history(_peer->migrateFrom()->id) : 0;
+		updateForwarding();
 
 		if (_channel) {
 			updateNotifySettings();
@@ -3663,7 +3666,7 @@ bool HistoryWidget::canSendMessages(PeerData *peer) const {
 }
 
 bool HistoryWidget::readyToForward() const {
-	return _canSendMessages && App::main()->hasForwardingItems();
+	return _canSendMessages && !_toForward.isEmpty();
 }
 
 bool HistoryWidget::hasSilentToggle() const {
@@ -5649,7 +5652,7 @@ void HistoryWidget::onReplyToMessage() {
 		return;
 	}
 
-	App::main()->cancelForwarding();
+	App::main()->cancelForwarding(_history);
 
 	if (_editMsgId) {
 		if (auto localDraft = _history->localDraft()) {
@@ -5887,11 +5890,6 @@ void HistoryWidget::cancelEdit() {
 	update();
 }
 
-void HistoryWidget::cancelForwarding() {
-	updateControlsVisibility();
-	updateControlsGeometry();
-}
-
 void HistoryWidget::onFieldBarCancel() {
 	Ui::hideLayer();
 	_replyForwardPressed = false;
@@ -5905,7 +5903,7 @@ void HistoryWidget::onFieldBarCancel() {
 	} else if (_editMsgId) {
 		cancelEdit();
 	} else if (readyToForward()) {
-		App::main()->cancelForwarding();
+		App::main()->cancelForwarding(_history);
 	} else if (_replyToId) {
 		cancelReply();
 	} else if (_kbReplyTo) {
@@ -6184,8 +6182,7 @@ void HistoryWidget::confirmDeleteContextItem() {
 void HistoryWidget::confirmDeleteSelectedItems() {
 	if (!_list) return;
 
-	SelectedItemSet selected;
-	_list->fillSelectedItems(selected);
+	auto selected = _list->getSelectedItems();
 	if (selected.isEmpty()) return;
 
 	App::main()->deleteLayer(selected.size());
@@ -6218,8 +6215,7 @@ void HistoryWidget::deleteSelectedItems(bool forEveryone) {
 	Ui::hideLayer();
 	if (!_list) return;
 
-	SelectedItemSet selected;
-	_list->fillSelectedItems(selected);
+	auto selected = _list->getSelectedItems();
 	if (selected.isEmpty()) return;
 
 	QMap<PeerData*, QVector<MTPint>> idsByPeer;
@@ -6294,8 +6290,8 @@ void HistoryWidget::stopAnimActive() {
 	_activeAnimMsgId = 0;
 }
 
-void HistoryWidget::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
-	if (_list) _list->fillSelectedItems(sel, forDelete);
+SelectedItemSet HistoryWidget::getSelectedItems() const {
+	return _list ? _list->getSelectedItems() : SelectedItemSet();
 }
 
 void HistoryWidget::updateTopBarSelection() {
@@ -6359,11 +6355,80 @@ void HistoryWidget::updateReplyEditTexts(bool force) {
 	}
 }
 
-void HistoryWidget::updateForwarding(bool force) {
-	if (readyToForward()) {
-		updateControlsVisibility();
+void HistoryWidget::updateForwarding() {
+	if (_history) {
+		_toForward = _history->validateForwardDraft();
+		updateForwardingTexts();
 	} else {
-		updateControlsGeometry();
+		_toForward.clear();
+	}
+	updateForwardingItemRemovedSubscription();
+	updateControlsVisibility();
+	updateControlsGeometry();
+}
+
+void HistoryWidget::updateForwardingTexts() {
+	int32 version = 0;
+	QString from, text;
+	if (!_toForward.isEmpty()) {
+		QMap<PeerData*, bool> fromUsersMap;
+		QVector<PeerData*> fromUsers;
+		fromUsers.reserve(_toForward.size());
+		for (auto i = _toForward.cbegin(), e = _toForward.cend(); i != e; ++i) {
+			auto from = i.value()->authorOriginal();
+			if (!fromUsersMap.contains(from)) {
+				fromUsersMap.insert(from, true);
+				fromUsers.push_back(from);
+			}
+			version += from->nameVersion;
+		}
+		if (fromUsers.size() > 2) {
+			from = lng_forwarding_from(lt_count, fromUsers.size() - 1, lt_user, fromUsers.at(0)->shortName());
+		} else if (fromUsers.size() < 2) {
+			from = fromUsers.at(0)->name;
+		} else {
+			from = lng_forwarding_from_two(lt_user, fromUsers.at(0)->shortName(), lt_second_user, fromUsers.at(1)->shortName());
+		}
+
+		if (_toForward.size() < 2) {
+			text = _toForward.cbegin().value()->inReplyText();
+		} else {
+			text = lng_forward_messages(lt_count, _toForward.size());
+		}
+	}
+	_toForwardFrom.setText(st::msgNameStyle, from, _textNameOptions);
+	_toForwardText.setText(st::messageTextStyle, textClean(text), _textDlgOptions);
+	_toForwardNameVersion = version;
+}
+
+void HistoryWidget::checkForwardingInfo() {
+	if (!_toForward.isEmpty()) {
+		auto version = 0;
+		for_const (auto item, _toForward) {
+			version += item->authorOriginal()->nameVersion;
+		}
+		if (version != _toForwardNameVersion) {
+			updateForwardingTexts();
+		}
+	}
+}
+
+void HistoryWidget::updateForwardingItemRemovedSubscription() {
+	if (_toForward.isEmpty()) {
+		unsubscribe(_forwardingItemRemovedSubscription);
+		_forwardingItemRemovedSubscription = 0;
+	} else if (!_forwardingItemRemovedSubscription) {
+		_forwardingItemRemovedSubscription = subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
+			auto i = _toForward.find(item->id);
+			if (i == _toForward.cend() || i.value() != item) {
+				i = _toForward.find(item->id - ServerMaxMsgId);
+			}
+			if (i != _toForward.cend() && i.value() == item) {
+				_toForward.erase(i);
+				updateForwardingItemRemovedSubscription();
+				updateForwardingTexts();
+			}
+		});
 	}
 }
 
@@ -6380,10 +6445,9 @@ void HistoryWidget::updateField() {
 }
 
 void HistoryWidget::drawField(Painter &p, const QRect &rect) {
-	int32 backy = _field->y() - st::historySendPadding, backh = _field->height() + 2 * st::historySendPadding;
-	Text *from = 0, *text = 0;
-	bool serviceColor = false, hasForward = readyToForward();
-	ImagePtr preview;
+	auto backy = _field->y() - st::historySendPadding;
+	auto backh = _field->height() + 2 * st::historySendPadding;
+	auto hasForward = readyToForward();
 	auto drawMsgText = (_editMsgId || _replyToId) ? _replyEditMsg : _kbReplyTo;
 	if (_editMsgId || _replyToId || (!hasForward && _kbReplyTo)) {
 		if (!_editMsgId && drawMsgText && drawMsgText->author()->nameVersion > _replyToNameVersion) {
@@ -6392,24 +6456,24 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 		backy -= st::historyReplyHeight;
 		backh += st::historyReplyHeight;
 	} else if (hasForward) {
-		App::main()->fillForwardingInfo(from, text, serviceColor, preview);
+		checkForwardingInfo();
 		backy -= st::historyReplyHeight;
 		backh += st::historyReplyHeight;
 	} else if (_previewData && _previewData->pendingTill >= 0) {
 		backy -= st::historyReplyHeight;
 		backh += st::historyReplyHeight;
 	}
-	bool drawPreview = (_previewData && _previewData->pendingTill >= 0) && !_replyForwardPressed;
+	auto drawWebPagePreview = (_previewData && _previewData->pendingTill >= 0) && !_replyForwardPressed;
 	p.fillRect(myrtlrect(0, backy, _chatWidth, backh), st::historyReplyBg);
 	if (_editMsgId || _replyToId || (!hasForward && _kbReplyTo)) {
-		int32 replyLeft = st::historyReplySkip;
+		auto replyLeft = st::historyReplySkip;
 		(_editMsgId ? st::historyEditIcon : st::historyReplyIcon).paint(p, st::historyReplyIconPosition + QPoint(0, backy), width());
-		if (!drawPreview) {
+		if (!drawWebPagePreview) {
 			if (drawMsgText) {
 				if (drawMsgText->getMedia() && drawMsgText->getMedia()->hasReplyPreview()) {
-					ImagePtr replyPreview = drawMsgText->getMedia()->replyPreview();
+					auto replyPreview = drawMsgText->getMedia()->replyPreview();
 					if (!replyPreview->isNull()) {
-						QRect to(replyLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
+						auto to = QRect(replyLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
 						p.drawPixmap(to.x(), to.y(), replyPreview->pixSingle(replyPreview->width() / cIntRetinaFactor(), replyPreview->height() / cIntRetinaFactor(), to.width(), to.height(), ImageRoundRadius::Small));
 					}
 					replyLeft += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
@@ -6428,37 +6492,41 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 				p.drawText(replyLeft, backy + st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->elided(lang(lng_profile_loading), _chatWidth - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right()));
 			}
 		}
-	} else if (from && text) {
-		int forwardLeft = st::historyReplySkip;
+	} else if (hasForward) {
+		auto forwardLeft = st::historyReplySkip;
 		st::historyForwardIcon.paint(p, st::historyReplyIconPosition + QPoint(0, backy), width());
-		if (!drawPreview) {
+		if (!drawWebPagePreview) {
+			auto firstItem = _toForward.cbegin().value();
+			auto firstMedia = firstItem->getMedia();
+			auto serviceColor = (_toForward.size() > 1) || (firstMedia != nullptr) || firstItem->serviceMsg();
+			auto preview = (_toForward.size() < 2 && firstMedia && firstMedia->hasReplyPreview()) ? firstMedia->replyPreview() : ImagePtr();
 			if (!preview->isNull()) {
-				QRect to(forwardLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
+				auto to = QRect(forwardLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
 				if (preview->width() == preview->height()) {
 					p.drawPixmap(to.x(), to.y(), preview->pix());
 				} else {
-					QRect from = (preview->width() > preview->height()) ? QRect((preview->width() - preview->height()) / 2, 0, preview->height(), preview->height()) : QRect(0, (preview->height() - preview->width()) / 2, preview->width(), preview->width());
+					auto from = (preview->width() > preview->height()) ? QRect((preview->width() - preview->height()) / 2, 0, preview->height(), preview->height()) : QRect(0, (preview->height() - preview->width()) / 2, preview->width(), preview->width());
 					p.drawPixmap(to, preview->pix(), from);
 				}
 				forwardLeft += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
 			}
 			p.setPen(st::historyReplyNameFg);
-			from->drawElided(p, forwardLeft, backy + st::msgReplyPadding.top(), width() - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
+			_toForwardFrom.drawElided(p, forwardLeft, backy + st::msgReplyPadding.top(), width() - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 			p.setPen(serviceColor ? st::historyComposeAreaFgService : st::historyComposeAreaFg);
-			text->drawElided(p, forwardLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, _chatWidth - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
+			_toForwardText.drawElided(p, forwardLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, _chatWidth - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 		}
 	}
-	if (drawPreview) {
-		int32 previewLeft = st::historyReplySkip + st::webPageLeft;
+	if (drawWebPagePreview) {
+		auto previewLeft = st::historyReplySkip + st::webPageLeft;
 		p.fillRect(st::historyReplySkip, backy + st::msgReplyPadding.top(), st::webPageBar, st::msgReplyBarSize.height(), st::msgInReplyBarColor);
 		if ((_previewData->photo && !_previewData->photo->thumb->isNull()) || (_previewData->document && !_previewData->document->thumb->isNull())) {
-			ImagePtr replyPreview = _previewData->photo ? _previewData->photo->makeReplyPreview() : _previewData->document->makeReplyPreview();
+			auto replyPreview = _previewData->photo ? _previewData->photo->makeReplyPreview() : _previewData->document->makeReplyPreview();
 			if (!replyPreview->isNull()) {
-				QRect to(previewLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
+				auto to = QRect(previewLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
 				if (replyPreview->width() == replyPreview->height()) {
 					p.drawPixmap(to.x(), to.y(), replyPreview->pix());
 				} else {
-					QRect from = (replyPreview->width() > replyPreview->height()) ? QRect((replyPreview->width() - replyPreview->height()) / 2, 0, replyPreview->height(), replyPreview->height()) : QRect(0, (replyPreview->height() - replyPreview->width()) / 2, replyPreview->width(), replyPreview->width());
+					auto from = (replyPreview->width() > replyPreview->height()) ? QRect((replyPreview->width() - replyPreview->height()) / 2, 0, replyPreview->height(), replyPreview->height()) : QRect(0, (replyPreview->height() - replyPreview->width()) / 2, replyPreview->width(), replyPreview->width());
 					p.drawPixmap(to, replyPreview->pix(), from);
 				}
 			}

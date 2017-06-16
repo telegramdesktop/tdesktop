@@ -1960,19 +1960,23 @@ void HistoryInner::clearSelectedItems(bool onlyTextSelection) {
 	}
 }
 
-void HistoryInner::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
-	if (_selected.isEmpty() || _selected.cbegin().value() != FullSelection) return;
+SelectedItemSet HistoryInner::getSelectedItems() const {
+	auto result = SelectedItemSet();
+	if (_selected.isEmpty() || _selected.cbegin().value() != FullSelection) {
+		return result;
+	}
 
 	for (auto i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
 		auto item = i.key();
 		if (item && item->toHistoryMessage() && item->id > 0) {
 			if (item->history() == _migrated) {
-				sel.insert(item->id - ServerMaxMsgId, item);
+				result.insert(item->id - ServerMaxMsgId, item);
 			} else {
-				sel.insert(item->id, item);
+				result.insert(item->id, item);
 			}
 		}
 	}
+	return result;
 }
 
 void HistoryInner::selectItem(HistoryItem *item) {

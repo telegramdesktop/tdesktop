@@ -62,7 +62,7 @@ public:
 
 	Window::TopBarWidget::SelectedState getSelectionState() const;
 	void clearSelectedItems(bool onlyTextSelection = false);
-	void fillSelectedItems(SelectedItemSet &sel, bool forDelete = true);
+	SelectedItemSet getSelectedItems() const;
 	void selectItem(HistoryItem *item);
 
 	void updateBotInfo(bool recount = true);

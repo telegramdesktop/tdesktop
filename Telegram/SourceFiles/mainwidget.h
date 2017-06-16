@@ -348,10 +348,8 @@ public:
 
 	void pushReplyReturn(HistoryItem *item);
 
-	bool hasForwardingItems();
-	void fillForwardingInfo(Text *&from, Text *&text, bool &serviceColor, ImagePtr &preview);
-	void cancelForwarding();
-	void finishForwarding(History *hist, bool silent); // send them
+	void cancelForwarding(History *history);
+	void finishForwarding(History *history, bool silent); // send them
 
 	void mediaMarkRead(DocumentData *data);
 	void mediaMarkRead(const HistoryItemsMap &items);
@@ -506,9 +504,6 @@ private:
 	void updateControlsGeometry();
 	void updateDialogsWidthAnimated();
 
-	void updateForwardingTexts();
-	void updateForwardingItemRemovedSubscription();
-
 	void createPlayer();
 	void switchToPanelPlayer();
 	void switchToFixedPlayer();
@@ -608,11 +603,6 @@ private:
 
 	gsl::not_null<Window::Controller*> _controller;
 	bool _started = false;
-
-	SelectedItemSet _toForward;
-	Text _toForwardFrom, _toForwardText;
-	int32 _toForwardNameVersion = 0;
-	int _forwardingItemRemovedSubscription = 0;
 
 	OrderedSet<WebPageId> _webPagesUpdated;
 	OrderedSet<GameId> _gamesUpdated;

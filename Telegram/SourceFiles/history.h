@@ -28,7 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 void historyInit();
 
 class HistoryItem;
-using SelectedItemSet = QMap<int32, HistoryItem*>;
+using SelectedItemSet = QMap<int, gsl::not_null<HistoryItem*>>;
 
 enum NewMessageType {
 	NewMessageUnread,
@@ -382,6 +382,12 @@ public:
 		return _editDraft ? editDraft() : localDraft();
 	}
 
+	QVector<FullMsgId> forwardDraft() const {
+		return _forwardDraft;
+	}
+	SelectedItemSet validateForwardDraft();
+	void setForwardDraft(const SelectedItemSet &items);
+
 	// some fields below are a property of a currently displayed instance of this
 	// conversation history not a property of the conversation history itself
 public:
@@ -558,6 +564,7 @@ private:
 
 	std::unique_ptr<Data::Draft> _localDraft, _cloudDraft;
 	std::unique_ptr<Data::Draft> _editDraft;
+	QVector<FullMsgId> _forwardDraft;
 
 	using TypingUsers = QMap<UserData*, TimeMs>;
 	TypingUsers _typing;

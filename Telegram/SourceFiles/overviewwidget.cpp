@@ -1580,19 +1580,23 @@ void OverviewInner::clearSelectedItems(bool onlyTextSelection) {
 	}
 }
 
-void OverviewInner::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
-	if (_selected.isEmpty() || _selected.cbegin().value() != FullSelection) return;
+SelectedItemSet OverviewInner::getSelectedItems() const {
+	auto result = SelectedItemSet();
+	if (_selected.isEmpty() || _selected.cbegin().value() != FullSelection) {
+		return result;
+	}
 
-	for (SelectedItems::const_iterator i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
-		HistoryItem *item = App::histItemById(itemChannel(i.key()), itemMsgId(i.key()));
+	for (auto i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
+		auto item = App::histItemById(itemChannel(i.key()), itemMsgId(i.key()));
 		if (item && item->toHistoryMessage() && item->id > 0) {
 			if (item->history() == _migrated) {
-				sel.insert(item->id - ServerMaxMsgId, item);
+				result.insert(item->id - ServerMaxMsgId, item);
 			} else {
-				sel.insert(item->id, item);
+				result.insert(item->id, item);
 			}
 		}
 	}
+	return result;
 }
 
 void OverviewInner::onTouchSelect() {
@@ -2275,8 +2279,8 @@ void OverviewWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
 	}
 }
 
-void OverviewWidget::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
-	_inner->fillSelectedItems(sel, forDelete);
+SelectedItemSet OverviewWidget::getSelectedItems() const {
+	return _inner->getSelectedItems();
 }
 
 void OverviewWidget::updateAfterDrag() {
@@ -2360,8 +2364,7 @@ void OverviewWidget::confirmDeleteContextItem() {
 }
 
 void OverviewWidget::confirmDeleteSelectedItems() {
-	SelectedItemSet selected;
-	_inner->fillSelectedItems(selected);
+	auto selected = _inner->getSelectedItems();
 	if (selected.isEmpty()) return;
 
 	App::main()->deleteLayer(selected.size());
@@ -2393,8 +2396,7 @@ void OverviewWidget::deleteContextItem(bool forEveryone) {
 void OverviewWidget::deleteSelectedItems(bool forEveryone) {
 	Ui::hideLayer();
 
-	SelectedItemSet selected;
-	_inner->fillSelectedItems(selected);
+	auto selected = _inner->getSelectedItems();
 	if (selected.isEmpty()) return;
 
 	QMap<PeerData*, QVector<MTPint>> idsByPeer;
