@@ -148,16 +148,16 @@ private:
 
 	PeerListRowId _id = 0;
 	gsl::not_null<PeerData*> _peer;
-	bool _initialized = false;
 	std::unique_ptr<Ui::RippleAnimation> _ripple;
 	std::unique_ptr<Ui::RoundImageCheckbox> _checkbox;
 	Text _name;
 	QString _status;
 	StatusType _statusType = StatusType::Online;
-	bool _disabled = false;
-	int _absoluteIndex = -1;
 	OrderedSet<QChar> _nameFirstChars;
-	bool _isSearchResult = false;
+	int _absoluteIndex = -1;
+	bool _initialized : 1;
+	bool _disabled : 1;
+	bool _isSearchResult : 1;
 
 };
 
@@ -476,6 +476,7 @@ private:
 	void addToSearchIndex(gsl::not_null<PeerListRow*> row);
 	bool addingToSearchIndex() const;
 	void removeFromSearchIndex(gsl::not_null<PeerListRow*> row);
+	void setSearchQuery(const QString &query, const QString &normalizedQuery);
 	bool showingSearch() const {
 		return !_searchQuery.isEmpty();
 	}
@@ -508,6 +509,8 @@ private:
 
 	std::map<QChar, std::vector<gsl::not_null<PeerListRow*>>> _searchIndex;
 	QString _searchQuery;
+	QString _normalizedSearchQuery;
+	QString _mentionHighlight;
 	std::vector<gsl::not_null<PeerListRow*>> _filterResults;
 
 	object_ptr<Ui::FlatLabel> _description = { nullptr };

@@ -139,7 +139,6 @@ public:
 	void rowClicked(gsl::not_null<PeerListRow*> row) override;
 	void loadMoreRows() override;
 
-	void peerListSearchAddRow(gsl::not_null<PeerData*> peer) override;
 	std::unique_ptr<PeerListRow> createSearchRow(gsl::not_null<PeerData*> peer) override;
 
 	// Callback(gsl::not_null<UserData*>)

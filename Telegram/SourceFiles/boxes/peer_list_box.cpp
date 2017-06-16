@@ -317,7 +317,12 @@ std::vector<gsl::not_null<PeerData*>> PeerListBox::peerListCollectSelectedRows()
 PeerListRow::PeerListRow(gsl::not_null<PeerData*> peer) : PeerListRow(peer, peer->id) {
 }
 
-PeerListRow::PeerListRow(gsl::not_null<PeerData*> peer, PeerListRowId id) : _id(id), _peer(peer) {
+PeerListRow::PeerListRow(gsl::not_null<PeerData*> peer, PeerListRowId id)
+: _id(id)
+, _peer(peer)
+, _initialized(false)
+, _disabled(false)
+, _isSearchResult(false) {
 }
 
 bool PeerListRow::checked() const {
@@ -591,8 +596,8 @@ PeerListRow *PeerListBox::Inner::findRow(PeerListRowId id) {
 
 void PeerListBox::Inner::removeRow(gsl::not_null<PeerListRow*> row) {
 	auto index = row->absoluteIndex();
-	auto isGlobalSearchResult = row->isSearchResult();
-	auto &eraseFrom = isGlobalSearchResult ? _searchRows : _rows;
+	auto isSearchResult = row->isSearchResult();
+	auto &eraseFrom = isSearchResult ? _searchRows : _rows;
 
 	t_assert(index >= 0 && index < eraseFrom.size());
 	t_assert(eraseFrom[index].get() == row);
@@ -838,34 +843,25 @@ void PeerListBox::Inner::paintRow(Painter &p, TimeMs ms, RowIndex index) {
 	}
 
 	p.setFont(st::contactsStatusFont);
-	if (row->isSearchResult() && !peer->userName().isEmpty()) {
+	if (row->isSearchResult() && !_mentionHighlight.isEmpty() && peer->userName().startsWith(_mentionHighlight, Qt::CaseInsensitive)) {
 		auto username = peer->userName();
-		auto mentionHighlight = _searchQuery;
-		if (mentionHighlight.startsWith('@')) {
-			mentionHighlight = mentionHighlight.mid(1);
-		}
-		if (!mentionHighlight.isEmpty() && username.startsWith(mentionHighlight, Qt::CaseInsensitive)) {
-			auto availableWidth = width() - namex - st::contactsPadding.right();
-			auto highlightedPart = '@' + username.mid(0, mentionHighlight.size());
-			auto grayedPart = username.mid(mentionHighlight.size());
-			auto highlightedWidth = st::contactsStatusFont->width(highlightedPart);
-			if (highlightedWidth >= availableWidth || grayedPart.isEmpty()) {
-				if (highlightedWidth > availableWidth) {
-					highlightedPart = st::contactsStatusFont->elided(highlightedPart, availableWidth);
-				}
-				p.setPen(st::contactsStatusFgOnline);
-				p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width(), highlightedPart);
-			} else {
-				grayedPart = st::contactsStatusFont->elided(grayedPart, availableWidth - highlightedWidth);
-				auto grayedWidth = st::contactsStatusFont->width(grayedPart);
-				p.setPen(st::contactsStatusFgOnline);
-				p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width(), highlightedPart);
-				p.setPen(selected ? st::contactsStatusFgOver : st::contactsStatusFg);
-				p.drawTextLeft(namex + highlightedWidth, st::contactsPadding.top() + st::contactsStatusTop, width(), grayedPart);
+		auto availableWidth = width() - namex - st::contactsPadding.right();
+		auto highlightedPart = '@' + username.mid(0, _mentionHighlight.size());
+		auto grayedPart = username.mid(_mentionHighlight.size());
+		auto highlightedWidth = st::contactsStatusFont->width(highlightedPart);
+		if (highlightedWidth >= availableWidth || grayedPart.isEmpty()) {
+			if (highlightedWidth > availableWidth) {
+				highlightedPart = st::contactsStatusFont->elided(highlightedPart, availableWidth);
 			}
-		} else {
 			p.setPen(st::contactsStatusFgOnline);
-			p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width(), '@' + username);
+			p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width(), highlightedPart);
+		} else {
+			grayedPart = st::contactsStatusFont->elided(grayedPart, availableWidth - highlightedWidth);
+			auto grayedWidth = st::contactsStatusFont->width(grayedPart);
+			p.setPen(st::contactsStatusFgOnline);
+			p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width(), highlightedPart);
+			p.setPen(selected ? st::contactsStatusFgOver : st::contactsStatusFg);
+			p.drawTextLeft(namex + highlightedWidth, st::contactsPadding.top() + st::contactsStatusTop, width(), grayedPart);
 		}
 	} else {
 		row->paintStatusText(p, namex, st::contactsPadding.top() + st::contactsStatusTop, width(), selected);
@@ -976,16 +972,9 @@ void PeerListBox::Inner::checkScrollForPreload() {
 
 void PeerListBox::Inner::searchQueryChanged(QString query) {
 	auto searchWordsList = query.isEmpty() ? QStringList() : query.split(cWordSplit(), QString::SkipEmptyParts);
-	if (!searchWordsList.isEmpty()) {
-		query = searchWordsList.join(' ');
-	}
-	if (_searchQuery != query) {
-		setSelected(Selected());
-		setPressed(Selected());
-
-		_searchQuery = query;
-		_filterResults.clear();
-		clearSearchRows();
+	auto normalizedQuery = searchWordsList.isEmpty() ? QString() : searchWordsList.join(' ');
+	if (_normalizedSearchQuery != normalizedQuery) {
+		setSearchQuery(query, normalizedQuery);
 		if (_controller->searchInLocal() && !searchWordsList.isEmpty()) {
 			auto minimalList = (const std::vector<gsl::not_null<PeerListRow*>>*)nullptr;
 			for_const (auto &searchWord, searchWordsList) {
@@ -1031,6 +1020,16 @@ void PeerListBox::Inner::searchQueryChanged(QString query) {
 		refreshRows();
 		restoreSelection();
 	}
+}
+
+void PeerListBox::Inner::setSearchQuery(const QString &query, const QString &normalizedQuery) {
+	setSelected(Selected());
+	setPressed(Selected());
+	_searchQuery = query;
+	_normalizedSearchQuery = normalizedQuery;
+	_mentionHighlight = _searchQuery.startsWith('@') ? _searchQuery.mid(1) : _searchQuery;
+	_filterResults.clear();
+	clearSearchRows();
 }
 
 void PeerListBox::Inner::submitted() {
