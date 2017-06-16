@@ -71,6 +71,7 @@ private:
 	void removeKicked(gsl::not_null<PeerListRow*> row, gsl::not_null<UserData*> user);
 	bool appendRow(gsl::not_null<UserData*> user);
 	bool prependRow(gsl::not_null<UserData*> user);
+	bool removeRow(gsl::not_null<UserData*> user);
 	std::unique_ptr<PeerListRow> createRow(gsl::not_null<UserData*> user) const;
 
 	gsl::not_null<ChannelData*> _channel;
@@ -130,7 +131,9 @@ public:
 	using Role = ParticipantsBoxController::Role;
 	using Additional = ParticipantsBoxController::Additional;
 
-	AddParticipantBoxController(gsl::not_null<ChannelData*> channel, Role role, base::lambda<void()> doneCallback);
+	using AdminDoneCallback = base::lambda<void(gsl::not_null<UserData*> user, const MTPChannelAdminRights &adminRights)>;
+	using BannedDoneCallback = base::lambda<void(gsl::not_null<UserData*> user, const MTPChannelBannedRights &bannedRights)>;
+	AddParticipantBoxController(gsl::not_null<ChannelData*> channel, Role role, AdminDoneCallback adminDoneCallback, BannedDoneCallback bannedDoneCallback);
 
 	void prepare() override;
 	void rowClicked(gsl::not_null<PeerListRow*> row) override;
@@ -164,7 +167,8 @@ private:
 	bool _allLoaded = false;
 	Additional _additional;
 	QPointer<BoxContent> _editBox;
-	base::lambda<void()> _doneCallback;
+	AdminDoneCallback _adminDoneCallback;
+	BannedDoneCallback _bannedDoneCallback;
 
 };
 
