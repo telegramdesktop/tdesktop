@@ -345,6 +345,8 @@
 <(src_loc)/profile/profile_block_shared_media.h
 <(src_loc)/profile/profile_block_widget.cpp
 <(src_loc)/profile/profile_block_widget.h
+<(src_loc)/profile/profile_channel_controllers.cpp
+<(src_loc)/profile/profile_channel_controllers.h
 <(src_loc)/profile/profile_common_groups_section.cpp
 <(src_loc)/profile/profile_common_groups_section.h
 <(src_loc)/profile/profile_cover_drop_area.cpp
