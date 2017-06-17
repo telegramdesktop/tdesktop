@@ -97,6 +97,8 @@ public:
 private slots:
 	void onReplaceEmoji();
 	void onViewList();
+	void onNoWebPagePreview();
+	void onNoDocumentPreview();
 	void onDontAskDownloadPath();
 	void onAutomaticMediaDownloadSettings();
 	void onManageStickerSets();
@@ -111,6 +113,8 @@ private:
 
 	object_ptr<Ui::Checkbox> _replaceEmoji = { nullptr };
 	object_ptr<Ui::WidgetSlideWrap<Ui::LinkButton>> _viewList = { nullptr };
+	object_ptr<Ui::Checkbox> _noWebPagePreview = { nullptr };
+	object_ptr<Ui::Checkbox> _noDocumentPreview = { nullptr };
 	object_ptr<Ui::Checkbox> _dontAskDownloadPath = { nullptr };
 
 #ifndef OS_WIN_STORE
