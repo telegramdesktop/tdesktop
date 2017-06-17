@@ -534,7 +534,7 @@ void TabbedSelector::checkRestrictedPeer() {
 		if (restricted) {
 			if (!_restrictedLabel) {
 				auto text = (_currentTabType == SelectorTab::Stickers) ? lang(lng_restricted_send_stickers) :
-					(_currentTabType == SelectorTab::Gifs) ? lang(lng_restricted_send_gifs) : false;
+					(_currentTabType == SelectorTab::Gifs) ? lang(lng_restricted_send_gifs) : QString();
 				_restrictedLabel.create(this, text, Ui::FlatLabel::InitType::Simple, st::stickersRestrictedLabel);
 				_restrictedLabel->show();
 				_restrictedLabel->move((width() - _restrictedLabel->width()), (height() / 3 - _restrictedLabel->height() / 2));

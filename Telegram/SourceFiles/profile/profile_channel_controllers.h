@@ -177,7 +177,7 @@ public:
 	using Role = ParticipantsBoxController::Role;
 	using Additional = ParticipantsBoxController::Additional;
 
-	AddParticipantBoxSearchController(gsl::not_null<ChannelData*> channel, Role role, gsl::not_null<Additional*> additional);
+	AddParticipantBoxSearchController(gsl::not_null<ChannelData*> channel, gsl::not_null<Additional*> additional);
 
 	void searchQuery(const QString &query) override;
 	bool isLoading() override;
@@ -203,7 +203,6 @@ private:
 	void requestGlobal();
 
 	gsl::not_null<ChannelData*> _channel;
-	Role _role = Role::Admins;
 	gsl::not_null<Additional*> _additional;
 
 	base::Timer _timer;

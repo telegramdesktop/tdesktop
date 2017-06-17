@@ -495,7 +495,7 @@ void BannedBoxSearchController::searchDone(mtpRequestId requestId, const MTPchan
 	}
 }
 
-AddParticipantBoxController::AddParticipantBoxController(gsl::not_null<ChannelData*> channel, Role role, AdminDoneCallback adminDoneCallback, BannedDoneCallback bannedDoneCallback) : PeerListController(std::make_unique<AddParticipantBoxSearchController>(channel, role, &_additional))
+AddParticipantBoxController::AddParticipantBoxController(gsl::not_null<ChannelData*> channel, Role role, AdminDoneCallback adminDoneCallback, BannedDoneCallback bannedDoneCallback) : PeerListController(std::make_unique<AddParticipantBoxSearchController>(channel, &_additional))
 , _channel(channel)
 , _role(role)
 , _adminDoneCallback(std::move(adminDoneCallback))
@@ -826,8 +826,7 @@ bool AddParticipantBoxController::prependRow(gsl::not_null<UserData*> user) {
 }
 
 std::unique_ptr<PeerListRow> AddParticipantBoxController::createRow(gsl::not_null<UserData*> user) const {
-	auto row = std::make_unique<PeerListRow>(user);
-	return std::move(row);
+	return std::make_unique<PeerListRow>(user);
 }
 
 template <typename Callback>
@@ -898,9 +897,8 @@ void AddParticipantBoxController::HandleParticipant(const MTPChannelParticipant 
 	}
 }
 
-AddParticipantBoxSearchController::AddParticipantBoxSearchController(gsl::not_null<ChannelData*> channel, Role role, gsl::not_null<Additional*> additional)
+AddParticipantBoxSearchController::AddParticipantBoxSearchController(gsl::not_null<ChannelData*> channel, gsl::not_null<Additional*> additional)
 : _channel(channel)
-, _role(role)
 , _additional(additional) {
 	_timer.setCallback([this] { searchOnServer(); });
 }

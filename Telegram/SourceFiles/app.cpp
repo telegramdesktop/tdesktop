@@ -689,11 +689,15 @@ namespace {
 				auto mask = MTPDchannel::Flag::f_broadcast | MTPDchannel::Flag::f_verified | MTPDchannel::Flag::f_megagroup | MTPDchannel::Flag::f_democracy;
 				cdata->flags = (cdata->flags & ~mask) | (d.vflags.v & mask);
 			} else {
-				if (d.has_admin_rights() || cdata->hasAdminRights()) {
-					cdata->setAdminRights(d.has_admin_rights() ? d.vadmin_rights : MTP_channelAdminRights(MTP_flags(0)));
+				if (d.has_admin_rights()) {
+					cdata->setAdminRights(d.vadmin_rights);
+				} else if (cdata->hasAdminRights()) {
+					cdata->setAdminRights(MTP_channelAdminRights(MTP_flags(0)));
 				}
-				if (d.has_banned_rights() || cdata->hasRestrictedRights()) {
-					cdata->setRestrictedRights(d.has_banned_rights() ? d.vbanned_rights : MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
+				if (d.has_banned_rights()) {
+					cdata->setRestrictedRights(d.vbanned_rights);
+				} else if (cdata->hasRestrictedRights()) {
+					cdata->setRestrictedRights(MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
 				}
 				cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
 				cdata->access = d.vaccess_hash.v;
