@@ -1430,8 +1430,8 @@ void ContactsBox::Inner::addSelectedAsChannelAdmin() {
 	}
 	if (_addAdminBox) _addAdminBox->deleteLater();
 
-	auto showBox = [this](auto &&currentRights) {
-		_addAdminBox = Ui::show(Box<EditAdminBox>(_channel, _addAdmin, currentRights, base::lambda_guarded(this, [this](const MTPChannelAdminRights &rights) {
+	auto showBox = [this](auto &&currentRights, bool hasAdminRights) {
+		_addAdminBox = Ui::show(Box<EditAdminBox>(_channel, _addAdmin, hasAdminRights, currentRights, base::lambda_guarded(this, [this](const MTPChannelAdminRights &rights) {
 			if (_addAdminRequestId) return;
 			_addAdminRequestId = MTP::send(MTPchannels_EditAdmin(_channel->inputChannel, _addAdmin->inputUser, rights), rpcDone(&Inner::addAdminDone, rights), rpcFail(&Inner::addAdminFail));
 		})), KeepOtherLayers);
@@ -1449,7 +1449,7 @@ void ContactsBox::Inner::addSelectedAsChannelAdmin() {
 
 	if (auto rights = loadedRights()) {
 		if (rights->canEdit) {
-			showBox(rights->rights);
+			showBox(rights->rights, true);
 		} else {
 			Ui::show(Box<InformBox>(lang(lng_error_cant_edit_admin)), KeepOtherLayers);
 		}
@@ -1462,12 +1462,12 @@ void ContactsBox::Inner::addSelectedAsChannelAdmin() {
 			_addAdminRequestId = 0;
 			if (participant.vparticipant.type() == mtpc_channelParticipantAdmin) {
 				if (participant.vparticipant.c_channelParticipantAdmin().is_can_edit()) {
-					showBox(participant.vparticipant.c_channelParticipantAdmin().vadmin_rights);
+					showBox(participant.vparticipant.c_channelParticipantAdmin().vadmin_rights, true);
 				} else {
 					Ui::show(Box<InformBox>(lang(lng_error_cant_edit_admin)), KeepOtherLayers);
 				}
 			} else {
-				showBox(EditAdminBox::DefaultRights(_channel));
+				showBox(EditAdminBox::DefaultRights(_channel), false);
 			}
 		})), ::rpcFail(base::lambda_guarded(this, [this](const RPCError &error) {
 			if (MTP::isDefaultHandledError(error)) {

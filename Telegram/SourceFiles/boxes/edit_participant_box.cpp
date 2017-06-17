@@ -72,9 +72,10 @@ void ApplyDependencies(CheckboxesMap &checkboxes, DependenciesMap &dependencies,
 
 class EditParticipantBox::Inner : public TWidget {
 public:
-	Inner(QWidget *parent, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user) : TWidget(parent)
-		, _channel(channel)
-		, _user(user) {
+	Inner(QWidget *parent, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights) : TWidget(parent)
+	, _channel(channel)
+	, _user(user)
+	, _hasAdminRights(hasAdminRights) {
 	}
 
 	template <typename Widget>
@@ -92,6 +93,7 @@ protected:
 private:
 	gsl::not_null<ChannelData*> _channel;
 	gsl::not_null<UserData*> _user;
+	bool _hasAdminRights = false;
 	std::vector<object_ptr<TWidget>> _rows;
 
 };
@@ -130,8 +132,7 @@ void EditParticipantBox::Inner::paintEvent(QPaintEvent *e) {
 	_user->nameText.drawLeftElided(p, namex, st::contactsNameTop, namew, width());
 	auto statusText = [this] {
 		if (_user->botInfo) {
-			auto isAdmin = _channel->mgInfo ? _channel->mgInfo->lastAdmins.contains(_user) : false;
-			auto seesAllMessages = (_user->botInfo->readsAllHistory || isAdmin);
+			auto seesAllMessages = (_user->botInfo->readsAllHistory || _hasAdminRights);
 			return lang(seesAllMessages ? lng_status_bot_reads_all : lng_status_bot_not_reads_all);
 		}
 		return App::onlineText(_user->onlineTill, unixtime());
@@ -141,13 +142,14 @@ void EditParticipantBox::Inner::paintEvent(QPaintEvent *e) {
 	p.drawTextLeft(namex, st::contactsStatusTop, width(), statusText());
 }
 
-EditParticipantBox::EditParticipantBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user) : BoxContent()
+EditParticipantBox::EditParticipantBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights) : BoxContent()
 , _channel(channel)
-, _user(user) {
+, _user(user)
+, _hasAdminRights(hasAdminRights) {
 }
 
 void EditParticipantBox::prepare() {
-	_inner = setInnerWidget(object_ptr<Inner>(this, _channel, _user));
+	_inner = setInnerWidget(object_ptr<Inner>(this, _channel, _user, hasAdminRights()));
 }
 
 template <typename Widget>
@@ -161,7 +163,7 @@ void EditParticipantBox::resizeToContent() {
 	setDimensions(_inner->width(), _inner->height());
 }
 
-EditAdminBox::EditAdminBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights, base::lambda<void(MTPChannelAdminRights)> callback) : EditParticipantBox(nullptr, channel, user)
+EditAdminBox::EditAdminBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights, const MTPChannelAdminRights &rights, base::lambda<void(MTPChannelAdminRights)> callback) : EditParticipantBox(nullptr, channel, user, hasAdminRights)
 , _rights(rights)
 , _saveCallback(std::move(callback)) {
 	auto dependency = [this](Flag dependent, Flag dependency) {
@@ -261,7 +263,7 @@ void EditAdminBox::refreshAboutAddAdminsText() {
 	resizeToContent();
 }
 
-EditRestrictedBox::EditRestrictedBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights, base::lambda<void(MTPChannelBannedRights)> callback) : EditParticipantBox(nullptr, channel, user)
+EditRestrictedBox::EditRestrictedBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights, const MTPChannelBannedRights &rights, base::lambda<void(MTPChannelBannedRights)> callback) : EditParticipantBox(nullptr, channel, user, hasAdminRights)
 , _rights(rights)
 , _until(rights.c_channelBannedRights().vuntil_date.v)
 , _saveCallback(std::move(callback)) {

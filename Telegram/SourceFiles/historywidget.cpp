@@ -1741,11 +1741,17 @@ void HistoryWidget::fastShowAtEnd(History *h) {
 
 void HistoryWidget::applyDraft(bool parseLinks, Ui::FlatTextarea::UndoHistoryAction undoHistoryAction) {
 	auto draft = _history ? _history->draft() : nullptr;
-	if (!draft || !canWriteMessage()) {
+	auto fieldAvailable = canWriteMessage();
+	if (!draft || (!_history->editDraft() && !fieldAvailable)) {
+		auto fieldWillBeHiddenAfterEdit = (!fieldAvailable && _editMsgId != 0);
 		clearFieldText(0, undoHistoryAction);
 		_field->setFocus();
 		_replyEditMsg = nullptr;
 		_editMsgId = _replyToId = 0;
+		if (fieldWillBeHiddenAfterEdit) {
+			updateControlsVisibility();
+			updateControlsGeometry();
+		}
 		return;
 	}
 
@@ -1762,6 +1768,10 @@ void HistoryWidget::applyDraft(bool parseLinks, Ui::FlatTextarea::UndoHistoryAct
 	} else {
 		_editMsgId = 0;
 		_replyToId = readyToForward() ? 0 : _history->localDraft()->msgId;
+	}
+	if (!canWriteMessage()) {
+		updateControlsVisibility();
+		updateControlsGeometry();
 	}
 
 	if (parseLinks) {
@@ -2201,10 +2211,11 @@ void HistoryWidget::updateControlsVisibility() {
 	if (_reportSpamPanel) {
 		_reportSpamPanel->show();
 	}
-	if (isBlocked() || isJoinChannel() || isMuteUnmute()) {
+	if (!editingMessage() && (isBlocked() || isJoinChannel() || isMuteUnmute() || isBotStart())) {
 		if (isBlocked()) {
 			_joinChannel->hide();
 			_muteUnmute->hide();
+			_botStart->hide();
 			if (_unblock->isHidden()) {
 				_unblock->clearState();
 				_unblock->show();
@@ -2212,6 +2223,7 @@ void HistoryWidget::updateControlsVisibility() {
 		} else if (isJoinChannel()) {
 			_unblock->hide();
 			_muteUnmute->hide();
+			_botStart->hide();
 			if (_joinChannel->isHidden()) {
 				_joinChannel->clearState();
 				_joinChannel->show();
@@ -2219,16 +2231,23 @@ void HistoryWidget::updateControlsVisibility() {
 		} else if (isMuteUnmute()) {
 			_unblock->hide();
 			_joinChannel->hide();
+			_botStart->hide();
 			if (_muteUnmute->isHidden()) {
 				_muteUnmute->clearState();
 				_muteUnmute->show();
+			}
+		} else if (isBotStart()) {
+			_unblock->hide();
+			_joinChannel->hide();
+			_muteUnmute->hide();
+			if (_botStart->isHidden()) {
+				_botStart->clearState();
+				_botStart->show();
 			}
 		}
 		_kbShown = false;
 		_fieldAutocomplete->hide();
 		_send->hide();
-		_botStart->hide();
-		_attachToggle->hide();
 		_silent->hide();
 		_kbScroll->hide();
 		_fieldBarCancel->hide();
@@ -2248,18 +2267,15 @@ void HistoryWidget::updateControlsVisibility() {
 			updateControlsGeometry();
 			update();
 		}
-	} else if (_canSendMessages) {
+	} else if (editingMessage() || _canSendMessages) {
 		onCheckFieldAutocomplete();
-		if (isBotStart()) {
-			_unblock->hide();
-			_joinChannel->hide();
-			_muteUnmute->hide();
-			if (_botStart->isHidden()) {
-				_botStart->clearState();
-				_botStart->show();
-			}
-			_kbShown = false;
-			_send->hide();
+		_unblock->hide();
+		_botStart->hide();
+		_joinChannel->hide();
+		_muteUnmute->hide();
+		_send->show();
+		updateSendButtonType();
+		if (_recording) {
 			_field->hide();
 			_tabbedSelectorToggle->hide();
 			_botKeyboardShow->hide();
@@ -2267,75 +2283,57 @@ void HistoryWidget::updateControlsVisibility() {
 			_botCommandStart->hide();
 			_attachToggle->hide();
 			_silent->hide();
-			_kbScroll->hide();
-			_fieldBarCancel->hide();
-		} else {
-			_unblock->hide();
-			_botStart->hide();
-			_joinChannel->hide();
-			_muteUnmute->hide();
-			_send->show();
-			updateSendButtonType();
-			if (_recording) {
-				_field->hide();
-				_tabbedSelectorToggle->hide();
-				_botKeyboardShow->hide();
-				_botKeyboardHide->hide();
-				_botCommandStart->hide();
-				_attachToggle->hide();
-				_silent->hide();
-				if (_kbShown) {
-					_kbScroll->show();
-				} else {
-					_kbScroll->hide();
-				}
+			if (_kbShown) {
+				_kbScroll->show();
 			} else {
-				_field->show();
-				if (_kbShown) {
-					_kbScroll->show();
-					_tabbedSelectorToggle->hide();
-					_botKeyboardHide->show();
-					_botKeyboardShow->hide();
-					_botCommandStart->hide();
-				} else if (_kbReplyTo) {
-					_kbScroll->hide();
-					_tabbedSelectorToggle->show();
-					_botKeyboardHide->hide();
-					_botKeyboardShow->hide();
+				_kbScroll->hide();
+			}
+		} else {
+			_field->show();
+			if (_kbShown) {
+				_kbScroll->show();
+				_tabbedSelectorToggle->hide();
+				_botKeyboardHide->show();
+				_botKeyboardShow->hide();
+				_botCommandStart->hide();
+			} else if (_kbReplyTo) {
+				_kbScroll->hide();
+				_tabbedSelectorToggle->show();
+				_botKeyboardHide->hide();
+				_botKeyboardShow->hide();
+				_botCommandStart->hide();
+			} else {
+				_kbScroll->hide();
+				_tabbedSelectorToggle->show();
+				_botKeyboardHide->hide();
+				if (_keyboard->hasMarkup()) {
+					_botKeyboardShow->show();
 					_botCommandStart->hide();
 				} else {
-					_kbScroll->hide();
-					_tabbedSelectorToggle->show();
-					_botKeyboardHide->hide();
-					if (_keyboard->hasMarkup()) {
-						_botKeyboardShow->show();
-						_botCommandStart->hide();
+					_botKeyboardShow->hide();
+					if (_cmdStartShown) {
+						_botCommandStart->show();
 					} else {
-						_botKeyboardShow->hide();
-						if (_cmdStartShown) {
-							_botCommandStart->show();
-						} else {
-							_botCommandStart->hide();
-						}
+						_botCommandStart->hide();
 					}
 				}
-				_attachToggle->show();
-				if (hasSilentToggle()) {
-					_silent->show();
-				} else {
-					_silent->hide();
-				}
-				updateFieldPlaceholder();
 			}
-			if (_editMsgId || _replyToId || readyToForward() || (_previewData && _previewData->pendingTill >= 0) || _kbReplyTo) {
-				if (_fieldBarCancel->isHidden()) {
-					_fieldBarCancel->show();
-					updateControlsGeometry();
-					update();
-				}
+			_attachToggle->show();
+			if (hasSilentToggle()) {
+				_silent->show();
 			} else {
-				_fieldBarCancel->hide();
+				_silent->hide();
 			}
+			updateFieldPlaceholder();
+		}
+		if (_editMsgId || _replyToId || readyToForward() || (_previewData && _previewData->pendingTill >= 0) || _kbReplyTo) {
+			if (_fieldBarCancel->isHidden()) {
+				_fieldBarCancel->show();
+				updateControlsGeometry();
+				update();
+			}
+		} else {
+			_fieldBarCancel->hide();
 		}
 	} else {
 		_fieldAutocomplete->hide();
@@ -4994,10 +4992,10 @@ void HistoryWidget::updateHistoryGeometry(bool initial, bool loadedDown, const S
 	}
 
 	auto newScrollHeight = height() - _topBar->height();
-	if (isBlocked() || isBotStart() || isJoinChannel() || isMuteUnmute()) {
+	if (!editingMessage() && (isBlocked() || isBotStart() || isJoinChannel() || isMuteUnmute())) {
 		newScrollHeight -= _unblock->height();
 	} else {
-		if (_canSendMessages) {
+		if (editingMessage() || _canSendMessages) {
 			newScrollHeight -= (_field->height() + 2 * st::historySendPadding);
 		} else if (isRestrictedWrite()) {
 			newScrollHeight -= _unblock->height();
@@ -5883,6 +5881,9 @@ void HistoryWidget::cancelEdit() {
 	onTextChange();
 	_textUpdateEvents = old;
 
+	if (!canWriteMessage()) {
+		updateControlsVisibility();
+	}
 	updateBotKeyboard();
 	updateFieldPlaceholder();
 
@@ -6556,7 +6557,7 @@ void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int
 	p.setFont(st::msgServiceNameFont);
 	p.drawTextLeft(left, top + st::msgReplyPadding.top(), width(), lang(lng_edit_message));
 
-	if (!_replyEditMsg) return;
+	if (!_replyEditMsg || _replyEditMsg->history()->peer->isSelf()) return;
 
 	QString editTimeLeftText;
 	int updateIn = -1;

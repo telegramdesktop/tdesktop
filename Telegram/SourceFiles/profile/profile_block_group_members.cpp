@@ -73,8 +73,10 @@ void GroupMembersWidget::editAdmin(gsl::not_null<UserData*> user) {
 		return; // not supported
 	}
 	auto defaultAdmin = MegagroupInfo::Admin { EditAdminBox::DefaultRights(megagroup) };
-	auto currentRights = megagroup->mgInfo->lastAdmins.value(user, defaultAdmin).rights;
-	Ui::show(Box<EditAdminBox>(megagroup, user, currentRights, base::lambda_guarded(this, [this, megagroup, user](const MTPChannelAdminRights &rights) {
+	auto currentRightsIt = megagroup->mgInfo->lastAdmins.find(user);
+	auto hasAdminRights = (currentRightsIt != megagroup->mgInfo->lastAdmins.cend());
+	auto currentRights = hasAdminRights ? currentRightsIt->rights : EditAdminBox::DefaultRights(megagroup);
+	Ui::show(Box<EditAdminBox>(megagroup, user, hasAdminRights, currentRights, base::lambda_guarded(this, [this, megagroup, user](const MTPChannelAdminRights &rights) {
 		Ui::hideLayer();
 		MTP::send(MTPchannels_EditAdmin(megagroup->inputChannel, user->inputUser, rights), rpcDone(base::lambda_guarded(this, [this, megagroup, user, rights](const MTPUpdates &result) {
 			if (App::main()) App::main()->sentUpdatesReceived(result);
@@ -90,7 +92,8 @@ void GroupMembersWidget::restrictUser(gsl::not_null<UserData*> user) {
 	}
 	auto defaultRestricted = MegagroupInfo::Restricted { EditRestrictedBox::DefaultRights(megagroup) };
 	auto currentRights = megagroup->mgInfo->lastRestricted.value(user, defaultRestricted).rights;
-	Ui::show(Box<EditRestrictedBox>(megagroup, user, currentRights, [megagroup, user](const MTPChannelBannedRights &rights) {
+	auto hasAdminRights = megagroup->mgInfo->lastAdmins.find(user) != megagroup->mgInfo->lastAdmins.cend();
+	Ui::show(Box<EditRestrictedBox>(megagroup, user, hasAdminRights, currentRights, [megagroup, user](const MTPChannelBannedRights &rights) {
 		Ui::hideLayer();
 		MTP::send(MTPchannels_EditBanned(megagroup->inputChannel, user->inputUser, rights), rpcDone([megagroup, user, rights](const MTPUpdates &result) {
 			if (App::main()) App::main()->sentUpdatesReceived(result);
@@ -101,6 +104,7 @@ void GroupMembersWidget::restrictUser(gsl::not_null<UserData*> user) {
 
 void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
 	auto user = selectedPeer->asUser();
+	t_assert(user != nullptr);
 	auto text = lng_profile_sure_kick(lt_user, user->firstName);
 	Ui::show(Box<ConfirmBox>(text, lang(lng_box_remove), base::lambda_guarded(this, [user, peer = peer()] {
 		Ui::hideLayer();
@@ -246,7 +250,7 @@ void GroupMembersWidget::updateItemStatusText(Item *item) {
 	auto user = member->user();
 	if (member->statusText.isEmpty() || (member->onlineTextTill <= _now)) {
 		if (user->botInfo) {
-			bool seesAllMessages = (user->botInfo->readsAllHistory || member->hasAdminStar);
+			auto seesAllMessages = (user->botInfo->readsAllHistory || member->hasAdminStar);
 			member->statusText = lang(seesAllMessages ? lng_status_bot_reads_all : lng_status_bot_not_reads_all);
 			member->onlineTextTill = _now + 86400;
 		} else {
@@ -461,7 +465,17 @@ void GroupMembersWidget::setItemFlags(Item *item, ChannelData *megagroup) {
 	auto isAdmin = (adminIt != megagroup->mgInfo->lastAdmins.cend());
 	auto isCreator = megagroup->mgInfo->creator == item->peer;
 	auto adminCanEdit = isAdmin && adminIt->canEdit;
-	item->hasAdminStar = amCreatorOrAdmin || isAdmin || isCreator;
+	auto hasAdminStar = amCreatorOrAdmin || isAdmin || isCreator;
+	if (item->hasAdminStar != hasAdminStar) {
+		item->hasAdminStar = hasAdminStar;
+		auto user = item->peer->asUser();
+		t_assert(user != nullptr);
+		if (user->botInfo) {
+			// Update "has access to messages" status.
+			item->statusText = QString();
+			updateItemStatusText(item);
+		}
+	}
 	if (item->peer->isSelf()) {
 		item->hasRemoveLink = false;
 	} else if (megagroup->amCreator() || (megagroup->canBanMembers() && (!item->hasAdminStar || adminCanEdit))) {

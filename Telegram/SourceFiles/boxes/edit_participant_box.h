@@ -32,7 +32,7 @@ class CalendarBox;
 
 class EditParticipantBox : public BoxContent {
 public:
-	EditParticipantBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user);
+	EditParticipantBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights);
 
 protected:
 	void prepare() override;
@@ -49,9 +49,14 @@ protected:
 	template <typename Widget>
 	QPointer<Widget> addControl(object_ptr<Widget> row);
 
+	bool hasAdminRights() const {
+		return _hasAdminRights;
+	}
+
 private:
-	gsl::not_null<UserData*> _user;
 	gsl::not_null<ChannelData*> _channel;
+	gsl::not_null<UserData*> _user;
+	bool _hasAdminRights = false;
 
 	class Inner;
 	QPointer<Inner> _inner;
@@ -60,7 +65,7 @@ private:
 
 class EditAdminBox : public EditParticipantBox {
 public:
-	EditAdminBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights, base::lambda<void(MTPChannelAdminRights)> callback);
+	EditAdminBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights, const MTPChannelAdminRights &rights, base::lambda<void(MTPChannelAdminRights)> callback);
 
 	static MTPChannelAdminRights DefaultRights(gsl::not_null<ChannelData*> channel);
 
@@ -88,7 +93,7 @@ private:
 
 class EditRestrictedBox : public EditParticipantBox {
 public:
-	EditRestrictedBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights, base::lambda<void(MTPChannelBannedRights)> callback);
+	EditRestrictedBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights, const MTPChannelBannedRights &rights, base::lambda<void(MTPChannelBannedRights)> callback);
 
 	static MTPChannelBannedRights DefaultRights(gsl::not_null<ChannelData*> channel);
 	static constexpr auto kRestrictUntilForever = TimeId(INT_MAX);

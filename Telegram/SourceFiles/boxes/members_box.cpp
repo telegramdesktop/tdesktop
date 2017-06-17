@@ -274,7 +274,8 @@ void MembersBox::Inner::actionPressed(Member &row) {
 		})), KeepOtherLayers);
 	} else {
 		auto currentRights = _rows[_kickSelected].adminRights;
-		_kickBox = Ui::show(Box<EditAdminBox>(_channel, user, currentRights, base::lambda_guarded(this, [this, user](const MTPChannelAdminRights &rights) {
+		auto hasAdminRights = true;
+		_kickBox = Ui::show(Box<EditAdminBox>(_channel, user, hasAdminRights, currentRights, base::lambda_guarded(this, [this, user](const MTPChannelAdminRights &rights) {
 			if (_kickBox) _kickBox->closeBox();
 			MTP::send(MTPchannels_EditAdmin(_channel->inputChannel, user->inputUser, rights), ::rpcDone(base::lambda_guarded(this, [this, user, rights](const MTPUpdates &result, mtpRequestId req) {
 				if (App::main()) App::main()->sentUpdatesReceived(result);

@@ -230,7 +230,8 @@ void ParticipantsBoxController::editAdmin(gsl::not_null<UserData*> user) {
 	auto it = _additional.adminRights.find(user);
 	t_assert(it != _additional.adminRights.cend());
 	auto weak = base::weak_unique_ptr<ParticipantsBoxController>(this);
-	_editBox = Ui::show(Box<EditAdminBox>(_channel, user, it->second, [megagroup = _channel.get(), user, weak](const MTPChannelAdminRights &rights) {
+	auto hasAdminRights = true;
+	_editBox = Ui::show(Box<EditAdminBox>(_channel, user, hasAdminRights, it->second, [megagroup = _channel.get(), user, weak](const MTPChannelAdminRights &rights) {
 		MTP::send(MTPchannels_EditAdmin(megagroup->inputChannel, user->inputUser, rights), rpcDone([megagroup, user, weak, rights](const MTPUpdates &result) {
 			AuthSession::Current().api().applyUpdates(result);
 			megagroup->applyEditAdmin(user, rights);
@@ -276,7 +277,8 @@ void ParticipantsBoxController::editRestricted(gsl::not_null<UserData*> user) {
 	auto it = _additional.restrictedRights.find(user);
 	t_assert(it != _additional.restrictedRights.cend());
 	auto weak = base::weak_unique_ptr<ParticipantsBoxController>(this);
-	_editBox = Ui::show(Box<EditRestrictedBox>(_channel, user, it->second, [megagroup = _channel.get(), user, weak](const MTPChannelBannedRights &rights) {
+	auto hasAdminRights = false;
+	_editBox = Ui::show(Box<EditRestrictedBox>(_channel, user, hasAdminRights, it->second, [megagroup = _channel.get(), user, weak](const MTPChannelBannedRights &rights) {
 		MTP::send(MTPchannels_EditBanned(megagroup->inputChannel, user->inputUser, rights), rpcDone([megagroup, user, weak, rights](const MTPUpdates &result) {
 			AuthSession::Current().api().applyUpdates(result);
 			megagroup->applyEditBanned(user, rights);
@@ -614,6 +616,7 @@ void AddParticipantBoxController::editAdmin(gsl::not_null<UserData*> user, bool 
 	// Check restrictions.
 	auto weak = base::weak_unique_ptr<AddParticipantBoxController>(this);
 	auto alreadyIt = _additional.adminRights.find(user);
+	auto hasAdminRights = false;
 	auto currentRights = EditAdminBox::DefaultRights(_channel);
 	if (alreadyIt != _additional.adminRights.end() || _additional.creator == user) {
 		// The user is already an admin.
@@ -621,6 +624,7 @@ void AddParticipantBoxController::editAdmin(gsl::not_null<UserData*> user, bool 
 			Ui::show(Box<InformBox>(lang(lng_error_cant_edit_admin)), KeepOtherLayers);
 			return;
 		}
+		hasAdminRights = true;
 		currentRights = alreadyIt->second;
 	} else if (_additional.kicked.find(user) != _additional.kicked.end()) {
 		// The user is banned.
@@ -663,7 +667,7 @@ void AddParticipantBoxController::editAdmin(gsl::not_null<UserData*> user, bool 
 	}
 
 	// Finally edit the admin.
-	_editBox = Ui::show(Box<EditAdminBox>(_channel, user, currentRights, [channel = _channel.get(), user, weak](const MTPChannelAdminRights &rights) {
+	_editBox = Ui::show(Box<EditAdminBox>(_channel, user, hasAdminRights, currentRights, [channel = _channel.get(), user, weak](const MTPChannelAdminRights &rights) {
 		MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, rights), rpcDone([channel, user, weak, rights](const MTPUpdates &result) {
 			AuthSession::Current().api().applyUpdates(result);
 			channel->applyEditAdmin(user, rights);
@@ -718,12 +722,14 @@ void AddParticipantBoxController::editRestricted(gsl::not_null<UserData*> user, 
 	auto weak = base::weak_unique_ptr<AddParticipantBoxController>(this);
 	auto alreadyIt = _additional.restrictedRights.find(user);
 	auto currentRights = EditRestrictedBox::DefaultRights(_channel);
+	auto hasAdminRights = false;
 	if (alreadyIt != _additional.restrictedRights.end()) {
 		// The user is already banned or restricted.
 		currentRights = alreadyIt->second;
 	} else if (_additional.adminRights.find(user) != _additional.adminRights.end() || _additional.creator == user) {
 		// The user is an admin or creator.
 		if (_additional.adminCanEdit.find(user) != _additional.adminCanEdit.end()) {
+			hasAdminRights = true;
 			if (!sure) {
 				_editBox = Ui::show(Box<ConfirmBox>(lang(lng_sure_ban_admin), [weak, user] { weak->editRestricted(user, true); }), KeepOtherLayers);
 				return;
@@ -735,7 +741,7 @@ void AddParticipantBoxController::editRestricted(gsl::not_null<UserData*> user, 
 	}
 
 	// Finally edit the restricted.
-	_editBox = Ui::show(Box<EditRestrictedBox>(_channel, user, currentRights, [user, weak](const MTPChannelBannedRights &rights) {
+	_editBox = Ui::show(Box<EditRestrictedBox>(_channel, user, hasAdminRights, currentRights, [user, weak](const MTPChannelBannedRights &rights) {
 		if (weak) {
 			weak->restrictUserSure(user, rights);
 		}

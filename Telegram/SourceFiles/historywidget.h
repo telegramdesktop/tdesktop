@@ -543,6 +543,9 @@ private:
 
 	void updateReplyToName();
 	void checkForwardingInfo();
+	bool editingMessage() const {
+		return _editMsgId != 0;
+	}
 
 	MsgId _replyToId = 0;
 	Text _replyToName;
