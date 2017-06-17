@@ -61,6 +61,8 @@ int32 gLastUpdateCheck = 0;
 bool gNoStartUpdate = false;
 bool gStartToSettings = false;
 bool gReplaceEmojis = true;
+bool gNoWebPagePreview = false;
+bool gNoDocumentPreview = false;
 
 bool gCtrlEnter = false;
 
