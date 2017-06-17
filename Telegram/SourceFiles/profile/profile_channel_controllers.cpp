@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "boxes/edit_participant_box.h"
 #include "boxes/confirm_box.h"
+#include "boxes/contacts_box.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
@@ -662,13 +663,21 @@ void AddParticipantBoxController::editAdmin(gsl::not_null<UserData*> user, bool 
 	}
 
 	// Finally edit the admin.
-	_editBox = Ui::show(Box<EditAdminBox>(_channel, user, currentRights, [megagroup = _channel.get(), user, weak](const MTPChannelAdminRights &rights) {
-		MTP::send(MTPchannels_EditAdmin(megagroup->inputChannel, user->inputUser, rights), rpcDone([megagroup, user, weak, rights](const MTPUpdates &result) {
+	_editBox = Ui::show(Box<EditAdminBox>(_channel, user, currentRights, [channel = _channel.get(), user, weak](const MTPChannelAdminRights &rights) {
+		MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, rights), rpcDone([channel, user, weak, rights](const MTPUpdates &result) {
 			AuthSession::Current().api().applyUpdates(result);
-			megagroup->applyEditAdmin(user, rights);
+			channel->applyEditAdmin(user, rights);
 			if (weak) {
 				weak->editAdminDone(user, rights);
 			}
+		}), rpcFail([channel](const RPCError &error) {
+			if (MTP::isDefaultHandledError(error)) {
+				return false;
+			}
+			if (error.type() == qstr("USER_NOT_MUTUAL_CONTACT")) {
+				Ui::show(Box<InformBox>(PeerFloodErrorText(channel->isMegagroup() ? PeerFloodType::InviteGroup : PeerFloodType::InviteChannel)), KeepOtherLayers);
+			}
+			return true;
 		}));
 	}), KeepOtherLayers);
 }
