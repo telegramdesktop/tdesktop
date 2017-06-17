@@ -158,12 +158,16 @@ void ChatSettingsWidget::createControls() {
 	style::margins marginSub(0, 0, 0, st::settingsSubSkip);
 	style::margins slidedPadding(0, marginSub.bottom() / 2, 0, marginSub.bottom() - (marginSub.bottom() / 2));
 
+	// replaceEmoji + viewList link block
 	addChildRow(_replaceEmoji, marginSub, lang(lng_settings_replace_emojis), SLOT(onReplaceEmoji()), cReplaceEmojis());
 	style::margins marginList(st::defaultBoxCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
 	addChildRow(_viewList, marginList, slidedPadding, lang(lng_settings_view_emojis), SLOT(onViewList()), st::defaultLinkButton);
 	if (!cReplaceEmojis()) {
 		_viewList->hideFast();
 	}
+	// noWebPagePreview and noDocumentPreview option
+	addChildRow(_noWebPagePreview, marginSub, lang(lng_settings_no_web_page_preview), SLOT(onNoWebPagePreview()), cNoWebPagePreview());
+	addChildRow(_noDocumentPreview, marginSub, lang(lng_settings_no_document_preview), SLOT(onNoDocumentPreview()), cNoDocumentPreview());
 
 #ifndef OS_WIN_STORE
 	auto pathMargin = marginSub;
@@ -200,6 +204,16 @@ void ChatSettingsWidget::onReplaceEmoji() {
 
 void ChatSettingsWidget::onViewList() {
 	Ui::show(Box<EmojiBox>());
+}
+
+void ChatSettingsWidget::onNoWebPagePreview() {
+    cSetNoWebPagePreview(_noWebPagePreview->checked());
+    Local::writeUserSettings();
+}
+
+void ChatSettingsWidget::onNoDocumentPreview() {
+    cSetNoDocumentPreview(_noDocumentPreview->checked());
+    Local::writeUserSettings();
 }
 
 void ChatSettingsWidget::onDontAskDownloadPath() {

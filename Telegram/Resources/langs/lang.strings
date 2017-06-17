@@ -288,6 +288,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_section_chat_settings" = "Chat Settings";
 "lng_settings_replace_emojis" = "Replace emoji";
 "lng_settings_view_emojis" = "View list";
+"lng_settings_no_web_page_preview" = "No web pages preview";
+"lng_settings_no_document_preview" = "No documents preview";
 "lng_settings_emoji_list" = "Supported emoji";
 "lng_settings_send_enter" = "Send by Enter";
 "lng_settings_send_ctrlenter" = "Send by Ctrl+Enter";
