@@ -1738,21 +1738,34 @@ void _writeUserSettings() {
 		return Window::Controller::kDefaultDialogsWidthRatio;
 	};
 
-	// NOTE: number below is a number of single qint32 options that are serialized right after 'data' object definition.
+	// NOTE: this is a number of single qint32 options that are serialized below.
 	// don't forget to update it after adding of new option.
-	uint32 size = 26 * (sizeof(quint32) + sizeof(qint32));
+	uint32 size = 22 * (sizeof(quint32) + sizeof(qint32));
+
+	// for dbiDownloadPath
 	size += sizeof(quint32) + Serialize::stringSize(Global::AskDownloadPath() ? QString() : Global::DownloadPath()) + Serialize::bytearraySize(Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
 
+	// dbiRecentEmoji
 	size += sizeof(quint32) + sizeof(qint32);
 	for (auto &item : recentEmojiPreloadData) {
 		size += Serialize::stringSize(item.first) + sizeof(item.second);
 	}
 
+	// for dbiEmojiVariants
 	size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
+
+	// for dbiRecentStickers
 	size += sizeof(quint32) + sizeof(qint32) + (cRecentStickersPreload().isEmpty() ? cGetRecentStickers().size() : cRecentStickersPreload().size()) * (sizeof(uint64) + sizeof(ushort));
+
+	// for dbiDialogLastPath
 	size += sizeof(quint32) + Serialize::stringSize(cDialogLastPath());
+
+	// for dbiAutoDownload
 	size += sizeof(quint32) + 3 * sizeof(qint32);
+
+	// for dbiDialogsMode
 	size += sizeof(quint32) + 2 * sizeof(qint32);
+
 	if (!Global::HiddenPinnedMessages().isEmpty()) {
 		size += sizeof(quint32) + sizeof(qint32) + Global::HiddenPinnedMessages().size() * (sizeof(PeerId) + sizeof(MsgId));
 	}
@@ -1761,40 +1774,57 @@ void _writeUserSettings() {
 	}
 
 	EncryptedDescriptor data(size);
+	// below are 22 of int32+int32 blocks (see allocation above). Grouped by 5 for readability.
+
 	data.stream << quint32(dbiSendKey) << qint32(cCtrlEnter() ? dbiskCtrlEnter : dbiskEnter);
 	data.stream << quint32(dbiTileBackground) << qint32(Window::Theme::Background()->tileForSave() ? 1 : 0);
 	data.stream << quint32(dbiAdaptiveForWide) << qint32(Global::AdaptiveForWide() ? 1 : 0);
 	data.stream << quint32(dbiAutoLock) << qint32(Global::AutoLock());
 	data.stream << quint32(dbiReplaceEmojis) << qint32(cReplaceEmojis() ? 1 : 0);
+
 	data.stream << quint32(dbiNoWebPagePreview) << qint32(cNoWebPagePreview() ? 1 : 0);
 	data.stream << quint32(dbiNoDocumentPreview) << qint32(cNoDocumentPreview() ? 1 : 0);
 	data.stream << quint32(dbiSoundNotify) << qint32(Global::SoundNotify());
 	data.stream << quint32(dbiIncludeMuted) << qint32(Global::IncludeMuted());
 	data.stream << quint32(dbiDesktopNotify) << qint32(Global::DesktopNotify());
+
 	data.stream << quint32(dbiNotifyView) << qint32(Global::NotifyView());
 	data.stream << quint32(dbiNativeNotifications) << qint32(Global::NativeNotifications());
 	data.stream << quint32(dbiNotificationsCount) << qint32(Global::NotificationsCount());
 	data.stream << quint32(dbiNotificationsCorner) << qint32(Global::NotificationsCorner());
 	data.stream << quint32(dbiAskDownloadPath) << qint32(Global::AskDownloadPath());
-	data.stream << quint32(dbiDownloadPath) << (Global::AskDownloadPath() ? QString() : Global::DownloadPath()) << (Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
+
 	data.stream << quint32(dbiCompressPastedImage) << qint32(cCompressPastedImage());
-	data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
 	data.stream << quint32(dbiSongVolume) << qint32(qRound(Global::SongVolume() * 1e6));
 	data.stream << quint32(dbiVideoVolume) << qint32(qRound(Global::VideoVolume() * 1e6));
-	data.stream << quint32(dbiAutoDownload) << qint32(cAutoDownloadPhoto()) << qint32(cAutoDownloadAudio()) << qint32(cAutoDownloadGif());
-	data.stream << quint32(dbiDialogsMode) << qint32(Global::DialogsModeEnabled() ? 1 : 0) << static_cast<qint32>(Global::DialogsMode());
 	data.stream << quint32(dbiModerateMode) << qint32(Global::ModerateModeEnabled() ? 1 : 0);
 	data.stream << quint32(dbiAutoPlay) << qint32(cAutoPlayGif() ? 1 : 0);
+
 	data.stream << quint32(dbiDialogsWidthRatio) << qint32(snap(qRound(dialogsWidthRatio() * 1000000), 0, 1000000));
 	data.stream << quint32(dbiUseExternalVideoPlayer) << qint32(cUseExternalVideoPlayer());
+
+	// dbiDownloadPath
+	data.stream << quint32(dbiDownloadPath) << (Global::AskDownloadPath() ? QString() : Global::DownloadPath()) << (Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
+
+	// dbiDialogLastPath
+	data.stream << quint32(dbiDialogLastPath) << cDialogLastPath();
+	// dbiAutoDownload
+	data.stream << quint32(dbiAutoDownload) << qint32(cAutoDownloadPhoto()) << qint32(cAutoDownloadAudio()) << qint32(cAutoDownloadGif());	
+	// dbiDialogsMode
+	data.stream << quint32(dbiDialogsMode) << qint32(Global::DialogsModeEnabled() ? 1 : 0) << static_cast<qint32>(Global::DialogsMode());
+
 	if (!userData.isEmpty()) {
 		data.stream << quint32(dbiAuthSessionData) << userData;
 	}
 
+	// dbiRecentEmoji
 	{
 		data.stream << quint32(dbiRecentEmoji) << recentEmojiPreloadData;
 	}
+	// dbiEmojiVariants
 	data.stream << quint32(dbiEmojiVariants) << cEmojiVariants();
+
+	// dbiRecentStickers
 	{
 		RecentStickerPreload v(cRecentStickersPreload());
 		if (v.isEmpty()) {
