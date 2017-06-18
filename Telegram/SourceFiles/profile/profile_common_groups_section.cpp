@@ -43,7 +43,7 @@ constexpr int kCommonGroupsPerPage = 40;
 } // namespace
 
 object_ptr<Window::SectionWidget> SectionMemento::createWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, const QRect &geometry) const {
-	auto result = object_ptr<Widget>(parent, controller, _peer);
+	auto result = object_ptr<Widget>(parent, controller, _user);
 	result->setInternalState(geometry, this);
 	return std::move(result);
 }
@@ -97,8 +97,8 @@ InnerWidget::Item::Item(PeerData *peer) : peer(peer) {
 
 InnerWidget::Item::~Item() = default;
 
-InnerWidget::InnerWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
-, _peer(peer) {
+InnerWidget::InnerWidget(QWidget *parent, gsl::not_null<UserData*> user) : TWidget(parent)
+, _user(user) {
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	_rowHeight = st::profileCommonGroupsPadding.top() + st::profileCommonGroupsPhotoSize + st::profileCommonGroupsPadding.bottom();
@@ -120,7 +120,7 @@ void InnerWidget::checkPreloadMore() {
 
 void InnerWidget::saveState(SectionMemento *memento) const {
 	if (auto count = _items.size()) {
-		QList<PeerData*> groups;
+		QList<gsl::not_null<PeerData*>> groups;
 		groups.reserve(count);
 		for_const (auto item, _items) {
 			groups.push_back(item->peer);
@@ -137,7 +137,7 @@ void InnerWidget::restoreState(const SectionMemento *memento) {
 	}
 }
 
-void InnerWidget::showInitial(const QList<PeerData*> &list) {
+void InnerWidget::showInitial(const QList<gsl::not_null<PeerData*>> &list) {
 	for_const (auto group, list) {
 		if (auto item = computeItem(group)) {
 			_items.push_back(item);
@@ -151,9 +151,7 @@ void InnerWidget::preloadMore() {
 	if (_preloadRequestId || _allLoaded) {
 		return;
 	}
-	auto user = peer()->asUser();
-	t_assert(user != nullptr);
-	auto request = MTPmessages_GetCommonChats(user->inputUser, MTP_int(_preloadGroupId), MTP_int(kCommonGroupsPerPage));
+	auto request = MTPmessages_GetCommonChats(user()->inputUser, MTP_int(_preloadGroupId), MTP_int(kCommonGroupsPerPage));
 	_preloadRequestId = MTP::send(request, ::rpcDone(base::lambda_guarded(this, [this](const MTPmessages_Chats &result) {
 		_preloadRequestId = 0;
 		_preloadGroupId = 0;
@@ -337,7 +335,7 @@ InnerWidget::~InnerWidget() {
 	}
 }
 
-Widget::Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller, PeerData *peer) : Window::SectionWidget(parent, controller)
+Widget::Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller, gsl::not_null<UserData*> user) : Window::SectionWidget(parent, controller)
 , _scroll(this, st::settingsScroll)
 , _fixedBar(this)
 , _fixedBarShadow(this, st::shadowFg) {
@@ -349,7 +347,7 @@ Widget::Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller, P
 	updateAdaptiveLayout();
 	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
 
-	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this, peer));
+	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this, user));
 	_scroll->move(0, _fixedBar->height());
 	_scroll->show();
 
@@ -361,8 +359,8 @@ void Widget::updateAdaptiveLayout() {
 	_fixedBarShadow->moveToLeft(Adaptive::OneColumn() ? 0 : st::lineWidth, _fixedBar->height());
 }
 
-PeerData *Widget::peer() const {
-	return _inner->peer();
+gsl::not_null<UserData*> Widget::user() const {
+	return _inner->user();
 }
 
 QPixmap Widget::grabForShowAnimation(const Window::SectionSlideParams &params) {
@@ -378,7 +376,7 @@ void Widget::doSetInnerFocus() {
 
 bool Widget::showInternal(const Window::SectionMemento *memento) {
 	if (auto profileMemento = dynamic_cast<const SectionMemento*>(memento)) {
-		if (profileMemento->getPeer() == peer()) {
+		if (profileMemento->getUser() == user()) {
 			restoreState(profileMemento);
 			return true;
 		}
@@ -393,7 +391,7 @@ void Widget::setInternalState(const QRect &geometry, const SectionMemento *memen
 }
 
 std::unique_ptr<Window::SectionMemento> Widget::createMemento() const {
-	auto result = std::make_unique<SectionMemento>(peer());
+	auto result = std::make_unique<SectionMemento>(user());
 	saveState(result.get());
 	return std::move(result);
 }

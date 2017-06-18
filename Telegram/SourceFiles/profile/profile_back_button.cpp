@@ -35,6 +35,11 @@ BackButton::BackButton(QWidget *parent, const QString &text) : Ui::AbstractButto
 	updateAdaptiveLayout();
 }
 
+void BackButton::setText(const QString &text) {
+	_text = text.toUpper();
+	update();
+}
+
 int BackButton::resizeGetHeight(int newWidth) {
 	return st::profileTopBarHeight;
 }

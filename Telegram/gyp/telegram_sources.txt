@@ -141,6 +141,10 @@
 <(src_loc)/dialogs/dialogs_list.h
 <(src_loc)/dialogs/dialogs_row.cpp
 <(src_loc)/dialogs/dialogs_row.h
+<(src_loc)/history/history_admin_log_inner.cpp
+<(src_loc)/history/history_admin_log_inner.h
+<(src_loc)/history/history_admin_log_section.cpp
+<(src_loc)/history/history_admin_log_section.h
 <(src_loc)/history/history_common.h
 <(src_loc)/history/history_drag_area.cpp
 <(src_loc)/history/history_drag_area.h

@@ -126,6 +126,10 @@ protected:
 		setFocus();
 	}
 
+	bool animating() const {
+		return _showAnimation != nullptr;
+	}
+
 private:
 	void showFinished();
 

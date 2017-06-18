@@ -28,6 +28,8 @@ class BackButton final : public Ui::AbstractButton, private base::Subscriber {
 public:
 	BackButton(QWidget *parent, const QString &text);
 
+	void setText(const QString &text);
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 

@@ -43,8 +43,9 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private slots:
-	void onAdmins();
 	void onMembers();
+	void onAdmins();
+	void onRecentActions();
 
 private:
 	// Observed notifications.
@@ -57,8 +58,9 @@ private:
 
 	void addButton(const QString &text, object_ptr<Ui::LeftOutlineButton> *button, const char *slot);
 
-	object_ptr<Ui::LeftOutlineButton> _admins = { nullptr };
 	object_ptr<Ui::LeftOutlineButton> _members = { nullptr };
+	object_ptr<Ui::LeftOutlineButton> _admins = { nullptr };
+	object_ptr<Ui::LeftOutlineButton> _recentActions = { nullptr };
 
 };
 

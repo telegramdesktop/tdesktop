@@ -40,13 +40,13 @@ namespace CommonGroups {
 
 class SectionMemento : public Window::SectionMemento {
 public:
-	SectionMemento(PeerData *peer) : _peer(peer) {
+	SectionMemento(gsl::not_null<UserData*> user) : _user(user) {
 	}
 
 	object_ptr<Window::SectionWidget> createWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, const QRect &geometry) const override;
 
-	PeerData *getPeer() const {
-		return _peer;
+	gsl::not_null<UserData*> getUser() const {
+		return _user;
 	}
 	void setScrollTop(int scrollTop) {
 		_scrollTop = scrollTop;
@@ -54,17 +54,17 @@ public:
 	int getScrollTop() const {
 		return _scrollTop;
 	}
-	void setCommonGroups(const QList<PeerData*> &groups) {
+	void setCommonGroups(const QList<gsl::not_null<PeerData*>> &groups) {
 		_commonGroups = groups;
 	}
-	const QList<PeerData*> &getCommonGroups() const {
+	const QList<gsl::not_null<PeerData*>> &getCommonGroups() const {
 		return _commonGroups;
 	}
 
 private:
-	PeerData *_peer;
+	gsl::not_null<UserData*> _user;
 	int _scrollTop = 0;
-	QList<PeerData*> _commonGroups;
+	QList<gsl::not_null<PeerData*>> _commonGroups;
 
 };
 
@@ -96,10 +96,10 @@ class InnerWidget final : public TWidget {
 	Q_OBJECT
 
 public:
-	InnerWidget(QWidget *parent, PeerData *peer);
+	InnerWidget(QWidget *parent, gsl::not_null<UserData*> user);
 
-	PeerData *peer() const {
-		return _peer;
+	gsl::not_null<UserData*> user() const {
+		return _user;
 	}
 
 	// Updates the area that is visible inside the scroll container.
@@ -131,13 +131,13 @@ protected:
 private:
 	void updateSelected(QPoint localPos);
 	void updateRow(int index);
-	void showInitial(const QList<PeerData*> &list);
+	void showInitial(const QList<gsl::not_null<PeerData*>> &list);
 	void checkPreloadMore();
 	void preloadMore();
 	void updateSize();
 	void paintRow(Painter &p, int index, TimeMs ms);
 
-	PeerData *_peer;
+	gsl::not_null<UserData*> _user;
 
 	int _minHeight = 0;
 	int _rowHeight = 0;
@@ -171,11 +171,11 @@ class Widget final : public Window::SectionWidget {
 	Q_OBJECT
 
 public:
-	Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller, PeerData *peer);
+	Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller, gsl::not_null<UserData*> user);
 
-	PeerData *peer() const;
+	gsl::not_null<UserData*> user() const;
 	PeerData *peerForDialogs() const override {
-		return peer();
+		return user();
 	}
 
 	bool hasTopBarShadow() const override {

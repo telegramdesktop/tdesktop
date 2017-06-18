@@ -24,6 +24,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "boxes/members_box.h"
 #include "observer_peer.h"
+#include "mainwidget.h"
+#include "history/history_admin_log_section.h"
 #include "lang/lang_keys.h"
 
 namespace Profile {
@@ -70,23 +72,33 @@ void ChannelMembersWidget::addButton(const QString &text, object_ptr<Ui::LeftOut
 }
 
 void ChannelMembersWidget::refreshButtons() {
-	refreshAdmins();
 	refreshMembers();
+	refreshAdmins();
 
 	refreshVisibility();
 }
 
 void ChannelMembersWidget::refreshAdmins() {
-	auto getAdminsText = [this]() -> QString {
+	auto getAdminsText = [this] {
 		if (auto channel = peer()->asChannel()) {
 			if (!channel->isMegagroup() && channel->canViewAdmins()) {
-				int adminsCount = qMax(channel->adminsCount(), 1);
+				auto adminsCount = qMax(channel->adminsCount(), 1);
 				return lng_channel_admins_link(lt_count, adminsCount);
 			}
 		}
 		return QString();
 	};
 	addButton(getAdminsText(), &_admins, SLOT(onAdmins()));
+
+	auto getRecentActionsText = [this] {
+		if (auto channel = peer()->asChannel()) {
+			if (!channel->isMegagroup() && (channel->hasAdminRights() || channel->amCreator())) {
+				return lang(lng_profile_recent_actions);
+			}
+		}
+		return QString();
+	};
+	addButton(getRecentActionsText(), &_recentActions, SLOT(onRecentActions()));
 }
 
 void ChannelMembersWidget::refreshMembers() {
@@ -122,10 +134,17 @@ int ChannelMembersWidget::resizeGetHeight(int newWidth) {
 		newHeight += button->height();
 	};
 
-	resizeButton(_admins);
 	resizeButton(_members);
+	resizeButton(_admins);
+	resizeButton(_recentActions);
 
 	return newHeight;
+}
+
+void ChannelMembersWidget::onMembers() {
+	if (auto channel = peer()->asChannel()) {
+		Ui::show(Box<MembersBox>(channel, MembersFilter::Recent));
+	}
 }
 
 void ChannelMembersWidget::onAdmins() {
@@ -134,9 +153,11 @@ void ChannelMembersWidget::onAdmins() {
 	}
 }
 
-void ChannelMembersWidget::onMembers() {
+void ChannelMembersWidget::onRecentActions() {
 	if (auto channel = peer()->asChannel()) {
-		Ui::show(Box<MembersBox>(channel, MembersFilter::Recent));
+		if (auto main = App::main()) {
+			main->showWideSection(AdminLog::SectionMemento(channel));
+		}
 	}
 }
 

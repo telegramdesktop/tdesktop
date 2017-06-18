@@ -46,6 +46,7 @@ protected:
 private slots:
 	void onNotificationsChange();
 	void onManageAdmins();
+	void onRecentActions();
 	void onManageBannedUsers();
 	void onManageRestrictedUsers();
 	void onInviteLink();
@@ -65,6 +66,7 @@ private:
 	// In groups: creator of non-deactivated groups can see this link.
 	// In channels: creator of supergroup can see this link.
 	object_ptr<Ui::LeftOutlineButton> _manageAdmins = { nullptr };
+	object_ptr<Ui::LeftOutlineButton> _recentActions = { nullptr };
 	object_ptr<Ui::LeftOutlineButton> _manageBannedUsers = { nullptr };
 	object_ptr<Ui::LeftOutlineButton> _manageRestrictedUsers = { nullptr };
 	object_ptr<Ui::LeftOutlineButton> _inviteLink = { nullptr };

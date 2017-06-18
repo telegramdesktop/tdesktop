@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "profile/profile_block_settings.h"
 
 #include "profile/profile_channel_controllers.h"
+#include "history/history_admin_log_section.h"
 #include "styles/style_profile.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
@@ -96,6 +97,7 @@ int SettingsWidget::resizeGetHeight(int newWidth) {
 		newHeight += button->height();
 	};
 	moveLink(_manageAdmins);
+	moveLink(_recentActions);
 	moveLink(_manageBannedUsers);
 	moveLink(_manageRestrictedUsers);
 	moveLink(_inviteLink);
@@ -135,6 +137,19 @@ void SettingsWidget::refreshManageAdminsButton() {
 		_manageAdmins.create(this, lang(lng_profile_manage_admins), st::defaultLeftOutlineButton);
 		_manageAdmins->show();
 		connect(_manageAdmins, SIGNAL(clicked()), this, SLOT(onManageAdmins()));
+	}
+
+	auto hasRecentActions = [this] {
+		if (auto channel = peer()->asMegagroup()) {
+			return channel->hasAdminRights() || channel->amCreator();
+		}
+		return false;
+	};
+	_recentActions.destroy();
+	if (hasRecentActions()) {
+		_recentActions.create(this, lang(lng_profile_recent_actions), st::defaultLeftOutlineButton);
+		_recentActions->show();
+		connect(_recentActions, SIGNAL(clicked()), this, SLOT(onRecentActions()));
 	}
 }
 
@@ -198,6 +213,14 @@ void SettingsWidget::onManageAdmins() {
 		Ui::show(Box<ContactsBox>(chat, MembersFilter::Admins));
 	} else if (auto channel = peer()->asChannel()) {
 		ParticipantsBoxController::Start(channel, ParticipantsBoxController::Role::Admins);
+	}
+}
+
+void SettingsWidget::onRecentActions() {
+	if (auto channel = peer()->asChannel()) {
+		if (auto main = App::main()) {
+			main->showWideSection(AdminLog::SectionMemento(channel));
+		}
 	}
 }
 
