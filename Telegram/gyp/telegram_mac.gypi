@@ -28,8 +28,6 @@
       'OTHER_LDFLAGS': [
         '-lbsm',
         '-lm',
-        '-lssl',
-        '-lcrypto',
         '/usr/local/lib/liblzma.a',
       ],
     },
@@ -78,6 +76,8 @@
         '/usr/local/macold/lib/libexif.a',
         '/usr/local/macold/lib/libc++.a',
         '/usr/local/macold/lib/libc++abi.a',
+        '<(libs_loc)/macold/openssl-1.0.1h/libssl.a',
+        '<(libs_loc)/macold/openssl-1.0.1h/libcrypto.a',
       ],
     },
     'include_dirs': [
@@ -86,9 +86,6 @@
       '<(libs_loc)/macold/openssl-1.0.1h/include',
       '<(libs_loc)/macold/crashpad',
       '<(libs_loc)/macold/crashpad/third_party/mini_chromium/mini_chromium',
-    ],
-    'library_dirs': [
-      '<(libs_loc)/macold/openssl-1.0.1h',
     ],
     'configurations': {
       'Debug': {
@@ -139,15 +136,14 @@
         '/usr/local/lib/libavutil.a',
         '/usr/local/lib/libswscale.a',
         '/usr/local/lib/libswresample.a',
+        '<(libs_loc)/openssl-xcode/libssl.a',
+        '<(libs_loc)/openssl-xcode/libcrypto.a',
       ],
     },
     'include_dirs': [
       '<(libs_loc)/crashpad',
       '<(libs_loc)/crashpad/third_party/mini_chromium/mini_chromium',
       '<(libs_loc)/openssl-xcode/include'
-    ],
-    'library_dirs': [
-      '<(libs_loc)/openssl-xcode',
     ],
     'configurations': {
       'Debug': {
