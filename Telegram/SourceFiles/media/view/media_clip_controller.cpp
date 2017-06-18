@@ -58,12 +58,12 @@ Controller::Controller(QWidget *parent) : TWidget(parent)
 		_playbackSlider->setValue(value);
 	});
 	_playbackSlider->setChangeProgressCallback([this](float64 value) {
-		handleSeekProgress(value);
 		_playback->setValue(value, false);
+		handleSeekProgress(value); // This may destroy Controller.
 	});
 	_playbackSlider->setChangeFinishedCallback([this](float64 value) {
-		handleSeekFinished(value);
 		_playback->setValue(value, false);
+		handleSeekFinished(value);
 	});
 }
 

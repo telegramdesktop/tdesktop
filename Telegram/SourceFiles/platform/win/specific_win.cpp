@@ -645,7 +645,7 @@ void psNewVersion() {
 }
 
 void psExecUpdater() {
-	QString targs = qsl("-update");
+	QString targs = qsl("-update -exename \"") + cExeName() + '"';
 	if (cLaunchMode() == LaunchModeAutoStart) targs += qsl(" -autostart");
 	if (cDebug()) targs += qsl(" -debug");
 	if (cStartInTray()) targs += qsl(" -startintray");

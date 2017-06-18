@@ -288,6 +288,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_section_chat_settings" = "Chat Settings";
 "lng_settings_replace_emojis" = "Replace emoji";
 "lng_settings_view_emojis" = "View list";
+"lng_settings_no_web_page_preview" = "No web pages preview";
+"lng_settings_no_document_preview" = "No documents preview";
 "lng_settings_emoji_list" = "Supported emoji";
 "lng_settings_send_enter" = "Send by Enter";
 "lng_settings_send_ctrlenter" = "Send by Ctrl+Enter";
@@ -1092,7 +1094,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— Telegram Calls are now available on desktops: secure, crystal-clear, constantly improved by artificial intelligence.\n— The new Emoji, Stickers, and Saved GIFs panel becomes a separate space on the right when Telegram is running in a wide enough window.\n— Manage blocked users list in your supergroups.\n— Chat admins can delete messages by other members";
+"lng_new_version_text" = "— Improved video messages: radial playback progress, Picture-in-Picture support, duration countdown.\n— Voice and video messages now automatically play one after another.";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

@@ -52,7 +52,10 @@ bool do_mkdir(const char *path) { // from http://stackoverflow.com/questions/675
 }
 
 bool _debug = false;
-string exeName, exeDir, workDir;
+string updaterDir;
+string updaterName;
+string workDir;
+string exeName;
 
 FILE *_logFile = 0;
 void openLog() {
@@ -240,7 +243,7 @@ bool update() {
         string dir = dirs.front();
 		dirs.pop_front();
 
-        string toDir = exeDir;
+        string toDir = updaterDir;
 		if (dir.size() > updDir.size() + 1) {
             toDir += (dir.substr(updDir.size() + 1) + '/');
 			forcedirs.push_back(toDir);
@@ -266,12 +269,16 @@ bool update() {
                     dirs.push_back(fname);
                     writeLog("Added dir '%s' in update tree..", fname.c_str());
                 } else {
-                    string tofname = exeDir + fname.substr(updDir.size() + 1);
-                    if (equal(tofname, exeName)) { // bad update - has Updater - delete all dir
-                        writeLog("Error: bad update, has Updater! '%s' equal '%s'", tofname.c_str(), exeName.c_str());
+                    string tofname = updaterDir + fname.substr(updDir.size() + 1);
+                    if (equal(tofname, updaterName)) { // bad update - has Updater - delete all dir
+                        writeLog("Error: bad update, has Updater! '%s' equal '%s'", tofname.c_str(), updaterName.c_str());
                         delFolder();
                         return false;
-                    }
+					} else if (equal(tofname, updaterDir + "Telegram") && exeName != "Telegram") {
+						string fullBinaryPath = updaterDir + exeName;
+						writeLog("Target binary found: '%s', changing to '%s'", tofname.c_str(), fullBinaryPath.c_str());
+						tofname = fullBinaryPath;
+					}
 					if (fname == readyFilePath) {
 						writeLog("Skipped ready file '%s'", fname.c_str());
                     } else {
@@ -344,9 +351,14 @@ int main(int argc, char *argv[]) {
             workDir = argv[i];
 		} else if (equal(argv[i], "-crashreport") && ++i < argc) {
 			crashreport = argv[i];
+		} else if (equal(argv[i], "-exename") && ++i < argc) {
+			exeName = argv[i];
 		}
     }
-    openLog();
+	if (exeName.empty() || exeName.find('/') != string::npos) {
+		exeName = "Telegram";
+	}
+	openLog();
 
     writeLog("Updater started..");
     for (int i = 0; i < argc; ++i) {
@@ -355,12 +367,12 @@ int main(int argc, char *argv[]) {
     if (needupdate) writeLog("Need to update!");
     if (autostart) writeLog("From autostart!");
 
-    exeName = argv[0];
-    writeLog("Exe name is: %s", exeName.c_str());
-    if (exeName.size() >= 7) {
-        if (equal(exeName.substr(exeName.size() - 7), "Updater")) {
-            exeDir = exeName.substr(0, exeName.size() - 7);
-            writeLog("Exe dir is: %s", exeDir.c_str());
+	updaterName = argv[0];
+    writeLog("Updater binary name is: %s", updaterName.c_str());
+    if (updaterName.size() >= 7) {
+        if (equal(updaterName.substr(updaterName.size() - 7), "Updater")) {
+			updaterDir = updaterName.substr(0, updaterName.size() - 7);
+            writeLog("Updater binary dir is: %s", updaterDir.c_str());
             if (needupdate) {
                 if (workDir.empty()) { // old app launched, update prepared in tupdates/ready (not in tupdates/temp)
                     writeLog("No workdir, trying to figure it out");
@@ -378,7 +390,7 @@ int main(int argc, char *argv[]) {
                         }
                     }
                     if (workDir.empty()) {
-                        workDir = exeDir;
+                        workDir = updaterDir;
 
                         struct stat statbuf;
                         writeLog("Trying to use current as workDir, getting stat() for tupdates/ready");
@@ -405,7 +417,8 @@ int main(int argc, char *argv[]) {
     static const int MaxLen = 65536, MaxArgsCount = 128;
 
     char path[MaxLen] = {0};
-    strcpy(path, (exeDir + "Telegram").c_str());
+	string fullBinaryPath = updaterDir + exeName;
+    strcpy(path, fullBinaryPath.c_str());
 
     char *args[MaxArgsCount] = {0}, p_noupdate[] = "-noupdate", p_autostart[] = "-autostart", p_debug[] = "-debug", p_tosettings[] = "-tosettings", p_key[] = "-key", p_startintray[] = "-startintray", p_testmode[] = "-testmode";
     int argIndex = 0;
