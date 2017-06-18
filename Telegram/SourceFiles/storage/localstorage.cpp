@@ -575,6 +575,8 @@ enum {
 	dbiMtpAuthorization = 0x4b,
 	dbiLastSeenWarningSeenOld = 0x4c,
 	dbiAuthSessionData = 0x4d,
+	dbiNoWebPagePreview = 0x4e,
+	dbiNoDocumentPreview = 0x4f,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -1306,6 +1308,22 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		cSetReplaceEmojis(v == 1);
 	} break;
 
+    case dbiNoWebPagePreview: {
+        qint32 v;
+        stream >> v;
+        if (!_checkStreamStatus(stream)) return false;
+
+        cSetNoWebPagePreview(v == 1);
+    } break;
+
+    case dbiNoDocumentPreview: {
+        qint32 v;
+        stream >> v;
+        if (!_checkStreamStatus(stream)) return false;
+
+        cSetNoDocumentPreview(v == 1);
+    } break;
+
 	case dbiDefaultAttach: {
 		qint32 v;
 		stream >> v;
@@ -1720,7 +1738,9 @@ void _writeUserSettings() {
 		return Window::Controller::kDefaultDialogsWidthRatio;
 	};
 
-	uint32 size = 21 * (sizeof(quint32) + sizeof(qint32));
+	// NOTE: number below is a number of single qint32 options that are serialized right after 'data' object definition.
+	// don't forget to update it after adding of new option.
+	uint32 size = 26 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::stringSize(Global::AskDownloadPath() ? QString() : Global::DownloadPath()) + Serialize::bytearraySize(Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
 
 	size += sizeof(quint32) + sizeof(qint32);
@@ -1746,6 +1766,8 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiAdaptiveForWide) << qint32(Global::AdaptiveForWide() ? 1 : 0);
 	data.stream << quint32(dbiAutoLock) << qint32(Global::AutoLock());
 	data.stream << quint32(dbiReplaceEmojis) << qint32(cReplaceEmojis() ? 1 : 0);
+	data.stream << quint32(dbiNoWebPagePreview) << qint32(cNoWebPagePreview() ? 1 : 0);
+	data.stream << quint32(dbiNoDocumentPreview) << qint32(cNoDocumentPreview() ? 1 : 0);
 	data.stream << quint32(dbiSoundNotify) << qint32(Global::SoundNotify());
 	data.stream << quint32(dbiIncludeMuted) << qint32(Global::IncludeMuted());
 	data.stream << quint32(dbiDesktopNotify) << qint32(Global::DesktopNotify());
