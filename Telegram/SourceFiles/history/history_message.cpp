@@ -2208,15 +2208,15 @@ HistoryService::PreparedText HistoryService::preparePaymentSentText() {
 	return result;
 }
 
-HistoryService::HistoryService(History *history, const MTPDmessageService &msg) :
-	HistoryItem(history, msg.vid.v, mtpCastFlags(msg.vflags.v), ::date(msg.vdate), msg.has_from_id() ? msg.vfrom_id.v : 0) {
-	createFromMtp(msg);
-	setMessageByAction(msg.vaction);
+HistoryService::HistoryService(History *history, const MTPDmessageService &message) :
+	HistoryItem(history, message.vid.v, mtpCastFlags(message.vflags.v), ::date(message.vdate), message.has_from_id() ? message.vfrom_id.v : 0) {
+	createFromMtp(message);
+	setMessageByAction(message.vaction);
 }
 
-HistoryService::HistoryService(History *history, MsgId msgId, QDateTime date, const QString &msg, MTPDmessage::Flags flags, int32 from) :
+HistoryService::HistoryService(History *history, MsgId msgId, QDateTime date, const PreparedText &message, MTPDmessage::Flags flags, int32 from) :
 	HistoryItem(history, msgId, flags, date, from) {
-	setServiceText({ msg });
+	setServiceText(message);
 }
 
 void HistoryService::initDimensions() {
@@ -2497,18 +2497,19 @@ HistoryService::~HistoryService() {
 	_media.reset();
 }
 
-HistoryJoined::HistoryJoined(History *history, const QDateTime &inviteDate, UserData *inviter, MTPDmessage::Flags flags)
-	: HistoryService(history, clientMsgId(), inviteDate, QString(), flags) {
-	auto prepared = PreparedText {};
-	prepared.text = ([history, inviter, &prepared]() {
-		if (inviter->id == AuthSession::CurrentUserPeerId()) {
-			return lang(history->isMegagroup() ? lng_action_you_joined_group : lng_action_you_joined);
-		}
-		prepared.links.push_back(peerOpenClickHandler(inviter));
-		if (history->isMegagroup()) {
-			return lng_action_add_you_group(lt_from, textcmdLink(1, inviter->name));
-		}
-		return lng_action_add_you(lt_from, textcmdLink(1, inviter->name));
-	})();
-	setServiceText(prepared);
+HistoryJoined::HistoryJoined(gsl::not_null<History*> history, const QDateTime &inviteDate, gsl::not_null<UserData*> inviter, MTPDmessage::Flags flags)
+	: HistoryService(history, clientMsgId(), inviteDate, GenerateText(history, inviter), flags) {
+}
+
+HistoryJoined::PreparedText HistoryJoined::GenerateText(gsl::not_null<History*> history, gsl::not_null<UserData*> inviter) {
+	if (inviter->id == AuthSession::CurrentUserPeerId()) {
+		return { lang(history->isMegagroup() ? lng_action_you_joined_group : lng_action_you_joined) };
+	}
+	auto result = PreparedText {};
+	result.links.push_back(peerOpenClickHandler(inviter));
+	if (history->isMegagroup()) {
+		result.text = lng_action_add_you_group(lt_from, textcmdLink(1, inviter->name));
+	}
+	result.text = lng_action_add_you(lt_from, textcmdLink(1, inviter->name));
+	return result;
 }

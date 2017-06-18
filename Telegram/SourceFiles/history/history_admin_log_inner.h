@@ -25,10 +25,31 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace AdminLog {
 
 class SectionMemento;
+class Item;
+
+class LocalIdManager {
+public:
+	LocalIdManager() = default;
+	LocalIdManager(const LocalIdManager &other) = delete;
+	LocalIdManager &operator=(const LocalIdManager &other) = delete;
+	LocalIdManager(LocalIdManager &&other) : _counter(std::exchange(other._counter, ServerMaxMsgId)) {
+	}
+	LocalIdManager &operator=(LocalIdManager &&other) {
+		_counter = std::exchange(other._counter, ServerMaxMsgId);
+		return *this;
+	}
+	MsgId next() {
+		return ++_counter;
+	}
+
+private:
+	MsgId _counter = ServerMaxMsgId;
+
+};
 
 class InnerWidget final : public TWidget, private MTP::Sender {
 public:
-	InnerWidget(QWidget *parent, gsl::not_null<ChannelData*> channel);
+	InnerWidget(QWidget *parent, gsl::not_null<ChannelData*> channel, base::lambda<void(int top)> scrollTo);
 
 	gsl::not_null<ChannelData*> channel() const {
 		return _channel;
@@ -64,20 +85,37 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
+	enum class Direction {
+		Up,
+		Down,
+	};
 	void checkPreloadMore();
-	void preloadMore();
+	void updateVisibleTopItem();
+	void preloadMore(Direction direction);
+	void itemsAdded(Direction direction);
 	void updateSize();
+	void paintEmpty(Painter &p);
 
 	gsl::not_null<ChannelData*> _channel;
+	gsl::not_null<History*> _history;
 	base::lambda<void()> _cancelledCallback;
+	base::lambda<void(int top)> _scrollTo;
+	std::vector<std::unique_ptr<Item>> _items;
 
+	LocalIdManager _idManager;
 	int _minHeight = 0;
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
+	Item *_visibleTopItem = nullptr;
+	int _visibleTopFromItem = 0;
 
-	int32 _preloadGroupId = 0;
-	mtpRequestId _preloadRequestId = 0;
-	bool _allLoaded = true;
+	// Up - max, Down - min.
+	uint64 _maxId = 0;
+	uint64 _minId = 0;
+	mtpRequestId _preloadUpRequestId = 0;
+	mtpRequestId _preloadDownRequestId = 0;
+	bool _upLoaded = false;
+	bool _downLoaded = true;
 
 	MTPDchannelAdminLogEventsFilter::Flags _filterFlags = 0;
 	std::vector<gsl::not_null<UserData*>> _filterAdmins;

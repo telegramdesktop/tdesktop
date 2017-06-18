@@ -228,6 +228,28 @@ inline int compare_bytes(const_byte_span a, const_byte_span b) {
 	return (aSize > bSize) ? 1 : (aSize < bSize) ? -1 : memcmp(a.data(), b.data(), aSize);
 }
 
+// Thanks https://stackoverflow.com/a/28139075
+
+template <typename Container>
+struct reversion_wrapper {
+	Container &container;
+};
+
+template <typename Container>
+auto begin(reversion_wrapper<Container> wrapper) {
+	return std::rbegin(wrapper.container);
+}
+
+template <typename Container>
+auto end(reversion_wrapper<Container> wrapper) {
+	return std::rend(wrapper.container);
+}
+
+template <typename Container>
+reversion_wrapper<Container> reversed(Container &&container) {
+	return { container };
+}
+
 } // namespace base
 
 // using for_const instead of plain range-based for loop to ensure usage of const_iterator

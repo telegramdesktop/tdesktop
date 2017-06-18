@@ -217,6 +217,9 @@ public:
 	HistoryItem *addNewPhoto(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup);
 	HistoryItem *addNewGame(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, GameData *game, const MTPReplyMarkup &markup);
 
+	// Used only internally and for channel admin log.
+	HistoryItem *createItem(const MTPMessage &msg, bool applyServiceAction, bool detachExistingItem);
+
 	void addOlderSlice(const QVector<MTPMessage> &slice);
 	void addNewerSlice(const QVector<MTPMessage> &slice);
 	bool addToOverview(MediaOverviewType type, MsgId msgId, AddToOverviewMethod method);
@@ -480,7 +483,6 @@ protected:
 
 	void clearBlocks(bool leaveItems);
 
-	HistoryItem *createItem(const MTPMessage &msg, bool applyServiceAction, bool detachExistingItem);
 	HistoryItem *createItemForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *msg);
 	HistoryItem *createItemDocument(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup);
 	HistoryItem *createItemPhoto(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup);

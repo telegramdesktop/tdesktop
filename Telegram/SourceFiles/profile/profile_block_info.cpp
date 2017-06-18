@@ -149,14 +149,13 @@ void InfoWidget::refreshAbout() {
 	};
 
 	_about.destroy();
-	auto aboutText = textClean(getAboutText());
-	if (!aboutText.isEmpty()) {
+	auto aboutText = TextWithEntities { textClean(getAboutText()) };
+	if (!aboutText.text.isEmpty()) {
 		_about.create(this, st::profileBlockTextPart);
 		_about->show();
 
-		EntitiesInText aboutEntities;
-		textParseEntities(aboutText, TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands, &aboutEntities);
-		_about->setMarkedText({ aboutText, aboutEntities });
+		textParseEntities(aboutText.text, TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands, &aboutText.entities);
+		_about->setMarkedText(aboutText);
 		_about->setSelectable(true);
 		_about->setClickHandlerHook([this](const ClickHandlerPtr &handler, Qt::MouseButton button) {
 			BotCommandClickHandler::setPeerForCommand(peer());

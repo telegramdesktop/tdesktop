@@ -1323,6 +1323,35 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_no_events_title" = "No events yet";
 "lng_admin_log_no_events_text" = "There were no service actions taken by the group's members and admins in the last 48 hours.";
 
+"lng_admin_log_empty_text" = "Empty";
+"lng_admin_log_changed_title_group" = "{from} changed group name to «{title}»";
+"lng_admin_log_changed_title_channel" = "{from} changed channel name to «{title}»";
+"lng_admin_log_changed_description_group" = "{from} edited group description:";
+"lng_admin_log_removed_description_group" = "{from} removed group description";
+"lng_admin_log_changed_description_channel" = "{from} edited channel description:";
+"lng_admin_log_removed_description_channel" = "{from} removed channel description";
+"lng_admin_log_previous_description" = "Previous description";
+"lng_admin_log_changed_link_group" = "{from} changed group link:";
+"lng_admin_log_removed_link_group" = "{from} removed group link";
+"lng_admin_log_changed_link_channel" = "{from} changed channel link:";
+"lng_admin_log_removed_link_channel" = "{from} removed channel link";
+"lng_admin_log_previous_link" = "Previous link";
+"lng_admin_log_changed_photo_group" = "{from} changed group photo";
+"lng_admin_log_changed_photo_channel" = "{from} changed channel photo";
+"lng_admin_log_invites_enabled" = "{from} enabled group invites";
+"lng_admin_log_invites_disabled" = "{from} disabled group invites";
+"lng_admin_log_signatures_enabled" = "{from} enabled signatures";
+"lng_admin_log_signatures_disabled" = "{from} disabled signatures";
+"lng_admin_log_pinned_message" = "{from} pinned message:";
+"lng_admin_log_edited_caption" = "{from} edited caption:";
+"lng_admin_log_removed_caption" = "{from} removed caption:";
+"lng_admin_log_previous_caption" = "Original caption";
+"lng_admin_log_edited_message" = "{from} edited message:";
+"lng_admin_log_previous_message" = "Original message";
+"lng_admin_log_deleted_message" = "{from} deleted message:";
+"lng_admin_log_participant_joined" = "{from} joined the group";
+"lng_admin_log_participant_left" = "{from} left the group";
+
 // Not used
 
 "lng_topbar_info" = "Info";

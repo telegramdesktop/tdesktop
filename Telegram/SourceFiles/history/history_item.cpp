@@ -543,6 +543,9 @@ void HistoryMessageDate::paint(Painter &p, int y, int w) const {
 	HistoryLayout::ServiceMessagePainter::paintDate(p, _text, _width, y, w);
 }
 
+HistoryMessageLogEntryOriginal::HistoryMessageLogEntryOriginal() : _text(st::msgMinWidth - st::webPageLeft) {
+}
+
 HistoryMediaPtr::HistoryMediaPtr(std::unique_ptr<HistoryMedia> pointer) : _pointer(std::move(pointer)) {
 	if (_pointer) {
 		_pointer->attachToParent();
@@ -656,26 +659,39 @@ void HistoryItem::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pres
 	Ui::repaintHistoryItem(this);
 }
 
-void HistoryItem::destroy() {
-	// All this must be done for all items manually in History::clear(false)!
-	eraseFromOverview();
+void HistoryItem::addLogEntryOriginal(const QString &label, const TextWithEntities &content) {
+	Expects(isLogEntry());
+	AddComponents(HistoryMessageLogEntryOriginal::Bit());
+	auto original = Get<HistoryMessageLogEntryOriginal>();
+	original->_label = label;
+	original->_labelWidth = st::webPageTitleFont->width(label);
+	original->_text.setMarkedText(st::webPageDescriptionStyle, content);
+}
 
-	auto wasAtBottom = history()->loadedAtBottom();
-	_history->removeNotification(this);
-	detach();
-	if (history()->isChannel()) {
-		if (history()->peer->isMegagroup() && history()->peer->asChannel()->mgInfo->pinnedMsgId == id) {
-			history()->peer->asChannel()->mgInfo->pinnedMsgId = 0;
+void HistoryItem::destroy() {
+	if (isLogEntry()) {
+		t_assert(detached());
+	} else {
+		// All this must be done for all items manually in History::clear(false)!
+		eraseFromOverview();
+
+		auto wasAtBottom = history()->loadedAtBottom();
+		_history->removeNotification(this);
+		detach();
+		if (history()->isChannel()) {
+			if (history()->peer->isMegagroup() && history()->peer->asChannel()->mgInfo->pinnedMsgId == id) {
+				history()->peer->asChannel()->mgInfo->pinnedMsgId = 0;
+			}
 		}
-	}
-	if (history()->lastMsg == this) {
-		history()->fixLastMessage(wasAtBottom);
-	}
-	if (history()->lastKeyboardId == id) {
-		history()->clearLastKeyboard();
-	}
-	if ((!out() || isPost()) && unread() && history()->unreadCount() > 0) {
-		history()->setUnreadCount(history()->unreadCount() - 1);
+		if (history()->lastMsg == this) {
+			history()->fixLastMessage(wasAtBottom);
+		}
+		if (history()->lastKeyboardId == id) {
+			history()->clearLastKeyboard();
+		}
+		if ((!out() || isPost()) && unread() && history()->unreadCount() > 0) {
+			history()->setUnreadCount(history()->unreadCount() - 1);
+		}
 	}
 	Global::RefPendingRepaintItems().remove(this);
 	delete this;

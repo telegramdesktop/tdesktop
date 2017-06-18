@@ -379,8 +379,8 @@ private:
 
 };
 
-// any HistoryItem can have this Interface for
-// displaying the day mark above the message
+// Any HistoryItem can have this Component for
+// displaying the day mark above the message.
 struct HistoryMessageDate : public RuntimeComponent<HistoryMessageDate> {
 	void init(const QDateTime &date);
 
@@ -391,8 +391,8 @@ struct HistoryMessageDate : public RuntimeComponent<HistoryMessageDate> {
 	int _width = 0;
 };
 
-// any HistoryItem can have this Interface for
-// displaying the unread messages bar above the message
+// Any HistoryItem can have this Component for
+// displaying the unread messages bar above the message.
 struct HistoryMessageUnreadBar : public RuntimeComponent<HistoryMessageUnreadBar> {
 	void init(int count);
 
@@ -404,13 +404,26 @@ struct HistoryMessageUnreadBar : public RuntimeComponent<HistoryMessageUnreadBar
 	QString _text;
 	int _width = 0;
 
-	// if unread bar is freezed the new messages do not
-	// increment the counter displayed by this bar
+	// If unread bar is freezed the new messages do not
+	// increment the counter displayed by this bar.
 	//
-	// it happens when we've opened the conversation and
+	// It happens when we've opened the conversation and
 	// we've seen the bar and new messages are marked as read
-	// as soon as they are added to the chat history
+	// as soon as they are added to the chat history.
 	bool _freezed = false;
+
+};
+
+// Special type of Component for the channel actions log.
+struct HistoryMessageLogEntryOriginal : public RuntimeComponent<HistoryMessageLogEntryOriginal> {
+	HistoryMessageLogEntryOriginal();
+
+	void paint(Painter &p, int y, int w) const;
+	HistoryTextState getState(int x, int y, HistoryStateRequest request) const;
+
+	QString _label;
+	int _labelWidth = 0;
+	Text _text;
 
 };
 
@@ -503,6 +516,11 @@ public:
 		}
 		return (bot && bot->botInfo) ? bot : nullptr;
 	};
+
+	bool isLogEntry() const {
+		return (id > ServerMaxMsgId);
+	}
+	void addLogEntryOriginal(const QString &label, const TextWithEntities &content);
 
 	History *history() const {
 		return _history;

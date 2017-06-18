@@ -273,11 +273,16 @@ class ServiceMessagePainter;
 
 class HistoryService : public HistoryItem, private HistoryItemInstantiated<HistoryService> {
 public:
-	static HistoryService *create(History *history, const MTPDmessageService &msg) {
-		return _create(history, msg);
+	struct PreparedText {
+		QString text;
+		QList<ClickHandlerPtr> links;
+	};
+
+	static HistoryService *create(History *history, const MTPDmessageService &message) {
+		return _create(history, message);
 	}
-	static HistoryService *create(History *history, MsgId msgId, QDateTime date, const QString &msg, MTPDmessage::Flags flags = 0, int32 from = 0) {
-		return _create(history, msgId, date, msg, flags, from);
+	static HistoryService *create(History *history, MsgId msgId, QDateTime date, const PreparedText &message, MTPDmessage::Flags flags = 0, int32 from = 0) {
+		return _create(history, msgId, date, message, flags, from);
 	}
 
 	bool updateDependencyItem() override;
@@ -333,17 +338,13 @@ public:
 protected:
 	friend class HistoryLayout::ServiceMessagePainter;
 
-	HistoryService(History *history, const MTPDmessageService &msg);
-	HistoryService(History *history, MsgId msgId, QDateTime date, const QString &msg, MTPDmessage::Flags flags = 0, int32 from = 0);
+	HistoryService(History *history, const MTPDmessageService &message);
+	HistoryService(History *history, MsgId msgId, QDateTime date, const PreparedText &message, MTPDmessage::Flags flags = 0, int32 from = 0);
 	friend class HistoryItemInstantiated<HistoryService>;
 
 	void initDimensions() override;
 	int resizeGetHeight_(int width) override;
 
-	struct PreparedText {
-		QString text;
-		QList<ClickHandlerPtr> links;
-	};
 	void setServiceText(const PreparedText &prepared);
 
 	QString fromLinkText() const {
@@ -384,13 +385,16 @@ private:
 
 class HistoryJoined : public HistoryService, private HistoryItemInstantiated<HistoryJoined> {
 public:
-	static HistoryJoined *create(History *history, const QDateTime &date, UserData *from, MTPDmessage::Flags flags) {
-		return _create(history, date, from, flags);
+	static HistoryJoined *create(gsl::not_null<History*> history, const QDateTime &inviteDate, gsl::not_null<UserData*> inviter, MTPDmessage::Flags flags) {
+		return _create(history, inviteDate, inviter, flags);
 	}
 
 protected:
-	HistoryJoined(History *history, const QDateTime &date, UserData *from, MTPDmessage::Flags flags);
+	HistoryJoined(gsl::not_null<History*> history, const QDateTime &inviteDate, gsl::not_null<UserData*> inviter, MTPDmessage::Flags flags);
 	using HistoryItemInstantiated<HistoryJoined>::_create;
 	friend class HistoryItemInstantiated<HistoryJoined>;
+
+private:
+	static PreparedText GenerateText(gsl::not_null<History*> history, gsl::not_null<UserData*> inviter);
 
 };

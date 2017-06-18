@@ -785,9 +785,10 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 	}
 
 	switch (msg.type()) {
-	case mtpc_messageEmpty:
-		result = HistoryService::create(this, msg.c_messageEmpty().vid.v, date(), lang(lng_message_empty));
-	break;
+	case mtpc_messageEmpty: {
+		auto message = HistoryService::PreparedText { lang(lng_message_empty) };
+		result = HistoryService::create(this, msg.c_messageEmpty().vid.v, date(), message);
+	} break;
 
 	case mtpc_message: {
 		auto &m = msg.c_message();
@@ -851,7 +852,8 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 		if (badMedia == MediaCheckResult::Unsupported) {
 			result = createUnsupportedMessage(this, m.vid.v, m.vflags.v, m.vreply_to_msg_id.v, m.vvia_bot_id.v, date(m.vdate), m.vfrom_id.v);
 		} else if (badMedia == MediaCheckResult::Empty) {
-			result = HistoryService::create(this, m.vid.v, date(m.vdate), lang(lng_message_empty), m.vflags.v, m.has_from_id() ? m.vfrom_id.v : 0);
+			auto message = HistoryService::PreparedText { lang(lng_message_empty) };
+			result = HistoryService::create(this, m.vid.v, date(m.vdate), message, m.vflags.v, m.has_from_id() ? m.vfrom_id.v : 0);
 		} else {
 			result = HistoryMessage::create(this, m);
 		}
@@ -1034,7 +1036,8 @@ HistoryItem *History::createItemGame(MsgId id, MTPDmessage::Flags flags, int32 v
 }
 
 HistoryItem *History::addNewService(MsgId msgId, QDateTime date, const QString &text, MTPDmessage::Flags flags, bool newMsg) {
-	return addNewItem(HistoryService::create(this, msgId, date, text, flags), newMsg);
+	auto message = HistoryService::PreparedText { text };
+	return addNewItem(HistoryService::create(this, msgId, date, message, flags), newMsg);
 }
 
 HistoryItem *History::addNewMessage(const MTPMessage &msg, NewMessageType type) {
