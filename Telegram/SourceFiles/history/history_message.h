@@ -205,6 +205,7 @@ private:
 		PeerId authorIdOriginal = 0;
 		PeerId fromIdOriginal = 0;
 		MsgId originalId = 0;
+		QDateTime originalDate;
 		QDateTime editDate;
 
 		// For messages created from MTP structs.

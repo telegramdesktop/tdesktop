@@ -136,6 +136,7 @@ struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited> {
 struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded> {
 	void create(const HistoryMessageVia *via) const;
 
+	QDateTime _originalDate;
 	PeerData *_authorOriginal = nullptr;
 	PeerData *_fromOriginal = nullptr;
 	MsgId _originalId = 0;
@@ -763,6 +764,12 @@ public:
 		return isPost() ? history()->peer : _from;
 	}
 
+	QDateTime dateOriginal() const {
+		if (auto forwarded = Get<HistoryMessageForwarded>()) {
+			return forwarded->_originalDate;
+		}
+		return date;
+	}
 	PeerData *fromOriginal() const {
 		if (auto forwarded = Get<HistoryMessageForwarded>()) {
 			return forwarded->_fromOriginal;

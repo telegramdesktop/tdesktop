@@ -730,6 +730,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_channel_public_link_copied" = "Link copied to clipboard.";
 
 "lng_forwarded" = "Forwarded from {user}";
+"lng_forwarded_date" = "Original: {date}";
 "lng_forwarded_channel" = "Forwarded from {channel}";
 "lng_forwarded_via" = "Forwarded from {user} via {inline_bot}";
 "lng_forwarded_channel_via" = "Forwarded from {channel} via {inline_bot}";
