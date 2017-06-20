@@ -301,7 +301,7 @@ public:
 	DragState getDragState(const QMimeData *d);
 
 	void fastShowAtEnd(History *h);
-	void applyDraft(bool parseLinks = true);
+	void applyDraft(bool parseLinks = true, Ui::FlatTextarea::UndoHistoryAction undoHistoryAction = Ui::FlatTextarea::ClearUndoHistory);
 	void showHistory(const PeerId &peer, MsgId showAtMsgId, bool reload = false);
 	void clearDelayedShowAt();
 	void clearAllLoadRequests();

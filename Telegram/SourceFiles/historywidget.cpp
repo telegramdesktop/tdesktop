@@ -1715,10 +1715,10 @@ void HistoryWidget::fastShowAtEnd(History *h) {
 	}
 }
 
-void HistoryWidget::applyDraft(bool parseLinks) {
+void HistoryWidget::applyDraft(bool parseLinks, Ui::FlatTextarea::UndoHistoryAction undoHistoryAction) {
 	auto draft = _history ? _history->draft() : nullptr;
 	if (!draft || !canWriteMessage()) {
-		clearFieldText();
+		clearFieldText(0, undoHistoryAction);
 		_field->setFocus();
 		_replyEditMsg = nullptr;
 		_editMsgId = _replyToId = 0;
@@ -1726,7 +1726,7 @@ void HistoryWidget::applyDraft(bool parseLinks) {
 	}
 
 	_textUpdateEvents = 0;
-	setFieldText(draft->textWithTags);
+	setFieldText(draft->textWithTags, 0, undoHistoryAction);
 	_field->setFocus();
 	draft->cursor.applyTo(_field);
 	_textUpdateEvents = TextUpdateEvent::SaveDraft | TextUpdateEvent::SendTyping;
@@ -1753,7 +1753,7 @@ void HistoryWidget::applyDraft(bool parseLinks) {
 
 void HistoryWidget::applyCloudDraft(History *history) {
 	if (_history == history && !_editMsgId) {
-		applyDraft();
+		applyDraft(true, Ui::FlatTextarea::AddToUndoHistory);
 
 		updateControlsVisibility();
 		updateControlsGeometry();
