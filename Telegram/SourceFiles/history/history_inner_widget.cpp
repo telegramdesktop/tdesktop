@@ -2416,6 +2416,9 @@ QString HistoryInner::tooltipText() const {
 			if (auto edited = App::hoveredItem()->Get<HistoryMessageEdited>()) {
 				dateText += '\n' + lng_edited_date(lt_date, edited->_editDate.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)));
 			}
+			if (auto forwarded = App::hoveredItem()->Get<HistoryMessageForwarded>()) {
+				dateText += '\n' + lng_forwarded_date(lt_date, forwarded->_originalDate.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)));
+			}
 			return dateText;
 		}
 	} else if (_dragCursorState == HistoryInForwardedCursorState && _dragAction == NoDrag) {

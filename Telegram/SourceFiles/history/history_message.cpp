@@ -376,6 +376,7 @@ HistoryMessage::HistoryMessage(History *history, const MTPDmessage &msg)
 
 	if (msg.has_fwd_from() && msg.vfwd_from.type() == mtpc_messageFwdHeader) {
 		auto &f = msg.vfwd_from.c_messageFwdHeader();
+		config.originalDate = ::date(f.vdate);
 		if (f.has_from_id() || f.has_channel_id()) {
 			config.authorIdOriginal = f.has_channel_id() ? peerFromChannel(f.vchannel_id) : peerFromUser(f.vfrom_id);
 			config.fromIdOriginal = f.has_from_id() ? peerFromUser(f.vfrom_id) : peerFromChannel(f.vchannel_id);
@@ -451,6 +452,7 @@ HistoryMessage::HistoryMessage(History *history, MsgId id, MTPDmessage::Flags fl
 
 	if (fwd->Has<HistoryMessageForwarded>() || !fwd->history()->peer->isSelf()) {
 		// Server doesn't add "fwd_from" to non-forwarded messages from chat with yourself.
+		config.originalDate = fwd->dateOriginal();
 		config.authorIdOriginal = fwd->authorOriginal()->id;
 		config.fromIdOriginal = fwd->fromOriginal()->id;
 		if (fwd->authorOriginal()->isChannel()) {
@@ -627,6 +629,7 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 		edited->create(config.editDate, date);
 	}
 	if (auto forwarded = Get<HistoryMessageForwarded>()) {
+		forwarded->_originalDate = config.originalDate;
 		forwarded->_authorOriginal = App::peer(config.authorIdOriginal);
 		forwarded->_fromOriginal = App::peer(config.fromIdOriginal);
 		forwarded->_originalId = config.originalId;
