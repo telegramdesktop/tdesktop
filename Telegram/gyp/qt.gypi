@@ -34,7 +34,6 @@
           'qt_libs': [
             'qwebp',
             'Qt5PrintSupport',
-            'Qt5PlatformSupport',
             'Qt5Network',
             'Qt5Widgets',
             'Qt5Gui',
@@ -59,6 +58,7 @@
             'qt_libs': [
               '<@(qt_libs)',
               'Qt5Core',
+              'Qt5PlatformSupport',
               'qtmain',
               'qwindows',
               'qtfreetype',
