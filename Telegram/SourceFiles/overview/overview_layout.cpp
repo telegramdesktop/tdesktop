@@ -1014,16 +1014,16 @@ Link::Link(HistoryMedia *media, HistoryItem *parent) : ItemBase(parent) {
 		}
 	}
 
-	_page = (media && media->type() == MediaTypeWebPage) ? static_cast<HistoryWebPage*>(media)->webpage() : 0;
+	_page = (media && media->type() == MediaTypeWebPage) ? static_cast<HistoryWebPage*>(media)->webpage().get() : nullptr;
 	if (_page) {
 		mainUrl = _page->url;
 		if (_page->document) {
-			_photol.reset(new DocumentOpenClickHandler(_page->document));
+			_photol = MakeShared<DocumentOpenClickHandler>(_page->document);
 		} else if (_page->photo) {
 			if (_page->type == WebPageProfile || _page->type == WebPageVideo) {
 				_photol = MakeShared<UrlClickHandler>(_page->url);
 			} else if (_page->type == WebPagePhoto || _page->siteName == qstr("Twitter") || _page->siteName == qstr("Facebook")) {
-				_photol.reset(new PhotoOpenClickHandler(_page->photo));
+				_photol = MakeShared<PhotoOpenClickHandler>(_page->photo);
 			} else {
 				_photol = MakeShared<UrlClickHandler>(_page->url);
 			}
@@ -1034,7 +1034,7 @@ Link::Link(HistoryMedia *media, HistoryItem *parent) : ItemBase(parent) {
 		_photol = MakeShared<UrlClickHandler>(mainUrl);
 	}
 	if (from >= till && _page) {
-		text = _page->description;
+		text = _page->description.text;
 		from = 0;
 		till = text.size();
 	}

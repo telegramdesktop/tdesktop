@@ -3090,7 +3090,7 @@ int unitedLineHeight() {
 
 } // namespace
 
-HistoryWebPage::HistoryWebPage(gsl::not_null<HistoryItem*> parent, WebPageData *data) : HistoryMedia(parent)
+HistoryWebPage::HistoryWebPage(gsl::not_null<HistoryItem*> parent, gsl::not_null<WebPageData*> data) : HistoryMedia(parent)
 , _data(data)
 , _title(st::msgMinWidth - st::webPageLeft)
 , _description(st::msgMinWidth - st::webPageLeft) {
@@ -3121,7 +3121,7 @@ void HistoryWebPage::initDimensions() {
 
 	// init layout
 	auto title = textOneLine(_data->title.isEmpty() ? _data->author : _data->title);
-	if (!_data->description.isEmpty() && title.isEmpty() && _data->siteName.isEmpty() && !_data->url.isEmpty()) {
+	if (!_data->description.text.isEmpty() && title.isEmpty() && _data->siteName.isEmpty() && !_data->url.isEmpty()) {
 		_data->siteName = siteNameFromUrl(_data->url);
 	}
 	if (!_data->document && _data->photo && _data->type != WebPagePhoto && _data->type != WebPageVideo) {
@@ -3132,7 +3132,7 @@ void HistoryWebPage::initDimensions() {
 		} else {
 			_asArticle = true;
 		}
-		if (_asArticle && _data->description.isEmpty() && title.isEmpty() && _data->siteName.isEmpty()) {
+		if (_asArticle && _data->description.text.isEmpty() && title.isEmpty() && _data->siteName.isEmpty()) {
 			_asArticle = false;
 		}
 	} else {
@@ -3157,19 +3157,19 @@ void HistoryWebPage::initDimensions() {
 	}
 
 	// init strings
-	if (_description.isEmpty() && !_data->description.isEmpty()) {
+	if (_description.isEmpty() && !_data->description.text.isEmpty()) {
 		auto text = _data->description;
 
 		if (!_asArticle && !_attach) {
-			text += _parent->skipBlock();
+			text.text += _parent->skipBlock();
 		}
-		const TextParseOptions *opts = &_webpageDescriptionOptions;
+		auto opts = &_webpageDescriptionOptions;
 		if (_data->siteName == qstr("Twitter")) {
 			opts = &_twitterDescriptionOptions;
 		} else if (_data->siteName == qstr("Instagram")) {
 			opts = &_instagramDescriptionOptions;
 		}
-		_description.setText(st::webPageDescriptionStyle, text, *opts);
+		_description.setMarkedText(st::webPageDescriptionStyle, text, *opts);
 	}
 	if (_title.isEmpty() && !title.isEmpty()) {
 		if (!_asArticle && !_attach && _description.isEmpty()) {

@@ -6030,20 +6030,20 @@ void HistoryWidget::updatePreview() {
 			QString title, desc;
 			if (_previewData->siteName.isEmpty()) {
 				if (_previewData->title.isEmpty()) {
-					if (_previewData->description.isEmpty()) {
+					if (_previewData->description.text.isEmpty()) {
 						title = _previewData->author;
 						desc = ((_previewData->document && !_previewData->document->name.isEmpty()) ? _previewData->document->name : _previewData->url);
 					} else {
-						title = _previewData->description;
+						title = _previewData->description.text;
 						desc = _previewData->author.isEmpty() ? ((_previewData->document && !_previewData->document->name.isEmpty()) ? _previewData->document->name : _previewData->url) : _previewData->author;
 					}
 				} else {
 					title = _previewData->title;
-					desc = _previewData->description.isEmpty() ? (_previewData->author.isEmpty() ? ((_previewData->document && !_previewData->document->name.isEmpty()) ? _previewData->document->name : _previewData->url) : _previewData->author) : _previewData->description;
+					desc = _previewData->description.text.isEmpty() ? (_previewData->author.isEmpty() ? ((_previewData->document && !_previewData->document->name.isEmpty()) ? _previewData->document->name : _previewData->url) : _previewData->author) : _previewData->description.text;
 				}
 			} else {
 				title = _previewData->siteName;
-				desc = _previewData->title.isEmpty() ? (_previewData->description.isEmpty() ? (_previewData->author.isEmpty() ? ((_previewData->document && !_previewData->document->name.isEmpty()) ? _previewData->document->name : _previewData->url) : _previewData->author) : _previewData->description) : _previewData->title;
+				desc = _previewData->title.isEmpty() ? (_previewData->description.text.isEmpty() ? (_previewData->author.isEmpty() ? ((_previewData->document && !_previewData->document->name.isEmpty()) ? _previewData->document->name : _previewData->url) : _previewData->author) : _previewData->description.text) : _previewData->title;
 			}
 			if (title.isEmpty()) {
 				if (_previewData->document) {

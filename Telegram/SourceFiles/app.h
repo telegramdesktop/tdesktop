@@ -104,6 +104,7 @@ namespace App {
 	WebPageData *feedWebPage(const MTPDwebPage &webpage, WebPageData *convert = nullptr);
 	WebPageData *feedWebPage(const MTPDwebPagePending &webpage, WebPageData *convert = nullptr);
 	WebPageData *feedWebPage(const MTPWebPage &webpage);
+	WebPageData *feedWebPage(WebPageId webPageId, const QString &siteName, const TextWithEntities &content);
 	GameData *feedGame(const MTPDgame &game, GameData *convert = nullptr);
 
 	PeerData *peer(const PeerId &id, PeerData::LoadedStatus restriction = PeerData::NotLoaded);
@@ -156,7 +157,7 @@ namespace App {
 	DocumentData *document(const DocumentId &document);
 	DocumentData *documentSet(const DocumentId &document, DocumentData *convert, const uint64 &access, int32 version, int32 date, const QVector<MTPDocumentAttribute> &attributes, const QString &mime, const ImagePtr &thumb, int32 dc, int32 size, const StorageImageLocation &thumbLocation);
 	WebPageData *webPage(const WebPageId &webPage);
-	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill);
+	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const TextWithEntities &description, PhotoData *photo, DocumentData *doc, int32 duration, const QString &author, int32 pendingTill);
 	GameData *game(const GameId &game);
 	GameData *gameSet(const GameId &game, GameData *convert, const uint64 &accessHash, const QString &shortName, const QString &title, const QString &description, PhotoData *photo, DocumentData *doc);
 	LocationData *location(const LocationCoords &coords);

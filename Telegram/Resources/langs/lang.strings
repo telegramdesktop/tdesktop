@@ -1344,7 +1344,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_signatures_disabled" = "{from} disabled signatures";
 "lng_admin_log_pinned_message" = "{from} pinned message:";
 "lng_admin_log_edited_caption" = "{from} edited caption:";
-"lng_admin_log_removed_caption" = "{from} removed caption:";
+"lng_admin_log_removed_caption" = "{from} removed caption";
 "lng_admin_log_previous_caption" = "Original caption";
 "lng_admin_log_edited_message" = "{from} edited message:";
 "lng_admin_log_previous_message" = "Original message";

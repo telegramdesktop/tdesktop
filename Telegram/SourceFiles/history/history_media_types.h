@@ -788,7 +788,7 @@ private:
 
 class HistoryWebPage : public HistoryMedia {
 public:
-	HistoryWebPage(gsl::not_null<HistoryItem*> parent, WebPageData *data);
+	HistoryWebPage(gsl::not_null<HistoryItem*> parent, gsl::not_null<WebPageData*> data);
 	HistoryWebPage(gsl::not_null<HistoryItem*> parent, const HistoryWebPage &other);
 	HistoryMediaType type() const override {
 		return MediaTypeWebPage;
@@ -821,13 +821,13 @@ public:
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
 	bool isDisplayed() const override {
-		return !_data->pendingTill;
+		return !_data->pendingTill && !_parent->Has<HistoryMessageLogEntryOriginal>();
 	}
 	DocumentData *getDocument() override {
-		return _attach ? _attach->getDocument() : 0;
+		return _attach ? _attach->getDocument() : nullptr;
 	}
 	Media::Clip::Reader *getClipReader() override {
-		return _attach ? _attach->getClipReader() : 0;
+		return _attach ? _attach->getClipReader() : nullptr;
 	}
 	bool playInline(bool autoplay) override {
 		return _attach ? _attach->playInline(autoplay) : false;
@@ -842,7 +842,7 @@ public:
 	bool hasReplyPreview() const override;
 	ImagePtr replyPreview() override;
 
-	WebPageData *webpage() {
+	gsl::not_null<WebPageData*> webpage() {
 		return _data;
 	}
 
@@ -867,7 +867,7 @@ private:
 	QMargins inBubblePadding() const;
 	int bottomInfoPadding() const;
 
-	WebPageData *_data;
+	gsl::not_null<WebPageData*> _data;
 	ClickHandlerPtr _openl;
 	std::unique_ptr<HistoryMedia> _attach;
 

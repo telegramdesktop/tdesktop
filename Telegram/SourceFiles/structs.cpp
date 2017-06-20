@@ -2083,7 +2083,7 @@ QString DocumentData::composeNameString(const QString &filename, const QString &
 	return songPerformer + QString::fromUtf8(" \xe2\x80\x93 ") + trackTitle;
 }
 
-WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, DocumentData *document, PhotoData *photo, int32 duration, const QString &author, int32 pendingTill) : id(id)
+WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const TextWithEntities &description, DocumentData *document, PhotoData *photo, int32 duration, const QString &author, int32 pendingTill) : id(id)
 , type(type)
 , url(url)
 , displayUrl(displayUrl)

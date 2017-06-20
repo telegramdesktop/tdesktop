@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "history/history_service_layout.h"
+#include "history/history_media_types.h"
 #include "media/media_clip_reader.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
@@ -543,8 +544,17 @@ void HistoryMessageDate::paint(Painter &p, int y, int w) const {
 	HistoryLayout::ServiceMessagePainter::paintDate(p, _text, _width, y, w);
 }
 
-HistoryMessageLogEntryOriginal::HistoryMessageLogEntryOriginal() : _text(st::msgMinWidth - st::webPageLeft) {
+HistoryMessageLogEntryOriginal::HistoryMessageLogEntryOriginal() = default;
+
+HistoryMessageLogEntryOriginal::HistoryMessageLogEntryOriginal(HistoryMessageLogEntryOriginal &&other) : _page(std::move(other._page)) {
 }
+
+HistoryMessageLogEntryOriginal &HistoryMessageLogEntryOriginal::operator=(HistoryMessageLogEntryOriginal &&other) {
+	_page = std::move(other._page);
+	return *this;
+}
+
+HistoryMessageLogEntryOriginal::~HistoryMessageLogEntryOriginal() = default;
 
 HistoryMediaPtr::HistoryMediaPtr(std::unique_ptr<HistoryMedia> pointer) : _pointer(std::move(pointer)) {
 	if (_pointer) {
@@ -659,13 +669,12 @@ void HistoryItem::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pres
 	Ui::repaintHistoryItem(this);
 }
 
-void HistoryItem::addLogEntryOriginal(const QString &label, const TextWithEntities &content) {
+void HistoryItem::addLogEntryOriginal(WebPageId localId, const QString &label, const TextWithEntities &content) {
 	Expects(isLogEntry());
 	AddComponents(HistoryMessageLogEntryOriginal::Bit());
 	auto original = Get<HistoryMessageLogEntryOriginal>();
-	original->_label = label;
-	original->_labelWidth = st::webPageTitleFont->width(label);
-	original->_text.setMarkedText(st::webPageDescriptionStyle, content);
+	auto webpage = App::feedWebPage(localId, label, content);
+	original->_page = std::make_unique<HistoryWebPage>(this, webpage);
 }
 
 void HistoryItem::destroy() {

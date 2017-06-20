@@ -539,6 +539,17 @@ void HistoryMessage::createComponentsHelper(MTPDmessage::Flags flags, MsgId repl
 }
 
 void HistoryMessage::updateMediaInBubbleState() {
+	auto mediaHasSomethingBelow = false;
+	auto mediaHasSomethingAbove = false;
+	auto getMediaHasSomethingAbove = [this] {
+		return displayFromName() || displayForwardedFrom() || Has<HistoryMessageReply>() || Has<HistoryMessageVia>();
+	};
+	if (auto entry = Get<HistoryMessageLogEntryOriginal>()) {
+		mediaHasSomethingBelow = true;
+		mediaHasSomethingAbove = getMediaHasSomethingAbove();
+		auto entryState = (mediaHasSomethingAbove || !emptyText() || (_media && _media->isDisplayed())) ? MediaInBubbleState::Bottom : MediaInBubbleState::None;
+		entry->_page->setInBubbleState(entryState);
+	}
 	if (!_media) {
 		return;
 	}
@@ -548,22 +559,20 @@ void HistoryMessage::updateMediaInBubbleState() {
 		return;
 	}
 
-	bool hasSomethingAbove = displayFromName() || displayForwardedFrom() || Has<HistoryMessageReply>() || Has<HistoryMessageVia>();
-	bool hasSomethingBelow = false;
 	if (!emptyText()) {
 		if (_media->isAboveMessage()) {
-			hasSomethingBelow = true;
+			mediaHasSomethingBelow = true;
 		} else {
-			hasSomethingAbove = true;
+			mediaHasSomethingAbove = true;
 		}
 	}
-	auto computeState = [hasSomethingAbove, hasSomethingBelow] {
-		if (hasSomethingAbove) {
-			if (hasSomethingBelow) {
+	auto computeState = [mediaHasSomethingAbove, mediaHasSomethingBelow] {
+		if (mediaHasSomethingAbove) {
+			if (mediaHasSomethingBelow) {
 				return MediaInBubbleState::Middle;
 			}
 			return MediaInBubbleState::Bottom;
-		} else if (hasSomethingBelow) {
+		} else if (mediaHasSomethingBelow) {
 			return MediaInBubbleState::Top;
 		}
 		return MediaInBubbleState::None;
@@ -811,6 +820,10 @@ void HistoryMessage::initDimensions() {
 				_textHeight = 0;
 			}
 		}
+		auto entry = Get<HistoryMessageLogEntryOriginal>();
+		if (entry) {
+			entry->_page->initDimensions();
+		}
 
 		_maxw = plainMaxWidth();
 		_minh = emptyText() ? 0 : _text.minHeight();
@@ -844,6 +857,12 @@ void HistoryMessage::initDimensions() {
 				}
 				if (_namew > _maxw) _maxw = _namew;
 			}
+			if (entry) {
+				accumulate_max(_maxw, entry->_page->maxWidth());
+			}
+		}
+		if (entry) {
+			_minh += entry->_page->minHeight();
 		}
 	} else if (_media) {
 		_media->initDimensions();
@@ -871,6 +890,13 @@ void HistoryMessage::initDimensions() {
 			_maxw = qMax(_maxw, markup->inlineKeyboard->naturalWidth());
 		}
 	}
+}
+
+bool HistoryMessage::drawBubble() const {
+	if (Has<HistoryMessageLogEntryOriginal>()) {
+		return true;
+	}
+	return _media ? (!emptyText() || _media->needsBubble()) : !isEmpty();
 }
 
 void HistoryMessage::countPositionAndSize(int32 &left, int32 &width) const {
@@ -1348,6 +1374,7 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, T
 			fromNameUpdated(width);
 		}
 
+		auto entry = Get<HistoryMessageLogEntryOriginal>();
 		auto mediaDisplayed = _media && _media->isDisplayed();
 		auto top = marginTop();
 		auto r = QRect(left, top, width, height - top - marginBottom());
@@ -1356,7 +1383,7 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, T
 		auto displayTail = skipTail ? RectPart::None : (outbg && !Adaptive::ChatWide()) ? RectPart::Right : RectPart::Left;
 		HistoryLayout::paintBubble(p, r, _history->width, selected, outbg, displayTail);
 
-		QRect trect(r.marginsAdded(-st::msgPadding));
+		auto trect = r.marginsAdded(-st::msgPadding);
 		if (mediaDisplayed && _media->isBubbleTop()) {
 			trect.setY(trect.y() - st::msgPadding.top());
 		} else {
@@ -1367,6 +1394,9 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, T
 		}
 		if (mediaDisplayed && _media->isBubbleBottom()) {
 			trect.setHeight(trect.height() + st::msgPadding.bottom());
+		}
+		if (entry) {
+			trect.setHeight(trect.height() - entry->_page->height());
 		}
 		auto needDrawInfo = true;
 		if (mediaDisplayed) {
@@ -1389,6 +1419,13 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, T
 			needDrawInfo = !_media->customInfoLayout();
 		} else {
 			paintText(p, trect, selection);
+		}
+		if (entry) {
+			auto entryLeft = r.x();
+			auto entryTop = trect.y() + trect.height();
+			p.translate(entryLeft, entryTop);
+			entry->_page->draw(p, r.translated(-entryLeft, -entryTop), TextSelection(), ms);
+			p.translate(-entryLeft, -entryTop);
 		}
 		if (needDrawInfo) {
 			HistoryMessage::drawInfo(p, r.x() + r.width(), r.y() + r.height(), 2 * r.x() + r.width(), selected, InfoDisplayDefault);
@@ -1520,6 +1557,7 @@ int HistoryMessage::performResizeGetHeight(int width) {
 		auto forwarded = Get<HistoryMessageForwarded>();
 		auto reply = Get<HistoryMessageReply>();
 		auto via = Get<HistoryMessageVia>();
+		auto entry = Get<HistoryMessageLogEntryOriginal>();
 
 		auto mediaDisplayed = false;
 		auto mediaInBubbleState = MediaInBubbleState::None;
@@ -1529,7 +1567,12 @@ int HistoryMessage::performResizeGetHeight(int width) {
 		}
 		if (width >= _maxw) {
 			_height = _minh;
-			if (mediaDisplayed) _media->resizeGetHeight(_maxw);
+			if (mediaDisplayed) {
+				_media->resizeGetHeight(_maxw);
+			}
+			if (entry) {
+				entry->_page->resizeGetHeight(_maxw);
+			}
 		} else {
 			if (emptyText()) {
 				_height = 0;
@@ -1551,6 +1594,9 @@ int HistoryMessage::performResizeGetHeight(int width) {
 				_height += _media->resizeGetHeight(width);
 			} else {
 				_height += st::msgPadding.top() + st::msgPadding.bottom();
+			}
+			if (entry) {
+				_height += entry->_page->resizeGetHeight(width);
 			}
 		}
 

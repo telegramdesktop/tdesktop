@@ -1497,11 +1497,18 @@ namespace {
 	}
 
 	WebPageData *feedWebPage(const MTPDwebPage &webpage, WebPageData *convert) {
-		return App::webPageSet(webpage.vid.v, convert, webpage.has_type() ? qs(webpage.vtype) : qsl("article"), qs(webpage.vurl), qs(webpage.vdisplay_url), webpage.has_site_name() ? qs(webpage.vsite_name) : QString(), webpage.has_title() ? qs(webpage.vtitle) : QString(), webpage.has_description() ? qs(webpage.vdescription) : QString(), webpage.has_photo() ? App::feedPhoto(webpage.vphoto) : 0, webpage.has_document() ? App::feedDocument(webpage.vdocument) : 0, webpage.has_duration() ? webpage.vduration.v : 0, webpage.has_author() ? qs(webpage.vauthor) : QString(), 0);
+		auto description = TextWithEntities { webpage.has_description() ? textClean(qs(webpage.vdescription)) : QString() };
+		auto siteName = webpage.has_site_name() ? qs(webpage.vsite_name) : QString();
+		auto parseFlags = TextParseLinks | TextParseMultiline | TextParseRichText;
+		if (siteName == qstr("Twitter") || siteName == qstr("Instagram")) {
+			parseFlags |= TextParseHashtags | TextParseMentions;
+		}
+		textParseEntities(description.text, parseFlags, &description.entities);
+		return App::webPageSet(webpage.vid.v, convert, webpage.has_type() ? qs(webpage.vtype) : qsl("article"), qs(webpage.vurl), qs(webpage.vdisplay_url), siteName, webpage.has_title() ? qs(webpage.vtitle) : QString(), description, webpage.has_photo() ? App::feedPhoto(webpage.vphoto) : nullptr, webpage.has_document() ? App::feedDocument(webpage.vdocument) : nullptr, webpage.has_duration() ? webpage.vduration.v : 0, webpage.has_author() ? qs(webpage.vauthor) : QString(), 0);
 	}
 
 	WebPageData *feedWebPage(const MTPDwebPagePending &webpage, WebPageData *convert) {
-		return App::webPageSet(webpage.vid.v, convert, QString(), QString(), QString(), QString(), QString(), QString(), 0, 0, 0, QString(), webpage.vdate.v);
+		return App::webPageSet(webpage.vid.v, convert, QString(), QString(), QString(), QString(), QString(), TextWithEntities(), nullptr, nullptr, 0, QString(), webpage.vdate.v);
 	}
 
 	WebPageData *feedWebPage(const MTPWebPage &webpage) {
@@ -1516,6 +1523,10 @@ namespace {
 		case mtpc_webPageNotModified: LOG(("API Error: webPageNotModified is unexpected in feedWebPage().")); break;
 		}
 		return nullptr;
+	}
+
+	WebPageData *feedWebPage(WebPageId webPageId, const QString &siteName, const TextWithEntities &content) {
+		return App::webPageSet(webPageId, nullptr, qsl("article"), QString(), QString(), siteName, QString(), content, nullptr, nullptr, 0, QString(), 0);
 	}
 
 	GameData *feedGame(const MTPDgame &game, GameData *convert) {
@@ -1778,7 +1789,7 @@ namespace {
 		return i.value();
 	}
 
-	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, PhotoData *photo, DocumentData *document, int32 duration, const QString &author, int32 pendingTill) {
+	WebPageData *webPageSet(const WebPageId &webPage, WebPageData *convert, const QString &type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const TextWithEntities &description, PhotoData *photo, DocumentData *document, int32 duration, const QString &author, int32 pendingTill) {
 		if (convert) {
 			if (convert->id != webPage) {
 				auto i = webPagesData.find(convert->id);
@@ -1793,7 +1804,7 @@ namespace {
 				convert->displayUrl = textClean(displayUrl);
 				convert->siteName = textClean(siteName);
 				convert->title = textOneLine(textClean(title));
-				convert->description = textClean(description);
+				convert->description = description;
 				convert->photo = photo;
 				convert->document = document;
 				convert->duration = duration;
@@ -1824,7 +1835,7 @@ namespace {
 					result->displayUrl = textClean(displayUrl);
 					result->siteName = textClean(siteName);
 					result->title = textOneLine(textClean(title));
-					result->description = textClean(description);
+					result->description = description;
 					result->photo = photo;
 					result->document = document;
 					result->duration = duration;

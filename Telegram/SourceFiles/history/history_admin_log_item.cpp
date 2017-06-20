@@ -49,7 +49,7 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, MsgId newId, int32 newDa
 	} break;
 	case mtpc_message: {
 		auto &data = message.c_message();
-		auto flags = data.vflags.v & ~(MTPDmessage::Flag::f_out | MTPDmessage::Flag::f_post | MTPDmessage::Flag::f_reply_to_msg_id);
+		auto flags = data.vflags.v & ~(MTPDmessage::Flag::f_out | MTPDmessage::Flag::f_post | MTPDmessage::Flag::f_reply_to_msg_id | MTPDmessage::Flag::f_edit_date);
 		return MTP_message(MTP_flags(flags), MTP_int(newId), data.vfrom_id, data.vto_id, data.vfwd_from, data.vvia_bot_id, data.vreply_to_msg_id, MTP_int(newDate), data.vmessage, data.vmedia, data.vreply_markup, data.ventities, data.vviews, data.vedit_date);
 	} break;
 	}
@@ -273,7 +273,7 @@ Item::Item(gsl::not_null<History*> history, LocalIdManager &idManager, const MTP
 		auto body = HistoryMessage::create(_history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(_from->id), newDescription);
 		if (!oldValue.isEmpty()) {
 			auto oldDescription = PrepareText(oldValue, QString());
-			body->addLogEntryOriginal(lang(lng_admin_log_previous_description), oldDescription);
+			body->addLogEntryOriginal(_id, lang(lng_admin_log_previous_description), oldDescription);
 		}
 		addPart(body);
 	};
@@ -294,7 +294,7 @@ Item::Item(gsl::not_null<History*> history, LocalIdManager &idManager, const MTP
 		auto body = HistoryMessage::create(_history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(_from->id), newLink);
 		if (!oldValue.isEmpty()) {
 			auto oldLink = PrepareText(Messenger::Instance().createInternalLinkFull(oldValue), QString());
-			body->addLogEntryOriginal(lang(lng_admin_log_previous_link), oldLink);
+			body->addLogEntryOriginal(_id, lang(lng_admin_log_previous_link), oldLink);
 		}
 		addPart(body);
 	};
@@ -342,7 +342,7 @@ Item::Item(gsl::not_null<History*> history, LocalIdManager &idManager, const MTP
 		auto detachExistingItem = false;
 		auto body = _history->createItem(PrepareLogMessage(action.vnew_message, idManager.next(), date.v), applyServiceAction, detachExistingItem);
 		if (!oldValue.text.isEmpty()) {
-			body->addLogEntryOriginal(lang(canHaveCaption ? lng_admin_log_previous_caption : lng_admin_log_previous_description), oldValue);
+			body->addLogEntryOriginal(_id, lang(canHaveCaption ? lng_admin_log_previous_caption : lng_admin_log_previous_message), oldValue);
 		}
 		addPart(body);
 	};

@@ -414,16 +414,16 @@ struct HistoryMessageUnreadBar : public RuntimeComponent<HistoryMessageUnreadBar
 
 };
 
+class HistoryWebPage;
+
 // Special type of Component for the channel actions log.
 struct HistoryMessageLogEntryOriginal : public RuntimeComponent<HistoryMessageLogEntryOriginal> {
 	HistoryMessageLogEntryOriginal();
+	HistoryMessageLogEntryOriginal(HistoryMessageLogEntryOriginal &&other);
+	HistoryMessageLogEntryOriginal &operator=(HistoryMessageLogEntryOriginal &&other);
+	~HistoryMessageLogEntryOriginal();
 
-	void paint(Painter &p, int y, int w) const;
-	HistoryTextState getState(int x, int y, HistoryStateRequest request) const;
-
-	QString _label;
-	int _labelWidth = 0;
-	Text _text;
+	std::unique_ptr<HistoryWebPage> _page;
 
 };
 
@@ -520,7 +520,7 @@ public:
 	bool isLogEntry() const {
 		return (id > ServerMaxMsgId);
 	}
-	void addLogEntryOriginal(const QString &label, const TextWithEntities &content);
+	void addLogEntryOriginal(WebPageId localId, const QString &label, const TextWithEntities &content);
 
 	History *history() const {
 		return _history;
@@ -868,7 +868,7 @@ public:
 	}
 
 	bool isEmpty() const {
-		return _text.isEmpty() && !_media;
+		return _text.isEmpty() && !_media && !Has<HistoryMessageLogEntryOriginal>();
 	}
 
 	void clipCallback(Media::Clip::Notification notification);

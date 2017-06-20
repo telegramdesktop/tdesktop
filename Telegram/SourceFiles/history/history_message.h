@@ -54,9 +54,7 @@ public:
 	int32 plainMaxWidth() const;
 	void countPositionAndSize(int32 &left, int32 &width) const;
 
-	bool drawBubble() const {
-		return _media ? (!emptyText() || _media->needsBubble()) : !isEmpty();
-	}
+	bool drawBubble() const;
 	bool hasBubble() const override {
 		return drawBubble();
 	}
