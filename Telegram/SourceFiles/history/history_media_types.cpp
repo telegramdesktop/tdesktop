@@ -222,7 +222,7 @@ void HistoryFileMedia::checkAnimationFinished() const {
 
 HistoryFileMedia::~HistoryFileMedia() = default;
 
-HistoryPhoto::HistoryPhoto(HistoryItem *parent, PhotoData *photo, const QString &caption) : HistoryFileMedia(parent)
+HistoryPhoto::HistoryPhoto(gsl::not_null<HistoryItem*> parent, gsl::not_null<PhotoData*> photo, const QString &caption) : HistoryFileMedia(parent)
 , _data(photo)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
 	setLinks(MakeShared<PhotoOpenClickHandler>(_data), MakeShared<PhotoSaveClickHandler>(_data), MakeShared<PhotoCancelClickHandler>(_data));
@@ -232,15 +232,18 @@ HistoryPhoto::HistoryPhoto(HistoryItem *parent, PhotoData *photo, const QString 
 	init();
 }
 
-HistoryPhoto::HistoryPhoto(HistoryItem *parent, PeerData *chat, const MTPDphoto &photo, int32 width) : HistoryFileMedia(parent)
-, _data(App::feedPhoto(photo)) {
+HistoryPhoto::HistoryPhoto(gsl::not_null<HistoryItem*> parent, gsl::not_null<PeerData*> chat, gsl::not_null<PhotoData*> photo, int32 width) : HistoryFileMedia(parent)
+, _data(photo) {
 	setLinks(MakeShared<PhotoOpenClickHandler>(_data, chat), MakeShared<PhotoSaveClickHandler>(_data, chat), MakeShared<PhotoCancelClickHandler>(_data, chat));
 
 	_width = width;
 	init();
 }
 
-HistoryPhoto::HistoryPhoto(HistoryItem *parent, const HistoryPhoto &other) : HistoryFileMedia(parent)
+HistoryPhoto::HistoryPhoto(gsl::not_null<HistoryItem*> parent, gsl::not_null<PeerData*> chat, const MTPDphoto &photo, int32 width) : HistoryPhoto(parent, chat, App::feedPhoto(photo), width) {
+}
+
+HistoryPhoto::HistoryPhoto(gsl::not_null<HistoryItem*> parent, const HistoryPhoto &other) : HistoryFileMedia(parent)
 , _data(other._data)
 , _pixw(other._pixw)
 , _pixh(other._pixh)
@@ -559,7 +562,7 @@ void HistoryPhoto::updateSentMedia(const MTPMessageMedia &media) {
 
 bool HistoryPhoto::needReSetInlineResultMedia(const MTPMessageMedia &media) {
 	if (media.type() == mtpc_messageMediaPhoto) {
-		if (PhotoData *existing = App::feedPhoto(media.c_messageMediaPhoto().vphoto)) {
+		if (auto existing = App::feedPhoto(media.c_messageMediaPhoto().vphoto)) {
 			if (existing == _data) {
 				return false;
 			} else {
@@ -612,7 +615,7 @@ ImagePtr HistoryPhoto::replyPreview() {
 	return _data->makeReplyPreview();
 }
 
-HistoryVideo::HistoryVideo(HistoryItem *parent, DocumentData *document, const QString &caption) : HistoryFileMedia(parent)
+HistoryVideo::HistoryVideo(gsl::not_null<HistoryItem*> parent, DocumentData *document, const QString &caption) : HistoryFileMedia(parent)
 , _data(document)
 , _thumbw(1)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
@@ -627,7 +630,7 @@ HistoryVideo::HistoryVideo(HistoryItem *parent, DocumentData *document, const QS
 	_data->thumb->load();
 }
 
-HistoryVideo::HistoryVideo(HistoryItem *parent, const HistoryVideo &other) : HistoryFileMedia(parent)
+HistoryVideo::HistoryVideo(gsl::not_null<HistoryItem*> parent, const HistoryVideo &other) : HistoryFileMedia(parent)
 , _data(other._data)
 , _thumbw(other._thumbw)
 , _caption(other._caption) {
@@ -976,7 +979,7 @@ void HistoryDocumentVoice::stopSeeking() {
 	Media::Player::instance()->stopSeeking(AudioMsgId::Type::Voice);
 }
 
-HistoryDocument::HistoryDocument(HistoryItem *parent, DocumentData *document, const QString &caption) : HistoryFileMedia(parent)
+HistoryDocument::HistoryDocument(gsl::not_null<HistoryItem*> parent, DocumentData *document, const QString &caption) : HistoryFileMedia(parent)
 , _data(document) {
 	createComponents(!caption.isEmpty());
 	if (auto named = Get<HistoryDocumentNamed>()) {
@@ -992,7 +995,7 @@ HistoryDocument::HistoryDocument(HistoryItem *parent, DocumentData *document, co
 	}
 }
 
-HistoryDocument::HistoryDocument(HistoryItem *parent, const HistoryDocument &other) : HistoryFileMedia(parent)
+HistoryDocument::HistoryDocument(gsl::not_null<HistoryItem*> parent, const HistoryDocument &other) : HistoryFileMedia(parent)
 , RuntimeComposer()
 , _data(other._data) {
 	auto captioned = other.Get<HistoryDocumentCaptioned>();
@@ -1715,7 +1718,7 @@ ImagePtr HistoryDocument::replyPreview() {
 	return _data->makeReplyPreview();
 }
 
-HistoryGif::HistoryGif(HistoryItem *parent, DocumentData *document, const QString &caption) : HistoryFileMedia(parent)
+HistoryGif::HistoryGif(gsl::not_null<HistoryItem*> parent, DocumentData *document, const QString &caption) : HistoryFileMedia(parent)
 , _data(document)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
 	setDocumentLinks(_data, true);
@@ -1730,7 +1733,7 @@ HistoryGif::HistoryGif(HistoryItem *parent, DocumentData *document, const QStrin
 	_data->thumb->load();
 }
 
-HistoryGif::HistoryGif(HistoryItem *parent, const HistoryGif &other) : HistoryFileMedia(parent)
+HistoryGif::HistoryGif(gsl::not_null<HistoryItem*> parent, const HistoryGif &other) : HistoryFileMedia(parent)
 , _data(other._data)
 , _thumbw(other._thumbw)
 , _thumbh(other._thumbh)
@@ -2488,7 +2491,7 @@ bool HistoryGif::dataLoaded() const {
 	return (!_parent || _parent->id > 0) ? _data->loaded() : false;
 }
 
-HistorySticker::HistorySticker(HistoryItem *parent, DocumentData *document) : HistoryMedia(parent)
+HistorySticker::HistorySticker(gsl::not_null<HistoryItem*> parent, DocumentData *document) : HistoryMedia(parent)
 , _data(document)
 , _emoji(_data->sticker()->alt) {
 	_data->thumb->load();
@@ -2770,7 +2773,7 @@ ClickHandlerPtr addContactClickHandler(HistoryItem *item) {
 
 } // namespace
 
-HistoryContact::HistoryContact(HistoryItem *parent, int32 userId, const QString &first, const QString &last, const QString &phone) : HistoryMedia(parent)
+HistoryContact::HistoryContact(gsl::not_null<HistoryItem*> parent, int32 userId, const QString &first, const QString &last, const QString &phone) : HistoryMedia(parent)
 , _userId(userId)
 , _fname(first)
 , _lname(last)
@@ -2936,7 +2939,7 @@ void HistoryContact::updateSentMedia(const MTPMessageMedia &media) {
 	}
 }
 
-HistoryCall::HistoryCall(HistoryItem *parent, const MTPDmessageActionPhoneCall &call) : HistoryMedia(parent)
+HistoryCall::HistoryCall(gsl::not_null<HistoryItem*> parent, const MTPDmessageActionPhoneCall &call) : HistoryMedia(parent)
 , _reason(GetReason(call)) {
 	if (_parent->out()) {
 		_text = lang(_reason == FinishReason::Missed ? lng_call_cancelled : lng_call_outgoing);
@@ -3087,13 +3090,13 @@ int unitedLineHeight() {
 
 } // namespace
 
-HistoryWebPage::HistoryWebPage(HistoryItem *parent, WebPageData *data) : HistoryMedia(parent)
+HistoryWebPage::HistoryWebPage(gsl::not_null<HistoryItem*> parent, WebPageData *data) : HistoryMedia(parent)
 , _data(data)
 , _title(st::msgMinWidth - st::webPageLeft)
 , _description(st::msgMinWidth - st::webPageLeft) {
 }
 
-HistoryWebPage::HistoryWebPage(HistoryItem *parent, const HistoryWebPage &other) : HistoryMedia(parent)
+HistoryWebPage::HistoryWebPage(gsl::not_null<HistoryItem*> parent, const HistoryWebPage &other) : HistoryMedia(parent)
 , _data(other._data)
 , _attach(other._attach ? other._attach->clone(parent) : nullptr)
 , _asArticle(other._asArticle)
@@ -3613,13 +3616,13 @@ int HistoryWebPage::bottomInfoPadding() const {
 	return result;
 }
 
-HistoryGame::HistoryGame(HistoryItem *parent, GameData *data) : HistoryMedia(parent)
+HistoryGame::HistoryGame(gsl::not_null<HistoryItem*> parent, GameData *data) : HistoryMedia(parent)
 , _data(data)
 , _title(st::msgMinWidth - st::webPageLeft)
 , _description(st::msgMinWidth - st::webPageLeft) {
 }
 
-HistoryGame::HistoryGame(HistoryItem *parent, const HistoryGame &other) : HistoryMedia(parent)
+HistoryGame::HistoryGame(gsl::not_null<HistoryItem*> parent, const HistoryGame &other) : HistoryMedia(parent)
 , _data(other._data)
 , _attach(other._attach ? other._attach->clone(parent) : nullptr)
 , _title(other._title)
@@ -3992,14 +3995,14 @@ int HistoryGame::bottomInfoPadding() const {
 	return result;
 }
 
-HistoryInvoice::HistoryInvoice(HistoryItem *parent, const MTPDmessageMediaInvoice &data) : HistoryMedia(parent)
+HistoryInvoice::HistoryInvoice(gsl::not_null<HistoryItem*> parent, const MTPDmessageMediaInvoice &data) : HistoryMedia(parent)
 , _title(st::msgMinWidth)
 , _description(st::msgMinWidth)
 , _status(st::msgMinWidth) {
 	fillFromData(data);
 }
 
-HistoryInvoice::HistoryInvoice(HistoryItem *parent, const HistoryInvoice &other) : HistoryMedia(parent)
+HistoryInvoice::HistoryInvoice(gsl::not_null<HistoryItem*> parent, const HistoryInvoice &other) : HistoryMedia(parent)
 , _attach(other._attach ? other._attach->clone(parent) : nullptr)
 , _titleHeight(other._titleHeight)
 , _descriptionHeight(other._descriptionHeight)
@@ -4371,7 +4374,7 @@ int HistoryInvoice::bottomInfoPadding() const {
 	return result;
 }
 
-HistoryLocation::HistoryLocation(HistoryItem *parent, const LocationCoords &coords, const QString &title, const QString &description) : HistoryMedia(parent)
+HistoryLocation::HistoryLocation(gsl::not_null<HistoryItem*> parent, const LocationCoords &coords, const QString &title, const QString &description) : HistoryMedia(parent)
 , _data(App::location(coords))
 , _title(st::msgMinWidth)
 , _description(st::msgMinWidth)
@@ -4384,7 +4387,7 @@ HistoryLocation::HistoryLocation(HistoryItem *parent, const LocationCoords &coor
 	}
 }
 
-HistoryLocation::HistoryLocation(HistoryItem *parent, const HistoryLocation &other) : HistoryMedia(parent)
+HistoryLocation::HistoryLocation(gsl::not_null<HistoryItem*> parent, const HistoryLocation &other) : HistoryMedia(parent)
 , _data(other._data)
 , _title(other._title)
 , _description(other._description)

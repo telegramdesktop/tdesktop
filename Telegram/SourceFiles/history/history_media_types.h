@@ -116,9 +116,10 @@ protected:
 
 class HistoryPhoto : public HistoryFileMedia {
 public:
-	HistoryPhoto(HistoryItem *parent, PhotoData *photo, const QString &caption);
-	HistoryPhoto(HistoryItem *parent, PeerData *chat, const MTPDphoto &photo, int width);
-	HistoryPhoto(HistoryItem *parent, const HistoryPhoto &other);
+	HistoryPhoto(gsl::not_null<HistoryItem*> parent, gsl::not_null<PhotoData*> photo, const QString &caption);
+	HistoryPhoto(gsl::not_null<HistoryItem*> parent, gsl::not_null<PeerData*> chat, gsl::not_null<PhotoData*> photo, int width);
+	HistoryPhoto(gsl::not_null<HistoryItem*> parent, gsl::not_null<PeerData*> chat, const MTPDphoto &photo, int width);
+	HistoryPhoto(gsl::not_null<HistoryItem*> parent, const HistoryPhoto &other);
 
 	void init();
 	HistoryMediaType type() const override {
@@ -212,8 +213,8 @@ private:
 
 class HistoryVideo : public HistoryFileMedia {
 public:
-	HistoryVideo(HistoryItem *parent, DocumentData *document, const QString &caption);
-	HistoryVideo(HistoryItem *parent, const HistoryVideo &other);
+	HistoryVideo(gsl::not_null<HistoryItem*> parent, DocumentData *document, const QString &caption);
+	HistoryVideo(gsl::not_null<HistoryItem*> parent, const HistoryVideo &other);
 	HistoryMediaType type() const override {
 		return MediaTypeVideo;
 	}
@@ -370,8 +371,8 @@ private:
 
 class HistoryDocument : public HistoryFileMedia, public RuntimeComposer {
 public:
-	HistoryDocument(HistoryItem *parent, DocumentData *document, const QString &caption);
-	HistoryDocument(HistoryItem *parent, const HistoryDocument &other);
+	HistoryDocument(gsl::not_null<HistoryItem*> parent, DocumentData *document, const QString &caption);
+	HistoryDocument(gsl::not_null<HistoryItem*> parent, const HistoryDocument &other);
 	HistoryMediaType type() const override {
 		return _data->voice() ? MediaTypeVoiceFile : (_data->song() ? MediaTypeMusicFile : MediaTypeFile);
 	}
@@ -477,8 +478,8 @@ private:
 
 class HistoryGif : public HistoryFileMedia {
 public:
-	HistoryGif(HistoryItem *parent, DocumentData *document, const QString &caption);
-	HistoryGif(HistoryItem *parent, const HistoryGif &other);
+	HistoryGif(gsl::not_null<HistoryItem*> parent, DocumentData *document, const QString &caption);
+	HistoryGif(gsl::not_null<HistoryItem*> parent, const HistoryGif &other);
 	HistoryMediaType type() const override {
 		return MediaTypeGif;
 	}
@@ -601,7 +602,7 @@ private:
 
 class HistorySticker : public HistoryMedia {
 public:
-	HistorySticker(HistoryItem *parent, DocumentData *document);
+	HistorySticker(gsl::not_null<HistoryItem*> parent, DocumentData *document);
 	HistoryMediaType type() const override {
 		return MediaTypeSticker;
 	}
@@ -670,7 +671,7 @@ private:
 
 class HistoryContact : public HistoryMedia {
 public:
-	HistoryContact(HistoryItem *parent, int32 userId, const QString &first, const QString &last, const QString &phone);
+	HistoryContact(gsl::not_null<HistoryItem*> parent, int32 userId, const QString &first, const QString &last, const QString &phone);
 	HistoryMediaType type() const override {
 		return MediaTypeContact;
 	}
@@ -732,7 +733,7 @@ private:
 
 class HistoryCall : public HistoryMedia {
 public:
-	HistoryCall(HistoryItem *parent, const MTPDmessageActionPhoneCall &call);
+	HistoryCall(gsl::not_null<HistoryItem*> parent, const MTPDmessageActionPhoneCall &call);
 	HistoryMediaType type() const override {
 		return MediaTypeCall;
 	}
@@ -787,8 +788,8 @@ private:
 
 class HistoryWebPage : public HistoryMedia {
 public:
-	HistoryWebPage(HistoryItem *parent, WebPageData *data);
-	HistoryWebPage(HistoryItem *parent, const HistoryWebPage &other);
+	HistoryWebPage(gsl::not_null<HistoryItem*> parent, WebPageData *data);
+	HistoryWebPage(gsl::not_null<HistoryItem*> parent, const HistoryWebPage &other);
 	HistoryMediaType type() const override {
 		return MediaTypeWebPage;
 	}
@@ -886,8 +887,8 @@ private:
 
 class HistoryGame : public HistoryMedia {
 public:
-	HistoryGame(HistoryItem *parent, GameData *data);
-	HistoryGame(HistoryItem *parent, const HistoryGame &other);
+	HistoryGame(gsl::not_null<HistoryItem*> parent, GameData *data);
+	HistoryGame(gsl::not_null<HistoryItem*> parent, const HistoryGame &other);
 	HistoryMediaType type() const override {
 		return MediaTypeGame;
 	}
@@ -986,8 +987,8 @@ private:
 
 class HistoryInvoice : public HistoryMedia {
 public:
-	HistoryInvoice(HistoryItem *parent, const MTPDmessageMediaInvoice &data);
-	HistoryInvoice(HistoryItem *parent, const HistoryInvoice &other);
+	HistoryInvoice(gsl::not_null<HistoryItem*> parent, const MTPDmessageMediaInvoice &data);
+	HistoryInvoice(gsl::not_null<HistoryItem*> parent, const HistoryInvoice &other);
 	HistoryMediaType type() const override {
 		return MediaTypeInvoice;
 	}
@@ -1077,8 +1078,8 @@ struct LocationData;
 
 class HistoryLocation : public HistoryMedia {
 public:
-	HistoryLocation(HistoryItem *parent, const LocationCoords &coords, const QString &title = QString(), const QString &description = QString());
-	HistoryLocation(HistoryItem *parent, const HistoryLocation &other);
+	HistoryLocation(gsl::not_null<HistoryItem*> parent, const LocationCoords &coords, const QString &title = QString(), const QString &description = QString());
+	HistoryLocation(gsl::not_null<HistoryItem*> parent, const HistoryLocation &other);
 	HistoryMediaType type() const override {
 		return MediaTypeLocation;
 	}

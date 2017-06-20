@@ -181,3 +181,26 @@ inline QString prepareText(QString result, bool checkLinks = false) {
 // replace bad symbols with space and remove \r
 void cleanTextWithEntities(QString &result, EntitiesInText *inOutEntities);
 void trimTextWithEntities(QString &result, EntitiesInText *inOutEntities);
+
+namespace Lang {
+
+template <typename ResultString>
+struct StartReplacements;
+
+template <>
+struct StartReplacements<TextWithEntities> {
+	static inline TextWithEntities Call(QString &&langString) {
+		return { std::move(langString), EntitiesInText() };
+	}
+};
+
+template <typename ResultString>
+struct ReplaceTag;
+
+template <>
+struct ReplaceTag<TextWithEntities> {
+	static TextWithEntities Call(TextWithEntities &&original, ushort tag, const TextWithEntities &replacement);
+
+};
+
+}

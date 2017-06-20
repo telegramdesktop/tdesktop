@@ -142,24 +142,35 @@ QString lang(LangKey key);\n\
 	for (auto &entry : langpack_.entries) {
 		auto isPlural = !entry.keyBase.isEmpty();
 		auto &key = entry.key;
+		auto genericParams = QStringList();
 		auto params = QStringList();
 		auto applyTags = QStringList();
+		auto plural = QString();
+		auto nonPluralTagFound = false;
 		for (auto &tagData : entry.tags) {
 			auto &tag = tagData.tag;
 			auto isPluralTag = isPlural && (tag == kPluralTag);
+			genericParams.push_back("lngtag_" + tag + ", " + (isPluralTag ? "float64 " : "const ResultString &") + tag + "__val");
 			params.push_back("lngtag_" + tag + ", " + (isPluralTag ? "float64 " : "const QString &") + tag + "__val");
-			if (!isPluralTag) {
-				applyTags.push_back("\tresult = Lang::Tag(result, lt_" + tag + ", " + tag + "__val);\n");
+			if (isPluralTag) {
+				plural = "\tauto plural = Lang::Plural(" + key + ", " + kPluralTag + "__val);\n";
+				applyTags.push_back("\tresult = Lang::ReplaceTag<ResultString>::Call(std::move(result), lt_" + tag + ", Lang::StartReplacements<ResultString>::Call(std::move(plural.replacement)));\n");
+			} else {
+				nonPluralTagFound = true;
+				applyTags.push_back("\tresult = Lang::ReplaceTag<ResultString>::Call(std::move(result), lt_" + tag + ", " + tag + "__val);\n");
 			}
 		}
 		if (!entry.tags.empty() && (!isPlural || key == ComputePluralKey(entry.keyBase, 0))) {
-			auto initialString = isPlural ? ("Lang::Plural(" + key + ", lt_" + kPluralTag + ", " + kPluralTag + "__val)") : ("lang(" + getFullKey(entry) + ")");
+			auto initialString = isPlural ? ("std::move(plural.string)") : ("lang(" + getFullKey(entry) + ")");
 			header_->stream() << "\
-inline QString " << (isPlural ? entry.keyBase : key) << "(" << params.join(QString(", ")) << ") {\n\
-	auto result = " << initialString << ";\n\
+template <typename ResultString>\n\
+inline ResultString " << (isPlural ? entry.keyBase : key) << "__generic(" << genericParams.join(QString(", ")) << ") {\n\
+" << plural << "\
+	auto result = Lang::StartReplacements<ResultString>::Call(" << initialString << ");\n\
 " << applyTags.join(QString()) << "\
 	return result;\n\
 }\n\
+constexpr auto " << (isPlural ? entry.keyBase : key) << " = &" << (isPlural ? entry.keyBase : key) << "__generic<QString>;\n\
 \n";
 		}
 	}

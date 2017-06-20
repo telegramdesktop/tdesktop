@@ -801,6 +801,10 @@ public:
 	}
 
 	static MTPChannelBannedRights KickedRestrictedRights();
+	static constexpr auto kRestrictUntilForever = TimeId(INT_MAX);
+	static bool IsRestrictedForever(TimeId until) {
+		return !until || (until == kRestrictUntilForever);
+	}
 	void applyEditAdmin(gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights);
 	void applyEditBanned(gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights);
 
@@ -1117,9 +1121,9 @@ private:
 
 class PhotoClickHandler : public LeftButtonClickHandler {
 public:
-	PhotoClickHandler(PhotoData *photo, PeerData *peer = 0) : _photo(photo), _peer(peer) {
+	PhotoClickHandler(gsl::not_null<PhotoData*> photo, PeerData *peer = nullptr) : _photo(photo), _peer(peer) {
 	}
-	PhotoData *photo() const {
+	gsl::not_null<PhotoData*> photo() const {
 		return _photo;
 	}
 	PeerData *peer() const {
@@ -1127,7 +1131,7 @@ public:
 	}
 
 private:
-	PhotoData *_photo;
+	gsl::not_null<PhotoData*> _photo;
 	PeerData *_peer;
 
 };

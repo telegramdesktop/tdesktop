@@ -650,7 +650,8 @@ void ThemeExportBox::chooseBackgroundFromFile() {
 				_background = image;
 				_backgroundContent = content;
 				_isPng = (format == "png");
-				_imageText = (_isPng ? lng_theme_editor_read_from_png : lng_theme_editor_read_from_jpg)(lt_size, formatSizeText(_backgroundContent.size()));
+				auto sizeText = formatSizeText(_backgroundContent.size());
+				_imageText = _isPng ? lng_theme_editor_read_from_png(lt_size, sizeText) : lng_theme_editor_read_from_jpg(lt_size, sizeText);
 				_tileBackground->setChecked(false);
 				updateThumbnail();
 			}

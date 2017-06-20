@@ -425,11 +425,9 @@ HistoryMessage::HistoryMessage(History *history, const MTPDmessage &msg)
 
 	initMedia(msg.has_media() ? (&msg.vmedia) : nullptr);
 
-	TextWithEntities textWithEntities = {
-		textClean(qs(msg.vmessage)),
-		msg.has_entities() ? entitiesFromMTP(msg.ventities.v) : EntitiesInText(),
-	};
-	setText(textWithEntities);
+	auto text = textClean(qs(msg.vmessage));
+	auto entities = msg.has_entities() ? entitiesFromMTP(msg.ventities.v) : EntitiesInText();
+	setText({ text, entities });
 }
 
 HistoryMessage::HistoryMessage(History *history, const MTPDmessageService &msg)
@@ -2214,9 +2212,12 @@ HistoryService::HistoryService(History *history, const MTPDmessageService &messa
 	setMessageByAction(message.vaction);
 }
 
-HistoryService::HistoryService(History *history, MsgId msgId, QDateTime date, const PreparedText &message, MTPDmessage::Flags flags, int32 from) :
+HistoryService::HistoryService(History *history, MsgId msgId, QDateTime date, const PreparedText &message, MTPDmessage::Flags flags, int32 from, PhotoData *photo) :
 	HistoryItem(history, msgId, flags, date, from) {
 	setServiceText(message);
+	if (photo) {
+		_media = std::make_unique<HistoryPhoto>(this, history->peer, photo, st::msgServicePhotoWidth);
+	}
 }
 
 void HistoryService::initDimensions() {

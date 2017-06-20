@@ -1351,6 +1351,27 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_deleted_message" = "{from} deleted message:";
 "lng_admin_log_participant_joined" = "{from} joined the group";
 "lng_admin_log_participant_left" = "{from} left the group";
+"lng_admin_log_invited" = "invited {user}";
+"lng_admin_log_banned" = "banned {user}";
+"lng_admin_log_restricted" = "changed restrictions for {user} {until}";
+"lng_admin_log_promoted" = "changed privileges for {user}";
+"lng_admin_log_user_with_username" = "{name} ({mention})";
+"lng_admin_log_restricted_forever" = "indefinitely";
+"lng_admin_log_restricted_until" = "until {date}";
+"lng_admin_log_banned_view_messages" = "Read messages";
+"lng_admin_log_banned_send_messages" = "Send messages";
+"lng_admin_log_banned_send_media" = "Send media";
+"lng_admin_log_banned_send_stickers" = "Send stickers & GIFs";
+"lng_admin_log_banned_embed_links" = "Embed links";
+"lng_admin_log_admin_change_info" = "Change info";
+"lng_admin_log_admin_post_messages" = "Post messages";
+"lng_admin_log_admin_edit_messages" = "Edit messages";
+"lng_admin_log_admin_delete_messages" = "Delete messages";
+"lng_admin_log_admin_ban_users" = "Ban users";
+"lng_admin_log_admin_invite_users" = "Add users";
+"lng_admin_log_admin_invite_link" = "Invite users via link";
+"lng_admin_log_admin_pin_messages" = "Pin messages";
+"lng_admin_log_admin_add_admins" = "Add new admins";
 
 // Not used
 

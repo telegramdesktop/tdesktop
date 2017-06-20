@@ -54,8 +54,6 @@ private:
 	}
 	void addPart(HistoryItem *item);
 
-	static TextWithEntities PrepareText(const QString &value, const QString &emptyValue);
-
 	uint64 _id = 0;
 	gsl::not_null<History*> _history;
 	gsl::not_null<UserData*> _from;

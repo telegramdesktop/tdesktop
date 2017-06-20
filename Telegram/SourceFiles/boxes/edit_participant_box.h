@@ -96,7 +96,6 @@ public:
 	EditRestrictedBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights, const MTPChannelBannedRights &rights, base::lambda<void(MTPChannelBannedRights)> callback);
 
 	static MTPChannelBannedRights DefaultRights(gsl::not_null<ChannelData*> channel);
-	static constexpr auto kRestrictUntilForever = TimeId(INT_MAX);
 
 protected:
 	void prepare() override;
@@ -109,7 +108,7 @@ private:
 	void showRestrictUntil();
 	void setRestrictUntil(int32 until);
 	bool isUntilForever() {
-		return (_until <= 0) || (_until == kRestrictUntilForever);
+		return ChannelData::IsRestrictedForever(_until);
 	}
 
 	MTPChannelBannedRights _rights;

@@ -281,8 +281,8 @@ public:
 	static HistoryService *create(History *history, const MTPDmessageService &message) {
 		return _create(history, message);
 	}
-	static HistoryService *create(History *history, MsgId msgId, QDateTime date, const PreparedText &message, MTPDmessage::Flags flags = 0, int32 from = 0) {
-		return _create(history, msgId, date, message, flags, from);
+	static HistoryService *create(History *history, MsgId msgId, QDateTime date, const PreparedText &message, MTPDmessage::Flags flags = 0, UserId from = 0, PhotoData *photo = nullptr) {
+		return _create(history, msgId, date, message, flags, from, photo);
 	}
 
 	bool updateDependencyItem() override;
@@ -339,7 +339,7 @@ protected:
 	friend class HistoryLayout::ServiceMessagePainter;
 
 	HistoryService(History *history, const MTPDmessageService &message);
-	HistoryService(History *history, MsgId msgId, QDateTime date, const PreparedText &message, MTPDmessage::Flags flags = 0, int32 from = 0);
+	HistoryService(History *history, MsgId msgId, QDateTime date, const PreparedText &message, MTPDmessage::Flags flags = 0, UserId from = 0, PhotoData *photo = 0);
 	friend class HistoryItemInstantiated<HistoryService>;
 
 	void initDimensions() override;

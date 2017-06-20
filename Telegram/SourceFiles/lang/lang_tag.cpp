@@ -129,19 +129,14 @@ ChoosePluralMethod ChoosePlural = ChoosePluralEn;
 
 } // namespace
 
-QString Tag(const QString &original, ushort tag, const QString &replacement) {
+int FindTagReplacementPosition(const QString &original, ushort tag) {
 	for (auto s = original.constData(), ch = s, e = ch + original.size(); ch != e;) {
 		if (*ch == TextCommand) {
-			if (ch + 3 < e && (ch + 1)->unicode() == TextCommandLangTag && *(ch + 3) == TextCommand) {
+			if (ch + kTagReplacementSize <= e && (ch + 1)->unicode() == TextCommandLangTag && *(ch + 3) == TextCommand) {
 				if ((ch + 2)->unicode() == 0x0020 + tag) {
-					auto result = QString();
-					result.reserve(original.size() + replacement.size() - 4);
-					if (ch > s) result.append(original.midRef(0, ch - s));
-					result.append(replacement);
-					if (ch + 4 < e) result.append(original.midRef(ch - s + 4));
-					return result;
+					return ch - s;
 				} else {
-					ch += 4;
+					ch += kTagReplacementSize;
 				}
 			} else {
 				auto next = textSkipCommand(ch, e);
@@ -155,10 +150,11 @@ QString Tag(const QString &original, ushort tag, const QString &replacement) {
 			++ch;
 		}
 	}
-	return original;
+	return -1;
+
 }
 
-QString Plural(ushort keyBase, ushort tag, float64 value) {
+PluralResult Plural(ushort keyBase, float64 value) {
 	// Simplified.
 	auto n = qAbs(value);
 	auto i = qFloor(n);
@@ -173,14 +169,27 @@ QString Plural(ushort keyBase, ushort tag, float64 value) {
 	auto shift = (useNonDefaultPlural ? ChoosePlural : ChoosePluralEn)((integer ? i : -1), i, v, w, f, t);
 	auto string = langpack.getValue(LangKey(keyBase + shift));
 	if (i == qCeil(n)) {
-		return Tag(string, tag, QString::number(value));
+		return { string, QString::number(value) };
 	}
-	return Tag(string, tag, QString::number(qRound(value)));
+	return { string, QString::number(qRound(value)) };
 }
 
 void UpdatePluralRules(const QString &languageId) {
 	static auto kMap = GeneratePluralRulesMap();
 	ChoosePlural = kMap.value(languageId.toLower(), ChoosePluralEn);
+}
+
+QString ReplaceTag<QString>::Replace(QString &&original, const QString &replacement, int replacementPosition) {
+	auto result = QString();
+	result.reserve(original.size() + replacement.size() - kTagReplacementSize);
+	if (replacementPosition > 0) {
+		result.append(original.midRef(0, replacementPosition));
+	}
+	result.append(replacement);
+	if (replacementPosition + kTagReplacementSize < original.size()) {
+		result.append(original.midRef(replacementPosition + kTagReplacementSize));
+	}
+	return result;
 }
 
 } // namespace Lang

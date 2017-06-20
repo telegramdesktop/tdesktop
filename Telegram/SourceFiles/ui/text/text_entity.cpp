@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/text/text_entity.h"
 
 #include "auth_session.h"
+#include "lang/lang_tag.h"
 
 namespace {
 
@@ -1366,7 +1367,7 @@ EntitiesInText entitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 			case mtpc_messageEntityHashtag: { const auto &d(entity.c_messageEntityHashtag()); result.push_back(EntityInText(EntityInTextHashtag, d.voffset.v, d.vlength.v)); } break;
 			case mtpc_messageEntityMention: { const auto &d(entity.c_messageEntityMention()); result.push_back(EntityInText(EntityInTextMention, d.voffset.v, d.vlength.v)); } break;
 			case mtpc_messageEntityMentionName: {
-				const auto &d(entity.c_messageEntityMentionName());
+				auto &d = entity.c_messageEntityMentionName();
 				auto data = QString::number(d.vuser_id.v);
 				if (auto user = App::userLoaded(peerFromUser(d.vuser_id))) {
 					data += '.' + QString::number(user->access);
@@ -1374,7 +1375,7 @@ EntitiesInText entitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 				result.push_back(EntityInText(EntityInTextMentionName, d.voffset.v, d.vlength.v, data));
 			} break;
 			case mtpc_inputMessageEntityMentionName: {
-				const auto &d(entity.c_inputMessageEntityMentionName());
+				auto &d = entity.c_inputMessageEntityMentionName();
 				auto data = ([&d]() -> QString {
 					if (d.vuser_id.type() == mtpc_inputUserSelf) {
 						return QString::number(AuthSession::CurrentUserId());
@@ -1994,3 +1995,65 @@ void trimTextWithEntities(QString &result, EntitiesInText *inOutEntities) {
 		}
 	}
 }
+
+namespace Lang {
+
+TextWithEntities ReplaceTag<TextWithEntities>::Call(TextWithEntities &&original, ushort tag, const TextWithEntities &replacement) {
+	auto replacementPosition = FindTagReplacementPosition(original.text, tag);
+	if (replacementPosition < 0) {
+		return std::move(original);
+	}
+
+	auto result = TextWithEntities();
+	result.text = ReplaceTag<QString>::Replace(std::move(original.text), replacement.text, replacementPosition);
+	auto originalEntitiesCount = original.entities.size();
+	auto replacementEntitiesCount = replacement.entities.size();
+	if (originalEntitiesCount != 0 || replacementEntitiesCount != 0) {
+		result.entities.reserve(originalEntitiesCount + replacementEntitiesCount);
+
+		auto replacementEnd = replacementPosition + replacement.text.size();
+		auto replacementEntity = replacement.entities.cbegin();
+		auto addReplacementEntitiesUntil = [&replacementEntity, &replacement, &result, replacementPosition, replacementEnd](int untilPosition) {
+			while (replacementEntity != replacement.entities.cend()) {
+				auto newOffset = replacementPosition + replacementEntity->offset();
+				if (newOffset >= untilPosition) {
+					return;
+				}
+				auto newEnd = newOffset + replacementEntity->length();
+				newOffset = snap(newOffset, replacementPosition, replacementEnd);
+				newEnd = snap(newEnd, replacementPosition, replacementEnd);
+				if (auto newLength = newEnd - newOffset) {
+					result.entities.push_back(EntityInText(replacementEntity->type(), newOffset, newLength, replacementEntity->data()));
+				}
+				++replacementEntity;
+			}
+		};
+
+		for_const (auto &entity, original.entities) {
+			// Transform the entity by the replacement.
+			auto offset = entity.offset();
+			auto end = offset + entity.length();
+			if (offset > replacementPosition) {
+				offset = offset + replacement.text.size() - kTagReplacementSize;
+			}
+			if (end > replacementPosition) {
+				end = end + replacement.text.size() - kTagReplacementSize;
+			}
+			offset = snap(offset, 0, result.text.size());
+			end = snap(end, 0, result.text.size());
+
+			// Add all replacement entities that start before the current original entity.
+			addReplacementEntitiesUntil(offset);
+
+			// Add a modified original entity.
+			if (auto length = end - offset) {
+				result.entities.push_back(EntityInText(entity.type(), offset, length, entity.data()));
+			}
+		}
+		// Add the remaining replacement entities.
+		addReplacementEntitiesUntil(result.text.size());
+	}
+	return result;
+}
+
+} // namespace Lang
