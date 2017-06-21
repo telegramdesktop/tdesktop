@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "history/history_admin_log_item.h"
 
+#include "history/history_admin_log_inner.h"
 #include "lang/lang_keys.h"
 #include "messenger.h"
 
@@ -233,35 +234,39 @@ TextWithEntities GenerateParticipantChangeText(gsl::not_null<ChannelData*> chann
 
 } // namespace
 
-Item::Item(gsl::not_null<History*> history, LocalIdManager &idManager, const MTPDchannelAdminLogEvent &event)
-: _id(event.vid.v)
-, _date(::date(event.vdate))
-, _history(history)
-, _from(App::user(event.vuser_id.v)) {
+void GenerateItems(gsl::not_null<History*> history, LocalIdManager &idManager, const MTPDchannelAdminLogEvent &event, base::lambda<void(HistoryItemOwned item)> callback) {
+	Expects(history->peer->isChannel());
+
+	auto id = event.vid.v;
+	auto from = App::user(event.vuser_id.v);
+	auto channel = history->peer->asChannel();
 	auto &action = event.vaction;
 	auto date = event.vdate;
+	auto addPart = [&callback](gsl::not_null<HistoryItem*> item) {
+		return callback(HistoryItemOwned(item));
+	};
 
 	using ServiceFlag = MTPDmessageService::Flag;
 	using Flag = MTPDmessage::Flag;
-	auto fromName = App::peerName(_from);
-	auto fromLink = _from->openLink();
+	auto fromName = App::peerName(from);
+	auto fromLink = peerOpenClickHandler(from);
 	auto fromLinkText = textcmdLink(1, fromName);
 
-	auto addSimpleServiceMessage = [this, &idManager, date, fromLink](const QString &text, PhotoData *photo = nullptr) {
+	auto addSimpleServiceMessage = [&](const QString &text, PhotoData *photo = nullptr) {
 		auto message = HistoryService::PreparedText { text };
 		message.links.push_back(fromLink);
-		addPart(HistoryService::create(_history, idManager.next(), ::date(date), message, 0, peerToUser(_from->id), photo));
+		addPart(HistoryService::create(history, idManager.next(), ::date(date), message, 0, peerToUser(from->id), photo));
 	};
 
-	auto createChangeTitle = [this, addSimpleServiceMessage, fromLinkText](const MTPDchannelAdminLogEventActionChangeTitle &action) {
-		auto text = (channel()->isMegagroup() ? lng_action_changed_title : lng_admin_log_changed_title_channel)(lt_from, fromLinkText, lt_title, qs(action.vnew_value));
+	auto createChangeTitle = [&](const MTPDchannelAdminLogEventActionChangeTitle &action) {
+		auto text = (channel->isMegagroup() ? lng_action_changed_title : lng_admin_log_changed_title_channel)(lt_from, fromLinkText, lt_title, qs(action.vnew_value));
 		addSimpleServiceMessage(text);
 	};
 
-	auto createChangeAbout = [this, &idManager, date, addSimpleServiceMessage, fromLinkText](const MTPDchannelAdminLogEventActionChangeAbout &action) {
+	auto createChangeAbout = [&](const MTPDchannelAdminLogEventActionChangeAbout &action) {
 		auto newValue = qs(action.vnew_value);
 		auto oldValue = qs(action.vprev_value);
-		auto text = (channel()->isMegagroup()
+		auto text = (channel->isMegagroup()
 			? (newValue.isEmpty() ? lng_admin_log_removed_description_group : lng_admin_log_changed_description_group)
 			: (newValue.isEmpty() ? lng_admin_log_removed_description_channel : lng_admin_log_changed_description_channel)
 			)(lt_from, fromLinkText);
@@ -271,18 +276,18 @@ Item::Item(gsl::not_null<History*> history, LocalIdManager &idManager, const MTP
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
 		auto newDescription = PrepareText(newValue, QString());
-		auto body = HistoryMessage::create(_history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(_from->id), newDescription);
+		auto body = HistoryMessage::create(history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(from->id), newDescription);
 		if (!oldValue.isEmpty()) {
 			auto oldDescription = PrepareText(oldValue, QString());
-			body->addLogEntryOriginal(_id, lang(lng_admin_log_previous_description), oldDescription);
+			body->addLogEntryOriginal(id, lang(lng_admin_log_previous_description), oldDescription);
 		}
 		addPart(body);
 	};
 
-	auto createChangeUsername = [this, &idManager, date, addSimpleServiceMessage, fromLinkText](const MTPDchannelAdminLogEventActionChangeUsername &action) {
+	auto createChangeUsername = [&](const MTPDchannelAdminLogEventActionChangeUsername &action) {
 		auto newValue = qs(action.vnew_value);
 		auto oldValue = qs(action.vprev_value);
-		auto text = (channel()->isMegagroup()
+		auto text = (channel->isMegagroup()
 			? (newValue.isEmpty() ? lng_admin_log_removed_link_group : lng_admin_log_changed_link_group)
 			: (newValue.isEmpty() ? lng_admin_log_removed_link_channel : lng_admin_log_changed_link_channel)
 			)(lt_from, fromLinkText);
@@ -292,44 +297,44 @@ Item::Item(gsl::not_null<History*> history, LocalIdManager &idManager, const MTP
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
 		auto newLink = newValue.isEmpty() ? TextWithEntities() : PrepareText(Messenger::Instance().createInternalLinkFull(newValue), QString());
-		auto body = HistoryMessage::create(_history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(_from->id), newLink);
+		auto body = HistoryMessage::create(history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(from->id), newLink);
 		if (!oldValue.isEmpty()) {
 			auto oldLink = PrepareText(Messenger::Instance().createInternalLinkFull(oldValue), QString());
-			body->addLogEntryOriginal(_id, lang(lng_admin_log_previous_link), oldLink);
+			body->addLogEntryOriginal(id, lang(lng_admin_log_previous_link), oldLink);
 		}
 		addPart(body);
 	};
 
-	auto createChangePhoto = [this, date, addSimpleServiceMessage, fromLinkText](const MTPDchannelAdminLogEventActionChangePhoto &action) {
+	auto createChangePhoto = [&](const MTPDchannelAdminLogEventActionChangePhoto &action) {
 		t_assert(action.vnew_photo.type() == mtpc_chatPhoto);
-		auto photo = GenerateChatPhoto(channel()->bareId(), _id, date, action.vnew_photo.c_chatPhoto());
+		auto photo = GenerateChatPhoto(channel->bareId(), id, date, action.vnew_photo.c_chatPhoto());
 
-		auto text = (channel()->isMegagroup() ? lng_admin_log_changed_photo_group : lng_admin_log_changed_photo_channel)(lt_from, fromLinkText);
+		auto text = (channel->isMegagroup() ? lng_admin_log_changed_photo_group : lng_admin_log_changed_photo_channel)(lt_from, fromLinkText);
 		addSimpleServiceMessage(text, photo);
 	};
 
-	auto createToggleInvites = [this, addSimpleServiceMessage, fromLinkText](const MTPDchannelAdminLogEventActionToggleInvites &action) {
+	auto createToggleInvites = [&](const MTPDchannelAdminLogEventActionToggleInvites &action) {
 		auto enabled = (action.vnew_value.type() == mtpc_boolTrue);
 		auto text = (enabled ? lng_admin_log_invites_enabled : lng_admin_log_invites_disabled)(lt_from, fromLinkText);
 		addSimpleServiceMessage(text);
 	};
 
-	auto createToggleSignatures = [this, addSimpleServiceMessage, fromLinkText](const MTPDchannelAdminLogEventActionToggleSignatures &action) {
+	auto createToggleSignatures = [&](const MTPDchannelAdminLogEventActionToggleSignatures &action) {
 		auto enabled = (action.vnew_value.type() == mtpc_boolTrue);
 		auto text = (enabled ? lng_admin_log_signatures_enabled : lng_admin_log_signatures_disabled)(lt_from, fromLinkText);
 		addSimpleServiceMessage(text);
 	};
 
-	auto createUpdatePinned = [this, &idManager, date, addSimpleServiceMessage, fromLinkText](const MTPDchannelAdminLogEventActionUpdatePinned &action) {
+	auto createUpdatePinned = [&](const MTPDchannelAdminLogEventActionUpdatePinned &action) {
 		auto text = lng_admin_log_pinned_message(lt_from, fromLinkText);
 		addSimpleServiceMessage(text);
 
 		auto applyServiceAction = false;
 		auto detachExistingItem = false;
-		addPart(_history->createItem(PrepareLogMessage(action.vmessage, idManager.next(), date.v), applyServiceAction, detachExistingItem));
+		addPart(history->createItem(PrepareLogMessage(action.vmessage, idManager.next(), date.v), applyServiceAction, detachExistingItem));
 	};
 
-	auto createEditMessage = [this, &idManager, date, addSimpleServiceMessage, fromLinkText](const MTPDchannelAdminLogEventActionEditMessage &action) {
+	auto createEditMessage = [&](const MTPDchannelAdminLogEventActionEditMessage &action) {
 		auto newValue = ExtractEditedText(action.vnew_message);
 		auto canHaveCaption = MediaCanHaveCaption(action.vnew_message);
 		auto text = (canHaveCaption
@@ -341,54 +346,54 @@ Item::Item(gsl::not_null<History*> history, LocalIdManager &idManager, const MTP
 		auto oldValue = ExtractEditedText(action.vprev_message);
 		auto applyServiceAction = false;
 		auto detachExistingItem = false;
-		auto body = _history->createItem(PrepareLogMessage(action.vnew_message, idManager.next(), date.v), applyServiceAction, detachExistingItem);
+		auto body = history->createItem(PrepareLogMessage(action.vnew_message, idManager.next(), date.v), applyServiceAction, detachExistingItem);
 		if (!oldValue.text.isEmpty()) {
-			body->addLogEntryOriginal(_id, lang(canHaveCaption ? lng_admin_log_previous_caption : lng_admin_log_previous_message), oldValue);
+			body->addLogEntryOriginal(id, lang(canHaveCaption ? lng_admin_log_previous_caption : lng_admin_log_previous_message), oldValue);
 		}
 		addPart(body);
 	};
 
-	auto createDeleteMessage = [this, &idManager, date, addSimpleServiceMessage, fromLinkText](const MTPDchannelAdminLogEventActionDeleteMessage &action) {
+	auto createDeleteMessage = [&](const MTPDchannelAdminLogEventActionDeleteMessage &action) {
 		auto text = lng_admin_log_deleted_message(lt_from, fromLinkText);
 		addSimpleServiceMessage(text);
 
 		auto applyServiceAction = false;
 		auto detachExistingItem = false;
-		addPart(_history->createItem(PrepareLogMessage(action.vmessage, idManager.next(), date.v), applyServiceAction, detachExistingItem));
+		addPart(history->createItem(PrepareLogMessage(action.vmessage, idManager.next(), date.v), applyServiceAction, detachExistingItem));
 	};
 
-	auto createParticipantJoin = [this, &idManager, addSimpleServiceMessage, fromLinkText]() {
+	auto createParticipantJoin = [&]() {
 		auto text = lng_admin_log_participant_joined(lt_from, fromLinkText);
 		addSimpleServiceMessage(text);
 	};
 
-	auto createParticipantLeave = [this, &idManager, addSimpleServiceMessage, fromLinkText]() {
+	auto createParticipantLeave = [&]() {
 		auto text = lng_admin_log_participant_left(lt_from, fromLinkText);
 		addSimpleServiceMessage(text);
 	};
 
-	auto createParticipantInvite = [this, &idManager, date](const MTPDchannelAdminLogEventActionParticipantInvite &action) {
+	auto createParticipantInvite = [&](const MTPDchannelAdminLogEventActionParticipantInvite &action) {
 		auto bodyFlags = Flag::f_entities | Flag::f_from_id;
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
-		auto bodyText = GenerateParticipantChangeText(channel(), action.vparticipant);
-		addPart(HistoryMessage::create(_history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(_from->id), bodyText));
+		auto bodyText = GenerateParticipantChangeText(channel, action.vparticipant);
+		addPart(HistoryMessage::create(history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(from->id), bodyText));
 	};
 
-	auto createParticipantToggleBan = [this, &idManager, date](const MTPDchannelAdminLogEventActionParticipantToggleBan &action) {
+	auto createParticipantToggleBan = [&](const MTPDchannelAdminLogEventActionParticipantToggleBan &action) {
 		auto bodyFlags = Flag::f_entities | Flag::f_from_id;
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
-		auto bodyText = GenerateParticipantChangeText(channel(), action.vnew_participant, &action.vprev_participant);
-		addPart(HistoryMessage::create(_history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(_from->id), bodyText));
+		auto bodyText = GenerateParticipantChangeText(channel, action.vnew_participant, &action.vprev_participant);
+		addPart(HistoryMessage::create(history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(from->id), bodyText));
 	};
 
-	auto createParticipantToggleAdmin = [this, &idManager, date](const MTPDchannelAdminLogEventActionParticipantToggleAdmin &action) {
+	auto createParticipantToggleAdmin = [&](const MTPDchannelAdminLogEventActionParticipantToggleAdmin &action) {
 		auto bodyFlags = Flag::f_entities | Flag::f_from_id;
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
-		auto bodyText = GenerateParticipantChangeText(channel(), action.vnew_participant, &action.vprev_participant);
-		addPart(HistoryMessage::create(_history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(_from->id), bodyText));
+		auto bodyText = GenerateParticipantChangeText(channel, action.vnew_participant, &action.vprev_participant);
+		addPart(HistoryMessage::create(history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(from->id), bodyText));
 	};
 
 	switch (action.type()) {
@@ -407,80 +412,6 @@ Item::Item(gsl::not_null<History*> history, LocalIdManager &idManager, const MTP
 	case mtpc_channelAdminLogEventActionParticipantToggleBan: createParticipantToggleBan(action.c_channelAdminLogEventActionParticipantToggleBan()); break;
 	case mtpc_channelAdminLogEventActionParticipantToggleAdmin: createParticipantToggleAdmin(action.c_channelAdminLogEventActionParticipantToggleAdmin()); break;
 	default: Unexpected("channelAdminLogEventAction type in AdminLog::Item::Item()");
-	}
-}
-
-void Item::addPart(HistoryItem *item) {
-	_parts.push_back(item);
-}
-
-int Item::resizeGetHeight(int newWidth) {
-	_height = 0;
-	for (auto part : _parts) {
-		_height += part->resizeGetHeight(newWidth);
-	}
-	return _height;
-}
-
-void Item::draw(Painter &p, QRect clip, TextSelection selection, TimeMs ms) {
-	auto top = 0;
-	for (auto part : _parts) {
-		auto height = part->height();
-		if (clip.top() < top + height && clip.top() + clip.height() > top) {
-			p.translate(0, top);
-			part->draw(p, clip.translated(0, -top), selection, ms);
-			p.translate(0, -top);
-		}
-		top += height;
-	}
-}
-
-bool Item::hasPoint(QPoint point) const {
-	auto top = 0;
-	for (auto part : _parts) {
-		auto height = part->height();
-		if (point.y() >= top && point.y() < top + height) {
-			return part->hasPoint(point - QPoint(0, top));
-		}
-		top += height;
-	}
-	return false;
-}
-
-Item::TextState Item::getState(QPoint point, HistoryStateRequest request) const {
-	auto top = 0;
-	for (auto part : _parts) {
-		auto height = part->height();
-		if (point.y() >= top && point.y() < top + height) {
-			auto result = TextState();
-			result.data = part->getState(point - QPoint(0, top), request);
-			result.handler = part;
-			return result;
-		}
-		top += height;
-	}
-	return Item::TextState();
-}
-
-TextSelection Item::adjustSelection(TextSelection selection, TextSelectType type) const {
-	return selection;
-}
-
-void Item::updatePressed(QPoint point) {
-}
-
-QString Item::getForwardedInfoText() const {
-	for (auto part : _parts) {
-		if (auto forwarded = part->Get<HistoryMessageForwarded>()) {
-			return forwarded->_text.originalText(AllTextSelection, ExpandLinksNone);
-		}
-	}
-	return QString();
-}
-
-Item::~Item() {
-	for (auto part : _parts) {
-		part->destroy();
 	}
 }
 

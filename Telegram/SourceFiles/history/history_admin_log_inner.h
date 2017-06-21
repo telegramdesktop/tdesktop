@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "history/history_admin_log_item.h"
 #include "ui/widgets/tooltip.h"
 #include "mtproto/sender.h"
 #include "base/timer.h"
@@ -35,7 +36,6 @@ class Controller;
 namespace AdminLog {
 
 class SectionMemento;
-class Item;
 
 class LocalIdManager {
 public:
@@ -118,9 +118,10 @@ private:
 	void mouseActionCancel();
 	void updateSelected();
 	void performDrag();
-	int itemTop(gsl::not_null<Item*> item) const;
-	void repaintItem(Item *item);
-	QPoint mapPointToItem(QPoint point, Item *item) const;
+	int itemTop(gsl::not_null<const HistoryItem*> item) const;
+	void repaintItem(const HistoryItem *item);
+	QPoint mapPointToItem(QPoint point, const HistoryItem *item) const;
+	void handlePendingHistoryResize();
 
 	void checkPreloadMore();
 	void updateVisibleTopItem();
@@ -142,8 +143,8 @@ private:
 	gsl::not_null<History*> _history;
 	base::lambda<void()> _cancelledCallback;
 	base::lambda<void(int top)> _scrollTo;
-	std::vector<std::unique_ptr<Item>> _items;
-	std::map<gsl::not_null<HistoryItem*>, gsl::not_null<Item*>, std::less<>> _itemsByHistoryItems;
+	std::vector<HistoryItemOwned> _items;
+	std::map<uint64, HistoryItem*> _itemsByIds;
 	int _itemsTop = 0;
 	int _itemsHeight = 0;
 
@@ -151,14 +152,14 @@ private:
 	int _minHeight = 0;
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
-	Item *_visibleTopItem = nullptr;
+	HistoryItem *_visibleTopItem = nullptr;
 	int _visibleTopFromItem = 0;
 
 	bool _scrollDateShown = false;
 	Animation _scrollDateOpacity;
 	SingleQueuedInvokation _scrollDateCheck;
 	base::Timer _scrollDateHideTimer;
-	Item *_scrollDateLastItem = nullptr;
+	HistoryItem *_scrollDateLastItem = nullptr;
 	int _scrollDateLastItemTop = 0;
 	ClickHandlerPtr _scrollDateLink;
 
@@ -174,15 +175,12 @@ private:
 	TextSelectType _mouseSelectType = TextSelectType::Letters;
 	QPoint _dragStartPosition;
 	QPoint _mousePosition;
-	Item *_mouseActionItem = nullptr;
+	HistoryItem *_mouseActionItem = nullptr;
 	HistoryCursorState _mouseCursorState = HistoryDefaultCursorState;
 	uint16 _mouseTextSymbol = 0;
 	bool _pressWasInactive = false;
 
-	Item *_itemNearest = nullptr;
-	Item *_itemOver = nullptr;
-	Item *_itemPressed = nullptr;
-	Item *_selectedItem = nullptr;
+	HistoryItem *_selectedItem = nullptr;
 	TextSelection _selectedText;
 	bool _wasSelectedText = false; // was some text selected in current drag action
 	Qt::CursorShape _cursor = style::cur_default;

@@ -45,7 +45,7 @@ public:
 	TextWithEntities getSelectedText() const;
 
 	void touchScrollUpdated(const QPoint &screenPos);
-	QPoint mapMouseToItem(QPoint p, HistoryItem *item);
+	QPoint mapPointToItem(QPoint p, HistoryItem *item);
 
 	void recountHeight();
 	void updateSize();

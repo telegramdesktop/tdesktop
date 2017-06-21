@@ -681,6 +681,19 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 		// So we force HistoryWidget::resizeEvent() here, without WA_UpdatesDisabled.
 		myEnsureResized(this);
 	});
+	subscribe(AuthSession::Current().data().pendingHistoryResize(), [this] { handlePendingHistoryUpdate(); });
+	subscribe(AuthSession::Current().data().queryItemVisibility(), [this](const AuthSessionData::ItemVisibilityQuery &query) {
+		if (_a_show.animating() || _history != query.item->history() || query.item->detached() || !isVisible()) {
+			return;
+		}
+		auto top = _list->itemTop(query.item);
+		if (top >= 0) {
+			auto scrollTop = _scroll->scrollTop();
+			if (top + query.item->height() > scrollTop && top < scrollTop + _scroll->height()) {
+				*query.isVisible = true;
+			}
+		}
+	});
 
 	orderWidgets();
 }
@@ -701,7 +714,7 @@ void HistoryWidget::scrollToCurrentVoiceMessage(FullMsgId fromId, FullMsgId toId
 
 	// If history has pending resize items, the scrollTopItem won't be updated.
 	// And the scrollTop will be reset back to scrollTopItem + scrollTopOffset.
-	notify_handlePendingHistoryUpdate();
+	handlePendingHistoryUpdate();
 
 	auto toTop = _list->itemTop(to);
 	if (toTop >= 0 && !isItemCompletelyHidden(from)) {
@@ -4782,17 +4795,6 @@ void HistoryWidget::grabFinish() {
 	_topShadow->show();
 }
 
-bool HistoryWidget::isItemVisible(HistoryItem *item) {
-	if (isHidden() || _a_show.animating() || !_list) {
-		return false;
-	}
-	int32 top = _list->itemTop(item), st = _scroll->scrollTop();
-	if (top < 0 || top + item->height() <= st || top >= st + _scroll->height()) {
-		return false;
-	}
-	return true;
-}
-
 void HistoryWidget::ui_repaintHistoryItem(gsl::not_null<const HistoryItem*> item) {
 	if (_peer && _list && (item->history() == _history || (_migrated && item->history() == _migrated))) {
 		auto ms = getms();
@@ -4825,7 +4827,7 @@ void HistoryWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
 	}
 }
 
-void HistoryWidget::notify_handlePendingHistoryUpdate() {
+void HistoryWidget::handlePendingHistoryUpdate() {
 	if (hasPendingResizedItems() || _updateHistoryGeometryRequired) {
 		if (_list) {
 			updateHistoryGeometry();

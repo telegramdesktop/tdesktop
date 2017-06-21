@@ -542,6 +542,7 @@ public:
 		return !_block;
 	}
 	void attachToBlock(HistoryBlock *block, int index) {
+		Expects(!isLogEntry());
 		Expects(_block == nullptr);
 		Expects(_indexInBlock < 0);
 		Expects(block != nullptr);
@@ -820,7 +821,7 @@ public:
 	}
 	void setPendingResize() {
 		_flags |= MTPDmessage_ClientFlag::f_pending_resize;
-		if (!detached()) {
+		if (!detached() || isLogEntry()) {
 			_history->setHasPendingResizedItems();
 		}
 	}
@@ -879,6 +880,19 @@ public:
 	void clipCallback(Media::Clip::Notification notification);
 	void audioTrackUpdated();
 
+	void setLogEntryDisplayDate(bool displayDate) {
+		Expects(isLogEntry());
+		setDisplayDate(displayDate);
+	}
+	void setLogEntryAttachToPrevious(bool attachToPrevious) {
+		Expects(isLogEntry());
+		setAttachToNext(attachToPrevious);
+	}
+	void setLogEntryAttachToNext(bool attachToNext) {
+		Expects(isLogEntry());
+		setAttachToNext(attachToNext);
+	}
+
 	~HistoryItem();
 
 protected:
@@ -929,18 +943,27 @@ protected:
 		return nullptr;
 	}
 
-	// this should be called only from previousItemChanged()
+	// This should be called only from previousItemChanged()
 	// to add required bits to the Composer mask
-	// after that always use Has<HistoryMessageDate>()
+	// after that always use Has<HistoryMessageDate>().
 	void recountDisplayDate();
 
-	// this should be called only from previousItemChanged() or when
+	// This should be called only from previousItemChanged() or when
 	// HistoryMessageDate or HistoryMessageUnreadBar bit is changed in the Composer mask
-	// then the result should be cached in a client side flag MTPDmessage_ClientFlag::f_attach_to_previous
+	// then the result should be cached in a client side flag MTPDmessage_ClientFlag::f_attach_to_previous.
 	void recountAttachToPrevious();
 
-	// this should be called only recountAttachToPrevious() of the next item
-	// or when the next item is removed through nextItemChanged() call
+	// This should be called only from recountDisplayDate().
+	// Also this is called from setLogEntryDisplayDate() for channel log entries.
+	void setDisplayDate(bool displayDate);
+
+	// This should be called only from recountAttachToPrevious().
+	// Also this is called from setLogEntryAttachToPrevious() for channel log entries.
+	void setAttachToPrevious(bool attachToNext);
+
+	// This should be called only from recountAttachToPrevious() of the next item
+	// or when the next item is removed through nextItemChanged() call.
+	// Also this is called from setLogEntryAttachToNext() for channel log entries.
 	void setAttachToNext(bool attachToNext);
 
 	const HistoryMessageReplyMarkup *inlineReplyMarkup() const {

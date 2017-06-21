@@ -724,34 +724,31 @@ void HistoryItem::detachFast() {
 }
 
 void HistoryItem::previousItemChanged() {
+	Expects(!isLogEntry());
 	recountDisplayDate();
 	recountAttachToPrevious();
 }
 
 // Called only if there is no more next item! Not always when it changes!
 void HistoryItem::nextItemChanged() {
+	Expects(!isLogEntry());
 	setAttachToNext(false);
 }
 
 void HistoryItem::recountAttachToPrevious() {
-	bool attach = false;
+	Expects(!isLogEntry());
+	auto attachToPrevious = false;
 	if (auto previous = previousItem()) {
 		if (!Has<HistoryMessageDate>() && !Has<HistoryMessageUnreadBar>()) {
-			attach = !isPost() && !previous->isPost()
+			attachToPrevious = !isPost() && !previous->isPost()
 				&& !serviceMsg() && !previous->serviceMsg()
 				&& !isEmpty() && !previous->isEmpty()
 				&& previous->from() == from()
 				&& (qAbs(previous->date.secsTo(date)) < kAttachMessageToPreviousSecondsDelta);
 		}
-		previous->setAttachToNext(attach);
+		previous->setAttachToNext(attachToPrevious);
 	}
-	if (attach && !(_flags & MTPDmessage_ClientFlag::f_attach_to_previous)) {
-		_flags |= MTPDmessage_ClientFlag::f_attach_to_previous;
-		setPendingInitDimensions();
-	} else if (!attach && (_flags & MTPDmessage_ClientFlag::f_attach_to_previous)) {
-		_flags &= ~MTPDmessage_ClientFlag::f_attach_to_previous;
-		setPendingInitDimensions();
-	}
+	setAttachToPrevious(attachToPrevious);
 }
 
 void HistoryItem::setAttachToNext(bool attachToNext) {
@@ -761,6 +758,16 @@ void HistoryItem::setAttachToNext(bool attachToNext) {
 	} else if (!attachToNext && (_flags & MTPDmessage_ClientFlag::f_attach_to_next)) {
 		_flags &= ~MTPDmessage_ClientFlag::f_attach_to_next;
 		Global::RefPendingRepaintItems().insert(this);
+	}
+}
+
+void HistoryItem::setAttachToPrevious(bool attachToPrevious) {
+	if (attachToPrevious && !(_flags & MTPDmessage_ClientFlag::f_attach_to_previous)) {
+		_flags |= MTPDmessage_ClientFlag::f_attach_to_previous;
+		setPendingInitDimensions();
+	} else if (!attachToPrevious && (_flags & MTPDmessage_ClientFlag::f_attach_to_previous)) {
+		_flags &= ~MTPDmessage_ClientFlag::f_attach_to_previous;
+		setPendingInitDimensions();
 	}
 }
 
@@ -954,6 +961,8 @@ bool HistoryItem::unread() const {
 
 void HistoryItem::destroyUnreadBar() {
 	if (Has<HistoryMessageUnreadBar>()) {
+		t_assert(!isLogEntry());
+
 		RemoveComponents(HistoryMessageUnreadBar::Bit());
 		setPendingInitDimensions();
 		if (_history->unreadBar == this) {
@@ -965,6 +974,7 @@ void HistoryItem::destroyUnreadBar() {
 }
 
 void HistoryItem::setUnreadBarCount(int count) {
+	Expects(!isLogEntry());
 	if (count > 0) {
 		HistoryMessageUnreadBar *bar;
 		if (!Has<HistoryMessageUnreadBar>()) {
@@ -988,6 +998,7 @@ void HistoryItem::setUnreadBarCount(int count) {
 }
 
 void HistoryItem::setUnreadBarFreezed() {
+	Expects(!isLogEntry());
 	if (auto bar = Get<HistoryMessageUnreadBar>()) {
 		bar->_freezed = true;
 	}
@@ -1010,14 +1021,14 @@ void HistoryItem::clipCallback(Media::Clip::Notification notification) {
 	case NotificationReinit: {
 		auto stopped = false;
 		if (reader->autoPausedGif()) {
-			if (auto m = App::main()) {
-				if (!m->isItemVisible(this)) { // stop animation if it is not visible
-					media->stopInline();
-					if (auto document = media->getDocument()) { // forget data from memory
-						document->forget();
-					}
-					stopped = true;
+			auto amVisible = false;
+			AuthSession::Current().data().queryItemVisibility().notify({ this, &amVisible }, true);
+			if (!amVisible) { // stop animation if it is not visible
+				media->stopInline();
+				if (auto document = media->getDocument()) { // forget data from memory
+					document->forget();
 				}
+				stopped = true;
 			}
 		} else if (reader->mode() == Media::Clip::Reader::Mode::Video && reader->state() == Media::Clip::State::Finished) {
 			// Stop finished video message.
@@ -1065,7 +1076,8 @@ void HistoryItem::audioTrackUpdated() {
 }
 
 void HistoryItem::recountDisplayDate() {
-	bool displayingDate = ([this]() {
+	Expects(!isLogEntry());
+	setDisplayDate(([this]() {
 		if (isEmpty()) {
 			return false;
 		}
@@ -1074,13 +1086,15 @@ void HistoryItem::recountDisplayDate() {
 			return previous->isEmpty() || (previous->date.date() != date.date());
 		}
 		return true;
-	})();
+	})());
+}
 
-	if (displayingDate && !Has<HistoryMessageDate>()) {
+void HistoryItem::setDisplayDate(bool displayDate) {
+	if (displayDate && !Has<HistoryMessageDate>()) {
 		AddComponents(HistoryMessageDate::Bit());
 		Get<HistoryMessageDate>()->init(date);
 		setPendingInitDimensions();
-	} else if (!displayingDate && Has<HistoryMessageDate>()) {
+	} else if (!displayDate && Has<HistoryMessageDate>()) {
 		RemoveComponents(HistoryMessageDate::Bit());
 		setPendingInitDimensions();
 	}

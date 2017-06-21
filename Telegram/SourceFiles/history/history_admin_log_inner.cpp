@@ -22,7 +22,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "styles/style_history.h"
 #include "history/history_media_types.h"
-#include "history/history_admin_log_item.h"
 #include "history/history_admin_log_section.h"
 #include "mainwindow.h"
 #include "window/window_controller.h"
@@ -46,9 +45,18 @@ InnerWidget::InnerWidget(QWidget *parent, gsl::not_null<Window::Controller*> con
 	setMouseTracking(true);
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
 	subscribe(AuthSession::Current().data().repaintLogEntry(), [this](gsl::not_null<const HistoryItem*> historyItem) {
-		auto it = _itemsByHistoryItems.find(historyItem);
-		if (it != _itemsByHistoryItems.cend()) {
-			repaintItem(it->second);
+		if (_history == historyItem->history()) {
+			repaintItem(historyItem);
+		}
+	});
+	subscribe(AuthSession::Current().data().pendingHistoryResize(), [this] { handlePendingHistoryResize(); });
+	subscribe(AuthSession::Current().data().queryItemVisibility(), [this](const AuthSessionData::ItemVisibilityQuery &query) {
+		if (_history != query.item->history() || !query.item->isLogEntry() || !isVisible()) {
+			return;
+		}
+		auto top = itemTop(query.item);
+		if (top >= 0 && top + query.item->height() > _visibleTop && top < _visibleBottom) {
+			*query.isVisible = true;
 		}
 	});
 }
@@ -64,11 +72,11 @@ void InnerWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
 void InnerWidget::updateVisibleTopItem() {
 	auto start = std::rbegin(_items), end = std::rend(_items);
 	auto from = std::upper_bound(start, end, _visibleTop, [](int top, auto &elem) {
-		return top <= elem->top() + elem->height();
+		return top <= elem->y() + elem->height();
 	});
 	if (from != end) {
-		_visibleTopItem = from->get();
-		_visibleTopFromItem = _visibleTop - _visibleTopItem->top();
+		_visibleTopItem = *from;
+		_visibleTopFromItem = _visibleTop - _visibleTopItem->y();
 	} else {
 		_visibleTopItem = nullptr;
 		_visibleTopFromItem = _visibleTop;
@@ -144,13 +152,15 @@ void InnerWidget::applyFilter(MTPDchannelAdminLogEventsFilter::Flags flags, cons
 
 QString InnerWidget::tooltipText() const {
 	if (_mouseCursorState == HistoryInDateCursorState && _mouseAction == MouseAction::None) {
-		if (_itemOver) {
-			auto dateText = _itemOver->date().toString(QLocale::system().dateTimeFormat(QLocale::LongFormat));
+		if (auto item = App::hoveredItem()) {
+			auto dateText = item->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat));
 			return dateText;
 		}
 	} else if (_mouseCursorState == HistoryInForwardedCursorState && _mouseAction == MouseAction::None) {
-		if (_itemOver) {
-			auto forwarded = _itemOver->getForwardedInfoText();
+		if (auto item = App::hoveredItem()) {
+			if (auto forwarded = item->Get<HistoryMessageForwarded>()) {
+				return forwarded->_text.originalText(AllTextSelection, ExpandLinksNone);
+			}
 		}
 	} else if (auto lnk = ClickHandler::getActive()) {
 		return lnk->tooltip();
@@ -226,11 +236,26 @@ void InnerWidget::preloadMore(Direction direction) {
 			_items.reserve(_items.size() + events.size());
 			for_const (auto &event, events) {
 				t_assert(event.type() == mtpc_channelAdminLogEvent);
-				_items.push_back(std::make_unique<Item>(_history, _idManager, event.c_channelAdminLogEvent()));
+				auto &data = event.c_channelAdminLogEvent();
+				auto count = 0;
+				GenerateItems(_history, _idManager, data, [this, id = data.vid.v, &count](HistoryItemOwned item) {
+					_items.push_back(std::move(item));
+					_itemsByIds.emplace(id, item.get());
+					++count;
+				});
+				if (count > 1) {
+					// Reverse the inner order of the added messages, because we load events
+					// from bottom to top but inside one event they go from top to bottom.
+					auto full = _items.size();
+					auto from = full - count;
+					for (auto i = 0, toReverse = count / 2; i != toReverse; ++i) {
+						std::swap(_items[from + i], _items[full - i - 1]);
+					}
+				}
 			}
 			if (!_items.empty()) {
-				_maxId = _items.front()->id();
-				_minId = _items.back()->id();
+				_maxId = (--_itemsByIds.end())->first;
+				_minId = _itemsByIds.begin()->first;
 				if (_minId == 1) {
 					_upLoaded = true;
 				}
@@ -262,7 +287,7 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 
 	auto newHeight = 0;
 	for (auto &item : base::reversed(_items)) {
-		item->setTop(newHeight);
+		item->setY(newHeight);
 		newHeight += item->resizeGetHeight(newWidth);
 	}
 	_itemsHeight = newHeight;
@@ -357,7 +382,10 @@ void InnerWidget::enterEventHook(QEvent *e) {
 }
 
 void InnerWidget::leaveEventHook(QEvent *e) {
-	repaintItem(base::take(_itemOver));
+	if (auto item = App::hoveredItem()) {
+		repaintItem(item);
+		App::hoveredItem(nullptr);
+	}
 	ClickHandler::clearActive();
 	Ui::Tooltip::Hide();
 	if (!ClickHandler::getPressed() && _cursor != style::cur_default) {
@@ -372,14 +400,14 @@ void InnerWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butt
 	if (button != Qt::LeftButton) return;
 
 	ClickHandler::pressed();
-	if (_itemPressed != _itemOver) {
-		repaintItem(_itemPressed);
-		_itemPressed = _itemOver;
-		repaintItem(_itemPressed);
+	if (App::pressedItem() != App::hoveredItem()) {
+		repaintItem(App::pressedItem());
+		App::pressedItem(App::hoveredItem());
+		repaintItem(App::pressedItem());
 	}
 
 	_mouseAction = MouseAction::None;
-	_mouseActionItem = _itemNearest;
+	_mouseActionItem = App::mousedItem();
 	_dragStartPosition = mapPointToItem(mapFromGlobal(screenPos), _mouseActionItem);
 	_pressWasInactive = _controller->window()->wasInactivePress();
 	if (_pressWasInactive) _controller->window()->setInactivePress(false);
@@ -392,7 +420,7 @@ void InnerWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butt
 		if (_trippleClickTimer.isActive() && (screenPos - _trippleClickPoint).manhattanLength() < QApplication::startDragDistance()) {
 			HistoryStateRequest request;
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
-			dragState = _mouseActionItem->getState(_dragStartPosition, request).data;
+			dragState = _mouseActionItem->getState(_dragStartPosition, request);
 			if (dragState.cursor == HistoryInTextCursorState) {
 				auto selection = TextSelection { dragState.symbol, dragState.symbol };
 				repaintItem(std::exchange(_selectedItem, _mouseActionItem));
@@ -403,13 +431,13 @@ void InnerWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butt
 				mouseActionUpdate(_mousePosition);
 				_trippleClickTimer.callOnce(QApplication::doubleClickInterval());
 			}
-		} else if (_itemPressed) {
+		} else if (App::pressedItem()) {
 			HistoryStateRequest request;
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
-			dragState = _mouseActionItem->getState(_dragStartPosition, request).data;
+			dragState = _mouseActionItem->getState(_dragStartPosition, request);
 		}
 		if (_mouseSelectType != TextSelectType::Paragraphs) {
-			if (_itemPressed) {
+			if (App::pressedItem()) {
 				_mouseTextSymbol = dragState.symbol;
 				auto uponSelected = (dragState.cursor == HistoryInTextCursorState);
 				if (uponSelected) {
@@ -422,16 +450,16 @@ void InnerWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butt
 				if (uponSelected) {
 					_mouseAction = MouseAction::PrepareDrag; // start text drag
 				} else if (!_pressWasInactive) {
-					//if (dynamic_cast<HistorySticker*>(_itemPressed->getMedia())) {
-					//	_mouseAction = MouseAction::PrepareDrag; // start sticker drag or by-date drag
-					//} else { // TODO
+					if (dynamic_cast<HistorySticker*>(App::pressedItem()->getMedia())) {
+						_mouseAction = MouseAction::PrepareDrag; // start sticker drag or by-date drag
+					} else {
 						if (dragState.afterSymbol) ++_mouseTextSymbol;
 						auto selection = TextSelection { _mouseTextSymbol, _mouseTextSymbol };
 						repaintItem(std::exchange(_selectedItem, _mouseActionItem));
 						_selectedText = selection;
 						_mouseAction = MouseAction::Selecting;
 						repaintItem(_mouseActionItem);
-					//} // TODO
+					}
 				}
 			}
 		}
@@ -464,7 +492,10 @@ void InnerWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton but
 	if (_mouseAction == MouseAction::Dragging) {
 		activated.clear();
 	}
-	repaintItem(base::take(_itemPressed));
+	if (App::pressedItem()) {
+		repaintItem(App::pressedItem());
+		App::pressedItem(nullptr);
+	}
 
 	_wasSelectedText = false;
 
@@ -504,26 +535,27 @@ void InnerWidget::updateSelected() {
 	auto from = (point.y() >= _itemsTop && point.y() < _itemsTop + _itemsHeight) ? std::upper_bound(start, end, point.y(), [this](int top, auto &elem) {
 		return top <= itemTop(elem.get()) + elem->height();
 	}) : end;
-	if (from != end) {
-		_itemNearest = from->get();
-		itemPoint = mapPointToItem(point, _itemNearest);
-		if (_itemNearest->hasPoint(itemPoint)) {
-			if (_itemOver != _itemNearest) {
-				repaintItem(std::exchange(_itemOver, _itemNearest));
-				repaintItem(_itemNearest);
+	auto item = (from != end) ? from->get() : nullptr;
+	if (item) {
+		App::mousedItem(item);
+		itemPoint = mapPointToItem(point, item);
+		if (item->hasPoint(itemPoint)) {
+			if (App::hoveredItem() != item) {
+				repaintItem(App::hoveredItem());
+				App::hoveredItem(item);
+				repaintItem(App::hoveredItem());
 			}
-		} else {
-			repaintItem(base::take(_itemOver));
+		} else if (App::hoveredItem()) {
+			repaintItem(App::hoveredItem());
+			App::hoveredItem(nullptr);
 		}
-	} else {
-		_itemNearest = nullptr;
 	}
 
-	Item::TextState dragState;
+	HistoryTextState dragState;
 	ClickHandlerHost *lnkhost = nullptr;
-	auto selectingText = (_itemNearest == _mouseActionItem && _itemNearest == _itemOver && _selectedItem);
-	if (_itemNearest) {
-		if (_itemNearest != _mouseActionItem || (itemPoint - _dragStartPosition).manhattanLength() >= QApplication::startDragDistance()) {
+	auto selectingText = (item == _mouseActionItem && item == App::hoveredItem() && _selectedItem);
+	if (item) {
+		if (item != _mouseActionItem || (itemPoint - _dragStartPosition).manhattanLength() >= QApplication::startDragDistance()) {
 			if (_mouseAction == MouseAction::PrepareDrag) {
 				_mouseAction = MouseAction::Dragging;
 				InvokeQueued(this, [this] { performDrag(); });
@@ -579,60 +611,60 @@ void InnerWidget::updateSelected() {
 		//	}
 		//	return true;
 		//}); // TODO
-		if (!dragState.data.link) {
+		if (!dragState.link) {
 			HistoryStateRequest request;
 			if (_mouseAction == MouseAction::Selecting) {
 				request.flags |= Text::StateRequest::Flag::LookupSymbol;
 			} else {
 				selectingText = false;
 			}
-			dragState = _itemNearest->getState(itemPoint, request);
-			lnkhost = dragState.handler;
-			if (!dragState.data.link && itemPoint.x() >= st::historyPhotoLeft && itemPoint.x() < st::historyPhotoLeft + st::msgPhotoSize) {
-				//if (auto msg = item->toHistoryMessage()) {
-				//	if (msg->hasFromPhoto()) {
-				//		enumerateUserpics([&dragState, &lnkhost, &point](HistoryMessage *message, int userpicTop) -> bool {
-				//			// stop enumeration if the userpic is below our point
-				//			if (userpicTop > point.y()) {
-				//				return false;
-				//			}
+			dragState = item->getState(itemPoint, request);
+			lnkhost = item;
+			if (!dragState.link && itemPoint.x() >= st::historyPhotoLeft && itemPoint.x() < st::historyPhotoLeft + st::msgPhotoSize) {
+				if (auto msg = item->toHistoryMessage()) {
+					if (msg->hasFromPhoto()) {
+						//enumerateUserpics([&dragState, &lnkhost, &point](HistoryMessage *message, int userpicTop) -> bool {
+						//	// stop enumeration if the userpic is below our point
+						//	if (userpicTop > point.y()) {
+						//		return false;
+						//	}
 
-				//			// stop enumeration if we've found a userpic under the cursor
-				//			if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
-				//				dragState.link = message->from()->openLink();
-				//				lnkhost = message;
-				//				return false;
-				//			}
-				//			return true;
-				//		});
-				//	}
-				//} // TODO
+						//	// stop enumeration if we've found a userpic under the cursor
+						//	if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
+						//		dragState.link = message->from()->openLink();
+						//		lnkhost = message;
+						//		return false;
+						//	}
+						//	return true;
+						//}); // TODO
+					}
+				}
 			}
 		}
 	}
-	auto lnkChanged = ClickHandler::setActive(dragState.data.link, lnkhost);
-	if (lnkChanged || dragState.data.cursor != _mouseCursorState) {
+	auto lnkChanged = ClickHandler::setActive(dragState.link, lnkhost);
+	if (lnkChanged || dragState.cursor != _mouseCursorState) {
 		Ui::Tooltip::Hide();
 	}
-	if (dragState.data.link || dragState.data.cursor == HistoryInDateCursorState || dragState.data.cursor == HistoryInForwardedCursorState) {
+	if (dragState.link || dragState.cursor == HistoryInDateCursorState || dragState.cursor == HistoryInForwardedCursorState) {
 		Ui::Tooltip::Show(1000, this);
 	}
 
 	auto cursor = style::cur_default;
 	if (_mouseAction == MouseAction::None) {
-		_mouseCursorState = dragState.data.cursor;
-		if (dragState.data.link) {
+		_mouseCursorState = dragState.cursor;
+		if (dragState.link) {
 			cursor = style::cur_pointer;
 		} else if (_mouseCursorState == HistoryInTextCursorState) {
 			cursor = style::cur_text;
 		} else if (_mouseCursorState == HistoryInDateCursorState) {
 //			cursor = style::cur_cross;
 		}
-	} else if (_itemNearest) {
+	} else if (item) {
 		if (_mouseAction == MouseAction::Selecting) {
 			if (selectingText) {
-				auto second = dragState.data.symbol;
-				if (dragState.data.afterSymbol && _mouseSelectType == TextSelectType::Letters) {
+				auto second = dragState.symbol;
+				if (dragState.afterSymbol && _mouseSelectType == TextSelectType::Letters) {
 					++second;
 				}
 				auto selection = _mouseActionItem->adjustSelection({ qMin(second, _mouseTextSymbol), qMax(second, _mouseTextSymbol) }, _mouseSelectType);
@@ -656,9 +688,13 @@ void InnerWidget::updateSelected() {
 	}
 
 	// Voice message seek support.
-	if (_itemPressed) {
-		auto adjustedPoint = mapPointToItem(point, _itemPressed);
-		_itemPressed->updatePressed(adjustedPoint);
+	if (auto pressedItem = App::pressedLinkItem()) {
+		if (!pressedItem->detached()) {
+			if (pressedItem->history() == _history) {
+				auto adjustedPoint = mapPointToItem(point, pressedItem);
+				pressedItem->updatePressed(adjustedPoint);
+			}
+		}
 	}
 
 	//if (_mouseAction == MouseAction::Selecting) {
@@ -763,22 +799,29 @@ void InnerWidget::performDrag() {
 	//} // TODO
 }
 
-int InnerWidget::itemTop(gsl::not_null<Item*> item) const {
-	return _itemsTop + item->top();
+int InnerWidget::itemTop(gsl::not_null<const HistoryItem*> item) const {
+	return _itemsTop + item->y();
 }
 
-void InnerWidget::repaintItem(Item *item) {
+void InnerWidget::repaintItem(const HistoryItem *item) {
 	if (!item) {
 		return;
 	}
 	update(0, itemTop(item), width(), item->height());
 }
 
-QPoint InnerWidget::mapPointToItem(QPoint point, Item *item) const {
+QPoint InnerWidget::mapPointToItem(QPoint point, const HistoryItem *item) const {
 	if (!item) {
 		return QPoint();
 	}
 	return point - QPoint(0, itemTop(item));
+}
+
+void InnerWidget::handlePendingHistoryResize() {
+	if (_history->hasPendingResizedItems()) {
+		_history->resizeGetHeight(width());
+		updateSize();
+	}
 }
 
 InnerWidget::~InnerWidget() = default;

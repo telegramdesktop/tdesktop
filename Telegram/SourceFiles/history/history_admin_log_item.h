@@ -20,59 +20,44 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "history/history_admin_log_inner.h"
-
 namespace AdminLog {
 
-class Item {
+class HistoryItemOwned;
+class LocalIdManager;
+
+void GenerateItems(gsl::not_null<History*> history, LocalIdManager &idManager, const MTPDchannelAdminLogEvent &event, base::lambda<void(HistoryItemOwned item)> callback);
+
+// Smart pointer wrapper for HistoryItem* that destroys the owned item.
+class HistoryItemOwned {
 public:
-	struct TextState {
-		HistoryTextState data;
-		ClickHandlerHost *handler = nullptr;
-	};
-
-	Item(gsl::not_null<History*> history, LocalIdManager &idManager, const MTPDchannelAdminLogEvent &event);
-
-	uint64 id() const {
-		return _id;
+	explicit HistoryItemOwned(gsl::not_null<HistoryItem*> data) : _data(data) {
 	}
-	QDateTime date() const {
-		return _date;
+	HistoryItemOwned(const HistoryItemOwned &other) = delete;
+	HistoryItemOwned &operator=(const HistoryItemOwned &other) = delete;
+	HistoryItemOwned(HistoryItemOwned &&other) : _data(base::take(other._data)) {
 	}
-	int top() const {
-		return _top;
+	HistoryItemOwned &operator=(HistoryItemOwned &&other) {
+		_data = base::take(other._data);
+		return *this;
 	}
-	void setTop(int top) {
-		_top = top;
-	}
-	int height() const {
-		return _height;
+	~HistoryItemOwned() {
+		if (_data) {
+			_data->destroy();
+		}
 	}
 
-	int resizeGetHeight(int newWidth);
-	void draw(Painter &p, QRect clip, TextSelection selection, TimeMs ms);
-	bool hasPoint(QPoint point) const;
-	TextState getState(QPoint point, HistoryStateRequest request) const;
-	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const;
-	void updatePressed(QPoint point);
-
-	QString getForwardedInfoText() const;
-
-	~Item();
+	HistoryItem *get() const {
+		return _data;
+	}
+	HistoryItem *operator->() const {
+		return get();
+	}
+	operator HistoryItem*() const {
+		return get();
+	}
 
 private:
-	gsl::not_null<ChannelData*> channel() {
-		return _history->peer->asChannel();
-	}
-	void addPart(HistoryItem *item);
-
-	uint64 _id = 0;
-	QDateTime _date;
-	gsl::not_null<History*> _history;
-	gsl::not_null<UserData*> _from;
-	std::vector<HistoryItem*> _parts;
-	int _top = 0;
-	int _height = 0;
+	HistoryItem *_data = nullptr;
 
 };
 

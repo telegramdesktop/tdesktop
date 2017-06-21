@@ -378,8 +378,6 @@ public:
 
 	bool contentOverlapped(const QRect &globalRect);
 
-	bool isItemVisible(HistoryItem *item);
-
 	void documentLoadProgress(DocumentData *document);
 
 	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col);
@@ -398,7 +396,6 @@ public:
 	void notify_migrateUpdated(PeerData *peer);
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
 	void notify_historyMuteUpdated(History *history);
-	void notify_handlePendingHistoryUpdate();
 
 	bool cmd_search();
 	bool cmd_next_chat();

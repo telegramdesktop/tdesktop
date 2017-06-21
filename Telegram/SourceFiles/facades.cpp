@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "messenger.h"
+#include "auth_session.h"
 #include "boxes/confirm_box.h"
 #include "layerwidget.h"
 #include "lang/lang_keys.h"
@@ -368,9 +369,8 @@ void historyMuteUpdated(History *history) {
 }
 
 void handlePendingHistoryUpdate() {
-	if (auto main = App::main()) {
-		main->notify_handlePendingHistoryUpdate();
-	}
+	AuthSession::Current().data().pendingHistoryResize().notify(true);
+
 	for (auto item : base::take(Global::RefPendingRepaintItems())) {
 		Ui::repaintHistoryItem(item);
 

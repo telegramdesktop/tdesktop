@@ -780,7 +780,7 @@ void HistoryInner::touchScrollUpdated(const QPoint &screenPos) {
 	touchUpdateSpeed();
 }
 
-QPoint HistoryInner::mapMouseToItem(QPoint p, HistoryItem *item) {
+QPoint HistoryInner::mapPointToItem(QPoint p, HistoryItem *item) {
 	int32 msgy = itemTop(item);
 	if (msgy < 0) return QPoint(0, 0);
 
@@ -809,7 +809,7 @@ void HistoryInner::mouseActionStart(const QPoint &screenPos, Qt::MouseButton but
 
 	_mouseAction = MouseAction::None;
 	_mouseActionItem = App::mousedItem();
-	_dragStartPosition = mapMouseToItem(mapFromGlobal(screenPos), _mouseActionItem);
+	_dragStartPosition = mapPointToItem(mapFromGlobal(screenPos), _mouseActionItem);
 	_pressWasInactive = _controller->window()->wasInactivePress();
 	if (_pressWasInactive) _controller->window()->setInactivePress(false);
 
@@ -1037,7 +1037,7 @@ void HistoryInner::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 		// if we are in selecting items mode perhaps we want to
 		// toggle selection instead of activating the pressed link
 		if (_mouseAction == MouseAction::PrepareDrag && !_pressWasInactive && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection && button != Qt::RightButton) {
-			if (HistoryMedia *media = pressed->getMedia()) {
+			if (auto media = pressed->getMedia()) {
 				if (media->toggleSelectionByHandlerClick(activated)) {
 					activated.clear();
 				}
@@ -1174,7 +1174,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			uint16 selFrom = _selected.cbegin().value().from, selTo = _selected.cbegin().value().to;
 			hasSelected = (selTo > selFrom) ? 1 : 0;
 			if (App::mousedItem() && App::mousedItem() == App::hoveredItem()) {
-				QPoint mousePos(mapMouseToItem(mapFromGlobal(_mousePosition), App::mousedItem()));
+				auto mousePos = mapPointToItem(mapFromGlobal(_mousePosition), App::mousedItem());
 				HistoryStateRequest request;
 				request.flags |= Text::StateRequest::Flag::LookupSymbol;
 				auto dragState = App::mousedItem()->getState(mousePos, request);
@@ -2006,7 +2006,7 @@ void HistoryInner::onUpdateSelected() {
 		item = block->items[_curItem];
 
 		App::mousedItem(item);
-		m = mapMouseToItem(point, item);
+		m = mapPointToItem(point, item);
 		if (item->hasPoint(m)) {
 			if (App::hoveredItem() != item) {
 				repaintItem(App::hoveredItem());
@@ -2208,7 +2208,7 @@ void HistoryInner::onUpdateSelected() {
 	if (auto pressedItem = App::pressedLinkItem()) {
 		if (!pressedItem->detached()) {
 			if (pressedItem->history() == _history || pressedItem->history() == _migrated) {
-				auto adjustedPoint = mapMouseToItem(point, pressedItem);
+				auto adjustedPoint = mapPointToItem(point, pressedItem);
 				pressedItem->updatePressed(adjustedPoint);
 			}
 		}

@@ -819,13 +819,6 @@ void MainWidget::onFilesOrForwardDrop(const PeerId &peerId, const QMimeData *dat
 	}
 }
 
-bool MainWidget::isItemVisible(HistoryItem *item) {
-	if (isHidden() || _a_show.animating()) {
-		return false;
-	}
-	return _history->isItemVisible(item);
-}
-
 void MainWidget::notify_botCommandsChanged(UserData *bot) {
 	_history->notify_botCommandsChanged(bot);
 }
@@ -899,10 +892,6 @@ void MainWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
 
 void MainWidget::notify_historyMuteUpdated(History *history) {
 	_dialogs->notify_historyMuteUpdated(history);
-}
-
-void MainWidget::notify_handlePendingHistoryUpdate() {
-	_history->notify_handlePendingHistoryUpdate();
 }
 
 bool MainWidget::cmd_search() {

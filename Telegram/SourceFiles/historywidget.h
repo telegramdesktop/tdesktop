@@ -356,7 +356,6 @@ public:
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
 	void notify_userIsBotChanged(UserData *user);
 	void notify_migrateUpdated(PeerData *peer);
-	void notify_handlePendingHistoryUpdate();
 
 	bool cmd_search();
 	bool cmd_next_chat();
@@ -484,6 +483,7 @@ private:
 		bool allFilesForCompress = true;
 	};
 
+	void handlePendingHistoryUpdate();
 	void fullPeerUpdated(PeerData *peer);
 	void topBarClick();
 	void toggleTabbedSelectorMode();
