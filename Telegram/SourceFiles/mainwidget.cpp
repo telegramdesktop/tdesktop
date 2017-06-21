@@ -2567,21 +2567,6 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 		return false;
 	};
 
-	// Qt bug workaround: QWidget::render() for an arbitrary widget calls
-	// sendPendingMoveAndResizeEvents(true, true) for the whole window,
-	// which does something like:
-	//
-	// setAttribute(Qt::WA_UpdatesDisabled);
-	// sendEvent(QResizeEvent);
-	// setAttribute(Qt::WA_UpdatesDisabled, false);
-	//
-	// So if we create TabbedSection widget in HistoryWidget::resizeEvent()
-	// it will get an enabled Qt::WA_UpdatesDisabled from its parent and it
-	// will never be rendered, because no one will ever remove that attribute.
-	//
-	// So we force HistoryWidget::resizeEvent() here, without WA_UpdatesDisabled.
-	myEnsureResized(_history);
-
 	auto animationParams = animatedShow() ? prepareHistoryAnimation(peerId) : Window::SectionSlideParams();
 
 	if (_history->peer() && _history->peer()->id != peerId && way != Ui::ShowWay::Forward) {

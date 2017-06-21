@@ -665,6 +665,22 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 			onPreviewCheck();
 		}
 	}));
+	subscribe(controller->widgetGrabbed(), [this] {
+		// Qt bug workaround: QWidget::render() for an arbitrary widget calls
+		// sendPendingMoveAndResizeEvents(true, true) for the whole window,
+		// which does something like:
+		//
+		// setAttribute(Qt::WA_UpdatesDisabled);
+		// sendEvent(QResizeEvent);
+		// setAttribute(Qt::WA_UpdatesDisabled, false);
+		//
+		// So if we create TabbedSection widget in HistoryWidget::resizeEvent()
+		// it will get an enabled Qt::WA_UpdatesDisabled from its parent and it
+		// will never be rendered, because no one will ever remove that attribute.
+		//
+		// So we force HistoryWidget::resizeEvent() here, without WA_UpdatesDisabled.
+		myEnsureResized(this);
+	});
 
 	orderWidgets();
 }
@@ -3971,6 +3987,7 @@ void HistoryWidget::updateTabbedSelectorSectionShown() {
 		updateControlsVisibility();
 	} else {
 		_tabbedPanel.create(this, controller(), _tabbedSection->takeSelector());
+		_tabbedPanel->hide();
 		_tabbedSelectorToggle->installEventFilter(_tabbedPanel);
 		_tabbedSection.destroy();
 		_tabbedSelectorToggle->setColorOverrides(nullptr, nullptr, nullptr);
