@@ -235,6 +235,7 @@ TextWithEntities GenerateParticipantChangeText(gsl::not_null<ChannelData*> chann
 
 Item::Item(gsl::not_null<History*> history, LocalIdManager &idManager, const MTPDchannelAdminLogEvent &event)
 : _id(event.vid.v)
+, _date(::date(event.vdate))
 , _history(history)
 , _from(App::user(event.vuser_id.v)) {
 	auto &action = event.vaction;
@@ -439,23 +440,42 @@ bool Item::hasPoint(QPoint point) const {
 	for (auto part : _parts) {
 		auto height = part->height();
 		if (point.y() >= top && point.y() < top + height) {
-			return part->hasPoint(point.x(), point.y() - top);
+			return part->hasPoint(point - QPoint(0, top));
 		}
 		top += height;
 	}
 	return false;
 }
 
-HistoryTextState Item::getState(QPoint point, HistoryStateRequest request) const {
+Item::TextState Item::getState(QPoint point, HistoryStateRequest request) const {
 	auto top = 0;
 	for (auto part : _parts) {
 		auto height = part->height();
 		if (point.y() >= top && point.y() < top + height) {
-			return part->getState(point.x(), point.y() - top, request);
+			auto result = TextState();
+			result.data = part->getState(point - QPoint(0, top), request);
+			result.handler = part;
+			return result;
 		}
 		top += height;
 	}
-	return HistoryTextState();
+	return Item::TextState();
+}
+
+TextSelection Item::adjustSelection(TextSelection selection, TextSelectType type) const {
+	return selection;
+}
+
+void Item::updatePressed(QPoint point) {
+}
+
+QString Item::getForwardedInfoText() const {
+	for (auto part : _parts) {
+		if (auto forwarded = part->Get<HistoryMessageForwarded>()) {
+			return forwarded->_text.originalText(AllTextSelection, ExpandLinksNone);
+		}
+	}
+	return QString();
 }
 
 Item::~Item() {

@@ -253,7 +253,7 @@ bool isMediaViewShown() {
 	return false;
 }
 
-void repaintHistoryItem(const HistoryItem *item) {
+void repaintHistoryItem(gsl::not_null<const HistoryItem*> item) {
 	if (auto main = App::main()) {
 		main->ui_repaintHistoryItem(item);
 	}
@@ -379,7 +379,7 @@ void handlePendingHistoryUpdate() {
 			if (auto media = item->getMedia()) {
 				if (auto reader = media->getClipReader()) {
 					if (!reader->started() && reader->mode() == Media::Clip::Reader::Mode::Video) {
-						item->history()->resizeGetHeight(item->history()->width);
+						item->resizeGetHeight(item->width());
 					}
 				}
 			}

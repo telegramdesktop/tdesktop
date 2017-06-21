@@ -199,7 +199,6 @@ public:
 	void newUnreadMsg(History *history, HistoryItem *item);
 	void historyToDown(History *history);
 	void historyWasRead(ReadServerHistoryChecks checks);
-	void historyCleared(History *history);
 	void unreadCountChanged(History *history);
 
 	QRect historyRect() const;
@@ -315,7 +314,6 @@ public:
 	void updateHistoryDownPosition();
 	void updateHistoryDownVisibility();
 
-	void updateAfterDrag();
 	void updateFieldSubmitSettings();
 
 	void setInnerFocus();
@@ -345,9 +343,9 @@ public:
 	bool wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) override;
 	QRect rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) override;
 
-	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col);
+	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, gsl::not_null<const HistoryItem*> msg, int row, int col);
 
-	void ui_repaintHistoryItem(const HistoryItem *item);
+	void ui_repaintHistoryItem(gsl::not_null<const HistoryItem*> item);
 	PeerData *ui_getPeerForMouseAction();
 
 	void notify_historyItemLayoutChanged(const HistoryItem *item);

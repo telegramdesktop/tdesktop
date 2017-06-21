@@ -139,7 +139,7 @@ Widget::Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller, g
 	updateAdaptiveLayout();
 	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
 
-	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this, channel, [this](int top) { _scroll->scrollToY(top); }));
+	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this, controller, channel, [this](int top) { _scroll->scrollToY(top); }));
 	_scroll->move(0, _fixedBar->height());
 	_scroll->show();
 

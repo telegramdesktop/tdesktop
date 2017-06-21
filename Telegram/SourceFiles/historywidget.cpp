@@ -665,7 +665,7 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 			onPreviewCheck();
 		}
 	}));
-	subscribe(controller->widgetGrabbed(), [this] {
+	subscribe(controller->window()->widgetGrabbed(), [this] {
 		// Qt bug workaround: QWidget::render() for an arbitrary widget calls
 		// sendPendingMoveAndResizeEvents(true, true) for the whole window,
 		// which does something like:
@@ -2047,10 +2047,6 @@ void HistoryWidget::clearAllLoadRequests() {
 	_preloadRequest = _preloadDownRequest = _firstLoadRequest = 0;
 }
 
-void HistoryWidget::updateAfterDrag() {
-	if (_list) _list->dragActionUpdate(QCursor::pos());
-}
-
 void HistoryWidget::updateFieldSubmitSettings() {
 	auto settings = Ui::FlatTextarea::SubmitSettings::Enter;
 	if (_isInlineBot) {
@@ -2431,12 +2427,6 @@ void HistoryWidget::unreadCountChanged(History *history) {
 		if (_historyDown) {
 			_historyDown->setUnreadCount(_history->unreadCount() + (_migrated ? _migrated->unreadCount() : 0));
 		}
-	}
-}
-
-void HistoryWidget::historyCleared(History *history) {
-	if (history == _history) {
-		_list->dragActionCancel();
 	}
 }
 
@@ -3452,7 +3442,7 @@ void HistoryWidget::hideSingleUseKeyboard(PeerData *peer, MsgId replyTo) {
 	}
 }
 
-void HistoryWidget::app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col) {
+void HistoryWidget::app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, gsl::not_null<const HistoryItem*> msg, int row, int col) {
 	if (msg->id < 0 || _peer != msg->history()->peer) {
 		return;
 	}
@@ -3520,7 +3510,7 @@ void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotC
 
 bool HistoryWidget::botCallbackFail(BotCallbackInfo info, const RPCError &error, mtpRequestId req) {
 	// show error?
-	if (HistoryItem *item = App::histItemById(info.msgId)) {
+	if (auto item = App::histItemById(info.msgId)) {
 		if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 			if (info.row < markup->rows.size() && info.col < markup->rows.at(info.row).size()) {
 				if (markup->rows.at(info.row).at(info.col).requestId == req) {
@@ -4803,7 +4793,7 @@ bool HistoryWidget::isItemVisible(HistoryItem *item) {
 	return true;
 }
 
-void HistoryWidget::ui_repaintHistoryItem(const HistoryItem *item) {
+void HistoryWidget::ui_repaintHistoryItem(gsl::not_null<const HistoryItem*> item) {
 	if (_peer && _list && (item->history() == _history || (_migrated && item->history() == _migrated))) {
 		auto ms = getms();
 		if (_lastScrolled + kSkipRepaintWhileScrollMs <= ms) {

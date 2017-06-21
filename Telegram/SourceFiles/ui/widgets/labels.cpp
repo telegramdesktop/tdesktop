@@ -262,8 +262,8 @@ Text::StateResult FlatLabel::dragActionStart(const QPoint &p, Qt::MouseButton bu
 
 	ClickHandler::pressed();
 	_dragAction = NoDrag;
-	_dragWasInactive = App::wnd()->inactivePress();
-	if (_dragWasInactive) App::wnd()->inactivePress(false);
+	_dragWasInactive = App::wnd()->wasInactivePress();
+	if (_dragWasInactive) App::wnd()->setInactivePress(false);
 
 	if (ClickHandler::getPressed()) {
 		_dragStartPosition = mapFromGlobal(_lastMousePos);
@@ -750,9 +750,9 @@ Text::StateResult FlatLabel::getTextState(const QPoint &m) const {
 		if (_breakEverywhere) {
 			request.flags |= Text::StateRequest::Flag::BreakEverywhere;
 		}
-		state = _text.getStateElided(m.x() - _st.margin.left(), m.y() - _st.margin.top(), textWidth, request);
+		state = _text.getStateElided(m - QPoint(_st.margin.left(), _st.margin.top()), textWidth, request);
 	} else {
-		state = _text.getState(m.x() - _st.margin.left(), m.y() - _st.margin.top(), textWidth, request);
+		state = _text.getState(m - QPoint(_st.margin.left(), _st.margin.top()), textWidth, request);
 	}
 
 	return state;

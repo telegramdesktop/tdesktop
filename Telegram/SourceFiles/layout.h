@@ -108,38 +108,38 @@ public:
 	LayoutItemBase(const LayoutItemBase &other) = delete;
 	LayoutItemBase &operator=(const LayoutItemBase &other) = delete;
 
-	int32 maxWidth() const {
+	int maxWidth() const {
 		return _maxw;
 	}
-	int32 minHeight() const {
+	int minHeight() const {
 		return _minh;
 	}
 	virtual void initDimensions() = 0;
-	virtual int32 resizeGetHeight(int32 width) {
+	virtual int resizeGetHeight(int width) {
 		_width = qMin(width, _maxw);
 		_height = _minh;
 		return _height;
 	}
 
-	virtual void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
+	virtual void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const {
 		link.clear();
 		cursor = HistoryDefaultCursorState;
 	}
-	virtual void getSymbol(uint16 &symbol, bool &after, bool &upon, int x, int y) const { // from text
-		upon = hasPoint(x, y);
+	virtual void getSymbol(uint16 &symbol, bool &after, bool &upon, QPoint point) const { // from text
+		upon = hasPoint(point);
 		symbol = upon ? 0xFFFF : 0;
 		after = false;
 	}
 
-	int32 width() const {
+	int width() const {
 		return _width;
 	}
-	int32 height() const {
+	int height() const {
 		return _height;
 	}
 
-	bool hasPoint(int x, int y) const {
-		return (x >= 0 && y >= 0 && x < width() && y < height());
+	bool hasPoint(QPoint point) const {
+		return QRect(0, 0, width(), height()).contains(point);
 	}
 
 	virtual ~LayoutItemBase() {

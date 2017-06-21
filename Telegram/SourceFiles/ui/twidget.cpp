@@ -22,7 +22,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "application.h"
 #include "mainwindow.h"
-#include "window/window_controller.h"
 
 namespace Fonts {
 namespace {
@@ -156,7 +155,7 @@ QPixmap myGrab(TWidget *target, QRect rect, QColor bg) {
 		result.fill(bg);
 	}
 
-	App::wnd()->controller()->widgetGrabbed().notify(true);
+	App::wnd()->widgetGrabbed().notify(true);
 
 	target->grabStart();
 	target->render(&result, QPoint(0, 0), rect, QWidget::DrawChildren | QWidget::IgnoreMask);

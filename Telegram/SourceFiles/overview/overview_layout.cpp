@@ -282,8 +282,8 @@ void Photo::ensureCheckboxCreated() {
 	});
 }
 
-void Photo::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
-	if (hasPoint(x, y)) {
+void Photo::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const {
+	if (hasPoint(point)) {
 		link = _link;
 	}
 }
@@ -462,10 +462,10 @@ void Video::invalidateCache() {
 	}
 }
 
-void Video::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
+void Video::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const {
 	bool loaded = _data->loaded();
 
-	if (hasPoint(x, y)) {
+	if (hasPoint(point)) {
 		link = loaded ? _openl : (_data->loading() ? _cancell : _savel);
 	}
 }
@@ -614,7 +614,7 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	}
 }
 
-void Voice::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
+void Voice::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const {
 	bool loaded = _data->loaded();
 
 	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, datetop = 0;
@@ -625,18 +625,18 @@ void Voice::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, i
 	statustop = _st.songStatusTop;
 
 	auto inner = rtlrect(_st.songPadding.left(), _st.songPadding.top(), _st.songThumbSize, _st.songThumbSize, _width);
-	if (inner.contains(x, y)) {
+	if (inner.contains(point)) {
 		link = loaded ? _openl : ((_data->loading() || _data->status == FileUploading) ? _cancell : _openl);
 		return;
 	}
-	if (rtlrect(nameleft, statustop, _width - nameleft - nameright, st::normalFont->height, _width).contains(x, y)) {
+	if (rtlrect(nameleft, statustop, _width - nameleft - nameright, st::normalFont->height, _width).contains(point)) {
 		if (_status.size() == FileStatusSizeLoaded || _status.size() == FileStatusSizeReady) {
-			auto textState = _details.getStateLeft(x - nameleft, y - statustop, _width, _width);
+			auto textState = _details.getStateLeft(point - QPoint(nameleft, statustop), _width, _width);
 			link = textState.link;
 			cursor = textState.uponSymbol ? HistoryInTextCursorState : HistoryDefaultCursorState;
 		}
 	}
-	if (hasPoint(x, y) && !link && !_data->loading()) {
+	if (hasPoint(point) && !link && !_data->loading()) {
 		link = _namel;
 		return;
 	}
@@ -883,7 +883,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 	}
 }
 
-void Document::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
+void Document::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const {
 	bool loaded = _data->loaded() || Local::willStickerImageLoad(_data->mediaKey());
 
 	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, datetop = 0;
@@ -896,11 +896,11 @@ void Document::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x
 		statustop = _st.songStatusTop;
 
 		auto inner = rtlrect(_st.songPadding.left(), _st.songPadding.top(), _st.songThumbSize, _st.songThumbSize, _width);
-		if (inner.contains(x, y)) {
+		if (inner.contains(point)) {
 			link = loaded ? _openl : ((_data->loading() || _data->status == FileUploading) ? _cancell : _openl);
 			return;
 		}
-		if (hasPoint(x, y) && !_data->loading()) {
+		if (hasPoint(point) && !_data->loading()) {
 			link = _namel;
 			return;
 		}
@@ -912,23 +912,23 @@ void Document::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x
 
 		auto rthumb = rtlrect(0, st::linksBorder + _st.filePadding.top(), _st.fileThumbSize, _st.fileThumbSize, _width);
 
-		if (rthumb.contains(x, y)) {
+		if (rthumb.contains(point)) {
 			link = loaded ? _openl : ((_data->loading() || _data->status == FileUploading) ? _cancell : _savel);
 			return;
 		}
 
 		if (_data->status != FileUploadFailed) {
-			if (rtlrect(nameleft, datetop, _datew, st::normalFont->height, _width).contains(x, y)) {
+			if (rtlrect(nameleft, datetop, _datew, st::normalFont->height, _width).contains(point)) {
 				link = _msgl;
 				return;
 			}
 		}
 		if (!_data->loading() && _data->isValid()) {
-			if (loaded && rtlrect(0, st::linksBorder, nameleft, _height - st::linksBorder, _width).contains(x, y)) {
+			if (loaded && rtlrect(0, st::linksBorder, nameleft, _height - st::linksBorder, _width).contains(point)) {
 				link = _namel;
 				return;
 			}
-			if (rtlrect(nameleft, nametop, qMin(_width - nameleft - nameright, _name.maxWidth()), st::semiboldFont->height, _width).contains(x, y)) {
+			if (rtlrect(nameleft, nametop, qMin(_width - nameleft - nameright, _name.maxWidth()), st::semiboldFont->height, _width).contains(point)) {
 				link = _namel;
 				return;
 			}
@@ -1203,9 +1203,9 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 	}
 }
 
-void Link::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
+void Link::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const {
 	int32 left = st::linksPhotoSize + st::linksPhotoPadding, top = st::linksMargin.top() + st::linksBorder, w = _width - left;
-	if (rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width).contains(x, y)) {
+	if (rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width).contains(point)) {
 		link = _photol;
 		return;
 	}
@@ -1214,7 +1214,7 @@ void Link::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, in
 		top += (st::linksPhotoSize - st::semiboldFont->height - st::normalFont->height) / 2;
 	}
 	if (!_title.isEmpty()) {
-		if (rtlrect(left, top, qMin(w, _titlew), st::semiboldFont->height, _width).contains(x, y)) {
+		if (rtlrect(left, top, qMin(w, _titlew), st::semiboldFont->height, _width).contains(point)) {
 			link = _photol;
 			return;
 		}
@@ -1224,7 +1224,7 @@ void Link::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, in
 		top += qMin(st::normalFont->height * 3, _text.countHeight(w));
 	}
 	for (int32 i = 0, l = _links.size(); i < l; ++i) {
-		if (rtlrect(left, top, qMin(w, _links.at(i).width), st::normalFont->height, _width).contains(x, y)) {
+		if (rtlrect(left, top, qMin(w, _links.at(i).width), st::normalFont->height, _width).contains(point)) {
 			link = _links.at(i).lnk;
 			return;
 		}

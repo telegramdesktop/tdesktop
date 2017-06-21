@@ -133,7 +133,7 @@ public:
 	int resizeGetHeight(int width) override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
+	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
 		return _caption.adjustSelection(selection, type);
@@ -226,7 +226,7 @@ public:
 	int resizeGetHeight(int width) override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
+	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
 		return _caption.adjustSelection(selection, type);
@@ -384,8 +384,8 @@ public:
 	int resizeGetHeight(int width) override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
-	void updatePressed(int x, int y) override;
+	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
+	void updatePressed(QPoint point) override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
 		if (auto captioned = Get<HistoryDocumentCaptioned>()) {
@@ -491,7 +491,7 @@ public:
 	int resizeGetHeight(int width) override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
+	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
 		return _caption.adjustSelection(selection, type);
@@ -614,7 +614,7 @@ public:
 	int resizeGetHeight(int width) override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
+	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return true;
@@ -682,7 +682,7 @@ public:
 	void initDimensions() override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
+	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return true;
@@ -744,7 +744,7 @@ public:
 	void initDimensions() override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
+	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return true;
@@ -801,7 +801,7 @@ public:
 	int resizeGetHeight(int width) override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
+	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
 	bool hasTextForCopy() const override {
@@ -900,7 +900,7 @@ public:
 	int resizeGetHeight(int width) override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
+	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
 	bool isAboveMessage() const override {
@@ -1008,7 +1008,7 @@ public:
 	static QString fillAmountAndCurrency(int amount, const QString &currency);
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
+	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
 	bool hasTextForCopy() const override {
@@ -1091,7 +1091,7 @@ public:
 	int resizeGetHeight(int32 width) override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
-	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
+	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
 	bool hasTextForCopy() const override {

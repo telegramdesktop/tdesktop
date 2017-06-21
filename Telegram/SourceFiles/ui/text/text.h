@@ -146,9 +146,9 @@ public:
 		bool afterSymbol = false;
 		uint16 symbol = 0;
 	};
-	StateResult getState(int x, int y, int width, StateRequest request = StateRequest()) const;
-	StateResult getStateLeft(int x, int y, int width, int outerw, StateRequest request = StateRequest()) const {
-		return getState(rtl() ? (outerw - x - width) : x, y, width, request);
+	StateResult getState(QPoint point, int width, StateRequest request = StateRequest()) const;
+	StateResult getStateLeft(QPoint point, int width, int outerw, StateRequest request = StateRequest()) const {
+		return getState(rtlpoint(point, outerw), width, request);
 	}
 	struct StateRequestElided : public StateRequest {
 		StateRequestElided() {
@@ -158,9 +158,9 @@ public:
 		int lines = 1;
 		int removeFromEnd = 0;
     };
-	StateResult getStateElided(int x, int y, int width, StateRequestElided request = StateRequestElided()) const;
-	StateResult getStateElidedLeft(int x, int y, int width, int outerw, StateRequestElided request = StateRequestElided()) const {
-		return getStateElided(rtl() ? (outerw - x - width) : x, y, width, request);
+	StateResult getStateElided(QPoint point, int width, StateRequestElided request = StateRequestElided()) const;
+	StateResult getStateElidedLeft(QPoint point, int width, int outerw, StateRequestElided request = StateRequestElided()) const {
+		return getStateElided(rtlpoint(point, outerw), width, request);
 	}
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType selectType) const;

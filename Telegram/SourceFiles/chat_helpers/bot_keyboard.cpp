@@ -52,7 +52,7 @@ const style::TextStyle &BotKeyboard::Style::textStyle() const {
 	return st::botKbStyle;
 }
 
-void BotKeyboard::Style::repaint(const HistoryItem *item) const {
+void BotKeyboard::Style::repaint(gsl::not_null<const HistoryItem*> item) const {
 	_parent->update();
 }
 
@@ -237,10 +237,10 @@ void BotKeyboard::updateSelected() {
 
 	if (!_impl) return;
 
-	QPoint p(mapFromGlobal(_lastMousePos));
-	int x = rtl() ? st::botKbScroll.width : _st->margin;
+	auto p = mapFromGlobal(_lastMousePos);
+	auto x = rtl() ? st::botKbScroll.width : _st->margin;
 
-	auto link = _impl->getState(p.x() - x, p.y() - _st->margin);
+	auto link = _impl->getState(p - QPoint(x, _st->margin));
 	if (ClickHandler::setActive(link, this)) {
 		Ui::Tooltip::Hide();
 		setCursor(link ? style::cur_pointer : style::cur_default);

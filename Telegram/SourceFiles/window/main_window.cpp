@@ -24,11 +24,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_window.h"
 #include "platform/platform_window_title.h"
 #include "window/themes/window_theme.h"
+#include "window/window_controller.h"
 #include "mediaview.h"
 #include "messenger.h"
 #include "mainwindow.h"
 
 namespace Window {
+
+constexpr auto kInactivePressTimeout = 200;
 
 QImage LoadLogo() {
 	return QImage(qsl(":/gui/art/logo_256.png"));
@@ -58,8 +61,7 @@ MainWindow::MainWindow() : QWidget()
 , _positionUpdatedTimer(this)
 , _body(this)
 , _icon(CreateIcon())
-, _titleText(qsl("Telegram"))
-, _isActiveTimer(this) {
+, _titleText(qsl("Telegram")) {
 	subscribe(Theme::Background(), [this](const Theme::BackgroundUpdate &data) {
 		if (data.paletteChanged()) {
 			if (_title) {
@@ -70,9 +72,11 @@ MainWindow::MainWindow() : QWidget()
 	});
 	subscribe(Global::RefUnreadCounterUpdate(), [this] { updateUnreadCounter(); });
 	subscribe(Global::RefWorkMode(), [this](DBIWorkMode mode) { workmodeUpdated(mode); });
+	subscribe(Messenger::Instance().authSessionChanged(), [this] { checkAuthSession(); });
+	checkAuthSession();
 
-	_isActiveTimer->setSingleShot(true);
-	connect(_isActiveTimer, SIGNAL(timeout()), this, SLOT(updateIsActiveByTimer()));
+	_isActiveTimer.setCallback([this] { updateIsActive(0); });
+	_inactivePressTimer.setCallback([this] { setInactivePress(false); });
 }
 
 bool MainWindow::hideNoQuit() {
@@ -140,8 +144,8 @@ bool MainWindow::ui_isMediaViewShown() {
 }
 
 void MainWindow::updateIsActive(int timeout) {
-	if (timeout) {
-		return _isActiveTimer->start(timeout);
+	if (timeout > 0) {
+		return _isActiveTimer.callOnce(timeout);
 	}
 	_isActive = computeIsActive();
 	updateIsActiveHook();
@@ -431,6 +435,36 @@ PeerData *MainWindow::ui_getPeerForMouseAction() {
 		return _mediaView->ui_getPeerForMouseAction();
 	}
 	return nullptr;
+}
+
+void MainWindow::launchDrag(std::unique_ptr<QMimeData> data) {
+	auto weak = QPointer<MainWindow>(this);
+	auto drag = std::make_unique<QDrag>(App::wnd());
+	drag->setMimeData(data.release());
+	drag->exec(Qt::CopyAction);
+
+	// We don't receive mouseReleaseEvent when drag is finished.
+	ClickHandler::unpressed();
+	if (weak) {
+		weak->dragFinished().notify();
+	}
+}
+
+void MainWindow::checkAuthSession() {
+	if (AuthSession::Exists()) {
+		_controller = std::make_unique<Window::Controller>(this);
+	} else {
+		_controller = nullptr;
+	}
+}
+
+void MainWindow::setInactivePress(bool inactive) {
+	_wasInactivePress = inactive;
+	if (_wasInactivePress) {
+		_inactivePressTimer.callOnce(kInactivePressTimeout);
+	} else {
+		_inactivePressTimer.cancel();
+	}
 }
 
 MainWindow::~MainWindow() = default;

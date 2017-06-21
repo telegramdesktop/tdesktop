@@ -55,7 +55,7 @@ public:
 		return nullptr;
 	}
 	MsgId msgId() const {
-		const HistoryItem *item = getItem();
+		auto item = getItem();
 		return item ? item->id : 0;
 	}
 
@@ -184,7 +184,7 @@ public:
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
-	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const override;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) override;
@@ -211,7 +211,7 @@ public:
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
-	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const override;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) override;
@@ -254,7 +254,7 @@ public:
 
 	void initDimensions() override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
-	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const override;
 
 protected:
 	float64 dataProgress() const override {
@@ -291,7 +291,7 @@ public:
 
 	void initDimensions() override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
-	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const override;
 
 	virtual DocumentData *getDocument() const override {
 		return _data;
@@ -340,7 +340,7 @@ public:
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
-	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
+	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const override;
 
 private:
 	ClickHandlerPtr _photol;

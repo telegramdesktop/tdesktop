@@ -21,11 +21,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "window/window_title.h"
+#include "base/timer.h"
 
 class MediaView;
 
 namespace Window {
 
+class Controller;
 class TitleWidget;
 
 QImage LoadLogo();
@@ -37,6 +39,14 @@ class MainWindow : public QWidget, protected base::Subscriber {
 
 public:
 	MainWindow();
+
+	Window::Controller *controller() const {
+		return _controller.get();
+	}
+	void setInactivePress(bool inactive);
+	bool wasInactivePress() const {
+		return _wasInactivePress;
+	}
 
 	bool hideNoQuit();
 	void hideMediaview();
@@ -89,6 +99,14 @@ public:
 		return _body.data();
 	}
 	virtual PeerData *ui_getPeerForMouseAction();
+
+	void launchDrag(std::unique_ptr<QMimeData> data);
+	base::Observable<void> &dragFinished() {
+		return _dragFinished;
+	}
+	base::Observable<void> &widgetGrabbed() {
+		return _widgetGrabbed;
+	}
 
 public slots:
 	bool minimizeToTray();
@@ -154,11 +172,9 @@ private slots:
 		savePosition();
 	}
 	void onReActivate();
-	void updateIsActiveByTimer() {
-		updateIsActive(0);
-	}
 
 private:
+	void checkAuthSession();
 	void updatePalette();
 	void updateUnreadCounter();
 	void initSize();
@@ -168,6 +184,7 @@ private:
 	object_ptr<QTimer> _positionUpdatedTimer;
 	bool _positionInited = false;
 
+	std::unique_ptr<Window::Controller> _controller;
 	object_ptr<TitleWidget> _title = { nullptr };
 	object_ptr<TWidget> _body;
 	object_ptr<TWidget> _rightColumn = { nullptr };
@@ -175,10 +192,15 @@ private:
 	QIcon _icon;
 	QString _titleText;
 
-	object_ptr<QTimer> _isActiveTimer;
 	bool _isActive = false;
+	base::Timer _isActiveTimer;
+	bool _wasInactivePress = false;
+	base::Timer _inactivePressTimer;
 
 	object_ptr<MediaView> _mediaView = { nullptr };
+
+	base::Observable<void> _dragFinished;
+	base::Observable<void> _widgetGrabbed;
 
 };
 

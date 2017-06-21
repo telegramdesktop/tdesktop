@@ -2458,13 +2458,12 @@ bool MediaView::updateOverState(OverState newState) {
 void MediaView::updateOver(QPoint pos) {
 	ClickHandlerPtr lnk;
 	ClickHandlerHost *lnkhost = nullptr;
-
 	if (_saveMsgStarted && _saveMsg.contains(pos)) {
-		auto textState = _saveMsgText.getState(pos.x() - _saveMsg.x() - st::mediaviewSaveMsgPadding.left(), pos.y() - _saveMsg.y() - st::mediaviewSaveMsgPadding.top(), _saveMsg.width() - st::mediaviewSaveMsgPadding.left() - st::mediaviewSaveMsgPadding.right());
+		auto textState = _saveMsgText.getState(pos - _saveMsg.topLeft() - QPoint(st::mediaviewSaveMsgPadding.left(), st::mediaviewSaveMsgPadding.top()), _saveMsg.width() - st::mediaviewSaveMsgPadding.left() - st::mediaviewSaveMsgPadding.right());
 		lnk = textState.link;
 		lnkhost = this;
 	} else if (_captionRect.contains(pos)) {
-		auto textState = _caption.getState(pos.x() - _captionRect.x(), pos.y() - _captionRect.y(), _captionRect.width());
+		auto textState = _caption.getState(pos - _captionRect.topLeft(), _captionRect.width());
 		lnk = textState.link;
 		lnkhost = this;
 	}

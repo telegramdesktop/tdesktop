@@ -52,7 +52,7 @@ public:
 	void setPinCallback(ButtonCallback &&callback);
 	void setCloseCallback(ButtonCallback &&callback);
 
-	void ui_repaintHistoryItem(const HistoryItem *item);
+	void ui_repaintHistoryItem(gsl::not_null<const HistoryItem*> item);
 
 	int bestPositionFor(int left) const;
 

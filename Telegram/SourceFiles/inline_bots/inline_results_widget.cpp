@@ -640,7 +640,7 @@ void Inner::updateSelected() {
 		}
 		if (col < inlineItems.size()) {
 			sel = row * MatrixRowShift + col;
-			inlineItems.at(col)->getState(lnk, cursor, sx, sy);
+			inlineItems.at(col)->getState(lnk, cursor, QPoint(sx, sy));
 			lnkhost = inlineItems.at(col);
 		} else {
 			row = col = -1;

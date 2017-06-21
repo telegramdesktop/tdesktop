@@ -20,7 +20,17 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "ui/widgets/tooltip.h"
 #include "mtproto/sender.h"
+#include "base/timer.h"
+
+namespace Ui {
+class PopupMenu;
+} // namespace Ui
+
+namespace Window {
+class Controller;
+} // namespace Window
 
 namespace AdminLog {
 
@@ -47,9 +57,9 @@ private:
 
 };
 
-class InnerWidget final : public TWidget, private MTP::Sender {
+class InnerWidget final : public TWidget, public Ui::AbstractTooltipShower, private MTP::Sender, private base::Subscriber {
 public:
-	InnerWidget(QWidget *parent, gsl::not_null<ChannelData*> channel, base::lambda<void(int top)> scrollTo);
+	InnerWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, gsl::not_null<ChannelData*> channel, base::lambda<void(int top)> scrollTo);
 
 	gsl::not_null<ChannelData*> channel() const {
 		return _channel;
@@ -72,6 +82,10 @@ public:
 	// Empty "flags" means all events. Empty "admins" means all admins.
 	void applyFilter(MTPDchannelAdminLogEventsFilter::Flags flags, const std::vector<gsl::not_null<UserData*>> &admins);
 
+	// AbstractTooltipShower interface
+	QString tooltipText() const override;
+	QPoint tooltipPos() const override;
+
 	~InnerWidget();
 
 protected:
@@ -80,6 +94,8 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 
 	// Resizes content and counts natural widget height for the desired width.
 	int resizeGetHeight(int newWidth) override;
@@ -89,6 +105,23 @@ private:
 		Up,
 		Down,
 	};
+	enum class MouseAction {
+		None,
+		PrepareDrag,
+		Dragging,
+		Selecting,
+	};
+
+	void mouseActionStart(const QPoint &screenPos, Qt::MouseButton button);
+	void mouseActionUpdate(const QPoint &screenPos);
+	void mouseActionFinish(const QPoint &screenPos, Qt::MouseButton button);
+	void mouseActionCancel();
+	void updateSelected();
+	void performDrag();
+	int itemTop(gsl::not_null<Item*> item) const;
+	void repaintItem(Item *item);
+	QPoint mapPointToItem(QPoint point, Item *item) const;
+
 	void checkPreloadMore();
 	void updateVisibleTopItem();
 	void preloadMore(Direction direction);
@@ -96,11 +129,23 @@ private:
 	void updateSize();
 	void paintEmpty(Painter &p);
 
+	void toggleScrollDateShown();
+	void repaintScrollDateCallback();
+	bool displayScrollDate() const;
+	void scrollDateHide();
+	void keepScrollDateForNow();
+	void scrollDateCheck();
+	void scrollDateHideByTimer();
+
+	gsl::not_null<Window::Controller*> _controller;
 	gsl::not_null<ChannelData*> _channel;
 	gsl::not_null<History*> _history;
 	base::lambda<void()> _cancelledCallback;
 	base::lambda<void(int top)> _scrollTo;
 	std::vector<std::unique_ptr<Item>> _items;
+	std::map<gsl::not_null<HistoryItem*>, gsl::not_null<Item*>, std::less<>> _itemsByHistoryItems;
+	int _itemsTop = 0;
+	int _itemsHeight = 0;
 
 	LocalIdManager _idManager;
 	int _minHeight = 0;
@@ -109,6 +154,14 @@ private:
 	Item *_visibleTopItem = nullptr;
 	int _visibleTopFromItem = 0;
 
+	bool _scrollDateShown = false;
+	Animation _scrollDateOpacity;
+	SingleQueuedInvokation _scrollDateCheck;
+	base::Timer _scrollDateHideTimer;
+	Item *_scrollDateLastItem = nullptr;
+	int _scrollDateLastItemTop = 0;
+	ClickHandlerPtr _scrollDateLink;
+
 	// Up - max, Down - min.
 	uint64 _maxId = 0;
 	uint64 _minId = 0;
@@ -116,6 +169,29 @@ private:
 	mtpRequestId _preloadDownRequestId = 0;
 	bool _upLoaded = false;
 	bool _downLoaded = true;
+
+	MouseAction _mouseAction = MouseAction::None;
+	TextSelectType _mouseSelectType = TextSelectType::Letters;
+	QPoint _dragStartPosition;
+	QPoint _mousePosition;
+	Item *_mouseActionItem = nullptr;
+	HistoryCursorState _mouseCursorState = HistoryDefaultCursorState;
+	uint16 _mouseTextSymbol = 0;
+	bool _pressWasInactive = false;
+
+	Item *_itemNearest = nullptr;
+	Item *_itemOver = nullptr;
+	Item *_itemPressed = nullptr;
+	Item *_selectedItem = nullptr;
+	TextSelection _selectedText;
+	bool _wasSelectedText = false; // was some text selected in current drag action
+	Qt::CursorShape _cursor = style::cur_default;
+
+	// context menu
+	Ui::PopupMenu *_menu = nullptr;
+
+	QPoint _trippleClickPoint;
+	base::Timer _trippleClickTimer;
 
 	MTPDchannelAdminLogEventsFilter::Flags _filterFlags = 0;
 	std::vector<gsl::not_null<UserData*>> _filterAdmins;

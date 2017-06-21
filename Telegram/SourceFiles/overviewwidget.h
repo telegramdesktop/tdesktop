@@ -132,8 +132,6 @@ public slots:
 	void onTouchSelect();
 	void onTouchScrollTimer();
 
-	void onDragExec();
-
 	bool onSearchMessages(bool searchCache = false);
 	void onNeedSearchMessages();
 
@@ -142,6 +140,7 @@ private:
 	void invalidateCache();
 	void resizeItems();
 	void resizeAndRepositionItems();
+	void performDrag();
 
 	void itemRemoved(HistoryItem *item);
 	MsgId complexMsgId(const HistoryItem *item) const;
@@ -333,8 +332,6 @@ public:
 
 	SelectedItemSet getSelectedItems() const;
 
-	void updateAfterDrag();
-
 	void grabStart() override {
 		_inGrab = true;
 		resizeEvent(0);
@@ -355,7 +352,7 @@ public:
 	bool wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) override;
 	QRect rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) override;
 
-	void ui_repaintHistoryItem(const HistoryItem *item);
+	void ui_repaintHistoryItem(gsl::not_null<const HistoryItem*> item);
 
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
 

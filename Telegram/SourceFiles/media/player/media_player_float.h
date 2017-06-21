@@ -56,7 +56,7 @@ public:
 			finishDrag(false);
 		}
 	}
-	void ui_repaintHistoryItem(const HistoryItem *item) {
+	void ui_repaintHistoryItem(gsl::not_null<const HistoryItem*> item) {
 		if (item == _item) {
 			repaintItem();
 		}

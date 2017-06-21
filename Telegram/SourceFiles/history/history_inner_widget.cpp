@@ -57,12 +57,12 @@ private:
 
 };
 
-QMimeData *mimeDataFromTextWithEntities(const TextWithEntities &forClipboard) {
+std::unique_ptr<QMimeData> mimeDataFromTextWithEntities(const TextWithEntities &forClipboard) {
 	if (forClipboard.text.isEmpty()) {
 		return nullptr;
 	}
 
-	auto result = new QMimeData();
+	auto result = std::make_unique<QMimeData>();
 	result->setText(forClipboard.text);
 	auto tags = ConvertEntitiesToTextTags(forClipboard.entities);
 	if (!tags.isEmpty()) {
@@ -105,6 +105,14 @@ HistoryInner::HistoryInner(HistoryWidget *historyWidget, gsl::not_null<Window::C
 	subscribe(_controller->gifPauseLevelChanged(), [this] {
 		if (!_controller->isGifPausedAtLeastFor(Window::GifPauseReason::Any)) {
 			update();
+		}
+	});
+	subscribe(_controller->window()->dragFinished(), [this] {
+		mouseActionUpdate(QCursor::pos());
+	});
+	subscribe(AuthSession::Current().data().historyCleared(), [this](gsl::not_null<History*> history) {
+		if (_history == history) {
+			mouseActionCancel();
 		}
 	});
 }
@@ -363,7 +371,7 @@ void HistoryInner::enumerateDates(Method method) {
 }
 
 void HistoryInner::paintEvent(QPaintEvent *e) {
-	if (!App::main() || (App::wnd() && App::wnd()->contentOverlapped(this, e))) {
+	if (Ui::skipPaintEvent(this, e)) {
 		return;
 	}
 	if (hasPendingResizedItems()) {
@@ -371,17 +379,13 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	}
 
 	Painter p(this);
-	QRect r(e->rect());
-	bool trivial = (rect() == r);
-	if (!trivial) {
-		p.setClipRect(r);
-	}
+	auto clip = e->rect();
 	auto ms = getms();
 
 	bool historyDisplayedEmpty = (_history->isDisplayedEmpty() && (!_migrated || _migrated->isDisplayedEmpty()));
 	bool noHistoryDisplayed = _firstLoading || historyDisplayedEmpty;
 	if (!_firstLoading && _botAbout && !_botAbout->info->text.isEmpty() && _botAbout->height > 0) {
-		if (r.y() < _botAbout->rect.y() + _botAbout->rect.height() && r.y() + r.height() > _botAbout->rect.y()) {
+		if (clip.y() < _botAbout->rect.y() + _botAbout->rect.height() && clip.y() + clip.height() > _botAbout->rect.y()) {
 			p.setTextPalette(st::inTextPalette);
 			App::roundRect(p, _botAbout->rect, st::msgInBg, MessageInCorners, &st::msgInShadow);
 
@@ -398,14 +402,15 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		HistoryLayout::paintEmpty(p, width(), height());
 	}
 	if (!noHistoryDisplayed) {
-		adjustCurrent(r.top());
+		adjustCurrent(clip.top());
 
-		SelectedItems::const_iterator selEnd = _selected.cend();
-		bool hasSel = !_selected.isEmpty();
+		auto selEnd = _selected.cend();
+		auto hasSel = !_selected.isEmpty();
 
-		int32 drawToY = r.y() + r.height();
+		auto drawToY = clip.y() + clip.height();
 
-		int32 selfromy = itemTop(_dragSelFrom), seltoy = itemTop(_dragSelTo);
+		auto selfromy = itemTop(_dragSelFrom);
+		auto seltoy = itemTop(_dragSelTo);
 		if (selfromy < 0 || seltoy < 0) {
 			selfromy = seltoy = -1;
 		} else {
@@ -424,7 +429,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			auto y = mtop + block->y() + item->y();
 			p.save();
 			p.translate(0, y);
-			if (r.y() < y + item->height()) while (y < drawToY) {
+			if (clip.y() < y + item->height()) while (y < drawToY) {
 				TextSelection sel;
 				if (y >= selfromy && y < seltoy) {
 					if (_dragSelecting && !item->serviceMsg() && item->id > 0) {
@@ -436,7 +441,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 						sel = i.value();
 					}
 				}
-				item->draw(p, r.translated(0, -y), sel, ms);
+				item->draw(p, clip.translated(0, -y), sel, ms);
 
 				if (item->hasViews()) {
 					App::main()->scheduleViewIncrement(item);
@@ -465,7 +470,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			auto iItem = (_curHistory == _history ? _curItem : 0);
 			auto item = block->items[iItem];
 
-			auto historyRect = r.intersected(QRect(0, hdrawtop, width(), r.top() + r.height()));
+			auto historyRect = clip.intersected(QRect(0, hdrawtop, width(), clip.top() + clip.height()));
 			auto y = htop + block->y() + item->y();
 			p.save();
 			p.translate(0, y);
@@ -507,14 +512,14 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		}
 
 		if (mtop >= 0 || htop >= 0) {
-			enumerateUserpics([&p, &r](HistoryMessage *message, int userpicTop) {
+			enumerateUserpics([&p, &clip](HistoryMessage *message, int userpicTop) {
 				// stop the enumeration if the userpic is below the painted rect
-				if (userpicTop >= r.top() + r.height()) {
+				if (userpicTop >= clip.top() + clip.height()) {
 					return false;
 				}
 
 				// paint the userpic if it intersects the painted rect
-				if (userpicTop + st::msgPhotoSize > r.top()) {
+				if (userpicTop + st::msgPhotoSize > clip.top()) {
 					message->from()->paintUserpicLeft(p, st::historyPhotoLeft, userpicTop, message->history()->width, st::msgPhotoSize);
 				}
 				return true;
@@ -530,9 +535,9 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			//int showFloatingBefore = height() - 2 * (_visibleAreaBottom - _visibleAreaTop) - dateHeight;
 
 			auto scrollDateOpacity = _scrollDateOpacity.current(ms, _scrollDateShown ? 1. : 0.);
-			enumerateDates([&p, &r, scrollDateOpacity, dateHeight/*, lastDate, showFloatingBefore*/](HistoryItem *item, int itemtop, int dateTop) {
+			enumerateDates([&p, &clip, scrollDateOpacity, dateHeight/*, lastDate, showFloatingBefore*/](HistoryItem *item, int itemtop, int dateTop) {
 				// stop the enumeration if the date is above the painted rect
-				if (dateTop + dateHeight <= r.top()) {
+				if (dateTop + dateHeight <= clip.top()) {
 					return false;
 				}
 
@@ -550,7 +555,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				//}
 
 				// paint the date if it intersects the painted rect
-				if (dateTop < r.top() + r.height()) {
+				if (dateTop < clip.top() + clip.height()) {
 					auto opacity = (dateInPlace/* || noFloatingDate*/) ? 1. : scrollDateOpacity;
 					if (opacity > 0.) {
 						p.setOpacity(opacity);
@@ -660,7 +665,7 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 		_touchSelectTimer.stop();
 		_touchScroll = _touchSelect = false;
 		_touchScrollState = Ui::TouchScrollState::Manual;
-		dragActionCancel();
+		mouseActionCancel();
 		return;
 	}
 
@@ -696,7 +701,7 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 	case QEvent::TouchUpdate:
 	if (!_touchInProgress) return;
 	if (_touchSelect) {
-		dragActionUpdate(_touchPos);
+		mouseActionUpdate(_touchPos);
 	} else if (!_touchScroll && (_touchPos - _touchStart).manhattanLength() >= QApplication::startDragDistance()) {
 		_touchSelectTimer.stop();
 		_touchScroll = true;
@@ -719,7 +724,7 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 	if (!_touchInProgress) return;
 	_touchInProgress = false;
 	if (_touchSelect) {
-		dragActionFinish(_touchPos, Qt::RightButton);
+		mouseActionFinish(_touchPos, Qt::RightButton);
 		QContextMenuEvent contextMenu(QContextMenuEvent::Mouse, mapFromGlobal(_touchPos), _touchPos);
 		showContextMenu(&contextMenu, true);
 		_touchScroll = false;
@@ -738,9 +743,9 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 			_touchWaitingAcceleration = false;
 			_touchPrevPosValid = false;
 		}
-	} else { // one short tap -- like mouse click
-		dragActionStart(_touchPos);
-		dragActionFinish(_touchPos);
+	} else { // One short tap is like left mouse click.
+		mouseActionStart(_touchPos, Qt::LeftButton);
+		mouseActionFinish(_touchPos, Qt::LeftButton);
 	}
 	_touchSelectTimer.stop();
 	_touchSelect = false;
@@ -752,7 +757,7 @@ void HistoryInner::mouseMoveEvent(QMouseEvent *e) {
 	static auto lastGlobalPosition = e->globalPos();
 	auto reallyMoved = (lastGlobalPosition != e->globalPos());
 	auto buttonsPressed = (e->buttons() & (Qt::LeftButton | Qt::MiddleButton));
-	if (!buttonsPressed && _dragAction != NoDrag) {
+	if (!buttonsPressed && _mouseAction != MouseAction::None) {
 		mouseReleaseEvent(e);
 	}
 	if (reallyMoved) {
@@ -761,11 +766,11 @@ void HistoryInner::mouseMoveEvent(QMouseEvent *e) {
 			keepScrollDateForNow();
 		}
 	}
-	dragActionUpdate(e->globalPos());
+	mouseActionUpdate(e->globalPos());
 }
 
-void HistoryInner::dragActionUpdate(const QPoint &screenPos) {
-	_dragPos = screenPos;
+void HistoryInner::mouseActionUpdate(const QPoint &screenPos) {
+	_mousePosition = screenPos;
 	onUpdateSelected();
 }
 
@@ -788,11 +793,11 @@ void HistoryInner::mousePressEvent(QMouseEvent *e) {
 		e->accept();
 		return; // ignore mouse press, that was hiding context menu
 	}
-	dragActionStart(e->globalPos(), e->button());
+	mouseActionStart(e->globalPos(), e->button());
 }
 
-void HistoryInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton button) {
-	dragActionUpdate(screenPos);
+void HistoryInner::mouseActionStart(const QPoint &screenPos, Qt::MouseButton button) {
+	mouseActionUpdate(screenPos);
 	if (button != Qt::LeftButton) return;
 
 	ClickHandler::pressed();
@@ -802,29 +807,29 @@ void HistoryInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton butt
 		repaintItem(App::pressedItem());
 	}
 
-	_dragAction = NoDrag;
-	_dragItem = App::mousedItem();
-	_dragStartPos = mapMouseToItem(mapFromGlobal(screenPos), _dragItem);
-	_dragWasInactive = App::wnd()->inactivePress();
-	if (_dragWasInactive) App::wnd()->inactivePress(false);
+	_mouseAction = MouseAction::None;
+	_mouseActionItem = App::mousedItem();
+	_dragStartPosition = mapMouseToItem(mapFromGlobal(screenPos), _mouseActionItem);
+	_pressWasInactive = _controller->window()->wasInactivePress();
+	if (_pressWasInactive) _controller->window()->setInactivePress(false);
 
 	if (ClickHandler::getPressed()) {
-		_dragAction = PrepareDrag;
+		_mouseAction = MouseAction::PrepareDrag;
 	} else if (!_selected.isEmpty()) {
 		if (_selected.cbegin().value() == FullSelection) {
-			if (_selected.constFind(_dragItem) != _selected.cend() && App::hoveredItem()) {
-				_dragAction = PrepareDrag; // start items drag
-			} else if (!_dragWasInactive) {
-				_dragAction = PrepareSelect; // start items select
+			if (_selected.constFind(_mouseActionItem) != _selected.cend() && App::hoveredItem()) {
+				_mouseAction = MouseAction::PrepareDrag; // start items drag
+			} else if (!_pressWasInactive) {
+				_mouseAction = MouseAction::PrepareSelect; // start items select
 			}
 		}
 	}
-	if (_dragAction == NoDrag && _dragItem) {
+	if (_mouseAction == MouseAction::None && _mouseActionItem) {
 		HistoryTextState dragState;
 		if (_trippleClickTimer.isActive() && (screenPos - _trippleClickPoint).manhattanLength() < QApplication::startDragDistance()) {
 			HistoryStateRequest request;
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
-			dragState = _dragItem->getState(_dragStartPos.x(), _dragStartPos.y(), request);
+			dragState = _mouseActionItem->getState(_dragStartPosition, request);
 			if (dragState.cursor == HistoryInTextCursorState) {
 				TextSelection selStatus = { dragState.symbol, dragState.symbol };
 				if (selStatus != FullSelection && (_selected.isEmpty() || _selected.cbegin().value() != FullSelection)) {
@@ -832,95 +837,95 @@ void HistoryInner::dragActionStart(const QPoint &screenPos, Qt::MouseButton butt
 						repaintItem(_selected.cbegin().key());
 						_selected.clear();
 					}
-					_selected.insert(_dragItem, selStatus);
-					_dragSymbol = dragState.symbol;
-					_dragAction = Selecting;
-					_dragSelType = TextSelectType::Paragraphs;
-					dragActionUpdate(_dragPos);
+					_selected.insert(_mouseActionItem, selStatus);
+					_mouseTextSymbol = dragState.symbol;
+					_mouseAction = MouseAction::Selecting;
+					_mouseSelectType = TextSelectType::Paragraphs;
+					mouseActionUpdate(_mousePosition);
 					_trippleClickTimer.start(QApplication::doubleClickInterval());
 				}
 			}
 		} else if (App::pressedItem()) {
 			HistoryStateRequest request;
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
-			dragState = _dragItem->getState(_dragStartPos.x(), _dragStartPos.y(), request);
+			dragState = _mouseActionItem->getState(_dragStartPosition, request);
 		}
-		if (_dragSelType != TextSelectType::Paragraphs) {
+		if (_mouseSelectType != TextSelectType::Paragraphs) {
 			if (App::pressedItem()) {
-				_dragSymbol = dragState.symbol;
+				_mouseTextSymbol = dragState.symbol;
 				bool uponSelected = (dragState.cursor == HistoryInTextCursorState);
 				if (uponSelected) {
 					if (_selected.isEmpty() ||
 						_selected.cbegin().value() == FullSelection ||
-						_selected.cbegin().key() != _dragItem
+						_selected.cbegin().key() != _mouseActionItem
 						) {
 						uponSelected = false;
 					} else {
 						uint16 selFrom = _selected.cbegin().value().from, selTo = _selected.cbegin().value().to;
-						if (_dragSymbol < selFrom || _dragSymbol >= selTo) {
+						if (_mouseTextSymbol < selFrom || _mouseTextSymbol >= selTo) {
 							uponSelected = false;
 						}
 					}
 				}
 				if (uponSelected) {
-					_dragAction = PrepareDrag; // start text drag
-				} else if (!_dragWasInactive) {
-					if (dynamic_cast<HistorySticker*>(App::pressedItem()->getMedia()) || _dragCursorState == HistoryInDateCursorState) {
-						_dragAction = PrepareDrag; // start sticker drag or by-date drag
+					_mouseAction = MouseAction::PrepareDrag; // start text drag
+				} else if (!_pressWasInactive) {
+					if (dynamic_cast<HistorySticker*>(App::pressedItem()->getMedia()) || _mouseCursorState == HistoryInDateCursorState) {
+						_mouseAction = MouseAction::PrepareDrag; // start sticker drag or by-date drag
 					} else {
-						if (dragState.afterSymbol) ++_dragSymbol;
-						TextSelection selStatus = { _dragSymbol, _dragSymbol };
+						if (dragState.afterSymbol) ++_mouseTextSymbol;
+						TextSelection selStatus = { _mouseTextSymbol, _mouseTextSymbol };
 						if (selStatus != FullSelection && (_selected.isEmpty() || _selected.cbegin().value() != FullSelection)) {
 							if (!_selected.isEmpty()) {
 								repaintItem(_selected.cbegin().key());
 								_selected.clear();
 							}
-							_selected.insert(_dragItem, selStatus);
-							_dragAction = Selecting;
-							repaintItem(_dragItem);
+							_selected.insert(_mouseActionItem, selStatus);
+							_mouseAction = MouseAction::Selecting;
+							repaintItem(_mouseActionItem);
 						} else {
-							_dragAction = PrepareSelect;
+							_mouseAction = MouseAction::PrepareSelect;
 						}
 					}
 				}
-			} else if (!_dragWasInactive) {
-				_dragAction = PrepareSelect; // start items select
+			} else if (!_pressWasInactive) {
+				_mouseAction = MouseAction::PrepareSelect; // start items select
 			}
 		}
 	}
 
-	if (!_dragItem) {
-		_dragAction = NoDrag;
-	} else if (_dragAction == NoDrag) {
-		_dragItem = nullptr;
+	if (!_mouseActionItem) {
+		_mouseAction = MouseAction::None;
+	} else if (_mouseAction == MouseAction::None) {
+		_mouseActionItem = nullptr;
 	}
 }
 
-void HistoryInner::dragActionCancel() {
-	_dragItem = 0;
-	_dragAction = NoDrag;
-	_dragStartPos = QPoint(0, 0);
-	_dragSelFrom = _dragSelTo = 0;
+void HistoryInner::mouseActionCancel() {
+	_mouseActionItem = nullptr;
+	_mouseAction = MouseAction::None;
+	_dragStartPosition = QPoint(0, 0);
+	_dragSelFrom = _dragSelTo = nullptr;
 	_wasSelectedText = false;
 	_widget->noSelectingScroll();
 }
 
-void HistoryInner::onDragExec() {
-	if (_dragAction != Dragging) return;
+void HistoryInner::performDrag() {
+	if (_mouseAction != MouseAction::Dragging) return;
 
 	bool uponSelected = false;
-	if (_dragItem) {
+	if (_mouseActionItem) {
 		if (!_selected.isEmpty() && _selected.cbegin().value() == FullSelection) {
-			uponSelected = _selected.contains(_dragItem);
+			uponSelected = _selected.contains(_mouseActionItem);
 		} else {
 			HistoryStateRequest request;
 			request.flags |= Text::StateRequest::Flag::LookupSymbol;
-			auto dragState = _dragItem->getState(_dragStartPos.x(), _dragStartPos.y(), request);
+			auto dragState = _mouseActionItem->getState(_dragStartPosition, request);
 			uponSelected = (dragState.cursor == HistoryInTextCursorState);
 			if (uponSelected) {
 				if (_selected.isEmpty() ||
 					_selected.cbegin().value() == FullSelection ||
-					_selected.cbegin().key() != _dragItem
+					_selected.cbegin().key() != _mouseActionItem
 					) {
 					uponSelected = false;
 				} else {
@@ -952,7 +957,6 @@ void HistoryInner::onDragExec() {
 		updateDragSelection(0, 0, false);
 		_widget->noSelectingScroll();
 
-		auto drag = std::make_unique<QDrag>(App::wnd());
 		if (!urls.isEmpty()) mimeData->setUrls(urls);
 		if (uponSelected && !Adaptive::OneColumn()) {
 			auto selectedState = getSelectionState();
@@ -960,19 +964,14 @@ void HistoryInner::onDragExec() {
 				mimeData->setData(qsl("application/x-td-forward-selected"), "1");
 			}
 		}
-		drag->setMimeData(mimeData);
-		drag->exec(Qt::CopyAction);
-
-		// We don't receive mouseReleaseEvent when drag is finished.
-		ClickHandler::unpressed();
-		if (App::main()) App::main()->updateAfterDrag();
+		_controller->window()->launchDrag(std::move(mimeData));
 		return;
 	} else {
 		auto forwardMimeType = QString();
 		auto pressedMedia = static_cast<HistoryMedia*>(nullptr);
 		if (auto pressedItem = App::pressedItem()) {
 			pressedMedia = pressedItem->getMedia();
-			if (_dragCursorState == HistoryInDateCursorState || (pressedMedia && pressedMedia->dragItem())) {
+			if (_mouseCursorState == HistoryInDateCursorState || (pressedMedia && pressedMedia->dragItem())) {
 				forwardMimeType = qsl("application/x-td-forward-pressed");
 			}
 		}
@@ -984,9 +983,7 @@ void HistoryInner::onDragExec() {
 			}
 		}
 		if (!forwardMimeType.isEmpty()) {
-			auto drag = std::make_unique<QDrag>(App::wnd());
 			auto mimeData = std::make_unique<QMimeData>();
-
 			mimeData->setData(forwardMimeType, "1");
 			if (auto document = (pressedMedia ? pressedMedia->getDocument() : nullptr)) {
 				auto filepath = document->filepath(DocumentData::FilePathResolveChecked);
@@ -997,12 +994,8 @@ void HistoryInner::onDragExec() {
 				}
 			}
 
-			drag->setMimeData(mimeData.release());
-			drag->exec(Qt::CopyAction);
-
-			// We don't receive mouseReleaseEvent when drag is finished.
-			ClickHandler::unpressed();
-			if (App::main()) App::main()->updateAfterDrag();
+			// This call enters event loop and can destroy any QObject.
+			_controller->window()->launchDrag(std::move(mimeData));
 			return;
 		}
 	}
@@ -1022,8 +1015,8 @@ void HistoryInner::itemRemoved(HistoryItem *item) {
 		_widget->updateTopBarSelection();
 	}
 
-	if (_dragItem == item) {
-		dragActionCancel();
+	if (_mouseActionItem == item) {
+		mouseActionCancel();
 	}
 
 	if (_dragSelFrom == item || _dragSelTo == item) {
@@ -1034,16 +1027,16 @@ void HistoryInner::itemRemoved(HistoryItem *item) {
 	onUpdateSelected();
 }
 
-void HistoryInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton button) {
-	dragActionUpdate(screenPos);
+void HistoryInner::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton button) {
+	mouseActionUpdate(screenPos);
 
 	ClickHandlerPtr activated = ClickHandler::unpressed();
-	if (_dragAction == Dragging) {
+	if (_mouseAction == MouseAction::Dragging) {
 		activated.clear();
-	} else if (HistoryItem *pressed = App::pressedLinkItem()) {
+	} else if (auto pressed = App::pressedLinkItem()) {
 		// if we are in selecting items mode perhaps we want to
 		// toggle selection instead of activating the pressed link
-		if (_dragAction == PrepareDrag && !_dragWasInactive && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection && button != Qt::RightButton) {
+		if (_mouseAction == MouseAction::PrepareDrag && !_pressWasInactive && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection && button != Qt::RightButton) {
 			if (HistoryMedia *media = pressed->getMedia()) {
 				if (media->toggleSelectionByHandlerClick(activated)) {
 					activated.clear();
@@ -1059,52 +1052,52 @@ void HistoryInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton but
 	_wasSelectedText = false;
 
 	if (activated) {
-		dragActionCancel();
+		mouseActionCancel();
 		App::activateClickHandler(activated, button);
 		return;
 	}
-	if (_dragAction == PrepareSelect && !_dragWasInactive && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection) {
-		SelectedItems::iterator i = _selected.find(_dragItem);
-		if (i == _selected.cend() && !_dragItem->serviceMsg() && _dragItem->id > 0) {
+	if (_mouseAction == MouseAction::PrepareSelect && !_pressWasInactive && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection) {
+		SelectedItems::iterator i = _selected.find(_mouseActionItem);
+		if (i == _selected.cend() && !_mouseActionItem->serviceMsg() && _mouseActionItem->id > 0) {
 			if (_selected.size() < MaxSelectedItems) {
 				if (!_selected.isEmpty() && _selected.cbegin().value() != FullSelection) {
 					_selected.clear();
 				}
-				_selected.insert(_dragItem, FullSelection);
+				_selected.insert(_mouseActionItem, FullSelection);
 			}
 		} else {
 			_selected.erase(i);
 		}
-		repaintItem(_dragItem);
-	} else if (_dragAction == PrepareDrag && !_dragWasInactive && button != Qt::RightButton) {
-		SelectedItems::iterator i = _selected.find(_dragItem);
+		repaintItem(_mouseActionItem);
+	} else if (_mouseAction == MouseAction::PrepareDrag && !_pressWasInactive && button != Qt::RightButton) {
+		SelectedItems::iterator i = _selected.find(_mouseActionItem);
 		if (i != _selected.cend() && i.value() == FullSelection) {
 			_selected.erase(i);
-			repaintItem(_dragItem);
-		} else if (i == _selected.cend() && !_dragItem->serviceMsg() && _dragItem->id > 0 && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection) {
+			repaintItem(_mouseActionItem);
+		} else if (i == _selected.cend() && !_mouseActionItem->serviceMsg() && _mouseActionItem->id > 0 && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection) {
 			if (_selected.size() < MaxSelectedItems) {
-				_selected.insert(_dragItem, FullSelection);
-				repaintItem(_dragItem);
+				_selected.insert(_mouseActionItem, FullSelection);
+				repaintItem(_mouseActionItem);
 			}
 		} else {
 			_selected.clear();
 			update();
 		}
-	} else if (_dragAction == Selecting) {
+	} else if (_mouseAction == MouseAction::Selecting) {
 		if (_dragSelFrom && _dragSelTo) {
 			applyDragSelection();
 			_dragSelFrom = _dragSelTo = 0;
-		} else if (!_selected.isEmpty() && !_dragWasInactive) {
+		} else if (!_selected.isEmpty() && !_pressWasInactive) {
 			auto sel = _selected.cbegin().value();
 			if (sel != FullSelection && sel.from == sel.to) {
 				_selected.clear();
-				if (App::wnd()) App::wnd()->setInnerFocus();
+				App::wnd()->setInnerFocus();
 			}
 		}
 	}
-	_dragAction = NoDrag;
-	_dragItem = 0;
-	_dragSelType = TextSelectType::Letters;
+	_mouseAction = MouseAction::None;
+	_mouseActionItem = nullptr;
+	_mouseSelectType = TextSelectType::Letters;
 	_widget->noSelectingScroll();
 	_widget->updateTopBarSelection();
 
@@ -1116,7 +1109,7 @@ void HistoryInner::dragActionFinish(const QPoint &screenPos, Qt::MouseButton but
 }
 
 void HistoryInner::mouseReleaseEvent(QMouseEvent *e) {
-	dragActionFinish(e->globalPos(), e->button());
+	mouseActionFinish(e->globalPos(), e->button());
 	if (!rect().contains(e->pos())) {
 		leaveEvent(e);
 	}
@@ -1125,22 +1118,22 @@ void HistoryInner::mouseReleaseEvent(QMouseEvent *e) {
 void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
 	if (!_history) return;
 
-	dragActionStart(e->globalPos(), e->button());
-	if (((_dragAction == Selecting && !_selected.isEmpty() && _selected.cbegin().value() != FullSelection) || (_dragAction == NoDrag && (_selected.isEmpty() || _selected.cbegin().value() != FullSelection))) && _dragSelType == TextSelectType::Letters && _dragItem) {
+	mouseActionStart(e->globalPos(), e->button());
+	if (((_mouseAction == MouseAction::Selecting && !_selected.isEmpty() && _selected.cbegin().value() != FullSelection) || (_mouseAction == MouseAction::None && (_selected.isEmpty() || _selected.cbegin().value() != FullSelection))) && _mouseSelectType == TextSelectType::Letters && _mouseActionItem) {
 		HistoryStateRequest request;
 		request.flags |= Text::StateRequest::Flag::LookupSymbol;
-		auto dragState = _dragItem->getState(_dragStartPos.x(), _dragStartPos.y(), request);
+		auto dragState = _mouseActionItem->getState(_dragStartPosition, request);
 		if (dragState.cursor == HistoryInTextCursorState) {
-			_dragSymbol = dragState.symbol;
-			_dragSelType = TextSelectType::Words;
-			if (_dragAction == NoDrag) {
-				_dragAction = Selecting;
+			_mouseTextSymbol = dragState.symbol;
+			_mouseSelectType = TextSelectType::Words;
+			if (_mouseAction == MouseAction::None) {
+				_mouseAction = MouseAction::Selecting;
 				TextSelection selStatus = { dragState.symbol, dragState.symbol };
 				if (!_selected.isEmpty()) {
 					repaintItem(_selected.cbegin().key());
 					_selected.clear();
 				}
-				_selected.insert(_dragItem, selStatus);
+				_selected.insert(_mouseActionItem, selStatus);
 			}
 			mouseMoveEvent(e);
 
@@ -1160,7 +1153,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		_menu = 0;
 	}
 	if (e->reason() == QContextMenuEvent::Mouse) {
-		dragActionUpdate(e->globalPos());
+		mouseActionUpdate(e->globalPos());
 	}
 
 	auto selectedState = getSelectionState();
@@ -1181,10 +1174,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			uint16 selFrom = _selected.cbegin().value().from, selTo = _selected.cbegin().value().to;
 			hasSelected = (selTo > selFrom) ? 1 : 0;
 			if (App::mousedItem() && App::mousedItem() == App::hoveredItem()) {
-				QPoint mousePos(mapMouseToItem(mapFromGlobal(_dragPos), App::mousedItem()));
+				QPoint mousePos(mapMouseToItem(mapFromGlobal(_mousePosition), App::mousedItem()));
 				HistoryStateRequest request;
 				request.flags |= Text::StateRequest::Flag::LookupSymbol;
-				auto dragState = App::mousedItem()->getState(mousePos.x(), mousePos.y(), request);
+				auto dragState = App::mousedItem()->getState(mousePos, request);
 				if (dragState.cursor == HistoryInTextCursorState && dragState.symbol >= selFrom && dragState.symbol < selTo) {
 					isUponSelected = 1;
 				}
@@ -1472,7 +1465,7 @@ void HistoryInner::openContextGif() {
 	if (auto item = App::contextItem()) {
 		if (auto media = item->getMedia()) {
 			if (auto document = media->getDocument()) {
-				App::wnd()->showDocument(document, item);
+				_controller->window()->showDocument(document, item);
 			}
 		}
 	}
@@ -1499,7 +1492,7 @@ void HistoryInner::copyContextText() {
 
 void HistoryInner::setToClipboard(const TextWithEntities &forClipboard, QClipboard::Mode mode) {
 	if (auto data = mimeDataFromTextWithEntities(forClipboard)) {
-		QApplication::clipboard()->setMimeData(data, mode);
+		QApplication::clipboard()->setMimeData(data.release(), mode);
 	}
 }
 
@@ -1510,7 +1503,7 @@ void HistoryInner::resizeEvent(QResizeEvent *e) {
 TextWithEntities HistoryInner::getSelectedText() const {
 	SelectedItems sel = _selected;
 
-	if (_dragAction == Selecting && _dragSelFrom && _dragSelTo) {
+	if (_mouseAction == MouseAction::Selecting && _dragSelFrom && _dragSelTo) {
 		applyDragSelection(&sel);
 	}
 
@@ -1813,14 +1806,14 @@ void HistoryInner::updateSize() {
 	if (width() != _scroll->width() || height() != newHeight) {
 		resize(_scroll->width(), newHeight);
 
-		dragActionUpdate(QCursor::pos());
+		mouseActionUpdate(QCursor::pos());
 	} else {
 		update();
 	}
 }
 
 void HistoryInner::enterEventHook(QEvent *e) {
-	dragActionUpdate(QCursor::pos());
+	mouseActionUpdate(QCursor::pos());
 	return TWidget::enterEventHook(e);
 }
 
@@ -1840,7 +1833,7 @@ void HistoryInner::leaveEventHook(QEvent *e) {
 
 HistoryInner::~HistoryInner() {
 	delete _menu;
-	_dragAction = NoDrag;
+	_mouseAction = MouseAction::None;
 }
 
 bool HistoryInner::focusNextPrevChild(bool next) {
@@ -1992,7 +1985,7 @@ void HistoryInner::selectItem(HistoryItem *item) {
 
 void HistoryInner::onTouchSelect() {
 	_touchSelect = true;
-	dragActionStart(_touchPos);
+	mouseActionStart(_touchPos, Qt::LeftButton);
 }
 
 void HistoryInner::onUpdateSelected() {
@@ -2000,7 +1993,7 @@ void HistoryInner::onUpdateSelected() {
 		return;
 	}
 
-	auto mousePos = mapFromGlobal(_dragPos);
+	auto mousePos = mapFromGlobal(_mousePosition);
 	auto point = _widget->clampMousePosition(mousePos);
 
 	HistoryBlock *block = 0;
@@ -2014,7 +2007,7 @@ void HistoryInner::onUpdateSelected() {
 
 		App::mousedItem(item);
 		m = mapMouseToItem(point, item);
-		if (item->hasPoint(m.x(), m.y())) {
+		if (item->hasPoint(m)) {
 			if (App::hoveredItem() != item) {
 				repaintItem(App::hoveredItem());
 				App::hoveredItem(item);
@@ -2025,25 +2018,25 @@ void HistoryInner::onUpdateSelected() {
 			App::hoveredItem(0);
 		}
 	}
-	if (_dragItem && _dragItem->detached()) {
-		dragActionCancel();
+	if (_mouseActionItem && _mouseActionItem->detached()) {
+		mouseActionCancel();
 	}
 
 	HistoryTextState dragState;
 	ClickHandlerHost *lnkhost = nullptr;
-	bool selectingText = (item == _dragItem && item == App::hoveredItem() && !_selected.isEmpty() && _selected.cbegin().value() != FullSelection);
+	bool selectingText = (item == _mouseActionItem && item == App::hoveredItem() && !_selected.isEmpty() && _selected.cbegin().value() != FullSelection);
 	if (point.y() < _historyPaddingTop) {
 		if (_botAbout && !_botAbout->info->text.isEmpty() && _botAbout->height > 0) {
-			dragState = _botAbout->info->text.getState(point.x() - _botAbout->rect.left() - st::msgPadding.left(), point.y() - _botAbout->rect.top() - st::msgPadding.top() - st::botDescSkip - st::msgNameFont->height, _botAbout->width);
+			dragState = _botAbout->info->text.getState(point - _botAbout->rect.topLeft() - QPoint(st::msgPadding.left(), st::msgPadding.top() + st::botDescSkip + st::msgNameFont->height), _botAbout->width);
 			lnkhost = _botAbout.get();
 		}
 	} else if (item) {
-		if (item != _dragItem || (m - _dragStartPos).manhattanLength() >= QApplication::startDragDistance()) {
-			if (_dragAction == PrepareDrag) {
-				_dragAction = Dragging;
-				QTimer::singleShot(1, this, SLOT(onDragExec()));
-			} else if (_dragAction == PrepareSelect) {
-				_dragAction = Selecting;
+		if (item != _mouseActionItem || (m - _dragStartPosition).manhattanLength() >= QApplication::startDragDistance()) {
+			if (_mouseAction == MouseAction::PrepareDrag) {
+				_mouseAction = MouseAction::Dragging;
+				InvokeQueued(this, [this] { performDrag(); });
+			} else if (_mouseAction == MouseAction::PrepareSelect) {
+				_mouseAction = MouseAction::Selecting;
 			}
 		}
 
@@ -2098,12 +2091,12 @@ void HistoryInner::onUpdateSelected() {
 		});
 		if (!dragState.link) {
 			HistoryStateRequest request;
-			if (_dragAction == Selecting) {
+			if (_mouseAction == MouseAction::Selecting) {
 				request.flags |= Text::StateRequest::Flag::LookupSymbol;
 			} else {
 				selectingText = false;
 			}
-			dragState = item->getState(m.x(), m.y(), request);
+			dragState = item->getState(m, request);
 			lnkhost = item;
 			if (!dragState.link && m.x() >= st::historyPhotoLeft && m.x() < st::historyPhotoLeft + st::msgPhotoSize) {
 				if (auto msg = item->toHistoryMessage()) {
@@ -2128,7 +2121,7 @@ void HistoryInner::onUpdateSelected() {
 		}
 	}
 	auto lnkChanged = ClickHandler::setActive(dragState.link, lnkhost);
-	if (lnkChanged || dragState.cursor != _dragCursorState) {
+	if (lnkChanged || dragState.cursor != _mouseCursorState) {
 		Ui::Tooltip::Hide();
 	}
 	if (dragState.link || dragState.cursor == HistoryInDateCursorState || dragState.cursor == HistoryInForwardedCursorState) {
@@ -2136,27 +2129,27 @@ void HistoryInner::onUpdateSelected() {
 	}
 
 	Qt::CursorShape cur = style::cur_default;
-	if (_dragAction == NoDrag) {
-		_dragCursorState = dragState.cursor;
+	if (_mouseAction == MouseAction::None) {
+		_mouseCursorState = dragState.cursor;
 		if (dragState.link) {
 			cur = style::cur_pointer;
-		} else if (_dragCursorState == HistoryInTextCursorState && (_selected.isEmpty() || _selected.cbegin().value() != FullSelection)) {
+		} else if (_mouseCursorState == HistoryInTextCursorState && (_selected.isEmpty() || _selected.cbegin().value() != FullSelection)) {
 			cur = style::cur_text;
-		} else if (_dragCursorState == HistoryInDateCursorState) {
+		} else if (_mouseCursorState == HistoryInDateCursorState) {
 			//			cur = style::cur_cross;
 		}
 	} else if (item) {
-		if (_dragAction == Selecting) {
+		if (_mouseAction == MouseAction::Selecting) {
 			auto canSelectMany = (_history != nullptr);
 			if (selectingText) {
 				uint16 second = dragState.symbol;
-				if (dragState.afterSymbol && _dragSelType == TextSelectType::Letters) {
+				if (dragState.afterSymbol && _mouseSelectType == TextSelectType::Letters) {
 					++second;
 				}
-				auto selState = _dragItem->adjustSelection({ qMin(second, _dragSymbol), qMax(second, _dragSymbol) }, _dragSelType);
-				if (_selected[_dragItem] != selState) {
-					_selected[_dragItem] = selState;
-					repaintItem(_dragItem);
+				auto selState = _mouseActionItem->adjustSelection({ qMin(second, _mouseTextSymbol), qMax(second, _mouseTextSymbol) }, _mouseSelectType);
+				if (_selected[_mouseActionItem] != selState) {
+					_selected[_mouseActionItem] = selState;
+					repaintItem(_mouseActionItem);
 				}
 				if (!_wasSelectedText && (selState == FullSelection || selState.from != selState.to)) {
 					_wasSelectedText = true;
@@ -2164,20 +2157,20 @@ void HistoryInner::onUpdateSelected() {
 				}
 				updateDragSelection(0, 0, false);
 			} else if (canSelectMany) {
-				auto selectingDown = (itemTop(_dragItem) < itemTop(item)) || (_dragItem == item && _dragStartPos.y() < m.y());
-				auto dragSelFrom = _dragItem, dragSelTo = item;
-				if (!dragSelFrom->hasPoint(_dragStartPos.x(), _dragStartPos.y())) { // maybe exclude dragSelFrom
+				auto selectingDown = (itemTop(_mouseActionItem) < itemTop(item)) || (_mouseActionItem == item && _dragStartPosition.y() < m.y());
+				auto dragSelFrom = _mouseActionItem, dragSelTo = item;
+				if (!dragSelFrom->hasPoint(_dragStartPosition)) { // maybe exclude dragSelFrom
 					if (selectingDown) {
-						if (_dragStartPos.y() >= dragSelFrom->height() - dragSelFrom->marginBottom() || ((item == dragSelFrom) && (m.y() < _dragStartPos.y() + QApplication::startDragDistance() || m.y() < dragSelFrom->marginTop()))) {
+						if (_dragStartPosition.y() >= dragSelFrom->height() - dragSelFrom->marginBottom() || ((item == dragSelFrom) && (m.y() < _dragStartPosition.y() + QApplication::startDragDistance() || m.y() < dragSelFrom->marginTop()))) {
 							dragSelFrom = (dragSelFrom == dragSelTo) ? 0 : nextItem(dragSelFrom);
 						}
 					} else {
-						if (_dragStartPos.y() < dragSelFrom->marginTop() || ((item == dragSelFrom) && (m.y() >= _dragStartPos.y() - QApplication::startDragDistance() || m.y() >= dragSelFrom->height() - dragSelFrom->marginBottom()))) {
+						if (_dragStartPosition.y() < dragSelFrom->marginTop() || ((item == dragSelFrom) && (m.y() >= _dragStartPosition.y() - QApplication::startDragDistance() || m.y() >= dragSelFrom->height() - dragSelFrom->marginBottom()))) {
 							dragSelFrom = (dragSelFrom == dragSelTo) ? 0 : prevItem(dragSelFrom);
 						}
 					}
 				}
-				if (_dragItem != item) { // maybe exclude dragSelTo
+				if (_mouseActionItem != item) { // maybe exclude dragSelTo
 					if (selectingDown) {
 						if (m.y() < dragSelTo->marginTop()) {
 							dragSelTo = (dragSelFrom == dragSelTo) ? 0 : prevItem(dragSelTo);
@@ -2199,12 +2192,12 @@ void HistoryInner::onUpdateSelected() {
 				}
 				updateDragSelection(dragSelFrom, dragSelTo, dragSelecting);
 			}
-		} else if (_dragAction == Dragging) {
+		} else if (_mouseAction == MouseAction::Dragging) {
 		}
 
 		if (ClickHandler::getPressed()) {
 			cur = style::cur_pointer;
-		} else if (_dragAction == Selecting && !_selected.isEmpty() && _selected.cbegin().value() != FullSelection) {
+		} else if (_mouseAction == MouseAction::Selecting && !_selected.isEmpty() && _selected.cbegin().value() != FullSelection) {
 			if (!_dragSelFrom || !_dragSelTo) {
 				cur = style::cur_text;
 			}
@@ -2216,19 +2209,19 @@ void HistoryInner::onUpdateSelected() {
 		if (!pressedItem->detached()) {
 			if (pressedItem->history() == _history || pressedItem->history() == _migrated) {
 				auto adjustedPoint = mapMouseToItem(point, pressedItem);
-				pressedItem->updatePressed(adjustedPoint.x(), adjustedPoint.y());
+				pressedItem->updatePressed(adjustedPoint);
 			}
 		}
 	}
 
-	if (_dragAction == Selecting) {
+	if (_mouseAction == MouseAction::Selecting) {
 		_widget->checkSelectingScroll(mousePos);
 	} else {
 		updateDragSelection(0, 0, false);
 		_widget->noSelectingScroll();
 	}
 
-	if (_dragAction == NoDrag && (lnkChanged || cur != _cursor)) {
+	if (_mouseAction == MouseAction::None && (lnkChanged || cur != _cursor)) {
 		setCursor(_cursor = cur);
 	}
 }
@@ -2414,7 +2407,7 @@ void HistoryInner::applyDragSelection(SelectedItems *toItems) const {
 }
 
 QString HistoryInner::tooltipText() const {
-	if (_dragCursorState == HistoryInDateCursorState && _dragAction == NoDrag) {
+	if (_mouseCursorState == HistoryInDateCursorState && _mouseAction == MouseAction::None) {
 		if (App::hoveredItem()) {
 			auto dateText = App::hoveredItem()->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat));
 			if (auto edited = App::hoveredItem()->Get<HistoryMessageEdited>()) {
@@ -2425,7 +2418,7 @@ QString HistoryInner::tooltipText() const {
 			}
 			return dateText;
 		}
-	} else if (_dragCursorState == HistoryInForwardedCursorState && _dragAction == NoDrag) {
+	} else if (_mouseCursorState == HistoryInForwardedCursorState && _mouseAction == MouseAction::None) {
 		if (App::hoveredItem()) {
 			if (auto forwarded = App::hoveredItem()->Get<HistoryMessageForwarded>()) {
 				return forwarded->_text.originalText(AllTextSelection, ExpandLinksNone);
@@ -2438,14 +2431,14 @@ QString HistoryInner::tooltipText() const {
 }
 
 QPoint HistoryInner::tooltipPos() const {
-	return _dragPos;
+	return _mousePosition;
 }
 
 void HistoryInner::onParentGeometryChanged() {
 	auto mousePos = QCursor::pos();
 	auto mouseOver = _widget->rect().contains(_widget->mapFromGlobal(mousePos));
-	auto needToUpdate = (_dragAction != NoDrag || _touchScroll || mouseOver);
+	auto needToUpdate = (_mouseAction != MouseAction::None || _touchScroll || mouseOver);
 	if (needToUpdate) {
-		dragActionUpdate(mousePos);
+		mouseActionUpdate(mousePos);
 	}
 }

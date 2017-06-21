@@ -46,8 +46,8 @@ public:
 	}
 	virtual TextWithEntities selectedText(TextSelection selection) const = 0;
 
-	bool hasPoint(int x, int y) const {
-		return (x >= 0 && y >= 0 && x < _width && y < _height);
+	bool hasPoint(QPoint point) const {
+		return QRect(0, 0, _width, _height).contains(point);
 	}
 
 	virtual bool isDisplayed() const {
@@ -65,8 +65,8 @@ public:
 		return _height;
 	}
 	virtual void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const = 0;
-	virtual HistoryTextState getState(int x, int y, HistoryStateRequest request) const = 0;
-	virtual void updatePressed(int x, int y) {
+	virtual HistoryTextState getState(QPoint point, HistoryStateRequest request) const = 0;
+	virtual void updatePressed(QPoint point) {
 	}
 
 	virtual int32 addToOverview(AddToOverviewMethod method) {

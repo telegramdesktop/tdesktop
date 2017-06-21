@@ -93,7 +93,7 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 
 	case WM_ACTIVATE: {
 		if (LOWORD(wParam) == WA_CLICKACTIVE) {
-			App::wnd()->inactivePress(true);
+			App::wnd()->setInactivePress(true);
 		}
 		if (LOWORD(wParam) != WA_INACTIVE) {
 			App::wnd()->shadowsActivate();

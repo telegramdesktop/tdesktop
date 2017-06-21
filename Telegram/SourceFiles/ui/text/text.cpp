@@ -1020,11 +1020,11 @@ public:
 		draw(left, top, w, align, yFrom, yTo, selection);
 	}
 
-	Text::StateResult getState(int x, int y, int w, Text::StateRequest request) {
-		if (!_t->isNull() && y >= 0) {
+	Text::StateResult getState(QPoint point, int w, Text::StateRequest request) {
+		if (!_t->isNull() && point.y() >= 0) {
 			_lookupRequest = request;
-			_lookupX = x;
-			_lookupY = y;
+			_lookupX = point.x();
+			_lookupY = point.y();
 
 			_breakEverywhere = (_lookupRequest.flags & Text::StateRequest::Flag::BreakEverywhere);
 			_lookupSymbol = (_lookupRequest.flags & Text::StateRequest::Flag::LookupSymbol);
@@ -1036,11 +1036,11 @@ public:
 		return _lookupResult;
 	}
 
-	Text::StateResult getStateElided(int x, int y, int w, Text::StateRequestElided request) {
-		if (!_t->isNull() && y >= 0 && request.lines > 0) {
+	Text::StateResult getStateElided(QPoint point, int w, Text::StateRequestElided request) {
+		if (!_t->isNull() && point.y() >= 0 && request.lines > 0) {
 			_lookupRequest = request;
-			_lookupX = x;
-			_lookupY = y;
+			_lookupX = point.x();
+			_lookupY = point.y();
 
 			_breakEverywhere = (_lookupRequest.flags & Text::StateRequest::Flag::BreakEverywhere);
 			_lookupSymbol = (_lookupRequest.flags & Text::StateRequest::Flag::LookupSymbol);
@@ -2838,14 +2838,14 @@ void Text::drawElided(Painter &painter, int32 left, int32 top, int32 w, int32 li
 	p.drawElided(left, top, w, align, lines, yFrom, yTo, removeFromEnd, breakEverywhere, selection);
 }
 
-Text::StateResult Text::getState(int x, int y, int width, StateRequest request) const {
+Text::StateResult Text::getState(QPoint point, int width, StateRequest request) const {
 	TextPainter p(0, this);
-	return p.getState(x, y, width, request);
+	return p.getState(point, width, request);
 }
 
-Text::StateResult Text::getStateElided(int x, int y, int width, StateRequestElided request) const {
+Text::StateResult Text::getStateElided(QPoint point, int width, StateRequestElided request) const {
 	TextPainter p(0, this);
-	return p.getStateElided(x, y, width, request);
+	return p.getStateElided(point, width, request);
 }
 
 TextSelection Text::adjustSelection(TextSelection selection, TextSelectType selectType) const {

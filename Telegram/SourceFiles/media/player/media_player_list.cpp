@@ -95,7 +95,7 @@ void ListWidget::mouseMoveEvent(QMouseEvent *e) {
 			if (y <= m.y()) {
 				if (auto media = layout->toMediaItem()) {
 					item = media->getItem();
-					media->getState(lnk, cursorState, m.x(), m.y() - y);
+					media->getState(lnk, cursorState, m - QPoint(0, y));
 					lnkhost = media;
 				}
 			}
@@ -117,7 +117,7 @@ void ListWidget::mouseMoveEvent(QMouseEvent *e) {
 	}
 }
 
-void ListWidget::ui_repaintHistoryItem(const HistoryItem *item) {
+void ListWidget::ui_repaintHistoryItem(gsl::not_null<const HistoryItem*> item) {
 	repaintItem(item);
 }
 

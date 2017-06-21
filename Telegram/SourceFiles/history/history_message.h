@@ -75,11 +75,11 @@ public:
 
 	void dependencyItemRemoved(HistoryItem *dependency) override;
 
-	bool hasPoint(int x, int y) const override;
-	bool pointInTime(int32 right, int32 bottom, int x, int y, InfoDisplayType type) const override;
+	bool hasPoint(QPoint point) const override;
+	bool pointInTime(int right, int bottom, QPoint point, InfoDisplayType type) const override;
 
-	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
-	void updatePressed(int x, int y) override;
+	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
+	void updatePressed(QPoint point) override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
 
@@ -184,11 +184,11 @@ private:
 	void paintViaBotIdInfo(Painter &p, QRect &trect, bool selected) const;
 	void paintText(Painter &p, QRect &trect, TextSelection selection) const;
 
-	bool getStateFromName(int x, int y, QRect &trect, HistoryTextState *outResult) const;
-	bool getStateForwardedInfo(int x, int y, QRect &trect, HistoryTextState *outResult, const HistoryStateRequest &request) const;
-	bool getStateReplyInfo(int x, int y, QRect &trect, HistoryTextState *outResult) const;
-	bool getStateViaBotIdInfo(int x, int y, QRect &trect, HistoryTextState *outResult) const;
-	bool getStateText(int x, int y, QRect &trect, HistoryTextState *outResult, const HistoryStateRequest &request) const;
+	bool getStateFromName(QPoint point, QRect &trect, HistoryTextState *outResult) const;
+	bool getStateForwardedInfo(QPoint point, QRect &trect, HistoryTextState *outResult, const HistoryStateRequest &request) const;
+	bool getStateReplyInfo(QPoint point, QRect &trect, HistoryTextState *outResult) const;
+	bool getStateViaBotIdInfo(QPoint point, QRect &trect, HistoryTextState *outResult) const;
+	bool getStateText(QPoint point, QRect &trect, HistoryTextState *outResult, const HistoryStateRequest &request) const;
 
 	void setMedia(const MTPMessageMedia *media);
 	void setReplyMarkup(const MTPReplyMarkup *markup);
@@ -223,7 +223,7 @@ private:
 
 		void startPaint(Painter &p) const override;
 		const style::TextStyle &textStyle() const override;
-		void repaint(const HistoryItem *item) const override;
+		void repaint(gsl::not_null<const HistoryItem*> item) const override;
 
 	protected:
 		void paintButtonBg(Painter &p, const QRect &rect, float64 howMuchOver) const override;
@@ -300,8 +300,8 @@ public:
 	QRect countGeometry() const;
 
 	void draw(Painter &p, QRect clip, TextSelection selection, TimeMs ms) const override;
-	bool hasPoint(int x, int y) const override;
-	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
+	bool hasPoint(QPoint point) const override;
+	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
 		return _text.adjustSelection(selection, type);

@@ -2060,7 +2060,9 @@ void History::clear(bool leaveItems) {
 			peer->asChannel()->mgInfo->markupSenders.clear();
 		}
 	}
-	if (leaveItems && App::main()) App::main()->historyCleared(this);
+	if (leaveItems) {
+		AuthSession::Current().data().historyCleared().notify(this, true);
+	}
 }
 
 void History::clearBlocks(bool leaveItems) {

@@ -186,9 +186,8 @@ void ConfirmBox::updateLink() {
 }
 
 void ConfirmBox::updateHover() {
-	QPoint m(mapFromGlobal(_lastMousePos));
-
-	auto state = _text.getStateLeft(m.x() - st::boxPadding.left(), m.y() - st::boxPadding.top(), _textWidth, width());
+	auto m = mapFromGlobal(_lastMousePos);
+	auto state = _text.getStateLeft(m - QPoint(st::boxPadding.left(), st::boxPadding.top()), _textWidth, width());
 
 	ClickHandler::setActive(state.link, this);
 }

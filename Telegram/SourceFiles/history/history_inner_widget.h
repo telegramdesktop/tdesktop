@@ -44,11 +44,6 @@ public:
 
 	TextWithEntities getSelectedText() const;
 
-	void dragActionStart(const QPoint &screenPos, Qt::MouseButton button = Qt::LeftButton);
-	void dragActionUpdate(const QPoint &screenPos);
-	void dragActionFinish(const QPoint &screenPos, Qt::MouseButton button = Qt::LeftButton);
-	void dragActionCancel();
-
 	void touchScrollUpdated(const QPoint &screenPos);
 	QPoint mapMouseToItem(QPoint p, HistoryItem *item);
 
@@ -125,13 +120,26 @@ public slots:
 	void onMenuDestroy(QObject *obj);
 	void onTouchSelect();
 	void onTouchScrollTimer();
-	void onDragExec();
 
 private slots:
 	void onScrollDateCheck();
 	void onScrollDateHideByTimer();
 
 private:
+	enum class MouseAction {
+		None,
+		PrepareDrag,
+		Dragging,
+		PrepareSelect,
+		Selecting,
+	};
+
+	void mouseActionStart(const QPoint &screenPos, Qt::MouseButton button);
+	void mouseActionUpdate(const QPoint &screenPos);
+	void mouseActionFinish(const QPoint &screenPos, Qt::MouseButton button);
+	void mouseActionCancel();
+	void performDrag();
+
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
 
 	void itemRemoved(HistoryItem *item);
@@ -207,20 +215,14 @@ private:
 		return (_history && _history->hasPendingResizedItems()) || (_migrated && _migrated->hasPendingResizedItems());
 	}
 
-	enum DragAction {
-		NoDrag = 0x00,
-		PrepareDrag = 0x01,
-		Dragging = 0x02,
-		PrepareSelect = 0x03,
-		Selecting = 0x04,
-	};
-	DragAction _dragAction = NoDrag;
-	TextSelectType _dragSelType = TextSelectType::Letters;
-	QPoint _dragStartPos, _dragPos;
-	HistoryItem *_dragItem = nullptr;
-	HistoryCursorState _dragCursorState = HistoryDefaultCursorState;
-	uint16 _dragSymbol = 0;
-	bool _dragWasInactive = false;
+	MouseAction _mouseAction = MouseAction::None;
+	TextSelectType _mouseSelectType = TextSelectType::Letters;
+	QPoint _dragStartPosition;
+	QPoint _mousePosition;
+	HistoryItem *_mouseActionItem = nullptr;
+	HistoryCursorState _mouseCursorState = HistoryDefaultCursorState;
+	uint16 _mouseTextSymbol = 0;
+	bool _pressWasInactive = false;
 
 	QPoint _trippleClickPoint;
 	QTimer _trippleClickTimer;
@@ -232,7 +234,7 @@ private:
 	bool _dragSelecting = false;
 	bool _wasSelectedText = false; // was some text selected in current drag action
 
-								   // scroll by touch support (at least Windows Surface tablets)
+	// scroll by touch support (at least Windows Surface tablets)
 	bool _touchScroll = false;
 	bool _touchSelect = false;
 	bool _touchInProgress = false;

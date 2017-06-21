@@ -57,6 +57,12 @@ public:
 	base::Observable<void> &savedGifsUpdated() {
 		return _savedGifsUpdated;
 	}
+	base::Observable<gsl::not_null<History*>> &historyCleared() {
+		return _historyCleared;
+	}
+	base::Observable<gsl::not_null<const HistoryItem*>> &repaintLogEntry() {
+		return _repaintLogEntry;
+	}
 
 	void copyFrom(const AuthSessionData &other) {
 		_variables = other._variables;
@@ -131,6 +137,8 @@ private:
 	base::Variable<bool> _allChatsLoaded = { false };
 	base::Observable<void> _moreChatsLoaded;
 	base::Observable<void> _savedGifsUpdated;
+	base::Observable<gsl::not_null<History*>> _historyCleared;
+	base::Observable<gsl::not_null<const HistoryItem*>> _repaintLogEntry;
 	Variables _variables;
 	TimeMs _lastTimeVideoPlayedAt = 0;
 

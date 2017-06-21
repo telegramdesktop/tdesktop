@@ -462,7 +462,7 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 	}
 }
 
-HistoryTextState HistoryPhoto::getState(int x, int y, HistoryStateRequest request) const {
+HistoryTextState HistoryPhoto::getState(QPoint point, HistoryStateRequest request) const {
 	HistoryTextState result;
 
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return result;
@@ -478,8 +478,8 @@ HistoryTextState HistoryPhoto::getState(int x, int y, HistoryStateRequest reques
 			if (isBubbleBottom()) {
 				height -= st::msgPadding.bottom();
 			}
-			if (x >= st::msgPadding.left() && y >= height && x < st::msgPadding.left() + captionw && y < _height) {
-				result = _caption.getState(x - st::msgPadding.left(), y - height, captionw, request.forText());
+			if (QRect(st::msgPadding.left(), height, captionw, _height - height).contains(point)) {
+				result = _caption.getState(point - QPoint(st::msgPadding.left(), height), captionw, request.forText());
 				return result;
 			}
 			height -= st::mediaCaptionSkip;
@@ -487,13 +487,13 @@ HistoryTextState HistoryPhoto::getState(int x, int y, HistoryStateRequest reques
 		width -= st::mediaPadding.left() + st::mediaPadding.right();
 		height -= skipy + st::mediaPadding.bottom();
 	}
-	if (x >= skipx && y >= skipy && x < skipx + width && y < skipy + height) {
+	if (QRect(skipx, skipy, width, height).contains(point)) {
 		if (_data->uploading()) {
 			result.link = _cancell;
 		} else if (_data->loaded()) {
 			result.link = _openl;
 		} else if (_data->loading()) {
-			DelayedStorageImage *delayed = _data->full->toDelayedStorageImage();
+			auto delayed = _data->full->toDelayedStorageImage();
 			if (!delayed || !delayed->location().isNull()) {
 				result.link = _cancell;
 			}
@@ -501,9 +501,9 @@ HistoryTextState HistoryPhoto::getState(int x, int y, HistoryStateRequest reques
 			result.link = _savel;
 		}
 		if (_caption.isEmpty() && _parent->getMedia() == this) {
-			int32 fullRight = skipx + width, fullBottom = skipy + height;
-			bool inDate = _parent->pointInTime(fullRight, fullBottom, x, y, InfoDisplayOverImage);
-			if (inDate) {
+			auto fullRight = skipx + width;
+			auto fullBottom = skipy + height;
+			if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayOverImage)) {
 				result.cursor = HistoryInDateCursorState;
 			}
 		}
@@ -826,7 +826,7 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 	}
 }
 
-HistoryTextState HistoryVideo::getState(int x, int y, HistoryStateRequest request) const {
+HistoryTextState HistoryVideo::getState(QPoint point, HistoryStateRequest request) const {
 	HistoryTextState result;
 
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return result;
@@ -845,24 +845,24 @@ HistoryTextState HistoryVideo::getState(int x, int y, HistoryStateRequest reques
 			if (isBubbleBottom()) {
 				height -= st::msgPadding.bottom();
 			}
-			if (x >= st::msgPadding.left() && y >= height && x < st::msgPadding.left() + captionw && y < _height) {
-				result = _caption.getState(x - st::msgPadding.left(), y - height, captionw, request.forText());
+			if (QRect(st::msgPadding.left(), height, captionw, _height - height).contains(point)) {
+				result = _caption.getState(point - QPoint(st::msgPadding.left(), height), captionw, request.forText());
 			}
 			height -= st::mediaCaptionSkip;
 		}
 		width -= st::mediaPadding.left() + st::mediaPadding.right();
 		height -= skipy + st::mediaPadding.bottom();
 	}
-	if (x >= skipx && y >= skipy && x < skipx + width && y < skipy + height) {
+	if (QRect(skipx, skipy, width, height).contains(point)) {
 		if (_data->uploading()) {
 			result.link = _cancell;
 		} else {
 			result.link = loaded ? _openl : (_data->loading() ? _cancell : _savel);
 		}
 		if (_caption.isEmpty() && _parent->getMedia() == this) {
-			int32 fullRight = skipx + width, fullBottom = skipy + height;
-			bool inDate = _parent->pointInTime(fullRight, fullBottom, x, y, InfoDisplayOverImage);
-			if (inDate) {
+			auto fullRight = skipx + width;
+			auto fullBottom = skipy + height;
+			if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayOverImage)) {
 				result.cursor = HistoryInDateCursorState;
 			}
 		}
@@ -1380,7 +1380,7 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 	}
 }
 
-HistoryTextState HistoryDocument::getState(int x, int y, HistoryStateRequest request) const {
+HistoryTextState HistoryDocument::getState(QPoint point, HistoryStateRequest request) const {
 	HistoryTextState result;
 
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return result;
@@ -1401,13 +1401,13 @@ HistoryTextState HistoryDocument::getState(int x, int y, HistoryStateRequest req
 
 		QRect rthumb(rtlrect(st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top() - topMinus, st::msgFileThumbSize, st::msgFileThumbSize, _width));
 
-		if ((_data->loading() || _data->uploading() || !loaded) && rthumb.contains(x, y)) {
+		if ((_data->loading() || _data->uploading() || !loaded) && rthumb.contains(point)) {
 			result.link = (_data->loading() || _data->uploading()) ? _cancell : _savel;
 			return result;
 		}
 
 		if (_data->status != FileUploadFailed) {
-			if (rtlrect(nameleft, linktop, thumbed->_linkw, st::semiboldFont->height, _width).contains(x, y)) {
+			if (rtlrect(nameleft, linktop, thumbed->_linkw, st::semiboldFont->height, _width).contains(point)) {
 				result.link = (_data->loading() || _data->uploading()) ? thumbed->_linkcancell : thumbed->_linksavel;
 				return result;
 			}
@@ -1419,7 +1419,7 @@ HistoryTextState HistoryDocument::getState(int x, int y, HistoryStateRequest req
 		bottom = st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom() - topMinus;
 
 		QRect inner(rtlrect(st::msgFilePadding.left(), st::msgFilePadding.top() - topMinus, st::msgFileSize, st::msgFileSize, _width));
-		if ((_data->loading() || _data->uploading() || !loaded) && inner.contains(x, y)) {
+		if ((_data->loading() || _data->uploading() || !loaded) && inner.contains(point)) {
 			result.link = (_data->loading() || _data->uploading()) ? _cancell : _savel;
 			return result;
 		}
@@ -1428,11 +1428,11 @@ HistoryTextState HistoryDocument::getState(int x, int y, HistoryStateRequest req
 	if (auto voice = Get<HistoryDocumentVoice>()) {
 		auto namewidth = _width - nameleft - nameright;
 		auto waveformbottom = st::msgFilePadding.top() - topMinus + st::msgWaveformMax + st::msgWaveformMin;
-		if (x >= nameleft && x < nameleft + namewidth && y >= nametop && y < waveformbottom) {
+		if (QRect(nameleft, nametop, namewidth, waveformbottom - nametop).contains(point)) {
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
 			if (state.id == AudioMsgId(_data, _parent->fullId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
 				if (!voice->seeking()) {
-					voice->setSeekingStart((x - nameleft) / float64(namewidth));
+					voice->setSeekingStart((point.x() - nameleft) / float64(namewidth));
 				}
 				result.link = voice->_seekl;
 				return result;
@@ -1440,10 +1440,10 @@ HistoryTextState HistoryDocument::getState(int x, int y, HistoryStateRequest req
 		}
 	}
 
-	int32 height = _height;
+	auto height = _height;
 	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
-		if (y >= bottom) {
-			result = captioned->_caption.getState(x - st::msgPadding.left(), y - bottom, _width - st::msgPadding.left() - st::msgPadding.right(), request.forText());
+		if (point.y() >= bottom) {
+			result = captioned->_caption.getState(point - QPoint(st::msgPadding.left(), bottom), _width - st::msgPadding.left() - st::msgPadding.right(), request.forText());
 			return result;
 		}
 		auto captionw = _width - st::msgPadding.left() - st::msgPadding.right();
@@ -1452,14 +1452,14 @@ HistoryTextState HistoryDocument::getState(int x, int y, HistoryStateRequest req
 			height -= st::msgPadding.bottom();
 		}
 	}
-	if (x >= 0 && y >= 0 && x < _width && y < height && !_data->loading() && !_data->uploading() && _data->isValid()) {
+	if (QRect(0, 0, _width, height).contains(point) && !_data->loading() && !_data->uploading() && _data->isValid()) {
 		result.link = _openl;
 		return result;
 	}
 	return result;
 }
 
-void HistoryDocument::updatePressed(int x, int y) {
+void HistoryDocument::updatePressed(QPoint point) {
 	if (auto voice = Get<HistoryDocumentVoice>()) {
 		if (voice->seeking()) {
 			auto nameleft = 0, nameright = 0;
@@ -1470,7 +1470,7 @@ void HistoryDocument::updatePressed(int x, int y) {
 				nameleft = st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
 				nameright = st::msgFilePadding.left();
 			}
-			voice->setSeekingCurrent(snap((x - nameleft) / float64(_width - nameleft - nameright), 0., 1.));
+			voice->setSeekingCurrent(snap((point.x() - nameleft) / float64(_width - nameleft - nameright), 0., 1.));
 			Ui::repaintHistoryItem(_parent);
 		}
 	}
@@ -2157,7 +2157,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 	}
 }
 
-HistoryTextState HistoryGif::getState(int x, int y, HistoryStateRequest request) const {
+HistoryTextState HistoryGif::getState(QPoint point, HistoryStateRequest request) const {
 	HistoryTextState result;
 
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return result;
@@ -2173,8 +2173,8 @@ HistoryTextState HistoryGif::getState(int x, int y, HistoryStateRequest request)
 			if (isBubbleBottom()) {
 				height -= st::msgPadding.bottom();
 			}
-			if (x >= st::msgPadding.left() && y >= height && x < st::msgPadding.left() + captionw && y < _height) {
-				result = _caption.getState(x - st::msgPadding.left(), y - height, captionw, request.forText());
+			if (QRect(st::msgPadding.left(), height, captionw, _height - height).contains(point)) {
+				result = _caption.getState(point - QPoint(st::msgPadding.left(), height), captionw, request.forText());
 				return result;
 			}
 			height -= st::mediaCaptionSkip;
@@ -2217,13 +2217,13 @@ HistoryTextState HistoryGif::getState(int x, int y, HistoryStateRequest request)
 		if (rtl()) rectx = _width - rectx - rectw;
 
 		if (forwarded) {
-			if (x >= rectx && y >= recty && x < rectx + rectw && y < recty + st::msgReplyPadding.top() + forwardedHeight) {
+			if (QRect(rectx, recty, rectw, st::msgReplyPadding.top() + forwardedHeight).contains(point)) {
 				auto breakEverywhere = (forwardedHeightReal > forwardedHeight);
 				auto textRequest = request.forText();
 				if (breakEverywhere) {
 					textRequest.flags |= Text::StateRequest::Flag::BreakEverywhere;
 				}
-				result = forwarded->_text.getState(x - rectx - st::msgReplyPadding.left(), y - recty - st::msgReplyPadding.top(), innerw, textRequest);
+				result = forwarded->_text.getState(point - QPoint(rectx + st::msgReplyPadding.left(), recty + st::msgReplyPadding.top()), innerw, textRequest);
 				result.symbol = 0;
 				result.afterSymbol = false;
 				if (breakEverywhere) {
@@ -2236,23 +2236,23 @@ HistoryTextState HistoryGif::getState(int x, int y, HistoryStateRequest request)
 			recty += forwardedHeight;
 			recth -= forwardedHeight;
 		} else if (via) {
-			int viah = st::msgReplyPadding.top() + st::msgServiceNameFont->height + (reply ? 0 : st::msgReplyPadding.bottom());
-			if (x >= rectx && y >= recty && x < rectx + rectw && y < recty + viah) {
+			auto viah = st::msgReplyPadding.top() + st::msgServiceNameFont->height + (reply ? 0 : st::msgReplyPadding.bottom());
+			if (QRect(rectx, recty, rectw, viah).contains(point)) {
 				result.link = via->_lnk;
 				return result;
 			}
-			int skip = st::msgServiceNameFont->height + (reply ? 2 * st::msgReplyPadding.top() : 0);
+			auto skip = st::msgServiceNameFont->height + (reply ? 2 * st::msgReplyPadding.top() : 0);
 			recty += skip;
 			recth -= skip;
 		}
 		if (reply) {
-			if (x >= rectx && y >= recty && x < rectx + rectw && y < recty + recth) {
+			if (QRect(rectx, recty, rectw, recth).contains(point)) {
 				result.link = reply->replyToLink();
 				return result;
 			}
 		}
 	}
-	if (x >= usex + skipx && y >= skipy && x < usex + skipx + usew && y < skipy + height) {
+	if (QRect(usex + skipx, skipy, usew, height).contains(point)) {
 		if (_data->uploading()) {
 			result.link = _cancell;
 		} else if (!_gif || !cAutoPlayGif() || _data->isRoundVideo()) {
@@ -2261,9 +2261,9 @@ HistoryTextState HistoryGif::getState(int x, int y, HistoryStateRequest request)
 			result.link = _openInMediaviewLink;
 		}
 		if (!isChildMedia) {
-			int32 fullRight = usex + skipx + usew, fullBottom = skipy + height;
-			bool inDate = _parent->pointInTime(fullRight, fullBottom, x, y, InfoDisplayOverImage);
-			if (inDate) {
+			auto fullRight = usex + skipx + usew;
+			auto fullBottom = skipy + height;
+			if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayOverImage)) {
 				result.cursor = HistoryInDateCursorState;
 			}
 		}
@@ -2630,7 +2630,7 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, T
 	}
 }
 
-HistoryTextState HistorySticker::getState(int x, int y, HistoryStateRequest request) const {
+HistoryTextState HistorySticker::getState(QPoint point, HistoryStateRequest request) const {
 	HistoryTextState result;
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return result;
 
@@ -2666,7 +2666,7 @@ HistoryTextState HistorySticker::getState(int x, int y, HistoryStateRequest requ
 
 		if (via) {
 			int viah = st::msgReplyPadding.top() + st::msgServiceNameFont->height + (reply ? 0 : st::msgReplyPadding.bottom());
-			if (x >= rectx && y >= recty && x < rectx + rectw && y < recty + viah) {
+			if (QRect(rectx, recty, rectw, viah).contains(point)) {
 				result.link = via->_lnk;
 				return result;
 			}
@@ -2675,21 +2675,21 @@ HistoryTextState HistorySticker::getState(int x, int y, HistoryStateRequest requ
 			recth -= skip;
 		}
 		if (reply) {
-			if (x >= rectx && y >= recty && x < rectx + rectw && y < recty + recth) {
+			if (QRect(rectx, recty, rectw, recth).contains(point)) {
 				result.link = reply->replyToLink();
 				return result;
 			}
 		}
 	}
 	if (_parent->getMedia() == this) {
-		bool inDate = _parent->pointInTime(usex + usew, _height, x, y, InfoDisplayOverImage);
-		if (inDate) {
+		if (_parent->pointInTime(usex + usew, _height, point, InfoDisplayOverImage)) {
 			result.cursor = HistoryInDateCursorState;
 		}
 	}
 
-	int pixLeft = usex + (usew - _pixw) / 2, pixTop = (_minh - _pixh) / 2;
-	if (x >= pixLeft && x < pixLeft + _pixw && y >= pixTop && y < pixTop + _pixh) {
+	auto pixLeft = usex + (usew - _pixw) / 2;
+	auto pixTop = (_minh - _pixh) / 2;
+	if (QRect(pixLeft, pixTop, _pixw, _pixh).contains(point)) {
 		result.link = _packLink;
 		return result;
 	}
@@ -2885,7 +2885,7 @@ void HistoryContact::draw(Painter &p, const QRect &r, TextSelection selection, T
 	p.drawTextLeft(nameleft, statustop, width, _phone);
 }
 
-HistoryTextState HistoryContact::getState(int x, int y, HistoryStateRequest request) const {
+HistoryTextState HistoryContact::getState(QPoint point, HistoryStateRequest request) const {
 	HistoryTextState result;
 	bool out = _parent->out(), isPost = _parent->isPost(), outbg = out && !isPost;
 
@@ -2894,12 +2894,12 @@ HistoryTextState HistoryContact::getState(int x, int y, HistoryStateRequest requ
 	if (_userId) {
 		nameleft = st::msgFileThumbPadding.left() + st::msgFileThumbSize + st::msgFileThumbPadding.right();
 		linktop = st::msgFileThumbLinkTop - topMinus;
-		if (rtlrect(nameleft, linktop, _linkw, st::semiboldFont->height, _width).contains(x, y)) {
+		if (rtlrect(nameleft, linktop, _linkw, st::semiboldFont->height, _width).contains(point)) {
 			result.link = _linkl;
 			return result;
 		}
 	}
-	if (x >= 0 && y >= 0 && x < _width && y < _height && _contact) {
+	if (QRect(0, 0, _width, _height).contains(point) && _contact) {
 		result.link = _contact->openLink();
 		return result;
 	}
@@ -3034,9 +3034,9 @@ void HistoryCall::draw(Painter &p, const QRect &r, TextSelection selection, Time
 	icon.paint(p, width - st::historyCallIconPosition.x() - icon.width(), st::historyCallIconPosition.y() - topMinus, width);
 }
 
-HistoryTextState HistoryCall::getState(int x, int y, HistoryStateRequest request) const {
+HistoryTextState HistoryCall::getState(QPoint point, HistoryStateRequest request) const {
 	HistoryTextState result;
-	if (x >= 0 && y >= 0 && x < _width && y < _height) {
+	if (QRect(0, 0, _width, _height).contains(point)) {
 		result.link = _link;
 		return result;
 	}
@@ -3459,7 +3459,7 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, T
 	}
 }
 
-HistoryTextState HistoryWebPage::getState(int x, int y, HistoryStateRequest request) const {
+HistoryTextState HistoryWebPage::getState(QPoint point, HistoryStateRequest request) const {
 	HistoryTextState result;
 
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return result;
@@ -3478,7 +3478,7 @@ HistoryTextState HistoryWebPage::getState(int x, int y, HistoryStateRequest requ
 	auto inThumb = false;
 	if (_asArticle) {
 		int32 pw = qMax(_pixw, int16(lineHeight));
-		if (rtlrect(padding.left() + width - pw, 0, pw, _pixh, _width).contains(x, y)) {
+		if (rtlrect(padding.left() + width - pw, 0, pw, _pixh, _width).contains(point)) {
 			inThumb = true;
 		}
 		width -= pw + st::webPagePhotoDelta;
@@ -3488,21 +3488,21 @@ HistoryTextState HistoryWebPage::getState(int x, int y, HistoryStateRequest requ
 		tshift += lineHeight;
 	}
 	if (_titleLines) {
-		if (y >= tshift && y < tshift + _titleLines * lineHeight) {
+		if (point.y() >= tshift && point.y() < tshift + _titleLines * lineHeight) {
 			Text::StateRequestElided titleRequest = request.forText();
 			titleRequest.lines = _titleLines;
-			result = _title.getStateElidedLeft(x - padding.left(), y - tshift, width, _width, titleRequest);
-		} else if (y >= tshift + _titleLines * lineHeight) {
+			result = _title.getStateElidedLeft(point - QPoint(padding.left(), tshift), width, _width, titleRequest);
+		} else if (point.y() >= tshift + _titleLines * lineHeight) {
 			symbolAdd += _title.length();
 		}
 		tshift += _titleLines * lineHeight;
 	}
 	if (_descriptionLines) {
-		if (y >= tshift && y < tshift + _descriptionLines * lineHeight) {
+		if (point.y() >= tshift && point.y() < tshift + _descriptionLines * lineHeight) {
 			Text::StateRequestElided descriptionRequest = request.forText();
 			descriptionRequest.lines = _descriptionLines;
-			result = _description.getStateElidedLeft(x - padding.left(), y - tshift, width, _width, descriptionRequest);
-		} else if (y >= tshift + _descriptionLines * lineHeight) {
+			result = _description.getStateElidedLeft(point - QPoint(padding.left(), tshift), width, _width, descriptionRequest);
+		} else if (point.y() >= tshift + _descriptionLines * lineHeight) {
 			symbolAdd += _description.length();
 		}
 		tshift += _descriptionLines * lineHeight;
@@ -3513,11 +3513,11 @@ HistoryTextState HistoryWebPage::getState(int x, int y, HistoryStateRequest requ
 		auto attachAtTop = !_siteNameWidth && !_titleLines && !_descriptionLines;
 		if (!attachAtTop) tshift += st::mediaInBubbleSkip;
 
-		if (x >= padding.left() && x < padding.left() + width && y >= tshift && y < _height - bshift) {
+		if (QRect(padding.left(), tshift, width, _height - tshift - bshift).contains(point)) {
 			auto attachLeft = padding.left() - bubble.left();
 			auto attachTop = tshift - bubble.top();
 			if (rtl()) attachLeft = _width - attachLeft - _attach->currentWidth();
-			result = _attach->getState(x - attachLeft, y - attachTop, request);
+			result = _attach->getState(point - QPoint(attachLeft, attachTop), request);
 
 			if (result.link && !_data->document && _data->photo && _attach->isReadyForOpen()) {
 				if (_data->type == WebPageProfile || _data->type == WebPageVideo) {
@@ -3831,7 +3831,7 @@ void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, Time
 	}
 }
 
-HistoryTextState HistoryGame::getState(int x, int y, HistoryStateRequest request) const {
+HistoryTextState HistoryGame::getState(QPoint point, HistoryStateRequest request) const {
 	HistoryTextState result;
 
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return result;
@@ -3850,21 +3850,21 @@ HistoryTextState HistoryGame::getState(int x, int y, HistoryStateRequest request
 	auto symbolAdd = 0;
 	auto lineHeight = unitedLineHeight();
 	if (_titleLines) {
-		if (y >= tshift && y < tshift + _titleLines * lineHeight) {
+		if (point.y() >= tshift && point.y() < tshift + _titleLines * lineHeight) {
 			Text::StateRequestElided titleRequest = request.forText();
 			titleRequest.lines = _titleLines;
-			result = _title.getStateElidedLeft(x - padding.left(), y - tshift, width, _width, titleRequest);
-		} else if (y >= tshift + _titleLines * lineHeight) {
+			result = _title.getStateElidedLeft(point - QPoint(padding.left(), tshift), width, _width, titleRequest);
+		} else if (point.y() >= tshift + _titleLines * lineHeight) {
 			symbolAdd += _title.length();
 		}
 		tshift += _titleLines * lineHeight;
 	}
 	if (_descriptionLines) {
-		if (y >= tshift && y < tshift + _descriptionLines * lineHeight) {
+		if (point.y() >= tshift && point.y() < tshift + _descriptionLines * lineHeight) {
 			Text::StateRequestElided descriptionRequest = request.forText();
 			descriptionRequest.lines = _descriptionLines;
-			result = _description.getStateElidedLeft(x - padding.left(), y - tshift, width, _width, descriptionRequest);
-		} else if (y >= tshift + _descriptionLines * lineHeight) {
+			result = _description.getStateElidedLeft(point - QPoint(padding.left(), tshift), width, _width, descriptionRequest);
+		} else if (point.y() >= tshift + _descriptionLines * lineHeight) {
 			symbolAdd += _description.length();
 		}
 		tshift += _descriptionLines * lineHeight;
@@ -3879,11 +3879,11 @@ HistoryTextState HistoryGame::getState(int x, int y, HistoryStateRequest request
 		auto attachTop = tshift - bubble.top();
 		if (rtl()) attachLeft = _width - attachLeft - _attach->currentWidth();
 
-		if (x >= attachLeft && x < attachLeft + _attach->currentWidth() && y >= tshift && y < _height - bshift) {
+		if (QRect(attachLeft, tshift, _attach->currentWidth(), _height - tshift - bshift).contains(point)) {
 			if (_attach->isReadyForOpen()) {
 				result.link = _openl;
 			} else {
-				result = _attach->getState(x - attachLeft, y - attachTop, request);
+				result = _attach->getState(point - QPoint(attachLeft, attachTop), request);
 			}
 		}
 	}
@@ -4254,7 +4254,7 @@ void HistoryInvoice::draw(Painter &p, const QRect &r, TextSelection selection, T
 	}
 }
 
-HistoryTextState HistoryInvoice::getState(int x, int y, HistoryStateRequest request) const {
+HistoryTextState HistoryInvoice::getState(QPoint point, HistoryStateRequest request) const {
 	HistoryTextState result;
 
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return result;
@@ -4272,19 +4272,19 @@ HistoryTextState HistoryInvoice::getState(int x, int y, HistoryStateRequest requ
 	auto lineHeight = unitedLineHeight();
 	auto symbolAdd = 0;
 	if (_titleHeight) {
-		if (y >= tshift && y < tshift + _titleHeight) {
+		if (point.y() >= tshift && point.y() < tshift + _titleHeight) {
 			Text::StateRequestElided titleRequest = request.forText();
 			titleRequest.lines = _titleHeight / lineHeight;
-			result = _title.getStateElidedLeft(x - padding.left(), y - tshift, width, _width, titleRequest);
-		} else if (y >= tshift + _titleHeight) {
+			result = _title.getStateElidedLeft(point - QPoint(padding.left(), tshift), width, _width, titleRequest);
+		} else if (point.y() >= tshift + _titleHeight) {
 			symbolAdd += _title.length();
 		}
 		tshift += _titleHeight;
 	}
 	if (_descriptionHeight) {
-		if (y >= tshift && y < tshift + _descriptionHeight) {
-			result = _description.getStateLeft(x - padding.left(), y - tshift, width, _width, request.forText());
-		} else if (y >= tshift + _descriptionHeight) {
+		if (point.y() >= tshift && point.y() < tshift + _descriptionHeight) {
+			result = _description.getStateLeft(point - QPoint(padding.left(), tshift), width, _width, request.forText());
+		} else if (point.y() >= tshift + _descriptionHeight) {
 			symbolAdd += _description.length();
 		}
 		tshift += _descriptionHeight;
@@ -4297,8 +4297,8 @@ HistoryTextState HistoryInvoice::getState(int x, int y, HistoryStateRequest requ
 		auto attachTop = tshift - bubble.top();
 		if (rtl()) attachLeft = _width - attachLeft - _attach->currentWidth();
 
-		if (x >= attachLeft && x < attachLeft + _attach->currentWidth() && y >= tshift && y < _height - bshift) {
-			result = _attach->getState(x - attachLeft, y - attachTop, request);
+		if (QRect(attachLeft, tshift, _attach->currentWidth(), _height - tshift - bshift).contains(point)) {
+			result = _attach->getState(point - QPoint(attachLeft, attachTop), request);
 		}
 	}
 
@@ -4534,7 +4534,7 @@ void HistoryLocation::draw(Painter &p, const QRect &r, TextSelection selection, 
 	}
 }
 
-HistoryTextState HistoryLocation::getState(int x, int y, HistoryStateRequest request) const {
+HistoryTextState HistoryLocation::getState(QPoint point, HistoryStateRequest request) const {
 	HistoryTextState result;
 	auto symbolAdd = 0;
 
@@ -4553,23 +4553,23 @@ HistoryTextState HistoryLocation::getState(int x, int y, HistoryStateRequest req
 		}
 
 		width -= st::mediaPadding.left() + st::mediaPadding.right();
-		int32 textw = _width - st::msgPadding.left() - st::msgPadding.right();
+		auto textw = _width - st::msgPadding.left() - st::msgPadding.right();
 
 		if (!_title.isEmpty()) {
 			auto titleh = qMin(_title.countHeight(textw), 2 * st::webPageTitleFont->height);
-			if (y >= skipy && y < skipy + titleh) {
-				result = _title.getStateLeft(x - skipx - st::msgPadding.left(), y - skipy, textw, _width, request.forText());
+			if (point.y() >= skipy && point.y() < skipy + titleh) {
+				result = _title.getStateLeft(point - QPoint(skipx + st::msgPadding.left(), skipy), textw, _width, request.forText());
 				return result;
-			} else if (y >= skipy + titleh) {
+			} else if (point.y() >= skipy + titleh) {
 				symbolAdd += _title.length();
 			}
 			skipy += titleh;
 		}
 		if (!_description.isEmpty()) {
 			auto descriptionh = qMin(_description.countHeight(textw), 3 * st::webPageDescriptionFont->height);
-			if (y >= skipy && y < skipy + descriptionh) {
-				result = _description.getStateLeft(x - skipx - st::msgPadding.left(), y - skipy, textw, _width, request.forText());
-			} else if (y >= skipy + descriptionh) {
+			if (point.y() >= skipy && point.y() < skipy + descriptionh) {
+				result = _description.getStateLeft(point - QPoint(skipx + st::msgPadding.left(), skipy), textw, _width, request.forText());
+			} else if (point.y() >= skipy + descriptionh) {
 				symbolAdd += _description.length();
 			}
 			skipy += descriptionh;
@@ -4579,12 +4579,12 @@ HistoryTextState HistoryLocation::getState(int x, int y, HistoryStateRequest req
 		}
 		height -= skipy + st::mediaPadding.bottom();
 	}
-	if (x >= skipx && y >= skipy && x < skipx + width && y < skipy + height && _data) {
+	if (QRect(skipx, skipy, width, height).contains(point) && _data) {
 		result.link = _link;
 
-		int32 fullRight = skipx + width, fullBottom = _height - (skipx ? st::mediaPadding.bottom() : 0);
-		bool inDate = _parent->pointInTime(fullRight, fullBottom, x, y, InfoDisplayOverImage);
-		if (inDate) {
+		auto fullRight = skipx + width;
+		auto fullBottom = _height - (skipx ? st::mediaPadding.bottom() : 0);
+		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayOverImage)) {
 			result.cursor = HistoryInDateCursorState;
 		}
 	}

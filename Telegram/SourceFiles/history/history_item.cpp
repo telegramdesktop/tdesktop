@@ -244,7 +244,7 @@ void ReplyKeyboard::paint(Painter &p, int outerWidth, const QRect &clip, TimeMs 
 	}
 }
 
-ClickHandlerPtr ReplyKeyboard::getState(int x, int y) const {
+ClickHandlerPtr ReplyKeyboard::getState(QPoint point) const {
 	t_assert(_width > 0);
 
 	for_const (auto &row, _rows) {
@@ -254,8 +254,8 @@ ClickHandlerPtr ReplyKeyboard::getState(int x, int y) const {
 			// just ignore the buttons that didn't layout well
 			if (rect.x() + rect.width() > _width) break;
 
-			if (rect.contains(x, y)) {
-				_savedCoords = QPoint(x, y);
+			if (rect.contains(point)) {
+				_savedCoords = point;
 				return button.link;
 			}
 		}

@@ -209,9 +209,9 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 	}
 }
 
-void Gif::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
-	if (x >= 0 && x < _width && y >= 0 && y < st::inlineMediaHeight) {
-		if (_delete && (rtl() ? _width - x : x) >= _width - st::stickerPanDelete.width() && y < st::stickerPanDelete.height()) {
+void Gif::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const {
+	if (QRect(0, 0, _width, st::inlineMediaHeight).contains(point)) {
+		if (_delete && rtlpoint(point, _width).x() >= _width - st::stickerPanDelete.width() && point.y() < st::stickerPanDelete.height()) {
 			link = _delete;
 		} else {
 			link = _send;
@@ -400,8 +400,8 @@ void Sticker::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 	}
 }
 
-void Sticker::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
-	if (x >= 0 && x < _width && y >= 0 && y < st::inlineMediaHeight) {
+void Sticker::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const {
+	if (QRect(0, 0, _width, st::inlineMediaHeight).contains(point)) {
 		link = _send;
 	}
 }
@@ -487,8 +487,8 @@ void Photo::paint(Painter &p, const QRect &clip, const PaintContext *context) co
 	}
 }
 
-void Photo::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
-	if (x >= 0 && x < _width && y >= 0 && y < st::inlineMediaHeight) {
+void Photo::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const {
+	if (QRect(0, 0, _width, st::inlineMediaHeight).contains(point)) {
 		link = _send;
 	}
 }
@@ -629,12 +629,12 @@ void Video::paint(Painter &p, const QRect &clip, const PaintContext *context) co
 	}
 }
 
-void Video::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
-	if (x >= 0 && x < st::inlineThumbSize && y >= st::inlineRowMargin && y < st::inlineRowMargin + st::inlineThumbSize) {
+void Video::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const {
+	if (QRect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize).contains(point)) {
 		link = _link;
 		return;
 	}
-	if (x >= st::inlineThumbSize + st::inlineThumbSkip && x < _width && y >= 0 && y < _height) {
+	if (QRect(st::inlineThumbSize + st::inlineThumbSkip, 0, _width - st::inlineThumbSize - st::inlineThumbSkip, _height).contains(point)) {
 		link = _send;
 		return;
 	}
@@ -769,12 +769,13 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 	}
 }
 
-void File::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
-	if (x >= 0 && x < st::msgFileSize && y >= st::inlineRowMargin && y < st::inlineRowMargin + st::msgFileSize) {
+void File::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const {
+	if (QRect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize).contains(point)) {
 		link = getShownDocument()->loading() ? _cancel : _open;
 		return;
 	}
-	if (x >= st::msgFileSize + st::inlineThumbSkip && x < _width && y >= 0 && y < _height) {
+	auto left = st::msgFileSize + st::inlineThumbSkip;
+	if (QRect(left, 0, _width - left, _height).contains(point)) {
 		link = _send;
 		return;
 	}
@@ -928,12 +929,12 @@ void Contact::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 	}
 }
 
-void Contact::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
-	int left = (st::msgFileSize + st::inlineThumbSkip);
-	if (x >= 0 && x < left - st::inlineThumbSkip && y >= st::inlineRowMargin && y < st::inlineRowMargin + st::inlineThumbSize) {
+void Contact::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const {
+	if (QRect(0, st::inlineRowMargin, st::msgFileSize, st::inlineThumbSize).contains(point)) {
 		return;
 	}
-	if (x >= left && x < _width && y >= 0 && y < _height) {
+	auto left = (st::msgFileSize + st::inlineThumbSkip);
+	if (QRect(left, 0, _width - left, _height).contains(point)) {
 		link = _send;
 		return;
 	}
@@ -1064,19 +1065,19 @@ void Article::paint(Painter &p, const QRect &clip, const PaintContext *context) 
 	}
 }
 
-void Article::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
-	int left = _withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0;
-	if (x >= 0 && x < left - st::inlineThumbSkip && y >= st::inlineRowMargin && y < st::inlineRowMargin + st::inlineThumbSize) {
+void Article::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const {
+	if (_withThumb && QRect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize).contains(point)) {
 		link = _link;
 		return;
 	}
-	if (x >= left && x < _width && y >= 0 && y < _height) {
+	auto left = _withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0;
+	if (QRect(left, 0, _width - left, _height).contains(point)) {
 		if (_url) {
-			int32 left = st::inlineThumbSize + st::inlineThumbSkip;
-			int32 titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
-			int32 descriptionLines = 2;
-			int32 descriptionHeight = qMin(_description.countHeight(_width - left), st::normalFont->height * descriptionLines);
-			if (rtlrect(left, st::inlineRowMargin + titleHeight + descriptionHeight, _urlWidth, st::normalFont->height, _width).contains(x, y)) {
+			auto left = st::inlineThumbSize + st::inlineThumbSkip;
+			auto titleHeight = qMin(_title.countHeight(_width - left), st::semiboldFont->height * 2);
+			auto descriptionLines = 2;
+			auto descriptionHeight = qMin(_description.countHeight(_width - left), st::normalFont->height * descriptionLines);
+			if (rtlrect(left, st::inlineRowMargin + titleHeight + descriptionHeight, _urlWidth, st::normalFont->height, _width).contains(point)) {
 				link = _url;
 				return;
 			}
@@ -1248,13 +1249,13 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 	}
 }
 
-void Game::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
+void Game::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const {
 	int left = st::inlineThumbSize + st::inlineThumbSkip;
-	if (x >= 0 && x < left - st::inlineThumbSkip && y >= st::inlineRowMargin && y < st::inlineRowMargin + st::inlineThumbSize) {
+	if (QRect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize).contains(point)) {
 		link = _send;
 		return;
 	}
-	if (x >= left && x < _width && y >= 0 && y < _height) {
+	if (QRect(left, 0, _width - left, _height).contains(point)) {
 		link = _send;
 		return;
 	}

@@ -26,10 +26,18 @@ namespace AdminLog {
 
 class Item {
 public:
+	struct TextState {
+		HistoryTextState data;
+		ClickHandlerHost *handler = nullptr;
+	};
+
 	Item(gsl::not_null<History*> history, LocalIdManager &idManager, const MTPDchannelAdminLogEvent &event);
 
 	uint64 id() const {
 		return _id;
+	}
+	QDateTime date() const {
+		return _date;
 	}
 	int top() const {
 		return _top;
@@ -44,7 +52,11 @@ public:
 	int resizeGetHeight(int newWidth);
 	void draw(Painter &p, QRect clip, TextSelection selection, TimeMs ms);
 	bool hasPoint(QPoint point) const;
-	HistoryTextState getState(QPoint point, HistoryStateRequest request) const;
+	TextState getState(QPoint point, HistoryStateRequest request) const;
+	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const;
+	void updatePressed(QPoint point);
+
+	QString getForwardedInfoText() const;
 
 	~Item();
 
@@ -55,6 +67,7 @@ private:
 	void addPart(HistoryItem *item);
 
 	uint64 _id = 0;
+	QDateTime _date;
 	gsl::not_null<History*> _history;
 	gsl::not_null<UserData*> _from;
 	std::vector<HistoryItem*> _parts;

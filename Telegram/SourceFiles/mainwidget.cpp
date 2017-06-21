@@ -872,13 +872,17 @@ void MainWidget::notify_migrateUpdated(PeerData *peer) {
 	_history->notify_migrateUpdated(peer);
 }
 
-void MainWidget::ui_repaintHistoryItem(const HistoryItem *item) {
-	_history->ui_repaintHistoryItem(item);
-	if (item->history()->lastMsg == item) {
-		item->history()->updateChatListEntry();
+void MainWidget::ui_repaintHistoryItem(gsl::not_null<const HistoryItem*> item) {
+	if (item->isLogEntry()) {
+		AuthSession::Current().data().repaintLogEntry().notify(item, true);
+	} else {
+		_history->ui_repaintHistoryItem(item);
+		if (item->history()->lastMsg == item) {
+			item->history()->updateChatListEntry();
+		}
+		_playerPlaylist->ui_repaintHistoryItem(item);
+		_playerPanel->ui_repaintHistoryItem(item);
 	}
-	_playerPlaylist->ui_repaintHistoryItem(item);
-	_playerPanel->ui_repaintHistoryItem(item);
 	if (_overview) _overview->ui_repaintHistoryItem(item);
 	if (auto last = currentFloatPlayer()) {
 		last->widget->ui_repaintHistoryItem(item);
@@ -2471,14 +2475,6 @@ void MainWidget::clearBotStartToken(PeerData *peer) {
 	}
 }
 
-void MainWidget::updateAfterDrag() {
-	if (_overview) {
-		_overview->updateAfterDrag();
-	} else {
-		_history->updateAfterDrag();
-	}
-}
-
 void MainWidget::ctrlEnterSubmitUpdated() {
 	_history->updateFieldSubmitSettings();
 }
@@ -3195,10 +3191,6 @@ void MainWidget::newUnreadMsg(History *history, HistoryItem *item) {
 
 void MainWidget::markActiveHistoryAsRead() {
 	_history->historyWasRead(ReadServerHistoryChecks::OnlyIfUnread);
-}
-
-void MainWidget::historyCleared(History *history) {
-	_history->historyCleared(history);
 }
 
 void MainWidget::showAnimated(const QPixmap &bgAnimCache, bool back) {

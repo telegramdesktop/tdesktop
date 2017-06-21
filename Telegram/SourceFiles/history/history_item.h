@@ -298,7 +298,7 @@ public:
 		int buttonHeight() const;
 		virtual int buttonRadius() const = 0;
 
-		virtual void repaint(const HistoryItem *item) const = 0;
+		virtual void repaint(gsl::not_null<const HistoryItem*> item) const = 0;
 		virtual ~Style() {
 		}
 
@@ -330,7 +330,7 @@ public:
 	int naturalHeight() const;
 
 	void paint(Painter &p, int outerWidth, const QRect &clip, TimeMs ms) const;
-	ClickHandlerPtr getState(int x, int y) const;
+	ClickHandlerPtr getState(QPoint point) const;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active);
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed);
@@ -629,12 +629,12 @@ public:
 	virtual bool needCheck() const {
 		return out() || (id < 0 && history()->peer->isSelf());
 	}
-	virtual bool hasPoint(int x, int y) const {
+	virtual bool hasPoint(QPoint point) const {
 		return false;
 	}
 
-	virtual HistoryTextState getState(int x, int y, HistoryStateRequest request) const = 0;
-	virtual void updatePressed(int x, int y) {
+	virtual HistoryTextState getState(QPoint point, HistoryStateRequest request) const = 0;
+	virtual void updatePressed(QPoint point) {
 	}
 
 	virtual TextSelection adjustSelection(TextSelection selection, TextSelectType type) const {
@@ -745,14 +745,14 @@ public:
 	virtual int timeWidth() const {
 		return 0;
 	}
-	virtual bool pointInTime(int32 right, int32 bottom, int x, int y, InfoDisplayType type) const {
+	virtual bool pointInTime(int right, int bottom, QPoint point, InfoDisplayType type) const {
 		return false;
 	}
 
-	int32 skipBlockWidth() const {
+	int skipBlockWidth() const {
 		return st::msgDateSpace + infoWidth() - st::msgDateDelta.x();
 	}
-	int32 skipBlockHeight() const {
+	int skipBlockHeight() const {
 		return st::msgDateFont->height - st::msgDateDelta.y();
 	}
 	QString skipBlock() const {

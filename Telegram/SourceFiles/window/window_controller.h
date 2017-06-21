@@ -68,9 +68,6 @@ public:
 	base::Observable<void> &floatPlayerAreaUpdated() {
 		return _floatPlayerAreaUpdated;
 	}
-	base::Observable<void> &widgetGrabbed() {
-		return _widgetGrabbed;
-	}
 
 	struct ColumnLayout {
 		int bodyWidth;
@@ -111,7 +108,6 @@ private:
 	GifPauseReasons _gifPauseReasons = { 0 };
 	base::Observable<void> _gifPauseLevelChanged;
 	base::Observable<void> _floatPlayerAreaUpdated;
-	base::Observable<void> _widgetGrabbed;
 
 	base::Variable<float64> _dialogsWidthRatio = { kDefaultDialogsWidthRatio };
 	base::Variable<bool> _dialogsListFocused = { false };

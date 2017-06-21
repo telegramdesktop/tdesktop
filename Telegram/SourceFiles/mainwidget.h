@@ -203,7 +203,6 @@ public:
 	void dialogsToUp();
 	void newUnreadMsg(History *history, HistoryItem *item);
 	void markActiveHistoryAsRead();
-	void historyCleared(History *history);
 
 	void peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg);
 	void peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg);
@@ -366,7 +365,6 @@ public:
 	void ptsWaiterStartTimerFor(ChannelData *channel, int32 ms); // ms <= 0 - stop timer
 	void feedUpdates(const MTPUpdates &updates, uint64 randomId = 0);
 	void feedUpdate(const MTPUpdate &update);
-	void updateAfterDrag();
 
 	void ctrlEnterSubmitUpdated();
 	void setInnerFocus();
@@ -386,7 +384,7 @@ public:
 
 	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col);
 
-	void ui_repaintHistoryItem(const HistoryItem *item);
+	void ui_repaintHistoryItem(gsl::not_null<const HistoryItem*> item);
 	void ui_showPeerHistory(quint64 peer, qint32 msgId, Ui::ShowWay way);
 	PeerData *ui_getPeerForMouseAction();
 

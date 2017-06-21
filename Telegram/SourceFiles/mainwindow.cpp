@@ -131,44 +131,14 @@ MainWindow::MainWindow() {
 
 	setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
 
-	_inactiveTimer.setSingleShot(true);
-	connect(&_inactiveTimer, SIGNAL(timeout()), this, SLOT(onInactiveTimer()));
-
 	subscribe(Global::RefSelfChanged(), [this] { updateGlobalMenu(); });
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &data) {
 		themeUpdated(data);
 	});
-	subscribe(Messenger::Instance().authSessionChanged(), [this] { checkAuthSession(); });
 	subscribe(Messenger::Instance().passcodedChanged(), [this] { updateGlobalMenu(); });
-	checkAuthSession();
 
 	setAttribute(Qt::WA_NoSystemBackground);
 	setAttribute(Qt::WA_OpaquePaintEvent);
-}
-
-void MainWindow::checkAuthSession() {
-	if (AuthSession::Exists()) {
-		_controller = std::make_unique<Window::Controller>(this);
-	} else {
-		_controller = nullptr;
-	}
-}
-
-void MainWindow::inactivePress(bool inactive) {
-	_inactivePress = inactive;
-	if (_inactivePress) {
-		_inactiveTimer.start(200);
-	} else {
-		_inactiveTimer.stop();
-	}
-}
-
-bool MainWindow::inactivePress() const {
-	return _inactivePress;
-}
-
-void MainWindow::onInactiveTimer() {
-	inactivePress(false);
 }
 
 void MainWindow::initHook() {
@@ -368,9 +338,9 @@ void MainWindow::showMainMenu() {
 
 void MainWindow::ensureLayerCreated() {
 	if (!_layerBg) {
-		_layerBg.create(bodyWidget(), _controller.get());
-		if (_controller) {
-			_controller->enableGifPauseReason(Window::GifPauseReason::Layer);
+		_layerBg.create(bodyWidget(), controller());
+		if (controller()) {
+			controller()->enableGifPauseReason(Window::GifPauseReason::Layer);
 		}
 	}
 }
@@ -378,8 +348,8 @@ void MainWindow::ensureLayerCreated() {
 void MainWindow::destroyLayerDelayed() {
 	if (_layerBg) {
 		_layerBg.destroyDelayed();
-		if (_controller) {
-			_controller->disableGifPauseReason(Window::GifPauseReason::Layer);
+		if (controller()) {
+			controller()->disableGifPauseReason(Window::GifPauseReason::Layer);
 		}
 	}
 }
@@ -756,8 +726,8 @@ void MainWindow::noIntro(Intro::Widget *was) {
 void MainWindow::noLayerStack(LayerStackWidget *was) {
 	if (was == _layerBg) {
 		_layerBg = nullptr;
-		if (_controller) {
-			_controller->disableGifPauseReason(Window::GifPauseReason::Layer);
+		if (controller()) {
+			controller()->disableGifPauseReason(Window::GifPauseReason::Layer);
 		}
 	}
 }
