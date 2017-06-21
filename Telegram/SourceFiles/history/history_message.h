@@ -24,25 +24,25 @@ void historyInitMessages();
 
 class HistoryMessage : public HistoryItem, private HistoryItemInstantiated<HistoryMessage> {
 public:
-	static HistoryMessage *create(History *history, const MTPDmessage &msg) {
+	static gsl::not_null<HistoryMessage*> create(gsl::not_null<History*> history, const MTPDmessage &msg) {
 		return _create(history, msg);
 	}
-	static HistoryMessage *create(History *history, const MTPDmessageService &msg) {
+	static gsl::not_null<HistoryMessage*> create(gsl::not_null<History*> history, const MTPDmessageService &msg) {
 		return _create(history, msg);
 	}
-	static HistoryMessage *create(History *history, MsgId msgId, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *fwd) {
+	static gsl::not_null<HistoryMessage*> create(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *fwd) {
 		return _create(history, msgId, flags, date, from, fwd);
 	}
-	static HistoryMessage *create(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, const TextWithEntities &textWithEntities) {
+	static gsl::not_null<HistoryMessage*> create(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, const TextWithEntities &textWithEntities) {
 		return _create(history, msgId, flags, replyTo, viaBotId, date, from, textWithEntities);
 	}
-	static HistoryMessage *create(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup) {
+	static gsl::not_null<HistoryMessage*> create(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup) {
 		return _create(history, msgId, flags, replyTo, viaBotId, date, from, doc, caption, markup);
 	}
-	static HistoryMessage *create(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup) {
+	static gsl::not_null<HistoryMessage*> create(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup) {
 		return _create(history, msgId, flags, replyTo, viaBotId, date, from, photo, caption, markup);
 	}
-	static HistoryMessage *create(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, GameData *game, const MTPReplyMarkup &markup) {
+	static gsl::not_null<HistoryMessage*> create(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, GameData *game, const MTPReplyMarkup &markup) {
 		return _create(history, msgId, flags, replyTo, viaBotId, date, from, game, markup);
 	}
 
@@ -52,7 +52,7 @@ public:
 	void fromNameUpdated(int32 width) const;
 
 	int32 plainMaxWidth() const;
-	void countPositionAndSize(int32 &left, int32 &width) const;
+	QRect countGeometry() const;
 
 	bool drawBubble() const;
 	bool hasBubble() const override {
@@ -71,7 +71,7 @@ public:
 	void drawInfo(Painter &p, int32 right, int32 bottom, int32 width, bool selected, InfoDisplayType type) const override;
 	void setViewsCount(int32 count) override;
 	void setId(MsgId newId) override;
-	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
+	void draw(Painter &p, QRect clip, TextSelection selection, TimeMs ms) const override;
 
 	void dependencyItemRemoved(HistoryItem *dependency) override;
 
@@ -147,13 +147,13 @@ public:
 	~HistoryMessage();
 
 private:
-	HistoryMessage(History *history, const MTPDmessage &msg);
-	HistoryMessage(History *history, const MTPDmessageService &msg);
-	HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *fwd); // local forwarded
-	HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, const TextWithEntities &textWithEntities); // local message
-	HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup); // local document
-	HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup); // local photo
-	HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, GameData *game, const MTPReplyMarkup &markup); // local game
+	HistoryMessage(gsl::not_null<History*> history, const MTPDmessage &msg);
+	HistoryMessage(gsl::not_null<History*> history, const MTPDmessageService &msg);
+	HistoryMessage(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *fwd); // local forwarded
+	HistoryMessage(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, const TextWithEntities &textWithEntities); // local message
+	HistoryMessage(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup); // local document
+	HistoryMessage(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup); // local photo
+	HistoryMessage(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, GameData *game, const MTPReplyMarkup &markup); // local game
 	friend class HistoryItemInstantiated<HistoryMessage>;
 
 	void setEmptyText();
@@ -163,8 +163,8 @@ private:
 	void replaceBuyWithReceiptInMarkup();
 
 	void initDimensions() override;
-	int resizeGetHeight_(int width) override;
-	int performResizeGetHeight(int width);
+	int resizeContentGetHeight() override;
+	int performResizeGetHeight();
 	void applyEditionToEmpty();
 
 	bool displayForwardedFrom() const {
@@ -276,10 +276,10 @@ public:
 		QList<ClickHandlerPtr> links;
 	};
 
-	static HistoryService *create(History *history, const MTPDmessageService &message) {
+	static gsl::not_null<HistoryService*> create(gsl::not_null<History*> history, const MTPDmessageService &message) {
 		return _create(history, message);
 	}
-	static HistoryService *create(History *history, MsgId msgId, QDateTime date, const PreparedText &message, MTPDmessage::Flags flags = 0, UserId from = 0, PhotoData *photo = nullptr) {
+	static gsl::not_null<HistoryService*> create(gsl::not_null<History*> history, MsgId msgId, QDateTime date, const PreparedText &message, MTPDmessage::Flags flags = 0, UserId from = 0, PhotoData *photo = nullptr) {
 		return _create(history, msgId, date, message, flags, from, photo);
 	}
 
@@ -297,9 +297,9 @@ public:
 		return true;
 	}
 
-	void countPositionAndSize(int32 &left, int32 &width) const;
+	QRect countGeometry() const;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
+	void draw(Painter &p, QRect clip, TextSelection selection, TimeMs ms) const override;
 	bool hasPoint(int x, int y) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
@@ -336,12 +336,12 @@ public:
 protected:
 	friend class HistoryLayout::ServiceMessagePainter;
 
-	HistoryService(History *history, const MTPDmessageService &message);
-	HistoryService(History *history, MsgId msgId, QDateTime date, const PreparedText &message, MTPDmessage::Flags flags = 0, UserId from = 0, PhotoData *photo = 0);
+	HistoryService(gsl::not_null<History*> history, const MTPDmessageService &message);
+	HistoryService(gsl::not_null<History*> history, MsgId msgId, QDateTime date, const PreparedText &message, MTPDmessage::Flags flags = 0, UserId from = 0, PhotoData *photo = 0);
 	friend class HistoryItemInstantiated<HistoryService>;
 
 	void initDimensions() override;
-	int resizeGetHeight_(int width) override;
+	int resizeContentGetHeight() override;
 
 	void setServiceText(const PreparedText &prepared);
 
@@ -383,7 +383,7 @@ private:
 
 class HistoryJoined : public HistoryService, private HistoryItemInstantiated<HistoryJoined> {
 public:
-	static HistoryJoined *create(gsl::not_null<History*> history, const QDateTime &inviteDate, gsl::not_null<UserData*> inviter, MTPDmessage::Flags flags) {
+	static gsl::not_null<HistoryJoined*> create(gsl::not_null<History*> history, const QDateTime &inviteDate, gsl::not_null<UserData*> inviter, MTPDmessage::Flags flags) {
 		return _create(history, inviteDate, inviter, flags);
 	}
 

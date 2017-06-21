@@ -594,8 +594,8 @@ TextSelection shiftSelection(TextSelection selection, const Text &byText) {
 HistoryItem::HistoryItem(History *history, MsgId msgId, MTPDmessage::Flags flags, QDateTime msgDate, int32 from) : HistoryElement()
 , id(msgId)
 , date(msgDate)
-, _from(from ? App::user(from) : history->peer)
 , _history(history)
+, _from(from ? App::user(from) : history->peer)
 , _flags(flags | MTPDmessage_ClientFlag::f_pending_init_dimensions | MTPDmessage_ClientFlag::f_pending_resize)
 , _authorNameVersion(author()->nameVersion) {
 }

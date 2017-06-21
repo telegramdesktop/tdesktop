@@ -112,8 +112,10 @@ void FixedBar::setAnimatingMode(bool enabled) {
 }
 
 void FixedBar::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	p.fillRect(e->rect(), st::topBarBg);
+	if (!_animatingMode) {
+		Painter p(this);
+		p.fillRect(e->rect(), st::topBarBg);
+	}
 }
 
 void FixedBar::mousePressEvent(QMouseEvent *e) {

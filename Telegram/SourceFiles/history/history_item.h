@@ -476,7 +476,7 @@ TextSelection shiftSelection(TextSelection selection, const Text &byText);
 
 class HistoryItem : public HistoryElement, public RuntimeComposer, public ClickHandlerHost {
 public:
-	int resizeGetHeight(int width) {
+	int resizeGetHeight(int newWidth) {
 		if (_flags & MTPDmessage_ClientFlag::f_pending_init_dimensions) {
 			_flags &= ~MTPDmessage_ClientFlag::f_pending_init_dimensions;
 			initDimensions();
@@ -484,9 +484,10 @@ public:
 		if (_flags & MTPDmessage_ClientFlag::f_pending_resize) {
 			_flags &= ~MTPDmessage_ClientFlag::f_pending_resize;
 		}
-		return resizeGetHeight_(width);
+		_width = newWidth;
+		return resizeContentGetHeight();
 	}
-	virtual void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const = 0;
+	virtual void draw(Painter &p, QRect clip, TextSelection selection, TimeMs ms) const = 0;
 
 	virtual void dependencyItemRemoved(HistoryItem *dependency) {
 	}
@@ -501,7 +502,7 @@ public:
 	}
 
 	UserData *viaBot() const {
-		if (const HistoryMessageVia *via = Get<HistoryMessageVia>()) {
+		if (auto via = Get<HistoryMessageVia>()) {
 			return via->_bot;
 		}
 		return nullptr;
@@ -871,6 +872,10 @@ public:
 		return _text.isEmpty() && !_media && !Has<HistoryMessageLogEntryOriginal>();
 	}
 
+	int width() const {
+		return _width;
+	}
+
 	void clipCallback(Media::Clip::Notification notification);
 	void audioTrackUpdated();
 
@@ -886,18 +891,18 @@ protected:
 	// called from resizeGetHeight() when MTPDmessage_ClientFlag::f_pending_init_dimensions is set
 	virtual void initDimensions() = 0;
 
-	virtual int resizeGetHeight_(int width) = 0;
+	virtual int resizeContentGetHeight() = 0;
 
 	void finishEdition(int oldKeyboardTop);
 	void finishEditionToEmpty();
 
-	PeerData *_from;
-	History *_history;
+	gsl::not_null<History*> _history;
+	gsl::not_null<PeerData*> _from;
 	HistoryBlock *_block = nullptr;
 	int _indexInBlock = -1;
-	MTPDmessage::Flags _flags;
+	MTPDmessage::Flags _flags = 0;
 
-	mutable int32 _authorNameVersion;
+	mutable int32 _authorNameVersion = 0;
 
 	HistoryItem *previousItem() const {
 		if (_block && _indexInBlock >= 0) {
@@ -974,6 +979,7 @@ protected:
 
 private:
 	int _y = 0;
+	int _width = 0;
 
 };
 
@@ -985,8 +991,8 @@ template <typename T>
 class HistoryItemInstantiated {
 public:
 	template <typename ...Args>
-	static T *_create(Args &&... args) {
-		T *result = new T(std::forward<Args>(args)...);
+	static gsl::not_null<T*> _create(Args &&... args) {
+		auto result = new T(std::forward<Args>(args)...);
 		result->finishCreate();
 		return result;
 	}

@@ -116,7 +116,7 @@ msgReplyBarPos: point(1px, 0px);
 msgReplyBarSize: size(2px, 36px);
 msgReplyBarSkip: 10px;
 msgServicePadding: margins(12px, 3px, 12px, 4px);
-msgServiceMargin: margins(10px, 10px, 80px, 2px);
+msgServiceMargin: margins(10px, 10px, 10px, 2px);
 
 msgDateSpace: 12px;
 msgDateDelta: point(2px, 5px);
