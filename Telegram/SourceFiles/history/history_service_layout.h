@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+class HistoryService;
+
 namespace HistoryLayout {
 
 int WideChatWidth();

@@ -32,6 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/add_contact_box.h"
 #include "core/click_handler_types.h"
 #include "history/history_location_manager.h"
+#include "history/history_message.h"
 #include "window/window_controller.h"
 #include "styles/style_history.h"
 #include "calls/calls_instance.h"
@@ -87,7 +88,7 @@ bool needReSetInlineResultDocument(const MTPMessageMedia &media, DocumentData *e
 
 } // namespace
 
-void historyInitMedia() {
+void HistoryInitMedia() {
 	initTextOptions();
 }
 
@@ -593,6 +594,19 @@ TextWithEntities HistoryPhoto::selectedText(TextSelection selection) const {
 	return captionedSelectedText(lang(lng_in_dlg_photo), _caption, selection);
 }
 
+bool HistoryPhoto::needsBubble() const {
+	if (!_caption.isEmpty()) {
+		return true;
+	}
+	if (auto message = _parent->toHistoryMessage()) {
+		return message->viaBot()
+			|| message->Has<HistoryMessageForwarded>()
+			|| message->Has<HistoryMessageReply>()
+			|| message->displayFromName();
+	}
+	return false;
+}
+
 int32 HistoryPhoto::addToOverview(AddToOverviewMethod method) {
 	auto result = int32(0);
 	if (_parent->toHistoryMessage()) {
@@ -885,6 +899,19 @@ QString HistoryVideo::inDialogsText() const {
 
 TextWithEntities HistoryVideo::selectedText(TextSelection selection) const {
 	return captionedSelectedText(lang(lng_in_dlg_video), _caption, selection);
+}
+
+bool HistoryVideo::needsBubble() const {
+	if (!_caption.isEmpty()) {
+		return true;
+	}
+	if (auto message = _parent->toHistoryMessage()) {
+		return message->viaBot()
+			|| message->Has<HistoryMessageForwarded>()
+			|| message->Has<HistoryMessageReply>()
+			|| message->displayFromName();
+	}
+	return false;
 }
 
 int32 HistoryVideo::addToOverview(AddToOverviewMethod method) {
@@ -2284,6 +2311,22 @@ TextWithEntities HistoryGif::selectedText(TextSelection selection) const {
 	return captionedSelectedText(mediaTypeString(), _caption, selection);
 }
 
+bool HistoryGif::needsBubble() const {
+	if (_data->isRoundVideo()) {
+		return false;
+	}
+	if (!_caption.isEmpty()) {
+		return true;
+	}
+	if (auto message = _parent->toHistoryMessage()) {
+		return message->viaBot()
+			|| message->Has<HistoryMessageForwarded>()
+			|| message->Has<HistoryMessageReply>()
+			|| message->displayFromName();
+	}
+	return false;
+}
+
 int32 HistoryGif::addToOverview(AddToOverviewMethod method) {
 	auto result = int32(0);
 	if (_data->isRoundVideo()) {
@@ -3156,11 +3199,13 @@ void HistoryWebPage::initDimensions() {
 		}
 	}
 
+	auto textFloatsAroundInfo = !_asArticle && !_attach && isBubbleBottom();
+
 	// init strings
 	if (_description.isEmpty() && !_data->description.text.isEmpty()) {
 		auto text = _data->description;
 
-		if (!_asArticle && !_attach) {
+		if (textFloatsAroundInfo) {
 			text.text += _parent->skipBlock();
 		}
 		auto opts = &_webpageDescriptionOptions;
@@ -3172,7 +3217,7 @@ void HistoryWebPage::initDimensions() {
 		_description.setMarkedText(st::webPageDescriptionStyle, text, *opts);
 	}
 	if (_title.isEmpty() && !title.isEmpty()) {
-		if (!_asArticle && !_attach && _description.isEmpty()) {
+		if (textFloatsAroundInfo && _description.isEmpty()) {
 			title += _parent->skipBlock();
 		}
 		_title.setText(st::webPageTitleStyle, title, _webpageTitleOptions);
@@ -3218,7 +3263,7 @@ void HistoryWebPage::initDimensions() {
 		if (!attachAtTop) _minh += st::mediaInBubbleSkip;
 
 		_attach->initDimensions();
-		QMargins bubble(_attach->bubbleMargins());
+		auto bubble = _attach->bubbleMargins();
 		auto maxMediaWidth = _attach->maxWidth() - bubble.left() - bubble.right();
 		if (isBubbleBottom() && _attach->customInfoLayout()) {
 			maxMediaWidth += skipBlockWidth;
@@ -3307,7 +3352,7 @@ int HistoryWebPage::resizeGetHeight(int width) {
 		if (_description.isEmpty()) {
 			_descriptionLines = 0;
 		} else {
-			int32 descriptionHeight = _description.countHeight(width);
+			auto descriptionHeight = _description.countHeight(width);
 			if (descriptionHeight < (linesMax - siteNameLines - _titleLines) * st::webPageDescriptionFont->height) {
 				_descriptionLines = (descriptionHeight / st::webPageDescriptionFont->height);
 			} else {
@@ -3320,7 +3365,7 @@ int HistoryWebPage::resizeGetHeight(int width) {
 			auto attachAtTop = !_siteNameWidth && !_titleLines && !_descriptionLines;
 			if (!attachAtTop) _height += st::mediaInBubbleSkip;
 
-			QMargins bubble(_attach->bubbleMargins());
+			auto bubble = _attach->bubbleMargins();
 
 			_attach->resizeGetHeight(width + bubble.left() + bubble.right());
 			_height += _attach->height() - bubble.top() - bubble.bottom();
@@ -4634,6 +4679,19 @@ TextWithEntities HistoryLocation::selectedText(TextSelection selection) const {
 	titleResult.text += '\n';
 	appendTextWithEntities(titleResult, std::move(descriptionResult));
 	return titleResult;
+}
+
+bool HistoryLocation::needsBubble() const {
+	if (!_title.isEmpty() || !_description.isEmpty()) {
+		return true;
+	}
+	if (auto message = _parent->toHistoryMessage()) {
+		return message->viaBot()
+			|| message->Has<HistoryMessageForwarded>()
+			|| message->Has<HistoryMessageReply>()
+			|| message->displayFromName();
+	}
+	return false;
 }
 
 int32 HistoryLocation::fullWidth() const {

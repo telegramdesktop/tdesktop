@@ -35,6 +35,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "dialogswidget.h"
 #include "historywidget.h"
+#include "history/history_message.h"
+#include "history/history_media.h"
 #include "history/history_service_layout.h"
 #include "overviewwidget.h"
 #include "lang/lang_keys.h"
@@ -1493,7 +1495,7 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 		App::historyRegSentData(randomId, history->peer->id, sendingText);
 
 		MTPstring msgText(MTP_string(sendingText));
-		auto flags = newMessageFlags(history->peer) | MTPDmessage::Flag::f_entities; // unread, out
+		auto flags = NewMessageFlags(history->peer) | MTPDmessage::Flag::f_entities; // unread, out
 		auto sendFlags = MTPmessages_SendMessage::Flags(0);
 		if (replyTo) {
 			flags |= MTPDmessage::Flag::f_reply_to_msg_id;

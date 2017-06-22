@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "history/history_media.h"
 #include "ui/effects/radial_animation.h"
 
 namespace Media {
@@ -28,7 +29,7 @@ class Playback;
 } // namespace Clip
 } // namespace Media
 
-void historyInitMedia();
+void HistoryInitMedia();
 
 class HistoryFileMedia : public HistoryMedia {
 public:
@@ -167,18 +168,7 @@ public:
 	TextWithEntities getCaption() const override {
 		return _caption.originalTextWithEntities();
 	}
-	bool needsBubble() const override {
-		if (!_caption.isEmpty()) {
-			return true;
-		}
-		if (auto message = _parent->toHistoryMessage()) {
-			return message->viaBot()
-				|| message->Has<HistoryMessageForwarded>()
-				|| message->Has<HistoryMessageReply>()
-				|| message->displayFromName();
-		}
-		return false;
-	}
+	bool needsBubble() const override;
 	bool customInfoLayout() const override {
 		return _caption.isEmpty();
 	}
@@ -264,18 +254,7 @@ public:
 	TextWithEntities getCaption() const override {
 		return _caption.originalTextWithEntities();
 	}
-	bool needsBubble() const override {
-		if (!_caption.isEmpty()) {
-			return true;
-		}
-		if (auto message = _parent->toHistoryMessage()) {
-			return message->viaBot()
-				|| message->Has<HistoryMessageForwarded>()
-				|| message->Has<HistoryMessageReply>()
-				|| message->displayFromName();
-		}
-		return false;
-	}
+	bool needsBubble() const override;
 	bool customInfoLayout() const override {
 		return _caption.isEmpty();
 	}
@@ -536,21 +515,7 @@ public:
 	TextWithEntities getCaption() const override {
 		return _caption.originalTextWithEntities();
 	}
-	bool needsBubble() const override {
-		if (_data->isRoundVideo()) {
-			return false;
-		}
-		if (!_caption.isEmpty()) {
-			return true;
-		}
-		if (auto message = _parent->toHistoryMessage()) {
-			return message->viaBot()
-				|| message->Has<HistoryMessageForwarded>()
-				|| message->Has<HistoryMessageReply>()
-				|| message->displayFromName();
-		}
-		return false;
-	}
+	bool needsBubble() const override;
 	bool customInfoLayout() const override {
 		return _caption.isEmpty();
 	}
@@ -1109,18 +1074,7 @@ public:
 	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
-	bool needsBubble() const override {
-		if (!_title.isEmpty() || !_description.isEmpty()) {
-			return true;
-		}
-		if (auto message = _parent->toHistoryMessage()) {
-			return message->viaBot()
-				|| message->Has<HistoryMessageForwarded>()
-				|| message->Has<HistoryMessageReply>()
-				|| message->displayFromName();
-		}
-		return false;
-	}
+	bool needsBubble() const override;
 	bool customInfoLayout() const override {
 		return true;
 	}

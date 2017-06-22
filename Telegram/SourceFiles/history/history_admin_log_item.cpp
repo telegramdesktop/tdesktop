@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "history/history_admin_log_item.h"
 
+#include "history/history_service.h"
+#include "history/history_message.h"
 #include "history/history_admin_log_inner.h"
 #include "lang/lang_keys.h"
 #include "messenger.h"

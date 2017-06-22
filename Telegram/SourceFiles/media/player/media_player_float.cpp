@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/player/media_player_float.h"
 
 #include "styles/style_media_player.h"
+#include "history/history_media.h"
 #include "media/media_clip_reader.h"
 #include "media/view/media_clip_playback.h"
 #include "media/media_audio.h"

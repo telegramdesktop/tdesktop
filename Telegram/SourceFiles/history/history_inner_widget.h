@@ -272,7 +272,7 @@ private:
 	// This function finds all history items that are displayed and calls template method
 	// for each found message (in given direction) in the passed history with passed top offset.
 	//
-	// Method has "bool (*Method)(HistoryItem *item, int itemtop, int itembottom)" signature
+	// Method has "bool (*Method)(gsl::not_null<HistoryItem*> item, int itemtop, int itembottom)" signature
 	// if it returns false the enumeration stops immidiately.
 	template <bool TopToBottom, typename Method>
 	void enumerateItemsInHistory(History *history, int historytop, Method method);
@@ -292,7 +292,7 @@ private:
 	// This function finds all userpics on the left that are displayed and calls template method
 	// for each found userpic (from the top to the bottom) using enumerateItems() method.
 	//
-	// Method has "bool (*Method)(HistoryMessage *message, int userpicTop)" signature
+	// Method has "bool (*Method)(gsl::not_null<HistoryMessage*> message, int userpicTop)" signature
 	// if it returns false the enumeration stops immidiately.
 	template <typename Method>
 	void enumerateUserpics(Method method);
@@ -300,7 +300,7 @@ private:
 	// This function finds all date elements that are displayed and calls template method
 	// for each found date element (from the bottom to the top) using enumerateItems() method.
 	//
-	// Method has "bool (*Method)(HistoryItem *item, int itemtop, int dateTop)" signature
+	// Method has "bool (*Method)(gsl::not_null<HistoryItem*> item, int itemtop, int dateTop)" signature
 	// if it returns false the enumeration stops immidiately.
 	template <typename Method>
 	void enumerateDates(Method method);

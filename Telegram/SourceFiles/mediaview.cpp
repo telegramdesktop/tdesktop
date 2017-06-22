@@ -32,6 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_mediaview.h"
 #include "styles/style_history.h"
 #include "media/media_audio.h"
+#include "history/history_message.h"
 #include "history/history_media_types.h"
 #include "window/themes/window_theme_preview.h"
 #include "base/task_queue.h"
@@ -1182,8 +1183,8 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 	_zoom = 0;
 
 	_caption = Text();
-	if (HistoryMessage *itemMsg = item ? item->toHistoryMessage() : nullptr) {
-		if (HistoryPhoto *photoMsg = dynamic_cast<HistoryPhoto*>(itemMsg->getMedia())) {
+	if (auto itemMsg = item ? item->toHistoryMessage() : nullptr) {
+		if (auto photoMsg = dynamic_cast<HistoryPhoto*>(itemMsg->getMedia())) {
 			_caption.setMarkedText(st::mediaviewCaptionStyle, photoMsg->getCaption(), (item->author()->isUser() && item->author()->asUser()->botInfo) ? _captionBotOptions : _captionTextOptions);
 		}
 	}

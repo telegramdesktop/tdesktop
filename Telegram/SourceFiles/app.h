@@ -23,8 +23,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/basic_types.h"
 #include "history.h"
 #include "history/history_item.h"
-#include "history/history_media.h"
-#include "history/history_message.h"
 #include "layout.h"
 
 class Messenger;

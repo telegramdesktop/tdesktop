@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "styles/style_history.h"
 #include "history/history_media_types.h"
+#include "history/history_message.h"
 #include "history/history_service_layout.h"
 #include "history/history_admin_log_section.h"
 #include "mainwindow.h"
@@ -496,7 +497,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			}
 			p.translate(0, -top);
 
-			enumerateUserpics([&p, &clip](HistoryMessage *message, int userpicTop) {
+			enumerateUserpics([&p, &clip](gsl::not_null<HistoryMessage*> message, int userpicTop) {
 				// stop the enumeration if the userpic is below the painted rect
 				if (userpicTop >= clip.top() + clip.height()) {
 					return false;
@@ -511,7 +512,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 			auto dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
 			auto scrollDateOpacity = _scrollDateOpacity.current(ms, _scrollDateShown ? 1. : 0.);
-			enumerateDates([&p, &clip, scrollDateOpacity, dateHeight/*, lastDate, showFloatingBefore*/](HistoryItem *item, int itemtop, int dateTop) {
+			enumerateDates([&p, &clip, scrollDateOpacity, dateHeight/*, lastDate, showFloatingBefore*/](gsl::not_null<HistoryItem*> item, int itemtop, int dateTop) {
 				// stop the enumeration if the date is above the painted rect
 				if (dateTop + dateHeight <= clip.top()) {
 					return false;
@@ -664,16 +665,12 @@ void InnerWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butt
 				if (uponSelected) {
 					_mouseAction = MouseAction::PrepareDrag; // start text drag
 				} else if (!_pressWasInactive) {
-					if (dynamic_cast<HistorySticker*>(App::pressedItem()->getMedia())) {
-						_mouseAction = MouseAction::PrepareDrag; // start sticker drag or by-date drag
-					} else {
-						if (dragState.afterSymbol) ++_mouseTextSymbol;
-						auto selection = TextSelection { _mouseTextSymbol, _mouseTextSymbol };
-						repaintItem(std::exchange(_selectedItem, _mouseActionItem));
-						_selectedText = selection;
-						_mouseAction = MouseAction::Selecting;
-						repaintItem(_mouseActionItem);
-					}
+					if (dragState.afterSymbol) ++_mouseTextSymbol;
+					auto selection = TextSelection { _mouseTextSymbol, _mouseTextSymbol };
+					repaintItem(std::exchange(_selectedItem, _mouseActionItem));
+					_selectedText = selection;
+					_mouseAction = MouseAction::Selecting;
+					repaintItem(_mouseActionItem);
 				}
 			}
 		}
@@ -784,9 +781,9 @@ void InnerWidget::updateSelected() {
 		dragState = item->getState(itemPoint, request);
 		lnkhost = item;
 		if (!dragState.link && itemPoint.x() >= st::historyPhotoLeft && itemPoint.x() < st::historyPhotoLeft + st::msgPhotoSize) {
-			if (auto msg = item->toHistoryMessage()) {
-				if (msg->hasFromPhoto()) {
-					enumerateUserpics([&dragState, &lnkhost, &point](HistoryMessage *message, int userpicTop) -> bool {
+			if (auto message = item->toHistoryMessage()) {
+				if (message->hasFromPhoto()) {
+					enumerateUserpics([&dragState, &lnkhost, &point](gsl::not_null<HistoryMessage*> message, int userpicTop) -> bool {
 						// stop enumeration if the userpic is below our point
 						if (userpicTop > point.y()) {
 							return false;

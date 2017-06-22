@@ -104,7 +104,7 @@ Messenger::Messenger() : QObject()
 
 	style::startManager();
 	anim::startManager();
-	historyInit();
+	HistoryInit();
 	Media::Player::start();
 
 	DEBUG_LOG(("Application Info: inited..."));

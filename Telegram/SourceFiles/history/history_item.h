@@ -441,9 +441,7 @@ public:
 	HistoryMedia *get() const {
 		return _pointer.get();
 	}
-	void reset(std::unique_ptr<HistoryMedia> pointer = nullptr) {
-		*this = std::move(pointer);
-	}
+	void reset(std::unique_ptr<HistoryMedia> pointer = nullptr);
 	bool isNull() const {
 		return !_pointer;
 	}
@@ -458,9 +456,7 @@ public:
 	explicit operator bool() const {
 		return !isNull();
 	}
-	~HistoryMediaPtr() {
-		reset();
-	}
+	~HistoryMediaPtr();
 
 private:
 	std::unique_ptr<HistoryMedia> _pointer;

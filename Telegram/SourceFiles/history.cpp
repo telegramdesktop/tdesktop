@@ -20,7 +20,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "history.h"
 
+#include "history/history_message.h"
 #include "history/history_media_types.h"
+#include "history/history_service.h"
 #include "dialogs/dialogs_indexed_list.h"
 #include "styles/style_dialogs.h"
 #include "data/data_drafts.h"
@@ -63,9 +65,9 @@ HistoryItem *createUnsupportedMessage(History *history, MsgId msgId, MTPDmessage
 
 } // namespace
 
-void historyInit() {
-	historyInitMessages();
-	historyInitMedia();
+void HistoryInit() {
+	HistoryInitMessages();
+	HistoryInitMedia();
 }
 
 History::History(const PeerId &peerId)

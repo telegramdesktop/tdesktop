@@ -39,6 +39,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/ripple_animation.h"
 #include "inline_bots/inline_bot_result.h"
 #include "data/data_drafts.h"
+#include "history/history_message.h"
 #include "history/history_service_layout.h"
 #include "history/history_media_types.h"
 #include "history/history_drag_area.h"
@@ -3097,8 +3098,8 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 	App::main()->readServerHistory(history);
 	fastShowAtEnd(history);
 
-	PeerData *p = App::peer(peer);
-	auto flags = newMessageFlags(p) | MTPDmessage::Flag::f_media; // unread, out
+	auto p = App::peer(peer);
+	auto flags = NewMessageFlags(p) | MTPDmessage::Flag::f_media; // unread, out
 
 	bool lastKeyboardUsed = lastForceReplyReplied(FullMsgId(peerToChannel(peer), replyTo));
 
@@ -4545,7 +4546,7 @@ void HistoryWidget::sendFileConfirmed(const FileLoadResultPtr &file) {
 
 	fastShowAtEnd(h);
 
-	auto flags = newMessageFlags(h->peer) | MTPDmessage::Flag::f_media; // unread, out
+	auto flags = NewMessageFlags(h->peer) | MTPDmessage::Flag::f_media; // unread, out
 	if (file->to.replyTo) flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 	bool channelPost = h->peer->isChannel() && !h->peer->isMegagroup();
 	bool showFromName = !channelPost || h->peer->asChannel()->addsSignature();
@@ -5358,7 +5359,7 @@ void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot
 	bool lastKeyboardUsed = lastForceReplyReplied();
 
 	bool out = !_peer->isSelf(), unread = !_peer->isSelf();
-	auto flags = newMessageFlags(_peer) | MTPDmessage::Flag::f_media; // unread, out
+	auto flags = NewMessageFlags(_peer) | MTPDmessage::Flag::f_media; // unread, out
 	auto sendFlags = qFlags(MTPmessages_SendInlineBotResult::Flag::f_clear_draft);
 	if (replyToId()) {
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
@@ -5531,7 +5532,7 @@ bool HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 	bool lastKeyboardUsed = lastForceReplyReplied();
 
 	bool out = !_peer->isSelf(), unread = !_peer->isSelf();
-	auto flags = newMessageFlags(_peer) | MTPDmessage::Flag::f_media; // unread, out
+	auto flags = NewMessageFlags(_peer) | MTPDmessage::Flag::f_media; // unread, out
 	auto sendFlags = MTPmessages_SendMedia::Flags(0);
 	if (replyToId()) {
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
@@ -5587,7 +5588,7 @@ void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption) 
 	bool lastKeyboardUsed = lastForceReplyReplied();
 
 	bool out = !_peer->isSelf(), unread = !_peer->isSelf();
-	auto flags = newMessageFlags(_peer) | MTPDmessage::Flag::f_media; // unread, out
+	auto flags = NewMessageFlags(_peer) | MTPDmessage::Flag::f_media; // unread, out
 	auto sendFlags = MTPmessages_SendMedia::Flags(0);
 	if (replyToId()) {
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;

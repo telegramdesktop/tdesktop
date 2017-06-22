@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/send_action_animations.h"
 #include "base/observer.h"
 
-void historyInit();
+void HistoryInit();
 
 class HistoryItem;
 using SelectedItemSet = QMap<int, gsl::not_null<HistoryItem*>>;

@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "history/history_service_layout.h"
 #include "history/history_media_types.h"
+#include "history/history_message.h"
 #include "media/media_clip_reader.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
@@ -562,6 +563,10 @@ HistoryMediaPtr::HistoryMediaPtr(std::unique_ptr<HistoryMedia> pointer) : _point
 	}
 }
 
+void HistoryMediaPtr::reset(std::unique_ptr<HistoryMedia> pointer) {
+	*this = std::move(pointer);
+}
+
 HistoryMediaPtr &HistoryMediaPtr::operator=(std::unique_ptr<HistoryMedia> pointer) {
 	if (_pointer) {
 		_pointer->detachFromParent();
@@ -571,6 +576,10 @@ HistoryMediaPtr &HistoryMediaPtr::operator=(std::unique_ptr<HistoryMedia> pointe
 		_pointer->attachToParent();
 	}
 	return *this;
+}
+
+HistoryMediaPtr::~HistoryMediaPtr() {
+	reset();
 }
 
 namespace internal {

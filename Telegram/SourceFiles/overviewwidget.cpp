@@ -38,6 +38,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "overviewwidget.h"
 #include "application.h"
 #include "overview/overview_layout.h"
+#include "history/history_message.h"
 #include "history/history_media_types.h"
 #include "history/history_service_layout.h"
 #include "media/media_audio.h"
