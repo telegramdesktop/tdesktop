@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "styles/style_history.h"
 #include "history/history_media_types.h"
+#include "history/history_service_layout.h"
 #include "history/history_admin_log_section.h"
 #include "mainwindow.h"
 #include "window/window_controller.h"
@@ -32,9 +33,165 @@ namespace AdminLog {
 namespace {
 
 constexpr auto kScrollDateHideTimeout = 1000;
-constexpr auto kEventsPerPage = 10;
+constexpr auto kEventsPerPage = 1;
 
 } // namespace
+
+template <InnerWidget::EnumItemsDirection direction, typename Method>
+void InnerWidget::enumerateItems(Method method) {
+	constexpr auto TopToBottom = (direction == EnumItemsDirection::TopToBottom);
+
+	// No displayed messages in this history.
+	if (_items.empty()) {
+		return;
+	}
+	if (_visibleBottom <= _itemsTop || _itemsTop + _itemsHeight <= _visibleTop) {
+		return;
+	}
+
+	auto begin = std::rbegin(_items), end = std::rend(_items);
+	auto from = TopToBottom ? std::lower_bound(begin, end, _visibleTop, [this](auto &elem, int top) {
+		return itemTop(elem) + elem->height() <= top;
+	}) : std::upper_bound(begin, end, _visibleBottom, [this](int bottom, auto &elem) {
+		return itemTop(elem) + elem->height() >= bottom;
+	});
+	auto wasEnd = (from == end);
+	if (wasEnd) {
+		--from;
+	}
+	if (TopToBottom) {
+		t_assert(itemTop(from->get()) + from->get()->height() > _visibleTop);
+	} else {
+		t_assert(itemTop(from->get()) < _visibleBottom);
+	}
+
+	while (true) {
+		auto item = from->get();
+		auto itemtop = itemTop(item);
+		auto itembottom = itemtop + item->height();
+
+		// Binary search should've skipped all the items that are above / below the visible area.
+		if (TopToBottom) {
+			t_assert(itembottom > _visibleTop);
+		} else {
+			t_assert(itemtop < _visibleBottom);
+		}
+
+		if (!method(item, itemtop, itembottom)) {
+			return;
+		}
+
+		// Skip all the items that are below / above the visible area.
+		if (TopToBottom) {
+			if (itembottom >= _visibleBottom) {
+				return;
+			}
+		} else {
+			if (itemtop <= _visibleTop) {
+				return;
+			}
+		}
+
+		if (TopToBottom) {
+			if (++from == end) {
+				break;
+			}
+		} else {
+			if (from == begin) {
+				break;
+			}
+			--from;
+		}
+	}
+}
+
+template <typename Method>
+void InnerWidget::enumerateUserpics(Method method) {
+	// Find and remember the top of an attached messages pack
+	// -1 means we didn't find an attached to next message yet.
+	int lowestAttachedItemTop = -1;
+
+	auto userpicCallback = [this, &lowestAttachedItemTop, &method](HistoryItem *item, int itemtop, int itembottom) {
+		// Skip all service messages.
+		auto message = item->toHistoryMessage();
+		if (!message) return true;
+
+		if (lowestAttachedItemTop < 0 && message->isAttachedToNext()) {
+			lowestAttachedItemTop = itemtop + message->marginTop();
+		}
+
+		// Call method on a userpic for all messages that have it and for those who are not showing it
+		// because of their attachment to the next message if they are bottom-most visible.
+		if (message->displayFromPhoto() || (message->hasFromPhoto() && itembottom >= _visibleBottom)) {
+			if (lowestAttachedItemTop < 0) {
+				lowestAttachedItemTop = itemtop + message->marginTop();
+			}
+			// Attach userpic to the bottom of the visible area with the same margin as the last message.
+			auto userpicMinBottomSkip = st::historyPaddingBottom + st::msgMargin.bottom();
+			auto userpicBottom = qMin(itembottom - message->marginBottom(), _visibleBottom - userpicMinBottomSkip);
+
+			// Do not let the userpic go above the attached messages pack top line.
+			userpicBottom = qMax(userpicBottom, lowestAttachedItemTop + st::msgPhotoSize);
+
+			// Call the template callback function that was passed
+			// and return if it finished everything it needed.
+			if (!method(message, userpicBottom - st::msgPhotoSize)) {
+				return false;
+			}
+		}
+
+		// Forget the found top of the pack, search for the next one from scratch.
+		if (!message->isAttachedToNext()) {
+			lowestAttachedItemTop = -1;
+		}
+
+		return true;
+	};
+
+	enumerateItems<EnumItemsDirection::TopToBottom>(userpicCallback);
+}
+
+template <typename Method>
+void InnerWidget::enumerateDates(Method method) {
+	// Find and remember the bottom of an single-day messages pack
+	// -1 means we didn't find a same-day with previous message yet.
+	auto lowestInOneDayItemBottom = -1;
+
+	auto dateCallback = [this, &lowestInOneDayItemBottom, &method](HistoryItem *item, int itemtop, int itembottom) {
+		if (lowestInOneDayItemBottom < 0 && item->isInOneDayWithPrevious()) {
+			lowestInOneDayItemBottom = itembottom - item->marginBottom();
+		}
+
+		// Call method on a date for all messages that have it and for those who are not showing it
+		// because they are in a one day together with the previous message if they are top-most visible.
+		if (item->displayDate() || (!item->isEmpty() && itemtop <= _visibleTop)) {
+			if (lowestInOneDayItemBottom < 0) {
+				lowestInOneDayItemBottom = itembottom - item->marginBottom();
+			}
+			// Attach date to the top of the visible area with the same margin as it has in service message.
+			auto dateTop = qMax(itemtop, _visibleTop) + st::msgServiceMargin.top();
+
+			// Do not let the date go below the single-day messages pack bottom line.
+			auto dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
+			dateTop = qMin(dateTop, lowestInOneDayItemBottom - dateHeight);
+
+			// Call the template callback function that was passed
+			// and return if it finished everything it needed.
+			if (!method(item, itemtop, dateTop)) {
+				return false;
+			}
+		}
+
+		// Forget the found bottom of the pack, search for the next one from scratch.
+		if (!item->isInOneDayWithPrevious()) {
+			lowestInOneDayItemBottom = -1;
+		}
+
+		return true;
+	};
+
+	enumerateItems<EnumItemsDirection::BottomToTop>(dateCallback);
+}
 
 InnerWidget::InnerWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, gsl::not_null<ChannelData*> channel, base::lambda<void(int top)> scrollTo) : TWidget(parent)
 , _controller(controller)
@@ -62,17 +219,23 @@ InnerWidget::InnerWidget(QWidget *parent, gsl::not_null<Window::Controller*> con
 }
 
 void InnerWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
+	auto scrolledUp = (visibleTop < _visibleTop);
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
 
 	updateVisibleTopItem();
 	checkPreloadMore();
+	if (scrolledUp) {
+		_scrollDateCheck.call();
+	} else {
+		scrollDateHideByTimer();
+	}
 }
 
 void InnerWidget::updateVisibleTopItem() {
-	auto start = std::rbegin(_items), end = std::rend(_items);
-	auto from = std::upper_bound(start, end, _visibleTop, [](int top, auto &elem) {
-		return top <= elem->y() + elem->height();
+	auto begin = std::rbegin(_items), end = std::rend(_items);
+	auto from = std::lower_bound(begin, end, _visibleTop, [this](auto &elem, int top) {
+		return itemTop(elem) + elem->height() <= top;
 	});
 	if (from != end) {
 		_visibleTopItem = *from;
@@ -105,22 +268,13 @@ void InnerWidget::scrollDateCheck() {
 
 void InnerWidget::scrollDateHideByTimer() {
 	_scrollDateHideTimer.cancel();
-	if (!_scrollDateLink || ClickHandler::getPressed() != _scrollDateLink) {
-		scrollDateHide();
-	}
+	scrollDateHide();
 }
 
 void InnerWidget::scrollDateHide() {
 	if (_scrollDateShown) {
 		toggleScrollDateShown();
 	}
-}
-
-void InnerWidget::keepScrollDateForNow() {
-	if (!_scrollDateShown && _scrollDateLastItem && _scrollDateOpacity.animating()) {
-		toggleScrollDateShown();
-	}
-	_scrollDateHideTimer.callOnce(kScrollDateHideTimeout);
 }
 
 void InnerWidget::toggleScrollDateShown() {
@@ -233,7 +387,8 @@ void InnerWidget::preloadMore(Direction direction) {
 		App::feedChats(results.vchats);
 		auto &events = results.vevents.v;
 		if (!events.empty()) {
-			_items.reserve(_items.size() + events.size());
+			auto oldItemsCount = _items.size();
+			_items.reserve(oldItemsCount + events.size() * 2);
 			for_const (auto &event, events) {
 				t_assert(event.type() == mtpc_channelAdminLogEvent);
 				auto &data = event.c_channelAdminLogEvent();
@@ -253,14 +408,29 @@ void InnerWidget::preloadMore(Direction direction) {
 					}
 				}
 			}
-			if (!_items.empty()) {
+			auto newItemsCount = _items.size();
+			if (newItemsCount != oldItemsCount) {
+				for (auto i = oldItemsCount; i != newItemsCount + 1; ++i) {
+					if (i > 0) {
+						auto item = _items[i - 1].get();
+						if (i == newItemsCount) {
+							item->setLogEntryDisplayDate(true);
+						} else {
+							auto previous = _items[i].get();
+							item->setLogEntryDisplayDate(item->date.date() != previous->date.date());
+							auto attachToPrevious = item->computeIsAttachToPrevious(previous);
+							item->setLogEntryAttachToPrevious(attachToPrevious);
+							previous->setLogEntryAttachToNext(attachToPrevious);
+						}
+					}
+				}
 				_maxId = (--_itemsByIds.end())->first;
 				_minId = _itemsByIds.begin()->first;
 				if (_minId == 1) {
 					_upLoaded = true;
 				}
+				itemsAdded(direction);
 			}
-			itemsAdded(direction);
 		} else {
 			loadedFlag = true;
 		}
@@ -308,12 +478,12 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	if (_items.empty() && _upLoaded && _downLoaded) {
 		paintEmpty(p);
 	} else {
-		auto start = std::rbegin(_items), end = std::rend(_items);
-		auto from = std::upper_bound(start, end, clip.top(), [this](int top, auto &elem) {
-			return top <= itemTop(elem.get()) + elem->height();
+		auto begin = std::rbegin(_items), end = std::rend(_items);
+		auto from = std::lower_bound(begin, end, clip.top(), [this](auto &elem, int top) {
+			return itemTop(elem) + elem->height() <= top;
 		});
-		auto to = std::lower_bound(start, end, clip.top() + clip.height(), [this](auto &elem, int bottom) {
-			return itemTop(elem.get()) < bottom;
+		auto to = std::lower_bound(begin, end, clip.top() + clip.height(), [this](auto &elem, int bottom) {
+			return itemTop(elem) < bottom;
 		});
 		if (from != end) {
 			auto top = itemTop(from->get());
@@ -324,6 +494,58 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				top += height;
 				p.translate(0, height);
 			}
+			p.translate(0, -top);
+
+			enumerateUserpics([&p, &clip](HistoryMessage *message, int userpicTop) {
+				// stop the enumeration if the userpic is below the painted rect
+				if (userpicTop >= clip.top() + clip.height()) {
+					return false;
+				}
+
+				// paint the userpic if it intersects the painted rect
+				if (userpicTop + st::msgPhotoSize > clip.top()) {
+					message->from()->paintUserpicLeft(p, st::historyPhotoLeft, userpicTop, message->width(), st::msgPhotoSize);
+				}
+				return true;
+			});
+
+			auto dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
+			auto scrollDateOpacity = _scrollDateOpacity.current(ms, _scrollDateShown ? 1. : 0.);
+			enumerateDates([&p, &clip, scrollDateOpacity, dateHeight/*, lastDate, showFloatingBefore*/](HistoryItem *item, int itemtop, int dateTop) {
+				// stop the enumeration if the date is above the painted rect
+				if (dateTop + dateHeight <= clip.top()) {
+					return false;
+				}
+
+				bool displayDate = item->displayDate();
+				bool dateInPlace = displayDate;
+				if (dateInPlace) {
+					int correctDateTop = itemtop + st::msgServiceMargin.top();
+					dateInPlace = (dateTop < correctDateTop + dateHeight);
+				}
+				//bool noFloatingDate = (item->date.date() == lastDate && displayDate);
+				//if (noFloatingDate) {
+				//	if (itemtop < showFloatingBefore) {
+				//		noFloatingDate = false;
+				//	}
+				//}
+
+				// paint the date if it intersects the painted rect
+				if (dateTop < clip.top() + clip.height()) {
+					auto opacity = (dateInPlace/* || noFloatingDate*/) ? 1. : scrollDateOpacity;
+					if (opacity > 0.) {
+						p.setOpacity(opacity);
+						int dateY = /*noFloatingDate ? itemtop :*/ (dateTop - st::msgServiceMargin.top());
+						int width = item->width();
+						if (auto date = item->Get<HistoryMessageDate>()) {
+							date->paint(p, dateY, width);
+						} else {
+							HistoryLayout::ServiceMessagePainter::paintDate(p, item->date, dateY, width);
+						}
+					}
+				}
+				return true;
+			});
 		}
 	}
 }
@@ -354,17 +576,9 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 }
 
 void InnerWidget::mouseMoveEvent(QMouseEvent *e) {
-	static auto lastGlobalPosition = e->globalPos();
-	auto reallyMoved = (lastGlobalPosition != e->globalPos());
 	auto buttonsPressed = (e->buttons() & (Qt::LeftButton | Qt::MiddleButton));
 	if (!buttonsPressed && _mouseAction != MouseAction::None) {
 		mouseReleaseEvent(e);
-	}
-	if (reallyMoved) {
-		lastGlobalPosition = e->globalPos();
-		if (!buttonsPressed || (_scrollDateLink && ClickHandler::getPressed() == _scrollDateLink)) {
-			keepScrollDateForNow();
-		}
 	}
 	mouseActionUpdate(e->globalPos());
 }
@@ -531,9 +745,9 @@ void InnerWidget::updateSelected() {
 	auto point = QPoint(snap(mousePosition.x(), 0, width()), snap(mousePosition.y(), _visibleTop, _visibleBottom));
 
 	auto itemPoint = QPoint();
-	auto start = std::rbegin(_items), end = std::rend(_items);
-	auto from = (point.y() >= _itemsTop && point.y() < _itemsTop + _itemsHeight) ? std::upper_bound(start, end, point.y(), [this](int top, auto &elem) {
-		return top <= itemTop(elem.get()) + elem->height();
+	auto begin = std::rbegin(_items), end = std::rend(_items);
+	auto from = (point.y() >= _itemsTop && point.y() < _itemsTop + _itemsHeight) ? std::lower_bound(begin, end, point.y(), [this](auto &elem, int top) {
+		return itemTop(elem) + elem->height() <= top;
 	}) : end;
 	auto item = (from != end) ? from->get() : nullptr;
 	if (item) {
@@ -561,83 +775,31 @@ void InnerWidget::updateSelected() {
 				InvokeQueued(this, [this] { performDrag(); });
 			}
 		}
+		HistoryStateRequest request;
+		if (_mouseAction == MouseAction::Selecting) {
+			request.flags |= Text::StateRequest::Flag::LookupSymbol;
+		} else {
+			selectingText = false;
+		}
+		dragState = item->getState(itemPoint, request);
+		lnkhost = item;
+		if (!dragState.link && itemPoint.x() >= st::historyPhotoLeft && itemPoint.x() < st::historyPhotoLeft + st::msgPhotoSize) {
+			if (auto msg = item->toHistoryMessage()) {
+				if (msg->hasFromPhoto()) {
+					enumerateUserpics([&dragState, &lnkhost, &point](HistoryMessage *message, int userpicTop) -> bool {
+						// stop enumeration if the userpic is below our point
+						if (userpicTop > point.y()) {
+							return false;
+						}
 
-		auto dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
-		auto scrollDateOpacity = _scrollDateOpacity.current(_scrollDateShown ? 1. : 0.);
-		//enumerateDates([this, &dragState, &lnkhost, &point, scrollDateOpacity, dateHeight/*, lastDate, showFloatingBefore*/](HistoryItem *item, int itemtop, int dateTop) {
-		//	// stop enumeration if the date is above our point
-		//	if (dateTop + dateHeight <= point.y()) {
-		//		return false;
-		//	}
-
-		//	bool displayDate = item->displayDate();
-		//	bool dateInPlace = displayDate;
-		//	if (dateInPlace) {
-		//		int correctDateTop = itemtop + st::msgServiceMargin.top();
-		//		dateInPlace = (dateTop < correctDateTop + dateHeight);
-		//	}
-
-		//	// stop enumeration if we've found a date under the cursor
-		//	if (dateTop <= point.y()) {
-		//		auto opacity = (dateInPlace/* || noFloatingDate*/) ? 1. : scrollDateOpacity;
-		//		if (opacity > 0.) {
-		//			auto dateWidth = 0;
-		//			if (auto date = item->Get<HistoryMessageDate>()) {
-		//				dateWidth = date->_width;
-		//			} else {
-		//				dateWidth = st::msgServiceFont->width(langDayOfMonthFull(item->date.date()));
-		//			}
-		//			dateWidth += st::msgServicePadding.left() + st::msgServicePadding.right();
-		//			auto dateLeft = st::msgServiceMargin.left();
-		//			auto maxwidth = item->history()->width;
-		//			if (Adaptive::ChatWide()) {
-		//				maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
-		//			}
-		//			auto widthForDate = maxwidth - st::msgServiceMargin.left() - st::msgServiceMargin.left();
-
-		//			dateLeft += (widthForDate - dateWidth) / 2;
-
-		//			if (point.x() >= dateLeft && point.x() < dateLeft + dateWidth) {
-		//				if (!_scrollDateLink) {
-		//					_scrollDateLink = MakeShared<DateClickHandler>(item->history()->peer, item->date.date());
-		//				} else {
-		//					static_cast<DateClickHandler*>(_scrollDateLink.data())->setDate(item->date.date());
-		//				}
-		//				dragState.link = _scrollDateLink;
-		//				lnkhost = item;
-		//			}
-		//		}
-		//		return false;
-		//	}
-		//	return true;
-		//}); // TODO
-		if (!dragState.link) {
-			HistoryStateRequest request;
-			if (_mouseAction == MouseAction::Selecting) {
-				request.flags |= Text::StateRequest::Flag::LookupSymbol;
-			} else {
-				selectingText = false;
-			}
-			dragState = item->getState(itemPoint, request);
-			lnkhost = item;
-			if (!dragState.link && itemPoint.x() >= st::historyPhotoLeft && itemPoint.x() < st::historyPhotoLeft + st::msgPhotoSize) {
-				if (auto msg = item->toHistoryMessage()) {
-					if (msg->hasFromPhoto()) {
-						//enumerateUserpics([&dragState, &lnkhost, &point](HistoryMessage *message, int userpicTop) -> bool {
-						//	// stop enumeration if the userpic is below our point
-						//	if (userpicTop > point.y()) {
-						//		return false;
-						//	}
-
-						//	// stop enumeration if we've found a userpic under the cursor
-						//	if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
-						//		dragState.link = message->from()->openLink();
-						//		lnkhost = message;
-						//		return false;
-						//	}
-						//	return true;
-						//}); // TODO
-					}
+						// stop enumeration if we've found a userpic under the cursor
+						if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
+							dragState.link = message->from()->openLink();
+							lnkhost = message;
+							return false;
+						}
+						return true;
+					});
 				}
 			}
 		}

@@ -880,13 +880,14 @@ public:
 	void clipCallback(Media::Clip::Notification notification);
 	void audioTrackUpdated();
 
+	bool computeIsAttachToPrevious(gsl::not_null<HistoryItem*> previous);
 	void setLogEntryDisplayDate(bool displayDate) {
 		Expects(isLogEntry());
 		setDisplayDate(displayDate);
 	}
 	void setLogEntryAttachToPrevious(bool attachToPrevious) {
 		Expects(isLogEntry());
-		setAttachToNext(attachToPrevious);
+		setAttachToPrevious(attachToPrevious);
 	}
 	void setLogEntryAttachToNext(bool attachToNext) {
 		Expects(isLogEntry());

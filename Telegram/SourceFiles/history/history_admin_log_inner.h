@@ -111,6 +111,10 @@ private:
 		Dragging,
 		Selecting,
 	};
+	enum class EnumItemsDirection {
+		TopToBottom,
+		BottomToTop,
+	};
 
 	void mouseActionStart(const QPoint &screenPos, Qt::MouseButton button);
 	void mouseActionUpdate(const QPoint &screenPos);
@@ -134,9 +138,32 @@ private:
 	void repaintScrollDateCallback();
 	bool displayScrollDate() const;
 	void scrollDateHide();
-	void keepScrollDateForNow();
 	void scrollDateCheck();
 	void scrollDateHideByTimer();
+
+	// This function finds all history items that are displayed and calls template method
+	// for each found message (in given direction) in the passed history with passed top offset.
+	//
+	// Method has "bool (*Method)(HistoryItem *item, int itemtop, int itembottom)" signature
+	// if it returns false the enumeration stops immidiately.
+	template <EnumItemsDirection direction, typename Method>
+	void enumerateItems(Method method);
+
+	// This function finds all userpics on the left that are displayed and calls template method
+	// for each found userpic (from the top to the bottom) using enumerateItems() method.
+	//
+	// Method has "bool (*Method)(HistoryMessage *message, int userpicTop)" signature
+	// if it returns false the enumeration stops immidiately.
+	template <typename Method>
+	void enumerateUserpics(Method method);
+
+	// This function finds all date elements that are displayed and calls template method
+	// for each found date element (from the bottom to the top) using enumerateItems() method.
+	//
+	// Method has "bool (*Method)(HistoryItem *item, int itemtop, int dateTop)" signature
+	// if it returns false the enumeration stops immidiately.
+	template <typename Method>
+	void enumerateDates(Method method);
 
 	gsl::not_null<Window::Controller*> _controller;
 	gsl::not_null<ChannelData*> _channel;
@@ -161,7 +188,6 @@ private:
 	base::Timer _scrollDateHideTimer;
 	HistoryItem *_scrollDateLastItem = nullptr;
 	int _scrollDateLastItemTop = 0;
-	ClickHandlerPtr _scrollDateLink;
 
 	// Up - max, Down - min.
 	uint64 _maxId = 0;

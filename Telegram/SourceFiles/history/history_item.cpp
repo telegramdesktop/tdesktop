@@ -735,17 +735,22 @@ void HistoryItem::nextItemChanged() {
 	setAttachToNext(false);
 }
 
+bool HistoryItem::computeIsAttachToPrevious(gsl::not_null<HistoryItem*> previous) {
+	if (!Has<HistoryMessageDate>() && !Has<HistoryMessageUnreadBar>()) {
+		return !isPost() && !previous->isPost()
+			&& !serviceMsg() && !previous->serviceMsg()
+			&& !isEmpty() && !previous->isEmpty()
+			&& previous->from() == from()
+			&& (qAbs(previous->date.secsTo(date)) < kAttachMessageToPreviousSecondsDelta);
+	}
+	return false;
+}
+
 void HistoryItem::recountAttachToPrevious() {
 	Expects(!isLogEntry());
 	auto attachToPrevious = false;
 	if (auto previous = previousItem()) {
-		if (!Has<HistoryMessageDate>() && !Has<HistoryMessageUnreadBar>()) {
-			attachToPrevious = !isPost() && !previous->isPost()
-				&& !serviceMsg() && !previous->serviceMsg()
-				&& !isEmpty() && !previous->isEmpty()
-				&& previous->from() == from()
-				&& (qAbs(previous->date.secsTo(date)) < kAttachMessageToPreviousSecondsDelta);
-		}
+		attachToPrevious = computeIsAttachToPrevious(previous);
 		previous->setAttachToNext(attachToPrevious);
 	}
 	setAttachToPrevious(attachToPrevious);

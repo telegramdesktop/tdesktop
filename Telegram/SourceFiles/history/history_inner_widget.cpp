@@ -57,7 +57,27 @@ private:
 
 };
 
-std::unique_ptr<QMimeData> mimeDataFromTextWithEntities(const TextWithEntities &forClipboard) {
+// Helper binary search for an item in a list that is not completely
+// above the given top of the visible area or below the given bottom of the visible area
+// is applied once for blocks list in a history and once for items list in the found block.
+template <bool TopToBottom, typename T>
+int BinarySearchBlocksOrItems(const T &list, int edge) {
+	// static_cast to work around GCC bug #78693
+	auto start = 0, end = static_cast<int>(list.size());
+	while (end - start > 1) {
+		auto middle = (start + end) / 2;
+		auto top = list[middle]->y();
+		auto chooseLeft = (TopToBottom ? (top <= edge) : (top < edge));
+		if (chooseLeft) {
+			start = middle;
+		} else {
+			end = middle;
+		}
+	}
+	return start;
+}
+
+std::unique_ptr<QMimeData> MimeDataFromTextWithEntities(const TextWithEntities &forClipboard) {
 	if (forClipboard.text.isEmpty()) {
 		return nullptr;
 	}
@@ -149,33 +169,9 @@ void HistoryInner::repaintItem(const HistoryItem *item) {
 	}
 }
 
-namespace {
-
-// helper binary search for an item in a list that is not completely
-// above the given top of the visible area or below the given bottom of the visible area
-// is applied once for blocks list in a history and once for items list in the found block
-template <bool TopToBottom, typename T>
-int binarySearchBlocksOrItems(const T &list, int edge) {
-	// static_cast to work around GCC bug #78693
-	auto start = 0, end = static_cast<int>(list.size());
-	while (end - start > 1) {
-		auto middle = (start + end) / 2;
-		auto top = list[middle]->y();
-		auto chooseLeft = (TopToBottom ? (top <= edge) : (top < edge));
-		if (chooseLeft) {
-			start = middle;
-		} else {
-			end = middle;
-		}
-	}
-	return start;
-}
-
-} // namespace
-
 template <bool TopToBottom, typename Method>
 void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Method method) {
-	// no displayed messages in this history
+	// No displayed messages in this history.
 	if (historytop < 0 || history->isEmpty()) {
 		return;
 	}
@@ -185,14 +181,14 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 
 	auto searchEdge = TopToBottom ? _visibleAreaTop : _visibleAreaBottom;
 
-	// binary search for blockIndex of the first block that is not completely below the visible area
-	auto blockIndex = binarySearchBlocksOrItems<TopToBottom>(history->blocks, searchEdge - historytop);
+	// Binary search for blockIndex of the first block that is not completely below the visible area.
+	auto blockIndex = BinarySearchBlocksOrItems<TopToBottom>(history->blocks, searchEdge - historytop);
 
-	// binary search for itemIndex of the first item that is not completely below the visible area
+	// Binary search for itemIndex of the first item that is not completely below the visible area.
 	auto block = history->blocks.at(blockIndex);
 	auto blocktop = historytop + block->y();
 	auto blockbottom = blocktop + block->height();
-	auto itemIndex = binarySearchBlocksOrItems<TopToBottom>(block->items, searchEdge - blocktop);
+	auto itemIndex = BinarySearchBlocksOrItems<TopToBottom>(block->items, searchEdge - blocktop);
 
 	while (true) {
 		while (true) {
@@ -200,7 +196,7 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 			auto itemtop = blocktop + item->y();
 			auto itembottom = itemtop + item->height();
 
-			// binary search should've skipped all the items that are above / below the visible area
+			// Binary search should've skipped all the items that are above / below the visible area.
 			if (TopToBottom) {
 				t_assert(itembottom > _visibleAreaTop);
 			} else {
@@ -211,7 +207,7 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 				return;
 			}
 
-			// skip all the items that are below / above the visible area
+			// Skip all the items that are below / above the visible area.
 			if (TopToBottom) {
 				if (itembottom >= _visibleAreaBottom) {
 					return;
@@ -233,7 +229,7 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 			}
 		}
 
-		// skip all the rest blocks that are below / above the visible area
+		// Skip all the rest blocks that are below / above the visible area.
 		if (TopToBottom) {
 			if (blockbottom >= _visibleAreaBottom) {
 				return;
@@ -270,12 +266,12 @@ void HistoryInner::enumerateUserpics(Method method) {
 		return;
 	}
 
-	// find and remember the top of an attached messages pack
-	// -1 means we didn't find an attached to next message yet
+	// Find and remember the top of an attached messages pack
+	// -1 means we didn't find an attached to next message yet.
 	int lowestAttachedItemTop = -1;
 
 	auto userpicCallback = [this, &lowestAttachedItemTop, &method](HistoryItem *item, int itemtop, int itembottom) {
-		// skip all service messages
+		// Skip all service messages.
 		auto message = item->toHistoryMessage();
 		if (!message) return true;
 
@@ -283,27 +279,27 @@ void HistoryInner::enumerateUserpics(Method method) {
 			lowestAttachedItemTop = itemtop + message->marginTop();
 		}
 
-		// call method on a userpic for all messages that have it and for those who are not showing it
-		// because of their attachment to the next message if they are bottom-most visible
+		// Call method on a userpic for all messages that have it and for those who are not showing it
+		// because of their attachment to the next message if they are bottom-most visible.
 		if (message->displayFromPhoto() || (message->hasFromPhoto() && itembottom >= _visibleAreaBottom)) {
 			if (lowestAttachedItemTop < 0) {
 				lowestAttachedItemTop = itemtop + message->marginTop();
 			}
-			// attach userpic to the bottom of the visible area with the same margin as the last message
+			// Attach userpic to the bottom of the visible area with the same margin as the last message.
 			auto userpicMinBottomSkip = st::historyPaddingBottom + st::msgMargin.bottom();
 			auto userpicBottom = qMin(itembottom - message->marginBottom(), _visibleAreaBottom - userpicMinBottomSkip);
 
-			// do not let the userpic go above the attached messages pack top line
+			// Do not let the userpic go above the attached messages pack top line.
 			userpicBottom = qMax(userpicBottom, lowestAttachedItemTop + st::msgPhotoSize);
 
-			// call the template callback function that was passed
-			// and return if it finished everything it needed
+			// Call the template callback function that was passed
+			// and return if it finished everything it needed.
 			if (!method(message, userpicBottom - st::msgPhotoSize)) {
 				return false;
 			}
 		}
 
-		// forget the found top of the pack, search for the next one from scratch
+		// Forget the found top of the pack, search for the next one from scratch.
 		if (!message->isAttachedToNext()) {
 			lowestAttachedItemTop = -1;
 		}
@@ -316,28 +312,28 @@ void HistoryInner::enumerateUserpics(Method method) {
 
 template <typename Method>
 void HistoryInner::enumerateDates(Method method) {
-	int drawtop = historyDrawTop();
+	auto drawtop = historyDrawTop();
 
-	// find and remember the bottom of an single-day messages pack
-	// -1 means we didn't find a same-day with previous message yet
-	int lowestInOneDayItemBottom = -1;
+	// Find and remember the bottom of an single-day messages pack
+	// -1 means we didn't find a same-day with previous message yet.
+	auto lowestInOneDayItemBottom = -1;
 
 	auto dateCallback = [this, &lowestInOneDayItemBottom, &method, drawtop](HistoryItem *item, int itemtop, int itembottom) {
 		if (lowestInOneDayItemBottom < 0 && item->isInOneDayWithPrevious()) {
 			lowestInOneDayItemBottom = itembottom - item->marginBottom();
 		}
 
-		// call method on a date for all messages that have it and for those who are not showing it
-		// because they are in a one day together with the previous message if they are top-most visible
+		// Call method on a date for all messages that have it and for those who are not showing it
+		// because they are in a one day together with the previous message if they are top-most visible.
 		if (item->displayDate() || (!item->isEmpty() && itemtop <= _visibleAreaTop)) {
 			// skip the date of history migrate item if it will be in migrated
 			if (itemtop < drawtop && item->history() == _history) {
 				if (itemtop > _visibleAreaTop) {
-					// previous item (from the _migrated history) is drawing date now
+					// Previous item (from the _migrated history) is drawing date now.
 					return false;
 				} else if (item == _history->blocks.front()->items.front() && item->isGroupMigrate()
 					&& _migrated->blocks.back()->items.back()->isGroupMigrate()) {
-					// this item is completely invisible and should be completely ignored
+					// This item is completely invisible and should be completely ignored.
 					return false;
 				}
 			}
@@ -345,21 +341,21 @@ void HistoryInner::enumerateDates(Method method) {
 			if (lowestInOneDayItemBottom < 0) {
 				lowestInOneDayItemBottom = itembottom - item->marginBottom();
 			}
-			// attach date to the top of the visible area with the same margin as it has in service message
+			// Attach date to the top of the visible area with the same margin as it has in service message.
 			int dateTop = qMax(itemtop, _visibleAreaTop) + st::msgServiceMargin.top();
 
-			// do not let the date go below the single-day messages pack bottom line
+			// Do not let the date go below the single-day messages pack bottom line.
 			int dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
 			dateTop = qMin(dateTop, lowestInOneDayItemBottom - dateHeight);
 
-			// call the template callback function that was passed
-			// and return if it finished everything it needed
+			// Call the template callback function that was passed
+			// and return if it finished everything it needed.
 			if (!method(item, itemtop, dateTop)) {
 				return false;
 			}
 		}
 
-		// forget the found bottom of the pack, search for the next one from scratch
+		// Forget the found bottom of the pack, search for the next one from scratch.
 		if (!item->isInOneDayWithPrevious()) {
 			lowestInOneDayItemBottom = -1;
 		}
@@ -953,7 +949,7 @@ void HistoryInner::performDrag() {
 		//	urls.push_back(QUrl::fromEncoded(sel.toUtf8())); // Google Chrome crashes in Mac OS X O_o
 		//}
 	}
-	if (auto mimeData = mimeDataFromTextWithEntities(sel)) {
+	if (auto mimeData = MimeDataFromTextWithEntities(sel)) {
 		updateDragSelection(0, 0, false);
 		_widget->noSelectingScroll();
 
@@ -1491,7 +1487,7 @@ void HistoryInner::copyContextText() {
 }
 
 void HistoryInner::setToClipboard(const TextWithEntities &forClipboard, QClipboard::Mode mode) {
-	if (auto data = mimeDataFromTextWithEntities(forClipboard)) {
+	if (auto data = MimeDataFromTextWithEntities(forClipboard)) {
 		QApplication::clipboard()->setMimeData(data.release(), mode);
 	}
 }
