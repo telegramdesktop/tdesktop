@@ -1058,23 +1058,32 @@ void HistoryMessage::eraseFromOverview() {
 }
 
 TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {
-	TextWithEntities result, textResult, mediaResult;
+	TextWithEntities textResult, mediaResult, logEntryOriginalResult;
 	if (selection == FullSelection) {
 		textResult = _text.originalTextWithEntities(AllTextSelection, ExpandLinksAll);
 	} else {
 		textResult = _text.originalTextWithEntities(selection, ExpandLinksAll);
 	}
-	if (_media) {
-		mediaResult = _media->selectedText(toMediaSelection(selection));
+	auto skipped = skipTextSelection(selection);
+	auto mediaDisplayed = (_media && _media->isDisplayed());
+	if (mediaDisplayed) {
+		mediaResult = _media->selectedText(skipped);
 	}
-	if (textResult.text.isEmpty()) {
-		result = mediaResult;
-	} else if (mediaResult.text.isEmpty()) {
-		result = textResult;
-	} else {
-		result.text = textResult.text + qstr("\n\n");
-		result.entities = textResult.entities;
+	if (auto entry = Get<HistoryMessageLogEntryOriginal>()) {
+		logEntryOriginalResult = entry->_page->selectedText(mediaDisplayed ? _media->skipSelection(skipped) : skipped);
+	}
+	auto result = textResult;
+	if (result.text.isEmpty()) {
+		result = std::move(mediaResult);
+	} else if (!mediaResult.text.isEmpty()) {
+		result.text += qstr("\n\n");
 		appendTextWithEntities(result, std::move(mediaResult));
+	}
+	if (result.text.isEmpty()) {
+		result = std::move(logEntryOriginalResult);
+	} else if (!logEntryOriginalResult.text.isEmpty()) {
+		result.text += qstr("\n\n");
+		appendTextWithEntities(result, std::move(logEntryOriginalResult));
 	}
 	if (auto forwarded = Get<HistoryMessageForwarded>()) {
 		if (selection == FullSelection) {
@@ -1138,7 +1147,8 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 	if (mediaDisplayed && _media->consumeMessageText(textWithEntities)) {
 		setEmptyText();
 	} else {
-		if (_media && _media->isDisplayed() && !_media->isAboveMessage()) {
+		auto mediaOnBottom = (_media && _media->isDisplayed() && _media->isBubbleBottom()) || Has<HistoryMessageLogEntryOriginal>();
+		if (mediaOnBottom) {
 			_text.setMarkedText(st::messageTextStyle, textWithEntities, itemTextOptions(this));
 		} else {
 			_text.setMarkedText(st::messageTextStyle, { textWithEntities.text + skipBlock(), textWithEntities.entities }, itemTextOptions(this));
@@ -1442,7 +1452,7 @@ void HistoryMessage::draw(Painter &p, QRect clip, TextSelection selection, TimeM
 				paintText(p, trect, selection);
 			}
 			p.translate(mediaLeft, mediaTop);
-			_media->draw(p, clip.translated(-mediaLeft, -mediaTop), toMediaSelection(selection), ms);
+			_media->draw(p, clip.translated(-mediaLeft, -mediaTop), skipTextSelection(selection), ms);
 			p.translate(-mediaLeft, -mediaTop);
 
 			if (mediaAboveText) {
@@ -1458,7 +1468,11 @@ void HistoryMessage::draw(Painter &p, QRect clip, TextSelection selection, TimeM
 			auto entryLeft = g.left();
 			auto entryTop = trect.y() + trect.height();
 			p.translate(entryLeft, entryTop);
-			entry->_page->draw(p, clip.translated(-entryLeft, -entryTop), TextSelection(), ms);
+			auto entrySelection = skipTextSelection(selection);
+			if (mediaDisplayed) {
+				entrySelection = _media->skipSelection(entrySelection);
+			}
+			entry->_page->draw(p, clip.translated(-entryLeft, -entryTop), entrySelection, ms);
 			p.translate(-entryLeft, -entryTop);
 		}
 		if (needDrawInfo) {
@@ -1466,7 +1480,7 @@ void HistoryMessage::draw(Painter &p, QRect clip, TextSelection selection, TimeM
 		}
 	} else if (_media) {
 		p.translate(g.topLeft());
-		_media->draw(p, clip.translated(-g.topLeft()), toMediaSelection(selection), ms);
+		_media->draw(p, clip.translated(-g.topLeft()), skipTextSelection(selection), ms);
 		p.translate(-g.topLeft());
 	}
 
@@ -1749,7 +1763,7 @@ HistoryTextState HistoryMessage::getState(QPoint point, HistoryStateRequest requ
 			auto entryTop = trect.y() + trect.height();
 			if (point.y() >= entryTop && point.y() < entryTop + entryHeight) {
 				result = entry->_page->getState(point - QPoint(entryLeft, entryTop), request);
-				result.symbol += _text.length();
+				result.symbol += _text.length() + (mediaDisplayed ? _media->fullSelectionLength() : 0);
 			}
 		}
 
@@ -1926,15 +1940,38 @@ bool HistoryMessage::getStateText(QPoint point, QRect &trect, HistoryTextState *
 }
 
 TextSelection HistoryMessage::adjustSelection(TextSelection selection, TextSelectType type) const {
-	if (!_media || selection.to <= _text.length()) {
-		return _text.adjustSelection(selection, type);
+	auto result = _text.adjustSelection(selection, type);
+	auto beforeMediaLength = _text.length();
+	if (selection.to <= beforeMediaLength) {
+		return result;
 	}
-	auto mediaSelection = _media->adjustSelection(toMediaSelection(selection), type);
-	if (selection.from >= _text.length()) {
-		return fromMediaSelection(mediaSelection);
+	auto mediaDisplayed = _media && _media->isDisplayed();
+	if (mediaDisplayed) {
+		auto mediaSelection = unskipTextSelection(_media->adjustSelection(skipTextSelection(selection), type));
+		if (selection.from >= beforeMediaLength) {
+			result = mediaSelection;
+		} else {
+			result.to = mediaSelection.to;
+		}
 	}
-	auto textSelection = _text.adjustSelection(selection, type);
-	return { textSelection.from, fromMediaSelection(mediaSelection).to };
+	auto beforeEntryLength = beforeMediaLength + (mediaDisplayed ? _media->fullSelectionLength() : 0);
+	if (selection.to <= beforeEntryLength) {
+		return result;
+	}
+	if (auto entry = Get<HistoryMessageLogEntryOriginal>()) {
+		auto entrySelection = mediaDisplayed ? _media->skipSelection(skipTextSelection(selection)) : skipTextSelection(selection);
+		auto logEntryOriginalSelection = entry->_page->adjustSelection(entrySelection, type);
+		if (mediaDisplayed) {
+			logEntryOriginalSelection = _media->unskipSelection(logEntryOriginalSelection);
+		}
+		logEntryOriginalSelection = unskipTextSelection(logEntryOriginalSelection);
+		if (selection.from >= beforeEntryLength) {
+			result = logEntryOriginalSelection;
+		} else {
+			result.to = logEntryOriginalSelection.to;
+		}
+	}
+	return result;
 }
 
 void HistoryMessage::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {

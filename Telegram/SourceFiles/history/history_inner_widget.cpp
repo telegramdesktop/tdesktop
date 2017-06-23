@@ -78,23 +78,6 @@ int BinarySearchBlocksOrItems(const T &list, int edge) {
 	return start;
 }
 
-std::unique_ptr<QMimeData> MimeDataFromTextWithEntities(const TextWithEntities &forClipboard) {
-	if (forClipboard.text.isEmpty()) {
-		return nullptr;
-	}
-
-	auto result = std::make_unique<QMimeData>();
-	result->setText(forClipboard.text);
-	auto tags = ConvertEntitiesToTextTags(forClipboard.entities);
-	if (!tags.isEmpty()) {
-		for (auto &tag : tags) {
-			tag.id = ConvertTagToMimeTag(tag.id);
-		}
-		result->setData(Ui::FlatTextarea::tagsMimeType(), Ui::FlatTextarea::serializeTagsList(tags));
-	}
-	return result;
-}
-
 } // namespace
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
@@ -2143,7 +2126,10 @@ void HistoryInner::onUpdateSelected() {
 				if (dragState.afterSymbol && _mouseSelectType == TextSelectType::Letters) {
 					++second;
 				}
-				auto selState = _mouseActionItem->adjustSelection({ qMin(second, _mouseTextSymbol), qMax(second, _mouseTextSymbol) }, _mouseSelectType);
+				auto selState = TextSelection { qMin(second, _mouseTextSymbol), qMax(second, _mouseTextSymbol) };
+				if (_mouseSelectType != TextSelectType::Letters) {
+					_mouseActionItem->adjustSelection(selState, _mouseSelectType);
+				}
 				if (_selected[_mouseActionItem] != selState) {
 					_selected[_mouseActionItem] = selState;
 					repaintItem(_mouseActionItem);

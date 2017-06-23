@@ -465,8 +465,14 @@ private:
 
 namespace internal {
 
-TextSelection unshiftSelection(TextSelection selection, const Text &byText);
-TextSelection shiftSelection(TextSelection selection, const Text &byText);
+TextSelection unshiftSelection(TextSelection selection, uint16 byLength);
+TextSelection shiftSelection(TextSelection selection, uint16 byLength);
+inline TextSelection unshiftSelection(TextSelection selection, const Text &byText) {
+	return ::internal::unshiftSelection(selection, byText.length());
+}
+inline TextSelection shiftSelection(TextSelection selection, const Text &byText) {
+	return ::internal::shiftSelection(selection, byText.length());
+}
 
 } // namespace internal
 
@@ -984,10 +990,10 @@ protected:
 		return nullptr;
 	}
 
-	TextSelection toMediaSelection(TextSelection selection) const {
+	TextSelection skipTextSelection(TextSelection selection) const {
 		return internal::unshiftSelection(selection, _text);
 	}
-	TextSelection fromMediaSelection(TextSelection selection) const {
+	TextSelection unskipTextSelection(TextSelection selection) const {
 		return internal::shiftSelection(selection, _text);
 	}
 

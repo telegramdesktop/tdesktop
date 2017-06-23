@@ -139,6 +139,9 @@ public:
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
 		return _caption.adjustSelection(selection, type);
 	}
+	uint16 fullSelectionLength() const override {
+		return _caption.length();
+	}
 	bool hasTextForCopy() const override {
 		return !_caption.isEmpty();
 	}
@@ -220,6 +223,9 @@ public:
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
 		return _caption.adjustSelection(selection, type);
+	}
+	uint16 fullSelectionLength() const override {
+		return _caption.length();
 	}
 	bool hasTextForCopy() const override {
 		return !_caption.isEmpty();
@@ -372,6 +378,12 @@ public:
 		}
 		return selection;
 	}
+	uint16 fullSelectionLength() const override {
+		if (auto captioned = Get<HistoryDocumentCaptioned>()) {
+			return captioned->_caption.length();
+		}
+		return 0;
+	}
 	bool hasTextForCopy() const override {
 		return Has<HistoryDocumentCaptioned>();
 	}
@@ -474,6 +486,9 @@ public:
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
 		return _caption.adjustSelection(selection, type);
+	}
+	uint16 fullSelectionLength() const override {
+		return _caption.length();
 	}
 	bool hasTextForCopy() const override {
 		return !_caption.isEmpty();
@@ -769,6 +784,9 @@ public:
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
+	uint16 fullSelectionLength() const override {
+		return _title.length() + _description.length();
+	}
 	bool hasTextForCopy() const override {
 		return false; // we do not add _title and _description in FullSelection text copy.
 	}
@@ -869,6 +887,9 @@ public:
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
+	uint16 fullSelectionLength() const override {
+		return _title.length() + _description.length();
+	}
 	bool isAboveMessage() const override {
 		return true;
 	}
@@ -977,6 +998,9 @@ public:
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
+	uint16 fullSelectionLength() const override {
+		return _title.length() + _description.length();
+	}
 	bool hasTextForCopy() const override {
 		return false; // we do not add _title and _description in FullSelection text copy.
 	}
@@ -1060,6 +1084,9 @@ public:
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
+	uint16 fullSelectionLength() const override {
+		return _title.length() + _description.length();
+	}
 	bool hasTextForCopy() const override {
 		return !_title.isEmpty() || !_description.isEmpty();
 	}

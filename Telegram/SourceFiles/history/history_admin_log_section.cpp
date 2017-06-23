@@ -219,6 +219,7 @@ void Widget::resizeEvent(QResizeEvent *e) {
 	if (_scroll->size() != scrollSize) {
 		_scroll->resize(scrollSize);
 		_inner->resizeToWidth(scrollSize.width(), _scroll->height());
+		_inner->restoreScrollPosition();
 	}
 
 	if (!_scroll->isHidden()) {

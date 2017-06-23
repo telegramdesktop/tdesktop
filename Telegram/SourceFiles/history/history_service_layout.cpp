@@ -218,7 +218,7 @@ void ServiceMessagePainter::paint(Painter &p, const HistoryService *message, con
 		height -= st::msgServiceMargin.top() + media->height();
 		auto left = st::msgServiceMargin.left() + (g.width() - media->maxWidth()) / 2, top = st::msgServiceMargin.top() + height + st::msgServiceMargin.top();
 		p.translate(left, top);
-		media->draw(p, context.clip.translated(-left, -top), message->toMediaSelection(context.selection), context.ms);
+		media->draw(p, context.clip.translated(-left, -top), message->skipTextSelection(context.selection), context.ms);
 		p.translate(-left, -top);
 	}
 

@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_message.h"
 #include "history/history_service_layout.h"
 #include "history/history_admin_log_section.h"
+#include "chat_helpers/message_field.h"
 #include "mainwindow.h"
 #include "window/window_controller.h"
 #include "auth_session.h"
@@ -234,16 +235,20 @@ void InnerWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
 }
 
 void InnerWidget::updateVisibleTopItem() {
-	auto begin = std::rbegin(_items), end = std::rend(_items);
-	auto from = std::lower_bound(begin, end, _visibleTop, [this](auto &elem, int top) {
-		return itemTop(elem) + elem->height() <= top;
-	});
-	if (from != end) {
-		_visibleTopItem = *from;
-		_visibleTopFromItem = _visibleTop - _visibleTopItem->y();
-	} else {
+	if (_visibleBottom == height()) {
 		_visibleTopItem = nullptr;
-		_visibleTopFromItem = _visibleTop;
+	} else {
+		auto begin = std::rbegin(_items), end = std::rend(_items);
+		auto from = std::lower_bound(begin, end, _visibleTop, [this](auto &elem, int top) {
+			return itemTop(elem) + elem->height() <= top;
+		});
+		if (from != end) {
+			_visibleTopItem = *from;
+			_visibleTopFromItem = _visibleTop - _visibleTopItem->y();
+		} else {
+			_visibleTopItem = nullptr;
+			_visibleTopFromItem = _visibleTop;
+		}
 	}
 }
 
@@ -447,8 +452,7 @@ void InnerWidget::itemsAdded(Direction direction) {
 
 void InnerWidget::updateSize() {
 	TWidget::resizeToWidth(width());
-	auto newVisibleTop = _visibleTopItem ? (itemTop(_visibleTopItem) + _visibleTopFromItem) : ScrollMax;
-	_scrollTo(newVisibleTop);
+	restoreScrollPosition();
 	updateVisibleTopItem();
 	checkPreloadMore();
 }
@@ -464,6 +468,11 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 	_itemsHeight = newHeight;
 	_itemsTop = (_minHeight > _itemsHeight + st::historyPaddingBottom) ? (_minHeight - _itemsHeight - st::historyPaddingBottom) : 0;
 	return _itemsTop + _itemsHeight + st::historyPaddingBottom;
+}
+
+void InnerWidget::restoreScrollPosition() {
+	auto newVisibleTop = _visibleTopItem ? (itemTop(_visibleTopItem) + _visibleTopFromItem) : ScrollMax;
+	_scrollTo(newVisibleTop);
 }
 
 void InnerWidget::paintEvent(QPaintEvent *e) {
@@ -490,7 +499,8 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			auto top = itemTop(from->get());
 			p.translate(0, top);
 			for (auto i = from; i != to; ++i) {
-				(*i)->draw(p, clip.translated(0, -top), TextSelection(), ms);
+				auto selection = (*i == _selectedItem) ? _selectedText : TextSelection();
+				(*i)->draw(p, clip.translated(0, -top), selection, ms);
 				auto height = (*i)->height();
 				top += height;
 				p.translate(0, height);
@@ -562,9 +572,37 @@ void InnerWidget::paintEmpty(Painter &p) {
 	//p.drawText(tr.left() + st::msgPadding.left(), tr.top() + st::msgServicePadding.top() + 1 + font->ascent, lang(lng_willbe_history));
 }
 
+TextWithEntities InnerWidget::getSelectedText() const {
+	return _selectedItem ? _selectedItem->selectedText(_selectedText) : TextWithEntities();
+}
+
 void InnerWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape && _cancelledCallback) {
 		_cancelledCallback();
+	} else if (e == QKeySequence::Copy && _selectedItem != nullptr) {
+		copySelectedText();
+#ifdef Q_OS_MAC
+	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
+		setToClipboard(getSelectedText(), QClipboard::FindBuffer);
+#endif // Q_OS_MAC
+	} else {
+		e->ignore();
+	}
+}
+
+void InnerWidget::copySelectedText() {
+	setToClipboard(getSelectedText());
+}
+
+void InnerWidget::copyContextUrl() {
+	//if (_contextMenuLnk) {
+	//	_contextMenuLnk->copyToClipboard();
+	//}
+}
+
+void InnerWidget::setToClipboard(const TextWithEntities &forClipboard, QClipboard::Mode mode) {
+	if (auto data = MimeDataFromTextWithEntities(forClipboard)) {
+		QApplication::clipboard()->setMimeData(data.release(), mode);
 	}
 }
 
@@ -826,7 +864,10 @@ void InnerWidget::updateSelected() {
 				if (dragState.afterSymbol && _mouseSelectType == TextSelectType::Letters) {
 					++second;
 				}
-				auto selection = _mouseActionItem->adjustSelection({ qMin(second, _mouseTextSymbol), qMax(second, _mouseTextSymbol) }, _mouseSelectType);
+				auto selection = TextSelection { qMin(second, _mouseTextSymbol), qMax(second, _mouseTextSymbol) };
+				if (_mouseSelectType != TextSelectType::Letters) {
+					_mouseActionItem->adjustSelection(selection, _mouseSelectType);
+				}
 				if (_selectedText != selection) {
 					_selectedText = selection;
 					repaintItem(_mouseActionItem);

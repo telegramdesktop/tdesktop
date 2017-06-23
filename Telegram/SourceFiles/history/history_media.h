@@ -90,6 +90,15 @@ public:
 	virtual bool consumeMessageText(const TextWithEntities &textWithEntities) {
 		return false;
 	}
+	virtual uint16 fullSelectionLength() const {
+		return 0;
+	}
+	TextSelection skipSelection(TextSelection selection) const {
+		return internal::unshiftSelection(selection, fullSelectionLength());
+	}
+	TextSelection unskipSelection(TextSelection selection) const {
+		return internal::shiftSelection(selection, fullSelectionLength());
+	}
 
 	// if we press and drag this link should we drag the item
 	virtual bool dragItemByHandler(const ClickHandlerPtr &p) const = 0;

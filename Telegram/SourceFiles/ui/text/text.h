@@ -245,13 +245,17 @@ private:
 inline TextSelection snapSelection(int from, int to) {
 	return { static_cast<uint16>(snap(from, 0, 0xFFFF)), static_cast<uint16>(snap(to, 0, 0xFFFF)) };
 }
+inline TextSelection shiftSelection(TextSelection selection, uint16 byLength) {
+	return snapSelection(int(selection.from) + byLength, int(selection.to) + byLength);
+}
+inline TextSelection unshiftSelection(TextSelection selection, uint16 byLength) {
+	return snapSelection(int(selection.from) - int(byLength), int(selection.to) - int(byLength));
+}
 inline TextSelection shiftSelection(TextSelection selection, const Text &byText) {
-	int len = byText.length();
-	return snapSelection(int(selection.from) + len, int(selection.to) + len);
+	return shiftSelection(selection, byText.length());
 }
 inline TextSelection unshiftSelection(TextSelection selection, const Text &byText) {
-	int len = byText.length();
-	return snapSelection(int(selection.from) - len, int(selection.to) - len);
+	return unshiftSelection(selection, byText.length());
 }
 
 void initLinkSets();

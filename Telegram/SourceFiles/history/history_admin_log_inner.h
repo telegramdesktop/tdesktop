@@ -68,6 +68,9 @@ public:
 	// Updates the area that is visible inside the scroll container.
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
+	// Set the correct scroll position after being resized.
+	void restoreScrollPosition();
+
 	void resizeToWidth(int newWidth, int minHeight) {
 		_minHeight = minHeight;
 		return TWidget::resizeToWidth(newWidth);
@@ -140,6 +143,11 @@ private:
 	void scrollDateHide();
 	void scrollDateCheck();
 	void scrollDateHideByTimer();
+
+	TextWithEntities getSelectedText() const;
+	void copySelectedText();
+	void copyContextUrl();
+	void setToClipboard(const TextWithEntities &forClipboard, QClipboard::Mode mode = QClipboard::Clipboard);
 
 	// This function finds all history items that are displayed and calls template method
 	// for each found message (in given direction) in the passed history with passed top offset.

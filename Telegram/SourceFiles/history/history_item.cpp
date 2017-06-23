@@ -584,18 +584,18 @@ HistoryMediaPtr::~HistoryMediaPtr() {
 
 namespace internal {
 
-TextSelection unshiftSelection(TextSelection selection, const Text &byText) {
+TextSelection unshiftSelection(TextSelection selection, uint16 byLength) {
 	if (selection == FullSelection) {
 		return selection;
 	}
-	return ::unshiftSelection(selection, byText);
+	return ::unshiftSelection(selection, byLength);
 }
 
-TextSelection shiftSelection(TextSelection selection, const Text &byText) {
+TextSelection shiftSelection(TextSelection selection, uint16 byLength) {
 	if (selection == FullSelection) {
 		return selection;
 	}
-	return ::shiftSelection(selection, byText);
+	return ::shiftSelection(selection, byLength);
 }
 
 } // namespace internal
