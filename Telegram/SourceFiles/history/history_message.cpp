@@ -828,7 +828,7 @@ void HistoryMessage::initDimensions() {
 		auto mediaOnBottom = (mediaDisplayed && _media->isBubbleBottom()) || (entry/* && entry->_page->isBubbleBottom()*/);
 		auto mediaOnTop = (mediaDisplayed && _media->isBubbleTop()) || (entry && entry->_page->isBubbleTop());
 
-		if (mediaDisplayed && mediaOnBottom) {
+		if (mediaOnBottom) {
 			if (_text.hasSkipBlock()) {
 				_text.removeSkipBlock();
 				_textWidth = -1;
@@ -1723,9 +1723,18 @@ HistoryTextState HistoryMessage::getState(QPoint point, HistoryStateRequest requ
 	}
 
 	if (drawBubble()) {
+		auto entry = Get<HistoryMessageLogEntryOriginal>();
 		auto mediaDisplayed = _media && _media->isDisplayed();
-		auto trect = g.marginsAdded(-st::msgPadding);
-		if (mediaDisplayed && _media->isBubbleTop()) {
+
+		// Entry page is always a bubble bottom.
+		auto mediaOnBottom = (mediaDisplayed && _media->isBubbleBottom()) || (entry/* && entry->_page->isBubbleBottom()*/);
+		auto mediaOnTop = (mediaDisplayed && _media->isBubbleTop()) || (entry && entry->_page->isBubbleTop());
+
+		auto trect = g.marginsRemoved(st::msgPadding);
+		if (mediaOnBottom) {
+			trect.setHeight(trect.height() + st::msgPadding.bottom());
+		}
+		if (mediaOnTop) {
 			trect.setY(trect.y() - st::msgPadding.top());
 		} else {
 			if (getStateFromName(point, trect, &result)) return result;
@@ -1733,11 +1742,18 @@ HistoryTextState HistoryMessage::getState(QPoint point, HistoryStateRequest requ
 			if (getStateReplyInfo(point, trect, &result)) return result;
 			if (getStateViaBotIdInfo(point, trect, &result)) return result;
 		}
-		if (mediaDisplayed && _media->isBubbleBottom()) {
-			trect.setHeight(trect.height() + st::msgPadding.bottom());
+		if (entry) {
+			auto entryHeight = entry->_page->height();
+			trect.setHeight(trect.height() - entryHeight);
+			auto entryLeft = g.left();
+			auto entryTop = trect.y() + trect.height();
+			if (point.y() >= entryTop && point.y() < entryTop + entryHeight) {
+				result = entry->_page->getState(point - QPoint(entryLeft, entryTop), request);
+				result.symbol += _text.length();
+			}
 		}
 
-		auto needDateCheck = true;
+		auto needDateCheck = mediaOnBottom ? !(entry ? entry->_page->customInfoLayout() : _media->customInfoLayout()) : true;
 		if (mediaDisplayed) {
 			auto mediaAboveText = _media->isAboveMessage();
 			auto mediaHeight = _media->height();
@@ -1751,11 +1767,11 @@ HistoryTextState HistoryMessage::getState(QPoint point, HistoryStateRequest requ
 				if (mediaAboveText) {
 					trect.setY(trect.y() + mediaHeight);
 				}
-				getStateText(point, trect, &result, request);
+				if (trect.contains(point)) {
+					getStateText(point, trect, &result, request);
+				}
 			}
-
-			needDateCheck = !_media->customInfoLayout();
-		} else {
+		} else if (trect.contains(point)) {
 			getStateText(point, trect, &result, request);
 		}
 		if (needDateCheck) {

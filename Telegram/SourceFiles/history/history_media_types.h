@@ -831,6 +831,7 @@ private:
 	}
 	QMargins inBubblePadding() const;
 	int bottomInfoPadding() const;
+	bool isLogEntryOriginal() const;
 
 	gsl::not_null<WebPageData*> _data;
 	ClickHandlerPtr _openl;

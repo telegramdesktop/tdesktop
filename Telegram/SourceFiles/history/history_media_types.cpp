@@ -40,6 +40,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace {
 
 constexpr auto kMaxGifForwardedBarLines = 4;
+constexpr auto kMaxOriginalEntryLines = 8192;
 
 TextParseOptions _webpageTitleOptions = {
 	TextParseMultiline | TextParseRichText, // flags
@@ -48,7 +49,7 @@ TextParseOptions _webpageTitleOptions = {
 	Qt::LayoutDirectionAuto, // dir
 };
 TextParseOptions _webpageDescriptionOptions = {
-	TextParseLinks | TextParseMultiline | TextParseRichText, // flags
+	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText, // flags
 	0, // maxw
 	0, // maxh
 	Qt::LayoutDirectionAuto, // dir
@@ -3227,17 +3228,17 @@ void HistoryWebPage::initDimensions() {
 	}
 
 	// init dimensions
-	int32 l = st::msgPadding.left() + st::webPageLeft, r = st::msgPadding.right();
-	int32 skipBlockWidth = _parent->skipBlockWidth();
+	auto l = st::msgPadding.left() + st::webPageLeft, r = st::msgPadding.right();
+	auto skipBlockWidth = _parent->skipBlockWidth();
 	_maxw = skipBlockWidth;
 	_minh = 0;
 
-	int32 siteNameHeight = _data->siteName.isEmpty() ? 0 : lineHeight;
-	int32 titleMinHeight = _title.isEmpty() ? 0 : lineHeight;
-	int32 descMaxLines = (3 + (siteNameHeight ? 0 : 1) + (titleMinHeight ? 0 : 1));
-	int32 descriptionMinHeight = _description.isEmpty() ? 0 : qMin(_description.minHeight(), descMaxLines * lineHeight);
-	int32 articleMinHeight = siteNameHeight + titleMinHeight + descriptionMinHeight;
-	int32 articlePhotoMaxWidth = 0;
+	auto siteNameHeight = _data->siteName.isEmpty() ? 0 : lineHeight;
+	auto titleMinHeight = _title.isEmpty() ? 0 : lineHeight;
+	auto descMaxLines = isLogEntryOriginal() ? kMaxOriginalEntryLines : (3 + (siteNameHeight ? 0 : 1) + (titleMinHeight ? 0 : 1));
+	auto descriptionMinHeight = _description.isEmpty() ? 0 : qMin(_description.minHeight(), descMaxLines * lineHeight);
+	auto articleMinHeight = siteNameHeight + titleMinHeight + descriptionMinHeight;
+	auto articlePhotoMaxWidth = 0;
 	if (_asArticle) {
 		articlePhotoMaxWidth = st::webPagePhotoDelta + qMax(articleThumbWidth(_data->photo, articleMinHeight), lineHeight);
 	}
@@ -3298,7 +3299,7 @@ int HistoryWebPage::resizeGetHeight(int width) {
 	width -= st::msgPadding.left() + st::webPageLeft + st::msgPadding.right();
 
 	auto lineHeight = unitedLineHeight();
-	auto linesMax = 5;
+	auto linesMax = isLogEntryOriginal() ? kMaxOriginalEntryLines : 5;
 	auto siteNameLines = _siteNameWidth ? 1 : 0;
 	auto siteNameHeight = _siteNameWidth ? lineHeight : 0;
 	if (_asArticle) {
@@ -3322,11 +3323,13 @@ int HistoryWebPage::resizeGetHeight(int width) {
 
 			auto descriptionHeight = _description.countHeight(wleft);
 			if (descriptionHeight < (linesMax - siteNameLines - _titleLines) * st::webPageDescriptionFont->height) {
-				_descriptionLines = (descriptionHeight / st::webPageDescriptionFont->height);
+				// We have height for all the lines.
+				_descriptionLines = -1;
+				_height += descriptionHeight;
 			} else {
 				_descriptionLines = (linesMax - siteNameLines - _titleLines);
+				_height += _descriptionLines * lineHeight;
 			}
-			_height += _descriptionLines * lineHeight;
 
 			if (_height >= _pixh) {
 				break;
@@ -3354,11 +3357,13 @@ int HistoryWebPage::resizeGetHeight(int width) {
 		} else {
 			auto descriptionHeight = _description.countHeight(width);
 			if (descriptionHeight < (linesMax - siteNameLines - _titleLines) * st::webPageDescriptionFont->height) {
-				_descriptionLines = (descriptionHeight / st::webPageDescriptionFont->height);
+				// We have height for all the lines.
+				_descriptionLines = -1;
+				_height += descriptionHeight;
 			} else {
 				_descriptionLines = (linesMax - siteNameLines - _titleLines);
+				_height += _descriptionLines * lineHeight;
 			}
-			_height += _descriptionLines * lineHeight;
 		}
 
 		if (_attach) {
@@ -3455,8 +3460,13 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, T
 		if (_description.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
 		}
-		_description.drawLeftElided(p, padding.left(), tshift, width, _width, _descriptionLines, style::al_left, 0, -1, endskip, false, toDescriptionSelection(selection));
-		tshift += _descriptionLines * lineHeight;
+		if (_descriptionLines > 0) {
+			_description.drawLeftElided(p, padding.left(), tshift, width, _width, _descriptionLines, style::al_left, 0, -1, endskip, false, toDescriptionSelection(selection));
+			tshift += _descriptionLines * lineHeight;
+		} else {
+			_description.drawLeft(p, padding.left(), tshift, width, _width, style::al_left, 0, -1, toDescriptionSelection(selection));
+			tshift += _description.countHeight(width);
+		}
 	}
 	if (_attach) {
 		auto attachAtTop = !_siteNameWidth && !_titleLines && !_descriptionLines;
@@ -3543,14 +3553,19 @@ HistoryTextState HistoryWebPage::getState(QPoint point, HistoryStateRequest requ
 		tshift += _titleLines * lineHeight;
 	}
 	if (_descriptionLines) {
-		if (point.y() >= tshift && point.y() < tshift + _descriptionLines * lineHeight) {
-			Text::StateRequestElided descriptionRequest = request.forText();
-			descriptionRequest.lines = _descriptionLines;
-			result = _description.getStateElidedLeft(point - QPoint(padding.left(), tshift), width, _width, descriptionRequest);
-		} else if (point.y() >= tshift + _descriptionLines * lineHeight) {
+		auto descriptionHeight = (_descriptionLines > 0) ? _descriptionLines * lineHeight : _description.countHeight(width);
+		if (point.y() >= tshift && point.y() < tshift + descriptionHeight) {
+			if (_descriptionLines > 0) {
+				Text::StateRequestElided descriptionRequest = request.forText();
+				descriptionRequest.lines = _descriptionLines;
+				result = _description.getStateElidedLeft(point - QPoint(padding.left(), tshift), width, _width, descriptionRequest);
+			} else {
+				result = _description.getStateLeft(point - QPoint(padding.left(), tshift), width, _width, request.forText());
+			}
+		} else if (point.y() >= tshift + descriptionHeight) {
 			symbolAdd += _description.length();
 		}
-		tshift += _descriptionLines * lineHeight;
+		tshift += descriptionHeight;
 	}
 	if (inThumb) {
 		result.link = _openl;
@@ -3647,12 +3662,16 @@ QMargins HistoryWebPage::inBubblePadding() const {
 	return QMargins(lshift, tshift, rshift, bshift);
 }
 
+bool HistoryWebPage::isLogEntryOriginal() const {
+	return _parent->isLogEntry() && _parent->getMedia() != this;
+}
+
 int HistoryWebPage::bottomInfoPadding() const {
 	if (!isBubbleBottom()) return 0;
 
 	auto result = st::msgDateFont->height;
 
-	// we use padding greater than st::msgPadding.bottom() in the
+	// We use padding greater than st::msgPadding.bottom() in the
 	// bottom of the bubble so that the left line looks pretty.
 	// but if we have bottom skip because of the info display
 	// we don't need that additional padding so we replace it
