@@ -101,8 +101,6 @@ stickersReorderFg: windowSubTextFg;
 stickersRowDisabledOpacity: 0.4;
 stickersRowDuration: 200;
 
-emojiIconFg: checkboxFg;
-emojiIconFgActive: windowBgActive;
 stickersSettings: icon {{ "emoji_settings", emojiIconFg }};
 stickersTrending: icon {{ "emoji_trending", emojiIconFg }};
 stickersTrendingActive: icon {{ "emoji_trending", emojiIconFgActive }};

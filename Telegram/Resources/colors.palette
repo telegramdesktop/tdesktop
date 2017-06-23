@@ -94,7 +94,7 @@ placeholderFgActive: #aaaaaa; // default input field placeholder when field is f
 inputBorderFg: #e0e0e0; // default input field bottom border (like in code input field when you log in and field is not focused)
 filterInputBorderFg: #54c3f3; // default rounded input field border (like in chats list search field when field is focused)
 filterInputInactiveBg: windowBgOver; // default rounded input field background (like in chats list search field when field is inactive)
-checkboxFg: #b3b3b3; // default unchecked checkbox rounded rectangle (and also emoji category icons)
+checkboxFg: #b3b3b3; // default unchecked checkbox rounded rectangle
 
 sliderBgInactive: #e1eaef; // default slider not active bar (like in Settings when you choose interface scale or custom notifications count)
 sliderBgActive: windowBgActive; // default slider active bar (like in Settings when you choose interface scale or custom notifications count)
@@ -248,6 +248,8 @@ emojiPanBg: windowBg; // emoji panel background
 emojiPanCategories: #f7f7f7 | windowBg; // emoji panel categories background
 emojiPanHeaderFg: windowSubTextFg; // emoji panel section header text
 emojiPanHeaderBg: #fffffff2 | emojiPanBg; // emoji panel section header background
+emojiIconFg: checkboxFg; // emoji category icon
+emojiIconFgActive: windowBgActive; // active emoji category icon
 stickerPanDeleteBg: #000000cc; // delete X button background for custom sent stickers in stickers panel (legacy)
 stickerPanDeleteFg: windowFgActive; // delete X button icon for custom sent stickers in stickers panel (legacy)
 stickerPreviewBg: #ffffffb0; // sticker and GIF preview background (when you press and hold on a sticker)
