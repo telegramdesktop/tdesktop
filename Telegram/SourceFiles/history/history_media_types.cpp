@@ -3630,11 +3630,11 @@ void HistoryWebPage::detachFromParent() {
 }
 
 TextWithEntities HistoryWebPage::selectedText(TextSelection selection) const {
-	if (selection == FullSelection) {
+	if (selection == FullSelection && !isLogEntryOriginal()) {
 		return TextWithEntities();
 	}
-	auto titleResult = _title.originalTextWithEntities(selection, ExpandLinksAll);
-	auto descriptionResult = _description.originalTextWithEntities(toDescriptionSelection(selection), ExpandLinksAll);
+	auto titleResult = _title.originalTextWithEntities((selection == FullSelection) ? AllTextSelection : selection, ExpandLinksAll);
+	auto descriptionResult = _description.originalTextWithEntities(toDescriptionSelection((selection == FullSelection) ? AllTextSelection : selection), ExpandLinksAll);
 	if (titleResult.text.isEmpty()) {
 		return descriptionResult;
 	} else if (descriptionResult.text.isEmpty()) {

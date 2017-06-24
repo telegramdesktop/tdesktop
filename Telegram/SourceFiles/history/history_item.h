@@ -636,11 +636,11 @@ public:
 		return false;
 	}
 
-	virtual HistoryTextState getState(QPoint point, HistoryStateRequest request) const = 0;
+	virtual HistoryTextState getState(QPoint point, HistoryStateRequest request) const WARN_UNUSED_RESULT = 0;
 	virtual void updatePressed(QPoint point) {
 	}
 
-	virtual TextSelection adjustSelection(TextSelection selection, TextSelectType type) const {
+	virtual TextSelection adjustSelection(TextSelection selection, TextSelectType type) const WARN_UNUSED_RESULT {
 		return selection;
 	}
 
@@ -990,10 +990,10 @@ protected:
 		return nullptr;
 	}
 
-	TextSelection skipTextSelection(TextSelection selection) const {
+	TextSelection skipTextSelection(TextSelection selection) const WARN_UNUSED_RESULT {
 		return internal::unshiftSelection(selection, _text);
 	}
-	TextSelection unskipTextSelection(TextSelection selection) const {
+	TextSelection unskipTextSelection(TextSelection selection) const WARN_UNUSED_RESULT {
 		return internal::shiftSelection(selection, _text);
 	}
 

@@ -97,8 +97,10 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+	void mouseDoubleClickEvent(QMouseEvent *e) override;
 	void enterEventHook(QEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	// Resizes content and counts natural widget height for the desired width.
 	int resizeGetHeight(int newWidth) override;
@@ -130,6 +132,20 @@ private:
 	QPoint mapPointToItem(QPoint point, const HistoryItem *item) const;
 	void handlePendingHistoryResize();
 
+	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
+	void savePhotoToFile(PhotoData *photo);
+	void saveDocumentToFile(DocumentData *document);
+	void copyContextImage(PhotoData *photo);
+	void showStickerPackInfo();
+	void copyContextUrl();
+	void cancelContextDownload();
+	void showContextInFolder();
+	void openContextGif();
+	void copyContextText();
+	void copySelectedText();
+	TextWithEntities getSelectedText() const;
+	void setToClipboard(const TextWithEntities &forClipboard, QClipboard::Mode mode = QClipboard::Clipboard);
+
 	void checkPreloadMore();
 	void updateVisibleTopItem();
 	void preloadMore(Direction direction);
@@ -143,11 +159,6 @@ private:
 	void scrollDateHide();
 	void scrollDateCheck();
 	void scrollDateHideByTimer();
-
-	TextWithEntities getSelectedText() const;
-	void copySelectedText();
-	void copyContextUrl();
-	void setToClipboard(const TextWithEntities &forClipboard, QClipboard::Mode mode = QClipboard::Clipboard);
 
 	// This function finds all history items that are displayed and calls template method
 	// for each found message (in given direction) in the passed history with passed top offset.
@@ -224,6 +235,8 @@ private:
 
 	QPoint _trippleClickPoint;
 	base::Timer _trippleClickTimer;
+
+	ClickHandlerPtr _contextMenuLink;
 
 	MTPDchannelAdminLogEventsFilter::Flags _filterFlags = 0;
 	std::vector<gsl::not_null<UserData*>> _filterAdmins;

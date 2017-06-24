@@ -75,7 +75,7 @@ public:
 	bool hasPoint(QPoint point) const override;
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
 
-	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
+	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override WARN_UNUSED_RESULT {
 		return _text.adjustSelection(selection, type);
 	}
 

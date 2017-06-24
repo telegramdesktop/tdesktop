@@ -5922,20 +5922,6 @@ void HistoryWidget::onFieldBarCancel() {
 	}
 }
 
-void HistoryWidget::onStickerPackInfo() {
-	if (!App::contextItem()) return;
-
-	if (HistoryMedia *media = App::contextItem()->getMedia()) {
-		if (DocumentData *doc = media->getDocument()) {
-			if (StickerData *sticker = doc->sticker()) {
-				if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
-					App::main()->stickersBox(sticker->set);
-				}
-			}
-		}
-	}
-}
-
 void HistoryWidget::previewCancel() {
 	MTP::cancel(base::take(_previewRequest));
 	_previewData = nullptr;

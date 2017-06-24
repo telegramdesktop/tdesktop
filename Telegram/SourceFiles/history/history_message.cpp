@@ -1058,17 +1058,11 @@ void HistoryMessage::eraseFromOverview() {
 }
 
 TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {
-	TextWithEntities textResult, mediaResult, logEntryOriginalResult;
-	if (selection == FullSelection) {
-		textResult = _text.originalTextWithEntities(AllTextSelection, ExpandLinksAll);
-	} else {
-		textResult = _text.originalTextWithEntities(selection, ExpandLinksAll);
-	}
+	TextWithEntities logEntryOriginalResult;
+	auto textResult = _text.originalTextWithEntities((selection == FullSelection) ? AllTextSelection : selection, ExpandLinksAll);
 	auto skipped = skipTextSelection(selection);
 	auto mediaDisplayed = (_media && _media->isDisplayed());
-	if (mediaDisplayed) {
-		mediaResult = _media->selectedText(skipped);
-	}
+	auto mediaResult = mediaDisplayed ? _media->selectedText(skipped) : TextWithEntities();
 	if (auto entry = Get<HistoryMessageLogEntryOriginal>()) {
 		logEntryOriginalResult = entry->_page->selectedText(mediaDisplayed ? _media->skipSelection(skipped) : skipped);
 	}

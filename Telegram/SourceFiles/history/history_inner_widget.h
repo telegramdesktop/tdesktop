@@ -109,7 +109,6 @@ public slots:
 	void onParentGeometryChanged();
 
 	void copyContextUrl();
-	void copyContextImage();
 	void cancelContextDownload();
 	void showContextInFolder();
 	void saveContextGif();
@@ -145,6 +144,8 @@ private:
 	void itemRemoved(HistoryItem *item);
 	void savePhotoToFile(PhotoData *photo);
 	void saveDocumentToFile(DocumentData *document);
+	void copyContextImage(PhotoData *photo);
+	void showStickerPackInfo();
 
 	void touchResetSpeed();
 	void touchUpdateSpeed();
@@ -227,7 +228,7 @@ private:
 	QPoint _trippleClickPoint;
 	QTimer _trippleClickTimer;
 
-	ClickHandlerPtr _contextMenuLnk;
+	ClickHandlerPtr _contextMenuLink;
 
 	HistoryItem *_dragSelFrom = nullptr;
 	HistoryItem *_dragSelTo = nullptr;

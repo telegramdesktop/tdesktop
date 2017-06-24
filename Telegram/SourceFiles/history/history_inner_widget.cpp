@@ -1130,7 +1130,7 @@ void HistoryInner::contextMenuEvent(QContextMenuEvent *e) {
 void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	if (_menu) {
 		_menu->deleteLater();
-		_menu = 0;
+		_menu = nullptr;
 	}
 	if (e->reason() == QContextMenuEvent::Mouse) {
 		mouseActionUpdate(e->globalPos());
@@ -1140,7 +1140,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	auto canSendMessages = _widget->canSendMessages(_peer);
 
 	// -2 - has full selected items, but not over, -1 - has selection, but no over, 0 - no selection, 1 - over text, 2 - over full selected items
-	int32 isUponSelected = 0, hasSelected = 0;;
+	auto isUponSelected = 0;
+	auto hasSelected = 0;;
 	if (!_selected.isEmpty()) {
 		isUponSelected = -1;
 		if (_selected.cbegin().value() == FullSelection) {
@@ -1170,10 +1171,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 	_menu = new Ui::PopupMenu(nullptr);
 
-	_contextMenuLnk = ClickHandler::getActive();
+	_contextMenuLink = ClickHandler::getActive();
 	HistoryItem *item = App::hoveredItem() ? App::hoveredItem() : App::hoveredLinkItem();
-	PhotoClickHandler *lnkPhoto = dynamic_cast<PhotoClickHandler*>(_contextMenuLnk.data());
-	DocumentClickHandler *lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLnk.data());
+	PhotoClickHandler *lnkPhoto = dynamic_cast<PhotoClickHandler*>(_contextMenuLink.data());
+	DocumentClickHandler *lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.data());
 	bool lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideo() : false;
 	bool lnkIsAudio = lnkDocument ? (lnkDocument->document()->voice() != nullptr) : false;
 	bool lnkIsSong = lnkDocument ? (lnkDocument->document()->song() != nullptr) : false;
@@ -1197,7 +1198,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, photo = lnkPhoto->photo()] {
 				savePhotoToFile(photo);
 			}))->setEnabled(true);
-			_menu->addAction(lang(lng_context_copy_image), this, SLOT(copyContextImage()))->setEnabled(true);
+			_menu->addAction(lang(lng_context_copy_image), [this, photo = lnkPhoto->photo()] {
+				copyContextImage(photo);
+			})->setEnabled(true);
 		} else {
 			auto document = lnkDocument->document();
 			if (document->loading()) {
@@ -1288,13 +1291,13 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					if (media->type() == MediaTypeSticker) {
 						if (auto document = media->getDocument()) {
 							if (document->sticker() && document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
-								_menu->addAction(lang(document->sticker()->setInstalled() ? lng_context_pack_info : lng_context_pack_add), _widget, SLOT(onStickerPackInfo()));
+								_menu->addAction(lang(document->sticker()->setInstalled() ? lng_context_pack_info : lng_context_pack_add), [this] { showStickerPackInfo(); });
 							}
 							_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
 								saveDocumentToFile(document);
 							}))->setEnabled(true);
 						}
-					} else if (media->type() == MediaTypeGif && !_contextMenuLnk) {
+					} else if (media->type() == MediaTypeGif && !_contextMenuLink) {
 						if (auto document = media->getDocument()) {
 							if (document->loading()) {
 								_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
@@ -1315,13 +1318,13 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						}
 					}
 				}
-				if (msg && !_contextMenuLnk && (!msg->emptyText() || mediaHasTextForCopy)) {
+				if (msg && !_contextMenuLink && (!msg->emptyText() || mediaHasTextForCopy)) {
 					_menu->addAction(lang(lng_context_copy_text), this, SLOT(copyContextText()))->setEnabled(true);
 				}
 			}
 		}
 
-		auto linkCopyToClipboardText = _contextMenuLnk ? _contextMenuLnk->copyToClipboardContextItemText() : QString();
+		auto linkCopyToClipboardText = _contextMenuLink ? _contextMenuLink->copyToClipboardContextItemText() : QString();
 		if (!linkCopyToClipboardText.isEmpty()) {
 			_menu->addAction(linkCopyToClipboardText, this, SLOT(copyContextUrl()))->setEnabled(true);
 		}
@@ -1383,8 +1386,8 @@ void HistoryInner::copySelectedText() {
 }
 
 void HistoryInner::copyContextUrl() {
-	if (_contextMenuLnk) {
-		_contextMenuLnk->copyToClipboard();
+	if (_contextMenuLink) {
+		_contextMenuLink->copyToClipboard();
 	}
 }
 
@@ -1399,22 +1402,32 @@ void HistoryInner::savePhotoToFile(PhotoData *photo) {
 	}));
 }
 
-void HistoryInner::copyContextImage() {
-	PhotoClickHandler *lnk = dynamic_cast<PhotoClickHandler*>(_contextMenuLnk.data());
-	if (!lnk) return;
-
-	PhotoData *photo = lnk->photo();
+void HistoryInner::copyContextImage(PhotoData *photo) {
 	if (!photo || !photo->date || !photo->loaded()) return;
 
 	QApplication::clipboard()->setPixmap(photo->full->pix());
 }
 
+void HistoryInner::showStickerPackInfo() {
+	if (!App::contextItem()) return;
+
+	if (auto media = App::contextItem()->getMedia()) {
+		if (auto doc = media->getDocument()) {
+			if (auto sticker = doc->sticker()) {
+				if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
+					App::main()->stickersBox(sticker->set);
+				}
+			}
+		}
+	}
+}
+
 void HistoryInner::cancelContextDownload() {
-	if (DocumentClickHandler *lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLnk.data())) {
+	if (auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.data())) {
 		lnkDocument->document()->cancel();
-	} else if (HistoryItem *item = App::contextItem()) {
-		if (HistoryMedia *media = item->getMedia()) {
-			if (DocumentData *doc = media->getDocument()) {
+	} else if (auto item = App::contextItem()) {
+		if (auto media = item->getMedia()) {
+			if (auto doc = media->getDocument()) {
 				doc->cancel();
 			}
 		}
@@ -1423,11 +1436,11 @@ void HistoryInner::cancelContextDownload() {
 
 void HistoryInner::showContextInFolder() {
 	QString filepath;
-	if (DocumentClickHandler *lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLnk.data())) {
+	if (auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.data())) {
 		filepath = lnkDocument->document()->filepath(DocumentData::FilePathResolveChecked);
-	} else if (HistoryItem *item = App::contextItem()) {
-		if (HistoryMedia *media = item->getMedia()) {
-			if (DocumentData *doc = media->getDocument()) {
+	} else if (auto item = App::contextItem()) {
+		if (auto media = item->getMedia()) {
+			if (auto doc = media->getDocument()) {
 				filepath = doc->filepath(DocumentData::FilePathResolveChecked);
 			}
 		}
@@ -2128,7 +2141,7 @@ void HistoryInner::onUpdateSelected() {
 				}
 				auto selState = TextSelection { qMin(second, _mouseTextSymbol), qMax(second, _mouseTextSymbol) };
 				if (_mouseSelectType != TextSelectType::Letters) {
-					_mouseActionItem->adjustSelection(selState, _mouseSelectType);
+					selState = _mouseActionItem->adjustSelection(selState, _mouseSelectType);
 				}
 				if (_selected[_mouseActionItem] != selState) {
 					_selected[_mouseActionItem] = selState;

@@ -163,7 +163,7 @@ public:
 		return getStateElided(rtlpoint(point, outerw), width, request);
 	}
 
-	TextSelection adjustSelection(TextSelection selection, TextSelectType selectType) const;
+	TextSelection adjustSelection(TextSelection selection, TextSelectType selectType) const WARN_UNUSED_RESULT;
 	bool isFullSelection(TextSelection selection) const {
 		return (selection.from == 0) && (selection.to >= _text.size());
 	}

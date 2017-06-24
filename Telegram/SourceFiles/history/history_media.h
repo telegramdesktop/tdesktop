@@ -80,23 +80,23 @@ public:
 	virtual bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const = 0;
 
 	// if we press and drag on this media should we drag the item
-	virtual bool dragItem() const {
+	virtual bool dragItem() const WARN_UNUSED_RESULT {
 		return false;
 	}
 
-	virtual TextSelection adjustSelection(TextSelection selection, TextSelectType type) const {
+	virtual TextSelection adjustSelection(TextSelection selection, TextSelectType type) const WARN_UNUSED_RESULT {
 		return selection;
 	}
-	virtual bool consumeMessageText(const TextWithEntities &textWithEntities) {
+	virtual bool consumeMessageText(const TextWithEntities &textWithEntities) WARN_UNUSED_RESULT {
 		return false;
 	}
-	virtual uint16 fullSelectionLength() const {
+	virtual uint16 fullSelectionLength() const WARN_UNUSED_RESULT {
 		return 0;
 	}
-	TextSelection skipSelection(TextSelection selection) const {
+	TextSelection skipSelection(TextSelection selection) const WARN_UNUSED_RESULT {
 		return internal::unshiftSelection(selection, fullSelectionLength());
 	}
-	TextSelection unskipSelection(TextSelection selection) const {
+	TextSelection unskipSelection(TextSelection selection) const WARN_UNUSED_RESULT {
 		return internal::shiftSelection(selection, fullSelectionLength());
 	}
 

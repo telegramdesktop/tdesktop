@@ -388,8 +388,6 @@ public slots:
 
 	void onCancelSendAction();
 
-	void onStickerPackInfo();
-
 	void onPreviewParse();
 	void onPreviewCheck();
 	void onPreviewTimeout();
