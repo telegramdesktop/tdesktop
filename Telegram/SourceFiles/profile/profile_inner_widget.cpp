@@ -89,13 +89,13 @@ bool InnerWidget::shareContactButtonShown() const {
 	return _cover->shareContactButtonShown();
 }
 
-void InnerWidget::saveState(SectionMemento *memento) const {
+void InnerWidget::saveState(gsl::not_null<SectionMemento*> memento) {
 	for_const (auto &blockData, _blocks) {
 		blockData.block->saveState(memento);
 	}
 }
 
-void InnerWidget::restoreState(const SectionMemento *memento) {
+void InnerWidget::restoreState(gsl::not_null<SectionMemento*> memento) {
 	for_const (auto &blockData, _blocks) {
 		blockData.block->restoreState(memento);
 	}

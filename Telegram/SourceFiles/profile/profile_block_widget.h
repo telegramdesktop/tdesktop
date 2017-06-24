@@ -35,9 +35,9 @@ public:
 	virtual void showFinished() {
 	}
 
-	virtual void saveState(SectionMemento *memento) const {
+	virtual void saveState(gsl::not_null<SectionMemento*> memento) {
 	}
-	virtual void restoreState(const SectionMemento *memento) {
+	virtual void restoreState(gsl::not_null<SectionMemento*> memento) {
 	}
 
 protected:

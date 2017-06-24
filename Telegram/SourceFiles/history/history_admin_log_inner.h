@@ -76,8 +76,8 @@ public:
 		return TWidget::resizeToWidth(newWidth);
 	}
 
-	void saveState(gsl::not_null<SectionMemento*> memento) const;
-	void restoreState(gsl::not_null<const SectionMemento*> memento);
+	void saveState(gsl::not_null<SectionMemento*> memento);
+	void restoreState(gsl::not_null<SectionMemento*> memento);
 	void setCancelledCallback(base::lambda<void()> callback) {
 		_cancelledCallback = std::move(callback);
 	}
@@ -151,6 +151,7 @@ private:
 	void preloadMore(Direction direction);
 	void itemsAdded(Direction direction);
 	void updateSize();
+	void updateMinMaxIds();
 	void paintEmpty(Painter &p);
 
 	void toggleScrollDateShown();
@@ -213,7 +214,9 @@ private:
 	uint64 _minId = 0;
 	mtpRequestId _preloadUpRequestId = 0;
 	mtpRequestId _preloadDownRequestId = 0;
-	bool _upLoaded = false;
+
+	// Don't load anything until the memento was read.
+	bool _upLoaded = true;
 	bool _downLoaded = true;
 
 	MouseAction _mouseAction = MouseAction::None;

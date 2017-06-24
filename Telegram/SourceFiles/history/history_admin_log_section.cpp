@@ -61,7 +61,7 @@ private:
 
 };
 
-object_ptr<Window::SectionWidget> SectionMemento::createWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, const QRect &geometry) const {
+object_ptr<Window::SectionWidget> SectionMemento::createWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, const QRect &geometry) {
 	auto result = object_ptr<Widget>(parent, controller, _channel);
 	result->setInternalState(geometry, this);
 	return std::move(result);
@@ -168,34 +168,34 @@ void Widget::doSetInnerFocus() {
 	_inner->setFocus();
 }
 
-bool Widget::showInternal(const Window::SectionMemento *memento) {
-	if (auto profileMemento = dynamic_cast<const SectionMemento*>(memento)) {
-		if (profileMemento->getChannel() == channel()) {
-			restoreState(profileMemento);
+bool Widget::showInternal(gsl::not_null<Window::SectionMemento*> memento) {
+	if (auto logMemento = dynamic_cast<SectionMemento*>(memento.get())) {
+		if (logMemento->getChannel() == channel()) {
+			restoreState(logMemento);
 			return true;
 		}
 	}
 	return false;
 }
 
-void Widget::setInternalState(const QRect &geometry, gsl::not_null<const SectionMemento*> memento) {
+void Widget::setInternalState(const QRect &geometry, gsl::not_null<SectionMemento*> memento) {
 	setGeometry(geometry);
 	myEnsureResized(this);
 	restoreState(memento);
 }
 
-std::unique_ptr<Window::SectionMemento> Widget::createMemento() const {
+std::unique_ptr<Window::SectionMemento> Widget::createMemento() {
 	auto result = std::make_unique<SectionMemento>(channel());
 	saveState(result.get());
 	return std::move(result);
 }
 
-void Widget::saveState(gsl::not_null<SectionMemento*> memento) const {
+void Widget::saveState(gsl::not_null<SectionMemento*> memento) {
 	memento->setScrollTop(_scroll->scrollTop());
 	_inner->saveState(memento);
 }
 
-void Widget::restoreState(gsl::not_null<const SectionMemento*> memento) {
+void Widget::restoreState(gsl::not_null<SectionMemento*> memento) {
 	_inner->restoreState(memento);
 	auto scrollTop = memento->getScrollTop();
 	_scroll->scrollToY(scrollTop);

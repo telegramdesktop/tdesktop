@@ -22,6 +22,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "window/section_widget.h"
 #include "window/section_memento.h"
+#include "history/history_admin_log_item.h"
+#include "history/history_admin_log_inner.h"
 
 namespace Notify {
 struct PeerUpdate;
@@ -58,10 +60,10 @@ public:
 
 	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params) override;
 
-	bool showInternal(const Window::SectionMemento *memento) override;
-	std::unique_ptr<Window::SectionMemento> createMemento() const override;
+	bool showInternal(gsl::not_null<Window::SectionMemento*> memento) override;
+	std::unique_ptr<Window::SectionMemento> createMemento() override;
 
-	void setInternalState(const QRect &geometry, gsl::not_null<const SectionMemento*> memento);
+	void setInternalState(const QRect &geometry, gsl::not_null<SectionMemento*> memento);
 
 	// Float player interface.
 	bool wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) override;
@@ -81,8 +83,8 @@ protected:
 private:
 	void onScroll();
 	void updateAdaptiveLayout();
-	void saveState(gsl::not_null<SectionMemento*> memento) const;
-	void restoreState(gsl::not_null<const SectionMemento*> memento);
+	void saveState(gsl::not_null<SectionMemento*> memento);
+	void restoreState(gsl::not_null<SectionMemento*> memento);
 
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<InnerWidget> _inner;
@@ -97,7 +99,7 @@ public:
 	SectionMemento(gsl::not_null<ChannelData*> channel) : _channel(channel) {
 	}
 
-	object_ptr<Window::SectionWidget> createWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, const QRect &geometry) const override;
+	object_ptr<Window::SectionWidget> createWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, const QRect &geometry) override;
 
 	gsl::not_null<ChannelData*> getChannel() const {
 		return _channel;
@@ -109,9 +111,39 @@ public:
 		return _scrollTop;
 	}
 
+	void setItems(std::vector<HistoryItemOwned> &&items, std::map<uint64, HistoryItem*> &&itemsByIds, bool upLoaded, bool downLoaded) {
+		_items = std::move(items);
+		_itemsByIds = std::move(itemsByIds);
+		_upLoaded = upLoaded;
+		_downLoaded = downLoaded;
+	}
+	void setIdManager(LocalIdManager &&manager) {
+		_idManager = std::move(manager);
+	}
+	std::vector<HistoryItemOwned> takeItems() {
+		return std::move(_items);
+	}
+	std::map<uint64, HistoryItem*> takeItemsByIds() {
+		return std::move(_itemsByIds);
+	}
+	LocalIdManager takeIdManager() {
+		return std::move(_idManager);
+	}
+	bool upLoaded() const {
+		return _upLoaded;
+	}
+	bool downLoaded() const {
+		return _downLoaded;
+	}
+
 private:
 	gsl::not_null<ChannelData*> _channel;
 	int _scrollTop = 0;
+	std::vector<HistoryItemOwned> _items;
+	std::map<uint64, HistoryItem*> _itemsByIds;
+	bool _upLoaded = false;
+	bool _downLoaded = true;
+	LocalIdManager _idManager;
 
 };
 

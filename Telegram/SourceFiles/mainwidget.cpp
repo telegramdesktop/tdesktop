@@ -2517,15 +2517,6 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 		}
 	}
 
-	dlgUpdated();
-	if (back || (way == Ui::ShowWay::ClearStack)) {
-		_peerInStack = nullptr;
-		_msgIdInStack = 0;
-	} else {
-		saveSectionInStack();
-	}
-	dlgUpdated();
-
 	auto wasActivePeer = activePeer();
 
 	Ui::hideSettingsAndLayer();
@@ -2555,6 +2546,16 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 	};
 
 	auto animationParams = animatedShow() ? prepareHistoryAnimation(peerId) : Window::SectionSlideParams();
+
+	dlgUpdated();
+	if (back || (way == Ui::ShowWay::ClearStack)) {
+		_peerInStack = nullptr;
+		_msgIdInStack = 0;
+	} else {
+		// This may modify the current section, for example remove its contents.
+		saveSectionInStack();
+	}
+	dlgUpdated();
 
 	if (_history->peer() && _history->peer()->id != peerId && way != Ui::ShowWay::Forward) {
 		clearBotStartToken(_history->peer());
@@ -2708,11 +2709,11 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 		return false;
 	};
 	auto animationParams = animatedShow() ? prepareOverviewAnimation() : Window::SectionSlideParams();
+	setFocus(); // otherwise dialogs widget could be focused.
+
 	if (!back) {
 		saveSectionInStack();
 	}
-
-	setFocus(); // otherwise dialogs widget could be focused.
 	if (_overview) {
 		_overview->hide();
 		_overview->clear();
@@ -2751,12 +2752,12 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 	orderWidgets();
 }
 
-void MainWidget::showWideSection(const Window::SectionMemento &memento) {
+void MainWidget::showWideSection(Window::SectionMemento &&memento) {
 	Ui::hideSettingsAndLayer();
 	if (_wideSection && _wideSection->showInternal(&memento)) {
 		return;
 	}
-	showNewWideSection(&memento, false, true);
+	showNewWideSection(std::move(memento), false, true);
 }
 
 Window::SectionSlideParams MainWidget::prepareShowAnimation(bool willHaveTopBarShadow, bool willHaveTabbedSection) {
@@ -2856,7 +2857,7 @@ Window::SectionSlideParams MainWidget::prepareDialogsAnimation() {
 	return prepareShowAnimation(false, false);
 }
 
-void MainWidget::showNewWideSection(const Window::SectionMemento *memento, bool back, bool saveInStack) {
+void MainWidget::showNewWideSection(Window::SectionMemento &&memento, bool back, bool saveInStack) {
 	QPixmap animCache;
 
 	_controller->dialogsListFocused().set(false, true);
@@ -2864,7 +2865,7 @@ void MainWidget::showNewWideSection(const Window::SectionMemento *memento, bool 
 
 	auto sectionTop = getSectionTop();
 	auto newWideGeometry = QRect(_history->x(), sectionTop, _history->width(), height() - sectionTop);
-	auto newWideSection = memento->createWidget(this, _controller, newWideGeometry);
+	auto newWideSection = memento.createWidget(this, _controller, newWideGeometry);
 	auto animatedShow = [this] {
 		if (_a_show.animating() || App::passcoded()) {
 			return false;
@@ -2876,11 +2877,12 @@ void MainWidget::showNewWideSection(const Window::SectionMemento *memento, bool 
 	};
 	auto animationParams = animatedShow() ? prepareWideSectionAnimation(newWideSection) : Window::SectionSlideParams();
 
+	setFocus(); // otherwise dialogs widget could be focused.
+
 	if (saveInStack) {
+		// This may modify the current section, for example remove its contents.
 		saveSectionInStack();
 	}
-
-	setFocus(); // otherwise dialogs widget could be focused.
 	if (_overview) {
 		_overview->hide();
 		_overview->clear();
@@ -2949,7 +2951,7 @@ void MainWidget::showBackFromStack() {
 		_history->setReplyReturns(historyItem->peer->id, historyItem->replyReturns);
 	} else if (item->type() == SectionStackItem) {
 		auto sectionItem = static_cast<StackItemSection*>(item.get());
-		showNewWideSection(sectionItem->memento(), true, false);
+		showNewWideSection(std::move(*sectionItem->memento()), true, false);
 	} else if (item->type() == OverviewStackItem) {
 		auto overviewItem = static_cast<StackItemOverview*>(item.get());
 		showMediaOverview(overviewItem->peer, overviewItem->mediaType, true, overviewItem->lastScrollTop);

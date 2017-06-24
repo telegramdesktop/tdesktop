@@ -76,8 +76,8 @@ void Widget::doSetInnerFocus() {
 	_inner->setFocus();
 }
 
-bool Widget::showInternal(const Window::SectionMemento *memento) {
-	if (auto profileMemento = dynamic_cast<const SectionMemento*>(memento)) {
+bool Widget::showInternal(gsl::not_null<Window::SectionMemento*> memento) {
+	if (auto profileMemento = dynamic_cast<SectionMemento*>(memento.get())) {
 		if (profileMemento->getPeer() == peer()) {
 			restoreState(profileMemento);
 			return true;
@@ -86,24 +86,24 @@ bool Widget::showInternal(const Window::SectionMemento *memento) {
 	return false;
 }
 
-void Widget::setInternalState(const QRect &geometry, const SectionMemento *memento) {
+void Widget::setInternalState(const QRect &geometry, gsl::not_null<SectionMemento*> memento) {
 	setGeometry(geometry);
 	myEnsureResized(this);
 	restoreState(memento);
 }
 
-std::unique_ptr<Window::SectionMemento> Widget::createMemento() const {
+std::unique_ptr<Window::SectionMemento> Widget::createMemento() {
 	auto result = std::make_unique<SectionMemento>(peer());
 	saveState(result.get());
 	return std::move(result);
 }
 
-void Widget::saveState(SectionMemento *memento) const {
+void Widget::saveState(gsl::not_null<SectionMemento*> memento) {
 	memento->setScrollTop(_scroll->scrollTop());
 	_inner->saveState(memento);
 }
 
-void Widget::restoreState(const SectionMemento *memento) {
+void Widget::restoreState(gsl::not_null<SectionMemento*> memento) {
 	_inner->restoreState(memento);
 	auto scrollTop = memento->getScrollTop();
 	_scroll->scrollToY(scrollTop);

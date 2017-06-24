@@ -335,34 +335,21 @@ QPoint InnerWidget::tooltipPos() const {
 	return _mousePosition;
 }
 
-void InnerWidget::saveState(gsl::not_null<SectionMemento*> memento) const {
-	//if (auto count = _items.size()) {
-	//	QList<gsl::not_null<PeerData*>> groups;
-	//	groups.reserve(count);
-	//	for_const (auto item, _items) {
-	//		groups.push_back(item->peer);
-	//	}
-	//	memento->setCommonGroups(groups);
-	//}
+void InnerWidget::saveState(gsl::not_null<SectionMemento*> memento) {
+	memento->setItems(std::move(_items), std::move(_itemsByIds), _upLoaded, _downLoaded);
+	memento->setIdManager(std::move(_idManager));
+	_upLoaded = _downLoaded = true; // Don't load or handle anything anymore.
 }
 
-void InnerWidget::restoreState(gsl::not_null<const SectionMemento*> memento) {
-	//auto list = memento->getCommonGroups();
-	//_allLoaded = false;
-	//if (!list.empty()) {
-	//	showInitial(list);
-	//}
+void InnerWidget::restoreState(gsl::not_null<SectionMemento*> memento) {
+	_items = memento->takeItems();
+	_itemsByIds = memento->takeItemsByIds();
+	_idManager = memento->takeIdManager();
+	_upLoaded = memento->upLoaded();
+	_downLoaded = memento->downLoaded();
+	updateMinMaxIds();
+	updateSize();
 }
-
-//void InnerWidget::showInitial(const QList<PeerData*> &list) {
-//	for_const (auto group, list) {
-//		if (auto item = computeItem(group)) {
-//			_items.push_back(item);
-//		}
-//		_preloadGroupId = group->bareId();
-//	}
-//	updateSize();
-//}
 
 void InnerWidget::preloadMore(Direction direction) {
 	auto &requestId = (direction == Direction::Up) ? _preloadUpRequestId : _preloadDownRequestId;
@@ -394,6 +381,10 @@ void InnerWidget::preloadMore(Direction direction) {
 		auto &results = result.c_channels_adminLogResults();
 		App::feedUsers(results.vusers);
 		App::feedChats(results.vchats);
+
+		if (loadedFlag) {
+			return;
+		}
 		auto &events = results.vevents.v;
 		if (!events.empty()) {
 			auto oldItemsCount = _items.size();
@@ -401,10 +392,14 @@ void InnerWidget::preloadMore(Direction direction) {
 			for_const (auto &event, events) {
 				t_assert(event.type() == mtpc_channelAdminLogEvent);
 				auto &data = event.c_channelAdminLogEvent();
+				if (_itemsByIds.find(data.vid.v) != _itemsByIds.cend()) {
+					continue;
+				}
+
 				auto count = 0;
 				GenerateItems(_history, _idManager, data, [this, id = data.vid.v, &count](HistoryItemOwned item) {
-					_items.push_back(std::move(item));
 					_itemsByIds.emplace(id, item.get());
+					_items.push_back(std::move(item));
 					++count;
 				});
 				if (count > 1) {
@@ -433,11 +428,7 @@ void InnerWidget::preloadMore(Direction direction) {
 						}
 					}
 				}
-				_maxId = (--_itemsByIds.end())->first;
-				_minId = _itemsByIds.begin()->first;
-				if (_minId == 1) {
-					_upLoaded = true;
-				}
+				updateMinMaxIds();
 				itemsAdded(direction);
 			}
 		} else {
@@ -447,6 +438,18 @@ void InnerWidget::preloadMore(Direction direction) {
 		requestId = 0;
 		loadedFlag = true;
 	}).send();
+}
+
+void InnerWidget::updateMinMaxIds() {
+	if (_itemsByIds.empty()) {
+		_maxId = _minId = 0;
+	} else {
+		_maxId = (--_itemsByIds.end())->first;
+		_minId = _itemsByIds.begin()->first;
+		if (_minId == 1) {
+			_upLoaded = true;
+		}
+	}
 }
 
 void InnerWidget::itemsAdded(Direction direction) {

@@ -215,7 +215,7 @@ public:
 	int backgroundFromY() const;
 	PeerData *overviewPeer();
 	bool showMediaTypeSwitch() const;
-	void showWideSection(const Window::SectionMemento &memento);
+	void showWideSection(Window::SectionMemento &&memento);
 	void showMediaOverview(PeerData *peer, MediaOverviewType type, bool back = false, int32 lastScrollTop = -1);
 	bool stackIsEmpty() const;
 	void showBackFromStack();
@@ -521,7 +521,7 @@ private:
 	void mediaOverviewUpdated(const Notify::PeerUpdate &update);
 
 	Window::SectionSlideParams prepareShowAnimation(bool willHaveTopBarShadow, bool willHaveTabbedSection);
-	void showNewWideSection(const Window::SectionMemento *memento, bool back, bool saveInStack);
+	void showNewWideSection(Window::SectionMemento &&memento, bool back, bool saveInStack);
 
 	// All this methods use the prepareShowAnimation().
 	Window::SectionSlideParams prepareWideSectionAnimation(Window::SectionWidget *section);

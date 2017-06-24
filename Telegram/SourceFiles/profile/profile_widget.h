@@ -49,10 +49,10 @@ public:
 
 	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params) override;
 
-	bool showInternal(const Window::SectionMemento *memento) override;
-	std::unique_ptr<Window::SectionMemento> createMemento() const override;
+	bool showInternal(gsl::not_null<Window::SectionMemento*> memento) override;
+	std::unique_ptr<Window::SectionMemento> createMemento() override;
 
-	void setInternalState(const QRect &geometry, const SectionMemento *memento);
+	void setInternalState(const QRect &geometry, gsl::not_null<SectionMemento*> memento);
 
 	// Float player interface.
 	bool wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) override;
@@ -71,8 +71,8 @@ private slots:
 private:
 	void updateScrollState();
 	void updateAdaptiveLayout();
-	void saveState(SectionMemento *memento) const;
-	void restoreState(const SectionMemento *memento);
+	void saveState(gsl::not_null<SectionMemento*> memento);
+	void restoreState(gsl::not_null<SectionMemento*> memento);
 
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<InnerWidget> _inner;
