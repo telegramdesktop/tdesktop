@@ -797,6 +797,10 @@ void HistoryItem::setId(MsgId newId) {
 			markup->inlineKeyboard->updateMessageId();
 		}
 	}
+
+	if (_media) {
+		_media->updateMessageId();
+	}
 }
 
 bool HistoryItem::canPin() const {

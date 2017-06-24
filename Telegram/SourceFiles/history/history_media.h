@@ -60,6 +60,8 @@ public:
 		return false;
 	}
 	virtual void initDimensions() = 0;
+	virtual void updateMessageId() {
+	}
 	virtual int resizeGetHeight(int width) {
 		_width = qMin(width, _maxw);
 		return _height;

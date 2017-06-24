@@ -1792,10 +1792,10 @@ HistoryTextState HistoryMessage::getState(QPoint point, HistoryStateRequest requ
 		result.symbol += _text.length();
 	}
 
-	if (keyboard) {
+	if (keyboard && !isLogEntry()) {
 		auto keyboardTop = g.top() + g.height() + st::msgBotKbButton.margin;
 		if (QRect(g.left(), keyboardTop, g.width(), keyboardHeight).contains(point)) {
-			result.link = keyboard->getState(point - g.topLeft());
+			result.link = keyboard->getState(point - QPoint(g.left(), keyboardTop));
 			return result;
 		}
 	}

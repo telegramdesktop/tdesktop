@@ -3696,7 +3696,7 @@ HistoryGame::HistoryGame(gsl::not_null<HistoryItem*> parent, const HistoryGame &
 void HistoryGame::initDimensions() {
 	auto lineHeight = unitedLineHeight();
 
-	if (!_openl) {
+	if (!_openl && _parent->id > 0) {
 		_openl = MakeShared<ReplyMarkupClickHandler>(_parent, 0, 0);
 	}
 
@@ -3771,6 +3771,12 @@ void HistoryGame::initDimensions() {
 
 	if (!_gameTagWidth) {
 		_gameTagWidth = st::msgDateFont->width(lang(lng_game_tag).toUpper());
+	}
+}
+
+void HistoryGame::updateMessageId() {
+	if (_openl) {
+		_openl = MakeShared<ReplyMarkupClickHandler>(_parent, 0, 0);
 	}
 }
 
@@ -3934,7 +3940,9 @@ HistoryTextState HistoryGame::getState(QPoint point, HistoryStateRequest request
 		tshift += _descriptionLines * lineHeight;
 	}
 	if (inThumb) {
-		result.link = _openl;
+		if (!_parent->isLogEntry()) {
+			result.link = _openl;
+		}
 	} else if (_attach) {
 		auto attachAtTop = !_titleLines && !_descriptionLines;
 		if (!attachAtTop) tshift += st::mediaInBubbleSkip;
@@ -3945,7 +3953,9 @@ HistoryTextState HistoryGame::getState(QPoint point, HistoryStateRequest request
 
 		if (QRect(attachLeft, tshift, _attach->currentWidth(), _height - tshift - bshift).contains(point)) {
 			if (_attach->isReadyForOpen()) {
-				result.link = _openl;
+				if (!_parent->isLogEntry()) {
+					result.link = _openl;
+				}
 			} else {
 				result = _attach->getState(point - QPoint(attachLeft, attachTop), request);
 			}

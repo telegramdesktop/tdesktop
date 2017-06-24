@@ -882,6 +882,7 @@ public:
 
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
+	void updateMessageId() override;
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
