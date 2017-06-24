@@ -152,6 +152,7 @@ private:
 	void itemsAdded(Direction direction);
 	void updateSize();
 	void updateMinMaxIds();
+	void updateEmptyText();
 	void paintEmpty(Painter &p);
 
 	void toggleScrollDateShown();
@@ -218,6 +219,7 @@ private:
 	// Don't load anything until the memento was read.
 	bool _upLoaded = true;
 	bool _downLoaded = true;
+	Text _emptyText;
 
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;

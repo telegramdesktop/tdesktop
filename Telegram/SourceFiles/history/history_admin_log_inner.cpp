@@ -38,7 +38,8 @@ namespace AdminLog {
 namespace {
 
 constexpr auto kScrollDateHideTimeout = 1000;
-constexpr auto kEventsPerPage = 1;
+constexpr auto kEventsFirstPage = 20;
+constexpr auto kEventsPerPage = 50;
 
 } // namespace
 
@@ -203,7 +204,8 @@ InnerWidget::InnerWidget(QWidget *parent, gsl::not_null<Window::Controller*> con
 , _channel(channel)
 , _history(App::history(channel))
 , _scrollTo(std::move(scrollTo))
-, _scrollDateCheck([this] { scrollDateCheck(); }) {
+, _scrollDateCheck([this] { scrollDateCheck(); })
+, _emptyText(st::historyAdminLogEmptyWidth - st::historyAdminLogEmptyPadding.left() - st::historyAdminLogEmptyPadding.left()) {
 	setMouseTracking(true);
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
 	subscribe(AuthSession::Current().data().repaintLogEntry(), [this](gsl::not_null<const HistoryItem*> historyItem) {
@@ -221,6 +223,7 @@ InnerWidget::InnerWidget(QWidget *parent, gsl::not_null<Window::Controller*> con
 			*query.isVisible = true;
 		}
 	});
+	updateEmptyText();
 }
 
 void InnerWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
@@ -311,6 +314,17 @@ void InnerWidget::checkPreloadMore() {
 void InnerWidget::applyFilter(MTPDchannelAdminLogEventsFilter::Flags flags, const std::vector<gsl::not_null<UserData*>> &admins) {
 	_filterFlags = flags;
 	_filterAdmins = admins;
+	updateEmptyText();
+}
+
+void InnerWidget::updateEmptyText() {
+	auto options = _defaultOptions;
+	options.flags |= TextParseMono; // For italic :/
+	auto hasFilter = (_filterFlags != 0) || !_filterAdmins.empty();
+	auto text = TextWithEntities { lang(hasFilter ? lng_admin_log_no_results_title : lng_admin_log_no_events_title) };
+	text.entities.append(EntityInText(EntityInTextBold, 0, text.text.size()));
+	text.text.append(qstr("\n\n") + lang(hasFilter ? lng_admin_log_no_results_text : lng_admin_log_no_events_text));
+	_emptyText.setMarkedText(st::defaultTextStyle, text, options);
 }
 
 QString InnerWidget::tooltipText() const {
@@ -374,7 +388,8 @@ void InnerWidget::preloadMore(Direction direction) {
 	auto query = QString();
 	auto maxId = (direction == Direction::Up) ? _minId : 0;
 	auto minId = (direction == Direction::Up) ? 0 : _maxId;
-	requestId = request(MTPchannels_GetAdminLog(MTP_flags(flags), _channel->inputChannel, MTP_string(query), filter, MTP_vector<MTPInputUser>(admins), MTP_long(maxId), MTP_long(minId), MTP_int(kEventsPerPage))).done([this, &requestId, &loadedFlag, direction](const MTPchannels_AdminLogResults &result) {
+	auto perPage = _items.empty() ? kEventsFirstPage : kEventsPerPage;
+	requestId = request(MTPchannels_GetAdminLog(MTP_flags(flags), _channel->inputChannel, MTP_string(query), filter, MTP_vector<MTPInputUser>(admins), MTP_long(maxId), MTP_long(minId), MTP_int(perPage))).done([this, &requestId, &loadedFlag, direction](const MTPchannels_AdminLogResults &result) {
 		Expects(result.type() == mtpc_channels_adminLogResults);
 		requestId = 0;
 
@@ -568,14 +583,15 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 }
 
 void InnerWidget::paintEmpty(Painter &p) {
-	//style::font font(st::msgServiceFont);
-	//int32 w = font->width(lang(lng_willbe_history)) + st::msgPadding.left() + st::msgPadding.right(), h = font->height + st::msgServicePadding.top() + st::msgServicePadding.bottom() + 2;
-	//QRect tr((width() - w) / 2, (height() - _field->height() - 2 * st::historySendPadding - h) / 2, w, h);
-	//HistoryLayout::ServiceMessagePainter::paintBubble(p, tr.x(), tr.y(), tr.width(), tr.height());
+	style::font font(st::msgServiceFont);
+	auto rectWidth = st::historyAdminLogEmptyWidth;
+	auto innerWidth = rectWidth - st::historyAdminLogEmptyPadding.left() - st::historyAdminLogEmptyPadding.right();
+	auto rectHeight = st::historyAdminLogEmptyPadding.top() + _emptyText.countHeight(innerWidth) + st::historyAdminLogEmptyPadding.bottom();
+	auto rect = QRect((width() - rectWidth) / 2, (height() - rectHeight) / 3, rectWidth, rectHeight);
+	HistoryLayout::ServiceMessagePainter::paintBubble(p, rect.x(), rect.y(), rect.width(), rect.height());
 
-	//p.setPen(st::msgServiceFg);
-	//p.setFont(font->f);
-	//p.drawText(tr.left() + st::msgPadding.left(), tr.top() + st::msgServicePadding.top() + 1 + font->ascent, lang(lng_willbe_history));
+	p.setPen(st::msgServiceFg);
+	_emptyText.draw(p, rect.x() + st::historyAdminLogEmptyPadding.left(), rect.y() + st::historyAdminLogEmptyPadding.top(), innerWidth, style::al_top);
 }
 
 TextWithEntities InnerWidget::getSelectedText() const {

@@ -73,6 +73,7 @@ FixedBar::FixedBar(QWidget *parent) : TWidget(parent)
 	_backButton->moveToLeft(0, 0);
 	_backButton->setClickedCallback([this] { goBack(); });
 	_filter->setClickedCallback([this] {});
+	_filter->hide();
 }
 
 void FixedBar::applyFilter(MTPDchannelAdminLogEventsFilter::Flags flags, const std::vector<gsl::not_null<UserData*>> &admins) {
@@ -88,7 +89,7 @@ int FixedBar::resizeGetHeight(int newWidth) {
 	auto newHeight = 0;
 
 	auto buttonLeft = newWidth;
-	buttonLeft -= _filter->width(); _filter->moveToLeft(buttonLeft, 0);
+	//buttonLeft -= _filter->width(); _filter->moveToLeft(buttonLeft, 0);
 	_backButton->resizeToWidth(buttonLeft);
 	_backButton->moveToLeft(0, 0);
 	newHeight += _backButton->height();
@@ -106,6 +107,7 @@ void FixedBar::setAnimatingMode(bool enabled) {
 		} else {
 			setAttribute(Qt::WA_OpaquePaintEvent);
 			showChildren();
+			_filter->hide();
 		}
 		show();
 	}

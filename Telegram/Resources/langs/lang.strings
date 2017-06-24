@@ -1321,7 +1321,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_no_results_title" = "No events found";
 "lng_admin_log_no_results_text" = "No recent events that match your query have been found.";
 "lng_admin_log_no_events_title" = "No events yet";
-"lng_admin_log_no_events_text" = "There were no service actions taken by the group's members and admins in the last 48 hours.";
+"lng_admin_log_no_events_text" = "There were no service actions\ntaken by the group's members\nand admins in the last 48 hours.";
 
 "lng_admin_log_empty_text" = "Empty";
 "lng_admin_log_changed_title_group" = "{from} changed group name to «{title}»";

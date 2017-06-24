@@ -169,9 +169,9 @@ PluralResult Plural(ushort keyBase, float64 value) {
 	auto shift = (useNonDefaultPlural ? ChoosePlural : ChoosePluralEn)((integer ? i : -1), i, v, w, f, t);
 	auto string = langpack.getValue(LangKey(keyBase + shift));
 	if (i == qCeil(n)) {
-		return { string, QString::number(value) };
+		return { string, QString::number(qRound(value)) };
 	}
-	return { string, QString::number(qRound(value)) };
+	return { string, QString::number(value) };
 }
 
 void UpdatePluralRules(const QString &languageId) {

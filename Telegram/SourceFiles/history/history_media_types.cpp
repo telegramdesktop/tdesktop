@@ -4458,7 +4458,7 @@ HistoryLocation::HistoryLocation(gsl::not_null<HistoryItem*> parent, const Locat
 , _data(App::location(coords))
 , _title(st::msgMinWidth)
 , _description(st::msgMinWidth)
-, _link(new LocationClickHandler(coords)) {
+, _link(MakeShared<LocationClickHandler>(coords)) {
 	if (!title.isEmpty()) {
 		_title.setText(st::webPageTitleStyle, textClean(title), _webpageTitleOptions);
 	}
@@ -4474,7 +4474,7 @@ HistoryLocation::HistoryLocation(gsl::not_null<HistoryItem*> parent, const Histo
 , _data(other._data)
 , _title(other._title)
 , _description(other._description)
-, _link(new LocationClickHandler(_data->coords)) {
+, _link(MakeShared<LocationClickHandler>(_data->coords)) {
 }
 
 void HistoryLocation::initDimensions() {
