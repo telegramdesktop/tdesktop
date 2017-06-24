@@ -349,9 +349,10 @@ void GenerateItems(gsl::not_null<History*> history, LocalIdManager &idManager, c
 		auto applyServiceAction = false;
 		auto detachExistingItem = false;
 		auto body = history->createItem(PrepareLogMessage(action.vnew_message, idManager.next(), date.v), applyServiceAction, detachExistingItem);
-		if (!oldValue.text.isEmpty()) {
-			body->addLogEntryOriginal(id, lang(canHaveCaption ? lng_admin_log_previous_caption : lng_admin_log_previous_message), oldValue);
+		if (oldValue.text.isEmpty()) {
+			oldValue = PrepareText(QString(), lang(lng_admin_log_empty_text));
 		}
+		body->addLogEntryOriginal(id, lang(canHaveCaption ? lng_admin_log_previous_caption : lng_admin_log_previous_message), oldValue);
 		addPart(body);
 	};
 

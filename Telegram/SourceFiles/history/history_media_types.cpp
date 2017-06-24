@@ -49,7 +49,7 @@ TextParseOptions _webpageTitleOptions = {
 	Qt::LayoutDirectionAuto, // dir
 };
 TextParseOptions _webpageDescriptionOptions = {
-	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText, // flags
+	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText | TextParseMono, // flags
 	0, // maxw
 	0, // maxh
 	Qt::LayoutDirectionAuto, // dir
@@ -3726,7 +3726,10 @@ void HistoryGame::initDimensions() {
 			if (!_attach) {
 				text += _parent->skipBlock();
 			}
-			_description.setText(st::webPageDescriptionStyle, text, _webpageDescriptionOptions);
+			auto marked = TextWithEntities { text };
+			auto parseFlags = TextParseLinks | TextParseMultiline | TextParseRichText;
+			textParseEntities(marked.text, parseFlags, &marked.entities);
+			_description.setMarkedText(st::webPageDescriptionStyle, marked, _webpageDescriptionOptions);
 		}
 	}
 	if (_title.isEmpty() && !title.isEmpty()) {
@@ -4151,7 +4154,10 @@ void HistoryInvoice::fillFromData(const MTPDmessageMediaInvoice &data) {
 	// init strings
 	auto description = qs(data.vdescription);
 	if (!description.isEmpty()) {
-		_description.setText(st::webPageDescriptionStyle, description, _webpageDescriptionOptions);
+		auto marked = TextWithEntities { description };
+		auto parseFlags = TextParseLinks | TextParseMultiline | TextParseRichText;
+		textParseEntities(marked.text, parseFlags, &marked.entities);
+		_description.setMarkedText(st::webPageDescriptionStyle, marked, _webpageDescriptionOptions);
 	}
 	auto title = textOneLine(qs(data.vtitle));
 	if (!title.isEmpty()) {
@@ -4457,7 +4463,10 @@ HistoryLocation::HistoryLocation(gsl::not_null<HistoryItem*> parent, const Locat
 		_title.setText(st::webPageTitleStyle, textClean(title), _webpageTitleOptions);
 	}
 	if (!description.isEmpty()) {
-		_description.setText(st::webPageDescriptionStyle, textClean(description), _webpageDescriptionOptions);
+		auto marked = TextWithEntities { textClean(description) };
+		auto parseFlags = TextParseLinks | TextParseMultiline | TextParseRichText;
+		textParseEntities(marked.text, parseFlags, &marked.entities);
+		_description.setMarkedText(st::webPageDescriptionStyle, marked, _webpageDescriptionOptions);
 	}
 }
 
