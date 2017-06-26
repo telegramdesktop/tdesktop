@@ -23,6 +23,7 @@ import sys
 import os
 import re
 import time
+import codecs
 
 def eprint(*args, **kwargs):
   print(*args, file=sys.stderr, **kwargs)
@@ -32,7 +33,7 @@ def check_non_empty_moc(file_path):
   if not os.path.isfile(file_path):
     return False
   if re.search(r'\.h$', file_path):
-    with open(file_path, "r") as f:
+    with codecs.open(file_path, mode="r", encoding="utf-8") as f:
       for line in f:
         if re.search(r'(^|\s)Q_OBJECT(\s|$)', line):
           return True
