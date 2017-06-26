@@ -69,10 +69,31 @@ public:
 		constexpr auto kEncryptSize = 256;
 		auto result = base::byte_vector(kEncryptSize, gsl::byte {});
 		auto res = RSA_public_encrypt(kEncryptSize, reinterpret_cast<const unsigned char*>(data.data()), reinterpret_cast<unsigned char*>(result.data()), _rsa, RSA_NO_PADDING);
-		if (res != kEncryptSize) {
+		if (res < 0 || res > kEncryptSize) {
 			ERR_load_crypto_strings();
 			LOG(("RSA Error: RSA_public_encrypt failed, key fp: %1, result: %2, error: %3").arg(getFingerPrint()).arg(res).arg(ERR_error_string(ERR_get_error(), 0)));
 			return base::byte_vector();
+		} else if (auto zeroBytes = kEncryptSize - res) {
+			auto resultBytes = gsl::make_span(result);
+			base::move_bytes(resultBytes.subspan(zeroBytes, res), resultBytes.subspan(0, res));
+			base::set_bytes(resultBytes.subspan(0, zeroBytes), gsl::byte {});
+		}
+		return result;
+	}
+	base::byte_vector decrypt(base::const_byte_span data) const {
+		Expects(isValid());
+
+		constexpr auto kDecryptSize = 256;
+		auto result = base::byte_vector(kDecryptSize, gsl::byte {});
+		auto res = RSA_public_decrypt(kDecryptSize, reinterpret_cast<const unsigned char*>(data.data()), reinterpret_cast<unsigned char*>(result.data()), _rsa, RSA_NO_PADDING);
+		if (res < 0 || res > kDecryptSize) {
+			ERR_load_crypto_strings();
+			LOG(("RSA Error: RSA_public_encrypt failed, key fp: %1, result: %2, error: %3").arg(getFingerPrint()).arg(res).arg(ERR_error_string(ERR_get_error(), 0)));
+			return base::byte_vector();
+		} else if (auto zeroBytes = kDecryptSize - res) {
+			auto resultBytes = gsl::make_span(result);
+			base::move_bytes(resultBytes.subspan(zeroBytes - res, res), resultBytes.subspan(0, res));
+			base::set_bytes(resultBytes.subspan(0, zeroBytes - res), gsl::byte {});
 		}
 		return result;
 	}
@@ -131,6 +152,11 @@ base::byte_vector RSAPublicKey::getE() const {
 base::byte_vector RSAPublicKey::encrypt(base::const_byte_span data) const {
 	Expects(isValid());
 	return _private->encrypt(data);
+}
+
+base::byte_vector RSAPublicKey::decrypt(base::const_byte_span data) const {
+	Expects(isValid());
+	return _private->decrypt(data);
 }
 
 } // namespace internal

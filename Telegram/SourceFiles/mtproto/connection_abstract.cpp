@@ -75,11 +75,11 @@ MTPResPQ AbstractConnection::readPQFakeReply(const mtpBuffer &buffer) {
 	return response;
 }
 
-AbstractConnection *AbstractConnection::create(QThread *thread) {
-	if (Global::ConnectionType() == dbictHttpProxy) {
-		return new HTTPConnection(thread);
-	} else if (Global::ConnectionType() == dbictTcpProxy) {
+AbstractConnection *AbstractConnection::create(DcType type, QThread *thread) {
+	if ((type == DcType::Temporary) || (Global::ConnectionType() == dbictTcpProxy)) {
 		return new TCPConnection(thread);
+	} else if (Global::ConnectionType() == dbictHttpProxy) {
+		return new HTTPConnection(thread);
 	}
 	return new AutoConnection(thread);
 }

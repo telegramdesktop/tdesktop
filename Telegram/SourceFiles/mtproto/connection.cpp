@@ -20,20 +20,19 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "mtproto/connection.h"
 
+#include "mtproto/rsa_public_key.h"
+#include "mtproto/rpc_sender.h"
+#include "mtproto/dc_options.h"
+#include "mtproto/connection_abstract.h"
+#include "zlib.h"
+#include "lang/lang_keys.h"
+#include "base/openssl_help.h"
 #include <openssl/bn.h>
 #include <openssl/err.h>
 #include <openssl/aes.h>
 #include <openssl/sha.h>
 #include <openssl/md5.h>
 #include <openssl/rand.h>
-#include "zlib.h"
-#include "lang/lang_keys.h"
-#include "base/openssl_help.h"
-
-#include "mtproto/rsa_public_key.h"
-#include "messenger.h"
-#include "mtproto/dc_options.h"
-#include "mtproto/connection_abstract.h"
 
 namespace MTP {
 namespace internal {
@@ -307,13 +306,13 @@ void ConnectionPrivate::createConn(bool createIPv4, bool createIPv6) {
 	destroyConn();
 	if (createIPv4) {
 		QWriteLocker lock(&stateConnMutex);
-		_conn4 = AbstractConnection::create(thread());
+		_conn4 = AbstractConnection::create(_dcType, thread());
 		connect(_conn4, SIGNAL(error(qint32)), this, SLOT(onError4(qint32)));
 		connect(_conn4, SIGNAL(receivedSome()), this, SLOT(onReceivedSome()));
 	}
 	if (createIPv6) {
 		QWriteLocker lock(&stateConnMutex);
-		_conn6 = AbstractConnection::create(thread());
+		_conn6 = AbstractConnection::create(_dcType, thread());
 		connect(_conn6, SIGNAL(error(qint32)), this, SLOT(onError6(qint32)));
 		connect(_conn6, SIGNAL(receivedSome()), this, SLOT(onReceivedSome()));
 	}
@@ -997,14 +996,14 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 		return;
 	}
 	auto bareDc = bareDcId(_shiftedDcId);
-	_dcType = Messenger::Instance().dcOptions()->dcType(_shiftedDcId);
+	_dcType = _instance->dcOptions()->dcType(_shiftedDcId);
 	if (_dcType == DcType::MediaDownload) { // using media_only addresses only if key for this dc is already created
 		QReadLocker lockFinished(&sessionDataMutex);
 		if (!sessionData || !sessionData->getKey()) {
 			_dcType = DcType::Regular;
 		}
 	} else if (_dcType == DcType::Cdn && !_instance->isKeysDestroyer()) {
-		if (!Messenger::Instance().dcOptions()->hasCDNKeysForDc(bareDc)) {
+		if (!_instance->dcOptions()->hasCDNKeysForDc(bareDc)) {
 			requestCDNConfig();
 			return;
 		}
@@ -1015,9 +1014,9 @@ void ConnectionPrivate::connectToServer(bool afterConfig) {
 	auto kIPv6 = Variants::IPv6;
 	auto kTcp = Variants::Tcp;
 	auto kHttp = Variants::Http;
-	auto variants = Messenger::Instance().dcOptions()->lookup(bareDc, _dcType);
-	auto noIPv4 = (variants.data[kIPv4][kHttp].port == 0);
-	auto noIPv6 = (!Global::TryIPv6() || (variants.data[kIPv6][kHttp].port == 0));
+	auto variants = _instance->dcOptions()->lookup(bareDc, _dcType);
+	auto noIPv4 = (_dcType == DcType::Temporary) ? (variants.data[kIPv4][kTcp].port == 0) : (variants.data[kIPv4][kHttp].port == 0);
+	auto noIPv6 = (_dcType == DcType::Temporary) ? true : (!Global::TryIPv6() || (variants.data[kIPv6][kHttp].port == 0));
 	if (noIPv4 && noIPv6) {
 		if (_instance->isKeysDestroyer()) {
 			LOG(("MTP Error: DC %1 options for IPv4 over HTTP not found for auth key destruction!").arg(_shiftedDcId));
@@ -2337,7 +2336,7 @@ void ConnectionPrivate::updateAuthKey() 	{
 	DEBUG_LOG(("AuthKey Info: No key in updateAuthKey(), will be creating auth_key"));
 	lockKey();
 
-	const AuthKeyPtr &key(sessionData->getKey());
+	auto &key = sessionData->getKey();
 	if (key) {
 		if (keyId != key->keyId()) clearMessages();
 		keyId = key->keyId();
@@ -2388,7 +2387,7 @@ void ConnectionPrivate::pqAnswered() {
 	}
 
 	auto rsaKey = internal::RSAPublicKey();
-	if (!Messenger::Instance().dcOptions()->getDcRSAKey(bareDcId(_shiftedDcId), res_pq.c_resPQ().vserver_public_key_fingerprints.v, &rsaKey)) {
+	if (!_instance->dcOptions()->getDcRSAKey(bareDcId(_shiftedDcId), res_pq.c_resPQ().vserver_public_key_fingerprints.v, &rsaKey)) {
 		if (_dcType == DcType::Cdn) {
 			LOG(("Warning: CDN public RSA key not found"));
 			requestCDNConfig();
@@ -2926,10 +2925,10 @@ bool ConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResponse, Q
 	uint32 fullSize = request->size();
 	if (fullSize < 9) return false;
 
-	uint32 messageSize = mtpRequestData::messageSize(request);
+	auto messageSize = mtpRequestData::messageSize(request);
 	if (messageSize < 5 || fullSize < messageSize + 4) return false;
 
-	ReadLockerAttempt lock(sessionData->keyMutex());
+	auto lock = ReadLockerAttempt(sessionData->keyMutex());
 	if (!lock) {
 		DEBUG_LOG(("MTP Info: could not lock key for read in sendBuffer(), dc %1, restarting...").arg(_shiftedDcId));
 
@@ -2947,12 +2946,13 @@ bool ConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResponse, Q
 		return false;
 	}
 
-	uint64 session(sessionData->getSession()), salt(sessionData->getSalt());
+	auto session = sessionData->getSession();
+	auto salt = sessionData->getSalt();
 
 	memcpy(request->data() + 0, &salt, 2 * sizeof(mtpPrime));
 	memcpy(request->data() + 2, &session, 2 * sizeof(mtpPrime));
 
-	const mtpPrime *from = request->constData() + 4;
+	auto from = request->constData() + 4;
 	MTP_LOG(_shiftedDcId, ("Send: ") + mtpTextSerialize(from, from + messageSize));
 
 #ifdef TDESKTOP_MTPROTO_OLD

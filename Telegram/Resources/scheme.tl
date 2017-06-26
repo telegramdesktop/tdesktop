@@ -106,6 +106,9 @@ new_session_created#9ec20908 first_msg_id:long unique_id:long server_salt:long =
 
 http_wait#9299359f max_delay:int wait_after:int max_wait:int = HttpWait;
 
+ipPort ipv4:int port:int = IpPort;
+help.configSimple#d997c3c5 date:int expires:int dc_id:int ip_port_list:Vector<ipPort> = help.ConfigSimple;
+
 ---functions---
 
 rpc_drop_answer#58e4a740 req_msg_id:long = RpcDropAnswer;

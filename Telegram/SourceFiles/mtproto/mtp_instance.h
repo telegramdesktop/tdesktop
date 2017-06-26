@@ -20,14 +20,19 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "mtproto/dcenter.h"
 #include <map>
 #include <set>
 
 namespace MTP {
+namespace internal {
+class Dcenter;
+} // namespace internal
 
 class DcOptions;
 class Session;
+class AuthKey;
+using AuthKeyPtr = std::shared_ptr<AuthKey>;
+using AuthKeysList = std::vector<AuthKeyPtr>;
 
 class Instance : public QObject {
 	Q_OBJECT
@@ -37,15 +42,17 @@ public:
 		static constexpr auto kNoneMainDc = -1;
 		static constexpr auto kNotSetMainDc = 0;
 		static constexpr auto kDefaultMainDc = 2;
+		static constexpr auto kTemporaryMainDc = 1000;
 
 		DcId mainDcId = kNotSetMainDc;
 		AuthKeysList keys;
 	};
 	enum class Mode {
 		Normal,
+		SpecialConfigRequester,
 		KeysDestroyer,
 	};
-	Instance(DcOptions *options, Mode mode, Config &&config);
+	Instance(gsl::not_null<DcOptions*> options, Mode mode, Config &&config);
 
 	Instance(const Instance &other) = delete;
 	Instance &operator=(const Instance &other) = delete;
@@ -60,7 +67,7 @@ public:
 	AuthKeysList getKeysForWrite() const;
 	void addKeysForDestroy(AuthKeysList &&keys);
 
-	DcOptions *dcOptions();
+	gsl::not_null<DcOptions*> dcOptions();
 
 	template <typename TRequest>
 	mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), ShiftedDcId dcId = 0, TimeMs msCanWait = 0, mtpRequestId after = 0) {
@@ -93,7 +100,7 @@ public:
 	void reInitConnection(DcId dcId);
 	void logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail);
 
-	internal::DcenterPtr getDcById(ShiftedDcId shiftedDcId);
+	std::shared_ptr<internal::Dcenter> getDcById(ShiftedDcId shiftedDcId);
 	void unpaused();
 
 	void queueQuittingConnection(std::unique_ptr<internal::Connection> connection);

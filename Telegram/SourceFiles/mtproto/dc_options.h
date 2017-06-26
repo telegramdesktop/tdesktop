@@ -30,6 +30,7 @@ namespace MTP {
 
 enum class DcType {
 	Regular,
+	Temporary,
 	MediaDownload,
 	Cdn,
 };

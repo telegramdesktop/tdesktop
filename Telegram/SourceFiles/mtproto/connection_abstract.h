@@ -38,7 +38,7 @@ public:
 	virtual ~AbstractConnection() = 0;
 
 	// virtual constructor
-	static AbstractConnection *create(QThread *thread);
+	static AbstractConnection *create(DcType type, QThread *thread);
 
 	void setSentEncrypted() {
 		_sentEncrypted = true;

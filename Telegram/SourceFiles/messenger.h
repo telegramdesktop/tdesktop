@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "base/observer.h"
+#include "mtproto/auth_key.h"
 
 namespace App {
 void quit();
@@ -29,6 +30,9 @@ void quit();
 namespace MTP {
 class DcOptions;
 class Instance;
+class AuthKey;
+using AuthKeyPtr = std::shared_ptr<AuthKey>;
+using AuthKeysList = std::vector<AuthKeyPtr>;
 } // namespace MTP
 
 class AuthSession;

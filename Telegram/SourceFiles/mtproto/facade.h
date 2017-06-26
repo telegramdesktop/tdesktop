@@ -112,6 +112,21 @@ inline bool isCdnDc(MTPDdcOption::Flags flags) {
 	return (flags & MTPDdcOption::Flag::f_cdn);
 }
 
+inline bool isTemporaryDcId(ShiftedDcId shiftedDcId) {
+	auto dcId = bareDcId(shiftedDcId);
+	return (dcId >= Instance::Config::kTemporaryMainDc);
+}
+
+inline DcId getRealIdFromTemporaryDcId(ShiftedDcId shiftedDcId) {
+	auto dcId = bareDcId(shiftedDcId);
+	return (dcId >= Instance::Config::kTemporaryMainDc) ? (dcId - Instance::Config::kTemporaryMainDc) : 0;
+}
+
+inline DcId getTemporaryIdFromRealDcId(ShiftedDcId shiftedDcId) {
+	auto dcId = bareDcId(shiftedDcId);
+	return (dcId < Instance::Config::kTemporaryMainDc) ? (dcId + Instance::Config::kTemporaryMainDc) : 0;
+}
+
 namespace internal {
 
 constexpr ShiftedDcId uploadDcId(DcId dcId, int index) {

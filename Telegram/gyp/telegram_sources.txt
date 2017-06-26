@@ -235,6 +235,8 @@
 <(src_loc)/media/media_clip_reader.h
 <(src_loc)/mtproto/auth_key.cpp
 <(src_loc)/mtproto/auth_key.h
+<(src_loc)/mtproto/config_loader.cpp
+<(src_loc)/mtproto/config_loader.h
 <(src_loc)/mtproto/connection.cpp
 <(src_loc)/mtproto/connection.h
 <(src_loc)/mtproto/connection_abstract.cpp
@@ -262,6 +264,8 @@
 <(src_loc)/mtproto/sender.h
 <(src_loc)/mtproto/session.cpp
 <(src_loc)/mtproto/session.h
+<(src_loc)/mtproto/special_config_request.cpp
+<(src_loc)/mtproto/special_config_request.h
 <(src_loc)/overview/overview_layout.cpp
 <(src_loc)/overview/overview_layout.h
 <(src_loc)/platform/linux/linux_desktop_environment.cpp

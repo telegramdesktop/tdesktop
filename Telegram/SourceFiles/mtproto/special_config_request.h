@@ -22,49 +22,30 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace MTP {
 
-class Instance;
-class AuthKey;
-using AuthKeyPtr = std::shared_ptr<AuthKey>;
-
-namespace internal {
-
-class Dcenter : public QObject {
-	Q_OBJECT
-
+class SpecialConfigRequest : public QObject {
 public:
-	Dcenter(gsl::not_null<Instance*> instance, DcId dcId, AuthKeyPtr &&key);
+	SpecialConfigRequest(base::lambda<void(DcId dcId, const std::string &ip, int port)> callback);
 
-	QReadWriteLock *keyMutex() const;
-	const AuthKeyPtr &getKey() const;
-	void setKey(AuthKeyPtr &&key);
-	void destroyKey();
-
-	bool connectionInited() const {
-		QMutexLocker lock(&initLock);
-		bool res = _connectionInited;
-		return res;
-	}
-	void setConnectionInited(bool connectionInited = true) {
-		QMutexLocker lock(&initLock);
-		_connectionInited = connectionInited;
-	}
-
-signals:
-	void authKeyCreated();
-	void layerWasInited(bool was);
-
-private slots:
-	void authKeyWrite();
+	~SpecialConfigRequest();
 
 private:
-	mutable QReadWriteLock keyLock;
-	mutable QMutex initLock;
-	gsl::not_null<Instance*> _instance;
-	DcId _id = 0;
-	AuthKeyPtr _key;
-	bool _connectionInited = false;
+	void performAppRequest();
+	void performDnsRequest();
+	void appFinished();
+	void dnsFinished();
+	void handleResponse(const QByteArray &bytes);
+	bool decryptSimpleConfig(const QByteArray &bytes);
+
+	base::lambda<void(DcId dcId, const std::string &ip, int port)> _callback;
+	MTPhelp_ConfigSimple _simpleConfig;
+
+	QNetworkAccessManager _manager;
+	std::unique_ptr<QNetworkReply> _appReply;
+	std::unique_ptr<QNetworkReply> _dnsReply;
+
+	std::unique_ptr<DcOptions> _localOptions;
+	std::unique_ptr<Instance> _localInstance;
 
 };
 
-} // namespace internal
 } // namespace MTP

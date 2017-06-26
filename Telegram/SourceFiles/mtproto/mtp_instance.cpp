@@ -21,13 +21,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/mtp_instance.h"
 
 #include "mtproto/dc_options.h"
+#include "mtproto/dcenter.h"
+#include "mtproto/config_loader.h"
+#include "mtproto/connection.h"
+#include "mtproto/sender.h"
+#include "mtproto/rsa_public_key.h"
 #include "storage/localstorage.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "messenger.h"
-#include "mtproto/connection.h"
-#include "mtproto/sender.h"
-#include "mtproto/rsa_public_key.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_cloud_manager.h"
 #include "base/timer.h"
@@ -36,7 +38,7 @@ namespace MTP {
 
 class Instance::Private : private Sender {
 public:
-	Private(Instance *instance, DcOptions *options, Instance::Mode mode);
+	Private(gsl::not_null<Instance*> instance, gsl::not_null<DcOptions*> options, Instance::Mode mode);
 
 	void start(Config &&config);
 
@@ -48,7 +50,7 @@ public:
 	AuthKeysList getKeysForWrite() const;
 	void addKeysForDestroy(AuthKeysList &&keys);
 
-	DcOptions *dcOptions();
+	gsl::not_null<DcOptions*> dcOptions();
 
 	void requestConfig();
 	void requestCDNConfig();
@@ -66,7 +68,7 @@ public:
 	void reInitConnection(DcId dcId);
 	void logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail);
 
-	internal::DcenterPtr getDcById(ShiftedDcId shiftedDcId);
+	std::shared_ptr<internal::Dcenter> getDcById(ShiftedDcId shiftedDcId);
 	void unpaused();
 
 	void queueQuittingConnection(std::unique_ptr<internal::Connection> connection);
@@ -100,8 +102,14 @@ public:
 
 	internal::Session *getSession(ShiftedDcId shiftedDcId);
 
+	bool isNormal() const {
+		return (_mode == Instance::Mode::Normal);
+	}
 	bool isKeysDestroyer() const {
 		return (_mode == Instance::Mode::KeysDestroyer);
+	}
+	bool isSpecialConfigRequester() const {
+		return (_mode == Instance::Mode::SpecialConfigRequester);
 	}
 
 	void scheduleKeyDestroy(ShiftedDcId shiftedDcId);
@@ -129,13 +137,13 @@ private:
 
 	void checkDelayedRequests();
 
-	Instance *_instance = nullptr;
-	DcOptions *_dcOptions = nullptr;
+	gsl::not_null<Instance*> _instance;
+	gsl::not_null<DcOptions*> _dcOptions;
 	Instance::Mode _mode = Instance::Mode::Normal;
 
 	DcId _mainDcId = Config::kDefaultMainDc;
 	bool _mainDcIdForced = false;
-	internal::DcenterMap _dcenters;
+	std::map<DcId, std::shared_ptr<internal::Dcenter>> _dcenters;
 
 	internal::Session *_mainSession = nullptr;
 	std::map<ShiftedDcId, std::unique_ptr<internal::Session>> _sessions;
@@ -186,7 +194,8 @@ private:
 
 };
 
-Instance::Private::Private(Instance *instance, DcOptions *options, Instance::Mode mode) : Sender(), _instance(instance)
+Instance::Private::Private(gsl::not_null<Instance*> instance, gsl::not_null<DcOptions*> options, Instance::Mode mode) : Sender()
+, _instance(instance)
 , _dcOptions(options)
 , _mode(mode) {
 }
@@ -194,7 +203,7 @@ Instance::Private::Private(Instance *instance, DcOptions *options, Instance::Mod
 void Instance::Private::start(Config &&config) {
 	if (isKeysDestroyer()) {
 		_instance->connect(_instance, SIGNAL(keyDestroyed(qint32)), _instance, SLOT(onKeyDestroyed(qint32)), Qt::QueuedConnection);
-	} else {
+	} else if (isNormal()) {
 		unixtimeInit();
 	}
 
@@ -478,20 +487,29 @@ bool Instance::Private::logoutGuestDone(mtpRequestId requestId) {
 	return false;
 }
 
-internal::DcenterPtr Instance::Private::getDcById(ShiftedDcId shiftedDcId) {
+std::shared_ptr<internal::Dcenter> Instance::Private::getDcById(ShiftedDcId shiftedDcId) {
 	auto it = _dcenters.find(shiftedDcId);
 	if (it == _dcenters.cend()) {
 		auto dcId = bareDcId(shiftedDcId);
+		if (isTemporaryDcId(dcId)) {
+			if (auto realDcId = getRealIdFromTemporaryDcId(dcId)) {
+				dcId = realDcId;
+			}
+		}
 		it = _dcenters.find(dcId);
 		if (it == _dcenters.cend()) {
 			auto result = std::make_shared<internal::Dcenter>(_instance, dcId, AuthKeyPtr());
-			it = _dcenters.emplace(dcId, std::move(result)).first;
+			return _dcenters.emplace(dcId, std::move(result)).first->second;
 		}
 	}
 	return it->second;
 }
 
 void Instance::Private::setKeyForWrite(DcId dcId, const AuthKeyPtr &key) {
+	if (isTemporaryDcId(dcId)) {
+		return;
+	}
+
 	QWriteLocker lock(&_keysForWriteLock);
 	if (key) {
 		_keysForWrite[dcId] = key;
@@ -512,7 +530,7 @@ AuthKeysList Instance::Private::getKeysForWrite() const {
 }
 
 void Instance::Private::addKeysForDestroy(AuthKeysList &&keys) {
-	t_assert(isKeysDestroyer());
+	Expects(isKeysDestroyer());
 
 	for (auto &key : keys) {
 		auto dcId = key->dcId();
@@ -538,7 +556,7 @@ void Instance::Private::addKeysForDestroy(AuthKeysList &&keys) {
 	}
 }
 
-DcOptions *Instance::Private::dcOptions() {
+gsl::not_null<DcOptions*> Instance::Private::dcOptions() {
 	return _dcOptions;
 }
 
@@ -560,16 +578,12 @@ void Instance::Private::connectionFinished(internal::Connection *connection) {
 }
 
 void Instance::Private::configLoadDone(const MTPConfig &result) {
+	Expects(result.type() == mtpc_config);
+
 	_configLoader.reset();
 
-	if (result.type() != mtpc_config) {
-		LOG(("MTP Error: wrong config constructor: %1").arg(result.type()));
-		return;
-	}
 	auto &data = result.c_config();
-
 	DEBUG_LOG(("MTP Info: got config, chat_size_max: %1, date: %2, test_mode: %3, this_dc: %4, dc_options.length: %5").arg(data.vchat_size_max.v).arg(data.vdate.v).arg(mtpIsTrue(data.vtest_mode)).arg(data.vthis_dc.v).arg(data.vdc_options.v.size()));
-
 	if (data.vdc_options.v.empty()) {
 		LOG(("MTP Error: config with empty dc_options received!"));
 	} else {
@@ -1175,7 +1189,7 @@ internal::Session *Instance::Private::getSession(ShiftedDcId shiftedDcId) {
 }
 
 void Instance::Private::scheduleKeyDestroy(ShiftedDcId shiftedDcId) {
-	t_assert(isKeysDestroyer());
+	Expects(isKeysDestroyer());
 
 	_instance->send(MTPauth_LogOut(), rpcDone([this, shiftedDcId](const MTPBool &result) {
 		performKeyDestroy(shiftedDcId);
@@ -1187,7 +1201,7 @@ void Instance::Private::scheduleKeyDestroy(ShiftedDcId shiftedDcId) {
 }
 
 void Instance::Private::performKeyDestroy(ShiftedDcId shiftedDcId) {
-	t_assert(isKeysDestroyer());
+	Expects(isKeysDestroyer());
 
 	_instance->send(MTPDestroy_auth_key(), rpcDone([this, shiftedDcId](const MTPDestroyAuthKeyRes &result) {
 		switch (result.type()) {
@@ -1207,7 +1221,7 @@ void Instance::Private::performKeyDestroy(ShiftedDcId shiftedDcId) {
 }
 
 void Instance::Private::completedKeyDestroy(ShiftedDcId shiftedDcId) {
-	t_assert(isKeysDestroyer());
+	Expects(isKeysDestroyer());
 
 	_dcenters.erase(shiftedDcId);
 	{
@@ -1257,7 +1271,7 @@ void Instance::Private::prepareToDestroy() {
 	MustNotCreateSessions = true;
 }
 
-Instance::Instance(DcOptions *options, Mode mode, Config &&config) : QObject()
+Instance::Instance(gsl::not_null<DcOptions*> options, Mode mode, Config &&config) : QObject()
 , _private(std::make_unique<Private>(this, options, mode)) {
 	_private->start(std::move(config));
 }
@@ -1338,7 +1352,7 @@ void Instance::logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail) {
 	_private->logout(onDone, onFail);
 }
 
-internal::DcenterPtr Instance::getDcById(ShiftedDcId shiftedDcId) {
+std::shared_ptr<internal::Dcenter> Instance::getDcById(ShiftedDcId shiftedDcId) {
 	return _private->getDcById(shiftedDcId);
 }
 
@@ -1354,7 +1368,7 @@ void Instance::addKeysForDestroy(AuthKeysList &&keys) {
 	_private->addKeysForDestroy(std::move(keys));
 }
 
-DcOptions *Instance::dcOptions() {
+gsl::not_null<DcOptions*> Instance::dcOptions() {
 	return _private->dcOptions();
 }
 

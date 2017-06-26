@@ -214,6 +214,11 @@ inline void copy_bytes(byte_span destination, const_byte_span source) {
 	memcpy(destination.data(), source.data(), source.size());
 }
 
+inline void move_bytes(byte_span destination, const_byte_span source) {
+	Expects(destination.size() >= source.size());
+	memmove(destination.data(), source.data(), source.size());
+}
+
 inline void set_bytes(byte_span destination, gsl::byte value) {
 	memset(destination.data(), gsl::to_integer<unsigned char>(value), destination.size());
 }
@@ -432,23 +437,29 @@ inline void memsetrnd_bad(T &value) {
 
 class ReadLockerAttempt {
 public:
-
-	ReadLockerAttempt(QReadWriteLock *_lock) : success(_lock->tryLockForRead()), lock(_lock) {
+	ReadLockerAttempt(gsl::not_null<QReadWriteLock*> lock) : _lock(lock), _locked(_lock->tryLockForRead()) {
+	}
+	ReadLockerAttempt(const ReadLockerAttempt &other) = delete;
+	ReadLockerAttempt &operator=(const ReadLockerAttempt &other) = delete;
+	ReadLockerAttempt(ReadLockerAttempt &&other) : _lock(other._lock), _locked(base::take(other._locked)) {
+	}
+	ReadLockerAttempt &operator=(ReadLockerAttempt &&other) {
+		_lock = other._lock;
+		_locked = base::take(other._locked);
 	}
 	~ReadLockerAttempt() {
-		if (success) {
-			lock->unlock();
+		if (_locked) {
+			_lock->unlock();
 		}
 	}
 
 	operator bool() const {
-		return success;
+		return _locked;
 	}
 
 private:
-
-	bool success;
-	QReadWriteLock *lock;
+	gsl::not_null<QReadWriteLock*> _lock;
+	bool _locked = false;
 
 };
 

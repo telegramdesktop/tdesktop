@@ -21,9 +21,26 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/session.h"
 
 #include "mtproto/connection.h"
+#include "mtproto/dcenter.h"
+#include "mtproto/auth_key.h"
 
 namespace MTP {
 namespace internal {
+
+void SessionData::setKey(const AuthKeyPtr &key) {
+	if (_authKey != key) {
+		uint64 session = rand_value<uint64>();
+		_authKey = key;
+
+		DEBUG_LOG(("MTP Info: new auth key set in SessionData, id %1, setting random server_session %2").arg(key ? key->keyId() : 0).arg(session));
+		QWriteLocker locker(&_lock);
+		if (_session != session) {
+			_session = session;
+			_messagesSent = 0;
+		}
+		_layerInited = false;
+	}
+}
 
 void SessionData::clear(Instance *instance) {
 	RPCCallbackClears clearCallbacks;
@@ -97,10 +114,11 @@ void Session::createDcData() {
 	}
 	dc = _instance->getDcById(dcWithShift);
 
-	ReadLockerAttempt lock(keyMutex());
-	data.setKey(lock ? dc->getKey() : AuthKeyPtr());
-	if (lock && dc->connectionInited()) {
-		data.setLayerWasInited(true);
+	if (auto lock = ReadLockerAttempt(keyMutex())) {
+		data.setKey(dc->getKey());
+		if (dc->connectionInited()) {
+			data.setLayerWasInited(true);
+		}
 	}
 	connect(dc.get(), SIGNAL(authKeyCreated()), this, SLOT(authKeyCreatedForDC()), Qt::QueuedConnection);
 	connect(dc.get(), SIGNAL(layerWasInited(bool)), this, SLOT(layerWasInitedForDC(bool)), Qt::QueuedConnection);

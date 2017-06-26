@@ -219,6 +219,9 @@ QByteArray DcOptions::serialize() const {
 
 	auto size = sizeof(qint32);
 	for (auto &item : _data) {
+		if (isTemporaryDcId(item.first)) {
+			continue;
+		}
 		size += sizeof(qint32) + sizeof(qint32) + sizeof(qint32); // id + flags + port
 		size += sizeof(qint32) + item.second.ip.size();
 	}
@@ -254,6 +257,9 @@ QByteArray DcOptions::serialize() const {
 		stream.setVersion(QDataStream::Qt_5_1);
 		stream << qint32(_data.size());
 		for (auto &item : _data) {
+			if (isTemporaryDcId(item.first)) {
+				continue;
+			}
 			stream << qint32(item.second.id) << qint32(item.second.flags) << qint32(item.second.port);
 			stream << qint32(item.second.ip.size());
 			stream.writeRawData(item.second.ip.data(), item.second.ip.size());
@@ -332,7 +338,9 @@ DcOptions::Ids DcOptions::configEnumDcIds() const {
 		ReadLocker lock(this);
 		result.reserve(_data.size());
 		for (auto &item : _data) {
-			if (!isCdnDc(item.second.flags) && !base::contains(result, item.second.id)) {
+			if (!isCdnDc(item.second.flags)
+				&& !isTemporaryDcId(item.first)
+				&& !base::contains(result, item.second.id)) {
 				result.push_back(item.second.id);
 			}
 		}
@@ -342,6 +350,9 @@ DcOptions::Ids DcOptions::configEnumDcIds() const {
 }
 
 DcType DcOptions::dcType(ShiftedDcId shiftedDcId) const {
+	if (isTemporaryDcId(shiftedDcId)) {
+		return DcType::Temporary;
+	}
 	ReadLocker lock(this);
 	if (_cdnDcIds.find(bareDcId(shiftedDcId)) != _cdnDcIds.cend()) {
 		return DcType::Cdn;
@@ -398,7 +409,8 @@ bool DcOptions::getDcRSAKey(DcId dcId, const QVector<MTPlong> &fingerprints, int
 DcOptions::Variants DcOptions::lookup(DcId dcId, DcType type) const {
 	auto lookupDesiredFlags = [type](int address, int protocol) -> std::vector<MTPDdcOption::Flags> {
 		switch (type) {
-		case DcType::Regular: {
+		case DcType::Regular:
+		case DcType::Temporary: {
 			switch (address) {
 			case Variants::IPv4: {
 				switch (protocol) {

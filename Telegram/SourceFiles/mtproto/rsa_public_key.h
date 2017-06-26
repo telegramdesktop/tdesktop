@@ -43,6 +43,9 @@ public:
 	// data has exactly 256 chars to be encrypted
 	base::byte_vector encrypt(base::const_byte_span data) const;
 
+	// data has exactly 256 chars to be decrypted
+	base::byte_vector decrypt(base::const_byte_span data) const;
+
 private:
 	class Private;
 	std::shared_ptr<Private> _private;

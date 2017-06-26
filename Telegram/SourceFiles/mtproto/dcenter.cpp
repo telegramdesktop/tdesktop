@@ -21,8 +21,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/dcenter.h"
 
 #include "mtproto/facade.h"
+#include "mtproto/auth_key.h"
 #include "mtproto/dc_options.h"
 #include "mtproto/mtp_instance.h"
+#include "mtproto/special_config_request.h"
 #include "storage/localstorage.h"
 
 namespace MTP {
@@ -30,10 +32,11 @@ namespace internal {
 namespace {
 
 constexpr auto kEnumerateDcTimeout = 8000; // 8 seconds timeout for help_getConfig to work (then move to other dc)
+constexpr auto kSpecialRequestTimeoutMs = 6000; // 4 seconds timeout for it to work in a specially requested dc.
 
 } // namespace
 
-Dcenter::Dcenter(Instance *instance, DcId dcId, AuthKeyPtr &&key)
+Dcenter::Dcenter(gsl::not_null<Instance*> instance, DcId dcId, AuthKeyPtr &&key)
 : _instance(instance)
 , _id(dcId)
 , _key(std::move(key)) {
@@ -65,61 +68,6 @@ const AuthKeyPtr &Dcenter::getKey() const {
 
 void Dcenter::destroyKey() {
 	setKey(AuthKeyPtr());
-}
-
-ConfigLoader::ConfigLoader(Instance *instance, RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail) : _instance(instance)
-, _doneHandler(onDone)
-, _failHandler(onFail) {
-	connect(&_enumDCTimer, SIGNAL(timeout()), this, SLOT(enumDC()));
-}
-
-void ConfigLoader::load() {
-	if (!_instance->isKeysDestroyer()) {
-		sendRequest(_instance->mainDcId());
-		_enumDCTimer.start(kEnumerateDcTimeout);
-	} else {
-		auto ids = _instance->dcOptions()->configEnumDcIds();
-		t_assert(!ids.empty());
-		_enumCurrent = ids.front();
-		enumDC();
-	}
-}
-
-mtpRequestId ConfigLoader::sendRequest(ShiftedDcId shiftedDcId) {
-	return _instance->send(MTPhelp_GetConfig(), _doneHandler, _failHandler, shiftedDcId);
-}
-
-ConfigLoader::~ConfigLoader() {
-	if (_enumRequest) {
-		_instance->cancel(_enumRequest);
-	}
-	if (_enumCurrent) {
-		_instance->killSession(MTP::configDcId(_enumCurrent));
-	}
-}
-
-void ConfigLoader::enumDC() {
-	if (_enumRequest) {
-		_instance->cancel(_enumRequest);
-	}
-
-	if (!_enumCurrent) {
-		_enumCurrent = _instance->mainDcId();
-	} else {
-		_instance->killSession(MTP::configDcId(_enumCurrent));
-	}
-	auto ids = _instance->dcOptions()->configEnumDcIds();
-	t_assert(!ids.empty());
-
-	auto i = std::find(ids.cbegin(), ids.cend(), _enumCurrent);
-	if (i == ids.cend() || (++i) == ids.cend()) {
-		_enumCurrent = ids.front();
-	} else {
-		_enumCurrent = *i;
-	}
-	_enumRequest = sendRequest(MTP::configDcId(_enumCurrent));
-
-	_enumDCTimer.start(kEnumerateDcTimeout);
 }
 
 } // namespace internal

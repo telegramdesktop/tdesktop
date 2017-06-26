@@ -380,9 +380,11 @@ void Messenger::startLocalStorage() {
 		}
 	});
 	subscribe(authSessionChanged(), [this] {
-		if (_mtproto) {
-			_mtproto->requestConfig();
-		}
+		InvokeQueued(this, [this] {
+			if (_mtproto) {
+				_mtproto->requestConfig();
+			}
+		});
 	});
 }
 

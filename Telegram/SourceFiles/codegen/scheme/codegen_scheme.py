@@ -106,7 +106,7 @@ with open(input_file) as f:
     if (re.match(r'^\s*$', line)):
       continue;
 
-    nametype = re.match(r'([a-zA-Z\.0-9_]+)#([0-9a-f]+)([^=]*)=\s*([a-zA-Z\.<>0-9_]+);', line);
+    nametype = re.match(r'([a-zA-Z\.0-9_]+)(#[0-9a-f]+)?([^=]*)=\s*([a-zA-Z\.<>0-9_]+);', line);
     if (not nametype):
       if (not re.match(r'vector#1cb5c415 \{t:Type\} # \[ t \] = Vector t;', line)):
         print('Bad line found: ' + line);
@@ -120,11 +120,10 @@ with open(input_file) as f:
     else:
       Name = name[0:1].upper() + name[1:];
     typeid = nametype.group(2);
-    while (len(typeid) > 0 and typeid[0] == '0'):
+    if (typeid and len(typeid) > 0):
+      typeid = typeid[1:]; # Skip '#'
+    while (typeid and len(typeid) > 0 and typeid[0] == '0'):
       typeid = typeid[1:];
-    if (len(typeid) == 0):
-      typeid = '0';
-    typeid = '0x' + typeid;
 
     cleanline = nametype.group(1) + nametype.group(3) + '= ' + nametype.group(4);
     cleanline = re.sub(r' [a-zA-Z0-9_]+\:flags\.[0-9]+\?true', '', cleanline);
@@ -139,9 +138,13 @@ with open(input_file) as f:
     if (countTypeId < 0):
       countTypeId += 2 ** 32;
     countTypeId = '0x' + re.sub(r'^0x|L$', '', hex(countTypeId));
-    if (typeid != countTypeId):
-      print('Warning: counted ' + countTypeId + ' mismatch with provided ' + typeid + ' (' + cleanline + ')');
-      continue;
+    if (typeid and len(typeid) > 0):
+      typeid = '0x' + typeid;
+      if (typeid != countTypeId):
+        print('Warning: counted ' + countTypeId + ' mismatch with provided ' + typeid + ' (' + cleanline + ')');
+        continue;
+    else:
+      typeid = countTypeId;
 
     params = nametype.group(3);
     restype = nametype.group(4);
