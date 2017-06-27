@@ -88,6 +88,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_continue" = "Continue";
 "lng_close" = "Close";
 "lng_connecting" = "Connecting...";
+"lng_connecting_to_proxy" = "Connecting to proxy...";
+"lng_connecting_settings" = "Settings";
 "lng_reconnecting#one" = "Reconnect in {count} s...";
 "lng_reconnecting#other" = "Reconnect in {count} s...";
 "lng_reconnecting_try_now" = "Try now";

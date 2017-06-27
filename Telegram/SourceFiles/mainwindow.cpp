@@ -41,6 +41,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/confirm_box.h"
 #include "boxes/contacts_box.h"
 #include "boxes/add_contact_box.h"
+#include "boxes/connection_box.h"
 #include "observer_peer.h"
 #include "autoupdater.h"
 #include "mediaview.h"
@@ -113,7 +114,12 @@ void ConnectingWidget::paintEvent(QPaintEvent *e) {
 }
 
 void ConnectingWidget::onReconnect() {
-	MTP::restart();
+	auto throughProxy = (Global::ConnectionType() != dbictAuto);
+	if (throughProxy) {
+		Ui::show(Box<ConnectionBox>());
+	} else {
+		MTP::restart();
+	}
 }
 
 MainWindow::MainWindow() {
@@ -371,13 +377,14 @@ void MainWindow::mtpStateChanged(int32 dc, int32 state) {
 }
 
 void MainWindow::updateConnectingStatus() {
-	int32 state = MTP::dcstate();
+	auto state = MTP::dcstate();
+	auto throughProxy = (Global::ConnectionType() != dbictAuto);
 	if (state == MTP::ConnectingState || state == MTP::DisconnectedState || (state < 0 && state > -600)) {
 		if (_main || getms() > 5000 || _connecting) {
-			showConnecting(lang(lng_connecting));
+			showConnecting(lang(throughProxy ? lng_connecting_to_proxy : lng_connecting), throughProxy ? lang(lng_connecting_settings) : QString());
 		}
 	} else if (state < 0) {
-		showConnecting(lng_reconnecting(lt_count, ((-state) / 1000) + 1), lang(lng_reconnecting_try_now));
+		showConnecting(lng_reconnecting(lt_count, ((-state) / 1000) + 1), lang(throughProxy ? lng_connecting_settings : lng_reconnecting_try_now));
 		QTimer::singleShot((-state) % 1000, this, SLOT(updateConnectingStatus()));
 	} else {
 		hideConnecting();
