@@ -45,6 +45,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/tooltip.h"
 #include "storage/serialize_common.h"
 #include "window/window_controller.h"
+#include "base/qthelp_regex.h"
+#include "base/qthelp_url.h"
+#include "boxes/connection_box.h"
+#include "boxes/confirm_phone_box.h"
+#include "boxes/share_box.h"
 
 namespace {
 
@@ -649,6 +654,98 @@ QString Messenger::createInternalLink(const QString &query) const {
 
 QString Messenger::createInternalLinkFull(const QString &query) const {
 	return Global::InternalLinksDomain() + query;
+}
+
+void Messenger::checkStartUrl() {
+	if (!cStartUrl().isEmpty() && !App::passcoded()) {
+		auto url = cStartUrl();
+		cSetStartUrl(QString());
+		if (!openLocalUrl(url)) {
+			cSetStartUrl(url);
+		}
+	}
+}
+
+bool Messenger::openLocalUrl(const QString &url) {
+	auto urlTrimmed = url.trimmed();
+	if (urlTrimmed.size() > 8192) urlTrimmed = urlTrimmed.mid(0, 8192);
+
+	if (!urlTrimmed.startsWith(qstr("tg://"), Qt::CaseInsensitive) || App::passcoded()) {
+		return false;
+	}
+	auto command = urlTrimmed.midRef(qstr("tg://").size());
+
+	using namespace qthelp;
+	auto matchOptions = RegExOption::CaseInsensitive;
+	if (auto joinChatMatch = regex_match(qsl("^join/?\\?invite=([a-zA-Z0-9\\.\\_\\-]+)(&|$)"), command, matchOptions)) {
+		if (auto main = App::main()) {
+			main->joinGroupByHash(joinChatMatch->captured(1));
+			return true;
+		}
+	} else if (auto stickerSetMatch = regex_match(qsl("^addstickers/?\\?set=([a-zA-Z0-9\\.\\_]+)(&|$)"), command, matchOptions)) {
+		if (auto main = App::main()) {
+			main->stickersBox(MTP_inputStickerSetShortName(MTP_string(stickerSetMatch->captured(1))));
+			return true;
+		}
+	} else if (auto shareUrlMatch = regex_match(qsl("^msg_url/?\\?(.+)(#|$)"), command, matchOptions)) {
+		if (auto main = App::main()) {
+			auto params = url_parse_params(shareUrlMatch->captured(1), UrlParamNameTransform::ToLower);
+			auto url = params.value(qsl("url"));
+			if (!url.isEmpty()) {
+				main->shareUrlLayer(url, params.value("text"));
+				return true;
+			}
+		}
+	} else if (auto confirmPhoneMatch = regex_match(qsl("^confirmphone/?\\?(.+)(#|$)"), command, matchOptions)) {
+		if (auto main = App::main()) {
+			auto params = url_parse_params(confirmPhoneMatch->captured(1), UrlParamNameTransform::ToLower);
+			auto phone = params.value(qsl("phone"));
+			auto hash = params.value(qsl("hash"));
+			if (!phone.isEmpty() && !hash.isEmpty()) {
+				ConfirmPhoneBox::start(phone, hash);
+				return true;
+			}
+		}
+	} else if (auto usernameMatch = regex_match(qsl("^resolve/?\\?(.+)(#|$)"), command, matchOptions)) {
+		if (auto main = App::main()) {
+			auto params = url_parse_params(usernameMatch->captured(1), UrlParamNameTransform::ToLower);
+			auto domain = params.value(qsl("domain"));
+			if (regex_match(qsl("^[a-zA-Z0-9\\.\\_]+$"), domain, matchOptions)) {
+				auto start = qsl("start");
+				auto startToken = params.value(start);
+				if (startToken.isEmpty()) {
+					start = qsl("startgroup");
+					startToken = params.value(start);
+					if (startToken.isEmpty()) {
+						start = QString();
+					}
+				}
+				auto post = (start == qsl("startgroup")) ? ShowAtProfileMsgId : ShowAtUnreadMsgId;
+				auto postParam = params.value(qsl("post"));
+				if (auto postId = postParam.toInt()) {
+					post = postId;
+				}
+				auto gameParam = params.value(qsl("game"));
+				if (!gameParam.isEmpty() && regex_match(qsl("^[a-zA-Z0-9\\.\\_]+$"), gameParam, matchOptions)) {
+					startToken = gameParam;
+					post = ShowAtGameShareMsgId;
+				}
+				main->openPeerByName(domain, post, startToken);
+				return true;
+			}
+		}
+	} else if (auto shareGameScoreMatch = regex_match(qsl("^share_game_score/?\\?(.+)(#|$)"), command, matchOptions)) {
+		if (auto main = App::main()) {
+			auto params = url_parse_params(shareGameScoreMatch->captured(1), UrlParamNameTransform::ToLower);
+			ShareGameScoreByHash(params.value(qsl("hash")));
+			return true;
+		}
+	} else if (auto socksMatch = regex_match(qsl("^socks/?\\?(.+)(#|$)"), command, matchOptions)) {
+		auto params = url_parse_params(socksMatch->captured(1), UrlParamNameTransform::ToLower);
+		ConnectionBox::ShowApplyProxyConfirmation(params);
+		return true;
+	}
+	return false;
 }
 
 FileUploader *Messenger::uploader() {

@@ -128,9 +128,12 @@ public:
 		return *_audio;
 	}
 
+	// Internal links.
 	void setInternalLinkDomain(const QString &domain) const;
 	QString createInternalLink(const QString &query) const;
 	QString createInternalLinkFull(const QString &query) const;
+	void checkStartUrl();
+	bool openLocalUrl(const QString &url);
 
 	FileUploader *uploader();
 	void uploadProfilePhoto(const QImage &tosend, const PeerId &peerId);

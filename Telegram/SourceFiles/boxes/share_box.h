@@ -37,8 +37,8 @@ namespace Ui {
 class MultiSelect;
 } // namespace Ui
 
-QString appendShareGameScoreUrl(const QString &url, const FullMsgId &fullId);
-void shareGameScoreByHash(const QString &hash);
+QString AppendShareGameScoreUrl(const QString &url, const FullMsgId &fullId);
+void ShareGameScoreByHash(const QString &hash);
 
 class ShareBox : public BoxContent, public RPCSender {
 	Q_OBJECT

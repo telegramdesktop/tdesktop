@@ -73,7 +73,6 @@ void searchByHashtag(const QString &tag, PeerData *inPeer);
 void openPeerByName(const QString &username, MsgId msgId = ShowAtUnreadMsgId, const QString &startToken = QString());
 void joinGroupByHash(const QString &hash);
 void stickersBox(const QString &name);
-void openLocalUrl(const QString &url);
 bool forward(const PeerId &peer, ForwardWhatMessages what);
 void removeDialog(History *history);
 void showSettings();

@@ -286,9 +286,7 @@ void Application::readClients() {
 	if (!startUrl.isEmpty()) {
 		cSetStartUrl(startUrl);
 	}
-	if (auto main = App::main()) {
-		main->checkStartUrl();
-	}
+	Messenger::Instance().checkStartUrl();
 }
 
 void Application::removeClients() {

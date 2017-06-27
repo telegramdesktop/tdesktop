@@ -39,6 +39,8 @@ class ConnectionBox : public BoxContent {
 public:
 	ConnectionBox(QWidget *parent);
 
+	static void ShowApplyProxyConfirmation(const QMap<QString, QString> &fields);
+
 protected:
 	void prepare() override;
 	void setInnerFocus() override;

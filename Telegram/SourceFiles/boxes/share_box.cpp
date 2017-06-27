@@ -809,7 +809,7 @@ QVector<PeerData*> ShareBox::Inner::selected() const {
 	return result;
 }
 
-QString appendShareGameScoreUrl(const QString &url, const FullMsgId &fullId) {
+QString AppendShareGameScoreUrl(const QString &url, const FullMsgId &fullId) {
 	auto shareHashData = QByteArray(0x10, Qt::Uninitialized);
 	auto shareHashDataInts = reinterpret_cast<int32*>(shareHashData.data());
 	auto channel = fullId.channel ? App::channelLoaded(fullId.channel) : static_cast<ChannelData*>(nullptr);
@@ -854,7 +854,7 @@ QString appendShareGameScoreUrl(const QString &url, const FullMsgId &fullId) {
 
 namespace {
 
-void shareGameScoreFromItem(HistoryItem *item) {
+void ShareGameScoreFromItem(HistoryItem *item) {
 	struct ShareGameScoreData {
 		ShareGameScoreData(const FullMsgId &msgId) : msgId(msgId) {
 		}
@@ -949,7 +949,7 @@ void shareGameScoreFromItem(HistoryItem *item) {
 
 } // namespace
 
-void shareGameScoreByHash(const QString &hash) {
+void ShareGameScoreByHash(const QString &hash) {
 	auto key128Size = 0x10;
 
 	auto hashEncrypted = QByteArray::fromBase64(hash.toLatin1(), QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
@@ -1000,12 +1000,12 @@ void shareGameScoreByHash(const QString &hash) {
 	}
 
 	if (auto item = App::histItemById(channelId, msgId)) {
-		shareGameScoreFromItem(item);
+		ShareGameScoreFromItem(item);
 	} else if (App::api()) {
 		auto resolveMessageAndShareScore = [msgId](ChannelData *channel) {
 			App::api()->requestMessageData(channel, msgId, [](ChannelData *channel, MsgId msgId) {
 				if (auto item = App::histItemById(channel, msgId)) {
-					shareGameScoreFromItem(item);
+					ShareGameScoreFromItem(item);
 				} else {
 					Ui::show(Box<InformBox>(lang(lng_edit_deleted)));
 				}

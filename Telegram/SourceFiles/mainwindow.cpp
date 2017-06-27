@@ -218,7 +218,7 @@ void MainWindow::clearPasscode() {
 	} else {
 		t_assert(_main != nullptr);
 		_main->showAnimated(bg, true);
-		_main->checkStartUrl();
+		Messenger::Instance().checkStartUrl();
 	}
 }
 
@@ -609,9 +609,7 @@ bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 			QString url = static_cast<QFileOpenEvent*>(e)->url().toEncoded().trimmed();
 			if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
 				cSetStartUrl(url.mid(0, 8192));
-				if (_main) {
-					_main->checkStartUrl();
-				}
+				Messenger::Instance().checkStartUrl();
 			}
 			activate();
 		}

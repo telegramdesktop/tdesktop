@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/click_handler_types.h"
 
 #include "lang/lang_keys.h"
+#include "messenger.h"
 #include "platform/platform_specific.h"
 #include "boxes/confirm_box.h"
 #include "base/qthelp_regex.h"
@@ -58,6 +59,8 @@ QString tryConvertUrlToLocal(QString url) {
 				|| previewedUrl.startsWith(qstr("https://"), Qt::CaseInsensitive)) {
 				return previewedUrl;
 			}
+		} else if (auto socksMatch = regex_match(qsl("socks/?\\?(.+)(#|$)"), query, matchOptions)) {
+			return qsl("tg://socks?") + socksMatch->captured(1);
 		} else if (auto usernameMatch = regex_match(qsl("^([a-zA-Z0-9\\.\\_]+)(/?\\?|/?$|/(\\d+)/?(?:\\?|$))"), query, matchOptions)) {
 			auto params = query.mid(usernameMatch->captured(0).size()).toString();
 			auto postParam = QString();
@@ -83,7 +86,7 @@ void UrlClickHandler::doOpen(QString url) {
 	url = tryConvertUrlToLocal(url);
 
 	if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
-		App::openLocalUrl(url);
+		Messenger::Instance().openLocalUrl(url);
 	} else {
 		QDesktopServices::openUrl(url);
 	}
@@ -113,7 +116,7 @@ void HiddenUrlClickHandler::doOpen(QString url) {
 	auto urlText = tryConvertUrlToLocal(url);
 
 	if (urlText.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
-		App::openLocalUrl(urlText);
+		Messenger::Instance().openLocalUrl(urlText);
 	} else {
 		auto parsedUrl = QUrl::fromUserInput(urlText);
 		auto displayUrl = parsedUrl.isValid() ? parsedUrl.toDisplayString() : urlText;
@@ -128,7 +131,7 @@ void BotGameUrlClickHandler::onClick(Qt::MouseButton button) const {
 	auto urlText = tryConvertUrlToLocal(url());
 
 	if (urlText.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
-		App::openLocalUrl(urlText);
+		Messenger::Instance().openLocalUrl(urlText);
 	} else if (!_bot || _bot->isVerified() || Local::isBotTrusted(_bot)) {
 		doOpen(urlText);
 	} else {

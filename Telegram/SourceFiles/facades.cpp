@@ -167,10 +167,6 @@ void stickersBox(const QString &name) {
 	if (MainWidget *m = main()) m->stickersBox(MTP_inputStickerSetShortName(MTP_string(name)));
 }
 
-void openLocalUrl(const QString &url) {
-	if (MainWidget *m = main()) m->openLocalUrl(url);
-}
-
 bool forward(const PeerId &peer, ForwardWhatMessages what) {
 	if (MainWidget *m = main()) return m->onForward(peer, what);
 	return false;

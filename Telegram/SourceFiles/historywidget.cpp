@@ -3510,7 +3510,7 @@ void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotC
 		} else if (answerData.has_url()) {
 			auto url = qs(answerData.vurl);
 			if (info.game) {
-				url = appendShareGameScoreUrl(url, info.msgId);
+				url = AppendShareGameScoreUrl(url, info.msgId);
 				BotGameUrlClickHandler(info.bot, url).onClick(Qt::LeftButton);
 				if (item && (!item->history()->peer->isChannel() || item->history()->peer->isMegagroup())) {
 					updateSendAction(item->history(), SendAction::Type::PlayGame);

@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "boxes/connection_box.h"
 
+#include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "mainwidget.h"
@@ -29,6 +30,30 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/input_fields.h"
 #include "history/history_location_manager.h"
 #include "styles/style_boxes.h"
+
+void ConnectionBox::ShowApplyProxyConfirmation(const QMap<QString, QString> &fields) {
+	auto server = fields.value(qsl("server"));
+	auto port = fields.value(qsl("port")).toInt();
+	if (!server.isEmpty() && port != 0) {
+		auto weakBox = std::make_shared<QPointer<ConfirmBox>>(nullptr);
+		auto box = Ui::show(Box<ConfirmBox>(lng_sure_enable_socks(lt_server, server, lt_port, QString::number(port)), lang(lng_sure_enable), [fields, weakBox] {
+			auto p = ProxyData();
+			p.host = fields.value(qsl("server"));
+			p.user = fields.value(qsl("user"));
+			p.password = fields.value(qsl("pass"));
+			p.port = fields.value(qsl("port")).toInt();
+			Global::SetConnectionType(dbictTcpProxy);
+			Global::SetConnectionProxy(p);
+			Local::writeSettings();
+			Global::RefConnectionTypeChanged().notify();
+			MTP::restart();
+			reinitLocationManager();
+			reinitWebLoadManager();
+			if (*weakBox) (*weakBox)->closeBox();
+		}), KeepOtherLayers);
+		*weakBox = box;
+	}
+}
 
 ConnectionBox::ConnectionBox(QWidget *parent)
 : _hostInput(this, st::connectionHostInputField, langFactory(lng_connection_host_ph), Global::ConnectionProxy().host)

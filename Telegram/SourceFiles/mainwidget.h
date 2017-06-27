@@ -168,8 +168,6 @@ public:
 
 	void start(const MTPUser *self = nullptr);
 
-	void checkStartUrl();
-	void openLocalUrl(const QString &str);
 	void openPeerByName(const QString &name, MsgId msgId = ShowAtUnreadMsgId, const QString &startToken = QString());
 	void joinGroupByHash(const QString &hash);
 	void stickersBox(const MTPInputStickerSet &set);
