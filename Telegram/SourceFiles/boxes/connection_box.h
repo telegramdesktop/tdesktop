@@ -49,12 +49,14 @@ protected:
 
 private slots:
 	void onSubmit();
+	void onFieldFocus();
 	void onSave();
 
 private:
 	void typeChanged(DBIConnectionType type);
 	void updateControlsVisibility();
 	void updateControlsPosition();
+	bool badProxyValue() const;
 
 	object_ptr<Ui::InputField> _hostInput;
 	object_ptr<Ui::PortInput> _portInput;

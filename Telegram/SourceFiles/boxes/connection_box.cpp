@@ -43,6 +43,7 @@ void ConnectionBox::ShowApplyProxyConfirmation(const QMap<QString, QString> &fie
 			p.password = fields.value(qsl("pass"));
 			p.port = fields.value(qsl("port")).toInt();
 			Global::SetConnectionType(dbictTcpProxy);
+			Global::SetLastProxyType(dbictTcpProxy);
 			Global::SetConnectionProxy(p);
 			Local::writeSettings();
 			Global::RefConnectionTypeChanged().notify();
@@ -79,13 +80,21 @@ void ConnectionBox::prepare() {
 	connect(_portInput, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(_userInput, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(_passwordInput, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
+	connect(_hostInput, SIGNAL(focused()), this, SLOT(onFieldFocus()));
+	connect(_portInput, SIGNAL(focused()), this, SLOT(onFieldFocus()));
+	connect(_userInput, SIGNAL(focused()), this, SLOT(onFieldFocus()));
+	connect(_passwordInput, SIGNAL(focused()), this, SLOT(onFieldFocus()));
 
 	updateControlsVisibility();
 }
 
+bool ConnectionBox::badProxyValue() const {
+	return (_hostInput->getLastText().isEmpty() || !_portInput->getLastText().toInt());
+}
+
 void ConnectionBox::updateControlsVisibility() {
 	auto newHeight = st::boxOptionListPadding.top() + _autoRadio->heightNoMargins() + st::boxOptionListSkip + _httpProxyRadio->heightNoMargins() + st::boxOptionListSkip + _tcpProxyRadio->heightNoMargins() + st::boxOptionListSkip + st::connectionIPv6Skip + _tryIPv6->heightNoMargins() + st::boxOptionListPadding.bottom() + st::boxPadding.bottom();
-	if (_typeGroup->value() == dbictAuto) {
+	if (_typeGroup->value() == dbictAuto && badProxyValue()) {
 		_hostInput->hide();
 		_portInput->hide();
 		_userInput->hide();
@@ -103,7 +112,7 @@ void ConnectionBox::updateControlsVisibility() {
 }
 
 void ConnectionBox::setInnerFocus() {
-	if (_hostInput->isHidden()) {
+	if (_typeGroup->value() == dbictAuto) {
 		setFocus();
 	} else {
 		_hostInput->setFocusFast();
@@ -122,12 +131,15 @@ void ConnectionBox::updateControlsPosition() {
 	_httpProxyRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _autoRadio->bottomNoMargins() + st::boxOptionListSkip);
 
 	auto inputy = 0;
-	if (type == dbictHttpProxy) {
+	auto fieldsVisible = (type != dbictAuto) || (!badProxyValue() && Global::LastProxyType() != dbictAuto);
+	auto fieldsBelowHttp = fieldsVisible && (type == dbictHttpProxy || (type == dbictAuto && Global::LastProxyType() == dbictHttpProxy));
+	auto fieldsBelowTcp = fieldsVisible && (type == dbictTcpProxy || (type == dbictAuto && Global::LastProxyType() == dbictTcpProxy));
+	if (fieldsBelowHttp) {
 		inputy = _httpProxyRadio->bottomNoMargins() + st::boxOptionInputSkip;
 		_tcpProxyRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), inputy + st::boxOptionInputSkip + 2 * _hostInput->height() + st::boxOptionListSkip);
 	} else {
 		_tcpProxyRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _httpProxyRadio->bottomNoMargins() + st::boxOptionListSkip);
-		if (type == dbictTcpProxy) {
+		if (fieldsBelowTcp) {
 			inputy = _tcpProxyRadio->bottomNoMargins() + st::boxOptionInputSkip;
 		}
 	}
@@ -139,13 +151,17 @@ void ConnectionBox::updateControlsPosition() {
 		_passwordInput->moveToRight(st::boxPadding.right(), _userInput->y());
 	}
 
-	auto tryipv6y = ((type == dbictTcpProxy) ? _userInput->bottomNoMargins() : _tcpProxyRadio->bottomNoMargins()) + st::boxOptionListSkip + st::connectionIPv6Skip;
+	auto tryipv6y = (fieldsBelowTcp ? _userInput->bottomNoMargins() : _tcpProxyRadio->bottomNoMargins()) + st::boxOptionListSkip + st::connectionIPv6Skip;
 	_tryIPv6->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), tryipv6y);
 }
 
 void ConnectionBox::typeChanged(DBIConnectionType type) {
+	if (type == dbictAuto) {
+		setFocus();
+	}
 	updateControlsVisibility();
 	if (type != dbictAuto) {
+		Global::SetLastProxyType(type);
 		if (!_hostInput->hasFocus() && !_portInput->hasFocus() && !_userInput->hasFocus() && !_passwordInput->hasFocus()) {
 			_hostInput->setFocusFast();
 		}
@@ -157,7 +173,16 @@ void ConnectionBox::typeChanged(DBIConnectionType type) {
 	update();
 }
 
+void ConnectionBox::onFieldFocus() {
+	if (Global::LastProxyType() == dbictHttpProxy) {
+		_typeGroup->setValue(dbictHttpProxy);
+	} else if (Global::LastProxyType() == dbictTcpProxy) {
+		_typeGroup->setValue(dbictTcpProxy);
+	}
+}
+
 void ConnectionBox::onSubmit() {
+	onFieldFocus();
 	if (_hostInput->hasFocus()) {
 		if (!_hostInput->getLastText().trimmed().isEmpty()) {
 			_portInput->setFocus();
@@ -186,30 +211,33 @@ void ConnectionBox::onSubmit() {
 }
 
 void ConnectionBox::onSave() {
+	auto p = ProxyData();
+	p.host = _hostInput->getLastText().trimmed();
+	p.user = _userInput->getLastText().trimmed();
+	p.password = _passwordInput->getLastText().trimmed();
+	p.port = _portInput->getLastText().toInt();
+
 	auto type = _typeGroup->value();
 	if (type == dbictAuto) {
-		Global::SetConnectionType(type);
-		Global::SetConnectionProxy(ProxyData());
+		if (p.host.isEmpty() || !p.port) {
+			p = ProxyData();
+		}
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 		QNetworkProxyFactory::setUseSystemConfiguration(false);
 		QNetworkProxyFactory::setUseSystemConfiguration(true);
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	} else {
-		ProxyData p;
-		p.host = _hostInput->getLastText().trimmed();
-		p.user = _userInput->getLastText().trimmed();
-		p.password = _passwordInput->getLastText().trimmed();
-		p.port = _portInput->getLastText().toInt();
 		if (p.host.isEmpty()) {
-			_hostInput->setFocus();
+			_hostInput->showError();
 			return;
 		} else if (!p.port) {
-			_portInput->setFocus();
+			_portInput->showError();
 			return;
 		}
-		Global::SetConnectionType(type);
-		Global::SetConnectionProxy(p);
+		Global::SetLastProxyType(type);
 	}
+	Global::SetConnectionType(type);
+	Global::SetConnectionProxy(p);
 	if (cPlatform() == dbipWindows && Global::TryIPv6() != _tryIPv6->checked()) {
 		Global::SetTryIPv6(_tryIPv6->checked());
 		Local::writeSettings();

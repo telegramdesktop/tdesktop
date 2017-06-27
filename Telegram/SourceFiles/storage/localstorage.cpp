@@ -522,7 +522,7 @@ enum {
 	dbiAutoUpdate = 0x0c,
 	dbiLastUpdateCheck = 0x0d,
 	dbiWindowPosition = 0x0e,
-	dbiConnectionType = 0x0f,
+	dbiConnectionTypeOld = 0x0f,
 	// 0x10 reserved
 	dbiDefaultAttach = 0x11,
 	dbiCatsAndDogs = 0x12,
@@ -576,6 +576,7 @@ enum {
 	dbiLastSeenWarningSeenOld = 0x4c,
 	dbiAuthSessionData = 0x4d,
 	dbiLangPackKey = 0x4e,
+	dbiConnectionType = 0x4f,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -1128,7 +1129,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		Global::RefWorkMode().set(newMode());
 	} break;
 
-	case dbiConnectionType: {
+	case dbiConnectionTypeOld: {
 		qint32 v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
@@ -1148,6 +1149,36 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		case dbictHttpAuto:
 		default: Global::SetConnectionType(dbictAuto); break;
 		};
+		Global::SetLastProxyType(Global::ConnectionType());
+	} break;
+
+	case dbiConnectionType: {
+		ProxyData p;
+		qint32 connectionType, lastProxyType, port;
+		stream >> connectionType >> lastProxyType >> p.host >> port >> p.user >> p.password;
+		if (!_checkStreamStatus(stream)) return false;
+
+		p.port = port;
+		switch (connectionType) {
+		case dbictHttpProxy:
+		case dbictTcpProxy: {
+			Global::SetConnectionType(DBIConnectionType(lastProxyType));
+		} break;
+		case dbictHttpAuto:
+		default: Global::SetConnectionType(dbictAuto); break;
+		};
+		switch (lastProxyType) {
+		case dbictHttpProxy:
+		case dbictTcpProxy: {
+			Global::SetLastProxyType(DBIConnectionType(lastProxyType));
+			Global::SetConnectionProxy(p);
+		} break;
+		case dbictHttpAuto:
+		default: {
+			Global::SetLastProxyType(dbictAuto);
+			Global::SetConnectionProxy(ProxyData());
+		} break;
+		}
 	} break;
 
 	case dbiThemeKey: {
@@ -2310,11 +2341,10 @@ void writeSettings() {
 	quint32 size = 12 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::bytearraySize(dcOptionsSerialized);
 
-	size += sizeof(quint32) + sizeof(qint32);
-	if (Global::ConnectionType() == dbictHttpProxy || Global::ConnectionType() == dbictTcpProxy) {
-		auto &proxy = Global::ConnectionProxy();
-		size += Serialize::stringSize(proxy.host) + sizeof(qint32) + Serialize::stringSize(proxy.user) + Serialize::stringSize(proxy.password);
-	}
+	auto &proxy = Global::ConnectionProxy();
+	size += sizeof(quint32) + sizeof(qint32) + sizeof(qint32);
+	size += Serialize::stringSize(proxy.host) + sizeof(qint32) + Serialize::stringSize(proxy.user) + Serialize::stringSize(proxy.password);
+
 	if (_themeKey) {
 		size += sizeof(quint32) + sizeof(quint64);
 	}
@@ -2338,11 +2368,9 @@ void writeSettings() {
 	data.stream << quint32(dbiScale) << qint32(cConfigScale());
 	data.stream << quint32(dbiDcOptions) << dcOptionsSerialized;
 
-	data.stream << quint32(dbiConnectionType) << qint32(Global::ConnectionType());
-	if (Global::ConnectionType() == dbictHttpProxy || Global::ConnectionType() == dbictTcpProxy) {
-		auto &proxy = Global::ConnectionProxy();
-		data.stream << proxy.host << qint32(proxy.port) << proxy.user << proxy.password;
-	}
+	data.stream << quint32(dbiConnectionType) << qint32(Global::ConnectionType()) << qint32(Global::LastProxyType());
+	data.stream << proxy.host << qint32(proxy.port) << proxy.user << proxy.password;
+
 	data.stream << quint32(dbiTryIPv6) << qint32(Global::TryIPv6());
 	if (_themeKey) {
 		data.stream << quint32(dbiThemeKey) << quint64(_themeKey);
