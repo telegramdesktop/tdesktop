@@ -156,7 +156,7 @@ void SettingsWidget::refreshManageAdminsButton() {
 void SettingsWidget::refreshManageBannedUsersButton() {
 	auto hasManageBannedUsers = [this] {
 		if (auto channel = peer()->asMegagroup()) {
-			return channel->hasAdminRights() && (channel->kickedCount() > 0);
+			return channel->canViewBanned() && (channel->kickedCount() > 0);
 		}
 		return false;
 	};
@@ -169,7 +169,7 @@ void SettingsWidget::refreshManageBannedUsersButton() {
 
 	auto hasManageRestrictedUsers = [this] {
 		if (auto channel = peer()->asMegagroup()) {
-			return channel->hasAdminRights() && (channel->restrictedCount() > 0);
+			return channel->canViewBanned() && (channel->restrictedCount() > 0);
 		}
 		return false;
 	};

@@ -892,6 +892,9 @@ public:
 	bool canViewAdmins() const {
 		return (isMegagroup() || hasAdminRights() || amCreator());
 	}
+	bool canViewBanned() const {
+		return (hasAdminRights() || amCreator());
+	}
 	bool canEditInformation() const {
 		return adminRights().is_change_info() || amCreator();
 	}
