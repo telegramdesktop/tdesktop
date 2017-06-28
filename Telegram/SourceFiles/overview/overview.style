@@ -53,6 +53,8 @@ overviewLeftMax: 42px;
 overviewCheckPressedSize: 0.8;
 overviewCheck: RoundCheckbox(defaultRoundCheckbox) {
 	bgInactive: overviewCheckBg;
+	bgActive: overviewCheckBgActive;
+	border: overviewCheckBorder;
 	size: 29px;
 	sizeSmall: 0.3;
 	check: icon {{ "overview_photo_check", overviewCheckFgActive, point(4px, 8px) }};
@@ -65,7 +67,7 @@ overviewPhotoMinSize: minPhotoSize;
 overviewVideoBg: imageBg;
 
 overviewFileThumbBg: imageBg;
-overviewFileChecked: windowBgActive;
+overviewFileChecked: overviewCheckBgActive;
 overviewFileCheck: overviewCheckBg;
 overviewFileExtPadding: 5px;
 overviewFileExtTop: 24px;
@@ -129,7 +131,7 @@ overviewLinksCheck: icon {
 	{ "overview_links_check", overviewCheckFg, point(4px, 5px) },
 };
 overviewLinksChecked: icon {
-	{ "overview_links_check_bg", windowBgActive },
+	{ "overview_links_check_bg", overviewCheckBgActive },
 	{ "overview_links_check", overviewCheckFgActive, point(4px, 5px) },
 };
 

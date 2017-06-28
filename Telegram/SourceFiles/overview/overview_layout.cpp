@@ -742,7 +742,8 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, datetop = -1;
 	bool wthumb = withThumb();
 
-	if (_data->song()) {
+	auto isSong = (_data->song() != nullptr);
+	if (isSong) {
 		nameleft = _st.songPadding.left() + _st.songThumbSize + _st.songPadding.right();
 		nameright = _st.songPadding.left();
 		nametop = _st.songNameTop;
@@ -873,7 +874,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 
 	if (clip.intersects(rtlrect(nameleft, statustop, availwidth, st::normalFont->height, _width))) {
 		p.setFont(st::normalFont);
-		p.setPen(st::mediaInFg);
+		p.setPen((isSong && selected) ? st::mediaInFgSelected : st::mediaInFg);
 		p.drawTextLeft(nameleft, statustop, _width, _status.text());
 	}
 	if (datetop >= 0 && clip.intersects(rtlrect(nameleft, datetop, _datew, st::normalFont->height, _width))) {

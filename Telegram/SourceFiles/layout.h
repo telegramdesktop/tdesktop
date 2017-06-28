@@ -50,8 +50,6 @@ enum RoundCorners {
 	EmojiHoverCorners,
 	StickerHoverCorners,
 	BotKeyboardCorners,
-	BotKeyboardOverCorners,
-	BotKeyboardDownCorners,
 	PhotoSelectOverlayCorners,
 
 	Doc1Corners,

@@ -564,7 +564,7 @@ defaultInputFont: font(17px);
 defaultFlatInput: FlatInput {
 	textColor: windowFg;
 	bgColor: filterInputInactiveBg;
-	bgActive: windowBg;
+	bgActive: filterInputActiveBg;
 	width: 210px;
 	height: 40px;
 	align: align(left);

@@ -2249,8 +2249,6 @@ namespace {
 		prepareCorners(EmojiHoverCorners, st::buttonRadius, st::emojiPanHover);
 		prepareCorners(StickerHoverCorners, st::buttonRadius, st::emojiPanHover);
 		prepareCorners(BotKeyboardCorners, st::buttonRadius, st::botKbBg);
-		prepareCorners(BotKeyboardOverCorners, st::buttonRadius, st::botKbOverBg);
-		prepareCorners(BotKeyboardDownCorners, st::buttonRadius, st::botKbDownBg);
 		prepareCorners(PhotoSelectOverlayCorners, st::buttonRadius, st::overviewPhotoSelectOverlay);
 
 		prepareCorners(Doc1Corners, st::buttonRadius, st::msgFile1Bg);

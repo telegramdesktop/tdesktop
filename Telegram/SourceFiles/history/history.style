@@ -330,10 +330,6 @@ msgBotKbButton: BotKeyboardButton {
 }
 
 botKbDuration: 200;
-botKbBg: menuBgOver;
-botKbOverBg: menuBgOver;
-botKbDownBg: menuBgRipple;
-botKbColor: windowBoldFgOver;
 botKbStyle: TextStyle(defaultTextStyle) {
 	font: font(15px semibold);
 	linkFont: font(15px semibold);
@@ -344,7 +340,9 @@ botKbButton: BotKeyboardButton {
 	padding: 10px;
 	height: 38px;
 	textTop: 9px;
-	ripple: defaultRippleAnimation;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: botKbDownBg;
+	}
 }
 botKbTinyButton: BotKeyboardButton {
 	margin: 4px;
