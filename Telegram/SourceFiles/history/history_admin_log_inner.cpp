@@ -449,9 +449,11 @@ void InnerWidget::preloadMore(Direction direction) {
 		} else {
 			loadedFlag = true;
 		}
+		update();
 	}).fail([this, &requestId, &loadedFlag](const RPCError &error) {
 		requestId = 0;
 		loadedFlag = true;
+		update();
 	}).send();
 }
 
