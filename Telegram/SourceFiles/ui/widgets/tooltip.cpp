@@ -69,7 +69,7 @@ void Tooltip::performShow() {
 
 void Tooltip::onWndActiveChanged() {
 	if (!App::wnd() || !App::wnd()->windowHandle() || !App::wnd()->windowHandle()->isActive()) {
-		Tooltip::Hide();
+		Hide();
 	}
 }
 
@@ -88,12 +88,13 @@ bool Tooltip::eventFilter(QObject *o, QEvent *e) {
 
 Tooltip::~Tooltip() {
 	if (TooltipInstance == this) {
-		TooltipInstance = 0;
+		TooltipInstance = nullptr;
 	}
 }
 
 void Tooltip::popup(const QPoint &m, const QString &text, const style::Tooltip *st) {
 	if (!_isEventFilter) {
+		_isEventFilter = true;
 		QCoreApplication::instance()->installEventFilter(this);
 	}
 
@@ -196,7 +197,7 @@ void Tooltip::Hide() {
 		instance->_showTimer.cancel();
 		instance->_hideByLeaveTimer.cancel();
 		instance->hide();
-		instance->deleteLater();
+		InvokeQueued(instance, [instance] { instance->deleteLater(); });
 	}
 }
 
