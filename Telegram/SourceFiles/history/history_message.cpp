@@ -551,7 +551,8 @@ void HistoryMessage::updateMediaInBubbleState() {
 	auto getMediaHasSomethingAbove = [this] {
 		return displayFromName() || displayForwardedFrom() || Has<HistoryMessageReply>() || Has<HistoryMessageVia>();
 	};
-	if (auto entry = Get<HistoryMessageLogEntryOriginal>()) {
+	auto entry = Get<HistoryMessageLogEntryOriginal>();
+	if (entry) {
 		mediaHasSomethingBelow = true;
 		mediaHasSomethingAbove = getMediaHasSomethingAbove();
 		auto entryState = (mediaHasSomethingAbove || !emptyText() || (_media && _media->isDisplayed())) ? MediaInBubbleState::Bottom : MediaInBubbleState::None;
@@ -566,6 +567,9 @@ void HistoryMessage::updateMediaInBubbleState() {
 		return;
 	}
 
+	if (!entry) {
+		mediaHasSomethingAbove = getMediaHasSomethingAbove();
+	}
 	if (!emptyText()) {
 		if (_media->isAboveMessage()) {
 			mediaHasSomethingBelow = true;
