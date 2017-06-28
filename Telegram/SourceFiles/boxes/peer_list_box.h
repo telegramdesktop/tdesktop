@@ -134,7 +134,7 @@ public:
 	}
 
 	virtual void lazyInitialize();
-	virtual void paintStatusText(Painter &p, int x, int y, int outerWidth, bool selected);
+	virtual void paintStatusText(Painter &p, int x, int y, int availableWidth, int outerWidth, bool selected);
 
 protected:
 	bool isInitialized() const {
@@ -145,6 +145,7 @@ private:
 	void createCheckbox(base::lambda<void()> updateCallback);
 	void setCheckedInternal(bool checked, SetStyle style);
 	void paintDisabledCheckUserpic(Painter &p, int x, int y, int outerWidth) const;
+	void setStatusText(const QString &text);
 
 	PeerListRowId _id = 0;
 	gsl::not_null<PeerData*> _peer;
@@ -152,6 +153,7 @@ private:
 	std::unique_ptr<Ui::RoundImageCheckbox> _checkbox;
 	Text _name;
 	QString _status;
+	int _statusWidth = 0;
 	StatusType _statusType = StatusType::Online;
 	OrderedSet<QChar> _nameFirstChars;
 	int _absoluteIndex = -1;

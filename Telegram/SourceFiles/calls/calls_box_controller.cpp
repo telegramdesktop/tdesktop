@@ -77,7 +77,7 @@ public:
 		return _items.front()->id;
 	}
 
-	void paintStatusText(Painter &p, int x, int y, int outerWidth, bool selected) override;
+	void paintStatusText(Painter &p, int x, int y, int availableWidth, int outerWidth, bool selected) override;
 	void addActionRipple(QPoint point, base::lambda<void()> updateCallback) override;
 	void stopLastActionRipple() override;
 
@@ -111,7 +111,7 @@ BoxController::Row::Row(HistoryItem *item) : PeerListRow(item->history()->peer, 
 	refreshStatus();
 }
 
-void BoxController::Row::paintStatusText(Painter &p, int x, int y, int outerWidth, bool selected) {
+void BoxController::Row::paintStatusText(Painter &p, int x, int y, int availableWidth, int outerWidth, bool selected) {
 	auto icon = ([this] {
 		switch (_type) {
 		case Type::In: return &st::callArrowIn;
@@ -121,9 +121,11 @@ void BoxController::Row::paintStatusText(Painter &p, int x, int y, int outerWidt
 		Unexpected("_type in Calls::BoxController::Row::paintStatusText().");
 	})();
 	icon->paint(p, x + st::callArrowPosition.x(), y + st::callArrowPosition.y(), outerWidth);
-	x += + st::callArrowPosition.x() + icon->width() + st::callArrowSkip;
+	auto shift = st::callArrowPosition.x() + icon->width() + st::callArrowSkip;
+	x += shift;
+	availableWidth -= shift;
 
-	PeerListRow::paintStatusText(p, x, y, outerWidth, selected);
+	PeerListRow::paintStatusText(p, x, y, availableWidth, outerWidth, selected);
 }
 
 void BoxController::Row::paintAction(Painter &p, TimeMs ms, int x, int y, int outerWidth, bool actionSelected) {

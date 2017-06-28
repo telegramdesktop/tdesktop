@@ -330,7 +330,7 @@ bool PeerListRow::checked() const {
 }
 
 void PeerListRow::setCustomStatus(const QString &status) {
-	_status = status;
+	setStatusText(status);
 	_statusType = StatusType::Custom;
 }
 
@@ -345,7 +345,7 @@ void PeerListRow::refreshStatus() {
 	}
 	if (auto user = peer()->asUser()) {
 		auto time = unixtime();
-		_status = App::onlineText(user, time);
+		setStatusText(App::onlineText(user, time));
 		_statusType = App::onlineColorUse(user, time) ? StatusType::Online : StatusType::LastSeen;
 	}
 }
@@ -365,10 +365,11 @@ void PeerListRow::invalidatePixmapsCache() {
 	}
 }
 
-void PeerListRow::paintStatusText(Painter &p, int x, int y, int outerWidth, bool selected) {
+void PeerListRow::paintStatusText(Painter &p, int x, int y, int availableWidth, int outerWidth, bool selected) {
 	auto statusHasOnlineColor = (_statusType == PeerListRow::StatusType::Online);
+	p.setFont(st::contactsStatusFont);
 	p.setPen(statusHasOnlineColor ? st::contactsStatusFgOnline : (selected ? st::contactsStatusFgOver : st::contactsStatusFg));
-	p.drawTextLeft(x, y, outerWidth, _status);
+	p.drawTextLeft(x, y, outerWidth, (_statusWidth <= availableWidth) ? _status : st::contactsStatusFont->elided(_status, availableWidth));
 }
 
 template <typename UpdateCallback>
@@ -440,6 +441,11 @@ void PeerListRow::paintDisabledCheckUserpic(Painter &p, int x, int y, int outerW
 	}
 
 	st::contactsPhotoCheckbox.check.check.paint(p, iconEllipse.topLeft(), outerWidth);
+}
+
+void PeerListRow::setStatusText(const QString &text) {
+	_status = text;
+	_statusWidth = st::contactsStatusFont->width(_status);
 }
 
 float64 PeerListRow::checkedRatio() {
@@ -828,6 +834,7 @@ void PeerListBox::Inner::paintRow(Painter &p, TimeMs ms, RowIndex index) {
 	if (!actionSize.isEmpty()) {
 		namew -= actionMargins.left() + actionSize.width() + actionMargins.right();
 	}
+	auto statusw = namew;
 	if (row->needsVerifiedIcon()) {
 		auto icon = &st::dialogsVerifiedIcon;
 		namew -= icon->width();
@@ -845,7 +852,7 @@ void PeerListBox::Inner::paintRow(Painter &p, TimeMs ms, RowIndex index) {
 	p.setFont(st::contactsStatusFont);
 	if (row->isSearchResult() && !_mentionHighlight.isEmpty() && peer->userName().startsWith(_mentionHighlight, Qt::CaseInsensitive)) {
 		auto username = peer->userName();
-		auto availableWidth = width() - namex - st::contactsPadding.right();
+		auto availableWidth = statusw;
 		auto highlightedPart = '@' + username.mid(0, _mentionHighlight.size());
 		auto grayedPart = username.mid(_mentionHighlight.size());
 		auto highlightedWidth = st::contactsStatusFont->width(highlightedPart);
@@ -864,7 +871,7 @@ void PeerListBox::Inner::paintRow(Painter &p, TimeMs ms, RowIndex index) {
 			p.drawTextLeft(namex + highlightedWidth, st::contactsPadding.top() + st::contactsStatusTop, width(), grayedPart);
 		}
 	} else {
-		row->paintStatusText(p, namex, st::contactsPadding.top() + st::contactsStatusTop, width(), selected);
+		row->paintStatusText(p, namex, st::contactsPadding.top() + st::contactsStatusTop, statusw, width(), selected);
 	}
 }
 
