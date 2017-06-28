@@ -59,7 +59,9 @@ private:
 
 	bool _failed = true;
 
-	const char *_begin, *_ch, *_end;
+	const char *_begin = nullptr;
+	const char *_ch = nullptr;
+	const char *_end = nullptr;
 
 	QString _result;
 	OrderedSet<ushort> _tagsUsed;
@@ -69,6 +71,7 @@ private:
 ValueParser::ValueParser(const QByteArray &key, LangKey keyIndex, const QByteArray &value)
 : _key(key)
 , _keyIndex(keyIndex)
+, _currentTag("")
 , _begin(value.constData())
 , _ch(_begin)
 , _end(_begin + value.size()) {
@@ -146,7 +149,7 @@ bool ValueParser::parse() {
 			_result.append(_currentTagReplacer);
 
 			_begin = _ch + 1;
-			_currentTag = QLatin1String();
+			_currentTag = QLatin1String("");
 		}
 	}
 	appendToResult(_end);

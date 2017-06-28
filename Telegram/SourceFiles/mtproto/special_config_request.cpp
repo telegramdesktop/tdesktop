@@ -104,10 +104,10 @@ void SpecialConfigRequest::dnsFinished() {
 		auto answerIt = response.find(qsl("Answer"));
 		if (answerIt == response.constEnd()) {
 			LOG(("Config Error: Could not find Answer in dns response JSON."));
-		} else if (!answerIt->isArray()) {
+		} else if (!(*answerIt).isArray()) {
 			LOG(("Config Error: Not an array received in Answer in dns response JSON."));
 		} else {
-			for (auto elem : answerIt->toArray()) {
+			for (auto elem : (*answerIt).toArray()) {
 				if (!elem.isObject()) {
 					LOG(("Config Error: Not an object found in Answer array in dns response JSON."));
 				} else {
@@ -115,10 +115,10 @@ void SpecialConfigRequest::dnsFinished() {
 					auto dataIt = object.find(qsl("data"));
 					if (dataIt == object.constEnd()) {
 						LOG(("Config Error: Could not find data in Answer array entry in dns response JSON."));
-					} else if (!dataIt->isString()) {
+					} else if (!(*dataIt).isString()) {
 						LOG(("Config Error: Not a string data found in Answer array entry in dns response JSON."));
 					} else {
-						auto data = dataIt->toString();
+						auto data = (*dataIt).toString();
 						entries.insertMulti(INT_MAX - data.size(), data);
 					}
 				}
