@@ -942,6 +942,8 @@ void EditChannelBox::prepare() {
 	connect(_publicLink, SIGNAL(clicked()), this, SLOT(onPublicLink()));
 	_publicLink->setVisible(_channel->canEditUsername());
 	_sign->setVisible(canEditSignatures());
+	_inviteEverybody->setVisible(canEditInvites());
+	_inviteOnlyAdmins->setVisible(canEditInvites());
 
 	updateMaxHeight();
 }
