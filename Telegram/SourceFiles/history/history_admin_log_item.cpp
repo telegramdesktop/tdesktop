@@ -327,12 +327,17 @@ void GenerateItems(gsl::not_null<History*> history, LocalIdManager &idManager, c
 	};
 
 	auto createUpdatePinned = [&](const MTPDchannelAdminLogEventActionUpdatePinned &action) {
-		auto text = lng_admin_log_pinned_message(lt_from, fromLinkText);
-		addSimpleServiceMessage(text);
+		if (action.vmessage.type() == mtpc_messageEmpty) {
+			auto text = lng_admin_log_unpinned_message(lt_from, fromLinkText);
+			addSimpleServiceMessage(text);
+		} else {
+			auto text = lng_admin_log_pinned_message(lt_from, fromLinkText);
+			addSimpleServiceMessage(text);
 
-		auto applyServiceAction = false;
-		auto detachExistingItem = false;
-		addPart(history->createItem(PrepareLogMessage(action.vmessage, idManager.next(), date.v), applyServiceAction, detachExistingItem));
+			auto applyServiceAction = false;
+			auto detachExistingItem = false;
+			addPart(history->createItem(PrepareLogMessage(action.vmessage, idManager.next(), date.v), applyServiceAction, detachExistingItem));
+		}
 	};
 
 	auto createEditMessage = [&](const MTPDchannelAdminLogEventActionEditMessage &action) {
