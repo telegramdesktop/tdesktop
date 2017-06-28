@@ -57,9 +57,9 @@ void InnerWidget::enumerateItems(Method method) {
 
 	auto begin = std::rbegin(_items), end = std::rend(_items);
 	auto from = TopToBottom ? std::lower_bound(begin, end, _visibleTop, [this](auto &elem, int top) {
-		return itemTop(elem) + elem->height() <= top;
+		return this->itemTop(elem) + elem->height() <= top;
 	}) : std::upper_bound(begin, end, _visibleBottom, [this](int bottom, auto &elem) {
-		return itemTop(elem) + elem->height() >= bottom;
+		return this->itemTop(elem) + elem->height() >= bottom;
 	});
 	auto wasEnd = (from == end);
 	if (wasEnd) {
@@ -245,8 +245,8 @@ void InnerWidget::updateVisibleTopItem() {
 		_visibleTopItem = nullptr;
 	} else {
 		auto begin = std::rbegin(_items), end = std::rend(_items);
-		auto from = std::lower_bound(begin, end, _visibleTop, [this](auto &elem, int top) {
-			return itemTop(elem) + elem->height() <= top;
+		auto from = std::lower_bound(begin, end, _visibleTop, [this](auto &&elem, int top) {
+			return this->itemTop(elem) + elem->height() <= top;
 		});
 		if (from != end) {
 			_visibleTopItem = *from;
@@ -511,10 +511,10 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	} else {
 		auto begin = std::rbegin(_items), end = std::rend(_items);
 		auto from = std::lower_bound(begin, end, clip.top(), [this](auto &elem, int top) {
-			return itemTop(elem) + elem->height() <= top;
+			return this->itemTop(elem) + elem->height() <= top;
 		});
 		auto to = std::lower_bound(begin, end, clip.top() + clip.height(), [this](auto &elem, int bottom) {
-			return itemTop(elem) < bottom;
+			return this->itemTop(elem) < bottom;
 		});
 		if (from != end) {
 			auto top = itemTop(from->get());
@@ -1056,7 +1056,7 @@ void InnerWidget::updateSelected() {
 	auto itemPoint = QPoint();
 	auto begin = std::rbegin(_items), end = std::rend(_items);
 	auto from = (point.y() >= _itemsTop && point.y() < _itemsTop + _itemsHeight) ? std::lower_bound(begin, end, point.y(), [this](auto &elem, int top) {
-		return itemTop(elem) + elem->height() <= top;
+		return this->itemTop(elem) + elem->height() <= top;
 	}) : end;
 	auto item = (from != end) ? from->get() : nullptr;
 	if (item) {
