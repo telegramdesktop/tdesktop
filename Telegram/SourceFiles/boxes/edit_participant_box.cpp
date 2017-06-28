@@ -212,6 +212,7 @@ void EditAdminBox::prepare() {
 		addCheckbox(Flag::f_post_messages, lang(lng_rights_channel_post));
 		addCheckbox(Flag::f_edit_messages, lang(lng_rights_channel_edit));
 		addCheckbox(Flag::f_delete_messages, lang(lng_rights_channel_delete));
+		addCheckbox(Flag::f_invite_users | Flag::f_invite_link, lang(lng_rights_group_invite));
 		addCheckbox(Flag::f_add_admins, lang(lng_rights_add_admins));
 	}
 

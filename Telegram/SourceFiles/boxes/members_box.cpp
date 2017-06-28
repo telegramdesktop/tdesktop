@@ -102,7 +102,7 @@ void MembersBox::refreshButtons() {
 		if (_channel->canAddAdmins()) {
 			addLeftButton(langFactory(lng_channel_add_admin), [this] { onAdd(); });
 		}
-	} else if (_channel->amCreator() && (_channel->membersCount() < (_channel->isMegagroup() ? Global::MegagroupSizeMax() : Global::ChatSizeMax()) || (!_channel->isMegagroup() && !_channel->isPublic()))) {
+	} else if (_channel->canAddMembers() && (_channel->membersCount() < (_channel->isMegagroup() ? Global::MegagroupSizeMax() : Global::ChatSizeMax()) || (!_channel->isMegagroup() && !_channel->isPublic()))) {
 		addLeftButton(langFactory(lng_channel_add_members), [this] { onAdd(); });
 	}
 }
