@@ -194,7 +194,9 @@ void Start() {
 void Finish() {
 	Platform::Audio::DeInit();
 
-	delete base::take(MixerInstance);
+	// MixerInstance variable should be modified under AudioMutex protection.
+	// So it is modified in the ~Mixer() destructor after all tracks are cleared.
+	delete MixerInstance;
 
 	// No sync required already.
 	ClosePlaybackDevice();
