@@ -117,8 +117,8 @@ auto GenerateAdminChangeText(gsl::not_null<ChannelData*> channel, const TextWith
 
 	Expects(!newRights || newRights->type() == mtpc_channelAdminRights);
 	Expects(!prevRights || prevRights->type() == mtpc_channelAdminRights);
-	auto newFlags = newRights ? newRights->c_channelAdminRights().vflags.v : 0;
-	auto prevFlags = prevRights ? prevRights->c_channelAdminRights().vflags.v : 0;
+	auto newFlags = newRights ? newRights->c_channelAdminRights().vflags.v : MTPDchannelAdminRights::Flags(0);
+	auto prevFlags = prevRights ? prevRights->c_channelAdminRights().vflags.v : MTPDchannelAdminRights::Flags(0);
 	auto result = lng_admin_log_promoted__generic(lt_user, user);
 
 	auto inviteKey = Flag::f_invite_users | Flag::f_invite_link;
@@ -150,8 +150,8 @@ auto GenerateBannedChangeText(const TextWithEntities &user, const MTPChannelBann
 
 	Expects(!newRights || newRights->type() == mtpc_channelBannedRights);
 	Expects(!prevRights || prevRights->type() == mtpc_channelBannedRights);
-	auto newFlags = newRights ? newRights->c_channelBannedRights().vflags.v : 0;
-	auto prevFlags = prevRights ? prevRights->c_channelBannedRights().vflags.v : 0;
+	auto newFlags = newRights ? newRights->c_channelBannedRights().vflags.v : MTPDchannelBannedRights::Flags(0);
+	auto prevFlags = prevRights ? prevRights->c_channelBannedRights().vflags.v : MTPDchannelBannedRights::Flags(0);
 	auto newUntil = newRights ? newRights->c_channelBannedRights().vuntil_date : MTP_int(0);
 	auto indefinitely = ChannelData::IsRestrictedForever(newUntil.v);
 	if (newFlags & Flag::f_view_messages) {
@@ -248,7 +248,6 @@ void GenerateItems(gsl::not_null<History*> history, LocalIdManager &idManager, c
 		return callback(HistoryItemOwned(item));
 	};
 
-	using ServiceFlag = MTPDmessageService::Flag;
 	using Flag = MTPDmessage::Flag;
 	auto fromName = App::peerName(from);
 	auto fromLink = peerOpenClickHandler(from);

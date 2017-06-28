@@ -779,7 +779,7 @@ public:
 		return (!out() || isPost()) && !history()->peer->isUser();
 	}
 	PeerData *author() const {
-		return isPost() ? history()->peer : _from;
+		return isPost() ? history()->peer : from();
 	}
 
 	QDateTime dateOriginal() const {

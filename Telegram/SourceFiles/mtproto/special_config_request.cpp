@@ -107,7 +107,7 @@ void SpecialConfigRequest::dnsFinished() {
 		} else if (!answerIt->isArray()) {
 			LOG(("Config Error: Not an array received in Answer in dns response JSON."));
 		} else {
-			for (auto &elem : answerIt->toArray()) {
+			for (auto elem : answerIt->toArray()) {
 				if (!elem.isObject()) {
 					LOG(("Config Error: Not an object found in Answer array in dns response JSON."));
 				} else {

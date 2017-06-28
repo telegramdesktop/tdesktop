@@ -27,20 +27,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <set>
 #include <gsl/gsl>
 
-#ifdef OS_MAC_OLD
-namespace gsl {
-
-inline span<char> make_span(QByteArray &container) {
-	return span<char>(container.begin(), container.end());
-}
-
-inline span<const char> make_span(const QByteArray &container) {
-	return span<const char>(container.begin(), container.end());
-}
-
-} // namespace gsl
-#endif // OS_MAC_OLD
-
 // Release build assertions.
 inline void t_noop() {
 }
@@ -468,6 +454,7 @@ public:
 	ReadLockerAttempt &operator=(ReadLockerAttempt &&other) {
 		_lock = other._lock;
 		_locked = base::take(other._locked);
+		return *this;
 	}
 	~ReadLockerAttempt() {
 		if (_locked) {
