@@ -717,6 +717,15 @@ void LayerStackWidget::onLayerDestroyed(QObject *obj) {
 }
 
 LayerStackWidget::~LayerStackWidget() {
+	// We must destroy all layers before we destroy LayerStackWidget.
+	// Some layers in destructor call layer-related methods, like hiding
+	// other layers, that call methods of LayerStackWidget and access
+	// its fields, so if it is destroyed already everything crashes.
+	for (auto layer : base::take(_layers)) {
+		layer->setClosing();
+		layer->hide();
+		delete layer;
+	}
 	if (App::wnd()) App::wnd()->noLayerStack(this);
 }
 
