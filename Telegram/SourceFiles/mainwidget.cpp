@@ -34,7 +34,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "dialogswidget.h"
-#include "historywidget.h"
+#include "history/history_widget.h"
 #include "history/history_message.h"
 #include "history/history_media.h"
 #include "history/history_service_layout.h"

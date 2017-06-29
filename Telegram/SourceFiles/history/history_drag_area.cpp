@@ -27,7 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "inline_bots/inline_bot_result.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "dialogs/dialogs_layout.h"
-#include "historywidget.h"
+#include "history/history_widget.h"
 #include "storage/localstorage.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"

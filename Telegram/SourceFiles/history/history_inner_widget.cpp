@@ -28,7 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
 #include "chat_helpers/message_field.h"
-#include "historywidget.h"
+#include "history/history_widget.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "auth_session.h"

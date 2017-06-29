@@ -141,6 +141,8 @@
 <(src_loc)/dialogs/dialogs_list.h
 <(src_loc)/dialogs/dialogs_row.cpp
 <(src_loc)/dialogs/dialogs_row.h
+<(src_loc)/history/history.cpp
+<(src_loc)/history/history.h
 <(src_loc)/history/history_admin_log_inner.cpp
 <(src_loc)/history/history_admin_log_inner.h
 <(src_loc)/history/history_admin_log_item.cpp
@@ -165,6 +167,8 @@
 <(src_loc)/history/history_service.h
 <(src_loc)/history/history_service_layout.cpp
 <(src_loc)/history/history_service_layout.h
+<(src_loc)/history/history_widget.cpp
+<(src_loc)/history/history_widget.h
 <(src_loc)/inline_bots/inline_bot_layout_internal.cpp
 <(src_loc)/inline_bots/inline_bot_layout_internal.h
 <(src_loc)/inline_bots/inline_bot_layout_item.cpp
@@ -543,10 +547,6 @@
 <(src_loc)/dialogswidget.h
 <(src_loc)/facades.cpp
 <(src_loc)/facades.h
-<(src_loc)/history.cpp
-<(src_loc)/history.h
-<(src_loc)/historywidget.cpp
-<(src_loc)/historywidget.h
 <(src_loc)/layerwidget.cpp
 <(src_loc)/layerwidget.h
 <(src_loc)/layout.cpp

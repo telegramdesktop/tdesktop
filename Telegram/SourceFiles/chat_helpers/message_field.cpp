@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "chat_helpers/message_field.h"
 
-#include "historywidget.h"
+#include "history/history_widget.h"
 #include "base/qthelp_regex.h"
 #include "styles/style_history.h"
 #include "window/window_controller.h"

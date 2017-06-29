@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "application.h"
-#include "historywidget.h"
+#include "history/history_widget.h"
 #include "history/history_inner_widget.h"
 #include "storage/localstorage.h"
 #include "window/notifications_manager_default.h"

@@ -27,7 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "messenger.h"
 #include "mainwidget.h"
-#include "historywidget.h"
+#include "history/history_widget.h"
 #include "storage/localstorage.h"
 #include "auth_session.h"
 #include "boxes/confirm_box.h"
