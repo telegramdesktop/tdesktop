@@ -1051,6 +1051,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_context_unpin_msg" = "Unpin Message";
 "lng_context_cancel_upload" = "Cancel Upload";
 "lng_context_copy_selected" = "Copy Selected Text";
+"lng_context_copy_selected_items" = "Copy Selected as Text";
 "lng_context_forward_selected" = "Forward Selected";
 "lng_context_delete_selected" = "Delete Selected";
 "lng_context_clear_selection" = "Clear Selection";
