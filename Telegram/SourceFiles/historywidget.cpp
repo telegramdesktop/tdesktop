@@ -5045,7 +5045,7 @@ void HistoryWidget::updateHistoryGeometry(bool initial, bool loadedDown, const S
 	_updateHistoryGeometryRequired = false;
 
 	if ((!initial && !wasAtBottom) || (loadedDown && (!_history->showFrom || _history->unreadBar || _history->loadedAtBottom()) && (!_migrated || !_migrated->showFrom || _migrated->unreadBar || _history->loadedAtBottom()))) {
-		auto toY = _list->historyScrollTop();
+		auto toY = qMin(_list->historyScrollTop(), _scroll->scrollTopMax());
 		if (change.type == ScrollChangeAdd) {
 			toY += change.value;
 		} else if (change.type == ScrollChangeNoJumpToBottom) {
@@ -5054,9 +5054,7 @@ void HistoryWidget::updateHistoryGeometry(bool initial, bool loadedDown, const S
 			toY += _addToScroll;
 			_addToScroll = 0;
 		}
-		if (toY > _scroll->scrollTopMax()) {
-			toY = _scroll->scrollTopMax();
-		}
+		toY = snap(toY, 0, _scroll->scrollTopMax());
 		if (_scroll->scrollTop() == toY) {
 			visibleAreaUpdated();
 		} else {
