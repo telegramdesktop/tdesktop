@@ -564,6 +564,8 @@ void AddParticipantBoxController::loadMoreRows() {
 		}
 		if (delegate()->peerListFullRowsCount() > 0) {
 			setDescriptionText(QString());
+		} else if (_allLoaded) {
+			setDescriptionText(lang(lng_blocked_list_not_found));
 		}
 		delegate()->peerListRefreshRows();
 	}).fail([this](const RPCError &error) {
