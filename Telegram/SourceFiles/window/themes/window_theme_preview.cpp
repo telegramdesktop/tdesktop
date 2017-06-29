@@ -524,7 +524,7 @@ void Generator::paintDialogs() {
 
 	auto filterLeft = _dialogs.x() + st::dialogsFilterPadding.x() + st::dialogsMenuToggle.width + st::dialogsFilterPadding.x();
 	auto filterRight = st::dialogsFilterSkip + st::dialogsFilterPadding.x();
-	auto filterWidth = _dialogs.width() - filterLeft - filterRight;
+	auto filterWidth = _dialogs.x() + _dialogs.width() - filterLeft - filterRight;
 	auto filterAreaHeight = st::dialogsFilterPadding.y() + st::dialogsMenuToggle.height + st::dialogsFilterPadding.y();
 	auto filterTop = _dialogs.y() + (filterAreaHeight - st::dialogsFilter.height) / 2;
 	auto filter = QRect(filterLeft, filterTop, filterWidth, st::dialogsFilter.height);

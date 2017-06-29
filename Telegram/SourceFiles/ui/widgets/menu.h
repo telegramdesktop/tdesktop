@@ -38,6 +38,7 @@ public:
 	QAction *addAction(const QString &text, base::lambda<void()> callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
 	QAction *addSeparator();
 	void clearActions();
+	void finishAnimations();
 
 	void clearSelection();
 
@@ -106,6 +107,7 @@ private:
 	QAction *addAction(QAction *a, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
 
 	void setSelected(int selected);
+	void setPressed(int pressed);
 	void clearMouseSelection();
 
 	int itemTop(int index);

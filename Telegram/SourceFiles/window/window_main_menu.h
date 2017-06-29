@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "base/timer.h"
+
 namespace Ui {
 class IconButton;
 class FlatLabel;
@@ -56,6 +58,8 @@ private:
 	object_ptr<Ui::Menu> _menu;
 	object_ptr<Ui::FlatLabel> _telegram;
 	object_ptr<Ui::FlatLabel> _version;
+	std::shared_ptr<QPointer<QAction>> _nightThemeAction;
+	base::Timer _nightThemeSwitch;
 
 	bool _showFinished = false;
 	QString _phoneText;

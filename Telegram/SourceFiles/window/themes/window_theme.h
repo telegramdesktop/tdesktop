@@ -65,6 +65,9 @@ bool Apply(std::unique_ptr<Preview> preview);
 void ApplyDefault();
 bool ApplyEditedPalette(const QString &path, const QByteArray &content);
 void KeepApplied();
+bool IsNonDefaultUsed();
+bool IsNightTheme();
+void SwitchNightTheme(bool enabled);
 void Revert();
 
 bool LoadFromFile(const QString &file, Instance *out, QByteArray *outContent);

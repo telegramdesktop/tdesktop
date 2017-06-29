@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_menu_update" = "Update";
 "lng_menu_restart" = "Restart";
 "lng_menu_back" = "Back";
+"lng_menu_night_mode" = "Night mode";
 
 "lng_disable_notifications_from_tray" = "Disable notifications";
 "lng_enable_notifications_from_tray" = "Enable notifications";
@@ -368,6 +369,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_local_storage_clear_failed" = "Clear failed :(";
 
 "lng_settings_section_advanced_settings" = "Advanced Settings";
+"lng_settings_enable_night_theme" = "Enable night mode";
+"lng_settings_disable_night_theme" = "Disable night mode";
 
 "lng_passcode_remove_button" = "Remove";
 

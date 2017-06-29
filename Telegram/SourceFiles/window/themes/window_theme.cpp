@@ -32,11 +32,11 @@ namespace Window {
 namespace Theme {
 namespace {
 
-constexpr int kThemeFileSizeLimit = 5 * 1024 * 1024;
-constexpr int kThemeBackgroundSizeLimit = 4 * 1024 * 1024;
-constexpr int kThemeSchemeSizeLimit = 1024 * 1024;
-
-constexpr int kMinimumTiledSize = 512;
+constexpr auto kThemeFileSizeLimit = 5 * 1024 * 1024;
+constexpr auto kThemeBackgroundSizeLimit = 4 * 1024 * 1024;
+constexpr auto kThemeSchemeSizeLimit = 1024 * 1024;
+constexpr auto kMinimumTiledSize = 512;
+constexpr auto kNightThemeFile = str_const(":/gui/night.tdesktop-theme");
 
 struct Data {
 	struct Applying {
@@ -393,8 +393,15 @@ void ChatBackground::start() {
 }
 
 void ChatBackground::setImage(int32 id, QImage &&image) {
+	auto resetPalette = (id == kDefaultBackground && _id != kDefaultBackground && !Local::hasTheme());
 	if (id == kThemeBackground && _themeImage.isNull()) {
 		id = kDefaultBackground;
+	} else if (resetPalette) {
+		// If we had a default color theme with non-default background,
+		// and we switch to default background we must somehow switch from
+		// adjusted service colors to default (non-adjusted) service colors.
+		// The only way to do that right now is through full palette reset.
+		style::main_palette::reset();
 	}
 	_id = id;
 	if (_id == kThemeBackground) {
@@ -425,6 +432,10 @@ void ChatBackground::setImage(int32 id, QImage &&image) {
 	}
 	t_assert(!_pixmap.isNull() && !_pixmapForTiled.isNull());
 	notify(BackgroundUpdate(BackgroundUpdate::Type::New, _tile));
+	if (resetPalette) {
+		notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, _tile), true);
+		notify(BackgroundUpdate(BackgroundUpdate::Type::ApplyingTheme, _tile), true);
+	}
 }
 
 void ChatBackground::setPreparedImage(QImage &&image) {
@@ -432,11 +443,11 @@ void ChatBackground::setPreparedImage(QImage &&image) {
 	image.setDevicePixelRatio(cRetinaFactor());
 
 	auto adjustColors = [this] {
-		auto someCustomThemeApplied = [] {
+		auto someThemeApplied = [] {
 			if (AreTestingTheme()) {
 				return !instance->applying.path.isEmpty();
 			}
-			return Local::hasTheme();
+			return IsNonDefaultUsed() || IsNightTheme();
 		};
 		auto usingThemeBackground = [this] {
 			return (_id == kThemeBackground || _id == internal::kTestingThemeBackground);
@@ -451,7 +462,7 @@ void ChatBackground::setPreparedImage(QImage &&image) {
 			return !Local::themePaletteAbsolutePath().isEmpty();
 		};
 
-		if (someCustomThemeApplied()) {
+		if (someThemeApplied()) {
 			return !usingThemeBackground() && !testingPalette();
 		}
 		return !usingDefaultBackground();
@@ -660,6 +671,27 @@ bool Apply(const QString &filepath) {
 	return Apply(std::move(preview));
 }
 
+void SwitchNightTheme(bool enabled) {
+	if (enabled) {
+		auto preview = std::make_unique<Preview>();
+		preview->path = str_const_toString(kNightThemeFile);
+		if (!LoadFromFile(preview->path, &preview->instance, &preview->content)) {
+			return;
+		}
+		instance.createIfNull();
+		instance->applying.path = std::move(preview->path);
+		instance->applying.content = std::move(preview->content);
+		instance->applying.cached = std::move(preview->instance.cached);
+		if (instance->applying.paletteForRevert.isEmpty()) {
+			instance->applying.paletteForRevert = style::main_palette::save();
+		}
+		Background()->setTestingTheme(std::move(preview->instance));
+	} else {
+		Window::Theme::ApplyDefault();
+	}
+	KeepApplied();
+}
+
 bool Apply(std::unique_ptr<Preview> preview) {
 	instance.createIfNull();
 	instance->applying.path = std::move(preview->path);
@@ -722,6 +754,14 @@ void Revert() {
 	}
 	instance->applying = Data::Applying();
 	Background()->revert();
+}
+
+bool IsNightTheme() {
+	return (Local::themeAbsolutePath() == str_const_toString(kNightThemeFile));
+}
+
+bool IsNonDefaultUsed() {
+	return Local::hasTheme() && !IsNightTheme();
 }
 
 bool LoadFromFile(const QString &path, Instance *out, QByteArray *outContent) {

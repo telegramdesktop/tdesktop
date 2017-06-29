@@ -619,6 +619,7 @@ bool _backgroundWasRead = false;
 bool _backgroundCanWrite = true;
 
 FileKey _themeKey = 0;
+QString _themeAbsolutePath;
 QString _themePaletteAbsolutePath;
 
 bool _readingUserSettings = false;
@@ -3811,6 +3812,7 @@ bool readThemeUsingKey(FileKey key) {
 		return false;
 	}
 
+	_themeAbsolutePath = pathAbsolute;
 	_themePaletteAbsolutePath = Window::Theme::IsPaletteTestingPath(pathAbsolute) ? pathAbsolute : QString();
 
 	QFile file(pathRelative);
@@ -3844,7 +3846,7 @@ bool readThemeUsingKey(FileKey key) {
 
 void writeTheme(const QString &pathRelative, const QString &pathAbsolute, const QByteArray &content, const Window::Theme::Cached &cache) {
 	if (content.isEmpty()) {
-		_themePaletteAbsolutePath = QString();
+		_themeAbsolutePath = _themePaletteAbsolutePath = QString();
 		if (_themeKey) {
 			clearKey(_themeKey);
 			_themeKey = 0;
@@ -3853,6 +3855,7 @@ void writeTheme(const QString &pathRelative, const QString &pathAbsolute, const 
 		return;
 	}
 
+	_themeAbsolutePath = pathAbsolute;
 	_themePaletteAbsolutePath = Window::Theme::IsPaletteTestingPath(pathAbsolute) ? pathAbsolute : QString();
 	if (!_themeKey) {
 		_themeKey = genKey(FileOption::Safe);
@@ -3914,6 +3917,10 @@ void writeLangPack() {
 
 QString themePaletteAbsolutePath() {
 	return _themePaletteAbsolutePath;
+}
+
+QString themeAbsolutePath() {
+	return _themeAbsolutePath;
 }
 
 bool copyThemeColorsToPalette(const QString &path) {

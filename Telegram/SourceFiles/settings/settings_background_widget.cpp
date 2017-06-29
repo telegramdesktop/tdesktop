@@ -54,7 +54,7 @@ BackgroundRow::BackgroundRow(QWidget *parent) : TWidget(parent)
 }
 
 void BackgroundRow::checkNonDefaultTheme() {
-	if (Local::hasTheme()) {
+	if (Window::Theme::IsNonDefaultUsed()) {
 		if (!_useDefaultTheme) {
 			_useDefaultTheme.create(this, lang(lng_settings_bg_use_default), st::boxLinkButton);
 			_useDefaultTheme->show();

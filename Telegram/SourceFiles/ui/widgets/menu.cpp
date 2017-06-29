@@ -67,7 +67,6 @@ QAction *Menu::addAction(const QString &text, base::lambda<void()> callback, con
 
 QAction *Menu::addAction(QAction *action, const style::icon *icon, const style::icon *iconOver) {
 	connect(action, SIGNAL(changed()), this, SLOT(actionChanged()));
-	connect(action, SIGNAL(toggled(bool)), this, SLOT(actionToggled(bool)));
 	_actions.push_back(action);
 
 	auto createData = [icon, iconOver, action] {
@@ -86,6 +85,7 @@ QAction *Menu::addAction(QAction *action, const style::icon *icon, const style::
 	if (_resizedCallback) {
 		_resizedCallback();
 	}
+	updateSelected(QCursor::pos());
 	update();
 
 	return action;
@@ -98,6 +98,8 @@ QAction *Menu::addSeparator() {
 }
 
 void Menu::clearActions() {
+	setSelected(-1);
+	setPressed(-1);
 	_actionsData.clear();
 	for (auto action : base::take(_actions)) {
 		if (action->parent() == this) {
@@ -107,6 +109,17 @@ void Menu::clearActions() {
 	resize(_forceWidth ? _forceWidth : _st.widthMin, _st.skip * 2);
 	if (_resizedCallback) {
 		_resizedCallback();
+	}
+}
+
+void Menu::finishAnimations() {
+	for (auto &data : _actionsData) {
+		if (data.ripple) {
+			data.ripple.reset();
+		}
+		if (data.toggle) {
+			data.toggle->finishAnimation();
+		}
 	}
 }
 
@@ -243,7 +256,7 @@ void Menu::itemPressed(TriggeredSource source) {
 		return;
 	}
 	if (_selected >= 0 && _selected < _actions.size() && _actions[_selected]->isEnabled()) {
-		_pressed = _selected;
+		setPressed(_selected);
 		if (source == TriggeredSource::Mouse) {
 			if (!_actionsData[_pressed].ripple) {
 				auto mask = RippleAnimation::rectMask(QSize(width(), _itemHeight));
@@ -259,11 +272,9 @@ void Menu::itemPressed(TriggeredSource source) {
 }
 
 void Menu::itemReleased(TriggeredSource source) {
-	auto pressed = std::exchange(_pressed, -1);
-	if (pressed >= 0 && pressed < _actions.size()) {
-		if (pressed != _selected && _actionsData[pressed].toggle) {
-			_actionsData[pressed].toggle->setStyle(_st.itemToggle);
-		}
+	if (_pressed >= 0 && _pressed < _actions.size()) {
+		auto pressed = _pressed;
+		setPressed(-1);
 		if (source == TriggeredSource::Mouse && _actionsData[pressed].ripple) {
 			_actionsData[pressed].ripple->lastStop();
 		}
@@ -308,9 +319,9 @@ void Menu::handleKeyPress(int key) {
 		} else if (newSelected >= _actions.size()) {
 			newSelected -= _actions.size();
 		}
-	} while (newSelected != start && (!_actions.at(newSelected)->isEnabled() || _actions.at(newSelected)->isSeparator()));
+	} while (newSelected != start && (!_actions[newSelected]->isEnabled() || _actions[newSelected]->isSeparator()));
 
-	if (_actions.at(newSelected)->isEnabled() && !_actions.at(newSelected)->isSeparator()) {
+	if (_actions[newSelected]->isEnabled() && !_actions[newSelected]->isSeparator()) {
 		_mouseSelection = false;
 		setSelected(newSelected);
 	}
@@ -357,6 +368,21 @@ void Menu::setSelected(int selected) {
 		if (_activatedCallback) {
 			auto source = _mouseSelection ? TriggeredSource::Mouse : TriggeredSource::Keyboard;
 			_activatedCallback((_selected >= 0) ? _actions[_selected] : nullptr, itemTop(_selected), source);
+		}
+	}
+}
+
+void Menu::setPressed(int pressed) {
+	if (pressed >= _actions.size()) {
+		pressed = -1;
+	}
+	if (_pressed != pressed) {
+		if (_pressed >= 0 && _pressed != _selected && _actionsData[_pressed].toggle) {
+			_actionsData[_pressed].toggle->setStyle(_st.itemToggle);
+		}
+		_pressed = pressed;
+		if (_pressed >= 0 && _actionsData[_pressed].toggle && _actions[_pressed]->isEnabled()) {
+			_actionsData[_pressed].toggle->setStyle(_st.itemToggleOver);
 		}
 	}
 }

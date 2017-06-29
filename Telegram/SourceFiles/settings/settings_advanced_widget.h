@@ -39,6 +39,7 @@ private slots:
 	void onAskQuestion();
 	void onAskQuestionSure();
 	void onUseDefaultTheme();
+	void onToggleNightTheme();
 	void onTelegramFAQ();
 	void onLogOut();
 
@@ -49,12 +50,14 @@ private:
 	void connectionTypeUpdated();
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	void supportGot(const MTPhelp_Support &support);
+	QString getNightThemeToggleText() const;
 
 	object_ptr<Ui::LinkButton> _manageLocalStorage = { nullptr };
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	object_ptr<LabeledLink> _connectionType = { nullptr };
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	object_ptr<Ui::WidgetSlideWrap<Ui::LinkButton>> _useDefaultTheme = { nullptr };
+	object_ptr<Ui::WidgetSlideWrap<Ui::LinkButton>> _toggleNightTheme = { nullptr };
 	object_ptr<Ui::LinkButton> _askQuestion = { nullptr };
 	object_ptr<Ui::LinkButton> _telegramFAQ = { nullptr };
 	object_ptr<Ui::LinkButton> _logOut = { nullptr };

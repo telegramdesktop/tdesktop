@@ -75,8 +75,12 @@ void AdvancedWidget::createControls() {
 	} else {
 		style::margins slidedPadding(0, marginLarge.bottom() / 2, 0, marginLarge.bottom() - (marginLarge.bottom() / 2));
 		addChildRow(_useDefaultTheme, marginLarge, slidedPadding, lang(lng_settings_bg_use_default), SLOT(onUseDefaultTheme()));
-		if (!Local::hasTheme()) {
+		if (!Window::Theme::IsNonDefaultUsed()) {
 			_useDefaultTheme->hideFast();
+		}
+		addChildRow(_toggleNightTheme, marginLarge, slidedPadding, getNightThemeToggleText(), SLOT(onToggleNightTheme()));
+		if (Window::Theme::IsNonDefaultUsed()) {
+			_toggleNightTheme->hideFast();
 		}
 	}
 	addChildRow(_telegramFAQ, marginLarge, lang(lng_settings_faq), SLOT(onTelegramFAQ()));
@@ -88,7 +92,9 @@ void AdvancedWidget::createControls() {
 
 void AdvancedWidget::checkNonDefaultTheme() {
 	if (self()) return;
-	_useDefaultTheme->toggleAnimated(Local::hasTheme());
+	_useDefaultTheme->toggleAnimated(Window::Theme::IsNonDefaultUsed());
+	_toggleNightTheme->entity()->setText(getNightThemeToggleText());
+	_toggleNightTheme->toggleAnimated(!Window::Theme::IsNonDefaultUsed());
 }
 
 void AdvancedWidget::onManageLocalStorage() {
@@ -124,6 +130,10 @@ void AdvancedWidget::onUseDefaultTheme() {
 	Window::Theme::ApplyDefault();
 }
 
+void AdvancedWidget::onToggleNightTheme() {
+	Window::Theme::SwitchNightTheme(!Window::Theme::IsNightTheme());
+}
+
 void AdvancedWidget::onAskQuestion() {
 	auto box = Box<ConfirmBox>(lang(lng_settings_ask_sure), lang(lng_settings_ask_ok), lang(lng_settings_faq_button), base::lambda_guarded(this, [this] {
 		onAskQuestionSure();
@@ -147,6 +157,10 @@ void AdvancedWidget::supportGot(const MTPhelp_Support &support) {
 			Ui::showPeerHistory(user, ShowAtUnreadMsgId);
 		}
 	}
+}
+
+QString AdvancedWidget::getNightThemeToggleText() const {
+	return lang(Window::Theme::IsNightTheme() ? lng_settings_disable_night_theme : lng_settings_enable_night_theme);
 }
 
 void AdvancedWidget::onTelegramFAQ() {
