@@ -350,11 +350,11 @@ void MainWidget::checkFloatPlayerVisibility() {
 		return;
 	}
 
-	if (_history->isHidden() || _history->isItemCompletelyHidden(instance->widget->item())) {
-		instance->hiddenByHistory = false;
-	} else {
-		instance->hiddenByHistory = true;
+	auto amVisible = false;
+	if (auto item = instance->widget->item()) {
+		AuthSession::Current().data().queryItemVisibility().notify({ item, &amVisible }, true);
 	}
+	instance->hiddenByHistory = amVisible;
 	toggleFloatPlayer(instance);
 	updateFloatPlayerPosition(instance);
 }

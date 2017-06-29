@@ -238,6 +238,7 @@ void InnerWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
 	} else {
 		scrollDateHideByTimer();
 	}
+	_controller->floatPlayerAreaUpdated().notify(true);
 }
 
 void InnerWidget::updateVisibleTopItem() {

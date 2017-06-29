@@ -419,7 +419,7 @@ void MediaView::updateActions() {
 	if (_doc && _doc->loading()) {
 		_actions.push_back({ lang(lng_cancel), SLOT(onSaveCancel()) });
 	}
-	if (_msgid > 0) {
+	if (_msgid > 0 && _msgid < ServerMaxMsgId) {
 		_actions.push_back({ lang(lng_context_to_msg), SLOT(onToMessage()) });
 	}
 	if (_doc && !_doc->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
@@ -749,7 +749,7 @@ void MediaView::onScreenResized(int screen) {
 }
 
 void MediaView::onToMessage() {
-	if (HistoryItem *item = _msgid ? App::histItemById(_msgmigrated ? 0 : _channel, _msgid) : 0) {
+	if (auto item = _msgid ? App::histItemById(_msgmigrated ? 0 : _channel, _msgid) : 0) {
 		if (App::wnd()) {
 			close();
 			Ui::showPeerHistoryAtItem(item);
@@ -950,7 +950,7 @@ void MediaView::onShowInFolder() {
 }
 
 void MediaView::onForward() {
-	HistoryItem *item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid);
+	auto item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid);
 	if (!_msgid || !item) return;
 
 	if (App::wnd()) {
@@ -1039,7 +1039,7 @@ void MediaView::showPhoto(PhotoData *photo, HistoryItem *context) {
 	_msgid = context ? context->id : 0;
 	_msgmigrated = context ? (context->history() == _migrated) : false;
 	_channel = _history ? _history->channelId() : NoChannel;
-	_canForward = _msgid > 0;
+	_canForward = context ? context->canForward() : false;
 	_canDelete = context ? context->canDelete() : false;
 	_photo = photo;
 	if (_history) {
@@ -1156,7 +1156,7 @@ void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
 	_msgid = context ? context->id : 0;
 	_msgmigrated = context ? (context->history() == _migrated) : false;
 	_channel = _history ? _history->channelId() : NoChannel;
-	_canForward = _msgid > 0;
+	_canForward = context ? context->canForward() : false;
 	_canDelete = context ? context->canDelete() : false;
 	if (_history) {
 		_overview = doc->isGifv() ? OverviewGIFs : doc->isVideo() ? OverviewVideos : OverviewFiles;
@@ -2148,7 +2148,7 @@ bool MediaView::moveToNext(int32 delta) {
 				}
 				_msgid = lastChatPhoto.item->id;
 				_channel = _history ? _history->channelId() : NoChannel;
-				_canForward = _msgid > 0;
+				_canForward = lastChatPhoto.item->canForward();
 				_canDelete = lastChatPhoto.item->canDelete();
 				displayPhoto(lastChatPhoto.photo, lastChatPhoto.item);
 				preloadData(delta);
@@ -2179,12 +2179,12 @@ bool MediaView::moveToNext(int32 delta) {
 			newMigrated = false;
 		}
 		if (newIndex >= 0 && newIndex < (newMigrated ? _migrated : _history)->overview[_overview].size()) {
-			if (HistoryItem *item = App::histItemById(newMigrated ? 0 : _channel, (newMigrated ? _migrated : _history)->overview[_overview][newIndex])) {
+			if (auto item = App::histItemById(newMigrated ? 0 : _channel, (newMigrated ? _migrated : _history)->overview[_overview][newIndex])) {
 				_index = newIndex;
 				_msgid = item->id;
 				_msgmigrated = (item->history() == _migrated);
 				_channel = _history ? _history->channelId() : NoChannel;
-				_canForward = _msgid > 0;
+				_canForward = item->canForward();
 				_canDelete = item->canDelete();
 				stopGif();
 				if (auto media = item->getMedia()) {
@@ -2489,7 +2489,7 @@ void MediaView::updateOver(QPoint pos) {
 		updateOverState(OverRightNav);
 	} else if (_nameNav.contains(pos)) {
 		updateOverState(OverName);
-	} else if (_msgid && _dateNav.contains(pos)) {
+	} else if ((_msgid > 0 && _msgid < ServerMaxMsgId) && _dateNav.contains(pos)) {
 		updateOverState(OverDate);
 	} else if (_headerHasLink && _headerNav.contains(pos)) {
 		updateOverState(OverHeader);

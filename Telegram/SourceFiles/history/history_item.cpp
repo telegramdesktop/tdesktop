@@ -814,7 +814,7 @@ bool HistoryItem::canPin() const {
 }
 
 bool HistoryItem::canForward() const {
-	if (id < 0) {
+	if (id < 0 || isLogEntry()) {
 		return false;
 	}
 	if (auto message = toHistoryMessage()) {
@@ -863,6 +863,9 @@ bool HistoryItem::canEdit(const QDateTime &cur) const {
 }
 
 bool HistoryItem::canDelete() const {
+	if (isLogEntry()) {
+		return false;
+	}
 	auto channel = _history->peer->asChannel();
 	if (!channel) {
 		return !(_flags & MTPDmessage_ClientFlag::f_is_group_migrate);
