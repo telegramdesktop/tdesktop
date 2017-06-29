@@ -107,6 +107,8 @@ DeclareSetting(int32, LastUpdateCheck);
 DeclareSetting(bool, NoStartUpdate);
 DeclareSetting(bool, StartToSettings);
 DeclareSetting(bool, ReplaceEmojis);
+DeclareSetting(bool, NoWebPagePreview);
+DeclareSetting(bool, NoDocumentPreview);
 DeclareReadSetting(bool, ManyInstance);
 
 DeclareSetting(QByteArray, LocalSalt);

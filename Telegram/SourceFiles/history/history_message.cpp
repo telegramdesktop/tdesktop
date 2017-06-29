@@ -706,12 +706,18 @@ void HistoryMessage::initMedia(const MTPMessageMedia *media) {
 		}
 	} break;
 	case mtpc_messageMediaDocument: {
+		if (cNoDocumentPreview()) {
+			break;
+		}
 		auto &document = media->c_messageMediaDocument().vdocument;
 		if (document.type() == mtpc_document) {
 			return initMediaFromDocument(App::feedDocument(document), qs(media->c_messageMediaDocument().vcaption));
 		}
 	} break;
 	case mtpc_messageMediaWebPage: {
+		if (cNoWebPagePreview()) {
+			break;
+		}
 		auto &d = media->c_messageMediaWebPage().vwebpage;
 		switch (d.type()) {
 		case mtpc_webPageEmpty: break;
