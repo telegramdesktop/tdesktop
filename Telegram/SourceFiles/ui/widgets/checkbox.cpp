@@ -270,4 +270,60 @@ Radiobutton::~Radiobutton() {
 	_group->unregisterButton(this);
 }
 
+ToggleView::ToggleView(const style::Toggle &st, bool toggled, base::lambda<void()> updateCallback)
+: _st(&st)
+, _toggled(toggled)
+, _updateCallback(std::move(updateCallback)) {
+}
+
+void ToggleView::setStyle(const style::Toggle &st) {
+	_st = &st;
+}
+
+void ToggleView::setToggledFast(bool toggled) {
+	_toggled = toggled;
+	finishAnimation();
+	if (_updateCallback) {
+		_updateCallback();
+	}
+}
+
+void ToggleView::setUpdateCallback(base::lambda<void()> updateCallback) {
+	_updateCallback = std::move(updateCallback);
+	if (_toggleAnimation.animating()) {
+		_toggleAnimation.setUpdateCallback(_updateCallback);
+	}
+}
+
+void ToggleView::setToggledAnimated(bool toggled) {
+	if (_toggled != toggled) {
+		_toggled = toggled;
+		_toggleAnimation.start(_updateCallback, _toggled ? 0. : 1., _toggled ? 1. : 0., _st->duration);
+	}
+}
+
+void ToggleView::finishAnimation() {
+	_toggleAnimation.finish();
+}
+
+void ToggleView::paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) {
+	PainterHighQualityEnabler hq(p);
+	auto toggled = _toggleAnimation.current(ms, _toggled ? 1. : 0.);
+	auto fullWidth = _st->diameter + _st->width;
+	auto innerDiameter = _st->diameter - 2 * _st->shift;
+	auto innerRadius = float64(innerDiameter) / 2.;
+	auto bgRect = rtlrect(left + _st->shift, top + _st->shift, fullWidth - 2 * _st->shift, innerDiameter, outerWidth);
+	auto fgRect = rtlrect(left + anim::interpolate(0, fullWidth - _st->diameter, toggled), top, _st->diameter, _st->diameter, outerWidth);
+
+	p.setPen(Qt::NoPen);
+	p.setBrush(anim::brush(_st->untoggledFg, _st->toggledFg, toggled));
+	p.drawRoundedRect(bgRect, innerRadius, innerRadius);
+
+	auto pen = anim::pen(_st->untoggledFg, _st->toggledFg, toggled);
+	pen.setWidth(_st->border);
+	p.setPen(pen);
+	p.setBrush(anim::brush(_st->untoggledBg, _st->toggledBg, toggled));
+	p.drawEllipse(fgRect);
+}
+
 } // namespace Ui

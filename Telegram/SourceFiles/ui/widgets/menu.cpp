@@ -18,8 +18,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/menu.h"
 
 #include "ui/effects/ripple_animation.h"
+#include "ui/widgets/checkbox.h"
 
 namespace Ui {
+
+Menu::ActionData::~ActionData() = default;
 
 Menu::Menu(QWidget *parent, const style::Menu &st) : TWidget(parent)
 , _st(st)
@@ -43,7 +46,7 @@ Menu::Menu(QWidget *parent, QMenu *menu, const style::Menu &st) : TWidget(parent
 }
 
 void Menu::init() {
-	resize(_st.widthMin, _st.skip * 2);
+	resize(_forceWidth ? _forceWidth : _st.widthMin, _st.skip * 2);
 
 	setMouseTracking(true);
 
@@ -64,18 +67,22 @@ QAction *Menu::addAction(const QString &text, base::lambda<void()> callback, con
 
 QAction *Menu::addAction(QAction *action, const style::icon *icon, const style::icon *iconOver) {
 	connect(action, SIGNAL(changed()), this, SLOT(actionChanged()));
+	connect(action, SIGNAL(toggled(bool)), this, SLOT(actionToggled(bool)));
 	_actions.push_back(action);
 
-	ActionData data;
-	data.icon = icon;
-	data.iconOver = iconOver ? iconOver : icon;
-	data.hasSubmenu = (action->menu() != nullptr);
-	_actionsData.push_back(data);
+	auto createData = [icon, iconOver, action] {
+		auto data = ActionData();
+		data.icon = icon;
+		data.iconOver = iconOver ? iconOver : icon;
+		data.hasSubmenu = (action->menu() != nullptr);
+		return data;
+	};
+	_actionsData.push_back(createData());
 
 	auto newWidth = qMax(width(), _st.widthMin);
 	newWidth = processAction(action, _actions.size() - 1, newWidth);
 	auto newHeight = height() + (action->isSeparator() ? _separatorHeight : _itemHeight);
-	resize(newWidth, newHeight);
+	resize(_forceWidth ? _forceWidth : newWidth, newHeight);
 	if (_resizedCallback) {
 		_resizedCallback();
 	}
@@ -97,7 +104,7 @@ void Menu::clearActions() {
 			delete action;
 		}
 	}
-	resize(_st.widthMin, _st.skip * 2);
+	resize(_forceWidth ? _forceWidth : _st.widthMin, _st.skip * 2);
 	if (_resizedCallback) {
 		_resizedCallback();
 	}
@@ -118,6 +125,18 @@ int Menu::processAction(QAction *action, int index, int width) {
 		} else if (!actionShortcut.isEmpty()) {
 			goodw += _st.itemPadding.left() + _st.itemFont->width(actionShortcut);
 		}
+		if (action->isCheckable()) {
+			auto updateCallback = [this, index] { updateItem(index); };
+			goodw += _st.itemPadding.left() + _st.itemToggle.diameter + _st.itemToggle.width - _st.itemToggleShift;
+			if (data.toggle) {
+				data.toggle->setUpdateCallback(updateCallback);
+				data.toggle->setToggledAnimated(action->isChecked());
+			} else {
+				data.toggle = std::make_unique<ToggleView>(_st.itemToggle, action->isChecked(), updateCallback);
+			}
+		} else {
+			data.toggle.reset();
+		}
 		width = snap(goodw, width, _st.widthMax);
 		data.text = (width < goodw) ? _st.itemFont->elided(actionText, width - (goodw - textw)) : actionText;
 		data.shortcut = actionShortcut;
@@ -134,12 +153,17 @@ Menu::Actions &Menu::actions() {
 	return _actions;
 }
 
+void Menu::setForceWidth(int forceWidth) {
+	_forceWidth = forceWidth;
+	resize(_forceWidth, height());
+}
+
 void Menu::actionChanged() {
-	int newWidth = _st.widthMin;
-	for (int i = 0, count = _actions.size(); i != count; ++i) {
+	auto newWidth = _st.widthMin;
+	for (auto i = 0, count = _actions.size(); i != count; ++i) {
 		newWidth = processAction(_actions[i], i, newWidth);
 	}
-	if (newWidth != width()) {
+	if (newWidth != width() && !_forceWidth) {
 		resize(newWidth, height());
 		if (_resizedCallback) {
 			_resizedCallback();
@@ -193,6 +217,9 @@ void Menu::paintEvent(QPaintEvent *e) {
 				} else if (!data.shortcut.isEmpty()) {
 					p.setPen(selected ? _st.itemFgShortcutOver : (enabled ? _st.itemFgShortcut : _st.itemFgShortcutDisabled));
 					p.drawTextRight(_st.itemPadding.right(), _st.itemPadding.top(), width(), data.shortcut);
+				} else if (data.toggle) {
+					auto toggleSize = _st.itemToggle.diameter + _st.itemToggle.width;
+					data.toggle->paint(p, width() - _st.itemPadding.right() - toggleSize + _st.itemToggleShift, (_itemHeight - _st.itemToggle.diameter) / 2, width(), ms);
 				}
 			}
 		}
@@ -220,7 +247,7 @@ void Menu::itemPressed(TriggeredSource source) {
 		if (source == TriggeredSource::Mouse) {
 			if (!_actionsData[_pressed].ripple) {
 				auto mask = RippleAnimation::rectMask(QSize(width(), _itemHeight));
-				_actionsData[_pressed].ripple = MakeShared<RippleAnimation>(_st.ripple, std::move(mask), [this, selected = _pressed] {
+				_actionsData[_pressed].ripple = std::make_unique<RippleAnimation>(_st.ripple, std::move(mask), [this, selected = _pressed] {
 					updateItem(selected);
 				});
 			}
@@ -234,6 +261,9 @@ void Menu::itemPressed(TriggeredSource source) {
 void Menu::itemReleased(TriggeredSource source) {
 	auto pressed = std::exchange(_pressed, -1);
 	if (pressed >= 0 && pressed < _actions.size()) {
+		if (pressed != _selected && _actionsData[pressed].toggle) {
+			_actionsData[pressed].toggle->setStyle(_st.itemToggle);
+		}
 		if (source == TriggeredSource::Mouse && _actionsData[pressed].ripple) {
 			_actionsData[pressed].ripple->lastStop();
 		}
@@ -316,7 +346,13 @@ void Menu::setSelected(int selected) {
 	}
 	if (_selected != selected) {
 		updateSelectedItem();
+		if (_selected >= 0 && _selected != _pressed && _actionsData[_selected].toggle) {
+			_actionsData[_selected].toggle->setStyle(_st.itemToggle);
+		}
 		_selected = selected;
+		if (_selected >= 0 && _actionsData[_selected].toggle && _actions[_selected]->isEnabled()) {
+			_actionsData[_selected].toggle->setStyle(_st.itemToggleOver);
+		}
 		updateSelectedItem();
 		if (_activatedCallback) {
 			auto source = _mouseSelection ? TriggeredSource::Mouse : TriggeredSource::Keyboard;

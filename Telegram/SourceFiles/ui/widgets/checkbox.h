@@ -194,4 +194,24 @@ public:
 
 };
 
+class ToggleView {
+public:
+	ToggleView(const style::Toggle &st, bool toggled, base::lambda<void()> updateCallback);
+
+	void setToggledFast(bool toggled);
+	void setToggledAnimated(bool toggled);
+	void finishAnimation();
+	void setStyle(const style::Toggle &st);
+	void setUpdateCallback(base::lambda<void()> updateCallback);
+
+	void paint(Painter &p, int left, int top, int outerWidth, TimeMs ms);
+
+private:
+	gsl::not_null<const style::Toggle*> _st;
+	bool _toggled = false;
+	base::lambda<void()> _updateCallback;
+	Animation _toggleAnimation;
+
+};
+
 } // namespace Ui

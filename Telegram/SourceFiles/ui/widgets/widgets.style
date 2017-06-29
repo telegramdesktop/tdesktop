@@ -360,6 +360,18 @@ CallButton {
 	outerBg: color;
 }
 
+Toggle {
+	toggledBg: color;
+	toggledFg: color;
+	untoggledBg: color;
+	untoggledFg: color;
+	duration: int;
+	border: pixels;
+	shift: pixels;
+	diameter: pixels;
+	width: pixels;
+}
+
 Menu {
 	skip: pixels;
 
@@ -374,6 +386,9 @@ Menu {
 	itemPadding: margins;
 	itemIconPosition: point;
 	itemFont: font;
+	itemToggle: Toggle;
+	itemToggleOver: Toggle;
+	itemToggleShift: pixels;
 
 	separatorPadding: margins;
 	separatorWidth: pixels;
@@ -766,7 +781,25 @@ defaultRoundCheckbox: RoundCheckbox {
 	duration: 150;
 }
 
+defaultToggle: Toggle {
+	toggledBg: windowBg;
+	toggledFg: windowBgActive;
+	untoggledBg: windowBg;
+	untoggledFg: checkboxFg;
+	duration: 200;
+	border: 2px;
+	shift: 1px;
+	diameter: 20px;
+	width: 16px;
+}
+
 defaultMenuArrow: icon {{ "dropdown_submenu_arrow", menuSubmenuArrowFg }};
+defaultMenuToggle: Toggle(defaultToggle) {
+	untoggledFg: menuIconFg;
+}
+defaultMenuToggleOver: Toggle(defaultToggle) {
+	untoggledFg: menuIconFgOver;
+}
 defaultMenu: Menu {
 	skip: 0px;
 
@@ -781,6 +814,9 @@ defaultMenu: Menu {
 	itemIconPosition: point(0px, 0px);
 	itemPadding: margins(17px, 8px, 17px, 7px);
 	itemFont: normalFont;
+	itemToggle: defaultMenuToggle;
+	itemToggleOver: defaultMenuToggleOver;
+	itemToggleShift: 0px;
 
 	separatorPadding: margins(0px, 5px, 0px, 5px);
 	separatorWidth: 1px;

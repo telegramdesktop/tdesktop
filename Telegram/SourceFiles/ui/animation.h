@@ -621,6 +621,13 @@ public:
 		}
 	}
 
+	template <typename Lambda>
+	void setUpdateCallback(Lambda &&updateCallback) {
+		if (_data) {
+			_data->updateCallback = std::forward<Lambda>(updateCallback);
+		}
+	}
+
 private:
 	struct Data {
 		template <typename Lambda>
