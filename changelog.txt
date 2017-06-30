@@ -1,3 +1,11 @@
+1.1.9 (30.06.17)
+
+- Supergroups can now have up to 10.000 members.
+- Appoint supergroup admins with granular rights. Choose who can add users, manage messages, block members, edit group info & username, add new admins, etc.
+- Restrict and ban supergroup members with granular precision. Read-only bans, GIF & sticker bans, media bans, temporary bans and restrictions.
+- Check the new event log to see all service actions taken by members and admins of a channel or supergroup in the last 48 hours.
+- Toggle night mode in the main menu.
+
 1.1.8 alpha (30.06.17)
 
 - Toggle night mode in the main menu.
