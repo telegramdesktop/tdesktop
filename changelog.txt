@@ -1,3 +1,7 @@
+1.1.8 alpha (30.06.17)
+
+- Toggle night mode in the main menu.
+
 1.1.7 (30.05.17)
 
 - Improved video messages: radial playback progress, Picture-in-Picture support, duration countdown.
