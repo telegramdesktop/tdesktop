@@ -90,7 +90,7 @@ void ApiWrap::addLocalAlphaChangelogs(int oldAppVersion) {
 			auto text = qsl("New in version %1:\n\n").arg(changeVersionString) + QString::fromUtf8(changes).trimmed();
 			auto textWithEntities = TextWithEntities { text };
 			textParseEntities(textWithEntities.text, TextParseLinks, &textWithEntities.entities);
-			App::main()->serviceNotification(textWithEntities, MTP_messageMediaEmpty(), unixtime());
+			App::wnd()->serviceNotification(textWithEntities, MTP_messageMediaEmpty(), unixtime());
 		}
 	};
 

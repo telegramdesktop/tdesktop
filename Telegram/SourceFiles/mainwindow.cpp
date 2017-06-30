@@ -276,7 +276,7 @@ void MainWindow::serviceNotification(const TextWithEntities &message, const MTPM
 		return sendServiceHistoryRequest();
 	}
 
-	_main->serviceNotification(message, media, date);
+	_main->insertCheckedServiceNotification(message, media, date);
 }
 
 void MainWindow::showDelayedServiceMsgs() {
