@@ -142,16 +142,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_error_pinned_max#one" = "Spiacenti, non puoi fissare in alto più di {count} chat.";
 "lng_error_pinned_max#other" = "Spiacenti, non puoi fissare in alto più di {count} chat.";
 "lng_error_public_groups_denied" = "Sfortunatamente, non ti è permesso partecipare ai gruppi pubblici.\n{more_info}";
-"lng_error_cant_edit_admin" = "Sorry, you can't edit permissions for this admin.";
+"lng_error_cant_edit_admin" = "Spiacenti, non puoi modificare le autorizzazioni di questo amministratore.";
 "lng_error_cant_add_member" = "Spiacenti, non puoi aggiungere il bot a questo gruppo. Chiedi ad un amministratore di farlo.";
 "lng_error_cant_add_admin_invite" = "Spiacenti, non puoi aggiungere questo utente come amministratore perché non è un membro del gruppo e non sei autorizzato ad invitarlo.";
 "lng_error_cant_add_admin_unban" = "Spiacenti, non puoi aggiungere questo utente come amministratore perché è bloccato e non puoi sbloccarlo.";
 "lng_error_cant_ban_admin" = "Spiacenti, non puoi bloccare questo utente perché è un amministratore in questo gruppo e non sei autorizzato a degradarlo.";
-"lng_sure_add_admin_invite" = "This user is not a member of this group. Add them to the group and promote them to admin?";
-"lng_sure_add_admin_unban" = "This user is currently restricted or banned in this group. Are you sure you want to unban and promote them?";
-"lng_sure_ban_admin" = "This user is an admin in this group. Are you sure you want to go ahead and restrict them?";
-"lng_sure_ban_user_group" = "Ban {user} in the group?";
-"lng_sure_enable_socks" = "Are you sure you want to enable this proxy?\n\nServer: {server}\nPort: {port}\n\nYou can change your proxy server later in the Settings (Connection Type).";
+"lng_sure_add_admin_invite" = "Questo utente non è membro del gruppo. Vuoi aggiungerlo e promuoverlo ad amministratore?";
+"lng_sure_add_admin_unban" = "Questo utente è limitato o bloccato nel gruppo. Sei sicuro di volerlo sbloccare e promuoverlo?";
+"lng_sure_ban_admin" = "Questo utente è un amministratore nel gruppo. Sei sicuro di voler proseguire e limitarlo?";
+"lng_sure_ban_user_group" = "Bloccare {user} nel gruppo?";
+"lng_sure_enable_socks" = "Sei sicuro di voler attivare questo proxy?\n\nServer: {server}\nPorta: {port}\n\nPuoi cambiare il tuo server proxy più tardi nelle Impostazioni (Tipo di connessione).";
 "lng_sure_enable" = "Attiva";
 
 "lng_edit_deleted" = "Questo messaggio è stato eliminato";
@@ -648,7 +648,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_channel_admin_status_creator" = "Creatore";
 "lng_channel_admin_status_promoted_by" = "Promosso da {user}";
 
-"lng_group_blocked_list_about" = "Banned users are removed from the group and can only come back if invited by an admin.\nInvite links don't work for them.";
+"lng_group_blocked_list_about" = "Gli utenti bloccati sono rimossi dal gruppo e possono rientrare solo se invitati da un amministratore.\nI link di invito non funzionano per loro.";
 
 "lng_chat_all_members_admins" = "Tutti sono amministratori";
 "lng_chat_about_all_admins" = "Tutti i membri possono aggiungere nuovi membri, modificare nome e foto del gruppo.";
@@ -805,6 +805,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_channel_public_link_copied" = "Link copiato negli appunti.";
 
 "lng_forwarded" = "Inoltrato da {user}";
+"lng_forwarded_date" = "Originale: {date}";
 "lng_forwarded_channel" = "Inoltrato da {channel}";
 "lng_forwarded_via" = "Inoltrato da {user} via {inline_bot}";
 "lng_forwarded_channel_via" = "Inoltrato da {channel} via {inline_bot}";
@@ -1011,7 +1012,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_context_unpin_from_top" = "Togli dall'alto";
 
 "lng_context_promote_admin" = "Rendi amministratore";
-"lng_context_edit_permissions" = "Edit permissions";
+"lng_context_edit_permissions" = "Modifica autorizzazioni";
 "lng_context_restrict_user" = "Limita utente";
 "lng_context_remove_from_group" = "Rimuovi dal gruppo";
 
@@ -1050,6 +1051,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_context_unpin_msg" = "Togli messaggio";
 "lng_context_cancel_upload" = "Annulla caricamento";
 "lng_context_copy_selected" = "Copia testo selezionato";
+"lng_context_copy_selected_items" = "Copia selezione come testo";
 "lng_context_forward_selected" = "Inoltra selezione";
 "lng_context_delete_selected" = "Elimina selezione";
 "lng_context_clear_selection" = "Annulla selezione";
@@ -1075,10 +1077,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_forward_cant" = "Spiacenti, impossibile inoltrare qui :(";
 "lng_forward_confirm" = "Inoltra a {recipient}?";
 "lng_forward_share_contact" = "Condividi contatto con {recipient}?";
-"lng_forward_share_cant" = "Sorry, no way to share contact here :(";
+"lng_forward_share_cant" = "Spiacenti, non è possibile condividere contatti qui :(";
 "lng_forward_send_file_confirm" = "Invia «{name}» a {recipient}?";
 "lng_forward_send_files_confirm" = "Invia i file selezionati a {recipient}?";
-"lng_forward_send_files_cant" = "Sorry, no way to send media here :(";
+"lng_forward_send_files_cant" = "Spiacenti, non è possibile inviare media qui :(";
 "lng_forward_send" = "Invia";
 "lng_forward_messages#one" = "{count} messaggio inoltrato";
 "lng_forward_messages#other" = "{count} messaggi inoltrati";
@@ -1270,7 +1272,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_rights_edit_admin" = "Modifica amministratore";
 "lng_rights_edit_admin_header" = "Cosa può fare questo amministratore?";
-"lng_rights_about_add_admins_yes" = "This admin will be able to add new admins with the same (or more limited) permissions.";
+"lng_rights_about_add_admins_yes" = "Questo amministratore sarà in grado di aggiungere nuovi amministratori con le stesse autorizzazioni (o più limitate) .";
 "lng_rights_about_add_admins_no" = "Questo amministratore non sarà in grado di aggiungere nuovi amministratori.";
 "lng_rights_user_restrictions" = "Restrizioni utente";
 "lng_rights_user_restrictions_header" = "Cosa può fare questo utente?";
@@ -1295,11 +1297,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_rights_chat_banned_forever" = "Sempre";
 "lng_rights_chat_banned_block" = "Blocca e rimuovi dal gruppo";
 
-"lng_restricted_send_message" = "The admins of this group restricted you from writing here.";
-"lng_restricted_send_media" = "The admins of this group restricted you from posting media content here.";
-"lng_restricted_send_stickers" = "The admins of this group restricted you from posting stickers here.";
-"lng_restricted_send_gifs" = "The admins of this group restricted you from posting GIFs here.";
-"lng_restricted_send_inline" = "The admins of this group restricted you from posting inline content here.";
+"lng_restricted_send_message" = "Gli amministratori di questo gruppo ti hanno vietato di scrivere qui.";
+"lng_restricted_send_media" = "Spiacenti, gli amministratori di questo gruppo ti hanno vietato di inviare media.";
+"lng_restricted_send_stickers" = "Spiacenti, gli amministratori di questo gruppo ti hanno vietato di inviare sticker.";
+"lng_restricted_send_gifs" = "Spiacenti, gli amministratori di questo gruppo ti hanno vietato di inviare GIF.";
+"lng_restricted_send_inline" = "Gli amministratori di questo gruppo ti hanno vietato di inviare contenuti inline qui.";
 
 "lng_restricted_list_title" = "Utenti limitati";
 "lng_banned_list_title" = "Utenti bloccati";
@@ -1320,13 +1322,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_filter_members_removed" = "Membri rimossi";
 "lng_admin_log_filter_all_admins" = "Tutti gli amministratori";
 "lng_admin_log_about" = "Cos'è questo?";
-"lng_admin_log_about_text" = "This is a list of all service actions taken by the group's members and admins in the last 48 hours.";
+"lng_admin_log_about_text" = "Questa è una lista di tutte le azioni di servizio eseguite dai membri e dagli amministratori del gruppo nelle ultime 48 ore.";
 "lng_admin_log_no_results_title" = "Nessun evento trovato";
-"lng_admin_log_no_results_text" = "No recent events that match your query have been found.";
+"lng_admin_log_no_results_text" = "Non sono stati trovati eventi recenti che rispondono alla tua richiesta.";
 "lng_admin_log_no_events_title" = "Ancora nessun evento";
-"lng_admin_log_no_events_text" = "There were no service actions\ntaken by the group's members\nand admins in the last 48 hours.";
+"lng_admin_log_no_events_text" = "Non ci sono state azioni di servizio\nda parte dei membri e degli amministratori\ndel gruppo nelle ultime 48 ore.";
 
-"lng_admin_log_empty_text" = "Empty";
+"lng_admin_log_empty_text" = "Vuota";
 "lng_admin_log_changed_title_group" = "{from} ha cambiato il nome del gruppo in «{title}»";
 "lng_admin_log_changed_title_channel" = "{from} ha cambiato il nome del canale in «{title}»";
 "lng_admin_log_changed_description_group" = "{from} ha cambiato la descrizione del gruppo:";
@@ -1346,6 +1348,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_signatures_enabled" = "{from} ha attivato le firme";
 "lng_admin_log_signatures_disabled" = "{from} ha disattivato le firme";
 "lng_admin_log_pinned_message" = "{from} ha fissato un messaggio:";
+"lng_admin_log_unpinned_message" = "{from} ha tolto un messaggio";
 "lng_admin_log_edited_caption" = "{from} ha modificato la didascalia:";
 "lng_admin_log_removed_caption" = "{from} ha rimosso la didascalia";
 "lng_admin_log_previous_caption" = "Didascalia originale";
@@ -1354,8 +1357,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_deleted_message" = "{from} ha eliminato un messaggio:";
 "lng_admin_log_participant_joined" = "{from} si è unito al gruppo";
 "lng_admin_log_participant_left" = "{from} ha lasciato il gruppo";
-"lng_admin_log_invited" = "invited {user}";
-"lng_admin_log_banned" = "banned {user}";
+"lng_admin_log_invited" = "ha invitato {user}";
+"lng_admin_log_banned" = "ha bloccato {user}";
 "lng_admin_log_restricted" = "ha cambiato le restrizioni di {user} {until}";
 "lng_admin_log_promoted" = "ha cambiato i privilegi di {user}";
 "lng_admin_log_user_with_username" = "{name} ({mention})";

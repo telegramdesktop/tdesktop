@@ -435,7 +435,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_connection_try_ipv6" = "Verbinden via IPV6";
 "lng_connection_host_ph" = "Hostnaam";
 "lng_connection_port_ph" = "Poort";
-"lng_connection_user_ph" = "Gebruikersnaam";
+"lng_connection_user_ph" = "Gebruiker";
 "lng_connection_password_ph" = "Wachtwoord";
 "lng_connection_save" = "Opslaan";
 
