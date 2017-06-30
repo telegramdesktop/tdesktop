@@ -103,7 +103,11 @@ public:
 	void setTile(bool tile);
 	void reset();
 
-	void setTestingTheme(Instance &&theme);
+	enum class ChangeMode {
+		SwitchToThemeBackground,
+		LeaveCurrentCustomBackground,
+	};
+	void setTestingTheme(Instance &&theme, ChangeMode mode = ChangeMode::SwitchToThemeBackground);
 	void setTestingDefaultTheme();
 	void keepApplied();
 	void revert();

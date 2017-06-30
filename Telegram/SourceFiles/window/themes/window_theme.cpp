@@ -562,15 +562,18 @@ void ChatBackground::saveForRevert() {
 	}
 }
 
-void ChatBackground::setTestingTheme(Instance &&theme) {
+void ChatBackground::setTestingTheme(Instance &&theme, ChangeMode mode) {
 	style::main_palette::apply(theme.palette);
+	auto switchToThemeBackground = (mode == ChangeMode::SwitchToThemeBackground && !theme.background.isNull())
+		|| (_id == kThemeBackground)
+		|| (_id == kDefaultBackground && !Local::hasTheme());
 	if (AreTestingTheme() && IsPaletteTestingPath(instance->applying.path)) {
 		// Grab current background image if it is not already custom
 		if (_id != kCustomBackground) {
 			saveForRevert();
 			setImage(internal::kTestingEditorBackground, std::move(_pixmap).toImage());
 		}
-	} else if (!theme.background.isNull() || _id == kThemeBackground) {
+	} else if (switchToThemeBackground) {
 		saveForRevert();
 		setImage(internal::kTestingThemeBackground, std::move(theme.background));
 		setTile(theme.tiled);
@@ -685,7 +688,7 @@ void SwitchNightTheme(bool enabled) {
 		if (instance->applying.paletteForRevert.isEmpty()) {
 			instance->applying.paletteForRevert = style::main_palette::save();
 		}
-		Background()->setTestingTheme(std::move(preview->instance));
+		Background()->setTestingTheme(std::move(preview->instance), ChatBackground::ChangeMode::LeaveCurrentCustomBackground);
 	} else {
 		Window::Theme::ApplyDefault();
 	}
