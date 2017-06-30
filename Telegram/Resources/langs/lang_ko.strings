@@ -18,8 +18,8 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-"lng_language_name" = "한국어";
-"lng_switch_to_this" = "한국어로 변경";
+"lng_language_name" = "영어";
+"lng_switch_to_this" = "영어로 변경";
 
 "lng_menu_contacts" = "주소록";
 "lng_menu_calls" = "전화";
@@ -88,7 +88,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_continue" = "계속";
 "lng_close" = "닫기";
 "lng_connecting" = "연결중...";
-"lng_reconnecting" = "재연결중..{count:now|in # 초|in # 초}...";
+"lng_connecting_to_proxy" = "프록시 연결 중...";
+"lng_connecting_settings" = "설정";
+"lng_reconnecting#one" = "{count} 초 후 재연결...";
+"lng_reconnecting#other" = "{count} 초 후 재연결...";
 "lng_reconnecting_try_now" = "다시 시도";
 
 "lng_status_service_notifications" = "서비스 알림";
@@ -102,8 +105,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_status_last_month" = "한 달 이내 마지막으로 접속";
 "lng_status_invisible" = "숨김";
 "lng_status_lastseen_now" = "방금 접속";
-"lng_status_lastseen_minutes" = "{count:_not_used_|#분|#분}전 접속";
-"lng_status_lastseen_hours" = "{count:_not_used_|#시간|#시간}전 접속";
+"lng_status_lastseen_minutes#one" = "{count} 분전 접속";
+"lng_status_lastseen_minutes#other" = "{count} 분전 접속";
+"lng_status_lastseen_hours#one" = "{count} 시간전 접속";
+"lng_status_lastseen_hours#other" = "{count} 시간전 접속";
 "lng_status_lastseen_today" = "오늘 {time}에 마지막으로 접속";
 "lng_status_lastseen_yesterday" = "어제 {time}에 마지막으로 접속";
 "lng_status_lastseen_date" = "{date}에 마지막으로 접속";
@@ -112,14 +117,20 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_status_connecting" = "연결중...";
 
 "lng_chat_status_unaccessible" = "그룹에 접근할 수 없습니다.";
-"lng_chat_status_members" = "{count:맴버 없음|#명|#명}";
-"lng_chat_status_members_online" = "{count:_not_used_|#명|#명}중 {count_online:_not_used_|#명 접속중|#명 접속중}";
+"lng_chat_status_no_members" = "대화상대가 없음";
+"lng_chat_status_members#one" = "대화상대 {count}명";
+"lng_chat_status_members#other" = "대화상대 {count}명";
+"lng_chat_status_online#one" = "온라인 {count}명";
+"lng_chat_status_online#other" = "온라인 {count}명";
+"lng_chat_status_members_online" = "{members_count}, {online_count}";
 
 "lng_channel_status" = "채널";
 "lng_group_status" = "그룹방";
 
-"lng_channel_members_link" = "{count:_not_used_|#명|#명}";
-"lng_channel_admins_link" = "{count:_not_used_|# 관리자|# 관리자}";
+"lng_channel_members_link#one" = "대화상대 {count}명";
+"lng_channel_members_link#other" = "대화상대 {count}명";
+"lng_channel_admins_link#one" = "관리자 {count}명";
+"lng_channel_admins_link#other" = "관리자 {count}명";
 
 "lng_server_error" = "내부 서버 오류";
 "lng_flood_error" = "시도가 너무 많습니다. 나중에 다시 시도해주세요.";
@@ -128,8 +139,20 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_join_channel_error" = "너무 많은 채널과 슈퍼그룹에 참여하였습니다.\n기존 대화방을 나가주셔야 참여가 가능합니다.";
 "lng_error_phone_flood" = "죄송합니다, 너무 많이 계정 재가입이 최근에 이루어졌습니다. 다시 재가입까지 몇일 기다려주시기 바랍니다.";
 "lng_error_start_minimized_passcoded" = "잠금코드를 설정하였기 때문에 앱이 최소화된 상태에서 시작할 수 없습니다. 앱이 시작하기 전에 잠금코드 입력이 필요합니다.";
-"lng_error_pinned_max" = "죄송합니다, {count:_not_used_|# 대화|# 대화} 이상은 맨위 고정을 할 수 없습니다.";
+"lng_error_pinned_max#one" = "죄송합니다, {count}개 이상의 대화를 고정할 수 없습니다.";
+"lng_error_pinned_max#other" = "죄송합니다, {count}개 이상의 대화를 고정할 수 없습니다.";
 "lng_error_public_groups_denied" = "죄송하지만, 회원님은 공개그룹 참여에 제한 되었습니다.\n{more_info}";
+"lng_error_cant_edit_admin" = "죄송합니다, 이 관리자의 권한을 변경 할 수 없습니다.";
+"lng_error_cant_add_member" = "죄송합니다, 이 봇을 그룹에 추가할 수 없습니다. 관리자에게 추가 문의해주세요.";
+"lng_error_cant_add_admin_invite" = "죄송합니다, 이 사용자는 이 그룹에 속해있지 않으며 초대가 되지 않기 때문에 관리자로 추가할 수 없습니다.";
+"lng_error_cant_add_admin_unban" = "죄송합니다, 이 사용자는 블랙리스트에 있으며 해제가 가능하지 않기 떄문에 관리자로 추가할 수 없습니다.";
+"lng_error_cant_ban_admin" = "죄송합니다, 이 사용자는 그룹의 관리자이며 해제권한이 없으시기 떄문에 차단할 수 없습니다.";
+"lng_sure_add_admin_invite" = "이 사용자는 그룹에 참여하고 있지 않습니다. 그룹에 초대하고 관리자로 추가하시겠습니까?";
+"lng_sure_add_admin_unban" = "이 사용자는 제한되어져 있으며 그룹에서 차단당한 상태입니다. 정말로 차단을 해제하고 추가하시겠습니까?";
+"lng_sure_ban_admin" = "이 사용자는 그룹의 관리자입니다. 정말로 제한을 하시겠습니까?";
+"lng_sure_ban_user_group" = "{user} 를 그룹에서 차단하시겠습니까?";
+"lng_sure_enable_socks" = "프록시 설정을 하시겠습니까?\n\n서버: {server}\n포트: {port}\n\n나중에 설정에서 프록시 서버를 변경 할 수 있습니다. (연결유형)";
+"lng_sure_enable" = "활성";
 
 "lng_edit_deleted" = "메시지는 삭제 되었습니다.";
 "lng_edit_too_long" = "메시지 길이가 너무 깁니다.";
@@ -198,9 +221,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_signin_sure_reset" = "경고!\n\n계정 초기화 진행시 모든 대화,\n메시지 및 공유받은 미디어와 파일이 삭제가 됩니다.\n\n계정 초기화를 진행하시겠습니까?";
 "lng_signin_reset" = "초기화";
 "lng_signin_reset_wait" = "{phone_number} 계정이 사용중이고 비밀번호 설정이 되어져 있어, 보안을 위하여 1주일 이후에 삭제가 될 예정입니다. 이 설정은 언제든지 취소 할 수 있습니다.\n\n계정은 다음시간 이후에 초기화가 됩니다:\n{when}";
-"lng_signin_reset_in_days" = "{count_days:0 일|# 일|# 일} {count_hours:0 시간|# 시간|# 시간} {count_minutes:0 분|# 분|# 분}";
-"lng_signin_reset_in_hours" = "{count_hours:0 시간|# 시간|# 시간} {count_minutes:0 분|# 분|# 분}";
-"lng_signin_reset_in_minutes" = "{count_minutes:0 분|# 분|# 분}";
+"lng_signin_reset_days#one" = "{count} 일";
+"lng_signin_reset_days#other" = "{count} 일";
+"lng_signin_reset_hours#one" = "{count} 시간";
+"lng_signin_reset_hours#other" = "{count} 시간";
+"lng_signin_reset_minutes#one" = "{count} 분";
+"lng_signin_reset_minutes#other" = "{count} 분";
+"lng_signin_reset_in_days" = "{days_count} {hours_count} {minutes_count}";
+"lng_signin_reset_in_hours" = "{hours_count} {minutes_count}";
 "lng_signin_reset_cancelled" = "현재 사용중인 사용자가 요청하신 계정 초기화를 취소 하였습니다.\n7일 이후에 다시 시도해주세요.";
 
 "lng_signup_title" = "정보";
@@ -223,7 +251,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_settings_save" = "저장";
 "lng_settings_upload" = "프로필 이미지 선택";
-"lng_settings_crop_profile" = "프로필 사진으로 사용할 사각영역을 선택하세요";
+"lng_settings_crop_profile" = "프로필 사진으로 설정할 영역을 선택해주세요.";
 "lng_settings_uploading_photo" = "사진 업로드 중...";
 "lng_settings_edit" = "수정";
 "lng_settings_drop_area_subtitle" = "프로필 사진으로 설정";
@@ -303,7 +331,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_backgrounds_header" = "새로운 대화창 배경화면을 선택";
 "lng_theme_sure_keep" = "이 테마 색상을 유지하시겠습니까?";
-"lng_theme_reverting" = " {count:_not_used_|# 초|# 초} 후에 이전 테마 색상으로 원복합니다.";
+"lng_theme_reverting#one" = "{count}초 후에 이전 테마색으로 돌아갑니다.";
+"lng_theme_reverting#other" = "{count}초 후에 이전 테마색으로 돌아갑니다.";
 "lng_theme_keep_changes" = "변화 유지";
 "lng_theme_revert" = "원복";
 
@@ -329,8 +358,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_local_storage_title" = "로컬 저장소";
 "lng_settings_no_data_cached" = "캐시 데이터가 없습니다!";
-"lng_settings_images_cached" = "{count:_not_used_|이미지 #개|이미지 #개}, {size}";
-"lng_settings_audios_cached" = "{count:_not_used_|음성 메시지 #개|음성 메시지 #개}, {size}";
+"lng_settings_images_cached#one" = "이미지 {count}개, {size}";
+"lng_settings_images_cached#other" = "이미지 {count}개, {size}";
+"lng_settings_audios_cached#one" = "음성메시지 {count}개, {size}";
+"lng_settings_audios_cached#other" = "음성메시지 {count}개, {size}";
 "lng_local_storage_clear" = "전체 정리";
 "lng_local_storage_clearing" = "초기화 중..";
 "lng_local_storage_cleared" = "초기화 완료!";
@@ -348,8 +379,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_passcode_autolock" = "자동-잠금";
 "lng_passcode_autolock_away" = "미사용시 자동잠금 설정";
 "lng_passcode_autolock_inactive" = "메신져 미사용시 자동잠금 설정";
-"lng_passcode_autolock_minutes" = "{count:_not_used_|#분|#분} ";
-"lng_passcode_autolock_hours" = "{count:_not_used_|#시간|#시간} ";
+"lng_passcode_autolock_minutes#one" = "{count} 분";
+"lng_passcode_autolock_minutes#other" = "{count} 분";
+"lng_passcode_autolock_hours#one" = "{count} 시간";
+"lng_passcode_autolock_hours#other" = "{count} 시간";
 "lng_passcode_enter_old" = "현재 잠금코드 입력";
 "lng_passcode_enter_first" = "잠금코드 입력";
 "lng_passcode_enter_new" = "신규 비밀번호 입력";
@@ -455,32 +488,46 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_privacy_lastseen_title" = "접속 시간 개인설정";
 "lng_edit_privacy_lastseen_description" = "내 접속시간을 볼 수 있는 사람 설정:";
 "lng_edit_privacy_lastseen_warning" = "중요: 접속시간을 공유하지 않는 사람의 접속 시간은 볼 수 없습니다. 대신 대략적으로 접속 시간이 표시 됩니다. (최근에, 일주일 이내, 한달 이내)";
-"lng_edit_privacy_lastseen_always" = "항상 공유 {count:| # user| # users}";
-"lng_edit_privacy_lastseen_never" = "공유 안함{count:| # user| # users}";
+"lng_edit_privacy_lastseen_always_empty" = "항상 공유";
+"lng_edit_privacy_lastseen_always#one" = "항상 {count}명의 대화상대와 공유";
+"lng_edit_privacy_lastseen_always#other" = "항상 {count}명의 대화상대와 공유";
+"lng_edit_privacy_lastseen_never_empty" = "항상 공유 안함";
+"lng_edit_privacy_lastseen_never#one" = "항상 {count}명의 대화상대와 공유하지 않음";
+"lng_edit_privacy_lastseen_never#other" = "항상 {count}명의 대화상대와 공유하지 않음";
 "lng_edit_privacy_lastseen_exceptions" = "이 설정은 위 값을 무효화합니다";
 "lng_edit_privacy_lastseen_always_title" = "항상 공유";
 "lng_edit_privacy_lastseen_never_title" = "항상 공유 안함";
 
 "lng_edit_privacy_groups_title" = "그룹 초대 설정";
 "lng_edit_privacy_groups_description" = "그룹과 채널로 초대가 가능한 사람을 세세하게 설정 할 수 있습니다:";
-"lng_edit_privacy_groups_always" = "항상 허용{count:| # user| # users}";
-"lng_edit_privacy_groups_never" = "허용 안함{count:| # user| # users}";
+"lng_edit_privacy_groups_always_empty" = "항상 허용";
+"lng_edit_privacy_groups_always#one" = "항상 {count}명의 대화상대를 허용";
+"lng_edit_privacy_groups_always#other" = "항상 {count}명의 대화상대를 허용";
+"lng_edit_privacy_groups_never_empty" = "허용 안함";
+"lng_edit_privacy_groups_never#one" = "항상 {count}명의 대화상대와 허용하지 않음";
+"lng_edit_privacy_groups_never#other" = "항상 {count}명의 대화상대와 허용하지 않음";
 "lng_edit_privacy_groups_exceptions" = "위의 설정과 무관하여 이 사용자는 회원님을 그룹이나 채널로 초대할 수 없습니다.";
 "lng_edit_privacy_groups_always_title" = "항상 허용";
 "lng_edit_privacy_groups_never_title" = "허용 안함";
 
 "lng_edit_privacy_calls_title" = "전화 보안";
 "lng_edit_privacy_calls_description" = "전화대상을 제한할 수 있습니다";
-"lng_edit_privacy_calls_always" = "항상 허용{count:| # user| # users}";
-"lng_edit_privacy_calls_never" = "허용 안함{count:| # user| # users}";
+"lng_edit_privacy_calls_always_empty" = "항상 허용";
+"lng_edit_privacy_calls_always#one" = "항상 {count}명의 대화상대를 허용";
+"lng_edit_privacy_calls_always#other" = "항상 {count}명의 대화상대를 허용";
+"lng_edit_privacy_calls_never_empty" = "허용 안함";
+"lng_edit_privacy_calls_never#one" = "항상 {count}명의 대화상대와 허용하지 않음";
+"lng_edit_privacy_calls_never#other" = "항상 {count}명의 대화상대와 허용하지 않음";
 "lng_edit_privacy_calls_exceptions" = "위의 설정과 무관하여 이 사용자는 회원님을 전화를 하거나 할 수 없게 됩니다.";
 "lng_edit_privacy_calls_always_title" = "항상 허용";
 "lng_edit_privacy_calls_never_title" = "허용 안함";
 
 "lng_self_destruct_title" = "계정 자동탈퇴";
 "lng_self_destruct_description" = "이 기간동안 최소한 한번도 온라인이 안될 경우 이 계정은 그룹대화, 일반대화 및 연락처 모두가 삭제됩니다.";
-"lng_self_destruct_months" = "{count:_not_used_|# 월|# 월}";
-"lng_self_destruct_years" = "{count:_not_used_|# 년|# 년}";
+"lng_self_destruct_months#one" = "{count} 월";
+"lng_self_destruct_months#other" = "{count} 월";
+"lng_self_destruct_years#one" = "{count} 년";
+"lng_self_destruct_years#other" = "{count} 년";
 
 "lng_change_phone_title" = "전화번호 변경";
 "lng_change_phone_description" = "텔레그램 번호 변경이 가능합니다.\n대화내용, 미디어, 연락처등 클라우드 데이터와\n모든 계정 정보는 새로운 번호로 이관됩니다.\n\n[b]중요[/b]:회원님 텔레그램 연락처에 있는 \n친구분들이회원님의 이전 전화번호가\n저장되어있고 차단을 하지 않았을 경우 \n[b]새로운 전화번호[/b]로 주소록에 저장이 됩니다.";
@@ -508,7 +555,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_edit_public_link" = "공개링크 수정";
 "lng_profile_manage_admins" = "관리자 관리";
 "lng_profile_manage_blocklist" = "차단된 사용자 관리";
-"lng_profile_common_groups" = "{count:_not_used_|# 그룹|# 그룹} 공통";
+"lng_profile_manage_restrictedlist" = "제한된 사용자 관리";
+"lng_profile_recent_actions" = "최근 활동";
+"lng_profile_common_groups#one" = "공통그룹 {count}개";
+"lng_profile_common_groups#other" = "공통그룹 {count}개";
 "lng_profile_common_groups_section" = "공통 그룹";
 "lng_profile_participants_section" = "사용자";
 "lng_profile_info_section" = "정보";
@@ -536,29 +586,36 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_invite_to_group" = "그룹에 추가";
 "lng_profile_delete_contact" = "삭제";
 "lng_profile_set_group_photo" = "사진 설정";
-"lng_profile_add_participant" = "구성원 추가";
+"lng_profile_add_participant" = "대화상대 추가";
 "lng_profile_view_channel" = "채널 보기";
 "lng_profile_join_channel" = "참여";
 "lng_profile_delete_and_exit" = "나가기";
 "lng_profile_kick" = "삭제";
 "lng_profile_admin" = "관리자";
+"lng_profile_edit_permissions" = "수정";
 "lng_profile_sure_kick" = "{user}를 내보내시겠습니까?";
 "lng_profile_sure_kick_channel" = "{user}를 내보내시겠습니까?";
 "lng_profile_sure_kick_admin" = "{user}를 관리자에서 제외 하시겠습니까?";
 "lng_profile_loading" = "로드중..";
 "lng_profile_shared_media" = "공유된 미디어";
 "lng_profile_no_media" = "대화에 미디어가 존재하지 않습니다.";
-"lng_profile_photos" = "{count:_not_used_|# 사진|# 사진} ";
+"lng_profile_photos#one" = "사진 {count}개";
+"lng_profile_photos#other" = "사진 {count}개";
 "lng_profile_photos_header" = "사진";
-"lng_profile_videos" = "{count:_not_used_|# 동영상|# 동영상}";
+"lng_profile_videos#one" = "비디오 {count}개";
+"lng_profile_videos#other" = "비디오 {count}개";
 "lng_profile_videos_header" = "동영상";
-"lng_profile_songs" = "{count:_not_used_|# 음성|# 음성}";
+"lng_profile_songs#one" = "음성파일 {count}개";
+"lng_profile_songs#other" = "음성파일 {count}개";
 "lng_profile_songs_header" = "음성 파일";
-"lng_profile_files" = "{count:_not_used_|# 파일|# 파일}";
+"lng_profile_files#one" = "파일 {count}개";
+"lng_profile_files#other" = "파일 {count}개";
 "lng_profile_files_header" = "파일";
-"lng_profile_audios" = "{count:_not_used_|# 음성메시지|# 음성메시지}";
+"lng_profile_audios#one" = "음성메시지 {count}개";
+"lng_profile_audios#other" = "음성메시지 {count}개";
 "lng_profile_audios_header" = "음성 메시지";
-"lng_profile_shared_links" = "{count:_not_used_|# 공유된 링크|# 공유된 링크}";
+"lng_profile_shared_links#one" = "공유링크 {count}개";
+"lng_profile_shared_links#other" = "공유링크 {count}개";
 "lng_profile_shared_links_header" = "공유된 링크";
 "lng_profile_copy_phone" = "전화번호 복사";
 "lng_profile_copy_fullname" = "이름 복사";
@@ -579,23 +636,28 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_report_thanks" = "감사합니다! 신고내용은 신속하게 팀내에서 확인하겠습니다.";
 
 "lng_channel_add_admins" = "새로운 관리자";
-"lng_channel_add_members" = "구성원 추가";
-"lng_channel_members" = "구성원";
-"lng_channel_only_last_shown" = "마지막 {count:_not_used_|# 구성원|# 구성원} 들이 표시가 됩니다.";
+"lng_channel_add_members" = "대화상대 추가";
+"lng_channel_add_banned" = "사용자 차단";
+"lng_channel_add_restricted" = "사용자 제한";
+"lng_channel_members" = "대화상대";
+"lng_channel_only_last_shown#one" = "마지막 {count}명의 대화상대가 표시됩니다.";
+"lng_channel_only_last_shown#other" = "마지막 {count}명의 대화상대가 표시됩니다.";
 "lng_channel_admins" = "관리자";
 "lng_channel_add_admin" = "관리자 추가";
-"lng_channel_admin_sure" = "{user}를 관리자로 추가하시겠습니까?";
 "lng_channel_admins_too_much" = "죄송합니다, 관리자의 최대허용치입니다. 다른 관리자를 삭제해주세요";
+"lng_channel_admin_status_creator" = "생성자";
+"lng_channel_admin_status_promoted_by" = "{user} 님이 승인함";
 
 "lng_group_blocked_list_about" = "차단된 사용자들은 그룹에서 추방이 되며 관리자의 초대로만 재입장이 가능합니다.\n초대링크는 작동되지 않습니다.";
 
-"lng_chat_all_members_admins" = "모든 구성원이 관리자입니다";
-"lng_chat_about_all_admins" = "그룹에 있는 모든 구성원은 상대 초대, 이름 및 사진을 수정할 수 있습니다.";
+"lng_chat_all_members_admins" = "모든 대화상대가 관리자입니다";
+"lng_chat_about_all_admins" = "그룹에 있는 모든 대화상대는 상대 초대, 이름 및 사진을 수정할 수 있습니다.";
 "lng_chat_about_admins" = "그룹에 있는 관리자는 상대 초대, 이름 및 사진을 수정할 수 있습니다.";
 
 "lng_participant_filter" = "검색";
 "lng_participant_invite" = "초대";
-"lng_participant_invite_sorry" = "죄송합니다, 초기  {count:_not_used|# 구성원|# 구성원} 명만 채널에 개별적으로 추가 할 수 있습니다. \n\n이후로는 초대링크를 통하여 입장해야합니다.";
+"lng_participant_invite_sorry#one" = "죄송합니다, 초기 {count}명의 대화상대만 채널에 개별적으로 추가 할 수 있습니다.\n\n이후로는 초대링크를 통하여 입장해야합니다.";
+"lng_participant_invite_sorry#other" = "죄송합니다, 초기 {count}명의 대화상대만 채널에 개별적으로 추가 할 수 있습니다.\n\n이후로는 초대링크를 통하여 입장해야합니다.";
 "lng_create_group_back" = "뒤로가기";
 "lng_create_group_next" = "다음";
 "lng_create_group_create" = "만들기";
@@ -618,8 +680,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_create_channel_link_available" = "사용 가능한 링크입니다.";
 "lng_create_channel_link_copied" = "링크가 클립보드에 복사되었습니다.";
 
-"lng_create_group_crop" = "그룹프로필 사진으로 사용할 사각영역을 선택하세요";
-"lng_create_channel_crop" = "채널프로필 사진으로 사용할 사각영역을 선택하세요";
+"lng_create_group_crop" = "그룹프로필 사진으로 사용할 영역을 선택하세요";
+"lng_create_channel_crop" = "채널프로필 사진으로 사용할 영역을 선택하세요";
 
 "lng_failed_add_participant" = "사용자를 추가 하지 못하였습니다. 나중에 다시 시도해주세요";
 "lng_failed_add_not_mutual" = "죄송합니다. 그룹방에서 대화상대방이 나갔을 경우, 상대 전화번호가 있는 분만 초대가 가능합니다. (서로 전화번호가 등록되어져 있어야만 가능)";
@@ -630,15 +692,20 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_sure_delete_group_history" = "그룹<<{group}>> 방의 모든 메시지 기록을 삭제하시겠습니까?\n\n이 작업은 취소가 불가능합니다.";
 "lng_sure_delete_and_exit" = "그룹 «{group}» 방에서 모든 메시지를 \n삭제하시고 퇴장하시겠습니까?\n\n삭제 하실 경우 취소가 불가능합니다.";
 "lng_sure_leave_channel" = "채널에서 나가시겠습니까?";
-"lng_sure_delete_channel" = "채널을 삭제하시겠습니까? 모든 구성원과 메시지가 삭제됩니다.";
+"lng_sure_delete_channel" = "채널을 삭제하시겠습니까? 모든 대화상대와 메시지가 삭제됩니다.";
 "lng_sure_leave_group" = "정말로 그룹방에서 나가시겠습니까?\n이 작업은 취소가 불가능합니다.";
-"lng_sure_delete_group" = "정말로 그룹방을 삭제하시겠습니까? 모든 구성원 및 메시지가 삭제됩니다.";
+"lng_sure_delete_group" = "정말로 그룹방을 삭제하시겠습니까? 모든 대화상대 및 메시지가 삭제됩니다.";
 
 "lng_message_empty" = "메시지 없음";
 "lng_message_unsupported" = "이 메시지는 텔레그램 데스크탑에서 호환이 되지 않습니다. 설정에서 최신 버전으로 업데이트를 하던가 {link}를 통하여 설치해주세요.";
 
-"lng_duration_seconds" = "{count:_not_used_|# 초|# 초}";
-"lng_duration_minutes_seconds" = "{count_minutes:# 분|# 분|# 분} {count_seconds:# 초|# 초|# 초}";
+"lng_duration_seconds#one" = "{count} 초";
+"lng_duration_seconds#other" = "{count} 초";
+"lng_duration_minsec_minutes#one" = "{count} 분";
+"lng_duration_minsec_minutes#other" = "{count} 분";
+"lng_duration_minsec_seconds#one" = "{count} 초";
+"lng_duration_minsec_seconds#other" = "{count} 초";
+"lng_duration_minutes_seconds" = "{minutes_count} {seconds_count}";
 
 "lng_action_add_user" = "{from} 님께서 {user} 님을 초대하셨습니다.";
 "lng_action_add_users_many" = "{from}님께서 {users}명을 초대하였습니다.";
@@ -676,33 +743,40 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_pinned_media_sticker" = "스티커";
 "lng_action_pinned_media_emoji_sticker" = " {emoji} 스티커";
 "lng_action_pinned_media_game" = " «{game}» 게임";
-"lng_action_game_score" = "{game} 에서 {from} 님이 {count:#|#|#} 점 획득";
-"lng_action_game_you_scored" = "{game} 에서 {count:#|#|#} 점 획득";
-"lng_action_game_score_no_game" = "{from} 에서 {count:#|#|#} 점 획득";
-"lng_action_game_you_scored_no_game" = "{count:#|#|#} 점 획득";
+"lng_action_game_score#one" = "{game} 에서 {from} 님이 {count} 점 획득";
+"lng_action_game_score#other" = "{game} 에서 {from} 님이 {count} 점 획득";
+"lng_action_game_you_scored#one" = "회원님이 {game}에서 {count}점 획득";
+"lng_action_game_you_scored#other" = "회원님이 {game}에서 {count}점 획득";
+"lng_action_game_score_no_game#one" = "{from}님이 {count}점 획득";
+"lng_action_game_score_no_game#other" = "{from}님이 {count}점 획득";
+"lng_action_game_you_scored_no_game#one" = "회원님이 {count}점 획득";
+"lng_action_game_you_scored_no_game#other" = "회원님이 {count}점 획득";
 "lng_action_payment_done" = "{amount}만큼 {user}에게 성공적으로 전송하였습니다.";
 "lng_action_payment_done_for" = "{invoice}에 대하여 {user}에게 {amount}만큼 전송하였습니다.";
 
-"lng_profile_migrate_reached" = "{count:_not_used_|# 명|# 명} 한계치에 도달 되었습니다.";
+"lng_profile_migrate_reached#one" = "대화상대 한계치인 {count}명에 도달했습니다.";
+"lng_profile_migrate_reached#other" = "대화상대 한계치인 {count}명에 도달했습니다.";
 "lng_profile_migrate_body" = "제한을 초과하고 싶으실 경우, 슈퍼그룹으로 그룹 업그레이드가 가능합니다.";
 "lng_profile_migrate_learn_more" = "자세히 »";
 "lng_profile_migrate_about" = "최대허용치를 초과하시고 싶으실 경우, 슈퍼그룹방으로 업그레이드해주세요. 슈퍼그룹방은 :";
-"lng_profile_migrate_feature1" = "— 최대 {count:_not_used_|# 명|# 명} 까지 허용 가능합니다.";
-"lng_profile_migrate_feature2" = "— 모든 구성원이 전체 내용을 볼 수 있습니다.";
-"lng_profile_migrate_feature3" = "— 관리자는 구성원으로 부터 메시지 삭제가 가능합니다.";
+"lng_profile_migrate_feature1#one" = "— 최대 {count}명까지 허용 가능합니다.";
+"lng_profile_migrate_feature1#other" = "— 최대 {count}명까지 허용 가능합니다.";
+"lng_profile_migrate_feature2" = "— 모든 대화상대가 전체 내용을 볼 수 있습니다.";
+"lng_profile_migrate_feature3" = "— 관리자는 대화상대로 부터 메시지 삭제가 가능합니다.";
 "lng_profile_migrate_feature4" = "— 기본값으로 알림이 무음으로 처리됩니다";
 "lng_profile_migrate_button" = "슈퍼그룹방으로 업그레이드하기";
 "lng_profile_migrate_sure" = "정말로 그룹방을 슈퍼그룹방으로 변환하시겠습니까? 이 작업은 취소가 불가능합니다.";
 "lng_profile_convert_button" = "슈퍼그룹으로 전환";
 "lng_profile_convert_title" = "슈퍼그룹으로 전환";
 "lng_profile_convert_about" = "슈퍼그룹:";
-"lng_profile_convert_feature1" = "— 모든 구성원이 이전 대화 내용 조회";
+"lng_profile_convert_feature1" = "— 모든 대화상대가 이전 대화 내용 조회";
 "lng_profile_convert_feature2" = "— 메시지 삭제시 모두에게 삭제";
 "lng_profile_convert_feature3" = "— 관리자는 중요한 메시지 고정 가능";
 "lng_profile_convert_feature4" = "— 방 생성자가 그룹 공개링크 생성가능";
 "lng_profile_convert_warning" = "{bold_start}주의:{bold_end} 이 작업은 되돌릴 수 없습니다.";
 "lng_profile_convert_confirm" = "변환";
-"lng_profile_add_more_after_upgrade" = "그룹에서 슈퍼그룹으로 업그레이드시 {count:_not_used_|# 명|# 명} 까지 추가 가능합니다.";
+"lng_profile_add_more_after_upgrade#one" = "그룹에서 슈퍼그룹으로 업그레이드시 {count}명까지 추가 가능합니다.";
+"lng_profile_add_more_after_upgrade#other" = "그룹에서 슈퍼그룹으로 업그레이드시 {count}명까지 추가 가능합니다.";
 
 "lng_channel_not_accessible" = "채널에 접근 할 수 없습니다.";
 "lng_group_not_accessible" = "죄송합니다. 그룹방에 접근 할 수 없습니다.";
@@ -717,7 +791,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_group_invite_want_join_channel" = "«{title}» 채널에 참여하시겠습니까?";
 "lng_group_invite_join" = "참여";
 
-"lng_group_invite_members" = "{count:_not_used_|# 회원|# 회원}, 참여자 현황:";
+"lng_group_invite_members#one" = "대화상대 {count}명, 참여자 현황:";
+"lng_group_invite_members#other" = "대화상대 {count}명, 참여자 현황:";
 
 "lng_group_invite_link" = "초대링크: ";
 "lng_group_invite_create" = "초대링크 생성";
@@ -730,6 +805,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_channel_public_link_copied" = "클립보드에 링크가 복사되었습니다.";
 
 "lng_forwarded" = "{user}님으로 부터 전달 받음";
+"lng_forwarded_date" = "원본: {date}";
 "lng_forwarded_channel" = "{channel}로 부터 전달 받음";
 "lng_forwarded_via" = "{inline_bot}을 {user}로 부터 전달 받음";
 "lng_forwarded_channel_via" = "{inline_bot}을 {channel}로 부터 전달 받음";
@@ -809,7 +885,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_stickers_you_have" = "스티커팩 관리 및 변경";
 "lng_stickers_featured" = "인기 스티커";
 "lng_stickers_return" = "실행취소";
-"lng_stickers_count" = "{count:Loading...|# 스티커|# 스티커}";
+"lng_stickers_count#one" = "스티커 {count}개";
+"lng_stickers_count#other" = "스티커 {count}개";
 "lng_stickers_masks_pack" = "마스크 스티커 팩입니다. 모바일 기기에 있는 사진 에디터에서 사용 가능합니다.";
 
 "lng_in_dlg_photo" = "사진";
@@ -846,8 +923,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_broadcast_ph" = "단체메시지 쓰기...";
 "lng_broadcast_silent_ph" = "음소거 메시지...";
 "lng_record_cancel" = "이 영역 밖에서 마우스 클릭을 해제하시면 취소가 됩니다.";
-"lng_will_be_notified" = "메시지 작성시 구성원들에게 알림이 갑니다.";
-"lng_wont_be_notified" = "메시지 작성시 구성원들에게 알림이 가지 않습니다.";
+"lng_will_be_notified" = "메시지 작성시 대화상대에게 알림이 갑니다.";
+"lng_wont_be_notified" = "메시지 작성시 대화상대에게 알림이 가지 않습니다.";
 "lng_willbe_history" = "대화하실 방을 선택해주세요.";
 "lng_from_you" = "회원님";
 "lng_from_draft" = "임시저장";
@@ -884,11 +961,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_typing" = "입력중";
 "lng_user_typing" = "{user}님이 입력중입니다.";
 "lng_users_typing" = "{user}님과 {second_user}님이 입력중입니다.";
-"lng_many_typing" = "{count:_not_used_|#명이|#명이} 입력중입니다";
+"lng_many_typing#one" = "{count}명이 입력중";
+"lng_many_typing#other" = "{count}명이 입력중";
 "lng_playing_game" = "게임 중";
 "lng_user_playing_game" = "{user}님이 게임 중입니다.";
 "lng_users_playing_game" = "{user}님과 {second_user}님이 게임 중입니다.";
-"lng_many_playing_game" = "{count:_not_used_|#명이|#명이} 게임 중입니다";
+"lng_many_playing_game#one" = "{count}명이 게임 중";
+"lng_many_playing_game#other" = "{count}명이 게임 중";
 "lng_send_action_record_video" = "비디오 녹화 중";
 "lng_user_action_record_video" = "{user}님이 녹화중입니다";
 "lng_send_action_upload_video" = "비디오 전송 중";
@@ -909,7 +988,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_user_action_geo_location" = "{user}님이 위치를 선택 중입닏";
 "lng_send_action_choose_contact" = "연락처 선택 중";
 "lng_user_action_choose_contact" = "{user}님이 연락처를 선택 중입니다";
-"lng_unread_bar" = "{count:_not_used_|#개의 읽지 않은 메시지|#개의 읽지 않은 메시지}";
+"lng_unread_bar#one" = "안 읽은 메시지 {count}개";
+"lng_unread_bar#other" = "안 읽은 메시지 {count}개";
 
 "lng_maps_point" = "위치";
 "lng_save_photo" = "사진 저장";
@@ -932,7 +1012,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_context_unpin_from_top" = "상단에서 고정해제";
 
 "lng_context_promote_admin" = "관리자로 지정";
-"lng_context_remove_admin" = "관리자에서 제외";
+"lng_context_edit_permissions" = "권한 변경";
+"lng_context_restrict_user" = "사용자 제한";
 "lng_context_remove_from_group" = "그룹에서 추방";
 
 "lng_context_copy_link" = "링크 복사";
@@ -969,32 +1050,42 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_context_pin_msg" = "메시지 고정";
 "lng_context_unpin_msg" = "메시지 고정해제";
 "lng_context_cancel_upload" = "업로드 취소";
-"lng_context_copy_selected" = "선택한 메시지 복사";
+"lng_context_copy_selected" = "선택한 텍스트 복사";
+"lng_context_copy_selected_items" = "선택한 내용 텍스트 복사";
 "lng_context_forward_selected" = "선택된 메시지 전달";
 "lng_context_delete_selected" = "선택된 메시지 삭제";
 "lng_context_clear_selection" = "선택된 메시지 초기화";
 "lng_really_send_image" = "선택한 이미지를 전송하시겠습니까?";
 "lng_really_send_file" = "선택한 파일을 전송하시겠습니까?";
 "lng_really_share_contact" = "선택한 연락처를 공유하시겠습니까?";
-"lng_send_images_compress" = "압축 {count:_not_used_|이미지|이미지}";
+"lng_send_images_compress#one" = "압축된 이미지";
+"lng_send_images_compress#other" = "압축된 이미지";
 "lng_send_image_non_local" = "로컬이 아닌 파일을 전송 할 수 없습니다 : {name}";
 "lng_send_image_empty" = "빈 파일을 전송 할 수 없습니다 : {name}";
 "lng_send_image_too_large" = "파일이 1500MB 이상이기 때문에 전송 할 수 없습니다: {name}";
 "lng_send_folder" = " «{name}»은 폴더이기 때문에 전송 할 수 없습니다 :(";
-"lng_send_images_selected" = "{count:_not_used_|# 이미지|# 이미지} 선택";
-"lng_send_photos" = "전송 {count:_not_used_|# 사진|# 사진}";
-"lng_send_files_selected" = "{count:_not_used_|# 파일|# 파일} 선택";
-"lng_send_files" = "전송 {count:_not_used_|# 파일|# 파일}";
+"lng_send_images_selected#one" = "이미지 {count}개가 선택됨";
+"lng_send_images_selected#other" = "이미지 {count}개가 선택됨";
+"lng_send_photos#one" = "{count}개의 사진 전송";
+"lng_send_photos#other" = "{count}개의 사진 전송";
+"lng_send_files_selected#one" = "파일 {count}개 선택됨";
+"lng_send_files_selected#other" = "파일 {count}개 선택됨";
+"lng_send_files#one" = "{count}개의 파일 전송";
+"lng_send_files#other" = "{count}개의 파일 전송";
 
 "lng_forward_choose" = "수신자를 선택..";
 "lng_forward_cant" = "이쪽으로 전달 할 수 없습니다 :(";
 "lng_forward_confirm" = "{recipient} 님에게 전달하시겠습니까?";
 "lng_forward_share_contact" = "{recipient} 님에게 연락처를 공유하시겠습니까?";
+"lng_forward_share_cant" = "죄송합니다, 여기서 연락처를 공유할 수 없습니다 :(";
 "lng_forward_send_file_confirm" = "«{name}» 을 {recipient} 님에게 보내시겠습니까?";
 "lng_forward_send_files_confirm" = "선택한 파일을  {recipient} 님에게 보내시겠습니까?";
+"lng_forward_send_files_cant" = "죄송합니다, 여기서 미디어를 공유할 수 없습니다 :(";
 "lng_forward_send" = "보내기";
-"lng_forward_messages" = "{count:_not_used_|전달받은 메시지|# 개의 전달받은 메시지}";
-"lng_forwarding_from" = "{user} 님과 {count:_not_used_|# 명|# 명}";
+"lng_forward_messages#one" = "전달된 메시지 {count}개";
+"lng_forward_messages#other" = "전달된 메시지 {count}개";
+"lng_forwarding_from#one" = "{user}님 이외 {count}명";
+"lng_forwarding_from#other" = "{user}님 이외 {count}명";
 "lng_forwarding_from_two" = "{user} 님과 {second_user}";
 "lng_inline_switch_choose" = "대화 선택...";
 "lng_inline_switch_cant" = "죄송합니다. 이쪽으로 글을 쓸 수 없습니다 :(";
@@ -1016,6 +1107,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_contact_title" = "연락처 이름 수정";
 "lng_edit_channel_title" = "채널 수정";
 "lng_edit_sign_messages" = "서명 메시지";
+"lng_edit_group_who_invites" = "초대가 가능한 사용자";
+"lng_edit_group_invites_everybody" = "모든 사용자";
+"lng_edit_group_invites_only_admins" = "관리자만 가능";
 "lng_edit_group" = "그룹방 수정";
 "lng_edit_self_title" = "이름 수정";
 "lng_confirm_contact_data" = "새로운 연락처";
@@ -1040,15 +1134,20 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_selected_clear" = "취소";
 "lng_selected_delete" = "삭제";
 "lng_selected_forward" = "전달";
-"lng_selected_count" = "{count:_not_used_|# 메시지|# 메시지}";
+"lng_selected_count#one" = "메시지 {count}개";
+"lng_selected_count#other" = "메시지 {count}개";
 "lng_selected_cancel_sure_this" = "업로드를 취소하시겠습니까?";
 "lng_selected_upload_stop" = "정지";
 "lng_selected_delete_sure_this" = "메시지를 삭제하시겠습니까?";
-"lng_selected_delete_sure" = "{count:_not_used_|# 메시지|# 메시지}를 삭제하시겠습니까?";
+"lng_selected_delete_sure#one" = "{count}개의 메시지를 삭제하시겠습니까?";
+"lng_selected_delete_sure#other" = "{count}개의 메시지를 삭제하시겠습니까?";
 "lng_delete_photo_sure" = "사진을 삭제하시겠습니까?";
-"lng_delete_for_everyone_hint" = "This will delete {count:_not_used_|it|them} for everyone in this chat.";
-"lng_delete_for_me_chat_hint" = "이 작업은 다른분들이 아닌 회원님에게만 {count:_not_used_|이것|이것들} 을 삭제하게됩니다.";
-"lng_delete_for_me_hint" = "이 작업은 회원님에게만 {count:_not_used_|이것|이것들} 을 삭제하게됩니다.";
+"lng_delete_for_everyone_hint#one" = "이 메시지는 이 대화방에 있는 모두에게 삭제됩니다.";
+"lng_delete_for_everyone_hint#other" = "이 메시지는 이 대화방에 있는 모두에게 삭제됩니다.";
+"lng_delete_for_me_chat_hint#one" = "이 메시지는 다른 대화상대에게는 삭제가 되지 않고, 회원님에게만 삭제됩니다.";
+"lng_delete_for_me_chat_hint#other" = "이 메시지는 다른 대화상대에게는 삭제가 되지 않고, 회원님에게만 삭제됩니다.";
+"lng_delete_for_me_hint#one" = "이 메시지는 회원님에게만 삭제됩니다.";
+"lng_delete_for_me_hint#other" = "이 메시지는 회원님에게만 삭제됩니다.";
 "lng_delete_for_everyone_check" = "모두에게 삭제";
 "lng_delete_for_other_check" = "{user}에게 메시지 삭제";
 "lng_box_delete" = "삭제";
@@ -1060,7 +1159,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_about_text_3" = "자세한 사항은 {faq_open}Telegram FAQ{faq_close} 에서 확인해주세요.";
 "lng_about_done" = "완료";
 
-"lng_search_found_results" = "{count:메시지를 찾을 수 없습니다.|# 개의 메시지를 찾았습니다.|# 개의 메시지를 찾았습니다.}";
+"lng_search_no_results" = "메시지를 찾을 수 없습니다.";
+"lng_search_found_results#one" = "{count}개의 메시지를 찾았습니다.";
+"lng_search_found_results#other" = "{count}개의 메시지를 찾았습니다.";
 "lng_search_global_results" = "아이디 검색 결과";
 
 "lng_media_save_progress" = "{ready} / {total} {mb}";
@@ -1168,6 +1269,115 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_player_message_today" = "오늘 {time}";
 "lng_player_message_yesterday" = "어제 {time}";
 "lng_player_message_date" = "{date}  {time}";
+
+"lng_rights_edit_admin" = "관리가 변경";
+"lng_rights_edit_admin_header" = "이 관리자가 할 수 있는 것은?";
+"lng_rights_about_add_admins_yes" = "이 관리자는 동일한 권한 (혹은 더 제한된) 으로만 관리자 추가가 가능합니다.";
+"lng_rights_about_add_admins_no" = "이 관리자는 새로운 관리자 설정을 할 수 없습니다.";
+"lng_rights_user_restrictions" = "사용자 제한";
+"lng_rights_user_restrictions_header" = "이 사용자가 할 수 있는 것은?";
+
+"lng_rights_channel_info" = "채널 정보 변경";
+"lng_rights_channel_post" = "메시지 작성";
+"lng_rights_channel_edit" = "다른 사용자 메시지 수정";
+"lng_rights_channel_delete" = "다른 사용자 메시지 삭제";
+"lng_rights_group_info" = "그룹 정보 변경";
+"lng_rights_group_ban" = "사용자 차단";
+"lng_rights_group_invite_link" = "링크를 통하여 사용자 초대";
+"lng_rights_group_invite" = "사용자 추가";
+"lng_rights_group_pin" = "메시지 고정";
+"lng_rights_group_delete" = "메시지 삭제";
+"lng_rights_add_admins" = "새 관리자 추가";
+"lng_rights_chat_read" = "메시지 읽기";
+"lng_rights_chat_send_text" = "메시지 전송";
+"lng_rights_chat_send_media" = "미디어 전송";
+"lng_rights_chat_send_stickers" = "스티커 & GIF 전송";
+"lng_rights_chat_send_links" = "링크 저장";
+"lng_rights_chat_banned_until" = "다음까지 제한: {when}";
+"lng_rights_chat_banned_forever" = "영원히";
+"lng_rights_chat_banned_block" = "그룹에서 차단 후 추방";
+
+"lng_restricted_send_message" = "그룹 관리자가 회원님의 메시지 작성을 제한했습니다.";
+"lng_restricted_send_media" = "그룹 관리자가 회원님의 미디어 전송을 제한했습니다.";
+"lng_restricted_send_stickers" = "그룹 관리자가 회원님의 스티커 전송을 제한했습니다.";
+"lng_restricted_send_gifs" = "그룹 관리자가 회원님의 GIF 전송을 제한했습니다.";
+"lng_restricted_send_inline" = "그룹 관리자가 회원님의 인라인 명령어를 제한했습니다.";
+
+"lng_restricted_list_title" = "제한된 사용자";
+"lng_banned_list_title" = "차단된 사용자";
+
+"lng_admin_log_title_all" = "모든 활동";
+"lng_admin_log_title_selected" = "선택한 활동";
+"lng_admin_log_filter" = "필터";
+"lng_admin_log_filter_title" = "필터";
+"lng_admin_log_filter_all_actions" = "모든 활동";
+"lng_admin_log_filter_restrictions" = "새 제한";
+"lng_admin_log_filter_admins_new" = "새 관리자";
+"lng_admin_log_filter_members_new" = "새 사용자";
+"lng_admin_log_filter_info_group" = "그룹 정보";
+"lng_admin_log_filter_info_channel" = "채널 정보";
+"lng_admin_log_filter_messages_deleted" = "삭제된 메시지";
+"lng_admin_log_filter_messages_edited" = "수정된 메시지";
+"lng_admin_log_filter_messages_pinned" = "고정된 메시지";
+"lng_admin_log_filter_members_removed" = "추방된 사용자";
+"lng_admin_log_filter_all_admins" = "모든 관리자";
+"lng_admin_log_about" = "이것은 무엇인가요?";
+"lng_admin_log_about_text" = "그룹 사용자와 관리자의 지난 48시간동안 활동 리스트입니다.";
+"lng_admin_log_no_results_title" = "이벤트를 찾을 수 없습니다.";
+"lng_admin_log_no_results_text" = "검색한 내용의 이벤트를 찾을 수 없습니다.";
+"lng_admin_log_no_events_title" = "이벤트를 찾을 수 없습니다.";
+"lng_admin_log_no_events_text" = "그룹 사용자와 관리자의\n지난 48시간동안\n활동 리스트입니다.";
+
+"lng_admin_log_empty_text" = "없음";
+"lng_admin_log_changed_title_group" = "{from} 님이 그룹이름을 «{title}» 로 바꾸셨습니다.";
+"lng_admin_log_changed_title_channel" = "{from} 님이 채널이름을 «{title}» 로 바꾸셨습니다.";
+"lng_admin_log_changed_description_group" = "{from} 님이 그룹정보을 변경했습니다:";
+"lng_admin_log_removed_description_group" = "{from} 님이 그룹정보을 삭제했습니다.";
+"lng_admin_log_changed_description_channel" = "{from} 님이 채널정보을 변경했습니다:";
+"lng_admin_log_removed_description_channel" = "{from} 님이 그룹정보을 삭제했습니다.";
+"lng_admin_log_previous_description" = "기존 정보";
+"lng_admin_log_changed_link_group" = "{from} 님이 그룹링크을 변경했습니다:";
+"lng_admin_log_removed_link_group" = "{from} 님이 그룹링크를 삭제했습니다.";
+"lng_admin_log_changed_link_channel" = "{from} 님이 채널링크를 변경했습니다:";
+"lng_admin_log_removed_link_channel" = "{from} 님이 채널링크를 삭제했습니다.";
+"lng_admin_log_previous_link" = "기존 링크";
+"lng_admin_log_changed_photo_group" = "{from} 님이 그룹사진을 변경했습니다.";
+"lng_admin_log_changed_photo_channel" = "{from} 님이 채널사진을 변경했습니다.";
+"lng_admin_log_invites_enabled" = "{from} 님이 그룹 초대를 허용했습니다.";
+"lng_admin_log_invites_disabled" = "{from} 님이 그룹 초대를 금지했습니다.";
+"lng_admin_log_signatures_enabled" = "{from} 님이 서명을 허용했습니다.";
+"lng_admin_log_signatures_disabled" = "{from} 님이 서명을 금지했습니다.";
+"lng_admin_log_pinned_message" = "{from} 님이 메시지를 고정했습니다:";
+"lng_admin_log_unpinned_message" = "{from} 님이 메시지 고정을 해제했습니다.";
+"lng_admin_log_edited_caption" = "{from} 님이 자막을 변경했습니다:";
+"lng_admin_log_removed_caption" = "{from} 님이 자막은 삭제했습니다";
+"lng_admin_log_previous_caption" = "원본 자막";
+"lng_admin_log_edited_message" = "{from} 님이 메시지를 수정했습니다:";
+"lng_admin_log_previous_message" = "원본 메시지";
+"lng_admin_log_deleted_message" = "{from} 님이 메시지를 삭제했습니다:";
+"lng_admin_log_participant_joined" = "{from} 님이 그룹에 들어왔습니다.";
+"lng_admin_log_participant_left" = "{from} 님이 그룹을 나갔습니다.";
+"lng_admin_log_invited" = "{user} 님을 초대함";
+"lng_admin_log_banned" = "{user} 님을 차단함";
+"lng_admin_log_restricted" = "{until}까지 {user}에 대한 제한을 변경함";
+"lng_admin_log_promoted" = "{user}님에 대한 권한을 변경함";
+"lng_admin_log_user_with_username" = "{name} ({mention})";
+"lng_admin_log_restricted_forever" = "기한 없음";
+"lng_admin_log_restricted_until" = "{date} 까지";
+"lng_admin_log_banned_view_messages" = "메시지 읽기";
+"lng_admin_log_banned_send_messages" = "메시지 전송";
+"lng_admin_log_banned_send_media" = "미디어 전송";
+"lng_admin_log_banned_send_stickers" = "스티커 & GIF 전송";
+"lng_admin_log_banned_embed_links" = "링크 저장";
+"lng_admin_log_admin_change_info" = "채널 정보";
+"lng_admin_log_admin_post_messages" = "메시지 작성";
+"lng_admin_log_admin_edit_messages" = "메시지 수정";
+"lng_admin_log_admin_delete_messages" = "메시지 삭제";
+"lng_admin_log_admin_ban_users" = "사용자 차단";
+"lng_admin_log_admin_invite_users" = "사용자 추가";
+"lng_admin_log_admin_invite_link" = "링크를 통하여 사용자 초대";
+"lng_admin_log_admin_pin_messages" = "메시지 고정";
+"lng_admin_log_admin_add_admins" = "새 관리자 추가";
 
 // Not used
 
