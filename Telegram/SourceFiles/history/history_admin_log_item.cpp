@@ -307,11 +307,18 @@ void GenerateItems(gsl::not_null<History*> history, LocalIdManager &idManager, c
 	};
 
 	auto createChangePhoto = [&](const MTPDchannelAdminLogEventActionChangePhoto &action) {
-		t_assert(action.vnew_photo.type() == mtpc_chatPhoto);
-		auto photo = GenerateChatPhoto(channel->bareId(), id, date, action.vnew_photo.c_chatPhoto());
-
-		auto text = (channel->isMegagroup() ? lng_admin_log_changed_photo_group : lng_admin_log_changed_photo_channel)(lt_from, fromLinkText);
-		addSimpleServiceMessage(text, photo);
+		switch (action.vnew_photo.type()) {
+		case mtpc_chatPhoto: {
+			auto photo = GenerateChatPhoto(channel->bareId(), id, date, action.vnew_photo.c_chatPhoto());
+			auto text = (channel->isMegagroup() ? lng_admin_log_changed_photo_group : lng_admin_log_changed_photo_channel)(lt_from, fromLinkText);
+			addSimpleServiceMessage(text, photo);
+		} break;
+		case mtpc_chatPhotoEmpty: {
+			auto text = (channel->isMegagroup() ? lng_admin_log_removed_photo_group : lng_admin_log_removed_photo_channel)(lt_from, fromLinkText);
+			addSimpleServiceMessage(text);
+		} break;
+		default: Unexpected("ChatPhoto type in createChangePhoto()");
+		}
 	};
 
 	auto createToggleInvites = [&](const MTPDchannelAdminLogEventActionToggleInvites &action) {

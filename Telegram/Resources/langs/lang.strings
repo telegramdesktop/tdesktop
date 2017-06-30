@@ -1346,6 +1346,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_previous_link" = "Previous link";
 "lng_admin_log_changed_photo_group" = "{from} changed group photo";
 "lng_admin_log_changed_photo_channel" = "{from} changed channel photo";
+"lng_admin_log_removed_photo_group" = "{from} removed group photo";
+"lng_admin_log_removed_photo_channel" = "{from} removed channel photo";
 "lng_admin_log_invites_enabled" = "{from} enabled group invites";
 "lng_admin_log_invites_disabled" = "{from} disabled group invites";
 "lng_admin_log_signatures_enabled" = "{from} enabled signatures";
