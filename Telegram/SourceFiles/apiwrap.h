@@ -101,6 +101,8 @@ private:
 	};
 	using MessageDataRequests = QMap<MsgId, MessageDataRequest>;
 
+	void requestAppChangelogs();
+	void addLocalAlphaChangelogs(int oldAppVersion);
 	void updatesReceived(const MTPUpdates &updates);
 	void checkQuitPreventFinished();
 

@@ -53,29 +53,48 @@ ApiWrap::ApiWrap(gsl::not_null<AuthSession*> session)
 
 void ApiWrap::start() {
 	Window::Theme::Background()->start();
-	auto oldVersion = Local::oldMapVersion();
-	if (oldVersion > 0 && oldVersion < AppVersion) {
-		_changelogSubscription = subscribe(_session->data().moreChatsLoaded(), [this, oldVersion] {
-			auto oldVersionString = qsl("%1.%2.%3").arg(oldVersion / 1000000).arg((oldVersion % 1000000) / 1000).arg(oldVersion % 1000);
-			request(MTPhelp_GetAppChangelog(MTP_string(oldVersionString))).done([this, oldVersion](const MTPUpdates &result) {
+	requestAppChangelogs();
+}
+
+void ApiWrap::requestAppChangelogs() {
+	auto oldAppVersion = Local::oldMapVersion();
+	if (oldAppVersion > 0 && oldAppVersion < AppVersion) {
+		_changelogSubscription = subscribe(_session->data().moreChatsLoaded(), [this, oldAppVersion] {
+			auto oldVersionString = qsl("%1.%2.%3").arg(oldAppVersion / 1000000).arg((oldAppVersion % 1000000) / 1000).arg(oldAppVersion % 1000);
+			request(MTPhelp_GetAppChangelog(MTP_string(oldVersionString))).done([this, oldAppVersion](const MTPUpdates &result) {
 				applyUpdates(result);
 
-				auto addLocalChangelog = [this, oldVersion](int changeVersion, const char *changes) {
-					if (oldVersion < changeVersion) {
-						auto changeVersionString = QString::number(changeVersion / 1000000) + '.' + QString::number((changeVersion % 1000000) / 1000) + ((changeVersion % 1000) ? ('.' + QString::number(changeVersion % 1000)) : QString());
-						auto text = qsl("New in version %1:\n\n").arg(changeVersionString) + QString::fromUtf8(changes).trimmed();
-						auto textWithEntities = TextWithEntities { text };
-						textParseEntities(textWithEntities.text, TextParseLinks, &textWithEntities.entities);
-						App::main()->serviceNotification(textWithEntities, MTP_messageMediaEmpty(), unixtime());
-					}
-				};
-				if (cAlphaVersion() || cBetaVersion()) {
-					addLocalChangelog(1001008, "\xE2\x80\x94 Toggle night mode in the main menu.\n");
+				auto resultEmpty = true;
+				switch (result.type()) {
+				case mtpc_updateShortMessage:
+				case mtpc_updateShortChatMessage:
+				case mtpc_updateShort: resultEmpty = false; break;
+				case mtpc_updatesCombined: resultEmpty = result.c_updatesCombined().vupdates.v.isEmpty(); break;
+				case mtpc_updates: resultEmpty = result.c_updates().vupdates.v.isEmpty(); break;
+				case mtpc_updatesTooLong:
+				case mtpc_updateShortSentMessage: LOG(("API Error: Bad updates type in app changelog.")); break;
+				}
+				if (resultEmpty && (cAlphaVersion() || cBetaVersion())) {
+					addLocalAlphaChangelogs(oldAppVersion);
 				}
 			}).send();
 			unsubscribe(base::take(_changelogSubscription));
 		});
 	}
+}
+
+void ApiWrap::addLocalAlphaChangelogs(int oldAppVersion) {
+	auto addLocalChangelog = [this, oldAppVersion](int changeVersion, const char *changes) {
+		if (oldAppVersion < changeVersion) {
+			auto changeVersionString = QString::number(changeVersion / 1000000) + '.' + QString::number((changeVersion % 1000000) / 1000) + ((changeVersion % 1000) ? ('.' + QString::number(changeVersion % 1000)) : QString());
+			auto text = qsl("New in version %1:\n\n").arg(changeVersionString) + QString::fromUtf8(changes).trimmed();
+			auto textWithEntities = TextWithEntities { text };
+			textParseEntities(textWithEntities.text, TextParseLinks, &textWithEntities.entities);
+			App::main()->serviceNotification(textWithEntities, MTP_messageMediaEmpty(), unixtime());
+		}
+	};
+
+	addLocalChangelog(1001008, "\xE2\x80\x94 Toggle night mode in the main menu.\n");
 }
 
 void ApiWrap::applyUpdates(const MTPUpdates &updates, uint64 sentMessageRandomId) {
