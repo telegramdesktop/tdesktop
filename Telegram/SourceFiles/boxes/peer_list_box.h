@@ -152,8 +152,7 @@ private:
 	std::unique_ptr<Ui::RippleAnimation> _ripple;
 	std::unique_ptr<Ui::RoundImageCheckbox> _checkbox;
 	Text _name;
-	QString _status;
-	int _statusWidth = 0;
+	Text _status;
 	StatusType _statusType = StatusType::Online;
 	OrderedSet<QChar> _nameFirstChars;
 	int _absoluteIndex = -1;

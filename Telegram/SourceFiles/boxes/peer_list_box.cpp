@@ -369,7 +369,7 @@ void PeerListRow::paintStatusText(Painter &p, int x, int y, int availableWidth, 
 	auto statusHasOnlineColor = (_statusType == PeerListRow::StatusType::Online);
 	p.setFont(st::contactsStatusFont);
 	p.setPen(statusHasOnlineColor ? st::contactsStatusFgOnline : (selected ? st::contactsStatusFgOver : st::contactsStatusFg));
-	p.drawTextLeft(x, y, outerWidth, (_statusWidth <= availableWidth) ? _status : st::contactsStatusFont->elided(_status, availableWidth));
+	_status.drawLeftElided(p, x, y, availableWidth, outerWidth);
 }
 
 template <typename UpdateCallback>
@@ -444,8 +444,7 @@ void PeerListRow::paintDisabledCheckUserpic(Painter &p, int x, int y, int outerW
 }
 
 void PeerListRow::setStatusText(const QString &text) {
-	_status = text;
-	_statusWidth = st::contactsStatusFont->width(_status);
+	_status.setText(st::defaultTextStyle, text, _textNameOptions);
 }
 
 float64 PeerListRow::checkedRatio() {
