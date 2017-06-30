@@ -6414,14 +6414,13 @@ void HistoryWidget::updateForwardingItemRemovedSubscription() {
 		_forwardingItemRemovedSubscription = 0;
 	} else if (!_forwardingItemRemovedSubscription) {
 		_forwardingItemRemovedSubscription = subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
-			auto i = _toForward.find(item->id);
-			if (i == _toForward.cend() || i.value() != item) {
-				i = _toForward.find(item->id - ServerMaxMsgId);
-			}
-			if (i != _toForward.cend() && i.value() == item) {
-				_toForward.erase(i);
-				updateForwardingItemRemovedSubscription();
-				updateForwardingTexts();
+			for (auto i = _toForward.begin(); i != _toForward.end(); ++i) {
+				if (i->get() == item) {
+					i = _toForward.erase(i);
+					updateForwardingItemRemovedSubscription();
+					updateForwardingTexts();
+					break;
+				}
 			}
 		});
 	}
