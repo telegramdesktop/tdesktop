@@ -48,7 +48,7 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, MsgId newId, int32 newDa
 	case mtpc_messageService: {
 		auto &data = message.c_messageService();
 		auto flags = data.vflags.v & ~(MTPDmessageService::Flag::f_out | MTPDmessageService::Flag::f_post/* | MTPDmessageService::Flag::f_reply_to_msg_id*/);
-		return MTP_messageService(MTP_flags(flags), MTP_int(newId), data.vfrom_id, data.vto_id, data.vreply_to_msg_id, data.vdate, data.vaction);
+		return MTP_messageService(MTP_flags(flags), MTP_int(newId), data.vfrom_id, data.vto_id, data.vreply_to_msg_id, MTP_int(newDate), data.vaction);
 	} break;
 	case mtpc_message: {
 		auto &data = message.c_message();
