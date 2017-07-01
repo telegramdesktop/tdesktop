@@ -398,8 +398,10 @@ void GroupMembersWidget::setItemFlags(Item *item, ChatData *chat) {
 		item->hasRemoveLink = false;
 	} else if (chat->amCreator() || (chat->amAdmin() && !item->hasAdminStar)) {
 		item->hasRemoveLink = true;
+	} else if (chat->invitedByMe.contains(user) && !item->hasAdminStar) {
+		item->hasRemoveLink = true;
 	} else {
-		item->hasRemoveLink = chat->invitedByMe.contains(user);
+		item->hasRemoveLink = false;
 	}
 }
 
