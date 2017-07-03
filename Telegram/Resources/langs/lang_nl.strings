@@ -797,7 +797,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_group_invite_link" = "Uitnodigingslink:";
 "lng_group_invite_create" = "Uitnodigingslink maken";
 "lng_group_invite_about" = "Gebruikers kunnen lid worden\nvan je groep via deze link.";
-"lng_group_invite_create_new" = "Intrekken";
+"lng_group_invite_create_new" = "Uitnodigingslink intrekken";
 "lng_group_invite_about_new" = "Je uitnodigingslink zal inactief worden een nieuwe link zal worden gegenereerd.";
 "lng_group_invite_copied" = "Link gekopieerd naar klembord.";
 "lng_group_invite_no_room" = "De ledenlimiet van de groep is bereikt.";
