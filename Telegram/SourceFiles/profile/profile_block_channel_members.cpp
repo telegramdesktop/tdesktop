@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "profile/profile_block_channel_members.h"
 
+#include "profile/profile_channel_controllers.h"
 #include "styles/style_profile.h"
 #include "ui/widgets/buttons.h"
 #include "boxes/members_box.h"
@@ -149,7 +150,7 @@ void ChannelMembersWidget::onMembers() {
 
 void ChannelMembersWidget::onAdmins() {
 	if (auto channel = peer()->asChannel()) {
-		Ui::show(Box<MembersBox>(channel, MembersFilter::Admins));
+		ParticipantsBoxController::Start(channel, ParticipantsBoxController::Role::Admins);
 	}
 }
 
