@@ -849,7 +849,7 @@ bool HistoryItem::canEdit(const QDateTime &cur) const {
 			return true;
 		}
 		if (auto channel = _history->peer->asChannel()) {
-			if (channel->canEditMessages()) {
+			if (isPost() && channel->canEditMessages()) {
 				return true;
 			}
 			if (out()) {
