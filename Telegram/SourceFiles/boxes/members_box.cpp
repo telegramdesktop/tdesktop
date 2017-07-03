@@ -127,6 +127,13 @@ void MembersBox::resizeEvent(QResizeEvent *e) {
 	_inner->resize(width(), _inner->height());
 }
 
+void MembersBox::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	for (auto rect : e->region().rects()) {
+		p.fillRect(rect, st::contactsBg);
+	}
+}
+
 void MembersBox::onAdd() {
 	if (_inner->filter() == MembersFilter::Recent && _inner->channel()->membersCount() >= (_inner->channel()->isMegagroup() ? Global::MegagroupSizeMax() : Global::ChatSizeMax())) {
 		Ui::show(Box<MaxInviteBox>(_inner->channel()->inviteLink()), KeepOtherLayers);

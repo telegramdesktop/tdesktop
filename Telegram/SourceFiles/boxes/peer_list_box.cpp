@@ -114,6 +114,13 @@ void PeerListBox::resizeEvent(QResizeEvent *e) {
 	_inner->resize(width(), _inner->height());
 }
 
+void PeerListBox::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	for (auto rect : e->region().rects()) {
+		p.fillRect(rect, st::contactsBg);
+	}
+}
+
 void PeerListBox::setInnerFocus() {
 	if (!_select || _select->isHidden()) {
 		_inner->setFocus();
@@ -1239,12 +1246,14 @@ PeerListGlobalSearchController::PeerListGlobalSearchController() {
 }
 
 void PeerListGlobalSearchController::searchQuery(const QString &query) {
-	_query = query;
-	_requestId = 0;
-	if (_query.isEmpty() && !searchInCache()) {
-		_timer.callOnce(AutoSearchTimeout);
-	} else {
-		_timer.cancel();
+	if (_query != query) {
+		_query = query;
+		_requestId = 0;
+		if (_query.size() >= MinUsernameLength && !searchInCache()) {
+			_timer.callOnce(AutoSearchTimeout);
+		} else {
+			_timer.cancel();
+		}
 	}
 }
 
