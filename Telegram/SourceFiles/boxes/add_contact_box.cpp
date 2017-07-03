@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_dialogs.h"
 #include "lang/lang_keys.h"
 #include "messenger.h"
+#include "mtproto/sender.h"
 #include "boxes/contacts_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/photo_crop_box.h"
@@ -39,6 +40,42 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "observer_peer.h"
 #include "auth_session.h"
+
+class RevokePublicLinkBox::Inner : public TWidget, private MTP::Sender {
+public:
+	Inner(QWidget *parent, base::lambda<void()> revokeCallback);
+
+protected:
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	struct ChatRow {
+		ChatRow(gsl::not_null<PeerData*> peer) : peer(peer) {
+		}
+
+		gsl::not_null<PeerData*> peer;
+		Text name, status;
+	};
+	void paintChat(Painter &p, const ChatRow &row, bool selected) const;
+	void updateSelected();
+
+	PeerData *_selected = nullptr;
+	PeerData *_pressed = nullptr;
+
+	std::vector<ChatRow> _rows;
+
+	int _rowsTop = 0;
+	int _rowHeight = 0;
+	int _revokeWidth = 0;
+
+	base::lambda<void()> _revokeCallback;
+	mtpRequestId _revokeRequestId = 0;
+	QPointer<ConfirmBox> _weakRevokeConfirmBox;
+
+};
 
 AddContactBox::AddContactBox(QWidget*, QString fname, QString lname, QString phone)
 : _first(this, st::defaultInputField, langFactory(lng_signup_firstname), fname)
@@ -1153,35 +1190,62 @@ void EditChannelBox::onSaveInvitesDone(const MTPUpdates &result) {
 	closeBox();
 }
 
-RevokePublicLinkBox::RevokePublicLinkBox(QWidget*, base::lambda<void()> revokeCallback)
-: _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
+RevokePublicLinkBox::Inner::Inner(QWidget *parent, base::lambda<void()> revokeCallback) : TWidget(parent)
+, _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _revokeWidth(st::normalFont->width(lang(lng_channels_too_much_public_revoke)))
-, _aboutRevoke(this, lang(lng_channels_too_much_public_about), Ui::FlatLabel::InitType::Simple, st::aboutRevokePublicLabel)
+, _revokeCallback(std::move(revokeCallback)) {
+	setMouseTracking(true);
+
+	resize(width(), 5 * _rowHeight);
+
+	request(MTPchannels_GetAdminedPublicChannels()).done([this](const MTPmessages_Chats &result) {
+		if (auto chats = Api::getChatsFromMessagesChats(result)) {
+			for_const (auto &chat, chats->v) {
+				if (auto peer = App::feedChat(chat)) {
+					if (!peer->isChannel() || peer->userName().isEmpty()) {
+						continue;
+					}
+
+					auto row = ChatRow(peer);
+					row.peer = peer;
+					row.name.setText(st::contactsNameStyle, peer->name, _textNameOptions);
+					row.status.setText(st::defaultTextStyle, Messenger::Instance().createInternalLink(textcmdLink(1, peer->userName())), _textDlgOptions);
+					_rows.push_back(std::move(row));
+				}
+			}
+		}
+		resize(width(), _rows.size() * _rowHeight);
+		update();
+	}).send();
+}
+
+RevokePublicLinkBox::RevokePublicLinkBox(QWidget*, base::lambda<void()> revokeCallback)
+: _aboutRevoke(this, lang(lng_channels_too_much_public_about), Ui::FlatLabel::InitType::Simple, st::aboutRevokePublicLabel)
 , _revokeCallback(std::move(revokeCallback)) {
 }
 
 void RevokePublicLinkBox::prepare() {
-	setMouseTracking(true);
-
-	MTP::send(MTPchannels_GetAdminedPublicChannels(), rpcDone(&RevokePublicLinkBox::getPublicDone), rpcFail(&RevokePublicLinkBox::getPublicFail));
+	_innerTop = st::boxPadding.top() + _aboutRevoke->height() + st::boxPadding.top();
+	_inner = setInnerWidget(object_ptr<Inner>(this, [this] {
+		closeBox();
+		if (_revokeCallback) {
+			_revokeCallback();
+		}
+	}), st::boxLayerScroll, _innerTop);
 
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 
-	updateMaxHeight();
+	_inner->resizeToWidth(st::boxWideWidth);
+	setDimensions(st::boxWideWidth, _innerTop + _inner->height());
 }
 
-void RevokePublicLinkBox::updateMaxHeight() {
-	_rowsTop = st::boxPadding.top() + _aboutRevoke->height() + st::boxPadding.top();
-	setDimensions(st::boxWideWidth, _rowsTop + (5 * _rowHeight));
-}
-
-void RevokePublicLinkBox::mouseMoveEvent(QMouseEvent *e) {
+void RevokePublicLinkBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 	updateSelected();
 }
 
-void RevokePublicLinkBox::updateSelected() {
+void RevokePublicLinkBox::Inner::updateSelected() {
 	auto point = mapFromGlobal(QCursor::pos());
 	PeerData *selected = nullptr;
 	auto top = _rowsTop;
@@ -1200,14 +1264,14 @@ void RevokePublicLinkBox::updateSelected() {
 	}
 }
 
-void RevokePublicLinkBox::mousePressEvent(QMouseEvent *e) {
+void RevokePublicLinkBox::Inner::mousePressEvent(QMouseEvent *e) {
 	if (_pressed != _selected) {
 		_pressed = _selected;
 		update();
 	}
 }
 
-void RevokePublicLinkBox::mouseReleaseEvent(QMouseEvent *e) {
+void RevokePublicLinkBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	auto pressed = base::take(_pressed);
 	setCursor((_selected || _pressed) ? style::cur_pointer : style::cur_default);
 	if (pressed && pressed == _selected) {
@@ -1216,14 +1280,19 @@ void RevokePublicLinkBox::mouseReleaseEvent(QMouseEvent *e) {
 		auto confirmText = lang(lng_channels_too_much_public_revoke);
 		_weakRevokeConfirmBox = Ui::show(Box<ConfirmBox>(text, confirmText, base::lambda_guarded(this, [this, pressed]() {
 			if (_revokeRequestId) return;
-			_revokeRequestId = MTP::send(MTPchannels_UpdateUsername(pressed->asChannel()->inputChannel, MTP_string("")), rpcDone(&RevokePublicLinkBox::revokeLinkDone), rpcFail(&RevokePublicLinkBox::revokeLinkFail));
+			_revokeRequestId = request(MTPchannels_UpdateUsername(pressed->asChannel()->inputChannel, MTP_string(""))).done([this](const MTPBool &result) {
+				if (_weakRevokeConfirmBox) {
+					_weakRevokeConfirmBox->closeBox();
+				}
+				if (_revokeCallback) {
+					_revokeCallback();
+				}
+			}).send();
 		})), KeepOtherLayers);
 	}
 }
 
-void RevokePublicLinkBox::paintEvent(QPaintEvent *e) {
-	BoxContent::paintEvent(e);
-
+void RevokePublicLinkBox::Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	p.translate(0, _rowsTop);
 	for_const (auto &row, _rows) {
@@ -1238,7 +1307,7 @@ void RevokePublicLinkBox::resizeEvent(QResizeEvent *e) {
 	_aboutRevoke->moveToLeft(st::boxPadding.left(), st::boxPadding.top());
 }
 
-void RevokePublicLinkBox::paintChat(Painter &p, const ChatRow &row, bool selected) const {
+void RevokePublicLinkBox::Inner::paintChat(Painter &p, const ChatRow &row, bool selected) const {
 	auto peer = row.peer;
 	peer->paintUserpicLeft(p, st::contactsPadding.left(), st::contactsPadding.top(), width(), st::contactsPhotoSize);
 
@@ -1261,47 +1330,4 @@ void RevokePublicLinkBox::paintChat(Painter &p, const ChatRow &row, bool selecte
 	p.setTextPalette(st::revokePublicLinkStatusPalette);
 	row.status.drawLeftElided(p, namex, st::contactsPadding.top() + st::contactsStatusTop, namew, width());
 	p.restoreTextPalette();
-}
-
-void RevokePublicLinkBox::getPublicDone(const MTPmessages_Chats &result) {
-	if (auto chats = Api::getChatsFromMessagesChats(result)) {
-		for_const (auto &chat, chats->v) {
-			if (auto peer = App::feedChat(chat)) {
-				if (!peer->isChannel() || peer->userName().isEmpty()) continue;
-
-				ChatRow row;
-				row.peer = peer;
-				row.name.setText(st::contactsNameStyle, peer->name, _textNameOptions);
-				row.status.setText(st::defaultTextStyle, Messenger::Instance().createInternalLink(textcmdLink(1, peer->userName())), _textDlgOptions);
-				_rows.push_back(std::move(row));
-			}
-		}
-	}
-	update();
-}
-
-bool RevokePublicLinkBox::getPublicFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) {
-		return false;
-	}
-
-	return true;
-}
-
-void RevokePublicLinkBox::revokeLinkDone(const MTPBool &result) {
-	if (_weakRevokeConfirmBox) {
-		_weakRevokeConfirmBox->closeBox();
-	}
-	closeBox();
-	if (_revokeCallback) {
-		_revokeCallback();
-	}
-}
-
-bool RevokePublicLinkBox::revokeLinkFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) {
-		return false;
-	}
-
-	return true;
 }

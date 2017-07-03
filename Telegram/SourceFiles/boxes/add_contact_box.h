@@ -301,41 +301,15 @@ public:
 protected:
 	void prepare() override;
 
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	void updateMaxHeight();
-	void updateSelected();
-
-	struct ChatRow {
-		PeerData *peer;
-		Text name, status;
-	};
-	void paintChat(Painter &p, const ChatRow &row, bool selected) const;
-
-	void getPublicDone(const MTPmessages_Chats &result);
-	bool getPublicFail(const RPCError &error);
-
-	void revokeLinkDone(const MTPBool &result);
-	bool revokeLinkFail(const RPCError &error);
-
-	PeerData *_selected = nullptr;
-	PeerData *_pressed = nullptr;
-
-	QVector<ChatRow> _rows;
-
-	int _rowsTop = 0;
-	int _rowHeight = 0;
-	int _revokeWidth = 0;
-
 	object_ptr<Ui::FlatLabel> _aboutRevoke;
 
+	class Inner;
+	QPointer<Inner> _inner;
+
+	int _innerTop = 0;
 	base::lambda<void()> _revokeCallback;
-	mtpRequestId _revokeRequestId = 0;
-	QPointer<ConfirmBox> _weakRevokeConfirmBox;
 
 };
