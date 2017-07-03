@@ -209,7 +209,7 @@ Ui::PopupMenu *GroupMembersWidget::fillPeerMenu(PeerData *selectedPeer) {
 	for_const (auto item, items()) {
 		if (item->peer == selectedPeer) {
 			auto canRemoveAdmin = [item, chat, channel] {
-				if (item->hasAdminStar && !item->peer->isSelf()) {
+				if ((item->adminState == Item::AdminState::Admin) && !item->peer->isSelf()) {
 					if (chat) {
 						// Adding of admins from context menu of chat participants
 						// is not supported, so the removing is also disabled.
@@ -222,7 +222,7 @@ Ui::PopupMenu *GroupMembersWidget::fillPeerMenu(PeerData *selectedPeer) {
 			};
 			if (channel) {
 				if (channel->canEditAdmin(user)) {
-					auto label = lang(item->hasAdminStar ? lng_context_edit_permissions : lng_context_promote_admin);
+					auto label = lang((item->adminState != Item::AdminState::None) ? lng_context_edit_permissions : lng_context_promote_admin);
 					result->addAction(label, base::lambda_guarded(this, [this, user] {
 						editAdmin(user);
 					}));
@@ -250,7 +250,7 @@ void GroupMembersWidget::updateItemStatusText(Item *item) {
 	auto user = member->user();
 	if (member->statusText.isEmpty() || (member->onlineTextTill <= _now)) {
 		if (user->botInfo) {
-			auto seesAllMessages = (user->botInfo->readsAllHistory || member->hasAdminStar);
+			auto seesAllMessages = (user->botInfo->readsAllHistory || (member->adminState != Item::AdminState::None));
 			member->statusText = lang(seesAllMessages ? lng_status_bot_reads_all : lng_status_bot_not_reads_all);
 			member->onlineTextTill = _now + 86400;
 		} else {
@@ -390,15 +390,17 @@ void GroupMembersWidget::fillChatMembers(ChatData *chat) {
 }
 
 void GroupMembersWidget::setItemFlags(Item *item, ChatData *chat) {
+	using AdminState = Item::AdminState;
 	auto user = getMember(item)->user();
 	auto isCreator = (peerFromUser(chat->creator) == item->peer->id);
 	auto isAdmin = chat->admins.contains(user);
-	item->hasAdminStar = isCreator || isAdmin;
+	auto adminState = isCreator ? AdminState::Creator : isAdmin ? AdminState::Admin : AdminState::None;
+	item->adminState = adminState;
 	if (item->peer->id == AuthSession::CurrentUserPeerId()) {
 		item->hasRemoveLink = false;
-	} else if (chat->amCreator() || (chat->amAdmin() && !item->hasAdminStar)) {
+	} else if (chat->amCreator() || (chat->amAdmin() && (adminState == AdminState::None))) {
 		item->hasRemoveLink = true;
-	} else if (chat->invitedByMe.contains(user) && !item->hasAdminStar) {
+	} else if (chat->invitedByMe.contains(user) && (adminState == AdminState::None)) {
 		item->hasRemoveLink = true;
 	} else {
 		item->hasRemoveLink = false;
@@ -462,14 +464,16 @@ bool GroupMembersWidget::addUsersToEnd(ChannelData *megagroup) {
 }
 
 void GroupMembersWidget::setItemFlags(Item *item, ChannelData *megagroup) {
-	auto amCreatorOrAdmin = item->peer->isSelf() && (megagroup->hasAdminRights() || megagroup->amCreator());
+	using AdminState = Item::AdminState;
+	auto amCreator = item->peer->isSelf() && megagroup->amCreator();
+	auto amAdmin = item->peer->isSelf() && megagroup->hasAdminRights();
 	auto adminIt = megagroup->mgInfo->lastAdmins.constFind(getMember(item)->user());
 	auto isAdmin = (adminIt != megagroup->mgInfo->lastAdmins.cend());
 	auto isCreator = megagroup->mgInfo->creator == item->peer;
 	auto adminCanEdit = isAdmin && adminIt->canEdit;
-	auto hasAdminStar = amCreatorOrAdmin || isAdmin || isCreator;
-	if (item->hasAdminStar != hasAdminStar) {
-		item->hasAdminStar = hasAdminStar;
+	auto adminState = (amCreator || isCreator) ? AdminState::Creator : (amAdmin || isAdmin) ? AdminState::Admin : AdminState::None;
+	if (item->adminState != adminState) {
+		item->adminState = adminState;
 		auto user = item->peer->asUser();
 		t_assert(user != nullptr);
 		if (user->botInfo) {
@@ -480,7 +484,7 @@ void GroupMembersWidget::setItemFlags(Item *item, ChannelData *megagroup) {
 	}
 	if (item->peer->isSelf()) {
 		item->hasRemoveLink = false;
-	} else if (megagroup->amCreator() || (megagroup->canBanMembers() && (!item->hasAdminStar || adminCanEdit))) {
+	} else if (megagroup->amCreator() || megagroup->canBanMembers() && ((adminState == AdminState::None) || adminCanEdit)) {
 		item->hasRemoveLink = true;
 	} else {
 		item->hasRemoveLink = false;

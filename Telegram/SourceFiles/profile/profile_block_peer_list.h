@@ -48,7 +48,12 @@ public:
 		Text name;
 		QString statusText;
 		bool statusHasOnlineColor = false;
-		bool hasAdminStar = false;
+		enum class AdminState {
+			None,
+			Admin,
+			Creator,
+		};
+		AdminState adminState = AdminState::None;
 		bool hasRemoveLink = false;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
 	};
