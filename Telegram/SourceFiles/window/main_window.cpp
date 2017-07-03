@@ -250,32 +250,38 @@ void MainWindow::initSize() {
 	setMinimumWidth(st::windowMinWidth);
 	setMinimumHeight((_title ? _title->height() : 0) + st::windowMinHeight);
 
-	auto pos = cWindowPos();
+	auto position = cWindowPos();
+	DEBUG_LOG(("Window Pos: Initializing first %1, %2, %3, %4 (maximized %5)").arg(position.x).arg(position.y).arg(position.w).arg(position.h).arg(Logs::b(position.maximized)));
+
 	auto avail = QDesktopWidget().availableGeometry();
 	bool maximized = false;
 	auto geom = QRect(avail.x() + (avail.width() - st::windowDefaultWidth) / 2, avail.y() + (avail.height() - st::windowDefaultHeight) / 2, st::windowDefaultWidth, st::windowDefaultHeight);
-	if (pos.w && pos.h) {
+	if (position.w && position.h) {
 		for (auto screen : QGuiApplication::screens()) {
-			if (pos.moncrc == screenNameChecksum(screen->name())) {
+			if (position.moncrc == screenNameChecksum(screen->name())) {
 				auto screenGeometry = screen->geometry();
+				DEBUG_LOG(("Window Pos: Screen found, screen geometry: %1, %2, %3, %4").arg(screenGeometry.x()).arg(screenGeometry.y()).arg(screenGeometry.width()).arg(screenGeometry.height()));
+
 				auto w = screenGeometry.width(), h = screenGeometry.height();
 				if (w >= st::windowMinWidth && h >= st::windowMinHeight) {
-					if (pos.w > w) pos.w = w;
-					if (pos.h > h) pos.h = h;
-					pos.x += screenGeometry.x();
-					pos.y += screenGeometry.y();
-					if (pos.x + st::windowMinWidth <= screenGeometry.x() + screenGeometry.width() &&
-						pos.y + st::windowMinHeight <= screenGeometry.y() + screenGeometry.height()) {
-						geom = QRect(pos.x, pos.y, pos.w, pos.h);
+					if (position.w > w) position.w = w;
+					if (position.h > h) position.h = h;
+					position.x += screenGeometry.x();
+					position.y += screenGeometry.y();
+					if (position.x + st::windowMinWidth <= screenGeometry.x() + screenGeometry.width() &&
+						position.y + st::windowMinHeight <= screenGeometry.y() + screenGeometry.height()) {
+						DEBUG_LOG(("Window Pos: Resulting geometry is %1, %2, %3, %4").arg(position.x).arg(position.y).arg(position.w).arg(position.h));
+						geom = QRect(position.x, position.y, position.w, position.h);
 					}
 				}
 				break;
 			}
 		}
 
-		if (pos.y < 0) pos.y = 0;
-		maximized = pos.maximized;
+		if (position.y < 0) position.y = 0;
+		maximized = position.maximized;
 	}
+	DEBUG_LOG(("Window Pos: Setting first %1, %2, %3, %4").arg(geom.x()).arg(geom.y()).arg(geom.width()).arg(geom.height()));
 	setGeometry(geom);
 }
 
@@ -335,39 +341,51 @@ void MainWindow::savePosition(Qt::WindowState state) {
 	if (state == Qt::WindowActive) state = windowHandle()->windowState();
 	if (state == Qt::WindowMinimized || !positionInited()) return;
 
-	auto pos = cWindowPos(), curPos = pos;
+	auto savedPosition = cWindowPos();
+	auto realPosition = savedPosition;
 
 	if (state == Qt::WindowMaximized) {
-		curPos.maximized = 1;
+		realPosition.maximized = 1;
 	} else {
 		auto r = geometry();
-		curPos.x = r.x();
-		curPos.y = r.y();
-		curPos.w = r.width() - (_rightColumn ? _rightColumn->width() : 0);
-		curPos.h = r.height();
-		curPos.maximized = 0;
+		realPosition.x = r.x();
+		realPosition.y = r.y();
+		realPosition.w = r.width() - (_rightColumn ? _rightColumn->width() : 0);
+		realPosition.h = r.height();
+		realPosition.maximized = 0;
+		realPosition.moncrc = 0;
 	}
+	DEBUG_LOG(("Window Pos: Saving position: %1, %2, %3, %4 (maximized %5)").arg(realPosition.x).arg(realPosition.y).arg(realPosition.w).arg(realPosition.h).arg(Logs::b(realPosition.maximized)));
 
-	int px = curPos.x + curPos.w / 2, py = curPos.y + curPos.h / 2;
+	auto centerX = realPosition.x + realPosition.w / 2;
+	auto centerY = realPosition.y + realPosition.h / 2;
 	int minDelta = 0;
-	QScreen *chosen = 0;
+	QScreen *chosen = nullptr;
 	auto screens = QGuiApplication::screens();
 	for (auto screen : QGuiApplication::screens()) {
-		auto delta = (screen->geometry().center() - QPoint(px, py)).manhattanLength();
+		auto delta = (screen->geometry().center() - QPoint(centerX, centerY)).manhattanLength();
 		if (!chosen || delta < minDelta) {
 			minDelta = delta;
 			chosen = screen;
 		}
 	}
 	if (chosen) {
-		curPos.x -= chosen->geometry().x();
-		curPos.y -= chosen->geometry().y();
-		curPos.moncrc = screenNameChecksum(chosen->name());
+		auto screenGeometry = chosen->geometry();
+		DEBUG_LOG(("Window Pos: Screen found, geometry: %1, %2, %3, %4").arg(screenGeometry.x()).arg(screenGeometry.y()).arg(screenGeometry.width()).arg(screenGeometry.height()));
+		realPosition.x -= screenGeometry.x();
+		realPosition.y -= screenGeometry.y();
+		realPosition.moncrc = screenNameChecksum(chosen->name());
 	}
 
-	if (curPos.w >= st::windowMinWidth && curPos.h >= st::windowMinHeight) {
-		if (curPos.x != pos.x || curPos.y != pos.y || curPos.w != pos.w || curPos.h != pos.h || curPos.moncrc != pos.moncrc || curPos.maximized != pos.maximized) {
-			cSetWindowPos(curPos);
+	if (realPosition.w >= st::windowMinWidth && realPosition.h >= st::windowMinHeight) {
+		if (realPosition.x != savedPosition.x
+			|| realPosition.y != savedPosition.y
+			|| realPosition.w != savedPosition.w
+			|| realPosition.h != savedPosition.h
+			|| realPosition.moncrc != savedPosition.moncrc
+			|| realPosition.maximized != savedPosition.maximized) {
+			DEBUG_LOG(("Window Pos: Writing: %1, %2, %3, %4 (maximized %5)").arg(realPosition.x).arg(realPosition.y).arg(realPosition.w).arg(realPosition.h).arg(Logs::b(realPosition.maximized)));
+			cSetWindowPos(realPosition);
 			Local::writeSettings();
 		}
 	}

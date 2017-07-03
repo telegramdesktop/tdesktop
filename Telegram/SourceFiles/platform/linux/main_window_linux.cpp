@@ -546,6 +546,7 @@ void MainWindow::psFirstShow() {
 	show();
 	//_private.enableShadow(winId());
 	if (cWindowPos().maximized) {
+		DEBUG_LOG(("Window Pos: First show, setting maximized."));
 		setWindowState(Qt::WindowMaximized);
 	}
 

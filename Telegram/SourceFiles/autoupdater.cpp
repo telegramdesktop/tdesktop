@@ -427,9 +427,10 @@ void UpdateChecker::unpackUpdate() {
 				LOG(("Update Error: cant open file '%1' for writing").arg(tempDirPath + '/' + relativeName));
 				return fatalFail();
 			}
-			if (f.write(fileInnerData) != fileSize) {
+			auto writtenBytes = f.write(fileInnerData);
+			if (writtenBytes != fileSize) {
 				f.close();
-				LOG(("Update Error: cant write file '%1'").arg(tempDirPath + '/' + relativeName));
+				LOG(("Update Error: cant write file '%1', desiredSize: %2, write result: %3").arg(tempDirPath + '/' + relativeName).arg(fileSize).arg(writtenBytes));
 				return fatalFail();
 			}
 			f.close();
