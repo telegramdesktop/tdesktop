@@ -399,12 +399,6 @@ void FilterBox::refreshButtons() {
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 }
 
-template <typename Widget>
-QPointer<Widget> FilterBox::addControl(object_ptr<Widget> row) {
-	Expects(_inner != nullptr);
-	return _inner->addControl(std::move(row));
-}
-
 void FilterBox::resizeToContent() {
 	_inner->resizeToWidth(st::boxWideWidth);
 	setDimensions(_inner->width(), _inner->height());

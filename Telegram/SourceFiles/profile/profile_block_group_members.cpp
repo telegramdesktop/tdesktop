@@ -484,7 +484,7 @@ void GroupMembersWidget::setItemFlags(Item *item, ChannelData *megagroup) {
 	}
 	if (item->peer->isSelf()) {
 		item->hasRemoveLink = false;
-	} else if (megagroup->amCreator() || megagroup->canBanMembers() && ((adminState == AdminState::None) || adminCanEdit)) {
+	} else if (megagroup->amCreator() || (megagroup->canBanMembers() && ((adminState == AdminState::None) || adminCanEdit))) {
 		item->hasRemoveLink = true;
 	} else {
 		item->hasRemoveLink = false;
