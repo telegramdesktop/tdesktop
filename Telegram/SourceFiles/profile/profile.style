@@ -132,7 +132,10 @@ profileMemberPhotoPosition: point(12px, 6px);
 profileMemberNamePosition: point(68px, 11px);
 profileMemberNameFg: windowBoldFg;
 profileMemberStatusPosition: point(68px, 31px);
-profileMemberAdminIcon: icon {{ "profile_admin_star", profileAdminStartFg, point(4px, 3px) }};
+profileMemberCreatorIcon: icon {{ "profile_admin_star", profileAdminStartFg, point(4px, 3px) }};
+profileMemberCreatorIconOver: icon {{ "profile_admin_star", profileAdminStarFgOver, point(4px, 3px) }};
+profileMemberAdminIcon: icon {{ "profile_admin_star", profileOtherAdminStarFg, point(4px, 3px) }};
+profileMemberAdminIconOver: icon {{ "profile_admin_star", profileOtherAdminStarFgOver, point(4px, 3px) }};
 profileLimitReachedLabel: FlatLabel(defaultFlatLabel) {
 	width: 180px;
 	margin: margins(profileMemberPaddingLeft, 9px, profileMemberPaddingLeft, 6px);

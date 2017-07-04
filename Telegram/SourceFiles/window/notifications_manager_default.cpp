@@ -542,16 +542,17 @@ void Notification::prepareActionsCache() {
 	auto replyCache = myGrab(_reply);
 	auto fadeWidth = st::notifyFadeRight.width();
 	auto actionsTop = st::notifyTextTop + st::msgNameFont->height;
-	auto actionsCacheWidth = _reply->width() + _replyPadding + fadeWidth;
-	auto actionsCacheHeight = height() - actionsTop;
-	auto actionsCacheImg = QImage(actionsCacheWidth * cIntRetinaFactor(), actionsCacheHeight * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	auto replyRight = _replyPadding - st::notifyBorderWidth;
+	auto actionsCacheWidth = _reply->width() + replyRight + fadeWidth;
+	auto actionsCacheHeight = height() - actionsTop - st::notifyBorderWidth;
+	auto actionsCacheImg = QImage(QSize(actionsCacheWidth, actionsCacheHeight) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	actionsCacheImg.setDevicePixelRatio(cRetinaFactor());
 	actionsCacheImg.fill(Qt::transparent);
 	{
 		Painter p(&actionsCacheImg);
 		st::notifyFadeRight.fill(p, rtlrect(0, 0, fadeWidth, actionsCacheHeight, actionsCacheWidth));
 		p.fillRect(rtlrect(fadeWidth, 0, actionsCacheWidth - fadeWidth, actionsCacheHeight, actionsCacheWidth), st::notificationBg);
-		p.drawPixmapRight(_replyPadding, _reply->y() - actionsTop, actionsCacheWidth, replyCache);
+		p.drawPixmapRight(replyRight, _reply->y() - actionsTop, actionsCacheWidth, replyCache);
 	}
 	_buttonsCache = App::pixmapFromImageInPlace(std::move(actionsCacheImg));
 }
@@ -609,9 +610,9 @@ void Notification::paintEvent(QPaintEvent *e) {
 	auto buttonsTop = st::notifyTextTop + st::msgNameFont->height;
 	if (a_actionsOpacity.animating(getms())) {
 		p.setOpacity(a_actionsOpacity.current());
-		p.drawPixmapRight(0, buttonsTop, width(), _buttonsCache);
+		p.drawPixmapRight(st::notifyBorderWidth, buttonsTop, width(), _buttonsCache);
 	} else if (_actionsVisible) {
-		p.drawPixmapRight(0, buttonsTop, width(), _buttonsCache);
+		p.drawPixmapRight(st::notifyBorderWidth, buttonsTop, width(), _buttonsCache);
 	}
 }
 

@@ -216,13 +216,15 @@ void EditAdminBox::prepare() {
 		addCheckbox(Flag::f_add_admins, lang(lng_rights_add_admins));
 	}
 
-	_aboutAddAdmins = addControl(object_ptr<Ui::FlatLabel>(this, st::boxLabel));
 	auto addAdmins = _checkboxes.find(Flag::f_add_admins);
-	t_assert(addAdmins != _checkboxes.end());
-	connect(addAdmins->second, &Ui::Checkbox::changed, this, [this] {
+	if (addAdmins != _checkboxes.end()) {
+		_aboutAddAdmins = addControl(object_ptr<Ui::FlatLabel>(this, st::boxLabel));
+		t_assert(addAdmins != _checkboxes.end());
+		connect(addAdmins->second, &Ui::Checkbox::changed, this, [this] {
+			refreshAboutAddAdminsText();
+		});
 		refreshAboutAddAdminsText();
-	});
-	refreshAboutAddAdminsText();
+	}
 
 	addButton(langFactory(lng_settings_save), [this] {
 		if (!_saveCallback) {

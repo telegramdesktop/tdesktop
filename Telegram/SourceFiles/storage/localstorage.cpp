@@ -1270,11 +1270,13 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 	} break;
 
 	case dbiWindowPosition: {
-		TWindowPos pos;
-		stream >> pos.x >> pos.y >> pos.w >> pos.h >> pos.moncrc >> pos.maximized;
+		auto position = TWindowPos();
+		stream >> position.x >> position.y >> position.w >> position.h;
+		stream >> position.moncrc >> position.maximized;
 		if (!_checkStreamStatus(stream)) return false;
 
-		cSetWindowPos(pos);
+		DEBUG_LOG(("Window Pos: Read from storage %1, %2, %3, %4 (maximized %5)").arg(position.x).arg(position.y).arg(position.w).arg(position.h).arg(Logs::b(position.maximized)));
+		cSetWindowPos(position);
 	} break;
 
 	case dbiLoggedPhoneNumber: {
@@ -2380,8 +2382,11 @@ void writeSettings() {
 		data.stream << quint32(dbiLangPackKey) << quint64(_langPackKey);
 	}
 
-	TWindowPos pos(cWindowPos());
-	data.stream << quint32(dbiWindowPosition) << qint32(pos.x) << qint32(pos.y) << qint32(pos.w) << qint32(pos.h) << qint32(pos.moncrc) << qint32(pos.maximized);
+	auto position = cWindowPos();
+	data.stream << quint32(dbiWindowPosition) << qint32(position.x) << qint32(position.y) << qint32(position.w) << qint32(position.h);
+	data.stream << qint32(position.moncrc) << qint32(position.maximized);
+
+	DEBUG_LOG(("Window Pos: Writing to storage %1, %2, %3, %4 (maximized %5)").arg(position.x).arg(position.y).arg(position.w).arg(position.h).arg(Logs::b(position.maximized)));
 
 	settings.writeEncrypted(data, SettingsKey);
 }

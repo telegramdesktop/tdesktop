@@ -302,8 +302,6 @@ private:
 };
 
 class PeerListBox : public BoxContent, public PeerListDelegate {
-	class Inner;
-
 public:
 	PeerListBox(QWidget*, std::unique_ptr<PeerListController> controller, base::lambda<void(PeerListBox*)> init);
 
@@ -337,6 +335,7 @@ protected:
 
 	void keyPressEvent(QKeyEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
 
 private:
 	void peerListAddSelectedRowInBunch(gsl::not_null<PeerData*> peer) override {
@@ -352,6 +351,7 @@ private:
 
 	object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>> _select = { nullptr };
 
+	class Inner;
 	QPointer<Inner> _inner;
 
 	std::unique_ptr<PeerListController> _controller;

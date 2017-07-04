@@ -468,7 +468,10 @@ overviewPhotoSelectOverlay: #40ace333; // shared photos / videos / links fill fo
 profileStatusFgOver: #7c99b2; // group members list in group profile user last seen text with mouse over
 profileVerifiedCheckBg: windowBgActive; // profile verified check icon background
 profileVerifiedCheckFg: windowFgActive; // profile verified check icon tick
-profileAdminStartFg: windowBgActive; // group members list admin star icon
+profileAdminStartFg: windowBgActive; // group members list creator star icon
+profileAdminStarFgOver: profileAdminStartFg; // group members list creator star icon with mouse over
+profileOtherAdminStarFg: windowSubTextFg; // group members list admin star icon
+profileOtherAdminStarFgOver: profileStatusFgOver; // group members list admin star icon with mouse over
 
 // settings
 notificationsBoxMonitorFg: windowFg; // custom notifications settings box monitor color

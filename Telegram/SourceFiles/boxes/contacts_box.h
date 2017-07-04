@@ -82,6 +82,7 @@ protected:
 
 	void keyPressEvent(QKeyEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
 
 private:
 	object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>> createMultiSelect();

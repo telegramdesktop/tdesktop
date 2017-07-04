@@ -316,6 +316,13 @@ void ContactsBox::resizeEvent(QResizeEvent *e) {
 	_inner->resize(width(), _inner->height());
 }
 
+void ContactsBox::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	for (auto rect : e->region().rects()) {
+		p.fillRect(rect, st::contactsBg);
+	}
+}
+
 void ContactsBox::closeHook() {
 	if (_channel && _creating == CreatingGroupChannel) {
 		Ui::showPeerHistory(_channel, ShowAtTheEndMsgId);
