@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_menu_update" = "Update";
 "lng_menu_restart" = "Neustart";
 "lng_menu_back" = "Zurück";
+"lng_menu_night_mode" = "Nachtmodus";
 
 "lng_disable_notifications_from_tray" = "Benachrichtigungen aus";
 "lng_enable_notifications_from_tray" = "Benachrichtigungen ein";
@@ -368,6 +369,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_local_storage_clear_failed" = "Ein Fehler ist aufgetreten :(";
 
 "lng_settings_section_advanced_settings" = "Erweiterte Einstellungen";
+"lng_settings_enable_night_theme" = "Nachtmodus aktivieren";
+"lng_settings_disable_night_theme" = "Nachtmodus deaktivieren";
 
 "lng_passcode_remove_button" = "Entfernen";
 
@@ -1343,6 +1346,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_previous_link" = "Vorheriger Link";
 "lng_admin_log_changed_photo_group" = "{from} hat Gruppenbild geändert";
 "lng_admin_log_changed_photo_channel" = "{from} hat Kanalbild geändert";
+"lng_admin_log_removed_photo_group" = "{from} hat Gruppenbild entfernt";
+"lng_admin_log_removed_photo_channel" = "{from} hat Kanalbild entfernt";
 "lng_admin_log_invites_enabled" = "{from} hat Gruppeneinladungen aktiviert";
 "lng_admin_log_invites_disabled" = "{from} hat Gruppeneinladungen deaktiviert";
 "lng_admin_log_signatures_enabled" = "{from} hat Unterschriften aktiviert";

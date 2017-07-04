@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_menu_update" = "업데이트";
 "lng_menu_restart" = "재시작";
 "lng_menu_back" = "뒤로가기";
+"lng_menu_night_mode" = "야간 모드";
 
 "lng_disable_notifications_from_tray" = "알림 해제";
 "lng_enable_notifications_from_tray" = "알림 사용";
@@ -368,6 +369,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_local_storage_clear_failed" = "초기화 실패 :(";
 
 "lng_settings_section_advanced_settings" = "고급 설정";
+"lng_settings_enable_night_theme" = "야간 모드 활성화";
+"lng_settings_disable_night_theme" = "야간 모드 비활성화";
 
 "lng_passcode_remove_button" = "삭제";
 
@@ -1343,6 +1346,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_previous_link" = "기존 링크";
 "lng_admin_log_changed_photo_group" = "{from} 님이 그룹사진을 변경했습니다.";
 "lng_admin_log_changed_photo_channel" = "{from} 님이 채널사진을 변경했습니다.";
+"lng_admin_log_removed_photo_group" = "{from} 님이 그룹사진을 삭제했습니다.";
+"lng_admin_log_removed_photo_channel" = "{from} 님이 채널사진을 삭제했습니다.";
 "lng_admin_log_invites_enabled" = "{from} 님이 그룹 초대를 허용했습니다.";
 "lng_admin_log_invites_disabled" = "{from} 님이 그룹 초대를 금지했습니다.";
 "lng_admin_log_signatures_enabled" = "{from} 님이 서명을 허용했습니다.";

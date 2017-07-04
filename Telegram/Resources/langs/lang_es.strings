@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_menu_update" = "Actualizar";
 "lng_menu_restart" = "Reiniciar";
 "lng_menu_back" = "Atrás";
+"lng_menu_night_mode" = "Modo noche";
 
 "lng_disable_notifications_from_tray" = "Desactivar notificaciones";
 "lng_enable_notifications_from_tray" = "Activar notificaciones";
@@ -368,6 +369,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_local_storage_clear_failed" = "Borrado fallido :(";
 
 "lng_settings_section_advanced_settings" = "Ajustes avanzados";
+"lng_settings_enable_night_theme" = "Activar modo noche";
+"lng_settings_disable_night_theme" = "Desactivar modo noche";
 
 "lng_passcode_remove_button" = "Quitar";
 
@@ -1343,6 +1346,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_previous_link" = "Enlace previo";
 "lng_admin_log_changed_photo_group" = "{from} cambió la foto de grupo";
 "lng_admin_log_changed_photo_channel" = "{from} cambió la foto del canal";
+"lng_admin_log_removed_photo_group" = "{from} eliminó la foto del grupo";
+"lng_admin_log_removed_photo_channel" = "{from} eliminó la foto del canal";
 "lng_admin_log_invites_enabled" = "{from} permitió las invitaciones";
 "lng_admin_log_invites_disabled" = "{from} desactivó las invitaciones";
 "lng_admin_log_signatures_enabled" = "{from} activó las firmas";
@@ -1359,7 +1364,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_participant_left" = "{from} dejó el grupo";
 "lng_admin_log_invited" = "invitó a {user}";
 "lng_admin_log_banned" = "suspendió a {user}";
-"lng_admin_log_restricted" = "cambió las restricciones de {user} hasta el {until}";
+"lng_admin_log_restricted" = "cambió las restricciones de {user} {until}";
 "lng_admin_log_promoted" = "cambió los privilegios de {user}";
 "lng_admin_log_user_with_username" = "{name} ({mention})";
 "lng_admin_log_restricted_forever" = "indefinidamente";

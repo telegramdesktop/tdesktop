@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_menu_update" = "Bijwerken";
 "lng_menu_restart" = "Herstarten";
 "lng_menu_back" = "Vorige";
+"lng_menu_night_mode" = "Nachtmodus";
 
 "lng_disable_notifications_from_tray" = "Meldingen uitschakelen";
 "lng_enable_notifications_from_tray" = "Meldingen inschakelen";
@@ -368,6 +369,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_local_storage_clear_failed" = "Wissen mislukt";
 
 "lng_settings_section_advanced_settings" = "Geavanceerde instellingen";
+"lng_settings_enable_night_theme" = "Nachtmodus inschakelen";
+"lng_settings_disable_night_theme" = "Nachtmodus uitschakelen";
 
 "lng_passcode_remove_button" = "Verwijder";
 
@@ -797,8 +800,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_group_invite_link" = "Uitnodigingslink:";
 "lng_group_invite_create" = "Uitnodigingslink maken";
 "lng_group_invite_about" = "Gebruikers kunnen lid worden\nvan je groep via deze link.";
-"lng_group_invite_create_new" = "Intrekken";
-"lng_group_invite_about_new" = "Je uitnodigingslink zal inactief worden een nieuwe link zal worden gegenereerd.";
+"lng_group_invite_create_new" = "Uitnodigingslink intrekken";
+"lng_group_invite_about_new" = "Je uitnodigingslink zal inactief worden, een nieuwe link zal worden gegenereerd.";
 "lng_group_invite_copied" = "Link gekopieerd naar klembord.";
 "lng_group_invite_no_room" = "De ledenlimiet van de groep is bereikt.";
 
@@ -1343,6 +1346,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_previous_link" = "Vorige link";
 "lng_admin_log_changed_photo_group" = "Groepsafbeelding door {from} gewijzigd";
 "lng_admin_log_changed_photo_channel" = "Kanaalfoto door {from} gewijzigd";
+"lng_admin_log_removed_photo_group" = "{from} heeft de groepsfoto verwijderd";
+"lng_admin_log_removed_photo_channel" = "{from} heeft de kanaalfoto verwijderd";
 "lng_admin_log_invites_enabled" = "uitnodigingen door {from} ingeschakeld";
 "lng_admin_log_invites_disabled" = "uitnodigingen door {from} uitgeschakeld";
 "lng_admin_log_signatures_enabled" = "ondertekenen door {from} ingeschakeld";
