@@ -1,3 +1,9 @@
+1.1.10 (04.07.17)
+
+- Add event log filter for channel or supergroup event log.
+- Fix search by username in privacy exceptions editor.
+- Fix adding admins in channels.
+
 1.1.9 (30.06.17)
 
 - Supergroups can now have up to 10.000 members.
