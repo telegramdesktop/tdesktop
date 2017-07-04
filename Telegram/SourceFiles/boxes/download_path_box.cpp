@@ -57,11 +57,11 @@ void DownloadPathBox::updateControlsVisibility() {
 	auto custom = (_group->value() == Directory::Custom);
 	_pathLink->setVisible(custom);
 
-	auto newHeight = st::boxOptionListPadding.top() + _default->heightNoMargins() + st::boxOptionListSkip + _temp->heightNoMargins() + st::boxOptionListSkip + _dir->heightNoMargins();
+	auto newHeight = st::boxOptionListPadding.top() + _default->getMargins().top() + _default->heightNoMargins() + st::boxOptionListSkip + _temp->heightNoMargins() + st::boxOptionListSkip + _dir->heightNoMargins();
 	if (custom) {
 		newHeight += st::downloadPathSkip + _pathLink->height();
 	}
-	newHeight += st::boxOptionListPadding.bottom();
+	newHeight += st::boxOptionListPadding.bottom() + _dir->getMargins().bottom();
 
 	setDimensions(st::boxWideWidth, newHeight);
 }
@@ -69,7 +69,7 @@ void DownloadPathBox::updateControlsVisibility() {
 void DownloadPathBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
-	_default->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxOptionListPadding.top());
+	_default->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxOptionListPadding.top() + _default->getMargins().top());
 	_temp->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _default->bottomNoMargins() + st::boxOptionListSkip);
 	_dir->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _temp->bottomNoMargins() + st::boxOptionListSkip);
 	auto inputx = st::boxPadding.left() + st::boxOptionListPadding.left() + st::defaultBoxCheckbox.textPosition.x();

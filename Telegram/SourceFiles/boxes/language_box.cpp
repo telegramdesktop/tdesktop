@@ -67,17 +67,17 @@ void LanguageBox::Inner::refresh() {
 	}
 	_buttons.clear();
 
-	auto y = st::boxOptionListPadding.top();
+	auto y = st::boxOptionListPadding.top() + st::langsButton.margin.top();
 	_buttons.reserve(_languages->size());
 	auto index = 0;
 	for_const (auto &language, *_languages) {
 		_buttons.emplace_back(this, _group, index++, language.nativeName, st::langsButton);
 		auto button = _buttons.back().data();
-		button->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), y + st::langsButton.margin.top());
+		button->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), y);
 		button->show();
 		y += button->heightNoMargins() + st::boxOptionListSkip;
 	}
-	auto newHeight = y + st::boxOptionListPadding.bottom() + st::boxPadding.bottom();
+	auto newHeight = y - st::boxOptionListSkip + st::boxOptionListPadding.bottom() + st::langsButton.margin.bottom();
 	resize(st::langsWidth, newHeight);
 }
 
@@ -131,7 +131,7 @@ void LanguageBox::refresh() {
 	refreshLanguages();
 
 	_inner->refresh();
-	auto maxHeight = st::boxOptionListPadding.top() + _languages.size() * (st::langsButton.height + st::boxOptionListSkip) + st::boxOptionListPadding.bottom() + st::boxPadding.bottom();
+	auto maxHeight = st::boxOptionListPadding.top() + st::langsButton.margin.top() + _languages.size() * (st::langsButton.height + st::boxOptionListSkip) - st::boxOptionListSkip + st::boxOptionListPadding.bottom() + st::langsButton.margin.bottom() + st::boxPadding.bottom();
 	setDimensions(st::langsWidth, qMin(maxHeight, st::boxMaxListHeight));
 }
 

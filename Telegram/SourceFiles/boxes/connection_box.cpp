@@ -127,7 +127,7 @@ void ConnectionBox::resizeEvent(QResizeEvent *e) {
 
 void ConnectionBox::updateControlsPosition() {
 	auto type = _typeGroup->value();
-	_autoRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxOptionListPadding.top());
+	_autoRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _autoRadio->getMargins().top() + st::boxOptionListPadding.top());
 	_httpProxyRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _autoRadio->bottomNoMargins() + st::boxOptionListSkip);
 
 	auto inputy = 0;
