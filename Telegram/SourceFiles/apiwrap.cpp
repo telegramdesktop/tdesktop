@@ -74,8 +74,8 @@ void ApiWrap::requestAppChangelogs() {
 				case mtpc_updatesTooLong:
 				case mtpc_updateShortSentMessage: LOG(("API Error: Bad updates type in app changelog.")); break;
 				}
-				if (resultEmpty && (cAlphaVersion() || cBetaVersion())) {
-					addLocalAlphaChangelogs(oldAppVersion);
+				if (resultEmpty) {
+					addLocalChangelogs(oldAppVersion);
 				}
 			}).send();
 			unsubscribe(base::take(_changelogSubscription));
@@ -83,18 +83,29 @@ void ApiWrap::requestAppChangelogs() {
 	}
 }
 
-void ApiWrap::addLocalAlphaChangelogs(int oldAppVersion) {
-	auto addLocalChangelog = [this, oldAppVersion](int changeVersion, const char *changes) {
-		if (oldAppVersion < changeVersion) {
-			auto changeVersionString = QString::number(changeVersion / 1000000) + '.' + QString::number((changeVersion % 1000000) / 1000) + ((changeVersion % 1000) ? ('.' + QString::number(changeVersion % 1000)) : QString());
-			auto text = qsl("New in version %1:\n\n").arg(changeVersionString) + QString::fromUtf8(changes).trimmed();
-			auto textWithEntities = TextWithEntities { text };
-			textParseEntities(textWithEntities.text, TextParseLinks, &textWithEntities.entities);
-			App::wnd()->serviceNotification(textWithEntities, MTP_messageMediaEmpty(), unixtime());
-		}
+void ApiWrap::addLocalChangelogs(int oldAppVersion) {
+	auto addedSome = false;
+	auto addLocalChangelog = [this, &addedSome](const QString &text) {
+		auto textWithEntities = TextWithEntities { text };
+		textParseEntities(textWithEntities.text, TextParseLinks, &textWithEntities.entities);
+		App::wnd()->serviceNotification(textWithEntities, MTP_messageMediaEmpty(), unixtime());
+		addedSome = true;
 	};
-
-	addLocalChangelog(1001008, "\xE2\x80\x94 Toggle night mode in the main menu.\n");
+	if (cAlphaVersion() || cBetaVersion()) {
+		auto addLocalAlphaChangelog = [this, oldAppVersion, addLocalChangelog](int changeVersion, const char *changes) {
+			if (oldAppVersion < changeVersion) {
+				auto changeVersionString = QString::number(changeVersion / 1000000) + '.' + QString::number((changeVersion % 1000000) / 1000) + ((changeVersion % 1000) ? ('.' + QString::number(changeVersion % 1000)) : QString());
+				auto text = qsl("New in version %1:\n\n").arg(changeVersionString) + QString::fromUtf8(changes).trimmed();
+				addLocalChangelog(text);
+			}
+		};
+		addLocalAlphaChangelog(1001008, "\xE2\x80\x94 Toggle night mode in the main menu.\n");
+		addLocalAlphaChangelog(1001010, "\xE2\x80\x94 Filter added to channel and supergroup event log.\n\xE2\x80\x94 Search by username in privacy exceptions editor fixed.\n\xE2\x80\x94 Adding admins in channels fixed.");
+	}
+	if (!addedSome) {
+		auto text = lng_new_version_wrap(lt_version, str_const_toString(AppVersionStr), lt_changes, lang(lng_new_version_minor), lt_link, qsl("https://desktop.telegram.org/changelog")).trimmed();
+		addLocalChangelog(text);
+	}
 }
 
 void ApiWrap::applyUpdates(const MTPUpdates &updates, uint64 sentMessageRandomId) {
