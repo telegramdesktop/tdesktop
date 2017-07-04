@@ -312,16 +312,21 @@ void InnerWidget::checkPreloadMore() {
 	}
 }
 
-void InnerWidget::applyFilter(MTPDchannelAdminLogEventsFilter::Flags flags, const std::vector<gsl::not_null<UserData*>> &admins) {
-	_filterFlags = flags;
-	_filterAdmins = admins;
-	updateEmptyText();
+void InnerWidget::applyFilter(FilterValue &&value) {
+	_filter = value;
+	request(base::take(_preloadUpRequestId)).cancel();
+	request(base::take(_preloadDownRequestId)).cancel();
+	_filterChanged = true;
+	_upLoaded = false;
+	_downLoaded = true;
+	updateMinMaxIds();
+	preloadMore(Direction::Up);
 }
 
 void InnerWidget::updateEmptyText() {
 	auto options = _defaultOptions;
 	options.flags |= TextParseMono; // For italic :/
-	auto hasFilter = (_filterFlags != 0) || !_filterAdmins.empty();
+	auto hasFilter = (_filter.flags != 0) || !_filter.allUsers;
 	auto text = TextWithEntities { lang(hasFilter ? lng_admin_log_no_results_title : lng_admin_log_no_events_title) };
 	text.entities.append(EntityInText(EntityInTextBold, 0, text.text.size()));
 	text.text.append(qstr("\n\n") + lang(hasFilter ? lng_admin_log_no_results_text : lng_admin_log_no_events_text));
@@ -351,8 +356,11 @@ QPoint InnerWidget::tooltipPos() const {
 }
 
 void InnerWidget::saveState(gsl::not_null<SectionMemento*> memento) {
-	memento->setItems(std::move(_items), std::move(_itemsByIds), _upLoaded, _downLoaded);
-	memento->setIdManager(std::move(_idManager));
+	memento->setFilter(std::move(_filter));
+	if (!_filterChanged) {
+		memento->setItems(std::move(_items), std::move(_itemsByIds), _upLoaded, _downLoaded);
+		memento->setIdManager(std::move(_idManager));
+	}
 	_upLoaded = _downLoaded = true; // Don't load or handle anything anymore.
 }
 
@@ -360,8 +368,10 @@ void InnerWidget::restoreState(gsl::not_null<SectionMemento*> memento) {
 	_items = memento->takeItems();
 	_itemsByIds = memento->takeItemsByIds();
 	_idManager = memento->takeIdManager();
+	_filter = memento->takeFilter();
 	_upLoaded = memento->upLoaded();
 	_downLoaded = memento->downLoaded();
+	_filterChanged = false;
 	updateMinMaxIds();
 	updateSize();
 }
@@ -374,15 +384,17 @@ void InnerWidget::preloadMore(Direction direction) {
 	}
 
 	auto flags = MTPchannels_GetAdminLog::Flags(0);
-	auto filter = MTP_channelAdminLogEventsFilter(MTP_flags(_filterFlags));
-	if (_filterFlags != 0) {
+	auto filter = MTP_channelAdminLogEventsFilter(MTP_flags(_filter.flags));
+	if (_filter.flags != 0) {
 		flags |= MTPchannels_GetAdminLog::Flag::f_events_filter;
 	}
 	auto admins = QVector<MTPInputUser>(0);
-	if (!_filterAdmins.empty()) {
-		admins.reserve(_filterAdmins.size());
-		for (auto &admin : _filterAdmins) {
-			admins.push_back(admin->inputUser);
+	if (!_filter.allUsers) {
+		if (!_filter.admins.empty()) {
+			admins.reserve(_filter.admins.size());
+			for (auto &admin : _filter.admins) {
+				admins.push_back(admin->inputUser);
+			}
 		}
 		flags |= MTPchannels_GetAdminLog::Flag::f_admins;
 	}
@@ -401,6 +413,11 @@ void InnerWidget::preloadMore(Direction direction) {
 		if (loadedFlag) {
 			return;
 		}
+
+		if (_filterChanged) {
+			clearAfterFilterChange();
+		}
+
 		auto &events = results.vevents.v;
 		if (!events.empty()) {
 			auto oldItemsCount = _items.size();
@@ -459,7 +476,7 @@ void InnerWidget::preloadMore(Direction direction) {
 }
 
 void InnerWidget::updateMinMaxIds() {
-	if (_itemsByIds.empty()) {
+	if (_itemsByIds.empty() || _filterChanged) {
 		_maxId = _minId = 0;
 	} else {
 		_maxId = (--_itemsByIds.end())->first;
@@ -583,6 +600,22 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			});
 		}
 	}
+}
+
+void InnerWidget::clearAfterFilterChange() {
+	_visibleTopItem = nullptr;
+	_visibleTopFromItem = 0;
+	_scrollDateLastItem = nullptr;
+	_scrollDateLastItemTop = 0;
+	_mouseActionItem = nullptr;
+	_selectedItem = nullptr;
+	_selectedText = TextSelection();
+	_filterChanged = false;
+	_items.clear();
+	_itemsByIds.clear();
+	_idManager = LocalIdManager();
+	updateEmptyText();
+	updateSize();
 }
 
 void InnerWidget::paintEmpty(Painter &p) {

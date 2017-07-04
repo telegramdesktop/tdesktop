@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/section_widget.h"
 #include "window/section_memento.h"
 #include "history/history_admin_log_item.h"
-#include "history/history_admin_log_inner.h"
+#include "mtproto/sender.h"
 
 namespace Notify {
 struct PeerUpdate;
@@ -45,7 +45,34 @@ class FixedBar;
 class InnerWidget;
 class SectionMemento;
 
-class Widget final : public Window::SectionWidget {
+struct FilterValue {
+	// Empty "flags" means all events.
+	MTPDchannelAdminLogEventsFilter::Flags flags = 0;
+	std::vector<gsl::not_null<UserData*>> admins;
+	bool allUsers = true;
+};
+
+class LocalIdManager {
+public:
+	LocalIdManager() = default;
+	LocalIdManager(const LocalIdManager &other) = delete;
+	LocalIdManager &operator=(const LocalIdManager &other) = delete;
+	LocalIdManager(LocalIdManager &&other) : _counter(std::exchange(other._counter, ServerMaxMsgId)) {
+	}
+	LocalIdManager &operator=(LocalIdManager &&other) {
+		_counter = std::exchange(other._counter, ServerMaxMsgId);
+		return *this;
+	}
+	MsgId next() {
+		return ++_counter;
+	}
+
+private:
+	MsgId _counter = ServerMaxMsgId;
+
+};
+
+class Widget final : public Window::SectionWidget, private MTP::Sender {
 public:
 	Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller, gsl::not_null<ChannelData*> channel);
 
@@ -69,8 +96,7 @@ public:
 	bool wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) override;
 	QRect rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) override;
 
-	// Empty "flags" means all events. Empty "admins" means all admins.
-	void applyFilter(MTPDchannelAdminLogEventsFilter::Flags flags, const std::vector<gsl::not_null<UserData*>> &admins);
+	void applyFilter(FilterValue &&value);
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -81,6 +107,7 @@ protected:
 	void doSetInnerFocus() override;
 
 private:
+	void showFilter();
 	void onScroll();
 	void updateAdaptiveLayout();
 	void saveState(gsl::not_null<SectionMemento*> memento);
@@ -91,6 +118,7 @@ private:
 	object_ptr<FixedBar> _fixedBar;
 	object_ptr<Ui::PlainShadow> _fixedBarShadow;
 	object_ptr<Ui::FlatButton> _whatIsThis;
+	std::vector<gsl::not_null<UserData*>> _admins;
 
 };
 
@@ -111,11 +139,21 @@ public:
 		return _scrollTop;
 	}
 
+	void setAdmins(std::vector<gsl::not_null<UserData*>> admins) {
+		_admins = std::move(admins);
+	}
+	std::vector<gsl::not_null<UserData*>> takeAdmins() {
+		return std::move(_admins);
+	}
+
 	void setItems(std::vector<HistoryItemOwned> &&items, std::map<uint64, HistoryItem*> &&itemsByIds, bool upLoaded, bool downLoaded) {
 		_items = std::move(items);
 		_itemsByIds = std::move(itemsByIds);
 		_upLoaded = upLoaded;
 		_downLoaded = downLoaded;
+	}
+	void setFilter(FilterValue &&filter) {
+		_filter = std::move(filter);
 	}
 	void setIdManager(LocalIdManager &&manager) {
 		_idManager = std::move(manager);
@@ -135,15 +173,20 @@ public:
 	bool downLoaded() const {
 		return _downLoaded;
 	}
+	FilterValue takeFilter() {
+		return std::move(_filter);
+	}
 
 private:
 	gsl::not_null<ChannelData*> _channel;
 	int _scrollTop = 0;
+	std::vector<gsl::not_null<UserData*>> _admins;
 	std::vector<HistoryItemOwned> _items;
 	std::map<uint64, HistoryItem*> _itemsByIds;
 	bool _upLoaded = false;
 	bool _downLoaded = true;
 	LocalIdManager _idManager;
+	FilterValue _filter;
 
 };
 

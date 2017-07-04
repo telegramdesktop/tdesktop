@@ -631,3 +631,17 @@ changePhoneLabel: FlatLabel(defaultFlatLabel) {
 changePhoneError: FlatLabel(changePhoneLabel) {
 	textFg: boxTextFgError;
 }
+
+adminLogFilterUserpicLeft: 15px;
+adminLogFilterLittleSkip: 16px;
+adminLogFilterCheckbox: Checkbox(defaultBoxCheckbox) {
+	style: TextStyle(boxTextStyle) {
+		font: font(boxFontSize semibold);
+		linkFont: font(boxFontSize semibold);
+		linkFontOver: font(boxFontSize semibold underline);
+	}
+}
+adminLogFilterSkip: 32px;
+adminLogFilterUserCheckbox: Checkbox(defaultBoxCheckbox) {
+	margin: margins(8px, 6px, 8px, 6px);
+}

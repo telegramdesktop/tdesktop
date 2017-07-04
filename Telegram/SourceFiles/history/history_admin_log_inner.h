@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "history/history_admin_log_item.h"
+#include "history/history_admin_log_section.h"
 #include "ui/widgets/tooltip.h"
 #include "mtproto/sender.h"
 #include "base/timer.h"
@@ -36,26 +37,6 @@ class Controller;
 namespace AdminLog {
 
 class SectionMemento;
-
-class LocalIdManager {
-public:
-	LocalIdManager() = default;
-	LocalIdManager(const LocalIdManager &other) = delete;
-	LocalIdManager &operator=(const LocalIdManager &other) = delete;
-	LocalIdManager(LocalIdManager &&other) : _counter(std::exchange(other._counter, ServerMaxMsgId)) {
-	}
-	LocalIdManager &operator=(LocalIdManager &&other) {
-		_counter = std::exchange(other._counter, ServerMaxMsgId);
-		return *this;
-	}
-	MsgId next() {
-		return ++_counter;
-	}
-
-private:
-	MsgId _counter = ServerMaxMsgId;
-
-};
 
 class InnerWidget final : public TWidget, public Ui::AbstractTooltipShower, private MTP::Sender, private base::Subscriber {
 public:
@@ -82,8 +63,11 @@ public:
 		_cancelledCallback = std::move(callback);
 	}
 
-	// Empty "flags" means all events. Empty "admins" means all admins.
-	void applyFilter(MTPDchannelAdminLogEventsFilter::Flags flags, const std::vector<gsl::not_null<UserData*>> &admins);
+	// Empty "flags" means all events.
+	void applyFilter(FilterValue &&value);
+	FilterValue filter() const {
+		return _filter;
+	}
 
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
@@ -154,6 +138,7 @@ private:
 	void updateMinMaxIds();
 	void updateEmptyText();
 	void paintEmpty(Painter &p);
+	void clearAfterFilterChange();
 
 	void toggleScrollDateShown();
 	void repaintScrollDateCallback();
@@ -219,6 +204,7 @@ private:
 	// Don't load anything until the memento was read.
 	bool _upLoaded = true;
 	bool _downLoaded = true;
+	bool _filterChanged = false;
 	Text _emptyText;
 
 	MouseAction _mouseAction = MouseAction::None;
@@ -243,8 +229,7 @@ private:
 
 	ClickHandlerPtr _contextMenuLink;
 
-	MTPDchannelAdminLogEventsFilter::Flags _filterFlags = 0;
-	std::vector<gsl::not_null<UserData*>> _filterAdmins;
+	FilterValue _filter;
 
 };
 

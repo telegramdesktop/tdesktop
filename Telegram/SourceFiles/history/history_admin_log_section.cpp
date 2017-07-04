@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_admin_log_section.h"
 
 #include "history/history_admin_log_inner.h"
+#include "history/history_admin_log_filter.h"
 #include "profile/profile_back_button.h"
 #include "styles/style_history.h"
 #include "styles/style_window.h"
@@ -36,16 +37,18 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace AdminLog {
 
+// If we require to support more admins we'll have to rewrite this anyway.
+constexpr auto kMaxChannelAdmins = 200;
+
 class FixedBar final : public TWidget, private base::Subscriber {
 public:
-	FixedBar(QWidget *parent);
+	FixedBar(QWidget *parent, gsl::not_null<ChannelData*> channel, base::lambda<void()> showFilterCallback);
 
 	// When animating mode is enabled the content is hidden and the
 	// whole fixed bar acts like a back button.
 	void setAnimatingMode(bool enabled);
 
-	// Empty "flags" means all events. Empty "admins" means all admins.
-	void applyFilter(MTPDchannelAdminLogEventsFilter::Flags flags, const std::vector<gsl::not_null<UserData*>> &admins);
+	void applyFilter(const FilterValue &value);
 	void goBack();
 
 protected:
@@ -54,6 +57,7 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
+	gsl::not_null<ChannelData*> _channel;
 	object_ptr<Profile::BackButton> _backButton;
 	object_ptr<Ui::RoundButton> _filter;
 
@@ -67,17 +71,17 @@ object_ptr<Window::SectionWidget> SectionMemento::createWidget(QWidget *parent, 
 	return std::move(result);
 }
 
-FixedBar::FixedBar(QWidget *parent) : TWidget(parent)
+FixedBar::FixedBar(QWidget *parent, gsl::not_null<ChannelData*> channel, base::lambda<void()> showFilterCallback) : TWidget(parent)
+, _channel(channel)
 , _backButton(this, lang(lng_admin_log_title_all))
 , _filter(this, langFactory(lng_admin_log_filter), st::topBarButton) {
 	_backButton->moveToLeft(0, 0);
 	_backButton->setClickedCallback([this] { goBack(); });
-	_filter->setClickedCallback([this] {});
-	_filter->hide();
+	_filter->setClickedCallback([this, showFilterCallback] { showFilterCallback(); });
 }
 
-void FixedBar::applyFilter(MTPDchannelAdminLogEventsFilter::Flags flags, const std::vector<gsl::not_null<UserData*>> &admins) {
-	auto hasFilter = (flags != 0) || !admins.empty();
+void FixedBar::applyFilter(const FilterValue &value) {
+	auto hasFilter = (value.flags != 0) || !value.allUsers;
 	_backButton->setText(lang(hasFilter ? lng_admin_log_title_selected : lng_admin_log_title_all));
 }
 
@@ -89,7 +93,7 @@ int FixedBar::resizeGetHeight(int newWidth) {
 	auto newHeight = 0;
 
 	auto buttonLeft = newWidth;
-	//buttonLeft -= _filter->width(); _filter->moveToLeft(buttonLeft, 0);
+	buttonLeft -= _filter->width(); _filter->moveToLeft(buttonLeft, 0);
 	_backButton->resizeToWidth(buttonLeft);
 	_backButton->moveToLeft(0, 0);
 	newHeight += _backButton->height();
@@ -107,7 +111,6 @@ void FixedBar::setAnimatingMode(bool enabled) {
 		} else {
 			setAttribute(Qt::WA_OpaquePaintEvent);
 			showChildren();
-			_filter->hide();
 		}
 		show();
 	}
@@ -130,7 +133,7 @@ void FixedBar::mousePressEvent(QMouseEvent *e) {
 
 Widget::Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller, gsl::not_null<ChannelData*> channel) : Window::SectionWidget(parent, controller)
 , _scroll(this, st::historyScroll, false)
-, _fixedBar(this)
+, _fixedBar(this, channel, [this] { showFilter(); })
 , _fixedBarShadow(this, st::shadowFg)
 , _whatIsThis(this, lang(lng_admin_log_about).toUpper(), st::historyComposeButton) {
 	_fixedBar->move(0, 0);
@@ -149,6 +152,40 @@ Widget::Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller, g
 	_inner->setCancelledCallback([this] { _fixedBar->goBack(); });
 
 	_whatIsThis->setClickedCallback([this] { Ui::show(Box<InformBox>(lang(lng_admin_log_about_text))); });
+}
+
+void Widget::showFilter() {
+	if (_admins.empty()) {
+		request(MTPchannels_GetParticipants(_inner->channel()->inputChannel, MTP_channelParticipantsAdmins(), MTP_int(0), MTP_int(kMaxChannelAdmins))).done([this](const MTPchannels_ChannelParticipants &result) {
+			Expects(result.type() == mtpc_channels_channelParticipants);
+			auto &participants = result.c_channels_channelParticipants();
+			App::feedUsers(participants.vusers);
+			for (auto &participant : participants.vparticipants.v) {
+				auto getUserId = [&participant] {
+					switch (participant.type()) {
+					case mtpc_channelParticipant: return participant.c_channelParticipant().vuser_id.v;
+					case mtpc_channelParticipantSelf: return participant.c_channelParticipantSelf().vuser_id.v;
+					case mtpc_channelParticipantAdmin: return participant.c_channelParticipantAdmin().vuser_id.v;
+					case mtpc_channelParticipantCreator: return participant.c_channelParticipantCreator().vuser_id.v;
+					case mtpc_channelParticipantBanned: return participant.c_channelParticipantBanned().vuser_id.v;
+					default: Unexpected("Type in AdminLog::Widget::showFilter()");
+					}
+				};
+				if (auto user = App::userLoaded(getUserId())) {
+					_admins.push_back(user);
+				}
+			}
+			if (_admins.empty()) {
+				_admins.push_back(App::self());
+			}
+			showFilter();
+		}).send();
+	} else {
+		Ui::show(Box<FilterBox>(_inner->channel(), _admins, _inner->filter(), [this](FilterValue &&filter) {
+			applyFilter(std::move(filter));
+			Ui::hideLayer();
+		}));
+	}
 }
 
 void Widget::updateAdaptiveLayout() {
@@ -194,11 +231,13 @@ std::unique_ptr<Window::SectionMemento> Widget::createMemento() {
 
 void Widget::saveState(gsl::not_null<SectionMemento*> memento) {
 	memento->setScrollTop(_scroll->scrollTop());
+	memento->setAdmins(std::move(_admins));
 	_inner->saveState(memento);
 }
 
 void Widget::restoreState(gsl::not_null<SectionMemento*> memento) {
 	_inner->restoreState(memento);
+	_admins = memento->takeAdmins();
 	auto scrollTop = memento->getScrollTop();
 	_scroll->scrollToY(scrollTop);
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
@@ -309,9 +348,9 @@ QRect Widget::rectForFloatPlayer(Window::Column myColumn, Window::Column playerC
 	return mapToGlobal(_scroll->geometry());
 }
 
-void Widget::applyFilter(MTPDchannelAdminLogEventsFilter::Flags flags, const std::vector<gsl::not_null<UserData*>> &admins) {
-	_inner->applyFilter(flags, admins);
-	_fixedBar->applyFilter(flags, admins);
+void Widget::applyFilter(FilterValue &&value) {
+	_fixedBar->applyFilter(value);
+	_inner->applyFilter(std::move(value));
 }
 
 } // namespace AdminLog
