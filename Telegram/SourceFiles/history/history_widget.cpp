@@ -1799,10 +1799,8 @@ void HistoryWidget::applyDraft(bool parseLinks, Ui::FlatTextarea::UndoHistoryAct
 		_editMsgId = 0;
 		_replyToId = readyToForward() ? 0 : _history->localDraft()->msgId;
 	}
-	if (!canWriteMessage()) {
-		updateControlsVisibility();
-		updateControlsGeometry();
-	}
+	updateControlsVisibility();
+	updateControlsGeometry();
 
 	if (parseLinks) {
 		onPreviewParse();
