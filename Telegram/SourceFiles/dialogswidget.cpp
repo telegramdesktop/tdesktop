@@ -721,6 +721,20 @@ bool DialogsInner::updateReorderPinned(QPoint localPosition) {
 	auto rowHeight = st::dialogsRowHeight;
 	if (_dragStart.y() > localPosition.y() && _draggingIndex > 0) {
 		shift = -floorclamp(_dragStart.y() - localPosition.y() + (rowHeight / 2), rowHeight, 0, _draggingIndex);
+
+		// Debug an assertion violation.
+		if (shift < 0) {
+			auto index = 0;
+			for_const (auto row, *shownDialogs()) {
+				if (++index >= _draggingIndex + shift) {
+					t_assert(row->history()->isPinnedDialog());
+					if (index >= _draggingIndex) {
+						break;
+					}
+				}
+			}
+		}
+
 		for (auto from = _draggingIndex, to = _draggingIndex + shift; from > to; --from) {
 			shownDialogs()->movePinned(_dragging, -1);
 			std::swap(_pinnedRows[from], _pinnedRows[from - 1]);
@@ -729,6 +743,20 @@ bool DialogsInner::updateReorderPinned(QPoint localPosition) {
 		}
 	} else if (_dragStart.y() < localPosition.y() && _draggingIndex + 1 < pinnedCount) {
 		shift = floorclamp(localPosition.y() - _dragStart.y() + (rowHeight / 2), rowHeight, 0, pinnedCount - _draggingIndex - 1);
+
+		// Debug an assertion violation.
+		if (shift > 0) {
+			auto index = 0;
+			for_const (auto row, *shownDialogs()) {
+				if (++index >= _draggingIndex) {
+					t_assert(row->history()->isPinnedDialog());
+					if (index >= _draggingIndex + shift) {
+						break;
+					}
+				}
+			}
+		}
+
 		for (auto from = _draggingIndex, to = _draggingIndex + shift; from < to; ++from) {
 			shownDialogs()->movePinned(_dragging, 1);
 			std::swap(_pinnedRows[from], _pinnedRows[from + 1]);
