@@ -115,7 +115,7 @@ protected:
 		return textcmdLink(1, _from->name);
 	};
 	ClickHandlerPtr fromLink() const {
-		return peerOpenClickHandler(_from);
+		return _from->createOpenLink();
 	};
 
 	void removeMedia();

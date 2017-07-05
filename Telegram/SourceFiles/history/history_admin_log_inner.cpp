@@ -25,18 +25,23 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_message.h"
 #include "history/history_service_layout.h"
 #include "history/history_admin_log_section.h"
+#include "history/history_admin_log_filter.h"
 #include "chat_helpers/message_field.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
+#include "apiwrap.h"
 #include "window/window_controller.h"
 #include "auth_session.h"
 #include "ui/widgets/popup_menu.h"
 #include "core/file_utilities.h"
 #include "lang/lang_keys.h"
+#include "boxes/edit_participant_box.h"
 
 namespace AdminLog {
 namespace {
 
+// If we require to support more admins we'll have to rewrite this anyway.
+constexpr auto kMaxChannelAdmins = 200;
 constexpr auto kScrollDateHideTimeout = 1000;
 constexpr auto kEventsFirstPage = 20;
 constexpr auto kEventsPerPage = 50;
@@ -223,6 +228,8 @@ InnerWidget::InnerWidget(QWidget *parent, gsl::not_null<Window::Controller*> con
 		}
 	});
 	updateEmptyText();
+
+	requestAdmins();
 }
 
 void InnerWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
@@ -326,6 +333,47 @@ void InnerWidget::applySearch(const QString &query) {
 	}
 }
 
+void InnerWidget::requestAdmins() {
+	request(MTPchannels_GetParticipants(_channel->inputChannel, MTP_channelParticipantsAdmins(), MTP_int(0), MTP_int(kMaxChannelAdmins))).done([this](const MTPchannels_ChannelParticipants &result) {
+		Expects(result.type() == mtpc_channels_channelParticipants);
+		auto &participants = result.c_channels_channelParticipants();
+		App::feedUsers(participants.vusers);
+		for (auto &participant : participants.vparticipants.v) {
+			auto getUserId = [&participant] {
+				switch (participant.type()) {
+				case mtpc_channelParticipant: return participant.c_channelParticipant().vuser_id.v;
+				case mtpc_channelParticipantSelf: return participant.c_channelParticipantSelf().vuser_id.v;
+				case mtpc_channelParticipantAdmin: return participant.c_channelParticipantAdmin().vuser_id.v;
+				case mtpc_channelParticipantCreator: return participant.c_channelParticipantCreator().vuser_id.v;
+				case mtpc_channelParticipantBanned: return participant.c_channelParticipantBanned().vuser_id.v;
+				default: Unexpected("Type in AdminLog::Widget::showFilter()");
+				}
+			};
+			if (auto user = App::userLoaded(getUserId())) {
+				_admins.push_back(user);
+				auto canEdit = (participant.type() == mtpc_channelParticipantAdmin) && (participant.c_channelParticipantAdmin().is_can_edit());
+				if (canEdit) {
+					_adminsCanEdit.push_back(user);
+				}
+			}
+		}
+		if (_admins.empty()) {
+			_admins.push_back(App::self());
+		}
+		if (_showFilterCallback) {
+			showFilter(std::move(_showFilterCallback));
+		}
+	}).send();
+}
+
+void InnerWidget::showFilter(base::lambda<void(FilterValue &&filter)> callback) {
+	if (_admins.empty()) {
+		_showFilterCallback = std::move(callback);
+	} else {
+		Ui::show(Box<FilterBox>(_channel, _admins, _filter, std::move(callback)));
+	}
+}
+
 void InnerWidget::clearAndRequestLog() {
 	request(base::take(_preloadUpRequestId)).cancel();
 	request(base::take(_preloadDownRequestId)).cancel();
@@ -374,6 +422,8 @@ QPoint InnerWidget::tooltipPos() const {
 
 void InnerWidget::saveState(gsl::not_null<SectionMemento*> memento) {
 	memento->setFilter(std::move(_filter));
+	memento->setAdmins(std::move(_admins));
+	memento->setAdminsCanEdit(std::move(_adminsCanEdit));
 	memento->setSearchQuery(std::move(_searchQuery));
 	if (!_filterChanged) {
 		memento->setItems(std::move(_items), std::move(_itemsByIds), _upLoaded, _downLoaded);
@@ -386,6 +436,8 @@ void InnerWidget::restoreState(gsl::not_null<SectionMemento*> memento) {
 	_items = memento->takeItems();
 	_itemsByIds = memento->takeItemsByIds();
 	_idManager = memento->takeIdManager();
+	_admins = memento->takeAdmins();
+	_adminsCanEdit = memento->takeAdminsCanEdit();
 	_filter = memento->takeFilter();
 	_searchQuery = memento->takeSearchQuery();
 	_upLoaded = memento->upLoaded();
@@ -427,70 +479,69 @@ void InnerWidget::preloadMore(Direction direction) {
 		auto &results = result.c_channels_adminLogResults();
 		App::feedUsers(results.vusers);
 		App::feedChats(results.vchats);
-
-		if (loadedFlag) {
-			return;
+		if (!loadedFlag) {
+			addEvents(direction, results.vevents.v);
 		}
-
-		if (_filterChanged) {
-			clearAfterFilterChange();
-		}
-
-		auto &events = results.vevents.v;
-		if (!events.empty()) {
-			auto oldItemsCount = _items.size();
-			_items.reserve(oldItemsCount + events.size() * 2);
-			for_const (auto &event, events) {
-				t_assert(event.type() == mtpc_channelAdminLogEvent);
-				auto &data = event.c_channelAdminLogEvent();
-				if (_itemsByIds.find(data.vid.v) != _itemsByIds.cend()) {
-					continue;
-				}
-
-				auto count = 0;
-				GenerateItems(_history, _idManager, data, [this, id = data.vid.v, &count](HistoryItemOwned item) {
-					_itemsByIds.emplace(id, item.get());
-					_items.push_back(std::move(item));
-					++count;
-				});
-				if (count > 1) {
-					// Reverse the inner order of the added messages, because we load events
-					// from bottom to top but inside one event they go from top to bottom.
-					auto full = _items.size();
-					auto from = full - count;
-					for (auto i = 0, toReverse = count / 2; i != toReverse; ++i) {
-						std::swap(_items[from + i], _items[full - i - 1]);
-					}
-				}
-			}
-			auto newItemsCount = _items.size();
-			if (newItemsCount != oldItemsCount) {
-				for (auto i = oldItemsCount; i != newItemsCount + 1; ++i) {
-					if (i > 0) {
-						auto item = _items[i - 1].get();
-						if (i == newItemsCount) {
-							item->setLogEntryDisplayDate(true);
-						} else {
-							auto previous = _items[i].get();
-							item->setLogEntryDisplayDate(item->date.date() != previous->date.date());
-							auto attachToPrevious = item->computeIsAttachToPrevious(previous);
-							item->setLogEntryAttachToPrevious(attachToPrevious);
-							previous->setLogEntryAttachToNext(attachToPrevious);
-						}
-					}
-				}
-				updateMinMaxIds();
-				itemsAdded(direction);
-			}
-		} else {
-			loadedFlag = true;
-		}
-		update();
 	}).fail([this, &requestId, &loadedFlag](const RPCError &error) {
 		requestId = 0;
 		loadedFlag = true;
 		update();
 	}).send();
+}
+
+void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLogEvent> &events) {
+	if (_filterChanged) {
+		clearAfterFilterChange();
+	}
+
+	auto up = (direction == Direction::Up);
+	if (events.empty()) {
+		(up ? _upLoaded : _downLoaded) = true;
+		update();
+		return;
+	}
+
+	// When loading items up we just add them to the back of the _items vector.
+	// When loading items down we add them to a new vector and copy _items after them.
+	auto newItemsForDownDirection = std::vector<HistoryItemOwned>();
+	auto oldItemsCount = _items.size();
+	auto &addToItems = (direction == Direction::Up) ? _items : newItemsForDownDirection;
+	addToItems.reserve(oldItemsCount + events.size() * 2);
+	for_const (auto &event, events) {
+		t_assert(event.type() == mtpc_channelAdminLogEvent);
+		auto &data = event.c_channelAdminLogEvent();
+		if (_itemsByIds.find(data.vid.v) != _itemsByIds.cend()) {
+			continue;
+		}
+
+		auto count = 0;
+		GenerateItems(_history, _idManager, data, [this, id = data.vid.v, &addToItems, &count](HistoryItemOwned item) {
+			_itemsByIds.emplace(id, item.get());
+			addToItems.push_back(std::move(item));
+			++count;
+		});
+		if (count > 1) {
+			// Reverse the inner order of the added messages, because we load events
+			// from bottom to top but inside one event they go from top to bottom.
+			auto full = addToItems.size();
+			auto from = full - count;
+			for (auto i = 0, toReverse = count / 2; i != toReverse; ++i) {
+				std::swap(addToItems[from + i], addToItems[full - i - 1]);
+			}
+		}
+	}
+	auto newItemsCount = _items.size() + ((direction == Direction::Up) ? 0 : newItemsForDownDirection.size());
+	if (newItemsCount != oldItemsCount) {
+		if (direction == Direction::Down) {
+			for (auto &item : _items) {
+				newItemsForDownDirection.push_back(std::move(item));
+			}
+			_items = std::move(newItemsForDownDirection);
+		}
+		updateMinMaxIds();
+		itemsAdded(direction, newItemsCount - oldItemsCount);
+	}
+	update();
 }
 
 void InnerWidget::updateMinMaxIds() {
@@ -505,7 +556,24 @@ void InnerWidget::updateMinMaxIds() {
 	}
 }
 
-void InnerWidget::itemsAdded(Direction direction) {
+void InnerWidget::itemsAdded(Direction direction, int addedCount) {
+	Expects(addedCount >= 0);
+	auto checkFrom = (direction == Direction::Up) ? (_items.size() - addedCount) : 1; // Should be ": 0", but zero is skipped anyway.
+	auto checkTo = (direction == Direction::Up) ? (_items.size() + 1) : (addedCount + 1);
+	for (auto i = checkFrom; i != checkTo; ++i) {
+		if (i > 0) {
+			auto item = _items[i - 1].get();
+			if (i < _items.size()) {
+				auto previous = _items[i].get();
+				item->setLogEntryDisplayDate(item->date.date() != previous->date.date());
+				auto attachToPrevious = item->computeIsAttachToPrevious(previous);
+				item->setLogEntryAttachToPrevious(attachToPrevious);
+				previous->setLogEntryAttachToNext(attachToPrevious);
+			} else {
+				item->setLogEntryDisplayDate(true);
+			}
+		}
+	}
 	updateSize();
 }
 
@@ -731,9 +799,10 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	auto item = App::hoveredItem() ? App::hoveredItem() : App::hoveredLinkItem();
 	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(_contextMenuLink.data());
 	auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.data());
-	bool lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideo() : false;
-	bool lnkIsAudio = lnkDocument ? (lnkDocument->document()->voice() != nullptr) : false;
-	bool lnkIsSong = lnkDocument ? (lnkDocument->document()->song() != nullptr) : false;
+	auto lnkPeer = dynamic_cast<PeerClickHandler*>(_contextMenuLink.data());
+	auto lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideo() : false;
+	auto lnkIsAudio = lnkDocument ? (lnkDocument->document()->voice() != nullptr) : false;
+	auto lnkIsSong = lnkDocument ? (lnkDocument->document()->song() != nullptr) : false;
 	if (lnkPhoto || lnkDocument) {
 		if (isUponSelected > 0) {
 			_menu->addAction(lang(lng_context_copy_selected), [this] { copySelectedText(); })->setEnabled(true);
@@ -765,6 +834,10 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		if (App::hoveredLinkItem()) {
 			App::contextItem(App::hoveredLinkItem());
+		}
+	} else if (lnkPeer) { // suggest to block
+		if (auto user = lnkPeer->peer()->asUser()) {
+			suggestRestrictUser(user);
 		}
 	} else { // maybe cursor on some text history item?
 		bool canDelete = item && item->canDelete() && (item->id > 0 || !item->serviceMsg());
@@ -932,6 +1005,71 @@ void InnerWidget::setToClipboard(const TextWithEntities &forClipboard, QClipboar
 	if (auto data = MimeDataFromTextWithEntities(forClipboard)) {
 		QApplication::clipboard()->setMimeData(data.release(), mode);
 	}
+}
+
+void InnerWidget::suggestRestrictUser(gsl::not_null<UserData*> user) {
+	Expects(_menu != nullptr);
+	if (!_channel->isMegagroup() || !_channel->canBanMembers() || _admins.empty()) {
+		return;
+	}
+	if (base::contains(_admins, user)) {
+		if (!base::contains(_adminsCanEdit, user)) {
+			return;
+		}
+	}
+	_menu->addAction(lang(lng_context_restrict_user), [this, user] {
+		auto editRestrictions = [user, this](bool hasAdminRights, const MTPChannelBannedRights &currentRights) {
+			auto weak = QPointer<InnerWidget>(this);
+			auto box = std::make_shared<QPointer<EditRestrictedBox>>();
+			*box = Ui::show(Box<EditRestrictedBox>(_channel, user, hasAdminRights, currentRights, [user, weak, box](const MTPChannelBannedRights &rights) {
+				if (weak) {
+					weak->restrictUser(user, rights);
+				}
+				if (*box) {
+					(*box)->closeBox();
+				}
+			}), KeepOtherLayers);
+		};
+		if (base::contains(_admins, user)) {
+			editRestrictions(true, EditRestrictedBox::DefaultRights(_channel));
+		} else {
+			request(MTPchannels_GetParticipant(_channel->inputChannel, user->inputUser)).done([this, editRestrictions](const MTPchannels_ChannelParticipant &result) {
+				Expects(result.type() == mtpc_channels_channelParticipant);
+				auto &participant = result.c_channels_channelParticipant();
+				App::feedUsers(participant.vusers);
+				auto type = participant.vparticipant.type();
+				if (type == mtpc_channelParticipantBanned) {
+					editRestrictions(false, participant.vparticipant.c_channelParticipantBanned().vbanned_rights);
+				} else {
+					auto hasAdminRights = (type == mtpc_channelParticipantAdmin || type == mtpc_channelParticipantCreator);
+					editRestrictions(hasAdminRights, EditRestrictedBox::DefaultRights(_channel));
+				}
+			}).fail([this, editRestrictions](const RPCError &error) {
+				editRestrictions(false, EditRestrictedBox::DefaultRights(_channel));
+			}).send();
+		}
+	});
+}
+
+void InnerWidget::restrictUser(gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights) {
+	auto weak = QPointer<InnerWidget>(this);
+	MTP::send(MTPchannels_EditBanned(_channel->inputChannel, user->inputUser, rights), rpcDone([megagroup = _channel.get(), user, weak, rights](const MTPUpdates &result) {
+		AuthSession::Current().api().applyUpdates(result);
+		megagroup->applyEditBanned(user, rights);
+		if (weak) {
+			weak->restrictUserDone(user, rights);
+		}
+	}));
+}
+
+void InnerWidget::restrictUserDone(gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights) {
+	Expects(rights.type() == mtpc_channelBannedRights);
+	if (rights.c_channelBannedRights().vflags.v) {
+		_admins.erase(std::remove(_admins.begin(), _admins.end(), user), _admins.end());
+		_adminsCanEdit.erase(std::remove(_adminsCanEdit.begin(), _adminsCanEdit.end(), user), _adminsCanEdit.end());
+	}
+	_downLoaded = false;
+	checkPreloadMore();
 }
 
 void InnerWidget::mousePressEvent(QMouseEvent *e) {

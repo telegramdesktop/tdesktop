@@ -80,7 +80,7 @@ private:
 
 };
 
-class Widget final : public Window::SectionWidget, private MTP::Sender {
+class Widget final : public Window::SectionWidget {
 public:
 	Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller, gsl::not_null<ChannelData*> channel);
 
@@ -128,7 +128,6 @@ private:
 	object_ptr<FixedBar> _fixedBar;
 	object_ptr<Ui::PlainShadow> _fixedBarShadow;
 	object_ptr<Ui::FlatButton> _whatIsThis;
-	std::vector<gsl::not_null<UserData*>> _admins;
 
 };
 
@@ -152,8 +151,14 @@ public:
 	void setAdmins(std::vector<gsl::not_null<UserData*>> admins) {
 		_admins = std::move(admins);
 	}
+	void setAdminsCanEdit(std::vector<gsl::not_null<UserData*>> admins) {
+		_adminsCanEdit = std::move(admins);
+	}
 	std::vector<gsl::not_null<UserData*>> takeAdmins() {
 		return std::move(_admins);
+	}
+	std::vector<gsl::not_null<UserData*>> takeAdminsCanEdit() {
+		return std::move(_adminsCanEdit);
 	}
 
 	void setItems(std::vector<HistoryItemOwned> &&items, std::map<uint64, HistoryItem*> &&itemsByIds, bool upLoaded, bool downLoaded) {
@@ -197,6 +202,7 @@ private:
 	gsl::not_null<ChannelData*> _channel;
 	int _scrollTop = 0;
 	std::vector<gsl::not_null<UserData*>> _admins;
+	std::vector<gsl::not_null<UserData*>> _adminsCanEdit;
 	std::vector<HistoryItemOwned> _items;
 	std::map<uint64, HistoryItem*> _itemsByIds;
 	bool _upLoaded = false;

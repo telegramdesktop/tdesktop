@@ -248,6 +248,23 @@ using UpdateFlag = Notify::PeerUpdate::Flag;
 NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
 NotifySettingsPtr globalNotifyAllPtr = UnknownNotifySettings, globalNotifyUsersPtr = UnknownNotifySettings, globalNotifyChatsPtr = UnknownNotifySettings;
 
+PeerClickHandler::PeerClickHandler(gsl::not_null<PeerData*> peer) : _peer(peer) {
+}
+
+void PeerClickHandler::onClick(Qt::MouseButton button) const {
+	if (button == Qt::LeftButton && App::main()) {
+		if (_peer && _peer->isChannel() && App::main()->historyPeer() != _peer) {
+			if (!_peer->asChannel()->isPublic() && !_peer->asChannel()->amIn()) {
+				Ui::show(Box<InformBox>(lang((_peer->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
+			} else {
+				Ui::showPeerHistory(_peer, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
+			}
+		} else {
+			Ui::showPeerProfile(_peer);
+		}
+	}
+}
+
 PeerData::PeerData(const PeerId &id) : id(id), _colorIndex(peerColorIndex(id)) {
 	nameText.setText(st::msgNameStyle, QString(), _textNameOptions);
 	_userpicEmpty.set(_colorIndex, QString());
@@ -302,6 +319,10 @@ void PeerData::updateNameDelayed(const QString &newName, const QString &newNameO
 		emit App::main()->peerNameChanged(this, update.oldNames, update.oldNameFirstChars);
 	}
 	Notify::peerUpdatedDelayed(update);
+}
+
+ClickHandlerPtr PeerData::createOpenLink() {
+	return MakeShared<PeerClickHandler>(this);
 }
 
 void PeerData::setUserpic(ImagePtr userpic) {
@@ -2104,22 +2125,6 @@ GameData::GameData(const GameId &id, const uint64 &accessHash, const QString &sh
 , description(description)
 , photo(photo)
 , document(document) {
-}
-
-ClickHandlerPtr peerOpenClickHandler(PeerData *peer) {
-	return MakeShared<LambdaClickHandler>([peer] {
-		if (App::main()) {
-			if (peer && peer->isChannel() && App::main()->historyPeer() != peer) {
-				if (!peer->asChannel()->isPublic() && !peer->asChannel()->amIn()) {
-					Ui::show(Box<InformBox>(lang((peer->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
-				} else {
-					Ui::showPeerHistory(peer, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
-				}
-			} else {
-				Ui::showPeerProfile(peer);
-			}
-		}
-	});
 }
 
 MsgId clientMsgId() {

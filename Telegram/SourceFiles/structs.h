@@ -267,7 +267,21 @@ inline const QString &emptyUsername() {
 	return empty;
 }
 
-ClickHandlerPtr peerOpenClickHandler(PeerData *peer);
+class PeerData;
+
+class PeerClickHandler : public ClickHandler {
+public:
+	PeerClickHandler(gsl::not_null<PeerData*> peer);
+	void onClick(Qt::MouseButton button) const override;
+
+	gsl::not_null<PeerData*> peer() const {
+		return _peer;
+	}
+
+private:
+	gsl::not_null<PeerData*> _peer;
+
+};
 
 class UserData;
 class ChatData;
@@ -375,9 +389,10 @@ public:
 		return QString();
 	}
 
+	ClickHandlerPtr createOpenLink();
 	const ClickHandlerPtr &openLink() {
 		if (!_openLink) {
-			_openLink = peerOpenClickHandler(this);
+			_openLink = createOpenLink();
 		}
 		return _openLink;
 	}

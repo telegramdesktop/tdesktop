@@ -53,7 +53,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 				result.text = lng_action_user_joined(lt_from, fromLinkText());
 			} else {
 				result.links.push_back(fromLink());
-				result.links.push_back(peerOpenClickHandler(u));
+				result.links.push_back(u->createOpenLink());
 				result.text = lng_action_add_user(lt_from, fromLinkText(), lt_user, textcmdLink(2, u->name));
 			}
 		} else if (users.isEmpty()) {
@@ -63,7 +63,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			result.links.push_back(fromLink());
 			for (auto i = 0, l = users.size(); i != l; ++i) {
 				auto user = App::user(peerFromUser(users[i]));
-				result.links.push_back(peerOpenClickHandler(user));
+				result.links.push_back(user->createOpenLink());
 
 				auto linkText = textcmdLink(i + 2, user->name);
 				if (i == 0) {
@@ -123,7 +123,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		} else {
 			auto user = App::user(peerFromUser(action.vuser_id));
 			result.links.push_back(fromLink());
-			result.links.push_back(peerOpenClickHandler(user));
+			result.links.push_back(user->createOpenLink());
 			result.text = lng_action_kick_user(lt_from, fromLinkText(), lt_user, textcmdLink(2, user->name));
 		}
 		return result;
@@ -687,7 +687,7 @@ HistoryJoined::PreparedText HistoryJoined::GenerateText(gsl::not_null<History*> 
 		return { lang(history->isMegagroup() ? lng_action_you_joined_group : lng_action_you_joined) };
 	}
 	auto result = PreparedText {};
-	result.links.push_back(peerOpenClickHandler(inviter));
+	result.links.push_back(inviter->createOpenLink());
 	result.text = (history->isMegagroup() ? lng_action_add_you_group : lng_action_add_you)(lt_from, textcmdLink(1, inviter->name));
 	return result;
 }

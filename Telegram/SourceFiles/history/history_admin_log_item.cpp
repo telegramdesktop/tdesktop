@@ -250,7 +250,7 @@ void GenerateItems(gsl::not_null<History*> history, LocalIdManager &idManager, c
 
 	using Flag = MTPDmessage::Flag;
 	auto fromName = App::peerName(from);
-	auto fromLink = peerOpenClickHandler(from);
+	auto fromLink = from->createOpenLink();
 	auto fromLinkText = textcmdLink(1, fromName);
 
 	auto addSimpleServiceMessage = [&](const QString &text, PhotoData *photo = nullptr) {

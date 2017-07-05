@@ -39,9 +39,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace AdminLog {
 
-// If we require to support more admins we'll have to rewrite this anyway.
-constexpr auto kMaxChannelAdmins = 200;
-
 class FixedBar final : public TWidget, private base::Subscriber {
 public:
 	FixedBar(QWidget *parent, gsl::not_null<ChannelData*> channel);
@@ -264,37 +261,10 @@ Widget::Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller, g
 }
 
 void Widget::showFilter() {
-	if (_admins.empty()) {
-		request(MTPchannels_GetParticipants(_inner->channel()->inputChannel, MTP_channelParticipantsAdmins(), MTP_int(0), MTP_int(kMaxChannelAdmins))).done([this](const MTPchannels_ChannelParticipants &result) {
-			Expects(result.type() == mtpc_channels_channelParticipants);
-			auto &participants = result.c_channels_channelParticipants();
-			App::feedUsers(participants.vusers);
-			for (auto &participant : participants.vparticipants.v) {
-				auto getUserId = [&participant] {
-					switch (participant.type()) {
-					case mtpc_channelParticipant: return participant.c_channelParticipant().vuser_id.v;
-					case mtpc_channelParticipantSelf: return participant.c_channelParticipantSelf().vuser_id.v;
-					case mtpc_channelParticipantAdmin: return participant.c_channelParticipantAdmin().vuser_id.v;
-					case mtpc_channelParticipantCreator: return participant.c_channelParticipantCreator().vuser_id.v;
-					case mtpc_channelParticipantBanned: return participant.c_channelParticipantBanned().vuser_id.v;
-					default: Unexpected("Type in AdminLog::Widget::showFilter()");
-					}
-				};
-				if (auto user = App::userLoaded(getUserId())) {
-					_admins.push_back(user);
-				}
-			}
-			if (_admins.empty()) {
-				_admins.push_back(App::self());
-			}
-			showFilter();
-		}).send();
-	} else {
-		Ui::show(Box<FilterBox>(_inner->channel(), _admins, _inner->filter(), [this](FilterValue &&filter) {
-			applyFilter(std::move(filter));
-			Ui::hideLayer();
-		}));
-	}
+	_inner->showFilter([this](FilterValue &&filter) {
+		applyFilter(std::move(filter));
+		Ui::hideLayer();
+	});
 }
 
 void Widget::updateAdaptiveLayout() {
@@ -350,13 +320,11 @@ std::unique_ptr<Window::SectionMemento> Widget::createMemento() {
 
 void Widget::saveState(gsl::not_null<SectionMemento*> memento) {
 	memento->setScrollTop(_scroll->scrollTop());
-	memento->setAdmins(std::move(_admins));
 	_inner->saveState(memento);
 }
 
 void Widget::restoreState(gsl::not_null<SectionMemento*> memento) {
 	_inner->restoreState(memento);
-	_admins = memento->takeAdmins();
 	auto scrollTop = memento->getScrollTop();
 	_scroll->scrollToY(scrollTop);
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());

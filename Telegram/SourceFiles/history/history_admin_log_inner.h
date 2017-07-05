@@ -66,10 +66,8 @@ public:
 
 	// Empty "flags" means all events.
 	void applyFilter(FilterValue &&value);
-	FilterValue filter() const {
-		return _filter;
-	}
 	void applySearch(const QString &query);
+	void showFilter(base::lambda<void(FilterValue &&filter)> callback);
 
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
@@ -131,17 +129,22 @@ private:
 	void copySelectedText();
 	TextWithEntities getSelectedText() const;
 	void setToClipboard(const TextWithEntities &forClipboard, QClipboard::Mode mode = QClipboard::Clipboard);
+	void suggestRestrictUser(gsl::not_null<UserData*> user);
+	void restrictUser(gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights);
+	void restrictUserDone(gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights);
 
+	void requestAdmins();
 	void checkPreloadMore();
 	void updateVisibleTopItem();
 	void preloadMore(Direction direction);
-	void itemsAdded(Direction direction);
+	void itemsAdded(Direction direction, int addedCount);
 	void updateSize();
 	void updateMinMaxIds();
 	void updateEmptyText();
 	void paintEmpty(Painter &p);
 	void clearAfterFilterChange();
 	void clearAndRequestLog();
+	void addEvents(Direction direction, const QVector<MTPChannelAdminLogEvent> &events);
 
 	void toggleScrollDateShown();
 	void repaintScrollDateCallback();
@@ -232,6 +235,9 @@ private:
 
 	FilterValue _filter;
 	QString _searchQuery;
+	std::vector<gsl::not_null<UserData*>> _admins;
+	std::vector<gsl::not_null<UserData*>> _adminsCanEdit;
+	base::lambda<void(FilterValue &&filter)> _showFilterCallback;
 
 };
 
