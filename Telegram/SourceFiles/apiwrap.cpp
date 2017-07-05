@@ -728,17 +728,17 @@ void ApiWrap::requestSelfParticipant(ChannelData *channel) {
 	_selfParticipantRequests.insert(channel, requestId);
 }
 
-void ApiWrap::kickParticipant(PeerData *peer, UserData *user) {
+void ApiWrap::kickParticipant(PeerData *peer, UserData *user, const MTPChannelBannedRights &currentRights) {
 	auto kick = KickRequest(peer, user);
 	if (_kickRequests.contains(kick)) return;
 
 	if (auto channel = peer->asChannel()) {
 		auto rights = ChannelData::KickedRestrictedRights();
-		auto requestId = request(MTPchannels_EditBanned(channel->inputChannel, user->inputUser, rights)).done([this, channel, user, rights](const MTPUpdates &result) {
+		auto requestId = request(MTPchannels_EditBanned(channel->inputChannel, user->inputUser, rights)).done([this, channel, user, currentRights, rights](const MTPUpdates &result) {
 			applyUpdates(result);
 
 			_kickRequests.remove(KickRequest(channel, user));
-			channel->applyEditBanned(user, rights);
+			channel->applyEditBanned(user, currentRights, rights);
 		}).fail([this, kick](const RPCError &error) {
 			_kickRequests.remove(kick);
 		}).send();

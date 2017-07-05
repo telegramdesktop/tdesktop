@@ -154,7 +154,7 @@ private:
 	void editRestricted(gsl::not_null<UserData*> user, bool sure = false);
 	void editRestrictedDone(gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights);
 	void kickUser(gsl::not_null<UserData*> user, bool sure = false);
-	void restrictUserSure(gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights);
+	void restrictUserSure(gsl::not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights);
 	bool appendRow(gsl::not_null<UserData*> user);
 	bool prependRow(gsl::not_null<UserData*> user);
 	std::unique_ptr<PeerListRow> createRow(gsl::not_null<UserData*> user) const;

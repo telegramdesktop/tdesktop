@@ -281,25 +281,33 @@ void MembersBox::Inner::actionPressed(Member &row) {
 		})), KeepOtherLayers);
 	} else {
 		auto currentRights = _rows[_kickSelected].adminRights;
-		auto hasAdminRights = true;
-		_kickBox = Ui::show(Box<EditAdminBox>(_channel, user, hasAdminRights, currentRights, base::lambda_guarded(this, [this, user](const MTPChannelAdminRights &rights) {
-			if (_kickBox) _kickBox->closeBox();
-			MTP::send(MTPchannels_EditAdmin(_channel->inputChannel, user->inputUser, rights), ::rpcDone(base::lambda_guarded(this, [this, user, rights](const MTPUpdates &result, mtpRequestId req) {
+		auto weak = QPointer<Inner>(this);
+		auto box = std::make_shared<QPointer<EditAdminBox>>(nullptr);
+		_kickBox = *box = Ui::show(Box<EditAdminBox>(_channel, user, currentRights, [channel = _channel, weak, user, box](const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
+			if (*box) {
+				(*box)->closeBox();
+			}
+			MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, newRights), ::rpcDone([channel, weak, user, oldRights, newRights](const MTPUpdates &result, mtpRequestId req) {
 				if (App::main()) App::main()->sentUpdatesReceived(result);
-				_channel->applyEditAdmin(user, rights);
-				if (rights.c_channelAdminRights().vflags.v == 0) {
-					removeKicked(user);
-				} else {
-					auto it = std::find_if(_rows.begin(), _rows.end(), [this, user](auto &&row) {
-						return (row.user == user);
-					});
-					if (it != _rows.end()) {
-						it->adminRights = rights;
-					}
+				channel->applyEditAdmin(user, oldRights, newRights);
+				if (weak) {
+					weak->editAdminDone(user, newRights);
 				}
-				if (_kickBox) _kickBox->closeBox();
-			})), rpcFail(&Inner::kickFail));
-		})), KeepOtherLayers);
+			}), weak ? weak->rpcFail(&Inner::kickFail) : RPCFailHandlerPtr());
+		}), KeepOtherLayers);
+	}
+}
+
+void MembersBox::Inner::editAdminDone(gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights) {
+	if (rights.c_channelAdminRights().vflags.v == 0) {
+		removeKicked(user);
+	} else {
+		auto it = std::find_if(_rows.begin(), _rows.end(), [this, user](auto &&row) {
+			return (row.user == user);
+		});
+		if (it != _rows.end()) {
+			it->adminRights = rights;
+		}
 	}
 }
 

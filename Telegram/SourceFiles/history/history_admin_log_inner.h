@@ -130,7 +130,7 @@ private:
 	TextWithEntities getSelectedText() const;
 	void setToClipboard(const TextWithEntities &forClipboard, QClipboard::Mode mode = QClipboard::Clipboard);
 	void suggestRestrictUser(gsl::not_null<UserData*> user);
-	void restrictUser(gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights);
+	void restrictUser(gsl::not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights);
 	void restrictUserDone(gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights);
 
 	void requestAdmins();

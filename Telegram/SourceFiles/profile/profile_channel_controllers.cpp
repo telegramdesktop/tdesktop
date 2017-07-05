@@ -230,25 +230,12 @@ void ParticipantsBoxController::editAdmin(gsl::not_null<UserData*> user) {
 	auto it = _additional.adminRights.find(user);
 	t_assert(it != _additional.adminRights.cend());
 	auto weak = base::weak_unique_ptr<ParticipantsBoxController>(this);
-	auto hasAdminRights = true;
-	_editBox = Ui::show(Box<EditAdminBox>(_channel, user, hasAdminRights, it->second, [channel = _channel.get(), user, hasAdminRights, weak](const MTPChannelAdminRights &rights) {
-		MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, rights), rpcDone([channel, user, hasAdminRights, weak, rights](const MTPUpdates &result) {
+	_editBox = Ui::show(Box<EditAdminBox>(_channel, user, it->second, [channel = _channel.get(), user, weak](const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
+		MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, newRights), rpcDone([channel, user, weak, oldRights, newRights](const MTPUpdates &result) {
 			AuthSession::Current().api().applyUpdates(result);
-			channel->applyEditAdmin(user, rights);
-			if (hasAdminRights && !rights.c_channelAdminRights().vflags.v) {
-				// We removed an admin.
-				if (channel->adminsCount() > 1) {
-					channel->setAdminsCount(channel->adminsCount() - 1);
-					if (App::main()) emit App::main()->peerUpdated(channel);
-				}
-				if (!channel->isMegagroup() && user->botInfo && channel->membersCount() > 1) {
-					// Removing bot admin removes it from channel.
-					channel->setMembersCount(channel->membersCount() - 1);
-					if (App::main()) emit App::main()->peerUpdated(channel);
-				}
-			}
+			channel->applyEditAdmin(user, oldRights, newRights);
 			if (weak) {
-				weak->editAdminDone(user, rights);
+				weak->editAdminDone(user, newRights);
 			}
 		}));
 	}), KeepOtherLayers);
@@ -290,12 +277,12 @@ void ParticipantsBoxController::editRestricted(gsl::not_null<UserData*> user) {
 	t_assert(it != _additional.restrictedRights.cend());
 	auto weak = base::weak_unique_ptr<ParticipantsBoxController>(this);
 	auto hasAdminRights = false;
-	_editBox = Ui::show(Box<EditRestrictedBox>(_channel, user, hasAdminRights, it->second, [megagroup = _channel.get(), user, weak](const MTPChannelBannedRights &rights) {
-		MTP::send(MTPchannels_EditBanned(megagroup->inputChannel, user->inputUser, rights), rpcDone([megagroup, user, weak, rights](const MTPUpdates &result) {
+	_editBox = Ui::show(Box<EditRestrictedBox>(_channel, user, hasAdminRights, it->second, [megagroup = _channel.get(), user, weak](const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
+		MTP::send(MTPchannels_EditBanned(megagroup->inputChannel, user->inputUser, newRights), rpcDone([megagroup, user, weak, oldRights, newRights](const MTPUpdates &result) {
 			AuthSession::Current().api().applyUpdates(result);
-			megagroup->applyEditBanned(user, rights);
+			megagroup->applyEditBanned(user, oldRights, newRights);
 			if (weak) {
-				weak->editRestrictedDone(user, rights);
+				weak->editRestrictedDone(user, newRights);
 			}
 		}));
 	}), KeepOtherLayers);
@@ -630,15 +617,13 @@ void AddParticipantBoxController::editAdmin(gsl::not_null<UserData*> user, bool 
 	// Check restrictions.
 	auto weak = base::weak_unique_ptr<AddParticipantBoxController>(this);
 	auto alreadyIt = _additional.adminRights.find(user);
-	auto hasAdminRights = false;
-	auto currentRights = EditAdminBox::DefaultRights(_channel);
+	auto currentRights = MTP_channelAdminRights(MTP_flags(0));
 	if (alreadyIt != _additional.adminRights.end() || _additional.creator == user) {
 		// The user is already an admin.
 		if (_additional.adminCanEdit.find(user) == _additional.adminCanEdit.end() || _additional.creator == user) {
 			Ui::show(Box<InformBox>(lang(lng_error_cant_edit_admin)), KeepOtherLayers);
 			return;
 		}
-		hasAdminRights = true;
 		currentRights = alreadyIt->second;
 	} else if (_additional.kicked.find(user) != _additional.kicked.end()) {
 		// The user is banned.
@@ -693,24 +678,12 @@ void AddParticipantBoxController::editAdmin(gsl::not_null<UserData*> user, bool 
 	}
 
 	// Finally edit the admin.
-	_editBox = Ui::show(Box<EditAdminBox>(_channel, user, hasAdminRights, currentRights, [channel = _channel.get(), user, hasAdminRights, weak](const MTPChannelAdminRights &rights) {
-		MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, rights), rpcDone([channel, user, hasAdminRights, weak, rights](const MTPUpdates &result) {
+	_editBox = Ui::show(Box<EditAdminBox>(_channel, user, currentRights, [channel = _channel.get(), user, weak](const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
+		MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, newRights), rpcDone([channel, user, weak, oldRights, newRights](const MTPUpdates &result) {
 			AuthSession::Current().api().applyUpdates(result);
-			channel->applyEditAdmin(user, rights);
-			if (hasAdminRights && !rights.c_channelAdminRights().vflags.v) {
-				// We removed an admin.
-				if (channel->adminsCount() > 1) {
-					channel->setAdminsCount(channel->adminsCount() - 1);
-					if (App::main()) emit App::main()->peerUpdated(channel);
-				}
-				if (!channel->isMegagroup() && user->botInfo && channel->membersCount() > 1) {
-					// Removing bot admin removes it from channel.
-					channel->setMembersCount(channel->membersCount() - 1);
-					if (App::main()) emit App::main()->peerUpdated(channel);
-				}
-			}
+			channel->applyEditAdmin(user, oldRights, newRights);
 			if (weak) {
-				weak->editAdminDone(user, rights);
+				weak->editAdminDone(user, newRights);
 			}
 		}), rpcFail([channel](const RPCError &error) {
 			if (MTP::isDefaultHandledError(error)) {
@@ -759,7 +732,7 @@ void AddParticipantBoxController::editRestricted(gsl::not_null<UserData*> user, 
 	// Check restrictions.
 	auto weak = base::weak_unique_ptr<AddParticipantBoxController>(this);
 	auto alreadyIt = _additional.restrictedRights.find(user);
-	auto currentRights = EditRestrictedBox::DefaultRights(_channel);
+	auto currentRights = MTP_channelBannedRights(MTP_flags(0), MTP_int(0));
 	auto hasAdminRights = false;
 	if (alreadyIt != _additional.restrictedRights.end()) {
 		// The user is already banned or restricted.
@@ -783,20 +756,20 @@ void AddParticipantBoxController::editRestricted(gsl::not_null<UserData*> user, 
 	}
 
 	// Finally edit the restricted.
-	_editBox = Ui::show(Box<EditRestrictedBox>(_channel, user, hasAdminRights, currentRights, [user, weak](const MTPChannelBannedRights &rights) {
+	_editBox = Ui::show(Box<EditRestrictedBox>(_channel, user, hasAdminRights, currentRights, [user, weak](const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
 		if (weak) {
-			weak->restrictUserSure(user, rights);
+			weak->restrictUserSure(user, oldRights, newRights);
 		}
 	}), KeepOtherLayers);
 }
 
-void AddParticipantBoxController::restrictUserSure(gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights) {
+void AddParticipantBoxController::restrictUserSure(gsl::not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
 	auto weak = base::weak_unique_ptr<AddParticipantBoxController>(this);
-	MTP::send(MTPchannels_EditBanned(_channel->inputChannel, user->inputUser, rights), rpcDone([megagroup = _channel.get(), user, weak, rights](const MTPUpdates &result) {
+	MTP::send(MTPchannels_EditBanned(_channel->inputChannel, user->inputUser, newRights), rpcDone([megagroup = _channel.get(), user, weak, oldRights, newRights](const MTPUpdates &result) {
 		AuthSession::Current().api().applyUpdates(result);
-		megagroup->applyEditBanned(user, rights);
+		megagroup->applyEditBanned(user, oldRights, newRights);
 		if (weak) {
-			weak->editRestrictedDone(user, rights);
+			weak->editRestrictedDone(user, newRights);
 		}
 	}));
 }
@@ -856,7 +829,13 @@ void AddParticipantBoxController::kickUser(gsl::not_null<UserData*> user, bool s
 		}), KeepOtherLayers);
 		return;
 	}
-	restrictUserSure(user, ChannelData::KickedRestrictedRights());
+	auto currentRights = MTP_channelBannedRights(MTP_flags(0), MTP_int(0));
+	auto alreadyIt = _additional.restrictedRights.find(user);
+	if (alreadyIt != _additional.restrictedRights.end()) {
+		// The user is already banned or restricted.
+		currentRights = alreadyIt->second;
+	}
+	restrictUserSure(user, currentRights, ChannelData::KickedRestrictedRights());
 }
 
 bool AddParticipantBoxController::appendRow(gsl::not_null<UserData*> user) {

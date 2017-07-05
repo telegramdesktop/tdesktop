@@ -789,7 +789,7 @@ MTPChannelBannedRights ChannelData::KickedRestrictedRights() {
 	return MTP_channelBannedRights(MTP_flags(flags), MTP_int(std::numeric_limits<int32>::max()));
 }
 
-void ChannelData::applyEditAdmin(gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights) {
+void ChannelData::applyEditAdmin(gsl::not_null<UserData*> user, const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
 	auto flags = Notify::PeerUpdate::Flag::AdminsChanged | Notify::PeerUpdate::Flag::None;
 	if (mgInfo) {
 		if (!mgInfo->lastParticipants.contains(user)) { // If rights are empty - still add participant? TODO check
@@ -809,8 +809,8 @@ void ChannelData::applyEditAdmin(gsl::not_null<UserData*> user, const MTPChannel
 			}
 		}
 		auto it = mgInfo->lastAdmins.find(user);
-		if (rights.c_channelAdminRights().vflags.v != 0) {
-			auto lastAdmin = MegagroupInfo::Admin { rights };
+		if (newRights.c_channelAdminRights().vflags.v != 0) {
+			auto lastAdmin = MegagroupInfo::Admin { newRights };
 			lastAdmin.canEdit = true;
 			if (it == mgInfo->lastAdmins.cend()) {
 				mgInfo->lastAdmins.insert(user, lastAdmin);
@@ -827,10 +827,27 @@ void ChannelData::applyEditAdmin(gsl::not_null<UserData*> user, const MTPChannel
 			}
 		}
 	}
+	if (oldRights.c_channelAdminRights().vflags.v && !newRights.c_channelAdminRights().vflags.v) {
+		// We removed an admin.
+		if (adminsCount() > 1) {
+			setAdminsCount(adminsCount() - 1);
+			if (App::main()) emit App::main()->peerUpdated(this);
+		}
+		if (!isMegagroup() && user->botInfo && membersCount() > 1) {
+			// Removing bot admin removes it from channel.
+			setMembersCount(membersCount() - 1);
+			if (App::main()) emit App::main()->peerUpdated(this);
+		}
+	} else if (!oldRights.c_channelAdminRights().vflags.v && newRights.c_channelAdminRights().vflags.v) {
+		// We added an admin.
+		setAdminsCount(adminsCount() + 1);
+		if (App::main()) emit App::main()->peerUpdated(this);
+		updateFull(true);
+	}
 	Notify::peerUpdatedDelayed(this, flags);
 }
 
-void ChannelData::applyEditBanned(gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights) {
+void ChannelData::applyEditBanned(gsl::not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
 	auto flags = Notify::PeerUpdate::Flag::BannedUsersChanged | Notify::PeerUpdate::Flag::None;
 	if (mgInfo) {
 		if (mgInfo->lastAdmins.contains(user)) { // If rights are empty - still remove admin? TODO check
@@ -841,15 +858,15 @@ void ChannelData::applyEditBanned(gsl::not_null<UserData*> user, const MTPChanne
 				flags |= Notify::PeerUpdate::Flag::AdminsChanged;
 			}
 		}
-		auto isKicked = (rights.c_channelBannedRights().vflags.v & MTPDchannelBannedRights::Flag::f_view_messages);
-		auto isRestricted = !isKicked && (rights.c_channelBannedRights().vflags.v != 0);
+		auto isKicked = (newRights.c_channelBannedRights().vflags.v & MTPDchannelBannedRights::Flag::f_view_messages);
+		auto isRestricted = !isKicked && (newRights.c_channelBannedRights().vflags.v != 0);
 		auto it = mgInfo->lastRestricted.find(user);
 		if (isRestricted) {
 			if (it == mgInfo->lastRestricted.cend()) {
-				mgInfo->lastRestricted.insert(user, MegagroupInfo::Restricted { rights });
+				mgInfo->lastRestricted.insert(user, MegagroupInfo::Restricted { newRights });
 				setRestrictedCount(restrictedCount() + 1);
 			} else {
-				it->rights = rights;
+				it->rights = newRights;
 			}
 		} else {
 			if (it != mgInfo->lastRestricted.cend()) {

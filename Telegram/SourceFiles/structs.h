@@ -820,8 +820,8 @@ public:
 	static bool IsRestrictedForever(TimeId until) {
 		return !until || (until == kRestrictUntilForever);
 	}
-	void applyEditAdmin(gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights);
-	void applyEditBanned(gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights);
+	void applyEditAdmin(gsl::not_null<UserData*> user, const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights);
+	void applyEditBanned(gsl::not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights);
 
 	int32 date = 0;
 	int version = 0;

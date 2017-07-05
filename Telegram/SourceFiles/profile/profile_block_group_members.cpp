@@ -72,17 +72,17 @@ void GroupMembersWidget::editAdmin(gsl::not_null<UserData*> user) {
 	if (!megagroup) {
 		return; // not supported
 	}
-	auto defaultAdmin = MegagroupInfo::Admin { EditAdminBox::DefaultRights(megagroup) };
 	auto currentRightsIt = megagroup->mgInfo->lastAdmins.find(user);
 	auto hasAdminRights = (currentRightsIt != megagroup->mgInfo->lastAdmins.cend());
-	auto currentRights = hasAdminRights ? currentRightsIt->rights : EditAdminBox::DefaultRights(megagroup);
-	Ui::show(Box<EditAdminBox>(megagroup, user, hasAdminRights, currentRights, base::lambda_guarded(this, [this, megagroup, user](const MTPChannelAdminRights &rights) {
+	auto currentRights = hasAdminRights ? currentRightsIt->rights : MTP_channelAdminRights(MTP_flags(0));
+	auto weak = QPointer<GroupMembersWidget>(this);
+	Ui::show(Box<EditAdminBox>(megagroup, user, currentRights, [weak, megagroup, user](const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
 		Ui::hideLayer();
-		MTP::send(MTPchannels_EditAdmin(megagroup->inputChannel, user->inputUser, rights), rpcDone(base::lambda_guarded(this, [this, megagroup, user, rights](const MTPUpdates &result) {
+		MTP::send(MTPchannels_EditAdmin(megagroup->inputChannel, user->inputUser, newRights), rpcDone([weak, megagroup, user, oldRights, newRights](const MTPUpdates &result) {
 			if (App::main()) App::main()->sentUpdatesReceived(result);
-			megagroup->applyEditAdmin(user, rights);
-		})));
-	})));
+			megagroup->applyEditAdmin(user, oldRights, newRights);
+		}));
+	}));
 }
 
 void GroupMembersWidget::restrictUser(gsl::not_null<UserData*> user) {
@@ -90,14 +90,14 @@ void GroupMembersWidget::restrictUser(gsl::not_null<UserData*> user) {
 	if (!megagroup) {
 		return; // not supported
 	}
-	auto defaultRestricted = MegagroupInfo::Restricted { EditRestrictedBox::DefaultRights(megagroup) };
+	auto defaultRestricted = MegagroupInfo::Restricted { MTP_channelBannedRights(MTP_flags(0), MTP_int(0)) };
 	auto currentRights = megagroup->mgInfo->lastRestricted.value(user, defaultRestricted).rights;
 	auto hasAdminRights = megagroup->mgInfo->lastAdmins.find(user) != megagroup->mgInfo->lastAdmins.cend();
-	Ui::show(Box<EditRestrictedBox>(megagroup, user, hasAdminRights, currentRights, [megagroup, user](const MTPChannelBannedRights &rights) {
+	Ui::show(Box<EditRestrictedBox>(megagroup, user, hasAdminRights, currentRights, [megagroup, user](const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
 		Ui::hideLayer();
-		MTP::send(MTPchannels_EditBanned(megagroup->inputChannel, user->inputUser, rights), rpcDone([megagroup, user, rights](const MTPUpdates &result) {
+		MTP::send(MTPchannels_EditBanned(megagroup->inputChannel, user->inputUser, newRights), rpcDone([megagroup, user, oldRights, newRights](const MTPUpdates &result) {
 			if (App::main()) App::main()->sentUpdatesReceived(result);
-			megagroup->applyEditBanned(user, rights);
+			megagroup->applyEditBanned(user, oldRights, newRights);
 		}));
 	}));
 }
@@ -106,12 +106,19 @@ void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
 	auto user = selectedPeer->asUser();
 	t_assert(user != nullptr);
 	auto text = lng_profile_sure_kick(lt_user, user->firstName);
-	Ui::show(Box<ConfirmBox>(text, lang(lng_box_remove), base::lambda_guarded(this, [user, peer = peer()] {
+	auto currentRestrictedRights = MTP_channelBannedRights(MTP_flags(0), MTP_int(0));
+	if (auto channel = peer()->asMegagroup()) {
+		auto it = channel->mgInfo->lastRestricted.find(user);
+		if (it != channel->mgInfo->lastRestricted.cend()) {
+			currentRestrictedRights = it->rights;
+		}
+	}
+	Ui::show(Box<ConfirmBox>(text, lang(lng_box_remove), base::lambda_guarded(this, [user, currentRestrictedRights, peer = peer()] {
 		Ui::hideLayer();
 		if (auto chat = peer->asChat()) {
 			if (App::main()) App::main()->kickParticipant(chat, user);
 		} else if (auto channel = peer->asChannel()) {
-			if (App::api()) App::api()->kickParticipant(channel, user);
+			if (App::api()) App::api()->kickParticipant(channel, user, currentRestrictedRights);
 		}
 	})));
 }

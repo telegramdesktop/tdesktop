@@ -531,7 +531,7 @@ void DeleteMessagesBox::deleteAndClear() {
 
 	if (_moderateFrom) {
 		if (_banUser && _banUser->checked()) {
-			App::api()->kickParticipant(_moderateInChannel, _moderateFrom);
+			App::api()->kickParticipant(_moderateInChannel, _moderateFrom, MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
 		}
 		if (_reportSpam->checked()) {
 			MTP::send(MTPchannels_ReportSpam(_moderateInChannel->inputChannel, _moderateFrom->inputUser, MTP_vector<MTPint>(1, MTP_int(_ids[0].msg))));

@@ -745,37 +745,6 @@ void ContactsBox::Inner::onAllAdminsChanged() {
 	update();
 }
 
-void ContactsBox::Inner::addAdminDone(MTPChannelAdminRights rights, const MTPUpdates &result, mtpRequestId req) {
-	if (App::main()) App::main()->sentUpdatesReceived(result);
-	if (req != _addAdminRequestId) return;
-
-	_addAdminRequestId = 0;
-	if (_addAdmin && _channel) {
-		_channel->applyEditAdmin(_addAdmin, rights);
-	}
-	if (_addAdminBox) _addAdminBox->closeBox();
-	emit adminAdded();
-}
-
-bool ContactsBox::Inner::addAdminFail(const RPCError &error, mtpRequestId req) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	if (req != _addAdminRequestId) return true;
-
-	_addAdminRequestId = 0;
-	if (_addAdminBox) _addAdminBox->closeBox();
-	if (error.type() == "USERS_TOO_MUCH") {
-		Ui::show(Box<MaxInviteBox>(_channel->inviteLink()), KeepOtherLayers);
-	} else if (error.type() == "ADMINS_TOO_MUCH") {
-		Ui::show(Box<InformBox>(lang(lng_channel_admins_too_much)), KeepOtherLayers);
-	} else if (error.type() == qstr("USER_RESTRICTED")) {
-		Ui::show(Box<InformBox>(lang(lng_cant_do_this)), KeepOtherLayers);
-	} else  {
-		emit adminAdded();
-	}
-	return true;
-}
-
 void ContactsBox::Inner::saving(bool flag) {
 	_saving = flag;
 	_allAdminsChecked = _allAdmins->checked();
@@ -1409,7 +1378,7 @@ void ContactsBox::Inner::chooseParticipant() {
 		changeMultiSelectCheckState();
 	} else {
 		if (_channel && _membersFilter == MembersFilter::Admins) {
-			addSelectedAsChannelAdmin();
+			Unexpected("Not supported any more");
 		} else if (sharingBotGame()) {
 			shareBotGameToSelected();
 		} else if (bot()) {
@@ -1420,70 +1389,6 @@ void ContactsBox::Inner::chooseParticipant() {
 		}
 	}
 	update();
-}
-
-void ContactsBox::Inner::addSelectedAsChannelAdmin() {
-	auto peer = selectedPeer();
-	if (!peer) {
-		return;
-	}
-
-	_addAdmin = peer->asUser();
-	t_assert(_addAdmin != nullptr);
-
-	if (_addAdminRequestId) {
-		MTP::cancel(_addAdminRequestId);
-		_addAdminRequestId = 0;
-	}
-	if (_addAdminBox) _addAdminBox->deleteLater();
-
-	auto showBox = [this](auto &&currentRights, bool hasAdminRights) {
-		_addAdminBox = Ui::show(Box<EditAdminBox>(_channel, _addAdmin, hasAdminRights, currentRights, base::lambda_guarded(this, [this](const MTPChannelAdminRights &rights) {
-			if (_addAdminRequestId) return;
-			_addAdminRequestId = MTP::send(MTPchannels_EditAdmin(_channel->inputChannel, _addAdmin->inputUser, rights), rpcDone(&Inner::addAdminDone, rights), rpcFail(&Inner::addAdminFail));
-		})), KeepOtherLayers);
-	};
-
-	auto loadedRights = [this]() -> const MegagroupInfo::Admin * {
-		if (_channel->isMegagroup()) {
-			auto it = _channel->mgInfo->lastAdmins.constFind(_addAdmin);
-			if (it != _channel->mgInfo->lastAdmins.cend()) {
-				return &it.value();
-			}
-		}
-		return nullptr;
-	};
-
-	if (auto rights = loadedRights()) {
-		if (rights->canEdit) {
-			showBox(rights->rights, true);
-		} else {
-			Ui::show(Box<InformBox>(lang(lng_error_cant_edit_admin)), KeepOtherLayers);
-		}
-	} else {
-		// We don't have current rights yet.
-		_addAdminRequestId = MTP::send(MTPchannels_GetParticipant(_channel->inputChannel, _addAdmin->inputUser), ::rpcDone(base::lambda_guarded(this, [this, showBox](const MTPchannels_ChannelParticipant &result) {
-			Expects(result.type() == mtpc_channels_channelParticipant);
-			auto &participant = result.c_channels_channelParticipant();
-			App::feedUsers(participant.vusers);
-			_addAdminRequestId = 0;
-			if (participant.vparticipant.type() == mtpc_channelParticipantAdmin) {
-				if (participant.vparticipant.c_channelParticipantAdmin().is_can_edit()) {
-					showBox(participant.vparticipant.c_channelParticipantAdmin().vadmin_rights, true);
-				} else {
-					Ui::show(Box<InformBox>(lang(lng_error_cant_edit_admin)), KeepOtherLayers);
-				}
-			} else {
-				showBox(EditAdminBox::DefaultRights(_channel), false);
-			}
-		})), ::rpcFail(base::lambda_guarded(this, [this](const RPCError &error) {
-			if (MTP::isDefaultHandledError(error)) {
-				return false;
-			}
-			_addAdminRequestId = 0;
-			return true;
-		})));
-	}
 }
 
 void ContactsBox::Inner::shareBotGameToSelected() {

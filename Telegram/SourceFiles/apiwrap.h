@@ -59,7 +59,7 @@ public:
 	void processFullPeer(UserData *user, const MTPUserFull &result);
 
 	void requestSelfParticipant(ChannelData *channel);
-	void kickParticipant(PeerData *peer, UserData *user);
+	void kickParticipant(PeerData *peer, UserData *user, const MTPChannelBannedRights &currentRights);
 	void unblockParticipant(PeerData *peer, UserData *user);
 
 	void requestWebPageDelayed(WebPageData *page);

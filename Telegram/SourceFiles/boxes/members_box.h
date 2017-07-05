@@ -155,6 +155,7 @@ private:
 	void setPressed(int pressed);
 	void chooseParticipant();
 	void actionPressed(Member &row);
+	void editAdminDone(gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights);
 
 	void updateSelection();
 	void loadProfilePhotos();

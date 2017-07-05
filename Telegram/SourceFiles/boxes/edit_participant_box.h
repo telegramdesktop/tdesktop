@@ -65,9 +65,7 @@ private:
 
 class EditAdminBox : public EditParticipantBox {
 public:
-	EditAdminBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights, const MTPChannelAdminRights &rights, base::lambda<void(MTPChannelAdminRights)> callback);
-
-	static MTPChannelAdminRights DefaultRights(gsl::not_null<ChannelData*> channel);
+	EditAdminBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights, base::lambda<void(MTPChannelAdminRights, MTPChannelAdminRights)> callback);
 
 protected:
 	void prepare() override;
@@ -76,12 +74,14 @@ private:
 	using Flag = MTPDchannelAdminRights::Flag;
 	using Flags = MTPDchannelAdminRights::Flags;
 
+	static MTPChannelAdminRights DefaultRights(gsl::not_null<ChannelData*> channel);
+
 	void applyDependencies(QPointer<Ui::Checkbox> changed);
 	void refreshAboutAddAdminsText();
 
-	MTPChannelAdminRights _rights;
+	const MTPChannelAdminRights _oldRights;
 	std::vector<std::pair<Flag, Flag>> _dependencies;
-	base::lambda<void(MTPChannelAdminRights)> _saveCallback;
+	base::lambda<void(MTPChannelAdminRights, MTPChannelAdminRights)> _saveCallback;
 
 	std::map<Flags, QPointer<Ui::Checkbox>> _checkboxes;
 	QPointer<Ui::FlatLabel> _aboutAddAdmins;
@@ -93,9 +93,7 @@ private:
 
 class EditRestrictedBox : public EditParticipantBox {
 public:
-	EditRestrictedBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights, const MTPChannelBannedRights &rights, base::lambda<void(MTPChannelBannedRights)> callback);
-
-	static MTPChannelBannedRights DefaultRights(gsl::not_null<ChannelData*> channel);
+	EditRestrictedBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights, const MTPChannelBannedRights &rights, base::lambda<void(MTPChannelBannedRights, MTPChannelBannedRights)> callback);
 
 protected:
 	void prepare() override;
@@ -104,6 +102,8 @@ private:
 	using Flag = MTPDchannelBannedRights::Flag;
 	using Flags = MTPDchannelBannedRights::Flags;
 
+	static MTPChannelBannedRights DefaultRights(gsl::not_null<ChannelData*> channel);
+
 	void applyDependencies(QPointer<Ui::Checkbox> changed);
 	void showRestrictUntil();
 	void setRestrictUntil(int32 until);
@@ -111,10 +111,10 @@ private:
 		return ChannelData::IsRestrictedForever(_until);
 	}
 
-	MTPChannelBannedRights _rights;
+	const MTPChannelBannedRights _oldRights;
 	int32 _until = 0;
 	std::vector<std::pair<Flag, Flag>> _dependencies;
-	base::lambda<void(MTPChannelBannedRights)> _saveCallback;
+	base::lambda<void(MTPChannelBannedRights, MTPChannelBannedRights)> _saveCallback;
 
 	std::map<Flags, QPointer<Ui::Checkbox>> _checkboxes;
 	QPointer<Ui::LinkButton> _restrictUntil;

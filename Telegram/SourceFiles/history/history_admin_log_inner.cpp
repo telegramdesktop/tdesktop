@@ -1021,9 +1021,9 @@ void InnerWidget::suggestRestrictUser(gsl::not_null<UserData*> user) {
 		auto editRestrictions = [user, this](bool hasAdminRights, const MTPChannelBannedRights &currentRights) {
 			auto weak = QPointer<InnerWidget>(this);
 			auto box = std::make_shared<QPointer<EditRestrictedBox>>();
-			*box = Ui::show(Box<EditRestrictedBox>(_channel, user, hasAdminRights, currentRights, [user, weak, box](const MTPChannelBannedRights &rights) {
+			*box = Ui::show(Box<EditRestrictedBox>(_channel, user, hasAdminRights, currentRights, [user, weak, box](const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
 				if (weak) {
-					weak->restrictUser(user, rights);
+					weak->restrictUser(user, oldRights, newRights);
 				}
 				if (*box) {
 					(*box)->closeBox();
@@ -1031,7 +1031,7 @@ void InnerWidget::suggestRestrictUser(gsl::not_null<UserData*> user) {
 			}), KeepOtherLayers);
 		};
 		if (base::contains(_admins, user)) {
-			editRestrictions(true, EditRestrictedBox::DefaultRights(_channel));
+			editRestrictions(true, MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
 		} else {
 			request(MTPchannels_GetParticipant(_channel->inputChannel, user->inputUser)).done([this, editRestrictions](const MTPchannels_ChannelParticipant &result) {
 				Expects(result.type() == mtpc_channels_channelParticipant);
@@ -1042,22 +1042,22 @@ void InnerWidget::suggestRestrictUser(gsl::not_null<UserData*> user) {
 					editRestrictions(false, participant.vparticipant.c_channelParticipantBanned().vbanned_rights);
 				} else {
 					auto hasAdminRights = (type == mtpc_channelParticipantAdmin || type == mtpc_channelParticipantCreator);
-					editRestrictions(hasAdminRights, EditRestrictedBox::DefaultRights(_channel));
+					editRestrictions(hasAdminRights, MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
 				}
 			}).fail([this, editRestrictions](const RPCError &error) {
-				editRestrictions(false, EditRestrictedBox::DefaultRights(_channel));
+				editRestrictions(false, MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
 			}).send();
 		}
 	});
 }
 
-void InnerWidget::restrictUser(gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights) {
+void InnerWidget::restrictUser(gsl::not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
 	auto weak = QPointer<InnerWidget>(this);
-	MTP::send(MTPchannels_EditBanned(_channel->inputChannel, user->inputUser, rights), rpcDone([megagroup = _channel.get(), user, weak, rights](const MTPUpdates &result) {
+	MTP::send(MTPchannels_EditBanned(_channel->inputChannel, user->inputUser, newRights), rpcDone([megagroup = _channel.get(), user, weak, oldRights, newRights](const MTPUpdates &result) {
 		AuthSession::Current().api().applyUpdates(result);
-		megagroup->applyEditBanned(user, rights);
+		megagroup->applyEditBanned(user, oldRights, newRights);
 		if (weak) {
-			weak->restrictUserDone(user, rights);
+			weak->restrictUserDone(user, newRights);
 		}
 	}));
 }
