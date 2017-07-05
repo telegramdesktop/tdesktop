@@ -199,11 +199,10 @@ void InnerWidget::enumerateDates(Method method) {
 	enumerateItems<EnumItemsDirection::BottomToTop>(dateCallback);
 }
 
-InnerWidget::InnerWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, gsl::not_null<ChannelData*> channel, base::lambda<void(int top)> scrollTo) : TWidget(parent)
+InnerWidget::InnerWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, gsl::not_null<ChannelData*> channel) : TWidget(parent)
 , _controller(controller)
 , _channel(channel)
 , _history(App::history(channel))
-, _scrollTo(std::move(scrollTo))
 , _scrollDateCheck([this] { scrollDateCheck(); })
 , _emptyText(st::historyAdminLogEmptyWidth - st::historyAdminLogEmptyPadding.left() - st::historyAdminLogEmptyPadding.left()) {
 	setMouseTracking(true);
@@ -313,7 +312,21 @@ void InnerWidget::checkPreloadMore() {
 }
 
 void InnerWidget::applyFilter(FilterValue &&value) {
-	_filter = value;
+	if (_filter != value) {
+		_filter = value;
+		clearAndRequestLog();
+	}
+}
+
+void InnerWidget::applySearch(const QString &query) {
+	auto clearQuery = query.trimmed();
+	if (_searchQuery != query) {
+		_searchQuery = query;
+		clearAndRequestLog();
+	}
+}
+
+void InnerWidget::clearAndRequestLog() {
 	request(base::take(_preloadUpRequestId)).cancel();
 	request(base::take(_preloadDownRequestId)).cancel();
 	_filterChanged = true;
@@ -325,11 +338,15 @@ void InnerWidget::applyFilter(FilterValue &&value) {
 
 void InnerWidget::updateEmptyText() {
 	auto options = _defaultOptions;
-	options.flags |= TextParseMono; // For italic :/
+	options.flags |= TextParseMono; // For bold :/
+	auto hasSearch = !_searchQuery.isEmpty();
 	auto hasFilter = (_filter.flags != 0) || !_filter.allUsers;
-	auto text = TextWithEntities { lang(hasFilter ? lng_admin_log_no_results_title : lng_admin_log_no_events_title) };
+	auto text = TextWithEntities { lang((hasSearch || hasFilter) ? lng_admin_log_no_results_title : lng_admin_log_no_events_title) };
 	text.entities.append(EntityInText(EntityInTextBold, 0, text.text.size()));
-	text.text.append(qstr("\n\n") + lang(hasFilter ? lng_admin_log_no_results_text : lng_admin_log_no_events_text));
+	auto description = hasSearch
+		? lng_admin_log_no_results_search_text(lt_query, textClean(_searchQuery))
+		: lang(hasFilter ? lng_admin_log_no_results_text : lng_admin_log_no_events_text);
+	text.text.append(qstr("\n\n") + description);
 	_emptyText.setMarkedText(st::defaultTextStyle, text, options);
 }
 
@@ -357,6 +374,7 @@ QPoint InnerWidget::tooltipPos() const {
 
 void InnerWidget::saveState(gsl::not_null<SectionMemento*> memento) {
 	memento->setFilter(std::move(_filter));
+	memento->setSearchQuery(std::move(_searchQuery));
 	if (!_filterChanged) {
 		memento->setItems(std::move(_items), std::move(_itemsByIds), _upLoaded, _downLoaded);
 		memento->setIdManager(std::move(_idManager));
@@ -369,6 +387,7 @@ void InnerWidget::restoreState(gsl::not_null<SectionMemento*> memento) {
 	_itemsByIds = memento->takeItemsByIds();
 	_idManager = memento->takeIdManager();
 	_filter = memento->takeFilter();
+	_searchQuery = memento->takeSearchQuery();
 	_upLoaded = memento->upLoaded();
 	_downLoaded = memento->downLoaded();
 	_filterChanged = false;
@@ -398,11 +417,10 @@ void InnerWidget::preloadMore(Direction direction) {
 		}
 		flags |= MTPchannels_GetAdminLog::Flag::f_admins;
 	}
-	auto query = QString();
 	auto maxId = (direction == Direction::Up) ? _minId : 0;
 	auto minId = (direction == Direction::Up) ? 0 : _maxId;
 	auto perPage = _items.empty() ? kEventsFirstPage : kEventsPerPage;
-	requestId = request(MTPchannels_GetAdminLog(MTP_flags(flags), _channel->inputChannel, MTP_string(query), filter, MTP_vector<MTPInputUser>(admins), MTP_long(maxId), MTP_long(minId), MTP_int(perPage))).done([this, &requestId, &loadedFlag, direction](const MTPchannels_AdminLogResults &result) {
+	requestId = request(MTPchannels_GetAdminLog(MTP_flags(flags), _channel->inputChannel, MTP_string(_searchQuery), filter, MTP_vector<MTPInputUser>(admins), MTP_long(maxId), MTP_long(minId), MTP_int(perPage))).done([this, &requestId, &loadedFlag, direction](const MTPchannels_AdminLogResults &result) {
 		Expects(result.type() == mtpc_channels_adminLogResults);
 		requestId = 0;
 
@@ -513,7 +531,7 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 
 void InnerWidget::restoreScrollPosition() {
 	auto newVisibleTop = _visibleTopItem ? (itemTop(_visibleTopItem) + _visibleTopFromItem) : ScrollMax;
-	_scrollTo(newVisibleTop);
+	scrollToSignal.notify(newVisibleTop, true);
 }
 
 void InnerWidget::paintEvent(QPaintEvent *e) {
@@ -635,8 +653,8 @@ TextWithEntities InnerWidget::getSelectedText() const {
 }
 
 void InnerWidget::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Escape && _cancelledCallback) {
-		_cancelledCallback();
+	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
+		cancelledSignal.notify(true);
 	} else if (e == QKeySequence::Copy && _selectedItem != nullptr) {
 		copySelectedText();
 #ifdef Q_OS_MAC

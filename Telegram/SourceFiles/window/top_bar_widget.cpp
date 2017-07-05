@@ -207,7 +207,7 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 			decreaseWidth += _search->width();
 		}
 		if (!_call->isHidden()) {
-			decreaseWidth += _call->width();
+			decreaseWidth += st::topBarCallSkip + _call->width();
 		}
 		auto paintCounter = App::main()->paintTopBar(p, decreaseWidth, ms);
 		p.restore();
@@ -293,7 +293,7 @@ void TopBarWidget::updateControlsGeometry() {
 		right += _info->width();
 	}
 	_search->moveToRight(right, otherButtonsTop);
-	right += _search->width();
+	right += _search->width() + st::topBarCallSkip;
 	_call->moveToRight(right, otherButtonsTop);
 }
 

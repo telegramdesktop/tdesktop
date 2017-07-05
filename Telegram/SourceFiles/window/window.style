@@ -254,14 +254,14 @@ topBarClearButton: RoundButton(defaultLightButton) {
 	width: -18px;
 }
 topBarSearch: IconButton {
-	width: 44px;
+	width: 40px;
 	height: topBarHeight;
 
 	icon: icon {{ "title_search-flip_horizontal", menuIconFg }};
 	iconOver: icon {{ "title_search-flip_horizontal", menuIconFgOver }};
-	iconPosition: point(15px, 18px);
+	iconPosition: point(11px, 19px);
 
-	rippleAreaPosition: point(4px, 7px);
+	rippleAreaPosition: point(0px, 7px);
 	rippleAreaSize: 40px;
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: windowBgOver;
@@ -271,7 +271,10 @@ topBarCall: IconButton(topBarSearch) {
 	icon: icon {{ "add_contact_phone", menuIconFg }};
 	iconOver: icon {{ "add_contact_phone", menuIconFgOver }};
 }
+topBarCallSkip: 4px;
 topBarMenuToggle: IconButton(topBarSearch) {
+	width: 44px;
+
 	icon: icon {{ "title_menu_dots", menuIconFg }};
 	iconOver: icon {{ "title_menu_dots", menuIconFgOver }};
 	iconPosition: point(16px, 17px);

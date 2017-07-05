@@ -40,7 +40,11 @@ class SectionMemento;
 
 class InnerWidget final : public TWidget, public Ui::AbstractTooltipShower, private MTP::Sender, private base::Subscriber {
 public:
-	InnerWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, gsl::not_null<ChannelData*> channel, base::lambda<void(int top)> scrollTo);
+	InnerWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, gsl::not_null<ChannelData*> channel);
+
+	base::Observable<void> showSearchSignal;
+	base::Observable<int> scrollToSignal;
+	base::Observable<void> cancelledSignal;
 
 	gsl::not_null<ChannelData*> channel() const {
 		return _channel;
@@ -59,15 +63,13 @@ public:
 
 	void saveState(gsl::not_null<SectionMemento*> memento);
 	void restoreState(gsl::not_null<SectionMemento*> memento);
-	void setCancelledCallback(base::lambda<void()> callback) {
-		_cancelledCallback = std::move(callback);
-	}
 
 	// Empty "flags" means all events.
 	void applyFilter(FilterValue &&value);
 	FilterValue filter() const {
 		return _filter;
 	}
+	void applySearch(const QString &query);
 
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
@@ -139,6 +141,7 @@ private:
 	void updateEmptyText();
 	void paintEmpty(Painter &p);
 	void clearAfterFilterChange();
+	void clearAndRequestLog();
 
 	void toggleScrollDateShown();
 	void repaintScrollDateCallback();
@@ -174,8 +177,6 @@ private:
 	gsl::not_null<Window::Controller*> _controller;
 	gsl::not_null<ChannelData*> _channel;
 	gsl::not_null<History*> _history;
-	base::lambda<void()> _cancelledCallback;
-	base::lambda<void(int top)> _scrollTo;
 	std::vector<HistoryItemOwned> _items;
 	std::map<uint64, HistoryItem*> _itemsByIds;
 	int _itemsTop = 0;
@@ -230,6 +231,7 @@ private:
 	ClickHandlerPtr _contextMenuLink;
 
 	FilterValue _filter;
+	QString _searchQuery;
 
 };
 

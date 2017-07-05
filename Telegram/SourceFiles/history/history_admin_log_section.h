@@ -52,6 +52,14 @@ struct FilterValue {
 	bool allUsers = true;
 };
 
+inline bool operator==(const FilterValue &a, const FilterValue &b) {
+	return (a.flags == b.flags && a.admins == b.admins && a.allUsers == b.allUsers);
+}
+
+inline bool operator!=(const FilterValue &a, const FilterValue &b) {
+	return !(a == b);
+}
+
 class LocalIdManager {
 public:
 	LocalIdManager() = default;
@@ -97,6 +105,8 @@ public:
 	QRect rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) override;
 
 	void applyFilter(FilterValue &&value);
+
+	bool cmd_search() override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -155,6 +165,9 @@ public:
 	void setFilter(FilterValue &&filter) {
 		_filter = std::move(filter);
 	}
+	void setSearchQuery(QString &&query) {
+		_searchQuery = std::move(query);
+	}
 	void setIdManager(LocalIdManager &&manager) {
 		_idManager = std::move(manager);
 	}
@@ -176,6 +189,9 @@ public:
 	FilterValue takeFilter() {
 		return std::move(_filter);
 	}
+	QString takeSearchQuery() {
+		return std::move(_searchQuery);
+	}
 
 private:
 	gsl::not_null<ChannelData*> _channel;
@@ -187,6 +203,7 @@ private:
 	bool _downLoaded = true;
 	LocalIdManager _idManager;
 	FilterValue _filter;
+	QString _searchQuery;
 
 };
 

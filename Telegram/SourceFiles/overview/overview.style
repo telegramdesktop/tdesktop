@@ -137,8 +137,6 @@ overviewLinksChecked: icon {
 
 overviewFilter: FlatInput(defaultFlatInput) {
 	font: font(fsize);
-	phColor: placeholderFg;
-	phFocusColor: placeholderFgActive;
 	icon: fieldSearchIcon;
 
 	width: 240px;

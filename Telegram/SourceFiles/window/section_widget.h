@@ -109,6 +109,11 @@ public:
 		doSetInnerFocus();
 	}
 
+	// Global shortcut handler. For now that ugly :(
+	virtual bool cmd_search() {
+		return false;
+	}
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 

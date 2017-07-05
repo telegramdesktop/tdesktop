@@ -28,11 +28,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/input_fields.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "window/themes/window_theme.h"
 #include "boxes/confirm_box.h"
+#include "base/timer.h"
 #include "lang/lang_keys.h"
 
 namespace AdminLog {
@@ -42,7 +44,11 @@ constexpr auto kMaxChannelAdmins = 200;
 
 class FixedBar final : public TWidget, private base::Subscriber {
 public:
-	FixedBar(QWidget *parent, gsl::not_null<ChannelData*> channel, base::lambda<void()> showFilterCallback);
+	FixedBar(QWidget *parent, gsl::not_null<ChannelData*> channel);
+
+	base::Observable<void> showFilterSignal;
+	base::Observable<void> searchCancelledSignal;
+	base::Observable<QString> searchSignal;
 
 	// When animating mode is enabled the content is hidden and the
 	// whole fixed bar acts like a back button.
@@ -50,6 +56,14 @@ public:
 
 	void applyFilter(const FilterValue &value);
 	void goBack();
+	void showSearch();
+	bool setSearchFocus() {
+		if (_searchShown) {
+			_field->setFocus();
+			return true;
+		}
+		return false;
+	}
 
 protected:
 	void mousePressEvent(QMouseEvent *e) override;
@@ -57,11 +71,23 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
+	void toggleSearch();
+	void cancelSearch();
+	void searchUpdated();
+	void applySearch();
+	void searchAnimationCallback();
+
 	gsl::not_null<ChannelData*> _channel;
+	object_ptr<Ui::FlatInput> _field;
 	object_ptr<Profile::BackButton> _backButton;
+	object_ptr<Ui::IconButton> _search;
+	object_ptr<Ui::CrossButton> _cancel;
 	object_ptr<Ui::RoundButton> _filter;
 
+	Animation _searchShownAnimation;
+	bool _searchShown = false;
 	bool _animatingMode = false;
+	base::Timer _searchTimer;
 
 };
 
@@ -71,13 +97,25 @@ object_ptr<Window::SectionWidget> SectionMemento::createWidget(QWidget *parent, 
 	return std::move(result);
 }
 
-FixedBar::FixedBar(QWidget *parent, gsl::not_null<ChannelData*> channel, base::lambda<void()> showFilterCallback) : TWidget(parent)
+FixedBar::FixedBar(QWidget *parent, gsl::not_null<ChannelData*> channel) : TWidget(parent)
 , _channel(channel)
+, _field(this, st::historyAdminLogSearchField, langFactory(lng_dlg_filter))
 , _backButton(this, lang(lng_admin_log_title_all))
+, _search(this, st::topBarSearch)
+, _cancel(this, st::historyAdminLogCancelSearch)
 , _filter(this, langFactory(lng_admin_log_filter), st::topBarButton) {
 	_backButton->moveToLeft(0, 0);
 	_backButton->setClickedCallback([this] { goBack(); });
-	_filter->setClickedCallback([this, showFilterCallback] { showFilterCallback(); });
+	_filter->setClickedCallback([this] { showFilterSignal.notify(); });
+	_search->setClickedCallback([this] { showSearch(); });
+	_cancel->setClickedCallback([this] { cancelSearch(); });
+	_field->hide();
+	connect(_field, &Ui::FlatInput::cancelled, this, [this] { cancelSearch(); });
+	connect(_field, &Ui::FlatInput::changed, this, [this] { searchUpdated(); });
+	connect(_field, &Ui::FlatInput::submitted, this, [this] { applySearch(); });
+	_searchTimer.setCallback([this] { applySearch(); });
+
+	_cancel->hideFast();
 }
 
 void FixedBar::applyFilter(const FilterValue &value) {
@@ -89,14 +127,78 @@ void FixedBar::goBack() {
 	App::main()->showBackFromStack();
 }
 
-int FixedBar::resizeGetHeight(int newWidth) {
-	auto newHeight = 0;
+void FixedBar::showSearch() {
+	if (!_searchShown) {
+		toggleSearch();
+	}
+}
 
-	auto buttonLeft = newWidth;
-	buttonLeft -= _filter->width(); _filter->moveToLeft(buttonLeft, 0);
-	_backButton->resizeToWidth(buttonLeft);
+void FixedBar::toggleSearch() {
+	_searchShown = !_searchShown;
+	_cancel->toggleAnimated(_searchShown);
+	_searchShownAnimation.start([this] { searchAnimationCallback(); }, _searchShown ? 0. : 1., _searchShown ? 1. : 0., st::historyAdminLogSearchSlideDuration);
+	_search->setDisabled(_searchShown);
+	if (_searchShown) {
+		_field->show();
+		_field->setFocus();
+	} else {
+		searchCancelledSignal.notify(true);
+	}
+}
+
+void FixedBar::searchAnimationCallback() {
+	if (!_searchShownAnimation.animating()) {
+		_field->setVisible(_searchShown);
+		_search->setIconOverride(_searchShown ? &st::topBarSearch.icon : nullptr, _searchShown ? &st::topBarSearch.icon : nullptr);
+		_search->setRippleColorOverride(_searchShown ? &st::topBarBg : nullptr);
+		_search->setCursor(_searchShown ? style::cur_default : style::cur_pointer);
+	}
+	resizeToWidth(width());
+}
+
+void FixedBar::cancelSearch() {
+	if (_searchShown) {
+		if (!_field->getLastText().isEmpty()) {
+			_field->setText(QString());
+			_field->updatePlaceholder();
+			_field->setFocus();
+			applySearch();
+		} else {
+			toggleSearch();
+		}
+	}
+}
+
+void FixedBar::searchUpdated() {
+	if (_field->getLastText().isEmpty()) {
+		applySearch();
+	} else {
+		_searchTimer.callOnce(AutoSearchTimeout);
+	}
+}
+
+void FixedBar::applySearch() {
+	searchSignal.notify(_field->getLastText());
+}
+
+int FixedBar::resizeGetHeight(int newWidth) {
+	auto filterLeft = newWidth - _filter->width();
+	_filter->moveToLeft(filterLeft, 0);
+
+	auto cancelLeft = filterLeft - _cancel->width();
+	_cancel->moveToLeft(cancelLeft, 0);
+
+	auto searchShownLeft = st::topBarArrowPadding.left();
+	auto searchHiddenLeft = filterLeft - _search->width();
+	auto searchShown = _searchShownAnimation.current(_searchShown ? 1. : 0.);
+	auto searchCurrentLeft = anim::interpolate(searchHiddenLeft, searchShownLeft, searchShown);
+	_search->moveToLeft(searchCurrentLeft, 0);
+	_backButton->resizeToWidth(searchCurrentLeft);
 	_backButton->moveToLeft(0, 0);
-	newHeight += _backButton->height();
+
+	auto newHeight = _backButton->height();
+	auto fieldLeft = searchShownLeft + _search->width();
+	_field->setGeometryToLeft(fieldLeft, st::historyAdminLogSearchTop, cancelLeft - fieldLeft, _field->height());
 
 	return newHeight;
 }
@@ -111,6 +213,8 @@ void FixedBar::setAnimatingMode(bool enabled) {
 		} else {
 			setAttribute(Qt::WA_OpaquePaintEvent);
 			showChildren();
+			_field->hide();
+			_cancel->hide();
 		}
 		show();
 	}
@@ -133,23 +237,28 @@ void FixedBar::mousePressEvent(QMouseEvent *e) {
 
 Widget::Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller, gsl::not_null<ChannelData*> channel) : Window::SectionWidget(parent, controller)
 , _scroll(this, st::historyScroll, false)
-, _fixedBar(this, channel, [this] { showFilter(); })
+, _fixedBar(this, channel)
 , _fixedBarShadow(this, st::shadowFg)
 , _whatIsThis(this, lang(lng_admin_log_about).toUpper(), st::historyComposeButton) {
 	_fixedBar->move(0, 0);
 	_fixedBar->resizeToWidth(width());
+	subscribe(_fixedBar->showFilterSignal, [this] { showFilter(); });
+	subscribe(_fixedBar->searchCancelledSignal, [this] { setInnerFocus(); });
+	subscribe(_fixedBar->searchSignal, [this](const QString &query) { _inner->applySearch(query); });
 	_fixedBar->show();
 
 	_fixedBarShadow->raise();
 	updateAdaptiveLayout();
-	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
+	subscribe(Adaptive::Changed(), [this] { updateAdaptiveLayout(); });
 
-	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this, controller, channel, [this](int top) { _scroll->scrollToY(top); }));
+	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this, controller, channel));
+	subscribe(_inner->showSearchSignal, [this] { _fixedBar->showSearch(); });
+	subscribe(_inner->cancelledSignal, [this] { _fixedBar->goBack(); });
+	subscribe(_inner->scrollToSignal, [this](int top) { _scroll->scrollToY(top); });
 	_scroll->move(0, _fixedBar->height());
 	_scroll->show();
 
 	connect(_scroll, &Ui::ScrollArea::scrolled, this, [this] { onScroll(); });
-	_inner->setCancelledCallback([this] { _fixedBar->goBack(); });
 
 	_whatIsThis->setClickedCallback([this] { Ui::show(Box<InformBox>(lang(lng_admin_log_about_text))); });
 }
@@ -204,7 +313,9 @@ QPixmap Widget::grabForShowAnimation(const Window::SectionSlideParams &params) {
 }
 
 void Widget::doSetInnerFocus() {
-	_inner->setFocus();
+	if (!_fixedBar->setSearchFocus()) {
+		_inner->setFocus();
+	}
 }
 
 bool Widget::showInternal(gsl::not_null<Window::SectionMemento*> memento) {
@@ -221,6 +332,14 @@ void Widget::setInternalState(const QRect &geometry, gsl::not_null<SectionMement
 	setGeometry(geometry);
 	myEnsureResized(this);
 	restoreState(memento);
+}
+
+bool Widget::cmd_search() {
+	if (!inFocusChain()) {
+		return false;
+	}
+	_fixedBar->showSearch();
+	return true;
 }
 
 std::unique_ptr<Window::SectionMemento> Widget::createMemento() {

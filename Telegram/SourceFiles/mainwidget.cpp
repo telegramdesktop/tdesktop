@@ -896,6 +896,9 @@ void MainWidget::notify_historyMuteUpdated(History *history) {
 
 bool MainWidget::cmd_search() {
 	if (Ui::isLayerShown() || Ui::isMediaViewShown()) return false;
+	if (_wideSection) {
+		return _wideSection->cmd_search();
+	}
 	return _history->cmd_search();
 }
 

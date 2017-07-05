@@ -110,8 +110,6 @@ dialogsCalendar: IconButton {
 
 dialogsFilter: FlatInput(defaultFlatInput) {
 	font: font(fsize);
-	phColor: placeholderFg;
-	phFocusColor: placeholderFgActive;
 
 	width: 240px;
 	height: 32px;
