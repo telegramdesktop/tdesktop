@@ -688,9 +688,6 @@ HistoryJoined::PreparedText HistoryJoined::GenerateText(gsl::not_null<History*> 
 	}
 	auto result = PreparedText {};
 	result.links.push_back(peerOpenClickHandler(inviter));
-	if (history->isMegagroup()) {
-		result.text = lng_action_add_you_group(lt_from, textcmdLink(1, inviter->name));
-	}
-	result.text = lng_action_add_you(lt_from, textcmdLink(1, inviter->name));
+	result.text = (history->isMegagroup() ? lng_action_add_you_group : lng_action_add_you)(lt_from, textcmdLink(1, inviter->name));
 	return result;
 }
