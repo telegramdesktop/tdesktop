@@ -231,10 +231,22 @@ void ParticipantsBoxController::editAdmin(gsl::not_null<UserData*> user) {
 	t_assert(it != _additional.adminRights.cend());
 	auto weak = base::weak_unique_ptr<ParticipantsBoxController>(this);
 	auto hasAdminRights = true;
-	_editBox = Ui::show(Box<EditAdminBox>(_channel, user, hasAdminRights, it->second, [megagroup = _channel.get(), user, weak](const MTPChannelAdminRights &rights) {
-		MTP::send(MTPchannels_EditAdmin(megagroup->inputChannel, user->inputUser, rights), rpcDone([megagroup, user, weak, rights](const MTPUpdates &result) {
+	_editBox = Ui::show(Box<EditAdminBox>(_channel, user, hasAdminRights, it->second, [channel = _channel.get(), user, hasAdminRights, weak](const MTPChannelAdminRights &rights) {
+		MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, rights), rpcDone([channel, user, hasAdminRights, weak, rights](const MTPUpdates &result) {
 			AuthSession::Current().api().applyUpdates(result);
-			megagroup->applyEditAdmin(user, rights);
+			channel->applyEditAdmin(user, rights);
+			if (hasAdminRights && !rights.c_channelAdminRights().vflags.v) {
+				// We removed an admin.
+				if (channel->adminsCount() > 1) {
+					channel->setAdminsCount(channel->adminsCount() - 1);
+					if (App::main()) emit App::main()->peerUpdated(channel);
+				}
+				if (!channel->isMegagroup() && user->botInfo && channel->membersCount() > 1) {
+					// Removing bot admin removes it from channel.
+					channel->setMembersCount(channel->membersCount() - 1);
+					if (App::main()) emit App::main()->peerUpdated(channel);
+				}
+			}
 			if (weak) {
 				weak->editAdminDone(user, rights);
 			}
@@ -681,10 +693,22 @@ void AddParticipantBoxController::editAdmin(gsl::not_null<UserData*> user, bool 
 	}
 
 	// Finally edit the admin.
-	_editBox = Ui::show(Box<EditAdminBox>(_channel, user, hasAdminRights, currentRights, [channel = _channel.get(), user, weak](const MTPChannelAdminRights &rights) {
-		MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, rights), rpcDone([channel, user, weak, rights](const MTPUpdates &result) {
+	_editBox = Ui::show(Box<EditAdminBox>(_channel, user, hasAdminRights, currentRights, [channel = _channel.get(), user, hasAdminRights, weak](const MTPChannelAdminRights &rights) {
+		MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, rights), rpcDone([channel, user, hasAdminRights, weak, rights](const MTPUpdates &result) {
 			AuthSession::Current().api().applyUpdates(result);
 			channel->applyEditAdmin(user, rights);
+			if (hasAdminRights && !rights.c_channelAdminRights().vflags.v) {
+				// We removed an admin.
+				if (channel->adminsCount() > 1) {
+					channel->setAdminsCount(channel->adminsCount() - 1);
+					if (App::main()) emit App::main()->peerUpdated(channel);
+				}
+				if (!channel->isMegagroup() && user->botInfo && channel->membersCount() > 1) {
+					// Removing bot admin removes it from channel.
+					channel->setMembersCount(channel->membersCount() - 1);
+					if (App::main()) emit App::main()->peerUpdated(channel);
+				}
+			}
 			if (weak) {
 				weak->editAdminDone(user, rights);
 			}
