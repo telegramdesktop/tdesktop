@@ -633,7 +633,11 @@ void AddParticipantBoxController::editAdmin(gsl::not_null<UserData*> user, bool 
 		if (_channel->canAddMembers()) {
 			if (_channel->canBanMembers()) {
 				if (!sure) {
-					_editBox = Ui::show(Box<ConfirmBox>(lang(lng_sure_add_admin_unban), [weak, user] { weak->editAdmin(user, true); }), KeepOtherLayers);
+					_editBox = Ui::show(Box<ConfirmBox>(lang(lng_sure_add_admin_unban), [weak, user] {
+						if (weak) {
+							weak->editAdmin(user, true);
+						}
+					}), KeepOtherLayers);
 					return;
 				}
 			} else {
@@ -648,7 +652,11 @@ void AddParticipantBoxController::editAdmin(gsl::not_null<UserData*> user, bool 
 		// The user is restricted.
 		if (_channel->canBanMembers()) {
 			if (!sure) {
-				_editBox = Ui::show(Box<ConfirmBox>(lang(lng_sure_add_admin_unban), [weak, user] { weak->editAdmin(user, true); }), KeepOtherLayers);
+				_editBox = Ui::show(Box<ConfirmBox>(lang(lng_sure_add_admin_unban), [weak, user] {
+					if (weak) {
+						weak->editAdmin(user, true);
+					}
+				}), KeepOtherLayers);
 				return;
 			}
 		} else {
@@ -659,7 +667,11 @@ void AddParticipantBoxController::editAdmin(gsl::not_null<UserData*> user, bool 
 		// The user is not in the group yet.
 		if (_channel->canAddMembers()) {
 			if (!sure) {
-				_editBox = Ui::show(Box<ConfirmBox>(lang(lng_sure_add_admin_invite), [weak, user] { weak->editAdmin(user, true); }), KeepOtherLayers);
+				_editBox = Ui::show(Box<ConfirmBox>(lang(lng_sure_add_admin_invite), [weak, user] {
+					if (weak) {
+						weak->editAdmin(user, true);
+					}
+				}), KeepOtherLayers);
 				return;
 			}
 		} else {
@@ -733,7 +745,11 @@ void AddParticipantBoxController::editRestricted(gsl::not_null<UserData*> user, 
 		if (_additional.adminCanEdit.find(user) != _additional.adminCanEdit.end()) {
 			hasAdminRights = true;
 			if (!sure) {
-				_editBox = Ui::show(Box<ConfirmBox>(lang(lng_sure_ban_admin), [weak, user] { weak->editRestricted(user, true); }), KeepOtherLayers);
+				_editBox = Ui::show(Box<ConfirmBox>(lang(lng_sure_ban_admin), [weak, user] {
+					if (weak) {
+						weak->editRestricted(user, true);
+					}
+				}), KeepOtherLayers);
 				return;
 			}
 		} else {
@@ -793,7 +809,11 @@ void AddParticipantBoxController::kickUser(gsl::not_null<UserData*> user, bool s
 		// The user is an admin or creator.
 		if (_additional.adminCanEdit.find(user) != _additional.adminCanEdit.end()) {
 			if (!sure) {
-				_editBox = Ui::show(Box<ConfirmBox>(lang(lng_sure_ban_admin), [weak, user] { weak->kickUser(user, true); }), KeepOtherLayers);
+				_editBox = Ui::show(Box<ConfirmBox>(lang(lng_sure_ban_admin), [weak, user] {
+					if (weak) {
+						weak->kickUser(user, true);
+					}
+				}), KeepOtherLayers);
 				return;
 			}
 		} else {
@@ -805,7 +825,11 @@ void AddParticipantBoxController::kickUser(gsl::not_null<UserData*> user, bool s
 	// Finally kick him.
 	if (!sure) {
 		auto text = lng_sure_ban_user_group(lt_user, App::peerName(user));
-		_editBox = Ui::show(Box<ConfirmBox>(text, [weak, user] { weak->kickUser(user, true); }), KeepOtherLayers);
+		_editBox = Ui::show(Box<ConfirmBox>(text, [weak, user] {
+			if (weak) {
+				weak->kickUser(user, true);
+			}
+		}), KeepOtherLayers);
 		return;
 	}
 	restrictUserSure(user, ChannelData::KickedRestrictedRights());
