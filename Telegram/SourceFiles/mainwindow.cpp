@@ -589,7 +589,7 @@ bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 		return true;
 
 	case QEvent::Shortcut:
-		DEBUG_LOG(("Shortcut event catched: %1").arg(static_cast<QShortcutEvent*>(e)->key().toString()));
+		DEBUG_LOG(("Shortcut event caught: %1").arg(static_cast<QShortcutEvent*>(e)->key().toString()));
 		if (Shortcuts::launch(static_cast<QShortcutEvent*>(e)->shortcutId())) {
 			return true;
 		}
