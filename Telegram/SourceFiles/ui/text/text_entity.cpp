@@ -1565,6 +1565,12 @@ MarkdownPart GetMarkdownPart(EntityInTextType type, const QString &text, int mat
 		Unexpected("Type in GetMardownPart()");
 	};
 
+	if (matchFromOffset > 1) {
+		// If matchFromOffset is after some separator that is allowed to
+		// start our markdown tag the tag itself will start where we want it.
+		// So we allow to see this separator and make a match.
+		--matchFromOffset;
+	}
 	auto match = regexp().match(text, matchFromOffset);
 	if (!match.hasMatch()) {
 		return result;
