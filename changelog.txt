@@ -1,3 +1,9 @@
+1.1.11 alpha (06.07.17)
+
+- Send **bold** and __italic__ text in your messages (in addition to already supported `monospace` and ```multiline monospace```).
+- Search in channel and supergroup admin event log.
+- Ban members from right click menu in supergroup admin event log.
+
 1.1.10 (04.07.17)
 
 - Add event log filter for channel or supergroup event log.
