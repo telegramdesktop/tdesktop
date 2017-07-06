@@ -182,7 +182,7 @@ public:
 				emoji = 0;
 				lastSkipped = true;
 			} else if (newline) {
-				_t->_blocks.push_back(new NewlineBlock(_t->_st->font, _t->_text, blockStart, len));
+				_t->_blocks.push_back(new NewlineBlock(_t->_st->font, _t->_text, blockStart, len, flags, lnkIndex));
 			} else {
 				_t->_blocks.push_back(new TextBlock(_t->_st->font, _t->_text, _t->_minResizeWidth, blockStart, len, flags, lnkIndex));
 			}
