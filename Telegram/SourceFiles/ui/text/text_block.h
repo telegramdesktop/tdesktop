@@ -77,7 +77,7 @@ public:
 		return (_flags & 0xFF);
 	}
 
-	virtual ITextBlock *clone() const = 0;
+	virtual std::unique_ptr<ITextBlock> clone() const = 0;
 	virtual ~ITextBlock() {
 	}
 
@@ -99,19 +99,19 @@ protected:
 
 class NewlineBlock : public ITextBlock {
 public:
-	Qt::LayoutDirection nextDirection() const {
-		return _nextDir;
-	}
-
-	ITextBlock *clone() const {
-		return new NewlineBlock(*this);
-	}
-
-private:
 	NewlineBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex) : ITextBlock(font, str, from, length, flags, lnkIndex), _nextDir(Qt::LayoutDirectionAuto) {
 		_flags |= ((TextBlockTNewline & 0x0F) << 8);
 	}
 
+	Qt::LayoutDirection nextDirection() const {
+		return _nextDir;
+	}
+
+	std::unique_ptr<ITextBlock> clone() const override {
+		return std::make_unique<NewlineBlock>(*this);
+	}
+
+private:
 	Qt::LayoutDirection _nextDir;
 
 	friend class Text;
@@ -155,13 +155,13 @@ private:
 
 class TextBlock : public ITextBlock {
 public:
-	ITextBlock *clone() const {
-		return new TextBlock(*this);
+	TextBlock(const style::font &font, const QString &str, QFixed minResizeWidth, uint16 from, uint16 length, uchar flags, uint16 lnkIndex);
+
+	std::unique_ptr<ITextBlock> clone() const override {
+		return std::make_unique<TextBlock>(*this);
 	}
 
 private:
-	TextBlock(const style::font &font, const QString &str, QFixed minResizeWidth, uint16 from, uint16 length, uchar flags, uint16 lnkIndex);
-
 	friend class ITextBlock;
 	QFixed real_f_rbearing() const {
 		return _words.isEmpty() ? 0 : _words.back().f_rbearing();
@@ -180,13 +180,13 @@ private:
 
 class EmojiBlock : public ITextBlock {
 public:
-	ITextBlock *clone() const {
-		return new EmojiBlock(*this);
+	EmojiBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex, EmojiPtr emoji);
+
+	std::unique_ptr<ITextBlock> clone() const {
+		return std::make_unique<EmojiBlock>(*this);
 	}
 
 private:
-	EmojiBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex, EmojiPtr emoji);
-
 	EmojiPtr emoji = nullptr;
 
 	friend class Text;
@@ -198,17 +198,17 @@ private:
 
 class SkipBlock : public ITextBlock {
 public:
+	SkipBlock(const style::font &font, const QString &str, uint16 from, int32 w, int32 h, uint16 lnkIndex);
+
 	int32 height() const {
 		return _height;
 	}
 
-	ITextBlock *clone() const {
-		return new SkipBlock(*this);
+	std::unique_ptr<ITextBlock> clone() const override {
+		return std::make_unique<SkipBlock>(*this);
 	}
 
 private:
-	SkipBlock(const style::font &font, const QString &str, uint16 from, int32 w, int32 h, uint16 lnkIndex);
-
 	int32 _height;
 
 	friend class Text;

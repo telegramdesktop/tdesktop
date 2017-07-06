@@ -199,12 +199,10 @@ public:
 	}
 
 	void clear();
-	~Text() {
-		clear();
-	}
+	~Text();
 
 private:
-	using TextBlocks = QVector<ITextBlock*>;
+	using TextBlocks = std::vector<std::unique_ptr<ITextBlock>>;
 	using TextLinks = QVector<ClickHandlerPtr>;
 
 	uint16 countBlockEnd(const TextBlocks::const_iterator &i, const TextBlocks::const_iterator &e) const;
