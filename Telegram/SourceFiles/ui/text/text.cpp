@@ -513,8 +513,8 @@ public:
 			bool parseMentions = (options.flags & TextParseMentions);
 			bool parseHashtags = (options.flags & TextParseHashtags);
 			bool parseBotCommands = (options.flags & TextParseBotCommands);
-			bool parseMono = (options.flags & TextParseMono);
-			if (!parseMentions || !parseHashtags || !parseBotCommands || !parseMono) {
+			bool parseMarkdown = (options.flags & TextParseMarkdown);
+			if (!parseMentions || !parseHashtags || !parseBotCommands || !parseMarkdown) {
 				int32 i = 0, l = preparsed.size();
 				source.entities.clear();
 				source.entities.reserve(l);
@@ -524,7 +524,7 @@ public:
 					if (((type == EntityInTextMention || type == EntityInTextMentionName) && !parseMentions) ||
 						(type == EntityInTextHashtag && !parseHashtags) ||
 						(type == EntityInTextBotCommand && !parseBotCommands) ||
-						((type == EntityInTextBold || type == EntityInTextItalic || type == EntityInTextCode || type == EntityInTextPre) && !parseMono)) {
+						((type == EntityInTextBold || type == EntityInTextItalic || type == EntityInTextCode || type == EntityInTextPre) && !parseMarkdown)) {
 						continue;
 					}
 					source.entities.push_back(preparsed.at(i));

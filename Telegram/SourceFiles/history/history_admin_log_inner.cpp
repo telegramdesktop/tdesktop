@@ -386,7 +386,7 @@ void InnerWidget::clearAndRequestLog() {
 
 void InnerWidget::updateEmptyText() {
 	auto options = _defaultOptions;
-	options.flags |= TextParseMono; // For bold :/
+	options.flags |= TextParseMarkdown;
 	auto hasSearch = !_searchQuery.isEmpty();
 	auto hasFilter = (_filter.flags != 0) || !_filter.allUsers;
 	auto text = TextWithEntities { lang((hasSearch || hasFilter) ? lng_admin_log_no_results_title : lng_admin_log_no_events_title) };

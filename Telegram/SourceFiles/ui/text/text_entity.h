@@ -115,6 +115,10 @@ private:
 struct TextWithEntities {
 	QString text;
 	EntitiesInText entities;
+
+	bool empty() const {
+		return text.isEmpty();
+	}
 };
 
 enum {
@@ -124,7 +128,7 @@ enum {
 	TextParseMentions = 0x008,
 	TextParseHashtags = 0x010,
 	TextParseBotCommands = 0x020,
-	TextParseMono = 0x040,
+	TextParseMarkdown = 0x040,
 
 	TextTwitterMentions = 0x100,
 	TextTwitterHashtags = 0x200,
@@ -145,8 +149,10 @@ const QRegularExpression &RegExpMailNameAtEnd();
 const QRegularExpression &RegExpHashtag();
 const QRegularExpression &RegExpMention();
 const QRegularExpression &RegExpBotCommand();
-const QRegularExpression &RegExpMonoInline();
-const QRegularExpression &RegExpMonoBlock();
+const QRegularExpression &RegExpMarkdownBold();
+const QRegularExpression &RegExpMarkdownItalic();
+const QRegularExpression &RegExpMarkdownMonoInline();
+const QRegularExpression &RegExpMarkdownMonoBlock();
 
 inline void Append(TextWithEntities &to, TextWithEntities &&append) {
 	auto entitiesShiftRight = to.text.size();
@@ -192,10 +198,10 @@ enum class ConvertOption {
 	WithLocal,
 	SkipLocal,
 };
-MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &links, ConvertOption option = ConvertOption::WithLocal);
+MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &entities, ConvertOption option = ConvertOption::WithLocal);
 
 // New entities are added to the ones that are already in result.
-// Changes text if (flags & TextParseMono).
+// Changes text if (flags & TextParseMarkdown).
 void ParseEntities(TextWithEntities &result, int32 flags, bool rich = false);
 QString ApplyEntities(const TextWithEntities &text);
 

@@ -43,24 +43,40 @@ QString ExpressionMailNameAtEnd() {
 	return qsl("[a-zA-Z\\-_\\.0-9]{1,256}$");
 }
 
+QString ExpressionSeparators(const QString &additional) {
+	return qsl("\\s\\.,:;<>|'\"\\[\\]\\{\\}\\~\\!\\%\\^\\(\\)\\-\\+=\\x10") + additional;
+}
+
 QString ExpressionHashtag() {
-	return qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])#[\\w]{2,64}([\\W]|$)");
+	return qsl("(^|[") + ExpressionSeparators(qsl("`\\*/")) + qsl("])#[\\w]{2,64}([\\W]|$)");
 }
 
 QString ExpressionMention() {
-	return qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])@[A-Za-z_0-9]{1,32}([\\W]|$)");
+	return qsl("(^|[") + ExpressionSeparators(qsl("`\\*/")) + qsl("])@[A-Za-z_0-9]{1,32}([\\W]|$)");
 }
 
 QString ExpressionBotCommand() {
-	return qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])/[A-Za-z_0-9]{1,64}(@[A-Za-z_0-9]{5,32})?([\\W]|$)");
+	return qsl("(^|[") + ExpressionSeparators(qsl("`\\*")) + qsl("])/[A-Za-z_0-9]{1,64}(@[A-Za-z_0-9]{5,32})?([\\W]|$)");
 }
 
-QString ExpressionMonoInline() { // pre
-	return qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\?\\%\\^\\*\\(\\)\\-\\+=\\x10])(````?)[\\s\\S]+?(````?)([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\?\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)");
+QString ExpressionMarkdownBold() {
+	auto separators = ExpressionSeparators(qsl("`/"));
+	return qsl("(^|[") + separators + qsl("])(\\*\\*)[\\s\\S]+?(\\*\\*)([") + separators + qsl("]|$)");
 }
 
-QString ExpressionMonoBlock() { // code
-	return qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\?\\%\\^\\*\\(\\)\\-\\+=\\x10])(`)[^\\n]+?(`)([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\?\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)");
+QString ExpressionMarkdownItalic() {
+	auto separators = ExpressionSeparators(qsl("`\\*/"));
+	return qsl("(^|[") + separators + qsl("])(__)[\\s\\S]+?(__)([") + separators + qsl("]|$)");
+}
+
+QString ExpressionMarkdownMonoInline() { // code
+	auto separators = ExpressionSeparators(qsl("\\*/"));
+	return qsl("(^|[") + separators + qsl("])(`)[^\\n]+?(`)([") + separators + qsl("]|$)");
+}
+
+QString ExpressionMarkdownMonoBlock() { // pre
+	auto separators = ExpressionSeparators(qsl("\\*/"));
+	return qsl("(^|[") + separators + qsl("])(````?)[\\s\\S]+?(````?)([") + separators + qsl("]|$)");
 }
 
 QRegularExpression CreateRegExp(const QString &expression) {
@@ -1146,13 +1162,23 @@ const QRegularExpression &RegExpBotCommand() {
 	return result;
 }
 
-const QRegularExpression &RegExpMonoInline() {
-	static const auto result = CreateRegExp(ExpressionMonoInline());
+const QRegularExpression &RegExpMarkdownBold() {
+	static const auto result = CreateRegExp(ExpressionMarkdownBold());
 	return result;
 }
 
-const QRegularExpression &RegExpMonoBlock() {
-	static const auto result = CreateRegExp(ExpressionMonoBlock());
+const QRegularExpression &RegExpMarkdownItalic() {
+	static const auto result = CreateRegExp(ExpressionMarkdownItalic());
+	return result;
+}
+
+const QRegularExpression &RegExpMarkdownMonoInline() {
+	static const auto result = CreateRegExp(ExpressionMarkdownMonoInline());
+	return result;
+}
+
+const QRegularExpression &RegExpMarkdownMonoBlock() {
+	static const auto result = CreateRegExp(ExpressionMarkdownMonoBlock());
 	return result;
 }
 
@@ -1471,22 +1497,25 @@ EntitiesInText EntitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 	return result;
 }
 
-MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &links, ConvertOption option) {
+MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &entities, ConvertOption option) {
 	auto v = QVector<MTPMessageEntity>();
-	v.reserve(links.size());
-	for_const (auto &link, links) {
-		if (link.length() <= 0) continue;
+	v.reserve(entities.size());
+	for_const (auto &entity, entities) {
+		if (entity.length() <= 0) continue;
 		if (option == ConvertOption::SkipLocal
-			&& link.type() != EntityInTextCode
-			&& link.type() != EntityInTextPre
-			&& link.type() != EntityInTextMentionName) {
+			&& entity.type() != EntityInTextBold
+			&& entity.type() != EntityInTextItalic
+			&& entity.type() != EntityInTextCode
+			&& entity.type() != EntityInTextPre
+			&& entity.type() != EntityInTextMentionName) {
 			continue;
 		}
 
-		auto offset = MTP_int(link.offset()), length = MTP_int(link.length());
-		switch (link.type()) {
+		auto offset = MTP_int(entity.offset());
+		auto length = MTP_int(entity.length());
+		switch (entity.type()) {
 		case EntityInTextUrl: v.push_back(MTP_messageEntityUrl(offset, length)); break;
-		case EntityInTextCustomUrl: v.push_back(MTP_messageEntityTextUrl(offset, length, MTP_string(link.data()))); break;
+		case EntityInTextCustomUrl: v.push_back(MTP_messageEntityTextUrl(offset, length, MTP_string(entity.data()))); break;
 		case EntityInTextEmail: v.push_back(MTP_messageEntityEmail(offset, length)); break;
 		case EntityInTextHashtag: v.push_back(MTP_messageEntityHashtag(offset, length)); break;
 		case EntityInTextMention: v.push_back(MTP_messageEntityMention(offset, length)); break;
@@ -1499,7 +1528,7 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &links, ConvertOp
 					return MTP_inputUser(MTP_int(fields.userId), MTP_long(fields.accessHash));
 				}
 				return MTP_inputUserEmpty();
-			})(link.data());
+			})(entity.data());
 			if (inputUser.type() != mtpc_inputUserEmpty) {
 				v.push_back(MTP_inputMessageEntityMentionName(offset, length, inputUser));
 			}
@@ -1508,172 +1537,225 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &links, ConvertOp
 		case EntityInTextBold: v.push_back(MTP_messageEntityBold(offset, length)); break;
 		case EntityInTextItalic: v.push_back(MTP_messageEntityItalic(offset, length)); break;
 		case EntityInTextCode: v.push_back(MTP_messageEntityCode(offset, length)); break;
-		case EntityInTextPre: v.push_back(MTP_messageEntityPre(offset, length, MTP_string(link.data()))); break;
+		case EntityInTextPre: v.push_back(MTP_messageEntityPre(offset, length, MTP_string(entity.data()))); break;
 		}
 	}
 	return MTP_vector<MTPMessageEntity>(std::move(v));
 }
 
-// Some code is duplicated in flattextarea.cpp!
-void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
-	auto newEntities = EntitiesInText();
+struct MarkdownPart {
+	EntityInTextType type = EntityInTextInvalid;
+	int outerStart = 0;
+	int innerStart = 0;
+	int innerEnd = 0;
+	int outerEnd = 0;
+	bool addNewlineBefore = false;
+	bool addNewlineAfter = false;
+};
 
-	bool withHashtags = (flags & TextParseHashtags);
-	bool withMentions = (flags & TextParseMentions);
-	bool withBotCommands = (flags & TextParseBotCommands);
-	bool withMono = (flags & TextParseMono);
+MarkdownPart GetMarkdownPart(EntityInTextType type, const QString &text, int matchFromOffset, bool rich) {
+	auto result = MarkdownPart();
+	auto regexp = [type] {
+		switch (type) {
+		case EntityInTextBold: return RegExpMarkdownBold();
+		case EntityInTextItalic: return RegExpMarkdownItalic();
+		case EntityInTextCode: return RegExpMarkdownMonoInline();
+		case EntityInTextPre: return RegExpMarkdownMonoBlock();
+		}
+		Unexpected("Type in GetMardownPart()");
+	};
 
-	if (withMono) { // parse mono entities (code and pre)
-		int existingEntityIndex = 0, existingEntitiesCount = result.entities.size();
-		int existingEntityShiftLeft = 0;
+	auto match = regexp().match(text, matchFromOffset);
+	if (!match.hasMatch()) {
+		return result;
+	}
 
-		QString newText;
+	result.outerStart = match.capturedStart();
+	result.outerEnd = match.capturedEnd();
+	if (!match.capturedRef(1).isEmpty()) {
+		++result.outerStart;
+	}
+	if (!match.capturedRef(4).isEmpty()) {
+		--result.outerEnd;
+	}
+	result.innerStart = result.outerStart + match.capturedLength(2);
+	result.innerEnd = result.outerEnd - match.capturedLength(3);
+	result.type = type;
+	return result;
+}
 
-		int32 offset = 0, matchOffset = offset, len = result.text.size(), commandOffset = rich ? 0 : len;
-		bool inLink = false, commandIsLink = false;
-		const QChar *start = result.text.constData();
-		for (; matchOffset < len;) {
-			if (commandOffset <= matchOffset) {
-				for (commandOffset = matchOffset; commandOffset < len; ++commandOffset) {
-					if (*(start + commandOffset) == TextCommand) {
-						inLink = commandIsLink;
-						commandIsLink = textcmdStartsLink(start, len, commandOffset);
-						break;
-					}
-				}
-				if (commandOffset >= len) {
+void AdjustMarkdownPrePart(MarkdownPart &result, const TextWithEntities &text, bool rich) {
+	auto start = text.text.constData();
+	auto length = text.text.size();
+	auto lastEntityBeforeEnd = 0;
+	auto firstEntityInsideStart = result.innerEnd;
+	auto lastEntityInsideEnd = result.innerStart;
+	auto firstEntityAfterStart = length;
+	for_const (auto &entity, text.entities) {
+		if (entity.offset() < result.outerStart) {
+			lastEntityBeforeEnd = entity.offset() + entity.length();
+		} else if (entity.offset() >= result.outerEnd) {
+			firstEntityAfterStart = entity.offset();
+			break;
+		} else if (entity.offset() >= result.innerStart) {
+			accumulate_min(firstEntityInsideStart, entity.offset());
+			lastEntityInsideEnd = entity.offset() + entity.length();
+		}
+	}
+	while (result.outerStart > lastEntityBeforeEnd
+		&& chIsSpace(*(start + result.outerStart - 1), rich)
+		&& !chIsNewline(*(start + result.outerStart - 1))) {
+		--result.outerStart;
+	}
+	result.addNewlineBefore = (result.outerStart > 0 && !chIsNewline(*(start + result.outerStart - 1)));
+
+	for (auto testInnerStart = result.innerStart; testInnerStart < firstEntityInsideStart; ++testInnerStart) {
+		if (chIsNewline(*(start + testInnerStart))) {
+			result.innerStart = testInnerStart + 1;
+			break;
+		} else if (!chIsSpace(*(start + testInnerStart))) {
+			break;
+		}
+	}
+	for (auto testInnerEnd = result.innerEnd; lastEntityInsideEnd < testInnerEnd;) {
+		--testInnerEnd;
+		if (chIsNewline(*(start + testInnerEnd))) {
+			result.innerEnd = testInnerEnd;
+			break;
+		} else if (!chIsSpace(*(start + testInnerEnd))) {
+			break;
+		}
+	}
+
+	while (result.outerEnd < firstEntityAfterStart
+		&& chIsSpace(*(start + result.outerEnd))
+		&& !chIsNewline(*(start + result.outerEnd))) {
+		++result.outerEnd;
+	}
+	result.addNewlineAfter = (result.outerEnd < length && !chIsNewline(*(start + result.outerEnd)));
+}
+
+void ParseMarkdown(TextWithEntities &result, bool rich) {
+	if (result.empty()) {
+		return;
+	}
+	auto newResult = TextWithEntities();
+
+	auto existingEntityIndex = 0;
+	auto existingEntitiesCount = result.entities.size();
+	auto existingEntityShiftLeft = 0;
+
+	auto copyFromOffset = 0;
+	auto matchFromOffset = 0;
+	auto length = result.text.size();
+	auto nextCommandOffset = rich ? 0 : length;
+	auto inLink = false;
+	auto commandIsLink = false;
+	const auto start = result.text.constData();
+	for (; matchFromOffset < length;) {
+		if (nextCommandOffset <= matchFromOffset) {
+			for (nextCommandOffset = matchFromOffset; nextCommandOffset != length; ++nextCommandOffset) {
+				if (*(start + nextCommandOffset) == TextCommand) {
 					inLink = commandIsLink;
-					commandIsLink = false;
-				}
-			}
-			auto mPre = RegExpMonoInline().match(result.text, matchOffset);
-			auto mCode = RegExpMonoBlock().match(result.text, matchOffset);
-			if (!mPre.hasMatch() && !mCode.hasMatch()) break;
-
-			int preStart = mPre.hasMatch() ? mPre.capturedStart() : INT_MAX,
-				preEnd = mPre.hasMatch() ? mPre.capturedEnd() : INT_MAX,
-				codeStart = mCode.hasMatch() ? mCode.capturedStart() : INT_MAX,
-				codeEnd = mCode.hasMatch() ? mCode.capturedEnd() : INT_MAX,
-				tagStart, tagEnd;
-			if (mPre.hasMatch()) {
-				if (!mPre.capturedRef(1).isEmpty()) {
-					++preStart;
-				}
-				if (!mPre.capturedRef(4).isEmpty()) {
-					--preEnd;
-				}
-			}
-			if (mCode.hasMatch()) {
-				if (!mCode.capturedRef(1).isEmpty()) {
-					++codeStart;
-				}
-				if (!mCode.capturedRef(4).isEmpty()) {
-					--codeEnd;
-				}
-			}
-
-			bool pre = (preStart <= codeStart);
-			auto mTag = pre ? mPre : mCode;
-			if (pre) {
-				tagStart = preStart;
-				tagEnd = preEnd;
-			} else {
-				tagStart = codeStart;
-				tagEnd = codeEnd;
-			}
-
-			bool inCommand = checkTagStartInCommand(start, len, tagStart, commandOffset, commandIsLink, inLink);
-			if (inCommand || inLink) {
-				matchOffset = commandOffset;
-				continue;
-			}
-
-			bool addNewlineBefore = false, addNewlineAfter = false;
-			int32 outerStart = tagStart, outerEnd = tagEnd;
-			int32 innerStart = tagStart + mTag.capturedLength(2), innerEnd = tagEnd - mTag.capturedLength(3);
-
-			// Check if start or end sequences intersect any existing entity.
-			int intersectedEntityEnd = 0;
-			for_const (auto &entity, result.entities) {
-				if (qMin(innerStart, entity.offset() + entity.length()) > qMax(outerStart, entity.offset()) ||
-					qMin(outerEnd, entity.offset() + entity.length()) > qMax(innerEnd, entity.offset())) {
-					intersectedEntityEnd = entity.offset() + entity.length();
+					commandIsLink = textcmdStartsLink(start, length, nextCommandOffset);
 					break;
 				}
 			}
-			if (intersectedEntityEnd > 0) {
-				matchOffset = qMax(innerStart, intersectedEntityEnd);
-				continue;
+			if (nextCommandOffset >= length) {
+				inLink = commandIsLink;
+				commandIsLink = false;
 			}
-
-			if (newText.isEmpty()) newText.reserve(result.text.size());
-			if (pre) {
-				while (outerStart > 0 && chIsSpace(*(start + outerStart - 1), rich) && !chIsNewline(*(start + outerStart - 1))) {
-					--outerStart;
-				}
-				addNewlineBefore = (outerStart > 0 && !chIsNewline(*(start + outerStart - 1)));
-
-				for (int32 testInnerStart = innerStart; testInnerStart < innerEnd; ++testInnerStart) {
-					if (chIsNewline(*(start + testInnerStart))) {
-						innerStart = testInnerStart + 1;
-						break;
-					} else if (!chIsSpace(*(start + testInnerStart))) {
-						break;
-					}
-				}
-				for (int32 testInnerEnd = innerEnd; innerStart < testInnerEnd;) {
-					--testInnerEnd;
-					if (chIsNewline(*(start + testInnerEnd))) {
-						innerEnd = testInnerEnd;
-						break;
-					} else if (!chIsSpace(*(start + testInnerEnd))) {
-						break;
-					}
-				}
-
-				while (outerEnd < len && chIsSpace(*(start + outerEnd)) && !chIsNewline(*(start + outerEnd))) {
-					++outerEnd;
-				}
-				addNewlineAfter = (outerEnd < len && !chIsNewline(*(start + outerEnd)));
-			}
-
-			for (; existingEntityIndex < existingEntitiesCount && result.entities[existingEntityIndex].offset() < innerStart; ++existingEntityIndex) {
-				auto &entity = result.entities[existingEntityIndex];
-				newEntities.push_back(entity);
-				newEntities.back().shiftLeft(existingEntityShiftLeft);
-			}
-			if (outerStart > offset) newText.append(start + offset, outerStart - offset);
-			if (addNewlineBefore) newText.append('\n');
-			existingEntityShiftLeft += (innerStart - outerStart) - (addNewlineBefore ? 1 : 0);
-
-			int entityStart = newText.size(), entityLength = innerEnd - innerStart;
-			newEntities.push_back(EntityInText(pre ? EntityInTextPre : EntityInTextCode, entityStart, entityLength));
-
-			for (; existingEntityIndex < existingEntitiesCount && result.entities[existingEntityIndex].offset() <= innerEnd; ++existingEntityIndex) {
-				auto &entity = result.entities[existingEntityIndex];
-				newEntities.push_back(entity);
-				newEntities.back().shiftLeft(existingEntityShiftLeft);
-			}
-			newText.append(start + innerStart, entityLength);
-			if (addNewlineAfter) newText.append('\n');
-			existingEntityShiftLeft += (outerEnd - innerEnd) - (addNewlineAfter ? 1 : 0);
-
-			offset = matchOffset = outerEnd;
 		}
-		if (!newText.isEmpty()) {
-			newText.append(start + offset, len - offset);
-			result.text = newText;
-		}
-		if (!newEntities.isEmpty()) {
-			for (; existingEntityIndex < existingEntitiesCount; ++existingEntityIndex) {
-				auto &entity = result.entities[existingEntityIndex];
-				newEntities.push_back(entity);
-				newEntities.back().shiftLeft(existingEntityShiftLeft);
+		auto part = MarkdownPart();
+		auto testPart = [&part, &result, matchFromOffset, rich](EntityInTextType type) {
+			auto test = GetMarkdownPart(type, result.text, matchFromOffset, rich);
+			if (test.type != EntityInTextInvalid) {
+				if (part.type == EntityInTextInvalid || part.outerStart > test.outerStart) {
+					part = test;
+				}
 			}
-			result.entities = newEntities;
-			newEntities = EntitiesInText();
+		};
+		testPart(EntityInTextBold);
+		testPart(EntityInTextItalic);
+		testPart(EntityInTextPre);
+		testPart(EntityInTextCode);
+		if (part.type == EntityInTextInvalid) {
+			break;
 		}
+
+		// Check if start sequence intersects a command.
+		auto inCommand = checkTagStartInCommand(start, length, part.outerStart, nextCommandOffset, commandIsLink, inLink);
+		if (inCommand || inLink) {
+			matchFromOffset = nextCommandOffset;
+			continue;
+		}
+
+		// Check if start or end sequences intersect any existing entity.
+		auto intersectedEntityEnd = 0;
+		for_const (auto &entity, result.entities) {
+			if (qMin(part.innerStart, entity.offset() + entity.length()) > qMax(part.outerStart, entity.offset()) ||
+				qMin(part.outerEnd, entity.offset() + entity.length()) > qMax(part.innerEnd, entity.offset())) {
+				intersectedEntityEnd = entity.offset() + entity.length();
+				break;
+			}
+		}
+		if (intersectedEntityEnd > 0) {
+			matchFromOffset = qMax(part.innerStart, intersectedEntityEnd);
+			continue;
+		}
+
+		if (part.type == EntityInTextPre) {
+			AdjustMarkdownPrePart(part, result, rich);
+		}
+
+		if (newResult.text.isEmpty()) newResult.text.reserve(result.text.size());
+		for (; existingEntityIndex < existingEntitiesCount && result.entities[existingEntityIndex].offset() < part.innerStart; ++existingEntityIndex) {
+			auto &entity = result.entities[existingEntityIndex];
+			newResult.entities.push_back(entity);
+			newResult.entities.back().shiftLeft(existingEntityShiftLeft);
+		}
+		if (part.outerStart > copyFromOffset) {
+			newResult.text.append(start + copyFromOffset, part.outerStart - copyFromOffset);
+		}
+		if (part.addNewlineBefore) newResult.text.append('\n');
+		existingEntityShiftLeft += (part.innerStart - part.outerStart) - (part.addNewlineBefore ? 1 : 0);
+
+		auto entityStart = newResult.text.size();
+		auto entityLength = part.innerEnd - part.innerStart;
+		newResult.entities.push_back(EntityInText(part.type, entityStart, entityLength));
+
+		for (; existingEntityIndex < existingEntitiesCount && result.entities[existingEntityIndex].offset() <= part.innerEnd; ++existingEntityIndex) {
+			auto &entity = result.entities[existingEntityIndex];
+			newResult.entities.push_back(entity);
+			newResult.entities.back().shiftLeft(existingEntityShiftLeft);
+		}
+		newResult.text.append(start + part.innerStart, entityLength);
+		if (part.addNewlineAfter) newResult.text.append('\n');
+		existingEntityShiftLeft += (part.outerEnd - part.innerEnd) - (part.addNewlineAfter ? 1 : 0);
+
+		copyFromOffset = matchFromOffset = part.outerEnd;
 	}
+	if (!newResult.empty()) {
+		newResult.text.append(start + copyFromOffset, length - copyFromOffset);
+		for (; existingEntityIndex < existingEntitiesCount; ++existingEntityIndex) {
+			auto &entity = result.entities[existingEntityIndex];
+			newResult.entities.push_back(entity);
+			newResult.entities.back().shiftLeft(existingEntityShiftLeft);
+		}
+		result = std::move(newResult);
+	}
+}
+
+// Some code is duplicated in flattextarea.cpp!
+void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
+	if (flags & TextParseMarkdown) { // parse markdown entities (bold, italic, code and pre)
+		ParseMarkdown(result, rich);
+	}
+
+	auto newEntities = EntitiesInText();
+	bool withHashtags = (flags & TextParseHashtags);
+	bool withMentions = (flags & TextParseMentions);
+	bool withBotCommands = (flags & TextParseBotCommands);
 
 	int existingEntityIndex = 0, existingEntitiesCount = result.entities.size();
 	int existingEntityEnd = 0;
