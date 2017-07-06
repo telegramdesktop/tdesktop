@@ -96,7 +96,7 @@ void SpecialConfigRequest::dnsFinished() {
 	auto error = QJsonParseError { 0, QJsonParseError::NoError };
 	auto document = QJsonDocument::fromJson(result, &error);
 	if (error.error != QJsonParseError::NoError) {
-		LOG(("Config Error: Faild to parse dns response JSON, error: %1").arg(error.errorString()));
+		LOG(("Config Error: Failed to parse dns response JSON, error: %1").arg(error.errorString()));
 	} else if (!document.isObject()) {
 		LOG(("Config Error: Not an object received in dns response JSON."));
 	} else {
