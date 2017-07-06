@@ -1544,6 +1544,9 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &entities, Conver
 }
 
 struct MarkdownPart {
+	MarkdownPart() = default;
+	MarkdownPart(EntityInTextType type) : type(type), outerStart(-1) {
+	}
 	EntityInTextType type = EntityInTextInvalid;
 	int outerStart = 0;
 	int innerStart = 0;
@@ -1647,6 +1650,13 @@ void ParseMarkdown(TextWithEntities &result, bool rich) {
 	}
 	auto newResult = TextWithEntities();
 
+	MarkdownPart computedParts[4] = {
+		{ EntityInTextBold },
+		{ EntityInTextItalic },
+		{ EntityInTextPre },
+		{ EntityInTextCode },
+	};
+
 	auto existingEntityIndex = 0;
 	auto existingEntitiesCount = result.entities.size();
 	auto existingEntityShiftLeft = 0;
@@ -1673,18 +1683,23 @@ void ParseMarkdown(TextWithEntities &result, bool rich) {
 			}
 		}
 		auto part = MarkdownPart();
-		auto testPart = [&part, &result, matchFromOffset, rich](EntityInTextType type) {
-			auto test = GetMarkdownPart(type, result.text, matchFromOffset, rich);
-			if (test.type != EntityInTextInvalid) {
-				if (part.type == EntityInTextInvalid || part.outerStart > test.outerStart) {
-					part = test;
+		auto checkType = [&part, &result, matchFromOffset, rich](MarkdownPart &computedPart) {
+			if (computedPart.type == EntityInTextInvalid) {
+				return;
+			}
+			if (matchFromOffset > computedPart.outerStart) {
+				computedPart = GetMarkdownPart(computedPart.type, result.text, matchFromOffset, rich);
+				if (computedPart.type == EntityInTextInvalid) {
+					return;
 				}
 			}
+			if (part.type == EntityInTextInvalid || part.outerStart > computedPart.outerStart) {
+				part = computedPart;
+			}
 		};
-		testPart(EntityInTextBold);
-		testPart(EntityInTextItalic);
-		testPart(EntityInTextPre);
-		testPart(EntityInTextCode);
+		for (auto &computedPart : computedParts) {
+			checkType(computedPart);
+		}
 		if (part.type == EntityInTextInvalid) {
 			break;
 		}
