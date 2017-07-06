@@ -1322,8 +1322,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_filter_messages_deleted" = "Verwijderd berichten";
 "lng_admin_log_filter_messages_edited" = "Gewijzigde berichten";
 "lng_admin_log_filter_messages_pinned" = "Vastgezette berichten";
-"lng_admin_log_filter_members_removed" = "Leden verwijderd";
-"lng_admin_log_filter_all_admins" = "Alle beheerders";
+"lng_admin_log_filter_members_removed" = "Vertrokken leden";
+"lng_admin_log_filter_all_admins" = "Alle gebruikers";
 "lng_admin_log_about" = "Wat is dit?";
 "lng_admin_log_about_text" = "Dit is een lijst met alle acties van de groepsleden en beheerders in de afgelopen 48 uur.";
 "lng_admin_log_no_results_title" = "Geen gebeurtenissen";

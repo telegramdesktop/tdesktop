@@ -1322,8 +1322,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_filter_messages_deleted" = "Mensagens apagadas";
 "lng_admin_log_filter_messages_edited" = "Mensagens editadas";
 "lng_admin_log_filter_messages_pinned" = "Mensagens fixadas";
-"lng_admin_log_filter_members_removed" = "Membros removidos";
-"lng_admin_log_filter_all_admins" = "Todos os admins";
+"lng_admin_log_filter_members_removed" = "Membros saindo";
+"lng_admin_log_filter_all_admins" = "Todos usuários e admins";
 "lng_admin_log_about" = "O que é isso?";
 "lng_admin_log_about_text" = "Essa é uma lista de todas as ações tomadas pelos membros e admins do grupo nas últimas 48 horas.";
 "lng_admin_log_no_results_title" = "Nenhum evento encontrado";

@@ -1323,7 +1323,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_filter_messages_edited" = "Mensajes editados";
 "lng_admin_log_filter_messages_pinned" = "Mensajes anclados";
 "lng_admin_log_filter_members_removed" = "Miembros eliminados";
-"lng_admin_log_filter_all_admins" = "Todos los administradores";
+"lng_admin_log_filter_all_admins" = "Todos los usuarios";
 "lng_admin_log_about" = "¿Qué es esto?";
 "lng_admin_log_about_text" = "Esta es una lista de las acciones de servicio realizadas por los miembros y administradores del grupo en las últimas 48 horas.";
 "lng_admin_log_no_results_title" = "No se encontraron eventos";
