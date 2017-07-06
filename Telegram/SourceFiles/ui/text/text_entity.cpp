@@ -1959,21 +1959,39 @@ QString ApplyEntities(const TextWithEntities &text) {
 	if (text.entities.isEmpty()) return text.text;
 
 	QMultiMap<int32, QString> closingTags;
-	QString code(qsl("`")), pre(qsl("```"));
+	QMap<EntityInTextType, QString> tags;
+	tags.insert(EntityInTextCode, qsl("`"));
+	tags.insert(EntityInTextPre, qsl("```"));
+	tags.insert(EntityInTextBold, qsl("**"));
+	tags.insert(EntityInTextItalic, qsl("__"));
+	constexpr auto kLargestOpenCloseLength = 6;
 
 	QString result;
 	int32 size = text.text.size();
 	const QChar *b = text.text.constData(), *already = b, *e = b + size;
 	auto entity = text.entities.cbegin(), end = text.entities.cend();
-	while (entity != end && ((entity->type() != EntityInTextCode && entity->type() != EntityInTextPre) || entity->length() <= 0 || entity->offset() >= size)) {
-		++entity;
-	}
+	auto skipTillRelevantAndGetTag = [&entity, &end, size, &tags] {
+		while (entity != end) {
+			if (entity->length() <= 0 || entity->offset() >= size) {
+				++entity;
+				continue;
+			}
+			auto it = tags.constFind(entity->type());
+			if (it == tags.cend()) {
+				++entity;
+				continue;
+			}
+			return it.value();
+		}
+		return QString();
+	};
+
+	auto tag = skipTillRelevantAndGetTag();
 	while (entity != end || !closingTags.isEmpty()) {
-		int32 nextOpenEntity = (entity == end) ? (size + 1) : entity->offset();
-		int32 nextCloseEntity = closingTags.isEmpty() ? (size + 1) : closingTags.cbegin().key();
+		auto nextOpenEntity = (entity == end) ? (size + 1) : entity->offset();
+		auto nextCloseEntity = closingTags.isEmpty() ? (size + 1) : closingTags.cbegin().key();
 		if (nextOpenEntity <= nextCloseEntity) {
-			QString tag = (entity->type() == EntityInTextCode) ? code : pre;
-			if (result.isEmpty()) result.reserve(text.text.size() + text.entities.size() * pre.size() * 2);
+			if (result.isEmpty()) result.reserve(text.text.size() + text.entities.size() * kLargestOpenCloseLength);
 
 			const QChar *offset = b + nextOpenEntity;
 			if (offset > already) {
@@ -1984,9 +2002,7 @@ QString ApplyEntities(const TextWithEntities &text) {
 			closingTags.insert(qMin(entity->offset() + entity->length(), size), tag);
 
 			++entity;
-			while (entity != end && ((entity->type() != EntityInTextCode && entity->type() != EntityInTextPre) || entity->length() <= 0 || entity->offset() >= size)) {
-				++entity;
-			}
+			tag = skipTillRelevantAndGetTag();
 		} else {
 			const QChar *offset = b + nextCloseEntity;
 			if (offset > already) {
@@ -2007,33 +2023,40 @@ QString ApplyEntities(const TextWithEntities &text) {
 	return result;
 }
 
-void moveStringPart(QChar *start, int32 &to, int32 &from, int32 count, EntitiesInText *inOutEntities) {
-	if (count > 0) {
-		if (to < from) {
-			memmove(start + to, start + from, count * sizeof(QChar));
-			for (auto &entity : *inOutEntities) {
-				if (entity.offset() >= from + count) break;
-				if (entity.offset() + entity.length() < from) continue;
-				if (entity.offset() >= from) {
-					entity.extendToLeft(from - to);
-				}
-				if (entity.offset() + entity.length() < from + count) {
-					entity.shrinkFromRight(from - to);
-				}
+void MoveStringPart(TextWithEntities &result, int to, int from, int count) {
+	if (!count) return;
+	if (to != from) {
+		auto start = result.text.data();
+		memmove(start + to, start + from, count * sizeof(QChar));
+
+		for (auto &entity : result.entities) {
+			if (entity.offset() >= from + count) break;
+			if (entity.offset() + entity.length() <= from) continue;
+			if (entity.offset() >= from) {
+				entity.extendToLeft(from - to);
+			}
+			if (entity.offset() + entity.length() <= from + count) {
+				entity.shrinkFromRight(from - to);
 			}
 		}
-		to += count;
-		from += count;
 	}
 }
 
-void replaceStringWithEntities(const QLatin1String &from, QChar to, TextWithEntities &result, bool checkSpace = false) {
+void MovePartAndGoForward(TextWithEntities &result, int &to, int &from, int count) {
+	if (!count) return;
+	MoveStringPart(result, to, from, count);
+	to += count;
+	from += count;
+}
+
+void ReplaceStringWithChar(const QLatin1String &from, QChar to, TextWithEntities &result, bool checkSpace = false) {
+	Expects(from.size() > 1);
 	auto len = from.size(), s = result.text.size(), offset = 0, length = 0;
 	auto i = result.entities.begin(), e = result.entities.end();
-	for (QChar *start = result.text.data(); offset < s;) {
-		int32 nextOffset = result.text.indexOf(from, offset);
+	for (auto start = result.text.data(); offset < s;) {
+		auto nextOffset = result.text.indexOf(from, offset);
 		if (nextOffset < 0) {
-			moveStringPart(start, length, offset, s - offset, &result.entities);
+			MovePartAndGoForward(result, length, offset, s - offset);
 			break;
 		}
 
@@ -2041,12 +2064,12 @@ void replaceStringWithEntities(const QLatin1String &from, QChar to, TextWithEnti
 			bool spaceBefore = (nextOffset > 0) && (start + nextOffset - 1)->isSpace();
 			bool spaceAfter = (nextOffset + len < s) && (start + nextOffset + len)->isSpace();
 			if (!spaceBefore && !spaceAfter) {
-				moveStringPart(start, length, offset, nextOffset - offset + len + 1, &result.entities);
+				MovePartAndGoForward(result, length, offset, nextOffset - offset + len + 1);
 				continue;
 			}
 		}
 
-		bool skip = false;
+		auto skip = false;
 		for (; i != e; ++i) { // find and check next finishing entity
 			if (i->offset() + i->length() > nextOffset) {
 				skip = (i->offset() < nextOffset + len);
@@ -2054,11 +2077,11 @@ void replaceStringWithEntities(const QLatin1String &from, QChar to, TextWithEnti
 			}
 		}
 		if (skip) {
-			moveStringPart(start, length, offset, nextOffset - offset + len, &result.entities);
+			MovePartAndGoForward(result, length, offset, nextOffset - offset + len);
 			continue;
 		}
 
-		moveStringPart(start, length, offset, nextOffset - offset, &result.entities);
+		MovePartAndGoForward(result, length, offset, nextOffset - offset);
 
 		*(start + length) = to;
 		++length;
@@ -2074,9 +2097,9 @@ void PrepareForSending(TextWithEntities &result, int32 flags) {
 		ParseEntities(result, flags);
 	}
 
-	replaceStringWithEntities(qstr("--"), QChar(8212), result, true);
-	replaceStringWithEntities(qstr("<<"), QChar(171), result);
-	replaceStringWithEntities(qstr(">>"), QChar(187), result);
+	ReplaceStringWithChar(qstr("--"), QChar(8212), result, true);
+	ReplaceStringWithChar(qstr("<<"), QChar(171), result);
+	ReplaceStringWithChar(qstr(">>"), QChar(187), result);
 
 	if (cReplaceEmojis()) {
 		Ui::Emoji::ReplaceInText(result);
@@ -2087,18 +2110,39 @@ void PrepareForSending(TextWithEntities &result, int32 flags) {
 
 // Replace bad symbols with space and remove '\r'.
 void ApplyServerCleaning(TextWithEntities &result) {
-	result.text = result.text.replace('\t', qstr("  ")); // TODO WTF? modify entities!
-	int32 len = result.text.size(), to = 0, from = 0;
-	QChar *start = result.text.data();
-	for (QChar *ch = start, *end = start + len; ch < end; ++ch) {
+	auto len = result.text.size();
+
+	// Replace tabs with two spaces.
+	if (auto tabs = std::count(result.text.cbegin(), result.text.cend(), '\t')) {
+		auto replacement = qsl("  ");
+		auto replacementLength = replacement.size();
+		auto shift = (replacementLength - 1);
+		result.text.resize(len + shift * tabs);
+		for (auto i = len, movedTill = len, to = result.text.size(); i > 0; --i) {
+			if (result.text[i - 1] == '\t') {
+				auto toMove = movedTill - i;
+				to -= toMove;
+				MoveStringPart(result, to, i, toMove);
+				to -= replacementLength;
+				memcpy(result.text.data() + to, replacement.constData(), replacementLength * sizeof(QChar));
+				movedTill = i - 1;
+			}
+		}
+		len = result.text.size();
+	}
+
+	auto to = 0;
+	auto from = 0;
+	auto start = result.text.data();
+	for (auto ch = start, end = start + len; ch < end; ++ch) {
 		if (ch->unicode() == '\r') {
-			moveStringPart(start, to, from, (ch - start) - from, &result.entities);
+			MovePartAndGoForward(result, to, from, (ch - start) - from);
 			++from;
 		} else if (chReplacedBySpace(*ch)) {
 			*ch = ' ';
 		}
 	}
-	moveStringPart(start, to, from, len - from, &result.entities);
+	MovePartAndGoForward(result, to, from, len - from);
 	if (to < len) result.text.resize(to);
 }
 
