@@ -197,29 +197,30 @@ inline QString Filename(int index = Index()) {
 	return QString::fromLatin1(EmojiNames[index]);
 }
 
-inline void appendPartToResult(QString &result, const QChar *start, const QChar *from, const QChar *to, EntitiesInText *inOutEntities) {
+inline void AppendPartToResult(TextWithEntities &result, const QChar *start, const QChar *from, const QChar *to) {
 	if (to > from) {
-		for (auto &entity : *inOutEntities) {
+		for (auto &entity : result.entities) {
 			if (entity.offset() >= to - start) break;
 			if (entity.offset() + entity.length() < from - start) continue;
 			if (entity.offset() >= from - start) {
-				entity.extendToLeft(from - start - result.size());
+				entity.extendToLeft(from - start - result.text.size());
 			}
 			if (entity.offset() + entity.length() <= to - start) {
-				entity.shrinkFromRight(from - start - result.size());
+				entity.shrinkFromRight(from - start - result.text.size());
 			}
 		}
-		result.append(from, to - from);
+		result.text.append(from, to - from);
 	}
 }
 
-inline QString ReplaceInText(const QString &text, EntitiesInText *inOutEntities) {
-	auto result = QString();
-	auto currentEntity = inOutEntities->begin();
-	auto entitiesEnd = inOutEntities->end();
-	auto emojiStart = text.constData();
+inline void ReplaceInText(TextWithEntities &result) {
+	auto newText = TextWithEntities();
+	newText.entities = std::move(result.entities);
+	auto currentEntity = newText.entities.begin();
+	auto entitiesEnd = newText.entities.end();
+	auto emojiStart = result.text.constData();
 	auto emojiEnd = emojiStart;
-	auto end = emojiStart + text.size();
+	auto end = emojiStart + result.text.size();
 	auto canFindEmoji = true;
 	for (auto ch = emojiEnd; ch != end;) {
 		auto emojiLength = 0;
@@ -234,9 +235,9 @@ inline QString ReplaceInText(const QString &text, EntitiesInText *inOutEntities)
 		    (newEmojiEnd == end || !newEmojiEnd->isLetterOrNumber() || newEmojiEnd == emojiStart || !(newEmojiEnd - 1)->isLetterOrNumber()) &&
 			(currentEntity == entitiesEnd || (ch < emojiStart + currentEntity->offset() && newEmojiEnd <= emojiStart + currentEntity->offset()) || (ch >= emojiStart + currentEntity->offset() + currentEntity->length() && newEmojiEnd > emojiStart + currentEntity->offset() + currentEntity->length()))
 		) {
-			if (result.isEmpty()) result.reserve(text.size());
+			if (newText.text.isEmpty()) newText.text.reserve(result.text.size());
 
-			appendPartToResult(result, emojiStart, emojiEnd, ch, inOutEntities);
+			AppendPartToResult(newText, emojiStart, emojiEnd, ch);
 
 			if (emoji->hasVariants()) {
 				auto it = cEmojiVariants().constFind(emoji->nonColoredId());
@@ -244,7 +245,7 @@ inline QString ReplaceInText(const QString &text, EntitiesInText *inOutEntities)
 					emoji = emoji->variant(it.value());
 				}
 			}
-			result.append(emoji->text());
+			newText.text.append(emoji->text());
 
 			ch = emojiEnd = newEmojiEnd;
 			canFindEmoji = true;
@@ -257,11 +258,12 @@ inline QString ReplaceInText(const QString &text, EntitiesInText *inOutEntities)
 			++ch;
 		}
 	}
-	if (result.isEmpty()) return text;
-
-	appendPartToResult(result, emojiStart, emojiEnd, end, inOutEntities);
-
-	return result;
+	if (newText.text.isEmpty()) {
+		result.entities = std::move(newText.entities);
+	} else {
+		AppendPartToResult(newText, emojiStart, emojiEnd, end);
+		result = std::move(newText);
+	}
 }
 
 inline RecentEmojiPack &GetRecent() {

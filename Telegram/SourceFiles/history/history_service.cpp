@@ -89,7 +89,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	auto prepareChatCreate = [this](const MTPDmessageActionChatCreate &action) {
 		auto result = PreparedText {};
 		result.links.push_back(fromLink());
-		result.text = lng_action_created_chat(lt_from, fromLinkText(), lt_title, textClean(qs(action.vtitle)));
+		result.text = lng_action_created_chat(lt_from, fromLinkText(), lt_title, TextUtilities::Clean(qs(action.vtitle)));
 		return result;
 	};
 
@@ -99,7 +99,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			result.text = lang(lng_action_created_channel);
 		} else {
 			result.links.push_back(fromLink());
-			result.text = lng_action_created_chat(lt_from, fromLinkText(), lt_title, textClean(qs(action.vtitle)));
+			result.text = lng_action_created_chat(lt_from, fromLinkText(), lt_title, TextUtilities::Clean(qs(action.vtitle)));
 		}
 		return result;
 	};
@@ -143,10 +143,10 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	auto prepareChatEditTitle = [this](const MTPDmessageActionChatEditTitle &action) {
 		auto result = PreparedText {};
 		if (isPost()) {
-			result.text = lng_action_changed_title_channel(lt_title, textClean(qs(action.vtitle)));
+			result.text = lng_action_changed_title_channel(lt_title, TextUtilities::Clean(qs(action.vtitle)));
 		} else {
 			result.links.push_back(fromLink());
-			result.text = lng_action_changed_title(lt_from, fromLinkText(), lt_title, textClean(qs(action.vtitle)));
+			result.text = lng_action_changed_title(lt_from, fromLinkText(), lt_title, TextUtilities::Clean(qs(action.vtitle)));
 		}
 		return result;
 	};
@@ -423,7 +423,7 @@ TextWithEntities HistoryService::selectedText(TextSelection selection) const {
 }
 
 QString HistoryService::inDialogsText() const {
-	return textcmdLink(1, textClean(notificationText()));
+	return textcmdLink(1, TextUtilities::Clean(notificationText()));
 }
 
 QString HistoryService::inReplyText() const {

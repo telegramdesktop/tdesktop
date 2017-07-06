@@ -984,7 +984,7 @@ void PeerListBox::Inner::checkScrollForPreload() {
 }
 
 void PeerListBox::Inner::searchQueryChanged(QString query) {
-	auto searchWordsList = query.isEmpty() ? QStringList() : query.split(cWordSplit(), QString::SkipEmptyParts);
+	auto searchWordsList = TextUtilities::PrepareSearchWords(query);
 	auto normalizedQuery = searchWordsList.isEmpty() ? QString() : searchWordsList.join(' ');
 	if (_normalizedSearchQuery != normalizedQuery) {
 		setSearchQuery(query, normalizedQuery);

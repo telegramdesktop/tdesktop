@@ -87,7 +87,7 @@ void ApiWrap::addLocalChangelogs(int oldAppVersion) {
 	auto addedSome = false;
 	auto addLocalChangelog = [this, &addedSome](const QString &text) {
 		auto textWithEntities = TextWithEntities { text };
-		textParseEntities(textWithEntities.text, TextParseLinks, &textWithEntities.entities);
+		TextUtilities::ParseEntities(textWithEntities, TextParseLinks);
 		App::wnd()->serviceNotification(textWithEntities, MTP_messageMediaEmpty(), unixtime());
 		addedSome = true;
 	};
@@ -1177,7 +1177,7 @@ void ApiWrap::saveDraftsToCloud() {
 		if (!textWithTags.tags.isEmpty()) {
 			flags |= MTPmessages_SaveDraft::Flag::f_entities;
 		}
-		auto entities = linksToMTP(ConvertTextTagsToEntities(textWithTags.tags), true);
+		auto entities = TextUtilities::EntitiesToMTP(ConvertTextTagsToEntities(textWithTags.tags), TextUtilities::ConvertOption::SkipLocal);
 
 		cloudDraft->saveRequestId = request(MTPmessages_SaveDraft(MTP_flags(flags), MTP_int(cloudDraft->msgId), history->peer->input, MTP_string(textWithTags.text), entities)).done([this, history](const MTPBool &result, mtpRequestId requestId) {
 			if (auto cloudDraft = history->cloudDraft()) {

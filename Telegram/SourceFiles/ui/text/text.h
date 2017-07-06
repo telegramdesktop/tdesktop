@@ -258,15 +258,6 @@ inline TextSelection unshiftSelection(TextSelection selection, const Text &byTex
 	return unshiftSelection(selection, byText.length());
 }
 
-void initLinkSets();
-const QSet<int32> &validProtocols();
-const QSet<int32> &validTopDomains();
-const QRegularExpression &reDomain();
-const QRegularExpression &reMailName();
-const QRegularExpression &reMailStart();
-const QRegularExpression &reHashtag();
-const QRegularExpression &reBotCommand();
-
 // textcmd
 QString textcmdSkipBlock(ushort w, ushort h);
 QString textcmdStartLink(ushort lnkIndex);

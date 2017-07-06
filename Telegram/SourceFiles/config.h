@@ -336,11 +336,6 @@ enum {
 	ForwardOnAdd = 100, // how many messages from chat history server should forward to user, that was added to this chat
 };
 
-inline const QRegularExpression &cWordSplit() {
-	static QRegularExpression regexp(qsl("[\\@\\s\\-\\+\\(\\)\\[\\]\\{\\}\\<\\>\\,\\.\\:\\!\\_\\;\\\"\\'\\x0]"));
-	return regexp;
-}
-
 inline const QRegularExpression &cRussianLetters() {
 	static QRegularExpression regexp(QString::fromUtf8("[а-яА-ЯёЁ]"));
 	return regexp;

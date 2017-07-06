@@ -39,7 +39,7 @@ Widget::Widget(QWidget *parent, const Config &config) : TWidget(parent)
 	if (_multiline) {
 		toastOptions.maxh *= kToastMaxLines;
 	}
-	_text.setText(st::toastTextStyle, _multiline ? config.text : textOneLine(config.text), toastOptions);
+	_text.setText(st::toastTextStyle, _multiline ? config.text : TextUtilities::SingleLine(config.text), toastOptions);
 
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 

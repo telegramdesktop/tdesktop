@@ -23,391 +23,390 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "auth_session.h"
 #include "lang/lang_tag.h"
 
+namespace TextUtilities {
 namespace {
 
-const QRegularExpression _reDomain(QString::fromUtf8("(?<![\\w\\$\\-\\_%=\\.])(?:([a-zA-Z]+)://)?((?:[A-Za-z" "\xd0\x90-\xd0\xaf" "\xd0\xb0-\xd1\x8f" "\xd1\x91\xd0\x81" "0-9\\-\\_]+\\.){1,10}([A-Za-z" "\xd1\x80\xd1\x84" "\\-\\d]{2,22})(\\:\\d+)?)"), QRegularExpression::UseUnicodePropertiesOption);
-const QRegularExpression _reExplicitDomain(QString::fromUtf8("(?<![\\w\\$\\-\\_%=\\.])(?:([a-zA-Z]+)://)((?:[A-Za-z" "\xd0\x90-\xd0\xaf\xd0\x81" "\xd0\xb0-\xd1\x8f\xd1\x91" "0-9\\-\\_]+\\.){0,5}([A-Za-z" "\xd1\x80\xd1\x84" "\\-\\d]{2,22})(\\:\\d+)?)"), QRegularExpression::UseUnicodePropertiesOption);
-const QRegularExpression _reMailName(qsl("[a-zA-Z\\-_\\.0-9]{1,256}$"));
-const QRegularExpression _reMailStart(qsl("^[a-zA-Z\\-_\\.0-9]{1,256}\\@"));
-const QRegularExpression _reHashtag(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])#[\\w]{2,64}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
-const QRegularExpression _reMention(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])@[A-Za-z_0-9]{1,32}([\\W]|$)"), QRegularExpression::UseUnicodePropertiesOption);
-const QRegularExpression _reBotCommand(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])/[A-Za-z_0-9]{1,64}(@[A-Za-z_0-9]{5,32})?([\\W]|$)"));
-const QRegularExpression _rePre(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\?\\%\\^\\*\\(\\)\\-\\+=\\x10])(````?)[\\s\\S]+?(````?)([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\?\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)"), QRegularExpression::UseUnicodePropertiesOption);
-const QRegularExpression _reCode(qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\?\\%\\^\\*\\(\\)\\-\\+=\\x10])(`)[^\\n]+?(`)([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\?\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)"), QRegularExpression::UseUnicodePropertiesOption);
-QSet<int32> _validProtocols, _validTopDomains;
-
-} // namespace
-
-const QRegularExpression &reDomain() {
-	return _reDomain;
+QString ExpressionDomain() {
+	// Matches any domain name, containing at least one '.', including "file.txt".
+	return QString::fromUtf8("(?<![\\w\\$\\-\\_%=\\.])(?:([a-zA-Z]+)://)?((?:[A-Za-z" "\xd0\x90-\xd0\xaf\xd0\x81" "\xd0\xb0-\xd1\x8f\xd1\x91" "0-9\\-\\_]+\\.){1,10}([A-Za-z" "\xd1\x80\xd1\x84" "\\-\\d]{2,22})(\\:\\d+)?)");
 }
 
-const QRegularExpression &reMailName() {
-	return _reMailName;
+QString ExpressionDomainExplicit() {
+	// Matches any domain name, containing a protocol, including "test://localhost".
+	return QString::fromUtf8("(?<![\\w\\$\\-\\_%=\\.])(?:([a-zA-Z]+)://)((?:[A-Za-z" "\xd0\x90-\xd0\xaf\xd0\x81" "\xd0\xb0-\xd1\x8f\xd1\x91" "0-9\\-\\_]+\\.){0,10}([A-Za-z" "\xd1\x80\xd1\x84" "\\-\\d]{2,22})(\\:\\d+)?)");
 }
 
-const QRegularExpression &reMailStart() {
-	return _reMailStart;
+QString ExpressionMailNameAtEnd() {
+	// Matches e-mail first part (before '@') at the end of the string.
+	// First we find a domain without protocol (like "gmail.com"), then
+	// we find '@' before it and then we look for the name before '@'.
+	return qsl("[a-zA-Z\\-_\\.0-9]{1,256}$");
 }
 
-const QRegularExpression &reHashtag() {
-	return _reHashtag;
+QString ExpressionHashtag() {
+	return qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])#[\\w]{2,64}([\\W]|$)");
 }
 
-const QRegularExpression &reBotCommand() {
-	return _reBotCommand;
+QString ExpressionMention() {
+	return qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])@[A-Za-z_0-9]{1,32}([\\W]|$)");
 }
 
-namespace {
-
-void regOneProtocol(const QString &protocol) {
-	_validProtocols.insert(hashCrc32(protocol.constData(), protocol.size() * sizeof(QChar)));
+QString ExpressionBotCommand() {
+	return qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\%\\^\\*\\(\\)\\-\\+=\\x10])/[A-Za-z_0-9]{1,64}(@[A-Za-z_0-9]{5,32})?([\\W]|$)");
 }
 
-void regOneTopDomain(const QString &domain) {
-	_validTopDomains.insert(hashCrc32(domain.constData(), domain.size() * sizeof(QChar)));
+QString ExpressionMonoInline() { // pre
+	return qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\?\\%\\^\\*\\(\\)\\-\\+=\\x10])(````?)[\\s\\S]+?(````?)([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\?\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)");
 }
 
-} // namespace
-
-const QSet<int32> &validProtocols() {
-	return _validProtocols;
-}
-const QSet<int32> &validTopDomains() {
-	return _validTopDomains;
+QString ExpressionMonoBlock() { // code
+	return qsl("(^|[\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\?\\%\\^\\*\\(\\)\\-\\+=\\x10])(`)[^\\n]+?(`)([\\s\\.,:;<>|'\"\\[\\]\\{\\}`\\~\\!\\?\\%\\^\\*\\(\\)\\-\\+=\\x10]|$)");
 }
 
-void initLinkSets() {
-	if (!_validProtocols.isEmpty() || !_validTopDomains.isEmpty()) return;
-
-	regOneProtocol(qsl("itmss")); // itunes
-	regOneProtocol(qsl("http"));
-	regOneProtocol(qsl("https"));
-	regOneProtocol(qsl("ftp"));
-	regOneProtocol(qsl("tg")); // local urls
-
-	regOneTopDomain(qsl("ac"));
-	regOneTopDomain(qsl("ad"));
-	regOneTopDomain(qsl("ae"));
-	regOneTopDomain(qsl("af"));
-	regOneTopDomain(qsl("ag"));
-	regOneTopDomain(qsl("ai"));
-	regOneTopDomain(qsl("al"));
-	regOneTopDomain(qsl("am"));
-	regOneTopDomain(qsl("an"));
-	regOneTopDomain(qsl("ao"));
-	regOneTopDomain(qsl("aq"));
-	regOneTopDomain(qsl("ar"));
-	regOneTopDomain(qsl("as"));
-	regOneTopDomain(qsl("at"));
-	regOneTopDomain(qsl("au"));
-	regOneTopDomain(qsl("aw"));
-	regOneTopDomain(qsl("ax"));
-	regOneTopDomain(qsl("az"));
-	regOneTopDomain(qsl("ba"));
-	regOneTopDomain(qsl("bb"));
-	regOneTopDomain(qsl("bd"));
-	regOneTopDomain(qsl("be"));
-	regOneTopDomain(qsl("bf"));
-	regOneTopDomain(qsl("bg"));
-	regOneTopDomain(qsl("bh"));
-	regOneTopDomain(qsl("bi"));
-	regOneTopDomain(qsl("bj"));
-	regOneTopDomain(qsl("bm"));
-	regOneTopDomain(qsl("bn"));
-	regOneTopDomain(qsl("bo"));
-	regOneTopDomain(qsl("br"));
-	regOneTopDomain(qsl("bs"));
-	regOneTopDomain(qsl("bt"));
-	regOneTopDomain(qsl("bv"));
-	regOneTopDomain(qsl("bw"));
-	regOneTopDomain(qsl("by"));
-	regOneTopDomain(qsl("bz"));
-	regOneTopDomain(qsl("ca"));
-	regOneTopDomain(qsl("cc"));
-	regOneTopDomain(qsl("cd"));
-	regOneTopDomain(qsl("cf"));
-	regOneTopDomain(qsl("cg"));
-	regOneTopDomain(qsl("ch"));
-	regOneTopDomain(qsl("ci"));
-	regOneTopDomain(qsl("ck"));
-	regOneTopDomain(qsl("cl"));
-	regOneTopDomain(qsl("cm"));
-	regOneTopDomain(qsl("cn"));
-	regOneTopDomain(qsl("co"));
-	regOneTopDomain(qsl("cr"));
-	regOneTopDomain(qsl("cu"));
-	regOneTopDomain(qsl("cv"));
-	regOneTopDomain(qsl("cx"));
-	regOneTopDomain(qsl("cy"));
-	regOneTopDomain(qsl("cz"));
-	regOneTopDomain(qsl("de"));
-	regOneTopDomain(qsl("dj"));
-	regOneTopDomain(qsl("dk"));
-	regOneTopDomain(qsl("dm"));
-	regOneTopDomain(qsl("do"));
-	regOneTopDomain(qsl("dz"));
-	regOneTopDomain(qsl("ec"));
-	regOneTopDomain(qsl("ee"));
-	regOneTopDomain(qsl("eg"));
-	regOneTopDomain(qsl("eh"));
-	regOneTopDomain(qsl("er"));
-	regOneTopDomain(qsl("es"));
-	regOneTopDomain(qsl("et"));
-	regOneTopDomain(qsl("eu"));
-	regOneTopDomain(qsl("fi"));
-	regOneTopDomain(qsl("fj"));
-	regOneTopDomain(qsl("fk"));
-	regOneTopDomain(qsl("fm"));
-	regOneTopDomain(qsl("fo"));
-	regOneTopDomain(qsl("fr"));
-	regOneTopDomain(qsl("ga"));
-	regOneTopDomain(qsl("gd"));
-	regOneTopDomain(qsl("ge"));
-	regOneTopDomain(qsl("gf"));
-	regOneTopDomain(qsl("gg"));
-	regOneTopDomain(qsl("gh"));
-	regOneTopDomain(qsl("gi"));
-	regOneTopDomain(qsl("gl"));
-	regOneTopDomain(qsl("gm"));
-	regOneTopDomain(qsl("gn"));
-	regOneTopDomain(qsl("gp"));
-	regOneTopDomain(qsl("gq"));
-	regOneTopDomain(qsl("gr"));
-	regOneTopDomain(qsl("gs"));
-	regOneTopDomain(qsl("gt"));
-	regOneTopDomain(qsl("gu"));
-	regOneTopDomain(qsl("gw"));
-	regOneTopDomain(qsl("gy"));
-	regOneTopDomain(qsl("hk"));
-	regOneTopDomain(qsl("hm"));
-	regOneTopDomain(qsl("hn"));
-	regOneTopDomain(qsl("hr"));
-	regOneTopDomain(qsl("ht"));
-	regOneTopDomain(qsl("hu"));
-	regOneTopDomain(qsl("id"));
-	regOneTopDomain(qsl("ie"));
-	regOneTopDomain(qsl("il"));
-	regOneTopDomain(qsl("im"));
-	regOneTopDomain(qsl("in"));
-	regOneTopDomain(qsl("io"));
-	regOneTopDomain(qsl("iq"));
-	regOneTopDomain(qsl("ir"));
-	regOneTopDomain(qsl("is"));
-	regOneTopDomain(qsl("it"));
-	regOneTopDomain(qsl("je"));
-	regOneTopDomain(qsl("jm"));
-	regOneTopDomain(qsl("jo"));
-	regOneTopDomain(qsl("jp"));
-	regOneTopDomain(qsl("ke"));
-	regOneTopDomain(qsl("kg"));
-	regOneTopDomain(qsl("kh"));
-	regOneTopDomain(qsl("ki"));
-	regOneTopDomain(qsl("km"));
-	regOneTopDomain(qsl("kn"));
-	regOneTopDomain(qsl("kp"));
-	regOneTopDomain(qsl("kr"));
-	regOneTopDomain(qsl("kw"));
-	regOneTopDomain(qsl("ky"));
-	regOneTopDomain(qsl("kz"));
-	regOneTopDomain(qsl("la"));
-	regOneTopDomain(qsl("lb"));
-	regOneTopDomain(qsl("lc"));
-	regOneTopDomain(qsl("li"));
-	regOneTopDomain(qsl("lk"));
-	regOneTopDomain(qsl("lr"));
-	regOneTopDomain(qsl("ls"));
-	regOneTopDomain(qsl("lt"));
-	regOneTopDomain(qsl("lu"));
-	regOneTopDomain(qsl("lv"));
-	regOneTopDomain(qsl("ly"));
-	regOneTopDomain(qsl("ma"));
-	regOneTopDomain(qsl("mc"));
-	regOneTopDomain(qsl("md"));
-	regOneTopDomain(qsl("me"));
-	regOneTopDomain(qsl("mg"));
-	regOneTopDomain(qsl("mh"));
-	regOneTopDomain(qsl("mk"));
-	regOneTopDomain(qsl("ml"));
-	regOneTopDomain(qsl("mm"));
-	regOneTopDomain(qsl("mn"));
-	regOneTopDomain(qsl("mo"));
-	regOneTopDomain(qsl("mp"));
-	regOneTopDomain(qsl("mq"));
-	regOneTopDomain(qsl("mr"));
-	regOneTopDomain(qsl("ms"));
-	regOneTopDomain(qsl("mt"));
-	regOneTopDomain(qsl("mu"));
-	regOneTopDomain(qsl("mv"));
-	regOneTopDomain(qsl("mw"));
-	regOneTopDomain(qsl("mx"));
-	regOneTopDomain(qsl("my"));
-	regOneTopDomain(qsl("mz"));
-	regOneTopDomain(qsl("na"));
-	regOneTopDomain(qsl("nc"));
-	regOneTopDomain(qsl("ne"));
-	regOneTopDomain(qsl("nf"));
-	regOneTopDomain(qsl("ng"));
-	regOneTopDomain(qsl("ni"));
-	regOneTopDomain(qsl("nl"));
-	regOneTopDomain(qsl("no"));
-	regOneTopDomain(qsl("np"));
-	regOneTopDomain(qsl("nr"));
-	regOneTopDomain(qsl("nu"));
-	regOneTopDomain(qsl("nz"));
-	regOneTopDomain(qsl("om"));
-	regOneTopDomain(qsl("pa"));
-	regOneTopDomain(qsl("pe"));
-	regOneTopDomain(qsl("pf"));
-	regOneTopDomain(qsl("pg"));
-	regOneTopDomain(qsl("ph"));
-	regOneTopDomain(qsl("pk"));
-	regOneTopDomain(qsl("pl"));
-	regOneTopDomain(qsl("pm"));
-	regOneTopDomain(qsl("pn"));
-	regOneTopDomain(qsl("pr"));
-	regOneTopDomain(qsl("ps"));
-	regOneTopDomain(qsl("pt"));
-	regOneTopDomain(qsl("pw"));
-	regOneTopDomain(qsl("py"));
-	regOneTopDomain(qsl("qa"));
-	regOneTopDomain(qsl("re"));
-	regOneTopDomain(qsl("ro"));
-	regOneTopDomain(qsl("ru"));
-	regOneTopDomain(qsl("rs"));
-	regOneTopDomain(qsl("rw"));
-	regOneTopDomain(qsl("sa"));
-	regOneTopDomain(qsl("sb"));
-	regOneTopDomain(qsl("sc"));
-	regOneTopDomain(qsl("sd"));
-	regOneTopDomain(qsl("se"));
-	regOneTopDomain(qsl("sg"));
-	regOneTopDomain(qsl("sh"));
-	regOneTopDomain(qsl("si"));
-	regOneTopDomain(qsl("sj"));
-	regOneTopDomain(qsl("sk"));
-	regOneTopDomain(qsl("sl"));
-	regOneTopDomain(qsl("sm"));
-	regOneTopDomain(qsl("sn"));
-	regOneTopDomain(qsl("so"));
-	regOneTopDomain(qsl("sr"));
-	regOneTopDomain(qsl("ss"));
-	regOneTopDomain(qsl("st"));
-	regOneTopDomain(qsl("su"));
-	regOneTopDomain(qsl("sv"));
-	regOneTopDomain(qsl("sx"));
-	regOneTopDomain(qsl("sy"));
-	regOneTopDomain(qsl("sz"));
-	regOneTopDomain(qsl("tc"));
-	regOneTopDomain(qsl("td"));
-	regOneTopDomain(qsl("tf"));
-	regOneTopDomain(qsl("tg"));
-	regOneTopDomain(qsl("th"));
-	regOneTopDomain(qsl("tj"));
-	regOneTopDomain(qsl("tk"));
-	regOneTopDomain(qsl("tl"));
-	regOneTopDomain(qsl("tm"));
-	regOneTopDomain(qsl("tn"));
-	regOneTopDomain(qsl("to"));
-	regOneTopDomain(qsl("tp"));
-	regOneTopDomain(qsl("tr"));
-	regOneTopDomain(qsl("tt"));
-	regOneTopDomain(qsl("tv"));
-	regOneTopDomain(qsl("tw"));
-	regOneTopDomain(qsl("tz"));
-	regOneTopDomain(qsl("ua"));
-	regOneTopDomain(qsl("ug"));
-	regOneTopDomain(qsl("uk"));
-	regOneTopDomain(qsl("um"));
-	regOneTopDomain(qsl("us"));
-	regOneTopDomain(qsl("uy"));
-	regOneTopDomain(qsl("uz"));
-	regOneTopDomain(qsl("va"));
-	regOneTopDomain(qsl("vc"));
-	regOneTopDomain(qsl("ve"));
-	regOneTopDomain(qsl("vg"));
-	regOneTopDomain(qsl("vi"));
-	regOneTopDomain(qsl("vn"));
-	regOneTopDomain(qsl("vu"));
-	regOneTopDomain(qsl("wf"));
-	regOneTopDomain(qsl("ws"));
-	regOneTopDomain(qsl("ye"));
-	regOneTopDomain(qsl("yt"));
-	regOneTopDomain(qsl("yu"));
-	regOneTopDomain(qsl("za"));
-	regOneTopDomain(qsl("zm"));
-	regOneTopDomain(qsl("zw"));
-	regOneTopDomain(qsl("arpa"));
-	regOneTopDomain(qsl("aero"));
-	regOneTopDomain(qsl("asia"));
-	regOneTopDomain(qsl("biz"));
-	regOneTopDomain(qsl("cat"));
-	regOneTopDomain(qsl("com"));
-	regOneTopDomain(qsl("coop"));
-	regOneTopDomain(qsl("info"));
-	regOneTopDomain(qsl("int"));
-	regOneTopDomain(qsl("jobs"));
-	regOneTopDomain(qsl("mobi"));
-	regOneTopDomain(qsl("museum"));
-	regOneTopDomain(qsl("name"));
-	regOneTopDomain(qsl("net"));
-	regOneTopDomain(qsl("org"));
-	regOneTopDomain(qsl("post"));
-	regOneTopDomain(qsl("pro"));
-	regOneTopDomain(qsl("tel"));
-	regOneTopDomain(qsl("travel"));
-	regOneTopDomain(qsl("xxx"));
-	regOneTopDomain(qsl("edu"));
-	regOneTopDomain(qsl("gov"));
-	regOneTopDomain(qsl("mil"));
-	regOneTopDomain(qsl("local"));
-	regOneTopDomain(qsl("xn--lgbbat1ad8j"));
-	regOneTopDomain(qsl("xn--54b7fta0cc"));
-	regOneTopDomain(qsl("xn--fiqs8s"));
-	regOneTopDomain(qsl("xn--fiqz9s"));
-	regOneTopDomain(qsl("xn--wgbh1c"));
-	regOneTopDomain(qsl("xn--node"));
-	regOneTopDomain(qsl("xn--j6w193g"));
-	regOneTopDomain(qsl("xn--h2brj9c"));
-	regOneTopDomain(qsl("xn--mgbbh1a71e"));
-	regOneTopDomain(qsl("xn--fpcrj9c3d"));
-	regOneTopDomain(qsl("xn--gecrj9c"));
-	regOneTopDomain(qsl("xn--s9brj9c"));
-	regOneTopDomain(qsl("xn--xkc2dl3a5ee0h"));
-	regOneTopDomain(qsl("xn--45brj9c"));
-	regOneTopDomain(qsl("xn--mgba3a4f16a"));
-	regOneTopDomain(qsl("xn--mgbayh7gpa"));
-	regOneTopDomain(qsl("xn--80ao21a"));
-	regOneTopDomain(qsl("xn--mgbx4cd0ab"));
-	regOneTopDomain(qsl("xn--l1acc"));
-	regOneTopDomain(qsl("xn--mgbc0a9azcg"));
-	regOneTopDomain(qsl("xn--mgb9awbf"));
-	regOneTopDomain(qsl("xn--mgbai9azgqp6j"));
-	regOneTopDomain(qsl("xn--ygbi2ammx"));
-	regOneTopDomain(qsl("xn--wgbl6a"));
-	regOneTopDomain(qsl("xn--p1ai"));
-	regOneTopDomain(qsl("xn--mgberp4a5d4ar"));
-	regOneTopDomain(qsl("xn--90a3ac"));
-	regOneTopDomain(qsl("xn--yfro4i67o"));
-	regOneTopDomain(qsl("xn--clchc0ea0b2g2a9gcd"));
-	regOneTopDomain(qsl("xn--3e0b707e"));
-	regOneTopDomain(qsl("xn--fzc2c9e2c"));
-	regOneTopDomain(qsl("xn--xkc2al3hye2a"));
-	regOneTopDomain(qsl("xn--mgbtf8fl"));
-	regOneTopDomain(qsl("xn--kprw13d"));
-	regOneTopDomain(qsl("xn--kpry57d"));
-	regOneTopDomain(qsl("xn--o3cw4h"));
-	regOneTopDomain(qsl("xn--pgbs0dh"));
-	regOneTopDomain(qsl("xn--j1amh"));
-	regOneTopDomain(qsl("xn--mgbaam7a8h"));
-	regOneTopDomain(qsl("xn--mgb2ddes"));
-	regOneTopDomain(qsl("xn--ogbpf8fl"));
-	regOneTopDomain(QString::fromUtf8("\xd1\x80\xd1\x84"));
+QRegularExpression CreateRegExp(const QString &expression) {
+	return QRegularExpression(expression, QRegularExpression::UseUnicodePropertiesOption);
 }
 
-namespace {
+QSet<int32> CreateValidProtocols() {
+	auto result = QSet<int32>();
+	auto addOne = [&result](const QString &string) {
+		result.insert(hashCrc32(string.constData(), string.size() * sizeof(QChar)));
+	};
+	addOne(qsl("itmss")); // itunes
+	addOne(qsl("http"));
+	addOne(qsl("https"));
+	addOne(qsl("ftp"));
+	addOne(qsl("tg")); // local urls
+	return result;
+}
+
+QSet<int32> CreateValidTopDomains() {
+	auto result = QSet<int32>();
+	auto addOne = [&result](const QString &string) {
+		result.insert(hashCrc32(string.constData(), string.size() * sizeof(QChar)));
+	};
+	addOne(qsl("ac"));
+	addOne(qsl("ad"));
+	addOne(qsl("ae"));
+	addOne(qsl("af"));
+	addOne(qsl("ag"));
+	addOne(qsl("ai"));
+	addOne(qsl("al"));
+	addOne(qsl("am"));
+	addOne(qsl("an"));
+	addOne(qsl("ao"));
+	addOne(qsl("aq"));
+	addOne(qsl("ar"));
+	addOne(qsl("as"));
+	addOne(qsl("at"));
+	addOne(qsl("au"));
+	addOne(qsl("aw"));
+	addOne(qsl("ax"));
+	addOne(qsl("az"));
+	addOne(qsl("ba"));
+	addOne(qsl("bb"));
+	addOne(qsl("bd"));
+	addOne(qsl("be"));
+	addOne(qsl("bf"));
+	addOne(qsl("bg"));
+	addOne(qsl("bh"));
+	addOne(qsl("bi"));
+	addOne(qsl("bj"));
+	addOne(qsl("bm"));
+	addOne(qsl("bn"));
+	addOne(qsl("bo"));
+	addOne(qsl("br"));
+	addOne(qsl("bs"));
+	addOne(qsl("bt"));
+	addOne(qsl("bv"));
+	addOne(qsl("bw"));
+	addOne(qsl("by"));
+	addOne(qsl("bz"));
+	addOne(qsl("ca"));
+	addOne(qsl("cc"));
+	addOne(qsl("cd"));
+	addOne(qsl("cf"));
+	addOne(qsl("cg"));
+	addOne(qsl("ch"));
+	addOne(qsl("ci"));
+	addOne(qsl("ck"));
+	addOne(qsl("cl"));
+	addOne(qsl("cm"));
+	addOne(qsl("cn"));
+	addOne(qsl("co"));
+	addOne(qsl("cr"));
+	addOne(qsl("cu"));
+	addOne(qsl("cv"));
+	addOne(qsl("cx"));
+	addOne(qsl("cy"));
+	addOne(qsl("cz"));
+	addOne(qsl("de"));
+	addOne(qsl("dj"));
+	addOne(qsl("dk"));
+	addOne(qsl("dm"));
+	addOne(qsl("do"));
+	addOne(qsl("dz"));
+	addOne(qsl("ec"));
+	addOne(qsl("ee"));
+	addOne(qsl("eg"));
+	addOne(qsl("eh"));
+	addOne(qsl("er"));
+	addOne(qsl("es"));
+	addOne(qsl("et"));
+	addOne(qsl("eu"));
+	addOne(qsl("fi"));
+	addOne(qsl("fj"));
+	addOne(qsl("fk"));
+	addOne(qsl("fm"));
+	addOne(qsl("fo"));
+	addOne(qsl("fr"));
+	addOne(qsl("ga"));
+	addOne(qsl("gd"));
+	addOne(qsl("ge"));
+	addOne(qsl("gf"));
+	addOne(qsl("gg"));
+	addOne(qsl("gh"));
+	addOne(qsl("gi"));
+	addOne(qsl("gl"));
+	addOne(qsl("gm"));
+	addOne(qsl("gn"));
+	addOne(qsl("gp"));
+	addOne(qsl("gq"));
+	addOne(qsl("gr"));
+	addOne(qsl("gs"));
+	addOne(qsl("gt"));
+	addOne(qsl("gu"));
+	addOne(qsl("gw"));
+	addOne(qsl("gy"));
+	addOne(qsl("hk"));
+	addOne(qsl("hm"));
+	addOne(qsl("hn"));
+	addOne(qsl("hr"));
+	addOne(qsl("ht"));
+	addOne(qsl("hu"));
+	addOne(qsl("id"));
+	addOne(qsl("ie"));
+	addOne(qsl("il"));
+	addOne(qsl("im"));
+	addOne(qsl("in"));
+	addOne(qsl("io"));
+	addOne(qsl("iq"));
+	addOne(qsl("ir"));
+	addOne(qsl("is"));
+	addOne(qsl("it"));
+	addOne(qsl("je"));
+	addOne(qsl("jm"));
+	addOne(qsl("jo"));
+	addOne(qsl("jp"));
+	addOne(qsl("ke"));
+	addOne(qsl("kg"));
+	addOne(qsl("kh"));
+	addOne(qsl("ki"));
+	addOne(qsl("km"));
+	addOne(qsl("kn"));
+	addOne(qsl("kp"));
+	addOne(qsl("kr"));
+	addOne(qsl("kw"));
+	addOne(qsl("ky"));
+	addOne(qsl("kz"));
+	addOne(qsl("la"));
+	addOne(qsl("lb"));
+	addOne(qsl("lc"));
+	addOne(qsl("li"));
+	addOne(qsl("lk"));
+	addOne(qsl("lr"));
+	addOne(qsl("ls"));
+	addOne(qsl("lt"));
+	addOne(qsl("lu"));
+	addOne(qsl("lv"));
+	addOne(qsl("ly"));
+	addOne(qsl("ma"));
+	addOne(qsl("mc"));
+	addOne(qsl("md"));
+	addOne(qsl("me"));
+	addOne(qsl("mg"));
+	addOne(qsl("mh"));
+	addOne(qsl("mk"));
+	addOne(qsl("ml"));
+	addOne(qsl("mm"));
+	addOne(qsl("mn"));
+	addOne(qsl("mo"));
+	addOne(qsl("mp"));
+	addOne(qsl("mq"));
+	addOne(qsl("mr"));
+	addOne(qsl("ms"));
+	addOne(qsl("mt"));
+	addOne(qsl("mu"));
+	addOne(qsl("mv"));
+	addOne(qsl("mw"));
+	addOne(qsl("mx"));
+	addOne(qsl("my"));
+	addOne(qsl("mz"));
+	addOne(qsl("na"));
+	addOne(qsl("nc"));
+	addOne(qsl("ne"));
+	addOne(qsl("nf"));
+	addOne(qsl("ng"));
+	addOne(qsl("ni"));
+	addOne(qsl("nl"));
+	addOne(qsl("no"));
+	addOne(qsl("np"));
+	addOne(qsl("nr"));
+	addOne(qsl("nu"));
+	addOne(qsl("nz"));
+	addOne(qsl("om"));
+	addOne(qsl("pa"));
+	addOne(qsl("pe"));
+	addOne(qsl("pf"));
+	addOne(qsl("pg"));
+	addOne(qsl("ph"));
+	addOne(qsl("pk"));
+	addOne(qsl("pl"));
+	addOne(qsl("pm"));
+	addOne(qsl("pn"));
+	addOne(qsl("pr"));
+	addOne(qsl("ps"));
+	addOne(qsl("pt"));
+	addOne(qsl("pw"));
+	addOne(qsl("py"));
+	addOne(qsl("qa"));
+	addOne(qsl("re"));
+	addOne(qsl("ro"));
+	addOne(qsl("ru"));
+	addOne(qsl("rs"));
+	addOne(qsl("rw"));
+	addOne(qsl("sa"));
+	addOne(qsl("sb"));
+	addOne(qsl("sc"));
+	addOne(qsl("sd"));
+	addOne(qsl("se"));
+	addOne(qsl("sg"));
+	addOne(qsl("sh"));
+	addOne(qsl("si"));
+	addOne(qsl("sj"));
+	addOne(qsl("sk"));
+	addOne(qsl("sl"));
+	addOne(qsl("sm"));
+	addOne(qsl("sn"));
+	addOne(qsl("so"));
+	addOne(qsl("sr"));
+	addOne(qsl("ss"));
+	addOne(qsl("st"));
+	addOne(qsl("su"));
+	addOne(qsl("sv"));
+	addOne(qsl("sx"));
+	addOne(qsl("sy"));
+	addOne(qsl("sz"));
+	addOne(qsl("tc"));
+	addOne(qsl("td"));
+	addOne(qsl("tf"));
+	addOne(qsl("tg"));
+	addOne(qsl("th"));
+	addOne(qsl("tj"));
+	addOne(qsl("tk"));
+	addOne(qsl("tl"));
+	addOne(qsl("tm"));
+	addOne(qsl("tn"));
+	addOne(qsl("to"));
+	addOne(qsl("tp"));
+	addOne(qsl("tr"));
+	addOne(qsl("tt"));
+	addOne(qsl("tv"));
+	addOne(qsl("tw"));
+	addOne(qsl("tz"));
+	addOne(qsl("ua"));
+	addOne(qsl("ug"));
+	addOne(qsl("uk"));
+	addOne(qsl("um"));
+	addOne(qsl("us"));
+	addOne(qsl("uy"));
+	addOne(qsl("uz"));
+	addOne(qsl("va"));
+	addOne(qsl("vc"));
+	addOne(qsl("ve"));
+	addOne(qsl("vg"));
+	addOne(qsl("vi"));
+	addOne(qsl("vn"));
+	addOne(qsl("vu"));
+	addOne(qsl("wf"));
+	addOne(qsl("ws"));
+	addOne(qsl("ye"));
+	addOne(qsl("yt"));
+	addOne(qsl("yu"));
+	addOne(qsl("za"));
+	addOne(qsl("zm"));
+	addOne(qsl("zw"));
+	addOne(qsl("arpa"));
+	addOne(qsl("aero"));
+	addOne(qsl("asia"));
+	addOne(qsl("biz"));
+	addOne(qsl("cat"));
+	addOne(qsl("com"));
+	addOne(qsl("coop"));
+	addOne(qsl("info"));
+	addOne(qsl("int"));
+	addOne(qsl("jobs"));
+	addOne(qsl("mobi"));
+	addOne(qsl("museum"));
+	addOne(qsl("name"));
+	addOne(qsl("net"));
+	addOne(qsl("org"));
+	addOne(qsl("post"));
+	addOne(qsl("pro"));
+	addOne(qsl("tel"));
+	addOne(qsl("travel"));
+	addOne(qsl("xxx"));
+	addOne(qsl("edu"));
+	addOne(qsl("gov"));
+	addOne(qsl("mil"));
+	addOne(qsl("local"));
+	addOne(qsl("xn--lgbbat1ad8j"));
+	addOne(qsl("xn--54b7fta0cc"));
+	addOne(qsl("xn--fiqs8s"));
+	addOne(qsl("xn--fiqz9s"));
+	addOne(qsl("xn--wgbh1c"));
+	addOne(qsl("xn--node"));
+	addOne(qsl("xn--j6w193g"));
+	addOne(qsl("xn--h2brj9c"));
+	addOne(qsl("xn--mgbbh1a71e"));
+	addOne(qsl("xn--fpcrj9c3d"));
+	addOne(qsl("xn--gecrj9c"));
+	addOne(qsl("xn--s9brj9c"));
+	addOne(qsl("xn--xkc2dl3a5ee0h"));
+	addOne(qsl("xn--45brj9c"));
+	addOne(qsl("xn--mgba3a4f16a"));
+	addOne(qsl("xn--mgbayh7gpa"));
+	addOne(qsl("xn--80ao21a"));
+	addOne(qsl("xn--mgbx4cd0ab"));
+	addOne(qsl("xn--l1acc"));
+	addOne(qsl("xn--mgbc0a9azcg"));
+	addOne(qsl("xn--mgb9awbf"));
+	addOne(qsl("xn--mgbai9azgqp6j"));
+	addOne(qsl("xn--ygbi2ammx"));
+	addOne(qsl("xn--wgbl6a"));
+	addOne(qsl("xn--p1ai"));
+	addOne(qsl("xn--mgberp4a5d4ar"));
+	addOne(qsl("xn--90a3ac"));
+	addOne(qsl("xn--yfro4i67o"));
+	addOne(qsl("xn--clchc0ea0b2g2a9gcd"));
+	addOne(qsl("xn--3e0b707e"));
+	addOne(qsl("xn--fzc2c9e2c"));
+	addOne(qsl("xn--xkc2al3hye2a"));
+	addOne(qsl("xn--mgbtf8fl"));
+	addOne(qsl("xn--kprw13d"));
+	addOne(qsl("xn--kpry57d"));
+	addOne(qsl("xn--o3cw4h"));
+	addOne(qsl("xn--pgbs0dh"));
+	addOne(qsl("xn--j1amh"));
+	addOne(qsl("xn--mgbaam7a8h"));
+	addOne(qsl("xn--mgb2ddes"));
+	addOne(qsl("xn--ogbpf8fl"));
+	addOne(QString::fromUtf8("\xd1\x80\xd1\x84"));
+	return result;
+}
+
 // accent char list taken from https://github.com/aristus/accent-folding
-inline QChar chNoAccent(int32 code) {
+inline QChar RemoveOneAccent(uint32 code) {
 	switch (code) {
 	case 7834: return QChar(97);
 	case 193: return QChar(97);
@@ -1109,11 +1108,67 @@ inline QChar chNoAccent(int32 code) {
 	}
 	return QChar(0);
 }
+
+const QRegularExpression &RegExpWordSplit() {
+	static const auto result = QRegularExpression (qsl("[\\@\\s\\-\\+\\(\\)\\[\\]\\{\\}\\<\\>\\,\\.\\:\\!\\_\\;\\\"\\'\\x0]"));
+	return result;
 }
 
-QString textClean(const QString &text) {
-	QString result(text);
-	for (const QChar *s = text.unicode(), *ch = s, *e = text.unicode() + text.size(); ch != e; ++ch) {
+} // namespace
+
+const QRegularExpression &RegExpDomain() {
+	static const auto result = CreateRegExp(ExpressionDomain());
+	return result;
+}
+
+const QRegularExpression &RegExpDomainExplicit() {
+	static const auto result = CreateRegExp(ExpressionDomainExplicit());
+	return result;
+}
+
+const QRegularExpression &RegExpMailNameAtEnd() {
+	static const auto result = CreateRegExp(ExpressionMailNameAtEnd());
+	return result;
+}
+
+const QRegularExpression &RegExpHashtag() {
+	static const auto result = CreateRegExp(ExpressionHashtag());
+	return result;
+}
+
+const QRegularExpression &RegExpMention() {
+	static const auto result = CreateRegExp(ExpressionMention());
+	return result;
+}
+
+const QRegularExpression &RegExpBotCommand() {
+	static const auto result = CreateRegExp(ExpressionBotCommand());
+	return result;
+}
+
+const QRegularExpression &RegExpMonoInline() {
+	static const auto result = CreateRegExp(ExpressionMonoInline());
+	return result;
+}
+
+const QRegularExpression &RegExpMonoBlock() {
+	static const auto result = CreateRegExp(ExpressionMonoBlock());
+	return result;
+}
+
+bool IsValidProtocol(const QString &protocol) {
+	static const auto list = CreateValidProtocols();
+	return list.contains(hashCrc32(protocol.constData(), protocol.size() * sizeof(QChar)));
+}
+
+bool IsValidTopDomain(const QString &protocol) {
+	static const auto list = CreateValidTopDomains();
+	return list.contains(hashCrc32(protocol.constData(), protocol.size() * sizeof(QChar)));
+}
+
+QString Clean(const QString &text) {
+	auto result = text;
+	for (auto s = text.unicode(), ch = s, e = text.unicode() + text.size(); ch != e; ++ch) {
 		if (*ch == TextCommand) {
 			result[int(ch - s)] = QChar::Space;
 		}
@@ -1121,10 +1176,10 @@ QString textClean(const QString &text) {
 	return result;
 }
 
-QString textRichPrepare(const QString &text) {
+QString EscapeForRichParsing(const QString &text) {
 	QString result;
 	result.reserve(text.size());
-	const QChar *s = text.constData(), *ch = s;
+	auto s = text.constData(), ch = s;
 	for (const QChar *e = s + text.size(); ch != e; ++ch) {
 		if (*ch == TextCommand) {
 			if (ch > s) result.append(s, ch - s);
@@ -1143,33 +1198,34 @@ QString textRichPrepare(const QString &text) {
 	return result;
 }
 
-QString textOneLine(const QString &text, bool trim, bool rich) {
-	QString result(text);
-	const QChar *s = text.unicode(), *ch = s, *e = text.unicode() + text.size();
-	if (trim) {
-		while (s < e && chIsTrimmed(*s)) {
-			++s;
-		}
-		while (s < e && chIsTrimmed(*(e - 1))) {
-			--e;
-		}
-		if (e - s != text.size()) {
-			result = text.mid(s - text.unicode(), e - s);
-		}
+QString SingleLine(const QString &text) {
+	auto result = text;
+	auto s = text.unicode(), ch = s, e = text.unicode() + text.size();
+
+	// Trim.
+	while (s < e && chIsTrimmed(*s)) {
+		++s;
 	}
-	for (const QChar *ch = s; ch != e; ++ch) {
-		if (chIsNewline(*ch)) {
+	while (s < e && chIsTrimmed(*(e - 1))) {
+		--e;
+	}
+	if (e - s != text.size()) {
+		result = text.mid(s - text.unicode(), e - s);
+	}
+
+	for (auto ch = s; ch != e; ++ch) {
+		if (chIsNewline(*ch) || *ch == TextCommand) {
 			result[int(ch - s)] = QChar::Space;
 		}
 	}
 	return result;
 }
 
-QString textAccentFold(const QString &text) {
-	QString result(text);
-	bool copying = false;
-	int32 i = 0;
-	for (const QChar *s = text.unicode(), *ch = s, *e = text.unicode() + text.size(); ch != e; ++ch, ++i) {
+QString RemoveAccents(const QString &text) {
+	auto result = text;
+	auto copying = false;
+	auto i = 0;
+	for (auto s = text.unicode(), ch = s, e = text.unicode() + text.size(); ch != e; ++ch, ++i) {
 		if (ch->unicode() < 128) {
 			if (copying) result[i] = *ch;
 			continue;
@@ -1180,7 +1236,7 @@ QString textAccentFold(const QString &text) {
 			continue;
 		}
 		if (ch->isHighSurrogate() && ch + 1 < e && (ch + 1)->isLowSurrogate()) {
-			QChar noAccent = chNoAccent(QChar::surrogateToUcs4(*ch, *(ch + 1)));
+			auto noAccent = RemoveOneAccent(QChar::surrogateToUcs4(*ch, *(ch + 1)));
 			if (noAccent.unicode() > 0) {
 				copying = true;
 				result[i] = noAccent;
@@ -1190,7 +1246,7 @@ QString textAccentFold(const QString &text) {
 				if (copying) result[i] = *ch;
 			}
 		} else {
-			QChar noAccent = chNoAccent(ch->unicode());
+			auto noAccent = RemoveOneAccent(ch->unicode());
 			if (noAccent.unicode() > 0 && noAccent != *ch) {
 				result[i] = noAccent;
 			} else if (copying) {
@@ -1201,25 +1257,38 @@ QString textAccentFold(const QString &text) {
 	return (i < result.size()) ? result.mid(0, i) : result;
 }
 
-QString textSearchKey(const QString &text) {
-	return textAccentFold(text.trimmed().toLower());
+QStringList PrepareSearchWords(const QString &query, const QRegularExpression *SplitterOverride) {
+	auto clean = RemoveAccents(query.trimmed().toLower());
+	auto result = QStringList();
+	if (!clean.isEmpty()) {
+		auto list = clean.split(SplitterOverride ? *SplitterOverride : RegExpWordSplit(), QString::SkipEmptyParts);
+		auto size = list.size();
+		result.reserve(list.size());
+		for_const (auto &word, list) {
+			auto trimmed = word.trimmed();
+			if (!trimmed.isEmpty()) {
+				result.push_back(trimmed);
+			}
+		}
+	}
+	return result;
 }
 
-bool textSplit(QString &sendingText, EntitiesInText &sendingEntities, QString &leftText, EntitiesInText &leftEntities, int32 limit) {
-	if (leftText.isEmpty() || !limit) return false;
+bool CutPart(TextWithEntities &sending, TextWithEntities &left, int32 limit) {
+	if (left.text.isEmpty() || !limit) return false;
 
-	int32 currentEntity = 0, goodEntity = currentEntity, entityCount = leftEntities.size();
+	int32 currentEntity = 0, goodEntity = currentEntity, entityCount = left.entities.size();
 	bool goodInEntity = false, goodCanBreakEntity = false;
 
 	int32 s = 0, half = limit / 2, goodLevel = 0;
-	for (const QChar *start = leftText.constData(), *ch = start, *end = leftText.constEnd(), *good = ch; ch != end; ++ch, ++s) {
-		while (currentEntity < entityCount && ch >= start + leftEntities.at(currentEntity).offset() + leftEntities.at(currentEntity).length()) {
+	for (const QChar *start = left.text.constData(), *ch = start, *end = left.text.constEnd(), *good = ch; ch != end; ++ch, ++s) {
+		while (currentEntity < entityCount && ch >= start + left.entities[currentEntity].offset() + left.entities[currentEntity].length()) {
 			++currentEntity;
 		}
 
 		if (s > half) {
-			bool inEntity = (currentEntity < entityCount) && (ch > start + leftEntities.at(currentEntity).offset()) && (ch < start + leftEntities.at(currentEntity).offset() + leftEntities.at(currentEntity).length());
-			EntityInTextType entityType = (currentEntity < entityCount) ? leftEntities.at(currentEntity).type() : EntityInTextInvalid;
+			bool inEntity = (currentEntity < entityCount) && (ch > start + left.entities[currentEntity].offset()) && (ch < start + left.entities[currentEntity].offset() + left.entities[currentEntity].length());
+			EntityInTextType entityType = (currentEntity < entityCount) ? left.entities[currentEntity].type() : EntityInTextInvalid;
 			bool canBreakEntity = (entityType == EntityInTextPre || entityType == EntityInTextCode);
 			int32 noEntityLevel = inEntity ? 0 : 1;
 
@@ -1246,9 +1315,9 @@ bool textSplit(QString &sendingText, EntitiesInText &sendingEntities, QString &l
 						}
 					} else if (ch + 1 < end && chIsNewline(*(ch + 1))) {
 						markGoodAsLevel(15);
-					} else if (currentEntity < entityCount && ch + 1 == start + leftEntities.at(currentEntity).offset() && leftEntities.at(currentEntity).type() == EntityInTextPre) {
+					} else if (currentEntity < entityCount && ch + 1 == start + left.entities[currentEntity].offset() && left.entities[currentEntity].type() == EntityInTextPre) {
 						markGoodAsLevel(14);
-					} else if (currentEntity > 0 && ch == start + leftEntities.at(currentEntity - 1).offset() + leftEntities.at(currentEntity - 1).length() && leftEntities.at(currentEntity - 1).type() == EntityInTextPre) {
+					} else if (currentEntity > 0 && ch == start + left.entities[currentEntity - 1].offset() + left.entities[currentEntity - 1].length() && left.entities[currentEntity - 1].type() == EntityInTextPre) {
 						markGoodAsLevel(14);
 					} else {
 						markGoodAsLevel(13);
@@ -1283,34 +1352,34 @@ bool textSplit(QString &sendingText, EntitiesInText &sendingEntities, QString &l
 			++ch;
 		}
 		if (s >= limit) {
-			sendingText = leftText.mid(0, good - start);
-			leftText = leftText.mid(good - start);
+			sending.text = left.text.mid(0, good - start);
+			left.text = left.text.mid(good - start);
 			if (goodInEntity) {
 				if (goodCanBreakEntity) {
-					sendingEntities = leftEntities.mid(0, goodEntity + 1);
-					sendingEntities.back().updateTextEnd(good - start);
-					leftEntities = leftEntities.mid(goodEntity);
-					for (auto &entity : leftEntities) {
+					sending.entities = left.entities.mid(0, goodEntity + 1);
+					sending.entities.back().updateTextEnd(good - start);
+					left.entities = left.entities.mid(goodEntity);
+					for (auto &entity : left.entities) {
 						entity.shiftLeft(good - start);
 					}
 				} else {
-					sendingEntities = leftEntities.mid(0, goodEntity);
-					leftEntities = leftEntities.mid(goodEntity + 1);
+					sending.entities = left.entities.mid(0, goodEntity);
+					left.entities = left.entities.mid(goodEntity + 1);
 				}
 			} else {
-				sendingEntities = leftEntities.mid(0, goodEntity);
-				leftEntities = leftEntities.mid(goodEntity);
-				for (auto &entity : leftEntities) {
+				sending.entities = left.entities.mid(0, goodEntity);
+				left.entities = left.entities.mid(goodEntity);
+				for (auto &entity : left.entities) {
 					entity.shiftLeft(good - start);
 				}
 			}
 			return true;
 		}
 	}
-	sendingText = leftText;
-	leftText = QString();
-	sendingEntities = leftEntities;
-	leftEntities = EntitiesInText();
+	sending.text = left.text;
+	left.text = QString();
+	sending.entities = left.entities;
+	left.entities = EntitiesInText();
 	return true;
 }
 
@@ -1355,33 +1424,35 @@ bool checkTagStartInCommand(const QChar *start, int32 len, int32 tagStart, int32
 	return inCommand;
 }
 
-EntitiesInText entitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
-	EntitiesInText result;
+EntitiesInText EntitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
+	auto result = EntitiesInText();
 	if (!entities.isEmpty()) {
 		result.reserve(entities.size());
-		for_const (const auto &entity, entities) {
+		for_const (auto &entity, entities) {
 			switch (entity.type()) {
-			case mtpc_messageEntityUrl: { const auto &d(entity.c_messageEntityUrl()); result.push_back(EntityInText(EntityInTextUrl, d.voffset.v, d.vlength.v)); } break;
-			case mtpc_messageEntityTextUrl: { const auto &d(entity.c_messageEntityTextUrl()); result.push_back(EntityInText(EntityInTextCustomUrl, d.voffset.v, d.vlength.v, textClean(qs(d.vurl)))); } break;
-			case mtpc_messageEntityEmail: { const auto &d(entity.c_messageEntityEmail()); result.push_back(EntityInText(EntityInTextEmail, d.voffset.v, d.vlength.v)); } break;
-			case mtpc_messageEntityHashtag: { const auto &d(entity.c_messageEntityHashtag()); result.push_back(EntityInText(EntityInTextHashtag, d.voffset.v, d.vlength.v)); } break;
-			case mtpc_messageEntityMention: { const auto &d(entity.c_messageEntityMention()); result.push_back(EntityInText(EntityInTextMention, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityUrl: { auto &d = entity.c_messageEntityUrl(); result.push_back(EntityInText(EntityInTextUrl, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityTextUrl: { auto &d = entity.c_messageEntityTextUrl(); result.push_back(EntityInText(EntityInTextCustomUrl, d.voffset.v, d.vlength.v, Clean(qs(d.vurl)))); } break;
+			case mtpc_messageEntityEmail: { auto &d = entity.c_messageEntityEmail(); result.push_back(EntityInText(EntityInTextEmail, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityHashtag: { auto &d = entity.c_messageEntityHashtag(); result.push_back(EntityInText(EntityInTextHashtag, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityMention: { auto &d = entity.c_messageEntityMention(); result.push_back(EntityInText(EntityInTextMention, d.voffset.v, d.vlength.v)); } break;
 			case mtpc_messageEntityMentionName: {
 				auto &d = entity.c_messageEntityMentionName();
-				auto data = QString::number(d.vuser_id.v);
-				if (auto user = App::userLoaded(peerFromUser(d.vuser_id))) {
-					data += '.' + QString::number(user->access);
-				}
-				result.push_back(EntityInText(EntityInTextMentionName, d.voffset.v, d.vlength.v, data));
+				auto data = [&d] {
+					if (auto user = App::userLoaded(peerFromUser(d.vuser_id))) {
+						return MentionNameDataFromFields({ d.vuser_id.v, user->access });
+					}
+					return MentionNameDataFromFields(d.vuser_id.v);
+				};
+				result.push_back(EntityInText(EntityInTextMentionName, d.voffset.v, d.vlength.v, data()));
 			} break;
 			case mtpc_inputMessageEntityMentionName: {
 				auto &d = entity.c_inputMessageEntityMentionName();
 				auto data = ([&d]() -> QString {
 					if (d.vuser_id.type() == mtpc_inputUserSelf) {
-						return QString::number(AuthSession::CurrentUserId());
+						return MentionNameDataFromFields(AuthSession::CurrentUserId());
 					} else if (d.vuser_id.type() == mtpc_inputUser) {
-						const auto &user(d.vuser_id.c_inputUser());
-						return QString::number(user.vuser_id.v) + '.' + QString::number(user.vaccess_hash.v);
+						auto &user = d.vuser_id.c_inputUser();
+						return MentionNameDataFromFields({ user.vuser_id.v, user.vaccess_hash.v });
 					}
 					return QString();
 				})();
@@ -1389,23 +1460,23 @@ EntitiesInText entitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 					result.push_back(EntityInText(EntityInTextMentionName, d.voffset.v, d.vlength.v, data));
 				}
 			} break;
-			case mtpc_messageEntityBotCommand: { const auto &d(entity.c_messageEntityBotCommand()); result.push_back(EntityInText(EntityInTextBotCommand, d.voffset.v, d.vlength.v)); } break;
-			case mtpc_messageEntityBold: { const auto &d(entity.c_messageEntityBold()); result.push_back(EntityInText(EntityInTextBold, d.voffset.v, d.vlength.v)); } break;
-			case mtpc_messageEntityItalic: { const auto &d(entity.c_messageEntityItalic()); result.push_back(EntityInText(EntityInTextItalic, d.voffset.v, d.vlength.v)); } break;
-			case mtpc_messageEntityCode: { const auto &d(entity.c_messageEntityCode()); result.push_back(EntityInText(EntityInTextCode, d.voffset.v, d.vlength.v)); } break;
-			case mtpc_messageEntityPre: { const auto &d(entity.c_messageEntityPre()); result.push_back(EntityInText(EntityInTextPre, d.voffset.v, d.vlength.v, textClean(qs(d.vlanguage)))); } break;
+			case mtpc_messageEntityBotCommand: { auto &d = entity.c_messageEntityBotCommand(); result.push_back(EntityInText(EntityInTextBotCommand, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityBold: { auto &d = entity.c_messageEntityBold(); result.push_back(EntityInText(EntityInTextBold, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityItalic: { auto &d = entity.c_messageEntityItalic(); result.push_back(EntityInText(EntityInTextItalic, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityCode: { auto &d = entity.c_messageEntityCode(); result.push_back(EntityInText(EntityInTextCode, d.voffset.v, d.vlength.v)); } break;
+			case mtpc_messageEntityPre: { auto &d = entity.c_messageEntityPre(); result.push_back(EntityInText(EntityInTextPre, d.voffset.v, d.vlength.v, Clean(qs(d.vlanguage)))); } break;
 			}
 		}
 	}
 	return result;
 }
 
-MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool sending) {
+MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &links, ConvertOption option) {
 	auto v = QVector<MTPMessageEntity>();
 	v.reserve(links.size());
 	for_const (auto &link, links) {
 		if (link.length() <= 0) continue;
-		if (sending
+		if (option == ConvertOption::SkipLocal
 			&& link.type() != EntityInTextCode
 			&& link.type() != EntityInTextPre
 			&& link.type() != EntityInTextMentionName) {
@@ -1421,13 +1492,11 @@ MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool sending
 		case EntityInTextMention: v.push_back(MTP_messageEntityMention(offset, length)); break;
 		case EntityInTextMentionName: {
 			auto inputUser = ([](const QString &data) -> MTPInputUser {
-				UserId userId = 0;
-				uint64 accessHash = 0;
-				if (mentionNameToFields(data, &userId, &accessHash)) {
-					if (userId == AuthSession::CurrentUserId()) {
-						return MTP_inputUserSelf();
-					}
-					return MTP_inputUser(MTP_int(userId), MTP_long(accessHash));
+				auto fields = MentionNameDataToFields(data);
+				if (fields.userId == AuthSession::CurrentUserId()) {
+					return MTP_inputUserSelf();
+				} else if (fields.userId) {
+					return MTP_inputUser(MTP_int(fields.userId), MTP_long(fields.accessHash));
 				}
 				return MTP_inputUserEmpty();
 			})(link.data());
@@ -1446,8 +1515,8 @@ MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool sending
 }
 
 // Some code is duplicated in flattextarea.cpp!
-void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities, bool rich) {
-	EntitiesInText result;
+void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
+	auto newEntities = EntitiesInText();
 
 	bool withHashtags = (flags & TextParseHashtags);
 	bool withMentions = (flags & TextParseMentions);
@@ -1455,14 +1524,14 @@ void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities
 	bool withMono = (flags & TextParseMono);
 
 	if (withMono) { // parse mono entities (code and pre)
-		int existingEntityIndex = 0, existingEntitiesCount = inOutEntities->size();
+		int existingEntityIndex = 0, existingEntitiesCount = result.entities.size();
 		int existingEntityShiftLeft = 0;
 
 		QString newText;
 
-		int32 offset = 0, matchOffset = offset, len = text.size(), commandOffset = rich ? 0 : len;
+		int32 offset = 0, matchOffset = offset, len = result.text.size(), commandOffset = rich ? 0 : len;
 		bool inLink = false, commandIsLink = false;
-		const QChar *start = text.constData();
+		const QChar *start = result.text.constData();
 		for (; matchOffset < len;) {
 			if (commandOffset <= matchOffset) {
 				for (commandOffset = matchOffset; commandOffset < len; ++commandOffset) {
@@ -1477,8 +1546,8 @@ void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities
 					commandIsLink = false;
 				}
 			}
-			auto mPre = _rePre.match(text, matchOffset);
-			auto mCode = _reCode.match(text, matchOffset);
+			auto mPre = RegExpMonoInline().match(result.text, matchOffset);
+			auto mCode = RegExpMonoBlock().match(result.text, matchOffset);
 			if (!mPre.hasMatch() && !mCode.hasMatch()) break;
 
 			int preStart = mPre.hasMatch() ? mPre.capturedStart() : INT_MAX,
@@ -1525,7 +1594,7 @@ void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities
 
 			// Check if start or end sequences intersect any existing entity.
 			int intersectedEntityEnd = 0;
-			for_const (auto &entity, *inOutEntities) {
+			for_const (auto &entity, result.entities) {
 				if (qMin(innerStart, entity.offset() + entity.length()) > qMax(outerStart, entity.offset()) ||
 					qMin(outerEnd, entity.offset() + entity.length()) > qMax(innerEnd, entity.offset())) {
 					intersectedEntityEnd = entity.offset() + entity.length();
@@ -1537,7 +1606,7 @@ void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities
 				continue;
 			}
 
-			if (newText.isEmpty()) newText.reserve(text.size());
+			if (newText.isEmpty()) newText.reserve(result.text.size());
 			if (pre) {
 				while (outerStart > 0 && chIsSpace(*(start + outerStart - 1), rich) && !chIsNewline(*(start + outerStart - 1))) {
 					--outerStart;
@@ -1568,22 +1637,22 @@ void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities
 				addNewlineAfter = (outerEnd < len && !chIsNewline(*(start + outerEnd)));
 			}
 
-			for (; existingEntityIndex < existingEntitiesCount && inOutEntities->at(existingEntityIndex).offset() < innerStart; ++existingEntityIndex) {
-				auto &entity = inOutEntities->at(existingEntityIndex);
-				result.push_back(entity);
-				result.back().shiftLeft(existingEntityShiftLeft);
+			for (; existingEntityIndex < existingEntitiesCount && result.entities[existingEntityIndex].offset() < innerStart; ++existingEntityIndex) {
+				auto &entity = result.entities[existingEntityIndex];
+				newEntities.push_back(entity);
+				newEntities.back().shiftLeft(existingEntityShiftLeft);
 			}
 			if (outerStart > offset) newText.append(start + offset, outerStart - offset);
 			if (addNewlineBefore) newText.append('\n');
 			existingEntityShiftLeft += (innerStart - outerStart) - (addNewlineBefore ? 1 : 0);
 
 			int entityStart = newText.size(), entityLength = innerEnd - innerStart;
-			result.push_back(EntityInText(pre ? EntityInTextPre : EntityInTextCode, entityStart, entityLength));
+			newEntities.push_back(EntityInText(pre ? EntityInTextPre : EntityInTextCode, entityStart, entityLength));
 
-			for (; existingEntityIndex < existingEntitiesCount && inOutEntities->at(existingEntityIndex).offset() <= innerEnd; ++existingEntityIndex) {
-				auto &entity = inOutEntities->at(existingEntityIndex);
-				result.push_back(entity);
-				result.back().shiftLeft(existingEntityShiftLeft);
+			for (; existingEntityIndex < existingEntitiesCount && result.entities[existingEntityIndex].offset() <= innerEnd; ++existingEntityIndex) {
+				auto &entity = result.entities[existingEntityIndex];
+				newEntities.push_back(entity);
+				newEntities.back().shiftLeft(existingEntityShiftLeft);
 			}
 			newText.append(start + innerStart, entityLength);
 			if (addNewlineAfter) newText.append('\n');
@@ -1593,26 +1662,25 @@ void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities
 		}
 		if (!newText.isEmpty()) {
 			newText.append(start + offset, len - offset);
-			text = newText;
+			result.text = newText;
 		}
-		if (!result.isEmpty()) {
+		if (!newEntities.isEmpty()) {
 			for (; existingEntityIndex < existingEntitiesCount; ++existingEntityIndex) {
-				auto &entity = inOutEntities->at(existingEntityIndex);
-				result.push_back(entity);
-				result.back().shiftLeft(existingEntityShiftLeft);
+				auto &entity = result.entities[existingEntityIndex];
+				newEntities.push_back(entity);
+				newEntities.back().shiftLeft(existingEntityShiftLeft);
 			}
-			*inOutEntities = result;
-			result = EntitiesInText();
+			result.entities = newEntities;
+			newEntities = EntitiesInText();
 		}
 	}
 
-	int existingEntityIndex = 0, existingEntitiesCount = inOutEntities->size();
+	int existingEntityIndex = 0, existingEntitiesCount = result.entities.size();
 	int existingEntityEnd = 0;
 
-	initLinkSets();
-	int32 len = text.size(), commandOffset = rich ? 0 : len;
+	int32 len = result.text.size(), commandOffset = rich ? 0 : len;
 	bool inLink = false, commandIsLink = false;
-	const QChar *start = text.constData(), *end = start + text.size();
+	const QChar *start = result.text.constData(), *end = start + result.text.size();
 	for (int32 offset = 0, matchOffset = offset, mentionSkip = 0; offset < len;) {
 		if (commandOffset <= offset) {
 			for (commandOffset = offset; commandOffset < len; ++commandOffset) {
@@ -1623,11 +1691,11 @@ void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities
 				}
 			}
 		}
-		auto mDomain = _reDomain.match(text, matchOffset);
-		auto mExplicitDomain = _reExplicitDomain.match(text, matchOffset);
-		auto mHashtag = withHashtags ? _reHashtag.match(text, matchOffset) : QRegularExpressionMatch();
-		auto mMention = withMentions ? _reMention.match(text, qMax(mentionSkip, matchOffset)) : QRegularExpressionMatch();
-		auto mBotCommand = withBotCommands ? _reBotCommand.match(text, matchOffset) : QRegularExpressionMatch();
+		auto mDomain = RegExpDomain().match(result.text, matchOffset);
+		auto mExplicitDomain = RegExpDomainExplicit().match(result.text, matchOffset);
+		auto mHashtag = withHashtags ? RegExpHashtag().match(result.text, matchOffset) : QRegularExpressionMatch();
+		auto mMention = withMentions ? RegExpMention().match(result.text, qMax(mentionSkip, matchOffset)) : QRegularExpressionMatch();
+		auto mBotCommand = withBotCommands ? RegExpBotCommand().match(result.text, matchOffset) : QRegularExpressionMatch();
 
 		EntityInTextType lnkType = EntityInTextUrl;
 		int32 lnkStart = 0, lnkLength = 0;
@@ -1658,7 +1726,7 @@ void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities
 			}
 			if (!(start + mentionStart + 1)->isLetter() || !(start + mentionEnd - 1)->isLetterOrNumber()) {
 				mentionSkip = mentionEnd;
-				mMention = _reMention.match(text, qMax(mentionSkip, matchOffset));
+				mMention = RegExpMention().match(result.text, qMax(mentionSkip, matchOffset));
 				if (mMention.hasMatch()) {
 					mentionStart = mMention.capturedStart();
 					mentionEnd = mMention.capturedEnd();
@@ -1718,23 +1786,22 @@ void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities
 			lnkStart = botCommandStart;
 			lnkLength = botCommandEnd - botCommandStart;
 		} else {
-			bool inCommand = checkTagStartInCommand(start, len, domainStart, commandOffset, commandIsLink, inLink);
+			auto inCommand = checkTagStartInCommand(start, len, domainStart, commandOffset, commandIsLink, inLink);
 			if (inCommand || inLink) {
 				offset = matchOffset = commandOffset;
 				continue;
 			}
 
-			QString protocol = mDomain.captured(1).toLower();
-			QString topDomain = mDomain.captured(3).toLower();
-
-			bool isProtocolValid = protocol.isEmpty() || _validProtocols.contains(hashCrc32(protocol.constData(), protocol.size() * sizeof(QChar)));
-			bool isTopDomainValid = !protocol.isEmpty() || _validTopDomains.contains(hashCrc32(topDomain.constData(), topDomain.size() * sizeof(QChar)));
+			auto protocol = mDomain.captured(1).toLower();
+			auto topDomain = mDomain.captured(3).toLower();
+			auto isProtocolValid = protocol.isEmpty() || IsValidProtocol(protocol);
+			auto isTopDomainValid = !protocol.isEmpty() || IsValidTopDomain(topDomain);
 
 			if (protocol.isEmpty() && domainStart > offset + 1 && *(start + domainStart - 1) == QChar('@')) {
-				QString forMailName = text.mid(offset, domainStart - offset - 1);
-				QRegularExpressionMatch mMailName = _reMailName.match(forMailName);
+				auto forMailName = result.text.mid(offset, domainStart - offset - 1);
+				auto mMailName = RegExpMailNameAtEnd().match(forMailName);
 				if (mMailName.hasMatch()) {
-					int32 mailStart = offset + mMailName.capturedStart();
+					auto mailStart = offset + mMailName.capturedStart();
 					if (mailStart < offset) {
 						mailStart = offset;
 					}
@@ -1786,36 +1853,36 @@ void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities
 				lnkLength = (p - start) - lnkStart;
 			}
 		}
-		for (; existingEntityIndex < existingEntitiesCount && inOutEntities->at(existingEntityIndex).offset() <= lnkStart; ++existingEntityIndex) {
-			auto &entity = inOutEntities->at(existingEntityIndex);
+		for (; existingEntityIndex < existingEntitiesCount && result.entities[existingEntityIndex].offset() <= lnkStart; ++existingEntityIndex) {
+			auto &entity = result.entities[existingEntityIndex];
 			accumulate_max(existingEntityEnd, entity.offset() + entity.length());
-			result.push_back(entity);
+			newEntities.push_back(entity);
 		}
 		if (lnkStart >= existingEntityEnd) {
-			inOutEntities->push_back(EntityInText(lnkType, lnkStart, lnkLength));
+			result.entities.push_back(EntityInText(lnkType, lnkStart, lnkLength));
 		}
 
 		offset = matchOffset = lnkStart + lnkLength;
 	}
-	if (!result.isEmpty()) {
+	if (!newEntities.isEmpty()) {
 		for (; existingEntityIndex < existingEntitiesCount; ++existingEntityIndex) {
-			auto &entity = inOutEntities->at(existingEntityIndex);
-			result.push_back(entity);
+			auto &entity = result.entities[existingEntityIndex];
+			newEntities.push_back(entity);
 		}
-		*inOutEntities = result;
+		result.entities = newEntities;
 	}
 }
 
-QString textApplyEntities(const QString &text, const EntitiesInText &entities) {
-	if (entities.isEmpty()) return text;
+QString ApplyEntities(const TextWithEntities &text) {
+	if (text.entities.isEmpty()) return text.text;
 
 	QMultiMap<int32, QString> closingTags;
 	QString code(qsl("`")), pre(qsl("```"));
 
 	QString result;
-	int32 size = text.size();
-	const QChar *b = text.constData(), *already = b, *e = b + size;
-	auto entity = entities.cbegin(), end = entities.cend();
+	int32 size = text.text.size();
+	const QChar *b = text.text.constData(), *already = b, *e = b + size;
+	auto entity = text.entities.cbegin(), end = text.entities.cend();
 	while (entity != end && ((entity->type() != EntityInTextCode && entity->type() != EntityInTextPre) || entity->length() <= 0 || entity->offset() >= size)) {
 		++entity;
 	}
@@ -1824,7 +1891,7 @@ QString textApplyEntities(const QString &text, const EntitiesInText &entities) {
 		int32 nextCloseEntity = closingTags.isEmpty() ? (size + 1) : closingTags.cbegin().key();
 		if (nextOpenEntity <= nextCloseEntity) {
 			QString tag = (entity->type() == EntityInTextCode) ? code : pre;
-			if (result.isEmpty()) result.reserve(text.size() + entities.size() * pre.size() * 2);
+			if (result.isEmpty()) result.reserve(text.text.size() + text.entities.size() * pre.size() * 2);
 
 			const QChar *offset = b + nextOpenEntity;
 			if (offset > already) {
@@ -1849,7 +1916,7 @@ QString textApplyEntities(const QString &text, const EntitiesInText &entities) {
 		}
 	}
 	if (result.isEmpty()) {
-		return text;
+		return text.text;
 	}
 	const QChar *offset = b + size;
 	if (offset > already) {
@@ -1878,13 +1945,13 @@ void moveStringPart(QChar *start, int32 &to, int32 &from, int32 count, EntitiesI
 	}
 }
 
-void replaceStringWithEntities(const QLatin1String &from, QChar to, QString &result, EntitiesInText *inOutEntities, bool checkSpace = false) {
-	int32 len = from.size(), s = result.size(), offset = 0, length = 0;
-	EntitiesInText::iterator i = inOutEntities->begin(), e = inOutEntities->end();
-	for (QChar *start = result.data(); offset < s;) {
-		int32 nextOffset = result.indexOf(from, offset);
+void replaceStringWithEntities(const QLatin1String &from, QChar to, TextWithEntities &result, bool checkSpace = false) {
+	auto len = from.size(), s = result.text.size(), offset = 0, length = 0;
+	auto i = result.entities.begin(), e = result.entities.end();
+	for (QChar *start = result.text.data(); offset < s;) {
+		int32 nextOffset = result.text.indexOf(from, offset);
 		if (nextOffset < 0) {
-			moveStringPart(start, length, offset, s - offset, inOutEntities);
+			moveStringPart(start, length, offset, s - offset, &result.entities);
 			break;
 		}
 
@@ -1892,7 +1959,7 @@ void replaceStringWithEntities(const QLatin1String &from, QChar to, QString &res
 			bool spaceBefore = (nextOffset > 0) && (start + nextOffset - 1)->isSpace();
 			bool spaceAfter = (nextOffset + len < s) && (start + nextOffset + len)->isSpace();
 			if (!spaceBefore && !spaceAfter) {
-				moveStringPart(start, length, offset, nextOffset - offset + len + 1, inOutEntities);
+				moveStringPart(start, length, offset, nextOffset - offset + len + 1, &result.entities);
 				continue;
 			}
 		}
@@ -1905,96 +1972,95 @@ void replaceStringWithEntities(const QLatin1String &from, QChar to, QString &res
 			}
 		}
 		if (skip) {
-			moveStringPart(start, length, offset, nextOffset - offset + len, inOutEntities);
+			moveStringPart(start, length, offset, nextOffset - offset + len, &result.entities);
 			continue;
 		}
 
-		moveStringPart(start, length, offset, nextOffset - offset, inOutEntities);
+		moveStringPart(start, length, offset, nextOffset - offset, &result.entities);
 
 		*(start + length) = to;
 		++length;
 		offset += len;
 	}
-	if (length < s) result.resize(length);
+	if (length < s) result.text.resize(length);
 }
 
-QString prepareTextWithEntities(QString result, int32 flags, EntitiesInText *inOutEntities) {
-	cleanTextWithEntities(result, inOutEntities);
+void PrepareForSending(TextWithEntities &result, int32 flags) {
+	ApplyServerCleaning(result);
 
 	if (flags) {
-		textParseEntities(result, flags, inOutEntities);
+		ParseEntities(result, flags);
 	}
 
-	replaceStringWithEntities(qstr("--"), QChar(8212), result, inOutEntities, true);
-	replaceStringWithEntities(qstr("<<"), QChar(171), result, inOutEntities);
-	replaceStringWithEntities(qstr(">>"), QChar(187), result, inOutEntities);
+	replaceStringWithEntities(qstr("--"), QChar(8212), result, true);
+	replaceStringWithEntities(qstr("<<"), QChar(171), result);
+	replaceStringWithEntities(qstr(">>"), QChar(187), result);
 
 	if (cReplaceEmojis()) {
-		result = Ui::Emoji::ReplaceInText(result, inOutEntities);
+		Ui::Emoji::ReplaceInText(result);
 	}
 
-	trimTextWithEntities(result, inOutEntities);
-
-	return result;
+	Trim(result);
 }
 
-// replace bad symbols with space and remove \r
-void cleanTextWithEntities(QString &result, EntitiesInText *inOutEntities) {
-	result = result.replace('\t', qstr("  "));
-	int32 len = result.size(), to = 0, from = 0;
-	QChar *start = result.data();
+// Replace bad symbols with space and remove '\r'.
+void ApplyServerCleaning(TextWithEntities &result) {
+	result.text = result.text.replace('\t', qstr("  ")); // TODO WTF? modify entities!
+	int32 len = result.text.size(), to = 0, from = 0;
+	QChar *start = result.text.data();
 	for (QChar *ch = start, *end = start + len; ch < end; ++ch) {
 		if (ch->unicode() == '\r') {
-			moveStringPart(start, to, from, (ch - start) - from, inOutEntities);
+			moveStringPart(start, to, from, (ch - start) - from, &result.entities);
 			++from;
 		} else if (chReplacedBySpace(*ch)) {
 			*ch = ' ';
 		}
 	}
-	moveStringPart(start, to, from, len - from, inOutEntities);
-	if (to < len) result.resize(to);
+	moveStringPart(start, to, from, len - from, &result.entities);
+	if (to < len) result.text.resize(to);
 }
 
-void trimTextWithEntities(QString &result, EntitiesInText *inOutEntities) {
-	bool foundNotTrimmedChar = false;
+void Trim(TextWithEntities &result) {
+	auto foundNotTrimmedChar = false;
 
 	// right trim
-	for (QChar *s = result.data(), *e = s + result.size(), *ch = e; ch != s;) {
+	for (auto s = result.text.data(), e = s + result.text.size(), ch = e; ch != s;) {
 		--ch;
 		if (!chIsTrimmed(*ch)) {
 			if (ch + 1 < e) {
-				int32 l = ch + 1 - s;
-				for (auto &entity : *inOutEntities) {
+				auto l = ch + 1 - s;
+				for (auto &entity : result.entities) {
 					entity.updateTextEnd(l);
 				}
-				result.resize(l);
+				result.text.resize(l);
 			}
 			foundNotTrimmedChar = true;
 			break;
 		}
 	}
 	if (!foundNotTrimmedChar) {
-		result.clear();
-		inOutEntities->clear();
+		result = TextWithEntities();
 		return;
 	}
 
-	int firstMonospaceOffset = EntityInText::firstMonospaceOffset(*inOutEntities, result.size());
+	auto firstMonospaceOffset = EntityInText::firstMonospaceOffset(result.entities, result.text.size());
 
 	// left trim
-	for (QChar *s = result.data(), *ch = s, *e = s + result.size(); ch != e; ++ch) {
+	for (auto s = result.text.data(), ch = s, e = s + result.text.size(); ch != e; ++ch) {
 		if (!chIsTrimmed(*ch) || (ch - s) == firstMonospaceOffset) {
 			if (ch > s) {
-				int32 l = ch - s;
-				for (auto &entity : *inOutEntities) {
+				auto l = ch - s;
+				for (auto &entity : result.entities) {
 					entity.shiftLeft(l);
 				}
-				result = result.mid(l);
+				result.text = result.text.mid(l);
 			}
 			break;
 		}
 	}
 }
+
+} // namespace TextUtilities
 
 namespace Lang {
 

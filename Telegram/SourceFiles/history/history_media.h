@@ -42,7 +42,7 @@ public:
 	// Example: "[link1-start]You:[link1-end] [link1-start]Photo,[link1-end] caption text"
 	virtual QString inDialogsText() const {
 		auto result = notificationText();
-		return result.isEmpty() ? QString() : textcmdLink(1, textClean(result));
+		return result.isEmpty() ? QString() : textcmdLink(1, TextUtilities::Clean(result));
 	}
 	virtual TextWithEntities selectedText(TextSelection selection) const = 0;
 

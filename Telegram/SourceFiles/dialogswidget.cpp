@@ -1263,103 +1263,89 @@ void DialogsInner::onPeerPhotoChanged(PeerData *peer) {
 }
 
 void DialogsInner::onFilterUpdate(QString newFilter, bool force) {
-	newFilter = textSearchKey(newFilter);
+	auto words = TextUtilities::PrepareSearchWords(newFilter);
+	newFilter = words.isEmpty() ? QString() : words.join(' ');
 	if (newFilter != _filter || force) {
-		QStringList f;
-		if (!newFilter.isEmpty()) {
-			QStringList filterList = newFilter.split(cWordSplit(), QString::SkipEmptyParts);
-			int l = filterList.size();
+		_filter = newFilter;
+		if (!_searchInPeer && _filter.isEmpty()) {
+			_state = DefaultState;
+			_hashtagResults.clear();
+			_filterResults.clear();
+			_peerSearchResults.clear();
+			_searchResults.clear();
+			_lastSearchDate = 0;
+			_lastSearchPeer = 0;
+			_lastSearchId = _lastSearchMigratedId = 0;
+		} else {
+			QStringList::const_iterator fb = words.cbegin(), fe = words.cend(), fi;
 
-			f.reserve(l);
-			for (int i = 0; i < l; ++i) {
-				QString filterName = filterList[i].trimmed();
-				if (filterName.isEmpty()) continue;
-				f.push_back(filterName);
-			}
-			newFilter = f.join(' ');
-		}
-		if (newFilter != _filter || force) {
-			_filter = newFilter;
-			if (!_searchInPeer && _filter.isEmpty()) {
-				_state = DefaultState;
-				_hashtagResults.clear();
-				_filterResults.clear();
-				_peerSearchResults.clear();
-				_searchResults.clear();
-				_lastSearchDate = 0;
-				_lastSearchPeer = 0;
-				_lastSearchId = _lastSearchMigratedId = 0;
-			} else {
-				QStringList::const_iterator fb = f.cbegin(), fe = f.cend(), fi;
-
-				_state = FilteredState;
-				_filterResults.clear();
-				if (!_searchInPeer && !f.isEmpty()) {
-					const Dialogs::List *toFilter = nullptr;
-					if (!_dialogs->isEmpty()) {
-						for (fi = fb; fi != fe; ++fi) {
-							auto found = _dialogs->filtered(fi->at(0));
-							if (found->isEmpty()) {
-								toFilter = nullptr;
-								break;
-							}
-							if (!toFilter || toFilter->size() > found->size()) {
-								toFilter = found;
-							}
+			_state = FilteredState;
+			_filterResults.clear();
+			if (!_searchInPeer && !words.isEmpty()) {
+				const Dialogs::List *toFilter = nullptr;
+				if (!_dialogs->isEmpty()) {
+					for (fi = fb; fi != fe; ++fi) {
+						auto found = _dialogs->filtered(fi->at(0));
+						if (found->isEmpty()) {
+							toFilter = nullptr;
+							break;
+						}
+						if (!toFilter || toFilter->size() > found->size()) {
+							toFilter = found;
 						}
 					}
-					const Dialogs::List *toFilterContacts = nullptr;
-					if (!_contactsNoDialogs->isEmpty()) {
-						for (fi = fb; fi != fe; ++fi) {
-							auto found = _contactsNoDialogs->filtered(fi->at(0));
-							if (found->isEmpty()) {
-								toFilterContacts = nullptr;
-								break;
-							}
-							if (!toFilterContacts || toFilterContacts->size() > found->size()) {
-								toFilterContacts = found;
-							}
+				}
+				const Dialogs::List *toFilterContacts = nullptr;
+				if (!_contactsNoDialogs->isEmpty()) {
+					for (fi = fb; fi != fe; ++fi) {
+						auto found = _contactsNoDialogs->filtered(fi->at(0));
+						if (found->isEmpty()) {
+							toFilterContacts = nullptr;
+							break;
+						}
+						if (!toFilterContacts || toFilterContacts->size() > found->size()) {
+							toFilterContacts = found;
 						}
 					}
-					_filterResults.reserve((toFilter ? toFilter->size() : 0) + (toFilterContacts ? toFilterContacts->size() : 0));
-					if (toFilter) {
-						for_const (auto row, *toFilter) {
-							const PeerData::Names &names(row->history()->peer->names);
-							PeerData::Names::const_iterator nb = names.cbegin(), ne = names.cend(), ni;
-							for (fi = fb; fi != fe; ++fi) {
-								QString filterName(*fi);
-								for (ni = nb; ni != ne; ++ni) {
-									if (ni->startsWith(*fi)) {
-										break;
-									}
-								}
-								if (ni == ne) {
+				}
+				_filterResults.reserve((toFilter ? toFilter->size() : 0) + (toFilterContacts ? toFilterContacts->size() : 0));
+				if (toFilter) {
+					for_const (auto row, *toFilter) {
+						const PeerData::Names &names(row->history()->peer->names);
+						PeerData::Names::const_iterator nb = names.cbegin(), ne = names.cend(), ni;
+						for (fi = fb; fi != fe; ++fi) {
+							QString filterName(*fi);
+							for (ni = nb; ni != ne; ++ni) {
+								if (ni->startsWith(*fi)) {
 									break;
 								}
 							}
-							if (fi == fe) {
-								_filterResults.push_back(row);
+							if (ni == ne) {
+								break;
 							}
 						}
+						if (fi == fe) {
+							_filterResults.push_back(row);
+						}
 					}
-					if (toFilterContacts) {
-						for_const (auto row, *toFilterContacts) {
-							const PeerData::Names &names(row->history()->peer->names);
-							PeerData::Names::const_iterator nb = names.cbegin(), ne = names.cend(), ni;
-							for (fi = fb; fi != fe; ++fi) {
-								QString filterName(*fi);
-								for (ni = nb; ni != ne; ++ni) {
-									if (ni->startsWith(*fi)) {
-										break;
-									}
-								}
-								if (ni == ne) {
+				}
+				if (toFilterContacts) {
+					for_const (auto row, *toFilterContacts) {
+						const PeerData::Names &names(row->history()->peer->names);
+						PeerData::Names::const_iterator nb = names.cbegin(), ne = names.cend(), ni;
+						for (fi = fb; fi != fe; ++fi) {
+							QString filterName(*fi);
+							for (ni = nb; ni != ne; ++ni) {
+								if (ni->startsWith(*fi)) {
 									break;
 								}
 							}
-							if (fi == fe) {
-								_filterResults.push_back(row);
+							if (ni == ne) {
+								break;
 							}
+						}
+						if (fi == fe) {
+							_filterResults.push_back(row);
 						}
 					}
 				}
@@ -2038,10 +2024,10 @@ bool DialogsInner::choosePeer() {
 }
 
 void DialogsInner::saveRecentHashtags(const QString &text) {
-	bool found = false;
+	auto found = false;
 	QRegularExpressionMatch m;
-	RecentHashtagPack recent(cRecentSearchHashtags());
-	for (int32 i = 0, next = 0; (m = reHashtag().match(text, i)).hasMatch(); i = next) {
+	auto recent = cRecentSearchHashtags();
+	for (int32 i = 0, next = 0; (m = TextUtilities::RegExpHashtag().match(text, i)).hasMatch(); i = next) {
 		i = m.capturedStart();
 		next = m.capturedEnd();
 		if (m.hasMatch()) {

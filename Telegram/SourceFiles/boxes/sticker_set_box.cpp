@@ -428,18 +428,17 @@ bool StickerSetBox::Inner::official() const {
 }
 
 base::lambda<TextWithEntities()> StickerSetBox::Inner::title() const {
-	auto text = _setTitle;
-	auto entities = EntitiesInText();
+	auto text = TextWithEntities { _setTitle };
 	if (_loaded) {
 		if (_pack.isEmpty()) {
 			return [] { return TextWithEntities { lang(lng_attach_failed), EntitiesInText() }; };
 		} else {
-			textParseEntities(text, TextParseMentions, &entities);
+			TextUtilities::ParseEntities(text, TextParseMentions);
 		}
 	} else {
 		return [] { return TextWithEntities { lang(lng_contacts_loading), EntitiesInText() }; };
 	}
-	return [text, entities] { return TextWithEntities { text, entities }; };
+	return [text] { return text; };
 }
 
 QString StickerSetBox::Inner::shortName() const {

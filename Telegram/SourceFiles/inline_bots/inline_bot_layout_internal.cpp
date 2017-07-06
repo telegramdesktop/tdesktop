@@ -570,7 +570,7 @@ void Video::initDimensions() {
 	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
 	int32 textWidth = _maxw - (withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0);
 	TextParseOptions titleOpts = { 0, _maxw, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
-	QString title = textOneLine(_result->getLayoutTitle());
+	auto title = TextUtilities::SingleLine(_result->getLayoutTitle());
 	if (title.isEmpty()) {
 		title = lang(lng_media_video);
 	}
@@ -685,7 +685,7 @@ void File::initDimensions() {
 	int textWidth = _maxw - (st::msgFileSize + st::inlineThumbSkip);
 
 	TextParseOptions titleOpts = { 0, _maxw, st::semiboldFont->height, Qt::LayoutDirectionAuto };
-	_title.setText(st::semiboldTextStyle, textOneLine(_result->getLayoutTitle()), titleOpts);
+	_title.setText(st::semiboldTextStyle, TextUtilities::SingleLine(_result->getLayoutTitle()), titleOpts);
 
 	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, st::normalFont->height, Qt::LayoutDirectionAuto };
 	_description.setText(st::defaultTextStyle, _result->getLayoutDescription(), descriptionOpts);
@@ -890,7 +890,7 @@ void Contact::initDimensions() {
 	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
 	int32 textWidth = _maxw - (st::inlineThumbSize + st::inlineThumbSkip);
 	TextParseOptions titleOpts = { 0, _maxw, st::semiboldFont->height, Qt::LayoutDirectionAuto };
-	_title.setText(st::semiboldTextStyle, textOneLine(_result->getLayoutTitle()), titleOpts);
+	_title.setText(st::semiboldTextStyle, TextUtilities::SingleLine(_result->getLayoutTitle()), titleOpts);
 	int32 titleHeight = qMin(_title.countHeight(_maxw), st::semiboldFont->height);
 
 	TextParseOptions descriptionOpts = { TextParseMultiline, _maxw, st::normalFont->height, Qt::LayoutDirectionAuto };
@@ -987,7 +987,7 @@ void Article::initDimensions() {
 	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
 	int32 textWidth = _maxw - (_withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0);
 	TextParseOptions titleOpts = { 0, _maxw, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
-	_title.setText(st::semiboldTextStyle, textOneLine(_result->getLayoutTitle()), titleOpts);
+	_title.setText(st::semiboldTextStyle, TextUtilities::SingleLine(_result->getLayoutTitle()), titleOpts);
 	int32 titleHeight = qMin(_title.countHeight(_maxw), 2 * st::semiboldFont->height);
 
 	int32 descriptionLines = (_withThumb || _url) ? 2 : 3;
@@ -1155,7 +1155,7 @@ void Game::initDimensions() {
 	_maxw = st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft;
 	int32 textWidth = _maxw - (st::inlineThumbSize + st::inlineThumbSkip);
 	TextParseOptions titleOpts = { 0, _maxw, 2 * st::semiboldFont->height, Qt::LayoutDirectionAuto };
-	_title.setText(st::semiboldTextStyle, textOneLine(_result->getLayoutTitle()), titleOpts);
+	_title.setText(st::semiboldTextStyle, TextUtilities::SingleLine(_result->getLayoutTitle()), titleOpts);
 	int32 titleHeight = qMin(_title.countHeight(_maxw), 2 * st::semiboldFont->height);
 
 	int32 descriptionLines = 2;

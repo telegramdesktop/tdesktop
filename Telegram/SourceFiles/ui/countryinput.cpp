@@ -417,21 +417,8 @@ void CountrySelectBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void CountrySelectBox::Inner::updateFilter(QString filter) {
-	filter = textSearchKey(filter);
-
-	QStringList f;
-	if (!filter.isEmpty()) {
-		QStringList filterList = filter.split(cWordSplit(), QString::SkipEmptyParts);
-		int l = filterList.size();
-
-		f.reserve(l);
-		for (int i = 0; i < l; ++i) {
-			QString filterName = filterList[i].trimmed();
-			if (filterName.isEmpty()) continue;
-			f.push_back(filterName);
-		}
-		filter = f.join(' ');
-	}
+	auto words = TextUtilities::PrepareSearchWords(filter);
+	filter = words.isEmpty() ? QString() : words.join(' ');
 	if (_filter != filter) {
 		_filter = filter;
 
@@ -441,7 +428,7 @@ void CountrySelectBox::Inner::updateFilter(QString filter) {
 			QChar first = _filter[0].toLower();
 			CountriesIds &ids(countriesByLetter[first]);
 
-			QStringList::const_iterator fb = f.cbegin(), fe = f.cend(), fi;
+			QStringList::const_iterator fb = words.cbegin(), fe = words.cend(), fi;
 
 			countriesFiltered.clear();
 			for (CountriesIds::const_iterator i = ids.cbegin(), e = ids.cend(); i != e; ++i) {

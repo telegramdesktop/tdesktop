@@ -438,7 +438,7 @@ void SendFilesBox::onSend(bool ctrlShiftEnter) {
 	_confirmed = true;
 	if (_confirmedCallback) {
 		auto compressed = _compressed ? _compressed->checked() : false;
-		auto caption = _caption ? prepareText(_caption->getLastText(), true) : QString();
+		auto caption = _caption ? TextUtilities::PrepareForSending(_caption->getLastText(), TextUtilities::PrepareTextOption::CheckLinks) : QString();
 		_confirmedCallback(_files, _animated ? QImage() : _image, std::move(_information), compressed, caption, ctrlShiftEnter);
 	}
 	closeBox();
@@ -766,7 +766,7 @@ void EditCaptionBox::onSave(bool ctrlShiftEnter) {
 	if (!sentEntities.v.isEmpty()) {
 		flags |= MTPmessages_EditMessage::Flag::f_entities;
 	}
-	auto text = prepareText(_field->getLastText(), true);
+	auto text = TextUtilities::PrepareForSending(_field->getLastText(), TextUtilities::PrepareTextOption::CheckLinks);
 	_saveRequestId = MTP::send(MTPmessages_EditMessage(MTP_flags(flags), item->history()->peer->input, MTP_int(item->id), MTP_string(text), MTPnullMarkup, sentEntities), rpcDone(&EditCaptionBox::saveDone), rpcFail(&EditCaptionBox::saveFail));
 }
 

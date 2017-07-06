@@ -56,11 +56,10 @@ constexpr auto kNewBlockEachMessage = 50;
 auto GlobalPinnedIndex = 0;
 
 HistoryItem *createUnsupportedMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from) {
-	QString text(lng_message_unsupported(lt_link, qsl("https://desktop.telegram.org")));
-	EntitiesInText entities;
-	textParseEntities(text, _historyTextNoMonoOptions.flags, &entities);
-	entities.push_front(EntityInText(EntityInTextItalic, 0, text.size()));
-	return HistoryMessage::create(history, msgId, flags, replyTo, viaBotId, date, from, { text, entities });
+	auto text = TextWithEntities { lng_message_unsupported(lt_link, qsl("https://desktop.telegram.org")) };
+	TextUtilities::ParseEntities(text, _historyTextNoMonoOptions.flags);
+	text.entities.push_front(EntityInText(EntityInTextItalic, 0, text.text.size()));
+	return HistoryMessage::create(history, msgId, flags, replyTo, viaBotId, date, from, text);
 }
 
 } // namespace

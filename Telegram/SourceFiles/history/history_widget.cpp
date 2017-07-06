@@ -2873,14 +2873,15 @@ void HistoryWidget::saveEditMsg() {
 
 	auto &textWithTags = _field->getTextWithTags();
 	auto prepareFlags = itemTextOptions(_history, App::self()).flags;
-	EntitiesInText sendingEntities, leftEntities = ConvertTextTagsToEntities(textWithTags.tags);
-	QString sendingText, leftText = prepareTextWithEntities(textWithTags.text, prepareFlags, &leftEntities);
+	auto sending = TextWithEntities();
+	auto left = TextWithEntities { textWithTags.text, ConvertTextTagsToEntities(textWithTags.tags) };
+	TextUtilities::PrepareForSending(left, prepareFlags);
 
-	if (!textSplit(sendingText, sendingEntities, leftText, leftEntities, MaxMessageSize)) {
+	if (!TextUtilities::CutPart(sending, left, MaxMessageSize)) {
 		_field->selectAll();
 		_field->setFocus();
 		return;
-	} else if (!leftText.isEmpty()) {
+	} else if (!left.text.isEmpty()) {
 		Ui::show(Box<InformBox>(lang(lng_edit_too_long)));
 		return;
 	}
@@ -2889,12 +2890,12 @@ void HistoryWidget::saveEditMsg() {
 	if (webPageId == CancelledWebPageId) {
 		sendFlags |= MTPmessages_EditMessage::Flag::f_no_webpage;
 	}
-	auto localEntities = linksToMTP(sendingEntities);
-	auto sentEntities = linksToMTP(sendingEntities, true);
+	auto localEntities = TextUtilities::EntitiesToMTP(sending.entities);
+	auto sentEntities = TextUtilities::EntitiesToMTP(sending.entities, TextUtilities::ConvertOption::SkipLocal);
 	if (!sentEntities.v.isEmpty()) {
 		sendFlags |= MTPmessages_EditMessage::Flag::f_entities;
 	}
-	_saveEditMsgRequestId = MTP::send(MTPmessages_EditMessage(MTP_flags(sendFlags), _history->peer->input, MTP_int(_editMsgId), MTP_string(sendingText), MTPnullMarkup, sentEntities), rpcDone(&HistoryWidget::saveEditMsgDone, _history), rpcFail(&HistoryWidget::saveEditMsgFail, _history));
+	_saveEditMsgRequestId = MTP::send(MTPmessages_EditMessage(MTP_flags(sendFlags), _history->peer->input, MTP_int(_editMsgId), MTP_string(sending.text), MTPnullMarkup, sentEntities), rpcDone(&HistoryWidget::saveEditMsgDone, _history), rpcFail(&HistoryWidget::saveEditMsgFail, _history));
 }
 
 void HistoryWidget::saveEditMsgDone(History *history, const MTPUpdates &updates, mtpRequestId req) {
@@ -3841,7 +3842,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 		_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard->forceReply()) ? App::histItemById(_keyboard->forMsgId()) : 0;
 		if (_kbReplyTo && !_editMsgId && !_replyToId && fieldEnabled) {
 			updateReplyToName();
-			_replyEditMsgText.setText(st::messageTextStyle, textClean(_kbReplyTo->inReplyText()), _textDlgOptions);
+			_replyEditMsgText.setText(st::messageTextStyle, TextUtilities::Clean(_kbReplyTo->inReplyText()), _textDlgOptions);
 			_fieldBarCancel->show();
 			updateMouseTracking();
 		}
@@ -3860,7 +3861,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 		_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard->forceReply()) ? App::histItemById(_keyboard->forMsgId()) : 0;
 		if (_kbReplyTo && !_editMsgId && !_replyToId) {
 			updateReplyToName();
-			_replyEditMsgText.setText(st::messageTextStyle, textClean(_kbReplyTo->inReplyText()), _textDlgOptions);
+			_replyEditMsgText.setText(st::messageTextStyle, TextUtilities::Clean(_kbReplyTo->inReplyText()), _textDlgOptions);
 			_fieldBarCancel->show();
 			updateMouseTracking();
 		}
@@ -5181,7 +5182,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 			_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard->forceReply()) ? App::histItemById(_keyboard->forMsgId()) : 0;
 			if (_kbReplyTo && !_replyToId) {
 				updateReplyToName();
-				_replyEditMsgText.setText(st::messageTextStyle, textClean(_kbReplyTo->inReplyText()), _textDlgOptions);
+				_replyEditMsgText.setText(st::messageTextStyle, TextUtilities::Clean(_kbReplyTo->inReplyText()), _textDlgOptions);
 				_fieldBarCancel->show();
 				updateMouseTracking();
 			}
@@ -5440,7 +5441,7 @@ void HistoryWidget::updatePinnedBar(bool force) {
 		_pinnedBar->msg = App::histItemById(_history->channelId(), _pinnedBar->msgId);
 	}
 	if (_pinnedBar->msg) {
-		_pinnedBar->text.setText(st::messageTextStyle, textClean(_pinnedBar->msg->notificationText()), _textDlgOptions);
+		_pinnedBar->text.setText(st::messageTextStyle, TextUtilities::Clean(_pinnedBar->msg->notificationText()), _textDlgOptions);
 		update();
 	} else if (force) {
 		if (_peer && _peer->isMegagroup()) {
@@ -5667,7 +5668,7 @@ void HistoryWidget::onReplyToMessage() {
 	} else {
 		_replyEditMsg = to;
 		_replyToId = to->id;
-		_replyEditMsgText.setText(st::messageTextStyle, textClean(_replyEditMsg->inReplyText()), _textDlgOptions);
+		_replyEditMsgText.setText(st::messageTextStyle, TextUtilities::Clean(_replyEditMsg->inReplyText()), _textDlgOptions);
 
 		updateBotKeyboard();
 
@@ -5709,10 +5710,8 @@ void HistoryWidget::onEditMessage() {
 	}
 
 	auto original = to->originalText();
-	auto editText = textApplyEntities(original.text, original.entities);
-	auto editTags = ConvertEntitiesToTextTags(original.entities);
-	TextWithTags editData = { editText, editTags };
-	MessageCursor cursor = { editText.size(), editText.size(), QFIXED_MAX };
+	auto editData = TextWithTags { TextUtilities::ApplyEntities(original), ConvertEntitiesToTextTags(original.entities) };
+	auto cursor = MessageCursor { editData.text.size(), editData.text.size(), QFIXED_MAX };
 	_history->setEditDraft(std::make_unique<Data::Draft>(editData, to->id, cursor, false));
 	applyDraft(false);
 
@@ -6013,7 +6012,7 @@ void HistoryWidget::updatePreview() {
 #else // OS_MAC_OLD
 			auto linkText = _previewLinks.split(' ').at(0);
 #endif // OS_MAC_OLD
-			_previewDescription.setText(st::messageTextStyle, textClean(linkText), _textDlgOptions);
+			_previewDescription.setText(st::messageTextStyle, TextUtilities::Clean(linkText), _textDlgOptions);
 
 			int32 t = (_previewData->pendingTill - unixtime()) * 1000;
 			if (t <= 0) t = 1;
@@ -6045,7 +6044,7 @@ void HistoryWidget::updatePreview() {
 				}
 			}
 			_previewTitle.setText(st::msgNameStyle, title, _textNameOptions);
-			_previewDescription.setText(st::messageTextStyle, textClean(desc), _textDlgOptions);
+			_previewDescription.setText(st::messageTextStyle, TextUtilities::Clean(desc), _textDlgOptions);
 		}
 	} else if (!readyToForward() && !replyToId() && !_editMsgId) {
 		_fieldBarCancel->hide();
@@ -6060,9 +6059,7 @@ void HistoryWidget::onCancel() {
 		onInlineBotCancel();
 	} else if (_editMsgId) {
 		auto original = _replyEditMsg ? _replyEditMsg->originalText() : TextWithEntities();
-		auto editText = textApplyEntities(original.text, original.entities);
-		auto editTags = ConvertEntitiesToTextTags(original.entities);
-		TextWithTags editData = { editText, editTags };
+		auto editData = TextWithTags { TextUtilities::ApplyEntities(original), ConvertEntitiesToTextTags(original.entities) };
 		if (_replyEditMsg && editData != _field->getTextWithTags()) {
 			Ui::show(Box<ConfirmBox>(
 				lang(lng_cancel_edit_post_sure),
@@ -6329,7 +6326,7 @@ void HistoryWidget::updateReplyEditTexts(bool force) {
 		_replyEditMsg = App::histItemById(_channel, _editMsgId ? _editMsgId : _replyToId);
 	}
 	if (_replyEditMsg) {
-		_replyEditMsgText.setText(st::messageTextStyle, textClean(_replyEditMsg->inReplyText()), _textDlgOptions);
+		_replyEditMsgText.setText(st::messageTextStyle, TextUtilities::Clean(_replyEditMsg->inReplyText()), _textDlgOptions);
 
 		updateBotKeyboard();
 
@@ -6390,7 +6387,7 @@ void HistoryWidget::updateForwardingTexts() {
 		}
 	}
 	_toForwardFrom.setText(st::msgNameStyle, from, _textNameOptions);
-	_toForwardText.setText(st::messageTextStyle, textClean(text), _textDlgOptions);
+	_toForwardText.setText(st::messageTextStyle, TextUtilities::Clean(text), _textDlgOptions);
 	_toForwardNameVersion = version;
 }
 

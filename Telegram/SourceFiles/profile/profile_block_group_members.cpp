@@ -309,9 +309,9 @@ void GroupMembersWidget::refreshLimitReached() {
 	bool limitReachedShown = (itemsCount() >= Global::ChatSizeMax()) && chat->amCreator() && !emptyTitle();
 	if (limitReachedShown && !_limitReachedInfo) {
 		_limitReachedInfo.create(this, st::profileLimitReachedLabel);
-		QString title = textRichPrepare(lng_profile_migrate_reached(lt_count, Global::ChatSizeMax()));
-		QString body = textRichPrepare(lang(lng_profile_migrate_body));
-		QString link = textRichPrepare(lang(lng_profile_migrate_learn_more));
+		QString title = TextUtilities::EscapeForRichParsing(lng_profile_migrate_reached(lt_count, Global::ChatSizeMax()));
+		QString body = TextUtilities::EscapeForRichParsing(lang(lng_profile_migrate_body));
+		QString link = TextUtilities::EscapeForRichParsing(lang(lng_profile_migrate_learn_more));
 		QString text = qsl("%1%2%3\n%4 [a href=\"https://telegram.org/blog/supergroups5k\"]%5[/a]").arg(textcmdStartSemibold()).arg(title).arg(textcmdStopSemibold()).arg(body).arg(link);
 		_limitReachedInfo->setRichText(text);
 		_limitReachedInfo->setClickHandlerHook([this](const ClickHandlerPtr &handler, Qt::MouseButton button) {

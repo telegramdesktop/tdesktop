@@ -164,7 +164,7 @@ void EditorBlock::Row::fillValueString() {
 void EditorBlock::Row::fillSearchIndex() {
 	_searchWords.clear();
 	_searchStartChars.clear();
-	auto toIndex = _name + ' ' + _copyOf + ' ' + textAccentFold(_description.originalText()) + ' ' + _valueString;
+	auto toIndex = _name + ' ' + _copyOf + ' ' + TextUtilities::RemoveAccents(_description.originalText()) + ' ' + _valueString;
 	auto words = toIndex.toLower().split(SearchSplitter, QString::SkipEmptyParts);
 	for_const (auto &word, words) {
 		_searchWords.insert(word);
@@ -346,11 +346,8 @@ void EditorBlock::scrollToSelected() {
 }
 
 void EditorBlock::searchByQuery(QString query) {
-	auto searchWords = QStringList();
-	if (!query.isEmpty()) {
-		searchWords = textAccentFold(query.trimmed().toLower()).split(SearchSplitter, QString::SkipEmptyParts);
-		query = searchWords.join(' ');
-	}
+	auto words = TextUtilities::PrepareSearchWords(query, &SearchSplitter);
+	query = words.isEmpty() ? QString() : words.join(' ');
 	if (_searchQuery != query) {
 		setSelected(-1);
 		setPressed(-1);
@@ -359,7 +356,7 @@ void EditorBlock::searchByQuery(QString query) {
 		_searchResults.clear();
 
 		auto toFilter = OrderedSet<int>();
-		for_const (auto &word, searchWords) {
+		for_const (auto &word, words) {
 			if (word.isEmpty()) continue;
 
 			auto testToFilter = _searchIndex.value(word[0]);
@@ -371,8 +368,8 @@ void EditorBlock::searchByQuery(QString query) {
 			}
 		}
 		if (!toFilter.isEmpty()) {
-			auto allWordsFound = [&searchWords](const Row &row) {
-				for_const (auto &word, searchWords) {
+			auto allWordsFound = [&words](const Row &row) {
+				for_const (auto &word, words) {
 					if (!row.searchWordsContain(word)) {
 						return false;
 					}

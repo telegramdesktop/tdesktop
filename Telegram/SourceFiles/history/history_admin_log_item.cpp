@@ -30,14 +30,14 @@ namespace AdminLog {
 namespace {
 
 TextWithEntities PrepareText(const QString &value, const QString &emptyValue) {
-	auto result = TextWithEntities { textClean(value) };
+	auto result = TextWithEntities { TextUtilities::Clean(value) };
 	if (result.text.isEmpty()) {
 		result.text = emptyValue;
 		if (!emptyValue.isEmpty()) {
 			result.entities.push_back(EntityInText(EntityInTextItalic, 0, emptyValue.size()));
 		}
 	} else {
-		textParseEntities(result.text, TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands, &result.entities);
+		TextUtilities::ParseEntities(result, TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands);
 	}
 	return result;
 }
@@ -79,8 +79,8 @@ TextWithEntities ExtractEditedText(const MTPMessage &message) {
 	} else if (mediaType == mtpc_messageMediaPhoto) {
 		return PrepareText(qs(data.vmedia.c_messageMediaPhoto().vcaption), QString());
 	}
-	auto text = textClean(qs(data.vmessage));
-	auto entities = data.has_entities() ? entitiesFromMTP(data.ventities.v) : EntitiesInText();
+	auto text = TextUtilities::Clean(qs(data.vmessage));
+	auto entities = data.has_entities() ? TextUtilities::EntitiesFromMTP(data.ventities.v) : EntitiesInText();
 	return { text, entities };
 }
 

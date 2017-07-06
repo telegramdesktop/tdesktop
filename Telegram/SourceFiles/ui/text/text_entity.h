@@ -116,22 +116,6 @@ struct TextWithEntities {
 	QString text;
 	EntitiesInText entities;
 };
-inline void appendTextWithEntities(TextWithEntities &to, TextWithEntities &&append) {
-	int entitiesShiftRight = to.text.size();
-	for (auto &entity : append.entities) {
-		entity.shiftRight(entitiesShiftRight);
-	}
-	to.text += append.text;
-	to.entities += append.entities;
-}
-
-// text preprocess
-QString textClean(const QString &text);
-QString textRichPrepare(const QString &text);
-QString textOneLine(const QString &text, bool trim = true, bool rich = false);
-QString textAccentFold(const QString &text);
-QString textSearchKey(const QString &text);
-bool textSplit(QString &sendingText, EntitiesInText &sendingEntities, QString &leftText, EntitiesInText &leftEntities, int32 limit);
 
 enum {
 	TextParseMultiline = 0x001,
@@ -148,39 +132,91 @@ enum {
 	TextInstagramHashtags = 0x800,
 };
 
-inline bool mentionNameToFields(const QString &data, int32 *outUserId, uint64 *outAccessHash) {
+// Parsing helpers.
+
+namespace TextUtilities {
+
+bool IsValidProtocol(const QString &protocol);
+bool IsValidTopDomain(const QString &domain);
+
+const QRegularExpression &RegExpDomain();
+const QRegularExpression &RegExpDomainExplicit();
+const QRegularExpression &RegExpMailNameAtEnd();
+const QRegularExpression &RegExpHashtag();
+const QRegularExpression &RegExpMention();
+const QRegularExpression &RegExpBotCommand();
+const QRegularExpression &RegExpMonoInline();
+const QRegularExpression &RegExpMonoBlock();
+
+inline void Append(TextWithEntities &to, TextWithEntities &&append) {
+	auto entitiesShiftRight = to.text.size();
+	for (auto &entity : append.entities) {
+		entity.shiftRight(entitiesShiftRight);
+	}
+	to.text += append.text;
+	to.entities += append.entities;
+}
+
+// Text preprocess.
+QString Clean(const QString &text);
+QString EscapeForRichParsing(const QString &text);
+QString SingleLine(const QString &text);
+QString RemoveAccents(const QString &text);
+QStringList PrepareSearchWords(const QString &query, const QRegularExpression *SplitterOverride = nullptr);
+bool CutPart(TextWithEntities &sending, TextWithEntities &left, int limit);
+
+struct MentionNameFields {
+	MentionNameFields(int32 userId = 0, uint64 accessHash = 0) : userId(userId), accessHash(accessHash) {
+	}
+	int32 userId = 0;
+	uint64 accessHash = 0;
+};
+inline MentionNameFields MentionNameDataToFields(const QString &data) {
 	auto components = data.split('.');
 	if (!components.isEmpty()) {
-		*outUserId = components.at(0).toInt();
-		*outAccessHash = (components.size() > 1) ? components.at(1).toULongLong() : 0;
-		return (*outUserId != 0);
+		return { components.at(0).toInt(), (components.size() > 1) ? components.at(1).toULongLong() : 0 };
 	}
-	return false;
+	return MentionNameFields {};
 }
 
-inline QString mentionNameFromFields(int32 userId, uint64 accessHash) {
-	return QString::number(userId) + '.' + QString::number(accessHash);
+inline QString MentionNameDataFromFields(const MentionNameFields &fields) {
+	auto result = QString::number(fields.userId);
+	if (fields.accessHash) {
+		result += '.' + QString::number(fields.accessHash);
+	}
+	return result;
 }
 
-EntitiesInText entitiesFromMTP(const QVector<MTPMessageEntity> &entities);
-MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool sending = false);
+EntitiesInText EntitiesFromMTP(const QVector<MTPMessageEntity> &entities);
+enum class ConvertOption {
+	WithLocal,
+	SkipLocal,
+};
+MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &links, ConvertOption option = ConvertOption::WithLocal);
 
-// New entities are added to the ones that are already in inOutEntities.
+// New entities are added to the ones that are already in result.
 // Changes text if (flags & TextParseMono).
-void textParseEntities(QString &text, int32 flags, EntitiesInText *inOutEntities, bool rich = false);
-QString textApplyEntities(const QString &text, const EntitiesInText &entities);
+void ParseEntities(TextWithEntities &result, int32 flags, bool rich = false);
+QString ApplyEntities(const TextWithEntities &text);
 
-QString prepareTextWithEntities(QString result, int32 flags, EntitiesInText *inOutEntities);
+void PrepareForSending(TextWithEntities &result, int32 flags);
+void Trim(TextWithEntities &result);
 
-inline QString prepareText(QString result, bool checkLinks = false) {
-	EntitiesInText entities;
-	auto prepareFlags = checkLinks ? (TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands) : 0;
-	return prepareTextWithEntities(result, prepareFlags, &entities);
+enum class PrepareTextOption {
+	IgnoreLinks,
+	CheckLinks,
+};
+inline QString PrepareForSending(const QString &text, PrepareTextOption option = PrepareTextOption::IgnoreLinks) {
+	auto result = TextWithEntities { text };
+	auto prepareFlags = (option == PrepareTextOption::CheckLinks) ? (TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands) : 0;
+	PrepareForSending(result, prepareFlags);
+	return result.text;
 }
 
-// replace bad symbols with space and remove \r
-void cleanTextWithEntities(QString &result, EntitiesInText *inOutEntities);
-void trimTextWithEntities(QString &result, EntitiesInText *inOutEntities);
+// Replace bad symbols with space and remove '\r'.
+void ApplyServerCleaning(TextWithEntities &result);
+
+} // namespace TextUtilities
 
 namespace Lang {
 
@@ -203,4 +239,4 @@ struct ReplaceTag<TextWithEntities> {
 
 };
 
-}
+} // namespace Lang

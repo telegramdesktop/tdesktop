@@ -130,7 +130,7 @@ TextWithEntities captionedSelectedText(const QString &attachType, const Text &ca
 	result.text.append(qstr("[ ")).append(attachType).append(qstr(" ]"));
 	if (!caption.isEmpty()) {
 		result.text.append(qstr("\n"));
-		appendTextWithEntities(result, std::move(original));
+		TextUtilities::Append(result, std::move(original));
 	}
 	return result;
 }
@@ -147,11 +147,11 @@ QString captionedNotificationText(const QString &attachType, const Text &caption
 
 QString captionedInDialogsText(const QString &attachType, const Text &caption) {
 	if (caption.isEmpty()) {
-		return textcmdLink(1, textClean(attachType));
+		return textcmdLink(1, TextUtilities::Clean(attachType));
 	}
 
-	auto captionText = textClean(caption.originalText());
-	auto attachTypeWrapped = textcmdLink(1, lng_dialogs_text_media_wrapped(lt_media, textClean(attachType)));
+	auto captionText = TextUtilities::Clean(caption.originalText());
+	auto attachTypeWrapped = textcmdLink(1, lng_dialogs_text_media_wrapped(lt_media, TextUtilities::Clean(attachType)));
 	return lng_dialogs_text_media(lt_media_part, attachTypeWrapped, lt_caption, captionText);
 }
 
@@ -3164,7 +3164,7 @@ void HistoryWebPage::initDimensions() {
 	}
 
 	// init layout
-	auto title = textOneLine(_data->title.isEmpty() ? _data->author : _data->title);
+	auto title = TextUtilities::SingleLine(_data->title.isEmpty() ? _data->author : _data->title);
 	if (!_data->description.text.isEmpty() && title.isEmpty() && _data->siteName.isEmpty() && !_data->url.isEmpty()) {
 		_data->siteName = siteNameFromUrl(_data->url);
 	}
@@ -3642,7 +3642,7 @@ TextWithEntities HistoryWebPage::selectedText(TextSelection selection) const {
 	}
 
 	titleResult.text += '\n';
-	appendTextWithEntities(titleResult, std::move(descriptionResult));
+	TextUtilities::Append(titleResult, std::move(descriptionResult));
 	return titleResult;
 }
 
@@ -3700,7 +3700,7 @@ void HistoryGame::initDimensions() {
 		_openl = MakeShared<ReplyMarkupClickHandler>(_parent, 0, 0);
 	}
 
-	auto title = textOneLine(_data->title);
+	auto title = TextUtilities::SingleLine(_data->title);
 
 	// init attach
 	if (!_attach) {
@@ -3728,7 +3728,7 @@ void HistoryGame::initDimensions() {
 			}
 			auto marked = TextWithEntities { text };
 			auto parseFlags = TextParseLinks | TextParseMultiline | TextParseRichText;
-			textParseEntities(marked.text, parseFlags, &marked.entities);
+			TextUtilities::ParseEntities(marked, parseFlags);
 			_description.setMarkedText(st::webPageDescriptionStyle, marked, _webpageDescriptionOptions);
 		}
 	}
@@ -4042,7 +4042,7 @@ TextWithEntities HistoryGame::selectedText(TextSelection selection) const {
 	}
 
 	titleResult.text += '\n';
-	appendTextWithEntities(titleResult, std::move(descriptionResult));
+	TextUtilities::Append(titleResult, std::move(descriptionResult));
 	return titleResult;
 }
 
@@ -4156,10 +4156,10 @@ void HistoryInvoice::fillFromData(const MTPDmessageMediaInvoice &data) {
 	if (!description.isEmpty()) {
 		auto marked = TextWithEntities { description };
 		auto parseFlags = TextParseLinks | TextParseMultiline | TextParseRichText;
-		textParseEntities(marked.text, parseFlags, &marked.entities);
+		TextUtilities::ParseEntities(marked, parseFlags);
 		_description.setMarkedText(st::webPageDescriptionStyle, marked, _webpageDescriptionOptions);
 	}
-	auto title = textOneLine(qs(data.vtitle));
+	auto title = TextUtilities::SingleLine(qs(data.vtitle));
 	if (!title.isEmpty()) {
 		_title.setText(st::webPageTitleStyle, title, _webpageTitleOptions);
 	}
@@ -4435,7 +4435,7 @@ TextWithEntities HistoryInvoice::selectedText(TextSelection selection) const {
 	}
 
 	titleResult.text += '\n';
-	appendTextWithEntities(titleResult, std::move(descriptionResult));
+	TextUtilities::Append(titleResult, std::move(descriptionResult));
 	return titleResult;
 }
 
@@ -4460,12 +4460,12 @@ HistoryLocation::HistoryLocation(gsl::not_null<HistoryItem*> parent, const Locat
 , _description(st::msgMinWidth)
 , _link(MakeShared<LocationClickHandler>(coords)) {
 	if (!title.isEmpty()) {
-		_title.setText(st::webPageTitleStyle, textClean(title), _webpageTitleOptions);
+		_title.setText(st::webPageTitleStyle, TextUtilities::Clean(title), _webpageTitleOptions);
 	}
 	if (!description.isEmpty()) {
-		auto marked = TextWithEntities { textClean(description) };
+		auto marked = TextWithEntities { TextUtilities::Clean(description) };
 		auto parseFlags = TextParseLinks | TextParseMultiline | TextParseRichText;
-		textParseEntities(marked.text, parseFlags, &marked.entities);
+		TextUtilities::ParseEntities(marked, parseFlags);
 		_description.setMarkedText(st::webPageDescriptionStyle, marked, _webpageDescriptionOptions);
 	}
 }
@@ -4700,7 +4700,7 @@ TextWithEntities HistoryLocation::selectedText(TextSelection selection) const {
 		TextWithEntities result = { qsl("[ ") + lang(lng_maps_point) + qsl(" ]\n"), EntitiesInText() };
 		auto info = selectedText(AllTextSelection);
 		if (!info.text.isEmpty()) {
-			appendTextWithEntities(result, std::move(info));
+			TextUtilities::Append(result, std::move(info));
 			result.text.append('\n');
 		}
 		result.text += _link->dragText();
@@ -4715,7 +4715,7 @@ TextWithEntities HistoryLocation::selectedText(TextSelection selection) const {
 		return titleResult;
 	}
 	titleResult.text += '\n';
-	appendTextWithEntities(titleResult, std::move(descriptionResult));
+	TextUtilities::Append(titleResult, std::move(descriptionResult));
 	return titleResult;
 }
 

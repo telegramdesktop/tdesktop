@@ -1526,22 +1526,11 @@ void ContactsBox::Inner::updateSelection() {
 
 void ContactsBox::Inner::updateFilter(QString filter) {
 	_lastQuery = filter.toLower().trimmed();
-	filter = textSearchKey(filter);
+
+	auto words = TextUtilities::PrepareSearchWords(_lastQuery);
+	filter = words.isEmpty() ? QString() : words.join(' ');
 
 	_time = unixtime();
-	QStringList f;
-	if (!filter.isEmpty()) {
-		QStringList filterList = filter.split(cWordSplit(), QString::SkipEmptyParts);
-		int l = filterList.size();
-
-		f.reserve(l);
-		for (int i = 0; i < l; ++i) {
-			QString filterName = filterList[i].trimmed();
-			if (filterName.isEmpty()) continue;
-			f.push_back(filterName);
-		}
-		filter = f.join(' ');
-	}
 	if (_filter != filter) {
 		_filter = filter;
 
@@ -1560,10 +1549,10 @@ void ContactsBox::Inner::updateFilter(QString filter) {
 		} else {
 			if (!_addContactLnk->isHidden()) _addContactLnk->hide();
 			if (!_allAdmins->isHidden()) _allAdmins->hide();
-			QStringList::const_iterator fb = f.cbegin(), fe = f.cend(), fi;
+			QStringList::const_iterator fb = words.cbegin(), fe = words.cend(), fi;
 
 			_filtered.clear();
-			if (!f.isEmpty()) {
+			if (!words.isEmpty()) {
 				const Dialogs::List *toFilter = nullptr;
 				if (!_contacts->isEmpty()) {
 					for (fi = fb; fi != fe; ++fi) {

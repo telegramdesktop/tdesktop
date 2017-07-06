@@ -57,7 +57,7 @@ QString SendDataCommon::getErrorOnSend(const Result *owner, History *history) co
 SendDataCommon::SentMTPMessageFields SendText::getSentMessageFields() const {
 	SentMTPMessageFields result;
 	result.text = MTP_string(_message);
-	result.entities = linksToMTP(_entities);
+	result.entities = TextUtilities::EntitiesToMTP(_entities);
 	return result;
 }
 

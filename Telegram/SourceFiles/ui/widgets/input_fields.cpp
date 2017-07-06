@@ -840,25 +840,22 @@ void FlatTextarea::parseLinks() { // some code is duplicated in text.cpp!
 		return;
 	}
 
-	initLinkSets();
-
-	int32 len = text.size();
+	auto len = text.size();
 	const QChar *start = text.unicode(), *end = start + text.size();
-	for (int32 offset = 0, matchOffset = offset; offset < len;) {
-		QRegularExpressionMatch m = reDomain().match(text, matchOffset);
+	for (auto offset = 0, matchOffset = offset; offset < len;) {
+		auto m = TextUtilities::RegExpDomain().match(text, matchOffset);
 		if (!m.hasMatch()) break;
 
-		int32 domainOffset = m.capturedStart();
+		auto domainOffset = m.capturedStart();
 
-		QString protocol = m.captured(1).toLower();
-		QString topDomain = m.captured(3).toLower();
-
-		bool isProtocolValid = protocol.isEmpty() || validProtocols().contains(hashCrc32(protocol.constData(), protocol.size() * sizeof(QChar)));
-		bool isTopDomainValid = !protocol.isEmpty() || validTopDomains().contains(hashCrc32(topDomain.constData(), topDomain.size() * sizeof(QChar)));
+		auto protocol = m.captured(1).toLower();
+		auto topDomain = m.captured(3).toLower();
+		auto isProtocolValid = protocol.isEmpty() || TextUtilities::IsValidProtocol(protocol);
+		auto isTopDomainValid = !protocol.isEmpty() || TextUtilities::IsValidTopDomain(topDomain);
 
 		if (protocol.isEmpty() && domainOffset > offset + 1 && *(start + domainOffset - 1) == QChar('@')) {
-			QString forMailName = text.mid(offset, domainOffset - offset - 1);
-			QRegularExpressionMatch mMailName = reMailName().match(forMailName);
+			auto forMailName = text.mid(offset, domainOffset - offset - 1);
+			auto mMailName = TextUtilities::RegExpMailNameAtEnd().match(forMailName);
 			if (mMailName.hasMatch()) {
 				offset = matchOffset = m.capturedEnd();
 				continue;

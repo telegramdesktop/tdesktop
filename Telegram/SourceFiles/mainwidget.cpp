@@ -1479,23 +1479,24 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 	}
 	saveRecentHashtags(textWithTags.text);
 
-	EntitiesInText sendingEntities, leftEntities = ConvertTextTagsToEntities(textWithTags.tags);
+	auto sending = TextWithEntities();
+	auto left = TextWithEntities { textWithTags.text, ConvertTextTagsToEntities(textWithTags.tags) };
 	auto prepareFlags = itemTextOptions(history, App::self()).flags;
-	QString sendingText, leftText = prepareTextWithEntities(textWithTags.text, prepareFlags, &leftEntities);
+	TextUtilities::PrepareForSending(left, prepareFlags);
 
 	HistoryItem *lastMessage = nullptr;
 
-	MsgId replyTo = (message.replyTo < 0) ? _history->replyToId() : message.replyTo;
-	while (textSplit(sendingText, sendingEntities, leftText, leftEntities, MaxMessageSize)) {
-		FullMsgId newId(peerToChannel(history->peer->id), clientMsgId());
-		uint64 randomId = rand_value<uint64>();
+	auto replyTo = (message.replyTo < 0) ? _history->replyToId() : message.replyTo;
+	while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
+		auto newId = FullMsgId(peerToChannel(history->peer->id), clientMsgId());
+		auto randomId = rand_value<uint64>();
 
-		trimTextWithEntities(sendingText, &sendingEntities);
+		TextUtilities::Trim(sending);
 
 		App::historyRegRandom(randomId, newId);
-		App::historyRegSentData(randomId, history->peer->id, sendingText);
+		App::historyRegSentData(randomId, history->peer->id, sending.text);
 
-		MTPstring msgText(MTP_string(sendingText));
+		MTPstring msgText(MTP_string(sending.text));
 		auto flags = NewMessageFlags(history->peer) | MTPDmessage::Flag::f_entities; // unread, out
 		auto sendFlags = MTPmessages_SendMessage::Flags(0);
 		if (replyTo) {
@@ -1523,8 +1524,8 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 		if (silentPost) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_silent;
 		}
-		auto localEntities = linksToMTP(sendingEntities);
-		auto sentEntities = linksToMTP(sendingEntities, true);
+		auto localEntities = TextUtilities::EntitiesToMTP(sending.entities);
+		auto sentEntities = TextUtilities::EntitiesToMTP(sending.entities, TextUtilities::ConvertOption::SkipLocal);
 		if (!sentEntities.v.isEmpty()) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_entities;
 		}
@@ -1546,7 +1547,7 @@ void MainWidget::saveRecentHashtags(const QString &text) {
 	bool found = false;
 	QRegularExpressionMatch m;
 	RecentHashtagPack recent(cRecentWriteHashtags());
-	for (int32 i = 0, next = 0; (m = reHashtag().match(text, i)).hasMatch(); i = next) {
+	for (int32 i = 0, next = 0; (m = TextUtilities::RegExpHashtag().match(text, i)).hasMatch(); i = next) {
 		i = m.capturedStart();
 		next = m.capturedEnd();
 		if (m.hasMatch()) {
@@ -2093,12 +2094,11 @@ void MainWidget::dialogsCancelled() {
 
 void MainWidget::insertCheckedServiceNotification(const TextWithEntities &message, const MTPMessageMedia &media, int32 date) {
 	auto flags = MTPDmessage::Flag::f_entities | MTPDmessage::Flag::f_from_id | MTPDmessage_ClientFlag::f_clientside_unread;
-	QString sendingText, leftText = message.text;
-	EntitiesInText sendingEntities, leftEntities = message.entities;
+	auto sending = TextWithEntities(), left = message;
 	HistoryItem *item = nullptr;
-	while (textSplit(sendingText, sendingEntities, leftText, leftEntities, MaxMessageSize)) {
-		MTPVector<MTPMessageEntity> localEntities = linksToMTP(sendingEntities);
-		item = App::histories().addNewMessage(MTP_message(MTP_flags(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(AuthSession::CurrentUserId())), MTPnullFwdHeader, MTPint(), MTPint(), MTP_int(date), MTP_string(sendingText), media, MTPnullMarkup, localEntities, MTPint(), MTPint()), NewMessageUnread);
+	while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
+		auto localEntities = TextUtilities::EntitiesToMTP(sending.entities);
+		item = App::histories().addNewMessage(MTP_message(MTP_flags(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(AuthSession::CurrentUserId())), MTPnullFwdHeader, MTPint(), MTPint(), MTP_int(date), MTP_string(sending.text), media, MTPnullMarkup, localEntities, MTPint(), MTPint()), NewMessageUnread);
 	}
 	if (item) {
 		_history->peerMessagesUpdated(item->history()->peer->id);
@@ -4878,7 +4878,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 					if (d.has_entities() && !mentionUsersLoaded(d.ventities)) {
 						AuthSession::Current().api().requestMessageData(item->history()->peer->asChannel(), item->id, ApiWrap::RequestMessageDataCallback());
 					}
-					auto entities = d.has_entities() ? entitiesFromMTP(d.ventities.v) : EntitiesInText();
+					auto entities = d.has_entities() ? TextUtilities::EntitiesFromMTP(d.ventities.v) : EntitiesInText();
 					item->setText({ text, entities });
 					item->updateMedia(d.has_media() ? (&d.vmedia) : nullptr);
 					item->addToOverview(AddToOverviewNew);
@@ -5129,9 +5129,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		auto &d = update.c_updateUserName();
 		if (auto user = App::userLoaded(d.vuser_id.v)) {
 			if (user->contact <= 0) {
-				user->setName(textOneLine(qs(d.vfirst_name)), textOneLine(qs(d.vlast_name)), user->nameOrPhone, textOneLine(qs(d.vusername)));
+				user->setName(TextUtilities::SingleLine(qs(d.vfirst_name)), TextUtilities::SingleLine(qs(d.vlast_name)), user->nameOrPhone, TextUtilities::SingleLine(qs(d.vusername)));
 			} else {
-				user->setName(textOneLine(user->firstName), textOneLine(user->lastName), user->nameOrPhone, textOneLine(qs(d.vusername)));
+				user->setName(TextUtilities::SingleLine(user->firstName), TextUtilities::SingleLine(user->lastName), user->nameOrPhone, TextUtilities::SingleLine(qs(d.vusername)));
 			}
 			App::markPeerUpdated(user);
 		}
@@ -5234,7 +5234,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		if (d.is_popup()) {
 			Ui::show(Box<InformBox>(qs(d.vmessage)));
 		} else {
-			App::wnd()->serviceNotification({ qs(d.vmessage), entitiesFromMTP(d.ventities.v) }, d.vmedia);
+			App::wnd()->serviceNotification({ qs(d.vmessage), TextUtilities::EntitiesFromMTP(d.ventities.v) }, d.vmedia);
 			emit App::wnd()->checkNewAuthorization();
 		}
 	} break;

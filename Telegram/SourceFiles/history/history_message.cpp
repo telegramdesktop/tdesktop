@@ -221,7 +221,7 @@ bool HistoryMessageReply::updateData(HistoryMessage *holder, bool force) {
 	}
 
 	if (replyToMsg) {
-		replyToText.setText(st::messageTextStyle, textClean(replyToMsg->inReplyText()), _textDlgOptions);
+		replyToText.setText(st::messageTextStyle, TextUtilities::Clean(replyToMsg->inReplyText()), _textDlgOptions);
 
 		updateName();
 
@@ -432,8 +432,8 @@ HistoryMessage::HistoryMessage(gsl::not_null<History*> history, const MTPDmessag
 
 	initMedia(msg.has_media() ? (&msg.vmedia) : nullptr);
 
-	auto text = textClean(qs(msg.vmessage));
-	auto entities = msg.has_entities() ? entitiesFromMTP(msg.ventities.v) : EntitiesInText();
+	auto text = TextUtilities::Clean(qs(msg.vmessage));
+	auto entities = msg.has_entities() ? TextUtilities::EntitiesFromMTP(msg.ventities.v) : EntitiesInText();
 	setText({ text, entities });
 }
 
@@ -980,7 +980,7 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 
 	TextWithEntities textWithEntities = { qs(message.vmessage), EntitiesInText() };
 	if (message.has_entities()) {
-		textWithEntities.entities = entitiesFromMTP(message.ventities.v);
+		textWithEntities.entities = TextUtilities::EntitiesFromMTP(message.ventities.v);
 	}
 	setText(textWithEntities);
 	setReplyMarkup(message.has_reply_markup() ? (&message.vreply_markup) : nullptr);
@@ -1075,13 +1075,13 @@ TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {
 		result = std::move(mediaResult);
 	} else if (!mediaResult.text.isEmpty()) {
 		result.text += qstr("\n\n");
-		appendTextWithEntities(result, std::move(mediaResult));
+		TextUtilities::Append(result, std::move(mediaResult));
 	}
 	if (result.text.isEmpty()) {
 		result = std::move(logEntryOriginalResult);
 	} else if (!logEntryOriginalResult.text.isEmpty()) {
 		result.text += qstr("\n\n");
-		appendTextWithEntities(result, std::move(logEntryOriginalResult));
+		TextUtilities::Append(result, std::move(logEntryOriginalResult));
 	}
 	if (auto forwarded = Get<HistoryMessageForwarded>()) {
 		if (selection == FullSelection) {
@@ -1090,9 +1090,9 @@ TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {
 			wrapped.text.reserve(fwdinfo.text.size() + 4 + result.text.size());
 			wrapped.entities.reserve(fwdinfo.entities.size() + result.entities.size());
 			wrapped.text.append('[');
-			appendTextWithEntities(wrapped, std::move(fwdinfo));
+			TextUtilities::Append(wrapped, std::move(fwdinfo));
 			wrapped.text.append(qsl("]\n"));
-			appendTextWithEntities(wrapped, std::move(result));
+			TextUtilities::Append(wrapped, std::move(result));
 			result = wrapped;
 		}
 	}
@@ -1101,7 +1101,7 @@ TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {
 			TextWithEntities wrapped;
 			wrapped.text.reserve(lang(lng_in_reply_to).size() + reply->replyToMsg->author()->name.size() + 4 + result.text.size());
 			wrapped.text.append('[').append(lang(lng_in_reply_to)).append(' ').append(reply->replyToMsg->author()->name).append(qsl("]\n"));
-			appendTextWithEntities(wrapped, std::move(result));
+			TextUtilities::Append(wrapped, std::move(result));
 			result = wrapped;
 		}
 	}

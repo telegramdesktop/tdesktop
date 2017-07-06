@@ -674,21 +674,9 @@ bool ShareBox::Inner::hasSelected() const {
 
 void ShareBox::Inner::updateFilter(QString filter) {
 	_lastQuery = filter.toLower().trimmed();
-	filter = textSearchKey(filter);
 
-	QStringList f;
-	if (!filter.isEmpty()) {
-		QStringList filterList = filter.split(cWordSplit(), QString::SkipEmptyParts);
-		int l = filterList.size();
-
-		f.reserve(l);
-		for (int i = 0; i < l; ++i) {
-			QString filterName = filterList[i].trimmed();
-			if (filterName.isEmpty()) continue;
-			f.push_back(filterName);
-		}
-		filter = f.join(' ');
-	}
+	auto words = TextUtilities::PrepareSearchWords(_lastQuery);
+	filter = words.isEmpty() ? QString() : words.join(' ');
 	if (_filter != filter) {
 		_filter = filter;
 
@@ -701,10 +689,10 @@ void ShareBox::Inner::updateFilter(QString filter) {
 		if (_filter.isEmpty()) {
 			refresh();
 		} else {
-			QStringList::const_iterator fb = f.cbegin(), fe = f.cend(), fi;
+			QStringList::const_iterator fb = words.cbegin(), fe = words.cend(), fi;
 
 			_filtered.clear();
-			if (!f.isEmpty()) {
+			if (!words.isEmpty()) {
 				const Dialogs::List *toFilter = nullptr;
 				if (!_chatsIndexed->isEmpty()) {
 					for (fi = fb; fi != fe; ++fi) {

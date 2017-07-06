@@ -99,7 +99,7 @@ void FieldAutocomplete::showFiltered(PeerData *peer, QString query, bool addInli
 	bool resetScroll = (_type != type || _filter != plainQuery);
 	if (resetScroll) {
 		_type = type;
-		_filter = textAccentFold(plainQuery.toString());
+		_filter = TextUtilities::RemoveAccents(plainQuery.toString());
 	}
 	_addInlineBots = addInlineBots;
 

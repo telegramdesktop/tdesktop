@@ -392,7 +392,7 @@ void InnerWidget::updateEmptyText() {
 	auto text = TextWithEntities { lang((hasSearch || hasFilter) ? lng_admin_log_no_results_title : lng_admin_log_no_events_title) };
 	text.entities.append(EntityInText(EntityInTextBold, 0, text.text.size()));
 	auto description = hasSearch
-		? lng_admin_log_no_results_search_text(lt_query, textClean(_searchQuery))
+		? lng_admin_log_no_results_search_text(lt_query, TextUtilities::Clean(_searchQuery))
 		: lang(hasFilter ? lng_admin_log_no_results_text : lng_admin_log_no_events_text);
 	text.text.append(qstr("\n\n") + description);
 	_emptyText.setMarkedText(st::defaultTextStyle, text, options);

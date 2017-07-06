@@ -1120,16 +1120,7 @@ void AddParticipantBoxSearchController::searchGlobalDone(mtpRequestId requestId,
 void AddParticipantBoxSearchController::addChatsContacts() {
 	_chatsContactsAdded = true;
 
-	auto filterWordList = _query.split(cWordSplit(), QString::SkipEmptyParts);
-	auto wordsCount = filterWordList.size();
-	auto wordList = QStringList();
-	wordList.reserve(wordsCount);
-	for_const (auto &word, filterWordList) {
-		auto trimmed = word.trimmed();
-		if (!trimmed.isEmpty()) {
-			wordList.push_back(trimmed);
-		}
-	}
+	auto wordList = TextUtilities::PrepareSearchWords(_query);
 	if (wordList.empty()) {
 		return;
 	}

@@ -173,9 +173,9 @@ void AddContactBox::onSubmit() {
 void AddContactBox::onSave() {
 	if (_addRequest) return;
 
-	QString firstName = prepareText(_first->getLastText());
-	QString lastName = prepareText(_last->getLastText());
-	QString phone = _phone->getLastText().trimmed();
+	auto firstName = TextUtilities::PrepareForSending(_first->getLastText());
+	auto lastName = TextUtilities::PrepareForSending(_last->getLastText());
+	auto phone = _phone->getLastText().trimmed();
 	if (firstName.isEmpty() && lastName.isEmpty()) {
 		if (_invertOrder) {
 			_last->setFocus();
@@ -368,8 +368,8 @@ void GroupInfoBox::onNameSubmit() {
 void GroupInfoBox::onNext() {
 	if (_creationRequestId) return;
 
-	auto title = prepareText(_title->getLastText());
-	auto description = _description ? prepareText(_description->getLastText(), true) : QString();
+	auto title = TextUtilities::PrepareForSending(_title->getLastText());
+	auto description = _description ? TextUtilities::PrepareForSending(_description->getLastText(), TextUtilities::PrepareTextOption::CheckLinks) : QString();
 	if (title.isEmpty()) {
 		_title->setFocus();
 		_title->showError();
@@ -695,7 +695,7 @@ void SetupChannelBox::privacyChanged(Privacy value) {
 }
 
 void SetupChannelBox::onUpdateDone(const MTPBool &result) {
-	_channel->setName(textOneLine(_channel->name), _sentUsername);
+	_channel->setName(TextUtilities::SingleLine(_channel->name), _sentUsername);
 	closeBox();
 }
 
@@ -705,7 +705,7 @@ bool SetupChannelBox::onUpdateFail(const RPCError &error) {
 	_saveRequestId = 0;
 	QString err(error.type());
 	if (err == "USERNAME_NOT_MODIFIED" || _sentUsername == _channel->username) {
-		_channel->setName(textOneLine(_channel->name), textOneLine(_sentUsername));
+		_channel->setName(TextUtilities::SingleLine(_channel->name), TextUtilities::SingleLine(_sentUsername));
 		closeBox();
 		return true;
 	} else if (err == "USERNAME_INVALID") {
@@ -872,7 +872,8 @@ void EditNameTitleBox::resizeEvent(QResizeEvent *e) {
 void EditNameTitleBox::onSave() {
 	if (_requestId) return;
 
-	QString first = prepareText(_first->getLastText()), last = prepareText(_last->getLastText());
+	auto first = TextUtilities::PrepareForSending(_first->getLastText());
+	auto last = TextUtilities::PrepareForSending(_last->getLastText());
 	if (first.isEmpty() && last.isEmpty()) {
 		if (_invertOrder) {
 			_last->setFocus();
@@ -904,10 +905,11 @@ void EditNameTitleBox::onSaveSelfDone(const MTPUser &user) {
 bool EditNameTitleBox::onSaveSelfFail(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
-	QString err(error.type());
-	QString first = textOneLine(_first->getLastText().trimmed()), last = textOneLine(_last->getLastText().trimmed());
+	auto err = error.type();
+	auto first = TextUtilities::SingleLine(_first->getLastText().trimmed());
+	auto last = TextUtilities::SingleLine(_last->getLastText().trimmed());
 	if (err == "NAME_NOT_MODIFIED") {
-		App::self()->setName(first, last, QString(), textOneLine(App::self()->username));
+		App::self()->setName(first, last, QString(), TextUtilities::SingleLine(App::self()->username));
 		closeBox();
 		return true;
 	} else if (err == "FIRSTNAME_INVALID") {
@@ -1073,7 +1075,8 @@ void EditChannelBox::paintEvent(QPaintEvent *e) {
 void EditChannelBox::onSave() {
 	if (_saveTitleRequestId || _saveDescriptionRequestId || _saveSignRequestId || _saveInvitesRequestId) return;
 
-	QString title = prepareText(_title->getLastText()), description = prepareText(_description->getLastText(), true);
+	auto title = TextUtilities::PrepareForSending(_title->getLastText());
+	auto description = TextUtilities::PrepareForSending(_description->getLastText(), TextUtilities::PrepareTextOption::CheckLinks);
 	if (title.isEmpty()) {
 		_title->setFocus();
 		_title->showError();

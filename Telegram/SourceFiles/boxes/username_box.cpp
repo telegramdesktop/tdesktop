@@ -175,7 +175,7 @@ bool UsernameBox::onUpdateFail(const RPCError &error) {
 	_saveRequestId = 0;
 	QString err(error.type());
 	if (err == qstr("USERNAME_NOT_MODIFIED") || _sentUsername == App::self()->username) {
-		App::self()->setName(textOneLine(App::self()->firstName), textOneLine(App::self()->lastName), textOneLine(App::self()->nameOrPhone), textOneLine(_sentUsername));
+		App::self()->setName(TextUtilities::SingleLine(App::self()->firstName), TextUtilities::SingleLine(App::self()->lastName), TextUtilities::SingleLine(App::self()->nameOrPhone), TextUtilities::SingleLine(_sentUsername));
 		closeBox();
 		return true;
 	} else if (err == qstr("USERNAME_INVALID")) {

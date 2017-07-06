@@ -1522,7 +1522,7 @@ TextWithEntities HistoryInner::getSelectedText() const {
 		int y = itemTop(item);
 		if (y >= 0) {
 			part.text.append(item->author()->name).append(time);
-			appendTextWithEntities(part, std::move(unwrapped));
+			TextUtilities::Append(part, std::move(unwrapped));
 			texts.insert(y, part);
 			fullSize += size;
 		}
@@ -1532,7 +1532,7 @@ TextWithEntities HistoryInner::getSelectedText() const {
 	auto sep = qsl("\n\n");
 	result.text.reserve(fullSize + (texts.size() - 1) * sep.size());
 	for (auto i = texts.begin(), e = texts.end(); i != e; ++i) {
-		appendTextWithEntities(result, std::move(i.value()));
+		TextUtilities::Append(result, std::move(i.value()));
 		if (i + 1 != e) {
 			result.text.append(sep);
 		}

@@ -461,22 +461,22 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer a
 void PeerData::fillNames() {
 	names.clear();
 	chars.clear();
-	QString toIndex = textAccentFold(name);
+	auto toIndex = TextUtilities::RemoveAccents(name);
 	if (cRussianLetters().match(toIndex).hasMatch()) {
 		toIndex += ' ' + translitRusEng(toIndex);
 	}
 	if (isUser()) {
-		if (!asUser()->nameOrPhone.isEmpty() && asUser()->nameOrPhone != name) toIndex += ' ' + textAccentFold(asUser()->nameOrPhone);
-		if (!asUser()->username.isEmpty()) toIndex += ' ' + textAccentFold(asUser()->username);
+		if (!asUser()->nameOrPhone.isEmpty() && asUser()->nameOrPhone != name) toIndex += ' ' + TextUtilities::RemoveAccents(asUser()->nameOrPhone);
+		if (!asUser()->username.isEmpty()) toIndex += ' ' + TextUtilities::RemoveAccents(asUser()->username);
 	} else if (isChannel()) {
-		if (!asChannel()->username.isEmpty()) toIndex += ' ' + textAccentFold(asChannel()->username);
+		if (!asChannel()->username.isEmpty()) toIndex += ' ' + TextUtilities::RemoveAccents(asChannel()->username);
 	}
 	toIndex += ' ' + rusKeyboardLayoutSwitch(toIndex);
 
-	QStringList namesList = toIndex.toLower().split(cWordSplit(), QString::SkipEmptyParts);
-	for (QStringList::const_iterator i = namesList.cbegin(), e = namesList.cend(); i != e; ++i) {
-		names.insert(*i);
-		chars.insert(i->at(0));
+	auto namesList = TextUtilities::PrepareSearchWords(toIndex);
+	for (auto &name : namesList) {
+		names.insert(name);
+		chars.insert(name[0]);
 	}
 }
 

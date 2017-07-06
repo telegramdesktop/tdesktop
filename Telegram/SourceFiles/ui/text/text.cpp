@@ -493,33 +493,32 @@ public:
 	}
 
 	TextParser(Text *t, const QString &text, const TextParseOptions &options) : _t(t),
-		src(text),
+		source { text },
 		rich(options.flags & TextParseRichText),
 		multiline(options.flags & TextParseMultiline),
 		stopAfterWidth(QFIXED_MAX) {
 		if (options.flags & TextParseLinks) {
-			textParseEntities(src, options.flags, &entities, rich);
+			TextUtilities::ParseEntities(source, options.flags, rich);
 		}
 		parse(options);
 	}
 
 	TextParser(Text *t, const TextWithEntities &textWithEntities, const TextParseOptions &options) : _t(t),
-		src(textWithEntities.text),
+		source(textWithEntities),
 		rich(options.flags & TextParseRichText),
 		multiline(options.flags & TextParseMultiline),
 		stopAfterWidth(QFIXED_MAX) {
-		auto preparsed = textWithEntities.entities;
+		auto &preparsed = textWithEntities.entities;
 		if ((options.flags & TextParseLinks) && !preparsed.isEmpty()) {
 			bool parseMentions = (options.flags & TextParseMentions);
 			bool parseHashtags = (options.flags & TextParseHashtags);
 			bool parseBotCommands = (options.flags & TextParseBotCommands);
 			bool parseMono = (options.flags & TextParseMono);
-			if (parseMentions && parseHashtags && parseBotCommands && parseMono) {
-				entities = preparsed;
-			} else {
+			if (!parseMentions || !parseHashtags || !parseBotCommands || !parseMono) {
 				int32 i = 0, l = preparsed.size();
-				entities.reserve(l);
-				const QChar s = src.size();
+				source.entities.clear();
+				source.entities.reserve(l);
+				const QChar s = source.text.size();
 				for (; i < l; ++i) {
 					auto type = preparsed.at(i).type();
 					if (((type == EntityInTextMention || type == EntityInTextMentionName) && !parseMentions) ||
@@ -528,7 +527,7 @@ public:
 						((type == EntityInTextBold || type == EntityInTextItalic || type == EntityInTextCode || type == EntityInTextPre) && !parseMono)) {
 						continue;
 					}
-					entities.push_back(preparsed.at(i));
+					source.entities.push_back(preparsed.at(i));
 				}
 			}
 		}
@@ -540,13 +539,13 @@ public:
 			stopAfterWidth = ((options.maxh / _t->_st->font->height) + 1) * options.maxw;
 		}
 
-		start = src.constData();
-		end = start + src.size();
+		start = source.text.constData();
+		end = start + source.text.size();
 
-		entitiesEnd = entities.cend();
-		waitingEntity = entities.cbegin();
+		entitiesEnd = source.entities.cend();
+		waitingEntity = source.entities.cbegin();
 		while (waitingEntity != entitiesEnd && waitingEntity->length() <= 0) ++waitingEntity;
-		int firstMonospaceOffset = EntityInText::firstMonospaceOffset(entities, end - start);
+		int firstMonospaceOffset = EntityInText::firstMonospaceOffset(source.entities, end - start);
 
 		ptr = start;
 		while (ptr != end && chIsTrimmed(*ptr, rich) && ptr != start + firstMonospaceOffset) {
@@ -587,50 +586,50 @@ public:
 		removeFlags.clear();
 
 		_t->_links.resize(maxLnkIndex);
-		for (Text::TextBlocks::const_iterator i = _t->_blocks.cbegin(), e = _t->_blocks.cend(); i != e; ++i) {
-			ITextBlock *b = *i;
+		for (auto i = _t->_blocks.cbegin(), e = _t->_blocks.cend(); i != e; ++i) {
+			auto b = *i;
 			if (b->lnkIndex() > 0x8000) {
 				lnkIndex = maxLnkIndex + (b->lnkIndex() - 0x8000);
 				if (_t->_links.size() < lnkIndex) {
 					_t->_links.resize(lnkIndex);
-					const TextLinkData &link(links[lnkIndex - maxLnkIndex - 1]);
+					auto &link = links[lnkIndex - maxLnkIndex - 1];
 					ClickHandlerPtr handler;
 					switch (link.type) {
-					case EntityInTextCustomUrl: handler.reset(new HiddenUrlClickHandler(link.data)); break;
+					case EntityInTextCustomUrl: handler = MakeShared<HiddenUrlClickHandler>(link.data); break;
 					case EntityInTextEmail:
-					case EntityInTextUrl: handler.reset(new UrlClickHandler(link.data, link.displayStatus == LinkDisplayedFull)); break;
-					case EntityInTextBotCommand: handler.reset(new BotCommandClickHandler(link.data)); break;
+					case EntityInTextUrl: handler = MakeShared<UrlClickHandler>(link.data, link.displayStatus == LinkDisplayedFull); break;
+					case EntityInTextBotCommand: handler = MakeShared<BotCommandClickHandler>(link.data); break;
 					case EntityInTextHashtag:
 						if (options.flags & TextTwitterMentions) {
-							handler.reset(new UrlClickHandler(qsl("https://twitter.com/hashtag/") + link.data.mid(1) + qsl("?src=hash"), true));
+							handler = MakeShared<UrlClickHandler>(qsl("https://twitter.com/hashtag/") + link.data.mid(1) + qsl("?src=hash"), true);
 						} else if (options.flags & TextInstagramMentions) {
-							handler.reset(new UrlClickHandler(qsl("https://instagram.com/explore/tags/") + link.data.mid(1) + '/', true));
+							handler = MakeShared<UrlClickHandler>(qsl("https://instagram.com/explore/tags/") + link.data.mid(1) + '/', true);
 						} else {
-							handler.reset(new HashtagClickHandler(link.data));
+							handler = MakeShared<HashtagClickHandler>(link.data);
 						}
 					break;
 					case EntityInTextMention:
 						if (options.flags & TextTwitterMentions) {
-							handler.reset(new UrlClickHandler(qsl("https://twitter.com/") + link.data.mid(1), true));
+							handler = MakeShared<UrlClickHandler>(qsl("https://twitter.com/") + link.data.mid(1), true);
 						} else if (options.flags & TextInstagramMentions) {
-							handler.reset(new UrlClickHandler(qsl("https://instagram.com/") + link.data.mid(1) + '/', true));
+							handler = MakeShared<UrlClickHandler>(qsl("https://instagram.com/") + link.data.mid(1) + '/', true);
 						} else {
-							handler.reset(new MentionClickHandler(link.data));
+							handler = MakeShared<MentionClickHandler>(link.data);
 						}
 					break;
 					case EntityInTextMentionName: {
-						UserId userId = 0;
-						uint64 accessHash = 0;
-						if (mentionNameToFields(link.data, &userId, &accessHash)) {
-							handler.reset(new MentionNameClickHandler(link.text, userId, accessHash));
+						auto fields = TextUtilities::MentionNameDataToFields(link.data);
+						if (fields.userId) {
+							handler = MakeShared<MentionNameClickHandler>(link.text, fields.userId, fields.accessHash);
 						} else {
 							LOG(("Bad mention name: %1").arg(link.data));
 						}
 					} break;
 					}
 
-					t_assert(!handler.isNull());
-					_t->setLink(lnkIndex, handler);
+					if (!handler.isNull()) {
+						_t->setLink(lnkIndex, handler);
+					}
 				}
 				b->setLnkIndex(lnkIndex);
 			}
@@ -667,11 +666,9 @@ private:
 	}
 
 	Text *_t;
-	QString src;
+	TextWithEntities source;
 	const QChar *start, *end, *ptr;
 	bool rich, multiline;
-
-	EntitiesInText entities;
 	EntitiesInText::const_iterator waitingEntity, entitiesEnd;
 
 	typedef QVector<TextLinkData> TextLinks;

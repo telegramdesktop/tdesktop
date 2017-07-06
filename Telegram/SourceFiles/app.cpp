@@ -459,11 +459,11 @@ namespace {
 				// apply first_name and last_name from minimal user only if we don't have
 				// local values for first name and last name already, otherwise skip
 				bool noLocalName = data->firstName.isEmpty() && data->lastName.isEmpty();
-				QString fname = (!minimal || noLocalName) ? (d.has_first_name() ? textOneLine(qs(d.vfirst_name)) : QString()) : data->firstName;
-				QString lname = (!minimal || noLocalName) ? (d.has_last_name() ? textOneLine(qs(d.vlast_name)) : QString()) : data->lastName;
+				QString fname = (!minimal || noLocalName) ? (d.has_first_name() ? TextUtilities::SingleLine(qs(d.vfirst_name)) : QString()) : data->firstName;
+				QString lname = (!minimal || noLocalName) ? (d.has_last_name() ? TextUtilities::SingleLine(qs(d.vlast_name)) : QString()) : data->lastName;
 
 				QString phone = minimal ? data->phone() : (d.has_phone() ? qs(d.vphone) : QString());
-				QString uname = minimal ? data->username : (d.has_username() ? textOneLine(qs(d.vusername)) : QString());
+				QString uname = minimal ? data->username : (d.has_username() ? TextUtilities::SingleLine(qs(d.vusername)) : QString());
 
 				bool phoneChanged = (data->phone() != phone);
 				if (phoneChanged) {
@@ -714,7 +714,7 @@ namespace {
 			}
 			cdata->flagsUpdated();
 
-			QString uname = d.has_username() ? textOneLine(qs(d.vusername)) : QString();
+			QString uname = d.has_username() ? TextUtilities::SingleLine(qs(d.vusername)) : QString();
 			cdata->setName(qs(d.vtitle), uname);
 
 			cdata->setIsForbidden(false);
@@ -1096,7 +1096,7 @@ namespace {
 		}
 		if (auto existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
 			auto text = qs(m.vmessage);
-			auto entities = m.has_entities() ? entitiesFromMTP(m.ventities.v) : EntitiesInText();
+			auto entities = m.has_entities() ? TextUtilities::EntitiesFromMTP(m.ventities.v) : EntitiesInText();
 			existing->setText({ text, entities });
 			existing->updateMedia(m.has_media() ? (&m.vmedia) : nullptr);
 			existing->updateReplyMarkup(m.has_reply_markup() ? (&m.vreply_markup) : nullptr);
@@ -1334,7 +1334,7 @@ namespace {
 			bool showPhone = !isServiceUser(user->id) && !user->isSelf() && !user->contact;
 			bool showPhoneChanged = !isServiceUser(user->id) && !user->isSelf() && ((showPhone && !wasShowPhone) || (!showPhone && wasShowPhone));
 			if (showPhoneChanged) {
-				user->setName(textOneLine(user->firstName), textOneLine(user->lastName), showPhone ? App::formatPhone(user->phone()) : QString(), textOneLine(user->username));
+				user->setName(TextUtilities::SingleLine(user->firstName), TextUtilities::SingleLine(user->lastName), showPhone ? App::formatPhone(user->phone()) : QString(), TextUtilities::SingleLine(user->username));
 			}
 			markPeerUpdated(user);
 		}
@@ -1497,13 +1497,13 @@ namespace {
 	}
 
 	WebPageData *feedWebPage(const MTPDwebPage &webpage, WebPageData *convert) {
-		auto description = TextWithEntities { webpage.has_description() ? textClean(qs(webpage.vdescription)) : QString() };
+		auto description = TextWithEntities { webpage.has_description() ? TextUtilities::Clean(qs(webpage.vdescription)) : QString() };
 		auto siteName = webpage.has_site_name() ? qs(webpage.vsite_name) : QString();
 		auto parseFlags = TextParseLinks | TextParseMultiline | TextParseRichText;
 		if (siteName == qstr("Twitter") || siteName == qstr("Instagram")) {
 			parseFlags |= TextParseHashtags | TextParseMentions;
 		}
-		textParseEntities(description.text, parseFlags, &description.entities);
+		TextUtilities::ParseEntities(description, parseFlags);
 		return App::webPageSet(webpage.vid.v, convert, webpage.has_type() ? qs(webpage.vtype) : qsl("article"), qs(webpage.vurl), qs(webpage.vdisplay_url), siteName, webpage.has_title() ? qs(webpage.vtitle) : QString(), description, webpage.has_photo() ? App::feedPhoto(webpage.vphoto) : nullptr, webpage.has_document() ? App::feedDocument(webpage.vdocument) : nullptr, webpage.has_duration() ? webpage.vduration.v : 0, webpage.has_author() ? qs(webpage.vauthor) : QString(), 0);
 	}
 
@@ -1800,15 +1800,15 @@ namespace {
 			}
 			if ((convert->url.isEmpty() && !url.isEmpty()) || (convert->pendingTill && convert->pendingTill != pendingTill && pendingTill >= -1)) {
 				convert->type = toWebPageType(type);
-				convert->url = textClean(url);
-				convert->displayUrl = textClean(displayUrl);
-				convert->siteName = textClean(siteName);
-				convert->title = textOneLine(textClean(title));
+				convert->url = TextUtilities::Clean(url);
+				convert->displayUrl = TextUtilities::Clean(displayUrl);
+				convert->siteName = TextUtilities::Clean(siteName);
+				convert->title = TextUtilities::SingleLine(title);
 				convert->description = description;
 				convert->photo = photo;
 				convert->document = document;
 				convert->duration = duration;
-				convert->author = textClean(author);
+				convert->author = TextUtilities::Clean(author);
 				if (convert->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(convert);
 				convert->pendingTill = pendingTill;
 				if (App::main()) App::main()->webPageUpdated(convert);
@@ -1831,15 +1831,15 @@ namespace {
 			if (result != convert) {
 				if ((result->url.isEmpty() && !url.isEmpty()) || (result->pendingTill && result->pendingTill != pendingTill && pendingTill >= -1)) {
 					result->type = toWebPageType(type);
-					result->url = textClean(url);
-					result->displayUrl = textClean(displayUrl);
-					result->siteName = textClean(siteName);
-					result->title = textOneLine(textClean(title));
+					result->url = TextUtilities::Clean(url);
+					result->displayUrl = TextUtilities::Clean(displayUrl);
+					result->siteName = TextUtilities::Clean(siteName);
+					result->title = TextUtilities::SingleLine(title);
 					result->description = description;
 					result->photo = photo;
 					result->document = document;
 					result->duration = duration;
-					result->author = textClean(author);
+					result->author = TextUtilities::Clean(author);
 					if (result->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(result);
 					result->pendingTill = pendingTill;
 					if (App::main()) App::main()->webPageUpdated(result);
@@ -1869,9 +1869,9 @@ namespace {
 			}
 			if (!convert->accessHash && accessHash) {
 				convert->accessHash = accessHash;
-				convert->shortName = textClean(shortName);
-				convert->title = textOneLine(textClean(title));
-				convert->description = textClean(description);
+				convert->shortName = TextUtilities::Clean(shortName);
+				convert->title = TextUtilities::SingleLine(title);
+				convert->description = TextUtilities::Clean(description);
 				convert->photo = photo;
 				convert->document = document;
 				if (App::main()) App::main()->gameUpdated(convert);
@@ -1891,9 +1891,9 @@ namespace {
 			if (result != convert) {
 				if (!result->accessHash && accessHash) {
 					result->accessHash = accessHash;
-					result->shortName = textClean(shortName);
-					result->title = textOneLine(textClean(title));
-					result->description = textClean(description);
+					result->shortName = TextUtilities::Clean(shortName);
+					result->title = TextUtilities::SingleLine(title);
+					result->description = TextUtilities::Clean(description);
 					result->photo = photo;
 					result->document = document;
 					if (App::main()) App::main()->gameUpdated(result);

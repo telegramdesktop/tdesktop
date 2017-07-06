@@ -506,7 +506,7 @@ Voice::Voice(DocumentData *voice, HistoryItem *parent, const style::OverviewFile
 	setDocumentLinks(_data);
 
 	updateName();
-	QString d = textcmdLink(1, textRichPrepare(langDateTime(date(_data->date))));
+	QString d = textcmdLink(1, TextUtilities::EscapeForRichParsing(langDateTime(date(_data->date))));
 	TextParseOptions opts = { TextParseRichText, 0, 0, Qt::LayoutDirectionAuto };
 	_details.setText(st::defaultTextStyle, lng_date_and_duration(lt_date, d, lt_duration, formatDurationText(_data->voice()->duration)), opts);
 	_details.setLink(1, goToMessageClickHandler(parent));
