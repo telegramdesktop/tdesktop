@@ -630,7 +630,7 @@ ContactsBox::Inner::Inner(QWidget *parent, UserData *bot) : TWidget(parent)
 void ContactsBox::Inner::init() {
 	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 	connect(_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
-	connect(_allAdmins, SIGNAL(changed()), this, SLOT(onAllAdminsChanged()));
+	subscribe(_allAdmins->checkedChanged, [this](bool checked) { onAllAdminsChanged(); });
 
 	_rowsTop = st::contactsMarginTop;
 	setAttribute(Qt::WA_OpaquePaintEvent);

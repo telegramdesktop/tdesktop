@@ -858,9 +858,9 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 				}
 			}
 			if (selected || context->selecting) {
-				QRect check(rthumb.topLeft() + QPoint(rtl() ? 0 : (rthumb.width() - st::defaultCheckbox.diameter), rthumb.height() - st::defaultCheckbox.diameter), QSize(st::defaultCheckbox.diameter, st::defaultCheckbox.diameter));
+				QRect check(rthumb.topLeft() + QPoint(rtl() ? 0 : (rthumb.width() - st::defaultCheck.diameter), rthumb.height() - st::defaultCheck.diameter), QSize(st::defaultCheck.diameter, st::defaultCheck.diameter));
 				p.fillRect(check, selected ? st::overviewFileChecked : st::overviewFileCheck);
-				st::defaultCheckbox.checkIcon.paint(p, QPoint(rthumb.width() - st::defaultCheckbox.diameter, rthumb.y() + rthumb.height() - st::defaultCheckbox.diameter), _width);
+				st::defaultCheck.icon.paint(p, QPoint(rthumb.width() - st::defaultCheck.diameter, rthumb.y() + rthumb.height() - st::defaultCheck.diameter), _width);
 			}
 		}
 	}

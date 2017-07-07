@@ -28,11 +28,17 @@ inline QPoint rtlpoint(int x, int y, int outerw) {
 inline QPoint rtlpoint(const QPoint &p, int outerw) {
 	return rtl() ? QPoint(outerw - p.x(), p.y()) : p;
 }
+inline QPointF rtlpoint(const QPointF &p, int outerw) {
+	return rtl() ? QPointF(outerw - p.x(), p.y()) : p;
+}
 inline QRect rtlrect(int x, int y, int w, int h, int outerw) {
 	return QRect(rtl() ? (outerw - x - w) : x, y, w, h);
 }
 inline QRect rtlrect(const QRect &r, int outerw) {
 	return rtl() ? QRect(outerw - r.x() - r.width(), r.y(), r.width(), r.height()) : r;
+}
+inline QRectF rtlrect(const QRectF &r, int outerw) {
+	return rtl() ? QRectF(outerw - r.x() - r.width(), r.y(), r.width(), r.height()) : r;
 }
 inline QRect centerrect(const QRect &inRect, const QRect &rect) {
 	return QRect(inRect.x() + (inRect.width() - rect.width()) / 2, inRect.y() + (inRect.height() - rect.height()) / 2, rect.width(), rect.height());

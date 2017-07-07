@@ -222,8 +222,8 @@ void BackgroundWidget::createControls() {
 	connect(_background, SIGNAL(editTheme()), this, SLOT(onEditTheme()));
 	connect(_background, SIGNAL(useDefault()), this, SLOT(onUseDefaultTheme()));
 
-	addChildRow(_tile, margin, lang(lng_settings_bg_tile), SLOT(onTile()), Window::Theme::Background()->tile());
-	addChildRow(_adaptive, margin, slidedPadding, lang(lng_settings_adaptive_wide), SLOT(onAdaptive()), Global::AdaptiveForWide());
+	addChildRow(_tile, margin, lang(lng_settings_bg_tile), [this](bool) { onTile(); }, Window::Theme::Background()->tile());
+	addChildRow(_adaptive, margin, slidedPadding, lang(lng_settings_adaptive_wide), [this](bool) { onAdaptive(); }, Global::AdaptiveForWide());
 	if (Global::AdaptiveChatLayout() != Adaptive::ChatLayout::Wide) {
 		_adaptive->hideFast();
 	}

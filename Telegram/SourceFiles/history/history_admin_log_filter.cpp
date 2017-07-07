@@ -30,11 +30,13 @@ namespace {
 
 class UserCheckbox : public Ui::RippleButton {
 public:
-	UserCheckbox(QWidget *parent, gsl::not_null<UserData*> user, bool checked, base::lambda<void()> changedCallback);
+	UserCheckbox(QWidget *parent, gsl::not_null<UserData*> user, bool checked);
 
 	bool checked() const {
-		return _checked;
+		return _check->checked();
 	}
+	base::Observable<bool> checkedChanged;
+
 	enum class NotifyAboutChange {
 		Notify,
 		DontNotify,
@@ -57,24 +59,20 @@ protected:
 
 private:
 	const style::Checkbox &_st;
+	std::unique_ptr<Ui::AbstractCheckView> _check;
 
 	QRect _checkRect;
 
-	bool _checked = false;
-	Animation _a_checked;
-
 	gsl::not_null<UserData*> _user;
-	base::lambda<void()> _changedCallback;
 	QString _statusText;
 	bool _statusOnline = false;
 
 };
 
-UserCheckbox::UserCheckbox(QWidget *parent, gsl::not_null<UserData*> user, bool checked, base::lambda<void()> changedCallback) : Ui::RippleButton(parent, st::defaultBoxCheckbox.ripple)
+UserCheckbox::UserCheckbox(QWidget *parent, gsl::not_null<UserData*> user, bool checked) : Ui::RippleButton(parent, st::defaultBoxCheckbox.ripple)
 , _st(st::adminLogFilterUserCheckbox)
-, _checked(checked)
-, _user(user)
-, _changedCallback(std::move(changedCallback)) {
+, _check(std::make_unique<Ui::CheckView>(st::defaultCheck, checked, [this] { rtlupdate(_checkRect); }))
+, _user(user) {
 	setCursor(style::cur_pointer);
 	setClickedCallback([this] {
 		if (isDisabled()) return;
@@ -83,15 +81,15 @@ UserCheckbox::UserCheckbox(QWidget *parent, gsl::not_null<UserData*> user, bool 
 	auto now = unixtime();
 	_statusText = App::onlineText(_user, now);
 	_statusOnline = App::onlineColorUse(_user, now);
-	_checkRect = myrtlrect(_st.margin.left(), (st::contactsPhotoSize - _st.diameter) / 2, _st.diameter, _st.diameter);
+	auto checkSize = _check->getSize();
+	_checkRect = { QPoint(_st.margin.left(), (st::contactsPhotoSize - checkSize.height()) / 2), checkSize };
 }
 
 void UserCheckbox::setChecked(bool checked, NotifyAboutChange notify) {
-	if (_checked != checked) {
-		_checked = checked;
-		_a_checked.start([this] { update(_checkRect); }, _checked ? 0. : 1., _checked ? 1. : 0., _st.duration);
-		if (notify == NotifyAboutChange::Notify && _changedCallback) {
-			_changedCallback();
+	if (_check->checked() != checked) {
+		_check->setCheckedAnimated(checked);
+		if (notify == NotifyAboutChange::Notify) {
+			checkedChanged.notify(checked, true);
 		}
 	}
 }
@@ -100,25 +98,15 @@ void UserCheckbox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto ms = getms();
-	auto active = _a_checked.current(ms, _checked ? 1. : 0.);
+	auto active = _check->currentAnimationValue(ms);
 	auto color = anim::color(_st.rippleBg, _st.rippleBgActive, active);
 	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y() + (_checkRect.y() - st::defaultBoxCheckbox.margin.top()), ms, &color);
 
-	if (_checkRect.intersects(e->rect())) {
-		auto pen = anim::pen(_st.checkFg, _st.checkFgActive, active);
-		pen.setWidth(_st.thickness);
-		p.setPen(pen);
-		p.setBrush(anim::brush(_st.checkBg, anim::color(_st.checkFg, _st.checkFgActive, active), active));
-
-		{
-			PainterHighQualityEnabler hq(p);
-			p.drawRoundedRect(QRectF(_checkRect).marginsRemoved(QMarginsF(_st.thickness / 2., _st.thickness / 2., _st.thickness / 2., _st.thickness / 2.)), st::buttonRadius - (_st.thickness / 2.), st::buttonRadius - (_st.thickness / 2.));
-		}
-
-		if (active > 0) {
-			_st.checkIcon.paint(p, _checkRect.topLeft(), width());
-		}
+	auto realCheckRect = myrtlrect(_checkRect);
+	if (realCheckRect.intersects(e->rect())) {
+		_check->paint(p, _checkRect.left(), _checkRect.top(), width());
 	}
+	if (realCheckRect.contains(e->rect())) return;
 
 	auto userpicLeft = _checkRect.x() + _checkRect.width() + st::adminLogFilterUserpicLeft;
 	auto userpicTop = 0;
@@ -138,7 +126,7 @@ void UserCheckbox::paintEvent(QPaintEvent *e) {
 }
 
 void UserCheckbox::finishAnimations() {
-	_a_checked.finish();
+	_check->finishAnimation();
 }
 
 int UserCheckbox::resizeGetHeight(int newWidth) {
@@ -159,7 +147,7 @@ QPoint UserCheckbox::prepareRippleStartPosition() const {
 
 } // namespace
 
-class FilterBox::Inner : public TWidget {
+class FilterBox::Inner : public TWidget, private base::Subscriber {
 public:
 	Inner(QWidget *parent, gsl::not_null<ChannelData*> channel, const std::vector<gsl::not_null<UserData*>> &admins, const FilterValue &filter, base::lambda<void()> changedCallback);
 
@@ -223,7 +211,7 @@ void FilterBox::Inner::createControls(const std::vector<gsl::not_null<UserData*>
 void FilterBox::Inner::createAllActionsCheckbox(const FilterValue &filter) {
 	auto checked = (filter.flags == 0);
 	_allFlags = addRow(object_ptr<Ui::Checkbox>(this, lang(lng_admin_log_filter_all_actions), checked, st::adminLogFilterCheckbox), st::adminLogFilterCheckbox.margin.top());
-	connect(_allFlags, &Ui::Checkbox::changed, this, [this] {
+	subscribe(_allFlags->checkedChanged, [this](bool checked) {
 		if (!std::exchange(_restoringInvariant, true)) {
 			auto allChecked = _allFlags->checked();
 			for_const (auto &&checkbox, _filterFlags) {
@@ -244,7 +232,7 @@ void FilterBox::Inner::createActionsCheckboxes(const FilterValue &filter) {
 		auto checked = (filter.flags == 0) || (filter.flags & flag);
 		auto checkbox = addRow(object_ptr<Ui::Checkbox>(this, std::move(text), checked, st::defaultBoxCheckbox), st::adminLogFilterLittleSkip);
 		_filterFlags.insert(flag, checkbox);
-		connect(checkbox, &Ui::Checkbox::changed, this, [this] {
+		subscribe(checkbox->checkedChanged, [this](bool checked) {
 			if (!std::exchange(_restoringInvariant, true)) {
 				auto allChecked = true;
 				for_const (auto &&checkbox, _filterFlags) {
@@ -278,8 +266,8 @@ void FilterBox::Inner::createActionsCheckboxes(const FilterValue &filter) {
 
 void FilterBox::Inner::createAllUsersCheckbox(const FilterValue &filter) {
 	_allUsers = addRow(object_ptr<Ui::Checkbox>(this, lang(lng_admin_log_filter_all_admins), filter.allUsers, st::adminLogFilterCheckbox), st::adminLogFilterSkip);
-	connect(_allUsers, &Ui::Checkbox::changed, this, [this] {
-		if (_allUsers->checked() && !std::exchange(_restoringInvariant, true)) {
+	subscribe(_allUsers->checkedChanged, [this](bool checked) {
+		if (checked && !std::exchange(_restoringInvariant, true)) {
 			for_const (auto &&checkbox, _admins) {
 				checkbox->setChecked(true);
 			}
@@ -294,7 +282,8 @@ void FilterBox::Inner::createAllUsersCheckbox(const FilterValue &filter) {
 void FilterBox::Inner::createAdminsCheckboxes(const std::vector<gsl::not_null<UserData*>> &admins, const FilterValue &filter) {
 	for (auto user : admins) {
 		auto checked = filter.allUsers || base::contains(filter.admins, user);
-		auto checkbox = addRow(object_ptr<UserCheckbox>(this, user, checked, [this] {
+		auto checkbox = addRow(object_ptr<UserCheckbox>(this, user, checked), st::adminLogFilterLittleSkip);
+		subscribe(checkbox->checkedChanged, [this](bool checked) {
 			if (!std::exchange(_restoringInvariant, true)) {
 				auto allChecked = true;
 				for_const (auto &&checkbox, _admins) {
@@ -311,7 +300,7 @@ void FilterBox::Inner::createAdminsCheckboxes(const std::vector<gsl::not_null<Us
 					_changedCallback();
 				}
 			}
-		}), st::adminLogFilterLittleSkip);
+		});
 		_admins.insert(user, checkbox);
 	}
 }

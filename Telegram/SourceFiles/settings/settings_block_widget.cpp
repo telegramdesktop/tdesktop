@@ -85,9 +85,9 @@ void BlockWidget::rowHeightUpdated() {
 	}
 }
 
-void BlockWidget::createChildRow(object_ptr<Ui::Checkbox> &child, style::margins &margin, const QString &text, const char *slot, bool checked) {
+void BlockWidget::createChildRow(object_ptr<Ui::Checkbox> &child, style::margins &margin, const QString &text, base::lambda<void(bool checked)> callback, bool checked) {
 	child.create(this, text, checked, st::defaultBoxCheckbox);
-	connect(child, SIGNAL(changed()), this, slot);
+	subscribe(child->checkedChanged, std::move(callback));
 }
 
 void BlockWidget::createChildRow(object_ptr<Ui::LinkButton> &child, style::margins &margin, const QString &text, const char *slot, const style::LinkButton &st) {

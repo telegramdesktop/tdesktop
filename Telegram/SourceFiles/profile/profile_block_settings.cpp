@@ -39,7 +39,7 @@ using UpdateFlag = Notify::PeerUpdate::Flag;
 
 SettingsWidget::SettingsWidget(QWidget *parent, PeerData *peer) : BlockWidget(parent, peer, lang(lng_profile_settings_section))
 , _enableNotifications(this, lang(lng_profile_enable_notifications), true, st::defaultCheckbox) {
-	connect(_enableNotifications, SIGNAL(changed()), this, SLOT(onNotificationsChange()));
+	subscribe(_enableNotifications->checkedChanged, [this](bool checked) { onNotificationsChange(); });
 
 	Notify::PeerUpdate::Flags observeEvents = UpdateFlag::NotificationsEnabled;
 	if (auto chat = peer->asChat()) {

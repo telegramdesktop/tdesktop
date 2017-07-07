@@ -175,7 +175,7 @@ void GeneralWidget::refreshControls() {
 	style::margins slidedPadding(0, marginSmall.bottom() / 2, 0, marginSmall.bottom() - (marginSmall.bottom() / 2));
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	addChildRow(_updateAutomatically, marginSub, lang(lng_settings_update_automatically), SLOT(onUpdateAutomatically()), cAutoUpdate());
+	addChildRow(_updateAutomatically, marginSub, lang(lng_settings_update_automatically), [this](bool) { onUpdateAutomatically(); }, cAutoUpdate());
 	style::margins marginLink(st::defaultBoxCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
 	addChildRow(_updateRow, marginLink, slidedPadding);
 	connect(_updateRow->entity(), SIGNAL(restart()), this, SLOT(onRestart()));
@@ -186,20 +186,20 @@ void GeneralWidget::refreshControls() {
 
 	if (cPlatform() == dbipWindows || cSupportTray()) {
 		auto workMode = Global::WorkMode().value();
-		addChildRow(_enableTrayIcon, marginSmall, lang(lng_settings_workmode_tray), SLOT(onEnableTrayIcon()), (workMode == dbiwmTrayOnly || workMode == dbiwmWindowAndTray));
+		addChildRow(_enableTrayIcon, marginSmall, lang(lng_settings_workmode_tray), [this](bool) { onEnableTrayIcon(); }, (workMode == dbiwmTrayOnly || workMode == dbiwmWindowAndTray));
 		if (cPlatform() == dbipWindows) {
-			addChildRow(_enableTaskbarIcon, marginLarge, lang(lng_settings_workmode_window), SLOT(onEnableTaskbarIcon()), (workMode == dbiwmWindowOnly || workMode == dbiwmWindowAndTray));
+			addChildRow(_enableTaskbarIcon, marginLarge, lang(lng_settings_workmode_window), [this](bool) { onEnableTaskbarIcon(); }, (workMode == dbiwmWindowOnly || workMode == dbiwmWindowAndTray));
 
 #ifndef OS_WIN_STORE
-			addChildRow(_autoStart, marginSmall, lang(lng_settings_auto_start), SLOT(onAutoStart()), cAutoStart());
-			addChildRow(_startMinimized, marginLarge, slidedPadding, lang(lng_settings_start_min), SLOT(onStartMinimized()), (cStartMinimized() && !Global::LocalPasscode()));
+			addChildRow(_autoStart, marginSmall, lang(lng_settings_auto_start), [this](bool) { onAutoStart(); }, cAutoStart());
+			addChildRow(_startMinimized, marginLarge, slidedPadding, lang(lng_settings_start_min), [this](bool) { onStartMinimized(); }, (cStartMinimized() && !Global::LocalPasscode()));
 			subscribe(Global::RefLocalPasscodeChanged(), [this] {
 				_startMinimized->entity()->setChecked(cStartMinimized() && !Global::LocalPasscode());
 			});
 			if (!cAutoStart()) {
 				_startMinimized->hideFast();
 			}
-			addChildRow(_addInSendTo, marginSmall, lang(lng_settings_add_sendto), SLOT(onAddInSendTo()), cSendToMenu());
+			addChildRow(_addInSendTo, marginSmall, lang(lng_settings_add_sendto), [this](bool) { onAddInSendTo(); }, cSendToMenu());
 #endif // OS_WIN_STORE
 		}
 	}

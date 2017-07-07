@@ -92,25 +92,48 @@ RoundButton {
 	ripple: RippleAnimation;
 }
 
+Toggle {
+	toggledBg: color;
+	toggledFg: color;
+	untoggledBg: color;
+	untoggledFg: color;
+	duration: int;
+	border: pixels;
+	shift: pixels;
+	diameter: pixels;
+	width: pixels;
+}
+
+Check {
+	bg: color;
+	untoggledFg: color;
+	toggledFg: color;
+	diameter: pixels;
+	thickness: pixels;
+	icon: icon;
+	duration: int;
+}
+
+Radio {
+	bg: color;
+	untoggledFg: color;
+	toggledFg: color;
+	diameter: pixels;
+	thickness: pixels;
+	skip: pixels;
+	duration: int;
+}
+
 Checkbox {
 	textFg: color;
-
-	checkBg: color;
-	checkFg: color;
-	checkFgActive: color;
 
 	width: pixels;
 	height: pixels;
 	margin: margins;
 
 	textPosition: point;
-	diameter: pixels;
-	thickness: pixels;
-	radioSkip: pixels;
-	checkIcon: icon;
 
 	style: TextStyle;
-	duration: int;
 
 	rippleAreaPosition: point;
 	rippleAreaSize: pixels;
@@ -358,18 +381,6 @@ CallButton {
 	angle: double;
 	outerRadius: pixels;
 	outerBg: color;
-}
-
-Toggle {
-	toggledBg: color;
-	toggledFg: color;
-	untoggledBg: color;
-	untoggledFg: color;
-	duration: int;
-	border: pixels;
-	shift: pixels;
-	diameter: pixels;
-	width: pixels;
 }
 
 Menu {
@@ -660,25 +671,45 @@ defaultInputField: InputField {
 
 defaultCheckboxIcon: icon {{ "default_checkbox_check", windowFgActive, point(4px, 7px) }};
 
+defaultCheck: Check {
+	bg: transparent;
+	untoggledFg: checkboxFg;
+	toggledFg: windowBgActive;
+	diameter: 22px;
+	thickness: 2px;
+	icon: defaultCheckboxIcon;
+	duration: 120;
+}
+defaultRadio: Radio {
+	bg: transparent;
+	untoggledFg: checkboxFg;
+	toggledFg: windowBgActive;
+	diameter: 22px;
+	thickness: 2px;
+	skip: 65px; // * 0.1
+	duration: 120;
+}
+defaultToggle: Toggle {
+	toggledBg: windowBg;
+	toggledFg: windowBgActive;
+	untoggledBg: windowBg;
+	untoggledFg: checkboxFg;
+	duration: 120;
+	border: 2px;
+	shift: 1px;
+	diameter: 20px;
+	width: 16px;
+}
 defaultCheckbox: Checkbox {
 	textFg: windowFg;
-
-	checkBg: transparent;
-	checkFg: checkboxFg;
-	checkFgActive: windowBgActive;
 
 	width: -44px;
 	height: 22px;
 	margin: margins(8px, 8px, 8px, 8px);
 
 	textPosition: point(32px, 2px);
-	diameter: 22px;
-	thickness: 2px;
-	checkIcon: defaultCheckboxIcon;
-	radioSkip: 65px; // * 0.1
 
 	style: defaultTextStyle;
-	duration: 120;
 
 	rippleAreaSize: 38px;
 	rippleAreaPosition: point(0px, 0px);
@@ -779,18 +810,6 @@ defaultRoundCheckbox: RoundCheckbox {
 	bgActive: windowBgActive;
 	width: 2px;
 	duration: 150;
-}
-
-defaultToggle: Toggle {
-	toggledBg: windowBg;
-	toggledFg: windowBgActive;
-	untoggledBg: windowBg;
-	untoggledFg: checkboxFg;
-	duration: 200;
-	border: 2px;
-	shift: 1px;
-	diameter: 20px;
-	width: 16px;
 }
 
 defaultMenuArrow: icon {{ "dropdown_submenu_arrow", menuSubmenuArrowFg }};

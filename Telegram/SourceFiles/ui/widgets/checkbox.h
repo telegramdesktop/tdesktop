@@ -25,11 +25,87 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 
-class Checkbox : public RippleButton {
-	Q_OBJECT
-
+class AbstractCheckView {
 public:
-	Checkbox(QWidget *parent, const QString &text, bool checked = false, const style::Checkbox &st = st::defaultCheckbox);
+	AbstractCheckView(int duration, bool checked, base::lambda<void()> updateCallback);
+
+	void setCheckedFast(bool checked);
+	void setCheckedAnimated(bool checked);
+	void finishAnimation();
+	void setUpdateCallback(base::lambda<void()> updateCallback);
+	bool checked() const {
+		return _checked;
+	}
+	float64 currentAnimationValue(TimeMs ms);
+
+	virtual QSize getSize() = 0;
+
+	// Zero instead of ms value means that animation was already updated for this time.
+	// It can be passed to currentAnimationValue() safely.
+	virtual void paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) = 0;
+
+	void paint(Painter &p, int left, int top, int outerWidth) {
+		// Pass zero in ms if the animation was already updated for this time.
+		paint(p, left, top, outerWidth, 0);
+	}
+
+	virtual ~AbstractCheckView() = default;
+
+private:
+	int _duration = 0;
+	bool _checked = false;
+	base::lambda<void()> _updateCallback;
+	Animation _toggleAnimation;
+
+};
+
+class CheckView : public AbstractCheckView {
+public:
+	CheckView(const style::Check &st, bool checked, base::lambda<void()> updateCallback);
+
+	void setStyle(const style::Check &st);
+
+	QSize getSize() override;
+	void paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) override;
+
+private:
+	gsl::not_null<const style::Check*> _st;
+
+};
+
+class RadioView : public AbstractCheckView {
+public:
+	RadioView(const style::Radio &st, bool checked, base::lambda<void()> updateCallback);
+
+	void setStyle(const style::Radio &st);
+
+	QSize getSize() override;
+	void paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) override;
+
+private:
+	gsl::not_null<const style::Radio*> _st;
+
+};
+
+class ToggleView : public AbstractCheckView {
+public:
+	ToggleView(const style::Toggle &st, bool checked, base::lambda<void()> updateCallback);
+
+	void setStyle(const style::Toggle &st);
+
+	QSize getSize() override;
+	void paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) override;
+
+private:
+	gsl::not_null<const style::Toggle*> _st;
+
+};
+
+class Checkbox : public RippleButton {
+public:
+	Checkbox(QWidget *parent, const QString &text, bool checked = false, const style::Checkbox &st = st::defaultCheckbox, const style::Check &checkSt = st::defaultCheck);
+	Checkbox(QWidget *parent, const QString &text, bool checked, const style::Checkbox &st, const style::Toggle &toggleSt);
+	Checkbox(QWidget *parent, const QString &text, const style::Checkbox &st, std::unique_ptr<AbstractCheckView> check);
 
 	void setText(const QString &text);
 
@@ -39,6 +115,7 @@ public:
 		DontNotify,
 	};
 	void setChecked(bool checked, NotifyAboutChange notify = NotifyAboutChange::Notify);
+	base::Observable<bool> checkedChanged;
 
 	void finishAnimations();
 
@@ -56,22 +133,18 @@ protected:
 	QImage prepareRippleMask() const override;
 	QPoint prepareRippleStartPosition() const override;
 
-public slots:
-	void onClicked();
-
-signals:
-	void changed();
+	void updateCheck() {
+		rtlupdate(_checkRect);
+	}
 
 private:
 	void resizeToText();
 
 	const style::Checkbox &_st;
+	std::unique_ptr<AbstractCheckView> _check;
 
 	Text _text;
 	QRect _checkRect;
-
-	bool _checked;
-	Animation _a_checked;
 
 };
 
@@ -113,40 +186,31 @@ private:
 
 };
 
-class Radiobutton : public RippleButton {
+class Radiobutton : public Checkbox, private base::Subscriber {
 public:
-	Radiobutton(QWidget *parent, const std::shared_ptr<RadiobuttonGroup> &group, int value, const QString &text, const style::Checkbox &st = st::defaultCheckbox);
-
-	QMargins getMargins() const override {
-		return _st.margin;
-	}
-	int naturalWidth() const override;
-
+	Radiobutton(QWidget *parent, const std::shared_ptr<RadiobuttonGroup> &group, int value, const QString &text, const style::Checkbox &st = st::defaultCheckbox, const style::Radio &radioSt = st::defaultRadio);
 	~Radiobutton();
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
-
 	void onStateChanged(State was, StateChangeSource source) override;
-	int resizeGetHeight(int newWidth) override;
-
-	QImage prepareRippleMask() const override;
-	QPoint prepareRippleStartPosition() const override;
 
 private:
+	// Hide the names from Checkbox.
+	bool checked() const;
+	void setChecked(bool checked, NotifyAboutChange notify);
+	void checkedChanged();
+	Checkbox *checkbox() {
+		return this;
+	}
+	const Checkbox *checkbox() const {
+		return this;
+	}
+
 	friend class RadiobuttonGroup;
 	void handleNewGroupValue(int value);
 
 	std::shared_ptr<RadiobuttonGroup> _group;
 	int _value = 0;
-
-	const style::Checkbox &_st;
-
-	Text _text;
-	QRect _checkRect;
-
-	bool _checked = false;
-	Animation _a_checked;
 
 };
 
@@ -191,26 +255,6 @@ public:
 	Radioenum(QWidget *parent, const std::shared_ptr<RadioenumGroup<Enum>> &group, Enum value, const QString &text, const style::Checkbox &st = st::defaultCheckbox)
 		: Radiobutton(parent, std::shared_ptr<RadiobuttonGroup>(group, &group->_group), static_cast<int>(value), text, st) {
 	}
-
-};
-
-class ToggleView {
-public:
-	ToggleView(const style::Toggle &st, bool toggled, base::lambda<void()> updateCallback);
-
-	void setToggledFast(bool toggled);
-	void setToggledAnimated(bool toggled);
-	void finishAnimation();
-	void setStyle(const style::Toggle &st);
-	void setUpdateCallback(base::lambda<void()> updateCallback);
-
-	void paint(Painter &p, int left, int top, int outerWidth, TimeMs ms);
-
-private:
-	gsl::not_null<const style::Toggle*> _st;
-	bool _toggled = false;
-	base::lambda<void()> _updateCallback;
-	Animation _toggleAnimation;
 
 };
 

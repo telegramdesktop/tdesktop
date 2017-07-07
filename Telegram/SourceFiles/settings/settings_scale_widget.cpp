@@ -52,7 +52,7 @@ ScaleWidget::ScaleWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 void ScaleWidget::createControls() {
 	style::margins margin(0, 0, 0, st::settingsSmallSkip);
 
-	addChildRow(_auto, margin, lng_settings_scale_auto(lt_cur, scaleLabel(cScreenScale())), SLOT(onAutoChanged()), (cConfigScale() == dbisAuto));
+	addChildRow(_auto, margin, lng_settings_scale_auto(lt_cur, scaleLabel(cScreenScale())), [this](bool) { onAutoChanged(); }, (cConfigScale() == dbisAuto));
 	addChildRow(_scale, style::margins(0, 0, 0, 0));
 
 	_scale->addSection(scaleLabel(dbisOne));

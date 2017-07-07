@@ -154,7 +154,7 @@ void ChatSettingsWidget::createControls() {
 	style::margins marginSub(0, 0, 0, st::settingsSubSkip);
 	style::margins slidedPadding(0, marginSub.bottom() / 2, 0, marginSub.bottom() - (marginSub.bottom() / 2));
 
-	addChildRow(_replaceEmoji, marginSub, lang(lng_settings_replace_emojis), SLOT(onReplaceEmoji()), cReplaceEmojis());
+	addChildRow(_replaceEmoji, marginSub, lang(lng_settings_replace_emojis), [this](bool) { onReplaceEmoji(); }, cReplaceEmojis());
 	style::margins marginList(st::defaultBoxCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
 	addChildRow(_viewList, marginList, slidedPadding, lang(lng_settings_view_emojis), SLOT(onViewList()), st::defaultLinkButton);
 	if (!cReplaceEmojis()) {
@@ -166,7 +166,7 @@ void ChatSettingsWidget::createControls() {
 #else // OS_WIN_STORE
 	auto pathMargin = marginSkip;
 #endif // OS_WIN_STORE
-	addChildRow(_dontAskDownloadPath, pathMargin, lang(lng_download_path_dont_ask), SLOT(onDontAskDownloadPath()), !Global::AskDownloadPath());
+	addChildRow(_dontAskDownloadPath, pathMargin, lang(lng_download_path_dont_ask), [this](bool) { onDontAskDownloadPath(); }, !Global::AskDownloadPath());
 
 #ifndef OS_WIN_STORE
 	style::margins marginPath(st::defaultBoxCheckbox.textPosition.x(), 0, 0, st::settingsSkip);

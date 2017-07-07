@@ -196,9 +196,9 @@ void EditAdminBox::prepare() {
 		}
 		auto checked = (prepareRights.c_channelAdminRights().vflags.v & flags) != 0;
 		auto control = addControl(object_ptr<Ui::Checkbox>(this, text, checked, st::defaultBoxCheckbox));
-		connect(control, &Ui::Checkbox::changed, this, [this, control] {
-			applyDependencies(control);
-		}, Qt::QueuedConnection);
+		subscribe(control->checkedChanged, [this, control](bool checked) {
+			InvokeQueued(this, [this, control] { applyDependencies(control); });
+		});
 		_checkboxes.emplace(flags, control);
 	};
 	if (channel()->isMegagroup()) {
@@ -221,7 +221,7 @@ void EditAdminBox::prepare() {
 	if (addAdmins != _checkboxes.end()) {
 		_aboutAddAdmins = addControl(object_ptr<Ui::FlatLabel>(this, st::boxLabel));
 		t_assert(addAdmins != _checkboxes.end());
-		connect(addAdmins->second, &Ui::Checkbox::changed, this, [this] {
+		subscribe(addAdmins->second->checkedChanged, [this](bool checked) {
 			refreshAboutAddAdminsText();
 		});
 		refreshAboutAddAdminsText();
@@ -298,9 +298,9 @@ void EditRestrictedBox::prepare() {
 	auto addCheckbox = [this, &prepareRights](Flags flags, const QString &text) {
 		auto checked = (prepareRights.c_channelBannedRights().vflags.v & flags) == 0;
 		auto control = addControl(object_ptr<Ui::Checkbox>(this, text, checked, st::defaultBoxCheckbox));
-		connect(control, &Ui::Checkbox::changed, this, [this, control] {
-			applyDependencies(control);
-		}, Qt::QueuedConnection);
+		subscribe(control->checkedChanged, [this, control](bool checked) {
+			InvokeQueued(this, [this, control] { applyDependencies(control); });
+		});
 		_checkboxes.emplace(flags, control);
 	};
 	addCheckbox(Flag::f_view_messages, lang(lng_rights_chat_read));
