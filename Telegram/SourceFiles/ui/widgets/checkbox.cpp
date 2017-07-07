@@ -223,7 +223,7 @@ void Checkbox::finishAnimations() {
 }
 
 int Checkbox::naturalWidth() const {
-	return _st.textPosition.x() + _text.maxWidth();
+	return _checkRect.width() + _st.textPosition.x() + _text.maxWidth();
 }
 
 void Checkbox::paintEvent(QPaintEvent *e) {
@@ -240,10 +240,10 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 	}
 	if (realCheckRect.contains(e->rect())) return;
 
-	auto textWidth = qMax(width() - (_st.textPosition.x() + (_st.textPosition.x() - _check->getSize().width())), 1);
+	auto textWidth = qMax(width() - (_checkRect.width() + _st.textPosition.x() + _st.textPosition.x()), 1);
 
 	p.setPen(_st.textFg);
-	_text.drawLeftElided(p, _st.margin.left() + _st.textPosition.x(), _st.margin.top() + _st.textPosition.y(), textWidth, width());
+	_text.drawLeftElided(p, _st.margin.left() + _checkRect.width() + _st.textPosition.x(), _st.margin.top() + _st.textPosition.y(), textWidth, width());
 }
 
 void Checkbox::onStateChanged(State was, StateChangeSource source) {

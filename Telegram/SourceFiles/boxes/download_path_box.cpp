@@ -72,7 +72,7 @@ void DownloadPathBox::resizeEvent(QResizeEvent *e) {
 	_default->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxOptionListPadding.top() + _default->getMargins().top());
 	_temp->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _default->bottomNoMargins() + st::boxOptionListSkip);
 	_dir->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _temp->bottomNoMargins() + st::boxOptionListSkip);
-	auto inputx = st::boxPadding.left() + st::boxOptionListPadding.left() + st::defaultBoxCheckbox.textPosition.x();
+	auto inputx = st::boxPadding.left() + st::boxOptionListPadding.left() + st::defaultCheck.diameter + st::defaultBoxCheckbox.textPosition.x();
 	auto inputy = _dir->bottomNoMargins() + st::downloadPathSkip;
 
 	_pathLink->moveToLeft(inputx, inputy);
@@ -132,6 +132,6 @@ void DownloadPathBox::save() {
 }
 
 void DownloadPathBox::setPathText(const QString &text) {
-	auto availw = st::boxWideWidth - st::boxPadding.left() - st::defaultBoxCheckbox.textPosition.x() - st::boxPadding.right();
+	auto availw = st::boxWideWidth - st::boxPadding.left() - st::defaultCheck.diameter - st::defaultBoxCheckbox.textPosition.x() - st::boxPadding.right();
 	_pathLink->setText(st::boxTextFont->elided(text, availw));
 }

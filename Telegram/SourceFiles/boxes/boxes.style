@@ -55,7 +55,7 @@ attentionBoxButton: RoundButton(defaultBoxButton) {
 
 defaultBoxCheckbox: Checkbox(defaultCheckbox) {
 	width: -46px;
-	textPosition: point(34px, 1px);
+	textPosition: point(12px, 1px);
 	style: boxTextStyle;
 }
 

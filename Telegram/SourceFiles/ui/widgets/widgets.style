@@ -707,7 +707,7 @@ defaultCheckbox: Checkbox {
 	height: 22px;
 	margin: margins(8px, 8px, 8px, 8px);
 
-	textPosition: point(32px, 2px);
+	textPosition: point(10px, 2px);
 
 	style: defaultTextStyle;
 
