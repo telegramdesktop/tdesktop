@@ -38,11 +38,13 @@ public:
 	}
 	float64 currentAnimationValue(TimeMs ms);
 
-	virtual QSize getSize() = 0;
+	virtual QSize getSize() const = 0;
 
 	// Zero instead of ms value means that animation was already updated for this time.
 	// It can be passed to currentAnimationValue() safely.
 	virtual void paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) = 0;
+	virtual QImage prepareRippleMask() const = 0;
+	virtual bool checkRippleStartPosition(QPoint position) const = 0;
 
 	void paint(Painter &p, int left, int top, int outerWidth) {
 		// Pass zero in ms if the animation was already updated for this time.
@@ -65,10 +67,14 @@ public:
 
 	void setStyle(const style::Check &st);
 
-	QSize getSize() override;
+	QSize getSize() const override;
 	void paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) override;
+	QImage prepareRippleMask() const override;
+	bool checkRippleStartPosition(QPoint position) const override;
 
 private:
+	QSize rippleSize() const;
+
 	gsl::not_null<const style::Check*> _st;
 
 };
@@ -79,10 +85,14 @@ public:
 
 	void setStyle(const style::Radio &st);
 
-	QSize getSize() override;
+	QSize getSize() const override;
 	void paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) override;
+	QImage prepareRippleMask() const override;
+	bool checkRippleStartPosition(QPoint position) const override;
 
 private:
+	QSize rippleSize() const;
+
 	gsl::not_null<const style::Radio*> _st;
 
 };
@@ -93,10 +103,15 @@ public:
 
 	void setStyle(const style::Toggle &st);
 
-	QSize getSize() override;
+	QSize getSize() const override;
 	void paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) override;
+	QImage prepareRippleMask() const override;
+	bool checkRippleStartPosition(QPoint position) const override;
 
 private:
+	void paintXV(Painter &p, int left, int top, int outerWidth, float64 toggled, const QBrush &brush);
+	QSize rippleSize() const;
+
 	gsl::not_null<const style::Toggle*> _st;
 
 };

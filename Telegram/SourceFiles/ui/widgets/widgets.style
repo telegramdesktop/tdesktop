@@ -102,6 +102,11 @@ Toggle {
 	shift: pixels;
 	diameter: pixels;
 	width: pixels;
+	xsize: pixels;
+	vsize: pixels;
+	vshift: pixels;
+	stroke: pixels;
+	rippleAreaPadding: pixels;
 }
 
 Check {
@@ -112,6 +117,7 @@ Check {
 	thickness: pixels;
 	icon: icon;
 	duration: int;
+	rippleAreaPadding: pixels;
 }
 
 Radio {
@@ -122,6 +128,7 @@ Radio {
 	thickness: pixels;
 	skip: pixels;
 	duration: int;
+	rippleAreaPadding: pixels;
 }
 
 Checkbox {
@@ -136,10 +143,11 @@ Checkbox {
 	style: TextStyle;
 
 	rippleAreaPosition: point;
-	rippleAreaSize: pixels;
 	rippleBg: color;
 	rippleBgActive: color;
 	ripple: RippleAnimation;
+
+	disabledOpacity: double;
 }
 
 ScrollArea {
@@ -679,6 +687,7 @@ defaultCheck: Check {
 	thickness: 2px;
 	icon: defaultCheckboxIcon;
 	duration: 120;
+	rippleAreaPadding: 8px;
 }
 defaultRadio: Radio {
 	bg: transparent;
@@ -688,6 +697,7 @@ defaultRadio: Radio {
 	thickness: 2px;
 	skip: 65px; // * 0.1
 	duration: 120;
+	rippleAreaPadding: 8px;
 }
 defaultToggle: Toggle {
 	toggledBg: windowBg;
@@ -699,23 +709,28 @@ defaultToggle: Toggle {
 	shift: 1px;
 	diameter: 20px;
 	width: 16px;
+	xsize: 0px;
+	vsize: 0px;
+	vshift: 0px;
+	stroke: 0px;
+	rippleAreaPadding: 8px;
 }
 defaultCheckbox: Checkbox {
 	textFg: windowFg;
 
 	width: -44px;
-	height: 22px;
 	margin: margins(8px, 8px, 8px, 8px);
 
 	textPosition: point(10px, 2px);
 
 	style: defaultTextStyle;
 
-	rippleAreaSize: 38px;
 	rippleAreaPosition: point(0px, 0px);
 	rippleBg: windowBgOver;
 	rippleBgActive: lightButtonBgOver;
 	ripple: defaultRippleAnimation;
+
+	disabledOpacity: 0.5;
 }
 
 defaultIconButton: IconButton {

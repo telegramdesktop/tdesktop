@@ -63,6 +63,10 @@ public:
 		return _forceRippled;
 	}
 
+	static QPoint DisabledRippleStartPosition() {
+		return QPoint(-0x3FFFFFFF, -0x3FFFFFFF);
+	}
+
 	~RippleButton();
 
 protected:
@@ -72,9 +76,6 @@ protected:
 
 	virtual QImage prepareRippleMask() const;
 	virtual QPoint prepareRippleStartPosition() const;
-	QPoint disabledRippleStartPosition() const {
-		return QPoint(-0x3FFFFFFF, -0x3FFFFFFF);
-	}
 	void resetRipples();
 
 private:

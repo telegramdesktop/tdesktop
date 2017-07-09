@@ -134,15 +134,12 @@ int UserCheckbox::resizeGetHeight(int newWidth) {
 }
 
 QImage UserCheckbox::prepareRippleMask() const {
-	return Ui::RippleAnimation::ellipseMask(QSize(_st.rippleAreaSize, _st.rippleAreaSize));
+	return _check->prepareRippleMask();
 }
 
 QPoint UserCheckbox::prepareRippleStartPosition() const {
 	auto position = mapFromGlobal(QCursor::pos()) - _st.rippleAreaPosition - QPoint(0, _checkRect.y() - st::defaultBoxCheckbox.margin.top());
-	if (QRect(0, 0, _st.rippleAreaSize, _st.rippleAreaSize).contains(position)) {
-		return position;
-	}
-	return disabledRippleStartPosition();
+	return _check->checkRippleStartPosition(position) ? position : DisabledRippleStartPosition();
 }
 
 } // namespace

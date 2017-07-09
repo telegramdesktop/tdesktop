@@ -189,16 +189,16 @@ void EditAdminBox::prepare() {
 
 	auto prepareRights = (_oldRights.c_channelAdminRights().vflags.v ? _oldRights : DefaultRights(channel()));
 	auto addCheckbox = [this, &prepareRights](Flags flags, const QString &text) {
-		if (!channel()->amCreator()) {
-			if (!(channel()->adminRights().vflags.v & flags)) {
-				return; // Don't add options that we don't have ourselves.
-			}
-		}
 		auto checked = (prepareRights.c_channelAdminRights().vflags.v & flags) != 0;
-		auto control = addControl(object_ptr<Ui::Checkbox>(this, text, checked, st::defaultBoxCheckbox));
+		auto control = addControl(object_ptr<Ui::Checkbox>(this, text, checked, st::rightsCheckbox, st::rightsToggle));
 		subscribe(control->checkedChanged, [this, control](bool checked) {
 			InvokeQueued(this, [this, control] { applyDependencies(control); });
 		});
+		if (!channel()->amCreator()) {
+			if (!(channel()->adminRights().vflags.v & flags)) {
+				control->setDisabled(true); // Grey out options that we don't have ourselves.
+			}
+		}
 		_checkboxes.emplace(flags, control);
 	};
 	if (channel()->isMegagroup()) {
@@ -297,7 +297,7 @@ void EditRestrictedBox::prepare() {
 
 	auto addCheckbox = [this, &prepareRights](Flags flags, const QString &text) {
 		auto checked = (prepareRights.c_channelBannedRights().vflags.v & flags) == 0;
-		auto control = addControl(object_ptr<Ui::Checkbox>(this, text, checked, st::defaultBoxCheckbox));
+		auto control = addControl(object_ptr<Ui::Checkbox>(this, text, checked, st::rightsCheckbox, st::rightsToggle));
 		subscribe(control->checkedChanged, [this, control](bool checked) {
 			InvokeQueued(this, [this, control] { applyDependencies(control); });
 		});

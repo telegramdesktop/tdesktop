@@ -44,7 +44,7 @@ public:
 	bool isDown() const {
 		return _state & StateFlag::Down;
 	}
-	bool isDisabled() {
+	bool isDisabled() const {
 		return _state & StateFlag::Disabled;
 	}
 

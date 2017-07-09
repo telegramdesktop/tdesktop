@@ -386,6 +386,37 @@ FORCE_INLINE QBrush brush(style::color a, style::color b, float64 b_ratio) {
 	return (b_ratio > 0) ? ((b_ratio < 1) ? brush(a->c, b->c, b_ratio) : b) : a;
 }
 
+template <int N>
+QPainterPath interpolate(QPointF (&from)[N], QPointF (&to)[N], float64 k) {
+	static_assert(N > 1, "Wrong points count in path!");
+
+	auto from_coef = 1. - k, to_coef = k;
+	QPainterPath result;
+	auto x = from[0].x() * from_coef + to[0].x() * to_coef;
+	auto y = from[0].y() * from_coef + to[0].y() * to_coef;
+	result.moveTo(x, y);
+	for (int i = 1; i != N; ++i) {
+		result.lineTo(from[i].x() * from_coef + to[i].x() * to_coef, from[i].y() * from_coef + to[i].y() * to_coef);
+	}
+	result.lineTo(x, y);
+	return result;
+}
+
+template <int N>
+QPainterPath path(QPointF (&from)[N]) {
+	static_assert(N > 1, "Wrong points count in path!");
+
+	QPainterPath result;
+	auto x = from[0].x();
+	auto y = from[0].y();
+	result.moveTo(x, y);
+	for (int i = 1; i != N; ++i) {
+		result.lineTo(from[i].x(), from[i].y());
+	}
+	result.lineTo(x, y);
+	return result;
+}
+
 };
 
 class BasicAnimation;

@@ -75,8 +75,8 @@ ToggleView::ToggleView(const style::Toggle &st, bool checked, base::lambda<void(
 , _st(&st) {
 }
 
-QSize ToggleView::getSize() {
-	return QSize(_st->diameter + _st->width, _st->diameter);
+QSize ToggleView::getSize() const {
+	return QSize(2 * _st->border + _st->diameter + _st->width, 2 * _st->border + _st->diameter);
 }
 
 void ToggleView::setStyle(const style::Toggle &st) {
@@ -84,16 +84,21 @@ void ToggleView::setStyle(const style::Toggle &st) {
 }
 
 void ToggleView::paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) {
+	left += _st->border;
+	top += _st->border;
+
 	PainterHighQualityEnabler hq(p);
 	auto toggled = currentAnimationValue(ms);
 	auto fullWidth = _st->diameter + _st->width;
 	auto innerDiameter = _st->diameter - 2 * _st->shift;
 	auto innerRadius = float64(innerDiameter) / 2.;
+	auto toggleLeft = left + anim::interpolate(0, fullWidth - _st->diameter, toggled);
 	auto bgRect = rtlrect(left + _st->shift, top + _st->shift, fullWidth - 2 * _st->shift, innerDiameter, outerWidth);
-	auto fgRect = rtlrect(left + anim::interpolate(0, fullWidth - _st->diameter, toggled), top, _st->diameter, _st->diameter, outerWidth);
+	auto fgRect = rtlrect(toggleLeft, top, _st->diameter, _st->diameter, outerWidth);
+	auto fgBrush = anim::brush(_st->untoggledFg, _st->toggledFg, toggled);
 
 	p.setPen(Qt::NoPen);
-	p.setBrush(anim::brush(_st->untoggledFg, _st->toggledFg, toggled));
+	p.setBrush(fgBrush);
 	p.drawRoundedRect(bgRect, innerRadius, innerRadius);
 
 	auto pen = anim::pen(_st->untoggledFg, _st->toggledFg, toggled);
@@ -101,13 +106,112 @@ void ToggleView::paint(Painter &p, int left, int top, int outerWidth, TimeMs ms)
 	p.setPen(pen);
 	p.setBrush(anim::brush(_st->untoggledBg, _st->toggledBg, toggled));
 	p.drawEllipse(fgRect);
+
+	if (_st->xsize > 0) {
+		paintXV(p, toggleLeft, top, outerWidth, toggled, fgBrush);
+	}
+}
+
+void ToggleView::paintXV(Painter &p, int left, int top, int outerWidth, float64 toggled, const QBrush &brush) {
+	t_assert(_st->vsize > 0);
+	t_assert(_st->stroke > 0);
+	static const auto sqrt2 = sqrt(2.);
+	auto stroke = (0. + _st->stroke) / sqrt2;
+	if (toggled < 1) {
+		// Just X or X->V.
+		auto xSize = 0. + _st->xsize;
+		auto xLeft = left + (_st->diameter - xSize) / 2.;
+		auto xTop = top + (_st->diameter - xSize) / 2.;
+		QPointF pathX[] = {
+			{ xLeft, xTop + stroke },
+			{ xLeft + stroke, xTop },
+			{ xLeft + (xSize / 2.), xTop + (xSize / 2.) - stroke },
+			{ xLeft + xSize - stroke, xTop },
+			{ xLeft + xSize, xTop + stroke },
+			{ xLeft + (xSize / 2.) + stroke, xTop + (xSize / 2.) },
+			{ xLeft + xSize, xTop + xSize - stroke },
+			{ xLeft + xSize - stroke, xTop + xSize },
+			{ xLeft + (xSize / 2.), xTop + (xSize / 2.) + stroke },
+			{ xLeft + stroke, xTop + xSize },
+			{ xLeft, xTop + xSize - stroke },
+			{ xLeft + (xSize / 2.) - stroke, xTop + (xSize / 2.) },
+		};
+		for (auto &point : pathX) {
+			point = rtlpoint(point, outerWidth);
+		}
+		if (toggled > 0) {
+			// X->V.
+			auto vSize = 0. + _st->vsize;
+			auto fSize = (xSize + vSize - 2. * stroke);
+			auto vLeft = left + (_st->diameter - fSize) / 2.;
+			auto vTop = 0. + xTop + _st->vshift;
+			QPointF pathV[] = {
+				{ vLeft, vTop + xSize - vSize + stroke },
+				{ vLeft + stroke, vTop + xSize - vSize },
+				{ vLeft + vSize - stroke, vTop + xSize - 2 * stroke },
+				{ vLeft + fSize - stroke, vTop },
+				{ vLeft + fSize, vTop + stroke },
+				{ vLeft + vSize, vTop + xSize - stroke },
+				{ vLeft + vSize, vTop + xSize - stroke },
+				{ vLeft + vSize - stroke, vTop + xSize },
+				{ vLeft + vSize - stroke, vTop + xSize },
+				{ vLeft + vSize - stroke, vTop + xSize },
+				{ vLeft + vSize - 2 * stroke, vTop + xSize - stroke },
+				{ vLeft + vSize - 2 * stroke, vTop + xSize - stroke },
+			};
+			for (auto &point : pathV) {
+				point = rtlpoint(point, outerWidth);
+			}
+			p.fillPath(anim::interpolate(pathX, pathV, toggled), brush);
+		} else {
+			// Just X.
+			p.fillPath(anim::path(pathX), brush);
+		}
+	} else {
+		// Just V.
+		auto xSize = 0. + _st->xsize;
+		auto xTop = top + (_st->diameter - xSize) / 2.;
+		auto vSize = 0. + _st->vsize;
+		auto fSize = (xSize + vSize - 2. * stroke);
+		auto vLeft = left + (_st->diameter - (_st->xsize + _st->vsize - 2. * stroke)) / 2.;
+		auto vTop = 0. + xTop + _st->vshift;
+		QPointF pathV[] = {
+			{ vLeft, vTop + xSize - vSize + stroke },
+			{ vLeft + stroke, vTop + xSize - vSize },
+			{ vLeft + vSize - stroke, vTop + xSize - 2 * stroke },
+			{ vLeft + fSize - stroke, vTop },
+			{ vLeft + fSize, vTop + stroke },
+			{ vLeft + vSize, vTop + xSize - stroke },
+			{ vLeft + vSize, vTop + xSize - stroke },
+			{ vLeft + vSize - stroke, vTop + xSize },
+			{ vLeft + vSize - stroke, vTop + xSize },
+			{ vLeft + vSize - stroke, vTop + xSize },
+			{ vLeft + vSize - 2 * stroke, vTop + xSize - stroke },
+			{ vLeft + vSize - 2 * stroke, vTop + xSize - stroke },
+		};
+
+		p.fillPath(anim::path(pathV), brush);
+	}
+}
+
+QSize ToggleView::rippleSize() const {
+	return getSize() + 2 * QSize(_st->rippleAreaPadding, _st->rippleAreaPadding);
+}
+
+QImage ToggleView::prepareRippleMask() const {
+	auto size = rippleSize();
+	return RippleAnimation::roundRectMask(size, size.height() / 2);
+}
+
+bool ToggleView::checkRippleStartPosition(QPoint position) const {
+	return QRect(QPoint(0, 0), rippleSize()).contains(position);
 }
 
 CheckView::CheckView(const style::Check &st, bool checked, base::lambda<void()> updateCallback) : AbstractCheckView(st.duration, checked, std::move(updateCallback))
 , _st(&st) {
 }
 
-QSize CheckView::getSize() {
+QSize CheckView::getSize() const {
 	return QSize(_st->diameter, _st->diameter);
 }
 
@@ -132,11 +236,23 @@ void CheckView::paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) 
 	}
 }
 
+QSize CheckView::rippleSize() const {
+	return getSize() + 2 * QSize(_st->rippleAreaPadding, _st->rippleAreaPadding);
+}
+
+QImage CheckView::prepareRippleMask() const {
+	return RippleAnimation::ellipseMask(rippleSize());
+}
+
+bool CheckView::checkRippleStartPosition(QPoint position) const {
+	return QRect(QPoint(0, 0), rippleSize()).contains(position);
+}
+
 RadioView::RadioView(const style::Radio &st, bool checked, base::lambda<void()> updateCallback) : AbstractCheckView(st.duration, checked, std::move(updateCallback))
 , _st(&st) {
 }
 
-QSize RadioView::getSize() {
+QSize RadioView::getSize() const {
 	return QSize(_st->diameter, _st->diameter);
 }
 
@@ -174,6 +290,18 @@ void RadioView::paint(Painter &p, int left, int top, int outerWidth, TimeMs ms) 
 		//	}
 		//}
 	}
+}
+
+QSize RadioView::rippleSize() const {
+	return getSize() + 2 * QSize(_st->rippleAreaPadding, _st->rippleAreaPadding);
+}
+
+QImage RadioView::prepareRippleMask() const {
+	return RippleAnimation::ellipseMask(rippleSize());
+}
+
+bool RadioView::checkRippleStartPosition(QPoint position) const {
+	return QRect(QPoint(0, 0), rippleSize()).contains(position);
 }
 
 Checkbox::Checkbox(QWidget *parent, const QString &text, bool checked, const style::Checkbox &st, const style::Check &checkSt) : Checkbox(parent, text, st, std::make_unique<CheckView>(checkSt, checked, [this] { updateCheck(); })) {
@@ -230,9 +358,13 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto ms = getms();
-	auto active = _check->currentAnimationValue(ms);
-	auto color = anim::color(_st.rippleBg, _st.rippleBgActive, active);
-	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms, &color);
+	if (isDisabled()) {
+		p.setOpacity(_st.disabledOpacity);
+	} else {
+		auto active = _check->currentAnimationValue(ms);
+		auto color = anim::color(_st.rippleBg, _st.rippleBgActive, active);
+		paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms, &color);
+	}
 
 	auto realCheckRect = myrtlrect(_checkRect);
 	if (realCheckRect.intersects(e->rect())) {
@@ -251,6 +383,7 @@ void Checkbox::onStateChanged(State was, StateChangeSource source) {
 
 	if (isDisabled() && !(was & StateFlag::Disabled)) {
 		setCursor(style::cur_default);
+		finishAnimations();
 	} else if (!isDisabled() && (was & StateFlag::Disabled)) {
 		setCursor(style::cur_pointer);
 	}
@@ -264,19 +397,19 @@ void Checkbox::onStateChanged(State was, StateChangeSource source) {
 }
 
 int Checkbox::resizeGetHeight(int newWidth) {
-	return _st.height;
+	return _st.height ? _st.height : _check->getSize().height();
 }
 
 QImage Checkbox::prepareRippleMask() const {
-	return RippleAnimation::ellipseMask(QSize(_st.rippleAreaSize, _st.rippleAreaSize));
+	return _check->prepareRippleMask();
 }
 
 QPoint Checkbox::prepareRippleStartPosition() const {
-	auto position = mapFromGlobal(QCursor::pos()) - _st.rippleAreaPosition;
-	if (QRect(0, 0, _st.rippleAreaSize, _st.rippleAreaSize).contains(position)) {
-		return position;
+	if (isDisabled()) {
+		return DisabledRippleStartPosition();
 	}
-	return disabledRippleStartPosition();
+	auto position = mapFromGlobal(QCursor::pos()) - _st.rippleAreaPosition;
+	return _check->checkRippleStartPosition(position) ? position : DisabledRippleStartPosition();
 }
 
 void RadiobuttonGroup::setValue(int value) {

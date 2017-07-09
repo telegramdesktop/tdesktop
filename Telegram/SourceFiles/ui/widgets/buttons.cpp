@@ -107,7 +107,7 @@ void RippleButton::onStateChanged(State was, StateChangeSource source) {
 	if (down && (source == StateChangeSource::ByPress)) {
 		// Start a ripple only from mouse press.
 		auto position = prepareRippleStartPosition();
-		if (position != disabledRippleStartPosition()) {
+		if (position != DisabledRippleStartPosition()) {
 			ensureRipple();
 			_ripple->add(position);
 		}

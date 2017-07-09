@@ -44,7 +44,7 @@ QString ExpressionMailNameAtEnd() {
 }
 
 QString ExpressionSeparators(const QString &additional) {
-	return qsl("\\s\\.,:;<>|'\"\\[\\]\\{\\}\\~\\!\\%\\^\\(\\)\\-\\+=\\x10") + additional;
+	return qsl("\\s\\.,:;<>|'\"\\[\\]\\{\\}\\~\\!\\?\\%\\^\\(\\)\\-\\+=\\x10") + additional;
 }
 
 QString ExpressionHashtag() {

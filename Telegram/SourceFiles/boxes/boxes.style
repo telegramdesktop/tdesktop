@@ -645,3 +645,16 @@ adminLogFilterSkip: 32px;
 adminLogFilterUserCheckbox: Checkbox(defaultBoxCheckbox) {
 	margin: margins(8px, 6px, 8px, 6px);
 }
+
+rightsCheckbox: Checkbox(defaultBoxCheckbox) {
+	rippleBg: attentionButtonBgOver;
+}
+rightsToggle: Toggle(defaultToggle) {
+	toggledFg: windowBgActive;
+	untoggledFg: attentionButtonFg;
+	xsize: 8px;
+	vsize: 5px;
+	vshift: 1px;
+	stroke: 2px;
+	duration: 120;
+}
