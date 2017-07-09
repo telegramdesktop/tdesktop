@@ -88,8 +88,10 @@ QAbstractNativeEventFilter *psNativeEventFilter() {
 }
 
 void psWriteDump() {
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 	double v = objc_appkitVersion();
 	SignalHandlers::dump() << "OS-Version: " << v;
+#endif
 }
 
 QString demanglestr(const QString &mangled) {

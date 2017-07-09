@@ -187,8 +187,11 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
 
 ### Building Telegram Desktop
 
+If you want to pass a build define (like `TDESKTOP_DISABLE_AUTOUPDATE` or `TDESKTOP_DISABLE_NETWORK_PROXY`), call `export TDESKTOP_BUILD_DEFINES=TDESKTOP_DISABLE_AUTOUPDATE,TDESKTOP_DISABLE_NETWORK_PROXY,...` (comma seperated string)
+
 In Terminal go to **/home/user/TBuild/tdesktop/Telegram** and run
 
+    # export TDESKTOP_BUILD_DEFINES -- if needed
     gyp/refresh.sh
 
 To make Debug version go to **/home/user/TBuild/tdesktop/out/Debug** and run
