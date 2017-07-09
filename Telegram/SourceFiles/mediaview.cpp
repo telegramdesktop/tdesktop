@@ -2022,23 +2022,24 @@ void MediaView::paintThemePreview(Painter &p, QRect clip) {
 }
 
 void MediaView::keyPressEvent(QKeyEvent *e) {
+	int keyCode = e->key();
 	if (_clipController) {
-		auto toggle1 = (e->key() == Qt::Key_F && e->modifiers().testFlag(Qt::ControlModifier));
-		auto toggle2 = (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) && (e->modifiers().testFlag(Qt::AltModifier) || e->modifiers().testFlag(Qt::ControlModifier));
+		auto toggle1 = (keyCode == Qt::Key_F && e->modifiers().testFlag(Qt::ControlModifier));
+		auto toggle2 = (keyCode == Qt::Key_Enter || keyCode == Qt::Key_Return) && (e->modifiers().testFlag(Qt::AltModifier) || e->modifiers().testFlag(Qt::ControlModifier));
 		if (toggle1 || toggle2) {
 			onVideoToggleFullScreen();
 			return;
 		}
 		if (_fullScreenVideo) {
-			if (e->key() == Qt::Key_Escape) {
+			if (keyCode == Qt::Key_Escape) {
 				onVideoToggleFullScreen();
-			} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return || e->key() == Qt::Key_Space) {
+			} else if (keyCode == Qt::Key_Enter || keyCode == Qt::Key_Return || keyCode == Qt::Key_Space) {
 				onVideoPauseResume();
 			}
 			return;
 		}
 	}
-	if (!_menu && e->key() == Qt::Key_Escape) {
+	if (!_menu && keyCode == Qt::Key_Escape) {
 		if (_doc && _doc->loading()) {
 			onDocClick();
 		} else {
@@ -2046,24 +2047,24 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 		}
 	} else if (e == QKeySequence::Save || e == QKeySequence::SaveAs) {
 		onSaveAs();
-	} else if (e->key() == Qt::Key_Copy || (e->key() == Qt::Key_C && e->modifiers().testFlag(Qt::ControlModifier))) {
+	} else if (keyCode == Qt::Key_Copy || (keyCode == Qt::Key_C && e->modifiers().testFlag(Qt::ControlModifier))) {
 		onCopy();
-	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return || e->key() == Qt::Key_Space) {
+	} else if (keyCode == Qt::Key_Enter || keyCode == Qt::Key_Return || keyCode == Qt::Key_Space) {
 		if (_doc && !_doc->loading() && (fileBubbleShown() || !_doc->loaded())) {
 			onDocClick();
 		} else if (_doc && (_doc->isVideo() || _doc->isRoundVideo())) {
 			onVideoPauseResume();
 		}
-	} else if (e->key() == Qt::Key_Left) {
+	} else if (keyCode == Qt::Key_Left) {
 		moveToNext(-1);
-	} else if (e->key() == Qt::Key_Right) {
+	} else if (keyCode == Qt::Key_Right) {
 		moveToNext(1);
-	} else if (e->modifiers().testFlag(Qt::ControlModifier) && (e->key() == Qt::Key_Plus || e->key() == Qt::Key_Equal || e->key() == ']' || e->key() == Qt::Key_Asterisk || e->key() == Qt::Key_Minus || e->key() == Qt::Key_Underscore || e->key() == Qt::Key_0)) {
-		if (e->key() == Qt::Key_Plus || e->key() == Qt::Key_Equal || e->key() == Qt::Key_Asterisk || e->key() == ']') {
+	} else if (e->modifiers().testFlag(Qt::ControlModifier)) {
+		if (keyCode == Qt::Key_Plus || keyCode == Qt::Key_Equal || keyCode == Qt::Key_Asterisk || keyCode == ']') {
 			zoomIn();
-		} else if (e->key() == Qt::Key_Minus || e->key() == Qt::Key_Underscore) {
+		} else if (keyCode == Qt::Key_Minus || keyCode == Qt::Key_Underscore) {
 			zoomOut();
-		} else {
+		} else if (keyCode == Qt::Key_0) {
 			zoomReset();
 		}
 	}
