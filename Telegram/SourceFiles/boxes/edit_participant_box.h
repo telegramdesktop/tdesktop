@@ -26,6 +26,8 @@ namespace Ui {
 class FlatLabel;
 class LinkButton;
 class Checkbox;
+class Radiobutton;
+class RadiobuttonGroup;
 } // namespace Ui
 
 class CalendarBox;
@@ -47,11 +49,15 @@ protected:
 	}
 
 	template <typename Widget>
-	QPointer<Widget> addControl(object_ptr<Widget> row);
+	QPointer<Widget> addControl(object_ptr<Widget> widget, QMargins margin);
+
+	void removeControl(QPointer<TWidget> widget);
 
 	bool hasAdminRights() const {
 		return _hasAdminRights;
 	}
+
+	class Divider;
 
 private:
 	gsl::not_null<ChannelData*> _channel;
@@ -106,18 +112,28 @@ private:
 
 	void applyDependencies(QPointer<Ui::Checkbox> changed);
 	void showRestrictUntil();
-	void setRestrictUntil(int32 until);
+	void setRestrictUntil(TimeId until);
 	bool isUntilForever() {
 		return ChannelData::IsRestrictedForever(_until);
 	}
+	void clearVariants();
+	void createUntilGroup();
+	void createUntilVariants();
+	TimeId getRealUntilValue() const;
 
 	const MTPChannelBannedRights _oldRights;
-	int32 _until = 0;
+	TimeId _until = 0;
 	std::vector<std::pair<Flag, Flag>> _dependencies;
 	base::lambda<void(MTPChannelBannedRights, MTPChannelBannedRights)> _saveCallback;
 
 	std::map<Flags, QPointer<Ui::Checkbox>> _checkboxes;
-	QPointer<Ui::LinkButton> _restrictUntil;
+
+	std::shared_ptr<Ui::RadiobuttonGroup> _untilGroup;
+	QVector<QPointer<Ui::Radiobutton>> _untilVariants;
 	QPointer<CalendarBox> _restrictUntilBox;
+
+	static constexpr auto kUntilOneDay = -1;
+	static constexpr auto kUntilOneWeek = -2;
+	static constexpr auto kUntilCustom = -3;
 
 };

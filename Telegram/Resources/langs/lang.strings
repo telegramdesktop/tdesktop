@@ -1296,8 +1296,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_rights_chat_send_media" = "Send media";
 "lng_rights_chat_send_stickers" = "Send stickers & GIFs";
 "lng_rights_chat_send_links" = "Embed links";
-"lng_rights_chat_banned_until" = "Restricted until: {when}";
+"lng_rights_chat_banned_until_header" = "Restricted until";
 "lng_rights_chat_banned_forever" = "Forever";
+"lng_rights_chat_banned_day#one" = "For {count} day";
+"lng_rights_chat_banned_day#other" = "For {count} days";
+"lng_rights_chat_banned_week#one" = "For {count} week";
+"lng_rights_chat_banned_week#other" = "For {count} weeks";
+"lng_rights_chat_banned_custom" = "Custom";
+"lng_rights_chat_banned_custom_date" = "Until {date}";
 "lng_rights_chat_banned_block" = "Ban and remove from group";
 
 "lng_restricted_send_message" = "The admins of this group restricted you from writing here.";
