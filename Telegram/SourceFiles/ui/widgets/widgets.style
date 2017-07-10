@@ -492,6 +492,11 @@ ImportantTooltip {
 	duration: int;
 }
 
+PeerAvatarButton {
+	size: pixels;
+	photoSize: pixels;
+}
+
 defaultLabelSimple: LabelSimple {
 	font: normalFont;
 	maxWidth: 0px;

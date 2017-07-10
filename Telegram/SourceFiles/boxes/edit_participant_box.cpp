@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "styles/style_boxes.h"
 #include "styles/style_profile.h"
+#include "ui/special_buttons.h"
 #include "boxes/calendar_box.h"
 
 namespace {
@@ -118,6 +119,7 @@ private:
 
 	gsl::not_null<ChannelData*> _channel;
 	gsl::not_null<UserData*> _user;
+	object_ptr<Ui::PeerAvatarButton> _userPhoto;
 	Text _userName;
 	bool _hasAdminRights = false;
 	struct Control {
@@ -131,8 +133,10 @@ private:
 EditParticipantBox::Inner::Inner(QWidget *parent, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights) : TWidget(parent)
 , _channel(channel)
 , _user(user)
+, _userPhoto(this, _user, st::rightsPhotoButton)
 , _hasAdminRights(hasAdminRights) {
 	_userName.setText(st::rightsNameStyle, App::peerName(_user), _textNameOptions);
+	_userPhoto->setClickedCallback([this] { Ui::showPeerProfile(_user); });
 }
 
 void EditParticipantBox::Inner::removeControl(QPointer<TWidget> widget) {
@@ -151,7 +155,8 @@ void EditParticipantBox::Inner::doAddControl(object_ptr<TWidget> widget, QMargin
 }
 
 int EditParticipantBox::Inner::resizeGetHeight(int newWidth) {
-	auto newHeight = st::rightsPhotoMargin.top() + st::rightsPhotoSize + st::rightsPhotoMargin.bottom();
+	_userPhoto->moveToLeft(st::rightsPhotoMargin.left(), st::rightsPhotoMargin.top());
+	auto newHeight = st::rightsPhotoMargin.top() + st::rightsPhotoButton.size + st::rightsPhotoMargin.bottom();
 	for (auto &&row : _rows) {
 		auto rowWidth = newWidth - row.margin.left() - row.margin.right();
 		newHeight += row.margin.top();
@@ -167,10 +172,8 @@ void EditParticipantBox::Inner::paintEvent(QPaintEvent *e) {
 
 	p.fillRect(e->rect(), st::boxBg);
 
-	_user->paintUserpicLeft(p, st::rightsPhotoMargin.left(), st::rightsPhotoMargin.top(), width(), st::rightsPhotoSize);
-
 	p.setPen(st::contactsNameFg);
-	auto namex = st::rightsPhotoMargin.left() + st::rightsPhotoSize + st::rightsPhotoMargin.right();
+	auto namex = st::rightsPhotoMargin.left() + st::rightsPhotoButton.size + st::rightsPhotoMargin.right();
 	auto namew = width() - namex - st::rightsPhotoMargin.right();
 	_userName.drawLeftElided(p, namex, st::rightsPhotoMargin.top() + st::rightsNameTop, namew, width());
 	auto statusText = [this] {

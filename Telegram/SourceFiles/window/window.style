@@ -283,10 +283,6 @@ topBarMenuToggle: IconButton(topBarSearch) {
 }
 topBarActionSkip: 10px;
 
-PeerAvatarButton {
-	size: pixels;
-	photoSize: pixels;
-}
 topBarInfoButton: PeerAvatarButton {
 	size: topBarHeight;
 	photoSize: 42px;

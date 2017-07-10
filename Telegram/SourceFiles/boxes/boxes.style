@@ -662,7 +662,10 @@ rightsDividerHeight: 11px;
 rightsHeaderMargin: margins(23px, 20px, 23px, 8px);
 rightsToggleMargin: margins(23px, 8px, 23px, 8px);
 rightsAboutMargin: margins(23px, 8px, 23px, 8px);
-rightsPhotoSize: 60px;
+rightsPhotoButton: PeerAvatarButton {
+	size: 60px;
+	photoSize: 60px;
+}
 rightsPhotoMargin: margins(20px, 0px, 15px, 18px);
 rightsNameStyle: TextStyle(semiboldTextStyle) {
 	font: font(15px semibold);

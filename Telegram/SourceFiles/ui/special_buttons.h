@@ -146,7 +146,7 @@ private:
 
 class PeerAvatarButton : public AbstractButton {
 public:
-	PeerAvatarButton(QWidget *parent, PeerData *peer, const style::PeerAvatarButton &st);
+	PeerAvatarButton(QWidget *parent,PeerData *peer, const style::PeerAvatarButton &st);
 
 	void setPeer(PeerData *peer) {
 		_peer = peer;
@@ -157,7 +157,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	PeerData *_peer;
+	PeerData *_peer = nullptr;
 	const style::PeerAvatarButton &_st;
 
 };
