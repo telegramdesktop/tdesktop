@@ -685,12 +685,17 @@ void AddParticipantBoxController::editAdmin(gsl::not_null<UserData*> user, bool 
 			if (weak) {
 				weak->editAdminDone(user, newRights);
 			}
-		}), rpcFail([channel](const RPCError &error) {
+		}), rpcFail([channel, weak](const RPCError &error) {
 			if (MTP::isDefaultHandledError(error)) {
 				return false;
 			}
 			if (error.type() == qstr("USER_NOT_MUTUAL_CONTACT")) {
 				Ui::show(Box<InformBox>(PeerFloodErrorText(channel->isMegagroup() ? PeerFloodType::InviteGroup : PeerFloodType::InviteChannel)), KeepOtherLayers);
+			} else if (error.type() == qstr("BOT_GROUPS_BLOCKED")) {
+				Ui::show(Box<InformBox>(lang(lng_error_cant_add_bot)), KeepOtherLayers);
+			}
+			if (weak && weak->_editBox) {
+				weak->_editBox->closeBox();
 			}
 			return true;
 		}));
