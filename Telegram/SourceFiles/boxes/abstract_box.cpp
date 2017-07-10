@@ -58,15 +58,31 @@ void BoxContent::setInner(object_ptr<TWidget> inner, const style::ScrollArea &st
 			_topShadow.create(this, object_ptr<BoxLayerTitleShadow>(this));
 			_bottomShadow.create(this, object_ptr<BoxLayerTitleShadow>(this));
 		}
-		updateScrollAreaGeometry();
-		connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
-		connect(_scroll, SIGNAL(innerResized()), this, SLOT(onInnerResize()));
+		if (!_preparing) {
+			// We didn't set dimensions yet, this will be called from finishPrepare();
+			finishScrollCreate();
+		}
 	} else {
 		getDelegate()->setLayerType(false);
 		_scroll.destroyDelayed();
 		_topShadow.destroyDelayed();
 		_bottomShadow.destroyDelayed();
 	}
+}
+
+void BoxContent::finishPrepare() {
+	_preparing = false;
+	if (_scroll) {
+		finishScrollCreate();
+	}
+	setInnerFocus();
+}
+
+void BoxContent::finishScrollCreate() {
+	Expects(_scroll != nullptr);
+	updateScrollAreaGeometry();
+	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
+	connect(_scroll, SIGNAL(innerResized()), this, SLOT(onInnerResize()));
 }
 
 void BoxContent::onScrollToY(int top, int bottom) {

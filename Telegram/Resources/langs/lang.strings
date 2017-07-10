@@ -557,6 +557,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_invite_link_section" = "Invite link";
 "lng_profile_create_public_link" = "Create public link";
 "lng_profile_edit_public_link" = "Edit public link";
+"lng_profile_search_members" = "Search members";
 "lng_profile_manage_admins" = "Manage administrators";
 "lng_profile_manage_blocklist" = "Manage banned users";
 "lng_profile_manage_restrictedlist" = "Manage restricted users";

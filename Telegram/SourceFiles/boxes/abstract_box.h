@@ -111,8 +111,9 @@ public:
 
 	void setDelegate(BoxContentDelegate *newDelegate) {
 		_delegate = newDelegate;
+		_preparing = true;
 		prepare();
-		setInnerFocus();
+		finishPrepare();
 	}
 
 public slots:
@@ -177,6 +178,8 @@ private slots:
 	void onDraggingScrollTimer();
 
 private:
+	void finishPrepare();
+	void finishScrollCreate();
 	void setInner(object_ptr<TWidget> inner);
 	void setInner(object_ptr<TWidget> inner, const style::ScrollArea &st);
 	void updateScrollAreaGeometry();
@@ -190,6 +193,7 @@ private:
 	}
 	BoxContentDelegate *_delegate = nullptr;
 
+	bool _preparing = false;
 	bool _noContentMargin = false;
 	int _innerTopSkip = 0;
 	object_ptr<Ui::ScrollArea> _scroll = { nullptr };

@@ -144,7 +144,7 @@ int ChannelMembersWidget::resizeGetHeight(int newWidth) {
 
 void ChannelMembersWidget::onMembers() {
 	if (auto channel = peer()->asChannel()) {
-		Ui::show(Box<MembersBox>(channel, MembersFilter::Recent));
+		ParticipantsBoxController::Start(channel, ParticipantsBoxController::Role::Members);
 	}
 }
 

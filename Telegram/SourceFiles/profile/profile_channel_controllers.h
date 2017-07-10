@@ -30,6 +30,7 @@ namespace Profile {
 class ParticipantsBoxController : public PeerListController, private base::Subscriber, private MTP::Sender, public base::enable_weak_from_this {
 public:
 	enum class Role {
+		Members,
 		Admins,
 		Restricted,
 		Kicked,
@@ -69,10 +70,13 @@ private:
 	void showRestricted(gsl::not_null<UserData*> user);
 	void editRestrictedDone(gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights);
 	void removeKicked(gsl::not_null<PeerListRow*> row, gsl::not_null<UserData*> user);
+	void kickMember(gsl::not_null<UserData*> user);
+	void kickMemberSure(gsl::not_null<UserData*> user);
 	bool appendRow(gsl::not_null<UserData*> user);
 	bool prependRow(gsl::not_null<UserData*> user);
 	bool removeRow(gsl::not_null<UserData*> user);
 	std::unique_ptr<PeerListRow> createRow(gsl::not_null<UserData*> user) const;
+	bool feedMegagroupLastParticipants();
 
 	gsl::not_null<ChannelData*> _channel;
 	Role _role = Role::Admins;
@@ -85,13 +89,13 @@ private:
 
 };
 
-// Banned and restricted users server side search.
-class BannedBoxSearchController : public PeerListSearchController, private MTP::Sender {
+// Members, banned and restricted users server side search.
+class ParticipantsBoxSearchController : public PeerListSearchController, private MTP::Sender {
 public:
 	using Role = ParticipantsBoxController::Role;
 	using Additional = ParticipantsBoxController::Additional;
 
-	BannedBoxSearchController(gsl::not_null<ChannelData*> channel, Role role, gsl::not_null<Additional*> additional);
+	ParticipantsBoxSearchController(gsl::not_null<ChannelData*> channel, Role role, gsl::not_null<Additional*> additional);
 
 	void searchQuery(const QString &query) override;
 	bool isLoading() override;

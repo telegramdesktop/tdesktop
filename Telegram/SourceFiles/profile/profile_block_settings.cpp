@@ -96,6 +96,7 @@ int SettingsWidget::resizeGetHeight(int newWidth) {
 		button->moveToLeft(left, newHeight);
 		newHeight += button->height();
 	};
+	moveLink(_searchMembers);
 	moveLink(_manageAdmins);
 	moveLink(_recentActions);
 	moveLink(_manageBannedUsers);
@@ -109,6 +110,11 @@ int SettingsWidget::resizeGetHeight(int newWidth) {
 void SettingsWidget::refreshButtons() {
 	refreshEnableNotifications();
 	refreshManageAdminsButton();
+	if (auto megagroup = peer()->asMegagroup()) {
+		_searchMembers.create(this, lang(lng_profile_search_members), st::defaultLeftOutlineButton);
+		_searchMembers->show();
+		connect(_searchMembers, SIGNAL(clicked()), this, SLOT(onSearchMembers()));
+	}
 	refreshManageBannedUsersButton();
 	refreshInviteLinkButton();
 }
@@ -206,6 +212,12 @@ void SettingsWidget::refreshInviteLinkButton() {
 
 void SettingsWidget::onNotificationsChange() {
 	App::main()->updateNotifySetting(peer(), _enableNotifications->checked() ? NotifySettingSetNotify : NotifySettingSetMuted);
+}
+
+void SettingsWidget::onSearchMembers() {
+	if (auto channel = peer()->asChannel()) {
+		ParticipantsBoxController::Start(channel, ParticipantsBoxController::Role::Members);
+	}
 }
 
 void SettingsWidget::onManageAdmins() {
