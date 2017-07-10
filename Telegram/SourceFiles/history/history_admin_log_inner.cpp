@@ -1020,15 +1020,17 @@ void InnerWidget::suggestRestrictUser(gsl::not_null<UserData*> user) {
 	_menu->addAction(lang(lng_context_restrict_user), [this, user] {
 		auto editRestrictions = [user, this](bool hasAdminRights, const MTPChannelBannedRights &currentRights) {
 			auto weak = QPointer<InnerWidget>(this);
-			auto box = std::make_shared<QPointer<EditRestrictedBox>>();
-			*box = Ui::show(Box<EditRestrictedBox>(_channel, user, hasAdminRights, currentRights, [user, weak, box](const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
+			auto weakBox = std::make_shared<QPointer<EditRestrictedBox>>();
+			auto box = Box<EditRestrictedBox>(_channel, user, hasAdminRights, currentRights);
+			box->setSaveCallback([user, weak, weakBox](const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
 				if (weak) {
 					weak->restrictUser(user, oldRights, newRights);
 				}
-				if (*box) {
-					(*box)->closeBox();
+				if (*weakBox) {
+					(*weakBox)->closeBox();
 				}
-			}), KeepOtherLayers);
+			});
+			*weakBox = Ui::show(std::move(box), KeepOtherLayers);
 		};
 		if (base::contains(_admins, user)) {
 			editRestrictions(true, MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));

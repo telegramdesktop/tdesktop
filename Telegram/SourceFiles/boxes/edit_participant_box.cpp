@@ -211,9 +211,8 @@ void EditParticipantBox::resizeToContent() {
 	setDimensions(_inner->width(), qMin(_inner->height(), st::boxMaxListHeight));
 }
 
-EditAdminBox::EditAdminBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights, base::lambda<void(MTPChannelAdminRights, MTPChannelAdminRights)> callback) : EditParticipantBox(nullptr, channel, user, (rights.c_channelAdminRights().vflags.v != 0))
-, _oldRights(rights)
-, _saveCallback(std::move(callback)) {
+EditAdminBox::EditAdminBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights) : EditParticipantBox(nullptr, channel, user, (rights.c_channelAdminRights().vflags.v != 0))
+, _oldRights(rights) {
 	auto dependency = [this](Flag dependent, Flag dependency) {
 		_dependencies.push_back(std::make_pair(dependent, dependency));
 	};
@@ -248,6 +247,9 @@ void EditAdminBox::prepare() {
 				control->setDisabled(true); // Grey out options that we don't have ourselves.
 			}
 		}
+		if (!canSave()) {
+			control->setDisabled(true);
+		}
 		_checkboxes.emplace(flags, control);
 	};
 	if (channel()->isMegagroup()) {
@@ -276,25 +278,29 @@ void EditAdminBox::prepare() {
 		refreshAboutAddAdminsText();
 	}
 
-	addButton(langFactory(lng_settings_save), [this] {
-		if (!_saveCallback) {
-			return;
-		}
-		auto newFlags = MTPDchannelAdminRights::Flags(0);
-		for (auto &&checkbox : _checkboxes) {
-			if (checkbox.second->checked()) {
-				newFlags |= checkbox.first;
-			} else {
-				newFlags &= ~checkbox.first;
+	if (canSave()) {
+		addButton(langFactory(lng_settings_save), [this] {
+			if (!_saveCallback) {
+				return;
 			}
-		}
-		if (!channel()->amCreator()) {
-			// Leave only rights that we have so we could save them.
-			newFlags &= channel()->adminRights().vflags.v;
-		}
-		_saveCallback(_oldRights, MTP_channelAdminRights(MTP_flags(newFlags)));
-	});
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+			auto newFlags = MTPDchannelAdminRights::Flags(0);
+			for (auto &&checkbox : _checkboxes) {
+				if (checkbox.second->checked()) {
+					newFlags |= checkbox.first;
+				} else {
+					newFlags &= ~checkbox.first;
+				}
+			}
+			if (!channel()->amCreator()) {
+				// Leave only rights that we have so we could save them.
+				newFlags &= channel()->adminRights().vflags.v;
+			}
+			_saveCallback(_oldRights, MTP_channelAdminRights(MTP_flags(newFlags)));
+		});
+		addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	} else {
+		addButton(langFactory(lng_box_ok), [this] { closeBox(); });
+	}
 
 	applyDependencies(nullptr);
 	for (auto &&checkbox : _checkboxes) {
@@ -311,14 +317,20 @@ void EditAdminBox::applyDependencies(QPointer<Ui::Checkbox> changed) {
 void EditAdminBox::refreshAboutAddAdminsText() {
 	auto addAdmins = _checkboxes.find(Flag::f_add_admins);
 	t_assert(addAdmins != _checkboxes.end());
-	_aboutAddAdmins->setText(lang(addAdmins->second->checked() ? lng_rights_about_add_admins_yes : lng_rights_about_add_admins_no));
-
+	auto text = [this, addAdmins] {
+		if (!canSave()) {
+			return lang(lng_rights_about_admin_cant_edit);
+		} else if (addAdmins->second->checked()) {
+			return lang(lng_rights_about_add_admins_yes);
+		}
+		return lang(lng_rights_about_add_admins_no);
+	};
+	_aboutAddAdmins->setText(text());
 	resizeToContent();
 }
 
-EditRestrictedBox::EditRestrictedBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights, const MTPChannelBannedRights &rights, base::lambda<void(MTPChannelBannedRights, MTPChannelBannedRights)> callback) : EditParticipantBox(nullptr, channel, user, hasAdminRights)
-, _oldRights(rights)
-, _saveCallback(std::move(callback)) {
+EditRestrictedBox::EditRestrictedBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights, const MTPChannelBannedRights &rights) : EditParticipantBox(nullptr, channel, user, hasAdminRights)
+, _oldRights(rights) {
 	auto dependency = [this](Flag dependent, Flag dependency) {
 		_dependencies.push_back(std::make_pair(dependent, dependency));
 	};
@@ -351,6 +363,9 @@ void EditRestrictedBox::prepare() {
 		subscribe(control->checkedChanged, [this, control](bool checked) {
 			InvokeQueued(this, [this, control] { applyDependencies(control); });
 		});
+		if (!canSave()) {
+			control->setDisabled(true);
+		}
 		_checkboxes.emplace(flags, control);
 	};
 	addCheckbox(Flag::f_view_messages, lang(lng_rights_chat_read));
@@ -365,21 +380,25 @@ void EditRestrictedBox::prepare() {
 
 	//addControl(object_ptr<Ui::LinkButton>(this, lang(lng_rights_chat_banned_block), st::boxLinkButton));
 
-	addButton(langFactory(lng_settings_save), [this] {
-		if (!_saveCallback) {
-			return;
-		}
-		auto newFlags = MTPDchannelBannedRights::Flags(0);
-		for (auto &&checkbox : _checkboxes) {
-			if (checkbox.second->checked()) {
-				newFlags &= ~checkbox.first;
-			} else {
-				newFlags |= checkbox.first;
+	if (canSave()) {
+		addButton(langFactory(lng_settings_save), [this] {
+			if (!_saveCallback) {
+				return;
 			}
-		}
-		_saveCallback(_oldRights, MTP_channelBannedRights(MTP_flags(newFlags), MTP_int(getRealUntilValue())));
-	});
-	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+			auto newFlags = MTPDchannelBannedRights::Flags(0);
+			for (auto &&checkbox : _checkboxes) {
+				if (checkbox.second->checked()) {
+					newFlags &= ~checkbox.first;
+				} else {
+					newFlags |= checkbox.first;
+				}
+			}
+			_saveCallback(_oldRights, MTP_channelBannedRights(MTP_flags(newFlags), MTP_int(getRealUntilValue())));
+		});
+		addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	} else {
+		addButton(langFactory(lng_box_ok), [this] { closeBox(); });
+	}
 
 	applyDependencies(nullptr);
 	for (auto &&checkbox : _checkboxes) {
@@ -439,7 +458,13 @@ void EditRestrictedBox::createUntilGroup() {
 
 void EditRestrictedBox::createUntilVariants() {
 	auto addVariant = [this](int value, const QString &text) {
+		if (!canSave() && _untilGroup->value() != value) {
+			return;
+		}
 		_untilVariants.push_back(addControl(object_ptr<Ui::Radiobutton>(this, _untilGroup, value, text, st::defaultBoxCheckbox), st::rightsToggleMargin));
+		if (!canSave()) {
+			_untilVariants.back()->setDisabled(true);
+		}
 	};
 	auto addCustomVariant = [this, addVariant](TimeId until, TimeId from, TimeId to) {
 		if (!ChannelData::IsRestrictedForever(until) && until > from && until <= to) {

@@ -185,28 +185,37 @@ void ParticipantsBoxController::loadMoreRows() {
 			setDescriptionText((_role == Role::Restricted) ? lang(lng_group_blocked_list_about) : QString());
 		}
 		auto &participants = result.c_channels_channelParticipants();
-		App::feedUsers(participants.vusers);
+App::feedUsers(participants.vusers);
 
-		auto &list = participants.vparticipants.v;
-		if (list.isEmpty()) {
-			// To be sure - wait for a whole empty result list.
-			_allLoaded = true;
-		} else {
-			for_const (auto &participant, list) {
-				++_offset;
-				HandleParticipant(participant, _role, &_additional, [this](gsl::not_null<UserData*> user) {
-					appendRow(user);
-				});
-			}
-		}
-		delegate()->peerListRefreshRows();
+auto &list = participants.vparticipants.v;
+if (list.isEmpty()) {
+	// To be sure - wait for a whole empty result list.
+	_allLoaded = true;
+} else {
+	for_const (auto &participant, list) {
+		++_offset;
+		HandleParticipant(participant, _role, &_additional, [this](gsl::not_null<UserData*> user) {
+			appendRow(user);
+		});
+	}
+}
+delegate()->peerListRefreshRows();
 	}).fail([this](const RPCError &error) {
 		_loadRequestId = 0;
 	}).send();
 }
 
 void ParticipantsBoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
-	Ui::showPeerHistoryAsync(row->peer()->id, ShowAtUnreadMsgId);
+	auto user = row->peer()->asUser();
+	Expects(user != nullptr);
+
+	if (_role == Role::Admins) {
+		showAdmin(user);
+	} else if (_role == Role::Restricted || _role == Role::Kicked) {
+		showRestricted(user);
+	} else {
+		Ui::showPeerProfile(row->peer());
+	}
 }
 
 void ParticipantsBoxController::rowActionClicked(gsl::not_null<PeerListRow*> row) {
@@ -214,31 +223,38 @@ void ParticipantsBoxController::rowActionClicked(gsl::not_null<PeerListRow*> row
 	Expects(user != nullptr);
 
 	if (_role == Role::Admins) {
-		editAdmin(user);
+		showAdmin(user);
 	} else if (_role == Role::Restricted) {
-		editRestricted(user);
+		showRestricted(user);
 	} else {
 		removeKicked(row, user);
 	}
 }
 
-void ParticipantsBoxController::editAdmin(gsl::not_null<UserData*> user) {
-	if (_additional.adminCanEdit.find(user) == _additional.adminCanEdit.end()) {
-		return;
-	}
-
+void ParticipantsBoxController::showAdmin(gsl::not_null<UserData*> user) {
 	auto it = _additional.adminRights.find(user);
-	t_assert(it != _additional.adminRights.cend());
+	if (it == _additional.adminRights.cend()) {
+		if (user != _additional.creator) {
+			return;
+		}
+	}
+	auto currentRights = (user == _additional.creator)
+		? MTP_channelAdminRights(MTP_flags(~MTPDchannelAdminRights::Flag::f_add_admins | MTPDchannelAdminRights::Flag::f_add_admins))
+		: it->second;
 	auto weak = base::weak_unique_ptr<ParticipantsBoxController>(this);
-	_editBox = Ui::show(Box<EditAdminBox>(_channel, user, it->second, [channel = _channel.get(), user, weak](const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
-		MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, newRights), rpcDone([channel, user, weak, oldRights, newRights](const MTPUpdates &result) {
-			AuthSession::Current().api().applyUpdates(result);
-			channel->applyEditAdmin(user, oldRights, newRights);
-			if (weak) {
-				weak->editAdminDone(user, newRights);
-			}
-		}));
-	}), KeepOtherLayers);
+	auto box = Box<EditAdminBox>(_channel, user, currentRights);
+	if (_additional.adminCanEdit.find(user) != _additional.adminCanEdit.end()) {
+		box->setSaveCallback([channel = _channel.get(), user, weak](const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
+			MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, newRights), rpcDone([channel, user, weak, oldRights, newRights](const MTPUpdates &result) {
+				AuthSession::Current().api().applyUpdates(result);
+				channel->applyEditAdmin(user, oldRights, newRights);
+				if (weak) {
+					weak->editAdminDone(user, newRights);
+				}
+			}));
+		});
+	}
+	_editBox = Ui::show(std::move(box), KeepOtherLayers);
 }
 
 void ParticipantsBoxController::editAdminDone(gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights) {
@@ -272,20 +288,26 @@ void ParticipantsBoxController::editAdminDone(gsl::not_null<UserData*> user, con
 	delegate()->peerListRefreshRows();
 }
 
-void ParticipantsBoxController::editRestricted(gsl::not_null<UserData*> user) {
+void ParticipantsBoxController::showRestricted(gsl::not_null<UserData*> user) {
 	auto it = _additional.restrictedRights.find(user);
-	t_assert(it != _additional.restrictedRights.cend());
+	if (it == _additional.restrictedRights.cend()) {
+		return;
+	}
 	auto weak = base::weak_unique_ptr<ParticipantsBoxController>(this);
 	auto hasAdminRights = false;
-	_editBox = Ui::show(Box<EditRestrictedBox>(_channel, user, hasAdminRights, it->second, [megagroup = _channel.get(), user, weak](const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
-		MTP::send(MTPchannels_EditBanned(megagroup->inputChannel, user->inputUser, newRights), rpcDone([megagroup, user, weak, oldRights, newRights](const MTPUpdates &result) {
-			AuthSession::Current().api().applyUpdates(result);
-			megagroup->applyEditBanned(user, oldRights, newRights);
-			if (weak) {
-				weak->editRestrictedDone(user, newRights);
-			}
-		}));
-	}), KeepOtherLayers);
+	auto box = Box<EditRestrictedBox>(_channel, user, hasAdminRights, it->second);
+	if (_channel->canBanMembers()) {
+		box->setSaveCallback([megagroup = _channel.get(), user, weak](const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
+			MTP::send(MTPchannels_EditBanned(megagroup->inputChannel, user->inputUser, newRights), rpcDone([megagroup, user, weak, oldRights, newRights](const MTPUpdates &result) {
+				AuthSession::Current().api().applyUpdates(result);
+				megagroup->applyEditBanned(user, oldRights, newRights);
+				if (weak) {
+					weak->editRestrictedDone(user, newRights);
+				}
+			}));
+		});
+	}
+	_editBox = Ui::show(std::move(box), KeepOtherLayers);
 }
 
 void ParticipantsBoxController::editRestrictedDone(gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights) {
@@ -379,7 +401,7 @@ std::unique_ptr<PeerListRow> ParticipantsBoxController::createRow(gsl::not_null<
 		}
 	}
 	if (_role == Role::Restricted || (_role == Role::Admins && _additional.adminCanEdit.find(user) != _additional.adminCanEdit.end())) {
-		row->setActionLink(lang(lng_profile_edit_permissions));
+//		row->setActionLink(lang(lng_profile_edit_permissions));
 	} else if (_role == Role::Kicked) {
 		row->setActionLink(lang(lng_blocked_list_unblock));
 	}
@@ -575,8 +597,8 @@ void AddParticipantBoxController::loadMoreRows() {
 void AddParticipantBoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
 	auto user = row->peer()->asUser();
 	switch (_role) {
-	case Role::Admins: return editAdmin(user);
-	case Role::Restricted: return editRestricted(user);
+	case Role::Admins: return showAdmin(user);
+	case Role::Restricted: return showRestricted(user);
 	case Role::Kicked: return kickUser(user);
 	}
 	Unexpected("Role in AddParticipantBoxController::rowClicked()");
@@ -604,8 +626,8 @@ bool AddParticipantBoxController::checkInfoLoaded(gsl::not_null<UserData*> user,
 	return false;
 }
 
-void AddParticipantBoxController::editAdmin(gsl::not_null<UserData*> user, bool sure) {
-	if (!checkInfoLoaded(user, [this, user] { editAdmin(user); })) {
+void AddParticipantBoxController::showAdmin(gsl::not_null<UserData*> user, bool sure) {
+	if (!checkInfoLoaded(user, [this, user] { showAdmin(user); })) {
 		return;
 	}
 
@@ -617,13 +639,11 @@ void AddParticipantBoxController::editAdmin(gsl::not_null<UserData*> user, bool 
 	// Check restrictions.
 	auto weak = base::weak_unique_ptr<AddParticipantBoxController>(this);
 	auto alreadyIt = _additional.adminRights.find(user);
-	auto currentRights = MTP_channelAdminRights(MTP_flags(0));
-	if (alreadyIt != _additional.adminRights.end() || _additional.creator == user) {
+	auto currentRights = (_additional.creator == user)
+		? MTP_channelAdminRights(MTP_flags(~MTPDchannelAdminRights::Flag::f_add_admins | MTPDchannelAdminRights::Flag::f_add_admins))
+		: MTP_channelAdminRights(MTP_flags(0));
+	if (alreadyIt != _additional.adminRights.end()) {
 		// The user is already an admin.
-		if (_additional.adminCanEdit.find(user) == _additional.adminCanEdit.end() || _additional.creator == user) {
-			Ui::show(Box<InformBox>(lang(lng_error_cant_edit_admin)), KeepOtherLayers);
-			return;
-		}
 		currentRights = alreadyIt->second;
 	} else if (_additional.kicked.find(user) != _additional.kicked.end()) {
 		// The user is banned.
@@ -632,7 +652,7 @@ void AddParticipantBoxController::editAdmin(gsl::not_null<UserData*> user, bool 
 				if (!sure) {
 					_editBox = Ui::show(Box<ConfirmBox>(lang(lng_sure_add_admin_unban), [weak, user] {
 						if (weak) {
-							weak->editAdmin(user, true);
+							weak->showAdmin(user, true);
 						}
 					}), KeepOtherLayers);
 					return;
@@ -651,7 +671,7 @@ void AddParticipantBoxController::editAdmin(gsl::not_null<UserData*> user, bool 
 			if (!sure) {
 				_editBox = Ui::show(Box<ConfirmBox>(lang(lng_sure_add_admin_unban), [weak, user] {
 					if (weak) {
-						weak->editAdmin(user, true);
+						weak->showAdmin(user, true);
 					}
 				}), KeepOtherLayers);
 				return;
@@ -666,7 +686,7 @@ void AddParticipantBoxController::editAdmin(gsl::not_null<UserData*> user, bool 
 			if (!sure) {
 				_editBox = Ui::show(Box<ConfirmBox>(lang(lng_sure_add_admin_invite), [weak, user] {
 					if (weak) {
-						weak->editAdmin(user, true);
+						weak->showAdmin(user, true);
 					}
 				}), KeepOtherLayers);
 				return;
@@ -677,29 +697,36 @@ void AddParticipantBoxController::editAdmin(gsl::not_null<UserData*> user, bool 
 		}
 	}
 
-	// Finally edit the admin.
-	_editBox = Ui::show(Box<EditAdminBox>(_channel, user, currentRights, [channel = _channel.get(), user, weak](const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
-		MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, newRights), rpcDone([channel, user, weak, oldRights, newRights](const MTPUpdates &result) {
-			AuthSession::Current().api().applyUpdates(result);
-			channel->applyEditAdmin(user, oldRights, newRights);
-			if (weak) {
-				weak->editAdminDone(user, newRights);
-			}
-		}), rpcFail([channel, weak](const RPCError &error) {
-			if (MTP::isDefaultHandledError(error)) {
-				return false;
-			}
-			if (error.type() == qstr("USER_NOT_MUTUAL_CONTACT")) {
-				Ui::show(Box<InformBox>(PeerFloodErrorText(channel->isMegagroup() ? PeerFloodType::InviteGroup : PeerFloodType::InviteChannel)), KeepOtherLayers);
-			} else if (error.type() == qstr("BOT_GROUPS_BLOCKED")) {
-				Ui::show(Box<InformBox>(lang(lng_error_cant_add_bot)), KeepOtherLayers);
-			}
-			if (weak && weak->_editBox) {
-				weak->_editBox->closeBox();
-			}
-			return true;
-		}));
-	}), KeepOtherLayers);
+	// Finally show the admin.
+	auto canNotEdit = (_additional.creator == user)
+		|| ((alreadyIt != _additional.adminRights.end())
+			&& (_additional.adminCanEdit.find(user) == _additional.adminCanEdit.end()));
+	auto box = Box<EditAdminBox>(_channel, user, currentRights);
+	if (!canNotEdit) {
+		box->setSaveCallback([channel = _channel.get(), user, weak](const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
+			MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, newRights), rpcDone([channel, user, weak, oldRights, newRights](const MTPUpdates &result) {
+				AuthSession::Current().api().applyUpdates(result);
+				channel->applyEditAdmin(user, oldRights, newRights);
+				if (weak) {
+					weak->editAdminDone(user, newRights);
+				}
+			}), rpcFail([channel, weak](const RPCError &error) {
+				if (MTP::isDefaultHandledError(error)) {
+					return false;
+				}
+				if (error.type() == qstr("USER_NOT_MUTUAL_CONTACT")) {
+					Ui::show(Box<InformBox>(PeerFloodErrorText(channel->isMegagroup() ? PeerFloodType::InviteGroup : PeerFloodType::InviteChannel)), KeepOtherLayers);
+				} else if (error.type() == qstr("BOT_GROUPS_BLOCKED")) {
+					Ui::show(Box<InformBox>(lang(lng_error_cant_add_bot)), KeepOtherLayers);
+				}
+				if (weak && weak->_editBox) {
+					weak->_editBox->closeBox();
+				}
+				return true;
+			}));
+		});
+	}
+	_editBox = Ui::show(std::move(box), KeepOtherLayers);
 }
 
 void AddParticipantBoxController::editAdminDone(gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights) {
@@ -724,8 +751,8 @@ void AddParticipantBoxController::editAdminDone(gsl::not_null<UserData*> user, c
 	}
 }
 
-void AddParticipantBoxController::editRestricted(gsl::not_null<UserData*> user, bool sure) {
-	if (!checkInfoLoaded(user, [this, user] { editRestricted(user); })) {
+void AddParticipantBoxController::showRestricted(gsl::not_null<UserData*> user, bool sure) {
+	if (!checkInfoLoaded(user, [this, user] { showRestricted(user); })) {
 		return;
 	}
 
@@ -749,7 +776,7 @@ void AddParticipantBoxController::editRestricted(gsl::not_null<UserData*> user, 
 			if (!sure) {
 				_editBox = Ui::show(Box<ConfirmBox>(lang(lng_sure_ban_admin), [weak, user] {
 					if (weak) {
-						weak->editRestricted(user, true);
+						weak->showRestricted(user, true);
 					}
 				}), KeepOtherLayers);
 				return;
@@ -761,11 +788,13 @@ void AddParticipantBoxController::editRestricted(gsl::not_null<UserData*> user, 
 	}
 
 	// Finally edit the restricted.
-	_editBox = Ui::show(Box<EditRestrictedBox>(_channel, user, hasAdminRights, currentRights, [user, weak](const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
+	auto box = Box<EditRestrictedBox>(_channel, user, hasAdminRights, currentRights);
+	box->setSaveCallback([user, weak](const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
 		if (weak) {
 			weak->restrictUserSure(user, oldRights, newRights);
 		}
-	}), KeepOtherLayers);
+	});
+	_editBox = Ui::show(std::move(box), KeepOtherLayers);
 }
 
 void AddParticipantBoxController::restrictUserSure(gsl::not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {

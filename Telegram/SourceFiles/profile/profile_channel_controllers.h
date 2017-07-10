@@ -64,9 +64,9 @@ public:
 	static void HandleParticipant(const MTPChannelParticipant &participant, Role role, gsl::not_null<Additional*> additional, Callback callback);
 
 private:
-	void editAdmin(gsl::not_null<UserData*> user);
+	void showAdmin(gsl::not_null<UserData*> user);
 	void editAdminDone(gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights);
-	void editRestricted(gsl::not_null<UserData*> user);
+	void showRestricted(gsl::not_null<UserData*> user);
 	void editRestrictedDone(gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights);
 	void removeKicked(gsl::not_null<PeerListRow*> row, gsl::not_null<UserData*> user);
 	bool appendRow(gsl::not_null<UserData*> user);
@@ -149,9 +149,9 @@ private:
 	template <typename Callback>
 	bool checkInfoLoaded(gsl::not_null<UserData*> user, Callback callback);
 
-	void editAdmin(gsl::not_null<UserData*> user, bool sure = false);
+	void showAdmin(gsl::not_null<UserData*> user, bool sure = false);
 	void editAdminDone(gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights);
-	void editRestricted(gsl::not_null<UserData*> user, bool sure = false);
+	void showRestricted(gsl::not_null<UserData*> user, bool sure = false);
 	void editRestrictedDone(gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights);
 	void kickUser(gsl::not_null<UserData*> user, bool sure = false);
 	void restrictUserSure(gsl::not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights);

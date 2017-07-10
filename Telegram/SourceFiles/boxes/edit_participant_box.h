@@ -71,7 +71,11 @@ private:
 
 class EditAdminBox : public EditParticipantBox {
 public:
-	EditAdminBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights, base::lambda<void(MTPChannelAdminRights, MTPChannelAdminRights)> callback);
+	EditAdminBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights);
+
+	void setSaveCallback(base::lambda<void(MTPChannelAdminRights, MTPChannelAdminRights)> callback) {
+		_saveCallback = std::move(callback);
+	}
 
 protected:
 	void prepare() override;
@@ -82,6 +86,9 @@ private:
 
 	static MTPChannelAdminRights DefaultRights(gsl::not_null<ChannelData*> channel);
 
+	bool canSave() const {
+		return !!_saveCallback;
+	}
 	void applyDependencies(QPointer<Ui::Checkbox> changed);
 	void refreshAboutAddAdminsText();
 
@@ -99,7 +106,11 @@ private:
 
 class EditRestrictedBox : public EditParticipantBox {
 public:
-	EditRestrictedBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights, const MTPChannelBannedRights &rights, base::lambda<void(MTPChannelBannedRights, MTPChannelBannedRights)> callback);
+	EditRestrictedBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights, const MTPChannelBannedRights &rights);
+
+	void setSaveCallback(base::lambda<void(MTPChannelBannedRights, MTPChannelBannedRights)> callback) {
+		_saveCallback = std::move(callback);
+	}
 
 protected:
 	void prepare() override;
@@ -110,6 +121,9 @@ private:
 
 	static MTPChannelBannedRights DefaultRights(gsl::not_null<ChannelData*> channel);
 
+	bool canSave() const {
+		return !!_saveCallback;
+	}
 	void applyDependencies(QPointer<Ui::Checkbox> changed);
 	void showRestrictUntil();
 	void setRestrictUntil(TimeId until);

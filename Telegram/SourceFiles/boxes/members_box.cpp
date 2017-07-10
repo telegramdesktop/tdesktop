@@ -282,10 +282,11 @@ void MembersBox::Inner::actionPressed(Member &row) {
 	} else {
 		auto currentRights = _rows[_kickSelected].adminRights;
 		auto weak = QPointer<Inner>(this);
-		auto box = std::make_shared<QPointer<EditAdminBox>>(nullptr);
-		_kickBox = *box = Ui::show(Box<EditAdminBox>(_channel, user, currentRights, [channel = _channel, weak, user, box](const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
-			if (*box) {
-				(*box)->closeBox();
+		auto weakBox = std::make_shared<QPointer<EditAdminBox>>(nullptr);
+		auto box = Box<EditAdminBox>(_channel, user, currentRights);
+		box->setSaveCallback([channel = _channel, weak, user, weakBox](const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
+			if (*weakBox) {
+				(*weakBox)->closeBox();
 			}
 			MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, newRights), ::rpcDone([channel, weak, user, oldRights, newRights](const MTPUpdates &result, mtpRequestId req) {
 				if (App::main()) App::main()->sentUpdatesReceived(result);
@@ -294,7 +295,8 @@ void MembersBox::Inner::actionPressed(Member &row) {
 					weak->editAdminDone(user, newRights);
 				}
 			}), weak ? weak->rpcFail(&Inner::kickFail) : RPCFailHandlerPtr());
-		}), KeepOtherLayers);
+		});
+		_kickBox = *weakBox = Ui::show(std::move(box), KeepOtherLayers);
 	}
 }
 

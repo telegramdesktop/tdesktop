@@ -1278,6 +1278,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_rights_edit_admin_header" = "What can this admin do?";
 "lng_rights_about_add_admins_yes" = "This admin will be able to add new admins with the same (or more limited) permissions.";
 "lng_rights_about_add_admins_no" = "This admin will not be able to add new admins.";
+"lng_rights_about_admin_cant_edit" = "You cannot edit rights of this admin.";
 "lng_rights_user_restrictions" = "User restrictions";
 "lng_rights_user_restrictions_header" = "What can this user do?";
 
