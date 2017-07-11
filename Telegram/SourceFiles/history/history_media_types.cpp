@@ -1750,7 +1750,6 @@ HistoryGif::HistoryGif(gsl::not_null<HistoryItem*> parent, DocumentData *documen
 , _data(document)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
 	setDocumentLinks(_data, true);
-	_openInMediaviewLink = MakeShared<DocumentOpenClickHandler>(_data);
 
 	setStatusSize(FileStatusSizeReady);
 
@@ -1774,6 +1773,9 @@ HistoryGif::HistoryGif(gsl::not_null<HistoryItem*> parent, const HistoryGif &oth
 void HistoryGif::initDimensions() {
 	if (_caption.hasSkipBlock()) {
 		_caption.setSkipBlock(_parent->skipBlockWidth(), _parent->skipBlockHeight());
+	}
+	if (!_openInMediaviewLink) {
+		_openInMediaviewLink = MakeShared<DocumentOpenClickHandler>(_data);
 	}
 
 	bool bubble = _parent->hasBubble();
