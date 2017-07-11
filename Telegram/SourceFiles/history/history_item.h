@@ -717,9 +717,7 @@ public:
 	bool suggestBanReport() const;
 	bool suggestDeleteAllReport() const;
 
-	bool hasDirectLink() const {
-		return id > 0 && _history->peer->isChannel() && _history->peer->asChannel()->isPublic() && !_history->peer->isMegagroup();
-	}
+	bool hasDirectLink() const;
 	QString directLink() const;
 
 	int y() const {

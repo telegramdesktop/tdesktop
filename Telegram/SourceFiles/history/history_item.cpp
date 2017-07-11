@@ -929,13 +929,27 @@ bool HistoryItem::suggestDeleteAllReport() const {
 	return !isPost() && !out() && from()->isUser() && toHistoryMessage();
 }
 
+bool HistoryItem::hasDirectLink() const {
+	if (id <= 0) {
+		return false;
+	}
+	if (auto channel = _history->peer->asChannel()) {
+		return channel->isPublic();
+	}
+	return false;
+}
+
 QString HistoryItem::directLink() const {
 	if (hasDirectLink()) {
-		auto query = _history->peer->asChannel()->username + '/' + QString::number(id);
-		if (auto media = getMedia()) {
-			if (auto document = media->getDocument()) {
-				if (document->isRoundVideo()) {
-					return qsl("https://telesco.pe/") + query;
+		auto channel = _history->peer->asChannel();
+		t_assert(channel != nullptr);
+		auto query = channel->username + '/' + QString::number(id);
+		if (!channel->isMegagroup()) {
+			if (auto media = getMedia()) {
+				if (auto document = media->getDocument()) {
+					if (document->isRoundVideo()) {
+						return qsl("https://telesco.pe/") + query;
+					}
 				}
 			}
 		}
