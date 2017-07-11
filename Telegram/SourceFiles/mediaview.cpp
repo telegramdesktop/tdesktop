@@ -951,13 +951,14 @@ void MediaView::onShowInFolder() {
 
 void MediaView::onForward() {
 	auto item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid);
-	if (!_msgid || !item) return;
+	if (!_msgid || !item || item->id < 0 || item->serviceMsg()) return;
 
 	if (App::wnd()) {
 		close();
-		if (App::main()) {
-			App::contextItem(item);
-			App::main()->forwardLayer();
+		if (auto main = App::main()) {
+			auto items = SelectedItemSet();
+			items.insert(item->id, item);
+			main->showForwardLayer(items);
 		}
 	}
 }

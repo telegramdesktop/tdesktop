@@ -170,8 +170,8 @@ void ReportSpamPanel::setReported(bool reported, PeerData *onPeer) {
 	update();
 }
 
-HistoryHider::HistoryHider(MainWidget *parent, bool forwardSelected) : TWidget(parent)
-, _forwardSelected(forwardSelected)
+HistoryHider::HistoryHider(MainWidget *parent, const SelectedItemSet &items) : TWidget(parent)
+, _forwardItems(items)
 , _send(this, langFactory(lng_forward_send), st::defaultBoxButton)
 , _cancel(this, langFactory(lng_cancel), st::defaultBoxButton) {
 	init();
@@ -318,7 +318,7 @@ void HistoryHider::forward() {
 		} else if (!_botAndQuery.isEmpty()) {
 			parent()->onInlineSwitchChosen(_offered->id, _botAndQuery);
 		} else {
-			parent()->onForward(_offered->id, _forwardSelected ? ForwardSelectedMessages : ForwardContextMessage);
+			parent()->setForwardDraft(_offered->id, _forwardItems);
 		}
 	}
 	emit forwarded();
@@ -401,7 +401,7 @@ bool HistoryHider::offerPeer(PeerId peer) {
 	} else {
 		auto toId = _offered->id;
 		_offered = nullptr;
-		if (parent()->onForward(toId, _forwardSelected ? ForwardSelectedMessages : ForwardContextMessage)) {
+		if (parent()->setForwardDraft(toId, _forwardItems)) {
 			startHide();
 		}
 		return false;
@@ -3320,14 +3320,14 @@ void HistoryWidget::mouseMoveEvent(QMouseEvent *e) {
 
 void HistoryWidget::updateOverStates(QPoint pos) {
 	auto inField = pos.y() >= (_scroll->y() + _scroll->height()) && pos.y() < height() && pos.x() >= 0 && pos.x() < width();
-	auto inReplyEdit = QRect(st::historyReplySkip, _field->y() - st::historySendPadding - st::historyReplyHeight, width() - st::historyReplySkip - _fieldBarCancel->width(), st::historyReplyHeight).contains(pos) && (_editMsgId || replyToId());
+	auto inReplyEditForward = QRect(st::historyReplySkip, _field->y() - st::historySendPadding - st::historyReplyHeight, width() - st::historyReplySkip - _fieldBarCancel->width(), st::historyReplyHeight).contains(pos) && (_editMsgId || replyToId() || readyToForward());
 	auto inPinnedMsg = QRect(0, _topBar->bottomNoMargins(), width(), st::historyReplyHeight).contains(pos) && _pinnedBar;
-	auto inClickable = inReplyEdit || inPinnedMsg;
+	auto inClickable = inReplyEditForward || inPinnedMsg;
 	if (inField != _inField && _recording) {
 		_inField = inField;
 		_send->setRecordActive(_inField);
 	}
-	_inReplyEdit = inReplyEdit;
+	_inReplyEditForward = inReplyEditForward;
 	_inPinnedMsg = inPinnedMsg;
 	if (inClickable != _inClickable) {
 		_inClickable = inClickable;
@@ -3886,7 +3886,9 @@ void HistoryWidget::forwardMessage() {
 	auto item = App::contextItem();
 	if (!item || item->id < 0 || item->serviceMsg()) return;
 
-	App::main()->forwardLayer();
+	auto items = SelectedItemSet();
+	items.insert(item->id, item);
+	App::main()->showForwardLayer(items);
 }
 
 void HistoryWidget::selectMessage() {
@@ -5270,8 +5272,14 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 	_replyForwardPressed = QRect(0, _field->y() - st::historySendPadding - st::historyReplyHeight, st::historyReplySkip, st::historyReplyHeight).contains(e->pos());
 	if (_replyForwardPressed && !_fieldBarCancel->isHidden()) {
 		updateField();
-	} else if (_inReplyEdit) {
-		Ui::showPeerHistory(_peer, _editMsgId ? _editMsgId : replyToId());
+	} else if (_inReplyEditForward) {
+		if (readyToForward()) {
+			auto items = _toForward;
+			App::main()->cancelForwarding(_history);
+			App::main()->showForwardLayer(items);
+		} else {
+			Ui::showPeerHistory(_peer, _editMsgId ? _editMsgId : replyToId());
+		}
 	} else if (_inPinnedMsg) {
 		t_assert(_pinnedBar != nullptr);
 		Ui::showPeerHistory(_peer, _pinnedBar->msgId);
@@ -5650,7 +5658,9 @@ void HistoryWidget::onReplyToMessage() {
 					auto item = App::contextItem();
 					if (!item || item->id < 0 || item->serviceMsg()) return;
 
-					App::forward(_peer->id, ForwardContextMessage);
+					auto items = SelectedItemSet();
+					items.insert(item->id, item);
+					App::main()->setForwardDraft(_peer->id, items);
 				})));
 			}
 		}
@@ -6153,7 +6163,7 @@ void HistoryWidget::peerUpdated(PeerData *data) {
 
 void HistoryWidget::onForwardSelected() {
 	if (!_list) return;
-	App::main()->forwardLayer(true);
+	App::main()->showForwardLayer(getSelectedItems());
 }
 
 void HistoryWidget::confirmDeleteContextItem() {

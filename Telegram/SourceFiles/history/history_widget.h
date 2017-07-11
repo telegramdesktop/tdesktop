@@ -97,7 +97,7 @@ class HistoryHider : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	HistoryHider(MainWidget *parent, bool forwardSelected); // forward messages
+	HistoryHider(MainWidget *parent, const SelectedItemSet &items); // forward messages
 	HistoryHider(MainWidget *parent, UserData *sharedContact); // share contact
 	HistoryHider(MainWidget *parent); // send path from command line argument
 	HistoryHider(MainWidget *parent, const QString &url, const QString &text); // share url
@@ -138,7 +138,7 @@ private:
 	MainWidget *parent();
 
 	UserData *_sharedContact = nullptr;
-	bool _forwardSelected = false;
+	SelectedItemSet _forwardItems;
 	bool _sendPath = false;
 
 	QString _shareUrl, _shareText;
@@ -804,7 +804,7 @@ private:
 	object_ptr<MessageField> _field;
 	bool _recording = false;
 	bool _inField = false;
-	bool _inReplyEdit = false;
+	bool _inReplyEditForward = false;
 	bool _inPinnedMsg = false;
 	bool _inClickable = false;
 	int _recordingSamples = 0;

@@ -1417,9 +1417,11 @@ void OverviewInner::goToMessage() {
 
 void OverviewInner::forwardMessage() {
 	auto item = App::contextItem();
-	if (!item || item->id < 0) return;
+	if (!item || item->id < 0 || item->serviceMsg()) return;
 
-	App::main()->forwardLayer();
+	auto items = SelectedItemSet();
+	items.insert(item->id, item);
+	App::main()->showForwardLayer(items);
 }
 
 MsgId OverviewInner::complexMsgId(const HistoryItem *item) const {
@@ -2336,7 +2338,7 @@ bool OverviewWidget::touchScroll(const QPoint &delta) {
 }
 
 void OverviewWidget::onForwardSelected() {
-	App::main()->forwardLayer(true);
+	App::main()->showForwardLayer(getSelectedItems());
 }
 
 void OverviewWidget::confirmDeleteContextItem() {

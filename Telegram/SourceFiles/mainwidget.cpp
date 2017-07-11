@@ -563,24 +563,7 @@ void MainWidget::finishFloatPlayerDrag(gsl::not_null<Float*> instance, bool clos
 	}
 }
 
-bool MainWidget::onForward(const PeerId &peerId, ForwardWhatMessages what) {
-	Expects(peerId != 0);
-	auto peer = App::peer(peerId);
-	auto finishWithError = [this, what](const QString &error) {
-		Ui::show(Box<InformBox>(error));
-		if (what == ForwardPressedMessage || what == ForwardPressedLinkMessage) {
-			// We've already released the mouse button, so the forwarding is cancelled.
-			if (_hider) {
-				_hider->startHide();
-				noHider(_hider);
-			}
-		}
-		return false;
-	};
-	if (!peer->canWrite()) {
-		return finishWithError(lang(lng_forward_cant));
-	}
-
+bool MainWidget::setForwardDraft(PeerId peerId, ForwardWhatMessages what) {
 	auto toForward = SelectedItemSet();
 	if (what == ForwardSelectedMessages) {
 		toForward = _overview ? _overview->getSelectedItems() : _history->getSelectedItems();
@@ -597,22 +580,48 @@ bool MainWidget::onForward(const PeerId &peerId, ForwardWhatMessages what) {
 			toForward.insert(item->id, item);
 		}
 	}
+	auto result = setForwardDraft(peerId, toForward);
+	if (!result) {
+		if (what == ForwardPressedMessage || what == ForwardPressedLinkMessage) {
+			// We've already released the mouse button, so the forwarding is cancelled.
+			if (_hider) {
+				_hider->startHide();
+				noHider(_hider);
+			}
+		}
+	}
+	return result;
+}
+
+bool MainWidget::setForwardDraft(PeerId peerId, const SelectedItemSet &items) {
+	Expects(peerId != 0);
+	auto peer = App::peer(peerId);
+	auto finishWithError = [this](const QString &error) {
+		Ui::show(Box<InformBox>(error));
+		return false;
+	};
+	if (!peer->canWrite()) {
+		return finishWithError(lang(lng_forward_cant));
+	}
+
 	if (auto megagroup = peer->asMegagroup()) {
-		if (megagroup->restrictedRights().is_send_media() && HasMediaItems(toForward)) {
+		if (megagroup->restrictedRights().is_send_media() && HasMediaItems(items)) {
 			return finishWithError(lang(lng_restricted_send_media));
-		} else if (megagroup->restrictedRights().is_send_stickers() && HasStickerItems(toForward)) {
+		} else if (megagroup->restrictedRights().is_send_stickers() && HasStickerItems(items)) {
 			return finishWithError(lang(lng_restricted_send_stickers));
-		} else if (megagroup->restrictedRights().is_send_gifs() && HasGifItems(toForward)) {
+		} else if (megagroup->restrictedRights().is_send_gifs() && HasGifItems(items)) {
 			return finishWithError(lang(lng_restricted_send_gifs));
-		} else if (megagroup->restrictedRights().is_send_games() && HasGameItems(toForward)) {
+		} else if (megagroup->restrictedRights().is_send_games() && HasGameItems(items)) {
 			return finishWithError(lang(lng_restricted_send_inline));
-		} else if (megagroup->restrictedRights().is_send_inline() && HasInlineItems(toForward)) {
+		} else if (megagroup->restrictedRights().is_send_inline() && HasInlineItems(items)) {
 			return finishWithError(lang(lng_restricted_send_inline));
 		}
 	}
 
-	App::history(peer)->setForwardDraft(toForward);
-	_history->cancelReply();
+	App::history(peer)->setForwardDraft(items);
+	if (_history->peer() == peer) {
+		_history->cancelReply();
+	}
 	Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 	_history->onClearSelected();
 	return true;
@@ -803,11 +812,11 @@ bool MainWidget::onSendPaths(const PeerId &peerId) {
 void MainWidget::onFilesOrForwardDrop(const PeerId &peerId, const QMimeData *data) {
 	Expects(peerId != 0);
 	if (data->hasFormat(qsl("application/x-td-forward-selected"))) {
-		onForward(peerId, ForwardSelectedMessages);
+		setForwardDraft(peerId, ForwardSelectedMessages);
 	} else if (data->hasFormat(qsl("application/x-td-forward-pressed-link"))) {
-		onForward(peerId, ForwardPressedLinkMessage);
+		setForwardDraft(peerId, ForwardPressedLinkMessage);
 	} else if (data->hasFormat(qsl("application/x-td-forward-pressed"))) {
-		onForward(peerId, ForwardPressedMessage);
+		setForwardDraft(peerId, ForwardPressedMessage);
 	} else {
 		auto peer = App::peer(peerId);
 		if (!peer->canWrite()) {
@@ -983,8 +992,12 @@ void MainWidget::hiderLayer(object_ptr<HistoryHider> h) {
 	checkFloatPlayerVisibility();
 }
 
-void MainWidget::forwardLayer(int forwardSelected) {
-	hiderLayer((forwardSelected < 0) ? object_ptr<HistoryHider>(this) : object_ptr<HistoryHider>(this, forwardSelected > 0));
+void MainWidget::showForwardLayer(const SelectedItemSet &items) {
+	hiderLayer(object_ptr<HistoryHider>(this, items));
+}
+
+void MainWidget::showSendPathsLayer() {
+	hiderLayer(object_ptr<HistoryHider>(this));
 }
 
 void MainWidget::deleteLayer(int selectedCount) {
@@ -4494,7 +4507,7 @@ void MainWidget::activate() {
 			}
         } else if (App::wnd() && !Ui::isLayerShown()) {
 			if (!cSendPaths().isEmpty()) {
-				forwardLayer(-1);
+				showSendPathsLayer();
 			} else if (_history->peer()) {
 				_history->activate();
 			} else {

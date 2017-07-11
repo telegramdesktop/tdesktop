@@ -238,7 +238,8 @@ public:
 
 	int32 dlgsWidth() const;
 
-	void forwardLayer(int forwardSelected = 0); // -1 - send paths
+	void showForwardLayer(const SelectedItemSet &items);
+	void showSendPathsLayer();
 	void deleteLayer(int selectedCount = 0); // 0 - context item
 	void cancelUploadLayer();
 	void shareContactLayer(UserData *contact);
@@ -246,7 +247,8 @@ public:
 	void inlineSwitchLayer(const QString &botAndQuery);
 	void hiderLayer(object_ptr<HistoryHider> h);
 	void noHider(HistoryHider *destroyed);
-	bool onForward(const PeerId &peer, ForwardWhatMessages what);
+	bool setForwardDraft(PeerId peer, ForwardWhatMessages what);
+	bool setForwardDraft(PeerId peer, const SelectedItemSet &items);
 	bool onShareUrl(const PeerId &peer, const QString &url, const QString &text);
 	bool onInlineSwitchChosen(const PeerId &peer, const QString &botAndQuery);
 	void onShareContact(const PeerId &peer, UserData *contact);

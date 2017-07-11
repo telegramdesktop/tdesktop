@@ -167,11 +167,6 @@ void stickersBox(const QString &name) {
 	if (MainWidget *m = main()) m->stickersBox(MTP_inputStickerSetShortName(MTP_string(name)));
 }
 
-bool forward(const PeerId &peer, ForwardWhatMessages what) {
-	if (MainWidget *m = main()) return m->onForward(peer, what);
-	return false;
-}
-
 void removeDialog(History *history) {
 	if (MainWidget *m = main()) {
 		m->removeDialog(history);
