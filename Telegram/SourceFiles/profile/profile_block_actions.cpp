@@ -30,8 +30,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "auth_session.h"
 #include "lang/lang_keys.h"
+#include "profile/profile_channel_controllers.h"
 
 namespace Profile {
+
+constexpr auto kEnableSearchMembersAfterCount = 50;
 
 using UpdateFlag = Notify::PeerUpdate::Flag;
 
@@ -142,6 +145,9 @@ void ActionsWidget::refreshButtons() {
 		addButton(lang(lng_profile_clear_history), SLOT(onClearHistory()));
 		addButton(lang(lng_profile_clear_and_exit), SLOT(onDeleteConversation()));
 	} else if (auto channel = peer()->asChannel()) {
+		if (channel->isMegagroup() && channel->membersCount() > kEnableSearchMembersAfterCount) {
+			addButton(lang(lng_profile_search_members), SLOT(onSearchMembers()));
+		}
 		if (!channel->amCreator() && (!channel->isMegagroup() || channel->isPublic())) {
 			addButton(lang(lng_profile_report), SLOT(onReport()));
 		}
@@ -345,6 +351,12 @@ void ActionsWidget::onLeaveChannel() {
 	Ui::show(Box<ConfirmBox>(text, lang(lng_box_leave), base::lambda_guarded(this, [this] {
 		App::api()->leaveChannel(peer()->asChannel());
 	})));
+}
+
+void ActionsWidget::onSearchMembers() {
+	if (auto channel = peer()->asChannel()) {
+		ParticipantsBoxController::Start(channel, ParticipantsBoxController::Role::Members);
+	}
 }
 
 void ActionsWidget::onReport() {

@@ -57,6 +57,7 @@ private slots:
 	void onDeleteConversation();
 	void onBlockUser();
 	void onUpgradeToSupergroup();
+	void onSearchMembers();
 	void onDeleteChannel();
 	void onLeaveChannel();
 	void onReport();

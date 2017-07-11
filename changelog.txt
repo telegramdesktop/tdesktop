@@ -2,7 +2,7 @@
 
 - Click on forwarded messages bar to change the recipient chat in case you chose a wrong one first.
 - Quickly share posts from channels and media messages from bots.
-- Search in supergroup members by name.
+- Search in large supergroup members by name.
 - Search in channel members by name if you're a channel admin.
 - Copy links to messages in public supergroups.
 
