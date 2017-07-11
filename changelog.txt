@@ -1,3 +1,11 @@
+1.1.12 alpha (11.07.17)
+
+- Click on forwarded messages bar to change the recipient chat in case you chose a wrong one first.
+- Quickly share posts from channels and media messages from bots.
+- Search in supergroup members by name.
+- Search in channel members by name if you're a channel admin.
+- Copy links to messages in public supergroups.
+
 1.1.11 alpha (06.07.17)
 
 - Send **bold** and __italic__ text in your messages (in addition to already supported `monospace` and ```multiline monospace```).
