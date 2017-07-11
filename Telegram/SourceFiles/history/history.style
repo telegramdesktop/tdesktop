@@ -483,3 +483,8 @@ historyAdminLogCancelSearch: CrossButton {
 }
 historyAdminLogSearchTop: 11px;
 historyAdminLogSearchSlideDuration: 150;
+
+historyFastShareSize: 31px;
+historyFastShareLeft: 13px;
+historyFastShareBottom: 5px;
+historyFastShareIcon: icon {{ "fast_share", msgServiceFg, point(4px, 3px)}};

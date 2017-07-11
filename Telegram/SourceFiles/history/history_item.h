@@ -692,6 +692,14 @@ public:
 
 	virtual void drawInfo(Painter &p, int32 right, int32 bottom, int32 width, bool selected, InfoDisplayType type) const {
 	}
+	virtual ClickHandlerPtr fastShareLink() const {
+		return ClickHandlerPtr();
+	}
+	virtual bool displayFastShare() const {
+		return false;
+	}
+	virtual void drawFastShare(Painter &p, int left, int top, int outerWidth) const {
+	}
 	virtual void setViewsCount(int32 count) {
 	}
 	virtual void setId(MsgId newId);

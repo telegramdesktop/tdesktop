@@ -59,6 +59,9 @@ public:
 	virtual bool hasTextForCopy() const {
 		return false;
 	}
+	virtual bool allowsFastShare() const {
+		return false;
+	}
 	virtual void initDimensions() = 0;
 	virtual void updateMessageId() {
 	}

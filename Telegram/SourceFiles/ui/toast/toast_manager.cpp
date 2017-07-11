@@ -35,7 +35,17 @@ NeverFreedPointer<QMap<QObject*, Manager*>> _managers;
 
 Manager::Manager(QWidget *parent) : QObject(parent) {
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(onHideTimeout()));
-	connect(parent, SIGNAL(resized()), this, SLOT(onParentResized()));
+}
+
+bool Manager::eventFilter(QObject *o, QEvent *e) {
+	if (e->type() == QEvent::Resize) {
+		for (auto i = _toastByWidget.cbegin(), e = _toastByWidget.cend(); i != e; ++i) {
+			if (i.key()->parentWidget() == o) {
+				i.key()->onParentResized();
+			}
+		}
+	}
+	return QObject::eventFilter(o, e);
 }
 
 Manager *Manager::instance(QWidget *parent) {
@@ -58,7 +68,23 @@ void Manager::addToast(std::unique_ptr<Instance> &&toast) {
 
 	_toastByWidget.insert(widget, t);
 	connect(widget, SIGNAL(destroyed(QObject*)), this, SLOT(onToastWidgetDestroyed(QObject*)));
-	connect(widget->parentWidget(), SIGNAL(resized(QSize)), this, SLOT(onToastWidgetParentResized()), Qt::UniqueConnection);
+	if (auto parent = widget->parentWidget()) {
+		auto found = false;
+		for (auto i = _toastParents.begin(); i != _toastParents.cend();) {
+			if (*i == parent) {
+				found = true;
+				break;
+			} else if (!*i) {
+				i = _toastParents.erase(i);
+			} else {
+				++i;
+			}
+		}
+		if (!found) {
+			_toastParents.insert(parent);
+			parent->installEventFilter(this);
+		}
+	}
 
 	auto oldHideNearestMs = _toastByHideTime.isEmpty() ? 0LL : _toastByHideTime.firstKey();
 	_toastByHideTime.insert(t->_hideAtMs, t);
@@ -92,17 +118,6 @@ void Manager::onToastWidgetDestroyed(QObject *widget) {
 		if (index >= 0) {
 			_toasts.removeAt(index);
 			delete toast;
-		}
-	}
-}
-
-void Manager::onToastWidgetParentResized() {
-	auto resizedWidget = QObject::sender();
-	if (!resizedWidget) return;
-
-	for (auto i = _toastByWidget.cbegin(), e = _toastByWidget.cend(); i != e; ++i) {
-		if (i.key()->parentWidget() == resizedWidget) {
-			i.key()->onParentResized();
 		}
 	}
 }

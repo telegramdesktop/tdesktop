@@ -23,6 +23,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 void HistoryInitMessages();
 base::lambda<void(ChannelData*, MsgId)> HistoryDependentItemCallback(const FullMsgId &msgId);
 MTPDmessage::Flags NewMessageFlags(gsl::not_null<PeerData*> peer);
+QString GetErrorTextForForward(gsl::not_null<PeerData*> peer, const SelectedItemSet &items);
+void FastShareMessage(gsl::not_null<HistoryItem*> item);
 
 class HistoryMessage : public HistoryItem, private HistoryItemInstantiated<HistoryMessage> {
 public:
@@ -67,11 +69,14 @@ public:
 	}
 	bool displayEditedBadge(bool hasViaBotOrInlineMarkup) const;
 	bool uploading() const;
+	bool displayFastShare() const override;
 
 	void drawInfo(Painter &p, int32 right, int32 bottom, int32 width, bool selected, InfoDisplayType type) const override;
+	void drawFastShare(Painter &p, int left, int top, int outerWidth) const override;
 	void setViewsCount(int32 count) override;
 	void setId(MsgId newId) override;
 	void draw(Painter &p, QRect clip, TextSelection selection, TimeMs ms) const override;
+	ClickHandlerPtr fastShareLink() const override;
 
 	void dependencyItemRemoved(HistoryItem *dependency) override;
 
@@ -180,6 +185,8 @@ private:
 
 	QString _timeText;
 	int _timeWidth = 0;
+
+	mutable ClickHandlerPtr _fastShareLink;
 
 	struct CreateConfig {
 		MsgId replyTo = 0;

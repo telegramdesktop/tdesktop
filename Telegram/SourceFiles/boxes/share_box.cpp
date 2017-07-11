@@ -34,6 +34,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/toast/toast.h"
 #include "ui/widgets/multi_select.h"
 #include "history/history_media_types.h"
+#include "history/history_message.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "window/themes/window_theme.h"
@@ -208,7 +209,7 @@ void ShareBox::createButtons() {
 	clearButtons();
 	if (_hasSelected) {
 		addButton(langFactory(lng_share_confirm), [this] { onSubmit(); });
-	} else {
+	} else if (_copyCallback) {
 		addButton(langFactory(lng_share_copy_link), [this] { onCopyLink(); });
 	}
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
@@ -840,103 +841,6 @@ QString AppendShareGameScoreUrl(const QString &url, const FullMsgId &fullId) {
 	return url + shareComponent;
 }
 
-namespace {
-
-void ShareGameScoreFromItem(HistoryItem *item) {
-	struct ShareGameScoreData {
-		ShareGameScoreData(const FullMsgId &msgId) : msgId(msgId) {
-		}
-		FullMsgId msgId;
-		OrderedSet<mtpRequestId> requests;
-	};
-	auto data = MakeShared<ShareGameScoreData>(item->fullId());
-
-	auto copyCallback = [data]() {
-		if (auto main = App::main()) {
-			if (auto item = App::histItemById(data->msgId)) {
-				if (auto bot = item->getMessageBot()) {
-					if (auto media = item->getMedia()) {
-						if (media->type() == MediaTypeGame) {
-							auto shortName = static_cast<HistoryGame*>(media)->game()->shortName;
-
-							QApplication::clipboard()->setText(Messenger::Instance().createInternalLinkFull(bot->username + qsl("?game=") + shortName));
-
-							Ui::Toast::Show(lang(lng_share_game_link_copied));
-						}
-					}
-				}
-			}
-		}
-	};
-	auto submitCallback = [data](const QVector<PeerData*> &result) {
-		if (!data->requests.empty()) {
-			return; // Share clicked already.
-		}
-		if (result.empty()) {
-			return;
-		}
-
-		auto restrictedEverywhere = true;
-		auto restrictedSomewhere = false;
-		for_const (auto peer, result) {
-			if (auto megagroup = peer->asMegagroup()) {
-				if (megagroup->restrictedRights().is_send_games()) {
-					restrictedSomewhere = true;
-					continue;
-				}
-			}
-			restrictedEverywhere = false;
-		}
-		if (restrictedEverywhere) {
-			Ui::show(Box<InformBox>(lang(lng_restricted_send_inline)), KeepOtherLayers);
-			return;
-		}
-
-		auto doneCallback = [data](const MTPUpdates &updates, mtpRequestId requestId) {
-			if (auto main = App::main()) {
-				main->sentUpdatesReceived(updates);
-			}
-			data->requests.remove(requestId);
-			if (data->requests.empty()) {
-				Ui::Toast::Show(lang(lng_share_done));
-				Ui::hideLayer();
-			}
-		};
-
-		auto sendFlags = MTPmessages_ForwardMessages::Flag::f_with_my_score;
-		MTPVector<MTPint> msgIds = MTP_vector<MTPint>(1, MTP_int(data->msgId.msg));
-		if (auto main = App::main()) {
-			if (auto item = App::histItemById(data->msgId)) {
-				for_const (auto peer, result) {
-					if (auto megagroup = peer->asMegagroup()) {
-						if (megagroup->restrictedRights().is_send_games()) {
-							continue;
-						}
-					}
-
-					MTPVector<MTPlong> random = MTP_vector<MTPlong>(1, rand_value<MTPlong>());
-					auto request = MTPmessages_ForwardMessages(MTP_flags(sendFlags), item->history()->peer->input, msgIds, random, peer->input);
-					auto callback = doneCallback;
-					auto requestId = MTP::send(request, rpcDone(std::move(callback)));
-					data->requests.insert(requestId);
-				}
-			}
-		}
-	};
-	auto filterCallback = [](PeerData *peer) {
-		if (peer->canWrite()) {
-			if (auto channel = peer->asChannel()) {
-				return !channel->isBroadcast();
-			}
-			return true;
-		}
-		return false;
-	};
-	Ui::show(Box<ShareBox>(std::move(copyCallback), std::move(submitCallback), std::move(filterCallback)));
-}
-
-} // namespace
-
 void ShareGameScoreByHash(const QString &hash) {
 	auto key128Size = 0x10;
 
@@ -988,12 +892,12 @@ void ShareGameScoreByHash(const QString &hash) {
 	}
 
 	if (auto item = App::histItemById(channelId, msgId)) {
-		ShareGameScoreFromItem(item);
+		FastShareMessage(item);
 	} else if (App::api()) {
 		auto resolveMessageAndShareScore = [msgId](ChannelData *channel) {
 			App::api()->requestMessageData(channel, msgId, [](ChannelData *channel, MsgId msgId) {
 				if (auto item = App::histItemById(channel, msgId)) {
-					ShareGameScoreFromItem(item);
+					FastShareMessage(item);
 				} else {
 					Ui::show(Box<InformBox>(lang(lng_edit_deleted)));
 				}

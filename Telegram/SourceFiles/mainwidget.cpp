@@ -92,64 +92,6 @@ MTPMessagesFilter TypeToMediaFilter(MediaOverviewType &type) {
 	}
 }
 
-bool HasMediaItems(const SelectedItemSet &items) {
-	for_const (auto item, items) {
-		if (auto media = item->getMedia()) {
-			switch (media->type()) {
-			case MediaTypePhoto:
-			case MediaTypeVideo:
-			case MediaTypeFile:
-			case MediaTypeMusicFile:
-			case MediaTypeVoiceFile: return true;
-			case MediaTypeGif: return media->getDocument()->isRoundVideo();
-			}
-		}
-	}
-	return false;
-}
-
-bool HasStickerItems(const SelectedItemSet &items) {
-	for_const (auto item, items) {
-		if (auto media = item->getMedia()) {
-			switch (media->type()) {
-			case MediaTypeSticker: return true;
-			}
-		}
-	}
-	return false;
-}
-
-bool HasGifItems(const SelectedItemSet &items) {
-	for_const (auto item, items) {
-		if (auto media = item->getMedia()) {
-			switch (media->type()) {
-			case MediaTypeGif: return !media->getDocument()->isRoundVideo();
-			}
-		}
-	}
-	return false;
-}
-
-bool HasGameItems(const SelectedItemSet &items) {
-	for_const (auto item, items) {
-		if (auto media = item->getMedia()) {
-			switch (media->type()) {
-			case MediaTypeGame: return true;
-			}
-		}
-	}
-	return false;
-}
-
-bool HasInlineItems(const SelectedItemSet &items) {
-	for_const (auto item, items) {
-		if (item->viaBot()) {
-			return true;
-		}
-	}
-	return false;
-}
-
 } // namespace
 
 StackItemSection::StackItemSection(std::unique_ptr<Window::SectionMemento> &&memento) : StackItem(nullptr)
@@ -596,26 +538,10 @@ bool MainWidget::setForwardDraft(PeerId peerId, ForwardWhatMessages what) {
 bool MainWidget::setForwardDraft(PeerId peerId, const SelectedItemSet &items) {
 	Expects(peerId != 0);
 	auto peer = App::peer(peerId);
-	auto finishWithError = [this](const QString &error) {
+	auto error = GetErrorTextForForward(peer, items);
+	if (!error.isEmpty()) {
 		Ui::show(Box<InformBox>(error));
 		return false;
-	};
-	if (!peer->canWrite()) {
-		return finishWithError(lang(lng_forward_cant));
-	}
-
-	if (auto megagroup = peer->asMegagroup()) {
-		if (megagroup->restrictedRights().is_send_media() && HasMediaItems(items)) {
-			return finishWithError(lang(lng_restricted_send_media));
-		} else if (megagroup->restrictedRights().is_send_stickers() && HasStickerItems(items)) {
-			return finishWithError(lang(lng_restricted_send_stickers));
-		} else if (megagroup->restrictedRights().is_send_gifs() && HasGifItems(items)) {
-			return finishWithError(lang(lng_restricted_send_gifs));
-		} else if (megagroup->restrictedRights().is_send_games() && HasGameItems(items)) {
-			return finishWithError(lang(lng_restricted_send_inline));
-		} else if (megagroup->restrictedRights().is_send_inline() && HasInlineItems(items)) {
-			return finishWithError(lang(lng_restricted_send_inline));
-		}
 	}
 
 	App::history(peer)->setForwardDraft(items);

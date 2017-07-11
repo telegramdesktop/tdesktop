@@ -29,6 +29,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_media_types.h"
 #include "history/history_service.h"
 #include "auth_session.h"
+#include "boxes/share_box.h"
+#include "boxes/confirm_box.h"
+#include "ui/toast/toast.h"
+#include "messenger.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
@@ -105,7 +109,177 @@ MTPDmessage::Flags NewForwardedFlags(gsl::not_null<PeerData*> peer, int32 from, 
 	return result;
 }
 
+bool HasMediaItems(const SelectedItemSet &items) {
+	for_const (auto item, items) {
+		if (auto media = item->getMedia()) {
+			switch (media->type()) {
+			case MediaTypePhoto:
+			case MediaTypeVideo:
+			case MediaTypeFile:
+			case MediaTypeMusicFile:
+			case MediaTypeVoiceFile: return true;
+			case MediaTypeGif: return media->getDocument()->isRoundVideo();
+			}
+		}
+	}
+	return false;
+}
+
+bool HasStickerItems(const SelectedItemSet &items) {
+	for_const (auto item, items) {
+		if (auto media = item->getMedia()) {
+			switch (media->type()) {
+			case MediaTypeSticker: return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool HasGifItems(const SelectedItemSet &items) {
+	for_const (auto item, items) {
+		if (auto media = item->getMedia()) {
+			switch (media->type()) {
+			case MediaTypeGif: return !media->getDocument()->isRoundVideo();
+			}
+		}
+	}
+	return false;
+}
+
+bool HasGameItems(const SelectedItemSet &items) {
+	for_const (auto item, items) {
+		if (auto media = item->getMedia()) {
+			switch (media->type()) {
+			case MediaTypeGame: return true;
+			}
+		}
+	}
+	return false;
+}
+
+bool HasInlineItems(const SelectedItemSet &items) {
+	for_const (auto item, items) {
+		if (item->viaBot()) {
+			return true;
+		}
+	}
+	return false;
+}
+
 } // namespace
+
+void FastShareMessage(gsl::not_null<HistoryItem*> item) {
+	struct ShareData {
+		ShareData(const FullMsgId &msgId) : msgId(msgId) {
+		}
+		FullMsgId msgId;
+		OrderedSet<mtpRequestId> requests;
+	};
+	auto data = MakeShared<ShareData>(item->fullId());
+
+	auto canCopyLink = item->hasDirectLink();
+	if (!canCopyLink) {
+		if (auto bot = item->getMessageBot()) {
+			if (auto media = item->getMedia()) {
+				canCopyLink = (media->type() == MediaTypeGame);
+			}
+		}
+	}
+	auto copyCallback = [data]() {
+		if (auto main = App::main()) {
+			if (auto item = App::histItemById(data->msgId)) {
+				if (item->hasDirectLink()) {
+					QApplication::clipboard()->setText(item->directLink());
+
+					Ui::Toast::Show(lang(lng_channel_public_link_copied));
+				} else if (auto bot = item->getMessageBot()) {
+					if (auto media = item->getMedia()) {
+						if (media->type() == MediaTypeGame) {
+							auto shortName = static_cast<HistoryGame*>(media)->game()->shortName;
+
+							QApplication::clipboard()->setText(Messenger::Instance().createInternalLinkFull(bot->username + qsl("?game=") + shortName));
+
+							Ui::Toast::Show(lang(lng_share_game_link_copied));
+						}
+					}
+				}
+			}
+		}
+	};
+	auto submitCallback = [data](const QVector<PeerData*> &result) {
+		if (!data->requests.empty()) {
+			return; // Share clicked already.
+		}
+		auto item = App::histItemById(data->msgId);
+		if (!item || result.empty()) {
+			return;
+		}
+
+		auto items = SelectedItemSet();
+		auto restrictedSomewhere = false;
+		auto restrictedEverywhere = true;
+		auto firstError = QString();
+		items.insert(item->id, item);
+		for_const (auto peer, result) {
+			auto error = GetErrorTextForForward(peer, items);
+			if (!error.isEmpty()) {
+				if (firstError.isEmpty()) {
+					firstError = error;
+				}
+				restrictedSomewhere = true;
+				continue;
+			}
+			restrictedEverywhere = false;
+		}
+		if (restrictedEverywhere) {
+			Ui::show(Box<InformBox>(firstError), KeepOtherLayers);
+			return;
+		}
+
+		auto doneCallback = [data](const MTPUpdates &updates, mtpRequestId requestId) {
+			if (auto main = App::main()) {
+				main->sentUpdatesReceived(updates);
+			}
+			data->requests.remove(requestId);
+			if (data->requests.empty()) {
+				Ui::Toast::Show(lang(lng_share_done));
+				Ui::hideLayer();
+			}
+		};
+
+		auto sendFlags = MTPmessages_ForwardMessages::Flag::f_with_my_score;
+		MTPVector<MTPint> msgIds = MTP_vector<MTPint>(1, MTP_int(data->msgId.msg));
+		if (auto main = App::main()) {
+			for_const (auto peer, result) {
+				if (!GetErrorTextForForward(peer, items).isEmpty()) {
+					continue;
+				}
+
+				MTPVector<MTPlong> random = MTP_vector<MTPlong>(1, rand_value<MTPlong>());
+				auto request = MTPmessages_ForwardMessages(MTP_flags(sendFlags), item->history()->peer->input, msgIds, random, peer->input);
+				auto callback = doneCallback;
+				auto requestId = MTP::send(request, rpcDone(std::move(callback)));
+				data->requests.insert(requestId);
+			}
+		}
+	};
+	auto filterCallback = [](PeerData *peer) {
+		if (peer->canWrite()) {
+			if (auto channel = peer->asChannel()) {
+				return !channel->isBroadcast();
+			}
+			return true;
+		}
+		return false;
+	};
+	auto copyLinkCallback = canCopyLink ? base::lambda<void()>(std::move(copyCallback)) : base::lambda<void()>();
+	Ui::show(Box<ShareBox>(std::move(copyLinkCallback), std::move(submitCallback), std::move(filterCallback)));
+}
+
+void HistoryInitMessages() {
+	initTextOptions();
+}
 
 base::lambda<void(ChannelData*, MsgId)> HistoryDependentItemCallback(const FullMsgId &msgId) {
 	return [dependent = msgId](ChannelData *channel, MsgId msgId) {
@@ -126,8 +300,25 @@ MTPDmessage::Flags NewMessageFlags(gsl::not_null<PeerData*> peer) {
 	return result;
 }
 
-void HistoryInitMessages() {
-	initTextOptions();
+QString GetErrorTextForForward(gsl::not_null<PeerData*> peer, const SelectedItemSet &items) {
+	if (!peer->canWrite()) {
+		return lang(lng_forward_cant);
+	}
+
+	if (auto megagroup = peer->asMegagroup()) {
+		if (megagroup->restrictedRights().is_send_media() && HasMediaItems(items)) {
+			return lang(lng_restricted_send_media);
+		} else if (megagroup->restrictedRights().is_send_stickers() && HasStickerItems(items)) {
+			return lang(lng_restricted_send_stickers);
+		} else if (megagroup->restrictedRights().is_send_gifs() && HasGifItems(items)) {
+			return lang(lng_restricted_send_gifs);
+		} else if (megagroup->restrictedRights().is_send_games() && HasGameItems(items)) {
+			return lang(lng_restricted_send_inline);
+		} else if (megagroup->restrictedRights().is_send_inline() && HasInlineItems(items)) {
+			return lang(lng_restricted_send_inline);
+		}
+	}
+	return QString();
 }
 
 void HistoryMessageVia::create(int32 userId) {
@@ -607,6 +798,17 @@ bool HistoryMessage::displayEditedBadge(bool hasViaBotOrInlineMarkup) const {
 
 bool HistoryMessage::uploading() const {
 	return _media && _media->uploading();
+}
+
+bool HistoryMessage::displayFastShare() const {
+	if (_history->peer->isChannel()) {
+		return !_history->peer->isMegagroup();
+	} else if (auto user = _history->peer->asUser()) {
+		if (user->botInfo && !out()) {
+			return _media && _media->allowsFastShare();
+		}
+	}
+	return false;
 }
 
 void HistoryMessage::createComponents(const CreateConfig &config) {
@@ -1476,6 +1678,11 @@ void HistoryMessage::draw(Painter &p, QRect clip, TextSelection selection, TimeM
 		if (needDrawInfo) {
 			HistoryMessage::drawInfo(p, g.left() + g.width(), g.top() + g.height(), 2 * g.left() + g.width(), selected, InfoDisplayDefault);
 		}
+		if (displayFastShare()) {
+			auto fastShareLeft = g.left() + g.width() + st::historyFastShareLeft;
+			auto fastShareTop = g.top() + g.height() - st::historyFastShareBottom - st::historyFastShareSize;
+			drawFastShare(p, fastShareLeft, fastShareTop, width());
+		}
 	} else if (_media) {
 		p.translate(g.topLeft());
 		_media->draw(p, clip.translated(-g.topLeft()), skipTextSelection(selection), ms);
@@ -1488,6 +1695,17 @@ void HistoryMessage::draw(Painter &p, QRect clip, TextSelection selection, TimeM
 	if (reply && reply->isNameUpdated()) {
 		const_cast<HistoryMessage*>(this)->setPendingInitDimensions();
 	}
+}
+
+void HistoryMessage::drawFastShare(Painter &p, int left, int top, int outerWidth) const {
+	{
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::msgServiceBg);
+
+		PainterHighQualityEnabler hq(p);
+		p.drawEllipse(rtlrect(left, top, st::historyFastShareSize, st::historyFastShareSize, outerWidth));
+	}
+	st::historyFastShareIcon.paint(p, left, top, outerWidth);
 }
 
 void HistoryMessage::paintFromName(Painter &p, QRect &trect, bool selected) const {
@@ -1791,6 +2009,13 @@ HistoryTextState HistoryMessage::getState(QPoint point, HistoryStateRequest requ
 				result.cursor = HistoryInDateCursorState;
 			}
 		}
+		if (displayFastShare()) {
+			auto fastShareLeft = g.left() + g.width() + st::historyFastShareLeft;
+			auto fastShareTop = g.top() + g.height() - st::historyFastShareBottom - st::historyFastShareSize;
+			if (QRect(fastShareLeft, fastShareTop, st::historyFastShareSize, st::historyFastShareSize).contains(point)) {
+				result.link = fastShareLink();
+			}
+		}
 	} else if (_media) {
 		result = _media->getState(point - g.topLeft(), request);
 		result.symbol += _text.length();
@@ -1805,6 +2030,17 @@ HistoryTextState HistoryMessage::getState(QPoint point, HistoryStateRequest requ
 	}
 
 	return result;
+}
+
+ClickHandlerPtr HistoryMessage::fastShareLink() const {
+	if (!_fastShareLink) {
+		_fastShareLink = MakeShared<LambdaClickHandler>([id = fullId()] {
+			if (auto item = App::histItemById(id)) {
+				FastShareMessage(item->toHistoryMessage());
+			}
+		});
+	}
+	return _fastShareLink;
 }
 
 // Forward to _media.

@@ -45,6 +45,10 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
+	bool allowsFastShare() const override {
+		return true;
+	}
+
 	~HistoryFileMedia();
 
 protected:
@@ -835,6 +839,9 @@ public:
 	bool customInfoLayout() const override {
 		return false;
 	}
+	bool allowsFastShare() const override {
+		return true;
+	}
 
 	HistoryMedia *attach() const {
 		return _attach.get();
@@ -945,6 +952,9 @@ public:
 	}
 	bool customInfoLayout() const override {
 		return false;
+	}
+	bool allowsFastShare() const override {
+		return true;
 	}
 
 	HistoryMedia *attach() const {
