@@ -135,7 +135,6 @@ Checkbox {
 	textFg: color;
 
 	width: pixels;
-	height: pixels;
 	margin: margins;
 
 	textPosition: point;

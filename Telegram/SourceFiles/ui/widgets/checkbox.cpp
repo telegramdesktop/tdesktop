@@ -397,7 +397,7 @@ void Checkbox::onStateChanged(State was, StateChangeSource source) {
 }
 
 int Checkbox::resizeGetHeight(int newWidth) {
-	return _st.height ? _st.height : _check->getSize().height();
+	return _check->getSize().height();
 }
 
 QImage Checkbox::prepareRippleMask() const {

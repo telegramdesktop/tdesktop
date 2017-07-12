@@ -145,7 +145,7 @@ int EditPrivacyBox::countDefaultHeight(int newWidth) {
 		if (!_controller->hasOption(option)) {
 			return 0;
 		}
-		return st::editPrivacyOptionMargin.top() + st::defaultBoxCheckbox.height + st::editPrivacyOptionMargin.bottom();
+		return st::editPrivacyOptionMargin.top() + st::defaultCheck.diameter + st::editPrivacyOptionMargin.bottom();
 	};
 	auto labelHeight = [this, newWidth](const QString &text, const style::FlatLabel &st, style::margins padding) {
 		if (text.isEmpty()) {
