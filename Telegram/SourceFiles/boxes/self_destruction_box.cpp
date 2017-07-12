@@ -33,7 +33,7 @@ void SelfDestructionBox::prepare() {
 	auto fake = object_ptr<Ui::FlatLabel>(this, lang(lng_self_destruct_description), Ui::FlatLabel::InitType::Simple, st::boxLabel);
 	auto boxHeight = st::boxOptionListPadding.top()
 		+ fake->height() + st::boxMediumSkip
-		+ _ttlValues.size() * (st::langsButton.height + st::boxOptionListSkip) - st::boxOptionListSkip
+		+ _ttlValues.size() * (st::defaultRadio.diameter + st::boxOptionListSkip) - st::boxOptionListSkip
 		+ st::boxOptionListPadding.bottom() + st::boxPadding.bottom();
 	fake.destroy();
 

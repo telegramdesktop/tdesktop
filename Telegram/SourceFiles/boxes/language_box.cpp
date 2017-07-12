@@ -131,8 +131,7 @@ void LanguageBox::refresh() {
 	refreshLanguages();
 
 	_inner->refresh();
-	auto maxHeight = st::boxOptionListPadding.top() + st::langsButton.margin.top() + _languages.size() * (st::langsButton.height + st::boxOptionListSkip) - st::boxOptionListSkip + st::boxOptionListPadding.bottom() + st::langsButton.margin.bottom() + st::boxPadding.bottom();
-	setDimensions(st::langsWidth, qMin(maxHeight, st::boxMaxListHeight));
+	setDimensions(st::langsWidth, qMin(_inner->height(), st::boxMaxListHeight));
 }
 
 void LanguageBox::refreshLanguages() {

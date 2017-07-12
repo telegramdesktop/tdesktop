@@ -44,7 +44,7 @@ void AutoLockBox::prepare() {
 	}
 	group->setChangedCallback([this](int value) { durationChanged(value); });
 
-	setDimensions(st::langsWidth, st::boxOptionListPadding.top() + count * st::langsButton.height + (count - 1) * st::boxOptionListSkip + st::boxOptionListPadding.bottom() + st::boxPadding.bottom());
+	setDimensions(st::langsWidth, st::boxOptionListPadding.top() + count * _options.back()->heightNoMargins() + (count - 1) * st::boxOptionListSkip + st::boxOptionListPadding.bottom() + st::boxPadding.bottom());
 }
 
 void AutoLockBox::durationChanged(int seconds) {
