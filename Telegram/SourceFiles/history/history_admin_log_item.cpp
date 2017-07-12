@@ -377,12 +377,12 @@ void GenerateItems(gsl::not_null<History*> history, LocalIdManager &idManager, c
 	};
 
 	auto createParticipantJoin = [&]() {
-		auto text = lng_admin_log_participant_joined(lt_from, fromLinkText);
+		auto text = (channel->isMegagroup() ? lng_admin_log_participant_joined : lng_admin_log_participant_joined_channel)(lt_from, fromLinkText);
 		addSimpleServiceMessage(text);
 	};
 
 	auto createParticipantLeave = [&]() {
-		auto text = lng_admin_log_participant_left(lt_from, fromLinkText);
+		auto text = (channel->isMegagroup() ? lng_admin_log_participant_left : lng_admin_log_participant_left_channel)(lt_from, fromLinkText);
 		addSimpleServiceMessage(text);
 	};
 

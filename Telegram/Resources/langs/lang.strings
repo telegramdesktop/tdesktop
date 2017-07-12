@@ -1371,7 +1371,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_previous_message" = "Original message";
 "lng_admin_log_deleted_message" = "{from} deleted message:";
 "lng_admin_log_participant_joined" = "{from} joined the group";
+"lng_admin_log_participant_joined_channel" = "{from} joined the channel";
 "lng_admin_log_participant_left" = "{from} left the group";
+"lng_admin_log_participant_left_channel" = "{from} left the channel";
 "lng_admin_log_invited" = "invited {user}";
 "lng_admin_log_banned" = "banned {user}";
 "lng_admin_log_restricted" = "changed restrictions for {user} {until}";
