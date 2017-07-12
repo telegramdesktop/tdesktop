@@ -76,12 +76,17 @@ inline void initTextOptions() {
 
 bool needReSetInlineResultDocument(const MTPMessageMedia &media, DocumentData *existing) {
 	if (media.type() == mtpc_messageMediaDocument) {
-		if (auto document = App::feedDocument(media.c_messageMediaDocument().vdocument)) {
-			if (document == existing) {
-				return false;
-			} else {
-				document->collectLocalData(existing);
+		auto &mediaDocument = media.c_messageMediaDocument();
+		if (mediaDocument.has_document() && !mediaDocument.has_ttl_seconds()) {
+			if (auto document = App::feedDocument(mediaDocument.vdocument)) {
+				if (document == existing) {
+					return false;
+				} else {
+					document->collectLocalData(existing);
+				}
 			}
+		} else {
+			LOG(("API Error: Got MTPMessageMediaDocument without document or with ttl_seconds in needReSetInlineResultDocument()"));
 		}
 	}
 	return true;
@@ -528,7 +533,12 @@ HistoryTextState HistoryPhoto::getState(QPoint point, HistoryStateRequest reques
 
 void HistoryPhoto::updateSentMedia(const MTPMessageMedia &media) {
 	if (media.type() == mtpc_messageMediaPhoto) {
-		auto &photo = media.c_messageMediaPhoto().vphoto;
+		auto &mediaPhoto = media.c_messageMediaPhoto();
+		if (!mediaPhoto.has_photo() || mediaPhoto.has_ttl_seconds()) {
+			LOG(("Api Error: Got MTPMessageMediaPhoto without photo or with ttl_seconds in updateSentMedia()"));
+			return;
+		}
+		auto &photo = mediaPhoto.vphoto;
 		App::feedPhoto(photo, _data);
 
 		if (photo.type() == mtpc_photo) {
@@ -576,12 +586,17 @@ void HistoryPhoto::updateSentMedia(const MTPMessageMedia &media) {
 
 bool HistoryPhoto::needReSetInlineResultMedia(const MTPMessageMedia &media) {
 	if (media.type() == mtpc_messageMediaPhoto) {
-		if (auto existing = App::feedPhoto(media.c_messageMediaPhoto().vphoto)) {
-			if (existing == _data) {
-				return false;
-			} else {
-				// collect data
+		auto &photo = media.c_messageMediaPhoto();
+		if (photo.has_photo() && !photo.has_ttl_seconds()) {
+			if (auto existing = App::feedPhoto(photo.vphoto)) {
+				if (existing == _data) {
+					return false;
+				} else {
+					// collect data
+				}
 			}
+		} else {
+			LOG(("API Error: Got MTPMessageMediaPhoto without photo or with ttl_seconds in needReSetInlineResultMedia()"));
 		}
 	}
 	return false;
@@ -973,7 +988,12 @@ void HistoryVideo::detachFromParent() {
 
 void HistoryVideo::updateSentMedia(const MTPMessageMedia &media) {
 	if (media.type() == mtpc_messageMediaDocument) {
-		App::feedDocument(media.c_messageMediaDocument().vdocument, _data);
+		auto &mediaDocument = media.c_messageMediaDocument();
+		if (!mediaDocument.has_document() || mediaDocument.has_ttl_seconds()) {
+			LOG(("Api Error: Got MTPMessageMediaDocument without document or with ttl_seconds in HistoryVideo::updateSentMedia()"));
+			return;
+		}
+		App::feedDocument(mediaDocument.vdocument, _data);
 	}
 }
 
@@ -1748,7 +1768,12 @@ void HistoryDocument::detachFromParent() {
 
 void HistoryDocument::updateSentMedia(const MTPMessageMedia &media) {
 	if (media.type() == mtpc_messageMediaDocument) {
-		App::feedDocument(media.c_messageMediaDocument().vdocument, _data);
+		auto &mediaDocument = media.c_messageMediaDocument();
+		if (!mediaDocument.has_document() || mediaDocument.has_ttl_seconds()) {
+			LOG(("Api Error: Got MTPMessageMediaDocument without document or with ttl_seconds in HistoryDocument::updateSentMedia()"));
+			return;
+		}
+		App::feedDocument(mediaDocument.vdocument, _data);
 		if (!_data->data().isEmpty()) {
 			if (_data->voice()) {
 				Local::writeAudio(_data->mediaKey(), _data->data());
@@ -2489,7 +2514,12 @@ void HistoryGif::detachFromParent() {
 
 void HistoryGif::updateSentMedia(const MTPMessageMedia &media) {
 	if (media.type() == mtpc_messageMediaDocument) {
-		App::feedDocument(media.c_messageMediaDocument().vdocument, _data);
+		auto &mediaDocument = media.c_messageMediaDocument();
+		if (!mediaDocument.has_document() || mediaDocument.has_ttl_seconds()) {
+			LOG(("Api Error: Got MTPMessageMediaDocument without document or with ttl_seconds in HistoryGif::updateSentMedia()"));
+			return;
+		}
+		App::feedDocument(mediaDocument.vdocument, _data);
 	}
 }
 
@@ -2836,7 +2866,12 @@ void HistorySticker::detachFromParent() {
 
 void HistorySticker::updateSentMedia(const MTPMessageMedia &media) {
 	if (media.type() == mtpc_messageMediaDocument) {
-		App::feedDocument(media.c_messageMediaDocument().vdocument, _data);
+		auto &mediaDocument = media.c_messageMediaDocument();
+		if (!mediaDocument.has_document() || mediaDocument.has_ttl_seconds()) {
+			LOG(("Api Error: Got MTPMessageMediaDocument without document or with ttl_seconds in HistorySticker::updateSentMedia()"));
+			return;
+		}
+		App::feedDocument(mediaDocument.vdocument, _data);
 		if (!_data->data().isEmpty()) {
 			Local::writeStickerImage(_data->mediaKey(), _data->data());
 		}

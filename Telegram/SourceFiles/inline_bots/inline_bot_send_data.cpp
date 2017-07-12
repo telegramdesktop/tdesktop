@@ -37,12 +37,12 @@ QString SendData::getLayoutDescription(const Result *owner) const {
 
 void SendDataCommon::addToHistory(const Result *owner, History *history,
 MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
-UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const {
+UserId viaBotId, MsgId replyToId, const QString &postAuthor, const MTPReplyMarkup &markup) const {
 	auto fields = getSentMessageFields();
 	if (!fields.entities.v.isEmpty()) {
 		flags |= MTPDmessage::Flag::f_entities;
 	}
-	history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(msgId), MTP_int(fromId), peerToMTP(history->peer->id), MTPnullFwdHeader, MTP_int(viaBotId), MTP_int(replyToId), mtpDate, fields.text, fields.media, markup, fields.entities, MTP_int(1), MTPint()), NewMessageUnread);
+	history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(msgId), MTP_int(fromId), peerToMTP(history->peer->id), MTPnullFwdHeader, MTP_int(viaBotId), MTP_int(replyToId), mtpDate, fields.text, fields.media, markup, fields.entities, MTP_int(1), MTPint(), MTP_string(postAuthor)), NewMessageUnread);
 }
 
 QString SendDataCommon::getErrorOnSend(const Result *owner, History *history) const {
@@ -89,8 +89,8 @@ QString SendContact::getLayoutDescription(const Result *owner) const {
 
 void SendPhoto::addToHistory(const Result *owner, History *history,
 MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
-UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const {
-	history->addNewPhoto(msgId, flags, viaBotId, replyToId, date(mtpDate), fromId, _photo, _caption, markup);
+UserId viaBotId, MsgId replyToId, const QString &postAuthor, const MTPReplyMarkup &markup) const {
+	history->addNewPhoto(msgId, flags, viaBotId, replyToId, date(mtpDate), fromId, postAuthor, _photo, _caption, markup);
 }
 
 QString SendPhoto::getErrorOnSend(const Result *owner, History *history) const {
@@ -104,8 +104,8 @@ QString SendPhoto::getErrorOnSend(const Result *owner, History *history) const {
 
 void SendFile::addToHistory(const Result *owner, History *history,
 MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
-UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const {
-	history->addNewDocument(msgId, flags, viaBotId, replyToId, date(mtpDate), fromId, _document, _caption, markup);
+UserId viaBotId, MsgId replyToId, const QString &postAuthor, const MTPReplyMarkup &markup) const {
+	history->addNewDocument(msgId, flags, viaBotId, replyToId, date(mtpDate), fromId, postAuthor, _document, _caption, markup);
 }
 
 QString SendFile::getErrorOnSend(const Result *owner, History *history) const {
@@ -123,8 +123,8 @@ QString SendFile::getErrorOnSend(const Result *owner, History *history) const {
 
 void SendGame::addToHistory(const Result *owner, History *history,
 	MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
-	UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const {
-	history->addNewGame(msgId, flags, viaBotId, replyToId, date(mtpDate), fromId, _game, markup);
+	UserId viaBotId, MsgId replyToId, const QString &postAuthor, const MTPReplyMarkup &markup) const {
+	history->addNewGame(msgId, flags, viaBotId, replyToId, date(mtpDate), fromId, postAuthor, _game, markup);
 }
 
 QString SendGame::getErrorOnSend(const Result *owner, History *history) const {

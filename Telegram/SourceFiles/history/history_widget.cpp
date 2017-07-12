@@ -3121,20 +3121,22 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 	}
 
 	bool channelPost = p->isChannel() && !p->isMegagroup();
-	bool showFromName = !channelPost || p->asChannel()->addsSignature();
 	bool silentPost = channelPost && _silent->checked();
 	if (channelPost) {
 		flags |= MTPDmessage::Flag::f_views;
 		flags |= MTPDmessage::Flag::f_post;
 	}
-	if (showFromName) {
+	if (!channelPost) {
 		flags |= MTPDmessage::Flag::f_from_id;
+	} else if (p->asChannel()->addsSignature()) {
+		flags |= MTPDmessage::Flag::f_post_author;
 	}
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
-	auto messageFromId = showFromName ? AuthSession::CurrentUserId() : 0;
-	history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(messageFromId), peerToMTP(peer), MTPnullFwdHeader, MTPint(), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId)), MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint()), NewMessageUnread);
+	auto messageFromId = channelPost ? 0 : AuthSession::CurrentUserId();
+	auto messagePostAuthor = channelPost ? (AuthSession::CurrentUser()->firstName + ' ' + AuthSession::CurrentUser()->lastName) : QString();
+	history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(messageFromId), peerToMTP(peer), MTPnullFwdHeader, MTPint(), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId)), MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint(), MTP_string(messagePostAuthor)), NewMessageUnread);
 	history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), p->input, MTP_int(replyTo), MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, history->sendRequestId);
 
 	App::historyRegRandom(randomId, newId);
@@ -3551,13 +3553,15 @@ bool HistoryWidget::botCallbackFail(BotCallbackInfo info, const RPCError &error,
 bool HistoryWidget::insertBotCommand(const QString &cmd) {
 	if (!canWriteMessage()) return false;
 
-	bool insertingInlineBot = !cmd.isEmpty() && (cmd.at(0) == '@');
-	QString toInsert = cmd;
+	auto insertingInlineBot = !cmd.isEmpty() && (cmd.at(0) == '@');
+	auto toInsert = cmd;
 	if (!toInsert.isEmpty() && !insertingInlineBot) {
-		PeerData *bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? App::hoveredLinkItem()->fromOriginal() : 0);
-		if (!bot->isUser() || !bot->asUser()->botInfo) bot = 0;
-		QString username = bot ? bot->asUser()->username : QString();
-		int32 botStatus = _peer->isChat() ? _peer->asChat()->botStatus : (_peer->isMegagroup() ? _peer->asChannel()->mgInfo->botStatus : -1);
+		auto bot = _peer->isUser() ? _peer : (App::hoveredLinkItem() ? App::hoveredLinkItem()->fromOriginal() : nullptr);
+		if (bot && (!bot->isUser() || !bot->asUser()->botInfo)) {
+			bot = nullptr;
+		}
+		auto username = bot ? bot->asUser()->username : QString();
+		auto botStatus = _peer->isChat() ? _peer->asChat()->botStatus : (_peer->isMegagroup() ? _peer->asChannel()->mgInfo->botStatus : -1);
 		if (toInsert.indexOf('@') < 0 && !username.isEmpty() && (botStatus == 0 || botStatus == 2)) {
 			toInsert += '@' + username;
 		}
@@ -4562,28 +4566,45 @@ void HistoryWidget::sendFileConfirmed(const FileLoadResultPtr &file) {
 	auto flags = NewMessageFlags(h->peer) | MTPDmessage::Flag::f_media; // unread, out
 	if (file->to.replyTo) flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 	bool channelPost = h->peer->isChannel() && !h->peer->isMegagroup();
-	bool showFromName = !channelPost || h->peer->asChannel()->addsSignature();
 	bool silentPost = channelPost && file->to.silent;
 	if (channelPost) {
 		flags |= MTPDmessage::Flag::f_views;
 		flags |= MTPDmessage::Flag::f_post;
 	}
-	if (showFromName) {
+	if (!channelPost) {
 		flags |= MTPDmessage::Flag::f_from_id;
+	} else if (h->peer->asChannel()->addsSignature()) {
+		flags |= MTPDmessage::Flag::f_post_author;
 	}
 	if (silentPost) {
 		flags |= MTPDmessage::Flag::f_silent;
 	}
-	auto messageFromId = showFromName ? AuthSession::CurrentUserId() : 0;
+	auto messageFromId = channelPost ? 0 : AuthSession::CurrentUserId();
+	auto messagePostAuthor = channelPost ? (AuthSession::CurrentUser()->firstName + ' ' + AuthSession::CurrentUser()->lastName) : QString();
 	if (file->type == SendMediaType::Photo) {
-		h->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(messageFromId), peerToMTP(file->to.peer), MTPnullFwdHeader, MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(file->photo, MTP_string(file->caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint()), NewMessageUnread);
+		auto photoFlags = qFlags(MTPDmessageMediaPhoto::Flag::f_photo);
+		if (!file->caption.isEmpty()) {
+			photoFlags |= MTPDmessageMediaPhoto::Flag::f_caption;
+		}
+		auto photo = MTP_messageMediaPhoto(MTP_flags(photoFlags), file->photo, MTP_string(file->caption), MTPint());
+		h->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(messageFromId), peerToMTP(file->to.peer), MTPnullFwdHeader, MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), photo, MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint(), MTP_string(messagePostAuthor)), NewMessageUnread);
 	} else if (file->type == SendMediaType::File) {
-		h->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(messageFromId), peerToMTP(file->to.peer), MTPnullFwdHeader, MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(file->document, MTP_string(file->caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint()), NewMessageUnread);
+		auto documentFlags = qFlags(MTPDmessageMediaDocument::Flag::f_document);
+		if (!file->caption.isEmpty()) {
+			documentFlags |= MTPDmessageMediaDocument::Flag::f_caption;
+		}
+		auto document = MTP_messageMediaDocument(MTP_flags(documentFlags), file->document, MTP_string(file->caption), MTPint());
+		h->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(messageFromId), peerToMTP(file->to.peer), MTPnullFwdHeader, MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), document, MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint(), MTP_string(messagePostAuthor)), NewMessageUnread);
 	} else if (file->type == SendMediaType::Audio) {
 		if (!h->peer->isChannel()) {
 			flags |= MTPDmessage::Flag::f_media_unread;
 		}
-		h->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(messageFromId), peerToMTP(file->to.peer), MTPnullFwdHeader, MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(file->document, MTP_string(file->caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint()), NewMessageUnread);
+		auto documentFlags = qFlags(MTPDmessageMediaDocument::Flag::f_document);
+		if (!file->caption.isEmpty()) {
+			documentFlags |= MTPDmessageMediaDocument::Flag::f_caption;
+		}
+		auto document = MTP_messageMediaDocument(MTP_flags(documentFlags), file->document, MTP_string(file->caption), MTPint());
+		h->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(messageFromId), peerToMTP(file->to.peer), MTPnullFwdHeader, MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), document, MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint(), MTP_string(messagePostAuthor)), NewMessageUnread);
 	}
 
 	if (_peer && file->to.peer == _peer->id) {
@@ -4612,7 +4633,7 @@ void HistoryWidget::onPhotoUploaded(const FullMsgId &newId, bool silent, const M
 			sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 		}
 		auto caption = item->getMedia() ? item->getMedia()->getCaption() : TextWithEntities();
-		auto media = MTP_inputMediaUploadedPhoto(MTP_flags(0), file, MTP_string(caption.text), MTPVector<MTPInputDocument>());
+		auto media = MTP_inputMediaUploadedPhoto(MTP_flags(0), file, MTP_string(caption.text), MTPVector<MTPInputDocument>(), MTP_int(0));
 		hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), item->history()->peer->input, MTP_int(replyTo), media, MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 	}
 }
@@ -4636,7 +4657,7 @@ void HistoryWidget::onDocumentUploaded(const FullMsgId &newId, bool silent, cons
 				sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 			}
 			auto caption = item->getMedia() ? item->getMedia()->getCaption() : TextWithEntities();
-			auto media = MTP_inputMediaUploadedDocument(MTP_flags(0), file, MTP_string(document->mime), composeDocumentAttributes(document), MTP_string(caption.text), MTPVector<MTPInputDocument>());
+			auto media = MTP_inputMediaUploadedDocument(MTP_flags(0), file, MTPInputFile(), MTP_string(document->mime), composeDocumentAttributes(document), MTP_string(caption.text), MTPVector<MTPInputDocument>(), MTP_int(0));
 			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), item->history()->peer->input, MTP_int(replyTo), media, MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 		}
 	}
@@ -4661,7 +4682,7 @@ void HistoryWidget::onThumbDocumentUploaded(const FullMsgId &newId, bool silent,
 				sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 			}
 			auto caption = media ? media->getCaption() : TextWithEntities();
-			auto media = MTP_inputMediaUploadedThumbDocument(MTP_flags(0), file, thumb, MTP_string(document->mime), composeDocumentAttributes(document), MTP_string(caption.text), MTPVector<MTPInputDocument>());
+			auto media = MTP_inputMediaUploadedDocument(MTP_flags(MTPDinputMediaUploadedDocument::Flag::f_thumb), file, thumb, MTP_string(document->mime), composeDocumentAttributes(document), MTP_string(caption.text), MTPVector<MTPInputDocument>(), MTP_int(0));
 			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), item->history()->peer->input, MTP_int(replyTo), media, MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 		}
 	}
@@ -5383,14 +5404,15 @@ void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_reply_to_msg_id;
 	}
 	bool channelPost = _peer->isChannel() && !_peer->isMegagroup();
-	bool showFromName = !channelPost || _peer->asChannel()->addsSignature();
 	bool silentPost = channelPost && _silent->checked();
 	if (channelPost) {
 		flags |= MTPDmessage::Flag::f_views;
 		flags |= MTPDmessage::Flag::f_post;
 	}
-	if (showFromName) {
+	if (!channelPost) {
 		flags |= MTPDmessage::Flag::f_from_id;
+	} else if (_peer->asChannel()->addsSignature()) {
+		flags |= MTPDmessage::Flag::f_post_author;
 	}
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_silent;
@@ -5399,12 +5421,13 @@ void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot
 		flags |= MTPDmessage::Flag::f_via_bot_id;
 	}
 
-	auto messageFromId = showFromName ? AuthSession::CurrentUserId() : 0;
+	auto messageFromId = channelPost ? 0 : AuthSession::CurrentUserId();
+	auto messagePostAuthor = channelPost ? (AuthSession::CurrentUser()->firstName + ' ' + AuthSession::CurrentUser()->lastName) : QString();
 	MTPint messageDate = MTP_int(unixtime());
 	UserId messageViaBotId = bot ? peerToUser(bot->id) : 0;
 	MsgId messageId = newId.msg;
 
-	result->addToHistory(_history, flags, messageId, messageFromId, messageDate, messageViaBotId, replyToId());
+	result->addToHistory(_history, flags, messageId, messageFromId, messageDate, messageViaBotId, replyToId(), messagePostAuthor);
 
 	_history->sendRequestId = MTP::send(MTPmessages_SendInlineBotResult(MTP_flags(sendFlags), _peer->input, MTP_int(replyToId()), MTP_long(randomId), MTP_long(result->getQueryId()), MTP_string(result->getId())), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
 	App::main()->finishForwarding(_history, _silent->checked());
@@ -5556,22 +5579,24 @@ bool HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 	}
 	bool channelPost = _peer->isChannel() && !_peer->isMegagroup();
-	bool showFromName = !channelPost || _peer->asChannel()->addsSignature();
 	bool silentPost = channelPost && _silent->checked();
 	if (channelPost) {
 		flags |= MTPDmessage::Flag::f_views;
 		flags |= MTPDmessage::Flag::f_post;
 	}
-	if (showFromName) {
+	if (!channelPost) {
 		flags |= MTPDmessage::Flag::f_from_id;
+	} else if (_peer->asChannel()->addsSignature()) {
+		flags |= MTPDmessage::Flag::f_post_author;
 	}
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
-	auto messageFromId = showFromName ? AuthSession::CurrentUserId() : 0;
-	_history->addNewDocument(newId.msg, flags, 0, replyToId(), date(MTP_int(unixtime())), messageFromId, doc, caption, MTPnullMarkup);
+	auto messageFromId = channelPost ? 0 : AuthSession::CurrentUserId();
+	auto messagePostAuthor = channelPost ? (AuthSession::CurrentUser()->firstName + ' ' + AuthSession::CurrentUser()->lastName) : QString();
+	_history->addNewDocument(newId.msg, flags, 0, replyToId(), date(MTP_int(unixtime())), messageFromId, messagePostAuthor, doc, caption, MTPnullMarkup);
 
-	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaDocument(mtpInput, MTP_string(caption)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
+	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaDocument(MTP_flags(0), mtpInput, MTP_string(caption), MTPint()), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
 	App::main()->finishForwarding(_history, _silent->checked());
 	cancelReplyAfterMediaSend(lastKeyboardUsed);
 
@@ -5612,22 +5637,24 @@ void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption) 
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 	}
 	bool channelPost = _peer->isChannel() && !_peer->isMegagroup();
-	bool showFromName = !channelPost || _peer->asChannel()->addsSignature();
 	bool silentPost = channelPost && _silent->checked();
 	if (channelPost) {
 		flags |= MTPDmessage::Flag::f_views;
 		flags |= MTPDmessage::Flag::f_post;
 	}
-	if (showFromName) {
+	if (!channelPost) {
 		flags |= MTPDmessage::Flag::f_from_id;
+	} else if (_peer->asChannel()->addsSignature()) {
+		flags |= MTPDmessage::Flag::f_post_author;
 	}
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
-	auto messageFromId = showFromName ? AuthSession::CurrentUserId() : 0;
-	_history->addNewPhoto(newId.msg, flags, 0, replyToId(), date(MTP_int(unixtime())), messageFromId, photo, caption, MTPnullMarkup);
+	auto messageFromId = channelPost ? 0 : AuthSession::CurrentUserId();
+	auto messagePostAuthor = channelPost ? (AuthSession::CurrentUser()->firstName + ' ' + AuthSession::CurrentUser()->lastName) : QString();
+	_history->addNewPhoto(newId.msg, flags, 0, replyToId(), date(MTP_int(unixtime())), messageFromId, messagePostAuthor, photo, caption, MTPnullMarkup);
 
-	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaPhoto(MTP_inputPhoto(MTP_long(photo->id), MTP_long(photo->access)), MTP_string(caption)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
+	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaPhoto(MTP_flags(0), MTP_inputPhoto(MTP_long(photo->id), MTP_long(photo->access)), MTP_string(caption), MTPint()), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
 	App::main()->finishForwarding(_history, _silent->checked());
 	cancelReplyAfterMediaSend(lastKeyboardUsed);
 
@@ -6387,7 +6414,7 @@ void HistoryWidget::updateForwardingTexts() {
 		QVector<PeerData*> fromUsers;
 		fromUsers.reserve(_toForward.size());
 		for (auto i = _toForward.cbegin(), e = _toForward.cend(); i != e; ++i) {
-			auto from = i.value()->authorOriginal();
+			auto from = i.value()->peerOriginal();
 			if (!fromUsersMap.contains(from)) {
 				fromUsersMap.insert(from, true);
 				fromUsers.push_back(from);
@@ -6417,7 +6444,7 @@ void HistoryWidget::checkForwardingInfo() {
 	if (!_toForward.isEmpty()) {
 		auto version = 0;
 		for_const (auto item, _toForward) {
-			version += item->authorOriginal()->nameVersion;
+			version += item->peerOriginal()->nameVersion;
 		}
 		if (version != _toForwardNameVersion) {
 			updateForwardingTexts();

@@ -151,6 +151,17 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareScreenshotTaken = [this] {
+		auto result = PreparedText {};
+		if (out()) {
+			result.text = lang(lng_action_you_took_screenshot);
+		} else {
+			result.links.push_back(fromLink());
+			result.text = lng_action_took_screenshot(lt_from, fromLinkText());
+		}
+		return result;
+	};
+
 	auto messageText = PreparedText {};
 
 	switch (action.type()) {
@@ -169,6 +180,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	case mtpc_messageActionGameScore: messageText = prepareGameScoreText(); break;
 	case mtpc_messageActionPhoneCall: Unexpected("PhoneCall type in HistoryService.");
 	case mtpc_messageActionPaymentSent: messageText = preparePaymentSentText(); break;
+	case mtpc_messageActionScreenshotTaken: messageText = prepareScreenshotTaken(); break;
 	default: messageText.text = lang(lng_message_empty); break;
 	}
 

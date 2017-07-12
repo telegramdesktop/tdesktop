@@ -279,7 +279,7 @@ bool Result::hasThumbDisplay() const {
 	return false;
 };
 
-void Result::addToHistory(History *history, MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate, UserId viaBotId, MsgId replyToId) const {
+void Result::addToHistory(History *history, MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate, UserId viaBotId, MsgId replyToId, const QString &postAuthor) const {
 	flags |= MTPDmessage_ClientFlag::f_from_inline_bot;
 
 	MTPReplyMarkup markup = MTPnullMarkup;
@@ -287,7 +287,7 @@ void Result::addToHistory(History *history, MTPDmessage::Flags flags, MsgId msgI
 		flags |= MTPDmessage::Flag::f_reply_markup;
 		markup = *_mtpKeyboard;
 	}
-	sendData->addToHistory(this, history, flags, msgId, fromId, mtpDate, viaBotId, replyToId, markup);
+	sendData->addToHistory(this, history, flags, msgId, fromId, mtpDate, viaBotId, replyToId, postAuthor, markup);
 }
 
 QString Result::getErrorOnSend(History *history) const {

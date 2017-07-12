@@ -53,7 +53,7 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, MsgId newId, int32 newDa
 	case mtpc_message: {
 		auto &data = message.c_message();
 		auto flags = data.vflags.v & ~(MTPDmessage::Flag::f_out | MTPDmessage::Flag::f_post | MTPDmessage::Flag::f_reply_to_msg_id | MTPDmessage::Flag::f_edit_date);
-		return MTP_message(MTP_flags(flags), MTP_int(newId), data.vfrom_id, data.vto_id, data.vfwd_from, data.vvia_bot_id, data.vreply_to_msg_id, MTP_int(newDate), data.vmessage, data.vmedia, data.vreply_markup, data.ventities, data.vviews, data.vedit_date);
+		return MTP_message(MTP_flags(flags), MTP_int(newId), data.vfrom_id, data.vto_id, data.vfwd_from, data.vvia_bot_id, data.vreply_to_msg_id, MTP_int(newDate), data.vmessage, data.vmedia, data.vreply_markup, data.ventities, data.vviews, data.vedit_date, MTP_string(""));
 	} break;
 	}
 	Unexpected("Type in PrepareLogMessage()");
@@ -75,9 +75,11 @@ TextWithEntities ExtractEditedText(const MTPMessage &message) {
 	auto &data = message.c_message();
 	auto mediaType = data.has_media() ? data.vmedia.type() : mtpc_messageMediaEmpty;
 	if (mediaType == mtpc_messageMediaDocument) {
-		return PrepareText(qs(data.vmedia.c_messageMediaDocument().vcaption), QString());
+		auto &document = data.vmedia.c_messageMediaDocument();
+		return PrepareText(document.has_caption() ? qs(document.vcaption) : QString(), QString());
 	} else if (mediaType == mtpc_messageMediaPhoto) {
-		return PrepareText(qs(data.vmedia.c_messageMediaPhoto().vcaption), QString());
+		auto &photo = data.vmedia.c_messageMediaPhoto();
+		return PrepareText(photo.has_caption() ? qs(photo.vcaption) : QString(), QString());
 	}
 	auto text = TextUtilities::Clean(qs(data.vmessage));
 	auto entities = data.has_entities() ? TextUtilities::EntitiesFromMTP(data.ventities.v) : EntitiesInText();
@@ -277,7 +279,7 @@ void GenerateItems(gsl::not_null<History*> history, LocalIdManager &idManager, c
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
 		auto newDescription = PrepareText(newValue, QString());
-		auto body = HistoryMessage::create(history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(from->id), newDescription);
+		auto body = HistoryMessage::create(history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(from->id), QString(), newDescription);
 		if (!oldValue.isEmpty()) {
 			auto oldDescription = PrepareText(oldValue, QString());
 			body->addLogEntryOriginal(id, lang(lng_admin_log_previous_description), oldDescription);
@@ -298,7 +300,7 @@ void GenerateItems(gsl::not_null<History*> history, LocalIdManager &idManager, c
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
 		auto newLink = newValue.isEmpty() ? TextWithEntities() : PrepareText(Messenger::Instance().createInternalLinkFull(newValue), QString());
-		auto body = HistoryMessage::create(history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(from->id), newLink);
+		auto body = HistoryMessage::create(history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(from->id), QString(), newLink);
 		if (!oldValue.isEmpty()) {
 			auto oldLink = PrepareText(Messenger::Instance().createInternalLinkFull(oldValue), QString());
 			body->addLogEntryOriginal(id, lang(lng_admin_log_previous_link), oldLink);
@@ -391,7 +393,7 @@ void GenerateItems(gsl::not_null<History*> history, LocalIdManager &idManager, c
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
 		auto bodyText = GenerateParticipantChangeText(channel, action.vparticipant);
-		addPart(HistoryMessage::create(history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(from->id), bodyText));
+		addPart(HistoryMessage::create(history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(from->id), QString(), bodyText));
 	};
 
 	auto createParticipantToggleBan = [&](const MTPDchannelAdminLogEventActionParticipantToggleBan &action) {
@@ -399,7 +401,7 @@ void GenerateItems(gsl::not_null<History*> history, LocalIdManager &idManager, c
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
 		auto bodyText = GenerateParticipantChangeText(channel, action.vnew_participant, &action.vprev_participant);
-		addPart(HistoryMessage::create(history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(from->id), bodyText));
+		addPart(HistoryMessage::create(history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(from->id), QString(), bodyText));
 	};
 
 	auto createParticipantToggleAdmin = [&](const MTPDchannelAdminLogEventActionParticipantToggleAdmin &action) {
@@ -407,7 +409,7 @@ void GenerateItems(gsl::not_null<History*> history, LocalIdManager &idManager, c
 		auto bodyReplyTo = 0;
 		auto bodyViaBotId = 0;
 		auto bodyText = GenerateParticipantChangeText(channel, action.vnew_participant, &action.vprev_participant);
-		addPart(HistoryMessage::create(history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(from->id), bodyText));
+		addPart(HistoryMessage::create(history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(from->id), QString(), bodyText));
 	};
 
 	switch (action.type()) {

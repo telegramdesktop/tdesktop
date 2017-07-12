@@ -119,9 +119,10 @@ struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews> {
 };
 
 struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned> {
-	void create(UserData *from, const QString &date);
+	void create(const QString &author, const QString &date);
 	int maxWidth() const;
 
+	QString _author;
 	Text _signature;
 };
 
@@ -137,8 +138,8 @@ struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded
 	void create(const HistoryMessageVia *via) const;
 
 	QDateTime _originalDate;
-	PeerData *_authorOriginal = nullptr;
-	PeerData *_fromOriginal = nullptr;
+	PeerData *_originalPeer = nullptr;
+	QString _originalAuthor;
 	MsgId _originalId = 0;
 	mutable Text _text = { 1 };
 };
@@ -794,17 +795,27 @@ public:
 		}
 		return date;
 	}
+	PeerData *peerOriginal() const {
+		if (auto forwarded = Get<HistoryMessageForwarded>()) {
+			return forwarded->_originalPeer;
+		}
+		return history()->peer;
+	}
 	PeerData *fromOriginal() const {
 		if (auto forwarded = Get<HistoryMessageForwarded>()) {
-			return forwarded->_fromOriginal;
+			if (auto user = forwarded->_originalPeer->asUser()) {
+				return user;
+			}
 		}
 		return from();
 	}
-	PeerData *authorOriginal() const {
+	QString authorOriginal() const {
 		if (auto forwarded = Get<HistoryMessageForwarded>()) {
-			return forwarded->_authorOriginal;
+			return forwarded->_originalAuthor;
+		} else if (auto msgsigned = Get<HistoryMessageSigned>()) {
+			return msgsigned->_author;
 		}
-		return author();
+		return QString();
 	}
 	MsgId idOriginal() const {
 		if (auto forwarded = Get<HistoryMessageForwarded>()) {

@@ -45,7 +45,7 @@ public:
 
 	virtual void addToHistory(const Result *owner, History *history,
 		MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
-		UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const = 0;
+		UserId viaBotId, MsgId replyToId, const QString &postAuthor, const MTPReplyMarkup &markup) const = 0;
 	virtual QString getErrorOnSend(const Result *owner, History *history) const = 0;
 
 	virtual bool hasLocationCoords() const {
@@ -73,7 +73,7 @@ public:
 
 	void addToHistory(const Result *owner, History *history,
 		MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
-		UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const override;
+		UserId viaBotId, MsgId replyToId, const QString &postAuthor, const MTPReplyMarkup &markup) const override;
 
 	QString getErrorOnSend(const Result *owner, History *history) const override;
 
@@ -194,7 +194,7 @@ public:
 
 	void addToHistory(const Result *owner, History *history,
 		MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
-		UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const override;
+		UserId viaBotId, MsgId replyToId, const QString &postAuthor, const MTPReplyMarkup &markup) const override;
 
 	QString getErrorOnSend(const Result *owner, History *history) const override;
 
@@ -218,7 +218,7 @@ public:
 
 	void addToHistory(const Result *owner, History *history,
 		MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
-		UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const override;
+		UserId viaBotId, MsgId replyToId, const QString &postAuthor, const MTPReplyMarkup &markup) const override;
 
 	QString getErrorOnSend(const Result *owner, History *history) const override;
 
@@ -241,7 +241,7 @@ public:
 
 	void addToHistory(const Result *owner, History *history,
 		MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
-		UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const override;
+		UserId viaBotId, MsgId replyToId, const QString &postAuthor, const MTPReplyMarkup &markup) const override;
 
 	QString getErrorOnSend(const Result *owner, History *history) const override;
 

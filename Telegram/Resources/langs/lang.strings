@@ -758,6 +758,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_game_you_scored_no_game#other" = "You scored {count}";
 "lng_action_payment_done" = "You have just successfully transferred {amount} to {user}";
 "lng_action_payment_done_for" = "You have just successfully transferred {amount} to {user} for {invoice}";
+"lng_action_took_screenshot" = "{from} took a screenshot!";
+"lng_action_you_took_screenshot" = "You took a screenshot!";
 
 "lng_profile_migrate_reached#one" = "{count} member limit reached";
 "lng_profile_migrate_reached#other" = "{count} members limit reached";

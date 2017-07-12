@@ -60,7 +60,8 @@ HistoryItem *createUnsupportedMessage(History *history, MsgId msgId, MTPDmessage
 	auto text = TextWithEntities { lng_message_unsupported(lt_link, qsl("https://desktop.telegram.org")) };
 	TextUtilities::ParseEntities(text, _historyTextNoMonoOptions.flags);
 	text.entities.push_front(EntityInText(EntityInTextItalic, 0, text.text.size()));
-	return HistoryMessage::create(history, msgId, flags, replyTo, viaBotId, date, from, text);
+	flags &= ~MTPDmessage::Flag::f_post_author;
+	return HistoryMessage::create(history, msgId, flags, replyTo, viaBotId, date, from, QString(), text);
 }
 
 } // namespace
@@ -798,6 +799,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			Good,
 			Unsupported,
 			Empty,
+			HasTTL,
 		};
 		auto badMedia = MediaCheckResult::Good;
 		if (m.has_media()) switch (m.vmedia.type()) {
@@ -817,20 +819,34 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			default: badMedia = MediaCheckResult::Unsupported; break;
 			}
 			break;
-		case mtpc_messageMediaPhoto:
-			switch (m.vmedia.c_messageMediaPhoto().vphoto.type()) {
-			case mtpc_photo: break;
-			case mtpc_photoEmpty: badMedia = MediaCheckResult::Empty; break;
-			default: badMedia = MediaCheckResult::Unsupported; break;
+		case mtpc_messageMediaPhoto: {
+			auto &photo = m.vmedia.c_messageMediaPhoto();
+			if (photo.has_ttl_seconds()) {
+				badMedia = MediaCheckResult::HasTTL;
+			} else if (!photo.has_photo()) {
+				badMedia = MediaCheckResult::Empty;
+			} else {
+				switch (photo.vphoto.type()) {
+				case mtpc_photo: break;
+				case mtpc_photoEmpty: badMedia = MediaCheckResult::Empty; break;
+				default: badMedia = MediaCheckResult::Unsupported; break;
+				}
 			}
-			break;
-		case mtpc_messageMediaDocument:
-			switch (m.vmedia.c_messageMediaDocument().vdocument.type()) {
-			case mtpc_document: break;
-			case mtpc_documentEmpty: badMedia = MediaCheckResult::Empty; break;
-			default: badMedia = MediaCheckResult::Unsupported; break;
+		} break;
+		case mtpc_messageMediaDocument: {
+			auto &document = m.vmedia.c_messageMediaDocument();
+			if (document.has_ttl_seconds()) {
+				badMedia = MediaCheckResult::HasTTL;
+			} else if (!document.has_document()) {
+				badMedia = MediaCheckResult::Empty;
+			} else {
+				switch (document.vdocument.type()) {
+				case mtpc_document: break;
+				case mtpc_documentEmpty: badMedia = MediaCheckResult::Empty; break;
+				default: badMedia = MediaCheckResult::Unsupported; break;
+				}
 			}
-			break;
+		} break;
 		case mtpc_messageMediaWebPage:
 			switch (m.vmedia.c_messageMediaWebPage().vwebpage.type()) {
 			case mtpc_webPage:
@@ -855,6 +871,9 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			result = createUnsupportedMessage(this, m.vid.v, m.vflags.v, m.vreply_to_msg_id.v, m.vvia_bot_id.v, date(m.vdate), m.vfrom_id.v);
 		} else if (badMedia == MediaCheckResult::Empty) {
 			auto message = HistoryService::PreparedText { lang(lng_message_empty) };
+			result = HistoryService::create(this, m.vid.v, date(m.vdate), message, m.vflags.v, m.has_from_id() ? m.vfrom_id.v : 0);
+		} else if (badMedia == MediaCheckResult::HasTTL) {
+			auto message = HistoryService::PreparedText { qsl("Self-destruct media, see mobile") };
 			result = HistoryService::create(this, m.vid.v, date(m.vdate), message, m.vflags.v, m.has_from_id() ? m.vfrom_id.v : 0);
 		} else {
 			result = HistoryMessage::create(this, m);
@@ -1025,20 +1044,20 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 	return result;
 }
 
-HistoryItem *History::createItemForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *msg) {
-	return HistoryMessage::create(this, id, flags, date, from, msg);
+HistoryItem *History::createItemForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, UserId from, const QString &postAuthor, HistoryMessage *msg) {
+	return HistoryMessage::create(this, id, flags, date, from, postAuthor, msg);
 }
 
-HistoryItem *History::createItemDocument(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup) {
-	return HistoryMessage::create(this, id, flags, replyTo, viaBotId, date, from, doc, caption, markup);
+HistoryItem *History::createItemDocument(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup) {
+	return HistoryMessage::create(this, id, flags, replyTo, viaBotId, date, from, postAuthor, doc, caption, markup);
 }
 
-HistoryItem *History::createItemPhoto(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup) {
-	return HistoryMessage::create(this, id, flags, replyTo, viaBotId, date, from, photo, caption, markup);
+HistoryItem *History::createItemPhoto(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup) {
+	return HistoryMessage::create(this, id, flags, replyTo, viaBotId, date, from, postAuthor, photo, caption, markup);
 }
 
-HistoryItem *History::createItemGame(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, GameData *game, const MTPReplyMarkup &markup) {
-	return HistoryMessage::create(this, id, flags, replyTo, viaBotId, date, from, game, markup);
+HistoryItem *History::createItemGame(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, GameData *game, const MTPReplyMarkup &markup) {
+	return HistoryMessage::create(this, id, flags, replyTo, viaBotId, date, from, postAuthor, game, markup);
 }
 
 HistoryItem *History::addNewService(MsgId msgId, QDateTime date, const QString &text, MTPDmessage::Flags flags, bool newMsg) {
@@ -1078,20 +1097,20 @@ HistoryItem *History::addToHistory(const MTPMessage &msg) {
 	return createItem(msg, false, false);
 }
 
-HistoryItem *History::addNewForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, int32 from, HistoryMessage *item) {
-	return addNewItem(createItemForwarded(id, flags, date, from, item), true);
+HistoryItem *History::addNewForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, UserId from, const QString &postAuthor, HistoryMessage *item) {
+	return addNewItem(createItemForwarded(id, flags, date, from, postAuthor, item), true);
 }
 
-HistoryItem *History::addNewDocument(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup) {
-	return addNewItem(createItemDocument(id, flags, viaBotId, replyTo, date, from, doc, caption, markup), true);
+HistoryItem *History::addNewDocument(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup) {
+	return addNewItem(createItemDocument(id, flags, viaBotId, replyTo, date, from, postAuthor, doc, caption, markup), true);
 }
 
-HistoryItem *History::addNewPhoto(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup) {
-	return addNewItem(createItemPhoto(id, flags, viaBotId, replyTo, date, from, photo, caption, markup), true);
+HistoryItem *History::addNewPhoto(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup) {
+	return addNewItem(createItemPhoto(id, flags, viaBotId, replyTo, date, from, postAuthor, photo, caption, markup), true);
 }
 
-HistoryItem *History::addNewGame(MsgId id, MTPDmessage::Flags flags, int32 viaBotId, MsgId replyTo, QDateTime date, int32 from, GameData *game, const MTPReplyMarkup &markup) {
-	return addNewItem(createItemGame(id, flags, viaBotId, replyTo, date, from, game, markup), true);
+HistoryItem *History::addNewGame(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, GameData *game, const MTPReplyMarkup &markup) {
+	return addNewItem(createItemGame(id, flags, viaBotId, replyTo, date, from, postAuthor, game, markup), true);
 }
 
 bool History::addToOverview(MediaOverviewType type, MsgId msgId, AddToOverviewMethod method) {

@@ -610,14 +610,15 @@ void MainWidget::finishForwarding(History *history, bool silent) {
 		auto flags = MTPDmessage::Flags(0);
 		auto sendFlags = MTPmessages_ForwardMessages::Flags(0);
 		bool channelPost = history->peer->isChannel() && !history->peer->isMegagroup();
-		bool showFromName = !channelPost || history->peer->asChannel()->addsSignature();
 		bool silentPost = channelPost && silent;
 		if (channelPost) {
 			flags |= MTPDmessage::Flag::f_views;
 			flags |= MTPDmessage::Flag::f_post;
 		}
-		if (showFromName) {
+		if (!channelPost) {
 			flags |= MTPDmessage::Flag::f_from_id;
+		} else if (history->peer->asChannel()->addsSignature()) {
+			flags |= MTPDmessage::Flag::f_post_author;
 		}
 		if (silentPost) {
 			sendFlags |= MTPmessages_ForwardMessages::Flag::f_silent;
@@ -632,8 +633,9 @@ void MainWidget::finishForwarding(History *history, bool silent) {
 			if (genClientSideMessage) {
 				if (auto message = i.value()->toHistoryMessage()) {
 					auto newId = FullMsgId(peerToChannel(history->peer->id), clientMsgId());
-					auto messageFromId = showFromName ? AuthSession::CurrentUserId() : 0;
-					history->addNewForwarded(newId.msg, flags, date(MTP_int(unixtime())), messageFromId, message);
+					auto messageFromId = channelPost ? 0 : AuthSession::CurrentUserId();
+					auto messagePostAuthor = channelPost ? (AuthSession::CurrentUser()->firstName + ' ' + AuthSession::CurrentUser()->lastName) : QString();
+					history->addNewForwarded(newId.msg, flags, date(MTP_int(unixtime())), messageFromId, messagePostAuthor, message);
 					App::historyRegRandom(randomId, newId);
 				}
 			}
@@ -1445,14 +1447,15 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 			flags |= MTPDmessage::Flag::f_media;
 		}
 		bool channelPost = history->peer->isChannel() && !history->peer->isMegagroup();
-		bool showFromName = !channelPost || history->peer->asChannel()->addsSignature();
 		bool silentPost = channelPost && message.silent;
 		if (channelPost) {
 			flags |= MTPDmessage::Flag::f_views;
 			flags |= MTPDmessage::Flag::f_post;
 		}
-		if (showFromName) {
+		if (!channelPost) {
 			flags |= MTPDmessage::Flag::f_from_id;
+		} else if (history->peer->asChannel()->addsSignature()) {
+			flags |= MTPDmessage::Flag::f_post_author;
 		}
 		if (silentPost) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_silent;
@@ -1466,8 +1469,9 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_clear_draft;
 			history->clearCloudDraft();
 		}
-		auto messageFromId = showFromName ? AuthSession::CurrentUserId() : 0;
-		lastMessage = history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(messageFromId), peerToMTP(history->peer->id), MTPnullFwdHeader, MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, localEntities, MTP_int(1), MTPint()), NewMessageUnread);
+		auto messageFromId = channelPost ? 0 : AuthSession::CurrentUserId();
+		auto messagePostAuthor = channelPost ? (AuthSession::CurrentUser()->firstName + ' ' + AuthSession::CurrentUser()->lastName) : QString();
+		lastMessage = history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(messageFromId), peerToMTP(history->peer->id), MTPnullFwdHeader, MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, localEntities, MTP_int(1), MTPint(), MTP_string(messagePostAuthor)), NewMessageUnread);
 		history->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_flags(sendFlags), history->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, sentEntities), rpcDone(&MainWidget::sentUpdatesReceived, randomId), rpcFail(&MainWidget::sendMessageFail), 0, 0, history->sendRequestId);
 	}
 
@@ -2028,7 +2032,7 @@ void MainWidget::insertCheckedServiceNotification(const TextWithEntities &messag
 	HistoryItem *item = nullptr;
 	while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
 		auto localEntities = TextUtilities::EntitiesToMTP(sending.entities);
-		item = App::histories().addNewMessage(MTP_message(MTP_flags(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(AuthSession::CurrentUserId())), MTPnullFwdHeader, MTPint(), MTPint(), MTP_int(date), MTP_string(sending.text), media, MTPnullMarkup, localEntities, MTPint(), MTPint()), NewMessageUnread);
+		item = App::histories().addNewMessage(MTP_message(MTP_flags(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(AuthSession::CurrentUserId())), MTPnullFwdHeader, MTPint(), MTPint(), MTP_int(date), MTP_string(sending.text), media, MTPnullMarkup, localEntities, MTPint(), MTPint(), MTPstring()), NewMessageUnread);
 	}
 	if (item) {
 		_history->peerMessagesUpdated(item->history()->peer->id);

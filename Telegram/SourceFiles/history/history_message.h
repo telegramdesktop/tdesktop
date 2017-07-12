@@ -34,20 +34,20 @@ public:
 	static gsl::not_null<HistoryMessage*> create(gsl::not_null<History*> history, const MTPDmessageService &msg) {
 		return _create(history, msg);
 	}
-	static gsl::not_null<HistoryMessage*> create(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, QDateTime date, int32 from, gsl::not_null<HistoryMessage*> fwd) {
-		return _create(history, msgId, flags, date, from, fwd);
+	static gsl::not_null<HistoryMessage*> create(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, QDateTime date, UserId from, const QString &postAuthor, gsl::not_null<HistoryMessage*> fwd) {
+		return _create(history, msgId, flags, date, from, postAuthor, fwd);
 	}
-	static gsl::not_null<HistoryMessage*> create(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, const TextWithEntities &textWithEntities) {
-		return _create(history, msgId, flags, replyTo, viaBotId, date, from, textWithEntities);
+	static gsl::not_null<HistoryMessage*> create(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, QDateTime date, UserId from, const QString &postAuthor, const TextWithEntities &textWithEntities) {
+		return _create(history, msgId, flags, replyTo, viaBotId, date, from, postAuthor, textWithEntities);
 	}
-	static gsl::not_null<HistoryMessage*> create(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup) {
-		return _create(history, msgId, flags, replyTo, viaBotId, date, from, doc, caption, markup);
+	static gsl::not_null<HistoryMessage*> create(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, QDateTime date, UserId from, const QString &postAuthor, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup) {
+		return _create(history, msgId, flags, replyTo, viaBotId, date, from, postAuthor, doc, caption, markup);
 	}
-	static gsl::not_null<HistoryMessage*> create(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup) {
-		return _create(history, msgId, flags, replyTo, viaBotId, date, from, photo, caption, markup);
+	static gsl::not_null<HistoryMessage*> create(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, QDateTime date, UserId from, const QString &postAuthor, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup) {
+		return _create(history, msgId, flags, replyTo, viaBotId, date, from, postAuthor, photo, caption, markup);
 	}
-	static gsl::not_null<HistoryMessage*> create(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, GameData *game, const MTPReplyMarkup &markup) {
-		return _create(history, msgId, flags, replyTo, viaBotId, date, from, game, markup);
+	static gsl::not_null<HistoryMessage*> create(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, QDateTime date, UserId from, const QString &postAuthor, GameData *game, const MTPReplyMarkup &markup) {
+		return _create(history, msgId, flags, replyTo, viaBotId, date, from, postAuthor, game, markup);
 	}
 
 	void initTime();
@@ -148,11 +148,11 @@ public:
 private:
 	HistoryMessage(gsl::not_null<History*> history, const MTPDmessage &msg);
 	HistoryMessage(gsl::not_null<History*> history, const MTPDmessageService &msg);
-	HistoryMessage(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, QDateTime date, int32 from, gsl::not_null<HistoryMessage*> fwd); // local forwarded
-	HistoryMessage(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, const TextWithEntities &textWithEntities); // local message
-	HistoryMessage(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup); // local document
-	HistoryMessage(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup); // local photo
-	HistoryMessage(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from, GameData *game, const MTPReplyMarkup &markup); // local game
+	HistoryMessage(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, QDateTime date, UserId from, const QString &postAuthor, gsl::not_null<HistoryMessage*> fwd); // local forwarded
+	HistoryMessage(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, QDateTime date, UserId from, const QString &postAuthor, const TextWithEntities &textWithEntities); // local message
+	HistoryMessage(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, QDateTime date, UserId from, const QString &postAuthor, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup); // local document
+	HistoryMessage(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, QDateTime date, UserId from, const QString &postAuthor, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup); // local photo
+	HistoryMessage(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, QDateTime date, UserId from, const QString &postAuthor, GameData *game, const MTPReplyMarkup &markup); // local game
 	friend class HistoryItemInstantiated<HistoryMessage>;
 
 	void setEmptyText();
@@ -192,9 +192,10 @@ private:
 		MsgId replyTo = 0;
 		UserId viaBotId = 0;
 		int viewsCount = -1;
-		PeerId authorIdOriginal = 0;
-		PeerId fromIdOriginal = 0;
+		QString author;
+		PeerId peerIdOriginal = 0;
 		MsgId originalId = 0;
+		QString authorOriginal;
 		QDateTime originalDate;
 		QDateTime editDate;
 
@@ -204,7 +205,7 @@ private:
 		// For messages created from existing messages (forwarded).
 		const HistoryMessageReplyMarkup *inlineMarkup = nullptr;
 	};
-	void createComponentsHelper(MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, const MTPReplyMarkup &markup);
+	void createComponentsHelper(MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, const QString &postAuthor, const MTPReplyMarkup &markup);
 	void createComponents(const CreateConfig &config);
 
 	class KeyboardStyle : public ReplyKeyboard::Style {

@@ -157,9 +157,9 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 	}
 }
 
-const MTPReplyMarkup MTPnullMarkup = MTP_replyKeyboardMarkup(MTP_flags(MTPDreplyKeyboardMarkup::Flags(0)), MTP_vector<MTPKeyboardButtonRow>(0));
+const MTPReplyMarkup MTPnullMarkup = MTP_replyKeyboardMarkup(MTP_flags(0), MTP_vector<MTPKeyboardButtonRow>(0));
 const MTPVector<MTPMessageEntity> MTPnullEntities = MTP_vector<MTPMessageEntity>(0);
-const MTPMessageFwdHeader MTPnullFwdHeader = MTP_messageFwdHeader(MTP_flags(MTPDmessageFwdHeader::Flags(0)), MTPint(), MTPint(), MTPint(), MTPint());
+const MTPMessageFwdHeader MTPnullFwdHeader = MTP_messageFwdHeader(MTP_flags(0), MTPint(), MTPint(), MTPint(), MTPint(), MTPstring());
 
 QString stickerSetTitle(const MTPDstickerSet &s) {
 	QString title = qs(s.vtitle);
