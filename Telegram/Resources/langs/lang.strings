@@ -921,6 +921,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_cant_invite_banned" = "Sorry, only admin can add this user.";
 "lng_cant_invite_privacy" = "Sorry, you cannot add this user to groups because of their privacy settings.";
 "lng_cant_invite_privacy_channel" = "Sorry, you cannot add this user to channels because of their privacy settings.";
+"lng_cant_delete_group#one" = "Sorry, it is currently not possible to manually delete communities that have more than {count} member. Please contact Telegram support if you would like to delete this group.";
+"lng_cant_delete_group#other" = "Sorry, it is currently not possible to manually delete communities that have more than {count} members. Please contact Telegram support if you would like to delete this group.";
+"lng_cant_delete_channel#one" = "Sorry, it is currently not possible to manually delete communities that have more than {count} member. Please contact Telegram support if you would like to delete this channel.";
+"lng_cant_delete_channel#other" = "Sorry, it is currently not possible to manually delete communities that have more than {count} members. Please contact Telegram support if you would like to delete this channel.";
 "lng_cant_do_this" = "Sorry, this action is unavailable.";
 
 "lng_send_button" = "Send";
