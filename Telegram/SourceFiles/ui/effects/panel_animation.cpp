@@ -65,16 +65,16 @@ void RoundShadowAnimation::setShadow(const style::Shadow &st) {
 	}
 }
 
-void RoundShadowAnimation::setCornerMasks(QImage &&topLeft, QImage &&topRight, QImage &&bottomLeft, QImage &&bottomRight) {
-	setCornerMask(_topLeft, std::move(topLeft));
-	setCornerMask(_topRight, std::move(topRight));
-	setCornerMask(_bottomLeft, std::move(bottomLeft));
-	setCornerMask(_bottomRight, std::move(bottomRight));
+void RoundShadowAnimation::setCornerMasks(const QImage &topLeft, const QImage &topRight, const QImage &bottomLeft, const QImage &bottomRight) {
+	setCornerMask(_topLeft, topLeft);
+	setCornerMask(_topRight, topRight);
+	setCornerMask(_bottomLeft, bottomLeft);
+	setCornerMask(_bottomRight, bottomRight);
 }
 
-void RoundShadowAnimation::setCornerMask(Corner &corner, QImage &&image) {
+void RoundShadowAnimation::setCornerMask(Corner &corner, const QImage &image) {
 	t_assert(!started());
-	corner.image = std::move(image);
+	corner.image = image;
 	if (corner.valid()) {
 		corner.width = corner.image.width();
 		corner.height = corner.image.height();

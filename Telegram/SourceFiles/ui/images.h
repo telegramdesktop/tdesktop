@@ -180,7 +180,7 @@ namespace Images {
 
 QImage prepareBlur(QImage image);
 void prepareRound(QImage &image, ImageRoundRadius radius, ImageRoundCorners corners = ImageRoundCorner::All);
-void prepareRound(QImage &image, QImage **cornerMasks, ImageRoundCorners corners = ImageRoundCorner::All);
+void prepareRound(QImage &image, QImage *cornerMasks, ImageRoundCorners corners = ImageRoundCorner::All);
 void prepareCircle(QImage &image);
 QImage prepareColored(style::color add, QImage image);
 QImage prepareOpaque(QImage image);

@@ -204,13 +204,13 @@ void prepareRound(QImage &image, ImageRoundRadius radius, ImageRoundCorners corn
 	image = std::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
 	t_assert(!image.isNull());
 
-	QImage **masks = App::cornersMask(radius);
+	auto masks = App::cornersMask(radius);
 	prepareRound(image, masks, corners);
 }
 
-void prepareRound(QImage &image, QImage **cornerMasks, ImageRoundCorners corners) {
-	auto cornerWidth = cornerMasks[0]->width();
-	auto cornerHeight = cornerMasks[0]->height();
+void prepareRound(QImage &image, QImage *cornerMasks, ImageRoundCorners corners) {
+	auto cornerWidth = cornerMasks[0].width();
+	auto cornerHeight = cornerMasks[0].height();
 	auto imageWidth = image.width();
 	auto imageHeight = image.height();
 	if (imageWidth < 2 * cornerWidth || imageHeight < 2 * cornerHeight) {
@@ -226,15 +226,15 @@ void prepareRound(QImage &image, QImage **cornerMasks, ImageRoundCorners corners
 	auto intsTopRight = ints + imageWidth - cornerWidth;
 	auto intsBottomLeft = ints + (imageHeight - cornerHeight) * imageWidth;
 	auto intsBottomRight = ints + (imageHeight - cornerHeight + 1) * imageWidth - cornerWidth;
-	auto maskCorner = [imageWidth, imageHeight, imageIntsPerPixel, imageIntsPerLine](uint32 *imageInts, const QImage *mask) {
-		auto maskWidth = mask->width();
-		auto maskHeight = mask->height();
-		auto maskBytesPerPixel = (mask->depth() >> 3);
-		auto maskBytesPerLine = mask->bytesPerLine();
+	auto maskCorner = [imageWidth, imageHeight, imageIntsPerPixel, imageIntsPerLine](uint32 *imageInts, const QImage &mask) {
+		auto maskWidth = mask.width();
+		auto maskHeight = mask.height();
+		auto maskBytesPerPixel = (mask.depth() >> 3);
+		auto maskBytesPerLine = mask.bytesPerLine();
 		auto maskBytesAdded = maskBytesPerLine - maskWidth * maskBytesPerPixel;
-		auto maskBytes = mask->constBits();
+		auto maskBytes = mask.constBits();
 		t_assert(maskBytesAdded >= 0);
-		t_assert(mask->depth() == (maskBytesPerPixel << 3));
+		t_assert(mask.depth() == (maskBytesPerPixel << 3));
 		auto imageIntsAdded = imageIntsPerLine - maskWidth * imageIntsPerPixel;
 		t_assert(imageIntsAdded >= 0);
 		for (auto y = 0; y != maskHeight; ++y) {

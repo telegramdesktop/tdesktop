@@ -362,7 +362,7 @@ void PopupMenu::startShowAnimation() {
 		_showAnimation->setFinalImage(std::move(cache), QRect(_inner.topLeft() * cIntRetinaFactor(), _inner.size() * cIntRetinaFactor()));
 		if (_useTransparency) {
 			auto corners = App::cornersMask(ImageRoundRadius::Small);
-			_showAnimation->setCornerMasks(QImage(*corners[0]), QImage(*corners[1]), QImage(*corners[2]), QImage(*corners[3]));
+			_showAnimation->setCornerMasks(corners[0], corners[1], corners[2], corners[3]);
 		} else {
 			_showAnimation->setSkipShadow(true);
 		}

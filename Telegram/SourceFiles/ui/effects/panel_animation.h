@@ -26,7 +26,7 @@ namespace Ui {
 
 class RoundShadowAnimation {
 public:
-	void setCornerMasks(QImage &&topLeft, QImage &&topRight, QImage &&bottomLeft, QImage &&bottomRight);
+	void setCornerMasks(const QImage &topLeft, const QImage &topRight, const QImage &bottomLeft, const QImage &bottomRight);
 
 protected:
 	void start(int frameWidth, int frameHeight, float64 devicePixelRatio);
@@ -48,7 +48,7 @@ protected:
 			return !image.isNull();
 		}
 	};
-	void setCornerMask(Corner &corner, QImage &&image);
+	void setCornerMask(Corner &corner, const QImage &image);
 	void paintCorner(Corner &corner, int left, int top);
 
 	struct Shadow {
