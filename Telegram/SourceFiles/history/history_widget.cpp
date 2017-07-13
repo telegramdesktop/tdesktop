@@ -1970,7 +1970,6 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 		_history = App::history(_peer->id);
 		_migrated = _peer->migrateFrom() ? App::history(_peer->migrateFrom()->id) : 0;
-		updateForwarding();
 
 		if (_channel) {
 			updateNotifySettings();
@@ -2031,7 +2030,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		clearFieldText();
 		doneShow();
 	}
-
+	updateForwarding();
 	updateOverStates(mapFromGlobal(QCursor::pos()));
 
 	if (App::wnd()) QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
