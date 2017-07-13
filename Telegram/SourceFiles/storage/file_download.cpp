@@ -84,6 +84,7 @@ constexpr auto kDownloadPhotoPartSize = 64 * 1024; // 64kb for photo
 constexpr auto kDownloadDocumentPartSize = 128 * 1024; // 128kb for document
 constexpr auto kMaxFileQueries = 16; // max 16 file parts downloaded at the same time
 constexpr auto kMaxWebFileQueries = 8; // max 8 http[s] files downloaded at the same time
+constexpr auto kDownloadCdnPartSize = 128 * 1024; // 128kb for cdn requests
 
 } // namespace
 
@@ -452,10 +453,19 @@ bool mtpFileLoader::loadPart() {
 }
 
 int mtpFileLoader::partSize() const {
-	if (_locationType == UnknownFileLocation) {
-		return kDownloadPhotoPartSize;
-	}
-	return kDownloadDocumentPartSize;
+	return kDownloadCdnPartSize;
+
+	// Different part sizes are not supported for now :(
+	// Because we start downloading with some part size
+	// and then we get a cdn-redirect where we support only
+	// fixed part size download for hash checking.
+	//
+	//if (_cdnDcId) {
+	//	return kDownloadCdnPartSize;
+	//} else if (_locationType == UnknownFileLocation) {
+	//	return kDownloadPhotoPartSize;
+	//}
+	//return kDownloadDocumentPartSize;
 }
 
 mtpFileLoader::RequestData mtpFileLoader::prepareRequest(int offset) const {
@@ -490,6 +500,21 @@ void mtpFileLoader::makeRequest(int offset) {
 		}
 	};
 	placeSentRequest(send(), requestData);
+}
+
+void mtpFileLoader::requestMoreCdnFileHashes() {
+	if (_cdnHashesRequestId || _cdnUncheckedParts.empty()) {
+		return;
+	}
+
+	auto offset = _cdnUncheckedParts.cbegin()->first;
+	auto requestData = RequestData();
+	requestData.dcId = _dcId;
+	requestData.dcIndex = 0;
+	requestData.offset = offset;
+	auto shiftedDcId = MTP::downloadDcId(requestData.dcId, requestData.dcIndex);
+	auto requestId = _cdnHashesRequestId = MTP::send(MTPupload_GetCdnFileHashes(MTP_bytes(_cdnToken), MTP_int(offset)), rpcDone(&mtpFileLoader::getCdnFileHashesDone), rpcFail(&mtpFileLoader::cdnPartFailed), shiftedDcId);
+	placeSentRequest(requestId, requestData);
 }
 
 void mtpFileLoader::normalPartLoaded(const MTPupload_File &result, mtpRequestId requestId) {
@@ -550,12 +575,86 @@ void mtpFileLoader::cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequestId 
 	auto decryptInPlace = result.c_upload_cdnFile().vbytes.v;
 	MTP::aesCtrEncrypt(decryptInPlace.data(), decryptInPlace.size(), key.data(), &state);
 	auto bytes = gsl::as_bytes(gsl::make_span(decryptInPlace));
-	return partLoaded(offset, bytes);
+
+	switch (checkCdnFileHash(offset, bytes)) {
+	case CheckCdnHashResult::NoHash: {
+		_cdnUncheckedParts.emplace(offset, decryptInPlace);
+		requestMoreCdnFileHashes();
+	} return;
+
+	case CheckCdnHashResult::Invalid: {
+		LOG(("API Error: Wrong cdnFileHash for offset %1.").arg(offset));
+		cancel(true);
+	} return;
+
+	case CheckCdnHashResult::Good: {
+		partLoaded(offset, bytes);
+	} return;
+	}
+	Unexpected("Result of checkCdnFileHash()");
 }
 
-void mtpFileLoader::reuploadDone(const MTPBool &result, mtpRequestId requestId) {
+mtpFileLoader::CheckCdnHashResult mtpFileLoader::checkCdnFileHash(int offset, base::const_byte_span bytes) {
+	auto cdnFileHashIt = _cdnFileHashes.find(offset);
+	if (cdnFileHashIt == _cdnFileHashes.cend()) {
+		return CheckCdnHashResult::NoHash;
+	}
+	auto realHash = hashSha256(bytes.data(), bytes.size());
+	if (!base::compare_bytes(gsl::as_bytes(gsl::make_span(realHash)), gsl::as_bytes(gsl::make_span(cdnFileHashIt->second.hash)))) {
+		return CheckCdnHashResult::Invalid;
+	}
+	return CheckCdnHashResult::Good;
+}
+
+void mtpFileLoader::reuploadDone(const MTPVector<MTPCdnFileHash> &result, mtpRequestId requestId) {
 	auto offset = finishSentRequestGetOffset(requestId);
+	addCdnHashes(result.v);
 	makeRequest(offset);
+}
+
+void mtpFileLoader::getCdnFileHashesDone(const MTPVector<MTPCdnFileHash> &result, mtpRequestId requestId) {
+	Expects(_cdnHashesRequestId == requestId);
+	_cdnHashesRequestId = 0;
+
+	auto offset = finishSentRequestGetOffset(requestId);
+	addCdnHashes(result.v);
+	auto someMoreChecked = false;
+	for (auto i = _cdnUncheckedParts.begin(); i != _cdnUncheckedParts.cend();) {
+		auto bytes = gsl::as_bytes(gsl::make_span(i->second));
+
+		switch (checkCdnFileHash(offset, bytes)) {
+		case CheckCdnHashResult::NoHash: {
+			++i;
+		} break;
+
+		case CheckCdnHashResult::Invalid: {
+			LOG(("API Error: Wrong cdnFileHash for offset %1.").arg(offset));
+			cancel(true);
+			return;
+		} break;
+
+		case CheckCdnHashResult::Good: {
+			someMoreChecked = true;
+			auto goodOffset = i->first;
+			auto goodBytes = std::move(i->second);
+			i = _cdnUncheckedParts.erase(i);
+			auto finished = (i == _cdnUncheckedParts.cend());
+			partLoaded(goodOffset, gsl::as_bytes(gsl::make_span(goodBytes)));
+			if (finished) {
+				// Perhaps we were destroyed already?..
+				return;
+			}
+		} break;
+
+		default: Unexpected("Result of checkCdnFileHash()");
+		}
+	}
+	if (!someMoreChecked) {
+		LOG(("API Error: Could not find cdnFileHash for offset %1 after getCdnFileHashes request.").arg(offset));
+		cancel(true);
+	} else {
+		requestMoreCdnFileHashes();
+	}
 }
 
 void mtpFileLoader::placeSentRequest(mtpRequestId requestId, const RequestData &requestData) {
@@ -669,9 +768,12 @@ bool mtpFileLoader::partFailed(const RPCError &error) {
 bool mtpFileLoader::cdnPartFailed(const RPCError &error, mtpRequestId requestId) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
+	if (requestId == _cdnHashesRequestId) {
+		_cdnHashesRequestId = 0;
+	}
 	if (error.type() == qstr("FILE_TOKEN_INVALID") || error.type() == qstr("REQUEST_TOKEN_INVALID")) {
 		auto offset = finishSentRequestGetOffset(requestId);
-		changeCDNParams(offset, 0, QByteArray(), QByteArray(), QByteArray());
+		changeCDNParams(offset, 0, QByteArray(), QByteArray(), QByteArray(), QVector<MTPCdnFileHash>());
 		return true;
 	}
 	return partFailed(error);
@@ -686,10 +788,18 @@ void mtpFileLoader::cancelRequests() {
 }
 
 void mtpFileLoader::switchToCDN(int offset, const MTPDupload_fileCdnRedirect &redirect) {
-	changeCDNParams(offset, redirect.vdc_id.v, redirect.vfile_token.v, redirect.vencryption_key.v, redirect.vencryption_iv.v);
+	changeCDNParams(offset, redirect.vdc_id.v, redirect.vfile_token.v, redirect.vencryption_key.v, redirect.vencryption_iv.v, redirect.vcdn_file_hashes.v);
 }
 
-void mtpFileLoader::changeCDNParams(int offset, MTP::DcId dcId, const QByteArray &token, const QByteArray &encryptionKey, const QByteArray &encryptionIV) {
+void mtpFileLoader::addCdnHashes(const QVector<MTPCdnFileHash> &hashes) {
+	for_const (auto &hash, hashes) {
+		t_assert(hash.type() == mtpc_cdnFileHash);
+		auto &data = hash.c_cdnFileHash();
+		_cdnFileHashes.emplace(data.voffset.v, CdnFileHash { data.vlimit.v, data.vhash.v });
+	}
+}
+
+void mtpFileLoader::changeCDNParams(int offset, MTP::DcId dcId, const QByteArray &token, const QByteArray &encryptionKey, const QByteArray &encryptionIV, const QVector<MTPCdnFileHash> &hashes) {
 	if (dcId != 0 && (encryptionKey.size() != MTP::CTRState::KeySize || encryptionIV.size() != MTP::CTRState::IvecSize)) {
 		LOG(("Message Error: Wrong key (%1) / iv (%2) size in CDN params").arg(encryptionKey.size()).arg(encryptionIV.size()));
 		cancel(true);
@@ -704,6 +814,7 @@ void mtpFileLoader::changeCDNParams(int offset, MTP::DcId dcId, const QByteArray
 	_cdnToken = token;
 	_cdnEncryptionKey = encryptionKey;
 	_cdnEncryptionIV = encryptionIV;
+	addCdnHashes(hashes);
 
 	if (resendAllRequests && !_sentRequests.empty()) {
 		auto resendOffsets = std::vector<int>();

@@ -211,6 +211,12 @@ private:
 		int dcIndex = 0;
 		int offset = 0;
 	};
+	struct CdnFileHash {
+		CdnFileHash(int limit, QByteArray hash) : limit(limit), hash(hash) {
+		}
+		int limit = 0;
+		QByteArray hash;
+	};
 
 	bool tryLoadLocal() override;
 	void cancelRequests() override;
@@ -223,7 +229,9 @@ private:
 	void normalPartLoaded(const MTPupload_File &result, mtpRequestId requestId);
 	void webPartLoaded(const MTPupload_WebFile &result, mtpRequestId requestId);
 	void cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequestId requestId);
-	void reuploadDone(const MTPBool &result, mtpRequestId requestId);
+	void reuploadDone(const MTPVector<MTPCdnFileHash> &result, mtpRequestId requestId);
+	void requestMoreCdnFileHashes();
+	void getCdnFileHashesDone(const MTPVector<MTPCdnFileHash> &result, mtpRequestId requestId);
 
 	void partLoaded(int offset, base::const_byte_span bytes);
 	bool partFailed(const RPCError &error);
@@ -232,7 +240,15 @@ private:
 	void placeSentRequest(mtpRequestId requestId, const RequestData &requestData);
 	int finishSentRequestGetOffset(mtpRequestId requestId);
 	void switchToCDN(int offset, const MTPDupload_fileCdnRedirect &redirect);
-	void changeCDNParams(int offset, MTP::DcId dcId, const QByteArray &token, const QByteArray &encryptionKey, const QByteArray &encryptionIV);
+	void addCdnHashes(const QVector<MTPCdnFileHash> &hashes);
+	void changeCDNParams(int offset, MTP::DcId dcId, const QByteArray &token, const QByteArray &encryptionKey, const QByteArray &encryptionIV, const QVector<MTPCdnFileHash> &hashes);
+
+	enum class CheckCdnHashResult {
+		NoHash,
+		Invalid,
+		Good,
+	};
+	CheckCdnHashResult checkCdnFileHash(int offset, base::const_byte_span bytes);
 
 	std::map<mtpRequestId, RequestData> _sentRequests;
 
@@ -253,6 +269,9 @@ private:
 	QByteArray _cdnToken;
 	QByteArray _cdnEncryptionKey;
 	QByteArray _cdnEncryptionIV;
+	std::map<int, CdnFileHash> _cdnFileHashes;
+	std::map<int, QByteArray> _cdnUncheckedParts;
+	mtpRequestId _cdnHashesRequestId = 0;
 
 };
 
