@@ -117,14 +117,14 @@ void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
 			currentRestrictedRights = it->rights;
 		}
 	}
-	Ui::show(Box<ConfirmBox>(text, lang(lng_box_remove), base::lambda_guarded(this, [user, currentRestrictedRights, peer = peer()] {
+	Ui::show(Box<ConfirmBox>(text, lang(lng_box_remove), [user, currentRestrictedRights, peer = peer()] {
 		Ui::hideLayer();
 		if (auto chat = peer->asChat()) {
 			if (App::main()) App::main()->kickParticipant(chat, user);
 		} else if (auto channel = peer->asChannel()) {
 			if (App::api()) App::api()->kickParticipant(channel, user, currentRestrictedRights);
 		}
-	})));
+	}));
 }
 
 void GroupMembersWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
