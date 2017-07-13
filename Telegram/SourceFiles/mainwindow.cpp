@@ -533,13 +533,6 @@ void MainWindow::checkHistoryActivation() {
 	}
 }
 
-void MainWindow::layerHidden() {
-	destroyLayerDelayed();
-	hideMediaview();
-	setInnerFocus();
-	checkHistoryActivation();
-}
-
 bool MainWindow::contentOverlapped(const QRect &globalRect) {
 	if (_main && _main->contentOverlapped(globalRect)) return true;
 	if (_layerBg && _layerBg->contentOverlapped(globalRect)) return true;
@@ -739,7 +732,11 @@ void MainWindow::noLayerStack(LayerStackWidget *was) {
 
 void MainWindow::layerFinishedHide(LayerStackWidget *was) {
 	if (was == _layerBg) {
-		QTimer::singleShot(0, this, SLOT(layerHidden()));
+		destroyLayerDelayed();
+		InvokeQueued(this, [this] {
+			setInnerFocus();
+			checkHistoryActivation();
+		});
 	}
 }
 

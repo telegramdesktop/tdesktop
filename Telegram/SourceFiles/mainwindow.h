@@ -152,7 +152,6 @@ protected:
 
 public slots:
 	void showSettings();
-	void layerHidden();
 	void setInnerFocus();
 	void updateConnectingStatus();
 
