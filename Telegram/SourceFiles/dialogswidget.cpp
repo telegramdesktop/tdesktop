@@ -758,6 +758,20 @@ bool DialogsInner::updateReorderPinned(QPoint localPosition) {
 		}
 
 		for (auto from = _draggingIndex, to = _draggingIndex + shift; from < to; ++from) {
+
+			// Debug an assertion violation.
+			{
+				auto swapPinnedIndexWith = shownDialogs()->find(_dragging);
+				t_assert(swapPinnedIndexWith != shownDialogs()->cend());
+				auto prevPos = (*swapPinnedIndexWith)->pos();
+				++swapPinnedIndexWith;
+				if (!(*swapPinnedIndexWith)->history()->isPinnedDialog()) {
+					SignalHandlers::setCrashAnnotation("DebugInfoBefore", QString("from: %1, to: %2, current: %3, prevPos: %4, nowPos: %5").arg(_draggingIndex).arg(_draggingIndex + shift).arg(from).arg(prevPos).arg((*swapPinnedIndexWith)->pos()));
+				} else {
+					SignalHandlers::setCrashAnnotation("DebugInfoBefore", QString());
+				}
+			}
+
 			shownDialogs()->movePinned(_dragging, 1);
 			std::swap(_pinnedRows[from], _pinnedRows[from + 1]);
 			_pinnedRows[from].yadd = anim::value(_pinnedRows[from].yadd.current() + rowHeight, 0);
