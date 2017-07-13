@@ -208,6 +208,19 @@ HistoryHider::HistoryHider(MainWidget *parent, const QString &url, const QString
 
 void HistoryHider::init() {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
+	if (!_forwardItems.empty()) {
+		subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
+			for (auto i = _forwardItems.begin(); i != _forwardItems.end(); ++i) {
+				if (i->get() == item) {
+					i = _forwardItems.erase(i);
+					break;
+				}
+			}
+			if (_forwardItems.empty()) {
+				startHide();
+			}
+		});
+	}
 	connect(_send, SIGNAL(clicked()), this, SLOT(forward()));
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(startHide()));
 	subscribe(Global::RefPeerChooseCancel(), [this] { startHide(); });
