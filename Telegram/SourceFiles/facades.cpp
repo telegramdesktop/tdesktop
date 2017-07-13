@@ -361,6 +361,9 @@ void historyMuteUpdated(History *history) {
 }
 
 void handlePendingHistoryUpdate() {
+	if (!AuthSession::Exists()) {
+		return;
+	}
 	AuthSession::Current().data().pendingHistoryResize().notify(true);
 
 	for (auto item : base::take(Global::RefPendingRepaintItems())) {
