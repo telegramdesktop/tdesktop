@@ -100,7 +100,7 @@ public:
 
 class MaxInviteBox : public BoxContent {
 public:
-	MaxInviteBox(QWidget*, const QString &link);
+	MaxInviteBox(QWidget*, gsl::not_null<ChannelData*> channel);
 
 protected:
 	void prepare() override;
@@ -114,10 +114,11 @@ protected:
 private:
 	void updateSelected(const QPoint &cursorGlobalPosition);
 
+	gsl::not_null<ChannelData*> _channel;
+
 	Text _text;
 	int32 _textWidth, _textHeight;
 
-	QString _link;
 	QRect _invitationLink;
 	bool _linkOver = false;
 

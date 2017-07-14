@@ -33,6 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/click_handler_types.h"
 #include "storage/localstorage.h"
 #include "auth_session.h"
+#include "observer_peer.h"
 
 TextParseOptions _confirmBoxTextOptions = {
 	TextParseLinks | TextParseMultiline | TextParseRichText, // flags
@@ -216,9 +217,9 @@ InformBox::InformBox(QWidget*, const QString &text, base::lambda<void()> closedC
 InformBox::InformBox(QWidget*, const QString &text, const QString &doneText, base::lambda<void()> closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, doneText, std::move(closedCallback)) {
 }
 
-MaxInviteBox::MaxInviteBox(QWidget*, const QString &link)
-: _text(st::boxLabelStyle, lng_participant_invite_sorry(lt_count, Global::ChatSizeMax()), _confirmBoxTextOptions, st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
-, _link(link) {
+MaxInviteBox::MaxInviteBox(QWidget*, gsl::not_null<ChannelData*> channel) : BoxContent()
+, _channel(channel)
+, _text(st::boxLabelStyle, lng_participant_invite_sorry(lt_count, Global::ChatSizeMax()), _confirmBoxTextOptions, st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right()) {
 }
 
 void MaxInviteBox::prepare() {
@@ -229,6 +230,12 @@ void MaxInviteBox::prepare() {
 	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right();
 	_textHeight = qMin(_text.countHeight(_textWidth), 16 * st::boxLabelStyle.lineHeight);
 	setDimensions(st::boxWidth, st::boxPadding.top() + _textHeight + st::boxTextFont->height + st::boxTextFont->height * 2 + st::newGroupLinkPadding.bottom());
+
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::InviteLinkChanged, [this](const Notify::PeerUpdate &update) {
+		if (update.peer == _channel) {
+			rtlupdate(_invitationLink);
+		}
+	}));
 }
 
 void MaxInviteBox::mouseMoveEvent(QMouseEvent *e) {
@@ -238,8 +245,12 @@ void MaxInviteBox::mouseMoveEvent(QMouseEvent *e) {
 void MaxInviteBox::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
 	if (_linkOver) {
-		Application::clipboard()->setText(_link);
-		Ui::Toast::Show(lang(lng_create_channel_link_copied));
+		if (_channel->inviteLink().isEmpty()) {
+			App::api()->exportInviteLink(_channel);
+		} else {
+			QGuiApplication::clipboard()->setText(_channel->inviteLink());
+			Ui::Toast::Show(lang(lng_create_channel_link_copied));
+		}
 	}
 }
 
@@ -271,7 +282,8 @@ void MaxInviteBox::paintEvent(QPaintEvent *e) {
 	option.setWrapMode(QTextOption::WrapAnywhere);
 	p.setFont(_linkOver ? st::defaultInputField.font->underline() : st::defaultInputField.font);
 	p.setPen(st::defaultLinkButton.color);
-	p.drawText(_invitationLink, _link, option);
+	auto inviteLinkText = _channel->inviteLink().isEmpty() ? lang(lng_group_invite_create) : _channel->inviteLink();
+	p.drawText(_invitationLink, inviteLinkText, option);
 }
 
 void MaxInviteBox::resizeEvent(QResizeEvent *e) {

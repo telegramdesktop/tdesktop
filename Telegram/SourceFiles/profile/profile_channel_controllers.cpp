@@ -77,7 +77,7 @@ void ParticipantsBoxController::Start(gsl::not_null<ChannelData*> channel, Role 
 void ParticipantsBoxController::addNewItem() {
 	if (_role == Role::Members) {
 		if (_channel->membersCount() >= Global::ChatSizeMax()) {
-			Ui::show(Box<MaxInviteBox>(_channel->inviteLink()), KeepOtherLayers);
+			Ui::show(Box<MaxInviteBox>(_channel), KeepOtherLayers);
 		} else {
 			auto already = MembersAlreadyIn();
 			for (auto i = 0, count = delegate()->peerListFullRowsCount(); i != count; ++i) {

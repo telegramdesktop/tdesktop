@@ -482,6 +482,11 @@ void SetupChannelBox::prepare() {
 	connect(&_checkTimer, SIGNAL(timeout()), this, SLOT(onCheck()));
 
 	_privacyGroup->setChangedCallback([this](Privacy value) { privacyChanged(value); });
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::InviteLinkChanged, [this](const Notify::PeerUpdate &update) {
+		if (update.peer == _channel) {
+			rtlupdate(_invitationLink);
+		}
+	}));
 
 	updateMaxHeight();
 }
@@ -541,7 +546,8 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 			option.setWrapMode(QTextOption::WrapAnywhere);
 			p.setFont(_linkOver ? st::boxTextFont->underline() : st::boxTextFont);
 			p.setPen(st::defaultLinkButton.color);
-			p.drawText(_invitationLink, _channel->inviteLink(), option);
+			auto inviteLinkText = _channel->inviteLink().isEmpty() ? lang(lng_group_invite_create) : _channel->inviteLink();
+			p.drawText(_invitationLink, inviteLinkText, option);
 		}
 	} else {
 		if (!_errorText.isEmpty()) {
@@ -573,8 +579,12 @@ void SetupChannelBox::mouseMoveEvent(QMouseEvent *e) {
 
 void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
 	if (_linkOver) {
-		QGuiApplication::clipboard()->setText(_channel->inviteLink());
-		Ui::Toast::Show(lang(lng_create_channel_link_copied));
+		if (_channel->inviteLink().isEmpty()) {
+			App::api()->exportInviteLink(_channel);
+		} else {
+			QGuiApplication::clipboard()->setText(_channel->inviteLink());
+			Ui::Toast::Show(lang(lng_create_channel_link_copied));
+		}
 	}
 }
 

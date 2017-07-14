@@ -1468,7 +1468,7 @@ void ContactsBox::Inner::changeCheckState(ContactData *data, PeerData *peer) {
 	} else if (selectedCount() < ((_channel && _channel->isMegagroup()) ? Global::MegagroupSizeMax() : Global::ChatSizeMax())) {
 		changePeerCheckState(data, peer, true);
 	} else if (_channel && !_channel->isMegagroup()) {
-		Ui::show(Box<MaxInviteBox>(_channel->inviteLink()), KeepOtherLayers);
+		Ui::show(Box<MaxInviteBox>(_channel), KeepOtherLayers);
 	} else if (!_channel && selectedCount() >= Global::ChatSizeMax() && selectedCount() < Global::MegagroupSizeMax()) {
 		Ui::show(Box<InformBox>(lng_profile_add_more_after_upgrade(lt_count, Global::MegagroupSizeMax())), KeepOtherLayers);
 	}
