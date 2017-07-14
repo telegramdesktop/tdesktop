@@ -368,7 +368,11 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 
 	auto realCheckRect = myrtlrect(_checkRect);
 	if (realCheckRect.intersects(e->rect())) {
-		_check->paint(p, _checkRect.left(), _checkRect.top(), width());
+		if (isDisabled()) {
+			p.drawPixmapLeft(_checkRect.left(), _checkRect.top(), width(), _checkCache);
+		} else {
+			_check->paint(p, _checkRect.left(), _checkRect.top(), width());
+		}
 	}
 	if (realCheckRect.contains(e->rect())) return;
 
@@ -378,14 +382,27 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 	_text.drawLeftElided(p, _st.margin.left() + _checkRect.width() + _st.textPosition.x(), _st.margin.top() + _st.textPosition.y(), textWidth, width());
 }
 
+QPixmap Checkbox::grabCheckCache() const {
+	auto image = QImage(_checkRect.size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	image.fill(Qt::transparent);
+	image.setDevicePixelRatio(cRetinaFactor());
+	{
+		Painter p(&image);
+		_check->paint(p, 0, 0, _checkRect.width());
+	}
+	return App::pixmapFromImageInPlace(std::move(image));
+}
+
 void Checkbox::onStateChanged(State was, StateChangeSource source) {
 	RippleButton::onStateChanged(was, source);
 
 	if (isDisabled() && !(was & StateFlag::Disabled)) {
 		setCursor(style::cur_default);
 		finishAnimations();
+		_checkCache = grabCheckCache();
 	} else if (!isDisabled() && (was & StateFlag::Disabled)) {
 		setCursor(style::cur_pointer);
+		_checkCache = QPixmap();
 	}
 
 	auto now = state();

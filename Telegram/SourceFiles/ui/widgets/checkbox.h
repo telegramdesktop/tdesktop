@@ -154,9 +154,11 @@ protected:
 
 private:
 	void resizeToText();
+	QPixmap grabCheckCache() const;
 
 	const style::Checkbox &_st;
 	std::unique_ptr<AbstractCheckView> _check;
+	QPixmap _checkCache;
 
 	Text _text;
 	QRect _checkRect;
