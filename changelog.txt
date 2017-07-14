@@ -1,3 +1,7 @@
+1.1.13 alpha (14.07.17)
+
+- Various bug fixes.
+
 1.1.12 alpha (11.07.17)
 
 - Click on forwarded messages bar to change the recipient chat in case you chose a wrong one first.
