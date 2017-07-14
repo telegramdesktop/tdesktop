@@ -604,7 +604,7 @@ struct Data {
 
 	// config
 	int32 ChatSizeMax = 200;
-	int32 MegagroupSizeMax = 1000;
+	int32 MegagroupSizeMax = 10000;
 	int32 ForwardedCountMax = 100;
 	int32 OnlineUpdatePeriod = 120000;
 	int32 OfflineBlurTimeout = 5000;

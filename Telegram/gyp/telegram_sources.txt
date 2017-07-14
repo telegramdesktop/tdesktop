@@ -56,8 +56,6 @@
 <(src_loc)/boxes/language_box.h
 <(src_loc)/boxes/local_storage_box.cpp
 <(src_loc)/boxes/local_storage_box.h
-<(src_loc)/boxes/members_box.cpp
-<(src_loc)/boxes/members_box.h
 <(src_loc)/boxes/notifications_box.cpp
 <(src_loc)/boxes/notifications_box.h
 <(src_loc)/boxes/peer_list_box.cpp

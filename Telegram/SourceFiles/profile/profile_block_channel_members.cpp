@@ -23,7 +23,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "profile/profile_channel_controllers.h"
 #include "styles/style_profile.h"
 #include "ui/widgets/buttons.h"
-#include "boxes/members_box.h"
 #include "observer_peer.h"
 #include "mainwidget.h"
 #include "history/history_admin_log_section.h"

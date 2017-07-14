@@ -51,7 +51,7 @@ void ParticipantsBoxController::Start(gsl::not_null<ChannelData*> channel, Role 
 		box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
 		auto canAddNewItem = [role, channel] {
 			switch (role) {
-			case Role::Members: return false;
+			case Role::Members: return !channel->isMegagroup() && channel->canAddMembers() && (channel->membersCount() < Global::ChatSizeMax());
 			case Role::Admins: return channel->canAddAdmins();
 			case Role::Restricted:
 			case Role::Kicked: return channel->canBanMembers();
@@ -60,6 +60,7 @@ void ParticipantsBoxController::Start(gsl::not_null<ChannelData*> channel, Role 
 		};
 		auto addNewItemText = [role] {
 			switch (role) {
+			case Role::Members: return langFactory(lng_channel_add_members);
 			case Role::Admins: return langFactory(lng_channel_add_admin);
 			case Role::Restricted: return langFactory(lng_channel_add_restricted);
 			case Role::Kicked: return langFactory(lng_channel_add_banned);
@@ -74,6 +75,19 @@ void ParticipantsBoxController::Start(gsl::not_null<ChannelData*> channel, Role 
 }
 
 void ParticipantsBoxController::addNewItem() {
+	if (_role == Role::Members) {
+		if (_channel->membersCount() >= Global::ChatSizeMax()) {
+			Ui::show(Box<MaxInviteBox>(_channel->inviteLink()), KeepOtherLayers);
+		} else {
+			auto already = MembersAlreadyIn();
+			for (auto i = 0, count = delegate()->peerListFullRowsCount(); i != count; ++i) {
+				auto user = delegate()->peerListRowAt(i)->peer()->asUser();
+				already.insert(user);
+			}
+			Ui::show(Box<ContactsBox>(_channel, MembersFilter::Recent, already));
+		}
+		return;
+	}
 	auto weak = base::weak_unique_ptr<ParticipantsBoxController>(this);
 	_addBox = Ui::show(Box<PeerListBox>(std::make_unique<AddParticipantBoxController>(_channel, _role, [weak](gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights) {
 		if (weak) {
