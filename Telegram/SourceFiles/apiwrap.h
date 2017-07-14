@@ -91,6 +91,9 @@ public:
 
 	bool isQuitPrevent();
 
+	void applyUpdatesNoPtsCheck(const MTPUpdates &updates);
+	void applyUpdateNoPtsCheck(const MTPUpdate &update);
+
 	~ApiWrap();
 
 private:

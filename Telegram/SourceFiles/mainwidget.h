@@ -376,6 +376,12 @@ public:
 	void gotRangeDifference(ChannelData *channel, const MTPupdates_ChannelDifference &diff);
 	void onSelfParticipantUpdated(ChannelData *channel);
 
+	// Mayde public for ApiWrap, while it is still here.
+	// Better would be for this to be moved to ApiWrap.
+	bool requestingDifference() const {
+		return _ptsWaiter.requesting();
+	}
+
 	bool contentOverlapped(const QRect &globalRect);
 
 	void documentLoadProgress(DocumentData *document);
@@ -584,13 +590,9 @@ private:
 	QPoint getFloatPlayerHiddenPosition(QPoint position, QSize size, RectPart side) const;
 	RectPart getFloatPlayerSide(QPoint center) const;
 
-	bool ptsUpdated(int32 pts, int32 ptsCount);
-	bool ptsUpdated(int32 pts, int32 ptsCount, const MTPUpdates &updates);
-	bool ptsUpdated(int32 pts, int32 ptsCount, const MTPUpdate &update);
-	void ptsApplySkippedUpdates();
-	bool requestingDifference() const {
-		return _ptsWaiter.requesting();
-	}
+	bool ptsUpdateAndApply(int32 pts, int32 ptsCount, const MTPUpdates &updates);
+	bool ptsUpdateAndApply(int32 pts, int32 ptsCount, const MTPUpdate &update);
+	bool ptsUpdateAndApply(int32 pts, int32 ptsCount);
 	bool getDifferenceTimeChanged(ChannelData *channel, int32 ms, ChannelGetDifferenceTime &channelCurTime, TimeMs &curTime);
 
 	void viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint> &result, mtpRequestId req);

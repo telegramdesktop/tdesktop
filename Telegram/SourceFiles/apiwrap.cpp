@@ -1530,4 +1530,121 @@ void ApiWrap::stickersSaveOrder() {
 	}
 }
 
+void ApiWrap::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
+	switch (updates.type()) {
+	case mtpc_updateShortMessage: {
+		auto &d = updates.c_updateShortMessage();
+		auto flags = mtpCastFlags(d.vflags.v) | MTPDmessage::Flag::f_from_id;
+		App::histories().addNewMessage(MTP_message(MTP_flags(flags), d.vid, d.is_out() ? MTP_int(AuthSession::CurrentUserId()) : d.vuser_id, MTP_peerUser(d.is_out() ? d.vuser_id : MTP_int(AuthSession::CurrentUserId())), d.vfwd_from, d.vvia_bot_id, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, d.has_entities() ? d.ventities : MTPnullEntities, MTPint(), MTPint()), NewMessageUnread);
+	} break;
+
+	case mtpc_updateShortChatMessage: {
+		auto &d = updates.c_updateShortChatMessage();
+		auto flags = mtpCastFlags(d.vflags.v) | MTPDmessage::Flag::f_from_id;
+		App::histories().addNewMessage(MTP_message(MTP_flags(flags), d.vid, d.vfrom_id, MTP_peerChat(d.vchat_id), d.vfwd_from, d.vvia_bot_id, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, d.has_entities() ? d.ventities : MTPnullEntities, MTPint(), MTPint()), NewMessageUnread);
+	} break;
+
+	case mtpc_updateShortSentMessage: {
+		auto &d = updates.c_updateShortSentMessage();
+		Q_UNUSED(d); // Sent message data was applied anyway.
+	} break;
+
+	default: Unexpected("Type in applyUpdatesNoPtsCheck()");
+	}
+}
+
+void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
+	switch (update.type()) {
+	case mtpc_updateNewMessage: {
+		auto &d = update.c_updateNewMessage();
+		auto needToAdd = true;
+		if (d.vmessage.type() == mtpc_message) { // index forwarded messages to links _overview
+			if (App::checkEntitiesAndViewsUpdate(d.vmessage.c_message())) { // already in blocks
+				LOG(("Skipping message, because it is already in blocks!"));
+				needToAdd = false;
+			}
+		}
+		if (needToAdd) {
+			App::histories().addNewMessage(d.vmessage, NewMessageUnread);
+		}
+	} break;
+
+	case mtpc_updateReadMessagesContents: {
+		auto &d = update.c_updateReadMessagesContents();
+		auto &v = d.vmessages.v;
+		for (auto i = 0, l = v.size(); i < l; ++i) {
+			if (auto item = App::histItemById(NoChannel, v.at(i).v)) {
+				if (item->isMediaUnread()) {
+					item->markMediaRead();
+					Ui::repaintHistoryItem(item);
+
+					if (item->out() && item->history()->peer->isUser()) {
+						auto when = App::main()->requestingDifference() ? 0 : unixtime();
+						item->history()->peer->asUser()->madeAction(when);
+					}
+				}
+			}
+		}
+	} break;
+
+	case mtpc_updateReadHistoryInbox: {
+		auto &d = update.c_updateReadHistoryInbox();
+		App::feedInboxRead(peerFromMTP(d.vpeer), d.vmax_id.v);
+	} break;
+
+	case mtpc_updateReadHistoryOutbox: {
+		auto &d = update.c_updateReadHistoryOutbox();
+		auto peerId = peerFromMTP(d.vpeer);
+		auto when = App::main()->requestingDifference() ? 0 : unixtime();
+		App::feedOutboxRead(peerId, d.vmax_id.v, when);
+	} break;
+
+	case mtpc_updateWebPage: {
+		auto &d = update.c_updateWebPage();
+		Q_UNUSED(d); // Web page was updated anyway.
+	} break;
+
+	case mtpc_updateDeleteMessages: {
+		auto &d = update.c_updateDeleteMessages();
+		App::feedWereDeleted(NoChannel, d.vmessages.v);
+	} break;
+
+	case mtpc_updateNewChannelMessage: {
+		auto &d = update.c_updateNewChannelMessage();
+		auto needToAdd = true;
+		if (d.vmessage.type() == mtpc_message) { // index forwarded messages to links _overview
+			if (App::checkEntitiesAndViewsUpdate(d.vmessage.c_message())) { // already in blocks
+				LOG(("Skipping message, because it is already in blocks!"));
+				needToAdd = false;
+			}
+		}
+		if (needToAdd) {
+			App::histories().addNewMessage(d.vmessage, NewMessageUnread);
+		}
+	} break;
+
+	case mtpc_updateEditChannelMessage: {
+		auto &d = update.c_updateEditChannelMessage();
+		App::updateEditedMessage(d.vmessage);
+	} break;
+
+	case mtpc_updateEditMessage: {
+		auto &d = update.c_updateEditMessage();
+		App::updateEditedMessage(d.vmessage);
+	} break;
+
+	case mtpc_updateChannelWebPage: {
+		auto &d = update.c_updateChannelWebPage();
+		Q_UNUSED(d); // Web page was updated anyway.
+	} break;
+
+	case mtpc_updateDeleteChannelMessages: {
+		auto &d = update.c_updateDeleteChannelMessages();
+		App::feedWereDeleted(d.vchannel_id.v, d.vmessages.v);
+	} break;
+
+	default: Unexpected("Type in applyUpdateNoPtsCheck()");
+	}
+}
+
 ApiWrap::~ApiWrap() = default;

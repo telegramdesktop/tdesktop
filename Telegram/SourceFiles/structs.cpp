@@ -983,8 +983,8 @@ void ChannelData::setRestrictedRights(const MTPChannelBannedRights &rights) {
 	Notify::peerUpdatedDelayed(this, UpdateFlag::ChannelRightsChanged | UpdateFlag::AdminsChanged | UpdateFlag::BannedUsersChanged);
 }
 
-uint64 PtsWaiter::ptsKey(PtsSkippedQueue queue) {
-	return _queue.insert(uint64(uint32(_last)) << 32 | uint64(uint32(_count)), queue).key();
+uint64 PtsWaiter::ptsKey(PtsSkippedQueue queue, int32 pts) {
+	return _queue.insert(uint64(uint32(pts)) << 32 | (++_skippedKey), queue).key();
 }
 
 void PtsWaiter::setWaitingForSkipped(ChannelData *channel, int32 ms) {
@@ -1022,13 +1022,13 @@ void PtsWaiter::applySkippedUpdates(ChannelData *channel) {
 
 	setWaitingForSkipped(channel, -1);
 
-	if (!App::main() || _queue.isEmpty()) return;
+	if (!App::api() || _queue.isEmpty()) return;
 
 	++_applySkippedLevel;
 	for (QMap<uint64, PtsSkippedQueue>::const_iterator i = _queue.cbegin(), e = _queue.cend(); i != e; ++i) {
 		switch (i.value()) {
-		case SkippedUpdate: App::main()->feedUpdate(_updateQueue.value(i.key())); break;
-		case SkippedUpdates: App::main()->feedUpdates(_updatesQueue.value(i.key())); break;
+		case SkippedUpdate: App::api()->applyUpdateNoPtsCheck(_updateQueue.value(i.key())); break;
+		case SkippedUpdates: App::api()->applyUpdatesNoPtsCheck(_updatesQueue.value(i.key())); break;
 		}
 	}
 	--_applySkippedLevel;
@@ -1042,15 +1042,6 @@ void PtsWaiter::clearSkippedUpdates() {
 	_applySkippedLevel = 0;
 }
 
-bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 count) {
-	if (_requesting || _applySkippedLevel) {
-		return true;
-	} else if (pts <= _good && count > 0) {
-		return false;
-	}
-	return check(channel, pts, count);
-}
-
 bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 count, const MTPUpdates &updates) {
 	if (_requesting || _applySkippedLevel) {
 		return true;
@@ -1059,7 +1050,7 @@ bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 count, const MTPU
 	} else if (check(channel, pts, count)) {
 		return true;
 	}
-	_updatesQueue.insert(ptsKey(SkippedUpdates), updates);
+	_updatesQueue.insert(ptsKey(SkippedUpdates, pts), updates);
 	return false;
 }
 
@@ -1071,8 +1062,53 @@ bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 count, const MTPU
 	} else if (check(channel, pts, count)) {
 		return true;
 	}
-	_updateQueue.insert(ptsKey(SkippedUpdate), update);
+	_updateQueue.insert(ptsKey(SkippedUpdate, pts), update);
 	return false;
+}
+
+bool PtsWaiter::updated(ChannelData *channel, int32 pts, int32 count) {
+	if (_requesting || _applySkippedLevel) {
+		return true;
+	} else if (pts <= _good && count > 0) {
+		return false;
+	}
+	return check(channel, pts, count);
+}
+
+bool PtsWaiter::updateAndApply(ChannelData *channel, int32 pts, int32 count, const MTPUpdates &updates) {
+	if (!updated(channel, pts, count, updates)) {
+		return false;
+	}
+	if (!_waitingForSkipped || _queue.isEmpty()) {
+		// Optimization - no need to put in queue and back.
+		App::api()->applyUpdatesNoPtsCheck(updates);
+	} else {
+		_updatesQueue.insert(ptsKey(SkippedUpdates, pts), updates);
+		applySkippedUpdates(channel);
+	}
+	return true;
+}
+
+bool PtsWaiter::updateAndApply(ChannelData *channel, int32 pts, int32 count, const MTPUpdate &update) {
+	if (!updated(channel, pts, count, update)) {
+		return false;
+	}
+	if (!_waitingForSkipped || _queue.isEmpty()) {
+		// Optimization - no need to put in queue and back.
+		App::api()->applyUpdateNoPtsCheck(update);
+	} else {
+		_updateQueue.insert(ptsKey(SkippedUpdate, pts), update);
+		applySkippedUpdates(channel);
+	}
+	return true;
+}
+
+bool PtsWaiter::updateAndApply(ChannelData *channel, int32 pts, int32 count) {
+	if (!updated(channel, pts, count)) {
+		return false;
+	}
+	applySkippedUpdates(channel);
+	return true;
 }
 
 bool PtsWaiter::check(ChannelData *channel, int32 pts, int32 count) { // return false if need to save that update and apply later
