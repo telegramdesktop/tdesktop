@@ -2710,11 +2710,8 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, T
 				recth += st::msgReplyBarSize.height();
 			}
 			int rectx = isPost ? (usew + st::msgReplyPadding.left()) : (out ? 0 : (usew + st::msgReplyPadding.left()));
-			int recty = _height - recth;
+			int recty = st::msgDateImgDelta;
 			if (rtl()) rectx = _width - rectx - rectw;
-
-			// Make the bottom of the rect at the same level as the bottom of the info rect.
-			recty -= st::msgDateImgDelta;
 
 			App::roundRect(p, rectx, recty, rectw, recth, selected ? st::msgServiceBgSelected : st::msgServiceBg, selected ? StickerSelectedCorners : StickerCorners);
 			p.setPen(st::msgServiceFg);
@@ -2770,11 +2767,8 @@ HistoryTextState HistorySticker::getState(QPoint point, HistoryStateRequest requ
 			recth += st::msgReplyBarSize.height();
 		}
 		int rectx = isPost ? (usew + st::msgReplyPadding.left()) : (out ? 0 : (usew + st::msgReplyPadding.left()));
-		int recty = _height - recth;
+		int recty = st::msgDateImgDelta;
 		if (rtl()) rectx = _width - rectx - rectw;
-
-		// Make the bottom of the rect at the same level as the bottom of the info rect.
-		recty -= st::msgDateImgDelta;
 
 		if (via) {
 			int viah = st::msgReplyPadding.top() + st::msgServiceNameFont->height + (reply ? 0 : st::msgReplyPadding.bottom());
