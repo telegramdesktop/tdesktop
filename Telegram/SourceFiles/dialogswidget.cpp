@@ -185,7 +185,6 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 				p.translate(0, lastPaintedPos * st::dialogsRowHeight);
 				for (auto e = list.cend(); i != e; ++i) {
 					auto row = (*i);
-					lastPaintedPos = row->pos();
 					if (lastPaintedPos * st::dialogsRowHeight >= dialogsClip.top() + dialogsClip.height()) {
 						break;
 					}
@@ -196,6 +195,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 					}
 
 					p.translate(0, st::dialogsRowHeight);
+					++lastPaintedPos;
 				}
 
 				// Paint the dragged chat above all others.
