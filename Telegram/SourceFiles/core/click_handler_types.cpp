@@ -73,6 +73,11 @@ QString tryConvertUrlToLocal(QString url) {
 	return url;
 }
 
+bool UrlRequiresConfirmation(const QUrl &url) {
+	using namespace qthelp;
+	return !regex_match(qsl("(^|\\.)(telegram\\.org|telegra\\.ph|telesco\\.pe)$"), url.host(), RegExOption::CaseInsensitive);
+}
+
 } // namespace
 
 void UrlClickHandler::doOpen(QString url) {
@@ -119,11 +124,15 @@ void HiddenUrlClickHandler::doOpen(QString url) {
 		Messenger::Instance().openLocalUrl(urlText);
 	} else {
 		auto parsedUrl = QUrl::fromUserInput(urlText);
-		auto displayUrl = parsedUrl.isValid() ? parsedUrl.toDisplayString() : urlText;
-		Ui::show(Box<ConfirmBox>(lang(lng_open_this_link) + qsl("\n\n") + displayUrl, lang(lng_open_link), [urlText] {
-			Ui::hideLayer();
+		if (UrlRequiresConfirmation(urlText)) {
+			auto displayUrl = parsedUrl.isValid() ? parsedUrl.toDisplayString() : urlText;
+			Ui::show(Box<ConfirmBox>(lang(lng_open_this_link) + qsl("\n\n") + displayUrl, lang(lng_open_link), [urlText] {
+				Ui::hideLayer();
+				UrlClickHandler::doOpen(urlText);
+			}));
+		} else {
 			UrlClickHandler::doOpen(urlText);
-		}));
+		}
 	}
 }
 
