@@ -55,6 +55,9 @@ namespace {
 constexpr auto kHashtagResultsLimit = 5;
 constexpr auto kStartReorderThreshold = 30;
 
+// Debug an assertion violation.
+auto MustNotChangeDraggingIndex = false;
+
 } // namespace
 
 struct DialogsInner::ImportantSwitch {
@@ -668,6 +671,12 @@ void DialogsInner::finishReorderPinned() {
 		savePinnedOrder();
 		_dragging = nullptr;
 	}
+
+	// Debug an assertion violation.
+	if (MustNotChangeDraggingIndex) {
+		Unexpected("Must not change draggingIndex while reordering pinned chats.");
+	}
+
 	_draggingIndex = -1;
 	if (!_a_pinnedShifting.animating()) {
 		_pinnedRows.clear();
@@ -695,6 +704,11 @@ int DialogsInner::updateReorderIndexGetCount() {
 	if (count < 2) {
 		stopReorderPinned();
 		return 0;
+	}
+
+	// Debug an assertion violation.
+	if (MustNotChangeDraggingIndex) {
+		Unexpected("Must not change draggingIndex while reordering pinned chats.");
 	}
 
 	_draggingIndex = index;
@@ -734,6 +748,7 @@ bool DialogsInner::updateReorderPinned(QPoint localPosition) {
 				}
 			}
 		}
+		MustNotChangeDraggingIndex = true;
 
 		for (auto from = _draggingIndex, to = _draggingIndex + shift; from > to; --from) {
 			shownDialogs()->movePinned(_dragging, -1);
@@ -741,10 +756,14 @@ bool DialogsInner::updateReorderPinned(QPoint localPosition) {
 			_pinnedRows[from].yadd = anim::value(_pinnedRows[from].yadd.current() - rowHeight, 0);
 			_pinnedRows[from].animStartTime = ms;
 		}
+
+		// Debug an assertion violation.
+		MustNotChangeDraggingIndex = false;
 	} else if (_dragStart.y() < localPosition.y() && _draggingIndex + 1 < pinnedCount) {
 		shift = floorclamp(localPosition.y() - _dragStart.y() + (rowHeight / 2), rowHeight, 0, pinnedCount - _draggingIndex - 1);
 
 		// Debug an assertion violation.
+		MustNotChangeDraggingIndex = true;
 		if (shift > 0) {
 			auto index = 0;
 			for_const (auto row, *shownDialogs()) {
@@ -777,8 +796,16 @@ bool DialogsInner::updateReorderPinned(QPoint localPosition) {
 			_pinnedRows[from].yadd = anim::value(_pinnedRows[from].yadd.current() + rowHeight, 0);
 			_pinnedRows[from].animStartTime = ms;
 		}
+
+		// Debug an assertion violation.
+		MustNotChangeDraggingIndex = false;
 	}
 	if (shift) {
+		// Debug an assertion violation.
+		if (MustNotChangeDraggingIndex) {
+			Unexpected("Must not change draggingIndex while reordering pinned chats.");
+		}
+
 		_draggingIndex += shift;
 		_aboveIndex = _draggingIndex;
 		_dragStart.setY(_dragStart.y() + shift * rowHeight);
