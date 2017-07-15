@@ -3075,8 +3075,6 @@ HistoryCall::HistoryCall(gsl::not_null<HistoryItem*> parent, const MTPDmessageAc
 			_duration = 0;
 		}
 	}
-
-	Calls::Current().newServiceMessage().notify(_parent->fullId());
 }
 
 HistoryCall::FinishReason HistoryCall::GetReason(const MTPDmessageActionPhoneCall &call) {

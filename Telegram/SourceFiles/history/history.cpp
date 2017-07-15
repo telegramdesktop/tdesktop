@@ -35,6 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "window/notifications_manager.h"
+#include "calls/calls_instance.h"
 
 namespace {
 
@@ -1007,6 +1008,10 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 					result->history()->peer->asChannel()->mgInfo->pinnedMsgId = m.vreply_to_msg_id.v;
 					if (App::main()) emit App::main()->peerUpdated(result->history()->peer);
 				}
+			} break;
+
+			case mtpc_messageActionPhoneCall: {
+				Calls::Current().newServiceMessage().notify(result->fullId());
 			} break;
 			}
 		}
