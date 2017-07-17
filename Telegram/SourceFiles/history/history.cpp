@@ -764,6 +764,37 @@ void Histories::savePinnedToServer() const {
 	MTP::send(MTPmessages_ReorderPinnedDialogs(MTP_flags(flags), MTP_vector(peers)));
 }
 
+void Histories::selfDestructIn(gsl::not_null<HistoryItem*> item, TimeMs delay) {
+	_selfDestructItems.push_back(item->fullId());
+	if (!_selfDestructTimer.isActive() || _selfDestructTimer.remainingTime() > delay) {
+		_selfDestructTimer.callOnce(delay);
+	}
+}
+
+void Histories::checkSelfDestructItems() {
+	auto now = getms(true);
+	auto nextDestructIn = TimeMs(0);
+	for (auto i = _selfDestructItems.begin(); i != _selfDestructItems.cend();) {
+		if (auto item = App::histItemById(*i)) {
+			if (auto destructIn = item->getSelfDestructIn(now)) {
+				if (nextDestructIn > 0) {
+					accumulate_min(nextDestructIn, destructIn);
+				} else {
+					nextDestructIn = destructIn;
+				}
+				++i;
+			} else {
+				i = _selfDestructItems.erase(i);
+			}
+		} else {
+			i = _selfDestructItems.erase(i);
+		}
+	}
+	if (nextDestructIn > 0) {
+		_selfDestructTimer.callOnce(nextDestructIn);
+	}
+}
+
 HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction, bool detachExistingItem) {
 	auto msgId = MsgId(0);
 	switch (msg.type()) {
@@ -799,7 +830,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			Good,
 			Unsupported,
 			Empty,
-			HasTTL,
+			HasTimeToLive,
 		};
 		auto badMedia = MediaCheckResult::Good;
 		if (m.has_media()) switch (m.vmedia.type()) {
@@ -822,7 +853,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 		case mtpc_messageMediaPhoto: {
 			auto &photo = m.vmedia.c_messageMediaPhoto();
 			if (photo.has_ttl_seconds()) {
-				badMedia = MediaCheckResult::HasTTL;
+				badMedia = MediaCheckResult::HasTimeToLive;
 			} else if (!photo.has_photo()) {
 				badMedia = MediaCheckResult::Empty;
 			} else {
@@ -836,7 +867,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 		case mtpc_messageMediaDocument: {
 			auto &document = m.vmedia.c_messageMediaDocument();
 			if (document.has_ttl_seconds()) {
-				badMedia = MediaCheckResult::HasTTL;
+				badMedia = MediaCheckResult::HasTimeToLive;
 			} else if (!document.has_document()) {
 				badMedia = MediaCheckResult::Empty;
 			} else {
@@ -872,9 +903,8 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 		} else if (badMedia == MediaCheckResult::Empty) {
 			auto message = HistoryService::PreparedText { lang(lng_message_empty) };
 			result = HistoryService::create(this, m.vid.v, date(m.vdate), message, m.vflags.v, m.has_from_id() ? m.vfrom_id.v : 0);
-		} else if (badMedia == MediaCheckResult::HasTTL) {
-			auto message = HistoryService::PreparedText { qsl("Self-destruct media, see mobile") };
-			result = HistoryService::create(this, m.vid.v, date(m.vdate), message, m.vflags.v, m.has_from_id() ? m.vfrom_id.v : 0);
+		} else if (badMedia == MediaCheckResult::HasTimeToLive) {
+			result = HistoryService::create(this, m);
 		} else {
 			result = HistoryMessage::create(this, m);
 		}

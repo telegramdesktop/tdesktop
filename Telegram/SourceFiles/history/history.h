@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_common.h"
 #include "ui/effects/send_action_animations.h"
 #include "base/observer.h"
+#include "base/timer.h"
 
 void HistoryInit();
 
@@ -43,6 +44,7 @@ public:
 	Map map;
 
 	Histories() : _a_typings(animation(this, &Histories::step_typings)) {
+		_selfDestructTimer.setCallback([this] { checkSelfDestructItems(); });
 	}
 
 	void regSendAction(History *history, UserData *user, const MTPSendMessageAction &action, TimeId when);
@@ -95,12 +97,18 @@ public:
 	base::Observable<SendActionAnimationUpdate> &sendActionAnimationUpdated() {
 		return _sendActionAnimationUpdated;
 	}
+	void selfDestructIn(gsl::not_null<HistoryItem*> item, TimeMs delay);
 
 private:
+	void checkSelfDestructItems();
+
 	int _unreadFull = 0;
 	int _unreadMuted = 0;
 	base::Observable<SendActionAnimationUpdate> _sendActionAnimationUpdated;
 	OrderedSet<History*> _pinnedDialogs;
+
+	base::Timer _selfDestructTimer;
+	std::vector<FullMsgId> _selfDestructItems;
 
 };
 

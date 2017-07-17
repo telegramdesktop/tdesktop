@@ -37,6 +37,16 @@ struct HistoryServicePayment : public RuntimeComponent<HistoryServicePayment>, p
 	QString amount;
 };
 
+struct HistoryServiceSelfDestruct : public RuntimeComponent<HistoryServiceSelfDestruct> {
+	enum class Type {
+		Photo,
+		Video,
+	};
+	Type type = Type::Photo;
+	TimeMs timeToLive = 0;
+	TimeMs destructAt = 0;
+};
+
 namespace HistoryLayout {
 class ServiceMessagePainter;
 } // namespace HistoryLayout
@@ -48,6 +58,9 @@ public:
 		QList<ClickHandlerPtr> links;
 	};
 
+	static gsl::not_null<HistoryService*> create(gsl::not_null<History*> history, const MTPDmessage &message) {
+		return _create(history, message);
+	}
 	static gsl::not_null<HistoryService*> create(gsl::not_null<History*> history, const MTPDmessageService &message) {
 		return _create(history, message);
 	}
@@ -83,6 +96,7 @@ public:
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
 	void applyEdition(const MTPDmessageService &message) override;
+	TimeMs getSelfDestructIn(TimeMs now) override;
 
 	int32 addToOverview(AddToOverviewMethod method) override;
 	void eraseFromOverview() override;
@@ -102,12 +116,15 @@ public:
 protected:
 	friend class HistoryLayout::ServiceMessagePainter;
 
+	HistoryService(gsl::not_null<History*> history, const MTPDmessage &message);
 	HistoryService(gsl::not_null<History*> history, const MTPDmessageService &message);
 	HistoryService(gsl::not_null<History*> history, MsgId msgId, QDateTime date, const PreparedText &message, MTPDmessage::Flags flags = 0, UserId from = 0, PhotoData *photo = 0);
 	friend class HistoryItemInstantiated<HistoryService>;
 
 	void initDimensions() override;
 	int resizeContentGetHeight() override;
+
+	void markMediaAsReadHook() override;
 
 	void setServiceText(const PreparedText &prepared);
 
@@ -138,8 +155,10 @@ private:
 	void updateDependentText();
 	void clearDependency();
 
+	void createFromMtp(const MTPDmessage &message);
 	void createFromMtp(const MTPDmessageService &message);
 	void setMessageByAction(const MTPmessageAction &action);
+	void setSelfDestruct(HistoryServiceSelfDestruct::Type type, int ttlSeconds);
 
 	PreparedText preparePinnedText();
 	PreparedText prepareGameScoreText();

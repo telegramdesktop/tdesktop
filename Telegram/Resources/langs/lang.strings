@@ -761,6 +761,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_took_screenshot" = "{from} took a screenshot!";
 "lng_action_you_took_screenshot" = "You took a screenshot!";
 
+"lng_ttl_photo_received" = "{from} sent you a self-destructing photo. Please view it on your mobile.";
+"lng_ttl_photo_sent" = "You sent a self-destructing photo.";
+"lng_ttl_photo_expired" = "Photo has expired";
+"lng_ttl_video_received" = "{from} sent you a self-destructing video. Please view it on your mobile.";
+"lng_ttl_video_sent" = "You sent a self-destructing video.";
+"lng_ttl_video_expired" = "Video has expired";
+
 "lng_profile_migrate_reached#one" = "{count} member limit reached";
 "lng_profile_migrate_reached#other" = "{count} members limit reached";
 "lng_profile_migrate_body" = "To get over this limit, you can upgrade your group to a supergroup.";

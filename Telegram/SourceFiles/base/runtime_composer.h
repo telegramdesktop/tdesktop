@@ -26,8 +26,8 @@ typedef void(*RuntimeComponentDestruct)(void *location);
 typedef void(*RuntimeComponentMove)(void *location, void *waslocation);
 
 struct RuntimeComponentWrapStruct {
-	// don't init any fields, because it is only created in
-	// global scope, so it will be filled by zeros from the start
+	// Don't init any fields, because it is only created in
+	// global scope, so it will be filled by zeros from the start.
 	RuntimeComponentWrapStruct() = default;
 	RuntimeComponentWrapStruct(std::size_t size, std::size_t align, RuntimeComponentConstruct construct, RuntimeComponentDestruct destruct, RuntimeComponentMove move)
 		: Size(size)
@@ -54,7 +54,8 @@ extern QAtomicInt RuntimeComponentIndexLast;
 template <typename Type>
 struct RuntimeComponent {
 	RuntimeComponent() {
-		static_assert(alignof(Type) <= alignof(SmallestSizeType), "Components should align to a pointer!");
+		// While there is no std::aligned_alloc().
+		static_assert(alignof(Type) <= alignof(std::max_align_t), "Components should align to std::max_align_t!");
 	}
 	RuntimeComponent(const RuntimeComponent &other) = delete;
 	RuntimeComponent &operator=(const RuntimeComponent &other) = delete;
@@ -62,17 +63,17 @@ struct RuntimeComponent {
 	RuntimeComponent &operator=(RuntimeComponent &&other) = default;
 
 	static int Index() {
-		static QAtomicInt _index(0);
-		if (int index = _index.loadAcquire()) {
+		static QAtomicInt MyIndex(0);
+		if (auto index = MyIndex.loadAcquire()) {
 			return index - 1;
 		}
 		while (true) {
-			int last = RuntimeComponentIndexLast.loadAcquire();
+			auto last = RuntimeComponentIndexLast.loadAcquire();
 			if (RuntimeComponentIndexLast.testAndSetOrdered(last, last + 1)) {
 				t_assert(last < 64);
-				if (_index.testAndSetOrdered(0, last + 1)) {
+				if (MyIndex.testAndSetOrdered(0, last + 1)) {
 					RuntimeComponentWraps[last] = RuntimeComponentWrapStruct(
-						CeilDivideMinimumOne<sizeof(Type), sizeof(SmallestSizeType)>::Result * sizeof(SmallestSizeType),
+						sizeof(Type),
 						alignof(Type),
 						Type::RuntimeComponentConstruct,
 						Type::RuntimeComponentDestruct,
@@ -81,15 +82,13 @@ struct RuntimeComponent {
 				break;
 			}
 		}
-		return _index.loadAcquire() - 1;
+		return MyIndex.loadAcquire() - 1;
 	}
 	static uint64 Bit() {
 		return (1ULL << Index());
 	}
 
 protected:
-	using SmallestSizeType = void*;
-
 	static void RuntimeComponentConstruct(void *location, RuntimeComposer *composer) {
 		new (location) Type();
 	}
@@ -104,30 +103,32 @@ protected:
 
 class RuntimeComposerMetadata {
 public:
-	RuntimeComposerMetadata(uint64 mask) : size(0), last(64), _mask(mask) {
-		for (int i = 0; i < 64; ++i) {
-			uint64 m = (1ULL << i);
-			if (_mask & m) {
-				int s = RuntimeComponentWraps[i].Size;
-				if (s) {
+	RuntimeComposerMetadata(uint64 mask) : _mask(mask) {
+		for (int i = 0; i != 64; ++i) {
+			auto componentBit = (1ULL << i);
+			if (_mask & componentBit) {
+				auto componentSize = RuntimeComponentWraps[i].Size;
+				if (componentSize) {
+					auto componentAlign = RuntimeComponentWraps[i].Align;
+					if (auto badAlign = (size % componentAlign)) {
+						size += (componentAlign - badAlign);
+					}
 					offsets[i] = size;
-					size += s;
-				} else {
-					offsets[i] = -1;
+					size += componentSize;
+					accumulate_max(align, componentAlign);
 				}
-			} else if (_mask < m) {
+			} else if (_mask < componentBit) {
 				last = i;
-				for (; i < 64; ++i) {
-					offsets[i] = -1;
-				}
-			} else {
-				offsets[i] = -1;
+				break;
 			}
 		}
 	}
 
-	int size, last;
-	int offsets[64];
+	// Meta pointer in the start.
+	std::size_t size = sizeof(const RuntimeComposerMetadata*);
+	std::size_t align = alignof(const RuntimeComposerMetadata*);
+	std::size_t offsets[64] = { 0 };
+	int last = 64;
 
 	bool equals(uint64 mask) const {
 		return _mask == mask;
@@ -150,28 +151,28 @@ class RuntimeComposer {
 public:
 	RuntimeComposer(uint64 mask = 0) : _data(zerodata()) {
 		if (mask) {
-			const RuntimeComposerMetadata *meta = GetRuntimeComposerMetadata(mask);
-			int size = sizeof(meta) + meta->size;
+			auto meta = GetRuntimeComposerMetadata(mask);
 
-			auto data = operator new(size);
+			auto data = operator new(meta->size);
 			t_assert(data != nullptr);
 
 			_data = data;
 			_meta() = meta;
 			for (int i = 0; i < meta->last; ++i) {
-				int offset = meta->offsets[i];
-				if (offset >= 0) {
+				auto offset = meta->offsets[i];
+				if (offset >= sizeof(_meta())) {
 					try {
 						auto constructAt = _dataptrunsafe(offset);
 						auto space = RuntimeComponentWraps[i].Size;
-						auto alignedAt = std::align(RuntimeComponentWraps[i].Align, space, constructAt, space);
+						auto alignedAt = constructAt;
+						std::align(RuntimeComponentWraps[i].Align, space, alignedAt, space);
 						t_assert(alignedAt == constructAt);
 						RuntimeComponentWraps[i].Construct(constructAt, this);
 					} catch (...) {
 						while (i > 0) {
 							--i;
 							offset = meta->offsets[--i];
-							if (offset >= 0) {
+							if (offset >= sizeof(_meta())) {
 								RuntimeComponentWraps[i].Destruct(_dataptrunsafe(offset));
 							}
 						}
@@ -187,8 +188,8 @@ public:
 		if (_data != zerodata()) {
 			auto meta = _meta();
 			for (int i = 0; i < meta->last; ++i) {
-				int offset = meta->offsets[i];
-				if (offset >= 0) {
+				auto offset = meta->offsets[i];
+				if (offset >= sizeof(_meta())) {
 					RuntimeComponentWraps[i].Destruct(_dataptrunsafe(offset));
 				}
 			}
@@ -198,7 +199,7 @@ public:
 
 	template <typename Type>
 	bool Has() const {
-		return (_meta()->offsets[Type::Index()] >= 0);
+		return (_meta()->offsets[Type::Index()] >= sizeof(_meta()));
 	}
 
 	template <typename Type>
@@ -218,8 +219,9 @@ protected:
 			if (_data != zerodata() && tmp._data != zerodata()) {
 				auto meta = _meta(), wasmeta = tmp._meta();
 				for (int i = 0; i < meta->last; ++i) {
-					int offset = meta->offsets[i], wasoffset = wasmeta->offsets[i];
-					if (offset >= 0 && wasoffset >= 0) {
+					auto offset = meta->offsets[i];
+					auto wasoffset = wasmeta->offsets[i];
+					if (offset >= sizeof(_meta()) && wasoffset >= sizeof(_meta())) {
 						RuntimeComponentWraps[i].Move(_dataptrunsafe(offset), tmp._dataptrunsafe(wasoffset));
 					}
 				}
@@ -240,15 +242,15 @@ private:
 	}
 
 	void *_dataptrunsafe(int skip) const {
-		return (char*)_data + sizeof(_meta()) + skip;
+		return (char*)_data + skip;
 	}
 	void *_dataptr(int skip) const {
-		return (skip >= 0) ? _dataptrunsafe(skip) : 0;
+		return (skip >= sizeof(_meta())) ? _dataptrunsafe(skip) : nullptr;
 	}
 	const RuntimeComposerMetadata *&_meta() const {
 		return *static_cast<const RuntimeComposerMetadata**>(_data);
 	}
-	void *_data;
+	void *_data = nullptr;
 
 	void swap(RuntimeComposer &other) {
 		std::swap(_data, other._data);

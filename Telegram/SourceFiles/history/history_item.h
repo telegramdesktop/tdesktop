@@ -579,7 +579,14 @@ public:
 	}
 	void markMediaRead() {
 		_flags &= ~MTPDmessage::Flag::f_media_unread;
+		markMediaAsReadHook();
 	}
+
+	// Zero result means this message is not self-destructing right now.
+	virtual TimeMs getSelfDestructIn(TimeMs now) {
+		return 0;
+	}
+
 	bool definesReplyKeyboard() const {
 		if (auto markup = Get<HistoryMessageReplyMarkup>()) {
 			if (markup->flags & MTPDreplyKeyboardMarkup_ClientFlag::f_inline) {
@@ -918,12 +925,15 @@ public:
 protected:
 	HistoryItem(History *history, MsgId msgId, MTPDmessage::Flags flags, QDateTime msgDate, int32 from);
 
-	// to completely create history item we need to call
-	// a virtual method, it can not be done from constructor
+	// To completely create history item we need to call
+	// a virtual method, it can not be done from constructor.
 	virtual void finishCreate();
 
-	// called from resizeGetHeight() when MTPDmessage_ClientFlag::f_pending_init_dimensions is set
+	// Called from resizeGetHeight() when MTPDmessage_ClientFlag::f_pending_init_dimensions is set.
 	virtual void initDimensions() = 0;
+
+	virtual void markMediaAsReadHook() {
+	}
 
 	virtual int resizeContentGetHeight() = 0;
 
