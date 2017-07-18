@@ -119,14 +119,14 @@ struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews> {
 };
 
 struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned> {
-	void create(UserData *from, const QDateTime &date);
+	void create(UserData *from, const QString &date);
 	int maxWidth() const;
 
 	Text _signature;
 };
 
 struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited> {
-	void create(const QDateTime &editDate, const QDateTime &date);
+	void create(const QDateTime &editDate, const QString &date);
 	int maxWidth() const;
 
 	QDateTime _editDate;

@@ -344,8 +344,8 @@ void HistoryMessageVia::resize(int32 availw) const {
 	}
 }
 
-void HistoryMessageSigned::create(UserData *from, const QDateTime &date) {
-	auto time = qsl(", ") + date.toString(cTimeFormat());
+void HistoryMessageSigned::create(UserData *from, const QString &date) {
+	auto time = qsl(", ") + date;
 	auto name = App::peerName(from);
 	auto timew = st::msgDateFont->width(time);
 	auto namew = st::msgDateFont->width(name);
@@ -359,11 +359,9 @@ int HistoryMessageSigned::maxWidth() const {
 	return _signature.maxWidth();
 }
 
-void HistoryMessageEdited::create(const QDateTime &editDate, const QDateTime &date) {
+void HistoryMessageEdited::create(const QDateTime &editDate, const QString &date) {
 	_editDate = editDate;
-
-	auto time = date.toString(cTimeFormat());
-	_edited.setText(st::msgDateTextStyle, lang(lng_edited) + ' ' + time, _textNameOptions);
+	_edited.setText(st::msgDateTextStyle, lang(lng_edited) + ' ' + date, _textNameOptions);
 }
 
 int HistoryMessageEdited::maxWidth() const {
@@ -865,11 +863,13 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	if (auto views = Get<HistoryMessageViews>()) {
 		views->_views = config.viewsCount;
 	}
-	if (auto msgsigned = Get<HistoryMessageSigned>()) {
-		msgsigned->create(_from->asUser(), date);
-	}
 	if (auto edited = Get<HistoryMessageEdited>()) {
-		edited->create(config.editDate, date);
+		edited->create(config.editDate, date.toString(cTimeFormat()));
+		if (auto msgsigned = Get<HistoryMessageSigned>()) {
+			msgsigned->create(_from->asUser(), edited->_edited.originalText());
+		}
+	} else if (auto msgsigned = Get<HistoryMessageSigned>()) {
+		msgsigned->create(_from->asUser(), date.toString(cTimeFormat()));
 	}
 	if (auto forwarded = Get<HistoryMessageForwarded>()) {
 		forwarded->_originalDate = config.originalDate;
@@ -1174,9 +1174,16 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 			if (!Has<HistoryMessageEdited>()) {
 				AddComponents(HistoryMessageEdited::Bit());
 			}
-			Get<HistoryMessageEdited>()->create(::date(message.vedit_date), date);
+			auto edited = Get<HistoryMessageEdited>();
+			edited->create(::date(message.vedit_date), date.toString(cTimeFormat()));
+			if (auto msgsigned = Get<HistoryMessageSigned>()) {
+				msgsigned->create(_from->asUser(), edited->_edited.originalText());
+			}
 		} else if (Has<HistoryMessageEdited>()) {
 			RemoveComponents(HistoryMessageEdited::Bit());
+			if (auto msgsigned = Get<HistoryMessageSigned>()) {
+				msgsigned->create(_from->asUser(), date.toString(cTimeFormat()));
+			}
 		}
 		initTime();
 	}

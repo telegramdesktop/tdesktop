@@ -1137,7 +1137,7 @@ void HistoryDocument::initDimensions() {
 
 	if (thumbed) {
 		_minh = st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom();
-		if (!captioned && _parent->Has<HistoryMessageSigned>()) {
+		if (!captioned && (_parent->Has<HistoryMessageSigned>() || _parent->Has<HistoryMessageEdited>())) {
 			_minh += st::msgDateFont->height - st::msgDateDelta.y();
 		}
 	} else {
