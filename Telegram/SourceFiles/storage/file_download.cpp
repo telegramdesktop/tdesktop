@@ -715,7 +715,7 @@ void mtpFileLoader::changeCDNParams(int offset, MTP::DcId dcId, const QByteArray
 			resendOffsets.push_back(resendOffset);
 		}
 		for (auto resendOffset : resendOffsets) {
-			makeRequest(offset);
+			makeRequest(resendOffset);
 		}
 	}
 	makeRequest(offset);
