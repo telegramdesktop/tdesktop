@@ -1288,6 +1288,15 @@ TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {
 		result.text += qstr("\n\n");
 		TextUtilities::Append(result, std::move(logEntryOriginalResult));
 	}
+	if (auto reply = Get<HistoryMessageReply>()) {
+		if (selection == FullSelection && reply->replyToMsg) {
+			TextWithEntities wrapped;
+			wrapped.text.reserve(lang(lng_in_reply_to).size() + reply->replyToMsg->author()->name.size() + 4 + result.text.size());
+			wrapped.text.append('[').append(lang(lng_in_reply_to)).append(' ').append(reply->replyToMsg->author()->name).append(qsl("]\n"));
+			TextUtilities::Append(wrapped, std::move(result));
+			result = wrapped;
+		}
+	}
 	if (auto forwarded = Get<HistoryMessageForwarded>()) {
 		if (selection == FullSelection) {
 			auto fwdinfo = forwarded->_text.originalTextWithEntities(AllTextSelection, ExpandLinksAll);
@@ -1297,15 +1306,6 @@ TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {
 			wrapped.text.append('[');
 			TextUtilities::Append(wrapped, std::move(fwdinfo));
 			wrapped.text.append(qsl("]\n"));
-			TextUtilities::Append(wrapped, std::move(result));
-			result = wrapped;
-		}
-	}
-	if (auto reply = Get<HistoryMessageReply>()) {
-		if (selection == FullSelection && reply->replyToMsg) {
-			TextWithEntities wrapped;
-			wrapped.text.reserve(lang(lng_in_reply_to).size() + reply->replyToMsg->author()->name.size() + 4 + result.text.size());
-			wrapped.text.append('[').append(lang(lng_in_reply_to)).append(' ').append(reply->replyToMsg->author()->name).append(qsl("]\n"));
 			TextUtilities::Append(wrapped, std::move(result));
 			result = wrapped;
 		}
