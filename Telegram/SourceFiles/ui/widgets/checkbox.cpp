@@ -408,9 +408,13 @@ void Checkbox::onStateChanged(State was, StateChangeSource source) {
 	auto now = state();
 	if (!isDisabled() && (was & StateFlag::Over) && (now & StateFlag::Over)) {
 		if ((was & StateFlag::Down) && !(now & StateFlag::Down)) {
-			setChecked(!checked());
+			handlePress();
 		}
 	}
+}
+
+void Checkbox::handlePress() {
+	setChecked(!checked());
 }
 
 int Checkbox::resizeGetHeight(int newWidth) {
@@ -461,14 +465,9 @@ void Radiobutton::handleNewGroupValue(int value) {
 	}
 }
 
-void Radiobutton::onStateChanged(State was, StateChangeSource source) {
-	Checkbox::onStateChanged(was, source);
-
-	auto now = state();
-	if (!isDisabled() && (was & StateFlag::Over) && (now & StateFlag::Over)) {
-		if ((was & StateFlag::Down) && !(now & StateFlag::Down)) {
-			_group->setValue(_value);
-		}
+void Radiobutton::handlePress() {
+	if (!checkbox()->checked()) {
+		checkbox()->setChecked(true);
 	}
 }
 

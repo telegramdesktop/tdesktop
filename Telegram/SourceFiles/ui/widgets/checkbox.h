@@ -148,6 +148,8 @@ protected:
 	QImage prepareRippleMask() const override;
 	QPoint prepareRippleStartPosition() const override;
 
+	virtual void handlePress();
+
 	void updateCheck() {
 		rtlupdate(_checkRect);
 	}
@@ -209,7 +211,7 @@ public:
 	~Radiobutton();
 
 protected:
-	void onStateChanged(State was, StateChangeSource source) override;
+	void handlePress() override;
 
 private:
 	// Hide the names from Checkbox.
