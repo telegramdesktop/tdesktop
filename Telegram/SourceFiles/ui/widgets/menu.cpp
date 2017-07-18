@@ -134,9 +134,9 @@ int Menu::processAction(QAction *action, int index, int width) {
 		int textw = _st.itemFont->width(actionText);
 		int goodw = _st.itemPadding.left() + textw + _st.itemPadding.right();
 		if (data.hasSubmenu) {
-			goodw += _st.itemPadding.left() + _st.arrow.width();
+			goodw += _st.itemPadding.right() + _st.arrow.width();
 		} else if (!actionShortcut.isEmpty()) {
-			goodw += _st.itemPadding.left() + _st.itemFont->width(actionShortcut);
+			goodw += _st.itemPadding.right() + _st.itemFont->width(actionShortcut);
 		}
 		if (action->isCheckable()) {
 			auto updateCallback = [this, index] { updateItem(index); };
@@ -146,7 +146,7 @@ int Menu::processAction(QAction *action, int index, int width) {
 			} else {
 				data.toggle = std::make_unique<ToggleView>(_st.itemToggle, action->isChecked(), updateCallback);
 			}
-			goodw += _st.itemPadding.left() + data.toggle->getSize().width() - _st.itemToggleShift;
+			goodw += _st.itemPadding.right() + data.toggle->getSize().width() - _st.itemToggleShift;
 		} else {
 			data.toggle.reset();
 		}
