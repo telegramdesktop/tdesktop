@@ -264,6 +264,8 @@ void MainWindow::initSize() {
 
 				auto w = screenGeometry.width(), h = screenGeometry.height();
 				if (w >= st::windowMinWidth && h >= st::windowMinHeight) {
+					if (position.x < 0) position.x = 0;
+					if (position.y < 0) position.y = 0;
 					if (position.w > w) position.w = w;
 					if (position.h > h) position.h = h;
 					position.x += screenGeometry.x();
@@ -277,8 +279,6 @@ void MainWindow::initSize() {
 				break;
 			}
 		}
-
-		if (position.y < 0) position.y = 0;
 		maximized = position.maximized;
 	}
 	DEBUG_LOG(("Window Pos: Setting first %1, %2, %3, %4").arg(geom.x()).arg(geom.y()).arg(geom.width()).arg(geom.height()));
