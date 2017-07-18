@@ -495,8 +495,11 @@ void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, in
 
 	if (w > st::msgReplyBarSkip) {
 		if (replyToMsg) {
-			bool hasPreview = replyToMsg->getMedia() ? replyToMsg->getMedia()->hasReplyPreview() : false;
-			int previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
+			auto hasPreview = replyToMsg->getMedia() ? replyToMsg->getMedia()->hasReplyPreview() : false;
+			if (hasPreview && w < st::msgReplyBarSkip + st::msgReplyBarSize.height()) {
+				hasPreview = false;
+			}
+			auto previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
 
 			if (hasPreview) {
 				ImagePtr replyPreview = replyToMsg->getMedia()->replyPreview();
