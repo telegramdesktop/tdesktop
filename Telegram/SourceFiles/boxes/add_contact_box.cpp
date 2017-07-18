@@ -41,6 +41,20 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "auth_session.h"
 
+namespace {
+
+constexpr auto kMaxGroupChannelTitle = 255;
+constexpr auto kMaxChannelDescription = 255;
+constexpr auto kMaxBioLength = 70;
+
+style::InputField CreateBioFieldStyle() {
+	auto result = st::newGroupDescription;
+	result.textMargins.setRight(st::boxTextFont->spacew + st::boxTextFont->width(QString::number(kMaxBioLength)));
+	return result;
+}
+
+} // namespace
+
 class RevokePublicLinkBox::Inner : public TWidget, private MTP::Sender {
 public:
 	Inner(QWidget *parent, base::lambda<void()> revokeCallback);
@@ -290,12 +304,12 @@ GroupInfoBox::GroupInfoBox(QWidget*, CreatingGroupType creating, bool fromTypeCh
 void GroupInfoBox::prepare() {
 	setMouseTracking(true);
 
-	_title->setMaxLength(MaxGroupChannelTitle);
+	_title->setMaxLength(kMaxGroupChannelTitle);
 
 	if (_creating == CreatingGroupChannel) {
 		_description.create(this, st::newGroupDescription, langFactory(lng_create_group_description));
 		_description->show();
-		_description->setMaxLength(MaxChannelDescription);
+		_description->setMaxLength(kMaxChannelDescription);
 
 		connect(_description, SIGNAL(resized()), this, SLOT(onDescriptionResized()));
 		connect(_description, SIGNAL(submitted(bool)), this, SLOT(onNext()));
@@ -828,8 +842,8 @@ void EditNameTitleBox::prepare() {
 	if (_invertOrder) {
 		setTabOrder(_last, _first);
 	}
-	_first->setMaxLength(MaxGroupChannelTitle);
-	_last->setMaxLength(MaxGroupChannelTitle);
+	_first->setMaxLength(kMaxGroupChannelTitle);
+	_last->setMaxLength(kMaxGroupChannelTitle);
 
 	connect(_first, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(_last, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
@@ -960,6 +974,76 @@ void EditNameTitleBox::onSaveChatDone(const MTPUpdates &updates) {
 	closeBox();
 }
 
+EditBioBox::EditBioBox(QWidget*, gsl::not_null<UserData*> self) : BoxContent()
+, _dynamicFieldStyle(CreateBioFieldStyle())
+, _self(self)
+, _bio(this, _dynamicFieldStyle, langFactory(lng_bio_placeholder), _self->about())
+, _countdown(this, QString(), Ui::FlatLabel::InitType::Simple, st::editBioCountdownLabel)
+, _about(this, lang(lng_bio_about), Ui::FlatLabel::InitType::Simple, st::aboutRevokePublicLabel) {
+}
+
+void EditBioBox::prepare() {
+	setTitle(langFactory(lng_bio_title));
+
+	addButton(langFactory(lng_settings_save), [this] { save(); });
+	addButton(langFactory(lng_cancel), [this] { closeBox(); });
+	_bio->setMaxLength(kMaxBioLength);
+	_bio->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
+	auto cursor = _bio->textCursor();
+	cursor.setPosition(_bio->getLastText().size());
+	_bio->setTextCursor(cursor);
+	connect(_bio, &Ui::InputArea::submitted, this, [this](bool ctrlShiftEnter) { save(); });
+	connect(_bio, &Ui::InputArea::resized, this, [this] { updateMaxHeight(); });
+	connect(_bio, &Ui::InputArea::changed, this, [this] { handleBioUpdated(); });
+	handleBioUpdated();
+	updateMaxHeight();
+}
+
+void EditBioBox::updateMaxHeight() {
+	auto newHeight = st::contactPadding.top() + _bio->height() + st::boxLittleSkip + _about->height() + st::boxPadding.bottom() + st::contactPadding.bottom();
+	setDimensions(st::boxWideWidth, newHeight);
+}
+
+void EditBioBox::handleBioUpdated() {
+	auto text = _bio->getLastText();
+	if (text.indexOf('\n') >= 0) {
+		auto position = _bio->textCursor().position();
+		_bio->setText(text.replace('\n', ' '));
+		auto cursor = _bio->textCursor();
+		cursor.setPosition(position);
+		_bio->setTextCursor(cursor);
+	}
+	auto countLeft = qMax(kMaxBioLength - text.size(), 0);
+	_countdown->setText(QString::number(countLeft));
+}
+
+void EditBioBox::setInnerFocus() {
+	_bio->setFocusFast();
+}
+
+void EditBioBox::resizeEvent(QResizeEvent *e) {
+	BoxContent::resizeEvent(e);
+
+	_bio->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _bio->height());
+	_bio->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::contactPadding.top());
+	_countdown->moveToRight(st::boxPadding.right(), _bio->y() + _dynamicFieldStyle.textMargins.top());
+	_about->moveToLeft(st::boxPadding.left(), _bio->y() + _bio->height() + st::boxLittleSkip);
+}
+
+void EditBioBox::save() {
+	if (_requestId) return;
+
+	auto text = TextUtilities::PrepareForSending(_bio->getLastText());
+	_sentBio = text;
+
+	auto flags = MTPaccount_UpdateProfile::Flag::f_about;
+	_requestId = request(MTPaccount_UpdateProfile(MTP_flags(flags), MTPstring(), MTPstring(), MTP_string(text))).done([this](const MTPUser &result) {
+		App::feedUsers(MTP_vector<MTPUser>(1, result));
+		_self->setAbout(_sentBio);
+		closeBox();
+	}).send();
+}
+
 EditChannelBox::EditChannelBox(QWidget*, gsl::not_null<ChannelData*> channel)
 : _channel(channel)
 , _title(this, st::defaultInputField, langFactory(_channel->isMegagroup() ? lng_dlg_new_group_name : lng_dlg_new_channel_name), _channel->name)
@@ -981,8 +1065,8 @@ void EditChannelBox::prepare() {
 
 	setMouseTracking(true);
 
-	_title->setMaxLength(MaxGroupChannelTitle);
-	_description->setMaxLength(MaxChannelDescription);
+	_title->setMaxLength(kMaxGroupChannelTitle);
+	_description->setMaxLength(kMaxChannelDescription);
 
 	connect(_description, SIGNAL(resized()), this, SLOT(onDescriptionResized()));
 	connect(_description, SIGNAL(submitted(bool)), this, SLOT(onSave()));

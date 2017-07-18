@@ -535,7 +535,7 @@ private:
 	Window::SectionSlideParams prepareOverviewAnimation();
 	Window::SectionSlideParams prepareDialogsAnimation();
 
-	void startWithSelf(const MTPVector<MTPUser> &users);
+	void startWithSelf(const MTPUserFull &user);
 
 	void saveSectionInStack();
 

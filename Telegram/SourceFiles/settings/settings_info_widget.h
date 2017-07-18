@@ -45,10 +45,11 @@ private:
 	void refreshMobileNumber();
 	void refreshUsername();
 	void refreshLink();
+	void refreshBio();
 
 	class LabeledWidget : public TWidget {
 	public:
-		LabeledWidget(QWidget *parent);
+		LabeledWidget(QWidget *parent, const style::FlatLabel &valueSt);
 
 		void setLabeledText(const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText);
 
@@ -63,6 +64,7 @@ private:
 	private:
 		void setLabelText(object_ptr<Ui::FlatLabel> &text, const TextWithEntities &textWithEntities, const QString &copyText);
 
+		const style::FlatLabel &_valueSt;
 		object_ptr<Ui::FlatLabel> _label = { nullptr };
 		object_ptr<Ui::FlatLabel> _text = { nullptr };
 		object_ptr<Ui::FlatLabel> _shortText = { nullptr };
@@ -75,6 +77,7 @@ private:
 	object_ptr<LabeledWrap> _mobileNumber = { nullptr };
 	object_ptr<LabeledWrap> _username = { nullptr };
 	object_ptr<LabeledWrap> _link = { nullptr };
+	object_ptr<LabeledWrap> _bio = { nullptr };
 
 };
 

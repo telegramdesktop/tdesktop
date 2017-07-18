@@ -80,19 +80,7 @@ public:
 	}
 
 protected:
-	QString url() const override {
-		if (isEmail()) {
-			return _originalUrl;
-		}
-
-		QUrl u(_originalUrl), good(u.isValid() ? u.toEncoded() : QString());
-		QString result(good.isValid() ? QString::fromUtf8(good.toEncoded()) : _originalUrl);
-
-		if (!QRegularExpression(qsl("^[a-zA-Z]+:")).match(result).hasMatch()) { // no protocol
-			return qsl("http://") + result;
-		}
-		return result;
-	}
+	QString url() const override;
 	QString readable() const override {
 		return _readable;
 	}
@@ -114,6 +102,9 @@ typedef QSharedPointer<TextClickHandler> TextClickHandlerPtr;
 class HiddenUrlClickHandler : public UrlClickHandler {
 public:
 	HiddenUrlClickHandler(QString url) : UrlClickHandler(url, false) {
+	}
+	QString copyToClipboardContextItemText() const override {
+		return url().isEmpty() ? QString() : UrlClickHandler::copyToClipboardContextItemText();
 	}
 
 	static void doOpen(QString url);

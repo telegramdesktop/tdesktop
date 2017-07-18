@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "boxes/abstract_box.h"
+#include "mtproto/sender.h"
 
 class ConfirmBox;
 
@@ -227,6 +228,32 @@ private:
 
 	mtpRequestId _requestId = 0;
 	QString _sentName;
+
+};
+
+class EditBioBox : public BoxContent, private MTP::Sender {
+public:
+	EditBioBox(QWidget*, gsl::not_null<UserData*> self);
+
+protected:
+	void setInnerFocus() override;
+	void prepare() override;
+
+	void resizeEvent(QResizeEvent *e) override;
+
+private:
+	void updateMaxHeight();
+	void handleBioUpdated();
+	void save();
+
+	style::InputField _dynamicFieldStyle;
+	gsl::not_null<UserData*> _self;
+
+	object_ptr<Ui::InputArea> _bio;
+	object_ptr<Ui::FlatLabel> _countdown;
+	object_ptr<Ui::FlatLabel> _about;
+	mtpRequestId _requestId = 0;
+	QString _sentBio;
 
 };
 

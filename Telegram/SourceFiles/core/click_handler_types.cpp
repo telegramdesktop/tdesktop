@@ -30,10 +30,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/tooltip.h"
 #include "core/file_utilities.h"
 
-QString UrlClickHandler::copyToClipboardContextItemText() const {
-	return lang(isEmail() ? lng_context_copy_email : lng_context_copy_link);
-}
-
 namespace {
 
 QString tryConvertUrlToLocal(QString url) {
@@ -79,6 +75,24 @@ bool UrlRequiresConfirmation(const QUrl &url) {
 }
 
 } // namespace
+
+QString UrlClickHandler::copyToClipboardContextItemText() const {
+	return lang(isEmail() ? lng_context_copy_email : lng_context_copy_link);
+}
+
+QString UrlClickHandler::url() const {
+	if (isEmail()) {
+		return _originalUrl;
+	}
+
+	QUrl u(_originalUrl), good(u.isValid() ? u.toEncoded() : QString());
+	QString result(good.isValid() ? QString::fromUtf8(good.toEncoded()) : _originalUrl);
+
+	if (!result.isEmpty() && !QRegularExpression(qsl("^[a-zA-Z]+:")).match(result).hasMatch()) { // no protocol
+		return qsl("http://") + result;
+	}
+	return result;
+}
 
 void UrlClickHandler::doOpen(QString url) {
 	Ui::Tooltip::Hide();

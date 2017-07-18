@@ -202,6 +202,10 @@ aboutRevokePublicLabel: FlatLabel(defaultFlatLabel) {
 	align: align(topleft);
 	width: 320px;
 }
+editBioCountdownLabel: FlatLabel(defaultFlatLabel) {
+	style: boxTextStyle;
+	textFg: windowSubTextFg;
+}
 
 contactUserIcon: icon {{ "add_contact_user", menuIconFg }};
 contactPhoneIcon: icon {{ "add_contact_phone", menuIconFg }};
@@ -563,11 +567,7 @@ passcodeTextStyle: TextStyle(defaultTextStyle) {
 
 usernamePadding: margins(23px, 6px, 21px, 12px);
 usernameSkip: 49px;
-usernameTextStyle: TextStyle(passcodeTextStyle) {
-	font: boxTextFont;
-	linkFont: boxTextFont;
-	linkFontOver: font(boxFontSize underline);
-}
+usernameTextStyle: boxTextStyle;
 usernameDefaultFg: windowSubTextFg;
 
 downloadPathSkip: 10px;

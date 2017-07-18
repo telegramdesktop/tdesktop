@@ -29,6 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "intro/introsignup.h"
 #include "intro/intropwdcheck.h"
 #include "mainwidget.h"
+#include "apiwrap.h"
 #include "mainwindow.h"
 #include "messenger.h"
 #include "application.h"
@@ -455,6 +456,9 @@ void Widget::Step::finish(const MTPUser &user, QImage photo) {
 	App::wnd()->setupMain(&user);
 
 	// "this" is already deleted here by creating the main widget.
+	if (auto user = App::self()) {
+		App::api()->requestFullPeer(user);
+	}
 	if (!photo.isNull()) {
 		App::app()->uploadProfilePhoto(photo, AuthSession::CurrentUserId());
 	}

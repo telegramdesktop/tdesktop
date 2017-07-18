@@ -102,6 +102,10 @@ settingsBlockOneLineTextPart: FlatLabel(settingsPrimaryLabel) {
 	margin: margins(5px, 5px, 5px, 5px);
 	maxHeight: 20px;
 }
+settingsBioValue: FlatLabel(settingsBlockOneLineTextPart) {
+	width: 120px;
+	maxHeight: 0px;
+}
 settingsSubSkip: 4px;
 settingsSmallSkip: 10px;
 settingsSkip: 14px;

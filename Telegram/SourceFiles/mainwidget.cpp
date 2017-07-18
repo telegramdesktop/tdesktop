@@ -3995,7 +3995,7 @@ void MainWidget::mtpPing() {
 
 void MainWidget::start(const MTPUser *self) {
 	if (!self) {
-		MTP::send(MTPusers_GetUsers(MTP_vector<MTPInputUser>(1, MTP_inputUserSelf())), rpcDone(&MainWidget::startWithSelf));
+		MTP::send(MTPusers_GetFullUser(MTP_inputUserSelf()), rpcDone(&MainWidget::startWithSelf));
 		return;
 	}
 	if (!AuthSession::Current().validateSelf(*self)) {
@@ -4227,13 +4227,13 @@ bool MainWidget::inviteImportFail(const RPCError &error) {
 	return true;
 }
 
-void MainWidget::startWithSelf(const MTPVector<MTPUser> &users) {
-	auto &v = users.v;
-	if (v.isEmpty()) {
-		LOG(("Auth Error: self user not received."));
-		return App::logOutDelayed();
+void MainWidget::startWithSelf(const MTPUserFull &result) {
+	Expects(result.type() == mtpc_userFull);
+	auto &d = result.c_userFull();
+	start(&d.vuser);
+	if (auto user = App::self()) {
+		App::api()->processFullPeer(user, result);
 	}
-	start(&v[0]);
 }
 
 void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNotifySettings &settings, History *h) {

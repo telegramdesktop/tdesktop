@@ -271,10 +271,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_username_link" = "This link opens a chat with you:";
 "lng_username_copied" = "Link copied to clipboard.";
 
+"lng_bio_title" = "Edit your bio";
+"lng_bio_placeholder" = "Bio";
+"lng_bio_about" = "You can add a few lines about yourself. Anyone who opens your profile will see this text.";
+
 "lng_settings_section_info" = "Info";
 "lng_settings_phone_number" = "Phone number:";
 "lng_settings_username" = "Username:";
 "lng_settings_choose_username" = "Choose username";
+"lng_settings_empty_bio" = "None";
 
 "lng_settings_section_notify" = "Notifications";
 "lng_settings_desktop_notify" = "Desktop notifications";
@@ -570,6 +575,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_mobile_number" = "Mobile:";
 "lng_profile_username" = "Username:";
 "lng_profile_link" = "Link:";
+"lng_profile_bio" = "Bio:";
 "lng_profile_add_contact" = "Add Contact";
 "lng_profile_edit_contact" = "Edit";
 "lng_profile_enable_notifications" = "Notifications";
