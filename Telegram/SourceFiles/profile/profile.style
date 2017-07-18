@@ -105,6 +105,10 @@ profileBlockOneLineTextPart: FlatLabel(profileBlockTextPart) {
 	width: 0px; // No need to set minWidth in one-line text.
 	maxHeight: 20px;
 }
+profileBioLabel: FlatLabel(profileBlockOneLineTextPart) {
+	width: 120px;
+	maxHeight: 0px;
+}
 profileBlockOneLineSkip: 9px;
 profileBlockOneLineWidthMax: 240px;
 

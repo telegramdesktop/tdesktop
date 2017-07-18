@@ -110,10 +110,11 @@ int InfoWidget::resizeGetHeight(int newWidth) {
 				text->show();
 			}
 		}
-		newHeight += label->height() + st::profileBlockOneLineSkip;
+		newHeight += qMax(label->height(), text->height() - st::profileBlockTextPart.margin.top() - st::profileBlockTextPart.margin.bottom()) + st::profileBlockOneLineSkip;
 	};
 	moveLabeledText(_channelLinkLabel, _channelLink, _channelLinkShort);
 	moveLabeledText(_mobileNumberLabel, _mobileNumber, nullptr);
+	moveLabeledText(_bioLabel, _bio, nullptr);
 	moveLabeledText(_usernameLabel, _username, nullptr);
 
 	newHeight += st::profileBlockMarginBottom;
@@ -135,7 +136,7 @@ void InfoWidget::refreshLabels() {
 }
 
 void InfoWidget::refreshVisibility() {
-	setVisible(_about || _mobileNumber || _username || _channelLink);
+	setVisible(_about || _mobileNumber || _username || _bio || _channelLink);
 }
 
 void InfoWidget::refreshAbout() {
@@ -149,18 +150,33 @@ void InfoWidget::refreshAbout() {
 	};
 
 	_about.destroy();
+	_bioLabel.destroy();
+	_bio.destroy();
 	auto aboutText = TextWithEntities { TextUtilities::Clean(getAboutText()) };
+	auto displayAsBio = false;
+	if (auto user = peer()->asUser()) {
+		if (!user->botInfo) {
+			displayAsBio = true;
+		}
+	}
+	if (displayAsBio) {
+		aboutText.text = TextUtilities::SingleLine(aboutText.text);
+	}
 	if (!aboutText.text.isEmpty()) {
-		_about.create(this, st::profileBlockTextPart);
-		_about->show();
+		if (displayAsBio) {
+			setLabeledText(&_bioLabel, lang(lng_profile_bio), &_bio, aboutText, st::profileBioLabel, QString());
+		} else {
+			_about.create(this, st::profileBlockTextPart);
+			_about->show();
 
-		TextUtilities::ParseEntities(aboutText, TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands);
-		_about->setMarkedText(aboutText);
-		_about->setSelectable(true);
-		_about->setClickHandlerHook([this](const ClickHandlerPtr &handler, Qt::MouseButton button) {
-			BotCommandClickHandler::setPeerForCommand(peer());
-			return true;
-		});
+			TextUtilities::ParseEntities(aboutText, TextParseLinks | TextParseMentions | TextParseHashtags | TextParseBotCommands);
+			_about->setMarkedText(aboutText);
+			_about->setSelectable(true);
+			_about->setClickHandlerHook([this](const ClickHandlerPtr &handler, Qt::MouseButton button) {
+				BotCommandClickHandler::setPeerForCommand(peer());
+				return true;
+			});
+		}
 	}
 }
 
@@ -173,7 +189,7 @@ void InfoWidget::refreshMobileNumber() {
 			phoneText.text = App::phoneFromSharedContact(peerToUser(user->id));
 		}
 	}
-	setLabeledText(&_mobileNumberLabel, lang(lng_profile_mobile_number), &_mobileNumber, phoneText, lang(lng_profile_copy_phone));
+	setSingleLineLabeledText(&_mobileNumberLabel, lang(lng_profile_mobile_number), &_mobileNumber, phoneText, lang(lng_profile_copy_phone));
 }
 
 void InfoWidget::refreshUsername() {
@@ -183,7 +199,7 @@ void InfoWidget::refreshUsername() {
 			usernameText.text = '@' + user->username;
 		}
 	}
-	setLabeledText(&_usernameLabel, lang(lng_profile_username), &_username, usernameText, lang(lng_context_copy_mention));
+	setSingleLineLabeledText(&_usernameLabel, lang(lng_profile_username), &_username, usernameText, lang(lng_context_copy_mention));
 }
 
 void InfoWidget::refreshChannelLink() {
@@ -197,29 +213,39 @@ void InfoWidget::refreshChannelLink() {
 			channelLinkTextShort.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, channelLinkTextShort.text.size(), Messenger::Instance().createInternalLinkFull(channel->username)));
 		}
 	}
-	setLabeledText(nullptr, lang(lng_profile_link), &_channelLink, channelLinkText, QString());
-	setLabeledText(&_channelLinkLabel, lang(lng_profile_link), &_channelLinkShort, channelLinkTextShort, QString());
+	setSingleLineLabeledText(nullptr, lang(lng_profile_link), &_channelLink, channelLinkText, QString());
+	setSingleLineLabeledText(&_channelLinkLabel, lang(lng_profile_link), &_channelLinkShort, channelLinkTextShort, QString());
 	if (_channelLinkShort) {
 		_channelLinkShort->setExpandLinksMode(ExpandLinksUrlOnly);
 	}
 }
 
 void InfoWidget::setLabeledText(object_ptr<Ui::FlatLabel> *labelWidget, const QString &label,
-	object_ptr<Ui::FlatLabel> *textWidget, const TextWithEntities &textWithEntities, const QString &copyText) {
+	object_ptr<Ui::FlatLabel> *textWidget, const TextWithEntities &textWithEntities,
+	const style::FlatLabel &st, const QString &copyText) {
 	if (labelWidget) labelWidget->destroy();
 	textWidget->destroy();
-	if (textWithEntities.text.isEmpty()) return;
+	if (textWithEntities.text.isEmpty()) {
+		return;
+	}
 
 	if (labelWidget) {
 		labelWidget->create(this, label, Ui::FlatLabel::InitType::Simple, st::profileBlockLabel);
 		(*labelWidget)->show();
 	}
-	textWidget->create(this, QString(), Ui::FlatLabel::InitType::Simple, st::profileBlockOneLineTextPart);
+	textWidget->create(this, QString(), Ui::FlatLabel::InitType::Simple, st);
 	(*textWidget)->show();
 	(*textWidget)->setMarkedText(textWithEntities);
 	(*textWidget)->setContextCopyText(copyText);
 	(*textWidget)->setSelectable(true);
-	(*textWidget)->setDoubleClickSelectsParagraph(true);
+}
+
+void InfoWidget::setSingleLineLabeledText(object_ptr<Ui::FlatLabel> *labelWidget, const QString &label,
+	object_ptr<Ui::FlatLabel> *textWidget, const TextWithEntities &textWithEntities, const QString &copyText) {
+	setLabeledText(labelWidget, label, textWidget, textWithEntities, st::profileBlockOneLineTextPart, copyText);
+	if (*textWidget) {
+		(*textWidget)->setDoubleClickSelectsParagraph(true);
+	}
 }
 
 } // namespace Profile

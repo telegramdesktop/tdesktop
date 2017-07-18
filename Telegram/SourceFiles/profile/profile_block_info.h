@@ -22,6 +22,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "profile/profile_block_widget.h"
 
+namespace style {
+struct FlatLabel;
+} // namespace style
+
 namespace Ui {
 class FlatLabel;
 } // namespace Ui
@@ -55,6 +59,9 @@ private:
 
 	// labelWidget may be nullptr.
 	void setLabeledText(object_ptr<Ui::FlatLabel> *labelWidget, const QString &label,
+		object_ptr<Ui::FlatLabel> *textWidget, const TextWithEntities &textWithEntities,
+		const style::FlatLabel &st, const QString &copyText);
+	void setSingleLineLabeledText(object_ptr<Ui::FlatLabel> *labelWidget, const QString &label,
 		object_ptr<Ui::FlatLabel> *textWidget, const TextWithEntities &textWithEntities, const QString &copyText);
 
 	object_ptr<Ui::FlatLabel> _about = { nullptr };
@@ -63,6 +70,8 @@ private:
 	object_ptr<Ui::FlatLabel> _channelLinkShort = { nullptr };
 	object_ptr<Ui::FlatLabel> _mobileNumberLabel = { nullptr };
 	object_ptr<Ui::FlatLabel> _mobileNumber = { nullptr };
+	object_ptr<Ui::FlatLabel> _bioLabel = { nullptr };
+	object_ptr<Ui::FlatLabel> _bio = { nullptr };
 	object_ptr<Ui::FlatLabel> _usernameLabel = { nullptr };
 	object_ptr<Ui::FlatLabel> _username = { nullptr };
 
