@@ -1092,10 +1092,8 @@ void HistoryMessage::initDimensions() {
 			}
 			if (entry) {
 				accumulate_max(_maxw, entry->_page->maxWidth());
+				_minh += entry->_page->minHeight();
 			}
-		}
-		if (entry) {
-			_minh += entry->_page->minHeight();
 		}
 	} else if (_media) {
 		_media->initDimensions();
@@ -1840,7 +1838,7 @@ int HistoryMessage::performResizeGetHeight() {
 				_media->resizeGetHeight(_maxw);
 			}
 			if (entry) {
-				entry->_page->resizeGetHeight(_maxw);
+				_height += entry->_page->resizeGetHeight(countGeometry().width());
 			}
 		} else {
 			if (emptyText()) {
@@ -1864,31 +1862,29 @@ int HistoryMessage::performResizeGetHeight() {
 			}
 			if (mediaDisplayed) {
 				_height += _media->resizeGetHeight(contentWidth);
-			}
-			if (entry) {
+				if (entry) {
+					_height += entry->_page->resizeGetHeight(countGeometry().width());
+				}
+			} else if (entry) {
 				_height += entry->_page->resizeGetHeight(contentWidth);
 			}
 		}
 
 		if (displayFromName()) {
-			auto g = countGeometry();
-			fromNameUpdated(g.width());
+			fromNameUpdated(countGeometry().width());
 			_height += st::msgNameFont->height;
 		} else if (via && !forwarded) {
-			auto g = countGeometry();
-			via->resize(g.width() - st::msgPadding.left() - st::msgPadding.right());
+			via->resize(countGeometry().width() - st::msgPadding.left() - st::msgPadding.right());
 			_height += st::msgNameFont->height;
 		}
 
 		if (displayForwardedFrom()) {
-			auto g = countGeometry();
-			auto fwdheight = ((forwarded->_text.maxWidth() > (g.width() - st::msgPadding.left() - st::msgPadding.right())) ? 2 : 1) * st::semiboldFont->height;
+			auto fwdheight = ((forwarded->_text.maxWidth() > (countGeometry().width() - st::msgPadding.left() - st::msgPadding.right())) ? 2 : 1) * st::semiboldFont->height;
 			_height += fwdheight;
 		}
 
 		if (reply) {
-			auto g = countGeometry();
-			reply->resize(g.width() - st::msgPadding.left() - st::msgPadding.right());
+			reply->resize(countGeometry().width() - st::msgPadding.left() - st::msgPadding.right());
 			_height += st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		}
 	} else if (_media) {
