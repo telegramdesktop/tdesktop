@@ -54,6 +54,7 @@ LanguageBox::Inner::Inner(QWidget *parent, gsl::not_null<Languages*> languages) 
 	_group->setChangedCallback([this](int value) { languageChanged(value); });
 	subscribe(Lang::Current().updated(), [this] {
 		activateCurrent();
+		refresh();
 	});
 }
 
@@ -96,12 +97,13 @@ void LanguageBox::Inner::languageChanged(int languageIndex) {
 void LanguageBox::Inner::activateCurrent() {
 	auto currentId = Lang::Current().id();
 	for (auto i = 0, count = _languages->size(); i != count; ++i) {
-		if ((*_languages)[i].id == currentId) {
+		auto languageId = (*_languages)[i].id;
+		auto isCurrent = (languageId == currentId) || (languageId == Lang::DefaultLanguageId() && currentId.isEmpty());
+		if (isCurrent) {
 			_group->setValue(i);
 			return;
 		}
 	}
-	refresh();
 }
 
 void LanguageBox::prepare() {
