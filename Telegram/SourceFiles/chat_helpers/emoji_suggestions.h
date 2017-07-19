@@ -20,22 +20,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtCore/QString>
-#include <QtCore/QStringList>
+namespace Ui {
+namespace Emoji {
 
-namespace codegen {
-namespace emoji {
-
-struct Options {
-	QString outputPath = ".";
-	QString replacesPath;
-#ifdef SUPPORT_IMAGE_GENERATION
-	bool writeImages = false;
-#endif // SUPPORT_IMAGE_GENERATION
+struct Suggestion {
+	QString id;
+	QString label;
+	QString replacement;
 };
 
-// Parsing failed if inputPath is empty in the result.
-Options parseOptions();
+QVector<Suggestion> GetSuggestions(const QString &query);
 
-} // namespace emoji
-} // namespace codegen
+} // namespace Emoji
+} // namespace Ui

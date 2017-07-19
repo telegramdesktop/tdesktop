@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "codegen/common/cpp_file.h"
 #include "codegen/emoji/options.h"
 #include "codegen/emoji/data.h"
+#include "codegen/emoji/replaces.h"
 
 namespace codegen {
 namespace emoji {
@@ -52,10 +53,15 @@ private:
 
 	bool writeInitCode();
 	bool writeSections();
+	bool writeReplacements();
 	bool writeGetSections();
 	bool writeFindReplace();
 	bool writeFind();
 	bool writeFindFromDictionary(const std::map<QString, int, std::greater<QString>> &dictionary, bool skipPostfixes = false);
+	bool writeGetReplacements();
+	void startBinary();
+	bool writeStringBinary(const QString &string);
+	void writeIntBinary(int data);
 
 	const common::ProjectInfo &project_;
 	int colorsCount_ = 0;
@@ -66,6 +72,10 @@ private:
 	QString spritePath_;
 	std::unique_ptr<common::CppFile> source_;
 	Data data_;
+	Replaces replaces_;
+
+	int _binaryFullLength = 0;
+	int _binaryCount = 0;
 
 };
 

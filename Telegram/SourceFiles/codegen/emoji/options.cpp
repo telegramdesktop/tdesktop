@@ -29,6 +29,8 @@ namespace emoji {
 namespace {
 
 constexpr int kErrorOutputPathExpected      = 902;
+constexpr int kErrorReplacesPathExpected    = 903;
+constexpr int kErrorOneReplacesPathExpected = 904;
 
 } // namespace
 
@@ -54,10 +56,18 @@ Options parseOptions() {
 		} else if (arg == "--images") {
 			result.writeImages = true;
 #endif // SUPPORT_IMAGE_GENERATION
+		} else if (result.replacesPath.isEmpty()) {
+			result.replacesPath = arg;
+		} else {
+			logError(kErrorOneReplacesPathExpected, "Command Line") << "only one replaces path expected";
+			return Options();
 		}
 	}
 	if (result.outputPath.isEmpty()) {
 		logError(kErrorOutputPathExpected, "Command Line") << "output path expected";
+		return Options();
+	} else if (result.replacesPath.isEmpty()) {
+		logError(kErrorReplacesPathExpected, "Command Line") << "replaces path expected";
 		return Options();
 	}
 	return result;

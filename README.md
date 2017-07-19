@@ -28,14 +28,15 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 * liblzma ([public domain](http://tukaani.org/xz/))
 * Google Breakpad ([License](https://chromium.googlesource.com/breakpad/breakpad/+/master/LICENSE))
 * Google Crashpad ([Apache License 2.0](https://chromium.googlesource.com/crashpad/crashpad/+/master/LICENSE))
-* GYP ([BSD license](https://github.com/bnoordhuis/gyp/blob/master/LICENSE))
+* GYP ([BSD License](https://github.com/bnoordhuis/gyp/blob/master/LICENSE))
 * Ninja ([Apache License 2.0](https://github.com/ninja-build/ninja/blob/master/COPYING))
 * OpenAL Soft ([LGPL](http://kcat.strangesoft.net/openal.html))
-* Opus codec ([BSD license](http://www.opus-codec.org/license/))
+* Opus codec ([BSD License](http://www.opus-codec.org/license/))
 * FFmpeg ([LGPL](https://www.ffmpeg.org/legal.html))
 * Guideline Support Library ([MIT License](https://github.com/Microsoft/GSL/blob/master/LICENSE))
-* Mapbox Variant ([BSD license](https://github.com/mapbox/variant/blob/master/LICENSE))
+* Mapbox Variant ([BSD License](https://github.com/mapbox/variant/blob/master/LICENSE))
 * Open Sans font ([Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0.html))
+* Emoji alpha codes ([MIT License](https://github.com/emojione/emojione/blob/master/extras/alpha-codes/LICENSE.md))
 
 ## Build instructions
 

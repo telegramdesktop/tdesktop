@@ -20,22 +20,3 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtCore/QString>
-#include <QtCore/QStringList>
-
-namespace codegen {
-namespace emoji {
-
-struct Options {
-	QString outputPath = ".";
-	QString replacesPath;
-#ifdef SUPPORT_IMAGE_GENERATION
-	bool writeImages = false;
-#endif // SUPPORT_IMAGE_GENERATION
-};
-
-// Parsing failed if inputPath is empty in the result.
-Options parseOptions();
-
-} // namespace emoji
-} // namespace codegen

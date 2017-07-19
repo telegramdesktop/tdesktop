@@ -162,6 +162,8 @@
       '<(src_loc)/codegen/emoji/main.cpp',
       '<(src_loc)/codegen/emoji/options.cpp',
       '<(src_loc)/codegen/emoji/options.h',
+      '<(src_loc)/codegen/emoji/replaces.cpp',
+      '<(src_loc)/codegen/emoji/replaces.h',
     ],
   }],
 }

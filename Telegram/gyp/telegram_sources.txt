@@ -98,6 +98,10 @@
 <(src_loc)/chat_helpers/bot_keyboard.h
 <(src_loc)/chat_helpers/emoji_list_widget.cpp
 <(src_loc)/chat_helpers/emoji_list_widget.h
+<(src_loc)/chat_helpers/emoji_suggestions.cpp
+<(src_loc)/chat_helpers/emoji_suggestions.h
+<(src_loc)/chat_helpers/emoji_suggestions_widget.cpp
+<(src_loc)/chat_helpers/emoji_suggestions_widget.h
 <(src_loc)/chat_helpers/field_autocomplete.cpp
 <(src_loc)/chat_helpers/field_autocomplete.h
 <(src_loc)/chat_helpers/gifs_list_widget.cpp

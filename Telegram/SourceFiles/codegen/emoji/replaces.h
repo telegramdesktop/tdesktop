@@ -20,22 +20,28 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtCore/QString>
-#include <QtCore/QStringList>
+#include "codegen/common/logging.h"
+#include "codegen/emoji/data.h"
+#include <QtCore/QVector>
 
 namespace codegen {
 namespace emoji {
 
-struct Options {
-	QString outputPath = ".";
-	QString replacesPath;
-#ifdef SUPPORT_IMAGE_GENERATION
-	bool writeImages = false;
-#endif // SUPPORT_IMAGE_GENERATION
+struct Replace {
+	Id id;
+	QString replacement;
+	QVector<QString> words;
 };
 
-// Parsing failed if inputPath is empty in the result.
-Options parseOptions();
+struct Replaces {
+	Replaces(const QString &filename) : filename(filename) {
+	}
+	QString filename;
+	QVector<Replace> list;
+};
+
+Replaces PrepareReplaces(const QString &filename);
+bool CheckAndConvertReplaces(Replaces &replaces, const Data &data);
 
 } // namespace emoji
 } // namespace codegen
