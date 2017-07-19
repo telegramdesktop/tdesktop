@@ -550,6 +550,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_change_phone_code_description" = "We've sent an SMS with a confirmation code to your phone {phone}.";
 "lng_change_phone_success" = "Your phone number has been changed.";
 
+"lng_mute_duration_hours#one" = "For {count} hour";
+"lng_mute_duration_hours#other" = "For {count} hours";
+"lng_mute_box_tip" = "Choose duration of turning off notifications from the following chat";
+
 "lng_preview_loading" = "Getting Link Info...";
 
 "lng_profile_chat_unaccessible" = "Group is inaccessible";
