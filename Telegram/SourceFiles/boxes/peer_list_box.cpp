@@ -145,6 +145,10 @@ void PeerListBox::peerListPrependRow(std::unique_ptr<PeerListRow> row) {
 	_inner->prependRow(std::move(row));
 }
 
+void PeerListBox::peerListPrependRowFromSearchResult(gsl::not_null<PeerListRow*> row) {
+	_inner->prependRowFromSearchResult(row);
+}
+
 PeerListRow *PeerListBox::peerListFindRow(PeerListRowId id) {
 	return _inner->findRow(id);
 }
@@ -155,6 +159,10 @@ void PeerListBox::peerListUpdateRow(gsl::not_null<PeerListRow*> row) {
 
 void PeerListBox::peerListRemoveRow(gsl::not_null<PeerListRow*> row) {
 	_inner->removeRow(row);
+}
+
+void PeerListBox::peerListConvertRowToSearchResult(gsl::not_null<PeerListRow*> row) {
+	_inner->convertRowToSearchResult(row);
 }
 
 void PeerListBox::peerListSetRowChecked(gsl::not_null<PeerListRow*> row, bool checked) {
@@ -203,7 +211,7 @@ void PeerListBox::peerListSetSearchNoResults(object_ptr<Ui::FlatLabel> noResults
 
 void PeerListBox::peerListSetSearchMode(PeerListSearchMode mode) {
 	_inner->setSearchMode(mode);
-	if (mode != PeerListSearchMode::None && !_select) {
+	if (mode != PeerListSearchMode::Disabled && !_select) {
 		_select = createMultiSelect();
 		_select->entity()->setSubmittedCallback([this](bool chtrlShiftEnter) { _inner->submitted(); });
 		_select->entity()->setQueryChangedCallback([this](const QString &query) { searchQueryChanged(query); });
@@ -219,7 +227,7 @@ void PeerListBox::peerListSetSearchMode(PeerListSearchMode mode) {
 		_select->moveToLeft(0, 0);
 	}
 	if (_select) {
-		_select->toggleAnimated(mode != PeerListSearchMode::None);
+		_select->toggleAnimated(mode != PeerListSearchMode::Disabled);
 	}
 }
 
@@ -245,8 +253,12 @@ PeerListController::PeerListController(std::unique_ptr<PeerListSearchController>
 	}
 }
 
+bool PeerListController::hasComplexSearch() const {
+	return (_searchController != nullptr);
+}
+
 void PeerListController::search(const QString &query) {
-	Expects(_searchController != nullptr);
+	Expects(hasComplexSearch());
 	_searchController->searchQuery(query);
 }
 
@@ -534,7 +546,7 @@ void PeerListBox::Inner::addRowEntry(gsl::not_null<PeerListRow*> row) {
 	if (addingToSearchIndex()) {
 		addToSearchIndex(row);
 	}
-	if (_searchMode != PeerListSearchMode::None) {
+	if (_searchMode != PeerListSearchMode::Disabled) {
 		t_assert(row->id() == row->peer()->id);
 		if (_controller->isRowSelected(row->peer())) {
 			changeCheckState(row, true, PeerListRow::SetStyle::Fast);
@@ -553,7 +565,7 @@ void PeerListBox::Inner::invalidatePixmapsCache() {
 
 bool PeerListBox::Inner::addingToSearchIndex() const {
 	// If we started indexing already, we continue.
-	return (_searchMode != PeerListSearchMode::None) || !_searchIndex.empty();
+	return (_searchMode != PeerListSearchMode::Disabled) || !_searchIndex.empty();
 }
 
 void PeerListBox::Inner::addToSearchIndex(gsl::not_null<PeerListRow*> row) {
@@ -594,10 +606,36 @@ void PeerListBox::Inner::prependRow(std::unique_ptr<PeerListRow> row) {
 	}
 }
 
+void PeerListBox::Inner::prependRowFromSearchResult(gsl::not_null<PeerListRow*> row) {
+	if (!row->isSearchResult()) {
+		return;
+	}
+	t_assert(_rowsById.find(row->id()) != _rowsById.cend());
+	auto index = row->absoluteIndex();
+	t_assert(index >= 0 && index < _searchRows.size());
+	t_assert(_searchRows[index].get() == row);
+
+	row->setIsSearchResult(false);
+	_rows.insert(_rows.begin(), std::move(_searchRows[index]));
+	refreshIndices();
+	removeRowAtIndex(_searchRows, index);
+
+	if (addingToSearchIndex()) {
+		addToSearchIndex(row);
+	}
+}
+
 void PeerListBox::Inner::refreshIndices() {
 	auto index = 0;
 	for (auto &row : _rows) {
 		row->setAbsoluteIndex(index++);
+	}
+}
+
+void PeerListBox::Inner::removeRowAtIndex(std::vector<std::unique_ptr<PeerListRow>> &from, int index) {
+	from.erase(from.begin() + index);
+	for (auto i = index, count = int(from.size()); i != count; ++i) {
+		from[i]->setAbsoluteIndex(i);
 	}
 }
 
@@ -622,12 +660,26 @@ void PeerListBox::Inner::removeRow(gsl::not_null<PeerListRow*> row) {
 	byPeer.erase(std::remove(byPeer.begin(), byPeer.end(), row), byPeer.end());
 	removeFromSearchIndex(row);
 	_filterResults.erase(std::find(_filterResults.begin(), _filterResults.end(), row), _filterResults.end());
-	eraseFrom.erase(eraseFrom.begin() + index);
-	for (auto i = index, count = int(eraseFrom.size()); i != count; ++i) {
-		eraseFrom[i]->setAbsoluteIndex(i);
-	}
+	removeRowAtIndex(eraseFrom, index);
 
 	restoreSelection();
+}
+
+void PeerListBox::Inner::convertRowToSearchResult(gsl::not_null<PeerListRow*> row) {
+	if (row->isSearchResult()) {
+		return;
+	} else if (!showingSearch() || !_controller->hasComplexSearch()) {
+		return removeRow(row);
+	}
+	auto index = row->absoluteIndex();
+	t_assert(index >= 0 && index < _rows.size());
+	t_assert(_rows[index].get() == row);
+
+	removeFromSearchIndex(row);
+	row->setIsSearchResult(true);
+	row->setAbsoluteIndex(_searchRows.size());
+	_searchRows.push_back(std::move(_rows[index]));
+	removeRowAtIndex(_rows, index);
 }
 
 int PeerListBox::Inner::fullRowsCount() const {
@@ -709,7 +761,7 @@ void PeerListBox::Inner::setSearchMode(PeerListSearchMode mode) {
 			}
 		}
 		_searchMode = mode;
-		if (_searchMode == PeerListSearchMode::Complex) {
+		if (_controller->hasComplexSearch()) {
 			if (!_searchLoading) {
 				setSearchLoading(object_ptr<Ui::FlatLabel>(this, lang(lng_contacts_loading), Ui::FlatLabel::InitType::Simple, st::membersAbout));
 			}
@@ -1027,7 +1079,7 @@ void PeerListBox::Inner::searchQueryChanged(QString query) {
 				}
 			}
 		}
-		if (_searchMode == PeerListSearchMode::Complex) {
+		if (_controller->hasComplexSearch()) {
 			_controller->search(_searchQuery);
 		}
 		refreshRows();
@@ -1314,7 +1366,7 @@ ChatsListBoxController::ChatsListBoxController(std::unique_ptr<PeerListSearchCon
 
 void ChatsListBoxController::prepare() {
 	setSearchNoResultsText(lang(lng_blocked_list_not_found));
-	delegate()->peerListSetSearchMode(PeerListSearchMode::Complex);
+	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
 
 	prepareViewHook();
 

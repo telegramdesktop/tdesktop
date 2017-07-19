@@ -163,9 +163,8 @@ private:
 };
 
 enum class PeerListSearchMode {
-	None,
-	Local,
-	Complex,
+	Disabled,
+	Enabled,
 };
 
 class PeerListDelegate {
@@ -179,9 +178,11 @@ public:
 	virtual void peerListAppendSearchRow(std::unique_ptr<PeerListRow> row) = 0;
 	virtual void peerListAppendFoundRow(gsl::not_null<PeerListRow*> row) = 0;
 	virtual void peerListPrependRow(std::unique_ptr<PeerListRow> row) = 0;
+	virtual void peerListPrependRowFromSearchResult(gsl::not_null<PeerListRow*> row) = 0;
 	virtual void peerListUpdateRow(gsl::not_null<PeerListRow*> row) = 0;
-	virtual bool peerListIsRowSelected(gsl::not_null<PeerData*> peer) = 0;
 	virtual void peerListRemoveRow(gsl::not_null<PeerListRow*> row) = 0;
+	virtual void peerListConvertRowToSearchResult(gsl::not_null<PeerListRow*> row) = 0;
+	virtual bool peerListIsRowSelected(gsl::not_null<PeerData*> peer) = 0;
 	virtual void peerListSetRowChecked(gsl::not_null<PeerListRow*> row, bool checked) = 0;
 	virtual gsl::not_null<PeerListRow*> peerListRowAt(int index) = 0;
 	virtual void peerListRefreshRows() = 0;
@@ -267,6 +268,7 @@ public:
 	virtual bool searchInLocal() {
 		return true;
 	}
+	bool hasComplexSearch() const;
 	void search(const QString &query);
 
 	void peerListSearchAddRow(gsl::not_null<PeerData*> peer) override;
@@ -316,8 +318,10 @@ public:
 	void peerListAppendSearchRow(std::unique_ptr<PeerListRow> row) override;
 	void peerListAppendFoundRow(gsl::not_null<PeerListRow*> row) override;
 	void peerListPrependRow(std::unique_ptr<PeerListRow> row) override;
+	void peerListPrependRowFromSearchResult(gsl::not_null<PeerListRow*> row) override;
 	void peerListUpdateRow(gsl::not_null<PeerListRow*> row) override;
 	void peerListRemoveRow(gsl::not_null<PeerListRow*> row) override;
+	void peerListConvertRowToSearchResult(gsl::not_null<PeerListRow*> row) override;
 	void peerListSetRowChecked(gsl::not_null<PeerListRow*> row, bool checked) override;
 	gsl::not_null<PeerListRow*> peerListRowAt(int index) override;
 	bool peerListIsRowSelected(gsl::not_null<PeerData*> peer) override;
@@ -381,11 +385,13 @@ public:
 	void appendSearchRow(std::unique_ptr<PeerListRow> row);
 	void appendFoundRow(gsl::not_null<PeerListRow*> row);
 	void prependRow(std::unique_ptr<PeerListRow> row);
+	void prependRowFromSearchResult(gsl::not_null<PeerListRow*> row);
 	PeerListRow *findRow(PeerListRowId id);
 	void updateRow(gsl::not_null<PeerListRow*> row) {
 		updateRow(row, RowIndex());
 	}
 	void removeRow(gsl::not_null<PeerListRow*> row);
+	void convertRowToSearchResult(gsl::not_null<PeerListRow*> row);
 	int fullRowsCount() const;
 	gsl::not_null<PeerListRow*> rowAt(int index) const;
 	void setDescription(object_ptr<Ui::FlatLabel> description);
@@ -422,6 +428,7 @@ protected:
 
 private:
 	void refreshIndices();
+	void removeRowAtIndex(std::vector<std::unique_ptr<PeerListRow>> &from, int index);
 
 	void invalidatePixmapsCache();
 
@@ -494,7 +501,7 @@ private:
 	void clearSearchRows();
 
 	gsl::not_null<PeerListController*> _controller;
-	PeerListSearchMode _searchMode = PeerListSearchMode::None;
+	PeerListSearchMode _searchMode = PeerListSearchMode::Disabled;
 
 	int _rowHeight = 0;
 	int _visibleTop = 0;

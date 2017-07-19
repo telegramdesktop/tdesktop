@@ -37,12 +37,20 @@ constexpr auto kParticipantsPerPage = 200;
 
 } // namespace
 
-ParticipantsBoxController::ParticipantsBoxController(gsl::not_null<ChannelData*> channel, Role role) : PeerListController((role == Role::Admins) ? nullptr : std::make_unique<ParticipantsBoxSearchController>(channel, role, &_additional))
+ParticipantsBoxController::ParticipantsBoxController(gsl::not_null<ChannelData*> channel, Role role) : PeerListController(CreateSearchController(channel, role, &_additional))
 , _channel(channel)
 , _role(role) {
 	if (_channel->mgInfo) {
 		_additional.creator = _channel->mgInfo->creator;
 	}
+}
+
+std::unique_ptr<PeerListSearchController> ParticipantsBoxController::CreateSearchController(gsl::not_null<ChannelData*> channel, Role role, gsl::not_null<Additional*> additional) {
+	// In admins box complex search is used for adding new admins.
+	if (role != Role::Admins || channel->canAddAdmins()) {
+		return std::make_unique<ParticipantsBoxSearchController>(channel, role, additional);
+	}
+	return nullptr;
 }
 
 void ParticipantsBoxController::Start(gsl::not_null<ChannelData*> channel, Role role) {
@@ -103,7 +111,6 @@ void ParticipantsBoxController::addNewItem() {
 }
 
 void ParticipantsBoxController::peerListSearchAddRow(gsl::not_null<PeerData*> peer) {
-	Expects(_role != Role::Admins);
 	PeerListController::peerListSearchAddRow(peer);
 	if (_role == Role::Restricted && delegate()->peerListFullRowsCount() > 0) {
 		setDescriptionText(QString());
@@ -168,19 +175,17 @@ void ParticipantsBoxController::HandleParticipant(const MTPChannelParticipant &p
 }
 
 void ParticipantsBoxController::prepare() {
-	if (_role == Role::Admins) {
-		delegate()->peerListSetSearchMode(PeerListSearchMode::Local);
-		delegate()->peerListSetTitle(langFactory(lng_channel_admins));
-	} else {
-		delegate()->peerListSetSearchMode(PeerListSearchMode::Complex);
-		if (_role == Role::Members) {
-			delegate()->peerListSetTitle(langFactory(lng_profile_participants_section));
-		} else if (_role == Role::Restricted) {
-			delegate()->peerListSetTitle(langFactory(lng_restricted_list_title));
-		} else {
-			delegate()->peerListSetTitle(langFactory(lng_banned_list_title));
+	auto titleKey = [this] {
+		switch (_role) {
+		case Role::Admins: return lng_channel_admins;
+		case Role::Members: return lng_profile_participants_section;
+		case Role::Restricted: return lng_restricted_list_title;
+		case Role::Kicked: return lng_banned_list_title;
 		}
-	}
+		Unexpected("Role in ParticipantsBoxController::prepare()");
+	};
+	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
+	delegate()->peerListSetTitle(langFactory(titleKey()));
 	setDescriptionText(lang(lng_contacts_loading));
 	setSearchNoResultsText(lang(lng_blocked_list_not_found));
 
@@ -317,17 +322,16 @@ void ParticipantsBoxController::rowActionClicked(gsl::not_null<PeerListRow*> row
 
 void ParticipantsBoxController::showAdmin(gsl::not_null<UserData*> user) {
 	auto it = _additional.adminRights.find(user);
-	if (it == _additional.adminRights.cend()) {
-		if (user != _additional.creator) {
-			return;
-		}
-	}
-	auto currentRights = (user == _additional.creator)
+	auto isCreator = (user == _additional.creator);
+	auto notAdmin = !isCreator && (it == _additional.adminRights.cend());
+	auto currentRights = isCreator
 		? MTP_channelAdminRights(MTP_flags(~MTPDchannelAdminRights::Flag::f_add_admins | MTPDchannelAdminRights::Flag::f_add_admins))
-		: it->second;
+		: notAdmin ? MTP_channelAdminRights(MTP_flags(0)) : it->second;
 	auto weak = base::weak_unique_ptr<ParticipantsBoxController>(this);
 	auto box = Box<EditAdminBox>(_channel, user, currentRights);
-	if (_additional.adminCanEdit.find(user) != _additional.adminCanEdit.end()) {
+	auto canEdit = (_additional.adminCanEdit.find(user) != _additional.adminCanEdit.end());
+	auto canSave = notAdmin ? _channel->canAddAdmins() : canEdit;
+	if (canSave) {
 		box->setSaveCallback([channel = _channel.get(), user, weak](const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
 			MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, newRights), rpcDone([channel, user, weak, oldRights, newRights](const MTPUpdates &result) {
 				AuthSession::Current().api().applyUpdates(result);
@@ -477,7 +481,12 @@ bool ParticipantsBoxController::appendRow(gsl::not_null<UserData*> user) {
 }
 
 bool ParticipantsBoxController::prependRow(gsl::not_null<UserData*> user) {
-	if (delegate()->peerListFindRow(user->id)) {
+	if (auto row = delegate()->peerListFindRow(user->id)) {
+		if (_role == Role::Admins) {
+			// Perhaps we've added a new admin from search.
+			refreshAdminCustomStatus(row);
+			delegate()->peerListPrependRowFromSearchResult(row);
+		}
 		return false;
 	}
 	delegate()->peerListPrependRow(createRow(user));
@@ -489,7 +498,13 @@ bool ParticipantsBoxController::prependRow(gsl::not_null<UserData*> user) {
 
 bool ParticipantsBoxController::removeRow(gsl::not_null<UserData*> user) {
 	if (auto row = delegate()->peerListFindRow(user->id)) {
-		delegate()->peerListRemoveRow(row);
+		if (_role == Role::Admins) {
+			// Perhaps we are removing an admin from search results.
+			row->setCustomStatus(lang(lng_channel_admin_status_not_admin));
+			delegate()->peerListConvertRowToSearchResult(row);
+		} else {
+			delegate()->peerListRemoveRow(row);
+		}
 		if (!delegate()->peerListFullRowsCount()) {
 			setDescriptionText(lang(lng_blocked_list_not_found));
 		}
@@ -501,12 +516,7 @@ bool ParticipantsBoxController::removeRow(gsl::not_null<UserData*> user) {
 std::unique_ptr<PeerListRow> ParticipantsBoxController::createRow(gsl::not_null<UserData*> user) const {
 	auto row = std::make_unique<PeerListRowWithLink>(user);
 	if (_role == Role::Admins) {
-		auto promotedBy = _additional.adminPromotedBy.find(user);
-		if (promotedBy == _additional.adminPromotedBy.cend()) {
-			row->setCustomStatus(lang(lng_channel_admin_status_creator));
-		} else {
-			row->setCustomStatus(lng_channel_admin_status_promoted_by(lt_user, App::peerName(promotedBy->second)));
-		}
+		refreshAdminCustomStatus(row.get());
 	}
 	if (_role == Role::Restricted || (_role == Role::Admins && _additional.adminCanEdit.find(user) != _additional.adminCanEdit.cend())) {
 //		row->setActionLink(lang(lng_profile_edit_permissions));
@@ -522,11 +532,24 @@ std::unique_ptr<PeerListRow> ParticipantsBoxController::createRow(gsl::not_null<
 	return std::move(row);
 }
 
+void ParticipantsBoxController::refreshAdminCustomStatus(gsl::not_null<PeerListRow*> row) const {
+	auto user = row->peer()->asUser();
+	auto promotedBy = _additional.adminPromotedBy.find(user);
+	if (promotedBy == _additional.adminPromotedBy.cend()) {
+		if (user == _additional.creator) {
+			row->setCustomStatus(lang(lng_channel_admin_status_creator));
+		} else {
+			row->setCustomStatus(lang(lng_channel_admin_status_not_admin));
+		}
+	} else {
+		row->setCustomStatus(lng_channel_admin_status_promoted_by(lt_user, App::peerName(promotedBy->second)));
+	}
+}
+
 ParticipantsBoxSearchController::ParticipantsBoxSearchController(gsl::not_null<ChannelData*> channel, Role role, gsl::not_null<Additional*> additional)
 : _channel(channel)
 , _role(role)
 , _additional(additional) {
-	Expects(role != Role::Admins);
 	_timer.setCallback([this] { searchOnServer(); });
 }
 
@@ -570,6 +593,7 @@ bool ParticipantsBoxSearchController::loadMoreRows() {
 	if (!_allLoaded && !isLoading()) {
 		auto filter = [this] {
 			switch (_role) {
+			case Role::Admins: // Search for members, appoint as admin on found.
 			case Role::Members: return MTP_channelParticipantsSearch(MTP_string(_query));
 			case Role::Restricted: return MTP_channelParticipantsBanned(MTP_string(_query));
 			case Role::Kicked: return MTP_channelParticipantsKicked(MTP_string(_query));
@@ -627,8 +651,9 @@ void ParticipantsBoxSearchController::searchDone(mtpRequestId requestId, const M
 			// wait for an empty results list unlike the non-search peer list.
 			_allLoaded = true;
 		}
+		auto parseRole = (_role == Role::Admins) ? Role::Members : _role;
 		for_const (auto &participant, list) {
-			ParticipantsBoxController::HandleParticipant(participant, _role, _additional, [this](gsl::not_null<UserData*> user) {
+			ParticipantsBoxController::HandleParticipant(participant, parseRole, _additional, [this](gsl::not_null<UserData*> user) {
 				delegate()->peerListSearchAddRow(user);
 			});
 		}
@@ -657,7 +682,7 @@ std::unique_ptr<PeerListRow> AddParticipantBoxController::createSearchRow(gsl::n
 }
 
 void AddParticipantBoxController::prepare() {
-	delegate()->peerListSetSearchMode(PeerListSearchMode::Complex);
+	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
 	auto title = [this] {
 		switch (_role) {
 		case Role::Admins: return langFactory(lng_channel_add_admin);

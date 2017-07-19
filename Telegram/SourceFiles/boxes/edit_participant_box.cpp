@@ -233,12 +233,13 @@ MTPChannelAdminRights EditAdminBox::DefaultRights(gsl::not_null<ChannelData*> ch
 void EditAdminBox::prepare() {
 	EditParticipantBox::prepare();
 
-	setTitle(langFactory(lng_rights_edit_admin));
+	auto hadRights = _oldRights.c_channelAdminRights().vflags.v;
+	setTitle(langFactory(hadRights ? lng_rights_edit_admin : lng_channel_add_admin));
 
 	addControl(object_ptr<Divider>(this), QMargins());
 	addControl(object_ptr<Ui::FlatLabel>(this, lang(lng_rights_edit_admin_header), Ui::FlatLabel::InitType::Simple, st::rightsHeaderLabel), st::rightsHeaderMargin);
 
-	auto prepareRights = (_oldRights.c_channelAdminRights().vflags.v ? _oldRights : DefaultRights(channel()));
+	auto prepareRights = (hadRights ? _oldRights : DefaultRights(channel()));
 	auto addCheckbox = [this, &prepareRights](Flags flags, const QString &text) {
 		auto checked = (prepareRights.c_channelAdminRights().vflags.v & flags) != 0;
 		auto control = addControl(object_ptr<Ui::Checkbox>(this, text, checked, st::rightsCheckbox, st::rightsToggle), st::rightsToggleMargin);
