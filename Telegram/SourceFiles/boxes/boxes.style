@@ -567,7 +567,8 @@ passcodeTextStyle: TextStyle(defaultTextStyle) {
 
 usernamePadding: margins(23px, 6px, 21px, 12px);
 usernameSkip: 49px;
-usernameTextStyle: boxTextStyle;
+usernameTextStyle: TextStyle(boxTextStyle, passcodeTextStyle) {
+}
 usernameDefaultFg: windowSubTextFg;
 
 downloadPathSkip: 10px;

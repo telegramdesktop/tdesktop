@@ -44,8 +44,8 @@ InfoWidget::InfoWidget(QWidget *parent, UserData *self) : BlockWidget(parent, se
 }
 
 void InfoWidget::createControls() {
-	style::margins margin(0, -st::settingsBlockOneLineTextPart.margin.top(), 0, st::settingsSmallSkip - st::settingsBlockOneLineTextPart.margin.bottom());
-	style::margins slidedPadding(0, st::settingsSmallSkip / 2, 0, st::settingsSmallSkip - (st::settingsSmallSkip / 2));
+	style::margins margin(0, 0, 0, 0);
+	style::margins slidedPadding(0, 0, 0, 0);
 	addChildRow(_mobileNumber, margin, slidedPadding, st::settingsBlockOneLineTextPart);
 	addChildRow(_username, margin, slidedPadding, st::settingsBlockOneLineTextPart);
 	addChildRow(_link, margin, slidedPadding, st::settingsBlockOneLineTextPart);
