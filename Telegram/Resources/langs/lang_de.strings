@@ -135,7 +135,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_server_error" = "Interner Serverfehler.";
 "lng_flood_error" = "Zu viele Versuche, bitte später erneut probieren.";
-"lng_gif_error" = "GIF-Animation kann nicht abgespielt werden :(";
+"lng_gif_error" = "Ein Fehler ist beim Laden der GIF-Animation aufgetreten :(";
 "lng_edit_error" = "Du kannst diese Nachricht nicht bearbeiten";
 "lng_join_channel_error" = "Du bist bereits in zu vielen Kanälen und Supergruppen. Bitte trenne dich zuvor von ein paar davon.";
 "lng_error_phone_flood" = "Du hast dein Konto leider zu oft gelöscht. Bitte warte einige Tage, erst dann kannst du dich erneut registrieren.";
@@ -145,6 +145,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_error_public_groups_denied" = "Leider kannst du an keinen öffentlichen Gruppen mehr teilnehmen.\n{more_info}";
 "lng_error_cant_edit_admin" = "Du kannst die Berechtigungen für diesen Admin nicht ändern.";
 "lng_error_cant_add_member" = "Du kannst diesen Bot leider nicht der Gruppe hinzufügen. Ein Admin der Gruppe kann ihn hinzufügen.";
+"lng_error_cant_add_bot" = "Dieser Bot kann Gruppen nicht hinzugefügt werden.";
 "lng_error_cant_add_admin_invite" = "Du kannst diesen Nutzer nicht als Admin festlegen, da er kein Mitglied dieser Gruppe ist oder du keine Erlaubnis hast, ihn einzuladen.";
 "lng_error_cant_add_admin_unban" = "Du kannst diesen Nutzer nicht als Admin festlegen, da er sich in der Sperrliste befindet und du ihn nicht entsperren darfst.";
 "lng_error_cant_ban_admin" = "Du kannst diesen Nutzer nicht sperren, da er ein Admin dieser Gruppe ist und du keine Berechtigung hast, ihn zurückzustufen.";
@@ -556,6 +557,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_invite_link_section" = "Einladungslink";
 "lng_profile_create_public_link" = "Öffentlichen Link erstellen";
 "lng_profile_edit_public_link" = "Öffentlichen Link bearbeiten";
+"lng_profile_search_members" = "Mitglieder suchen";
 "lng_profile_manage_admins" = "Administratoren verwalten";
 "lng_profile_manage_blocklist" = "Gesperrte Nutzer verwalten";
 "lng_profile_manage_restrictedlist" = "Eingeschränke Nutzer verwalten";
@@ -919,6 +921,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_cant_invite_banned" = "Nur Admins können diesen Nutzer hinzufügen.";
 "lng_cant_invite_privacy" = "Du kannst mit diesem Nutzer keine Gruppe erstellen, weil er es nicht erlaubt.";
 "lng_cant_invite_privacy_channel" = "Du kannst diesen Nutzer keinen Kanälen hinzufügen, weil er es nicht erlaubt.";
+"lng_cant_delete_group#one" = "Über die App kannst du derzeit keine Gruppen mit mehr als {count} Mitglied löschen. Bitte melde dich bei unserem Support Chat, wenn du diese Gruppe löschen lassen möchtest.";
+"lng_cant_delete_group#other" = "Über die App kannst du derzeit keine Gruppen mit mehr als {count} Mitgliedern löschen. Bitte melde dich bei unserem Support Chat, wenn du diese Gruppe löschen lassen möchtest.";
+"lng_cant_delete_channel#one" = "Über die App kannst du derzeit keine Kanäle mit mehr als {count} Mitglied löschen. Bitte melde dich bei unserem Support Chat, wenn du diesen Kanal löschen lassen möchtest.";
+"lng_cant_delete_channel#other" = "Über die App kannst du derzeit keinen Kanäle mit mehr als {count} Mitgliedern löschen. Bitte melde dich bei unserem Support Chat, wenn du diesen Kanal löschen lassen möchtest.";
 "lng_cant_do_this" = "Verzeihung. Das ist leider nicht möglich.";
 
 "lng_send_button" = "Senden";
@@ -1277,6 +1283,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_rights_edit_admin_header" = "Was kann dieser Admin machen?";
 "lng_rights_about_add_admins_yes" = "Dieser Admin wird neue Admins mit gleichen (oder eingeschränkten) Rechten hinzufügen können.";
 "lng_rights_about_add_admins_no" = "Dieser Admin kann keine neuen Admins hinzufügen.";
+"lng_rights_about_admin_cant_edit" = "Du kannst die Berechtigungen für diesen Admin nicht ändern.";
 "lng_rights_user_restrictions" = "Nutzerbeschränkungen";
 "lng_rights_user_restrictions_header" = "Was kann dieser Nutzer machen?";
 
@@ -1296,8 +1303,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_rights_chat_send_media" = "Medien senden";
 "lng_rights_chat_send_stickers" = "Sticker & GIFs senden";
 "lng_rights_chat_send_links" = "Linkvorschau senden";
-"lng_rights_chat_banned_until" = "Eingeschränkt bis: {when}";
+"lng_rights_chat_banned_until_header" = "Eingeschränkt bis";
 "lng_rights_chat_banned_forever" = "Dauerhaft";
+"lng_rights_chat_banned_day#one" = "Für {count} Tag";
+"lng_rights_chat_banned_day#other" = "Für {count} Tage";
+"lng_rights_chat_banned_week#one" = "Für {count} Woche";
+"lng_rights_chat_banned_week#other" = "Für {count} Wochen";
+"lng_rights_chat_banned_custom" = "Eigener";
+"lng_rights_chat_banned_custom_date" = "Bis {date}";
 "lng_rights_chat_banned_block" = "Sperren und aus Gruppe entfernen";
 
 "lng_restricted_send_message" = "Die Admins dieser Gruppe haben dir die Berechtigung entzogen, Nachrichten zu senden.";
@@ -1326,9 +1339,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_filter_all_admins" = "Alle Nutzer";
 "lng_admin_log_about" = "Was ist das?";
 "lng_admin_log_about_text" = "Das ist eine Liste aller Aktionen, die von Gruppenmitgliedern und Admins in den letzten 48 Stunden durchgeführt wurden.";
-"lng_admin_log_no_results_title" = "Keine Ereignisse gefunden";
+"lng_admin_log_no_results_title" = "Keine Aktionen gefunden";
 "lng_admin_log_no_results_text" = "Keine kürzlichen Ereignisse gefunden, die deinen Suchbegriff beinhalten.";
-"lng_admin_log_no_events_title" = "Keine Ereignisse gefunden";
+"lng_admin_log_no_results_search_text" = "Keine kürzlichen Aktionen gefunden, die '{query}' beinhalten.";
+"lng_admin_log_no_events_title" = "Keine Aktionen gefunden";
 "lng_admin_log_no_events_text" = "Es wurden keine Service-Aktionen \nvon Admins und Gruppenmitgliedern\nin den letzten 48 Stunden durchgeführt.";
 
 "lng_admin_log_empty_text" = "Leer";
@@ -1361,7 +1375,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_previous_message" = "Original-Nachricht";
 "lng_admin_log_deleted_message" = "{from} hat Nachricht gelöscht:";
 "lng_admin_log_participant_joined" = "{from} ist der Gruppe beigetreten";
+"lng_admin_log_participant_joined_channel" = "{from} ist dem Kanal beigetreten";
 "lng_admin_log_participant_left" = "{from} hat die Gruppe verlassen";
+"lng_admin_log_participant_left_channel" = "{from} hat den Kanal verlassen";
 "lng_admin_log_invited" = "hat {user} eingeladen";
 "lng_admin_log_banned" = "hat {user} gesperrt";
 "lng_admin_log_restricted" = "hat Einschränkungen für {user} {until} geändert";

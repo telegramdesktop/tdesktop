@@ -135,7 +135,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_server_error" = "Erro interno do servidor.";
 "lng_flood_error" = "Muitas tentativas. Tente novamente mais tarde.";
-"lng_gif_error" = "Um erro ocorreu com a animação do GIF :(";
+"lng_gif_error" = "Um erro ocorreu ao ler a animação do GIF :(";
 "lng_edit_error" = "Você não pode editar essa mensagem";
 "lng_join_channel_error" = "Desculpe, você já entrou em muitos canais e supergrupos. Por favor, saia de alguns antes de entrar.";
 "lng_error_phone_flood" = "Desculpe, você apagou e recriou sua conta muitas vezes recentemente. Aguarde alguns dias antes de tentar novamente.";
@@ -145,6 +145,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_error_public_groups_denied" = "Infelizmente, você foi banido de participar em grupos públicos.\n{more_info}";
 "lng_error_cant_edit_admin" = "Desculpe, você não pode editar permissões para esse admin.";
 "lng_error_cant_add_member" = "Você não pode adicionar bots à esse grupo. Peça para um admin fazer isso.";
+"lng_error_cant_add_bot" = "Esse bot não pode ser adicionado à grupos";
 "lng_error_cant_add_admin_invite" = "Você não pode adicionar esse usuário como admin porque ele não é um membro do grupo e você não possui permissão para convidá-lo.";
 "lng_error_cant_add_admin_unban" = "Você não pode adicionar esse usuário como admin porque ele está na lista negra e você não pode desbaní-lo.";
 "lng_error_cant_ban_admin" = "Você não pode banir esse usuário porque ele é um admin do grupo e você não possui permissão para rebaixá-lo.";
@@ -556,6 +557,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_invite_link_section" = "Link de convite";
 "lng_profile_create_public_link" = "Criar link público";
 "lng_profile_edit_public_link" = "Editar link público";
+"lng_profile_search_members" = "Buscar membros";
 "lng_profile_manage_admins" = "Gerenciar administradores";
 "lng_profile_manage_blocklist" = "Gerenciar usuários banidos";
 "lng_profile_manage_restrictedlist" = "Gerenciar usuários restritos";
@@ -919,6 +921,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_cant_invite_banned" = "Apenas um administrador pode adicionar esse usuário.";
 "lng_cant_invite_privacy" = "Você não pode adicionar esse usuário em grupos devido as configurações de privacidade.";
 "lng_cant_invite_privacy_channel" = "Você não pode adicionar esse usuário em canais devido as configurações de privacidade.";
+"lng_cant_delete_group#one" = "Desculpe, atualmente não é possível apagar comunidades que tenham mais de {count} membro. Por favor, contate o suporte do Telegram se você precisa apagar esse grupo.";
+"lng_cant_delete_group#other" = "Desculpe, atualmente não é possível apagar comunidades que tenham mais de {count} membros. Por favor, contate o suporte do Telegram se você precisa apagar esse grupo.";
+"lng_cant_delete_channel#one" = "Desculpe, atualmente não é possível apagar comunidades que tenham mais de {count} membro. Por favor, contate o suporte do Telegram se você precisa apagar esse canal.";
+"lng_cant_delete_channel#other" = "Desculpe, atualmente não é possível apagar comunidades que tenham mais de {count} membros. Por favor, contate o suporte do Telegram se você precisa apagar esse canal.";
 "lng_cant_do_this" = "Essa ação não está disponível.";
 
 "lng_send_button" = "Enviar";
@@ -1277,6 +1283,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_rights_edit_admin_header" = "O que esse administrador pode fazer?";
 "lng_rights_about_add_admins_yes" = "Esse admin poderá adicionar novos admins com as mesmas (ou mais limitadas) permissões.";
 "lng_rights_about_add_admins_no" = "Esse admin não poderá adicionar novos admins.";
+"lng_rights_about_admin_cant_edit" = "Você não  pode editar as permissões desse admin.";
 "lng_rights_user_restrictions" = "Restrições do usuário";
 "lng_rights_user_restrictions_header" = "O que esse usuário pode fazer?";
 
@@ -1296,8 +1303,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_rights_chat_send_media" = "Enviar mídias";
 "lng_rights_chat_send_stickers" = "Enviar stickers e GIFs";
 "lng_rights_chat_send_links" = "Preview de links";
-"lng_rights_chat_banned_until" = "Restringir até: {when}";
-"lng_rights_chat_banned_forever" = "Sempre.";
+"lng_rights_chat_banned_until_header" = "Restringir até";
+"lng_rights_chat_banned_forever" = "Sempre";
+"lng_rights_chat_banned_day#one" = "Por {count} dia";
+"lng_rights_chat_banned_day#other" = "Por {count} dias";
+"lng_rights_chat_banned_week#one" = "Por {count} semana";
+"lng_rights_chat_banned_week#other" = "Por {count} semanas";
+"lng_rights_chat_banned_custom" = "Personalizado";
+"lng_rights_chat_banned_custom_date" = "Até {date}";
 "lng_rights_chat_banned_block" = "Banir e remover do grupo";
 
 "lng_restricted_send_message" = "Os administradores do grupo restringiram você de escrever aqui.";
@@ -1326,9 +1339,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_filter_all_admins" = "Todos usuários e admins";
 "lng_admin_log_about" = "O que é isso?";
 "lng_admin_log_about_text" = "Essa é uma lista de todas as ações tomadas pelos membros e admins do grupo nas últimas 48 horas.";
-"lng_admin_log_no_results_title" = "Nenhum evento encontrado";
-"lng_admin_log_no_results_text" = "Nenhum evento correspondente foi encontrado.";
-"lng_admin_log_no_events_title" = "Ainda não há eventos aqui";
+"lng_admin_log_no_results_title" = "Nenhuma ação encontrada";
+"lng_admin_log_no_results_text" = "Nenhuma ação correspondente foi encontrado.";
+"lng_admin_log_no_results_search_text" = "Nenhuma ação que contenha \"{query}\" foi encontrada.";
+"lng_admin_log_no_events_title" = "Ainda não há ações aqui.";
 "lng_admin_log_no_events_text" = "Nenhuma ação foi tomada pelos\nmembros e admins do grupo\nnas últimas 48 horas.";
 
 "lng_admin_log_empty_text" = "Vazio";
@@ -1361,7 +1375,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_previous_message" = "Mensagem original";
 "lng_admin_log_deleted_message" = "{from} apagou a mensagem:";
 "lng_admin_log_participant_joined" = "{from} entrou no grupo";
+"lng_admin_log_participant_joined_channel" = "{from} entrou no canal";
 "lng_admin_log_participant_left" = "{from} deixou o grupo";
+"lng_admin_log_participant_left_channel" = "{from} saiu do canal";
 "lng_admin_log_invited" = "convidou {user}";
 "lng_admin_log_banned" = "baniu {user}";
 "lng_admin_log_restricted" = "alterou as restrições de {user} {until}";

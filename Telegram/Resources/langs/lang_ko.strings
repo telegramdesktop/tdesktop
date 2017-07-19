@@ -1326,9 +1326,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_filter_all_admins" = "모든 사용자 및 관리자";
 "lng_admin_log_about" = "이것은 무엇인가요?";
 "lng_admin_log_about_text" = "그룹 사용자와 관리자의 지난 48시간동안 활동 리스트입니다.";
-"lng_admin_log_no_results_title" = "이벤트를 찾을 수 없습니다.";
-"lng_admin_log_no_results_text" = "검색한 내용의 이벤트를 찾을 수 없습니다.";
-"lng_admin_log_no_events_title" = "이벤트를 찾을 수 없습니다.";
+"lng_admin_log_no_results_title" = "활동내역을 찾을 수 없습니다.";
+"lng_admin_log_no_results_text" = "검색한 내용의 활동을 찾을 수 없습니다.";
+"lng_admin_log_no_results_search_text" = "검색한 '{query}'을/를 포함한 활동을 찾을 수 없습니다.";
+"lng_admin_log_no_events_title" = "아직 활동내역이 없습니다.";
 "lng_admin_log_no_events_text" = "그룹 사용자와 관리자의\n지난 48시간동안\n활동 리스트입니다.";
 
 "lng_admin_log_empty_text" = "없음";
