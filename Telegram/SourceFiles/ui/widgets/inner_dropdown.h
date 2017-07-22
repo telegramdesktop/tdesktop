@@ -45,12 +45,14 @@ public:
 		return rect().marginsRemoved(_st.padding).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
 
+	void setAutoHiding(bool autoHiding) {
+		_autoHiding = autoHiding;
+	}
 	void setMaxHeight(int newMaxHeight);
 	void resizeToContent();
 
 	void otherEnter();
 	void otherLeave();
-	void hideFast();
 
 	void setShowStartCallback(base::lambda<void()> callback) {
 		_showStartCallback = std::move(callback);
@@ -66,13 +68,17 @@ public:
 		return _hiding && _a_opacity.animating();
 	}
 
-	void setOrigin(PanelAnimation::Origin origin);
-	void showAnimated(PanelAnimation::Origin origin);
 	enum class HideOption {
 		Default,
 		IgnoreShow,
 	};
+	void showAnimated();
+	void setOrigin(PanelAnimation::Origin origin);
+	void showAnimated(PanelAnimation::Origin origin);
 	void hideAnimated(HideOption option = HideOption::Default);
+	void finishAnimations();
+	void showFast();
+	void hideFast();
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -115,6 +121,7 @@ private:
 	std::unique_ptr<PanelAnimation> _showAnimation;
 	Animation _a_show;
 
+	bool _autoHiding = true;
 	bool _hiding = false;
 	QPixmap _cache;
 	Animation _a_opacity;

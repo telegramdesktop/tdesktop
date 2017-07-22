@@ -454,7 +454,7 @@ public:
 
 	// So we can pass this pointer to methods like connect().
 	Object *data() const {
-		return static_cast<Object*>(_object);
+		return static_cast<Object*>(_object.data());
 	}
 	operator Object*() const {
 		return data();
@@ -504,14 +504,14 @@ private:
 	template <typename OtherObject>
 	friend class object_ptr;
 
-	QObject *_object = nullptr;
+	QPointer<QObject> _object;
 
 };
 
 template <typename ResultType, typename SourceType>
 inline object_ptr<ResultType> static_object_cast(object_ptr<SourceType> source) {
 	auto result = object_ptr<ResultType>(nullptr);
-	result._object = static_cast<ResultType*>(base::take(source._object));
+	result._object = static_cast<ResultType*>(base::take(source._object).data());
 	return std::move(result);
 }
 

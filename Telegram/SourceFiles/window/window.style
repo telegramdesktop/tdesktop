@@ -295,6 +295,13 @@ themeEditorDescriptionSkip: 10px;
 themeEditorNameFont: font(15px semibold);
 themeEditorCopyNameFont: font(fsize semibold);
 
+windowEmojiSuggestionsPopup: PopupMenu(defaultPopupMenu) {
+	menu: Menu(defaultMenu) {
+		itemPadding: margins(48px, 8px, 17px, 7px);
+		widthMax: 512px;
+	}
+}
+
 // Mac specific
 
 macAccessoryWidth: 450.;

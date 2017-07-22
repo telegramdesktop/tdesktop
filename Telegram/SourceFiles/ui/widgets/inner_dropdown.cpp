@@ -78,6 +78,8 @@ void InnerDropdown::resizeToContent() {
 	}
 	if (newWidth != width() || newHeight != height()) {
 		resize(newWidth, newHeight);
+		update();
+		finishAnimations();
 	}
 }
 
@@ -129,30 +131,38 @@ void InnerDropdown::paintEvent(QPaintEvent *e) {
 }
 
 void InnerDropdown::enterEventHook(QEvent *e) {
-	showAnimated(_origin);
+	if (_autoHiding) {
+		showAnimated(_origin);
+	}
 	return TWidget::enterEventHook(e);
 }
 
 void InnerDropdown::leaveEventHook(QEvent *e) {
-	auto ms = getms();
-	if (_a_show.animating(ms) || _a_opacity.animating(ms)) {
-		hideAnimated();
-	} else {
-		_hideTimer.start(300);
+	if (_autoHiding) {
+		auto ms = getms();
+		if (_a_show.animating(ms) || _a_opacity.animating(ms)) {
+			hideAnimated();
+		} else {
+			_hideTimer.start(300);
+		}
 	}
 	return TWidget::leaveEventHook(e);
 }
 
 void InnerDropdown::otherEnter() {
-	showAnimated(_origin);
+	if (_autoHiding) {
+		showAnimated(_origin);
+	}
 }
 
 void InnerDropdown::otherLeave() {
-	auto ms = getms();
-	if (_a_show.animating(ms) || _a_opacity.animating(ms)) {
-		hideAnimated();
-	} else {
-		_hideTimer.start(0);
+	if (_autoHiding) {
+		auto ms = getms();
+		if (_a_show.animating(ms) || _a_opacity.animating(ms)) {
+			hideAnimated();
+		} else {
+			_hideTimer.start(0);
+		}
 	}
 }
 
@@ -162,6 +172,10 @@ void InnerDropdown::setOrigin(PanelAnimation::Origin origin) {
 
 void InnerDropdown::showAnimated(PanelAnimation::Origin origin) {
 	setOrigin(origin);
+	showAnimated();
+}
+
+void InnerDropdown::showAnimated() {
 	_hideTimer.stop();
 	showStarted();
 }
@@ -177,17 +191,43 @@ void InnerDropdown::hideAnimated(HideOption option) {
 	startOpacityAnimation(true);
 }
 
+void InnerDropdown::finishAnimations() {
+	if (_a_show.animating()) {
+		_a_show.finish();
+		showAnimationCallback();
+	}
+	if (_showAnimation) {
+		_showAnimation.reset();
+		showChildren();
+	}
+	if (_a_opacity.animating()) {
+		_a_opacity.finish();
+		opacityAnimationCallback();
+	}
+}
+
+void InnerDropdown::showFast() {
+	_hideTimer.stop();
+	finishAnimations();
+	if (isHidden()) {
+		showChildren();
+		show();
+	}
+	_hiding = false;
+}
+
 void InnerDropdown::hideFast() {
 	if (isHidden()) return;
 
 	_hideTimer.stop();
+	finishAnimations();
 	_hiding = false;
-	_a_opacity.finish();
 	hideFinished();
 }
 
 void InnerDropdown::hideFinished() {
 	_a_show.finish();
+	_showAnimation.reset();
 	_cache = QPixmap();
 	_ignoreShowEvents = false;
 	if (!isHidden()) {

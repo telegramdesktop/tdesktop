@@ -99,6 +99,23 @@ private slots:
 	void actionChanged();
 
 private:
+	struct ActionData {
+		ActionData() = default;
+		ActionData(const ActionData &other) = delete;
+		ActionData &operator=(const ActionData &other) = delete;
+		ActionData(ActionData &&other) = default;
+		ActionData &operator=(ActionData &&other) = default;
+		~ActionData();
+
+		bool hasSubmenu = false;
+		QString text;
+		QString shortcut;
+		const style::icon *icon = nullptr;
+		const style::icon *iconOver = nullptr;
+		std::unique_ptr<RippleAnimation> ripple;
+		std::unique_ptr<ToggleView> toggle;
+	};
+
 	void updateSelected(QPoint globalPosition);
 	void init();
 
@@ -125,23 +142,6 @@ private:
 	base::lambda<void(QPoint globalPosition)> _mouseMoveDelegate;
 	base::lambda<void(QPoint globalPosition)> _mousePressDelegate;
 	base::lambda<void(QPoint globalPosition)> _mouseReleaseDelegate;
-
-	struct ActionData {
-		ActionData() = default;
-		ActionData(const ActionData &other) = delete;
-		ActionData &operator=(const ActionData &other) = delete;
-		ActionData(ActionData &&other) = default;
-		ActionData &operator=(ActionData &&other) = default;
-		~ActionData();
-
-		bool hasSubmenu = false;
-		QString text;
-		QString shortcut;
-		const style::icon *icon = nullptr;
-		const style::icon *iconOver = nullptr;
-		std::unique_ptr<RippleAnimation> ripple;
-		std::unique_ptr<ToggleView> toggle;
-	};
 
 	QMenu *_wappedMenu = nullptr;
 	Actions _actions;

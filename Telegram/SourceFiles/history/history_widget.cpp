@@ -73,6 +73,102 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
 #include "inline_bots/inline_results_widget.h"
+#include "chat_helpers/emoji_suggestions_widget.h"
+
+// Smart pointer for QObject*, has move semantics, destroys object if it doesn't have a parent.
+template <typename Object>
+class test_ptr {
+public:
+	test_ptr(std::nullptr_t) {
+	}
+
+	// No default constructor, but constructors with at least
+	// one argument are simply make functions.
+	template <typename Parent, typename... Args>
+	explicit test_ptr(Parent &&parent, Args&&... args) : _object(new Object(std::forward<Parent>(parent), std::forward<Args>(args)...)) {
+	}
+
+	test_ptr(const test_ptr &other) = delete;
+	test_ptr &operator=(const test_ptr &other) = delete;
+	test_ptr(test_ptr &&other) : _object(base::take(other._object)) {
+	}
+	test_ptr &operator=(test_ptr &&other) {
+		auto temp = std::move(other);
+		destroy();
+		std::swap(_object, temp._object);
+		return *this;
+	}
+
+	template <typename OtherObject, typename = std::enable_if_t<std::is_base_of<Object, OtherObject>::value>>
+	test_ptr(test_ptr<OtherObject> &&other) : _object(base::take(other._object)) {
+	}
+
+	template <typename OtherObject, typename = std::enable_if_t<std::is_base_of<Object, OtherObject>::value>>
+	test_ptr &operator=(test_ptr<OtherObject> &&other) {
+		_object = base::take(other._object);
+		return *this;
+	}
+
+	test_ptr &operator=(std::nullptr_t) {
+		_object = nullptr;
+		return *this;
+	}
+
+	// So we can pass this pointer to methods like connect().
+	Object *data() const {
+		return static_cast<Object*>(_object);
+	}
+	operator Object*() const {
+		return data();
+	}
+
+	explicit operator bool() const {
+		return _object != nullptr;
+	}
+
+	Object *operator->() const {
+		return data();
+	}
+	Object &operator*() const {
+		return *data();
+	}
+
+	// Use that instead "= new Object(parent, ...)"
+	template <typename Parent, typename... Args>
+	void create(Parent &&parent, Args&&... args) {
+		destroy();
+		_object = new Object(std::forward<Parent>(parent), std::forward<Args>(args)...);
+	}
+	void destroy() {
+		delete base::take(_object);
+	}
+	void destroyDelayed() {
+		if (_object) {
+			if (auto widget = base::up_cast<QWidget*>(data())) {
+				widget->hide();
+			}
+			base::take(_object)->deleteLater();
+		}
+	}
+
+	~test_ptr() {
+		if (auto pointer = _object) {
+			if (!pointer->parent()) {
+				destroy();
+			}
+		}
+	}
+
+private:
+	template <typename OtherObject>
+	friend class test_ptr;
+
+	QPointer<QObject> _object;
+
+};
+
+class TestClass;
+test_ptr<TestClass> tmp = { nullptr };
 
 namespace {
 
@@ -620,6 +716,7 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 	_field->setInsertFromMimeDataHook([this](const QMimeData *data) {
 		return confirmSendingFiles(data, CompressConfirm::Auto, data->text());
 	});
+	_emojiSuggestions.create(this, _field.data());
 	updateFieldSubmitSettings();
 
 	_field->hide();
@@ -930,6 +1027,7 @@ void HistoryWidget::orderWidgets() {
 	if (_tabbedPanel) {
 		_tabbedPanel->raise();
 	}
+	_emojiSuggestions->raise();
 	if (_tabbedSelectorToggleTooltip) {
 		_tabbedSelectorToggleTooltip->raise();
 	}
@@ -4299,9 +4397,9 @@ void HistoryWidget::onFieldFocused() {
 void HistoryWidget::onCheckFieldAutocomplete() {
 	if (!_history || _a_show.animating()) return;
 
-	bool start = false;
-	bool isInlineBot = _inlineBot && (_inlineBot != Ui::LookingUpInlineBot);
-	QString query = isInlineBot ? QString() : _field->getMentionHashtagBotCommandPart(start);
+	auto start = false;
+	auto isInlineBot = _inlineBot && (_inlineBot != Ui::LookingUpInlineBot);
+	auto query = isInlineBot ? QString() : _field->getMentionHashtagBotCommandPart(start);
 	if (!query.isEmpty()) {
 		if (query.at(0) == '#' && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) Local::readRecentHashtagsAndBots();
 		if (query.at(0) == '@' && cRecentInlineBots().isEmpty()) Local::readRecentHashtagsAndBots();

@@ -222,3 +222,19 @@ gifsSearchCancel: contactsSearchCancel;
 gifsSearchCancelPosition: point(1px, 1px);
 gifsSearchIcon: boxFieldSearchIcon;
 gifsSearchIconPosition: point(6px, 7px);
+
+emojiSuggestionsDropdown: InnerDropdown(defaultInnerDropdown) {
+	scroll: ScrollArea(defaultSolidScroll) {
+		deltat: 0px;
+		deltab: 0px;
+		round: 1px;
+		width: 8px;
+		deltax: 3px;
+	}
+	scrollMargin: margins(0px, 5px, 0px, 5px);
+	scrollPadding: margins(0px, 3px, 0px, 3px);
+}
+emojiSuggestionsMenu: Menu(defaultMenu) {
+	itemPadding: margins(48px, 8px, 17px, 7px);
+	widthMax: 512px;
+}

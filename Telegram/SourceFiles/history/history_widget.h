@@ -49,6 +49,9 @@ class SendButton;
 class FlatButton;
 class LinkButton;
 class RoundButton;
+namespace Emoji {
+class SuggestionsController;
+} // namespace Emoji
 } // namespace Ui
 
 namespace Window {
@@ -832,6 +835,8 @@ private:
 	bool _tabbedSectionUsed = false;
 	DragState _attachDrag = DragStateNone;
 	object_ptr<DragArea> _attachDragDocument, _attachDragPhoto;
+
+	object_ptr<Ui::Emoji::SuggestionsController> _emojiSuggestions = { nullptr };
 
 	bool _nonEmptySelection = false;
 
