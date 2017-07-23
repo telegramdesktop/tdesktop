@@ -1,3 +1,13 @@
+1.1.15 (23.07.17)
+
+— Send **bold** and __italic__ text in your messages.
+— Get a share link for posts in public supergroups.
+— Quickly share posts from channels and media messages from bots.
+— Search large supergroup members by name.
+— Search channel members by name for admins.
+— Use search in the service actions log.
+— Ban supergroup members via the right click menu in the service actions log.
+
 1.1.14 alpha (19.07.17)
 
 - Bug fixes and other minor improvements.
