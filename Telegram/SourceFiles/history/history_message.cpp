@@ -1843,9 +1843,12 @@ int HistoryMessage::performResizeGetHeight() {
 			_height = _minh;
 			if (mediaDisplayed) {
 				_media->resizeGetHeight(_maxw);
-			}
-			if (entry) {
-				_height += entry->_page->resizeGetHeight(countGeometry().width());
+				if (entry) {
+					_height += entry->_page->resizeGetHeight(countGeometry().width());
+				}
+			} else if (entry) {
+				// In case of text-only message it is counted in _minh already.
+				entry->_page->resizeGetHeight(countGeometry().width());
 			}
 		} else {
 			if (emptyText()) {
