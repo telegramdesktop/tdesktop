@@ -271,10 +271,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_username_link" = "Deze link opent een chat met jou:";
 "lng_username_copied" = "Link gekopieerd naar klembord.";
 
+"lng_bio_title" = "Bio wijzigen";
+"lng_bio_placeholder" = "Bio";
+"lng_bio_about" = "Je kunt hier wat over jezelf vertellen. Iedereen die je profiel opent kan deze tekst zien.";
+
 "lng_settings_section_info" = "Info";
 "lng_settings_phone_number" = "Telefoonnummer:";
 "lng_settings_username" = "Gebruikersnaam:";
 "lng_settings_choose_username" = "gebruikersnaam kiezen";
+"lng_settings_empty_bio" = "Niets";
 
 "lng_settings_section_notify" = "Meldingen";
 "lng_settings_desktop_notify" = "Desktopmeldingen";
@@ -570,6 +575,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_mobile_number" = "Mobiel:";
 "lng_profile_username" = "Gebruikersnaam:";
 "lng_profile_link" = "Link:";
+"lng_profile_bio" = "Bio:";
 "lng_profile_add_contact" = "Contact toevoegen";
 "lng_profile_edit_contact" = "Wijzig";
 "lng_profile_enable_notifications" = "Meldingen";
@@ -640,7 +646,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_report_button" = "Melden";
 "lng_report_thanks" = "Bedankt! Je melding zal zo spoedig mogen worden gecontroleerd.";
 
-"lng_channel_add_admins" = "Beheerder toevoegen";
 "lng_channel_add_members" = "Leden toevoegen";
 "lng_channel_add_banned" = "Blokkeer gebruiker";
 "lng_channel_add_restricted" = "Beperk gebruiker";
@@ -652,6 +657,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_channel_admins_too_much" = "Je hebt het maximum aantal beheerders voor deze groep bereikt, Verwijder er eerst één.";
 "lng_channel_admin_status_creator" = "Maker";
 "lng_channel_admin_status_promoted_by" = "Gepromoveerd door {user}";
+"lng_channel_admin_status_not_admin" = "Geen beheerder";
 
 "lng_group_blocked_list_about" = "Geblokkeerde gebruikers kunnen alleen worden uitgenodigd door beheerders. \nUitnodigingslinks werken niet voor hen.";
 
@@ -758,6 +764,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_game_you_scored_no_game#other" = "Je hebt {count} punten behaald";
 "lng_action_payment_done" = "Je hebt een bedrag van {amount} overgemaakt naar {user}";
 "lng_action_payment_done_for" = "Je hebt een bedrag van {amount} overgemaakt naar {user} voor {invoice}";
+"lng_action_took_screenshot" = "{from} heeft een schermafdruk gemaakt!";
+"lng_action_you_took_screenshot" = "Schermafdruk gemaakt!";
+
+"lng_ttl_photo_received" = "{from} heeft een zelfvernietigende video gestuurd, bekijk deze op je mobiel.";
+"lng_ttl_photo_sent" = "Je hebt een zelfvernietigende foto gestuurd";
+"lng_ttl_photo_expired" = "Foto is verlopen";
+"lng_ttl_video_received" = "{from} heeft een zelfvernietigende video gestuurd, bekijk deze op je mobiel.";
+"lng_ttl_video_sent" = "Je hebt een zelfvernietigende video gestuurd";
+"lng_ttl_video_expired" = "Video is verlopen";
 
 "lng_profile_migrate_reached#one" = "{count} ledenlimiet bereikt";
 "lng_profile_migrate_reached#other" = "{count} ledenlimiet bereikt";
@@ -1405,6 +1420,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_topbar_info" = "Info";
 "lng_profile_group_info" = "Groepsinformatie";
 "lng_profile_channel_info" = "Kanaalinformatie";
+"lng_channel_add_admins" = "Beheerder toevoegen";
 
 // Wnd specific
 

@@ -135,7 +135,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_server_error" = "내부 서버 오류";
 "lng_flood_error" = "시도가 너무 많습니다. 나중에 다시 시도해주세요.";
-"lng_gif_error" = "GIF 애니메이션을 읽는 동안 에러가 발생하였습니다.";
+"lng_gif_error" = "GIF 애니메이션을 불러올때 에러가 발생하였습니다 :(";
 "lng_edit_error" = "메시지를 수정 할 수 없습니다.";
 "lng_join_channel_error" = "너무 많은 채널과 슈퍼그룹에 참여하였습니다.\n기존 대화방을 나가주셔야 참여가 가능합니다.";
 "lng_error_phone_flood" = "죄송합니다, 너무 많이 계정 재가입이 최근에 이루어졌습니다. 다시 재가입까지 몇일 기다려주시기 바랍니다.";
@@ -145,6 +145,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_error_public_groups_denied" = "죄송하지만, 회원님은 공개그룹 참여에 제한 되었습니다.\n{more_info}";
 "lng_error_cant_edit_admin" = "죄송합니다, 이 관리자의 권한을 변경 할 수 없습니다.";
 "lng_error_cant_add_member" = "죄송합니다, 이 봇을 그룹에 추가할 수 없습니다. 관리자에게 추가 문의해주세요.";
+"lng_error_cant_add_bot" = "죄송합니다, 이 봇은 그룹에 추가할 수 없습니다.";
 "lng_error_cant_add_admin_invite" = "죄송합니다, 이 사용자는 이 그룹에 속해있지 않으며 초대가 되지 않기 때문에 관리자로 추가할 수 없습니다.";
 "lng_error_cant_add_admin_unban" = "죄송합니다, 이 사용자는 블랙리스트에 있으며 해제가 가능하지 않기 떄문에 관리자로 추가할 수 없습니다.";
 "lng_error_cant_ban_admin" = "죄송합니다, 이 사용자는 그룹의 관리자이며 해제권한이 없으시기 떄문에 차단할 수 없습니다.";
@@ -270,10 +271,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_username_link" = "회원님과 대화를 할 수 있는 링크입니다.";
 "lng_username_copied" = "클립보드에 링크가 복사되었습니다.";
 
+"lng_bio_title" = "자기소개 수정";
+"lng_bio_placeholder" = "자기속";
+"lng_bio_about" = "소개하고 싶은 내용을 적어주세요. 다른 분이 회원님의 프로필을 확인했을 경우 노출됩니다.";
+
 "lng_settings_section_info" = "정보";
 "lng_settings_phone_number" = "전화번호";
 "lng_settings_username" = "아이디:";
 "lng_settings_choose_username" = "아이디 설정하기";
+"lng_settings_empty_bio" = "없음";
 
 "lng_settings_section_notify" = "알림";
 "lng_settings_desktop_notify" = "데스크탑 알림";
@@ -556,6 +562,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_invite_link_section" = "초대링크";
 "lng_profile_create_public_link" = "공개 링크 생성";
 "lng_profile_edit_public_link" = "공개링크 수정";
+"lng_profile_search_members" = "사용자 검색";
 "lng_profile_manage_admins" = "관리자 관리";
 "lng_profile_manage_blocklist" = "차단된 사용자 관리";
 "lng_profile_manage_restrictedlist" = "제한된 사용자 관리";
@@ -568,6 +575,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_mobile_number" = "전화번호:";
 "lng_profile_username" = "아이디:";
 "lng_profile_link" = "링크:";
+"lng_profile_bio" = "자기소개:";
 "lng_profile_add_contact" = "연락처 추가";
 "lng_profile_edit_contact" = "수정";
 "lng_profile_enable_notifications" = "알림";
@@ -638,7 +646,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_report_button" = "신고";
 "lng_report_thanks" = "감사합니다! 신고내용은 신속하게 팀내에서 확인하겠습니다.";
 
-"lng_channel_add_admins" = "새로운 관리자";
 "lng_channel_add_members" = "대화상대 추가";
 "lng_channel_add_banned" = "사용자 차단";
 "lng_channel_add_restricted" = "사용자 제한";
@@ -650,6 +657,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_channel_admins_too_much" = "죄송합니다, 관리자의 최대허용치입니다. 다른 관리자를 삭제해주세요";
 "lng_channel_admin_status_creator" = "생성자";
 "lng_channel_admin_status_promoted_by" = "{user} 님이 승인함";
+"lng_channel_admin_status_not_admin" = "관리자가 아님";
 
 "lng_group_blocked_list_about" = "차단된 사용자들은 그룹에서 추방이 되며 관리자의 초대로만 재입장이 가능합니다.\n초대링크는 작동되지 않습니다.";
 
@@ -756,6 +764,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_game_you_scored_no_game#other" = "회원님이 {count}점 획득";
 "lng_action_payment_done" = "{amount}만큼 {user}에게 성공적으로 전송하였습니다.";
 "lng_action_payment_done_for" = "{invoice}에 대하여 {user}에게 {amount}만큼 전송하였습니다.";
+"lng_action_took_screenshot" = "{from} 님이 화면을 캡춰했습니다!";
+"lng_action_you_took_screenshot" = "화면을 캡춰했습니다!";
+
+"lng_ttl_photo_received" = "{from} 님이 자동삭제되는 사진을 전송했습니다. 휴대폰에서 확인해주세요.";
+"lng_ttl_photo_sent" = "자동삭제되는 사진을 전송했습니다.";
+"lng_ttl_photo_expired" = "사진 유효기간이 만료되었습니다.";
+"lng_ttl_video_received" = "{from} 님이 자동삭제되는 동영상을 전송했습니다. 휴대폰에서 확인해주세요.";
+"lng_ttl_video_sent" = "자동삭제되는 동영상을 전송했습니다.";
+"lng_ttl_video_expired" = "동영상 유효기간이 만료되었습니다.";
 
 "lng_profile_migrate_reached#one" = "대화상대 한계치인 {count}명에 도달했습니다.";
 "lng_profile_migrate_reached#other" = "대화상대 한계치인 {count}명에 도달했습니다.";
@@ -919,6 +936,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_cant_invite_banned" = "죄송하지만, 관리자만 회원 추가가 가능합니다.";
 "lng_cant_invite_privacy" = "죄송합니다, 개인설정으로 인하여 이 사용자를 그룹에 초대할 수 없습니다.";
 "lng_cant_invite_privacy_channel" = "죄송합니다, 개인설정으로 인하여 이 사용자를 채널에 초대할 수 없습니다.";
+"lng_cant_delete_group#one" = "죄송합니다, 현재 {count}명 이상 사용자가 있는 그룹일 경우 삭제할 수 없습니다. 삭제하고 싶으실 경우 텔레그램 질문하기로 문의해주세요";
+"lng_cant_delete_group#other" = "죄송합니다, 현재 {count}명 이상 사용자가 있는 그룹일 경우 삭제할 수 없습니다. 삭제하고 싶으실 경우 텔레그램 질문하기로 문의해주세요";
+"lng_cant_delete_channel#one" = "죄송합니다, 현재 {count}명 이상 사용자가 있는 채널일 경우 삭제할 수 없습니다. 삭제하고 싶으실 경우 텔레그램 질문하기로 문의해주세요.";
+"lng_cant_delete_channel#other" = "죄송합니다, 현재 {count}명 이상 사용자가 있는 채널일 경우 삭제할 수 없습니다. 삭제하고 싶으실 경우 텔레그램 질문하기로 문의해주세요.";
 "lng_cant_do_this" = "죄송하지만, 할 수 없는 기능입니다.";
 
 "lng_send_button" = "보내기";
@@ -1277,6 +1298,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_rights_edit_admin_header" = "이 관리자가 할 수 있는 것은?";
 "lng_rights_about_add_admins_yes" = "이 관리자는 동일한 권한 (혹은 더 제한된) 으로만 관리자 추가가 가능합니다.";
 "lng_rights_about_add_admins_no" = "이 관리자는 새로운 관리자 설정을 할 수 없습니다.";
+"lng_rights_about_admin_cant_edit" = "이 관리자의 권한을 변경 할 수 없습니다.";
 "lng_rights_user_restrictions" = "사용자 제한";
 "lng_rights_user_restrictions_header" = "이 사용자가 할 수 있는 것은?";
 
@@ -1296,8 +1318,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_rights_chat_send_media" = "미디어 전송";
 "lng_rights_chat_send_stickers" = "스티커 & GIF 전송";
 "lng_rights_chat_send_links" = "링크 저장";
-"lng_rights_chat_banned_until" = "다음까지 제한: {when}";
+"lng_rights_chat_banned_until_header" = "다음까지 제한";
 "lng_rights_chat_banned_forever" = "영원히";
+"lng_rights_chat_banned_day#one" = "{count} 일 까지";
+"lng_rights_chat_banned_day#other" = "{count} 일 까지";
+"lng_rights_chat_banned_week#one" = "{count} 주 까지";
+"lng_rights_chat_banned_week#other" = "{count} 주 까지";
+"lng_rights_chat_banned_custom" = "커스텀";
+"lng_rights_chat_banned_custom_date" = "{date} 일까지";
 "lng_rights_chat_banned_block" = "그룹에서 차단 후 추방";
 
 "lng_restricted_send_message" = "그룹 관리자가 회원님의 메시지 작성을 제한했습니다.";
@@ -1362,7 +1390,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_previous_message" = "원본 메시지";
 "lng_admin_log_deleted_message" = "{from} 님이 메시지를 삭제했습니다:";
 "lng_admin_log_participant_joined" = "{from} 님이 그룹에 들어왔습니다.";
+"lng_admin_log_participant_joined_channel" = "{from} 님이 채널에 들어오셨습니다.";
 "lng_admin_log_participant_left" = "{from} 님이 그룹을 나갔습니다.";
+"lng_admin_log_participant_left_channel" = "{from} 님이 채널을 나가셨습니다.";
 "lng_admin_log_invited" = "{user} 님을 초대함";
 "lng_admin_log_banned" = "{user} 님을 차단함";
 "lng_admin_log_restricted" = "{until}까지 {user}에 대한 제한을 변경함";
@@ -1390,6 +1420,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_topbar_info" = "정보";
 "lng_profile_group_info" = "그룹 정보";
 "lng_profile_channel_info" = "채널 정보";
+"lng_channel_add_admins" = "새로운 관리자";
 
 // Wnd specific
 
