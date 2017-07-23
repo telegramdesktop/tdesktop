@@ -63,6 +63,12 @@ void ActionsWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 				return true;
 			}
 		}
+		if (update.flags & UpdateFlag::MembersChanged) {
+			if (peer()->isMegagroup()) {
+				// Search members button could change.
+				return true;
+			}
+		}
 		return false;
 	};
 	if (needFullRefresh()) {
