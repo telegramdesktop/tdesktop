@@ -1235,9 +1235,12 @@ void ContactsBox::Inner::leaveEventHook(QEvent *e) {
 }
 
 void ContactsBox::Inner::mouseMoveEvent(QMouseEvent *e) {
-	_mouseSelection = true;
-	_lastMousePos = e->globalPos();
-	updateSelection();
+	auto position = e->globalPos();
+	if (_mouseSelection || _lastMousePos != position) {
+		_mouseSelection = true;
+		_lastMousePos = e->globalPos();
+		updateSelection();
+	}
 }
 
 void ContactsBox::Inner::mousePressEvent(QMouseEvent *e) {
