@@ -1049,7 +1049,10 @@ void DialogsInner::createDialog(History *history) {
 
 	int from = dialogsOffset() + changed.movedFrom * st::dialogsRowHeight;
 	int to = dialogsOffset() + changed.movedTo * st::dialogsRowHeight;
-	emit dialogMoved(from, to);
+	if (!_dragging) {
+		// Don't jump in chats list scroll position while dragging.
+		emit dialogMoved(from, to);
+	}
 
 	if (creating) {
 		refresh();
@@ -1690,7 +1693,10 @@ void DialogsInner::notify_historyMuteUpdated(History *history) {
 
 		int from = dialogsOffset() + changed.movedFrom * st::dialogsRowHeight;
 		int to = dialogsOffset() + changed.movedTo * st::dialogsRowHeight;
-		emit dialogMoved(from, to);
+		if (!_dragging) {
+			// Don't jump in chats list scroll position while dragging.
+			emit dialogMoved(from, to);
+		}
 
 		if (creating) {
 			refresh();
