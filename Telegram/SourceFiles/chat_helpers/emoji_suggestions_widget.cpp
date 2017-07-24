@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "chat_helpers/emoji_suggestions_widget.h"
 
+#include "emoji_suggestions.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/shadow.h"
 #include "platform/platform_specific.h"
@@ -32,6 +33,14 @@ namespace {
 
 constexpr auto kRowLimit = 5;
 constexpr auto kLargestReplacementLength = 128;
+
+utf16string QStringToUTF16(const QString &string) {
+	return utf16string(reinterpret_cast<const utf16char*>(string.constData()), string.size());
+}
+
+QString QStringFromUTF16(utf16string string) {
+	return QString::fromRawData(reinterpret_cast<const QChar*>(string.data()), string.size());
+}
 
 } // namespace
 
@@ -93,9 +102,9 @@ void SuggestionsWidget::showWithQuery(const QString &query) {
 	_query = query;
 	if (!_query.isEmpty()) {
 		rows.reserve(kRowLimit);
-		for (auto &item : GetSuggestions(_query)) {
-			if (auto emoji = Find(item.id)) {
-				rows.emplace_back(emoji, item.label, item.replacement);
+		for (auto &item : GetSuggestions(QStringToUTF16(_query))) {
+			if (auto emoji = Find(QStringFromUTF16(item.emoji()))) {
+				rows.emplace_back(emoji, QStringFromUTF16(item.label()), QStringFromUTF16(item.replacement()));
 				if (rows.size() == kRowLimit) {
 					break;
 				}

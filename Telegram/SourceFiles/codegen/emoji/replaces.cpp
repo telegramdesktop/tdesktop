@@ -281,9 +281,6 @@ QString ConvertEmojiId(const Id &id, const QString &replacement) {
 	if (NotSupported.contains(id)) {
 		return QString();
 	}
-	if (QRegularExpression("_tone").match(replacement).hasMatch()) {
-		int a = 0;
-	}
 	return ConvertMap.value(id, id);
 }
 
@@ -403,15 +400,20 @@ bool CheckAndConvertReplaces(Replaces &replaces, const Data &data) {
 	auto findId = [&data](const Id &id) {
 		return data.map.find(id) != data.map.cend();
 	};
-	auto findAndSort = [findId, &sorted](Id id, const Replace &replace) {
+	auto findAndSort = [findId, &data, &sorted](Id id, const Replace &replace) {
 		if (!findId(id)) {
 			id.replace(QChar(0xFE0F), QString());
 			if (!findId(id)) {
 				return false;
 			}
 		}
-		auto it = sorted.insertMulti(id, replace);
-		it.value().id = id;
+		auto it = data.map.find(id);
+		id = data.list[it->second].id;
+		if (data.list[it->second].postfixed) {
+			id += QChar(kPostfix);
+		}
+		auto inserted = sorted.insertMulti(id, replace);
+		inserted.value().id = id;
 		return true;
 	};
 
@@ -453,17 +455,10 @@ bool CheckAndConvertReplaces(Replaces &replaces, const Data &data) {
 	for (auto &category : data.categories) {
 		for (auto index : category) {
 			auto id = data.list[index].id;
-			auto found = false;
-			for (auto it = sorted.find(id); it != sorted.cend(); sorted.erase(it), it = sorted.find(id)) {
-				found = true;
-				result.list.push_back(it.value());
+			if (data.list[index].postfixed) {
+				id += QChar(kPostfix);
 			}
-			id.replace(QChar(0xFE0F), QString());
 			for (auto it = sorted.find(id); it != sorted.cend(); sorted.erase(it), it = sorted.find(id)) {
-				if (found) {
-					logReplacesError(replaces.filename) << "Strange emoji, found in both ways: " << it->replacement.toStdString();
-					return false;
-				}
 				result.list.push_back(it.value());
 			}
 		}

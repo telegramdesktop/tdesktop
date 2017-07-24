@@ -33,6 +33,7 @@
       'submodules_loc': '../ThirdParty',
       'minizip_loc': '<(submodules_loc)/minizip',
       'sp_media_key_tap_loc': '<(submodules_loc)/SPMediaKeyTap',
+      'emoji_suggestions_loc': '<(submodules_loc)/emoji_suggestions',
       'style_files': [
         '<(res_loc)/colors.palette',
         '<(res_loc)/basic.style',
@@ -101,6 +102,7 @@
       '<(libs_loc)/opus/include',
       '<(minizip_loc)',
       '<(sp_media_key_tap_loc)',
+      '<(emoji_suggestions_loc)',
       '<(submodules_loc)/GSL/include',
       '<(submodules_loc)/variant/include',
     ],

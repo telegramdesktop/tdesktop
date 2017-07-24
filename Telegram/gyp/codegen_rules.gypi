@@ -136,6 +136,8 @@
     'outputs': [
       '<(SHARED_INTERMEDIATE_DIR)/emoji.cpp',
       '<(SHARED_INTERMEDIATE_DIR)/emoji.h',
+      '<(SHARED_INTERMEDIATE_DIR)/emoji_suggestions_data.cpp',
+      '<(SHARED_INTERMEDIATE_DIR)/emoji_suggestions_data.h',
     ],
     'action': [
       '<(PRODUCT_DIR)/codegen_emoji<(exe_ext)',

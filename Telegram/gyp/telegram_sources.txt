@@ -98,8 +98,6 @@
 <(src_loc)/chat_helpers/bot_keyboard.h
 <(src_loc)/chat_helpers/emoji_list_widget.cpp
 <(src_loc)/chat_helpers/emoji_list_widget.h
-<(src_loc)/chat_helpers/emoji_suggestions.cpp
-<(src_loc)/chat_helpers/emoji_suggestions.h
 <(src_loc)/chat_helpers/emoji_suggestions_widget.cpp
 <(src_loc)/chat_helpers/emoji_suggestions_widget.h
 <(src_loc)/chat_helpers/field_autocomplete.cpp
@@ -581,6 +579,8 @@
 <(src_loc)/stdafx.h
 <(src_loc)/structs.cpp
 <(src_loc)/structs.h
+<(emoji_suggestions_loc)/emoji_suggestions.cpp
+<(emoji_suggestions_loc)/emoji_suggestions.h
 
 platforms: !win
 <(minizip_loc)/crypt.h

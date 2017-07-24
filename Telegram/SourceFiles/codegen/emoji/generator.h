@@ -31,6 +31,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace codegen {
 namespace emoji {
 
+using uint32 = unsigned int;
+
 class Generator {
 public:
 	Generator(const Options &options);
@@ -47,6 +49,8 @@ private:
 
 	bool writeSource();
 	bool writeHeader();
+	bool writeSuggestionsSource();
+	bool writeSuggestionsHeader();
 
 	template <typename Callback>
 	bool enumerateWholeList(Callback callback);
@@ -60,8 +64,9 @@ private:
 	bool writeFindFromDictionary(const std::map<QString, int, std::greater<QString>> &dictionary, bool skipPostfixes = false);
 	bool writeGetReplacements();
 	void startBinary();
-	bool writeStringBinary(const QString &string);
-	void writeIntBinary(int data);
+	bool writeStringBinary(common::CppFile *source, const QString &string);
+	void writeIntBinary(common::CppFile *source, int data);
+	void writeUintBinary(common::CppFile *source, uint32 data);
 
 	const common::ProjectInfo &project_;
 	int colorsCount_ = 0;
@@ -72,6 +77,9 @@ private:
 	QString spritePath_;
 	std::unique_ptr<common::CppFile> source_;
 	Data data_;
+
+	QString suggestionsPath_;
+	std::unique_ptr<common::CppFile> suggestionsSource_;
 	Replaces replaces_;
 
 	int _binaryFullLength = 0;
