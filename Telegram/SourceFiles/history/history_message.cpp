@@ -177,6 +177,7 @@ void FastShareMessage(gsl::not_null<HistoryItem*> item) {
 		OrderedSet<mtpRequestId> requests;
 	};
 	auto data = MakeShared<ShareData>(item->fullId());
+	auto isGame = item->getMessageBot() && item->getMedia() && (item->getMedia()->type() == MediaTypeGame);
 
 	auto canCopyLink = item->hasDirectLink();
 	if (!canCopyLink) {
@@ -264,10 +265,10 @@ void FastShareMessage(gsl::not_null<HistoryItem*> item) {
 			}
 		}
 	};
-	auto filterCallback = [](PeerData *peer) {
+	auto filterCallback = [isGame](PeerData *peer) {
 		if (peer->canWrite()) {
 			if (auto channel = peer->asChannel()) {
-				return !channel->isBroadcast();
+				return isGame ? (!channel->isBroadcast()) : true;
 			}
 			return true;
 		}
