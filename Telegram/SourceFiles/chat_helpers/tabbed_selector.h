@@ -234,7 +234,6 @@ public:
 signals:
 	void scrollToY(int y);
 	void disableScroll(bool disabled);
-	void saveConfigDelayed(int delay);
 
 protected:
 	gsl::not_null<Window::Controller*> controller() const {

@@ -323,9 +323,6 @@ TabbedSelector::TabbedSelector(QWidget *parent, gsl::not_null<Window::Controller
 				_scroll->disableScroll(disabled);
 			}
 		});
-		connect(widget, &Inner::saveConfigDelayed, this, [this](int delay) {
-			AuthSession::Current().saveDataDelayed(delay);
-		});
 	}
 
 	connect(stickers(), SIGNAL(scrollUpdated()), this, SLOT(onScroll()));

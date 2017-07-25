@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "chat_helpers/emoji_suggestions_widget.h"
 
-#include "emoji_suggestions.h"
+#include "chat_helpers/emoji_suggestions_helper.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/shadow.h"
 #include "platform/platform_specific.h"
@@ -32,15 +32,6 @@ namespace Emoji {
 namespace {
 
 constexpr auto kRowLimit = 5;
-constexpr auto kLargestReplacementLength = 128;
-
-utf16string QStringToUTF16(const QString &string) {
-	return utf16string(reinterpret_cast<const utf16char*>(string.constData()), string.size());
-}
-
-QString QStringFromUTF16(utf16string string) {
-	return QString::fromRawData(reinterpret_cast<const QChar*>(string.data()), string.size());
-}
 
 } // namespace
 
@@ -98,19 +89,8 @@ void SuggestionsWidget::showWithQuery(const QString &query) {
 	if (_query == query) {
 		return;
 	}
-	auto rows = std::vector<Row>();
 	_query = query;
-	if (!_query.isEmpty()) {
-		rows.reserve(kRowLimit);
-		for (auto &item : GetSuggestions(QStringToUTF16(_query))) {
-			if (auto emoji = Find(QStringFromUTF16(item.emoji()))) {
-				rows.emplace_back(emoji, QStringFromUTF16(item.label()), QStringFromUTF16(item.replacement()));
-				if (rows.size() == kRowLimit) {
-					break;
-				}
-			}
-		}
-	}
+	auto rows = getRowsByQuery();
 	if (rows.empty()) {
 		toggleAnimated.notify(false, true);
 	}
@@ -124,6 +104,63 @@ void SuggestionsWidget::showWithQuery(const QString &query) {
 	if (!_rows.empty()) {
 		toggleAnimated.notify(true, true);
 	}
+}
+
+std::vector<SuggestionsWidget::Row> SuggestionsWidget::getRowsByQuery() const {
+	auto result = std::vector<Row>();
+	if (_query.isEmpty()) {
+		return result;
+	}
+	auto suggestions = GetSuggestions(QStringToUTF16(_query));
+	if (suggestions.empty()) {
+		return result;
+	}
+	auto count = suggestions.size();
+	auto suggestionsEmoji = std::vector<EmojiPtr>(count, nullptr);
+	for (auto i = 0; i != count; ++i) {
+		suggestionsEmoji[i] = Find(QStringFromUTF16(suggestions[i].emoji()));
+	}
+	auto recents = 0;
+	auto &recent = GetRecent();
+	for (auto &item : recent) {
+		auto emoji = item.first->original();
+		if (!emoji) emoji = item.first;
+		auto it = std::find(suggestionsEmoji.begin(), suggestionsEmoji.end(), emoji);
+		if (it != suggestionsEmoji.end()) {
+			auto index = (it - suggestionsEmoji.begin());
+			if (index >= recents) {
+				if (index > recents) {
+					auto recentEmoji = suggestionsEmoji[index];
+					auto recentSuggestion = suggestions[index];
+					for (auto i = index; i != recents; --i) {
+						suggestionsEmoji[i] = suggestionsEmoji[i - 1];
+						suggestions[i] = suggestions[i - 1];
+					}
+					suggestionsEmoji[recents] = recentEmoji;
+					suggestions[recents] = recentSuggestion;
+				}
+				++recents;
+			}
+		}
+	}
+
+	result.reserve(kRowLimit);
+	auto index = 0;
+	for (auto &item : suggestions) {
+		if (auto emoji = suggestionsEmoji[index++]) {
+			if (emoji->hasVariants()) {
+				auto it = cEmojiVariants().constFind(emoji->nonColoredId());
+				if (it != cEmojiVariants().cend()) {
+					emoji = emoji->variant(it.value());
+				}
+			}
+			result.emplace_back(emoji, QStringFromUTF16(item.label()), QStringFromUTF16(item.replacement()));
+			if (result.size() == kRowLimit) {
+				break;
+			}
+		}
+	}
+	return result;
 }
 
 void SuggestionsWidget::resizeToRows() {
@@ -342,6 +379,10 @@ void SuggestionsController::handleTextChange() {
 }
 
 QString SuggestionsController::getEmojiQuery() {
+	if (!cReplaceEmojis()) {
+		return QString();
+	}
+
 	auto cursor = _field->textCursor();
 	auto position = _field->textCursor().position();
 	if (cursor.anchor() != position) {
@@ -396,7 +437,7 @@ QString SuggestionsController::getEmojiQuery() {
 			}
 			return QString();
 		}
-		if (position - i > kLargestReplacementLength) {
+		if (position - i > kSuggestionMaxLength) {
 			return QString();
 		}
 		if (!isSuggestionChar(ch)) {
@@ -414,6 +455,17 @@ void SuggestionsController::replaceCurrent(const QString &replacement) {
 	} else {
 		cursor.setPosition(cursor.position() - suggestion.size(), QTextCursor::KeepAnchor);
 		cursor.insertText(replacement + ' ');
+	}
+
+	auto emojiText = GetSuggestionEmoji(QStringToUTF16(replacement));
+	if (auto emoji = Find(QStringFromUTF16(emojiText))) {
+		if (emoji->hasVariants()) {
+			auto it = cEmojiVariants().constFind(emoji->nonColoredId());
+			if (it != cEmojiVariants().cend()) {
+				emoji = emoji->variant(it.value());
+			}
+		}
+		AddRecent(emoji);
 	}
 }
 

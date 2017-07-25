@@ -51,6 +51,7 @@ protected:
 private:
 	class Row;
 
+	std::vector<Row> getRowsByQuery() const;
 	void resizeToRows();
 	int countWidth(const Row &row);
 	void setSelected(int selected);
