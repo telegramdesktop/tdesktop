@@ -767,7 +767,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_took_screenshot" = "{from} heeft een schermafdruk gemaakt!";
 "lng_action_you_took_screenshot" = "Schermafdruk gemaakt!";
 
-"lng_ttl_photo_received" = "{from} heeft een zelfvernietigende video gestuurd, bekijk deze op je mobiel.";
+"lng_ttl_photo_received" = "{from} heeft een zelfvernietigende foto gestuurd, bekijk deze op je mobiel.";
 "lng_ttl_photo_sent" = "Je hebt een zelfvernietigende foto gestuurd";
 "lng_ttl_photo_expired" = "Foto is verlopen";
 "lng_ttl_video_received" = "{from} heeft een zelfvernietigende video gestuurd, bekijk deze op je mobiel.";

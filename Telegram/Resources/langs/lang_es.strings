@@ -271,10 +271,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_username_link" = "Este enlace abre un chat contigo:";
 "lng_username_copied" = "Enlace copiado al portapapeles.";
 
+"lng_bio_title" = "Editar tu biografía";
+"lng_bio_placeholder" = "Biografía";
+"lng_bio_about" = "Puedes añadir algunas palabras sobre ti. Cualquiera que abra tu perfil verá este texto.";
+
 "lng_settings_section_info" = "Información";
 "lng_settings_phone_number" = "Número de teléfono:";
 "lng_settings_username" = "Alias:";
 "lng_settings_choose_username" = "Elige un alias";
+"lng_settings_empty_bio" = "Ninguna";
 
 "lng_settings_section_notify" = "Notificaciones";
 "lng_settings_desktop_notify" = "Notificaciones de escritorio";
@@ -570,6 +575,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_mobile_number" = "Número:";
 "lng_profile_username" = "Alias:";
 "lng_profile_link" = "Enlace:";
+"lng_profile_bio" = "Biografía:";
 "lng_profile_add_contact" = "Añadir contacto";
 "lng_profile_edit_contact" = "Editar";
 "lng_profile_enable_notifications" = "Notificaciones";
@@ -640,7 +646,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_report_button" = "Reportar";
 "lng_report_thanks" = "¡Gracias! Tu reporte será revisado por nuestro equipo muy pronto.";
 
-"lng_channel_add_admins" = "Nuevo administrador";
 "lng_channel_add_members" = "Añadir miembros";
 "lng_channel_add_banned" = "Suspender usuario";
 "lng_channel_add_restricted" = "Restringir usuario";
@@ -652,6 +657,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_channel_admins_too_much" = "Lo sentimos, alcanzaste el límite de administradores. Por favor, elimina un administrador primero.";
 "lng_channel_admin_status_creator" = "Creador";
 "lng_channel_admin_status_promoted_by" = "Ascendido por {user}";
+"lng_channel_admin_status_not_admin" = "No es administrador";
 
 "lng_group_blocked_list_about" = "Los usuarios suspendidos son eliminados del grupo y sólo pueden volver si son invitados por un administrador. \nLos enlaces de invitación no funcionan para ellos.";
 
@@ -758,6 +764,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_game_you_scored_no_game#other" = "Conseguiste {count} puntos";
 "lng_action_payment_done" = "Has transferido satisfactoriamente {amount} a {user}";
 "lng_action_payment_done_for" = "Has transferido satisfactoriamente {amount} a {name} por {invoice}";
+"lng_action_took_screenshot" = "¡{from} hizo una captura de pantalla!";
+"lng_action_you_took_screenshot" = "¡Hiciste una captura de pantalla!";
+
+"lng_ttl_photo_received" = "{from} te envió una foto con autodestrucción. Por favor, mírala en tu teléfono.";
+"lng_ttl_photo_sent" = "Enviaste una foto con autodestrucción";
+"lng_ttl_photo_expired" = "La foto expiró";
+"lng_ttl_video_received" = "{from} te envió un vídeo con autodestrucción. Por favor, míralo en tu teléfono.";
+"lng_ttl_video_sent" = "Enviaste un vídeo con autodestrucción";
+"lng_ttl_video_expired" = "El vídeo expiró";
 
 "lng_profile_migrate_reached#one" = "Límite de {count} miembro alcanzado";
 "lng_profile_migrate_reached#other" = "Límite de {count} miembros alcanzado";
@@ -1405,6 +1420,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_topbar_info" = "Información";
 "lng_profile_group_info" = "Información";
 "lng_profile_channel_info" = "Información";
+"lng_channel_add_admins" = "Nuevo administrador";
 
 // Wnd specific
 
