@@ -38,7 +38,8 @@ CloudManager::CloudManager(Instance &langpack, gsl::not_null<MTP::Instance*> mtp
 }
 
 void CloudManager::requestLangPackDifference() {
-	if (_langpack.isCustom() || _langPackRequestId) {
+	request(_langPackRequestId).cancel();
+	if (_langpack.isCustom()) {
 		return;
 	}
 
@@ -171,7 +172,6 @@ bool CloudManager::showOfferSwitchBox() {
 		if (_offerSwitchToId.isEmpty()) {
 			return;
 		}
-		request(_langPackRequestId).cancel();
 		performSwitchAndRestart(_offerSwitchToId);
 	}, [this] {
 		Ui::hideLayer();
