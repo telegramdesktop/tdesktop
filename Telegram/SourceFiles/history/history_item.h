@@ -138,7 +138,7 @@ struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded
 	void create(const HistoryMessageVia *via) const;
 
 	QDateTime _originalDate;
-	PeerData *_originalPeer = nullptr;
+	PeerData *_originalSender = nullptr;
 	QString _originalAuthor;
 	MsgId _originalId = 0;
 	mutable Text _text = { 1 };
@@ -802,15 +802,16 @@ public:
 		}
 		return date;
 	}
-	PeerData *peerOriginal() const {
+	PeerData *senderOriginal() const {
 		if (auto forwarded = Get<HistoryMessageForwarded>()) {
-			return forwarded->_originalPeer;
+			return forwarded->_originalSender;
 		}
-		return history()->peer;
+		auto peer = history()->peer;
+		return (peer->isChannel() && !peer->isMegagroup()) ? peer : from();
 	}
 	PeerData *fromOriginal() const {
 		if (auto forwarded = Get<HistoryMessageForwarded>()) {
-			if (auto user = forwarded->_originalPeer->asUser()) {
+			if (auto user = forwarded->_originalSender->asUser()) {
 				return user;
 			}
 		}

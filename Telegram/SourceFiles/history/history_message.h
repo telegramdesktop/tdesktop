@@ -193,7 +193,7 @@ private:
 		UserId viaBotId = 0;
 		int viewsCount = -1;
 		QString author;
-		PeerId peerIdOriginal = 0;
+		PeerId senderOriginal = 0;
 		MsgId originalId = 0;
 		QString authorOriginal;
 		QDateTime originalDate;

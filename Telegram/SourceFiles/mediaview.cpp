@@ -1212,7 +1212,7 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 	_y = (height() - _h) / 2;
 	_width = _w;
 	if (_msgid && item) {
-		_from = item->peerOriginal();
+		_from = item->senderOriginal();
 	} else {
 		_from = _user;
 	}
@@ -1366,7 +1366,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 	_x = (width() - _w) / 2;
 	_y = (height() - _h) / 2;
 	if (_msgid && item) {
-		_from = item->peerOriginal();
+		_from = item->senderOriginal();
 	} else {
 		_from = _user;
 	}

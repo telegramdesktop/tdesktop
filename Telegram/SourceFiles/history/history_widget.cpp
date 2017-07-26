@@ -6414,7 +6414,7 @@ void HistoryWidget::updateForwardingTexts() {
 		QVector<PeerData*> fromUsers;
 		fromUsers.reserve(_toForward.size());
 		for (auto i = _toForward.cbegin(), e = _toForward.cend(); i != e; ++i) {
-			auto from = i.value()->peerOriginal();
+			auto from = i.value()->senderOriginal();
 			if (!fromUsersMap.contains(from)) {
 				fromUsersMap.insert(from, true);
 				fromUsers.push_back(from);
@@ -6444,7 +6444,7 @@ void HistoryWidget::checkForwardingInfo() {
 	if (!_toForward.isEmpty()) {
 		auto version = 0;
 		for_const (auto item, _toForward) {
-			version += item->peerOriginal()->nameVersion;
+			version += item->senderOriginal()->nameVersion;
 		}
 		if (version != _toForwardNameVersion) {
 			updateForwardingTexts();
