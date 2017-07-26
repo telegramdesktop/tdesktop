@@ -308,21 +308,21 @@ Replaces PrepareReplaces(const QString &filename) {
 	}
 	auto list = document.object();
 	for (auto i = list.constBegin(), e = list.constEnd(); i != e; ++i) {
-		if (!i->isObject()) {
+		if (!(*i).isObject()) {
 			logReplacesError(filename) << "Child object not found.";
 			return Replaces(filename);
 		}
 		auto childKey = i.key();
-		auto child = i->toObject();
+		auto child = (*i).toObject();
 		auto failed = false;
 		auto getString = [filename, childKey, &child, &failed](const QString &key) {
 			auto it = child.constFind(key);
-			if (it == child.constEnd() || !it->isString()) {
+			if (it == child.constEnd() || !(*it).isString()) {
 				logReplacesError(filename) << "Child '" << childKey.toStdString() << "' field not found: " << key.toStdString();
 				failed = true;
 				return QString();
 			}
-			return it->toString();
+			return (*it).toString();
 		};
 		auto idParts = getString("output").split('-');
 		auto name = getString("name");

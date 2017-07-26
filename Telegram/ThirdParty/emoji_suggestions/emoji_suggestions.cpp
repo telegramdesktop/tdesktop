@@ -170,7 +170,7 @@ private:
 	private:
 		std::vector<small> &_map;
 		int _index = 0;
-		bool _guarded = false;
+		small _guarded = 0;
 
 	};
 	std::vector<small> _currentItemWordsUsedMap;
