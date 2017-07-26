@@ -299,6 +299,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 			chat->photoId = 0;
 		}
 		chat->setInviteLink((f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString());
+		chat->fullUpdated();
 
 		notifySettingReceived(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
 	} else if (auto channel = peer->asChannel()) {
@@ -426,6 +427,7 @@ void ApiWrap::gotUserFull(UserData *user, const MTPUserFull &result, mtpRequestI
 	user->setCallsStatus(d.is_phone_calls_private() ? UserData::CallsStatus::Private : d.is_phone_calls_available() ? UserData::CallsStatus::Enabled : UserData::CallsStatus::Disabled);
 	user->setAbout(d.has_about() ? qs(d.vabout) : QString());
 	user->setCommonChatsCount(d.vcommon_chats_count.v);
+	user->fullUpdated();
 
 	if (req) {
 		auto i = _fullPeerRequests.find(user);
@@ -763,7 +765,7 @@ void ApiWrap::unblockParticipant(PeerData *peer, UserData *user) {
 				if (channel->kickedCount() > 0) {
 					channel->setKickedCount(channel->kickedCount() - 1);
 				} else {
-					channel->updateFull(true);
+					channel->updateFullForced();
 				}
 			}
 		}).fail([this, kick](const RPCError &error) {
@@ -1443,7 +1445,7 @@ void ApiWrap::resolveWebPages() {
 
 void ApiWrap::requestParticipantsCountDelayed(ChannelData *channel) {
 	_participantsCountRequestTimer.call(kReloadChannelMembersTimeout, [this, channel] {
-		channel->updateFull(true);
+		channel->updateFullForced();
 	});
 }
 

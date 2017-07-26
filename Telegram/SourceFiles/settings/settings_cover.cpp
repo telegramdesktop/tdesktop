@@ -45,6 +45,9 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 , _editNameInline(this, st::settingsEditButton)
 , _setPhoto(this, langFactory(lng_settings_upload), st::settingsPrimaryButton)
 , _editName(this, langFactory(lng_settings_edit), st::settingsSecondaryButton) {
+	if (_self) {
+		_self->updateFull();
+	}
 	setAcceptDrops(true);
 
 	_name->setSelectable(true);

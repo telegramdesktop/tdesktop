@@ -58,6 +58,8 @@ CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 , _peerMegagroup(peer->isMegagroup() ? _peerChannel : nullptr)
 , _userpicButton(this, peer)
 , _name(this, st::profileNameLabel) {
+	_peer->updateFull();
+
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 
 	setAttribute(Qt::WA_OpaquePaintEvent);

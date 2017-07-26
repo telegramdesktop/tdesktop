@@ -328,7 +328,6 @@ enum {
 	UpdateChunk = 100 * 1024, // 100kb parts when downloading the update
 	IdleMsecs = 60 * 1000, // after 60secs without user input we think we are idle
 
-	UpdateFullChannelTimeout = 5000, // not more than once in 5 seconds
 	SendViewsTimeout = 1000, // send views each second
 
 	ForwardOnAdd = 100, // how many messages from chat history server should forward to user, that was added to this chat

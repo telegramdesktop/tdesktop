@@ -330,6 +330,13 @@ public:
 	ChatData *migrateFrom() const;
 	ChannelData *migrateTo() const;
 
+	void updateFull();
+	void updateFullForced();
+	void fullUpdated();
+	bool wasFullUpdated() const {
+		return (_lastFullUpdate != 0);
+	}
+
 	const Text &dialogName() const;
 	const QString &shortName() const;
 	const QString &userName() const;
@@ -411,6 +418,7 @@ private:
 	ClickHandlerPtr _openLink;
 
 	int _colorIndex = 0;
+	TimeMs _lastFullUpdate = 0;
 
 };
 
@@ -762,12 +770,6 @@ public:
 
 	void setName(const QString &name, const QString &username);
 
-	void updateFull(bool force = false);
-	void fullUpdated();
-	bool wasFullUpdated() const {
-		return (_lastFullUpdate != 0);
-	}
-
 	uint64 access = 0;
 
 	MTPinputChannel inputChannel;
@@ -986,7 +988,6 @@ private:
 	bool canNotEditLastAdmin(gsl::not_null<UserData*> user) const;
 
 	PtsWaiter _ptsWaiter;
-	TimeMs _lastFullUpdate = 0;
 
 	bool _isForbidden = true;
 	int _membersCount = 1;

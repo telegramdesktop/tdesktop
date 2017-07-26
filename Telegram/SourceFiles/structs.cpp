@@ -41,6 +41,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace {
 
+constexpr auto kUpdateFullPeerTimeout = TimeMs(5000); // Not more than once in 5 seconds.
+
 int peerColorIndex(const PeerId &peer) {
 	auto myId = AuthSession::CurrentUserId();
 	auto peerId = peerToBareInt(peer);
@@ -722,16 +724,24 @@ void ChannelData::setName(const QString &newName, const QString &newUsername) {
 	updateNameDelayed(newName.isEmpty() ? name : newName, QString(), newUsername);
 }
 
-void ChannelData::updateFull(bool force) {
-	if (!_lastFullUpdate || force || getms(true) > _lastFullUpdate + UpdateFullChannelTimeout) {
-		if (App::api()) {
-			App::api()->requestFullPeer(this);
-			if (!amCreator() && !inviter) App::api()->requestSelfParticipant(this);
+void PeerData::updateFull() {
+	if (!_lastFullUpdate || getms(true) > _lastFullUpdate + kUpdateFullPeerTimeout) {
+		updateFullForced();
+	}
+}
+
+void PeerData::updateFullForced() {
+	if (App::api()) {
+		App::api()->requestFullPeer(this);
+		if (auto channel = asChannel()) {
+			if (!channel->amCreator() && !channel->inviter) {
+				App::api()->requestSelfParticipant(channel);
+			}
 		}
 	}
 }
 
-void ChannelData::fullUpdated() {
+void PeerData::fullUpdated() {
 	_lastFullUpdate = getms(true);
 }
 
@@ -842,7 +852,7 @@ void ChannelData::applyEditAdmin(gsl::not_null<UserData*> user, const MTPChannel
 		// We added an admin.
 		setAdminsCount(adminsCount() + 1);
 		if (App::main()) emit App::main()->peerUpdated(this);
-		updateFull(true);
+		updateFullForced();
 	}
 	Notify::peerUpdatedDelayed(this, flags);
 }
