@@ -990,13 +990,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_typing" = "typing";
 "lng_user_typing" = "{user} is typing";
 "lng_users_typing" = "{user} and {second_user} are typing";
-"lng_many_typing#one" = "{count} is typing";
-"lng_many_typing#other" = "{count} are typing";
+"lng_many_typing#one" = "{count} person is typing";
+"lng_many_typing#other" = "{count} people are typing";
 "lng_playing_game" = "playing a game";
 "lng_user_playing_game" = "{user} is playing a game";
 "lng_users_playing_game" = "{user} and {second_user} are playing a game";
-"lng_many_playing_game#one" = "{count} is playing a game";
-"lng_many_playing_game#other" = "{count} are playing a game";
+"lng_many_playing_game#one" = "{count} person is playing a game";
+"lng_many_playing_game#other" = "{count} people are playing a game";
 "lng_send_action_record_video" = "recording a video";
 "lng_user_action_record_video" = "{user} is recording a video";
 "lng_send_action_upload_video" = "sending a video";
