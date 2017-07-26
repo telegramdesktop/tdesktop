@@ -690,7 +690,10 @@ void mtpFileLoader::partLoaded(int offset, base::const_byte_span bytes) {
 				return cancel(true);
 			}
 		} else {
+			SignalHandlers::setCrashAnnotation("DebugInfo", QString("offset: %1, size: %2").arg(offset).arg(bytes.size()));
 			_data.reserve(offset + bytes.size());
+			SignalHandlers::setCrashAnnotation("DebugInfo", QString());
+
 			if (offset > _data.size()) {
 				_skippedBytes += offset - _data.size();
 				_data.resize(offset);
