@@ -1517,7 +1517,8 @@ private:
 						_p->setClipRect(selectedRect, Qt::IntersectClip);
 						_p->setPen(*_currentPenSelected);
 						_p->drawTextItem(QPointF(x.toReal(), textY), gf);
-						_p->setClipRegion((clippingEnabled ? clippingRegion : QRegion(_p->viewport())) - selectedRect);
+						auto externalClipping = clippingEnabled ? clippingRegion : QRegion(QRect((_x - _w).toInt(), _y - _lineHeight, (_x + 2 * _w).toInt(), _y + 2 * _lineHeight));
+						_p->setClipRegion(externalClipping - selectedRect);
 						_p->setPen(*_currentPen);
 						_p->drawTextItem(QPointF(x.toReal(), textY), gf);
 						if (clippingEnabled) {
