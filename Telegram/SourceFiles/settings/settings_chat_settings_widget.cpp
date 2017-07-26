@@ -157,9 +157,9 @@ void ChatSettingsWidget::createControls() {
 	addChildRow(_replaceEmoji, marginSub, lang(lng_settings_replace_emojis), [this](bool) { onReplaceEmoji(); }, cReplaceEmojis());
 	style::margins marginList(st::defaultCheck.diameter + st::defaultBoxCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
 	addChildRow(_viewList, marginList, slidedPadding, lang(lng_settings_view_emojis), SLOT(onViewList()), st::defaultLinkButton);
-	if (!cReplaceEmojis()) {
+//	if (!cReplaceEmojis()) {
 		_viewList->hideFast();
-	}
+//	}
 
 #ifndef OS_WIN_STORE
 	auto pathMargin = marginSub;
@@ -191,7 +191,7 @@ void ChatSettingsWidget::onReplaceEmoji() {
 	cSetReplaceEmojis(_replaceEmoji->checked());
 	Local::writeUserSettings();
 
-	_viewList->toggleAnimated(_replaceEmoji->checked());
+	//_viewList->toggleAnimated(_replaceEmoji->checked());
 }
 
 void ChatSettingsWidget::onViewList() {
