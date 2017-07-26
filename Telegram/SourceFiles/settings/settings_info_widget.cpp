@@ -48,10 +48,6 @@ void InfoWidget::createControls() {
 	style::margins slidedPadding(0, 0, 0, 0);
 	addChildRow(_mobileNumber, margin, slidedPadding, st::settingsBlockOneLineTextPart);
 	addChildRow(_username, margin, slidedPadding, st::settingsBlockOneLineTextPart);
-	addChildRow(_link, margin, slidedPadding, st::settingsBlockOneLineTextPart);
-	if (self()->username.isEmpty()) {
-		_link->hideFast();
-	}
 	addChildRow(_bio, margin, slidedPadding, st::settingsBioValue);
 	refreshControls();
 }
@@ -59,7 +55,6 @@ void InfoWidget::createControls() {
 void InfoWidget::refreshControls() {
 	refreshMobileNumber();
 	refreshUsername();
-	refreshLink();
 	refreshBio();
 }
 
@@ -94,31 +89,6 @@ void InfoWidget::refreshUsername() {
 	setLabeledText(_username, lang(lng_profile_username), usernameText, TextWithEntities(), copyText);
 	if (auto text = _username->entity()->textLabel()) {
 		text->setClickHandlerHook([](const ClickHandlerPtr &handler, Qt::MouseButton button) {
-			Ui::show(Box<UsernameBox>());
-			return false;
-		});
-	}
-}
-
-void InfoWidget::refreshLink() {
-	TextWithEntities linkText;
-	TextWithEntities linkTextShort;
-	if (!self()->username.isEmpty()) {
-		linkText.text = Messenger::Instance().createInternalLinkFull(self()->username);
-		linkText.entities.push_back(EntityInText(EntityInTextUrl, 0, linkText.text.size()));
-		linkTextShort.text = Messenger::Instance().createInternalLink(self()->username);
-		linkTextShort.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, linkTextShort.text.size(), Messenger::Instance().createInternalLinkFull(self()->username)));
-	}
-	setLabeledText(_link, lang(lng_profile_link), linkText, linkTextShort, QString());
-	if (auto text = _link->entity()->textLabel()) {
-		text->setClickHandlerHook([](const ClickHandlerPtr &handler, Qt::MouseButton button) {
-			Ui::show(Box<UsernameBox>());
-			return false;
-		});
-	}
-	if (auto shortText = _link->entity()->shortTextLabel()) {
-		shortText->setExpandLinksMode(ExpandLinksUrlOnly);
-		shortText->setClickHandlerHook([](const ClickHandlerPtr &handler, Qt::MouseButton button) {
 			Ui::show(Box<UsernameBox>());
 			return false;
 		});
@@ -195,7 +165,6 @@ void InfoWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 
 	if (update.flags & UpdateFlag::UsernameChanged) {
 		refreshUsername();
-		refreshLink();
 	}
 	if (update.flags & (UpdateFlag::UserPhoneChanged)) {
 		refreshMobileNumber();

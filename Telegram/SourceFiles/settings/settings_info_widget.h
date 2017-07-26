@@ -44,7 +44,6 @@ private:
 	void refreshControls();
 	void refreshMobileNumber();
 	void refreshUsername();
-	void refreshLink();
 	void refreshBio();
 
 	class LabeledWidget : public TWidget {
@@ -76,7 +75,6 @@ private:
 
 	object_ptr<LabeledWrap> _mobileNumber = { nullptr };
 	object_ptr<LabeledWrap> _username = { nullptr };
-	object_ptr<LabeledWrap> _link = { nullptr };
 	object_ptr<LabeledWrap> _bio = { nullptr };
 
 };
