@@ -62,6 +62,8 @@ private:
 	int itemTop(int index);
 	void updateItem(int index);
 	void updateSelection(QPoint globalPosition);
+	void triggerSelectedRow();
+	void triggerRow(const Row &row);
 
 	gsl::not_null<const style::Menu*> _st;
 

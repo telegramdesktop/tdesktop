@@ -219,9 +219,7 @@ void SuggestionsWidget::keyPressEvent(QKeyEvent *e) {
 
 void SuggestionsWidget::handleKeyEvent(int key) {
 	if (key == Qt::Key_Enter || key == Qt::Key_Return || key == Qt::Key_Tab) {
-		if (_selected >= 0 && _selected < _rows.size()) {
-			triggered.notify(_rows[_selected].replacement(), true);
-		}
+		triggerSelectedRow();
 		return;
 	}
 	if ((key != Qt::Key_Up && key != Qt::Key_Down) || _rows.size() < 1) {
@@ -333,9 +331,19 @@ void SuggestionsWidget::mouseReleaseEvent(QMouseEvent *e) {
 			_rows[pressed].ripple()->lastStop();
 		}
 		if (pressed == _selected) {
-			triggered.notify(_rows[_selected].replacement(), true);
+			triggerRow(_rows[_selected]);
 		}
 	}
+}
+
+void SuggestionsWidget::triggerSelectedRow() {
+	if (_selected >= 0 && _selected < _rows.size()) {
+		triggerRow(_rows[_selected]);
+	}
+}
+
+void SuggestionsWidget::triggerRow(const Row &row) {
+	triggered.notify(row.emoji()->text(), true);
 }
 
 void SuggestionsWidget::enterEventHook(QEvent *e) {
@@ -454,7 +462,7 @@ void SuggestionsController::replaceCurrent(const QString &replacement) {
 		_suggestions->showWithQuery(QString());
 	} else {
 		cursor.setPosition(cursor.position() - suggestion.size(), QTextCursor::KeepAnchor);
-		cursor.insertText(replacement + ' ');
+		cursor.insertText(replacement);
 	}
 
 	auto emojiText = GetSuggestionEmoji(QStringToUTF16(replacement));
