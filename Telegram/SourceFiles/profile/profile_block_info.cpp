@@ -29,6 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
+#include "ui/toast/toast.h"
 #include "messenger.h"
 
 namespace Profile {
@@ -215,8 +216,21 @@ void InfoWidget::refreshChannelLink() {
 	}
 	setSingleLineLabeledText(nullptr, lang(lng_profile_link), &_channelLink, channelLinkText, QString());
 	setSingleLineLabeledText(&_channelLinkLabel, lang(lng_profile_link), &_channelLinkShort, channelLinkTextShort, QString());
+	auto copyLinkHandlerHook = [this](const ClickHandlerPtr &handler, Qt::MouseButton button) {
+		if (auto channel = peer()->asChannel()) {
+			auto link = Messenger::Instance().createInternalLinkFull(channel->username);
+			QGuiApplication::clipboard()->setText(link);
+			Ui::Toast::Show(lang(lng_create_channel_link_copied));
+			return false;
+		}
+		return true;
+	};
+	if (_channelLink) {
+		_channelLink->setClickHandlerHook(copyLinkHandlerHook);
+	}
 	if (_channelLinkShort) {
 		_channelLinkShort->setExpandLinksMode(ExpandLinksUrlOnly);
+		_channelLinkShort->setClickHandlerHook(copyLinkHandlerHook);
 	}
 }
 
