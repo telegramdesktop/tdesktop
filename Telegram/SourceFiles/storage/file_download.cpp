@@ -690,9 +690,16 @@ void mtpFileLoader::partLoaded(int offset, base::const_byte_span bytes) {
 				return cancel(true);
 			}
 		} else {
-			SignalHandlers::setCrashAnnotation("DebugInfo", QString("offset: %1, size: %2").arg(offset).arg(bytes.size()));
+			if (offset > 100 * 1024 * 1024) {
+				// Debugging weird out of memory crashes.
+				auto info = QString("offset: %1, size: %2, cancelled: %3, finished: %4, filename: '%5', tocache: %6, fromcloud: %7, data: %8, fullsize: %9").arg(offset).arg(bytes.size()).arg(Logs::b(_cancelled)).arg(Logs::b(_finished)).arg(_fname).arg(int(_toCache)).arg(int(_fromCloud)).arg(_data.size()).arg(_size);
+				info += QString(", locationtype: %1, inqueue: %2, localstatus: %3").arg(int(_locationType)).arg(Logs::b(_inQueue)).arg(int(_localStatus));
+				SignalHandlers::setCrashAnnotation("DebugInfo", info);
+			}
 			_data.reserve(offset + bytes.size());
-			SignalHandlers::setCrashAnnotation("DebugInfo", QString());
+			if (offset > 100 * 1024 * 1024) {
+				SignalHandlers::setCrashAnnotation("DebugInfo", QString());
+			}
 
 			if (offset > _data.size()) {
 				_skippedBytes += offset - _data.size();
