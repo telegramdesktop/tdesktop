@@ -658,6 +658,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_channel_admin_status_creator" = "Criador";
 "lng_channel_admin_status_promoted_by" = "Promovido por {user}";
 "lng_channel_admin_status_not_admin" = "Não é administrador";
+"lng_channel_banned_status_restricted_by" = "Restringido por {user}";
 
 "lng_group_blocked_list_about" = "Usuários banidos são removidos do grupo e só podem voltar se convidados por um admin.\nLinks de convite não funcionam para eles.";
 
@@ -1187,6 +1188,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_search_found_results#one" = "Encontrada {count} mensagem";
 "lng_search_found_results#other" = "Encontradas {count} mensagens";
 "lng_search_global_results" = "Resultados da busca global";
+"lng_search_messages_from" = "Mostrar mensagens de";
 
 "lng_media_save_progress" = "{ready} de {total} {mb}";
 "lng_mediaview_save_as" = "Salvar Como...";
