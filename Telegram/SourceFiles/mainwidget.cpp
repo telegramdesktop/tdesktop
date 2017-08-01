@@ -33,7 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "chat_helpers/message_field.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
-#include "dialogswidget.h"
+#include "dialogs/dialogs_widget.h"
 #include "history/history_widget.h"
 #include "history/history_message.h"
 #include "history/history_media.h"

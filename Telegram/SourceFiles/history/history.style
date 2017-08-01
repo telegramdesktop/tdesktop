@@ -353,24 +353,6 @@ botKbTinyButton: BotKeyboardButton {
 }
 botKbScroll: defaultSolidScroll;
 
-mentionHeight: 40px;
-mentionScroll: ScrollArea(defaultScrollArea) {
-	topsh: 0px;
-	bottomsh: 0px;
-}
-mentionPadding: margins(8px, 5px, 8px, 5px);
-mentionTop: 11px;
-mentionFont: linkFont;
-mentionNameFg: windowFg;
-mentionNameFgOver: windowFgOver;
-mentionPhotoSize: msgPhotoSize;
-mentionBg: windowBg;
-mentionBgOver: windowBgOver;
-mentionFg: windowSubTextFg;
-mentionFgOver: windowSubTextFgOver;
-mentionFgActive: windowActiveTextFg;
-mentionFgOverActive: windowActiveTextFg;
-
 historyDateFadeDuration: 200;
 
 historyPhotoLeft: 14px;

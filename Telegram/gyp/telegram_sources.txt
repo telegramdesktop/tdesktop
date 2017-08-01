@@ -136,12 +136,16 @@
 <(src_loc)/dialogs/dialogs_common.h
 <(src_loc)/dialogs/dialogs_indexed_list.cpp
 <(src_loc)/dialogs/dialogs_indexed_list.h
+<(src_loc)/dialogs/dialogs_inner_widget.cpp
+<(src_loc)/dialogs/dialogs_inner_widget.h
 <(src_loc)/dialogs/dialogs_layout.cpp
 <(src_loc)/dialogs/dialogs_layout.h
 <(src_loc)/dialogs/dialogs_list.cpp
 <(src_loc)/dialogs/dialogs_list.h
 <(src_loc)/dialogs/dialogs_row.cpp
 <(src_loc)/dialogs/dialogs_row.h
+<(src_loc)/dialogs/dialogs_widget.cpp
+<(src_loc)/dialogs/dialogs_widget.h
 <(src_loc)/history/history.cpp
 <(src_loc)/history/history.h
 <(src_loc)/history/history_admin_log_filter.cpp
@@ -546,8 +550,6 @@
 <(src_loc)/autoupdater.h
 <(src_loc)/config.h
 <(src_loc)/countries.h
-<(src_loc)/dialogswidget.cpp
-<(src_loc)/dialogswidget.h
 <(src_loc)/facades.cpp
 <(src_loc)/facades.h
 <(src_loc)/layerwidget.cpp
