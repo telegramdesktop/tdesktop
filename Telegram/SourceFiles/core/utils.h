@@ -393,16 +393,16 @@ private:
 int32 hashCrc32(const void *data, uint32 len);
 
 int32 *hashSha1(const void *data, uint32 len, void *dest); // dest - ptr to 20 bytes, returns (int32*)dest
-inline std::array<char, 20> hashSha1(const void *data, int len) {
+inline std::array<char, 20> hashSha1(const void *data, int size) {
 	auto result = std::array<char, 20>();
-	hashSha1(data, len, result.data());
+	hashSha1(data, size, result.data());
 	return result;
 }
 
 int32 *hashSha256(const void *data, uint32 len, void *dest); // dest - ptr to 32 bytes, returns (int32*)dest
 inline std::array<char, 32> hashSha256(const void *data, int size) {
 	auto result = std::array<char, 32>();
-	hashSha1(data, size, result.data());
+	hashSha256(data, size, result.data());
 	return result;
 }
 

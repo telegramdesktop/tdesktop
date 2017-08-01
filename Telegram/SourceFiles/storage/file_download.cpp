@@ -600,7 +600,7 @@ mtpFileLoader::CheckCdnHashResult mtpFileLoader::checkCdnFileHash(int offset, ba
 		return CheckCdnHashResult::NoHash;
 	}
 	auto realHash = hashSha256(bytes.data(), bytes.size());
-	if (!base::compare_bytes(gsl::as_bytes(gsl::make_span(realHash)), gsl::as_bytes(gsl::make_span(cdnFileHashIt->second.hash)))) {
+	if (base::compare_bytes(gsl::as_bytes(gsl::make_span(realHash)), gsl::as_bytes(gsl::make_span(cdnFileHashIt->second.hash)))) {
 		return CheckCdnHashResult::Invalid;
 	}
 	return CheckCdnHashResult::Good;
@@ -620,9 +620,10 @@ void mtpFileLoader::getCdnFileHashesDone(const MTPVector<MTPCdnFileHash> &result
 	addCdnHashes(result.v);
 	auto someMoreChecked = false;
 	for (auto i = _cdnUncheckedParts.begin(); i != _cdnUncheckedParts.cend();) {
-		auto bytes = gsl::as_bytes(gsl::make_span(i->second));
+		auto uncheckedOffset = i->first;
+		auto uncheckedBytes = gsl::as_bytes(gsl::make_span(i->second));
 
-		switch (checkCdnFileHash(offset, bytes)) {
+		switch (checkCdnFileHash(uncheckedOffset, uncheckedBytes)) {
 		case CheckCdnHashResult::NoHash: {
 			++i;
 		} break;
@@ -635,12 +636,12 @@ void mtpFileLoader::getCdnFileHashesDone(const MTPVector<MTPCdnFileHash> &result
 
 		case CheckCdnHashResult::Good: {
 			someMoreChecked = true;
-			auto goodOffset = i->first;
+			auto goodOffset = uncheckedOffset;
 			auto goodBytes = std::move(i->second);
 			i = _cdnUncheckedParts.erase(i);
-			auto finished = (i == _cdnUncheckedParts.cend());
+			auto guarded = QPointer<mtpFileLoader>(this);
 			partLoaded(goodOffset, gsl::as_bytes(gsl::make_span(goodBytes)));
-			if (finished) {
+			if (!guarded) {
 				// Perhaps we were destroyed already?..
 				return;
 			}
@@ -721,7 +722,7 @@ void mtpFileLoader::partLoaded(int offset, base::const_byte_span bytes) {
 	if (!bytes.size() || (bytes.size() % 1024)) { // bad next offset
 		_lastComplete = true;
 	}
-	if (_sentRequests.empty() && (_lastComplete || (_size && _nextRequestOffset >= _size))) {
+	if (_sentRequests.empty() && _cdnUncheckedParts.empty() && (_lastComplete || (_size && _nextRequestOffset >= _size))) {
 		if (!_fname.isEmpty() && (_toCache == LoadToCacheAsWell)) {
 			if (!_fileIsOpen) _fileIsOpen = _file.open(QIODevice::WriteOnly);
 			if (!_fileIsOpen) {
