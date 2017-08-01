@@ -43,6 +43,9 @@ public:
 	float64 countOpacityByParent() const {
 		return outRatio();
 	}
+	bool isReady() const {
+		return (getReader() != nullptr);
+	}
 	void detach();
 	bool detached() const {
 		return !_item;

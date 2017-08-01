@@ -271,7 +271,7 @@ void MainWidget::checkCurrentFloatPlayer() {
 }
 
 void MainWidget::toggleFloatPlayer(gsl::not_null<Float*> instance) {
-	auto visible = !instance->hiddenByHistory && !instance->hiddenByWidget && !instance->widget->detached();
+	auto visible = !instance->hiddenByHistory && !instance->hiddenByWidget && instance->widget->isReady();
 	if (instance->visible != visible) {
 		instance->widget->resetMouseState();
 		instance->visible = visible;
