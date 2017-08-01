@@ -1,3 +1,8 @@
+1.1.19 (01.08.17)
+
+- Search by messages of specific group members.
+- Bug fixes and other minor improvements.
+
 1.1.18 (27.07.17)
 
 - Bug fixes and other minor improvements.
