@@ -783,6 +783,7 @@ void MediaView::onSaveAs() {
 			psShowOverAll(this);
 			if (!file.isEmpty() && file != location.name()) {
 				if (_doc->data().isEmpty()) {
+					QFile(file).remove();
 					QFile(location.name()).copy(file);
 				} else {
 					QFile f(file);
@@ -900,8 +901,11 @@ void MediaView::onDownload() {
 		if (location.accessEnable()) {
 			if (!QDir().exists(path)) QDir().mkpath(path);
 			toName = filedialogNextFilename(_doc->name, location.name(), path);
-			if (toName != location.name() && !QFile(location.name()).copy(toName)) {
-				toName = QString();
+			if (!toName.isEmpty() && toName != location.name()) {
+				QFile(toName).remove();
+				if (!QFile(location.name()).copy(toName)) {
+					toName = QString();
+				}
 			}
 			location.accessDisable();
 		} else {

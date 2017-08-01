@@ -1889,6 +1889,7 @@ void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMs
 			} else if (l.accessEnable()) {
 				auto alreadyName = l.name();
 				if (alreadyName != toFile) {
+					QFile(toFile).remove();
 					QFile(alreadyName).copy(toFile);
 				}
 				l.accessDisable();
