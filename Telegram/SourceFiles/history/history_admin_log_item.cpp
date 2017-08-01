@@ -412,6 +412,12 @@ void GenerateItems(gsl::not_null<History*> history, LocalIdManager &idManager, c
 		addPart(HistoryMessage::create(history, idManager.next(), bodyFlags, bodyReplyTo, bodyViaBotId, ::date(date), peerToUser(from->id), QString(), bodyText));
 	};
 
+	auto createChangeStickerSet = [&](const MTPDchannelAdminLogEventActionChangeStickerSet &action) {
+		auto removed = (action.vnew_stickerset.type() == mtpc_inputStickerSetEmpty);
+		auto text = (removed ? lng_admin_log_removed_stickers_group : lng_admin_log_changed_stickers_group)(lt_from, fromLinkText);
+		addSimpleServiceMessage(text);
+	};
+
 	switch (action.type()) {
 	case mtpc_channelAdminLogEventActionChangeTitle: createChangeTitle(action.c_channelAdminLogEventActionChangeTitle()); break;
 	case mtpc_channelAdminLogEventActionChangeAbout: createChangeAbout(action.c_channelAdminLogEventActionChangeAbout()); break;
@@ -427,6 +433,7 @@ void GenerateItems(gsl::not_null<History*> history, LocalIdManager &idManager, c
 	case mtpc_channelAdminLogEventActionParticipantInvite: createParticipantInvite(action.c_channelAdminLogEventActionParticipantInvite()); break;
 	case mtpc_channelAdminLogEventActionParticipantToggleBan: createParticipantToggleBan(action.c_channelAdminLogEventActionParticipantToggleBan()); break;
 	case mtpc_channelAdminLogEventActionParticipantToggleAdmin: createParticipantToggleAdmin(action.c_channelAdminLogEventActionParticipantToggleAdmin()); break;
+	case mtpc_channelAdminLogEventActionChangeStickerSet: createChangeStickerSet(action.c_channelAdminLogEventActionChangeStickerSet()); break;
 	default: Unexpected("channelAdminLogEventAction type in AdminLog::Item::Item()");
 	}
 }
