@@ -94,6 +94,8 @@ public:
 	void applyUpdatesNoPtsCheck(const MTPUpdates &updates);
 	void applyUpdateNoPtsCheck(const MTPUpdate &update);
 
+	void jumpToDate(gsl::not_null<PeerData*> peer, const QDate &date);
+
 	~ApiWrap();
 
 private:

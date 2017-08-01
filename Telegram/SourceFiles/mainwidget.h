@@ -187,8 +187,6 @@ public:
 	void dlgUpdated(Dialogs::Mode list, Dialogs::Row *row);
 	void dlgUpdated(PeerData *peer, MsgId msgId);
 
-	void showJumpToDate(PeerData *peer, QDate requestedDate);
-
 	void windowShown();
 
 	void sentUpdatesReceived(uint64 randomId, const MTPUpdates &updates);
@@ -317,7 +315,7 @@ public:
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd);
 
-	void jumpToDate(PeerData *peer, const QDate &date);
+	void jumpToDate(gsl::not_null<PeerData*> peer, const QDate &date);
 	void searchMessages(const QString &query, PeerData *inPeer);
 	bool preloadOverview(PeerData *peer, MediaOverviewType type);
 	void changingMsgId(HistoryItem *row, MsgId newId);

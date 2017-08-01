@@ -1650,4 +1650,46 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 	}
 }
 
+void ApiWrap::jumpToDate(gsl::not_null<PeerData*> peer, const QDate &date) {
+	// API returns a message with date <= offset_date.
+	// So we request a message with offset_date = desired_date - 1 and add_offset = -1.
+	// This should give us the first message with date >= desired_date.
+	auto offset_date = static_cast<int>(QDateTime(date).toTime_t()) - 1;
+	auto add_offset = -1;
+	auto limit = 1;
+	request(MTPmessages_GetHistory(peer->input, MTP_int(0), MTP_int(offset_date), MTP_int(add_offset), MTP_int(limit), MTP_int(0), MTP_int(0))).done([peer](const MTPmessages_Messages &result) {
+		auto getMessagesList = [&result, peer]() -> const QVector<MTPMessage>* {
+			auto handleMessages = [](auto &messages) {
+				App::feedUsers(messages.vusers);
+				App::feedChats(messages.vchats);
+				return &messages.vmessages.v;
+			};
+			switch (result.type()) {
+			case mtpc_messages_messages: return handleMessages(result.c_messages_messages());
+			case mtpc_messages_messagesSlice: return handleMessages(result.c_messages_messagesSlice());
+			case mtpc_messages_channelMessages: {
+				auto &messages = result.c_messages_channelMessages();
+				if (peer && peer->isChannel()) {
+					peer->asChannel()->ptsReceived(messages.vpts.v);
+				} else {
+					LOG(("API Error: received messages.channelMessages when no channel was passed! (MainWidget::showJumpToDate)"));
+				}
+				return handleMessages(messages);
+			} break;
+			}
+			return nullptr;
+		};
+
+		if (auto list = getMessagesList()) {
+			App::feedMsgs(*list, NewMessageExisting);
+			for (auto &message : *list) {
+				auto id = idFromMessage(message);
+				Ui::showPeerHistory(peer, id);
+				return;
+			}
+		}
+		Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
+	}).send();
+}
+
 ApiWrap::~ApiWrap() = default;

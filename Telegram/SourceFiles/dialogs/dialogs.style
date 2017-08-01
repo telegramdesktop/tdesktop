@@ -100,12 +100,17 @@ dialogsLock: IconButton(dialogsMenuToggle) {
 dialogsUnlockIcon: icon {{ "dialogs_unlock", dialogsMenuIconFg }};
 dialogsUnlockIconOver: icon {{ "dialogs_unlock", dialogsMenuIconFgOver }};
 dialogsCalendar: IconButton {
-	width: 32px;
+	width: 29px;
 	height: 32px;
 
 	icon: icon {{ "dialogs_calendar", dialogsMenuIconFg }};
 	iconOver: icon {{ "dialogs_calendar", dialogsMenuIconFgOver }};
-	iconPosition: point(3px, 3px);
+	iconPosition: point(0px, 5px);
+}
+dialogsSearchFrom: IconButton(dialogsCalendar) {
+	width: 26px;
+	icon: icon {{ "dialogs_search_from", dialogsMenuIconFg }};
+	iconOver: icon {{ "dialogs_search_from", dialogsMenuIconFgOver }};
 }
 
 dialogsFilter: FlatInput(defaultFlatInput) {

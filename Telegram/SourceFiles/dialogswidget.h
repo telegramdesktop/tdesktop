@@ -401,6 +401,7 @@ private:
 	void peerSearchReceived(const MTPcontacts_Found &result, mtpRequestId requestId);
 
 	void setSearchInPeer(PeerData *peer);
+	void showSearchFrom();
 	void showMainMenu();
 	void updateLockUnlockVisibility();
 	void updateJumpToDateVisibility(bool fast = false);
@@ -429,6 +430,7 @@ private:
 	object_ptr<Ui::IconButton> _forwardCancel = { nullptr };
 	object_ptr<Ui::IconButton> _mainMenuToggle;
 	object_ptr<Ui::FlatInput> _filter;
+	object_ptr<Ui::WidgetScaledFadeWrap<Ui::IconButton>> _searchFromUser;
 	object_ptr<Ui::WidgetScaledFadeWrap<Ui::IconButton>> _jumpToDate;
 	object_ptr<Ui::CrossButton> _cancelSearch;
 	object_ptr<Ui::IconButton> _lockUnlock;

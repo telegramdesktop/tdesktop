@@ -49,7 +49,7 @@ public:
 	}
 
 	void onClick(Qt::MouseButton) const override {
-		App::main()->showJumpToDate(_peer, _date);
+		App::wnd()->controller()->showJumpToDate(_peer, _date);
 	}
 
 private:

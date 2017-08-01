@@ -80,6 +80,8 @@ public:
 	bool canProvideChatWidth(int requestedWidth) const;
 	void provideChatWidth(int requestedWidth);
 
+	void showJumpToDate(gsl::not_null<PeerData*> peer, QDate requestedDate);
+
 	base::Variable<float64> &dialogsWidthRatio() {
 		return _dialogsWidthRatio;
 	}

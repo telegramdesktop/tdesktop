@@ -2329,6 +2329,7 @@ void DialogsWidget::UpdateButton::paintEvent(QPaintEvent *e) {
 DialogsWidget::DialogsWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : Window::AbstractSectionWidget(parent, controller)
 , _mainMenuToggle(this, st::dialogsMenuToggle)
 , _filter(this, st::dialogsFilter, langFactory(lng_dlg_filter))
+, _searchFromUser(this, object_ptr<Ui::IconButton>(this, st::dialogsSearchFrom))
 , _jumpToDate(this, object_ptr<Ui::IconButton>(this, st::dialogsCalendar))
 , _cancelSearch(this, st::dialogsCancelSearch)
 , _lockUnlock(this, st::dialogsLock)
@@ -2358,7 +2359,8 @@ DialogsWidget::DialogsWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 	subscribe(Adaptive::Changed(), [this] { updateForwardBar(); });
 
 	_cancelSearch->setClickedCallback([this] { onCancelSearch(); });
-	_jumpToDate->entity()->setClickedCallback([this] { if (_searchInPeer) App::main()->showJumpToDate(_searchInPeer, QDate()); });
+	_jumpToDate->entity()->setClickedCallback([this] { if (_searchInPeer) this->controller()->showJumpToDate(_searchInPeer, QDate()); });
+	_searchFromUser->entity()->setClickedCallback([this] { if (_searchInPeer->isChat() || _searchInPeer->isMegagroup()) showSearchFrom(); });
 	_lockUnlock->setVisible(Global::LocalPasscode());
 	subscribe(Global::RefLocalPasscodeChanged(), [this] { updateLockUnlockVisibility(); });
 	_lockUnlock->setClickedCallback([this] {
@@ -2485,6 +2487,7 @@ void DialogsWidget::showAnimated(Window::SlideDirection direction, const Window:
 	_filter->hide();
 	_cancelSearch->hideFast();
 	_jumpToDate->hideFast();
+	_searchFromUser->hideFast();
 	_lockUnlock->hide();
 
 	int delta = st::slideShift;
@@ -3059,6 +3062,10 @@ void DialogsWidget::setSearchInPeer(PeerData *peer) {
 	_inner->searchInPeer(_searchInPeer);
 }
 
+void DialogsWidget::showSearchFrom() {
+
+}
+
 void DialogsWidget::onFilterCursorMoved(int from, int to) {
 	if (to < 0) to = _filter->cursorPosition();
 	QString t = _filter->getLastText();
@@ -3122,6 +3129,13 @@ void DialogsWidget::updateJumpToDateVisibility(bool fast) {
 	} else {
 		_jumpToDate->toggleAnimated(jumpToDateVisible);
 	}
+
+	auto searchFromUserVisible = _searchInPeer && (_searchInPeer->isChat() || _searchInPeer->isMegagroup());
+	if (fast) {
+		_searchFromUser->toggleFast(searchFromUserVisible);
+	} else {
+		_searchFromUser->toggleAnimated(searchFromUserVisible);
+	}
 }
 
 void DialogsWidget::updateControlsGeometry() {
@@ -3144,6 +3158,7 @@ void DialogsWidget::updateControlsGeometry() {
 	_lockUnlock->moveToLeft(filterLeft + filterWidth + st::dialogsFilterPadding.x(), filterAreaTop + st::dialogsFilterPadding.y());
 	_cancelSearch->moveToLeft(filterLeft + filterWidth - _cancelSearch->width(), _filter->y());
 	_jumpToDate->moveToLeft(filterLeft + filterWidth - _jumpToDate->width(), _filter->y());
+	_searchFromUser->moveToLeft(filterLeft + filterWidth - _jumpToDate->width() - _searchFromUser->width(), _filter->y());
 
 	auto scrollTop = filterAreaTop + filterAreaHeight;
 	auto addToScroll = App::main() ? App::main()->contentScrollAddToY() : 0;

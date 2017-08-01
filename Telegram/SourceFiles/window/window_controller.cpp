@@ -24,6 +24,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
+#include "boxes/calendar_box.h"
+#include "auth_session.h"
+#include "apiwrap.h"
 
 namespace Window {
 
@@ -131,6 +134,53 @@ void Controller::provideChatWidth(int requestedWidth) {
 	if (newLayout.windowLayout != Adaptive::WindowLayout::OneColumn) {
 		dialogsWidthRatio().set(float64(newLayout.bodyWidth - requestedWidth) / newLayout.bodyWidth, true);
 	}
+}
+
+void Controller::showJumpToDate(gsl::not_null<PeerData*> peer, QDate requestedDate) {
+	Expects(peer != nullptr);
+	auto currentPeerDate = [peer] {
+		if (auto history = App::historyLoaded(peer)) {
+			if (history->scrollTopItem) {
+				return history->scrollTopItem->date.date();
+			} else if (history->loadedAtTop() && !history->isEmpty() && history->peer->migrateFrom()) {
+				if (auto migrated = App::historyLoaded(history->peer->migrateFrom())) {
+					if (migrated->scrollTopItem) {
+						// We're up in the migrated history.
+						// So current date is the date of first message here.
+						return history->blocks.front()->items.front()->date.date();
+					}
+				}
+			} else if (!history->lastMsgDate.isNull()) {
+				return history->lastMsgDate.date();
+			}
+		}
+		return QDate::currentDate();
+	};
+	auto maxPeerDate = [peer] {
+		if (auto history = App::historyLoaded(peer)) {
+			if (!history->lastMsgDate.isNull()) {
+				return history->lastMsgDate.date();
+			}
+		}
+		return QDate::currentDate();
+	};
+	auto minPeerDate = [peer] {
+		if (auto history = App::historyLoaded(peer)) {
+			if (history->loadedAtTop()) {
+				if (history->isEmpty()) {
+					return QDate::currentDate();
+				}
+				return history->blocks.front()->items.front()->date.date();
+			}
+		}
+		return QDate(2013, 8, 1); // Telegram was launched in August 2013 :)
+	};
+	auto highlighted = requestedDate.isNull() ? currentPeerDate() : requestedDate;
+	auto month = highlighted;
+	auto box = Box<CalendarBox>(month, highlighted, [this, peer](const QDate &date) { AuthSession::Current().api().jumpToDate(peer, date); });
+	box->setMinDate(minPeerDate());
+	box->setMaxDate(maxPeerDate());
+	Ui::show(std::move(box));
 }
 
 } // namespace Window
