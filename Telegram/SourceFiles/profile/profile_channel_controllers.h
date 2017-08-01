@@ -43,6 +43,7 @@ public:
 		std::map<gsl::not_null<UserData*>, gsl::not_null<UserData*>> adminPromotedBy;
 		std::map<gsl::not_null<UserData*>, MTPChannelBannedRights> restrictedRights;
 		std::set<gsl::not_null<UserData*>> kicked;
+		std::map<gsl::not_null<UserData*>, gsl::not_null<UserData*>> restrictedBy;
 		std::set<gsl::not_null<UserData*>> external;
 		std::set<gsl::not_null<UserData*>> infoNotLoaded;
 		UserData *creator = nullptr;
@@ -78,7 +79,7 @@ private:
 	bool prependRow(gsl::not_null<UserData*> user);
 	bool removeRow(gsl::not_null<UserData*> user);
 	std::unique_ptr<PeerListRow> createRow(gsl::not_null<UserData*> user) const;
-	void refreshAdminCustomStatus(gsl::not_null<PeerListRow*> row) const;
+	void refreshCustomStatus(gsl::not_null<PeerListRow*> row) const;
 	bool feedMegagroupLastParticipants();
 
 	gsl::not_null<ChannelData*> _channel;

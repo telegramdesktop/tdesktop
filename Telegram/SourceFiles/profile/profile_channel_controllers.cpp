@@ -157,6 +157,14 @@ void ParticipantsBoxController::HandleParticipant(const MTPChannelParticipant &p
 		auto &banned = participant.c_channelParticipantBanned();
 		if (auto user = App::userLoaded(banned.vuser_id.v)) {
 			additional->restrictedRights[user] = banned.vbanned_rights;
+			if (auto kickedby = App::userLoaded(banned.vkicked_by.v)) {
+				auto it = additional->restrictedBy.find(user);
+				if (it == additional->restrictedBy.end()) {
+					additional->restrictedBy.emplace(user, kickedby);
+				} else {
+					it->second = kickedby;
+				}
+			}
 			callback(user);
 		}
 	} else if (role == Role::Members && participant.type() == mtpc_channelParticipant) {
@@ -367,6 +375,7 @@ void ParticipantsBoxController::editAdminDone(gsl::not_null<UserData*> user, con
 		_additional.adminRights[user] = rights;
 		_additional.kicked.erase(user);
 		_additional.restrictedRights.erase(user);
+		_additional.restrictedBy.erase(user);
 		if (_role == Role::Admins) {
 			prependRow(user);
 		} else {
@@ -410,6 +419,7 @@ void ParticipantsBoxController::editRestrictedDone(gsl::not_null<UserData*> user
 	if (notBanned) {
 		_additional.kicked.erase(user);
 		_additional.restrictedRights.erase(user);
+		_additional.restrictedBy.erase(user);
 		if (_role != Role::Admins) {
 			removeRow(user);
 		}
@@ -417,6 +427,7 @@ void ParticipantsBoxController::editRestrictedDone(gsl::not_null<UserData*> user
 		_additional.adminRights.erase(user);
 		_additional.adminCanEdit.erase(user);
 		_additional.adminPromotedBy.erase(user);
+		_additional.restrictedBy.emplace(user, App::self());
 		if (fullBanned) {
 			_additional.kicked.emplace(user);
 			_additional.restrictedRights.erase(user);
@@ -482,9 +493,9 @@ bool ParticipantsBoxController::appendRow(gsl::not_null<UserData*> user) {
 
 bool ParticipantsBoxController::prependRow(gsl::not_null<UserData*> user) {
 	if (auto row = delegate()->peerListFindRow(user->id)) {
+		refreshCustomStatus(row);
 		if (_role == Role::Admins) {
 			// Perhaps we've added a new admin from search.
-			refreshAdminCustomStatus(row);
 			delegate()->peerListPrependRowFromSearchResult(row);
 		}
 		return false;
@@ -515,9 +526,7 @@ bool ParticipantsBoxController::removeRow(gsl::not_null<UserData*> user) {
 
 std::unique_ptr<PeerListRow> ParticipantsBoxController::createRow(gsl::not_null<UserData*> user) const {
 	auto row = std::make_unique<PeerListRowWithLink>(user);
-	if (_role == Role::Admins) {
-		refreshAdminCustomStatus(row.get());
-	}
+	refreshCustomStatus(row.get());
 	if (_role == Role::Restricted || (_role == Role::Admins && _additional.adminCanEdit.find(user) != _additional.adminCanEdit.cend())) {
 //		row->setActionLink(lang(lng_profile_edit_permissions));
 	} else if (_role == Role::Kicked) {
@@ -532,17 +541,26 @@ std::unique_ptr<PeerListRow> ParticipantsBoxController::createRow(gsl::not_null<
 	return std::move(row);
 }
 
-void ParticipantsBoxController::refreshAdminCustomStatus(gsl::not_null<PeerListRow*> row) const {
+void ParticipantsBoxController::refreshCustomStatus(gsl::not_null<PeerListRow*> row) const {
 	auto user = row->peer()->asUser();
-	auto promotedBy = _additional.adminPromotedBy.find(user);
-	if (promotedBy == _additional.adminPromotedBy.cend()) {
-		if (user == _additional.creator) {
-			row->setCustomStatus(lang(lng_channel_admin_status_creator));
+	if (_role == Role::Admins) {
+		auto promotedBy = _additional.adminPromotedBy.find(user);
+		if (promotedBy == _additional.adminPromotedBy.cend()) {
+			if (user == _additional.creator) {
+				row->setCustomStatus(lang(lng_channel_admin_status_creator));
+			} else {
+				row->setCustomStatus(lang(lng_channel_admin_status_not_admin));
+			}
 		} else {
-			row->setCustomStatus(lang(lng_channel_admin_status_not_admin));
+			row->setCustomStatus(lng_channel_admin_status_promoted_by(lt_user, App::peerName(promotedBy->second)));
 		}
-	} else {
-		row->setCustomStatus(lng_channel_admin_status_promoted_by(lt_user, App::peerName(promotedBy->second)));
+	} else if (_role == Role::Kicked || _role == Role::Restricted) {
+		auto restrictedBy = _additional.restrictedBy.find(user);
+		if (restrictedBy == _additional.restrictedBy.cend()) {
+			row->setCustomStatus(lng_channel_banned_status_restricted_by(lt_user, "Unknown"));
+		} else {
+			row->setCustomStatus(lng_channel_banned_status_restricted_by(lt_user, App::peerName(restrictedBy->second)));
+		}
 	}
 }
 
@@ -878,6 +896,7 @@ void AddParticipantBoxController::showAdmin(gsl::not_null<UserData*> user, bool 
 void AddParticipantBoxController::editAdminDone(gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights) {
 	if (_editBox) _editBox->closeBox();
 	_additional.restrictedRights.erase(user);
+	_additional.restrictedBy.erase(user);
 	_additional.kicked.erase(user);
 	_additional.external.erase(user);
 	if (rights.c_channelAdminRights().vflags.v == 0) {
@@ -961,6 +980,7 @@ void AddParticipantBoxController::editRestrictedDone(gsl::not_null<UserData*> us
 	_additional.adminPromotedBy.erase(user);
 	if (rights.c_channelBannedRights().vflags.v == 0) {
 		_additional.restrictedRights.erase(user);
+		_additional.restrictedBy.erase(user);
 		_additional.kicked.erase(user);
 	} else {
 		_additional.restrictedRights[user] = rights;
@@ -969,6 +989,7 @@ void AddParticipantBoxController::editRestrictedDone(gsl::not_null<UserData*> us
 		} else {
 			_additional.kicked.erase(user);
 		}
+		_additional.restrictedBy.emplace(user, App::self());
 	}
 	if (_bannedDoneCallback) {
 		_bannedDoneCallback(user, rights);
@@ -1047,6 +1068,7 @@ void AddParticipantBoxController::HandleParticipant(const MTPChannelParticipant 
 			additional->infoNotLoaded.erase(user);
 			additional->restrictedRights.erase(user);
 			additional->kicked.erase(user);
+			additional->restrictedBy.erase(user);
 			additional->adminRights[user] = admin.vadmin_rights;
 			if (admin.is_can_edit()) {
 				additional->adminCanEdit.emplace(user);
@@ -1087,6 +1109,14 @@ void AddParticipantBoxController::HandleParticipant(const MTPChannelParticipant 
 				additional->kicked.erase(user);
 			}
 			additional->restrictedRights[user] = banned.vbanned_rights;
+			if (auto kickedby = App::userLoaded(banned.vkicked_by.v)) {
+				auto it = additional->restrictedBy.find(user);
+				if (it == additional->restrictedBy.end()) {
+					additional->restrictedBy.emplace(user, kickedby);
+				} else {
+					it->second = kickedby;
+				}
+			}
 			callback(user);
 		}
 	} break;
@@ -1099,6 +1129,7 @@ void AddParticipantBoxController::HandleParticipant(const MTPChannelParticipant 
 			additional->adminPromotedBy.erase(user);
 			additional->restrictedRights.erase(user);
 			additional->kicked.erase(user);
+			additional->restrictedBy.erase(user);
 			callback(user);
 		}
 	} break;
