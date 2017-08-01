@@ -22,8 +22,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/dialogs_layout.h"
+#include "dialogs/dialogs_search_from_controllers.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
+#include "boxes/contacts_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "data/data_drafts.h"
@@ -37,6 +39,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "auth_session.h"
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
+#include "ui/widgets/multi_select.h"
 
 namespace {
 
@@ -44,6 +47,11 @@ constexpr auto kHashtagResultsLimit = 5;
 constexpr auto kStartReorderThreshold = 30;
 
 } // namespace
+
+class DialogsInner::SearchFromBubble : public Ui::MultiSelect::Item {
+public:
+	using Item::Item;
+};
 
 struct DialogsInner::ImportantSwitch {
 	Dialogs::RippleRow row;
@@ -123,8 +131,18 @@ int DialogsInner::peerSearchOffset() const {
 }
 
 int DialogsInner::searchedOffset() const {
-	int result = peerSearchOffset() + (_peerSearchResults.empty() ? 0 : ((_peerSearchResults.size() * st::dialogsRowHeight) + st::searchedBarHeight));
-	if (_searchInPeer) result += st::dialogsRowHeight;
+	auto result = peerSearchOffset() + (_peerSearchResults.empty() ? 0 : ((_peerSearchResults.size() * st::dialogsRowHeight) + st::searchedBarHeight));
+	if (_searchInPeer) {
+		result += searchInPeerSkip();
+	}
+	return result;
+}
+
+int DialogsInner::searchInPeerSkip() const {
+	auto result = st::dialogsRowHeight;
+	if (_searchFromUserBubble) {
+		result += st::lineWidth + st::dialogsSearchFromPadding.top() + _searchFromUserBubble->rect().height() + st::dialogsSearchFromPadding.bottom();
+	}
 	return result;
 }
 
@@ -300,8 +318,8 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 		}
 
 		if (_searchInPeer) {
-			paintSearchInPeer(p, fullWidth, paintingOther);
-			p.translate(0, st::dialogsRowHeight);
+			paintSearchInPeer(p, fullWidth, paintingOther, ms);
+			p.translate(0, searchInPeerSkip());
 			if (_state == FilteredState && _searchResults.empty()) {
 				p.fillRect(0, 0, fullWidth, st::searchedBarHeight, st::searchedBarBg);
 				if (!paintingOther) {
@@ -409,9 +427,13 @@ void DialogsInner::paintPeerSearchResult(Painter &p, const PeerSearchResult *res
 	peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
-void DialogsInner::paintSearchInPeer(Painter &p, int fullWidth, bool onlyBackground) const {
-	QRect fullRect(0, 0, fullWidth, st::dialogsRowHeight);
+void DialogsInner::paintSearchInPeer(Painter &p, int fullWidth, bool onlyBackground, TimeMs ms) const {
+	auto height = searchInPeerSkip();
+	auto fullRect = QRect(0, 0, fullWidth, height);
 	p.fillRect(fullRect, st::dialogsBg);
+	if (_searchFromUserBubble) {
+		p.fillRect(QRect(0, st::dialogsRowHeight, width(), st::lineWidth), st::shadowFg);
+	}
 	if (onlyBackground) return;
 
 	_searchInPeer->paintUserpicLeft(p, st::dialogsPadding.x(), st::dialogsPadding.y(), getFullWidth(), st::dialogsPhotoSize);
@@ -432,14 +454,19 @@ void DialogsInner::paintSearchInPeer(Painter &p, int fullWidth, bool onlyBackgro
 
 	p.setPen(st::dialogsNameFg);
 	_searchInPeer->nameText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
+
+	if (_searchFromUserBubble) {
+		_searchFromUserBubble->paint(p, width(), ms);
+	}
 }
 
 void DialogsInner::activate() {
 }
 
 void DialogsInner::mouseMoveEvent(QMouseEvent *e) {
+	auto position = e->pos();
 	_mouseSelection = true;
-	updateSelected(e->pos());
+	updateSelected(position);
 }
 
 void DialogsInner::clearIrrelevantState() {
@@ -465,6 +492,15 @@ void DialogsInner::updateSelected(QPoint localPos) {
 	if (updateReorderPinned(localPos)) {
 		return;
 	}
+
+	if (_searchFromUserBubble) {
+		if (_searchFromUserBubble->rect().contains(localPos)) {
+			_searchFromUserBubble->mouseMoveEvent(localPos - _searchFromUserBubble->rect().topLeft());
+		} else {
+			_searchFromUserBubble->leaveEvent();
+		}
+	}
+
 	if (!_mouseSelection) {
 		return;
 	}
@@ -542,9 +578,25 @@ void DialogsInner::updateSelected(QPoint localPos) {
 	}
 }
 
+void DialogsInner::handleSearchFromUserClick() {
+	Expects(_searchFromUserBubble != nullptr);
+	if (_searchFromUserBubble->isOverDelete()) {
+		searchFromUserChanged.notify(nullptr);
+	} else {
+		Dialogs::ShowSearchFromBox(_searchInPeer, base::lambda_guarded(this, [this](gsl::not_null<UserData*> user) {
+			Ui::hideLayer();
+			searchFromUserChanged.notify(user);
+		}));
+	}
+}
+
 void DialogsInner::mousePressEvent(QMouseEvent *e) {
 	_mouseSelection = true;
 	updateSelected(e->pos());
+
+	if (_searchFromUserBubble && _searchFromUserBubble->rect().contains(e->pos())) {
+		return handleSearchFromUserClick();
+	}
 
 	_pressButton = e->button();
 	setPressed(_selected);
@@ -904,6 +956,13 @@ void DialogsInner::resizeEvent(QResizeEvent *e) {
 	_addContactLnk->move((width() - _addContactLnk->width()) / 2, (st::noContactsHeight + st::noContactsFont->height) / 2);
 	auto widthForCancelButton = qMax(width() + otherWidth(), st::dialogsWidthMin);
 	_cancelSearchInPeer->moveToLeft(widthForCancelButton - st::dialogsFilterSkip - st::dialogsFilterPadding.x() - _cancelSearchInPeer->width(), (st::dialogsRowHeight - st::dialogsCancelSearchInPeer.height) / 2);
+	updateSearchFromBubble();
+}
+
+void DialogsInner::updateSearchFromBubble() {
+	if (_searchFromUserBubble) {
+		_searchFromUserBubble->setPosition(st::dialogsSearchFromPadding.left(), st::dialogsRowHeight + st::lineWidth + st::dialogsSearchFromPadding.top(), width(), st::dialogsSearchFromPadding.left());
+	}
 }
 
 void DialogsInner::onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow) {
@@ -1134,6 +1193,9 @@ void DialogsInner::updateSelectedRow(PeerData *peer) {
 void DialogsInner::leaveEventHook(QEvent *e) {
 	setMouseTracking(false);
 	clearSelection();
+	if (_searchFromUserBubble) {
+		_searchFromUserBubble->leaveEvent();
+	}
 }
 
 void DialogsInner::dragLeft() {
@@ -1233,15 +1295,8 @@ void DialogsInner::onFilterUpdate(QString newFilter, bool force) {
 	newFilter = words.isEmpty() ? QString() : words.join(' ');
 	if (newFilter != _filter || force) {
 		_filter = newFilter;
-		if (!_searchInPeer && _filter.isEmpty()) {
-			_state = DefaultState;
-			_hashtagResults.clear();
-			_filterResults.clear();
-			_peerSearchResults.clear();
-			_searchResults.clear();
-			_lastSearchDate = 0;
-			_lastSearchPeer = 0;
-			_lastSearchId = _lastSearchMigratedId = 0;
+		if (_filter.isEmpty() && !_searchFromUser) {
+			clearFilter();
 		} else {
 			QStringList::const_iterator fb = words.cbegin(), fe = words.cend(), fi;
 
@@ -1316,8 +1371,8 @@ void DialogsInner::onFilterUpdate(QString newFilter, bool force) {
 					}
 				}
 			}
+			refresh(true);
 		}
-		refresh(true);
 		setMouseSelection(false, true);
 	}
 	if (_state != DefaultState) {
@@ -1695,9 +1750,17 @@ bool DialogsInner::hasFilteredResults() const {
 	return !_filterResults.isEmpty() && _hashtagResults.empty();
 }
 
-void DialogsInner::searchInPeer(PeerData *peer) {
+void DialogsInner::searchInPeer(PeerData *peer, UserData *from) {
 	_searchInPeer = peer ? (peer->migrateTo() ? peer->migrateTo() : peer) : nullptr;
 	_searchInMigrated = _searchInPeer ? _searchInPeer->migrateFrom() : nullptr;
+	_searchFromUser = from;
+	if (_searchFromUser) {
+		_searchFromUserBubble = std::make_unique<SearchFromBubble>(st::dialogsSearchFromBubble, _searchFromUser->id, App::peerName(_searchFromUser), st::activeButtonBg, PaintUserpicCallback(_searchFromUser));
+		_searchFromUserBubble->setUpdateCallback([this] { update(0, st::dialogsRowHeight + st::lineWidth, width(), searchInPeerSkip() - st::dialogsRowHeight - st::lineWidth); });
+		updateSearchFromBubble();
+	} else {
+		_searchFromUserBubble.reset();
+	}
 	if (_searchInPeer) {
 		onHashtagFilterUpdate(QStringRef());
 		_cancelSearchInPeer->show();
@@ -1708,7 +1771,7 @@ void DialogsInner::searchInPeer(PeerData *peer) {
 }
 
 void DialogsInner::clearFilter() {
-	if (_state == FilteredState || _state == SearchedState) {
+	if (_state == FilteredState || _state == SearchedState || _searchInPeer) {
 		if (_searchInPeer) {
 			_state = FilteredState;
 		} else {

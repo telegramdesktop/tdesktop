@@ -741,6 +741,26 @@ defaultIconButton: IconButton {
 	iconPosition: point(-1px, -1px);
 }
 
+defaultMultiSelectItem: MultiSelectItem {
+	padding: margins(6px, 7px, 12px, 0px);
+	maxWidth: 128px;
+	height: 32px;
+	style: defaultTextStyle;
+	textBg: contactsBgOver;
+	textFg: windowFg;
+	textActiveBg: activeButtonBg;
+	textActiveFg: activeButtonFg;
+	deleteFg: activeButtonFg;
+	deleteCross: CrossAnimation {
+		size: 32px;
+		skip: 10px;
+		stroke: 2px;
+		minScale: 0.3;
+	}
+	duration: 150;
+	minScale: 0.3;
+}
+
 widgetSlideDuration: 200;
 widgetFadeDuration: 200;
 

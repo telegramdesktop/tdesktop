@@ -150,11 +150,13 @@ private:
 	void searchReceived(DialogsSearchRequestType type, const MTPmessages_Messages &result, mtpRequestId requestId);
 	void peerSearchReceived(const MTPcontacts_Found &result, mtpRequestId requestId);
 
-	void setSearchInPeer(PeerData *peer);
+	void setSearchInPeer(PeerData *peer, UserData *from = nullptr);
 	void showSearchFrom();
 	void showMainMenu();
+	void clearSearchCache();
 	void updateLockUnlockVisibility();
 	void updateJumpToDateVisibility(bool fast = false);
+	void updateSearchFromVisibility(bool fast = false);
 	void updateControlsGeometry();
 	void updateForwardBar();
 
@@ -180,7 +182,7 @@ private:
 	object_ptr<Ui::IconButton> _forwardCancel = { nullptr };
 	object_ptr<Ui::IconButton> _mainMenuToggle;
 	object_ptr<Ui::FlatInput> _filter;
-	object_ptr<Ui::WidgetScaledFadeWrap<Ui::IconButton>> _searchFromUser;
+	object_ptr<Ui::WidgetScaledFadeWrap<Ui::IconButton>> _chooseFromUser;
 	object_ptr<Ui::WidgetScaledFadeWrap<Ui::IconButton>> _jumpToDate;
 	object_ptr<Ui::CrossButton> _cancelSearch;
 	object_ptr<Ui::IconButton> _lockUnlock;
@@ -195,6 +197,7 @@ private:
 
 	PeerData *_searchInPeer = nullptr;
 	PeerData *_searchInMigrated = nullptr;
+	UserData *_searchFromUser = nullptr;
 
 	QTimer _searchTimer;
 
@@ -203,6 +206,7 @@ private:
 	mtpRequestId _peerSearchRequest = 0;
 
 	QString _searchQuery;
+	UserData *_searchQueryFrom = nullptr;
 	bool _searchFull = false;
 	bool _searchFullMigrated = false;
 	mtpRequestId _searchRequest = 0;

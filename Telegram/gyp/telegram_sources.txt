@@ -144,6 +144,8 @@
 <(src_loc)/dialogs/dialogs_list.h
 <(src_loc)/dialogs/dialogs_row.cpp
 <(src_loc)/dialogs/dialogs_row.h
+<(src_loc)/dialogs/dialogs_search_from_controllers.cpp
+<(src_loc)/dialogs/dialogs_search_from_controllers.h
 <(src_loc)/dialogs/dialogs_widget.cpp
 <(src_loc)/dialogs/dialogs_widget.h
 <(src_loc)/history/history.cpp

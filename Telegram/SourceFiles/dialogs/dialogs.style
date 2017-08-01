@@ -112,6 +112,10 @@ dialogsSearchFrom: IconButton(dialogsCalendar) {
 	icon: icon {{ "dialogs_search_from", dialogsMenuIconFg }};
 	iconOver: icon {{ "dialogs_search_from", dialogsMenuIconFgOver }};
 }
+dialogsSearchFromPadding: margins(10px, 10px, 10px, 10px);
+dialogsSearchFromBubble: MultiSelectItem(defaultMultiSelectItem) {
+	maxWidth: 240px;
+}
 
 dialogsFilter: FlatInput(defaultFlatInput) {
 	font: font(fsize);

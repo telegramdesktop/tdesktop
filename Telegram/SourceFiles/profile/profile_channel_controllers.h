@@ -65,6 +65,9 @@ public:
 	template <typename Callback>
 	static void HandleParticipant(const MTPChannelParticipant &participant, Role role, gsl::not_null<Additional*> additional, Callback callback);
 
+protected:
+	virtual std::unique_ptr<PeerListRow> createRow(gsl::not_null<UserData*> user) const;
+
 private:
 	static std::unique_ptr<PeerListSearchController> CreateSearchController(gsl::not_null<ChannelData*> channel, Role role, gsl::not_null<Additional*> additional);
 
@@ -78,7 +81,6 @@ private:
 	bool appendRow(gsl::not_null<UserData*> user);
 	bool prependRow(gsl::not_null<UserData*> user);
 	bool removeRow(gsl::not_null<UserData*> user);
-	std::unique_ptr<PeerListRow> createRow(gsl::not_null<UserData*> user) const;
 	void refreshCustomStatus(gsl::not_null<PeerListRow*> row) const;
 	bool feedMegagroupLastParticipants();
 

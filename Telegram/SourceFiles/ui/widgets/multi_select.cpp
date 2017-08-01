@@ -34,89 +34,7 @@ constexpr int kWideScale = 3;
 
 } // namespace
 
-class MultiSelect::Inner::Item {
-public:
-	Item(const style::MultiSelectItem &st, uint64 id, const QString &text, style::color color, PaintRoundImage &&paintRoundImage);
-
-	uint64 id() const {
-		return _id;
-	}
-	int getWidth() const {
-		return _width;
-	}
-	QRect rect() const {
-		return QRect(_x, _y, _width, _st.height);
-	}
-	bool isOverDelete() const {
-		return _overDelete;
-	}
-	void setActive(bool active) {
-		_active = active;
-	}
-	void setPosition(int x, int y, int outerWidth, int maxVisiblePadding);
-	QRect paintArea(int outerWidth) const;
-
-	void setUpdateCallback(base::lambda<void()> updateCallback) {
-		_updateCallback = updateCallback;
-	}
-	void setText(const QString &text);
-	void paint(Painter &p, int outerWidth, TimeMs ms);
-
-	void mouseMoveEvent(QPoint point);
-	void leaveEvent();
-
-	void showAnimated() {
-		setVisibleAnimated(true);
-	}
-	void hideAnimated() {
-		setVisibleAnimated(false);
-	}
-	bool hideFinished() const {
-		return (_hiding && !_visibility.animating());
-	}
-
-
-private:
-	void setOver(bool over);
-	void paintOnce(Painter &p, int x, int y, int outerWidth, TimeMs ms);
-	void paintDeleteButton(Painter &p, int x, int y, int outerWidth, float64 overOpacity);
-	bool paintCached(Painter &p, int x, int y, int outerWidth);
-	void prepareCache();
-	void setVisibleAnimated(bool visible);
-
-	const style::MultiSelectItem &_st;
-
-	uint64 _id;
-	struct SlideAnimation {
-		SlideAnimation(base::lambda<void()> updateCallback, int fromX, int toX, int y, float64 duration)
-			: fromX(fromX)
-			, toX(toX)
-			, y(y) {
-			x.start(updateCallback, fromX, toX, duration);
-		}
-		Animation x;
-		int fromX, toX;
-		int y;
-	};
-	std::vector<SlideAnimation> _copies;
-	int _x = -1;
-	int _y = -1;
-	int _width = 0;
-	Text _text;
-	style::color _color;
-	bool _over = false;
-	QPixmap _cache;
-	Animation _visibility;
-	Animation _overOpacity;
-	bool _overDelete = false;
-	bool _active = false;
-	PaintRoundImage _paintRoundImage;
-	base::lambda<void()> _updateCallback;
-	bool _hiding = false;
-
-};
-
-MultiSelect::Inner::Item::Item(const style::MultiSelectItem &st, uint64 id, const QString &text, style::color color, PaintRoundImage &&paintRoundImage)
+MultiSelect::Item::Item(const style::MultiSelectItem &st, uint64 id, const QString &text, style::color color, PaintRoundImage &&paintRoundImage)
 : _st(st)
 , _id(id)
 , _color(color)
@@ -124,13 +42,13 @@ MultiSelect::Inner::Item::Item(const style::MultiSelectItem &st, uint64 id, cons
 	setText(text);
 }
 
-void MultiSelect::Inner::Item::setText(const QString &text) {
+void MultiSelect::Item::setText(const QString &text) {
 	_text.setText(_st.style, text, _textNameOptions);
 	_width = _st.height + _st.padding.left() + _text.maxWidth() + _st.padding.right();
 	accumulate_min(_width, _st.maxWidth);
 }
 
-void MultiSelect::Inner::Item::paint(Painter &p, int outerWidth, TimeMs ms) {
+void MultiSelect::Item::paint(Painter &p, int outerWidth, TimeMs ms) {
 	if (!_cache.isNull() && !_visibility.animating(ms)) {
 		if (_hiding) {
 			return;
@@ -158,7 +76,7 @@ void MultiSelect::Inner::Item::paint(Painter &p, int outerWidth, TimeMs ms) {
 	}
 }
 
-void MultiSelect::Inner::Item::paintOnce(Painter &p, int x, int y, int outerWidth, TimeMs ms) {
+void MultiSelect::Item::paintOnce(Painter &p, int x, int y, int outerWidth, TimeMs ms) {
 	if (!_cache.isNull()) {
 		paintCached(p, x, y, outerWidth);
 		return;
@@ -198,7 +116,7 @@ void MultiSelect::Inner::Item::paintOnce(Painter &p, int x, int y, int outerWidt
 	_text.drawLeftElided(p, x + textLeft, y + _st.padding.top(), textWidth, outerWidth);
 }
 
-void MultiSelect::Inner::Item::paintDeleteButton(Painter &p, int x, int y, int outerWidth, float64 overOpacity) {
+void MultiSelect::Item::paintDeleteButton(Painter &p, int x, int y, int outerWidth, float64 overOpacity) {
 	p.setOpacity(overOpacity);
 
 	p.setPen(Qt::NoPen);
@@ -213,7 +131,7 @@ void MultiSelect::Inner::Item::paintDeleteButton(Painter &p, int x, int y, int o
 	p.setOpacity(1.);
 }
 
-bool MultiSelect::Inner::Item::paintCached(Painter &p, int x, int y, int outerWidth) {
+bool MultiSelect::Item::paintCached(Painter &p, int x, int y, int outerWidth) {
 	PainterHighQualityEnabler hq(p);
 
 	auto opacity = _visibility.current(_hiding ? 0. : 1.);
@@ -227,18 +145,18 @@ bool MultiSelect::Inner::Item::paintCached(Painter &p, int x, int y, int outerWi
 	return true;
 }
 
-void MultiSelect::Inner::Item::mouseMoveEvent(QPoint point) {
+void MultiSelect::Item::mouseMoveEvent(QPoint point) {
 	if (!_cache.isNull()) return;
 	_overDelete = QRect(0, 0, _st.height, _st.height).contains(point);
 	setOver(true);
 }
 
-void MultiSelect::Inner::Item::leaveEvent() {
+void MultiSelect::Item::leaveEvent() {
 	_overDelete = false;
 	setOver(false);
 }
 
-void MultiSelect::Inner::Item::setPosition(int x, int y, int outerWidth, int maxVisiblePadding) {
+void MultiSelect::Item::setPosition(int x, int y, int outerWidth, int maxVisiblePadding) {
 	if (_x >= 0 && _y >= 0 && (_x != x || _y != y)) {
 		// Make an animation if it is not the first setPosition().
 		auto found = false;
@@ -277,7 +195,7 @@ void MultiSelect::Inner::Item::setPosition(int x, int y, int outerWidth, int max
 	_y = y;
 }
 
-QRect MultiSelect::Inner::Item::paintArea(int outerWidth) const {
+QRect MultiSelect::Item::paintArea(int outerWidth) const {
 	if (_copies.empty()) {
 		return rect();
 	}
@@ -293,7 +211,7 @@ QRect MultiSelect::Inner::Item::paintArea(int outerWidth) const {
 	return QRect(0, yMin, outerWidth, yMax - yMin + _st.height);
 }
 
-void MultiSelect::Inner::Item::prepareCache() {
+void MultiSelect::Item::prepareCache() {
 	if (!_cache.isNull()) return;
 
 	t_assert(!_visibility.animating());
@@ -309,7 +227,7 @@ void MultiSelect::Inner::Item::prepareCache() {
 	_cache = App::pixmapFromImageInPlace(std::move(data));
 }
 
-void MultiSelect::Inner::Item::setVisibleAnimated(bool visible) {
+void MultiSelect::Item::setVisibleAnimated(bool visible) {
 	_hiding = !visible;
 	prepareCache();
 	auto from = visible ? 0. : 1.;
@@ -318,7 +236,7 @@ void MultiSelect::Inner::Item::setVisibleAnimated(bool visible) {
 	_visibility.start(_updateCallback, from, to, _st.duration, transition);
 }
 
-void MultiSelect::Inner::Item::setOver(bool over) {
+void MultiSelect::Item::setOver(bool over) {
 	if (over != _over) {
 		_over = over;
 		_overOpacity.start(_updateCallback, _over ? 0. : 1., _over ? 1. : 0., _st.duration);
@@ -407,7 +325,7 @@ void MultiSelect::addItem(uint64 itemId, const QString &text, style::color color
 }
 
 void MultiSelect::addItemInBunch(uint64 itemId, const QString &text, style::color color, PaintRoundImage paintRoundImage) {
-	_inner->addItemInBunch(std::make_unique<Inner::Item>(_st.item, itemId, text, color, std::move(paintRoundImage)));
+	_inner->addItemInBunch(std::make_unique<Item>(_st.item, itemId, text, color, std::move(paintRoundImage)));
 }
 
 void MultiSelect::finishItemsBunch() {

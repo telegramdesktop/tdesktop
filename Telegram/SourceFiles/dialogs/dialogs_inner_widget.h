@@ -96,7 +96,7 @@ public:
 	State state() const;
 	bool hasFilteredResults() const;
 
-	void searchInPeer(PeerData *peer);
+	void searchInPeer(PeerData *peer, UserData *from);
 
 	void onFilterUpdate(QString newFilter, bool force = false);
 	void onHashtagFilterUpdate(QStringRef newFilter);
@@ -107,6 +107,8 @@ public:
 		_loadMoreCallback = std::move(callback);
 	}
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
+
+	base::Observable<UserData*> searchFromUserChanged;
 
 	void notify_userIsContactChanged(UserData *user, bool fromThisApp);
 	void notify_historyMuteUpdated(History *history);
@@ -187,14 +189,17 @@ private:
 	int filteredOffset() const;
 	int peerSearchOffset() const;
 	int searchedOffset() const;
+	int searchInPeerSkip() const;
 
 	void paintDialog(Painter &p, Dialogs::Row *row, int fullWidth, PeerData *active, PeerData *selected, bool onlyBackground, TimeMs ms);
 	void paintPeerSearchResult(Painter &p, const PeerSearchResult *result, int fullWidth, bool active, bool selected, bool onlyBackground, TimeMs ms) const;
-	void paintSearchInPeer(Painter &p, int fullWidth, bool onlyBackground) const;
+	void paintSearchInPeer(Painter &p, int fullWidth, bool onlyBackground, TimeMs ms) const;
 
 	void clearSelection();
 	void clearSearchResults(bool clearPeerSearchResults = true);
 	void updateSelectedRow(PeerData *peer = 0);
+	void updateSearchFromBubble();
+	void handleSearchFromUserClick();
 
 	Dialogs::IndexedList *shownDialogs() const {
 		return (Global::DialogsMode() == Dialogs::Mode::Important) ? _dialogsImportant.get() : _dialogs.get();
@@ -279,6 +284,9 @@ private:
 
 	PeerData *_searchInPeer = nullptr;
 	PeerData *_searchInMigrated = nullptr;
+	UserData *_searchFromUser = nullptr;
+	class SearchFromBubble; // Just a wrap for Ui::MultiSelect::Item.
+	std::unique_ptr<SearchFromBubble> _searchFromUserBubble;
 	PeerData *_menuPeer = nullptr;
 
 	Ui::PopupMenu *_menu = nullptr;

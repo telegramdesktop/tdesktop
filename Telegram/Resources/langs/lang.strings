@@ -1188,6 +1188,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_search_found_results#one" = "Found {count} message";
 "lng_search_found_results#other" = "Found {count} messages";
 "lng_search_global_results" = "Global search results";
+"lng_search_messages_from" = "Show messages from";
 
 "lng_media_save_progress" = "{ready} of {total} {mb}";
 "lng_mediaview_save_as" = "Save As...";
