@@ -953,7 +953,8 @@ void HistoryWidget::onMentionInsert(UserData *user) {
 void HistoryWidget::onHashtagOrBotCommandInsert(QString str, FieldAutocomplete::ChooseMethod method) {
 	// Send bot command at once, if it was not inserted by pressing Tab.
 	if (str.at(0) == '/' && method != FieldAutocomplete::ChooseMethod::ByTab) {
-		App::sendBotCommand(_peer, nullptr, str);
+		App::sendBotCommand(_peer, nullptr, str, replyToId());
+		App::main()->finishForwarding(_history, _silent->checked());
 		setFieldText(_field->getTextWithTagsPart(_field->textCursor().position()));
 	} else {
 		_field->insertTag(str);
