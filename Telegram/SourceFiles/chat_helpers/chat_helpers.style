@@ -103,7 +103,7 @@ stickersRowDuration: 200;
 
 stickersSettings: icon {{ "emoji_settings", emojiIconFg }};
 stickersTrending: icon {{ "emoji_trending", emojiIconFg }};
-stickersTrendingActive: icon {{ "emoji_trending", emojiIconFgActive }};
+stickersFaved: icon {{ "emoji_faved", emojiIconFg }};
 
 stickersSettingsUnreadSize: 17px;
 stickersSettingsUnreadPosition: point(4px, 5px);
@@ -137,7 +137,7 @@ emojiCategory: IconButton {
 	width: 42px;
 	height: 46px;
 
-	iconPosition: point(11px, 12px);
+	iconPosition: point(10px, 11px);
 }
 emojiCategoryRecent: IconButton(emojiCategory) { icon: emojiRecent; }
 emojiCategoryPeople: IconButton(emojiCategory) { icon: emojiPeople; }

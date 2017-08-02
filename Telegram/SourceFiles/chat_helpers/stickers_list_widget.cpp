@@ -208,13 +208,15 @@ void StickersListWidget::Footer::paintEvent(QPaintEvent *e) {
 
 			p.drawPixmapLeft(x + (st::emojiCategory.width - icon.pixw) / 2, _iconsTop + (st::emojiCategory.height - icon.pixh) / 2, width(), pix);
 		} else {
-			auto getSpecialSetIcon = [](uint64 setId, bool active) {
+			auto getSpecialSetIcon = [](uint64 setId) {
 				if (setId == Stickers::FeaturedSetId) {
-					return active ? &st::stickersTrendingActive : &st::stickersTrending;
+					return &st::stickersTrending;
+				} else if (setId == Stickers::FavedSetId) {
+					return &st::stickersFaved;
 				}
-				return active ? &st::emojiRecentActive : &st::emojiRecent;
+				return &st::emojiRecent;
 			};
-			getSpecialSetIcon(icon.setId, false)->paint(p, x + st::emojiCategory.iconPosition.x(), _iconsTop + st::emojiCategory.iconPosition.y(), width());
+			getSpecialSetIcon(icon.setId)->paint(p, x + st::emojiCategory.iconPosition.x(), _iconsTop + st::emojiCategory.iconPosition.y(), width());
 			if (icon.setId == Stickers::FeaturedSetId) {
 				paintFeaturedStickerSetsBadge(p, x);
 			}
@@ -1189,27 +1191,29 @@ void StickersListWidget::fillIcons(QList<StickerIcon> &icons) {
 		icons.push_back(StickerIcon(Stickers::FeaturedSetId));
 	}
 
-	if (!_mySets.isEmpty()) {
-		int i = 0;
-		if (_mySets[0].id == Stickers::RecentSetId) {
-			++i;
-			icons.push_back(StickerIcon(Stickers::RecentSetId));
+	auto i = 0;
+	if (i != _mySets.size() && _mySets[i].id == Stickers::RecentSetId) {
+		++i;
+		icons.push_back(StickerIcon(Stickers::RecentSetId));
+	}
+	if (i != _mySets.size() && _mySets[i].id == Stickers::FavedSetId) {
+		++i;
+		icons.push_back(StickerIcon(Stickers::FavedSetId));
+	}
+	for (auto l = _mySets.size(); i != l; ++i) {
+		auto s = _mySets[i].pack[0];
+		auto availw = st::emojiCategory.width - 2 * st::stickerIconPadding, availh = st::emojiCategory.height - 2 * st::stickerIconPadding;
+		auto thumbw = s->thumb->width(), thumbh = s->thumb->height(), pixw = 1, pixh = 1;
+		if (availw * thumbh > availh * thumbw) {
+			pixh = availh;
+			pixw = (pixh * thumbw) / thumbh;
+		} else {
+			pixw = availw;
+			pixh = thumbw ? ((pixw * thumbh) / thumbw) : 1;
 		}
-		for (int l = _mySets.size(); i < l; ++i) {
-			auto s = _mySets[i].pack[0];
-			int32 availw = st::emojiCategory.width - 2 * st::stickerIconPadding, availh = st::emojiCategory.height - 2 * st::stickerIconPadding;
-			int32 thumbw = s->thumb->width(), thumbh = s->thumb->height(), pixw = 1, pixh = 1;
-			if (availw * thumbh > availh * thumbw) {
-				pixh = availh;
-				pixw = (pixh * thumbw) / thumbh;
-			} else {
-				pixw = availw;
-				pixh = thumbw ? ((pixw * thumbh) / thumbw) : 1;
-			}
-			if (pixw < 1) pixw = 1;
-			if (pixh < 1) pixh = 1;
-			icons.push_back(StickerIcon(_mySets[i].id, s, pixw, pixh));
-		}
+		if (pixw < 1) pixw = 1;
+		if (pixh < 1) pixh = 1;
+		icons.push_back(StickerIcon(_mySets[i].id, s, pixw, pixh));
 	}
 
 	if (!Global::FeaturedStickerSetsUnreadCount() && !_featuredSets.isEmpty()) {
