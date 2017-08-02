@@ -487,7 +487,7 @@ void StickersListWidget::readVisibleSets() {
 			}
 		}
 		if (loaded == count) {
-			Stickers::markFeaturedAsRead(set.id);
+			Stickers::MarkFeaturedAsRead(set.id);
 		}
 	}
 }
@@ -504,7 +504,7 @@ bool StickersListWidget::enumerateSections(Callback callback) const {
 		info.section = i;
 		info.count = _mySets[i].pack.size();
 		info.rowsCount = (info.count / kStickersPanelPerRow) + ((info.count % kStickersPanelPerRow) ? 1 : 0);
-		info.rowsTop = info.top + ((_mySets[i].flags & MTPDstickerSet_ClientFlag::f_special) ? st::stickerPanPadding : st::emojiPanHeader);
+		info.rowsTop = info.top + ((_mySets[i].id == Stickers::RecentSetId) ? st::stickerPanPadding : st::emojiPanHeader);
 		info.rowsBottom = info.rowsTop + info.rowsCount * st::stickerPanSize.height();
 		if (!callback(info)) {
 			return false;
@@ -717,7 +717,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 			return false;
 		}
 		auto &set = _mySets[info.section];
-		if (!(set.flags & MTPDstickerSet_ClientFlag::f_special) && clip.top() < info.rowsTop) {
+		if (set.id != Stickers::RecentSetId && clip.top() < info.rowsTop) {
 			auto titleText = set.title;
 			auto titleWidth = st::stickersTrendingHeaderFont->width(titleText);
 			auto widthForTitle = stickersRight() - (st::emojiPanHeaderLeft - st::buttonRadius);
@@ -1177,7 +1177,7 @@ void StickersListWidget::refreshRecentStickers(bool performResize) {
 void StickersListWidget::refreshFavedStickers() {
 	clearSelection();
 	auto &sets = Global::StickerSets();
-	auto it = sets.constFind(Stickers::CloudRecentSetId);
+	auto it = sets.constFind(Stickers::FavedSetId);
 	if (it == sets.cend() || it->stickers.isEmpty()) {
 		return;
 	}
@@ -1407,15 +1407,15 @@ void StickersListWidget::installSet(quint64 setId) {
 	if (it != sets.cend()) {
 		request(MTPmessages_InstallStickerSet(Stickers::inputSetId(*it), MTP_bool(false))).done([this](const MTPmessages_StickerSetInstallResult &result) {
 			if (result.type() == mtpc_messages_stickerSetInstallResultArchive) {
-				Stickers::applyArchivedResult(result.c_messages_stickerSetInstallResultArchive());
+				Stickers::ApplyArchivedResult(result.c_messages_stickerSetInstallResultArchive());
 			}
 		}).fail([this, setId](const RPCError &error) {
 			notInstalledLocally(setId);
-			Stickers::undoInstallLocally(setId);
+			Stickers::UndoInstallLocally(setId);
 		}).send();
 
 		installedLocally(setId);
-		Stickers::installLocally(setId);
+		Stickers::InstallLocally(setId);
 	}
 }
 

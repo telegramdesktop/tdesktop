@@ -248,7 +248,7 @@ void StickerSetBox::Inner::installDone(const MTPmessages_StickerSetInstallResult
 	}
 
 	if (result.type() == mtpc_messages_stickerSetInstallResultArchive) {
-		Stickers::applyArchivedResult(result.c_messages_stickerSetInstallResultArchive());
+		Stickers::ApplyArchivedResult(result.c_messages_stickerSetInstallResultArchive());
 	} else {
 		if (wasArchived) {
 			Local::writeArchivedStickers();

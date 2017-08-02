@@ -26,11 +26,18 @@ namespace Stickers {
 
 constexpr auto kPanelPerRow = 5;
 
-void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d);
-bool applyArchivedResultFake(); // For testing.
-void installLocally(uint64 setId);
-void undoInstallLocally(uint64 setId);
-void markFeaturedAsRead(uint64 setId);
+void ApplyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d);
+bool ApplyArchivedResultFake(); // For testing.
+void InstallLocally(uint64 setId);
+void UndoInstallLocally(uint64 setId);
+void MarkFeaturedAsRead(uint64 setId);
+bool IsFaved(DocumentData *document);
+void SetFaved(DocumentData *document, bool faved);
+
+void SetsReceived(const QVector<MTPStickerSet> &data, int32 hash);
+void SpecialSetReceived(uint64 setId, const QString &setTitle, const QVector<MTPDocument> &items, int32 hash);
+void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVector<MTPlong> &unread, int32 hash);
+void GifsReceived(const QVector<MTPDocument> &items, int32 hash);
 
 namespace internal {
 

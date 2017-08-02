@@ -537,7 +537,7 @@ DefineVar(Sandbox, ProxyData, PreLaunchProxy);
 
 namespace Stickers {
 
-Set *feedSet(const MTPDstickerSet &set) {
+Set *FeedSet(const MTPDstickerSet &set) {
 	MTPDstickerSet::Flags flags = 0;
 
 	auto &sets = Global::RefStickerSets();

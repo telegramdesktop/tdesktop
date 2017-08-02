@@ -34,6 +34,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/themes/window_theme.h"
 #include "window/notifications_manager.h"
 #include "chat_helpers/message_field.h"
+#include "chat_helpers/stickers.h"
 
 namespace {
 
@@ -1537,370 +1538,141 @@ void ApiWrap::stickersSaveOrder() {
 
 void ApiWrap::updateStickers() {
 	auto now = getms(true);
-	if (!Global::LastStickersUpdate() || now >= Global::LastStickersUpdate() + kStickersUpdateTimeout) {
-		if (!_stickersUpdateRequest) {
-			_stickersUpdateRequest = request(MTPmessages_GetAllStickers(MTP_int(Local::countStickersHash(true)))).done([this](const MTPmessages_AllStickers &result) {
-				stickersGot(result);
-			}).fail([this](const RPCError &error) {
-				LOG(("App Fail: Failed to get stickers!"));
-				Global::SetLastStickersUpdate(getms(true));
-				_stickersUpdateRequest = 0;
-			}).send();
-		}
-	}
-	if (!Global::LastRecentStickersUpdate() || now >= Global::LastRecentStickersUpdate() + kStickersUpdateTimeout) {
-		if (!_recentStickersUpdateRequest) {
-			_recentStickersUpdateRequest = request(MTPmessages_GetRecentStickers(MTP_flags(0), MTP_int(Local::countRecentStickersHash()))).done([this](const MTPmessages_RecentStickers &result) {
-				recentStickersGot(result);
-			}).fail([this](const RPCError &error) {
-				LOG(("App Fail: Failed to get recent stickers!"));
-				Global::SetLastRecentStickersUpdate(getms(true));
-				_recentStickersUpdateRequest = 0;
-			}).send();
-		}
-	}
-	if (!Global::LastFavedStickersUpdate() || now >= Global::LastFavedStickersUpdate() + kStickersUpdateTimeout) {
-		if (!_favedStickersUpdateRequest) {
-			_favedStickersUpdateRequest = request(MTPmessages_GetFavedStickers(MTP_int(Local::countFavedStickersHash()))).done([this](const MTPmessages_FavedStickers &result) {
-				favedStickersGot(result);
-			}).fail([this](const RPCError &error) {
-				LOG(("App Fail: Failed to get faved stickers!"));
-				Global::SetLastFavedStickersUpdate(getms(true));
-				_favedStickersUpdateRequest = 0;
-			}).send();
-		}
-	}
-	if (!Global::LastFeaturedStickersUpdate() || now >= Global::LastFeaturedStickersUpdate() + kStickersUpdateTimeout) {
-		if (!_featuredStickersUpdateRequest) {
-			_featuredStickersUpdateRequest = request(MTPmessages_GetFeaturedStickers(MTP_int(Local::countFeaturedStickersHash()))).done([this](const MTPmessages_FeaturedStickers &result) {
-				featuredStickersGot(result);
-			}).fail([this](const RPCError &error) {
-				LOG(("App Fail: Failed to get featured stickers!"));
-				Global::SetLastFeaturedStickersUpdate(getms(true));
-				_featuredStickersUpdateRequest = 0;
-			}).send();
-		}
-	}
-	if (!cLastSavedGifsUpdate() || now >= cLastSavedGifsUpdate() + kStickersUpdateTimeout) {
-		if (!_savedGifsUpdateRequest) {
-			_savedGifsUpdateRequest = request(MTPmessages_GetSavedGifs(MTP_int(Local::countSavedGifsHash()))).done([this](const MTPmessages_SavedGifs &result) {
-				savedGifsGot(result);
-			}).fail([this](const RPCError &error) {
-				LOG(("App Fail: Failed to get saved gifs!"));
-				cSetLastSavedGifsUpdate(getms(true));
-				_savedGifsUpdateRequest = 0;
-			}).send();
-		}
-	}
+	requestStickers(now);
+	requestRecentStickers(now);
+	requestFavedStickers(now);
+	requestFeaturedStickers(now);
+	requestSavedGifs(now);
 }
 
-void ApiWrap::stickersGot(const MTPmessages_AllStickers &stickers) {
-	Global::SetLastStickersUpdate(getms(true));
-	_stickersUpdateRequest = 0;
-
-	if (stickers.type() != mtpc_messages_allStickers) return;
-	auto &d = stickers.c_messages_allStickers();
-
-	auto &d_sets = d.vsets.v;
-
-	auto &setsOrder = Global::RefStickerSetsOrder();
-	setsOrder.clear();
-
-	auto &sets = Global::RefStickerSets();
-	QMap<uint64, uint64> setsToRequest;
-	for (auto &set : sets) {
-		if (!(set.flags & MTPDstickerSet::Flag::f_archived)) {
-			set.flags &= ~MTPDstickerSet::Flag::f_installed; // mark for removing
-		}
+void ApiWrap::requestStickers(TimeId now) {
+	if (Global::LastStickersUpdate() != 0 && now < Global::LastStickersUpdate() + kStickersUpdateTimeout) {
+		return;
 	}
-	for_const (auto &setData, d_sets) {
-		if (setData.type() == mtpc_stickerSet) {
-			auto set = Stickers::feedSet(setData.c_stickerSet());
-			if (!(set->flags & MTPDstickerSet::Flag::f_archived) || (set->flags & MTPDstickerSet::Flag::f_official)) {
-				setsOrder.push_back(set->id);
-				if (set->stickers.isEmpty() || (set->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
-					setsToRequest.insert(set->id, set->access);
-				}
-			}
-		}
+	if (_stickersUpdateRequest) {
+		return;
 	}
-	bool writeRecent = false;
-	RecentStickerPack &recent(cGetRecentStickers());
-	for (Stickers::Sets::iterator it = sets.begin(), e = sets.end(); it != e;) {
-		bool installed = (it->flags & MTPDstickerSet::Flag::f_installed);
-		bool featured = (it->flags & MTPDstickerSet_ClientFlag::f_featured);
-		bool special = (it->flags & MTPDstickerSet_ClientFlag::f_special);
-		bool archived = (it->flags & MTPDstickerSet::Flag::f_archived);
-		if (!installed) { // remove not mine sets from recent stickers
-			for (RecentStickerPack::iterator i = recent.begin(); i != recent.cend();) {
-				if (it->stickers.indexOf(i->first) >= 0) {
-					i = recent.erase(i);
-					writeRecent = true;
-				} else {
-					++i;
-				}
-			}
+	auto onDone = [this](const MTPmessages_AllStickers &result) {
+		Global::SetLastStickersUpdate(getms(true));
+		_stickersUpdateRequest = 0;
+
+		switch (result.type()) {
+		case mtpc_messages_allStickersNotModified: return;
+		case mtpc_messages_allStickers: {
+			auto &d = result.c_messages_allStickers();
+			Stickers::SetsReceived(d.vsets.v, d.vhash.v);
+		} return;
+		default: Unexpected("Type in ApiWrap::stickersDone()");
 		}
-		if (installed || featured || special || archived) {
-			++it;
-		} else {
-			it = sets.erase(it);
-		}
-	}
-
-	if (Local::countStickersHash() != d.vhash.v) {
-		LOG(("API Error: received stickers hash %1 while counted hash is %2").arg(d.vhash.v).arg(Local::countStickersHash()));
-	}
-
-	if (!setsToRequest.isEmpty() && App::api()) {
-		for (QMap<uint64, uint64>::const_iterator i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
-			App::api()->scheduleStickerSetRequest(i.key(), i.value());
-		}
-		App::api()->requestStickerSets();
-	}
-
-	Local::writeInstalledStickers();
-	if (writeRecent) Local::writeUserSettings();
-
-	if (App::main()) emit App::main()->stickersUpdated();
+	};
+	_stickersUpdateRequest = request(MTPmessages_GetAllStickers(MTP_int(Local::countStickersHash(true)))).done(onDone).fail([this, onDone](const RPCError &error) {
+		LOG(("App Fail: Failed to get stickers!"));
+		onDone(MTP_messages_allStickersNotModified());
+	}).send();
 }
 
-void ApiWrap::recentStickersGot(const MTPmessages_RecentStickers &stickers) {
-	Global::SetLastRecentStickersUpdate(getms(true));
-	_recentStickersUpdateRequest = 0;
-
-	if (stickers.type() != mtpc_messages_recentStickers) return;
-	auto &d = stickers.c_messages_recentStickers();
-
-	insertSpecialStickersSet(Stickers::CloudRecentSetId, lang(lng_recent_stickers), d.vstickers, d.vhash);
-
-	if (Local::countRecentStickersHash() != d.vhash.v) {
-		LOG(("API Error: received stickers hash %1 while counted hash is %2").arg(d.vhash.v).arg(Local::countRecentStickersHash()));
+void ApiWrap::requestRecentStickers(TimeId now) {
+	if (Global::LastRecentStickersUpdate() != 0 && now < Global::LastRecentStickersUpdate() + kStickersUpdateTimeout) {
+		return;
 	}
+	if (_recentStickersUpdateRequest) {
+		return;
+	}
+	auto onDone = [this](const MTPmessages_RecentStickers &result) {
+		Global::SetLastRecentStickersUpdate(getms(true));
+		_recentStickersUpdateRequest = 0;
 
-	Local::writeRecentStickers();
-
-	if (App::main()) emit App::main()->stickersUpdated();
+		switch (result.type()) {
+		case mtpc_messages_recentStickersNotModified: return;
+		case mtpc_messages_recentStickers: {
+			auto &d = result.c_messages_recentStickers();
+			Stickers::SpecialSetReceived(Stickers::CloudRecentSetId, lang(lng_recent_stickers), d.vstickers.v, d.vhash.v);
+		} return;
+		default: Unexpected("Type in ApiWrap::recentStickersDone()");
+		}
+	};
+	_recentStickersUpdateRequest = request(MTPmessages_GetRecentStickers(MTP_flags(0), MTP_int(Local::countRecentStickersHash()))).done(onDone).fail([this, onDone](const RPCError &error) {
+		LOG(("App Fail: Failed to get recent stickers!"));
+		onDone(MTP_messages_recentStickersNotModified());
+	}).send();
 }
 
-void ApiWrap::favedStickersGot(const MTPmessages_FavedStickers &stickers) {
-	Global::SetLastFavedStickersUpdate(getms(true));
-	_favedStickersUpdateRequest = 0;
-
-	if (stickers.type() != mtpc_messages_favedStickers) return;
-	auto &d = stickers.c_messages_favedStickers();
-
-	insertSpecialStickersSet(Stickers::FavedSetId, lang(lng_faved_stickers), d.vstickers, d.vhash);
-
-	if (Local::countRecentStickersHash() != d.vhash.v) {
-		LOG(("API Error: received stickers hash %1 while counted hash is %2").arg(d.vhash.v).arg(Local::countRecentStickersHash()));
+void ApiWrap::requestFavedStickers(TimeId now) {
+	if (Global::LastFavedStickersUpdate() != 0 && now < Global::LastFavedStickersUpdate() + kStickersUpdateTimeout) {
+		return;
 	}
+	if (_favedStickersUpdateRequest) {
+		return;
+	}
+	auto onDone = [this](const MTPmessages_FavedStickers &result) {
+		Global::SetLastFavedStickersUpdate(getms(true));
+		_favedStickersUpdateRequest = 0;
 
-	Local::writeRecentStickers();
-
-	if (App::main()) emit App::main()->stickersUpdated();
+		switch (result.type()) {
+		case mtpc_messages_favedStickersNotModified: return;
+		case mtpc_messages_favedStickers: {
+			auto &d = result.c_messages_favedStickers();
+			Stickers::SpecialSetReceived(Stickers::FavedSetId, lang(lng_faved_stickers), d.vstickers.v, d.vhash.v);
+		} return;
+		default: Unexpected("Type in ApiWrap::favedStickersDone()");
+		}
+	};
+	_favedStickersUpdateRequest = request(MTPmessages_GetFavedStickers(MTP_int(Local::countFavedStickersHash()))).done(onDone).fail([this, onDone](const RPCError &error) {
+		LOG(("App Fail: Failed to get faved stickers!"));
+		onDone(MTP_messages_favedStickersNotModified());
+	}).send();
 }
 
-void ApiWrap::insertSpecialStickersSet(uint64 setId, const QString &setTitle, const MTPVector<MTPDocument> &items, MTPint hash) {
-	auto &sets = Global::RefStickerSets();
-	auto it = sets.find(setId);
-
-	auto &d_docs = items.v;
-	if (d_docs.isEmpty()) {
-		if (it != sets.cend()) {
-			sets.erase(it);
-		}
-	} else {
-		if (it == sets.cend()) {
-			it = sets.insert(setId, Stickers::Set(Stickers::FavedSetId, 0, setTitle, QString(), 0, 0, qFlags(MTPDstickerSet_ClientFlag::f_special)));
-		} else {
-			it->title = setTitle;
-		}
-		it->hash = hash.v;
-
-		auto custom = sets.find(Stickers::CustomSetId);
-		auto pack = StickerPack();
-		pack.reserve(d_docs.size());
-		for_const (auto &mtpDocument, d_docs) {
-			auto document = App::feedDocument(mtpDocument);
-			if (!document || !document->sticker()) continue;
-
-			pack.push_back(document);
-			if (custom != sets.cend()) {
-				auto index = custom->stickers.indexOf(document);
-				if (index >= 0) {
-					custom->stickers.removeAt(index);
-				}
-			}
-		}
-		if (custom != sets.cend() && custom->stickers.isEmpty()) {
-			sets.erase(custom);
-			custom = sets.end();
-		}
-
-		auto writeRecent = false;
-		auto &recent = cGetRecentStickers();
-		for (auto i = recent.begin(); i != recent.cend();) {
-			if (it->stickers.indexOf(i->first) >= 0 && pack.indexOf(i->first) < 0) {
-				i = recent.erase(i);
-				writeRecent = true;
-			} else {
-				++i;
-			}
-		}
-
-		if (pack.isEmpty()) {
-			sets.erase(it);
-		} else {
-			it->stickers = pack;
-			it->emoji.clear();
-		}
-
-		if (writeRecent) {
-			Local::writeUserSettings();
-		}
+void ApiWrap::requestFeaturedStickers(TimeId now) {
+	if (Global::LastFeaturedStickersUpdate() != 0 && now < Global::LastFeaturedStickersUpdate() + kStickersUpdateTimeout) {
+		return;
 	}
+	if (_featuredStickersUpdateRequest) {
+		return;
+	}
+	auto onDone = [this](const MTPmessages_FeaturedStickers &result) {
+		Global::SetLastFeaturedStickersUpdate(getms(true));
+		_featuredStickersUpdateRequest = 0;
+
+		switch (result.type()) {
+		case mtpc_messages_featuredStickersNotModified: return;
+		case mtpc_messages_featuredStickers: {
+			auto &d = result.c_messages_featuredStickers();
+			Stickers::FeaturedSetsReceived(d.vsets.v, d.vunread.v, d.vhash.v);
+		} return;
+		default: Unexpected("Type in ApiWrap::featuredStickersDone()");
+		}
+	};
+	_featuredStickersUpdateRequest = request(MTPmessages_GetFeaturedStickers(MTP_int(Local::countFeaturedStickersHash()))).done(onDone).fail([this, onDone](const RPCError &error) {
+		LOG(("App Fail: Failed to get featured stickers!"));
+		onDone(MTP_messages_featuredStickersNotModified());
+	}).send();
 }
 
-void ApiWrap::featuredStickersGot(const MTPmessages_FeaturedStickers &stickers) {
-	Global::SetLastFeaturedStickersUpdate(getms(true));
-	_featuredStickersUpdateRequest = 0;
-
-	if (stickers.type() != mtpc_messages_featuredStickers) return;
-	auto &d = stickers.c_messages_featuredStickers();
-
-	OrderedSet<uint64> unread;
-	for_const (auto &unreadSetId, d.vunread.v) {
-		unread.insert(unreadSetId.v);
+void ApiWrap::requestSavedGifs(TimeId now) {
+	if (cLastSavedGifsUpdate() != 0 && now < cLastSavedGifsUpdate() + kStickersUpdateTimeout) {
+		return;
 	}
-
-	auto &d_sets = d.vsets.v;
-
-	auto &setsOrder = Global::RefFeaturedStickerSetsOrder();
-	setsOrder.clear();
-
-	auto &sets = Global::RefStickerSets();
-	QMap<uint64, uint64> setsToRequest;
-	for (auto &set : sets) {
-		set.flags &= ~MTPDstickerSet_ClientFlag::f_featured; // mark for removing
+	if (_savedGifsUpdateRequest) {
+		return;
 	}
-	for (int i = 0, l = d_sets.size(); i != l; ++i) {
-		auto &setData = d_sets[i];
-		const MTPDstickerSet *set = nullptr;
-		switch (setData.type()) {
-		case mtpc_stickerSetCovered: {
-			auto &d = setData.c_stickerSetCovered();
-			if (d.vset.type() == mtpc_stickerSet) {
-				set = &d.vset.c_stickerSet();
-			}
-		} break;
-		case mtpc_stickerSetMultiCovered: {
-			auto &d = setData.c_stickerSetMultiCovered();
-			if (d.vset.type() == mtpc_stickerSet) {
-				set = &d.vset.c_stickerSet();
-			}
-		} break;
+	auto onDone = [this](const MTPmessages_SavedGifs &result) {
+		cSetLastSavedGifsUpdate(getms(true));
+		_savedGifsUpdateRequest = 0;
+
+		switch (result.type()) {
+		case mtpc_messages_savedGifsNotModified: return;
+		case mtpc_messages_savedGifs: {
+			auto &d = result.c_messages_savedGifs();
+			Stickers::GifsReceived(d.vgifs.v, d.vhash.v);
+		} return;
+		default: Unexpected("Type in ApiWrap::savedGifsDone()");
 		}
-
-		if (set) {
-			auto it = sets.find(set->vid.v);
-			auto title = stickerSetTitle(*set);
-			if (it == sets.cend()) {
-				auto setClientFlags = MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_not_loaded;
-				if (unread.contains(set->vid.v)) {
-					setClientFlags |= MTPDstickerSet_ClientFlag::f_unread;
-				}
-				it = sets.insert(set->vid.v, Stickers::Set(set->vid.v, set->vaccess_hash.v, title, qs(set->vshort_name), set->vcount.v, set->vhash.v, set->vflags.v | setClientFlags));
-			} else {
-				it->access = set->vaccess_hash.v;
-				it->title = title;
-				it->shortName = qs(set->vshort_name);
-				auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_not_loaded | MTPDstickerSet_ClientFlag::f_special);
-				it->flags = set->vflags.v | clientFlags;
-				it->flags |= MTPDstickerSet_ClientFlag::f_featured;
-				if (unread.contains(it->id)) {
-					it->flags |= MTPDstickerSet_ClientFlag::f_unread;
-				} else {
-					it->flags &= ~MTPDstickerSet_ClientFlag::f_unread;
-				}
-				if (it->count != set->vcount.v || it->hash != set->vhash.v || it->emoji.isEmpty()) {
-					it->count = set->vcount.v;
-					it->hash = set->vhash.v;
-					it->flags |= MTPDstickerSet_ClientFlag::f_not_loaded; // need to request this set
-				}
-			}
-			setsOrder.push_back(set->vid.v);
-			if (it->stickers.isEmpty() || (it->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
-				setsToRequest.insert(set->vid.v, set->vaccess_hash.v);
-			}
-		}
-	}
-
-	int unreadCount = 0;
-	for (auto it = sets.begin(), e = sets.end(); it != e;) {
-		bool installed = (it->flags & MTPDstickerSet::Flag::f_installed);
-		bool featured = (it->flags & MTPDstickerSet_ClientFlag::f_featured);
-		bool special = (it->flags & MTPDstickerSet_ClientFlag::f_special);
-		bool archived = (it->flags & MTPDstickerSet::Flag::f_archived);
-		if (installed || featured || special || archived) {
-			if (featured && (it->flags & MTPDstickerSet_ClientFlag::f_unread)) {
-				++unreadCount;
-			}
-			++it;
-		} else {
-			it = sets.erase(it);
-		}
-	}
-	if (Global::FeaturedStickerSetsUnreadCount() != unreadCount) {
-		Global::SetFeaturedStickerSetsUnreadCount(unreadCount);
-		Global::RefFeaturedStickerSetsUnreadCountChanged().notify();
-	}
-
-	if (Local::countFeaturedStickersHash() != d.vhash.v) {
-		LOG(("API Error: received featured stickers hash %1 while counted hash is %2").arg(d.vhash.v).arg(Local::countFeaturedStickersHash()));
-	}
-
-	if (!setsToRequest.isEmpty() && App::api()) {
-		for (QMap<uint64, uint64>::const_iterator i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
-			App::api()->scheduleStickerSetRequest(i.key(), i.value());
-		}
-		App::api()->requestStickerSets();
-	}
-
-	Local::writeFeaturedStickers();
-
-	if (App::main()) emit App::main()->stickersUpdated();
-}
-
-void ApiWrap::savedGifsGot(const MTPmessages_SavedGifs &gifs) {
-	cSetLastSavedGifsUpdate(getms(true));
-	_savedGifsUpdateRequest = 0;
-
-	if (gifs.type() != mtpc_messages_savedGifs) return;
-	auto &d = gifs.c_messages_savedGifs();
-
-	auto &gifsList = d.vgifs.v;
-
-	auto &saved = cRefSavedGifs();
-	saved.clear();
-
-	saved.reserve(gifsList.size());
-	for (auto &gif : gifsList) {
-		auto document = App::feedDocument(gif);
-		if (!document || !document->isGifv()) {
-			LOG(("API Error: bad document returned in HistoryWidget::savedGifsGot!"));
-			continue;
-		}
-
-		saved.push_back(document);
-	}
-	if (Local::countSavedGifsHash() != d.vhash.v) {
-		LOG(("API Error: received saved gifs hash %1 while counted hash is %2").arg(d.vhash.v).arg(Local::countSavedGifsHash()));
-	}
-
-	Local::writeSavedGifs();
-
-	AuthSession::Current().data().savedGifsUpdated().notify();
+	};
+	_savedGifsUpdateRequest = request(MTPmessages_GetSavedGifs(MTP_int(Local::countSavedGifsHash()))).done(onDone).fail([this, onDone](const RPCError &error) {
+		LOG(("App Fail: Failed to get saved gifs!"));
+		onDone(MTP_messages_savedGifsNotModified());
+	}).send();
 }
 
 void ApiWrap::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {

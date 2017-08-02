@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
 #include "chat_helpers/message_field.h"
+#include "chat_helpers/stickers.h"
 #include "history/history_widget.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -1291,7 +1292,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					if (media->type() == MediaTypeSticker) {
 						if (auto document = media->getDocument()) {
 							if (document->sticker() && document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
-								_menu->addAction(lang(document->sticker()->setInstalled() ? lng_context_pack_info : lng_context_pack_add), [this] { showStickerPackInfo(); });
+								_menu->addAction(lang(document->sticker()->setInstalled() ? lng_context_pack_info : lng_context_pack_add), [this, document] { showStickerPackInfo(document); });
+								_menu->addAction(lang(Stickers::IsFaved(document) ? lng_faved_stickers_remove : lng_faved_stickers_add), [this, document] { toggleFavedSticker(document); });
 							}
 							_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
 								saveDocumentToFile(document);
@@ -1410,18 +1412,19 @@ void HistoryInner::copyContextImage(PhotoData *photo) {
 	QApplication::clipboard()->setPixmap(photo->full->pix());
 }
 
-void HistoryInner::showStickerPackInfo() {
-	if (!App::contextItem()) return;
-
-	if (auto media = App::contextItem()->getMedia()) {
-		if (auto doc = media->getDocument()) {
-			if (auto sticker = doc->sticker()) {
-				if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
-					App::main()->stickersBox(sticker->set);
-				}
-			}
+void HistoryInner::showStickerPackInfo(DocumentData *document) {
+	if (auto sticker = document->sticker()) {
+		if (sticker->set.type() != mtpc_inputStickerSetEmpty) {
+			App::main()->stickersBox(sticker->set);
 		}
 	}
+}
+
+void HistoryInner::toggleFavedSticker(DocumentData *document) {
+	auto unfave = Stickers::IsFaved(document);
+	MTP::send(MTPmessages_FaveSticker(document->mtpInput(), MTP_bool(unfave)), rpcDone([document, unfave](const MTPBool &result) {
+		Stickers::SetFaved(document, !unfave);
+	}));
 }
 
 void HistoryInner::cancelContextDownload() {

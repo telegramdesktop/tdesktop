@@ -145,7 +145,8 @@ private:
 	void savePhotoToFile(PhotoData *photo);
 	void saveDocumentToFile(DocumentData *document);
 	void copyContextImage(PhotoData *photo);
-	void showStickerPackInfo();
+	void showStickerPackInfo(DocumentData *document);
+	void toggleFavedSticker(DocumentData *document);
 
 	void touchResetSpeed();
 	void touchUpdateSpeed();

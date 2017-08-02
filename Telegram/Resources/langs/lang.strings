@@ -885,6 +885,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_recent_stickers" = "Frequently used";
 "lng_faved_stickers" = "Favorite stickers";
+"lng_faved_stickers_add" = "Add to Favorites";
+"lng_faved_stickers_remove" = "Remove from Favorites";
+
 "lng_switch_stickers" = "Stickers";
 "lng_switch_emoji" = "Emoji";
 "lng_switch_gifs" = "GIFs";

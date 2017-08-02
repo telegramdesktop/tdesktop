@@ -1374,7 +1374,7 @@ bool StickerData::setInstalled() const {
 		return (it != Global::StickerSets().cend()) && !(it->flags & MTPDstickerSet::Flag::f_archived) && (it->flags & MTPDstickerSet::Flag::f_installed);
 	} break;
 	case mtpc_inputStickerSetShortName: {
-		QString name = qs(set.c_inputStickerSetShortName().vshort_name).toLower();
+		auto name = qs(set.c_inputStickerSetShortName().vshort_name).toLower();
 		for (auto it = Global::StickerSets().cbegin(), e = Global::StickerSets().cend(); it != e; ++it) {
 			if (it->shortName.toLower() == name) {
 				return !(it->flags & MTPDstickerSet::Flag::f_archived) && (it->flags & MTPDstickerSet::Flag::f_installed);

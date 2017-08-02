@@ -132,12 +132,11 @@ private:
 	void stickerSetDisenabled(mtpRequestId requestId);
 	void stickersSaveOrder();
 
-	void stickersGot(const MTPmessages_AllStickers &stickers);
-	void recentStickersGot(const MTPmessages_RecentStickers &stickers);
-	void favedStickersGot(const MTPmessages_FavedStickers &stickers);
-	void featuredStickersGot(const MTPmessages_FeaturedStickers &stickers);
-	void savedGifsGot(const MTPmessages_SavedGifs &gifs);
-	void insertSpecialStickersSet(uint64 setId, const QString &setTitle, const MTPVector<MTPDocument> &items, MTPint hash);
+	void requestStickers(TimeId now);
+	void requestRecentStickers(TimeId now);
+	void requestFavedStickers(TimeId now);
+	void requestFeaturedStickers(TimeId now);
+	void requestSavedGifs(TimeId now);
 
 	gsl::not_null<AuthSession*> _session;
 	mtpRequestId _changelogSubscription = 0;

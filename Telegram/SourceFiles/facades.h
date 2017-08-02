@@ -278,7 +278,7 @@ inline MTPInputStickerSet inputSetId(const Set &set) {
 	return MTP_inputStickerSetShortName(MTP_string(set.shortName));
 }
 
-Set *feedSet(const MTPDstickerSet &set);
+Set *FeedSet(const MTPDstickerSet &set);
 
 } // namespace Stickers
 

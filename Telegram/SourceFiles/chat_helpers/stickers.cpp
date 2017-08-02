@@ -38,10 +38,10 @@ QPointer<internal::FeaturedReader> FeaturedReaderInstance;
 
 } // namespace
 
-void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
+void ApplyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	auto &v = d.vsets.v;
 	auto &order = Global::RefStickerSetsOrder();
-	Stickers::Order archived;
+	Order archived;
 	archived.reserve(v.size());
 	QMap<uint64, uint64> setsToRequest;
 	for_const (auto &stickerSet, v) {
@@ -61,7 +61,7 @@ void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 		} break;
 		}
 		if (setData) {
-			auto set = Stickers::feedSet(*setData);
+			auto set = FeedSet(*setData);
 			if (set->stickers.isEmpty()) {
 				setsToRequest.insert(set->id, set->access);
 			}
@@ -92,7 +92,7 @@ void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 }
 
 // For testing: Just apply random subset or your sticker sets as archived.
-bool applyArchivedResultFake() {
+bool ApplyArchivedResultFake() {
 	auto sets = QVector<MTPStickerSetCovered>();
 	for (auto &set : Global::RefStickerSets()) {
 		if ((set.flags & MTPDstickerSet::Flag::f_installed) && !(set.flags & MTPDstickerSet_ClientFlag::f_special)) {
@@ -104,11 +104,11 @@ bool applyArchivedResultFake() {
 	}
 	if (sets.size() > 3) sets = sets.mid(0, 3);
 	auto fakeResult = MTP_messages_stickerSetInstallResultArchive(MTP_vector<MTPStickerSetCovered>(sets));
-	applyArchivedResult(fakeResult.c_messages_stickerSetInstallResultArchive());
+	ApplyArchivedResult(fakeResult.c_messages_stickerSetInstallResultArchive());
 	return true;
 }
 
-void installLocally(uint64 setId) {
+void InstallLocally(uint64 setId) {
 	auto &sets = Global::RefStickerSets();
 	auto it = sets.find(setId);
 	if (it == sets.end()) {
@@ -129,7 +129,7 @@ void installLocally(uint64 setId) {
 		order.insert(insertAtIndex, setId);
 	}
 
-	auto custom = sets.find(Stickers::CustomSetId);
+	auto custom = sets.find(CustomSetId);
 	if (custom != sets.cend()) {
 		for_const (auto sticker, it->stickers) {
 			int removeIndex = custom->stickers.indexOf(sticker);
@@ -151,7 +151,7 @@ void installLocally(uint64 setId) {
 	emit App::main()->stickersUpdated();
 }
 
-void undoInstallLocally(uint64 setId) {
+void UndoInstallLocally(uint64 setId) {
 	auto &sets = Global::RefStickerSets();
 	auto it = sets.find(setId);
 	if (it == sets.end()) {
@@ -172,7 +172,7 @@ void undoInstallLocally(uint64 setId) {
 	Ui::show(Box<InformBox>(lang(lng_stickers_not_found)), KeepOtherLayers);
 }
 
-void markFeaturedAsRead(uint64 setId) {
+void MarkFeaturedAsRead(uint64 setId) {
 	if (!FeaturedReaderInstance) {
 		if (auto main = App::main()) {
 			FeaturedReaderInstance = object_ptr<internal::FeaturedReader>(main);
@@ -181,6 +181,315 @@ void markFeaturedAsRead(uint64 setId) {
 		}
 	}
 	FeaturedReaderInstance->scheduleRead(setId);
+}
+
+bool IsFaved(DocumentData *document) {
+	auto it = Global::StickerSets().constFind(FavedSetId);
+	return (it != Global::StickerSets().cend()) && it->stickers.contains(document);
+}
+
+void SetFaved(DocumentData *document, bool faved) {
+	auto &sets = Global::RefStickerSets();
+	auto it = sets.find(FavedSetId);
+	if (faved) {
+		if (it == sets.end()) {
+			it = sets.insert(FavedSetId, Set(FavedSetId, 0, lang(lng_faved_stickers), QString(), 0, 0, qFlags(MTPDstickerSet_ClientFlag::f_special)));
+		}
+		auto index = it->stickers.indexOf(document);
+		if (index != 0) {
+			if (index > 0) {
+				// Push this sticker to the front.
+				while (index-- != 0) {
+					it->stickers[index + 1] = it->stickers[index];
+				}
+				it->stickers[0] = document;
+			} else {
+				it->stickers.push_front(document);
+			}
+			Local::writeFavedStickers();
+			emit App::main()->stickersUpdated();
+			App::main()->onStickersInstalled(FavedSetId);
+		}
+	} else if (it != sets.end()) {
+		auto index = it->stickers.indexOf(document);
+		if (index >= 0) {
+			it->stickers.removeAt(index);
+			if (it->stickers.empty()) {
+				sets.erase(it);
+			}
+			Local::writeFavedStickers();
+			emit App::main()->stickersUpdated();
+		}
+	}
+}
+
+void SetsReceived(const QVector<MTPStickerSet> &data, int32 hash) {
+	auto &setsOrder = Global::RefStickerSetsOrder();
+	setsOrder.clear();
+
+	auto &sets = Global::RefStickerSets();
+	QMap<uint64, uint64> setsToRequest;
+	for (auto &set : sets) {
+		if (!(set.flags & MTPDstickerSet::Flag::f_archived)) {
+			set.flags &= ~MTPDstickerSet::Flag::f_installed; // mark for removing
+		}
+	}
+	for_const (auto &setData, data) {
+		if (setData.type() == mtpc_stickerSet) {
+			auto set = FeedSet(setData.c_stickerSet());
+			if (!(set->flags & MTPDstickerSet::Flag::f_archived) || (set->flags & MTPDstickerSet::Flag::f_official)) {
+				setsOrder.push_back(set->id);
+				if (set->stickers.isEmpty() || (set->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
+					setsToRequest.insert(set->id, set->access);
+				}
+			}
+		}
+	}
+	auto writeRecent = false;
+	auto &recent = cGetRecentStickers();
+	for (auto it = sets.begin(), e = sets.end(); it != e;) {
+		bool installed = (it->flags & MTPDstickerSet::Flag::f_installed);
+		bool featured = (it->flags & MTPDstickerSet_ClientFlag::f_featured);
+		bool special = (it->flags & MTPDstickerSet_ClientFlag::f_special);
+		bool archived = (it->flags & MTPDstickerSet::Flag::f_archived);
+		if (!installed) { // remove not mine sets from recent stickers
+			for (auto i = recent.begin(); i != recent.cend();) {
+				if (it->stickers.indexOf(i->first) >= 0) {
+					i = recent.erase(i);
+					writeRecent = true;
+				} else {
+					++i;
+				}
+			}
+		}
+		if (installed || featured || special || archived) {
+			++it;
+		} else {
+			it = sets.erase(it);
+		}
+	}
+
+	if (!setsToRequest.isEmpty()) {
+		auto &api = AuthSession::Current().api();
+		for (auto i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
+			api.scheduleStickerSetRequest(i.key(), i.value());
+		}
+		api.requestStickerSets();
+	}
+
+	Local::writeInstalledStickers();
+	if (writeRecent) Local::writeUserSettings();
+
+	if (Local::countStickersHash() != hash) {
+		LOG(("API Error: received stickers hash %1 while counted hash is %2").arg(hash).arg(Local::countStickersHash()));
+	}
+
+	if (App::main()) emit App::main()->stickersUpdated();
+}
+
+void SpecialSetReceived(uint64 setId, const QString &setTitle, const QVector<MTPDocument> &items, int32 hash) {
+	auto &sets = Global::RefStickerSets();
+	auto it = sets.find(setId);
+
+	auto &d_docs = items;
+	if (d_docs.isEmpty()) {
+		if (it != sets.cend()) {
+			sets.erase(it);
+		}
+	} else {
+		if (it == sets.cend()) {
+			it = sets.insert(setId, Set(setId, 0, setTitle, QString(), 0, 0, qFlags(MTPDstickerSet_ClientFlag::f_special)));
+		} else {
+			it->title = setTitle;
+		}
+		it->hash = hash;
+
+		auto custom = sets.find(CustomSetId);
+		auto pack = StickerPack();
+		pack.reserve(d_docs.size());
+		for_const (auto &mtpDocument, d_docs) {
+			auto document = App::feedDocument(mtpDocument);
+			if (!document || !document->sticker()) continue;
+
+			pack.push_back(document);
+			if (custom != sets.cend()) {
+				auto index = custom->stickers.indexOf(document);
+				if (index >= 0) {
+					custom->stickers.removeAt(index);
+				}
+			}
+		}
+		if (custom != sets.cend() && custom->stickers.isEmpty()) {
+			sets.erase(custom);
+			custom = sets.end();
+		}
+
+		auto writeRecent = false;
+		auto &recent = cGetRecentStickers();
+		for (auto i = recent.begin(); i != recent.cend();) {
+			if (it->stickers.indexOf(i->first) >= 0 && pack.indexOf(i->first) < 0) {
+				i = recent.erase(i);
+				writeRecent = true;
+			} else {
+				++i;
+			}
+		}
+
+		if (pack.isEmpty()) {
+			sets.erase(it);
+		} else {
+			it->stickers = pack;
+			it->emoji.clear();
+		}
+
+		if (writeRecent) {
+			Local::writeUserSettings();
+		}
+	}
+
+	switch (setId) {
+	case CloudRecentSetId: {
+		if (Local::countRecentStickersHash() != hash) {
+			LOG(("API Error: received recent stickers hash %1 while counted hash is %2").arg(hash).arg(Local::countRecentStickersHash()));
+		}
+		Local::writeRecentStickers();
+	} break;
+	case FavedSetId: {
+		if (Local::countFavedStickersHash() != hash) {
+			LOG(("API Error: received faved stickers hash %1 while counted hash is %2").arg(hash).arg(Local::countFavedStickersHash()));
+		}
+		Local::writeFavedStickers();
+	} break;
+	default: Unexpected("setId in SpecialSetReceived()");
+	}
+
+	if (App::main()) emit App::main()->stickersUpdated();
+}
+
+void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVector<MTPlong> &unread, int32 hash) {
+	OrderedSet<uint64> unreadMap;
+	for_const (auto &unreadSetId, unread) {
+		unreadMap.insert(unreadSetId.v);
+	}
+
+	auto &setsOrder = Global::RefFeaturedStickerSetsOrder();
+	setsOrder.clear();
+
+	auto &sets = Global::RefStickerSets();
+	QMap<uint64, uint64> setsToRequest;
+	for (auto &set : sets) {
+		set.flags &= ~MTPDstickerSet_ClientFlag::f_featured; // mark for removing
+	}
+	for (int i = 0, l = data.size(); i != l; ++i) {
+		auto &setData = data[i];
+		const MTPDstickerSet *set = nullptr;
+		switch (setData.type()) {
+		case mtpc_stickerSetCovered: {
+			auto &d = setData.c_stickerSetCovered();
+			if (d.vset.type() == mtpc_stickerSet) {
+				set = &d.vset.c_stickerSet();
+			}
+		} break;
+		case mtpc_stickerSetMultiCovered: {
+			auto &d = setData.c_stickerSetMultiCovered();
+			if (d.vset.type() == mtpc_stickerSet) {
+				set = &d.vset.c_stickerSet();
+			}
+		} break;
+		}
+
+		if (set) {
+			auto it = sets.find(set->vid.v);
+			auto title = stickerSetTitle(*set);
+			if (it == sets.cend()) {
+				auto setClientFlags = MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_not_loaded;
+				if (unreadMap.contains(set->vid.v)) {
+					setClientFlags |= MTPDstickerSet_ClientFlag::f_unread;
+				}
+				it = sets.insert(set->vid.v, Set(set->vid.v, set->vaccess_hash.v, title, qs(set->vshort_name), set->vcount.v, set->vhash.v, set->vflags.v | setClientFlags));
+			} else {
+				it->access = set->vaccess_hash.v;
+				it->title = title;
+				it->shortName = qs(set->vshort_name);
+				auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_not_loaded | MTPDstickerSet_ClientFlag::f_special);
+				it->flags = set->vflags.v | clientFlags;
+				it->flags |= MTPDstickerSet_ClientFlag::f_featured;
+				if (unreadMap.contains(it->id)) {
+					it->flags |= MTPDstickerSet_ClientFlag::f_unread;
+				} else {
+					it->flags &= ~MTPDstickerSet_ClientFlag::f_unread;
+				}
+				if (it->count != set->vcount.v || it->hash != set->vhash.v || it->emoji.isEmpty()) {
+					it->count = set->vcount.v;
+					it->hash = set->vhash.v;
+					it->flags |= MTPDstickerSet_ClientFlag::f_not_loaded; // need to request this set
+				}
+			}
+			setsOrder.push_back(set->vid.v);
+			if (it->stickers.isEmpty() || (it->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
+				setsToRequest.insert(set->vid.v, set->vaccess_hash.v);
+			}
+		}
+	}
+
+	auto unreadCount = 0;
+	for (auto it = sets.begin(), e = sets.end(); it != e;) {
+		bool installed = (it->flags & MTPDstickerSet::Flag::f_installed);
+		bool featured = (it->flags & MTPDstickerSet_ClientFlag::f_featured);
+		bool special = (it->flags & MTPDstickerSet_ClientFlag::f_special);
+		bool archived = (it->flags & MTPDstickerSet::Flag::f_archived);
+		if (installed || featured || special || archived) {
+			if (featured && (it->flags & MTPDstickerSet_ClientFlag::f_unread)) {
+				++unreadCount;
+			}
+			++it;
+		} else {
+			it = sets.erase(it);
+		}
+	}
+	if (Global::FeaturedStickerSetsUnreadCount() != unreadCount) {
+		Global::SetFeaturedStickerSetsUnreadCount(unreadCount);
+		Global::RefFeaturedStickerSetsUnreadCountChanged().notify();
+	}
+
+	if (Local::countFeaturedStickersHash() != hash) {
+		LOG(("API Error: received featured stickers hash %1 while counted hash is %2").arg(hash).arg(Local::countFeaturedStickersHash()));
+	}
+
+	if (!setsToRequest.isEmpty()) {
+		auto &api = AuthSession::Current().api();
+		for (auto i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
+			api.scheduleStickerSetRequest(i.key(), i.value());
+		}
+		api.requestStickerSets();
+	}
+
+	Local::writeFeaturedStickers();
+
+	if (App::main()) emit App::main()->stickersUpdated();
+}
+
+void GifsReceived(const QVector<MTPDocument> &items, int32 hash) {
+	auto &saved = cRefSavedGifs();
+	saved.clear();
+
+	saved.reserve(items.size());
+	for_const (auto &gif, items) {
+		auto document = App::feedDocument(gif);
+		if (!document || !document->isGifv()) {
+			LOG(("API Error: bad document returned in HistoryWidget::savedGifsGot!"));
+			continue;
+		}
+
+		saved.push_back(document);
+	}
+	if (Local::countSavedGifsHash() != hash) {
+		LOG(("API Error: received saved gifs hash %1 while counted hash is %2").arg(hash).arg(Local::countSavedGifsHash()));
+	}
+
+	Local::writeSavedGifs();
+
+	AuthSession::Current().data().savedGifsUpdated().notify();
 }
 
 namespace internal {
