@@ -244,12 +244,13 @@ enum Flags {
 
 namespace Stickers {
 
-constexpr uint64 DefaultSetId = 0; // for backward compatibility
-constexpr uint64 CustomSetId = 0xFFFFFFFFFFFFFFFFULL;
-constexpr uint64 RecentSetId = 0xFFFFFFFFFFFFFFFEULL; // for emoji/stickers panel, should not appear in Sets
-constexpr uint64 NoneSetId = 0xFFFFFFFFFFFFFFFDULL; // for emoji/stickers panel, should not appear in Sets
-constexpr uint64 CloudRecentSetId = 0xFFFFFFFFFFFFFFFCULL; // for cloud-stored recent stickers
-constexpr uint64 FeaturedSetId = 0xFFFFFFFFFFFFFFFBULL; // for emoji/stickers panel, should not appear in Sets
+constexpr auto DefaultSetId = 0; // for backward compatibility
+constexpr auto CustomSetId = 0xFFFFFFFFFFFFFFFFULL;
+constexpr auto RecentSetId = 0xFFFFFFFFFFFFFFFEULL; // for emoji/stickers panel, should not appear in Sets
+constexpr auto NoneSetId = 0xFFFFFFFFFFFFFFFDULL; // for emoji/stickers panel, should not appear in Sets
+constexpr auto CloudRecentSetId = 0xFFFFFFFFFFFFFFFCULL; // for cloud-stored recent stickers
+constexpr auto FeaturedSetId = 0xFFFFFFFFFFFFFFFBULL; // for emoji/stickers panel, should not appear in Sets
+constexpr auto FavedSetId = 0xFFFFFFFFFFFFFFFAULL; // for cloud-stored faved stickers
 struct Set {
 	Set(uint64 id, uint64 access, const QString &title, const QString &shortName, int32 count, int32 hash, MTPDstickerSet::Flags flags)
 		: id(id)
@@ -330,6 +331,7 @@ DeclareVar(int32, PushChatLimit);
 DeclareVar(int32, SavedGifsLimit);
 DeclareVar(int32, EditTimeLimit);
 DeclareVar(int32, StickersRecentLimit);
+DeclareVar(int32, StickersFavedLimit);
 DeclareVar(int32, PinnedDialogsCountMax);
 DeclareVar(QString, InternalLinksDomain);
 DeclareVar(int32, CallReceiveTimeoutMs);
@@ -349,6 +351,7 @@ DeclareVar(Stickers::Sets, StickerSets);
 DeclareVar(Stickers::Order, StickerSetsOrder);
 DeclareVar(TimeMs, LastStickersUpdate);
 DeclareVar(TimeMs, LastRecentStickersUpdate);
+DeclareVar(TimeMs, LastFavedStickersUpdate);
 DeclareVar(Stickers::Order, FeaturedStickerSetsOrder);
 DeclareVar(int, FeaturedStickerSetsUnreadCount);
 DeclareRefVar(base::Observable<void>, FeaturedStickerSetsUnreadCountChanged);

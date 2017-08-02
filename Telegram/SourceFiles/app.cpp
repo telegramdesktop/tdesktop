@@ -1140,7 +1140,7 @@ namespace {
 
 			AuthSession::Current().data().savedGifsUpdated().notify();
 			cSetLastSavedGifsUpdate(0);
-			App::main()->updateStickers();
+			AuthSession::Current().api().updateStickers();
 		}
 	}
 
@@ -1757,6 +1757,8 @@ namespace {
 				if (it != Global::StickerSets().cend()) {
 					if (it->id == Stickers::CloudRecentSetId) {
 						Local::writeRecentStickers();
+					} else if (it->id == Stickers::FavedSetId) {
+						Local::writeFavedStickers();
 					} else if (it->flags & MTPDstickerSet::Flag::f_archived) {
 						Local::writeArchivedStickers();
 					} else if (it->flags & MTPDstickerSet::Flag::f_installed) {

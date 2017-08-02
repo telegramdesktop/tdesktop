@@ -69,6 +69,7 @@ public:
 	void scheduleStickerSetRequest(uint64 setId, uint64 access);
 	void requestStickerSets();
 	void saveStickerSets(const Stickers::Order &localOrder, const Stickers::Order &localRemoved);
+	void updateStickers();
 
 	void joinChannel(ChannelData *channel);
 	void leaveChannel(ChannelData *channel);
@@ -131,6 +132,13 @@ private:
 	void stickerSetDisenabled(mtpRequestId requestId);
 	void stickersSaveOrder();
 
+	void stickersGot(const MTPmessages_AllStickers &stickers);
+	void recentStickersGot(const MTPmessages_RecentStickers &stickers);
+	void favedStickersGot(const MTPmessages_FavedStickers &stickers);
+	void featuredStickersGot(const MTPmessages_FeaturedStickers &stickers);
+	void savedGifsGot(const MTPmessages_SavedGifs &gifs);
+	void insertSpecialStickersSet(uint64 setId, const QString &setTitle, const MTPVector<MTPDocument> &items, MTPint hash);
+
 	gsl::not_null<AuthSession*> _session;
 	mtpRequestId _changelogSubscription = 0;
 
@@ -170,6 +178,12 @@ private:
 	Stickers::Order _stickersOrder;
 	mtpRequestId _stickersReorderRequestId = 0;
 	mtpRequestId _stickersClearRecentRequestId = 0;
+
+	mtpRequestId _stickersUpdateRequest = 0;
+	mtpRequestId _recentStickersUpdateRequest = 0;
+	mtpRequestId _favedStickersUpdateRequest = 0;
+	mtpRequestId _featuredStickersUpdateRequest = 0;
+	mtpRequestId _savedGifsUpdateRequest = 0;
 
 	QMap<mtpTypeId, mtpRequestId> _privacySaveRequests;
 

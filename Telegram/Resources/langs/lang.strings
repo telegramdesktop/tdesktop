@@ -884,6 +884,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_emoji_hide_panel" = "Click here to hide the emoji sidebar";
 
 "lng_recent_stickers" = "Frequently used";
+"lng_faved_stickers" = "Favorite stickers";
 "lng_switch_stickers" = "Stickers";
 "lng_switch_emoji" = "Emoji";
 "lng_switch_gifs" = "GIFs";

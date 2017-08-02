@@ -34,6 +34,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "observer_peer.h"
+#include "apiwrap.h"
 
 namespace ChatHelpers {
 namespace {
@@ -486,7 +487,7 @@ void TabbedSelector::hideFinished() {
 }
 
 void TabbedSelector::showStarted() {
-	emit updateStickers();
+	AuthSession::Current().api().updateStickers();
 	currentTab()->widget()->refreshRecent();
 	currentTab()->widget()->preloadImages();
 	_a_slide.finish();

@@ -709,10 +709,6 @@ void MainWidget::updateMutedIn(int32 seconds) {
 	_updateMutedTimer.start(ms);
 }
 
-void MainWidget::updateStickers() {
-	_history->updateStickers();
-}
-
 void MainWidget::onUpdateMuted() {
 	App::updateMuted();
 }
@@ -3933,6 +3929,7 @@ void MainWidget::start(const MTPUser *self) {
 	Local::readInstalledStickers();
 	Local::readFeaturedStickers();
 	Local::readRecentStickers();
+	Local::readFavedStickers();
 	Local::readSavedGifs();
 	_history->start();
 
@@ -5308,7 +5305,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			}
 			if (result.size() != Global::StickerSetsOrder().size() || result.size() != order.size()) {
 				Global::SetLastStickersUpdate(0);
-				App::main()->updateStickers();
+				AuthSession::Current().api().updateStickers();
 			} else {
 				Global::SetStickerSetsOrder(result);
 				Local::writeInstalledStickers();
@@ -5319,12 +5316,17 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateStickerSets: {
 		Global::SetLastStickersUpdate(0);
-		App::main()->updateStickers();
+		AuthSession::Current().api().updateStickers();
 	} break;
 
 	case mtpc_updateRecentStickers: {
-		Global::SetLastStickersUpdate(0);
-		App::main()->updateStickers();
+		Global::SetLastRecentStickersUpdate(0);
+		AuthSession::Current().api().updateStickers();
+	} break;
+
+	case mtpc_updateFavedStickers: {
+		Global::SetLastFavedStickersUpdate(0);
+		AuthSession::Current().api().updateStickers();
 	} break;
 
 	case mtpc_updateReadFeaturedStickers: {
@@ -5332,13 +5334,13 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		// Here we don't know what featured sticker sets were read, so we
 		// request all of them once again.
 		Global::SetLastFeaturedStickersUpdate(0);
-		App::main()->updateStickers();
+		AuthSession::Current().api().updateStickers();
 	} break;
 
 	////// Cloud saved GIFs
 	case mtpc_updateSavedGifs: {
 		cSetLastSavedGifsUpdate(0);
-		App::main()->updateStickers();
+		AuthSession::Current().api().updateStickers();
 	} break;
 
 	////// Cloud drafts

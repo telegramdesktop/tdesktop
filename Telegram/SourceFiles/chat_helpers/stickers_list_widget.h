@@ -49,7 +49,6 @@ public:
 	void showStickerSet(uint64 setId);
 
 	void refreshStickers();
-	void refreshRecentStickers(bool resize = true);
 
 	void fillIcons(QList<StickerIcon> &icons);
 	bool preventAutoHide();
@@ -132,6 +131,9 @@ private:
 	void displaySet(quint64 setId);
 	void installSet(quint64 setId);
 	void removeSet(quint64 setId);
+
+	void refreshRecentStickers(bool resize = true);
+	void refreshFavedStickers();
 
 	void updateSelected();
 	void setSelected(OverState newSelected);

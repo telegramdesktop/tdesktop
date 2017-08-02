@@ -619,6 +619,7 @@ struct Data {
 	int32 SavedGifsLimit = 200;
 	int32 EditTimeLimit = 172800;
 	int32 StickersRecentLimit = 30;
+	int32 StickersFavedLimit = 30; // TODO
 	int32 PinnedDialogsCountMax = 5;
 	QString InternalLinksDomain = qsl("https://t.me/");
 	int32 CallReceiveTimeoutMs = 20000;
@@ -636,6 +637,7 @@ struct Data {
 	Stickers::Order StickerSetsOrder;
 	TimeMs LastStickersUpdate = 0;
 	TimeMs LastRecentStickersUpdate = 0;
+	TimeMs LastFavedStickersUpdate = 0;
 	Stickers::Order FeaturedStickerSetsOrder;
 	int FeaturedStickerSetsUnreadCount = 0;
 	base::Observable<void> FeaturedStickerSetsUnreadCountChanged;
@@ -740,6 +742,7 @@ DefineVar(Global, int32, PushChatLimit);
 DefineVar(Global, int32, SavedGifsLimit);
 DefineVar(Global, int32, EditTimeLimit);
 DefineVar(Global, int32, StickersRecentLimit);
+DefineVar(Global, int32, StickersFavedLimit);
 DefineVar(Global, int32, PinnedDialogsCountMax);
 DefineVar(Global, QString, InternalLinksDomain);
 DefineVar(Global, int32, CallReceiveTimeoutMs);
@@ -757,6 +760,7 @@ DefineVar(Global, Stickers::Sets, StickerSets);
 DefineVar(Global, Stickers::Order, StickerSetsOrder);
 DefineVar(Global, TimeMs, LastStickersUpdate);
 DefineVar(Global, TimeMs, LastRecentStickersUpdate);
+DefineVar(Global, TimeMs, LastFavedStickersUpdate);
 DefineVar(Global, Stickers::Order, FeaturedStickerSetsOrder);
 DefineVar(Global, int, FeaturedStickerSetsUnreadCount);
 DefineRefVar(Global, base::Observable<void>, FeaturedStickerSetsUnreadCountChanged);

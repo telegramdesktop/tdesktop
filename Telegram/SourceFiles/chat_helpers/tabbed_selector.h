@@ -105,8 +105,6 @@ signals:
 	void photoSelected(PhotoData *photo);
 	void inlineResultSelected(InlineBots::Result *result, UserData *bot);
 
-	void updateStickers();
-
 	void cancelled();
 	void slideFinished();
 	void checkForHide();

@@ -504,6 +504,7 @@ enum { // Local Storage Keys
 	lskSavedGifs = 0x0f, // no data
 	lskStickersKeys = 0x10, // no data
 	lskTrustedBots = 0x11, // no data
+	lskFavedStickers = 0x12, // no data
 };
 
 enum {
@@ -577,6 +578,7 @@ enum {
 	dbiAuthSessionData = 0x4d,
 	dbiLangPackKey = 0x4e,
 	dbiConnectionType = 0x4f,
+	dbiStickersFavedLimit = 0x50,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -611,7 +613,7 @@ TrustedBots _trustedBots;
 bool _trustedBotsRead = false;
 
 FileKey _recentStickersKeyOld = 0;
-FileKey _installedStickersKey = 0, _featuredStickersKey = 0, _recentStickersKey = 0, _archivedStickersKey = 0;
+FileKey _installedStickersKey = 0, _featuredStickersKey = 0, _recentStickersKey = 0, _favedStickersKey = 0, _archivedStickersKey = 0;
 FileKey _savedGifsKey = 0;
 
 FileKey _backgroundKey = 0;
@@ -918,6 +920,14 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		if (!_checkStreamStatus(stream)) return false;
 
 		Global::SetStickersRecentLimit(limit);
+	} break;
+
+	case dbiStickersFavedLimit: {
+		qint32 limit;
+		stream >> limit;
+		if (!_checkStreamStatus(stream)) return false;
+
+		Global::SetStickersFavedLimit(limit);
 	} break;
 
 	case dbiMegagroupSizeMax: {
@@ -1969,7 +1979,7 @@ ReadMapState _readMap(const QByteArray &pass) {
 	qint64 storageImagesSize = 0, storageStickersSize = 0, storageAudiosSize = 0;
 	quint64 locationsKey = 0, reportSpamStatusesKey = 0, trustedBotsKey = 0;
 	quint64 recentStickersKeyOld = 0;
-	quint64 installedStickersKey = 0, featuredStickersKey = 0, recentStickersKey = 0, archivedStickersKey = 0;
+	quint64 installedStickersKey = 0, featuredStickersKey = 0, recentStickersKey = 0, favedStickersKey = 0, archivedStickersKey = 0;
 	quint64 savedGifsKey = 0;
 	quint64 backgroundKey = 0, userSettingsKey = 0, recentHashtagsAndBotsKey = 0, savedPeersKey = 0;
 	while (!map.stream.atEnd()) {
@@ -2060,6 +2070,9 @@ ReadMapState _readMap(const QByteArray &pass) {
 		case lskStickersKeys: {
 			map.stream >> installedStickersKey >> featuredStickersKey >> recentStickersKey >> archivedStickersKey;
 		} break;
+		case lskFavedStickers: {
+			map.stream >> favedStickersKey;
+		} break;
 		case lskSavedGifsOld: {
 			quint64 key;
 			map.stream >> key;
@@ -2097,6 +2110,7 @@ ReadMapState _readMap(const QByteArray &pass) {
 	_installedStickersKey = installedStickersKey;
 	_featuredStickersKey = featuredStickersKey;
 	_recentStickersKey = recentStickersKey;
+	_favedStickersKey = favedStickersKey;
 	_archivedStickersKey = archivedStickersKey;
 	_savedGifsKey = savedGifsKey;
 	_savedPeersKey = savedPeersKey;
@@ -2175,6 +2189,7 @@ void _writeMap(WriteMapWhen when) {
 	if (_installedStickersKey || _featuredStickersKey || _recentStickersKey || _archivedStickersKey) {
 		mapSize += sizeof(quint32) + 4 * sizeof(quint64);
 	}
+	if (_favedStickersKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_savedGifsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_savedPeersKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_backgroundKey) mapSize += sizeof(quint32) + sizeof(quint64);
@@ -2226,6 +2241,9 @@ void _writeMap(WriteMapWhen when) {
 	if (_installedStickersKey || _featuredStickersKey || _recentStickersKey || _archivedStickersKey) {
 		mapData.stream << quint32(lskStickersKeys);
 		mapData.stream << quint64(_installedStickersKey) << quint64(_featuredStickersKey) << quint64(_recentStickersKey) << quint64(_archivedStickersKey);
+	}
+	if (_favedStickersKey) {
+		mapData.stream << quint32(lskFavedStickers) << quint64(_favedStickersKey);
 	}
 	if (_savedGifsKey) {
 		mapData.stream << quint32(lskSavedGifs) << quint64(_savedGifsKey);
@@ -2354,13 +2372,14 @@ void writeSettings() {
 	if (_langPackKey) {
 		size += sizeof(quint32) + sizeof(quint64);
 	}
-	size += sizeof(quint32) + sizeof(qint32) * 7;
+	size += sizeof(quint32) + sizeof(qint32) * 8;
 
 	EncryptedDescriptor data(size);
 	data.stream << quint32(dbiChatSizeMax) << qint32(Global::ChatSizeMax());
 	data.stream << quint32(dbiMegagroupSizeMax) << qint32(Global::MegagroupSizeMax());
 	data.stream << quint32(dbiSavedGifsLimit) << qint32(Global::SavedGifsLimit());
 	data.stream << quint32(dbiStickersRecentLimit) << qint32(Global::StickersRecentLimit());
+	data.stream << quint32(dbiStickersFavedLimit) << qint32(Global::StickersFavedLimit());
 	data.stream << quint32(dbiAutoStart) << qint32(cAutoStart());
 	data.stream << quint32(dbiStartMinimized) << qint32(cStartMinimized());
 	data.stream << quint32(dbiSendToMenu) << qint32(cSendToMenu());
@@ -2419,7 +2438,7 @@ void reset() {
 	_storageWebFilesSize = 0;
 	_locationsKey = _reportSpamStatusesKey = _trustedBotsKey = 0;
 	_recentStickersKeyOld = 0;
-	_installedStickersKey = _featuredStickersKey = _recentStickersKey = _archivedStickersKey = 0;
+	_installedStickersKey = _featuredStickersKey = _recentStickersKey = _favedStickersKey = _archivedStickersKey = 0;
 	_savedGifsKey = 0;
 	_backgroundKey = _userSettingsKey = _recentHashtagsAndBotsKey = _savedPeersKey = 0;
 	_oldMapVersion = _oldSettingsVersion = 0;
@@ -3334,6 +3353,9 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 		} else if (setId == Stickers::CloudRecentSetId) {
 			setTitle = lang(lng_recent_stickers);
 			setFlags |= qFlags(MTPDstickerSet_ClientFlag::f_special);
+		} else if (setId == Stickers::FavedSetId) {
+			setTitle = lang(lng_faved_stickers);
+			setFlags |= qFlags(MTPDstickerSet_ClientFlag::f_special);
 		} else if (setId) {
 			if (readingInstalled && outOrder && stickers.version < 9061) {
 				outOrder->push_back(setId);
@@ -3431,7 +3453,7 @@ void writeInstalledStickers() {
 	if (!Global::started()) return;
 
 	_writeStickerSets(_installedStickersKey, [](const Stickers::Set &set) {
-		if (set.id == Stickers::CloudRecentSetId) { // separate file for recent
+		if (set.id == Stickers::CloudRecentSetId || set.id == Stickers::FavedSetId) { // separate files for them
 			return StickerSetCheckResult::Skip;
 		} else if (set.flags & MTPDstickerSet_ClientFlag::f_special) {
 			if (set.stickers.isEmpty()) { // all other special are "installed"
@@ -3452,7 +3474,7 @@ void writeFeaturedStickers() {
 	if (!Global::started()) return;
 
 	_writeStickerSets(_featuredStickersKey, [](const Stickers::Set &set) {
-		if (set.id == Stickers::CloudRecentSetId) { // separate file for recent
+		if (set.id == Stickers::CloudRecentSetId || set.id == Stickers::FavedSetId) { // separate files for them
 			return StickerSetCheckResult::Skip;
 		} else if (set.flags & MTPDstickerSet_ClientFlag::f_special) {
 			return StickerSetCheckResult::Skip;
@@ -3472,6 +3494,17 @@ void writeRecentStickers() {
 
 	_writeStickerSets(_recentStickersKey, [](const Stickers::Set &set) {
 		if (set.id != Stickers::CloudRecentSetId || set.stickers.isEmpty()) {
+			return StickerSetCheckResult::Skip;
+		}
+		return StickerSetCheckResult::Write;
+	}, Stickers::Order());
+}
+
+void writeFavedStickers() {
+	if (!Global::started()) return;
+
+	_writeStickerSets(_favedStickersKey, [](const Stickers::Set &set) {
+		if (set.id != Stickers::FavedSetId || set.stickers.isEmpty()) {
 			return StickerSetCheckResult::Skip;
 		}
 		return StickerSetCheckResult::Write;
@@ -3595,12 +3628,35 @@ void readRecentStickers() {
 	_readStickerSets(_recentStickersKey);
 }
 
+void readFavedStickers() {
+	_readStickerSets(_favedStickersKey);
+}
+
 void readArchivedStickers() {
 	static bool archivedStickersRead = false;
 	if (!archivedStickersRead) {
 		_readStickerSets(_archivedStickersKey, &Global::RefArchivedStickerSetsOrder());
 		archivedStickersRead = true;
 	}
+}
+
+int32 countDocumentVectorHash(const QVector<DocumentData*> vector) {
+	uint32 acc = 0;
+	for_const (auto doc, vector) {
+		auto docId = doc->id;
+		acc = (acc * 20261) + uint32(docId >> 32);
+		acc = (acc * 20261) + uint32(docId & 0xFFFFFFFF);
+	}
+	return int32(acc & 0x7FFFFFFF);
+}
+
+int32 countSpecialStickerSetHash(uint64 setId) {
+	auto &sets = Global::StickerSets();
+	auto it = sets.constFind(setId);
+	if (it != sets.cend()) {
+		return countDocumentVectorHash(it->stickers);
+	}
+	return 0;
 }
 
 int32 countStickersHash(bool checkOutdatedInfo) {
@@ -3623,17 +3679,11 @@ int32 countStickersHash(bool checkOutdatedInfo) {
 }
 
 int32 countRecentStickersHash() {
-	uint32 acc = 0;
-	auto &sets = Global::StickerSets();
-	auto it = sets.constFind(Stickers::CloudRecentSetId);
-	if (it != sets.cend()) {
-		for_const (auto doc, it->stickers) {
-			auto docId = doc->id;
-			acc = (acc * 20261) + uint32(docId >> 32);
-			acc = (acc * 20261) + uint32(docId & 0xFFFFFFFF);
-		}
-	}
-	return int32(acc & 0x7FFFFFFF);
+	return countSpecialStickerSetHash(Stickers::CloudRecentSetId);
+}
+
+int32 countFavedStickersHash() {
+	return countSpecialStickerSetHash(Stickers::FavedSetId);
 }
 
 int32 countFeaturedStickersHash() {
@@ -3653,20 +3703,13 @@ int32 countFeaturedStickersHash() {
 }
 
 int32 countSavedGifsHash() {
-	uint32 acc = 0;
-	auto &saved = cSavedGifs();
-	for_const (auto doc, saved) {
-		auto docId = doc->id;
-		acc = (acc * 20261) + uint32(docId >> 32);
-		acc = (acc * 20261) + uint32(docId & 0xFFFFFFFF);
-	}
-	return int32(acc & 0x7FFFFFFF);
+	return countDocumentVectorHash(cSavedGifs());
 }
 
 void writeSavedGifs() {
 	if (!_working()) return;
 
-	const SavedGifs &saved(cSavedGifs());
+	auto &saved = cSavedGifs();
 	if (saved.isEmpty()) {
 		if (_savedGifsKey) {
 			clearKey(_savedGifsKey);

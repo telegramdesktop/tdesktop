@@ -141,13 +141,16 @@ void cancelTask(TaskId id);
 void writeInstalledStickers();
 void writeFeaturedStickers();
 void writeRecentStickers();
+void writeFavedStickers();
 void writeArchivedStickers();
 void readInstalledStickers();
 void readFeaturedStickers();
 void readRecentStickers();
+void readFavedStickers();
 void readArchivedStickers();
 int32 countStickersHash(bool checkOutdatedInfo = false);
 int32 countRecentStickersHash();
+int32 countFavedStickersHash();
 int32 countFeaturedStickersHash();
 
 void writeSavedGifs();

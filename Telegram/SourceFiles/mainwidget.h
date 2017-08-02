@@ -355,8 +355,6 @@ public:
 	void gameUpdated(GameData *game);
 	void updateMutedIn(int32 seconds);
 
-	void updateStickers();
-
 	void choosePeer(PeerId peerId, MsgId showAtMsgId); // does offerPeer or showPeerHistory
 	void clearBotStartToken(PeerData *peer);
 

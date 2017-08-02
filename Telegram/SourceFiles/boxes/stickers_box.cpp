@@ -269,7 +269,7 @@ void StickersBox::prepare() {
 	setDimensions(st::boxWideWidth, (_section == Section::ArchivedPart) ? st::sessionsHeight : st::boxMaxListHeight);
 
 	connect(App::main(), SIGNAL(stickersUpdated()), this, SLOT(onStickersUpdated()));
-	App::main()->updateStickers();
+	AuthSession::Current().api().updateStickers();
 
 	if (_installed.widget()) {
 		connect(_installed.widget(), SIGNAL(draggingScrollDelta(int)), this, SLOT(onDraggingScrollDelta(int)));

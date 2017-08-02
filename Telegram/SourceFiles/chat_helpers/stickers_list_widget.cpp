@@ -1025,6 +1025,7 @@ void StickersListWidget::refreshStickers() {
 	_mySets.reserve(Global::StickerSetsOrder().size() + 1);
 
 	refreshRecentStickers(false);
+	refreshFavedStickers();
 	for_const (auto setId, Global::StickerSetsOrder()) {
 		appendSet(_mySets, setId, AppendSkip::Archived);
 	}
@@ -1169,6 +1170,16 @@ void StickersListWidget::refreshRecentStickers(bool performResize) {
 
 		updateSelected();
 	}
+}
+
+void StickersListWidget::refreshFavedStickers() {
+	clearSelection();
+	auto &sets = Global::StickerSets();
+	auto it = sets.constFind(Stickers::CloudRecentSetId);
+	if (it == sets.cend() || it->stickers.isEmpty()) {
+		return;
+	}
+	_mySets.push_back(Set(Stickers::FavedSetId, MTPDstickerSet::Flag::f_official | MTPDstickerSet_ClientFlag::f_special, lang(lng_faved_stickers), it->stickers.size() * 2, it->stickers));
 }
 
 void StickersListWidget::fillIcons(QList<StickerIcon> &icons) {
