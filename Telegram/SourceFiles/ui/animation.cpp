@@ -40,6 +40,7 @@ ReaderPointer::~ReaderPointer() {
 namespace {
 
 AnimationManager *_manager = nullptr;
+bool AnimationsDisabled = false;
 
 } // namespace
 
@@ -107,6 +108,14 @@ void stopManager() {
 
 void registerClipManager(Media::Clip::Manager *manager) {
 	manager->connect(manager, SIGNAL(callback(Media::Clip::Reader*,qint32,qint32)), _manager, SLOT(clipCallback(Media::Clip::Reader*,qint32,qint32)));
+}
+
+bool Disabled() {
+	return AnimationsDisabled;
+}
+
+void SetDisabled(bool disabled) {
+	AnimationsDisabled = disabled;
 }
 
 } // anim
