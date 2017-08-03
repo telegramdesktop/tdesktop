@@ -651,6 +651,132 @@ std::vector<gsl::not_null<EmojiPtr>> GetEmojiListFromSet(gsl::not_null<DocumentD
 	return result;
 }
 
+Set *FeedSet(const MTPDstickerSet &set) {
+	auto &sets = Global::RefStickerSets();
+	auto it = sets.find(set.vid.v);
+	auto title = stickerSetTitle(set);
+	auto flags = MTPDstickerSet::Flags(0);
+	if (it == sets.cend()) {
+		it = sets.insert(set.vid.v, Stickers::Set(set.vid.v, set.vaccess_hash.v, title, qs(set.vshort_name), set.vcount.v, set.vhash.v, set.vflags.v | MTPDstickerSet_ClientFlag::f_not_loaded));
+	} else {
+		it->access = set.vaccess_hash.v;
+		it->title = title;
+		it->shortName = qs(set.vshort_name);
+		flags = it->flags;
+		auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_not_loaded | MTPDstickerSet_ClientFlag::f_special);
+		it->flags = set.vflags.v | clientFlags;
+		if (it->count != set.vcount.v || it->hash != set.vhash.v || it->emoji.isEmpty()) {
+			it->count = set.vcount.v;
+			it->hash = set.vhash.v;
+			it->flags |= MTPDstickerSet_ClientFlag::f_not_loaded; // need to request this set
+		}
+	}
+	auto changedFlags = (flags ^ it->flags);
+	if (changedFlags & MTPDstickerSet::Flag::f_archived) {
+		auto index = Global::ArchivedStickerSetsOrder().indexOf(it->id);
+		if (it->flags & MTPDstickerSet::Flag::f_archived) {
+			if (index < 0) {
+				Global::RefArchivedStickerSetsOrder().push_front(it->id);
+			}
+		} else if (index >= 0) {
+			Global::RefArchivedStickerSetsOrder().removeAt(index);
+		}
+	}
+	return &it.value();
+}
+
+Set *FeedSetFull(const MTPmessages_StickerSet &data) {
+	Expects(data.type() == mtpc_messages_stickerSet);
+	Expects(data.c_messages_stickerSet().vset.type() == mtpc_stickerSet);
+	auto &d = data.c_messages_stickerSet();
+	auto set = FeedSet(d.vset.c_stickerSet());
+
+	set->flags &= ~MTPDstickerSet_ClientFlag::f_not_loaded;
+
+	auto &sets = Global::RefStickerSets();
+	auto &d_docs = d.vdocuments.v;
+	auto custom = sets.find(Stickers::CustomSetId);
+
+	auto pack = StickerPack();
+	pack.reserve(d_docs.size());
+	for (auto i = 0, l = d_docs.size(); i != l; ++i) {
+		auto doc = App::feedDocument(d_docs.at(i));
+		if (!doc || !doc->sticker()) continue;
+
+		pack.push_back(doc);
+		if (custom != sets.cend()) {
+			auto index = custom->stickers.indexOf(doc);
+			if (index >= 0) {
+				custom->stickers.removeAt(index);
+			}
+		}
+	}
+	if (custom != sets.cend() && custom->stickers.isEmpty()) {
+		sets.erase(custom);
+		custom = sets.end();
+	}
+
+	auto writeRecent = false;
+	auto &recent = cGetRecentStickers();
+	for (auto i = recent.begin(); i != recent.cend();) {
+		if (set->stickers.indexOf(i->first) >= 0 && pack.indexOf(i->first) < 0) {
+			i = recent.erase(i);
+			writeRecent = true;
+		} else {
+			++i;
+		}
+	}
+
+	if (pack.isEmpty()) {
+		int removeIndex = Global::StickerSetsOrder().indexOf(set->id);
+		if (removeIndex >= 0) Global::RefStickerSetsOrder().removeAt(removeIndex);
+		sets.remove(set->id);
+		set = nullptr;
+	} else {
+		set->stickers = pack;
+		set->emoji.clear();
+		auto &v = d.vpacks.v;
+		for (auto i = 0, l = v.size(); i != l; ++i) {
+			if (v[i].type() != mtpc_stickerPack) continue;
+
+			auto &pack = v[i].c_stickerPack();
+			if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon))) {
+				emoji = emoji->original();
+				auto &stickers = pack.vdocuments.v;
+
+				StickerPack p;
+				p.reserve(stickers.size());
+				for (auto j = 0, c = stickers.size(); j != c; ++j) {
+					auto doc = App::document(stickers[j].v);
+					if (!doc || !doc->sticker()) continue;
+
+					p.push_back(doc);
+				}
+				set->emoji.insert(emoji, p);
+			}
+		}
+	}
+
+	if (writeRecent) {
+		Local::writeUserSettings();
+	}
+
+	if (set) {
+		if (set->flags & MTPDstickerSet::Flag::f_installed) {
+			if (!(set->flags & MTPDstickerSet::Flag::f_archived)) {
+				Local::writeInstalledStickers();
+			}
+		}
+		if (set->flags & MTPDstickerSet_ClientFlag::f_featured) {
+			Local::writeFeaturedStickers();
+		}
+	}
+
+	if (App::main()) emit App::main()->stickersUpdated();
+
+	return set;
+}
+
 namespace internal {
 
 FeaturedReader::FeaturedReader(QObject *parent) : QObject(parent)

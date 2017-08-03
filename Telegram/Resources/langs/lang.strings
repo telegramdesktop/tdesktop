@@ -887,6 +887,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_faved_stickers" = "Favorite stickers";
 "lng_faved_stickers_add" = "Add to Favorites";
 "lng_faved_stickers_remove" = "Remove from Favorites";
+"lng_group_stickers" = "Group stickers";
+"lng_group_stickers_description" = "You can choose sticker set which will be available for every member while in the group chat.";
+"lng_group_stickers_add" = "Choose sticker set";
 
 "lng_switch_stickers" = "Stickers";
 "lng_switch_emoji" = "Emoji";

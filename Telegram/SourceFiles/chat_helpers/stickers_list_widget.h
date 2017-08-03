@@ -47,6 +47,7 @@ public:
 	object_ptr<TabbedSelector::InnerFooter> createFooter() override;
 
 	void showStickerSet(uint64 setId);
+	void showMegagroupSet(ChannelData *megagroup);
 
 	void refreshStickers();
 
@@ -104,6 +105,8 @@ private:
 	struct OverButton {
 		int section;
 	};
+	struct OverGroupAdd {
+	};
 	friend inline bool operator==(OverSticker a, OverSticker b) {
 		return (a.section == b.section) && (a.index == b.index) && (a.overDelete == b.overDelete);
 	}
@@ -113,7 +116,10 @@ private:
 	friend inline bool operator==(OverButton a, OverButton b) {
 		return (a.section == b.section);
 	}
-	using OverState = base::optional_variant<OverSticker, OverSet, OverButton>;
+	friend inline bool operator==(OverGroupAdd a, OverGroupAdd b) {
+		return true;
+	}
+	using OverState = base::optional_variant<OverSticker, OverSet, OverButton, OverGroupAdd>;
 
 	struct SectionInfo {
 		int section = 0;
@@ -128,6 +134,7 @@ private:
 		Set(uint64 id, MTPDstickerSet::Flags flags, const QString &title, int32 hoversSize, const StickerPack &pack = StickerPack()) : id(id), flags(flags), title(title), pack(pack) {
 		}
 		uint64 id;
+		bool megagroupSet = false;
 		MTPDstickerSet::Flags flags;
 		QString title;
 		StickerPack pack;
@@ -148,6 +155,7 @@ private:
 	bool stickerHasDeleteButton(const Set &set, int index) const;
 	void refreshRecentStickers(bool resize = true);
 	void refreshFavedStickers();
+	void refreshMegagroupStickers();
 
 	void updateSelected();
 	void setSelected(OverState newSelected);
@@ -173,6 +181,7 @@ private:
 
 	void paintFeaturedStickers(Painter &p, QRect clip);
 	void paintStickers(Painter &p, QRect clip);
+	void paintMegagroupEmptySet(Painter &p, int y, bool buttonSelected, TimeMs ms);
 	void paintSticker(Painter &p, Set &set, int y, int index, bool selected, bool deleteSelected);
 
 	int stickersRight() const;
@@ -180,12 +189,16 @@ private:
 	QRect featuredAddRect(int index) const;
 	bool hasRemoveButton(int index) const;
 	QRect removeButtonRect(int index) const;
+	int megagroupSetInfoLeft() const;
+	void refreshMegagroupSetGeometry();
+	QRect megagroupSetButtonRectFinal() const;
 
 	enum class AppendSkip {
+		None,
 		Archived,
 		Installed,
 	};
-	void appendSet(Sets &to, uint64 setId, AppendSkip skip);
+	void appendSet(Sets &to, uint64 setId, AppendSkip skip = AppendSkip::None);
 
 	void selectEmoji(EmojiPtr emoji);
 	int stickersLeft() const;
@@ -194,6 +207,7 @@ private:
 	void removeRecentSticker(int section, int index);
 	void removeFavedSticker(int section, int index);
 
+	ChannelData *_megagroupSet = nullptr;
 	Sets _mySets;
 	Sets _featuredSets;
 	OrderedSet<uint64> _installedLocallySets;
@@ -209,6 +223,12 @@ private:
 	OverState _selected = nullptr;
 	OverState _pressed = nullptr;
 	QPoint _lastMousePosition;
+
+	Text _megagroupSetAbout;
+	QString _megagroupSetButtonText;
+	int _megagroupSetButtonTextWidth = 0;
+	QRect _megagroupSetButtonRect;
+	std::unique_ptr<Ui::RippleAnimation> _megagroupSetButtonRipple;
 
 	QString _addText;
 	int _addWidth;

@@ -519,6 +519,10 @@ void TabbedSelector::stickersInstalled(uint64 setId) {
 	stickers()->showStickerSet(setId);
 }
 
+void TabbedSelector::showMegagroupSet(ChannelData *megagroup) {
+	stickers()->showMegagroupSet(megagroup);
+}
+
 void TabbedSelector::setCurrentPeer(PeerData *peer) {
 	gifs()->setInlineQueryPeer(peer);
 	_currentPeer = peer;

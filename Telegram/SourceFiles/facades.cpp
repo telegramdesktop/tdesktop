@@ -535,45 +535,6 @@ DefineVar(Sandbox, ProxyData, PreLaunchProxy);
 
 } // namespace Sandbox
 
-namespace Stickers {
-
-Set *FeedSet(const MTPDstickerSet &set) {
-	MTPDstickerSet::Flags flags = 0;
-
-	auto &sets = Global::RefStickerSets();
-	auto it = sets.find(set.vid.v);
-	auto title = stickerSetTitle(set);
-	if (it == sets.cend()) {
-		it = sets.insert(set.vid.v, Stickers::Set(set.vid.v, set.vaccess_hash.v, title, qs(set.vshort_name), set.vcount.v, set.vhash.v, set.vflags.v | MTPDstickerSet_ClientFlag::f_not_loaded));
-	} else {
-		it->access = set.vaccess_hash.v;
-		it->title = title;
-		it->shortName = qs(set.vshort_name);
-		flags = it->flags;
-		auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_not_loaded | MTPDstickerSet_ClientFlag::f_special);
-		it->flags = set.vflags.v | clientFlags;
-		if (it->count != set.vcount.v || it->hash != set.vhash.v || it->emoji.isEmpty()) {
-			it->count = set.vcount.v;
-			it->hash = set.vhash.v;
-			it->flags |= MTPDstickerSet_ClientFlag::f_not_loaded; // need to request this set
-		}
-	}
-	auto changedFlags = (flags ^ it->flags);
-	if (changedFlags & MTPDstickerSet::Flag::f_archived) {
-		auto index = Global::ArchivedStickerSetsOrder().indexOf(it->id);
-		if (it->flags & MTPDstickerSet::Flag::f_archived) {
-			if (index < 0) {
-				Global::RefArchivedStickerSetsOrder().push_front(it->id);
-			}
-		} else if (index >= 0) {
-			Global::RefArchivedStickerSetsOrder().removeAt(index);
-		}
-	}
-	return &it.value();
-}
-
-} // namespace Stickers
-
 namespace Global {
 namespace internal {
 

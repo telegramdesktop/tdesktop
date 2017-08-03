@@ -313,6 +313,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 
 		auto canViewAdmins = channel->canViewAdmins();
 		auto canViewMembers = channel->canViewMembers();
+		auto canEditStickers = channel->canEditStickers();
 
 		channel->flagsFull = f.vflags.v;
 		if (auto photo = App::feedPhoto(f.vchat_photo)) {
@@ -382,11 +383,25 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 			} else {
 				channel->mgInfo->pinnedMsgId = 0;
 			}
+
+			auto stickersChanged = (canEditStickers != channel->canEditStickers());
+			auto stickerSet = (f.has_stickerset() ? &f.vstickerset.c_stickerSet() : nullptr);
+			auto newSetId = (stickerSet ? stickerSet->vid.v : 0);
+			auto oldSetId = (channel->mgInfo->stickerSet.type() == mtpc_inputStickerSetID) ? channel->mgInfo->stickerSet.c_inputStickerSetID().vid.v : 0;
+			if (oldSetId != newSetId) {
+				channel->mgInfo->stickerSet = stickerSet ? MTP_inputStickerSetID(stickerSet->vid, stickerSet->vaccess_hash) : MTP_inputStickerSetEmpty();
+				stickersChanged = true;
+			}
+			if (stickersChanged) {
+				Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::ChannelStickersChanged);
+			}
 		}
 		channel->fullUpdated();
 
 		if (canViewAdmins != channel->canViewAdmins()
-			|| canViewMembers != channel->canViewMembers()) Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::ChannelRightsChanged);
+			|| canViewMembers != channel->canViewMembers()) {
+			Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::ChannelRightsChanged);
+		}
 
 		notifySettingReceived(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);
 	}
@@ -1260,101 +1275,7 @@ PeerData *ApiWrap::notifySettingReceived(MTPInputNotifyPeer notifyPeer, const MT
 
 void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) {
 	_stickerSetRequests.remove(setId);
-
-	if (result.type() != mtpc_messages_stickerSet) return;
-	auto &d(result.c_messages_stickerSet());
-
-	if (d.vset.type() != mtpc_stickerSet) return;
-	auto &s(d.vset.c_stickerSet());
-
-	auto &sets = Global::RefStickerSets();
-	auto it = sets.find(setId);
-	if (it == sets.cend()) return;
-
-	it->access = s.vaccess_hash.v;
-	it->hash = s.vhash.v;
-	it->shortName = qs(s.vshort_name);
-	it->title = stickerSetTitle(s);
-	auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_not_loaded | MTPDstickerSet_ClientFlag::f_special);
-	it->flags = s.vflags.v | clientFlags;
-	it->flags &= ~MTPDstickerSet_ClientFlag::f_not_loaded;
-
-	auto &d_docs = d.vdocuments.v;
-	auto custom = sets.find(Stickers::CustomSetId);
-
-	StickerPack pack;
-	pack.reserve(d_docs.size());
-	for (int32 i = 0, l = d_docs.size(); i != l; ++i) {
-		DocumentData *doc = App::feedDocument(d_docs.at(i));
-		if (!doc || !doc->sticker()) continue;
-
-		pack.push_back(doc);
-		if (custom != sets.cend()) {
-			int32 index = custom->stickers.indexOf(doc);
-			if (index >= 0) {
-				custom->stickers.removeAt(index);
-			}
-		}
-	}
-	if (custom != sets.cend() && custom->stickers.isEmpty()) {
-		sets.erase(custom);
-		custom = sets.end();
-	}
-
-	auto writeRecent = false;
-	auto &recent = cGetRecentStickers();
-	for (auto i = recent.begin(); i != recent.cend();) {
-		if (it->stickers.indexOf(i->first) >= 0 && pack.indexOf(i->first) < 0) {
-			i = recent.erase(i);
-			writeRecent = true;
-		} else {
-			++i;
-		}
-	}
-
-	if (pack.isEmpty()) {
-		int removeIndex = Global::StickerSetsOrder().indexOf(setId);
-		if (removeIndex >= 0) Global::RefStickerSetsOrder().removeAt(removeIndex);
-		sets.erase(it);
-	} else {
-		it->stickers = pack;
-		it->emoji.clear();
-		auto &v = d.vpacks.v;
-		for (auto i = 0, l = v.size(); i != l; ++i) {
-			if (v[i].type() != mtpc_stickerPack) continue;
-
-			auto &pack = v[i].c_stickerPack();
-			if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon))) {
-				emoji = emoji->original();
-				auto &stickers = pack.vdocuments.v;
-
-				StickerPack p;
-				p.reserve(stickers.size());
-				for (auto j = 0, c = stickers.size(); j != c; ++j) {
-					auto doc = App::document(stickers[j].v);
-					if (!doc || !doc->sticker()) continue;
-
-					p.push_back(doc);
-				}
-				it->emoji.insert(emoji, p);
-			}
-		}
-	}
-
-	if (writeRecent) {
-		Local::writeUserSettings();
-	}
-
-	if (it->flags & MTPDstickerSet::Flag::f_installed) {
-		if (!(it->flags & MTPDstickerSet::Flag::f_archived)) {
-			Local::writeInstalledStickers();
-		}
-	}
-	if (it->flags & MTPDstickerSet_ClientFlag::f_featured) {
-		Local::writeFeaturedStickers();
-	}
-
-	if (App::main()) emit App::main()->stickersUpdated();
+	Stickers::FeedSetFull(result);
 }
 
 void ApiWrap::requestWebPageDelayed(WebPageData *page) {

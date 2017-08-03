@@ -312,7 +312,7 @@ void Application::startApplication() {
 }
 
 void Application::createMessenger() {
-	t_assert(!App::quitting());
+	Expects(!App::quitting());
 	_messengerInstance = std::make_unique<Messenger>();
 }
 

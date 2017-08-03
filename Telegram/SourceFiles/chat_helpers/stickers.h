@@ -42,6 +42,9 @@ void GifsReceived(const QVector<MTPDocument> &items, int32 hash);
 StickerPack GetListByEmoji(gsl::not_null<EmojiPtr> emoji);
 std::vector<gsl::not_null<EmojiPtr>> GetEmojiListFromSet(gsl::not_null<DocumentData*> document);
 
+Set *FeedSet(const MTPDstickerSet &data);
+Set *FeedSetFull(const MTPmessages_StickerSet &data);
+
 namespace internal {
 
 class FeaturedReader : public QObject, private MTP::Sender {

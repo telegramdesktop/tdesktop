@@ -33,7 +33,7 @@ struct PeerUpdate {
 	}
 	PeerData *peer;
 
-	enum class Flag {
+	enum class Flag : uint32 {
 		None                      = 0x00000000U,
 
 		// Common flags
@@ -50,7 +50,7 @@ struct PeerUpdate {
 		InviteLinkChanged         = 0x00000100U,
 		MembersChanged            = 0x00000200U,
 		AdminsChanged             = 0x00000400U,
-		BannedUsersChanged       = 0x00000800U,
+		BannedUsersChanged        = 0x00000800U,
 
 		// For users
 		UserCanShareContact       = 0x00010000U,
@@ -69,6 +69,7 @@ struct PeerUpdate {
 		// For channels
 		ChannelAmIn               = 0x00010000U,
 		ChannelRightsChanged      = 0x00020000U,
+		ChannelStickersChanged    = 0x00040000U,
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
 	Flags flags = 0;

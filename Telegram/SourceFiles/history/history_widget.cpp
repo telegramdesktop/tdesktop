@@ -1772,6 +1772,8 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		applyDraft(false);
 		_send->finishAnimation();
 
+		_tabbedSelector->showMegagroupSet(_peer->asMegagroup());
+
 		updateControlsGeometry();
 		if (!_previewCancelled) {
 			onPreviewParse();
@@ -1786,6 +1788,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		unreadCountChanged(_history); // set _historyDown badge.
 	} else {
 		clearFieldText();
+		_tabbedSelector->showMegagroupSet(nullptr);
 		doneShow();
 	}
 	updateForwarding();

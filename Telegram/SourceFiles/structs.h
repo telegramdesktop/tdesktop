@@ -750,6 +750,7 @@ struct MegagroupInfo {
 	int botStatus = 0; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 	MsgId pinnedMsgId = 0;
 	bool joinedMessageFound = false;
+	MTPInputStickerSet stickerSet = MTP_inputStickerSetEmpty();
 
 	enum LastParticipantsStatus {
 		LastParticipantsUpToDate       = 0x00,
@@ -760,6 +761,7 @@ struct MegagroupInfo {
 	int lastParticipantsCount = 0;
 
 	ChatData *migrateFromPtr = nullptr;
+
 };
 
 class ChannelData : public PeerData {
@@ -921,6 +923,9 @@ public:
 	}
 	bool canEditUsername() const {
 		return amCreator() && (flagsFull & MTPDchannelFull::Flag::f_can_set_username);
+	}
+	bool canEditStickers() const {
+		return (flagsFull & MTPDchannelFull::Flag::f_can_set_stickers);
 	}
 	bool canDelete() const {
 		constexpr auto kDeleteChannelMembersLimit = 1000;

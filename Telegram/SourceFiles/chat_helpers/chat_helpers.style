@@ -208,6 +208,11 @@ stickerIconMove: 400;
 stickerPreviewDuration: 150;
 stickerPreviewMin: 0.1;
 
+stickerGroupCategorySize: 28px;
+stickerGroupCategoryAbout: defaultTextStyle;
+stickerGroupCategoryAddMargin: margins(0px, 10px, 0px, 5px);
+stickerGroupCategoryAdd: stickersTrendingAdd;
+
 stickersToastMaxWidth: 340px;
 stickersToastPadding: margins(16px, 13px, 16px, 12px);
 
