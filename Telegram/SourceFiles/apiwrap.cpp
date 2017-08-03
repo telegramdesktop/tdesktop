@@ -1301,9 +1301,9 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 		custom = sets.end();
 	}
 
-	bool writeRecent = false;
-	RecentStickerPack &recent(cGetRecentStickers());
-	for (RecentStickerPack::iterator i = recent.begin(); i != recent.cend();) {
+	auto writeRecent = false;
+	auto &recent = cGetRecentStickers();
+	for (auto i = recent.begin(); i != recent.cend();) {
 		if (it->stickers.indexOf(i->first) >= 0 && pack.indexOf(i->first) < 0) {
 			i = recent.erase(i);
 			writeRecent = true;
@@ -1612,7 +1612,7 @@ void ApiWrap::requestFavedStickers(TimeId now) {
 		case mtpc_messages_favedStickersNotModified: return;
 		case mtpc_messages_favedStickers: {
 			auto &d = result.c_messages_favedStickers();
-			Stickers::SpecialSetReceived(Stickers::FavedSetId, lang(lng_faved_stickers), d.vstickers.v, d.vhash.v);
+			Stickers::SpecialSetReceived(Stickers::FavedSetId, lang(lng_faved_stickers), d.vstickers.v, d.vhash.v, d.vpacks.v);
 		} return;
 		default: Unexpected("Type in ApiWrap::favedStickersDone()");
 		}

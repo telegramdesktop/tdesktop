@@ -31,13 +31,16 @@ bool ApplyArchivedResultFake(); // For testing.
 void InstallLocally(uint64 setId);
 void UndoInstallLocally(uint64 setId);
 void MarkFeaturedAsRead(uint64 setId);
-bool IsFaved(DocumentData *document);
-void SetFaved(DocumentData *document, bool faved);
+bool IsFaved(gsl::not_null<DocumentData*> document);
+void SetFaved(gsl::not_null<DocumentData*> document, bool faved);
 
 void SetsReceived(const QVector<MTPStickerSet> &data, int32 hash);
-void SpecialSetReceived(uint64 setId, const QString &setTitle, const QVector<MTPDocument> &items, int32 hash);
+void SpecialSetReceived(uint64 setId, const QString &setTitle, const QVector<MTPDocument> &items, int32 hash, const QVector<MTPStickerPack> &packs = QVector<MTPStickerPack>());
 void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVector<MTPlong> &unread, int32 hash);
 void GifsReceived(const QVector<MTPDocument> &items, int32 hash);
+
+StickerPack GetListByEmoji(gsl::not_null<EmojiPtr> emoji);
+std::vector<gsl::not_null<EmojiPtr>> GetEmojiListFromSet(gsl::not_null<DocumentData*> document);
 
 namespace internal {
 

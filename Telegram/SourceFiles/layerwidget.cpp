@@ -33,6 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/shadow.h"
 #include "window/window_main_menu.h"
 #include "auth_session.h"
+#include "chat_helpers/stickers.h"
 #include "window/window_controller.h"
 
 namespace {
@@ -756,12 +757,12 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 	}
 	p.fillRect(r, st::stickerPreviewBg);
 	p.drawPixmap((width() - w) / 2, (height() - h) / 2, image);
-	if (!_emojiList.isEmpty()) {
+	if (!_emojiList.empty()) {
 		auto emojiCount = _emojiList.size();
 		auto emojiWidth = (emojiCount * _emojiSize) + (emojiCount - 1) * st::stickerEmojiSkip;
 		auto emojiLeft = (width() - emojiWidth) / 2;
 		auto esize = Ui::Emoji::Size(Ui::Emoji::Index() + 1);
-		for_const (auto emoji, _emojiList) {
+		for (auto emoji : _emojiList) {
 			p.drawPixmapLeft(emojiLeft, (height() - h) / 2 - (_emojiSize * 2), width(), App::emojiLarge(), QRect(emoji->x() * esize, emoji->y() * esize, esize, esize));
 			emojiLeft += _emojiSize + st::stickerEmojiSkip;
 		}
@@ -825,36 +826,17 @@ void MediaPreviewWidget::hidePreview() {
 }
 
 void MediaPreviewWidget::fillEmojiString() {
-	auto getStickerEmojiList = [this](uint64 setId) {
-		QList<EmojiPtr> result;
-		auto &sets = Global::StickerSets();
-		auto it = sets.constFind(setId);
-		if (it == sets.cend()) {
-			return result;
-		}
-		for (auto i = it->emoji.cbegin(), e = it->emoji.cend(); i != e; ++i) {
-			for_const (auto document, *i) {
-				if (document == _document) {
-					result.append(i.key());
-					if (result.size() >= kStickerPreviewEmojiLimit) {
-						return result;
-					}
-				}
-			}
-		}
-		return result;
-	};
-
 	if (_photo) {
 		_emojiList.clear();
 	} else if (auto sticker = _document->sticker()) {
-		auto &inputSet = sticker->set;
-		if (inputSet.type() == mtpc_inputStickerSetID) {
-			_emojiList = getStickerEmojiList(inputSet.c_inputStickerSetID().vid.v);
-		} else {
-			_emojiList.clear();
+		_emojiList = Stickers::GetEmojiListFromSet(_document);
+		if (_emojiList.empty()) {
 			if (auto emoji = Ui::Emoji::Find(sticker->alt)) {
-				_emojiList.append(emoji);
+				_emojiList.push_back(emoji);
+			}
+		} else {
+			while (_emojiList.size() > kStickerPreviewEmojiLimit) {
+				_emojiList.pop_back();
 			}
 		}
 	} else {

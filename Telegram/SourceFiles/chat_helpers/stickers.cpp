@@ -183,43 +183,115 @@ void MarkFeaturedAsRead(uint64 setId) {
 	FeaturedReaderInstance->scheduleRead(setId);
 }
 
-bool IsFaved(DocumentData *document) {
+bool IsFaved(gsl::not_null<DocumentData*> document) {
 	auto it = Global::StickerSets().constFind(FavedSetId);
 	return (it != Global::StickerSets().cend()) && it->stickers.contains(document);
 }
 
-void SetFaved(DocumentData *document, bool faved) {
+void SetIsFaved(gsl::not_null<DocumentData*> document, const std::vector<gsl::not_null<EmojiPtr>> *emojiList = nullptr) {
 	auto &sets = Global::RefStickerSets();
 	auto it = sets.find(FavedSetId);
-	if (faved) {
-		if (it == sets.end()) {
-			it = sets.insert(FavedSetId, Set(FavedSetId, 0, lang(lng_faved_stickers), QString(), 0, 0, qFlags(MTPDstickerSet_ClientFlag::f_special)));
+	if (it == sets.end()) {
+		it = sets.insert(FavedSetId, Set(FavedSetId, 0, lang(lng_faved_stickers), QString(), 0, 0, qFlags(MTPDstickerSet_ClientFlag::f_special)));
+	}
+	auto index = it->stickers.indexOf(document);
+	if (index == 0) {
+		return;
+	}
+	if (index > 0) {
+		// Push this sticker to the front.
+		while (index-- != 0) {
+			it->stickers[index + 1] = it->stickers[index];
 		}
-		auto index = it->stickers.indexOf(document);
-		if (index != 0) {
+		it->stickers[0] = document;
+		for (auto &list : it->emoji) {
+			auto index = list.indexOf(document);
 			if (index > 0) {
-				// Push this sticker to the front.
 				while (index-- != 0) {
-					it->stickers[index + 1] = it->stickers[index];
+					list[index + 1] = list[index];
 				}
-				it->stickers[0] = document;
-			} else {
-				it->stickers.push_front(document);
+				list[0] = document;
 			}
-			Local::writeFavedStickers();
-			emit App::main()->stickersUpdated();
-			App::main()->onStickersInstalled(FavedSetId);
 		}
-	} else if (it != sets.end()) {
-		auto index = it->stickers.indexOf(document);
+	} else if (emojiList) {
+		it->stickers.push_front(document);
+		for (auto emoji : *emojiList) {
+			it->emoji[emoji].push_front(document);
+		}
+	} else {
+		auto list = GetEmojiListFromSet(document);
+		if (list.empty()) {
+			MTP::send(MTPmessages_GetStickerSet(document->sticker()->set), rpcDone([document](const MTPmessages_StickerSet &result) {
+				Expects(result.type() == mtpc_messages_stickerSet);
+				auto list = std::vector<gsl::not_null<EmojiPtr>>();
+				auto &d = result.c_messages_stickerSet();
+				list.reserve(d.vpacks.v.size());
+				for_const (auto &mtpPack, d.vpacks.v) {
+					auto &pack = mtpPack.c_stickerPack();
+					for_const (auto &documentId, pack.vdocuments.v) {
+						if (documentId.v == document->id) {
+							if (auto emoji = Ui::Emoji::Find(qs(mtpPack.c_stickerPack().vemoticon))) {
+								list.push_back(emoji);
+							}
+							break;
+						}
+					}
+				}
+				if (list.empty()) {
+					if (auto sticker = document->sticker()) {
+						if (auto emoji = Ui::Emoji::Find(sticker->alt)) {
+							list.push_back(emoji);
+						}
+					}
+				}
+				SetIsFaved(document, &list);
+			}));
+			return;
+		}
+		it->stickers.push_front(document);
+		for (auto emoji : list) {
+			it->emoji[emoji].push_front(document);
+		}
+	}
+	Local::writeFavedStickers();
+	emit App::main()->stickersUpdated();
+	App::main()->onStickersInstalled(FavedSetId);
+}
+
+void SetIsNotFaved(gsl::not_null<DocumentData*> document) {
+	auto &sets = Global::RefStickerSets();
+	auto it = sets.find(FavedSetId);
+	if (it == sets.end()) {
+		return;
+	}
+	auto index = it->stickers.indexOf(document);
+	if (index < 0) {
+		return;
+	}
+	it->stickers.removeAt(index);
+	for (auto i = it->emoji.begin(); i != it->emoji.end();) {
+		auto index = i->indexOf(document);
 		if (index >= 0) {
-			it->stickers.removeAt(index);
-			if (it->stickers.empty()) {
-				sets.erase(it);
+			i->removeAt(index);
+			if (i->empty()) {
+				i = it->emoji.erase(i);
+				continue;
 			}
-			Local::writeFavedStickers();
-			emit App::main()->stickersUpdated();
 		}
+		++i;
+	}
+	if (it->stickers.empty()) {
+		sets.erase(it);
+	}
+	Local::writeFavedStickers();
+	emit App::main()->stickersUpdated();
+}
+
+void SetFaved(gsl::not_null<DocumentData*> document, bool faved) {
+	if (faved) {
+		SetIsFaved(document);
+	} else {
+		SetIsNotFaved(document);
 	}
 }
 
@@ -287,7 +359,30 @@ void SetsReceived(const QVector<MTPStickerSet> &data, int32 hash) {
 	if (App::main()) emit App::main()->stickersUpdated();
 }
 
-void SpecialSetReceived(uint64 setId, const QString &setTitle, const QVector<MTPDocument> &items, int32 hash) {
+void SetPackAndEmoji(Set &set, StickerPack &&pack, const QVector<MTPStickerPack> &packs) {
+	set.stickers = std::move(pack);
+	set.emoji.clear();
+	for_const (auto &mtpPack, packs) {
+		t_assert(mtpPack.type() == mtpc_stickerPack);
+		auto &pack = mtpPack.c_stickerPack();
+		if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon))) {
+			emoji = emoji->original();
+			auto &stickers = pack.vdocuments.v;
+
+			auto p = StickerPack();
+			p.reserve(stickers.size());
+			for (auto j = 0, c = stickers.size(); j != c; ++j) {
+				auto document = App::document(stickers[j].v);
+				if (!document || !document->sticker()) continue;
+
+				p.push_back(document);
+			}
+			set.emoji.insert(emoji, p);
+		}
+	}
+}
+
+void SpecialSetReceived(uint64 setId, const QString &setTitle, const QVector<MTPDocument> &items, int32 hash, const QVector<MTPStickerPack> &packs) {
 	auto &sets = Global::RefStickerSets();
 	auto it = sets.find(setId);
 
@@ -338,8 +433,7 @@ void SpecialSetReceived(uint64 setId, const QString &setTitle, const QVector<MTP
 		if (pack.isEmpty()) {
 			sets.erase(it);
 		} else {
-			it->stickers = pack;
-			it->emoji.clear();
+			SetPackAndEmoji(*it, std::move(pack), packs);
 		}
 
 		if (writeRecent) {
@@ -490,6 +584,71 @@ void GifsReceived(const QVector<MTPDocument> &items, int32 hash) {
 	Local::writeSavedGifs();
 
 	AuthSession::Current().data().savedGifsUpdated().notify();
+}
+
+StickerPack GetListByEmoji(gsl::not_null<EmojiPtr> emoji) {
+	auto original = emoji->original();
+	auto result = StickerPack();
+	auto setsToRequest = QMap<uint64, uint64>();
+	auto &sets = Global::RefStickerSets();
+
+	auto faved = StickerPack();
+	auto favedIt = sets.find(Stickers::FavedSetId);
+	if (favedIt != sets.cend()) {
+		auto i = favedIt->emoji.constFind(original);
+		if (i != favedIt->emoji.cend()) {
+			faved = *i;
+			result = faved;
+		}
+	}
+	auto &order = Global::StickerSetsOrder();
+	for (auto i = 0, l = order.size(); i != l; ++i) {
+		auto it = sets.find(order[i]);
+		if (it != sets.cend()) {
+			if (it->emoji.isEmpty()) {
+				setsToRequest.insert(it->id, it->access);
+				it->flags |= MTPDstickerSet_ClientFlag::f_not_loaded;
+			} else if (!(it->flags & MTPDstickerSet::Flag::f_archived)) {
+				auto i = it->emoji.constFind(original);
+				if (i != it->emoji.cend()) {
+					result.reserve(result.size() + i->size());
+					for_const (auto sticker, *i) {
+						if (!faved.contains(sticker)) {
+							result.push_back(sticker);
+						}
+					}
+				}
+			}
+		}
+	}
+	if (!setsToRequest.isEmpty()) {
+		for (auto i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
+			AuthSession::Current().api().scheduleStickerSetRequest(i.key(), i.value());
+		}
+		AuthSession::Current().api().requestStickerSets();
+	}
+	return result;
+}
+
+std::vector<gsl::not_null<EmojiPtr>> GetEmojiListFromSet(gsl::not_null<DocumentData*> document) {
+	auto result = std::vector<gsl::not_null<EmojiPtr>>();
+	if (auto sticker = document->sticker()) {
+		auto &inputSet = sticker->set;
+		if (inputSet.type() != mtpc_inputStickerSetID) {
+			return result;
+		}
+		auto &sets = Global::StickerSets();
+		auto it = sets.constFind(inputSet.c_inputStickerSetID().vid.v);
+		if (it == sets.cend()) {
+			return result;
+		}
+		for (auto i = it->emoji.cbegin(), e = it->emoji.cend(); i != e; ++i) {
+			if (i->contains(document)) {
+				result.push_back(i.key());
+			}
+		}
+	}
+	return result;
 }
 
 namespace internal {

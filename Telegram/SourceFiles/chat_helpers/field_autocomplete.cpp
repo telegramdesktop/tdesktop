@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_widgets.h"
 #include "styles/style_chat_helpers.h"
 #include "auth_session.h"
+#include "chat_helpers/stickers.h"
 
 FieldAutocomplete::FieldAutocomplete(QWidget *parent) : TWidget(parent)
 , _scroll(this, st::mentionScroll) {
@@ -147,30 +148,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 	internal::BotCommandRows brows;
 	StickerPack srows;
 	if (_emoji) {
-		auto original = _emoji->original();
-		QMap<uint64, uint64> setsToRequest;
-		auto &sets = Global::RefStickerSets();
-		auto &order = Global::StickerSetsOrder();
-		for (auto i = 0, l = order.size(); i != l; ++i) {
-			auto it = sets.find(order[i]);
-			if (it != sets.cend()) {
-				if (it->emoji.isEmpty()) {
-					setsToRequest.insert(it->id, it->access);
-					it->flags |= MTPDstickerSet_ClientFlag::f_not_loaded;
-				} else if (!(it->flags & MTPDstickerSet::Flag::f_archived)) {
-					auto i = it->emoji.constFind(original);
-					if (i != it->emoji.cend()) {
-						srows += *i;
-					}
-				}
-			}
-		}
-		if (!setsToRequest.isEmpty() && App::api()) {
-			for (QMap<uint64, uint64>::const_iterator i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
-				App::api()->scheduleStickerSetRequest(i.key(), i.value());
-			}
-			App::api()->requestStickerSets();
-		}
+		srows = Stickers::GetListByEmoji(_emoji);
 	} else if (_type == Type::Mentions) {
 		int maxListSize = _addInlineBots ? cRecentInlineBots().size() : 0;
 		if (_chat) {

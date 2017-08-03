@@ -197,7 +197,7 @@ private:
 	Media::Clip::ReaderPointer _gif;
 
 	int _emojiSize;
-	QList<EmojiPtr> _emojiList;
+	std::vector<gsl::not_null<EmojiPtr>> _emojiList;
 
 	void clipCallback(Media::Clip::Notification notification);
 
