@@ -41,7 +41,7 @@ namespace App {
 namespace internal {
 
 void CallDelayed(int duration, base::lambda_once<void()> &&lambda) {
-	QTimer::singleShot(duration, base::lambda_slot_once(App::app(), std::move(lambda)), SLOT(action()));
+	Messenger::Instance().callDelayed(duration, std::move(lambda));
 }
 
 } // namespace internal

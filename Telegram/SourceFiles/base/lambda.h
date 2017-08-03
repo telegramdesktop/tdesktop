@@ -576,49 +576,4 @@ inline lambda_internal::guard_t<PointersAndLambda...> lambda_guarded(PointersAnd
 	return lambda_internal::guard_t<PointersAndLambda...>(std::forward<PointersAndLambda>(qobjectsAndLambda)...);
 }
 
-// Pass lambda instead of a Qt void() slot.
-
-class lambda_slot_wrap : public QObject {
-	Q_OBJECT
-
-public:
-	lambda_slot_wrap(QObject *parent, lambda<void()> lambda) : QObject(parent), _lambda(std::move(lambda)) {
-	}
-
-public slots :
-	void action() {
-		_lambda();
-	}
-
-private:
-	lambda<void()> _lambda;
-
-};
-
-inline lambda_slot_wrap *lambda_slot(QObject *parent, lambda<void()> lambda) {
-	return new lambda_slot_wrap(parent, std::move(lambda));
-}
-
-class lambda_slot_once_wrap : public QObject {
-	Q_OBJECT
-
-public:
-	lambda_slot_once_wrap(QObject *parent, lambda_once<void()> lambda) : QObject(parent), _lambda(std::move(lambda)) {
-	}
-
-public slots :
-	void action() {
-		_lambda();
-		delete this;
-	}
-
-private:
-	lambda_once<void()> _lambda;
-
-};
-
-inline lambda_slot_once_wrap *lambda_slot_once(QObject *parent, lambda_once<void()> lambda) {
-	return new lambda_slot_once_wrap(parent, std::move(lambda));
-}
-
 } // namespace base

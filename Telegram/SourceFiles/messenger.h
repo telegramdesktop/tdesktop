@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "base/observer.h"
 #include "mtproto/auth_key.h"
+#include "base/timer.h"
 
 namespace App {
 void quit();
@@ -170,6 +171,10 @@ public:
 	void call_handleDelayedPeerUpdates();
 	void call_handleObservables();
 
+	void callDelayed(int duration, base::lambda_once<void()> &&lambda) {
+		_callDelayedTimer.call(duration, std::move(lambda));
+	}
+
 signals:
 	void peerPhotoDone(PeerId peer);
 	void peerPhotoFail(PeerId peer);
@@ -219,5 +224,7 @@ private:
 	std::unique_ptr<Media::Audio::Instance> _audio;
 	QImage _logo;
 	QImage _logoNoMargin;
+
+	base::DelayedCallTimer _callDelayedTimer;
 
 };

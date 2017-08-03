@@ -407,10 +407,10 @@ void MainWindow::psFirstShow() {
 void MainWindow::createGlobalMenu() {
 	auto main = psMainMenu.addMenu(qsl("Telegram"));
 	auto about = main->addAction(lng_mac_menu_about_telegram(lt_telegram, qsl("Telegram")));
-	connect(about, SIGNAL(triggered()), base::lambda_slot(about, [] {
+	connect(about, &QAction::triggered, about, [] {
 		if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
 		Ui::show(Box<AboutBox>());
-	}), SLOT(action()));
+	});
 	about->setMenuRole(QAction::AboutQtRole);
 
 	main->addSeparator();
@@ -433,12 +433,12 @@ void MainWindow::createGlobalMenu() {
 
 	QMenu *window = psMainMenu.addMenu(lang(lng_mac_menu_window));
 	psContacts = window->addAction(lang(lng_mac_menu_contacts));
-	connect(psContacts, SIGNAL(triggered()), base::lambda_slot(psContacts, [] {
+	connect(psContacts, &QAction::triggered, psContacts, [] {
 		if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
 
 		if (!App::self()) return;
 		Ui::show(Box<ContactsBox>());
-	}), SLOT(action()));
+	});
 	psAddContact = window->addAction(lang(lng_mac_menu_add_contact), App::wnd(), SLOT(onShowAddContact()));
 	window->addSeparator();
 	psNewGroup = window->addAction(lang(lng_mac_menu_new_group), App::wnd(), SLOT(onShowNewGroup()));
