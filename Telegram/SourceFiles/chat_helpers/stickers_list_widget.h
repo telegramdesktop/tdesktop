@@ -123,6 +123,18 @@ private:
 		int rowsTop = 0;
 		int rowsBottom = 0;
 	};
+
+	struct Set {
+		Set(uint64 id, MTPDstickerSet::Flags flags, const QString &title, int32 hoversSize, const StickerPack &pack = StickerPack()) : id(id), flags(flags), title(title), pack(pack) {
+		}
+		uint64 id;
+		MTPDstickerSet::Flags flags;
+		QString title;
+		StickerPack pack;
+		QSharedPointer<Ui::RippleAnimation> ripple;
+	};
+	using Sets = QList<Set>;
+
 	template <typename Callback>
 	bool enumerateSections(Callback callback) const;
 	SectionInfo sectionInfo(int section) const;
@@ -132,6 +144,8 @@ private:
 	void installSet(quint64 setId);
 	void removeSet(quint64 setId);
 
+	bool setHasTitle(const Set &set) const;
+	bool stickerHasDeleteButton(const Set &set, int index) const;
 	void refreshRecentStickers(bool resize = true);
 	void refreshFavedStickers();
 
@@ -148,16 +162,6 @@ private:
 	};
 	void validateSelectedIcon(ValidateIconAnimations animations);
 
-	struct Set {
-		Set(uint64 id, MTPDstickerSet::Flags flags, const QString &title, int32 hoversSize, const StickerPack &pack = StickerPack()) : id(id), flags(flags), title(title), pack(pack) {
-		}
-		uint64 id;
-		MTPDstickerSet::Flags flags;
-		QString title;
-		StickerPack pack;
-		QSharedPointer<Ui::RippleAnimation> ripple;
-	};
-	using Sets = QList<Set>;
 	Sets &shownSets() {
 		return (_section == Section::Featured) ? _featuredSets : _mySets;
 	}
@@ -188,6 +192,7 @@ private:
 	QRect stickerRect(int section, int sel);
 
 	void removeRecentSticker(int section, int index);
+	void removeFavedSticker(int section, int index);
 
 	Sets _mySets;
 	Sets _featuredSets;

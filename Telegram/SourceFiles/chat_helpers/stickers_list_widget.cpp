@@ -501,10 +501,11 @@ bool StickersListWidget::enumerateSections(Callback callback) const {
 	Expects(_section == Section::Stickers);
 	auto info = SectionInfo();
 	for (auto i = 0; i != _mySets.size(); ++i) {
+		auto &set = _mySets[i];
 		info.section = i;
-		info.count = _mySets[i].pack.size();
+		info.count = set.pack.size();
 		info.rowsCount = (info.count / kStickersPanelPerRow) + ((info.count % kStickersPanelPerRow) ? 1 : 0);
-		info.rowsTop = info.top + ((_mySets[i].id == Stickers::RecentSetId) ? st::stickerPanPadding : st::emojiPanHeader);
+		info.rowsTop = info.top + (setHasTitle(set) ? st::emojiPanHeader : st::stickerPanPadding);
 		info.rowsBottom = info.rowsTop + info.rowsCount * st::stickerPanSize.height();
 		if (!callback(info)) {
 			return false;
@@ -717,7 +718,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 			return false;
 		}
 		auto &set = _mySets[info.section];
-		if (set.id != Stickers::RecentSetId && clip.top() < info.rowsTop) {
+		if (setHasTitle(set) && clip.top() < info.rowsTop) {
 			auto titleText = set.title;
 			auto titleWidth = st::stickersTrendingHeaderFont->width(titleText);
 			auto widthForTitle = stickersRight() - (st::emojiPanHeaderLeft - st::buttonRadius);
@@ -792,7 +793,7 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int index, bo
 		p.drawPixmapLeft(ppos, width(), sticker->sticker()->img->pix(w, h));
 	}
 
-	if (selected && set.id == Stickers::RecentSetId && _custom.at(index)) {
+	if (selected && stickerHasDeleteButton(set, index)) {
 		auto xPos = pos + QPoint(st::stickerPanSize.width() - st::stickerPanDelete.width(), 0);
 		if (!deleteSelected) p.setOpacity(st::stickerPanDeleteOpacity);
 		st::stickerPanDelete.paint(p, xPos, width());
@@ -915,8 +916,14 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			t_assert(sticker->section >= 0 && sticker->section < sets.size());
 			auto &set = sets[sticker->section];
 			t_assert(sticker->index >= 0 && sticker->index < set.pack.size());
-			if (set.id == Stickers::RecentSetId && sticker->overDelete && _custom[sticker->index]) {
-				removeRecentSticker(sticker->section, sticker->index);
+			if (stickerHasDeleteButton(set, sticker->index) && sticker->overDelete) {
+				if (set.id == Stickers::RecentSetId) {
+					removeRecentSticker(sticker->section, sticker->index);
+				} else if (set.id == Stickers::FavedSetId) {
+					removeFavedSticker(sticker->section, sticker->index);
+				} else {
+					Unexpected("Single sticker delete click.");
+				}
 				return;
 			}
 			emit selected(set.pack[sticker->index]);
@@ -971,6 +978,18 @@ void StickersListWidget::removeRecentSticker(int section, int index) {
 		updateSelected();
 		update();
 	}
+}
+
+void StickersListWidget::removeFavedSticker(int section, int index) {
+	if (_section != Section::Stickers || section >= _mySets.size() || _mySets[section].id != Stickers::FavedSetId) {
+		return;
+	}
+
+	clearSelection();
+	auto sticker = _mySets[section].pack[index];
+	Stickers::SetFaved(sticker, false);
+	auto unfave = true;
+	MTP::send(MTPmessages_FaveSticker(sticker->mtpInput(), MTP_bool(unfave)));
 }
 
 void StickersListWidget::mouseMoveEvent(QMouseEvent *e) {
@@ -1281,7 +1300,7 @@ void StickersListWidget::updateSelected() {
 			auto index = rowIndex * kStickersPanelPerRow + columnIndex;
 			if (index >= 0 && index < set.pack.size()) {
 				auto overDelete = false;
-				if (set.id == Stickers::RecentSetId && _custom[index]) {
+				if (stickerHasDeleteButton(set, index)) {
 					auto inx = sx - (columnIndex * st::stickerPanSize.width());
 					auto iny = yOffset - (rowIndex * st::stickerPanSize.height());
 					if (inx >= st::stickerPanSize.width() - st::stickerPanDelete.width() && iny < st::stickerPanDelete.height()) {
@@ -1294,6 +1313,18 @@ void StickersListWidget::updateSelected() {
 	}
 
 	setSelected(newSelected);
+}
+
+bool StickersListWidget::setHasTitle(const Set &set) const {
+	return (set.id != Stickers::RecentSetId);
+}
+
+bool StickersListWidget::stickerHasDeleteButton(const Set &set, int index) const {
+	if (set.id == Stickers::RecentSetId) {
+		t_assert(index >= 0 && index < _custom.size());
+		return _custom[index];
+	}
+	return (set.id == Stickers::FavedSetId);
 }
 
 void StickersListWidget::setSelected(OverState newSelected) {
