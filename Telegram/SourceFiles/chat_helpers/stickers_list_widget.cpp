@@ -118,7 +118,7 @@ StickersListWidget::Footer::Footer(gsl::not_null<StickersListWidget*> parent) : 
 
 	_iconsLeft = (st::emojiPanWidth - kVisibleIconsCount * st::emojiCategory.width) / 2;
 
-	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
+	subscribe(Auth().downloaderTaskFinished(), [this] {
 		update();
 	});
 }
@@ -450,7 +450,7 @@ StickersListWidget::StickersListWidget(QWidget *parent, gsl::not_null<Window::Co
 	_previewTimer.setSingleShot(true);
 	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreview()));
 
-	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
+	subscribe(Auth().downloaderTaskFinished(), [this] {
 		update();
 		readVisibleSets();
 	});

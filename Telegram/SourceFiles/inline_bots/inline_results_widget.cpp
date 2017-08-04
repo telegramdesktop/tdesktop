@@ -61,7 +61,7 @@ Inner::Inner(QWidget *parent, gsl::not_null<Window::Controller*> controller) : T
 	_updateInlineItems.setSingleShot(true);
 	connect(&_updateInlineItems, SIGNAL(timeout()), this, SLOT(onUpdateInlineItems()));
 
-	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
+	subscribe(Auth().downloaderTaskFinished(), [this] {
 		update();
 	});
 	subscribe(controller->gifPauseLevelChanged(), [this] {

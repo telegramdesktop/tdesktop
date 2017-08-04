@@ -296,7 +296,7 @@ ShareBox::Inner::Inner(QWidget *parent, ShareBox::FilterCallback &&filterCallbac
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		notifyPeerUpdated(update);
 	}));
-	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
+	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
 
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
 		if (update.paletteChanged()) {
@@ -437,7 +437,7 @@ void ShareBox::Inner::loadProfilePhotos(int yFrom) {
 	yFrom *= _columnCount;
 	yTo *= _columnCount;
 
-	AuthSession::Current().downloader().clearPriorities();
+	Auth().downloader().clearPriorities();
 	if (_filter.isEmpty()) {
 		if (!_chatsIndexed->isEmpty()) {
 			auto i = _chatsIndexed->cfind(yFrom, _rowHeight);
@@ -804,7 +804,7 @@ QString AppendShareGameScoreUrl(const QString &url, const FullMsgId &fullId) {
 	auto channel = fullId.channel ? App::channelLoaded(fullId.channel) : static_cast<ChannelData*>(nullptr);
 	auto channelAccessHash = channel ? channel->access : 0ULL;
 	auto channelAccessHashInts = reinterpret_cast<int32*>(&channelAccessHash);
-	shareHashDataInts[0] = AuthSession::CurrentUserId();
+	shareHashDataInts[0] = Auth().userId();
 	shareHashDataInts[1] = fullId.channel;
 	shareHashDataInts[2] = fullId.msg;
 	shareHashDataInts[3] = channelAccessHashInts[0];
@@ -871,7 +871,7 @@ void ShareGameScoreByHash(const QString &hash) {
 	}
 
 	auto hashDataInts = reinterpret_cast<int32*>(hashData.data());
-	if (!AuthSession::Exists() || hashDataInts[0] != AuthSession::CurrentUserId()) {
+	if (!AuthSession::Exists() || hashDataInts[0] != Auth().userId()) {
 		Ui::show(Box<InformBox>(lang(lng_share_wrong_user)));
 		return;
 	}
@@ -893,9 +893,9 @@ void ShareGameScoreByHash(const QString &hash) {
 
 	if (auto item = App::histItemById(channelId, msgId)) {
 		FastShareMessage(item);
-	} else if (App::api()) {
+	} else {
 		auto resolveMessageAndShareScore = [msgId](ChannelData *channel) {
-			App::api()->requestMessageData(channel, msgId, [](ChannelData *channel, MsgId msgId) {
+			Auth().api().requestMessageData(channel, msgId, [](ChannelData *channel, MsgId msgId) {
 				if (auto item = App::histItemById(channel, msgId)) {
 					FastShareMessage(item);
 				} else {

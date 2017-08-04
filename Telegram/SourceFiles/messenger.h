@@ -136,7 +136,6 @@ public:
 	void checkStartUrl();
 	bool openLocalUrl(const QString &url);
 
-	FileUploader *uploader();
 	void uploadProfilePhoto(const QImage &tosend, const PeerId &peerId);
 	void regPhotoUpdate(const PeerId &peer, const FullMsgId &msgId);
 	bool isPhotoUpdating(const PeerId &peer);
@@ -209,8 +208,6 @@ private:
 	const std::unique_ptr<Private> _private;
 
 	std::unique_ptr<MainWindow> _window;
-	FileUploader *_uploader = nullptr;
-
 	std::unique_ptr<Lang::Instance> _langpack;
 	std::unique_ptr<Lang::CloudManager> _langCloudManager;
 	std::unique_ptr<Lang::Translator> _translator;

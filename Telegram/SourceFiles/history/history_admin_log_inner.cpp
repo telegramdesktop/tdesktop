@@ -212,13 +212,13 @@ InnerWidget::InnerWidget(QWidget *parent, gsl::not_null<Window::Controller*> con
 , _emptyText(st::historyAdminLogEmptyWidth - st::historyAdminLogEmptyPadding.left() - st::historyAdminLogEmptyPadding.left()) {
 	setMouseTracking(true);
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
-	subscribe(AuthSession::Current().data().repaintLogEntry(), [this](gsl::not_null<const HistoryItem*> historyItem) {
+	subscribe(Auth().data().repaintLogEntry(), [this](gsl::not_null<const HistoryItem*> historyItem) {
 		if (_history == historyItem->history()) {
 			repaintItem(historyItem);
 		}
 	});
-	subscribe(AuthSession::Current().data().pendingHistoryResize(), [this] { handlePendingHistoryResize(); });
-	subscribe(AuthSession::Current().data().queryItemVisibility(), [this](const AuthSessionData::ItemVisibilityQuery &query) {
+	subscribe(Auth().data().pendingHistoryResize(), [this] { handlePendingHistoryResize(); });
+	subscribe(Auth().data().queryItemVisibility(), [this](const AuthSessionData::ItemVisibilityQuery &query) {
 		if (_history != query.item->history() || !query.item->isLogEntry() || !isVisible()) {
 			return;
 		}
@@ -1056,7 +1056,7 @@ void InnerWidget::suggestRestrictUser(gsl::not_null<UserData*> user) {
 void InnerWidget::restrictUser(gsl::not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
 	auto weak = QPointer<InnerWidget>(this);
 	MTP::send(MTPchannels_EditBanned(_channel->inputChannel, user->inputUser, newRights), rpcDone([megagroup = _channel.get(), user, weak, oldRights, newRights](const MTPUpdates &result) {
-		AuthSession::Current().api().applyUpdates(result);
+		Auth().api().applyUpdates(result);
 		megagroup->applyEditBanned(user, oldRights, newRights);
 		if (weak) {
 			weak->restrictUserDone(user, newRights);

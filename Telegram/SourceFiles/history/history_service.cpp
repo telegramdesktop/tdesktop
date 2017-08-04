@@ -192,7 +192,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		if (auto channel = history()->peer->asMegagroup()) {
 			auto &users = action.c_messageActionChatAddUser().vusers;
 			for_const (auto &item, users.v) {
-				if (item.v == AuthSession::CurrentUserId()) {
+				if (item.v == Auth().userId()) {
 					channel->mgInfo->joinedMessageFound = true;
 					break;
 				}
@@ -258,7 +258,7 @@ bool HistoryService::updateDependent(bool force) {
 		updateDependentText();
 	}
 	if (force && gotDependencyItem) {
-		AuthSession::Current().notifications().checkDelayed();
+		Auth().notifications().checkDelayed();
 	}
 	return (dependent->msg || !dependent->msgId);
 }
@@ -678,8 +678,8 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 		}
 		if (auto dependent = GetDependentData()) {
 			dependent->msgId = message.vreply_to_msg_id.v;
-			if (!updateDependent() && App::api()) {
-				App::api()->requestMessageData(history()->peer->asChannel(), dependent->msgId, HistoryDependentItemCallback(fullId()));
+			if (!updateDependent()) {
+				Auth().api().requestMessageData(history()->peer->asChannel(), dependent->msgId, HistoryDependentItemCallback(fullId()));
 			}
 		}
 	}
@@ -777,7 +777,7 @@ HistoryJoined::HistoryJoined(gsl::not_null<History*> history, const QDateTime &i
 }
 
 HistoryJoined::PreparedText HistoryJoined::GenerateText(gsl::not_null<History*> history, gsl::not_null<UserData*> inviter) {
-	if (inviter->id == AuthSession::CurrentUserPeerId()) {
+	if (inviter->id == Auth().userPeerId()) {
 		return { lang(history->isMegagroup() ? lng_action_you_joined_group : lng_action_you_joined) };
 	}
 	auto result = PreparedText {};

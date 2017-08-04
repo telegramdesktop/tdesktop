@@ -493,7 +493,7 @@ void PeerListRow::setCheckedInternal(bool checked, SetStyle style) {
 PeerListBox::Inner::Inner(QWidget *parent, gsl::not_null<PeerListController*> controller) : TWidget(parent)
 , _controller(controller)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom()) {
-	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
+	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
 
 	connect(App::main(), SIGNAL(peerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)));
 	connect(App::main(), SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
@@ -1009,7 +1009,7 @@ void PeerListBox::Inner::loadProfilePhotos() {
 
 	auto yFrom = _visibleTop;
 	auto yTo = _visibleBottom + (_visibleBottom - _visibleTop) * PreloadHeightsCount;
-	AuthSession::Current().downloader().clearPriorities();
+	Auth().downloader().clearPriorities();
 
 	if (yTo < 0) return;
 	if (yFrom < 0) yFrom = 0;
@@ -1372,7 +1372,7 @@ void ChatsListBoxController::prepare() {
 
 	rebuildRows();
 
-	auto &sessionData = AuthSession::Current().data();
+	auto &sessionData = Auth().data();
 	subscribe(sessionData.contactsLoaded(), [this](bool loaded) {
 		rebuildRows();
 	});
@@ -1416,7 +1416,7 @@ void ChatsListBoxController::checkForEmptyRows() {
 	if (delegate()->peerListFullRowsCount()) {
 		setDescriptionText(QString());
 	} else {
-		auto &sessionData = AuthSession::Current().data();
+		auto &sessionData = Auth().data();
 		auto loaded = sessionData.contactsLoaded().value() && sessionData.allChatsLoaded().value();
 		setDescriptionText(lang(loaded ? lng_contacts_not_found : lng_contacts_loading));
 	}

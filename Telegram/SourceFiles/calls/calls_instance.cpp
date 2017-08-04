@@ -47,7 +47,7 @@ void Instance::startOutgoingCall(gsl::not_null<UserData*> user) {
 	}
 	if (user->callsStatus() == UserData::CallsStatus::Private) {
 		// Request full user once more to refresh the setting in case it was changed.
-		AuthSession::Current().api().requestFullPeer(user);
+		Auth().api().requestFullPeer(user);
 		Ui::show(Box<InformBox>(lng_call_error_not_available(lt_user, App::peerName(user))));
 		return;
 	}
@@ -73,7 +73,7 @@ void Instance::playSound(Sound sound) {
 	case Sound::Busy: {
 		if (!_callBusyTrack) {
 			_callBusyTrack = Media::Audio::Current().createTrack();
-			_callBusyTrack->fillFromFile(AuthSession::Current().data().getSoundPath(qsl("call_busy")));
+			_callBusyTrack->fillFromFile(Auth().data().getSoundPath(qsl("call_busy")));
 		}
 		_callBusyTrack->playOnce();
 	} break;
@@ -81,7 +81,7 @@ void Instance::playSound(Sound sound) {
 	case Sound::Ended: {
 		if (!_callEndedTrack) {
 			_callEndedTrack = Media::Audio::Current().createTrack();
-			_callEndedTrack->fillFromFile(AuthSession::Current().data().getSoundPath(qsl("call_end")));
+			_callEndedTrack->fillFromFile(Auth().data().getSoundPath(qsl("call_end")));
 		}
 		_callEndedTrack->playOnce();
 	} break;
@@ -89,7 +89,7 @@ void Instance::playSound(Sound sound) {
 	case Sound::Connecting: {
 		if (!_callConnectingTrack) {
 			_callConnectingTrack = Media::Audio::Current().createTrack();
-			_callConnectingTrack->fillFromFile(AuthSession::Current().data().getSoundPath(qsl("call_connect")));
+			_callConnectingTrack->fillFromFile(Auth().data().getSoundPath(qsl("call_connect")));
 		}
 		_callConnectingTrack->playOnce();
 	} break;
@@ -299,7 +299,7 @@ Instance::~Instance() {
 }
 
 Instance &Current() {
-	return AuthSession::Current().calls();
+	return Auth().calls();
 }
 
 } // namespace Calls

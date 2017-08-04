@@ -52,13 +52,13 @@ void fillCodes() {
 	Codes.insert(qsl("debugmode"), [] {
 		QString text = cDebug() ? qsl("Do you want to disable DEBUG logs?") : qsl("Do you want to enable DEBUG logs?\n\nAll network events will be logged.");
 		Ui::show(Box<ConfirmBox>(text, [] {
-			App::app()->onSwitchDebugMode();
+			Messenger::Instance().onSwitchDebugMode();
 		}));
 	});
 	Codes.insert(qsl("testmode"), [] {
 		auto text = cTestMode() ? qsl("Do you want to disable TEST mode?") : qsl("Do you want to enable TEST mode?\n\nYou will be switched to test cloud.");
 		Ui::show(Box<ConfirmBox>(text, [] {
-			App::app()->onSwitchTestMode();
+			Messenger::Instance().onSwitchTestMode();
 		}));
 	});
 	Codes.insert(qsl("loadlang"), [] {
@@ -79,7 +79,7 @@ void fillCodes() {
 	Codes.insert(qsl("workmode"), [] {
 		auto text = Global::DialogsModeEnabled() ? qsl("Disable work mode?") : qsl("Enable work mode?");
 		Ui::show(Box<ConfirmBox>(text, [] {
-			App::app()->onSwitchWorkMode();
+			Messenger::Instance().onSwitchWorkMode();
 		}));
 	});
 	Codes.insert(qsl("moderate"), [] {
@@ -145,7 +145,7 @@ void fillCodes() {
 					if (track->failed()) {
 						Ui::show(Box<InformBox>("Could not audio :( Errors in 'log.txt'."));
 					} else {
-						AuthSession::Current().data().setSoundOverride(key, result.paths.front());
+						Auth().data().setSoundOverride(key, result.paths.front());
 						Local::writeUserSettings();
 					}
 				}
@@ -154,7 +154,7 @@ void fillCodes() {
 	}
 	Codes.insert(qsl("sounds_reset"), [] {
 		if (AuthSession::Exists()) {
-			AuthSession::Current().data().clearSoundOverrides();
+			Auth().data().clearSoundOverrides();
 			Local::writeUserSettings();
 			Ui::show(Box<InformBox>("All sound overrides were reset."));
 		}

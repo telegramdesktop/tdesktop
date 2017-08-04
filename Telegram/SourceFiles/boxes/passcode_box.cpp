@@ -345,7 +345,7 @@ void PasscodeBox::onSave(bool force) {
 	} else {
 		cSetPasscodeBadTries(0);
 		Local::setPasscode(pwd.toUtf8());
-		AuthSession::Current().checkAutoLock();
+		Auth().checkAutoLock();
 		closeBox();
 	}
 }

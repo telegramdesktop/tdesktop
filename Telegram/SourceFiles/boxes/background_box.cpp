@@ -94,7 +94,7 @@ BackgroundBox::Inner::Inner(QWidget *parent) : TWidget(parent)
 		updateWallpapers();
 	}
 
-	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
+	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
 		if (update.paletteChanged()) {
 			_check->invalidateCache();

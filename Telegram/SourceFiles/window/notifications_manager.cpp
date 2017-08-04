@@ -60,7 +60,7 @@ void System::createManager() {
 }
 
 void System::schedule(History *history, HistoryItem *item) {
-	if (App::quitting() || !history->currentNotification() || !App::api()) return;
+	if (App::quitting() || !history->currentNotification() || !AuthSession::Exists()) return;
 
 	auto notifyByFrom = (!history->peer->isUser() && item->mentionsMe()) ? item->from() : nullptr;
 
@@ -80,7 +80,7 @@ void System::schedule(History *history, HistoryItem *item) {
 						return;
 					}
 				} else {
-					App::api()->requestNotifySetting(notifyByFrom);
+					Auth().api().requestNotifySetting(notifyByFrom);
 				}
 			} else {
 				history->popNotification(item);
@@ -89,9 +89,9 @@ void System::schedule(History *history, HistoryItem *item) {
 		}
 	} else {
 		if (notifyByFrom && notifyByFrom->notify == UnknownNotifySettings) {
-			App::api()->requestNotifySetting(notifyByFrom);
+			Auth().api().requestNotifySetting(notifyByFrom);
 		}
-		App::api()->requestNotifySetting(history->peer);
+		Auth().api().requestNotifySetting(history->peer);
 	}
 	if (!item->notificationReady()) {
 		haveSetting = false;
@@ -362,7 +362,7 @@ void System::ensureSoundCreated() {
 	}
 
 	_soundTrack = Media::Audio::Current().createTrack();
-	_soundTrack->fillFromFile(AuthSession::Current().data().getSoundPath(qsl("msg_incoming")));
+	_soundTrack->fillFromFile(Auth().data().getSoundPath(qsl("msg_incoming")));
 }
 
 void System::updateAll() {

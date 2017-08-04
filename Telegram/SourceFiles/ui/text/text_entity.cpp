@@ -1475,7 +1475,7 @@ EntitiesInText EntitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 				auto &d = entity.c_inputMessageEntityMentionName();
 				auto data = ([&d]() -> QString {
 					if (d.vuser_id.type() == mtpc_inputUserSelf) {
-						return MentionNameDataFromFields(AuthSession::CurrentUserId());
+						return MentionNameDataFromFields(Auth().userId());
 					} else if (d.vuser_id.type() == mtpc_inputUser) {
 						auto &user = d.vuser_id.c_inputUser();
 						return MentionNameDataFromFields({ user.vuser_id.v, user.vaccess_hash.v });
@@ -1522,7 +1522,7 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(const EntitiesInText &entities, Conver
 		case EntityInTextMentionName: {
 			auto inputUser = ([](const QString &data) -> MTPInputUser {
 				auto fields = MentionNameDataToFields(data);
-				if (fields.userId == AuthSession::CurrentUserId()) {
+				if (fields.userId == Auth().userId()) {
 					return MTP_inputUserSelf();
 				} else if (fields.userId) {
 					return MTP_inputUser(MTP_int(fields.userId), MTP_long(fields.accessHash));

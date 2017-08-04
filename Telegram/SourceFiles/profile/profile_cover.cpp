@@ -33,6 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/photo_crop_box.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
+#include "auth_session.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "messenger.h"
@@ -77,8 +78,8 @@ CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 		notifyPeerUpdated(update);
 	}));
 
-	connect(App::app(), SIGNAL(peerPhotoDone(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
-	connect(App::app(), SIGNAL(peerPhotoFail(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
+	connect(&Messenger::Instance(), SIGNAL(peerPhotoDone(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
+	connect(&Messenger::Instance(), SIGNAL(peerPhotoFail(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
 
 	connect(_userpicButton, SIGNAL(clicked()), this, SLOT(onPhotoShow()));
 	validatePhoto();
@@ -97,7 +98,7 @@ PhotoData *CoverWidget::validatePhoto() const {
 	auto photo = (_peer->photoId && _peer->photoId != UnknownPeerPhotoId) ? App::photo(_peer->photoId) : nullptr;
 	_userpicButton->setPointerCursor(photo != nullptr && photo->date != 0);
 	if ((_peer->photoId == UnknownPeerPhotoId) || (_peer->photoId && (!photo || !photo->date))) {
-		App::api()->requestFullPeer(_peer);
+		Auth().api().requestFullPeer(_peer);
 		return nullptr;
 	}
 	return photo;
@@ -557,7 +558,7 @@ void CoverWidget::onAddBotToGroup() {
 void CoverWidget::onJoin() {
 	if (!_peerChannel) return;
 
-	App::api()->joinChannel(_peerChannel);
+	Auth().api().joinChannel(_peerChannel);
 }
 
 void CoverWidget::onViewChannel() {

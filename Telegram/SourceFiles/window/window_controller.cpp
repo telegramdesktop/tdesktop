@@ -177,7 +177,7 @@ void Controller::showJumpToDate(gsl::not_null<PeerData*> peer, QDate requestedDa
 	};
 	auto highlighted = requestedDate.isNull() ? currentPeerDate() : requestedDate;
 	auto month = highlighted;
-	auto box = Box<CalendarBox>(month, highlighted, [this, peer](const QDate &date) { AuthSession::Current().api().jumpToDate(peer, date); });
+	auto box = Box<CalendarBox>(month, highlighted, [this, peer](const QDate &date) { Auth().api().jumpToDate(peer, date); });
 	box->setMinDate(minPeerDate());
 	box->setMaxDate(maxPeerDate());
 	Ui::show(std::move(box));

@@ -39,7 +39,7 @@ PeerListWidget::PeerListWidget(QWidget *parent, PeerData *peer, const QString &t
 , _removeText(removeText)
 , _removeWidth(st::normalFont->width(_removeText)) {
 	setMouseTracking(true);
-	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
+	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
 }
 
 int PeerListWidget::resizeGetHeight(int newWidth) {

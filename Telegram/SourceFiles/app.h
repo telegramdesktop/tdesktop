@@ -28,8 +28,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 class Messenger;
 class MainWindow;
 class MainWidget;
-class ApiWrap;
-class FileUploader;
 
 using HistoryItemsMap = OrderedSet<HistoryItem*>;
 using PhotoItems = QHash<PhotoData*, HistoryItemsMap>;
@@ -46,12 +44,9 @@ class LocationCoords;
 struct LocationData;
 
 namespace App {
-	Messenger *app();
 	MainWindow *wnd();
 	MainWidget *main();
 	bool passcoded();
-	FileUploader *uploader();
-	ApiWrap *api();
 
 	void logOut();
 

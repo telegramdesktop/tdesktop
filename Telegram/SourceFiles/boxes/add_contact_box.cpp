@@ -413,7 +413,7 @@ void GroupInfoBox::creationDone(const MTPUpdates &updates) {
 		channel = App::channel(v->front().c_channel().vid.v);
 		if (channel) {
 			if (!_photoImage.isNull()) {
-				App::app()->uploadProfilePhoto(_photoImage, channel->id);
+				Messenger::Instance().uploadProfilePhoto(_photoImage, channel->id);
 			}
 			_createdChannel = channel;
 			_creationRequestId = MTP::send(MTPchannels_ExportInvite(_createdChannel->inputChannel), rpcDone(&GroupInfoBox::exportDone));
@@ -594,7 +594,7 @@ void SetupChannelBox::mouseMoveEvent(QMouseEvent *e) {
 void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
 	if (_linkOver) {
 		if (_channel->inviteLink().isEmpty()) {
-			App::api()->exportInviteLink(_channel);
+			Auth().api().exportInviteLink(_channel);
 		} else {
 			QGuiApplication::clipboard()->setText(_channel->inviteLink());
 			Ui::Toast::Show(lang(lng_create_channel_link_copied));
@@ -1234,9 +1234,7 @@ bool EditChannelBox::onSaveFail(const RPCError &error, mtpRequestId req) {
 		_saveDescriptionRequestId = 0;
 		if (err == qstr("CHAT_ABOUT_NOT_MODIFIED")) {
 			if (_channel->setAbout(_sentDescription)) {
-				if (App::api()) {
-					App::api()->fullPeerUpdated().notify(_channel);
-				}
+				Auth().api().fullPeerUpdated().notify(_channel);
 			}
 			saveSign();
 			return true;
@@ -1261,29 +1259,27 @@ bool EditChannelBox::onSaveFail(const RPCError &error, mtpRequestId req) {
 
 void EditChannelBox::onSaveTitleDone(const MTPUpdates &result) {
 	_saveTitleRequestId = 0;
-	AuthSession::Current().api().applyUpdates(result);
+	Auth().api().applyUpdates(result);
 	saveDescription();
 }
 
 void EditChannelBox::onSaveDescriptionDone(const MTPBool &result) {
 	_saveDescriptionRequestId = 0;
 	if (_channel->setAbout(_sentDescription)) {
-		if (App::api()) {
-			App::api()->fullPeerUpdated().notify(_channel);
-		}
+		Auth().api().fullPeerUpdated().notify(_channel);
 	}
 	saveSign();
 }
 
 void EditChannelBox::onSaveSignDone(const MTPUpdates &result) {
 	_saveSignRequestId = 0;
-	AuthSession::Current().api().applyUpdates(result);
+	Auth().api().applyUpdates(result);
 	saveInvites();
 }
 
 void EditChannelBox::onSaveInvitesDone(const MTPUpdates &result) {
 	_saveSignRequestId = 0;
-	AuthSession::Current().api().applyUpdates(result);
+	Auth().api().applyUpdates(result);
 	closeBox();
 }
 
@@ -1332,7 +1328,7 @@ void RevokePublicLinkBox::prepare() {
 
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
-	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
+	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
 
 	_inner->resizeToWidth(st::boxWideWidth);
 	setDimensions(st::boxWideWidth, _innerTop + _inner->height());

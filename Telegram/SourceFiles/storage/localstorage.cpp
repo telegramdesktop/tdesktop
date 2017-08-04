@@ -4075,7 +4075,7 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 		}
 		from.stream >> onlineTill >> contact >> botInfoVersion;
 
-		bool showPhone = !isServiceUser(user->id) && (user->id != AuthSession::CurrentUserPeerId()) && (contact <= 0);
+		bool showPhone = !isServiceUser(user->id) && (user->id != Auth().userPeerId()) && (contact <= 0);
 		QString pname = (showPhone && !phone.isEmpty()) ? App::formatPhone(phone) : QString();
 
 		if (!wasLoaded) {
@@ -4091,7 +4091,7 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 				user->botInfo->inlinePlaceholder = inlinePlaceholder;
 			}
 
-			if (user->id == AuthSession::CurrentUserPeerId()) {
+			if (user->id == Auth().userPeerId()) {
 				user->input = MTP_inputPeerSelf();
 				user->inputUser = MTP_inputUserSelf();
 			} else {
@@ -4335,7 +4335,7 @@ void readSavedPeers() {
 		peers.push_back(peer);
 	}
 
-	if (App::api()) App::api()->requestPeers(peers);
+	Auth().api().requestPeers(peers);
 }
 
 void addSavedPeer(PeerData *peer, const QDateTime &position) {

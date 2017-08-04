@@ -146,7 +146,7 @@ void BlockedBoxController::rowActionClicked(gsl::not_null<PeerListRow*> row) {
 	auto user = row->peer()->asUser();
 	Expects(user != nullptr);
 
-	App::api()->unblockUser(user);
+	Auth().api().unblockUser(user);
 }
 
 void BlockedBoxController::receivedUsers(const QVector<MTPContactBlocked> &result) {
@@ -185,7 +185,7 @@ void BlockedBoxController::BlockNewUser() {
 	auto controller = std::make_unique<BlockUserBoxController>();
 	auto initBox = [controller = controller.get()](PeerListBox *box) {
 		controller->setBlockUserCallback([box](gsl::not_null<UserData*> user) {
-			App::api()->blockUser(user);
+			Auth().api().blockUser(user);
 			box->closeBox();
 		});
 		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
@@ -261,14 +261,14 @@ QString LastSeenPrivacyController::exceptionsDescription() {
 }
 
 void LastSeenPrivacyController::confirmSave(bool someAreDisallowed, base::lambda_once<void()> saveCallback) {
-	if (someAreDisallowed && !AuthSession::Current().data().lastSeenWarningSeen()) {
+	if (someAreDisallowed && !Auth().data().lastSeenWarningSeen()) {
 		auto weakBox = std::make_shared<QPointer<ConfirmBox>>();
 		auto callback = [weakBox, saveCallback = std::move(saveCallback)]() mutable {
 			if (auto box = *weakBox) {
 				box->closeBox();
 			}
 			saveCallback();
-			AuthSession::Current().data().setLastSeenWarningSeen(true);
+			Auth().data().setLastSeenWarningSeen(true);
 			Local::writeUserSettings();
 		};
 		auto box = Box<ConfirmBox>(lang(lng_edit_privacy_lastseen_warning), lang(lng_continue), lang(lng_cancel), std::move(callback));

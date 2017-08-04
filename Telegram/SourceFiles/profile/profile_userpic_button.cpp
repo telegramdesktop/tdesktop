@@ -41,7 +41,7 @@ UserpicButton::UserpicButton(QWidget *parent, PeerData *peer, int size) : Abstra
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		notifyPeerUpdated(update);
 	}));
-	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
+	subscribe(Auth().downloaderTaskFinished(), [this] {
 		if (_waiting && _peer->userpicLoaded()) {
 			_waiting = false;
 			startNewPhotoShowing();

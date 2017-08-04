@@ -75,7 +75,7 @@ bool EventFilter::mainWindowEvent(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPa
 
 	case WM_TIMECHANGE: {
 		if (AuthSession::Exists()) {
-			AuthSession::Current().checkAutoLockIn(100);
+			Auth().checkAutoLockIn(100);
 		}
 	} return false;
 

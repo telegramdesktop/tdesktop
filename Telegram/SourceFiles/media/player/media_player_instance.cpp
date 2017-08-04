@@ -69,7 +69,7 @@ Instance::Instance()
 	// While we have one Media::Player::Instance for all authsessions we have to do this.
 	auto handleAuthSessionChange = [this] {
 		if (AuthSession::Exists()) {
-			subscribe(AuthSession::Current().calls().currentCallChanged(), [this](Calls::Call *call) {
+			subscribe(Auth().calls().currentCallChanged(), [this](Calls::Call *call) {
 				if (call) {
 					pause(AudioMsgId::Type::Voice);
 					pause(AudioMsgId::Type::Song);

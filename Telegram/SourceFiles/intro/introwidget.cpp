@@ -457,10 +457,10 @@ void Widget::Step::finish(const MTPUser &user, QImage photo) {
 
 	// "this" is already deleted here by creating the main widget.
 	if (auto user = App::self()) {
-		App::api()->requestFullPeer(user);
+		Auth().api().requestFullPeer(user);
 	}
 	if (!photo.isNull()) {
-		App::app()->uploadProfilePhoto(photo, AuthSession::CurrentUserId());
+		Messenger::Instance().uploadProfilePhoto(photo, Auth().userId());
 	}
 }
 

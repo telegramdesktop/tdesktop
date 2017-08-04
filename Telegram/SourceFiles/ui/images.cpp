@@ -886,7 +886,7 @@ void RemoteImage::doCheckload() const {
 void RemoteImage::destroyLoaderDelayed(FileLoader *newValue) const {
 	_loader->stop();
 	auto loader = std::unique_ptr<FileLoader>(std::exchange(_loader, newValue));
-	AuthSession::Current().downloader().delayedDestroyLoader(std::move(loader));
+	Auth().downloader().delayedDestroyLoader(std::move(loader));
 }
 
 void RemoteImage::loadLocal() {
@@ -987,7 +987,7 @@ void RemoteImage::cancel() {
 	auto loader = std::exchange(_loader, CancelledFileLoader);
 	loader->cancel();
 	loader->stop();
-	AuthSession::Current().downloader().delayedDestroyLoader(std::unique_ptr<FileLoader>(loader));
+	Auth().downloader().delayedDestroyLoader(std::unique_ptr<FileLoader>(loader));
 }
 
 float64 RemoteImage::progress() const {

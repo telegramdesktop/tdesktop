@@ -52,6 +52,6 @@ void AutoLockBox::durationChanged(int seconds) {
 	Local::writeUserSettings();
 	Global::RefLocalPasscodeChanged().notify();
 
-	AuthSession::Current().checkAutoLock();
+	Auth().checkAutoLock();
 	closeBox();
 }

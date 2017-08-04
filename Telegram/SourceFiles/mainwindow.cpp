@@ -802,9 +802,9 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 		}
 	}
 	Local::writeUserSettings();
-	AuthSession::Current().notifications().settingsChanged().notify(Window::Notifications::ChangeType::DesktopEnabled);
+	Auth().notifications().settingsChanged().notify(Window::Notifications::ChangeType::DesktopEnabled);
 	if (soundNotifyChanged) {
-		AuthSession::Current().notifications().settingsChanged().notify(Window::Notifications::ChangeType::SoundEnabled);
+		Auth().notifications().settingsChanged().notify(Window::Notifications::ChangeType::SoundEnabled);
 	}
 }
 

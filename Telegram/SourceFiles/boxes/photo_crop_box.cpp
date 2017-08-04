@@ -293,5 +293,5 @@ void PhotoCropBox::sendPhoto() {
 }
 
 void PhotoCropBox::onReady(const QImage &tosend) {
-	App::app()->uploadProfilePhoto(tosend, _peerId);
+	Messenger::Instance().uploadProfilePhoto(tosend, _peerId);
 }

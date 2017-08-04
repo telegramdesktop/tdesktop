@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/widget_slide_wrap.h"
 #include "boxes/peer_list_box.h"
 #include "apiwrap.h"
+#include "auth_session.h"
 #include "lang/lang_keys.h"
 
 namespace {
@@ -302,7 +303,7 @@ void EditPrivacyBox::createWidgets() {
 	addButton(langFactory(lng_settings_save), [this] {
 		auto someAreDisallowed = (_option != Option::Everyone) || !_neverUsers.empty();
 		_controller->confirmSave(someAreDisallowed, base::lambda_guarded(this, [this] {
-			App::api()->savePrivacy(_controller->key(), collectResult());
+			Auth().api().savePrivacy(_controller->key(), collectResult());
 			closeBox();
 		}));
 	});

@@ -42,7 +42,7 @@ using ChangeType = Window::Notifications::ChangeType;
 NotificationsWidget::NotificationsWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_notify)) {
 	createControls();
 
-	subscribe(AuthSession::Current().notifications().settingsChanged(), [this](ChangeType type) {
+	subscribe(Auth().notifications().settingsChanged(), [this](ChangeType type) {
 		if (type == ChangeType::DesktopEnabled) {
 			desktopEnabledUpdated();
 		} else if (type == ChangeType::ViewParams) {
@@ -101,7 +101,7 @@ void NotificationsWidget::onDesktopNotifications() {
 	}
 	Global::SetDesktopNotify(_desktopNotifications->checked());
 	Local::writeUserSettings();
-	AuthSession::Current().notifications().settingsChanged().notify(ChangeType::DesktopEnabled);
+	Auth().notifications().settingsChanged().notify(ChangeType::DesktopEnabled);
 }
 
 void NotificationsWidget::desktopEnabledUpdated() {
@@ -124,7 +124,7 @@ void NotificationsWidget::onShowSenderName() {
 	}
 	Global::SetNotifyView(viewParam);
 	Local::writeUserSettings();
-	AuthSession::Current().notifications().settingsChanged().notify(ChangeType::ViewParams);
+	Auth().notifications().settingsChanged().notify(ChangeType::ViewParams);
 }
 
 void NotificationsWidget::onShowMessagePreview() {
@@ -142,7 +142,7 @@ void NotificationsWidget::onShowMessagePreview() {
 
 	Global::SetNotifyView(viewParam);
 	Local::writeUserSettings();
-	AuthSession::Current().notifications().settingsChanged().notify(ChangeType::ViewParams);
+	Auth().notifications().settingsChanged().notify(ChangeType::ViewParams);
 }
 
 void NotificationsWidget::viewParamUpdated() {
@@ -157,7 +157,7 @@ void NotificationsWidget::onNativeNotifications() {
 	Global::SetNativeNotifications(_nativeNotifications->checked());
 	Local::writeUserSettings();
 
-	AuthSession::Current().notifications().createManager();
+	Auth().notifications().createManager();
 
 	_advanced->toggleAnimated(!Global::NativeNotifications());
 }
@@ -173,13 +173,13 @@ void NotificationsWidget::onPlaySound() {
 
 	Global::SetSoundNotify(_playSound->checked());
 	Local::writeUserSettings();
-	AuthSession::Current().notifications().settingsChanged().notify(ChangeType::SoundEnabled);
+	Auth().notifications().settingsChanged().notify(ChangeType::SoundEnabled);
 }
 
 void NotificationsWidget::onIncludeMuted() {
 	Global::SetIncludeMuted(_includeMuted->checked());
 	Local::writeUserSettings();
-	AuthSession::Current().notifications().settingsChanged().notify(ChangeType::IncludeMuted);
+	Auth().notifications().settingsChanged().notify(ChangeType::IncludeMuted);
 }
 
 } // namespace Settings

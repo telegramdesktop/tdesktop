@@ -63,7 +63,7 @@ OverviewInner::OverviewInner(OverviewWidget *overview, Ui::ScrollArea *scroll, P
 , _cancelSearch(this, st::dialogsCancelSearch)
 , _itemsToBeLoaded(LinksOverviewPerPage * 2)
 , _width(st::windowMinWidth) {
-	subscribe(AuthSession::Current().downloader().taskFinished(), [this] { update(); });
+	subscribe(Auth().downloader().taskFinished(), [this] { update(); });
 	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
 		itemRemoved(item);
 	});
@@ -1946,7 +1946,7 @@ void OverviewWidget::clear() {
 }
 
 void OverviewWidget::onScroll() {
-	AuthSession::Current().downloader().clearPriorities();
+	Auth().downloader().clearPriorities();
 	int32 preloadThreshold = _scroll->height() * 5;
 	bool needToPreload = false;
 	do {

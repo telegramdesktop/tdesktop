@@ -94,7 +94,7 @@ DialogsInner::DialogsInner(QWidget *parent, gsl::not_null<Window::Controller*> c
 	_cancelSearchFromUser->setClickedCallback([this] { searchFromUserChanged.notify(nullptr); });
 	_cancelSearchFromUser->hide();
 
-	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
+	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
 	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
 		itemRemoved(item);
 	});
@@ -219,7 +219,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 			if (!paintingOther) {
 				p.setFont(st::noContactsFont);
 				p.setPen(st::noContactsColor);
-				p.drawText(QRect(0, 0, fullWidth, st::noContactsHeight - (AuthSession::Current().data().contactsLoaded().value() ? st::noContactsFont->height : 0)), lang(AuthSession::Current().data().contactsLoaded().value() ? lng_no_chats : lng_contacts_loading), style::al_center);
+				p.drawText(QRect(0, 0, fullWidth, st::noContactsHeight - (Auth().data().contactsLoaded().value() ? st::noContactsFont->height : 0)), lang(Auth().data().contactsLoaded().value() ? lng_no_chats : lng_contacts_loading), style::al_center);
 			}
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
@@ -1036,7 +1036,7 @@ void DialogsInner::removeDialog(History *history) {
 	if (_dialogsImportant) {
 		history->removeFromChatList(Dialogs::Mode::Important, _dialogsImportant.get());
 	}
-	AuthSession::Current().notifications().clearFromHistory(history);
+	Auth().notifications().clearFromHistory(history);
 	if (_contacts->contains(history->peer->id)) {
 		if (!_contactsNoDialogs->contains(history->peer->id)) {
 			_contactsNoDialogs->addByName(history);
@@ -1465,8 +1465,8 @@ void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
 			}
 			if (!channel->amCreator()) {
 				if (auto topMsg = App::histItemById(channel, d.vtop_message.v)) {
-					if (topMsg->date <= date(channel->date) && App::api()) {
-						App::api()->requestSelfParticipant(channel);
+					if (topMsg->date <= date(channel->date)) {
+						Auth().api().requestSelfParticipant(channel);
 					}
 				}
 			}
@@ -1576,7 +1576,7 @@ void DialogsInner::contactsReceived(const QVector<MTPContact> &result) {
 		if (contact.type() != mtpc_contact) continue;
 
 		auto userId = contact.c_contact().vuser_id.v;
-		if (userId == AuthSession::CurrentUserId() && App::self()) {
+		if (userId == Auth().userId() && App::self()) {
 			if (App::self()->contact < 1) {
 				App::self()->contact = 1;
 				Notify::userIsContactChanged(App::self());
@@ -1664,7 +1664,7 @@ void DialogsInner::refresh(bool toTop) {
 	if (_state == DefaultState) {
 		if (shownDialogs()->isEmpty()) {
 			h = st::noContactsHeight;
-			if (AuthSession::Current().data().contactsLoaded().value()) {
+			if (Auth().data().contactsLoaded().value()) {
 				if (_addContactLnk->isHidden()) _addContactLnk->show();
 			} else {
 				if (!_addContactLnk->isHidden()) _addContactLnk->hide();
@@ -1912,7 +1912,7 @@ void DialogsInner::loadPeerPhotos() {
 
 	auto yFrom = _visibleTop;
 	auto yTo = _visibleTop + (_visibleBottom - _visibleTop) * (PreloadHeightsCount + 1);
-	AuthSession::Current().downloader().clearPriorities();
+	Auth().downloader().clearPriorities();
 	if (_state == DefaultState) {
 		auto otherStart = shownDialogs()->size() * st::dialogsRowHeight;
 		if (yFrom < otherStart) {

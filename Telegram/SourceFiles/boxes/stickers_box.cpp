@@ -203,7 +203,7 @@ void StickersBox::getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedSti
 			if (_archived.widget()->appendSet(*set)) {
 				addedSet = true;
 				if (set->stickers.isEmpty() || (set->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
-					App::api()->scheduleStickerSetRequest(set->id, set->access);
+					Auth().api().scheduleStickerSetRequest(set->id, set->access);
 				}
 			}
 		}
@@ -220,7 +220,7 @@ void StickersBox::getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedSti
 	refreshTabs();
 	_someArchivedLoaded = true;
 	if (_section == Section::Archived && addedSet) {
-		App::api()->requestStickerSets();
+		Auth().api().requestStickerSets();
 	}
 }
 
@@ -269,7 +269,7 @@ void StickersBox::prepare() {
 	setDimensions(st::boxWideWidth, (_section == Section::ArchivedPart) ? st::sessionsHeight : st::boxMaxListHeight);
 
 	connect(App::main(), SIGNAL(stickersUpdated()), this, SLOT(onStickersUpdated()));
-	AuthSession::Current().api().updateStickers();
+	Auth().api().updateStickers();
 
 	if (_installed.widget()) {
 		connect(_installed.widget(), SIGNAL(draggingScrollDelta(int)), this, SLOT(onDraggingScrollDelta(int)));
@@ -493,11 +493,11 @@ void StickersBox::requestArchivedSets() {
 		auto it = sets.constFind(setId);
 		if (it != sets.cend()) {
 			if (it->stickers.isEmpty() && (it->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
-				App::api()->scheduleStickerSetRequest(setId, it->access);
+				Auth().api().scheduleStickerSetRequest(setId, it->access);
 			}
 		}
 	}
-	App::api()->requestStickerSets();
+	Auth().api().requestStickerSets();
 }
 
 void StickersBox::resizeEvent(QResizeEvent *e) {
@@ -552,8 +552,8 @@ void StickersBox::closeHook() {
 	if (_someArchivedLoaded) {
 		Local::writeArchivedStickers();
 	}
-	if (auto api = App::api()) {
-		api->saveStickerSets(_installed.widget()->getOrder(), _installed.widget()->getRemovedSets());
+	if (AuthSession::Exists()) {
+		Auth().api().saveStickerSets(_installed.widget()->getOrder(), _installed.widget()->getRemovedSets());
 	}
 }
 
@@ -583,7 +583,7 @@ StickersBox::Inner::Inner(QWidget *parent, const Stickers::Order &archivedIds) :
 }
 
 void StickersBox::Inner::setup() {
-	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
+	subscribe(Auth().downloaderTaskFinished(), [this] {
 		update();
 		readVisibleSets();
 	});
@@ -1097,10 +1097,10 @@ void StickersBox::Inner::rebuild() {
 		rebuildAppendSet(it.value(), maxNameWidth);
 
 		if (it->stickers.isEmpty() || (it->flags & MTPDstickerSet_ClientFlag::f_not_loaded)) {
-			App::api()->scheduleStickerSetRequest(it->id, it->access);
+			Auth().api().scheduleStickerSetRequest(it->id, it->access);
 		}
 	}
-	App::api()->requestStickerSets();
+	Auth().api().requestStickerSets();
 	updateSize();
 }
 

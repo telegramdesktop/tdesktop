@@ -22,11 +22,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "storage/localimageloader.h"
 
-class FileUploader : public QObject, public RPCSender {
+namespace Storage {
+
+class Uploader : public QObject, public RPCSender {
 	Q_OBJECT
 
 public:
-	FileUploader();
+	Uploader();
 	void uploadMedia(const FullMsgId &msgId, const SendMediaReady &image);
 	void upload(const FullMsgId &msgId, const FileLoadResultPtr &file);
 
@@ -38,6 +40,8 @@ public:
 	void confirm(const FullMsgId &msgId);
 
 	void clear();
+
+	~Uploader();
 
 public slots:
 	void unpause();
@@ -129,8 +133,8 @@ private:
 	QMap<mtpRequestId, QByteArray> requestsSent;
 	QMap<mtpRequestId, int32> docRequestsSent;
 	QMap<mtpRequestId, int32> dcMap;
-	uint32 sentSize;
-	uint32 sentSizes[MTP::kUploadSessionsCount];
+	uint32 sentSize = 0;
+	uint32 sentSizes[MTP::kUploadSessionsCount] = { 0 };
 
 	FullMsgId uploading, _paused;
 	Queue queue;
@@ -138,3 +142,5 @@ private:
 	QTimer nextTimer, killSessionsTimer;
 
 };
+
+} // namespace Storage

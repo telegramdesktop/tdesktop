@@ -127,7 +127,7 @@ void History::takeLocalDraft(History *from) {
 			_localDraft->msgId = 0;
 		}
 		from->clearLocalDraft();
-		App::api()->saveDraftToCloudDelayed(from);
+		Auth().api().saveDraftToCloudDelayed(from);
 	}
 }
 
@@ -440,7 +440,7 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 	if (!inviter) return nullptr;
 
 	MTPDmessage::Flags flags = 0;
-	if (inviter->id == AuthSession::CurrentUserPeerId()) {
+	if (inviter->id == Auth().userPeerId()) {
 		unread = false;
 	//} else if (unread) {
 	//	flags |= MTPDmessage::Flag::f_unread;
@@ -1600,7 +1600,7 @@ MsgId History::inboxRead(MsgId upTo) {
 	}
 
 	showFrom = nullptr;
-	AuthSession::Current().notifications().clearFromHistory(this);
+	Auth().notifications().clearFromHistory(this);
 
 	return upTo;
 }
@@ -2116,7 +2116,7 @@ void History::clear(bool leaveItems) {
 		}
 	}
 	if (leaveItems) {
-		AuthSession::Current().data().historyCleared().notify(this, true);
+		Auth().data().historyCleared().notify(this, true);
 	}
 }
 

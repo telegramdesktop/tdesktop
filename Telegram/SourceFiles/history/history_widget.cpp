@@ -636,7 +636,7 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 , _topShadow(this, st::shadowFg) {
 	setAcceptDrops(true);
 
-	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
+	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
 	connect(_topBar, &Window::TopBarWidget::clicked, this, [this] { topBarClick(); });
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 	connect(_historyDown, SIGNAL(clicked()), this, SLOT(onHistoryToEnd()));
@@ -758,7 +758,7 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
 		itemRemoved(item);
 	});
-	subscribe(AuthSession::Current().data().contactsLoaded(), [this](bool) {
+	subscribe(Auth().data().contactsLoaded(), [this](bool) {
 		if (_peer) {
 			updateReportSpamStatus();
 			updateControlsVisibility();
@@ -790,8 +790,8 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 		// So we force HistoryWidget::resizeEvent() here, without WA_UpdatesDisabled.
 		myEnsureResized(this);
 	});
-	subscribe(AuthSession::Current().data().pendingHistoryResize(), [this] { handlePendingHistoryUpdate(); });
-	subscribe(AuthSession::Current().data().queryItemVisibility(), [this](const AuthSessionData::ItemVisibilityQuery &query) {
+	subscribe(Auth().data().pendingHistoryResize(), [this] { handlePendingHistoryUpdate(); });
+	subscribe(Auth().data().queryItemVisibility(), [this](const AuthSessionData::ItemVisibilityQuery &query) {
 		if (_a_show.animating() || _history != query.item->history() || query.item->detached() || !isVisible()) {
 			return;
 		}
@@ -923,8 +923,8 @@ int HistoryWidget::itemTopForHighlight(gsl::not_null<HistoryItem*> item) const {
 void HistoryWidget::start() {
 	connect(App::main(), SIGNAL(stickersUpdated()), this, SLOT(onStickersUpdated()));
 	updateRecentStickers();
-	AuthSession::Current().data().savedGifsUpdated().notify();
-	subscribe(App::api()->fullPeerUpdated(), [this](PeerData *peer) {
+	Auth().data().savedGifsUpdated().notify();
+	subscribe(Auth().api().fullPeerUpdated(), [this](PeerData *peer) {
 		fullPeerUpdated(peer);
 	});
 }
@@ -1565,8 +1565,8 @@ void HistoryWidget::applyDraft(bool parseLinks, Ui::FlatTextarea::UndoHistoryAct
 	}
 	if (_editMsgId || _replyToId) {
 		updateReplyEditTexts();
-		if (!_replyEditMsg && App::api()) {
-			App::api()->requestMessageData(_peer->asChannel(), _editMsgId ? _editMsgId : _replyToId, replyEditMessageDataCallback());
+		if (!_replyEditMsg) {
+			Auth().api().requestMessageData(_peer->asChannel(), _editMsgId ? _editMsgId : _replyToId, replyEditMessageDataCallback());
 		}
 	}
 }
@@ -1724,7 +1724,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	if (_peer) {
 		App::forgetMedia();
 		_serviceImageCacheSize = imageCacheSize();
-		AuthSession::Current().downloader().clearPriorities();
+		Auth().downloader().clearPriorities();
 
 		_history = App::history(_peer->id);
 		_migrated = _peer->migrateFrom() ? App::history(_peer->migrateFrom()->id) : 0;
@@ -1732,7 +1732,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		if (_channel) {
 			updateNotifySettings();
 			if (_peer->notify == UnknownNotifySettings) {
-				App::api()->requestNotifySetting(_peer);
+				Auth().api().requestNotifySetting(_peer);
 			}
 		}
 
@@ -1850,7 +1850,7 @@ bool HistoryWidget::contentOverlapped(const QRect &globalRect) {
 }
 
 void HistoryWidget::updateReportSpamStatus() {
-	if (!_peer || (_peer->isUser() && (_peer->id == AuthSession::CurrentUserPeerId() || isNotificationsUser(_peer->id) || isServiceUser(_peer->id) || _peer->asUser()->botInfo))) {
+	if (!_peer || (_peer->isUser() && (_peer->id == Auth().userPeerId() || isNotificationsUser(_peer->id) || isServiceUser(_peer->id) || _peer->asUser()->botInfo))) {
 		setReportSpamStatus(dbiprsHidden);
 		return;
 	} else if (!_firstLoadRequest && _history->isEmpty()) {
@@ -1899,7 +1899,7 @@ void HistoryWidget::updateReportSpamStatus() {
 		}
 	}
 	auto status = dbiprsRequesting;
-	if (!AuthSession::Current().data().contactsLoaded().value() || _firstLoadRequest) {
+	if (!Auth().data().contactsLoaded().value() || _firstLoadRequest) {
 		status = dbiprsUnknown;
 	} else if (_peer->isUser() && _peer->asUser()->contact > 0) {
 		status = dbiprsHidden;
@@ -2172,7 +2172,7 @@ void HistoryWidget::newUnreadMsg(History *history, HistoryItem *item) {
 			return;
 		}
 	}
-	AuthSession::Current().notifications().schedule(history, item);
+	Auth().notifications().schedule(history, item);
 	history->setUnreadCount(history->unreadCount() + 1);
 }
 
@@ -2882,8 +2882,8 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
-	auto messageFromId = channelPost ? 0 : AuthSession::CurrentUserId();
-	auto messagePostAuthor = channelPost ? (AuthSession::CurrentUser()->firstName + ' ' + AuthSession::CurrentUser()->lastName) : QString();
+	auto messageFromId = channelPost ? 0 : Auth().userId();
+	auto messagePostAuthor = channelPost ? (Auth().user()->firstName + ' ' + Auth().user()->lastName) : QString();
 	history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(messageFromId), peerToMTP(peer), MTPnullFwdHeader, MTPint(), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId)), MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint(), MTP_string(messagePostAuthor)), NewMessageUnread);
 	history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), p->input, MTP_int(replyTo), MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, history->sendRequestId);
 
@@ -3736,7 +3736,7 @@ void HistoryWidget::topBarClick() {
 }
 
 void HistoryWidget::updateTabbedSelectorSectionShown() {
-	auto tabbedSelectorSectionEnabled = AuthSession::Current().data().tabbedSelectorSectionEnabled();
+	auto tabbedSelectorSectionEnabled = Auth().data().tabbedSelectorSectionEnabled();
 	auto useTabbedSection = tabbedSelectorSectionEnabled && (width() >= minimalWidthForTabbedSelectorSection());
 	if (_tabbedSectionUsed == useTabbedSection) {
 		return;
@@ -3770,7 +3770,7 @@ void HistoryWidget::updateTabbedSelectorSectionShown() {
 void HistoryWidget::checkTabbedSelectorToggleTooltip() {
 	if (_tabbedSection && !_tabbedSection->isHidden() && !_tabbedSelectorToggle->isHidden()) {
 		if (!_tabbedSelectorToggleTooltipShown) {
-			auto shownCount = AuthSession::Current().data().tabbedSelectorSectionTooltipShown();
+			auto shownCount = Auth().data().tabbedSelectorSectionTooltipShown();
 			if (shownCount < kTabbedSelectorToggleTooltipCount) {
 				_tabbedSelectorToggleTooltipShown = true;
 				_tabbedSelectorToggleTooltip.create(this, object_ptr<Ui::FlatLabel>(this, lang(lng_emoji_hide_panel), Ui::FlatLabel::InitType::Simple, st::defaultImportantTooltipLabel), st::defaultImportantTooltip);
@@ -3778,8 +3778,8 @@ void HistoryWidget::checkTabbedSelectorToggleTooltip() {
 					_tabbedSelectorToggleTooltip.destroy();
 				});
 				InvokeQueued(_tabbedSelectorToggleTooltip, [this, shownCount] {
-					AuthSession::Current().data().setTabbedSelectorSectionTooltipShown(shownCount + 1);
-					AuthSession::Current().saveDataDelayed(kTabbedSelectorToggleTooltipTimeoutMs);
+					Auth().data().setTabbedSelectorSectionTooltipShown(shownCount + 1);
+					Auth().saveDataDelayed(kTabbedSelectorToggleTooltipTimeoutMs);
 
 					updateTabbedSelectorToggleTooltipGeometry();
 					_tabbedSelectorToggleTooltip->hideAfter(kTabbedSelectorToggleTooltipTimeoutMs);
@@ -3801,7 +3801,7 @@ int HistoryWidget::minimalWidthForTabbedSelectorSection() const {
 }
 
 bool HistoryWidget::willSwitchToTabbedSelectorWithWidth(int newWidth) const {
-	if (!AuthSession::Current().data().tabbedSelectorSectionEnabled()) {
+	if (!Auth().data().tabbedSelectorSectionEnabled()) {
 		return false;
 	} else if (_tabbedSectionUsed) {
 		return false;
@@ -3811,15 +3811,15 @@ bool HistoryWidget::willSwitchToTabbedSelectorWithWidth(int newWidth) const {
 
 void HistoryWidget::toggleTabbedSelectorMode() {
 	if (_tabbedSection) {
-		AuthSession::Current().data().setTabbedSelectorSectionEnabled(false);
-		AuthSession::Current().saveDataDelayed(kSaveTabbedSelectorSectionTimeoutMs);
+		Auth().data().setTabbedSelectorSectionEnabled(false);
+		Auth().saveDataDelayed(kSaveTabbedSelectorSectionTimeoutMs);
 		updateTabbedSelectorSectionShown();
 		recountChatWidth();
 		updateControlsGeometry();
 	} else if (controller()->canProvideChatWidth(minimalWidthForTabbedSelectorSection())) {
-		if (!AuthSession::Current().data().tabbedSelectorSectionEnabled()) {
-			AuthSession::Current().data().setTabbedSelectorSectionEnabled(true);
-			AuthSession::Current().saveDataDelayed(kSaveTabbedSelectorSectionTimeoutMs);
+		if (!Auth().data().tabbedSelectorSectionEnabled()) {
+			Auth().data().setTabbedSelectorSectionEnabled(true);
+			Auth().saveDataDelayed(kSaveTabbedSelectorSectionTimeoutMs);
 		}
 		controller()->provideChatWidth(minimalWidthForTabbedSelectorSection());
 		updateTabbedSelectorSectionShown();
@@ -3886,7 +3886,7 @@ void HistoryWidget::updateOnlineDisplay() {
 	} else if (_peer->isChannel()) {
 		if (_peer->isMegagroup() && _peer->asChannel()->membersCount() > 0 && _peer->asChannel()->membersCount() <= Global::ChatSizeMax()) {
 			if (_peer->asChannel()->mgInfo->lastParticipants.size() < _peer->asChannel()->membersCount() || _peer->asChannel()->lastParticipantsCountOutdated()) {
-				if (App::api()) App::api()->requestLastParticipants(_peer->asChannel());
+				Auth().api().requestLastParticipants(_peer->asChannel());
 			}
 			auto online = 0;
 			bool onlyMe = true;
@@ -4297,15 +4297,15 @@ void HistoryWidget::sendFileConfirmed(const FileLoadResultPtr &file) {
 
 	FullMsgId newId(peerToChannel(file->to.peer), clientMsgId());
 
-	connect(App::uploader(), SIGNAL(photoReady(const FullMsgId&,bool,const MTPInputFile&)), this, SLOT(onPhotoUploaded(const FullMsgId&,bool,const MTPInputFile&)), Qt::UniqueConnection);
-	connect(App::uploader(), SIGNAL(documentReady(const FullMsgId&,bool,const MTPInputFile&)), this, SLOT(onDocumentUploaded(const FullMsgId&,bool,const MTPInputFile&)), Qt::UniqueConnection);
-	connect(App::uploader(), SIGNAL(thumbDocumentReady(const FullMsgId&,bool,const MTPInputFile&,const MTPInputFile&)), this, SLOT(onThumbDocumentUploaded(const FullMsgId&,bool,const MTPInputFile&, const MTPInputFile&)), Qt::UniqueConnection);
-	connect(App::uploader(), SIGNAL(photoProgress(const FullMsgId&)), this, SLOT(onPhotoProgress(const FullMsgId&)), Qt::UniqueConnection);
-	connect(App::uploader(), SIGNAL(documentProgress(const FullMsgId&)), this, SLOT(onDocumentProgress(const FullMsgId&)), Qt::UniqueConnection);
-	connect(App::uploader(), SIGNAL(photoFailed(const FullMsgId&)), this, SLOT(onPhotoFailed(const FullMsgId&)), Qt::UniqueConnection);
-	connect(App::uploader(), SIGNAL(documentFailed(const FullMsgId&)), this, SLOT(onDocumentFailed(const FullMsgId&)), Qt::UniqueConnection);
+	connect(&Auth().uploader(), SIGNAL(photoReady(const FullMsgId&,bool,const MTPInputFile&)), this, SLOT(onPhotoUploaded(const FullMsgId&,bool,const MTPInputFile&)), Qt::UniqueConnection);
+	connect(&Auth().uploader(), SIGNAL(documentReady(const FullMsgId&,bool,const MTPInputFile&)), this, SLOT(onDocumentUploaded(const FullMsgId&,bool,const MTPInputFile&)), Qt::UniqueConnection);
+	connect(&Auth().uploader(), SIGNAL(thumbDocumentReady(const FullMsgId&,bool,const MTPInputFile&,const MTPInputFile&)), this, SLOT(onThumbDocumentUploaded(const FullMsgId&,bool,const MTPInputFile&, const MTPInputFile&)), Qt::UniqueConnection);
+	connect(&Auth().uploader(), SIGNAL(photoProgress(const FullMsgId&)), this, SLOT(onPhotoProgress(const FullMsgId&)), Qt::UniqueConnection);
+	connect(&Auth().uploader(), SIGNAL(documentProgress(const FullMsgId&)), this, SLOT(onDocumentProgress(const FullMsgId&)), Qt::UniqueConnection);
+	connect(&Auth().uploader(), SIGNAL(photoFailed(const FullMsgId&)), this, SLOT(onPhotoFailed(const FullMsgId&)), Qt::UniqueConnection);
+	connect(&Auth().uploader(), SIGNAL(documentFailed(const FullMsgId&)), this, SLOT(onDocumentFailed(const FullMsgId&)), Qt::UniqueConnection);
 
-	App::uploader()->upload(newId, file);
+	Auth().uploader().upload(newId, file);
 
 	History *h = App::history(file->to.peer);
 
@@ -4327,8 +4327,8 @@ void HistoryWidget::sendFileConfirmed(const FileLoadResultPtr &file) {
 	if (silentPost) {
 		flags |= MTPDmessage::Flag::f_silent;
 	}
-	auto messageFromId = channelPost ? 0 : AuthSession::CurrentUserId();
-	auto messagePostAuthor = channelPost ? (AuthSession::CurrentUser()->firstName + ' ' + AuthSession::CurrentUser()->lastName) : QString();
+	auto messageFromId = channelPost ? 0 : Auth().userId();
+	auto messagePostAuthor = channelPost ? (Auth().user()->firstName + ' ' + Auth().user()->lastName) : QString();
 	if (file->type == SendMediaType::Photo) {
 		auto photoFlags = qFlags(MTPDmessageMediaPhoto::Flag::f_photo);
 		if (!file->caption.isEmpty()) {
@@ -5169,8 +5169,8 @@ void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot
 		flags |= MTPDmessage::Flag::f_via_bot_id;
 	}
 
-	auto messageFromId = channelPost ? 0 : AuthSession::CurrentUserId();
-	auto messagePostAuthor = channelPost ? (AuthSession::CurrentUser()->firstName + ' ' + AuthSession::CurrentUser()->lastName) : QString();
+	auto messageFromId = channelPost ? 0 : Auth().userId();
+	auto messagePostAuthor = channelPost ? (Auth().user()->firstName + ' ' + Auth().user()->lastName) : QString();
 	MTPint messageDate = MTP_int(unixtime());
 	UserId messageViaBotId = bot ? peerToUser(bot->id) : 0;
 	MsgId messageId = newId.msg;
@@ -5282,8 +5282,8 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 			_pinnedBar->text.clear();
 			updatePinnedBar();
 		}
-		if (!_pinnedBar->msg && App::api()) {
-			App::api()->requestMessageData(_peer->asChannel(), _pinnedBar->msgId, replyEditMessageDataCallback());
+		if (!_pinnedBar->msg) {
+			Auth().api().requestMessageData(_peer->asChannel(), _pinnedBar->msgId, replyEditMessageDataCallback());
 		}
 	} else if (_pinnedBar) {
 		destroyPinnedBar();
@@ -5340,8 +5340,8 @@ bool HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
-	auto messageFromId = channelPost ? 0 : AuthSession::CurrentUserId();
-	auto messagePostAuthor = channelPost ? (AuthSession::CurrentUser()->firstName + ' ' + AuthSession::CurrentUser()->lastName) : QString();
+	auto messageFromId = channelPost ? 0 : Auth().userId();
+	auto messagePostAuthor = channelPost ? (Auth().user()->firstName + ' ' + Auth().user()->lastName) : QString();
 	_history->addNewDocument(newId.msg, flags, 0, replyToId(), date(MTP_int(unixtime())), messageFromId, messagePostAuthor, doc, caption, MTPnullMarkup);
 
 	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaDocument(MTP_flags(0), mtpInput, MTP_string(caption), MTPint()), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
@@ -5398,8 +5398,8 @@ void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption) 
 	if (silentPost) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 	}
-	auto messageFromId = channelPost ? 0 : AuthSession::CurrentUserId();
-	auto messagePostAuthor = channelPost ? (AuthSession::CurrentUser()->firstName + ' ' + AuthSession::CurrentUser()->lastName) : QString();
+	auto messageFromId = channelPost ? 0 : Auth().userId();
+	auto messagePostAuthor = channelPost ? (Auth().user()->firstName + ' ' + Auth().user()->lastName) : QString();
 	_history->addNewPhoto(newId.msg, flags, 0, replyToId(), date(MTP_int(unixtime())), messageFromId, messagePostAuthor, photo, caption, MTPnullMarkup);
 
 	_history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), _peer->input, MTP_int(replyToId()), MTP_inputMediaPhoto(MTP_flags(0), MTP_inputPhoto(MTP_long(photo->id), MTP_long(photo->access)), MTP_string(caption), MTPint()), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
@@ -5903,7 +5903,7 @@ void HistoryWidget::peerUpdated(PeerData *data) {
 	if (data && data == _peer) {
 		if (auto channel = data->migrateTo()) {
 			Ui::showPeerHistory(channel, ShowAtUnreadMsgId);
-			App::api()->requestParticipantsCountDelayed(channel);
+			Auth().api().requestParticipantsCountDelayed(channel);
 			return;
 		}
 		QString restriction = _peer->restrictionReason();
@@ -5918,14 +5918,12 @@ void HistoryWidget::peerUpdated(PeerData *data) {
 		}
 		updateHistoryGeometry();
 		if (_peer->isChannel()) updateReportSpamStatus();
-		if (App::api()) {
-			if (data->isChat() && data->asChat()->noParticipantInfo()) {
-				App::api()->requestFullPeer(data);
-			} else if (data->isUser() && (data->asUser()->blockStatus() == UserData::BlockStatus::Unknown || data->asUser()->callsStatus() == UserData::CallsStatus::Unknown)) {
-				App::api()->requestFullPeer(data);
-			} else if (data->isMegagroup() && !data->asChannel()->mgInfo->botStatus) {
-				App::api()->requestBots(data->asChannel());
-			}
+		if (data->isChat() && data->asChat()->noParticipantInfo()) {
+			Auth().api().requestFullPeer(data);
+		} else if (data->isUser() && (data->asUser()->blockStatus() == UserData::BlockStatus::Unknown || data->asUser()->callsStatus() == UserData::CallsStatus::Unknown)) {
+			Auth().api().requestFullPeer(data);
+		} else if (data->isMegagroup() && !data->asChannel()->mgInfo->botStatus) {
+			Auth().api().requestBots(data->asChannel());
 		}
 		if (!_a_show.animating()) {
 			if (_unblock->isHidden() == isBlocked() || (!isBlocked() && _joinChannel->isHidden() == isJoinChannel())) {

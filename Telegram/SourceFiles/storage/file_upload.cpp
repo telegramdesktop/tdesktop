@@ -20,21 +20,21 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "storage/file_upload.h"
 
+namespace Storage {
 namespace {
 
 constexpr auto kMaxUploadFileParallelSize = MTP::kUploadSessionsCount * 512 * 1024; // max 512kb uploaded at the same time in each session
 
 } // namespace
 
-FileUploader::FileUploader() : sentSize(0) {
-	memset(sentSizes, 0, sizeof(sentSizes));
+Uploader::Uploader() {
 	nextTimer.setSingleShot(true);
 	connect(&nextTimer, SIGNAL(timeout()), this, SLOT(sendNext()));
 	killSessionsTimer.setSingleShot(true);
 	connect(&killSessionsTimer, SIGNAL(timeout()), this, SLOT(killSessions()));
 }
 
-void FileUploader::uploadMedia(const FullMsgId &msgId, const SendMediaReady &media) {
+void Uploader::uploadMedia(const FullMsgId &msgId, const SendMediaReady &media) {
 	if (media.type == SendMediaType::Photo) {
 		App::feedPhoto(media.photo, media.photoThumbs);
 	} else if (media.type == SendMediaType::File || media.type == SendMediaType::Audio) {
@@ -56,7 +56,7 @@ void FileUploader::uploadMedia(const FullMsgId &msgId, const SendMediaReady &med
 	sendNext();
 }
 
-void FileUploader::upload(const FullMsgId &msgId, const FileLoadResultPtr &file) {
+void Uploader::upload(const FullMsgId &msgId, const FileLoadResultPtr &file) {
 	if (file->type == SendMediaType::Photo) {
 		auto photo = App::feedPhoto(file->photo, file->photoThumbs);
 		photo->uploadingData = std::make_unique<PhotoData::UploadingData>(file->partssize);
@@ -74,7 +74,7 @@ void FileUploader::upload(const FullMsgId &msgId, const FileLoadResultPtr &file)
 	sendNext();
 }
 
-void FileUploader::currentFailed() {
+void Uploader::currentFailed() {
 	Queue::iterator j = queue.find(uploading);
 	if (j != queue.end()) {
 		if (j->type() == SendMediaType::Photo) {
@@ -101,13 +101,13 @@ void FileUploader::currentFailed() {
 	sendNext();
 }
 
-void FileUploader::killSessions() {
+void Uploader::killSessions() {
 	for (int i = 0; i < MTP::kUploadSessionsCount; ++i) {
 		MTP::stopSession(MTP::uploadDcId(i));
 	}
 }
 
-void FileUploader::sendNext() {
+void Uploader::sendNext() {
 	if (sentSize >= kMaxUploadFileParallelSize || _paused.msg) return;
 
 	bool killing = killSessionsTimer.isActive();
@@ -194,9 +194,9 @@ void FileUploader::sendNext() {
 		}
 		mtpRequestId requestId;
 		if (i->docSize > UseBigFilesFrom) {
-			requestId = MTP::send(MTPupload_SaveBigFilePart(MTP_long(i->id()), MTP_int(i->docSentParts), MTP_int(i->docPartsCount), MTP_bytes(toSend)), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::uploadDcId(todc));
+			requestId = MTP::send(MTPupload_SaveBigFilePart(MTP_long(i->id()), MTP_int(i->docSentParts), MTP_int(i->docPartsCount), MTP_bytes(toSend)), rpcDone(&Uploader::partLoaded), rpcFail(&Uploader::partFailed), MTP::uploadDcId(todc));
 		} else {
-			requestId = MTP::send(MTPupload_SaveFilePart(MTP_long(i->id()), MTP_int(i->docSentParts), MTP_bytes(toSend)), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::uploadDcId(todc));
+			requestId = MTP::send(MTPupload_SaveFilePart(MTP_long(i->id()), MTP_int(i->docSentParts), MTP_bytes(toSend)), rpcDone(&Uploader::partLoaded), rpcFail(&Uploader::partFailed), MTP::uploadDcId(todc));
 		}
 		docRequestsSent.insert(requestId, i->docSentParts);
 		dcMap.insert(requestId, todc);
@@ -207,7 +207,7 @@ void FileUploader::sendNext() {
 	} else {
 		UploadFileParts::iterator part = parts.begin();
 
-		mtpRequestId requestId = MTP::send(MTPupload_SaveFilePart(MTP_long(partsOfId), MTP_int(part.key()), MTP_bytes(part.value())), rpcDone(&FileUploader::partLoaded), rpcFail(&FileUploader::partFailed), MTP::uploadDcId(todc));
+		mtpRequestId requestId = MTP::send(MTPupload_SaveFilePart(MTP_long(partsOfId), MTP_int(part.key()), MTP_bytes(part.value())), rpcDone(&Uploader::partLoaded), rpcFail(&Uploader::partFailed), MTP::uploadDcId(todc));
 		requestsSent.insert(requestId, part.value());
 		dcMap.insert(requestId, todc);
 		sentSize += part.value().size();
@@ -218,7 +218,7 @@ void FileUploader::sendNext() {
 	nextTimer.start(UploadRequestInterval);
 }
 
-void FileUploader::cancel(const FullMsgId &msgId) {
+void Uploader::cancel(const FullMsgId &msgId) {
 	uploaded.remove(msgId);
 	if (uploading == msgId) {
 		currentFailed();
@@ -227,19 +227,19 @@ void FileUploader::cancel(const FullMsgId &msgId) {
 	}
 }
 
-void FileUploader::pause(const FullMsgId &msgId) {
+void Uploader::pause(const FullMsgId &msgId) {
 	_paused = msgId;
 }
 
-void FileUploader::unpause() {
+void Uploader::unpause() {
 	_paused = FullMsgId();
 	sendNext();
 }
 
-void FileUploader::confirm(const FullMsgId &msgId) {
+void Uploader::confirm(const FullMsgId &msgId) {
 }
 
-void FileUploader::clear() {
+void Uploader::clear() {
 	uploaded.clear();
 	queue.clear();
 	for (QMap<mtpRequestId, QByteArray>::const_iterator i = requestsSent.cbegin(), e = requestsSent.cend(); i != e; ++i) {
@@ -259,7 +259,7 @@ void FileUploader::clear() {
 	killSessionsTimer.stop();
 }
 
-void FileUploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
+void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 	QMap<mtpRequestId, int32>::iterator j = docRequestsSent.end();
 	QMap<mtpRequestId, QByteArray>::iterator i = requestsSent.find(requestId);
 	if (i == requestsSent.cend()) {
@@ -313,7 +313,7 @@ void FileUploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 	sendNext();
 }
 
-bool FileUploader::partFailed(const RPCError &error, mtpRequestId requestId) {
+bool Uploader::partFailed(const RPCError &error, mtpRequestId requestId) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (requestsSent.constFind(requestId) != requestsSent.cend() || docRequestsSent.constFind(requestId) != docRequestsSent.cend()) { // failed to upload current file
@@ -322,3 +322,9 @@ bool FileUploader::partFailed(const RPCError &error, mtpRequestId requestId) {
 	sendNext();
 	return true;
 }
+
+Uploader::~Uploader() {
+	clear();
+}
+
+} // namespace Storage

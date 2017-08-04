@@ -188,7 +188,7 @@ void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
 }
 
 void logOutDelayed() {
-	App::CallDelayed(1, App::app(), [] {
+	InvokeQueued(QCoreApplication::instance(), [] {
 		App::logOut();
 	});
 }
@@ -364,7 +364,7 @@ void handlePendingHistoryUpdate() {
 	if (!AuthSession::Exists()) {
 		return;
 	}
-	AuthSession::Current().data().pendingHistoryResize().notify(true);
+	Auth().data().pendingHistoryResize().notify(true);
 
 	for (auto item : base::take(Global::RefPendingRepaintItems())) {
 		Ui::repaintHistoryItem(item);
@@ -539,10 +539,10 @@ namespace Global {
 namespace internal {
 
 struct Data {
-	SingleQueuedInvokation HandleHistoryUpdate = { [] { App::app()->call_handleHistoryUpdate(); } };
-	SingleQueuedInvokation HandleUnreadCounterUpdate = { [] { App::app()->call_handleUnreadCounterUpdate(); } };
-	SingleQueuedInvokation HandleDelayedPeerUpdates = { [] { App::app()->call_handleDelayedPeerUpdates(); } };
-	SingleQueuedInvokation HandleObservables = { [] { App::app()->call_handleObservables(); } };
+	SingleQueuedInvokation HandleHistoryUpdate = { [] { Messenger::Instance().call_handleHistoryUpdate(); } };
+	SingleQueuedInvokation HandleUnreadCounterUpdate = { [] { Messenger::Instance().call_handleUnreadCounterUpdate(); } };
+	SingleQueuedInvokation HandleDelayedPeerUpdates = { [] { Messenger::Instance().call_handleDelayedPeerUpdates(); } };
+	SingleQueuedInvokation HandleObservables = { [] { Messenger::Instance().call_handleObservables(); } };
 
 	Adaptive::WindowLayout AdaptiveWindowLayout = Adaptive::WindowLayout::Normal;
 	Adaptive::ChatLayout AdaptiveChatLayout = Adaptive::ChatLayout::Normal;

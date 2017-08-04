@@ -77,7 +77,7 @@ void ChatSearchFromController::rebuildRows() {
 	auto now = unixtime();
 	QMultiMap<int32, UserData*> ordered;
 	if (_chat->noParticipantInfo()) {
-		AuthSession::Current().api().requestFullPeer(_chat);
+		Auth().api().requestFullPeer(_chat);
 	} else if (!_chat->participants.isEmpty()) {
 		for (auto i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
 			auto user = i.key();

@@ -211,7 +211,7 @@ QByteArray Messenger::serializeMtpAuthorization() const {
 			QDataStream stream(&result, QIODevice::WriteOnly);
 			stream.setVersion(QDataStream::Qt_5_1);
 
-			auto currentUserId = AuthSession::Exists() ? AuthSession::CurrentUserId() : 0;
+			auto currentUserId = _authSession ? _authSession->userId() : 0;
 			stream << qint32(currentUserId) << qint32(mainDcId);
 			writeKeys(stream, keys);
 			writeKeys(stream, keysToDestroy);
@@ -243,8 +243,8 @@ void Messenger::setAuthSessionFromStorage(std::unique_ptr<Local::StoredAuthSessi
 AuthSessionData *Messenger::getAuthSessionData() {
 	if (_private->authSessionUserId) {
 		return _private->storedAuthSession ? &_private->storedAuthSession->data : nullptr;
-	} else if (AuthSession::Exists()) {
-		return &AuthSession::Current().data();
+	} else if (_authSession) {
+		return &_authSession->data();
 	}
 	return nullptr;
 }
@@ -459,7 +459,7 @@ bool Messenger::peerPhotoFail(PeerId peer, const RPCError &error) {
 void Messenger::peerClearPhoto(PeerId id) {
 	if (!AuthSession::Exists()) return;
 
-	if (id == AuthSession::CurrentUserPeerId()) {
+	if (id == Auth().userPeerId()) {
 		MTP::send(MTPphotos_UpdateProfilePhoto(MTP_inputPhotoEmpty()), rpcDone(&Messenger::selfPhotoCleared), rpcFail(&Messenger::peerPhotoFail, id));
 	} else if (peerIsChat(id)) {
 		MTP::send(MTPmessages_EditChatPhoto(peerToBareMTPInt(id), MTP_inputChatPhotoEmpty()), rpcDone(&Messenger::chatPhotoCleared, id), rpcFail(&Messenger::peerPhotoFail, id));
@@ -554,7 +554,7 @@ void Messenger::photoUpdated(const FullMsgId &msgId, bool silent, const MTPInput
 	auto i = photoUpdates.find(msgId);
 	if (i != photoUpdates.end()) {
 		auto id = i.value();
-		if (id == AuthSession::CurrentUserPeerId()) {
+		if (id == Auth().userPeerId()) {
 			MTP::send(MTPphotos_UploadProfilePhoto(file), rpcDone(&Messenger::selfPhotoDone), rpcFail(&Messenger::peerPhotoFail, id));
 		} else if (peerIsChat(id)) {
 			auto history = App::history(id);
@@ -748,11 +748,6 @@ bool Messenger::openLocalUrl(const QString &url) {
 	return false;
 }
 
-FileUploader *Messenger::uploader() {
-	if (!_uploader && !App::quitting()) _uploader = new FileUploader();
-	return _uploader;
-}
-
 void Messenger::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId) {
 	PreparedPhotoThumbs photoThumbs;
 	QVector<MTPPhotoSize> photoSizes;
@@ -783,11 +778,11 @@ void Messenger::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId) {
 
 	SendMediaReady ready(SendMediaType::Photo, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, 0);
 
-	connect(App::uploader(), SIGNAL(photoReady(const FullMsgId&, bool, const MTPInputFile&)), App::app(), SLOT(photoUpdated(const FullMsgId&, bool, const MTPInputFile&)), Qt::UniqueConnection);
+	connect(&Auth().uploader(), SIGNAL(photoReady(const FullMsgId&, bool, const MTPInputFile&)), this, SLOT(photoUpdated(const FullMsgId&, bool, const MTPInputFile&)), Qt::UniqueConnection);
 
 	FullMsgId newId(peerToChannel(peerId), clientMsgId());
-	App::app()->regPhotoUpdate(peerId, newId);
-	App::uploader()->uploadMedia(newId, ready);
+	regPhotoUpdate(peerId, newId);
+	Auth().uploader().uploadMedia(newId, ready);
 }
 
 void Messenger::setupPasscode() {
@@ -825,8 +820,6 @@ Messenger::~Messenger() {
 	App::deinitMedia();
 	deinitLocationManager();
 
-	delete base::take(_uploader);
-
 	Window::Theme::Unload();
 
 	Media::Player::finish();
@@ -855,10 +848,10 @@ QPoint Messenger::getPointForCallPanelCenter() const {
 void Messenger::QuitAttempt() {
 	auto prevents = false;
 	if (!Sandbox::isSavingSession() && AuthSession::Exists()) {
-		if (AuthSession::Current().api().isQuitPrevent()) {
+		if (Auth().api().isQuitPrevent()) {
 			prevents = true;
 		}
-		if (AuthSession::Current().calls().isQuitPrevent()) {
+		if (Auth().calls().isQuitPrevent()) {
 			prevents = true;
 		}
 	}

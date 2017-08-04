@@ -361,12 +361,12 @@ void Panel::initLayout() {
 	initGeometry();
 
 	processUserPhoto();
-	subscribe(AuthSession::Current().api().fullPeerUpdated(), [this](PeerData *peer) {
+	subscribe(Auth().api().fullPeerUpdated(), [this](PeerData *peer) {
 		if (peer == _user) {
 			processUserPhoto();
 		}
 	});
-	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
+	subscribe(Auth().downloaderTaskFinished(), [this] {
 		refreshUserPhoto();
 	});
 	createDefaultCacheImage();
@@ -439,7 +439,7 @@ void Panel::processUserPhoto() {
 		photo->full->load(true);
 	} else {
 		if ((_user->photoId == UnknownPeerPhotoId) || (_user->photoId && (!photo || !photo->date))) {
-			App::api()->requestFullPeer(_user);
+			Auth().api().requestFullPeer(_user);
 		}
 	}
 	refreshUserPhoto();

@@ -342,7 +342,7 @@ void ParticipantsBoxController::showAdmin(gsl::not_null<UserData*> user) {
 	if (canSave) {
 		box->setSaveCallback([channel = _channel.get(), user, weak](const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
 			MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, newRights), rpcDone([channel, user, weak, oldRights, newRights](const MTPUpdates &result) {
-				AuthSession::Current().api().applyUpdates(result);
+				Auth().api().applyUpdates(result);
 				channel->applyEditAdmin(user, oldRights, newRights);
 				if (weak) {
 					weak->editAdminDone(user, newRights);
@@ -396,7 +396,7 @@ void ParticipantsBoxController::showRestricted(gsl::not_null<UserData*> user) {
 	if (_channel->canBanMembers()) {
 		box->setSaveCallback([megagroup = _channel.get(), user, weak](const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
 			MTP::send(MTPchannels_EditBanned(megagroup->inputChannel, user->inputUser, newRights), rpcDone([megagroup, user, weak, oldRights, newRights](const MTPUpdates &result) {
-				AuthSession::Current().api().applyUpdates(result);
+				Auth().api().applyUpdates(result);
 				megagroup->applyEditBanned(user, oldRights, newRights);
 				if (weak) {
 					weak->editRestrictedDone(user, newRights);
@@ -470,14 +470,14 @@ void ParticipantsBoxController::kickMemberSure(gsl::not_null<UserData*> user) {
 		delegate()->peerListRemoveRow(row);
 		delegate()->peerListRefreshRows();
 	}
-	AuthSession::Current().api().kickParticipant(_channel, user, currentRights);
+	Auth().api().kickParticipant(_channel, user, currentRights);
 }
 
 void ParticipantsBoxController::removeKicked(gsl::not_null<PeerListRow*> row, gsl::not_null<UserData*> user) {
 	delegate()->peerListRemoveRow(row);
 	delegate()->peerListRefreshRows();
 
-	AuthSession::Current().api().unblockParticipant(_channel, user);
+	Auth().api().unblockParticipant(_channel, user);
 }
 
 bool ParticipantsBoxController::appendRow(gsl::not_null<UserData*> user) {
@@ -869,7 +869,7 @@ void AddParticipantBoxController::showAdmin(gsl::not_null<UserData*> user, bool 
 	if (!canNotEdit) {
 		box->setSaveCallback([channel = _channel.get(), user, weak](const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
 			MTP::send(MTPchannels_EditAdmin(channel->inputChannel, user->inputUser, newRights), rpcDone([channel, user, weak, oldRights, newRights](const MTPUpdates &result) {
-				AuthSession::Current().api().applyUpdates(result);
+				Auth().api().applyUpdates(result);
 				channel->applyEditAdmin(user, oldRights, newRights);
 				if (weak) {
 					weak->editAdminDone(user, newRights);
@@ -965,7 +965,7 @@ void AddParticipantBoxController::showRestricted(gsl::not_null<UserData*> user, 
 void AddParticipantBoxController::restrictUserSure(gsl::not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
 	auto weak = base::weak_unique_ptr<AddParticipantBoxController>(this);
 	MTP::send(MTPchannels_EditBanned(_channel->inputChannel, user->inputUser, newRights), rpcDone([megagroup = _channel.get(), user, weak, oldRights, newRights](const MTPUpdates &result) {
-		AuthSession::Current().api().applyUpdates(result);
+		Auth().api().applyUpdates(result);
 		megagroup->applyEditBanned(user, oldRights, newRights);
 		if (weak) {
 			weak->editRestrictedDone(user, newRights);

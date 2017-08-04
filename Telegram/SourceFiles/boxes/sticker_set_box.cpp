@@ -115,9 +115,9 @@ StickerSetBox::Inner::Inner(QWidget *parent, const MTPInputStickerSet &set) : TW
 	case mtpc_inputStickerSetShortName: _setShortName = qs(set.c_inputStickerSetShortName().vshort_name); break;
 	}
 	MTP::send(MTPmessages_GetStickerSet(_input), rpcDone(&Inner::gotSet), rpcFail(&Inner::failedSet));
-	AuthSession::Current().api().updateStickers();
+	Auth().api().updateStickers();
 
-	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
+	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
 
 	setMouseTracking(true);
 

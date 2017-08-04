@@ -426,7 +426,7 @@ void ContactsBox::saveSelectedAdmins() {
 }
 
 void ContactsBox::getAdminsDone(const MTPmessages_ChatFull &result) {
-	App::api()->processFullPeer(_inner->chat(), result);
+	Auth().api().processFullPeer(_inner->chat(), result);
 	if (_inner->allAdmins()) {
 		closeBox();
 		return;
@@ -466,7 +466,7 @@ void ContactsBox::getAdminsDone(const MTPmessages_ChatFull &result) {
 void ContactsBox::setAdminDone(gsl::not_null<UserData*> user, const MTPBool &result) {
 	if (mtpIsTrue(result)) {
 		if (_inner->chat()->noParticipantInfo()) {
-			App::api()->requestFullPeer(_inner->chat());
+			Auth().api().requestFullPeer(_inner->chat());
 		} else {
 			_inner->chat()->admins.insert(user);
 		}
@@ -529,7 +529,7 @@ void ContactsBox::creationDone(const MTPUpdates &updates) {
 		peer = App::chat(v->front().c_chat().vid.v);
 		if (peer) {
 			if (!_creationPhoto.isNull()) {
-				App::app()->uploadProfilePhoto(_creationPhoto, peer->id);
+				Messenger::Instance().uploadProfilePhoto(_creationPhoto, peer->id);
 			}
 			Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 		}
@@ -608,7 +608,7 @@ ContactsBox::Inner::Inner(QWidget *parent, ChatData *chat, MembersFilter members
 	if (membersFilter == MembersFilter::Admins) {
 		_aboutHeight = st::contactsAboutTop + qMax(_aboutAllAdmins.countHeight(_aboutWidth), _aboutAdmins.countHeight(_aboutWidth)) + st::contactsAboutBottom;
 		if (_contacts->isEmpty()) {
-			App::api()->requestFullPeer(_chat);
+			Auth().api().requestFullPeer(_chat);
 		}
 	}
 	init();
@@ -656,7 +656,7 @@ ContactsBox::Inner::Inner(QWidget *parent, UserData *bot) : TWidget(parent)
 }
 
 void ContactsBox::Inner::init() {
-	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
+	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
 	connect(_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
 	subscribe(_allAdmins->checkedChanged, [this](bool checked) { onAllAdminsChanged(); });
 
@@ -835,7 +835,7 @@ void ContactsBox::Inner::loadProfilePhotos() {
 
 	auto yFrom = _visibleTop - _rowsTop;
 	auto yTo = yFrom + (_visibleBottom - _visibleTop) * 5;
-	AuthSession::Current().downloader().clearPriorities();
+	Auth().downloader().clearPriorities();
 
 	if (yTo < 0) return;
 	if (yFrom < 0) yFrom = 0;
@@ -878,9 +878,9 @@ ContactsBox::Inner::ContactData *ContactsBox::Inner::contactData(Dialogs::Row *r
 						data->disabledChecked = _chat->participants.contains(peer->asUser());
 					}
 				} else if (_creating == CreatingGroupGroup) {
-					data->disabledChecked = (peer->id == AuthSession::CurrentUserPeerId());
+					data->disabledChecked = (peer->id == Auth().userPeerId());
 				} else if (_channel) {
-					data->disabledChecked = (peer->id == AuthSession::CurrentUserPeerId()) || _already.contains(peer->asUser());
+					data->disabledChecked = (peer->id == Auth().userPeerId()) || _already.contains(peer->asUser());
 				}
 			}
 			if (usingMultiSelect() && _checkedContacts.contains(peer)) {
@@ -1090,7 +1090,7 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 			QString text;
 			skip = 0;
 			if (bot()) {
-				text = lang((AuthSession::Current().data().allChatsLoaded().value() && !_searching) ? (sharingBotGame() ? lng_bot_no_chats : lng_bot_no_groups) : lng_contacts_loading);
+				text = lang((Auth().data().allChatsLoaded().value() && !_searching) ? (sharingBotGame() ? lng_bot_no_chats : lng_bot_no_groups) : lng_contacts_loading);
 			} else if (_chat && _membersFilter == MembersFilter::Admins) {
 				text = lang(lng_contacts_loading);
 				p.fillRect(0, 0, width(), _aboutHeight - st::contactsPadding.bottom() - st::lineWidth, st::contactsAboutBg);
@@ -1099,7 +1099,7 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 				int aboutw = width() - st::contactsPadding.left() - st::contactsPadding.right();
 				(_allAdmins->checked() ? _aboutAllAdmins : _aboutAdmins).draw(p, st::contactsPadding.left(), st::contactsAboutTop, aboutw);
 				p.translate(0, _aboutHeight);
-			} else if (AuthSession::Current().data().contactsLoaded().value() && !_searching) {
+			} else if (Auth().data().contactsLoaded().value() && !_searching) {
 				text = lang(lng_no_contacts);
 				skip = st::noContactsFont->height;
 			} else {
@@ -1115,11 +1115,11 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 			p.setPen(st::noContactsColor);
 			QString text;
 			if (bot()) {
-				text = lang((AuthSession::Current().data().allChatsLoaded().value() && !_searching) ? (sharingBotGame() ? lng_bot_chats_not_found : lng_bot_groups_not_found) : lng_contacts_loading);
+				text = lang((Auth().data().allChatsLoaded().value() && !_searching) ? (sharingBotGame() ? lng_bot_chats_not_found : lng_bot_groups_not_found) : lng_contacts_loading);
 			} else if (_chat && _membersFilter == MembersFilter::Admins) {
 				text = lang(_chat->participants.isEmpty() ? lng_contacts_loading : lng_contacts_not_found);
 			} else {
-				text = lang((AuthSession::Current().data().contactsLoaded().value() && !_searching) ? lng_contacts_not_found : lng_contacts_loading);
+				text = lang((Auth().data().contactsLoaded().value() && !_searching) ? lng_contacts_not_found : lng_contacts_loading);
 			}
 			p.drawText(QRect(0, 0, width(), st::noContactsHeight), text, style::al_center);
 		} else {
@@ -1775,7 +1775,7 @@ void ContactsBox::Inner::refresh() {
 			if (!_addContactLnk->isHidden()) _addContactLnk->hide();
 			resize(width(), _rowsTop + _aboutHeight + st::noContactsHeight + st::contactsMarginBottom);
 		} else {
-			if (AuthSession::Current().data().contactsLoaded().value() && !bot()) {
+			if (Auth().data().contactsLoaded().value() && !bot()) {
 				if (_addContactLnk->isHidden()) _addContactLnk->show();
 			} else {
 				if (!_addContactLnk->isHidden()) _addContactLnk->hide();

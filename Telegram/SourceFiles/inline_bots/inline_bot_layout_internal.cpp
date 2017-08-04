@@ -129,7 +129,7 @@ void DeleteSavedGifClickHandler::onClickImpl() const {
 
 		MTP::send(MTPmessages_SaveGif(_data->mtpInput(), MTP_bool(true)));
 	}
-	AuthSession::Current().data().savedGifsUpdated().notify();
+	Auth().data().savedGifsUpdated().notify();
 }
 
 void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) const {

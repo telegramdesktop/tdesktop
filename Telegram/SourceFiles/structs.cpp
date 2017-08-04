@@ -44,7 +44,7 @@ namespace {
 constexpr auto kUpdateFullPeerTimeout = TimeMs(5000); // Not more than once in 5 seconds.
 
 int peerColorIndex(const PeerId &peer) {
-	auto myId = AuthSession::CurrentUserId();
+	auto myId = Auth().userId();
 	auto peerId = peerToBareInt(peer);
 	auto both = (QByteArray::number(peerId) + QByteArray::number(myId)).mid(0, 15);
 	uchar md5[16];
@@ -731,12 +731,10 @@ void PeerData::updateFull() {
 }
 
 void PeerData::updateFullForced() {
-	if (App::api()) {
-		App::api()->requestFullPeer(this);
-		if (auto channel = asChannel()) {
-			if (!channel->amCreator() && !channel->inviter) {
-				App::api()->requestSelfParticipant(channel);
-			}
+	Auth().api().requestFullPeer(this);
+	if (auto channel = asChannel()) {
+		if (!channel->amCreator() && !channel->inviter) {
+			Auth().api().requestSelfParticipant(channel);
 		}
 	}
 }
@@ -1032,13 +1030,13 @@ void PtsWaiter::applySkippedUpdates(ChannelData *channel) {
 
 	setWaitingForSkipped(channel, -1);
 
-	if (!App::api() || _queue.isEmpty()) return;
+	if (_queue.isEmpty()) return;
 
 	++_applySkippedLevel;
-	for (QMap<uint64, PtsSkippedQueue>::const_iterator i = _queue.cbegin(), e = _queue.cend(); i != e; ++i) {
+	for (auto i = _queue.cbegin(), e = _queue.cend(); i != e; ++i) {
 		switch (i.value()) {
-		case SkippedUpdate: App::api()->applyUpdateNoPtsCheck(_updateQueue.value(i.key())); break;
-		case SkippedUpdates: App::api()->applyUpdatesNoPtsCheck(_updatesQueue.value(i.key())); break;
+		case SkippedUpdate: Auth().api().applyUpdateNoPtsCheck(_updateQueue.value(i.key())); break;
+		case SkippedUpdates: Auth().api().applyUpdatesNoPtsCheck(_updatesQueue.value(i.key())); break;
 		}
 	}
 	--_applySkippedLevel;
@@ -1091,7 +1089,7 @@ bool PtsWaiter::updateAndApply(ChannelData *channel, int32 pts, int32 count, con
 	}
 	if (!_waitingForSkipped || _queue.isEmpty()) {
 		// Optimization - no need to put in queue and back.
-		App::api()->applyUpdatesNoPtsCheck(updates);
+		Auth().api().applyUpdatesNoPtsCheck(updates);
 	} else {
 		_updatesQueue.insert(ptsKey(SkippedUpdates, pts), updates);
 		applySkippedUpdates(channel);
@@ -1105,7 +1103,7 @@ bool PtsWaiter::updateAndApply(ChannelData *channel, int32 pts, int32 count, con
 	}
 	if (!_waitingForSkipped || _queue.isEmpty()) {
 		// Optimization - no need to put in queue and back.
-		App::api()->applyUpdateNoPtsCheck(update);
+		Auth().api().applyUpdateNoPtsCheck(update);
 	} else {
 		_updateQueue.insert(ptsKey(SkippedUpdate, pts), update);
 		applySkippedUpdates(channel);
@@ -1844,7 +1842,7 @@ bool DocumentData::loaded(FilePathResolveType type) const {
 void DocumentData::destroyLoaderDelayed(mtpFileLoader *newValue) const {
 	_loader->stop();
 	auto loader = std::unique_ptr<FileLoader>(std::exchange(_loader, newValue));
-	AuthSession::Current().downloader().delayedDestroyLoader(std::move(loader));
+	Auth().downloader().delayedDestroyLoader(std::move(loader));
 }
 
 bool DocumentData::loading() const {
@@ -1933,7 +1931,7 @@ void DocumentData::cancel() {
 	auto loader = std::unique_ptr<FileLoader>(std::exchange(_loader, CancelledMtpFileLoader));
 	loader->cancel();
 	loader->stop();
-	AuthSession::Current().downloader().delayedDestroyLoader(std::move(loader));
+	Auth().downloader().delayedDestroyLoader(std::move(loader));
 
 	notifyLayoutChanged();
 	if (auto main = App::main()) {

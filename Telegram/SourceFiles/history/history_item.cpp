@@ -1057,7 +1057,7 @@ void HistoryItem::clipCallback(Media::Clip::Notification notification) {
 		auto stopped = false;
 		if (reader->autoPausedGif()) {
 			auto amVisible = false;
-			AuthSession::Current().data().queryItemVisibility().notify({ this, &amVisible }, true);
+			Auth().data().queryItemVisibility().notify({ this, &amVisible }, true);
 			if (!amVisible) { // stop animation if it is not visible
 				media->stopInline();
 				if (auto document = media->getDocument()) { // forget data from memory
@@ -1182,8 +1182,8 @@ void HistoryItem::drawInDialog(Painter &p, const QRect &r, bool active, bool sel
 
 HistoryItem::~HistoryItem() {
 	App::historyUnregItem(this);
-	if (id < 0 && App::uploader()) {
-		App::uploader()->cancel(fullId());
+	if (id < 0 && !App::quitting()) {
+		Auth().uploader().cancel(fullId());
 	}
 }
 

@@ -862,8 +862,8 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 
 	if (auto reply = Get<HistoryMessageReply>()) {
 		reply->replyToMsgId = config.replyTo;
-		if (!reply->updateData(this) && App::api()) {
-			App::api()->requestMessageData(history()->peer->asChannel(), reply->replyToMsgId, HistoryDependentItemCallback(fullId()));
+		if (!reply->updateData(this)) {
+			Auth().api().requestMessageData(history()->peer->asChannel(), reply->replyToMsgId, HistoryDependentItemCallback(fullId()));
 		}
 	}
 	if (auto via = Get<HistoryMessageVia>()) {

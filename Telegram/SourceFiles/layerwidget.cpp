@@ -734,7 +734,7 @@ MediaPreviewWidget::MediaPreviewWidget(QWidget *parent, gsl::not_null<Window::Co
 , _controller(controller)
 , _emojiSize(Ui::Emoji::Size(Ui::Emoji::Index() + 1) / cIntRetinaFactor()) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
-	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
+	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
 }
 
 void MediaPreviewWidget::paintEvent(QPaintEvent *e) {

@@ -136,10 +136,10 @@ GifsListWidget::GifsListWidget(QWidget *parent, gsl::not_null<Window::Controller
 	_inlineRequestTimer.setSingleShot(true);
 	connect(&_inlineRequestTimer, &QTimer::timeout, this, [this] { sendInlineRequest(); });
 
-	subscribe(AuthSession::Current().data().savedGifsUpdated(), [this] {
+	subscribe(Auth().data().savedGifsUpdated(), [this] {
 		refreshSavedGifs();
 	});
-	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
+	subscribe(Auth().downloaderTaskFinished(), [this] {
 		update();
 	});
 	subscribe(controller->gifPauseLevelChanged(), [this] {

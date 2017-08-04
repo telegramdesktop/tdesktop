@@ -39,7 +39,7 @@ public:
 	QString tagFromMimeTag(const QString &mimeTag) override {
 		if (mimeTag.startsWith(qstr("mention://"))) {
 			auto match = QRegularExpression(":(\\d+)$").match(mimeTag);
-			if (!match.hasMatch() || match.capturedRef(1).toInt() != AuthSession::CurrentUserId()) {
+			if (!match.hasMatch() || match.capturedRef(1).toInt() != Auth().userId()) {
 				return QString();
 			}
 			return mimeTag.mid(0, mimeTag.size() - match.capturedLength());
@@ -53,7 +53,7 @@ public:
 
 QString ConvertTagToMimeTag(const QString &tagId) {
 	if (tagId.startsWith(qstr("mention://"))) {
-		return tagId + ':' + QString::number(AuthSession::CurrentUserId());
+		return tagId + ':' + QString::number(Auth().userId());
 	}
 	return tagId;
 }

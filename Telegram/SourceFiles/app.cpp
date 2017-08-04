@@ -158,12 +158,8 @@ namespace App {
 		return result;
 	}
 
-	Messenger *app() {
-		return Messenger::InstancePointer();
-	}
-
 	MainWindow *wnd() {
-		if (auto instance = app()) {
+		if (auto instance = Messenger::InstancePointer()) {
 			return instance->mainWindow();
 		}
 		return nullptr;
@@ -181,14 +177,6 @@ namespace App {
 			return window->passcodeWidget();
 		}
 		return false;
-	}
-
-	FileUploader *uploader() {
-		return app() ? app()->uploader() : 0;
-	}
-
-	ApiWrap *api() {
-		return AuthSession::Exists() ? &AuthSession::Current().api() : nullptr;
 	}
 
 namespace {
@@ -211,7 +199,6 @@ namespace {
 		globalNotifyAllPtr = UnknownNotifySettings;
 		globalNotifyUsersPtr = UnknownNotifySettings;
 		globalNotifyChatsPtr = UnknownNotifySettings;
-		if (App::uploader()) App::uploader()->clear();
 		clearStorageImages();
 		if (auto w = wnd()) {
 			w->updateConnectingStatus();
@@ -473,7 +460,7 @@ namespace {
 				bool showPhoneChanged = !isServiceUser(data->id) && !d.is_self() && ((showPhone && data->contact) || (!showPhone && !data->contact));
 				if (minimal) {
 					showPhoneChanged = false;
-					showPhone = !isServiceUser(data->id) && (data->id != AuthSession::CurrentUserPeerId()) && !data->contact;
+					showPhone = !isServiceUser(data->id) && (data->id != Auth().userPeerId()) && !data->contact;
 				}
 
 				// see also Local::readPeer
@@ -534,14 +521,14 @@ namespace {
 
 		if (status && !minimal) {
 			auto oldOnlineTill = data->onlineTill;
-			auto newOnlineTill = App::api()->onlineTillFromStatus(*status, oldOnlineTill);
+			auto newOnlineTill = Auth().api().onlineTillFromStatus(*status, oldOnlineTill);
 			if (oldOnlineTill != newOnlineTill) {
 				data->onlineTill = newOnlineTill;
 				update.flags |= UpdateFlag::UserOnlineChanged;
 			}
 		}
 
-		if (data->contact < 0 && !data->phone().isEmpty() && data->id != AuthSession::CurrentUserPeerId()) {
+		if (data->contact < 0 && !data->phone().isEmpty() && data->id != Auth().userPeerId()) {
 			data->contact = 0;
 		}
 		if (App::main()) {
@@ -839,7 +826,7 @@ namespace {
 					UserData *user = App::userLoaded(uid);
 					if (user) {
 						chat->participants[user] = pversion;
-						if (inviter == AuthSession::CurrentUserId()) {
+						if (inviter == Auth().userId()) {
 							chat->invitedByMe.insert(user);
 						}
 						if (i->type() == mtpc_chatParticipantAdmin) {
@@ -863,7 +850,9 @@ namespace {
 						} else {
 							if (i.key()->botInfo) {
 								botStatus = 2;// (botStatus > 0/* || !i.key()->botInfo->readsAllHistory*/) ? 2 : 1;
-								if (requestBotInfos && !i.key()->botInfo->inited && App::api()) App::api()->requestFullPeer(i.key());
+								if (requestBotInfos && !i.key()->botInfo->inited) {
+									Auth().api().requestFullPeer(i.key());
+								}
 							}
 							if (!found && i.key()->id == h->lastKeyboardFrom) {
 								found = true;
@@ -897,7 +886,7 @@ namespace {
 		if (chat->version + 1 < d.vversion.v) {
 			chat->version = d.vversion.v;
 			chat->invalidateParticipants();
-			App::api()->requestPeer(chat);
+			Auth().api().requestPeer(chat);
 			if (App::main()) {
 				if (emitPeerUpdated) {
 					App::main()->peerUpdated(chat);
@@ -914,7 +903,7 @@ namespace {
 					chat->botStatus = 0;
 				} else if (chat->participants.find(user) == chat->participants.end()) {
 					chat->participants[user] = (chat->participants.isEmpty() ? 1 : chat->participants.begin().value());
-					if (d.vinviter_id.v == AuthSession::CurrentUserId()) {
+					if (d.vinviter_id.v == Auth().userId()) {
 						chat->invitedByMe.insert(user);
 					} else {
 						chat->invitedByMe.remove(user);
@@ -922,7 +911,9 @@ namespace {
 					chat->count++;
 					if (user->botInfo) {
 						chat->botStatus = 2;// (chat->botStatus > 0/* || !user->botInfo->readsAllHistory*/) ? 2 : 1;
-						if (!user->botInfo->inited && App::api()) App::api()->requestFullPeer(user);
+						if (!user->botInfo->inited) {
+							Auth().api().requestFullPeer(user);
+						}
 					}
 				}
 			} else {
@@ -945,7 +936,7 @@ namespace {
 		if (chat->version + 1 < d.vversion.v) {
 			chat->version = d.vversion.v;
 			chat->invalidateParticipants();
-			App::api()->requestPeer(chat);
+			Auth().api().requestPeer(chat);
 			if (App::main()) {
 				if (emitPeerUpdated) {
 					App::main()->peerUpdated(chat);
@@ -1016,7 +1007,7 @@ namespace {
 			bool badVersion = (chat->version + 1 < d.vversion.v);
 			if (badVersion) {
 				chat->invalidateParticipants();
-				App::api()->requestPeer(chat);
+				Auth().api().requestPeer(chat);
 			}
 			chat->version = d.vversion.v;
 			if (mtpIsTrue(d.venabled)) {
@@ -1041,7 +1032,7 @@ namespace {
 		if (chat->version + 1 < d.vversion.v) {
 			chat->version = d.vversion.v;
 			chat->invalidateParticipants();
-			App::api()->requestPeer(chat);
+			Auth().api().requestPeer(chat);
 			if (App::main()) {
 				if (emitPeerUpdated) {
 					App::main()->peerUpdated(chat);
@@ -1059,7 +1050,7 @@ namespace {
 						chat->flags |= MTPDchat::Flag::f_admin;
 					}
 					if (chat->noParticipantInfo()) {
-						App::api()->requestFullPeer(chat);
+						Auth().api().requestFullPeer(chat);
 					} else {
 						chat->admins.insert(user);
 					}
@@ -1088,7 +1079,7 @@ namespace {
 
 	bool checkEntitiesAndViewsUpdate(const MTPDmessage &m) {
 		auto peerId = peerFromMTP(m.vto_id);
-		if (m.has_from_id() && peerId == AuthSession::CurrentUserPeerId()) {
+		if (m.has_from_id() && peerId == Auth().userPeerId()) {
 			peerId = peerFromUser(m.vfrom_id);
 		}
 		if (auto existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
@@ -1113,7 +1104,7 @@ namespace {
 	template <typename TMTPDclass>
 	void updateEditedMessage(const TMTPDclass &m) {
 		auto peerId = peerFromMTP(m.vto_id);
-		if (m.has_from_id() && peerId == AuthSession::CurrentUserPeerId()) {
+		if (m.has_from_id() && peerId == Auth().userPeerId()) {
 			peerId = peerFromUser(m.vfrom_id);
 		}
 		if (auto existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
@@ -1138,9 +1129,9 @@ namespace {
 			if (saved.size() > Global::SavedGifsLimit()) saved.pop_back();
 			Local::writeSavedGifs();
 
-			AuthSession::Current().data().savedGifsUpdated().notify();
+			Auth().data().savedGifsUpdated().notify();
 			cSetLastSavedGifsUpdate(0);
-			AuthSession::Current().api().updateStickers();
+			Auth().api().updateStickers();
 		}
 	}
 
@@ -1316,7 +1307,7 @@ namespace {
 			break;
 			}
 			if (user->contact < 1) {
-				if (user->contact < 0 && !user->phone().isEmpty() && user->id != AuthSession::CurrentUserPeerId()) {
+				if (user->contact < 0 && !user->phone().isEmpty() && user->id != Auth().userPeerId()) {
 					user->contact = 0;
 				}
 			}
@@ -1808,7 +1799,9 @@ namespace {
 				convert->document = document;
 				convert->duration = duration;
 				convert->author = TextUtilities::Clean(author);
-				if (convert->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(convert);
+				if (convert->pendingTill > 0 && pendingTill <= 0) {
+					Auth().api().clearWebPageRequest(convert);
+				}
 				convert->pendingTill = pendingTill;
 				if (App::main()) App::main()->webPageUpdated(convert);
 			}
@@ -1820,8 +1813,8 @@ namespace {
 				result = convert;
 			} else {
 				result = new WebPageData(webPage, toWebPageType(type), url, displayUrl, siteName, title, description, document, photo, duration, author, (pendingTill >= -1) ? pendingTill : -1);
-				if (pendingTill > 0 && api()) {
-					api()->requestWebPageDelayed(result);
+				if (pendingTill > 0) {
+					Auth().api().requestWebPageDelayed(result);
 				}
 			}
 			webPagesData.insert(webPage, result);
@@ -1839,7 +1832,9 @@ namespace {
 					result->document = document;
 					result->duration = duration;
 					result->author = TextUtilities::Clean(author);
-					if (result->pendingTill > 0 && pendingTill <= 0 && api()) api()->clearWebPageRequest(result);
+					if (result->pendingTill > 0 && pendingTill <= 0) {
+						Auth().api().clearWebPageRequest(result);
+					}
 					result->pendingTill = pendingTill;
 					if (App::main()) App::main()->webPageUpdated(result);
 				}
@@ -2024,7 +2019,7 @@ namespace {
 				dependent->dependencyItemRemoved(item);
 			}
 		}
-		AuthSession::Current().notifications().clearFromItem(item);
+		Auth().notifications().clearFromItem(item);
 		if (Global::started() && !App::quitting()) {
 			Global::RefItemRemoved().notify(item, true);
 		}
@@ -2097,7 +2092,9 @@ namespace {
 		}
 		::documentsData.clear();
 
-		if (api()) api()->clearWebPageRequests();
+		if (AuthSession::Exists()) {
+			Auth().api().clearWebPageRequests();
+		}
 		cSetRecentStickers(RecentStickerPack());
 		Global::SetStickerSets(Stickers::Sets());
 		Global::SetStickerSetsOrder(Stickers::Order());
@@ -2325,7 +2322,7 @@ namespace {
 
 		if (AuthSession::Exists()) {
 			// Clear notifications to prevent any showNotification() calls while destroying items.
-			AuthSession::Current().notifications().clearAllFast();
+			Auth().notifications().clearAllFast();
 		}
 
 		histories().clear();

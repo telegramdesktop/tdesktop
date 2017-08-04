@@ -96,12 +96,12 @@ MediaView::MediaView(QWidget*) : TWidget(nullptr)
 	// While we have one mediaview for all authsessions we have to do this.
 	auto handleAuthSessionChange = [this] {
 		if (AuthSession::Exists()) {
-			subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
+			subscribe(Auth().downloaderTaskFinished(), [this] {
 				if (!isHidden()) {
 					updateControls();
 				}
 			});
-			subscribe(AuthSession::Current().calls().currentCallChanged(), [this](Calls::Call *call) {
+			subscribe(Auth().calls().currentCallChanged(), [this](Calls::Call *call) {
 				if (call && _clipController && !_videoPaused) {
 					onVideoPauseResume();
 				}
@@ -1195,7 +1195,7 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 	}
 
 	_zoomToScreen = 0;
-	AuthSession::Current().downloader().clearPriorities();
+	Auth().downloader().clearPriorities();
 	_full = -1;
 	_current = QPixmap();
 	_down = OverNone;
@@ -1628,7 +1628,7 @@ void MediaView::onVideoPlayProgress(const AudioMsgId &audioId) {
 		if (state.length) {
 			updateVideoPlaybackState(state);
 		}
-		AuthSession::Current().data().setLastTimeVideoPlayedAt(getms(true));
+		Auth().data().setLastTimeVideoPlayedAt(getms(true));
 	}
 }
 

@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "messenger.h"
 #include "storage/file_download.h"
+#include "storage/file_upload.h"
 #include "storage/localstorage.h"
 #include "storage/serialize_common.h"
 #include "window/notifications_manager.h"
@@ -152,12 +153,19 @@ QString AuthSessionData::getSoundPath(const QString &key) const {
 	return qsl(":/sounds/") + key + qsl(".mp3");
 }
 
+AuthSession &Auth() {
+	auto result = Messenger::Instance().authSession();
+	t_assert(result != nullptr);
+	return *result;
+}
+
 AuthSession::AuthSession(UserId userId)
 : _userId(userId)
 , _autoLockTimer([this] { checkAutoLock(); })
 , _api(std::make_unique<ApiWrap>(this))
 , _calls(std::make_unique<Calls::Instance>())
 , _downloader(std::make_unique<Storage::Downloader>())
+, _uploader(std::make_unique<Storage::Uploader>())
 , _notifications(std::make_unique<Window::Notifications::System>(this)) {
 	Expects(_userId != 0);
 	_saveDataTimer.setCallback([this] {
@@ -177,18 +185,12 @@ bool AuthSession::Exists() {
 	return false;
 }
 
-AuthSession &AuthSession::Current() {
-	auto result = Messenger::Instance().authSession();
-	t_assert(result != nullptr);
-	return *result;
+UserData *AuthSession::user() const {
+	return App::user(userId());
 }
 
-UserData *AuthSession::CurrentUser() {
-	return App::user(CurrentUserId());
-}
-
-base::Observable<void> &AuthSession::CurrentDownloaderTaskFinished() {
-	return Current().downloader().taskFinished();
+base::Observable<void> &AuthSession::downloaderTaskFinished() {
+	return downloader().taskFinished();
 }
 
 bool AuthSession::validateSelf(const MTPUser &user) {
@@ -201,7 +203,7 @@ bool AuthSession::validateSelf(const MTPUser &user) {
 }
 
 void AuthSession::saveDataDelayed(TimeMs delay) {
-	Expects(this == &AuthSession::Current());
+	Expects(this == &Auth());
 	_saveDataTimer.callOnce(delay);
 }
 

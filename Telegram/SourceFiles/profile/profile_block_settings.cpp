@@ -115,7 +115,7 @@ void SettingsWidget::refreshButtons() {
 
 void SettingsWidget::refreshEnableNotifications() {
 	if (peer()->notify == UnknownNotifySettings) {
-		App::api()->requestNotifySetting(peer());
+		Auth().api().requestNotifySetting(peer());
 	} else {
 		auto &notifySettings = peer()->notify;
 		bool enabled = (notifySettings == EmptyNotifySettings || notifySettings->mute < unixtime());
@@ -250,7 +250,7 @@ void SettingsWidget::onInviteLink() {
 	auto text = lang(link.isEmpty() ? lng_group_invite_about : lng_group_invite_about_new);
 	Ui::show(Box<ConfirmBox>(text, base::lambda_guarded(this, [this] {
 		Ui::hideLayer();
-		App::api()->exportInviteLink(peer());
+		Auth().api().exportInviteLink(peer());
 	})));
 }
 

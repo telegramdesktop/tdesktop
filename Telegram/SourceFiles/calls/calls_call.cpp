@@ -261,7 +261,7 @@ QString Call::getDebugLog() const {
 
 void Call::startWaitingTrack() {
 	_waitingTrack = Media::Audio::Current().createTrack();
-	auto trackFileName = AuthSession::Current().data().getSoundPath((_type == Type::Outgoing) ? qsl("call_outgoing") : qsl("call_incoming"));
+	auto trackFileName = Auth().data().getSoundPath((_type == Type::Outgoing) ? qsl("call_outgoing") : qsl("call_incoming"));
 	_waitingTrack->samplePeakEach(kSoundSampleMs);
 	_waitingTrack->fillFromFile(trackFileName);
 	_waitingTrack->playInLoop();
@@ -297,8 +297,8 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			|| peerToUser(_user->id) != data.vadmin_id.v) {
 			Unexpected("phoneCallRequested call inside an existing call handleUpdate()");
 		}
-		if (AuthSession::CurrentUserId() != data.vparticipant_id.v) {
-			LOG(("Call Error: Wrong call participant_id %1, expected %2.").arg(data.vparticipant_id.v).arg(AuthSession::CurrentUserId()));
+		if (Auth().userId() != data.vparticipant_id.v) {
+			LOG(("Call Error: Wrong call participant_id %1, expected %2.").arg(data.vparticipant_id.v).arg(Auth().userId()));
 			finish(FinishType::Failed);
 			return true;
 		}
@@ -531,8 +531,8 @@ bool Call::checkCallCommonFields(const T &call) {
 		LOG(("Call Error: Wrong call access_hash."));
 		return checkFailed();
 	}
-	auto adminId = (_type == Type::Outgoing) ? AuthSession::CurrentUserId() : peerToUser(_user->id);
-	auto participantId = (_type == Type::Outgoing) ? peerToUser(_user->id) : AuthSession::CurrentUserId();
+	auto adminId = (_type == Type::Outgoing) ? Auth().userId() : peerToUser(_user->id);
+	auto participantId = (_type == Type::Outgoing) ? peerToUser(_user->id) : Auth().userId();
 	if (call.vadmin_id.v != adminId) {
 		LOG(("Call Error: Wrong call admin_id %1, expected %2.").arg(call.vadmin_id.v).arg(adminId));
 		return checkFailed();

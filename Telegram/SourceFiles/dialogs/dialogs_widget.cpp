@@ -338,7 +338,7 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpReque
 	} break;
 	}
 
-	if (!AuthSession::Current().data().contactsLoaded().value() && !_contactsRequestId) {
+	if (!Auth().data().contactsLoaded().value() && !_contactsRequestId) {
 		_contactsRequestId = MTP::send(MTPcontacts_GetContacts(MTP_int(0)), rpcDone(&DialogsWidget::contactsReceived), rpcFail(&DialogsWidget::contactsFailed));
 	}
 
@@ -395,9 +395,9 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpReque
 	_dialogsRequestId = 0;
 	loadDialogs();
 
-	AuthSession::Current().data().moreChatsLoaded().notify();
+	Auth().data().moreChatsLoaded().notify();
 	if (_dialogsFull) {
-		AuthSession::Current().data().allChatsLoaded().set(true);
+		Auth().data().allChatsLoaded().set(true);
 	}
 }
 
@@ -432,7 +432,7 @@ void DialogsWidget::pinnedDialogsReceived(const MTPmessages_PeerDialogs &dialogs
 	_pinnedDialogsRequestId = 0;
 	_pinnedDialogsReceived = true;
 
-	AuthSession::Current().data().moreChatsLoaded().notify();
+	Auth().data().moreChatsLoaded().notify();
 }
 
 bool DialogsWidget::dialogsFailed(const RPCError &error, mtpRequestId requestId) {
@@ -598,7 +598,7 @@ void DialogsWidget::contactsReceived(const MTPcontacts_Contacts &result) {
 		App::feedUsers(d.vusers);
 		_inner->contactsReceived(d.vcontacts.v);
 	}
-	AuthSession::Current().data().contactsLoaded().set(true);
+	Auth().data().contactsLoaded().set(true);
 }
 
 bool DialogsWidget::contactsFailed(const RPCError &error) {

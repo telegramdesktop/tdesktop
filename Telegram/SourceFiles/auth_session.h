@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Storage {
 class Downloader;
+class Uploader;
 } // namespace Storage
 
 namespace Window {
@@ -156,6 +157,10 @@ private:
 
 };
 
+// One per Messenger.
+class AuthSession;
+AuthSession &Auth();
+
 class AuthSession final : private base::Subscriber {
 public:
 	AuthSession(UserId userId);
@@ -165,25 +170,23 @@ public:
 
 	static bool Exists();
 
-	static AuthSession &Current();
-	static UserId CurrentUserId() {
-		return Current().userId();
-	}
-	static PeerId CurrentUserPeerId() {
-		return peerFromUser(CurrentUserId());
-	}
-	static UserData *CurrentUser();
-
 	UserId userId() const {
 		return _userId;
 	}
+	PeerId userPeerId() const {
+		return peerFromUser(userId());
+	}
+	UserData *user() const;
 	bool validateSelf(const MTPUser &user);
 
 	Storage::Downloader &downloader() {
 		return *_downloader;
 	}
+	Storage::Uploader &uploader() {
+		return *_uploader;
+	}
 
-	static base::Observable<void> &CurrentDownloaderTaskFinished();
+	base::Observable<void> &downloaderTaskFinished();
 
 	Window::Notifications::System &notifications() {
 		return *_notifications;
@@ -218,6 +221,7 @@ private:
 	const std::unique_ptr<ApiWrap> _api;
 	const std::unique_ptr<Calls::Instance> _calls;
 	const std::unique_ptr<Storage::Downloader> _downloader;
+	const std::unique_ptr<Storage::Uploader> _uploader;
 	const std::unique_ptr<Window::Notifications::System> _notifications;
 
 };

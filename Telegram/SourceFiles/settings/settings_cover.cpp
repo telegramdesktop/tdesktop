@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "messenger.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
+#include "auth_session.h"
 #include "profile/profile_userpic_button.h"
 #include "profile/profile_cover_drop_area.h"
 #include "boxes/confirm_box.h"
@@ -62,8 +63,8 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 		notifyPeerUpdated(update);
 	}));
 
-	connect(App::app(), SIGNAL(peerPhotoDone(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
-	connect(App::app(), SIGNAL(peerPhotoFail(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
+	connect(&Messenger::Instance(), SIGNAL(peerPhotoDone(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
+	connect(&Messenger::Instance(), SIGNAL(peerPhotoFail(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
 
 	connect(_userpicButton, SIGNAL(clicked()), this, SLOT(onPhotoShow()));
 	validatePhoto();
@@ -78,7 +79,7 @@ PhotoData *CoverWidget::validatePhoto() const {
 	auto photo = (_self->photoId && _self->photoId != UnknownPeerPhotoId) ? App::photo(_self->photoId) : nullptr;
 	_userpicButton->setPointerCursor(photo != nullptr && photo->date != 0);
 	if ((_self->photoId == UnknownPeerPhotoId) || (_self->photoId && (!photo || !photo->date))) {
-		App::api()->requestFullPeer(_self);
+		Auth().api().requestFullPeer(_self);
 		return nullptr;
 	}
 	return photo;

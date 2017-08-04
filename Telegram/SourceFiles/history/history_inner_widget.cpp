@@ -115,7 +115,7 @@ HistoryInner::HistoryInner(HistoryWidget *historyWidget, gsl::not_null<Window::C
 	subscribe(_controller->window()->dragFinished(), [this] {
 		mouseActionUpdate(QCursor::pos());
 	});
-	subscribe(AuthSession::Current().data().historyCleared(), [this](gsl::not_null<History*> history) {
+	subscribe(Auth().data().historyCleared(), [this](gsl::not_null<History*> history) {
 		if (_history == history) {
 			mouseActionCancel();
 		}
@@ -2310,7 +2310,7 @@ void HistoryInner::notifyIsBotChanged() {
 	if (newinfo) {
 		_botAbout.reset(new BotAbout(this, newinfo));
 		if (newinfo && !newinfo->inited) {
-			AuthSession::Current().api().requestFullPeer(_peer);
+			Auth().api().requestFullPeer(_peer);
 		}
 	} else {
 		_botAbout = nullptr;

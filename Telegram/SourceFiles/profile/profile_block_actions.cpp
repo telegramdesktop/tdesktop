@@ -101,7 +101,7 @@ void ActionsWidget::validateBlockStatus() const {
 		return false;
 	};
 	if (needFullPeer()) {
-		if (App::api()) App::api()->requestFullPeer(peer());
+		Auth().api().requestFullPeer(peer());
 	}
 }
 
@@ -171,7 +171,7 @@ void ActionsWidget::refreshVisibility() {
 
 QString ActionsWidget::getBlockButtonText() const {
 	auto user = peer()->asUser();
-	if (!user || (user->id == AuthSession::CurrentUserPeerId())) return QString();
+	if (!user || (user->id == Auth().userPeerId())) return QString();
 	if (user->blockStatus() == UserData::BlockStatus::Unknown) return QString();
 
 	if (user->isBlocked()) {
@@ -323,9 +323,9 @@ void ActionsWidget::onDeleteConversation() {
 void ActionsWidget::onBlockUser() {
 	if (auto user = peer()->asUser()) {
 		if (user->isBlocked()) {
-			App::api()->unblockUser(user);
+			Auth().api().unblockUser(user);
 		} else {
-			App::api()->blockUser(user);
+			Auth().api().blockUser(user);
 		}
 	}
 }
@@ -363,7 +363,7 @@ void ActionsWidget::onLeaveChannel() {
 
 	auto text = lang(channel->isMegagroup() ? lng_sure_leave_group : lng_sure_leave_channel);
 	Ui::show(Box<ConfirmBox>(text, lang(lng_box_leave), base::lambda_guarded(this, [this] {
-		App::api()->leaveChannel(peer()->asChannel());
+		Auth().api().leaveChannel(peer()->asChannel());
 	})));
 }
 

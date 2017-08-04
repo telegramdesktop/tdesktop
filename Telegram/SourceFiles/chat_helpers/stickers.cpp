@@ -74,9 +74,9 @@ void ApplyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	}
 	if (!setsToRequest.isEmpty()) {
 		for (auto i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
-			App::api()->scheduleStickerSetRequest(i.key(), i.value());
+			Auth().api().scheduleStickerSetRequest(i.key(), i.value());
 		}
-		App::api()->requestStickerSets();
+		Auth().api().requestStickerSets();
 	}
 	Local::writeInstalledStickers();
 	Local::writeArchivedStickers();
@@ -342,7 +342,7 @@ void SetsReceived(const QVector<MTPStickerSet> &data, int32 hash) {
 	}
 
 	if (!setsToRequest.isEmpty()) {
-		auto &api = AuthSession::Current().api();
+		auto &api = Auth().api();
 		for (auto i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
 			api.scheduleStickerSetRequest(i.key(), i.value());
 		}
@@ -551,7 +551,7 @@ void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVect
 	}
 
 	if (!setsToRequest.isEmpty()) {
-		auto &api = AuthSession::Current().api();
+		auto &api = Auth().api();
 		for (auto i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
 			api.scheduleStickerSetRequest(i.key(), i.value());
 		}
@@ -583,7 +583,7 @@ void GifsReceived(const QVector<MTPDocument> &items, int32 hash) {
 
 	Local::writeSavedGifs();
 
-	AuthSession::Current().data().savedGifsUpdated().notify();
+	Auth().data().savedGifsUpdated().notify();
 }
 
 StickerPack GetListByEmoji(gsl::not_null<EmojiPtr> emoji) {
@@ -623,9 +623,9 @@ StickerPack GetListByEmoji(gsl::not_null<EmojiPtr> emoji) {
 	}
 	if (!setsToRequest.isEmpty()) {
 		for (auto i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
-			AuthSession::Current().api().scheduleStickerSetRequest(i.key(), i.value());
+			Auth().api().scheduleStickerSetRequest(i.key(), i.value());
 		}
-		AuthSession::Current().api().requestStickerSets();
+		Auth().api().requestStickerSets();
 	}
 	return result;
 }
