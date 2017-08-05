@@ -50,7 +50,7 @@ void MuteSettingsBox::prepare() {
 		option->moveToLeft(st::boxPadding.left(), y);
 		y += option->heightNoMargins() + st::boxOptionListSkip;
 	}
-	y += st::boxOptionListPadding.bottom() - st::boxOptionListSkip;
+	y += st::boxOptionListPadding.bottom() - st::boxOptionListSkip + st::defaultCheckbox.margin.bottom();
 
 	addButton(langFactory(lng_box_ok), [this, group] {
 		App::main()->updateNotifySetting(_peer, NotifySettingSetMuted,

@@ -93,7 +93,7 @@ bool ConnectionBox::badProxyValue() const {
 }
 
 void ConnectionBox::updateControlsVisibility() {
-	auto newHeight = st::boxOptionListPadding.top() + _autoRadio->heightNoMargins() + st::boxOptionListSkip + _httpProxyRadio->heightNoMargins() + st::boxOptionListSkip + _tcpProxyRadio->heightNoMargins() + st::boxOptionListSkip + st::connectionIPv6Skip + _tryIPv6->heightNoMargins() + st::boxOptionListPadding.bottom() + st::boxPadding.bottom();
+	auto newHeight = st::boxOptionListPadding.top() + _autoRadio->heightNoMargins() + st::boxOptionListSkip + _httpProxyRadio->heightNoMargins() + st::boxOptionListSkip + _tcpProxyRadio->heightNoMargins() + st::boxOptionListSkip + st::connectionIPv6Skip + _tryIPv6->heightNoMargins() + st::defaultCheckbox.margin.bottom() + st::boxOptionListPadding.bottom() + st::boxPadding.bottom();
 	if (_typeGroup->value() == dbictAuto && badProxyValue()) {
 		_hostInput->hide();
 		_portInput->hide();
