@@ -240,7 +240,17 @@ void SetIsFaved(gsl::not_null<DocumentData*> document, const std::vector<gsl::no
 	} else {
 		auto list = GetEmojiListFromSet(document);
 		if (list.empty()) {
-			MTP::send(MTPmessages_GetStickerSet(document->sticker()->set), rpcDone([document](const MTPmessages_StickerSet &result) {
+			auto addAnyway = [document](std::vector<gsl::not_null<EmojiPtr>> list) {
+				if (list.empty()) {
+					if (auto sticker = document->sticker()) {
+						if (auto emoji = Ui::Emoji::Find(sticker->alt)) {
+							list.push_back(emoji);
+						}
+					}
+				}
+				SetIsFaved(document, &list);
+			};
+			MTP::send(MTPmessages_GetStickerSet(document->sticker()->set), rpcDone([document, addAnyway](const MTPmessages_StickerSet &result) {
 				Expects(result.type() == mtpc_messages_stickerSet);
 				auto list = std::vector<gsl::not_null<EmojiPtr>>();
 				auto &d = result.c_messages_stickerSet();
@@ -256,14 +266,14 @@ void SetIsFaved(gsl::not_null<DocumentData*> document, const std::vector<gsl::no
 						}
 					}
 				}
-				if (list.empty()) {
-					if (auto sticker = document->sticker()) {
-						if (auto emoji = Ui::Emoji::Find(sticker->alt)) {
-							list.push_back(emoji);
-						}
-					}
+				addAnyway(std::move(list));
+			}), rpcFail([addAnyway](const RPCError &error) {
+				if (MTP::isDefaultHandledError(error)) {
+					return false;
 				}
-				SetIsFaved(document, &list);
+				// Perhaps this is a deleted sticker pack. Add anyway.
+				addAnyway(std::vector<gsl::not_null<EmojiPtr>>());
+				return true;
 			}));
 			return;
 		}
