@@ -88,7 +88,7 @@ void ApplyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	Ui::Toast::Show(toast);
 //	Ui::show(Box<StickersBox>(archived), KeepOtherLayers);
 
-	emit App::main()->stickersUpdated();
+	Auth().data().stickersUpdated().notify(true);
 }
 
 // For testing: Just apply random subset or your sticker sets as archived.
@@ -148,7 +148,7 @@ void InstallLocally(uint64 setId) {
 			Local::writeArchivedStickers();
 		}
 	}
-	emit App::main()->stickersUpdated();
+	Auth().data().stickersUpdated().notify(true);
 }
 
 void UndoInstallLocally(uint64 setId) {
@@ -167,7 +167,7 @@ void UndoInstallLocally(uint64 setId) {
 	}
 
 	Local::writeInstalledStickers();
-	emit App::main()->stickersUpdated();
+	Auth().data().stickersUpdated().notify(true);
 
 	Ui::show(Box<InformBox>(lang(lng_stickers_not_found)), KeepOtherLayers);
 }
@@ -254,7 +254,7 @@ void SetIsFaved(gsl::not_null<DocumentData*> document, const std::vector<gsl::no
 		}
 	}
 	Local::writeFavedStickers();
-	emit App::main()->stickersUpdated();
+	Auth().data().stickersUpdated().notify(true);
 	App::main()->onStickersInstalled(FavedSetId);
 }
 
@@ -284,7 +284,7 @@ void SetIsNotFaved(gsl::not_null<DocumentData*> document) {
 		sets.erase(it);
 	}
 	Local::writeFavedStickers();
-	emit App::main()->stickersUpdated();
+	Auth().data().stickersUpdated().notify(true);
 }
 
 void SetFaved(gsl::not_null<DocumentData*> document, bool faved) {
@@ -356,7 +356,7 @@ void SetsReceived(const QVector<MTPStickerSet> &data, int32 hash) {
 		LOG(("API Error: received stickers hash %1 while counted hash is %2").arg(hash).arg(Local::countStickersHash()));
 	}
 
-	if (App::main()) emit App::main()->stickersUpdated();
+	Auth().data().stickersUpdated().notify(true);
 }
 
 void SetPackAndEmoji(Set &set, StickerPack &&pack, const QVector<MTPStickerPack> &packs) {
@@ -457,7 +457,7 @@ void SpecialSetReceived(uint64 setId, const QString &setTitle, const QVector<MTP
 	default: Unexpected("setId in SpecialSetReceived()");
 	}
 
-	if (App::main()) emit App::main()->stickersUpdated();
+	Auth().data().stickersUpdated().notify(true);
 }
 
 void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVector<MTPlong> &unread, int32 hash) {
@@ -560,7 +560,7 @@ void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVect
 
 	Local::writeFeaturedStickers();
 
-	if (App::main()) emit App::main()->stickersUpdated();
+	Auth().data().stickersUpdated().notify(true);
 }
 
 void GifsReceived(const QVector<MTPDocument> &items, int32 hash) {
@@ -772,7 +772,7 @@ Set *FeedSetFull(const MTPmessages_StickerSet &data) {
 		}
 	}
 
-	if (App::main()) emit App::main()->stickersUpdated();
+	Auth().data().stickersUpdated().notify(true);
 
 	return set;
 }
@@ -811,8 +811,8 @@ void FeaturedReader::readSets() {
 	if (!wrappedIds.empty()) {
 		request(MTPmessages_ReadFeaturedStickers(MTP_vector<MTPlong>(wrappedIds))).done([](const MTPBool &result) {
 			Local::writeFeaturedStickers();
-			if (auto main = App::main()) {
-				emit main->stickersUpdated();
+			if (AuthSession::Exists()) {
+				Auth().data().stickersUpdated().notify(true);
 			}
 		}).send();
 

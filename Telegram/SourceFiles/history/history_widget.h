@@ -425,7 +425,6 @@ public slots:
 	void onCmdStart();
 
 	void activate();
-	void onStickersUpdated();
 	void onTextChange();
 
 	void onFieldTabbed();

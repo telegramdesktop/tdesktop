@@ -920,6 +920,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_stickers_count#one" = "{count} sticker";
 "lng_stickers_count#other" = "{count} stickers";
 "lng_stickers_masks_pack" = "This is a pack of mask stickers. You can use them in the photo editor on our mobile apps.";
+"lng_stickers_group_set" = "Group sticker set";
+"lng_stickers_remove_group_set" = "Remove group sticker set?";
 
 "lng_in_dlg_photo" = "Photo";
 "lng_in_dlg_video" = "Video";

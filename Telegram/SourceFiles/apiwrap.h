@@ -70,6 +70,7 @@ public:
 	void requestStickerSets();
 	void saveStickerSets(const Stickers::Order &localOrder, const Stickers::Order &localRemoved);
 	void updateStickers();
+	void setGroupStickerSet(gsl::not_null<ChannelData*> megagroup, const MTPInputStickerSet &set);
 
 	void joinChannel(ChannelData *channel);
 	void leaveChannel(ChannelData *channel);

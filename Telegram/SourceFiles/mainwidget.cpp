@@ -5285,7 +5285,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					}
 					Local::writeInstalledStickers();
 					if (writeArchived) Local::writeArchivedStickers();
-					emit stickersUpdated();
+					Auth().data().stickersUpdated().notify(true);
 				}
 			}
 		}
@@ -5309,7 +5309,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			} else {
 				Global::SetStickerSetsOrder(result);
 				Local::writeInstalledStickers();
-				emit stickersUpdated();
+				Auth().data().stickersUpdated().notify(true);
 			}
 		}
 	} break;

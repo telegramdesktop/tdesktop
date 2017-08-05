@@ -921,17 +921,15 @@ int HistoryWidget::itemTopForHighlight(gsl::not_null<HistoryItem*> item) const {
 }
 
 void HistoryWidget::start() {
-	connect(App::main(), SIGNAL(stickersUpdated()), this, SLOT(onStickersUpdated()));
+	subscribe(Auth().data().stickersUpdated(), [this] {
+		_tabbedSelector->refreshStickers();
+		updateStickersByEmoji();
+	});
 	updateRecentStickers();
 	Auth().data().savedGifsUpdated().notify();
 	subscribe(Auth().api().fullPeerUpdated(), [this](PeerData *peer) {
 		fullPeerUpdated(peer);
 	});
-}
-
-void HistoryWidget::onStickersUpdated() {
-	_tabbedSelector->refreshStickers();
-	updateStickersByEmoji();
 }
 
 void HistoryWidget::onMentionInsert(UserData *user) {

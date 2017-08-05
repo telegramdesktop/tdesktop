@@ -36,8 +36,6 @@ class SlideAnimation;
 } // namespace Ui
 
 class StickersBox : public BoxContent, public RPCSender {
-	Q_OBJECT
-
 public:
 	enum class Section {
 		Installed,
@@ -47,6 +45,7 @@ public:
 	};
 	StickersBox(QWidget*, Section section);
 	StickersBox(QWidget*, const Stickers::Order &archivedIds);
+	StickersBox(QWidget*, gsl::not_null<ChannelData*> megagroup);
 
 	void closeHook() override;
 
@@ -57,9 +56,6 @@ protected:
 
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
-
-private slots:
-	void onStickersUpdated();
 
 private:
 	class Inner;
@@ -93,6 +89,7 @@ private:
 
 	};
 
+	void handleStickersUpdated();
 	void refreshTabs();
 	void rebuildList(Tab *tab = nullptr);
 	void updateTabsGeometry();
@@ -123,6 +120,8 @@ private:
 	Tab _archived;
 	Tab *_tab = nullptr;
 
+	ChannelData *_megagroupSet = nullptr;
+
 	std::unique_ptr<Ui::SlideAnimation> _slideAnimation;
 	object_ptr<BoxLayerTitleShadow> _titleShadow = { nullptr };
 
@@ -150,6 +149,7 @@ public:
 	using Section = StickersBox::Section;
 	Inner(QWidget *parent, Section section);
 	Inner(QWidget *parent, const Stickers::Order &archivedIds);
+	Inner(QWidget *parent, gsl::not_null<ChannelData*> megagroup);
 
 	void rebuild();
 	void updateSize();
@@ -289,5 +289,6 @@ private:
 	int _above = -1;
 
 	int _scrollbar = 0;
+	ChannelData *_megagroupSet = nullptr;
 
 };

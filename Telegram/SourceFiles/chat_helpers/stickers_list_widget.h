@@ -134,7 +134,6 @@ private:
 		Set(uint64 id, MTPDstickerSet::Flags flags, const QString &title, int32 hoversSize, const StickerPack &pack = StickerPack()) : id(id), flags(flags), title(title), pack(pack) {
 		}
 		uint64 id;
-		bool megagroupSet = false;
 		MTPDstickerSet::Flags flags;
 		QString title;
 		StickerPack pack;
@@ -147,9 +146,10 @@ private:
 	SectionInfo sectionInfo(int section) const;
 	SectionInfo sectionInfoByOffset(int yOffset) const;
 
-	void displaySet(quint64 setId);
-	void installSet(quint64 setId);
-	void removeSet(quint64 setId);
+	void displaySet(uint64 setId);
+	void installSet(uint64 setId);
+	void removeMegagroupSet(bool empty);
+	void removeSet(uint64 setId);
 
 	bool setHasTitle(const Set &set) const;
 	bool stickerHasDeleteButton(const Set &set, int index) const;

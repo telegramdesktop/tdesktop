@@ -44,7 +44,6 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private slots:
-	void onStickersUpdated();
 	void onAddStickers();
 	void onShareStickers();
 	void onUpdateButtons();

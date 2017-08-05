@@ -411,7 +411,6 @@ signals:
 	void peerPhotoChanged(PeerData *peer);
 	void dialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow);
 	void dialogsUpdated();
-	void stickersUpdated();
 
 public slots:
 	void webPagesOrGamesUpdate();

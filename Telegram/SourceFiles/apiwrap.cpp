@@ -927,7 +927,7 @@ void ApiWrap::saveStickerSets(const Stickers::Order &localOrder, const Stickers:
 	if (writeArchived) Local::writeArchivedStickers();
 	if (writeCloudRecent) Local::writeRecentStickers();
 	if (writeFaved) Local::writeFavedStickers();
-	emit App::main()->stickersUpdated();
+	Auth().data().stickersUpdated().notify(true);
 
 	if (_stickerSetDisenableRequests.isEmpty()) {
 		stickersSaveOrder();
@@ -1464,6 +1464,13 @@ void ApiWrap::updateStickers() {
 	requestFavedStickers(now);
 	requestFeaturedStickers(now);
 	requestSavedGifs(now);
+}
+
+void ApiWrap::setGroupStickerSet(gsl::not_null<ChannelData*> megagroup, const MTPInputStickerSet &set) {
+	Expects(megagroup->mgInfo != nullptr);
+	megagroup->mgInfo->stickerSet = set;
+	request(MTPchannels_SetStickers(megagroup->inputChannel, set)).send();
+	Auth().data().stickersUpdated().notify(true);
 }
 
 void ApiWrap::requestStickers(TimeId now) {

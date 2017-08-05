@@ -49,7 +49,7 @@ void StickerSetBox::prepare() {
 	setTitle(langFactory(lng_contacts_loading));
 
 	_inner = setInnerWidget(object_ptr<Inner>(this, _set), st::stickersScroll);
-	connect(App::main(), SIGNAL(stickersUpdated()), this, SLOT(onStickersUpdated()));
+	subscribe(Auth().data().stickersUpdated(), [this] { updateButtons(); });
 
 	setDimensions(st::boxWideWidth, st::stickersMaxHeight);
 
@@ -57,17 +57,11 @@ void StickerSetBox::prepare() {
 
 	connect(_inner, SIGNAL(updateButtons()), this, SLOT(onUpdateButtons()));
 	connect(_inner, SIGNAL(installed(uint64)), this, SLOT(onInstalled(uint64)));
-
-	onStickersUpdated();
 }
 
 void StickerSetBox::onInstalled(uint64 setId) {
 	emit installed(setId);
 	closeBox();
-}
-
-void StickerSetBox::onStickersUpdated() {
-	updateButtons();
 }
 
 void StickerSetBox::onAddStickers() {
@@ -254,7 +248,7 @@ void StickerSetBox::Inner::installDone(const MTPmessages_StickerSetInstallResult
 			Local::writeArchivedStickers();
 		}
 		Local::writeInstalledStickers();
-		emit App::main()->stickersUpdated();
+		Auth().data().stickersUpdated().notify(true);
 	}
 	emit installed(_setId);
 }

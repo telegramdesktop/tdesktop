@@ -55,6 +55,9 @@ public:
 	base::Observable<void> &moreChatsLoaded() {
 		return _moreChatsLoaded;
 	}
+	base::Observable<void> &stickersUpdated() {
+		return _stickersUpdated;
+	}
 	base::Observable<void> &savedGifsUpdated() {
 		return _savedGifsUpdated;
 	}
@@ -147,6 +150,7 @@ private:
 	base::Variable<bool> _contactsLoaded = { false };
 	base::Variable<bool> _allChatsLoaded = { false };
 	base::Observable<void> _moreChatsLoaded;
+	base::Observable<void> _stickersUpdated;
 	base::Observable<void> _savedGifsUpdated;
 	base::Observable<gsl::not_null<History*>> _historyCleared;
 	base::Observable<gsl::not_null<const HistoryItem*>> _repaintLogEntry;
