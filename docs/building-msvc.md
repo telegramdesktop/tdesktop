@@ -35,7 +35,7 @@
 
 Choose a folder for the future build, for example **D:\\TBuild\\**. There you will have two folders, **Libraries** for third-party libs and **tdesktop** for the app.
 
-All commands (if not stated otherwise) will be launched from **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder).
+All commands (if not stated otherwise) will be launched from **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder). Pay attention not to use another VS2015 Command Prompt.
 
 #### A note on D:\\TBuild
 
@@ -149,6 +149,7 @@ Go to **D:\\TBuild\\Libraries** and run
 Go to **D:\\TBuild\\Libraries** and run
 
     git clone https://github.com/telegramdesktop/opus.git
+    cd opus
     git checkout ffmpeg_fix
 
 #### Building libraries
