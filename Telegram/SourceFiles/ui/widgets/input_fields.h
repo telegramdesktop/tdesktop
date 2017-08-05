@@ -878,6 +878,8 @@ class UsernameInput : public MaskedInputField {
 public:
 	UsernameInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val, bool isLink);
 
+	void setLinkPlaceholder(const QString &placeholder);
+
 protected:
 	void correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) override;
 	void paintAdditionalPlaceholder(Painter &p, TimeMs ms) override;

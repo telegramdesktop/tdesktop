@@ -25,7 +25,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "styles/style_boxes.h"
-#include "styles/style_profile.h"
 #include "ui/special_buttons.h"
 #include "boxes/calendar_box.h"
 
@@ -73,30 +72,6 @@ void ApplyDependencies(CheckboxesMap &checkboxes, DependenciesMap &dependencies,
 }
 
 } // namespace
-
-class EditParticipantBox::Divider : public TWidget {
-public:
-	Divider(QWidget *parent) : TWidget(parent) {
-	}
-
-protected:
-	int resizeGetHeight(int newWidth) override;
-	void paintEvent(QPaintEvent *e) override;
-
-};
-
-int EditParticipantBox::Divider::resizeGetHeight(int newWidth) {
-	return st::rightsDividerHeight;
-}
-
-void EditParticipantBox::Divider::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	p.fillRect(e->rect(), st::contactsAboutBg);
-	auto dividerFillTop = myrtlrect(0, 0, width(), st::profileDividerTop.height());
-	st::profileDividerTop.fill(p, dividerFillTop);
-	auto dividerFillBottom = myrtlrect(0, height() - st::profileDividerBottom.height(), width(), st::profileDividerBottom.height());
-	st::profileDividerBottom.fill(p, dividerFillBottom);
-}
 
 class EditParticipantBox::Inner : public TWidget {
 public:
@@ -236,7 +211,7 @@ void EditAdminBox::prepare() {
 	auto hadRights = _oldRights.c_channelAdminRights().vflags.v;
 	setTitle(langFactory(hadRights ? lng_rights_edit_admin : lng_channel_add_admin));
 
-	addControl(object_ptr<Divider>(this), QMargins());
+	addControl(object_ptr<BoxContentDivider>(this), QMargins());
 	addControl(object_ptr<Ui::FlatLabel>(this, lang(lng_rights_edit_admin_header), Ui::FlatLabel::InitType::Simple, st::rightsHeaderLabel), st::rightsHeaderMargin);
 
 	auto prepareRights = (hadRights ? _oldRights : DefaultRights(channel()));
@@ -355,7 +330,7 @@ void EditRestrictedBox::prepare() {
 
 	setTitle(langFactory(lng_rights_user_restrictions));
 
-	addControl(object_ptr<Divider>(this), QMargins());
+	addControl(object_ptr<BoxContentDivider>(this), QMargins());
 	addControl(object_ptr<Ui::FlatLabel>(this, lang(lng_rights_user_restrictions_header), Ui::FlatLabel::InitType::Simple, st::rightsHeaderLabel), st::rightsHeaderMargin);
 
 	auto prepareRights = (_oldRights.c_channelBannedRights().vflags.v ? _oldRights : DefaultRights(channel()));
@@ -378,7 +353,7 @@ void EditRestrictedBox::prepare() {
 	addCheckbox(Flag::f_send_stickers | Flag::f_send_gifs | Flag::f_send_games | Flag::f_send_inline, lang(lng_rights_chat_send_stickers));
 	addCheckbox(Flag::f_embed_links, lang(lng_rights_chat_send_links));
 
-	addControl(object_ptr<Divider>(this), st::rightsUntilMargin);
+	addControl(object_ptr<BoxContentDivider>(this), st::rightsUntilMargin);
 	addControl(object_ptr<Ui::FlatLabel>(this, lang(lng_rights_chat_banned_until_header), Ui::FlatLabel::InitType::Simple, st::rightsHeaderLabel), st::rightsHeaderMargin);
 	setRestrictUntil(_until);
 

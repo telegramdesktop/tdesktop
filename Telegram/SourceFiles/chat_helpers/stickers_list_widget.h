@@ -62,6 +62,8 @@ public:
 	void notInstalledLocally(uint64 setId);
 	void clearInstalledLocally();
 
+	~StickersListWidget();
+
 protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
@@ -148,7 +150,7 @@ private:
 
 	void displaySet(uint64 setId);
 	void installSet(uint64 setId);
-	void removeMegagroupSet(bool empty);
+	void removeMegagroupSet(bool locally);
 	void removeSet(uint64 setId);
 
 	bool setHasTitle(const Set &set) const;

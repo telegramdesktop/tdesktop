@@ -436,10 +436,10 @@ void StickersListWidget::Footer::step_icons(TimeMs ms, bool timer) {
 
 StickersListWidget::StickersListWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : Inner(parent, controller)
 , _section(Section::Stickers)
+, _megagroupSetAbout(st::emojiPanWidth - st::emojiScroll.width - st::emojiPanHeaderLeft)
 , _addText(lang(lng_stickers_featured_add).toUpper())
 , _addWidth(st::stickersTrendingAdd.font->width(_addText))
-, _settings(this, lang(lng_stickers_you_have))
-, _megagroupSetAbout(st::emojiPanWidth - st::emojiScroll.width - st::emojiPanHeaderLeft) {
+, _settings(this, lang(lng_stickers_you_have)) {
 	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, countHeight());
 
 	setMouseTracking(true);
@@ -877,7 +877,10 @@ bool StickersListWidget::hasRemoveButton(int index) const {
 	}
 	if (set.id == Stickers::MegagroupSetId) {
 		t_assert(_megagroupSet != nullptr);
-		return set.pack.empty() ? (index + 1 != _mySets.size()) : _megagroupSet->canEditStickers();
+		if (index + 1 != _mySets.size()) {
+			return true;
+		}
+		return !set.pack.empty() && _megagroupSet->canEditStickers();
 	}
 	return false;
 }
@@ -1015,7 +1018,9 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			if (_section == Section::Featured) {
 				installSet(sets[button->section].id);
 			} else if (sets[button->section].id == Stickers::MegagroupSetId) {
-				removeMegagroupSet(sets[button->section].pack.empty());
+				auto removeLocally = sets[button->section].pack.empty()
+					|| !_megagroupSet->canEditStickers();
+				removeMegagroupSet(removeLocally);
 			} else {
 				removeSet(sets[button->section].id);
 			}
@@ -1293,36 +1298,53 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 	if (!_megagroupSet) {
 		return;
 	}
+	auto canEdit = _megagroupSet->canEditStickers();
+	auto isShownHere = [place](bool hidden) {
+		return (hidden == (place == GroupStickersPlace::Hidden));
+	};
 	if (_megagroupSet->mgInfo->stickerSet.type() == mtpc_inputStickerSetEmpty) {
-		if (_megagroupSet->canEditStickers()) {
+		if (canEdit) {
 			auto hidden = Auth().data().isGroupStickersSectionHidden(_megagroupSet->id);
-			if (hidden == (place == GroupStickersPlace::Hidden)) {
+			if (isShownHere(hidden)) {
 				_mySets.push_back(Set(Stickers::MegagroupSetId, qFlags(MTPDstickerSet_ClientFlag::f_special), lang(lng_group_stickers), 0));
 			}
 		}
 		return;
 	}
-	if (place != GroupStickersPlace::Visible) {
-		return;
-	}
-	if (Auth().data().isGroupStickersSectionHidden(_megagroupSet->id)) {
-		Auth().data().removeGroupStickersSectionHidden(_megagroupSet->id);
-		Local::writeUserSettings();
+	auto hidden = Auth().data().isGroupStickersSectionHidden(_megagroupSet->id);
+	auto removeHiddenForGroup = [this, &hidden] {
+		if (hidden) {
+			Auth().data().removeGroupStickersSectionHidden(_megagroupSet->id);
+			Local::writeUserSettings();
+			hidden = false;
+		}
+	};
+	if (canEdit && hidden) {
+		removeHiddenForGroup();
 	}
 	if (_megagroupSet->mgInfo->stickerSet.type() == mtpc_inputStickerSetID) {
 		auto &set = _megagroupSet->mgInfo->stickerSet.c_inputStickerSetID();
 		auto &sets = Global::StickerSets();
 		auto it = sets.constFind(set.vid.v);
 		if (it != sets.cend()) {
-			_mySets.push_back(Set(Stickers::MegagroupSetId, qFlags(MTPDstickerSet_ClientFlag::f_special), lang(lng_group_stickers), it->stickers.size() + 1, it->stickers));
+			auto isInstalled = (it->flags & MTPDstickerSet::Flag::f_installed)
+				&& !(it->flags & MTPDstickerSet::Flag::f_archived);
+			if (isInstalled && !canEdit) {
+				removeHiddenForGroup();
+			} else if (isShownHere(hidden)) {
+				_mySets.push_back(Set(Stickers::MegagroupSetId, qFlags(MTPDstickerSet_ClientFlag::f_special), lang(lng_group_stickers), it->stickers.size() + 1, it->stickers));
+			}
 			return;
 		}
+	}
+	if (!isShownHere(hidden)) {
+		return;
 	}
 	request(MTPmessages_GetStickerSet(_megagroupSet->mgInfo->stickerSet)).done([this](const MTPmessages_StickerSet &result) {
 		if (auto set = Stickers::FeedSetFull(result)) {
 			refreshStickers();
 		}
-	});
+	}).send();
 }
 
 void StickersListWidget::fillIcons(QList<StickerIcon> &icons) {
@@ -1416,6 +1438,9 @@ void StickersListWidget::updateSelected() {
 			if (hasRemoveButton(section) && myrtlrect(removeButtonRect(section)).contains(p.x(), p.y())) {
 				newSelected = OverButton { section };
 			} else if (!(sets[section].flags & MTPDstickerSet_ClientFlag::f_special)) {
+				newSelected = OverSet { section };
+			} else if (sets[section].id == Stickers::MegagroupSetId
+					&& (_megagroupSet->canEditStickers() || !sets[section].pack.empty())) {
 				newSelected = OverSet { section };
 			}
 		} else if (p.y() >= info.rowsTop && p.y() < info.rowsBottom && sx >= 0) {
@@ -1578,6 +1603,21 @@ void StickersListWidget::showMegagroupSet(ChannelData *megagroup) {
 }
 
 void StickersListWidget::displaySet(uint64 setId) {
+	if (setId == Stickers::MegagroupSetId) {
+		if (_megagroupSet->canEditStickers()) {
+			_displayingSetId = setId;
+			auto box = Ui::show(Box<StickersBox>(_megagroupSet));
+			connect(box, &QObject::destroyed, this, [this] {
+				_displayingSetId = 0;
+				emit checkForHide();
+			});
+			return;
+		} else if (_megagroupSet->mgInfo->stickerSet.type() == mtpc_inputStickerSetID) {
+			setId = _megagroupSet->mgInfo->stickerSet.c_inputStickerSetID().vid.v;
+		} else {
+			return;
+		}
+	}
 	auto &sets = Global::StickerSets();
 	auto it = sets.constFind(setId);
 	if (it != sets.cend()) {
@@ -1608,8 +1648,8 @@ void StickersListWidget::installSet(uint64 setId) {
 	}
 }
 
-void StickersListWidget::removeMegagroupSet(bool empty) {
-	if (empty) {
+void StickersListWidget::removeMegagroupSet(bool locally) {
+	if (locally) {
 		Auth().data().setGroupStickersSectionHidden(_megagroupSet->id);
 		Local::writeUserSettings();
 		refreshStickers();
@@ -1674,5 +1714,7 @@ void StickersListWidget::removeSet(uint64 setId) {
 		})));
 	}
 }
+
+StickersListWidget::~StickersListWidget() = default;
 
 } // namespace ChatHelpers

@@ -57,8 +57,6 @@ protected:
 		return _hasAdminRights;
 	}
 
-	class Divider;
-
 private:
 	gsl::not_null<ChannelData*> _channel;
 	gsl::not_null<UserData*> _user;

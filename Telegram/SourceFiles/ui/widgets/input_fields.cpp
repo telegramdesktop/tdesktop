@@ -3435,7 +3435,7 @@ void MaskedInputField::paintEvent(QPaintEvent *e) {
 
 		auto placeholderTop = anim::interpolate(0, _st.placeholderShift, placeholderShiftDegree);
 
-		QRect r(rect().marginsRemoved(_st.textMargins + _st.placeholderMargins));
+		QRect r(rect().marginsRemoved(_textMargins + _st.placeholderMargins));
 		r.moveTop(r.top() + placeholderTop);
 		if (rtl()) r.moveLeft(width() - r.left() - r.width());
 
@@ -3460,7 +3460,7 @@ void MaskedInputField::paintEvent(QPaintEvent *e) {
 
 			auto placeholderLeft = anim::interpolate(0, -_st.placeholderShift, placeholderHiddenDegree);
 
-			QRect r(rect().marginsRemoved(_st.textMargins + _st.placeholderMargins));
+			QRect r(rect().marginsRemoved(_textMargins + _st.placeholderMargins));
 			r.moveLeft(r.left() + placeholderLeft);
 			if (rtl()) r.moveLeft(width() - r.left() - r.width());
 
@@ -3469,6 +3469,7 @@ void MaskedInputField::paintEvent(QPaintEvent *e) {
 			p.drawText(r, _placeholder, _st.placeholderAlign);
 
 			p.restore();
+			p.setOpacity(1.);
 		}
 	}
 
@@ -3525,7 +3526,7 @@ void MaskedInputField::resizeEvent(QResizeEvent *e) {
 
 void MaskedInputField::refreshPlaceholder() {
 	auto placeholderText = _placeholderFactory ? _placeholderFactory() : QString();
-	auto availableWidth = width() - _st.textMargins.left() - _st.textMargins.right() - _st.placeholderMargins.left() - _st.placeholderMargins.right() - 1;
+	auto availableWidth = width() - _textMargins.left() - _textMargins.right() - _st.placeholderMargins.left() - _st.placeholderMargins.right() - 1;
 	if (_st.placeholderScale > 0.) {
 		auto placeholderFont = _st.placeholderFont->f;
 		placeholderFont.setStyleStrategy(QFont::PreferMatch);
@@ -3609,7 +3610,7 @@ void MaskedInputField::startPlaceholderAnimation() {
 }
 
 QRect MaskedInputField::placeholderRect() const {
-	return rect().marginsRemoved(_st.textMargins + _st.placeholderMargins);
+	return rect().marginsRemoved(_textMargins + _st.placeholderMargins);
 }
 
 void MaskedInputField::placeholderAdditionalPrepare(Painter &p, TimeMs ms) {
@@ -3893,8 +3894,12 @@ void PortInput::correctValue(const QString &was, int32 wasCursor, QString &now, 
 	setCorrectedText(now, nowCursor, newText, newPos);
 }
 
-UsernameInput::UsernameInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val, bool isLink) : MaskedInputField(parent, st, std::move(placeholderFactory), val)
-, _linkPlaceholder(isLink ? Messenger::Instance().createInternalLink(QString()) : QString()) {
+UsernameInput::UsernameInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val, bool isLink) : MaskedInputField(parent, st, std::move(placeholderFactory), val) {
+	setLinkPlaceholder(isLink ? Messenger::Instance().createInternalLink(QString()) : QString());
+}
+
+void UsernameInput::setLinkPlaceholder(const QString &placeholder) {
+	_linkPlaceholder = placeholder;
 	if (!_linkPlaceholder.isEmpty()) {
 		setTextMargins(style::margins(_st.textMargins.left() + _st.font->width(_linkPlaceholder), _st.textMargins.top(), _st.textMargins.right(), _st.textMargins.bottom()));
 		setPlaceholderHidden(true);

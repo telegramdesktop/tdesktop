@@ -36,11 +36,7 @@ namespace Window {
 class Controller;
 } // namespace Window
 
-class BoxLayerTitleShadow : public Ui::PlainShadow {
-public:
-	BoxLayerTitleShadow(QWidget *parent);
-
-};
+class BoxLayerTitleShadow;
 
 class BoxContentDelegate {
 public:
@@ -284,6 +280,22 @@ private:
 
 	std::vector<object_ptr<Ui::RoundButton>> _buttons;
 	object_ptr<Ui::RoundButton> _leftButton = { nullptr };
+
+};
+
+class BoxLayerTitleShadow : public Ui::PlainShadow {
+public:
+	BoxLayerTitleShadow(QWidget *parent);
+
+};
+
+class BoxContentDivider : public TWidget {
+public:
+	BoxContentDivider(QWidget *parent);
+
+protected:
+	int resizeGetHeight(int newWidth) override;
+	void paintEvent(QPaintEvent *e) override;
 
 };
 

@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/abstract_box.h"
 
 #include "styles/style_boxes.h"
+#include "styles/style_profile.h"
 #include "storage/localstorage.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/widget_fade_wrap.h"
@@ -29,9 +30,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/labels.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-
-BoxLayerTitleShadow::BoxLayerTitleShadow(QWidget *parent) : Ui::PlainShadow(parent, st::boxLayerTitleShadow) {
-}
 
 QPointer<Ui::RoundButton> BoxContent::addButton(base::lambda<QString()> textFactory, base::lambda<void()> clickCallback) {
 	return addButton(std::move(textFactory), std::move(clickCallback), st::defaultBoxButton);
@@ -420,4 +418,23 @@ void AbstractBox::keyPressEvent(QKeyEvent *e) {
 	} else {
 		LayerWidget::keyPressEvent(e);
 	}
+}
+
+BoxLayerTitleShadow::BoxLayerTitleShadow(QWidget *parent) : Ui::PlainShadow(parent, st::boxLayerTitleShadow) {
+}
+
+BoxContentDivider::BoxContentDivider(QWidget *parent) : TWidget(parent) {
+}
+
+int BoxContentDivider::resizeGetHeight(int newWidth) {
+	return st::rightsDividerHeight;
+}
+
+void BoxContentDivider::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	p.fillRect(e->rect(), st::contactsAboutBg);
+	auto dividerFillTop = myrtlrect(0, 0, width(), st::profileDividerTop.height());
+	st::profileDividerTop.fill(p, dividerFillTop);
+	auto dividerFillBottom = myrtlrect(0, height() - st::profileDividerBottom.height(), width(), st::profileDividerBottom.height());
+	st::profileDividerBottom.fill(p, dividerFillBottom);
 }

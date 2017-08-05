@@ -679,3 +679,16 @@ muteChatTitle: FlatLabel(boxLabel) {
 		font: font(boxFontSize semibold);
 	}
 }
+
+groupStickersRemove: contactsSearchCancel;
+groupStickersRemovePosition: point(6px, 6px);
+groupStickersFieldPadding: margins(8px, 6px, 8px, 6px);
+groupStickersField: InputField(contactsSearchField) {
+	placeholderFont: boxTextFont;
+	font: boxTextFont;
+	placeholderMargins: margins(0px, 0px, 0px, 0px);
+	textMargins: margins(0px, 7px, 0px, 0px);
+	textBg: boxBg;
+	heightMin: 32px;
+}
+groupStickersSubTitleHeight: 36px;
