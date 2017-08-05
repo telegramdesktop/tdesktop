@@ -188,6 +188,25 @@ bool IsFaved(gsl::not_null<DocumentData*> document) {
 	return (it != Global::StickerSets().cend()) && it->stickers.contains(document);
 }
 
+void CheckFavedLimit(Set &set) {
+	if (set.stickers.size() <= Global::StickersFavedLimit()) {
+		return;
+	}
+	auto removing = set.stickers.back();
+	set.stickers.pop_back();
+	for (auto i = set.emoji.begin(); i != set.emoji.end();) {
+		auto index = i->indexOf(removing);
+		if (index >= 0) {
+			i->removeAt(index);
+			if (i->empty()) {
+				i = set.emoji.erase(i);
+				continue;
+			}
+		}
+		++i;
+	}
+}
+
 void SetIsFaved(gsl::not_null<DocumentData*> document, const std::vector<gsl::not_null<EmojiPtr>> *emojiList = nullptr) {
 	auto &sets = Global::RefStickerSets();
 	auto it = sets.find(FavedSetId);
@@ -252,6 +271,7 @@ void SetIsFaved(gsl::not_null<DocumentData*> document, const std::vector<gsl::no
 		for (auto emoji : list) {
 			it->emoji[emoji].push_front(document);
 		}
+		CheckFavedLimit(*it);
 	}
 	Local::writeFavedStickers();
 	Auth().data().stickersUpdated().notify(true);
