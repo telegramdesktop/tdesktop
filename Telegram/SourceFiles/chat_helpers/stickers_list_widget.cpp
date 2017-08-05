@@ -1131,10 +1131,11 @@ void StickersListWidget::refreshStickers() {
 
 	refreshRecentStickers(false);
 	refreshFavedStickers();
-	refreshMegagroupStickers();
+	refreshMegagroupStickers(GroupStickersPlace::Visible);
 	for_const (auto setId, Global::StickerSetsOrder()) {
 		appendSet(_mySets, setId, AppendSkip::Archived);
 	}
+	refreshMegagroupStickers(GroupStickersPlace::Hidden);
 
 	_featuredSets.clear();
 	_featuredSets.reserve(Global::FeaturedStickerSetsOrder().size());
@@ -1288,15 +1289,25 @@ void StickersListWidget::refreshFavedStickers() {
 	_mySets.push_back(Set(Stickers::FavedSetId, MTPDstickerSet::Flag::f_official | MTPDstickerSet_ClientFlag::f_special, lang(lng_faved_stickers), it->stickers.size() * 2, it->stickers));
 }
 
-void StickersListWidget::refreshMegagroupStickers() {
+void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 	if (!_megagroupSet) {
 		return;
 	}
 	if (_megagroupSet->mgInfo->stickerSet.type() == mtpc_inputStickerSetEmpty) {
 		if (_megagroupSet->canEditStickers()) {
-			_mySets.push_back(Set(Stickers::MegagroupSetId, qFlags(MTPDstickerSet_ClientFlag::f_special), lang(lng_group_stickers), 0));
+			auto hidden = Auth().data().isGroupStickersSectionHidden(_megagroupSet->id);
+			if (hidden == (place == GroupStickersPlace::Hidden)) {
+				_mySets.push_back(Set(Stickers::MegagroupSetId, qFlags(MTPDstickerSet_ClientFlag::f_special), lang(lng_group_stickers), 0));
+			}
 		}
 		return;
+	}
+	if (place != GroupStickersPlace::Visible) {
+		return;
+	}
+	if (Auth().data().isGroupStickersSectionHidden(_megagroupSet->id)) {
+		Auth().data().removeGroupStickersSectionHidden(_megagroupSet->id);
+		Local::writeUserSettings();
 	}
 	if (_megagroupSet->mgInfo->stickerSet.type() == mtpc_inputStickerSetID) {
 		auto &set = _megagroupSet->mgInfo->stickerSet.c_inputStickerSetID();
@@ -1599,7 +1610,10 @@ void StickersListWidget::installSet(uint64 setId) {
 
 void StickersListWidget::removeMegagroupSet(bool empty) {
 	if (empty) {
-		return; // TODO
+		Auth().data().setGroupStickersSectionHidden(_megagroupSet->id);
+		Local::writeUserSettings();
+		refreshStickers();
+		return;
 	}
 	_removingSetId = Stickers::MegagroupSetId;
 	Ui::show(Box<ConfirmBox>(lang(lng_stickers_remove_group_set), base::lambda_guarded(this, [this, group = _megagroupSet] {

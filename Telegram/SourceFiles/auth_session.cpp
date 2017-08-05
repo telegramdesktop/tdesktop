@@ -45,10 +45,11 @@ AuthSessionData::Variables::Variables()
 }
 
 QByteArray AuthSessionData::serialize() const {
-	auto size = sizeof(qint32) * 4;
+	auto size = sizeof(qint32) * 8;
 	for (auto i = _variables.soundOverrides.cbegin(), e = _variables.soundOverrides.cend(); i != e; ++i) {
 		size += Serialize::stringSize(i.key()) + Serialize::stringSize(i.value());
 	}
+	size += _variables.groupStickersSectionHidden.size() * sizeof(quint64);
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -70,6 +71,10 @@ QByteArray AuthSessionData::serialize() const {
 		stream << qint32(_variables.tabbedSelectorSectionTooltipShown);
 		stream << qint32(_variables.floatPlayerColumn);
 		stream << qint32(_variables.floatPlayerCorner);
+		stream << qint32(_variables.groupStickersSectionHidden.size());
+		for (auto peerId : _variables.groupStickersSectionHidden) {
+			stream << quint64(peerId);
+		}
 	}
 	return result;
 }
@@ -93,6 +98,7 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	qint32 floatPlayerColumn = static_cast<qint32>(Window::Column::Second);
 	qint32 floatPlayerCorner = static_cast<qint32>(RectPart::TopRight);
 	QMap<QString, QString> soundOverrides;
+	OrderedSet<PeerId> groupStickersSectionHidden;
 	stream >> selectorTab;
 	stream >> lastSeenWarningSeen;
 	if (!stream.atEnd()) {
@@ -114,6 +120,17 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	}
 	if (!stream.atEnd()) {
 		stream >> floatPlayerColumn >> floatPlayerCorner;
+	}
+	if (!stream.atEnd()) {
+		auto count = qint32(0);
+		stream >> count;
+		if (stream.status() == QDataStream::Ok) {
+			for (auto i = 0; i != count; ++i) {
+				quint64 peerId;
+				stream >> peerId;
+				groupStickersSectionHidden.insert(peerId);
+			}
+		}
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: Bad data for AuthSessionData::constructFromSerialized()"));
@@ -143,6 +160,7 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	case RectPart::BottomLeft:
 	case RectPart::BottomRight: _variables.floatPlayerCorner = uncheckedCorner; break;
 	}
+	_variables.groupStickersSectionHidden = std::move(groupStickersSectionHidden);
 }
 
 QString AuthSessionData::getSoundPath(const QString &key) const {

@@ -155,7 +155,11 @@ private:
 	bool stickerHasDeleteButton(const Set &set, int index) const;
 	void refreshRecentStickers(bool resize = true);
 	void refreshFavedStickers();
-	void refreshMegagroupStickers();
+	enum class GroupStickersPlace {
+		Visible,
+		Hidden,
+	};
+	void refreshMegagroupStickers(GroupStickersPlace place);
 
 	void updateSelected();
 	void setSelected(OverState newSelected);

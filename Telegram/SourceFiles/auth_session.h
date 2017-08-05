@@ -133,6 +133,15 @@ public:
 	RectPart floatPlayerCorner() const {
 		return _variables.floatPlayerCorner;
 	}
+	void setGroupStickersSectionHidden(PeerId peerId) {
+		_variables.groupStickersSectionHidden.insert(peerId);
+	}
+	bool isGroupStickersSectionHidden(PeerId peerId) const {
+		return _variables.groupStickersSectionHidden.contains(peerId);
+	}
+	void removeGroupStickersSectionHidden(PeerId peerId) {
+		_variables.groupStickersSectionHidden.remove(peerId);
+	}
 
 private:
 	struct Variables {
@@ -145,6 +154,7 @@ private:
 		QMap<QString, QString> soundOverrides;
 		Window::Column floatPlayerColumn;
 		RectPart floatPlayerCorner;
+		OrderedSet<PeerId> groupStickersSectionHidden;
 	};
 
 	base::Variable<bool> _contactsLoaded = { false };

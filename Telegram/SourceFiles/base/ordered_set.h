@@ -34,6 +34,13 @@ class OrderedSet {
 	Impl impl_;
 
 public:
+	OrderedSet() = default;
+	OrderedSet(const OrderedSet &other) = default;
+	OrderedSet(OrderedSet &&other) = default;
+	OrderedSet &operator=(const OrderedSet &other) = default;
+	OrderedSet &operator=(OrderedSet &&other) = default;
+	~OrderedSet() = default;
+
 	inline bool operator==(const Self &other) const { return impl_ == other.impl_; }
 	inline bool operator!=(const Self &other) const { return impl_ != other.impl_; }
 	inline int size() const { return impl_.size(); }
