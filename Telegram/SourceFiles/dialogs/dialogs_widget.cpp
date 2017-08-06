@@ -921,11 +921,19 @@ void DialogsWidget::updateJumpToDateVisibility(bool fast) {
 }
 
 void DialogsWidget::updateSearchFromVisibility(bool fast) {
-	auto searchFromUserVisible = _searchInPeer && (_searchInPeer->isChat() || _searchInPeer->isMegagroup()) && !_searchFromUser;
+	auto visible = _searchInPeer && (_searchInPeer->isChat() || _searchInPeer->isMegagroup()) && !_searchFromUser;
+	auto changed = (visible == _chooseFromUser->isHiddenOrHiding());
 	if (fast) {
-		_chooseFromUser->toggleFast(searchFromUserVisible);
+		_chooseFromUser->toggleFast(visible);
 	} else {
-		_chooseFromUser->toggleAnimated(searchFromUserVisible);
+		_chooseFromUser->toggleAnimated(visible);
+	}
+	if (changed) {
+		auto margins = st::dialogsFilter.textMrg;
+		if (visible) {
+			margins.setRight(margins.right() + _chooseFromUser->width());
+		}
+		_filter->setTextMrg(margins);
 	}
 }
 

@@ -243,6 +243,7 @@ public:
 	void setPlaceholder(base::lambda<QString()> placeholderFactory);
 	QRect placeholderRect() const;
 
+	void setTextMrg(const QMargins &textMrg);
 	QRect getTextRect() const;
 
 	QSize sizeHint() const override;
@@ -302,6 +303,7 @@ private:
 	bool _lastPreEditTextNotEmpty = false;
 
 	const style::FlatInput &_st;
+	QMargins _textMrg;
 
 	QTimer _touchTimer;
 	bool _touchPress, _touchRightButton, _touchMove;

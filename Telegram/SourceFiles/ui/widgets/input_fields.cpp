@@ -1470,7 +1470,8 @@ FlatInput::FlatInput(QWidget *parent, const style::FlatInput &st, base::lambda<Q
 , _oldtext(v)
 , _placeholderFactory(std::move(placeholderFactory))
 , _placeholderVisible(!v.length())
-, _st(st) {
+, _st(st)
+, _textMrg(_st.textMrg) {
 	setCursor(style::cur_text);
 	resize(_st.width, _st.height);
 
@@ -1564,8 +1565,14 @@ void FlatInput::touchEvent(QTouchEvent *e) {
 	}
 }
 
+void FlatInput::setTextMrg(const QMargins &textMrg) {
+	_textMrg = textMrg;
+	refreshPlaceholder();
+	update();
+}
+
 QRect FlatInput::getTextRect() const {
-	return rect().marginsRemoved(_st.textMrg + QMargins(-2, -1, -2, -1));
+	return rect().marginsRemoved(_textMrg + QMargins(-2, -1, -2, -1));
 }
 
 void FlatInput::paintEvent(QPaintEvent *e) {
@@ -1635,7 +1642,7 @@ void FlatInput::setPlaceholder(base::lambda<QString()> placeholderFactory) {
 }
 
 void FlatInput::refreshPlaceholder() {
-	auto availw = width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1;
+	auto availw = width() - _textMrg.left() - _textMrg.right() - _st.phPos.x() - 1;
 	auto placeholderText = _placeholderFactory ? _placeholderFactory() : QString();
 	if (_st.font->width(placeholderText) > availw) {
 		_placeholder = _st.font->elided(placeholderText, availw);
@@ -1683,7 +1690,7 @@ void FlatInput::inputMethodEvent(QInputMethodEvent *e) {
 }
 
 QRect FlatInput::placeholderRect() const {
-	return QRect(_st.textMrg.left() + _st.phPos.x(), _st.textMrg.top() + _st.phPos.y(), width() - _st.textMrg.left() - _st.textMrg.right(), height() - _st.textMrg.top() - _st.textMrg.bottom());
+	return QRect(_textMrg.left() + _st.phPos.x(), _textMrg.top() + _st.phPos.y(), width() - _textMrg.left() - _textMrg.right(), height() - _textMrg.top() - _textMrg.bottom());
 }
 
 void FlatInput::correctValue(const QString &was, QString &now) {
