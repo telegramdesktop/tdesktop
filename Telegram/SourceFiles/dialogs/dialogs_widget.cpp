@@ -37,6 +37,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/window_controller.h"
 #include "profile/profile_channel_controllers.h"
 
+namespace {
+
+QString SwitchToChooseFromQuery() {
+	return qsl("from:");
+}
+
+} // namespace
+
 class DialogsWidget::UpdateButton : public Ui::RippleButton {
 public:
 	UpdateButton(QWidget *parent);
@@ -809,6 +817,16 @@ void DialogsWidget::onFilterUpdate(bool force) {
 		_peerSearchQueries.clear();
 		_peerSearchQuery = QString();
 	}
+
+	if (!_chooseFromUser->isHiddenOrHiding() || _searchFromUser) {
+		auto switchToChooseFrom = SwitchToChooseFromQuery();
+		if (_lastFilterText != switchToChooseFrom
+			&& switchToChooseFrom.startsWith(_lastFilterText)
+			&& filterText == switchToChooseFrom) {
+			showSearchFrom();
+		}
+	}
+	_lastFilterText = filterText;
 }
 
 void DialogsWidget::searchInPeer(PeerData *peer) {
@@ -836,6 +854,10 @@ void DialogsWidget::setSearchInPeer(PeerData *peer, UserData *from) {
 		clearSearchCache();
 	}
 	_inner->searchInPeer(_searchInPeer, _searchFromUser);
+	if (_searchFromUser && _lastFilterText == SwitchToChooseFromQuery()) {
+		onCancelSearch();
+	}
+	_filter->setFocus();
 }
 
 void DialogsWidget::clearSearchCache() {

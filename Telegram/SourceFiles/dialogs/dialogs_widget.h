@@ -198,6 +198,7 @@ private:
 	PeerData *_searchInPeer = nullptr;
 	PeerData *_searchInMigrated = nullptr;
 	UserData *_searchFromUser = nullptr;
+	QString _lastFilterText;
 
 	QTimer _searchTimer;
 

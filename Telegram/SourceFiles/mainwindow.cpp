@@ -732,9 +732,10 @@ void MainWindow::noLayerStack(LayerStackWidget *was) {
 
 void MainWindow::layerFinishedHide(LayerStackWidget *was) {
 	if (was == _layerBg) {
+		auto resetFocus = (was == App::wnd()->focusWidget());
 		destroyLayerDelayed();
-		InvokeQueued(this, [this] {
-			setInnerFocus();
+		InvokeQueued(this, [this, resetFocus] {
+			if (resetFocus) setInnerFocus();
 			checkHistoryActivation();
 		});
 	}
