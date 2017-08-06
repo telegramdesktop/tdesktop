@@ -874,7 +874,7 @@ void DialogsWidget::showSearchFrom() {
 		Ui::hideLayer();
 		setSearchInPeer(peer, user);
 		onFilterUpdate(true);
-	}));
+	}), base::lambda_guarded(this, [this] { _filter->setFocus(); }));
 }
 
 void DialogsWidget::onFilterCursorMoved(int from, int to) {

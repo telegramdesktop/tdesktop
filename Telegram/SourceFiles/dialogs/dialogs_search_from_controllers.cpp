@@ -27,8 +27,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Dialogs {
 
-void ShowSearchFromBox(PeerData *peer, base::lambda<void(gsl::not_null<UserData*>)> callback) {
-	auto createController = [peer, callback = std::move(callback)]()->std::unique_ptr<PeerListController> {
+void ShowSearchFromBox(PeerData *peer, base::lambda<void(gsl::not_null<UserData*>)> callback, base::lambda<void()> closedCallback) {
+	auto createController = [peer, callback = std::move(callback)]() -> std::unique_ptr<PeerListController> {
 		if (peer) {
 			if (auto chat = peer->asChat()) {
 				return std::make_unique<Dialogs::ChatSearchFromController>(chat, std::move(callback));
@@ -39,9 +39,10 @@ void ShowSearchFromBox(PeerData *peer, base::lambda<void(gsl::not_null<UserData*
 		return nullptr;
 	};
 	if (auto controller = createController()) {
-		Ui::show(Box<PeerListBox>(std::move(controller), [](PeerListBox *box) {
+		auto box = Ui::show(Box<SearchFromBox>(std::move(controller), [](PeerListBox *box) {
 			box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
 		}), KeepOtherLayers);
+		box->setClosedCallback(std::move(closedCallback));
 	}
 }
 

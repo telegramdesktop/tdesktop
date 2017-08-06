@@ -113,9 +113,6 @@ dialogsSearchFrom: IconButton(dialogsCalendar) {
 	iconOver: icon {{ "dialogs_search_from", dialogsMenuIconFgOver }};
 }
 dialogsSearchFromPadding: margins(10px, 10px, 10px, 10px);
-dialogsSearchFromBubble: MultiSelectItem(defaultMultiSelectItem) {
-	maxWidth: 240px;
-}
 
 dialogsFilter: FlatInput(defaultFlatInput) {
 	font: font(fsize);
@@ -223,3 +220,16 @@ dialogsForwardCancel: IconButton {
 	iconPosition: point(12px, 11px);
 }
 dialogsForwardFont: semiboldFont;
+
+dialogsSearchInHeight: 52px;
+dialogsSearchInPhotoSize: 36px;
+dialogsSearchInPhotoPadding: 10px;
+dialogsSearchInSkip: 6px;
+dialogsSearchFromStyle: TextStyle(defaultTextStyle) {
+	font: normalFont;
+	linkFont: semiboldFont;
+	linkFontOver: semiboldFont;
+}
+dialogsSearchFromPalette: TextPalette(defaultTextPalette) {
+	linkFg: dialogsNameFg;
+}

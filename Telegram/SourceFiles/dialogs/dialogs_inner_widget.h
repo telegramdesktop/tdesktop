@@ -194,12 +194,11 @@ private:
 	void paintDialog(Painter &p, Dialogs::Row *row, int fullWidth, PeerData *active, PeerData *selected, bool onlyBackground, TimeMs ms);
 	void paintPeerSearchResult(Painter &p, const PeerSearchResult *result, int fullWidth, bool active, bool selected, bool onlyBackground, TimeMs ms) const;
 	void paintSearchInPeer(Painter &p, int fullWidth, bool onlyBackground, TimeMs ms) const;
+	void paintSearchInFilter(Painter &p, gsl::not_null<PeerData*> peer, int top, int fullWidth, const Text &text) const;
 
 	void clearSelection();
 	void clearSearchResults(bool clearPeerSearchResults = true);
 	void updateSelectedRow(PeerData *peer = 0);
-	void updateSearchFromBubble();
-	void handleSearchFromUserClick();
 
 	Dialogs::IndexedList *shownDialogs() const {
 		return (Global::DialogsMode() == Dialogs::Mode::Important) ? _dialogsImportant.get() : _dialogs.get();
@@ -281,12 +280,12 @@ private:
 
 	object_ptr<Ui::LinkButton> _addContactLnk;
 	object_ptr<Ui::IconButton> _cancelSearchInPeer;
+	object_ptr<Ui::IconButton> _cancelSearchFromUser;
 
 	PeerData *_searchInPeer = nullptr;
 	PeerData *_searchInMigrated = nullptr;
 	UserData *_searchFromUser = nullptr;
-	class SearchFromBubble; // Just a wrap for Ui::MultiSelect::Item.
-	std::unique_ptr<SearchFromBubble> _searchFromUserBubble;
+	Text _searchFromUserText;
 	PeerData *_menuPeer = nullptr;
 
 	Ui::PopupMenu *_menu = nullptr;

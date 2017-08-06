@@ -246,10 +246,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_no_chats" = "Your chats will be here";
 "lng_contacts_loading" = "Loading...";
 "lng_contacts_not_found" = "No contacts found";
-"lng_dlg_search_chat" = "Search in this chat";
-"lng_dlg_search_channel" = "Search in this channel";
 "lng_dlg_search_for_messages" = "Search for messages";
 "lng_update_telegram" = "Update Telegram";
+"lng_dlg_search_in" = "Search messages in";
+"lng_dlg_search_from" = "From: {user}";
 
 "lng_settings_save" = "Save";
 "lng_settings_upload" = "Set Profile Photo";
@@ -1427,6 +1427,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_group_info" = "Group info";
 "lng_profile_channel_info" = "Channel info";
 "lng_channel_add_admins" = "New administrator";
+"lng_dlg_search_chat" = "Search in this chat";
+"lng_dlg_search_channel" = "Search in this channel";
 
 // Wnd specific
 

@@ -25,7 +25,27 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Dialogs {
 
-void ShowSearchFromBox(PeerData *peer, base::lambda<void(gsl::not_null<UserData*>)> callback);
+void ShowSearchFromBox(PeerData *peer, base::lambda<void(gsl::not_null<UserData*>)> callback, base::lambda<void()> closedCallback);
+
+class SearchFromBox : public PeerListBox {
+public:
+	using PeerListBox::PeerListBox;
+
+	void setClosedCallback(base::lambda<void()> callback) {
+		_closedCallback = std::move(callback);
+	}
+
+protected:
+	void closeHook() override {
+		if (_closedCallback) {
+			_closedCallback();
+		}
+	}
+
+private:
+	base::lambda<void()> _closedCallback;
+
+};
 
 class ChatSearchFromController : public PeerListController, protected base::Subscriber {
 public:
