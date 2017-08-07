@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 extern "C" {
 #undef signals
 #include <libappindicator/app-indicator.h>
@@ -31,6 +32,7 @@ extern "C" {
 #ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
 #include <unity/unity/unity.h>
 #endif // !TDESKTOP_DISABLE_UNITY_INTEGRATION
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 namespace Platform {
 namespace Libs {
@@ -52,6 +54,7 @@ bool load(QLibrary &lib, const char *name, Function &func) {
 	return false;
 }
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 typedef gboolean (*f_gtk_init_check)(int *argc, char ***argv);
 extern f_gtk_init_check gtk_init_check;
 
@@ -381,6 +384,7 @@ extern f_unity_launcher_entry_set_count_visible unity_launcher_entry_set_count_v
 typedef UnityLauncherEntry* (*f_unity_launcher_entry_get_for_desktop_id)(const gchar* desktop_id);
 extern f_unity_launcher_entry_get_for_desktop_id unity_launcher_entry_get_for_desktop_id;
 #endif // !TDESKTOP_DISABLE_UNITY_INTEGRATION
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 } // namespace Libs
 } // namespace Platform

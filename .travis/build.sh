@@ -118,6 +118,10 @@ build() {
     GYP_DEFINES+=",TDESKTOP_DISABLE_UNITY_INTEGRATION"
   fi
 
+  if [[ $BUILD_VERSION == *"disable_gtk_integration"* ]]; then
+    GYP_DEFINES+=",TDESKTOP_DISABLE_GTK_INTEGRATION"
+  fi
+
   info_msg "Build defines: ${GYP_DEFINES}"
 
   buildTelegram

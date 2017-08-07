@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Platform {
 namespace Notifications {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 namespace {
 
 bool LibNotifyLoaded() {
@@ -269,8 +270,10 @@ QString GetServerName() {
 auto LibNotifyServerName = QString();
 
 } // namespace
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 bool Supported() {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	static auto Checked = false;
 	if (!Checked) {
 		Checked = true;
@@ -278,23 +281,31 @@ bool Supported() {
 	}
 
 	return !LibNotifyServerName.isEmpty();
+#else
+	return false;
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 }
 
 std::unique_ptr<Window::Notifications::Manager> Create(Window::Notifications::System *system) {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	if (Global::NativeNotifications() && Supported()) {
 		return std::make_unique<Manager>(system);
 	}
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 	return nullptr;
 }
 
 void Finish() {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	if (Libs::notify_is_initted && Libs::notify_uninit) {
 		if (Libs::notify_is_initted()) {
 			Libs::notify_uninit();
 		}
 	}
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 }
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 class Manager::Private {
 public:
 	using Type = Window::Notifications::CachedUserpics::Type;
@@ -347,7 +358,9 @@ private:
 	std::shared_ptr<Manager*> _guarded;
 
 };
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 void Manager::Private::init(Manager *manager) {
 	_guarded = std::make_shared<Manager*>(manager);
 
@@ -543,6 +556,7 @@ void Manager::doClearAllFast() {
 void Manager::doClearFromHistory(History *history) {
 	_private->clearFromHistory(history);
 }
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 } // namespace Notifications
 } // namespace Platform

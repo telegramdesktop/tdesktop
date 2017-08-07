@@ -16,6 +16,7 @@ env:
    - BUILD_VERSION="disable_network_proxy"
    - BUILD_VERSION="disable_desktop_file_generation"
    - BUILD_VERSION="disable_unity_integration"
+   - BUILD_VERSION="disable_gtk_integration"
 
 matrix:
   fast_finish: true
