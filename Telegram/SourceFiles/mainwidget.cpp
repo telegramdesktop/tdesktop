@@ -49,6 +49,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "inline_bots/inline_bot_layout_item.h"
 #include "boxes/confirm_box.h"
 #include "boxes/sticker_set_box.h"
+#include "boxes/mute_settings_box.h"
 #include "boxes/contacts_box.h"
 #include "boxes/download_path_box.h"
 #include "storage/localstorage.h"
@@ -2247,9 +2248,16 @@ void MainWidget::fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QStrin
 		Ui::showPeerProfile(peer);
 	});
 	auto muteSubscription = MakeShared<base::Subscription>();
-	auto muteAction = callback(lang(peer->isMuted() ? lng_enable_notifications_from_tray : lng_disable_notifications_from_tray), [peer, muteSubscription] {
-		App::main()->updateNotifySetting(peer, peer->isMuted() ? NotifySettingSetNotify : NotifySettingSetMuted);
-	});
+	QAction *muteAction;
+	if (!peer->isMuted()) {
+		muteAction = callback(lang(lng_disable_notifications_from_tray), [peer] {
+			Ui::show(Box<MuteSettingsBox>(peer));
+		});
+	} else {
+		muteAction = callback(lang(lng_enable_notifications_from_tray), [peer] {
+			App::main()->updateNotifySetting(peer, NotifySettingSetNotify);
+		});
+	}
 	auto muteChangedHandler = Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::NotificationsEnabled, [muteAction, peer](const Notify::PeerUpdate &update) {
 		if (update.peer != peer) return;
 		muteAction->setText(lang(peer->isMuted() ? lng_enable_notifications_from_tray : lng_disable_notifications_from_tray));
@@ -4219,11 +4227,10 @@ void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNoti
 	}
 }
 
-void MainWidget::updateNotifySetting(PeerData *peer, NotifySettingStatus notify, SilentNotifiesStatus silent) {
+void MainWidget::updateNotifySetting(PeerData *peer, NotifySettingStatus notify, SilentNotifiesStatus silent, int muteFor) {
 	if (notify == NotifySettingDontChange && silent == SilentNotifiesDontChange) return;
 
 	updateNotifySettingPeers.insert(peer);
-	int32 muteFor = 86400 * 365;
 	if (peer->notify == EmptyNotifySettings) {
 		if (notify == NotifySettingSetMuted || silent == SilentNotifiesSetSilent) {
 			peer->notify = new NotifySettings();

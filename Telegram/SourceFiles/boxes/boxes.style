@@ -666,3 +666,16 @@ rightsHeaderLabel: FlatLabel(boxLabel) {
 	textFg: windowActiveTextFg;
 }
 rightsUntilMargin: margins(0px, 8px, 0px, 0px);
+
+mutePhotoButton: PeerAvatarButton {
+	size: 40px;
+	photoSize: 40px;
+}
+muteChatTitle: FlatLabel(boxLabel) {
+	width: 235px;
+	maxHeight: 20px;  // block word wrap
+	margin: margins(50px, 0px, 0px, 0px);  // left offset for place peer avatar
+	style: TextStyle(boxTextStyle) {
+		font: font(boxFontSize semibold);
+	}
+}
