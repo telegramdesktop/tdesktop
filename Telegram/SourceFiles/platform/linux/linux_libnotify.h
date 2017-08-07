@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 extern "C" {
 #undef signals
 #include <gtk/gtk.h>
@@ -129,3 +130,4 @@ extern f_notify_notification_get_closed_reason notify_notification_get_closed_re
 
 } // namespace Libs
 } // namespace Platform
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION

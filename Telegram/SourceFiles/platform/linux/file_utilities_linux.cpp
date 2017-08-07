@@ -95,6 +95,7 @@ void UnsafeShowInFolder(const QString &filepath) {
 
 namespace FileDialog {
 namespace {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 
 // GTK file chooser image preview: thanks to Chromium
 
@@ -105,9 +106,11 @@ namespace {
 // be preserved.
 constexpr auto kPreviewWidth = 256;
 constexpr auto kPreviewHeight = 512;
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 using Type = ::FileDialog::internal::Type;
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 bool NativeSupported() {
 	return Platform::internal::GdkHelperLoaded()
 		&& (Libs::gtk_widget_hide_on_delete != nullptr)
@@ -191,16 +194,20 @@ bool GetNative(QStringList &files, QByteArray &remoteContent, const QString &cap
 	remoteContent = QByteArray();
 	return false;
 }
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 } // namespace
 
 bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, Type type, QString startFile) {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 	if (NativeSupported()) {
 		return GetNative(files, remoteContent, caption, filter, type, startFile);
 	}
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 	return ::FileDialog::internal::GetDefault(files, remoteContent, caption, filter, type, startFile);
 }
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 namespace internal {
 
 QGtkDialog::QGtkDialog(GtkWidget *gtkWidget) : gtkWidget(gtkWidget) {
@@ -302,6 +309,7 @@ void QGtkDialog::onParentWindowDestroyed() {
 	// The Gtk*DialogHelper classes own this object. Make sure the parent doesn't delete it.
 	setParent(nullptr);
 }
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 namespace {
 
@@ -321,6 +329,7 @@ QStringList cleanFilterList(const QString &filter) {
 
 } // namespace
 
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 GtkFileDialog::GtkFileDialog(QWidget *parent, const QString &caption, const QString &directory, const QString &filter) : QDialog(parent)
 , _windowTitle(caption)
 , _initialDirectory(directory) {
@@ -624,5 +633,6 @@ void GtkFileDialog::setNameFilters(const QStringList &filters) {
 }
 
 } // namespace internal
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 } // namespace FileDialog
 } // namespace Platform

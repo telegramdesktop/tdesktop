@@ -24,8 +24,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 extern "C" {
 #undef signals
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 #define signals public
 } // extern "C"
 
@@ -69,6 +71,7 @@ inline void InitLastPath() {
 }
 
 namespace internal {
+#ifndef TDESKTOP_DISABLE_GTK_INTEGRATION
 
 // This is a patched copy of qgtk2 theme plugin.
 // We need to use our own gtk file dialog instead of
@@ -173,6 +176,7 @@ private:
 	QHash<GtkFileFilter*, QString> _filterNames;
 	QScopedPointer<QGtkDialog> d;
 };
+#endif // !TDESKTOP_DISABLE_GTK_INTEGRATION
 
 } // namespace internal
 } // namespace FileDialog
