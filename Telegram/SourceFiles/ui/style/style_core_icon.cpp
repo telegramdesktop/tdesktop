@@ -84,10 +84,7 @@ QSize readGeneratedSize(const IconMask *mask, DBIScale scale) {
 			size -= sizeTag.size();
 			data += sizeTag.size();
 			auto baForStream = QByteArray::fromRawData(reinterpret_cast<const char*>(data), size);
-			QBuffer buffer(&baForStream);
-			buffer.open(QIODevice::ReadOnly);
-
-			QDataStream stream(&buffer);
+			QDataStream stream(baForStream);
 			stream.setVersion(QDataStream::Qt_5_1);
 
 			qint32 width = 0, height = 0;

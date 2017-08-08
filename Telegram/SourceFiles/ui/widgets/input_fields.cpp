@@ -81,9 +81,7 @@ QByteArray FlatTextarea::serializeTagsList(const TagList &tags) {
 
 	QByteArray tagsSerialized;
 	{
-		QBuffer buffer(&tagsSerialized);
-		buffer.open(QIODevice::WriteOnly);
-		QDataStream stream(&buffer);
+		QDataStream stream(&tagsSerialized, QIODevice::WriteOnly);
 		stream.setVersion(QDataStream::Qt_5_1);
 		stream << qint32(tags.size());
 		for_const (auto &tag, tags) {
@@ -99,10 +97,7 @@ FlatTextarea::TagList FlatTextarea::deserializeTagsList(QByteArray data, int tex
 		return result;
 	}
 
-	QBuffer buffer(&data);
-	buffer.open(QIODevice::ReadOnly);
-
-	QDataStream stream(&buffer);
+	QDataStream stream(data);
 	stream.setVersion(QDataStream::Qt_5_1);
 
 	qint32 tagCount = 0;

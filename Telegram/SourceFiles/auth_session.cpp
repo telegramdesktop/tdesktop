@@ -54,12 +54,7 @@ QByteArray AuthSessionData::serialize() const {
 	auto result = QByteArray();
 	result.reserve(size);
 	{
-		QBuffer buffer(&result);
-		if (!buffer.open(QIODevice::WriteOnly)) {
-			Unexpected("Can't open data for AuthSessionData::serialize()");
-		}
-
-		QDataStream stream(&buffer);
+		QDataStream stream(&result, QIODevice::WriteOnly);
 		stream.setVersion(QDataStream::Qt_5_1);
 		stream << static_cast<qint32>(_variables.selectorTab);
 		stream << qint32(_variables.lastSeenWarningSeen ? 1 : 0);
@@ -84,12 +79,7 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 		return;
 	}
 
-	auto readonly = serialized;
-	QBuffer buffer(&readonly);
-	if (!buffer.open(QIODevice::ReadOnly)) {
-		Unexpected("Can't open data for DcOptions::constructFromSerialized()");
-	}
-	QDataStream stream(&buffer);
+	QDataStream stream(serialized);
 	stream.setVersion(QDataStream::Qt_5_1);
 	qint32 selectorTab = static_cast<qint32>(ChatHelpers::SelectorTab::Emoji);
 	qint32 lastSeenWarningSeen = 0;

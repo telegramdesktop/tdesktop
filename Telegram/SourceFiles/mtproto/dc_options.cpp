@@ -247,13 +247,7 @@ QByteArray DcOptions::serialize() const {
 	auto result = QByteArray();
 	result.reserve(size);
 	{
-		QBuffer buffer(&result);
-		if (!buffer.open(QIODevice::WriteOnly)) {
-			LOG(("MTP Error: Can't open data for DcOptions::serialize()"));
-			return result;
-		}
-
-		QDataStream stream(&buffer);
+		QDataStream stream(&result, QIODevice::WriteOnly);
 		stream.setVersion(QDataStream::Qt_5_1);
 		stream << qint32(_data.size());
 		for (auto &item : _data) {
@@ -273,13 +267,7 @@ QByteArray DcOptions::serialize() const {
 }
 
 void DcOptions::constructFromSerialized(const QByteArray &serialized) {
-	auto readonly = serialized;
-	QBuffer buffer(&readonly);
-	if (!buffer.open(QIODevice::ReadOnly)) {
-		LOG(("MTP Error: Can't open data for DcOptions::constructFromSerialized()"));
-		return;
-	}
-	QDataStream stream(&buffer);
+	QDataStream stream(serialized);
 	stream.setVersion(QDataStream::Qt_5_1);
 	auto count = qint32(0);
 	stream >> count;

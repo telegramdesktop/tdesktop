@@ -1176,10 +1176,7 @@ QByteArray iconMaskValueSize(int width, int height) {
 	QLatin1String sizeTag("SIZE:");
 	result.append(sizeTag.data(), sizeTag.size());
 	{
-		QBuffer buffer(&result);
-		buffer.open(QIODevice::Append);
-
-		QDataStream stream(&buffer);
+		QDataStream stream(&result, QIODevice::Append);
 		stream.setVersion(QDataStream::Qt_5_1);
 		stream << qint32(width) << qint32(height);
 	}

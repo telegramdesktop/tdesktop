@@ -362,9 +362,7 @@ void UpdateChecker::unpackUpdate() {
 
 	quint32 version;
 	{
-		QBuffer buffer(&uncompressed);
-		buffer.open(QIODevice::ReadOnly);
-		QDataStream stream(&buffer);
+		QDataStream stream(uncompressed);
 		stream.setVersion(QDataStream::Qt_5_1);
 
 		stream >> version;
