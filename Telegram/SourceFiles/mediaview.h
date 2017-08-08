@@ -52,7 +52,7 @@ class MediaView : public TWidget, private base::Subscriber, public RPCSender, pu
 	Q_OBJECT
 
 public:
-	MediaView(QWidget*);
+	MediaView();
 
 	void setVisible(bool visible) override;
 
@@ -73,8 +73,6 @@ public:
 	}
 
 	void mediaOverviewUpdated(const Notify::PeerUpdate &update);
-	void documentUpdated(DocumentData *doc);
-	void changingMsgId(HistoryItem *row, MsgId newId);
 
 	void close();
 
@@ -126,7 +124,6 @@ private slots:
 
 	void onDropdown();
 
-	void onCheckActive();
 	void onTouchTimer();
 
 	void updateImage();
@@ -185,6 +182,9 @@ private:
 	void initThemePreview();
 	void destroyThemePreview();
 	void updateThemePreviewGeometry();
+
+	void documentUpdated(DocumentData *doc);
+	void changingMsgId(HistoryItem *row, MsgId newId);
 
 	// Radial animation interface.
 	float64 radialProgress() const;

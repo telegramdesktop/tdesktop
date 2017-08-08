@@ -828,7 +828,7 @@ void MainWidget::notify_historyMuteUpdated(History *history) {
 }
 
 bool MainWidget::cmd_search() {
-	if (Ui::isLayerShown() || Ui::isMediaViewShown()) return false;
+	if (Ui::isLayerShown() || !isActiveWindow()) return false;
 	if (_wideSection) {
 		return _wideSection->cmd_search();
 	}
@@ -836,12 +836,12 @@ bool MainWidget::cmd_search() {
 }
 
 bool MainWidget::cmd_next_chat() {
-	if (Ui::isLayerShown() || Ui::isMediaViewShown()) return false;
+	if (Ui::isLayerShown() || !isActiveWindow()) return false;
 	return _history->cmd_next_chat();
 }
 
 bool MainWidget::cmd_previous_chat() {
-	if (Ui::isLayerShown() || Ui::isMediaViewShown()) return false;
+	if (Ui::isLayerShown() || !isActiveWindow()) return false;
 	return _history->cmd_previous_chat();
 }
 
@@ -1557,7 +1557,7 @@ bool MainWidget::insertBotCommand(const QString &cmd) {
 }
 
 void MainWidget::searchMessages(const QString &query, PeerData *inPeer) {
-	App::wnd()->hideMediaview();
+	Messenger::Instance().hideMediaView();
 	_dialogs->searchMessages(query, inPeer);
 	if (Adaptive::OneColumn()) {
 		Ui::showChatsList();
@@ -1604,10 +1604,6 @@ void MainWidget::mediaOverviewUpdated(const Notify::PeerUpdate &update) {
 	if (_overview && (_overview->peer() == peer || _overview->peer()->migrateFrom() == peer)) {
 		_overview->mediaOverviewUpdated(update);
 	}
-}
-
-void MainWidget::changingMsgId(HistoryItem *row, MsgId newId) {
-	if (_overview) _overview->changingMsgId(row, newId);
 }
 
 void MainWidget::itemEdited(HistoryItem *item) {
@@ -1926,7 +1922,7 @@ void MainWidget::documentLoadProgress(DocumentData *document) {
 			Ui::repaintHistoryItem(item);
 		}
 	}
-	App::wnd()->documentUpdated(document);
+	Auth().documentUpdated.notify(document, true);
 
 	if (!document->loaded() && document->song()) {
 		Media::Player::instance()->documentLoadProgress(document);
@@ -3941,7 +3937,7 @@ bool MainWidget::started() {
 }
 
 void MainWidget::openPeerByName(const QString &username, MsgId msgId, const QString &startToken) {
-	App::wnd()->hideMediaview();
+	Messenger::Instance().hideMediaView();
 
 	PeerData *peer = App::peerByName(username);
 	if (peer) {
@@ -3981,12 +3977,12 @@ void MainWidget::openPeerByName(const QString &username, MsgId msgId, const QStr
 }
 
 void MainWidget::joinGroupByHash(const QString &hash) {
-	App::wnd()->hideMediaview();
+	Messenger::Instance().hideMediaView();
 	MTP::send(MTPmessages_CheckChatInvite(MTP_string(hash)), rpcDone(&MainWidget::inviteCheckDone, hash), rpcFail(&MainWidget::inviteCheckFail));
 }
 
 void MainWidget::stickersBox(const MTPInputStickerSet &set) {
-	App::wnd()->hideMediaview();
+	Messenger::Instance().hideMediaView();
 	auto box = Ui::show(Box<StickerSetBox>(set));
 	connect(box, SIGNAL(installed(uint64)), this, SLOT(onStickersInstalled(uint64)));
 }
@@ -4768,7 +4764,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					_history->peerMessagesUpdated();
 				} else {
 					App::historyUnregItem(msgRow);
-					if (App::wnd()) App::wnd()->changingMsgId(msgRow, d.vid.v);
+					Auth().messageIdChanging.notify({ msgRow, d.vid.v }, true);
 					msgRow->setId(d.vid.v);
 					if (msgRow->history()->peer->isSelf()) {
 						msgRow->history()->unregSendAction(App::self());

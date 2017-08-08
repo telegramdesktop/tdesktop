@@ -88,7 +88,6 @@ public:
 	void setSelectMode(bool enabled);
 
 	void mediaOverviewUpdated();
-	void changingMsgId(HistoryItem *row, MsgId newId);
 	void repaintItem(const HistoryItem *msg);
 
 	Window::TopBarWidget::SelectedState getSelectionState() const;
@@ -144,6 +143,7 @@ private:
 
 	void itemRemoved(HistoryItem *item);
 	MsgId complexMsgId(const HistoryItem *item) const;
+	void changingMsgId(HistoryItem *row, MsgId newId);
 
 	bool itemMigrated(MsgId msgId) const;
 	ChannelId itemChannel(MsgId msgId) const;
@@ -320,7 +320,6 @@ public:
 	void doneShow();
 
 	void mediaOverviewUpdated(const Notify::PeerUpdate &update);
-	void changingMsgId(HistoryItem *row, MsgId newId);
 	void itemRemoved(HistoryItem *item);
 
 	QPoint clampMousePosition(QPoint point);

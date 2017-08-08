@@ -106,7 +106,7 @@ PhotoData *CoverWidget::validatePhoto() const {
 
 void CoverWidget::onPhotoShow() {
 	if (auto photo = validatePhoto()) {
-		App::wnd()->showPhoto(photo, _peer);
+		Messenger::Instance().showPhoto(photo, _peer);
 	}
 }
 

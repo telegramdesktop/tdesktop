@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <private/qguiapplication_p.h>
 #include "platform/linux/linux_libs.h"
 #include "platform/linux/linux_gdk_helper.h"
+#include "messenger.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
 
@@ -149,7 +150,7 @@ bool PreviewSupported() {
 }
 
 bool GetNative(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, Type type, QString startFile) {
-	auto parent = App::wnd() ? App::wnd()->filedialogParent() : nullptr;
+	auto parent = Messenger::Instance().getFileDialogParent();
 	internal::GtkFileDialog dialog(parent, caption, QString(), filter);
 
 	dialog.setModal(true);

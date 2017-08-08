@@ -41,7 +41,7 @@ namespace Layout {
 namespace {
 
 TextParseOptions _documentNameOptions = {
-	TextParseMultiline | TextParseRichText | TextParseLinks | TextParseHashtags | TextParseMentions | TextParseBotCommands | TextParseMarkdown, // flags
+	TextParseMultiline | TextParseRichText | TextParseLinks | TextParseMarkdown, // flags
 	0, // maxw
 	0, // maxh
 	Qt::LayoutDirectionAuto, // dir

@@ -478,11 +478,9 @@ PopupMenu::~PopupMenu() {
 	for (auto submenu : base::take(_submenus)) {
 		delete submenu;
 	}
-#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 	if (auto w = App::wnd()) {
 		w->reActivateWindow();
 	}
-#endif
 	if (_destroyedCallback) {
 		_destroyedCallback();
 	}

@@ -29,6 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "chat_helpers/message_field.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
+#include "messenger.h"
 #include "apiwrap.h"
 #include "window/window_controller.h"
 #include "auth_session.h"
@@ -986,7 +987,7 @@ void InnerWidget::openContextGif() {
 	if (auto item = App::contextItem()) {
 		if (auto media = item->getMedia()) {
 			if (auto document = media->getDocument()) {
-				_controller->window()->showDocument(document, item);
+				Messenger::Instance().showDocument(document, item);
 			}
 		}
 	}

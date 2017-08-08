@@ -96,6 +96,9 @@ OverviewInner::OverviewInner(OverviewWidget *overview, Ui::ScrollArea *scroll, P
 	subscribe(App::wnd()->dragFinished(), [this] {
 		dragActionUpdate(QCursor::pos());
 	});
+	subscribe(Auth().messageIdChanging, [this](std::pair<HistoryItem*, MsgId> update) {
+		changingMsgId(update.first, update.second);
+	});
 
 	if (_type == OverviewLinks || _type == OverviewFiles) {
 		_search->show();
@@ -1725,6 +1728,10 @@ void OverviewInner::mediaOverviewUpdated() {
 }
 
 void OverviewInner::changingMsgId(HistoryItem *row, MsgId newId) {
+	if (peer() != row->history()->peer && migratePeer() != row->history()->peer) {
+		return;
+	}
+
 	MsgId oldId = complexMsgId(row);
 	if (row->history() == _migrated) newId = -newId;
 
@@ -2242,12 +2249,6 @@ void OverviewWidget::mediaOverviewUpdated(const Notify::PeerUpdate &update) {
 		_mediaTypeMask = mask;
 		_mediaType->move(width() - _mediaType->width(), st::topBarHeight);
 		updateTopBarSelection();
-	}
-}
-
-void OverviewWidget::changingMsgId(HistoryItem *row, MsgId newId) {
-	if (peer() == row->history()->peer || migratePeer() == row->history()->peer) {
-		_inner->changingMsgId(row, newId);
 	}
 }
 

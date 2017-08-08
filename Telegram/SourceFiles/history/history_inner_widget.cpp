@@ -33,6 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "auth_session.h"
+#include "messenger.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 
@@ -1463,7 +1464,7 @@ void HistoryInner::openContextGif() {
 	if (auto item = App::contextItem()) {
 		if (auto media = item->getMedia()) {
 			if (auto document = media->getDocument()) {
-				_controller->window()->showDocument(document, item);
+				Messenger::Instance().showDocument(document, item);
 			}
 		}
 	}

@@ -181,8 +181,6 @@ void MainWindow::firstShow() {
 
 	psFirstShow();
 	updateTrayMenu();
-
-	createMediaView();
 }
 
 void MainWindow::clearWidgetsHook() {
@@ -229,7 +227,7 @@ void MainWindow::setupPasscode() {
 	updateControlsGeometry();
 
 	if (_main) _main->hide();
-	hideMediaview();
+	Messenger::Instance().hideMediaView();
 	Ui::hideSettingsAndLayer(true);
 	if (_intro) _intro->hide();
 	if (animated) {
@@ -421,7 +419,7 @@ void MainWindow::ui_showBox(object_ptr<BoxContent> box, ShowLayerOptions options
 				destroyLayerDelayed();
 			}
 		}
-		hideMediaview();
+		Messenger::Instance().hideMediaView();
 	}
 }
 
@@ -458,15 +456,6 @@ void MainWindow::ui_showMediaPreview(PhotoData *photo) {
 void MainWindow::ui_hideMediaPreview() {
 	if (!_mediaPreview) return;
 	_mediaPreview->hidePreview();
-}
-
-PeerData *MainWindow::ui_getPeerForMouseAction() {
-	if (Ui::isMediaViewShown()) {
-		return Platform::MainWindow::ui_getPeerForMouseAction();
-	} else if (_main) {
-		return _main->ui_getPeerForMouseAction();
-	}
-	return nullptr;
 }
 
 void MainWindow::showConnecting(const QString &text, const QString &reconnect) {
@@ -555,74 +544,47 @@ void MainWindow::setInnerFocus() {
 
 bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 	switch (e->type()) {
-	case QEvent::KeyPress:
+	case QEvent::KeyPress: {
 		if (cDebug() && e->type() == QEvent::KeyPress && object == windowHandle()) {
 			auto key = static_cast<QKeyEvent*>(e)->key();
 			FeedLangTestingKey(key);
 		}
-		// [[fallthrough]];
-	case QEvent::MouseButtonPress:
-	case QEvent::TouchBegin:
-	case QEvent::Wheel:
-		psUserActionDone();
-		break;
+	} break;
 
-	case QEvent::MouseMove:
+	case QEvent::MouseMove: {
 		if (_main && _main->isIdle()) {
 			psUserActionDone();
 			_main->checkIdleFinish();
 		}
-		break;
+	} break;
 
-	case QEvent::MouseButtonRelease:
+	case QEvent::MouseButtonRelease: {
 		Ui::hideMediaPreview();
-		break;
+	} break;
 
-	case QEvent::ShortcutOverride: // handle shortcuts ourselves
-		return true;
-
-	case QEvent::Shortcut:
-		DEBUG_LOG(("Shortcut event caught: %1").arg(static_cast<QShortcutEvent*>(e)->key().toString()));
-		if (Shortcuts::launch(static_cast<QShortcutEvent*>(e)->shortcutId())) {
-			return true;
-		}
-		break;
-
-	case QEvent::ApplicationActivate:
+	case QEvent::ApplicationActivate: {
 		if (object == QCoreApplication::instance()) {
-			psUserActionDone();
-			App::CallDelayed(1, this, [this] {
+			InvokeQueued(this, [this] {
 				handleActiveChanged();
 			});
 		}
-		break;
+	} break;
 
-	case QEvent::FileOpen:
-		if (object == QCoreApplication::instance()) {
-			QString url = static_cast<QFileOpenEvent*>(e)->url().toEncoded().trimmed();
-			if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
-				cSetStartUrl(url.mid(0, 8192));
-				Messenger::Instance().checkStartUrl();
-			}
-			activate();
-		}
-		break;
-
-	case QEvent::WindowStateChange:
+	case QEvent::WindowStateChange: {
 		if (object == this) {
 			auto state = (windowState() & Qt::WindowMinimized) ? Qt::WindowMinimized :
 				((windowState() & Qt::WindowMaximized) ? Qt::WindowMaximized :
 				((windowState() & Qt::WindowFullScreen) ? Qt::WindowFullScreen : Qt::WindowNoState));
 			handleStateChanged(state);
 		}
-		break;
+	} break;
 
 	case QEvent::Move:
-	case QEvent::Resize:
+	case QEvent::Resize: {
 		if (object == this) {
 			positionUpdated();
 		}
-		break;
+	} break;
 	}
 
 	return Platform::MainWindow::eventFilter(object, e);
@@ -990,16 +952,11 @@ QImage MainWindow::iconWithCounter(int size, int count, style::color bg, style::
 
 void MainWindow::sendPaths() {
 	if (App::passcoded()) return;
-	hideMediaview();
+	Messenger::Instance().hideMediaView();
 	Ui::hideSettingsAndLayer(true);
 	if (_main) {
 		_main->activate();
 	}
-}
-
-void MainWindow::changingMsgId(HistoryItem *row, MsgId newId) {
-	if (_main) _main->changingMsgId(row, newId);
-	Platform::MainWindow::changingMsgId(row, newId);
 }
 
 void MainWindow::updateIsActiveHook() {

@@ -41,6 +41,7 @@ class AuthSessionData;
 class MainWidget;
 class FileUploader;
 class Translator;
+class MediaView;
 
 namespace Local {
 struct StoredAuthSession;
@@ -69,7 +70,22 @@ public:
 
 	~Messenger();
 
-	MainWindow *mainWindow();
+	// Windows interface.
+	MainWindow *getActiveWindow();
+	QWidget *getFileDialogParent();
+	QWidget *getGlobalShortcutParent() {
+		return &_globalShortcutParent;
+	}
+
+	// MediaView interface.
+	void checkMediaViewActivation();
+	bool hideMediaView();
+	void showPhoto(gsl::not_null<const PhotoOpenClickHandler*> link, HistoryItem *item = nullptr);
+	void showPhoto(gsl::not_null<PhotoData*> photo, HistoryItem *item);
+	void showPhoto(gsl::not_null<PhotoData*> photo, PeerData *item);
+	void showDocument(gsl::not_null<DocumentData*> document, HistoryItem *item);
+	PeerData *ui_getPeerForMouseAction();
+
 	QPoint getPointForCallPanelCenter() const;
 	QImage logo() const {
 		return _logo;
@@ -174,6 +190,9 @@ public:
 		_callDelayedTimer.call(duration, std::move(lambda));
 	}
 
+protected:
+	bool eventFilter(QObject *object, QEvent *event) override;
+
 signals:
 	void peerPhotoDone(PeerId peer);
 	void peerPhotoFail(PeerId peer);
@@ -198,6 +217,8 @@ private:
 	static void QuitAttempt();
 	void quitDelayed();
 
+	void loggedOut();
+
 	QMap<FullMsgId, PeerId> photoUpdates;
 
 	QMap<MTP::DcId, TimeMs> killDownloadSessionTimes;
@@ -207,7 +228,10 @@ private:
 	struct Private;
 	const std::unique_ptr<Private> _private;
 
+	QWidget _globalShortcutParent;
+
 	std::unique_ptr<MainWindow> _window;
+	std::unique_ptr<MediaView> _mediaView;
 	std::unique_ptr<Lang::Instance> _langpack;
 	std::unique_ptr<Lang::CloudManager> _langCloudManager;
 	std::unique_ptr<Lang::Translator> _translator;

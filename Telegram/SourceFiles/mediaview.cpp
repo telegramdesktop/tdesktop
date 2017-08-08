@@ -72,7 +72,7 @@ bool typeHasMediaOverview(MediaOverviewType type) {
 
 } // namespace
 
-MediaView::MediaView(QWidget*) : TWidget(nullptr)
+MediaView::MediaView() : TWidget(nullptr)
 , _transparentBrush(style::transparentPlaceholderBrush())
 , _animStarted(getms())
 , _docDownload(this, lang(lng_media_download), st::mediaviewFileLink)
@@ -106,6 +106,14 @@ MediaView::MediaView(QWidget*) : TWidget(nullptr)
 					onVideoPauseResume();
 				}
 			});
+			subscribe(Auth().documentUpdated, [this](DocumentData *document) {
+				if (!isHidden()) {
+					documentUpdated(document);
+				}
+			});
+			subscribe(Auth().messageIdChanging, [this](std::pair<HistoryItem*, MsgId> update) {
+				changingMsgId(update.first, update.second);
+			});
 		}
 	};
 	subscribe(Messenger::Instance().authSessionChanged(), [handleAuthSessionChange] {
@@ -133,8 +141,6 @@ MediaView::MediaView(QWidget*) : TWidget(nullptr)
 	_saveMsgUpdater.setSingleShot(true);
 	connect(&_saveMsgUpdater, SIGNAL(timeout()), this, SLOT(updateImage()));
 
-	connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onCheckActive()));
-
 	setAttribute(Qt::WA_AcceptTouchEvents);
 	_touchTimer.setSingleShot(true);
 	connect(&_touchTimer, SIGNAL(timeout()), this, SLOT(onTouchTimer()));
@@ -156,17 +162,24 @@ void MediaView::refreshLang() {
 }
 
 void MediaView::moveToScreen() {
-	if (App::wnd() && windowHandle() && App::wnd()->windowHandle() && windowHandle()->screen() != App::wnd()->windowHandle()->screen()) {
-		windowHandle()->setScreen(App::wnd()->windowHandle()->screen());
+	auto widgetScreen = [this](auto &&widget) -> QScreen* {
+		if (auto handle = widget ? widget->windowHandle() : nullptr) {
+			return handle->screen();
+		}
+		return nullptr;
+	};
+	auto activeWindow = Messenger::Instance().getActiveWindow();
+	auto activeWindowScreen = widgetScreen(activeWindow);
+	auto myScreen = widgetScreen(this);
+	if (activeWindowScreen && myScreen && myScreen != activeWindowScreen) {
+		windowHandle()->setScreen(activeWindowScreen);
+	}
+	auto available = activeWindow ? Sandbox::screenGeometry(activeWindow->geometry().center()) : QApplication::desktop()->screenGeometry();
+	if (geometry() != available) {
+		setGeometry(available);
 	}
 
-	auto wndCenter = App::wnd()->geometry().center();
-	QRect avail = Sandbox::screenGeometry(wndCenter);
-	if (avail != geometry()) {
-		setGeometry(avail);
-	}
-
-	int32 navSkip = 2 * st::mediaviewControlMargin + st::mediaviewControlSize;
+	auto navSkip = 2 * st::mediaviewControlMargin + st::mediaviewControlSize;
 	_closeNav = myrtlrect(width() - st::mediaviewControlMargin - st::mediaviewControlSize, st::mediaviewControlMargin, st::mediaviewControlSize, st::mediaviewControlSize);
 	_closeNavIcon = centerrect(_closeNav, st::mediaviewClose);
 	_leftNav = myrtlrect(st::mediaviewControlMargin, navSkip, st::mediaviewControlSize, height() - 2 * navSkip);
@@ -275,10 +288,12 @@ void MediaView::changingMsgId(HistoryItem *row, MsgId newId) {
 	}
 
 	// Send a fake update.
-	Notify::PeerUpdate update(row->history()->peer);
-	update.flags |= Notify::PeerUpdate::Flag::SharedMediaChanged;
-	update.mediaTypesMask |= (1 << _overview);
-	mediaOverviewUpdated(update);
+	if (!isHidden()) {
+		Notify::PeerUpdate update(row->history()->peer);
+		update.flags |= Notify::PeerUpdate::Flag::SharedMediaChanged;
+		update.mediaTypesMask |= (1 << _overview);
+		mediaOverviewUpdated(update);
+	}
 }
 
 void MediaView::updateDocSize() {
@@ -670,9 +685,7 @@ void MediaView::updateMixerVideoVolume() const {
 
 void MediaView::close() {
 	if (_menu) _menu->hideMenu(true);
-	if (App::wnd()) {
-		Ui::hideLayer(true);
-	}
+	Messenger::Instance().hideMediaView();
 }
 
 void MediaView::activateControls() {
@@ -750,10 +763,8 @@ void MediaView::onScreenResized(int screen) {
 
 void MediaView::onToMessage() {
 	if (auto item = _msgid ? App::histItemById(_msgmigrated ? 0 : _channel, _msgid) : 0) {
-		if (App::wnd()) {
-			close();
-			Ui::showPeerHistoryAtItem(item);
-		}
+		close();
+		Ui::showPeerHistoryAtItem(item);
 	}
 }
 
@@ -957,13 +968,11 @@ void MediaView::onForward() {
 	auto item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid);
 	if (!_msgid || !item || item->id < 0 || item->serviceMsg()) return;
 
-	if (App::wnd()) {
-		close();
-		if (auto main = App::main()) {
-			auto items = SelectedItemSet();
-			items.insert(item->id, item);
-			main->showForwardLayer(items);
-		}
+	close();
+	if (auto main = App::main()) {
+		auto items = SelectedItemSet();
+		items.insert(item->id, item);
+		main->showForwardLayer(items);
 	}
 }
 
@@ -2528,7 +2537,7 @@ void MediaView::mouseReleaseEvent(QMouseEvent *e) {
 	}
 
 	if (_over == OverName && _down == OverName) {
-		if (App::wnd() && _from) {
+		if (_from) {
 			close();
 			Ui::showPeerProfile(_from);
 		}
@@ -2608,15 +2617,15 @@ void MediaView::touchEvent(QTouchEvent *e) {
 
 	case QEvent::TouchEnd:
 		if (!_touchPress) return;
-		if (!_touchMove && App::wnd()) {
+		if (!_touchMove) {
 			Qt::MouseButton btn(_touchRightButton ? Qt::RightButton : Qt::LeftButton);
-			QPoint mapped(mapFromGlobal(_touchStart)), winMapped(App::wnd()->mapFromGlobal(_touchStart));
+			auto mapped = mapFromGlobal(_touchStart);
 
-			QMouseEvent pressEvent(QEvent::MouseButtonPress, mapped, winMapped, _touchStart, btn, Qt::MouseButtons(btn), Qt::KeyboardModifiers());
+			QMouseEvent pressEvent(QEvent::MouseButtonPress, mapped, mapped, _touchStart, btn, Qt::MouseButtons(btn), Qt::KeyboardModifiers());
 			pressEvent.accept();
 			mousePressEvent(&pressEvent);
 
-			QMouseEvent releaseEvent(QEvent::MouseButtonRelease, mapped, winMapped, _touchStart, btn, Qt::MouseButtons(btn), Qt::KeyboardModifiers());
+			QMouseEvent releaseEvent(QEvent::MouseButtonRelease, mapped, mapped, _touchStart, btn, Qt::MouseButtons(btn), Qt::KeyboardModifiers());
 			mouseReleaseEvent(&releaseEvent);
 
 			if (_touchRightButton) {
@@ -2731,16 +2740,6 @@ void MediaView::onDropdown() {
 	_dropdown->moveToRight(0, height() - _dropdown->height());
 	_dropdown->showAnimated(Ui::PanelAnimation::Origin::BottomRight);
 	_dropdown->setFocus();
-}
-
-void MediaView::onCheckActive() {
-	if (App::wnd() && isVisible()) {
-		if (App::wnd()->isActiveWindow() && App::wnd()->hasFocus()) {
-			activateWindow();
-			Sandbox::setActiveWindow(this);
-			setFocus();
-		}
-	}
 }
 
 void MediaView::onTouchTimer() {

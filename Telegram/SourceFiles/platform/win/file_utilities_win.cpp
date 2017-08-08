@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/localstorage.h"
 #include "platform/win/windows_dlls.h"
 #include "lang/lang_keys.h"
+#include "messenger.h"
 
 #include <Shlwapi.h>
 #include <Windowsx.h>
@@ -356,7 +357,8 @@ bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, 
 	// that forced file icon and maybe other properties being resolved and this was
 	// a blocking operation.
 	auto helperPath = cDialogHelperPathFinal();
-	QFileDialog dialog(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, helperPath, filter);
+	auto parent = Messenger::Instance().getFileDialogParent();
+	QFileDialog dialog(parent, caption, helperPath, filter);
 
 	dialog.setModal(true);
 	if (type == Type::ReadFile || type == Type::ReadFiles) {

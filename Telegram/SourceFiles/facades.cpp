@@ -241,11 +241,6 @@ bool isLayerShown() {
 	return false;
 }
 
-bool isMediaViewShown() {
-	if (auto w = App::wnd()) return w->ui_isMediaViewShown();
-	return false;
-}
-
 void repaintHistoryItem(gsl::not_null<const HistoryItem*> item) {
 	if (auto main = App::main()) {
 		main->ui_repaintHistoryItem(item);
@@ -282,10 +277,7 @@ void showPeerHistoryAsync(const PeerId &peer, MsgId msgId, ShowWay way) {
 }
 
 PeerData *getPeerForMouseAction() {
-	if (auto w = App::wnd()) {
-		return w->ui_getPeerForMouseAction();
-	}
-	return nullptr;
+	return Messenger::Instance().ui_getPeerForMouseAction();
 }
 
 bool hideWindowNoQuit() {

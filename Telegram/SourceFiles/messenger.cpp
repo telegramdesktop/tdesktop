@@ -35,6 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "storage/file_upload.h"
 #include "mainwidget.h"
+#include "mediaview.h"
 #include "mtproto/dc_options.h"
 #include "mtproto/mtp_instance.h"
 #include "media/player/media_player_instance.h"
@@ -129,6 +130,9 @@ Messenger::Messenger() : QObject()
 	_window->createWinId();
 	_window->init();
 
+	_mediaView = std::make_unique<MediaView>();
+
+	QCoreApplication::instance()->installEventFilter(this);
 	Sandbox::connect(SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
 
 	DEBUG_LOG(("Application Info: window created..."));
@@ -178,6 +182,97 @@ Messenger::Messenger() : QObject()
 			LOG(("Shortcuts Error: %1").arg(*i));
 		}
 	}
+}
+
+bool Messenger::hideMediaView() {
+	if (_mediaView && !_mediaView->isHidden()) {
+		_mediaView->hide();
+		_window->reActivateWindow();
+		return true;
+	}
+	return false;
+}
+
+void Messenger::showPhoto(gsl::not_null<const PhotoOpenClickHandler*> link, HistoryItem *item) {
+	return (!item && link->peer())
+		? showPhoto(link->photo(), link->peer())
+		: showPhoto(link->photo(), item);
+}
+
+void Messenger::showPhoto(gsl::not_null<PhotoData*> photo, HistoryItem *item) {
+	if (_mediaView->isHidden()) Ui::hideLayer(true);
+	_mediaView->showPhoto(photo, item);
+	_mediaView->activateWindow();
+	_mediaView->setFocus();
+}
+
+void Messenger::showPhoto(gsl::not_null<PhotoData*> photo, PeerData *peer) {
+	if (_mediaView->isHidden()) Ui::hideLayer(true);
+	_mediaView->showPhoto(photo, peer);
+	_mediaView->activateWindow();
+	_mediaView->setFocus();
+}
+
+void Messenger::showDocument(gsl::not_null<DocumentData*> document, HistoryItem *item) {
+	if (cUseExternalVideoPlayer() && document->isVideo()) {
+		QDesktopServices::openUrl(QUrl("file:///" + document->location(false).fname));
+	} else {
+		if (_mediaView->isHidden()) Ui::hideLayer(true);
+		_mediaView->showDocument(document, item);
+		_mediaView->activateWindow();
+		_mediaView->setFocus();
+	}
+}
+
+PeerData *Messenger::ui_getPeerForMouseAction() {
+	if (_mediaView && !_mediaView->isHidden()) {
+		return _mediaView->ui_getPeerForMouseAction();
+	} else if (auto main = App::main()) {
+		return main->ui_getPeerForMouseAction();
+	}
+	return nullptr;
+}
+
+bool Messenger::eventFilter(QObject *object, QEvent *e) {
+	switch (e->type()) {
+	case QEvent::KeyPress:
+	case QEvent::MouseButtonPress:
+	case QEvent::TouchBegin:
+	case QEvent::Wheel: {
+		psUserActionDone();
+	} break;
+
+	case QEvent::ShortcutOverride: {
+		// handle shortcuts ourselves
+		return true;
+	} break;
+
+	case QEvent::Shortcut: {
+		DEBUG_LOG(("Shortcut event caught: %1").arg(static_cast<QShortcutEvent*>(e)->key().toString()));
+		if (Shortcuts::launch(static_cast<QShortcutEvent*>(e)->shortcutId())) {
+			return true;
+		}
+	} break;
+
+	case QEvent::ApplicationActivate: {
+		if (object == QCoreApplication::instance()) {
+			psUserActionDone();
+		}
+	} break;
+
+	case QEvent::FileOpen: {
+		if (object == QCoreApplication::instance()) {
+			auto url = QString::fromUtf8(static_cast<QFileOpenEvent*>(e)->url().toEncoded().trimmed());
+			if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
+				cSetStartUrl(url.mid(0, 8192));
+				checkStartUrl();
+			}
+			_window->activate();
+		}
+	} break;
+	}
+
+	return QObject::eventFilter(object, e);
 }
 
 void Messenger::setMtpMainDcId(MTP::DcId mainDcId) {
@@ -616,6 +711,8 @@ void Messenger::authSessionDestroy() {
 	_private->storedAuthSession.reset();
 	_private->authSessionUserId = 0;
 	authSessionChanged().notify(true);
+
+	loggedOut();
 }
 
 void Messenger::setInternalLinkDomain(const QString &domain) const {
@@ -800,6 +897,7 @@ Messenger::~Messenger() {
 	Expects(SingleInstance == this);
 
 	_window.reset();
+	_mediaView.reset();
 
 	// Some MTP requests can be cancelled from data clearing.
 	App::clearHistories();
@@ -832,8 +930,28 @@ Messenger::~Messenger() {
 	SingleInstance = nullptr;
 }
 
-MainWindow *Messenger::mainWindow() {
+MainWindow *Messenger::getActiveWindow() {
 	return _window.get();
+}
+
+QWidget *Messenger::getFileDialogParent() {
+	return (_mediaView && _mediaView->isVisible()) ? (QWidget*)_mediaView.get() : (QWidget*)getActiveWindow();
+}
+
+void Messenger::checkMediaViewActivation() {
+	if (_mediaView && !_mediaView->isHidden()) {
+		_mediaView->activateWindow();
+		Sandbox::setActiveWindow(_mediaView.get());
+		_mediaView->setFocus();
+	}
+}
+
+void Messenger::loggedOut() {
+	if (_mediaView) {
+		hideMediaView();
+		_mediaView->rpcClear();
+		_mediaView->clearData();
+	}
 }
 
 QPoint Messenger::getPointForCallPanelCenter() const {

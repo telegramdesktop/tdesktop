@@ -318,7 +318,6 @@ public:
 	void jumpToDate(gsl::not_null<PeerData*> peer, const QDate &date);
 	void searchMessages(const QString &query, PeerData *inPeer);
 	bool preloadOverview(PeerData *peer, MediaOverviewType type);
-	void changingMsgId(HistoryItem *row, MsgId newId);
 	void itemEdited(HistoryItem *item);
 
 	void loadMediaBack(PeerData *peer, MediaOverviewType type, bool many = false);

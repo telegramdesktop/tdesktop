@@ -49,7 +49,6 @@ public:
 	}
 
 	bool hideNoQuit();
-	void hideMediaview();
 
 	void init();
 	HitTestResult hitTest(const QPoint &p) const;
@@ -70,17 +69,11 @@ public:
 	}
 
 	void reActivateWindow() {
+#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 		onReActivate();
 		QTimer::singleShot(200, this, SLOT(onReActivate()));
+#endif // Q_OS_LINUX32 || Q_OS_LINUX64
 	}
-
-	void showPhoto(const PhotoOpenClickHandler *lnk, HistoryItem *item = 0);
-	void showPhoto(PhotoData *photo, HistoryItem *item);
-	void showPhoto(PhotoData *photo, PeerData *item);
-	void showDocument(DocumentData *doc, HistoryItem *item);
-	bool ui_isMediaViewShown();
-
-	QWidget *filedialogParent();
 
 	void showRightColumn(object_ptr<TWidget> widget);
 	bool canExtendWidthBy(int addToWidth);
@@ -89,16 +82,11 @@ public:
 	virtual void updateTrayMenu(bool force = false) {
 	}
 
-	// TODO: rewrite using base::Observable
-	void documentUpdated(DocumentData *doc);
-	virtual void changingMsgId(HistoryItem *row, MsgId newId);
-
 	virtual ~MainWindow();
 
 	TWidget *bodyWidget() {
 		return _body.data();
 	}
-	virtual PeerData *ui_getPeerForMouseAction();
 
 	void launchDrag(std::unique_ptr<QMimeData> data);
 	base::Observable<void> &dragFinished() {
@@ -165,8 +153,6 @@ protected:
 
 	void setPositionInited();
 
-	void createMediaView();
-
 private slots:
 	void savePositionByTimer() {
 		savePosition();
@@ -196,8 +182,6 @@ private:
 	base::Timer _isActiveTimer;
 	bool _wasInactivePress = false;
 	base::Timer _inactivePressTimer;
-
-	object_ptr<MediaView> _mediaView = { nullptr };
 
 	base::Observable<void> _dragFinished;
 	base::Observable<void> _widgetGrabbed;

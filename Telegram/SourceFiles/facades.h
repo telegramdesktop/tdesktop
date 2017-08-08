@@ -103,7 +103,6 @@ QPointer<BoxType> show(object_ptr<BoxType> content, ShowLayerOptions options = C
 void hideLayer(bool fast = false);
 void hideSettingsAndLayer(bool fast = false);
 bool isLayerShown();
-bool isMediaViewShown();
 
 void repaintHistoryItem(gsl::not_null<const HistoryItem*> item);
 void autoplayMediaInlineAsync(const FullMsgId &msgId);

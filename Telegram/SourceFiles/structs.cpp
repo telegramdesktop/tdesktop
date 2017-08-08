@@ -1234,7 +1234,7 @@ ImagePtr PhotoData::makeReplyPreview() {
 }
 
 void PhotoOpenClickHandler::onClickImpl() const {
-	App::wnd()->showPhoto(this, App::hoveredLinkItem() ? App::hoveredLinkItem() : App::contextItem());
+	Messenger::Instance().showPhoto(this, App::hoveredLinkItem() ? App::hoveredLinkItem() : App::contextItem());
 }
 
 void PhotoSaveClickHandler::onClickImpl() const {
@@ -1440,7 +1440,7 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, HistoryItem *context, 
 	auto &location = data->location(true);
 	if (auto applyTheme = data->isTheme()) {
 		if (!location.isEmpty() && location.accessEnable()) {
-			App::wnd()->showDocument(data, context);
+			Messenger::Instance().showDocument(data, context);
 			location.accessDisable();
 			return;
 		}
@@ -1478,9 +1478,9 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, HistoryItem *context, 
 			}
 		} else if (playVideo) {
 			if (!data->data().isEmpty()) {
-				App::wnd()->showDocument(data, context);
+				Messenger::Instance().showDocument(data, context);
 			} else if (location.accessEnable()) {
-				App::wnd()->showDocument(data, context);
+				Messenger::Instance().showDocument(data, context);
 				location.accessDisable();
 			} else {
 				auto filepath = location.name();
@@ -1500,14 +1500,14 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, HistoryItem *context, 
 				if (action == ActionOnLoadPlayInline && context && context->getMedia()) {
 					context->getMedia()->playInline();
 				} else {
-					App::wnd()->showDocument(data, context);
+					Messenger::Instance().showDocument(data, context);
 				}
 			} else if (location.accessEnable()) {
 				if (data->isAnimation() || QImageReader(location.name()).canRead()) {
 					if (action == ActionOnLoadPlayInline && context && context->getMedia()) {
 						context->getMedia()->playInline();
 					} else {
-						App::wnd()->showDocument(data, context);
+						Messenger::Instance().showDocument(data, context);
 					}
 				} else {
 					File::Launch(location.name());
@@ -1748,7 +1748,7 @@ void DocumentData::performActionOnLoad() {
 	auto playAnimation = isAnimation() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen) && showImage && item && item->getMedia();
 	if (auto applyTheme = isTheme()) {
 		if (!loc.isEmpty() && loc.accessEnable()) {
-			App::wnd()->showDocument(this, item);
+			Messenger::Instance().showDocument(this, item);
 			loc.accessDisable();
 			return;
 		}
@@ -1788,7 +1788,7 @@ void DocumentData::performActionOnLoad() {
 			if (_actionOnLoad == ActionOnLoadPlayInline && item->getMedia()) {
 				item->getMedia()->playInline();
 			} else {
-				App::wnd()->showDocument(this, item);
+				Messenger::Instance().showDocument(this, item);
 			}
 		}
 	} else {
@@ -1807,7 +1807,7 @@ void DocumentData::performActionOnLoad() {
 					if (_actionOnLoad == ActionOnLoadPlayInline && item && item->getMedia()) {
 						item->getMedia()->playInline();
 					} else {
-						App::wnd()->showDocument(this, item);
+						Messenger::Instance().showDocument(this, item);
 					}
 				} else {
 					File::Launch(already);

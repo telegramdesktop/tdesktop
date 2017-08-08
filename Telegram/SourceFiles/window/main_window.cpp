@@ -80,10 +80,6 @@ MainWindow::MainWindow() : QWidget()
 }
 
 bool MainWindow::hideNoQuit() {
-	if (_mediaView && !_mediaView->isHidden()) {
-		hideMediaview();
-		return true;
-	}
 	if (Global::WorkMode().value() == dbiwmTrayOnly || Global::WorkMode().value() == dbiwmWindowAndTray) {
 		if (minimizeToTray()) {
 			Ui::showChatsList();
@@ -101,46 +97,8 @@ bool MainWindow::hideNoQuit() {
 
 void MainWindow::clearWidgets() {
 	Ui::hideLayer(true);
-	if (_mediaView) {
-		hideMediaview();
-		_mediaView->rpcClear();
-		_mediaView->clearData();
-	}
 	clearWidgetsHook();
 	updateGlobalMenu();
-}
-
-void MainWindow::showPhoto(const PhotoOpenClickHandler *lnk, HistoryItem *item) {
-	return (!item && lnk->peer()) ? showPhoto(lnk->photo(), lnk->peer()) : showPhoto(lnk->photo(), item);
-}
-
-void MainWindow::showPhoto(PhotoData *photo, HistoryItem *item) {
-	if (_mediaView->isHidden()) Ui::hideLayer(true);
-	_mediaView->showPhoto(photo, item);
-	_mediaView->activateWindow();
-	_mediaView->setFocus();
-}
-
-void MainWindow::showPhoto(PhotoData *photo, PeerData *peer) {
-	if (_mediaView->isHidden()) Ui::hideLayer(true);
-	_mediaView->showPhoto(photo, peer);
-	_mediaView->activateWindow();
-	_mediaView->setFocus();
-}
-
-void MainWindow::showDocument(DocumentData *doc, HistoryItem *item) {
-	if (cUseExternalVideoPlayer() && doc->isVideo()) {
-		QDesktopServices::openUrl(QUrl("file:///" + doc->location(false).fname));
-	} else {
-		if (_mediaView->isHidden()) Ui::hideLayer(true);
-		_mediaView->showDocument(doc, item);
-		_mediaView->activateWindow();
-		_mediaView->setFocus();
-	}
-}
-
-bool MainWindow::ui_isMediaViewShown() {
-	return _mediaView && !_mediaView->isHidden();
 }
 
 void MainWindow::updateIsActive(int timeout) {
@@ -155,15 +113,6 @@ bool MainWindow::computeIsActive() const {
 	return isActiveWindow() && isVisible() && !(windowState() & Qt::WindowMinimized);
 }
 
-void MainWindow::hideMediaview() {
-	if (_mediaView && !_mediaView->isHidden()) {
-		_mediaView->hide();
-#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
-		reActivateWindow();
-#endif
-	}
-}
-
 void MainWindow::onReActivate() {
 	if (auto w = App::wnd()) {
 		if (auto f = QApplication::focusWidget()) {
@@ -176,14 +125,6 @@ void MainWindow::onReActivate() {
 		}
 		w->setInnerFocus();
 	}
-}
-
-QWidget *MainWindow::filedialogParent() {
-	return (_mediaView && _mediaView->isVisible()) ? (QWidget*)_mediaView : (QWidget*)this;
-}
-
-void MainWindow::createMediaView() {
-	_mediaView.create(nullptr);
 }
 
 void MainWindow::updateWindowIcon() {
@@ -221,9 +162,8 @@ void MainWindow::handleStateChanged(Qt::WindowState state) {
 }
 
 void MainWindow::handleActiveChanged() {
-	if (isActiveWindow() && _mediaView && !_mediaView->isHidden()) {
-		_mediaView->activateWindow();
-		_mediaView->setFocus();
+	if (isActiveWindow()) {
+		Messenger::Instance().checkMediaViewActivation();
 	}
 	App::CallDelayed(1, this, [this] {
 		updateTrayMenu();
@@ -436,23 +376,6 @@ void MainWindow::tryToExtendWidthBy(int addToWidth) {
 	} else {
 		updateControlsGeometry();
 	}
-}
-
-void MainWindow::documentUpdated(DocumentData *doc) {
-	if (!_mediaView || _mediaView->isHidden()) return;
-	_mediaView->documentUpdated(doc);
-}
-
-void MainWindow::changingMsgId(HistoryItem *row, MsgId newId) {
-	if (!_mediaView || _mediaView->isHidden()) return;
-	_mediaView->changingMsgId(row, newId);
-}
-
-PeerData *MainWindow::ui_getPeerForMouseAction() {
-	if (_mediaView && !_mediaView->isHidden()) {
-		return _mediaView->ui_getPeerForMouseAction();
-	}
-	return nullptr;
 }
 
 void MainWindow::launchDrag(std::unique_ptr<QMimeData> data) {

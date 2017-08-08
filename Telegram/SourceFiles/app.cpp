@@ -160,7 +160,7 @@ namespace App {
 
 	MainWindow *wnd() {
 		if (auto instance = Messenger::InstancePointer()) {
-			return instance->mainWindow();
+			return instance->getActiveWindow();
 		}
 		return nullptr;
 	}

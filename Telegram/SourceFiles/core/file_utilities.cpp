@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/localstorage.h"
 #include "platform/platform_file_utilities.h"
 #include "base/task_queue.h"
+#include "messenger.h"
 
 bool filedialogGetSaveFile(QString &file, const QString &caption, const QString &filter, const QString &initialPath) {
 	QStringList files;
@@ -220,7 +221,7 @@ bool GetDefault(QStringList &files, QByteArray &remoteContent, const QString &ca
 	}
 	QString file;
 	if (type == Type::ReadFiles) {
-		files = QFileDialog::getOpenFileNames(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, startFile, filter);
+		files = QFileDialog::getOpenFileNames(Messenger::Instance().getFileDialogParent(), caption, startFile, filter);
 		QString path = files.isEmpty() ? QString() : QFileInfo(files.back()).absoluteDir().absolutePath();
 		if (!path.isEmpty() && path != cDialogLastPath()) {
 			cSetDialogLastPath(path);
@@ -228,11 +229,11 @@ bool GetDefault(QStringList &files, QByteArray &remoteContent, const QString &ca
 		}
 		return !files.isEmpty();
     } else if (type == Type::ReadFolder) {
-		file = QFileDialog::getExistingDirectory(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, startFile);
+		file = QFileDialog::getExistingDirectory(Messenger::Instance().getFileDialogParent(), caption, startFile);
     } else if (type == Type::WriteFile) {
-		file = QFileDialog::getSaveFileName(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, startFile, filter);
+		file = QFileDialog::getSaveFileName(Messenger::Instance().getFileDialogParent(), caption, startFile, filter);
     } else {
-		file = QFileDialog::getOpenFileName(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, startFile, filter);
+		file = QFileDialog::getOpenFileName(Messenger::Instance().getFileDialogParent(), caption, startFile, filter);
     }
     if (file.isEmpty()) {
         files = QStringList();
