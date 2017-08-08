@@ -6587,7 +6587,11 @@ bool HistoryWidget::touchScroll(const QPoint &delta) {
 
 void HistoryWidget::synteticScrollToY(int y) {
 	_synteticScrollEvent = true;
-	_scroll->scrollToY(y);
+	if (_scroll->scrollTop() == y) {
+		visibleAreaUpdated();
+	} else {
+		_scroll->scrollToY(y);
+	}
 	_synteticScrollEvent = false;
 }
 
