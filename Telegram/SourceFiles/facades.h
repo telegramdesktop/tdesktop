@@ -147,8 +147,6 @@ inline void showChatsListAsync() {
 }
 PeerData *getPeerForMouseAction();
 
-bool hideWindowNoQuit();
-
 bool skipPaintEvent(QWidget *widget, QPaintEvent *event);
 
 } // namespace Ui

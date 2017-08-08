@@ -280,15 +280,6 @@ PeerData *getPeerForMouseAction() {
 	return Messenger::Instance().ui_getPeerForMouseAction();
 }
 
-bool hideWindowNoQuit() {
-	if (!App::quitting()) {
-		if (auto w = App::wnd()) {
-			return w->hideNoQuit();
-		}
-	}
-	return false;
-}
-
 bool skipPaintEvent(QWidget *widget, QPaintEvent *event) {
 	if (auto w = App::wnd()) {
 		if (w->contentOverlapped(widget, event)) {

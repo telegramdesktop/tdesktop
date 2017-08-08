@@ -71,7 +71,9 @@ public:
 	~Messenger();
 
 	// Windows interface.
-	MainWindow *getActiveWindow();
+	MainWindow *getActiveWindow() const;
+	bool closeActiveWindow();
+	bool minimizeActiveWindow();
 	QWidget *getFileDialogParent();
 	QWidget *getGlobalShortcutParent() {
 		return &_globalShortcutParent;

@@ -80,6 +80,9 @@ MainWindow::MainWindow() : QWidget()
 }
 
 bool MainWindow::hideNoQuit() {
+	if (App::quitting()) {
+		return false;
+	}
 	if (Global::WorkMode().value() == dbiwmTrayOnly || Global::WorkMode().value() == dbiwmWindowAndTray) {
 		if (minimizeToTray()) {
 			Ui::showChatsList();

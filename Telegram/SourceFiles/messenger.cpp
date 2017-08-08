@@ -187,7 +187,9 @@ Messenger::Messenger() : QObject()
 bool Messenger::hideMediaView() {
 	if (_mediaView && !_mediaView->isHidden()) {
 		_mediaView->hide();
-		_window->reActivateWindow();
+		if (auto activeWindow = getActiveWindow()) {
+			activeWindow->reActivateWindow();
+		}
 		return true;
 	}
 	return false;
@@ -930,8 +932,34 @@ Messenger::~Messenger() {
 	SingleInstance = nullptr;
 }
 
-MainWindow *Messenger::getActiveWindow() {
+MainWindow *Messenger::getActiveWindow() const {
 	return _window.get();
+}
+
+bool Messenger::closeActiveWindow() {
+	if (hideMediaView()) {
+		return true;
+	}
+	if (auto activeWindow = getActiveWindow()) {
+		if (!activeWindow->hideNoQuit()) {
+			activeWindow->close();
+		}
+		return true;
+	}
+	return false;
+}
+
+bool Messenger::minimizeActiveWindow() {
+	hideMediaView();
+	if (auto activeWindow = getActiveWindow()) {
+		if (Global::WorkMode().value() == dbiwmTrayOnly) {
+			activeWindow->minimizeToTray();
+		} else {
+			activeWindow->setWindowState(Qt::WindowMinimized);
+		}
+		return true;
+	}
+	return false;
 }
 
 QWidget *Messenger::getFileDialogParent() {
@@ -955,12 +983,14 @@ void Messenger::loggedOut() {
 }
 
 QPoint Messenger::getPointForCallPanelCenter() const {
-	Expects(_window != nullptr);
-	Expects(_window->windowHandle() != nullptr);
-	if (_window->isActive()) {
-		return _window->geometry().center();
+	if (auto activeWindow = getActiveWindow()) {
+		t_assert(activeWindow->windowHandle() != nullptr);
+		if (activeWindow->isActive()) {
+			return activeWindow->geometry().center();
+		}
+		return activeWindow->windowHandle()->screen()->geometry().center();
 	}
-	return _window->windowHandle()->screen()->geometry().center();
+	return QApplication::desktop()->screenGeometry().center();
 }
 
 void Messenger::QuitAttempt() {

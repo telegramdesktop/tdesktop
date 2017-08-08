@@ -33,38 +33,19 @@ namespace ShortcutCommands {
 using Handler = bool(*)();
 
 bool lock_telegram() {
-	if (auto w = App::wnd()) {
-		if (App::passcoded()) {
-			w->passcodeWidget()->onSubmit();
-			return true;
-		} else if (Global::LocalPasscode()) {
-			Messenger::Instance().setupPasscode();
-			return true;
-		}
+	if (!App::passcoded() && Global::LocalPasscode()) {
+		Messenger::Instance().setupPasscode();
+		return true;
 	}
 	return false;
 }
 
 bool minimize_telegram() {
-	if (auto w = App::wnd()) {
-		if (Global::WorkMode().value() == dbiwmTrayOnly) {
-			w->minimizeToTray();
-		} else {
-			w->setWindowState(Qt::WindowMinimized);
-		}
-	}
-	return true;
+	return Messenger::Instance().minimizeActiveWindow();
 }
 
 bool close_telegram() {
-	if (!Messenger::Instance().hideMediaView()) {
-		if (!Ui::hideWindowNoQuit()) {
-			if (auto w = App::wnd()) {
-				w->close();
-			}
-		}
-	}
-	return true;
+	return Messenger::Instance().closeActiveWindow();
 }
 
 bool quit_telegram() {

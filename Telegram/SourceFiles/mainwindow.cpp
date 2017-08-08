@@ -776,7 +776,7 @@ void MainWindow::closeEvent(QCloseEvent *e) {
 		App::quit();
 	} else {
 		e->ignore();
-		if (!AuthSession::Exists() || !Ui::hideWindowNoQuit()) {
+		if (!AuthSession::Exists() || !hideNoQuit()) {
 			App::quit();
 		}
 	}
