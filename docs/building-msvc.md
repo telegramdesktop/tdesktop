@@ -35,7 +35,7 @@
 
 Choose a folder for the future build, for example **D:\\TBuild\\**. There you will have two folders, **Libraries** for third-party libs and **tdesktop** for the app.
 
-All commands (if not stated otherwise) will be launched from **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder).
+All commands (if not stated otherwise) will be launched from **VS2015 x86 Native Tools Command Prompt.bat** (should be in **Start Menu > Programs > Visual Studio 2015** menu folder). Pay attention not to use another VS2015 Command Prompt.
 
 #### A note on D:\\TBuild
 
@@ -149,6 +149,7 @@ Go to **D:\\TBuild\\Libraries** and run
 Go to **D:\\TBuild\\Libraries** and run
 
     git clone https://github.com/telegramdesktop/opus.git
+    cd opus
     git checkout ffmpeg_fix
 
 #### Building libraries
@@ -251,11 +252,22 @@ If you get errors like
 
 run `git reset --hard HEAD` and execute `gclient` again
 
+If you get errors like
+
+    [P15084 09:15:28.171 fs.go:341 W] fs: failed to rename() - Access is denied.
+    [P15084 09:15:28.194 client.go:1378 E] Failed to install infra/tools/luci/led/windows-amd64:cc7454629aa4b4a90a5de014f4089cc680d15c4b - Access is denied. 
+    Error: failed to update packages, see the log.
+
+run `set PATH=D:\TBuild\Libraries\depot_tools;%PATH%` and execute `gclient` again
+
 ##### Breakpad
 
     cd ..
     mkdir breakpad && cd breakpad
     ..\depot_tools\fetch breakpad
+    
+If you get the following Python error: `TypeError: not all arguments converted during string formatting`, you may want to apply [this patch](https://bugs.chromium.org/p/chromium/issues/detail?id=749720#c4) (more info in [this issue](https://github.com/telegramdesktop/tdesktop/issues/3761)) and try again.
+
     ..\depot_tools\gclient sync
     xcopy src\src\* src /s /i
     rmdir src\src /s /q
