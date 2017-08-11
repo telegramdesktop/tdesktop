@@ -4152,10 +4152,6 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 			channel->setUserpic(photoLoc.isNull() ? ImagePtr() : ImagePtr(photoLoc));
 		}
 	}
-	if (!wasLoaded) {
-		App::markPeerUpdated(result);
-		emit App::main()->peerPhotoChanged(result);
-	}
 	return result;
 }
 

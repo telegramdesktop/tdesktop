@@ -1151,7 +1151,11 @@ void EditChannelBox::prepare() {
 	addButton(langFactory(lng_settings_save), [this] { onSave(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
-	connect(App::main(), SIGNAL(peerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)), this, SLOT(peerUpdated(PeerData*)));
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::NameChanged, [this](const Notify::PeerUpdate &update) {
+		if (update.peer == _channel) {
+			handleChannelNameChange();
+		}
+	}));
 
 	setMouseTracking(true);
 
@@ -1185,11 +1189,9 @@ void EditChannelBox::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-void EditChannelBox::peerUpdated(PeerData *peer) {
-	if (peer == _channel) {
-		_publicLink->setText(lang(_channel->isPublic() ? lng_profile_edit_public_link : lng_profile_create_public_link));
-		_sign->setChecked(_channel->addsSignature());
-	}
+void EditChannelBox::handleChannelNameChange() {
+	_publicLink->setText(lang(_channel->isPublic() ? lng_profile_edit_public_link : lng_profile_create_public_link));
+	_sign->setChecked(_channel->addsSignature());
 }
 
 void EditChannelBox::onDescriptionResized() {

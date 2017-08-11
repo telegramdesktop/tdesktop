@@ -22,11 +22,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "base/observer.h"
 
-namespace App {
-// Temp forward declaration (while all peer updates are not done through observers).
-void emitPeerUpdated();
-} // namespace App
-
 namespace Notify {
 namespace {
 
@@ -93,8 +88,6 @@ void peerUpdatedDelayed(const PeerUpdate &update) {
 }
 
 void peerUpdatedSendDelayed() {
-	App::emitPeerUpdated();
-
 	if (!SmallUpdates || !AllUpdates || SmallUpdates->empty()) return;
 
 	auto smallList = base::take(*SmallUpdates);

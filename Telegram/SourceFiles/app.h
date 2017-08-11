@@ -65,11 +65,11 @@ namespace App {
 	PeerData *feedChat(const MTPChat &chat);
 	PeerData *feedChats(const MTPVector<MTPChat> &chats); // returns last chat
 
-	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos, bool emitPeerUpdated = true);
-	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d, bool emitPeerUpdated = true);
-	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d, bool emitPeerUpdated = true);
-	void feedChatAdmins(const MTPDupdateChatAdmins &d, bool emitPeerUpdated = true);
-	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d, bool emitPeerUpdated = true);
+	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos);
+	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d);
+	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d);
+	void feedChatAdmins(const MTPDupdateChatAdmins &d);
+	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d);
 	bool checkEntitiesAndViewsUpdate(const MTPDmessage &m); // returns true if item found and it is not detached
 	void updateEditedMessage(const MTPMessage &m);
 	void addSavedGif(DocumentData *doc);
@@ -80,9 +80,6 @@ namespace App {
 	void feedOutboxRead(const PeerId &peer, MsgId upTo, TimeId when);
 	void feedWereDeleted(ChannelId channelId, const QVector<MTPint> &msgsIds);
 	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink);
-
-	void markPeerUpdated(PeerData *data);
-	void clearPeerUpdated(PeerData *data);
 
 	ImagePtr image(const MTPPhotoSize &size);
 	StorageImageLocation imageLocation(int32 w, int32 h, const MTPFileLocation &loc);

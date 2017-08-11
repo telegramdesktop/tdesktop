@@ -278,8 +278,6 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private slots:
-	void peerUpdated(PeerData *peer);
-
 	void onSave();
 	void onDescriptionResized();
 	void onPublicLink();
@@ -291,6 +289,7 @@ private:
 	void updateMaxHeight();
 	bool canEditSignatures() const;
 	bool canEditInvites() const;
+	void handleChannelNameChange();
 
 	void onSaveTitleDone(const MTPUpdates &result);
 	void onSaveDescriptionDone(const MTPBool &result);

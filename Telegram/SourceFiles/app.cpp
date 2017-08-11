@@ -61,9 +61,6 @@ namespace {
 	using MutedPeers = QMap<PeerData*, bool>;
 	MutedPeers mutedPeers;
 
-	using UpdatedPeers = QMap<PeerData*, bool>;
-	UpdatedPeers updatedPeers;
-
 	PhotosData photosData;
 	DocumentsData documentsData;
 
@@ -535,8 +532,6 @@ namespace {
 			if ((data->contact > 0 && !wasContact) || (wasContact && data->contact < 1)) {
 				Notify::userIsContactChanged(data);
 			}
-
-			markPeerUpdated(data);
 			if (update.flags) {
 				update.peer = data;
 				Notify::peerUpdatedDelayed(update);
@@ -760,12 +755,9 @@ namespace {
 		} else if (data->loadedStatus != PeerData::FullLoaded) {
 			data->loadedStatus = PeerData::FullLoaded;
 		}
-		if (App::main()) {
-			markPeerUpdated(data);
-			if (update.flags) {
-				update.peer = data;
-				Notify::peerUpdatedDelayed(update);
-			}
+		if (update.flags) {
+			update.peer = data;
+			Notify::peerUpdatedDelayed(update);
 		}
 		return data;
 	}
@@ -780,7 +772,7 @@ namespace {
 		return result;
 	}
 
-	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos, bool emitPeerUpdated) {
+	void feedParticipants(const MTPChatParticipants &p, bool requestBotInfos) {
 		ChatData *chat = 0;
 		switch (p.type()) {
 		case mtpc_chatParticipantsForbidden: {
@@ -872,28 +864,14 @@ namespace {
 		} break;
 		}
 		Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::MembersChanged | Notify::PeerUpdate::Flag::AdminsChanged);
-		if (chat && App::main()) {
-			if (emitPeerUpdated) {
-				App::main()->peerUpdated(chat);
-			} else {
-				markPeerUpdated(chat);
-			}
-		}
 	}
 
-	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d, bool emitPeerUpdated) {
+	void feedParticipantAdd(const MTPDupdateChatParticipantAdd &d) {
 		ChatData *chat = App::chat(d.vchat_id.v);
 		if (chat->version + 1 < d.vversion.v) {
 			chat->version = d.vversion.v;
 			chat->invalidateParticipants();
 			Auth().api().requestPeer(chat);
-			if (App::main()) {
-				if (emitPeerUpdated) {
-					App::main()->peerUpdated(chat);
-				} else {
-					markPeerUpdated(chat);
-				}
-			}
 		} else if (chat->version <= d.vversion.v && chat->count >= 0) {
 			chat->version = d.vversion.v;
 			UserData *user = App::userLoaded(d.vuser_id.v);
@@ -921,29 +899,15 @@ namespace {
 				chat->count++;
 			}
 			Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::MembersChanged);
-			if (App::main()) {
-				if (emitPeerUpdated) {
-					App::main()->peerUpdated(chat);
-				} else {
-					markPeerUpdated(chat);
-				}
-			}
 		}
 	}
 
-	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d, bool emitPeerUpdated) {
+	void feedParticipantDelete(const MTPDupdateChatParticipantDelete &d) {
 		ChatData *chat = App::chat(d.vchat_id.v);
 		if (chat->version + 1 < d.vversion.v) {
 			chat->version = d.vversion.v;
 			chat->invalidateParticipants();
 			Auth().api().requestPeer(chat);
-			if (App::main()) {
-				if (emitPeerUpdated) {
-					App::main()->peerUpdated(chat);
-				} else {
-					markPeerUpdated(chat);
-				}
-			}
 		} else if (chat->version <= d.vversion.v && chat->count > 0) {
 			chat->version = d.vversion.v;
 			auto canEdit = chat->canEdit();
@@ -991,17 +955,10 @@ namespace {
 				Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::ChatCanEdit);
 			}
 			Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::MembersChanged);
-			if (App::main()) {
-				if (emitPeerUpdated) {
-					App::main()->peerUpdated(chat);
-				} else {
-					markPeerUpdated(chat);
-				}
-			}
 		}
 	}
 
-	void feedChatAdmins(const MTPDupdateChatAdmins &d, bool emitPeerUpdated) {
+	void feedChatAdmins(const MTPDupdateChatAdmins &d) {
 		ChatData *chat = App::chat(d.vchat_id.v);
 		if (chat->version <= d.vversion.v) {
 			bool badVersion = (chat->version + 1 < d.vversion.v);
@@ -1019,27 +976,15 @@ namespace {
 				chat->flags &= ~MTPDchat::Flag::f_admins_enabled;
 			}
 			Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::AdminsChanged);
-			if (emitPeerUpdated) {
-				App::main()->peerUpdated(chat);
-			} else {
-				markPeerUpdated(chat);
-			}
 		}
 	}
 
-	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d, bool emitPeerUpdated) {
+	void feedParticipantAdmin(const MTPDupdateChatParticipantAdmin &d) {
 		ChatData *chat = App::chat(d.vchat_id.v);
 		if (chat->version + 1 < d.vversion.v) {
 			chat->version = d.vversion.v;
 			chat->invalidateParticipants();
 			Auth().api().requestPeer(chat);
-			if (App::main()) {
-				if (emitPeerUpdated) {
-					App::main()->peerUpdated(chat);
-				} else {
-					markPeerUpdated(chat);
-				}
-			}
 		} else if (chat->version <= d.vversion.v && chat->count > 0) {
 			chat->version = d.vversion.v;
 			auto canEdit = chat->canEdit();
@@ -1067,13 +1012,6 @@ namespace {
 				Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::ChatCanEdit);
 			}
 			Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::AdminsChanged);
-			if (App::main()) {
-				if (emitPeerUpdated) {
-					App::main()->peerUpdated(chat);
-				} else {
-					markPeerUpdated(chat);
-				}
-			}
 		}
 	}
 
@@ -1323,26 +1261,6 @@ namespace {
 			bool showPhoneChanged = !isServiceUser(user->id) && !user->isSelf() && ((showPhone && !wasShowPhone) || (!showPhone && wasShowPhone));
 			if (showPhoneChanged) {
 				user->setName(TextUtilities::SingleLine(user->firstName), TextUtilities::SingleLine(user->lastName), showPhone ? App::formatPhone(user->phone()) : QString(), TextUtilities::SingleLine(user->username));
-			}
-			markPeerUpdated(user);
-		}
-	}
-
-	void markPeerUpdated(PeerData *data) {
-		updatedPeers.insert(data, true);
-	}
-
-	void clearPeerUpdated(PeerData *data) {
-		updatedPeers.remove(data);
-	}
-
-	void emitPeerUpdated() {
-		if (!updatedPeers.isEmpty() && App::main()) {
-			UpdatedPeers upd = updatedPeers;
-			updatedPeers.clear();
-
-			for (UpdatedPeers::const_iterator i = upd.cbegin(), e = upd.cend(); i != e; ++i) {
-				App::main()->peerUpdated(i.key());
 			}
 		}
 	}
@@ -2066,7 +1984,6 @@ namespace {
 		randomData.clear();
 		sentData.clear();
 		mutedPeers.clear();
-		updatedPeers.clear();
 		cSetSavedPeers(SavedPeers());
 		cSetSavedPeersByTime(SavedPeersByTime());
 		cSetRecentInlineBots(RecentInlineBots());

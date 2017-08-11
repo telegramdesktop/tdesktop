@@ -283,7 +283,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 			return;
 		}
 		auto &f = d.vfull_chat.c_chatFull();
-		App::feedParticipants(f.vparticipants, false, false);
+		App::feedParticipants(f.vparticipants, false);
 		auto &v = f.vbot_info.v;
 		for_const (auto &item, v) {
 			switch (item.type()) {
@@ -291,7 +291,6 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 				auto &b = item.c_botInfo();
 				if (auto user = App::userLoaded(b.vuser_id.v)) {
 					user->setBotInfo(item);
-					App::clearPeerUpdated(user);
 					fullPeerUpdated().notify(user);
 				}
 			} break;
@@ -351,7 +350,6 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 			}
 			if (updatedTo) {
 				Notify::migrateUpdated(cfrom);
-				App::main()->peerUpdated(cfrom);
 			}
 		}
 		auto &v = f.vbot_info.v;
@@ -361,7 +359,6 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 				auto &b = item.c_botInfo();
 				if (auto user = App::userLoaded(b.vuser_id.v)) {
 					user->setBotInfo(item);
-					App::clearPeerUpdated(user);
 					fullPeerUpdated().notify(user);
 				}
 			} break;
@@ -423,7 +420,6 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		}
 		requestPeer(peer);
 	}
-	App::clearPeerUpdated(peer);
 	fullPeerUpdated().notify(peer);
 }
 
@@ -455,7 +451,6 @@ void ApiWrap::gotUserFull(UserData *user, const MTPUserFull &result, mtpRequestI
 			_fullPeerRequests.erase(i);
 		}
 	}
-	App::clearPeerUpdated(user);
 	fullPeerUpdated().notify(user);
 }
 
@@ -986,7 +981,6 @@ void ApiWrap::blockUser(UserData *user) {
 		auto requestId = request(MTPcontacts_Block(user->inputUser)).done([this, user](const MTPBool &result) {
 			_blockRequests.remove(user);
 			user->setBlockStatus(UserData::BlockStatus::Blocked);
-			emit App::main()->peerUpdated(user);
 		}).fail([this, user](const RPCError &error) {
 			_blockRequests.remove(user);
 		}).send();
@@ -1002,7 +996,6 @@ void ApiWrap::unblockUser(UserData *user) {
 		auto requestId = request(MTPcontacts_Unblock(user->inputUser)).done([this, user](const MTPBool &result) {
 			_blockRequests.remove(user);
 			user->setBlockStatus(UserData::BlockStatus::NotBlocked);
-			emit App::main()->peerUpdated(user);
 		}).fail([this, user](const RPCError &error) {
 			_blockRequests.remove(user);
 		}).send();

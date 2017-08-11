@@ -133,7 +133,6 @@ MainWidget::MainWidget(QWidget *parent, gsl::not_null<Window::Controller*> contr
 	connect(_dialogs, SIGNAL(cancelled()), this, SLOT(dialogsCancelled()));
 	connect(this, SIGNAL(dialogsUpdated()), _dialogs, SLOT(onListScroll()));
 	connect(_history, SIGNAL(cancelled()), _dialogs, SLOT(activate()));
-	connect(this, SIGNAL(peerPhotoChanged(PeerData*)), this, SIGNAL(dialogsUpdated()));
 	connect(&noUpdatesTimer, SIGNAL(timeout()), this, SLOT(mtpPing()));
 	connect(&_onlineTimer, SIGNAL(timeout()), this, SLOT(updateOnline()));
 	connect(&_onlineUpdater, SIGNAL(timeout()), this, SLOT(updateOnlineDisplay()));
@@ -142,7 +141,6 @@ MainWidget::MainWidget(QWidget *parent, gsl::not_null<Window::Controller*> contr
 	connect(&_byPtsTimer, SIGNAL(timeout()), this, SLOT(onGetDifferenceTimeByPts()));
 	connect(&_byMinChannelTimer, SIGNAL(timeout()), this, SLOT(getDifference()));
 	connect(&_failDifferenceTimer, SIGNAL(timeout()), this, SLOT(onGetDifferenceTimeAfterFail()));
-	connect(this, SIGNAL(peerUpdated(PeerData*)), _history, SLOT(peerUpdated(PeerData*)));
 	connect(_history, SIGNAL(historyShown(History*,MsgId)), this, SLOT(onHistoryShown(History*,MsgId)));
 	connect(&updateNotifySettingTimer, SIGNAL(timeout()), this, SLOT(onUpdateNotifySettings()));
 	subscribe(Media::Player::Updated(), [this](const AudioMsgId &audioId) {
@@ -151,9 +149,6 @@ MainWidget::MainWidget(QWidget *parent, gsl::not_null<Window::Controller*> contr
 		}
 	});
 	subscribe(Auth().calls().currentCallChanged(), [this](Calls::Call *call) { setCurrentCall(call); });
-	subscribe(Auth().api().fullPeerUpdated(), [this](PeerData *peer) {
-		emit peerUpdated(peer);
-	});
 	subscribe(_controller->dialogsListFocused(), [this](bool) {
 		updateDialogsWidthAnimated();
 	});
@@ -2325,7 +2320,6 @@ void MainWidget::fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QStrin
 				auto willBeBlocked = !user->isBlocked();
 				auto handler = ::rpcDone([user, willBeBlocked](const MTPBool &result) {
 					user->setBlockStatus(willBeBlocked ? UserData::BlockStatus::Blocked : UserData::BlockStatus::NotBlocked);
-					emit App::main()->peerUpdated(user);
 				});
 				if (willBeBlocked) {
 					MTP::send(MTPcontacts_Block(user->inputUser), std::move(handler));
@@ -5015,23 +5009,23 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateChatParticipants: {
-		App::feedParticipants(update.c_updateChatParticipants().vparticipants, true, false);
+		App::feedParticipants(update.c_updateChatParticipants().vparticipants, true);
 	} break;
 
 	case mtpc_updateChatParticipantAdd: {
-		App::feedParticipantAdd(update.c_updateChatParticipantAdd(), false);
+		App::feedParticipantAdd(update.c_updateChatParticipantAdd());
 	} break;
 
 	case mtpc_updateChatParticipantDelete: {
-		App::feedParticipantDelete(update.c_updateChatParticipantDelete(), false);
+		App::feedParticipantDelete(update.c_updateChatParticipantDelete());
 	} break;
 
 	case mtpc_updateChatAdmins: {
-		App::feedChatAdmins(update.c_updateChatAdmins(), false);
+		App::feedChatAdmins(update.c_updateChatAdmins());
 	} break;
 
 	case mtpc_updateChatParticipantAdmin: {
-		App::feedParticipantAdmin(update.c_updateChatParticipantAdmin(), false);
+		App::feedParticipantAdmin(update.c_updateChatParticipantAdmin());
 	} break;
 
 	case mtpc_updateUserStatus: {
@@ -5049,7 +5043,6 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			case mtpc_userStatusOffline: user->onlineTill = d.vstatus.c_userStatusOffline().vwas_online.v; break;
 			case mtpc_userStatusOnline: user->onlineTill = d.vstatus.c_userStatusOnline().vexpires.v; break;
 			}
-			App::markPeerUpdated(user);
 			Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserOnlineChanged);
 		}
 		if (d.vuser_id.v == Auth().userId()) {
@@ -5072,7 +5065,6 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			} else {
 				user->setName(TextUtilities::SingleLine(user->firstName), TextUtilities::SingleLine(user->lastName), user->nameOrPhone, TextUtilities::SingleLine(qs(d.vusername)));
 			}
-			App::markPeerUpdated(user);
 		}
 	} break;
 
@@ -5093,7 +5085,6 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					user->photos.clear();
 				}
 			}
-			App::markPeerUpdated(user);
 			Notify::mediaOverviewUpdated(user, OverviewCount);
 		}
 	} break;
@@ -5133,7 +5124,6 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			if (newPhone != user->phone()) {
 				user->setPhone(newPhone);
 				user->setName(user->firstName, user->lastName, (user->contact || isServiceUser(user->id) || user->isSelf() || user->phone().isEmpty()) ? QString() : App::formatPhone(user->phone()), user->username);
-				App::markPeerUpdated(user);
 
 				Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserPhoneChanged);
 			}
@@ -5164,7 +5154,6 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		auto &d = update.c_updateUserBlocked();
 		if (auto user = App::userLoaded(d.vuser_id.v)) {
 			user->setBlockStatus(mtpIsTrue(d.vblocked) ? UserData::BlockStatus::Blocked : UserData::BlockStatus::NotBlocked);
-			App::markPeerUpdated(user);
 		}
 	} break;
 
@@ -5225,7 +5214,6 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateChannel: {
 		auto &d = update.c_updateChannel();
 		if (auto channel = App::channelLoaded(d.vchannel_id.v)) {
-			App::markPeerUpdated(channel);
 			channel->inviter = 0;
 			if (!channel->amIn()) {
 				deleteConversation(channel, false);

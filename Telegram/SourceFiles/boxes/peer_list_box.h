@@ -33,6 +33,10 @@ class WidgetSlideWrap;
 class FlatLabel;
 } // namespace Ui
 
+namespace Notify {
+struct PeerUpdate;
+} // namespace Notify
+
 inline auto PaintUserpicCallback(PeerData *peer) {
 	return [peer](Painter &p, int x, int y, int outerWidth, int size) {
 		peer->paintUserpicLeft(p, x, y, outerWidth, size);
@@ -438,8 +442,6 @@ signals:
 	void mustScrollTo(int ymin, int ymax);
 
 public slots:
-	void peerUpdated(PeerData *peer);
-	void onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -454,6 +456,7 @@ protected:
 private:
 	void refreshIndices();
 	void removeRowAtIndex(std::vector<std::unique_ptr<PeerListRow>> &from, int index);
+	void handleNameChanged(const Notify::PeerUpdate &update);
 
 	void invalidatePixmapsCache();
 

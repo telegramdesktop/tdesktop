@@ -45,13 +45,14 @@ struct PeerUpdate {
 		SharedMediaChanged        = 0x00000020U,
 		MigrationChanged          = 0x00000040U,
 		PinnedChanged             = 0x00000080U,
+		RestrictionReasonChanged  = 0x00000100U,
 
 		// For chats and channels
-		InviteLinkChanged         = 0x00000100U,
-		MembersChanged            = 0x00000200U,
-		AdminsChanged             = 0x00000400U,
-		BannedUsersChanged        = 0x00000800U,
-		UnreadMentionsChanged     = 0x00001000U,
+		InviteLinkChanged         = 0x00000200U,
+		MembersChanged            = 0x00000400U,
+		AdminsChanged             = 0x00000800U,
+		BannedUsersChanged        = 0x00001000U,
+		UnreadMentionsChanged     = 0x00002000U,
 
 		// For users
 		UserCanShareContact       = 0x00010000U,
@@ -71,6 +72,7 @@ struct PeerUpdate {
 		ChannelAmIn               = 0x00010000U,
 		ChannelRightsChanged      = 0x00020000U,
 		ChannelStickersChanged    = 0x00040000U,
+		ChannelPinnedChanged      = 0x00080000U,
 	};
 	using Flags = QFlags<Flag>;
 	Flags flags = 0;

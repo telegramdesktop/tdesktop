@@ -407,9 +407,6 @@ public:
 	~MainWidget();
 
 signals:
-	void peerUpdated(PeerData *peer);
-	void peerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
-	void peerPhotoChanged(PeerData *peer);
 	void dialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow);
 	void dialogsUpdated();
 

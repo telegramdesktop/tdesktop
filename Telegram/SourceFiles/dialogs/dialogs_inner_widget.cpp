@@ -84,8 +84,6 @@ DialogsInner::DialogsInner(QWidget *parent, gsl::not_null<Window::Controller*> c
 		_dialogsImportant = std::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Date);
 		_importantSwitch = std::make_unique<ImportantSwitch>();
 	}
-	connect(main, SIGNAL(peerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)));
-	connect(main, SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(onPeerPhotoChanged(PeerData*)));
 	connect(main, SIGNAL(dialogRowReplaced(Dialogs::Row*, Dialogs::Row*)), this, SLOT(onDialogRowReplaced(Dialogs::Row*, Dialogs::Row*)));
 	connect(_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
 	_cancelSearchInPeer->setClickedCallback([this] { cancelSearchInPeer(); });
@@ -108,8 +106,21 @@ DialogsInner::DialogsInner(QWidget *parent, gsl::not_null<Window::Controller*> c
 		}
 	});
 
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::PinnedChanged, [this](const Notify::PeerUpdate &update) {
-		stopReorderPinned();
+	using UpdateFlag = Notify::PeerUpdate::Flag;
+	auto changes = UpdateFlag::PinnedChanged
+		| UpdateFlag::NameChanged
+		| UpdateFlag::PhotoChanged;
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(changes, [this](const Notify::PeerUpdate &update) {
+		if (update.flags & UpdateFlag::PinnedChanged) {
+			stopReorderPinned();
+		}
+		if (update.flags & UpdateFlag::NameChanged) {
+			handlePeerNameChange(update.peer, update.oldNames, update.oldNameFirstChars);
+		}
+		if (update.flags & UpdateFlag::PhotoChanged) {
+			this->update();
+			emit App::main()->dialogsUpdated();
+		}
 	}));
 
 	refresh();
@@ -1253,17 +1264,13 @@ void DialogsInner::onParentGeometryChanged() {
 	}
 }
 
-void DialogsInner::onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
+void DialogsInner::handlePeerNameChange(gsl::not_null<PeerData*> peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
 	_dialogs->peerNameChanged(Dialogs::Mode::All, peer, oldNames, oldChars);
 	if (_dialogsImportant) {
 		_dialogsImportant->peerNameChanged(Dialogs::Mode::Important, peer, oldNames, oldChars);
 	}
 	_contactsNoDialogs->peerNameChanged(peer, oldNames, oldChars);
 	_contacts->peerNameChanged(peer, oldNames, oldChars);
-	update();
-}
-
-void DialogsInner::onPeerPhotoChanged(PeerData *peer) {
 	update();
 }
 

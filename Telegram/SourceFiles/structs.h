@@ -562,9 +562,7 @@ public:
 	QString restrictionReason() const override {
 		return _restrictionReason;
 	}
-	void setRestrictionReason(const QString &reason) {
-		_restrictionReason = reason;
-	}
+	void setRestrictionReason(const QString &reason);
 
 	int commonChatsCount() const {
 		return _commonChatsCount;
@@ -985,9 +983,7 @@ public:
 	QString restrictionReason() const override {
 		return _restrictionReason;
 	}
-	void setRestrictionReason(const QString &reason) {
-		_restrictionReason = reason;
-	}
+	void setRestrictionReason(const QString &reason);
 
 private:
 	bool canNotEditLastAdmin(gsl::not_null<UserData*> user) const;

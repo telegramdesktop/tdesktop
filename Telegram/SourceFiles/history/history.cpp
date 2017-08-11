@@ -1055,7 +1055,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			case mtpc_messageActionPinMessage: {
 				if (m.has_reply_to_msg_id() && result && result->history()->peer->isMegagroup()) {
 					result->history()->peer->asChannel()->mgInfo->pinnedMsgId = m.vreply_to_msg_id.v;
-					if (App::main()) emit App::main()->peerUpdated(result->history()->peer);
+					Notify::peerUpdatedDelayed(result->history()->peer, Notify::PeerUpdate::Flag::ChannelPinnedChanged);
 				}
 			} break;
 

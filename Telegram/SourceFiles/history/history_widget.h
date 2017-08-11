@@ -398,8 +398,6 @@ public slots:
 	void onPreviewCheck();
 	void onPreviewTimeout();
 
-	void peerUpdated(PeerData *data);
-
 	void onPhotoUploaded(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
 	void onDocumentUploaded(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
 	void onThumbDocumentUploaded(const FullMsgId &msgId, bool silent, const MTPInputFile &file, const MTPInputFile &thumb);
@@ -492,6 +490,7 @@ private:
 	void setReportSpamStatus(DBIPeerReportSpamStatus status);
 	void historyDownClicked();
 	void showNextUnreadMention();
+	void handlePeerUpdate();
 
 	void animationCallback();
 	void updateOverStates(QPoint pos);

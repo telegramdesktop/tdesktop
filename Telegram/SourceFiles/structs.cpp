@@ -317,9 +317,6 @@ void PeerData::updateNameDelayed(const QString &newName, const QString &newNameO
 		}
 	}
 	fillNames();
-	if (App::main()) {
-		emit App::main()->peerNameChanged(this, update.oldNames, update.oldNameFirstChars);
-	}
 	Notify::peerUpdatedDelayed(update);
 }
 
@@ -453,9 +450,6 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer a
 		photoId = newPhotoId;
 		setUserpic(newPhoto);
 		photoLoc = newPhotoLoc;
-		if (App::main()) {
-			emit App::main()->peerPhotoChanged(this);
-		}
 		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
 	}
 }
@@ -489,6 +483,13 @@ bool UserData::setAbout(const QString &newAbout) {
 	_about = newAbout;
 	Notify::peerUpdatedDelayed(this, UpdateFlag::AboutChanged);
 	return true;
+}
+
+void UserData::setRestrictionReason(const QString &text) {
+	if (_restrictionReason != text) {
+		_restrictionReason = text;
+		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::RestrictionReasonChanged);
+	}
 }
 
 void UserData::setCommonChatsCount(int count) {
@@ -605,11 +606,9 @@ void UserData::madeAction(TimeId when) {
 
 	if (onlineTill <= 0 && -onlineTill < when) {
 		onlineTill = -when - SetOnlineAfterActivity;
-		App::markPeerUpdated(this);
 		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::UserOnlineChanged);
 	} else if (onlineTill > 0 && onlineTill < when + 1) {
 		onlineTill = when + SetOnlineAfterActivity;
-		App::markPeerUpdated(this);
 		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::UserOnlineChanged);
 	}
 }
@@ -657,9 +656,6 @@ void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Loc
 		photoId = newPhotoId;
 		setUserpic(newPhoto);
 		photoLoc = newPhotoLoc;
-		if (App::main()) {
-			emit App::main()->peerPhotoChanged(this);
-		}
 		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
 	}
 }
@@ -713,9 +709,6 @@ void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see 
 		photoId = newPhotoId;
 		setUserpic(newPhoto);
 		photoLoc = newPhotoLoc;
-		if (App::main()) {
-			emit App::main()->peerPhotoChanged(this);
-		}
 		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
 	}
 }
@@ -839,17 +832,14 @@ void ChannelData::applyEditAdmin(gsl::not_null<UserData*> user, const MTPChannel
 		// We removed an admin.
 		if (adminsCount() > 1) {
 			setAdminsCount(adminsCount() - 1);
-			if (App::main()) emit App::main()->peerUpdated(this);
 		}
 		if (!isMegagroup() && user->botInfo && membersCount() > 1) {
 			// Removing bot admin removes it from channel.
 			setMembersCount(membersCount() - 1);
-			if (App::main()) emit App::main()->peerUpdated(this);
 		}
 	} else if (!oldRights.c_channelAdminRights().vflags.v && newRights.c_channelAdminRights().vflags.v) {
 		// We added an admin.
 		setAdminsCount(adminsCount() + 1);
-		if (App::main()) emit App::main()->peerUpdated(this);
 		updateFullForced();
 	}
 	Notify::peerUpdatedDelayed(this, flags);
@@ -915,6 +905,13 @@ void ChannelData::flagsUpdated() {
 		}
 	} else if (mgInfo) {
 		mgInfo = nullptr;
+	}
+}
+
+void ChannelData::setRestrictionReason(const QString &text) {
+	if (_restrictionReason != text) {
+		_restrictionReason = text;
+		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::RestrictionReasonChanged);
 	}
 }
 

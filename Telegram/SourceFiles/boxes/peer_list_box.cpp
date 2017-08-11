@@ -30,6 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/widget_slide_wrap.h"
 #include "lang/lang_keys.h"
+#include "observer_peer.h"
 #include "storage/file_download.h"
 #include "window/themes/window_theme.h"
 
@@ -526,9 +527,15 @@ PeerListBox::Inner::Inner(QWidget *parent, gsl::not_null<PeerListController*> co
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom()) {
 	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
 
-	connect(App::main(), SIGNAL(peerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)));
-	connect(App::main(), SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
-
+	using UpdateFlag = Notify::PeerUpdate::Flag;
+	auto changes = UpdateFlag::NameChanged | UpdateFlag::PhotoChanged;
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(changes, [this](const Notify::PeerUpdate &update) {
+		if (update.flags & UpdateFlag::PhotoChanged) {
+			this->update();
+		} else if (update.flags & UpdateFlag::NameChanged) {
+			handleNameChanged(update);
+		}
+	}));
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
 		if (update.paletteChanged()) {
 			invalidatePixmapsCache();
@@ -1208,10 +1215,6 @@ QRect PeerListBox::Inner::getActionRect(gsl::not_null<PeerListRow*> row, RowInde
 	return myrtlrect(actionLeft, rowTop + actionTop, actionSize.width(), actionSize.height());
 }
 
-void PeerListBox::Inner::peerUpdated(PeerData *peer) {
-	update();
-}
-
 int PeerListBox::Inner::rowsTop() const {
 	return _aboveHeight + st::membersMarginTop;
 }
@@ -1304,8 +1307,8 @@ PeerListBox::Inner::RowIndex PeerListBox::Inner::findRowIndex(gsl::not_null<Peer
 	return result;
 }
 
-void PeerListBox::Inner::onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
-	auto byPeer = _rowsByPeer.find(peer);
+void PeerListBox::Inner::handleNameChanged(const Notify::PeerUpdate &update) {
+	auto byPeer = _rowsByPeer.find(update.peer);
 	if (byPeer != _rowsByPeer.cend()) {
 		for (auto row : byPeer->second) {
 			if (addingToSearchIndex()) {

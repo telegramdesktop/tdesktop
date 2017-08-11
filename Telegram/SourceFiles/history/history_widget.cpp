@@ -772,10 +772,52 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 			scrollToCurrentVoiceMessage(pair.from.contextId(), pair.to);
 		}
 	});
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::ChannelRightsChanged | Notify::PeerUpdate::Flag::UnreadMentionsChanged, [this](const Notify::PeerUpdate &update) {
+	using UpdateFlag = Notify::PeerUpdate::Flag;
+	auto changes = UpdateFlag::ChannelRightsChanged
+		| UpdateFlag::UnreadMentionsChanged
+		| UpdateFlag::MigrationChanged
+		| UpdateFlag::RestrictionReasonChanged
+		| UpdateFlag::ChannelPinnedChanged
+		| UpdateFlag::UserIsBlocked
+		| UpdateFlag::AdminsChanged
+		| UpdateFlag::MembersChanged
+		| UpdateFlag::UserOnlineChanged;
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(changes, [this](const Notify::PeerUpdate &update) {
 		if (update.peer == _peer) {
-			if (update.flags & Notify::PeerUpdate::Flag::ChannelRightsChanged) onPreviewCheck();
-			if (update.flags & Notify::PeerUpdate::Flag::UnreadMentionsChanged) updateUnreadMentionsVisibility();
+			if (update.flags & UpdateFlag::ChannelRightsChanged) {
+				onPreviewCheck();
+			}
+			if (update.flags & UpdateFlag::UnreadMentionsChanged) {
+				updateUnreadMentionsVisibility();
+			}
+			if (update.flags & UpdateFlag::MigrationChanged) {
+				if (auto channel = _peer->migrateTo()) {
+					Ui::showPeerHistory(channel, ShowAtUnreadMsgId);
+					Auth().api().requestParticipantsCountDelayed(channel);
+					return;
+				}
+			}
+			if (update.flags & UpdateFlag::RestrictionReasonChanged) {
+				auto restriction = _peer->restrictionReason();
+				if (!restriction.isEmpty()) {
+					App::main()->showBackFromStack();
+					Ui::show(Box<InformBox>(restriction));
+					return;
+				}
+			}
+			if (update.flags & UpdateFlag::ChannelPinnedChanged) {
+				if (pinnedMsgVisibilityUpdated()) {
+					updateHistoryGeometry();
+					updateControlsVisibility();
+					updateControlsGeometry();
+				}
+			}
+			if (update.flags & (UpdateFlag::UserIsBlocked
+				| UpdateFlag::AdminsChanged
+				| UpdateFlag::MembersChanged
+				| UpdateFlag::UserOnlineChanged)) {
+				handlePeerUpdate();
+			}
 		}
 	}));
 	subscribe(controller->window()->widgetGrabbed(), [this] {
@@ -1763,7 +1805,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 			doneShow();
 		}
 
-		emit App::main()->peerUpdated(_peer);
+		handlePeerUpdate();
 
 		Local::readDraftsWithCursors(_history);
 		if (_migrated) {
@@ -2774,7 +2816,6 @@ void HistoryWidget::unblockDone(PeerData *peer, const MTPBool &result, mtpReques
 	if (!peer->isUser()) return;
 	if (_unblockRequest == req) _unblockRequest = 0;
 	peer->asUser()->setBlockStatus(UserData::BlockStatus::NotBlocked);
-	emit App::main()->peerUpdated(peer);
 }
 
 bool HistoryWidget::unblockFail(const RPCError &error, mtpRequestId req) {
@@ -2788,7 +2829,6 @@ void HistoryWidget::blockDone(PeerData *peer, const MTPBool &result) {
 	if (!peer->isUser()) return;
 
 	peer->asUser()->setBlockStatus(UserData::BlockStatus::Blocked);
-	emit App::main()->peerUpdated(peer);
 }
 
 void HistoryWidget::onBotStart() {
@@ -5312,7 +5352,7 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 	auto result = false;
 	auto pinnedMsgId = (_peer && _peer->isMegagroup()) ? _peer->asChannel()->mgInfo->pinnedMsgId : 0;
 	if (pinnedMsgId && !_peer->asChannel()->canPinMessages()) {
-		Global::HiddenPinnedMessagesMap::const_iterator it = Global::HiddenPinnedMessages().constFind(_peer->id);
+		auto it = Global::HiddenPinnedMessages().constFind(_peer->id);
 		if (it != Global::HiddenPinnedMessages().cend()) {
 			if (it.value() == pinnedMsgId) {
 				pinnedMsgId = 0;
@@ -5954,6 +5994,8 @@ void HistoryWidget::fullPeerUpdated(PeerData *peer) {
 		onCheckFieldAutocomplete();
 		updateReportSpamStatus();
 		_list->updateBotInfo();
+
+		handlePeerUpdate();
 	}
 	if (updateCmdStartShown()) {
 		updateControlsVisibility();
@@ -5964,51 +6006,35 @@ void HistoryWidget::fullPeerUpdated(PeerData *peer) {
 	}
 }
 
-void HistoryWidget::peerUpdated(PeerData *data) {
-	if (data && data == _peer) {
-		if (auto channel = data->migrateTo()) {
-			Ui::showPeerHistory(channel, ShowAtUnreadMsgId);
-			Auth().api().requestParticipantsCountDelayed(channel);
-			return;
-		}
-		QString restriction = _peer->restrictionReason();
-		if (!restriction.isEmpty()) {
-			App::main()->showBackFromStack();
-			Ui::show(Box<InformBox>(restriction));
-			return;
-		}
-		bool resize = false;
-		if (pinnedMsgVisibilityUpdated()) {
+void HistoryWidget::handlePeerUpdate() {
+	bool resize = false;
+	updateHistoryGeometry();
+	if (_peer->isChannel()) updateReportSpamStatus();
+	if (_peer->isChat() && _peer->asChat()->noParticipantInfo()) {
+		Auth().api().requestFullPeer(_peer);
+	} else if (_peer->isUser() && (_peer->asUser()->blockStatus() == UserData::BlockStatus::Unknown || _peer->asUser()->callsStatus() == UserData::CallsStatus::Unknown)) {
+		Auth().api().requestFullPeer(_peer);
+	} else if (_peer->isMegagroup() && !_peer->asChannel()->mgInfo->botStatus) {
+		Auth().api().requestBots(_peer->asChannel());
+	}
+	if (!_a_show.animating()) {
+		if (_unblock->isHidden() == isBlocked() || (!isBlocked() && _joinChannel->isHidden() == isJoinChannel())) {
 			resize = true;
 		}
-		updateHistoryGeometry();
-		if (_peer->isChannel()) updateReportSpamStatus();
-		if (data->isChat() && data->asChat()->noParticipantInfo()) {
-			Auth().api().requestFullPeer(data);
-		} else if (data->isUser() && (data->asUser()->blockStatus() == UserData::BlockStatus::Unknown || data->asUser()->callsStatus() == UserData::CallsStatus::Unknown)) {
-			Auth().api().requestFullPeer(data);
-		} else if (data->isMegagroup() && !data->asChannel()->mgInfo->botStatus) {
-			Auth().api().requestBots(data->asChannel());
+		bool newCanSendMessages = canSendMessages(_peer);
+		if (newCanSendMessages != _canSendMessages) {
+			_canSendMessages = newCanSendMessages;
+			if (!_canSendMessages) {
+				cancelReply();
+			}
+			resize = true;
 		}
-		if (!_a_show.animating()) {
-			if (_unblock->isHidden() == isBlocked() || (!isBlocked() && _joinChannel->isHidden() == isJoinChannel())) {
-				resize = true;
-			}
-			bool newCanSendMessages = canSendMessages(_peer);
-			if (newCanSendMessages != _canSendMessages) {
-				_canSendMessages = newCanSendMessages;
-				if (!_canSendMessages) {
-					cancelReply();
-				}
-				resize = true;
-			}
-			updateControlsVisibility();
-			if (resize) {
-				updateControlsGeometry();
-			}
+		updateControlsVisibility();
+		if (resize) {
+			updateControlsGeometry();
 		}
-		App::main()->updateOnlineDisplay();
 	}
+	App::main()->updateOnlineDisplay();
 }
 
 void HistoryWidget::onForwardSelected() {
