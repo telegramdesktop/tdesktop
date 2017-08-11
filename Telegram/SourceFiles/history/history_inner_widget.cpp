@@ -384,6 +384,8 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		HistoryLayout::paintEmpty(p, width(), height());
 	}
 	if (!noHistoryDisplayed) {
+		auto readMentions = HistoryItemsMap();
+
 		adjustCurrent(clip.top());
 
 		auto selEnd = _selected.cend();
@@ -427,6 +429,9 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 
 				if (item->hasViews()) {
 					App::main()->scheduleViewIncrement(item);
+				}
+				if (item->mentionsMe() && item->isMediaUnread()) {
+					readMentions.insert(item);
 				}
 
 				int32 h = item->height();
@@ -475,6 +480,9 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 					if (item->hasViews()) {
 						App::main()->scheduleViewIncrement(item);
 					}
+					if (item->mentionsMe() && item->isMediaUnread()) {
+						readMentions.insert(item);
+					}
 				}
 				p.translate(0, h);
 				y += h;
@@ -491,6 +499,10 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				item = block->items[iItem];
 			}
 			p.restore();
+		}
+
+		if (!readMentions.empty() && App::wnd()->doWeReadMentions()) {
+			App::main()->mediaMarkRead(readMentions);
 		}
 
 		if (mtop >= 0 || htop >= 0) {

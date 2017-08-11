@@ -180,7 +180,7 @@ MsgId OverviewInner::itemMsgId(MsgId msgId) const {
 }
 
 int32 OverviewInner::migratedIndexSkip() const {
-	return (_migrated && _history->overviewLoaded(_type)) ? _migrated->overview[_type].size() : 0;
+	return (_migrated && _history->overviewLoaded(_type)) ? _migrated->overview(_type).size() : 0;
 }
 
 void OverviewInner::fixItemIndex(int32 &current, MsgId msgId) const {
@@ -742,7 +742,7 @@ int32 OverviewInner::itemTop(const FullMsgId &msgId) const {
 void OverviewInner::preloadMore() {
 	if (_inSearch) {
 		if (!_searchRequest) {
-			MTPmessagesFilter filter = (_type == OverviewLinks) ? MTP_inputMessagesFilterUrl() : MTP_inputMessagesFilterDocument();
+			auto filter = (_type == OverviewLinks) ? MTP_inputMessagesFilterUrl() : MTP_inputMessagesFilterDocument();
 			if (!_searchFull) {
 				_searchRequest = MTP::send(MTPmessages_Search(MTP_flags(0), _history->peer->input, MTP_string(_searchQuery), MTP_inputUserEmpty(), filter, MTP_int(0), MTP_int(0), MTP_int(_lastSearchId), MTP_int(0), MTP_int(SearchPerPage), MTP_int(0), MTP_int(0)), rpcDone(&OverviewInner::searchReceived, _lastSearchId ? SearchFromOffset : SearchFromStart), rpcFail(&OverviewInner::searchFailed, _lastSearchId ? SearchFromOffset : SearchFromStart));
 				if (!_lastSearchId) {
@@ -762,7 +762,7 @@ void OverviewInner::preloadMore() {
 }
 
 bool OverviewInner::preloadLocal() {
-	if (_itemsToBeLoaded >= migratedIndexSkip() + _history->overview[_type].size()) return false;
+	if (_itemsToBeLoaded >= migratedIndexSkip() + _history->overview(_type).size()) return false;
 	_itemsToBeLoaded += LinksOverviewPerPage;
 	mediaOverviewUpdated();
 	return true;
@@ -800,7 +800,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 	auto ms = getms();
 	Overview::Layout::PaintContext context(ms, _selMode);
 
-	if (_history->overview[_type].isEmpty() && (!_migrated || !_history->overviewLoaded(_type) || _migrated->overview[_type].isEmpty())) {
+	if (_history->overview(_type).isEmpty() && (!_migrated || !_history->overviewLoaded(_type) || _migrated->overview(_type).isEmpty())) {
 		HistoryLayout::paintEmpty(p, _width, height());
 		return;
 	} else if (_inSearch && _searchResults.isEmpty() && _searchFull && (!_migrated || _searchFullMigrated) && !_searchTimer.isActive()) {
@@ -1625,17 +1625,28 @@ void OverviewInner::onTouchScrollTimer() {
 
 void OverviewInner::mediaOverviewUpdated() {
 	if (_type == OverviewPhotos || _type == OverviewVideos) {
-		History::MediaOverview &o(_history->overview[_type]), *migratedOverview = _migrated ? &_migrated->overview[_type] : 0;
-		int32 migrateCount = migratedIndexSkip();
-		int32 wasCount = _items.size(), fullCount = (migrateCount + o.size());
-		int32 tocheck = qMin(fullCount, _itemsToBeLoaded);
+		auto &o = _history->overview(_type);
+		auto migratedOverview = _migrated ? &_migrated->overview(_type) : nullptr;
+		auto migrateCount = migratedIndexSkip();
+		auto wasCount = _items.size();
+		auto fullCount = (migrateCount + o.size());
+		auto tocheck = qMin(fullCount, _itemsToBeLoaded);
 		_items.reserve(tocheck);
 
-		int32 index = 0;
-		bool allGood = true;
-		for (int32 i = fullCount, l = fullCount - tocheck; i > l;) {
+		auto index = 0;
+		auto allGood = true;
+		auto migrateIt = migratedOverview ? migratedOverview->end() : o.end();
+		auto it = o.end();
+		for (auto i = fullCount, l = fullCount - tocheck; i > l;) {
 			--i;
-			MsgId msgid = ((i < migrateCount) ? -migratedOverview->at(i) : o.at(i - migrateCount));
+			auto msgid = MsgId(0);
+			if (i < migrateCount) {
+				--migrateIt;
+				msgid = -(*migrateIt);
+			} else {
+				--it;
+				msgid = *it;
+			}
 			if (allGood) {
 				if (_items.size() > index && complexMsgId(_items.at(index)->getItem()) == msgid) {
 					++index;
@@ -1657,54 +1668,70 @@ void OverviewInner::mediaOverviewUpdated() {
 		bool dateEveryMonth = (_type == OverviewFiles), dateEveryDay = (_type == OverviewLinks);
 		bool withDates = (dateEveryMonth || dateEveryDay);
 
-		History::MediaOverview &o(_history->overview[_type]), *migratedOverview = _migrated ? &_migrated->overview[_type] : 0;
-		int32 migrateCount = migratedIndexSkip();
-		int32 l = _inSearch ? _searchResults.size() : (migrateCount + o.size()), tocheck = qMin(l, _itemsToBeLoaded);
+		auto &o = _history->overview(_type);
+		auto migratedOverview = _migrated ? &_migrated->overview(_type) : nullptr;
+		auto migrateCount = migratedIndexSkip();
+		auto l = _inSearch ? _searchResults.size() : (migrateCount + o.size());
+		auto tocheck = qMin(l, _itemsToBeLoaded);
 		_items.reserve((withDates ? 2 : 1) * tocheck); // day items
 
-		int32 top = 0, index = 0;
+		auto migrateIt = migratedOverview ? migratedOverview->end() : o.end();
+		auto it = o.end();
+
+		auto top = 0;
+		auto count = 0;
 		bool allGood = true;
 		QDate prevDate;
-		for (int32 i = 0; i < tocheck; ++i) {
-			MsgId msgid = _inSearch ? _searchResults.at(l - i - 1) : ((l - i - 1 < migrateCount) ? -migratedOverview->at(l - i - 1) : o.at(l - i - 1 - migrateCount));
+		for (auto i = 0; i < tocheck; ++i) {
+			auto msgid = MsgId(0);
+			auto index = l - i - 1;
+			if (_inSearch) {
+				msgid = _searchResults[index];
+			} else if (index < migrateCount) {
+				--migrateIt;
+				msgid = -(*migrateIt);
+			} else {
+				--it;
+				msgid = *it;
+			}
 			if (allGood) {
-				if (_items.size() > index && complexMsgId(_items.at(index)->getItem()) == msgid) {
-					if (withDates) prevDate = _items.at(index)->getItem()->date.date();
-					top = _items.at(index)->Get<Overview::Layout::Info>()->top;
+				if (_items.size() > count && complexMsgId(_items.at(count)->getItem()) == msgid) {
+					if (withDates) prevDate = _items.at(count)->getItem()->date.date();
+					top = _items.at(count)->Get<Overview::Layout::Info>()->top;
 					if (!_reversed) {
-						top += _items.at(index)->height();
+						top += _items.at(count)->height();
 					}
-					++index;
+					++count;
 					continue;
 				}
-				if (_items.size() > index + 1 && !_items.at(index)->toMediaItem() && complexMsgId(_items.at(index + 1)->getItem()) == msgid) { // day item
-					++index;
-					if (withDates) prevDate = _items.at(index)->getItem()->date.date();
-					top = _items.at(index)->Get<Overview::Layout::Info>()->top;
+				if (_items.size() > count + 1 && !_items.at(count)->toMediaItem() && complexMsgId(_items.at(count + 1)->getItem()) == msgid) { // day item
+					++count;
+					if (withDates) prevDate = _items.at(count)->getItem()->date.date();
+					top = _items.at(count)->Get<Overview::Layout::Info>()->top;
 					if (!_reversed) {
-						top += _items.at(index)->height();
+						top += _items.at(count)->height();
 					}
-					++index;
+					++count;
 					continue;
 				}
 				allGood = false;
 			}
-			HistoryItem *item = App::histItemById(itemChannel(msgid), itemMsgId(msgid));
+			auto item = App::histItemById(itemChannel(msgid), itemMsgId(msgid));
 			auto layout = layoutPrepare(item);
 			if (!layout) continue;
 
 			if (withDates) {
 				QDate date = item->date.date();
-				if (!index || (index > 0 && (dateEveryMonth ? (date.month() != prevDate.month() || date.year() != prevDate.year()) : (date != prevDate)))) {
-					top += setLayoutItem(index, layoutPrepare(date, dateEveryMonth), top);
-					++index;
+				if (!count || (count > 0 && (dateEveryMonth ? (date.month() != prevDate.month() || date.year() != prevDate.year()) : (date != prevDate)))) {
+					top += setLayoutItem(count, layoutPrepare(date, dateEveryMonth), top);
+					++count;
 					prevDate = date;
 				}
 			}
-			top += setLayoutItem(index, layout, top);
-			++index;
+			top += setLayoutItem(count, layout, top);
+			++count;
 		}
-		if (_items.size() > index) _items.resize(index);
+		if (_items.size() > count) _items.resize(count);
 
 		_height = top;
 	}
@@ -2214,9 +2241,9 @@ void OverviewWidget::mediaOverviewUpdated(const Notify::PeerUpdate &update) {
 	History *m = (update.peer && update.peer->migrateFrom()) ? App::historyLoaded(update.peer->migrateFrom()->id) : 0;
 	if (h) {
 		for (int32 i = 0; i < OverviewCount; ++i) {
-			if (!h->overview[i].isEmpty() || h->overviewCount(i) > 0 || i == type()) {
+			if (!h->overview(i).isEmpty() || h->overviewCount(i) > 0 || i == type()) {
 				mask |= (1 << i);
-			} else if (m && (!m->overview[i].isEmpty() || m->overviewCount(i) > 0)) {
+			} else if (m && (!m->overview(i).isEmpty() || m->overviewCount(i) > 0)) {
 				mask |= (1 << i);
 			}
 		}

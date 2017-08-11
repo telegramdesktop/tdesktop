@@ -63,6 +63,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/player/media_player_float.h"
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
+#include "base/flat_set.h"
 #include "window/themes/window_theme.h"
 #include "window/player_wrap_widget.h"
 #include "styles/style_boxes.h"
@@ -1636,7 +1637,7 @@ void MainWidget::loadMediaBack(PeerData *peer, MediaOverviewType type, bool many
 	}
 
 	auto minId = history->overviewMinId(type);
-	auto limit = (many || history->overview[type].size() > MediaOverviewStartPerPage) ? SearchPerPage : MediaOverviewStartPerPage;
+	auto limit = (many || history->overview(type).size() > MediaOverviewStartPerPage) ? SearchPerPage : MediaOverviewStartPerPage;
 	auto filter = TypeToMediaFilter(type);
 	if (filter.type() == mtpc_inputMessagesFilterEmpty) {
 		return;
@@ -1974,9 +1975,9 @@ void MainWidget::inlineResultLoadFailed(FileLoader *loader, bool started) {
 	//Ui::repaintInlineItem();
 }
 
-void MainWidget::mediaMarkRead(DocumentData *data) {
-	const DocumentItems &items(App::documentItems());
-	DocumentItems::const_iterator i = items.constFind(data);
+void MainWidget::mediaMarkRead(gsl::not_null<DocumentData*> data) {
+	auto &items = App::documentItems();
+	auto i = items.constFind(data);
 	if (i != items.cend()) {
 		mediaMarkRead(i.value());
 	}
@@ -1984,17 +1985,38 @@ void MainWidget::mediaMarkRead(DocumentData *data) {
 
 void MainWidget::mediaMarkRead(const HistoryItemsMap &items) {
 	QVector<MTPint> markedIds;
+	QMap<ChannelData*, QVector<MTPint>> channelMarkedIds;
 	markedIds.reserve(items.size());
 	for_const (auto item, items) {
-		if (!item->out() && item->isMediaUnread()) {
+		if ((!item->out() || item->mentionsMe()) && item->isMediaUnread()) {
 			item->markMediaRead();
 			if (item->id > 0) {
-				markedIds.push_back(MTP_int(item->id));
+				if (auto channel = item->history()->peer->asChannel()) {
+					channelMarkedIds[channel].push_back(MTP_int(item->id));
+				} else {
+					markedIds.push_back(MTP_int(item->id));
+				}
 			}
 		}
 	}
 	if (!markedIds.isEmpty()) {
 		MTP::send(MTPmessages_ReadMessageContents(MTP_vector<MTPint>(markedIds)), rpcDone(&MainWidget::messagesAffected, (PeerData*)0));
+	}
+	for (auto i = channelMarkedIds.cbegin(), e = channelMarkedIds.cend(); i != e; ++i) {
+		MTP::send(MTPchannels_ReadMessageContents(i.key()->inputChannel, MTP_vector<MTPint>(i.value())));
+	}
+}
+
+void MainWidget::mediaMarkRead(gsl::not_null<HistoryItem*> item) {
+	if ((!item->out() || item->mentionsMe()) && item->isMediaUnread()) {
+		item->markMediaRead();
+		if (item->id > 0) {
+			if (auto channel = item->history()->peer->asChannel()) {
+				MTP::send(MTPchannels_ReadMessageContents(channel->inputChannel, MTP_vector<MTPint>(1, MTP_int(item->id))));
+			} else {
+				MTP::send(MTPmessages_ReadMessageContents(MTP_vector<MTPint>(1, MTP_int(item->id))), rpcDone(&MainWidget::messagesAffected, (PeerData*)0));
+			}
+		}
 	}
 }
 
@@ -2341,7 +2363,7 @@ void MainWidget::onViewsIncrement() {
 		for (ViewsIncrementMap::const_iterator j = i.value().cbegin(), end = i.value().cend(); j != end; ++j) {
 			ids.push_back(MTP_int(j.key()));
 		}
-		mtpRequestId req = MTP::send(MTPmessages_GetMessagesViews(i.key()->input, MTP_vector<MTPint>(ids), MTP_bool(true)), rpcDone(&MainWidget::viewsIncrementDone, ids), rpcFail(&MainWidget::viewsIncrementFail), 0, 5);
+		auto req = MTP::send(MTPmessages_GetMessagesViews(i.key()->input, MTP_vector<MTPint>(ids), MTP_bool(true)), rpcDone(&MainWidget::viewsIncrementDone, ids), rpcFail(&MainWidget::viewsIncrementFail), 0, 5);
 		_viewsIncrementRequests.insert(i.key(), req);
 		i = _viewsToIncrement.erase(i);
 	}
@@ -3532,6 +3554,7 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 				h->setUnreadCount(d.vunread_count.v);
 				h->inboxReadBefore = d.vread_inbox_max_id.v + 1;
 			}
+			h->setUnreadMentionsCount(d.vunread_mentions_count.v);
 			if (_history->peer() == channel) {
 				_history->updateHistoryDownVisibility();
 				_history->preloadHistoryIfNeeded();
@@ -3607,13 +3630,13 @@ void MainWidget::gotRangeDifference(ChannelData *channel, const MTPupdates_Chann
 	bool isFinal = true;
 	switch (diff.type()) {
 	case mtpc_updates_channelDifferenceEmpty: {
-		const auto &d(diff.c_updates_channelDifferenceEmpty());
+		auto &d = diff.c_updates_channelDifferenceEmpty();
 		nextRequestPts = d.vpts.v;
 		isFinal = d.is_final();
 	} break;
 
 	case mtpc_updates_channelDifferenceTooLong: {
-		const auto &d(diff.c_updates_channelDifferenceTooLong());
+		auto &d = diff.c_updates_channelDifferenceTooLong();
 
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
@@ -3623,7 +3646,7 @@ void MainWidget::gotRangeDifference(ChannelData *channel, const MTPupdates_Chann
 	} break;
 
 	case mtpc_updates_channelDifference: {
-		const auto &d(diff.c_updates_channelDifference());
+		auto &d = diff.c_updates_channelDifference();
 
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
@@ -4362,6 +4385,10 @@ bool MainWidget::doWeReadServerHistory() const {
 	return isActive() && !_wideSection && !_overview && _history->doWeReadServerHistory();
 }
 
+bool MainWidget::doWeReadMentions() const {
+	return isActive() && !_wideSection && !_overview && _history->doWeReadMentions();
+}
+
 bool MainWidget::lastWasOnline() const {
 	return _lastWasOnline;
 }
@@ -4731,6 +4758,8 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 
 void MainWidget::feedUpdate(const MTPUpdate &update) {
 	switch (update.type()) {
+
+	// New messages.
 	case mtpc_updateNewMessage: {
 		auto &d = update.c_updateNewMessage();
 
@@ -4744,6 +4773,43 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 
 		if (ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update)) {
+			// We could've added an item.
+			// Better would be for history to be subscribed to new messages.
+			_history->peerMessagesUpdated();
+		}
+	} break;
+
+	case mtpc_updateNewChannelMessage: {
+		auto &d = update.c_updateNewChannelMessage();
+		auto channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
+		auto isDataLoaded = allDataLoadedForMessage(d.vmessage);
+		if (!requestingDifference() && (!channel || isDataLoaded != DataIsLoadedResult::Ok)) {
+			MTP_LOG(0, ("getDifference { good - after not all data loaded in updateNewChannelMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
+
+			// Request last active supergroup participants if the 'from' user was not loaded yet.
+			// This will optimize similar getDifference() calls for almost all next messages.
+			if (isDataLoaded == DataIsLoadedResult::FromNotLoaded && channel && channel->isMegagroup()) {
+				if (channel->mgInfo->lastParticipants.size() < Global::ChatSizeMax() && (channel->mgInfo->lastParticipants.isEmpty() || channel->mgInfo->lastParticipants.size() < channel->membersCount())) {
+					Auth().api().requestLastParticipants(channel);
+				}
+			}
+
+			if (!_byMinChannelTimer.isActive()) { // getDifference after timeout
+				_byMinChannelTimer.start(WaitForSkippedTimeout);
+			}
+			return;
+		}
+		if (channel && !_handlingChannelDifference) {
+			if (channel->ptsRequesting()) { // skip global updates while getting channel difference
+				return;
+			} else if (channel->ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update)) {
+				// We could've added an item.
+				// Better would be for history to be subscribed to new messages.
+				_history->peerMessagesUpdated();
+			}
+		} else {
+			Auth().api().applyUpdateNoPtsCheck(update);
+
 			// We could've added an item.
 			// Better would be for history to be subscribed to new messages.
 			_history->peerMessagesUpdated();
@@ -4779,11 +4845,58 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		App::historyUnregSentData(d.vrandom_id.v);
 	} break;
 
+	// Message contents being read.
 	case mtpc_updateReadMessagesContents: {
 		auto &d = update.c_updateReadMessagesContents();
 		ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update);
 	} break;
 
+	case mtpc_updateChannelReadMessagesContents: {
+		auto &d = update.c_updateChannelReadMessagesContents();
+		auto channel = App::channelLoaded(d.vchannel_id.v);
+		if (!channel) {
+			if (!_byMinChannelTimer.isActive()) { // getDifference after timeout
+				_byMinChannelTimer.start(WaitForSkippedTimeout);
+			}
+			return;
+		}
+		auto possiblyReadMentions = base::flat_set<MsgId>();
+		for_const (auto &msgId, d.vmessages.v) {
+			if (auto item = App::histItemById(channel, msgId.v)) {
+				if (item->isMediaUnread()) {
+					item->markMediaRead();
+					Ui::repaintHistoryItem(item);
+				}
+			} else {
+				// Perhaps it was an unread mention!
+				possiblyReadMentions.insert(msgId.v);
+			}
+		}
+		Auth().api().checkForUnreadMentions(possiblyReadMentions, channel);
+	} break;
+
+	// Edited messages.
+	case mtpc_updateEditMessage: {
+		auto &d = update.c_updateEditMessage();
+		ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update);
+	} break;
+
+	case mtpc_updateEditChannelMessage: {
+		auto &d = update.c_updateEditChannelMessage();
+		auto channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
+
+		if (channel && !_handlingChannelDifference) {
+			if (channel->ptsRequesting()) { // skip global updates while getting channel difference
+				return;
+			} else {
+				channel->ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update);
+			}
+		} else {
+			Auth().api().applyUpdateNoPtsCheck(update);
+		}
+	} break;
+
+	// Messages being read.
 	case mtpc_updateReadHistoryInbox: {
 		auto &d = update.c_updateReadHistoryInbox();
 		ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update);
@@ -4798,6 +4911,53 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	case mtpc_updateReadChannelInbox: {
+		auto &d = update.c_updateReadChannelInbox();
+		App::feedInboxRead(peerFromChannel(d.vchannel_id.v), d.vmax_id.v);
+	} break;
+
+	case mtpc_updateReadChannelOutbox: {
+		auto &d = update.c_updateReadChannelOutbox();
+		auto peerId = peerFromChannel(d.vchannel_id.v);
+		auto when = requestingDifference() ? 0 : unixtime();
+		App::feedOutboxRead(peerId, d.vmax_id.v, when);
+		if (_history->peer() && _history->peer()->id == peerId) {
+			_history->update();
+		}
+	} break;
+
+	// Deleted messages.
+	case mtpc_updateDeleteMessages: {
+		auto &d = update.c_updateDeleteMessages();
+
+		if (ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update)) {
+			// We could've removed some items.
+			// Better would be for history to be subscribed to removed messages.
+			_history->peerMessagesUpdated();
+		}
+	} break;
+
+	case mtpc_updateDeleteChannelMessages: {
+		auto &d = update.c_updateDeleteChannelMessages();
+		auto channel = App::channelLoaded(d.vchannel_id.v);
+
+		if (channel && !_handlingChannelDifference) {
+			if (channel->ptsRequesting()) { // skip global updates while getting channel difference
+				return;
+			} else if (channel->ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update)) {
+				// We could've removed some items.
+				// Better would be for history to be subscribed to removed messages.
+				_history->peerMessagesUpdated();
+			}
+		} else {
+			// We could've removed some items.
+			// Better would be for history to be subscribed to removed messages.
+			_history->peerMessagesUpdated();
+
+			Auth().api().applyUpdateNoPtsCheck(update);
+		}
+	} break;
+
 	case mtpc_updateWebPage: {
 		auto &d = update.c_updateWebPage();
 
@@ -4809,13 +4969,23 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update);
 	} break;
 
-	case mtpc_updateDeleteMessages: {
-		auto &d = update.c_updateDeleteMessages();
+	case mtpc_updateChannelWebPage: {
+		auto &d = update.c_updateChannelWebPage();
 
-		if (ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update)) {
-			// We could've removed some items.
-			// Better would be for history to be subscribed to removed messages.
-			_history->peerMessagesUpdated();
+		// update web page anyway
+		App::feedWebPage(d.vwebpage);
+		_history->updatePreview();
+		webPagesOrGamesUpdate();
+
+		auto channel = App::channelLoaded(d.vchannel_id.v);
+		if (channel && !_handlingChannelDifference) {
+			if (channel->ptsRequesting()) { // skip global updates while getting channel difference
+				return;
+			} else {
+				channel->ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update);
+			}
+		} else {
+			Auth().api().applyUpdateNoPtsCheck(update);
 		}
 	} break;
 
@@ -5052,7 +5222,6 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
-	/////// Channel updates
 	case mtpc_updateChannel: {
 		auto &d = update.c_updateChannel();
 		if (auto channel = App::channelLoaded(d.vchannel_id.v)) {
@@ -5067,63 +5236,6 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
-	case mtpc_updateNewChannelMessage: {
-		auto &d = update.c_updateNewChannelMessage();
-		auto channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
-		auto isDataLoaded = allDataLoadedForMessage(d.vmessage);
-		if (!requestingDifference() && (!channel || isDataLoaded != DataIsLoadedResult::Ok)) {
-			MTP_LOG(0, ("getDifference { good - after not all data loaded in updateNewChannelMessage }%1").arg(cTestMode() ? " TESTMODE" : ""));
-
-			// Request last active supergroup participants if the 'from' user was not loaded yet.
-			// This will optimize similar getDifference() calls for almost all next messages.
-			if (isDataLoaded == DataIsLoadedResult::FromNotLoaded && channel && channel->isMegagroup()) {
-				if (channel->mgInfo->lastParticipants.size() < Global::ChatSizeMax() && (channel->mgInfo->lastParticipants.isEmpty() || channel->mgInfo->lastParticipants.size() < channel->membersCount())) {
-					Auth().api().requestLastParticipants(channel);
-				}
-			}
-
-			if (!_byMinChannelTimer.isActive()) { // getDifference after timeout
-				_byMinChannelTimer.start(WaitForSkippedTimeout);
-			}
-			return;
-		}
-		if (channel && !_handlingChannelDifference) {
-			if (channel->ptsRequesting()) { // skip global updates while getting channel difference
-				return;
-			} else if (channel->ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update)) {
-				// We could've added an item.
-				// Better would be for history to be subscribed to new messages.
-				_history->peerMessagesUpdated();
-			}
-		} else {
-			Auth().api().applyUpdateNoPtsCheck(update);
-
-			// We could've added an item.
-			// Better would be for history to be subscribed to new messages.
-			_history->peerMessagesUpdated();
-		}
-	} break;
-
-	case mtpc_updateEditChannelMessage: {
-		auto &d = update.c_updateEditChannelMessage();
-		auto channel = App::channelLoaded(peerToChannel(peerFromMessage(d.vmessage)));
-
-		if (channel && !_handlingChannelDifference) {
-			if (channel->ptsRequesting()) { // skip global updates while getting channel difference
-				return;
-			} else {
-				channel->ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update);
-			}
-		} else {
-			Auth().api().applyUpdateNoPtsCheck(update);
-		}
-	} break;
-
-	case mtpc_updateEditMessage: {
-		auto &d = update.c_updateEditMessage();
-		ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update);
-	} break;
-
 	case mtpc_updateChannelPinnedMessage: {
 		auto &d = update.c_updateChannelPinnedMessage();
 
@@ -5132,62 +5244,6 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				channel->mgInfo->pinnedMsgId = d.vid.v;
 				Auth().api().fullPeerUpdated().notify(channel);
 			}
-		}
-	} break;
-
-	case mtpc_updateReadChannelInbox: {
-		auto &d = update.c_updateReadChannelInbox();
-		App::feedInboxRead(peerFromChannel(d.vchannel_id.v), d.vmax_id.v);
-	} break;
-
-	case mtpc_updateReadChannelOutbox: {
-		auto &d = update.c_updateReadChannelOutbox();
-		auto peerId = peerFromChannel(d.vchannel_id.v);
-		auto when = requestingDifference() ? 0 : unixtime();
-		App::feedOutboxRead(peerId, d.vmax_id.v, when);
-		if (_history->peer() && _history->peer()->id == peerId) {
-			_history->update();
-		}
-	} break;
-
-	case mtpc_updateChannelWebPage: {
-		auto &d = update.c_updateChannelWebPage();
-
-		// update web page anyway
-		App::feedWebPage(d.vwebpage);
-		_history->updatePreview();
-		webPagesOrGamesUpdate();
-
-		auto channel = App::channelLoaded(d.vchannel_id.v);
-		if (channel && !_handlingChannelDifference) {
-			if (channel->ptsRequesting()) { // skip global updates while getting channel difference
-				return;
-			} else {
-				channel->ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update);
-			}
-		} else {
-			Auth().api().applyUpdateNoPtsCheck(update);
-		}
-	} break;
-
-	case mtpc_updateDeleteChannelMessages: {
-		auto &d = update.c_updateDeleteChannelMessages();
-		auto channel = App::channelLoaded(d.vchannel_id.v);
-
-		if (channel && !_handlingChannelDifference) {
-			if (channel->ptsRequesting()) { // skip global updates while getting channel difference
-				return;
-			} else if (channel->ptsUpdateAndApply(d.vpts.v, d.vpts_count.v, update)) {
-				// We could've removed some items.
-				// Better would be for history to be subscribed to removed messages.
-				_history->peerMessagesUpdated();
-			}
-		} else {
-			// We could've removed some items.
-			// Better would be for history to be subscribed to removed messages.
-			_history->peerMessagesUpdated();
-
-			Auth().api().applyUpdateNoPtsCheck(update);
 		}
 	} break;
 

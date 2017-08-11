@@ -23,6 +23,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/timer.h"
 #include "core/single_timer.h"
 #include "mtproto/sender.h"
+#include "base/flat_map.h"
+#include "base/flat_set.h"
 
 class AuthSession;
 
@@ -97,6 +99,9 @@ public:
 	void applyUpdateNoPtsCheck(const MTPUpdate &update);
 
 	void jumpToDate(gsl::not_null<PeerData*> peer, const QDate &date);
+
+	void preloadEnoughUnreadMentions(gsl::not_null<History*> history);
+	void checkForUnreadMentions(const base::flat_set<MsgId> &possiblyReadMentions, ChannelData *channel = nullptr);
 
 	~ApiWrap();
 
@@ -188,6 +193,8 @@ private:
 	QMap<mtpTypeId, mtpRequestId> _privacySaveRequests;
 
 	mtpRequestId _contactsStatusesRequestId = 0;
+
+	base::flat_map<gsl::not_null<History*>, mtpRequestId> _unreadMentionsRequests;
 
 	base::Observable<PeerData*> _fullPeerUpdated;
 

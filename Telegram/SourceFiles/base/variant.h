@@ -25,11 +25,23 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 // We use base::variant<> alias and base::get_if() helper while we don't have std::variant<>.
 namespace base {
 
-template <typename... Types>
-using variant = mapbox::util::variant<Types...>;
+struct null_variant_type {
+};
+
+inline constexpr null_variant_type null_variant() {
+	return null_variant_type {};
+}
+
+inline bool operator<(null_variant_type a, null_variant_type b) {
+	return false;
+}
+
+inline bool operator==(null_variant_type a, null_variant_type b) {
+	return true;
+}
 
 template <typename... Types>
-using optional_variant = variant<std::nullptr_t, Types...>;
+using variant = mapbox::util::variant<Types...>;
 
 template <typename T, typename... Types>
 inline T *get_if(variant<Types...> *v) {
@@ -42,8 +54,35 @@ inline const T *get_if(const variant<Types...> *v) {
 }
 
 template <typename... Types>
+using optional_variant = variant<null_variant_type, Types...>;
+
+template <typename... Types>
 inline bool is_null_variant(const optional_variant<Types...> &variant) {
-	return get_if<std::nullptr_t>(&variant) != nullptr;
+	return get_if<null_variant_type>(&variant) != nullptr;
+}
+
+template <typename Type>
+using optional = optional_variant<Type>;
+
+using null_optional_type = null_variant_type;
+
+template <typename Type>
+inline Type *get_if(optional<Type> *v) {
+	return (v && v->template is<Type>()) ? &v->template get_unchecked<Type>() : nullptr;
+}
+
+template <typename Type>
+inline const Type *get_if(const optional<Type> *v) {
+	return (v && v->template is<Type>()) ? &v->template get_unchecked<Type>() : nullptr;
+}
+
+template <typename Type>
+inline bool is_null_optional(const optional<Type> &optional) {
+	return is_null_variant(optional);
+}
+
+inline constexpr null_optional_type null_optional() {
+	return null_optional_type {};
 }
 
 } // namespace base

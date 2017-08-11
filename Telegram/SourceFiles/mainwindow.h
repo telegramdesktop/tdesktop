@@ -93,6 +93,7 @@ public:
 	PasscodeWidget *passcodeWidget();
 
 	bool doWeReadServerHistory();
+	bool doWeReadMentions();
 
 	void activate();
 

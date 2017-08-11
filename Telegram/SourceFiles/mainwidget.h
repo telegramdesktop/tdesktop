@@ -227,6 +227,7 @@ public:
 
 	bool isActive() const;
 	bool doWeReadServerHistory() const;
+	bool doWeReadMentions() const;
 	bool lastWasOnline() const;
 	TimeMs lastSetOnline() const;
 
@@ -347,8 +348,9 @@ public:
 	void cancelForwarding(History *history);
 	void finishForwarding(History *history, bool silent); // send them
 
-	void mediaMarkRead(DocumentData *data);
+	void mediaMarkRead(gsl::not_null<DocumentData*> data);
 	void mediaMarkRead(const HistoryItemsMap &items);
+	void mediaMarkRead(gsl::not_null<HistoryItem*> item);
 
 	void webPageUpdated(WebPageData *page);
 	void gameUpdated(GameData *game);

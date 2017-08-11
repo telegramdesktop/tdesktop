@@ -516,6 +516,11 @@ bool MainWindow::doWeReadServerHistory() {
 	return isActive() && _main && !Ui::isLayerShown() && _main->doWeReadServerHistory();
 }
 
+bool MainWindow::doWeReadMentions() {
+	updateIsActive(0);
+	return isActive() && _main && !Ui::isLayerShown() && _main->doWeReadMentions();
+}
+
 void MainWindow::checkHistoryActivation() {
 	if (_main && doWeReadServerHistory()) {
 		_main->markActiveHistoryAsRead();

@@ -224,6 +224,8 @@ private:
 	bool updateOverState(OverState newState);
 	float64 overLevel(OverState control) const;
 
+	MsgId getMsgIdFromOverview(gsl::not_null<History*> history, int index) const;
+
 	QBrush _transparentBrush;
 
 	PhotoData *_photo = nullptr;
@@ -294,7 +296,7 @@ private:
 	UserData *_user = nullptr; // if user profile photos overview
 
 	// There can be additional first photo in chat photos overview, that is not
-	// in the _history->overview[OverviewChatPhotos] (if the item was deleted).
+	// in the _history->overview(OverviewChatPhotos) (if the item was deleted).
 	PhotoData *_additionalChatPhoto = nullptr;
 
 	// We save the information about the reason of the current mediaview show:

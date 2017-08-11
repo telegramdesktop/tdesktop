@@ -150,9 +150,9 @@ void Instance::rebuildPlaylist(Data *data) {
 
 	data->playlist.clear();
 	if (data->history && data->history->loadedAtBottom()) {
-		auto &historyOverview = data->history->overview[data->overview];
+		auto &historyOverview = data->history->overview(data->overview);
 		if (data->migrated && data->migrated->loadedAtBottom() && data->history->loadedAtTop()) {
-			auto &migratedOverview = data->migrated->overview[data->overview];
+			auto &migratedOverview = data->migrated->overview(data->overview);
 			data->playlist.reserve(migratedOverview.size() + historyOverview.size());
 			for_const (auto msgId, migratedOverview) {
 				data->playlist.push_back(FullMsgId(data->migrated->channelId(), msgId));

@@ -293,8 +293,9 @@ void RowPainter::paint(Painter &p, const Row *row, int fullWidth, bool active, b
 		cloudDraft = nullptr; // Draw item, if draft is older.
 	}
 	paintRow(p, row, history, item, cloudDraft, displayDate(), fullWidth, active, selected, onlyBackground, ms, [&p, fullWidth, active, selected, ms, history, unreadCount](int nameleft, int namewidth, HistoryItem *item) {
-		int availableWidth = namewidth;
-		int texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
+		auto availableWidth = namewidth;
+		auto texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
+		auto hadOneBadge = false;
 		if (unreadCount) {
 			auto counter = QString::number(unreadCount);
 			auto mutedCounter = history->mute();
@@ -307,10 +308,31 @@ void RowPainter::paint(Painter &p, const Row *row, int fullWidth, bool active, b
 			st.muted = history->mute();
 			paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
 			availableWidth -= unreadWidth + st.padding;
+
+			hadOneBadge = true;
 		} else if (history->isPinnedDialog()) {
 			auto &icon = (active ? st::dialogsPinnedIconActive : (selected ? st::dialogsPinnedIconOver : st::dialogsPinnedIcon));
 			icon.paint(p, fullWidth - st::dialogsPadding.x() - icon.width(), texttop, fullWidth);
 			availableWidth -= icon.width() + st::dialogsUnreadPadding;
+
+			hadOneBadge = true;
+		}
+		if (history->hasUnreadMentions()) {
+			auto counter = qsl("@");
+			auto unreadRight = fullWidth - st::dialogsPadding.x() - (namewidth - availableWidth);
+			if (hadOneBadge) {
+				unreadRight -= st::dialogsUnreadPadding;
+			}
+			auto unreadTop = texttop + st::dialogsTextFont->ascent - st::dialogsUnreadFont->ascent - (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2;
+			auto unreadWidth = 0;
+
+			UnreadBadgeStyle st;
+			st.active = active;
+			st.muted = history->mute();
+			st.padding = 0;
+			st.textTop = 0;
+			paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
+			availableWidth -= unreadWidth + st.padding + (hadOneBadge ? st::dialogsUnreadPadding : 0);
 		}
 		auto &color = active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService);
 		if (!history->paintSendAction(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {

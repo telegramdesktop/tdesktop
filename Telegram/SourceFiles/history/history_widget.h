@@ -179,6 +179,7 @@ public:
 
 	void windowShown();
 	bool doWeReadServerHistory() const;
+	bool doWeReadMentions() const;
 
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void dragEnterEvent(QDragEnterEvent *e) override;
@@ -316,6 +317,8 @@ public:
 
 	void updateHistoryDownPosition();
 	void updateHistoryDownVisibility();
+	void updateUnreadMentionsPosition();
+	void updateUnreadMentionsVisibility();
 
 	void updateFieldSubmitSettings();
 
@@ -412,7 +415,6 @@ public slots:
 	void onReportSpamClear();
 
 	void onScroll();
-	void onHistoryToEnd();
 	void onSend(bool ctrlShiftEnter = false, MsgId replyTo = -1);
 
 	void onUnblock();
@@ -488,6 +490,8 @@ private:
 	void updateTabbedSelectorSectionShown();
 	void recountChatWidth();
 	void setReportSpamStatus(DBIPeerReportSpamStatus status);
+	void historyDownClicked();
+	void showNextUnreadMention();
 
 	void animationCallback();
 	void updateOverStates(QPoint pos);
@@ -496,6 +500,7 @@ private:
 	void recordUpdateCallback(QPoint globalPos);
 	void chooseAttach();
 	void historyDownAnimationFinish();
+	void unreadMentionsAnimationFinish();
 	void sendButtonClicked();
 	SendingFilesLists getSendingFilesLists(const QList<QUrl> &files);
 	SendingFilesLists getSendingFilesLists(const QStringList &files);
@@ -748,6 +753,10 @@ private:
 	Animation _historyDownShown;
 	bool _historyDownIsShown = false;
 	object_ptr<Ui::HistoryDownButton> _historyDown;
+
+	Animation _unreadMentionsShown;
+	bool _unreadMentionsIsShown = false;
+	object_ptr<Ui::HistoryDownButton> _unreadMentions;
 
 	object_ptr<FieldAutocomplete> _fieldAutocomplete;
 

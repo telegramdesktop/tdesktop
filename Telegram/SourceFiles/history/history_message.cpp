@@ -37,6 +37,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
 #include "window/notifications_manager.h"
+#include "observer_peer.h"
 
 namespace {
 
@@ -1232,6 +1233,13 @@ void HistoryMessage::applyEditionToEmpty() {
 	finishEditionToEmpty();
 }
 
+void HistoryMessage::markMediaAsReadHook() {
+	if (mentionsMe()) {
+		history()->updateChatListEntry();
+		history()->eraseFromUnreadMentions(id);
+	}
+}
+
 bool HistoryMessage::displayForwardedFrom() const {
 	if (auto forwarded = Get<HistoryMessageForwarded>()) {
 		return Has<HistoryMessageVia>()
@@ -1276,6 +1284,11 @@ int32 HistoryMessage::addToOverview(AddToOverviewMethod method) {
 			result |= (1 << OverviewLinks);
 		}
 	}
+	if (mentionsMe() && isMediaUnread()) {
+		if (history()->addToUnreadMentions(id, method)) {
+			Notify::peerUpdatedDelayed(history()->peer, Notify::PeerUpdate::Flag::UnreadMentionsChanged);
+		}
+	}
 	return result;
 }
 
@@ -1285,6 +1298,9 @@ void HistoryMessage::eraseFromOverview() {
 	}
 	if (hasTextLinks()) {
 		history()->eraseFromOverview(OverviewLinks, id);
+	}
+	if (mentionsMe() && isMediaUnread()) {
+		history()->eraseFromUnreadMentions(id);
 	}
 }
 

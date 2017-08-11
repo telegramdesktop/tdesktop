@@ -979,7 +979,7 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 	_previewTimer.stop();
 
 	auto pressed = _pressed;
-	setPressed(nullptr);
+	setPressed(base::null_variant());
 	if (pressed != _selected) {
 		update();
 	}
@@ -1104,8 +1104,8 @@ void StickersListWidget::enterFromChildEvent(QEvent *e, QWidget *child) {
 }
 
 void StickersListWidget::clearSelection() {
-	setPressed(nullptr);
-	setSelected(nullptr);
+	setPressed(base::null_variant());
+	setSelected(base::null_variant());
 	update();
 }
 
@@ -1398,7 +1398,7 @@ void StickersListWidget::updateSelected() {
 		return;
 	}
 
-	auto newSelected = OverState { nullptr };
+	auto newSelected = OverState { base::null_variant() };
 	auto p = mapFromGlobal(_lastMousePosition);
 	if (!rect().contains(p)
 		|| p.y() < getVisibleTop() || p.y() >= getVisibleBottom()

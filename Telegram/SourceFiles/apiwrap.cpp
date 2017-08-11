@@ -43,6 +43,9 @@ constexpr auto kSaveCloudDraftTimeout = 1000; // save draft to the cloud with 1 
 constexpr auto kSaveDraftBeforeQuitTimeout = 1500; // give the app 1.5 secs to save drafts to cloud when quitting
 constexpr auto kSmallDelayMs = 5;
 constexpr auto kStickersUpdateTimeout = 3600000; // update not more than once in an hour
+constexpr auto kUnreadMentionsPreloadIfLess = 5;
+constexpr auto kUnreadMentionsFirstRequestLimit = 10;
+constexpr auto kUnreadMentionsNextRequestLimit = 100;
 
 } // namespace
 
@@ -1644,9 +1647,9 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 
 	case mtpc_updateReadMessagesContents: {
 		auto &d = update.c_updateReadMessagesContents();
-		auto &v = d.vmessages.v;
-		for (auto i = 0, l = v.size(); i < l; ++i) {
-			if (auto item = App::histItemById(NoChannel, v.at(i).v)) {
+		auto possiblyReadMentions = base::flat_set<MsgId>();
+		for_const (auto &msgId, d.vmessages.v) {
+			if (auto item = App::histItemById(NoChannel, msgId.v)) {
 				if (item->isMediaUnread()) {
 					item->markMediaRead();
 					Ui::repaintHistoryItem(item);
@@ -1656,8 +1659,12 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 						item->history()->peer->asUser()->madeAction(when);
 					}
 				}
+			} else {
+				// Perhaps it was an unread mention!
+				possiblyReadMentions.insert(msgId.v);
 			}
 		}
+		checkForUnreadMentions(possiblyReadMentions);
 	} break;
 
 	case mtpc_updateReadHistoryInbox: {
@@ -1760,6 +1767,42 @@ void ApiWrap::jumpToDate(gsl::not_null<PeerData*> peer, const QDate &date) {
 		}
 		Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 	}).send();
+}
+
+void ApiWrap::preloadEnoughUnreadMentions(gsl::not_null<History*> history) {
+	auto fullCount = history->getUnreadMentionsCount();
+	auto loadedCount = history->getUnreadMentionsLoadedCount();
+	auto allLoaded = (fullCount >= 0) ? (loadedCount >= fullCount) : false;
+	if (fullCount < 0 || loadedCount >= kUnreadMentionsPreloadIfLess || allLoaded) {
+		return;
+	}
+	if (_unreadMentionsRequests.contains(history)) {
+		return;
+	}
+	auto offsetId = loadedCount ? history->getMaxLoadedUnreadMention() : 1;
+	auto limit = loadedCount ? kUnreadMentionsNextRequestLimit : kUnreadMentionsFirstRequestLimit;
+	auto addOffset = loadedCount ? -(limit + 1) : -limit;
+	auto maxId = 0;
+	auto minId = 0;
+	auto requestId = request(MTPmessages_GetUnreadMentions(history->peer->input, MTP_int(offsetId), MTP_int(addOffset), MTP_int(limit), MTP_int(maxId), MTP_int(minId))).done([this, history](const MTPmessages_Messages &result) {
+		_unreadMentionsRequests.remove(history);
+		history->addUnreadMentionsSlice(result);
+	}).fail([this, history](const RPCError &error) {
+		_unreadMentionsRequests.remove(history);
+	}).send();
+	_unreadMentionsRequests.emplace(history, requestId);
+}
+
+void ApiWrap::checkForUnreadMentions(const base::flat_set<MsgId> &possiblyReadMentions, ChannelData *channel) {
+	for (auto msgId : possiblyReadMentions) {
+		requestMessageData(channel, msgId, [](ChannelData *channel, MsgId msgId) {
+			if (auto item = App::histItemById(channel, msgId)) {
+				if (item->mentionsMe()) {
+					item->markMediaRead();
+				}
+			}
+		});
+	}
 }
 
 ApiWrap::~ApiWrap() = default;

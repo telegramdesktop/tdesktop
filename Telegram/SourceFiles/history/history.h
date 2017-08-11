@@ -25,6 +25,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/send_action_animations.h"
 #include "base/observer.h"
 #include "base/timer.h"
+#include "base/variant.h"
+#include "base/flat_set.h"
 
 void HistoryInit();
 
@@ -349,7 +351,27 @@ public:
 	// if this returns false there is no need to even try to handle them
 	bool canHaveFromPhotos() const;
 
-	typedef QList<HistoryBlock*> Blocks;
+	int getUnreadMentionsLoadedCount() const {
+		return _unreadMentions.size();
+	}
+	MsgId getMinLoadedUnreadMention() const {
+		return _unreadMentions.empty() ? 0 : _unreadMentions.front();
+	}
+	MsgId getMaxLoadedUnreadMention() const {
+		return _unreadMentions.empty() ? 0 : _unreadMentions.back();
+	}
+	int getUnreadMentionsCount(int notLoadedValue = -1) const {
+		return base::is_null_optional(_unreadMentionsCount) ? notLoadedValue : *base::get_if(&_unreadMentionsCount);
+	}
+	bool hasUnreadMentions() const {
+		return (getUnreadMentionsCount() > 0);
+	}
+	void setUnreadMentionsCount(int count);
+	bool addToUnreadMentions(MsgId msgId, AddToOverviewMethod method);
+	void eraseFromUnreadMentions(MsgId msgId);
+	void addUnreadMentionsSlice(const MTPmessages_Messages &result);
+
+	using Blocks = QList<HistoryBlock*>;
 	Blocks blocks;
 
 	int width = 0;
@@ -441,37 +463,33 @@ public:
 	mutable const HistoryItem *textCachedFor = nullptr; // cache
 	mutable Text lastItemTextCache;
 
-	typedef QList<MsgId> MediaOverview;
-	MediaOverview overview[OverviewCount];
-
 	bool overviewCountLoaded(int32 overviewIndex) const {
-		return overviewCountData[overviewIndex] >= 0;
+		return _overviewCountData[overviewIndex] >= 0;
 	}
 	bool overviewLoaded(int32 overviewIndex) const {
-		return overviewCount(overviewIndex) == overview[overviewIndex].size();
+		return overviewCount(overviewIndex) == _overview[overviewIndex].size();
 	}
-	int32 overviewCount(int32 overviewIndex, int32 defaultValue = -1) const {
-		int32 result = overviewCountData[overviewIndex], loaded = overview[overviewIndex].size();
+	int overviewCount(int32 overviewIndex, int32 defaultValue = -1) const {
+		auto result = _overviewCountData[overviewIndex];
+		auto loaded = _overview[overviewIndex].size();
 		if (result < 0) return defaultValue;
 		if (result < loaded) {
 			if (result > 0) {
-				const_cast<History*>(this)->overviewCountData[overviewIndex] = 0;
+				const_cast<History*>(this)->_overviewCountData[overviewIndex] = 0;
 			}
 			return loaded;
 		}
 		return result;
 	}
+	const OrderedSet<MsgId> &overview(int32 overviewIndex) const {
+		return _overview[overviewIndex];
+	}
 	MsgId overviewMinId(int32 overviewIndex) const {
-		for_const (auto msgId, overviewIds[overviewIndex]) {
-			if (msgId > 0) {
-				return msgId;
-			}
-		}
-		return 0;
+		return _overview[overviewIndex].empty() ? 0 : *_overview[overviewIndex].begin();
 	}
 	void overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages &result, bool onlyCounts = false);
 	bool overviewHasMsgId(int32 overviewIndex, MsgId msgId) const {
-		return overviewIds[overviewIndex].constFind(msgId) != overviewIds[overviewIndex].cend();
+		return _overview[overviewIndex].contains(msgId);
 	}
 
 	void changeMsgId(MsgId oldId, MsgId newId);
@@ -537,9 +555,12 @@ private:
 	Q_DECL_CONSTEXPR friend inline QFlags<Flags::enum_type> operator~(Flags::enum_type f) noexcept {
 		return ~QFlags<Flags::enum_type>(f);
 	}
-	Flags _flags;
-	bool _mute;
-	int32 _unreadCount = 0;
+	Flags _flags = { 0 };
+	bool _mute = false;
+	int _unreadCount = 0;
+
+	base::optional<int> _unreadMentionsCount = base::null_optional();
+	base::flat_set<MsgId> _unreadMentions;
 
 	Dialogs::RowsByLetter _chatListLinks[2];
 	Dialogs::RowsByLetter &chatListLinks(Dialogs::Mode list) {
@@ -555,9 +576,8 @@ private:
 	}
 	uint64 _sortKeyInChatList = 0; // like ((unixtime) << 32) | (incremented counter)
 
-	using MediaOverviewIds = OrderedSet<MsgId>;
-	MediaOverviewIds overviewIds[OverviewCount];
-	int32 overviewCountData[OverviewCount]; // -1 - not loaded, 0 - all loaded, > 0 - count, but not all loaded
+	OrderedSet<MsgId> _overview[OverviewCount];
+	int32 _overviewCountData[OverviewCount]; // -1 - not loaded, 0 - all loaded, > 0 - count, but not all loaded
 
 	// A pointer to the block that is currently being built.
 	// We hold this pointer so we can destroy it while building

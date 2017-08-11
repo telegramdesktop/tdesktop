@@ -210,7 +210,7 @@ private:
 	bool _searchFull = false;
 	bool _searchFullMigrated = false;
 	mtpRequestId _searchRequest = 0;
-	History::MediaOverview _searchResults;
+	QList<MsgId> _searchResults;
 	MsgId _lastSearchId = 0;
 	MsgId _lastSearchMigratedId = 0;
 	int _searchedCount = 0;

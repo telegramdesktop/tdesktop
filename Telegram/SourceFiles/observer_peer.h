@@ -51,6 +51,7 @@ struct PeerUpdate {
 		MembersChanged            = 0x00000200U,
 		AdminsChanged             = 0x00000400U,
 		BannedUsersChanged        = 0x00000800U,
+		UnreadMentionsChanged     = 0x00001000U,
 
 		// For users
 		UserCanShareContact       = 0x00010000U,

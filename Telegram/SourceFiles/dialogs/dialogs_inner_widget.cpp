@@ -1458,6 +1458,7 @@ void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
 		}
 
 		auto history = App::historyFromDialog(peerId, d.vunread_count.v, d.vread_inbox_max_id.v, d.vread_outbox_max_id.v);
+		history->setUnreadMentionsCount(d.vunread_mentions_count.v);
 		auto peer = history->peer;
 		if (auto channel = peer->asChannel()) {
 			if (d.has_pts()) {

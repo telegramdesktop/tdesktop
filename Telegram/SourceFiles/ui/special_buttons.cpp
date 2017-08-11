@@ -73,8 +73,10 @@ void HistoryDownButton::paintEvent(QPaintEvent *e) {
 }
 
 void HistoryDownButton::setUnreadCount(int unreadCount) {
-	_unreadCount = unreadCount;
-	update();
+	if (_unreadCount != unreadCount) {
+		_unreadCount = unreadCount;
+		update();
+	}
 }
 
 EmojiButton::EmojiButton(QWidget *parent, const style::IconButton &st) : RippleButton(parent, st.ripple)

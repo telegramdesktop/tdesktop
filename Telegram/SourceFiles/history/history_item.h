@@ -575,7 +575,7 @@ public:
 		return _flags & MTPDmessage::Flag::f_mentioned;
 	}
 	bool isMediaUnread() const {
-		return (_flags & MTPDmessage::Flag::f_media_unread) && (channelId() == NoChannel);
+		return _flags & MTPDmessage::Flag::f_media_unread;
 	}
 	void markMediaRead() {
 		_flags &= ~MTPDmessage::Flag::f_media_unread;
@@ -625,7 +625,7 @@ public:
 		return _flags & MTPDmessage::Flag::f_post;
 	}
 	bool indexInOverview() const {
-		return (id > 0) && (!history()->isChannel() || history()->isMegagroup() || isPost());
+		return (id > 0);
 	}
 	bool isSilent() const {
 		return _flags & MTPDmessage::Flag::f_silent;

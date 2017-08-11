@@ -612,6 +612,7 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 , _topBar(this, controller)
 , _scroll(this, st::historyScroll, false)
 , _historyDown(_scroll, st::historyToDown)
+, _unreadMentions(_scroll, st::historyUnreadMentions)
 , _fieldAutocomplete(this)
 , _send(this)
 , _unblock(this, lang(lng_unblock_button).toUpper(), st::historyUnblock)
@@ -639,7 +640,8 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
 	connect(_topBar, &Window::TopBarWidget::clicked, this, [this] { topBarClick(); });
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
-	connect(_historyDown, SIGNAL(clicked()), this, SLOT(onHistoryToEnd()));
+	_historyDown->setClickedCallback([this] { historyDownClicked(); });
+	_unreadMentions->setClickedCallback([this] { showNextUnreadMention(); });
 	connect(_fieldBarCancel, SIGNAL(clicked()), this, SLOT(onFieldBarCancel()));
 	_send->setClickedCallback([this] { sendButtonClicked(); });
 	connect(_unblock, SIGNAL(clicked()), this, SLOT(onUnblock()));
@@ -703,6 +705,7 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 	updateScrollColors();
 
 	_historyDown->installEventFilter(this);
+	_unreadMentions->installEventFilter(this);
 
 	_fieldAutocomplete->hide();
 	connect(_fieldAutocomplete, SIGNAL(mentionChosen(UserData*,FieldAutocomplete::ChooseMethod)), this, SLOT(onMentionInsert(UserData*)));
@@ -769,9 +772,10 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 			scrollToCurrentVoiceMessage(pair.from.contextId(), pair.to);
 		}
 	});
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::ChannelRightsChanged, [this](const Notify::PeerUpdate &update) {
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::ChannelRightsChanged | Notify::PeerUpdate::Flag::UnreadMentionsChanged, [this](const Notify::PeerUpdate &update) {
 		if (update.peer == _peer) {
-			onPreviewCheck();
+			if (update.flags & Notify::PeerUpdate::Flag::ChannelRightsChanged) onPreviewCheck();
+			if (update.flags & Notify::PeerUpdate::Flag::UnreadMentionsChanged) updateUnreadMentionsVisibility();
 		}
 	}));
 	subscribe(controller->window()->widgetGrabbed(), [this] {
@@ -1966,6 +1970,7 @@ void HistoryWidget::updateControlsVisibility() {
 		_topBar->setVisible(_peer != nullptr);
 	}
 	updateHistoryDownVisibility();
+	updateUnreadMentionsVisibility();
 	if (!_history || _a_show.animating()) {
 		if (_tabbedSection && !_tabbedSection->isHidden()) {
 			_tabbedSection->beforeHiding();
@@ -2166,6 +2171,9 @@ void HistoryWidget::newUnreadMsg(History *history, HistoryItem *item) {
 			destroyUnreadBar();
 		}
 		if (App::wnd()->doWeReadServerHistory()) {
+			if (item->mentionsMe() && item->isMediaUnread()) {
+				App::main()->mediaMarkRead(item);
+			}
 			historyWasRead(ReadServerHistoryChecks::ForceRequest);
 			return;
 		}
@@ -2194,9 +2202,7 @@ void HistoryWidget::historyWasRead(ReadServerHistoryChecks checks) {
 void HistoryWidget::unreadCountChanged(History *history) {
 	if (history == _history || history == _migrated) {
 		updateHistoryDownVisibility();
-		if (_historyDown) {
-			_historyDown->setUnreadCount(_history->unreadCount() + (_migrated ? _migrated->unreadCount() : 0));
-		}
+		_historyDown->setUnreadCount(_history->unreadCount() + (_migrated ? _migrated->unreadCount() : 0));
 	}
 }
 
@@ -2371,6 +2377,12 @@ bool HistoryWidget::doWeReadServerHistory() const {
 		return true;
 	}
 	return false;
+}
+
+bool HistoryWidget::doWeReadMentions() const {
+	if (!_history || !_list) return true;
+	if (_firstLoadRequest || _a_show.animating()) return false;
+	return true;
 }
 
 bool HistoryWidget::historyHasNotFreezedUnreadBar(History *history) const {
@@ -2614,7 +2626,7 @@ void HistoryWidget::onWindowVisibleChanged() {
 	QTimer::singleShot(0, this, SLOT(preloadHistoryIfNeeded()));
 }
 
-void HistoryWidget::onHistoryToEnd() {
+void HistoryWidget::historyDownClicked() {
 	if (_replyReturn && _replyReturn->history() == _history) {
 		showHistory(_peer->id, _replyReturn->id);
 	} else if (_replyReturn && _replyReturn->history() == _migrated) {
@@ -2622,6 +2634,10 @@ void HistoryWidget::onHistoryToEnd() {
 	} else if (_peer) {
 		showHistory(_peer->id, ShowAtUnreadMsgId);
 	}
+}
+
+void HistoryWidget::showNextUnreadMention() {
+	showHistory(_peer->id, _history->getMinLoadedUnreadMention());
 }
 
 void HistoryWidget::saveEditMsg() {
@@ -2921,6 +2937,7 @@ void HistoryWidget::showAnimated(Window::SlideDirection direction, const Window:
 	show();
 	_topBar->updateControlsVisibility();
 	historyDownAnimationFinish();
+	unreadMentionsAnimationFinish();
 	_topShadow->setVisible(params.withTopBarShadow ? false : true);
 	_cacheOver = App::main()->grabForShowAnimation(params);
 
@@ -2952,6 +2969,7 @@ void HistoryWidget::animationCallback() {
 	update();
 	if (!_a_show.animating()) {
 		historyDownAnimationFinish();
+		unreadMentionsAnimationFinish();
 		_cacheUnder = _cacheOver = QPixmap();
 		doneShow();
 	}
@@ -2981,11 +2999,17 @@ void HistoryWidget::finishAnimation() {
 	_topShadow->setVisible(_peer != nullptr);
 	_topBar->setVisible(_peer != nullptr);
 	historyDownAnimationFinish();
+	unreadMentionsAnimationFinish();
 }
 
 void HistoryWidget::historyDownAnimationFinish() {
 	_historyDownShown.finish();
 	updateHistoryDownPosition();
+}
+
+void HistoryWidget::unreadMentionsAnimationFinish() {
+	_unreadMentionsShown.finish();
+	updateUnreadMentionsPosition();
 }
 
 void HistoryWidget::step_recording(float64 ms, bool timer) {
@@ -3341,7 +3365,7 @@ bool HistoryWidget::insertBotCommand(const QString &cmd) {
 }
 
 bool HistoryWidget::eventFilter(QObject *obj, QEvent *e) {
-	if (obj == _historyDown && e->type() == QEvent::Wheel) {
+	if ((obj == _historyDown || obj == _unreadMentions) && e->type() == QEvent::Wheel) {
 		return _scroll->viewportEvent(e);
 	}
 	return TWidget::eventFilter(obj, e);
@@ -4816,6 +4840,11 @@ void HistoryWidget::updateHistoryGeometry(bool initial, bool loadedDown, const S
 		if (!_historyDownShown.animating()) {
 			// _historyDown is a child widget of _scroll, not me.
 			_historyDown->moveToRight(st::historyToDownPosition.x(), _scroll->height() - _historyDown->height() - st::historyToDownPosition.y());
+			if (!_unreadMentionsShown.animating()) {
+				// _unreadMentions is a child widget of _scroll, not me.
+				auto additionalSkip = _historyDownIsShown ? (_historyDown->height() + st::historyUnreadMentionsSkip) : 0;
+				_unreadMentions->moveToRight(st::historyToDownPosition.x(), _scroll->height() - additionalSkip - st::historyToDownPosition.y());
+			}
 		}
 
 		controller()->floatPlayerAreaUpdated().notify(true);
@@ -5011,6 +5040,7 @@ void HistoryWidget::updateHistoryDownPosition() {
 	if (shouldBeHidden != _historyDown->isHidden()) {
 		_historyDown->setVisible(!shouldBeHidden);
 	}
+	updateUnreadMentionsPosition();
 }
 
 void HistoryWidget::updateHistoryDownVisibility() {
@@ -5025,7 +5055,7 @@ void HistoryWidget::updateHistoryDownVisibility() {
 		}
 		return (_list->itemTop(history->showFrom) >= _scroll->scrollTop() + _scroll->height());
 	};
-	auto historyDownIsVisible = [this, &haveUnreadBelowBottom]() {
+	auto historyDownIsVisible = [this, &haveUnreadBelowBottom] {
 		if (!_history || _firstLoadRequest) {
 			return false;
 		}
@@ -5044,6 +5074,41 @@ void HistoryWidget::updateHistoryDownVisibility() {
 	if (_historyDownIsShown != historyDownIsShown) {
 		_historyDownIsShown = historyDownIsShown;
 		_historyDownShown.start([this] { updateHistoryDownPosition(); }, _historyDownIsShown ? 0. : 1., _historyDownIsShown ? 1. : 0., st::historyToDownDuration);
+	}
+}
+
+void HistoryWidget::updateUnreadMentionsPosition() {
+	// _unreadMentions is a child widget of _scroll, not me.
+	auto right = anim::interpolate(-_unreadMentions->width(), st::historyToDownPosition.x(), _unreadMentionsShown.current(_unreadMentionsIsShown ? 1. : 0.));
+	auto shift = anim::interpolate(0, _historyDown->height() + st::historyUnreadMentionsSkip, _historyDownShown.current(_historyDownIsShown ? 1. : 0.));
+	auto top = _scroll->height() - _unreadMentions->height() - st::historyToDownPosition.y() - shift;
+	_unreadMentions->moveToRight(right, top);
+	auto shouldBeHidden = !_unreadMentionsIsShown && !_unreadMentionsShown.animating();
+	if (shouldBeHidden != _unreadMentions->isHidden()) {
+		_unreadMentions->setVisible(!shouldBeHidden);
+	}
+}
+
+void HistoryWidget::updateUnreadMentionsVisibility() {
+	if (_a_show.animating()) return;
+
+	auto showUnreadMentions = _peer && (_peer->isChat() || _peer->isMegagroup());
+	if (showUnreadMentions) {
+		Auth().api().preloadEnoughUnreadMentions(_history);
+	}
+	auto unreadMentionsIsVisible = [this, showUnreadMentions] {
+		if (!showUnreadMentions || _firstLoadRequest) {
+			return false;
+		}
+		return (_history->getUnreadMentionsLoadedCount() > 0);
+	};
+	auto unreadMentionsIsShown = unreadMentionsIsVisible();
+	if (unreadMentionsIsShown) {
+		_unreadMentions->setUnreadCount(_history->getUnreadMentionsCount());
+	}
+	if (_unreadMentionsIsShown != unreadMentionsIsShown) {
+		_unreadMentionsIsShown = unreadMentionsIsShown;
+		_unreadMentionsShown.start([this] { updateUnreadMentionsPosition(); }, _unreadMentionsIsShown ? 0. : 1., _unreadMentionsIsShown ? 1. : 0., st::historyToDownDuration);
 	}
 }
 
@@ -6448,6 +6513,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 
 	auto ms = getms();
 	_historyDownShown.step(ms);
+	_unreadMentionsShown.step(ms);
 	auto progress = _a_show.current(ms, 1.);
 	if (_a_show.animating()) {
 		auto animationWidth = (!_tabbedSection || _tabbedSection->isHidden()) ? width() : _chatWidth;
