@@ -2545,7 +2545,9 @@ void HistoryWidget::visibleAreaUpdated() {
 		_list->visibleAreaUpdated(scrollTop, scrollBottom);
 		if (_history->loadedAtBottom() && (_history->unreadCount() > 0 || (_migrated && _migrated->unreadCount() > 0))) {
 			auto showFrom = (_migrated && _migrated->showFrom) ? _migrated->showFrom : (_history ? _history->showFrom : nullptr);
-			if (showFrom && !showFrom->detached() && scrollBottom > _list->itemTop(showFrom) && App::wnd()->doWeReadServerHistory()) {
+			auto showFromVisible = (showFrom && !showFrom->detached() && scrollBottom > _list->itemTop(showFrom));
+			auto atBottom = (scrollTop >= _scroll->scrollTopMax());
+			if ((showFromVisible || atBottom) && App::wnd()->doWeReadServerHistory()) {
 				historyWasRead(ReadServerHistoryChecks::OnlyIfUnread);
 			}
 		}
