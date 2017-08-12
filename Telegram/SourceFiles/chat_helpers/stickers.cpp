@@ -524,7 +524,7 @@ void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVect
 
 		if (set) {
 			auto it = sets.find(set->vid.v);
-			auto title = stickerSetTitle(*set);
+			auto title = GetSetTitle(*set);
 			if (it == sets.cend()) {
 				auto setClientFlags = MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_not_loaded;
 				if (unreadMap.contains(set->vid.v)) {
@@ -684,7 +684,7 @@ std::vector<gsl::not_null<EmojiPtr>> GetEmojiListFromSet(gsl::not_null<DocumentD
 Set *FeedSet(const MTPDstickerSet &set) {
 	auto &sets = Global::RefStickerSets();
 	auto it = sets.find(set.vid.v);
-	auto title = stickerSetTitle(set);
+	auto title = GetSetTitle(set);
 	auto flags = MTPDstickerSet::Flags(0);
 	if (it == sets.cend()) {
 		it = sets.insert(set.vid.v, Stickers::Set(set.vid.v, set.vaccess_hash.v, title, qs(set.vshort_name), set.vcount.v, set.vhash.v, set.vflags.v | MTPDstickerSet_ClientFlag::f_not_loaded));
@@ -805,6 +805,14 @@ Set *FeedSetFull(const MTPmessages_StickerSet &data) {
 	Auth().data().stickersUpdated().notify(true);
 
 	return set;
+}
+
+QString GetSetTitle(const MTPDstickerSet &s) {
+	auto title = qs(s.vtitle);
+	if ((s.vflags.v & MTPDstickerSet::Flag::f_official) && !title.compare(qstr("Great Minds"), Qt::CaseInsensitive)) {
+		return lang(lng_stickers_default_set);
+	}
+	return title;
 }
 
 namespace internal {

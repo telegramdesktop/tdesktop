@@ -84,7 +84,7 @@ private:
 		Over = 0x01,
 		DeleteOver = 0x02,
 	};
-	Q_DECLARE_FLAGS(StateFlags, StateFlag);
+	using StateFlags = QFlags<StateFlag>;
 	StateFlags _state;
 	friend inline StateFlags operator~(StateFlag flag) {
 		return ~StateFlags(flag);

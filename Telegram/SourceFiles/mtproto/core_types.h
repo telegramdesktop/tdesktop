@@ -42,8 +42,7 @@ using mtpTypeId = uint32;
 class mtpRequestData;
 class mtpRequest : public QSharedPointer<mtpRequestData> {
 public:
-	mtpRequest() {
-	}
+	mtpRequest() = default;
     explicit mtpRequest(mtpRequestData *ptr) : QSharedPointer<mtpRequestData>(ptr) {
 	}
 
@@ -58,35 +57,17 @@ class mtpRequestData : public mtpBuffer {
 public:
 	// in toSend: = 0 - must send in container, > 0 - can send without container
 	// in haveSent: = 0 - container with msgIds, > 0 - when was sent
-	TimeMs msDate;
+	TimeMs msDate = 0;
 
-	mtpRequestId requestId;
+	mtpRequestId requestId = 0;
 	mtpRequest after;
-	bool needsLayer;
+	bool needsLayer = false;
 
-	mtpRequestData(bool/* sure*/) : msDate(0), requestId(0), needsLayer(false) {
+	mtpRequestData(bool/* sure*/) {
 	}
 
-	static mtpRequest prepare(uint32 requestSize, uint32 maxSize = 0) {
-		if (!maxSize) maxSize = requestSize;
-		mtpRequest result(new mtpRequestData(true));
-		result->reserve(8 + maxSize + _padding(maxSize)); // 2: salt, 2: session_id, 2: msg_id, 1: seq_no, 1: message_length
-		result->resize(7);
-		result->push_back(requestSize << 2);
-		return result;
-	}
-
-	static void padding(mtpRequest &request) {
-		if (request->size() < 9) return;
-
-		uint32 requestSize = (request.innerLength() >> 2), padding = _padding(requestSize), fullSize = 8 + requestSize + padding; // 2: salt, 2: session_id, 2: msg_id, 1: seq_no, 1: message_length
-        if (uint32(request->size()) != fullSize) {
-			request->resize(fullSize);
-			if (padding) {
-                memset_rand(request->data() + (fullSize - padding), padding * sizeof(mtpPrime));
-			}
-		}
-	}
+	static mtpRequest prepare(uint32 requestSize, uint32 maxSize = 0);
+	static void padding(mtpRequest &request);
 
 	static uint32 messageSize(const mtpRequest &request) {
 		if (request->size() < 9) return 0;
@@ -95,40 +76,16 @@ public:
 
 	static bool isSentContainer(const mtpRequest &request); // "request-like" wrap for msgIds vector
 	static bool isStateRequest(const mtpRequest &request);
-	static bool needAck(const mtpRequest &request);
+	static bool needAck(const mtpRequest &request) {
+		if (request->size() < 9) return false;
+		return mtpRequestData::needAckByType((*request)[8]);
+	}
 	static bool needAckByType(mtpTypeId type);
 
 private:
-	static uint32 _padding(uint32 requestSize) {
-#ifdef TDESKTOP_MTPROTO_OLD
-		return ((8 + requestSize) & 0x03) ? (4 - ((8 + requestSize) & 0x03)) : 0;
-#else // TDESKTOP_MTPROTO_OLD
-		auto result = ((8 + requestSize) & 0x03) ? (4 - ((8 + requestSize) & 0x03)) : 0;
-
-		// At least 12 bytes of random padding.
-		if (result < 3) {
-			result += 4;
-		}
-
-		return result;
-#endif // TDESKTOP_MTPROTO_OLD
-	}
+	static uint32 _padding(uint32 requestSize);
 
 };
-
-inline uint32 mtpRequest::innerLength() const { // for template MTP requests and MTPBoxed instanciation
-    mtpRequestData *value = data();
-	if (!value || value->size() < 9) return 0;
-	return value->at(7);
-}
-
-inline void mtpRequest::write(mtpBuffer &to) const {
-    mtpRequestData *value = data();
-	if (!value || value->size() < 9) return;
-	uint32 was = to.size(), s = innerLength() / sizeof(mtpPrime);
-	to.resize(was + s);
-    memcpy(to.data() + was, value->constData() + 8, s * sizeof(mtpPrime));
-}
 
 using mtpPreRequestMap = QMap<mtpRequestId, mtpRequest>;
 using mtpRequestMap = QMap<mtpMsgId, mtpRequest>;
@@ -152,18 +109,21 @@ class mtpErrorUnexpected : public Exception {
 public:
 	mtpErrorUnexpected(mtpTypeId typeId, const QString &type) : Exception(QString("MTP Unexpected type id #%1 read in %2").arg(uint32(typeId), 0, 16).arg(type), false) { // maybe api changed?..
 	}
+
 };
 
 class mtpErrorInsufficient : public Exception {
 public:
 	mtpErrorInsufficient() : Exception("MTP Insufficient bytes in input buffer") {
 	}
+
 };
 
 class mtpErrorBadTypeId : public Exception {
 public:
 	mtpErrorBadTypeId(mtpTypeId typeId, const QString &type) : Exception(QString("MTP Bad type id %1 passed to constructor of %2").arg(typeId).arg(type)) {
 	}
+
 };
 
 namespace MTP {
@@ -228,10 +188,10 @@ protected:
 		_data = data;
 	}
 
+	// Unsafe cast, type should be checked by the caller.
 	template <typename DataType>
 	const DataType &queryData() const {
-		// Unsafe cast, type should be checked by the caller.
-		t_assert(_data != nullptr);
+		Expects(_data != nullptr);
 		return static_cast<const DataType &>(*_data);
 	}
 
@@ -319,17 +279,13 @@ static const uint32 mtpLayerMaxSingle = sizeof(mtpLayers) / sizeof(mtpLayers[0])
 template <typename bareT>
 class MTPBoxed : public bareT {
 public:
+	using bareT::bareT;
 	MTPBoxed() = default;
+	MTPBoxed(const MTPBoxed<bareT> &v) = default;
+	MTPBoxed<bareT> &operator=(const MTPBoxed<bareT> &v) = default;
 	MTPBoxed(const bareT &v) : bareT(v) {
 	}
-	MTPBoxed(const MTPBoxed<bareT> &v) : bareT(v) {
-	}
-
 	MTPBoxed<bareT> &operator=(const bareT &v) {
-		*((bareT*)this) = v;
-		return *this;
-	}
-	MTPBoxed<bareT> &operator=(const MTPBoxed<bareT> &v) {
 		*((bareT*)this) = v;
 		return *this;
 	}
@@ -631,58 +587,12 @@ class MTPstring {
 public:
 	MTPstring() = default;
 
-	uint32 innerLength() const {
-		uint32 l = v.length();
-		if (l < 254) {
-			l += 1;
-		} else {
-			l += 4;
-		}
-		uint32 d = l & 0x03;
-		if (d) l += (4 - d);
-		return l;
-	}
+	uint32 innerLength() const;
 	mtpTypeId type() const {
 		return mtpc_string;
 	}
-	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_string) {
-		if (from + 1 > end) throw mtpErrorInsufficient();
-		if (cons != mtpc_string) throw mtpErrorUnexpected(cons, "MTPstring");
-
-		uint32 l;
-		const uchar *buf = (const uchar*)from;
-		if (buf[0] == 254) {
-			l = (uint32)buf[1] + ((uint32)buf[2] << 8) + ((uint32)buf[3] << 16);
-			buf += 4;
-			from += ((l + 4) >> 2) + (((l + 4) & 0x03) ? 1 : 0);
-		} else {
-			l = (uint32)buf[0];
-			++buf;
-			from += ((l + 1) >> 2) + (((l + 1) & 0x03) ? 1 : 0);
-		}
-		if (from > end) throw mtpErrorInsufficient();
-
-		v = QByteArray(reinterpret_cast<const char*>(buf), l);
-	}
-	void write(mtpBuffer &to) const {
-		uint32 l = v.length(), s = l + ((l < 254) ? 1 : 4), was = to.size();
-		if (s & 0x03) {
-			s += 4;
-		}
-		s >>= 2;
-		to.resize(was + s);
-		char *buf = (char*)&to[was];
-		if (l < 254) {
-			uchar sl = (uchar)l;
-			*(buf++) = *(char*)(&sl);
-		} else {
-			*(buf++) = (char)254;
-			*(buf++) = (char)(l & 0xFF);
-			*(buf++) = (char)((l >> 8) & 0xFF);
-			*(buf++) = (char)((l >> 16) & 0xFF);
-		}
-		memcpy(buf, v.constData(), l);
-	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_string);
+	void write(mtpBuffer &to) const;
 
 	QByteArray v;
 
@@ -832,11 +742,6 @@ inline bool operator!=(const MTPvector<T> &a, const MTPvector<T> &b) {
 
 // Human-readable text serialization
 
-template <typename Type>
-QString mtpWrapNumber(Type number, int32 base = 10) {
-	return QString::number(number, base);
-}
-
 struct MTPStringLogger {
 	MTPStringLogger() : p(new char[MTPDebugBufferSize]), size(0), alloced(MTPDebugBufferSize) {
 	}
@@ -898,142 +803,4 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end) {
 		to.add("[ERROR] (").add(e.what()).add(")");
 	}
 	return QString::fromUtf8(to.p, to.size);
-}
-
-#include "scheme.h"
-
-inline MTPbool MTP_bool(bool v) {
-	return v ? MTP_boolTrue() : MTP_boolFalse();
-}
-
-inline bool mtpIsTrue(const MTPBool &v) {
-	return v.type() == mtpc_boolTrue;
-}
-inline bool mtpIsFalse(const MTPBool &v) {
-	return !mtpIsTrue(v);
-}
-
-// we must validate that MTProto scheme flags don't intersect with client side flags
-// and define common bit operators which allow use Type_ClientFlag together with Type::Flag
-#define DEFINE_MTP_CLIENT_FLAGS(Type) \
-static_assert(static_cast<int32>(Type::Flag::MAX_FIELD) < static_cast<int32>(Type##_ClientFlag::MIN_FIELD), \
-	"MTProto flags conflict with client side flags!"); \
-inline Type::Flags qFlags(Type##_ClientFlag v) { return Type::Flags(static_cast<int32>(v)); } \
-inline Type::Flags operator&(Type::Flags i, Type##_ClientFlag v) { return i & qFlags(v); } \
-inline Type::Flags operator&(Type##_ClientFlag i, Type##_ClientFlag v) { return qFlags(i) & v; } \
-inline Type::Flags &operator&=(Type::Flags &i, Type##_ClientFlag v) { return i &= qFlags(v); } \
-inline Type::Flags operator|(Type::Flags i, Type##_ClientFlag v) { return i | qFlags(v); } \
-inline Type::Flags operator|(Type::Flag i, Type##_ClientFlag v) { return i | qFlags(v); } \
-inline Type::Flags operator|(Type##_ClientFlag i, Type##_ClientFlag v) { return qFlags(i) | v; } \
-inline Type::Flags operator|(Type##_ClientFlag i, Type::Flag v) { return qFlags(i) | v; } \
-inline Type::Flags &operator|=(Type::Flags &i, Type##_ClientFlag v) { return i |= qFlags(v); } \
-inline Type::Flags operator~(Type##_ClientFlag v) { return ~qFlags(v); }
-
-// we use the same flags field for some additional client side flags
-enum class MTPDmessage_ClientFlag : int32 {
-	// message has links for "shared links" indexing
-	f_has_text_links = (1 << 30),
-
-	// message is a group migrate (group -> supergroup) service message
-	f_is_group_migrate = (1 << 29),
-
-	// message needs initDimensions() + resize() + paint()
-	f_pending_init_dimensions = (1 << 28),
-
-	// message needs resize() + paint()
-	f_pending_resize = (1 << 27),
-
-	// message needs paint()
-	f_pending_paint = (1 << 26),
-
-	// message is attached to previous one when displaying the history
-	f_attach_to_previous = (1 << 25),
-
-	// message is attached to next one when displaying the history
-	f_attach_to_next = (1 << 24),
-
-	// message was sent from inline bot, need to re-set media when sent
-	f_from_inline_bot = (1 << 23),
-
-	// message has a switch inline keyboard button, need to return to inline
-	f_has_switch_inline_button = (1 << 22),
-
-	// message is generated on the client side and should be unread
-	f_clientside_unread = (1 << 21),
-
-	// update this when adding new client side flags
-	MIN_FIELD = (1 << 21),
-};
-DEFINE_MTP_CLIENT_FLAGS(MTPDmessage)
-
-enum class MTPDreplyKeyboardMarkup_ClientFlag : int32 {
-	// none (zero) markup
-	f_zero = (1 << 30),
-
-	// markup just wants a text reply
-	f_force_reply = (1 << 29),
-
-	// markup keyboard is inline
-	f_inline = (1 << 28),
-
-	// markup has a switch inline keyboard button
-	f_has_switch_inline_button = (1 << 27),
-
-	// update this when adding new client side flags
-	MIN_FIELD = (1 << 27),
-};
-DEFINE_MTP_CLIENT_FLAGS(MTPDreplyKeyboardMarkup)
-
-enum class MTPDstickerSet_ClientFlag : int32 {
-	// old value for sticker set is not yet loaded flag
-	f_not_loaded__old = (1 << 31),
-
-	// sticker set is not yet loaded
-	f_not_loaded = (1 << 30),
-
-	// sticker set is one of featured (should be saved locally)
-	f_featured = (1 << 29),
-
-	// sticker set is an unread featured set
-	f_unread = (1 << 28),
-
-	// special set like recent or custom stickers
-	f_special = (1 << 27),
-
-	// update this when adding new client side flags
-	MIN_FIELD = (1 << 27),
-};
-DEFINE_MTP_CLIENT_FLAGS(MTPDstickerSet)
-
-extern const MTPReplyMarkup MTPnullMarkup;
-extern const MTPVector<MTPMessageEntity> MTPnullEntities;
-extern const MTPMessageFwdHeader MTPnullFwdHeader;
-
-QString stickerSetTitle(const MTPDstickerSet &s);
-
-inline bool mtpRequestData::isSentContainer(const mtpRequest &request) { // "request-like" wrap for msgIds vector
-	if (request->size() < 9) return false;
-	return (!request->msDate && !(*request)[6]); // msDate = 0, seqNo = 0
-}
-inline bool mtpRequestData::isStateRequest(const mtpRequest &request) {
-	if (request->size() < 9) return false;
-	return (mtpTypeId((*request)[8]) == mtpc_msgs_state_req);
-}
-inline bool mtpRequestData::needAck(const mtpRequest &request) {
-	if (request->size() < 9) return false;
-	return mtpRequestData::needAckByType((*request)[8]);
-}
-inline bool mtpRequestData::needAckByType(mtpTypeId type) {
-	switch (type) {
-	case mtpc_msg_container:
-	case mtpc_msgs_ack:
-	case mtpc_http_wait:
-	case mtpc_bad_msg_notification:
-	case mtpc_msgs_all_info:
-	case mtpc_msgs_state_info:
-	case mtpc_msg_detailed_info:
-	case mtpc_msg_new_detailed_info:
-	return false;
-	}
-	return true;
 }

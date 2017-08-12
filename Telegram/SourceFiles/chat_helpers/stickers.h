@@ -45,6 +45,8 @@ std::vector<gsl::not_null<EmojiPtr>> GetEmojiListFromSet(gsl::not_null<DocumentD
 Set *FeedSet(const MTPDstickerSet &data);
 Set *FeedSetFull(const MTPmessages_StickerSet &data);
 
+QString GetSetTitle(const MTPDstickerSet &s);
+
 namespace internal {
 
 class FeaturedReader : public QObject, private MTP::Sender {

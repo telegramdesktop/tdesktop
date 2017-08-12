@@ -83,6 +83,9 @@ funcsText = '';
 typesText = '';
 dataTexts = '';
 creatorProxyText = '';
+factories = '';
+flagOperators = '';
+methods = '';
 inlineMethods = '';
 textSerializeInit = '';
 textSerializeMethods = '';
@@ -297,6 +300,7 @@ with open(input_file) as f:
       continue;
 
     if funcsNow:
+      methodBodies = ''
       if (isTemplate != ''):
         funcsText += '\ntemplate <typename TQueryType>';
       funcsText += '\nclass MTP' + name + ' { // RPC method \'' + nametype.group(1) + '\'\n'; # class
@@ -318,7 +322,7 @@ with open(input_file) as f:
           funcsText += '\n';
         funcsText += '\t\tMAX_FIELD = (1 << ' + str(maxbit) + '),\n';
         funcsText += '\t};\n';
-        funcsText += '\tQ_DECLARE_FLAGS(Flags, Flag);\n';
+        funcsText += '\tusing Flags = QFlags<Flag>;\n';
         funcsText += '\tfriend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }\n';
         funcsText += '\n';
         if (len(conditions)):
@@ -352,7 +356,12 @@ with open(input_file) as f:
         funcsText += '\tMTP' + name + '(' + ', '.join(prmsStr) + ') : ' + ', '.join(prmsInit) + ' {\n\t}\n';
 
       funcsText += '\n';
-      funcsText += '\tuint32 innerLength() const {\n'; # count size
+      funcsText += '\tuint32 innerLength() const;\n'; # count size
+      if (isTemplate != ''):
+        methodBodies += 'template <typename TQueryType>\n'
+        methodBodies += 'uint32 MTP' + name + '<TQueryType>::innerLength() const {\n';
+      else:
+        methodBodies += 'uint32 MTP' + name + '::innerLength() const {\n';
       size = [];
       for k in prmsList:
         v = prms[k];
@@ -363,56 +372,56 @@ with open(input_file) as f:
           size.append('v' + k + '.innerLength()');
       if (not len(size)):
         size.append('0');
-      funcsText += '\t\treturn ' + ' + '.join(size) + ';\n';
-      funcsText += '\t}\n';
+      methodBodies += '\treturn ' + ' + '.join(size) + ';\n';
+      methodBodies += '}\n';
 
       funcsText += '\tmtpTypeId type() const {\n\t\treturn mtpc_' + name + ';\n\t}\n'; # type id
 
-      funcsText += '\tvoid read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_' + name + ') {\n'; # read method
+      funcsText += '\tvoid read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_' + name + ');\n'; # read method
+      if (isTemplate != ''):
+        methodBodies += 'template <typename TQueryType>\n'
+        methodBodies += 'void MTP' + name + '<TQueryType>::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {\n';
+      else:
+        methodBodies += 'void MTP' + name + '::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {\n';
       for k in prmsList:
         v = prms[k];
         if (k in conditionsList):
           if (not k in trivialConditions):
-            funcsText += '\t\tif (has_' + k + '()) { v' + k + '.read(from, end); } else { v' + k + ' = MTP' + v + '(); }\n';
+            methodBodies += '\tif (has_' + k + '()) { v' + k + '.read(from, end); } else { v' + k + ' = MTP' + v + '(); }\n';
         else:
-          funcsText += '\t\tv' + k + '.read(from, end);\n';
-      funcsText += '\t}\n';
+          methodBodies += '\tv' + k + '.read(from, end);\n';
+      methodBodies += '}\n';
 
-      funcsText += '\tvoid write(mtpBuffer &to) const {\n'; # write method
+      funcsText += '\tvoid write(mtpBuffer &to) const;\n'; # write method
+      if (isTemplate != ''):
+        methodBodies += 'template <typename TQueryType>\n'
+        methodBodies += 'void MTP' + name + '<TQueryType>::write(mtpBuffer &to) const {\n';
+      else:
+        methodBodies += 'void MTP' + name + '::write(mtpBuffer &to) const {\n';
       for k in prmsList:
         v = prms[k];
         if (k in conditionsList):
           if (not k in trivialConditions):
-            funcsText += '\t\tif (has_' + k + '()) v' + k + '.write(to);\n';
+            methodBodies += '\tif (has_' + k + '()) v' + k + '.write(to);\n';
         else:
-          funcsText += '\t\tv' + k + '.write(to);\n';
-      funcsText += '\t}\n';
+          methodBodies += '\tv' + k + '.write(to);\n';
+      methodBodies += '}\n';
 
       if (isTemplate != ''):
         funcsText += '\n\tusing ResponseType = typename TQueryType::ResponseType;\n';
+        inlineMethods += methodBodies;
       else:
         funcsText += '\n\tusing ResponseType = MTP' + resType + ';\n'; # method return type
+        methods += methodBodies;
 
       funcsText += '};\n'; # class ending
       if (len(conditionsList)):
         funcsText += 'Q_DECLARE_OPERATORS_FOR_FLAGS(MTP' + name + '::Flags)\n\n';
       if (isTemplate != ''):
         funcsText += 'template <typename TQueryType>\n';
-        funcsText += 'class MTP' + Name + ' : public MTPBoxed<MTP' + name + '<TQueryType> > {\n';
-        funcsText += 'public:\n';
-        funcsText += '\tMTP' + Name + '() = default;\n';
-        funcsText += '\tMTP' + Name + '(const MTP' + name + '<TQueryType> &v) : MTPBoxed<MTP' + name + '<TQueryType> >(v) {\n\t}\n';
-        if (len(prms) > len(trivialConditions)):
-          funcsText += '\tMTP' + Name + '(' + ', '.join(prmsStr) + ') : MTPBoxed<MTP' + name + '<TQueryType> >(MTP' + name + '<TQueryType>(' + ', '.join(prmsNames) + ')) {\n\t}\n';
-        funcsText += '};\n';
+        funcsText += 'using MTP' + Name + ' = MTPBoxed<MTP' + name + '<TQueryType>>;\n';
       else:
-        funcsText += 'class MTP' + Name + ' : public MTPBoxed<MTP' + name + '> {\n';
-        funcsText += 'public:\n';
-        funcsText += '\tMTP' + Name + '() = default;\n';
-        funcsText += '\tMTP' + Name + '(const MTP' + name + ' &v) : MTPBoxed<MTP' + name + '>(v) {\n\t}\n';
-        if (len(prms) > len(trivialConditions)):
-          funcsText += '\tMTP' + Name + '(' + ', '.join(prmsStr) + ') : MTPBoxed<MTP' + name + '>(MTP' + name + '(' + ', '.join(prmsNames) + ')) {\n\t}\n';
-        funcsText += '};\n';
+        funcsText += 'using MTP' + Name + ' = MTPBoxed<MTP' + name + '>;\n';
       funcs = funcs + 1;
 
       if (not restype in funcsDict):
@@ -545,9 +554,11 @@ for restype in typesList:
   v = typesDict[restype];
   resType = TypesDict[restype];
   withData = 0;
-  creatorsText = '';
+  creatorsDeclarations = '';
+  creatorsBodies = '';
+  flagDeclarations = '';
   constructsText = '';
-  constructsInline = '';
+  constructsBodies = '';
 
   forwards += 'class MTP' + restype + ';\n';
   forwTypedefs += 'using MTP' + resType + ' = MTPBoxed<MTP' + restype + '>;\n';
@@ -594,7 +605,7 @@ for restype in typesList:
         dataText += '\n';
       dataText += '\t\tMAX_FIELD = (1 << ' + str(maxbit) + '),\n';
       dataText += '\t};\n';
-      dataText += '\tQ_DECLARE_FLAGS(Flags, Flag);\n';
+      dataText += '\tusing Flags = QFlags<Flag>;\n';
       dataText += '\tfriend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }\n';
       dataText += '\n';
       if (len(conditions)):
@@ -612,17 +623,17 @@ for restype in typesList:
       withData = 1;
 
       getters += '\tconst MTPD' + name + ' &c_' + name + '() const;\n'; # const getter
-      constructsInline += 'inline const MTPD' + name + ' &MTP' + restype + '::c_' + name + '() const {\n';
+      constructsBodies += 'const MTPD' + name + ' &MTP' + restype + '::c_' + name + '() const {\n';
       if (withType):
-        constructsInline += '\tt_assert(_type == mtpc_' + name + ');\n';
-      constructsInline += '\treturn queryData<MTPD' + name + '>();\n';
-      constructsInline += '}\n';
+        constructsBodies += '\tt_assert(_type == mtpc_' + name + ');\n';
+      constructsBodies += '\treturn queryData<MTPD' + name + '>();\n';
+      constructsBodies += '}\n';
 
       constructsText += '\texplicit MTP' + restype + '(const MTPD' + name + ' *data);\n'; # by-data type constructor
-      constructsInline += 'inline MTP' + restype + '::MTP' + restype + '(const MTPD' + name + ' *data) : TypeDataOwner(data)';
+      constructsBodies += 'MTP' + restype + '::MTP' + restype + '(const MTPD' + name + ' *data) : TypeDataOwner(data)';
       if (withType):
-        constructsInline += ', _type(mtpc_' + name + ')';
-      constructsInline += ' {\n}\n';
+        constructsBodies += ', _type(mtpc_' + name + ')';
+      constructsBodies += ' {\n}\n';
 
       dataText += '\tMTPD' + name + '('; # params constructor
       prmsStr = [];
@@ -689,10 +700,11 @@ for restype in typesList:
         creatorProxyText += '\t\treturn MTP' + restype + '();\n';
     creatorProxyText += '\t}\n';
     if (len(conditionsList)):
-      creatorsText += 'Q_DECLARE_OPERATORS_FOR_FLAGS(MTPD' + name + '::Flags)\n';
-    creatorsText += 'inline MTP' + restype + ' MTP_' + name + '(' + ', '.join(creatorParams) + ') {\n';
-    creatorsText += '\treturn MTP::internal::TypeCreator::new_' + name + '(' + ', '.join(creatorParamsList) + ');\n';
-    creatorsText += '}\n';
+      flagDeclarations += 'Q_DECLARE_OPERATORS_FOR_FLAGS(MTPD' + name + '::Flags)\n';
+    creatorsDeclarations += 'MTP' + restype + ' MTP_' + name + '(' + ', '.join(creatorParams) + ');\n';
+    creatorsBodies += 'MTP' + restype + ' MTP_' + name + '(' + ', '.join(creatorParams) + ') {\n';
+    creatorsBodies += '\treturn MTP::internal::TypeCreator::new_' + name + '(' + ', '.join(creatorParamsList) + ');\n';
+    creatorsBodies += '}\n';
 
     if (withType):
       reader += '\t\tcase mtpc_' + name + ': _type = cons; '; # read switch line
@@ -732,10 +744,10 @@ for restype in typesList:
       inits.append('TypeDataOwner(' + newFast + ')');
   if (withData and not withType):
     typesText += ';\n';
-    inlineMethods += '\ninline MTP' + restype + '::MTP' + restype + '()';
+    methods += '\nMTP' + restype + '::MTP' + restype + '()';
     if (inits):
-      inlineMethods += ' : ' + ', '.join(inits);
-    inlineMethods += ' {\n}\n';
+      methods += ' : ' + ', '.join(inits);
+    methods += ' {\n}\n';
   else:
     if (inits):
       typesText += ' : ' + ', '.join(inits);
@@ -745,68 +757,68 @@ for restype in typesList:
     typesText += getters;
 
   typesText += '\n\tuint32 innerLength() const;\n'; # size method
-  inlineMethods += '\ninline uint32 MTP' + restype + '::innerLength() const {\n';
+  methods += '\nuint32 MTP' + restype + '::innerLength() const {\n';
   if (withType and sizeCases):
-    inlineMethods += '\tswitch (_type) {\n';
-    inlineMethods += sizeCases;
-    inlineMethods += '\t}\n';
-    inlineMethods += '\treturn 0;\n';
+    methods += '\tswitch (_type) {\n';
+    methods += sizeCases;
+    methods += '\t}\n';
+    methods += '\treturn 0;\n';
   else:
-    inlineMethods += sizeFast;
-  inlineMethods += '}\n';
+    methods += sizeFast;
+  methods += '}\n';
 
   typesText += '\tmtpTypeId type() const;\n'; # type id method
-  inlineMethods += 'inline mtpTypeId MTP' + restype + '::type() const {\n';
+  methods += 'mtpTypeId MTP' + restype + '::type() const {\n';
   if (withType):
-    inlineMethods += '\tt_assert(_type != 0);\n';
-    inlineMethods += '\treturn _type;\n';
+    methods += '\tt_assert(_type != 0);\n';
+    methods += '\treturn _type;\n';
   else:
-    inlineMethods += '\treturn mtpc_' + v[0][0] + ';\n';
-  inlineMethods += '}\n';
+    methods += '\treturn mtpc_' + v[0][0] + ';\n';
+  methods += '}\n';
 
   typesText += '\tvoid read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons'; # read method
   if (not withType):
     typesText += ' = mtpc_' + name;
   typesText += ');\n';
-  inlineMethods += 'inline void MTP' + restype + '::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {\n';
+  methods += 'void MTP' + restype + '::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {\n';
   if (withData):
     if not (withType):
-      inlineMethods += '\tif (cons != mtpc_' + v[0][0] + ') throw mtpErrorUnexpected(cons, "MTP' + restype + '");\n';
+      methods += '\tif (cons != mtpc_' + v[0][0] + ') throw mtpErrorUnexpected(cons, "MTP' + restype + '");\n';
   if (withType):
-    inlineMethods += '\tswitch (cons) {\n'
-    inlineMethods += reader;
-    inlineMethods += '\t\tdefault: throw mtpErrorUnexpected(cons, "MTP' + restype + '");\n';
-    inlineMethods += '\t}\n';
+    methods += '\tswitch (cons) {\n'
+    methods += reader;
+    methods += '\t\tdefault: throw mtpErrorUnexpected(cons, "MTP' + restype + '");\n';
+    methods += '\t}\n';
   else:
-    inlineMethods += reader;
-  inlineMethods += '}\n';
+    methods += reader;
+  methods += '}\n';
 
   typesText += '\tvoid write(mtpBuffer &to) const;\n'; # write method
-  inlineMethods += 'inline void MTP' + restype + '::write(mtpBuffer &to) const {\n';
+  methods += 'void MTP' + restype + '::write(mtpBuffer &to) const {\n';
   if (withType and writer != ''):
-    inlineMethods += '\tswitch (_type) {\n';
-    inlineMethods += writer;
-    inlineMethods += '\t}\n';
+    methods += '\tswitch (_type) {\n';
+    methods += writer;
+    methods += '\t}\n';
   else:
-    inlineMethods += writer;
-  inlineMethods += '}\n';
+    methods += writer;
+  methods += '}\n';
 
   typesText += '\n\tusing ResponseType = void;\n'; # no response types declared
 
   typesText += '\nprivate:\n'; # private constructors
   if (withType): # by-type-id constructor
     typesText += '\texplicit MTP' + restype + '(mtpTypeId type);\n';
-    inlineMethods += 'inline MTP' + restype + '::MTP' + restype + '(mtpTypeId type) : ';
-    inlineMethods += '_type(type)';
-    inlineMethods += ' {\n';
-    inlineMethods += '\tswitch (type) {\n'; # type id check
-    inlineMethods += switchLines;
-    inlineMethods += '\t\tdefault: throw mtpErrorBadTypeId(type, "MTP' + restype + '");\n\t}\n';
-    inlineMethods += '}\n'; # by-type-id constructor end
+    methods += 'MTP' + restype + '::MTP' + restype + '(mtpTypeId type) : ';
+    methods += '_type(type)';
+    methods += ' {\n';
+    methods += '\tswitch (type) {\n'; # type id check
+    methods += switchLines;
+    methods += '\t\tdefault: throw mtpErrorBadTypeId(type, "MTP' + restype + '");\n\t}\n';
+    methods += '}\n'; # by-type-id constructor end
 
   if (withData):
     typesText += constructsText;
-    inlineMethods += constructsInline;
+    methods += constructsBodies;
 
   if (friendDecl):
     typesText += '\n' + friendDecl;
@@ -816,8 +828,12 @@ for restype in typesList:
 
   typesText += '};\n'; # type class ended
 
-  inlineMethods += creatorsText;
+  flagOperators += flagDeclarations;
+  factories += creatorsDeclarations;
+  methods += creatorsBodies;
   typesText += 'using MTP' + resType + ' = MTPBoxed<MTP' + restype + '>;\n'; # boxed type definition
+
+flagOperators += '\n'
 
 for childName in parentFlagsList:
   parentName = parentFlags[childName];
@@ -836,8 +852,8 @@ for childName in parentFlagsList:
         error
     else:
       parentFlagsCheck[parentName][flag] = parentFlagsCheck[childName][flag];
-  inlineMethods += 'inline ' + parentName + '::Flags mtpCastFlags(' + childName + '::Flags flags) { return ' + parentName + '::Flags(QFlag(flags)); }\n';
-  inlineMethods += 'inline ' + parentName + '::Flags mtpCastFlags(MTPflags<' + childName + '::Flags> flags) { return mtpCastFlags(flags.v); }\n';
+  flagOperators += 'inline ' + parentName + '::Flags mtpCastFlags(' + childName + '::Flags flags) { return ' + parentName + '::Flags(QFlag(flags)); }\n';
+  flagOperators += 'inline ' + parentName + '::Flags mtpCastFlags(MTPflags<' + childName + '::Flags> flags) { return mtpCastFlags(flags.v); }\n';
 
 # manual types added here
 textSerializeMethods += '\
@@ -946,20 +962,12 @@ enum {\n\
 ' + dataTexts + '\n\
 // RPC methods\n\
 ' + funcsText + '\n\
-// Creator proxy class definition\n\
-namespace MTP {\n\
-namespace internal {\n\
-\n\
-class TypeCreator {\n\
-public:\n\
-' + creatorProxyText + '\n\
-};\n\
-\n\
-} // namespace internal\n\
-} // namespace MTP\n\
-\n\
-// Inline methods definition\n\
+// Template methods definition\n\
 ' + inlineMethods + '\n\
+// Flag operators definition\n\
+' + flagOperators + '\n\
+// Factory methods declaration\n\
+' + factories + '\n\
 // Human-readable text serialization\n\
 void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons);\n'
 
@@ -985,6 +993,21 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
 Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 */\n\
 #include "scheme.h"\n\
+\n\
+// Creator proxy class definition\n\
+namespace MTP {\n\
+namespace internal {\n\
+\n\
+class TypeCreator {\n\
+public:\n\
+' + creatorProxyText + '\n\
+};\n\
+\n\
+} // namespace internal\n\
+} // namespace MTP\n\
+\n\
+// Methods definition\n\
+' + methods + '\n\
 \n\
 using Types = QVector<mtpTypeId>;\n\
 using StagesFlags = QVector<int32>;\n\

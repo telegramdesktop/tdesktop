@@ -291,6 +291,8 @@
 <(src_loc)/mtproto/session.h
 <(src_loc)/mtproto/special_config_request.cpp
 <(src_loc)/mtproto/special_config_request.h
+<(src_loc)/mtproto/type_utils.cpp
+<(src_loc)/mtproto/type_utils.h
 <(src_loc)/overview/overview_layout.cpp
 <(src_loc)/overview/overview_layout.h
 <(src_loc)/platform/linux/linux_desktop_environment.cpp

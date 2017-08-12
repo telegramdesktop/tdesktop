@@ -22,7 +22,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "core/basic_types.h"
 #include "structs.h"
-#include "mtproto/core_types.h"
 
 class FileLoader;
 

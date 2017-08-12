@@ -31,6 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "data/data_drafts.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "chat_helpers/message_field.h"
+#include "chat_helpers/stickers.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "dialogs/dialogs_widget.h"
@@ -5218,7 +5219,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					auto &sets = Global::RefStickerSets();
 					auto it = sets.find(s.vid.v);
 					if (it == sets.cend()) {
-						it = sets.insert(s.vid.v, Stickers::Set(s.vid.v, s.vaccess_hash.v, stickerSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v | MTPDstickerSet::Flag::f_installed));
+						it = sets.insert(s.vid.v, Stickers::Set(s.vid.v, s.vaccess_hash.v, Stickers::GetSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v | MTPDstickerSet::Flag::f_installed));
 					} else {
 						it->flags |= MTPDstickerSet::Flag::f_installed;
 						if (it->flags & MTPDstickerSet::Flag::f_archived) {

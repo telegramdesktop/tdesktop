@@ -20,7 +20,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "mtproto/core_types.h"
 #include "mtproto/auth_key.h"
 #include "mtproto/dc_options.h"
 #include "core/single_timer.h"
