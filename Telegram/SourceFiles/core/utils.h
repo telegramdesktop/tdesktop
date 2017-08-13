@@ -21,11 +21,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "core/basic_types.h"
-#include <array>
-#include <vector>
-#include <algorithm>
-#include <set>
-#include <gsl/gsl>
 
 // Release build assertions.
 inline void t_noop() {
