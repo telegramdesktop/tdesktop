@@ -186,7 +186,7 @@ void LayerStackWidget::BackgroundWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	_inPaintEvent = true;
-	auto guard = base::scope_guard([this] {
+	auto guard = gsl::finally([this] {
 		_inPaintEvent = false;
 		checkIfDone();
 	});

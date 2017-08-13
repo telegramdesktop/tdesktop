@@ -109,31 +109,6 @@ inline constexpr D up_cast(T object) {
 	return internal::up_cast_helper<D>(std::integral_constant<bool, std::is_base_of<DV, TV>::value || std::is_same<DV, TV>::value>(), object);
 }
 
-template <typename Lambda>
-class scope_guard_helper {
-public:
-	scope_guard_helper(Lambda on_scope_exit) : _handler(std::move(on_scope_exit)) {
-	}
-	void dismiss() {
-		_dismissed = true;
-	}
-	~scope_guard_helper() {
-		if (!_dismissed) {
-			_handler();
-		}
-	}
-
-private:
-	Lambda _handler;
-	bool _dismissed = false;
-
-};
-
-template <typename Lambda>
-scope_guard_helper<Lambda> scope_guard(Lambda on_scope_exit) {
-	return scope_guard_helper<Lambda>(std::move(on_scope_exit));
-}
-
 template <typename Container, typename T>
 inline bool contains(const Container &container, const T &value) {
 	auto end = std::end(container);

@@ -176,7 +176,7 @@ void Manager::stopAllHiding() {
 }
 
 void Manager::showNextFromQueue() {
-	auto guard = base::scope_guard([this] {
+	auto guard = gsl::finally([this] {
 		if (_positionsOutdated) {
 			moveWidgets();
 		}

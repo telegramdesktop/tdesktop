@@ -538,12 +538,11 @@ bool Widget::Step::paintAnimated(Painter &p, QRect clip) {
 		return true;
 	}
 
-	auto guard = base::scope_guard([this, &p] {
-		if (hasCover()) paintCover(p, 0);
-	});
-
 	auto dt = _a_show.current(getms(), 1.);
 	if (!_a_show.animating()) {
+		if (hasCover()) {
+			paintCover(p, 0);
+		}
 		if (_coverAnimation.title) {
 			showFinished();
 		}
@@ -561,7 +560,6 @@ bool Widget::Step::paintAnimated(Painter &p, QRect clip) {
 	auto coverTop = (hasCover() ? anim::interpolate(-st::introCoverHeight, 0, showCoverMethod) : anim::interpolate(0, -st::introCoverHeight, hideCoverMethod));
 
 	paintCover(p, coverTop);
-	guard.dismiss();
 
 	auto positionReady = hasCover() ? showCoverMethod : hideCoverMethod;
 	_coverAnimation.title->paintFrame(p, positionReady, departingAlpha, arrivingAlpha);

@@ -247,7 +247,7 @@ QString GetServerName() {
 	}
 
 	gchar *name = nullptr;
-	auto guard = base::scope_guard([&name] {
+	auto guard = gsl::finally([&name] {
 		if (name) Libs::g_free(name);
 	});
 

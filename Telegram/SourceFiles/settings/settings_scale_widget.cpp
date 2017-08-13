@@ -83,7 +83,7 @@ void ScaleWidget::onAutoChanged() {
 void ScaleWidget::setScale(DBIScale newScale) {
 	if (_inSetScale) return;
 	_inSetScale = true;
-	auto guard = base::scope_guard([this] { _inSetScale = false; });
+	auto guard = gsl::finally([this] { _inSetScale = false; });
 
 	if (newScale == cScreenScale()) newScale = dbisAuto;
 	if (newScale == dbisAuto && !_auto->checked()) {
