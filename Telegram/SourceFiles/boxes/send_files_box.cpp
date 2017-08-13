@@ -253,6 +253,11 @@ void SendFilesBox::prepare() {
 		connect(_caption, SIGNAL(submitted(bool)), this, SLOT(onSend(bool)));
 		connect(_caption, SIGNAL(cancelled()), this, SLOT(onClose()));
 	}
+	subscribe(boxClosing, [this] {
+		if (!_confirmed && _cancelledCallback) {
+			_cancelledCallback();
+		}
+	});
 	_send->setText(getSendButtonText());
 	updateButtonsGeometry();
 	updateBoxSize();
@@ -442,12 +447,6 @@ void SendFilesBox::onSend(bool ctrlShiftEnter) {
 		_confirmedCallback(_files, _animated ? QImage() : _image, std::move(_information), compressed, caption, ctrlShiftEnter);
 	}
 	closeBox();
-}
-
-void SendFilesBox::closeHook() {
-	if (!_confirmed && _cancelledCallback) {
-		_cancelledCallback();
-	}
 }
 
 EditCaptionBox::EditCaptionBox(QWidget*, HistoryMedia *media, FullMsgId msgId) : _msgId(msgId) {

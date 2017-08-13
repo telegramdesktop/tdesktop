@@ -524,7 +524,7 @@ void CoverWidget::showSetPhotoBox(const QImage &img) {
 	}
 
 	auto box = Ui::show(Box<PhotoCropBox>(img, _peer));
-	connect(box, SIGNAL(closed()), this, SLOT(onPhotoUploadStatusChanged()));
+	subscribe(box->boxClosing, [this] { onPhotoUploadStatusChanged(); });
 }
 
 void CoverWidget::onPhotoUploadStatusChanged(PeerId peerId) {

@@ -501,8 +501,17 @@ void SetupChannelBox::prepare() {
 			rtlupdate(_invitationLink);
 		}
 	}));
+	subscribe(boxClosing, [this] {
+		if (!_existing) {
+			showAddContactsToChannelBox();
+		}
+	});
 
 	updateMaxHeight();
+}
+
+void SetupChannelBox::showAddContactsToChannelBox() const {
+	Ui::show(Box<ContactsBox>(_channel));
 }
 
 void SetupChannelBox::setInnerFocus() {
@@ -614,12 +623,6 @@ void SetupChannelBox::updateSelected(const QPoint &cursorGlobalPosition) {
 		_linkOver = linkOver;
 		update();
 		setCursor(_linkOver ? style::cur_pointer : style::cur_default);
-	}
-}
-
-void SetupChannelBox::closeHook() {
-	if (!_existing) {
-		Ui::show(Box<ContactsBox>(_channel));
 	}
 }
 

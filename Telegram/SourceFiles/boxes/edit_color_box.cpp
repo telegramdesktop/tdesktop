@@ -670,6 +670,11 @@ void EditColorBox::prepare() {
 	subscribe(_picker->changed(), [this] { updateFromControls(); });
 	subscribe(_hueSlider->changed(), [this] { updateFromControls(); });
 	subscribe(_opacitySlider->changed(), [this] { updateFromControls(); });
+	subscribe(boxClosing, [this] {
+		if (_cancelCallback) {
+			_cancelCallback();
+		}
+	});
 	updateFromControls();
 }
 

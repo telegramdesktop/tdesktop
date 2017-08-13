@@ -194,6 +194,12 @@ void ContactsBox::prepare() {
 	_searchTimer->setSingleShot(true);
 	connect(_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchByUsername()));
 
+	subscribe(boxClosing, [this] {
+		if (_channel && _creating == CreatingGroupChannel) {
+			Ui::showPeerHistory(_channel, ShowAtTheEndMsgId);
+		}
+	});
+
 	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
 
 	_select->raise();
@@ -348,12 +354,6 @@ void ContactsBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	for (auto rect : e->region().rects()) {
 		p.fillRect(rect, st::contactsBg);
-	}
-}
-
-void ContactsBox::closeHook() {
-	if (_channel && _creating == CreatingGroupChannel) {
-		Ui::showPeerHistory(_channel, ShowAtTheEndMsgId);
 	}
 }
 

@@ -102,8 +102,8 @@ public:
 	virtual void setInnerFocus() {
 		setFocus();
 	}
-	virtual void closeHook() {
-	}
+
+	base::Observable<void> boxClosing;
 
 	void setDelegate(BoxContentDelegate *newDelegate) {
 		_delegate = newDelegate;
@@ -244,7 +244,7 @@ protected:
 		_content->setInnerFocus();
 	}
 	void closeHook() override {
-		_content->closeHook();
+		_content->boxClosing.notify(true);
 	}
 
 private:

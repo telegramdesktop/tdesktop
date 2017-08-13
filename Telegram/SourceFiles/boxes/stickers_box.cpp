@@ -295,6 +295,9 @@ void StickersBox::prepare() {
 
 	if (_installed.widget()) {
 		connect(_installed.widget(), SIGNAL(draggingScrollDelta(int)), this, SLOT(onDraggingScrollDelta(int)));
+		if (!_megagroupSet) {
+			subscribe(boxClosing, [this] { saveChanges(); });
+		}
 	}
 
 	if (_tabs) {
@@ -563,11 +566,7 @@ void StickersBox::rebuildList(Tab *tab) {
 	tab->widget()->setRemovedSets(_localRemoved);
 }
 
-void StickersBox::closeHook() {
-	if (!_installed.widget() || _megagroupSet) {
-		return;
-	}
-
+void StickersBox::saveChanges() {
 	// Make sure that our changes in other tabs are applied in the Installed tab.
 	rebuildList(&_installed);
 

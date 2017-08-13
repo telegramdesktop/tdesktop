@@ -44,8 +44,6 @@ public:
 		_cancelledCallback = std::move(callback);
 	}
 
-	void closeHook() override;
-
 protected:
 	void prepare() override;
 	void setInnerFocus() override;

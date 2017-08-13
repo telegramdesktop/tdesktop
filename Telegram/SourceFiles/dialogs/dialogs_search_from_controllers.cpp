@@ -39,10 +39,11 @@ void ShowSearchFromBox(PeerData *peer, base::lambda<void(gsl::not_null<UserData*
 		return nullptr;
 	};
 	if (auto controller = createController()) {
-		auto box = Ui::show(Box<SearchFromBox>(std::move(controller), [](PeerListBox *box) {
-			box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
+		auto subscription = std::make_shared<base::Subscription>();
+		auto box = Ui::show(Box<PeerListBox>(std::move(controller), [subscription](gsl::not_null<PeerListBox*> box) {
+			box->addButton(langFactory(lng_cancel), [box, subscription] { box->closeBox(); });
 		}), KeepOtherLayers);
-		box->setClosedCallback(std::move(closedCallback));
+		*subscription = box->boxClosing.add_subscription(std::move(closedCallback));
 	}
 }
 

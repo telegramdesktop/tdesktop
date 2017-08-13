@@ -31,13 +31,8 @@ public:
 
 	int32 mouseState(QPoint p);
 
-	void closeHook() override {
-		emit closed();
-	}
-
 signals:
 	void ready(const QImage &tosend);
-	void closed();
 
 private slots:
 	void onReady(const QImage &tosend);

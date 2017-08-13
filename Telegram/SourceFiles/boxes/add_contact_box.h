@@ -137,7 +137,6 @@ public:
 	SetupChannelBox(QWidget*, ChannelData *channel, bool existing = false);
 
 	void setInnerFocus() override;
-	void closeHook() override;
 
 protected:
 	void prepare() override;
@@ -161,6 +160,7 @@ private:
 	};
 	void privacyChanged(Privacy value);
 	void updateSelected(const QPoint &cursorGlobalPosition);
+	void showAddContactsToChannelBox() const;
 
 	void onUpdateDone(const MTPBool &result);
 	bool onUpdateFail(const RPCError &error);

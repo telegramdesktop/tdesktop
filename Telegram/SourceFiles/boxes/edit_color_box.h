@@ -40,12 +40,6 @@ public:
 		updateFromColor(color);
 	}
 
-	void closeHook() override {
-		if (_cancelCallback) {
-			_cancelCallback();
-		}
-	}
-
 protected:
 	void prepare() override;
 

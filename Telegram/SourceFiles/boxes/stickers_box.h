@@ -51,7 +51,6 @@ public:
 	StickersBox(QWidget*, const Stickers::Order &archivedIds);
 	StickersBox(QWidget*, gsl::not_null<ChannelData*> megagroup);
 
-	void closeHook() override;
 	void setInnerFocus() override;
 
 	~StickersBox();
@@ -101,6 +100,7 @@ private:
 	void switchTab();
 	void installSet(uint64 setId);
 	int getTopSkip() const;
+	void saveChanges();
 
 	QPixmap grabContentCache();
 

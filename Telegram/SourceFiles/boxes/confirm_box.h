@@ -47,8 +47,6 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
-	void closeHook() override;
-
 protected:
 	void prepare() override;
 

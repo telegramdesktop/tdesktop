@@ -120,6 +120,11 @@ void ConfirmBox::prepare() {
 	if (!_informative) {
 		addButton([this] { return _cancelText; }, [this] { _cancelled = true; closeBox(); });
 	}
+	subscribe(boxClosing, [this] {
+		if (!_confirmed && (!_strictCancel || _cancelled) && _cancelledCallback) {
+			_cancelledCallback();
+		}
+	});
 	textUpdated();
 }
 
@@ -129,12 +134,6 @@ void ConfirmBox::textUpdated() {
 	setDimensions(st::boxWidth, st::boxPadding.top() + _textHeight + st::boxPadding.bottom());
 
 	setMouseTracking(_text.hasLinks());
-}
-
-void ConfirmBox::closeHook() {
-	if (!_confirmed && (!_strictCancel || _cancelled) && _cancelledCallback) {
-		_cancelledCallback();
-	}
 }
 
 void ConfirmBox::confirmed() {

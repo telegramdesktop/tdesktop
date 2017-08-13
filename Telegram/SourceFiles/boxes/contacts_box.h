@@ -85,8 +85,6 @@ public:
 	ContactsBox(QWidget*, ChatData *chat, MembersFilter filter);
 	ContactsBox(QWidget*, UserData *bot);
 
-	void closeHook() override;
-
 signals:
 	void adminAdded();
 
