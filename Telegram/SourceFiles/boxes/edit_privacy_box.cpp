@@ -78,12 +78,13 @@ void PrivacyExceptionsBoxController::rowClicked(gsl::not_null<PeerListRow*> row)
 }
 
 std::unique_ptr<PrivacyExceptionsBoxController::Row> PrivacyExceptionsBoxController::createRow(gsl::not_null<History*> history) {
-	if (auto user = history->peer->asUser()) {
-		if (!user->isSelf()) {
-			return std::make_unique<Row>(history);
-		}
+	if (history->peer->isSelf()) {
+		return nullptr;
 	}
-	return std::unique_ptr<Row>();
+	if (auto user = history->peer->asUser()) {
+		return std::make_unique<Row>(history);
+	}
+	return nullptr;
 }
 
 } // namespace

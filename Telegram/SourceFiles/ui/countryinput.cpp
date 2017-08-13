@@ -392,7 +392,7 @@ void CountrySelectBox::Inner::mousePressEvent(QMouseEvent *e) {
 		if (_ripples.size() <= _pressed) {
 			_ripples.reserve(_pressed + 1);
 			while (_ripples.size() <= _pressed) {
-				_ripples.push_back(std::unique_ptr<Ui::RippleAnimation>());
+				_ripples.push_back(nullptr);
 			}
 		}
 		if (!_ripples[_pressed]) {

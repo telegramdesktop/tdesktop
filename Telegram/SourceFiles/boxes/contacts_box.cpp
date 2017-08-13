@@ -601,7 +601,7 @@ ContactsBox::Inner::Inner(QWidget *parent, ChatData *chat, MembersFilter members
 , _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.right())
 , _aboutAllAdmins(st::defaultTextStyle, lang(lng_chat_about_all_admins), _defaultOptions, _aboutWidth)
 , _aboutAdmins(st::defaultTextStyle, lang(lng_chat_about_admins), _defaultOptions, _aboutWidth)
-, _customList((membersFilter == MembersFilter::Recent) ? std::unique_ptr<Dialogs::IndexedList>() : std::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add))
+, _customList((membersFilter == MembersFilter::Recent) ? nullptr : std::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add))
 , _contacts((membersFilter == MembersFilter::Recent) ? App::main()->contactsList() : _customList.get())
 , _addContactLnk(this, lang(lng_add_contact_button)) {
 	initList();

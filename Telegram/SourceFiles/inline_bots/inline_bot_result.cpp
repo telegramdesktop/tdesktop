@@ -60,7 +60,7 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 	};
 	Type type = getInlineResultType(mtpData);
 	if (type == Type::Unknown) {
-		return std::unique_ptr<Result>();
+		return nullptr;
 	}
 
 	auto result = std::make_unique<Result>(Creator{ queryId, type });
@@ -100,18 +100,18 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 	bool badAttachment = (result->_photo && !result->_photo->access) || (result->_document && !result->_document->isValid());
 
 	if (!message) {
-		return std::unique_ptr<Result>();
+		return nullptr;
 	}
 
 	// Ensure required media fields for layouts.
 	if (result->_type == Type::Photo) {
 		if (!result->_photo && result->_content_url.isEmpty()) {
-			return std::unique_ptr<Result>();
+			return nullptr;
 		}
 		result->createPhoto();
 	} else if (result->_type == Type::File || result->_type == Type::Gif || result->_type == Type::Sticker) {
 		if (!result->_document && result->_content_url.isEmpty()) {
-			return std::unique_ptr<Result>();
+			return nullptr;
 		}
 		result->createDocument();
 	}
@@ -186,7 +186,7 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 	}
 
 	if (badAttachment || !result->sendData || !result->sendData->isValid()) {
-		return std::unique_ptr<Result>();
+		return nullptr;
 	}
 
 	if (result->_thumb->isNull() && !result->_thumb_url.isEmpty()) {

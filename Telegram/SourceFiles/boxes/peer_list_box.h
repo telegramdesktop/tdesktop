@@ -258,7 +258,7 @@ public:
 		return _searchController ? _searchController->isLoading() : false;
 	}
 	virtual std::unique_ptr<PeerListRow> createSearchRow(gsl::not_null<PeerData*> peer) {
-		return std::unique_ptr<PeerListRow>();
+		return nullptr;
 	}
 
 	bool isRowSelected(gsl::not_null<PeerData*> peer) {

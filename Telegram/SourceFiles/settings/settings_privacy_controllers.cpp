@@ -83,12 +83,15 @@ void BlockUserBoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
 }
 
 std::unique_ptr<BlockUserBoxController::Row> BlockUserBoxController::createRow(gsl::not_null<History*> history) {
+	if (history->peer->isSelf()) {
+		return nullptr;
+	}
 	if (auto user = history->peer->asUser()) {
 		auto row = std::make_unique<Row>(history);
 		updateIsBlocked(row.get(), user);
 		return row;
 	}
-	return std::unique_ptr<Row>();
+	return nullptr;
 }
 
 } // namespace

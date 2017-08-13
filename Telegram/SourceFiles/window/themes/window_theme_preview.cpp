@@ -893,7 +893,7 @@ std::unique_ptr<Preview> GeneratePreview(const QString &filepath, const CurrentD
 	auto result = std::make_unique<Preview>();
 	result->path = filepath;
 	if (!LoadFromFile(filepath, &result->instance, &result->content)) {
-		return std::unique_ptr<Preview>();
+		return nullptr;
 	}
 	result->preview = Generator(result->instance, data).generate();
 	return result;

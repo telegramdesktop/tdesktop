@@ -4275,7 +4275,7 @@ void HistoryWidget::uploadFiles(const QStringList &files, SendMediaType type) {
 	if (!canWriteMessage()) return;
 
 	auto caption = QString();
-	uploadFilesAfterConfirmation(files, QByteArray(), QImage(), std::unique_ptr<FileLoadTask::MediaInformation>(), type, caption);
+	uploadFilesAfterConfirmation(files, QByteArray(), QImage(), nullptr, type, caption);
 }
 
 void HistoryWidget::uploadFilesAfterConfirmation(const QStringList &files, const QByteArray &content, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, SendMediaType type, QString caption) {

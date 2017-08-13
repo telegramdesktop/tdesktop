@@ -121,7 +121,7 @@ std::unique_ptr<PeerListRow> ParticipantsBoxController::createSearchRow(gsl::not
 	if (auto user = peer->asUser()) {
 		return createRow(user);
 	}
-	return std::unique_ptr<PeerListRow>();
+	return nullptr;
 }
 
 template <typename Callback>
@@ -691,12 +691,13 @@ AddParticipantBoxController::AddParticipantBoxController(gsl::not_null<ChannelDa
 }
 
 std::unique_ptr<PeerListRow> AddParticipantBoxController::createSearchRow(gsl::not_null<PeerData*> peer) {
-	if (!peer->isSelf()) {
-		if (auto user = peer->asUser()) {
-			return createRow(user);
-		}
+	if (peer->isSelf()) {
+		return nullptr;
 	}
-	return std::unique_ptr<PeerListRow>();
+	if (auto user = peer->asUser()) {
+		return createRow(user);
+	}
+	return nullptr;
 }
 
 void AddParticipantBoxController::prepare() {

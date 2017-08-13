@@ -616,7 +616,7 @@ bool Mixer::fadedStop(AudioMsgId::Type type, bool *fadedStart) {
 
 void Mixer::play(const AudioMsgId &audio, int64 position) {
 	setSongVolume(Global::SongVolume());
-	play(audio, std::unique_ptr<VideoSoundData>(), position);
+	play(audio, nullptr, position);
 }
 
 void Mixer::play(const AudioMsgId &audio, std::unique_ptr<VideoSoundData> videoData, int64 position) {

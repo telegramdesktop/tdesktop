@@ -121,7 +121,7 @@ std::unique_ptr<ItemBase> ItemBase::createLayout(gsl::not_null<Context*> context
 	case Type::Game: return std::make_unique<internal::Game>(context, result); break;
 	case Type::Contact: return std::make_unique<internal::Contact>(context, result); break;
 	}
-	return std::unique_ptr<ItemBase>();
+	return nullptr;
 }
 
 std::unique_ptr<ItemBase> ItemBase::createLayoutGif(gsl::not_null<Context*> context, DocumentData *document) {
