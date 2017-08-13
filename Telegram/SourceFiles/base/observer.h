@@ -62,11 +62,11 @@ public:
 	Subscription() = default;
 	Subscription(const Subscription &) = delete;
 	Subscription &operator=(const Subscription &) = delete;
-	Subscription(Subscription &&other) : _node(base::take(other._node)), _removeMethod(other._removeMethod) {
+	Subscription(Subscription &&other) : _node(base::take(other._node)), _removeAndDestroyMethod(other._removeAndDestroyMethod) {
 	}
 	Subscription &operator=(Subscription &&other) {
 		qSwap(_node, other._node);
-		qSwap(_removeMethod, other._removeMethod);
+		qSwap(_removeAndDestroyMethod, other._removeAndDestroyMethod);
 		return *this;
 	}
 	explicit operator bool() const {
@@ -74,9 +74,7 @@ public:
 	}
 	void destroy() {
 		if (_node) {
-			(*_removeMethod)(_node);
-			delete _node;
-			_node = nullptr;
+			(*_removeAndDestroyMethod)(base::take(_node));
 		}
 	}
 	~Subscription() {
@@ -91,12 +89,12 @@ private:
 		Node *prev = nullptr;
 		QWeakPointer<internal::BaseObservableData> observable;
 	};
-	using RemoveMethod = void(*)(Node*);
-	Subscription(Node *node, RemoveMethod removeMethod) : _node(node), _removeMethod(removeMethod) {
+	using RemoveAndDestroyMethod = void(*)(Node*);
+	Subscription(Node *node, RemoveAndDestroyMethod removeAndDestroyMethod) : _node(node), _removeAndDestroyMethod(removeAndDestroyMethod) {
 	}
 
 	Node *_node = nullptr;
-	RemoveMethod _removeMethod;
+	RemoveAndDestroyMethod _removeAndDestroyMethod;
 
 	template <typename EventType, typename Handler>
 	friend class internal::CommonObservableData;
@@ -176,7 +174,7 @@ public:
 		} else {
 			_begin = _end = node;
 		}
-		return { _end, &CommonObservableData::destroyNode };
+		return { _end, &CommonObservableData::removeAndDestroyNode };
 	}
 
 	bool empty() const {
@@ -210,10 +208,11 @@ private:
 		}
 	}
 
-	static void destroyNode(Subscription::Node *node) {
+	static void removeAndDestroyNode(Subscription::Node *node) {
 		if (auto that = node->observable.toStrongRef()) {
 			static_cast<CommonObservableData*>(that.data())->remove(node);
 		}
+		delete static_cast<Node*>(node);
 	}
 
 	template <typename CallCurrent>
