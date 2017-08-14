@@ -132,7 +132,7 @@ public:
 			LookupSymbol    = 0x02,
 			LookupLink      = 0x04,
 		};
-		Q_DECLARE_FLAGS(Flags, Flag);
+		using Flags = QFlags<Flag>;
 
 		StateRequest() {
 		}

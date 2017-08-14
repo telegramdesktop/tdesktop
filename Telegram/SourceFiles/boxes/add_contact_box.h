@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/sender.h"
 
 class ConfirmBox;
+class PeerListBox;
 
 namespace Ui {
 class FlatLabel;
@@ -39,6 +40,18 @@ class Radioenum;
 class LinkButton;
 class NewAvatarButton;
 } // namespace Ui
+
+enum class PeerFloodType {
+	Send,
+	InviteGroup,
+	InviteChannel,
+};
+QString PeerFloodErrorText(PeerFloodType type);
+
+void ShowAddContactsToChatBox(gsl::not_null<ChatData*> chat);
+void ShowAddContactsToChannelBox(
+	gsl::not_null<ChannelData*> channel,
+	base::flat_set<gsl::not_null<UserData*>> &&alreadyIn);
 
 class AddContactBox : public BoxContent, public RPCSender {
 	Q_OBJECT
@@ -83,7 +96,7 @@ private:
 
 };
 
-class GroupInfoBox : public BoxContent, public RPCSender {
+class GroupInfoBox : public BoxContent, private MTP::Sender {
 	Q_OBJECT
 
 public:
@@ -107,10 +120,8 @@ private slots:
 
 private:
 	void setupPhotoButton();
-
-	void creationDone(const MTPUpdates &updates);
-	bool creationFail(const RPCError &e);
-	void exportDone(const MTPExportedChatInvite &result);
+	void createChannel(const QString &title, const QString &description);
+	void createGroup(gsl::not_null<PeerListBox*> selectUsersBox, const QString &title, const std::vector<gsl::not_null<PeerData*>> &users);
 
 	void updateMaxHeight();
 	void updateSelected(const QPoint &cursorGlobalPosition);
@@ -124,7 +135,7 @@ private:
 
 	QImage _photoImage;
 
-	// channel creation
+	// group / channel creation
 	mtpRequestId _creationRequestId = 0;
 	ChannelData *_createdChannel = nullptr;
 

@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_profile.h"
 #include "lang/lang_keys.h"
 #include "boxes/add_contact_box.h"
+#include "boxes/peer_list_box.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "messenger.h"
@@ -73,14 +74,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 //QPoint MembersAddButton::prepareRippleStartPosition() const {
 //	return mapFromGlobal(QCursor::pos()) - _st.rippleAreaPosition;
 //}
-
-QString PeerFloodErrorText(PeerFloodType type) {
-	auto link = textcmdLink(Messenger::Instance().createInternalLinkFull(qsl("spambot")), lang(lng_cant_more_info));
-	if (type == PeerFloodType::InviteGroup) {
-		return lng_cant_invite_not_contact(lt_more_info, link);
-	}
-	return lng_cant_send_to_not_contact(lt_more_info, link);
-}
 
 ContactsBox::ContactsBox(QWidget*, ChatData *chat, MembersFilter filter)
 : _chat(chat)

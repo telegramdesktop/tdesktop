@@ -65,7 +65,7 @@ enum class RegExOption {
 	DontAutomaticallyOptimize = QRegularExpression::DontAutomaticallyOptimizeOption,
 #endif // OS_MAC_OLD
 };
-Q_DECLARE_FLAGS(RegExOptions, RegExOption);
+using RegExOptions = QFlags<RegExOption>;
 Q_DECLARE_OPERATORS_FOR_FLAGS(RegExOptions);
 
 inline RegularExpressionMatch regex_match(const QString &string, const QString &subject, RegExOptions options = 0) {

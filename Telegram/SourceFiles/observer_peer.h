@@ -72,7 +72,7 @@ struct PeerUpdate {
 		ChannelRightsChanged      = 0x00020000U,
 		ChannelStickersChanged    = 0x00040000U,
 	};
-	Q_DECLARE_FLAGS(Flags, Flag);
+	using Flags = QFlags<Flag>;
 	Flags flags = 0;
 
 	// NameChanged data

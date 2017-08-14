@@ -174,7 +174,7 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply> {
 		PaintInBubble = 0x01,
 		PaintSelected = 0x02,
 	};
-	Q_DECLARE_FLAGS(PaintFlags, PaintFlag);
+	using PaintFlags = QFlags<PaintFlag>;
 	void paint(Painter &p, const HistoryItem *holder, int x, int y, int w, PaintFlags flags) const;
 
 	MsgId replyToId() const {

@@ -181,7 +181,7 @@ private:
 		MessageSearch = 0x08,
 		All = 0x0F,
 	};
-	Q_DECLARE_FLAGS(UpdateRowSections, UpdateRowSection);
+	using UpdateRowSections = QFlags<UpdateRowSection>;
 	Q_DECLARE_FRIEND_OPERATORS_FOR_FLAGS(UpdateRowSections);
 	void updateDialogRow(PeerData *peer, MsgId msgId, QRect updateRect, UpdateRowSections sections = UpdateRowSection::All);
 

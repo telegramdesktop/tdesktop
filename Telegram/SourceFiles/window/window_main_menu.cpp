@@ -31,7 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/localstorage.h"
 #include "boxes/contacts_box.h"
 #include "boxes/about_box.h"
-#include "boxes/peer_list_box.h"
+#include "boxes/peer_list_controllers.h"
 #include "calls/calls_box_controller.h"
 #include "lang/lang_keys.h"
 #include "core/click_handler_types.h"
@@ -97,11 +97,14 @@ void MainMenu::refreshMenu() {
 		App::wnd()->onShowNewChannel();
 	}, &st::mainMenuNewChannel, &st::mainMenuNewChannelOver);
 	_menu->addAction(lang(lng_menu_contacts), [] {
-		Ui::show(Box<ContactsBox>());
+		Ui::show(Box<PeerListBox>(std::make_unique<ContactsBoxController>(), [](gsl::not_null<PeerListBox*> box) {
+			box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
+			box->addLeftButton(langFactory(lng_profile_add_contact), [] { App::wnd()->onShowAddContact(); });
+		}));
 	}, &st::mainMenuContacts, &st::mainMenuContactsOver);
 	if (Global::PhoneCallsEnabled()) {
 		_menu->addAction(lang(lng_menu_calls), [] {
-			Ui::show(Box<PeerListBox>(std::make_unique<Calls::BoxController>(), [](PeerListBox *box) {
+			Ui::show(Box<PeerListBox>(std::make_unique<Calls::BoxController>(), [](gsl::not_null<PeerListBox*> box) {
 				box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
 			}));
 		}, &st::mainMenuCalls, &st::mainMenuCallsOver);

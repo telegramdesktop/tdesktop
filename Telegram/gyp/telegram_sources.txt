@@ -66,6 +66,8 @@
 <(src_loc)/boxes/notifications_box.h
 <(src_loc)/boxes/peer_list_box.cpp
 <(src_loc)/boxes/peer_list_box.h
+<(src_loc)/boxes/peer_list_controllers.cpp
+<(src_loc)/boxes/peer_list_controllers.h
 <(src_loc)/boxes/passcode_box.cpp
 <(src_loc)/boxes/passcode_box.h
 <(src_loc)/boxes/photo_crop_box.cpp

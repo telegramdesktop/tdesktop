@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "auth_session.h"
 #include "storage/localstorage.h"
+#include "boxes/peer_list_controllers.h"
 #include "boxes/confirm_box.h"
 
 namespace Settings {
@@ -44,7 +45,7 @@ public:
 protected:
 	void prepareViewHook() override;
 	std::unique_ptr<Row> createRow(gsl::not_null<History*> history) override;
-	void updateRowHook(Row *row) override {
+	void updateRowHook(gsl::not_null<Row*> row) override {
 		updateIsBlocked(row, row->peer()->asUser());
 		delegate()->peerListUpdateRow(row);
 	}
@@ -70,7 +71,7 @@ void BlockUserBoxController::prepareViewHook() {
 
 void BlockUserBoxController::updateIsBlocked(gsl::not_null<PeerListRow*> row, UserData *user) const {
 	auto blocked = user->isBlocked();
-	row->setDisabled(blocked);
+	row->setDisabledState(blocked ? PeerListRow::State::DisabledChecked : PeerListRow::State::Active);
 	if (blocked) {
 		row->setCustomStatus(lang(lng_blocked_list_already_blocked));
 	} else {
@@ -186,7 +187,7 @@ void BlockedBoxController::handleBlockedEvent(UserData *user) {
 
 void BlockedBoxController::BlockNewUser() {
 	auto controller = std::make_unique<BlockUserBoxController>();
-	auto initBox = [controller = controller.get()](PeerListBox *box) {
+	auto initBox = [controller = controller.get()](gsl::not_null<PeerListBox*> box) {
 		controller->setBlockUserCallback([box](gsl::not_null<UserData*> user) {
 			Auth().api().blockUser(user);
 			box->closeBox();

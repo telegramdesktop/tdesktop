@@ -78,7 +78,7 @@ enum class FileOption {
 	User = 0x01,
 	Safe = 0x02,
 };
-Q_DECLARE_FLAGS(FileOptions, FileOption);
+using FileOptions = QFlags<FileOption>;
 Q_DECLARE_OPERATORS_FOR_FLAGS(FileOptions);
 
 bool keyAlreadyUsed(QString &name, FileOptions options = FileOption::User | FileOption::Safe) {

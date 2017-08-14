@@ -57,7 +57,7 @@ enum class RectPart {
 
 	Full = FullTop | NoTop,
 };
-Q_DECLARE_FLAGS(RectParts, RectPart);
+using RectParts = QFlags<RectPart>;
 Q_DECLARE_OPERATORS_FOR_FLAGS(RectParts);
 
 inline bool IsTopCorner(RectPart corner) {

@@ -38,7 +38,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "window/themes/window_theme.h"
-#include "boxes/contacts_box.h"
+#include "boxes/peer_list_box.h"
 #include "auth_session.h"
 #include "messenger.h"
 

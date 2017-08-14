@@ -47,7 +47,7 @@ enum class ImageRoundCorner {
 	BottomRight = 0x08,
 	All         = 0x0f,
 };
-Q_DECLARE_FLAGS(ImageRoundCorners, ImageRoundCorner);
+using ImageRoundCorners = QFlags<ImageRoundCorner>;
 Q_DECLARE_OPERATORS_FOR_FLAGS(ImageRoundCorners);
 
 inline uint32 packInt(int32 a) {
@@ -199,7 +199,7 @@ enum class Option {
 	Colored = 0x200,
 	TransparentBackground = 0x400,
 };
-Q_DECLARE_FLAGS(Options, Option);
+using Options = QFlags<Option>;
 Q_DECLARE_OPERATORS_FOR_FLAGS(Options);
 
 QImage prepare(QImage img, int w, int h, Options options, int outerw, int outerh, const style::color *colored = nullptr);

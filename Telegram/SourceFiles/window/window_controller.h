@@ -30,7 +30,7 @@ enum class GifPauseReason {
 	RoundPlaying = (1 << 3),
 	MediaPreview = (1 << 4),
 };
-Q_DECLARE_FLAGS(GifPauseReasons, GifPauseReason);
+using GifPauseReasons = QFlags<GifPauseReason>;
 Q_DECLARE_OPERATORS_FOR_FLAGS(GifPauseReasons);
 
 class MainWindow;

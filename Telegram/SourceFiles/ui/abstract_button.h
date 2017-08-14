@@ -80,7 +80,7 @@ protected:
 		Down = 0x02,
 		Disabled = 0x04,
 	};
-	Q_DECLARE_FLAGS(State, StateFlag);
+	using State = QFlags<StateFlag>;
 	Q_DECLARE_FRIEND_OPERATORS_FOR_FLAGS(State);
 
 	State state() const {

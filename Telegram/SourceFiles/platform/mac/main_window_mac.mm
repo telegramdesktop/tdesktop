@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/notifications_manager_default.h"
 #include "platform/platform_notifications_manager.h"
 #include "boxes/contacts_box.h"
+#include "boxes/peer_list_controllers.h"
 #include "boxes/about_box.h"
 #include "lang/lang_keys.h"
 #include "platform/mac/mac_utilities.h"
@@ -437,7 +438,10 @@ void MainWindow::createGlobalMenu() {
 		if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
 
 		if (!App::self()) return;
-		Ui::show(Box<ContactsBox>());
+		Ui::show(Box<PeerListBox>(std::make_unique<ContactsBoxController>(), [](gsl::not_null<PeerListBox*> box) {
+			box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
+			box->addLeftButton(langFactory(lng_profile_add_contact), [] { App::wnd()->onShowAddContact(); });
+		}));
 	});
 	psAddContact = window->addAction(lang(lng_mac_menu_add_contact), App::wnd(), SLOT(onShowAddContact()));
 	window->addSeparator();

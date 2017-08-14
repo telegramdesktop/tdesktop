@@ -20,8 +20,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "profile/profile_channel_controllers.h"
 
+#include "boxes/peer_list_controllers.h"
 #include "boxes/edit_participant_box.h"
 #include "boxes/confirm_box.h"
+#include "boxes/add_contact_box.h"
 #include "boxes/contacts_box.h"
 #include "auth_session.h"
 #include "apiwrap.h"
@@ -55,7 +57,7 @@ std::unique_ptr<PeerListSearchController> ParticipantsBoxController::CreateSearc
 
 void ParticipantsBoxController::Start(gsl::not_null<ChannelData*> channel, Role role) {
 	auto controller = std::make_unique<ParticipantsBoxController>(channel, role);
-	auto initBox = [role, channel, controller = controller.get()](PeerListBox *box) {
+	auto initBox = [role, channel, controller = controller.get()](gsl::not_null<PeerListBox*> box) {
 		box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
 		auto canAddNewItem = [role, channel] {
 			switch (role) {
@@ -87,12 +89,12 @@ void ParticipantsBoxController::addNewItem() {
 		if (_channel->membersCount() >= Global::ChatSizeMax()) {
 			Ui::show(Box<MaxInviteBox>(_channel), KeepOtherLayers);
 		} else {
-			auto already = MembersAlreadyIn();
+			auto already = std::vector<gsl::not_null<UserData*>>();
+			already.reserve(delegate()->peerListFullRowsCount());
 			for (auto i = 0, count = delegate()->peerListFullRowsCount(); i != count; ++i) {
-				auto user = delegate()->peerListRowAt(i)->peer()->asUser();
-				already.insert(user);
+				already.push_back(delegate()->peerListRowAt(i)->peer()->asUser());
 			}
-			Ui::show(Box<ContactsBox>(_channel, MembersFilter::Recent, already));
+			ShowAddContactsToChannelBox(_channel, { already.begin(), already.end() });
 		}
 		return;
 	}
@@ -105,7 +107,7 @@ void ParticipantsBoxController::addNewItem() {
 		if (weak) {
 			weak->editRestrictedDone(user, rights);
 		}
-	}), [](PeerListBox *box) {
+	}), [](gsl::not_null<PeerListBox*> box) {
 		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
 	}), KeepOtherLayers);
 }

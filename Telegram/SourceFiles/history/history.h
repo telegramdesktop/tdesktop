@@ -545,7 +545,7 @@ private:
 		f_has_pending_resized_items = (1 << 0),
 		f_pending_resize            = (1 << 1),
 	};
-	Q_DECLARE_FLAGS(Flags, Flag);
+	using Flags = QFlags<Flag>;
 	Q_DECL_CONSTEXPR friend inline QFlags<Flags::enum_type> operator|(Flags::enum_type f1, Flags::enum_type f2) noexcept {
 		return QFlags<Flags::enum_type>(f1) | f2;
 	}

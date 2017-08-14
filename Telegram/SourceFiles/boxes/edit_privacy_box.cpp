@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/effects/widget_slide_wrap.h"
-#include "boxes/peer_list_box.h"
+#include "boxes/peer_list_controllers.h"
 #include "apiwrap.h"
 #include "auth_session.h"
 #include "lang/lang_keys.h"
@@ -178,7 +178,7 @@ void EditPrivacyBox::editExceptionUsers(Exception exception) {
 	auto controller = std::make_unique<PrivacyExceptionsBoxController>(base::lambda_guarded(this, [this, exception] {
 		return _controller->exceptionBoxTitle(exception);
 	}), exceptionUsers(exception));
-	auto initBox = [this, exception, controller = controller.get()](PeerListBox *box) {
+	auto initBox = [this, exception, controller = controller.get()](gsl::not_null<PeerListBox*> box) {
 		box->addButton(langFactory(lng_settings_save), base::lambda_guarded(this, [this, box, exception, controller] {
 			exceptionUsers(exception) = controller->getResult();
 			exceptionLink(exception)->entity()->setText(exceptionLinkText(exception));

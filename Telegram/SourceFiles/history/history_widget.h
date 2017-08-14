@@ -689,7 +689,7 @@ private:
 		SaveDraft  = 0x01,
 		SendTyping = 0x02,
 	};
-	Q_DECLARE_FLAGS(TextUpdateEvents, TextUpdateEvent);
+	using TextUpdateEvents = QFlags<TextUpdateEvent>;
 	Q_DECLARE_FRIEND_OPERATORS_FOR_FLAGS(TextUpdateEvents);
 
 	void writeDrafts(Data::Draft **localDraft, Data::Draft **editDraft);

@@ -25,9 +25,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang/lang_keys.h"
 #include "messenger.h"
 #include "mtproto/sender.h"
-#include "boxes/contacts_box.h"
+#include "base/flat_set.h"
 #include "boxes/confirm_box.h"
 #include "boxes/photo_crop_box.h"
+#include "boxes/peer_list_controllers.h"
 #include "core/file_utilities.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
@@ -53,7 +54,202 @@ style::InputField CreateBioFieldStyle() {
 	return result;
 }
 
+base::flat_set<gsl::not_null<UserData*>> GetAlreadyInFromPeer(PeerData *peer) {
+	if (!peer) {
+		return {};
+	}
+	if (auto chat = peer->asChat()) {
+		auto participants = chat->participants.keys();
+		return { participants.cbegin(), participants.cend() };
+	} else if (auto channel = peer->asChannel()) {
+		if (channel->isMegagroup()) {
+			auto &participants = channel->mgInfo->lastParticipants;
+			return { participants.cbegin(), participants.cend() };
+		}
+	}
+	return {};
+}
+
+class AddParticipantsBoxController : public ContactsBoxController {
+public:
+	AddParticipantsBoxController(PeerData *peer);
+	AddParticipantsBoxController(
+		gsl::not_null<ChannelData*> channel,
+		base::flat_set<gsl::not_null<UserData*>> &&alreadyIn);
+
+	using ContactsBoxController::ContactsBoxController;
+
+	void rowClicked(gsl::not_null<PeerListRow*> row) override;
+	void itemDeselectedHook(gsl::not_null<PeerData*> peer) override;
+
+protected:
+	void prepareViewHook() override;
+	std::unique_ptr<PeerListRow> createRow(gsl::not_null<UserData*> user) override;
+
+private:
+	int alreadyInCount() const;
+	bool isAlreadyIn(gsl::not_null<UserData*> user) const;
+	int fullCount() const;
+	void updateTitle();
+
+	PeerData *_peer = nullptr;
+	base::flat_set<gsl::not_null<UserData*>> _alreadyIn;
+
+};
+
+AddParticipantsBoxController::AddParticipantsBoxController(PeerData *peer)
+: ContactsBoxController(std::make_unique<PeerListGlobalSearchController>())
+, _peer(peer)
+, _alreadyIn(GetAlreadyInFromPeer(peer)) {
+}
+
+AddParticipantsBoxController::AddParticipantsBoxController(
+	gsl::not_null<ChannelData*> channel,
+	base::flat_set<gsl::not_null<UserData*>> &&alreadyIn)
+: ContactsBoxController(std::make_unique<PeerListGlobalSearchController>())
+, _peer(channel)
+, _alreadyIn(std::move(alreadyIn)) {
+}
+
+void AddParticipantsBoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
+	auto count = fullCount();
+	auto limit = (_peer && _peer->isMegagroup()) ? Global::MegagroupSizeMax() : Global::ChatSizeMax();
+	if (count < limit || row->checked()) {
+		delegate()->peerListSetRowChecked(row, !row->checked());
+		updateTitle();
+	} else if (auto channel = _peer ? _peer->asChannel() : nullptr) {
+		if (!_peer->isMegagroup()) {
+			Ui::show(Box<MaxInviteBox>(_peer->asChannel()), KeepOtherLayers);
+		}
+	} else if (count >= Global::ChatSizeMax() && count < Global::MegagroupSizeMax()) {
+		Ui::show(Box<InformBox>(lng_profile_add_more_after_upgrade(lt_count, Global::MegagroupSizeMax())), KeepOtherLayers);
+	}
+}
+
+void AddParticipantsBoxController::itemDeselectedHook(gsl::not_null<PeerData*> peer) {
+	updateTitle();
+}
+
+void AddParticipantsBoxController::prepareViewHook() {
+	updateTitle();
+}
+
+int AddParticipantsBoxController::alreadyInCount() const {
+	return _alreadyIn.empty() ? 1 : _alreadyIn.size(); // self
+}
+
+bool AddParticipantsBoxController::isAlreadyIn(gsl::not_null<UserData*> user) const {
+	if (!_peer) {
+		return false;
+	}
+	if (auto chat = _peer->asChat()) {
+		return chat->participants.contains(user);
+	} else if (auto channel = _peer->asChannel()) {
+		return _alreadyIn.contains(user)
+			|| (channel->isMegagroup() && channel->mgInfo->lastParticipants.contains(user));
+	}
+	Unexpected("User in AddParticipantsBoxController::isAlreadyIn");
+}
+
+int AddParticipantsBoxController::fullCount() const {
+	return alreadyInCount() + delegate()->peerListSelectedRowsCount();
+}
+
+std::unique_ptr<PeerListRow> AddParticipantsBoxController::createRow(gsl::not_null<UserData*> user) {
+	if (user->isSelf()) {
+		return nullptr;
+	}
+	auto result = std::make_unique<PeerListRow>(user);
+	if (isAlreadyIn(user)) {
+		result->setDisabledState(PeerListRow::State::DisabledChecked);
+	}
+	return result;
+}
+
+void AddParticipantsBoxController::updateTitle() {
+	auto additional = (_peer && _peer->isChannel() && !_peer->isMegagroup())
+		? QString() :
+		QString("%1 / %2").arg(fullCount()).arg(Global::MegagroupSizeMax());
+	delegate()->peerListSetTitle(langFactory(lng_profile_add_participant));
+	delegate()->peerListSetAdditionalTitle([additional] { return additional; });
+}
+
 } // namespace
+
+QString PeerFloodErrorText(PeerFloodType type) {
+	auto link = textcmdLink(
+		Messenger::Instance().createInternalLinkFull(qsl("spambot")),
+		lang(lng_cant_more_info));
+	if (type == PeerFloodType::InviteGroup) {
+		return lng_cant_invite_not_contact(lt_more_info, link);
+	}
+	return lng_cant_send_to_not_contact(lt_more_info, link);
+}
+
+void ShowAddContactsToChatBox(gsl::not_null<ChatData*> chat) {
+	auto initBox = [chat](gsl::not_null<PeerListBox*> box) {
+		box->addButton(langFactory(lng_participant_invite), [box, chat] {
+			auto rows = box->peerListCollectSelectedRows();
+			if (!rows.empty()) {
+				auto users = std::vector<gsl::not_null<UserData*>>();
+				for (auto peer : rows) {
+					auto user = peer->asUser();
+					t_assert(user != nullptr);
+					t_assert(!user->isSelf());
+					users.push_back(peer->asUser());
+				}
+				App::main()->addParticipants(chat, users);
+				Ui::showPeerHistory(chat, ShowAtTheEndMsgId);
+			}
+		});
+		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
+	};
+	Ui::show(Box<PeerListBox>(std::make_unique<AddParticipantsBoxController>(chat), std::move(initBox)));
+}
+
+void ShowAddContactsToChannelBox(
+		gsl::not_null<ChannelData*> channel,
+		base::flat_set<gsl::not_null<UserData*>> &&alreadyIn,
+		bool justCreated) {
+	auto initBox = [channel, justCreated](gsl::not_null<PeerListBox*> box) {
+		auto subscription = std::make_shared<base::Subscription>();
+		box->addButton(langFactory(lng_participant_invite), [box, channel, subscription] {
+			auto rows = box->peerListCollectSelectedRows();
+			if (!rows.empty()) {
+				auto users = std::vector<gsl::not_null<UserData*>>();
+				for (auto peer : rows) {
+					auto user = peer->asUser();
+					t_assert(user != nullptr);
+					t_assert(!user->isSelf());
+					users.push_back(peer->asUser());
+				}
+				App::main()->addParticipants(channel, users);
+				if (channel->isMegagroup()) {
+					Ui::showPeerHistory(channel, ShowAtTheEndMsgId);
+				} else {
+					box->closeBox();
+				}
+			}
+		});
+		box->addButton(langFactory(justCreated ? lng_create_group_skip : lng_cancel), [box] { box->closeBox(); });
+		if (justCreated) {
+			*subscription = box->boxClosing.add_subscription([channel] {
+				Ui::showPeerHistory(channel, ShowAtTheEndMsgId);
+			});
+		}
+	};
+	Ui::show(Box<PeerListBox>(std::make_unique<AddParticipantsBoxController>(channel, std::move(alreadyIn)), std::move(initBox)));
+}
+
+void ShowAddContactsToChannelBox(
+		gsl::not_null<ChannelData*> channel,
+		base::flat_set<gsl::not_null<UserData*>> &&alreadyIn) {
+	ShowAddContactsToChannelBox(channel, std::move(alreadyIn), false);
+}
+
+void ShowAddContactsToChannelBox(gsl::not_null<ChannelData*> channel) {
+	ShowAddContactsToChannelBox(channel, {}, true);
+}
 
 class RevokePublicLinkBox::Inner : public TWidget, private MTP::Sender {
 public:
@@ -379,6 +575,68 @@ void GroupInfoBox::onNameSubmit() {
 	}
 }
 
+void GroupInfoBox::createGroup(gsl::not_null<PeerListBox*> selectUsersBox, const QString &title, const std::vector<gsl::not_null<PeerData*>> &users) {
+	if (_creationRequestId) return;
+
+	auto inputs = QVector<MTPInputUser>();
+	inputs.reserve(users.size());
+	for (auto peer : users) {
+		auto user = peer->asUser();
+		t_assert(user != nullptr);
+		if (!user->isSelf()) {
+			inputs.push_back(user->inputUser);
+		}
+	}
+	_creationRequestId = request(MTPmessages_CreateChat(MTP_vector<MTPInputUser>(inputs), MTP_string(title))).done([this](const MTPUpdates &result) {
+		Ui::hideLayer();
+
+		App::main()->sentUpdatesReceived(result);
+
+		auto success = base::make_optional(&result)
+			| [](auto updates) -> base::optional<const QVector<MTPChat>*> {
+				switch (updates->type()) {
+				case mtpc_updates:
+				return &updates->c_updates().vchats.v;
+				case mtpc_updatesCombined:
+				return &updates->c_updatesCombined().vchats.v;
+				}
+				LOG(("API Error: unexpected update cons %1 (GroupInfoBox::creationDone)").arg(updates->type()));
+				return base::none;
+			}
+			| [](auto chats) {
+				return (!chats->empty() && chats->front().type() == mtpc_chat)
+					? base::make_optional(chats)
+					: base::none;
+			}
+			| [](auto chats) {
+				return App::chat(chats->front().c_chat().vid.v);
+			}
+			| [this](gsl::not_null<ChatData*> chat) {
+				if (!_photoImage.isNull()) {
+					Messenger::Instance().uploadProfilePhoto(_photoImage, chat->id);
+				}
+				Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
+			};
+		if (!success) {
+			LOG(("API Error: chat not found in updates (ContactsBox::creationDone)"));
+		}
+	}).fail([this, selectUsersBox](const RPCError &error) {
+		_creationRequestId = 0;
+		if (error.type() == qstr("NO_CHAT_TITLE")) {
+			auto guard = weak(this);
+			selectUsersBox->closeBox();
+			if (guard) {
+				_title->showError();
+			}
+		} else if (error.type() == qstr("USERS_TOO_FEW")) {
+		} else if (error.type() == qstr("PEER_FLOOD")) {
+			Ui::show(Box<InformBox>(PeerFloodErrorText(PeerFloodType::InviteGroup)), KeepOtherLayers);
+		} else if (error.type() == qstr("USER_RESTRICTED")) {
+			Ui::show(Box<InformBox>(lang(lng_cant_do_this)), KeepOtherLayers);
+		}
+	}).send();
+}
+
 void GroupInfoBox::onNext() {
 	if (_creationRequestId) return;
 
@@ -389,64 +647,82 @@ void GroupInfoBox::onNext() {
 		_title->showError();
 		return;
 	}
-	if (_creating == CreatingGroupGroup) {
-		Ui::show(Box<ContactsBox>(title, _photoImage), KeepOtherLayers);
+	if (_creating != CreatingGroupGroup) {
+		createChannel(title, description);
 	} else {
-		bool mega = false;
-		auto flags = mega ? MTPchannels_CreateChannel::Flag::f_megagroup : MTPchannels_CreateChannel::Flag::f_broadcast;
-		_creationRequestId = MTP::send(MTPchannels_CreateChannel(MTP_flags(flags), MTP_string(title), MTP_string(description)), rpcDone(&GroupInfoBox::creationDone), rpcFail(&GroupInfoBox::creationFail));
+		auto initBox = [title, weak = weak(this)](gsl::not_null<PeerListBox*> box) {
+			box->addButton(langFactory(lng_create_group_create), [box, title, weak] {
+				if (weak) {
+					auto rows = box->peerListCollectSelectedRows();
+					if (!rows.empty()) {
+						weak->createGroup(box, title, rows);
+					}
+				}
+			});
+			box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
+		};
+		Ui::show(Box<PeerListBox>(std::make_unique<AddParticipantsBoxController>(nullptr), std::move(initBox)), KeepOtherLayers);
 	}
 }
 
-void GroupInfoBox::creationDone(const MTPUpdates &updates) {
-	App::main()->sentUpdatesReceived(updates);
+void GroupInfoBox::createChannel(const QString &title, const QString &description) {
+	bool mega = false;
+	auto flags = mega ? MTPchannels_CreateChannel::Flag::f_megagroup : MTPchannels_CreateChannel::Flag::f_broadcast;
+	_creationRequestId = request(MTPchannels_CreateChannel(MTP_flags(flags), MTP_string(title), MTP_string(description))).done([this](const MTPUpdates &result) {
+		App::main()->sentUpdatesReceived(result);
 
-	const QVector<MTPChat> *v = 0;
-	switch (updates.type()) {
-	case mtpc_updates: v = &updates.c_updates().vchats.v; break;
-	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.v; break;
-	default: LOG(("API Error: unexpected update cons %1 (GroupInfoBox::creationDone)").arg(updates.type())); break;
-	}
-
-	ChannelData *channel = 0;
-	if (v && !v->isEmpty() && v->front().type() == mtpc_channel) {
-		channel = App::channel(v->front().c_channel().vid.v);
-		if (channel) {
-			if (!_photoImage.isNull()) {
-				Messenger::Instance().uploadProfilePhoto(_photoImage, channel->id);
+		auto success = base::make_optional(&result)
+			| [](auto updates) -> base::optional<const QVector<MTPChat>*> {
+				switch (updates->type()) {
+				case mtpc_updates:
+				return &updates->c_updates().vchats.v;
+				case mtpc_updatesCombined:
+				return &updates->c_updatesCombined().vchats.v;
+				}
+				LOG(("API Error: unexpected update cons %1 (GroupInfoBox::createChannel)").arg(updates->type()));
+				return base::none;
 			}
-			_createdChannel = channel;
-			_creationRequestId = MTP::send(MTPchannels_ExportInvite(_createdChannel->inputChannel), rpcDone(&GroupInfoBox::exportDone));
-			return;
+			| [](auto chats) {
+				return (!chats->empty() && chats->front().type() == mtpc_channel)
+					? base::make_optional(chats)
+					: base::none;
+			}
+			| [](auto chats) {
+				return App::channel(chats->front().c_channel().vid.v);
+			}
+			| [this](gsl::not_null<ChannelData*> channel) {
+				if (!_photoImage.isNull()) {
+					Messenger::Instance().uploadProfilePhoto(
+						_photoImage,
+						channel->id);
+				}
+				_createdChannel = channel;
+				_creationRequestId = request(
+					MTPchannels_ExportInvite(_createdChannel->inputChannel)
+				).done([this](const MTPExportedChatInvite &result) {
+					_creationRequestId = 0;
+					if (result.type() == mtpc_chatInviteExported) {
+						auto link = qs(result.c_chatInviteExported().vlink);
+						_createdChannel->setInviteLink(link);
+					}
+					Ui::show(Box<SetupChannelBox>(_createdChannel));
+				}).send();
+			};
+		if (!success) {
+			LOG(("API Error: channel not found in updates (GroupInfoBox::creationDone)"));
+			closeBox();
 		}
-	} else {
-		LOG(("API Error: channel not found in updates (GroupInfoBox::creationDone)"));
-	}
-
-	closeBox();
-}
-
-bool GroupInfoBox::creationFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	_creationRequestId = 0;
-	if (error.type() == "NO_CHAT_TITLE") {
-		_title->setFocus();
-		_title->showError();
-		return true;
-	} else if (error.type() == qstr("USER_RESTRICTED")) {
-		Ui::show(Box<InformBox>(lang(lng_cant_do_this)));
-		return true;
-	}
-	return false;
-}
-
-void GroupInfoBox::exportDone(const MTPExportedChatInvite &result) {
-	_creationRequestId = 0;
-	if (result.type() == mtpc_chatInviteExported) {
-		_createdChannel->setInviteLink(qs(result.c_chatInviteExported().vlink));
-	}
-	Ui::show(Box<SetupChannelBox>(_createdChannel));
+	}).fail([this](const RPCError &error) {
+		_creationRequestId = 0;
+		if (error.type() == "NO_CHAT_TITLE") {
+			_title->setFocus();
+			_title->showError();
+		} else if (error.type() == qstr("USER_RESTRICTED")) {
+			Ui::show(Box<InformBox>(lang(lng_cant_do_this)));
+		} else if (error.type() == qstr("CHANNELS_TOO_MUCH")) {
+			Ui::show(Box<InformBox>(lang(lng_cant_do_this))); // TODO
+		}
+	}).send();
 }
 
 void GroupInfoBox::onDescriptionResized() {
@@ -503,15 +779,11 @@ void SetupChannelBox::prepare() {
 	}));
 	subscribe(boxClosing, [this] {
 		if (!_existing) {
-			showAddContactsToChannelBox();
+			ShowAddContactsToChannelBox(_channel);
 		}
 	});
 
 	updateMaxHeight();
-}
-
-void SetupChannelBox::showAddContactsToChannelBox() const {
-	Ui::show(Box<ContactsBox>(_channel));
 }
 
 void SetupChannelBox::setInnerFocus() {

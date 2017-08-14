@@ -60,7 +60,7 @@ public:
 		Hidden   = 0x08,
 		Activate = 0x10,
 	};
-	Q_DECLARE_FLAGS(ShadowsChanges, ShadowsChange);
+	using ShadowsChanges = QFlags<ShadowsChange>;
 
 	bool shadowsWorking() const {
 		return _shadowsWorking;
