@@ -94,7 +94,7 @@ void ParticipantsBoxController::addNewItem() {
 			for (auto i = 0, count = delegate()->peerListFullRowsCount(); i != count; ++i) {
 				already.push_back(delegate()->peerListRowAt(i)->peer()->asUser());
 			}
-			ShowAddContactsToChannelBox(_channel, { already.begin(), already.end() });
+			AddParticipantsBoxController::Start(_channel, { already.begin(), already.end() });
 		}
 		return;
 	}

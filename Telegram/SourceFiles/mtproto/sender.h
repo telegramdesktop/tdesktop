@@ -69,7 +69,7 @@ class Sender {
 
 			void operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
 				auto handler = std::move(_handler);
-				_sender->requestHandled(requestId);
+				_sender->senderRequestHandled(requestId);
 
 				if (handler) {
 					auto result = Response();
@@ -121,7 +121,7 @@ class Sender {
 				}
 
 				auto handler = std::move(_handler);
-				_sender->requestHandled(requestId);
+				_sender->senderRequestHandled(requestId);
 
 				if (handler) {
 					Policy::handle(std::move(handler), requestId, error);
@@ -187,7 +187,7 @@ class Sender {
 			return _sender;
 		}
 		void registerRequest(mtpRequestId requestId) {
-			_sender->requestRegister(requestId);
+			_sender->senderRequestRegister(requestId);
 		}
 
 	private:
@@ -270,7 +270,7 @@ public:
 
 	public:
 		void cancel() {
-			_sender->requestCancel(_requestId);
+			_sender->senderRequestCancel(_requestId);
 		}
 
 	private:
@@ -283,6 +283,12 @@ public:
 	SpecificRequestBuilder<Request> request(Request &&request) noexcept WARN_UNUSED_RESULT;
 
 	SentRequestWrap request(mtpRequestId requestId) noexcept WARN_UNUSED_RESULT;
+
+	decltype(auto) requestCanceller() noexcept WARN_UNUSED_RESULT {
+		return [this](mtpRequestId requestId) {
+			request(requestId).cancel();
+		};
+	}
 
 	void requestSendDelayed() {
 		MainInstance()->sendAnything();
@@ -347,17 +353,17 @@ private:
 	friend class RequestWrap;
 	friend class SentRequestWrap;
 
-	void requestRegister(mtpRequestId requestId) {
+	void senderRequestRegister(mtpRequestId requestId) {
 		_requests.emplace(MainInstance(), requestId);
 	}
-	void requestHandled(mtpRequestId requestId) {
+	void senderRequestHandled(mtpRequestId requestId) {
 		auto it = _requests.find(requestId);
 		if (it != _requests.cend()) {
 			it->handled();
 			_requests.erase(it);
 		}
 	}
-	void requestCancel(mtpRequestId requestId) {
+	void senderRequestCancel(mtpRequestId requestId) {
 		auto it = _requests.find(requestId);
 		if (it != _requests.cend()) {
 			_requests.erase(it);

@@ -20,7 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "peer_list_box.h"
+#include "boxes/peer_list_box.h"
+#include "base/flat_set.h"
 
 class PeerListRowWithLink : public PeerListRow {
 public:
@@ -115,5 +116,67 @@ private:
 	void rebuildRows();
 	void checkForEmptyRows();
 	bool appendRow(gsl::not_null<UserData*> user);
+
+};
+
+class EditChatAdminsBoxController : public PeerListController, private base::Subscriber {
+public:
+	static void Start(gsl::not_null<ChatData*> chat);
+
+	EditChatAdminsBoxController(gsl::not_null<ChatData*> chat);
+
+	bool allAreAdmins() const;
+
+	void prepare() override;
+	void rowClicked(gsl::not_null<PeerListRow*> row) override;
+
+private:
+	void createAllAdminsCheckbox();
+	void rebuildRows();
+	std::unique_ptr<PeerListRow> createRow(gsl::not_null<UserData*> user);
+
+	gsl::not_null<ChatData*> _chat;
+	int _adminsUpdatedSubscription = 0;
+
+	class LabeledCheckbox;
+	QPointer<LabeledCheckbox> _allAdmins;
+
+};
+
+class AddParticipantsBoxController : public ContactsBoxController {
+public:
+	static void Start(gsl::not_null<ChatData*> chat);
+	static void Start(gsl::not_null<ChannelData*> channel);
+	static void Start(
+		gsl::not_null<ChannelData*> channel,
+		base::flat_set<gsl::not_null<UserData*>> &&alreadyIn);
+
+	AddParticipantsBoxController(PeerData *peer);
+	AddParticipantsBoxController(
+		gsl::not_null<ChannelData*> channel,
+		base::flat_set<gsl::not_null<UserData*>> &&alreadyIn);
+
+	using ContactsBoxController::ContactsBoxController;
+
+	void rowClicked(gsl::not_null<PeerListRow*> row) override;
+	void itemDeselectedHook(gsl::not_null<PeerData*> peer) override;
+
+protected:
+	void prepareViewHook() override;
+	std::unique_ptr<PeerListRow> createRow(gsl::not_null<UserData*> user) override;
+
+private:
+	static void Start(
+		gsl::not_null<ChannelData*> channel,
+		base::flat_set<gsl::not_null<UserData*>> &&alreadyIn,
+		bool justCreated);
+
+	int alreadyInCount() const;
+	bool isAlreadyIn(gsl::not_null<UserData*> user) const;
+	int fullCount() const;
+	void updateTitle();
+
+	PeerData *_peer = nullptr;
+	base::flat_set<gsl::not_null<UserData*>> _alreadyIn;
 
 };

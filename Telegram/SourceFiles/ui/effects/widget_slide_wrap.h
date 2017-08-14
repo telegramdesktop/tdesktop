@@ -62,6 +62,9 @@ public:
 		myEnsureResized(_entity);
 		animationCallback();
 	}
+	bool animating() const {
+		return _a_height.animating();
+	}
 
 	TWidget *entity() {
 		return _entity;

@@ -21,10 +21,64 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/peer_list_controllers.h"
 
 #include "styles/style_boxes.h"
+#include "styles/style_profile.h"
+#include "boxes/confirm_box.h"
+#include "observer_peer.h"
+#include "ui/widgets/checkbox.h"
 #include "auth_session.h"
+#include "apiwrap.h"
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
 #include "dialogs/dialogs_indexed_list.h"
+
+namespace {
+
+base::flat_set<gsl::not_null<UserData*>> GetAlreadyInFromPeer(PeerData *peer) {
+	if (!peer) {
+		return {};
+	}
+	if (auto chat = peer->asChat()) {
+		auto participants = chat->participants.keys();
+		return { participants.cbegin(), participants.cend() };
+	} else if (auto channel = peer->asChannel()) {
+		if (channel->isMegagroup()) {
+			auto &participants = channel->mgInfo->lastParticipants;
+			return { participants.cbegin(), participants.cend() };
+		}
+	}
+	return {};
+}
+
+} // namespace
+
+class EditChatAdminsBoxController::LabeledCheckbox : public TWidget, private base::Subscriber {
+public:
+	LabeledCheckbox(QWidget *parent, const QString &text, bool checked = false, const style::Checkbox &st = st::defaultCheckbox, const style::Check &checkSt = st::defaultCheck);
+
+	base::Observable<bool> checkedChanged;
+
+	bool checked() const {
+		return _checkbox->checked();
+	}
+
+	void setLabelText(
+		bool checked,
+		const style::TextStyle &st,
+		const QString &text,
+		const TextParseOptions &options = _defaultOptions,
+		int minResizeWidth = QFIXED_MAX);
+
+protected:
+	int resizeGetHeight(int newWidth) override;
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	object_ptr<Ui::Checkbox> _checkbox;
+	Text _labelUnchecked;
+	Text _labelChecked;
+	int _labelWidth = 0;
+
+};
 
 void PeerListRowWithLink::setActionLink(const QString &action) {
 	_action = action;
@@ -267,4 +321,338 @@ bool ContactsBoxController::appendRow(gsl::not_null<UserData*> user) {
 
 std::unique_ptr<PeerListRow> ContactsBoxController::createRow(gsl::not_null<UserData*> user) {
 	return std::make_unique<PeerListRow>(user);
+}
+
+AddParticipantsBoxController::AddParticipantsBoxController(PeerData *peer)
+: ContactsBoxController(std::make_unique<PeerListGlobalSearchController>())
+, _peer(peer)
+, _alreadyIn(GetAlreadyInFromPeer(peer)) {
+}
+
+AddParticipantsBoxController::AddParticipantsBoxController(
+	gsl::not_null<ChannelData*> channel,
+	base::flat_set<gsl::not_null<UserData*>> &&alreadyIn)
+: ContactsBoxController(std::make_unique<PeerListGlobalSearchController>())
+, _peer(channel)
+, _alreadyIn(std::move(alreadyIn)) {
+}
+
+void AddParticipantsBoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
+	auto count = fullCount();
+	auto limit = (_peer && _peer->isMegagroup()) ? Global::MegagroupSizeMax() : Global::ChatSizeMax();
+	if (count < limit || row->checked()) {
+		delegate()->peerListSetRowChecked(row, !row->checked());
+		updateTitle();
+	} else if (auto channel = _peer ? _peer->asChannel() : nullptr) {
+		if (!_peer->isMegagroup()) {
+			Ui::show(Box<MaxInviteBox>(_peer->asChannel()), KeepOtherLayers);
+		}
+	} else if (count >= Global::ChatSizeMax() && count < Global::MegagroupSizeMax()) {
+		Ui::show(Box<InformBox>(lng_profile_add_more_after_upgrade(lt_count, Global::MegagroupSizeMax())), KeepOtherLayers);
+	}
+}
+
+void AddParticipantsBoxController::itemDeselectedHook(gsl::not_null<PeerData*> peer) {
+	updateTitle();
+}
+
+void AddParticipantsBoxController::prepareViewHook() {
+	updateTitle();
+}
+
+int AddParticipantsBoxController::alreadyInCount() const {
+	if (!_peer) {
+		return 1; // self
+	}
+	if (auto chat = _peer->asChat()) {
+		return qMax(chat->count, 1);
+	} else if (auto channel = _peer->asChannel()) {
+		return qMax(channel->membersCount(), int(_alreadyIn.size()));
+	}
+	Unexpected("User in AddParticipantsBoxController::alreadyInCount");
+}
+
+bool AddParticipantsBoxController::isAlreadyIn(gsl::not_null<UserData*> user) const {
+	if (!_peer) {
+		return false;
+	}
+	if (auto chat = _peer->asChat()) {
+		return chat->participants.contains(user);
+	} else if (auto channel = _peer->asChannel()) {
+		return _alreadyIn.contains(user)
+			|| (channel->isMegagroup() && channel->mgInfo->lastParticipants.contains(user));
+	}
+	Unexpected("User in AddParticipantsBoxController::isAlreadyIn");
+}
+
+int AddParticipantsBoxController::fullCount() const {
+	return alreadyInCount() + delegate()->peerListSelectedRowsCount();
+}
+
+std::unique_ptr<PeerListRow> AddParticipantsBoxController::createRow(gsl::not_null<UserData*> user) {
+	if (user->isSelf()) {
+		return nullptr;
+	}
+	auto result = std::make_unique<PeerListRow>(user);
+	if (isAlreadyIn(user)) {
+		result->setDisabledState(PeerListRow::State::DisabledChecked);
+	}
+	return result;
+}
+
+void AddParticipantsBoxController::updateTitle() {
+	auto additional = (_peer && _peer->isChannel() && !_peer->isMegagroup())
+		? QString() :
+		QString("%1 / %2").arg(fullCount()).arg(Global::MegagroupSizeMax());
+	delegate()->peerListSetTitle(langFactory(lng_profile_add_participant));
+	delegate()->peerListSetAdditionalTitle([additional] { return additional; });
+}
+
+void AddParticipantsBoxController::Start(gsl::not_null<ChatData*> chat) {
+	auto initBox = [chat](gsl::not_null<PeerListBox*> box) {
+		box->addButton(langFactory(lng_participant_invite), [box, chat] {
+			auto rows = box->peerListCollectSelectedRows();
+			if (!rows.empty()) {
+				auto users = std::vector<gsl::not_null<UserData*>>();
+				for (auto peer : rows) {
+					auto user = peer->asUser();
+					t_assert(user != nullptr);
+					t_assert(!user->isSelf());
+					users.push_back(peer->asUser());
+				}
+				App::main()->addParticipants(chat, users);
+				Ui::showPeerHistory(chat, ShowAtTheEndMsgId);
+			}
+		});
+		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
+	};
+	Ui::show(Box<PeerListBox>(std::make_unique<AddParticipantsBoxController>(chat), std::move(initBox)));
+}
+
+void AddParticipantsBoxController::Start(
+		gsl::not_null<ChannelData*> channel,
+		base::flat_set<gsl::not_null<UserData*>> &&alreadyIn,
+		bool justCreated) {
+	auto initBox = [channel, justCreated](gsl::not_null<PeerListBox*> box) {
+		auto subscription = std::make_shared<base::Subscription>();
+		box->addButton(langFactory(lng_participant_invite), [box, channel, subscription] {
+			auto rows = box->peerListCollectSelectedRows();
+			if (!rows.empty()) {
+				auto users = std::vector<gsl::not_null<UserData*>>();
+				for (auto peer : rows) {
+					auto user = peer->asUser();
+					t_assert(user != nullptr);
+					t_assert(!user->isSelf());
+					users.push_back(peer->asUser());
+				}
+				App::main()->addParticipants(channel, users);
+				if (channel->isMegagroup()) {
+					Ui::showPeerHistory(channel, ShowAtTheEndMsgId);
+				} else {
+					box->closeBox();
+				}
+			}
+		});
+		box->addButton(langFactory(justCreated ? lng_create_group_skip : lng_cancel), [box] { box->closeBox(); });
+		if (justCreated) {
+			*subscription = box->boxClosing.add_subscription([channel] {
+				Ui::showPeerHistory(channel, ShowAtTheEndMsgId);
+			});
+		}
+	};
+	Ui::show(Box<PeerListBox>(std::make_unique<AddParticipantsBoxController>(channel, std::move(alreadyIn)), std::move(initBox)));
+}
+
+void AddParticipantsBoxController::Start(
+		gsl::not_null<ChannelData*> channel,
+		base::flat_set<gsl::not_null<UserData*>> &&alreadyIn) {
+	Start(channel, std::move(alreadyIn), false);
+}
+
+void AddParticipantsBoxController::Start(gsl::not_null<ChannelData*> channel) {
+	Start(channel, {}, true);
+}
+
+EditChatAdminsBoxController::LabeledCheckbox::LabeledCheckbox(
+	QWidget *parent,
+	const QString &text,
+	bool checked,
+	const style::Checkbox &st,
+	const style::Check &checkSt)
+: TWidget(parent)
+, _checkbox(this, text, checked, st, checkSt) {
+	subscribe(_checkbox->checkedChanged, [this](bool value) { checkedChanged.notify(value, true); });
+}
+
+void EditChatAdminsBoxController::LabeledCheckbox::setLabelText(
+		bool checked,
+		const style::TextStyle &st,
+		const QString &text,
+		const TextParseOptions &options,
+		int minResizeWidth) {
+	auto &label = (checked ? _labelChecked : _labelUnchecked);
+	label = Text(st, text, options, minResizeWidth);
+}
+
+int EditChatAdminsBoxController::LabeledCheckbox::resizeGetHeight(int newWidth) {
+	_labelWidth = newWidth - st::contactsPadding.left() - st::contactsPadding.right();
+	_checkbox->resizeToNaturalWidth(_labelWidth);
+	_checkbox->moveToLeft(st::contactsPadding.left(), st::contactsAllAdminsTop);
+	auto labelHeight = qMax(
+		_labelChecked.countHeight(_labelWidth),
+		_labelUnchecked.countHeight(_labelWidth));
+	return st::contactsAboutTop + labelHeight + st::contactsAboutBottom;
+}
+
+void EditChatAdminsBoxController::LabeledCheckbox::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	auto infoTop = _checkbox->bottomNoMargins() + st::contactsAllAdminsTop - st::lineWidth;
+
+	auto infoRect = rtlrect(0, infoTop, width(), height() - infoTop - st::contactsPadding.bottom(), width());
+	p.fillRect(infoRect, st::contactsAboutBg);
+	auto dividerFillTop = rtlrect(0, infoRect.y(), width(), st::profileDividerTop.height(), width());
+	st::profileDividerTop.fill(p, dividerFillTop);
+	auto dividerFillBottom = rtlrect(0, infoRect.y() + infoRect.height() - st::profileDividerBottom.height(), width(), st::profileDividerBottom.height(), width());
+	st::profileDividerBottom.fill(p, dividerFillBottom);
+
+	p.setPen(st::contactsAboutFg);
+	(checked() ? _labelChecked : _labelUnchecked).draw(p, st::contactsPadding.left(), st::contactsAboutTop, _labelWidth);
+}
+
+EditChatAdminsBoxController::EditChatAdminsBoxController(gsl::not_null<ChatData*> chat)
+: PeerListController()
+, _chat(chat) {
+}
+
+bool EditChatAdminsBoxController::allAreAdmins() const {
+	return _allAdmins->checked();
+}
+
+void EditChatAdminsBoxController::prepare() {
+	createAllAdminsCheckbox();
+
+	setSearchNoResultsText(lang(lng_blocked_list_not_found));
+	delegate()->peerListSetSearchMode(allAreAdmins() ? PeerListSearchMode::Disabled : PeerListSearchMode::Enabled);
+	delegate()->peerListSetTitle(langFactory(lng_channel_admins));
+
+	rebuildRows();
+	if (!delegate()->peerListFullRowsCount()) {
+		Auth().api().requestFullPeer(_chat);
+		_adminsUpdatedSubscription = subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(
+				Notify::PeerUpdate::Flag::AdminsChanged, [this](
+					const Notify::PeerUpdate &update) {
+			if (update.peer == _chat) {
+				rebuildRows();
+				if (delegate()->peerListFullRowsCount()) {
+					unsubscribe(_adminsUpdatedSubscription);
+				}
+			}
+		}));
+	}
+
+	subscribe(_allAdmins->checkedChanged, [this](bool checked) {
+		delegate()->peerListSetSearchMode(checked ? PeerListSearchMode::Disabled : PeerListSearchMode::Enabled);
+		for (auto i = 0, count = delegate()->peerListFullRowsCount(); i != count; ++i) {
+			auto row = delegate()->peerListRowAt(i);
+			auto user = row->peer()->asUser();
+			if (checked || user->id == peerFromUser(_chat->creator)) {
+				row->setDisabledState(PeerListRow::State::DisabledChecked);
+			} else {
+				row->setDisabledState(PeerListRow::State::Active);
+			}
+		}
+	});
+}
+
+void EditChatAdminsBoxController::createAllAdminsCheckbox() {
+	auto labelWidth = st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.right();
+	auto checkbox = object_ptr<LabeledCheckbox>(nullptr, lang(lng_chat_all_members_admins), !_chat->adminsEnabled(), st::defaultBoxCheckbox);
+	checkbox->setLabelText(true, st::defaultTextStyle, lang(lng_chat_about_all_admins), _defaultOptions, labelWidth);
+	checkbox->setLabelText(false, st::defaultTextStyle, lang(lng_chat_about_admins), _defaultOptions, labelWidth);
+	_allAdmins = checkbox;
+	delegate()->peerListSetAboveWidget(std::move(checkbox));
+}
+
+void EditChatAdminsBoxController::rebuildRows() {
+	if (_chat->participants.empty()) {
+		return;
+	}
+
+	auto allAdmins = allAreAdmins();
+
+	auto admins = std::vector<gsl::not_null<UserData*>>();
+	auto others = admins;
+	admins.reserve(allAdmins ? _chat->participants.size() : _chat->admins.size());
+	others.reserve(_chat->participants.size());
+
+	for (auto i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
+		if (i.key()->id == peerFromUser(_chat->creator)) continue;
+		if (_chat->admins.contains(i.key())) {
+			admins.push_back(i.key());
+		} else {
+			others.push_back(i.key());
+		}
+	}
+	if (!admins.empty()) {
+		delegate()->peerListAddSelectedRows(admins);
+	}
+
+	if (allAdmins) {
+		admins.insert(admins.end(), others.begin(), others.end());
+		others.clear();
+	}
+	auto sortByName = [](auto a, auto b) {
+		return (a->name.compare(b->name, Qt::CaseInsensitive) < 0);
+	};
+	std::sort(admins.begin(), admins.end(), sortByName);
+	std::sort(others.begin(), others.end(), sortByName);
+
+	auto addOne = [this](gsl::not_null<UserData*> user) {
+		if (auto row = createRow(user)) {
+			delegate()->peerListAppendRow(std::move(row));
+		}
+	};
+	if (auto creator = App::userLoaded(_chat->creator)) {
+		if (_chat->participants.contains(creator)) {
+			addOne(creator);
+		}
+	}
+	base::for_each(admins, addOne);
+	base::for_each(others, addOne);
+
+	delegate()->peerListRefreshRows();
+}
+
+std::unique_ptr<PeerListRow> EditChatAdminsBoxController::createRow(gsl::not_null<UserData*> user) {
+	auto result = std::make_unique<PeerListRow>(user);
+	if (allAreAdmins() || user->id == peerFromUser(_chat->creator)) {
+		result->setDisabledState(PeerListRow::State::DisabledChecked);
+	}
+	return result;
+}
+
+void EditChatAdminsBoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
+	delegate()->peerListSetRowChecked(row, !row->checked());
+}
+
+void EditChatAdminsBoxController::Start(gsl::not_null<ChatData*> chat) {
+	auto controller = std::make_unique<EditChatAdminsBoxController>(chat);
+	auto initBox = [chat, controller = controller.get()](gsl::not_null<PeerListBox*> box) {
+		box->addButton(langFactory(lng_settings_save), [box, chat, controller] {
+			auto rows = box->peerListCollectSelectedRows();
+			if (!rows.empty()) {
+				auto users = std::vector<gsl::not_null<UserData*>>();
+				for (auto peer : rows) {
+					auto user = peer->asUser();
+					t_assert(user != nullptr);
+					t_assert(!user->isSelf());
+					users.push_back(peer->asUser());
+				}
+				Auth().api().editChatAdmins(chat, !controller->allAreAdmins(), { users.cbegin(), users.cend() });
+				box->closeBox();
+			}
+		});
+		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
+	};
+	Ui::show(Box<PeerListBox>(std::move(controller), std::move(initBox)));
 }

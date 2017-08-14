@@ -54,126 +54,6 @@ style::InputField CreateBioFieldStyle() {
 	return result;
 }
 
-base::flat_set<gsl::not_null<UserData*>> GetAlreadyInFromPeer(PeerData *peer) {
-	if (!peer) {
-		return {};
-	}
-	if (auto chat = peer->asChat()) {
-		auto participants = chat->participants.keys();
-		return { participants.cbegin(), participants.cend() };
-	} else if (auto channel = peer->asChannel()) {
-		if (channel->isMegagroup()) {
-			auto &participants = channel->mgInfo->lastParticipants;
-			return { participants.cbegin(), participants.cend() };
-		}
-	}
-	return {};
-}
-
-class AddParticipantsBoxController : public ContactsBoxController {
-public:
-	AddParticipantsBoxController(PeerData *peer);
-	AddParticipantsBoxController(
-		gsl::not_null<ChannelData*> channel,
-		base::flat_set<gsl::not_null<UserData*>> &&alreadyIn);
-
-	using ContactsBoxController::ContactsBoxController;
-
-	void rowClicked(gsl::not_null<PeerListRow*> row) override;
-	void itemDeselectedHook(gsl::not_null<PeerData*> peer) override;
-
-protected:
-	void prepareViewHook() override;
-	std::unique_ptr<PeerListRow> createRow(gsl::not_null<UserData*> user) override;
-
-private:
-	int alreadyInCount() const;
-	bool isAlreadyIn(gsl::not_null<UserData*> user) const;
-	int fullCount() const;
-	void updateTitle();
-
-	PeerData *_peer = nullptr;
-	base::flat_set<gsl::not_null<UserData*>> _alreadyIn;
-
-};
-
-AddParticipantsBoxController::AddParticipantsBoxController(PeerData *peer)
-: ContactsBoxController(std::make_unique<PeerListGlobalSearchController>())
-, _peer(peer)
-, _alreadyIn(GetAlreadyInFromPeer(peer)) {
-}
-
-AddParticipantsBoxController::AddParticipantsBoxController(
-	gsl::not_null<ChannelData*> channel,
-	base::flat_set<gsl::not_null<UserData*>> &&alreadyIn)
-: ContactsBoxController(std::make_unique<PeerListGlobalSearchController>())
-, _peer(channel)
-, _alreadyIn(std::move(alreadyIn)) {
-}
-
-void AddParticipantsBoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
-	auto count = fullCount();
-	auto limit = (_peer && _peer->isMegagroup()) ? Global::MegagroupSizeMax() : Global::ChatSizeMax();
-	if (count < limit || row->checked()) {
-		delegate()->peerListSetRowChecked(row, !row->checked());
-		updateTitle();
-	} else if (auto channel = _peer ? _peer->asChannel() : nullptr) {
-		if (!_peer->isMegagroup()) {
-			Ui::show(Box<MaxInviteBox>(_peer->asChannel()), KeepOtherLayers);
-		}
-	} else if (count >= Global::ChatSizeMax() && count < Global::MegagroupSizeMax()) {
-		Ui::show(Box<InformBox>(lng_profile_add_more_after_upgrade(lt_count, Global::MegagroupSizeMax())), KeepOtherLayers);
-	}
-}
-
-void AddParticipantsBoxController::itemDeselectedHook(gsl::not_null<PeerData*> peer) {
-	updateTitle();
-}
-
-void AddParticipantsBoxController::prepareViewHook() {
-	updateTitle();
-}
-
-int AddParticipantsBoxController::alreadyInCount() const {
-	return _alreadyIn.empty() ? 1 : _alreadyIn.size(); // self
-}
-
-bool AddParticipantsBoxController::isAlreadyIn(gsl::not_null<UserData*> user) const {
-	if (!_peer) {
-		return false;
-	}
-	if (auto chat = _peer->asChat()) {
-		return chat->participants.contains(user);
-	} else if (auto channel = _peer->asChannel()) {
-		return _alreadyIn.contains(user)
-			|| (channel->isMegagroup() && channel->mgInfo->lastParticipants.contains(user));
-	}
-	Unexpected("User in AddParticipantsBoxController::isAlreadyIn");
-}
-
-int AddParticipantsBoxController::fullCount() const {
-	return alreadyInCount() + delegate()->peerListSelectedRowsCount();
-}
-
-std::unique_ptr<PeerListRow> AddParticipantsBoxController::createRow(gsl::not_null<UserData*> user) {
-	if (user->isSelf()) {
-		return nullptr;
-	}
-	auto result = std::make_unique<PeerListRow>(user);
-	if (isAlreadyIn(user)) {
-		result->setDisabledState(PeerListRow::State::DisabledChecked);
-	}
-	return result;
-}
-
-void AddParticipantsBoxController::updateTitle() {
-	auto additional = (_peer && _peer->isChannel() && !_peer->isMegagroup())
-		? QString() :
-		QString("%1 / %2").arg(fullCount()).arg(Global::MegagroupSizeMax());
-	delegate()->peerListSetTitle(langFactory(lng_profile_add_participant));
-	delegate()->peerListSetAdditionalTitle([additional] { return additional; });
-}
-
 } // namespace
 
 QString PeerFloodErrorText(PeerFloodType type) {
@@ -184,71 +64,6 @@ QString PeerFloodErrorText(PeerFloodType type) {
 		return lng_cant_invite_not_contact(lt_more_info, link);
 	}
 	return lng_cant_send_to_not_contact(lt_more_info, link);
-}
-
-void ShowAddContactsToChatBox(gsl::not_null<ChatData*> chat) {
-	auto initBox = [chat](gsl::not_null<PeerListBox*> box) {
-		box->addButton(langFactory(lng_participant_invite), [box, chat] {
-			auto rows = box->peerListCollectSelectedRows();
-			if (!rows.empty()) {
-				auto users = std::vector<gsl::not_null<UserData*>>();
-				for (auto peer : rows) {
-					auto user = peer->asUser();
-					t_assert(user != nullptr);
-					t_assert(!user->isSelf());
-					users.push_back(peer->asUser());
-				}
-				App::main()->addParticipants(chat, users);
-				Ui::showPeerHistory(chat, ShowAtTheEndMsgId);
-			}
-		});
-		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
-	};
-	Ui::show(Box<PeerListBox>(std::make_unique<AddParticipantsBoxController>(chat), std::move(initBox)));
-}
-
-void ShowAddContactsToChannelBox(
-		gsl::not_null<ChannelData*> channel,
-		base::flat_set<gsl::not_null<UserData*>> &&alreadyIn,
-		bool justCreated) {
-	auto initBox = [channel, justCreated](gsl::not_null<PeerListBox*> box) {
-		auto subscription = std::make_shared<base::Subscription>();
-		box->addButton(langFactory(lng_participant_invite), [box, channel, subscription] {
-			auto rows = box->peerListCollectSelectedRows();
-			if (!rows.empty()) {
-				auto users = std::vector<gsl::not_null<UserData*>>();
-				for (auto peer : rows) {
-					auto user = peer->asUser();
-					t_assert(user != nullptr);
-					t_assert(!user->isSelf());
-					users.push_back(peer->asUser());
-				}
-				App::main()->addParticipants(channel, users);
-				if (channel->isMegagroup()) {
-					Ui::showPeerHistory(channel, ShowAtTheEndMsgId);
-				} else {
-					box->closeBox();
-				}
-			}
-		});
-		box->addButton(langFactory(justCreated ? lng_create_group_skip : lng_cancel), [box] { box->closeBox(); });
-		if (justCreated) {
-			*subscription = box->boxClosing.add_subscription([channel] {
-				Ui::showPeerHistory(channel, ShowAtTheEndMsgId);
-			});
-		}
-	};
-	Ui::show(Box<PeerListBox>(std::make_unique<AddParticipantsBoxController>(channel, std::move(alreadyIn)), std::move(initBox)));
-}
-
-void ShowAddContactsToChannelBox(
-		gsl::not_null<ChannelData*> channel,
-		base::flat_set<gsl::not_null<UserData*>> &&alreadyIn) {
-	ShowAddContactsToChannelBox(channel, std::move(alreadyIn), false);
-}
-
-void ShowAddContactsToChannelBox(gsl::not_null<ChannelData*> channel) {
-	ShowAddContactsToChannelBox(channel, {}, true);
 }
 
 class RevokePublicLinkBox::Inner : public TWidget, private MTP::Sender {
@@ -596,9 +411,9 @@ void GroupInfoBox::createGroup(gsl::not_null<PeerListBox*> selectUsersBox, const
 			| [](auto updates) -> base::optional<const QVector<MTPChat>*> {
 				switch (updates->type()) {
 				case mtpc_updates:
-				return &updates->c_updates().vchats.v;
+					return &updates->c_updates().vchats.v;
 				case mtpc_updatesCombined:
-				return &updates->c_updatesCombined().vchats.v;
+					return &updates->c_updatesCombined().vchats.v;
 				}
 				LOG(("API Error: unexpected update cons %1 (GroupInfoBox::creationDone)").arg(updates->type()));
 				return base::none;
@@ -675,9 +490,9 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 			| [](auto updates) -> base::optional<const QVector<MTPChat>*> {
 				switch (updates->type()) {
 				case mtpc_updates:
-				return &updates->c_updates().vchats.v;
+					return &updates->c_updates().vchats.v;
 				case mtpc_updatesCombined:
-				return &updates->c_updatesCombined().vchats.v;
+					return &updates->c_updatesCombined().vchats.v;
 				}
 				LOG(("API Error: unexpected update cons %1 (GroupInfoBox::createChannel)").arg(updates->type()));
 				return base::none;
@@ -779,7 +594,7 @@ void SetupChannelBox::prepare() {
 	}));
 	subscribe(boxClosing, [this] {
 		if (!_existing) {
-			ShowAddContactsToChannelBox(_channel);
+			AddParticipantsBoxController::Start(_channel);
 		}
 	});
 

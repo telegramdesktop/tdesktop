@@ -31,7 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/confirm_box.h"
 #include "boxes/contacts_box.h"
 #include "boxes/photo_crop_box.h"
-#include "boxes/add_contact_box.h"
+#include "boxes/peer_list_controllers.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "auth_session.h"
@@ -539,11 +539,11 @@ void CoverWidget::onAddMember() {
 		if (_peerChat->count >= Global::ChatSizeMax() && _peerChat->amCreator()) {
 			Ui::show(Box<ConvertToSupergroupBox>(_peerChat));
 		} else {
-			ShowAddContactsToChatBox(_peerChat);
+			AddParticipantsBoxController::Start(_peerChat);
 		}
 	} else if (_peerChannel && _peerChannel->mgInfo) {
 		auto &participants = _peerChannel->mgInfo->lastParticipants;
-		ShowAddContactsToChannelBox(_peerChannel, { participants.cbegin(), participants.cend() });
+		AddParticipantsBoxController::Start(_peerChannel, { participants.cbegin(), participants.cend() });
 	}
 }
 

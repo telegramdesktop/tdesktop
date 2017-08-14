@@ -1805,4 +1805,112 @@ void ApiWrap::checkForUnreadMentions(const base::flat_set<MsgId> &possiblyReadMe
 	}
 }
 
+void ApiWrap::cancelEditChatAdmins(gsl::not_null<ChatData*> chat) {
+	_chatAdminsEnabledRequests.take(chat)
+		| requestCanceller();
+
+	_chatAdminsSaveRequests.take(chat)
+		| base::for_each_apply(requestCanceller());
+
+	_chatAdminsToSave.remove(chat);
+}
+
+void ApiWrap::editChatAdmins(
+		gsl::not_null<ChatData*> chat,
+		bool adminsEnabled,
+		base::flat_set<gsl::not_null<UserData*>> &&admins) {
+	cancelEditChatAdmins(chat);
+	if (adminsEnabled) {
+		_chatAdminsToSave.emplace(chat, std::move(admins));
+	}
+
+	auto requestId = request(MTPmessages_ToggleChatAdmins(chat->inputChat, MTP_bool(adminsEnabled))).done([this, chat](const MTPUpdates &updates) {
+		_chatAdminsEnabledRequests.remove(chat);
+		applyUpdates(updates);
+		saveChatAdmins(chat);
+	}).fail([this, chat](const RPCError &error) {
+		_chatAdminsEnabledRequests.remove(chat);
+		if (error.type() == qstr("CHAT_NOT_MODIFIED")) {
+			saveChatAdmins(chat);
+		}
+	}).send();
+	_chatAdminsEnabledRequests.emplace(chat, requestId);
+}
+
+void ApiWrap::saveChatAdmins(gsl::not_null<ChatData*> chat) {
+	if (!_chatAdminsToSave.contains(chat)) {
+		return;
+	}
+	auto requestId = request(MTPmessages_GetFullChat(chat->inputChat)).done([this, chat](const MTPmessages_ChatFull &result) {
+		_chatAdminsEnabledRequests.remove(chat);
+		processFullPeer(chat, result);
+		sendSaveChatAdminsRequests(chat);
+	}).fail([this, chat](const RPCError &error) {
+		_chatAdminsEnabledRequests.remove(chat);
+		_chatAdminsToSave.remove(chat);
+	}).send();
+	_chatAdminsEnabledRequests.emplace(chat, requestId);
+}
+
+void ApiWrap::sendSaveChatAdminsRequests(gsl::not_null<ChatData*> chat) {
+	auto editOne = [this, chat](gsl::not_null<UserData*> user, bool admin) {
+		auto requestId = request(MTPmessages_EditChatAdmin(
+				chat->inputChat,
+				user->inputUser,
+				MTP_bool(admin)))
+			.done([this, chat, user, admin](
+					const MTPBool &result,
+					mtpRequestId requestId) {
+			_chatAdminsSaveRequests[chat].remove(requestId);
+			if (_chatAdminsSaveRequests[chat].empty()) {
+				_chatAdminsSaveRequests.remove(chat);
+				Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::AdminsChanged);
+			}
+			if (mtpIsTrue(result)) {
+				if (admin) {
+					if (chat->noParticipantInfo()) {
+						requestFullPeer(chat);
+					} else {
+						chat->admins.insert(user);
+					}
+				} else {
+					chat->admins.remove(user);
+				}
+			}
+		}).fail([this, chat](
+				const RPCError &error,
+				mtpRequestId requestId) {
+			_chatAdminsSaveRequests[chat].remove(requestId);
+			if (_chatAdminsSaveRequests[chat].empty()) {
+				_chatAdminsSaveRequests.remove(chat);
+			}
+			chat->invalidateParticipants();
+			if (error.type() == qstr("USER_RESTRICTED")) {
+				Ui::show(Box<InformBox>(lang(lng_cant_do_this)));
+			}
+		}).canWait(5).send();
+
+		_chatAdminsSaveRequests[chat].insert(requestId);
+	};
+	auto appointOne = [&](auto user) { editOne(user, true); };
+	auto removeOne = [&](auto user) { editOne(user, false); };
+
+	auto admins = _chatAdminsToSave.take(chat);
+	t_assert(!!admins);
+
+	auto toRemove = chat->admins;
+	auto toAppoint = std::vector<gsl::not_null<UserData*>>();
+	if (!admins->empty()) {
+		toAppoint.reserve(admins->size());
+		for (auto user : *admins) {
+			if (!toRemove.remove(user) && user->id != peerFromUser(chat->creator)) {
+				toAppoint.push_back(user);
+			}
+		}
+	}
+	base::for_each(toRemove, removeOne);
+	base::for_each(toAppoint, appointOne);
+	requestSendDelayed();
+}
+
 ApiWrap::~ApiWrap() = default;

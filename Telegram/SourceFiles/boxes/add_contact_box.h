@@ -48,11 +48,6 @@ enum class PeerFloodType {
 };
 QString PeerFloodErrorText(PeerFloodType type);
 
-void ShowAddContactsToChatBox(gsl::not_null<ChatData*> chat);
-void ShowAddContactsToChannelBox(
-	gsl::not_null<ChannelData*> channel,
-	base::flat_set<gsl::not_null<UserData*>> &&alreadyIn);
-
 class AddContactBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 

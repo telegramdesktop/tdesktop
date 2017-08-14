@@ -70,11 +70,12 @@ void WidgetSlideWrap<TWidget>::showAnimated() {
 }
 
 void WidgetSlideWrap<TWidget>::toggleFast(bool visible) {
-	if (visible) show();
+	_hiding = !visible;
+	if (!_hiding) show();
 	_a_height.finish();
-	_forceHeight = visible ? -1 : 0;
+	_forceHeight = _hiding ? 0 : -1;
 	resizeToWidth(_realSize.width());
-	if (!visible) hide();
+	if (_hiding) hide();
 	if (_updateCallback) {
 		_updateCallback();
 	}
@@ -116,6 +117,7 @@ int WidgetSlideWrap<TWidget>::resizeGetHeight(int newWidth) {
 	if (resized) {
 		return _forceHeight;
 	}
+	_realSize = _entity->rectNoMargins().marginsAdded(_padding).size();
 	return _realSize.height();
 }
 

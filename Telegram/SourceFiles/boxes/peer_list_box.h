@@ -185,6 +185,7 @@ public:
 	virtual void peerListSetDescription(object_ptr<Ui::FlatLabel> description) = 0;
 	virtual void peerListSetSearchLoading(object_ptr<Ui::FlatLabel> loading) = 0;
 	virtual void peerListSetSearchNoResults(object_ptr<Ui::FlatLabel> noResults) = 0;
+	virtual void peerListSetAboveWidget(object_ptr<TWidget> aboveWidget) = 0;
 	virtual void peerListSetSearchMode(PeerListSearchMode mode) = 0;
 	virtual void peerListAppendRow(std::unique_ptr<PeerListRow> row) = 0;
 	virtual void peerListAppendSearchRow(std::unique_ptr<PeerListRow> row) = 0;
@@ -331,6 +332,7 @@ public:
 	void peerListSetDescription(object_ptr<Ui::FlatLabel> description) override;
 	void peerListSetSearchLoading(object_ptr<Ui::FlatLabel> loading) override;
 	void peerListSetSearchNoResults(object_ptr<Ui::FlatLabel> noResults) override;
+	void peerListSetAboveWidget(object_ptr<TWidget> aboveWidget) override;
 	void peerListSetSearchMode(PeerListSearchMode mode) override;
 	void peerListAppendRow(std::unique_ptr<PeerListRow> row) override;
 	void peerListAppendSearchRow(std::unique_ptr<PeerListRow> row) override;
@@ -367,7 +369,7 @@ private:
 	void peerListFinishSelectedRowsBunch() override;
 
 	void addSelectItem(gsl::not_null<PeerData*> peer, PeerListRow::SetStyle style);
-	object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>> createMultiSelect();
+	void createMultiSelect();
 	int getTopScrollSkip() const;
 	void updateScrollSkips();
 	void searchQueryChanged(const QString &query);
@@ -379,6 +381,7 @@ private:
 
 	std::unique_ptr<PeerListController> _controller;
 	base::lambda<void(PeerListBox*)> _init;
+	bool _scrollBottomFixed = true;
 
 };
 
@@ -416,6 +419,7 @@ public:
 	void setDescription(object_ptr<Ui::FlatLabel> description);
 	void setSearchLoading(object_ptr<Ui::FlatLabel> loading);
 	void setSearchNoResults(object_ptr<Ui::FlatLabel> noResults);
+	void setAboveWidget(object_ptr<TWidget> aboveWidget);
 	void refreshRows();
 
 	void setSearchMode(PeerListSearchMode mode);
@@ -438,6 +442,8 @@ public slots:
 	void onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
 
 protected:
+	int resizeGetHeight(int newWidth) override;
+
 	void paintEvent(QPaintEvent *e) override;
 	void enterEventHook(QEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
@@ -515,6 +521,7 @@ private:
 	template <typename Callback>
 	bool enumerateShownRows(int from, int to, Callback callback);
 
+	int rowsTop() const;
 	int labelHeight() const;
 
 	void clearSearchRows();
@@ -540,6 +547,8 @@ private:
 	QString _mentionHighlight;
 	std::vector<gsl::not_null<PeerListRow*>> _filterResults;
 
+	int _aboveHeight = 0;
+	object_ptr<TWidget> _aboveWidget = { nullptr };
 	object_ptr<Ui::FlatLabel> _description = { nullptr };
 	object_ptr<Ui::FlatLabel> _searchNoResults = { nullptr };
 	object_ptr<Ui::FlatLabel> _searchLoading = { nullptr };

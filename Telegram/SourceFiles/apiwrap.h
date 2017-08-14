@@ -103,6 +103,11 @@ public:
 	void preloadEnoughUnreadMentions(gsl::not_null<History*> history);
 	void checkForUnreadMentions(const base::flat_set<MsgId> &possiblyReadMentions, ChannelData *channel = nullptr);
 
+	void editChatAdmins(
+		gsl::not_null<ChatData*> chat,
+		bool adminsEnabled,
+		base::flat_set<gsl::not_null<UserData*>> &&admins);
+
 	~ApiWrap();
 
 private:
@@ -143,6 +148,10 @@ private:
 	void requestFavedStickers(TimeId now);
 	void requestFeaturedStickers(TimeId now);
 	void requestSavedGifs(TimeId now);
+
+	void cancelEditChatAdmins(gsl::not_null<ChatData*> chat);
+	void saveChatAdmins(gsl::not_null<ChatData*> chat);
+	void sendSaveChatAdminsRequests(gsl::not_null<ChatData*> chat);
 
 	gsl::not_null<AuthSession*> _session;
 	mtpRequestId _changelogSubscription = 0;
@@ -195,6 +204,10 @@ private:
 	mtpRequestId _contactsStatusesRequestId = 0;
 
 	base::flat_map<gsl::not_null<History*>, mtpRequestId> _unreadMentionsRequests;
+
+	base::flat_map<gsl::not_null<ChatData*>, mtpRequestId> _chatAdminsEnabledRequests;
+	base::flat_map<gsl::not_null<ChatData*>, base::flat_set<gsl::not_null<UserData*>>> _chatAdminsToSave;
+	base::flat_map<gsl::not_null<ChatData*>, base::flat_set<mtpRequestId>> _chatAdminsSaveRequests;
 
 	base::Observable<PeerData*> _fullPeerUpdated;
 
