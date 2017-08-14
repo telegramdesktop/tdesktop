@@ -64,6 +64,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <memory>
 #include <gsl/gsl>
 
+#include "base/variant.h"
+#include "base/algorithm.h"
+
 #include "core/basic_types.h"
 #include "logs.h"
 #include "core/utils.h"
