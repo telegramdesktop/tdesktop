@@ -361,7 +361,7 @@ public:
 		return _unreadMentions.empty() ? 0 : _unreadMentions.back();
 	}
 	int getUnreadMentionsCount(int notLoadedValue = -1) const {
-		return base::is_null_optional(_unreadMentionsCount) ? notLoadedValue : *base::get_if(&_unreadMentionsCount);
+		return _unreadMentionsCount ? *_unreadMentionsCount : notLoadedValue;
 	}
 	bool hasUnreadMentions() const {
 		return (getUnreadMentionsCount() > 0);
@@ -559,7 +559,7 @@ private:
 	bool _mute = false;
 	int _unreadCount = 0;
 
-	base::optional<int> _unreadMentionsCount = base::null_optional();
+	base::optional<int> _unreadMentionsCount;
 	base::flat_set<MsgId> _unreadMentions;
 
 	Dialogs::RowsByLetter _chatListLinks[2];

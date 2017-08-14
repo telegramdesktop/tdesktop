@@ -635,7 +635,7 @@ void StickersListWidget::paintFeaturedStickers(Painter &p, QRect clip) {
 
 	auto &sets = shownSets();
 	auto selectedSticker = base::get_if<OverSticker>(&_selected);
-	auto selectedButton = base::get_if<OverButton>(base::is_null_variant(_pressed) ? &_selected : &_pressed);
+	auto selectedButton = base::get_if<OverButton>(_pressed ? &_pressed : &_selected);
 
 	auto tilly = st::stickerPanPadding;
 	auto ms = getms();
@@ -727,7 +727,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 	auto ms = getms();
 	auto &sets = shownSets();
 	auto selectedSticker = base::get_if<OverSticker>(&_selected);
-	auto selectedButton = base::get_if<OverButton>(base::is_null_variant(_pressed) ? &_selected : &_pressed);
+	auto selectedButton = base::get_if<OverButton>(_pressed ? &_pressed : &_selected);
 	enumerateSections([this, &p, clip, fromColumn, toColumn, selectedSticker, selectedButton, ms](const SectionInfo &info) {
 		if (clip.top() >= info.rowsBottom) {
 			return true;
@@ -979,7 +979,7 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 	_previewTimer.stop();
 
 	auto pressed = _pressed;
-	setPressed(base::null_variant());
+	setPressed(base::none);
 	if (pressed != _selected) {
 		update();
 	}
@@ -994,7 +994,7 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 	updateSelected();
 
 	auto &sets = shownSets();
-	if (!base::is_null_variant(pressed) && pressed == _selected) {
+	if (pressed && pressed == _selected) {
 		if (auto sticker = base::get_if<OverSticker>(&pressed)) {
 			t_assert(sticker->section >= 0 && sticker->section < sets.size());
 			auto &set = sets[sticker->section];
@@ -1104,8 +1104,8 @@ void StickersListWidget::enterFromChildEvent(QEvent *e, QWidget *child) {
 }
 
 void StickersListWidget::clearSelection() {
-	setPressed(base::null_variant());
-	setSelected(base::null_variant());
+	setPressed(base::none);
+	setSelected(base::none);
 	update();
 }
 
@@ -1394,11 +1394,11 @@ bool StickersListWidget::preventAutoHide() {
 }
 
 void StickersListWidget::updateSelected() {
-	if (!base::is_null_variant(_pressed) && !_previewShown) {
+	if (_pressed && !_previewShown) {
 		return;
 	}
 
-	auto newSelected = OverState { base::null_variant() };
+	auto newSelected = OverState { base::none };
 	auto p = mapFromGlobal(_lastMousePosition);
 	if (!rect().contains(p)
 		|| p.y() < getVisibleTop() || p.y() >= getVisibleBottom()
@@ -1487,7 +1487,7 @@ bool StickersListWidget::stickerHasDeleteButton(const Set &set, int index) const
 
 void StickersListWidget::setSelected(OverState newSelected) {
 	if (_selected != newSelected) {
-		setCursor(base::is_null_variant(newSelected) ? style::cur_default : style::cur_pointer);
+		setCursor(newSelected ? style::cur_pointer : style::cur_default);
 
 		auto &sets = shownSets();
 		auto updateSelected = [this, &sets]() {

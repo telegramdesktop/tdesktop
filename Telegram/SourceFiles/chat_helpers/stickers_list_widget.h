@@ -226,8 +226,8 @@ private:
 
 	Footer *_footer = nullptr;
 
-	OverState _selected = base::null_variant();
-	OverState _pressed = base::null_variant();
+	OverState _selected;
+	OverState _pressed;
 	QPoint _lastMousePosition;
 
 	Text _megagroupSetAbout;

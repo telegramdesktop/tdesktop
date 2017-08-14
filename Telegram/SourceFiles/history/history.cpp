@@ -1174,11 +1174,10 @@ void History::setUnreadMentionsCount(int count) {
 }
 
 bool History::addToUnreadMentions(MsgId msgId, AddToOverviewMethod method) {
-	auto count = base::get_if(&_unreadMentionsCount);
-	auto allLoaded = count ? (_unreadMentions.size() >= *count) : false;
+	auto allLoaded = _unreadMentionsCount ? (_unreadMentions.size() >= *_unreadMentionsCount) : false;
 	if (allLoaded) {
 		if (method == AddToOverviewNew) {
-			++*count;
+			++*_unreadMentionsCount;
 			_unreadMentions.insert(msgId);
 			return true;
 		}
@@ -1191,9 +1190,9 @@ bool History::addToUnreadMentions(MsgId msgId, AddToOverviewMethod method) {
 
 void History::eraseFromUnreadMentions(MsgId msgId) {
 	_unreadMentions.remove(msgId);
-	if (auto count = base::get_if(&_unreadMentionsCount)) {
-		if (*count > 0) {
-			--*count;
+	if (_unreadMentionsCount) {
+		if (*_unreadMentionsCount > 0) {
+			--*_unreadMentionsCount;
 		}
 	}
 	Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::UnreadMentionsChanged);

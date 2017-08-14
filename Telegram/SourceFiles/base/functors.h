@@ -20,22 +20,23 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <mapbox/variant.hpp>
-
-// We use base::variant<> alias and base::get_if() helper while we don't have std::variant<>.
 namespace base {
+namespace functors {
 
-template <typename... Types>
-using variant = mapbox::util::variant<Types...>;
+struct abs_helper {
+	template <typename Type,
+		typename = decltype(0 < std::declval<Type>()),
+		typename = decltype(-std::declval<Type>())>
+		constexpr Type operator()(Type value) const {
+		return (0 < value) ? value : (-value);
+	}
+};
+constexpr auto abs = abs_helper {};
 
-template <typename T, typename... Types>
-inline T *get_if(variant<Types...> *v) {
-	return (v && v->template is<T>()) ? &v->template get_unchecked<T>() : nullptr;
-}
+template <typename Type>
+inline auto add(Type a) {
+	return [a](auto b) { return a + b; };
+};
 
-template <typename T, typename... Types>
-inline const T *get_if(const variant<Types...> *v) {
-	return (v && v->template is<T>()) ? &v->template get_unchecked<T>() : nullptr;
-}
-
+} // namespace functors
 } // namespace base

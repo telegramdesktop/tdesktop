@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "base/optional.h"
+
 namespace base {
 
 template <typename Key, typename Type>
@@ -378,7 +380,6 @@ public:
 	using iterator = typename parent::iterator;
 	using const_iterator = typename parent::const_iterator;
 	using value_type = typename parent::value_type;
-	using reference = typename parent::reference;
 
 	iterator insert(const value_type &value) {
 		if (this->empty() || (value.first < this->front().first)) {
@@ -424,19 +425,29 @@ public:
 		return this->findFirst(key);
 	}
 
-	reference operator[](const Key &key) {
+	Type &operator[](const Key &key) {
 		if (this->empty() || (key < this->front().first)) {
-			this->_impl.push_front(Type());
-			return this->front();
+			this->_impl.push_front({ key, Type() });
+			return this->front().second;
 		} else if (this->back().first < key) {
-			this->_impl.push_back(Type());
-			return this->back();
+			this->_impl.push_back({ key, Type() });
+			return this->back().second;
 		}
 		auto where = this->getLowerBound(key);
 		if (key < where->first) {
-			return *this->_impl.insert(where, { key, Type() });
+			return this->_impl.insert(where, { key, Type() })->second;
 		}
-		return *where;
+		return where->second;
+	}
+
+	optional<Type> take(const Key &key) {
+		auto it = find(key);
+		if (it == this->end()) {
+			return base::none;
+		}
+		auto result = std::move(it->second);
+		this->erase(it);
+		return std::move(result);
 	}
 
 };
