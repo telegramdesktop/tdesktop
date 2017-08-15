@@ -24,6 +24,23 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/flat_set.h"
 #include "base/weak_unique_ptr.h"
 
+// Not used for now.
+//
+//class MembersAddButton : public Ui::RippleButton {
+//public:
+//	MembersAddButton(QWidget *parent, const style::TwoIconButton &st);
+//
+//protected:
+//	void paintEvent(QPaintEvent *e) override;
+//
+//	QImage prepareRippleMask() const override;
+//	QPoint prepareRippleStartPosition() const override;
+//
+//private:
+//	const style::TwoIconButton &_st;
+//
+//};
+
 class PeerListRowWithLink : public PeerListRow {
 public:
 	using PeerListRow::PeerListRow;

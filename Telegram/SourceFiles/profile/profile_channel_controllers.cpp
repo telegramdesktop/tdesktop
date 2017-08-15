@@ -24,7 +24,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/edit_participant_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/add_contact_box.h"
-#include "boxes/contacts_box.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"

@@ -29,7 +29,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/menu.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
-#include "boxes/contacts_box.h"
 #include "boxes/about_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "calls/calls_box_controller.h"

@@ -25,7 +25,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_search_from_controllers.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
-#include "boxes/contacts_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "data/data_drafts.h"

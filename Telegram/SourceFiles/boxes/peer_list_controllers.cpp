@@ -51,6 +51,34 @@ base::flat_set<gsl::not_null<UserData*>> GetAlreadyInFromPeer(PeerData *peer) {
 
 } // namespace
 
+// Not used for now.
+//
+//MembersAddButton::MembersAddButton(QWidget *parent, const style::TwoIconButton &st) : RippleButton(parent, st.ripple)
+//, _st(st) {
+//	resize(_st.width, _st.height);
+//	setCursor(style::cur_pointer);
+//}
+//
+//void MembersAddButton::paintEvent(QPaintEvent *e) {
+//	Painter p(this);
+//
+//	auto ms = getms();
+//	auto over = isOver();
+//	auto down = isDown();
+//
+//	((over || down) ? _st.iconBelowOver : _st.iconBelow).paint(p, _st.iconPosition, width());
+//	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms);
+//	((over || down) ? _st.iconAboveOver : _st.iconAbove).paint(p, _st.iconPosition, width());
+//}
+//
+//QImage MembersAddButton::prepareRippleMask() const {
+//	return Ui::RippleAnimation::ellipseMask(QSize(_st.rippleAreaSize, _st.rippleAreaSize));
+//}
+//
+//QPoint MembersAddButton::prepareRippleStartPosition() const {
+//	return mapFromGlobal(QCursor::pos()) - _st.rippleAreaPosition;
+//}
+
 class EditChatAdminsBoxController::LabeledCheckbox : public TWidget, private base::Subscriber {
 public:
 	LabeledCheckbox(QWidget *parent, const QString &text, bool checked = false, const style::Checkbox &st = st::defaultCheckbox, const style::Check &checkSt = st::defaultCheck);
