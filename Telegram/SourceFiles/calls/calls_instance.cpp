@@ -134,7 +134,7 @@ void Instance::createCall(gsl::not_null<UserData*> user, Call::Type type) {
 
 void Instance::refreshDhConfig() {
 	Expects(_currentCall != nullptr);
-	request(MTPmessages_GetDhConfig(MTP_int(_dhConfig.version), MTP_int(Call::kRandomPowerSize))).done([this, call = base::weak_unique_ptr<Call>(_currentCall)](const MTPmessages_DhConfig &result) {
+	request(MTPmessages_GetDhConfig(MTP_int(_dhConfig.version), MTP_int(Call::kRandomPowerSize))).done([this, call = base::make_weak_unique(_currentCall)](const MTPmessages_DhConfig &result) {
 		auto random = base::const_byte_span();
 		switch (result.type()) {
 		case mtpc_messages_dhConfig: {
@@ -170,7 +170,7 @@ void Instance::refreshDhConfig() {
 		if (call) {
 			call->start(random);
 		}
-	}).fail([this, call = base::weak_unique_ptr<Call>(_currentCall)](const RPCError &error) {
+	}).fail([this, call = base::make_weak_unique(_currentCall)](const RPCError &error) {
 		if (!call) {
 			DEBUG_LOG(("API Warning: call was destroyed before got dhConfig."));
 			return;

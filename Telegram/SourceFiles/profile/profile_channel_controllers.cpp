@@ -98,7 +98,7 @@ void ParticipantsBoxController::addNewItem() {
 		}
 		return;
 	}
-	auto weak = base::weak_unique_ptr<ParticipantsBoxController>(this);
+	auto weak = base::make_weak_unique(this);
 	_addBox = Ui::show(Box<PeerListBox>(std::make_unique<AddParticipantBoxController>(_channel, _role, [weak](gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights) {
 		if (weak) {
 			weak->editAdminDone(user, rights);
@@ -337,7 +337,7 @@ void ParticipantsBoxController::showAdmin(gsl::not_null<UserData*> user) {
 	auto currentRights = isCreator
 		? MTP_channelAdminRights(MTP_flags(~MTPDchannelAdminRights::Flag::f_add_admins | MTPDchannelAdminRights::Flag::f_add_admins))
 		: notAdmin ? MTP_channelAdminRights(MTP_flags(0)) : it->second;
-	auto weak = base::weak_unique_ptr<ParticipantsBoxController>(this);
+	auto weak = base::make_weak_unique(this);
 	auto box = Box<EditAdminBox>(_channel, user, currentRights);
 	auto canEdit = (_additional.adminCanEdit.find(user) != _additional.adminCanEdit.end());
 	auto canSave = notAdmin ? _channel->canAddAdmins() : canEdit;
@@ -392,7 +392,7 @@ void ParticipantsBoxController::showRestricted(gsl::not_null<UserData*> user) {
 	if (it == _additional.restrictedRights.cend()) {
 		return;
 	}
-	auto weak = base::weak_unique_ptr<ParticipantsBoxController>(this);
+	auto weak = base::make_weak_unique(this);
 	auto hasAdminRights = false;
 	auto box = Box<EditRestrictedBox>(_channel, user, hasAdminRights, it->second);
 	if (_channel->canBanMembers()) {
@@ -453,7 +453,7 @@ void ParticipantsBoxController::editRestrictedDone(gsl::not_null<UserData*> user
 
 void ParticipantsBoxController::kickMember(gsl::not_null<UserData*> user) {
 	auto text = (_channel->isMegagroup() ? lng_profile_sure_kick : lng_profile_sure_kick_channel)(lt_user, user->firstName);
-	auto weak = base::weak_unique_ptr<ParticipantsBoxController>(this);
+	auto weak = base::make_weak_unique(this);
 	_editBox = Ui::show(Box<ConfirmBox>(text, lang(lng_box_remove), [weak, user] {
 		if (weak) {
 			weak->kickMemberSure(user);
@@ -804,7 +804,7 @@ void AddParticipantBoxController::showAdmin(gsl::not_null<UserData*> user, bool 
 	}
 
 	// Check restrictions.
-	auto weak = base::weak_unique_ptr<AddParticipantBoxController>(this);
+	auto weak = base::make_weak_unique(this);
 	auto alreadyIt = _additional.adminRights.find(user);
 	auto currentRights = (_additional.creator == user)
 		? MTP_channelAdminRights(MTP_flags(~MTPDchannelAdminRights::Flag::f_add_admins | MTPDchannelAdminRights::Flag::f_add_admins))
@@ -930,7 +930,7 @@ void AddParticipantBoxController::showRestricted(gsl::not_null<UserData*> user, 
 	}
 
 	// Check restrictions.
-	auto weak = base::weak_unique_ptr<AddParticipantBoxController>(this);
+	auto weak = base::make_weak_unique(this);
 	auto alreadyIt = _additional.restrictedRights.find(user);
 	auto currentRights = MTP_channelBannedRights(MTP_flags(0), MTP_int(0));
 	auto hasAdminRights = false;
@@ -966,7 +966,7 @@ void AddParticipantBoxController::showRestricted(gsl::not_null<UserData*> user, 
 }
 
 void AddParticipantBoxController::restrictUserSure(gsl::not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
-	auto weak = base::weak_unique_ptr<AddParticipantBoxController>(this);
+	auto weak = base::make_weak_unique(this);
 	MTP::send(MTPchannels_EditBanned(_channel->inputChannel, user->inputUser, newRights), rpcDone([megagroup = _channel.get(), user, weak, oldRights, newRights](const MTPUpdates &result) {
 		Auth().api().applyUpdates(result);
 		megagroup->applyEditBanned(user, oldRights, newRights);
@@ -1005,7 +1005,7 @@ void AddParticipantBoxController::kickUser(gsl::not_null<UserData*> user, bool s
 	}
 
 	// Check restrictions.
-	auto weak = base::weak_unique_ptr<AddParticipantBoxController>(this);
+	auto weak = base::make_weak_unique(this);
 	if (_additional.adminRights.find(user) != _additional.adminRights.end() || _additional.creator == user) {
 		// The user is an admin or creator.
 		if (_additional.adminCanEdit.find(user) != _additional.adminCanEdit.end()) {

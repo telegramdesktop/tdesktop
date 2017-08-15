@@ -142,7 +142,7 @@ void ConfigLoader::sendSpecialRequest() {
 		return;
 	}
 
-	auto weak = base::weak_unique_ptr<ConfigLoader>(this);
+	auto weak = base::make_weak_unique(this);
 	auto index = rand_value<uint32>() % uint32(_specialEndpoints.size());
 	auto endpoint = _specialEndpoints.begin() + index;
 	_specialEnumCurrent = specialToRealDcId(endpoint->dcId);
