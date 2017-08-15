@@ -25,6 +25,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Storage {
 
+constexpr auto kMaxFileInMemory = 10 * 1024 * 1024; // 10 MB max file could be hold in memory
+constexpr auto kMaxVoiceInMemory = 2 * 1024 * 1024; // 2 MB audio is hold in memory and auto loaded
+constexpr auto kMaxStickerInMemory = 2 * 1024 * 1024; // 2 MB stickers hold in memory, auto loaded and displayed inline
+constexpr auto kMaxAnimationInMemory = kMaxFileInMemory; // 10 MB gif and mp4 animations held in memory while playing
+
 class Downloader final {
 public:
 	Downloader();
@@ -100,7 +105,7 @@ public:
 	QByteArray imageFormat(const QSize &shrinkBox = QSize()) const;
 	QPixmap imagePixmap(const QSize &shrinkBox = QSize()) const;
 	QString fileName() const {
-		return _fname;
+		return _filename;
 	}
 	float64 currentProgress() const;
 	virtual int32 currentOffset(bool includeSkipped = false) const = 0;
@@ -165,8 +170,8 @@ protected:
 	void loadNext();
 	virtual bool loadPart() = 0;
 
+	QString _filename;
 	QFile _file;
-	QString _fname;
 	bool _fileIsOpen = false;
 
 	LoadToCacheSetting _toCache;
@@ -328,7 +333,6 @@ class WebLoadManager : public QObject {
 	Q_OBJECT
 
 public:
-
 	WebLoadManager(QThread *thread);
 
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY

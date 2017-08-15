@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "media/media_clip_reader.h"
 
+#include "storage/file_download.h"
+
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -484,7 +486,7 @@ public:
 	}
 
 	bool init() {
-		if (_data.isEmpty() && QFileInfo(_location->name()).size() <= AnimationInMemory) {
+		if (_data.isEmpty() && QFileInfo(_location->name()).size() <= Storage::kMaxAnimationInMemory) {
 			QFile f(_location->name());
 			if (f.open(QIODevice::ReadOnly)) {
 				_data = f.readAll();

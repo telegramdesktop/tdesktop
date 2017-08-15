@@ -116,12 +116,13 @@ WebLoadMainManager *_webLoadMainManager = nullptr;
 FileLoader::FileLoader(const QString &toFile, int32 size, LocationType locationType, LoadToCacheSetting toCache, LoadFromCloudSetting fromCloud, bool autoLoading)
 : _downloader(&Auth().downloader())
 , _autoLoading(autoLoading)
-, _file(toFile)
-, _fname(toFile)
+, _filename(toFile)
+, _file(_filename)
 , _toCache(toCache)
 , _fromCloud(fromCloud)
 , _size(size)
 , _locationType(locationType) {
+	Expects(!_filename.isEmpty() || (_size <= Storage::kMaxFileInMemory));
 }
 
 QByteArray FileLoader::imageFormat(const QSize &shrinkBox) const {
@@ -162,11 +163,11 @@ int32 FileLoader::fullSize() const {
 }
 
 bool FileLoader::setFileName(const QString &fileName) {
-	if (_toCache != LoadToCacheAsWell || !_fname.isEmpty()) {
-		return fileName.isEmpty() || (fileName == _fname);
+	if (_toCache != LoadToCacheAsWell || !_filename.isEmpty()) {
+		return fileName.isEmpty() || (fileName == _filename);
 	}
-	_fname = fileName;
-	_file.setFileName(_fname);
+	_filename = fileName;
+	_file.setFileName(_filename);
 	return true;
 }
 
@@ -232,7 +233,7 @@ void FileLoader::localLoaded(const StorageImageSaved &result, const QByteArray &
 		_imagePixmap = imagePixmap;
 	}
 	_localStatus = LocalLoaded;
-	if (!_fname.isEmpty() && _toCache == LoadToCacheAsWell) {
+	if (!_filename.isEmpty() && _toCache == LoadToCacheAsWell) {
 		if (!_fileIsOpen) _fileIsOpen = _file.open(QIODevice::WriteOnly);
 		if (!_fileIsOpen) {
 			cancel(true);
@@ -268,7 +269,7 @@ void FileLoader::start(bool loadFirst, bool prior) {
 		return;
 	}
 
-	if (!_fname.isEmpty() && _toCache == LoadToFileOnly && !_fileIsOpen) {
+	if (!_filename.isEmpty() && _toCache == LoadToFileOnly && !_fileIsOpen) {
 		_fileIsOpen = _file.open(QIODevice::WriteOnly);
 		if (!_fileIsOpen) {
 			return cancel(true);
@@ -379,14 +380,15 @@ void FileLoader::cancel(bool fail) {
 		_file.remove();
 	}
 	_data = QByteArray();
-	_fname = QString();
-	_file.setFileName(_fname);
 
 	if (fail) {
 		emit failed(this, started);
 	} else {
 		emit progress(this);
 	}
+
+	_filename = QString();
+	_file.setFileName(_filename);
 
 	loadNext();
 }
@@ -693,7 +695,7 @@ void mtpFileLoader::partLoaded(int offset, base::const_byte_span bytes) {
 		} else {
 			if (offset > 100 * 1024 * 1024) {
 				// Debugging weird out of memory crashes.
-				auto info = QString("offset: %1, size: %2, cancelled: %3, finished: %4, filename: '%5', tocache: %6, fromcloud: %7, data: %8, fullsize: %9").arg(offset).arg(bytes.size()).arg(Logs::b(_cancelled)).arg(Logs::b(_finished)).arg(_fname).arg(int(_toCache)).arg(int(_fromCloud)).arg(_data.size()).arg(_size);
+				auto info = QString("offset: %1, size: %2, cancelled: %3, finished: %4, filename: '%5', tocache: %6, fromcloud: %7, data: %8, fullsize: %9").arg(offset).arg(bytes.size()).arg(Logs::b(_cancelled)).arg(Logs::b(_finished)).arg(_filename).arg(int(_toCache)).arg(int(_fromCloud)).arg(_data.size()).arg(_size);
 				info += QString(", locationtype: %1, inqueue: %2, localstatus: %3").arg(int(_locationType)).arg(Logs::b(_inQueue)).arg(int(_localStatus));
 				SignalHandlers::setCrashAnnotation("DebugInfo", info);
 			}
@@ -723,7 +725,7 @@ void mtpFileLoader::partLoaded(int offset, base::const_byte_span bytes) {
 		_lastComplete = true;
 	}
 	if (_sentRequests.empty() && _cdnUncheckedParts.empty() && (_lastComplete || (_size && _nextRequestOffset >= _size))) {
-		if (!_fname.isEmpty() && (_toCache == LoadToCacheAsWell)) {
+		if (!_filename.isEmpty() && (_toCache == LoadToCacheAsWell)) {
 			if (!_fileIsOpen) _fileIsOpen = _file.open(QIODevice::WriteOnly);
 			if (!_fileIsOpen) {
 				return cancel(true);
@@ -745,8 +747,8 @@ void mtpFileLoader::partLoaded(int offset, base::const_byte_span bytes) {
 				Local::writeImage(storageKey(*_urlLocation), StorageImageSaved(_data));
 			} else if (_locationType != UnknownFileLocation) { // audio, video, document
 				auto mkey = mediaKey(_locationType, _dcId, _id, _version);
-				if (!_fname.isEmpty()) {
-					Local::writeFileLocation(mkey, FileLocation(_fname));
+				if (!_filename.isEmpty()) {
+					Local::writeFileLocation(mkey, FileLocation(_filename));
 				}
 				if (_toCache == LoadToCacheAsWell) {
 					if (_locationType == DocumentFileLocation) {
@@ -925,7 +927,7 @@ void webFileLoader::onFinished(const QByteArray &data) {
 	} else {
 		_data = data;
 	}
-	if (!_fname.isEmpty() && (_toCache == LoadToCacheAsWell)) {
+	if (!_filename.isEmpty() && (_toCache == LoadToCacheAsWell)) {
 		if (!_fileIsOpen) _fileIsOpen = _file.open(QIODevice::WriteOnly);
 		if (!_fileIsOpen) {
 			return cancel(true);
@@ -1126,7 +1128,7 @@ bool WebLoadManager::handleReplyResult(webFileLoaderPrivate *loader, WebReplyPro
 	}
 
 	if (result == WebReplyProcessProgress) {
-		if (loader->size() > AnimationInMemory) {
+		if (loader->size() > Storage::kMaxFileInMemory) {
 			LOG(("API Error: too large file is loaded to cache: %1").arg(loader->size()));
 			result = WebReplyProcessError;
 		}

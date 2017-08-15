@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "media/media_audio.h"
 #include "media/media_child_ffmpeg_loader.h"
+#include "storage/file_download.h"
 
 namespace Media {
 namespace Clip {
@@ -454,7 +455,7 @@ bool FFMpegReaderImplementation::isGifv() const {
 	if (_hasAudioStream) {
 		return false;
 	}
-	if (dataSize() > AnimationInMemory) {
+	if (dataSize() > Storage::kMaxAnimationInMemory) {
 		return false;
 	}
 	if (_codecContext->codec_id != AV_CODEC_ID_H264) {

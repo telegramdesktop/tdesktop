@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
+#include "storage/file_download.h"
 
 namespace {
 
@@ -512,8 +513,14 @@ void FileLoadTask::process() {
 			}
 
 			QByteArray thumbFormat = "JPG";
-			int32 thumbQuality = 87;
-			if (!isAnimation && filemime == stickerMime && w > 0 && h > 0 && w <= StickerMaxSize && h <= StickerMaxSize && filesize < StickerInMemory) {
+			auto thumbQuality = 87;
+			if (!isAnimation
+				&& filemime == stickerMime
+				&& w > 0
+				&& h > 0
+				&& w <= StickerMaxSize
+				&& h <= StickerMaxSize
+				&& filesize < Storage::kMaxStickerInMemory) {
 				attributes.push_back(MTP_documentAttributeSticker(MTP_flags(0), MTP_string(""), MTP_inputStickerSetEmpty(), MTPMaskCoords()));
 				thumbFormat = "webp";
 				thumbname = qsl("thumb.webp");

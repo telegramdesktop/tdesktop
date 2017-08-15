@@ -93,12 +93,8 @@ enum {
 	AudioVoiceMsgUpdateView = 100, // 100ms
 	AudioVoiceMsgChannels = 2, // stereo
 	AudioVoiceMsgBufferSize = 256 * 1024, // 256 Kb buffers (1.3 - 3.0 secs)
-	AudioVoiceMsgInMemory = 2 * 1024 * 1024, // 2 Mb audio is hold in memory and auto loaded
 
-	StickerInMemory = 2 * 1024 * 1024, // 2 Mb stickers hold in memory, auto loaded and displayed inline
 	StickerMaxSize = 2048, // 2048x2048 is a max image size for sticker
-
-	AnimationInMemory = 10 * 1024 * 1024, // 10 Mb gif and mp4 animations held in memory while playing
 
 	MaxZoomLevel = 7, // x8
 	ZoomToScreenLevel = 1024, // just constant

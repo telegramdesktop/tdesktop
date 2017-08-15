@@ -1679,7 +1679,11 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 		}
 	}
 	if (type == StickerDocument) {
-		if (dimensions.width() <= 0 || dimensions.height() <= 0 || dimensions.width() > StickerMaxSize || dimensions.height() > StickerMaxSize || size > StickerInMemory) {
+		if (dimensions.width() <= 0
+			|| dimensions.height() <= 0
+			|| dimensions.width() > StickerMaxSize
+			|| dimensions.height() > StickerMaxSize
+			|| !saveToCache()) {
 			type = FileDocument;
 			_additional = nullptr;
 		}
@@ -1687,7 +1691,9 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 }
 
 bool DocumentData::saveToCache() const {
-	return (type == StickerDocument) || (isAnimation() && size < AnimationInMemory) || (voice() && size < AudioVoiceMsgInMemory);
+	return (type == StickerDocument && size < Storage::kMaxStickerInMemory)
+		|| (isAnimation() && size < Storage::kMaxAnimationInMemory)
+		|| (voice() && size < Storage::kMaxVoiceInMemory);
 }
 
 void DocumentData::forget() {
