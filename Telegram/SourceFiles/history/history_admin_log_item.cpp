@@ -138,6 +138,12 @@ auto GenerateAdminChangeText(gsl::not_null<ChannelData*> channel, const TextWith
 	};
 	phraseMap[inviteKey] = invitePhrase;
 
+	if (!channel->isMegagroup()) {
+		// Don't display "Ban users" changes in channels.
+		newFlags &= ~Flag::f_ban_users;
+		prevFlags &= ~Flag::f_ban_users;
+	}
+
 	auto changes = CollectChanges(phraseMap, newFlags, prevFlags);
 	if (!changes.isEmpty()) {
 		result.text.append('\n' + changes);
