@@ -826,21 +826,19 @@ void MediaPreviewWidget::hidePreview() {
 }
 
 void MediaPreviewWidget::fillEmojiString() {
+	_emojiList.clear();
 	if (_photo) {
-		_emojiList.clear();
-	} else if (auto sticker = _document->sticker()) {
-		_emojiList = Stickers::GetEmojiListFromSet(_document);
-		if (_emojiList.empty()) {
-			if (auto emoji = Ui::Emoji::Find(sticker->alt)) {
-				_emojiList.push_back(emoji);
-			}
-		} else {
+		return;
+	}
+	if (auto sticker = _document->sticker()) {
+		if (auto list = Stickers::GetEmojiListFromSet(_document)) {
+			_emojiList = std::move(*list);
 			while (_emojiList.size() > kStickerPreviewEmojiLimit) {
 				_emojiList.pop_back();
 			}
+		} else if (auto emoji = Ui::Emoji::Find(sticker->alt)) {
+			_emojiList.push_back(emoji);
 		}
-	} else {
-		_emojiList.clear();
 	}
 }
 

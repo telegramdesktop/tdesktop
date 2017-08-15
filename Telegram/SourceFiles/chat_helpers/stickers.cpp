@@ -207,7 +207,38 @@ void CheckFavedLimit(Set &set) {
 	}
 }
 
-void SetIsFaved(gsl::not_null<DocumentData*> document, const std::vector<gsl::not_null<EmojiPtr>> *emojiList = nullptr) {
+void PushFavedToFront(
+		Set &set,
+		gsl::not_null<DocumentData*> document,
+		const std::vector<gsl::not_null<EmojiPtr>> &emojiList) {
+	set.stickers.push_front(document);
+	for (auto emoji : emojiList) {
+		set.emoji[emoji].push_front(document);
+	}
+	CheckFavedLimit(set);
+}
+
+void MoveFavedToFront(Set &set, int index) {
+	Expects(index > 0 && index < set.stickers.size());
+	auto document = set.stickers[index];
+	while (index-- != 0) {
+		set.stickers[index + 1] = set.stickers[index];
+	}
+	set.stickers[0] = document;
+	for (auto &list : set.emoji) {
+		auto index = list.indexOf(document);
+		if (index > 0) {
+			while (index-- != 0) {
+				list[index + 1] = list[index];
+			}
+			list[0] = document;
+		}
+	}
+}
+
+void RequestSetToPushFaved(gsl::not_null<DocumentData*> document);
+
+void SetIsFaved(gsl::not_null<DocumentData*> document, base::optional<std::vector<gsl::not_null<EmojiPtr>>> emojiList = base::none) {
 	auto &sets = Global::RefStickerSets();
 	auto it = sets.find(FavedSetId);
 	if (it == sets.end()) {
@@ -218,74 +249,56 @@ void SetIsFaved(gsl::not_null<DocumentData*> document, const std::vector<gsl::no
 		return;
 	}
 	if (index > 0) {
-		// Push this sticker to the front.
-		while (index-- != 0) {
-			it->stickers[index + 1] = it->stickers[index];
-		}
-		it->stickers[0] = document;
-		for (auto &list : it->emoji) {
-			auto index = list.indexOf(document);
-			if (index > 0) {
-				while (index-- != 0) {
-					list[index + 1] = list[index];
-				}
-				list[0] = document;
-			}
-		}
+		MoveFavedToFront(*it, index);
 	} else if (emojiList) {
-		it->stickers.push_front(document);
-		for (auto emoji : *emojiList) {
-			it->emoji[emoji].push_front(document);
-		}
+		PushFavedToFront(*it, document, *emojiList);
+	} else if (auto list = GetEmojiListFromSet(document)) {
+		PushFavedToFront(*it, document, *list);
 	} else {
-		auto list = GetEmojiListFromSet(document);
-		if (list.empty()) {
-			auto addAnyway = [document](std::vector<gsl::not_null<EmojiPtr>> list) {
-				if (list.empty()) {
-					if (auto sticker = document->sticker()) {
-						if (auto emoji = Ui::Emoji::Find(sticker->alt)) {
-							list.push_back(emoji);
-						}
-					}
-				}
-				SetIsFaved(document, &list);
-			};
-			MTP::send(MTPmessages_GetStickerSet(document->sticker()->set), rpcDone([document, addAnyway](const MTPmessages_StickerSet &result) {
-				Expects(result.type() == mtpc_messages_stickerSet);
-				auto list = std::vector<gsl::not_null<EmojiPtr>>();
-				auto &d = result.c_messages_stickerSet();
-				list.reserve(d.vpacks.v.size());
-				for_const (auto &mtpPack, d.vpacks.v) {
-					auto &pack = mtpPack.c_stickerPack();
-					for_const (auto &documentId, pack.vdocuments.v) {
-						if (documentId.v == document->id) {
-							if (auto emoji = Ui::Emoji::Find(qs(mtpPack.c_stickerPack().vemoticon))) {
-								list.push_back(emoji);
-							}
-							break;
-						}
-					}
-				}
-				addAnyway(std::move(list));
-			}), rpcFail([addAnyway](const RPCError &error) {
-				if (MTP::isDefaultHandledError(error)) {
-					return false;
-				}
-				// Perhaps this is a deleted sticker pack. Add anyway.
-				addAnyway(std::vector<gsl::not_null<EmojiPtr>>());
-				return true;
-			}));
-			return;
-		}
-		it->stickers.push_front(document);
-		for (auto emoji : list) {
-			it->emoji[emoji].push_front(document);
-		}
-		CheckFavedLimit(*it);
+		RequestSetToPushFaved(document);
+		return;
 	}
 	Local::writeFavedStickers();
 	Auth().data().stickersUpdated().notify(true);
 	App::main()->onStickersInstalled(FavedSetId);
+}
+
+void RequestSetToPushFaved(gsl::not_null<DocumentData*> document) {
+	auto addAnyway = [document](std::vector<gsl::not_null<EmojiPtr>> list) {
+		if (list.empty()) {
+			if (auto sticker = document->sticker()) {
+				if (auto emoji = Ui::Emoji::Find(sticker->alt)) {
+					list.push_back(emoji);
+				}
+			}
+		}
+		SetIsFaved(document, std::move(list));
+	};
+	MTP::send(MTPmessages_GetStickerSet(document->sticker()->set), rpcDone([document, addAnyway](const MTPmessages_StickerSet &result) {
+		Expects(result.type() == mtpc_messages_stickerSet);
+		auto list = std::vector<gsl::not_null<EmojiPtr>>();
+		auto &d = result.c_messages_stickerSet();
+		list.reserve(d.vpacks.v.size());
+		for_const (auto &mtpPack, d.vpacks.v) {
+			auto &pack = mtpPack.c_stickerPack();
+			for_const (auto &documentId, pack.vdocuments.v) {
+				if (documentId.v == document->id) {
+					if (auto emoji = Ui::Emoji::Find(qs(mtpPack.c_stickerPack().vemoticon))) {
+						list.push_back(emoji);
+					}
+					break;
+				}
+			}
+		}
+		addAnyway(std::move(list));
+	}), rpcFail([addAnyway](const RPCError &error) {
+		if (MTP::isDefaultHandledError(error)) {
+			return false;
+		}
+		// Perhaps this is a deleted sticker pack. Add anyway.
+		addAnyway({});
+		return true;
+	}));
 }
 
 void SetIsNotFaved(gsl::not_null<DocumentData*> document) {
@@ -660,25 +673,30 @@ StickerPack GetListByEmoji(gsl::not_null<EmojiPtr> emoji) {
 	return result;
 }
 
-std::vector<gsl::not_null<EmojiPtr>> GetEmojiListFromSet(gsl::not_null<DocumentData*> document) {
-	auto result = std::vector<gsl::not_null<EmojiPtr>>();
+base::optional<std::vector<gsl::not_null<EmojiPtr>>> GetEmojiListFromSet(
+		gsl::not_null<DocumentData*> document) {
 	if (auto sticker = document->sticker()) {
 		auto &inputSet = sticker->set;
 		if (inputSet.type() != mtpc_inputStickerSetID) {
-			return result;
+			return base::none;
 		}
 		auto &sets = Global::StickerSets();
 		auto it = sets.constFind(inputSet.c_inputStickerSetID().vid.v);
 		if (it == sets.cend()) {
-			return result;
+			return base::none;
 		}
+		auto result = std::vector<gsl::not_null<EmojiPtr>>();
 		for (auto i = it->emoji.cbegin(), e = it->emoji.cend(); i != e; ++i) {
 			if (i->contains(document)) {
 				result.push_back(i.key());
 			}
 		}
+		if (result.empty()) {
+			return base::none;
+		}
+		return std::move(result);
 	}
-	return result;
+	return base::none;
 }
 
 Set *FeedSet(const MTPDstickerSet &set) {
