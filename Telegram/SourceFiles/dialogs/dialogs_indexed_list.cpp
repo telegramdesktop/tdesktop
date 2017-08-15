@@ -91,19 +91,6 @@ void IndexedList::movePinned(Row *row, int deltaSign) {
 	}
 	auto history1 = row->history();
 	auto history2 = (*swapPinnedIndexWith)->history();
-
-	// Debug an assertion violation.
-	if (!history2->isPinnedDialog()) {
-		auto myPinnedCount = 0;
-		for_const (auto row, *this) {
-			if (!row->history()->isPinnedDialog()) {
-				break;
-			}
-			++myPinnedCount;
-		}
-		SignalHandlers::setCrashAnnotation("DebugInfo", QString("row index: %1, deltaSign: %2, pinnedCount: %3, myPinnedCount: %4").arg(row->pos()).arg(deltaSign).arg(App::histories().pinnedCount()).arg(myPinnedCount));
-	}
-
 	t_assert(history1->isPinnedDialog());
 	t_assert(history2->isPinnedDialog());
 	auto index1 = history1->getPinnedIndex();
