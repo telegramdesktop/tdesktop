@@ -486,7 +486,7 @@ UpdateChecker::~UpdateChecker() {
 
 bool checkReadyUpdate() {
 	QString readyFilePath = cWorkingDir() + qsl("tupdates/temp/ready"), readyPath = cWorkingDir() + qsl("tupdates/temp");
-	if (!QFile(readyFilePath).exists()) {
+	if (!QFile(readyFilePath).exists() || cExeName().isEmpty()) {
 		if (QDir(cWorkingDir() + qsl("tupdates/ready")).exists() || QDir(cWorkingDir() + qsl("tupdates/temp")).exists()) {
 			UpdateChecker::clearAll();
 		}

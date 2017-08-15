@@ -35,6 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <IOKit/IOKitLib.h>
 #include <IOKit/hidsystem/ev_keymap.h>
 #include <SPMediaKeyTap.h>
+#include <mach-o/dyld.h>
 
 namespace {
 
@@ -82,7 +83,7 @@ void psBringToBack(QWidget *w) {
 }
 
 QAbstractNativeEventFilter *psNativeEventFilter() {
-    delete _psEventFilter;
+	delete _psEventFilter;
 	_psEventFilter = new _PsEventFilter();
 	return _psEventFilter;
 }
@@ -133,7 +134,7 @@ QString escapeShell(const QString &str) {
 
 QStringList atosstr(uint64 *addresses, int count, uint64 base) {
 	QStringList result;
-	if (!count) return result;
+	if (!count || cExeName().isEmpty()) return result;
 
 	result.reserve(count);
 	QString cmdstr = "atos -o " + escapeShell(cExeDir() + cExeName()) + qsl("/Contents/MacOS/Telegram -l 0x%1").arg(base, 0, 16);
@@ -316,11 +317,11 @@ TimeMs psIdleTime() {
 }
 
 QStringList psInitLogs() {
-    return _initLogs;
+	return _initLogs;
 }
 
 void psClearInitLogs() {
-    _initLogs = QStringList();
+	_initLogs = QStringList();
 }
 
 void psActivateProcess(uint64 pid) {
@@ -335,28 +336,6 @@ QString psAppDataPath() {
 
 QString psDownloadPath() {
 	return objc_downloadPath();
-}
-
-QString psCurrentExeDirectory(int argc, char *argv[]) {
-    QString first = argc ? fromUtf8Safe(argv[0]) : QString();
-    if (!first.isEmpty()) {
-        QFileInfo info(first);
-        if (info.exists()) {
-            return QDir(info.absolutePath() + qsl("/../../..")).absolutePath() + '/';
-        }
-    }
-	return QString();
-}
-
-QString psCurrentExeName(int argc, char *argv[]) {
-	QString first = argc ? fromUtf8Safe(argv[0]) : QString();
-	if (!first.isEmpty()) {
-		QFileInfo info(first);
-		if (info.exists()) {
-			return QDir(QDir(info.absolutePath() + qsl("/../..")).absolutePath()).dirName();
-		}
-	}
-	return QString();
 }
 
 void psDoCleanup() {
@@ -420,6 +399,10 @@ QString SystemLanguage() {
 		}
 	}
 	return QString();
+}
+
+QString CurrentExecutablePath(int argc, char *argv[]) {
+	return NS2QString([[NSBundle mainBundle] bundlePath]);
 }
 
 } // namespace Platform

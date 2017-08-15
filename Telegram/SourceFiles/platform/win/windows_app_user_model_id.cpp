@@ -263,7 +263,7 @@ bool validateShortcutAt(const QString &path) {
 
 bool validateShortcut() {
 	QString path = systemShortcutPath();
-	if (path.isEmpty()) return false;
+	if (path.isEmpty() || cExeName().isEmpty()) return false;
 
 	if (cBetaVersion()) {
 		path += qsl("TelegramBeta.lnk");

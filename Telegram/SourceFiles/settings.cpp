@@ -163,13 +163,26 @@ void settingsParseArgs(int argc, char *argv[]) {
 
 	QStringList args;
 	for (int32 i = 0; i < argc; ++i) {
-		args.push_back('"' + fromUtf8Safe(argv[i]) + '"');
+		args.push_back(fromUtf8Safe(argv[i]));
 	}
 	gArguments = args.join(' ');
 
-	gExeDir = psCurrentExeDirectory(argc, argv);
-	gExeName = psCurrentExeName(argc, argv);
-    for (int32 i = 0; i < argc; ++i) {
+	auto path = Platform::CurrentExecutablePath(argc, argv);
+	LOG(("Executable path before check: %1").arg(path));
+	if (!path.isEmpty()) {
+		auto info = QFileInfo(path);
+		if (info.isSymLink()) {
+			info = info.symLinkTarget();
+		}
+		if (info.exists()) {
+			gExeDir = info.absoluteDir().absolutePath() + '/';
+			gExeName = info.fileName();
+		}
+	}
+	if (cExeName().isEmpty()) {
+		LOG(("WARNING: Could not compute executable path, some features will be disabled."));
+	}
+	for (auto i = 0; i != argc; ++i) {
 		if (qstr("-testmode") == argv[i]) {
 			gTestMode = true;
 		} else if (qstr("-debug") == argv[i]) {

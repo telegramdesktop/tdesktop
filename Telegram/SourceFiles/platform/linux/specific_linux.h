@@ -37,6 +37,8 @@ inline void DeInitOnTopPanel(QWidget *panel) {
 inline void ReInitOnTopPanel(QWidget *panel) {
 }
 
+QString CurrentExecutablePath(int argc, char *argv[]);
+
 } // namespace Platform
 
 inline QString psServerPrefix() {
@@ -65,8 +67,6 @@ void psActivateProcess(uint64 pid = 0);
 QString psLocalServerPrefix();
 QString psAppDataPath();
 QString psDownloadPath();
-QString psCurrentExeDirectory(int argc, char *argv[]);
-QString psCurrentExeName(int argc, char *argv[]);
 void psAutoStart(bool start, bool silent = false);
 void psSendToMenu(bool send, bool silent = false);
 

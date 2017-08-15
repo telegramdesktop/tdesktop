@@ -369,7 +369,7 @@ namespace Logs {
 		LOG(("Executable dir: %1, name: %2").arg(cExeDir()).arg(cExeName()));
 		LOG(("Initial working dir: %1").arg(initialWorkingDir));
 		LOG(("Working dir: %1").arg(cWorkingDir()));
-		LOG(("Arguments: %1").arg(cArguments()));
+		LOG(("Command line: %1").arg(cArguments()));
 
 		if (!LogsData) {
 			LOG(("FATAL: Could not open '%1' for writing log!").arg(_logsFilePath(LogDataMain, qsl("_startXX"))));
@@ -391,7 +391,6 @@ namespace Logs {
 			for (LogsInMemoryList::const_iterator i = list.cbegin(), e = list.cend(); i != e; ++i) {
 				if (i->first == LogDataMain) {
 					_logsWrite(i->first, i->second);
-					LOG(("First: %1, %2").arg(i->first).arg(i->second));
 				}
 			}
 		}

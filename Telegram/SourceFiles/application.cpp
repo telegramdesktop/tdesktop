@@ -454,7 +454,7 @@ void Application::startUpdateCheck(bool forceWait) {
 	if (!Sandbox::started()) return;
 
 	_updateCheckTimer->stop();
-	if (_updateThread || _updateReply || !cAutoUpdate()) return;
+	if (_updateThread || _updateReply || !cAutoUpdate() || cExeName().isEmpty()) return;
 
 	int32 constDelay = cBetaVersion() ? 600 : UpdateDelayConstPart, randDelay = cBetaVersion() ? 300 : UpdateDelayRandPart;
 	int32 updateInSecs = cLastUpdateCheck() + constDelay + int32(rand() % randDelay) - unixtime();

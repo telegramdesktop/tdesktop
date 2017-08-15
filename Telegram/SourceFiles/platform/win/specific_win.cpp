@@ -211,34 +211,6 @@ QString psDownloadPath() {
 	return QStandardPaths::writableLocation(QStandardPaths::DownloadLocation) + '/' + str_const_toString(AppName) + '/';
 }
 
-QString psCurrentExeDirectory(int argc, char *argv[]) {
-	LPWSTR *args;
-	int argsCount;
-	args = CommandLineToArgvW(GetCommandLine(), &argsCount);
-	if (args) {
-		QFileInfo info(QDir::fromNativeSeparators(QString::fromWCharArray(args[0])));
-		if (info.isFile()) {
-			return info.absoluteDir().absolutePath() + '/';
-		}
-		LocalFree(args);
-	}
-	return QString();
-}
-
-QString psCurrentExeName(int argc, char *argv[]) {
-	LPWSTR *args;
-	int argsCount;
-	args = CommandLineToArgvW(GetCommandLine(), &argsCount);
-	if (args) {
-		QFileInfo info(QDir::fromNativeSeparators(QString::fromWCharArray(args[0])));
-		if (info.isFile()) {
-			return info.fileName();
-		}
-		LocalFree(args);
-	}
-	return QString();
-}
-
 void psDoCleanup() {
 	try {
 		psAutoStart(false, true);
@@ -370,6 +342,24 @@ QString SystemCountry() {
 		if (len) {
 			return QString::fromStdWString(std::wstring(wstrCountry));
 		}
+	}
+	return QString();
+}
+
+QString CurrentExecutablePath(int argc, char *argv[]) {
+	WCHAR result[MAX_PATH + 1] = { 0 };
+	auto count = GetModuleFileName(nullptr, result, MAX_PATH + 1);
+	if (count < MAX_PATH + 1) {
+		auto info = QFileInfo(QDir::fromNativeSeparators(QString::fromWCharArray(result)));
+		return info.absoluteFilePath();
+	}
+
+	// Fallback to the first command line argument.
+	auto argsCount = 0;
+	if (auto args = CommandLineToArgvW(GetCommandLine(), &argsCount)) {
+		auto info = QFileInfo(QDir::fromNativeSeparators(QString::fromWCharArray(args[0])));
+		LocalFree(args);
+		return info.absoluteFilePath();
 	}
 	return QString();
 }
@@ -592,6 +582,9 @@ namespace {
 }
 
 void RegisterCustomScheme() {
+	if (cExeName().isEmpty()) {
+		return;
+	}
 #ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 	DEBUG_LOG(("App Info: Checking custom scheme 'tg'..."));
 
@@ -647,6 +640,10 @@ void psNewVersion() {
 }
 
 void psExecUpdater() {
+	if (cExeName().isEmpty()) {
+		return;
+	}
+
 	QString targs = qsl("-update -exename \"") + cExeName() + '"';
 	if (cLaunchMode() == LaunchModeAutoStart) targs += qsl(" -autostart");
 	if (cDebug()) targs += qsl(" -debug");
@@ -666,6 +663,9 @@ void psExecUpdater() {
 }
 
 void psExecTelegram(const QString &crashreport) {
+	if (cExeName().isEmpty()) {
+		return;
+	}
 	QString targs = crashreport.isEmpty() ? qsl("-noupdate") : ('"' + crashreport + '"');
 	if (crashreport.isEmpty()) {
 		if (cRestartingToSettings()) targs += qsl(" -tosettings");
@@ -687,6 +687,9 @@ void psExecTelegram(const QString &crashreport) {
 }
 
 void _manageAppLnk(bool create, bool silent, int path_csidl, const wchar_t *args, const wchar_t *description) {
+	if (cExeName().isEmpty()) {
+		return;
+	}
 	WCHAR startupFolder[MAX_PATH];
 	HRESULT hr = SHGetFolderPath(0, path_csidl, 0, SHGFP_TYPE_CURRENT, startupFolder);
 	if (SUCCEEDED(hr)) {
@@ -1113,7 +1116,7 @@ void psWriteDump() {
 
 char ImageHlpSymbol64[sizeof(IMAGEHLP_SYMBOL64) + StackEntryMaxNameLength];
 QString psPrepareCrashDump(const QByteArray &crashdump, QString dumpfile) {
-	if (!LoadDbgHelp(true)) {
+	if (!LoadDbgHelp(true) || cExeName().isEmpty()) {
 		return qsl("ERROR: could not init dbghelp.dll!");
 	}
 

@@ -463,6 +463,9 @@ bool objc_execUpdater() {
 }
 
 void objc_execTelegram(const QString &crashreport) {
+	if (cExeName().isEmpty()) {
+		return;
+	}
 #ifndef OS_MAC_STORE
 	_execUpdater(NO, crashreport);
 #else // OS_MAC_STORE

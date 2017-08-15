@@ -40,6 +40,27 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 using namespace Platform;
 using Platform::File::internal::EscapeShell;
 
+namespace Platform {
+
+QString CurrentExecutablePath(int argc, char *argv[]) {
+	constexpr auto kMaxPath = 1024;
+	char result[kMaxPath] = { 0 };
+	auto count = readlink("/proc/self/exe", result, kMaxPath);
+	if (count > 0) {
+		auto filename = QFile::decodeName(result);
+		auto deletedPostfix = qstr(" (deleted)");
+		if (filename.endsWith(deletedPostfix) && !QFileInfo(filename).exists()) {
+			filename.chop(deletedPostfix.size());
+		}
+		return filename;
+	}
+
+	// Fallback to the first command line argument.
+	return argc ? QFile::decodeName(argv[0]) : QString();
+}
+
+} // namespace Platform
+
 namespace {
 
 class _PsEventFilter : public QAbstractNativeEventFilter {
@@ -104,7 +125,7 @@ QString demanglestr(const QString &mangled) {
 
 QStringList addr2linestr(uint64 *addresses, int count) {
 	QStringList result;
-	if (!count) return result;
+	if (!count || cExeName().isEmpty()) return result;
 
 	result.reserve(count);
 	QByteArray cmd = "addr2line -e " + EscapeShell(QFile::encodeName(cExeDir() + cExeName()));
@@ -306,34 +327,6 @@ QString psDownloadPath() {
 	return QStandardPaths::writableLocation(QStandardPaths::DownloadLocation) + '/' + str_const_toString(AppName) + '/';
 }
 
-QString psCurrentExeDirectory(int argc, char *argv[]) {
-	QString first = argc ? QFile::decodeName(argv[0]) : QString();
-	if (!first.isEmpty()) {
-		QFileInfo info(first);
-		if (info.isSymLink()) {
-			info = info.symLinkTarget();
-		}
-		if (info.exists()) {
-			return QDir(info.absolutePath()).absolutePath() + '/';
-		}
-	}
-	return QString();
-}
-
-QString psCurrentExeName(int argc, char *argv[]) {
-	QString first = argc ? QFile::decodeName(argv[0]) : QString();
-	if (!first.isEmpty()) {
-		QFileInfo info(first);
-		if (info.isSymLink()) {
-			info = info.symLinkTarget();
-		}
-		if (info.exists()) {
-			return info.fileName();
-		}
-	}
-	return QString();
-}
-
 void psDoCleanup() {
 	try {
 		psAutoStart(false, true);
@@ -431,7 +424,7 @@ bool _psRunCommand(const QByteArray &command) {
 void psRegisterCustomScheme() {
 #ifndef TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 	auto home = getHomeDir();
-	if (home.isEmpty() || cBetaVersion()) return; // don't update desktop file for beta version
+	if (home.isEmpty() || cBetaVersion() || cExeName().isEmpty()) return; // don't update desktop file for beta version
 
 #ifndef TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
 	DEBUG_LOG(("App Info: placing .desktop file"));
@@ -533,10 +526,13 @@ void psNewVersion() {
 }
 
 bool _execUpdater(bool update = true, const QString &crashreport = QString()) {
+	if (cExeName().isEmpty()) {
+		return false;
+	}
 	static const int MaxLen = 65536, MaxArgsCount = 128;
 
 	char path[MaxLen] = {0};
-	QByteArray data(QFile::encodeName(cExeDir() + (update ? "Updater" : gExeName)));
+	QByteArray data(QFile::encodeName(cExeDir() + (update ? "Updater" : cExeName())));
 	memcpy(path, data.constData(), data.size());
 
 	char *args[MaxArgsCount] = { 0 };
@@ -554,6 +550,8 @@ bool _execUpdater(bool update = true, const QString &crashreport = QString()) {
 	char p_crashreportbuf[MaxLen] = { 0 };
 	char p_exe[] = "-exename";
 	char p_exebuf[MaxLen] = { 0 };
+	char p_exepath[] = "-exepath";
+	char p_exepathbuf[MaxLen] = { 0 };
 	int argIndex = 0;
 	args[argIndex++] = path;
 	if (!update) {
@@ -591,6 +589,12 @@ bool _execUpdater(bool update = true, const QString &crashreport = QString()) {
 		memcpy(p_exebuf, exef.constData(), exef.size());
 		args[argIndex++] = p_exe;
 		args[argIndex++] = p_exebuf;
+	}
+	QByteArray exepathf = QFile::encodeName(cExeDir());
+	if (exepathf.size() > 0 && exepathf.size() < MaxLen) {
+		memcpy(p_exepathbuf, exepathf.constData(), exepathf.size());
+		args[argIndex++] = p_exepath;
+		args[argIndex++] = p_exepathbuf;
 	}
 
 	Logs::closeMain();
