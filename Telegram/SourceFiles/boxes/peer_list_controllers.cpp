@@ -205,11 +205,8 @@ void ChatsListBoxController::rebuildRows() {
 	auto appendList = [this](auto chats) {
 		auto count = 0;
 		for_const (auto row, chats->all()) {
-			auto history = row->history();
-			if (history->peer->isUser()) {
-				if (appendRow(history)) {
-					++count;
-				}
+			if (appendRow(row->history())) {
+				++count;
 			}
 		}
 		return count;
@@ -233,8 +230,12 @@ void ChatsListBoxController::checkForEmptyRows() {
 	} else {
 		auto &sessionData = Auth().data();
 		auto loaded = sessionData.contactsLoaded().value() && sessionData.allChatsLoaded().value();
-		setDescriptionText(lang(loaded ? lng_contacts_not_found : lng_contacts_loading));
+		setDescriptionText(loaded ? emptyBoxText() : lang(lng_contacts_loading));
 	}
+}
+
+QString ChatsListBoxController::emptyBoxText() const {
+	return lang(lng_contacts_not_found);
 }
 
 std::unique_ptr<PeerListRow> ChatsListBoxController::createSearchRow(gsl::not_null<PeerData*> peer) {
@@ -655,4 +656,168 @@ void EditChatAdminsBoxController::Start(gsl::not_null<ChatData*> chat) {
 		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
 	};
 	Ui::show(Box<PeerListBox>(std::move(controller), std::move(initBox)));
+}
+
+void AddBotToGroupBoxController::Start(gsl::not_null<UserData*> bot) {
+	auto initBox = [bot](gsl::not_null<PeerListBox*> box) {
+		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
+	};
+	Ui::show(Box<PeerListBox>(std::make_unique<AddBotToGroupBoxController>(bot), std::move(initBox)));
+}
+
+AddBotToGroupBoxController::AddBotToGroupBoxController(gsl::not_null<UserData*> bot)
+: ChatsListBoxController(SharingBotGame(bot)
+	? std::make_unique<PeerListGlobalSearchController>()
+	: nullptr)
+, _bot(bot) {
+}
+
+void AddBotToGroupBoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
+	if (sharingBotGame()) {
+		shareBotGame(row->peer());
+	} else {
+		addBotToGroup(row->peer());
+	}
+}
+
+void AddBotToGroupBoxController::shareBotGame(gsl::not_null<PeerData*> chat) {
+	auto weak = base::make_weak_unique(this);
+	auto send = [weak, bot = _bot, chat] {
+		if (!weak) {
+			return;
+		}
+		auto history = App::historyLoaded(chat);
+		auto afterRequestId = history ? history->sendRequestId : 0;
+		auto randomId = rand_value<uint64>();
+		auto gameShortName = bot->botInfo->shareGameShortName;
+		auto inputGame = MTP_inputGameShortName(
+			bot->inputUser,
+			MTP_string(gameShortName));
+		auto request = MTPmessages_SendMedia(
+			MTP_flags(0),
+			chat->input,
+			MTP_int(0),
+			MTP_inputMediaGame(inputGame),
+			MTP_long(randomId),
+			MTPnullMarkup);
+		auto done = App::main()->rpcDone(&MainWidget::sentUpdatesReceived);
+		auto fail = App::main()->rpcFail(&MainWidget::sendMessageFail);
+		auto requestId = MTP::send(request, done, fail, 0, 0, afterRequestId);
+		if (history) {
+			history->sendRequestId = requestId;
+		}
+		Ui::hideLayer();
+		Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
+	};
+	auto confirmText = [chat] {
+		if (chat->isUser()) {
+			return lng_bot_sure_share_game(lt_user, App::peerName(chat));
+		}
+		return lng_bot_sure_share_game_group(lt_group, chat->name);
+	};
+	Ui::show(Box<ConfirmBox>(confirmText(), send), KeepOtherLayers);
+}
+
+void AddBotToGroupBoxController::addBotToGroup(gsl::not_null<PeerData*> chat) {
+	if (auto megagroup = chat->asMegagroup()) {
+		if (!megagroup->canAddMembers()) {
+			Ui::show(Box<InformBox>(lang(lng_error_cant_add_member)), KeepOtherLayers);
+			return;
+		}
+	}
+	auto weak = base::make_weak_unique(this);
+	auto send = [weak, bot = _bot, chat] {
+		if (!weak) {
+			return;
+		}
+		if (auto &info = bot->botInfo) {
+			if (!info->startGroupToken.isEmpty()) {
+				auto request = MTPmessages_StartBot(
+					bot->inputUser,
+					chat->input,
+					MTP_long(rand_value<uint64>()),
+					MTP_string(info->startGroupToken));
+				auto done = App::main()->rpcDone(
+					&MainWidget::sentUpdatesReceived);
+				auto fail = App::main()->rpcFail(
+					&MainWidget::addParticipantFail,
+					{ bot, chat });
+				MTP::send(request, done, fail);
+			} else {
+				App::main()->addParticipants(
+					chat,
+					{ 1, bot });
+			}
+		} else {
+			App::main()->addParticipants(
+				chat,
+				{ 1, bot });
+		}
+		Ui::hideLayer();
+		Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
+	};
+	auto confirmText = lng_bot_sure_invite(lt_group, chat->name);
+	Ui::show(Box<ConfirmBox>(confirmText, send), KeepOtherLayers);
+}
+
+std::unique_ptr<ChatsListBoxController::Row> AddBotToGroupBoxController::createRow(gsl::not_null<History*> history) {
+	if (!needToCreateRow(history->peer)) {
+		return nullptr;
+	}
+	return std::make_unique<Row>(history);
+}
+
+bool AddBotToGroupBoxController::needToCreateRow(gsl::not_null<PeerData*> peer) const {
+	if (sharingBotGame()) {
+		if (!peer->canWrite()) {
+			return false;
+		}
+		if (auto group = peer->asMegagroup()) {
+			if (group->restrictedRights().is_send_games()) {
+				return false;
+			}
+		}
+		return true;
+	}
+	if (auto chat = peer->asChat()) {
+		if (chat->canEdit()) {
+			return true;
+		}
+	} else if (auto group = peer->asMegagroup()) {
+		return group->canAddMembers();
+	}
+	return false;
+}
+
+bool AddBotToGroupBoxController::SharingBotGame(gsl::not_null<UserData*> bot) {
+	auto &info = bot->botInfo;
+	return (info && !info->shareGameShortName.isEmpty());
+}
+
+bool AddBotToGroupBoxController::sharingBotGame() const {
+	return SharingBotGame(_bot);
+}
+
+QString AddBotToGroupBoxController::emptyBoxText() const {
+	return lang(Auth().data().allChatsLoaded().value()
+		? (sharingBotGame() ? lng_bot_no_chats : lng_bot_no_groups)
+		: lng_contacts_loading);
+}
+
+QString AddBotToGroupBoxController::noResultsText() const {
+	return lang(Auth().data().allChatsLoaded().value()
+		? (sharingBotGame() ? lng_bot_chats_not_found : lng_bot_groups_not_found)
+		: lng_contacts_loading);
+}
+
+void AddBotToGroupBoxController::updateLabels() {
+	setSearchNoResultsText(noResultsText());
+}
+
+void AddBotToGroupBoxController::prepareViewHook() {
+	delegate()->peerListSetTitle(langFactory(sharingBotGame()
+		? lng_bot_choose_chat
+		: lng_bot_choose_group));
+	updateLabels();
+	subscribe(Auth().data().allChatsLoaded(), [this](bool) { updateLabels(); });
 }

@@ -51,7 +51,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/confirm_box.h"
 #include "boxes/sticker_set_box.h"
 #include "boxes/mute_settings_box.h"
-#include "boxes/contacts_box.h"
+#include "boxes/peer_list_controllers.h"
 #include "boxes/download_path_box.h"
 #include "storage/localstorage.h"
 #include "shortcuts.h"
@@ -3968,14 +3968,14 @@ void MainWidget::openPeerByName(const QString &username, MsgId msgId, const QStr
 		if (msgId == ShowAtGameShareMsgId) {
 			if (peer->isUser() && peer->asUser()->botInfo && !startToken.isEmpty()) {
 				peer->asUser()->botInfo->shareGameShortName = startToken;
-				Ui::show(Box<ContactsBox>(peer->asUser()));
+				AddBotToGroupBoxController::Start(peer->asUser());
 			} else {
 				Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
 			}
 		} else if (msgId == ShowAtProfileMsgId && !peer->isChannel()) {
 			if (peer->isUser() && peer->asUser()->botInfo && !peer->asUser()->botInfo->cantJoinGroups && !startToken.isEmpty()) {
 				peer->asUser()->botInfo->startGroupToken = startToken;
-				Ui::show(Box<ContactsBox>(peer->asUser()));
+				AddBotToGroupBoxController::Start(peer->asUser());
 			} else if (peer->isUser() && peer->asUser()->botInfo) {
 				// Always open bot chats, even from mention links.
 				Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
@@ -4055,7 +4055,7 @@ void MainWidget::usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, c
 	if (msgId == ShowAtProfileMsgId && !peer->isChannel()) {
 		if (peer->isUser() && peer->asUser()->botInfo && !peer->asUser()->botInfo->cantJoinGroups && !startToken.isEmpty()) {
 			peer->asUser()->botInfo->startGroupToken = startToken;
-			Ui::show(Box<ContactsBox>(peer->asUser()));
+			AddBotToGroupBoxController::Start(peer->asUser());
 		} else if (peer->isUser() && peer->asUser()->botInfo) {
 			// Always open bot chats, even from mention links.
 			Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId, Ui::ShowWay::Forward);

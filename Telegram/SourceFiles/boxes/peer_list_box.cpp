@@ -380,10 +380,25 @@ void PeerListRow::refreshStatus() {
 	if (!_initialized || _statusType == StatusType::Custom) {
 		return;
 	}
+	_statusType = StatusType::LastSeen;
 	if (auto user = peer()->asUser()) {
 		auto time = unixtime();
 		setStatusText(App::onlineText(user, time));
-		_statusType = App::onlineColorUse(user, time) ? StatusType::Online : StatusType::LastSeen;
+		if (App::onlineColorUse(user, time)) {
+			_statusType = StatusType::Online;
+		}
+	} else if (auto chat = peer()->asChat()) {
+		if (!chat->amIn()) {
+			setStatusText(lang(lng_chat_status_unaccessible));
+		} else if (chat->count > 0) {
+			setStatusText(lng_chat_status_members(lt_count, chat->count));
+		} else {
+			setStatusText(lang(lng_group_status));
+		}
+	} else if (peer()->isMegagroup()) {
+		setStatusText(lang(lng_group_status));
+	} else if (peer()->isChannel()) {
+		setStatusText(lang(lng_channel_status));
 	}
 }
 

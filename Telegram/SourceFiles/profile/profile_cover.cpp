@@ -29,7 +29,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/labels.h"
 #include "observer_peer.h"
 #include "boxes/confirm_box.h"
-#include "boxes/contacts_box.h"
 #include "boxes/photo_crop_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "lang/lang_keys.h"
@@ -549,7 +548,7 @@ void CoverWidget::onAddMember() {
 
 void CoverWidget::onAddBotToGroup() {
 	if (_peerUser && _peerUser->botInfo) {
-		Ui::show(Box<ContactsBox>(_peerUser));
+		AddBotToGroupBoxController::Start(_peerUser);
 	}
 }
 

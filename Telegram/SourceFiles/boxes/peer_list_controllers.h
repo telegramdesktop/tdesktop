@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "boxes/peer_list_box.h"
 #include "base/flat_set.h"
+#include "base/weak_unique_ptr.h"
 
 class PeerListRowWithLink : public PeerListRow {
 public:
@@ -89,6 +90,7 @@ protected:
 	virtual void prepareViewHook() = 0;
 	virtual void updateRowHook(gsl::not_null<Row*> row) {
 	}
+	virtual QString emptyBoxText() const;
 
 private:
 	void rebuildRows();
@@ -178,5 +180,34 @@ private:
 
 	PeerData *_peer = nullptr;
 	base::flat_set<gsl::not_null<UserData*>> _alreadyIn;
+
+};
+
+class AddBotToGroupBoxController : public ChatsListBoxController, public base::enable_weak_from_this {
+public:
+	static void Start(gsl::not_null<UserData*> bot);
+
+	AddBotToGroupBoxController(gsl::not_null<UserData*> bot);
+
+	void rowClicked(gsl::not_null<PeerListRow*> row) override;
+
+protected:
+	std::unique_ptr<Row> createRow(gsl::not_null<History*> history) override;
+	void prepareViewHook() override;
+	QString emptyBoxText() const override;
+
+private:
+	static bool SharingBotGame(gsl::not_null<UserData*> bot);
+
+	bool needToCreateRow(gsl::not_null<PeerData*> peer) const;
+	bool sharingBotGame() const;
+	QString noResultsText() const;
+	QString descriptionText() const;
+	void updateLabels();
+
+	void shareBotGame(gsl::not_null<PeerData*> chat);
+	void addBotToGroup(gsl::not_null<PeerData*> chat);
+
+	gsl::not_null<UserData*> _bot;
 
 };
