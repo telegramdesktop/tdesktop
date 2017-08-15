@@ -223,6 +223,7 @@ private:
 	DialogsList _contacts;
 
 	bool _mouseSelection = false;
+	QPoint _mouseLastGlobalPosition;
 	Qt::MouseButton _pressButton = Qt::LeftButton;
 
 	std::unique_ptr<ImportantSwitch> _importantSwitch;

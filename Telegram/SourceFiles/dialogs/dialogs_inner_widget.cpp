@@ -472,9 +472,11 @@ void DialogsInner::activate() {
 }
 
 void DialogsInner::mouseMoveEvent(QMouseEvent *e) {
-	auto position = e->pos();
-	_mouseSelection = true;
-	updateSelected(position);
+	if (_mouseLastGlobalPosition != e->globalPos()) {
+		_mouseLastGlobalPosition = e->globalPos();
+		_mouseSelection = true;
+	}
+	updateSelected(e->pos());
 }
 
 void DialogsInner::clearIrrelevantState() {
