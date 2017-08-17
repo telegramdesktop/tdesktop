@@ -35,9 +35,9 @@ public:
 	virtual void showFinished() {
 	}
 
-	virtual void saveState(gsl::not_null<SectionMemento*> memento) {
+	virtual void saveState(not_null<SectionMemento*> memento) {
 	}
-	virtual void restoreState(gsl::not_null<SectionMemento*> memento) {
+	virtual void restoreState(not_null<SectionMemento*> memento) {
 	}
 
 protected:

@@ -49,8 +49,8 @@ public:
 	// It should show it only if it is hidden in the cover.
 	bool shareContactButtonShown() const;
 
-	void saveState(gsl::not_null<SectionMemento*> memento);
-	void restoreState(gsl::not_null<SectionMemento*> memento);
+	void saveState(not_null<SectionMemento*> memento);
+	void restoreState(not_null<SectionMemento*> memento);
 
 	void showFinished();
 

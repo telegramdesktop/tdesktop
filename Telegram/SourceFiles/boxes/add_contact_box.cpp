@@ -78,10 +78,10 @@ protected:
 
 private:
 	struct ChatRow {
-		ChatRow(gsl::not_null<PeerData*> peer) : peer(peer) {
+		ChatRow(not_null<PeerData*> peer) : peer(peer) {
 		}
 
-		gsl::not_null<PeerData*> peer;
+		not_null<PeerData*> peer;
 		Text name, status;
 	};
 	void paintChat(Painter &p, const ChatRow &row, bool selected) const;
@@ -390,7 +390,7 @@ void GroupInfoBox::onNameSubmit() {
 	}
 }
 
-void GroupInfoBox::createGroup(gsl::not_null<PeerListBox*> selectUsersBox, const QString &title, const std::vector<gsl::not_null<PeerData*>> &users) {
+void GroupInfoBox::createGroup(not_null<PeerListBox*> selectUsersBox, const QString &title, const std::vector<not_null<PeerData*>> &users) {
 	if (_creationRequestId) return;
 
 	auto inputs = QVector<MTPInputUser>();
@@ -426,7 +426,7 @@ void GroupInfoBox::createGroup(gsl::not_null<PeerListBox*> selectUsersBox, const
 			| [](auto chats) {
 				return App::chat(chats->front().c_chat().vid.v);
 			}
-			| [this](gsl::not_null<ChatData*> chat) {
+			| [this](not_null<ChatData*> chat) {
 				if (!_photoImage.isNull()) {
 					Messenger::Instance().uploadProfilePhoto(_photoImage, chat->id);
 				}
@@ -465,7 +465,7 @@ void GroupInfoBox::onNext() {
 	if (_creating != CreatingGroupGroup) {
 		createChannel(title, description);
 	} else {
-		auto initBox = [title, weak = weak(this)](gsl::not_null<PeerListBox*> box) {
+		auto initBox = [title, weak = weak(this)](not_null<PeerListBox*> box) {
 			box->addButton(langFactory(lng_create_group_create), [box, title, weak] {
 				if (weak) {
 					auto rows = box->peerListCollectSelectedRows();
@@ -505,7 +505,7 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 			| [](auto chats) {
 				return App::channel(chats->front().c_channel().vid.v);
 			}
-			| [this](gsl::not_null<ChannelData*> channel) {
+			| [this](not_null<ChannelData*> channel) {
 				if (!_photoImage.isNull()) {
 					Messenger::Instance().uploadProfilePhoto(
 						_photoImage,
@@ -909,7 +909,7 @@ bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
 	return true;
 }
 
-EditNameTitleBox::EditNameTitleBox(QWidget*, gsl::not_null<PeerData*> peer)
+EditNameTitleBox::EditNameTitleBox(QWidget*, not_null<PeerData*> peer)
 : _peer(peer)
 , _first(this, st::defaultInputField, langFactory(_peer->isUser() ? lng_signup_firstname : lng_dlg_new_group_name), _peer->isUser() ? _peer->asUser()->firstName : _peer->name)
 , _last(this, st::defaultInputField, langFactory(lng_signup_lastname), peer->isUser() ? peer->asUser()->lastName : QString())
@@ -1064,7 +1064,7 @@ void EditNameTitleBox::onSaveChatDone(const MTPUpdates &updates) {
 	closeBox();
 }
 
-EditBioBox::EditBioBox(QWidget*, gsl::not_null<UserData*> self) : BoxContent()
+EditBioBox::EditBioBox(QWidget*, not_null<UserData*> self) : BoxContent()
 , _dynamicFieldStyle(CreateBioFieldStyle())
 , _self(self)
 , _bio(this, _dynamicFieldStyle, langFactory(lng_bio_placeholder), _self->about())
@@ -1134,7 +1134,7 @@ void EditBioBox::save() {
 	}).send();
 }
 
-EditChannelBox::EditChannelBox(QWidget*, gsl::not_null<ChannelData*> channel)
+EditChannelBox::EditChannelBox(QWidget*, not_null<ChannelData*> channel)
 : _channel(channel)
 , _title(this, st::defaultInputField, langFactory(_channel->isMegagroup() ? lng_dlg_new_group_name : lng_dlg_new_channel_name), _channel->name)
 , _description(this, st::newGroupDescription, langFactory(lng_create_group_description), _channel->about())

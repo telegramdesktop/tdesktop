@@ -2957,7 +2957,7 @@ float64 MediaView::overLevel(OverState control) const {
 	return (i == _animOpacities.cend()) ? (_over == control ? 1 : 0) : i->current();
 }
 
-MsgId MediaView::getMsgIdFromOverview(gsl::not_null<History*> history, int index) const {
+MsgId MediaView::getMsgIdFromOverview(not_null<History*> history, int index) const {
 	auto &overview = history->overview(_overview);
 	if (index >= 0 && index < overview.size()) {
 		auto it = overview.begin();

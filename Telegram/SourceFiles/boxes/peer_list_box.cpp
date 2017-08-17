@@ -34,7 +34,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/file_download.h"
 #include "window/themes/window_theme.h"
 
-PeerListBox::PeerListBox(QWidget*, std::unique_ptr<PeerListController> controller, base::lambda<void(gsl::not_null<PeerListBox*>)> init)
+PeerListBox::PeerListBox(QWidget*, std::unique_ptr<PeerListController> controller, base::lambda<void(not_null<PeerListBox*>)> init)
 : _controller(std::move(controller))
 , _init(std::move(init)) {
 	Expects(_controller != nullptr);
@@ -155,7 +155,7 @@ void PeerListBox::peerListAppendSearchRow(std::unique_ptr<PeerListRow> row) {
 	_inner->appendSearchRow(std::move(row));
 }
 
-void PeerListBox::peerListAppendFoundRow(gsl::not_null<PeerListRow*> row) {
+void PeerListBox::peerListAppendFoundRow(not_null<PeerListRow*> row) {
 	_inner->appendFoundRow(row);
 }
 
@@ -163,7 +163,7 @@ void PeerListBox::peerListPrependRow(std::unique_ptr<PeerListRow> row) {
 	_inner->prependRow(std::move(row));
 }
 
-void PeerListBox::peerListPrependRowFromSearchResult(gsl::not_null<PeerListRow*> row) {
+void PeerListBox::peerListPrependRowFromSearchResult(not_null<PeerListRow*> row) {
 	_inner->prependRowFromSearchResult(row);
 }
 
@@ -171,19 +171,19 @@ PeerListRow *PeerListBox::peerListFindRow(PeerListRowId id) {
 	return _inner->findRow(id);
 }
 
-void PeerListBox::peerListUpdateRow(gsl::not_null<PeerListRow*> row) {
+void PeerListBox::peerListUpdateRow(not_null<PeerListRow*> row) {
 	_inner->updateRow(row);
 }
 
-void PeerListBox::peerListRemoveRow(gsl::not_null<PeerListRow*> row) {
+void PeerListBox::peerListRemoveRow(not_null<PeerListRow*> row) {
 	_inner->removeRow(row);
 }
 
-void PeerListBox::peerListConvertRowToSearchResult(gsl::not_null<PeerListRow*> row) {
+void PeerListBox::peerListConvertRowToSearchResult(not_null<PeerListRow*> row) {
 	_inner->convertRowToSearchResult(row);
 }
 
-void PeerListBox::peerListSetRowChecked(gsl::not_null<PeerListRow*> row, bool checked) {
+void PeerListBox::peerListSetRowChecked(not_null<PeerListRow*> row, bool checked) {
 	auto peer = row->peer();
 	if (checked) {
 		addSelectItem(peer, PeerListRow::SetStyle::Animated);
@@ -203,7 +203,7 @@ int PeerListBox::peerListFullRowsCount() {
 	return _inner->fullRowsCount();
 }
 
-gsl::not_null<PeerListRow*> PeerListBox::peerListRowAt(int index) {
+not_null<PeerListRow*> PeerListBox::peerListRowAt(int index) {
 	return _inner->rowAt(index);
 }
 
@@ -276,7 +276,7 @@ void PeerListController::search(const QString &query) {
 	_searchController->searchQuery(query);
 }
 
-void PeerListController::peerListSearchAddRow(gsl::not_null<PeerData*> peer) {
+void PeerListController::peerListSearchAddRow(not_null<PeerData*> peer) {
 	if (auto row = delegate()->peerListFindRow(peer->id)) {
 		t_assert(row->id() == row->peer()->id);
 		delegate()->peerListAppendFoundRow(row);
@@ -314,7 +314,7 @@ void PeerListController::setSearchNoResultsText(const QString &text) {
 	}
 }
 
-void PeerListBox::addSelectItem(gsl::not_null<PeerData*> peer, PeerListRow::SetStyle style) {
+void PeerListBox::addSelectItem(not_null<PeerData*> peer, PeerListRow::SetStyle style) {
 	if (!_select) {
 		createMultiSelect();
 		_select->toggleFast(false);
@@ -331,7 +331,7 @@ void PeerListBox::peerListFinishSelectedRowsBunch() {
 	_select->entity()->finishItemsBunch();
 }
 
-bool PeerListBox::peerListIsRowSelected(gsl::not_null<PeerData*> peer) {
+bool PeerListBox::peerListIsRowSelected(not_null<PeerData*> peer) {
 	return _select ? _select->entity()->hasItem(peer->id) : false;
 }
 
@@ -340,9 +340,9 @@ int PeerListBox::peerListSelectedRowsCount() {
 	return _select->entity()->getItemsCount();
 }
 
-std::vector<gsl::not_null<PeerData*>> PeerListBox::peerListCollectSelectedRows() {
+std::vector<not_null<PeerData*>> PeerListBox::peerListCollectSelectedRows() {
 	Expects(_select != nullptr);
-	auto result = std::vector<gsl::not_null<PeerData*>>();
+	auto result = std::vector<not_null<PeerData*>>();
 	auto items = _select->entity()->getItems();
 	if (!items.empty()) {
 		result.reserve(items.size());
@@ -353,10 +353,10 @@ std::vector<gsl::not_null<PeerData*>> PeerListBox::peerListCollectSelectedRows()
 	return result;
 }
 
-PeerListRow::PeerListRow(gsl::not_null<PeerData*> peer) : PeerListRow(peer, peer->id) {
+PeerListRow::PeerListRow(not_null<PeerData*> peer) : PeerListRow(peer, peer->id) {
 }
 
-PeerListRow::PeerListRow(gsl::not_null<PeerData*> peer, PeerListRowId id)
+PeerListRow::PeerListRow(not_null<PeerData*> peer, PeerListRowId id)
 : _id(id)
 , _peer(peer)
 , _initialized(false)
@@ -522,7 +522,7 @@ void PeerListRow::setCheckedInternal(bool checked, SetStyle style) {
 	_checkbox->setChecked(checked, speed);
 }
 
-PeerListBox::Inner::Inner(QWidget *parent, gsl::not_null<PeerListController*> controller) : TWidget(parent)
+PeerListBox::Inner::Inner(QWidget *parent, not_null<PeerListController*> controller) : TWidget(parent)
 , _controller(controller)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom()) {
 	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
@@ -564,7 +564,7 @@ void PeerListBox::Inner::appendSearchRow(std::unique_ptr<PeerListRow> row) {
 	}
 }
 
-void PeerListBox::Inner::appendFoundRow(gsl::not_null<PeerListRow*> row) {
+void PeerListBox::Inner::appendFoundRow(not_null<PeerListRow*> row) {
 	Expects(showingSearch());
 	auto index = findRowIndex(row);
 	if (index.value < 0) {
@@ -572,13 +572,13 @@ void PeerListBox::Inner::appendFoundRow(gsl::not_null<PeerListRow*> row) {
 	}
 }
 
-void PeerListBox::Inner::changeCheckState(gsl::not_null<PeerListRow*> row, bool checked, PeerListRow::SetStyle style) {
+void PeerListBox::Inner::changeCheckState(not_null<PeerListRow*> row, bool checked, PeerListRow::SetStyle style) {
 	row->setChecked(checked, style, [this, row] {
 		updateRow(row);
 	});
 }
 
-void PeerListBox::Inner::addRowEntry(gsl::not_null<PeerListRow*> row) {
+void PeerListBox::Inner::addRowEntry(not_null<PeerListRow*> row) {
 	_rowsById.emplace(row->id(), row);
 	_rowsByPeer[row->peer()].push_back(row);
 	if (addingToSearchIndex()) {
@@ -601,7 +601,7 @@ bool PeerListBox::Inner::addingToSearchIndex() const {
 	return (_searchMode != PeerListSearchMode::Disabled) || !_searchIndex.empty();
 }
 
-void PeerListBox::Inner::addToSearchIndex(gsl::not_null<PeerListRow*> row) {
+void PeerListBox::Inner::addToSearchIndex(not_null<PeerListRow*> row) {
 	if (row->isSearchResult()) {
 		return;
 	}
@@ -613,7 +613,7 @@ void PeerListBox::Inner::addToSearchIndex(gsl::not_null<PeerListRow*> row) {
 	}
 }
 
-void PeerListBox::Inner::removeFromSearchIndex(gsl::not_null<PeerListRow*> row) {
+void PeerListBox::Inner::removeFromSearchIndex(not_null<PeerListRow*> row) {
 	auto &nameFirstChars = row->nameFirstChars();
 	if (!nameFirstChars.empty()) {
 		for_const (auto ch, row->nameFirstChars()) {
@@ -639,7 +639,7 @@ void PeerListBox::Inner::prependRow(std::unique_ptr<PeerListRow> row) {
 	}
 }
 
-void PeerListBox::Inner::prependRowFromSearchResult(gsl::not_null<PeerListRow*> row) {
+void PeerListBox::Inner::prependRowFromSearchResult(not_null<PeerListRow*> row) {
 	if (!row->isSearchResult()) {
 		return;
 	}
@@ -677,7 +677,7 @@ PeerListRow *PeerListBox::Inner::findRow(PeerListRowId id) {
 	return (it == _rowsById.cend()) ? nullptr : it->second.get();
 }
 
-void PeerListBox::Inner::removeRow(gsl::not_null<PeerListRow*> row) {
+void PeerListBox::Inner::removeRow(not_null<PeerListRow*> row) {
 	auto index = row->absoluteIndex();
 	auto isSearchResult = row->isSearchResult();
 	auto &eraseFrom = isSearchResult ? _searchRows : _rows;
@@ -698,7 +698,7 @@ void PeerListBox::Inner::removeRow(gsl::not_null<PeerListRow*> row) {
 	restoreSelection();
 }
 
-void PeerListBox::Inner::convertRowToSearchResult(gsl::not_null<PeerListRow*> row) {
+void PeerListBox::Inner::convertRowToSearchResult(not_null<PeerListRow*> row) {
 	if (row->isSearchResult()) {
 		return;
 	} else if (!showingSearch() || !_controller->hasComplexSearch()) {
@@ -719,7 +719,7 @@ int PeerListBox::Inner::fullRowsCount() const {
 	return _rows.size();
 }
 
-gsl::not_null<PeerListRow*> PeerListBox::Inner::rowAt(int index) const {
+not_null<PeerListRow*> PeerListBox::Inner::rowAt(int index) const {
 	Expects(index >= 0 && index < _rows.size());
 	return _rows[index].get();
 }
@@ -1001,7 +1001,7 @@ void PeerListBox::Inner::selectSkip(int direction) {
 	auto rowsCount = shownRowsCount();
 	auto index = 0;
 	auto firstEnabled = -1, lastEnabled = -1;
-	enumerateShownRows([&firstEnabled, &lastEnabled, &index](gsl::not_null<PeerListRow*> row) {
+	enumerateShownRows([&firstEnabled, &lastEnabled, &index](not_null<PeerListRow*> row) {
 		if (!row->disabled()) {
 			if (firstEnabled < 0) {
 				firstEnabled = index;
@@ -1098,7 +1098,7 @@ void PeerListBox::Inner::searchQueryChanged(QString query) {
 	if (_normalizedSearchQuery != normalizedQuery) {
 		setSearchQuery(query, normalizedQuery);
 		if (_controller->searchInLocal() && !searchWordsList.isEmpty()) {
-			auto minimalList = (const std::vector<gsl::not_null<PeerListRow*>>*)nullptr;
+			auto minimalList = (const std::vector<not_null<PeerListRow*>>*)nullptr;
 			for_const (auto &searchWord, searchWordsList) {
 				auto searchWordStart = searchWord[0].toLower();
 				auto it = _searchIndex.find(searchWordStart);
@@ -1202,7 +1202,7 @@ void PeerListBox::Inner::updateSelection() {
 	setSelected(selected);
 }
 
-QRect PeerListBox::Inner::getActionRect(gsl::not_null<PeerListRow*> row, RowIndex index) const {
+QRect PeerListBox::Inner::getActionRect(not_null<PeerListRow*> row, RowIndex index) const {
 	auto actionSize = row->actionSize();
 	if (actionSize.isEmpty()) {
 		return QRect();
@@ -1226,7 +1226,7 @@ int PeerListBox::Inner::getRowTop(RowIndex index) const {
 	return -1;
 }
 
-void PeerListBox::Inner::updateRow(gsl::not_null<PeerListRow*> row, RowIndex hint) {
+void PeerListBox::Inner::updateRow(not_null<PeerListRow*> row, RowIndex hint) {
 	updateRow(findRowIndex(row, hint));
 }
 
@@ -1286,7 +1286,7 @@ PeerListRow *PeerListBox::Inner::getRow(RowIndex index) {
 	return nullptr;
 }
 
-PeerListBox::Inner::RowIndex PeerListBox::Inner::findRowIndex(gsl::not_null<PeerListRow*> row, RowIndex hint) {
+PeerListBox::Inner::RowIndex PeerListBox::Inner::findRowIndex(not_null<PeerListRow*> row, RowIndex hint) {
 	if (!showingSearch()) {
 		t_assert(!row->isSearchResult());
 		return RowIndex(row->absoluteIndex());

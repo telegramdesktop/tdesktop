@@ -183,7 +183,7 @@ void MarkFeaturedAsRead(uint64 setId) {
 	FeaturedReaderInstance->scheduleRead(setId);
 }
 
-bool IsFaved(gsl::not_null<DocumentData*> document) {
+bool IsFaved(not_null<DocumentData*> document) {
 	auto it = Global::StickerSets().constFind(FavedSetId);
 	return (it != Global::StickerSets().cend()) && it->stickers.contains(document);
 }
@@ -209,8 +209,8 @@ void CheckFavedLimit(Set &set) {
 
 void PushFavedToFront(
 		Set &set,
-		gsl::not_null<DocumentData*> document,
-		const std::vector<gsl::not_null<EmojiPtr>> &emojiList) {
+		not_null<DocumentData*> document,
+		const std::vector<not_null<EmojiPtr>> &emojiList) {
 	set.stickers.push_front(document);
 	for (auto emoji : emojiList) {
 		set.emoji[emoji].push_front(document);
@@ -236,9 +236,9 @@ void MoveFavedToFront(Set &set, int index) {
 	}
 }
 
-void RequestSetToPushFaved(gsl::not_null<DocumentData*> document);
+void RequestSetToPushFaved(not_null<DocumentData*> document);
 
-void SetIsFaved(gsl::not_null<DocumentData*> document, base::optional<std::vector<gsl::not_null<EmojiPtr>>> emojiList = base::none) {
+void SetIsFaved(not_null<DocumentData*> document, base::optional<std::vector<not_null<EmojiPtr>>> emojiList = base::none) {
 	auto &sets = Global::RefStickerSets();
 	auto it = sets.find(FavedSetId);
 	if (it == sets.end()) {
@@ -263,8 +263,8 @@ void SetIsFaved(gsl::not_null<DocumentData*> document, base::optional<std::vecto
 	App::main()->onStickersInstalled(FavedSetId);
 }
 
-void RequestSetToPushFaved(gsl::not_null<DocumentData*> document) {
-	auto addAnyway = [document](std::vector<gsl::not_null<EmojiPtr>> list) {
+void RequestSetToPushFaved(not_null<DocumentData*> document) {
+	auto addAnyway = [document](std::vector<not_null<EmojiPtr>> list) {
 		if (list.empty()) {
 			if (auto sticker = document->sticker()) {
 				if (auto emoji = Ui::Emoji::Find(sticker->alt)) {
@@ -276,7 +276,7 @@ void RequestSetToPushFaved(gsl::not_null<DocumentData*> document) {
 	};
 	MTP::send(MTPmessages_GetStickerSet(document->sticker()->set), rpcDone([document, addAnyway](const MTPmessages_StickerSet &result) {
 		Expects(result.type() == mtpc_messages_stickerSet);
-		auto list = std::vector<gsl::not_null<EmojiPtr>>();
+		auto list = std::vector<not_null<EmojiPtr>>();
 		auto &d = result.c_messages_stickerSet();
 		list.reserve(d.vpacks.v.size());
 		for_const (auto &mtpPack, d.vpacks.v) {
@@ -301,7 +301,7 @@ void RequestSetToPushFaved(gsl::not_null<DocumentData*> document) {
 	}));
 }
 
-void SetIsNotFaved(gsl::not_null<DocumentData*> document) {
+void SetIsNotFaved(not_null<DocumentData*> document) {
 	auto &sets = Global::RefStickerSets();
 	auto it = sets.find(FavedSetId);
 	if (it == sets.end()) {
@@ -330,7 +330,7 @@ void SetIsNotFaved(gsl::not_null<DocumentData*> document) {
 	Auth().data().stickersUpdated().notify(true);
 }
 
-void SetFaved(gsl::not_null<DocumentData*> document, bool faved) {
+void SetFaved(not_null<DocumentData*> document, bool faved) {
 	if (faved) {
 		SetIsFaved(document);
 	} else {
@@ -629,7 +629,7 @@ void GifsReceived(const QVector<MTPDocument> &items, int32 hash) {
 	Auth().data().savedGifsUpdated().notify();
 }
 
-StickerPack GetListByEmoji(gsl::not_null<EmojiPtr> emoji) {
+StickerPack GetListByEmoji(not_null<EmojiPtr> emoji) {
 	auto original = emoji->original();
 	auto result = StickerPack();
 	auto setsToRequest = QMap<uint64, uint64>();
@@ -673,8 +673,8 @@ StickerPack GetListByEmoji(gsl::not_null<EmojiPtr> emoji) {
 	return result;
 }
 
-base::optional<std::vector<gsl::not_null<EmojiPtr>>> GetEmojiListFromSet(
-		gsl::not_null<DocumentData*> document) {
+base::optional<std::vector<not_null<EmojiPtr>>> GetEmojiListFromSet(
+		not_null<DocumentData*> document) {
 	if (auto sticker = document->sticker()) {
 		auto &inputSet = sticker->set;
 		if (inputSet.type() != mtpc_inputStickerSetID) {
@@ -685,7 +685,7 @@ base::optional<std::vector<gsl::not_null<EmojiPtr>>> GetEmojiListFromSet(
 		if (it == sets.cend()) {
 			return base::none;
 		}
-		auto result = std::vector<gsl::not_null<EmojiPtr>>();
+		auto result = std::vector<not_null<EmojiPtr>>();
 		for (auto i = it->emoji.cbegin(), e = it->emoji.cend(); i != e; ++i) {
 			if (i->contains(document)) {
 				result.push_back(i.key());

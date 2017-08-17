@@ -29,7 +29,7 @@ enum class MediaInBubbleState {
 
 class HistoryMedia : public HistoryElement {
 public:
-	HistoryMedia(gsl::not_null<HistoryItem*> parent) : _parent(parent) {
+	HistoryMedia(not_null<HistoryItem*> parent) : _parent(parent) {
 	}
 
 	virtual HistoryMediaType type() const = 0;
@@ -225,7 +225,7 @@ protected:
 		_parent->history()->eraseFromOverview(type, _parent->id);
 	}
 
-	gsl::not_null<HistoryItem*> _parent;
+	not_null<HistoryItem*> _parent;
 	int _width = 0;
 	MediaInBubbleState _inBubbleState = MediaInBubbleState::None;
 

@@ -437,7 +437,7 @@ void MainWindow::createGlobalMenu() {
 		if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
 
 		if (!App::self()) return;
-		Ui::show(Box<PeerListBox>(std::make_unique<ContactsBoxController>(), [](gsl::not_null<PeerListBox*> box) {
+		Ui::show(Box<PeerListBox>(std::make_unique<ContactsBoxController>(), [](not_null<PeerListBox*> box) {
 			box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
 			box->addLeftButton(langFactory(lng_profile_add_contact), [] { App::wnd()->onShowAddContact(); });
 		}));

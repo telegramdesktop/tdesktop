@@ -82,10 +82,10 @@ public:
 	// MediaView interface.
 	void checkMediaViewActivation();
 	bool hideMediaView();
-	void showPhoto(gsl::not_null<const PhotoOpenClickHandler*> link, HistoryItem *item = nullptr);
-	void showPhoto(gsl::not_null<PhotoData*> photo, HistoryItem *item);
-	void showPhoto(gsl::not_null<PhotoData*> photo, PeerData *item);
-	void showDocument(gsl::not_null<DocumentData*> document, HistoryItem *item);
+	void showPhoto(not_null<const PhotoOpenClickHandler*> link, HistoryItem *item = nullptr);
+	void showPhoto(not_null<PhotoData*> photo, HistoryItem *item);
+	void showPhoto(not_null<PhotoData*> photo, PeerData *item);
+	void showDocument(not_null<DocumentData*> document, HistoryItem *item);
 	PeerData *ui_getPeerForMouseAction();
 
 	QPoint getPointForCallPanelCenter() const;

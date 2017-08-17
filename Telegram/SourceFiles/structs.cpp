@@ -250,7 +250,7 @@ using UpdateFlag = Notify::PeerUpdate::Flag;
 NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
 NotifySettingsPtr globalNotifyAllPtr = UnknownNotifySettings, globalNotifyUsersPtr = UnknownNotifySettings, globalNotifyChatsPtr = UnknownNotifySettings;
 
-PeerClickHandler::PeerClickHandler(gsl::not_null<PeerData*> peer) : _peer(peer) {
+PeerClickHandler::PeerClickHandler(not_null<PeerData*> peer) : _peer(peer) {
 }
 
 void PeerClickHandler::onClick(Qt::MouseButton button) const {
@@ -790,7 +790,7 @@ MTPChannelBannedRights ChannelData::KickedRestrictedRights() {
 	return MTP_channelBannedRights(MTP_flags(flags), MTP_int(std::numeric_limits<int32>::max()));
 }
 
-void ChannelData::applyEditAdmin(gsl::not_null<UserData*> user, const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
+void ChannelData::applyEditAdmin(not_null<UserData*> user, const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
 	auto flags = Notify::PeerUpdate::Flag::AdminsChanged | Notify::PeerUpdate::Flag::None;
 	if (mgInfo) {
 		if (!mgInfo->lastParticipants.contains(user)) { // If rights are empty - still add participant? TODO check
@@ -845,7 +845,7 @@ void ChannelData::applyEditAdmin(gsl::not_null<UserData*> user, const MTPChannel
 	Notify::peerUpdatedDelayed(this, flags);
 }
 
-void ChannelData::applyEditBanned(gsl::not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
+void ChannelData::applyEditBanned(not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
 	auto flags = Notify::PeerUpdate::Flag::BannedUsersChanged | Notify::PeerUpdate::Flag::None;
 	if (mgInfo) {
 		if (mgInfo->lastAdmins.contains(user)) { // If rights are empty - still remove admin? TODO check
@@ -915,7 +915,7 @@ void ChannelData::setRestrictionReason(const QString &text) {
 	}
 }
 
-bool ChannelData::canNotEditLastAdmin(gsl::not_null<UserData*> user) const {
+bool ChannelData::canNotEditLastAdmin(not_null<UserData*> user) const {
 	if (mgInfo) {
 		auto i = mgInfo->lastAdmins.constFind(user);
 		if (i != mgInfo->lastAdmins.cend()) {
@@ -926,7 +926,7 @@ bool ChannelData::canNotEditLastAdmin(gsl::not_null<UserData*> user) const {
 	return false;
 }
 
-bool ChannelData::canEditAdmin(gsl::not_null<UserData*> user) const {
+bool ChannelData::canEditAdmin(not_null<UserData*> user) const {
 	if (user->isSelf()) {
 		return false;
 	} else if (amCreator()) {
@@ -937,7 +937,7 @@ bool ChannelData::canEditAdmin(gsl::not_null<UserData*> user) const {
 	return adminRights().is_add_admins();
 }
 
-bool ChannelData::canRestrictUser(gsl::not_null<UserData*> user) const {
+bool ChannelData::canRestrictUser(not_null<UserData*> user) const {
 	if (user->isSelf()) {
 		return false;
 	} else if (amCreator()) {

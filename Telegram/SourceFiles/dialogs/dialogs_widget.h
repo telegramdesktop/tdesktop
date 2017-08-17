@@ -59,7 +59,7 @@ class DialogsWidget : public Window::AbstractSectionWidget, public RPCSender {
 	Q_OBJECT
 
 public:
-	DialogsWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller);
+	DialogsWidget(QWidget *parent, not_null<Window::Controller*> controller);
 
 	void updateDragInScroll(bool inScroll);
 

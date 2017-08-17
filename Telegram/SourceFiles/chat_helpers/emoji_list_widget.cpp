@@ -35,7 +35,7 @@ constexpr auto kEmojiPanelRowsPerPage = Ui::Emoji::kPanelRowsPerPage;
 
 class EmojiListWidget::Footer : public TabbedSelector::InnerFooter {
 public:
-	Footer(gsl::not_null<EmojiListWidget*> parent);
+	Footer(not_null<EmojiListWidget*> parent);
 
 	void setCurrentSectionIcon(Section section);
 
@@ -46,12 +46,12 @@ private:
 	void prepareSection(int &left, int top, int _width, Ui::IconButton *sectionIcon, Section section);
 	void setActiveSection(Section section);
 
-	gsl::not_null<EmojiListWidget*> _pan;
+	not_null<EmojiListWidget*> _pan;
 	std::array<object_ptr<Ui::IconButton>, kEmojiSectionCount> _sections;
 
 };
 
-EmojiListWidget::Footer::Footer(gsl::not_null<EmojiListWidget*> parent) : InnerFooter(parent)
+EmojiListWidget::Footer::Footer(not_null<EmojiListWidget*> parent) : InnerFooter(parent)
 , _pan(parent)
 , _sections { {
 	object_ptr<Ui::IconButton>(this, st::emojiCategoryRecent),
@@ -302,7 +302,7 @@ void EmojiColorPicker::drawVariant(Painter &p, int variant) {
 	p.drawPixmapLeft(w.x() + (st::emojiPanSize.width() - (esize / cIntRetinaFactor())) / 2, w.y() + (st::emojiPanSize.height() - (esize / cIntRetinaFactor())) / 2, width(), App::emojiLarge(), QRect(_variants[variant]->x() * esize, _variants[variant]->y() * esize, esize, esize));
 }
 
-EmojiListWidget::EmojiListWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : Inner(parent, controller)
+EmojiListWidget::EmojiListWidget(QWidget *parent, not_null<Window::Controller*> controller) : Inner(parent, controller)
 , _picker(this) {
 	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, countHeight());
 

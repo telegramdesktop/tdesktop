@@ -764,7 +764,7 @@ void Histories::savePinnedToServer() const {
 	MTP::send(MTPmessages_ReorderPinnedDialogs(MTP_flags(flags), MTP_vector(peers)));
 }
 
-void Histories::selfDestructIn(gsl::not_null<HistoryItem*> item, TimeMs delay) {
+void Histories::selfDestructIn(not_null<HistoryItem*> item, TimeMs delay) {
 	_selfDestructItems.push_back(item->fullId());
 	if (!_selfDestructTimer.isActive() || _selfDestructTimer.remainingTime() > delay) {
 		_selfDestructTimer.callOnce(delay);
@@ -1257,7 +1257,7 @@ HistoryItem *History::addNewItem(HistoryItem *adding, bool newMsg) {
 	adding->addToOverview(AddToOverviewNew);
 	if (adding->from()->id) {
 		if (auto user = adding->from()->asUser()) {
-			auto getLastAuthors = [this]() -> QList<gsl::not_null<UserData*>>* {
+			auto getLastAuthors = [this]() -> QList<not_null<UserData*>>* {
 				if (auto chat = peer->asChat()) {
 					return &chat->lastAuthors;
 				} else if (auto channel = peer->asMegagroup()) {
@@ -1291,7 +1291,7 @@ HistoryItem *History::addNewItem(HistoryItem *adding, bool newMsg) {
 		if (adding->definesReplyKeyboard()) {
 			auto markupFlags = adding->replyKeyboardFlags();
 			if (!(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_selective) || adding->mentionsMe()) {
-				auto getMarkupSenders = [this]() -> OrderedSet<gsl::not_null<PeerData*>>* {
+				auto getMarkupSenders = [this]() -> OrderedSet<not_null<PeerData*>>* {
 					if (auto chat = peer->asChat()) {
 						return &chat->markupSenders;
 					} else if (auto channel = peer->asMegagroup()) {
@@ -1444,8 +1444,8 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 	} else if (loadedAtBottom()) { // add photos to overview and authors to lastAuthors
 		bool channel = isChannel();
 		int32 mask = 0;
-		QList<gsl::not_null<UserData*>> *lastAuthors = nullptr;
-		OrderedSet<gsl::not_null<PeerData*>> *markupSenders = nullptr;
+		QList<not_null<UserData*>> *lastAuthors = nullptr;
+		OrderedSet<not_null<PeerData*>> *markupSenders = nullptr;
 		if (peer->isChat()) {
 			lastAuthors = &peer->asChat()->lastAuthors;
 			markupSenders = &peer->asChat()->markupSenders;

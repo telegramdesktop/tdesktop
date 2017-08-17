@@ -45,7 +45,7 @@ constexpr auto kSearchBotUsername = str_const("gif");
 
 class GifsListWidget::Footer : public TabbedSelector::InnerFooter {
 public:
-	Footer(gsl::not_null<GifsListWidget*> parent);
+	Footer(not_null<GifsListWidget*> parent);
 
 	void stealFocus();
 	void returnFocus();
@@ -59,7 +59,7 @@ protected:
 	void processPanelHideFinished() override;
 
 private:
-	gsl::not_null<GifsListWidget*> _pan;
+	not_null<GifsListWidget*> _pan;
 
 	object_ptr<Ui::InputField> _field;
 	object_ptr<Ui::CrossButton> _cancel;
@@ -68,7 +68,7 @@ private:
 
 };
 
-GifsListWidget::Footer::Footer(gsl::not_null<GifsListWidget*> parent) : InnerFooter(parent)
+GifsListWidget::Footer::Footer(not_null<GifsListWidget*> parent) : InnerFooter(parent)
 , _pan(parent)
 , _field(this, st::gifsSearchField, langFactory(lng_gifs_search))
 , _cancel(this, st::gifsSearchCancel) {
@@ -120,7 +120,7 @@ void GifsListWidget::Footer::processPanelHideFinished() {
 	//_field->setText(QString());
 }
 
-GifsListWidget::GifsListWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : Inner(parent, controller)
+GifsListWidget::GifsListWidget(QWidget *parent, not_null<Window::Controller*> controller) : Inner(parent, controller)
 , _section(Section::Gifs) {
 	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, countHeight());
 

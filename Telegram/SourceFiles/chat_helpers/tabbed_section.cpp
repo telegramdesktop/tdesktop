@@ -25,10 +25,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace ChatHelpers {
 
-TabbedSection::TabbedSection(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TabbedSection(parent, controller, object_ptr<TabbedSelector>(this, controller)) {
+TabbedSection::TabbedSection(QWidget *parent, not_null<Window::Controller*> controller) : TabbedSection(parent, controller, object_ptr<TabbedSelector>(this, controller)) {
 }
 
-TabbedSection::TabbedSection(QWidget *parent, gsl::not_null<Window::Controller*> controller, object_ptr<TabbedSelector> selector) : Window::AbstractSectionWidget(parent, controller)
+TabbedSection::TabbedSection(QWidget *parent, not_null<Window::Controller*> controller, object_ptr<TabbedSelector> selector) : Window::AbstractSectionWidget(parent, controller)
 , _selector(std::move(selector)) {
 	resize(st::emojiPanWidth, st::emojiPanMaxHeight);
 

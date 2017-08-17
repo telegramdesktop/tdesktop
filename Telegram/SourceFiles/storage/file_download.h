@@ -147,7 +147,7 @@ signals:
 protected:
 	void readImage(const QSize &shrinkBox) const;
 
-	gsl::not_null<Storage::Downloader*> _downloader;
+	not_null<Storage::Downloader*> _downloader;
 	FileLoader *_prev = nullptr;
 	FileLoader *_next = nullptr;
 	int _priority = 0;

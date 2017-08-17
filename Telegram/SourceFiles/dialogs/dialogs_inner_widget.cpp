@@ -65,7 +65,7 @@ struct DialogsInner::PeerSearchResult {
 	Dialogs::RippleRow row;
 };
 
-DialogsInner::DialogsInner(QWidget *parent, gsl::not_null<Window::Controller*> controller, QWidget *main) : SplittedWidget(parent)
+DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> controller, QWidget *main) : SplittedWidget(parent)
 , _controller(controller)
 , _dialogs(std::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Date))
 , _contactsNoDialogs(std::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Name))
@@ -464,7 +464,7 @@ void DialogsInner::paintSearchInPeer(Painter &p, int fullWidth, bool onlyBackgro
 	}
 }
 
-void DialogsInner::paintSearchInFilter(Painter &p, gsl::not_null<PeerData*> peer, int top, int fullWidth, const Text &text) const {
+void DialogsInner::paintSearchInFilter(Painter &p, not_null<PeerData*> peer, int top, int fullWidth, const Text &text) const {
 	auto pen = p.pen();
 	peer->paintUserpicLeft(p, st::dialogsPadding.x(), top + (st::dialogsSearchInHeight - st::dialogsSearchInPhotoSize) / 2, getFullWidth(), st::dialogsSearchInPhotoSize);
 
@@ -1264,7 +1264,7 @@ void DialogsInner::onParentGeometryChanged() {
 	}
 }
 
-void DialogsInner::handlePeerNameChange(gsl::not_null<PeerData*> peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
+void DialogsInner::handlePeerNameChange(not_null<PeerData*> peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
 	_dialogs->peerNameChanged(Dialogs::Mode::All, peer, oldNames, oldChars);
 	if (_dialogsImportant) {
 		_dialogsImportant->peerNameChanged(Dialogs::Mode::Important, peer, oldNames, oldChars);

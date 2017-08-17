@@ -30,7 +30,7 @@ namespace {
 
 class UserCheckbox : public Ui::RippleButton {
 public:
-	UserCheckbox(QWidget *parent, gsl::not_null<UserData*> user, bool checked);
+	UserCheckbox(QWidget *parent, not_null<UserData*> user, bool checked);
 
 	bool checked() const {
 		return _check->checked();
@@ -63,13 +63,13 @@ private:
 
 	QRect _checkRect;
 
-	gsl::not_null<UserData*> _user;
+	not_null<UserData*> _user;
 	QString _statusText;
 	bool _statusOnline = false;
 
 };
 
-UserCheckbox::UserCheckbox(QWidget *parent, gsl::not_null<UserData*> user, bool checked) : Ui::RippleButton(parent, st::defaultBoxCheckbox.ripple)
+UserCheckbox::UserCheckbox(QWidget *parent, not_null<UserData*> user, bool checked) : Ui::RippleButton(parent, st::defaultBoxCheckbox.ripple)
 , _st(st::adminLogFilterUserCheckbox)
 , _check(std::make_unique<Ui::CheckView>(st::defaultCheck, checked, [this] { rtlupdate(_checkRect); }))
 , _user(user) {
@@ -146,7 +146,7 @@ QPoint UserCheckbox::prepareRippleStartPosition() const {
 
 class FilterBox::Inner : public TWidget, private base::Subscriber {
 public:
-	Inner(QWidget *parent, gsl::not_null<ChannelData*> channel, const std::vector<gsl::not_null<UserData*>> &admins, const FilterValue &filter, base::lambda<void()> changedCallback);
+	Inner(QWidget *parent, not_null<ChannelData*> channel, const std::vector<not_null<UserData*>> &admins, const FilterValue &filter, base::lambda<void()> changedCallback);
 
 	template <typename Widget>
 	QPointer<Widget> addRow(object_ptr<Widget> widget, int marginTop) {
@@ -167,19 +167,19 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	void createControls(const std::vector<gsl::not_null<UserData*>> &admins, const FilterValue &filter);
+	void createControls(const std::vector<not_null<UserData*>> &admins, const FilterValue &filter);
 	void createAllActionsCheckbox(const FilterValue &filter);
 	void createActionsCheckboxes(const FilterValue &filter);
 	void createAllUsersCheckbox(const FilterValue &filter);
-	void createAdminsCheckboxes(const std::vector<gsl::not_null<UserData*>> &admins, const FilterValue &filter);
+	void createAdminsCheckboxes(const std::vector<not_null<UserData*>> &admins, const FilterValue &filter);
 
-	gsl::not_null<ChannelData*> _channel;
+	not_null<ChannelData*> _channel;
 
 	QPointer<Ui::Checkbox> _allFlags;
 	QMap<MTPDchannelAdminLogEventsFilter::Flags, QPointer<Ui::Checkbox>> _filterFlags;
 
 	QPointer<Ui::Checkbox> _allUsers;
-	QMap<gsl::not_null<UserData*>, QPointer<UserCheckbox>> _admins;
+	QMap<not_null<UserData*>, QPointer<UserCheckbox>> _admins;
 	bool _restoringInvariant = false;
 
 	struct Row {
@@ -192,13 +192,13 @@ private:
 
 };
 
-FilterBox::Inner::Inner(QWidget *parent, gsl::not_null<ChannelData*> channel, const std::vector<gsl::not_null<UserData*>> &admins, const FilterValue &filter, base::lambda<void()> changedCallback) : TWidget(parent)
+FilterBox::Inner::Inner(QWidget *parent, not_null<ChannelData*> channel, const std::vector<not_null<UserData*>> &admins, const FilterValue &filter, base::lambda<void()> changedCallback) : TWidget(parent)
 , _channel(channel)
 , _changedCallback(std::move(changedCallback)) {
 	createControls(admins, filter);
 }
 
-void FilterBox::Inner::createControls(const std::vector<gsl::not_null<UserData*>> &admins, const FilterValue &filter) {
+void FilterBox::Inner::createControls(const std::vector<not_null<UserData*>> &admins, const FilterValue &filter) {
 	createAllActionsCheckbox(filter);
 	createActionsCheckboxes(filter);
 	createAllUsersCheckbox(filter);
@@ -276,7 +276,7 @@ void FilterBox::Inner::createAllUsersCheckbox(const FilterValue &filter) {
 	});
 }
 
-void FilterBox::Inner::createAdminsCheckboxes(const std::vector<gsl::not_null<UserData*>> &admins, const FilterValue &filter) {
+void FilterBox::Inner::createAdminsCheckboxes(const std::vector<not_null<UserData*>> &admins, const FilterValue &filter) {
 	for (auto user : admins) {
 		auto checked = filter.allUsers || base::contains(filter.admins, user);
 		auto checkbox = addRow(object_ptr<UserCheckbox>(this, user, checked), st::adminLogFilterLittleSkip);
@@ -356,7 +356,7 @@ void FilterBox::Inner::resizeEvent(QResizeEvent *e) {
 	}
 }
 
-FilterBox::FilterBox(QWidget*, gsl::not_null<ChannelData*> channel, const std::vector<gsl::not_null<UserData*>> &admins, const FilterValue &filter, base::lambda<void(FilterValue &&filter)> saveCallback) : BoxContent()
+FilterBox::FilterBox(QWidget*, not_null<ChannelData*> channel, const std::vector<not_null<UserData*>> &admins, const FilterValue &filter, base::lambda<void(FilterValue &&filter)> saveCallback) : BoxContent()
 , _channel(channel)
 , _admins(admins)
 , _initialFilter(filter)

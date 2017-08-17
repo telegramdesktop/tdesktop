@@ -744,7 +744,7 @@ void HistoryItem::nextItemChanged() {
 	setAttachToNext(false);
 }
 
-bool HistoryItem::computeIsAttachToPrevious(gsl::not_null<HistoryItem*> previous) {
+bool HistoryItem::computeIsAttachToPrevious(not_null<HistoryItem*> previous) {
 	if (!Has<HistoryMessageDate>() && !Has<HistoryMessageUnreadBar>()) {
 		return !isPost() && !previous->isPost()
 			&& !serviceMsg() && !previous->serviceMsg()

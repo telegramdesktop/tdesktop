@@ -37,10 +37,10 @@ namespace InlineBots {
 namespace Layout {
 namespace internal {
 
-FileBase::FileBase(gsl::not_null<Context*> context, Result *result) : ItemBase(context, result) {
+FileBase::FileBase(not_null<Context*> context, Result *result) : ItemBase(context, result) {
 }
 
-FileBase::FileBase(gsl::not_null<Context*> context, DocumentData *document) : ItemBase(context, document) {
+FileBase::FileBase(not_null<Context*> context, DocumentData *document) : ItemBase(context, document) {
 }
 
 DocumentData *FileBase::getShownDocument() const {
@@ -94,10 +94,10 @@ ImagePtr FileBase::content_thumb() const {
 	return getResultThumb();
 }
 
-Gif::Gif(gsl::not_null<Context*> context, Result *result) : FileBase(context, result) {
+Gif::Gif(not_null<Context*> context, Result *result) : FileBase(context, result) {
 }
 
-Gif::Gif(gsl::not_null<Context*> context, DocumentData *document, bool hasDeleteButton) : FileBase(context, document) {
+Gif::Gif(not_null<Context*> context, DocumentData *document, bool hasDeleteButton) : FileBase(context, document) {
 	if (hasDeleteButton) {
 		_delete = MakeShared<DeleteSavedGifClickHandler>(document);
 	}
@@ -358,7 +358,7 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 	}
 }
 
-Sticker::Sticker(gsl::not_null<Context*> context, Result *result) : FileBase(context, result) {
+Sticker::Sticker(not_null<Context*> context, Result *result) : FileBase(context, result) {
 }
 
 void Sticker::initDimensions() {
@@ -458,7 +458,7 @@ void Sticker::prepareThumb() const {
 	}
 }
 
-Photo::Photo(gsl::not_null<Context*> context, Result *result) : ItemBase(context, result) {
+Photo::Photo(not_null<Context*> context, Result *result) : ItemBase(context, result) {
 }
 
 void Photo::initDimensions() {
@@ -554,7 +554,7 @@ void Photo::prepareThumb(int32 width, int32 height, const QSize &frame) const {
 	}
 }
 
-Video::Video(gsl::not_null<Context*> context, Result *result) : FileBase(context, result)
+Video::Video(not_null<Context*> context, Result *result) : FileBase(context, result)
 , _link(getResultContentUrlHandler())
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
@@ -671,7 +671,7 @@ void CancelFileClickHandler::onClickImpl() const {
 	_result->cancelFile();
 }
 
-File::File(gsl::not_null<Context*> context, Result *result) : FileBase(context, result)
+File::File(not_null<Context*> context, Result *result) : FileBase(context, result)
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::msgFileSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::msgFileSize - st::inlineThumbSkip)
 , _open(MakeShared<OpenFileClickHandler>(result))
@@ -881,7 +881,7 @@ void File::setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 r
 	}
 }
 
-Contact::Contact(gsl::not_null<Context*> context, Result *result) : ItemBase(context, result)
+Contact::Contact(not_null<Context*> context, Result *result) : ItemBase(context, result)
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
 }
@@ -970,7 +970,7 @@ void Contact::prepareThumb(int width, int height) const {
 	}
 }
 
-Article::Article(gsl::not_null<Context*> context, Result *result, bool withThumb) : ItemBase(context, result)
+Article::Article(not_null<Context*> context, Result *result, bool withThumb) : ItemBase(context, result)
 , _url(getResultUrlHandler())
 , _link(getResultContentUrlHandler())
 , _withThumb(withThumb)
@@ -1117,7 +1117,7 @@ void Article::prepareThumb(int width, int height) const {
 	}
 }
 
-Game::Game(gsl::not_null<Context*> context, Result *result) : ItemBase(context, result)
+Game::Game(not_null<Context*> context, Result *result) : ItemBase(context, result)
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
 	countFrameSize();

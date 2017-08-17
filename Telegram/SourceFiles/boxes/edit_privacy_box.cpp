@@ -34,22 +34,22 @@ namespace {
 
 class PrivacyExceptionsBoxController : public ChatsListBoxController {
 public:
-	PrivacyExceptionsBoxController(base::lambda<QString()> titleFactory, const std::vector<gsl::not_null<UserData*>> &selected);
-	void rowClicked(gsl::not_null<PeerListRow*> row) override;
+	PrivacyExceptionsBoxController(base::lambda<QString()> titleFactory, const std::vector<not_null<UserData*>> &selected);
+	void rowClicked(not_null<PeerListRow*> row) override;
 
-	std::vector<gsl::not_null<UserData*>> getResult() const;
+	std::vector<not_null<UserData*>> getResult() const;
 
 protected:
 	void prepareViewHook() override;
-	std::unique_ptr<Row> createRow(gsl::not_null<History*> history) override;
+	std::unique_ptr<Row> createRow(not_null<History*> history) override;
 
 private:
 	base::lambda<QString()> _titleFactory;
-	std::vector<gsl::not_null<UserData*>> _selected;
+	std::vector<not_null<UserData*>> _selected;
 
 };
 
-PrivacyExceptionsBoxController::PrivacyExceptionsBoxController(base::lambda<QString()> titleFactory, const std::vector<gsl::not_null<UserData*>> &selected)
+PrivacyExceptionsBoxController::PrivacyExceptionsBoxController(base::lambda<QString()> titleFactory, const std::vector<not_null<UserData*>> &selected)
 : _titleFactory(std::move(titleFactory))
 , _selected(selected) {
 }
@@ -59,9 +59,9 @@ void PrivacyExceptionsBoxController::prepareViewHook() {
 	delegate()->peerListAddSelectedRows(_selected);
 }
 
-std::vector<gsl::not_null<UserData*>> PrivacyExceptionsBoxController::getResult() const {
+std::vector<not_null<UserData*>> PrivacyExceptionsBoxController::getResult() const {
 	auto peers = delegate()->peerListCollectSelectedRows();
-	auto users = std::vector<gsl::not_null<UserData*>>();
+	auto users = std::vector<not_null<UserData*>>();
 	if (!peers.empty()) {
 		users.reserve(peers.size());
 		for_const (auto peer, peers) {
@@ -73,11 +73,11 @@ std::vector<gsl::not_null<UserData*>> PrivacyExceptionsBoxController::getResult(
 	return users;
 }
 
-void PrivacyExceptionsBoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
+void PrivacyExceptionsBoxController::rowClicked(not_null<PeerListRow*> row) {
 	delegate()->peerListSetRowChecked(row, !row->checked());
 }
 
-std::unique_ptr<PrivacyExceptionsBoxController::Row> PrivacyExceptionsBoxController::createRow(gsl::not_null<History*> history) {
+std::unique_ptr<PrivacyExceptionsBoxController::Row> PrivacyExceptionsBoxController::createRow(not_null<History*> history) {
 	if (history->peer->isSelf()) {
 		return nullptr;
 	}
@@ -178,7 +178,7 @@ void EditPrivacyBox::editExceptionUsers(Exception exception) {
 	auto controller = std::make_unique<PrivacyExceptionsBoxController>(base::lambda_guarded(this, [this, exception] {
 		return _controller->exceptionBoxTitle(exception);
 	}), exceptionUsers(exception));
-	auto initBox = [this, exception, controller = controller.get()](gsl::not_null<PeerListBox*> box) {
+	auto initBox = [this, exception, controller = controller.get()](not_null<PeerListBox*> box) {
 		box->addButton(langFactory(lng_settings_save), base::lambda_guarded(this, [this, box, exception, controller] {
 			exceptionUsers(exception) = controller->getResult();
 			exceptionLink(exception)->entity()->setText(exceptionLinkText(exception));
@@ -244,7 +244,7 @@ style::margins EditPrivacyBox::exceptionLinkMargins() const {
 	return st::editPrivacyLinkMargin;
 }
 
-std::vector<gsl::not_null<UserData*>> &EditPrivacyBox::exceptionUsers(Exception exception) {
+std::vector<not_null<UserData*>> &EditPrivacyBox::exceptionUsers(Exception exception) {
 	switch (exception) {
 	case Exception::Always: return _alwaysUsers;
 	case Exception::Never: return _neverUsers;

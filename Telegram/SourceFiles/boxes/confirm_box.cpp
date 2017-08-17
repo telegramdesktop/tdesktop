@@ -216,7 +216,7 @@ InformBox::InformBox(QWidget*, const QString &text, base::lambda<void()> closedC
 InformBox::InformBox(QWidget*, const QString &text, const QString &doneText, base::lambda<void()> closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, doneText, std::move(closedCallback)) {
 }
 
-MaxInviteBox::MaxInviteBox(QWidget*, gsl::not_null<ChannelData*> channel) : BoxContent()
+MaxInviteBox::MaxInviteBox(QWidget*, not_null<ChannelData*> channel) : BoxContent()
 , _channel(channel)
 , _text(st::boxLabelStyle, lng_participant_invite_sorry(lt_count, Global::ChatSizeMax()), _confirmBoxTextOptions, st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right()) {
 }

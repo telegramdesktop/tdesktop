@@ -289,7 +289,7 @@ class OverviewWidget : public Window::AbstractSectionWidget, public RPCSender {
 	Q_OBJECT
 
 public:
-	OverviewWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, PeerData *peer, MediaOverviewType type);
+	OverviewWidget(QWidget *parent, not_null<Window::Controller*> controller, PeerData *peer, MediaOverviewType type);
 
 	void clear();
 
@@ -351,7 +351,7 @@ public:
 	bool wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) override;
 	QRect rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) override;
 
-	void ui_repaintHistoryItem(gsl::not_null<const HistoryItem*> item);
+	void ui_repaintHistoryItem(not_null<const HistoryItem*> item);
 
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
 

@@ -31,7 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 void HistoryInit();
 
 class HistoryItem;
-using SelectedItemSet = QMap<int, gsl::not_null<HistoryItem*>>;
+using SelectedItemSet = QMap<int, not_null<HistoryItem*>>;
 
 enum NewMessageType {
 	NewMessageUnread,
@@ -99,7 +99,7 @@ public:
 	base::Observable<SendActionAnimationUpdate> &sendActionAnimationUpdated() {
 		return _sendActionAnimationUpdated;
 	}
-	void selfDestructIn(gsl::not_null<HistoryItem*> item, TimeMs delay);
+	void selfDestructIn(not_null<HistoryItem*> item, TimeMs delay);
 
 private:
 	void checkSelfDestructItems();
@@ -646,7 +646,7 @@ private:
 
 class HistoryBlock {
 public:
-	HistoryBlock(gsl::not_null<History*> history) : _history(history) {
+	HistoryBlock(not_null<History*> history) : _history(history) {
 	}
 
 	HistoryBlock(const HistoryBlock &) = delete;
@@ -670,7 +670,7 @@ public:
 	int height() const {
 		return _height;
 	}
-	gsl::not_null<History*> history() const {
+	not_null<History*> history() const {
 		return _history;
 	}
 
@@ -696,7 +696,7 @@ public:
 	}
 
 protected:
-	const gsl::not_null<History*> _history;
+	const not_null<History*> _history;
 
 	int _y = 0;
 	int _height = 0;

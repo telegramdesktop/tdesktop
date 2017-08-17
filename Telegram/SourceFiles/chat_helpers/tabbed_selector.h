@@ -56,7 +56,7 @@ class TabbedSelector : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	TabbedSelector(QWidget *parent, gsl::not_null<Window::Controller*> controller);
+	TabbedSelector(QWidget *parent, not_null<Window::Controller*> controller);
 
 	void setRoundRadius(int radius);
 	void refreshStickers();
@@ -123,10 +123,10 @@ private:
 		SelectorTab type() const {
 			return _type;
 		}
-		gsl::not_null<Inner*> widget() const {
+		not_null<Inner*> widget() const {
 			return _weak;
 		}
-		gsl::not_null<InnerFooter*> footer() const {
+		not_null<InnerFooter*> footer() const {
 			return _footer;
 		}
 
@@ -164,21 +164,21 @@ private:
 	void setWidgetToScrollArea();
 	void createTabsSlider();
 	void switchTab();
-	gsl::not_null<Tab*> getTab(SelectorTab type) {
+	not_null<Tab*> getTab(SelectorTab type) {
 		return &_tabs[static_cast<int>(type)];
 	}
-	gsl::not_null<const Tab*> getTab(SelectorTab type) const {
+	not_null<const Tab*> getTab(SelectorTab type) const {
 		return &_tabs[static_cast<int>(type)];
 	}
-	gsl::not_null<Tab*> currentTab() {
+	not_null<Tab*> currentTab() {
 		return getTab(_currentTabType);
 	}
-	gsl::not_null<const Tab*> currentTab() const {
+	not_null<const Tab*> currentTab() const {
 		return getTab(_currentTabType);
 	}
-	gsl::not_null<EmojiListWidget*> emoji() const;
-	gsl::not_null<StickersListWidget*> stickers() const;
-	gsl::not_null<GifsListWidget*> gifs() const;
+	not_null<EmojiListWidget*> emoji() const;
+	not_null<StickersListWidget*> stickers() const;
+	not_null<GifsListWidget*> gifs() const;
 
 	int _roundRadius = 0;
 	int _footerTop = 0;
@@ -205,7 +205,7 @@ class TabbedSelector::Inner : public TWidget {
 	Q_OBJECT
 
 public:
-	Inner(QWidget *parent, gsl::not_null<Window::Controller*> controller);
+	Inner(QWidget *parent, not_null<Window::Controller*> controller);
 
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
@@ -235,7 +235,7 @@ signals:
 	void disableScroll(bool disabled);
 
 protected:
-	gsl::not_null<Window::Controller*> controller() const {
+	not_null<Window::Controller*> controller() const {
 		return _controller;
 	}
 
@@ -247,7 +247,7 @@ protected:
 	}
 
 private:
-	gsl::not_null<Window::Controller*> _controller;
+	not_null<Window::Controller*> _controller;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;

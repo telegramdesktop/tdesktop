@@ -31,7 +31,7 @@ public:
 	SectionMemento(PeerData *peer) : _peer(peer) {
 	}
 
-	object_ptr<Window::SectionWidget> createWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, const QRect &geometry) override;
+	object_ptr<Window::SectionWidget> createWidget(QWidget *parent, not_null<Window::Controller*> controller, const QRect &geometry) override;
 
 	PeerData *getPeer() const {
 		return _peer;

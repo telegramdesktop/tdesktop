@@ -299,7 +299,7 @@ public:
 		int buttonHeight() const;
 		virtual int buttonRadius() const = 0;
 
-		virtual void repaint(gsl::not_null<const HistoryItem*> item) const = 0;
+		virtual void repaint(not_null<const HistoryItem*> item) const = 0;
 		virtual ~Style() {
 		}
 
@@ -907,7 +907,7 @@ public:
 	void clipCallback(Media::Clip::Notification notification);
 	void audioTrackUpdated();
 
-	bool computeIsAttachToPrevious(gsl::not_null<HistoryItem*> previous);
+	bool computeIsAttachToPrevious(not_null<HistoryItem*> previous);
 	void setLogEntryDisplayDate(bool displayDate) {
 		Expects(isLogEntry());
 		setDisplayDate(displayDate);
@@ -941,8 +941,8 @@ protected:
 	void finishEdition(int oldKeyboardTop);
 	void finishEditionToEmpty();
 
-	gsl::not_null<History*> _history;
-	gsl::not_null<PeerData*> _from;
+	not_null<History*> _history;
+	not_null<PeerData*> _from;
 	HistoryBlock *_block = nullptr;
 	int _indexInBlock = -1;
 	MTPDmessage::Flags _flags = 0;
@@ -1045,7 +1045,7 @@ template <typename T>
 class HistoryItemInstantiated {
 public:
 	template <typename ...Args>
-	static gsl::not_null<T*> _create(Args &&... args) {
+	static not_null<T*> _create(Args &&... args) {
 		auto result = new T(std::forward<Args>(args)...);
 		result->finishCreate();
 		return result;

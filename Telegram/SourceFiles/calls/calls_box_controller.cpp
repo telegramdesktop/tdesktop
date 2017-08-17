@@ -243,13 +243,13 @@ void BoxController::refreshAbout() {
 	setDescriptionText(delegate()->peerListFullRowsCount() ? QString() : lang(lng_call_box_about));
 }
 
-void BoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
+void BoxController::rowClicked(not_null<PeerListRow*> row) {
 	auto itemsRow = static_cast<Row*>(row.get());
 	auto itemId = itemsRow->maxItemId();
 	Ui::showPeerHistoryAsync(row->peer()->id, itemId);
 }
 
-void BoxController::rowActionClicked(gsl::not_null<PeerListRow*> row) {
+void BoxController::rowActionClicked(not_null<PeerListRow*> row) {
 	auto user = row->peer()->asUser();
 	t_assert(user != nullptr);
 

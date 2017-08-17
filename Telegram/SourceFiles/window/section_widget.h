@@ -35,7 +35,7 @@ enum class Column {
 
 class AbstractSectionWidget : public TWidget, protected base::Subscriber {
 public:
-	AbstractSectionWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent), _controller(controller) {
+	AbstractSectionWidget(QWidget *parent, not_null<Window::Controller*> controller) : TWidget(parent), _controller(controller) {
 	}
 
 	// Float player interface.
@@ -47,12 +47,12 @@ public:
 	}
 
 protected:
-	gsl::not_null<Window::Controller*> controller() const {
+	not_null<Window::Controller*> controller() const {
 		return _controller;
 	}
 
 private:
-	gsl::not_null<Window::Controller*> _controller;
+	not_null<Window::Controller*> _controller;
 
 };
 
@@ -70,7 +70,7 @@ struct SectionSlideParams {
 
 class SectionWidget : public AbstractSectionWidget {
 public:
-	SectionWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller);
+	SectionWidget(QWidget *parent, not_null<Window::Controller*> controller);
 
 	virtual PeerData *peerForDialogs() const {
 		return nullptr;
@@ -99,7 +99,7 @@ public:
 	//
 	// If this method returns false it is not supposed to modify the memento.
 	// If this method returns true it may modify the memento ("take" heavy items).
-	virtual bool showInternal(gsl::not_null<SectionMemento*> memento) = 0;
+	virtual bool showInternal(not_null<SectionMemento*> memento) = 0;
 
 	// Create a memento of that section to store it in the history stack.
 	// This method may modify the section ("take" heavy items).

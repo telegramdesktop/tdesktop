@@ -33,7 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace {
 
-base::flat_set<gsl::not_null<UserData*>> GetAlreadyInFromPeer(PeerData *peer) {
+base::flat_set<not_null<UserData*>> GetAlreadyInFromPeer(PeerData *peer) {
 	if (!peer) {
 		return {};
 	}
@@ -266,11 +266,11 @@ QString ChatsListBoxController::emptyBoxText() const {
 	return lang(lng_contacts_not_found);
 }
 
-std::unique_ptr<PeerListRow> ChatsListBoxController::createSearchRow(gsl::not_null<PeerData*> peer) {
+std::unique_ptr<PeerListRow> ChatsListBoxController::createSearchRow(not_null<PeerData*> peer) {
 	return createRow(App::history(peer));
 }
 
-bool ChatsListBoxController::appendRow(gsl::not_null<History*> history) {
+bool ChatsListBoxController::appendRow(not_null<History*> history) {
 	if (auto row = delegate()->peerListFindRow(history->peer->id)) {
 		updateRowHook(static_cast<Row*>(row));
 		return false;
@@ -328,15 +328,15 @@ void ContactsBoxController::checkForEmptyRows() {
 	}
 }
 
-std::unique_ptr<PeerListRow> ContactsBoxController::createSearchRow(gsl::not_null<PeerData*> peer) {
+std::unique_ptr<PeerListRow> ContactsBoxController::createSearchRow(not_null<PeerData*> peer) {
 	return createRow(peer->asUser());
 }
 
-void ContactsBoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
+void ContactsBoxController::rowClicked(not_null<PeerListRow*> row) {
 	Ui::showPeerHistory(row->peer(), ShowAtUnreadMsgId);
 }
 
-bool ContactsBoxController::appendRow(gsl::not_null<UserData*> user) {
+bool ContactsBoxController::appendRow(not_null<UserData*> user) {
 	if (auto row = delegate()->peerListFindRow(user->id)) {
 		updateRowHook(row);
 		return false;
@@ -348,7 +348,7 @@ bool ContactsBoxController::appendRow(gsl::not_null<UserData*> user) {
 	return false;
 }
 
-std::unique_ptr<PeerListRow> ContactsBoxController::createRow(gsl::not_null<UserData*> user) {
+std::unique_ptr<PeerListRow> ContactsBoxController::createRow(not_null<UserData*> user) {
 	return std::make_unique<PeerListRow>(user);
 }
 
@@ -359,14 +359,14 @@ AddParticipantsBoxController::AddParticipantsBoxController(PeerData *peer)
 }
 
 AddParticipantsBoxController::AddParticipantsBoxController(
-	gsl::not_null<ChannelData*> channel,
-	base::flat_set<gsl::not_null<UserData*>> &&alreadyIn)
+	not_null<ChannelData*> channel,
+	base::flat_set<not_null<UserData*>> &&alreadyIn)
 : ContactsBoxController(std::make_unique<PeerListGlobalSearchController>())
 , _peer(channel)
 , _alreadyIn(std::move(alreadyIn)) {
 }
 
-void AddParticipantsBoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
+void AddParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
 	auto count = fullCount();
 	auto limit = (_peer && _peer->isMegagroup()) ? Global::MegagroupSizeMax() : Global::ChatSizeMax();
 	if (count < limit || row->checked()) {
@@ -381,7 +381,7 @@ void AddParticipantsBoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
 	}
 }
 
-void AddParticipantsBoxController::itemDeselectedHook(gsl::not_null<PeerData*> peer) {
+void AddParticipantsBoxController::itemDeselectedHook(not_null<PeerData*> peer) {
 	updateTitle();
 }
 
@@ -401,7 +401,7 @@ int AddParticipantsBoxController::alreadyInCount() const {
 	Unexpected("User in AddParticipantsBoxController::alreadyInCount");
 }
 
-bool AddParticipantsBoxController::isAlreadyIn(gsl::not_null<UserData*> user) const {
+bool AddParticipantsBoxController::isAlreadyIn(not_null<UserData*> user) const {
 	if (!_peer) {
 		return false;
 	}
@@ -418,7 +418,7 @@ int AddParticipantsBoxController::fullCount() const {
 	return alreadyInCount() + delegate()->peerListSelectedRowsCount();
 }
 
-std::unique_ptr<PeerListRow> AddParticipantsBoxController::createRow(gsl::not_null<UserData*> user) {
+std::unique_ptr<PeerListRow> AddParticipantsBoxController::createRow(not_null<UserData*> user) {
 	if (user->isSelf()) {
 		return nullptr;
 	}
@@ -437,12 +437,12 @@ void AddParticipantsBoxController::updateTitle() {
 	delegate()->peerListSetAdditionalTitle([additional] { return additional; });
 }
 
-void AddParticipantsBoxController::Start(gsl::not_null<ChatData*> chat) {
-	auto initBox = [chat](gsl::not_null<PeerListBox*> box) {
+void AddParticipantsBoxController::Start(not_null<ChatData*> chat) {
+	auto initBox = [chat](not_null<PeerListBox*> box) {
 		box->addButton(langFactory(lng_participant_invite), [box, chat] {
 			auto rows = box->peerListCollectSelectedRows();
 			if (!rows.empty()) {
-				auto users = std::vector<gsl::not_null<UserData*>>();
+				auto users = std::vector<not_null<UserData*>>();
 				for (auto peer : rows) {
 					auto user = peer->asUser();
 					t_assert(user != nullptr);
@@ -459,15 +459,15 @@ void AddParticipantsBoxController::Start(gsl::not_null<ChatData*> chat) {
 }
 
 void AddParticipantsBoxController::Start(
-		gsl::not_null<ChannelData*> channel,
-		base::flat_set<gsl::not_null<UserData*>> &&alreadyIn,
+		not_null<ChannelData*> channel,
+		base::flat_set<not_null<UserData*>> &&alreadyIn,
 		bool justCreated) {
-	auto initBox = [channel, justCreated](gsl::not_null<PeerListBox*> box) {
+	auto initBox = [channel, justCreated](not_null<PeerListBox*> box) {
 		auto subscription = std::make_shared<base::Subscription>();
 		box->addButton(langFactory(lng_participant_invite), [box, channel, subscription] {
 			auto rows = box->peerListCollectSelectedRows();
 			if (!rows.empty()) {
-				auto users = std::vector<gsl::not_null<UserData*>>();
+				auto users = std::vector<not_null<UserData*>>();
 				for (auto peer : rows) {
 					auto user = peer->asUser();
 					t_assert(user != nullptr);
@@ -493,12 +493,12 @@ void AddParticipantsBoxController::Start(
 }
 
 void AddParticipantsBoxController::Start(
-		gsl::not_null<ChannelData*> channel,
-		base::flat_set<gsl::not_null<UserData*>> &&alreadyIn) {
+		not_null<ChannelData*> channel,
+		base::flat_set<not_null<UserData*>> &&alreadyIn) {
 	Start(channel, std::move(alreadyIn), false);
 }
 
-void AddParticipantsBoxController::Start(gsl::not_null<ChannelData*> channel) {
+void AddParticipantsBoxController::Start(not_null<ChannelData*> channel) {
 	Start(channel, {}, true);
 }
 
@@ -548,7 +548,7 @@ void EditChatAdminsBoxController::LabeledCheckbox::paintEvent(QPaintEvent *e) {
 	(checked() ? _labelChecked : _labelUnchecked).draw(p, st::contactsPadding.left(), st::contactsAboutTop, _labelWidth);
 }
 
-EditChatAdminsBoxController::EditChatAdminsBoxController(gsl::not_null<ChatData*> chat)
+EditChatAdminsBoxController::EditChatAdminsBoxController(not_null<ChatData*> chat)
 : PeerListController()
 , _chat(chat) {
 }
@@ -609,7 +609,7 @@ void EditChatAdminsBoxController::rebuildRows() {
 
 	auto allAdmins = allAreAdmins();
 
-	auto admins = std::vector<gsl::not_null<UserData*>>();
+	auto admins = std::vector<not_null<UserData*>>();
 	auto others = admins;
 	admins.reserve(allAdmins ? _chat->participants.size() : _chat->admins.size());
 	others.reserve(_chat->participants.size());
@@ -636,7 +636,7 @@ void EditChatAdminsBoxController::rebuildRows() {
 	std::sort(admins.begin(), admins.end(), sortByName);
 	std::sort(others.begin(), others.end(), sortByName);
 
-	auto addOne = [this](gsl::not_null<UserData*> user) {
+	auto addOne = [this](not_null<UserData*> user) {
 		if (auto row = createRow(user)) {
 			delegate()->peerListAppendRow(std::move(row));
 		}
@@ -652,7 +652,7 @@ void EditChatAdminsBoxController::rebuildRows() {
 	delegate()->peerListRefreshRows();
 }
 
-std::unique_ptr<PeerListRow> EditChatAdminsBoxController::createRow(gsl::not_null<UserData*> user) {
+std::unique_ptr<PeerListRow> EditChatAdminsBoxController::createRow(not_null<UserData*> user) {
 	auto result = std::make_unique<PeerListRow>(user);
 	if (allAreAdmins() || user->id == peerFromUser(_chat->creator)) {
 		result->setDisabledState(PeerListRow::State::DisabledChecked);
@@ -660,17 +660,17 @@ std::unique_ptr<PeerListRow> EditChatAdminsBoxController::createRow(gsl::not_nul
 	return result;
 }
 
-void EditChatAdminsBoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
+void EditChatAdminsBoxController::rowClicked(not_null<PeerListRow*> row) {
 	delegate()->peerListSetRowChecked(row, !row->checked());
 }
 
-void EditChatAdminsBoxController::Start(gsl::not_null<ChatData*> chat) {
+void EditChatAdminsBoxController::Start(not_null<ChatData*> chat) {
 	auto controller = std::make_unique<EditChatAdminsBoxController>(chat);
-	auto initBox = [chat, controller = controller.get()](gsl::not_null<PeerListBox*> box) {
+	auto initBox = [chat, controller = controller.get()](not_null<PeerListBox*> box) {
 		box->addButton(langFactory(lng_settings_save), [box, chat, controller] {
 			auto rows = box->peerListCollectSelectedRows();
 			if (!rows.empty()) {
-				auto users = std::vector<gsl::not_null<UserData*>>();
+				auto users = std::vector<not_null<UserData*>>();
 				for (auto peer : rows) {
 					auto user = peer->asUser();
 					t_assert(user != nullptr);
@@ -686,21 +686,21 @@ void EditChatAdminsBoxController::Start(gsl::not_null<ChatData*> chat) {
 	Ui::show(Box<PeerListBox>(std::move(controller), std::move(initBox)));
 }
 
-void AddBotToGroupBoxController::Start(gsl::not_null<UserData*> bot) {
-	auto initBox = [bot](gsl::not_null<PeerListBox*> box) {
+void AddBotToGroupBoxController::Start(not_null<UserData*> bot) {
+	auto initBox = [bot](not_null<PeerListBox*> box) {
 		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
 	};
 	Ui::show(Box<PeerListBox>(std::make_unique<AddBotToGroupBoxController>(bot), std::move(initBox)));
 }
 
-AddBotToGroupBoxController::AddBotToGroupBoxController(gsl::not_null<UserData*> bot)
+AddBotToGroupBoxController::AddBotToGroupBoxController(not_null<UserData*> bot)
 : ChatsListBoxController(SharingBotGame(bot)
 	? std::make_unique<PeerListGlobalSearchController>()
 	: nullptr)
 , _bot(bot) {
 }
 
-void AddBotToGroupBoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
+void AddBotToGroupBoxController::rowClicked(not_null<PeerListRow*> row) {
 	if (sharingBotGame()) {
 		shareBotGame(row->peer());
 	} else {
@@ -708,7 +708,7 @@ void AddBotToGroupBoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
 	}
 }
 
-void AddBotToGroupBoxController::shareBotGame(gsl::not_null<PeerData*> chat) {
+void AddBotToGroupBoxController::shareBotGame(not_null<PeerData*> chat) {
 	auto weak = base::make_weak_unique(this);
 	auto send = [weak, bot = _bot, chat] {
 		if (!weak) {
@@ -746,7 +746,7 @@ void AddBotToGroupBoxController::shareBotGame(gsl::not_null<PeerData*> chat) {
 	Ui::show(Box<ConfirmBox>(confirmText(), send), KeepOtherLayers);
 }
 
-void AddBotToGroupBoxController::addBotToGroup(gsl::not_null<PeerData*> chat) {
+void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 	if (auto megagroup = chat->asMegagroup()) {
 		if (!megagroup->canAddMembers()) {
 			Ui::show(Box<InformBox>(lang(lng_error_cant_add_member)), KeepOtherLayers);
@@ -788,14 +788,14 @@ void AddBotToGroupBoxController::addBotToGroup(gsl::not_null<PeerData*> chat) {
 	Ui::show(Box<ConfirmBox>(confirmText, send), KeepOtherLayers);
 }
 
-std::unique_ptr<ChatsListBoxController::Row> AddBotToGroupBoxController::createRow(gsl::not_null<History*> history) {
+std::unique_ptr<ChatsListBoxController::Row> AddBotToGroupBoxController::createRow(not_null<History*> history) {
 	if (!needToCreateRow(history->peer)) {
 		return nullptr;
 	}
 	return std::make_unique<Row>(history);
 }
 
-bool AddBotToGroupBoxController::needToCreateRow(gsl::not_null<PeerData*> peer) const {
+bool AddBotToGroupBoxController::needToCreateRow(not_null<PeerData*> peer) const {
 	if (sharingBotGame()) {
 		if (!peer->canWrite()) {
 			return false;
@@ -817,7 +817,7 @@ bool AddBotToGroupBoxController::needToCreateRow(gsl::not_null<PeerData*> peer) 
 	return false;
 }
 
-bool AddBotToGroupBoxController::SharingBotGame(gsl::not_null<UserData*> bot) {
+bool AddBotToGroupBoxController::SharingBotGame(not_null<UserData*> bot) {
 	auto &info = bot->botInfo;
 	return (info && !info->shareGameShortName.isEmpty());
 }

@@ -41,7 +41,7 @@ namespace AdminLog {
 
 class FixedBar final : public TWidget, private base::Subscriber {
 public:
-	FixedBar(QWidget *parent, gsl::not_null<ChannelData*> channel);
+	FixedBar(QWidget *parent, not_null<ChannelData*> channel);
 
 	base::Observable<void> showFilterSignal;
 	base::Observable<void> searchCancelledSignal;
@@ -74,7 +74,7 @@ private:
 	void applySearch();
 	void searchAnimationCallback();
 
-	gsl::not_null<ChannelData*> _channel;
+	not_null<ChannelData*> _channel;
 	object_ptr<Ui::FlatInput> _field;
 	object_ptr<Profile::BackButton> _backButton;
 	object_ptr<Ui::IconButton> _search;
@@ -88,13 +88,13 @@ private:
 
 };
 
-object_ptr<Window::SectionWidget> SectionMemento::createWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, const QRect &geometry) {
+object_ptr<Window::SectionWidget> SectionMemento::createWidget(QWidget *parent, not_null<Window::Controller*> controller, const QRect &geometry) {
 	auto result = object_ptr<Widget>(parent, controller, _channel);
 	result->setInternalState(geometry, this);
 	return std::move(result);
 }
 
-FixedBar::FixedBar(QWidget *parent, gsl::not_null<ChannelData*> channel) : TWidget(parent)
+FixedBar::FixedBar(QWidget *parent, not_null<ChannelData*> channel) : TWidget(parent)
 , _channel(channel)
 , _field(this, st::historyAdminLogSearchField, langFactory(lng_dlg_filter))
 , _backButton(this, lang(lng_admin_log_title_all))
@@ -232,7 +232,7 @@ void FixedBar::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
-Widget::Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller, gsl::not_null<ChannelData*> channel) : Window::SectionWidget(parent, controller)
+Widget::Widget(QWidget *parent, not_null<Window::Controller*> controller, not_null<ChannelData*> channel) : Window::SectionWidget(parent, controller)
 , _scroll(this, st::historyScroll, false)
 , _fixedBar(this, channel)
 , _fixedBarShadow(this, st::shadowFg)
@@ -271,7 +271,7 @@ void Widget::updateAdaptiveLayout() {
 	_fixedBarShadow->moveToLeft(Adaptive::OneColumn() ? 0 : st::lineWidth, _fixedBar->height());
 }
 
-gsl::not_null<ChannelData*> Widget::channel() const {
+not_null<ChannelData*> Widget::channel() const {
 	return _inner->channel();
 }
 
@@ -288,7 +288,7 @@ void Widget::doSetInnerFocus() {
 	}
 }
 
-bool Widget::showInternal(gsl::not_null<Window::SectionMemento*> memento) {
+bool Widget::showInternal(not_null<Window::SectionMemento*> memento) {
 	if (auto logMemento = dynamic_cast<SectionMemento*>(memento.get())) {
 		if (logMemento->getChannel() == channel()) {
 			restoreState(logMemento);
@@ -298,7 +298,7 @@ bool Widget::showInternal(gsl::not_null<Window::SectionMemento*> memento) {
 	return false;
 }
 
-void Widget::setInternalState(const QRect &geometry, gsl::not_null<SectionMemento*> memento) {
+void Widget::setInternalState(const QRect &geometry, not_null<SectionMemento*> memento) {
 	setGeometry(geometry);
 	myEnsureResized(this);
 	restoreState(memento);
@@ -318,12 +318,12 @@ std::unique_ptr<Window::SectionMemento> Widget::createMemento() {
 	return std::move(result);
 }
 
-void Widget::saveState(gsl::not_null<SectionMemento*> memento) {
+void Widget::saveState(not_null<SectionMemento*> memento) {
 	memento->setScrollTop(_scroll->scrollTop());
 	_inner->saveState(memento);
 }
 
-void Widget::restoreState(gsl::not_null<SectionMemento*> memento) {
+void Widget::restoreState(not_null<SectionMemento*> memento) {
 	_inner->restoreState(memento);
 	auto scrollTop = memento->getScrollTop();
 	_scroll->scrollToY(scrollTop);

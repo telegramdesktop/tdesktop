@@ -208,7 +208,7 @@ void PrivacyWidget::autoLockUpdated() {
 }
 
 void PrivacyWidget::onBlockedUsers() {
-	Ui::show(Box<PeerListBox>(std::make_unique<BlockedBoxController>(), [](gsl::not_null<PeerListBox*> box) {
+	Ui::show(Box<PeerListBox>(std::make_unique<BlockedBoxController>(), [](not_null<PeerListBox*> box) {
 		box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
 		box->addLeftButton(langFactory(lng_blocked_list_add), [box] { BlockedBoxController::BlockNewUser(); });
 	}));

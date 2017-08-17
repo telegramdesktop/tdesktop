@@ -84,7 +84,7 @@ int BinarySearchBlocksOrItems(const T &list, int edge) {
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
-HistoryInner::HistoryInner(HistoryWidget *historyWidget, gsl::not_null<Window::Controller*> controller, Ui::ScrollArea *scroll, History *history) : TWidget(nullptr)
+HistoryInner::HistoryInner(HistoryWidget *historyWidget, not_null<Window::Controller*> controller, Ui::ScrollArea *scroll, History *history) : TWidget(nullptr)
 , _controller(controller)
 , _peer(history->peer)
 , _migrated(history->peer->migrateFrom() ? App::history(history->peer->migrateFrom()->id) : nullptr)
@@ -116,7 +116,7 @@ HistoryInner::HistoryInner(HistoryWidget *historyWidget, gsl::not_null<Window::C
 	subscribe(_controller->window()->dragFinished(), [this] {
 		mouseActionUpdate(QCursor::pos());
 	});
-	subscribe(Auth().data().historyCleared(), [this](gsl::not_null<History*> history) {
+	subscribe(Auth().data().historyCleared(), [this](not_null<History*> history) {
 		if (_history == history) {
 			mouseActionCancel();
 		}
@@ -256,7 +256,7 @@ void HistoryInner::enumerateUserpics(Method method) {
 	// -1 means we didn't find an attached to next message yet.
 	int lowestAttachedItemTop = -1;
 
-	auto userpicCallback = [this, &lowestAttachedItemTop, &method](gsl::not_null<HistoryItem*> item, int itemtop, int itembottom) {
+	auto userpicCallback = [this, &lowestAttachedItemTop, &method](not_null<HistoryItem*> item, int itemtop, int itembottom) {
 		// Skip all service messages.
 		auto message = item->toHistoryMessage();
 		if (!message) return true;
@@ -304,7 +304,7 @@ void HistoryInner::enumerateDates(Method method) {
 	// -1 means we didn't find a same-day with previous message yet.
 	auto lowestInOneDayItemBottom = -1;
 
-	auto dateCallback = [this, &lowestInOneDayItemBottom, &method, drawtop](gsl::not_null<HistoryItem*> item, int itemtop, int itembottom) {
+	auto dateCallback = [this, &lowestInOneDayItemBottom, &method, drawtop](not_null<HistoryItem*> item, int itemtop, int itembottom) {
 		if (lowestInOneDayItemBottom < 0 && item->isInOneDayWithPrevious()) {
 			lowestInOneDayItemBottom = itembottom - item->marginBottom();
 		}
@@ -506,7 +506,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		}
 
 		if (mtop >= 0 || htop >= 0) {
-			enumerateUserpics([&p, &clip](gsl::not_null<HistoryMessage*> message, int userpicTop) {
+			enumerateUserpics([&p, &clip](not_null<HistoryMessage*> message, int userpicTop) {
 				// stop the enumeration if the userpic is below the painted rect
 				if (userpicTop >= clip.top() + clip.height()) {
 					return false;
@@ -529,7 +529,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			//int showFloatingBefore = height() - 2 * (_visibleAreaBottom - _visibleAreaTop) - dateHeight;
 
 			auto scrollDateOpacity = _scrollDateOpacity.current(ms, _scrollDateShown ? 1. : 0.);
-			enumerateDates([&p, &clip, scrollDateOpacity, dateHeight/*, lastDate, showFloatingBefore*/](gsl::not_null<HistoryItem*> item, int itemtop, int dateTop) {
+			enumerateDates([&p, &clip, scrollDateOpacity, dateHeight/*, lastDate, showFloatingBefore*/](not_null<HistoryItem*> item, int itemtop, int dateTop) {
 				// stop the enumeration if the date is above the painted rect
 				if (dateTop + dateHeight <= clip.top()) {
 					return false;
@@ -2053,7 +2053,7 @@ void HistoryInner::onUpdateSelected() {
 
 		auto dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
 		auto scrollDateOpacity = _scrollDateOpacity.current(_scrollDateShown ? 1. : 0.);
-		enumerateDates([this, &dragState, &lnkhost, &point, scrollDateOpacity, dateHeight/*, lastDate, showFloatingBefore*/](gsl::not_null<HistoryItem*> item, int itemtop, int dateTop) {
+		enumerateDates([this, &dragState, &lnkhost, &point, scrollDateOpacity, dateHeight/*, lastDate, showFloatingBefore*/](not_null<HistoryItem*> item, int itemtop, int dateTop) {
 			// stop enumeration if the date is above our point
 			if (dateTop + dateHeight <= point.y()) {
 				return false;
@@ -2112,7 +2112,7 @@ void HistoryInner::onUpdateSelected() {
 			if (!dragState.link && m.x() >= st::historyPhotoLeft && m.x() < st::historyPhotoLeft + st::msgPhotoSize) {
 				if (auto msg = item->toHistoryMessage()) {
 					if (msg->hasFromPhoto()) {
-						enumerateUserpics([&dragState, &lnkhost, &point](gsl::not_null<HistoryMessage*> message, int userpicTop) -> bool {
+						enumerateUserpics([&dragState, &lnkhost, &point](not_null<HistoryMessage*> message, int userpicTop) -> bool {
 							// stop enumeration if the userpic is below our point
 							if (userpicTop > point.y()) {
 								return false;

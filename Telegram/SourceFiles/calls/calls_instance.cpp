@@ -40,7 +40,7 @@ constexpr auto kServerConfigUpdateTimeoutMs = 24 * 3600 * TimeMs(1000);
 
 Instance::Instance() = default;
 
-void Instance::startOutgoingCall(gsl::not_null<UserData*> user) {
+void Instance::startOutgoingCall(not_null<UserData*> user) {
 	if (alreadyInCall()) { // Already in a call.
 		_currentCallPanel->showAndActivate();
 		return;
@@ -54,15 +54,15 @@ void Instance::startOutgoingCall(gsl::not_null<UserData*> user) {
 	createCall(user, Call::Type::Outgoing);
 }
 
-void Instance::callFinished(gsl::not_null<Call*> call) {
+void Instance::callFinished(not_null<Call*> call) {
 	destroyCall(call);
 }
 
-void Instance::callFailed(gsl::not_null<Call*> call) {
+void Instance::callFailed(not_null<Call*> call) {
 	destroyCall(call);
 }
 
-void Instance::callRedial(gsl::not_null<Call*> call) {
+void Instance::callRedial(not_null<Call*> call) {
 	if (_currentCall.get() == call) {
 		refreshDhConfig();
 	}
@@ -96,7 +96,7 @@ void Instance::playSound(Sound sound) {
 	}
 }
 
-void Instance::destroyCall(gsl::not_null<Call*> call) {
+void Instance::destroyCall(not_null<Call*> call) {
 	if (_currentCall.get() == call) {
 		destroyCurrentPanel();
 		_currentCall.reset();
@@ -117,7 +117,7 @@ void Instance::destroyCurrentPanel() {
 	_pendingPanels.back()->hideAndDestroy(); // Always queues the destruction.
 }
 
-void Instance::createCall(gsl::not_null<UserData*> user, Call::Type type) {
+void Instance::createCall(not_null<UserData*> user, Call::Type type) {
 	auto call = std::make_unique<Call>(getCallDelegate(), user, type);;
 	if (_currentCall) {
 		_currentCallPanel->replaceCall(call.get());
@@ -246,7 +246,7 @@ void Instance::handleUpdate(const MTPDupdatePhoneCall& update) {
 	handleCallUpdate(update.vphone_call);
 }
 
-void Instance::showInfoPanel(gsl::not_null<Call*> call) {
+void Instance::showInfoPanel(not_null<Call*> call) {
 	if (_currentCall.get() == call) {
 		_currentCallPanel->showAndActivate();
 	}

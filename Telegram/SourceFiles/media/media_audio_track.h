@@ -29,7 +29,7 @@ class Instance;
 
 class Track {
 public:
-	Track(gsl::not_null<Instance*> instance);
+	Track(not_null<Instance*> instance);
 
 	void samplePeakEach(TimeMs peakDuration);
 
@@ -70,7 +70,7 @@ private:
 	void ensureSourceCreated();
 	void playWithLooping(bool looping);
 
-	gsl::not_null<Instance*> _instance;
+	not_null<Instance*> _instance;
 
 	bool _failed = false;
 	bool _active = false;

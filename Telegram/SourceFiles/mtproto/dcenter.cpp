@@ -36,7 +36,7 @@ constexpr auto kSpecialRequestTimeoutMs = 6000; // 4 seconds timeout for it to w
 
 } // namespace
 
-Dcenter::Dcenter(gsl::not_null<Instance*> instance, DcId dcId, AuthKeyPtr &&key)
+Dcenter::Dcenter(not_null<Instance*> instance, DcId dcId, AuthKeyPtr &&key)
 : _instance(instance)
 , _id(dcId)
 , _key(std::move(key)) {

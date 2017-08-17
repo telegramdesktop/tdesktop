@@ -24,7 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Window {
 
-SectionWidget::SectionWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : AbstractSectionWidget(parent, controller) {
+SectionWidget::SectionWidget(QWidget *parent, not_null<Window::Controller*> controller) : AbstractSectionWidget(parent, controller) {
 }
 
 void SectionWidget::setGeometryWithTopMoved(const QRect &newGeometry, int topDelta) {

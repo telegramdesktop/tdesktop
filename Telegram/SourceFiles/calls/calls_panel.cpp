@@ -61,10 +61,10 @@ protected:
 	QPoint prepareRippleStartPosition() const override;
 
 private:
-	QPoint iconPosition(gsl::not_null<const style::CallButton*> st) const;
+	QPoint iconPosition(not_null<const style::CallButton*> st) const;
 	void mixIconMasks();
 
-	gsl::not_null<const style::CallButton*> _stFrom;
+	not_null<const style::CallButton*> _stFrom;
 	const style::CallButton *_stTo = nullptr;
 	float64 _progress = 0.;
 
@@ -192,7 +192,7 @@ void Panel::Button::paintEvent(QPaintEvent *e) {
 	}
 }
 
-QPoint Panel::Button::iconPosition(gsl::not_null<const style::CallButton*> st) const {
+QPoint Panel::Button::iconPosition(not_null<const style::CallButton*> st) const {
 	auto result = st->button.iconPosition;
 	if (result.x() < 0) {
 		result.setX((width() - st->button.icon.width()) / 2);
@@ -240,7 +240,7 @@ QImage Panel::Button::prepareRippleMask() const {
 	return Ui::RippleAnimation::ellipseMask(QSize(_stFrom->button.rippleAreaSize, _stFrom->button.rippleAreaSize));
 }
 
-Panel::Panel(gsl::not_null<Call*> call)
+Panel::Panel(not_null<Call*> call)
 : _call(call)
 , _user(call->user())
 , _answerHangupRedial(this, st::callAnswer, &st::callHangup)
@@ -264,7 +264,7 @@ void Panel::showAndActivate() {
 	setFocus();
 }
 
-void Panel::replaceCall(gsl::not_null<Call*> call) {
+void Panel::replaceCall(not_null<Call*> call) {
 	_call = call;
 	_user = call->user();
 	reinitControls();

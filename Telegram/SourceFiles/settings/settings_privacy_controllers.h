@@ -29,8 +29,8 @@ namespace Settings {
 class BlockedBoxController : public PeerListController, private base::Subscriber, private MTP::Sender {
 public:
 	void prepare() override;
-	void rowClicked(gsl::not_null<PeerListRow*> row) override;
-	void rowActionClicked(gsl::not_null<PeerListRow*> row) override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+	void rowActionClicked(not_null<PeerListRow*> row) override;
 	void loadMoreRows() override;
 
 	static void BlockNewUser();

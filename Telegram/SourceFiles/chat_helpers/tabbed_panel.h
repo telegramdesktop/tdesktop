@@ -39,8 +39,8 @@ class TabbedPanel : public TWidget {
 	Q_OBJECT
 
 public:
-	TabbedPanel(QWidget *parent, gsl::not_null<Window::Controller*> controller);
-	TabbedPanel(QWidget *parent, gsl::not_null<Window::Controller*> controller, object_ptr<TabbedSelector> selector);
+	TabbedPanel(QWidget *parent, not_null<Window::Controller*> controller);
+	TabbedPanel(QWidget *parent, not_null<Window::Controller*> controller, object_ptr<TabbedSelector> selector);
 
 	object_ptr<TabbedSelector> takeSelector();
 	QPointer<TabbedSelector> getSelector() const;
@@ -106,7 +106,7 @@ private:
 	bool preventAutoHide() const;
 	void updateContentHeight();
 
-	gsl::not_null<Window::Controller*> _controller;
+	not_null<Window::Controller*> _controller;
 	object_ptr<TabbedSelector> _selector;
 
 	int _contentMaxHeight = 0;

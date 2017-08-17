@@ -36,24 +36,24 @@ constexpr auto kBlockedPerPage = 40;
 
 class BlockUserBoxController : public ChatsListBoxController {
 public:
-	void rowClicked(gsl::not_null<PeerListRow*> row) override;
+	void rowClicked(not_null<PeerListRow*> row) override;
 
-	void setBlockUserCallback(base::lambda<void(gsl::not_null<UserData*> user)> callback) {
+	void setBlockUserCallback(base::lambda<void(not_null<UserData*> user)> callback) {
 		_blockUserCallback = std::move(callback);
 	}
 
 protected:
 	void prepareViewHook() override;
-	std::unique_ptr<Row> createRow(gsl::not_null<History*> history) override;
-	void updateRowHook(gsl::not_null<Row*> row) override {
+	std::unique_ptr<Row> createRow(not_null<History*> history) override;
+	void updateRowHook(not_null<Row*> row) override {
 		updateIsBlocked(row, row->peer()->asUser());
 		delegate()->peerListUpdateRow(row);
 	}
 
 private:
-	void updateIsBlocked(gsl::not_null<PeerListRow*> row, UserData *user) const;
+	void updateIsBlocked(not_null<PeerListRow*> row, UserData *user) const;
 
-	base::lambda<void(gsl::not_null<UserData*> user)> _blockUserCallback;
+	base::lambda<void(not_null<UserData*> user)> _blockUserCallback;
 
 };
 
@@ -69,7 +69,7 @@ void BlockUserBoxController::prepareViewHook() {
 	}));
 }
 
-void BlockUserBoxController::updateIsBlocked(gsl::not_null<PeerListRow*> row, UserData *user) const {
+void BlockUserBoxController::updateIsBlocked(not_null<PeerListRow*> row, UserData *user) const {
 	auto blocked = user->isBlocked();
 	row->setDisabledState(blocked ? PeerListRow::State::DisabledChecked : PeerListRow::State::Active);
 	if (blocked) {
@@ -79,11 +79,11 @@ void BlockUserBoxController::updateIsBlocked(gsl::not_null<PeerListRow*> row, Us
 	}
 }
 
-void BlockUserBoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
+void BlockUserBoxController::rowClicked(not_null<PeerListRow*> row) {
 	_blockUserCallback(row->peer()->asUser());
 }
 
-std::unique_ptr<BlockUserBoxController::Row> BlockUserBoxController::createRow(gsl::not_null<History*> history) {
+std::unique_ptr<BlockUserBoxController::Row> BlockUserBoxController::createRow(not_null<History*> history) {
 	if (history->peer->isSelf()) {
 		return nullptr;
 	}
@@ -142,11 +142,11 @@ void BlockedBoxController::loadMoreRows() {
 	}).send();
 }
 
-void BlockedBoxController::rowClicked(gsl::not_null<PeerListRow*> row) {
+void BlockedBoxController::rowClicked(not_null<PeerListRow*> row) {
 	Ui::showPeerHistoryAsync(row->peer()->id, ShowAtUnreadMsgId);
 }
 
-void BlockedBoxController::rowActionClicked(gsl::not_null<PeerListRow*> row) {
+void BlockedBoxController::rowActionClicked(not_null<PeerListRow*> row) {
 	auto user = row->peer()->asUser();
 	Expects(user != nullptr);
 
@@ -187,8 +187,8 @@ void BlockedBoxController::handleBlockedEvent(UserData *user) {
 
 void BlockedBoxController::BlockNewUser() {
 	auto controller = std::make_unique<BlockUserBoxController>();
-	auto initBox = [controller = controller.get()](gsl::not_null<PeerListBox*> box) {
-		controller->setBlockUserCallback([box](gsl::not_null<UserData*> user) {
+	auto initBox = [controller = controller.get()](not_null<PeerListBox*> box) {
+		controller->setBlockUserCallback([box](not_null<UserData*> user) {
 			Auth().api().blockUser(user);
 			box->closeBox();
 		});

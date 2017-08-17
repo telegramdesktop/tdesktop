@@ -115,7 +115,7 @@ MainWidget::Float::Float(QWidget *parent, HistoryItem *item, ToggleCallback togg
 }) {
 }
 
-MainWidget::MainWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
+MainWidget::MainWidget(QWidget *parent, not_null<Window::Controller*> controller) : TWidget(parent)
 , _controller(controller)
 , _dialogsWidth(st::dialogsWidthMin)
 , _sideShadow(this, st::shadowFg)
@@ -251,10 +251,10 @@ void MainWidget::checkCurrentFloatPlayer() {
 			if (auto media = item->getMedia()) {
 				if (auto document = media->getDocument()) {
 					if (document->isRoundVideo()) {
-						_playerFloats.push_back(std::make_unique<Float>(this, item, [this](gsl::not_null<Float*> instance, bool visible) {
+						_playerFloats.push_back(std::make_unique<Float>(this, item, [this](not_null<Float*> instance, bool visible) {
 							instance->hiddenByWidget = !visible;
 							toggleFloatPlayer(instance);
-						}, [this](gsl::not_null<Float*> instance, bool closed) {
+						}, [this](not_null<Float*> instance, bool closed) {
 							finishFloatPlayerDrag(instance, closed);
 						}));
 						currentFloatPlayer()->column = Auth().data().floatPlayerColumn();
@@ -267,7 +267,7 @@ void MainWidget::checkCurrentFloatPlayer() {
 	}
 }
 
-void MainWidget::toggleFloatPlayer(gsl::not_null<Float*> instance) {
+void MainWidget::toggleFloatPlayer(not_null<Float*> instance) {
 	auto visible = !instance->hiddenByHistory && !instance->hiddenByWidget && instance->widget->isReady();
 	if (instance->visible != visible) {
 		instance->widget->resetMouseState();
@@ -298,7 +298,7 @@ void MainWidget::checkFloatPlayerVisibility() {
 	updateFloatPlayerPosition(instance);
 }
 
-void MainWidget::updateFloatPlayerPosition(gsl::not_null<Float*> instance) {
+void MainWidget::updateFloatPlayerPosition(not_null<Float*> instance) {
 	auto visible = instance->visibleAnimation.current(instance->visible ? 1. : 0.);
 	if (visible == 0. && !instance->visible) {
 		instance->widget->hide();
@@ -347,7 +347,7 @@ QPoint MainWidget::getFloatPlayerHiddenPosition(QPoint position, QSize size, Rec
 	Unexpected("Bad side in MainWidget::getFloatPlayerHiddenPosition().");
 }
 
-QPoint MainWidget::getFloatPlayerPosition(gsl::not_null<Float*> instance) const {
+QPoint MainWidget::getFloatPlayerPosition(not_null<Float*> instance) const {
 	auto column = instance->column;
 	auto section = getFloatPlayerSection(&column);
 	auto rect = section->rectForFloatPlayer(column, instance->column);
@@ -376,7 +376,7 @@ RectPart MainWidget::getFloatPlayerSide(QPoint center) const {
 	return RectPart::Bottom;
 }
 
-void MainWidget::removeFloatPlayer(gsl::not_null<Float*> instance) {
+void MainWidget::removeFloatPlayer(not_null<Float*> instance) {
 	auto widget = std::move(instance->widget);
 	auto i = std::find_if(_playerFloats.begin(), _playerFloats.end(), [instance](auto &item) {
 		return (item.get() == instance);
@@ -391,7 +391,7 @@ void MainWidget::removeFloatPlayer(gsl::not_null<Float*> instance) {
 	widget.destroy();
 }
 
-Window::AbstractSectionWidget *MainWidget::getFloatPlayerSection(gsl::not_null<Window::Column*> column) const {
+Window::AbstractSectionWidget *MainWidget::getFloatPlayerSection(not_null<Window::Column*> column) const {
 	if (!Adaptive::Normal()) {
 		*column = Adaptive::OneColumn() ? Window::Column::First : Window::Column::Second;
 		if (Adaptive::OneColumn() && selectingPeer()) {
@@ -476,7 +476,7 @@ void MainWidget::updateFloatPlayerColumnCorner(QPoint center) {
 	}
 }
 
-void MainWidget::finishFloatPlayerDrag(gsl::not_null<Float*> instance, bool closed) {
+void MainWidget::finishFloatPlayerDrag(not_null<Float*> instance, bool closed) {
 	instance->dragFrom = instance->widget->pos();
 	auto center = instance->widget->geometry().center();
 	if (closed) {
@@ -795,7 +795,7 @@ void MainWidget::notify_migrateUpdated(PeerData *peer) {
 	_history->notify_migrateUpdated(peer);
 }
 
-void MainWidget::ui_repaintHistoryItem(gsl::not_null<const HistoryItem*> item) {
+void MainWidget::ui_repaintHistoryItem(not_null<const HistoryItem*> item) {
 	if (item->isLogEntry()) {
 		Auth().data().repaintLogEntry().notify(item, true);
 	} else {
@@ -1165,7 +1165,7 @@ void MainWidget::clearHistory(PeerData *peer) {
 	MTP::send(MTPmessages_DeleteHistory(MTP_flags(flags), peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, request));
 }
 
-void MainWidget::addParticipants(PeerData *chatOrChannel, const std::vector<gsl::not_null<UserData*>> &users) {
+void MainWidget::addParticipants(PeerData *chatOrChannel, const std::vector<not_null<UserData*>> &users) {
 	if (chatOrChannel->isChat()) {
 		auto chat = chatOrChannel->asChat();
 		for_const (auto user, users) {
@@ -1970,7 +1970,7 @@ void MainWidget::inlineResultLoadFailed(FileLoader *loader, bool started) {
 	//Ui::repaintInlineItem();
 }
 
-void MainWidget::mediaMarkRead(gsl::not_null<DocumentData*> data) {
+void MainWidget::mediaMarkRead(not_null<DocumentData*> data) {
 	auto &items = App::documentItems();
 	auto i = items.constFind(data);
 	if (i != items.cend()) {
@@ -2002,7 +2002,7 @@ void MainWidget::mediaMarkRead(const HistoryItemsMap &items) {
 	}
 }
 
-void MainWidget::mediaMarkRead(gsl::not_null<HistoryItem*> item) {
+void MainWidget::mediaMarkRead(not_null<HistoryItem*> item) {
 	if ((!item->out() || item->mentionsMe()) && item->isMediaUnread()) {
 		item->markMediaRead();
 		if (item->id > 0) {

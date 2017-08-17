@@ -37,9 +37,9 @@ class Instance : private MTP::Sender, private Call::Delegate, private base::Subs
 public:
 	Instance();
 
-	void startOutgoingCall(gsl::not_null<UserData*> user);
+	void startOutgoingCall(not_null<UserData*> user);
 	void handleUpdate(const MTPDupdatePhoneCall &update);
-	void showInfoPanel(gsl::not_null<Call*> call);
+	void showInfoPanel(not_null<Call*> call);
 
 	base::Observable<Call*> &currentCallChanged() {
 		return _currentCallChanged;
@@ -54,19 +54,19 @@ public:
 	~Instance();
 
 private:
-	gsl::not_null<Call::Delegate*> getCallDelegate() {
+	not_null<Call::Delegate*> getCallDelegate() {
 		return static_cast<Call::Delegate*>(this);
 	}
 	DhConfig getDhConfig() const override {
 		return _dhConfig;
 	}
-	void callFinished(gsl::not_null<Call*> call) override;
-	void callFailed(gsl::not_null<Call*> call) override;
-	void callRedial(gsl::not_null<Call*> call) override;
+	void callFinished(not_null<Call*> call) override;
+	void callFailed(not_null<Call*> call) override;
+	void callRedial(not_null<Call*> call) override;
 	using Sound = Call::Delegate::Sound;
 	void playSound(Sound sound) override;
-	void createCall(gsl::not_null<UserData*> user, Call::Type type);
-	void destroyCall(gsl::not_null<Call*> call);
+	void createCall(not_null<UserData*> user, Call::Type type);
+	void destroyCall(not_null<Call*> call);
 	void destroyCurrentPanel();
 
 	void refreshDhConfig();

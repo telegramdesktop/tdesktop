@@ -607,7 +607,7 @@ QPoint SilentToggle::tooltipPos() const {
 	return QCursor::pos();
 }
 
-HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : Window::AbstractSectionWidget(parent, controller)
+HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> controller) : Window::AbstractSectionWidget(parent, controller)
 , _fieldBarCancel(this, st::historyReplyCancel)
 , _topBar(this, controller)
 , _scroll(this, st::historyScroll, false)
@@ -955,7 +955,7 @@ void HistoryWidget::highlightMessage(HistoryItem *context) {
 	}
 }
 
-int HistoryWidget::itemTopForHighlight(gsl::not_null<HistoryItem*> item) const {
+int HistoryWidget::itemTopForHighlight(not_null<HistoryItem*> item) const {
 	auto itemTop = _list->itemTop(item);
 	t_assert(itemTop >= 0);
 
@@ -3281,7 +3281,7 @@ void HistoryWidget::hideSingleUseKeyboard(PeerData *peer, MsgId replyTo) {
 	}
 }
 
-void HistoryWidget::app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, gsl::not_null<const HistoryItem*> msg, int row, int col) {
+void HistoryWidget::app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, not_null<const HistoryItem*> msg, int row, int col) {
 	if (msg->id < 0 || _peer != msg->history()->peer) {
 		return;
 	}
@@ -4642,7 +4642,7 @@ void HistoryWidget::grabFinish() {
 	_topShadow->show();
 }
 
-void HistoryWidget::ui_repaintHistoryItem(gsl::not_null<const HistoryItem*> item) {
+void HistoryWidget::ui_repaintHistoryItem(not_null<const HistoryItem*> item) {
 	if (_peer && _list && (item->history() == _history || (_migrated && item->history() == _migrated))) {
 		auto ms = getms();
 		if (_lastScrolled + kSkipRepaintWhileScrollMs <= ms) {

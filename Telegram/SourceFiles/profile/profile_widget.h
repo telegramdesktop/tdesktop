@@ -38,7 +38,7 @@ class Widget final : public Window::SectionWidget {
 	Q_OBJECT
 
 public:
-	Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller, PeerData *peer);
+	Widget(QWidget *parent, not_null<Window::Controller*> controller, PeerData *peer);
 
 	PeerData *peer() const;
 	PeerData *peerForDialogs() const override {
@@ -49,10 +49,10 @@ public:
 
 	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params) override;
 
-	bool showInternal(gsl::not_null<Window::SectionMemento*> memento) override;
+	bool showInternal(not_null<Window::SectionMemento*> memento) override;
 	std::unique_ptr<Window::SectionMemento> createMemento() override;
 
-	void setInternalState(const QRect &geometry, gsl::not_null<SectionMemento*> memento);
+	void setInternalState(const QRect &geometry, not_null<SectionMemento*> memento);
 
 	// Float player interface.
 	bool wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) override;
@@ -71,8 +71,8 @@ private slots:
 private:
 	void updateScrollState();
 	void updateAdaptiveLayout();
-	void saveState(gsl::not_null<SectionMemento*> memento);
-	void restoreState(gsl::not_null<SectionMemento*> memento);
+	void saveState(not_null<SectionMemento*> memento);
+	void restoreState(not_null<SectionMemento*> memento);
 
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<InnerWidget> _inner;

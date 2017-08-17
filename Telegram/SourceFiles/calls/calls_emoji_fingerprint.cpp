@@ -126,7 +126,7 @@ uint64 ComputeEmojiIndex(base::const_byte_span bytes) {
 
 } // namespace
 
-std::vector<EmojiPtr> ComputeEmojiFingerprint(gsl::not_null<Call*> call) {
+std::vector<EmojiPtr> ComputeEmojiFingerprint(not_null<Call*> call) {
 	auto result = std::vector<EmojiPtr>();
 	constexpr auto EmojiCount = (base::array_size(Offsets) - 1);
 	for (auto index = 0; index != EmojiCount; ++index) {

@@ -400,17 +400,17 @@ HistoryService::PreparedText HistoryService::preparePaymentSentText() {
 	return result;
 }
 
-HistoryService::HistoryService(gsl::not_null<History*> history, const MTPDmessage &message) :
+HistoryService::HistoryService(not_null<History*> history, const MTPDmessage &message) :
 	HistoryItem(history, message.vid.v, message.vflags.v, ::date(message.vdate), message.has_from_id() ? message.vfrom_id.v : 0) {
 	createFromMtp(message);
 }
 
-HistoryService::HistoryService(gsl::not_null<History*> history, const MTPDmessageService &message) :
+HistoryService::HistoryService(not_null<History*> history, const MTPDmessageService &message) :
 	HistoryItem(history, message.vid.v, mtpCastFlags(message.vflags.v), ::date(message.vdate), message.has_from_id() ? message.vfrom_id.v : 0) {
 	createFromMtp(message);
 }
 
-HistoryService::HistoryService(gsl::not_null<History*> history, MsgId msgId, QDateTime date, const PreparedText &message, MTPDmessage::Flags flags, int32 from, PhotoData *photo) :
+HistoryService::HistoryService(not_null<History*> history, MsgId msgId, QDateTime date, const PreparedText &message, MTPDmessage::Flags flags, int32 from, PhotoData *photo) :
 	HistoryItem(history, msgId, flags, date, from) {
 	setServiceText(message);
 	if (photo) {
@@ -772,11 +772,11 @@ HistoryService::~HistoryService() {
 	_media.reset();
 }
 
-HistoryJoined::HistoryJoined(gsl::not_null<History*> history, const QDateTime &inviteDate, gsl::not_null<UserData*> inviter, MTPDmessage::Flags flags)
+HistoryJoined::HistoryJoined(not_null<History*> history, const QDateTime &inviteDate, not_null<UserData*> inviter, MTPDmessage::Flags flags)
 	: HistoryService(history, clientMsgId(), inviteDate, GenerateText(history, inviter), flags) {
 }
 
-HistoryJoined::PreparedText HistoryJoined::GenerateText(gsl::not_null<History*> history, gsl::not_null<UserData*> inviter) {
+HistoryJoined::PreparedText HistoryJoined::GenerateText(not_null<History*> history, not_null<UserData*> inviter) {
 	if (inviter->id == Auth().userPeerId()) {
 		return { lang(history->isMegagroup() ? lng_action_you_joined_group : lng_action_you_joined) };
 	}

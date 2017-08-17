@@ -88,7 +88,7 @@ class EmojiListWidget : public TabbedSelector::Inner {
 	Q_OBJECT
 
 public:
-	EmojiListWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller);
+	EmojiListWidget(QWidget *parent, not_null<Window::Controller*> controller);
 
 	using Section = Ui::Emoji::Section;
 

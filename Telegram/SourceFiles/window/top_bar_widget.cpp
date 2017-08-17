@@ -37,7 +37,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Window {
 
-TopBarWidget::TopBarWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
+TopBarWidget::TopBarWidget(QWidget *parent, not_null<Window::Controller*> controller) : TWidget(parent)
 , _controller(controller)
 , _clearSelection(this, langFactory(lng_selected_clear), st::topBarClearButton)
 , _forward(this, langFactory(lng_selected_forward), st::defaultActiveButton)

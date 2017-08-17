@@ -24,7 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Profile {
 
-object_ptr<Window::SectionWidget> SectionMemento::createWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, const QRect &geometry) {
+object_ptr<Window::SectionWidget> SectionMemento::createWidget(QWidget *parent, not_null<Window::Controller*> controller, const QRect &geometry) {
 	auto result = object_ptr<Widget>(parent, controller, _peer);
 	result->setInternalState(geometry, this);
 	return std::move(result);

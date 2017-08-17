@@ -241,7 +241,7 @@ bool isLayerShown() {
 	return false;
 }
 
-void repaintHistoryItem(gsl::not_null<const HistoryItem*> item) {
+void repaintHistoryItem(not_null<const HistoryItem*> item) {
 	if (auto main = App::main()) {
 		main->ui_repaintHistoryItem(item);
 	}

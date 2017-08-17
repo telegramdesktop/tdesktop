@@ -65,7 +65,7 @@ private:
 	void triggerSelectedRow();
 	void triggerRow(const Row &row);
 
-	gsl::not_null<const style::Menu*> _st;
+	not_null<const style::Menu*> _st;
 
 	QString _query;
 	std::vector<Row> _rows;
@@ -79,7 +79,7 @@ private:
 
 class SuggestionsController : public QObject, private base::Subscriber {
 public:
-	SuggestionsController(QWidget *parent, gsl::not_null<QTextEdit*> field);
+	SuggestionsController(QWidget *parent, not_null<QTextEdit*> field);
 
 	void raise();
 

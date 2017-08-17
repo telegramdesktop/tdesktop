@@ -104,7 +104,7 @@ void hideLayer(bool fast = false);
 void hideSettingsAndLayer(bool fast = false);
 bool isLayerShown();
 
-void repaintHistoryItem(gsl::not_null<const HistoryItem*> item);
+void repaintHistoryItem(not_null<const HistoryItem*> item);
 void autoplayMediaInlineAsync(const FullMsgId &msgId);
 
 void showPeerProfile(const PeerId &peer);

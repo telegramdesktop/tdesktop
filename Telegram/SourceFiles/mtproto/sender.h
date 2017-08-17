@@ -64,7 +64,7 @@ class Sender {
 			using Callback = typename Policy::Callback;
 
 		public:
-			DoneHandler(gsl::not_null<Sender*> sender, Callback handler) : _sender(sender), _handler(std::move(handler)) {
+			DoneHandler(not_null<Sender*> sender, Callback handler) : _sender(sender), _handler(std::move(handler)) {
 			}
 
 			void operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) override {
@@ -79,7 +79,7 @@ class Sender {
 			}
 
 		private:
-			gsl::not_null<Sender*> _sender;
+			not_null<Sender*> _sender;
 			Callback _handler;
 
 		};
@@ -103,7 +103,7 @@ class Sender {
 			using Callback = typename Policy::Callback;
 
 		public:
-			FailHandler(gsl::not_null<Sender*> sender, Callback handler, FailSkipPolicy skipPolicy)
+			FailHandler(not_null<Sender*> sender, Callback handler, FailSkipPolicy skipPolicy)
 				: _sender(sender)
 				, _handler(std::move(handler))
 				, _skipPolicy(skipPolicy) {
@@ -130,13 +130,13 @@ class Sender {
 			}
 
 		private:
-			gsl::not_null<Sender*> _sender;
+			not_null<Sender*> _sender;
 			Callback _handler;
 			FailSkipPolicy _skipPolicy = FailSkipPolicy::Simple;
 
 		};
 
-		explicit RequestBuilder(gsl::not_null<Sender*> sender) noexcept : _sender(sender) {
+		explicit RequestBuilder(not_null<Sender*> sender) noexcept : _sender(sender) {
 		}
 		RequestBuilder(RequestBuilder &&other) = default;
 
@@ -183,7 +183,7 @@ class Sender {
 			return _afterRequestId;
 		}
 
-		gsl::not_null<Sender*> sender() const noexcept {
+		not_null<Sender*> sender() const noexcept {
 			return _sender;
 		}
 		void registerRequest(mtpRequestId requestId) {
@@ -191,7 +191,7 @@ class Sender {
 		}
 
 	private:
-		gsl::not_null<Sender*> _sender;
+		not_null<Sender*> _sender;
 		ShiftedDcId _dcId = 0;
 		TimeMs _canWait = 0;
 		RPCDoneHandlerPtr _done;
@@ -209,7 +209,7 @@ public:
 	class SpecificRequestBuilder : public RequestBuilder {
 	private:
 		friend class Sender;
-		SpecificRequestBuilder(gsl::not_null<Sender*> sender, Request &&request) noexcept : RequestBuilder(sender), _request(std::move(request)) {
+		SpecificRequestBuilder(not_null<Sender*> sender, Request &&request) noexcept : RequestBuilder(sender), _request(std::move(request)) {
 		}
 		SpecificRequestBuilder(SpecificRequestBuilder &&other) = default;
 
@@ -265,7 +265,7 @@ public:
 	class SentRequestWrap {
 	private:
 		friend class Sender;
-		SentRequestWrap(gsl::not_null<Sender*> sender, mtpRequestId requestId) : _sender(sender), _requestId(requestId) {
+		SentRequestWrap(not_null<Sender*> sender, mtpRequestId requestId) : _sender(sender), _requestId(requestId) {
 		}
 
 	public:
@@ -274,7 +274,7 @@ public:
 		}
 
 	private:
-		gsl::not_null<Sender*> _sender;
+		not_null<Sender*> _sender;
 		mtpRequestId _requestId = 0;
 
 	};
@@ -298,7 +298,7 @@ public:
 			request.handled();
 		}
 	}
-	gsl::not_null<Instance*> requestMTP() const {
+	not_null<Instance*> requestMTP() const {
 		return MainInstance();
 	}
 

@@ -92,7 +92,7 @@ private:
 
 		void startPaint(Painter &p) const override;
 		const style::TextStyle &textStyle() const override;
-		void repaint(gsl::not_null<const HistoryItem*> item) const override;
+		void repaint(not_null<const HistoryItem*> item) const override;
 
 	protected:
 		void paintButtonBg(Painter &p, const QRect &rect, float64 howMuchOver) const override;

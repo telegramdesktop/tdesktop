@@ -36,10 +36,10 @@ namespace Calls {
 
 class Panel : public TWidget, private base::Subscriber, private Ui::AbstractTooltipShower {
 public:
-	Panel(gsl::not_null<Call*> call);
+	Panel(not_null<Call*> call);
 
 	void showAndActivate();
-	void replaceCall(gsl::not_null<Call*> call);
+	void replaceCall(not_null<Call*> call);
 	void hideAndDestroy();
 
 protected:
@@ -89,7 +89,7 @@ private:
 	void destroyDelayed();
 
 	Call *_call = nullptr;
-	gsl::not_null<UserData*> _user;
+	not_null<UserData*> _user;
 
 	bool _useTransparency = true;
 	style::margins _padding;

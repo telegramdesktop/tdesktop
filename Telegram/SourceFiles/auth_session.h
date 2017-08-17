@@ -61,18 +61,18 @@ public:
 	base::Observable<void> &savedGifsUpdated() {
 		return _savedGifsUpdated;
 	}
-	base::Observable<gsl::not_null<History*>> &historyCleared() {
+	base::Observable<not_null<History*>> &historyCleared() {
 		return _historyCleared;
 	}
-	base::Observable<gsl::not_null<const HistoryItem*>> &repaintLogEntry() {
+	base::Observable<not_null<const HistoryItem*>> &repaintLogEntry() {
 		return _repaintLogEntry;
 	}
 	base::Observable<void> &pendingHistoryResize() {
 		return _pendingHistoryResize;
 	}
 	struct ItemVisibilityQuery {
-		gsl::not_null<HistoryItem*> item;
-		gsl::not_null<bool*> isVisible;
+		not_null<HistoryItem*> item;
+		not_null<bool*> isVisible;
 	};
 	base::Observable<ItemVisibilityQuery> &queryItemVisibility() {
 		return _queryItemVisibility;
@@ -162,8 +162,8 @@ private:
 	base::Observable<void> _moreChatsLoaded;
 	base::Observable<void> _stickersUpdated;
 	base::Observable<void> _savedGifsUpdated;
-	base::Observable<gsl::not_null<History*>> _historyCleared;
-	base::Observable<gsl::not_null<const HistoryItem*>> _repaintLogEntry;
+	base::Observable<not_null<History*>> _historyCleared;
+	base::Observable<not_null<const HistoryItem*>> _repaintLogEntry;
 	base::Observable<void> _pendingHistoryResize;
 	base::Observable<ItemVisibilityQuery> _queryItemVisibility;
 	Variables _variables;

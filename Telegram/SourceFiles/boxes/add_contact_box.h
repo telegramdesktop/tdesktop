@@ -116,7 +116,7 @@ private slots:
 private:
 	void setupPhotoButton();
 	void createChannel(const QString &title, const QString &description);
-	void createGroup(gsl::not_null<PeerListBox*> selectUsersBox, const QString &title, const std::vector<gsl::not_null<PeerData*>> &users);
+	void createGroup(not_null<PeerListBox*> selectUsersBox, const QString &title, const std::vector<not_null<PeerData*>> &users);
 
 	void updateMaxHeight();
 	void updateSelected(const QPoint &cursorGlobalPosition);
@@ -206,7 +206,7 @@ class EditNameTitleBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	EditNameTitleBox(QWidget*, gsl::not_null<PeerData*> peer);
+	EditNameTitleBox(QWidget*, not_null<PeerData*> peer);
 
 protected:
 	void setInnerFocus() override;
@@ -225,7 +225,7 @@ private:
 	void onSaveChatDone(const MTPUpdates &updates);
 	bool onSaveChatFail(const RPCError &e);
 
-	gsl::not_null<PeerData*> _peer;
+	not_null<PeerData*> _peer;
 
 	object_ptr<Ui::InputField> _first;
 	object_ptr<Ui::InputField> _last;
@@ -239,7 +239,7 @@ private:
 
 class EditBioBox : public BoxContent, private MTP::Sender {
 public:
-	EditBioBox(QWidget*, gsl::not_null<UserData*> self);
+	EditBioBox(QWidget*, not_null<UserData*> self);
 
 protected:
 	void setInnerFocus() override;
@@ -253,7 +253,7 @@ private:
 	void save();
 
 	style::InputField _dynamicFieldStyle;
-	gsl::not_null<UserData*> _self;
+	not_null<UserData*> _self;
 
 	object_ptr<Ui::InputArea> _bio;
 	object_ptr<Ui::FlatLabel> _countdown;
@@ -267,7 +267,7 @@ class EditChannelBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	EditChannelBox(QWidget*, gsl::not_null<ChannelData*> channel);
+	EditChannelBox(QWidget*, not_null<ChannelData*> channel);
 
 protected:
 	void prepare() override;
@@ -301,7 +301,7 @@ private:
 	void saveSign();
 	void saveInvites();
 
-	gsl::not_null<ChannelData*> _channel;
+	not_null<ChannelData*> _channel;
 
 	object_ptr<Ui::InputField> _title;
 	object_ptr<Ui::InputArea> _description;

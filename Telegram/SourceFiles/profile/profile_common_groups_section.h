@@ -40,12 +40,12 @@ namespace CommonGroups {
 
 class SectionMemento : public Window::SectionMemento {
 public:
-	SectionMemento(gsl::not_null<UserData*> user) : _user(user) {
+	SectionMemento(not_null<UserData*> user) : _user(user) {
 	}
 
-	object_ptr<Window::SectionWidget> createWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, const QRect &geometry) override;
+	object_ptr<Window::SectionWidget> createWidget(QWidget *parent, not_null<Window::Controller*> controller, const QRect &geometry) override;
 
-	gsl::not_null<UserData*> getUser() const {
+	not_null<UserData*> getUser() const {
 		return _user;
 	}
 	void setScrollTop(int scrollTop) {
@@ -54,17 +54,17 @@ public:
 	int getScrollTop() const {
 		return _scrollTop;
 	}
-	void setCommonGroups(const QList<gsl::not_null<PeerData*>> &groups) {
+	void setCommonGroups(const QList<not_null<PeerData*>> &groups) {
 		_commonGroups = groups;
 	}
-	const QList<gsl::not_null<PeerData*>> &getCommonGroups() const {
+	const QList<not_null<PeerData*>> &getCommonGroups() const {
 		return _commonGroups;
 	}
 
 private:
-	gsl::not_null<UserData*> _user;
+	not_null<UserData*> _user;
 	int _scrollTop = 0;
-	QList<gsl::not_null<PeerData*>> _commonGroups;
+	QList<not_null<PeerData*>> _commonGroups;
 
 };
 
@@ -96,9 +96,9 @@ class InnerWidget final : public TWidget {
 	Q_OBJECT
 
 public:
-	InnerWidget(QWidget *parent, gsl::not_null<UserData*> user);
+	InnerWidget(QWidget *parent, not_null<UserData*> user);
 
-	gsl::not_null<UserData*> user() const {
+	not_null<UserData*> user() const {
 		return _user;
 	}
 
@@ -110,8 +110,8 @@ public:
 		return TWidget::resizeToWidth(newWidth);
 	}
 
-	void saveState(gsl::not_null<SectionMemento*> memento);
-	void restoreState(gsl::not_null<SectionMemento*> memento);
+	void saveState(not_null<SectionMemento*> memento);
+	void restoreState(not_null<SectionMemento*> memento);
 
 	~InnerWidget();
 
@@ -131,13 +131,13 @@ protected:
 private:
 	void updateSelected(QPoint localPos);
 	void updateRow(int index);
-	void showInitial(const QList<gsl::not_null<PeerData*>> &list);
+	void showInitial(const QList<not_null<PeerData*>> &list);
 	void checkPreloadMore();
 	void preloadMore();
 	void updateSize();
 	void paintRow(Painter &p, int index, TimeMs ms);
 
-	gsl::not_null<UserData*> _user;
+	not_null<UserData*> _user;
 
 	int _minHeight = 0;
 	int _rowHeight = 0;
@@ -171,9 +171,9 @@ class Widget final : public Window::SectionWidget {
 	Q_OBJECT
 
 public:
-	Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller, gsl::not_null<UserData*> user);
+	Widget(QWidget *parent, not_null<Window::Controller*> controller, not_null<UserData*> user);
 
-	gsl::not_null<UserData*> user() const;
+	not_null<UserData*> user() const;
 	PeerData *peerForDialogs() const override {
 		return user();
 	}
@@ -184,10 +184,10 @@ public:
 
 	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params) override;
 
-	bool showInternal(gsl::not_null<Window::SectionMemento*> memento) override;
+	bool showInternal(not_null<Window::SectionMemento*> memento) override;
 	std::unique_ptr<Window::SectionMemento> createMemento() override;
 
-	void setInternalState(const QRect &geometry, gsl::not_null<SectionMemento*> memento);
+	void setInternalState(const QRect &geometry, not_null<SectionMemento*> memento);
 
 	// Float player interface.
 	bool wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) override;
@@ -205,8 +205,8 @@ private slots:
 
 private:
 	void updateAdaptiveLayout();
-	void saveState(gsl::not_null<SectionMemento*> memento);
-	void restoreState(gsl::not_null<SectionMemento*> memento);
+	void saveState(not_null<SectionMemento*> memento);
+	void restoreState(not_null<SectionMemento*> memento);
 
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<InnerWidget> _inner;

@@ -195,27 +195,27 @@ bool Messenger::hideMediaView() {
 	return false;
 }
 
-void Messenger::showPhoto(gsl::not_null<const PhotoOpenClickHandler*> link, HistoryItem *item) {
+void Messenger::showPhoto(not_null<const PhotoOpenClickHandler*> link, HistoryItem *item) {
 	return (!item && link->peer())
 		? showPhoto(link->photo(), link->peer())
 		: showPhoto(link->photo(), item);
 }
 
-void Messenger::showPhoto(gsl::not_null<PhotoData*> photo, HistoryItem *item) {
+void Messenger::showPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
 	if (_mediaView->isHidden()) Ui::hideLayer(true);
 	_mediaView->showPhoto(photo, item);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
 }
 
-void Messenger::showPhoto(gsl::not_null<PhotoData*> photo, PeerData *peer) {
+void Messenger::showPhoto(not_null<PhotoData*> photo, PeerData *peer) {
 	if (_mediaView->isHidden()) Ui::hideLayer(true);
 	_mediaView->showPhoto(photo, peer);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
 }
 
-void Messenger::showDocument(gsl::not_null<DocumentData*> document, HistoryItem *item) {
+void Messenger::showDocument(not_null<DocumentData*> document, HistoryItem *item) {
 	if (cUseExternalVideoPlayer() && document->isVideo()) {
 		QDesktopServices::openUrl(QUrl("file:///" + document->location(false).fname));
 	} else {

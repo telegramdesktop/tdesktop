@@ -415,7 +415,7 @@ inline void memsetrnd_bad(T &value) {
 
 class ReadLockerAttempt {
 public:
-	ReadLockerAttempt(gsl::not_null<QReadWriteLock*> lock) : _lock(lock), _locked(_lock->tryLockForRead()) {
+	ReadLockerAttempt(not_null<QReadWriteLock*> lock) : _lock(lock), _locked(_lock->tryLockForRead()) {
 	}
 	ReadLockerAttempt(const ReadLockerAttempt &other) = delete;
 	ReadLockerAttempt &operator=(const ReadLockerAttempt &other) = delete;
@@ -437,7 +437,7 @@ public:
 	}
 
 private:
-	gsl::not_null<QReadWriteLock*> _lock;
+	not_null<QReadWriteLock*> _lock;
 	bool _locked = false;
 
 };

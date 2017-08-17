@@ -56,12 +56,12 @@ public:
 
 class ItemBase : public LayoutItemBase {
 public:
-	ItemBase(gsl::not_null<Context*> context, Result *result) : _result(result), _context(context) {
+	ItemBase(not_null<Context*> context, Result *result) : _result(result), _context(context) {
 	}
-	ItemBase(gsl::not_null<Context*> context, DocumentData *doc) : _doc(doc), _context(context) {
+	ItemBase(not_null<Context*> context, DocumentData *doc) : _doc(doc), _context(context) {
 	}
 	// Not used anywhere currently.
-	//ItemBase(gsl::not_null<Context*> context, PhotoData *photo) : _photo(photo), _context(context) {
+	//ItemBase(not_null<Context*> context, PhotoData *photo) : _photo(photo), _context(context) {
 	//}
 
 	virtual void paint(Painter &p, const QRect &clip, const PaintContext *context) const = 0;
@@ -98,8 +98,8 @@ public:
 		update();
 	}
 
-	static std::unique_ptr<ItemBase> createLayout(gsl::not_null<Context*> context, Result *result, bool forceThumb);
-	static std::unique_ptr<ItemBase> createLayoutGif(gsl::not_null<Context*> context, DocumentData *document);
+	static std::unique_ptr<ItemBase> createLayout(not_null<Context*> context, Result *result, bool forceThumb);
+	static std::unique_ptr<ItemBase> createLayoutGif(not_null<Context*> context, DocumentData *document);
 
 protected:
 	DocumentData *getResultDocument() const;
@@ -112,7 +112,7 @@ protected:
 	ClickHandlerPtr getResultContentUrlHandler() const;
 	QString getResultThumbLetter() const;
 
-	gsl::not_null<Context*> context() const {
+	not_null<Context*> context() const {
 		return _context;
 	}
 
@@ -125,7 +125,7 @@ protected:
 	int _position = 0; // < 0 means removed from layout
 
 private:
-	gsl::not_null<Context*> _context;
+	not_null<Context*> _context;
 
 };
 

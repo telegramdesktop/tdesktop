@@ -42,7 +42,7 @@ inline const MTPVector<MTPChat> *getChatsFromMessagesChats(const MTPmessages_Cha
 
 class ApiWrap : private MTP::Sender, private base::Subscriber {
 public:
-	ApiWrap(gsl::not_null<AuthSession*> session);
+	ApiWrap(not_null<AuthSession*> session);
 
 	void start();
 	void applyUpdates(const MTPUpdates &updates, uint64 sentMessageRandomId = 0);
@@ -72,7 +72,7 @@ public:
 	void requestStickerSets();
 	void saveStickerSets(const Stickers::Order &localOrder, const Stickers::Order &localRemoved);
 	void updateStickers();
-	void setGroupStickerSet(gsl::not_null<ChannelData*> megagroup, const MTPInputStickerSet &set);
+	void setGroupStickerSet(not_null<ChannelData*> megagroup, const MTPInputStickerSet &set);
 
 	void joinChannel(ChannelData *channel);
 	void leaveChannel(ChannelData *channel);
@@ -98,15 +98,15 @@ public:
 	void applyUpdatesNoPtsCheck(const MTPUpdates &updates);
 	void applyUpdateNoPtsCheck(const MTPUpdate &update);
 
-	void jumpToDate(gsl::not_null<PeerData*> peer, const QDate &date);
+	void jumpToDate(not_null<PeerData*> peer, const QDate &date);
 
-	void preloadEnoughUnreadMentions(gsl::not_null<History*> history);
+	void preloadEnoughUnreadMentions(not_null<History*> history);
 	void checkForUnreadMentions(const base::flat_set<MsgId> &possiblyReadMentions, ChannelData *channel = nullptr);
 
 	void editChatAdmins(
-		gsl::not_null<ChatData*> chat,
+		not_null<ChatData*> chat,
 		bool adminsEnabled,
-		base::flat_set<gsl::not_null<UserData*>> &&admins);
+		base::flat_set<not_null<UserData*>> &&admins);
 
 	~ApiWrap();
 
@@ -149,11 +149,11 @@ private:
 	void requestFeaturedStickers(TimeId now);
 	void requestSavedGifs(TimeId now);
 
-	void cancelEditChatAdmins(gsl::not_null<ChatData*> chat);
-	void saveChatAdmins(gsl::not_null<ChatData*> chat);
-	void sendSaveChatAdminsRequests(gsl::not_null<ChatData*> chat);
+	void cancelEditChatAdmins(not_null<ChatData*> chat);
+	void saveChatAdmins(not_null<ChatData*> chat);
+	void sendSaveChatAdminsRequests(not_null<ChatData*> chat);
 
-	gsl::not_null<AuthSession*> _session;
+	not_null<AuthSession*> _session;
 	mtpRequestId _changelogSubscription = 0;
 
 	MessageDataRequests _messageDataRequests;
@@ -203,11 +203,11 @@ private:
 
 	mtpRequestId _contactsStatusesRequestId = 0;
 
-	base::flat_map<gsl::not_null<History*>, mtpRequestId> _unreadMentionsRequests;
+	base::flat_map<not_null<History*>, mtpRequestId> _unreadMentionsRequests;
 
-	base::flat_map<gsl::not_null<ChatData*>, mtpRequestId> _chatAdminsEnabledRequests;
-	base::flat_map<gsl::not_null<ChatData*>, base::flat_set<gsl::not_null<UserData*>>> _chatAdminsToSave;
-	base::flat_map<gsl::not_null<ChatData*>, base::flat_set<mtpRequestId>> _chatAdminsSaveRequests;
+	base::flat_map<not_null<ChatData*>, mtpRequestId> _chatAdminsEnabledRequests;
+	base::flat_map<not_null<ChatData*>, base::flat_set<not_null<UserData*>>> _chatAdminsToSave;
+	base::flat_map<not_null<ChatData*>, base::flat_set<mtpRequestId>> _chatAdminsSaveRequests;
 
 	base::Observable<PeerData*> _fullPeerUpdated;
 

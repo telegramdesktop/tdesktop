@@ -52,7 +52,7 @@ public:
 		SpecialConfigRequester,
 		KeysDestroyer,
 	};
-	Instance(gsl::not_null<DcOptions*> options, Mode mode, Config &&config);
+	Instance(not_null<DcOptions*> options, Mode mode, Config &&config);
 
 	Instance(const Instance &other) = delete;
 	Instance &operator=(const Instance &other) = delete;
@@ -67,7 +67,7 @@ public:
 	AuthKeysList getKeysForWrite() const;
 	void addKeysForDestroy(AuthKeysList &&keys);
 
-	gsl::not_null<DcOptions*> dcOptions();
+	not_null<DcOptions*> dcOptions();
 
 	template <typename TRequest>
 	mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), ShiftedDcId dcId = 0, TimeMs msCanWait = 0, mtpRequestId after = 0) {

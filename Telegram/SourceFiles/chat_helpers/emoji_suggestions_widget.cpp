@@ -37,14 +37,14 @@ constexpr auto kRowLimit = 5;
 
 class SuggestionsWidget::Row {
 public:
-	Row(gsl::not_null<EmojiPtr> emoji, const QString &label, const QString &replacement);
+	Row(not_null<EmojiPtr> emoji, const QString &label, const QString &replacement);
 	Row(const Row &other) = delete;
 	Row &operator=(const Row &other) = delete;
 	Row(Row &&other) = default;
 	Row &operator=(Row &&other) = default;
 	~Row();
 
-	gsl::not_null<EmojiPtr> emoji() const {
+	not_null<EmojiPtr> emoji() const {
 		return _emoji;
 	}
 	const QString &label() const {
@@ -64,14 +64,14 @@ public:
 	}
 
 private:
-	gsl::not_null<EmojiPtr> _emoji;
+	not_null<EmojiPtr> _emoji;
 	QString _label;
 	QString _replacement;
 	std::unique_ptr<RippleAnimation> _ripple;
 
 };
 
-SuggestionsWidget::Row::Row(gsl::not_null<EmojiPtr> emoji, const QString &label, const QString &replacement)
+SuggestionsWidget::Row::Row(not_null<EmojiPtr> emoji, const QString &label, const QString &replacement)
 : _emoji(emoji)
 , _label(label)
 , _replacement(replacement) {
@@ -359,7 +359,7 @@ void SuggestionsWidget::leaveEventHook(QEvent *e) {
 	return TWidget::leaveEventHook(e);
 }
 
-SuggestionsController::SuggestionsController(QWidget *parent, gsl::not_null<QTextEdit*> field) : QObject(nullptr)
+SuggestionsController::SuggestionsController(QWidget *parent, not_null<QTextEdit*> field) : QObject(nullptr)
 , _field(field)
 , _container(parent, st::emojiSuggestionsDropdown)
 , _suggestions(_container->setOwnedWidget(object_ptr<Ui::Emoji::SuggestionsWidget>(parent, st::emojiSuggestionsMenu))) {

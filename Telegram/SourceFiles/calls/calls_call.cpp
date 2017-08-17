@@ -77,7 +77,7 @@ uint64 ComputeFingerprint(const std::array<gsl::byte, kFingerprintDataSize> &aut
 
 } // namespace
 
-Call::Call(gsl::not_null<Delegate*> delegate, gsl::not_null<UserData*> user, Type type)
+Call::Call(not_null<Delegate*> delegate, not_null<UserData*> user, Type type)
 : _delegate(delegate)
 , _user(user)
 , _type(type) {

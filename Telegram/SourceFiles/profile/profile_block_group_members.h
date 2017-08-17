@@ -67,8 +67,8 @@ private:
 	// Observed notifications.
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
 
-	void editAdmin(gsl::not_null<UserData*> user);
-	void restrictUser(gsl::not_null<UserData*> user);
+	void editAdmin(not_null<UserData*> user);
+	void restrictUser(not_null<UserData*> user);
 	void removePeer(PeerData *selectedPeer);
 	void refreshMembers();
 	void fillChatMembers(ChatData *chat);

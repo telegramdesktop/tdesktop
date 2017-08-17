@@ -27,6 +27,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "base/build_config.h"
 
+template <typename Type>
+using not_null = gsl::not_null<Type>;
+
 // Custom libc++ build used for old OS X versions already has this.
 #ifndef OS_MAC_OLD
 

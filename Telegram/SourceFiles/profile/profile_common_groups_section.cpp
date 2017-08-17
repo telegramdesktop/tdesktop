@@ -42,7 +42,7 @@ constexpr int kCommonGroupsPerPage = 40;
 
 } // namespace
 
-object_ptr<Window::SectionWidget> SectionMemento::createWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, const QRect &geometry) {
+object_ptr<Window::SectionWidget> SectionMemento::createWidget(QWidget *parent, not_null<Window::Controller*> controller, const QRect &geometry) {
 	auto result = object_ptr<Widget>(parent, controller, _user);
 	result->setInternalState(geometry, this);
 	return std::move(result);
@@ -97,7 +97,7 @@ InnerWidget::Item::Item(PeerData *peer) : peer(peer) {
 
 InnerWidget::Item::~Item() = default;
 
-InnerWidget::InnerWidget(QWidget *parent, gsl::not_null<UserData*> user) : TWidget(parent)
+InnerWidget::InnerWidget(QWidget *parent, not_null<UserData*> user) : TWidget(parent)
 , _user(user) {
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -118,9 +118,9 @@ void InnerWidget::checkPreloadMore() {
 	}
 }
 
-void InnerWidget::saveState(gsl::not_null<SectionMemento*> memento) {
+void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 	if (auto count = _items.size()) {
-		QList<gsl::not_null<PeerData*>> groups;
+		QList<not_null<PeerData*>> groups;
 		groups.reserve(count);
 		for_const (auto item, _items) {
 			groups.push_back(item->peer);
@@ -129,7 +129,7 @@ void InnerWidget::saveState(gsl::not_null<SectionMemento*> memento) {
 	}
 }
 
-void InnerWidget::restoreState(gsl::not_null<SectionMemento*> memento) {
+void InnerWidget::restoreState(not_null<SectionMemento*> memento) {
 	auto list = memento->getCommonGroups();
 	_allLoaded = false;
 	if (!list.empty()) {
@@ -137,7 +137,7 @@ void InnerWidget::restoreState(gsl::not_null<SectionMemento*> memento) {
 	}
 }
 
-void InnerWidget::showInitial(const QList<gsl::not_null<PeerData*>> &list) {
+void InnerWidget::showInitial(const QList<not_null<PeerData*>> &list) {
 	for_const (auto group, list) {
 		if (auto item = computeItem(group)) {
 			_items.push_back(item);
@@ -335,7 +335,7 @@ InnerWidget::~InnerWidget() {
 	}
 }
 
-Widget::Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller, gsl::not_null<UserData*> user) : Window::SectionWidget(parent, controller)
+Widget::Widget(QWidget *parent, not_null<Window::Controller*> controller, not_null<UserData*> user) : Window::SectionWidget(parent, controller)
 , _scroll(this, st::settingsScroll)
 , _fixedBar(this)
 , _fixedBarShadow(this, st::shadowFg) {
@@ -359,7 +359,7 @@ void Widget::updateAdaptiveLayout() {
 	_fixedBarShadow->moveToLeft(Adaptive::OneColumn() ? 0 : st::lineWidth, _fixedBar->height());
 }
 
-gsl::not_null<UserData*> Widget::user() const {
+not_null<UserData*> Widget::user() const {
 	return _inner->user();
 }
 
@@ -374,7 +374,7 @@ void Widget::doSetInnerFocus() {
 	_inner->setFocus();
 }
 
-bool Widget::showInternal(gsl::not_null<Window::SectionMemento*> memento) {
+bool Widget::showInternal(not_null<Window::SectionMemento*> memento) {
 	if (auto profileMemento = dynamic_cast<SectionMemento*>(memento.get())) {
 		if (profileMemento->getUser() == user()) {
 			restoreState(profileMemento);
@@ -384,7 +384,7 @@ bool Widget::showInternal(gsl::not_null<Window::SectionMemento*> memento) {
 	return false;
 }
 
-void Widget::setInternalState(const QRect &geometry, gsl::not_null<SectionMemento*> memento) {
+void Widget::setInternalState(const QRect &geometry, not_null<SectionMemento*> memento) {
 	setGeometry(geometry);
 	myEnsureResized(this);
 	restoreState(memento);
@@ -396,12 +396,12 @@ std::unique_ptr<Window::SectionMemento> Widget::createMemento() {
 	return std::move(result);
 }
 
-void Widget::saveState(gsl::not_null<SectionMemento*> memento) {
+void Widget::saveState(not_null<SectionMemento*> memento) {
 	memento->setScrollTop(_scroll->scrollTop());
 	_inner->saveState(memento);
 }
 
-void Widget::restoreState(gsl::not_null<SectionMemento*> memento) {
+void Widget::restoreState(not_null<SectionMemento*> memento) {
 	_inner->restoreState(memento);
 	auto scrollTop = memento->getScrollTop();
 	_scroll->scrollToY(scrollTop);

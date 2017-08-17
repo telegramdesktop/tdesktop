@@ -32,7 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Lang {
 
-CloudManager::CloudManager(Instance &langpack, gsl::not_null<MTP::Instance*> mtproto) : MTP::Sender()
+CloudManager::CloudManager(Instance &langpack, not_null<MTP::Instance*> mtproto) : MTP::Sender()
 , _langpack(langpack) {
 	requestLangPackDifference();
 }

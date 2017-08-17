@@ -170,7 +170,7 @@ class HistoryWidget final : public Window::AbstractSectionWidget, public RPCSend
 	Q_OBJECT
 
 public:
-	HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller);
+	HistoryWidget(QWidget *parent, not_null<Window::Controller*> controller);
 
 	void start();
 
@@ -349,9 +349,9 @@ public:
 	bool wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) override;
 	QRect rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) override;
 
-	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, gsl::not_null<const HistoryItem*> msg, int row, int col);
+	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, not_null<const HistoryItem*> msg, int row, int col);
 
-	void ui_repaintHistoryItem(gsl::not_null<const HistoryItem*> item);
+	void ui_repaintHistoryItem(not_null<const HistoryItem*> item);
 	PeerData *ui_getPeerForMouseAction();
 
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
@@ -662,7 +662,7 @@ private:
 	// Counts scrollTop for placing the scroll right at the unread
 	// messages bar, choosing from _history and _migrated unreadBar.
 	int unreadBarTop() const;
-	int itemTopForHighlight(gsl::not_null<HistoryItem*> item) const;
+	int itemTopForHighlight(not_null<HistoryItem*> item) const;
 	void scrollToCurrentVoiceMessage(FullMsgId fromId, FullMsgId toId);
 
 	// Scroll to current y without updating the _lastUserScrolled time.

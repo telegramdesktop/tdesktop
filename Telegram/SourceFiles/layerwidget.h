@@ -169,7 +169,7 @@ class MediaPreviewWidget : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	MediaPreviewWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller);
+	MediaPreviewWidget(QWidget *parent, not_null<Window::Controller*> controller);
 
 	void showPreview(DocumentData *document);
 	void showPreview(PhotoData *photo);
@@ -188,7 +188,7 @@ private:
 	void fillEmojiString();
 	void resetGifAndCache();
 
-	gsl::not_null<Window::Controller*> _controller;
+	not_null<Window::Controller*> _controller;
 
 	Animation _a_shown;
 	bool _hiding = false;
@@ -197,7 +197,7 @@ private:
 	Media::Clip::ReaderPointer _gif;
 
 	int _emojiSize;
-	std::vector<gsl::not_null<EmojiPtr>> _emojiList;
+	std::vector<not_null<EmojiPtr>> _emojiList;
 
 	void clipCallback(Media::Clip::Notification notification);
 

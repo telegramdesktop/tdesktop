@@ -48,7 +48,7 @@ class SectionMemento;
 struct FilterValue {
 	// Empty "flags" means all events.
 	MTPDchannelAdminLogEventsFilter::Flags flags = 0;
-	std::vector<gsl::not_null<UserData*>> admins;
+	std::vector<not_null<UserData*>> admins;
 	bool allUsers = true;
 };
 
@@ -82,9 +82,9 @@ private:
 
 class Widget final : public Window::SectionWidget {
 public:
-	Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller, gsl::not_null<ChannelData*> channel);
+	Widget(QWidget *parent, not_null<Window::Controller*> controller, not_null<ChannelData*> channel);
 
-	gsl::not_null<ChannelData*> channel() const;
+	not_null<ChannelData*> channel() const;
 	PeerData *peerForDialogs() const override {
 		return channel();
 	}
@@ -95,10 +95,10 @@ public:
 
 	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params) override;
 
-	bool showInternal(gsl::not_null<Window::SectionMemento*> memento) override;
+	bool showInternal(not_null<Window::SectionMemento*> memento) override;
 	std::unique_ptr<Window::SectionMemento> createMemento() override;
 
-	void setInternalState(const QRect &geometry, gsl::not_null<SectionMemento*> memento);
+	void setInternalState(const QRect &geometry, not_null<SectionMemento*> memento);
 
 	// Float player interface.
 	bool wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) override;
@@ -120,8 +120,8 @@ private:
 	void showFilter();
 	void onScroll();
 	void updateAdaptiveLayout();
-	void saveState(gsl::not_null<SectionMemento*> memento);
-	void restoreState(gsl::not_null<SectionMemento*> memento);
+	void saveState(not_null<SectionMemento*> memento);
+	void restoreState(not_null<SectionMemento*> memento);
 
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<InnerWidget> _inner;
@@ -133,12 +133,12 @@ private:
 
 class SectionMemento : public Window::SectionMemento {
 public:
-	SectionMemento(gsl::not_null<ChannelData*> channel) : _channel(channel) {
+	SectionMemento(not_null<ChannelData*> channel) : _channel(channel) {
 	}
 
-	object_ptr<Window::SectionWidget> createWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, const QRect &geometry) override;
+	object_ptr<Window::SectionWidget> createWidget(QWidget *parent, not_null<Window::Controller*> controller, const QRect &geometry) override;
 
-	gsl::not_null<ChannelData*> getChannel() const {
+	not_null<ChannelData*> getChannel() const {
 		return _channel;
 	}
 	void setScrollTop(int scrollTop) {
@@ -148,16 +148,16 @@ public:
 		return _scrollTop;
 	}
 
-	void setAdmins(std::vector<gsl::not_null<UserData*>> admins) {
+	void setAdmins(std::vector<not_null<UserData*>> admins) {
 		_admins = std::move(admins);
 	}
-	void setAdminsCanEdit(std::vector<gsl::not_null<UserData*>> admins) {
+	void setAdminsCanEdit(std::vector<not_null<UserData*>> admins) {
 		_adminsCanEdit = std::move(admins);
 	}
-	std::vector<gsl::not_null<UserData*>> takeAdmins() {
+	std::vector<not_null<UserData*>> takeAdmins() {
 		return std::move(_admins);
 	}
-	std::vector<gsl::not_null<UserData*>> takeAdminsCanEdit() {
+	std::vector<not_null<UserData*>> takeAdminsCanEdit() {
 		return std::move(_adminsCanEdit);
 	}
 
@@ -199,10 +199,10 @@ public:
 	}
 
 private:
-	gsl::not_null<ChannelData*> _channel;
+	not_null<ChannelData*> _channel;
 	int _scrollTop = 0;
-	std::vector<gsl::not_null<UserData*>> _admins;
-	std::vector<gsl::not_null<UserData*>> _adminsCanEdit;
+	std::vector<not_null<UserData*>> _admins;
+	std::vector<not_null<UserData*>> _adminsCanEdit;
 	std::vector<HistoryItemOwned> _items;
 	std::map<uint64, HistoryItem*> _itemsByIds;
 	bool _upLoaded = false;

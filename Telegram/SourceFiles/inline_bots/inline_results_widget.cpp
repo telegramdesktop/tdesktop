@@ -48,7 +48,7 @@ constexpr auto kInlineBotRequestDelay = 400;
 
 } // namespace
 
-Inner::Inner(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
+Inner::Inner(QWidget *parent, not_null<Window::Controller*> controller) : TWidget(parent)
 , _controller(controller) {
 	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, st::emojiPanMinHeight);
 
@@ -711,7 +711,7 @@ void Inner::onSwitchPm() {
 
 } // namespace internal
 
-Widget::Widget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
+Widget::Widget(QWidget *parent, not_null<Window::Controller*> controller) : TWidget(parent)
 , _controller(controller)
 , _contentMaxHeight(st::emojiPanMaxHeight)
 , _contentHeight(_contentMaxHeight)

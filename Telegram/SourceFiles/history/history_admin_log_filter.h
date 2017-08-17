@@ -27,7 +27,7 @@ namespace AdminLog {
 
 class FilterBox : public BoxContent {
 public:
-	FilterBox(QWidget*, gsl::not_null<ChannelData*> channel, const std::vector<gsl::not_null<UserData*>> &admins, const FilterValue &filter, base::lambda<void(FilterValue &&filter)> saveCallback);
+	FilterBox(QWidget*, not_null<ChannelData*> channel, const std::vector<not_null<UserData*>> &admins, const FilterValue &filter, base::lambda<void(FilterValue &&filter)> saveCallback);
 
 protected:
 	void prepare() override;
@@ -36,8 +36,8 @@ private:
 	void resizeToContent();
 	void refreshButtons();
 
-	gsl::not_null<ChannelData*> _channel;
-	std::vector<gsl::not_null<UserData*>> _admins;
+	not_null<ChannelData*> _channel;
+	std::vector<not_null<UserData*>> _admins;
 	FilterValue _initialFilter;
 	base::lambda<void(FilterValue &&filter)> _saveCallback;
 

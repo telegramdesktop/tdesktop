@@ -33,7 +33,7 @@ public:
 	}
 
 private:
-	gsl::not_null<DcOptions*> _that;
+	not_null<DcOptions*> _that;
 	QWriteLocker _lock;
 
 };

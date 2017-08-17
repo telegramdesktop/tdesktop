@@ -34,17 +34,17 @@ class CalendarBox;
 
 class EditParticipantBox : public BoxContent {
 public:
-	EditParticipantBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights);
+	EditParticipantBox(QWidget*, not_null<ChannelData*> channel, not_null<UserData*> user, bool hasAdminRights);
 
 protected:
 	void prepare() override;
 
 	void resizeToContent();
 
-	gsl::not_null<UserData*> user() const {
+	not_null<UserData*> user() const {
 		return _user;
 	}
-	gsl::not_null<ChannelData*> channel() const {
+	not_null<ChannelData*> channel() const {
 		return _channel;
 	}
 
@@ -58,8 +58,8 @@ protected:
 	}
 
 private:
-	gsl::not_null<ChannelData*> _channel;
-	gsl::not_null<UserData*> _user;
+	not_null<ChannelData*> _channel;
+	not_null<UserData*> _user;
 	bool _hasAdminRights = false;
 
 	class Inner;
@@ -69,7 +69,7 @@ private:
 
 class EditAdminBox : public EditParticipantBox {
 public:
-	EditAdminBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights);
+	EditAdminBox(QWidget*, not_null<ChannelData*> channel, not_null<UserData*> user, const MTPChannelAdminRights &rights);
 
 	void setSaveCallback(base::lambda<void(MTPChannelAdminRights, MTPChannelAdminRights)> callback) {
 		_saveCallback = std::move(callback);
@@ -82,7 +82,7 @@ private:
 	using Flag = MTPDchannelAdminRights::Flag;
 	using Flags = MTPDchannelAdminRights::Flags;
 
-	static MTPChannelAdminRights DefaultRights(gsl::not_null<ChannelData*> channel);
+	static MTPChannelAdminRights DefaultRights(not_null<ChannelData*> channel);
 
 	bool canSave() const {
 		return !!_saveCallback;
@@ -104,7 +104,7 @@ private:
 
 class EditRestrictedBox : public EditParticipantBox {
 public:
-	EditRestrictedBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights, const MTPChannelBannedRights &rights);
+	EditRestrictedBox(QWidget*, not_null<ChannelData*> channel, not_null<UserData*> user, bool hasAdminRights, const MTPChannelBannedRights &rights);
 
 	void setSaveCallback(base::lambda<void(MTPChannelBannedRights, MTPChannelBannedRights)> callback) {
 		_saveCallback = std::move(callback);
@@ -117,7 +117,7 @@ private:
 	using Flag = MTPDchannelBannedRights::Flag;
 	using Flags = MTPDchannelBannedRights::Flags;
 
-	static MTPChannelBannedRights DefaultRights(gsl::not_null<ChannelData*> channel);
+	static MTPChannelBannedRights DefaultRights(not_null<ChannelData*> channel);
 
 	bool canSave() const {
 		return !!_saveCallback;

@@ -30,9 +30,9 @@ namespace internal {
 
 class FileBase : public ItemBase {
 public:
-	FileBase(gsl::not_null<Context*> context, Result *result);
+	FileBase(not_null<Context*> context, Result *result);
 	// for saved gif layouts
-	FileBase(gsl::not_null<Context*> context, DocumentData *doc);
+	FileBase(not_null<Context*> context, DocumentData *doc);
 
 protected:
 	DocumentData *getShownDocument() const;
@@ -58,8 +58,8 @@ private:
 
 class Gif : public FileBase {
 public:
-	Gif(gsl::not_null<Context*> context, Result *result);
-	Gif(gsl::not_null<Context*> context, DocumentData *doc, bool hasDeleteButton);
+	Gif(not_null<Context*> context, Result *result);
+	Gif(not_null<Context*> context, DocumentData *doc, bool hasDeleteButton);
 
 	void setPosition(int32 position) override;
 	void initDimensions() override;
@@ -117,9 +117,9 @@ private:
 
 class Photo : public ItemBase {
 public:
-	Photo(gsl::not_null<Context*> context, Result *result);
+	Photo(not_null<Context*> context, Result *result);
 	// Not used anywhere currently.
-	//Photo(gsl::not_null<Context*> context, PhotoData *photo);
+	//Photo(not_null<Context*> context, PhotoData *photo);
 
 	void initDimensions() override;
 
@@ -146,9 +146,9 @@ private:
 
 class Sticker : public FileBase {
 public:
-	Sticker(gsl::not_null<Context*> context, Result *result);
+	Sticker(not_null<Context*> context, Result *result);
 	// Not used anywhere currently.
-	//Sticker(gsl::not_null<Context*> context, DocumentData *document);
+	//Sticker(not_null<Context*> context, DocumentData *document);
 
 	void initDimensions() override;
 
@@ -180,7 +180,7 @@ private:
 
 class Video : public FileBase {
 public:
-	Video(gsl::not_null<Context*> context, Result *result);
+	Video(not_null<Context*> context, Result *result);
 
 	void initDimensions() override;
 
@@ -227,7 +227,7 @@ private:
 
 class File : public FileBase {
 public:
-	File(gsl::not_null<Context*> context, Result *result);
+	File(not_null<Context*> context, Result *result);
 
 	void initDimensions() override;
 
@@ -289,7 +289,7 @@ private:
 
 class Contact : public ItemBase {
 public:
-	Contact(gsl::not_null<Context*> context, Result *result);
+	Contact(not_null<Context*> context, Result *result);
 
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
@@ -307,7 +307,7 @@ private:
 
 class Article : public ItemBase {
 public:
-	Article(gsl::not_null<Context*> context, Result *result, bool withThumb);
+	Article(not_null<Context*> context, Result *result, bool withThumb);
 
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
@@ -330,7 +330,7 @@ private:
 
 class Game : public ItemBase {
 public:
-	Game(gsl::not_null<Context*> context, Result *result);
+	Game(not_null<Context*> context, Result *result);
 
 	void setPosition(int32 position) override;
 	void initDimensions() override;

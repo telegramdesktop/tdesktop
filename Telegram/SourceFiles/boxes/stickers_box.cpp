@@ -156,7 +156,7 @@ StickersBox::StickersBox(QWidget*, const Stickers::Order &archivedIds)
 , _about(st::boxLabelStyle, lang(lng_stickers_packs_archived), _defaultOptions, _aboutWidth) {
 }
 
-StickersBox::StickersBox(QWidget*, gsl::not_null<ChannelData*> megagroup)
+StickersBox::StickersBox(QWidget*, not_null<ChannelData*> megagroup)
 : _section(Section::Installed)
 , _installed(0, this, megagroup)
 , _megagroupSet(megagroup) {
@@ -625,7 +625,7 @@ StickersBox::Inner::Inner(QWidget *parent, const Stickers::Order &archivedIds) :
 	setup();
 }
 
-StickersBox::Inner::Inner(QWidget *parent, gsl::not_null<ChannelData*> megagroup) : TWidget(parent)
+StickersBox::Inner::Inner(QWidget *parent, not_null<ChannelData*> megagroup) : TWidget(parent)
 , _section(StickersBox::Section::Installed)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _a_shifting(animation(this, &Inner::step_shifting))

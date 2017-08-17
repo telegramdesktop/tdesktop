@@ -136,7 +136,7 @@ void Controller::provideChatWidth(int requestedWidth) {
 	}
 }
 
-void Controller::showJumpToDate(gsl::not_null<PeerData*> peer, QDate requestedDate) {
+void Controller::showJumpToDate(not_null<PeerData*> peer, QDate requestedDate) {
 	Expects(peer != nullptr);
 	auto currentPeerDate = [peer] {
 		if (auto history = App::historyLoaded(peer)) {

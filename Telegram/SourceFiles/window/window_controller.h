@@ -39,10 +39,10 @@ class Controller {
 public:
 	static constexpr auto kDefaultDialogsWidthRatio = 5. / 14;
 
-	Controller(gsl::not_null<MainWindow*> window) : _window(window) {
+	Controller(not_null<MainWindow*> window) : _window(window) {
 	}
 
-	gsl::not_null<MainWindow*> window() const {
+	not_null<MainWindow*> window() const {
 		return _window;
 	}
 
@@ -80,7 +80,7 @@ public:
 	bool canProvideChatWidth(int requestedWidth) const;
 	void provideChatWidth(int requestedWidth);
 
-	void showJumpToDate(gsl::not_null<PeerData*> peer, QDate requestedDate);
+	void showJumpToDate(not_null<PeerData*> peer, QDate requestedDate);
 
 	base::Variable<float64> &dialogsWidthRatio() {
 		return _dialogsWidthRatio;
@@ -102,7 +102,7 @@ public:
 	}
 
 private:
-	gsl::not_null<MainWindow*> _window;
+	not_null<MainWindow*> _window;
 
 	base::Observable<PeerData*> _searchInPeerChanged;
 	base::Observable<PeerData*> _historyPeerChanged;

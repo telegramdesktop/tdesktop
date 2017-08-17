@@ -27,7 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Dialogs {
 
-void ShowSearchFromBox(PeerData *peer, base::lambda<void(gsl::not_null<UserData*>)> callback, base::lambda<void()> closedCallback) {
+void ShowSearchFromBox(PeerData *peer, base::lambda<void(not_null<UserData*>)> callback, base::lambda<void()> closedCallback) {
 	auto createController = [peer, callback = std::move(callback)]() -> std::unique_ptr<PeerListController> {
 		if (peer) {
 			if (auto chat = peer->asChat()) {
@@ -40,14 +40,14 @@ void ShowSearchFromBox(PeerData *peer, base::lambda<void(gsl::not_null<UserData*
 	};
 	if (auto controller = createController()) {
 		auto subscription = std::make_shared<base::Subscription>();
-		auto box = Ui::show(Box<PeerListBox>(std::move(controller), [subscription](gsl::not_null<PeerListBox*> box) {
+		auto box = Ui::show(Box<PeerListBox>(std::move(controller), [subscription](not_null<PeerListBox*> box) {
 			box->addButton(langFactory(lng_cancel), [box, subscription] { box->closeBox(); });
 		}), KeepOtherLayers);
 		*subscription = box->boxClosing.add_subscription(std::move(closedCallback));
 	}
 }
 
-ChatSearchFromController::ChatSearchFromController(gsl::not_null<ChatData*> chat, base::lambda<void(gsl::not_null<UserData*>)> callback) : PeerListController()
+ChatSearchFromController::ChatSearchFromController(not_null<ChatData*> chat, base::lambda<void(not_null<UserData*>)> callback) : PeerListController()
 , _chat(chat)
 , _callback(std::move(callback)) {
 }
@@ -66,7 +66,7 @@ void ChatSearchFromController::prepare() {
 	}));
 }
 
-void ChatSearchFromController::rowClicked(gsl::not_null<PeerListRow*> row) {
+void ChatSearchFromController::rowClicked(not_null<PeerListRow*> row) {
 	Expects(row->peer()->isUser());
 	_callback(row->peer()->asUser());
 }
@@ -109,13 +109,13 @@ void ChatSearchFromController::checkForEmptyRows() {
 	}
 }
 
-void ChatSearchFromController::appendRow(gsl::not_null<UserData*> user) {
+void ChatSearchFromController::appendRow(not_null<UserData*> user) {
 	if (!delegate()->peerListFindRow(user->id)) {
 		delegate()->peerListAppendRow(std::make_unique<PeerListRow>(user));
 	}
 }
 
-ChannelSearchFromController::ChannelSearchFromController(gsl::not_null<ChannelData*> channel, base::lambda<void(gsl::not_null<UserData*>)> callback) : ParticipantsBoxController(channel, ParticipantsBoxController::Role::Members)
+ChannelSearchFromController::ChannelSearchFromController(not_null<ChannelData*> channel, base::lambda<void(not_null<UserData*>)> callback) : ParticipantsBoxController(channel, ParticipantsBoxController::Role::Members)
 , _callback(std::move(callback)) {
 }
 
@@ -124,12 +124,12 @@ void ChannelSearchFromController::prepare() {
 	delegate()->peerListSetTitle(langFactory(lng_search_messages_from));
 }
 
-void ChannelSearchFromController::rowClicked(gsl::not_null<PeerListRow*> row) {
+void ChannelSearchFromController::rowClicked(not_null<PeerListRow*> row) {
 	Expects(row->peer()->isUser());
 	_callback(row->peer()->asUser());
 }
 
-std::unique_ptr<PeerListRow> ChannelSearchFromController::createRow(gsl::not_null<UserData*> user) const {
+std::unique_ptr<PeerListRow> ChannelSearchFromController::createRow(not_null<UserData*> user) const {
 	return std::make_unique<PeerListRow>(user);
 }
 

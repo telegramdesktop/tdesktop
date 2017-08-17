@@ -60,7 +60,7 @@ struct StickerIcon {
 
 class StickersListWidget::Footer : public TabbedSelector::InnerFooter, private base::Subscriber {
 public:
-	Footer(gsl::not_null<StickersListWidget*> parent);
+	Footer(not_null<StickersListWidget*> parent);
 
 	void preloadImages();
 	void validateSelectedIcon(uint64 setId, ValidateIconAnimations animations);
@@ -88,7 +88,7 @@ private:
 	void paintStickerSettingsIcon(Painter &p) const;
 	void paintFeaturedStickerSetsBadge(Painter &p, int iconLeft) const;
 
-	gsl::not_null<StickersListWidget*> _pan;
+	not_null<StickersListWidget*> _pan;
 
 	static constexpr auto kVisibleIconsCount = 8;
 
@@ -111,7 +111,7 @@ private:
 
 };
 
-StickersListWidget::Footer::Footer(gsl::not_null<StickersListWidget*> parent) : InnerFooter(parent)
+StickersListWidget::Footer::Footer(not_null<StickersListWidget*> parent) : InnerFooter(parent)
 , _pan(parent)
 , _a_icons(animation(this, &Footer::step_icons)) {
 	setMouseTracking(true);
@@ -434,7 +434,7 @@ void StickersListWidget::Footer::step_icons(TimeMs ms, bool timer) {
 	}
 }
 
-StickersListWidget::StickersListWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : Inner(parent, controller)
+StickersListWidget::StickersListWidget(QWidget *parent, not_null<Window::Controller*> controller) : Inner(parent, controller)
 , _section(Section::Stickers)
 , _megagroupSetAbout(st::emojiPanWidth - st::emojiScroll.width - st::emojiPanHeaderLeft)
 , _addText(lang(lng_stickers_featured_add).toUpper())

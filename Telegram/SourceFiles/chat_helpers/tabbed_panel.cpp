@@ -34,10 +34,10 @@ constexpr auto kDelayedHideTimeoutMs = 3000;
 
 } // namespace
 
-TabbedPanel::TabbedPanel(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TabbedPanel(parent, controller, object_ptr<TabbedSelector>(nullptr, controller)) {
+TabbedPanel::TabbedPanel(QWidget *parent, not_null<Window::Controller*> controller) : TabbedPanel(parent, controller, object_ptr<TabbedSelector>(nullptr, controller)) {
 }
 
-TabbedPanel::TabbedPanel(QWidget *parent, gsl::not_null<Window::Controller*> controller, object_ptr<TabbedSelector> selector) : TWidget(parent)
+TabbedPanel::TabbedPanel(QWidget *parent, not_null<Window::Controller*> controller, object_ptr<TabbedSelector> selector) : TWidget(parent)
 , _controller(controller)
 , _selector(std::move(selector)) {
 	_selector->setParent(this);

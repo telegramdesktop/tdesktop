@@ -101,7 +101,7 @@ inline bool ResponseNeedsAck(const SerializedMessage &response) {
 class Session;
 class SessionData {
 public:
-	SessionData(gsl::not_null<Session*> creator) : _owner(creator) {
+	SessionData(not_null<Session*> creator) : _owner(creator) {
 	}
 
 	void setSession(uint64 session) {
@@ -166,27 +166,27 @@ public:
 		_keyChecked = checked;
 	}
 
-	gsl::not_null<QReadWriteLock*> keyMutex() const;
+	not_null<QReadWriteLock*> keyMutex() const;
 
-	gsl::not_null<QReadWriteLock*> toSendMutex() const {
+	not_null<QReadWriteLock*> toSendMutex() const {
 		return &_toSendLock;
 	}
-	gsl::not_null<QReadWriteLock*> haveSentMutex() const {
+	not_null<QReadWriteLock*> haveSentMutex() const {
 		return &_haveSentLock;
 	}
-	gsl::not_null<QReadWriteLock*> toResendMutex() const {
+	not_null<QReadWriteLock*> toResendMutex() const {
 		return &_toResendLock;
 	}
-	gsl::not_null<QReadWriteLock*> wereAckedMutex() const {
+	not_null<QReadWriteLock*> wereAckedMutex() const {
 		return &_wereAckedLock;
 	}
-	gsl::not_null<QReadWriteLock*> receivedIdsMutex() const {
+	not_null<QReadWriteLock*> receivedIdsMutex() const {
 		return &_receivedIdsLock;
 	}
-	gsl::not_null<QReadWriteLock*> haveReceivedMutex() const {
+	not_null<QReadWriteLock*> haveReceivedMutex() const {
 		return &_haveReceivedLock;
 	}
-	gsl::not_null<QReadWriteLock*> stateRequestMutex() const {
+	not_null<QReadWriteLock*> stateRequestMutex() const {
 		return &_stateRequestLock;
 	}
 
@@ -239,10 +239,10 @@ public:
 		return _stateRequest;
 	}
 
-	gsl::not_null<Session*> owner() {
+	not_null<Session*> owner() {
 		return _owner;
 	}
-	gsl::not_null<const Session*> owner() const {
+	not_null<const Session*> owner() const {
 		return _owner;
 	}
 
@@ -261,7 +261,7 @@ private:
 
 	uint32 _messagesSent = 0;
 
-	gsl::not_null<Session*> _owner;
+	not_null<Session*> _owner;
 
 	AuthKeyPtr _authKey;
 	bool _keyChecked = false;
@@ -295,7 +295,7 @@ class Session : public QObject {
 	Q_OBJECT
 
 public:
-	Session(gsl::not_null<Instance*> instance, ShiftedDcId shiftedDcId);
+	Session(not_null<Instance*> instance, ShiftedDcId shiftedDcId);
 
 	void start();
 	void restart();
@@ -357,7 +357,7 @@ private:
 	mtpRequest getRequest(mtpRequestId requestId);
 	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err);
 
-	gsl::not_null<Instance*> _instance;
+	not_null<Instance*> _instance;
 	std::unique_ptr<Connection> _connection;
 
 	bool _killed = false;
@@ -378,7 +378,7 @@ private:
 
 };
 
-inline gsl::not_null<QReadWriteLock*> SessionData::keyMutex() const {
+inline not_null<QReadWriteLock*> SessionData::keyMutex() const {
 	return _owner->keyMutex();
 }
 

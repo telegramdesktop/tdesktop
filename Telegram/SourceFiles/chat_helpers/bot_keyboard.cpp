@@ -52,7 +52,7 @@ const style::TextStyle &BotKeyboard::Style::textStyle() const {
 	return st::botKbStyle;
 }
 
-void BotKeyboard::Style::repaint(gsl::not_null<const HistoryItem*> item) const {
+void BotKeyboard::Style::repaint(not_null<const HistoryItem*> item) const {
 	_parent->update();
 }
 

@@ -39,7 +39,7 @@ class StickersListWidget : public TabbedSelector::Inner, private base::Subscribe
 	Q_OBJECT
 
 public:
-	StickersListWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller);
+	StickersListWidget(QWidget *parent, not_null<Window::Controller*> controller);
 
 	void refreshRecent() override;
 	void preloadImages() override;

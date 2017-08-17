@@ -205,7 +205,7 @@ void InnerWidget::enumerateDates(Method method) {
 	enumerateItems<EnumItemsDirection::BottomToTop>(dateCallback);
 }
 
-InnerWidget::InnerWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, gsl::not_null<ChannelData*> channel) : TWidget(parent)
+InnerWidget::InnerWidget(QWidget *parent, not_null<Window::Controller*> controller, not_null<ChannelData*> channel) : TWidget(parent)
 , _controller(controller)
 , _channel(channel)
 , _history(App::history(channel))
@@ -213,7 +213,7 @@ InnerWidget::InnerWidget(QWidget *parent, gsl::not_null<Window::Controller*> con
 , _emptyText(st::historyAdminLogEmptyWidth - st::historyAdminLogEmptyPadding.left() - st::historyAdminLogEmptyPadding.left()) {
 	setMouseTracking(true);
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
-	subscribe(Auth().data().repaintLogEntry(), [this](gsl::not_null<const HistoryItem*> historyItem) {
+	subscribe(Auth().data().repaintLogEntry(), [this](not_null<const HistoryItem*> historyItem) {
 		if (_history == historyItem->history()) {
 			repaintItem(historyItem);
 		}
@@ -421,7 +421,7 @@ QPoint InnerWidget::tooltipPos() const {
 	return _mousePosition;
 }
 
-void InnerWidget::saveState(gsl::not_null<SectionMemento*> memento) {
+void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 	memento->setFilter(std::move(_filter));
 	memento->setAdmins(std::move(_admins));
 	memento->setAdminsCanEdit(std::move(_adminsCanEdit));
@@ -433,7 +433,7 @@ void InnerWidget::saveState(gsl::not_null<SectionMemento*> memento) {
 	_upLoaded = _downLoaded = true; // Don't load or handle anything anymore.
 }
 
-void InnerWidget::restoreState(gsl::not_null<SectionMemento*> memento) {
+void InnerWidget::restoreState(not_null<SectionMemento*> memento) {
 	_items = memento->takeItems();
 	_itemsByIds = memento->takeItemsByIds();
 	_idManager = memento->takeIdManager();
@@ -635,7 +635,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			}
 			p.translate(0, -top);
 
-			enumerateUserpics([&p, &clip](gsl::not_null<HistoryMessage*> message, int userpicTop) {
+			enumerateUserpics([&p, &clip](not_null<HistoryMessage*> message, int userpicTop) {
 				// stop the enumeration if the userpic is below the painted rect
 				if (userpicTop >= clip.top() + clip.height()) {
 					return false;
@@ -650,7 +650,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 			auto dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
 			auto scrollDateOpacity = _scrollDateOpacity.current(ms, _scrollDateShown ? 1. : 0.);
-			enumerateDates([&p, &clip, scrollDateOpacity, dateHeight/*, lastDate, showFloatingBefore*/](gsl::not_null<HistoryItem*> item, int itemtop, int dateTop) {
+			enumerateDates([&p, &clip, scrollDateOpacity, dateHeight/*, lastDate, showFloatingBefore*/](not_null<HistoryItem*> item, int itemtop, int dateTop) {
 				// stop the enumeration if the date is above the painted rect
 				if (dateTop + dateHeight <= clip.top()) {
 					return false;
@@ -1008,7 +1008,7 @@ void InnerWidget::setToClipboard(const TextWithEntities &forClipboard, QClipboar
 	}
 }
 
-void InnerWidget::suggestRestrictUser(gsl::not_null<UserData*> user) {
+void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 	Expects(_menu != nullptr);
 	if (!_channel->isMegagroup() || !_channel->canBanMembers() || _admins.empty()) {
 		return;
@@ -1054,7 +1054,7 @@ void InnerWidget::suggestRestrictUser(gsl::not_null<UserData*> user) {
 	});
 }
 
-void InnerWidget::restrictUser(gsl::not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
+void InnerWidget::restrictUser(not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
 	auto weak = QPointer<InnerWidget>(this);
 	MTP::send(MTPchannels_EditBanned(_channel->inputChannel, user->inputUser, newRights), rpcDone([megagroup = _channel.get(), user, weak, oldRights, newRights](const MTPUpdates &result) {
 		Auth().api().applyUpdates(result);
@@ -1065,7 +1065,7 @@ void InnerWidget::restrictUser(gsl::not_null<UserData*> user, const MTPChannelBa
 	}));
 }
 
-void InnerWidget::restrictUserDone(gsl::not_null<UserData*> user, const MTPChannelBannedRights &rights) {
+void InnerWidget::restrictUserDone(not_null<UserData*> user, const MTPChannelBannedRights &rights) {
 	Expects(rights.type() == mtpc_channelBannedRights);
 	if (rights.c_channelBannedRights().vflags.v) {
 		_admins.erase(std::remove(_admins.begin(), _admins.end(), user), _admins.end());
@@ -1290,7 +1290,7 @@ void InnerWidget::updateSelected() {
 		if (!dragState.link && itemPoint.x() >= st::historyPhotoLeft && itemPoint.x() < st::historyPhotoLeft + st::msgPhotoSize) {
 			if (auto message = item->toHistoryMessage()) {
 				if (message->hasFromPhoto()) {
-					enumerateUserpics([&dragState, &lnkhost, &point](gsl::not_null<HistoryMessage*> message, int userpicTop) -> bool {
+					enumerateUserpics([&dragState, &lnkhost, &point](not_null<HistoryMessage*> message, int userpicTop) -> bool {
 						// stop enumeration if the userpic is below our point
 						if (userpicTop > point.y()) {
 							return false;
@@ -1468,7 +1468,7 @@ void InnerWidget::performDrag() {
 	//} // TODO
 }
 
-int InnerWidget::itemTop(gsl::not_null<const HistoryItem*> item) const {
+int InnerWidget::itemTop(not_null<const HistoryItem*> item) const {
 	return _itemsTop + item->y();
 }
 

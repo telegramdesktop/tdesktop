@@ -15,7 +15,7 @@ class MuteSettingsBox : public BoxContent {
 	Q_OBJECT
 
   public:
-	MuteSettingsBox(QWidget *parent, gsl::not_null<PeerData*> peer)
+	MuteSettingsBox(QWidget *parent, not_null<PeerData*> peer)
 	  : _peer(peer) {
 	}
 
@@ -23,6 +23,6 @@ class MuteSettingsBox : public BoxContent {
 	void prepare() override;
 
   private:
-	gsl::not_null<PeerData*> _peer;
+	not_null<PeerData*> _peer;
 };
 // vi: ts=4 tw=80

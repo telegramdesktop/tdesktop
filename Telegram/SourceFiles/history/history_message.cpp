@@ -78,7 +78,7 @@ style::color fromNameFgSelected(int index) {
 	return colors[index];
 }
 
-MTPDmessage::Flags NewForwardedFlags(gsl::not_null<PeerData*> peer, UserId from, gsl::not_null<HistoryMessage*> fwd) {
+MTPDmessage::Flags NewForwardedFlags(not_null<PeerData*> peer, UserId from, not_null<HistoryMessage*> fwd) {
 	auto result = NewMessageFlags(peer) | MTPDmessage::Flag::f_fwd_from;
 	if (from) {
 		result |= MTPDmessage::Flag::f_from_id;
@@ -170,7 +170,7 @@ bool HasInlineItems(const SelectedItemSet &items) {
 
 } // namespace
 
-void FastShareMessage(gsl::not_null<HistoryItem*> item) {
+void FastShareMessage(not_null<HistoryItem*> item) {
 	struct ShareData {
 		ShareData(const FullMsgId &msgId) : msgId(msgId) {
 		}
@@ -291,7 +291,7 @@ base::lambda<void(ChannelData*, MsgId)> HistoryDependentItemCallback(const FullM
 	};
 }
 
-MTPDmessage::Flags NewMessageFlags(gsl::not_null<PeerData*> peer) {
+MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer) {
 	MTPDmessage::Flags result = 0;
 	if (!peer->isSelf()) {
 		result |= MTPDmessage::Flag::f_out;
@@ -302,7 +302,7 @@ MTPDmessage::Flags NewMessageFlags(gsl::not_null<PeerData*> peer) {
 	return result;
 }
 
-QString GetErrorTextForForward(gsl::not_null<PeerData*> peer, const SelectedItemSet &items) {
+QString GetErrorTextForForward(not_null<PeerData*> peer, const SelectedItemSet &items) {
 	if (!peer->canWrite()) {
 		return lang(lng_forward_cant);
 	}
@@ -551,7 +551,7 @@ const style::TextStyle &HistoryMessage::KeyboardStyle::textStyle() const {
 	return st::serviceTextStyle;
 }
 
-void HistoryMessage::KeyboardStyle::repaint(gsl::not_null<const HistoryItem*> item) const {
+void HistoryMessage::KeyboardStyle::repaint(not_null<const HistoryItem*> item) const {
 	Ui::repaintHistoryItem(item);
 }
 
@@ -605,7 +605,7 @@ int HistoryMessage::KeyboardStyle::minButtonWidth(HistoryMessageReplyMarkup::But
 	return result;
 }
 
-HistoryMessage::HistoryMessage(gsl::not_null<History*> history, const MTPDmessage &msg)
+HistoryMessage::HistoryMessage(not_null<History*> history, const MTPDmessage &msg)
 : HistoryItem(history, msg.vid.v, msg.vflags.v, ::date(msg.vdate), msg.has_from_id() ? msg.vfrom_id.v : 0) {
 	CreateConfig config;
 
@@ -634,7 +634,7 @@ HistoryMessage::HistoryMessage(gsl::not_null<History*> history, const MTPDmessag
 	setText({ text, entities });
 }
 
-HistoryMessage::HistoryMessage(gsl::not_null<History*> history, const MTPDmessageService &msg)
+HistoryMessage::HistoryMessage(not_null<History*> history, const MTPDmessageService &msg)
 : HistoryItem(history, msg.vid.v, mtpCastFlags(msg.vflags.v), ::date(msg.vdate), msg.has_from_id() ? msg.vfrom_id.v : 0) {
 	CreateConfig config;
 
@@ -653,7 +653,7 @@ HistoryMessage::HistoryMessage(gsl::not_null<History*> history, const MTPDmessag
 	setText(TextWithEntities {});
 }
 
-HistoryMessage::HistoryMessage(gsl::not_null<History*> history, MsgId id, MTPDmessage::Flags flags, QDateTime date, UserId from, const QString &postAuthor, gsl::not_null<HistoryMessage*> fwd)
+HistoryMessage::HistoryMessage(not_null<History*> history, MsgId id, MTPDmessage::Flags flags, QDateTime date, UserId from, const QString &postAuthor, not_null<HistoryMessage*> fwd)
 : HistoryItem(history, id, NewForwardedFlags(history->peer, from, fwd) | flags, date, from) {
 	CreateConfig config;
 
@@ -704,14 +704,14 @@ HistoryMessage::HistoryMessage(gsl::not_null<History*> history, MsgId id, MTPDme
 	setText(fwd->originalText());
 }
 
-HistoryMessage::HistoryMessage(gsl::not_null<History*> history, MsgId id, MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, QDateTime date, UserId from, const QString &postAuthor, const TextWithEntities &textWithEntities)
+HistoryMessage::HistoryMessage(not_null<History*> history, MsgId id, MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, QDateTime date, UserId from, const QString &postAuthor, const TextWithEntities &textWithEntities)
 	: HistoryItem(history, id, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
 	createComponentsHelper(flags, replyTo, viaBotId, postAuthor, MTPnullMarkup);
 
 	setText(textWithEntities);
 }
 
-HistoryMessage::HistoryMessage(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, QDateTime date, UserId from, const QString &postAuthor, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup)
+HistoryMessage::HistoryMessage(not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, QDateTime date, UserId from, const QString &postAuthor, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup)
 	: HistoryItem(history, msgId, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
 	createComponentsHelper(flags, replyTo, viaBotId, postAuthor, markup);
 
@@ -719,7 +719,7 @@ HistoryMessage::HistoryMessage(gsl::not_null<History*> history, MsgId msgId, MTP
 	setText(TextWithEntities());
 }
 
-HistoryMessage::HistoryMessage(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, QDateTime date, UserId from, const QString &postAuthor, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup)
+HistoryMessage::HistoryMessage(not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, QDateTime date, UserId from, const QString &postAuthor, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup)
 	: HistoryItem(history, msgId, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
 	createComponentsHelper(flags, replyTo, viaBotId, postAuthor, markup);
 
@@ -727,7 +727,7 @@ HistoryMessage::HistoryMessage(gsl::not_null<History*> history, MsgId msgId, MTP
 	setText(TextWithEntities());
 }
 
-HistoryMessage::HistoryMessage(gsl::not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, QDateTime date, UserId from, const QString &postAuthor, GameData *game, const MTPReplyMarkup &markup)
+HistoryMessage::HistoryMessage(not_null<History*> history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, QDateTime date, UserId from, const QString &postAuthor, GameData *game, const MTPReplyMarkup &markup)
 	: HistoryItem(history, msgId, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
 	createComponentsHelper(flags, replyTo, viaBotId, postAuthor, markup);
 

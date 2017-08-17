@@ -118,7 +118,7 @@ void ListWidget::mouseMoveEvent(QMouseEvent *e) {
 	}
 }
 
-void ListWidget::ui_repaintHistoryItem(gsl::not_null<const HistoryItem*> item) {
+void ListWidget::ui_repaintHistoryItem(not_null<const HistoryItem*> item) {
 	repaintItem(item);
 }
 

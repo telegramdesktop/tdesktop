@@ -54,7 +54,7 @@ ALuint CreateBuffer() {
 
 } // namespace
 
-Track::Track(gsl::not_null<Instance*> instance) : _instance(instance) {
+Track::Track(not_null<Instance*> instance) : _instance(instance) {
 	_instance->registerTrack(this);
 }
 

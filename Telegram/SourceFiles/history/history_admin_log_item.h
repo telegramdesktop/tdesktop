@@ -25,12 +25,12 @@ namespace AdminLog {
 class HistoryItemOwned;
 class LocalIdManager;
 
-void GenerateItems(gsl::not_null<History*> history, LocalIdManager &idManager, const MTPDchannelAdminLogEvent &event, base::lambda<void(HistoryItemOwned item)> callback);
+void GenerateItems(not_null<History*> history, LocalIdManager &idManager, const MTPDchannelAdminLogEvent &event, base::lambda<void(HistoryItemOwned item)> callback);
 
 // Smart pointer wrapper for HistoryItem* that destroys the owned item.
 class HistoryItemOwned {
 public:
-	explicit HistoryItemOwned(gsl::not_null<HistoryItem*> data) : _data(data) {
+	explicit HistoryItemOwned(not_null<HistoryItem*> data) : _data(data) {
 	}
 	HistoryItemOwned(const HistoryItemOwned &other) = delete;
 	HistoryItemOwned &operator=(const HistoryItemOwned &other) = delete;

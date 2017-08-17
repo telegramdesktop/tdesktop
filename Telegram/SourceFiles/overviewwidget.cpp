@@ -1950,7 +1950,7 @@ OverviewInner::~OverviewInner() {
 	clear();
 }
 
-OverviewWidget::OverviewWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, PeerData *peer, MediaOverviewType type) : Window::AbstractSectionWidget(parent, controller)
+OverviewWidget::OverviewWidget(QWidget *parent, not_null<Window::Controller*> controller, PeerData *peer, MediaOverviewType type) : Window::AbstractSectionWidget(parent, controller)
 , _topBar(this, controller)
 , _scroll(this, st::settingsScroll, false)
 , _mediaType(this, st::defaultDropdownMenu)
@@ -2290,7 +2290,7 @@ void OverviewWidget::grabFinish() {
 	_topShadow->show();
 }
 
-void OverviewWidget::ui_repaintHistoryItem(gsl::not_null<const HistoryItem*> item) {
+void OverviewWidget::ui_repaintHistoryItem(not_null<const HistoryItem*> item) {
 	if (peer() == item->history()->peer || migratePeer() == item->history()->peer) {
 		_inner->repaintItem(item);
 	}

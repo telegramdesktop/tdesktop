@@ -42,7 +42,7 @@ class DialogsInner : public Ui::SplittedWidget, public RPCSender, private base::
 	Q_OBJECT
 
 public:
-	DialogsInner(QWidget *parent, gsl::not_null<Window::Controller*> controller, QWidget *main);
+	DialogsInner(QWidget *parent, not_null<Window::Controller*> controller, QWidget *main);
 
 	void dialogsReceived(const QVector<MTPDialog> &dialogs);
 	void addSavedPeersAfter(const QDateTime &date);
@@ -170,7 +170,7 @@ private:
 	bool isSelected() const {
 		return _importantSwitchSelected || _selected || (_hashtagSelected >= 0) || (_filteredSelected >= 0) || (_peerSearchSelected >= 0) || (_searchedSelected >= 0);
 	}
-	void handlePeerNameChange(gsl::not_null<PeerData*> peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
+	void handlePeerNameChange(not_null<PeerData*> peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
 
 	void itemRemoved(HistoryItem *item);
 	enum class UpdateRowSection {
@@ -193,7 +193,7 @@ private:
 	void paintDialog(Painter &p, Dialogs::Row *row, int fullWidth, PeerData *active, PeerData *selected, bool onlyBackground, TimeMs ms);
 	void paintPeerSearchResult(Painter &p, const PeerSearchResult *result, int fullWidth, bool active, bool selected, bool onlyBackground, TimeMs ms) const;
 	void paintSearchInPeer(Painter &p, int fullWidth, bool onlyBackground, TimeMs ms) const;
-	void paintSearchInFilter(Painter &p, gsl::not_null<PeerData*> peer, int top, int fullWidth, const Text &text) const;
+	void paintSearchInFilter(Painter &p, not_null<PeerData*> peer, int top, int fullWidth, const Text &text) const;
 
 	void clearSelection();
 	void clearSearchResults(bool clearPeerSearchResults = true);
@@ -213,7 +213,7 @@ private:
 	void savePinnedOrder();
 	void step_pinnedShifting(TimeMs ms, bool timer);
 
-	gsl::not_null<Window::Controller*> _controller;
+	not_null<Window::Controller*> _controller;
 
 	DialogsList _dialogs;
 	DialogsList _dialogsImportant;

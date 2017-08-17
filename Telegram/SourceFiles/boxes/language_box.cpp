@@ -33,7 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 class LanguageBox::Inner : public TWidget, private base::Subscriber {
 public:
-	Inner(QWidget *parent, gsl::not_null<Languages*> languages);
+	Inner(QWidget *parent, not_null<Languages*> languages);
 
 	void setSelected(int index);
 	void refresh();
@@ -42,13 +42,13 @@ private:
 	void activateCurrent();
 	void languageChanged(int languageIndex);
 
-	gsl::not_null<Languages*> _languages;
+	not_null<Languages*> _languages;
 	std::shared_ptr<Ui::RadiobuttonGroup> _group;
 	std::vector<object_ptr<Ui::Radiobutton>> _buttons;
 
 };
 
-LanguageBox::Inner::Inner(QWidget *parent, gsl::not_null<Languages*> languages) : TWidget(parent)
+LanguageBox::Inner::Inner(QWidget *parent, not_null<Languages*> languages) : TWidget(parent)
 , _languages(languages) {
 	_group = std::make_shared<Ui::RadiobuttonGroup>(0);
 	_group->setChangedCallback([this](int value) { languageChanged(value); });

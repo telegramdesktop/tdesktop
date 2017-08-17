@@ -102,7 +102,7 @@ private:
 
 	void editExceptionUsers(Exception exception);
 	QString exceptionLinkText(Exception exception);
-	std::vector<gsl::not_null<UserData*>> &exceptionUsers(Exception exception);
+	std::vector<not_null<UserData*>> &exceptionUsers(Exception exception);
 	object_ptr<Ui::WidgetSlideWrap<Ui::LinkButton>> &exceptionLink(Exception exception);
 
 	std::unique_ptr<Controller> _controller;
@@ -120,7 +120,7 @@ private:
 	object_ptr<Ui::WidgetSlideWrap<Ui::LinkButton>> _neverLink = { nullptr };
 	object_ptr<Ui::FlatLabel> _exceptionsDescription = { nullptr };
 
-	std::vector<gsl::not_null<UserData*>> _alwaysUsers;
-	std::vector<gsl::not_null<UserData*>> _neverUsers;
+	std::vector<not_null<UserData*>> _alwaysUsers;
+	std::vector<not_null<UserData*>> _neverUsers;
 
 };

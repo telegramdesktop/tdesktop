@@ -224,7 +224,7 @@ private:
 	bool updateOverState(OverState newState);
 	float64 overLevel(OverState control) const;
 
-	MsgId getMsgIdFromOverview(gsl::not_null<History*> history, int index) const;
+	MsgId getMsgIdFromOverview(not_null<History*> history, int index) const;
 
 	QBrush _transparentBrush;
 

@@ -67,7 +67,7 @@ GroupMembersWidget::GroupMembersWidget(QWidget *parent, PeerData *peer, TitleVis
 	refreshMembers();
 }
 
-void GroupMembersWidget::editAdmin(gsl::not_null<UserData*> user) {
+void GroupMembersWidget::editAdmin(not_null<UserData*> user) {
 	auto megagroup = peer()->asMegagroup();
 	if (!megagroup) {
 		return; // not supported
@@ -87,7 +87,7 @@ void GroupMembersWidget::editAdmin(gsl::not_null<UserData*> user) {
 	Ui::show(std::move(box));
 }
 
-void GroupMembersWidget::restrictUser(gsl::not_null<UserData*> user) {
+void GroupMembersWidget::restrictUser(not_null<UserData*> user) {
 	auto megagroup = peer()->asMegagroup();
 	if (!megagroup) {
 		return; // not supported

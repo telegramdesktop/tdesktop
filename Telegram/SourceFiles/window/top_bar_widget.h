@@ -37,7 +37,7 @@ class TopBarWidget : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	TopBarWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller);
+	TopBarWidget(QWidget *parent, not_null<Window::Controller*> controller);
 
 	struct SelectedState {
 		bool textSelected = false;
@@ -80,7 +80,7 @@ private:
 	void updateAdaptiveLayout();
 	int countSelectedButtonsTop(float64 selectedShown);
 
-	gsl::not_null<Window::Controller*> _controller;
+	not_null<Window::Controller*> _controller;
 
 	PeerData *_searchInPeer = nullptr;
 	int _selectedCount = 0;

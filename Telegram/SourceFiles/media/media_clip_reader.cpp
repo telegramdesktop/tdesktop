@@ -100,7 +100,7 @@ Reader::Reader(const QString &filepath, Callback &&callback, Mode mode, int64 se
 	init(FileLocation(filepath), QByteArray());
 }
 
-Reader::Reader(gsl::not_null<DocumentData*> document, FullMsgId msgId, Callback &&callback, Mode mode, int64 seekMs)
+Reader::Reader(not_null<DocumentData*> document, FullMsgId msgId, Callback &&callback, Mode mode, int64 seekMs)
 : _callback(std::move(callback))
 , _mode(mode)
 , _audioMsgId(document, msgId, (mode == Mode::Video) ? rand_value<uint32>() : 0)

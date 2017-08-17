@@ -730,7 +730,7 @@ LayerStackWidget::~LayerStackWidget() {
 	if (App::wnd()) App::wnd()->noLayerStack(this);
 }
 
-MediaPreviewWidget::MediaPreviewWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
+MediaPreviewWidget::MediaPreviewWidget(QWidget *parent, not_null<Window::Controller*> controller) : TWidget(parent)
 , _controller(controller)
 , _emojiSize(Ui::Emoji::Size(Ui::Emoji::Index() + 1) / cIntRetinaFactor()) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);

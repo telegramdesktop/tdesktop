@@ -75,7 +75,7 @@ void ApplyDependencies(CheckboxesMap &checkboxes, DependenciesMap &dependencies,
 
 class EditParticipantBox::Inner : public TWidget {
 public:
-	Inner(QWidget *parent, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights);
+	Inner(QWidget *parent, not_null<ChannelData*> channel, not_null<UserData*> user, bool hasAdminRights);
 
 	template <typename Widget>
 	QPointer<Widget> addControl(object_ptr<Widget> widget, QMargins margin) {
@@ -92,8 +92,8 @@ protected:
 private:
 	void doAddControl(object_ptr<TWidget> widget, QMargins margin);
 
-	gsl::not_null<ChannelData*> _channel;
-	gsl::not_null<UserData*> _user;
+	not_null<ChannelData*> _channel;
+	not_null<UserData*> _user;
 	object_ptr<Ui::PeerAvatarButton> _userPhoto;
 	Text _userName;
 	bool _hasAdminRights = false;
@@ -105,7 +105,7 @@ private:
 
 };
 
-EditParticipantBox::Inner::Inner(QWidget *parent, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights) : TWidget(parent)
+EditParticipantBox::Inner::Inner(QWidget *parent, not_null<ChannelData*> channel, not_null<UserData*> user, bool hasAdminRights) : TWidget(parent)
 , _channel(channel)
 , _user(user)
 , _userPhoto(this, _user, st::rightsPhotoButton)
@@ -163,7 +163,7 @@ void EditParticipantBox::Inner::paintEvent(QPaintEvent *e) {
 	p.drawTextLeft(namex, st::rightsPhotoMargin.top() + st::rightsStatusTop, width(), statusText());
 }
 
-EditParticipantBox::EditParticipantBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights) : BoxContent()
+EditParticipantBox::EditParticipantBox(QWidget*, not_null<ChannelData*> channel, not_null<UserData*> user, bool hasAdminRights) : BoxContent()
 , _channel(channel)
 , _user(user)
 , _hasAdminRights(hasAdminRights) {
@@ -189,7 +189,7 @@ void EditParticipantBox::resizeToContent() {
 	setDimensions(_inner->width(), qMin(_inner->height(), st::boxMaxListHeight));
 }
 
-EditAdminBox::EditAdminBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, const MTPChannelAdminRights &rights) : EditParticipantBox(nullptr, channel, user, (rights.c_channelAdminRights().vflags.v != 0))
+EditAdminBox::EditAdminBox(QWidget*, not_null<ChannelData*> channel, not_null<UserData*> user, const MTPChannelAdminRights &rights) : EditParticipantBox(nullptr, channel, user, (rights.c_channelAdminRights().vflags.v != 0))
 , _oldRights(rights) {
 	auto dependency = [this](Flag dependent, Flag dependency) {
 		_dependencies.push_back(std::make_pair(dependent, dependency));
@@ -198,7 +198,7 @@ EditAdminBox::EditAdminBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::n
 	dependency(Flag::f_invite_users, Flag::f_invite_link);
 }
 
-MTPChannelAdminRights EditAdminBox::DefaultRights(gsl::not_null<ChannelData*> channel) {
+MTPChannelAdminRights EditAdminBox::DefaultRights(not_null<ChannelData*> channel) {
 	auto defaultRights = channel->isMegagroup()
 		? (Flag::f_change_info | Flag::f_delete_messages | Flag::f_ban_users | Flag::f_invite_users | Flag::f_invite_link | Flag::f_pin_messages)
 		: (Flag::f_change_info | Flag::f_post_messages | Flag::f_edit_messages | Flag::f_delete_messages | Flag::f_invite_users | Flag::f_invite_link);
@@ -308,7 +308,7 @@ void EditAdminBox::refreshAboutAddAdminsText() {
 	resizeToContent();
 }
 
-EditRestrictedBox::EditRestrictedBox(QWidget*, gsl::not_null<ChannelData*> channel, gsl::not_null<UserData*> user, bool hasAdminRights, const MTPChannelBannedRights &rights) : EditParticipantBox(nullptr, channel, user, hasAdminRights)
+EditRestrictedBox::EditRestrictedBox(QWidget*, not_null<ChannelData*> channel, not_null<UserData*> user, bool hasAdminRights, const MTPChannelBannedRights &rights) : EditParticipantBox(nullptr, channel, user, hasAdminRights)
 , _oldRights(rights) {
 	auto dependency = [this](Flag dependent, Flag dependency) {
 		_dependencies.push_back(std::make_pair(dependent, dependency));
@@ -391,7 +391,7 @@ void EditRestrictedBox::applyDependencies(QPointer<Ui::Checkbox> changed) {
 	ApplyDependencies(_checkboxes, _dependencies, changed);
 }
 
-MTPChannelBannedRights EditRestrictedBox::DefaultRights(gsl::not_null<ChannelData*> channel) {
+MTPChannelBannedRights EditRestrictedBox::DefaultRights(not_null<ChannelData*> channel) {
 	auto defaultRights = Flag::f_send_messages | Flag::f_send_media | Flag::f_embed_links | Flag::f_send_stickers | Flag::f_send_gifs | Flag::f_send_games | Flag::f_send_inline;
 	return MTP_channelBannedRights(MTP_flags(defaultRights), MTP_int(0));
 }

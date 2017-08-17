@@ -28,8 +28,8 @@ class TabbedSelector;
 
 class TabbedSection : public Window::AbstractSectionWidget {
 public:
-	TabbedSection(QWidget *parent, gsl::not_null<Window::Controller*> controller);
-	TabbedSection(QWidget *parent, gsl::not_null<Window::Controller*> controller, object_ptr<TabbedSelector> selector);
+	TabbedSection(QWidget *parent, not_null<Window::Controller*> controller);
+	TabbedSection(QWidget *parent, not_null<Window::Controller*> controller, object_ptr<TabbedSelector> selector);
 
 	void beforeHiding();
 	void afterShown();

@@ -285,7 +285,7 @@ void TabbedSelector::Tab::saveScrollTop() {
 	_scrollTop = widget()->getVisibleTop();
 }
 
-TabbedSelector::TabbedSelector(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
+TabbedSelector::TabbedSelector(QWidget *parent, not_null<Window::Controller*> controller) : TWidget(parent)
 , _tabsSlider(this, st::emojiTabs)
 , _topShadow(this, st::shadowFg)
 , _bottomShadow(this, st::shadowFg)
@@ -669,15 +669,15 @@ void TabbedSelector::switchTab() {
 	Auth().saveDataDelayed(kSaveChosenTabTimeout);
 }
 
-gsl::not_null<EmojiListWidget*> TabbedSelector::emoji() const {
+not_null<EmojiListWidget*> TabbedSelector::emoji() const {
 	return static_cast<EmojiListWidget*>(getTab(SelectorTab::Emoji)->widget().get());
 }
 
-gsl::not_null<StickersListWidget*> TabbedSelector::stickers() const {
+not_null<StickersListWidget*> TabbedSelector::stickers() const {
 	return static_cast<StickersListWidget*>(getTab(SelectorTab::Stickers)->widget().get());
 }
 
-gsl::not_null<GifsListWidget*> TabbedSelector::gifs() const {
+not_null<GifsListWidget*> TabbedSelector::gifs() const {
 	return static_cast<GifsListWidget*>(getTab(SelectorTab::Gifs)->widget().get());
 }
 
@@ -697,7 +697,7 @@ void TabbedSelector::scrollToY(int y) {
 	_topShadow->update();
 }
 
-TabbedSelector::Inner::Inner(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
+TabbedSelector::Inner::Inner(QWidget *parent, not_null<Window::Controller*> controller) : TWidget(parent)
 , _controller(controller) {
 }
 

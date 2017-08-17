@@ -33,7 +33,7 @@ class ListWidget : public TWidget, private base::Subscriber {
 public:
 	ListWidget(QWidget *parent);
 
-	void ui_repaintHistoryItem(gsl::not_null<const HistoryItem*> item);
+	void ui_repaintHistoryItem(not_null<const HistoryItem*> item);
 
 	QRect getCurrentTrackGeometry() const;
 

@@ -44,7 +44,7 @@ class GifsListWidget : public TabbedSelector::Inner, public InlineBots::Layout::
 	Q_OBJECT
 
 public:
-	GifsListWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller);
+	GifsListWidget(QWidget *parent, not_null<Window::Controller*> controller);
 
 	void refreshRecent() override;
 	void preloadImages() override;

@@ -75,7 +75,7 @@ public:
 private:
 	QSize rippleSize() const;
 
-	gsl::not_null<const style::Check*> _st;
+	not_null<const style::Check*> _st;
 
 };
 
@@ -93,7 +93,7 @@ public:
 private:
 	QSize rippleSize() const;
 
-	gsl::not_null<const style::Radio*> _st;
+	not_null<const style::Radio*> _st;
 
 };
 
@@ -112,7 +112,7 @@ private:
 	void paintXV(Painter &p, int left, int top, int outerWidth, float64 toggled, const QBrush &brush);
 	QSize rippleSize() const;
 
-	gsl::not_null<const style::Toggle*> _st;
+	not_null<const style::Toggle*> _st;
 
 };
 

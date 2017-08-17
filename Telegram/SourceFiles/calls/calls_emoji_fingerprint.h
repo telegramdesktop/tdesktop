@@ -24,6 +24,6 @@ namespace Calls {
 
 class Call;
 
-std::vector<EmojiPtr> ComputeEmojiFingerprint(gsl::not_null<Call*> call);
+std::vector<EmojiPtr> ComputeEmojiFingerprint(not_null<Call*> call);
 
 } // namespace Calls

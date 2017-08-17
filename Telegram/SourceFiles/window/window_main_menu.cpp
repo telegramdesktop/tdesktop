@@ -96,14 +96,14 @@ void MainMenu::refreshMenu() {
 		App::wnd()->onShowNewChannel();
 	}, &st::mainMenuNewChannel, &st::mainMenuNewChannelOver);
 	_menu->addAction(lang(lng_menu_contacts), [] {
-		Ui::show(Box<PeerListBox>(std::make_unique<ContactsBoxController>(), [](gsl::not_null<PeerListBox*> box) {
+		Ui::show(Box<PeerListBox>(std::make_unique<ContactsBoxController>(), [](not_null<PeerListBox*> box) {
 			box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
 			box->addLeftButton(langFactory(lng_profile_add_contact), [] { App::wnd()->onShowAddContact(); });
 		}));
 	}, &st::mainMenuContacts, &st::mainMenuContactsOver);
 	if (Global::PhoneCallsEnabled()) {
 		_menu->addAction(lang(lng_menu_calls), [] {
-			Ui::show(Box<PeerListBox>(std::make_unique<Calls::BoxController>(), [](gsl::not_null<PeerListBox*> box) {
+			Ui::show(Box<PeerListBox>(std::make_unique<Calls::BoxController>(), [](not_null<PeerListBox*> box) {
 				box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
 			}));
 		}, &st::mainMenuCalls, &st::mainMenuCallsOver);

@@ -38,7 +38,7 @@ namespace MTP {
 
 class Instance::Private : private Sender {
 public:
-	Private(gsl::not_null<Instance*> instance, gsl::not_null<DcOptions*> options, Instance::Mode mode);
+	Private(not_null<Instance*> instance, not_null<DcOptions*> options, Instance::Mode mode);
 
 	void start(Config &&config);
 
@@ -50,7 +50,7 @@ public:
 	AuthKeysList getKeysForWrite() const;
 	void addKeysForDestroy(AuthKeysList &&keys);
 
-	gsl::not_null<DcOptions*> dcOptions();
+	not_null<DcOptions*> dcOptions();
 
 	void requestConfig();
 	void requestCDNConfig();
@@ -137,8 +137,8 @@ private:
 
 	void checkDelayedRequests();
 
-	gsl::not_null<Instance*> _instance;
-	gsl::not_null<DcOptions*> _dcOptions;
+	not_null<Instance*> _instance;
+	not_null<DcOptions*> _dcOptions;
 	Instance::Mode _mode = Instance::Mode::Normal;
 
 	DcId _mainDcId = Config::kDefaultMainDc;
@@ -194,7 +194,7 @@ private:
 
 };
 
-Instance::Private::Private(gsl::not_null<Instance*> instance, gsl::not_null<DcOptions*> options, Instance::Mode mode) : Sender()
+Instance::Private::Private(not_null<Instance*> instance, not_null<DcOptions*> options, Instance::Mode mode) : Sender()
 , _instance(instance)
 , _dcOptions(options)
 , _mode(mode) {
@@ -556,7 +556,7 @@ void Instance::Private::addKeysForDestroy(AuthKeysList &&keys) {
 	}
 }
 
-gsl::not_null<DcOptions*> Instance::Private::dcOptions() {
+not_null<DcOptions*> Instance::Private::dcOptions() {
 	return _dcOptions;
 }
 
@@ -1272,7 +1272,7 @@ void Instance::Private::prepareToDestroy() {
 	MustNotCreateSessions = true;
 }
 
-Instance::Instance(gsl::not_null<DcOptions*> options, Mode mode, Config &&config) : QObject()
+Instance::Instance(not_null<DcOptions*> options, Mode mode, Config &&config) : QObject()
 , _private(std::make_unique<Private>(this, options, mode)) {
 	_private->start(std::move(config));
 }
@@ -1369,7 +1369,7 @@ void Instance::addKeysForDestroy(AuthKeysList &&keys) {
 	_private->addKeysForDestroy(std::move(keys));
 }
 
-gsl::not_null<DcOptions*> Instance::dcOptions() {
+not_null<DcOptions*> Instance::dcOptions() {
 	return _private->dcOptions();
 }
 

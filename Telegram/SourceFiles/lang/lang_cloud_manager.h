@@ -33,7 +33,7 @@ class Instance;
 
 class CloudManager : public base::enable_weak_from_this, private MTP::Sender, private base::Subscriber {
 public:
-	CloudManager(Instance &langpack, gsl::not_null<MTP::Instance*> mtproto);
+	CloudManager(Instance &langpack, not_null<MTP::Instance*> mtproto);
 
 	struct Language {
 		QString id;

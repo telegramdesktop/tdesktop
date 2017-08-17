@@ -62,7 +62,7 @@ public:
 	};
 
 	Reader(const QString &filepath, Callback &&callback, Mode mode = Mode::Gif, TimeMs seekMs = 0);
-	Reader(gsl::not_null<DocumentData*> document, FullMsgId msgId, Callback &&callback, Mode mode = Mode::Gif, TimeMs seekMs = 0);
+	Reader(not_null<DocumentData*> document, FullMsgId msgId, Callback &&callback, Mode mode = Mode::Gif, TimeMs seekMs = 0);
 
 	static void callback(Reader *reader, int threadIndex, Notification notification); // reader can be deleted
 

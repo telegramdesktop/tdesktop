@@ -113,7 +113,7 @@ const auto CollectChanges = [](auto &phraseMap, auto plusFlags, auto minusFlags)
 	return withPrefix(plusFlags & ~minusFlags, '+') + withPrefix(minusFlags & ~plusFlags, kMinus);
 };
 
-auto GenerateAdminChangeText(gsl::not_null<ChannelData*> channel, const TextWithEntities &user, const MTPChannelAdminRights *newRights, const MTPChannelAdminRights *prevRights) {
+auto GenerateAdminChangeText(not_null<ChannelData*> channel, const TextWithEntities &user, const MTPChannelAdminRights *newRights, const MTPChannelAdminRights *prevRights) {
 	using Flag = MTPDchannelAdminRights::Flag;
 	using Flags = MTPDchannelAdminRights::Flags;
 
@@ -197,7 +197,7 @@ auto GenerateUserString(MTPint userId) {
 	return lng_admin_log_user_with_username__generic(lt_name, name, lt_mention, mention);
 }
 
-auto GenerateParticipantChangeTextInner(gsl::not_null<ChannelData*> channel, const MTPChannelParticipant &participant, const MTPChannelParticipant *oldParticipant) {
+auto GenerateParticipantChangeTextInner(not_null<ChannelData*> channel, const MTPChannelParticipant &participant, const MTPChannelParticipant *oldParticipant) {
 	auto oldType = oldParticipant ? oldParticipant->type() : 0;
 
 	auto resultForParticipant = [channel, oldParticipant, oldType](auto &&data) {
@@ -236,7 +236,7 @@ auto GenerateParticipantChangeTextInner(gsl::not_null<ChannelData*> channel, con
 	Unexpected("Participant type in GenerateParticipantChangeTextInner()");
 }
 
-TextWithEntities GenerateParticipantChangeText(gsl::not_null<ChannelData*> channel, const MTPChannelParticipant &participant, const MTPChannelParticipant *oldParticipant = nullptr) {
+TextWithEntities GenerateParticipantChangeText(not_null<ChannelData*> channel, const MTPChannelParticipant &participant, const MTPChannelParticipant *oldParticipant = nullptr) {
 	auto result = GenerateParticipantChangeTextInner(channel, participant, oldParticipant);
 	result.entities.push_front(EntityInText(EntityInTextItalic, 0, result.text.size()));
 	return result;
@@ -244,7 +244,7 @@ TextWithEntities GenerateParticipantChangeText(gsl::not_null<ChannelData*> chann
 
 } // namespace
 
-void GenerateItems(gsl::not_null<History*> history, LocalIdManager &idManager, const MTPDchannelAdminLogEvent &event, base::lambda<void(HistoryItemOwned item)> callback) {
+void GenerateItems(not_null<History*> history, LocalIdManager &idManager, const MTPDchannelAdminLogEvent &event, base::lambda<void(HistoryItemOwned item)> callback) {
 	Expects(history->peer->isChannel());
 
 	auto id = event.vid.v;
@@ -252,7 +252,7 @@ void GenerateItems(gsl::not_null<History*> history, LocalIdManager &idManager, c
 	auto channel = history->peer->asChannel();
 	auto &action = event.vaction;
 	auto date = event.vdate;
-	auto addPart = [&callback](gsl::not_null<HistoryItem*> item) {
+	auto addPart = [&callback](not_null<HistoryItem*> item) {
 		return callback(HistoryItemOwned(item));
 	};
 

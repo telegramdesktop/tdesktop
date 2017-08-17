@@ -49,7 +49,7 @@ public:
 	};
 	StickersBox(QWidget*, Section section);
 	StickersBox(QWidget*, const Stickers::Order &archivedIds);
-	StickersBox(QWidget*, gsl::not_null<ChannelData*> megagroup);
+	StickersBox(QWidget*, not_null<ChannelData*> megagroup);
 
 	void setInnerFocus() override;
 
@@ -154,7 +154,7 @@ public:
 	using Section = StickersBox::Section;
 	Inner(QWidget *parent, Section section);
 	Inner(QWidget *parent, const Stickers::Order &archivedIds);
-	Inner(QWidget *parent, gsl::not_null<ChannelData*> megagroup);
+	Inner(QWidget *parent, not_null<ChannelData*> megagroup);
 
 	base::Observable<int> scrollToY;
 	void setInnerFocus();

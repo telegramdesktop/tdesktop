@@ -49,7 +49,7 @@ constexpr auto kUnreadMentionsNextRequestLimit = 100;
 
 } // namespace
 
-ApiWrap::ApiWrap(gsl::not_null<AuthSession*> session)
+ApiWrap::ApiWrap(not_null<AuthSession*> session)
 : _session(session)
 , _messageDataResolveDelayed([this] { resolveMessageDatas(); })
 , _webPagesTimer([this] { resolveWebPages(); })
@@ -1462,7 +1462,7 @@ void ApiWrap::updateStickers() {
 	requestSavedGifs(now);
 }
 
-void ApiWrap::setGroupStickerSet(gsl::not_null<ChannelData*> megagroup, const MTPInputStickerSet &set) {
+void ApiWrap::setGroupStickerSet(not_null<ChannelData*> megagroup, const MTPInputStickerSet &set) {
 	Expects(megagroup->mgInfo != nullptr);
 	megagroup->mgInfo->stickerSet = set;
 	request(MTPchannels_SetStickers(megagroup->inputChannel, set)).send();
@@ -1720,7 +1720,7 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 	}
 }
 
-void ApiWrap::jumpToDate(gsl::not_null<PeerData*> peer, const QDate &date) {
+void ApiWrap::jumpToDate(not_null<PeerData*> peer, const QDate &date) {
 	// API returns a message with date <= offset_date.
 	// So we request a message with offset_date = desired_date - 1 and add_offset = -1.
 	// This should give us the first message with date >= desired_date.
@@ -1762,7 +1762,7 @@ void ApiWrap::jumpToDate(gsl::not_null<PeerData*> peer, const QDate &date) {
 	}).send();
 }
 
-void ApiWrap::preloadEnoughUnreadMentions(gsl::not_null<History*> history) {
+void ApiWrap::preloadEnoughUnreadMentions(not_null<History*> history) {
 	auto fullCount = history->getUnreadMentionsCount();
 	auto loadedCount = history->getUnreadMentionsLoadedCount();
 	auto allLoaded = (fullCount >= 0) ? (loadedCount >= fullCount) : false;
@@ -1798,7 +1798,7 @@ void ApiWrap::checkForUnreadMentions(const base::flat_set<MsgId> &possiblyReadMe
 	}
 }
 
-void ApiWrap::cancelEditChatAdmins(gsl::not_null<ChatData*> chat) {
+void ApiWrap::cancelEditChatAdmins(not_null<ChatData*> chat) {
 	_chatAdminsEnabledRequests.take(chat)
 		| requestCanceller();
 
@@ -1809,9 +1809,9 @@ void ApiWrap::cancelEditChatAdmins(gsl::not_null<ChatData*> chat) {
 }
 
 void ApiWrap::editChatAdmins(
-		gsl::not_null<ChatData*> chat,
+		not_null<ChatData*> chat,
 		bool adminsEnabled,
-		base::flat_set<gsl::not_null<UserData*>> &&admins) {
+		base::flat_set<not_null<UserData*>> &&admins) {
 	cancelEditChatAdmins(chat);
 	if (adminsEnabled) {
 		_chatAdminsToSave.emplace(chat, std::move(admins));
@@ -1830,7 +1830,7 @@ void ApiWrap::editChatAdmins(
 	_chatAdminsEnabledRequests.emplace(chat, requestId);
 }
 
-void ApiWrap::saveChatAdmins(gsl::not_null<ChatData*> chat) {
+void ApiWrap::saveChatAdmins(not_null<ChatData*> chat) {
 	if (!_chatAdminsToSave.contains(chat)) {
 		return;
 	}
@@ -1845,8 +1845,8 @@ void ApiWrap::saveChatAdmins(gsl::not_null<ChatData*> chat) {
 	_chatAdminsEnabledRequests.emplace(chat, requestId);
 }
 
-void ApiWrap::sendSaveChatAdminsRequests(gsl::not_null<ChatData*> chat) {
-	auto editOne = [this, chat](gsl::not_null<UserData*> user, bool admin) {
+void ApiWrap::sendSaveChatAdminsRequests(not_null<ChatData*> chat) {
+	auto editOne = [this, chat](not_null<UserData*> user, bool admin) {
 		auto requestId = request(MTPmessages_EditChatAdmin(
 				chat->inputChat,
 				user->inputUser,
@@ -1892,7 +1892,7 @@ void ApiWrap::sendSaveChatAdminsRequests(gsl::not_null<ChatData*> chat) {
 	t_assert(!!admins);
 
 	auto toRemove = chat->admins;
-	auto toAppoint = std::vector<gsl::not_null<UserData*>>();
+	auto toAppoint = std::vector<not_null<UserData*>>();
 	if (!admins->empty()) {
 		toAppoint.reserve(admins->size());
 		for (auto user : *admins) {
