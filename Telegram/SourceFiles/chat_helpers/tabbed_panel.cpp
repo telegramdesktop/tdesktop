@@ -143,7 +143,7 @@ void TabbedPanel::paintEvent(QPaintEvent *e) {
 	}
 
 	if (showAnimating) {
-		t_assert(_showAnimation != nullptr);
+		Assert(_showAnimation != nullptr);
 		if (auto opacity = _a_opacity.current(_hiding ? 0. : 1.)) {
 			_showAnimation->paintFrame(p, 0, 0, width(), _a_show.current(1.), opacity);
 		}

@@ -66,7 +66,7 @@ std::vector<not_null<UserData*>> PrivacyExceptionsBoxController::getResult() con
 		users.reserve(peers.size());
 		for_const (auto peer, peers) {
 			auto user = peer->asUser();
-			t_assert(user != nullptr);
+			Assert(user != nullptr);
 			users.push_back(user);
 		}
 	}

@@ -1,4 +1,5 @@
 <(src_loc)/base/algorithm.h
+<(src_loc)/base/assertion.h
 <(src_loc)/base/build_config.h
 <(src_loc)/base/flat_map.h
 <(src_loc)/base/flat_set.h

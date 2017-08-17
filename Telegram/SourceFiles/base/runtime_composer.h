@@ -70,7 +70,7 @@ struct RuntimeComponent {
 		while (true) {
 			auto last = RuntimeComponentIndexLast.loadAcquire();
 			if (RuntimeComponentIndexLast.testAndSetOrdered(last, last + 1)) {
-				t_assert(last < 64);
+				Assert(last < 64);
 				if (MyIndex.testAndSetOrdered(0, last + 1)) {
 					RuntimeComponentWraps[last] = RuntimeComponentWrapStruct(
 						sizeof(Type),
@@ -154,7 +154,7 @@ public:
 			auto meta = GetRuntimeComposerMetadata(mask);
 
 			auto data = operator new(meta->size);
-			t_assert(data != nullptr);
+			Assert(data != nullptr);
 
 			_data = data;
 			_meta() = meta;
@@ -166,7 +166,7 @@ public:
 						auto space = RuntimeComponentWraps[i].Size;
 						auto alignedAt = constructAt;
 						std::align(RuntimeComponentWraps[i].Align, space, alignedAt, space);
-						t_assert(alignedAt == constructAt);
+						Assert(alignedAt == constructAt);
 						RuntimeComponentWraps[i].Construct(constructAt, this);
 					} catch (...) {
 						while (i > 0) {

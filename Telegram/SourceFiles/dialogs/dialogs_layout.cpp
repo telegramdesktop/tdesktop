@@ -203,7 +203,7 @@ const style::icon *ChatTypeIcon(PeerData *peer, bool active, bool selected) {
 }
 
 void paintUnreadBadge(Painter &p, const QRect &rect, const UnreadBadgeStyle &st) {
-	t_assert(rect.height() == st.size);
+	Assert(rect.height() == st.size);
 
 	int index = (st.muted ? 0x03 : 0x00) + (st.active ? 0x02 : (st.selected ? 0x01 : 0x00));
 	int size = st.size, sizehalf = size / 2;
@@ -211,7 +211,7 @@ void paintUnreadBadge(Painter &p, const QRect &rect, const UnreadBadgeStyle &st)
 	unreadBadgeStyle.createIfNull();
 	auto badgeData = unreadBadgeStyle->sizes;
 	if (st.sizeId > 0) {
-		t_assert(st.sizeId < UnreadBadgeSizesCount);
+		Assert(st.sizeId < UnreadBadgeSizesCount);
 		badgeData = &unreadBadgeStyle->sizes[st.sizeId];
 	}
 	auto bg = unreadBadgeStyle->bg[index];

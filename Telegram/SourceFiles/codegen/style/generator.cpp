@@ -748,8 +748,8 @@ int palette::indexOfColor(style::color c) const {\n\
 }\n\
 \n\
 color palette::colorAtIndex(int index) const {\n\
-	t_assert(_ready);\n\
-	t_assert(index >= 0 && index < kCount);\n\
+	Assert(_ready);\n\
+	Assert(index >= 0 && index < kCount);\n\
 	return _colors[index];\n\
 }\n\
 \n\

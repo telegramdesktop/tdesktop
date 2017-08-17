@@ -66,16 +66,16 @@ void PlayButtonLayout::paint(Painter &p, const QBrush &brush) {
 		}
 		if (backward) progress = 1. - progress;
 
-		t_assert(from != to);
+		Assert(from != to);
 		if (from == State::Play) {
 			if (to == State::Pause) {
 				paintPlayToPause(p, brush, progress);
 			} else {
-				t_assert(to == State::Cancel);
+				Assert(to == State::Cancel);
 				paintPlayToCancel(p, brush, progress);
 			}
 		} else {
-			t_assert(from == State::Pause && to == State::Cancel);
+			Assert(from == State::Pause && to == State::Cancel);
 			paintPauseToCancel(p, brush, progress);
 		}
 	} else {

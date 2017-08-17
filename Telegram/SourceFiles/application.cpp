@@ -622,7 +622,7 @@ void connect(const char *signal, QObject *object, const char *method) {
 }
 
 void launch() {
-	t_assert(application() != 0);
+	Assert(application() != 0);
 
 	float64 dpi = Application::primaryScreen()->logicalDotsPerInch();
 	if (dpi <= 108) { // 0-96-108

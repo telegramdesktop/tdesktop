@@ -345,7 +345,7 @@ void adjustColor(style::color color, float64 hue, float64 saturation) {
 }
 
 void adjustColorsUsingBackground(const QImage &img) {
-	t_assert(img.format() == QImage::Format_ARGB32_Premultiplied);
+	Assert(img.format() == QImage::Format_ARGB32_Premultiplied);
 
 	uint64 components[3] = { 0 };
 	uint64 componentsScroll[3] = { 0 };
@@ -430,7 +430,7 @@ void ChatBackground::setImage(int32 id, QImage &&image) {
 		Local::writeBackground(_id, (_id == kDefaultBackground || _id == kInitialBackground) ? QImage() : image);
 		setPreparedImage(prepareBackgroundImage(std::move(image)));
 	}
-	t_assert(!_pixmap.isNull() && !_pixmapForTiled.isNull());
+	Assert(!_pixmap.isNull() && !_pixmapForTiled.isNull());
 	notify(BackgroundUpdate(BackgroundUpdate::Type::New, _tile));
 	if (resetPalette) {
 		notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, _tile), true);
@@ -474,7 +474,7 @@ void ChatBackground::setPreparedImage(QImage &&image) {
 
 	auto width = image.width();
 	auto height = image.height();
-	t_assert(width > 0 && height > 0);
+	Assert(width > 0 && height > 0);
 	auto isSmallForTiled = (width < kMinimumTiledSize || height < kMinimumTiledSize);
 	if (isSmallForTiled) {
 		auto repeatTimesX = qCeil(kMinimumTiledSize / float64(width));

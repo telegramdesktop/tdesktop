@@ -84,7 +84,7 @@ template <typename Object, void (*Creator)(const child_entry &)>
 class object_registrator {
 public:
 	inline object_registrator() {
-		t_assert(!first_dispatch_fired());
+		Assert(!first_dispatch_fired());
 		Creator(child_entry {
 			&is_parent<Object>::check,
 			&_index,
@@ -701,7 +701,7 @@ private:
 	class virtual_override_registrator {
 	public:
 		inline virtual_override_registrator() {
-			t_assert(!virtual_methods::first_dispatch_fired());
+			Assert(!virtual_methods::first_dispatch_fired());
 			BaseMethod::template virtual_method_register_override<ConcreteMethod>();
 		}
 

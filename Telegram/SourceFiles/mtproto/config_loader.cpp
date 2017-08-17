@@ -46,7 +46,7 @@ void ConfigLoader::load() {
 		_enumDCTimer.callOnce(kEnumerateDcTimeout);
 	} else {
 		auto ids = _instance->dcOptions()->configEnumDcIds();
-		t_assert(!ids.empty());
+		Assert(!ids.empty());
 		_enumCurrent = ids.front();
 		enumerate();
 	}
@@ -89,7 +89,7 @@ void ConfigLoader::enumerate() {
 		_enumCurrent = _instance->mainDcId();
 	}
 	auto ids = _instance->dcOptions()->configEnumDcIds();
-	t_assert(!ids.empty());
+	Assert(!ids.empty());
 
 	auto i = std::find(ids.cbegin(), ids.cend(), _enumCurrent);
 	if (i == ids.cend() || (++i) == ids.cend()) {

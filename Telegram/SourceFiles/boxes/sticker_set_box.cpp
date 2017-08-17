@@ -361,7 +361,7 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 		for (int32 j = 0; j < kStickersPanelPerRow; ++j) {
 			int32 index = i * kStickersPanelPerRow + j;
 			if (index >= _pack.size()) break;
-			t_assert(index < _packOvers.size());
+			Assert(index < _packOvers.size());
 
 			DocumentData *doc = _pack.at(index);
 			QPoint pos(st::stickersPadding.left() + j * st::stickersSize.width(), st::stickersPadding.top() + i * st::stickersSize.height());

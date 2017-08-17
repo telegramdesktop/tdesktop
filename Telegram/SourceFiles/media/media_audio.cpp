@@ -79,7 +79,7 @@ bool PlaybackErrorHappened() {
 void EnumeratePlaybackDevices() {
 	auto deviceNames = QStringList();
 	auto devices = alcGetString(nullptr, ALC_DEVICE_SPECIFIER);
-	t_assert(devices != nullptr);
+	Assert(devices != nullptr);
 	while (*devices != 0) {
 		auto deviceName8Bit = QByteArray(devices);
 		auto deviceName = QString::fromLocal8Bit(deviceName8Bit);
@@ -98,7 +98,7 @@ void EnumeratePlaybackDevices() {
 void EnumerateCaptureDevices() {
 	auto deviceNames = QStringList();
 	auto devices = alcGetString(nullptr, ALC_CAPTURE_DEVICE_SPECIFIER);
-	t_assert(devices != nullptr);
+	Assert(devices != nullptr);
 	while (*devices != 0) {
 		auto deviceName8Bit = QByteArray(devices);
 		auto deviceName = QString::fromLocal8Bit(deviceName8Bit);
@@ -174,7 +174,7 @@ void ClosePlaybackDevice() {
 
   // Thread: Main.
 void Start() {
-	t_assert(AudioDevice == nullptr);
+	Assert(AudioDevice == nullptr);
 
 	qRegisterMetaType<AudioMsgId>();
 	qRegisterMetaType<VoiceWaveform>();

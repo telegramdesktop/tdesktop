@@ -192,7 +192,7 @@ EditorBlock::EditorBlock(QWidget *parent, Type type, Context *context) : TWidget
 			feedDescription(name, added.description);
 
 			auto row = findRow(name);
-			t_assert(row != nullptr);
+			Assert(row != nullptr);
 			auto possibleCopyOf = added.possibleCopyOf;
 			auto copyOf = checkCopyOf(findRowIndex(row), possibleCopyOf) ? possibleCopyOf : QString();
 			removeFromSearch(*row);
@@ -238,7 +238,7 @@ bool EditorBlock::feedCopy(const QString &name, const QString &copyOf) {
 
 void EditorBlock::removeRow(const QString &name, bool removeCopyReferences) {
 	auto it = _indices.find(name);
-	t_assert(it != _indices.cend());
+	Assert(it != _indices.cend());
 
 	auto index = it.value();
 	for (auto i = index + 1, count = static_cast<int>(_data.size()); i != count; ++i) {

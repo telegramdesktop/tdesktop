@@ -135,7 +135,7 @@ void FixedBar::addRightAction(RightActionType type, base::lambda<QString()> text
 			return;
 		}
 	} else {
-		t_assert(_rightActions.size() == _currentAction);
+		Assert(_rightActions.size() == _currentAction);
 		_rightActions.push_back(RightAction());
 	}
 	_rightActions[_currentAction].type = type;

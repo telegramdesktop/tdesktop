@@ -35,11 +35,11 @@ Float::Float(QWidget *parent, HistoryItem *item, base::lambda<void(bool visible)
 , _toggleCallback(std::move(toggleCallback))
 , _draggedCallback(std::move(draggedCallback)) {
 	auto media = _item->getMedia();
-	t_assert(media != nullptr);
+	Assert(media != nullptr);
 
 	auto document = media->getDocument();
-	t_assert(document != nullptr);
-	t_assert(document->isRoundVideo());
+	Assert(document != nullptr);
+	Assert(document->isRoundVideo());
 
 	auto margin = st::mediaPlayerFloatMargin;
 	auto size = 2 * margin + st::mediaPlayerFloatSize;

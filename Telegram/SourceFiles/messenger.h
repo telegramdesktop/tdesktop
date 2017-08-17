@@ -99,7 +99,7 @@ public:
 	static Messenger *InstancePointer();
 	static Messenger &Instance() {
 		auto result = InstancePointer();
-		t_assert(result != nullptr);
+		Assert(result != nullptr);
 		return *result;
 	}
 

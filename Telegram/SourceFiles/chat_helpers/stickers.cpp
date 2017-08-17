@@ -406,7 +406,7 @@ void SetPackAndEmoji(Set &set, StickerPack &&pack, const QVector<MTPStickerPack>
 	set.stickers = std::move(pack);
 	set.emoji.clear();
 	for_const (auto &mtpPack, packs) {
-		t_assert(mtpPack.type() == mtpc_stickerPack);
+		Assert(mtpPack.type() == mtpc_stickerPack);
 		auto &pack = mtpPack.c_stickerPack();
 		if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon))) {
 			emoji = emoji->original();

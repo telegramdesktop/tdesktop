@@ -2194,6 +2194,6 @@ GameData::GameData(const GameId &id, const uint64 &accessHash, const QString &sh
 
 MsgId clientMsgId() {
 	static MsgId currentClientMsgId = StartClientMsgId;
-	t_assert(currentClientMsgId < EndClientMsgId);
+	Assert(currentClientMsgId < EndClientMsgId);
 	return currentClientMsgId++;
 }

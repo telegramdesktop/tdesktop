@@ -485,13 +485,13 @@ void mtpFileLoader::makeRequest(int offset) {
 		auto limit = partSize();
 		auto shiftedDcId = MTP::downloadDcId(requestData.dcId, requestData.dcIndex);
 		if (_cdnDcId) {
-			t_assert(requestData.dcId == _cdnDcId);
+			Assert(requestData.dcId == _cdnDcId);
 			return MTP::send(MTPupload_GetCdnFile(MTP_bytes(_cdnToken), MTP_int(offset), MTP_int(limit)), rpcDone(&mtpFileLoader::cdnPartLoaded), rpcFail(&mtpFileLoader::cdnPartFailed), shiftedDcId, 50);
 		} else if (_urlLocation) {
-			t_assert(requestData.dcId == _dcId);
+			Assert(requestData.dcId == _dcId);
 			return MTP::send(MTPupload_GetWebFile(MTP_inputWebFileLocation(MTP_bytes(_urlLocation->url()), MTP_long(_urlLocation->accessHash())), MTP_int(offset), MTP_int(limit)), rpcDone(&mtpFileLoader::webPartLoaded), rpcFail(&mtpFileLoader::partFailed), shiftedDcId, 50);
 		} else {
-			t_assert(requestData.dcId == _dcId);
+			Assert(requestData.dcId == _dcId);
 			auto location = [this] {
 				if (_location) {
 					return MTP_inputFileLocation(MTP_long(_location->volume()), MTP_int(_location->local()), MTP_long(_location->secret()));
@@ -806,7 +806,7 @@ void mtpFileLoader::switchToCDN(int offset, const MTPDupload_fileCdnRedirect &re
 
 void mtpFileLoader::addCdnHashes(const QVector<MTPCdnFileHash> &hashes) {
 	for_const (auto &hash, hashes) {
-		t_assert(hash.type() == mtpc_cdnFileHash);
+		Assert(hash.type() == mtpc_cdnFileHash);
 		auto &data = hash.c_cdnFileHash();
 		_cdnFileHashes.emplace(data.voffset.v, CdnFileHash { data.vlimit.v, data.vhash.v });
 	}

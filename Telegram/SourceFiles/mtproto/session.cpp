@@ -552,7 +552,7 @@ void Session::tryToReceive() {
 }
 
 Session::~Session() {
-	t_assert(_connection == nullptr);
+	Assert(_connection == nullptr);
 }
 
 MTPrpcError rpcClientError(const QString &type, const QString &description) {

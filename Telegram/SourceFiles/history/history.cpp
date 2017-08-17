@@ -722,7 +722,7 @@ void Histories::setIsPinned(History *history, bool isPinned) {
 					minIndexHistory = pinned;
 				}
 			}
-			t_assert(minIndexHistory != nullptr);
+			Assert(minIndexHistory != nullptr);
 			minIndexHistory->setPinnedDialog(false);
 		}
 	} else {
@@ -1543,7 +1543,7 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 		}
 	}
 
-	t_assert(!isBuildingFrontBlock());
+	Assert(!isBuildingFrontBlock());
 	if (!slice.isEmpty()) {
 		bool atLeastOneAdded = false;
 		for (auto i = slice.cend(), e = slice.cbegin(); i != e;) {
@@ -1797,7 +1797,7 @@ void History::countScrollTopItem(int top) {
 				auto item = block->items[itemIndex];
 				itemTop = block->y() + item->y();
 				if (itemTop > top) {
-					t_assert(itemIndex > 0 || blockIndex > 0);
+					Assert(itemIndex > 0 || blockIndex > 0);
 					if (itemIndex > 0) {
 						scrollTopItem = block->items[itemIndex - 1];
 					} else {
@@ -1871,15 +1871,15 @@ HistoryItem *History::addNewInTheMiddle(HistoryItem *newItem, int32 blockIndex, 
 }
 
 void History::startBuildingFrontBlock(int expectedItemsCount) {
-	t_assert(!isBuildingFrontBlock());
-	t_assert(expectedItemsCount > 0);
+	Assert(!isBuildingFrontBlock());
+	Assert(expectedItemsCount > 0);
 
 	_buildingFrontBlock.reset(new BuildingBlock());
 	_buildingFrontBlock->expectedItemsCount = expectedItemsCount;
 }
 
 HistoryBlock *History::finishBuildingFrontBlock() {
-	t_assert(isBuildingFrontBlock());
+	Assert(isBuildingFrontBlock());
 
 	// Some checks if there was some message history already
 	auto block = _buildingFrontBlock->block;
@@ -2184,7 +2184,7 @@ void History::clearOnDestroy() {
 }
 
 History::PositionInChatListChange History::adjustByPosInChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed) {
-	t_assert(indexed != nullptr);
+	Assert(indexed != nullptr);
 	Dialogs::Row *lnk = mainChatListLink(list);
 	int32 movedFrom = lnk->pos();
 	indexed->adjustByPos(chatListLinks(list));
@@ -2197,7 +2197,7 @@ int History::posInChatList(Dialogs::Mode list) const {
 }
 
 Dialogs::Row *History::addToChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed) {
-	t_assert(indexed != nullptr);
+	Assert(indexed != nullptr);
 	if (!inChatList(list)) {
 		chatListLinks(list) = indexed->addToEnd(this);
 		if (list == Dialogs::Mode::All && unreadCount()) {
@@ -2209,7 +2209,7 @@ Dialogs::Row *History::addToChatList(Dialogs::Mode list, Dialogs::IndexedList *i
 }
 
 void History::removeFromChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed) {
-	t_assert(indexed != nullptr);
+	Assert(indexed != nullptr);
 	if (inChatList(list)) {
 		indexed->del(peer);
 		chatListLinks(list).clear();
@@ -2221,14 +2221,14 @@ void History::removeFromChatList(Dialogs::Mode list, Dialogs::IndexedList *index
 }
 
 void History::removeChatListEntryByLetter(Dialogs::Mode list, QChar letter) {
-	t_assert(letter != 0);
+	Assert(letter != 0);
 	if (inChatList(list)) {
 		chatListLinks(list).remove(letter);
 	}
 }
 
 void History::addChatListEntryByLetter(Dialogs::Mode list, QChar letter, Dialogs::Row *row) {
-	t_assert(letter != 0);
+	Assert(letter != 0);
 	if (inChatList(list)) {
 		chatListLinks(list).insert(letter, row);
 	}

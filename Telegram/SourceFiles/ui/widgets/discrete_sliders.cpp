@@ -76,7 +76,7 @@ void DiscreteSlider::addSection(const QString &label) {
 }
 
 void DiscreteSlider::setSections(const QStringList &labels) {
-	t_assert(!labels.isEmpty());
+	Assert(!labels.isEmpty());
 
 	_sections.clear();
 	for_const (auto &label, labels) {

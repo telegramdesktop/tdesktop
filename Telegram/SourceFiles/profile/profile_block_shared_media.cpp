@@ -151,7 +151,7 @@ void SharedMediaWidget::onMediaChosen() {
 }
 
 void SharedMediaWidget::resizeButtons(int newWidth, int *top) {
-	t_assert(top != nullptr);
+	Assert(top != nullptr);
 
 	int left = defaultOutlineButtonLeft();
 	int availableWidth = newWidth - left - st::profileBlockMarginRight;

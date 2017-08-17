@@ -108,7 +108,7 @@ void GroupMembersWidget::restrictUser(not_null<UserData*> user) {
 
 void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
 	auto user = selectedPeer->asUser();
-	t_assert(user != nullptr);
+	Assert(user != nullptr);
 	auto text = lng_profile_sure_kick(lt_user, user->firstName);
 	auto currentRestrictedRights = MTP_channelBannedRights(MTP_flags(0), MTP_int(0));
 	if (auto channel = peer()->asMegagroup()) {
@@ -426,7 +426,7 @@ GroupMembersWidget::Member *GroupMembersWidget::addUser(ChannelData *megagroup, 
 }
 
 void GroupMembersWidget::fillMegagroupMembers(ChannelData *megagroup) {
-	t_assert(megagroup->mgInfo != nullptr);
+	Assert(megagroup->mgInfo != nullptr);
 	if (megagroup->mgInfo->lastParticipants.isEmpty()) return;
 
 	if (!megagroup->canViewMembers()) {
@@ -486,7 +486,7 @@ void GroupMembersWidget::setItemFlags(Item *item, ChannelData *megagroup) {
 	if (item->adminState != adminState) {
 		item->adminState = adminState;
 		auto user = item->peer->asUser();
-		t_assert(user != nullptr);
+		Assert(user != nullptr);
 		if (user->botInfo) {
 			// Update "has access to messages" status.
 			item->statusText = QString();

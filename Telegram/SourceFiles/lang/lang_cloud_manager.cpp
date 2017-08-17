@@ -116,7 +116,7 @@ void CloudManager::requestLanguageList() {
 	_languagesRequestId = request(MTPlangpack_GetLanguages()).done([this](const MTPVector<MTPLangPackLanguage> &result) {
 		auto languages = Languages();
 		for_const (auto &langData, result.v) {
-			t_assert(langData.type() == mtpc_langPackLanguage);
+			Assert(langData.type() == mtpc_langPackLanguage);
 			auto &language = langData.c_langPackLanguage();
 			languages.push_back({ qs(language.vlang_code), qs(language.vname), qs(language.vnative_name) });
 		}
@@ -312,7 +312,7 @@ void CloudManager::changeIdAndReInitConnection(const QString &id) {
 
 CloudManager &CurrentCloudManager() {
 	auto result = Messenger::Instance().langCloudManager();
-	t_assert(result != nullptr);
+	Assert(result != nullptr);
 	return *result;
 }
 

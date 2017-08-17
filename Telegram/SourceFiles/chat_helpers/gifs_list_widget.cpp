@@ -380,7 +380,7 @@ void GifsListWidget::enterFromChildEvent(QEvent *e, QWidget *child) {
 void GifsListWidget::clearSelection() {
 	if (_selected >= 0) {
 		int srow = _selected / MatrixRowShift, scol = _selected % MatrixRowShift;
-		t_assert(srow >= 0 && srow < _rows.size() && scol >= 0 && scol < _rows[srow].items.size());
+		Assert(srow >= 0 && srow < _rows.size() && scol >= 0 && scol < _rows[srow].items.size());
 		ClickHandler::clearActive(_rows[srow].items[scol]);
 		setCursor(style::cur_default);
 	}
@@ -564,7 +564,7 @@ void GifsListWidget::deleteUnusedInlineLayouts() {
 
 GifsListWidget::Row &GifsListWidget::layoutInlineRow(Row &row, int32 sumWidth) {
 	auto count = int(row.items.size());
-	t_assert(count <= kInlineItemsMaxPerRow);
+	Assert(count <= kInlineItemsMaxPerRow);
 
 	// enumerate items in the order of growing maxWidth()
 	// for that sort item indices by maxWidth()
@@ -740,7 +740,7 @@ bool GifsListWidget::inlineItemVisible(const InlineBots::Layout::ItemBase *layou
 
 	auto row = position / MatrixRowShift;
 	auto col = position % MatrixRowShift;
-	t_assert((row < _rows.size()) && (col < _rows[row].items.size()));
+	Assert((row < _rows.size()) && (col < _rows[row].items.size()));
 
 	auto &inlineItems = _rows[row].items;
 	auto top = 0;
@@ -912,12 +912,12 @@ void GifsListWidget::updateSelected() {
 	int scol = (_selected >= 0) ? (_selected % MatrixRowShift) : -1;
 	if (_selected != sel) {
 		if (srow >= 0 && scol >= 0) {
-			t_assert(srow >= 0 && srow < _rows.size() && scol >= 0 && scol < _rows[srow].items.size());
+			Assert(srow >= 0 && srow < _rows.size() && scol >= 0 && scol < _rows[srow].items.size());
 			_rows[srow].items[scol]->update();
 		}
 		_selected = sel;
 		if (row >= 0 && col >= 0) {
-			t_assert(row >= 0 && row < _rows.size() && col >= 0 && col < _rows[row].items.size());
+			Assert(row >= 0 && row < _rows.size() && col >= 0 && col < _rows[row].items.size());
 			_rows[row].items[col]->update();
 		}
 		if (_previewShown && _selected >= 0 && _pressed != _selected) {

@@ -184,9 +184,9 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 
 			// Binary search should've skipped all the items that are above / below the visible area.
 			if (TopToBottom) {
-				t_assert(itembottom > _visibleAreaTop);
+				Assert(itembottom > _visibleAreaTop);
 			} else {
-				t_assert(itemtop < _visibleAreaBottom);
+				Assert(itemtop < _visibleAreaBottom);
 			}
 
 			if (!method(item, itemtop, itembottom)) {
@@ -1868,7 +1868,7 @@ void HistoryInner::adjustCurrent(int32 y) const {
 }
 
 void HistoryInner::adjustCurrent(int32 y, History *history) const {
-	t_assert(!history->isEmpty());
+	Assert(!history->isEmpty());
 	_curHistory = history;
 	if (_curBlock >= history->blocks.size()) {
 		_curBlock = history->blocks.size() - 1;
@@ -2282,11 +2282,11 @@ int HistoryInner::historyScrollTop() const {
 	auto htop = historyTop();
 	auto mtop = migratedTop();
 	if (htop >= 0 && _history->scrollTopItem) {
-		t_assert(!_history->scrollTopItem->detached());
+		Assert(!_history->scrollTopItem->detached());
 		return htop + _history->scrollTopItem->block()->y() + _history->scrollTopItem->y() + _history->scrollTopOffset;
 	}
 	if (mtop >= 0 && _migrated->scrollTopItem) {
-		t_assert(!_migrated->scrollTopItem->detached());
+		Assert(!_migrated->scrollTopItem->detached());
 		return mtop + _migrated->scrollTopItem->block()->y() + _migrated->scrollTopItem->y() + _migrated->scrollTopOffset;
 	}
 	return ScrollMax;

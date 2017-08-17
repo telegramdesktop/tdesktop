@@ -411,7 +411,7 @@ void Messenger::startMtp() {
 		if (_authSession) {
 			_authSession->data().copyFrom(_private->storedAuthSession->data);
 			if (auto window = App::wnd()) {
-				t_assert(window->controller() != nullptr);
+				Assert(window->controller() != nullptr);
 				window->controller()->dialogsWidthRatio().set(_private->storedAuthSession->dialogsWidthRatio);
 			}
 		}
@@ -444,7 +444,7 @@ void Messenger::onAllKeysDestroyed() {
 }
 
 void Messenger::suggestMainDcId(MTP::DcId mainDcId) {
-	t_assert(_mtproto != nullptr);
+	Assert(_mtproto != nullptr);
 
 	_mtproto->suggestMainDcId(mainDcId);
 	if (_private->mtpConfig.mainDcId != MTP::Instance::Config::kNotSetMainDc) {
@@ -453,7 +453,7 @@ void Messenger::suggestMainDcId(MTP::DcId mainDcId) {
 }
 
 void Messenger::destroyStaleAuthorizationKeys() {
-	t_assert(_mtproto != nullptr);
+	Assert(_mtproto != nullptr);
 
 	auto keys = _mtproto->getKeysForWrite();
 	for (auto &key : keys) {
@@ -984,7 +984,7 @@ void Messenger::loggedOut() {
 
 QPoint Messenger::getPointForCallPanelCenter() const {
 	if (auto activeWindow = getActiveWindow()) {
-		t_assert(activeWindow->windowHandle() != nullptr);
+		Assert(activeWindow->windowHandle() != nullptr);
 		if (activeWindow->isActive()) {
 			return activeWindow->geometry().center();
 		}

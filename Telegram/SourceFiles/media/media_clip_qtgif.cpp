@@ -71,7 +71,7 @@ ReaderImplementation::ReadResult QtGifReaderImplementation::readNextFrame() {
 }
 
 bool QtGifReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const QSize &size) {
-	t_assert(!_frame.isNull());
+	Assert(!_frame.isNull());
 	if (size.isEmpty() || size == _frame.size()) {
 		int32 w = _frame.width(), h = _frame.height();
 		if (to.width() == w && to.height() == h && to.format() == _frame.format()) {

@@ -686,7 +686,7 @@ bool CrossButton::stopLoadingAnimation(TimeMs ms) {
 	auto stopPeriod = (_loadingStopMs - _loadingStartMs) / _st.loadingPeriod;
 	auto currentPeriod = (ms - _loadingStartMs) / _st.loadingPeriod;
 	if (currentPeriod != stopPeriod) {
-		t_assert(currentPeriod > stopPeriod);
+		Assert(currentPeriod > stopPeriod);
 		return true;
 	}
 	return false;

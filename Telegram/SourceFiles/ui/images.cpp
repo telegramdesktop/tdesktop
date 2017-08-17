@@ -33,7 +33,7 @@ FORCE_INLINE uint64 blurGetColors(const uchar *p) {
 }
 
 const QPixmap &circleMask(int width, int height) {
-	t_assert(Global::started());
+	Assert(Global::started());
 
 	uint64 key = uint64(uint32(width)) << 32 | uint64(uint32(height));
 
@@ -65,7 +65,7 @@ QImage prepareBlur(QImage img) {
 	if (fmt != QImage::Format_RGB32 && fmt != QImage::Format_ARGB32_Premultiplied) {
 		img = img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
 		img.setDevicePixelRatio(ratio);
-		t_assert(!img.isNull());
+		Assert(!img.isNull());
 	}
 
 	uchar *pix = img.bits();
@@ -91,7 +91,7 @@ QImage prepareBlur(QImage img) {
 				auto was = img;
 				img = std::move(imgsmall);
 				imgsmall = QImage();
-				t_assert(!img.isNull());
+				Assert(!img.isNull());
 
 				pix = img.bits();
 				if (!pix) return was;
@@ -179,11 +179,11 @@ yi += stride;
 }
 
 void prepareCircle(QImage &img) {
-	t_assert(!img.isNull());
+	Assert(!img.isNull());
 
 	img.setDevicePixelRatio(cRetinaFactor());
 	img = img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-	t_assert(!img.isNull());
+	Assert(!img.isNull());
 
 	QPixmap mask = circleMask(img.width(), img.height());
 	Painter p(&img);
@@ -195,14 +195,14 @@ void prepareRound(QImage &image, ImageRoundRadius radius, ImageRoundCorners corn
 	if (!static_cast<int>(corners)) {
 		return;
 	} else if (radius == ImageRoundRadius::Ellipse) {
-		t_assert(corners == ImageRoundCorners(ImageRoundCorner::All));
+		Assert(corners == ImageRoundCorners(ImageRoundCorner::All));
 		prepareCircle(image);
 	}
-	t_assert(!image.isNull());
+	Assert(!image.isNull());
 
 	image.setDevicePixelRatio(cRetinaFactor());
 	image = std::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
-	t_assert(!image.isNull());
+	Assert(!image.isNull());
 
 	auto masks = App::cornersMask(radius);
 	prepareRound(image, masks, corners);
@@ -218,8 +218,8 @@ void prepareRound(QImage &image, QImage *cornerMasks, ImageRoundCorners corners)
 	}
 	constexpr auto imageIntsPerPixel = 1;
 	auto imageIntsPerLine = (image.bytesPerLine() >> 2);
-	t_assert(image.depth() == static_cast<int>((imageIntsPerPixel * sizeof(uint32)) << 3));
-	t_assert(image.bytesPerLine() == (imageIntsPerLine << 2));
+	Assert(image.depth() == static_cast<int>((imageIntsPerPixel * sizeof(uint32)) << 3));
+	Assert(image.bytesPerLine() == (imageIntsPerLine << 2));
 
 	auto ints = reinterpret_cast<uint32*>(image.bits());
 	auto intsTopLeft = ints;
@@ -233,10 +233,10 @@ void prepareRound(QImage &image, QImage *cornerMasks, ImageRoundCorners corners)
 		auto maskBytesPerLine = mask.bytesPerLine();
 		auto maskBytesAdded = maskBytesPerLine - maskWidth * maskBytesPerPixel;
 		auto maskBytes = mask.constBits();
-		t_assert(maskBytesAdded >= 0);
-		t_assert(mask.depth() == (maskBytesPerPixel << 3));
+		Assert(maskBytesAdded >= 0);
+		Assert(mask.depth() == (maskBytesPerPixel << 3));
 		auto imageIntsAdded = imageIntsPerLine - maskWidth * imageIntsPerPixel;
-		t_assert(imageIntsAdded >= 0);
+		Assert(imageIntsAdded >= 0);
 		for (auto y = 0; y != maskHeight; ++y) {
 			for (auto x = 0; x != maskWidth; ++x) {
 				auto opacity = static_cast<anim::ShiftedMultiplier>(*maskBytes) + 1;
@@ -294,18 +294,18 @@ QImage prepareOpaque(QImage image) {
 }
 
 QImage prepare(QImage img, int w, int h, Images::Options options, int outerw, int outerh, const style::color *colored) {
-	t_assert(!img.isNull());
+	Assert(!img.isNull());
 	if (options.testFlag(Images::Option::Blurred)) {
 		img = prepareBlur(std::move(img));
-		t_assert(!img.isNull());
+		Assert(!img.isNull());
 	}
 	if (w <= 0 || (w == img.width() && (h <= 0 || h == img.height()))) {
 	} else if (h <= 0) {
 		img = img.scaledToWidth(w, options.testFlag(Images::Option::Smooth) ? Qt::SmoothTransformation : Qt::FastTransformation);
-		t_assert(!img.isNull());
+		Assert(!img.isNull());
 	} else {
 		img = img.scaled(w, h, Qt::IgnoreAspectRatio, options.testFlag(Images::Option::Smooth) ? Qt::SmoothTransformation : Qt::FastTransformation);
-		t_assert(!img.isNull());
+		Assert(!img.isNull());
 	}
 	if (outerw > 0 && outerh > 0) {
 		outerw *= cIntRetinaFactor();
@@ -325,7 +325,7 @@ QImage prepare(QImage img, int w, int h, Images::Options options, int outerw, in
 				p.drawImage((result.width() - img.width()) / (2 * cIntRetinaFactor()), (result.height() - img.height()) / (2 * cIntRetinaFactor()), img);
 			}
 			img = result;
-			t_assert(!img.isNull());
+			Assert(!img.isNull());
 		}
 	}
 	auto corners = [](Images::Options options) {
@@ -336,16 +336,16 @@ QImage prepare(QImage img, int w, int h, Images::Options options, int outerw, in
 	};
 	if (options.testFlag(Images::Option::Circled)) {
 		prepareCircle(img);
-		t_assert(!img.isNull());
+		Assert(!img.isNull());
 	} else if (options.testFlag(Images::Option::RoundedLarge)) {
 		prepareRound(img, ImageRoundRadius::Large, corners(options));
-		t_assert(!img.isNull());
+		Assert(!img.isNull());
 	} else if (options.testFlag(Images::Option::RoundedSmall)) {
 		prepareRound(img, ImageRoundRadius::Small, corners(options));
-		t_assert(!img.isNull());
+		Assert(!img.isNull());
 	}
 	if (options.testFlag(Images::Option::Colored)) {
-		t_assert(colored != nullptr);
+		Assert(colored != nullptr);
 		img = prepareColored(*colored, std::move(img));
 	}
 	img.setDevicePixelRatio(cRetinaFactor());
@@ -742,7 +742,7 @@ QPixmap Image::pixNoCache(int w, int h, Images::Options options, int outerw, int
 			Images::prepareRound(result, ImageRoundRadius::Small, corners(options));
 		}
 		if (options.testFlag(Images::Option::Colored)) {
-			t_assert(colored != nullptr);
+			Assert(colored != nullptr);
 			result = Images::prepareColored(*colored, std::move(result));
 		}
 		return App::pixmapFromImageInPlace(std::move(result));

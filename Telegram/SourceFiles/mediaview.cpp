@@ -1478,7 +1478,7 @@ void MediaView::createClipReader() {
 }
 
 void MediaView::initThemePreview() {
-	t_assert(_doc && _doc->isTheme());
+	Assert(_doc && _doc->isTheme());
 
 	auto &location = _doc->location();
 	if (!location.isEmpty() && location.accessEnable()) {
@@ -1541,7 +1541,7 @@ void MediaView::createClipController() {
 }
 
 void MediaView::setClipControllerGeometry() {
-	t_assert(_clipController != nullptr);
+	Assert(_clipController != nullptr);
 
 	int controllerBottom = _captionRect.isEmpty() ? height() : _captionRect.y();
 	_clipController->setGeometry(

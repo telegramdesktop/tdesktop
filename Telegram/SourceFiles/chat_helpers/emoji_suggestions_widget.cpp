@@ -430,7 +430,7 @@ QString SuggestionsController::getEmojiQuery() {
 	auto isGoodCharBeforeSuggestion = [isSuggestionChar](QChar ch) {
 		return !isSuggestionChar(ch) || (ch == 0);
 	};
-	t_assert(position > 0 && position <= text.size());
+	Assert(position > 0 && position <= text.size());
 	for (auto i = position; i != 0;) {
 		auto ch = text[--i];
 		if (ch == ':') {

@@ -163,7 +163,7 @@ QString AuthSessionData::getSoundPath(const QString &key) const {
 
 AuthSession &Auth() {
 	auto result = Messenger::Instance().authSession();
-	t_assert(result != nullptr);
+	Assert(result != nullptr);
 	return *result;
 }
 

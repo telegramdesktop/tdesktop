@@ -60,11 +60,11 @@ public:
 		}
 	}
 	Structure *operator->() {
-		t_assert(_p != nullptr);
+		Assert(_p != nullptr);
 		return static_cast<Structure*>(_p);
 	}
 	const Structure *operator->() const {
-		t_assert(_p != nullptr);
+		Assert(_p != nullptr);
 		return static_cast<const Structure*>(_p);
 	}
 	explicit operator bool() const {

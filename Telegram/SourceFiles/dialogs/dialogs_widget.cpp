@@ -382,7 +382,7 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpReque
 			_dialogsFull = true;
 		}
 
-		t_assert(messagesList != nullptr);
+		Assert(messagesList != nullptr);
 		App::feedMsgs(*messagesList, NewMessageLast);
 
 		unreadCountsReceived(*dialogsList);

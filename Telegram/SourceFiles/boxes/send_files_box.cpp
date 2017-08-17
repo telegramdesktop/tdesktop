@@ -561,7 +561,7 @@ EditCaptionBox::EditCaptionBox(QWidget*, HistoryMedia *media, FullMsgId msgId) :
 		_thumb = App::pixmapFromImageInPlace(_thumb.toImage().scaled(_thumbw * cIntRetinaFactor(), _thumbh * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
 		_thumb.setDevicePixelRatio(cRetinaFactor());
 	}
-	t_assert(_animated || _photo || _doc);
+	Assert(_animated || _photo || _doc);
 
 	_field.create(this, st::confirmCaptionArea, langFactory(lng_photo_caption), caption);
 	_field->setMaxLength(MaxPhotoCaption);

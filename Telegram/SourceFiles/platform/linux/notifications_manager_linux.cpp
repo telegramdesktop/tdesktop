@@ -371,7 +371,7 @@ void Manager::Private::init(Manager *manager) {
 	// Unity and other Notify OSD users handle desktop notifications
 	// extremely poor, even without the ability to close() them.
 	_serverName = LibNotifyServerName;
-	t_assert(!_serverName.isEmpty());
+	Assert(!_serverName.isEmpty());
 	if (_serverName == qstr("notify-osd")) {
 //		_poorSupported = true;
 		_actionsSupported = false;

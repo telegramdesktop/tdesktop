@@ -62,6 +62,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <map>
 #include <algorithm>
 #include <memory>
+
+// Ensures/Expects.
+#include <gsl/gsl_assert>
+
+// Redefine Ensures/Expects by our own assertions.
+#include "base/assertion.h"
+
 #include <gsl/gsl>
 
 #include "base/variant.h"

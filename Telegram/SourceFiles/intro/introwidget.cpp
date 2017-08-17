@@ -163,7 +163,7 @@ void Widget::setInnerFocus() {
 void Widget::historyMove(Direction direction) {
 	if (getStep()->animating()) return;
 
-	t_assert(_stepHistory.size() > 1);
+	Assert(_stepHistory.size() > 1);
 
 	auto wasStep = getStep((direction == Direction::Back) ? 0 : 1);
 	if (direction == Direction::Back) {
@@ -614,9 +614,9 @@ void Widget::Step::prepareCoverMask() {
 	auto maskHeight = st::introCoverHeight * cIntRetinaFactor();
 	auto mask = QImage(maskWidth, maskHeight, QImage::Format_ARGB32_Premultiplied);
 	auto maskInts = reinterpret_cast<uint32*>(mask.bits());
-	t_assert(mask.depth() == (sizeof(uint32) << 3));
+	Assert(mask.depth() == (sizeof(uint32) << 3));
 	auto maskIntsPerLineAdded = (mask.bytesPerLine() >> 2) - maskWidth;
-	t_assert(maskIntsPerLineAdded >= 0);
+	Assert(maskIntsPerLineAdded >= 0);
 	auto realHeight = static_cast<float64>(maskHeight - 1);
 	for (auto y = 0; y != maskHeight; ++y) {
 		auto color = anim::color(st::introCoverTopBg, st::introCoverBottomBg, y / realHeight);

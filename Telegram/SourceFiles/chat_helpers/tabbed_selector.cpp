@@ -85,24 +85,24 @@ void TabbedSelector::SlideAnimation::setFinalImages(Direction direction, QImage 
 	_leftImage = QPixmap::fromImage(std::move(left).convertToFormat(QImage::Format_ARGB32_Premultiplied), Qt::ColorOnly);
 	_rightImage = QPixmap::fromImage(std::move(right).convertToFormat(QImage::Format_ARGB32_Premultiplied), Qt::ColorOnly);
 
-	t_assert(!_leftImage.isNull());
-	t_assert(!_rightImage.isNull());
+	Assert(!_leftImage.isNull());
+	Assert(!_rightImage.isNull());
 	_width = _leftImage.width();
 	_height = _rightImage.height();
-	t_assert(!(_width % cIntRetinaFactor()));
-	t_assert(!(_height % cIntRetinaFactor()));
-	t_assert(_leftImage.devicePixelRatio() == _rightImage.devicePixelRatio());
-	t_assert(_rightImage.width() == _width);
-	t_assert(_rightImage.height() == _height);
-	t_assert(QRect(0, 0, _width, _height).contains(inner));
+	Assert(!(_width % cIntRetinaFactor()));
+	Assert(!(_height % cIntRetinaFactor()));
+	Assert(_leftImage.devicePixelRatio() == _rightImage.devicePixelRatio());
+	Assert(_rightImage.width() == _width);
+	Assert(_rightImage.height() == _height);
+	Assert(QRect(0, 0, _width, _height).contains(inner));
 	_innerLeft = inner.x();
 	_innerTop = inner.y();
 	_innerWidth = inner.width();
 	_innerHeight = inner.height();
-	t_assert(!(_innerLeft % cIntRetinaFactor()));
-	t_assert(!(_innerTop % cIntRetinaFactor()));
-	t_assert(!(_innerWidth % cIntRetinaFactor()));
-	t_assert(!(_innerHeight % cIntRetinaFactor()));
+	Assert(!(_innerLeft % cIntRetinaFactor()));
+	Assert(!(_innerTop % cIntRetinaFactor()));
+	Assert(!(_innerWidth % cIntRetinaFactor()));
+	Assert(!(_innerHeight % cIntRetinaFactor()));
 	_innerRight = _innerLeft + _innerWidth;
 	_innerBottom = _innerTop + _innerHeight;
 
@@ -118,13 +118,13 @@ void TabbedSelector::SlideAnimation::setFinalImages(Direction direction, QImage 
 }
 
 void TabbedSelector::SlideAnimation::start() {
-	t_assert(!_leftImage.isNull());
-	t_assert(!_rightImage.isNull());
+	Assert(!_leftImage.isNull());
+	Assert(!_rightImage.isNull());
 	RoundShadowAnimation::start(_width, _height, _leftImage.devicePixelRatio());
 	auto checkCorner = [this](const Corner &corner) {
 		if (!corner.valid()) return;
-		t_assert(corner.width <= _innerWidth);
-		t_assert(corner.height <= _innerHeight);
+		Assert(corner.width <= _innerWidth);
+		Assert(corner.height <= _innerHeight);
 	};
 	checkCorner(_topLeft);
 	checkCorner(_topRight);
@@ -617,7 +617,7 @@ bool TabbedSelector::hasSectionIcons() const {
 
 void TabbedSelector::switchTab() {
 	auto tab = _tabsSlider->activeSection();
-	t_assert(tab >= 0 && tab < Tab::kCount);
+	Assert(tab >= 0 && tab < Tab::kCount);
 	auto newTabType = static_cast<SelectorTab>(tab);
 	if (_currentTabType == newTabType) {
 		return;

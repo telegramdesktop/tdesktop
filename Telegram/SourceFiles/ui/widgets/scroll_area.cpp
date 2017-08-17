@@ -26,8 +26,8 @@ namespace Ui {
 
 ScrollShadow::ScrollShadow(ScrollArea *parent, const style::ScrollArea *st) : QWidget(parent), _st(st) {
 	setVisible(false);
-	t_assert(_st != nullptr);
-	t_assert(_st->shColor.v() != nullptr);
+	Assert(_st != nullptr);
+	Assert(_st->shColor.v() != nullptr);
 }
 
 void ScrollShadow::paintEvent(QPaintEvent *e) {

@@ -90,7 +90,7 @@ TaskQueue::TaskQueueList::TaskQueueList() {
 }
 
 void TaskQueue::TaskQueueList::Register(TaskQueue *queue) {
-	t_assert(!queue->SerialTaskInProcess());
+	Assert(!queue->SerialTaskInProcess());
 
 	Insert(queue, kAllQueuesList);
 	if (queue->priority_ == Priority::Normal) {
@@ -106,7 +106,7 @@ void TaskQueue::TaskQueueList::Unregister(TaskQueue *queue) {
 }
 
 void TaskQueue::TaskQueueList::Insert(TaskQueue *queue, int list_index_) {
-	t_assert(list_index_ < kQueuesListsCount);
+	Assert(list_index_ < kQueuesListsCount);
 
 	auto tail = Tail();
 	if (lists_[list_index_] == tail) {
@@ -114,7 +114,7 @@ void TaskQueue::TaskQueueList::Insert(TaskQueue *queue, int list_index_) {
 	}
 
 	auto &list_entry = queue->list_entries_[list_index_];
-	t_assert(list_entry.after == nullptr);
+	Assert(list_entry.after == nullptr);
 	if ((list_entry.before = tail->list_entries_[list_index_].before)) {
 		list_entry.before->list_entries_[list_index_].after = queue;
 	}
@@ -123,14 +123,14 @@ void TaskQueue::TaskQueueList::Insert(TaskQueue *queue, int list_index_) {
 }
 
 void TaskQueue::TaskQueueList::Remove(TaskQueue *queue, int list_index_) {
-	t_assert(list_index_ < kQueuesListsCount);
+	Assert(list_index_ < kQueuesListsCount);
 
 	auto &list_entry = queue->list_entries_[list_index_];
-	t_assert(list_entry.after != nullptr);
+	Assert(list_entry.after != nullptr);
 	if (lists_[list_index_] == queue) {
 		lists_[list_index_] = list_entry.after;
 	} else {
-		t_assert(list_entry.before != nullptr);
+		Assert(list_entry.before != nullptr);
 		list_entry.before->list_entries_[list_index_].after = list_entry.after;
 	}
 	list_entry.after->list_entries_[list_index_].before = list_entry.before;
@@ -141,7 +141,7 @@ bool TaskQueue::TaskQueueList::IsInList(TaskQueue *queue) const {
 	if (queue->list_entries_[kAllQueuesList].after) {
 		return true;
 	}
-	t_assert(queue->list_entries_[kOnlyNormalQueuesList].after == nullptr);
+	Assert(queue->list_entries_[kOnlyNormalQueuesList].after == nullptr);
 	return false;
 }
 
@@ -158,15 +158,15 @@ void TaskQueue::TaskQueueList::Clear() {
 }
 
 bool TaskQueue::TaskQueueList::Empty(int list_index_) const {
-	t_assert(list_index_ < kQueuesListsCount);
+	Assert(list_index_ < kQueuesListsCount);
 
 	auto list = lists_[list_index_];
-	t_assert(list != nullptr);
+	Assert(list != nullptr);
 	return (list->list_entries_[list_index_].after == nullptr);
 }
 
 TaskQueue *TaskQueue::TaskQueueList::TakeFirst(int list_index_) {
-	t_assert(!Empty(list_index_));
+	Assert(!Empty(list_index_));
 
 	auto queue = lists_[list_index_];
 	Unregister(queue);
@@ -194,7 +194,7 @@ void TaskQueue::TaskThreadPool::AddQueueTask(TaskQueue *queue, Task &&task) {
 			ThreadFunction();
 		});
 	} else if (some_threads_are_vacant) {
-		t_assert(threads_count > tasks_in_process_);
+		Assert(threads_count > tasks_in_process_);
 		thread_condition_.wakeOne();
 	}
 }
@@ -276,7 +276,7 @@ void TaskQueue::TaskThreadPool::ThreadFunction() {
 			auto take_from_list_ = take_only_normal ? kOnlyNormalQueuesList : kAllQueuesList;
 			auto queue = queue_list_.TakeFirst(take_from_list_);
 
-			t_assert(!queue->tasks_.empty());
+			Assert(!queue->tasks_.empty());
 
 			task = std::move(queue->tasks_.front());
 			queue->tasks_.pop_front();
@@ -285,7 +285,7 @@ void TaskQueue::TaskThreadPool::ThreadFunction() {
 				// Serial queues are returned in the list for processing
 				// only after the task is finished.
 				serial_queue = queue;
-				t_assert(serial_queue->destroyed_flag_ == nullptr);
+				Assert(serial_queue->destroyed_flag_ == nullptr);
 				serial_queue->destroyed_flag_ = &serial_queue_destroyed;
 			} else if (!queue->tasks_.empty()) {
 				queue_list_.Register(queue);
@@ -326,20 +326,20 @@ void TaskQueue::Put(Task &&task) {
 
 		Sandbox::MainThreadTaskAdded();
 	} else {
-		t_assert(type_ != Type::Special);
+		Assert(type_ != Type::Special);
 		TaskThreadPool::Instance()->AddQueueTask(this, std::move(task));
 	}
 }
 
 void TaskQueue::ProcessMainTasks() { // static
-	t_assert(std::this_thread::get_id() == MainThreadId);
+	Assert(std::this_thread::get_id() == MainThreadId);
 
 	while (ProcessOneMainTask()) {
 	}
 }
 
 void TaskQueue::ProcessMainTasks(TimeMs max_time_spent) { // static
-	t_assert(std::this_thread::get_id() == MainThreadId);
+	Assert(std::this_thread::get_id() == MainThreadId);
 
 	auto start_time = getms();
 	while (ProcessOneMainTask()) {
@@ -370,7 +370,7 @@ bool TaskQueue::IsMyThread() const {
 	if (type_ == Type::Main) {
 		return (std::this_thread::get_id() == MainThreadId);
 	}
-	t_assert(type_ != Type::Special);
+	Assert(type_ != Type::Special);
 	return false;
 }
 

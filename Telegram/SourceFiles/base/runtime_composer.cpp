@@ -37,7 +37,7 @@ const RuntimeComposerMetadata *GetRuntimeComposerMetadata(uint64 mask) {
 	auto i = RuntimeComposerMetadatas.data.constFind(mask);
 	if (i == RuntimeComposerMetadatas.data.cend()) {
 		RuntimeComposerMetadata *meta = new RuntimeComposerMetadata(mask);
-		t_assert(meta != nullptr);
+		Assert(meta != nullptr);
 
 		i = RuntimeComposerMetadatas.data.insert(mask, meta);
 	}

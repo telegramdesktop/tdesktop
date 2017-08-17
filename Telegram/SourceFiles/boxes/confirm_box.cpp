@@ -430,7 +430,7 @@ DeleteMessagesBox::DeleteMessagesBox(QWidget*, HistoryItem *item, bool suggestMo
 
 DeleteMessagesBox::DeleteMessagesBox(QWidget*, const SelectedItemSet &selected) {
 	auto count = selected.size();
-	t_assert(count > 0);
+	Assert(count > 0);
 	_ids.reserve(count);
 	for_const (auto item, selected) {
 		_ids.push_back(item->fullId());
@@ -440,7 +440,7 @@ DeleteMessagesBox::DeleteMessagesBox(QWidget*, const SelectedItemSet &selected) 
 void DeleteMessagesBox::prepare() {
 	auto text = QString();
 	if (_moderateFrom) {
-		t_assert(_moderateInChannel != nullptr);
+		Assert(_moderateInChannel != nullptr);
 		text = lang(lng_selected_delete_sure_this);
 		if (_moderateBan) {
 			_banUser.create(this, lang(lng_ban_user), false, st::defaultBoxCheckbox);

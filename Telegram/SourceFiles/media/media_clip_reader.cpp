@@ -229,7 +229,7 @@ QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, 
 	Expects(outerh > 0);
 
 	auto frame = frameToShow();
-	t_assert(frame != nullptr);
+	Assert(frame != nullptr);
 
 	auto shouldBePaused = !ms;
 	if (!shouldBePaused) {
@@ -281,7 +281,7 @@ QPixmap Reader::current() {
 	Expects(_mode == Mode::Video);
 
 	auto frame = frameToShow();
-	t_assert(frame != nullptr);
+	Assert(frame != nullptr);
 
 	frame->displayed.storeRelease(1);
 	moveToNextShow();
@@ -473,7 +473,7 @@ public:
 	}
 
 	bool renderFrame() {
-		t_assert(frame() != 0 && _request.valid());
+		Assert(frame() != 0 && _request.valid());
 		if (!_implementation->renderFrame(frame()->original, frame()->alpha, QSize(_request.framew, _request.frameh))) {
 			return false;
 		}
@@ -699,7 +699,7 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, T
 	if (!reader->_autoPausedGif && reader->_mode == Reader::Mode::Gif && result == ProcessResult::Repaint) {
 		int32 ishowing, iprevious;
 		auto showing = it.key()->frameToShow(&ishowing), previous = it.key()->frameToWriteNext(false, &iprevious);
-		t_assert(previous != nullptr && showing != nullptr && ishowing >= 0 && iprevious >= 0);
+		Assert(previous != nullptr && showing != nullptr && ishowing >= 0 && iprevious >= 0);
 		if (reader->_frames[ishowing].when > 0 && showing->displayed.loadAcquire() <= 0) { // current frame was not shown
 			if (reader->_frames[ishowing].when + WaitBeforeGifPause < ms || (reader->_frames[iprevious].when && previous->displayed.loadAcquire() <= 0)) {
 				reader->_autoPausedGif = true;
@@ -709,7 +709,7 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, T
 		}
 	}
 	if (result == ProcessResult::Started || result == ProcessResult::CopyFrame) {
-		t_assert(reader->_frame >= 0);
+		Assert(reader->_frame >= 0);
 		auto frame = it.key()->_frames + reader->_frame;
 		frame->clear();
 		frame->pix = reader->frame()->pix;
@@ -754,7 +754,7 @@ Manager::ResultHandleState Manager::handleResult(ReaderPrivate *reader, ProcessR
 				if (frame) {
 					frame->clear();
 				} else {
-					t_assert(!reader->_request.valid());
+					Assert(!reader->_request.valid());
 				}
 				reader->_frame = index;
 			}

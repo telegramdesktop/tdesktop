@@ -72,9 +72,9 @@ void InnerWidget::enumerateItems(Method method) {
 		--from;
 	}
 	if (TopToBottom) {
-		t_assert(itemTop(from->get()) + from->get()->height() > _visibleTop);
+		Assert(itemTop(from->get()) + from->get()->height() > _visibleTop);
 	} else {
-		t_assert(itemTop(from->get()) < _visibleBottom);
+		Assert(itemTop(from->get()) < _visibleBottom);
 	}
 
 	while (true) {
@@ -84,9 +84,9 @@ void InnerWidget::enumerateItems(Method method) {
 
 		// Binary search should've skipped all the items that are above / below the visible area.
 		if (TopToBottom) {
-			t_assert(itembottom > _visibleTop);
+			Assert(itembottom > _visibleTop);
 		} else {
-			t_assert(itemtop < _visibleBottom);
+			Assert(itemtop < _visibleBottom);
 		}
 
 		if (!method(item, itemtop, itembottom)) {
@@ -509,7 +509,7 @@ void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLo
 	auto &addToItems = (direction == Direction::Up) ? _items : newItemsForDownDirection;
 	addToItems.reserve(oldItemsCount + events.size() * 2);
 	for_const (auto &event, events) {
-		t_assert(event.type() == mtpc_channelAdminLogEvent);
+		Assert(event.type() == mtpc_channelAdminLogEvent);
 		auto &data = event.c_channelAdminLogEvent();
 		if (_itemsByIds.find(data.vid.v) != _itemsByIds.cend()) {
 			continue;

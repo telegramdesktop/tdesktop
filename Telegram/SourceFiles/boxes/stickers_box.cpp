@@ -132,7 +132,7 @@ object_ptr<StickersBox::Inner> StickersBox::Tab::takeWidget() {
 
 void StickersBox::Tab::returnWidget(object_ptr<Inner> widget) {
 	_widget = std::move(widget);
-	t_assert(_widget == _weak);
+	Assert(_widget == _weak);
 }
 
 void StickersBox::Tab::saveScrollTop() {
@@ -404,7 +404,7 @@ void StickersBox::switchTab() {
 	if (!_tabs) return;
 
 	auto tab = _tabs->activeSection();
-	t_assert(tab >= 0 && tab < _tabIndices.size());
+	Assert(tab >= 0 && tab < _tabIndices.size());
 	auto newSection = _tabIndices[tab];
 
 	auto newTab = _tab;

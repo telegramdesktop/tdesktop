@@ -161,7 +161,7 @@ namespace App {
 	History *historyLoaded(const PeerId &peer);
 	HistoryItem *histItemById(ChannelId channelId, MsgId itemId);
 	inline History *history(const PeerData *peer) {
-		t_assert(peer != nullptr);
+		Assert(peer != nullptr);
 		return history(peer->id);
 	}
 	inline History *historyLoaded(const PeerData *peer) {

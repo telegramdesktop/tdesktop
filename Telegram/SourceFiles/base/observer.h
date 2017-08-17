@@ -437,7 +437,7 @@ protected:
 	void unsubscribe(int index) {
 		if (!index) return;
 		auto count = static_cast<int>(_subscriptions.size());
-		t_assert(index > 0 && index <= count);
+		Assert(index > 0 && index <= count);
 		_subscriptions[index - 1].destroy();
 		if (index == count) {
 			while (index > 0 && !_subscriptions[--index]) {

@@ -38,18 +38,18 @@ bool AudioPlayerLoader::check(const FileLocation &file, const QByteArray &data) 
 }
 
 void AudioPlayerLoader::saveDecodedSamples(QByteArray *samples, int64 *samplesCount) {
-	t_assert(_savedSamplesCount == 0);
-	t_assert(_savedSamples.isEmpty());
-	t_assert(!_holdsSavedSamples);
+	Assert(_savedSamplesCount == 0);
+	Assert(_savedSamples.isEmpty());
+	Assert(!_holdsSavedSamples);
 	samples->swap(_savedSamples);
 	std::swap(*samplesCount, _savedSamplesCount);
 	_holdsSavedSamples = true;
 }
 
 void AudioPlayerLoader::takeSavedDecodedSamples(QByteArray *samples, int64 *samplesCount) {
-	t_assert(*samplesCount == 0);
-	t_assert(samples->isEmpty());
-	t_assert(_holdsSavedSamples);
+	Assert(*samplesCount == 0);
+	Assert(samples->isEmpty());
+	Assert(_holdsSavedSamples);
 	samples->swap(_savedSamples);
 	std::swap(*samplesCount, _savedSamplesCount);
 	_holdsSavedSamples = false;

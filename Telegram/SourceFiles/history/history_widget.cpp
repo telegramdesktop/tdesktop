@@ -957,7 +957,7 @@ void HistoryWidget::highlightMessage(HistoryItem *context) {
 
 int HistoryWidget::itemTopForHighlight(not_null<HistoryItem*> item) const {
 	auto itemTop = _list->itemTop(item);
-	t_assert(itemTop >= 0);
+	Assert(itemTop >= 0);
 
 	auto heightLeft = (_scroll->height() - item->height());
 	if (heightLeft <= 0) {
@@ -1084,7 +1084,7 @@ void HistoryWidget::setReportSpamStatus(DBIPeerReportSpamStatus status) {
 	}
 	_reportSpamStatus = status;
 	if (_reportSpamStatus == dbiprsShowButton || _reportSpamStatus == dbiprsReportSent) {
-		t_assert(_peer != nullptr);
+		Assert(_peer != nullptr);
 		_reportSpamPanel.create(this);
 		connect(_reportSpamPanel, SIGNAL(reportClicked()), this, SLOT(onReportSpamClicked()));
 		connect(_reportSpamPanel, SIGNAL(hideClicked()), this, SLOT(onReportSpamHide()));
@@ -3890,7 +3890,7 @@ void HistoryWidget::toggleTabbedSelectorMode() {
 		recountChatWidth();
 		updateControlsGeometry();
 	} else {
-		t_assert(_tabbedPanel != nullptr);
+		Assert(_tabbedPanel != nullptr);
 		_tabbedPanel->toggleAnimated();
 	}
 }
@@ -4319,7 +4319,7 @@ void HistoryWidget::uploadFiles(const QStringList &files, SendMediaType type) {
 }
 
 void HistoryWidget::uploadFilesAfterConfirmation(const QStringList &files, const QByteArray &content, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, SendMediaType type, QString caption) {
-	t_assert(canWriteMessage());
+	Assert(canWriteMessage());
 
 	auto to = FileLoadTo(_peer->id, _silent->checked(), replyToId());
 	if (files.size() > 1 && !caption.isEmpty()) {
@@ -5167,7 +5167,7 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 			Ui::showPeerHistory(_peer, _editMsgId ? _editMsgId : replyToId());
 		}
 	} else if (_inPinnedMsg) {
-		t_assert(_pinnedBar != nullptr);
+		Assert(_pinnedBar != nullptr);
 		Ui::showPeerHistory(_peer, _pinnedBar->msgId);
 	}
 }
@@ -5332,7 +5332,7 @@ void HistoryWidget::updatePinnedBar(bool force) {
 		}
 	}
 
-	t_assert(_history != nullptr);
+	Assert(_history != nullptr);
 	if (!_pinnedBar->msg) {
 		_pinnedBar->msg = App::histItemById(_history->channelId(), _pinnedBar->msgId);
 	}

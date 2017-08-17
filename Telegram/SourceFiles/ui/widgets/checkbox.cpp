@@ -113,8 +113,8 @@ void ToggleView::paint(Painter &p, int left, int top, int outerWidth, TimeMs ms)
 }
 
 void ToggleView::paintXV(Painter &p, int left, int top, int outerWidth, float64 toggled, const QBrush &brush) {
-	t_assert(_st->vsize > 0);
-	t_assert(_st->stroke > 0);
+	Assert(_st->vsize > 0);
+	Assert(_st->stroke > 0);
 	static const auto sqrt2 = sqrt(2.);
 	auto stroke = (0. + _st->stroke) / sqrt2;
 	if (toggled < 1) {

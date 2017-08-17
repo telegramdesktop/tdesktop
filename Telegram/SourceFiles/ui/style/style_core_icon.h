@@ -166,13 +166,13 @@ public:
 	Icon(Icon &&other) : _data(base::take(other._data)), _owner(base::take(_owner)) {
 	}
 	Icon &operator=(const Icon &other) {
-		t_assert(!_owner);
+		Assert(!_owner);
 		_data = other._data;
 		_owner = false;
 		return *this;
 	}
 	Icon &operator=(Icon &&other) {
-		t_assert(!_owner);
+		Assert(!_owner);
 		_data = base::take(other._data);
 		_owner = base::take(other._owner);
 		return *this;

@@ -227,8 +227,8 @@ int ReplyKeyboard::naturalHeight() const {
 }
 
 void ReplyKeyboard::paint(Painter &p, int outerWidth, const QRect &clip, TimeMs ms) const {
-	t_assert(_st != nullptr);
-	t_assert(_width > 0);
+	Assert(_st != nullptr);
+	Assert(_width > 0);
 
 	_st->startPaint(p);
 	for_const (auto &row, _rows) {
@@ -246,7 +246,7 @@ void ReplyKeyboard::paint(Painter &p, int outerWidth, const QRect &clip, TimeMs 
 }
 
 ClickHandlerPtr ReplyKeyboard::getState(QPoint point) const {
-	t_assert(_width > 0);
+	Assert(_width > 0);
 
 	for_const (auto &row, _rows) {
 		for_const (auto &button, row) {
@@ -688,7 +688,7 @@ void HistoryItem::addLogEntryOriginal(WebPageId localId, const QString &label, c
 
 void HistoryItem::destroy() {
 	if (isLogEntry()) {
-		t_assert(detached());
+		Assert(detached());
 	} else {
 		// All this must be done for all items manually in History::clear(false)!
 		eraseFromOverview();
@@ -942,7 +942,7 @@ bool HistoryItem::hasDirectLink() const {
 QString HistoryItem::directLink() const {
 	if (hasDirectLink()) {
 		auto channel = _history->peer->asChannel();
-		t_assert(channel != nullptr);
+		Assert(channel != nullptr);
 		auto query = channel->username + '/' + QString::number(id);
 		if (!channel->isMegagroup()) {
 			if (auto media = getMedia()) {
@@ -996,7 +996,7 @@ bool HistoryItem::unread() const {
 
 void HistoryItem::destroyUnreadBar() {
 	if (Has<HistoryMessageUnreadBar>()) {
-		t_assert(!isLogEntry());
+		Assert(!isLogEntry());
 
 		RemoveComponents(HistoryMessageUnreadBar::Bit());
 		setPendingInitDimensions();

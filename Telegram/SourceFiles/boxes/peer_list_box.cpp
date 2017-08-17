@@ -278,10 +278,10 @@ void PeerListController::search(const QString &query) {
 
 void PeerListController::peerListSearchAddRow(not_null<PeerData*> peer) {
 	if (auto row = delegate()->peerListFindRow(peer->id)) {
-		t_assert(row->id() == row->peer()->id);
+		Assert(row->id() == row->peer()->id);
 		delegate()->peerListAppendFoundRow(row);
 	} else if (auto row = createSearchRow(peer)) {
-		t_assert(row->id() == row->peer()->id);
+		Assert(row->id() == row->peer()->id);
 		delegate()->peerListAppendSearchRow(std::move(row));
 	}
 }
@@ -585,7 +585,7 @@ void PeerListBox::Inner::addRowEntry(not_null<PeerListRow*> row) {
 		addToSearchIndex(row);
 	}
 	if (_controller->isRowSelected(row->peer())) {
-		t_assert(row->id() == row->peer()->id);
+		Assert(row->id() == row->peer()->id);
 		changeCheckState(row, true, PeerListRow::SetStyle::Fast);
 	}
 }
@@ -643,10 +643,10 @@ void PeerListBox::Inner::prependRowFromSearchResult(not_null<PeerListRow*> row) 
 	if (!row->isSearchResult()) {
 		return;
 	}
-	t_assert(_rowsById.find(row->id()) != _rowsById.cend());
+	Assert(_rowsById.find(row->id()) != _rowsById.cend());
 	auto index = row->absoluteIndex();
-	t_assert(index >= 0 && index < _searchRows.size());
-	t_assert(_searchRows[index].get() == row);
+	Assert(index >= 0 && index < _searchRows.size());
+	Assert(_searchRows[index].get() == row);
 
 	row->setIsSearchResult(false);
 	_rows.insert(_rows.begin(), std::move(_searchRows[index]));
@@ -682,8 +682,8 @@ void PeerListBox::Inner::removeRow(not_null<PeerListRow*> row) {
 	auto isSearchResult = row->isSearchResult();
 	auto &eraseFrom = isSearchResult ? _searchRows : _rows;
 
-	t_assert(index >= 0 && index < eraseFrom.size());
-	t_assert(eraseFrom[index].get() == row);
+	Assert(index >= 0 && index < eraseFrom.size());
+	Assert(eraseFrom[index].get() == row);
 
 	setSelected(Selected());
 	setPressed(Selected());
@@ -705,8 +705,8 @@ void PeerListBox::Inner::convertRowToSearchResult(not_null<PeerListRow*> row) {
 		return removeRow(row);
 	}
 	auto index = row->absoluteIndex();
-	t_assert(index >= 0 && index < _rows.size());
-	t_assert(_rows[index].get() == row);
+	Assert(index >= 0 && index < _rows.size());
+	Assert(_rows[index].get() == row);
 
 	removeFromSearchIndex(row);
 	row->setIsSearchResult(true);
@@ -925,7 +925,7 @@ void PeerListBox::Inner::setPressed(Selected pressed) {
 
 void PeerListBox::Inner::paintRow(Painter &p, TimeMs ms, RowIndex index) {
 	auto row = getRow(index);
-	t_assert(row != nullptr);
+	Assert(row != nullptr);
 	row->lazyInitialize();
 
 	auto peer = row->peer();
@@ -1016,8 +1016,8 @@ void PeerListBox::Inner::selectSkip(int direction) {
 		lastEnabled = firstEnabled - 1;
 	}
 
-	t_assert(lastEnabled < rowsCount);
-	t_assert(firstEnabled - 1 <= lastEnabled);
+	Assert(lastEnabled < rowsCount);
+	Assert(firstEnabled - 1 <= lastEnabled);
 
 	// Always pass through the first enabled item when changing from / to none selected.
 	if ((_selected.index.value > firstEnabled && newSelectedIndex < firstEnabled)
@@ -1037,7 +1037,7 @@ void PeerListBox::Inner::selectSkip(int direction) {
 		auto delta = (direction > 0) ? 1 : -1;
 		for (newSelectedIndex += delta; ; newSelectedIndex += delta) {
 			// We must find an enabled row, firstEnabled <= us <= lastEnabled.
-			t_assert(newSelectedIndex >= 0 && newSelectedIndex < rowsCount);
+			Assert(newSelectedIndex >= 0 && newSelectedIndex < rowsCount);
 			if (!getRow(RowIndex(newSelectedIndex))->disabled()) {
 				break;
 			}
@@ -1253,17 +1253,17 @@ bool PeerListBox::Inner::enumerateShownRows(Callback callback) {
 
 template <typename Callback>
 bool PeerListBox::Inner::enumerateShownRows(int from, int to, Callback callback) {
-	t_assert(0 <= from);
-	t_assert(from <= to);
+	Assert(0 <= from);
+	Assert(from <= to);
 	if (showingSearch()) {
-		t_assert(to <= _filterResults.size());
+		Assert(to <= _filterResults.size());
 		for (auto i = from; i != to; ++i) {
 			if (!callback(_filterResults[i])) {
 				return false;
 			}
 		}
 	} else {
-		t_assert(to <= _rows.size());
+		Assert(to <= _rows.size());
 		for (auto i = from; i != to; ++i) {
 			if (!callback(_rows[i].get())) {
 				return false;
@@ -1288,7 +1288,7 @@ PeerListRow *PeerListBox::Inner::getRow(RowIndex index) {
 
 PeerListBox::Inner::RowIndex PeerListBox::Inner::findRowIndex(not_null<PeerListRow*> row, RowIndex hint) {
 	if (!showingSearch()) {
-		t_assert(!row->isSearchResult());
+		Assert(!row->isSearchResult());
 		return RowIndex(row->absoluteIndex());
 	}
 

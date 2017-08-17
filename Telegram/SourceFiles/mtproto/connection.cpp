@@ -54,7 +54,7 @@ bool IsGoodModExpFirst(const openssl::BigNum &modexp, const openssl::BigNum &pri
 	if (diff.isNegative() || diff.bitsSize() < kMinDiffBitsCount || modexp.bitsSize() < kMinDiffBitsCount) {
 		return false;
 	}
-	t_assert(modexp.bytesSize() <= kMaxModExpSize);
+	Assert(modexp.bytesSize() <= kMaxModExpSize);
 	return true;
 }
 
@@ -2396,7 +2396,7 @@ void ConnectionPrivate::pqAnswered() {
 		LOG(("AuthKey Error: could not choose public RSA key"));
 		return restart();
 	}
-	t_assert(rsaKey.isValid());
+	Assert(rsaKey.isValid());
 
 	_authKeyData->server_nonce = res_pq_data.vserver_nonce;
 	_authKeyData->new_nonce = rand_value<MTPint256>();
@@ -3036,7 +3036,7 @@ void ConnectionPrivate::unlockKey() {
 
 ConnectionPrivate::~ConnectionPrivate() {
 	clearAuthKeyData();
-	t_assert(_finished && _conn == nullptr && _conn4 == nullptr && _conn6 == nullptr);
+	Assert(_finished && _conn == nullptr && _conn4 == nullptr && _conn6 == nullptr);
 }
 
 void ConnectionPrivate::stop() {

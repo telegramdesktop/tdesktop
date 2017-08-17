@@ -571,7 +571,7 @@ private:
 	}
 	Dialogs::Row *mainChatListLink(Dialogs::Mode list) const {
 		auto it = chatListLinks(list).constFind(0);
-		t_assert(it != chatListLinks(list).cend());
+		Assert(it != chatListLinks(list).cend());
 		return it.value();
 	}
 	uint64 _sortKeyInChatList = 0; // like ((unixtime) << 32) | (incremented counter)

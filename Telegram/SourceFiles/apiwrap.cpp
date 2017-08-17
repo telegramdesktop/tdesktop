@@ -1144,7 +1144,7 @@ void ApiWrap::handlePrivacyChange(mtpTypeId keyTypeId, const MTPVector<MTPPrivac
 		_contactsStatusesRequestId = request(MTPcontacts_GetStatuses()).done([this](const MTPVector<MTPContactStatus> &result) {
 			_contactsStatusesRequestId = 0;
 			for_const (auto &item, result.v) {
-				t_assert(item.type() == mtpc_contactStatus);
+				Assert(item.type() == mtpc_contactStatus);
 				auto &data = item.c_contactStatus();
 				if (auto user = App::userLoaded(data.vuser_id.v)) {
 					auto oldOnlineTill = user->onlineTill;
@@ -1889,7 +1889,7 @@ void ApiWrap::sendSaveChatAdminsRequests(not_null<ChatData*> chat) {
 	auto removeOne = [&](auto user) { editOne(user, false); };
 
 	auto admins = _chatAdminsToSave.take(chat);
-	t_assert(!!admins);
+	Assert(!!admins);
 
 	auto toRemove = chat->admins;
 	auto toAppoint = std::vector<not_null<UserData*>>();

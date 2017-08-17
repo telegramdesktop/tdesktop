@@ -404,8 +404,8 @@ EmojiPtr FlatTextarea::getSingleEmoji() const {
 }
 
 QString FlatTextarea::getInlineBotQuery(UserData **outInlineBot, QString *outInlineBotUsername) const {
-	t_assert(outInlineBot != nullptr);
-	t_assert(outInlineBotUsername != nullptr);
+	Assert(outInlineBot != nullptr);
+	Assert(outInlineBotUsername != nullptr);
 
 	auto &text = getTextWithTags().text;
 	auto textLength = text.size();
@@ -525,7 +525,7 @@ void FlatTextarea::insertTag(const QString &text, QString tagId) {
 	auto block = doc->findBlock(pos);
 	for (auto iter = block.begin(); !iter.atEnd(); ++iter) {
 		auto fragment = iter.fragment();
-		t_assert(fragment.isValid());
+		Assert(fragment.isValid());
 
 		int fragmentPosition = fragment.position();
 		int fragmentEnd = (fragmentPosition + fragment.length());
@@ -657,7 +657,7 @@ public:
 
 		if (!_currentTagId.isEmpty()) {
 			int randomPartPosition = _currentTagId.lastIndexOf('/');
-			t_assert(randomPartPosition > 0);
+			Assert(randomPartPosition > 0);
 
 			bool tagChanged = true;
 			if (_currentTag < _tags->size()) {
@@ -1100,7 +1100,7 @@ void FlatTextarea::processFormatting(int insertPosition, int insertEnd) {
 		for (auto block = fromBlock; block != tillBlock; block = block.next()) {
 			for (auto fragmentIt = block.begin(); !fragmentIt.atEnd(); ++fragmentIt) {
 				auto fragment = fragmentIt.fragment();
-				t_assert(fragment.isValid());
+				Assert(fragment.isValid());
 
 				int fragmentPosition = fragment.position();
 				if (insertPosition >= fragmentPosition + fragment.length()) {

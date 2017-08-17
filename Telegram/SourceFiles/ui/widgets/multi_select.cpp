@@ -214,7 +214,7 @@ QRect MultiSelect::Item::paintArea(int outerWidth) const {
 void MultiSelect::Item::prepareCache() {
 	if (!_cache.isNull()) return;
 
-	t_assert(!_visibility.animating());
+	Assert(!_visibility.animating());
 	auto cacheWidth = _width * kWideScale * cIntRetinaFactor();
 	auto cacheHeight = _st.height * kWideScale * cIntRetinaFactor();
 	auto data = QImage(cacheWidth, cacheHeight, QImage::Format_ARGB32_Premultiplied);
@@ -441,12 +441,12 @@ void MultiSelect::Inner::setActiveItem(int active, ChangeActiveWay skipSetFocus)
 	if (_active == active) return;
 
 	if (_active >= 0) {
-		t_assert(_active < _items.size());
+		Assert(_active < _items.size());
 		_items[_active]->setActive(false);
 	}
 	_active = active;
 	if (_active >= 0) {
-		t_assert(_active < _items.size());
+		Assert(_active < _items.size());
 		_items[_active]->setActive(true);
 	}
 	if (skipSetFocus != ChangeActiveWay::SkipSetFocus) {
@@ -594,7 +594,7 @@ void MultiSelect::Inner::updateSelection(QPoint mousePosition) {
 	}
 	if (_selected != selected) {
 		if (_selected >= 0) {
-			t_assert(_selected < _items.size());
+			Assert(_selected < _items.size());
 			_items[_selected]->leaveEvent();
 		}
 		_selected = selected;
@@ -657,7 +657,7 @@ void MultiSelect::Inner::computeItemsGeometry(int newWidth) {
 	auto maxVisiblePadding = qMax(_st.padding.left(), _st.padding.right());
 	for_const (auto &item, _items) {
 		auto itemWidth = item->getWidth();
-		t_assert(itemWidth <= newWidth);
+		Assert(itemWidth <= newWidth);
 		if (itemWidth > widthLeft) {
 			itemLeft = 0;
 			itemTop += _st.item.height + _st.itemSkip;
@@ -669,7 +669,7 @@ void MultiSelect::Inner::computeItemsGeometry(int newWidth) {
 	}
 
 	auto fieldMinWidth = _st.fieldMinWidth + _st.fieldCancelSkip;
-	t_assert(fieldMinWidth <= newWidth);
+	Assert(fieldMinWidth <= newWidth);
 	if (fieldMinWidth > widthLeft) {
 		_fieldLeft = 0;
 		_fieldTop = itemTop + _st.item.height + _st.itemSkip;

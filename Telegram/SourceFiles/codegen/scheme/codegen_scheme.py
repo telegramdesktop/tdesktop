@@ -625,7 +625,7 @@ for restype in typesList:
       getters += '\tconst MTPD' + name + ' &c_' + name + '() const;\n'; # const getter
       constructsBodies += 'const MTPD' + name + ' &MTP' + restype + '::c_' + name + '() const {\n';
       if (withType):
-        constructsBodies += '\tt_assert(_type == mtpc_' + name + ');\n';
+        constructsBodies += '\tAssert(_type == mtpc_' + name + ');\n';
       constructsBodies += '\treturn queryData<MTPD' + name + '>();\n';
       constructsBodies += '}\n';
 
@@ -770,7 +770,7 @@ for restype in typesList:
   typesText += '\tmtpTypeId type() const;\n'; # type id method
   methods += 'mtpTypeId MTP' + restype + '::type() const {\n';
   if (withType):
-    methods += '\tt_assert(_type != 0);\n';
+    methods += '\tAssert(_type != 0);\n';
     methods += '\treturn _type;\n';
   else:
     methods += '\treturn mtpc_' + v[0][0] + ';\n';

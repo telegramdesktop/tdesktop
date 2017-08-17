@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Ui {
 
 void RoundShadowAnimation::start(int frameWidth, int frameHeight, float64 devicePixelRatio) {
-	t_assert(!started());
+	Assert(!started());
 	_frameWidth = frameWidth;
 	_frameHeight = frameHeight;
 	_frame = QImage(_frameWidth, _frameHeight, QImage::Format_ARGB32_Premultiplied);
@@ -31,9 +31,9 @@ void RoundShadowAnimation::start(int frameWidth, int frameHeight, float64 device
 	_frameIntsPerLine = (_frame.bytesPerLine() >> 2);
 	_frameInts = reinterpret_cast<uint32*>(_frame.bits());
 	_frameIntsPerLineAdded = _frameIntsPerLine - _frameWidth;
-	t_assert(_frame.depth() == static_cast<int>(sizeof(uint32) << 3));
-	t_assert(_frame.bytesPerLine() == (_frameIntsPerLine << 2));
-	t_assert(_frameIntsPerLineAdded >= 0);
+	Assert(_frame.depth() == static_cast<int>(sizeof(uint32) << 3));
+	Assert(_frame.bytesPerLine() == (_frameIntsPerLine << 2));
+	Assert(_frameIntsPerLineAdded >= 0);
 }
 
 void RoundShadowAnimation::setShadow(const style::Shadow &st) {
@@ -47,7 +47,7 @@ void RoundShadowAnimation::setShadow(const style::Shadow &st) {
 		_shadow.bottomRight = cloneImage(st.bottomRight);
 		_shadow.bottom = cloneImage(st.bottom);
 		_shadow.bottomLeft = cloneImage(st.bottomLeft);
-		t_assert(!_shadow.topLeft.isNull()
+		Assert(!_shadow.topLeft.isNull()
 			&& !_shadow.top.isNull()
 			&& !_shadow.topRight.isNull()
 			&& !_shadow.right.isNull()
@@ -73,7 +73,7 @@ void RoundShadowAnimation::setCornerMasks(const QImage &topLeft, const QImage &t
 }
 
 void RoundShadowAnimation::setCornerMask(Corner &corner, const QImage &image) {
-	t_assert(!started());
+	Assert(!started());
 	corner.image = image;
 	if (corner.valid()) {
 		corner.width = corner.image.width();
@@ -81,8 +81,8 @@ void RoundShadowAnimation::setCornerMask(Corner &corner, const QImage &image) {
 		corner.bytes = corner.image.constBits();
 		corner.bytesPerPixel = (corner.image.depth() >> 3);
 		corner.bytesPerLineAdded = corner.image.bytesPerLine() - corner.width * corner.bytesPerPixel;
-		t_assert(corner.image.depth() == (corner.bytesPerPixel << 3));
-		t_assert(corner.bytesPerLineAdded >= 0);
+		Assert(corner.image.depth() == (corner.bytesPerPixel << 3));
+		Assert(corner.bytesPerLineAdded >= 0);
 	} else {
 		corner.width = corner.height = 0;
 	}
@@ -227,25 +227,25 @@ void RoundShadowAnimation::paintShadowHorizontal(int left, int right, int top, c
 }
 
 void PanelAnimation::setFinalImage(QImage &&finalImage, QRect inner) {
-	t_assert(!started());
+	Assert(!started());
 	_finalImage = App::pixmapFromImageInPlace(std::move(finalImage).convertToFormat(QImage::Format_ARGB32_Premultiplied));
 
-	t_assert(!_finalImage.isNull());
+	Assert(!_finalImage.isNull());
 	_finalWidth = _finalImage.width();
 	_finalHeight = _finalImage.height();
-	t_assert(!(_finalWidth % cIntRetinaFactor()));
-	t_assert(!(_finalHeight % cIntRetinaFactor()));
+	Assert(!(_finalWidth % cIntRetinaFactor()));
+	Assert(!(_finalHeight % cIntRetinaFactor()));
 	_finalInnerLeft = inner.x();
 	_finalInnerTop = inner.y();
 	_finalInnerWidth = inner.width();
 	_finalInnerHeight = inner.height();
-	t_assert(!(_finalInnerLeft % cIntRetinaFactor()));
-	t_assert(!(_finalInnerTop % cIntRetinaFactor()));
-	t_assert(!(_finalInnerWidth % cIntRetinaFactor()));
-	t_assert(!(_finalInnerHeight % cIntRetinaFactor()));
+	Assert(!(_finalInnerLeft % cIntRetinaFactor()));
+	Assert(!(_finalInnerTop % cIntRetinaFactor()));
+	Assert(!(_finalInnerWidth % cIntRetinaFactor()));
+	Assert(!(_finalInnerHeight % cIntRetinaFactor()));
 	_finalInnerRight = _finalInnerLeft + _finalInnerWidth;
 	_finalInnerBottom = _finalInnerTop + _finalInnerHeight;
-	t_assert(QRect(0, 0, _finalWidth, _finalHeight).contains(inner));
+	Assert(QRect(0, 0, _finalWidth, _finalHeight).contains(inner));
 
 	setStartWidth();
 	setStartHeight();
@@ -263,8 +263,8 @@ void PanelAnimation::setFinalImage(QImage &&finalImage, QRect inner) {
 		if (!corner.valid()) return;
 		if ((_startWidth >= 0 && _startWidth < _finalWidth)
 			|| (_startHeight >= 0 && _startHeight < _finalHeight)) {
-			t_assert(corner.width <= inner.width());
-			t_assert(corner.height <= inner.height());
+			Assert(corner.width <= inner.width());
+			Assert(corner.height <= inner.height());
 		}
 	};
 	checkCorner(_topLeft);
@@ -275,17 +275,17 @@ void PanelAnimation::setFinalImage(QImage &&finalImage, QRect inner) {
 
 void PanelAnimation::setStartWidth() {
 	_startWidth = qRound(_st.startWidth * _finalInnerWidth);
-	if (_startWidth >= 0) t_assert(_startWidth <= _finalInnerWidth);
+	if (_startWidth >= 0) Assert(_startWidth <= _finalInnerWidth);
 }
 
 void PanelAnimation::setStartHeight() {
 	_startHeight = qRound(_st.startHeight * _finalInnerHeight);
-	if (_startHeight >= 0) t_assert(_startHeight <= _finalInnerHeight);
+	if (_startHeight >= 0) Assert(_startHeight <= _finalInnerHeight);
 }
 
 void PanelAnimation::setStartAlpha() {
 	_startAlpha = qRound(_st.startOpacity * 255);
-	t_assert(_startAlpha >= 0 && _startAlpha < 256);
+	Assert(_startAlpha >= 0 && _startAlpha < 256);
 }
 
 void PanelAnimation::setStartFadeTop() {
@@ -298,7 +298,7 @@ void PanelAnimation::createFadeMask() {
 		resultHeight -= remove;
 	}
 	auto finalAlpha = qRound(_st.fadeOpacity * 255);
-	t_assert(finalAlpha >= 0 && finalAlpha < 256);
+	Assert(finalAlpha >= 0 && finalAlpha < 256);
 	auto result = QImage(cIntRetinaFactor(), resultHeight, QImage::Format_ARGB32_Premultiplied);
 	auto ints = reinterpret_cast<uint32*>(result.bits());
 	auto intsPerLineAdded = (result.bytesPerLine() >> 2) - cIntRetinaFactor();
@@ -321,39 +321,39 @@ void PanelAnimation::createFadeMask() {
 }
 
 void PanelAnimation::setSkipShadow(bool skipShadow) {
-	t_assert(!started());
+	Assert(!started());
 	_skipShadow = skipShadow;
 }
 
 void PanelAnimation::setWidthDuration() {
 	_widthDuration = _st.widthDuration;
-	t_assert(_widthDuration >= 0.);
-	t_assert(_widthDuration <= 1.);
+	Assert(_widthDuration >= 0.);
+	Assert(_widthDuration <= 1.);
 }
 
 void PanelAnimation::setHeightDuration() {
-	t_assert(!started());
+	Assert(!started());
 	_heightDuration = _st.heightDuration;
-	t_assert(_heightDuration >= 0.);
-	t_assert(_heightDuration <= 1.);
+	Assert(_heightDuration >= 0.);
+	Assert(_heightDuration <= 1.);
 }
 
 void PanelAnimation::setAlphaDuration() {
-	t_assert(!started());
+	Assert(!started());
 	_alphaDuration = _st.opacityDuration;
-	t_assert(_alphaDuration >= 0.);
-	t_assert(_alphaDuration <= 1.);
+	Assert(_alphaDuration >= 0.);
+	Assert(_alphaDuration <= 1.);
 }
 
 void PanelAnimation::start() {
-	t_assert(!_finalImage.isNull());
+	Assert(!_finalImage.isNull());
 	RoundShadowAnimation::start(_finalWidth, _finalHeight, _finalImage.devicePixelRatio());
 	auto checkCorner = [this](const Corner &corner) {
 		if (!corner.valid()) return;
-		if (_startWidth >= 0) t_assert(corner.width <= _startWidth);
-		if (_startHeight >= 0) t_assert(corner.height <= _startHeight);
-		t_assert(corner.width <= _finalInnerWidth);
-		t_assert(corner.height <= _finalInnerHeight);
+		if (_startWidth >= 0) Assert(corner.width <= _startWidth);
+		if (_startHeight >= 0) Assert(corner.height <= _startHeight);
+		Assert(corner.width <= _finalInnerWidth);
+		Assert(corner.height <= _finalInnerHeight);
 	};
 	checkCorner(_topLeft);
 	checkCorner(_topRight);
@@ -362,8 +362,8 @@ void PanelAnimation::start() {
 }
 
 void PanelAnimation::paintFrame(QPainter &p, int x, int y, int outerWidth, float64 dt, float64 opacity) {
-	t_assert(started());
-	t_assert(dt >= 0.);
+	Assert(started());
+	Assert(dt >= 0.);
 
 	auto &transition = anim::easeOutCirc;
 	if (dt < _alphaDuration) opacity *= transition(1., dt / _alphaDuration);

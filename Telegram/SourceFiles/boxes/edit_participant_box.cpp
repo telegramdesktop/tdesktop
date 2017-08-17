@@ -118,7 +118,7 @@ void EditParticipantBox::Inner::removeControl(QPointer<TWidget> widget) {
 	auto row = std::find_if(_rows.begin(), _rows.end(), [widget](auto &&row) {
 		return (row.widget == widget);
 	});
-	t_assert(row != _rows.end());
+	Assert(row != _rows.end());
 	row->widget.destroy();
 	_rows.erase(row);
 }
@@ -250,7 +250,7 @@ void EditAdminBox::prepare() {
 	auto addAdmins = _checkboxes.find(Flag::f_add_admins);
 	if (addAdmins != _checkboxes.end()) {
 		_aboutAddAdmins = addControl(object_ptr<Ui::FlatLabel>(this, st::boxLabel), st::rightsAboutMargin);
-		t_assert(addAdmins != _checkboxes.end());
+		Assert(addAdmins != _checkboxes.end());
 		subscribe(addAdmins->second->checkedChanged, [this](bool checked) {
 			refreshAboutAddAdminsText();
 		});
@@ -295,7 +295,7 @@ void EditAdminBox::applyDependencies(QPointer<Ui::Checkbox> changed) {
 
 void EditAdminBox::refreshAboutAddAdminsText() {
 	auto addAdmins = _checkboxes.find(Flag::f_add_admins);
-	t_assert(addAdmins != _checkboxes.end());
+	Assert(addAdmins != _checkboxes.end());
 	auto text = [this, addAdmins] {
 		if (!canSave()) {
 			return lang(lng_rights_about_admin_cant_edit);
@@ -480,6 +480,6 @@ TimeId EditRestrictedBox::getRealUntilValue() const {
 	} else if (_until == kUntilOneWeek) {
 		return unixtime() + kSecondsInWeek;
 	}
-	t_assert(_until >= 0);
+	Assert(_until >= 0);
 	return _until;
 }

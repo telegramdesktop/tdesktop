@@ -50,7 +50,7 @@ bool ErrorHappened(ALCdevice *device) {
 } // namespace
 
 void Start() {
-	t_assert(CaptureInstance == nullptr);
+	Assert(CaptureInstance == nullptr);
 	CaptureInstance = new Instance();
 	instance()->check();
 }

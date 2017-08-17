@@ -616,7 +616,7 @@ public:
 	}
 
 	float64 current() const {
-		t_assert(_data != nullptr);
+		Assert(_data != nullptr);
 		return _data->value.current();
 	}
 	float64 current(float64 def) const {

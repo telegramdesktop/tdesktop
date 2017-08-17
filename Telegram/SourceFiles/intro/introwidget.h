@@ -232,7 +232,7 @@ private:
 	void resetAccount();
 
 	Step *getStep(int skip = 0) {
-		t_assert(_stepHistory.size() + skip > 0);
+		Assert(_stepHistory.size() + skip > 0);
 		return _stepHistory.at(_stepHistory.size() - skip - 1);
 	}
 	void historyMove(Direction direction);

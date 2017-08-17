@@ -114,7 +114,7 @@ public:
 		return true;
 	}
 	bool getLocationCoords(LocationCoords *outLocation) const override {
-		t_assert(outLocation != nullptr);
+		Assert(outLocation != nullptr);
 		*outLocation = _location;
 		return true;
 	}
@@ -146,7 +146,7 @@ public:
 		return true;
 	}
 	bool getLocationCoords(LocationCoords *outLocation) const override {
-		t_assert(outLocation != nullptr);
+		Assert(outLocation != nullptr);
 		*outLocation = _location;
 		return true;
 	}

@@ -171,7 +171,7 @@ public:
 		auto length = BN_num_bytes(raw());
 		auto result = base::byte_vector(length, gsl::byte());
 		auto resultSize = BN_bn2bin(raw(), reinterpret_cast<unsigned char*>(result.data()));
-		t_assert(resultSize == length);
+		Assert(resultSize == length);
 		return result;
 	}
 

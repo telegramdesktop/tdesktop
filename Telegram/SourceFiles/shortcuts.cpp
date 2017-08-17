@@ -135,7 +135,7 @@ void destroyShortcut(QShortcut *shortcut);
 
 struct DataStruct {
 	DataStruct() {
-		t_assert(DataPtr == nullptr);
+		Assert(DataPtr == nullptr);
 		DataPtr = this;
 
 		if (autoRepeatCommands.isEmpty()) {
@@ -214,16 +214,16 @@ struct DataStruct {
 namespace {
 
 void createCommand(const QString &command, ShortcutCommands::Handler handler) {
-	t_assert(DataPtr != nullptr);
-	t_assert(!command.isEmpty());
+	Assert(DataPtr != nullptr);
+	Assert(!command.isEmpty());
 
 	DataPtr->commands.insert(command, handler);
 	DataPtr->commandnames.insert(handler, command);
 }
 
 QKeySequence setShortcut(const QString &keys, const QString &command) {
-	t_assert(DataPtr != nullptr);
-	t_assert(!command.isEmpty());
+	Assert(DataPtr != nullptr);
+	Assert(!command.isEmpty());
 	if (keys.isEmpty()) return QKeySequence();
 
 	QKeySequence seq(keys, QKeySequence::PortableText);
@@ -265,7 +265,7 @@ QKeySequence setShortcut(const QString &keys, const QString &command) {
 }
 
 QKeySequence removeShortcut(const QString &keys) {
-	t_assert(DataPtr != nullptr);
+	Assert(DataPtr != nullptr);
 	if (keys.isEmpty()) return QKeySequence();
 
 	QKeySequence seq(keys, QKeySequence::PortableText);
@@ -283,7 +283,7 @@ QKeySequence removeShortcut(const QString &keys) {
 }
 
 void destroyShortcut(QShortcut *shortcut) {
-	t_assert(DataPtr != nullptr);
+	Assert(DataPtr != nullptr);
 
 	DataPtr->handlers.remove(shortcut->id());
 	DataPtr->mediaShortcuts.remove(shortcut);
@@ -293,7 +293,7 @@ void destroyShortcut(QShortcut *shortcut) {
 } // namespace
 
 void start() {
-	t_assert(Global::started());
+	Assert(Global::started());
 
 	new DataStruct();
 
@@ -411,12 +411,12 @@ void start() {
 }
 
 const QStringList &errors() {
-	t_assert(DataPtr != nullptr);
+	Assert(DataPtr != nullptr);
 	return DataPtr->errors;
 }
 
 bool launch(int shortcutId) {
-	t_assert(DataPtr != nullptr);
+	Assert(DataPtr != nullptr);
 
 	auto it = DataPtr->handlers.constFind(shortcutId);
 	if (it == DataPtr->handlers.cend()) {
@@ -426,7 +426,7 @@ bool launch(int shortcutId) {
 }
 
 bool launch(const QString &command) {
-	t_assert(DataPtr != nullptr);
+	Assert(DataPtr != nullptr);
 
 	auto it = DataPtr->commands.constFind(command);
 	if (it == DataPtr->commands.cend()) {

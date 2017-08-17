@@ -25,8 +25,8 @@ namespace Ui {
 void SlideAnimation::setSnapshots(QPixmap leftSnapshot, QPixmap rightSnapshot) {
 	_leftSnapshot = std::move(leftSnapshot);
 	_rightSnapshot = std::move(rightSnapshot);
-	t_assert(!_leftSnapshot.isNull());
-	t_assert(!_rightSnapshot.isNull());
+	Assert(!_leftSnapshot.isNull());
+	Assert(!_rightSnapshot.isNull());
 	_leftSnapshot.setDevicePixelRatio(cRetinaFactor());
 	_rightSnapshot.setDevicePixelRatio(cRetinaFactor());
 }

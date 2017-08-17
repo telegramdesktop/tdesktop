@@ -397,7 +397,7 @@ void GroupInfoBox::createGroup(not_null<PeerListBox*> selectUsersBox, const QStr
 	inputs.reserve(users.size());
 	for (auto peer : users) {
 		auto user = peer->asUser();
-		t_assert(user != nullptr);
+		Assert(user != nullptr);
 		if (!user->isSelf()) {
 			inputs.push_back(user->inputUser);
 		}

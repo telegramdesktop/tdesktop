@@ -876,7 +876,7 @@ bool StickersListWidget::hasRemoveButton(int index) const {
 		return true;
 	}
 	if (set.id == Stickers::MegagroupSetId) {
-		t_assert(_megagroupSet != nullptr);
+		Assert(_megagroupSet != nullptr);
 		if (index + 1 != _mySets.size()) {
 			return true;
 		}
@@ -908,7 +908,7 @@ void StickersListWidget::mousePressEvent(QMouseEvent *e) {
 void StickersListWidget::setPressed(OverState newPressed) {
 	if (auto button = base::get_if<OverButton>(&_pressed)) {
 		auto &sets = shownSets();
-		t_assert(button->section >= 0 && button->section < sets.size());
+		Assert(button->section >= 0 && button->section < sets.size());
 		auto &set = sets[button->section];
 		if (set.ripple) {
 			set.ripple->lastStop();
@@ -921,7 +921,7 @@ void StickersListWidget::setPressed(OverState newPressed) {
 	_pressed = newPressed;
 	if (auto button = base::get_if<OverButton>(&_pressed)) {
 		auto &sets = shownSets();
-		t_assert(button->section >= 0 && button->section < sets.size());
+		Assert(button->section >= 0 && button->section < sets.size());
 		auto &set = sets[button->section];
 		if (!set.ripple) {
 			set.ripple = createButtonRipple(button->section);
@@ -996,9 +996,9 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 	auto &sets = shownSets();
 	if (pressed && pressed == _selected) {
 		if (auto sticker = base::get_if<OverSticker>(&pressed)) {
-			t_assert(sticker->section >= 0 && sticker->section < sets.size());
+			Assert(sticker->section >= 0 && sticker->section < sets.size());
 			auto &set = sets[sticker->section];
-			t_assert(sticker->index >= 0 && sticker->index < set.pack.size());
+			Assert(sticker->index >= 0 && sticker->index < set.pack.size());
 			if (stickerHasDeleteButton(set, sticker->index) && sticker->overDelete) {
 				if (set.id == Stickers::RecentSetId) {
 					removeRecentSticker(sticker->section, sticker->index);
@@ -1011,10 +1011,10 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			}
 			emit selected(set.pack[sticker->index]);
 		} else if (auto set = base::get_if<OverSet>(&pressed)) {
-			t_assert(set->section >= 0 && set->section < sets.size());
+			Assert(set->section >= 0 && set->section < sets.size());
 			displaySet(sets[set->section].id);
 		} else if (auto button = base::get_if<OverButton>(&pressed)) {
-			t_assert(button->section >= 0 && button->section < sets.size());
+			Assert(button->section >= 0 && button->section < sets.size());
 			if (_section == Section::Featured) {
 				installSet(sets[button->section].id);
 			} else if (sets[button->section].id == Stickers::MegagroupSetId) {
@@ -1479,7 +1479,7 @@ bool StickersListWidget::setHasTitle(const Set &set) const {
 
 bool StickersListWidget::stickerHasDeleteButton(const Set &set, int index) const {
 	if (set.id == Stickers::RecentSetId) {
-		t_assert(index >= 0 && index < _custom.size());
+		Assert(index >= 0 && index < _custom.size());
 		return _custom[index];
 	}
 	return (set.id == Stickers::FavedSetId);
@@ -1508,9 +1508,9 @@ void StickersListWidget::setSelected(OverState newSelected) {
 		if (_previewShown && _pressed != _selected) {
 			if (auto sticker = base::get_if<OverSticker>(&_selected)) {
 				_pressed = _selected;
-				t_assert(sticker->section >= 0 && sticker->section < sets.size());
+				Assert(sticker->section >= 0 && sticker->section < sets.size());
 				auto &set = sets[sticker->section];
-				t_assert(sticker->index >= 0 && sticker->index < set.pack.size());
+				Assert(sticker->index >= 0 && sticker->index < set.pack.size());
 				Ui::showMediaPreview(set.pack[sticker->index]);
 			}
 		}
@@ -1524,9 +1524,9 @@ void StickersListWidget::onSettings() {
 void StickersListWidget::onPreview() {
 	if (auto sticker = base::get_if<OverSticker>(&_pressed)) {
 		auto &sets = shownSets();
-		t_assert(sticker->section >= 0 && sticker->section < sets.size());
+		Assert(sticker->section >= 0 && sticker->section < sets.size());
 		auto &set = sets[sticker->section];
-		t_assert(sticker->index >= 0 && sticker->index < set.pack.size());
+		Assert(sticker->index >= 0 && sticker->index < set.pack.size());
 		Ui::showMediaPreview(set.pack[sticker->index]);
 		_previewShown = true;
 	}

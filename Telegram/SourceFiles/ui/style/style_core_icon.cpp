@@ -45,7 +45,7 @@ inline int pxAdjust(int value, int scale) {
 QImage createIconMask(const IconMask *mask, DBIScale scale) {
 	auto maskImage = QImage::fromData(mask->data(), mask->size(), "PNG");
 	maskImage.setDevicePixelRatio(cRetinaFactor());
-	t_assert(!maskImage.isNull());
+	Assert(!maskImage.isNull());
 
 	// images are layouted like this:
 	// 200x 100x
@@ -89,7 +89,7 @@ QSize readGeneratedSize(const IconMask *mask, DBIScale scale) {
 
 			qint32 width = 0, height = 0;
 			stream >> width >> height;
-			t_assert(stream.status() == QDataStream::Ok);
+			Assert(stream.status() == QDataStream::Ok);
 
 			switch (scale) {
 			case dbisOne: return QSize(width, height);
@@ -284,8 +284,8 @@ void IconData::fill(QPainter &p, const QRect &rect) const {
 
 	auto partSize = _parts[0].size();
 	for_const (auto &part, _parts) {
-		t_assert(part.offset() == QPoint(0, 0));
-		t_assert(part.size() == partSize);
+		Assert(part.offset() == QPoint(0, 0));
+		Assert(part.size() == partSize);
 		part.fill(p, rect);
 	}
 }
@@ -295,16 +295,16 @@ void IconData::fill(QPainter &p, const QRect &rect, QColor colorOverride) const 
 
 	auto partSize = _parts[0].size();
 	for_const (auto &part, _parts) {
-		t_assert(part.offset() == QPoint(0, 0));
-		t_assert(part.size() == partSize);
+		Assert(part.offset() == QPoint(0, 0));
+		Assert(part.size() == partSize);
 		part.fill(p, rect, colorOverride);
 	}
 }
 
 QImage IconData::instance(QColor colorOverride, DBIScale scale) const {
-	t_assert(_parts.size() == 1);
+	Assert(_parts.size() == 1);
 	auto &part = _parts[0];
-	t_assert(part.offset() == QPoint(0, 0));
+	Assert(part.offset() == QPoint(0, 0));
 	return part.instance(colorOverride, scale);
 }
 

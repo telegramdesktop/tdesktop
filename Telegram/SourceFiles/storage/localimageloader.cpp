@@ -343,7 +343,7 @@ void FileLoadTask::process() {
 		// Voice sending is supported only from memory for now.
 		// Because for voice we force mime type and don't read MediaInformation.
 		// For a real file we always read mime type and read MediaInformation.
-		t_assert(!isVoice);
+		Assert(!isVoice);
 
 		filesize = info.size();
 		filename = info.fileName();

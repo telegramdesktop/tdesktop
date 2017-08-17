@@ -27,7 +27,7 @@ namespace parse {
 QByteArray stripComments(const QByteArray &content);
 
 inline bool skipWhitespaces(const char *&from, const char *end) {
-	t_assert(from <= end);
+	Assert(from <= end);
 	while (from != end && (
 		(*from == ' ') ||
 		(*from == '\n') ||
@@ -39,7 +39,7 @@ inline bool skipWhitespaces(const char *&from, const char *end) {
 }
 
 inline QLatin1String readName(const char *&from, const char *end) {
-	t_assert(from <= end);
+	Assert(from <= end);
 	auto start = from;
 	while (from != end && (
 		(*from >= 'a' && *from <= 'z') ||

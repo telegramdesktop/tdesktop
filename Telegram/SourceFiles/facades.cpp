@@ -372,17 +372,17 @@ void unreadCounterUpdated() {
 } // namespace Notify
 
 #define DefineReadOnlyVar(Namespace, Type, Name) const Type &Name() { \
-	t_assert_full(Namespace##Data != 0, #Namespace "Data != nullptr in " #Namespace "::" #Name, __FILE__, __LINE__); \
+	AssertCustom(Namespace##Data != nullptr, #Namespace "Data != nullptr in " #Namespace "::" #Name); \
 	return Namespace##Data->Name; \
 }
 #define DefineRefVar(Namespace, Type, Name) DefineReadOnlyVar(Namespace, Type, Name) \
 Type &Ref##Name() { \
-	t_assert_full(Namespace##Data != 0, #Namespace "Data != nullptr in " #Namespace "::Ref" #Name, __FILE__, __LINE__); \
+	AssertCustom(Namespace##Data != nullptr, #Namespace "Data != nullptr in " #Namespace "::Ref" #Name); \
 	return Namespace##Data->Name; \
 }
 #define DefineVar(Namespace, Type, Name) DefineRefVar(Namespace, Type, Name) \
 void Set##Name(const Type &Name) { \
-	t_assert_full(Namespace##Data != 0, #Namespace "Data != nullptr in " #Namespace "::Set" #Name, __FILE__, __LINE__); \
+	AssertCustom(Namespace##Data != nullptr, #Namespace "Data != nullptr in " #Namespace "::Set" #Name); \
 	Namespace##Data->Name = Name; \
 }
 

@@ -207,7 +207,7 @@ void InitOnTopPanel(QWidget *panel) {
 	panel->createWinId();
 
 	auto platformWindow = [reinterpret_cast<NSView*>(panel->winId()) window];
-	t_assert([platformWindow isKindOfClass:[NSPanel class]]);
+	Assert([platformWindow isKindOfClass:[NSPanel class]]);
 
 	auto platformPanel = static_cast<NSPanel*>(platformWindow);
 	[platformPanel setLevel:NSPopUpMenuWindowLevel];
@@ -220,7 +220,7 @@ void InitOnTopPanel(QWidget *panel) {
 
 void DeInitOnTopPanel(QWidget *panel) {
 	auto platformWindow = [reinterpret_cast<NSView*>(panel->winId()) window];
-	t_assert([platformWindow isKindOfClass:[NSPanel class]]);
+	Assert([platformWindow isKindOfClass:[NSPanel class]]);
 
 	auto platformPanel = static_cast<NSPanel*>(platformWindow);
 	auto newBehavior = ([platformPanel collectionBehavior] & (~NSWindowCollectionBehaviorCanJoinAllSpaces)) | NSWindowCollectionBehaviorMoveToActiveSpace;
@@ -229,7 +229,7 @@ void DeInitOnTopPanel(QWidget *panel) {
 
 void ReInitOnTopPanel(QWidget *panel) {
 	auto platformWindow = [reinterpret_cast<NSView*>(panel->winId()) window];
-	t_assert([platformWindow isKindOfClass:[NSPanel class]]);
+	Assert([platformWindow isKindOfClass:[NSPanel class]]);
 
 	auto platformPanel = static_cast<NSPanel*>(platformWindow);
 	auto newBehavior = ([platformPanel collectionBehavior] & (~NSWindowCollectionBehaviorMoveToActiveSpace)) | NSWindowCollectionBehaviorCanJoinAllSpaces;

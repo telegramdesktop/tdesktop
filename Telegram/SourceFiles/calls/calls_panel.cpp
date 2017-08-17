@@ -85,10 +85,10 @@ Panel::Button::Button(QWidget *parent, const style::CallButton &stFrom, const st
 	_bgMask = prepareRippleMask();
 	_bgFrom = App::pixmapFromImageInPlace(style::colorizeImage(_bgMask, _stFrom->bg));
 	if (_stTo) {
-		t_assert(_stFrom->button.width == _stTo->button.width);
-		t_assert(_stFrom->button.height == _stTo->button.height);
-		t_assert(_stFrom->button.rippleAreaPosition == _stTo->button.rippleAreaPosition);
-		t_assert(_stFrom->button.rippleAreaSize == _stTo->button.rippleAreaSize);
+		Assert(_stFrom->button.width == _stTo->button.width);
+		Assert(_stFrom->button.height == _stTo->button.height);
+		Assert(_stFrom->button.rippleAreaPosition == _stTo->button.rippleAreaPosition);
+		Assert(_stFrom->button.rippleAreaSize == _stTo->button.rippleAreaSize);
 
 		_bg = QImage(_bgMask.size(), QImage::Format_ARGB32_Premultiplied);
 		_bg.setDevicePixelRatio(cRetinaFactor());

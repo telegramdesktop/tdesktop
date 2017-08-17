@@ -181,22 +181,22 @@ namespace {
 	int _ffmpegLockManager(void **mutex, AVLockOp op) {
 		switch (op) {
 		case AV_LOCK_CREATE: {
-			t_assert(*mutex == 0);
+			Assert(*mutex == 0);
 			*mutex = reinterpret_cast<void*>(new QMutex());
 		} break;
 
 		case AV_LOCK_OBTAIN: {
-			t_assert(*mutex != 0);
+			Assert(*mutex != 0);
 			reinterpret_cast<QMutex*>(*mutex)->lock();
 		} break;
 
 		case AV_LOCK_RELEASE: {
-			t_assert(*mutex != 0);
+			Assert(*mutex != 0);
 			reinterpret_cast<QMutex*>(*mutex)->unlock();
 		}; break;
 
 		case AV_LOCK_DESTROY: {
-			t_assert(*mutex != 0);
+			Assert(*mutex != 0);
 			delete reinterpret_cast<QMutex*>(*mutex);
 			*mutex = 0;
 		} break;
@@ -662,7 +662,7 @@ char *hashMd5Hex(const int32 *hashmd5, void *dest) {
 }
 
 void memset_rand(void *data, uint32 len) {
-	t_assert(_sslInited);
+	Assert(_sslInited);
 	RAND_bytes((uchar*)data, len);
 }
 

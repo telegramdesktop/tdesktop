@@ -357,7 +357,7 @@ public:
 	}
 
 	inline Return operator()(Args... args) {
-		t_assert(data_.vtable != nullptr);
+		Assert(data_.vtable != nullptr);
 		return data_.vtable->call(data_.storage, std::forward<Args>(args)...);
 	}
 
@@ -429,7 +429,7 @@ public:
 	}
 
 	inline Return operator()(Args... args) const {
-		t_assert(this->data_.vtable != nullptr);
+		Assert(this->data_.vtable != nullptr);
 		return this->data_.vtable->const_call(this->data_.storage, std::forward<Args>(args)...);
 	}
 

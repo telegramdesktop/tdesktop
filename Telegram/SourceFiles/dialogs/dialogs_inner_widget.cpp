@@ -729,7 +729,7 @@ int DialogsInner::updateReorderIndexGetCount() {
 	}
 
 	auto count = shownPinnedCount();
-	t_assert(index < count);
+	Assert(index < count);
 	if (count < 2) {
 		stopReorderPinned();
 		return 0;

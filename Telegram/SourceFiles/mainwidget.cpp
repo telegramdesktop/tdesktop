@@ -381,7 +381,7 @@ void MainWidget::removeFloatPlayer(not_null<Float*> instance) {
 	auto i = std::find_if(_playerFloats.begin(), _playerFloats.end(), [instance](auto &item) {
 		return (item.get() == instance);
 	});
-	t_assert(i != _playerFloats.end());
+	Assert(i != _playerFloats.end());
 	_playerFloats.erase(i);
 
 	// ~QWidget() can call HistoryInner::enterEvent() which can
@@ -1118,7 +1118,7 @@ void MainWidget::deleteAndExit(ChatData *chat) {
 }
 
 void MainWidget::deleteAllFromUser(ChannelData *channel, UserData *from) {
-	t_assert(channel != nullptr && from != nullptr);
+	Assert(channel != nullptr && from != nullptr);
 
 	QVector<MsgId> toDestroy;
 	if (auto history = App::historyLoaded(channel->id)) {
@@ -5189,7 +5189,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				App::histories().clearPinned();
 				for (auto i = order.size(); i != 0;) {
 					auto history = App::historyLoaded(peerFromMTP(order[--i]));
-					t_assert(history != nullptr);
+					Assert(history != nullptr);
 					history->setPinnedDialog(true);
 				}
 			} else {

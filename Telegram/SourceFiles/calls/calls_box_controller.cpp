@@ -251,7 +251,7 @@ void BoxController::rowClicked(not_null<PeerListRow*> row) {
 
 void BoxController::rowActionClicked(not_null<PeerListRow*> row) {
 	auto user = row->peer()->asUser();
-	t_assert(user != nullptr);
+	Assert(user != nullptr);
 
 	Current().startOutgoingCall(user);
 }
@@ -323,7 +323,7 @@ BoxController::Row *BoxController::rowForItem(HistoryItem *item) {
 		// In that case we sometimes need to return rowAt(left + 1), not rowAt(left).
 		if (result->minItemId() > itemId && left + 1 < fullRowsCount) {
 			auto possibleResult = static_cast<Row*>(v->peerListRowAt(left + 1).get());
-			t_assert(possibleResult->maxItemId() < itemId);
+			Assert(possibleResult->maxItemId() < itemId);
 			if (possibleResult->canAddItem(item)) {
 				return possibleResult;
 			}

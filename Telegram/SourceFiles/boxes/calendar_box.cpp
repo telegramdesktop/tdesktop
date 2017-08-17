@@ -148,7 +148,7 @@ void CalendarBox::Context::skipMonth(int skip) {
 }
 
 int CalendarBox::Context::daysShiftForMonth(QDate month) {
-	t_assert(!month.isNull());
+	Assert(!month.isNull());
 	constexpr auto kMaxRows = 6;
 	auto inMonthIndex = month.day() - 1;
 	auto inWeekIndex = month.dayOfWeek() - 1;
@@ -156,7 +156,7 @@ int CalendarBox::Context::daysShiftForMonth(QDate month) {
 }
 
 int CalendarBox::Context::rowsCountForMonth(QDate month) {
-	t_assert(!month.isNull());
+	Assert(!month.isNull());
 	auto daysShift = daysShiftForMonth(month);
 	auto daysCount = month.daysInMonth();
 	auto cellsCount = daysShift + daysCount;
@@ -360,7 +360,7 @@ void CalendarBox::Inner::mousePressEvent(QMouseEvent *e) {
 	setPressed(_selected);
 	if (_selected != kEmptySelection) {
 		auto index = _selected + _context->daysShift();
-		t_assert(index >= 0);
+		Assert(index >= 0);
 
 		auto row = index / kDaysInWeek;
 		auto col = index % kDaysInWeek;

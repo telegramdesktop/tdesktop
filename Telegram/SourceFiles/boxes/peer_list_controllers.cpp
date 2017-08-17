@@ -445,8 +445,8 @@ void AddParticipantsBoxController::Start(not_null<ChatData*> chat) {
 				auto users = std::vector<not_null<UserData*>>();
 				for (auto peer : rows) {
 					auto user = peer->asUser();
-					t_assert(user != nullptr);
-					t_assert(!user->isSelf());
+					Assert(user != nullptr);
+					Assert(!user->isSelf());
 					users.push_back(peer->asUser());
 				}
 				App::main()->addParticipants(chat, users);
@@ -470,8 +470,8 @@ void AddParticipantsBoxController::Start(
 				auto users = std::vector<not_null<UserData*>>();
 				for (auto peer : rows) {
 					auto user = peer->asUser();
-					t_assert(user != nullptr);
-					t_assert(!user->isSelf());
+					Assert(user != nullptr);
+					Assert(!user->isSelf());
 					users.push_back(peer->asUser());
 				}
 				App::main()->addParticipants(channel, users);
@@ -673,8 +673,8 @@ void EditChatAdminsBoxController::Start(not_null<ChatData*> chat) {
 				auto users = std::vector<not_null<UserData*>>();
 				for (auto peer : rows) {
 					auto user = peer->asUser();
-					t_assert(user != nullptr);
-					t_assert(!user->isSelf());
+					Assert(user != nullptr);
+					Assert(!user->isSelf());
 					users.push_back(peer->asUser());
 				}
 				Auth().api().editChatAdmins(chat, !controller->allAreAdmins(), { users.cbegin(), users.cend() });

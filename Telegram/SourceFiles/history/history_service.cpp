@@ -229,7 +229,7 @@ void HistoryService::setSelfDestruct(HistoryServiceSelfDestruct::Type type, int 
 
 bool HistoryService::updateDependent(bool force) {
 	auto dependent = GetDependentData();
-	t_assert(dependent != nullptr);
+	Assert(dependent != nullptr);
 
 	if (!force) {
 		if (!dependent->msgId || dependent->msg) {
@@ -626,7 +626,7 @@ void HistoryService::createFromMtp(const MTPDmessage &message) {
 	case mtpc_messageMediaPhoto: {
 		if (message.is_media_unread()) {
 			auto &photo = message.vmedia.c_messageMediaPhoto();
-			t_assert(photo.has_ttl_seconds());
+			Assert(photo.has_ttl_seconds());
 			setSelfDestruct(HistoryServiceSelfDestruct::Type::Photo, photo.vttl_seconds.v);
 			if (out()) {
 				setServiceText({ lang(lng_ttl_photo_sent) });
@@ -643,7 +643,7 @@ void HistoryService::createFromMtp(const MTPDmessage &message) {
 	case mtpc_messageMediaDocument: {
 		if (message.is_media_unread()) {
 			auto &document = message.vmedia.c_messageMediaDocument();
-			t_assert(document.has_ttl_seconds());
+			Assert(document.has_ttl_seconds());
 			setSelfDestruct(HistoryServiceSelfDestruct::Type::Video, document.vttl_seconds.v);
 			if (out()) {
 				setServiceText({ lang(lng_ttl_video_sent) });

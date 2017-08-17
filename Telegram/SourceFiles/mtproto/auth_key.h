@@ -75,7 +75,7 @@ public:
 
 	static void FillData(Data &authKey, base::const_byte_span computedAuthKey) {
 		auto computedAuthKeySize = computedAuthKey.size();
-		t_assert(computedAuthKeySize <= kSize);
+		Assert(computedAuthKeySize <= kSize);
 		auto authKeyBytes = gsl::make_span(authKey);
 		if (computedAuthKeySize < kSize) {
 			base::set_bytes(authKeyBytes.subspan(0, kSize - computedAuthKeySize), gsl::byte());

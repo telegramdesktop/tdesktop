@@ -118,8 +118,8 @@ void Call::start(base::const_byte_span random) {
 	// Save config here, because it is possible that it changes between
 	// different usages inside the same call.
 	_dhConfig = _delegate->getDhConfig();
-	t_assert(_dhConfig.g != 0);
-	t_assert(!_dhConfig.p.empty());
+	Assert(_dhConfig.g != 0);
+	Assert(!_dhConfig.p.empty());
 
 	generateModExpFirst(random);
 	if (_state == State::Starting || _state == State::Requesting) {
@@ -242,7 +242,7 @@ void Call::redial() {
 	if (_state != State::Busy) {
 		return;
 	}
-	t_assert(_controller == nullptr);
+	Assert(_controller == nullptr);
 	_type = Type::Outgoing;
 	setState(State::Requesting);
 	_answerAfterDhConfigReceived = false;

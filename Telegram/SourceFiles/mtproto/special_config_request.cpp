@@ -204,7 +204,7 @@ void SpecialConfigRequest::handleResponse(const QByteArray &bytes) {
 	if (!decryptSimpleConfig(bytes)) {
 		return;
 	}
-	t_assert(_simpleConfig.type() == mtpc_help_configSimple);
+	Assert(_simpleConfig.type() == mtpc_help_configSimple);
 	auto &config = _simpleConfig.c_help_configSimple();
 	auto now = unixtime();
 	if (now < config.vdate.v || now > config.vexpires.v) {
@@ -216,7 +216,7 @@ void SpecialConfigRequest::handleResponse(const QByteArray &bytes) {
 		return;
 	}
 	for (auto &entry : config.vip_port_list.v) {
-		t_assert(entry.type() == mtpc_ipPort);
+		Assert(entry.type() == mtpc_ipPort);
 		auto &ipPort = entry.c_ipPort();
 		auto ip = *reinterpret_cast<const uint32*>(&ipPort.vipv4.v);
 		auto ipString = qsl("%1.%2.%3.%4").arg((ip >> 24) & 0xFF).arg((ip >> 16) & 0xFF).arg((ip >> 8) & 0xFF).arg(ip & 0xFF);

@@ -501,7 +501,7 @@ Voice::Voice(DocumentData *voice, HistoryItem *parent, const style::OverviewFile
 , _st(st) {
 	AddComponents(Info::Bit());
 
-	t_assert(_data->voice() != 0);
+	Assert(_data->voice() != 0);
 
 	setDocumentLinks(_data);
 

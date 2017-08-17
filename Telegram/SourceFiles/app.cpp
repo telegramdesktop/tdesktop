@@ -1452,7 +1452,7 @@ namespace {
 			} else if (peerIsChannel(id)) {
 				newData = new ChannelData(id);
 			}
-			t_assert(newData != nullptr);
+			Assert(newData != nullptr);
 
 			newData->input = MTPinputPeer(MTP_inputPeerEmpty());
 			i = peersData.insert(id, newData);

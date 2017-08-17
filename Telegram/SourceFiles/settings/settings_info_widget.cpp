@@ -189,7 +189,7 @@ int InfoWidget::LabeledWidget::resizeGetHeight(int newWidth) {
 
 	_label->moveToLeft(0, st::settingsBlockOneLineTextPart.margin.top(), newWidth);
 	auto labelNatural = _label->naturalWidth();
-	t_assert(labelNatural >= 0);
+	Assert(labelNatural >= 0);
 
 	_label->resize(qMin(newWidth, labelNatural), _label->height());
 

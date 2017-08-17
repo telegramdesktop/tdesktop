@@ -262,7 +262,7 @@ void Inner::enterFromChildEvent(QEvent *e, QWidget *child) {
 void Inner::clearSelection() {
 	if (_selected >= 0) {
 		int srow = _selected / MatrixRowShift, scol = _selected % MatrixRowShift;
-		t_assert(srow >= 0 && srow < _rows.size() && scol >= 0 && scol < _rows.at(srow).items.size());
+		Assert(srow >= 0 && srow < _rows.size() && scol >= 0 && scol < _rows.at(srow).items.size());
 		ClickHandler::clearActive(_rows.at(srow).items.at(scol));
 		setCursor(style::cur_default);
 	}
@@ -375,7 +375,7 @@ void Inner::deleteUnusedInlineLayouts() {
 
 Inner::Row &Inner::layoutInlineRow(Row &row, int32 sumWidth) {
 	auto count = int(row.items.size());
-	t_assert(count <= kInlineItemsMaxPerRow);
+	Assert(count <= kInlineItemsMaxPerRow);
 
 	// enumerate items in the order of growing maxWidth()
 	// for that sort item indices by maxWidth()
@@ -470,7 +470,7 @@ int Inner::refreshInlineRows(PeerData *queryPeer, UserData *bot, const CacheEntr
 
 	clearSelection();
 
-	t_assert(_inlineBot != 0);
+	Assert(_inlineBot != 0);
 
 	auto count = int(entry->results.size());
 	auto from = validateExistingInlineRows(entry->results);
@@ -588,7 +588,7 @@ bool Inner::inlineItemVisible(const ItemBase *layout) {
 	}
 
 	int row = position / MatrixRowShift, col = position % MatrixRowShift;
-	t_assert((row < _rows.size()) && (col < _rows[row].items.size()));
+	Assert((row < _rows.size()) && (col < _rows[row].items.size()));
 
 	auto &inlineItems = _rows[row].items;
 	int top = st::stickerPanPadding;
@@ -652,12 +652,12 @@ void Inner::updateSelected() {
 	int scol = (_selected >= 0) ? (_selected % MatrixRowShift) : -1;
 	if (_selected != sel) {
 		if (srow >= 0 && scol >= 0) {
-			t_assert(srow >= 0 && srow < _rows.size() && scol >= 0 && scol < _rows.at(srow).items.size());
+			Assert(srow >= 0 && srow < _rows.size() && scol >= 0 && scol < _rows.at(srow).items.size());
 			_rows[srow].items[scol]->update();
 		}
 		_selected = sel;
 		if (row >= 0 && col >= 0) {
-			t_assert(row >= 0 && row < _rows.size() && col >= 0 && col < _rows.at(row).items.size());
+			Assert(row >= 0 && row < _rows.size() && col >= 0 && col < _rows.at(row).items.size());
 			_rows[row].items[col]->update();
 		}
 		if (_previewShown && _selected >= 0 && _pressed != _selected) {
@@ -811,7 +811,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 	}
 
 	if (showAnimating) {
-		t_assert(_showAnimation != nullptr);
+		Assert(_showAnimation != nullptr);
 		if (auto opacity = _a_opacity.current(_hiding ? 0. : 1.)) {
 			_showAnimation->paintFrame(p, 0, 0, width(), _a_show.current(1.), opacity);
 		}

@@ -117,3 +117,15 @@ namespace SignalHandlers {
 	}
 
 }
+
+namespace base {
+namespace assertion {
+
+inline void log(const char *message, const char *file, int line) {
+	auto info = QStringLiteral("%1 %2:%3").arg(message).arg(file).arg(line);
+	LOG(("Assertion Failed! ") + info);
+	SignalHandlers::setCrashAnnotation("Assertion", info);
+}
+
+} // namespace assertion
+} // namespace base

@@ -232,14 +232,14 @@ void Instance::Private::start(Config &&config) {
 
 	if (isKeysDestroyer()) {
 		for (auto &dc : _dcenters) {
-			t_assert(!MustNotCreateSessions);
+			Assert(!MustNotCreateSessions);
 			auto shiftedDcId = dc.first;
 			auto session = std::make_unique<internal::Session>(_instance, shiftedDcId);
 			auto it = _sessions.emplace(shiftedDcId, std::move(session)).first;
 			it->second->start();
 		}
 	} else if (_mainDcId != Config::kNoneMainDc) {
-		t_assert(!MustNotCreateSessions);
+		Assert(!MustNotCreateSessions);
 		auto main = std::make_unique<internal::Session>(_instance, _mainDcId);
 		_mainSession = main.get();
 		_sessions.emplace(_mainDcId, std::move(main));
@@ -248,7 +248,7 @@ void Instance::Private::start(Config &&config) {
 
 	_checkDelayedTimer.setCallback([this] { checkDelayedRequests(); });
 
-	t_assert((_mainDcId == Config::kNoneMainDc) == isKeysDestroyer());
+	Assert((_mainDcId == Config::kNoneMainDc) == isKeysDestroyer());
 	if (!isKeysDestroyer()) {
 		requestConfig();
 	}
@@ -324,12 +324,12 @@ void Instance::Private::restart(ShiftedDcId shiftedDcId) {
 
 int32 Instance::Private::dcstate(ShiftedDcId shiftedDcId) {
 	if (!shiftedDcId) {
-		t_assert(_mainSession != nullptr);
+		Assert(_mainSession != nullptr);
 		return _mainSession->getState();
 	}
 
 	if (!bareDcId(shiftedDcId)) {
-		t_assert(_mainSession != nullptr);
+		Assert(_mainSession != nullptr);
 		shiftedDcId += bareDcId(_mainSession->getDcWithShift());
 	}
 
@@ -343,11 +343,11 @@ int32 Instance::Private::dcstate(ShiftedDcId shiftedDcId) {
 
 QString Instance::Private::dctransport(ShiftedDcId shiftedDcId) {
 	if (!shiftedDcId) {
-		t_assert(_mainSession != nullptr);
+		Assert(_mainSession != nullptr);
 		return _mainSession->transport();
 	}
 	if (!bareDcId(shiftedDcId)) {
-		t_assert(_mainSession != nullptr);
+		Assert(_mainSession != nullptr);
 		shiftedDcId += bareDcId(_mainSession->getDcWithShift());
 	}
 
@@ -423,7 +423,7 @@ void Instance::Private::killSession(ShiftedDcId shiftedDcId) {
 	if (checkIfMainAndKill(shiftedDcId)) {
 		checkIfMainAndKill(_mainDcId);
 
-		t_assert(!MustNotCreateSessions);
+		Assert(!MustNotCreateSessions);
 		auto main = std::make_unique<internal::Session>(_instance, _mainDcId);
 		_mainSession = main.get();
 		_sessions.emplace(_mainDcId, std::move(main));
@@ -549,7 +549,7 @@ void Instance::Private::addKeysForDestroy(AuthKeysList &&keys) {
 		auto dc = std::make_shared<internal::Dcenter>(_instance, dcId, std::move(key));
 		_dcenters.emplace(shiftedDcId, std::move(dc));
 
-		t_assert(!MustNotCreateSessions);
+		Assert(!MustNotCreateSessions);
 		auto session = std::make_unique<internal::Session>(_instance, shiftedDcId);
 		auto it = _sessions.emplace(shiftedDcId, std::move(session)).first;
 		it->second->start();
@@ -1172,17 +1172,17 @@ bool Instance::Private::onErrorDefault(mtpRequestId requestId, const RPCError &e
 
 internal::Session *Instance::Private::getSession(ShiftedDcId shiftedDcId) {
 	if (!shiftedDcId) {
-		t_assert(_mainSession != nullptr);
+		Assert(_mainSession != nullptr);
 		return _mainSession;
 	}
 	if (!bareDcId(shiftedDcId)) {
-		t_assert(_mainSession != nullptr);
+		Assert(_mainSession != nullptr);
 		shiftedDcId += bareDcId(_mainSession->getDcWithShift());
 	}
 
 	auto it = _sessions.find(shiftedDcId);
 	if (it == _sessions.cend()) {
-		t_assert(!MustNotCreateSessions);
+		Assert(!MustNotCreateSessions);
 		it = _sessions.emplace(shiftedDcId, std::make_unique<internal::Session>(_instance, shiftedDcId)).first;
 		it->second->start();
 	}

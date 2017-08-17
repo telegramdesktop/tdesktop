@@ -213,7 +213,7 @@ void MainWindow::clearPasscode() {
 	if (_intro) {
 		_intro->showAnimated(bg, true);
 	} else {
-		t_assert(_main != nullptr);
+		Assert(_main != nullptr);
 		_main->showAnimated(bg, true);
 		Messenger::Instance().checkStartUrl();
 	}
@@ -299,7 +299,7 @@ void MainWindow::setupMain(const MTPUser *self) {
 
 	clearWidgets();
 
-	t_assert(AuthSession::Exists());
+	Assert(AuthSession::Exists());
 
 	_main.create(bodyWidget(), controller());
 	_main->show();
