@@ -2248,16 +2248,17 @@ void MainWidget::fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QStrin
 		Ui::showPeerProfile(peer);
 	});
 	auto muteSubscription = MakeShared<base::Subscription>();
-	QAction *muteAction;
-	if (!peer->isMuted()) {
-		muteAction = callback(lang(lng_disable_notifications_from_tray), [peer] {
+    auto muteAction = callback(!peer->isMuted() ? lang(lng_disable_notifications_from_tray) : lang(lng_enable_notifications_from_tray), [peer, muteSubscription] {
+		// We have to capture the muteSubscription pointer in this lambda for
+		// real time updates of the action when an user changes mute status of
+		// the peer on his (her) another device. Otherwise, the subscription
+		// will be destroyed ahead of time.
+		if (!peer->isMuted()) {
 			Ui::show(Box<MuteSettingsBox>(peer));
-		});
-	} else {
-		muteAction = callback(lang(lng_enable_notifications_from_tray), [peer] {
+		} else {
 			App::main()->updateNotifySetting(peer, NotifySettingSetNotify);
-		});
-	}
+		}
+	});
 	auto muteChangedHandler = Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::NotificationsEnabled, [muteAction, peer](const Notify::PeerUpdate &update) {
 		if (update.peer != peer) return;
 		muteAction->setText(lang(peer->isMuted() ? lng_enable_notifications_from_tray : lng_disable_notifications_from_tray));
