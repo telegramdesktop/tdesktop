@@ -320,15 +320,12 @@ void RowPainter::paint(Painter &p, const Row *row, int fullWidth, bool active, b
 		if (history->hasUnreadMentions()) {
 			auto counter = qsl("@");
 			auto unreadRight = fullWidth - st::dialogsPadding.x() - (namewidth - availableWidth);
-			if (hadOneBadge) {
-				unreadRight -= st::dialogsUnreadPadding;
-			}
 			auto unreadTop = texttop + st::dialogsTextFont->ascent - st::dialogsUnreadFont->ascent - (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2;
 			auto unreadWidth = 0;
 
 			UnreadBadgeStyle st;
 			st.active = active;
-			st.muted = history->mute();
+			st.muted = false;
 			st.padding = 0;
 			st.textTop = 0;
 			paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
