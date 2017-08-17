@@ -317,7 +317,7 @@ void PeerData::updateNameDelayed(const QString &newName, const QString &newNameO
 		}
 	}
 	fillNames();
-	Notify::peerUpdatedDelayed(update);
+	Notify::PeerUpdated().notify(update, true);
 }
 
 ClickHandlerPtr PeerData::createOpenLink() {
