@@ -422,9 +422,9 @@ void FileLoadTask::process() {
 
 	QVector<MTPDocumentAttribute> attributes(1, MTP_documentAttributeFilename(MTP_string(filename)));
 
-	MTPPhotoSize thumbSize(MTP_photoSizeEmpty(MTP_string("")));
-	MTPPhoto photo(MTP_photoEmpty(MTP_long(0)));
-	MTPDocument document(MTP_documentEmpty(MTP_long(0)));
+	auto thumbSize = MTP_photoSizeEmpty(MTP_string(""));
+	auto photo = MTP_photoEmpty(MTP_long(0));
+	auto document = MTP_documentEmpty(MTP_long(0));
 
 	if (!isVoice) {
 		if (!_information) {
@@ -538,6 +538,10 @@ void FileLoadTask::process() {
 
 			thumbId = rand_value<uint64>();
 		}
+	}
+
+	if (_type == SendMediaType::Photo && photo.type() == mtpc_photoEmpty) {
+		_type = SendMediaType::File;
 	}
 
 	if (isVoice) {
