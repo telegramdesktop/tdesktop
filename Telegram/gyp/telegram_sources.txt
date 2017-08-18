@@ -186,6 +186,8 @@
 <(src_loc)/history/history_service.h
 <(src_loc)/history/history_service_layout.cpp
 <(src_loc)/history/history_service_layout.h
+<(src_loc)/history/history_shared_media.cpp
+<(src_loc)/history/history_shared_media.h
 <(src_loc)/history/history_widget.cpp
 <(src_loc)/history/history_widget.h
 <(src_loc)/inline_bots/inline_bot_layout_internal.cpp

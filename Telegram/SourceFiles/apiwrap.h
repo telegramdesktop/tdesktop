@@ -28,6 +28,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 class AuthSession;
 
+namespace Storage {
+enum class SharedMediaType : char;
+} // namespace Storage
+
 namespace Api {
 
 inline const MTPVector<MTPChat> *getChatsFromMessagesChats(const MTPmessages_Chats &chats) {
@@ -108,6 +112,22 @@ public:
 		bool adminsEnabled,
 		base::flat_set<not_null<UserData*>> &&admins);
 
+	enum class SliceType {
+		Around,
+		Before,
+		After,
+	};
+	void requestSharedMedia(
+		not_null<PeerData*> peer,
+		Storage::SharedMediaType type,
+		MsgId messageId,
+		SliceType slice);
+	void requestSharedMediaCount(
+			not_null<PeerData*> peer,
+			Storage::SharedMediaType type) {
+		requestSharedMedia(peer, type, 0, SliceType::Before);
+	}
+
 	~ApiWrap();
 
 private:
@@ -117,6 +137,7 @@ private:
 		Callbacks callbacks;
 	};
 	using MessageDataRequests = QMap<MsgId, MessageDataRequest>;
+	using SharedMediaType = Storage::SharedMediaType;
 
 	void requestAppChangelogs();
 	void addLocalChangelogs(int oldAppVersion);
@@ -152,6 +173,13 @@ private:
 	void cancelEditChatAdmins(not_null<ChatData*> chat);
 	void saveChatAdmins(not_null<ChatData*> chat);
 	void sendSaveChatAdminsRequests(not_null<ChatData*> chat);
+
+	void sharedMediaDone(
+		not_null<PeerData*> peer,
+		SharedMediaType type,
+		MsgId messageId,
+		SliceType slice,
+		const MTPmessages_Messages &result);
 
 	not_null<AuthSession*> _session;
 	mtpRequestId _changelogSubscription = 0;
@@ -205,9 +233,21 @@ private:
 
 	base::flat_map<not_null<History*>, mtpRequestId> _unreadMentionsRequests;
 
-	base::flat_map<not_null<ChatData*>, mtpRequestId> _chatAdminsEnabledRequests;
-	base::flat_map<not_null<ChatData*>, base::flat_set<not_null<UserData*>>> _chatAdminsToSave;
-	base::flat_map<not_null<ChatData*>, base::flat_set<mtpRequestId>> _chatAdminsSaveRequests;
+	base::flat_map<
+		not_null<ChatData*>,
+		mtpRequestId> _chatAdminsEnabledRequests;
+	base::flat_map<
+		not_null<ChatData*>,
+		base::flat_set<not_null<UserData*>>> _chatAdminsToSave;
+	base::flat_map<
+		not_null<ChatData*>,
+		base::flat_set<mtpRequestId>> _chatAdminsSaveRequests;
+
+	base::flat_map<std::tuple<
+		not_null<PeerData*>,
+		SharedMediaType,
+		MsgId,
+		SliceType>, mtpRequestId> _sharedMediaRequests;
 
 	base::Observable<PeerData*> _fullPeerUpdated;
 

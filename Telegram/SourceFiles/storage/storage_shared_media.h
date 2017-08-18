@@ -122,25 +122,44 @@ struct SharedMediaRemoveAll {
 
 };
 
-struct SharedMediaQuery {
-	SharedMediaQuery(
+struct SharedMediaKey {
+	SharedMediaKey(
 		PeerId peerId,
 		SharedMediaType type,
-		MsgId messageId,
-		int limitBefore,
-		int limitAfter)
+		MsgId messageId)
 		: peerId(peerId)
-		, messageId(messageId)
-		, limitBefore(limitBefore)
-		, limitAfter(limitAfter)
-		, type(type) {
+		, type(type)
+		, messageId(messageId) {
+	}
+
+	bool operator==(const SharedMediaKey &other) const {
+		return (peerId == other.peerId)
+			&& (type == other.type)
+			&& (messageId == other.messageId);
+	}
+	bool operator!=(const SharedMediaKey &other) const {
+		return !(*this == other);
 	}
 
 	PeerId peerId = 0;
+	SharedMediaType type = SharedMediaType::kCount;
 	MsgId messageId = 0;
+
+};
+
+struct SharedMediaQuery {
+	SharedMediaQuery(
+		SharedMediaKey key,
+		int limitBefore,
+		int limitAfter)
+		: key(key)
+		, limitBefore(limitBefore)
+		, limitAfter(limitAfter) {
+	}
+
+	SharedMediaKey key;
 	int limitBefore = 0;
 	int limitAfter = 0;
-	SharedMediaType type = SharedMediaType::kCount;
 
 };
 
@@ -148,10 +167,31 @@ struct SharedMediaResult {
 	base::optional<int> count;
 	base::optional<int> skippedBefore;
 	base::optional<int> skippedAfter;
-	std::vector<MsgId> messageIds;
+	base::flat_set<MsgId> messageIds;
 };
 
-class SharedMedia {
+struct SharedMediaSliceUpdate {
+	SharedMediaSliceUpdate(
+		PeerId peerId,
+		SharedMediaType type,
+		const base::flat_set<MsgId> *messages,
+		MsgRange range,
+		base::optional<int> count)
+		: peerId(peerId)
+		, type(type)
+		, messages(messages)
+		, range(range)
+		, count(count) {
+	}
+
+	PeerId peerId = 0;
+	SharedMediaType type = SharedMediaType::kCount;
+	const base::flat_set<MsgId> *messages = nullptr;
+	MsgRange range;
+	base::optional<int> count;
+};
+
+class SharedMedia : private base::Subscriber {
 public:
 	using Type = SharedMediaType;
 
@@ -163,6 +203,10 @@ public:
 	void query(
 		const SharedMediaQuery &query,
 		base::lambda_once<void(SharedMediaResult&&)> &&callback);
+
+	base::Observable<SharedMediaSliceUpdate> sliceUpdated;
+	base::Observable<SharedMediaRemoveOne> oneRemoved;
+	base::Observable<SharedMediaRemoveAll> allRemoved;
 
 private:
 	class List {
@@ -178,6 +222,13 @@ private:
 		void query(
 			const SharedMediaQuery &query,
 			base::lambda_once<void(SharedMediaResult&&)> &&callback);
+
+		struct SliceUpdate {
+			const base::flat_set<MsgId> *messages = nullptr;
+			MsgRange range;
+			base::optional<int> count;
+		};
+		base::Observable<SliceUpdate> sliceUpdated;
 
 	private:
 		struct Slice {
@@ -197,20 +248,23 @@ private:
 
 		template <typename Range>
 		int uniteAndAdd(
+			SliceUpdate &update,
 			base::flat_set<Slice>::iterator uniteFrom,
 			base::flat_set<Slice>::iterator uniteTill,
 			const Range &messages,
 			MsgRange noSkipRange);
 		template <typename Range>
 		int addRangeItemsAndCount(
+			SliceUpdate &update,
 			const Range &messages,
 			MsgRange noSkipRange,
 			base::optional<int> count);
 		template <typename Range>
-		int addRange(
+		void addRange(
 			const Range &messages,
 			MsgRange noSkipRange,
-			base::optional<int> count);
+			base::optional<int> count,
+			bool incrementCount = false);
 
 		SharedMediaResult queryFromSlice(
 			const SharedMediaQuery &query,
@@ -220,7 +274,10 @@ private:
 		base::flat_set<Slice> _slices;
 
 	};
+	using SliceUpdate = List::SliceUpdate;
 	using Lists = std::array<List, kSharedMediaTypeCount>;
+
+	std::map<PeerId, Lists>::iterator enforceLists(PeerId peerId);
 
 	std::map<PeerId, Lists> _lists;
 

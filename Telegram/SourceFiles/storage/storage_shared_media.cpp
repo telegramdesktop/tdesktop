@@ -47,15 +47,16 @@ void SharedMedia::List::Slice::merge(
 
 template <typename Range>
 int SharedMedia::List::uniteAndAdd(
+		SliceUpdate &update,
 		base::flat_set<Slice>::iterator uniteFrom,
 		base::flat_set<Slice>::iterator uniteTill,
 		const Range &messages,
 		MsgRange noSkipRange) {
+	auto uniteFromIndex = uniteFrom - _slices.begin();
 	auto was = uniteFrom->messages.size();
 	_slices.modify(uniteFrom, [&](Slice &slice) {
 		slice.merge(messages, noSkipRange);
 	});
-	auto result = uniteFrom->messages.size() - was;
 	auto firstToErase = uniteFrom + 1;
 	if (firstToErase != uniteTill) {
 		for (auto it = firstToErase; it != uniteTill; ++it) {
@@ -64,21 +65,21 @@ int SharedMedia::List::uniteAndAdd(
 			});
 		}
 		_slices.erase(firstToErase, uniteTill);
+		uniteFrom = _slices.begin() + uniteFromIndex;
 	}
-	return result;
+	update.messages = &uniteFrom->messages;
+	update.range = uniteFrom->range;
+	return uniteFrom->messages.size() - was;
 }
 
 template <typename Range>
 int SharedMedia::List::addRangeItemsAndCount(
+		SliceUpdate &update,
 		const Range &messages,
 		MsgRange noSkipRange,
 		base::optional<int> count) {
 	Expects((noSkipRange.from < noSkipRange.till)
 		|| (noSkipRange.from == noSkipRange.till && messages.begin() == messages.end()));
-
-	if (count) {
-		_count = count;
-	}
 	if (noSkipRange.from == noSkipRange.till) {
 		return 0;
 	}
@@ -92,7 +93,7 @@ int SharedMedia::List::addRangeItemsAndCount(
 		noSkipRange.till,
 		[](MsgId till, const Slice &slice) { return till < slice.range.from; });
 	if (uniteFrom < uniteTill) {
-		return uniteAndAdd(uniteFrom, uniteTill, messages, noSkipRange);
+		return uniteAndAdd(update, uniteFrom, uniteTill, messages, noSkipRange);
 	}
 
 	auto sliceMessages = base::flat_set<MsgId> {
@@ -101,29 +102,39 @@ int SharedMedia::List::addRangeItemsAndCount(
 	auto slice = _slices.emplace(
 		std::move(sliceMessages),
 		noSkipRange);
+	update.messages = &slice->messages;
+	update.range = slice->range;
 	return slice->messages.size();
 }
 
 template <typename Range>
-int SharedMedia::List::addRange(
+void SharedMedia::List::addRange(
 		const Range &messages,
 		MsgRange noSkipRange,
-		base::optional<int> count) {
-	auto result = addRangeItemsAndCount(messages, noSkipRange, count);
+		base::optional<int> count,
+		bool incrementCount) {
+	Expects(!count || !incrementCount);
+
+	auto wasCount = _count;
+	auto update = SliceUpdate();
+	auto result = addRangeItemsAndCount(update, messages, noSkipRange, count);
+	if (count) {
+		_count = count;
+	} else if (incrementCount && _count && result > 0) {
+		*_count += result;
+	}
 	if (_slices.size() == 1) {
 		if (_slices.front().range == MsgRange { 0, ServerMaxMsgId }) {
 			_count = _slices.front().messages.size();
 		}
 	}
-	return result;
+	update.count = _count;
+	sliceUpdated.notify(update, true);
 }
 
 void SharedMedia::List::addNew(MsgId messageId) {
 	auto range = { messageId };
-	auto added = addRange(range, { messageId, ServerMaxMsgId }, base::none);
-	if (added > 0 && _count) {
-		*_count += added;
-	}
+	addRange(range, { messageId, ServerMaxMsgId }, base::none, true);
 }
 
 void SharedMedia::List::addExisting(
@@ -169,9 +180,9 @@ void SharedMedia::List::query(
 
 	auto slice = base::lower_bound(
 		_slices,
-		query.messageId,
+		query.key.messageId,
 		[](const Slice &slice, MsgId id) { return slice.range.till < id; });
-	if (slice != _slices.end() && slice->range.from <= query.messageId) {
+	if (slice != _slices.end() && slice->range.from <= query.key.messageId) {
 		result = queryFromSlice(query, *slice);
 	} else {
 		result.count = _count;
@@ -189,18 +200,20 @@ SharedMediaResult SharedMedia::List::queryFromSlice(
 		const SharedMediaQuery &query,
 		const Slice &slice) {
 	auto result = SharedMediaResult {};
-	auto position = base::lower_bound(slice.messages, query.messageId);
-	auto haveBefore = position - slice.messages.begin();
-	auto haveEqualOrAfter = slice.messages.end() - position;
+	auto position = base::lower_bound(slice.messages, query.key.messageId);
+	auto haveBefore = int(position - slice.messages.begin());
+	auto haveEqualOrAfter = int(slice.messages.end() - position);
 	auto before = qMin(haveBefore, query.limitBefore);
 	auto equalOrAfter = qMin(haveEqualOrAfter, query.limitAfter + 1);
-	result.messageIds.reserve(before + equalOrAfter);
+	auto ids = std::vector<MsgId>();
+	ids.reserve(before + equalOrAfter);
 	for (
 		auto from = position - before, till = position + equalOrAfter;
 		from != till;
 		++from) {
-		result.messageIds.push_back(*from);
+		ids.push_back(*from);
 	}
+	result.messageIds.merge(ids.begin(), ids.end());
 	if (slice.range.from == 0) {
 		result.skippedBefore = haveBefore - before;
 	}
@@ -212,21 +225,41 @@ SharedMediaResult SharedMedia::List::queryFromSlice(
 		if (!result.skippedBefore && result.skippedAfter) {
 			result.skippedBefore = *result.count
 				- *result.skippedAfter
-				- result.messageIds.size();
+				- int(result.messageIds.size());
 		} else if (!result.skippedAfter && result.skippedBefore) {
 			result.skippedAfter = *result.count
 				- *result.skippedBefore
-				- result.messageIds.size();
+				- int(result.messageIds.size());
 		}
 	}
 	return result;
 }
 
-void SharedMedia::add(SharedMediaAddNew &&query) {
-	auto peerIt = _lists.find(query.peerId);
-	if (peerIt == _lists.end()) {
-		peerIt = _lists.emplace(query.peerId, Lists {}).first;
+std::map<PeerId, SharedMedia::Lists>::iterator
+		SharedMedia::enforceLists(PeerId peer) {
+	auto result = _lists.find(peer);
+	if (result != _lists.end()) {
+		return result;
 	}
+	result = _lists.emplace(peer, Lists {}).first;
+	for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
+		auto &list = result->second[index];
+		auto type = static_cast<SharedMediaType>(index);
+		subscribe(list.sliceUpdated, [this, type, peer](const SliceUpdate &update) {
+			sliceUpdated.notify(SharedMediaSliceUpdate(
+				peer,
+				type,
+				update.messages,
+				update.range,
+				update.count), true);
+		});
+	}
+	return result;
+}
+
+void SharedMedia::add(SharedMediaAddNew &&query) {
+	auto peer = query.peerId;
+	auto peerIt = enforceLists(peer);
 	for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
 		auto type = static_cast<SharedMediaType>(index);
 		if (query.types.test(type)) {
@@ -236,10 +269,7 @@ void SharedMedia::add(SharedMediaAddNew &&query) {
 }
 
 void SharedMedia::add(SharedMediaAddExisting &&query) {
-	auto peerIt = _lists.find(query.peerId);
-	if (peerIt == _lists.end()) {
-		peerIt = _lists.emplace(query.peerId, Lists {}).first;
-	}
+	auto peerIt = enforceLists(query.peerId);
 	for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
 		auto type = static_cast<SharedMediaType>(index);
 		if (query.types.test(type)) {
@@ -250,10 +280,7 @@ void SharedMedia::add(SharedMediaAddExisting &&query) {
 
 void SharedMedia::add(SharedMediaAddSlice &&query) {
 	Expects(IsValidSharedMediaType(query.type));
-	auto peerIt = _lists.find(query.peerId);
-	if (peerIt == _lists.end()) {
-		peerIt = _lists.emplace(query.peerId, Lists {}).first;
-	}
+	auto peerIt = enforceLists(query.peerId);
 	auto index = static_cast<int>(query.type);
 	peerIt->second[index].addSlice(std::move(query.messageIds), query.noSkipRange, query.count);
 }
@@ -265,6 +292,7 @@ void SharedMedia::remove(SharedMediaRemoveOne &&query) {
 			auto type = static_cast<SharedMediaType>(index);
 			if (query.types.test(type)) {
 				peerIt->second[index].removeOne(query.messageId);
+				oneRemoved.notify(query, true);
 			}
 		}
 	}
@@ -276,16 +304,17 @@ void SharedMedia::remove(SharedMediaRemoveAll &&query) {
 		for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
 			peerIt->second[index].removeAll();
 		}
+		allRemoved.notify(query, true);
 	}
 }
 
 void SharedMedia::query(
 		const SharedMediaQuery &query,
 		base::lambda_once<void(SharedMediaResult&&)> &&callback) {
-	Expects(IsValidSharedMediaType(query.type));
-	auto peerIt = _lists.find(query.peerId);
+	Expects(IsValidSharedMediaType(query.key.type));
+	auto peerIt = _lists.find(query.key.peerId);
 	if (peerIt != _lists.end()) {
-		auto index = static_cast<int>(query.type);
+		auto index = static_cast<int>(query.key.type);
 		peerIt->second[index].query(query, std::move(callback));
 	}
 }

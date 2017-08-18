@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/effects/radial_animation.h"
+#include "history/history_shared_media.h"
 
 namespace Media {
 namespace Player {
@@ -58,9 +59,9 @@ public:
 
 	void updateOver(QPoint mpos);
 
-	void showPhoto(PhotoData *photo, HistoryItem *context);
-	void showPhoto(PhotoData *photo, PeerData *context);
-	void showDocument(DocumentData *doc, HistoryItem *context);
+	void showPhoto(not_null<PhotoData*> photo, HistoryItem *context);
+	void showPhoto(not_null<PhotoData*> photo, PeerData *context);
+	void showDocument(not_null<DocumentData*> document, HistoryItem *context);
 	void moveToScreen();
 	bool moveToNext(int32 delta);
 	void preloadData(int32 delta);
@@ -154,13 +155,25 @@ private:
 	void showSaveMsgFile();
 	void updateMixerVideoVolume() const;
 
+	struct SharedMedia;
+	using SharedMediaType = SharedMediaViewer::Type;
+	using SharedMediaKey = SharedMediaViewer::Key;
+	base::optional<SharedMediaType> sharedMediaType() const;
+	base::optional<SharedMediaKey> sharedMediaKey() const;
+	void validateSharedMedia();
+	bool validSharedMedia() const;
+	std::unique_ptr<SharedMedia> createSharedMedia() const;
+	void refreshSharedMedia();
+	void handleSharedMediaUpdate(const SharedMediaSlice &update);
+	void refreshNavVisibility();
+
 	void dropdownHidden();
 	void updateDocSize();
 	void updateControls();
 	void updateActions();
 
-	void displayPhoto(PhotoData *photo, HistoryItem *item);
-	void displayDocument(DocumentData *doc, HistoryItem *item);
+	void displayPhoto(not_null<PhotoData*> photo, HistoryItem *item);
+	void displayDocument(DocumentData *document, HistoryItem *item);
 	void displayFinished();
 	void findCurrent();
 	void loadBack();
@@ -184,7 +197,7 @@ private:
 	void updateThemePreviewGeometry();
 
 	void documentUpdated(DocumentData *doc);
-	void changingMsgId(HistoryItem *row, MsgId newId);
+	void changingMsgId(not_null<HistoryItem*> row, MsgId newId);
 
 	// Radial animation interface.
 	float64 radialProgress() const;
@@ -230,7 +243,9 @@ private:
 
 	PhotoData *_photo = nullptr;
 	DocumentData *_doc = nullptr;
-	MediaOverviewType _overview = OverviewCount;
+	std::unique_ptr<SharedMedia> _sharedMedia;
+	base::optional<SharedMediaSlice> _sharedMediaData;
+
 	QRect _closeNav, _closeNavIcon;
 	QRect _leftNav, _leftNavIcon, _rightNav, _rightNavIcon;
 	QRect _headerNav, _nameNav, _dateNav;
@@ -308,7 +323,9 @@ private:
 	PeerData *_from = nullptr;
 	Text _fromName;
 
-	int _index = -1; // index in photos or files array, -1 if just photo
+	base::optional<int> _index; // Index in current _sharedMedia data.
+	base::optional<int> _fullIndex; // Index in full shared media.
+	base::optional<int> _fullCount;
 	MsgId _msgid = 0; // msgId of current photo or file
 	bool _msgmigrated = false; // msgId is from _migrated history
 	ChannelId _channel = NoChannel;

@@ -96,7 +96,7 @@ OverviewInner::OverviewInner(OverviewWidget *overview, Ui::ScrollArea *scroll, P
 	subscribe(App::wnd()->dragFinished(), [this] {
 		dragActionUpdate(QCursor::pos());
 	});
-	subscribe(Auth().messageIdChanging, [this](std::pair<HistoryItem*, MsgId> update) {
+	subscribe(Auth().messageIdChanging, [this](std::pair<not_null<HistoryItem*>, MsgId> update) {
 		changingMsgId(update.first, update.second);
 	});
 

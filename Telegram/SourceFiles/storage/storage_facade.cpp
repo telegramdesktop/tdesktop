@@ -35,6 +35,10 @@ public:
 		SharedMediaQuery &&query,
 		base::lambda_once<void(SharedMediaResult&&)> &&callback);
 
+	base::Observable<SharedMediaSliceUpdate> &sharedMediaSliceUpdated();
+	base::Observable<SharedMediaRemoveOne> &sharedMediaOneRemoved();
+	base::Observable<SharedMediaRemoveAll> &sharedMediaAllRemoved();
+
 private:
 	SharedMedia _sharedMedia;
 
@@ -66,6 +70,17 @@ void Facade::Impl::query(
 	_sharedMedia.query(query, std::move(callback));
 }
 
+base::Observable<SharedMediaSliceUpdate> &Facade::Impl::sharedMediaSliceUpdated() {
+	return _sharedMedia.sliceUpdated;
+}
+
+base::Observable<SharedMediaRemoveOne> &Facade::Impl::sharedMediaOneRemoved() {
+	return _sharedMedia.oneRemoved;
+}
+
+base::Observable<SharedMediaRemoveAll> &Facade::Impl::sharedMediaAllRemoved() {
+	return _sharedMedia.allRemoved;
+}
 
 Facade::Facade() : _impl(std::make_unique<Impl>()) {
 }
@@ -94,6 +109,18 @@ void Facade::query(
 		SharedMediaQuery &&query,
 		base::lambda_once<void(SharedMediaResult&&)> &&callback) {
 	_impl->query(std::move(query), std::move(callback));
+}
+
+base::Observable<SharedMediaSliceUpdate> &Facade::sharedMediaSliceUpdated() {
+	return _impl->sharedMediaSliceUpdated();
+}
+
+base::Observable<SharedMediaRemoveOne> &Facade::sharedMediaOneRemoved() {
+	return _impl->sharedMediaOneRemoved();
+}
+
+base::Observable<SharedMediaRemoveAll> &Facade::sharedMediaAllRemoved() {
+	return _impl->sharedMediaAllRemoved();
 }
 
 Facade::~Facade() = default;

@@ -227,7 +227,7 @@ public:
 	void checkAutoLockIn(TimeMs time);
 
 	base::Observable<DocumentData*> documentUpdated;
-	base::Observable<std::pair<HistoryItem*, MsgId>> messageIdChanging;
+	base::Observable<std::pair<not_null<HistoryItem*>, MsgId>> messageIdChanging;
 
 	~AuthSession();
 
