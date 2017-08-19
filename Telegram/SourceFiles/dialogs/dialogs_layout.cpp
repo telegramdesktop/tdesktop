@@ -296,7 +296,17 @@ void RowPainter::paint(Painter &p, const Row *row, int fullWidth, bool active, b
 		auto availableWidth = namewidth;
 		auto texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
 		auto hadOneBadge = false;
-		if (unreadCount) {
+		auto displayUnreadCounter = (unreadCount != 0);
+		auto displayMentionBadge = history->hasUnreadMentions();
+		auto displayPinnedIcon = !displayUnreadCounter && history->isPinnedDialog();
+		if (displayMentionBadge
+			&& unreadCount == 1
+			&& item
+			&& item->isMediaUnread()
+			&& item->mentionsMe()) {
+			displayUnreadCounter = false;
+		}
+		if (displayUnreadCounter) {
 			auto counter = QString::number(unreadCount);
 			auto mutedCounter = history->mute();
 			auto unreadRight = fullWidth - st::dialogsPadding.x();
@@ -310,14 +320,14 @@ void RowPainter::paint(Painter &p, const Row *row, int fullWidth, bool active, b
 			availableWidth -= unreadWidth + st.padding;
 
 			hadOneBadge = true;
-		} else if (history->isPinnedDialog()) {
+		} else if (displayPinnedIcon) {
 			auto &icon = (active ? st::dialogsPinnedIconActive : (selected ? st::dialogsPinnedIconOver : st::dialogsPinnedIcon));
 			icon.paint(p, fullWidth - st::dialogsPadding.x() - icon.width(), texttop, fullWidth);
 			availableWidth -= icon.width() + st::dialogsUnreadPadding;
 
 			hadOneBadge = true;
 		}
-		if (history->hasUnreadMentions()) {
+		if (displayMentionBadge) {
 			auto counter = qsl("@");
 			auto unreadRight = fullWidth - st::dialogsPadding.x() - (namewidth - availableWidth);
 			auto unreadTop = texttop + st::dialogsTextFont->ascent - st::dialogsUnreadFont->ascent - (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2;
