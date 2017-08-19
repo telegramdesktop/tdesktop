@@ -125,6 +125,8 @@ dialogsCancelSearchInPeer: IconButton(dialogsMenuToggle) {
 	icon: icon {{ "dialogs_cancel_search", dialogsMenuIconFg }};
 	iconOver: icon {{ "dialogs_cancel_search", dialogsMenuIconFgOver }};
 	iconPosition: point(11px, 11px);
+	rippleAreaPosition: point(3px, 3px);
+	rippleAreaSize: 34px;
 }
 dialogsCancelSearch: CrossButton {
 	width: 32px;
@@ -224,7 +226,7 @@ dialogsForwardFont: semiboldFont;
 dialogsSearchInHeight: 52px;
 dialogsSearchInPhotoSize: 36px;
 dialogsSearchInPhotoPadding: 10px;
-dialogsSearchInSkip: 6px;
+dialogsSearchInSkip: 7px;
 dialogsSearchFromStyle: TextStyle(defaultTextStyle) {
 	font: normalFont;
 	linkFont: semiboldFont;
