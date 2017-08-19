@@ -1202,7 +1202,15 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 	_caption = Text();
 	if (auto itemMsg = item ? item->toHistoryMessage() : nullptr) {
 		if (auto photoMsg = dynamic_cast<HistoryPhoto*>(itemMsg->getMedia())) {
-			_caption.setMarkedText(st::mediaviewCaptionStyle, photoMsg->getCaption(), (item->author()->isUser() && item->author()->asUser()->botInfo) ? _captionBotOptions : _captionTextOptions);
+			auto asBot = (item->author()->isUser()
+				&& item->author()->asUser()->botInfo);
+			auto skipw = qMax(_dateNav.left() + _dateNav.width(), _headerNav.left() + _headerNav.width());
+			auto maxw = qMin(qMax(width() - 2 * skipw - st::mediaviewCaptionPadding.left() - st::mediaviewCaptionPadding.right() - 2 * st::mediaviewCaptionMargin.width(), int(st::msgMinWidth)), _caption.maxWidth());
+			_caption = Text(maxw);
+			_caption.setMarkedText(
+				st::mediaviewCaptionStyle,
+				photoMsg->getCaption(),
+				asBot ? _captionBotOptions : _captionTextOptions);
 		}
 	}
 
