@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_message.h"
 #include "history/history_admin_log_inner.h"
 #include "lang/lang_keys.h"
+#include "boxes/sticker_set_box.h"
 #include "messenger.h"
 
 namespace AdminLog {
@@ -419,9 +420,25 @@ void GenerateItems(not_null<History*> history, LocalIdManager &idManager, const 
 	};
 
 	auto createChangeStickerSet = [&](const MTPDchannelAdminLogEventActionChangeStickerSet &action) {
-		auto removed = (action.vnew_stickerset.type() == mtpc_inputStickerSetEmpty);
-		auto text = (removed ? lng_admin_log_removed_stickers_group : lng_admin_log_changed_stickers_group)(lt_from, fromLinkText);
-		addSimpleServiceMessage(text);
+		auto set = action.vnew_stickerset;
+		auto removed = (set.type() == mtpc_inputStickerSetEmpty);
+		if (removed) {
+			auto text = lng_admin_log_removed_stickers_group(lt_from, fromLinkText);
+			addSimpleServiceMessage(text);
+		} else {
+			auto text = lng_admin_log_changed_stickers_group(
+				lt_from,
+				fromLinkText,
+				lt_sticker_set,
+				textcmdLink(2, lang(lng_admin_log_changed_stickers_set)));
+			auto setLink = MakeShared<LambdaClickHandler>([set] {
+				Ui::show(Box<StickerSetBox>(set));
+			});
+			auto message = HistoryService::PreparedText { text };
+			message.links.push_back(fromLink);
+			message.links.push_back(setLink);
+			addPart(HistoryService::create(history, idManager.next(), ::date(date), message, 0, peerToUser(from->id)));
+		}
 	};
 
 	switch (action.type()) {
