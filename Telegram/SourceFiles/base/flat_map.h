@@ -202,6 +202,9 @@ public:
 	bool empty() const {
 		return _impl.empty();
 	}
+	void clear() {
+		_impl.clear();
+	}
 
 	iterator begin() {
 		return _impl.begin();

@@ -1132,10 +1132,11 @@ void StickersListWidget::refreshStickers() {
 	clearSelection();
 
 	_mySets.clear();
-	_mySets.reserve(Global::StickerSetsOrder().size() + 1);
+	_favedStickersMap.clear();
+	_mySets.reserve(Global::StickerSetsOrder().size() + 3);
 
-	refreshRecentStickers(false);
 	refreshFavedStickers();
+	refreshRecentStickers(false);
 	refreshMegagroupStickers(GroupStickersPlace::Visible);
 	for_const (auto setId, Global::StickerSetsOrder()) {
 		appendSet(_mySets, setId, AppendSkip::Archived);
@@ -1232,45 +1233,49 @@ void StickersListWidget::refreshRecentStickers(bool performResize) {
 	auto &recent = cGetRecentStickers();
 	auto customIt = sets.constFind(Stickers::CustomSetId);
 	auto cloudIt = sets.constFind(Stickers::CloudRecentSetId);
-	if (recent.isEmpty()
-		&& (customIt == sets.cend() || customIt->stickers.isEmpty())
-		&& (cloudIt == sets.cend() || cloudIt->stickers.isEmpty())) {
-		if (!_mySets.isEmpty() && _mySets.at(0).id == Stickers::RecentSetId) {
-			_mySets.pop_front();
-		}
-	} else {
-		StickerPack recentPack;
-		int customCnt = (customIt == sets.cend()) ? 0 : customIt->stickers.size();
-		int cloudCnt = (cloudIt == sets.cend()) ? 0 : cloudIt->stickers.size();
-		recentPack.reserve(cloudCnt + recent.size() + customCnt);
-		_custom.reserve(cloudCnt + recent.size() + customCnt);
-		if (cloudCnt > 0) {
-			for_const (auto sticker, cloudIt->stickers) {
+
+	StickerPack recentPack;
+	int customCnt = (customIt == sets.cend()) ? 0 : customIt->stickers.size();
+	int cloudCnt = (cloudIt == sets.cend()) ? 0 : cloudIt->stickers.size();
+	recentPack.reserve(cloudCnt + recent.size() + customCnt);
+	_custom.reserve(cloudCnt + recent.size() + customCnt);
+	if (cloudCnt > 0) {
+		for_const (auto sticker, cloudIt->stickers) {
+			if (!_favedStickersMap.contains(sticker)) {
 				recentPack.push_back(sticker);
 				_custom.push_back(false);
 			}
 		}
-		for_const (auto &recentSticker, recent) {
-			auto sticker = recentSticker.first;
+	}
+	for_const (auto &recentSticker, recent) {
+		auto sticker = recentSticker.first;
+		if (!_favedStickersMap.contains(sticker)) {
 			recentPack.push_back(sticker);
 			_custom.push_back(false);
 		}
-		if (customCnt > 0) {
-			for_const (auto &sticker, customIt->stickers) {
-				auto index = recentPack.indexOf(sticker);
-				if (index >= cloudCnt) {
-					_custom[index] = true; // mark stickers from recent as custom
-				} else {
-					recentPack.push_back(sticker);
-					_custom.push_back(true);
-				}
+	}
+	if (customCnt > 0) {
+		for_const (auto &sticker, customIt->stickers) {
+			auto index = recentPack.indexOf(sticker);
+			if (index >= cloudCnt) {
+				_custom[index] = true; // mark stickers from recent as custom
+			} else if (!_favedStickersMap.contains(sticker)) {
+				recentPack.push_back(sticker);
+				_custom.push_back(true);
 			}
 		}
-		if (_mySets.isEmpty() || _mySets.at(0).id != Stickers::RecentSetId) {
+	}
+	auto recentIt = std::find_if(_mySets.begin(), _mySets.end(), [](auto &set) {
+		return set.id == Stickers::RecentSetId;
+	});
+	if (!recentPack.empty()) {
+		if (recentIt == _mySets.end()) {
 			_mySets.push_back(Set(Stickers::RecentSetId, MTPDstickerSet::Flag::f_official | MTPDstickerSet_ClientFlag::f_special, lang(lng_recent_stickers), recentPack.size() * 2, recentPack));
 		} else {
-			_mySets[0].pack = recentPack;
+			recentIt->pack = recentPack;
 		}
+	} else if (recentIt != _mySets.end()) {
+		_mySets.erase(recentIt);
 	}
 
 	if (performResize && (_section == Section::Stickers || _section == Section::Featured)) {
@@ -1292,6 +1297,7 @@ void StickersListWidget::refreshFavedStickers() {
 		return;
 	}
 	_mySets.push_back(Set(Stickers::FavedSetId, MTPDstickerSet::Flag::f_official | MTPDstickerSet_ClientFlag::f_special, lang(lng_faved_stickers), it->stickers.size() * 2, it->stickers));
+	_favedStickersMap = base::flat_set<not_null<DocumentData*>> { it->stickers.begin(), it->stickers.end() };
 }
 
 void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
@@ -1355,13 +1361,13 @@ void StickersListWidget::fillIcons(QList<StickerIcon> &icons) {
 	}
 
 	auto i = 0;
-	if (i != _mySets.size() && _mySets[i].id == Stickers::RecentSetId) {
-		++i;
-		icons.push_back(StickerIcon(Stickers::RecentSetId));
-	}
 	if (i != _mySets.size() && _mySets[i].id == Stickers::FavedSetId) {
 		++i;
 		icons.push_back(StickerIcon(Stickers::FavedSetId));
+	}
+	if (i != _mySets.size() && _mySets[i].id == Stickers::RecentSetId) {
+		++i;
+		icons.push_back(StickerIcon(Stickers::RecentSetId));
 	}
 	for (auto l = _mySets.size(); i != l; ++i) {
 		if (_mySets[i].id == Stickers::MegagroupSetId) {
@@ -1474,7 +1480,12 @@ void StickersListWidget::updateSelected() {
 }
 
 bool StickersListWidget::setHasTitle(const Set &set) const {
-	return (set.id != Stickers::RecentSetId);
+	if (set.id == Stickers::FavedSetId) {
+		return false;
+	} else if (set.id == Stickers::RecentSetId) {
+		return !_mySets.empty() && _mySets[0].id == Stickers::FavedSetId;
+	}
+	return true;
 }
 
 bool StickersListWidget::stickerHasDeleteButton(const Set &set, int index) const {

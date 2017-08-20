@@ -218,6 +218,7 @@ private:
 	Sets _featuredSets;
 	OrderedSet<uint64> _installedLocallySets;
 	QList<bool> _custom;
+	base::flat_set<not_null<DocumentData*>> _favedStickersMap;
 
 	Section _section = Section::Stickers;
 
