@@ -10,17 +10,6 @@
     <file alias="art/sunrise.jpg">../art/sunrise.jpg</file>
     <file alias="night.tdesktop-theme">../night.tdesktop-theme</file>
   </qresource>
-  <qresource prefix="/sounds">
-    <file alias="msg_incoming.mp3">../sounds/msg_incoming.mp3</file>
-    <file alias="call_incoming.mp3">../sounds/call_incoming.mp3</file>
-    <file alias="call_outgoing.mp3">../sounds/call_outgoing.mp3</file>
-    <file alias="call_busy.mp3">../sounds/call_busy.mp3</file>
-    <file alias="call_connect.mp3">../sounds/call_connect.mp3</file>
-    <file alias="call_end.mp3">../sounds/call_end.mp3</file>
-  </qresource>
-  <qresource prefix="/qt-project.org">
-    <file>qmime/freedesktop.org.xml</file>
-  </qresource>
   <qresource prefix="/langs">
     <file alias="lang_it.strings">../langs/lang_it.strings</file>
     <file alias="lang_es.strings">../langs/lang_es.strings</file>

@@ -62,6 +62,7 @@
       ],
       'build_defines%': '',
       'list_sources_command': 'python <(DEPTH)/list_sources.py --input <(DEPTH)/telegram_sources.txt --replace src_loc=<(src_loc)',
+      'use_packed_resources%': 0,
     },
     'includes': [
       'common_executable.gypi',
@@ -107,7 +108,6 @@
       '<(submodules_loc)/variant/include',
     ],
     'sources': [
-      '<@(qrc_files)',
       '<@(style_files)',
       '<!@(<(list_sources_command) <(qt_moc_list_sources_arg))',
     ],
@@ -115,6 +115,31 @@
       '<!@(<(list_sources_command) <(qt_moc_list_sources_arg) --exclude_for <(build_os))',
     ],
     'conditions': [
+      [ 'use_packed_resources', {
+        'actions': [
+          {
+            'action_name': 'generate_resource_pack',
+            'inputs': [
+              '<(SHARED_INTERMEDIATE_DIR)/update_dependent_qrc.timestamp',
+            ],
+            'outputs': [
+              '<(PRODUCT_DIR)/tresources.rcc',
+            ],
+            'action': [
+              '<(qt_loc)/bin/rcc<(exe_ext)', '-binary',
+              '<@(qrc_files)',
+              '-o', '<@(_outputs)',
+            ],
+          },
+        ],
+        'defines': [
+          'TDESKTOP_USE_PACKED_RESOURCES',
+        ],
+      }, {
+        'sources': [
+          '<@(qrc_files)',
+        ],
+      }],
       [ '"<(official_build_target)" != ""', {
         'defines': [
           'CUSTOM_API_ID',

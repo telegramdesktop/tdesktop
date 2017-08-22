@@ -76,3 +76,9 @@ bool GetDefault(QStringList &files, QByteArray &remoteContent, const QString &ca
 
 } // namespace internal
 } // namespace FileDialog
+
+namespace Resources {
+
+void LoadAllData();
+
+} // namespace Resources

@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "platform/platform_specific.h"
 #include "storage/localstorage.h"
+#include "core/file_utilities.h"
 
 int main(int argc, char *argv[]) {
 #ifndef Q_OS_MAC // Retina display support is working fine, others are not.
@@ -38,6 +39,7 @@ int main(int argc, char *argv[]) {
 	// both are finished in Application::closeApplication
 	Logs::start(); // must be started before Platform is started
 	Platform::start(); // must be started before QApplication is created
+	Resources::LoadAllData(); // should be called after setting an application name
 
 	int result = 0;
 	{
