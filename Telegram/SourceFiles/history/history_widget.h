@@ -262,8 +262,8 @@ public:
 
 	bool touchScroll(const QPoint &delta);
 
-	uint64 animActiveTimeStart(const HistoryItem *msg) const;
-	void stopAnimActive();
+	void enqueueMessageHighlight(not_null<HistoryItem*> item);
+	TimeMs highlightStartTime(not_null<const HistoryItem*> item) const;
 
 	SelectedItemSet getSelectedItems() const;
 	void itemEdited(HistoryItem *item);
@@ -445,8 +445,6 @@ public slots:
 	void onForwardSelected();
 	void onClearSelected();
 
-	void onAnimActiveStep();
-
 	void onDraftSaveDelayed();
 	void onDraftSave(bool delayed = false);
 	void onCloudDraftSave();
@@ -491,6 +489,13 @@ private:
 	void historyDownClicked();
 	void showNextUnreadMention();
 	void handlePeerUpdate();
+
+	void highlightMessage(MsgId universalMessageId);
+	void adjustHighlightedMessageToMigrated();
+	void checkNextHighlight();
+	void updateHighlightedMessage();
+	void clearHighlightMessages();
+	void stopMessageHighlight();
 
 	void animationCallback();
 	void updateOverStates(QPoint pos);
@@ -701,7 +706,7 @@ private:
 	HistoryItem *getItemFromHistoryOrMigrated(MsgId genericMsgId) const;
 	void animatedScrollToItem(MsgId msgId);
 	void animatedScrollToY(int scrollTo, HistoryItem *attachTo = nullptr);
-	void highlightMessage(HistoryItem *context);
+
 	void updateDragAreas();
 
 	// when scroll position or scroll area size changed this method
@@ -728,8 +733,6 @@ private:
 
 	MsgId _delayedShowAtMsgId = -1; // wtf?
 	mtpRequestId _delayedShowAtRequest = 0;
-
-	MsgId _activeAnimMsgId = 0;
 
 	object_ptr<Ui::AbstractButton> _backAnimationButton = { nullptr };
 	object_ptr<Window::TopBarWidget> _topBar;
@@ -846,8 +849,10 @@ private:
 	QTimer _scrollTimer;
 	int32 _scrollDelta = 0;
 
-	QTimer _animActiveTimer;
-	float64 _animActiveStart = 0;
+	MsgId _highlightedMessageId = 0;
+	std::deque<MsgId> _highlightQueue;
+	base::Timer _highlightTimer;
+	TimeMs _highlightStart = 0;
 
 	QMap<QPair<History*, SendAction::Type>, mtpRequestId> _sendActionRequests;
 	QTimer _sendActionStopTimer;

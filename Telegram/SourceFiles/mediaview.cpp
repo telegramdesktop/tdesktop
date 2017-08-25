@@ -1026,7 +1026,7 @@ void MediaView::onCopy() {
 }
 
 void MediaView::showPhoto(PhotoData *photo, HistoryItem *context) {
-	_history = context ? context->history() : nullptr;
+	_history = context ? context->history().get() : nullptr;
 	_migrated = nullptr;
 	if (_history) {
 		if (_history->peer->migrateFrom()) {
@@ -1144,7 +1144,7 @@ void MediaView::showPhoto(PhotoData *photo, PeerData *context) {
 
 void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
 	_photo = 0;
-	_history = context ? context->history() : nullptr;
+	_history = context ? context->history().get() : nullptr;
 	_migrated = nullptr;
 	if (_history) {
 		if (_history->peer->migrateFrom()) {

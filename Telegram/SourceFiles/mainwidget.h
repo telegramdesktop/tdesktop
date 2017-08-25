@@ -309,8 +309,7 @@ public:
     void readServerHistory(History *history, ReadServerHistoryChecks checks = ReadServerHistoryChecks::OnlyIfUnread);
 	void unreadCountChanged(History *history);
 
-	TimeMs animActiveTimeStart(const HistoryItem *msg) const;
-	void stopAnimActive();
+	TimeMs highlightStartTime(not_null<const HistoryItem*> item) const;
 
 	void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo);
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);

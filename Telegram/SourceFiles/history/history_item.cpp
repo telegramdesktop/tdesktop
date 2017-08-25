@@ -600,9 +600,14 @@ TextSelection shiftSelection(TextSelection selection, uint16 byLength) {
 
 } // namespace internal
 
-HistoryItem::HistoryItem(History *history, MsgId msgId, MTPDmessage::Flags flags, QDateTime msgDate, int32 from) : HistoryElement()
-, id(msgId)
-, date(msgDate)
+HistoryItem::HistoryItem(
+	not_null<History*> history,
+	MsgId id,
+	MTPDmessage::Flags flags,
+	QDateTime date,
+	UserId from) : HistoryElement()
+, id(id)
+, date(date)
 , _history(history)
 , _from(from ? App::user(from) : history->peer)
 , _flags(flags | MTPDmessage_ClientFlag::f_pending_init_dimensions | MTPDmessage_ClientFlag::f_pending_resize)

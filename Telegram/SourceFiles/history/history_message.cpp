@@ -1613,12 +1613,10 @@ void HistoryMessage::draw(Painter &p, QRect clip, TextSelection selection, TimeM
 		}
 	}
 
-	auto fullAnimMs = App::main() ? App::main()->animActiveTimeStart(this) : 0LL;
+	auto fullAnimMs = App::main() ? App::main()->highlightStartTime(this) : 0LL;
 	if (fullAnimMs > 0 && fullAnimMs <= ms) {
-		int animms = ms - fullAnimMs;
-		if (animms > st::activeFadeInDuration + st::activeFadeOutDuration) {
-			App::main()->stopAnimActive();
-		} else {
+		auto animms = ms - fullAnimMs;
+		if (animms < st::activeFadeInDuration + st::activeFadeOutDuration) {
 			auto top = marginTop();
 			auto bottom = marginBottom();
 			auto fill = qMin(top, bottom);

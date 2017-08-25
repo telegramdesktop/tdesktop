@@ -39,7 +39,11 @@ struct PaintContext {
 
 class ServiceMessagePainter {
 public:
-	static void paint(Painter &p, const HistoryService *message, const PaintContext &context, int height);
+	static void paint(
+		Painter &p,
+		not_null<const HistoryService*> message,
+		const PaintContext &context,
+		int height);
 
 	static void paintDate(Painter &p, const QDateTime &date, int y, int w);
 	static void paintDate(Painter &p, const QString &dateText, int dateTextWidth, int y, int w);

@@ -680,8 +680,7 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 
 	_sendActionStopTimer.setSingleShot(true);
 
-	_animActiveTimer.setSingleShot(false);
-	connect(&_animActiveTimer, SIGNAL(timeout()), this, SLOT(onAnimActiveStep()));
+	_highlightTimer.setCallback([this] { updateHighlightedMessage(); });
 
 	_membersDropdownShowTimer.setSingleShot(true);
 	connect(&_membersDropdownShowTimer, SIGNAL(timeout()), this, SLOT(onMembersDropdownShow()));
@@ -948,22 +947,106 @@ void HistoryWidget::scrollToAnimationCallback(FullMsgId attachToId) {
 	}
 }
 
-void HistoryWidget::highlightMessage(HistoryItem *context) {
-	Expects(_list != nullptr);
+void HistoryWidget::enqueueMessageHighlight(not_null<HistoryItem*> item) {
+	auto enqueueMessageId = [this](MsgId universalId) {
+		if (_highlightQueue.empty() && !_highlightTimer.isActive()) {
+			highlightMessage(universalId);
+		} else if (_highlightedMessageId != universalId
+			&& !base::contains(_highlightQueue, universalId)) {
+			_highlightQueue.push_back(universalId);
+			checkNextHighlight();
+		}
+	};
+	if (item->history() == _history) {
+		enqueueMessageId(item->id);
+	} else if (item->history() == _migrated) {
+		enqueueMessageId(-item->id);
+	}
+}
 
-	_animActiveStart = getms();
-	_animActiveTimer.start(AnimationTimerDelta);
-	_activeAnimMsgId = _showAtMsgId;
-	if (context
-		&& context->history() == _history
-		&& context->isGroupMigrate()
+void HistoryWidget::highlightMessage(MsgId universalMessageId) {
+	_highlightStart = getms();
+	_highlightedMessageId = universalMessageId;
+	_highlightTimer.callEach(AnimationTimerDelta);
+
+	adjustHighlightedMessageToMigrated();
+}
+
+void HistoryWidget::adjustHighlightedMessageToMigrated() {
+	if (_history
+		&& _highlightTimer.isActive()
+		&& _highlightedMessageId > 0
 		&& _migrated
 		&& !_migrated->isEmpty()
 		&& _migrated->loadedAtBottom()
 		&& _migrated->blocks.back()->items.back()->isGroupMigrate()
 		&& _list->historyTop() != _list->historyDrawTop()) {
-		_activeAnimMsgId = -_migrated->blocks.back()->items.back()->id;
+		auto highlighted = App::histItemById(
+			_history->channelId(),
+			_highlightedMessageId);
+		if (highlighted && highlighted->isGroupMigrate()) {
+			_highlightedMessageId = -_migrated->blocks.back()->items.back()->id;
+		}
 	}
+}
+
+void HistoryWidget::checkNextHighlight() {
+	if (_highlightTimer.isActive()) {
+		return;
+	}
+	auto nextHighlight = [this] {
+		while (!_highlightQueue.empty()) {
+			auto msgId = _highlightQueue.front();
+			_highlightQueue.pop_front();
+			auto item = getItemFromHistoryOrMigrated(msgId);
+			if (item && !item->detached()) {
+				return msgId;
+			}
+		}
+		return 0;
+	}();
+	if (!nextHighlight) {
+		return;
+	}
+	highlightMessage(nextHighlight);
+}
+
+void HistoryWidget::updateHighlightedMessage() {
+	auto item = getItemFromHistoryOrMigrated(_highlightedMessageId);
+	if (!item || item->detached()) {
+		return stopMessageHighlight();
+	}
+	auto duration = st::activeFadeInDuration + st::activeFadeOutDuration;
+	if (getms() - _highlightStart > duration) {
+		return stopMessageHighlight();
+	}
+
+	Ui::repaintHistoryItem(item);
+}
+
+TimeMs HistoryWidget::highlightStartTime(not_null<const HistoryItem*> item) const {
+	auto isHighlighted = [this](not_null<const HistoryItem*> item) {
+		if (item->id == _highlightedMessageId) {
+			return (item->history() == _history);
+		} else if (item->id == -_highlightedMessageId) {
+			return (item->history() == _migrated);
+		}
+		return false;
+	};
+	return (isHighlighted(item) && _highlightTimer.isActive())
+		? _highlightStart
+		: 0;
+}
+
+void HistoryWidget::stopMessageHighlight() {
+	_highlightTimer.cancel();
+	_highlightedMessageId = 0;
+	checkNextHighlight();
+}
+
+void HistoryWidget::clearHighlightMessages() {
+	_highlightQueue.clear();
+	stopMessageHighlight();
 }
 
 int HistoryWidget::itemTopForHighlight(not_null<HistoryItem*> item) const {
@@ -1644,6 +1727,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		showAtMsgId = ShowAtTheEndMsgId;
 	}
 
+	clearHighlightMessages();
 	if (_history) {
 		if (_peer->id == peerId && !reload) {
 			updateForwarding();
@@ -1676,7 +1760,6 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 					auto item = getItemFromHistoryOrMigrated(_showAtMsgId);
 					animatedScrollToY(countInitialScrollTop(), item);
-					highlightMessage(item);
 				} else {
 					historyLoaded();
 				}
@@ -4808,7 +4891,7 @@ int HistoryWidget::countInitialScrollTop() {
 			return countInitialScrollTop();
 		} else {
 			result = itemTopForHighlight(item);
-			highlightMessage(item);
+			enqueueMessageHighlight(item);
 		}
 	} else if (_history->unreadBar || (_migrated && _migrated->unreadBar)) {
 		result = unreadBarTop();
@@ -4974,12 +5057,7 @@ void HistoryWidget::addMessagesToFront(PeerData *peer, const QVector<MTPMessage>
 	_list->messagesReceived(peer, messages);
 	if (!_firstLoadRequest) {
 		updateHistoryGeometry();
-		if (_animActiveTimer.isActive() && _activeAnimMsgId > 0 && _migrated && !_migrated->isEmpty() && _migrated->loadedAtBottom() && _migrated->blocks.back()->items.back()->isGroupMigrate() && _list->historyTop() != _list->historyDrawTop() && _history) {
-			auto animActiveItem = App::histItemById(_history->channelId(), _activeAnimMsgId);
-			if (animActiveItem && animActiveItem->isGroupMigrate()) {
-				_activeAnimMsgId = -_migrated->blocks.back()->items.back()->id;
-			}
-		}
+		adjustHighlightedMessageToMigrated();
 		updateBotKeyboard();
 	}
 }
@@ -6145,36 +6223,6 @@ HistoryItem *HistoryWidget::getItemFromHistoryOrMigrated(MsgId genericMsgId) con
 		return App::histItemById(_migrated->channelId(), -genericMsgId);
 	}
 	return App::histItemById(_channel, genericMsgId);
-}
-
-void HistoryWidget::onAnimActiveStep() {
-	if (!_history || !_activeAnimMsgId || (_activeAnimMsgId < 0 && (!_migrated || -_activeAnimMsgId >= ServerMaxMsgId))) {
-		return _animActiveTimer.stop();
-	}
-
-	auto item = getItemFromHistoryOrMigrated(_activeAnimMsgId);
-	if (!item || item->detached()) {
-		return _animActiveTimer.stop();
-	}
-
-	if (getms() - _animActiveStart > st::activeFadeInDuration + st::activeFadeOutDuration) {
-		stopAnimActive();
-	} else {
-		Ui::repaintHistoryItem(item);
-	}
-}
-
-uint64 HistoryWidget::animActiveTimeStart(const HistoryItem *msg) const {
-	if (!msg) return 0;
-	if ((msg->history() == _history && msg->id == _activeAnimMsgId) || (_migrated && msg->history() == _migrated && msg->id == -_activeAnimMsgId)) {
-		return _animActiveTimer.isActive() ? _animActiveStart : 0;
-	}
-	return 0;
-}
-
-void HistoryWidget::stopAnimActive() {
-	_animActiveTimer.stop();
-	_activeAnimMsgId = 0;
 }
 
 SelectedItemSet HistoryWidget::getSelectedItems() const {

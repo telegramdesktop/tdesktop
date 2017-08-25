@@ -1529,12 +1529,8 @@ void MainWidget::unreadCountChanged(History *history) {
 	_history->unreadCountChanged(history);
 }
 
-TimeMs MainWidget::animActiveTimeStart(const HistoryItem *msg) const {
-	return _history->animActiveTimeStart(msg);
-}
-
-void MainWidget::stopAnimActive() {
-	_history->stopAnimActive();
+TimeMs MainWidget::highlightStartTime(not_null<const HistoryItem*> item) const {
+	return _history->highlightStartTime(item);
 }
 
 void MainWidget::sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo) {

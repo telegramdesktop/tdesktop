@@ -432,6 +432,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				}
 				if (item->mentionsMe() && item->isMediaUnread()) {
 					readMentions.insert(item);
+					_widget->enqueueMessageHighlight(item);
 				}
 
 				int32 h = item->height();
@@ -482,6 +483,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 					}
 					if (item->mentionsMe() && item->isMediaUnread()) {
 						readMentions.insert(item);
+						_widget->enqueueMessageHighlight(item);
 					}
 				}
 				p.translate(0, h);

@@ -188,16 +188,18 @@ int WideChatWidth() {
 	return st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left();
 }
 
-void ServiceMessagePainter::paint(Painter &p, const HistoryService *message, const PaintContext &context, int height) {
+void ServiceMessagePainter::paint(
+		Painter &p,
+		not_null<const HistoryService*> message,
+		const PaintContext &context,
+		int height) {
 	auto g = message->countGeometry();
 	if (g.width() < 1) return;
 
-	auto fullAnimMs = App::main() ? App::main()->animActiveTimeStart(message) : 0LL;
+	auto fullAnimMs = App::main() ? App::main()->highlightStartTime(message) : 0LL;
 	if (fullAnimMs > 0 && fullAnimMs <= context.ms) {
-		int animms = context.ms - fullAnimMs;
-		if (animms > st::activeFadeInDuration + st::activeFadeOutDuration) {
-			App::main()->stopAnimActive();
-		} else {
+		auto animms = context.ms - fullAnimMs;
+		if (animms < st::activeFadeInDuration + st::activeFadeOutDuration) {
 			auto top = st::msgServiceMargin.top();
 			auto bottom = st::msgServiceMargin.bottom();
 			auto fill = qMin(top, bottom);

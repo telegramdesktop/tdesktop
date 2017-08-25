@@ -526,7 +526,7 @@ public:
 	}
 	void addLogEntryOriginal(WebPageId localId, const QString &label, const TextWithEntities &content);
 
-	History *history() const {
+	not_null<History*> history() const {
 		return _history;
 	}
 	PeerData *from() const {
@@ -921,7 +921,12 @@ public:
 	~HistoryItem();
 
 protected:
-	HistoryItem(History *history, MsgId msgId, MTPDmessage::Flags flags, QDateTime msgDate, int32 from);
+	HistoryItem(
+		not_null<History*> history,
+		MsgId id,
+		MTPDmessage::Flags flags,
+		QDateTime date,
+		UserId from);
 
 	// To completely create history item we need to call
 	// a virtual method, it can not be done from constructor.
@@ -938,7 +943,7 @@ protected:
 	void finishEdition(int oldKeyboardTop);
 	void finishEditionToEmpty();
 
-	not_null<History*> _history;
+	const not_null<History*> _history;
 	not_null<PeerData*> _from;
 	HistoryBlock *_block = nullptr;
 	int _indexInBlock = -1;
