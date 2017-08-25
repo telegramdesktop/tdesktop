@@ -3319,6 +3319,13 @@ void HistoryWebPage::initDimensions() {
 		} else if (_data->siteName == qstr("Instagram")) {
 			opts = &_instagramDescriptionOptions;
 		}
+		if (isLogEntryOriginal()) {
+			// Fix layout for small bubbles (narrow media caption edit log entries).
+			_description = Text(st::minPhotoSize
+				- st::msgPadding.left()
+				- st::msgPadding.right()
+				- st::webPageLeft);
+		}
 		_description.setMarkedText(st::webPageDescriptionStyle, text, *opts);
 	}
 	if (_title.isEmpty() && !title.isEmpty()) {
