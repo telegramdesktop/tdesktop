@@ -884,6 +884,9 @@ void HistoryWidget::scrollToCurrentVoiceMessage(FullMsgId fromId, FullMsgId toId
 
 void HistoryWidget::animatedScrollToItem(MsgId msgId) {
 	Expects(_history != nullptr);
+	if (hasPendingResizedItems()) {
+		updateListSize();
+	}
 
 	auto to = App::histItemById(_channel, msgId);
 	if (_list->itemTop(to) < 0) {
@@ -896,6 +899,9 @@ void HistoryWidget::animatedScrollToItem(MsgId msgId) {
 
 void HistoryWidget::animatedScrollToY(int scrollTo, HistoryItem *attachTo) {
 	Expects(_history != nullptr);
+	if (hasPendingResizedItems()) {
+		updateListSize();
+	}
 
 	// Attach our scroll animation to some item.
 	auto itemTop = _list->itemTop(attachTo);
@@ -920,6 +926,11 @@ void HistoryWidget::animatedScrollToY(int scrollTo, HistoryItem *attachTo) {
 		scrollTop = scrollTo + maxAnimatedDelta;
 		synteticScrollToY(scrollTop);
 		transition = anim::easeOutCubic;
+	} else {
+		// In local showHistory() we forget current scroll state,
+		// so we need to restore it synchronously, otherwise we may
+		// jump to the bottom of history in some updateHistoryGeometry() call.
+		synteticScrollToY(scrollTop);
 	}
 	_scrollToAnimation.start([this, itemId = attachTo->fullId()] { scrollToAnimationCallback(itemId); }, scrollTop - itemTop, scrollTo - itemTop, st::slideDuration, anim::sineInOut);
 }
