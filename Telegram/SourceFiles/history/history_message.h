@@ -166,8 +166,6 @@ private:
 	int performResizeGetHeight();
 	void applyEditionToEmpty();
 
-	void markMediaAsReadHook() override;
-
 	bool displayForwardedFrom() const;
 	void paintFromName(Painter &p, QRect &trect, bool selected) const;
 	void paintForwardedInfo(Painter &p, QRect &trect, bool selected) const;

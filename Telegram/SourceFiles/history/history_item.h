@@ -577,10 +577,7 @@ public:
 	bool isMediaUnread() const {
 		return _flags & MTPDmessage::Flag::f_media_unread;
 	}
-	void markMediaRead() {
-		_flags &= ~MTPDmessage::Flag::f_media_unread;
-		markMediaAsReadHook();
-	}
+	void markMediaRead();
 
 	// Zero result means this message is not self-destructing right now.
 	virtual TimeMs getSelfDestructIn(TimeMs now) {

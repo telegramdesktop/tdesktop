@@ -1233,13 +1233,6 @@ void HistoryMessage::applyEditionToEmpty() {
 	finishEditionToEmpty();
 }
 
-void HistoryMessage::markMediaAsReadHook() {
-	if (mentionsMe()) {
-		history()->updateChatListEntry();
-		history()->eraseFromUnreadMentions(id);
-	}
-}
-
 bool HistoryMessage::displayForwardedFrom() const {
 	if (auto forwarded = Get<HistoryMessageForwarded>()) {
 		return Has<HistoryMessageVia>()
