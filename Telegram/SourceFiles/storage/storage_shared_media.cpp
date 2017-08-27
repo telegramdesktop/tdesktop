@@ -316,6 +316,13 @@ void SharedMedia::query(
 	if (peerIt != _lists.end()) {
 		auto index = static_cast<int>(query.key.type);
 		peerIt->second[index].query(query, std::move(callback));
+	} else {
+		base::TaskQueue::Main().Put(
+			[
+				callback = std::move(callback)
+			]() mutable {
+			callback(SharedMediaResult());
+		});
 	}
 }
 

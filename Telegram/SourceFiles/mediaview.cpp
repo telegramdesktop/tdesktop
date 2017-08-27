@@ -68,13 +68,13 @@ constexpr auto kIdsPreloadAfter = 28;
 } // namespace
 
 struct MediaView::SharedMedia {
-	SharedMedia(SharedMediaViewer::Key key)
+	SharedMedia(SharedMediaViewerMerged::Key key)
 		: key(key)
 		, slice(key, kIdsLimit, kIdsLimit) {
 	}
 
-	SharedMediaViewer::Key key;
-	SharedMediaViewer slice;
+	SharedMediaViewerMerged::Key key;
+	SharedMediaViewerMerged slice;
 };
 
 MediaView::MediaView() : TWidget(nullptr)
@@ -192,7 +192,7 @@ void MediaView::moveToScreen() {
 	_saveMsg.moveTo((width() - _saveMsg.width()) / 2, (height() - _saveMsg.height()) / 2);
 }
 
-void MediaView::handleSharedMediaUpdate(const SharedMediaSlice &update) {
+void MediaView::handleSharedMediaUpdate(const SharedMediaSliceMerged &update) {
 	if (isHidden() || (!_photo && !_doc) || !_sharedMedia) {
 		_index = _fullIndex = _fullCount = base::none;
 		return;
@@ -275,9 +275,9 @@ void MediaView::documentUpdated(DocumentData *doc) {
 }
 
 void MediaView::changingMsgId(not_null<HistoryItem*> row, MsgId newId) {
-	if (row->id == _msgid) {
-		_msgid = newId;
-		validateSharedMedia();
+	if (row->fullId() == _msgid) {
+		_msgid = FullMsgId(_msgid.channel, newId);
+		refreshSharedMedia();
 	}
 }
 
@@ -367,7 +367,7 @@ void MediaView::updateControls() {
 		d = date(_photo->date);
 	} else if (_doc) {
 		d = date(_doc->date);
-	} else if (HistoryItem *item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid)) {
+	} else if (auto item = App::histItemById(_msgid)) {
 		d = item->date;
 	}
 	if (d.date() == dNow.date()) {
@@ -409,7 +409,7 @@ void MediaView::updateActions() {
 	if (_doc && _doc->loading()) {
 		_actions.push_back({ lang(lng_cancel), SLOT(onSaveCancel()) });
 	}
-	if (_msgid > 0 && _msgid < ServerMaxMsgId) {
+	if (IsServerMsgId(_msgid.msg)) {
 		_actions.push_back({ lang(lng_context_to_msg), SLOT(onToMessage()) });
 	}
 	if (_doc && !_doc->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
@@ -535,12 +535,12 @@ void MediaView::step_radial(TimeMs ms, bool timer) {
 			_autoplayVideoDocument = _doc;
 		}
 		if (!_doc->data().isEmpty() && (_doc->isAnimation() || _doc->isVideo())) {
-			displayDocument(_doc, App::histItemById(_msgmigrated ? 0 : _channel, _msgid));
+			displayDocument(_doc, App::histItemById(_msgid));
 		} else {
 			auto &location = _doc->location(true);
 			if (location.accessEnable()) {
 				if (_doc->isAnimation() || _doc->isVideo() || _doc->isTheme() || QImageReader(location.name()).canRead()) {
-					displayDocument(_doc, App::histItemById(_msgmigrated ? 0 : _channel, _msgid));
+					displayDocument(_doc, App::histItemById(_msgid));
 				}
 				location.accessDisable();
 			}
@@ -731,7 +731,7 @@ void MediaView::onScreenResized(int screen) {
 	}
 	if (!ignore) {
 		moveToScreen();
-		auto item = (_msgid ? App::histItemById(_msgmigrated ? 0 : _channel, _msgid) : nullptr);
+		auto item = (_msgid ? App::histItemById(_msgid) : nullptr);
 		if (_photo) {
 			displayPhoto(_photo, item);
 		} else if (_doc) {
@@ -741,7 +741,7 @@ void MediaView::onScreenResized(int screen) {
 }
 
 void MediaView::onToMessage() {
-	if (auto item = _msgid ? App::histItemById(_msgmigrated ? 0 : _channel, _msgid) : 0) {
+	if (auto item = _msgid ? App::histItemById(_msgid) : 0) {
 		close();
 		Ui::showPeerHistoryAtItem(item);
 	}
@@ -830,7 +830,7 @@ void MediaView::clipCallback(Media::Clip::Notification notification) {
 
 	switch (notification) {
 	case NotificationReinit: {
-		if (auto item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid)) {
+		if (auto item = App::histItemById(_msgid)) {
 			if (_gif->state() == State::Error) {
 				stopGif();
 				updateControls();
@@ -944,8 +944,10 @@ void MediaView::onShowInFolder() {
 }
 
 void MediaView::onForward() {
-	auto item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid);
-	if (!_msgid || !item || item->id < 0 || item->serviceMsg()) return;
+	auto item = App::histItemById(_msgid);
+	if (!item || !IsServerMsgId(item->id) || item->serviceMsg()) {
+		return;
+	}
 
 	close();
 	if (auto main = App::main()) {
@@ -970,7 +972,7 @@ void MediaView::onDelete() {
 
 	if (deletingPeerPhoto()) {
 		App::main()->deletePhotoLayer(_photo);
-	} else if (auto item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid)) {
+	} else if (auto item = App::histItemById(_msgid)) {
 		App::contextItem(item);
 		App::main()->deleteLayer();
 	}
@@ -1004,8 +1006,7 @@ void MediaView::onCopy() {
 
 base::optional<MediaView::SharedMediaType> MediaView::sharedMediaType() const {
 	using Type = SharedMediaType;
-	auto channelId = _msgmigrated ? NoChannel : _channel;
-	if (auto item = App::histItemById(channelId, _msgid)) {
+	if (auto item = App::histItemById(_msgid)) {
 		if (_photo) {
 			if (item->toHistoryMessage()) {
 				return Type::Photo;
@@ -1024,8 +1025,15 @@ base::optional<MediaView::SharedMediaType> MediaView::sharedMediaType() const {
 }
 
 base::optional<MediaView::SharedMediaKey> MediaView::sharedMediaKey() const {
+	if (!IsServerMsgId(_msgid.msg)) {
+		return base::none;
+	}
 	auto keyForType = [this](SharedMediaType type) -> SharedMediaKey {
-		return { (_msgmigrated ? _migrated : _history)->peer->id, type, _msgid };
+		return {
+			_history->peer->id,
+			_migrated ? _migrated->peer->id : 0,
+			type,
+			(_msgid.channel == _history->channelId()) ? _msgid.msg : -_msgid.msg };
 	};
 	return
 		sharedMediaType()
@@ -1038,7 +1046,7 @@ bool MediaView::validSharedMedia() const {
 			return false;
 		}
 		auto countDistanceInData = [](const auto &a, const auto &b) {
-			return [&](const SharedMediaSlice &data) {
+			return [&](const SharedMediaSliceMerged &data) {
 				return data.distance(a, b);
 			};
 		};
@@ -1046,7 +1054,7 @@ bool MediaView::validSharedMedia() const {
 		auto distance = (key == _sharedMedia->key) ? 0 :
 			_sharedMediaData
 			| countDistanceInData(*key, _sharedMedia->key)
-			| base::abs;
+			| func::abs;
 		if (distance) {
 			return (*distance < kIdsPreloadAfter);
 		}
@@ -1057,7 +1065,7 @@ bool MediaView::validSharedMedia() const {
 void MediaView::validateSharedMedia() {
 	if (auto key = sharedMediaKey()) {
 		_sharedMedia = std::make_unique<SharedMedia>(*key);
-		subscribe(_sharedMedia->slice.updated, [this](const SharedMediaSlice &data) {
+		subscribe(_sharedMedia->slice.updated, [this](const SharedMediaSliceMerged &data) {
 			handleSharedMediaUpdate(data);
 		});
 		_sharedMedia->slice.start();
@@ -1103,14 +1111,12 @@ void MediaView::showPhoto(not_null<PhotoData*> photo, HistoryItem *context) {
 	}
 	if (!_animOpacities.isEmpty()) _animOpacities.clear();
 
-	_msgid = context ? context->id : 0;
-	_msgmigrated = context ? (context->history() == _migrated) : false;
-	_channel = _history ? _history->channelId() : NoChannel;
+	_msgid = context ? context->fullId() : FullMsgId();
 	_canForward = context ? context->canForward() : false;
 	_canDelete = context ? context->canDelete() : false;
 	_photo = photo;
 
-	validateSharedMedia();
+	refreshSharedMedia();
 	if (_history) {
 		if (context && !context->toHistoryMessage()) {
 			if (!_history->peer->isUser()) {
@@ -1140,13 +1146,11 @@ void MediaView::showPhoto(not_null<PhotoData*> photo, PeerData *context) {
 	}
 	if (!_animOpacities.isEmpty()) _animOpacities.clear();
 
-	_msgid = 0;
-	_msgmigrated = false;
-	_channel = NoChannel;
+	_msgid = {};
 	_canForward = _canDelete = false;
 	_photo = photo;
 
-	validateSharedMedia();
+	refreshSharedMedia();
 	if (_user) {
 		//if (_user->photos.isEmpty() && _user->photosCount < 0 && _user->photoId && _user->photoId != UnknownPeerPhotoId) {
 		//	_fullIndex = 0;
@@ -1217,9 +1221,7 @@ void MediaView::showDocument(not_null<DocumentData*> document, HistoryItem *cont
 	}
 	if (!_animOpacities.isEmpty()) _animOpacities.clear();
 
-	_msgid = context ? context->id : 0;
-	_msgmigrated = context ? (context->history() == _migrated) : false;
-	_channel = _history ? _history->channelId() : NoChannel;
+	_msgid = context ? context->fullId() : FullMsgId();
 	_canForward = context ? context->canForward() : false;
 	_canDelete = context ? context->canDelete() : false;
 
@@ -1239,7 +1241,7 @@ void MediaView::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
 	_photo = photo;
 	_radial.stop();
 
-	validateSharedMedia();
+	refreshSharedMedia();
 
 	_photoRadialRect = QRect(QPoint((width() - st::radialSize.width()) / 2, (height() - st::radialSize.height()) / 2), st::radialSize);
 
@@ -1299,7 +1301,7 @@ void MediaView::destroyThemePreview() {
 }
 
 void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty messages shown as docs: doc can be NULL
-	auto documentChanged = (!doc || doc != _doc || (item && (item->id != _msgid || (item->history() != (_msgmigrated ? _migrated : _history)))));
+	auto documentChanged = (!doc || doc != _doc || (item && item->fullId() != _msgid));
 	if (documentChanged || (!doc->isAnimation() && !doc->isVideo())) {
 		_fullScreenVideo = false;
 		_current = QPixmap();
@@ -1314,7 +1316,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 	_photo = nullptr;
 	_radial.stop();
 
-	validateSharedMedia();
+	refreshSharedMedia();
 
 	if (_autoplayVideoDocument && _doc != _autoplayVideoDocument) {
 		_autoplayVideoDocument = nullptr;
@@ -1521,7 +1523,7 @@ void MediaView::createClipReader() {
 		_current = _doc->thumb->pixNoCache(_doc->thumb->width(), _doc->thumb->height(), videoThumbOptions(), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
 	auto mode = (_doc->isVideo() || _doc->isRoundVideo()) ? Media::Clip::Reader::Mode::Video : Media::Clip::Reader::Mode::Gif;
-	_gif = Media::Clip::MakeReader(_doc, FullMsgId(_channel, _msgid), [this](Media::Clip::Notification notification) {
+	_gif = Media::Clip::MakeReader(_doc, _msgid, [this](Media::Clip::Notification notification) {
 		clipCallback(notification);
 	}, mode);
 
@@ -1611,7 +1613,7 @@ void MediaView::setClipControllerGeometry() {
 void MediaView::onVideoPauseResume() {
 	if (!_gif) return;
 
-	if (auto item = App::histItemById(_msgmigrated ? 0 : _channel, _msgid)) {
+	if (auto item = App::histItemById(_msgid)) {
 		if (_gif->state() == Media::Clip::State::Error) {
 			displayDocument(_doc, item);
 		} else if (_gif->state() == Media::Clip::State::Finished) {
@@ -1637,7 +1639,7 @@ void MediaView::restartVideoAtSeekPosition(TimeMs positionMs) {
 		auto rounding = (_doc && _doc->isRoundVideo()) ? ImageRoundRadius::Ellipse : ImageRoundRadius::None;
 		_current = _gif->current(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), rounding, ImageRoundCorner::All, getms());
 	}
-	_gif = Media::Clip::MakeReader(_doc, FullMsgId(_channel, _msgid), [this](Media::Clip::Notification notification) {
+	_gif = Media::Clip::MakeReader(_doc, _msgid, [this](Media::Clip::Notification notification) {
 		clipCallback(notification);
 	}, Media::Clip::Reader::Mode::Video, positionMs);
 
@@ -2215,11 +2217,9 @@ bool MediaView::moveToNext(int32 delta) {
 	if (newIndex < 0 || newIndex >= _sharedMediaData->size()) {
 		return false;
 	}
-	if (auto item = App::histItemById(_history->channelId(), *(_sharedMediaData->begin() + newIndex))) {
+	if (auto item = App::histItemById((*_sharedMediaData)[newIndex])) {
 		_index = newIndex;
-		_msgid = item->id;
-		_msgmigrated = (item->history() == _migrated);
-		_channel = _history ? _history->channelId() : NoChannel;
+		_msgid = item->fullId();
 		_canForward = item->canForward();
 		_canDelete = item->canDelete();
 		stopGif();
@@ -2338,7 +2338,7 @@ void MediaView::preloadData(int32 delta) {
 
 	auto forgetIndex = *_index - delta * 2;
 	if (forgetIndex >= 0 && forgetIndex < _sharedMediaData->size()) {
-		if (auto item = App::histItemById(_history->channelId(), *(_sharedMediaData->begin() + forgetIndex))) {
+		if (auto item = App::histItemById((*_sharedMediaData)[forgetIndex])) {
 			if (auto media = item->getMedia()) {
 				switch (media->type()) {
 				case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->forget(); break;
@@ -2353,7 +2353,7 @@ void MediaView::preloadData(int32 delta) {
 
 	for (auto index = from; index != till; ++index) {
 		if (index >= 0 && index < _sharedMediaData->size()) {
-			if (auto item = App::histItemById(_history->channelId(), *(_sharedMediaData->begin() + index))) {
+			if (auto item = App::histItemById((*_sharedMediaData)[index])) {
 				if (auto media = item->getMedia()) {
 					switch (media->type()) {
 					case MediaTypePhoto: static_cast<HistoryPhoto*>(media)->photo()->download(); break;
@@ -2568,7 +2568,7 @@ void MediaView::updateOver(QPoint pos) {
 		updateOverState(OverRightNav);
 	} else if (_nameNav.contains(pos)) {
 		updateOverState(OverName);
-	} else if ((_msgid > 0 && _msgid < ServerMaxMsgId) && _dateNav.contains(pos)) {
+	} else if (IsServerMsgId(_msgid.msg) && _dateNav.contains(pos)) {
 		updateOverState(OverDate);
 	} else if (_headerHasLink && _headerNav.contains(pos)) {
 		updateOverState(OverHeader);
@@ -2985,7 +2985,8 @@ void MediaView::updateHeader() {
 			_headerText = _doc->name.isEmpty() ? lang(lng_mediaview_doc_image) : _doc->name;
 		} else if (_user) {
 			_headerText = lang(lng_mediaview_profile_photo);
-		} else if ((_channel && !_history->isMegagroup()) || (_peer && _peer->isChannel() && !_peer->isMegagroup())) {
+		} else if ((_history && _history->channelId() && !_history->isMegagroup())
+			|| (_peer && _peer->isChannel() && !_peer->isMegagroup())) {
 			_headerText = lang(lng_mediaview_channel_photo);
 		} else if (_peer) {
 			_headerText = lang(lng_mediaview_group_photo);

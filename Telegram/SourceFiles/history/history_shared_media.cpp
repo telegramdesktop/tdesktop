@@ -62,6 +62,42 @@ History *GetMigratedHistory(
 
 } // namespace
 
+base::optional<Storage::SharedMediaType> SharedMediaOverviewType(
+	Storage::SharedMediaType type) {
+	if (SharedMediaTypeToOverview(type) != OverviewCount) {
+		return type;
+	}
+	return base::none;
+}
+
+void SharedMediaShowOverview(
+	Storage::SharedMediaType type,
+	not_null<History*> history) {
+	if (SharedMediaOverviewType(type)) {
+		Ui::showPeerOverview(history, SharedMediaTypeToOverview(type));
+	}
+}
+
+QString SharedMediaSlice::debug() const {
+	auto before = _skippedBefore
+		? (*_skippedBefore
+			? ('(' + QString::number(*_skippedBefore) + ").. ")
+			: QString())
+		: QString(".. ");
+	auto after = _skippedAfter
+		? (*_skippedAfter
+			? (" ..(" + QString::number(*_skippedAfter) + ')')
+			: QString())
+		: QString(" ..");
+	auto middle = (size() > 2)
+		? QString::number((*this)[0]) + " .. " + QString::number((*this)[size() - 1])
+		: (size() > 1)
+		? QString::number((*this)[0]) + ' ' + QString::number((*this)[1])
+		: ((size() > 0) ? QString((*this)[0]) : QString());
+	return before + middle + after;
+}
+
+
 SharedMediaViewer::SharedMediaViewer(
 	Key key,
 	int limitBefore,
@@ -70,22 +106,8 @@ SharedMediaViewer::SharedMediaViewer(
 	, _limitBefore(limitBefore)
 	, _limitAfter(limitAfter)
 	, _data(_key) {
-}
-
-base::optional<Storage::SharedMediaType> SharedMediaOverviewType(
-		Storage::SharedMediaType type) {
-	if (SharedMediaTypeToOverview(type) != OverviewCount) {
-		return type;
-	}
-	return base::none;
-}
-
-void SharedMediaShowOverview(
-		Storage::SharedMediaType type,
-		not_null<History*> history) {
-	if (SharedMediaOverviewType(type)) {
-		Ui::showPeerOverview(history, SharedMediaTypeToOverview(type));
-	}
+	Expects(IsServerMsgId(key.messageId) || (key.messageId == 0));
+	Expects((key.messageId != 0) || (limitBefore == 0 && limitAfter == 0));
 }
 
 void SharedMediaViewer::start() {
@@ -125,10 +147,15 @@ void SharedMediaViewer::mergeSliceData(
 		base::optional<int> skippedBefore,
 		base::optional<int> skippedAfter) {
 	if (messageIds.empty()) {
-		if (count && *_data._fullCount != *count) {
+		if (count && _data._fullCount != count) {
 			_data._fullCount = count;
+			if (*_data._fullCount <= _data.size()) {
+				_data._fullCount = _data.size();
+				_data._skippedBefore = _data._skippedAfter = 0;
+			}
 			updated.notify(_data);
 		}
+		sliceToLimits();
 		return;
 	}
 	if (count) {
@@ -285,125 +312,71 @@ void SharedMediaViewer::requestMessages(RequestDirection direction) {
 		requestAroundData.second);
 }
 
-//
-//base::optional<int> SharedMediaViewerMerged::Data::fullCount() const {
-//	if (_historyCount && _migratedCount) {
-//		return (*_historyCount + *_migratedCount);
-//	}
-//	return base::none;
-//}
-//base::optional<int> SharedMediaViewerMerged::Data::skippedBefore() const {
-//	if (_ids.empty()) {
-//		return base::none;
-//	} else if (!IsServerMsgId(_ids.front())) {
-//		return _migratedSkippedBefore;
-//	} else if (_historySkippedBefore && _migratedCount) {
-//		return *_historySkippedBefore + *_migratedCount;
-//	}
-//	return base::none;
-//}
-//
-//base::optional<int> SharedMediaViewerMerged::Data::skippedAfter() const {
-//	if (_ids.empty()) {
-//		return base::none;
-//	} else if (IsServerMsgId(_ids.back())) {
-//		return _historySkippedAfter;
-//	} else if (_migratedSkippedAfter && _historyCount) {
-//		return *_migratedSkippedAfter + *_historyCount;
-//	}
-//	return base::none;
-//}
-//
-//SharedMediaViewerMerged::SharedMediaViewerMerged(
-//	Type type,
-//	not_null<History*> history,
-//	MsgId aroundId,
-//	int limitBefore,
-//	int limitAfter)
-//: _type(type)
-//, _history(GetActualHistory(history))
-//, _migrated(GetMigratedHistory(history, _history))
-//, _universalAroundId((_history == _migrated) ? -aroundId : aroundId)
-//, _limitBefore(limitBefore)
-//, _limitAfter(limitAfter)
-//, _data(_history, _migrated) {
-//}
-//
-//bool SharedMediaViewerMerged::hasOverview() const {
-//	return SharedMediaTypeToOverview(_type) != OverviewCount;
-//}
-//
-//void SharedMediaViewerMerged::showOverview() const {
-//	if (hasOverview()) {
-//		Ui::showPeerOverview(_history, SharedMediaTypeToOverview(_type));
-//	}
-//}
-//
-//bool SharedMediaViewerMerged::moveTo(const SharedMediaViewerMerged &other) {
-//	if (_history != other._history || _type != other._type) {
-//		return false;
-//	}
-//	_universalAroundId = other._universalAroundId;
-//	if (!containsAroundId()) {
-//		clearAfterMove();
-//	}
-//	load();
-//	return true;
-//}
-//
-//bool SharedMediaViewerMerged::containsAroundId() const {
-//	if (_data._ids.empty()) {
-//		return false;
-//	}
-//	auto min = _data._ids.front();
-//	auto max = _data._ids.back();
-//	if (IsServerMsgId(_universalAroundId)) {
-//		return (!IsServerMsgId(min) || min <= aroundId())
-//			&& (IsServerMsgId(max) && max >= aroundId());
-//	}
-//	return (!IsServerMsgId(min) && -min <= aroundId())
-//		&& (IsServerMsgId(max) || -max >= aroundId());
-//}
-//
-//bool SharedMediaViewerMerged::amAroundMigrated() const {
-//	return !IsServerMsgId(_universalAroundId);
-//}
-//
-//not_null<History*> SharedMediaViewerMerged::aroundHistory() const {
-//	return amAroundMigrated() ? _migrated : _history;
-//}
-//
-//MsgId SharedMediaViewerMerged::aroundId() const {
-//	return amAroundMigrated() ? -_universalAroundId : _universalAroundId;
-//}
-//
-//void SharedMediaViewerMerged::clearAfterMove() {
-//	_data = Data(_history, _migrated, _data._historyCount, _data._migratedCount);
-//}
-//
-//void SharedMediaViewerMerged::load() {
-//	auto weak = base::make_weak_unique(this);
-//	auto peer = aroundHistory()->peer;
-//	Auth().storage().query(Storage::SharedMediaQuery(
-//			peer->id,
-//			_type,
-//			aroundId(),
-//			_limitBefore,
-//			_limitAfter), [weak, peer](Storage::SharedMediaResult &&result) {
-//		if (weak) {
-//			weak->applyStoredResult(peer, std::move(result));
-//		}
-//	});
-//}
-//
-//void SharedMediaViewerMerged::applyStoredResult(
-//		not_null<PeerData*> peer,
-//		Storage::SharedMediaResult &&result) {
-//	if (aroundHistory()->peer != peer) {
-//		return;
-//	}
-//	auto aroundMigrated = amAroundMigrated();
-//	if (result.count) {
-//		(aroundMigrated ? _data._migratedCount : _data._historyCount) = result.count;
-//	}
-//}
+SharedMediaViewerMerged::SharedMediaViewerMerged(
+	Key key,
+	int limitBefore,
+	int limitAfter)
+	: _key(key)
+	, _limitBefore(limitBefore)
+	, _limitAfter(limitAfter)
+	, _part(PartKey(_key), _limitBefore, _limitAfter)
+	, _migrated(MigratedViewer(_key, _limitBefore, _limitAfter))
+	, _data(_key, SharedMediaSlice(PartKey(_key)), MigratedSlice(_key)) {
+	Expects(IsServerMsgId(key.universalId)
+		|| (key.universalId == 0)
+		|| (IsServerMsgId(-key.universalId) && key.migratedPeerId != 0));
+	Expects((key.universalId != 0) || (limitBefore == 0 && limitAfter == 0));
+}
+
+SharedMediaSlice::Key SharedMediaViewerMerged::PartKey(const Key &key) {
+	return {
+		key.peerId,
+		key.type,
+		(key.universalId < 0) ? 1 : key.universalId
+	};
+}
+
+SharedMediaSlice::Key SharedMediaViewerMerged::MigratedKey(const Key &key) {
+	return {
+		key.migratedPeerId,
+		key.type,
+		(key.universalId <= 0) ? (-key.universalId) : (ServerMaxMsgId - 1)
+	};
+}
+
+std::unique_ptr<SharedMediaViewer> SharedMediaViewerMerged::MigratedViewer(
+		const Key &key,
+		int limitBefore,
+		int limitAfter) {
+	return key.migratedPeerId
+		? std::make_unique<SharedMediaViewer>(
+			MigratedKey(key),
+			limitBefore,
+			limitAfter)
+		: nullptr;
+}
+
+base::optional<SharedMediaSlice> SharedMediaViewerMerged::MigratedSlice(
+		const Key &key) {
+	if (!key.migratedPeerId) {
+		return base::none;
+	}
+	return SharedMediaSlice(MigratedKey(key));
+}
+
+void SharedMediaViewerMerged::start() {
+	subscribe(_part.updated, [this](const SharedMediaSlice &update) {
+		_data = SharedMediaSliceMerged(_key, update, _data._migrated);
+		updated.notify(_data);
+	});
+	if (_migrated) {
+		subscribe(_migrated->updated, [this](const SharedMediaSlice &update) {
+			_data = SharedMediaSliceMerged(_key, _data._part, update);
+			updated.notify(_data);
+		});
+	}
+	_part.start();
+	if (_migrated) {
+		_migrated->start();
+	}
+}

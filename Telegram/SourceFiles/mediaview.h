@@ -156,15 +156,15 @@ private:
 	void updateMixerVideoVolume() const;
 
 	struct SharedMedia;
-	using SharedMediaType = SharedMediaViewer::Type;
-	using SharedMediaKey = SharedMediaViewer::Key;
+	using SharedMediaType = SharedMediaViewerMerged::Type;
+	using SharedMediaKey = SharedMediaViewerMerged::Key;
 	base::optional<SharedMediaType> sharedMediaType() const;
 	base::optional<SharedMediaKey> sharedMediaKey() const;
 	void validateSharedMedia();
 	bool validSharedMedia() const;
 	std::unique_ptr<SharedMedia> createSharedMedia() const;
 	void refreshSharedMedia();
-	void handleSharedMediaUpdate(const SharedMediaSlice &update);
+	void handleSharedMediaUpdate(const SharedMediaSliceMerged &update);
 	void refreshNavVisibility();
 
 	void dropdownHidden();
@@ -244,7 +244,7 @@ private:
 	PhotoData *_photo = nullptr;
 	DocumentData *_doc = nullptr;
 	std::unique_ptr<SharedMedia> _sharedMedia;
-	base::optional<SharedMediaSlice> _sharedMediaData;
+	base::optional<SharedMediaSliceMerged> _sharedMediaData;
 
 	QRect _closeNav, _closeNavIcon;
 	QRect _leftNav, _leftNavIcon, _rightNav, _rightNavIcon;
@@ -326,9 +326,7 @@ private:
 	base::optional<int> _index; // Index in current _sharedMedia data.
 	base::optional<int> _fullIndex; // Index in full shared media.
 	base::optional<int> _fullCount;
-	MsgId _msgid = 0; // msgId of current photo or file
-	bool _msgmigrated = false; // msgId is from _migrated history
-	ChannelId _channel = NoChannel;
+	FullMsgId _msgid;
 	bool _canForward = false;
 	bool _canDelete = false;
 

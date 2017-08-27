@@ -74,6 +74,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/variant.h"
 #include "base/optional.h"
 #include "base/algorithm.h"
+#include "base/functors.h"
+
+namespace func = base::functors;
 
 #include "base/flat_set.h"
 #include "base/flat_map.h"

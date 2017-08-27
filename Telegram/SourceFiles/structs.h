@@ -89,6 +89,9 @@ struct FullMsgId {
 	FullMsgId() = default;
 	FullMsgId(ChannelId channel, MsgId msg) : channel(channel), msg(msg) {
 	}
+	explicit operator bool() const {
+		return msg != 0;
+	}
 	ChannelId channel = NoChannel;
 	MsgId msg = 0;
 };

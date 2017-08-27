@@ -42,6 +42,10 @@ public:
 		, _fullCount(fullCount) {
 	}
 
+	const Key &key() const {
+		return _key;
+	}
+
 	base::optional<int> fullCount() const {
 		return _fullCount;
 	}
@@ -62,19 +66,10 @@ public:
 		return _ids.size();
 	}
 
-	using iterator = base::flat_set<MsgId>::const_iterator;
+	MsgId operator[](int index) const {
+		Expects(index >= 0 && index < size());
 
-	iterator begin() const {
-		return _ids.begin();
-	}
-	iterator end() const {
-		return _ids.end();
-	}
-	iterator cbegin() const {
-		return begin();
-	}
-	iterator cend() const {
-		return end();
+		return *(_ids.begin() + index);
 	}
 
 	base::optional<int> distance(const Key &a, const Key &b) const {
@@ -84,13 +79,15 @@ public:
 			|| b.peerId != _key.peerId) {
 			return base::none;
 		}
-		auto i = _ids.find(a.messageId);
-		auto j = _ids.find(b.messageId);
-		if (i == _ids.end() || j == _ids.end()) {
-			return base::none;
+		if (auto i = indexOf(a.messageId)) {
+			if (auto j = indexOf(b.messageId)) {
+				return *j - *i;
+			}
 		}
-		return j - i;
+		return base::none;
 	}
+
+	QString debug() const;
 
 private:
 	Key _key;
@@ -115,6 +112,8 @@ public:
 		Key key,
 		int limitBefore,
 		int limitAfter);
+	SharedMediaViewer(const SharedMediaViewer &other) = delete;
+	SharedMediaViewer(SharedMediaViewer &&other) = default;
 
 	void start();
 
@@ -144,7 +143,6 @@ private:
 		base::optional<int> skippedBefore = base::none,
 		base::optional<int> skippedAfter = base::none);
 
-
 	Key _key;
 	int _limitBefore = 0;
 	int _limitAfter = 0;
@@ -153,164 +151,196 @@ private:
 	SharedMediaSlice _data;
 
 };
-//
-//class SharedMediaSliceMerged :
-//	private MTP::Sender,
-//	private base::Subscriber,
-//	public base::enable_weak_from_this {
-//public:
-//	class Data;
-//
-//private:
-//	friend class Data;
-//	using UniversalMsgId = MsgId;
-//
-//public:
-//	using Type = Storage::SharedMediaType;
-//
-//	SharedMediaSliceMerged(
-//		Type type,
-//		not_null<History*> history,
-//		MsgId aroundId,
-//		int limitBefore,
-//		int limitAfter);
-//
-//	bool hasOverview() const;
-//	void showOverview() const;
-//	bool moveTo(const SharedMediaSliceMerged &other);
-//
-//	void load();
-//
-//	class Data {
-//	public:
-//		base::optional<int> fullCount() const;
-//		base::optional<int> skippedBefore() const;
-//		base::optional<int> skippedAfter() const;
-//		int size() const {
-//			return _ids.size();
-//		}
-//
-//		class iterator {
-//		public:
-//			FullMsgId operator*() const {
-//				auto id = _data->_ids[_index];
-//				Assert(IsServerMsgId(id)
-//					|| (_data->_migrated != nullptr && IsServerMsgId(-id)));
-//				return IsServerMsgId(id)
-//					? FullMsgId(_data->_history->channelId(), id)
-//					: FullMsgId(_data->_migrated->channelId(), -id);
-//			}
-//			iterator &operator--() {
-//				--_index;
-//				return *this;
-//			}
-//			iterator operator--(int) {
-//				auto result = *this;
-//				--*this;
-//				return result;
-//			}
-//			iterator &operator++() {
-//				++_index;
-//				return *this;
-//			}
-//			iterator operator++(int) {
-//				auto result = *this;
-//				++*this;
-//				return result;
-//			}
-//			iterator &operator+=(int offset) {
-//				_index += offset;
-//				return *this;
-//			}
-//			iterator operator+(int offset) const {
-//				auto result = *this;
-//				return result += offset;
-//			}
-//			bool operator==(iterator other) const {
-//				return (_data == other._data) && (_index == other._index);
-//			}
-//			bool operator!=(iterator other) const {
-//				return !(*this == other);
-//			}
-//			bool operator<(iterator other) const {
-//				return (_data < other._data)
-//					|| (_data == other._data && _index < other._index);
-//			}
-//
-//		private:
-//			friend class Data;
-//
-//			iterator(not_null<const Data*> data, int index)
-//				: _data(data)
-//				, _index(index) {
-//			}
-//
-//			not_null<const Data*> _data;
-//			int _index = 0;
-//
-//		};
-//
-//		iterator begin() const {
-//			return iterator(this, 0);
-//		}
-//		iterator end() const {
-//			iterator(this, _ids.size());
-//		}
-//		iterator cbegin() const {
-//			return begin();
-//		}
-//		iterator cend() const {
-//			return end();
-//		}
-//
-//	private:
-//		friend class iterator;
-//		friend class SharedMediaSliceMerged;
-//
-//		Data(
-//			not_null<History*> history,
-//			History *migrated,
-//			base::optional<int> historyCount = base::none,
-//			base::optional<int> migratedCount = base::none)
-//			: _history(history)
-//			, _migrated(migrated)
-//			, _historyCount(historyCount)
-//			, _migratedCount(migratedCount) {
-//			if (!_migrated) {
-//				_migratedCount = 0;
-//			}
-//		}
-//
-//		not_null<History*> _history;
-//		History *_migrated = nullptr;
-//		std::vector<UniversalMsgId> _ids;
-//		base::optional<int> _historyCount;
-//		base::optional<int> _historySkippedBefore;
-//		base::optional<int> _historySkippedAfter;
-//		base::optional<int> _migratedCount;
-//		base::optional<int> _migratedSkippedBefore;
-//		base::optional<int> _migratedSkippedAfter;
-//
-//	};
-//	base::Observable<Data> updated;
-//
-//private:
-//	bool amAroundMigrated() const;
-//	not_null<History*> aroundHistory() const;
-//	MsgId aroundId() const;
-//
-//	void applyStoredResult(
-//		not_null<PeerData*> peer,
-//		Storage::SharedMediaResult &&result);
-//	bool containsAroundId() const;
-//	void clearAfterMove();
-//
-//	Type _type = Type::kCount;
-//	not_null<History*> _history;
-//	History *_migrated = nullptr;
-//	UniversalMsgId _universalAroundId = 0;
-//	int _limitBefore = 0;
-//	int _limitAfter = 0;
-//	Data _data;
-//
-//};
+
+class SharedMediaViewerMerged;
+class SharedMediaSliceMerged {
+public:
+	using Type = Storage::SharedMediaType;
+	using UniversalMsgId = MsgId;
+	struct Key {
+		Key(
+			PeerId peerId,
+			PeerId migratedPeerId,
+			Type type,
+			UniversalMsgId universalId)
+			: peerId(peerId)
+			, migratedPeerId(migratedPeerId)
+			, type(type)
+			, universalId(universalId) {
+		}
+
+		bool operator==(const Key &other) const {
+			return (peerId == other.peerId)
+				&& (migratedPeerId == other.migratedPeerId)
+				&& (type == other.type)
+				&& (universalId == other.universalId);
+		}
+
+		PeerId peerId = 0;
+		PeerId migratedPeerId = 0;
+		Type type = Type::kCount;
+		UniversalMsgId universalId = 0;
+
+	};
+	SharedMediaSliceMerged(
+		Key key,
+		SharedMediaSlice part,
+		base::optional<SharedMediaSlice> migrated)
+		: _key(key)
+		, _part(part)
+		, _migrated(migrated) {
+	}
+
+	base::optional<int> fullCount() const {
+		return Add(
+			_part.fullCount(),
+			_migrated ? _migrated->fullCount() : 0);
+	}
+	base::optional<int> skippedBefore() const {
+		return Add(
+			isolatedInMigrated() ? 0 : _part.skippedBefore(),
+			_migrated
+				? (isolatedInPart()
+					? _migrated->fullCount()
+					: _migrated->skippedBefore())
+				: 0
+		);
+	}
+	base::optional<int> skippedAfter() const {
+		return Add(
+			isolatedInMigrated() ? _part.fullCount() : _part.skippedAfter(),
+			isolatedInPart() ? 0 : _migrated->skippedAfter()
+		);
+	}
+	base::optional<int> indexOf(FullMsgId fullId) const {
+		return isFromPart(fullId)
+			? (_part.indexOf(fullId.msg) | func::add(migratedSize()))
+			: isolatedInPart()
+				? base::none
+				: isFromMigrated(fullId)
+					? _migrated->indexOf(fullId.msg)
+					: base::none;
+	}
+	int size() const {
+		return (isolatedInPart() ? 0 : migratedSize())
+			+ (isolatedInMigrated() ? 0 : _part.size());
+	}
+
+	FullMsgId operator[](int index) const {
+		Expects(index >= 0 && index < size());
+
+		if (auto size = migratedSize()) {
+			if (index < size) {
+				return ComputeId(*_migrated, index);
+			}
+			index -= size;
+		}
+		return ComputeId(_part, index);
+	}
+
+	base::optional<int> distance(const Key &a, const Key &b) const {
+		if (a.type != _key.type
+			|| b.type != _key.type
+			|| a.peerId != _key.peerId
+			|| b.peerId != _key.peerId
+			|| a.migratedPeerId != _key.migratedPeerId
+			|| b.migratedPeerId != _key.migratedPeerId) {
+			return base::none;
+		}
+		if (auto i = indexOf(ComputeId(a))) {
+			if (auto j = indexOf(ComputeId(b))) {
+				return *j - *i;
+			}
+		}
+		return base::none;
+	}
+
+	QString debug() const {
+		return (_migrated ? (_migrated->debug() + '|') : QString()) + _part.debug();
+	}
+
+private:
+	static bool IsFromSlice(const SharedMediaSlice &slice, FullMsgId fullId) {
+		auto peer = slice.key().peerId;
+		return peerIsChannel(peer)
+			? (peer == peerFromChannel(fullId.channel))
+			: !fullId.channel;
+	}
+	static FullMsgId ComputeId(PeerId peerId, MsgId msgId) {
+		return FullMsgId(
+			peerIsChannel(peerId) ? peerToBareInt(peerId) : 0,
+			msgId);
+	}
+	static FullMsgId ComputeId(const SharedMediaSlice &slice, int index) {
+		return ComputeId(slice.key().peerId, slice[index]);
+	};
+	static FullMsgId ComputeId(const Key &key) {
+		return (key.universalId > 0)
+			? ComputeId(key.peerId, key.universalId)
+			: ComputeId(key.migratedPeerId, -key.universalId);
+	}
+	static base::optional<int> Add(
+			const base::optional<int> &a,
+			const base::optional<int> &b) {
+		return (a && b) ? base::make_optional(*a + *b) : base::none;
+	}
+
+	bool isFromPart(FullMsgId fullId) const {
+		return IsFromSlice(_part, fullId);
+	}
+	bool isFromMigrated(FullMsgId fullId) const {
+		return _migrated ? IsFromSlice(*_migrated, fullId) : false;
+	}
+	int migratedSize() const {
+		return isolatedInPart() ? 0 : _migrated->size();
+	}
+	bool isolatedInPart() const {
+		return IsServerMsgId(_key.universalId)
+			&& (!_migrated || _part.skippedBefore() != 0);
+	}
+	bool isolatedInMigrated() const {
+		return IsServerMsgId(-_key.universalId)
+			&& (_migrated->skippedAfter() != 0);
+	}
+
+	Key _key;
+	SharedMediaSlice _part;
+	base::optional<SharedMediaSlice> _migrated;
+
+	friend class SharedMediaViewerMerged;
+
+};
+
+class SharedMediaViewerMerged : private base::Subscriber {
+public:
+	using Type = SharedMediaSliceMerged::Type;
+	using Key = SharedMediaSliceMerged::Key;
+
+	SharedMediaViewerMerged(
+		Key key,
+		int limitBefore,
+		int limitAfter);
+	SharedMediaViewerMerged(const SharedMediaViewerMerged &other) = delete;
+	SharedMediaViewerMerged(SharedMediaViewerMerged &&other) = default;
+
+	void start();
+
+	base::Observable<SharedMediaSliceMerged> updated;
+
+private:
+	static SharedMediaSlice::Key PartKey(const Key &key);
+	static SharedMediaSlice::Key MigratedKey(const Key &key);
+	static std::unique_ptr<SharedMediaViewer> MigratedViewer(
+		const Key &key,
+		int limitBefore,
+		int limitAfter);
+	static base::optional<SharedMediaSlice> MigratedSlice(const Key &key);
+
+	Key _key;
+	int _limitBefore = 0;
+	int _limitAfter = 0;
+	SharedMediaViewer _part;
+	std::unique_ptr<SharedMediaViewer> _migrated;
+	SharedMediaSliceMerged _data;
+
+};

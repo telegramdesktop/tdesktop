@@ -46,6 +46,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "numbers.h"
 #include "observer_peer.h"
 #include "auth_session.h"
+#include "storage/storage_facade.h"
+#include "storage/storage_shared_media.h"
 #include "window/themes/window_theme.h"
 #include "window/notifications_manager.h"
 #include "platform/platform_notifications_manager.h"
@@ -1028,6 +1030,13 @@ namespace {
 			existing->updateReplyMarkup(m.has_reply_markup() ? (&m.vreply_markup) : nullptr);
 			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
 			existing->addToOverview(AddToOverviewNew);
+
+			if (auto sharedMediaTypes = existing->sharedMediaTypes()) {
+				Auth().storage().add(Storage::SharedMediaAddNew(
+					peerId,
+					sharedMediaTypes,
+					existing->id));
+			}
 
 			if (!existing->detached()) {
 				App::checkSavedGif(existing);
