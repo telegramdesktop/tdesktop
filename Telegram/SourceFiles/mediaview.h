@@ -57,14 +57,9 @@ public:
 
 	void setVisible(bool visible) override;
 
-	void updateOver(QPoint mpos);
-
 	void showPhoto(not_null<PhotoData*> photo, HistoryItem *context);
-	void showPhoto(not_null<PhotoData*> photo, PeerData *context);
+	void showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> context);
 	void showDocument(not_null<DocumentData*> document, HistoryItem *context);
-	void moveToScreen();
-	bool moveToNext(int32 delta);
-	void preloadData(int32 delta);
 
 	void leaveToChildEvent(QEvent *e, QWidget *child) override { // e -- from enterEvent() of child TWidget
 		updateOverState(OverNone);
@@ -151,20 +146,35 @@ private:
 		OverVideo,
 	};
 
+	void updateOver(QPoint mpos);
+	void moveToScreen();
+	bool moveToNext(int32 delta);
+	void preloadData(int32 delta);
+	struct Entity {
+		base::optional_variant<
+			not_null<PhotoData*>,
+			not_null<DocumentData*>> data;
+		HistoryItem *item;
+	};
+	Entity entityForSharedMediaValue(SharedMediaSliceWithLast::Value value) const;
+	void setContext(base::optional_variant<
+		not_null<HistoryItem*>,
+		not_null<PeerData*>> context);
+
 	void refreshLang();
 	void showSaveMsgFile();
 	void updateMixerVideoVolume() const;
 
 	struct SharedMedia;
-	using SharedMediaType = SharedMediaViewerMerged::Type;
-	using SharedMediaKey = SharedMediaViewerMerged::Key;
+	using SharedMediaType = SharedMediaViewerWithLast::Type;
+	using SharedMediaKey = SharedMediaViewerWithLast::Key;
 	base::optional<SharedMediaType> sharedMediaType() const;
 	base::optional<SharedMediaKey> sharedMediaKey() const;
 	void validateSharedMedia();
 	bool validSharedMedia() const;
 	std::unique_ptr<SharedMedia> createSharedMedia() const;
 	void refreshSharedMedia();
-	void handleSharedMediaUpdate(const SharedMediaSliceMerged &update);
+	void handleSharedMediaUpdate(const SharedMediaSliceWithLast &update);
 	void refreshNavVisibility();
 
 	void dropdownHidden();
@@ -206,14 +216,6 @@ private:
 	void radialStart();
 	TimeMs radialTimeShift() const;
 
-	// Computes the last OverviewChatPhotos PhotoData* from _history or _migrated.
-	struct LastChatPhoto {
-		HistoryItem *item;
-		PhotoData *photo;
-	};
-	LastChatPhoto computeLastOverviewChatPhoto();
-	void computeAdditionalChatPhoto(PeerData *peer, PhotoData *lastOverviewPhoto);
-
 	void userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mtpRequestId req);
 
 	void deletePhotosDone(const MTPVector<MTPlong> &result);
@@ -244,7 +246,7 @@ private:
 	PhotoData *_photo = nullptr;
 	DocumentData *_doc = nullptr;
 	std::unique_ptr<SharedMedia> _sharedMedia;
-	base::optional<SharedMediaSliceMerged> _sharedMediaData;
+	base::optional<SharedMediaSliceWithLast> _sharedMediaData;
 
 	QRect _closeNav, _closeNavIcon;
 	QRect _leftNav, _leftNavIcon, _rightNav, _rightNavIcon;
@@ -309,10 +311,6 @@ private:
 	History *_history = nullptr; // if conversation photos or files overview
 	PeerData *_peer = nullptr;
 	UserData *_user = nullptr; // if user profile photos overview
-
-	// There can be additional first photo in chat photos overview, that is not
-	// in the _history->overview(OverviewChatPhotos) (if the item was deleted).
-	PhotoData *_additionalChatPhoto = nullptr;
 
 	// We save the information about the reason of the current mediaview show:
 	// did we open a peer profile photo or a photo from some message.
