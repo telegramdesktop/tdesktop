@@ -77,6 +77,16 @@ struct MediaView::SharedMedia {
 	SharedMediaViewerWithLast slice;
 };
 
+struct MediaView::UserPhotos {
+	UserPhotos(UserPhotosViewer::Key key)
+		: key(key)
+		, slice(key, kIdsLimit, kIdsLimit) {
+	}
+
+	UserPhotosViewer::Key key;
+	UserPhotosViewer slice;
+};
+
 MediaView::MediaView() : TWidget(nullptr)
 , _transparentBrush(style::transparentPlaceholderBrush())
 , _animStarted(getms())
@@ -121,6 +131,7 @@ MediaView::MediaView() : TWidget(nullptr)
 			});
 		} else {
 			_sharedMedia = nullptr;
+			_userPhotos = nullptr;
 		}
 	};
 	subscribe(Messenger::Instance().authSessionChanged(), [handleAuthSessionChange] {
@@ -192,33 +203,6 @@ void MediaView::moveToScreen() {
 	_saveMsg.moveTo((width() - _saveMsg.width()) / 2, (height() - _saveMsg.height()) / 2);
 }
 
-void MediaView::handleSharedMediaUpdate(const SharedMediaSliceWithLast &update) {
-	if (isHidden() || (!_photo && !_doc) || !_sharedMedia) {
-		_index = _fullIndex = _fullCount = base::none;
-		return;
-	}
-
-	_sharedMediaData = update;
-
-	findCurrent();
-	updateControls();
-	preloadData(0);
-
-	//if (_user == update.peer && update.mediaTypesMask & (1 << OverviewCount)) {
-	//	if (!_photo) return;
-
-	//	_index = -1;
-	//	for (int i = 0, l = _user->photos.size(); i < l; ++i) {
-	//		if (_user->photos[i] == _photo) {
-	//			_index = i;
-	//			break;
-	//		}
-	//	}
-	//	updateControls();
-	//	preloadData(0);
-	//} // TODO user
-}
-
 bool MediaView::fileShown() const {
 	return !_current.isNull() || gifShown();
 }
@@ -267,7 +251,7 @@ void MediaView::documentUpdated(DocumentData *doc) {
 void MediaView::changingMsgId(not_null<HistoryItem*> row, MsgId newId) {
 	if (row->fullId() == _msgid) {
 		_msgid = FullMsgId(_msgid.channel, newId);
-		refreshSharedMedia();
+		refreshMediaViewer();
 	}
 }
 
@@ -308,11 +292,13 @@ void MediaView::refreshNavVisibility() {
 	if (_sharedMediaData) {
 		_leftNavVisible = _index && (*_index > 0);
 		_rightNavVisible = _index && (*_index + 1 < _sharedMediaData->size());
+	} else if (_userPhotosData) {
+		_leftNavVisible = _index && (*_index > 0);
+		_rightNavVisible = _index && (*_index + 1 < _userPhotosData->size());
 	} else {
 		_leftNavVisible = false;
 		_rightNavVisible = false;
 	}
-	// TODO user
 }
 
 void MediaView::updateControls() {
@@ -408,10 +394,24 @@ void MediaView::updateActions() {
 	if ((_doc && fileShown()) || (_photo && _photo->loaded())) {
 		_actions.push_back({ lang(lng_mediaview_copy), SLOT(onCopy()) });
 	}
-	if (_canForward) {
+	if (_canForwardItem) {
 		_actions.push_back({ lang(lng_mediaview_forward), SLOT(onForward()) });
 	}
-	if (_canDelete || (_photo && App::self() && _user == App::self()) || (_photo && _photo->peer && _photo->peer->photoId == _photo->id && (_photo->peer->isChat() || (_photo->peer->isChannel() && _photo->peer->asChannel()->amCreator())))) {
+	auto canDelete = [&] {
+		if (_canDeleteItem) {
+			return true;
+		} else if (!_msgid && _photo && App::self() && _user == App::self()) {
+			return _userPhotosData && _fullIndex && _fullCount;
+		} else if (_photo && _photo->peer && _photo->peer->photoId == _photo->id) {
+			if (auto chat = _photo->peer->asChat()) {
+				return chat->canEdit();
+			} else if (auto channel = _photo->peer->asChannel()) {
+				return channel->canEditInformation();
+			}
+		}
+		return false;
+	}();
+	if (canDelete) {
 		_actions.push_back({ lang(lng_mediaview_delete), SLOT(onDelete()) });
 	}
 	_actions.push_back({ lang(lng_mediaview_save_as), SLOT(onSaveAs()) });
@@ -652,6 +652,9 @@ void MediaView::updateMixerVideoVolume() const {
 
 void MediaView::close() {
 	_sharedMedia = nullptr;
+	_sharedMediaData = base::none;
+	_userPhotos = nullptr;
+	_userPhotosData = base::none;
 	if (_menu) _menu->hideMenu(true);
 	Messenger::Instance().hideMediaView();
 }
@@ -1071,9 +1074,79 @@ void MediaView::validateSharedMedia() {
 	}
 }
 
-void MediaView::refreshSharedMedia() {
+void MediaView::handleSharedMediaUpdate(const SharedMediaSliceWithLast &update) {
+	if (isHidden() || (!_photo && !_doc) || !_sharedMedia) {
+		_sharedMediaData = base::none;
+	} else {
+		_sharedMediaData = update;
+	}
+	findCurrent();
+	updateControls();
+	preloadData(0);
+}
+
+base::optional<MediaView::UserPhotosKey> MediaView::userPhotosKey() const {
+	if (!_msgid && _user && _photo) {
+		return UserPhotosKey {
+			_user->bareId(),
+			_photo->id
+		};
+	}
+	return base::none;
+}
+
+bool MediaView::validUserPhotos() const {
+	if (auto key = userPhotosKey()) {
+		if (!_userPhotos) {
+			return false;
+		}
+		auto countDistanceInData = [](const auto &a, const auto &b) {
+			return [&](const UserPhotosSlice &data) {
+				return data.distance(a, b);
+			};
+		};
+
+		auto distance = (key == _userPhotos->key) ? 0 :
+			_userPhotosData
+			| countDistanceInData(*key, _userPhotos->key)
+			| func::abs;
+		if (distance) {
+			return (*distance < kIdsPreloadAfter);
+		}
+	}
+	return (_userPhotos == nullptr);
+}
+
+void MediaView::validateUserPhotos() {
+	if (auto key = userPhotosKey()) {
+		_userPhotos = std::make_unique<UserPhotos>(*key);
+		subscribe(_userPhotos->slice.updated, [this](const UserPhotosSlice &data) {
+			handleUserPhotosUpdate(data);
+		});
+		_userPhotos->slice.start();
+	} else {
+		_userPhotos = nullptr;
+		_userPhotosData = base::none;
+	}
+}
+
+void MediaView::handleUserPhotosUpdate(const UserPhotosSlice &update) {
+	if (isHidden() || !_photo || !_userPhotos) {
+		_userPhotosData = base::none;
+	} else {
+		_userPhotosData = update;
+	}
+	findCurrent();
+	updateControls();
+	preloadData(0);
+}
+
+void MediaView::refreshMediaViewer() {
 	if (!validSharedMedia()) {
 		validateSharedMedia();
+	}
+	if (!validUserPhotos()) {
+		validateUserPhotos();
 	}
 	findCurrent();
 	updateControls();
@@ -1098,7 +1171,7 @@ void MediaView::showPhoto(not_null<PhotoData*> photo, HistoryItem *context) {
 
 	_photo = photo;
 
-	refreshSharedMedia();
+	refreshMediaViewer();
 
 	displayPhoto(photo, context);
 	preloadData(0);
@@ -1121,22 +1194,8 @@ void MediaView::showPhoto(not_null<PhotoData*> photo, not_null<PeerData*> contex
 
 	_photo = photo;
 
-	refreshSharedMedia();
-	if (_user) {
-		//if (_user->photos.isEmpty() && _user->photosCount < 0 && _user->photoId && _user->photoId != UnknownPeerPhotoId) {
-		//	_fullIndex = 0;
-		//}
-		//for (int i = 0, l = _user->photos.size(); i < l; ++i) {
-		//	if (_user->photos.at(i) == photo) {
-		//		_fullIndex = i;
-		//		break;
-		//	}
-		//}
+	refreshMediaViewer();
 
-		//if (_user->photosCount < 0) {
-		//	loadBack();
-		//} // TODO user
-	}
 	displayPhoto(photo, 0);
 	preloadData(0);
 	activateControls();
@@ -1178,7 +1237,7 @@ void MediaView::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
 	_photo = photo;
 	_radial.stop();
 
-	refreshSharedMedia();
+	refreshMediaViewer();
 
 	_photoRadialRect = QRect(QPoint((width() - st::radialSize.width()) / 2, (height() - st::radialSize.height()) / 2), st::radialSize);
 
@@ -1253,7 +1312,7 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 	_photo = nullptr;
 	_radial.stop();
 
-	refreshSharedMedia();
+	refreshMediaViewer();
 
 	if (_autoplayVideoDocument && _doc != _autoplayVideoDocument) {
 		_autoplayVideoDocument = nullptr;
@@ -2146,8 +2205,25 @@ void MediaView::setZoomLevel(int newZoom) {
 	update();
 }
 
-MediaView::Entity MediaView::entityForSharedMediaValue(
-		SharedMediaSliceWithLast::Value value) const {
+MediaView::Entity MediaView::entityForUserPhotos(int index) const {
+	Expects(!!_userPhotosData);
+
+	if (index < 0 || index >= _userPhotosData->size()) {
+		return { base::none, nullptr };
+	}
+	if (auto photo = App::photo((*_userPhotosData)[index])) {
+		return { photo, nullptr };
+	}
+	return { base::none, nullptr };
+}
+
+MediaView::Entity MediaView::entityForSharedMedia(int index) const {
+	Expects(!!_sharedMediaData);
+
+	if (index < 0 || index >= _sharedMediaData->size()) {
+		return { base::none, nullptr };
+	}
+	auto value = (*_sharedMediaData)[index];
 	if (auto photo = base::get_if<not_null<PhotoData*>>(&value)) {
 		// Last peer photo.
 		return { *photo, nullptr };
@@ -2171,23 +2247,32 @@ MediaView::Entity MediaView::entityForSharedMediaValue(
 	return { base::none, nullptr };
 }
 
+MediaView::Entity MediaView::entityByIndex(int index) const {
+	if (_sharedMediaData) {
+		return entityForSharedMedia(index);
+	} else if (_userPhotosData) {
+		return entityForUserPhotos(index);
+	}
+	return { base::none, nullptr };
+}
+
 void MediaView::setContext(base::optional_variant<
 		not_null<HistoryItem*>,
 		not_null<PeerData*>> context) {
 	if (auto item = base::get_if<not_null<HistoryItem*>>(&context)) {
 		_msgid = (*item)->fullId();
-		_canForward = (*item)->canForward();
-		_canDelete = (*item)->canDelete();
+		_canForwardItem = (*item)->canForward();
+		_canDeleteItem = (*item)->canDelete();
 		_history = (*item)->history();
 		_peer = _history->peer;
 	} else if (auto peer = base::get_if<not_null<PeerData*>>(&context)) {
 		_msgid = FullMsgId();
-		_canForward = _canDelete = false;
+		_canForwardItem = _canDeleteItem = false;
 		_history = App::history(*peer);
 		_peer = *peer;
 	} else {
 		_msgid = FullMsgId();
-		_canForward = _canDelete = false;
+		_canForwardItem = _canDeleteItem = false;
 		_history = nullptr;
 		_peer = nullptr;
 	}
@@ -2208,10 +2293,7 @@ bool MediaView::moveToNext(int32 delta) {
 		return false;
 	}
 	auto newIndex = *_index + delta;
-	if (newIndex < 0 || newIndex >= _sharedMediaData->size()) {
-		return false;
-	}
-	auto entity = entityForSharedMediaValue((*_sharedMediaData)[newIndex]);
+	auto entity = entityByIndex(*_index + delta);
 	if (!entity.data && !entity.item) {
 		return false;
 	}
@@ -2233,94 +2315,6 @@ bool MediaView::moveToNext(int32 delta) {
 	}
 	preloadData(delta);
 	return true;
-
-	//if (_index < 0) { // TODO chat
-	//	if (delta == -1 && _photo == _additionalChatPhoto) {
-	//		auto lastChatPhoto = computeLastOverviewChatPhoto();
-	//		if (lastChatPhoto.item) {
-	//			if (lastChatPhoto.item->history() == _history) {
-	//				_index = _history->overview(_overview).size() - 1;
-	//				_msgmigrated = false;
-	//			} else {
-	//				_index = _migrated->overview(_overview).size() - 1;
-	//				_msgmigrated = true;
-	//			}
-	//			_msgid = lastChatPhoto.item->id;
-	//			_channel = _history ? _history->channelId() : NoChannel;
-	//			_canForward = lastChatPhoto.item->canForward();
-	//			_canDelete = lastChatPhoto.item->canDelete();
-	//			displayPhoto(lastChatPhoto.photo, lastChatPhoto.item);
-	//			preloadData(delta);
-	//			return true;
-	//		} else if (_history && (_history->overviewCount(OverviewChatPhotos) != 0 || (
-	//			_migrated && _migrated->overviewCount(OverviewChatPhotos) != 0))) {
-	//			loadBack();
-	//			return true;
-	//		}
-	//	}
-	//	return false;
-	//}
-	//if (_overview == OverviewCount && (_history || !_user)) {
-	//	return false;
-	//}
-	//if (_msgmigrated && !_history->overviewLoaded(_overview)) {
-	//	return true;
-	//}
-
-	//int32 newIndex = _index + delta;
-	//if (_history && _overview != OverviewCount) {
-	//	bool newMigrated = _msgmigrated;
-	//	if (!newMigrated && newIndex < 0 && _migrated) {
-	//		newIndex += _migrated->overview(_overview).size();
-	//		newMigrated = true;
-	//	} else if (newMigrated && newIndex >= _migrated->overview(_overview).size()) {
-	//		newIndex -= _migrated->overview(_overview).size() + (_history->overviewCount(_overview) - _history->overview(_overview).size());
-	//		newMigrated = false;
-	//	}
-	//	if (newIndex >= 0 && newIndex < (newMigrated ? _migrated : _history)->overview(_overview).size()) {
-	//		if (auto item = App::histItemById(newMigrated ? 0 : _channel, getMsgIdFromOverview(newMigrated ? _migrated : _history, newIndex))) {
-	//			_index = newIndex;
-	//			_msgid = item->id;
-	//			_msgmigrated = (item->history() == _migrated);
-	//			_channel = _history ? _history->channelId() : NoChannel;
-	//			_canForward = item->canForward();
-	//			_canDelete = item->canDelete();
-	//			stopGif();
-	//			if (auto media = item->getMedia()) {
-	//				switch (media->type()) {
-	//				case MediaTypePhoto: displayPhoto(static_cast<HistoryPhoto*>(item->getMedia())->photo(), item); preloadData(delta); break;
-	//				case MediaTypeFile:
-	//				case MediaTypeVideo:
-	//				case MediaTypeGif:
-	//				case MediaTypeSticker: displayDocument(media->getDocument(), item); preloadData(delta); break;
-	//				}
-	//			} else {
-	//				displayDocument(nullptr, item);
-	//				preloadData(delta);
-	//			}
-	//		}
-	//	} else if (!newMigrated && newIndex == _history->overview(_overview).size() && _additionalChatPhoto) {
-	//		_index = -1;
-	//		_msgid = 0;
-	//		_msgmigrated = false;
-	//		_canForward = false;
-	//		_canDelete = false;
-	//		displayPhoto(_additionalChatPhoto, 0);
-	//	}
-	//	if (delta < 0 && _index < MediaOverviewStartPerPage) {
-	//		loadBack();
-	//	}
-	//} else if (_user) {
-	//	if (newIndex >= 0 && newIndex < _user->photos.size()) {
-	//		_index = newIndex;
-	//		displayPhoto(_user->photos[_index], 0);
-	//		preloadData(delta);
-	//	}
-	//	if (delta > 0 && _index > _user->photos.size() - MediaOverviewStartPerPage) {
-	//		loadBack();
-	//	}
-	//}
-	return true;
 }
 
 void MediaView::preloadData(int32 delta) {
@@ -2332,47 +2326,26 @@ void MediaView::preloadData(int32 delta) {
 	if (from > till) std::swap(from, till);
 
 	auto forgetIndex = *_index - delta * 2;
-	if (forgetIndex >= 0 && forgetIndex < _sharedMediaData->size()) {
-		auto entity = entityForSharedMediaValue((*_sharedMediaData)[forgetIndex]);
-		if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
-			(*photo)->forget();
-		} else if (auto document = base::get_if<not_null<DocumentData*>>(&entity.data)) {
-			(*document)->forget();
-		}
+	auto entity = entityByIndex(forgetIndex);
+	if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
+		(*photo)->forget();
+	} else if (auto document = base::get_if<not_null<DocumentData*>>(&entity.data)) {
+		(*document)->forget();
 	}
 
 	for (auto index = from; index != till; ++index) {
-		if (index >= 0 && index < _sharedMediaData->size()) {
-			auto entity = entityForSharedMediaValue((*_sharedMediaData)[index]);
-			if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
-				(*photo)->download();
-			} else if (auto document = base::get_if<not_null<DocumentData*>>(&entity.data)) {
-				if (auto sticker = (*document)->sticker()) {
-					sticker->img->load();
-				} else {
-					(*document)->thumb->load();
-					(*document)->automaticLoad(entity.item);
-				}
+		auto entity = entityByIndex(index);
+		if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
+			(*photo)->download();
+		} else if (auto document = base::get_if<not_null<DocumentData*>>(&entity.data)) {
+			if (auto sticker = (*document)->sticker()) {
+				sticker->img->load();
+			} else {
+				(*document)->thumb->load();
+				(*document)->automaticLoad(entity.item);
 			}
 		}
 	}
-
-	//} else if (_user) {
-	//	for (int32 i = from; i <= to; ++i) {
-	//		if (i >= 0 && i < _user->photos.size() && i != indexInOverview) {
-	//			_user->photos[i]->thumb->load();
-	//		}
-	//	}
-	//	for (int32 i = from; i <= to; ++i) {
-	//		if (i >= 0 && i < _user->photos.size() && i != indexInOverview) {
-	//			_user->photos[i]->download();
-	//		}
-	//	}
-	//	int32 forgetIndex = indexInOverview - delta * 2;
-	//	if (forgetIndex >= 0 && forgetIndex < _user->photos.size() && forgetIndex != indexInOverview) {
-	//		_user->photos[forgetIndex]->forget();
-	//	}
-	//} // TODO user
 }
 
 void MediaView::mousePressEvent(QMouseEvent *e) {
@@ -2802,128 +2775,28 @@ void MediaView::updateImage() {
 }
 
 void MediaView::findCurrent() {
-	if (!_sharedMediaData) {
-		_index = _fullIndex = _fullCount = base::none;
-		return;
-	}
-	_index = _msgid
-		? _sharedMediaData->indexOf(_msgid)
-		: _photo ? _sharedMediaData->indexOf(_photo) : base::none;
-	if (_index && _sharedMediaData->skippedBefore()) {
-		_fullIndex = (*_index + *_sharedMediaData->skippedBefore());
+	if (_sharedMediaData) {
+		_index = _msgid
+			? _sharedMediaData->indexOf(_msgid)
+			: _photo ? _sharedMediaData->indexOf(_photo) : base::none;
+		_fullIndex = _sharedMediaData->skippedBefore()
+			? (_index | func::add(*_sharedMediaData->skippedBefore()))
+			: base::none;
+		_fullCount = _sharedMediaData->fullCount();
+	} else if (_userPhotosData) {
+		_index = _photo ? _userPhotosData->indexOf(_photo->id) : base::none;
+		_fullIndex = _userPhotosData->skippedBefore()
+			? (_index | func::add(*_userPhotosData->skippedBefore()))
+			: base::none;
+		_fullCount = _userPhotosData->fullCount();
 	} else {
-		_fullIndex = base::none;
+		_index = _fullIndex = _fullCount = base::none;
 	}
-	_fullCount = _sharedMediaData->fullCount();
-
-	//auto i = 0;
-	//if (_msgmigrated) {
-	//	for (auto msgId : _migrated->overview(_overview)) {
-	//		if (msgId == _msgid) {
-	//			_index = i;
-	//			break;
-	//		}
-	//		++i;
-	//	}
-	//	if (!_history->overviewCountLoaded(_overview)) {
-	//		loadBack();
-	//	} else if (_history->overviewLoaded(_overview) && !_migrated->overviewLoaded(_overview)) { // all loaded
-	//		if (!_migrated->overviewCountLoaded(_overview) || (_index < 2 && _migrated->overviewCount(_overview) > 0)) {
-	//			loadBack();
-	//		}
-	//	}
-	//} else {
-	//	for (auto msgId : _history->overview(_overview)) {
-	//		if (msgId == _msgid) {
-	//			_index = i;
-	//			break;
-	//		}
-	//		++i;
-	//	}
-	//	if (!_history->overviewLoaded(_overview)) {
-	//		if (!_history->overviewCountLoaded(_overview) || (_index < 2 && _history->overviewCount(_overview) > 0) || (_index < 1 && _migrated && !_migrated->overviewLoaded(_overview))) {
-	//			loadBack();
-	//		}
-	//	} else if (_index < 1 && _migrated && !_migrated->overviewLoaded(_overview)) {
-	//		loadBack();
-	//	}
-	//	if (_migrated && !_migrated->overviewCountLoaded(_overview)) {
-	//		App::main()->preloadOverview(_migrated->peer, _overview);
-	//	}
-	//} // TODO user
-}
-
-void MediaView::loadBack() {
-	//if (_loadRequest || (_overview == OverviewCount && !_user)) {
-	//	return;
-	//}
-	//if (_index < 0 && (!_additionalChatPhoto || _photo != _additionalChatPhoto || !_history)) {
-	//	return;
-	//}
-
-	//if (_history && _overview != OverviewCount && (!_history->overviewLoaded(_overview) || (_migrated && !_migrated->overviewLoaded(_overview)))) {
-	//	if (App::main()) {
-	//		if (_msgmigrated || (_migrated && _index == 0 && _history->overviewLoaded(_overview))) {
-	//			App::main()->loadMediaBack(_migrated->peer, _overview);
-	//		} else {
-	//			App::main()->loadMediaBack(_history->peer, _overview);
-	//			if (_migrated && _index == 0 && (_migrated->overviewCount(_overview) < 0 || _migrated->overview(_overview).isEmpty()) && !_migrated->overviewLoaded(_overview)) {
-	//				App::main()->loadMediaBack(_migrated->peer, _overview);
-	//			}
-	//		}
-	//		if (_msgmigrated && !_history->overviewCountLoaded(_overview)) {
-	//			App::main()->preloadOverview(_history->peer, _overview);
-	//		}
-	//	}
-	//} else if (_user && _user->photosCount != 0) {
-	//	int32 limit = (_index < MediaOverviewStartPerPage && _user->photos.size() > MediaOverviewStartPerPage) ? SearchPerPage : MediaOverviewStartPerPage;
-	//	_loadRequest = MTP::send(MTPphotos_GetUserPhotos(_user->inputUser, MTP_int(_user->photos.size()), MTP_long(0), MTP_int(limit)), rpcDone(&MediaView::userPhotosLoaded, _user));
-	//} // TODO user
-}
-
-void MediaView::userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mtpRequestId req) {
-	if (req == _loadRequest) {
-		_loadRequest = 0;
-	}
-
-	const QVector<MTPPhoto> *v = nullptr;
-	switch (photos.type()) {
-	case mtpc_photos_photos: {
-		auto &d = photos.c_photos_photos();
-		App::feedUsers(d.vusers);
-		v = &d.vphotos.v;
-		u->photosCount = 0;
-	} break;
-
-	case mtpc_photos_photosSlice: {
-		auto &d = photos.c_photos_photosSlice();
-		App::feedUsers(d.vusers);
-		u->photosCount = d.vcount.v;
-		v = &d.vphotos.v;
-	} break;
-
-	default: return;
-	}
-
-	if (v->isEmpty()) {
-		u->photosCount = 0;
-	}
-
-	for (auto i = v->cbegin(), e = v->cend(); i != e; ++i) {
-		auto photo = App::feedPhoto(*i);
-		photo->thumb->load();
-		u->photos.push_back(photo);
-	}
-	Notify::mediaOverviewUpdated(u, OverviewCount);
 }
 
 void MediaView::updateHeader() {
 	auto index = _fullIndex ? *_fullIndex : -1;
 	auto count = _fullCount ? *_fullCount : -1;
-	if (_history) {
-	} else if (_user) {
-		count = _user->photosCount ? _user->photosCount : _user->photos.size(); // TODO user
-	}
 	if (index >= 0 && index < count && count > 1) {
 		if (_doc) {
 			_headerText = lng_mediaview_file_n_of_count(lt_file, _doc->name.isEmpty() ? lang(lng_mediaview_doc_image) : _doc->name, lt_n, QString::number(index + 1), lt_count, QString::number(count));
@@ -2958,16 +2831,4 @@ void MediaView::updateHeader() {
 float64 MediaView::overLevel(OverState control) const {
 	auto i = _animOpacities.constFind(control);
 	return (i == _animOpacities.cend()) ? (_over == control ? 1 : 0) : i->current();
-}
-
-MsgId MediaView::getMsgIdFromOverview(not_null<History*> history, int index) const {
-	//auto &overview = history->overview(_overview);
-	//if (index >= 0 && index < overview.size()) {
-	//	auto it = overview.begin();
-	//	for (auto i = 0; i != index; ++i) {
-	//		++it;
-	//	}
-	//	return *it;
-	//}
-	return 0;
 }

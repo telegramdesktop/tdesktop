@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/storage_facade.h"
 
 #include "storage/storage_shared_media.h"
+#include "storage/storage_user_photos.h"
 
 namespace Storage {
 
@@ -39,8 +40,19 @@ public:
 	base::Observable<SharedMediaRemoveOne> &sharedMediaOneRemoved();
 	base::Observable<SharedMediaRemoveAll> &sharedMediaAllRemoved();
 
+	void add(UserPhotosAddNew &&query);
+	void add(UserPhotosAddSlice &&query);
+	void remove(UserPhotosRemoveOne &&query);
+	void remove(UserPhotosRemoveAfter &&query);
+	void query(
+		UserPhotosQuery &&query,
+		base::lambda_once<void(UserPhotosResult&&)> &&callback);
+
+	base::Observable<UserPhotosSliceUpdate> &userPhotosSliceUpdated();
+
 private:
 	SharedMedia _sharedMedia;
+	UserPhotos _userPhotos;
 
 };
 
@@ -82,6 +94,32 @@ base::Observable<SharedMediaRemoveAll> &Facade::Impl::sharedMediaAllRemoved() {
 	return _sharedMedia.allRemoved;
 }
 
+void Facade::Impl::add(UserPhotosAddNew &&query) {
+	return _userPhotos.add(std::move(query));
+}
+
+void Facade::Impl::add(UserPhotosAddSlice &&query) {
+	return _userPhotos.add(std::move(query));
+}
+
+void Facade::Impl::remove(UserPhotosRemoveOne &&query) {
+	return _userPhotos.remove(std::move(query));
+}
+
+void Facade::Impl::remove(UserPhotosRemoveAfter &&query) {
+	return _userPhotos.remove(std::move(query));
+}
+
+void Facade::Impl::query(
+		UserPhotosQuery &&query,
+		base::lambda_once<void(UserPhotosResult&&)> &&callback) {
+	return _userPhotos.query(std::move(query), std::move(callback));
+}
+
+base::Observable<UserPhotosSliceUpdate> &Facade::Impl::userPhotosSliceUpdated() {
+	return _userPhotos.sliceUpdated;
+}
+
 Facade::Facade() : _impl(std::make_unique<Impl>()) {
 }
 
@@ -121,6 +159,32 @@ base::Observable<SharedMediaRemoveOne> &Facade::sharedMediaOneRemoved() {
 
 base::Observable<SharedMediaRemoveAll> &Facade::sharedMediaAllRemoved() {
 	return _impl->sharedMediaAllRemoved();
+}
+
+void Facade::add(UserPhotosAddNew &&query) {
+	return _impl->add(std::move(query));
+}
+
+void Facade::add(UserPhotosAddSlice &&query) {
+	return _impl->add(std::move(query));
+}
+
+void Facade::remove(UserPhotosRemoveOne &&query) {
+	return _impl->remove(std::move(query));
+}
+
+void Facade::remove(UserPhotosRemoveAfter &&query) {
+	return _impl->remove(std::move(query));
+}
+
+void Facade::query(
+		UserPhotosQuery &&query,
+		base::lambda_once<void(UserPhotosResult&&)> &&callback) {
+	return _impl->query(std::move(query), std::move(callback));
+}
+
+base::Observable<UserPhotosSliceUpdate> &Facade::userPhotosSliceUpdated() {
+	return _impl->userPhotosSliceUpdated();
 }
 
 Facade::~Facade() = default;

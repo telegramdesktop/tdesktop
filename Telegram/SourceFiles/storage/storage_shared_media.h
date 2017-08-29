@@ -254,11 +254,10 @@ private:
 			const Range &messages,
 			MsgRange noSkipRange);
 		template <typename Range>
-		int addRangeItemsAndCount(
+		int addRangeItemsAndCountNew(
 			SliceUpdate &update,
 			const Range &messages,
-			MsgRange noSkipRange,
-			base::optional<int> count);
+			MsgRange noSkipRange);
 		template <typename Range>
 		void addRange(
 			const Range &messages,
@@ -277,7 +276,7 @@ private:
 	using SliceUpdate = List::SliceUpdate;
 	using Lists = std::array<List, kSharedMediaTypeCount>;
 
-	std::map<PeerId, Lists>::iterator enforceLists(PeerId peerId);
+	std::map<PeerId, Lists>::iterator enforceLists(PeerId peer);
 
 	std::map<PeerId, Lists> _lists;
 

@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/effects/radial_animation.h"
 #include "history/history_shared_media.h"
+#include "history/history_user_photos.h"
 
 namespace Media {
 namespace Player {
@@ -156,7 +157,9 @@ private:
 			not_null<DocumentData*>> data;
 		HistoryItem *item;
 	};
-	Entity entityForSharedMediaValue(SharedMediaSliceWithLast::Value value) const;
+	Entity entityForUserPhotos(int index) const;
+	Entity entityForSharedMedia(int index) const;
+	Entity entityByIndex(int index) const;
 	void setContext(base::optional_variant<
 		not_null<HistoryItem*>,
 		not_null<PeerData*>> context);
@@ -170,11 +173,18 @@ private:
 	using SharedMediaKey = SharedMediaViewerWithLast::Key;
 	base::optional<SharedMediaType> sharedMediaType() const;
 	base::optional<SharedMediaKey> sharedMediaKey() const;
-	void validateSharedMedia();
 	bool validSharedMedia() const;
-	std::unique_ptr<SharedMedia> createSharedMedia() const;
-	void refreshSharedMedia();
+	void validateSharedMedia();
 	void handleSharedMediaUpdate(const SharedMediaSliceWithLast &update);
+
+	struct UserPhotos;
+	using UserPhotosKey = UserPhotosViewer::Key;
+	base::optional<UserPhotosKey> userPhotosKey() const;
+	bool validUserPhotos() const;
+	void validateUserPhotos();
+	void handleUserPhotosUpdate(const UserPhotosSlice &update);
+
+	void refreshMediaViewer();
 	void refreshNavVisibility();
 
 	void dropdownHidden();
@@ -186,7 +196,6 @@ private:
 	void displayDocument(DocumentData *document, HistoryItem *item);
 	void displayFinished();
 	void findCurrent();
-	void loadBack();
 
 	void updateCursor();
 	void setZoomLevel(int newZoom);
@@ -216,8 +225,6 @@ private:
 	void radialStart();
 	TimeMs radialTimeShift() const;
 
-	void userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mtpRequestId req);
-
 	void deletePhotosDone(const MTPVector<MTPlong> &result);
 	bool deletePhotosFail(const RPCError &error);
 
@@ -239,14 +246,14 @@ private:
 	bool updateOverState(OverState newState);
 	float64 overLevel(OverState control) const;
 
-	MsgId getMsgIdFromOverview(not_null<History*> history, int index) const;
-
 	QBrush _transparentBrush;
 
 	PhotoData *_photo = nullptr;
 	DocumentData *_doc = nullptr;
 	std::unique_ptr<SharedMedia> _sharedMedia;
 	base::optional<SharedMediaSliceWithLast> _sharedMediaData;
+	std::unique_ptr<UserPhotos> _userPhotos;
+	base::optional<UserPhotosSlice> _userPhotosData;
 
 	QRect _closeNav, _closeNavIcon;
 	QRect _leftNav, _leftNavIcon, _rightNav, _rightNavIcon;
@@ -325,8 +332,8 @@ private:
 	base::optional<int> _fullIndex; // Index in full shared media.
 	base::optional<int> _fullCount;
 	FullMsgId _msgid;
-	bool _canForward = false;
-	bool _canDelete = false;
+	bool _canForwardItem = false;
+	bool _canDeleteItem = false;
 
 	mtpRequestId _loadRequest = 0;
 

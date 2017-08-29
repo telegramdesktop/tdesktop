@@ -43,24 +43,6 @@ inline MediaOverviewType SharedMediaTypeToOverview(Type type) {
 	return OverviewCount;
 }
 
-not_null<History*> GetActualHistory(not_null<History*> history) {
-	if (auto to = history->peer->migrateTo()) {
-		return App::history(to);
-	}
-	return history;
-}
-
-History *GetMigratedHistory(
-		not_null<History*> passedHistory,
-		not_null<History*> actualHistory) {
-	if (actualHistory != passedHistory) {
-		return passedHistory;
-	} else if (auto from = actualHistory->peer->migrateFrom()) {
-		return App::history(from);
-	}
-	return nullptr;
-}
-
 } // namespace
 
 base::optional<Storage::SharedMediaType> SharedMediaOverviewType(
@@ -133,7 +115,7 @@ QString SharedMediaSlice::debug() const {
 		? QString::number((*this)[0]) + " .. " + QString::number((*this)[size() - 1])
 		: (size() > 1)
 		? QString::number((*this)[0]) + ' ' + QString::number((*this)[1])
-		: ((size() > 0) ? QString((*this)[0]) : QString());
+		: ((size() > 0) ? QString::number((*this)[0]) : QString());
 	return before + middle + after;
 }
 

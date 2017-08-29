@@ -21,7 +21,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "storage/storage_shared_media.h"
-#include "mtproto/sender.h"
 #include "base/weak_unique_ptr.h"
 
 base::optional<Storage::SharedMediaType> SharedMediaOverviewType(
@@ -102,8 +101,6 @@ private:
 	Key _key;
 	int _limitBefore = 0;
 	int _limitAfter = 0;
-	mtpRequestId _beforeRequestId = 0;
-	mtpRequestId _afterRequestId = 0;
 	SharedMediaSlice _data;
 
 };

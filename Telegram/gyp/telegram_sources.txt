@@ -189,6 +189,8 @@
 <(src_loc)/history/history_service_layout.h
 <(src_loc)/history/history_shared_media.cpp
 <(src_loc)/history/history_shared_media.h
+<(src_loc)/history/history_user_photos.cpp
+<(src_loc)/history/history_user_photos.h
 <(src_loc)/history/history_widget.cpp
 <(src_loc)/history/history_widget.h
 <(src_loc)/inline_bots/inline_bot_layout_internal.cpp
@@ -449,6 +451,8 @@
 <(src_loc)/storage/storage_facade.h
 <(src_loc)/storage/storage_shared_media.cpp
 <(src_loc)/storage/storage_shared_media.h
+<(src_loc)/storage/storage_user_photos.cpp
+<(src_loc)/storage/storage_user_photos.h
 <(src_loc)/ui/effects/cross_animation.cpp
 <(src_loc)/ui/effects/cross_animation.h
 <(src_loc)/ui/effects/panel_animation.cpp

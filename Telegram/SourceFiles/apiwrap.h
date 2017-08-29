@@ -128,6 +128,10 @@ public:
 		requestSharedMedia(peer, type, 0, SliceType::Before);
 	}
 
+	void requestUserPhotos(
+		not_null<UserData*> user,
+		PhotoId afterId);
+
 	~ApiWrap();
 
 private:
@@ -180,6 +184,11 @@ private:
 		MsgId messageId,
 		SliceType slice,
 		const MTPmessages_Messages &result);
+
+	void userPhotosDone(
+		not_null<UserData*> user,
+		PhotoId photoId,
+		const MTPphotos_Photos &result);
 
 	not_null<AuthSession*> _session;
 	mtpRequestId _changelogSubscription = 0;
@@ -248,6 +257,8 @@ private:
 		SharedMediaType,
 		MsgId,
 		SliceType>, mtpRequestId> _sharedMediaRequests;
+
+	base::flat_map<not_null<UserData*>, mtpRequestId> _userPhotosRequests;
 
 	base::Observable<PeerData*> _fullPeerUpdated;
 

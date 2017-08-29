@@ -37,6 +37,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "chat_helpers/stickers.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
+#include "storage/storage_user_photos.h"
 
 namespace {
 
@@ -48,7 +49,7 @@ constexpr auto kStickersUpdateTimeout = 3600000; // update not more than once in
 constexpr auto kUnreadMentionsPreloadIfLess = 5;
 constexpr auto kUnreadMentionsFirstRequestLimit = 10;
 constexpr auto kUnreadMentionsNextRequestLimit = 100;
-constexpr auto kSharedMediaLimit = 10;
+constexpr auto kSharedMediaLimit = 100;
 
 } // namespace
 
@@ -1963,7 +1964,6 @@ void ApiWrap::requestSharedMedia(
 		Unexpected("Slice type in ApiWrap::requestSharedMedia");
 	}();
 
-	LOG(("REQUESTING SHARED MEDIA: %1, %2, %3").arg(static_cast<int>(type)).arg(messageId).arg(static_cast<int>(slice)));
 	auto requestId = request(MTPmessages_Search(
 		MTP_flags(0),
 		peer->input,
@@ -1992,7 +1992,6 @@ void ApiWrap::sharedMediaDone(
 		MsgId messageId,
 		SliceType slice,
 		const MTPmessages_Messages &result) {
-
 	auto fullCount = 0;
 	auto &messages = *[&] {
 		switch (result.type()) {
@@ -2060,6 +2059,67 @@ void ApiWrap::sharedMediaDone(
 		type,
 		std::move(messageIds),
 		noSkipRange,
+		fullCount
+	));
+}
+
+void ApiWrap::requestUserPhotos(
+		not_null<UserData*> user,
+		PhotoId afterId) {
+	if (_userPhotosRequests.contains(user)) {
+		return;
+	}
+
+	auto limit = kSharedMediaLimit;
+
+	auto requestId = request(MTPphotos_GetUserPhotos(
+		user->inputUser,
+		MTP_int(0),
+		MTP_long(afterId),
+		MTP_int(limit)
+	)).done([this, user, afterId](const MTPphotos_Photos &result) {
+		_userPhotosRequests.remove(user);
+		userPhotosDone(user, afterId, result);
+	}).fail([this, user](const RPCError &error) {
+		_userPhotosRequests.remove(user);
+	}).send();
+	_userPhotosRequests.emplace(user, requestId);
+}
+
+void ApiWrap::userPhotosDone(
+		not_null<UserData*> user,
+		PhotoId photoId,
+		const MTPphotos_Photos &result) {
+	auto fullCount = 0;
+	auto &photos = *[&] {
+		switch (result.type()) {
+		case mtpc_photos_photos: {
+			auto &d = result.c_photos_photos();
+			App::feedUsers(d.vusers);
+			fullCount = d.vphotos.v.size();
+			return &d.vphotos.v;
+		} break;
+
+		case mtpc_photos_photosSlice: {
+			auto &d = result.c_photos_photosSlice();
+			App::feedUsers(d.vusers);
+			fullCount = d.vcount.v;
+			return &d.vphotos.v;
+		} break;
+		}
+		Unexpected("photos.Photos type in userPhotosDone()");
+	}();
+
+	auto photoIds = std::vector<PhotoId>();
+	photoIds.reserve(photos.size());
+	for (auto &photo : photos) {
+		if (auto photoData = App::feedPhoto(photo)) {
+			photoIds.push_back(photoData->id);
+		}
+	}
+	Auth().storage().add(Storage::UserPhotosAddSlice(
+		user->id,
+		std::move(photoIds),
 		fullCount
 	));
 }

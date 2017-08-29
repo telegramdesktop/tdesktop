@@ -33,6 +33,14 @@ struct SharedMediaQuery;
 struct SharedMediaResult;
 struct SharedMediaSliceUpdate;
 
+struct UserPhotosAddNew;
+struct UserPhotosAddSlice;
+struct UserPhotosRemoveOne;
+struct UserPhotosRemoveAfter;
+struct UserPhotosQuery;
+struct UserPhotosResult;
+struct UserPhotosSliceUpdate;
+
 class Facade {
 public:
 	Facade();
@@ -49,6 +57,16 @@ public:
 	base::Observable<SharedMediaSliceUpdate> &sharedMediaSliceUpdated();
 	base::Observable<SharedMediaRemoveOne> &sharedMediaOneRemoved();
 	base::Observable<SharedMediaRemoveAll> &sharedMediaAllRemoved();
+
+	void add(UserPhotosAddNew &&query);
+	void add(UserPhotosAddSlice &&query);
+	void remove(UserPhotosRemoveOne &&query);
+	void remove(UserPhotosRemoveAfter &&query);
+	void query(
+		UserPhotosQuery &&query,
+		base::lambda_once<void(UserPhotosResult&&)> &&callback);
+
+	base::Observable<UserPhotosSliceUpdate> &userPhotosSliceUpdated();
 
 	~Facade();
 

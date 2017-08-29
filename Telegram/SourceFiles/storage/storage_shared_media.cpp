@@ -73,11 +73,10 @@ int SharedMedia::List::uniteAndAdd(
 }
 
 template <typename Range>
-int SharedMedia::List::addRangeItemsAndCount(
+int SharedMedia::List::addRangeItemsAndCountNew(
 		SliceUpdate &update,
 		const Range &messages,
-		MsgRange noSkipRange,
-		base::optional<int> count) {
+		MsgRange noSkipRange) {
 	Expects((noSkipRange.from < noSkipRange.till)
 		|| (noSkipRange.from == noSkipRange.till && messages.begin() == messages.end()));
 	if (noSkipRange.from == noSkipRange.till) {
@@ -117,7 +116,7 @@ void SharedMedia::List::addRange(
 
 	auto wasCount = _count;
 	auto update = SliceUpdate();
-	auto result = addRangeItemsAndCount(update, messages, noSkipRange, count);
+	auto result = addRangeItemsAndCountNew(update, messages, noSkipRange);
 	if (count) {
 		_count = count;
 	} else if (incrementCount && _count && result > 0) {
@@ -205,14 +204,7 @@ SharedMediaResult SharedMedia::List::queryFromSlice(
 	auto haveEqualOrAfter = int(slice.messages.end() - position);
 	auto before = qMin(haveBefore, query.limitBefore);
 	auto equalOrAfter = qMin(haveEqualOrAfter, query.limitAfter + 1);
-	auto ids = std::vector<MsgId>();
-	ids.reserve(before + equalOrAfter);
-	for (
-		auto from = position - before, till = position + equalOrAfter;
-		from != till;
-		++from) {
-		ids.push_back(*from);
-	}
+	auto ids = std::vector<MsgId>(position - before, position + equalOrAfter);
 	result.messageIds.merge(ids.begin(), ids.end());
 	if (slice.range.from == 0) {
 		result.skippedBefore = haveBefore - before;

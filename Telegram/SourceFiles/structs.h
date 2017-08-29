@@ -568,10 +568,6 @@ public:
 	bool hasCalls() const;
 	void setCallsStatus(CallsStatus callsStatus);
 
-	typedef QList<PhotoData*> Photos;
-	Photos photos;
-	int photosCount = -1; // -1 not loaded, 0 all loaded
-
 	bool setAbout(const QString &newAbout);
 	const QString &about() const {
 		return _about;

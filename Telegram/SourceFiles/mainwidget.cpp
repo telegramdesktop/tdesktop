@@ -77,6 +77,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "auth_session.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
+#include "storage/storage_user_photos.h"
 
 namespace {
 
@@ -969,13 +970,8 @@ void MainWidget::deletePhotoLayer(PhotoData *photo) {
 		} else if (photo->peer && !photo->peer->isUser() && photo->peer->photoId == photo->id) {
 			Messenger::Instance().peerClearPhoto(photo->peer->id);
 		} else {
-			for (int i = 0, l = me->photos.size(); i != l; ++i) {
-				if (me->photos.at(i) == photo) {
-					me->photos.removeAt(i);
-					MTP::send(MTPphotos_DeletePhotos(MTP_vector<MTPInputPhoto>(1, MTP_inputPhoto(MTP_long(photo->id), MTP_long(photo->access)))));
-					break;
-				}
-			}
+			MTP::send(MTPphotos_DeletePhotos(MTP_vector<MTPInputPhoto>(1, MTP_inputPhoto(MTP_long(photo->id), MTP_long(photo->access)))));
+			Auth().storage().remove(Storage::UserPhotosRemoveOne(me->bareId(), photo->id));
 		}
 	})));
 }
@@ -5091,19 +5087,17 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		if (auto user = App::userLoaded(d.vuser_id.v)) {
 			user->setPhoto(d.vphoto);
 			user->loadUserpic();
-			if (mtpIsTrue(d.vprevious)) {
-				user->photosCount = -1;
-				user->photos.clear();
+			if (mtpIsTrue(d.vprevious)
+				|| !user->photoId
+				|| user->photoId == UnknownPeerPhotoId) {
+				Auth().storage().remove(Storage::UserPhotosRemoveAfter(
+					user->bareId(),
+					user->photoId));
 			} else {
-				if (user->photoId && user->photoId != UnknownPeerPhotoId) {
-					if (user->photosCount > 0) ++user->photosCount;
-					user->photos.push_front(App::photo(user->photoId));
-				} else {
-					user->photosCount = -1;
-					user->photos.clear();
-				}
+				Auth().storage().add(Storage::UserPhotosAddNew(
+					user->bareId(),
+					user->photoId));
 			}
-			Notify::mediaOverviewUpdated(user, OverviewCount);
 		}
 	} break;
 
