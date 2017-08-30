@@ -73,5 +73,14 @@
       '<(src_loc)/base/flat_set.h',
       '<(src_loc)/base/flat_set_tests.cpp',
     ],
+  }, {
+    'target_name': 'tests_flags',
+    'includes': [
+      'common_test.gypi',
+    ],
+    'sources': [
+      '<(src_loc)/base/flags.h',
+      '<(src_loc)/base/flags_tests.cpp',
+    ],
   }],
 }
