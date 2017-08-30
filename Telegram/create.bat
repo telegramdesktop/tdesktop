@@ -4,7 +4,10 @@ set "FullScriptPath=%~dp0"
 set "FullExecPath=%cd%"
 
 set "Command=%1"
-if "%Command%" == "header" (
+if "%Command%" == "test" (
+  call :write_test %2
+  exit /b %errorlevel%
+) else if "%Command%" == "header" (
   call :write_header %2
   exit /b %errorlevel%
 ) else if "%Command%" == "source" (
@@ -80,6 +83,34 @@ exit /b %errorlevel%
   set "quote="""
   set "quote=!quote:~0,1!"
   set "source1=#include !quote!!CommandPathUnix!.h!quote!"
+  (
+    echo !source1!
+    echo.
+  )>> "SourceFiles\!CommandPathWin!.cpp"
+  exit /b
+)
+
+:write_test
+(
+  set "CommandPath=%1"
+  set "CommandPathUnix=!CommandPath:\=/!"
+  set "CommandPathWin=!CommandPath:/=\!"
+
+  if "!CommandPathUnix!" == "" (
+    echo Provide source path.
+    exit /b 1
+  ) else if exist "SourceFiles\!CommandPathWin!.cpp" (
+    echo This source already exists.
+    exit /b 1
+  )
+  echo Generating test !CommandPathUnix!.cpp..
+  mkdir "SourceFiles\!CommandPathWin!.cpp"
+  rmdir "SourceFiles\!CommandPathWin!.cpp"
+
+  call :write_comment !CommandPathWin!.cpp
+  set "quote="""
+  set "quote=!quote:~0,1!"
+  set "source1=#include !quote!catch.hpp!quote!"
   (
     echo !source1!
     echo.

@@ -7,3 +7,6 @@
 [submodule "Telegram/ThirdParty/GSL"]
 	path = Telegram/ThirdParty/GSL
 	url = https://github.com/Microsoft/GSL.git
+[submodule "Telegram/ThirdParty/Catch"]
+	path = Telegram/ThirdParty/Catch
+	url = https://github.com/philsquared/Catch

@@ -79,6 +79,7 @@
       'codegen.gyp:codegen_lang',
       'codegen.gyp:codegen_numbers',
       'codegen.gyp:codegen_style',
+      'tests/tests.gyp:tests',
       'utils.gyp:Updater',
       '../ThirdParty/libtgvoip/libtgvoip.gyp:libtgvoip',
     ],
