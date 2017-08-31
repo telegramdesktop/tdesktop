@@ -1858,7 +1858,7 @@ namespace {
 		return ::histories;
 	}
 
-	History *history(const PeerId &peer) {
+	not_null<History*> history(const PeerId &peer) {
 		return ::histories.findOrInsert(peer);
 	}
 

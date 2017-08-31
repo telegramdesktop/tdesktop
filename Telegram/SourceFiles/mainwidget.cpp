@@ -1645,7 +1645,7 @@ void MainWidget::checkLastUpdate(bool afterSleep) {
 	}
 }
 
-void MainWidget::overviewLoaded(History *history, const MTPmessages_Messages &result, mtpRequestId req) {
+void MainWidget::overviewLoaded(not_null<History*> history, const MTPmessages_Messages &result, mtpRequestId req) {
 	OverviewsPreload::iterator it;
 	MediaOverviewType type = OverviewCount;
 	for (int32 i = 0; i < OverviewCount; ++i) {
@@ -4009,7 +4009,10 @@ void MainWidget::onSelfParticipantUpdated(ChannelData *channel) {
 	auto history = App::historyLoaded(channel->id);
 	if (_updatedChannels.contains(channel)) {
 		_updatedChannels.remove(channel);
-		if ((history ? history : App::history(channel->id))->isEmpty()) {
+		if (!history) {
+			history = App::history(channel);
+		}
+		if (history->isEmpty()) {
 			checkPeerHistory(channel);
 		} else {
 			history->asChannelHistory()->checkJoinedMessage(true);

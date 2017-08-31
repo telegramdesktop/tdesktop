@@ -53,8 +53,8 @@ public:
 	void step_typings(TimeMs ms, bool timer);
 
 	History *find(const PeerId &peerId);
-	History *findOrInsert(const PeerId &peerId);
-	History *findOrInsert(const PeerId &peerId, int32 unreadCount, int32 maxInboxRead, int32 maxOutboxRead);
+	not_null<History*> findOrInsert(const PeerId &peerId);
+	not_null<History*> findOrInsert(const PeerId &peerId, int32 unreadCount, int32 maxInboxRead, int32 maxOutboxRead);
 
 	void clear();
 	void remove(const PeerId &peer);
@@ -209,6 +209,9 @@ public:
 	}
 	ChannelHistory *asChannelHistory();
 	const ChannelHistory *asChannelHistory() const;
+
+	not_null<History*> migrateToOrMe() const;
+	History *migrateFrom() const;
 
 	bool isEmpty() const {
 		return blocks.isEmpty();

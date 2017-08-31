@@ -177,7 +177,8 @@ private:
 	PeerData *_peer;
 	MediaOverviewType _type;
 	bool _reversed;
-	History *_migrated, *_history;
+	History *_history;
+	History *_migrated;
 	ChannelId _channel;
 
 	bool _selMode = false;

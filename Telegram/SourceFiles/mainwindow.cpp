@@ -267,7 +267,7 @@ void MainWindow::setupIntro() {
 
 void MainWindow::serviceNotification(const TextWithEntities &message, const MTPMessageMedia &media, int32 date, bool force) {
 	if (date <= 0) date = unixtime();
-	auto h = (_main && App::userLoaded(ServiceUserId)) ? App::history(ServiceUserId) : nullptr;
+	auto h = (_main && App::userLoaded(ServiceUserId)) ? App::history(ServiceUserId).get() : nullptr;
 	if (!h || (!force && h->isEmpty())) {
 		_delayedServiceMsgs.push_back(DelayedServiceMsg(message, media, date));
 		return sendServiceHistoryRequest();

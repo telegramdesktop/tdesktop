@@ -589,7 +589,7 @@ History *Histories::find(const PeerId &peerId) {
 	return (i == map.cend()) ? 0 : i.value();
 }
 
-History *Histories::findOrInsert(const PeerId &peerId) {
+not_null<History*> Histories::findOrInsert(const PeerId &peerId) {
 	auto i = map.constFind(peerId);
 	if (i == map.cend()) {
 		auto history = peerIsChannel(peerId) ? static_cast<History*>(new ChannelHistory(peerId)) : (new History(peerId));
@@ -598,7 +598,7 @@ History *Histories::findOrInsert(const PeerId &peerId) {
 	return i.value();
 }
 
-History *Histories::findOrInsert(const PeerId &peerId, int32 unreadCount, int32 maxInboxRead, int32 maxOutboxRead) {
+not_null<History*> Histories::findOrInsert(const PeerId &peerId, int32 unreadCount, int32 maxInboxRead, int32 maxOutboxRead) {
 	auto i = map.constFind(peerId);
 	if (i == map.cend()) {
 		auto history = peerIsChannel(peerId) ? static_cast<History*>(new ChannelHistory(peerId)) : (new History(peerId));
@@ -2097,6 +2097,21 @@ ChannelHistory *History::asChannelHistory() {
 
 const ChannelHistory *History::asChannelHistory() const {
 	return isChannel() ? static_cast<const ChannelHistory*>(this) : 0;
+}
+
+not_null<History*> History::migrateToOrMe() const {
+	if (auto to = peer->migrateTo()) {
+		return App::history(to);
+	}
+	// We could get it by App::history(peer), but we optimize.
+	return const_cast<History*>(this);
+}
+
+History *History::migrateFrom() const {
+	if (auto from = peer->migrateFrom()) {
+		return App::history(from);
+	}
+	return nullptr;
 }
 
 bool History::isDisplayedEmpty() const {

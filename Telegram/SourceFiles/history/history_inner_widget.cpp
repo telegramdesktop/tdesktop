@@ -87,7 +87,7 @@ int BinarySearchBlocksOrItems(const T &list, int edge) {
 HistoryInner::HistoryInner(HistoryWidget *historyWidget, not_null<Window::Controller*> controller, Ui::ScrollArea *scroll, History *history) : TWidget(nullptr)
 , _controller(controller)
 , _peer(history->peer)
-, _migrated(history->peer->migrateFrom() ? App::history(history->peer->migrateFrom()->id) : nullptr)
+, _migrated(history->migrateFrom())
 , _history(history)
 , _widget(historyWidget)
 , _scroll(scroll)
@@ -2333,7 +2333,7 @@ void HistoryInner::notifyIsBotChanged() {
 }
 
 void HistoryInner::notifyMigrateUpdated() {
-	_migrated = _peer->migrateFrom() ? App::history(_peer->migrateFrom()->id) : 0;
+	_migrated = _history->migrateFrom();
 }
 
 int HistoryInner::moveScrollFollowingInlineKeyboard(const HistoryItem *item, int oldKeyboardTop, int newKeyboardTop) {

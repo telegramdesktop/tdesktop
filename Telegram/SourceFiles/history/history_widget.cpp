@@ -1526,7 +1526,7 @@ void HistoryWidget::notify_migrateUpdated(PeerData *peer) {
 			if (peer->migrateTo()) {
 				showHistory(peer->migrateTo()->id, (_showAtMsgId > 0) ? (-_showAtMsgId) : _showAtMsgId, true);
 			} else if ((_migrated ? _migrated->peer : 0) != peer->migrateFrom()) {
-				History *migrated = peer->migrateFrom() ? App::history(peer->migrateFrom()->id) : 0;
+				auto migrated = _history->migrateFrom();
 				if (_migrated || (migrated && migrated->unreadCount() > 0)) {
 					showHistory(peer->id, peer->migrateFrom() ? _showAtMsgId : ((_showAtMsgId < 0 && -_showAtMsgId < ServerMaxMsgId) ? ShowAtUnreadMsgId : _showAtMsgId), true);
 				} else {
@@ -1864,8 +1864,8 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		_serviceImageCacheSize = imageCacheSize();
 		Auth().downloader().clearPriorities();
 
-		_history = App::history(_peer->id);
-		_migrated = _peer->migrateFrom() ? App::history(_peer->migrateFrom()->id) : 0;
+		_history = App::history(_peer);
+		_migrated = _history->migrateFrom();
 
 		if (_channel) {
 			updateNotifySettings();

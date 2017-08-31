@@ -131,8 +131,8 @@ void Instance::setCurrent(const AudioMsgId &audioId) {
 			auto migrated = data->migrated;
 			auto item = data->current ? App::histItemById(data->current.contextId()) : nullptr;
 			if (item) {
-				data->history = item->history()->peer->migrateTo() ? App::history(item->history()->peer->migrateTo()) : item->history();
-				data->migrated = data->history->peer->migrateFrom() ? App::history(data->history->peer->migrateFrom()) : nullptr;
+				data->history = item->history()->migrateToOrMe();
+				data->migrated = data->history->migrateFrom();
 			} else {
 				data->history = nullptr;
 				data->migrated = nullptr;
