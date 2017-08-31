@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "core/basic_types.h"
+#include "base/flags.h"
 
 // Define specializations for QByteArray for Qt 5.3.2, because
 // QByteArray in Qt 5.3.2 doesn't declare "pointer" subtype.
@@ -177,11 +178,6 @@ reversion_wrapper<Container> reversed(Container &&container) {
 // if you have "QVector<T*> v" then "for (T * const p : v)" will still call QVector::detach(),
 // while "for_const (T *p, v)" won't and "for_const (T *&p, v)" won't compile
 #define for_const(range_declaration, range_expression) for (range_declaration : std::as_const(range_expression))
-
-template <typename Enum>
-inline constexpr QFlags<Enum> qFlags(Enum v) {
-	return QFlags<Enum>(v);
-}
 
 template <typename Lambda>
 inline void InvokeQueued(QObject *context, Lambda &&lambda) {
@@ -581,8 +577,8 @@ enum ShowLayerOption {
 	AnimatedShowLayer = 0x00,
 	ForceFastShowLayer = 0x04,
 };
-using ShowLayerOptions = QFlags<ShowLayerOption>;
-Q_DECLARE_OPERATORS_FOR_FLAGS(ShowLayerOptions);
+using ShowLayerOptions = base::flags<ShowLayerOption>;
+inline constexpr auto is_flag_type(ShowLayerOption) { return true; };
 
 static int32 FullArcLength = 360 * 16;
 static int32 QuarterArcLength = (FullArcLength / 4);

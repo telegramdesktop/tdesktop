@@ -486,11 +486,11 @@ void HistoryMessageReply::itemRemoved(HistoryMessage *holder, HistoryItem *remov
 }
 
 void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, int y, int w, PaintFlags flags) const {
-	bool selected = (flags & PaintSelected), outbg = holder->hasOutLayout();
+	bool selected = (flags & PaintFlag::Selected), outbg = holder->hasOutLayout();
 
 	style::color bar = st::msgImgReplyBarColor;
-	if (flags & PaintInBubble) {
-		bar = (flags & PaintSelected) ? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (outbg ? st::msgOutReplyBarColor : st::msgInReplyBarColor);
+	if (flags & PaintFlag::InBubble) {
+		bar = (flags & PaintFlag::Selected) ? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (outbg ? st::msgOutReplyBarColor : st::msgInReplyBarColor);
 	}
 	QRect rbar(rtlrect(x + st::msgReplyBarPos.x(), y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height(), w + 2 * x));
 	p.fillRect(rbar, bar);
@@ -514,7 +514,7 @@ void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, in
 				}
 			}
 			if (w > st::msgReplyBarSkip + previewSkip) {
-				if (flags & PaintInBubble) {
+				if (flags & PaintFlag::InBubble) {
 					p.setPen(selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg));
 				} else {
 					p.setPen(st::msgImgReplyBarColor);
@@ -526,7 +526,7 @@ void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, in
 				}
 
 				auto replyToAsMsg = replyToMsg->toHistoryMessage();
-				if (!(flags & PaintInBubble)) {
+				if (!(flags & PaintFlag::InBubble)) {
 				} else if ((replyToAsMsg && replyToAsMsg->emptyText()) || replyToMsg->serviceMsg()) {
 					p.setPen(outbg ? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg) : (selected ? st::msgInDateFgSelected : st::msgInDateFg));
 				} else {
@@ -537,7 +537,7 @@ void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, in
 		} else {
 			p.setFont(st::msgDateFont);
 			auto &date = outbg ? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg) : (selected ? st::msgInDateFgSelected : st::msgInDateFg);
-			p.setPen((flags & PaintInBubble) ? date : st::msgDateImgFg);
+			p.setPen((flags & PaintFlag::InBubble) ? date : st::msgDateImgFg);
 			p.drawTextLeft(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2, w + 2 * x, st::msgDateFont->elided(lang(replyToMsgId ? lng_profile_loading : lng_deleted_message), w - st::msgReplyBarSkip));
 		}
 	}
@@ -1783,9 +1783,9 @@ void HistoryMessage::paintReplyInfo(Painter &p, QRect &trect, bool selected) con
 	if (auto reply = Get<HistoryMessageReply>()) {
 		int32 h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 
-		HistoryMessageReply::PaintFlags flags = HistoryMessageReply::PaintInBubble;
+		auto flags = HistoryMessageReply::PaintFlag::InBubble | 0;
 		if (selected) {
-			flags |= HistoryMessageReply::PaintSelected;
+			flags |= HistoryMessageReply::PaintFlag::Selected;
 		}
 		reply->paint(p, this, trect.x(), trect.y(), trect.width(), flags);
 

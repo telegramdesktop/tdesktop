@@ -2710,7 +2710,7 @@ namespace {
 			}
 		}
 		if (h > 2 * cornerHeight) {
-			if ((parts & RectPart::NoTopBottom) == qFlags(RectPart::NoTopBottom)) {
+			if ((parts & RectPart::NoTopBottom) == RectPart::NoTopBottom) {
 				p.fillRect(x, y + cornerHeight, w, h - 2 * cornerHeight, bg);
 			} else {
 				if (parts & RectPart::Left) {

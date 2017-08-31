@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "base/flags.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/text/text.h"
@@ -84,11 +85,9 @@ private:
 		Over = 0x01,
 		DeleteOver = 0x02,
 	};
-	using StateFlags = QFlags<StateFlag>;
+	using StateFlags = base::flags<StateFlag>;
+	friend inline constexpr auto is_flag_type(StateFlag) { return true; };
 	StateFlags _state;
-	friend inline StateFlags operator~(StateFlag flag) {
-		return ~StateFlags(flag);
-	}
 
 	Media::Clip::ReaderPointer _gif;
 	ClickHandlerPtr _delete;

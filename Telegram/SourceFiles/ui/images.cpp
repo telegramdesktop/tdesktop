@@ -295,16 +295,16 @@ QImage prepareOpaque(QImage image) {
 
 QImage prepare(QImage img, int w, int h, Images::Options options, int outerw, int outerh, const style::color *colored) {
 	Assert(!img.isNull());
-	if (options.testFlag(Images::Option::Blurred)) {
+	if (options & Images::Option::Blurred) {
 		img = prepareBlur(std::move(img));
 		Assert(!img.isNull());
 	}
 	if (w <= 0 || (w == img.width() && (h <= 0 || h == img.height()))) {
 	} else if (h <= 0) {
-		img = img.scaledToWidth(w, options.testFlag(Images::Option::Smooth) ? Qt::SmoothTransformation : Qt::FastTransformation);
+		img = img.scaledToWidth(w, (options & Images::Option::Smooth) ? Qt::SmoothTransformation : Qt::FastTransformation);
 		Assert(!img.isNull());
 	} else {
-		img = img.scaled(w, h, Qt::IgnoreAspectRatio, options.testFlag(Images::Option::Smooth) ? Qt::SmoothTransformation : Qt::FastTransformation);
+		img = img.scaled(w, h, Qt::IgnoreAspectRatio, (options & Images::Option::Smooth) ? Qt::SmoothTransformation : Qt::FastTransformation);
 		Assert(!img.isNull());
 	}
 	if (outerw > 0 && outerh > 0) {
@@ -329,22 +329,22 @@ QImage prepare(QImage img, int w, int h, Images::Options options, int outerw, in
 		}
 	}
 	auto corners = [](Images::Options options) {
-		return (options.testFlag(Images::Option::RoundedTopLeft) ? ImageRoundCorner::TopLeft : ImageRoundCorner::None)
-			| (options.testFlag(Images::Option::RoundedTopRight) ? ImageRoundCorner::TopRight : ImageRoundCorner::None)
-			| (options.testFlag(Images::Option::RoundedBottomLeft) ? ImageRoundCorner::BottomLeft : ImageRoundCorner::None)
-			| (options.testFlag(Images::Option::RoundedBottomRight) ? ImageRoundCorner::BottomRight : ImageRoundCorner::None);
+		return ((options & Images::Option::RoundedTopLeft) ? ImageRoundCorner::TopLeft : ImageRoundCorner::None)
+			| ((options & Images::Option::RoundedTopRight) ? ImageRoundCorner::TopRight : ImageRoundCorner::None)
+			| ((options & Images::Option::RoundedBottomLeft) ? ImageRoundCorner::BottomLeft : ImageRoundCorner::None)
+			| ((options & Images::Option::RoundedBottomRight) ? ImageRoundCorner::BottomRight : ImageRoundCorner::None);
 	};
-	if (options.testFlag(Images::Option::Circled)) {
+	if (options & Images::Option::Circled) {
 		prepareCircle(img);
 		Assert(!img.isNull());
-	} else if (options.testFlag(Images::Option::RoundedLarge)) {
+	} else if (options & Images::Option::RoundedLarge) {
 		prepareRound(img, ImageRoundRadius::Large, corners(options));
 		Assert(!img.isNull());
-	} else if (options.testFlag(Images::Option::RoundedSmall)) {
+	} else if (options & Images::Option::RoundedSmall) {
 		prepareRound(img, ImageRoundRadius::Small, corners(options));
 		Assert(!img.isNull());
 	}
-	if (options.testFlag(Images::Option::Colored)) {
+	if (options & Images::Option::Colored) {
 		Assert(colored != nullptr);
 		img = prepareColored(*colored, std::move(img));
 	}
@@ -729,19 +729,19 @@ QPixmap Image::pixNoCache(int w, int h, Images::Options options, int outerw, int
 		}
 
 		auto corners = [](Images::Options options) {
-			return (options.testFlag(Images::Option::RoundedTopLeft) ? ImageRoundCorner::TopLeft : ImageRoundCorner::None)
-				| (options.testFlag(Images::Option::RoundedTopRight) ? ImageRoundCorner::TopRight : ImageRoundCorner::None)
-				| (options.testFlag(Images::Option::RoundedBottomLeft) ? ImageRoundCorner::BottomLeft : ImageRoundCorner::None)
-				| (options.testFlag(Images::Option::RoundedBottomRight) ? ImageRoundCorner::BottomRight : ImageRoundCorner::None);
+			return ((options & Images::Option::RoundedTopLeft) ? ImageRoundCorner::TopLeft : ImageRoundCorner::None)
+				| ((options & Images::Option::RoundedTopRight) ? ImageRoundCorner::TopRight : ImageRoundCorner::None)
+				| ((options & Images::Option::RoundedBottomLeft) ? ImageRoundCorner::BottomLeft : ImageRoundCorner::None)
+				| ((options & Images::Option::RoundedBottomRight) ? ImageRoundCorner::BottomRight : ImageRoundCorner::None);
 		};
-		if (options.testFlag(Images::Option::Circled)) {
+		if (options & Images::Option::Circled) {
 			Images::prepareCircle(result);
-		} else if (options.testFlag(Images::Option::RoundedLarge)) {
+		} else if (options & Images::Option::RoundedLarge) {
 			Images::prepareRound(result, ImageRoundRadius::Large, corners(options));
-		} else if (options.testFlag(Images::Option::RoundedSmall)) {
+		} else if (options & Images::Option::RoundedSmall) {
 			Images::prepareRound(result, ImageRoundRadius::Small, corners(options));
 		}
-		if (options.testFlag(Images::Option::Colored)) {
+		if (options & Images::Option::Colored) {
 			Assert(colored != nullptr);
 			result = Images::prepareColored(*colored, std::move(result));
 		}

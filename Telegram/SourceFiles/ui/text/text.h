@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/click_handler.h"
 #include "ui/text/text_entity.h"
 #include "ui/emoji_config.h"
+#include "base/flags.h"
 
 static const QChar TextCommand(0x0010);
 enum TextCommands {
@@ -132,7 +133,8 @@ public:
 			LookupSymbol    = 0x02,
 			LookupLink      = 0x04,
 		};
-		using Flags = QFlags<Flag>;
+		using Flags = base::flags<Flag>;
+		friend inline constexpr auto is_flag_type(Flag) { return true; };
 
 		StateRequest() {
 		}

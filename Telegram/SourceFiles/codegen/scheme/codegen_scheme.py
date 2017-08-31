@@ -322,8 +322,8 @@ with open(input_file) as f:
           funcsText += '\n';
         funcsText += '\t\tMAX_FIELD = (1 << ' + str(maxbit) + '),\n';
         funcsText += '\t};\n';
-        funcsText += '\tusing Flags = QFlags<Flag>;\n';
-        funcsText += '\tfriend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }\n';
+        funcsText += '\tusing Flags = base::flags<Flag>;\n';
+        funcsText += '\tfriend inline constexpr auto is_flag_type(Flag) { return true; };\n';
         funcsText += '\n';
         if (len(conditions)):
           for paramName in conditionsList:
@@ -415,8 +415,6 @@ with open(input_file) as f:
         methods += methodBodies;
 
       funcsText += '};\n'; # class ending
-      if (len(conditionsList)):
-        funcsText += 'Q_DECLARE_OPERATORS_FOR_FLAGS(MTP' + name + '::Flags)\n\n';
       if (isTemplate != ''):
         funcsText += 'template <typename TQueryType>\n';
         funcsText += 'using MTP' + Name + ' = MTPBoxed<MTP' + name + '<TQueryType>>;\n';
@@ -605,8 +603,8 @@ for restype in typesList:
         dataText += '\n';
       dataText += '\t\tMAX_FIELD = (1 << ' + str(maxbit) + '),\n';
       dataText += '\t};\n';
-      dataText += '\tusing Flags = QFlags<Flag>;\n';
-      dataText += '\tfriend inline Flags operator~(Flag v) { return QFlag(~static_cast<int32>(v)); }\n';
+      dataText += '\tusing Flags = base::flags<Flag>;\n';
+      dataText += '\tfriend inline constexpr auto is_flag_type(Flag) { return true; };\n';
       dataText += '\n';
       if (len(conditions)):
         for paramName in conditionsList:
@@ -699,8 +697,6 @@ for restype in typesList:
       else: # single creator
         creatorProxyText += '\t\treturn MTP' + restype + '();\n';
     creatorProxyText += '\t}\n';
-    if (len(conditionsList)):
-      flagDeclarations += 'Q_DECLARE_OPERATORS_FOR_FLAGS(MTPD' + name + '::Flags)\n';
     creatorsDeclarations += 'MTP' + restype + ' MTP_' + name + '(' + ', '.join(creatorParams) + ');\n';
     creatorsBodies += 'MTP' + restype + ' MTP_' + name + '(' + ', '.join(creatorParams) + ') {\n';
     creatorsBodies += '\treturn MTP::internal::TypeCreator::new_' + name + '(' + ', '.join(creatorParamsList) + ');\n';
@@ -852,7 +848,7 @@ for childName in parentFlagsList:
         error
     else:
       parentFlagsCheck[parentName][flag] = parentFlagsCheck[childName][flag];
-  flagOperators += 'inline ' + parentName + '::Flags mtpCastFlags(' + childName + '::Flags flags) { return ' + parentName + '::Flags(QFlag(flags)); }\n';
+  flagOperators += 'inline ' + parentName + '::Flags mtpCastFlags(' + childName + '::Flags flags) { return static_cast<' + parentName + '::Flag>(flags.value()); }\n';
   flagOperators += 'inline ' + parentName + '::Flags mtpCastFlags(MTPflags<' + childName + '::Flags> flags) { return mtpCastFlags(flags.v); }\n';
 
 # manual types added here
@@ -935,6 +931,7 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 #pragma once\n\
 \n\
 #include "mtproto/core_types.h"\n\
+#include "base/flags.h"\n\
 \n\
 // Creator current layer and proxy class declaration\n\
 namespace MTP {\n\

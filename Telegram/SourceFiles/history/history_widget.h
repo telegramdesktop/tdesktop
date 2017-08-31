@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/section_widget.h"
 #include "core/single_timer.h"
 #include "ui/widgets/input_fields.h"
+#include "base/flags.h"
 
 namespace InlineBots {
 namespace Layout {
@@ -693,8 +694,8 @@ private:
 		SaveDraft  = 0x01,
 		SendTyping = 0x02,
 	};
-	using TextUpdateEvents = QFlags<TextUpdateEvent>;
-	Q_DECLARE_FRIEND_OPERATORS_FOR_FLAGS(TextUpdateEvents);
+	using TextUpdateEvents = base::flags<TextUpdateEvent>;
+	friend inline constexpr auto is_flag_type(TextUpdateEvent) { return true; };
 
 	void writeDrafts(Data::Draft **localDraft, Data::Draft **editDraft);
 	void writeDrafts(History *history);
@@ -833,7 +834,7 @@ private:
 	bool _nonEmptySelection = false;
 
 	TaskQueue _fileLoader;
-	TextUpdateEvents _textUpdateEvents = (TextUpdateEvent::SaveDraft | TextUpdateEvent::SendTyping);
+	TextUpdateEvents _textUpdateEvents = (TextUpdateEvents() | TextUpdateEvent::SaveDraft | TextUpdateEvent::SendTyping);
 
 	int64 _serviceImageCacheSize = 0;
 	QString _confirmSource;
@@ -866,5 +867,3 @@ private:
 	bool _inGrab = false;
 
 };
-
-Q_DECLARE_OPERATORS_FOR_FLAGS(HistoryWidget::TextUpdateEvents)

@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "core/basic_types.h"
+#include "base/flags.h"
 
 namespace MTP {
 
@@ -353,7 +354,7 @@ struct ZeroFlagsHelper {
 template <typename Flags>
 class MTPflags {
 public:
-	Flags v = Flags(0);
+	Flags v = 0;
 	static_assert(sizeof(Flags) == sizeof(int32), "MTPflags are allowed only wrapping int32 flag types!");
 
 	MTPflags() = default;
@@ -380,21 +381,21 @@ private:
 	}
 
 	template <typename T>
-	friend MTPflags<QFlags<T>> MTP_flags(QFlags<T> v);
+	friend MTPflags<base::flags<T>> MTP_flags(base::flags<T> v);
 
 	template <typename T, typename>
-	friend MTPflags<QFlags<T>> MTP_flags(T v);
+	friend MTPflags<base::flags<T>> MTP_flags(T v);
 
 };
 
 template <typename T>
-inline MTPflags<QFlags<T>> MTP_flags(QFlags<T> v) {
-	return MTPflags<QFlags<T>>(v);
+inline MTPflags<base::flags<T>> MTP_flags(base::flags<T> v) {
+	return MTPflags<base::flags<T>>(v);
 }
 
 template <typename T, typename = std::enable_if_t<!std::is_same<T, int>::value>>
-inline MTPflags<QFlags<T>> MTP_flags(T v) {
-	return MTPflags<QFlags<T>>(v);
+inline MTPflags<base::flags<T>> MTP_flags(T v) {
+	return MTPflags<base::flags<T>>(v);
 }
 
 inline internal::ZeroFlagsHelper MTP_flags(void(internal::ZeroFlagsHelper::*)()) {

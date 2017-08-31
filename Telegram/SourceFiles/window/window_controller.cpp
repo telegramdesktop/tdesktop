@@ -42,8 +42,8 @@ void Controller::enableGifPauseReason(GifPauseReason reason) {
 
 void Controller::disableGifPauseReason(GifPauseReason reason) {
 	if (_gifPauseReasons & reason) {
-		_gifPauseReasons &= ~qFlags(reason);
-		if (static_cast<int>(_gifPauseReasons) < static_cast<int>(reason)) {
+		_gifPauseReasons &= ~reason;
+		if (_gifPauseReasons < reason) {
 			_gifPauseLevelChanged.notify();
 		}
 	}

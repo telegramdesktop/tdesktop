@@ -3903,7 +3903,7 @@ void MainWidget::getChannelDifference(ChannelData *channel, ChannelDifferenceReq
 	channel->ptsSetRequesting(true);
 
 	auto filter = MTP_channelMessagesFilterEmpty();
-	auto flags = qFlags(MTPupdates_GetChannelDifference::Flag::f_force);
+	auto flags = MTPupdates_GetChannelDifference::Flag::f_force | 0;
 	if (from != ChannelDifferenceRequest::PtsGapOrShortPoll) {
 		if (!channel->ptsWaitingForSkipped()) {
 			flags = 0; // No force flag when requesting for short poll.
@@ -4283,7 +4283,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	auto it = sets.find(Stickers::CloudRecentSetId);
 	if (it == sets.cend()) {
 		if (it == sets.cend()) {
-			it = sets.insert(Stickers::CloudRecentSetId, Stickers::Set(Stickers::CloudRecentSetId, 0, lang(lng_recent_stickers), QString(), 0, 0, qFlags(MTPDstickerSet_ClientFlag::f_special)));
+			it = sets.insert(Stickers::CloudRecentSetId, Stickers::Set(Stickers::CloudRecentSetId, 0, lang(lng_recent_stickers), QString(), 0, 0, MTPDstickerSet_ClientFlag::f_special | 0));
 		} else {
 			it->title = lang(lng_recent_stickers);
 		}

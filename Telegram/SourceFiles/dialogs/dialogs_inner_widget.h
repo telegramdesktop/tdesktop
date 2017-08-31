@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "dialogs/dialogs_widget.h"
+#include "base/flags.h"
 
 namespace Dialogs {
 class Row;
@@ -180,8 +181,9 @@ private:
 		MessageSearch = 0x08,
 		All = 0x0F,
 	};
-	using UpdateRowSections = QFlags<UpdateRowSection>;
-	Q_DECLARE_FRIEND_OPERATORS_FOR_FLAGS(UpdateRowSections);
+	using UpdateRowSections = base::flags<UpdateRowSection>;
+	friend inline constexpr auto is_flag_type(UpdateRowSection) { return true; };
+
 	void updateDialogRow(PeerData *peer, MsgId msgId, QRect updateRect, UpdateRowSections sections = UpdateRowSection::All);
 
 	int dialogsOffset() const;
@@ -293,5 +295,3 @@ private:
 	base::lambda<void()> _loadMoreCallback;
 
 };
-
-Q_DECLARE_OPERATORS_FOR_FLAGS(DialogsInner::UpdateRowSections);

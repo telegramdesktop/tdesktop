@@ -36,6 +36,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "auth_session.h"
 #include "window/window_controller.h"
+#include "base/flags.h"
 
 #include <openssl/evp.h>
 
@@ -78,8 +79,8 @@ enum class FileOption {
 	User = 0x01,
 	Safe = 0x02,
 };
-using FileOptions = QFlags<FileOption>;
-Q_DECLARE_OPERATORS_FOR_FLAGS(FileOptions);
+using FileOptions = base::flags<FileOption>;
+inline constexpr auto is_flag_type(FileOption) { return true; };
 
 bool keyAlreadyUsed(QString &name, FileOptions options = FileOption::User | FileOption::Safe) {
 	name += '0';
@@ -3312,7 +3313,7 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 		return;
 	}
 
-	bool readingInstalled = (readingFlags == qFlags(MTPDstickerSet::Flag::f_installed));
+	bool readingInstalled = (readingFlags == MTPDstickerSet::Flag::f_installed);
 
 	auto &sets = Global::RefStickerSets();
 	if (outOrder) outOrder->clear();
@@ -3329,16 +3330,19 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 		qint32 scnt = 0;
 		stickers.stream >> setId >> setAccess >> setTitle >> setShortName >> scnt;
 
-		qint32 setHash = 0, setFlags = 0;
+		qint32 setHash = 0;
+		MTPDstickerSet::Flags setFlags = 0;
 		if (stickers.version > 8033) {
-			stickers.stream >> setHash >> setFlags;
-			if (setFlags & qFlags(MTPDstickerSet_ClientFlag::f_not_loaded__old)) {
-				setFlags &= ~qFlags(MTPDstickerSet_ClientFlag::f_not_loaded__old);
-				setFlags |= qFlags(MTPDstickerSet_ClientFlag::f_not_loaded);
+			qint32 setFlagsValue = 0;
+			stickers.stream >> setHash >> setFlagsValue;
+			setFlags = MTPDstickerSet::Flags{ setFlagsValue };
+			if (setFlags & MTPDstickerSet_ClientFlag::f_not_loaded__old) {
+				setFlags &= ~MTPDstickerSet_ClientFlag::f_not_loaded__old;
+				setFlags |= MTPDstickerSet_ClientFlag::f_not_loaded;
 			}
 		}
 		if (readingInstalled && stickers.version < 9061) {
-			setFlags |= qFlags(MTPDstickerSet::Flag::f_installed);
+			setFlags |= MTPDstickerSet::Flag::f_installed;
 		}
 
 		if (setId == Stickers::DefaultSetId) {
@@ -3349,13 +3353,13 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 			}
 		} else if (setId == Stickers::CustomSetId) {
 			setTitle = qsl("Custom stickers");
-			setFlags |= qFlags(MTPDstickerSet_ClientFlag::f_special);
+			setFlags |= MTPDstickerSet_ClientFlag::f_special;
 		} else if (setId == Stickers::CloudRecentSetId) {
 			setTitle = lang(lng_recent_stickers);
-			setFlags |= qFlags(MTPDstickerSet_ClientFlag::f_special);
+			setFlags |= MTPDstickerSet_ClientFlag::f_special;
 		} else if (setId == Stickers::FavedSetId) {
 			setTitle = lang(lng_faved_stickers);
-			setFlags |= qFlags(MTPDstickerSet_ClientFlag::f_special);
+			setFlags |= MTPDstickerSet_ClientFlag::f_special;
 		} else if (setId) {
 			if (readingInstalled && outOrder && stickers.version < 9061) {
 				outOrder->push_back(setId);
@@ -3604,11 +3608,11 @@ void readInstalledStickers() {
 	}
 
 	Global::RefStickerSets().clear();
-	_readStickerSets(_installedStickersKey, &Global::RefStickerSetsOrder(), qFlags(MTPDstickerSet::Flag::f_installed));
+	_readStickerSets(_installedStickersKey, &Global::RefStickerSetsOrder(), MTPDstickerSet::Flag::f_installed);
 }
 
 void readFeaturedStickers() {
-	_readStickerSets(_featuredStickersKey, &Global::RefFeaturedStickerSetsOrder(), qFlags(MTPDstickerSet_ClientFlag::f_featured));
+	_readStickerSets(_featuredStickersKey, &Global::RefFeaturedStickerSetsOrder(), MTPDstickerSet::Flags() | MTPDstickerSet_ClientFlag::f_featured);
 
 	auto &sets = Global::StickerSets();
 	int unreadCount = 0;

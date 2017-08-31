@@ -36,6 +36,7 @@
           'ProgramDataBaseFileName': '$(OutDir)\\$(ProjectName).pdb',
           'DebugInformationFormat': '3',          # Program Database (/Zi)
           'AdditionalOptions': [
+            '/std:c++latest',
             '/MP',   # Enable multi process build.
             '/EHsc', # Catch C++ exceptions only, extern C functions never throw a C++ exception.
             '/WX',   # Treat warnings as errors.

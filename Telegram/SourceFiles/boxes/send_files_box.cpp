@@ -757,7 +757,7 @@ void EditCaptionBox::onSave(bool ctrlShiftEnter) {
 		return;
 	}
 
-	auto flags = qFlags(MTPmessages_EditMessage::Flag::f_message);
+	auto flags = MTPmessages_EditMessage::Flag::f_message | 0;
 	if (_previewCancelled) {
 		flags |= MTPmessages_EditMessage::Flag::f_no_webpage;
 	}

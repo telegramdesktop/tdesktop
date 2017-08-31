@@ -158,7 +158,7 @@ private:
 			}
 		}
 
-		QFlags<QIODevice::OpenModeFlag> mode = QIODevice::WriteOnly | QIODevice::Text;
+		auto mode = QIODevice::WriteOnly | QIODevice::Text;
 		if (type == LogDataMain) { // we can call LOG() in LogDataMain reopen - mutex not locked
 			if (postfix.isEmpty()) { // instance checked, need to move to log.txt
 				Assert(!files[type]->fileName().isEmpty()); // one of log_startXX.txt should've been opened already

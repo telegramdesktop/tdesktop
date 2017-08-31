@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "base/flags.h"
+
 namespace Fonts {
 
 void Start();
@@ -57,8 +59,8 @@ enum class RectPart {
 
 	Full = FullTop | NoTop,
 };
-using RectParts = QFlags<RectPart>;
-Q_DECLARE_OPERATORS_FOR_FLAGS(RectParts);
+using RectParts = base::flags<RectPart>;
+inline constexpr auto is_flag_type(RectPart) { return true; };
 
 inline bool IsTopCorner(RectPart corner) {
 	return (corner == RectPart::TopLeft) || (corner == RectPart::TopRight);

@@ -1214,7 +1214,7 @@ void HistoryWidget::onTextChange() {
 	updateStickersByEmoji();
 
 	if (_peer && (!_peer->isChannel() || _peer->isMegagroup())) {
-		if (!_inlineBot && !_editMsgId && (_textUpdateEvents.testFlag(TextUpdateEvent::SendTyping))) {
+		if (!_inlineBot && !_editMsgId && (_textUpdateEvents & TextUpdateEvent::SendTyping)) {
 			updateSendAction(_history, SendAction::Type::Typing);
 		}
 	}
@@ -1229,14 +1229,14 @@ void HistoryWidget::onTextChange() {
 	}
 
 	_saveCloudDraftTimer.stop();
-	if (!_peer || !(_textUpdateEvents.testFlag(TextUpdateEvent::SaveDraft))) return;
+	if (!_peer || !(_textUpdateEvents & TextUpdateEvent::SaveDraft)) return;
 
 	_saveDraftText = true;
 	onDraftSave(true);
 }
 
 void HistoryWidget::onDraftSaveDelayed() {
-	if (!_peer || !(_textUpdateEvents.testFlag(TextUpdateEvent::SaveDraft))) return;
+	if (!_peer || !(_textUpdateEvents & TextUpdateEvent::SaveDraft)) return;
 	if (!_field->textCursor().anchor() && !_field->textCursor().position() && !_field->verticalScrollBar()->value()) {
 		if (!Local::hasDraftCursors(_peer->id)) {
 			return;
@@ -2798,7 +2798,7 @@ void HistoryWidget::saveEditMsg() {
 		return;
 	}
 
-	auto sendFlags = qFlags(MTPmessages_EditMessage::Flag::f_message);
+	auto sendFlags = MTPmessages_EditMessage::Flag::f_message | 0;
 	if (webPageId == CancelledWebPageId) {
 		sendFlags |= MTPmessages_EditMessage::Flag::f_no_webpage;
 	}
@@ -4488,14 +4488,14 @@ void HistoryWidget::sendFileConfirmed(const FileLoadResultPtr &file) {
 	auto messageFromId = channelPost ? 0 : Auth().userId();
 	auto messagePostAuthor = channelPost ? (Auth().user()->firstName + ' ' + Auth().user()->lastName) : QString();
 	if (file->type == SendMediaType::Photo) {
-		auto photoFlags = qFlags(MTPDmessageMediaPhoto::Flag::f_photo);
+		auto photoFlags = MTPDmessageMediaPhoto::Flag::f_photo | 0;
 		if (!file->caption.isEmpty()) {
 			photoFlags |= MTPDmessageMediaPhoto::Flag::f_caption;
 		}
 		auto photo = MTP_messageMediaPhoto(MTP_flags(photoFlags), file->photo, MTP_string(file->caption), MTPint());
 		h->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(messageFromId), peerToMTP(file->to.peer), MTPnullFwdHeader, MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), photo, MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint(), MTP_string(messagePostAuthor)), NewMessageUnread);
 	} else if (file->type == SendMediaType::File) {
-		auto documentFlags = qFlags(MTPDmessageMediaDocument::Flag::f_document);
+		auto documentFlags = MTPDmessageMediaDocument::Flag::f_document | 0;
 		if (!file->caption.isEmpty()) {
 			documentFlags |= MTPDmessageMediaDocument::Flag::f_caption;
 		}
@@ -4505,7 +4505,7 @@ void HistoryWidget::sendFileConfirmed(const FileLoadResultPtr &file) {
 		if (!h->peer->isChannel()) {
 			flags |= MTPDmessage::Flag::f_media_unread;
 		}
-		auto documentFlags = qFlags(MTPDmessageMediaDocument::Flag::f_document);
+		auto documentFlags = MTPDmessageMediaDocument::Flag::f_document | 0;
 		if (!file->caption.isEmpty()) {
 			documentFlags |= MTPDmessageMediaDocument::Flag::f_caption;
 		}
@@ -5340,7 +5340,7 @@ void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot
 
 	bool out = !_peer->isSelf(), unread = !_peer->isSelf();
 	auto flags = NewMessageFlags(_peer) | MTPDmessage::Flag::f_media; // unread, out
-	auto sendFlags = qFlags(MTPmessages_SendInlineBotResult::Flag::f_clear_draft);
+	auto sendFlags = MTPmessages_SendInlineBotResult::Flag::f_clear_draft | 0;
 	if (replyToId()) {
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_reply_to_msg_id;

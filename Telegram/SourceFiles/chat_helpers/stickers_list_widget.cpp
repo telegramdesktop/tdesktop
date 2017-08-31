@@ -1312,7 +1312,7 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 		if (canEdit) {
 			auto hidden = Auth().data().isGroupStickersSectionHidden(_megagroupSet->id);
 			if (isShownHere(hidden)) {
-				_mySets.push_back(Set(Stickers::MegagroupSetId, qFlags(MTPDstickerSet_ClientFlag::f_special), lang(lng_group_stickers), 0));
+				_mySets.push_back(Set(Stickers::MegagroupSetId, MTPDstickerSet_ClientFlag::f_special | 0, lang(lng_group_stickers), 0));
 			}
 		}
 		return;
@@ -1338,7 +1338,7 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 			if (isInstalled && !canEdit) {
 				removeHiddenForGroup();
 			} else if (isShownHere(hidden)) {
-				_mySets.push_back(Set(Stickers::MegagroupSetId, qFlags(MTPDstickerSet_ClientFlag::f_special), lang(lng_group_stickers), it->stickers.size() + 1, it->stickers));
+				_mySets.push_back(Set(Stickers::MegagroupSetId, MTPDstickerSet_ClientFlag::f_special | 0, lang(lng_group_stickers), it->stickers.size() + 1, it->stickers));
 			}
 			return;
 		}

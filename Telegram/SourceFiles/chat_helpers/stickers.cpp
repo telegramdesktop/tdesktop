@@ -242,7 +242,7 @@ void SetIsFaved(not_null<DocumentData*> document, base::optional<std::vector<not
 	auto &sets = Global::RefStickerSets();
 	auto it = sets.find(FavedSetId);
 	if (it == sets.end()) {
-		it = sets.insert(FavedSetId, Set(FavedSetId, 0, lang(lng_faved_stickers), QString(), 0, 0, qFlags(MTPDstickerSet_ClientFlag::f_special)));
+		it = sets.insert(FavedSetId, Set(FavedSetId, 0, lang(lng_faved_stickers), QString(), 0, 0, MTPDstickerSet_ClientFlag::f_special | 0));
 	}
 	auto index = it->stickers.indexOf(document);
 	if (index == 0) {
@@ -436,7 +436,7 @@ void SpecialSetReceived(uint64 setId, const QString &setTitle, const QVector<MTP
 		}
 	} else {
 		if (it == sets.cend()) {
-			it = sets.insert(setId, Set(setId, 0, setTitle, QString(), 0, 0, qFlags(MTPDstickerSet_ClientFlag::f_special)));
+			it = sets.insert(setId, Set(setId, 0, setTitle, QString(), 0, 0, MTPDstickerSet_ClientFlag::f_special | 0));
 		} else {
 			it->title = setTitle;
 		}

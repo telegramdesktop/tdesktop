@@ -557,6 +557,8 @@ HistoryMessageLogEntryOriginal &HistoryMessageLogEntryOriginal::operator=(Histor
 
 HistoryMessageLogEntryOriginal::~HistoryMessageLogEntryOriginal() = default;
 
+HistoryMediaPtr::HistoryMediaPtr() = default;
+
 HistoryMediaPtr::HistoryMediaPtr(std::unique_ptr<HistoryMedia> pointer) : _pointer(std::move(pointer)) {
 	if (_pointer) {
 		_pointer->attachToParent();

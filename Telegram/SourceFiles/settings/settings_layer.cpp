@@ -89,7 +89,7 @@ void Layer::paintEvent(QPaintEvent *e) {
 		auto paintTopRounded = clip.intersects(QRect(0, 0, width(), st::boxRadius));
 		auto paintBottomRounded = clip.intersects(QRect(0, height() - st::boxRadius, width(), st::boxRadius));
 		if (paintTopRounded || paintBottomRounded) {
-			auto parts = qFlags(RectPart::None);
+			auto parts = RectPart::None | 0;
 			if (paintTopRounded) parts |= RectPart::FullTop;
 			if (paintBottomRounded) parts |= RectPart::FullBottom;
 			App::roundRect(p, rect(), st::boxBg, BoxCorners, nullptr, parts);

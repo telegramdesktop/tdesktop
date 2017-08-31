@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "base/runtime_composer.h"
+#include "base/flags.h"
 
 namespace Ui {
 class RippleAnimation;
@@ -170,11 +171,12 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply> {
 	void resize(int width) const;
 	void itemRemoved(HistoryMessage *holder, HistoryItem *removed);
 
-	enum PaintFlag {
-		PaintInBubble = 0x01,
-		PaintSelected = 0x02,
+	enum class PaintFlag {
+		InBubble = 0x01,
+		Selected = 0x02,
 	};
-	using PaintFlags = QFlags<PaintFlag>;
+	using PaintFlags = base::flags<PaintFlag>;
+	friend inline constexpr auto is_flag_type(PaintFlag) { return true; };
 	void paint(Painter &p, const HistoryItem *holder, int x, int y, int w, PaintFlags flags) const;
 
 	MsgId replyToId() const {
@@ -196,7 +198,6 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply> {
 	std::unique_ptr<HistoryMessageVia> _replyToVia;
 	int toWidth = 0;
 };
-Q_DECLARE_OPERATORS_FOR_FLAGS(HistoryMessageReply::PaintFlags);
 
 class ReplyKeyboard;
 struct HistoryMessageReplyMarkup : public RuntimeComponent<HistoryMessageReplyMarkup> {
@@ -433,7 +434,7 @@ struct HistoryMessageLogEntryOriginal : public RuntimeComponent<HistoryMessageLo
 class HistoryMedia;
 class HistoryMediaPtr {
 public:
-	HistoryMediaPtr() = default;
+	HistoryMediaPtr();
 	HistoryMediaPtr(const HistoryMediaPtr &other) = delete;
 	HistoryMediaPtr &operator=(const HistoryMediaPtr &other) = delete;
 	HistoryMediaPtr(std::unique_ptr<HistoryMedia> other);
@@ -604,7 +605,7 @@ public:
 
 		// optimization: don't create markup component for the case
 		// MTPDreplyKeyboardHide with flags = 0, assume it has f_zero flag
-		return qFlags(MTPDreplyKeyboardMarkup_ClientFlag::f_zero);
+		return MTPDreplyKeyboardMarkup_ClientFlag::f_zero | 0;
 	}
 	bool hasSwitchInlineButton() const {
 		return _flags & MTPDmessage_ClientFlag::f_has_switch_inline_button;

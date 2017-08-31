@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "scheme.h"
+#include "base/flags.h"
 
 inline MTPbool MTP_bool(bool v) {
 	return v ? MTP_boolTrue() : MTP_boolFalse();
@@ -36,18 +37,14 @@ inline bool mtpIsFalse(const MTPBool &v) {
 // we must validate that MTProto scheme flags don't intersect with client side flags
 // and define common bit operators which allow use Type_ClientFlag together with Type::Flag
 #define DEFINE_MTP_CLIENT_FLAGS(Type) \
-static_assert(static_cast<int32>(Type::Flag::MAX_FIELD) < static_cast<int32>(Type##_ClientFlag::MIN_FIELD), \
+static_assert(Type::Flags(Type::Flag::MAX_FIELD) < static_cast<Type::Flag>(Type##_ClientFlag::MIN_FIELD), \
 	"MTProto flags conflict with client side flags!"); \
-inline Type::Flags qFlags(Type##_ClientFlag v) { return Type::Flags(static_cast<int32>(v)); } \
-inline Type::Flags operator&(Type::Flags i, Type##_ClientFlag v) { return i & qFlags(v); } \
-inline Type::Flags operator&(Type##_ClientFlag i, Type##_ClientFlag v) { return qFlags(i) & v; } \
-inline Type::Flags &operator&=(Type::Flags &i, Type##_ClientFlag v) { return i &= qFlags(v); } \
-inline Type::Flags operator|(Type::Flags i, Type##_ClientFlag v) { return i | qFlags(v); } \
-inline Type::Flags operator|(Type::Flag i, Type##_ClientFlag v) { return i | qFlags(v); } \
-inline Type::Flags operator|(Type##_ClientFlag i, Type##_ClientFlag v) { return qFlags(i) | v; } \
-inline Type::Flags operator|(Type##_ClientFlag i, Type::Flag v) { return qFlags(i) | v; } \
-inline Type::Flags &operator|=(Type::Flags &i, Type##_ClientFlag v) { return i |= qFlags(v); } \
-inline Type::Flags operator~(Type##_ClientFlag v) { return ~qFlags(v); }
+namespace base {\
+	template<>\
+	struct extended_flags<Type##_ClientFlag> {\
+		using type = Type::Flag;\
+	};\
+}
 
 // we use the same flags field for some additional client side flags
 enum class MTPDmessage_ClientFlag : int32 {

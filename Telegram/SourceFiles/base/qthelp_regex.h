@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "base/flags.h"
+
 namespace qthelp {
 
 class RegularExpressionMatch {
@@ -65,8 +67,8 @@ enum class RegExOption {
 	DontAutomaticallyOptimize = QRegularExpression::DontAutomaticallyOptimizeOption,
 #endif // OS_MAC_OLD
 };
-using RegExOptions = QFlags<RegExOption>;
-Q_DECLARE_OPERATORS_FOR_FLAGS(RegExOptions);
+using RegExOptions = base::flags<RegExOption>;
+inline constexpr auto is_flag_type(RegExOption) { return true; };
 
 inline RegularExpressionMatch regex_match(const QString &string, const QString &subject, RegExOptions options = 0) {
 	auto qtOptions = QRegularExpression::PatternOptions(static_cast<int>(options));

@@ -360,7 +360,7 @@ void MainWindow::destroyLayerDelayed() {
 void MainWindow::ui_hideSettingsAndLayer(ShowLayerOptions options) {
 	if (_layerBg) {
 		_layerBg->hideAll();
-		if (options.testFlag(ForceFastShowLayer)) {
+		if (options & ForceFastShowLayer) {
 			destroyLayerDelayed();
 		}
 	}
@@ -399,8 +399,8 @@ PasscodeWidget *MainWindow::passcodeWidget() {
 void MainWindow::ui_showBox(object_ptr<BoxContent> box, ShowLayerOptions options) {
 	if (box) {
 		ensureLayerCreated();
-		if (options.testFlag(KeepOtherLayers)) {
-			if (options.testFlag(ShowAfterOtherLayers)) {
+		if (options & KeepOtherLayers) {
+			if (options & ShowAfterOtherLayers) {
 				_layerBg->prependBox(std::move(box));
 			} else {
 				_layerBg->appendBox(std::move(box));
@@ -408,13 +408,13 @@ void MainWindow::ui_showBox(object_ptr<BoxContent> box, ShowLayerOptions options
 		} else {
 			_layerBg->showBox(std::move(box));
 		}
-		if (options.testFlag(ForceFastShowLayer)) {
+		if (options & ForceFastShowLayer) {
 			_layerBg->finishAnimation();
 		}
 	} else {
 		if (_layerBg) {
 			_layerBg->hideTopLayer();
-			if (options.testFlag(ForceFastShowLayer) && !_layerBg->layerShown()) {
+			if ((options & ForceFastShowLayer) && !_layerBg->layerShown()) {
 				destroyLayerDelayed();
 			}
 		}

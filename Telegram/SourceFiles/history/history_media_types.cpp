@@ -2200,7 +2200,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 			if (reply) {
 				HistoryMessageReply::PaintFlags flags = 0;
 				if (selected) {
-					flags |= HistoryMessageReply::PaintSelected;
+					flags |= HistoryMessageReply::PaintFlag::Selected;
 				}
 				reply->paint(p, _parent, rectx, recty, rectw, flags);
 			}
@@ -2756,7 +2756,7 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, T
 			if (reply) {
 				HistoryMessageReply::PaintFlags flags = 0;
 				if (selected) {
-					flags |= HistoryMessageReply::PaintSelected;
+					flags |= HistoryMessageReply::PaintFlag::Selected;
 				}
 				reply->paint(p, _parent, rectx, recty, rectw, flags);
 			}

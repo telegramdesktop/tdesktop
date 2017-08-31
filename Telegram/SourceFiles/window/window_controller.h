@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "base/flags.h"
+
 namespace Window {
 
 enum class GifPauseReason {
@@ -30,8 +32,8 @@ enum class GifPauseReason {
 	RoundPlaying = (1 << 3),
 	MediaPreview = (1 << 4),
 };
-using GifPauseReasons = QFlags<GifPauseReason>;
-Q_DECLARE_OPERATORS_FOR_FLAGS(GifPauseReasons);
+using GifPauseReasons = base::flags<GifPauseReason>;
+inline constexpr bool is_flag_type(GifPauseReason) { return true; };
 
 class MainWindow;
 
@@ -107,7 +109,7 @@ private:
 	base::Observable<PeerData*> _searchInPeerChanged;
 	base::Observable<PeerData*> _historyPeerChanged;
 
-	GifPauseReasons _gifPauseReasons = { 0 };
+	GifPauseReasons _gifPauseReasons = 0;
 	base::Observable<void> _gifPauseLevelChanged;
 	base::Observable<void> _floatPlayerAreaUpdated;
 

@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "base/flags.h"
+
 class FileLoader;
 class mtpFileLoader;
 
@@ -47,8 +49,8 @@ enum class ImageRoundCorner {
 	BottomRight = 0x08,
 	All         = 0x0f,
 };
-using ImageRoundCorners = QFlags<ImageRoundCorner>;
-Q_DECLARE_OPERATORS_FOR_FLAGS(ImageRoundCorners);
+using ImageRoundCorners = base::flags<ImageRoundCorner>;
+inline constexpr auto is_flag_type(ImageRoundCorner) { return true; };
 
 inline uint32 packInt(int32 a) {
 	return (a < 0) ? uint32(int64(a) + 0x100000000LL) : uint32(a);
@@ -199,8 +201,8 @@ enum class Option {
 	Colored = 0x200,
 	TransparentBackground = 0x400,
 };
-using Options = QFlags<Option>;
-Q_DECLARE_OPERATORS_FOR_FLAGS(Options);
+using Options = base::flags<Option>;
+inline constexpr auto is_flag_type(Option) { return true; };
 
 QImage prepare(QImage img, int w, int h, Options options, int outerw, int outerh, const style::color *colored = nullptr);
 

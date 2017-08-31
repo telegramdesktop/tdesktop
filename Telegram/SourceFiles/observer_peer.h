@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "base/observer.h"
+#include "base/flags.h"
 
 namespace Notify {
 
@@ -74,7 +75,9 @@ struct PeerUpdate {
 		ChannelStickersChanged    = 0x00040000U,
 		ChannelPinnedChanged      = 0x00080000U,
 	};
-	using Flags = QFlags<Flag>;
+	using Flags = base::flags<Flag>;
+	friend inline constexpr auto is_flag_type(Flag) { return true; }
+
 	Flags flags = 0;
 
 	// NameChanged data
@@ -85,7 +88,6 @@ struct PeerUpdate {
 	int32 mediaTypesMask = 0;
 
 };
-Q_DECLARE_OPERATORS_FOR_FLAGS(PeerUpdate::Flags);
 
 void peerUpdatedDelayed(const PeerUpdate &update);
 inline void peerUpdatedDelayed(PeerData *peer, PeerUpdate::Flags events) {

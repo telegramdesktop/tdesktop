@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/timer.h"
 #include "base/variant.h"
 #include "base/flat_set.h"
+#include "base/flags.h"
 
 void HistoryInit();
 
@@ -548,17 +549,10 @@ private:
 		f_has_pending_resized_items = (1 << 0),
 		f_pending_resize            = (1 << 1),
 	};
-	using Flags = QFlags<Flag>;
-	Q_DECL_CONSTEXPR friend inline QFlags<Flags::enum_type> operator|(Flags::enum_type f1, Flags::enum_type f2) noexcept {
-		return QFlags<Flags::enum_type>(f1) | f2;
-	}
-	Q_DECL_CONSTEXPR friend inline QFlags<Flags::enum_type> operator|(Flags::enum_type f1, QFlags<Flags::enum_type> f2) noexcept {
-		return f2 | f1;
-	}
-	Q_DECL_CONSTEXPR friend inline QFlags<Flags::enum_type> operator~(Flags::enum_type f) noexcept {
-		return ~QFlags<Flags::enum_type>(f);
-	}
-	Flags _flags = { 0 };
+	using Flags = base::flags<Flag>;
+	friend inline constexpr auto is_flag_type(Flag) { return true; };
+
+	Flags _flags = 0;
 	bool _mute = false;
 	int _unreadCount = 0;
 

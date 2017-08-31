@@ -478,7 +478,7 @@ public:
 
 	uint64 access = 0;
 
-	MTPDuser::Flags flags = { 0 };
+	MTPDuser::Flags flags = 0;
 	bool isVerified() const {
 		return flags & MTPDuser::Flag::f_verified;
 	}
@@ -831,8 +831,8 @@ public:
 
 	int32 date = 0;
 	int version = 0;
-	MTPDchannel::Flags flags = { 0 };
-	MTPDchannelFull::Flags flagsFull = { 0 };
+	MTPDchannel::Flags flags = 0;
+	MTPDchannelFull::Flags flagsFull = 0;
 	std::unique_ptr<MegagroupInfo> mgInfo;
 	bool lastParticipantsCountOutdated() const {
 		if (!mgInfo || !(mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsCountOutdated)) {
