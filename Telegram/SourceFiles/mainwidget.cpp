@@ -4406,7 +4406,7 @@ MainWidget::~MainWidget() {
 
 void MainWidget::updateOnline(bool gotOtherOffline) {
 	if (this != App::main()) return;
-	Auth().checkAutoLock();
+	InvokeQueued(this, [] { Auth().checkAutoLock(); });
 
 	bool isOnline = App::wnd()->isActive();
 	int updateIn = Global::OnlineUpdatePeriod();
