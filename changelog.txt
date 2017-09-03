@@ -1,3 +1,7 @@
+1.1.21 (03.07.17)
+
+- Bug fixes and other minor improvements.
+
 1.1.20 (03.09.17)
 
 - Groups with unread mentions and replies are now marked with an '@' badge in the chats list.
