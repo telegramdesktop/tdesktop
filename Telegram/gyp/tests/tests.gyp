@@ -82,5 +82,16 @@
       '<(src_loc)/base/flags.h',
       '<(src_loc)/base/flags_tests.cpp',
     ],
+  }, {
+    'target_name': 'tests_producer',
+    'includes': [
+      'common_test.gypi',
+    ],
+    'sources': [
+      '<(src_loc)/rpl/consumer.h',
+      '<(src_loc)/rpl/lifetime.h',
+      '<(src_loc)/rpl/producer.h',
+      '<(src_loc)/rpl/producer_tests.cpp',
+    ],
   }],
 }

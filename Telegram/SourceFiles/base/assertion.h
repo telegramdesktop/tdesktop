@@ -43,9 +43,19 @@ inline constexpr void noop() {
 	std::abort();
 }
 
+#ifndef GSL_UNLIKELY
+#define DEFINED_GSL_UNLIKELY_
+#define GSL_UNLIKELY(expression) (expression)
+#endif // GSL_UNLIKELY
+
 inline constexpr void validate(bool condition, const char *message, const char *file, int line) {
 	(GSL_UNLIKELY(!(condition))) ? fail(message, file, line) : noop();
 }
+
+#ifdef DEFINED_GSL_UNLIKELY_
+#undef GSL_UNLIKELY
+#undef DEFINED_GSL_UNLIKELY_
+#endif // DEFINED_GSL_UNLIKELY_
 
 } // namespace assertion
 } // namespace base

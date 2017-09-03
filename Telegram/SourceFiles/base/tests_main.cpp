@@ -23,6 +23,17 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "reporters/catch_reporter_compact.hpp"
 #include <QFile>
 
+namespace base {
+namespace assertion {
+
+// For Assert() / Expects() / Ensures() / Unexpected() to work.
+void log(const char *message, const char *file, int line) {
+	std::cout << message << " (" << file << ":" << line << ")" << std::endl;
+}
+
+} // namespace assertion
+} // namespace base
+
 namespace Catch {
 
 	struct MinimalReporter : CompactReporter {
@@ -82,15 +93,20 @@ namespace Catch {
 } // end namespace Catch
 
 int main(int argc, const char *argv[]) {
-	const char *catch_argv[] = { argv[0], "-r", "minimal" };
+	auto touchFile = QString();
+	for (auto i = 0; i != argc; ++i) {
+		if (argv[i] == QString("--touch") && i + 1 != argc) {
+			touchFile = QFile::decodeName(argv[++i]);
+		}
+	}
+	const char *catch_argv[] = {
+		argv[0],
+		touchFile.isEmpty() ? "-b" : "-r",
+		touchFile.isEmpty() ? "-b" : "minimal" };
 	constexpr auto catch_argc = sizeof(catch_argv) / sizeof(catch_argv[0]);
 	auto result = Catch::Session().run(catch_argc, catch_argv);
-	if (result == 0) {
-		for (auto i = 0; i != argc; ++i) {
-			if (argv[i] == QString("--touch") && i + 1 != argc) {
-				QFile(QFile::decodeName(argv[++i])).open(QIODevice::WriteOnly);
-			}
-		}
+	if (result == 0 && !touchFile.isEmpty()) {
+		QFile(touchFile).open(QIODevice::WriteOnly);
 	}
 	return (result < 0xff ? result : 0xff);
 }

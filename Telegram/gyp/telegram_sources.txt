@@ -393,6 +393,9 @@
 <(src_loc)/profile/profile_userpic_button.h
 <(src_loc)/profile/profile_widget.cpp
 <(src_loc)/profile/profile_widget.h
+<(src_loc)/rpl/consumer.h
+<(src_loc)/rpl/lifetime.h
+<(src_loc)/rpl/producer.h
 <(src_loc)/settings/settings_advanced_widget.cpp
 <(src_loc)/settings/settings_advanced_widget.h
 <(src_loc)/settings/settings_background_widget.cpp
