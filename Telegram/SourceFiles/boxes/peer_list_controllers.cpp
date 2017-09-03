@@ -329,7 +329,10 @@ void ContactsBoxController::checkForEmptyRows() {
 }
 
 std::unique_ptr<PeerListRow> ContactsBoxController::createSearchRow(not_null<PeerData*> peer) {
-	return createRow(peer->asUser());
+	if (auto user = peer->asUser()) {
+		return createRow(user);
+	}
+	return nullptr;
 }
 
 void ContactsBoxController::rowClicked(not_null<PeerListRow*> row) {
