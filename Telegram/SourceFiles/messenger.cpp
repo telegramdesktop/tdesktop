@@ -130,7 +130,9 @@ Messenger::Messenger() : QObject()
 	_window->createWinId();
 	_window->init();
 
+	auto currentGeometry = _window->geometry();
 	_mediaView = std::make_unique<MediaView>();
+	_window->setGeometry(currentGeometry);
 
 	QCoreApplication::instance()->installEventFilter(this);
 	Sandbox::connect(SIGNAL(applicationStateChanged(Qt::ApplicationState)), this, SLOT(onAppStateChanged(Qt::ApplicationState)));
