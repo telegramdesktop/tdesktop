@@ -1,3 +1,10 @@
+1.1.20 (03.09.17)
+
+- Groups with unread mentions and replies are now marked with an '@' badge in the chats list.
+- Navigate new mentions and replies in a group using the new '@' button.
+- Mark your stickers as “favorite” to quickly access them from the redesigned sticker panel.
+- Add an official sticker set for your group which all members will be able to use while chatting in your group (100+ member groups only).
+
 1.1.19 (01.08.17)
 
 - Search by messages of specific group members.
