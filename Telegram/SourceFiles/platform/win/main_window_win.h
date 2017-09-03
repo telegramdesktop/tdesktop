@@ -55,11 +55,11 @@ public:
 
 	// Custom shadows.
 	enum class ShadowsChange {
-		Moved    = 0x01,
-		Resized  = 0x02,
-		Shown    = 0x04,
-		Hidden   = 0x08,
-		Activate = 0x10,
+		Moved    = (1 << 0),
+		Resized  = (1 << 1),
+		Shown    = (1 << 2),
+		Hidden   = (1 << 3),
+		Activate = (1 << 4),
 	};
 	using ShadowsChanges = base::flags<ShadowsChange>;
 	friend inline constexpr auto is_flag_type(ShadowsChange) { return true; };

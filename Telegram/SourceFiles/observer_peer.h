@@ -35,45 +35,45 @@ struct PeerUpdate {
 	PeerData *peer;
 
 	enum class Flag : uint32 {
-		None                      = 0x00000000U,
+		None                      = 0,
 
 		// Common flags
-		NameChanged               = 0x00000001U,
-		UsernameChanged           = 0x00000002U,
-		PhotoChanged              = 0x00000004U,
-		AboutChanged              = 0x00000008U,
-		NotificationsEnabled      = 0x00000010U,
-		SharedMediaChanged        = 0x00000020U,
-		MigrationChanged          = 0x00000040U,
-		PinnedChanged             = 0x00000080U,
-		RestrictionReasonChanged  = 0x00000100U,
+		NameChanged               = (1 << 0),
+		UsernameChanged           = (1 << 1),
+		PhotoChanged              = (1 << 2),
+		AboutChanged              = (1 << 3),
+		NotificationsEnabled      = (1 << 4),
+		SharedMediaChanged        = (1 << 5),
+		MigrationChanged          = (1 << 6),
+		PinnedChanged             = (1 << 7),
+		RestrictionReasonChanged  = (1 << 8),
 
 		// For chats and channels
-		InviteLinkChanged         = 0x00000200U,
-		MembersChanged            = 0x00000400U,
-		AdminsChanged             = 0x00000800U,
-		BannedUsersChanged        = 0x00001000U,
-		UnreadMentionsChanged     = 0x00002000U,
+		InviteLinkChanged         = (1 << 9),
+		MembersChanged            = (1 << 10),
+		AdminsChanged             = (1 << 11),
+		BannedUsersChanged        = (1 << 12),
+		UnreadMentionsChanged     = (1 << 13),
 
 		// For users
-		UserCanShareContact       = 0x00010000U,
-		UserIsContact             = 0x00020000U,
-		UserPhoneChanged          = 0x00040000U,
-		UserIsBlocked             = 0x00080000U,
-		BotCommandsChanged        = 0x00100000U,
-		UserOnlineChanged         = 0x00200000U,
-		BotCanAddToGroups         = 0x00400000U,
-		UserCommonChatsChanged    = 0x00800000U,
-		UserHasCalls              = 0x01000000U,
+		UserCanShareContact       = (1 << 16),
+		UserIsContact             = (1 << 17),
+		UserPhoneChanged          = (1 << 18),
+		UserIsBlocked             = (1 << 19),
+		BotCommandsChanged        = (1 << 20),
+		UserOnlineChanged         = (1 << 21),
+		BotCanAddToGroups         = (1 << 22),
+		UserCommonChatsChanged    = (1 << 23),
+		UserHasCalls              = (1 << 24),
 
 		// For chats
-		ChatCanEdit               = 0x00010000U,
+		ChatCanEdit               = (1 << 16),
 
 		// For channels
-		ChannelAmIn               = 0x00010000U,
-		ChannelRightsChanged      = 0x00020000U,
-		ChannelStickersChanged    = 0x00040000U,
-		ChannelPinnedChanged      = 0x00080000U,
+		ChannelAmIn               = (1 << 16),
+		ChannelRightsChanged      = (1 << 17),
+		ChannelStickersChanged    = (1 << 18),
+		ChannelPinnedChanged      = (1 << 19),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }

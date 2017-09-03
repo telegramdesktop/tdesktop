@@ -25,12 +25,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Window {
 
 enum class GifPauseReason {
-	Any = 0,
+	Any           = 0,
 	InlineResults = (1 << 0),
-	SavedGifs = (1 << 1),
-	Layer = (1 << 2),
-	RoundPlaying = (1 << 3),
-	MediaPreview = (1 << 4),
+	SavedGifs     = (1 << 1),
+	Layer         = (1 << 2),
+	RoundPlaying  = (1 << 3),
+	MediaPreview  = (1 << 4),
 };
 using GifPauseReasons = base::flags<GifPauseReason>;
 inline constexpr bool is_flag_type(GifPauseReason) { return true; };

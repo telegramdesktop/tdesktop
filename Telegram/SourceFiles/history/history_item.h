@@ -172,8 +172,8 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply> {
 	void itemRemoved(HistoryMessage *holder, HistoryItem *removed);
 
 	enum class PaintFlag {
-		InBubble = 0x01,
-		Selected = 0x02,
+		InBubble = (1 << 0),
+		Selected = (1 << 1),
 	};
 	using PaintFlags = base::flags<PaintFlag>;
 	friend inline constexpr auto is_flag_type(PaintFlag) { return true; };

@@ -175,11 +175,11 @@ private:
 
 	void itemRemoved(HistoryItem *item);
 	enum class UpdateRowSection {
-		Default = 0x01,
-		Filtered = 0x02,
-		PeerSearch = 0x04,
-		MessageSearch = 0x08,
-		All = 0x0F,
+		Default       = (1 << 0),
+		Filtered      = (1 << 1),
+		PeerSearch    = (1 << 2),
+		MessageSearch = (1 << 3),
+		All           = Default | Filtered | PeerSearch | MessageSearch,
 	};
 	using UpdateRowSections = base::flags<UpdateRowSection>;
 	friend inline constexpr auto is_flag_type(UpdateRowSection) { return true; };

@@ -76,8 +76,8 @@ bool _userWorking() {
 }
 
 enum class FileOption {
-	User = 0x01,
-	Safe = 0x02,
+	User = (1 << 0),
+	Safe = (1 << 1),
 };
 using FileOptions = base::flags<FileOption>;
 inline constexpr auto is_flag_type(FileOption) { return true; };

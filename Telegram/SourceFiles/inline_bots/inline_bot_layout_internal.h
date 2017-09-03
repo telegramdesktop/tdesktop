@@ -82,8 +82,8 @@ private:
 	QSize countFrameSize() const;
 
 	enum class StateFlag {
-		Over = 0x01,
-		DeleteOver = 0x02,
+		Over       = (1 << 0),
+		DeleteOver = (1 << 1),
 	};
 	using StateFlags = base::flags<StateFlag>;
 	friend inline constexpr auto is_flag_type(StateFlag) { return true; };

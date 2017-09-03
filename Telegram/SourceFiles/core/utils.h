@@ -570,12 +570,12 @@ enum ForwardWhatMessages {
 };
 
 enum ShowLayerOption {
-	CloseOtherLayers = 0x00,
-	KeepOtherLayers = 0x01,
-	ShowAfterOtherLayers = 0x03,
+	CloseOtherLayers     = (1 << 0),
+	KeepOtherLayers      = (1 << 1),
+	ShowAfterOtherLayers = (1 << 2),
 
-	AnimatedShowLayer = 0x00,
-	ForceFastShowLayer = 0x04,
+	AnimatedShowLayer    = (1 << 3),
+	ForceFastShowLayer   = (1 << 4),
 };
 using ShowLayerOptions = base::flags<ShowLayerOption>;
 inline constexpr auto is_flag_type(ShowLayerOption) { return true; };

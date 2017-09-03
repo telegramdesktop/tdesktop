@@ -691,8 +691,8 @@ private:
 	void countHistoryShowFrom();
 
 	enum class TextUpdateEvent {
-		SaveDraft  = 0x01,
-		SendTyping = 0x02,
+		SaveDraft  = (1 << 0),
+		SendTyping = (1 << 1),
 	};
 	using TextUpdateEvents = base::flags<TextUpdateEvent>;
 	friend inline constexpr auto is_flag_type(TextUpdateEvent) { return true; };

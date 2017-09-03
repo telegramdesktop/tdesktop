@@ -76,10 +76,10 @@ signals:
 
 protected:
 	enum class StateFlag {
-		None = 0x00,
-		Over = 0x01,
-		Down = 0x02,
-		Disabled = 0x04,
+		None     = 0,
+		Over     = (1 << 0),
+		Down     = (1 << 1),
+		Disabled = (1 << 2),
 	};
 	using State = base::flags<StateFlag>;
 
