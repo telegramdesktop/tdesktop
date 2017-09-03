@@ -658,6 +658,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_channel_admin_status_creator" = "생성자";
 "lng_channel_admin_status_promoted_by" = "{user} 님이 승인함";
 "lng_channel_admin_status_not_admin" = "관리자가 아님";
+"lng_channel_banned_status_restricted_by" = "{user} 님이 제한함";
 
 "lng_group_blocked_list_about" = "차단된 사용자들은 그룹에서 추방이 되며 관리자의 초대로만 재입장이 가능합니다.\n초대링크는 작동되지 않습니다.";
 
@@ -1187,6 +1188,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_search_found_results#one" = "{count}개의 메시지를 찾았습니다.";
 "lng_search_found_results#other" = "{count}개의 메시지를 찾았습니다.";
 "lng_search_global_results" = "아이디 검색 결과";
+"lng_search_messages_from" = "다음 사용자의 메시지 보기";
 
 "lng_media_save_progress" = "{ready} / {total} {mb}";
 "lng_mediaview_save_as" = " 다른 이름으로 저장...";

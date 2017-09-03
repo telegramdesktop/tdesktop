@@ -309,7 +309,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_update_checking" = "Prüfe auf Updates...";
 "lng_settings_latest_installed" = "Aktuellste Version bereits installiert";
 "lng_settings_downloading" = "Update wird geladen {ready} / {total} MB...";
-"lng_settings_update_ready" = "Neue Version kann installiert werden";
+"lng_settings_update_ready" = "Neue Version ist da!";
 "lng_settings_update_now" = "Jetzt neustarten";
 "lng_settings_update_fail" = "Konnte nicht auf Updates prüfen :(";
 "lng_settings_workmode_tray" = "Symbol im System Tray anzeigen";
