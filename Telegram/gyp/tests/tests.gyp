@@ -56,6 +56,24 @@
       'message': 'Running <(RULE_INPUT_ROOT)..',
     }]
   }, {
+    'target_name': 'tests_algorithm',
+    'includes': [
+      'common_test.gypi',
+    ],
+    'sources': [
+      '<(src_loc)/base/algorithm.h',
+      '<(src_loc)/base/algorithm_tests.cpp',
+    ],
+  }, {
+    'target_name': 'tests_flags',
+    'includes': [
+      'common_test.gypi',
+    ],
+    'sources': [
+      '<(src_loc)/base/flags.h',
+      '<(src_loc)/base/flags_tests.cpp',
+    ],
+  }, {
     'target_name': 'tests_flat_map',
     'includes': [
       'common_test.gypi',
@@ -74,21 +92,13 @@
       '<(src_loc)/base/flat_set_tests.cpp',
     ],
   }, {
-    'target_name': 'tests_flags',
-    'includes': [
-      'common_test.gypi',
-    ],
-    'sources': [
-      '<(src_loc)/base/flags.h',
-      '<(src_loc)/base/flags_tests.cpp',
-    ],
-  }, {
     'target_name': 'tests_producer',
     'includes': [
       'common_test.gypi',
     ],
     'sources': [
       '<(src_loc)/rpl/consumer.h',
+      '<(src_loc)/rpl/event_stream.h',
       '<(src_loc)/rpl/lifetime.h',
       '<(src_loc)/rpl/producer.h',
       '<(src_loc)/rpl/producer_tests.cpp',

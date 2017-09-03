@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "catch.hpp"
 
 #include "rpl/producer.h"
+#include "rpl/event_stream.h"
 
 using namespace rpl;
 
@@ -154,6 +155,148 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 		REQUIRE(*lifetimeEndCount == 0);
 		saved.destroy();
 		REQUIRE(*lifetimeEndCount == 3);
+	}
+
+	SECTION("event_stream basic test") {
+		auto sum = std::make_shared<int>(0);
+		rpl::event_stream<int> stream;
+		stream.fire(1);
+		stream.fire(2);
+		stream.fire(3);
+		{
+			auto lifetime = stream.events().start([=, &stream](int value) {
+				*sum += value;
+			}, [=](no_error) {
+			}, [=] {
+			});
+			stream.fire(11);
+			stream.fire(12);
+			stream.fire(13);
+		}
+		stream.fire(21);
+		stream.fire(22);
+		stream.fire(23);
+
+		REQUIRE(11 + 12 + 13);
+	}
+
+	SECTION("event_stream add in handler test") {
+		auto sum = std::make_shared<int>(0);
+		rpl::event_stream<int> stream;
+
+		{
+			auto composite = lifetime();
+			composite = stream.events().start([=, &stream, &composite](int value) {
+				*sum += value;
+				composite.add(stream.events().start([=](int value) {
+					*sum += value;
+				}, [=](no_error) {
+				}, [=] {
+				}));
+			}, [=](no_error) {
+			}, [=] {
+			});
+
+			{
+				auto inner = lifetime();
+				inner = stream.events().start([=, &stream, &inner](int value) {
+					*sum += value;
+					inner.add(stream.events().start([=](int value) {
+						*sum += value;
+					}, [=](no_error) {
+					}, [=] {
+					}));
+				}, [=](no_error) {
+				}, [=] {
+				});
+
+				stream.fire(1);
+				stream.fire(2);
+				stream.fire(3);
+			}
+			stream.fire(11);
+			stream.fire(12);
+			stream.fire(13);
+		}
+		stream.fire(21);
+		stream.fire(22);
+		stream.fire(23);
+
+		REQUIRE(*sum ==
+			(1 + 1) +
+			((2 + 2) + (2 + 2)) +
+			((3 + 3 + 3) + (3 + 3 + 3)) +
+			(11 + 11 + 11 + 11) +
+			(12 + 12 + 12 + 12 + 12) +
+			(13 + 13 + 13 + 13 + 13 + 13));
+	}
+
+	SECTION("event_stream add and remove in handler test") {
+		auto sum = std::make_shared<int>(0);
+		rpl::event_stream<int> stream;
+
+		{
+			auto composite = lifetime();
+			composite = stream.events().start([=, &stream, &composite](int value) {
+				*sum += value;
+				composite = stream.events().start([=](int value) {
+					*sum += value;
+				}, [=](no_error) {
+				}, [=] {
+				});
+			}, [=](no_error) {
+			}, [=] {
+			});
+
+			{
+				auto inner = lifetime();
+				inner = stream.events().start([=, &stream, &inner](int value) {
+					*sum += value;
+					inner = stream.events().start([=](int value) {
+						*sum += value;
+					}, [=](no_error) {
+					}, [=] {
+					});
+				}, [=](no_error) {
+				}, [=] {
+				});
+
+				stream.fire(1);
+				stream.fire(2);
+				stream.fire(3);
+			}
+			stream.fire(11);
+			stream.fire(12);
+			stream.fire(13);
+		}
+		stream.fire(21);
+		stream.fire(22);
+		stream.fire(23);
+
+		REQUIRE(*sum ==
+			(1 + 1) +
+			(2 + 2) +
+			(3 + 3) +
+			(11) +
+			(12) +
+			(13));
+	}
+
+	SECTION("event_stream ends before handler lifetime") {
+		auto sum = std::make_shared<int>(0);
+		lifetime extended;
+		{
+			rpl::event_stream<int> stream;
+			extended = stream.events().start([=](int value) {
+				*sum += value;
+			}, [=](no_error) {
+			}, [=] {
+			});
+			stream.fire(1);
+			stream.fire(2);
+			stream.fire(3);
+		}
+		REQUIRE(*sum == 1 + 2 + 3);
 	}
 }
 

@@ -68,8 +68,9 @@ lifetime::lifetime(lifetime &&other)
 }
 
 lifetime &lifetime::operator=(lifetime &&other) {
-	_destroy = std::exchange(other._destroy, base::lambda_once<void()>());
-	_nested = std::exchange(other._nested, std::vector<lifetime>());
+	std::swap(_destroy, other._destroy);
+	std::swap(_nested, other._nested);
+	other.destroy();
 	return *this;
 }
 

@@ -54,6 +54,25 @@ public:
 	void setLifetime(lifetime &&lifetime) const;
 	void terminate() const;
 
+	bool operator==(const consumer &other) const {
+		return _instance == other._instance;
+	}
+	bool operator!=(const consumer &other) const {
+		return !(*this == other);
+	}
+	bool operator<(const consumer &other) const {
+		return _instance < other._instance;
+	}
+	bool operator>(const consumer &other) const {
+		return other < *this;
+	}
+	bool operator<=(const consumer &other) const {
+		return !(other < *this);
+	}
+	bool operator>=(const consumer &other) const {
+		return !(*this < other);
+	}
+
 private:
 	class abstract_consumer_instance;
 
@@ -66,7 +85,7 @@ private:
 		OnError &&error,
 		OnDone &&done);
 
-	std::shared_ptr<abstract_consumer_instance> _instance;
+	mutable std::shared_ptr<abstract_consumer_instance> _instance;
 
 };
 
@@ -149,27 +168,43 @@ consumer<Value, Error>::consumer(
 
 template <typename Value, typename Error>
 bool consumer<Value, Error>::putNext(Value value) const {
-	return _instance->putNext(std::move(value));
+	if (_instance) {
+		if (_instance->putNext(std::move(value))) {
+			return true;
+		}
+		_instance = nullptr;
+	}
+	return false;
 }
 
 template <typename Value, typename Error>
 void consumer<Value, Error>::putError(Error error) const {
-	return _instance->putError(std::move(error));
+	if (_instance) {
+		std::exchange(_instance, nullptr)->putError(std::move(error));
+	}
 }
 
 template <typename Value, typename Error>
 void consumer<Value, Error>::putDone() const {
-	return _instance->putDone();
+	if (_instance) {
+		std::exchange(_instance, nullptr)->putDone();
+	}
 }
 
 template <typename Value, typename Error>
 void consumer<Value, Error>::setLifetime(lifetime &&lifetime) const {
-	return _instance->setLifetime(std::move(lifetime));
+	if (_instance) {
+		_instance->setLifetime(std::move(lifetime));
+	} else {
+		lifetime.destroy();
+	}
 }
 
 template <typename Value, typename Error>
 void consumer<Value, Error>::terminate() const {
-	return _instance->terminate();
+	if (_instance) {
+		std::exchange(_instance, nullptr)->terminate();
+	}
 }
 
 template <typename Value, typename Error>
