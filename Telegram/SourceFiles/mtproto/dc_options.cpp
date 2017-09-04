@@ -281,6 +281,14 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 	for (auto i = 0; i != count; ++i) {
 		qint32 id = 0, flags = 0, port = 0, ipSize = 0;
 		stream >> id >> flags >> port >> ipSize;
+
+		// https://stackoverflow.com/questions/1076714/max-length-for-client-ip-address
+		constexpr auto kMaxIpSize = 45;
+		if (ipSize > kMaxIpSize) {
+			LOG(("MTP Error: Bad data inside DcOptions::constructFromSerialized()"));
+			return;
+		}
+
 		std::string ip(ipSize, ' ');
 		stream.readRawData(&ip[0], ipSize);
 
