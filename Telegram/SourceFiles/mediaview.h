@@ -169,13 +169,13 @@ private:
 	void updateMixerVideoVolume() const;
 
 	struct SharedMedia;
-	using SharedMediaType = SharedMediaViewerWithLast::Type;
-	using SharedMediaKey = SharedMediaViewerWithLast::Key;
+	using SharedMediaType = SharedMediaWithLastSlice::Type;
+	using SharedMediaKey = SharedMediaWithLastSlice::Key;
 	base::optional<SharedMediaType> sharedMediaType() const;
 	base::optional<SharedMediaKey> sharedMediaKey() const;
 	bool validSharedMedia() const;
 	void validateSharedMedia();
-	void handleSharedMediaUpdate(const SharedMediaSliceWithLast &update);
+	void handleSharedMediaUpdate(SharedMediaWithLastSlice &&update);
 
 	struct UserPhotos;
 	using UserPhotosKey = UserPhotosSlice::Key;
@@ -251,7 +251,7 @@ private:
 	PhotoData *_photo = nullptr;
 	DocumentData *_doc = nullptr;
 	std::unique_ptr<SharedMedia> _sharedMedia;
-	base::optional<SharedMediaSliceWithLast> _sharedMediaData;
+	base::optional<SharedMediaWithLastSlice> _sharedMediaData;
 	std::unique_ptr<UserPhotos> _userPhotos;
 	base::optional<UserPhotosSlice> _userPhotosData;
 

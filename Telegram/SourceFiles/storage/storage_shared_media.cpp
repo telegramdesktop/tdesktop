@@ -128,7 +128,7 @@ void SharedMedia::List::addRange(
 		}
 	}
 	update.count = _count;
-	sliceUpdated.notify(update, true);
+	_sliceUpdated.fire(std::move(update));
 }
 
 void SharedMedia::List::addNew(MsgId messageId) {
@@ -171,33 +171,28 @@ void SharedMedia::List::removeAll() {
 	_count = 0;
 }
 
-void SharedMedia::List::query(
-		const SharedMediaQuery &query,
-		base::lambda_once<void(SharedMediaResult&&)> &&callback) {
-	auto result = SharedMediaResult {};
-	result.count = _count;
-
-	auto slice = base::lower_bound(
-		_slices,
-		query.key.messageId,
-		[](const Slice &slice, MsgId id) { return slice.range.till < id; });
-	if (slice != _slices.end() && slice->range.from <= query.key.messageId) {
-		result = queryFromSlice(query, *slice);
-	} else {
-		result.count = _count;
-	}
-	base::TaskQueue::Main().Put(
-		[
-			callback = std::move(callback),
-			result = std::move(result)
-		]() mutable {
-		callback(std::move(result));
-	});
+rpl::producer<SharedMediaResult> SharedMedia::List::query(
+		SharedMediaQuery &&query) const {
+	return [this, query = std::move(query)](auto consumer) {
+		auto slice = base::lower_bound(
+			_slices,
+			query.key.messageId,
+			[](const Slice &slice, MsgId id) { return slice.range.till < id; });
+		if (slice != _slices.end() && slice->range.from <= query.key.messageId) {
+			consumer.put_next(queryFromSlice(query, *slice));
+		} else if (_count) {
+			auto result = SharedMediaResult {};
+			result.count = _count;
+			consumer.put_next(std::move(result));
+		}
+		consumer.put_done();
+		return rpl::lifetime();
+	};
 }
 
 SharedMediaResult SharedMedia::List::queryFromSlice(
 		const SharedMediaQuery &query,
-		const Slice &slice) {
+		const Slice &slice) const {
 	auto result = SharedMediaResult {};
 	auto position = base::lower_bound(slice.messages, query.key.messageId);
 	auto haveBefore = int(position - slice.messages.begin());
@@ -237,14 +232,17 @@ std::map<PeerId, SharedMedia::Lists>::iterator
 	for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
 		auto &list = result->second[index];
 		auto type = static_cast<SharedMediaType>(index);
-		subscribe(list.sliceUpdated, [this, type, peer](const SliceUpdate &update) {
-			sliceUpdated.notify(SharedMediaSliceUpdate(
-				peer,
-				type,
-				update.messages,
-				update.range,
-				update.count), true);
-		});
+
+		list.sliceUpdated()
+			| rpl::on_next([this, peer, type](SliceUpdate &&update) {
+				_sliceUpdated.fire(SharedMediaSliceUpdate(
+					peer,
+					type,
+					update.messages,
+					update.range,
+					update.count));
+			})
+			| rpl::start(_lifetime);
 	}
 	return result;
 }
@@ -284,7 +282,7 @@ void SharedMedia::remove(SharedMediaRemoveOne &&query) {
 			auto type = static_cast<SharedMediaType>(index);
 			if (query.types.test(type)) {
 				peerIt->second[index].removeOne(query.messageId);
-				oneRemoved.notify(query, true);
+				_oneRemoved.fire(std::move(query));
 			}
 		}
 	}
@@ -296,26 +294,21 @@ void SharedMedia::remove(SharedMediaRemoveAll &&query) {
 		for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
 			peerIt->second[index].removeAll();
 		}
-		allRemoved.notify(query, true);
+		_allRemoved.fire(std::move(query));
 	}
 }
 
-void SharedMedia::query(
-		const SharedMediaQuery &query,
-		base::lambda_once<void(SharedMediaResult&&)> &&callback) {
+rpl::producer<SharedMediaResult> SharedMedia::query(SharedMediaQuery &&query) const {
 	Expects(IsValidSharedMediaType(query.key.type));
 	auto peerIt = _lists.find(query.key.peerId);
 	if (peerIt != _lists.end()) {
 		auto index = static_cast<int>(query.key.type);
-		peerIt->second[index].query(query, std::move(callback));
-	} else {
-		base::TaskQueue::Main().Put(
-			[
-				callback = std::move(callback)
-			]() mutable {
-			callback(SharedMediaResult());
-		});
+		return peerIt->second[index].query(std::move(query));
 	}
+	return [](auto consumer) {
+		consumer.put_done();
+		return rpl::lifetime();
+	};
 }
 
 } // namespace Storage

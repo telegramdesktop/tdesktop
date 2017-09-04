@@ -25,6 +25,41 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/storage_facade.h"
 #include "storage/storage_user_photos.h"
 
+class UserPhotosSliceBuilder {
+public:
+	using Key = UserPhotosSlice::Key;
+
+	UserPhotosSliceBuilder(Key key, int limitBefore, int limitAfter);
+
+	bool applyUpdate(const Storage::UserPhotosResult &update);
+	bool applyUpdate(const Storage::UserPhotosSliceUpdate &update);
+	void checkInsufficientPhotos();
+	rpl::producer<PhotoId> insufficientPhotosAround() const {
+		return _insufficientPhotosAround.events();
+	}
+
+	UserPhotosSlice snapshot() const;
+
+private:
+	void mergeSliceData(
+		base::optional<int> count,
+		const std::deque<PhotoId> &photoIds,
+		base::optional<int> skippedBefore,
+		int skippedAfter);
+	void sliceToLimits();
+
+	Key _key;
+	std::deque<PhotoId> _ids;
+	base::optional<int> _fullCount;
+	base::optional<int> _skippedBefore;
+	int _skippedAfter = 0;
+	int _limitBefore = 0;
+	int _limitAfter = 0;
+
+	rpl::event_stream<PhotoId> _insufficientPhotosAround;
+
+};
+
 UserPhotosSlice::UserPhotosSlice(Key key) : UserPhotosSlice(
 	key,
 	{},
@@ -89,41 +124,6 @@ QString UserPhotosSlice::debug() const {
 		: ((size() > 0) ? QString::number((*this)[0]) : QString());
 	return before + middle + after;
 }
-
-class UserPhotosSliceBuilder {
-public:
-	using Key = UserPhotosSlice::Key;
-
-	UserPhotosSliceBuilder(Key key, int limitBefore, int limitAfter);
-
-	bool applyUpdate(const Storage::UserPhotosResult &update);
-	bool applyUpdate(const Storage::UserPhotosSliceUpdate &update);
-	void checkInsufficientPhotos();
-	rpl::producer<PhotoId> insufficientPhotosAround() const {
-		return _insufficientPhotosAround.events();
-	}
-
-	UserPhotosSlice snapshot() const;
-
-private:
-	void mergeSliceData(
-		base::optional<int> count,
-		const std::deque<PhotoId> &photoIds,
-		base::optional<int> skippedBefore,
-		int skippedAfter);
-	void sliceToLimits();
-
-	Key _key;
-	std::deque<PhotoId> _ids;
-	base::optional<int> _fullCount;
-	base::optional<int> _skippedBefore;
-	int _skippedAfter = 0;
-	int _limitBefore = 0;
-	int _limitAfter = 0;
-
-	rpl::event_stream<PhotoId> _insufficientPhotosAround;
-
-};
 
 UserPhotosSliceBuilder::UserPhotosSliceBuilder(
 	Key key,

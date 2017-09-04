@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "storage/storage_facade.h"
+#include "rpl/event_stream.h"
 
 namespace Storage {
 
@@ -191,7 +192,7 @@ struct SharedMediaSliceUpdate {
 	base::optional<int> count;
 };
 
-class SharedMedia : private base::Subscriber {
+class SharedMedia {
 public:
 	using Type = SharedMediaType;
 
@@ -200,13 +201,18 @@ public:
 	void add(SharedMediaAddSlice &&query);
 	void remove(SharedMediaRemoveOne &&query);
 	void remove(SharedMediaRemoveAll &&query);
-	void query(
-		const SharedMediaQuery &query,
-		base::lambda_once<void(SharedMediaResult&&)> &&callback);
 
-	base::Observable<SharedMediaSliceUpdate> sliceUpdated;
-	base::Observable<SharedMediaRemoveOne> oneRemoved;
-	base::Observable<SharedMediaRemoveAll> allRemoved;
+	rpl::producer<SharedMediaResult> query(SharedMediaQuery &&query) const;
+
+	rpl::producer<SharedMediaSliceUpdate> sliceUpdated() const {
+		return _sliceUpdated.events();
+	}
+	rpl::producer<SharedMediaRemoveOne> oneRemoved() const {
+		return _oneRemoved.events();
+	}
+	rpl::producer<SharedMediaRemoveAll> allRemoved() const {
+		return _allRemoved.events();
+	}
 
 private:
 	class List {
@@ -219,16 +225,16 @@ private:
 			base::optional<int> count);
 		void removeOne(MsgId messageId);
 		void removeAll();
-		void query(
-			const SharedMediaQuery &query,
-			base::lambda_once<void(SharedMediaResult&&)> &&callback);
+		rpl::producer<SharedMediaResult> query(SharedMediaQuery &&query) const;
 
 		struct SliceUpdate {
 			const base::flat_set<MsgId> *messages = nullptr;
 			MsgRange range;
 			base::optional<int> count;
 		};
-		base::Observable<SliceUpdate> sliceUpdated;
+		rpl::producer<SliceUpdate> sliceUpdated() const {
+			return _sliceUpdated.events();
+		}
 
 	private:
 		struct Slice {
@@ -267,10 +273,12 @@ private:
 
 		SharedMediaResult queryFromSlice(
 			const SharedMediaQuery &query,
-			const Slice &slice);
+			const Slice &slice) const;
 
 		base::optional<int> _count;
 		base::flat_set<Slice> _slices;
+
+		rpl::event_stream<SliceUpdate> _sliceUpdated;
 
 	};
 	using SliceUpdate = List::SliceUpdate;
@@ -279,6 +287,11 @@ private:
 	std::map<PeerId, Lists>::iterator enforceLists(PeerId peer);
 
 	std::map<PeerId, Lists> _lists;
+
+	rpl::lifetime _lifetime;
+	rpl::event_stream<SharedMediaSliceUpdate> _sliceUpdated;
+	rpl::event_stream<SharedMediaRemoveOne> _oneRemoved;
+	rpl::event_stream<SharedMediaRemoveAll> _allRemoved;
 
 };
 

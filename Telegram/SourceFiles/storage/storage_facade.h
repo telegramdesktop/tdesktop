@@ -51,13 +51,11 @@ public:
 	void add(SharedMediaAddSlice &&query);
 	void remove(SharedMediaRemoveOne &&query);
 	void remove(SharedMediaRemoveAll &&query);
-	void query(
-		SharedMediaQuery &&query,
-		base::lambda_once<void(SharedMediaResult&&)> &&callback);
 
-	base::Observable<SharedMediaSliceUpdate> &sharedMediaSliceUpdated();
-	base::Observable<SharedMediaRemoveOne> &sharedMediaOneRemoved();
-	base::Observable<SharedMediaRemoveAll> &sharedMediaAllRemoved();
+	rpl::producer<SharedMediaResult> query(SharedMediaQuery &&query) const;
+	rpl::producer<SharedMediaSliceUpdate> sharedMediaSliceUpdated() const;
+	rpl::producer<SharedMediaRemoveOne> sharedMediaOneRemoved() const;
+	rpl::producer<SharedMediaRemoveAll> sharedMediaAllRemoved() const;
 
 	void add(UserPhotosAddNew &&query);
 	void add(UserPhotosAddSlice &&query);

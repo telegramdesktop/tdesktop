@@ -32,13 +32,11 @@ public:
 	void add(SharedMediaAddSlice &&query);
 	void remove(SharedMediaRemoveOne &&query);
 	void remove(SharedMediaRemoveAll &&query);
-	void query(
-		SharedMediaQuery &&query,
-		base::lambda_once<void(SharedMediaResult&&)> &&callback);
+	rpl::producer<SharedMediaResult> query(SharedMediaQuery &&query) const;
 
-	base::Observable<SharedMediaSliceUpdate> &sharedMediaSliceUpdated();
-	base::Observable<SharedMediaRemoveOne> &sharedMediaOneRemoved();
-	base::Observable<SharedMediaRemoveAll> &sharedMediaAllRemoved();
+	rpl::producer<SharedMediaSliceUpdate> sharedMediaSliceUpdated() const;
+	rpl::producer<SharedMediaRemoveOne> sharedMediaOneRemoved() const;
+	rpl::producer<SharedMediaRemoveAll> sharedMediaAllRemoved() const;
 
 	void add(UserPhotosAddNew &&query);
 	void add(UserPhotosAddSlice &&query);
@@ -74,22 +72,20 @@ void Facade::Impl::remove(SharedMediaRemoveAll &&query) {
 	_sharedMedia.remove(std::move(query));
 }
 
-void Facade::Impl::query(
-		SharedMediaQuery &&query,
-		base::lambda_once<void(SharedMediaResult&&)> &&callback) {
-	_sharedMedia.query(query, std::move(callback));
+rpl::producer<SharedMediaResult> Facade::Impl::query(SharedMediaQuery &&query) const {
+	return _sharedMedia.query(std::move(query));
 }
 
-base::Observable<SharedMediaSliceUpdate> &Facade::Impl::sharedMediaSliceUpdated() {
-	return _sharedMedia.sliceUpdated;
+rpl::producer<SharedMediaSliceUpdate> Facade::Impl::sharedMediaSliceUpdated() const {
+	return _sharedMedia.sliceUpdated();
 }
 
-base::Observable<SharedMediaRemoveOne> &Facade::Impl::sharedMediaOneRemoved() {
-	return _sharedMedia.oneRemoved;
+rpl::producer<SharedMediaRemoveOne> Facade::Impl::sharedMediaOneRemoved() const {
+	return _sharedMedia.oneRemoved();
 }
 
-base::Observable<SharedMediaRemoveAll> &Facade::Impl::sharedMediaAllRemoved() {
-	return _sharedMedia.allRemoved;
+rpl::producer<SharedMediaRemoveAll> Facade::Impl::sharedMediaAllRemoved() const {
+	return _sharedMedia.allRemoved();
 }
 
 void Facade::Impl::add(UserPhotosAddNew &&query) {
@@ -139,21 +135,19 @@ void Facade::remove(SharedMediaRemoveAll &&query) {
 	_impl->remove(std::move(query));
 }
 
-void Facade::query(
-		SharedMediaQuery &&query,
-		base::lambda_once<void(SharedMediaResult&&)> &&callback) {
-	_impl->query(std::move(query), std::move(callback));
+rpl::producer<SharedMediaResult> Facade::query(SharedMediaQuery &&query) const {
+	return _impl->query(std::move(query));
 }
 
-base::Observable<SharedMediaSliceUpdate> &Facade::sharedMediaSliceUpdated() {
+rpl::producer<SharedMediaSliceUpdate> Facade::sharedMediaSliceUpdated() const {
 	return _impl->sharedMediaSliceUpdated();
 }
 
-base::Observable<SharedMediaRemoveOne> &Facade::sharedMediaOneRemoved() {
+rpl::producer<SharedMediaRemoveOne> Facade::sharedMediaOneRemoved() const {
 	return _impl->sharedMediaOneRemoved();
 }
 
-base::Observable<SharedMediaRemoveAll> &Facade::sharedMediaAllRemoved() {
+rpl::producer<SharedMediaRemoveAll> Facade::sharedMediaAllRemoved() const {
 	return _impl->sharedMediaAllRemoved();
 }
 

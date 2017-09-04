@@ -29,13 +29,19 @@ void SharedMediaShowOverview(
 	Storage::SharedMediaType type,
 	not_null<History*> history);
 
-class SharedMediaViewer;
 class SharedMediaSlice {
 public:
+	using Type = Storage::SharedMediaType;
 	using Key = Storage::SharedMediaKey;
 
 	SharedMediaSlice(Key key);
-	SharedMediaSlice(Key key, base::optional<int> fullCount);
+	SharedMediaSlice(
+		Key key,
+		const base::flat_set<MsgId> &ids,
+		MsgRange range,
+		base::optional<int> fullCount,
+		base::optional<int> skippedBefore,
+		base::optional<int> skippedAfter);
 
 	const Key &key() const { return _key; }
 
@@ -57,56 +63,16 @@ private:
 	base::optional<int> _skippedBefore;
 	base::optional<int> _skippedAfter;
 
-	friend class SharedMediaViewer;
+	class SharedMediaSliceBuilder;
 
 };
 
-class SharedMediaViewer :
-	private base::Subscriber,
-	public base::enable_weak_from_this {
-public:
-	using Type = Storage::SharedMediaType;
-	using Key = Storage::SharedMediaKey;
+rpl::producer<SharedMediaSlice> SharedMediaViewer(
+	SharedMediaSlice::Key key,
+	int limitBefore,
+	int limitAfter);
 
-	SharedMediaViewer(Key key, int limitBefore, int limitAfter);
-
-	void start();
-
-	base::Observable<SharedMediaSlice> updated;
-
-private:
-	using InitialResult = Storage::SharedMediaResult;
-	using SliceUpdate = Storage::SharedMediaSliceUpdate;
-	using OneRemoved = Storage::SharedMediaRemoveOne;
-	using AllRemoved = Storage::SharedMediaRemoveAll;
-
-	void loadInitial();
-	enum class RequestDirection {
-		Before,
-		After,
-	};
-	void requestMessages(RequestDirection direction);
-	void applyStoredResult(InitialResult &&result);
-	void applyUpdate(const SliceUpdate &update);
-	void applyUpdate(const OneRemoved &update);
-	void applyUpdate(const AllRemoved &update);
-	void sliceToLimits();
-
-	void mergeSliceData(
-		base::optional<int> count,
-		const base::flat_set<MsgId> &messageIds,
-		base::optional<int> skippedBefore = base::none,
-		base::optional<int> skippedAfter = base::none);
-
-	Key _key;
-	int _limitBefore = 0;
-	int _limitAfter = 0;
-	SharedMediaSlice _data;
-
-};
-
-class SharedMediaViewerMerged;
-class SharedMediaSliceMerged {
+class SharedMediaMergedSlice {
 public:
 	using Type = Storage::SharedMediaType;
 	using UniversalMsgId = MsgId;
@@ -136,8 +102,8 @@ public:
 
 	};
 
-	SharedMediaSliceMerged(Key key);
-	SharedMediaSliceMerged(
+	SharedMediaMergedSlice(Key key);
+	SharedMediaMergedSlice(
 		Key key,
 		SharedMediaSlice part,
 		base::optional<SharedMediaSlice> migrated);
@@ -154,7 +120,6 @@ public:
 
 	QString debug() const;
 
-private:
 	static SharedMediaSlice::Key PartKey(const Key &key) {
 		return {
 			key.peerId,
@@ -169,6 +134,8 @@ private:
 			(key.universalId <= 0) ? (-key.universalId) : (ServerMaxMsgId - 1)
 		};
 	}
+
+private:
 	static base::optional<SharedMediaSlice> MigratedSlice(const Key &key) {
 		return key.migratedPeerId
 			? base::make_optional(SharedMediaSlice(MigratedKey(key)))
@@ -222,47 +189,22 @@ private:
 	SharedMediaSlice _part;
 	base::optional<SharedMediaSlice> _migrated;
 
-	friend class SharedMediaViewerMerged;
+	friend class SharedMediaMergedSliceBuilder;
 
 };
 
-class SharedMediaViewerMerged : private base::Subscriber {
-public:
-	using Type = SharedMediaSliceMerged::Type;
-	using Key = SharedMediaSliceMerged::Key;
+rpl::producer<SharedMediaMergedSlice> SharedMediaMergedViewer(
+	SharedMediaMergedSlice::Key key,
+	int limitBefore,
+	int limitAfter);
 
-	SharedMediaViewerMerged(
-		Key key,
-		int limitBefore,
-		int limitAfter);
-
-	void start();
-
-	base::Observable<SharedMediaSliceMerged> updated;
-
-private:
-	static std::unique_ptr<SharedMediaViewer> MigratedViewer(
-		const Key &key,
-		int limitBefore,
-		int limitAfter);
-
-	Key _key;
-	int _limitBefore = 0;
-	int _limitAfter = 0;
-	SharedMediaViewer _part;
-	std::unique_ptr<SharedMediaViewer> _migrated;
-	SharedMediaSliceMerged _data;
-
-};
-
-class SharedMediaViewerWithLast;
-class SharedMediaSliceWithLast {
+class SharedMediaWithLastSlice {
 public:
 	using Type = Storage::SharedMediaType;
 
 	// base::none in those mean CurrentPeerPhoto.
 	using Value = base::variant<FullMsgId, not_null<PhotoData*>>;
-	using MessageId = SharedMediaSliceMerged::UniversalMsgId;
+	using MessageId = SharedMediaMergedSlice::UniversalMsgId;
 	using UniversalMsgId = base::variant<
 		MessageId,
 		not_null<PhotoData*>>;
@@ -295,11 +237,11 @@ public:
 
 	};
 
-	SharedMediaSliceWithLast(Key key);
-	SharedMediaSliceWithLast(
+	SharedMediaWithLastSlice(Key key);
+	SharedMediaWithLastSlice(
 		Key key,
-		SharedMediaSliceMerged slice,
-		base::optional<SharedMediaSliceMerged> ending);
+		SharedMediaMergedSlice slice,
+		base::optional<SharedMediaMergedSlice> ending);
 
 	base::optional<int> fullCount() const;
 	base::optional<int> skippedBefore() const;
@@ -311,18 +253,17 @@ public:
 
 	QString debug() const;
 
-private:
-	static SharedMediaSliceMerged::Key ViewerKey(const Key &key) {
+	static SharedMediaMergedSlice::Key ViewerKey(const Key &key) {
 		return {
 			key.peerId,
 			key.migratedPeerId,
 			key.type,
 			base::get_if<MessageId>(&key.universalId)
-				? (*base::get_if<MessageId>(&key.universalId))
-				: ServerMaxMsgId - 1
+			? (*base::get_if<MessageId>(&key.universalId))
+			: ServerMaxMsgId - 1
 		};
 	}
-	static SharedMediaSliceMerged::Key EndingKey(const Key &key) {
+	static SharedMediaMergedSlice::Key EndingKey(const Key &key) {
 		return {
 			key.peerId,
 			key.migratedPeerId,
@@ -330,19 +271,21 @@ private:
 			ServerMaxMsgId - 1
 		};
 	}
-	static base::optional<SharedMediaSliceMerged> EndingSlice(const Key &key) {
+
+private:
+	static base::optional<SharedMediaMergedSlice> EndingSlice(const Key &key) {
 		return base::get_if<MessageId>(&key.universalId)
-			? base::make_optional(SharedMediaSliceMerged(EndingKey(key)))
+			? base::make_optional(SharedMediaMergedSlice(EndingKey(key)))
 			: base::none;
 	}
 
 	static PhotoId LastPeerPhotoId(PeerId peerId);
 	static base::optional<bool> IsLastIsolated(
-		const SharedMediaSliceMerged &slice,
-		const base::optional<SharedMediaSliceMerged> &ending,
+		const SharedMediaMergedSlice &slice,
+		const base::optional<SharedMediaMergedSlice> &ending,
 		PhotoId lastPeerPhotoId);
 	static base::optional<FullMsgId> LastFullMsgId(
-		const SharedMediaSliceMerged &slice);
+		const SharedMediaMergedSlice &slice);
 	static base::optional<int> Add(
 			const base::optional<int> &a,
 			const base::optional<int> &b) {
@@ -371,40 +314,16 @@ private:
 	}
 
 	Key _key;
-	SharedMediaSliceMerged _slice;
-	base::optional<SharedMediaSliceMerged> _ending;
+	SharedMediaMergedSlice _slice;
+	base::optional<SharedMediaMergedSlice> _ending;
 	PhotoId _lastPhotoId = 0;
 	base::optional<bool> _isolatedLastPhoto;
 
-	friend class SharedMediaViewerWithLast;
+	friend class SharedMediaWithLastSliceBuilder;
 
 };
 
-class SharedMediaViewerWithLast : private base::Subscriber {
-public:
-	using Type = SharedMediaSliceWithLast::Type;
-	using Key = SharedMediaSliceWithLast::Key;
-
-	SharedMediaViewerWithLast(
-		Key key,
-		int limitBefore,
-		int limitAfter);
-
-	void start();
-
-	base::Observable<SharedMediaSliceWithLast> updated;
-
-private:
-	static std::unique_ptr<SharedMediaViewerMerged> EndingViewer(
-		const Key &key,
-		int limitBefore,
-		int limitAfter);
-
-	Key _key;
-	int _limitBefore = 0;
-	int _limitAfter = 0;
-	SharedMediaViewerMerged _viewer;
-	std::unique_ptr<SharedMediaViewerMerged> _ending;
-	SharedMediaSliceWithLast _data;
-
-};
+rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastViewer(
+	SharedMediaWithLastSlice::Key key,
+	int limitBefore,
+	int limitAfter);

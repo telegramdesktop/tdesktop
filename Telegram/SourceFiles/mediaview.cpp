@@ -68,18 +68,15 @@ constexpr auto kIdsPreloadAfter = 28;
 } // namespace
 
 struct MediaView::SharedMedia {
-	SharedMedia(SharedMediaViewerWithLast::Key key)
-		: key(key)
-		, slice(key, kIdsLimit, kIdsLimit) {
+	SharedMedia(SharedMediaWithLastSlice::Key key) : key(key) {
 	}
 
-	SharedMediaViewerWithLast::Key key;
-	SharedMediaViewerWithLast slice;
+	SharedMediaWithLastSlice::Key key;
+	rpl::lifetime lifetime;
 };
 
 struct MediaView::UserPhotos {
-	UserPhotos(UserPhotosSlice::Key key)
-		: key(key) {
+	UserPhotos(UserPhotosSlice::Key key) : key(key) {
 	}
 
 	UserPhotosSlice::Key key;
@@ -1044,7 +1041,7 @@ bool MediaView::validSharedMedia() const {
 			return false;
 		}
 		auto countDistanceInData = [](const auto &a, const auto &b) {
-			return [&](const SharedMediaSliceWithLast &data) {
+			return [&](const SharedMediaWithLastSlice &data) {
 				return data.distance(a, b);
 			};
 		};
@@ -1063,21 +1060,24 @@ bool MediaView::validSharedMedia() const {
 void MediaView::validateSharedMedia() {
 	if (auto key = sharedMediaKey()) {
 		_sharedMedia = std::make_unique<SharedMedia>(*key);
-		subscribe(_sharedMedia->slice.updated, [this](const SharedMediaSliceWithLast &data) {
-			handleSharedMediaUpdate(data);
-		});
-		_sharedMedia->slice.start();
+		SharedMediaWithLastViewer(
+			*key,
+			kIdsLimit,
+			kIdsLimit
+		) | rpl::on_next([this](SharedMediaWithLastSlice &&update) {
+			handleSharedMediaUpdate(std::move(update));
+		}) | rpl::start(_sharedMedia->lifetime);
 	} else {
 		_sharedMedia = nullptr;
 		_sharedMediaData = base::none;
 	}
 }
 
-void MediaView::handleSharedMediaUpdate(const SharedMediaSliceWithLast &update) {
+void MediaView::handleSharedMediaUpdate(SharedMediaWithLastSlice &&update) {
 	if ((!_photo && !_doc) || !_sharedMedia) {
 		_sharedMediaData = base::none;
 	} else {
-		_sharedMediaData = update;
+		_sharedMediaData = std::move(update);
 	}
 	findCurrent();
 	updateControls();
