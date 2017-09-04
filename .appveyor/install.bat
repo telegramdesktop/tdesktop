@@ -7,8 +7,6 @@ SET QT_VERSION=5_6_2
 
 call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86
 
-cd %BUILD_DIR%
-
 call:configureBuild
 call:getDependencies
 call:setupGYP
@@ -23,11 +21,22 @@ GOTO:EOF
     echo [INFO] %~1
 GOTO:EOF
 
+:logError
+    echo [ERROR] %~1
+GOTO:EOF
+
 :getDependencies
     call:logInfo "Clone dependencies repository"
     git clone -q --depth 1 --branch=master https://github.com/telegramdesktop/dependencies_windows.git %LIB_DIR%
     cd %LIB_DIR%
-    call prepare.bat
+
+    if exist prepare.bat (
+        call prepare.bat
+    ) else (
+        call:logError "Error cloning dependencies, trying again"
+        rmdir %LIB_DIR% /S /Q
+        call:getDependencies
+    )
 GOTO:EOF
 
 :setupGYP
