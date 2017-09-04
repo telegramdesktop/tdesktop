@@ -672,17 +672,15 @@ void EditChatAdminsBoxController::Start(not_null<ChatData*> chat) {
 	auto initBox = [chat, controller = controller.get()](not_null<PeerListBox*> box) {
 		box->addButton(langFactory(lng_settings_save), [box, chat, controller] {
 			auto rows = box->peerListCollectSelectedRows();
-			if (!rows.empty()) {
-				auto users = std::vector<not_null<UserData*>>();
-				for (auto peer : rows) {
-					auto user = peer->asUser();
-					Assert(user != nullptr);
-					Assert(!user->isSelf());
-					users.push_back(peer->asUser());
-				}
-				Auth().api().editChatAdmins(chat, !controller->allAreAdmins(), { users.cbegin(), users.cend() });
-				box->closeBox();
+			auto users = std::vector<not_null<UserData*>>();
+			for (auto peer : rows) {
+				auto user = peer->asUser();
+				Assert(user != nullptr);
+				Assert(!user->isSelf());
+				users.push_back(peer->asUser());
 			}
+			Auth().api().editChatAdmins(chat, !controller->allAreAdmins(), { users.cbegin(), users.cend() });
+			box->closeBox();
 		});
 		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
 	};
