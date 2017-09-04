@@ -601,7 +601,7 @@ buildGYP() {
   git clone https://chromium.googlesource.com/external/gyp
 
   cd "$EXTERNAL/gyp"
-  git checkout 702ac58e4772
+  git checkout 702ac58e47
   git apply "$GYP_PATCH"
   cp -r * "$GYP_PATH/"
 }

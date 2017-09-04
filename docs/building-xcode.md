@@ -194,6 +194,8 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
     git clone https://chromium.googlesource.com/external/gyp
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
     cd gyp
+    git checkout 702ac58e47
+    git apply ../../tdesktop/Telegram/Patches/gyp.diff
     ./setup.py build
     sudo ./setup.py install
     cd ..

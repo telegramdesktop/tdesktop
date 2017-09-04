@@ -180,6 +180,7 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
     wget https://cmake.org/files/v3.6/cmake-3.6.2.tar.gz
     tar -xf cmake-3.6.2.tar.gz
     cd gyp
+    git checkout 702ac58e47
     git apply ../../tdesktop/Telegram/Patches/gyp.diff
     cd ../cmake-3.6.2
     ./configure

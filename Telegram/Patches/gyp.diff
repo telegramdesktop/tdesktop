@@ -1,5 +1,33 @@
+diff --git a/pylib/gyp/generator/cmake.py b/pylib/gyp/generator/cmake.py
+index a2b9629..68d7020 100644
+--- a/pylib/gyp/generator/cmake.py
++++ b/pylib/gyp/generator/cmake.py
+@@ -1070,6 +1070,23 @@ def WriteTarget(namer, qualified_target, target_dicts, build_dir, config_to_use,
+ 
+       output.write(')\n')
+ 
++  # Precompile header
++  precompiled_header = config.get('cmake_precompiled_header', '')
++  if precompiled_header:
++    precompiled_header_script = config.get('cmake_precompiled_header_script', '')
++    if not precompiled_header_script:
++      print ('ERROR: cmake_precompiled_header requires cmake_precompiled_header_script')
++    cmake_precompiled_header = NormjoinPath(path_from_cmakelists_to_gyp, precompiled_header)
++    cmake_precompiled_header_script = NormjoinPathForceCMakeSource(path_from_cmakelists_to_gyp, precompiled_header_script)
++    output.write('include(')
++    output.write(cmake_precompiled_header_script)
++    output.write(')\n')
++    output.write('add_precompiled_header(')
++    output.write(cmake_target_name)
++    output.write(' ')
++    output.write(cmake_precompiled_header)
++    output.write(')\n')
++
+   UnsetVariable(output, 'TOOLSET')
+   UnsetVariable(output, 'TARGET')
+ 
 diff --git a/pylib/gyp/generator/xcode.py b/pylib/gyp/generator/xcode.py
-index 0e3fb93..4c824ec 100644
+index db99d6a..8d56baf 100644
 --- a/pylib/gyp/generator/xcode.py
 +++ b/pylib/gyp/generator/xcode.py
 @@ -72,6 +72,10 @@ generator_additional_non_configuration_keys = [
@@ -13,7 +41,7 @@ index 0e3fb93..4c824ec 100644
    'mac_bundle',
    'mac_bundle_resources',
    'mac_framework_headers',
-@@ -761,6 +765,26 @@ def GenerateOutput(target_list, target_dicts, data, params):
+@@ -772,6 +776,26 @@ def GenerateOutput(target_list, target_dicts, data, params):
      xcode_targets[qualified_target] = xct
      xcode_target_to_target_dict[xct] = spec
  
@@ -40,7 +68,7 @@ index 0e3fb93..4c824ec 100644
      spec_actions = spec.get('actions', [])
      spec_rules = spec.get('rules', [])
  
-@@ -1130,7 +1154,8 @@ exit 1
+@@ -1141,7 +1165,8 @@ exit 1
          groups = [x for x in groups if not x.endswith('_excluded')]
        for group in groups:
          for item in rule.get(group, []):
