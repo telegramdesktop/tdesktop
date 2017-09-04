@@ -181,7 +181,7 @@ bool UnsafeShowOpenWithDropdown(const QString &filepath, QPoint menuPosition) {
 
 		if (!handlers.empty()) {
 			HMENU menu = CreatePopupMenu();
-			std::sort(handlers.begin(), handlers.end(), [](const OpenWithApp &a, const OpenWithApp &b) {
+			base::sort(handlers, [](const OpenWithApp &a, const OpenWithApp &b) {
 				return a.name() < b.name();
 			});
 			for (int32 i = 0, l = handlers.size(); i < l; ++i) {

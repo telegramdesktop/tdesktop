@@ -386,33 +386,36 @@ int Completer::findEqualCharsCount(int position, const utf16string *word) {
 
 std::vector<Suggestion> Completer::prepareResult() {
 	auto firstCharOfQuery = _query[0];
-	std::stable_partition(_result.begin(), _result.end(), [firstCharOfQuery](Result &result) {
+	base::stable_partition(_result, [firstCharOfQuery](Result &result) {
 		auto firstCharAfterColon = result.replacement->replacement[1];
 		return (firstCharAfterColon == firstCharOfQuery);
 	});
-	std::stable_partition(_result.begin(), _result.end(), [](Result &result) {
+	base::stable_partition(_result, [](Result &result) {
 		return (result.wordsUsed < 2);
 	});
-	std::stable_partition(_result.begin(), _result.end(), [](Result &result) {
+	base::stable_partition(_result, [](Result &result) {
 		return (result.wordsUsed < 3);
 	});
-	std::stable_partition(_result.begin(), _result.end(), [this](Result &result) {
+	base::stable_partition(_result, [this](Result &result) {
 		return isExactMatch(result.replacement->replacement);
 	});
 
 	auto result = std::vector<Suggestion>();
 	result.reserve(_result.size());
 	for (auto &item : _result) {
-		result.emplace_back(item.replacement->emoji, item.replacement->replacement, item.replacement->replacement);
+		result.emplace_back(
+			item.replacement->emoji,
+			item.replacement->replacement,
+			item.replacement->replacement);
 	}
 	return result;
 }
 
 string_span Completer::findWordsStartingWith(utf16char ch) {
-	auto begin = std::lower_bound(_currentItemWords.begin(), _currentItemWords.end(), ch, [](utf16string word, utf16char ch) {
+	auto begin = base::lower_bound(_currentItemWords, ch, [](utf16string word, utf16char ch) {
 		return word[0] < ch;
 	});
-	auto end = std::upper_bound(_currentItemWords.begin(), _currentItemWords.end(), ch, [](utf16char ch, utf16string word) {
+	auto end = base::upper_bound(_currentItemWords, ch, [](utf16char ch, utf16string word) {
 		return ch < word[0];
 	});
 	return _currentItemWords.subspan(begin - _currentItemWords.begin(), end - begin);

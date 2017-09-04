@@ -38,6 +38,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_history.h"
 #include "window/notifications_manager.h"
 #include "observer_peer.h"
+#include "storage/storage_shared_media.h"
 
 namespace {
 
@@ -1295,6 +1296,17 @@ void HistoryMessage::eraseFromOverview() {
 	if (mentionsMe() && isMediaUnread()) {
 		history()->eraseFromUnreadMentions(id);
 	}
+}
+
+Storage::SharedMediaTypesMask HistoryMessage::sharedMediaTypes() const {
+	auto result = Storage::SharedMediaTypesMask {};
+	if (auto media = getMedia()) {
+		result.set(media->sharedMediaTypes());
+	}
+	if (hasTextLinks()) {
+		result.set(Storage::SharedMediaType::Link);
+	}
+	return result;
 }
 
 TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {

@@ -36,6 +36,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "auth_session.h"
 #include "window/notifications_manager.h"
 #include "calls/calls_instance.h"
+#include "storage/storage_facade.h"
+#include "storage/storage_shared_media.h"
 
 namespace {
 
@@ -62,6 +64,14 @@ HistoryItem *createUnsupportedMessage(History *history, MsgId msgId, MTPDmessage
 	text.entities.push_front(EntityInText(EntityInTextItalic, 0, text.text.size()));
 	flags &= ~MTPDmessage::Flag::f_post_author;
 	return HistoryMessage::create(history, msgId, flags, replyTo, viaBotId, date, from, QString(), text);
+}
+
+Storage::SharedMediaType ConvertSharedMediaType(MediaOverviewType type) {
+	return static_cast<Storage::SharedMediaType>(type);
+}
+
+MediaOverviewType ConvertSharedMediaType(Storage::SharedMediaType type) {
+	return static_cast<MediaOverviewType>(type);
 }
 
 } // namespace
@@ -436,7 +446,7 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 		return _joinedMessage;
 	}
 
-	UserData *inviter = (peer->asChannel()->inviter > 0) ? App::userLoaded(peer->asChannel()->inviter) : nullptr;
+	auto inviter = (peer->asChannel()->inviter > 0) ? App::userLoaded(peer->asChannel()->inviter) : nullptr;
 	if (!inviter) return nullptr;
 
 	MTPDmessage::Flags flags = 0;
@@ -446,7 +456,7 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 	//	flags |= MTPDmessage::Flag::f_unread;
 	}
 
-	QDateTime inviteDate = peer->asChannel()->inviteDate;
+	auto inviteDate = peer->asChannel()->inviteDate;
 	if (unread) _maxReadMessageDate = inviteDate;
 	if (isEmpty()) {
 		_joinedMessage = HistoryJoined::create(this, inviteDate, inviter, flags);
@@ -1255,6 +1265,24 @@ HistoryItem *History::addNewItem(HistoryItem *adding, bool newMsg) {
 	}
 
 	adding->addToOverview(AddToOverviewNew);
+	if (IsServerMsgId(adding->id)) {
+		if (auto sharedMediaTypes = adding->sharedMediaTypes()) {
+			if (newMsg) {
+				Auth().storage().add(Storage::SharedMediaAddNew(
+					peer->id,
+					sharedMediaTypes,
+					adding->id));
+			} else {
+				auto from = loadedAtTop() ? 0 : minMsgId();
+				auto till = loadedAtBottom() ? ServerMaxMsgId : maxMsgId();
+				Auth().storage().add(Storage::SharedMediaAddExisting(
+					peer->id,
+					sharedMediaTypes,
+					adding->id,
+					{ from, till }));
+			}
+		}
+	}
 	if (adding->from()->id) {
 		if (auto user = adding->from()->asUser()) {
 			auto getLastAuthors = [this]() -> QList<not_null<UserData*>>* {
@@ -1417,6 +1445,22 @@ void History::addItemToBlock(HistoryItem *item) {
 	}
 }
 
+template <int kSharedMediaTypeCount>
+void History::addToSharedMedia(std::vector<MsgId> (&medias)[kSharedMediaTypeCount], bool force) {
+	auto from = loadedAtTop() ? 0 : minMsgId();
+	auto till = loadedAtBottom() ? ServerMaxMsgId : maxMsgId();
+	for (auto i = 0; i != Storage::kSharedMediaTypeCount; ++i) {
+		if (force || !medias[i].empty()) {
+			auto type = static_cast<Storage::SharedMediaType>(i);
+			Auth().storage().add(Storage::SharedMediaAddSlice(
+				peer->id,
+				type,
+				std::move(medias[i]),
+				{ from, till }));
+		}
+	}
+}
+
 void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 	if (slice.isEmpty()) {
 		oldLoaded = true;
@@ -1525,6 +1569,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 			Notify::peerUpdatedDelayed(update);
 		}
 	}
+	addBlockToSharedMedia(block);
 
 	if (isChannel()) {
 		asChannelHistory()->checkJoinedMessage();
@@ -1545,7 +1590,8 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 
 	Assert(!isBuildingFrontBlock());
 	if (!slice.isEmpty()) {
-		bool atLeastOneAdded = false;
+		std::vector<MsgId> medias[Storage::kSharedMediaTypeCount];
+		auto atLeastOneAdded = false;
 		for (auto i = slice.cend(), e = slice.cbegin(); i != e;) {
 			--i;
 			auto adding = createItem(*i, false, true);
@@ -1553,12 +1599,24 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 
 			addItemToBlock(adding);
 			atLeastOneAdded = true;
+			if (auto types = adding->sharedMediaTypes()) {
+				for (auto i = 0; i != Storage::kSharedMediaTypeCount; ++i) {
+					auto type = static_cast<Storage::SharedMediaType>(i);
+					if (types.test(type)) {
+						if (medias[i].empty()) {
+							medias[i].reserve(slice.size());
+						}
+						medias[i].push_back(adding->id);
+					}
+				}
+			}
 		}
 
 		if (!atLeastOneAdded) {
 			newLoaded = true;
 			setLastMessage(lastAvailableMessage());
 		}
+		addToSharedMedia(medias, wasLoadedAtBottom != loadedAtBottom());
 	}
 
 	if (!wasLoadedAtBottom) {
@@ -1597,6 +1655,26 @@ void History::checkAddAllToOverview() {
 		update.mediaTypesMask |= mask;
 		Notify::peerUpdatedDelayed(update);
 	}
+}
+
+void History::addBlockToSharedMedia(HistoryBlock *block) {
+	std::vector<MsgId> medias[Storage::kSharedMediaTypeCount];
+	if (block) {
+		for (auto item : block->items) {
+			if (auto types = item->sharedMediaTypes()) {
+				for (auto i = 0; i != Storage::kSharedMediaTypeCount; ++i) {
+					auto type = static_cast<Storage::SharedMediaType>(i);
+					if (types.test(type)) {
+						if (medias[i].empty()) {
+							medias[i].reserve(block->items.size());
+						}
+						medias[i].push_back(item->id);
+					}
+				}
+			}
+		}
+	}
+	addToSharedMedia(medias, !block);
 }
 
 int History::countUnread(MsgId upTo) {
@@ -2044,9 +2122,9 @@ void History::fixLastMessage(bool wasAtBottom) {
 }
 
 MsgId History::minMsgId() const {
-	for_const (const HistoryBlock *block, blocks) {
-		for_const (const HistoryItem *item, block->items) {
-			if (item->id > 0) {
+	for (auto block : std::as_const(blocks)) {
+		for (auto item : std::as_const(block->items)) {
+			if (IsServerMsgId(item->id)) {
 				return item->id;
 			}
 		}
@@ -2055,12 +2133,10 @@ MsgId History::minMsgId() const {
 }
 
 MsgId History::maxMsgId() const {
-	for (auto i = blocks.cend(), e = blocks.cbegin(); i != e;) {
-		--i;
-		for (auto j = (*i)->items.cend(), en = (*i)->items.cbegin(); j != en;) {
-			--j;
-			if ((*j)->id > 0) {
-				return (*j)->id;
+	for (auto block : base::reversed(std::as_const(blocks))) {
+		for (auto item : base::reversed(std::as_const(block->items))) {
+			if (IsServerMsgId(item->id)) {
+				return item->id;
 			}
 		}
 	}
@@ -2142,8 +2218,6 @@ void History::clear(bool leaveItems) {
 				++i;
 			}
 		}
-	}
-	if (!leaveItems) {
 		for (auto i = 0; i != OverviewCount; ++i) {
 			if (!_overview[i].isEmpty()) {
 				_overviewCountData[i] = -1; // not loaded yet
@@ -2153,6 +2227,7 @@ void History::clear(bool leaveItems) {
 				}
 			}
 		}
+		Auth().storage().remove(Storage::SharedMediaRemoveAll(peer->id));
 	}
 	clearBlocks(leaveItems);
 	if (leaveItems) {
@@ -2277,27 +2352,33 @@ void History::setPinnedIndex(int pinnedIndex) {
 	}
 }
 
-void History::overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages &result, bool onlyCounts) {
+void History::overviewSliceDone(
+		int32 overviewIndex,
+		MsgId startMessageId,
+		const MTPmessages_Messages &result,
+		bool onlyCounts) {
+	auto fullCount = 0;
 	const QVector<MTPMessage> *v = 0;
 	switch (result.type()) {
 	case mtpc_messages_messages: {
-		auto &d(result.c_messages_messages());
+		auto &d = result.c_messages_messages();
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		v = &d.vmessages.v;
+		fullCount = v->size();
 		_overviewCountData[overviewIndex] = 0;
 	} break;
 
 	case mtpc_messages_messagesSlice: {
-		auto &d(result.c_messages_messagesSlice());
+		auto &d = result.c_messages_messagesSlice();
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
-		_overviewCountData[overviewIndex] = d.vcount.v;
+		fullCount = _overviewCountData[overviewIndex] = d.vcount.v;
 		v = &d.vmessages.v;
 	} break;
 
 	case mtpc_messages_channelMessages: {
-		auto &d(result.c_messages_channelMessages());
+		auto &d = result.c_messages_channelMessages();
 		if (peer->isChannel()) {
 			peer->asChannel()->ptsReceived(d.vpts.v);
 		} else {
@@ -2305,7 +2386,7 @@ void History::overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages 
 		}
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
-		_overviewCountData[overviewIndex] = d.vcount.v;
+		fullCount = _overviewCountData[overviewIndex] = d.vcount.v;
 		v = &d.vmessages.v;
 	} break;
 
@@ -2316,11 +2397,29 @@ void History::overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages 
 		_overviewCountData[overviewIndex] = 0;
 	}
 
+	auto noSkipRange = MsgRange { startMessageId, startMessageId };
+	auto sharedMediaType = ConvertSharedMediaType(
+		static_cast<MediaOverviewType>(overviewIndex));
+	auto slice = std::vector<MsgId>();
+	slice.reserve(v->size());
 	for (auto i = v->cbegin(), e = v->cend(); i != e; ++i) {
 		if (auto item = App::histories().addNewMessage(*i, NewMessageExisting)) {
-			_overview[overviewIndex].insert(item->id);
+			auto itemId = item->id;
+			_overview[overviewIndex].insert(itemId);
+			if (item->sharedMediaTypes().test(sharedMediaType)) {
+				slice.push_back(itemId);
+				accumulate_min(noSkipRange.from, itemId);
+				accumulate_max(noSkipRange.till, itemId);
+			}
 		}
 	}
+	Auth().storage().add(Storage::SharedMediaAddSlice(
+		peer->id,
+		sharedMediaType,
+		std::move(slice),
+		noSkipRange,
+		fullCount
+	));
 }
 
 void History::changeMsgId(MsgId oldId, MsgId newId) {

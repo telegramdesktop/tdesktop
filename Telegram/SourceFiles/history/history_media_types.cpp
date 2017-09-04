@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
+#include "storage/storage_shared_media.h"
 #include "media/media_audio.h"
 #include "media/media_clip_reader.h"
 #include "media/player/media_player_instance.h"
@@ -653,6 +654,13 @@ void HistoryPhoto::eraseFromOverview() {
 	}
 }
 
+Storage::SharedMediaTypesMask HistoryPhoto::sharedMediaTypes() const {
+	if (_parent->toHistoryMessage()) {
+		return Storage::SharedMediaType::Photo;
+	}
+	return Storage::SharedMediaType::ChatPhoto;
+}
+
 ImagePtr HistoryPhoto::replyPreview() {
 	return _data->makeReplyPreview();
 }
@@ -957,6 +965,10 @@ int32 HistoryVideo::addToOverview(AddToOverviewMethod method) {
 
 void HistoryVideo::eraseFromOverview() {
 	eraseFromOneOverview(OverviewVideos);
+}
+
+Storage::SharedMediaTypesMask HistoryVideo::sharedMediaTypes() const {
+	return Storage::SharedMediaType::Video;
 }
 
 void HistoryVideo::updateStatusText() const {
@@ -1599,6 +1611,20 @@ void HistoryDocument::eraseFromOverview() {
 	} else {
 		eraseFromOneOverview(OverviewFiles);
 	}
+}
+
+Storage::SharedMediaTypesMask HistoryDocument::sharedMediaTypes() const {
+	using Type = Storage::SharedMediaType;
+	if (_data->voice()) {
+		using Mask = Storage::SharedMediaTypesMask;
+		return Mask {}.added(Type::VoiceFile).added(Type::RoundVoiceFile);
+	} else if (_data->song()) {
+		if (_data->isMusic()) {
+			return Type::MusicFile;
+		}
+		return {};
+	}
+	return Type::File;
 }
 
 template <typename Callback>
@@ -2425,6 +2451,16 @@ int32 HistoryGif::addToOverview(AddToOverviewMethod method) {
 		result |= addToOneOverview(OverviewFiles, method);
 	}
 	return result;
+}
+
+Storage::SharedMediaTypesMask HistoryGif::sharedMediaTypes() const {
+	using Type = Storage::SharedMediaType;
+	if (_data->isRoundVideo()) {
+		return Type::RoundVoiceFile;
+	} else if (_data->isGifv()) {
+		return Type::GIF;
+	}
+	return Type::File;
 }
 
 void HistoryGif::eraseFromOverview() {

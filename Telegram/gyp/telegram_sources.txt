@@ -2,6 +2,7 @@
 <(src_loc)/base/assertion.h
 <(src_loc)/base/build_config.h
 <(src_loc)/base/flags.h
+<(src_loc)/base/enum_mask.h
 <(src_loc)/base/flat_map.h
 <(src_loc)/base/flat_set.h
 <(src_loc)/base/lambda.h
@@ -176,6 +177,7 @@
 <(src_loc)/history/history_location_manager.cpp
 <(src_loc)/history/history_location_manager.h
 <(src_loc)/history/history_media.h
+<(src_loc)/history/history_media.cpp
 <(src_loc)/history/history_media_types.cpp
 <(src_loc)/history/history_media_types.h
 <(src_loc)/history/history_message.cpp
@@ -440,6 +442,10 @@
 <(src_loc)/storage/serialize_common.h
 <(src_loc)/storage/serialize_document.cpp
 <(src_loc)/storage/serialize_document.h
+<(src_loc)/storage/storage_facade.cpp
+<(src_loc)/storage/storage_facade.h
+<(src_loc)/storage/storage_shared_media.cpp
+<(src_loc)/storage/storage_shared_media.h
 <(src_loc)/ui/effects/cross_animation.cpp
 <(src_loc)/ui/effects/cross_animation.h
 <(src_loc)/ui/effects/panel_animation.cpp

@@ -20,45 +20,37 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <string>
-#include <exception>
-#include <memory>
-#include <ctime>
+#include "base/enum_mask.h"
 
-#include "base/build_config.h"
+namespace Storage {
 
-using gsl::not_null;
+struct SharedMediaAddNew;
+struct SharedMediaAddExisting;
+struct SharedMediaAddSlice;
+struct SharedMediaRemoveOne;
+struct SharedMediaRemoveAll;
+struct SharedMediaQuery;
+struct SharedMediaResult;
 
-// Custom libc++ build used for old OS X versions already has this.
-#ifndef OS_MAC_OLD
+class Facade {
+public:
+	Facade();
 
-#if defined COMPILER_CLANG || defined COMPILER_GCC
-namespace std {
+	void add(SharedMediaAddNew &&query);
+	void add(SharedMediaAddExisting &&query);
+	void add(SharedMediaAddSlice &&query);
+	void remove(SharedMediaRemoveOne &&query);
+	void remove(SharedMediaRemoveAll &&query);
+	void query(
+		SharedMediaQuery &&query,
+		base::lambda_once<void(SharedMediaResult&&)> &&callback);
 
-template <typename T>
-constexpr std::add_const_t<T>& as_const(T& t) noexcept {
-    return t;
-}
+	~Facade();
 
-template <typename T>
-void as_const(const T&&) = delete;
+private:
+	class Impl;
+	const std::unique_ptr<Impl> _impl;
 
-} // namespace std
-#endif // COMPILER_CLANG || COMPILER_GCC
+};
 
-#endif // OS_MAC_OLD
-
-#include "base/ordered_set.h"
-
-//using uchar = unsigned char; // Qt has uchar
-using int16 = qint16;
-using uint16 = quint16;
-using int32 = qint32;
-using uint32 = quint32;
-using int64 = qint64;
-using uint64 = quint64;
-using float32 = float;
-using float64 = double;
-
-#define qsl(s) QStringLiteral(s)
-#define qstr(s) QLatin1String(s, sizeof(s) - 1)
+} // namespace Storage

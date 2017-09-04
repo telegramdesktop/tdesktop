@@ -491,7 +491,11 @@ public:
 	MsgId overviewMinId(int32 overviewIndex) const {
 		return _overview[overviewIndex].empty() ? 0 : *_overview[overviewIndex].begin();
 	}
-	void overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages &result, bool onlyCounts = false);
+	void overviewSliceDone(
+		int32 overviewIndex,
+		MsgId startMessageId,
+		const MTPmessages_Messages &result,
+		bool onlyCounts = false);
 	bool overviewHasMsgId(int32 overviewIndex, MsgId msgId) const {
 		return _overview[overviewIndex].contains(msgId);
 	}
@@ -544,6 +548,10 @@ private:
 
 	// Add all items to the media overview if we were not loaded at bottom and now are.
 	void checkAddAllToOverview();
+
+	template <int kSharedMediaTypeCount>
+	void addToSharedMedia(std::vector<MsgId> (&medias)[kSharedMediaTypeCount], bool force);
+	void addBlockToSharedMedia(HistoryBlock *block);
 
 	enum class Flag {
 		f_has_pending_resized_items = (1 << 0),

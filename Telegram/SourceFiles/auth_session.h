@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Storage {
 class Downloader;
 class Uploader;
+class Facade;
 } // namespace Storage
 
 namespace Window {
@@ -199,6 +200,9 @@ public:
 	Storage::Uploader &uploader() {
 		return *_uploader;
 	}
+	Storage::Facade &storage() {
+		return *_storage;
+	}
 
 	base::Observable<void> &downloaderTaskFinished();
 
@@ -239,6 +243,7 @@ private:
 	const std::unique_ptr<Calls::Instance> _calls;
 	const std::unique_ptr<Storage::Downloader> _downloader;
 	const std::unique_ptr<Storage::Uploader> _uploader;
+	const std::unique_ptr<Storage::Facade> _storage;
 	const std::unique_ptr<Window::Notifications::System> _notifications;
 
 };

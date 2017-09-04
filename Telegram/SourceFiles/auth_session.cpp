@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/file_download.h"
 #include "storage/file_upload.h"
 #include "storage/localstorage.h"
+#include "storage/storage_facade.h"
 #include "storage/serialize_common.h"
 #include "window/notifications_manager.h"
 #include "platform/platform_specific.h"
@@ -174,6 +175,7 @@ AuthSession::AuthSession(UserId userId)
 , _calls(std::make_unique<Calls::Instance>())
 , _downloader(std::make_unique<Storage::Downloader>())
 , _uploader(std::make_unique<Storage::Uploader>())
+, _storage(std::make_unique<Storage::Facade>())
 , _notifications(std::make_unique<Window::Notifications::System>(this)) {
 	Expects(_userId != 0);
 	_saveDataTimer.setCallback([this] {

@@ -18,47 +18,10 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#pragma once
+#include "history/history_media.h"
 
-#include <string>
-#include <exception>
-#include <memory>
-#include <ctime>
+#include "storage/storage_shared_media.h"
 
-#include "base/build_config.h"
-
-using gsl::not_null;
-
-// Custom libc++ build used for old OS X versions already has this.
-#ifndef OS_MAC_OLD
-
-#if defined COMPILER_CLANG || defined COMPILER_GCC
-namespace std {
-
-template <typename T>
-constexpr std::add_const_t<T>& as_const(T& t) noexcept {
-    return t;
+Storage::SharedMediaTypesMask HistoryMedia::sharedMediaTypes() const {
+	return {};
 }
-
-template <typename T>
-void as_const(const T&&) = delete;
-
-} // namespace std
-#endif // COMPILER_CLANG || COMPILER_GCC
-
-#endif // OS_MAC_OLD
-
-#include "base/ordered_set.h"
-
-//using uchar = unsigned char; // Qt has uchar
-using int16 = qint16;
-using uint16 = quint16;
-using int32 = qint32;
-using uint32 = quint32;
-using int64 = qint64;
-using uint64 = quint64;
-using float32 = float;
-using float64 = double;
-
-#define qsl(s) QStringLiteral(s)
-#define qstr(s) QLatin1String(s, sizeof(s) - 1)

@@ -100,8 +100,10 @@ public:
 	void updateReplyMarkup(const MTPReplyMarkup *markup) override {
 		setReplyMarkup(markup);
 	}
+
 	int32 addToOverview(AddToOverviewMethod method) override;
 	void eraseFromOverview() override;
+	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	TextWithEntities selectedText(TextSelection selection) const override;
 	void setText(const TextWithEntities &textWithEntities) override;

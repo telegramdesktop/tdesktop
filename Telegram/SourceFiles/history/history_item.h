@@ -23,6 +23,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/runtime_composer.h"
 #include "base/flags.h"
 
+namespace base {
+template <typename Enum>
+class enum_mask;
+} // namespace base
+
+namespace Storage {
+enum class SharedMediaType : char;
+using SharedMediaTypesMask = base::enum_mask<SharedMediaType>;
+} // namespace Storage
+
 namespace Ui {
 class RippleAnimation;
 } // namespace Ui
@@ -669,11 +679,14 @@ public:
 	}
 	virtual void updateReplyMarkup(const MTPReplyMarkup *markup) {
 	}
+
 	virtual int32 addToOverview(AddToOverviewMethod method) {
 		return 0;
 	}
 	virtual void eraseFromOverview() {
 	}
+	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const;
+
 	virtual bool hasBubble() const {
 		return false;
 	}

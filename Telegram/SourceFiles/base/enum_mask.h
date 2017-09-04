@@ -20,45 +20,41 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <string>
-#include <exception>
-#include <memory>
-#include <ctime>
+namespace base {
 
-#include "base/build_config.h"
+template <typename Enum>
+class enum_mask {
+	using Type = std::uint32_t;
 
-using gsl::not_null;
+public:
+	static_assert(static_cast<int>(Enum::kCount) <= 32, "We have only 32 bit.");
 
-// Custom libc++ build used for old OS X versions already has this.
-#ifndef OS_MAC_OLD
+	enum_mask() = default;
+	enum_mask(Enum value) : _value(ToBit(value)) {
+	}
 
-#if defined COMPILER_CLANG || defined COMPILER_GCC
-namespace std {
+	enum_mask added(enum_mask other) const {
+		auto result = *this;
+		result.set(other);
+		return result;
+	}
+	void set(enum_mask other) {
+		_value |= other._value;
+	}
+	bool test(Enum value) const {
+		return _value & ToBit(value);
+	}
 
-template <typename T>
-constexpr std::add_const_t<T>& as_const(T& t) noexcept {
-    return t;
-}
+	explicit operator bool() const {
+		return _value != 0;
+	}
 
-template <typename T>
-void as_const(const T&&) = delete;
+private:
+	inline static Type ToBit(Enum value) {
+		return 1 << static_cast<Type>(value);
+	}
+	Type _value = 0;
 
-} // namespace std
-#endif // COMPILER_CLANG || COMPILER_GCC
+};
 
-#endif // OS_MAC_OLD
-
-#include "base/ordered_set.h"
-
-//using uchar = unsigned char; // Qt has uchar
-using int16 = qint16;
-using uint16 = quint16;
-using int32 = qint32;
-using uint32 = quint32;
-using int64 = qint64;
-using uint64 = quint64;
-using float32 = float;
-using float64 = double;
-
-#define qsl(s) QStringLiteral(s)
-#define qstr(s) QLatin1String(s, sizeof(s) - 1)
+} // namespace base

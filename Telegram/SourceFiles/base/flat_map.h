@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <deque>
 #include "base/optional.h"
+#include "base/algorithm.h"
 
 namespace base {
 
@@ -31,10 +32,20 @@ class flat_map;
 template <typename Key, typename Type>
 class flat_multi_map;
 
-template <typename Key, typename Type, typename iterator_impl, typename pointer_impl, typename reference_impl>
+template <
+	typename Key,
+	typename Type,
+	typename iterator_impl,
+	typename pointer_impl,
+	typename reference_impl>
 class flat_multi_map_iterator_base_impl;
 
-template <typename Key, typename Type, typename iterator_impl, typename pointer_impl, typename reference_impl>
+template <
+	typename Key,
+	typename Type,
+	typename iterator_impl,
+	typename pointer_impl,
+	typename reference_impl>
 class flat_multi_map_iterator_base_impl {
 public:
 	using iterator_category = typename iterator_impl::iterator_category;
@@ -46,7 +57,8 @@ public:
 	using reference = reference_impl;
 	using const_reference = typename flat_multi_map<Key, Type>::const_reference;
 
-	flat_multi_map_iterator_base_impl(iterator_impl impl = iterator_impl()) : _impl(impl) {
+	flat_multi_map_iterator_base_impl(iterator_impl impl = iterator_impl())
+		: _impl(impl) {
 	}
 
 	reference operator*() {
@@ -134,7 +146,9 @@ class flat_multi_map {
 		friend inline bool operator<(const key_const_wrap &a, const Key &b) {
 			return ((const Key&)a) < b;
 		}
-		friend inline bool operator<(const key_const_wrap &a, const key_const_wrap &b) {
+		friend inline bool operator<(
+				const key_const_wrap &a,
+				const key_const_wrap &b) {
 			return ((const Key&)a) < ((const Key&)b);
 		}
 
@@ -146,10 +160,30 @@ class flat_multi_map {
 	using pair_type = std::pair<key_const_wrap, Type>;
 	using impl = std::deque<pair_type>;
 
-	using iterator_base = flat_multi_map_iterator_base_impl<Key, Type, typename impl::iterator, pair_type*, pair_type&>;
-	using const_iterator_base = flat_multi_map_iterator_base_impl<Key, Type, typename impl::const_iterator, const pair_type*, const pair_type&>;
-	using reverse_iterator_base = flat_multi_map_iterator_base_impl<Key, Type, typename impl::reverse_iterator, pair_type*, pair_type&>;
-	using const_reverse_iterator_base = flat_multi_map_iterator_base_impl<Key, Type, typename impl::const_reverse_iterator, const pair_type*, const pair_type&>;
+	using iterator_base = flat_multi_map_iterator_base_impl<
+		Key,
+		Type,
+		typename impl::iterator,
+		pair_type*,
+		pair_type&>;
+	using const_iterator_base = flat_multi_map_iterator_base_impl<
+		Key,
+		Type,
+		typename impl::const_iterator,
+		const pair_type*,
+		const pair_type&>;
+	using reverse_iterator_base = flat_multi_map_iterator_base_impl<
+		Key,
+		Type,
+		typename impl::reverse_iterator,
+		pair_type*,
+		pair_type&>;
+	using const_reverse_iterator_base = flat_multi_map_iterator_base_impl<
+		Key,
+		Type,
+		typename impl::const_reverse_iterator,
+		const pair_type*,
+		const pair_type&>;
 
 public:
 	using value_type = pair_type;
@@ -354,36 +388,66 @@ private:
 		}
 	};
 	typename impl::iterator getLowerBound(const Key &key) {
-		return std::lower_bound(_impl.begin(), _impl.end(), key, Comparator());
+		return base::lower_bound(_impl, key, Comparator());
 	}
 	typename impl::const_iterator getLowerBound(const Key &key) const {
-		return std::lower_bound(_impl.begin(), _impl.end(), key, Comparator());
+		return base::lower_bound(_impl, key, Comparator());
 	}
 	typename impl::iterator getUpperBound(const Key &key) {
-		return std::upper_bound(_impl.begin(), _impl.end(), key, Comparator());
+		return base::upper_bound(_impl, key, Comparator());
 	}
 	typename impl::const_iterator getUpperBound(const Key &key) const {
-		return std::upper_bound(_impl.begin(), _impl.end(), key, Comparator());
+		return base::upper_bound(_impl, key, Comparator());
 	}
-	std::pair<typename impl::iterator, typename impl::iterator> getEqualRange(const Key &key) {
-		return std::equal_range(_impl.begin(), _impl.end(), key, Comparator());
+	std::pair<
+		typename impl::iterator,
+		typename impl::iterator
+	> getEqualRange(const Key &key) {
+		return base::equal_range(_impl, key, Comparator());
 	}
-	std::pair<typename impl::const_iterator, typename impl::const_iterator> getEqualRange(const Key &key) const {
-		return std::equal_range(_impl.begin(), _impl.end(), key, Comparator());
+	std::pair<
+		typename impl::const_iterator,
+		typename impl::const_iterator
+	> getEqualRange(const Key &key) const {
+		return base::equal_range(_impl, key, Comparator());
 	}
 
 };
 
 template <typename Key, typename Type>
-class flat_map : public flat_multi_map<Key, Type> {
+class flat_map : private flat_multi_map<Key, Type> {
 	using parent = flat_multi_map<Key, Type>;
 	using pair_type = typename parent::pair_type;
 
 public:
-	using parent::parent;
+	using value_type = typename parent::value_type;
+	using size_type = typename parent::size_type;
+	using difference_type = typename parent::difference_type;
+	using pointer = typename parent::pointer;
+	using const_pointer = typename parent::const_pointer;
+	using reference = typename parent::reference;
+	using const_reference = typename parent::const_reference;
 	using iterator = typename parent::iterator;
 	using const_iterator = typename parent::const_iterator;
-	using value_type = typename parent::value_type;
+	using reverse_iterator = typename parent::reverse_iterator;
+	using const_reverse_iterator = typename parent::const_reverse_iterator;
+
+	using parent::parent;
+	using parent::size;
+	using parent::empty;
+	using parent::clear;
+	using parent::begin;
+	using parent::end;
+	using parent::cbegin;
+	using parent::cend;
+	using parent::rbegin;
+	using parent::rend;
+	using parent::crbegin;
+	using parent::crend;
+	using parent::front;
+	using parent::back;
+	using parent::erase;
+	using parent::contains;
 
 	iterator insert(const value_type &value) {
 		if (this->empty() || (value.first < this->front().first)) {

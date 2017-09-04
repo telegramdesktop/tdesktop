@@ -63,4 +63,78 @@ decltype(auto) find_if(Range &&range, Predicate &&predicate) {
 		std::forward<Predicate>(predicate));
 }
 
+template <typename Range, typename Type>
+decltype(auto) lower_bound(Range &&range, Type &&value) {
+	return std::lower_bound(
+		std::begin(std::forward<Range>(range)),
+		std::end(std::forward<Range>(range)),
+		std::forward<Type>(value));
+}
+
+template <typename Range, typename Type, typename Predicate>
+decltype(auto) lower_bound(Range &&range, Type &&value, Predicate &&predicate) {
+	return std::lower_bound(
+		std::begin(std::forward<Range>(range)),
+		std::end(std::forward<Range>(range)),
+		std::forward<Type>(value),
+		std::forward<Predicate>(predicate));
+}
+
+template <typename Range, typename Type>
+decltype(auto) upper_bound(Range &&range, Type &&value) {
+	return std::upper_bound(
+		std::begin(std::forward<Range>(range)),
+		std::end(std::forward<Range>(range)),
+		std::forward<Type>(value));
+}
+
+template <typename Range, typename Type, typename Predicate>
+decltype(auto) upper_bound(Range &&range, Type &&value, Predicate &&predicate) {
+	return std::upper_bound(
+		std::begin(std::forward<Range>(range)),
+		std::end(std::forward<Range>(range)),
+		std::forward<Type>(value),
+		std::forward<Predicate>(predicate));
+}
+
+template <typename Range, typename Type>
+decltype(auto) equal_range(Range &&range, Type &&value) {
+	return std::equal_range(
+		std::begin(std::forward<Range>(range)),
+		std::end(std::forward<Range>(range)),
+		std::forward<Type>(value));
+}
+
+template <typename Range, typename Type, typename Predicate>
+decltype(auto) equal_range(Range &&range, Type &&value, Predicate &&predicate) {
+	return std::equal_range(
+		std::begin(std::forward<Range>(range)),
+		std::end(std::forward<Range>(range)),
+		std::forward<Type>(value),
+		std::forward<Predicate>(predicate));
+}
+
+template <typename Range>
+decltype(auto) sort(Range &&range) {
+	return std::sort(
+		std::begin(std::forward<Range>(range)),
+		std::end(std::forward<Range>(range)));
+}
+
+template <typename Range, typename Predicate>
+decltype(auto) sort(Range &&range, Predicate &&predicate) {
+	return std::sort(
+		std::begin(std::forward<Range>(range)),
+		std::end(std::forward<Range>(range)),
+		std::forward<Predicate>(predicate));
+}
+
+template <typename Range, typename Predicate>
+decltype(auto) stable_partition(Range &&range, Predicate &&predicate) {
+	return std::stable_partition(
+		std::begin(std::forward<Range>(range)),
+		std::end(std::forward<Range>(range)),
+		std::forward<Predicate>(predicate));
+}
+
 } // namespace base

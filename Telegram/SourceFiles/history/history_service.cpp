@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_message.h"
 #include "auth_session.h"
 #include "window/notifications_manager.h"
+#include "storage/storage_shared_media.h"
 
 namespace {
 
@@ -729,6 +730,13 @@ int32 HistoryService::addToOverview(AddToOverviewMethod method) {
 		result |= media->addToOverview(method);
 	}
 	return result;
+}
+
+Storage::SharedMediaTypesMask HistoryService::sharedMediaTypes() const {
+	if (auto media = getMedia()) {
+		return media->sharedMediaTypes();
+	}
+	return {};
 }
 
 void HistoryService::eraseFromOverview() {

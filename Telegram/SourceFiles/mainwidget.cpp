@@ -74,6 +74,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/window_controller.h"
 #include "calls/calls_instance.h"
 #include "calls/calls_top_bar.h"
+#include "auth_session.h"
+#include "storage/storage_facade.h"
+#include "storage/storage_shared_media.h"
 
 namespace {
 
@@ -1587,7 +1590,8 @@ void MainWidget::overviewPreloaded(PeerData *peer, const MTPmessages_Messages &r
 
 	if (type == OverviewCount) return;
 
-	App::history(peer->id)->overviewSliceDone(type, result, true);
+	auto startMessageId = MsgId(0);
+	App::history(peer->id)->overviewSliceDone(type, startMessageId, result, true);
 
 	Notify::mediaOverviewUpdated(peer, type);
 }
@@ -1634,7 +1638,7 @@ void MainWidget::loadMediaBack(PeerData *peer, MediaOverviewType type, bool many
 		return;
 	}
 
-	_overviewLoad[type].insert(peer, MTP::send(MTPmessages_Search(MTP_flags(0), peer->input, MTPstring(), MTP_inputUserEmpty(), filter, MTP_int(0), MTP_int(0), MTP_int(minId), MTP_int(0), MTP_int(limit), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::overviewLoaded, history)));
+	_overviewLoad[type].insert(peer, MTP::send(MTPmessages_Search(MTP_flags(0), peer->input, MTPstring(), MTP_inputUserEmpty(), filter, MTP_int(0), MTP_int(0), MTP_int(minId), MTP_int(0), MTP_int(limit), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::overviewLoaded, { history, minId })));
 }
 
 void MainWidget::checkLastUpdate(bool afterSleep) {
@@ -1645,7 +1649,11 @@ void MainWidget::checkLastUpdate(bool afterSleep) {
 	}
 }
 
-void MainWidget::overviewLoaded(not_null<History*> history, const MTPmessages_Messages &result, mtpRequestId req) {
+void MainWidget::overviewLoaded(
+		std::pair<not_null<History*>,MsgId> historyAndStartMsgId,
+		const MTPmessages_Messages &result,
+		mtpRequestId req) {
+	auto history = historyAndStartMsgId.first;
 	OverviewsPreload::iterator it;
 	MediaOverviewType type = OverviewCount;
 	for (int32 i = 0; i < OverviewCount; ++i) {
@@ -1658,7 +1666,7 @@ void MainWidget::overviewLoaded(not_null<History*> history, const MTPmessages_Me
 	}
 	if (type == OverviewCount) return;
 
-	history->overviewSliceDone(type, result);
+	history->overviewSliceDone(type, historyAndStartMsgId.second, result);
 
 	Notify::mediaOverviewUpdated(history->peer, type);
 }
@@ -4717,11 +4725,14 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 
 	case mtpc_updateShortSentMessage: {
 		auto &d = updates.c_updateShortSentMessage();
-		if (randomId) {
+		if (!IsServerMsgId(d.vid.v)) {
+			LOG(("API Error: Bad msgId got from server: %1").arg(d.vid.v));
+		} else if (randomId) {
 			PeerId peerId = 0;
 			QString text;
 			App::histSentDataByItem(randomId, peerId, text);
 
+			auto wasAlready = peerId && (App::histItemById(peerToChannel(peerId), d.vid.v) != nullptr);
 			feedUpdate(MTP_updateMessageID(d.vid, MTP_long(randomId))); // ignore real date
 			if (peerId) {
 				if (auto item = App::histItemById(peerToChannel(peerId), d.vid.v)) {
@@ -4732,6 +4743,14 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 					item->setText({ text, entities });
 					item->updateMedia(d.has_media() ? (&d.vmedia) : nullptr);
 					item->addToOverview(AddToOverviewNew);
+					if (!wasAlready) {
+						if (auto sharedMediaTypes = item->sharedMediaTypes()) {
+							Auth().storage().add(Storage::SharedMediaAddNew(
+								peerId,
+								sharedMediaTypes,
+								item->id));
+						}
+					}
 				}
 			}
 		}

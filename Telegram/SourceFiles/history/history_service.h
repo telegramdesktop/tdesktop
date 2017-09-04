@@ -100,6 +100,7 @@ public:
 
 	int32 addToOverview(AddToOverviewMethod method) override;
 	void eraseFromOverview() override;
+	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	bool needCheck() const override {
 		return false;

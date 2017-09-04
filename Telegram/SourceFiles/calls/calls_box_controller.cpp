@@ -52,7 +52,7 @@ public:
 	void addItem(HistoryItem *item) {
 		Expects(canAddItem(item));
 		_items.push_back(item);
-		std::sort(_items.begin(), _items.end(), [](HistoryItem *a, HistoryItem *b) {
+		base::sort(_items, [](HistoryItem *a, HistoryItem *b) {
 			return (a->id > b->id);
 		});
 		refreshStatus();

@@ -30,6 +30,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_history.h"
 #include "ui/effects/ripple_animation.h"
 #include "storage/file_upload.h"
+#include "storage/storage_facade.h"
+#include "storage/storage_shared_media.h"
 #include "auth_session.h"
 #include "media/media_audio.h"
 #include "messenger.h"
@@ -708,6 +710,14 @@ void HistoryItem::destroy() {
 	} else {
 		// All this must be done for all items manually in History::clear(false)!
 		eraseFromOverview();
+		if (IsServerMsgId(id)) {
+			if (auto types = sharedMediaTypes()) {
+				Auth().storage().remove(Storage::SharedMediaRemoveOne(
+					history()->peer->id,
+					types,
+					id));
+			}
+		}
 
 		auto wasAtBottom = history()->loadedAtBottom();
 		_history->removeNotification(this);
@@ -746,6 +756,10 @@ void HistoryItem::detach() {
 void HistoryItem::detachFast() {
 	_block = nullptr;
 	_indexInBlock = -1;
+}
+
+Storage::SharedMediaTypesMask HistoryItem::sharedMediaTypes() const {
+	return {};
 }
 
 void HistoryItem::previousItemChanged() {

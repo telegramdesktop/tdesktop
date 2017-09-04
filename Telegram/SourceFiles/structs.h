@@ -48,12 +48,43 @@ inline StorageKey mediaKey(const MTPDfileLocation &location) {
 	return storageKey(location.vdc_id.v, location.vvolume_id.v, location.vlocal_id.v);
 }
 
-typedef int32 UserId;
-typedef int32 ChatId;
-typedef int32 ChannelId;
-static const ChannelId NoChannel = 0;
+using UserId = int32;
+using ChatId = int32;
+using ChannelId = int32;
+constexpr auto NoChannel = ChannelId(0);
 
-typedef int32 MsgId;
+using MsgId = int32;
+constexpr auto StartClientMsgId = MsgId(-0x7FFFFFFF);
+constexpr auto EndClientMsgId = MsgId(-0x40000000);
+constexpr auto ShowAtTheEndMsgId = MsgId(-0x40000000);
+constexpr auto SwitchAtTopMsgId = MsgId(-0x3FFFFFFF);
+constexpr auto ShowAtProfileMsgId = MsgId(-0x3FFFFFFE);
+constexpr auto ShowAndStartBotMsgId = MsgId(-0x3FFFFFD);
+constexpr auto ShowAtGameShareMsgId = MsgId(-0x3FFFFFC);
+constexpr auto ServerMaxMsgId = MsgId(0x3FFFFFFF);
+constexpr auto ShowAtUnreadMsgId = MsgId(0);
+constexpr inline bool IsClientMsgId(MsgId id) {
+	return (id >= StartClientMsgId && id < EndClientMsgId);
+}
+constexpr inline bool IsServerMsgId(MsgId id) {
+	return (id > 0 && id < ServerMaxMsgId);
+}
+
+struct MsgRange {
+	MsgRange() = default;
+	MsgRange(MsgId from, MsgId till) : from(from), till(till) {
+	}
+
+	MsgId from = 0;
+	MsgId till = 0;
+};
+inline bool operator==(const MsgRange &a, const MsgRange &b) {
+	return (a.from == b.from) && (a.till == b.till);
+}
+inline bool operator!=(const MsgRange &a, const MsgRange &b) {
+	return !(a == b);
+}
+
 struct FullMsgId {
 	FullMsgId() = default;
 	FullMsgId(ChannelId channel, MsgId msg) : channel(channel), msg(msg) {
@@ -61,13 +92,24 @@ struct FullMsgId {
 	ChannelId channel = NoChannel;
 	MsgId msg = 0;
 };
+inline bool operator==(const FullMsgId &a, const FullMsgId &b) {
+	return (a.channel == b.channel) && (a.msg == b.msg);
+}
+inline bool operator!=(const FullMsgId &a, const FullMsgId &b) {
+	return !(a == b);
+}
+inline bool operator<(const FullMsgId &a, const FullMsgId &b) {
+	if (a.msg < b.msg) return true;
+	if (a.msg > b.msg) return false;
+	return a.channel < b.channel;
+}
 
-typedef uint64 PeerId;
-static const uint64 PeerIdMask         = 0xFFFFFFFFULL;
-static const uint64 PeerIdTypeMask     = 0x300000000ULL;
-static const uint64 PeerIdUserShift    = 0x000000000ULL;
-static const uint64 PeerIdChatShift    = 0x100000000ULL;
-static const uint64 PeerIdChannelShift = 0x200000000ULL;
+using PeerId = uint64;
+constexpr auto PeerIdMask         = PeerId(0xFFFFFFFFULL);
+constexpr auto PeerIdTypeMask     = PeerId(0x300000000ULL);
+constexpr auto PeerIdUserShift    = PeerId(0x000000000ULL);
+constexpr auto PeerIdChatShift    = PeerId(0x100000000ULL);
+constexpr auto PeerIdChannelShift = PeerId(0x200000000ULL);
 inline bool peerIsUser(const PeerId &id) {
 	return (id & PeerIdTypeMask) == PeerIdUserShift;
 }
@@ -170,32 +212,7 @@ using AudioId = uint64;
 using DocumentId = uint64;
 using WebPageId = uint64;
 using GameId = uint64;
-static const WebPageId CancelledWebPageId = 0xFFFFFFFFFFFFFFFFULL;
-
-inline bool operator==(const FullMsgId &a, const FullMsgId &b) {
-	return (a.channel == b.channel) && (a.msg == b.msg);
-}
-inline bool operator!=(const FullMsgId &a, const FullMsgId &b) {
-	return !(a == b);
-}
-inline bool operator<(const FullMsgId &a, const FullMsgId &b) {
-	if (a.msg < b.msg) return true;
-	if (a.msg > b.msg) return false;
-	return a.channel < b.channel;
-}
-
-constexpr const MsgId StartClientMsgId = -0x7FFFFFFF;
-constexpr const MsgId EndClientMsgId = -0x40000000;
-inline constexpr bool isClientMsgId(MsgId id) {
-	return id >= StartClientMsgId && id < EndClientMsgId;
-}
-constexpr const MsgId ShowAtTheEndMsgId = -0x40000000;
-constexpr const MsgId SwitchAtTopMsgId = -0x3FFFFFFF;
-constexpr const MsgId ShowAtProfileMsgId = -0x3FFFFFFE;
-constexpr const MsgId ShowAndStartBotMsgId = -0x3FFFFFD;
-constexpr const MsgId ShowAtGameShareMsgId = -0x3FFFFFC;
-constexpr const MsgId ServerMaxMsgId = 0x3FFFFFFF;
-constexpr const MsgId ShowAtUnreadMsgId = 0;
+constexpr auto CancelledWebPageId = WebPageId(0xFFFFFFFFFFFFFFFFULL);
 
 struct NotifySettings {
 	NotifySettings() : flags(MTPDpeerNotifySettings::Flag::f_show_previews), sound(qsl("default")) {

@@ -20,6 +20,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+namespace base {
+template <typename Enum>
+class enum_mask;
+} // namespace base
+
+namespace Storage {
+enum class SharedMediaType : char;
+using SharedMediaTypesMask = base::enum_mask<SharedMediaType>;
+} // namespace Storage
+
 enum class MediaInBubbleState {
 	None,
 	Top,
@@ -79,6 +89,7 @@ public:
 	}
 	virtual void eraseFromOverview() {
 	}
+	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const;
 
 	// if we are in selecting items mode perhaps we want to
 	// toggle selection instead of activating the pressed link

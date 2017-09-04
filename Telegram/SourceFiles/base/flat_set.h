@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include <deque>
+#include "base/algorithm.h"
 
 namespace base {
 
@@ -43,7 +44,8 @@ public:
 	using pointer = typename flat_multi_set<Type>::pointer;
 	using reference = typename flat_multi_set<Type>::reference;
 
-	flat_multi_set_iterator_base_impl(iterator_impl impl = iterator_impl()) : _impl(impl) {
+	flat_multi_set_iterator_base_impl(iterator_impl impl = iterator_impl())
+		: _impl(impl) {
 	}
 
 	reference operator*() const {
@@ -100,6 +102,11 @@ public:
 private:
 	iterator_impl _impl;
 	friend class flat_multi_set<Type>;
+	friend class flat_set<Type>;
+
+	Type &wrapped() {
+		return _impl->wrapped();
+	}
 
 };
 
@@ -113,6 +120,9 @@ class flat_multi_set {
 		const_wrap(Type &&value) : _value(std::move(value)) {
 		}
 		inline operator const Type&() const {
+			return _value;
+		}
+		Type &wrapped() {
 			return _value;
 		}
 
@@ -133,10 +143,18 @@ class flat_multi_set {
 
 	using impl = std::deque<const_wrap>;
 
-	using iterator_base = flat_multi_set_iterator_base_impl<Type, typename impl::iterator>;
-	using const_iterator_base = flat_multi_set_iterator_base_impl<Type, typename impl::const_iterator>;
-	using reverse_iterator_base = flat_multi_set_iterator_base_impl<Type, typename impl::reverse_iterator>;
-	using const_reverse_iterator_base = flat_multi_set_iterator_base_impl<Type, typename impl::const_reverse_iterator>;
+	using iterator_base = flat_multi_set_iterator_base_impl<
+		Type,
+		typename impl::iterator>;
+	using const_iterator_base = flat_multi_set_iterator_base_impl<
+		Type,
+		typename impl::const_iterator>;
+	using reverse_iterator_base = flat_multi_set_iterator_base_impl<
+		Type,
+		typename impl::reverse_iterator>;
+	using const_reverse_iterator_base = flat_multi_set_iterator_base_impl<
+		Type,
+		typename impl::const_reverse_iterator>;
 
 public:
 	using value_type = Type;
@@ -167,7 +185,8 @@ public:
 	class reverse_iterator : public reverse_iterator_base {
 	public:
 		using reverse_iterator_base::reverse_iterator_base;
-		reverse_iterator(reverse_iterator_base other) : reverse_iterator_base(other) {
+		reverse_iterator(reverse_iterator_base other)
+			: reverse_iterator_base(other) {
 		}
 		friend class const_reverse_iterator;
 
@@ -175,18 +194,26 @@ public:
 	class const_reverse_iterator : public const_reverse_iterator_base {
 	public:
 		using const_reverse_iterator_base::const_reverse_iterator_base;
-		const_reverse_iterator(const_reverse_iterator_base other) : const_reverse_iterator_base(other) {
+		const_reverse_iterator(const_reverse_iterator_base other)
+			: const_reverse_iterator_base(other) {
 		}
-		const_reverse_iterator(const reverse_iterator &other) : const_reverse_iterator_base(other._impl) {
+		const_reverse_iterator(const reverse_iterator &other)
+			: const_reverse_iterator_base(other._impl) {
 		}
 
 	};
 
 	flat_multi_set() = default;
 
-	template <typename Iterator, typename = typename std::iterator_traits<Iterator>::iterator_category>
+	template <
+		typename Iterator,
+		typename = typename std::iterator_traits<Iterator>::iterator_category>
 	flat_multi_set(Iterator first, Iterator last) : _impl(first, last) {
-		std::sort(_impl.begin(), _impl.end());
+		base::sort(_impl);
+	}
+
+	flat_multi_set(std::initializer_list<Type> iter)
+		: flat_multi_set(iter.begin(), iter.end()) {
 	}
 
 	size_type size() const {
@@ -327,48 +354,119 @@ public:
 		return (range.second - range.first);
 	}
 
+	template <typename Action>
+	auto modify(iterator which, Action action) {
+		auto result = action(which.wrapped());
+		for (auto i = which + 1, e = end(); i != e; ++i) {
+			if (*i < *which) {
+				std::swap(i.wrapped(), which.wrapped());
+			} else {
+				break;
+			}
+		}
+		for (auto i = which, b = begin(); i != b;) {
+			--i;
+			if (*which < *i) {
+				std::swap(i.wrapped(), which.wrapped());
+			} else {
+				break;
+			}
+		}
+		return result;
+	}
+
+	template <
+		typename Iterator,
+		typename = typename std::iterator_traits<Iterator>::iterator_category>
+	void merge(Iterator first, Iterator last) {
+		_impl.insert(_impl.end(), first, last);
+		base::sort(_impl);
+	}
+
+	void merge(const flat_multi_set<Type> &other) {
+		merge(other.begin(), other.end());
+	}
+
+	void merge(std::initializer_list<Type> list) {
+		merge(list.begin(), list.end());
+	}
+
 private:
 	impl _impl;
 	friend class flat_set<Type>;
 
 	typename impl::iterator getLowerBound(const Type &value) {
-		return std::lower_bound(_impl.begin(), _impl.end(), value);
+		return base::lower_bound(_impl, value);
 	}
 	typename impl::const_iterator getLowerBound(const Type &value) const {
-		return std::lower_bound(_impl.begin(), _impl.end(), value);
+		return base::lower_bound(_impl, value);
 	}
 	typename impl::iterator getUpperBound(const Type &value) {
-		return std::upper_bound(_impl.begin(), _impl.end(), value);
+		return base::upper_bound(_impl, value);
 	}
 	typename impl::const_iterator getUpperBound(const Type &value) const {
-		return std::upper_bound(_impl.begin(), _impl.end(), value);
+		return base::upper_bound(_impl, value);
 	}
-	std::pair<typename impl::iterator, typename impl::iterator> getEqualRange(const Type &value) {
-		return std::equal_range(_impl.begin(), _impl.end(), value);
+	std::pair<
+		typename impl::iterator,
+		typename impl::iterator
+	> getEqualRange(const Type &value) {
+		return base::equal_range(_impl, value);
 	}
-	std::pair<typename impl::const_iterator, typename impl::const_iterator> getEqualRange(const Type &value) const {
-		return std::equal_range(_impl.begin(), _impl.end(), value);
+	std::pair<
+		typename impl::const_iterator,
+		typename impl::const_iterator
+	> getEqualRange(const Type &value) const {
+		return base::equal_range(_impl, value);
 	}
 
 };
 
 template <typename Type>
-class flat_set : public flat_multi_set<Type> {
+class flat_set : private flat_multi_set<Type> {
 	using parent = flat_multi_set<Type>;
 
 public:
-	using parent::parent;
 	using iterator = typename parent::iterator;
 	using const_iterator = typename parent::const_iterator;
+	using reverse_iterator = typename parent::reverse_iterator;
+	using const_reverse_iterator = typename parent::const_reverse_iterator;
+	using value_type = typename parent::value_type;
+	using size_type = typename parent::size_type;
+	using difference_type = typename parent::difference_type;
+	using pointer = typename parent::pointer;
+	using reference = typename parent::reference;
 
 	flat_set() = default;
 
-	template <typename Iterator, typename = typename std::iterator_traits<Iterator>::iterator_category>
+	template <
+		typename Iterator,
+		typename = typename std::iterator_traits<Iterator>::iterator_category
+	>
 	flat_set(Iterator first, Iterator last) : parent(first, last) {
-		this->_impl.erase(std::unique(this->_impl.begin(), this->_impl.end(), [](auto &&a, auto &&b) {
-			return !(a < b);
-		}), this->_impl.end());
+		finalize();
 	}
+
+	flat_set(std::initializer_list<Type> iter) : parent(iter.begin(), iter.end()) {
+		finalize();
+	}
+
+	using parent::parent;
+	using parent::size;
+	using parent::empty;
+	using parent::clear;
+	using parent::begin;
+	using parent::end;
+	using parent::cbegin;
+	using parent::cend;
+	using parent::rbegin;
+	using parent::rend;
+	using parent::crbegin;
+	using parent::crend;
+	using parent::front;
+	using parent::back;
+	using parent::contains;
+	using parent::erase;
 
 	iterator insert(const Type &value) {
 		if (this->empty() || (value < this->front())) {
@@ -412,6 +510,58 @@ public:
 	}
 	const_iterator find(const Type &value) const {
 		return this->findFirst(value);
+	}
+
+	template <typename Action>
+	void modify(iterator which, Action action) {
+		action(which.wrapped());
+		for (auto i = iterator(which + 1), e = end(); i != e; ++i) {
+			if (*i < *which) {
+				std::swap(i.wrapped(), which.wrapped());
+			} else if (!(*which < *i)) {
+				erase(which);
+				return;
+			} else{
+				break;
+			}
+		}
+		for (auto i = which, b = begin(); i != b;) {
+			--i;
+			if (*which < *i) {
+				std::swap(i.wrapped(), which.wrapped());
+			} else if (!(*i < *which)) {
+				erase(which);
+				return;
+			} else {
+				break;
+			}
+		}
+	}
+
+	template <
+		typename Iterator,
+		typename = typename std::iterator_traits<Iterator>::iterator_category>
+	void merge(Iterator first, Iterator last) {
+		parent::merge(first, last);
+		finalize();
+	}
+
+	void merge(const flat_multi_set<Type> &other) {
+		merge(other.begin(), other.end());
+	}
+
+	void merge(std::initializer_list<Type> list) {
+		merge(list.begin(), list.end());
+	}
+
+private:
+	void finalize() {
+		this->_impl.erase(
+			std::unique(
+				this->_impl.begin(),
+				this->_impl.end(),
+				[](auto &&a, auto &&b) { return !(a < b); }),
+			this->_impl.end());
 	}
 
 };

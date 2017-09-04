@@ -636,8 +636,8 @@ void EditChatAdminsBoxController::rebuildRows() {
 	auto sortByName = [](auto a, auto b) {
 		return (a->name.compare(b->name, Qt::CaseInsensitive) < 0);
 	};
-	std::sort(admins.begin(), admins.end(), sortByName);
-	std::sort(others.begin(), others.end(), sortByName);
+	base::sort(admins, sortByName);
+	base::sort(others, sortByName);
 
 	auto addOne = [this](not_null<UserData*> user) {
 		if (auto row = createRow(user)) {

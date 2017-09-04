@@ -156,6 +156,7 @@ public:
 
 	int32 addToOverview(AddToOverviewMethod method) override;
 	void eraseFromOverview() override;
+	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	PhotoData *photo() const {
 		return _data;
@@ -241,6 +242,7 @@ public:
 
 	int32 addToOverview(AddToOverviewMethod method) override;
 	void eraseFromOverview() override;
+	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	DocumentData *getDocument() override {
 		return _data;
@@ -398,6 +400,7 @@ public:
 
 	int32 addToOverview(AddToOverviewMethod method) override;
 	void eraseFromOverview() override;
+	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	bool uploading() const override {
 		return _data->uploading();
@@ -504,6 +507,7 @@ public:
 
 	int32 addToOverview(AddToOverviewMethod method) override;
 	void eraseFromOverview() override;
+	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	bool uploading() const override {
 		return _data->uploading();

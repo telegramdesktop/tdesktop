@@ -1250,9 +1250,11 @@ void InnerWidget::updateSelected() {
 
 	auto itemPoint = QPoint();
 	auto begin = std::rbegin(_items), end = std::rend(_items);
-	auto from = (point.y() >= _itemsTop && point.y() < _itemsTop + _itemsHeight) ? std::lower_bound(begin, end, point.y(), [this](auto &elem, int top) {
-		return this->itemTop(elem) + elem->height() <= top;
-	}) : end;
+	auto from = (point.y() >= _itemsTop && point.y() < _itemsTop + _itemsHeight)
+		? std::lower_bound(begin, end, point.y(), [this](auto &elem, int top) {
+			return this->itemTop(elem) + elem->height() <= top;
+		})
+		: end;
 	auto item = (from != end) ? from->get() : nullptr;
 	if (item) {
 		App::mousedItem(item);
