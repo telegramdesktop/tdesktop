@@ -246,10 +246,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_no_chats" = "Noch keine Chats";
 "lng_contacts_loading" = "Lade...";
 "lng_contacts_not_found" = "Keine Kontakte gefunden";
-"lng_dlg_search_chat" = "In diesem Chat suchen";
-"lng_dlg_search_channel" = "In diesem Kanal suchen";
 "lng_dlg_search_for_messages" = "Nach Nachrichten suchen";
 "lng_update_telegram" = "Aktualisiere Telegram";
+"lng_dlg_search_in" = "Suche Nachrichten in";
+"lng_dlg_search_from" = "Von: {user}";
 
 "lng_settings_save" = "Speichern";
 "lng_settings_upload" = "Profilbild festlegen";
@@ -549,6 +549,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_change_phone_code_title" = "Code eingeben";
 "lng_change_phone_code_description" = "Wir haben dir einen Bestätigungscode per SMS an {phone} gesendet.";
 "lng_change_phone_success" = "Deine Telefonnummer wurde geändert.";
+
+"lng_mute_duration_hours#one" = "Für {count} Stunde";
+"lng_mute_duration_hours#other" = "Für {count} Stunden";
+"lng_mute_box_tip" = "Wie lange sollen die Benachrichtigungen für diesen Chat ausgeschaltet werden?";
 
 "lng_preview_loading" = "Lade Linkvorschau...";
 
@@ -880,6 +884,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_emoji_hide_panel" = "Hier klicken, um Emoji Sidebar zu verstecken";
 
 "lng_recent_stickers" = "Häufig genutzt";
+"lng_faved_stickers" = "Favoriten";
+"lng_faved_stickers_add" = "Zu Favoriten hinzufügen";
+"lng_faved_stickers_remove" = "Aus Favoriten entfernen";
+"lng_group_stickers" = "Gruppen-Sticker";
+"lng_group_stickers_description" = "Paket wählen, welches alle in der Gruppe sehen können.";
+"lng_group_stickers_add" = "Sticker-Paket wählen";
+
 "lng_switch_stickers" = "Sticker";
 "lng_switch_emoji" = "Emoji";
 "lng_switch_gifs" = "GIFs";
@@ -909,6 +920,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_stickers_count#one" = "{count} Sticker";
 "lng_stickers_count#other" = "{count} Sticker";
 "lng_stickers_masks_pack" = "Das ist ein Masken-Paket. Du kannst Masken nur im Editor unserer mobilen Apps verwenden.";
+"lng_stickers_group_set" = "Gruppen-Sticker";
+"lng_stickers_remove_group_set" = "Gruppen-Sticker entfernen?";
+"lng_stickers_group_from_your" = "Sticker-Paket auswählen";
 
 "lng_in_dlg_photo" = "Bild";
 "lng_in_dlg_video" = "Video";
@@ -1399,6 +1413,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_banned" = "hat {user} gesperrt";
 "lng_admin_log_restricted" = "hat Einschränkungen für {user} {until} geändert";
 "lng_admin_log_promoted" = "hat Berechtigungen für {user} geändert";
+"lng_admin_log_changed_stickers_group" = "{from} hat das Sticker-Paket {sticker_set} der Gruppe geändert";
+"lng_admin_log_changed_stickers_set" = "Sticker-Paket";
+"lng_admin_log_removed_stickers_group" = "{from} hat das Sticker-Paket der Gruppe entfernt";
 "lng_admin_log_user_with_username" = "{name} ({mention})";
 "lng_admin_log_restricted_forever" = "unbegrenzt";
 "lng_admin_log_restricted_until" = "bis {date}";
@@ -1423,6 +1440,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_group_info" = "Gruppeninfo";
 "lng_profile_channel_info" = "Info";
 "lng_channel_add_admins" = "Neuer Administrator";
+"lng_dlg_search_chat" = "In diesem Chat suchen";
+"lng_dlg_search_channel" = "In diesem Kanal suchen";
 
 // Wnd specific
 

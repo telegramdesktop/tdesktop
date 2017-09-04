@@ -246,10 +246,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_no_chats" = "Le tua chat saranno qui";
 "lng_contacts_loading" = "Carico...";
 "lng_contacts_not_found" = "Nessun contatto trovato";
-"lng_dlg_search_chat" = "Cerca in questa chat";
-"lng_dlg_search_channel" = "Cerca in questo canale";
 "lng_dlg_search_for_messages" = "Cerca messaggi";
 "lng_update_telegram" = "Aggiorna Telegram";
+"lng_dlg_search_in" = "Cerca messaggi in";
+"lng_dlg_search_from" = "Da: {user}";
 
 "lng_settings_save" = "Salva";
 "lng_settings_upload" = "Imposta foto profilo";
@@ -549,6 +549,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_change_phone_code_title" = "Inserisci il codice";
 "lng_change_phone_code_description" = "Abbiamo inviato un SMS con un codice di conferma al tuo numero {phone}.";
 "lng_change_phone_success" = "Il tuo numero di telefono è stato cambiato.";
+
+"lng_mute_duration_hours#one" = "Per {count} ora";
+"lng_mute_duration_hours#other" = "Per {count} ore";
+"lng_mute_box_tip" = "Scegli la durata della disattivazione delle notifiche per la chat seguente";
 
 "lng_preview_loading" = "Recupero le info del link...";
 
@@ -880,6 +884,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_emoji_hide_panel" = "Clicca qui per nascondere la barra delle emoji";
 
 "lng_recent_stickers" = "Usati di frequente";
+"lng_faved_stickers" = "Sticker preferiti";
+"lng_faved_stickers_add" = "Aggiungi ai preferiti";
+"lng_faved_stickers_remove" = "Rimuovi dai preferiti";
+"lng_group_stickers" = "Sticker del gruppo";
+"lng_group_stickers_description" = "Puoi rendere un set di sticker disponibile a tutti i membri che scrivono all'interno di questo gruppo.";
+"lng_group_stickers_add" = "Scegli set di sticker";
+
 "lng_switch_stickers" = "Sticker";
 "lng_switch_emoji" = "Emoji";
 "lng_switch_gifs" = "GIF";
@@ -909,6 +920,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_stickers_count#one" = "{count} sticker";
 "lng_stickers_count#other" = "{count} sticker";
 "lng_stickers_masks_pack" = "Questo è un set di maschere. Puoi usarle nell'editor fotografico sulle nostre app mobili.";
+"lng_stickers_group_set" = "Sticker del gruppo";
+"lng_stickers_remove_group_set" = "Rimuovere il set di sticker del gruppo?";
+"lng_stickers_group_from_your" = "Scegli dai tuoi sticker";
 
 "lng_in_dlg_photo" = "Foto";
 "lng_in_dlg_video" = "Video";
@@ -986,13 +1000,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_typing" = "sta scrivendo";
 "lng_user_typing" = "{user} sta scrivendo";
 "lng_users_typing" = "{user} e {second_user} stanno scrivendo";
-"lng_many_typing#one" = "{count} sta scrivendo";
-"lng_many_typing#other" = "{count} stanno scrivendo";
+"lng_many_typing#one" = "{count} persona sta scrivendo";
+"lng_many_typing#other" = "{count} persone stanno scrivendo";
 "lng_playing_game" = "sta giocando a un gioco";
 "lng_user_playing_game" = "{user} sta giocando a un gioco";
 "lng_users_playing_game" = "{user} e {second_user} stanno giocando a un gioco";
-"lng_many_playing_game#one" = "{count} sta giocando a un gioco";
-"lng_many_playing_game#other" = "{count} stanno giocando a un gioco";
+"lng_many_playing_game#one" = "{count} persona sta giocando a un gioco";
+"lng_many_playing_game#other" = "{count} persone stanno giocando a un gioco";
 "lng_send_action_record_video" = "sta registrando un video";
 "lng_user_action_record_video" = "{user} sta registrando un video";
 "lng_send_action_upload_video" = "sta inviando un video";
@@ -1399,6 +1413,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_banned" = "ha bloccato {user}";
 "lng_admin_log_restricted" = "ha cambiato le restrizioni di {user} {until}";
 "lng_admin_log_promoted" = "ha cambiato i privilegi di {user}";
+"lng_admin_log_changed_stickers_group" = "{from} ha cambiato il {sticker_set} del gruppo";
+"lng_admin_log_changed_stickers_set" = "set di sticker";
+"lng_admin_log_removed_stickers_group" = "{from} ha rimosso il set di sticker del gruppo";
 "lng_admin_log_user_with_username" = "{name} ({mention})";
 "lng_admin_log_restricted_forever" = "indefinitamente";
 "lng_admin_log_restricted_until" = "fino a {date}";
@@ -1423,6 +1440,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_group_info" = "Info gruppo";
 "lng_profile_channel_info" = "Info canale";
 "lng_channel_add_admins" = "Nuovo amministratore";
+"lng_dlg_search_chat" = "Cerca in questa chat";
+"lng_dlg_search_channel" = "Cerca in questo canale";
 
 // Wnd specific
 

@@ -246,10 +246,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_no_chats" = "Hier komen je chats";
 "lng_contacts_loading" = "Laden...";
 "lng_contacts_not_found" = "Geen contacten gevonden";
-"lng_dlg_search_chat" = "Zoek in deze chat";
-"lng_dlg_search_channel" = "Zoek in dit kanaal";
 "lng_dlg_search_for_messages" = "Zoek berichten";
 "lng_update_telegram" = "Telegram bijwerken";
+"lng_dlg_search_in" = "Zoek berichten";
+"lng_dlg_search_from" = "Van: {user}";
 
 "lng_settings_save" = "Opslaan";
 "lng_settings_upload" = "Profielfoto instellen";
@@ -549,6 +549,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_change_phone_code_title" = "Code invoeren";
 "lng_change_phone_code_description" = "Een sms-bericht met verificatiecode is naar nummer {phone} verstuurd.";
 "lng_change_phone_success" = "Je telefoonnummer is gewijzigd.";
+
+"lng_mute_duration_hours#one" = "{count} uur";
+"lng_mute_duration_hours#other" = "{count} uur";
+"lng_mute_box_tip" = "Kies hoelang je meldingen op stil wilt zetten voor deze chat";
 
 "lng_preview_loading" = "Link-preview ophalen...";
 
@@ -880,6 +884,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_emoji_hide_panel" = "Klik om het emojipaneel te verbergen";
 
 "lng_recent_stickers" = "Veelgebruikt";
+"lng_faved_stickers" = "Favoriete stickers";
+"lng_faved_stickers_add" = "Toevoegen aan favorieten";
+"lng_faved_stickers_remove" = "Verwijder uit favorieten";
+"lng_group_stickers" = "Groepsstickers";
+"lng_group_stickers_description" = "Je kunt een stickerbundel kiezen die voor iedereen in de groepschat beschikbaar is.";
+"lng_group_stickers_add" = "Kies stickerbundel";
+
 "lng_switch_stickers" = "Stickers";
 "lng_switch_emoji" = "Emoji";
 "lng_switch_gifs" = "GIF's";
@@ -909,6 +920,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_stickers_count#one" = "{count} sticker";
 "lng_stickers_count#other" = "{count} stickers";
 "lng_stickers_masks_pack" = "Dit een set met maskers. Je kunt ze gebruiken als je een foto bewerkt in onze mobiele apps.";
+"lng_stickers_group_set" = "Groepsstickers";
+"lng_stickers_remove_group_set" = "Groepsstickers verwijderen?";
+"lng_stickers_group_from_your" = "Kies uit je stickers";
 
 "lng_in_dlg_photo" = "Foto";
 "lng_in_dlg_video" = "Video";
@@ -986,8 +1000,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_typing" = "aan het typen";
 "lng_user_typing" = "{user} is aan het typen";
 "lng_users_typing" = "{user} en {second_user} zijn aan het typen";
-"lng_many_typing#one" = "{count} is aan het typen";
-"lng_many_typing#other" = "{count} zijn aan het typen";
+"lng_many_typing#one" = "{count} aan het typen";
+"lng_many_typing#other" = "{count} aan het typen";
 "lng_playing_game" = "speelt een spel";
 "lng_user_playing_game" = "{user} speelt een spel";
 "lng_users_playing_game" = "{user} en {second_user} spelen een spel";
@@ -1399,6 +1413,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_banned" = "{user} geblokkeerd";
 "lng_admin_log_restricted" = "beperkingen van {user} aangepast tot {until}";
 "lng_admin_log_promoted" = "privileges van {user} aangepast";
+"lng_admin_log_changed_stickers_group" = "{sticker_set} door {from} gewijzigd";
+"lng_admin_log_changed_stickers_set" = "stickerbundel";
+"lng_admin_log_removed_stickers_group" = "groepsstickers door {from} verwijderd";
 "lng_admin_log_user_with_username" = "{name} ({mention})";
 "lng_admin_log_restricted_forever" = "Voor altijd";
 "lng_admin_log_restricted_until" = "tot {date}";
@@ -1423,6 +1440,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_group_info" = "Groepsinformatie";
 "lng_profile_channel_info" = "Kanaalinformatie";
 "lng_channel_add_admins" = "Beheerder toevoegen";
+"lng_dlg_search_chat" = "Zoek in deze chat";
+"lng_dlg_search_channel" = "Zoek in dit kanaal";
 
 // Wnd specific
 
