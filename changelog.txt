@@ -1,3 +1,7 @@
+1.1.22 (04.09.17)
+
+- Bug fixes and other minor improvements.
+
 1.1.21 (03.09.17)
 
 - Bug fixes and other minor improvements.
