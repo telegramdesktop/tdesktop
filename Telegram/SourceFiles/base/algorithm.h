@@ -22,6 +22,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace base {
 
+template <typename Type>
+inline Type take(Type &value) {
+	return std::exchange(value, Type {});
+}
+
+template <typename Type, size_t Size>
+inline constexpr size_t array_size(const Type(&)[Size]) {
+	return Size;
+}
+
 // This version of remove_if allows predicate to push_back() items.
 // The added items won't be tested for predicate but just left in the container.
 template <typename Container, typename Predicate>

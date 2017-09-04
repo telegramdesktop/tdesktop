@@ -27,7 +27,8 @@ using namespace rpl;
 
 class OnDestructor {
 public:
-	OnDestructor(base::lambda_once<void()> callback) : _callback(std::move(callback)) {
+	OnDestructor(base::lambda_once<void()> callback)
+		: _callback(std::move(callback)) {
 	}
 	~OnDestructor() {
 		if (_callback) {
@@ -52,22 +53,22 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 			});
 			{
 				producer<int, no_error>([=](auto consumer) {
-					destroyCaller;
-					consumer.putNext(1);
-					consumer.putNext(2);
-					consumer.putNext(3);
-					consumer.putDone();
+					(void)destroyCaller;
+					consumer.put_next(1);
+					consumer.put_next(2);
+					consumer.put_next(3);
+					consumer.put_done();
 					return [=] {
-						destroyCaller;
+						(void)destroyCaller;
 						*lifetimeEnded = true;
 					};
 				}).start([=](int value) {
-					destroyCaller;
+					(void)destroyCaller;
 					*sum += value;
 				}, [=](no_error) {
-					destroyCaller;
+					(void)destroyCaller;
 				}, [=]() {
-					destroyCaller;
+					(void)destroyCaller;
 					*doneGenerated = true;
 				});
 			}
@@ -82,7 +83,7 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 		auto errorGenerated = std::make_shared<bool>(false);
 		{
 			producer<no_value, bool>([=](auto consumer) {
-				consumer.putError(true);
+				consumer.put_error(true);
 				return lifetime();
 			}).start([=](no_value) {
 			}, [=](bool error) {
@@ -124,9 +125,9 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 		{
 			saved = producer<int, no_error>([=](auto consumer) {
 				auto inner = producer<int, no_error>([=](auto consumer) {
-					consumer.putNext(1);
-					consumer.putNext(2);
-					consumer.putNext(3);
+					consumer.put_next(1);
+					consumer.put_next(2);
+					consumer.put_next(3);
 					return [=] {
 						++*lifetimeEndCount;
 					};
@@ -135,12 +136,12 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 					++*lifetimeEndCount;
 				});
 				result.add(inner.start([=](int value) {
-					consumer.putNext(value);
+					consumer.put_next(value);
 				}, [=](no_error) {
 				}, [=] {
 				}));
 				result.add(inner.start([=](int value) {
-					consumer.putNext(value);
+					consumer.put_next(value);
 				}, [=](no_error) {
 				}, [=] {
 				}));
@@ -159,7 +160,7 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 
 	SECTION("event_stream basic test") {
 		auto sum = std::make_shared<int>(0);
-		rpl::event_stream<int> stream;
+		event_stream<int> stream;
 		stream.fire(1);
 		stream.fire(2);
 		stream.fire(3);
@@ -182,7 +183,7 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 
 	SECTION("event_stream add in handler test") {
 		auto sum = std::make_shared<int>(0);
-		rpl::event_stream<int> stream;
+		event_stream<int> stream;
 
 		{
 			auto composite = lifetime();
@@ -233,7 +234,7 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 
 	SECTION("event_stream add and remove in handler test") {
 		auto sum = std::make_shared<int>(0);
-		rpl::event_stream<int> stream;
+		event_stream<int> stream;
 
 		{
 			auto composite = lifetime();
@@ -286,7 +287,7 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 		auto sum = std::make_shared<int>(0);
 		lifetime extended;
 		{
-			rpl::event_stream<int> stream;
+			event_stream<int> stream;
 			extended = stream.events().start([=](int value) {
 				*sum += value;
 			}, [=](no_error) {
@@ -298,5 +299,150 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 		}
 		REQUIRE(*sum == 1 + 2 + 3);
 	}
+
+	SECTION("event_stream move test") {
+		auto sum = std::make_shared<int>(0);
+		lifetime extended;
+		{
+			event_stream<int> stream;
+			stream.events() | on_next([=](int value) {
+				*sum += value;
+			}) | start(extended);
+
+			stream.fire(1);
+			stream.fire(2);
+
+			auto movedStream = std::move(stream);
+			movedStream.fire(3);
+			movedStream.fire(4);
+		}
+		REQUIRE(*sum == 1 + 2 + 3 + 4);
+	}
 }
 
+TEST_CASE("basic piping tests", "[rpl::producer]") {
+	SECTION("bind_on_next, bind_on_error, bind_on_done") {
+		auto sum = std::make_shared<int>(0);
+		auto doneGenerated = std::make_shared<bool>(false);
+		{
+			auto alive = lifetime();
+			producer<int, no_error>([=](auto consumer) {
+				consumer.put_next(1);
+				consumer.put_next(2);
+				consumer.put_next(3);
+				consumer.put_done();
+				return lifetime();
+			}) | bind_on_next([=](int value) {
+				*sum += value;
+			}) | bind_on_done([=]() {
+				*doneGenerated = true;
+			}) | start(alive);
+
+			producer<no_value, int>([=](auto consumer) {
+				consumer.put_error(4);
+				return lifetime();
+			}) | bind_on_error([=](int value) {
+				*sum += value;
+			}) | bind_on_done([=]() {
+				*doneGenerated = false;
+			}) | start(alive);
+		}
+		REQUIRE(*sum == 1 + 2 + 3 + 4);
+		REQUIRE(*doneGenerated);
+	}
+
+	SECTION("on_next, on_error, on_done") {
+		auto sum = std::make_shared<int>(0);
+		auto dones = std::make_shared<int>(0);
+		{
+			auto alive = lifetime();
+			producer<int, int>([=](auto consumer) {
+				consumer.put_next(1);
+				consumer.put_done();
+				return lifetime();
+			}) | on_next([=](int value) {
+				*sum += value;
+			}) | start(alive);
+
+			producer<int, int>([=](auto consumer) {
+				consumer.put_next(11);
+				consumer.put_error(111);
+				return lifetime();
+			}) | on_error([=](int value) {
+				*sum += value;
+			}) | start(alive);
+
+			producer<int, int>([=](auto consumer) {
+				consumer.put_next(1111);
+				consumer.put_done();
+				return lifetime();
+			}) | on_done([=]() {
+				*dones += 1;
+			}) | start(alive);
+
+			producer<int, int>([=](auto consumer) {
+				consumer.put_next(11111);
+				consumer.put_next(11112);
+				consumer.put_next(11113);
+				consumer.put_error(11114);
+				return lifetime();
+			}) | on_next([=](int value) {
+				*sum += value;
+			}) | on_error([=](int value) {
+				*sum += value;
+			}) | start(alive);
+		}
+
+		auto alive = lifetime();
+		producer<int, int>([=](auto consumer) {
+			consumer.put_next(111111);
+			consumer.put_next(111112);
+			consumer.put_next(111113);
+			consumer.put_done();
+			return lifetime();
+		}) | on_next([=](int value) {
+			*sum += value;
+		}) | on_done([=]() {
+			*dones += 11;
+		}) | start(alive);
+
+		producer<int, int>([=](auto consumer) {
+			consumer.put_error(1111111);
+			return lifetime();
+		}) | on_error([=](int value) {
+			*sum += value;
+		}) | on_done([=]() {
+			*dones = 0;
+		}) | start(alive);
+
+		REQUIRE(*sum ==
+			1 +
+			111 +
+			11111 + 11112 + 11113 + 11114 +
+			111111 + 111112 + 111113 +
+			1111111);
+		REQUIRE(*dones == 1 + 11);
+	}
+
+	SECTION("on_next should copy its callback") {
+		auto sum = std::make_shared<int>(0);
+		{
+			auto next = [=](int value) {
+				REQUIRE(sum != nullptr);
+				*sum += value;
+			};
+
+			for (int i = 0; i != 3; ++i) {
+				auto alive = lifetime();
+				producer<int, int>([=](auto consumer) {
+					consumer.put_next(1);
+					consumer.put_done();
+					return lifetime();
+				})
+					| on_next(next)
+					| start(alive);
+			}
+		}
+		REQUIRE(*sum == 3);
+	}
+}

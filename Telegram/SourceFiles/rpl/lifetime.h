@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "base/lambda.h"
 #include "base/algorithm.h"
-#include <functional>
+#include <deque>
 
 namespace rpl {
 
@@ -33,45 +33,64 @@ public:
 	lifetime &operator=(lifetime &&other);
 
 	template <typename Destroy, typename = decltype(std::declval<Destroy>()())>
-	lifetime(Destroy &&destroy) : _destroy(std::forward<Destroy>(destroy)) {
+	lifetime(Destroy &&destroy);
+
+	explicit operator bool() const { return !_callbacks.empty(); }
+
+	template <typename Destroy, typename = decltype(std::declval<Destroy>()())>
+	void add(Destroy &&destroy);
+	void add(lifetime &&other);
+	void destroy();
+
+	template <typename Type, typename... Args>
+	Type *make_state(Args&& ...args) {
+		auto result = new Type(std::forward<Args>(args)...);
+		add([result]() mutable {
+			static_assert(sizeof(Type) > 0, "Can't delete unknown type.");
+			delete base::take(result);
+		});
+		return result;
 	}
 
-	void add(lifetime other) {
-		_nested.push_back(std::move(other));
-	}
-
-	void destroy() {
-		auto nested = std::exchange(_nested, std::vector<lifetime>());
-		auto callback = std::exchange(_destroy, base::lambda_once<void()>());
-
-		if (!nested.empty()) {
-			nested.clear();
-		}
-		if (callback) {
-			callback();
-		}
-	}
-
-	~lifetime() {
-		destroy();
-	}
+	~lifetime() { destroy(); }
 
 private:
-	base::lambda_once<void()> _destroy;
-	std::vector<lifetime> _nested;
+	std::deque<base::lambda_once<void()>> _callbacks;
 
 };
 
-lifetime::lifetime(lifetime &&other)
-: _destroy(std::exchange(other._destroy, base::lambda_once<void()>()))
-, _nested(std::exchange(other._nested, std::vector<lifetime>())) {
+inline lifetime::lifetime(lifetime &&other)
+: _callbacks(base::take(other._callbacks)) {
 }
 
-lifetime &lifetime::operator=(lifetime &&other) {
-	std::swap(_destroy, other._destroy);
-	std::swap(_nested, other._nested);
+inline lifetime &lifetime::operator=(lifetime &&other) {
+	std::swap(_callbacks, other._callbacks);
 	other.destroy();
 	return *this;
+}
+
+template <typename Destroy, typename>
+inline lifetime::lifetime(Destroy &&destroy) {
+	_callbacks.emplace_back(std::forward<Destroy>(destroy));
+}
+
+template <typename Destroy, typename>
+inline void lifetime::add(Destroy &&destroy) {
+	_callbacks.push_front(destroy);
+}
+
+inline void lifetime::add(lifetime &&other) {
+	auto callbacks = base::take(other._callbacks);
+	_callbacks.insert(
+		_callbacks.begin(),
+		std::make_move_iterator(callbacks.begin()),
+		std::make_move_iterator(callbacks.end()));
+}
+
+inline void lifetime::destroy() {
+	for (auto &callback : base::take(_callbacks)) {
+		callback();
+	}
 }
 
 } // namespace rpl

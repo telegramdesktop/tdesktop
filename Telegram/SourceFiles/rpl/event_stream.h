@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "producer.h"
 #include "base/algorithm.h"
+#include "base/assertion.h"
 
 namespace rpl {
 
@@ -29,53 +30,53 @@ template <typename Value>
 class event_stream {
 public:
 	event_stream();
+	event_stream(event_stream &&other);
 
 	void fire(Value value);
-	producer<Value, no_error> events();
+	producer<Value, no_error> events() const;
 
 	~event_stream();
 
 private:
-	std::weak_ptr<event_stream*> weak() const {
-		return _strong;
-	}
-	void addConsumer(consumer<Value, no_error> &&consumer) {
-		_consumers.push_back(std::move(consumer));
-	}
-	void removeConsumer(const consumer<Value, no_error> &consumer) {
-		auto it = base::find(_consumers, consumer);
-		if (it != _consumers.end()) {
-			it->terminate();
-		}
+	std::weak_ptr<std::vector<consumer<Value, no_error>>> weak() const {
+		return _consumers;
 	}
 
-	std::shared_ptr<event_stream*> _strong;
-	std::vector<consumer<Value, no_error>> _consumers;
+	std::shared_ptr<std::vector<consumer<Value, no_error>>> _consumers;
 
 };
 
 template <typename Value>
 event_stream<Value>::event_stream()
-	: _strong(std::make_shared<event_stream*>(this)) {
+	: _consumers(std::make_shared<std::vector<consumer<Value, no_error>>>()) {
+}
+
+template <typename Value>
+event_stream<Value>::event_stream(event_stream &&other)
+	: _consumers(base::take(other._consumers)) {
 }
 
 template <typename Value>
 void event_stream<Value>::fire(Value value) {
-	base::push_back_safe_remove_if(_consumers, [&](auto &consumer) {
-		return !consumer.putNext(value);
+	Expects(_consumers != nullptr);
+	base::push_back_safe_remove_if(*_consumers, [&](auto &consumer) {
+		return !consumer.put_next(value);
 	});
 }
 
 template <typename Value>
-producer<Value, no_error> event_stream<Value>::events() {
+producer<Value, no_error> event_stream<Value>::events() const {
 	return producer<Value, no_error>([weak = weak()](consumer<Value, no_error> consumer) {
 		if (auto strong = weak.lock()) {
 			auto result = [weak, consumer] {
 				if (auto strong = weak.lock()) {
-					(*strong)->removeConsumer(consumer);
+					auto it = base::find(*strong, consumer);
+					if (it != strong->end()) {
+						it->terminate();
+					}
 				}
 			};
-			(*strong)->addConsumer(std::move(consumer));
+			strong->push_back(std::move(consumer));
 			return lifetime(std::move(result));
 		}
 		return lifetime();
@@ -84,8 +85,10 @@ producer<Value, no_error> event_stream<Value>::events() {
 
 template <typename Value>
 event_stream<Value>::~event_stream() {
-	for (auto &consumer : _consumers) {
-		consumer.putDone();
+	if (_consumers) {
+		for (auto &consumer : *_consumers) {
+			consumer.put_done();
+		}
 	}
 }
 

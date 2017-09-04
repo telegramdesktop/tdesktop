@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "core/basic_types.h"
 #include "base/flags.h"
+#include "base/algorithm.h"
 
 // Define specializations for QByteArray for Qt 5.3.2, because
 // QByteArray in Qt 5.3.2 doesn't declare "pointer" subtype.
@@ -42,17 +43,6 @@ inline span<const char> make_span(const QByteArray &cont) {
 #endif // OS_MAC_OLD
 
 namespace base {
-
-template <typename T, size_t N>
-inline constexpr size_t array_size(const T(&)[N]) {
-	return N;
-}
-
-template <typename T>
-inline T take(T &source) {
-	return std::exchange(source, T());
-}
-
 namespace internal {
 
 template <typename D, typename T>
