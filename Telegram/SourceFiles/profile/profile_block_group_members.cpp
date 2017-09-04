@@ -404,7 +404,7 @@ void GroupMembersWidget::setItemFlags(Item *item, ChatData *chat) {
 	using AdminState = Item::AdminState;
 	auto user = getMember(item)->user();
 	auto isCreator = (peerFromUser(chat->creator) == item->peer->id);
-	auto isAdmin = chat->admins.contains(user);
+	auto isAdmin = chat->adminsEnabled() && chat->admins.contains(user);
 	auto adminState = isCreator ? AdminState::Creator : isAdmin ? AdminState::Admin : AdminState::None;
 	item->adminState = adminState;
 	if (item->peer->id == Auth().userPeerId()) {
