@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "producer.h"
 #include "base/algorithm.h"
 #include "base/assertion.h"
+#include "base/index_based_iterator.h"
 
 namespace rpl {
 
@@ -32,7 +33,7 @@ public:
 	event_stream();
 	event_stream(event_stream &&other);
 
-	void fire(Value value);
+	void fire(Value &&value);
 	producer<Value, no_error> events() const;
 
 	~event_stream();
@@ -57,11 +58,41 @@ event_stream<Value>::event_stream(event_stream &&other)
 }
 
 template <typename Value>
-void event_stream<Value>::fire(Value value) {
+void event_stream<Value>::fire(Value &&value) {
 	Expects(_consumers != nullptr);
-	base::push_back_safe_remove_if(*_consumers, [&](auto &consumer) {
-		return !consumer.put_next(value);
-	});
+	auto &consumers = *_consumers;
+	auto begin = base::index_based_begin(consumers);
+	auto end = base::index_based_end(consumers);
+	if (begin != end) {
+		// Copy value for every consumer except the last.
+		auto prev = end - 1;
+		auto removeFrom = std::remove_if(begin, prev, [&](auto &consumer) {
+			return !consumer.put_next_copy(value);
+		});
+
+		// Move value for the last consumer.
+		if (prev->put_next(std::move(value))) {
+			if (removeFrom != prev) {
+				*removeFrom++ = std::move(*prev);
+			} else {
+				++removeFrom;
+			}
+		}
+
+		if (removeFrom != end) {
+			// Move new consumers.
+			auto newEnd = base::index_based_end(consumers);
+			if (newEnd != end) {
+				Assert(newEnd > end);
+				while (end != newEnd) {
+					*removeFrom++ = *end++;
+				}
+			}
+
+			// Erase stale consumers.
+			consumers.erase(removeFrom.base(), consumers.end());
+		}
+	}
 }
 
 template <typename Value>

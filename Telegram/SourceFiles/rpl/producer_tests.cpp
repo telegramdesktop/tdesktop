@@ -136,12 +136,12 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 					++*lifetimeEndCount;
 				});
 				result.add(inner.start([=](int value) {
-					consumer.put_next(value);
+					consumer.put_next_copy(value);
 				}, [=](no_error) {
 				}, [=] {
 				}));
 				result.add(inner.start([=](int value) {
-					consumer.put_next(value);
+					consumer.put_next_copy(value);
 				}, [=](no_error) {
 				}, [=] {
 				}));

@@ -32,38 +32,6 @@ inline constexpr size_t array_size(const Type(&)[Size]) {
 	return Size;
 }
 
-// This version of remove_if allows predicate to push_back() items.
-// The added items won't be tested for predicate but just left in the container.
-template <typename Container, typename Predicate>
-void push_back_safe_remove_if(
-	Container &&container,
-	Predicate &&predicate) {
-	auto first = size_t(0);
-	auto count = container.size();
-	auto moveFrom = first;
-	for (; moveFrom != count; ++moveFrom) {
-		if (predicate(container[moveFrom])) {
-			break;
-		}
-	}
-	if (moveFrom != count) {
-		auto moveTo = moveFrom;
-		for (++moveFrom; moveFrom != count; ++moveFrom) {
-			if (!predicate(container[moveFrom])) {
-				container[moveTo++] = std::move(container[moveFrom]);
-			}
-		}
-
-		// Move items that we've added while checking the initial items.
-		count = container.size();
-		for (; moveFrom != count; ++moveFrom) {
-			container[moveTo++] = std::move(container[moveFrom]);
-		}
-
-		container.erase(container.begin() + moveTo, container.end());
-	}
-}
-
 template <typename Range, typename Method>
 decltype(auto) for_each(Range &&range, Method &&method) {
 	return std::for_each(

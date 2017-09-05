@@ -25,12 +25,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace rpl {
 
-template <char Tag>
-struct no_type {
-	no_type() = delete;
+struct no_value {
+	no_value() = delete;
 };
-using no_value = no_type<'V'>;
-using no_error = no_type<'E'>;
+
+struct no_error {
+	no_error() = delete;
+};
 
 struct empty_value {
 };
@@ -50,8 +51,10 @@ public:
 		OnError &&error,
 		OnDone &&done);
 
-	bool put_next(Value value) const;
-	void put_error(Error error) const;
+	bool put_next(Value &&value) const;
+	bool put_next_copy(const Value &value) const;
+	void put_error(Error &&error) const;
+	void put_error_copy(const Error &error) const;
 	void put_done() const;
 
 	void set_lifetime(lifetime &&lifetime) const;
@@ -96,8 +99,8 @@ private:
 template <typename Value, typename Error>
 class consumer<Value, Error>::abstract_consumer_instance {
 public:
-	virtual bool put_next(Value value) = 0;
-	virtual void put_error(Error error) = 0;
+	virtual bool put_next(Value &&value) = 0;
+	virtual void put_error(Error &&error) = 0;
 	virtual void put_done() = 0;
 
 	void set_lifetime(lifetime &&lifetime);
@@ -125,8 +128,8 @@ public:
 		, _done(std::forward<OnDoneImpl>(done)) {
 	}
 
-	bool put_next(Value value) override;
-	void put_error(Error error) override;
+	bool put_next(Value &&value) override;
+	void put_error(Error &&error) override;
 	void put_done() override;
 
 private:
@@ -170,7 +173,7 @@ consumer<Value, Error>::consumer(
 }
 
 template <typename Value, typename Error>
-bool consumer<Value, Error>::put_next(Value value) const {
+bool consumer<Value, Error>::put_next(Value &&value) const {
 	if (_instance) {
 		if (_instance->put_next(std::move(value))) {
 			return true;
@@ -181,10 +184,22 @@ bool consumer<Value, Error>::put_next(Value value) const {
 }
 
 template <typename Value, typename Error>
-void consumer<Value, Error>::put_error(Error error) const {
+bool consumer<Value, Error>::put_next_copy(const Value &value) const {
+	auto copy = value;
+	return put_next(std::move(copy));
+}
+
+template <typename Value, typename Error>
+void consumer<Value, Error>::put_error(Error &&error) const {
 	if (_instance) {
 		std::exchange(_instance, nullptr)->put_error(std::move(error));
 	}
+}
+
+template <typename Value, typename Error>
+void consumer<Value, Error>::put_error_copy(const Error &error) const {
+	auto copy = error;
+	return put_error(std::move(error));
 }
 
 template <typename Value, typename Error>
@@ -238,7 +253,7 @@ void consumer<Value, Error>::abstract_consumer_instance::terminate() {
 template <typename Value, typename Error>
 template <typename OnNext, typename OnError, typename OnDone>
 bool consumer<Value, Error>::consumer_instance<OnNext, OnError, OnDone>::put_next(
-		Value value) {
+		Value &&value) {
 	std::unique_lock<std::mutex> lock(this->_mutex);
 	if (this->_terminated) {
 		return false;
@@ -253,7 +268,7 @@ bool consumer<Value, Error>::consumer_instance<OnNext, OnError, OnDone>::put_nex
 template <typename Value, typename Error>
 template <typename OnNext, typename OnError, typename OnDone>
 void consumer<Value, Error>::consumer_instance<OnNext, OnError, OnDone>::put_error(
-		Error error) {
+		Error &&error) {
 	std::unique_lock<std::mutex> lock(this->_mutex);
 	if (!this->_terminated) {
 		auto handler = std::move(this->_error);

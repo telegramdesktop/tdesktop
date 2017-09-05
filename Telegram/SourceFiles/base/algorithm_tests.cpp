@@ -20,20 +20,29 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "catch.hpp"
 
-#include "base/algorithm.h"
+#include "base/index_based_iterator.h"
 
-TEST_CASE("push_back_safe_remove_if tests", "[base::algorithm]") {
+TEST_CASE("index_based_iterator tests", "[base::algorithm]") {
 	auto v = std::vector<int>();
 
-	SECTION("doesn't change an empty vector") {
-		base::push_back_safe_remove_if(v, [](int) { return true; });
-		REQUIRE(v.empty());
-	}
-
 	v.insert(v.end(), { 1, 2, 3, 4, 5, 4, 3, 2, 1 });
-
+	auto push_back_safe_remove_if = [](auto &v, auto predicate) {
+		auto begin = base::index_based_begin(v);
+		auto end = base::index_based_end(v);
+		auto from = std::remove_if(begin, end, predicate);
+		if (from != end) {
+			auto newEnd = base::index_based_end(v);
+			if (newEnd != end) {
+				REQUIRE(newEnd > end);
+				while (end != newEnd) {
+					*from++ = *end++;
+				}
+			}
+			v.erase(from.base(), newEnd.base());
+		}
+	};
 	SECTION("allows to push_back from predicate") {
-		base::push_back_safe_remove_if(v, [&v](int value) {
+		push_back_safe_remove_if(v, [&v](int value) {
 			v.push_back(value);
 			return (value % 2) == 1;
 		});
@@ -42,7 +51,7 @@ TEST_CASE("push_back_safe_remove_if tests", "[base::algorithm]") {
 	}
 
 	SECTION("allows to push_back while removing all") {
-		base::push_back_safe_remove_if(v, [&v](int value) {
+		push_back_safe_remove_if(v, [&v](int value) {
 			if (value == 5) {
 				v.push_back(value);
 			}

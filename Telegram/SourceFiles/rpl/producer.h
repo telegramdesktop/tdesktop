@@ -105,10 +105,10 @@ inline decltype(auto) bind_on_next(OnNext &&handler) {
 			handler = std::forward<OnNext>(handler)
 		](consumer<no_value, error_type> consumer) {
 			return existing.start([handler = std::decay_t<OnNext>(handler)](
-				value_type value) {
-				handler(value);
-			}, [consumer](error_type error) {
-				consumer.put_error(error);
+				value_type &&value) {
+				handler(std::move(value));
+			}, [consumer](error_type &&error) {
+				consumer.put_error(std::move(error));
 			}, [consumer] {
 				consumer.put_done();
 			});
@@ -125,10 +125,10 @@ inline decltype(auto) bind_on_error(OnError &&handler) {
 			existing = std::move(existing),
 			handler = std::forward<OnError>(handler)
 		](consumer<value_type, no_error> consumer) {
-			return existing.start([consumer](value_type value) {
-				consumer.put_next(value);
-			}, [handler = std::decay_t<OnError>(handler)](error_type value) {
-				handler(value);
+			return existing.start([consumer](value_type &&value) {
+				consumer.put_next(std::move(value));
+			}, [handler = std::decay_t<OnError>(handler)](error_type &&error) {
+				handler(std::move(error));
 			}, [consumer] {
 				consumer.put_done();
 			});
@@ -145,10 +145,10 @@ inline decltype(auto) bind_on_done(OnDone &&handler) {
 			existing = std::move(existing),
 			handler = std::forward<OnDone>(handler)
 		](consumer<value_type, error_type> consumer) {
-			return existing.start([consumer](value_type value) {
-				consumer.put_next(value);
-			}, [consumer](error_type value) {
-				consumer.put_error(value);
+			return existing.start([consumer](value_type &&value) {
+				consumer.put_next(std::move(value));
+			}, [consumer](error_type &&value) {
+				consumer.put_error(std::move(value));
 			}, [handler = std::decay_t<OnDone>(handler)] {
 				handler();
 			});
@@ -511,8 +511,8 @@ inline void operator|(
 		producer<Value, Error> &&producer,
 		lifetime_holder &&start_with_lifetime) {
 	return std::move(producer)
-		| on_next([](Value) {})
-		| on_error([](Error) {})
+		| on_next([](Value&&) {})
+		| on_error([](Error&&) {})
 		| on_done([] {})
 		| std::move(start_with_lifetime);
 }
@@ -522,7 +522,7 @@ inline void operator|(
 		producer_with_next<Value, Error, OnNext> &&producer_with_next,
 		lifetime_holder &&start_with_lifetime) {
 	return std::move(producer_with_next)
-		| on_error([](Error) {})
+		| on_error([](Error&&) {})
 		| on_done([] {})
 		| std::move(start_with_lifetime);
 }
@@ -532,7 +532,7 @@ inline void operator|(
 		producer_with_error<Value, Error, OnError> &&producer_with_error,
 		lifetime_holder &&start_with_lifetime) {
 	return std::move(producer_with_error)
-		| on_next([](Value) {})
+		| on_next([](Value&&) {})
 		| on_done([] {})
 		| std::move(start_with_lifetime);
 }
@@ -542,8 +542,8 @@ inline void operator|(
 		producer_with_done<Value, Error, OnDone> &&producer_with_done,
 		lifetime_holder &&start_with_lifetime) {
 	return std::move(producer_with_done)
-		| on_next([](Value) {})
-		| on_error([](Error) {})
+		| on_next([](Value&&) {})
+		| on_error([](Error&&) {})
 		| std::move(start_with_lifetime);
 }
 
@@ -569,7 +569,7 @@ inline void operator|(
 			OnDone> &&producer_with_next_done,
 		lifetime_holder &&start_with_lifetime) {
 	return std::move(producer_with_next_done)
-		| on_error([](Error) {})
+		| on_error([](Error&&) {})
 		| std::move(start_with_lifetime);
 }
 
@@ -582,7 +582,7 @@ inline void operator|(
 			OnDone> &&producer_with_error_done,
 		lifetime_holder &&start_with_lifetime) {
 	return std::move(producer_with_error_done)
-		| on_next([](Value) {})
+		| on_next([](Value&&) {})
 		| std::move(start_with_lifetime);
 }
 
