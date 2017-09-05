@@ -137,7 +137,7 @@ emojiCategory: IconButton {
 	width: 42px;
 	height: 46px;
 
-	iconPosition: point(10px, 11px);
+	iconPosition: point(8px, 9px);
 }
 emojiCategoryRecent: IconButton(emojiCategory) { icon: emojiRecent; }
 emojiCategoryPeople: IconButton(emojiCategory) { icon: emojiPeople; }
