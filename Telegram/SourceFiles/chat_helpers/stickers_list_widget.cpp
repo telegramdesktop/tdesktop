@@ -839,10 +839,12 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int index, bo
 	}
 
 	if (selected && stickerHasDeleteButton(set, index)) {
-		auto xPos = pos + QPoint(st::stickerPanSize.width() - st::stickerPanDelete.width(), 0);
-		if (!deleteSelected) p.setOpacity(st::stickerPanDeleteOpacity);
-		st::stickerPanDelete.paint(p, xPos, width());
-		if (!deleteSelected) p.setOpacity(1.);
+		auto xPos = pos + QPoint(st::stickerPanSize.width() - st::stickerPanDeleteIconBg.width(), 0);
+		p.setOpacity(deleteSelected ? st::stickerPanDeleteOpacityBgOver : st::stickerPanDeleteOpacityBg);
+		st::stickerPanDeleteIconBg.paint(p, xPos, width());
+		p.setOpacity(deleteSelected ? st::stickerPanDeleteOpacityFgOver : st::stickerPanDeleteOpacityFg);
+		st::stickerPanDeleteIconFg.paint(p, xPos, width());
+		p.setOpacity(1.);
 	}
 }
 
@@ -1466,7 +1468,7 @@ void StickersListWidget::updateSelected() {
 					if (stickerHasDeleteButton(set, index)) {
 						auto inx = sx - (columnIndex * st::stickerPanSize.width());
 						auto iny = yOffset - (rowIndex * st::stickerPanSize.height());
-						if (inx >= st::stickerPanSize.width() - st::stickerPanDelete.width() && iny < st::stickerPanDelete.height()) {
+						if (inx >= st::stickerPanSize.width() - st::stickerPanDeleteIconBg.width() && iny < st::stickerPanDeleteIconBg.height()) {
 							overDelete = true;
 						}
 					}

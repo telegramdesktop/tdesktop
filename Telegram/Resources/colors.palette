@@ -255,7 +255,7 @@ emojiPanHeaderFg: windowSubTextFg; // emoji panel section header text
 emojiPanHeaderBg: #fffffff2 | emojiPanBg; // emoji panel section header background
 emojiIconFg: checkboxFg; // emoji category icon
 emojiIconFgActive: windowBgActive; // active emoji category icon
-stickerPanDeleteBg: #000000cc; // delete X button background for custom sent stickers in stickers panel (legacy)
+stickerPanDeleteBg: #000000ff; // delete X button background for custom sent stickers in stickers panel (legacy)
 stickerPanDeleteFg: windowFgActive; // delete X button icon for custom sent stickers in stickers panel (legacy)
 stickerPreviewBg: #ffffffb0; // sticker and GIF preview background (when you press and hold on a sticker)
 

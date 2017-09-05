@@ -201,17 +201,19 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 	}
 
 	if (_delete && (_state & StateFlag::Over)) {
-		float64 deleteOver = _a_deleteOver.current(context->ms, (_state & StateFlag::DeleteOver) ? 1 : 0);
-		QPoint deletePos = QPoint(_width - st::stickerPanDelete.width(), 0);
-		p.setOpacity(deleteOver + (1 - deleteOver) * st::stickerPanDeleteOpacity);
-		st::stickerPanDelete.paint(p, deletePos, _width);
-		p.setOpacity(1);
+		auto deleteSelected = (_state & StateFlag::DeleteOver);
+		auto deletePos = QPoint(_width - st::stickerPanDeleteIconBg.width(), 0);
+		p.setOpacity(deleteSelected ? st::stickerPanDeleteOpacityBgOver : st::stickerPanDeleteOpacityBg);
+		st::stickerPanDeleteIconBg.paint(p, deletePos, width());
+		p.setOpacity(deleteSelected ? st::stickerPanDeleteOpacityFgOver : st::stickerPanDeleteOpacityFg);
+		st::stickerPanDeleteIconFg.paint(p, deletePos, width());
+		p.setOpacity(1.);
 	}
 }
 
 void Gif::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const {
 	if (QRect(0, 0, _width, st::inlineMediaHeight).contains(point)) {
-		if (_delete && rtlpoint(point, _width).x() >= _width - st::stickerPanDelete.width() && point.y() < st::stickerPanDelete.height()) {
+		if (_delete && rtlpoint(point, _width).x() >= _width - st::stickerPanDeleteIconBg.width() && point.y() < st::stickerPanDeleteIconBg.height()) {
 			link = _delete;
 		} else {
 			link = _send;

@@ -194,11 +194,12 @@ hashtagClose: IconButton {
 
 stickerPanSize: size(64px, 64px);
 stickerPanPadding: 11px;
-stickerPanDelete: icon {
-	{ "emoji_delete_bg", stickerPanDeleteBg },
-	{ "emoji_delete", stickerPanDeleteFg },
-};
-stickerPanDeleteOpacity: 0.5;
+stickerPanDeleteIconBg: icon {{ "emoji_delete_bg", stickerPanDeleteBg }};
+stickerPanDeleteIconFg: icon {{ "emoji_delete", stickerPanDeleteFg }};
+stickerPanDeleteOpacityBg: 0.3;
+stickerPanDeleteOpacityBgOver: 0.5;
+stickerPanDeleteOpacityFg: 0.8;
+stickerPanDeleteOpacityFgOver: 1.;
 stickerPanRemoveSet: hashtagClose;
 stickerIconPadding: 5px;
 stickerIconOpacity: 0.7;
