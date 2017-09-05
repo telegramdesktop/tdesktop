@@ -252,11 +252,22 @@ If you get errors like
 
 run `git reset --hard HEAD` and execute `gclient` again
 
+If you get errors like
+
+    [P15084 09:15:28.171 fs.go:341 W] fs: failed to rename() - Access is denied.
+    [P15084 09:15:28.194 client.go:1378 E] Failed to install infra/tools/luci/led/windows-amd64:cc7454629aa4b4a90a5de014f4089cc680d15c4b - Access is denied. 
+    Error: failed to update packages, see the log.
+
+run `set PATH=D:\TBuild\Libraries\depot_tools;%PATH%` and execute `gclient` again
+
 ##### Breakpad
 
     cd ..
     mkdir breakpad && cd breakpad
     ..\depot_tools\fetch breakpad
+    
+If you get the following Python error: `TypeError: not all arguments converted during string formatting`, you may want to apply [this patch](https://bugs.chromium.org/p/chromium/issues/detail?id=749720#c4) (more info in [this issue](https://github.com/telegramdesktop/tdesktop/issues/3761)) and try again.
+
     ..\depot_tools\gclient sync
     xcopy src\src\* src /s /i
     rmdir src\src /s /q
