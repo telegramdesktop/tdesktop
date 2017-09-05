@@ -686,9 +686,14 @@ public:
 	}
 	virtual QString notificationText() const;
 
+	enum class DrawInDialog {
+		Normal,
+		WithoutSender,
+	};
+
 	// Returns text with link-start and link-end commands for service-color highlighting.
 	// Example: "[link1-start]You:[link1-end] [link1-start]Photo,[link1-end] caption text"
-	virtual QString inDialogsText() const;
+	virtual QString inDialogsText(DrawInDialog way) const;
 	virtual QString inReplyText() const {
 		return notificationText();
 	}
@@ -709,7 +714,15 @@ public:
 	virtual void setViewsCount(int32 count) {
 	}
 	virtual void setId(MsgId newId);
-	void drawInDialog(Painter &p, const QRect &r, bool active, bool selected, const HistoryItem *&cacheFor, Text &cache) const;
+
+	void drawInDialog(
+		Painter &p,
+		const QRect &r,
+		bool active,
+		bool selected,
+		DrawInDialog way,
+		const HistoryItem *&cacheFor,
+		Text &cache) const;
 
 	bool emptyText() const {
 		return _text.isEmpty();

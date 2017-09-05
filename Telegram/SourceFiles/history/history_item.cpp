@@ -1166,7 +1166,7 @@ QString HistoryItem::notificationText() const {
 	return result;
 }
 
-QString HistoryItem::inDialogsText() const {
+QString HistoryItem::inDialogsText(DrawInDialog way) const {
 	auto getText = [this]() {
 		if (emptyText()) {
 			return _media ? _media->inDialogsText() : QString();
@@ -1174,7 +1174,10 @@ QString HistoryItem::inDialogsText() const {
 		return TextUtilities::Clean(_text.originalText());
 	};
 	auto plainText = getText();
-	if ((!_history->peer->isUser() || out()) && !isPost() && !isEmpty()) {
+	if ((!_history->peer->isUser() || out())
+		&& !isPost()
+		&& !isEmpty()
+		&& (way != DrawInDialog::WithoutSender)) {
 		auto fromText = author()->isSelf() ? lang(lng_from_you) : author()->shortName();
 		auto fromWrapped = textcmdLink(1, lng_dialogs_text_from_wrapped(lt_from, TextUtilities::Clean(fromText)));
 		return lng_dialogs_text_with_from(lt_from_part, fromWrapped, lt_message, plainText);
@@ -1182,10 +1185,17 @@ QString HistoryItem::inDialogsText() const {
 	return plainText;
 }
 
-void HistoryItem::drawInDialog(Painter &p, const QRect &r, bool active, bool selected, const HistoryItem *&cacheFor, Text &cache) const {
+void HistoryItem::drawInDialog(
+		Painter &p,
+		const QRect &r,
+		bool active,
+		bool selected,
+		DrawInDialog way,
+		const HistoryItem *&cacheFor,
+		Text &cache) const {
 	if (cacheFor != this) {
 		cacheFor = this;
-		cache.setText(st::dialogsTextStyle, inDialogsText(), _textDlgOptions);
+		cache.setText(st::dialogsTextStyle, inDialogsText(way), _textDlgOptions);
 	}
 	if (r.width()) {
 		p.setTextPalette(active ? st::dialogsTextPaletteActive : (selected ? st::dialogsTextPaletteOver : st::dialogsTextPalette));

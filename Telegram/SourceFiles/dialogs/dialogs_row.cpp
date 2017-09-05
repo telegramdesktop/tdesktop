@@ -52,7 +52,10 @@ void RippleRow::paintRipple(Painter &p, int x, int y, int outerWidth, TimeMs ms,
 	}
 }
 
-FakeRow::FakeRow(HistoryItem *item) : _item(item), _cache(st::dialogsTextWidthMin) {
+FakeRow::FakeRow(PeerData *searchInPeer, not_null<HistoryItem*> item)
+: _searchInPeer(searchInPeer)
+, _item(item)
+, _cache(st::dialogsTextWidthMin) {
 }
 
 } // namespace Dialogs

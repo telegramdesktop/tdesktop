@@ -108,7 +108,7 @@ public:
 		return true;
 	}
 	TextWithEntities selectedText(TextSelection selection) const override;
-	QString inDialogsText() const override;
+	QString inDialogsText(DrawInDialog way) const override;
 	QString inReplyText() const override;
 
 	~HistoryService();

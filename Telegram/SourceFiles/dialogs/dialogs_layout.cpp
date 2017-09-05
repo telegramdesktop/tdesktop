@@ -58,14 +58,13 @@ void paintRowDate(Painter &p, const QDateTime &date, QRect &rectForName, bool ac
 }
 
 template <typename PaintItemCallback, typename PaintCounterCallback>
-void paintRow(Painter &p, const RippleRow *row, History *history, HistoryItem *item, Data::Draft *draft, QDateTime date, int fullWidth, bool active, bool selected, bool onlyBackground, TimeMs ms, PaintItemCallback paintItemCallback, PaintCounterCallback paintCounterCallback) {
+void paintRow(Painter &p, const RippleRow *row, History *history, not_null<PeerData*> from, HistoryItem *item, Data::Draft *draft, QDateTime date, int fullWidth, bool active, bool selected, bool onlyBackground, TimeMs ms, PaintItemCallback paintItemCallback, PaintCounterCallback paintCounterCallback) {
 	QRect fullRect(0, 0, fullWidth, st::dialogsRowHeight);
 	p.fillRect(fullRect, active ? st::dialogsBgActive : (selected ? st::dialogsBgOver : st::dialogsBg));
 	row->paintRipple(p, 0, 0, fullWidth, ms, &(active ? st::dialogsRippleBgActive : st::dialogsRippleBg)->c);
 	if (onlyBackground) return;
 
-	auto userpicPeer = (history->peer->migrateTo() ? history->peer->migrateTo() : history->peer);
-	userpicPeer->paintUserpicLeft(p, st::dialogsPadding.x(), st::dialogsPadding.y(), fullWidth, st::dialogsPhotoSize);
+	from->paintUserpicLeft(p, st::dialogsPadding.x(), st::dialogsPadding.y(), fullWidth, st::dialogsPhotoSize);
 
 	auto nameleft = st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPhotoPadding;
 	if (fullWidth <= nameleft) {
@@ -78,7 +77,7 @@ void paintRow(Painter &p, const RippleRow *row, History *history, HistoryItem *i
 	auto namewidth = fullWidth - nameleft - st::dialogsPadding.x();
 	QRect rectForName(nameleft, st::dialogsPadding.y() + st::dialogsNameTop, namewidth, st::msgNameFont->height);
 
-	if (auto chatTypeIcon = ChatTypeIcon(history->peer, active, selected)) {
+	if (auto chatTypeIcon = ChatTypeIcon(from, active, selected)) {
 		chatTypeIcon->paint(p, rectForName.topLeft(), fullWidth);
 		rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
 	}
@@ -151,14 +150,14 @@ void paintRow(Painter &p, const RippleRow *row, History *history, HistoryItem *i
 		sendStateIcon->paint(p, rectForName.topLeft() + QPoint(rectForName.width(), 0), fullWidth);
 	}
 
-	if (history->peer->isVerified()) {
+	if (from == history->peer && from->isVerified()) {
 		auto icon = &(active ? st::dialogsVerifiedIconActive : (selected ? st::dialogsVerifiedIconOver : st::dialogsVerifiedIcon));
 		rectForName.setWidth(rectForName.width() - icon->width());
-		icon->paint(p, rectForName.topLeft() + QPoint(qMin(history->peer->dialogName().maxWidth(), rectForName.width()), 0), fullWidth);
+		icon->paint(p, rectForName.topLeft() + QPoint(qMin(from->dialogName().maxWidth(), rectForName.width()), 0), fullWidth);
 	}
 
 	p.setPen(active ? st::dialogsNameFgActive : (selected ? st::dialogsNameFgOver : st::dialogsNameFg));
-	history->peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
+	from->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
 struct UnreadBadgeSizeData {
@@ -292,7 +291,8 @@ void RowPainter::paint(Painter &p, const Row *row, int fullWidth, bool active, b
 	if (item && cloudDraft && unreadCount > 0) {
 		cloudDraft = nullptr; // Draw item, if draft is older.
 	}
-	paintRow(p, row, history, item, cloudDraft, displayDate(), fullWidth, active, selected, onlyBackground, ms, [&p, fullWidth, active, selected, ms, history, unreadCount](int nameleft, int namewidth, HistoryItem *item) {
+	auto from = (history->peer->migrateTo() ? history->peer->migrateTo() : history->peer);
+	paintRow(p, row, history, from, item, cloudDraft, displayDate(), fullWidth, active, selected, onlyBackground, ms, [&p, fullWidth, active, selected, ms, history, unreadCount](int nameleft, int namewidth, HistoryItem *item) {
 		auto availableWidth = namewidth;
 		auto texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
 		auto hadOneBadge = false;
@@ -343,7 +343,14 @@ void RowPainter::paint(Painter &p, const Row *row, int fullWidth, bool active, b
 		}
 		auto &color = active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService);
 		if (!history->paintSendAction(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
-			item->drawInDialog(p, QRect(nameleft, texttop, availableWidth, st::dialogsTextFont->height), active, selected, history->textCachedFor, history->lastItemTextCache);
+			item->drawInDialog(
+				p,
+				QRect(nameleft, texttop, availableWidth, st::dialogsTextFont->height),
+				active,
+				selected,
+				HistoryItem::DrawInDialog::Normal,
+				history->textCachedFor,
+				history->lastItemTextCache);
 		}
 	}, [&p, fullWidth, active, selected, ms, history, unreadCount] {
 		if (unreadCount) {
@@ -367,9 +374,24 @@ void RowPainter::paint(Painter &p, const Row *row, int fullWidth, bool active, b
 void RowPainter::paint(Painter &p, const FakeRow *row, int fullWidth, bool active, bool selected, bool onlyBackground, TimeMs ms) {
 	auto item = row->item();
 	auto history = item->history();
-	paintRow(p, row, history, item, nullptr, item->date, fullWidth, active, selected, onlyBackground, ms, [&p, row, active, selected](int nameleft, int namewidth, HistoryItem *item) {
+	auto from = [&] {
+		if (auto searchPeer = row->searchInPeer()) {
+			if (!searchPeer->isChannel() || searchPeer->isMegagroup()) {
+				return item->from();
+			}
+		}
+		return (history->peer->migrateTo() ? history->peer->migrateTo() : history->peer);
+	}();
+	paintRow(p, row, history, from, item, nullptr, item->date, fullWidth, active, selected, onlyBackground, ms, [&p, row, active, selected](int nameleft, int namewidth, HistoryItem *item) {
 		int lastWidth = namewidth, texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
-		item->drawInDialog(p, QRect(nameleft, texttop, lastWidth, st::dialogsTextFont->height), active, selected, row->_cacheFor, row->_cache);
+		item->drawInDialog(
+			p,
+			QRect(nameleft, texttop, lastWidth, st::dialogsTextFont->height),
+			active,
+			selected,
+			HistoryItem::DrawInDialog::WithoutSender,
+			row->_cacheFor,
+			row->_cache);
 	}, [] {
 	});
 }

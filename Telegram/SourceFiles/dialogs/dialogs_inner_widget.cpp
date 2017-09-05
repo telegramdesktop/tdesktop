@@ -1530,7 +1530,7 @@ bool DialogsInner::searchReceived(const QVector<MTPMessage> &messages, DialogsSe
 		if (auto peer = App::peerLoaded(peerId)) {
 			if (lastDate) {
 				auto item = App::histories().addNewMessage(message, NewMessageExisting);
-				_searchResults.push_back(std::make_unique<Dialogs::FakeRow>(item));
+				_searchResults.push_back(std::make_unique<Dialogs::FakeRow>(_searchInPeer, item));
 				lastDateFound = lastDate;
 				if (isGlobalSearch) {
 					_lastSearchDate = lastDateFound;

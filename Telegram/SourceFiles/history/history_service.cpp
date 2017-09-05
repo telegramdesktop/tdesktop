@@ -445,7 +445,7 @@ TextWithEntities HistoryService::selectedText(TextSelection selection) const {
 	return _text.originalTextWithEntities((selection == FullSelection) ? AllTextSelection : selection);
 }
 
-QString HistoryService::inDialogsText() const {
+QString HistoryService::inDialogsText(DrawInDialog way) const {
 	return textcmdLink(1, TextUtilities::Clean(notificationText()));
 }
 
