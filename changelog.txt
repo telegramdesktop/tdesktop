@@ -1,3 +1,8 @@
+1.1.23 (05.09.17)
+
+- See the message author photo and name while searching specific chat messages.
+- Fix "Send To" menu action on Windows.
+
 1.1.22 (04.09.17)
 
 - Bug fixes and other minor improvements.
