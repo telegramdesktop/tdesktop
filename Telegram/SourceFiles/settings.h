@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+void InitFromCommandLine(int argc, char *argv[]);
+
 extern bool gDebug;
 inline bool cDebug() {
 #if defined _DEBUG

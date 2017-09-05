@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
 #endif // Q_OS_MAC
 	QCoreApplication::setApplicationName(qsl("TelegramDesktop"));
 
-	settingsParseArgs(argc, argv);
+	InitFromCommandLine(argc, argv);
 	if (cLaunchMode() == LaunchModeFixPrevious) {
 		return psFixPrevious();
 	} else if (cLaunchMode() == LaunchModeCleanup) {

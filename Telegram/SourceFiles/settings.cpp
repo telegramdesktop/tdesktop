@@ -119,7 +119,78 @@ int32 gAutoDownloadAudio = 0;
 int32 gAutoDownloadGif = 0;
 bool gAutoPlayGif = true;
 
-void settingsParseArgs(int argc, char *argv[]) {
+void ParseCommandLineArguments(const QStringList &arguments) {
+	enum class KeyFormat {
+		NoValues,
+		OneValue,
+		AllLeftValues,
+	};
+	auto parseMap = std::map<QByteArray, KeyFormat> {
+		{ "-testmode"   , KeyFormat::NoValues },
+		{ "-debug"      , KeyFormat::NoValues },
+		{ "-many"       , KeyFormat::NoValues },
+		{ "-key"        , KeyFormat::OneValue },
+		{ "-autostart"  , KeyFormat::NoValues },
+		{ "-fixprevios" , KeyFormat::NoValues },
+		{ "-cleanup"    , KeyFormat::NoValues },
+		{ "-noupdate"   , KeyFormat::NoValues },
+		{ "-tosettings" , KeyFormat::NoValues },
+		{ "-startintray", KeyFormat::NoValues },
+		{ "-sendpath"   , KeyFormat::AllLeftValues },
+		{ "-workdir"    , KeyFormat::OneValue },
+		{ "--"          , KeyFormat::OneValue },
+	};
+	auto parseResult = QMap<QByteArray, QStringList>();
+	auto parsingKey = QByteArray();
+	auto parsingFormat = KeyFormat::NoValues;
+	for (auto &argument : arguments) {
+		switch (parsingFormat) {
+		case KeyFormat::OneValue: {
+			parseResult[parsingKey] = QStringList(argument.mid(0, 8192));
+			parsingFormat = KeyFormat::NoValues;
+		} break;
+		case KeyFormat::AllLeftValues: {
+			parseResult[parsingKey].push_back(argument.mid(0, 8192));
+		} break;
+		case KeyFormat::NoValues: {
+			parsingKey = argument.toLatin1();
+			auto it = parseMap.find(parsingKey);
+			if (it != parseMap.end()) {
+				parsingFormat = it->second;
+				parseResult[parsingKey] = QStringList();
+			}
+		} break;
+		}
+	}
+
+	gTestMode = parseResult.contains("-testmode");
+	gDebug = parseResult.contains("-debug");
+	gManyInstance = parseResult.contains("-many");
+	gKeyFile = parseResult.value("-key", QStringList(QString())).front();
+	gLaunchMode = parseResult.contains("-autostart") ? LaunchModeAutoStart
+		: parseResult.contains("-fixprevious") ? LaunchModeFixPrevious
+		: parseResult.contains("-cleanup") ? LaunchModeCleanup : LaunchModeNormal;
+	gNoStartUpdate = parseResult.contains("-noupdate");
+	gStartToSettings = parseResult.contains("-tosettings");
+	gStartInTray = parseResult.contains("-startintray");
+	gSendPaths = parseResult.value("-sendpath", QStringList());
+	gWorkingDir = parseResult.value("-workdir", QStringList(QString())).front();
+	if (!gWorkingDir.isEmpty() && !QDir().exists(gWorkingDir)) {
+		gWorkingDir = QString();
+	}
+	gStartUrl = parseResult.value("--", QStringList(QString())).front();
+}
+
+void InitFromCommandLine(int argc, char *argv[]) {
+	Expects(argc >= 0);
+
+	auto arguments = QStringList();
+	arguments.reserve(argc);
+	for (auto i = 0; i != argc; ++i) {
+		arguments.push_back(fromUtf8Safe(argv[i]));
+	}
+	gArguments = arguments.join(' ');
+
 #ifdef Q_OS_MAC
 #ifndef OS_MAC_OLD
 	if (QSysInfo::macVersion() >= QSysInfo::MV_10_11) {
@@ -161,12 +232,6 @@ void settingsParseArgs(int argc, char *argv[]) {
 	break;
 	}
 
-	QStringList args;
-	for (int32 i = 0; i < argc; ++i) {
-		args.push_back(fromUtf8Safe(argv[i]));
-	}
-	gArguments = args.join(' ');
-
 	auto path = Platform::CurrentExecutablePath(argc, argv);
 	LOG(("Executable path before check: %1").arg(path));
 	if (!path.isEmpty()) {
@@ -182,40 +247,8 @@ void settingsParseArgs(int argc, char *argv[]) {
 	if (cExeName().isEmpty()) {
 		LOG(("WARNING: Could not compute executable path, some features will be disabled."));
 	}
-	for (auto i = 0; i != argc; ++i) {
-		if (qstr("-testmode") == argv[i]) {
-			gTestMode = true;
-		} else if (qstr("-debug") == argv[i]) {
-			gDebug = true;
-		} else if (qstr("-many") == argv[i]) {
-			gManyInstance = true;
-		} else if (qstr("-key") == argv[i] && i + 1 < argc) {
-			gKeyFile = fromUtf8Safe(argv[++i]);
-		} else if (qstr("-autostart") == argv[i]) {
-			gLaunchMode = LaunchModeAutoStart;
-		} else if (qstr("-fixprevious") == argv[i]) {
-			gLaunchMode = LaunchModeFixPrevious;
-		} else if (qstr("-cleanup") == argv[i]) {
-			gLaunchMode = LaunchModeCleanup;
-		} else if (qstr("-noupdate") == argv[i]) {
-			gNoStartUpdate = true;
-		} else if (qstr("-tosettings") == argv[i]) {
-			gStartToSettings = true;
-		} else if (qstr("-startintray") == argv[i]) {
-			gStartInTray = true;
-		} else if (qstr("-sendpath") == argv[i] && i + 1 < argc) {
-			for (++i; i < argc; ++i) {
-				gSendPaths.push_back(fromUtf8Safe(argv[i]));
-			}
-		} else if (qstr("-workdir") == argv[i] && i + 1 < argc) {
-			QString dir = fromUtf8Safe(argv[++i]);
-			if (QDir().exists(dir)) {
-				gWorkingDir = dir;
-			}
-		} else if (qstr("--") == argv[i] && i + 1 < argc) {
-			gStartUrl = fromUtf8Safe(argv[++i]).mid(0, 8192);
-		}
-	}
+
+	ParseCommandLineArguments(arguments);
 }
 
 RecentStickerPack &cGetRecentStickers() {
