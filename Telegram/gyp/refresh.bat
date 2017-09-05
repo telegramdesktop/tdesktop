@@ -25,7 +25,7 @@ if not "%TDESKTOP_BUILD_DEFINES%" == "" (
   echo [INFO] Set build defines to !BUILD_DEFINES!
 )
 
-set GYP_MSVS_VERSION=2015
+set GYP_MSVS_VERSION=2017
 
 cd "%FullScriptPath%"
 call gyp --depth=. --generator-output=.. -Goutput_dir=../out !BUILD_DEFINES! -Dofficial_build_target=%BuildTarget% Telegram.gyp --format=ninja

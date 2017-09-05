@@ -695,7 +695,7 @@ private:
 		SendTyping = (1 << 1),
 	};
 	using TextUpdateEvents = base::flags<TextUpdateEvent>;
-	friend inline constexpr auto is_flag_type(TextUpdateEvent) { return true; };
+	friend inline constexpr bool is_flag_type(TextUpdateEvent) { return true; };
 
 	void writeDrafts(Data::Draft **localDraft, Data::Draft **editDraft);
 	void writeDrafts(History *history);

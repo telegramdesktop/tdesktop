@@ -21,7 +21,7 @@
   'conditions': [[ 'build_win', {
     'msvs_precompiled_source': '<(src_loc)/stdafx.cpp',
     'msvs_precompiled_header': '<(src_loc)/stdafx.h',
-    'msbuild_toolset': 'v140',
+    'msbuild_toolset': 'v141',
     'sources': [
       '<(res_loc)/winrc/Telegram.rc',
     ],
@@ -36,13 +36,12 @@
       '-lLzmaLib',
       '-lUxTheme',
       '-lDbgHelp',
-      '-llib_exif',
       '-lOpenAL32',
       '-lcommon',
       '-lopus',
-      'lib/common',
-      'lib/exception_handler',
-      'lib/crash_generation_client',
+      'windows/common',
+      'windows/handler/exception_handler',
+      'windows/crash_generation/crash_generation_client',
     ],
     'msvs_settings': {
       'VCLinkerTool': {
@@ -58,16 +57,15 @@
     'configurations': {
       'Debug': {
         'include_dirs': [
-          '<(libs_loc)/openssl_debug/Debug/include',
+          '<(libs_loc)/openssl/Debug/include',
         ],
         'library_dirs': [
-          '<(libs_loc)/openssl_debug/Debug/lib',
+          '<(libs_loc)/openssl/Debug/lib',
           '<(libs_loc)/lzma/C/Util/LzmaLib/Debug',
-          '<(libs_loc)/libexif-0.6.20/win32/Debug',
           '<(libs_loc)/opus/win32/VS2015/Win32/Debug',
           '<(libs_loc)/openal-soft/build/Debug',
-          '<(libs_loc)/zlib-1.2.8/contrib/vstudio/vc11/x86/ZlibStatDebug',
-          '<(libs_loc)/breakpad/src/client/windows/Debug',
+          '<(libs_loc)/zlib/contrib/vstudio/vc14/x86/ZlibStatDebug',
+          '<(libs_loc)/breakpad/src/out/Debug/obj/client',
         ],
       },
       'Release': {
@@ -77,11 +75,10 @@
         'library_dirs': [
           '<(libs_loc)/openssl/Release/lib',
           '<(libs_loc)/lzma/C/Util/LzmaLib/Release',
-          '<(libs_loc)/libexif-0.6.20/win32/Release',
           '<(libs_loc)/opus/win32/VS2015/Win32/Release',
           '<(libs_loc)/openal-soft/build/Release',
-          '<(libs_loc)/zlib-1.2.8/contrib/vstudio/vc11/x86/ZlibStatRelease',
-          '<(libs_loc)/breakpad/src/client/windows/Release',
+          '<(libs_loc)/zlib/contrib/vstudio/vc14/x86/ZlibStatReleaseWithoutAsm',
+          '<(libs_loc)/breakpad/src/out/Release/obj/client',
         ],
       },
     },
