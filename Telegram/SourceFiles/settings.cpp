@@ -131,7 +131,7 @@ void ParseCommandLineArguments(const QStringList &arguments) {
 		{ "-many"       , KeyFormat::NoValues },
 		{ "-key"        , KeyFormat::OneValue },
 		{ "-autostart"  , KeyFormat::NoValues },
-		{ "-fixprevios" , KeyFormat::NoValues },
+		{ "-fixprevious", KeyFormat::NoValues },
 		{ "-cleanup"    , KeyFormat::NoValues },
 		{ "-noupdate"   , KeyFormat::NoValues },
 		{ "-tosettings" , KeyFormat::NoValues },
@@ -166,7 +166,7 @@ void ParseCommandLineArguments(const QStringList &arguments) {
 	gTestMode = parseResult.contains("-testmode");
 	gDebug = parseResult.contains("-debug");
 	gManyInstance = parseResult.contains("-many");
-	gKeyFile = parseResult.value("-key", QStringList(QString())).front();
+	gKeyFile = parseResult.value("-key", QStringList()).join(QString());
 	gLaunchMode = parseResult.contains("-autostart") ? LaunchModeAutoStart
 		: parseResult.contains("-fixprevious") ? LaunchModeFixPrevious
 		: parseResult.contains("-cleanup") ? LaunchModeCleanup : LaunchModeNormal;
@@ -174,11 +174,11 @@ void ParseCommandLineArguments(const QStringList &arguments) {
 	gStartToSettings = parseResult.contains("-tosettings");
 	gStartInTray = parseResult.contains("-startintray");
 	gSendPaths = parseResult.value("-sendpath", QStringList());
-	gWorkingDir = parseResult.value("-workdir", QStringList(QString())).front();
+	gWorkingDir = parseResult.value("-workdir", QStringList()).join(QString());
 	if (!gWorkingDir.isEmpty() && !QDir().exists(gWorkingDir)) {
 		gWorkingDir = QString();
 	}
-	gStartUrl = parseResult.value("--", QStringList(QString())).front();
+	gStartUrl = parseResult.value("--", QStringList()).join(QString());
 }
 
 void InitFromCommandLine(int argc, char *argv[]) {
