@@ -542,6 +542,11 @@ buildCustomQt() {
   git apply "$QT_PATCH"
   cd ..
 
+  cd "$EXTERNAL/qt${QT_VERSION}/qtbase/src/plugins/platforminputcontexts"
+  git clone https://github.com/telegramdesktop/fcitx.git
+  git clone https://github.com/telegramdesktop/hime.git
+  cd ../../../..
+
   ./configure -prefix $QT_PATH -release -opensource -confirm-license -qt-zlib \
               -qt-libpng -qt-libjpeg -qt-freetype -qt-harfbuzz -qt-pcre -qt-xcb \
               -qt-xkbcommon-x11 -no-opengl -no-gtkstyle -static \
