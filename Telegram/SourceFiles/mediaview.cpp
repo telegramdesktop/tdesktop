@@ -78,13 +78,12 @@ struct MediaView::SharedMedia {
 };
 
 struct MediaView::UserPhotos {
-	UserPhotos(UserPhotosViewer::Key key)
-		: key(key)
-		, slice(key, kIdsLimit, kIdsLimit) {
+	UserPhotos(UserPhotosSlice::Key key)
+		: key(key) {
 	}
 
-	UserPhotosViewer::Key key;
-	UserPhotosViewer slice;
+	UserPhotosSlice::Key key;
+	rpl::lifetime lifetime;
 };
 
 MediaView::MediaView() : TWidget(nullptr)
@@ -1075,7 +1074,7 @@ void MediaView::validateSharedMedia() {
 }
 
 void MediaView::handleSharedMediaUpdate(const SharedMediaSliceWithLast &update) {
-	if (isHidden() || (!_photo && !_doc) || !_sharedMedia) {
+	if ((!_photo && !_doc) || !_sharedMedia) {
 		_sharedMediaData = base::none;
 	} else {
 		_sharedMediaData = update;
@@ -1120,21 +1119,24 @@ bool MediaView::validUserPhotos() const {
 void MediaView::validateUserPhotos() {
 	if (auto key = userPhotosKey()) {
 		_userPhotos = std::make_unique<UserPhotos>(*key);
-		subscribe(_userPhotos->slice.updated, [this](const UserPhotosSlice &data) {
-			handleUserPhotosUpdate(data);
-		});
-		_userPhotos->slice.start();
+		UserPhotosViewer(
+			*key,
+			kIdsLimit,
+			kIdsLimit
+		) | rpl::on_next([this](UserPhotosSlice &&update) {
+			handleUserPhotosUpdate(std::move(update));
+		}) | rpl::start(_userPhotos->lifetime);
 	} else {
 		_userPhotos = nullptr;
 		_userPhotosData = base::none;
 	}
 }
 
-void MediaView::handleUserPhotosUpdate(const UserPhotosSlice &update) {
-	if (isHidden() || !_photo || !_userPhotos) {
+void MediaView::handleUserPhotosUpdate(UserPhotosSlice &&update) {
+	if (!_photo || !_userPhotos) {
 		_userPhotosData = base::none;
 	} else {
-		_userPhotosData = update;
+		_userPhotosData = std::move(update);
 	}
 	findCurrent();
 	updateControls();

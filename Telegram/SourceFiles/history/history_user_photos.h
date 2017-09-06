@@ -23,13 +23,17 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/storage_user_photos.h"
 #include "base/weak_unique_ptr.h"
 
-class UserPhotosViewer;
 class UserPhotosSlice {
 public:
 	using Key = Storage::UserPhotosKey;
 
 	UserPhotosSlice(Key key);
-	UserPhotosSlice(Key key, base::optional<int> fullCount);
+	UserPhotosSlice(
+		Key key,
+		const std::deque<PhotoId> &ids,
+		base::optional<int> fullCount,
+		base::optional<int> skippedBefore,
+		int skippedAfter);
 
 	const Key &key() const { return _key; }
 
@@ -50,41 +54,11 @@ private:
 	base::optional<int> _skippedBefore;
 	int _skippedAfter = 0;
 
-	friend class UserPhotosViewer;
+	friend class UserPhotosSliceBuilder;
 
 };
 
-class UserPhotosViewer :
-	private base::Subscriber,
-	public base::enable_weak_from_this {
-public:
-	using Key = Storage::UserPhotosKey;
-
-	UserPhotosViewer(Key key, int limitBefore, int limitAfter);
-
-	void start();
-
-	base::Observable<UserPhotosSlice> updated;
-
-private:
-	using InitialResult = Storage::UserPhotosResult;
-	using SliceUpdate = Storage::UserPhotosSliceUpdate;
-
-	void loadInitial();
-	void requestPhotos();
-	void applyStoredResult(InitialResult &&result);
-	void applyUpdate(const SliceUpdate &update);
-	void sliceToLimits();
-
-	void mergeSliceData(
-		base::optional<int> count,
-		const std::deque<PhotoId> &photoIds,
-		base::optional<int> skippedBefore,
-		int skippedAfter);
-
-	Key _key;
-	int _limitBefore = 0;
-	int _limitAfter = 0;
-	UserPhotosSlice _data;
-
-};
+rpl::producer<UserPhotosSlice> UserPhotosViewer(
+	UserPhotosSlice::Key key,
+	int limitBefore,
+	int limitAfter);

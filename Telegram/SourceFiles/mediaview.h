@@ -178,11 +178,11 @@ private:
 	void handleSharedMediaUpdate(const SharedMediaSliceWithLast &update);
 
 	struct UserPhotos;
-	using UserPhotosKey = UserPhotosViewer::Key;
+	using UserPhotosKey = UserPhotosSlice::Key;
 	base::optional<UserPhotosKey> userPhotosKey() const;
 	bool validUserPhotos() const;
 	void validateUserPhotos();
-	void handleUserPhotosUpdate(const UserPhotosSlice &update);
+	void handleUserPhotosUpdate(UserPhotosSlice &&update);
 
 	void refreshMediaViewer();
 	void refreshNavVisibility();

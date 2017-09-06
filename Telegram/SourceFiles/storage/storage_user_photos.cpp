@@ -81,38 +81,37 @@ void UserPhotos::List::sendUpdate() {
 	auto update = SliceUpdate();
 	update.photoIds = &_photoIds;
 	update.count = _count;
-	sliceUpdated.notify(update, true);
+	_sliceUpdated.fire(std::move(update));
 }
 
-void UserPhotos::List::query(
-		const UserPhotosQuery &query,
-		base::lambda_once<void(UserPhotosResult&&)> &&callback) {
-	auto result = UserPhotosResult {};
-	result.count = _count;
+rpl::producer<UserPhotosResult> UserPhotos::List::query(
+		UserPhotosQuery &&query) const {
+	return [this, query = std::move(query)](auto consumer) {
+		auto result = UserPhotosResult {};
+		result.count = _count;
 
-	auto position = base::find(_photoIds, query.key.photoId);
-	if (position != _photoIds.end()) {
-		auto haveBefore = int(position - _photoIds.begin());
-		auto haveEqualOrAfter = int(_photoIds.end() - position);
-		auto before = qMin(haveBefore, query.limitBefore);
-		auto equalOrAfter = qMin(haveEqualOrAfter, query.limitAfter + 1);
-		result.photoIds = std::deque<PhotoId>(
-			position - before,
-			position + equalOrAfter);
+		auto position = base::find(_photoIds, query.key.photoId);
+		if (position != _photoIds.end()) {
+			auto haveBefore = int(position - _photoIds.begin());
+			auto haveEqualOrAfter = int(_photoIds.end() - position);
+			auto before = qMin(haveBefore, query.limitBefore);
+			auto equalOrAfter = qMin(haveEqualOrAfter, query.limitAfter + 1);
+			result.photoIds = std::deque<PhotoId>(
+				position - before,
+				position + equalOrAfter);
 
-		auto skippedInIds = (haveBefore - before);
-		result.skippedBefore = _count
-			| func::add(-int(_photoIds.size()) + skippedInIds);
-		result.skippedBefore = haveBefore - before;
-		result.skippedAfter = (haveEqualOrAfter - equalOrAfter);
-	}
-	base::TaskQueue::Main().Put(
-		[
-			callback = std::move(callback),
-			result = std::move(result)
-		]() mutable {
-		callback(std::move(result));
-	});
+			auto skippedInIds = (haveBefore - before);
+			result.skippedBefore = _count
+				| func::add(-int(_photoIds.size()) + skippedInIds);
+			result.skippedBefore = haveBefore - before;
+			result.skippedAfter = (haveEqualOrAfter - equalOrAfter);
+			consumer.put_next(std::move(result));
+		} else if (_count) {
+			consumer.put_next(std::move(result));
+		}
+		consumer.put_done();
+		return rpl::lifetime();
+	};
 }
 
 std::map<UserId, UserPhotos::List>::iterator
@@ -122,12 +121,13 @@ UserPhotos::enforceLists(UserId user) {
 		return result;
 	}
 	result = _lists.emplace(user, List {}).first;
-	subscribe(result->second.sliceUpdated, [this, user](const SliceUpdate &update) {
-		sliceUpdated.notify(UserPhotosSliceUpdate(
+	result->second.sliceUpdated(
+	) | rpl::on_next([this, user](SliceUpdate &&update) {
+		_sliceUpdated.fire(UserPhotosSliceUpdate(
 			user,
 			update.photoIds,
-			update.count), true);
-	});
+			update.count));
+	}) | rpl::start(_lifetime);
 	return result;
 }
 
@@ -157,20 +157,15 @@ void UserPhotos::remove(UserPhotosRemoveAfter &&query) {
 	}
 }
 
-void UserPhotos::query(
-		const UserPhotosQuery &query,
-		base::lambda_once<void(UserPhotosResult&&)> &&callback) {
+rpl::producer<UserPhotosResult> UserPhotos::query(UserPhotosQuery &&query) const {
 	auto userIt = _lists.find(query.key.userId);
 	if (userIt != _lists.end()) {
-		userIt->second.query(query, std::move(callback));
-	} else {
-		base::TaskQueue::Main().Put(
-			[
-				callback = std::move(callback)
-			]() mutable {
-			callback(UserPhotosResult());
-		});
+		return userIt->second.query(std::move(query));
 	}
+	return [](auto consumer) {
+		consumer.put_done();
+		return rpl::lifetime();
+	};
 }
 
 } // namespace Storage

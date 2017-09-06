@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "base/enum_mask.h"
+#include "rpl/producer.h"
 
 namespace Storage {
 
@@ -62,11 +63,9 @@ public:
 	void add(UserPhotosAddSlice &&query);
 	void remove(UserPhotosRemoveOne &&query);
 	void remove(UserPhotosRemoveAfter &&query);
-	void query(
-		UserPhotosQuery &&query,
-		base::lambda_once<void(UserPhotosResult&&)> &&callback);
 
-	base::Observable<UserPhotosSliceUpdate> &userPhotosSliceUpdated();
+	rpl::producer<UserPhotosResult> query(UserPhotosQuery &&query) const;
+	rpl::producer<UserPhotosSliceUpdate> userPhotosSliceUpdated() const;
 
 	~Facade();
 

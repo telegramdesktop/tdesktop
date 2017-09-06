@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "storage/storage_facade.h"
+#include "rpl/event_stream.h"
 
 namespace Storage {
 
@@ -135,17 +136,18 @@ struct UserPhotosSliceUpdate {
 	base::optional<int> count;
 };
 
-class UserPhotos : private base::Subscriber {
+class UserPhotos {
 public:
 	void add(UserPhotosAddNew &&query);
 	void add(UserPhotosAddSlice &&query);
 	void remove(UserPhotosRemoveOne &&query);
 	void remove(UserPhotosRemoveAfter &&query);
-	void query(
-		const UserPhotosQuery &query,
-		base::lambda_once<void(UserPhotosResult&&)> &&callback);
 
-	base::Observable<UserPhotosSliceUpdate> sliceUpdated;
+	rpl::producer<UserPhotosResult> query(UserPhotosQuery &&query) const;
+
+	rpl::producer<UserPhotosSliceUpdate> sliceUpdated() const {
+		return _sliceUpdated.events();
+	}
 
 private:
 	class List {
@@ -156,15 +158,15 @@ private:
 			int count);
 		void removeOne(PhotoId photoId);
 		void removeAfter(PhotoId photoId);
-		void query(
-			const UserPhotosQuery &query,
-			base::lambda_once<void(UserPhotosResult&&)> &&callback);
+		rpl::producer<UserPhotosResult> query(UserPhotosQuery &&query) const;
 
 		struct SliceUpdate {
 			const std::deque<PhotoId> *photoIds = nullptr;
 			base::optional<int> count;
 		};
-		base::Observable<SliceUpdate> sliceUpdated;
+		rpl::producer<SliceUpdate> sliceUpdated() const {
+			return _sliceUpdated.events();
+		}
 
 	private:
 		void sendUpdate();
@@ -172,12 +174,17 @@ private:
 		base::optional<int> _count;
 		std::deque<PhotoId> _photoIds;
 
+		rpl::event_stream<SliceUpdate> _sliceUpdated;
+
 	};
 	using SliceUpdate = List::SliceUpdate;
 
 	std::map<UserId, List>::iterator enforceLists(UserId user);
 
 	std::map<UserId, List> _lists;
+
+	rpl::lifetime _lifetime;
+	rpl::event_stream<UserPhotosSliceUpdate> _sliceUpdated;
 
 };
 

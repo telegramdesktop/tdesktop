@@ -25,14 +25,25 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/storage_facade.h"
 #include "storage/storage_user_photos.h"
 
-UserPhotosSlice::UserPhotosSlice(Key key) : UserPhotosSlice(key, base::none) {
+UserPhotosSlice::UserPhotosSlice(Key key) : UserPhotosSlice(
+	key,
+	{},
+	base::none,
+	base::none,
+	0) {
 }
 
 UserPhotosSlice::UserPhotosSlice(
 	Key key,
-	base::optional<int> fullCount)
+	const std::deque<PhotoId> &ids,
+	base::optional<int> fullCount,
+	base::optional<int> skippedBefore,
+	int skippedAfter)
 	: _key(key)
-	, _fullCount(fullCount) {
+	, _ids(ids)
+	, _fullCount(fullCount)
+	, _skippedBefore(skippedBefore)
+	, _skippedAfter(skippedAfter) {
 }
 
 base::optional<int> UserPhotosSlice::indexOf(PhotoId photoId) const {
@@ -79,82 +90,62 @@ QString UserPhotosSlice::debug() const {
 	return before + middle + after;
 }
 
-UserPhotosViewer::UserPhotosViewer(
+class UserPhotosSliceBuilder {
+public:
+	using Key = UserPhotosSlice::Key;
+
+	UserPhotosSliceBuilder(Key key, int limitBefore, int limitAfter);
+
+	bool applyUpdate(const Storage::UserPhotosResult &update);
+	bool applyUpdate(const Storage::UserPhotosSliceUpdate &update);
+	void checkInsufficientPhotos();
+	rpl::producer<PhotoId> insufficientPhotosAround() const {
+		return _insufficientPhotosAround.events();
+	}
+
+	UserPhotosSlice snapshot() const;
+
+private:
+	void mergeSliceData(
+		base::optional<int> count,
+		const std::deque<PhotoId> &photoIds,
+		base::optional<int> skippedBefore,
+		int skippedAfter);
+	void sliceToLimits();
+
+	Key _key;
+	std::deque<PhotoId> _ids;
+	base::optional<int> _fullCount;
+	base::optional<int> _skippedBefore;
+	int _skippedAfter = 0;
+	int _limitBefore = 0;
+	int _limitAfter = 0;
+
+	rpl::event_stream<PhotoId> _insufficientPhotosAround;
+
+};
+
+UserPhotosSliceBuilder::UserPhotosSliceBuilder(
 	Key key,
 	int limitBefore,
 	int limitAfter)
 	: _key(key)
 	, _limitBefore(limitBefore)
-	, _limitAfter(limitAfter)
-	, _data(_key) {
+	, _limitAfter(limitAfter) {
 }
 
-void UserPhotosViewer::start() {
-	auto applyUpdateCallback = [this](auto &update) {
-		this->applyUpdate(update);
-	};
-	subscribe(Auth().storage().userPhotosSliceUpdated(), applyUpdateCallback);
-
-	loadInitial();
-}
-
-void UserPhotosViewer::loadInitial() {
-	auto weak = base::make_weak_unique(this);
-	Auth().storage().query(Storage::UserPhotosQuery(
-		_key,
-		_limitBefore,
-		_limitAfter), [weak](Storage::UserPhotosResult &&result) {
-		if (weak) {
-			weak->applyStoredResult(std::move(result));
-		}
-	});
-}
-
-void UserPhotosViewer::applyStoredResult(Storage::UserPhotosResult &&result) {
+bool UserPhotosSliceBuilder::applyUpdate(const Storage::UserPhotosResult &update) {
 	mergeSliceData(
-		result.count,
-		result.photoIds,
-		result.skippedBefore,
-		result.skippedAfter);
+		update.count,
+		update.photoIds,
+		update.skippedBefore,
+		update.skippedAfter);
+	return true;
 }
 
-void UserPhotosViewer::mergeSliceData(
-		base::optional<int> count,
-		const std::deque<PhotoId> &photoIds,
-		base::optional<int> skippedBefore,
-		int skippedAfter) {
-	if (photoIds.empty()) {
-		if (_data._fullCount != count) {
-			_data._fullCount = count;
-			if (_data._fullCount && *_data._fullCount <= _data.size()) {
-				_data._fullCount = _data.size();
-				_data._skippedBefore = _data._skippedAfter = 0;
-			}
-			updated.notify(_data);
-		}
-		sliceToLimits();
-		return;
-	}
-	if (count) {
-		_data._fullCount = count;
-	}
-	_data._skippedAfter = skippedAfter;
-	_data._ids = photoIds;
-
-	if (_data._fullCount) {
-		_data._skippedBefore = *_data._fullCount
-			- _data._skippedAfter
-			- int(_data._ids.size());
-	}
-
-	sliceToLimits();
-
-	updated.notify(_data);
-}
-
-void UserPhotosViewer::applyUpdate(const SliceUpdate &update) {
+bool UserPhotosSliceBuilder::applyUpdate(const Storage::UserPhotosSliceUpdate &update) {
 	if (update.userId != _key.userId) {
-		return;
+		return false;
 	}
 	auto idsCount = update.photoIds ? int(update.photoIds->size()) : 0;
 	mergeSliceData(
@@ -162,28 +153,99 @@ void UserPhotosViewer::applyUpdate(const SliceUpdate &update) {
 		update.photoIds ? *update.photoIds : std::deque<PhotoId> {},
 		update.count | func::add(-idsCount),
 		0);
+	return true;
 }
 
-void UserPhotosViewer::sliceToLimits() {
-	auto aroundIt = base::find(_data._ids, _key.photoId);
-	auto removeFromBegin = (aroundIt - _data._ids.begin() - _limitBefore);
-	auto removeFromEnd = (_data._ids.end() - aroundIt - _limitAfter - 1);
+void UserPhotosSliceBuilder::checkInsufficientPhotos() {
+	sliceToLimits();
+}
+
+void UserPhotosSliceBuilder::mergeSliceData(
+		base::optional<int> count,
+		const std::deque<PhotoId> &photoIds,
+		base::optional<int> skippedBefore,
+		int skippedAfter) {
+	if (photoIds.empty()) {
+		if (_fullCount != count) {
+			_fullCount = count;
+			if (_fullCount && *_fullCount <= _ids.size()) {
+				_fullCount = _ids.size();
+				_skippedBefore = _skippedAfter = 0;
+			}
+		}
+	} else {
+		if (count) {
+			_fullCount = count;
+		}
+		_skippedAfter = skippedAfter;
+		_ids = photoIds;
+
+		if (_fullCount) {
+			_skippedBefore = *_fullCount
+				- _skippedAfter
+				- int(_ids.size());
+		}
+	}
+	sliceToLimits();
+}
+
+void UserPhotosSliceBuilder::sliceToLimits() {
+	auto aroundIt = base::find(_ids, _key.photoId);
+	auto removeFromBegin = (aroundIt - _ids.begin() - _limitBefore);
+	auto removeFromEnd = (_ids.end() - aroundIt - _limitAfter - 1);
 	if (removeFromEnd > 0) {
-		_data._ids.erase(_data._ids.end() - removeFromEnd, _data._ids.end());
-		_data._skippedAfter += removeFromEnd;
+		_ids.erase(_ids.end() - removeFromEnd, _ids.end());
+		_skippedAfter += removeFromEnd;
 	}
 	if (removeFromBegin > 0) {
-		_data._ids.erase(_data._ids.begin(), _data._ids.begin() + removeFromBegin);
-		if (_data._skippedBefore) {
-			*_data._skippedBefore += removeFromBegin;
+		_ids.erase(_ids.begin(), _ids.begin() + removeFromBegin);
+		if (_skippedBefore) {
+			*_skippedBefore += removeFromBegin;
 		}
-	} else if (removeFromBegin < 0 && (!_data._skippedBefore || *_data._skippedBefore > 0)) {
-		requestPhotos();
+	} else if (removeFromBegin < 0 && (!_skippedBefore || *_skippedBefore > 0)) {
+		_insufficientPhotosAround.fire(_ids.empty() ? 0 : _ids.front());
 	}
 }
 
-void UserPhotosViewer::requestPhotos() {
-	Auth().api().requestUserPhotos(
-		App::user(_key.userId),
-		_data._ids.empty() ? 0 : _data._ids.front());
+UserPhotosSlice UserPhotosSliceBuilder::snapshot() const {
+	return UserPhotosSlice(_key, _ids, _fullCount, _skippedBefore, _skippedAfter);
+}
+
+rpl::producer<UserPhotosSlice> UserPhotosViewer(
+		UserPhotosSlice::Key key,
+		int limitBefore,
+		int limitAfter) {
+	return [key, limitBefore, limitAfter](auto consumer) {
+		auto lifetime = rpl::lifetime();
+		auto builder = lifetime.make_state<UserPhotosSliceBuilder>(
+			key,
+			limitBefore,
+			limitAfter);
+		auto applyUpdate = [=](auto &&update) {
+			if (builder->applyUpdate(std::move(update))) {
+				consumer.put_next(builder->snapshot());
+			}
+		};
+		auto requestPhotosAround = [user = App::user(key.userId)](PhotoId photoId) {
+			Auth().api().requestUserPhotos(user, photoId);
+		};
+		builder->insufficientPhotosAround()
+			| rpl::on_next(requestPhotosAround)
+			| rpl::start(lifetime);
+
+		Auth().storage().userPhotosSliceUpdated()
+			| rpl::on_next(applyUpdate)
+			| rpl::start(lifetime);
+
+		Auth().storage().query(Storage::UserPhotosQuery(
+			key,
+			limitBefore,
+			limitAfter
+		))
+			| rpl::on_next(applyUpdate)
+			| rpl::on_done([=] { builder->checkInsufficientPhotos(); })
+			| rpl::start(lifetime);
+
+		return lifetime;
+	};
 }

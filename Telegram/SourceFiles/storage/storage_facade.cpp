@@ -44,11 +44,9 @@ public:
 	void add(UserPhotosAddSlice &&query);
 	void remove(UserPhotosRemoveOne &&query);
 	void remove(UserPhotosRemoveAfter &&query);
-	void query(
-		UserPhotosQuery &&query,
-		base::lambda_once<void(UserPhotosResult&&)> &&callback);
+	rpl::producer<UserPhotosResult> query(UserPhotosQuery &&query) const;
 
-	base::Observable<UserPhotosSliceUpdate> &userPhotosSliceUpdated();
+	rpl::producer<UserPhotosSliceUpdate> userPhotosSliceUpdated() const;
 
 private:
 	SharedMedia _sharedMedia;
@@ -110,14 +108,12 @@ void Facade::Impl::remove(UserPhotosRemoveAfter &&query) {
 	return _userPhotos.remove(std::move(query));
 }
 
-void Facade::Impl::query(
-		UserPhotosQuery &&query,
-		base::lambda_once<void(UserPhotosResult&&)> &&callback) {
-	return _userPhotos.query(std::move(query), std::move(callback));
+rpl::producer<UserPhotosResult> Facade::Impl::query(UserPhotosQuery &&query) const {
+	return _userPhotos.query(std::move(query));
 }
 
-base::Observable<UserPhotosSliceUpdate> &Facade::Impl::userPhotosSliceUpdated() {
-	return _userPhotos.sliceUpdated;
+rpl::producer<UserPhotosSliceUpdate> Facade::Impl::userPhotosSliceUpdated() const {
+	return _userPhotos.sliceUpdated();
 }
 
 Facade::Facade() : _impl(std::make_unique<Impl>()) {
@@ -177,13 +173,11 @@ void Facade::remove(UserPhotosRemoveAfter &&query) {
 	return _impl->remove(std::move(query));
 }
 
-void Facade::query(
-		UserPhotosQuery &&query,
-		base::lambda_once<void(UserPhotosResult&&)> &&callback) {
-	return _impl->query(std::move(query), std::move(callback));
+rpl::producer<UserPhotosResult> Facade::query(UserPhotosQuery &&query) const {
+	return _impl->query(std::move(query));
 }
 
-base::Observable<UserPhotosSliceUpdate> &Facade::userPhotosSliceUpdated() {
+rpl::producer<UserPhotosSliceUpdate> Facade::userPhotosSliceUpdated() const {
 	return _impl->userPhotosSliceUpdated();
 }
 
