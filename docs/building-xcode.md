@@ -22,16 +22,12 @@ In your build Terminal run:
 
 to set minimal supported OS version to 10.8 for future console builds.
 
-#### zlib 1.2.8
+#### zlib
 
-http://www.zlib.net/ > Download [**zlib source code, version 1.2.8**](http://www.zlib.net/fossils/zlib-1.2.8.tar.gz)
+In Terminal go to **/Users/user/TBuild/Libraries/zlib** and run:
 
-Extract to **/Users/user/TBuild/Libraries**
-
-##### Building library
-
-In Terminal go to **/Users/user/TBuild/Libraries/zlib-1.2.8** and run:
-
+    git clone https://github.com/telegramdesktop/zlib.git
+    cd zlib
     CFLAGS="-mmacosx-version-min=10.8" LDFLAGS="-mmacosx-version-min=10.8" ./configure
     make
     sudo make install

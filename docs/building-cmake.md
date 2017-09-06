@@ -30,16 +30,12 @@ Install dev libraries
 
     sudo apt-get install libexif-dev liblzma-dev libz-dev libssl-dev libappindicator-dev libunity-dev libicu-dev libdee-dev
 
-#### zlib 1.2.8
+#### zlib
 
-http://www.zlib.net/ > Download [**zlib source code, version 1.2.8, tarball format**](http://zlib.net/fossils/zlib-1.2.8.tar.gz)
+In Terminal go to **/home/user/TBuild/Libraries** and run
 
-Extract to **/home/user/TBuild/Libraries**
-
-##### Building library
-
-In Terminal go to **/home/user/TBuild/Libraries/zlib-1.2.8** and run:
-
+    git clone https://github.com/telegramdesktop/zlib.git
+    cd zlib
     ./configure
     make
     sudo make install
@@ -146,6 +142,13 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
 ##### Apply the patch
 
     cd qtbase && git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_2.diff && cd ..
+
+##### Add additional input method plugins
+
+    cd qtbase/src/plugins/platforminputcontexts
+    git clone https://github.com/telegramdesktop/fcitx.git
+    git clone https://github.com/telegramdesktop/hime.git
+    cd ../../../..
 
 ##### Building library
 

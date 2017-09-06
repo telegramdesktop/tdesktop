@@ -1,5 +1,17 @@
+diff --git a/src/build/common.gypi b/src/build/common.gypi
+index b9466a3..9fb31aa 100644
+--- a/src/build/common.gypi
++++ b/src/build/common.gypi
+@@ -330,6 +330,7 @@
+           'VCCLCompilerTool': {
+             'WarnAsError': 'true',
+             'Detect64BitPortabilityProblems': 'false',
++            'TreatWChar_tAsBuiltInType': 'false',
+           },
+         },
+       }],
 diff --git a/src/client/mac/Breakpad.xcodeproj/project.pbxproj b/src/client/mac/Breakpad.xcodeproj/project.pbxproj
-index 584ec5d..1c7214f 100644
+index 1a93ce6..1c1d643 100644
 --- a/src/client/mac/Breakpad.xcodeproj/project.pbxproj
 +++ b/src/client/mac/Breakpad.xcodeproj/project.pbxproj
 @@ -35,6 +35,19 @@
@@ -77,7 +89,7 @@ index 584ec5d..1c7214f 100644
  /* End PBXContainerItemProxy section */
  
  /* Begin PBXCopyFilesBuildPhase section */
-@@ -715,7 +703,6 @@
+@@ -714,7 +702,6 @@
  			isa = PBXFrameworksBuildPhase;
  			buildActionMask = 2147483647;
  			files = (
@@ -85,7 +97,7 @@ index 584ec5d..1c7214f 100644
  				8DC2EF570486A6940098B216 /* Cocoa.framework in Frameworks */,
  			);
  			runOnlyForDeploymentPostprocessing = 0;
-@@ -1183,18 +1170,13 @@
+@@ -1181,18 +1168,13 @@
  			isa = PBXNativeTarget;
  			buildConfigurationList = 1DEB91AD08733DA50010E9CD /* Build configuration list for PBXNativeTarget "Breakpad" */;
  			buildPhases = (
@@ -104,7 +116,7 @@ index 584ec5d..1c7214f 100644
  			);
  			name = Breakpad;
  			productInstallPath = "$(HOME)/Library/Frameworks";
-@@ -1401,6 +1383,8 @@
+@@ -1399,6 +1381,8 @@
  /* Begin PBXProject section */
  		0867D690FE84028FC02AAC07 /* Project object */ = {
  			isa = PBXProject;
@@ -113,7 +125,7 @@ index 584ec5d..1c7214f 100644
  			buildConfigurationList = 1DEB91B108733DA50010E9CD /* Build configuration list for PBXProject "Breakpad" */;
  			compatibilityVersion = "Xcode 3.1";
  			developmentRegion = English;
-@@ -1585,16 +1569,6 @@
+@@ -1583,16 +1567,6 @@
  /* End PBXReferenceProxy section */
  
  /* Begin PBXResourcesBuildPhase section */
@@ -130,7 +142,7 @@ index 584ec5d..1c7214f 100644
  		F92C569C0ECE04A7009BE4BA /* Resources */ = {
  			isa = PBXResourcesBuildPhase;
  			buildActionMask = 2147483647;
-@@ -1642,20 +1616,6 @@
+@@ -1640,20 +1614,6 @@
  			shellPath = /bin/sh;
  			shellScript = "install_name_tool -id \"@executable_path/../Resources/breakpadUtilities.dylib\" \"${BUILT_PRODUCTS_DIR}/breakpadUtilities.dylib\"\n";
  		};
@@ -151,7 +163,7 @@ index 584ec5d..1c7214f 100644
  		F9C77DD80F7DD5CF0045F7DB /* ShellScript */ = {
  			isa = PBXShellScriptBuildPhase;
  			buildActionMask = 2147483647;
-@@ -1676,6 +1636,19 @@
+@@ -1674,6 +1634,19 @@
  			isa = PBXSourcesBuildPhase;
  			buildActionMask = 2147483647;
  			files = (
@@ -171,7 +183,7 @@ index 584ec5d..1c7214f 100644
  				F92C565F0ECD116B009BE4BA /* protected_memory_allocator.cc in Sources */,
  				F92C56630ECD1179009BE4BA /* exception_handler.cc in Sources */,
  				F92C55D10ECD0064009BE4BA /* Breakpad.mm in Sources */,
-@@ -1957,16 +1930,6 @@
+@@ -1955,16 +1928,6 @@
  			target = F92C563B0ECD10B3009BE4BA /* breakpadUtilities */;
  			targetProxy = F92C564D0ECD10E5009BE4BA /* PBXContainerItemProxy */;
  		};
@@ -188,7 +200,7 @@ index 584ec5d..1c7214f 100644
  		F93DE2FC0F82C3C600608B94 /* PBXTargetDependency */ = {
  			isa = PBXTargetDependency;
  			target = F93803BD0F80820F004D428B /* generator_test */;
-@@ -2027,11 +1990,6 @@
+@@ -2025,11 +1988,6 @@
  			target = 8DC2EF4F0486A6940098B216 /* Breakpad */;
  			targetProxy = F9C44E190EF0790F003AEBAA /* PBXContainerItemProxy */;
  		};
@@ -200,7 +212,7 @@ index 584ec5d..1c7214f 100644
  /* End PBXTargetDependency section */
  
  /* Begin PBXVariantGroup section */
-@@ -2128,8 +2086,12 @@
+@@ -2126,8 +2084,12 @@
  			isa = XCBuildConfiguration;
  			baseConfigurationReference = 8B31027711F0D3AF00FCF3E4 /* BreakpadDebug.xcconfig */;
  			buildSettings = {
@@ -214,7 +226,7 @@ index 584ec5d..1c7214f 100644
  			};
  			name = Debug;
  		};
-@@ -2137,7 +2099,12 @@
+@@ -2135,7 +2097,12 @@
  			isa = XCBuildConfiguration;
  			baseConfigurationReference = 8B31027811F0D3AF00FCF3E4 /* BreakpadRelease.xcconfig */;
  			buildSettings = {
@@ -227,7 +239,7 @@ index 584ec5d..1c7214f 100644
  			};
  			name = Release;
  		};
-@@ -2456,7 +2423,12 @@
+@@ -2454,7 +2421,12 @@
  			isa = XCBuildConfiguration;
  			baseConfigurationReference = 8B31027711F0D3AF00FCF3E4 /* BreakpadDebug.xcconfig */;
  			buildSettings = {

@@ -57,16 +57,12 @@ From **/Users/user/TBuild/Libraries/macold** run
     make -j4
     sudo make install
 
-#### zlib 1.2.8
+#### zlib
 
-http://www.zlib.net/ > Download [**zlib source code, version 1.2.8**](http://www.zlib.net/fossils/zlib-1.2.8.tar.gz)
+In Terminal go to **/Users/user/TBuild/Libraries** and run:
 
-Extract to **/Users/user/TBuild/Libraries/macold**
-
-##### Building library
-
-In Terminal go to **/Users/user/TBuild/Libraries/zlib-1.2.8** and run:
-
+    git clone https://github.com/telegramdesktop/zlib.git
+    cd zlib
     prefix=/usr/local/macold CFLAGS="-mmacosx-version-min=10.6" LDFLAGS="-mmacosx-version-min=10.6" ./configure
     make
     sudo make install
