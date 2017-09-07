@@ -460,6 +460,7 @@ void MainWindow::ui_hideMediaPreview() {
 void MainWindow::showConnecting(const QString &text, const QString &reconnect) {
 	if (_connecting) {
 		_connecting->set(text, reconnect);
+		_connecting->show();
 	} else {
 		_connecting.create(bodyWidget(), text, reconnect);
 		_connecting->show();
@@ -470,7 +471,7 @@ void MainWindow::showConnecting(const QString &text, const QString &reconnect) {
 
 void MainWindow::hideConnecting() {
 	if (_connecting) {
-		_connecting.destroyDelayed();
+		_connecting->hide();
 	}
 }
 
