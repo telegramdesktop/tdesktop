@@ -108,14 +108,6 @@ inline QString langDayOfWeek(const QDate &date) {
 	return langDayOfWeek(date.dayOfWeek());
 }
 
-inline QString langDayOfWeekFull(int index) {
-	return (index > 0 && index <= 7) ? lang(LangKey(lng_weekday1_full + index - 1)) : qsl("DAY_ERR");
-}
-
-inline QString langDayOfWeekFull(const QDate &date) {
-	return langDayOfWeekFull(date.dayOfWeek());
-}
-
 inline QString langDateTime(const QDateTime &date) {
 	return lng_mediaview_date_time(lt_date, langDayOfMonth(date.date()), lt_time, date.time().toString(cTimeFormat()));
 }

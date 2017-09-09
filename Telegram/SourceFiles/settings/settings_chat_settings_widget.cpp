@@ -29,7 +29,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/localstorage.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "boxes/emoji_box.h"
 #include "boxes/stickers_box.h"
 #include "boxes/download_path_box.h"
 #include "boxes/connection_box.h"
@@ -154,12 +153,7 @@ void ChatSettingsWidget::createControls() {
 	style::margins marginSub(0, 0, 0, st::settingsSubSkip);
 	style::margins slidedPadding(0, marginSub.bottom() / 2, 0, marginSub.bottom() - (marginSub.bottom() / 2));
 
-	addChildRow(_replaceEmoji, marginSub, lang(lng_settings_replace_emojis), [this](bool) { onReplaceEmoji(); }, cReplaceEmojis());
-	style::margins marginList(st::defaultCheck.diameter + st::defaultBoxCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
-	addChildRow(_viewList, marginList, slidedPadding, lang(lng_settings_view_emojis), SLOT(onViewList()), st::defaultLinkButton);
-//	if (!cReplaceEmojis()) {
-		_viewList->hideFast();
-//	}
+	addChildRow(_replaceEmoji, marginSkip, lang(lng_settings_replace_emojis), [this](bool) { onReplaceEmoji(); }, cReplaceEmojis());
 
 #ifndef OS_WIN_STORE
 	auto pathMargin = marginSub;
@@ -190,12 +184,6 @@ void ChatSettingsWidget::createControls() {
 void ChatSettingsWidget::onReplaceEmoji() {
 	cSetReplaceEmojis(_replaceEmoji->checked());
 	Local::writeUserSettings();
-
-	//_viewList->toggleAnimated(_replaceEmoji->checked());
-}
-
-void ChatSettingsWidget::onViewList() {
-	Ui::show(Box<EmojiBox>());
 }
 
 void ChatSettingsWidget::onDontAskDownloadPath() {

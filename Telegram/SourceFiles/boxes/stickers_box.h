@@ -45,10 +45,8 @@ public:
 		Installed,
 		Featured,
 		Archived,
-		ArchivedPart,
 	};
 	StickersBox(QWidget*, Section section);
-	StickersBox(QWidget*, const Stickers::Order &archivedIds);
 	StickersBox(QWidget*, not_null<ChannelData*> megagroup);
 
 	void setInnerFocus() override;
@@ -130,10 +128,6 @@ private:
 	std::unique_ptr<Ui::SlideAnimation> _slideAnimation;
 	object_ptr<BoxLayerTitleShadow> _titleShadow = { nullptr };
 
-	int _aboutWidth = 0;
-	Text _about;
-	int _aboutHeight = 0;
-
 	mtpRequestId _archivedRequestId = 0;
 	bool _archivedLoaded = false;
 	bool _allArchivedLoaded = false;
@@ -153,7 +147,6 @@ class StickersBox::Inner : public TWidget, private base::Subscriber, private MTP
 public:
 	using Section = StickersBox::Section;
 	Inner(QWidget *parent, Section section);
-	Inner(QWidget *parent, const Stickers::Order &archivedIds);
 	Inner(QWidget *parent, not_null<ChannelData*> megagroup);
 
 	base::Observable<int> scrollToY;
@@ -265,7 +258,6 @@ private:
 	int countMaxNameWidth() const;
 
 	Section _section;
-	Stickers::Order _archivedIds;
 
 	int32 _rowHeight;
 

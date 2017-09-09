@@ -149,13 +149,6 @@ StickersBox::StickersBox(QWidget*, Section section)
 	_tabs->setRippleTopRoundRadius(st::boxRadius);
 }
 
-StickersBox::StickersBox(QWidget*, const Stickers::Order &archivedIds)
-: _section(Section::ArchivedPart)
-, _archived(0, this, archivedIds)
-, _aboutWidth(st::boxWideWidth - 2 * st::stickersReorderPadding.top())
-, _about(st::boxLabelStyle, lang(lng_stickers_packs_archived), _defaultOptions, _aboutWidth) {
-}
-
 StickersBox::StickersBox(QWidget*, not_null<ChannelData*> megagroup)
 : _section(Section::Installed)
 , _installed(0, this, megagroup)
@@ -244,8 +237,6 @@ void StickersBox::prepare() {
 		}
 	} else if (_section == Section::Archived) {
 		requestArchivedSets();
-	} else if (_section == Section::ArchivedPart) {
-		setTitle(langFactory(lng_stickers_archived));
 	}
 	if (_tabs) {
 		if (Global::ArchivedStickerSetsOrder().isEmpty()) {
@@ -259,7 +250,7 @@ void StickersBox::prepare() {
 	}
 	if (_installed.widget() && _section != Section::Installed) _installed.widget()->hide();
 	if (_featured.widget() && _section != Section::Featured) _featured.widget()->hide();
-	if (_archived.widget() && _section != Section::Archived && _section != Section::ArchivedPart) _archived.widget()->hide();
+	if (_archived.widget() && _section != Section::Archived) _archived.widget()->hide();
 
 	if (_featured.widget()) {
 		_featured.widget()->setInstallSetCallback([this](uint64 setId) { installSet(setId); });
@@ -278,17 +269,13 @@ void StickersBox::prepare() {
 
 	if (_section == Section::Installed) {
 		_tab = &_installed;
-	} else if (_section == Section::ArchivedPart) {
-		_aboutHeight = st::stickersReorderPadding.top() + _about.countHeight(_aboutWidth) + st::stickersReorderPadding.bottom();
-		_titleShadow.create(this);
-		_tab = &_archived;
 	} else if (_section == Section::Archived) {
 		_tab = &_archived;
 	} else { // _section == Section::Featured
 		_tab = &_featured;
 	}
 	setInnerWidget(_tab->takeWidget(), getTopSkip());
-	setDimensions(st::boxWideWidth, (_section == Section::ArchivedPart) ? st::sessionsHeight : st::boxMaxListHeight);
+	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
 
 	subscribe(Auth().data().stickersUpdated(), [this] { handleStickersUpdated(); });
 	Auth().api().updateStickers();
@@ -358,12 +345,6 @@ void StickersBox::paintEvent(QPaintEvent *e) {
 
 	Painter p(this);
 
-	if (_aboutHeight > 0) {
-		p.fillRect(0, st::lineWidth, width(), _aboutHeight - st::lineWidth, st::contactsAboutBg);
-		p.setPen(st::stickersReorderFg);
-		_about.draw(p, st::stickersReorderPadding.top(), st::stickersReorderPadding.top(), _aboutWidth, style::al_center);
-	}
-
 	if (_slideAnimation) {
 		_slideAnimation->paintFrame(p, 0, getTopSkip(), width(), getms());
 		if (!_slideAnimation->animating()) {
@@ -397,7 +378,7 @@ void StickersBox::updateTabsGeometry() {
 }
 
 int StickersBox::getTopSkip() const {
-	return (_tabs ? (_tabs->height() - st::lineWidth) : 0) + _aboutHeight;
+	return _tabs ? (_tabs->height() - st::lineWidth) : 0;
 }
 
 void StickersBox::switchTab() {
@@ -612,17 +593,6 @@ StickersBox::Inner::Inner(QWidget *parent, StickersBox::Section section) : TWidg
 , _addWidth(st::stickersTrendingAdd.font->width(_addText))
 , _undoText(lang(lng_stickers_return).toUpper())
 , _undoWidth(st::stickersUndoRemove.font->width(_undoText)) {
-	setup();
-}
-
-StickersBox::Inner::Inner(QWidget *parent, const Stickers::Order &archivedIds) : TWidget(parent)
-, _section(StickersBox::Section::ArchivedPart)
-, _archivedIds(archivedIds)
-, _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
-, _a_shifting(animation(this, &Inner::step_shifting))
-, _itemsTop(st::membersMarginTop)
-, _addText(lang(lng_stickers_featured_add).toUpper())
-, _addWidth(st::stickersTrendingAdd.font->width(_addText)) {
 	setup();
 }
 
@@ -1307,10 +1277,8 @@ void StickersBox::Inner::rebuild() {
 			return Global::StickerSetsOrder();
 		} else if (_section == Section::Featured) {
 			return Global::FeaturedStickerSetsOrder();
-		} else if (_section == Section::Archived) {
-			return Global::ArchivedStickerSetsOrder();
 		}
-		return _archivedIds;
+		return Global::ArchivedStickerSetsOrder();
 	})();
 	_rows.reserve(order.size() + 1);
 	_animStartTimes.reserve(order.size() + 1);

@@ -4267,7 +4267,7 @@ bool HistoryWidget::validateSendingFiles(const SendingFilesLists &lists, Callbac
 
 	App::wnd()->activateWindow();
 	if (!lists.nonLocalUrls.isEmpty()) {
-		Ui::show(Box<InformBox>(lng_send_image_non_local(lt_name, lists.nonLocalUrls.front().toDisplayString())));
+		Ui::show(Box<InformBox>(lng_send_image_empty(lt_name, lists.nonLocalUrls.front().toDisplayString())));
 	} else if (!lists.emptyFiles.isEmpty()) {
 		Ui::show(Box<InformBox>(lng_send_image_empty(lt_name, lists.emptyFiles.front())));
 	} else if (!lists.tooLargeFiles.isEmpty()) {

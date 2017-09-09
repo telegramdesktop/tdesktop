@@ -286,8 +286,8 @@ namespace {
 	QString onlineText(TimeId online, TimeId now, bool precise) {
 		if (online <= 0) {
 			switch (online) {
-			case 0: return lang(lng_status_offline);
-            case -1: return lang(lng_status_invisible);
+			case 0:
+            case -1: return lang(lng_status_offline);
 			case -2: return lang(lng_status_recently);
 			case -3: return lang(lng_status_last_week);
 			case -4: return lang(lng_status_last_month);
