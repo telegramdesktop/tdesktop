@@ -135,7 +135,7 @@ Open **x86 Native Tools Command Prompt for VS 2017.bat**, go to ***BuildPath*** 
     git checkout v5.6.2
     cd ..\qtbase
     git checkout v5.6.2
-    git apply ../../../../tdesktop/Telegram/Patches/qtbase_5_6_2.diff
+    git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_2.diff
     cd ..
 
     configure -debug-and-release -force-debug-info -opensource -confirm-license -static -I "%cd%\..\openssl\Release\include" -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="%cd%\..\openssl\Debug\lib\ssleay32.lib %cd%\..\openssl\Debug\lib\libeay32.lib" OPENSSL_LIBS_RELEASE="%cd%\..\openssl\Release\lib\ssleay32.lib %cd%\..\openssl\Release\lib\libeay32.lib" -mp -nomake examples -nomake tests -platform win32-msvc2015
