@@ -29,6 +29,48 @@ QString GetOverride(const QString &familyName);
 
 } // namespace
 
+template <typename Object>
+class object_ptr;
+
+namespace Ui {
+
+inline bool InFocusChain(not_null<const QWidget*> widget) {
+	if (auto top = widget->window()) {
+		if (auto focused = top->focusWidget()) {
+			return !widget->isHidden()
+				&& (focused == widget
+					|| widget->isAncestorOf(focused));
+		}
+	}
+	return false;
+}
+
+template <typename ChildWidget>
+inline ChildWidget *AttachParentChild(
+		not_null<QWidget*> parent,
+		const object_ptr<ChildWidget> &child) {
+	if (auto raw = child.data()) {
+		raw->setParent(parent);
+		raw->show();
+		return raw;
+	}
+	return nullptr;
+}
+
+template <typename ChildWidget>
+inline ChildWidget *AttachParentChildToBottom(
+		not_null<QWidget*> parent,
+		const object_ptr<ChildWidget> &child) {
+	if (auto raw = AttachParentChild(parent, child)) {
+		raw->resizeToWidth(parent->width());
+		raw->move(0, parent->height());
+		return raw;
+	}
+	return nullptr;
+}
+
+} // namespace Ui
+
 enum class RectPart {
 	None        = 0,
 
@@ -303,19 +345,21 @@ public:
 	virtual void grabFinish() {
 	}
 
-	bool inFocusChain() const;
+	bool inFocusChain() const {
+		return Ui::InFocusChain(this);
+	}
 
 	void hideChildren() {
 		for (auto child : children()) {
-			if (auto widget = qobject_cast<QWidget*>(child)) {
-				widget->hide();
+			if (child->isWidgetType()) {
+				static_cast<QWidget*>(child)->hide();
 			}
 		}
 	}
 	void showChildren() {
 		for (auto child : children()) {
-			if (auto widget = qobject_cast<QWidget*>(child)) {
-				widget->show();
+			if (child->isWidgetType()) {
+				static_cast<QWidget*>(child)->show();
 			}
 		}
 	}

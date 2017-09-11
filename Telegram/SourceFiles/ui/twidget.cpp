@@ -120,29 +120,65 @@ QString GetOverride(const QString &familyName) {
 
 namespace {
 
-void _sendResizeEvents(QWidget *target) {
-	QResizeEvent e(target->size(), QSize());
-	QApplication::sendEvent(target, &e);
+class WidgetCreator : public QWidget {
+public:
+	static void Create(not_null<QWidget*> widget) {
+		volatile auto unknown = widget.get();
+		static_cast<WidgetCreator*>(unknown)->create();
+	}
 
-	const QObjectList children = target->children();
-	for (int i = 0; i < children.size(); ++i) {
-		QWidget *child = static_cast<QWidget*>(children.at(i));
-		if (child->isWidgetType() && !child->isWindow() && child->testAttribute(Qt::WA_PendingResizeEvent)) {
-			_sendResizeEvents(child);
+};
+
+void CreateWidgetStateRecursive(not_null<QWidget*> target) {
+	if (!target->testAttribute(Qt::WA_WState_Created)) {
+		if (!target->isWindow()) {
+			CreateWidgetStateRecursive(target->parentWidget());
 		}
+		WidgetCreator::Create(target);
+	}
+}
+
+void SendPendingEventsRecursive(QWidget *target) {
+	auto wasVisible = target->isVisible();
+	if (!wasVisible) {
+		target->setAttribute(Qt::WA_WState_Visible, true);
+	}
+	if (target->testAttribute(Qt::WA_PendingMoveEvent)) {
+		target->setAttribute(Qt::WA_PendingMoveEvent, false);
+		QMoveEvent e(target->pos(), QPoint());
+		QApplication::sendEvent(target, &e);
+	}
+	if (target->testAttribute(Qt::WA_PendingResizeEvent)) {
+		target->setAttribute(Qt::WA_PendingResizeEvent, false);
+		QResizeEvent e(target->size(), QSize());
+		QApplication::sendEvent(target, &e);
+	}
+	auto &children = target->children();
+	for (auto i = 0; i < children.size(); ++i) {
+		auto child = children[i];
+		if (child->isWidgetType()) {
+			auto widget = static_cast<QWidget*>(child);
+			if (!widget->isWindow()) {
+				if (!widget->testAttribute(Qt::WA_WState_Created)) {
+					WidgetCreator::Create(widget);
+				}
+				SendPendingEventsRecursive(widget);
+			}
+		}
+	}
+	if (!wasVisible) {
+		target->setAttribute(Qt::WA_WState_Visible, false);
 	}
 }
 
 } // namespace
 
-bool TWidget::inFocusChain() const {
-	return !isHidden() && App::wnd() && (App::wnd()->focusWidget() == this || isAncestorOf(App::wnd()->focusWidget()));
-}
-
 void myEnsureResized(QWidget *target) {
-	if (target && (target->testAttribute(Qt::WA_PendingResizeEvent) || !target->testAttribute(Qt::WA_WState_Created))) {
-		_sendResizeEvents(target);
+	if (!target) {
+		return;
 	}
+	CreateWidgetStateRecursive(target);
+	SendPendingEventsRecursive(target);
 }
 
 QPixmap myGrab(TWidget *target, QRect rect, QColor bg) {
