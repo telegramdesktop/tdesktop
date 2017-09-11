@@ -111,7 +111,7 @@ Open **x86 Native Tools Command Prompt for VS 2017.bat**, go to ***BuildPath*** 
     msbuild opus.sln /property:Configuration=Debug /property:Platform="Win32"
     msbuild opus.sln /property:Configuration=Release /property:Platform="Win32"
 
-    cd ..
+    cd ..\..\..\..
     SET PATH_BACKUP_=%PATH%
     SET PATH=%cd%\ThirdParty\msys64\usr\bin;%PATH%
     cd Libraries
@@ -125,6 +125,7 @@ Open **x86 Native Tools Command Prompt for VS 2017.bat**, go to ***BuildPath*** 
     bash --login ../../tdesktop/Telegram/Patches/build_ffmpeg_win.sh
 
     SET PATH=%PATH_BACKUP_%
+    cd ..
 
     git clone git://code.qt.io/qt/qt5.git qt5_6_2
     cd qt5_6_2
@@ -135,6 +136,7 @@ Open **x86 Native Tools Command Prompt for VS 2017.bat**, go to ***BuildPath*** 
     cd ..\qtbase
     git checkout v5.6.2
     git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_2.diff
+    cd ..
 
     configure -debug-and-release -force-debug-info -opensource -confirm-license -static -I "%cd%\..\openssl\Release\include" -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="%cd%\..\openssl\Debug\lib\ssleay32.lib %cd%\..\openssl\Debug\lib\libeay32.lib" OPENSSL_LIBS_RELEASE="%cd%\..\openssl\Release\lib\ssleay32.lib %cd%\..\openssl\Release\lib\libeay32.lib" -mp -nomake examples -nomake tests -platform win32-msvc2015
 
