@@ -20,8 +20,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "rpl/lifetime.h"
 #include <mutex>
+#include <gsl/gsl_assert>
+#include <rpl/lifetime.h>
 
 namespace rpl {
 
@@ -36,7 +37,10 @@ struct no_error {
 struct empty_value {
 };
 
-template <typename Value, typename Error>
+struct empty_error {
+};
+
+template <typename Value = empty_value, typename Error = no_error>
 class consumer {
 public:
 	template <
@@ -57,7 +61,11 @@ public:
 	void put_error_copy(const Error &error) const;
 	void put_done() const;
 
-	void set_lifetime(lifetime &&lifetime) const;
+	void add_lifetime(lifetime &&lifetime) const;
+
+	template <typename Type, typename... Args>
+	Type *make_state(Args&& ...args) const;
+	
 	void terminate() const;
 
 	bool operator==(const consumer &other) const {
@@ -103,7 +111,11 @@ public:
 	virtual void put_error(Error &&error) = 0;
 	virtual void put_done() = 0;
 
-	void set_lifetime(lifetime &&lifetime);
+	void add_lifetime(lifetime &&lifetime);
+
+	template <typename Type, typename... Args>
+	Type *make_state(Args&& ...args);
+
 	void terminate();
 
 protected:
@@ -210,12 +222,19 @@ void consumer<Value, Error>::put_done() const {
 }
 
 template <typename Value, typename Error>
-void consumer<Value, Error>::set_lifetime(lifetime &&lifetime) const {
+void consumer<Value, Error>::add_lifetime(lifetime &&lifetime) const {
 	if (_instance) {
-		_instance->set_lifetime(std::move(lifetime));
+		_instance->add_lifetime(std::move(lifetime));
 	} else {
 		lifetime.destroy();
 	}
+}
+
+template <typename Value, typename Error>
+template <typename Type, typename... Args>
+Type *consumer<Value, Error>::make_state(Args&& ...args) const {
+	Expects(_instance != nullptr);
+	return _instance->template make_state<Type>(std::forward<Args>(args)...);
 }
 
 template <typename Value, typename Error>
@@ -226,7 +245,7 @@ void consumer<Value, Error>::terminate() const {
 }
 
 template <typename Value, typename Error>
-void consumer<Value, Error>::abstract_consumer_instance::set_lifetime(
+void consumer<Value, Error>::abstract_consumer_instance::add_lifetime(
 		lifetime &&lifetime) {
 	std::unique_lock<std::mutex> lock(_mutex);
 	if (_terminated) {
@@ -234,8 +253,17 @@ void consumer<Value, Error>::abstract_consumer_instance::set_lifetime(
 
 		lifetime.destroy();
 	} else {
-		_lifetime = std::move(lifetime);
+		_lifetime.add(std::move(lifetime));
 	}
+}
+
+template <typename Value, typename Error>
+template <typename Type, typename... Args>
+Type *consumer<Value, Error>::abstract_consumer_instance::make_state(
+		Args&& ...args) {
+	std::unique_lock<std::mutex> lock(_mutex);
+	Expects(!_terminated);
+	return _lifetime.template make_state<Type>(std::forward<Args>(args)...);
 }
 
 template <typename Value, typename Error>

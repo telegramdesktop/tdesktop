@@ -20,8 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "catch.hpp"
 
-#include "rpl/producer.h"
-#include "rpl/event_stream.h"
+#include <rpl/producer.h>
+#include <rpl/event_stream.h>
 
 using namespace rpl;
 
@@ -52,7 +52,7 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 				*destroyed = true;
 			});
 			{
-				producer<int, no_error>([=](auto consumer) {
+				producer<int, no_error>([=](auto &&consumer) {
 					(void)destroyCaller;
 					consumer.put_next(1);
 					consumer.put_next(2);
@@ -82,7 +82,7 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 	SECTION("producer error test") {
 		auto errorGenerated = std::make_shared<bool>(false);
 		{
-			producer<no_value, bool>([=](auto consumer) {
+			producer<no_value, bool>([=](auto &&consumer) {
 				consumer.put_error(true);
 				return lifetime();
 			}).start([=](no_value) {
@@ -99,16 +99,16 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 		{
 			auto lifetimes = lifetime();
 			{
-				auto testProducer = producer<no_value, no_error>([=](auto consumer) {
+				auto testProducer = producer<no_value, no_error>([=](auto &&consumer) {
 					return [=] {
 						++*lifetimeEndCount;
 					};
 				});
-				lifetimes.add(testProducer.start([=](no_value) {
+				lifetimes.add(testProducer.start_copy([=](no_value) {
 				}, [=](no_error) {
 				}, [=] {
 				}));
-				lifetimes.add(testProducer.start([=](no_value) {
+				lifetimes.add(std::move(testProducer).start([=](no_value) {
 				}, [=](no_error) {
 				}, [=] {
 				}));
@@ -123,8 +123,8 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 		auto lifetimeEndCount = std::make_shared<int>(0);
 		auto saved = lifetime();
 		{
-			saved = producer<int, no_error>([=](auto consumer) {
-				auto inner = producer<int, no_error>([=](auto consumer) {
+			saved = producer<int, no_error>([=](auto &&consumer) {
+				auto inner = producer<int, no_error>([=](auto &&consumer) {
 					consumer.put_next(1);
 					consumer.put_next(2);
 					consumer.put_next(3);
@@ -135,12 +135,12 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 				auto result = lifetime([=] {
 					++*lifetimeEndCount;
 				});
-				result.add(inner.start([=](int value) {
+				result.add(inner.start_copy([=](int value) {
 					consumer.put_next_copy(value);
 				}, [=](no_error) {
 				}, [=] {
 				}));
-				result.add(inner.start([=](int value) {
+				result.add(std::move(inner).start([=](int value) {
 					consumer.put_next_copy(value);
 				}, [=](no_error) {
 				}, [=] {
@@ -157,7 +157,9 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 		saved.destroy();
 		REQUIRE(*lifetimeEndCount == 3);
 	}
+}
 
+TEST_CASE("basic event_streams tests", "[rpl::event_stream]") {
 	SECTION("event_stream basic test") {
 		auto sum = std::make_shared<int>(0);
 		event_stream<int> stream;
@@ -326,7 +328,7 @@ TEST_CASE("basic piping tests", "[rpl::producer]") {
 		auto doneGenerated = std::make_shared<bool>(false);
 		{
 			auto alive = lifetime();
-			producer<int, no_error>([=](auto consumer) {
+			producer<int, no_error>([=](auto &&consumer) {
 				consumer.put_next(1);
 				consumer.put_next(2);
 				consumer.put_next(3);
@@ -338,7 +340,7 @@ TEST_CASE("basic piping tests", "[rpl::producer]") {
 				*doneGenerated = true;
 			}) | start(alive);
 
-			producer<no_value, int>([=](auto consumer) {
+			producer<no_value, int>([=](auto &&consumer) {
 				consumer.put_error(4);
 				return lifetime();
 			}) | bind_on_error([=](int value) {
@@ -356,7 +358,7 @@ TEST_CASE("basic piping tests", "[rpl::producer]") {
 		auto dones = std::make_shared<int>(0);
 		{
 			auto alive = lifetime();
-			producer<int, int>([=](auto consumer) {
+			producer<int, int>([=](auto &&consumer) {
 				consumer.put_next(1);
 				consumer.put_done();
 				return lifetime();
@@ -364,7 +366,7 @@ TEST_CASE("basic piping tests", "[rpl::producer]") {
 				*sum += value;
 			}) | start(alive);
 
-			producer<int, int>([=](auto consumer) {
+			producer<int, int>([=](auto &&consumer) {
 				consumer.put_next(11);
 				consumer.put_error(111);
 				return lifetime();
@@ -372,7 +374,7 @@ TEST_CASE("basic piping tests", "[rpl::producer]") {
 				*sum += value;
 			}) | start(alive);
 
-			producer<int, int>([=](auto consumer) {
+			producer<int, int>([=](auto &&consumer) {
 				consumer.put_next(1111);
 				consumer.put_done();
 				return lifetime();
@@ -380,7 +382,7 @@ TEST_CASE("basic piping tests", "[rpl::producer]") {
 				*dones += 1;
 			}) | start(alive);
 
-			producer<int, int>([=](auto consumer) {
+			producer<int, int>([=](auto &&consumer) {
 				consumer.put_next(11111);
 				consumer.put_next(11112);
 				consumer.put_next(11113);
@@ -394,7 +396,7 @@ TEST_CASE("basic piping tests", "[rpl::producer]") {
 		}
 
 		auto alive = lifetime();
-		producer<int, int>([=](auto consumer) {
+		producer<int, int>([=](auto &&consumer) {
 			consumer.put_next(111111);
 			consumer.put_next(111112);
 			consumer.put_next(111113);
@@ -406,7 +408,7 @@ TEST_CASE("basic piping tests", "[rpl::producer]") {
 			*dones += 11;
 		}) | start(alive);
 
-		producer<int, int>([=](auto consumer) {
+		producer<int, int>([=](auto &&consumer) {
 			consumer.put_error(1111111);
 			return lifetime();
 		}) | on_error([=](int value) {
@@ -434,7 +436,7 @@ TEST_CASE("basic piping tests", "[rpl::producer]") {
 
 			for (int i = 0; i != 3; ++i) {
 				auto alive = lifetime();
-				producer<int, int>([=](auto consumer) {
+				producer<int, int>([=](auto &&consumer) {
 					consumer.put_next(1);
 					consumer.put_done();
 					return lifetime();

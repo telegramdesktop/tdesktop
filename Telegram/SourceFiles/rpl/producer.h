@@ -21,19 +21,70 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "base/lambda.h"
-#include "rpl/consumer.h"
-#include "rpl/lifetime.h"
+#include <rpl/consumer.h>
+#include <rpl/lifetime.h>
 
 namespace rpl {
+namespace details {
 
-template <typename Value, typename Error = no_error>
+template <typename Lambda>
+class mutable_lambda_wrap {
+public:
+	mutable_lambda_wrap(Lambda &&lambda)
+		: _lambda(std::move(lambda)) {
+	}
+
+	template <typename... Args>
+	auto operator()(Args&&... args) const {
+		return (const_cast<mutable_lambda_wrap*>(this)->_lambda)(
+			std::forward<Args>(args)...);
+	}
+
+private:
+	Lambda _lambda;
+
+};
+
+// Type-erased copyable mutable lambda using base::lambda.
+template <typename Function> class mutable_lambda;
+
+template <typename Return, typename ...Args>
+class mutable_lambda<Return(Args...)> {
+public:
+
+	// Copy / move construct / assign from an arbitrary type.
+	template <
+		typename Lambda,
+		typename = std::enable_if_t<std::is_convertible<
+			decltype(std::declval<Lambda>()(std::declval<Args>()...)),
+			Return
+		>::value>>
+	mutable_lambda(Lambda other) : _implementation(mutable_lambda_wrap<Lambda>(std::move(other))) {
+	}
+
+	template <
+		typename ...OtherArgs,
+		typename = std::enable_if_t<(sizeof...(Args) == sizeof...(OtherArgs))>>
+	Return operator()(OtherArgs&&... args) {
+		return _implementation(std::forward<OtherArgs>(args)...);
+	}
+
+private:
+	base::lambda<Return(Args...)> _implementation;
+
+};
+
+} // namespace details
+
+template <typename Value = empty_value, typename Error = no_error>
 class producer {
 public:
 	using value_type = Value;
 	using error_type = Error;
+	using consumer_type = consumer<Value, Error>;
 
 	template <typename Generator, typename = std::enable_if<std::is_convertible<
-		decltype(std::declval<Generator>()(std::declval<consumer<Value, Error>>())),
+		decltype(std::declval<Generator>()(std::declval<consumer_type>())),
 		lifetime
 	>::value>>
 	producer(Generator &&generator);
@@ -48,10 +99,25 @@ public:
 	lifetime start(
 		OnNext &&next,
 		OnError &&error,
-		OnDone &&done) const;
+		OnDone &&done) &&;
+
+	template <
+		typename OnNext,
+		typename OnError,
+		typename OnDone,
+		typename = decltype(std::declval<OnNext>()(std::declval<Value>())),
+		typename = decltype(std::declval<OnError>()(std::declval<Error>())),
+		typename = decltype(std::declval<OnDone>()())>
+	lifetime start_copy(
+		OnNext &&next,
+		OnError &&error,
+		OnDone &&done) const &;
+
+	lifetime start_existing(const consumer_type &consumer) &&;
 
 private:
-	base::lambda<lifetime(consumer<Value, Error>)> _generator;
+	details::mutable_lambda<
+		lifetime(const consumer_type &)> _generator;
 
 };
 
@@ -72,13 +138,37 @@ template <
 lifetime producer<Value, Error>::start(
 		OnNext &&next,
 		OnError &&error,
-		OnDone &&done) const {
-	auto result = consumer<Value, Error>(
+		OnDone &&done) && {
+	return std::move(*this).start_existing(consumer<Value, Error>(
+		std::forward<OnNext>(next),
+		std::forward<OnError>(error),
+		std::forward<OnDone>(done)));
+}
+
+template <typename Value, typename Error>
+template <
+	typename OnNext,
+	typename OnError,
+	typename OnDone,
+	typename,
+	typename,
+	typename>
+lifetime producer<Value, Error>::start_copy(
+		OnNext &&next,
+		OnError &&error,
+		OnDone &&done) const & {
+	auto copy = *this;
+	return std::move(copy).start(
 		std::forward<OnNext>(next),
 		std::forward<OnError>(error),
 		std::forward<OnDone>(done));
-	result.set_lifetime(_generator(result));
-	return [result] { result.terminate(); };
+}
+
+template <typename Value, typename Error>
+lifetime producer<Value, Error>::start_existing(
+		const consumer_type &consumer) && {
+	consumer.add_lifetime(std::move(_generator)(consumer));
+	return [consumer] { consumer.terminate(); };
 }
 
 template <typename Value, typename Error>
@@ -91,21 +181,21 @@ template <
 	typename Error,
 	typename Method,
 	typename = decltype(std::declval<Method>()(std::declval<producer<Value, Error>>()))>
-inline decltype(auto) operator|(producer<Value, Error> &&producer, Method &&method) {
+inline auto operator|(producer<Value, Error> &&producer, Method &&method) {
 	return std::forward<Method>(method)(std::move(producer));
 }
 
 template <typename OnNext>
-inline decltype(auto) bind_on_next(OnNext &&handler) {
+inline auto bind_on_next(OnNext &&handler) {
 	return [handler = std::forward<OnNext>(handler)](auto &&existing) mutable {
 		using value_type = typename std::decay_t<decltype(existing)>::value_type;
 		using error_type = typename std::decay_t<decltype(existing)>::error_type;
 		return producer<no_value, error_type>([
 			existing = std::move(existing),
-			handler = std::forward<OnNext>(handler)
-		](consumer<no_value, error_type> consumer) {
-			return existing.start([handler = std::decay_t<OnNext>(handler)](
-				value_type &&value) {
+			handler = std::move(handler)
+		](const consumer<no_value, error_type> &consumer) mutable {
+			return std::move(existing).start(
+			[handler = std::move(handler)](value_type &&value) {
 				handler(std::move(value));
 			}, [consumer](error_type &&error) {
 				consumer.put_error(std::move(error));
@@ -117,17 +207,18 @@ inline decltype(auto) bind_on_next(OnNext &&handler) {
 }
 
 template <typename OnError>
-inline decltype(auto) bind_on_error(OnError &&handler) {
+inline auto bind_on_error(OnError &&handler) {
 	return [handler = std::forward<OnError>(handler)](auto &&existing) mutable {
 		using value_type = typename std::decay_t<decltype(existing)>::value_type;
 		using error_type = typename std::decay_t<decltype(existing)>::error_type;
 		return producer<value_type, no_error>([
 			existing = std::move(existing),
-			handler = std::forward<OnError>(handler)
-		](consumer<value_type, no_error> consumer) {
-			return existing.start([consumer](value_type &&value) {
+			handler = std::move(handler)
+		](const consumer<value_type, no_error> &consumer) mutable {
+			return std::move(existing).start(
+			[consumer](value_type &&value) {
 				consumer.put_next(std::move(value));
-			}, [handler = std::decay_t<OnError>(handler)](error_type &&error) {
+			}, [handler = std::move(handler)](error_type &&error) {
 				handler(std::move(error));
 			}, [consumer] {
 				consumer.put_done();
@@ -137,19 +228,20 @@ inline decltype(auto) bind_on_error(OnError &&handler) {
 }
 
 template <typename OnDone>
-inline decltype(auto) bind_on_done(OnDone &&handler) {
+inline auto bind_on_done(OnDone &&handler) {
 	return [handler = std::forward<OnDone>(handler)](auto &&existing) mutable {
 		using value_type = typename std::decay_t<decltype(existing)>::value_type;
 		using error_type = typename std::decay_t<decltype(existing)>::error_type;
 		return producer<value_type, error_type>([
 			existing = std::move(existing),
-			handler = std::forward<OnDone>(handler)
-		](consumer<value_type, error_type> consumer) {
-			return existing.start([consumer](value_type &&value) {
+			handler = std::move(handler)
+		](const consumer<value_type, error_type> &consumer) mutable {
+			return std::move(existing).start(
+			[consumer](value_type &&value) {
 				consumer.put_next(std::move(value));
 			}, [consumer](error_type &&value) {
 				consumer.put_error(std::move(value));
-			}, [handler = std::decay_t<OnDone>(handler)] {
+			}, [handler = std::move(handler)] {
 				handler();
 			});
 		});
@@ -500,10 +592,11 @@ inline void operator|(
 			OnError,
 			OnDone> &&producer_with_next_error_done,
 		lifetime_holder &&lifetime) {
-	lifetime.alive_while.add(producer_with_next_error_done.producer.start(
-		std::move(producer_with_next_error_done.next),
-		std::move(producer_with_next_error_done.error),
-		std::move(producer_with_next_error_done.done)));
+	lifetime.alive_while.add(
+		std::move(producer_with_next_error_done.producer).start(
+			std::move(producer_with_next_error_done.next),
+			std::move(producer_with_next_error_done.error),
+			std::move(producer_with_next_error_done.done)));
 }
 
 template <typename Value, typename Error>

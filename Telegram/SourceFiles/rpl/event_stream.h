@@ -20,36 +20,50 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "producer.h"
+#include <rpl/producer.h>
+#include <rpl/single.h>
+#include <rpl/then.h>
 #include "base/algorithm.h"
 #include "base/assertion.h"
 #include "base/index_based_iterator.h"
 
 namespace rpl {
 
-template <typename Value>
+// Currently not thread-safe :(
+
+template <typename Value = empty_value>
 class event_stream {
 public:
 	event_stream();
 	event_stream(event_stream &&other);
 
 	void fire(Value &&value);
+	void fire_copy(const Value &value) {
+		auto copy = value;
+		fire(std::move(copy));
+	}
 	producer<Value, no_error> events() const;
+	producer<Value, no_error> events_starting_with(
+			Value &&value) const {
+		return single(std::move(value)) | then(events());
+	}
+	producer<Value, no_error> events_starting_with_copy(
+			const Value &value) const {
+		auto copy = value;
+		return events_starting_with(std::move(copy));
+	}
 
 	~event_stream();
 
 private:
-	std::weak_ptr<std::vector<consumer<Value, no_error>>> weak() const {
-		return _consumers;
-	}
+	std::weak_ptr<std::vector<consumer<Value, no_error>>> weak() const;
 
-	std::shared_ptr<std::vector<consumer<Value, no_error>>> _consumers;
+	mutable std::shared_ptr<std::vector<consumer<Value, no_error>>> _consumers;
 
 };
 
 template <typename Value>
-event_stream<Value>::event_stream()
-	: _consumers(std::make_shared<std::vector<consumer<Value, no_error>>>()) {
+event_stream<Value>::event_stream() {
 }
 
 template <typename Value>
@@ -59,7 +73,10 @@ event_stream<Value>::event_stream(event_stream &&other)
 
 template <typename Value>
 void event_stream<Value>::fire(Value &&value) {
-	Expects(_consumers != nullptr);
+	if (!_consumers) {
+		return;
+	}
+
 	auto &consumers = *_consumers;
 	auto begin = base::index_based_begin(consumers);
 	auto end = base::index_based_end(consumers);
@@ -97,7 +114,8 @@ void event_stream<Value>::fire(Value &&value) {
 
 template <typename Value>
 producer<Value, no_error> event_stream<Value>::events() const {
-	return producer<Value, no_error>([weak = weak()](consumer<Value, no_error> consumer) {
+	return producer<Value, no_error>([weak = weak()](
+			const consumer<Value, no_error> &consumer) {
 		if (auto strong = weak.lock()) {
 			auto result = [weak, consumer] {
 				if (auto strong = weak.lock()) {
@@ -115,12 +133,28 @@ producer<Value, no_error> event_stream<Value>::events() const {
 }
 
 template <typename Value>
+std::weak_ptr<std::vector<consumer<Value, no_error>>> event_stream<Value>::weak() const {
+	if (!_consumers) {
+		_consumers = std::make_shared<std::vector<consumer<Value, no_error>>>();
+	}
+	return _consumers;
+}
+
+
+template <typename Value>
 event_stream<Value>::~event_stream() {
 	if (_consumers) {
 		for (auto &consumer : *_consumers) {
 			consumer.put_done();
 		}
 	}
+}
+
+template <typename Value>
+inline auto to_stream(event_stream<Value> &stream) {
+	return on_next([&stream](Value &&value) {
+		stream.fire(std::move(value));
+	});
 }
 
 } // namespace rpl
