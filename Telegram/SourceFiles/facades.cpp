@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "facades.h"
 
 #include "profile/profile_section_memento.h"
+#include "info/info_memento.h"
 #include "core/click_handler_types.h"
 #include "media/media_clip_reader.h"
 #include "observer_peer.h"
@@ -256,8 +257,17 @@ void autoplayMediaInlineAsync(const FullMsgId &msgId) {
 }
 
 void showPeerProfile(const PeerId &peer) {
-	if (auto main = App::main()) {
-		main->showWideSection(Profile::SectionMemento(App::peer(peer)));
+	//if (auto main = App::main()) {
+	//	main->showWideSection(Profile::SectionMemento(App::peer(peer)));
+	//}
+
+	if (auto window = App::wnd()) {
+		auto memento = Info::Memento(peer);
+		if (auto layer = memento.createLayer(window->controller())) {
+			window->showSpecialLayer(std::move(layer));
+		} else {
+			App::main()->showWideSection(std::move(memento));
+		}
 	}
 }
 

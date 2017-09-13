@@ -18,17 +18,20 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "styles/style_widgets.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 
-class PlainShadow : public TWidget {
+class PlainShadow : public RpWidget {
 public:
-	PlainShadow(QWidget *parent, style::color color) : TWidget(parent), _color(color) {
+	PlainShadow(QWidget *parent, style::color color)
+	: RpWidget(parent), _color(color) {
+		resize(st::lineWidth, st::lineWidth);
 	}
 
 protected:
 	void paintEvent(QPaintEvent *e) override {
-		Painter(this).fillRect(e->rect(), _color->b);
+		Painter(this).fillRect(e->rect(), _color);
 	}
 
 private:

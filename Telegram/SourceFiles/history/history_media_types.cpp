@@ -1616,8 +1616,9 @@ void HistoryDocument::eraseFromOverview() {
 Storage::SharedMediaTypesMask HistoryDocument::sharedMediaTypes() const {
 	using Type = Storage::SharedMediaType;
 	if (_data->voice()) {
-		using Mask = Storage::SharedMediaTypesMask;
-		return Mask {}.added(Type::VoiceFile).added(Type::RoundVoiceFile);
+		return Storage::SharedMediaTypesMask{}
+			.added(Type::VoiceFile)
+			.added(Type::RoundVoiceFile);
 	} else if (_data->song()) {
 		if (_data->isMusic()) {
 			return Type::MusicFile;
@@ -2456,7 +2457,9 @@ int32 HistoryGif::addToOverview(AddToOverviewMethod method) {
 Storage::SharedMediaTypesMask HistoryGif::sharedMediaTypes() const {
 	using Type = Storage::SharedMediaType;
 	if (_data->isRoundVideo()) {
-		return Type::RoundVoiceFile;
+		return Storage::SharedMediaTypesMask{}
+			.added(Type::RoundFile)
+			.added(Type::RoundVoiceFile);
 	} else if (_data->isGifv()) {
 		return Type::GIF;
 	}

@@ -290,7 +290,7 @@ public:
 
 };
 
-class BoxContentDivider : public TWidget {
+class BoxContentDivider : public Ui::RpWidget {
 public:
 	BoxContentDivider(QWidget *parent);
 

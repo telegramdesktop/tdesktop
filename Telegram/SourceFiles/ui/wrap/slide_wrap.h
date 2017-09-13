@@ -47,8 +47,8 @@ public:
 		const style::margins &padding,
 		int duration);
 
-	void toggleAnimated(bool visible);
-	void toggleFast(bool visible);
+	void toggleAnimated(bool shown);
+	void toggleFast(bool shown);
 
 	void showAnimated() {
 		toggleAnimated(true);
@@ -72,7 +72,11 @@ public:
 	QMargins getMargins() const override;
 
 	bool isHiddenOrHiding() const {
-		return !_visible;
+		return !_shown;
+	}
+
+	rpl::producer<bool> shownValue() const {
+		return _shownUpdated.events_starting_with_copy(_shown);
 	}
 
 protected:
@@ -81,8 +85,10 @@ protected:
 
 private:
 	void animationStep();
+	void setShown(bool shown);
 
-	bool _visible = true;
+	bool _shown = true;
+	rpl::event_stream<bool> _shownUpdated;
 	Animation _slideAnimation;
 	int _duration = 0;
 

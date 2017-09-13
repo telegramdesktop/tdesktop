@@ -41,6 +41,7 @@
         '<(src_loc)/calls/calls.style',
         '<(src_loc)/dialogs/dialogs.style',
         '<(src_loc)/history/history.style',
+        '<(src_loc)/info/info.style',
         '<(src_loc)/intro/intro.style',
         '<(src_loc)/media/view/mediaview.style',
         '<(src_loc)/media/player/media_player.style',

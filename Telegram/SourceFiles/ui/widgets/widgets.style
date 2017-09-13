@@ -496,6 +496,23 @@ PeerAvatarButton {
 	photoSize: pixels;
 }
 
+InfoProfileButton {
+	textFg: color;
+	textFgOver: color;
+	textBg: color;
+	textBgOver: color;
+
+	font: font;
+
+	height: pixels;
+	padding: margins;
+
+	toggle: Toggle;
+	toggleOver: Toggle;
+
+	ripple: RippleAnimation;
+}
+
 defaultLabelSimple: LabelSimple {
 	font: normalFont;
 	maxWidth: 0px;
@@ -1040,4 +1057,12 @@ ProfilePeerListItem {
 	statusFg: color;
 	statusFgOver: color;
 	statusFgActive: color;
+}
+
+InfoTopBar {
+	height: pixels;
+	back: IconButton;
+	title: FlatLabel;
+	titlePosition: point;
+	bg: color;
 }

@@ -595,7 +595,11 @@ public:
 					auto &link = links[lnkIndex - maxLnkIndex - 1];
 					ClickHandlerPtr handler;
 					switch (link.type) {
-					case EntityInTextCustomUrl: handler = MakeShared<HiddenUrlClickHandler>(link.data); break;
+					case EntityInTextCustomUrl: {
+						if (!link.data.isEmpty()) {
+							handler = MakeShared<HiddenUrlClickHandler>(link.data);
+						}
+					} break;
 					case EntityInTextEmail:
 					case EntityInTextUrl: handler = MakeShared<UrlClickHandler>(link.data, link.displayStatus == LinkDisplayedFull); break;
 					case EntityInTextBotCommand: handler = MakeShared<BotCommandClickHandler>(link.data); break;

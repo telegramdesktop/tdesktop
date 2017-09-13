@@ -553,16 +553,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_recent_actions" = "Recent actions";
 "lng_profile_common_groups#one" = "{count} group in common";
 "lng_profile_common_groups#other" = "{count} groups in common";
-"lng_profile_common_groups_section" = "Groups in common";
 "lng_profile_participants_section" = "Members";
-"lng_profile_info_section" = "Info";
 "lng_profile_mobile_number" = "Mobile:";
 "lng_profile_username" = "Username:";
 "lng_profile_link" = "Link:";
 "lng_profile_bio" = "Bio:";
 "lng_profile_add_contact" = "Add Contact";
 "lng_profile_edit_contact" = "Edit";
-"lng_profile_enable_notifications" = "Notifications";
 "lng_profile_clear_history" = "Clear history";
 "lng_profile_delete_conversation" = "Delete conversation";
 "lng_profile_clear_and_exit" = "Delete and exit";
@@ -576,7 +573,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_unblock_user" = "Unblock user";
 "lng_profile_block_bot" = "Stop and block bot";
 "lng_profile_unblock_bot" = "Unblock bot";
-"lng_profile_send_message" = "Send Message";
 "lng_profile_share_contact" = "Share Contact";
 "lng_profile_invite_to_group" = "Add to Group";
 "lng_profile_delete_contact" = "Delete";
@@ -589,7 +585,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_sure_kick" = "Remove {user} from the group?";
 "lng_profile_sure_kick_channel" = "Remove {user} from the channel?";
 "lng_profile_loading" = "Loading...";
-"lng_profile_shared_media" = "Shared media";
 "lng_profile_photos#one" = "{count} photo";
 "lng_profile_photos#other" = "{count} photos";
 "lng_profile_photos_header" = "Photos";
@@ -614,6 +609,30 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_drop_area_subtitle" = "to set it as a group photo";
 "lng_profile_drop_area_subtitle_channel" = "to set it as a channel photo";
 "lng_profile_top_bar_share_contact" = "Share";
+
+"lng_profile_info_section" = "Info";
+"lng_info_tab_media" = "Media";
+"lng_info_mobile_label" = "Mobile";
+"lng_info_username_label" = "Username";
+"lng_info_bio_label" = "Bio";
+"lng_info_link_label" = "Link";
+"lng_info_about_label" = "About";
+"lng_info_user_title" = "User Info";
+"lng_info_bot_title" = "Bot Info";
+"lng_info_group_title" = "Group Info";
+"lng_info_channel_title" = "Channel Info";
+"lng_profile_enable_notifications" = "Notifications";
+"lng_profile_send_message" = "Send Message";
+"lng_info_add_as_contact" = "Add as contact";
+"lng_profile_shared_media" = "Shared media";
+"lng_media_type_photos" = "Photos";
+"lng_media_type_videos" = "Videos";
+"lng_media_type_songs" = "Audio files";
+"lng_media_type_files" = "Files";
+"lng_media_type_audios" = "Voice messages";
+"lng_media_type_links" = "Shared links";
+"lng_media_type_rounds" = "Video messages";
+"lng_profile_common_groups_section" = "Groups in common";
 
 "lng_report_title" = "Report channel";
 "lng_report_group_title" = "Report group";
@@ -812,12 +831,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_attach_photo" = "Photo";
 
 "lng_media_type" = "Media type";
-"lng_media_type_photos" = "Photos";
-"lng_media_type_videos" = "Videos";
-"lng_media_type_songs" = "Audio files";
-"lng_media_type_files" = "Files";
-"lng_media_type_audios" = "Voice messages";
-"lng_media_type_links" = "Shared links";
 
 "lng_media_open_with" = "Open With";
 "lng_media_download" = "Download";

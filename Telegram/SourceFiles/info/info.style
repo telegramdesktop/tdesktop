@@ -1,0 +1,166 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+*/
+using "basic.style";
+
+using "boxes/boxes.style";
+using "ui/widgets/widgets.style";
+
+infoScroll: ScrollArea(defaultScrollArea) {
+	bottomsh: 0px;
+	topsh: 0px;
+}
+
+infoTopBarBackIcon: icon {{ "info_back", boxTitleCloseFg }};
+infoTopBarBackIconOver: icon {{ "info_back", boxTitleCloseFgOver }};
+infoTopBarHeight: boxLayerTitleHeight;
+infoTopBarBack: IconButton(defaultIconButton) {
+	width: infoTopBarHeight;
+	height: infoTopBarHeight;
+
+	icon: infoTopBarBackIcon;
+	iconOver: infoTopBarBackIconOver;
+
+	rippleAreaPosition: point(6px, 6px);
+	rippleAreaSize: 44px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+
+infoLayerTopBarHeight: boxLayerTitleHeight;
+infoLayerTopBarBackIcon: icon {{ "info_back", boxTitleCloseFg }};
+infoLayerTopBarBackIconOver: icon {{ "info_back", boxTitleCloseFgOver }};
+infoLayerTopBarBack: IconButton(infoTopBarBack) {
+	width: infoLayerTopBarHeight;
+	height: infoLayerTopBarHeight;
+
+	icon: infoLayerTopBarBackIcon;
+	iconOver: infoLayerTopBarBackIconOver;
+}
+infoLayerTopBarCloseIcon: icon {{ "info_close", boxTitleCloseFg }};
+infoLayerTopBarCloseIconOver: icon {{ "info_close", boxTitleCloseFgOver }};
+infoLayerTopBarClose: IconButton(infoLayerTopBarBack) {
+	icon: infoLayerTopBarCloseIcon;
+	iconOver: infoLayerTopBarCloseIconOver;
+}
+infoLayerTopBar: InfoTopBar {
+	height: infoLayerTopBarHeight;
+	back: infoLayerTopBarBack;
+	title: boxTitle;
+	titlePosition: boxLayerTitlePosition;
+	bg: boxBg;
+}
+
+infoMinimalWidth: 320px;
+infoDesiredWidth: 360px;
+infoMinimalLayerMargin: 48px;
+
+infoTabs: SettingsSlider(defaultTabsSlider) {
+	height: 55px;
+	barTop: 52px;
+	labelTop: 19px;
+}
+
+infoProfilePhotoSize: 72px;
+infoProfilePhotoLeft: 27px;
+infoProfilePhotoTop: 22px;
+infoProfilePhotoBottom: 22px;
+
+infoProfileNameLeft: 111px;
+infoProfileNameRight: 20px;
+infoProfileNameTop: 32px;
+infoProfileNameLabel: FlatLabel(defaultFlatLabel) {
+	margin: margins(10px, 5px, 10px, 5px);
+	width: 160px;
+	maxHeight: 24px;
+	textFg: windowBoldFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(16px semibold);
+		linkFont: font(16px semibold);
+		linkFontOver: font(16px semibold underline);
+	}
+}
+
+infoProfileStatusLeft: infoProfileNameLeft;
+infoProfileStatusRight: infoProfileNameRight;
+infoProfileStatusTop: 62px;
+infoProfileStatusLabel: FlatLabel(infoProfileNameLabel) {
+	margin: margins(10px, 5px, 10px, 5px);
+	width: 160px;
+	maxHeight: 18px;
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: normalFont;
+		linkFont: normalFont;
+		linkFontOver: normalFont;
+	}
+	palette: TextPalette(defaultTextPalette) {
+		linkFg: windowActiveTextFg;
+	}
+}
+
+infoProfileToggleRight: 12px;
+infoProfileToggleTop: 40px;
+
+infoProfileSkip: 12px;
+
+infoProfileLabeledPadding: margins(77px, 10px, 10px, 10px);
+infoProfileSeparatorPadding: margins(
+	73px,
+	infoProfileSkip,
+	0px,
+	infoProfileSkip);
+
+infoIconFg: menuIconFg;
+infoIconPosition: point(28px, 8px);
+infoIconInformation: icon {{ "info_information", infoIconFg }};
+infoIconMembers: icon {{ "info_members", infoIconFg }};
+infoIconNotifications: icon {{ "info_notifications", infoIconFg }};
+infoIconActions: icon {{ "info_actions", infoIconFg }};
+
+infoLabel: FlatLabel(defaultFlatLabel) {
+}
+infoLabeled: FlatLabel(defaultFlatLabel) {
+}
+
+infoProfileButton: InfoProfileButton {
+	textFg: windowBoldFg;
+	textFgOver: windowBoldFgOver;
+	textBg: windowBg;
+	textBgOver: windowBgOver;
+
+	font: semiboldFont;
+
+	height: 22px;
+	padding: margins(80px, 8px, 8px, 8px);
+
+	toggle: defaultMenuToggle;
+	toggleOver: defaultMenuToggleOver;
+
+	ripple: defaultRippleAnimation;
+}
+infoNotificationsButton: InfoProfileButton(infoProfileButton) {
+	padding: margins(80px, 11px, 8px, 9px);
+}
+infoMainButton: InfoProfileButton(infoProfileButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+}

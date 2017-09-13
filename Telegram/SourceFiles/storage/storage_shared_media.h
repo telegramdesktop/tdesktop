@@ -36,8 +36,9 @@ enum class SharedMediaType : char {
 	ChatPhoto = 6,
 	RoundVoiceFile = 7,
 	GIF = 8,
+	RoundFile = 9,
 
-	kCount = 9,
+	kCount = 10,
 };
 constexpr auto kSharedMediaTypeCount = static_cast<int>(SharedMediaType::kCount);
 constexpr bool IsValidSharedMediaType(SharedMediaType type) {

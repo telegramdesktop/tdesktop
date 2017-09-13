@@ -424,7 +424,7 @@ void AbstractBox::keyPressEvent(QKeyEvent *e) {
 BoxLayerTitleShadow::BoxLayerTitleShadow(QWidget *parent) : Ui::PlainShadow(parent, st::boxLayerTitleShadow) {
 }
 
-BoxContentDivider::BoxContentDivider(QWidget *parent) : TWidget(parent) {
+BoxContentDivider::BoxContentDivider(QWidget *parent) : RpWidget(parent) {
 }
 
 int BoxContentDivider::resizeGetHeight(int newWidth) {

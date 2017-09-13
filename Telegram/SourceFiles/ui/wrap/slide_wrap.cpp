@@ -66,16 +66,16 @@ void SlideWrap<RpWidget>::animationStep() {
 		weak->moveToLeft(margins.left(), margins.top());
 		newWidth = weak->width();
 	}
-	auto current = _slideAnimation.current(_visible ? 1. : 0.);
+	auto current = _slideAnimation.current(_shown ? 1. : 0.);
 	auto newHeight = wrapped()
 		? (_slideAnimation.animating()
 		? anim::interpolate(0, wrapped()->heightNoMargins(), current)
-		: (_visible ? wrapped()->height() : 0))
+		: (_shown ? wrapped()->height() : 0))
 		: 0;
 	if (newWidth != width() || newHeight != height()) {
 		resize(newWidth, newHeight);
 	}
-	auto shouldBeHidden = !_visible && !_slideAnimation.animating();
+	auto shouldBeHidden = !_shown && !_slideAnimation.animating();
 	if (shouldBeHidden != isHidden()) {
 		setVisible(!shouldBeHidden);
 		if (shouldBeHidden) {
@@ -84,23 +84,28 @@ void SlideWrap<RpWidget>::animationStep() {
 	}
 }
 
-void SlideWrap<RpWidget>::toggleAnimated(bool visible) {
-	if (_visible == visible) {
+void SlideWrap<RpWidget>::setShown(bool shown) {
+	_shown = shown;
+	_shownUpdated.fire_copy(_shown);
+}
+
+void SlideWrap<RpWidget>::toggleAnimated(bool shown) {
+	if (_shown == shown) {
 		animationStep();
 		return;
 	}
-	_visible = visible;
+	setShown(shown);
 	_slideAnimation.start(
 		[this] { animationStep(); },
-		_visible ? 0. : 1.,
-		_visible ? 1. : 0.,
+		_shown ? 0. : 1.,
+		_shown ? 1. : 0.,
 		_duration,
 		anim::linear);
 	animationStep();
 }
 
-void SlideWrap<RpWidget>::toggleFast(bool visible) {
-	_visible = visible;
+void SlideWrap<RpWidget>::toggleFast(bool shown) {
+	setShown(shown);
 	finishAnimations();
 }
 
@@ -111,7 +116,7 @@ void SlideWrap<RpWidget>::finishAnimations() {
 
 QMargins SlideWrap<RpWidget>::getMargins() const {
 	auto result = wrapped()->getMargins();
-	return (animating() || !_visible)
+	return (animating() || !_shown)
 		? QMargins(result.left(), 0, result.right(), 0)
 		: result;
 }
@@ -126,7 +131,7 @@ int SlideWrap<RpWidget>::resizeGetHeight(int newWidth) {
 void SlideWrap<RpWidget>::wrappedSizeUpdated(QSize size) {
 	if (_slideAnimation.animating()) {
 		animationStep();
-	} else if (_visible) {
+	} else if (_shown) {
 		resize(size);
 	}
 }

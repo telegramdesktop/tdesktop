@@ -115,6 +115,8 @@ public:
 		doSetInnerFocus();
 	}
 
+	virtual rpl::producer<int> desiredHeight() const;
+
 	// Global shortcut handler. For now that ugly :(
 	virtual bool cmd_search() {
 		return false;
@@ -150,7 +152,7 @@ private:
 
 	std::unique_ptr<SlideAnimation> _showAnimation;
 
-	// Saving here topDelta in resizeWithTopMoved() to get it passed to resizeEvent().
+	// Saving here topDelta in setGeometryWithTopMoved() to get it passed to resizeEvent().
 	int _topDelta = 0;
 
 };

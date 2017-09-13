@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "ui/widgets/buttons.h"
 #include "styles/style_widgets.h"
+#include <rpl/event_stream.h>
 
 namespace Ui {
 
@@ -37,6 +38,10 @@ public:
 		return _checked;
 	}
 	float64 currentAnimationValue(TimeMs ms);
+
+	rpl::producer<bool> checkedValue() const {
+		return _checks.events_starting_with(checked());
+	}
 
 	virtual QSize getSize() const = 0;
 
@@ -58,6 +63,8 @@ private:
 	bool _checked = false;
 	base::lambda<void()> _updateCallback;
 	Animation _toggleAnimation;
+
+	rpl::event_stream<bool> _checks;
 
 };
 

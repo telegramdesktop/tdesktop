@@ -38,4 +38,20 @@ inline const T *get_if(const variant<Types...> *v) {
 	return (v && v->template is<T>()) ? &v->template get_unchecked<T>() : nullptr;
 }
 
+// Simplified visit
+template <typename Method, typename... Types>
+inline auto visit(Method &&method, const variant<Types...> &value) {
+	return value.match(std::forward<Method>(method));
+}
+
+template <typename Method, typename... Types>
+inline auto visit(Method &&method, variant<Types...> &value) {
+	return value.match(std::forward<Method>(method));
+}
+
+template <typename Method, typename... Types>
+inline auto visit(Method &&method, variant<Types...> &&value) {
+	return value.match(std::forward<Method>(method));
+}
+
 } // namespace base

@@ -21,13 +21,19 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/section_widget.h"
 
 #include "application.h"
+#include <rpl/single.h>
 
 namespace Window {
 
-SectionWidget::SectionWidget(QWidget *parent, not_null<Window::Controller*> controller) : AbstractSectionWidget(parent, controller) {
+SectionWidget::SectionWidget(
+	QWidget *parent,
+	not_null<Window::Controller*> controller)
+	: AbstractSectionWidget(parent, controller) {
 }
 
-void SectionWidget::setGeometryWithTopMoved(const QRect &newGeometry, int topDelta) {
+void SectionWidget::setGeometryWithTopMoved(
+		const QRect &newGeometry,
+		int topDelta) {
 	_topDelta = topDelta;
 	bool willBeResized = (size() != newGeometry.size());
 	if (geometry() != newGeometry) {
@@ -39,7 +45,9 @@ void SectionWidget::setGeometryWithTopMoved(const QRect &newGeometry, int topDel
 	_topDelta = 0;
 }
 
-void SectionWidget::showAnimated(SlideDirection direction, const SectionSlideParams &params) {
+void SectionWidget::showAnimated(
+		SlideDirection direction,
+		const SectionSlideParams &params) {
 	if (_showAnimation) return;
 
 	showChildren();
@@ -51,7 +59,9 @@ void SectionWidget::showAnimated(SlideDirection direction, const SectionSlidePar
 	_showAnimation->setDirection(direction);
 	_showAnimation->setRepaintCallback([this] { update(); });
 	_showAnimation->setFinishedCallback([this] { showFinished(); });
-	_showAnimation->setPixmaps(params.oldContentCache, myContentCache);
+	_showAnimation->setPixmaps(
+		params.oldContentCache,
+		myContentCache);
 	_showAnimation->setTopBarShadow(params.withTopBarShadow);
 	_showAnimation->start();
 
@@ -80,6 +90,10 @@ void SectionWidget::showFinished() {
 	showFinishedHook();
 
 	setInnerFocus();
+}
+
+rpl::producer<int> SectionWidget::desiredHeight() const {
+	return rpl::single(height());
 }
 
 } // namespace Window
