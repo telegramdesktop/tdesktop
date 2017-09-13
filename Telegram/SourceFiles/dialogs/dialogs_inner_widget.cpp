@@ -1423,7 +1423,9 @@ PeerData *DialogsInner::updateFromParentDrag(QPoint globalPos) {
 	return nullptr;
 }
 
-void DialogsInner::setVisibleTopBottom(int visibleTop, int visibleBottom) {
+void DialogsInner::visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) {
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
 	loadPeerPhotos();

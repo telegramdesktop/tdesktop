@@ -50,19 +50,17 @@ Layer::Layer()
 	_fixedBarShadow->hideFast();
 	_scroll->moveToLeft(0, st::settingsFixedBarHeight);
 
-	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
+	_scroll->scrollTopValue()
+		| rpl::map([](int scrollTop) { return scrollTop > 0; })
+		| rpl::distinct_until_changed()
+		| rpl::on_next([this](bool scrolled) {
+			_fixedBarShadow->toggleAnimated(scrolled);
+		})
+		| rpl::start(lifetime());
 }
 
 void Layer::setCloseClickHandler(base::lambda<void()> callback) {
 	_fixedBarClose->setClickedCallback(std::move(callback));
-}
-
-void Layer::onScroll() {
-	if (_scroll->scrollTop() > 0) {
-		_fixedBarShadow->showAnimated();
-	} else {
-		_fixedBarShadow->hideAnimated();
-	}
 }
 
 void Layer::resizeToWidth(int newWidth, int newContentLeft) {
@@ -73,13 +71,13 @@ void Layer::resizeToWidth(int newWidth, int newContentLeft) {
 	resizeUsingInnerHeight(newWidth, _inner->height());
 }
 
-void Layer::onInnerHeightUpdated() {
-	resizeUsingInnerHeight(width(), _inner->height());
-}
-
 void Layer::doSetInnerWidget(object_ptr<LayerInner> widget) {
 	_inner = _scroll->setOwnedWidget(std::move(widget));
-	connect(_inner, SIGNAL(heightUpdated()), this, SLOT(onInnerHeightUpdated()));
+	_inner->heightValue()
+		| rpl::on_next([this](int innerHeight) {
+			resizeUsingInnerHeight(width(), innerHeight);
+		})
+		| rpl::start(lifetime());
 }
 
 void Layer::paintEvent(QPaintEvent *e) {

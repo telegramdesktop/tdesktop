@@ -243,7 +243,11 @@ void MultiSelect::Item::setOver(bool over) {
 	}
 }
 
-MultiSelect::MultiSelect(QWidget *parent, const style::MultiSelect &st, base::lambda<QString()> placeholderFactory) : TWidget(parent)
+MultiSelect::MultiSelect(
+	QWidget *parent,
+	const style::MultiSelect &st,
+	base::lambda<QString()> placeholderFactory)
+: RpWidget(parent)
 , _st(st)
 , _scroll(this, _st.scroll) {
 	_inner = _scroll->setOwnedWidget(object_ptr<Inner>(this, st, std::move(placeholderFactory), [this](int activeTop, int activeBottom) {

@@ -22,10 +22,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "settings/settings_block_widget.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/rp_widget.h"
 
 namespace Settings {
 
-class BackgroundRow : public TWidget, private base::Subscriber {
+class BackgroundRow : public Ui::RpWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -82,9 +83,9 @@ private:
 	void createControls();
 	void needBackgroundUpdate(bool tile);
 
-	object_ptr<BackgroundRow> _background = { nullptr };
-	object_ptr<Ui::Checkbox> _tile = { nullptr };
-	object_ptr<Ui::WidgetSlideWrap<Ui::Checkbox>> _adaptive = { nullptr };
+	BackgroundRow *_background = nullptr;
+	Ui::Checkbox *_tile = nullptr;
+	Ui::SlideWrap<Ui::Checkbox> *_adaptive = nullptr;
 
 };
 

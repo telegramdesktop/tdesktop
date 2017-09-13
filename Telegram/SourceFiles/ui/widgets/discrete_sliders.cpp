@@ -25,12 +25,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 
-DiscreteSlider::DiscreteSlider(QWidget *parent) : TWidget(parent) {
+DiscreteSlider::DiscreteSlider(QWidget *parent) : RpWidget(parent) {
 	setCursor(style::cur_pointer);
-}
-
-void DiscreteSlider::setSectionActivatedCallback(SectionActivatedCallback &&callback) {
-	_callback = std::move(callback);
 }
 
 void DiscreteSlider::setActiveSection(int index) {
@@ -48,9 +44,7 @@ void DiscreteSlider::activateCallback() {
 	}
 	auto ms = getms();
 	if (ms >= _callbackAfterMs) {
-		if (_callback) {
-			_callback();
-		}
+		_sectionActivated.fire_copy(_activeIndex);
 	} else {
 		_timerId = startTimer(_callbackAfterMs - ms, Qt::PreciseTimer);
 	}
@@ -62,6 +56,10 @@ void DiscreteSlider::timerEvent(QTimerEvent *e) {
 
 void DiscreteSlider::setActiveSectionFast(int index) {
 	setActiveSection(index);
+	finishAnimations();
+}
+
+void DiscreteSlider::finishAnimations() {
 	_a_left.finish();
 	update();
 }

@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_settings.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
-#include "ui/effects/widget_slide_wrap.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "mainwindow.h"
@@ -56,9 +56,9 @@ NotificationsWidget::NotificationsWidget(QWidget *parent, UserData *self) : Bloc
 void NotificationsWidget::createControls() {
 	style::margins margin(0, 0, 0, st::settingsSkip);
 	style::margins slidedPadding(0, margin.bottom() / 2, 0, margin.bottom() - (margin.bottom() / 2));
-	addChildRow(_desktopNotifications, margin, lang(lng_settings_desktop_notify), [this](bool) { onDesktopNotifications(); }, Global::DesktopNotify());
-	addChildRow(_showSenderName, margin, slidedPadding, lang(lng_settings_show_name), [this](bool) { onShowSenderName(); }, Global::NotifyView() <= dbinvShowName);
-	addChildRow(_showMessagePreview, margin, slidedPadding, lang(lng_settings_show_preview), [this](bool) { onShowMessagePreview(); }, Global::NotifyView() <= dbinvShowPreview);
+	createChildRow(_desktopNotifications, margin, lang(lng_settings_desktop_notify), [this](bool) { onDesktopNotifications(); }, Global::DesktopNotify());
+	createChildRow(_showSenderName, margin, slidedPadding, lang(lng_settings_show_name), [this](bool) { onShowSenderName(); }, Global::NotifyView() <= dbinvShowName);
+	createChildRow(_showMessagePreview, margin, slidedPadding, lang(lng_settings_show_preview), [this](bool) { onShowMessagePreview(); }, Global::NotifyView() <= dbinvShowPreview);
 	if (!_showSenderName->entity()->checked()) {
 		_showMessagePreview->hideFast();
 	}
@@ -66,8 +66,8 @@ void NotificationsWidget::createControls() {
 		_showSenderName->hideFast();
 		_showMessagePreview->hideFast();
 	}
-	addChildRow(_playSound, margin, lang(lng_settings_sound_notify), [this](bool) { onPlaySound(); }, Global::SoundNotify());
-	addChildRow(_includeMuted, margin, lang(lng_settings_include_muted), [this](bool) { onIncludeMuted(); }, Global::IncludeMuted());
+	createChildRow(_playSound, margin, lang(lng_settings_sound_notify), [this](bool) { onPlaySound(); }, Global::SoundNotify());
+	createChildRow(_includeMuted, margin, lang(lng_settings_include_muted), [this](bool) { onIncludeMuted(); }, Global::IncludeMuted());
 
 	if (cPlatform() != dbipMac) {
 		createNotificationsControls();
@@ -87,9 +87,9 @@ void NotificationsWidget::createNotificationsControls() {
 #endif // Q_OS_WIN || Q_OS_LINUX64 || Q_OS_LINUX32
 	}
 	if (!nativeNotificationsLabel.isEmpty()) {
-		addChildRow(_nativeNotifications, margin, nativeNotificationsLabel, [this](bool) { onNativeNotifications(); }, Global::NativeNotifications());
+		createChildRow(_nativeNotifications, margin, nativeNotificationsLabel, [this](bool) { onNativeNotifications(); }, Global::NativeNotifications());
 	}
-	addChildRow(_advanced, margin, slidedPadding, lang(lng_settings_advanced_notifications), SLOT(onAdvanced()));
+	createChildRow(_advanced, margin, slidedPadding, lang(lng_settings_advanced_notifications), SLOT(onAdvanced()));
 	if (!nativeNotificationsLabel.isEmpty() && Global::NativeNotifications()) {
 		_advanced->hideFast();
 	}

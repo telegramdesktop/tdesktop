@@ -27,8 +27,6 @@ namespace Settings {
 class InnerWidget;
 
 class Widget : public Layer, private base::Subscriber {
-	Q_OBJECT
-
 public:
 	Widget(QWidget*);
 

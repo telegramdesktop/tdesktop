@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/twidget.h"
+#include "ui/rp_widget.h"
 #include "window/window_slide_animation.h"
 
 namespace Window {
@@ -33,16 +33,22 @@ enum class Column {
 	Third,
 };
 
-class AbstractSectionWidget : public TWidget, protected base::Subscriber {
+class AbstractSectionWidget
+	: public Ui::RpWidget
+	, protected base::Subscriber {
 public:
-	AbstractSectionWidget(QWidget *parent, not_null<Window::Controller*> controller) : TWidget(parent), _controller(controller) {
+	AbstractSectionWidget(
+		QWidget *parent,
+		not_null<Window::Controller*> controller)
+		: RpWidget(parent)
+		, _controller(controller) {
 	}
 
 	// Float player interface.
 	virtual bool wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) {
 		return false;
 	}
-	virtual QRect rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) {
+	virtual QRect rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) const {
 		return mapToGlobal(rect());
 	}
 

@@ -143,8 +143,8 @@ std::weak_ptr<std::vector<consumer<Value, no_error>>> event_stream<Value>::weak(
 
 template <typename Value>
 event_stream<Value>::~event_stream() {
-	if (_consumers) {
-		for (auto &consumer : *_consumers) {
+	if (auto consumers = base::take(_consumers)) {
+		for (auto &consumer : *consumers) {
 			consumer.put_done();
 		}
 	}

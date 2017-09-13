@@ -21,11 +21,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "settings/settings_block_widget.h"
+#include "ui/rp_widget.h"
 
 namespace Settings {
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-class UpdateStateRow : public TWidget {
+class UpdateStateRow : public Ui::RpWidget {
 	Q_OBJECT
 
 public:
@@ -107,14 +108,14 @@ private:
 
 	object_ptr<Ui::LinkButton> _changeLanguage;
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	object_ptr<Ui::Checkbox> _updateAutomatically = { nullptr };
-	object_ptr<Ui::WidgetSlideWrap<UpdateStateRow>> _updateRow = { nullptr };
+	Ui::Checkbox *_updateAutomatically = nullptr;
+	Ui::SlideWrap<UpdateStateRow> *_updateRow = nullptr;
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
-	object_ptr<Ui::Checkbox> _enableTrayIcon = { nullptr };
-	object_ptr<Ui::Checkbox> _enableTaskbarIcon = { nullptr };
-	object_ptr<Ui::Checkbox> _autoStart = { nullptr };
-	object_ptr<Ui::WidgetSlideWrap<Ui::Checkbox>> _startMinimized = { nullptr };
-	object_ptr<Ui::Checkbox> _addInSendTo = { nullptr };
+	Ui::Checkbox *_enableTrayIcon = nullptr;
+	Ui::Checkbox *_enableTaskbarIcon = nullptr;
+	Ui::Checkbox *_autoStart = nullptr;
+	Ui::SlideWrap<Ui::Checkbox> *_startMinimized = nullptr;
+	Ui::Checkbox *_addInSendTo = nullptr;
 
 	int _languagesLoadedSubscription = 0;
 

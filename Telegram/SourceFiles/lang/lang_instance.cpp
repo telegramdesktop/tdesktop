@@ -499,4 +499,14 @@ Instance &Current() {
 	return Messenger::Instance().langpack();
 }
 
+rpl::producer<QString> Viewer(LangKey key) {
+	return
+		rpl::single(Current().getValue(key))
+		| then(
+			base::ObservableViewer(Current().updated())
+			| rpl::map([=](auto&&) {
+				return Current().getValue(key);
+			}));
+}
+
 } // namespace Lang

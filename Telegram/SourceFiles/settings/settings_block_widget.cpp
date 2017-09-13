@@ -23,12 +23,19 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_settings.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
+#include "ui/wrap/vertical_layout.h"
 
 namespace Settings {
 
-BlockWidget::BlockWidget(QWidget *parent, UserData *self, const QString &title) : TWidget(parent)
+BlockWidget::BlockWidget(QWidget *parent, UserData *self, const QString &title) : RpWidget(parent)
 , _self(self)
-, _title(title) {
+, _title(title)
+, _content(this) {
+	_content->heightValue()
+		| rpl::on_next([this](int contentHeight) {
+			resize(width(), contentTop() + contentHeight + st::settingsBlockMarginBottom);
+		})
+		| rpl::start(lifetime());
 }
 
 void BlockWidget::setContentLeft(int contentLeft) {
@@ -42,19 +49,23 @@ int BlockWidget::contentTop() const {
 int BlockWidget::resizeGetHeight(int newWidth) {
 	int x = contentLeft(), result = contentTop();
 	int availw = newWidth - x;
-	for_const (auto &row, _rows) {
-		auto childMargins = row.child->getMargins();
-		row.child->moveToLeft(x + row.margin.left(), result + row.margin.top(), newWidth);
-		auto availRowWidth = availw - row.margin.left() - row.margin.right() - x;
-		auto natural = row.child->naturalWidth();
-		auto rowWidth = (natural < 0) ? availRowWidth : qMin(natural, availRowWidth);
-		if (row.child->widthNoMargins() != rowWidth) {
-			row.child->resizeToWidth(rowWidth);
-		}
-		result += row.margin.top() + row.child->heightNoMargins() + row.margin.bottom();
-	}
-	result += st::settingsBlockMarginBottom;
+
+	auto margins = getMargins();
+
+	_content->resizeToWidth(availw);
+	_content->moveToLeft(margins.left() + x, margins.top() + result, newWidth);
+	result += _content->heightNoMargins() + st::settingsBlockMarginBottom;
+
 	return result;
+}
+
+QMargins BlockWidget::getMargins() const {
+	auto result = _content->getMargins();
+	return QMargins(
+		result.left(),
+		qMax(result.top() - contentTop(), 0),
+		result.right(),
+		qMax(result.bottom() - st::settingsBlockMarginBottom, 0));
 }
 
 void BlockWidget::paintEvent(QPaintEvent *e) {
@@ -69,28 +80,37 @@ void BlockWidget::paintTitle(Painter &p) {
 
 	p.setFont(st::settingsBlockTitleFont);
 	p.setPen(st::settingsBlockTitleFg);
-	int titleTop = st::settingsBlockMarginTop + st::settingsBlockTitleTop;
-	p.drawTextLeft(contentLeft(), titleTop, width(), _title);
+	auto margins = getMargins();
+	auto titleTop = st::settingsBlockMarginTop + st::settingsBlockTitleTop;
+	p.drawTextLeft(
+		margins.left() + contentLeft(),
+		margins.top() + titleTop,
+		width(),
+		_title);
 }
 
-void BlockWidget::addCreatedRow(TWidget *child, const style::margins &margin) {
-	_rows.push_back({ child, margin });
+Ui::RpWidget *BlockWidget::addCreatedRow(
+		object_ptr<RpWidget> row,
+		const style::margins &margin) {
+	return _content->add(std::move(row), margin);
 }
 
-void BlockWidget::rowHeightUpdated() {
-	auto newHeight = resizeGetHeight(width());
-	if (newHeight != height()) {
-		resize(width(), newHeight);
-		emit heightUpdated();
-	}
-}
-
-void BlockWidget::createChildRow(object_ptr<Ui::Checkbox> &child, style::margins &margin, const QString &text, base::lambda<void(bool checked)> callback, bool checked) {
+void BlockWidget::createChildWidget(
+		object_ptr<Ui::Checkbox> &child,
+		style::margins &margin,
+		const QString &text,
+		base::lambda<void(bool checked)> callback,
+		bool checked) {
 	child.create(this, text, checked, st::defaultBoxCheckbox);
 	subscribe(child->checkedChanged, std::move(callback));
 }
 
-void BlockWidget::createChildRow(object_ptr<Ui::LinkButton> &child, style::margins &margin, const QString &text, const char *slot, const style::LinkButton &st) {
+void BlockWidget::createChildWidget(
+		object_ptr<Ui::LinkButton> &child,
+		style::margins &margin,
+		const QString &text,
+		const char *slot,
+		const style::LinkButton &st) {
 	child.create(this, text, st);
 	connect(child, SIGNAL(clicked()), this, slot);
 }

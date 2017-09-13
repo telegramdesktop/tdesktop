@@ -31,7 +31,7 @@ namespace Profile {
 
 class UserpicButton : public Ui::AbstractButton, private base::Subscriber {
 public:
-	UserpicButton(QWidget *parent, PeerData *peer, int size = 0);
+	UserpicButton(QWidget *parent, not_null<PeerData*> peer, int size = 0);
 
 	// If at the first moment the _userpic was not loaded,
 	// we need to show it animated after the profile is fully shown.
@@ -51,7 +51,7 @@ private:
 	bool _notShownYet;
 
 	int _size = 0;
-	PeerData *_peer;
+	not_null<PeerData*> _peer;
 	bool _waiting = false;
 	QPixmap _userpic, _oldUserpic;
 	Animation _a_appearance;

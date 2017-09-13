@@ -372,8 +372,10 @@ InnerDropdown::Container::Container(QWidget *parent, object_ptr<TWidget> child, 
 	_child->moveToLeft(_st.scrollPadding.left(), _st.scrollPadding.top());
 }
 
-void InnerDropdown::Container::setVisibleTopBottom(int visibleTop, int visibleBottom) {
-	_child->setVisibleTopBottom(visibleTop - _st.scrollPadding.top(), visibleBottom - _st.scrollPadding.top());
+void InnerDropdown::Container::visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) {
+	setChildVisibleTopBottom(_child, visibleTop, visibleBottom);
 }
 
 void InnerDropdown::Container::resizeToContent() {

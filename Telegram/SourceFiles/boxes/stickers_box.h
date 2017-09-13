@@ -173,7 +173,6 @@ public:
 		_loadMoreCallback = std::move(callback);
 	}
 
-	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 	void setMinHeight(int newWidth, int minHeight);
 
 	int getVisibleTop() const {
@@ -183,6 +182,10 @@ public:
 	~Inner();
 
 protected:
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
+
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;

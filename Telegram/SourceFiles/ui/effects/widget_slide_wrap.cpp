@@ -22,115 +22,159 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 
-WidgetSlideWrap<TWidget>::WidgetSlideWrap(QWidget *parent
-, object_ptr<TWidget> entity
-, style::margins entityPadding
-, base::lambda<void()> updateCallback
-, int duration) : TWidget(parent)
-, _entity(std::move(entity))
-, _padding(entityPadding)
-, _duration(duration)
-, _updateCallback(std::move(updateCallback)) {
-	_entity->setParent(this);
-	auto margins = getMargins();
-	_entity->moveToLeft(margins.left() + _padding.left(), margins.top() + _padding.top());
-	_realSize = _entity->rectNoMargins().marginsAdded(_padding).size();
-	_entity->installEventFilter(this);
-	resizeToWidth(_realSize.width());
-}
-
-void WidgetSlideWrap<TWidget>::hideAnimated() {
-	if (isHidden()) {
-		_forceHeight = 0;
-		resizeToWidth(_realSize.width());
-		if (_updateCallback) _updateCallback();
-		return;
-	}
-	if (_a_height.animating()) {
-		if (_hiding) return;
-	}
-	_hiding = true;
-	_a_height.start([this] { animationCallback(); }, _realSize.height(), 0., _duration);
-}
-
-void WidgetSlideWrap<TWidget>::showAnimated() {
-	if (isHidden()) {
-		show();
-	}
-	if (_forceHeight < 0) {
-		return;
-	}
-
-	if (_a_height.animating()) {
-		if (!_hiding) return;
-	}
-	_hiding = false;
-	_forceHeight = qRound(_a_height.current(0.));
-	_a_height.start([this] { animationCallback(); }, 0., _realSize.height(), _duration);
-}
-
-void WidgetSlideWrap<TWidget>::toggleFast(bool visible) {
-	_hiding = !visible;
-	if (!_hiding) show();
-	_a_height.finish();
-	_forceHeight = _hiding ? 0 : -1;
-	resizeToWidth(_realSize.width());
-	if (_hiding) hide();
-	if (_updateCallback) {
-		_updateCallback();
+PaddingWrap<RpWidget>::PaddingWrap(
+	QWidget *parent,
+	object_ptr<RpWidget> child,
+	const style::margins &padding)
+: Parent(parent, std::move(child))
+, _padding(padding) {
+	if (auto weak = wrapped()) {
+		auto margins = weak->getMargins();
+		weak->sizeValue()
+			| rpl::on_next([this](QSize&&) { updateSize(); })
+			| rpl::start(lifetime());
+		weak->moveToLeft(_padding.left() + margins.left(), _padding.top() + margins.top());
 	}
 }
 
-QMargins WidgetSlideWrap<TWidget>::getMargins() const {
-	auto entityMargins = _entity->getMargins();
-	if (_forceHeight < 0) {
-		return entityMargins;
-	}
-	return QMargins(entityMargins.left(), 0, entityMargins.right(), 0);
-}
-
-int WidgetSlideWrap<TWidget>::naturalWidth() const {
-	auto inner = _entity->naturalWidth();
-	return (inner < 0) ? inner : (_padding.left() + inner + _padding.right());
-}
-
-bool WidgetSlideWrap<TWidget>::eventFilter(QObject *object, QEvent *event) {
-	if (object == _entity && event->type() == QEvent::Resize) {
-		_realSize = _entity->rectNoMargins().marginsAdded(_padding).size();
-		if (!_inResizeToWidth) {
-			resizeToWidth(_realSize.width());
-			if (_updateCallback) {
-				_updateCallback();
-			}
+void PaddingWrap<RpWidget>::updateSize() {
+	auto inner = [this] {
+		if (auto weak = wrapped()) {
+			return weak->rect();
 		}
-	}
-	return TWidget::eventFilter(object, event);
+		return QRect(0, 0, _innerWidth, 0);
+	}();
+	resize(inner.marginsAdded(_padding).size());
 }
 
-int WidgetSlideWrap<TWidget>::resizeGetHeight(int newWidth) {
-	_inResizeToWidth = true;
-	auto resized = (_forceHeight >= 0);
-	_entity->resizeToWidth(newWidth - _padding.left() - _padding.right());
-	auto margins = getMargins();
-	_entity->moveToLeft(margins.left() + _padding.left(), margins.top() + _padding.top());
-	_inResizeToWidth = false;
-	if (resized) {
-		return _forceHeight;
-	}
-	_realSize = _entity->rectNoMargins().marginsAdded(_padding).size();
-	return _realSize.height();
+int PaddingWrap<RpWidget>::naturalWidth() const {
+	auto inner = [this] {
+		if (auto weak = wrapped()) {
+			return weak->naturalWidth();
+		}
+		return RpWidget::naturalWidth();
+	}();
+	return (inner < 0)
+		? inner
+		: (_padding.left() + inner + _padding.right());
 }
 
-void WidgetSlideWrap<TWidget>::animationCallback() {
-	_forceHeight = qRound(_a_height.current(_hiding ? 0 : -1));
-	resizeToWidth(_realSize.width());
-	if (!_a_height.animating()) {
-		_forceHeight = _hiding ? 0 : -1;
-		if (_hiding) hide();
+int PaddingWrap<RpWidget>::resizeGetHeight(int newWidth) {
+	_innerWidth = newWidth;
+	if (auto weak = wrapped()) {
+		weak->resizeToWidth(newWidth
+			- _padding.left()
+			- _padding.right());
+	} else {
+		updateSize();
 	}
-	if (_updateCallback) {
-		_updateCallback();
+	return height();
+}
+
+SlideWrap<RpWidget>::SlideWrap(
+	QWidget *parent,
+	object_ptr<RpWidget> child)
+: SlideWrap(
+	parent,
+	std::move(child),
+	style::margins(),
+	st::slideWrapDuration) {
+}
+
+SlideWrap<RpWidget>::SlideWrap(
+	QWidget *parent,
+	object_ptr<RpWidget> child,
+	const style::margins &padding)
+: SlideWrap(
+	parent,
+	std::move(child),
+	padding,
+	st::slideWrapDuration) {
+}
+
+SlideWrap<RpWidget>::SlideWrap(
+	QWidget *parent,
+	object_ptr<RpWidget> child,
+	int duration)
+: SlideWrap(parent, std::move(child), style::margins(), duration) {
+}
+
+SlideWrap<RpWidget>::SlideWrap(
+	QWidget *parent,
+	object_ptr<RpWidget> child,
+	const style::margins &padding,
+	int duration)
+: Parent(parent, object_ptr<PaddingWrap<RpWidget>>(parent, std::move(child), padding))
+, _duration(duration * 10) {
+	if (auto weak = wrapped()) {
+		weak->heightValue()
+			| rpl::on_next([this](int newHeight) {
+			if (_slideAnimation.animating()) {
+				animationStep();
+			} else if (_visible) {
+				resize(width(), newHeight);
+			}
+		}) | rpl::start(lifetime());
 	}
+}
+
+void SlideWrap<RpWidget>::animationStep() {
+	if (wrapped()) {
+		auto margins = getMargins();
+		wrapped()->moveToLeft(margins.left(), margins.top());
+	}
+	auto current = _slideAnimation.current(_visible ? 1. : 0.);
+	auto newHeight = wrapped()
+		? (_slideAnimation.animating()
+		? anim::interpolate(0, wrapped()->heightNoMargins(), current)
+		: (_visible ? wrapped()->height() : 0))
+		: 0;
+	if (newHeight != height()) {
+		resize(width(), newHeight);
+	}
+	auto shouldBeHidden = !_visible && !_slideAnimation.animating();
+	if (shouldBeHidden != isHidden()) {
+		setVisible(!shouldBeHidden);
+	}
+}
+
+void SlideWrap<RpWidget>::toggleAnimated(bool visible) {
+	if (_visible == visible) {
+		animationStep();
+		return;
+	}
+	_visible = visible;
+	_slideAnimation.start(
+		[this] { animationStep(); },
+		_visible ? 0. : 1.,
+		_visible ? 1. : 0.,
+		_duration,
+		anim::linear);
+	animationStep();
+}
+
+void SlideWrap<RpWidget>::toggleFast(bool visible) {
+	_visible = visible;
+	finishAnimations();
+}
+
+void SlideWrap<RpWidget>::finishAnimations() {
+	_slideAnimation.finish();
+	animationStep();
+}
+
+QMargins SlideWrap<RpWidget>::getMargins() const {
+	auto result = wrapped()->getMargins();
+	return (animating() || !_visible)
+		? QMargins(result.left(), 0, result.right(), 0)
+		: result;
+}
+
+int SlideWrap<RpWidget>::resizeGetHeight(int newWidth) {
+	if (wrapped()) {
+		wrapped()->resizeToWidth(newWidth);
+	}
+	return height();
 }
 
 } // namespace Ui

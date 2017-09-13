@@ -43,8 +43,8 @@ private:
 	void createControls();
 	void setScale(DBIScale newScale);
 
-	object_ptr<Ui::Checkbox> _auto = { nullptr };
-	object_ptr<Ui::SettingsSlider> _scale = { nullptr };
+	Ui::Checkbox *_auto = nullptr;
+	Ui::SettingsSlider *_scale = nullptr;
 
 	DBIScale _newScale = dbisAuto;
 	bool _inSetScale = false;

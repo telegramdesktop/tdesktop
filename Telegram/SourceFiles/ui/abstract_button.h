@@ -20,16 +20,17 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/twidget.h"
+#include <rpl/event_stream.h>
+#include "ui/rp_widget.h"
 #include "base/flags.h"
 
 namespace Ui {
 
-class AbstractButton : public TWidget {
+class AbstractButton : public RpWidget {
 	Q_OBJECT
 
 public:
-	AbstractButton(QWidget *parent) : TWidget(parent) {
+	AbstractButton(QWidget *parent) : RpWidget(parent) {
 		setMouseTracking(true);
 	}
 
@@ -62,6 +63,10 @@ public:
 		if (!visible) {
 			clearState();
 		}
+	}
+
+	rpl::producer<> clicks() const {
+		return _clicks.events();
 	}
 
 protected:
@@ -108,6 +113,8 @@ private:
 	bool _enablePointerCursor = true;
 
 	base::lambda<void()> _clickedCallback;
+
+	rpl::event_stream<> _clicks;
 
 };
 

@@ -243,9 +243,9 @@ void StickersBox::prepare() {
 			preloadArchivedSets();
 		}
 		setNoContentMargin(true);
-		_tabs->setSectionActivatedCallback([this] {
-			switchTab();
-		});
+		_tabs->sectionActivated()
+			| rpl::on_next([this](int) { switchTab(); })
+			| rpl::start(lifetime());
 		refreshTabs();
 	}
 	if (_installed.widget() && _section != Section::Installed) _installed.widget()->hide();
@@ -1532,7 +1532,9 @@ void StickersBox::Inner::setRemovedSets(const Stickers::Order &removed) {
 	}
 }
 
-void StickersBox::Inner::setVisibleTopBottom(int visibleTop, int visibleBottom) {
+void StickersBox::Inner::visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) {
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
 	updateScrollbarWidth();

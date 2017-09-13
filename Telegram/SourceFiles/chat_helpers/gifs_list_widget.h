@@ -51,8 +51,6 @@ public:
 	void clearSelection() override;
 	object_ptr<TabbedSelector::InnerFooter> createFooter() override;
 
-	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
-
 	void inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout) override;
 	void inlineItemRepaint(const InlineBots::Layout::ItemBase *layout) override;
 	bool inlineItemVisible(const InlineBots::Layout::ItemBase *layout) override;
@@ -69,6 +67,10 @@ public:
 	~GifsListWidget();
 
 protected:
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
+
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;

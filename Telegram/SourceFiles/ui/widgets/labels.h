@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include <rpl/producer.h>
+#include "ui/rp_widget.h"
 #include "styles/style_widgets.h"
 
 namespace Ui {
@@ -78,7 +80,7 @@ private:
 
 };
 
-class FlatLabel : public TWidget, public ClickHandlerHost {
+class FlatLabel : public RpWidget, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
@@ -88,7 +90,20 @@ public:
 		Simple,
 		Rich,
 	};
-	FlatLabel(QWidget *parent, const QString &text, InitType initType, const style::FlatLabel &st = st::defaultFlatLabel);
+	FlatLabel(
+		QWidget *parent,
+		const QString &text,
+		InitType initType,
+		const style::FlatLabel &st = st::defaultFlatLabel);
+
+	FlatLabel(
+		QWidget *parent,
+		rpl::producer<QString> &&text,
+		const style::FlatLabel &st = st::defaultFlatLabel);
+	FlatLabel(
+		QWidget *parent,
+		rpl::producer<TextWithEntities> &&text,
+		const style::FlatLabel &st = st::defaultFlatLabel);
 
 	void setOpacity(float64 o);
 

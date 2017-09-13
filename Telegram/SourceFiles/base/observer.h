@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <vector>
 #include <deque>
+#include <rpl/producer.h>
 #include "base/type_traits.h"
 
 namespace base {
@@ -459,5 +460,32 @@ private:
 };
 
 void HandleObservables();
+
+template <
+	typename Type,
+	typename = std::enable_if_t<!std::is_same_v<Type, void>>>
+inline rpl::producer<Type> ObservableViewer(
+		base::Observable<Type> &observable) {
+	return [&observable](const rpl::consumer<Type> &consumer) {
+		auto lifetime = rpl::lifetime();
+		lifetime.make_state<base::Subscription>(
+			observable.add_subscription([consumer](auto &&update) {
+				consumer.put_next_copy(update);
+			}));
+		return lifetime;
+	};
+}
+
+inline rpl::producer<> ObservableViewer(
+		base::Observable<void> &observable) {
+	return [&observable](const rpl::consumer<> &consumer) {
+		auto lifetime = rpl::lifetime();
+		lifetime.make_state<base::Subscription>(
+			observable.add_subscription([consumer]() {
+				consumer.put_next({});
+			}));
+		return lifetime;
+	};
+}
 
 } // namespace base

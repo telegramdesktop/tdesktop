@@ -141,12 +141,14 @@ private:
 class InnerDropdown::Container : public TWidget {
 public:
 	Container(QWidget *parent, object_ptr<TWidget> child, const style::InnerDropdown &st);
-	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
 	void resizeToContent();
 
 protected:
 	int resizeGetHeight(int newWidth) override;
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
 
 private:
 	object_ptr<TWidget> _child;

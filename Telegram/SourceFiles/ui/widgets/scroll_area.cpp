@@ -383,6 +383,7 @@ void ScrollArea::onScrolled() {
 				_verticalBar->hideTimeout(_st.hiding);
 			}
 			em = true;
+			_scrollTopUpdated.fire_copy(_verticalValue);
 		}
 	}
 	if (em) {

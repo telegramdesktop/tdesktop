@@ -323,8 +323,10 @@ EmojiListWidget::EmojiListWidget(QWidget *parent, not_null<Window::Controller*> 
 	connect(_picker, SIGNAL(hidden()), this, SLOT(onPickerHidden()));
 }
 
-void EmojiListWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
-	Inner::setVisibleTopBottom(visibleTop, visibleBottom);
+void EmojiListWidget::visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) {
+	Inner::visibleTopBottomUpdated(visibleTop, visibleBottom);
 	if (_footer) {
 		_footer->setCurrentSectionIcon(currentSection(visibleTop));
 	}

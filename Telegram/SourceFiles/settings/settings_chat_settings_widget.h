@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "settings/settings_block_widget.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 class FlatLabel;
@@ -28,7 +29,7 @@ class FlatLabel;
 
 namespace Settings {
 
-class LabeledLink : public TWidget {
+class LabeledLink : public Ui::RpWidget {
 public:
 	enum class Type {
 		Primary,
@@ -50,7 +51,7 @@ private:
 };
 
 #ifndef OS_WIN_STORE
-class DownloadPathState : public TWidget, private base::Subscriber {
+class DownloadPathState : public Ui::RpWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -106,17 +107,17 @@ private:
 	void sendByChanged(SendByType value);
 	void createControls();
 
-	object_ptr<Ui::Checkbox> _replaceEmoji = { nullptr };
-	object_ptr<Ui::Checkbox> _dontAskDownloadPath = { nullptr };
+	Ui::Checkbox *_replaceEmoji = nullptr;
+	Ui::Checkbox *_dontAskDownloadPath = nullptr;
 
 #ifndef OS_WIN_STORE
-	object_ptr<Ui::WidgetSlideWrap<DownloadPathState>> _downloadPath = { nullptr };
+	Ui::SlideWrap<DownloadPathState> *_downloadPath = nullptr;
 #endif // OS_WIN_STORE
 
-	object_ptr<Ui::Radioenum<SendByType>> _sendByEnter = { nullptr };
-	object_ptr<Ui::Radioenum<SendByType>> _sendByCtrlEnter = { nullptr };
-	object_ptr<Ui::LinkButton> _automaticMediaDownloadSettings = { nullptr };
-	object_ptr<Ui::LinkButton> _manageStickerSets = { nullptr };
+	Ui::Radioenum<SendByType> *_sendByEnter = nullptr;
+	Ui::Radioenum<SendByType> *_sendByCtrlEnter = nullptr;
+	Ui::LinkButton *_automaticMediaDownloadSettings = nullptr;
+	Ui::LinkButton *_manageStickerSets = nullptr;
 
 };
 

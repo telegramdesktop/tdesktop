@@ -31,7 +31,7 @@ class RadioenumGroup;
 template <typename Enum>
 class Radioenum;
 template <typename Widget>
-class WidgetSlideWrap;
+class SlideWrap;
 } // namespace Ui
 
 class EditPrivacyBox : public BoxContent, private MTP::Sender {
@@ -103,7 +103,7 @@ private:
 	void editExceptionUsers(Exception exception);
 	QString exceptionLinkText(Exception exception);
 	std::vector<not_null<UserData*>> &exceptionUsers(Exception exception);
-	object_ptr<Ui::WidgetSlideWrap<Ui::LinkButton>> &exceptionLink(Exception exception);
+	object_ptr<Ui::SlideWrap<Ui::LinkButton>> &exceptionLink(Exception exception);
 
 	std::unique_ptr<Controller> _controller;
 	Option _option = Option::Everyone;
@@ -116,8 +116,8 @@ private:
 	object_ptr<Ui::Radioenum<Option>> _nobody = { nullptr };
 	object_ptr<Ui::FlatLabel> _warning = { nullptr };
 	object_ptr<Ui::FlatLabel> _exceptionsTitle = { nullptr };
-	object_ptr<Ui::WidgetSlideWrap<Ui::LinkButton>> _alwaysLink = { nullptr };
-	object_ptr<Ui::WidgetSlideWrap<Ui::LinkButton>> _neverLink = { nullptr };
+	object_ptr<Ui::SlideWrap<Ui::LinkButton>> _alwaysLink = { nullptr };
+	object_ptr<Ui::SlideWrap<Ui::LinkButton>> _neverLink = { nullptr };
 	object_ptr<Ui::FlatLabel> _exceptionsDescription = { nullptr };
 
 	std::vector<not_null<UserData*>> _alwaysUsers;

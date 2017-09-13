@@ -41,9 +41,6 @@ public:
 		return TWidget::resizeToWidth(newWidth);
 	}
 
-	// Updates the area that is visible inside the scroll container.
-	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
-
 	// Profile fixed top bar should use this flag to decide
 	// if it shows "Share contact" button or not.
 	// It should show it only if it is hidden in the cover.
@@ -61,11 +58,13 @@ private slots:
 	void onBlockHeightUpdated();
 
 protected:
+	int resizeGetHeight(int newWidth) override;
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
+
 	void paintEvent(QPaintEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
-
-	// Resizes content and counts natural widget height for the desired width.
-	int resizeGetHeight(int newWidth) override;
 
 private:
 	void createBlocks();

@@ -101,12 +101,22 @@ int CoverWidget::resizeGetHeight(int newWidth) {
 
 	newHeight += st::settingsMarginTop;
 
-	_userpicButton->moveToLeft(contentLeft() + st::settingsPhotoLeft, newHeight, newWidth);
+	auto margins = getMargins();
+	_userpicButton->moveToLeft(
+		margins.left() + contentLeft() + st::settingsPhotoLeft,
+		margins.top() + newHeight,
+		newWidth);
 
 	int infoLeft = _userpicButton->x() + _userpicButton->width();
 	_statusPosition = QPoint(infoLeft + st::settingsStatusLeft, _userpicButton->y() + st::settingsStatusTop);
 	if (_cancelPhotoUpload) {
-		_cancelPhotoUpload->moveToLeft(_statusPosition.x() + st::settingsStatusFont->width(_statusText) + st::settingsStatusFont->spacew, _statusPosition.y(), newWidth);
+		_cancelPhotoUpload->moveToLeft(
+			margins.left()
+				+ _statusPosition.x()
+				+ st::settingsStatusFont->width(_statusText)
+				+ st::settingsStatusFont->spacew,
+			margins.top() + _statusPosition.y(),
+			newWidth);
 	}
 
 	refreshButtonsGeometry(newWidth);
@@ -125,20 +135,27 @@ int CoverWidget::resizeGetHeight(int newWidth) {
 }
 
 void CoverWidget::refreshButtonsGeometry(int newWidth) {
-	int buttonLeft = _userpicButton->x() + _userpicButton->width() + st::settingsButtonLeft;
-	int buttonsRight = newWidth - st::settingsButtonSkip;
-	_setPhoto->moveToLeft(buttonLeft, _userpicButton->y() + st::settingsButtonTop, newWidth);
+	auto margins = getMargins();
+	auto buttonLeft = margins.left() + _userpicButton->x() + _userpicButton->width() + st::settingsButtonLeft;
+	_setPhoto->moveToLeft(
+		buttonLeft,
+		margins.top() + _userpicButton->y() + st::settingsButtonTop,
+		newWidth);
 	buttonLeft += _setPhoto->width() + st::settingsButtonSkip;
-	_editName->moveToLeft(buttonLeft, _setPhoto->y(), newWidth);
+	_editName->moveToLeft(
+		buttonLeft,
+		margins.top() + _setPhoto->y(),
+		newWidth);
 	_editNameVisible = (buttonLeft + _editName->width() + st::settingsButtonSkip <= newWidth);
 	_editName->setVisible(_editNameVisible);
 }
 
 void CoverWidget::refreshNameGeometry(int newWidth) {
-	int infoLeft = _userpicButton->x() + _userpicButton->width();
-	int nameLeft = infoLeft + st::settingsNameLeft - st::settingsNameLabel.margin.left();
-	int nameTop = _userpicButton->y() + st::settingsNameTop - st::settingsNameLabel.margin.top();
-	int nameWidth = newWidth - infoLeft - st::settingsNameLeft;
+	auto margins = getMargins();
+	auto infoLeft = _userpicButton->x() + _userpicButton->width();
+	auto nameLeft = infoLeft + st::settingsNameLeft - st::settingsNameLabel.margin.left();
+	auto nameTop = _userpicButton->y() + st::settingsNameTop - st::settingsNameLabel.margin.top();
+	auto nameWidth = newWidth - infoLeft - st::settingsNameLeft;
 	auto editNameInlineVisible = !_editNameVisible;
 	if (editNameInlineVisible) {
 		nameWidth -= _editNameInline->width();
@@ -146,9 +163,15 @@ void CoverWidget::refreshNameGeometry(int newWidth) {
 	int marginsAdd = st::settingsNameLabel.margin.left() + st::settingsNameLabel.margin.right();
 
 	_name->resizeToWidth(qMin(nameWidth - marginsAdd, _name->naturalWidth()) + marginsAdd);
-	_name->moveToLeft(nameLeft, nameTop, newWidth);
+	_name->moveToLeft(
+		margins.left() + nameLeft,
+		margins.top() + nameTop,
+		newWidth);
 
-	_editNameInline->moveToLeft(nameLeft + _name->width(), nameTop, newWidth);
+	_editNameInline->moveToLeft(
+		margins.left() + nameLeft + _name->width(),
+		margins.top() + nameTop,
+		newWidth);
 	_editNameInline->setVisible(editNameInlineVisible);
 }
 
@@ -283,10 +306,16 @@ void CoverWidget::refreshStatusText() {
 		_statusText = lang(lng_settings_uploading_photo);
 		_statusTextIsOnline = false;
 		if (!_cancelPhotoUpload) {
+			auto margins = getMargins();
 			_cancelPhotoUpload.create(this, lang(lng_cancel), st::defaultLinkButton);
 			connect(_cancelPhotoUpload, SIGNAL(clicked()), this, SLOT(onCancelPhotoUpload()));
 			_cancelPhotoUpload->show();
-			_cancelPhotoUpload->moveToLeft(_statusPosition.x() + st::settingsStatusFont->width(_statusText) + st::settingsStatusFont->spacew, _statusPosition.y());
+			_cancelPhotoUpload->moveToLeft(
+				margins.left()
+					+ _statusPosition.x()
+					+ st::settingsStatusFont->width(_statusText)
+					+ st::settingsStatusFont->spacew,
+				margins.top() + _statusPosition.y());
 		}
 		update();
 		return;

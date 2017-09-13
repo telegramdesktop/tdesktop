@@ -102,9 +102,6 @@ public:
 		return _user;
 	}
 
-	// Updates the area that is visible inside the scroll container.
-	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
-
 	void resizeToWidth(int newWidth, int minHeight) {
 		_minHeight = minHeight;
 		return TWidget::resizeToWidth(newWidth);
@@ -119,14 +116,16 @@ signals:
 	void cancelled();
 
 protected:
+	int resizeGetHeight(int newWidth) override;
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
+
 	void paintEvent(QPaintEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
-
-	// Resizes content and counts natural widget height for the desired width.
-	int resizeGetHeight(int newWidth) override;
 
 private:
 	void updateSelected(QPoint localPos);
@@ -191,7 +190,7 @@ public:
 
 	// Float player interface.
 	bool wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) override;
-	QRect rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) override;
+	QRect rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) const override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;

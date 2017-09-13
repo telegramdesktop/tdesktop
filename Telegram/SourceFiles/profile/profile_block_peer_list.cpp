@@ -50,7 +50,7 @@ int PeerListWidget::resizeGetHeight(int newWidth) {
 	return newHeight + _st.bottom;
 }
 
-void PeerListWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
+void PeerListWidget::visibleTopBottomUpdated(int visibleTop, int visibleBottom) {
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
 

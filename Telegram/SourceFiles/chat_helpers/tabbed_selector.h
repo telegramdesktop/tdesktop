@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/twidget.h"
+#include "ui/rp_widget.h"
 #include "ui/effects/panel_animation.h"
 #include "mtproto/sender.h"
 #include "auth_session.h"
@@ -52,7 +52,7 @@ class EmojiListWidget;
 class StickersListWidget;
 class GifsListWidget;
 
-class TabbedSelector : public TWidget, private base::Subscriber {
+class TabbedSelector : public Ui::RpWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -86,7 +86,7 @@ public:
 
 	// Float player interface.
 	bool wheelEventFromFloatPlayer(QEvent *e);
-	QRect rectForFloatPlayer();
+	QRect rectForFloatPlayer() const;
 
 	~TabbedSelector();
 
@@ -207,8 +207,6 @@ class TabbedSelector::Inner : public TWidget {
 public:
 	Inner(QWidget *parent, not_null<Window::Controller*> controller);
 
-	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
-
 	int getVisibleTop() const {
 		return _visibleTop;
 	}
@@ -235,6 +233,10 @@ signals:
 	void disableScroll(bool disabled);
 
 protected:
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
+
 	not_null<Window::Controller*> controller() const {
 		return _controller;
 	}

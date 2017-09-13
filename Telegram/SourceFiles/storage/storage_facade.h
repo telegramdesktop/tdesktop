@@ -20,8 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include <rpl/producer.h>
 #include "base/enum_mask.h"
-#include "rpl/producer.h"
 
 namespace Storage {
 

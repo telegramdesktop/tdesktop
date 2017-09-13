@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include <rpl/event_stream.h>
 #include "styles/style_widgets.h"
 
 namespace Ui {
@@ -204,6 +205,10 @@ public:
 	bool viewportEvent(QEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 
+	rpl::producer<int> scrollTopValue() const {
+		return _scrollTopUpdated.events_starting_with(scrollTop());
+	}
+
 protected:
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
@@ -282,6 +287,8 @@ private:
 	object_ptr<SplittedWidgetOther> _other = { nullptr };
 
 	object_ptr<TWidget> _widget = { nullptr };
+
+	rpl::event_stream<int> _scrollTopUpdated;
 
 };
 

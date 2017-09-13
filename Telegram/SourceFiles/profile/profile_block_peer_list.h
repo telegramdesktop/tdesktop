@@ -38,8 +38,6 @@ class PeerListWidget : public BlockWidget {
 public:
 	PeerListWidget(QWidget *parent, PeerData *peer, const QString &title, const style::ProfilePeerListItem &st = st::profileMemberItem, const QString &removeText = QString());
 
-	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
-
 	struct Item {
 		explicit Item(PeerData *peer);
 		~Item();
@@ -100,11 +98,13 @@ public:
 	}
 
 protected:
+	int resizeGetHeight(int newWidth) override;
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
+
 	void paintOutlinedRect(Painter &p, int x, int y, int w, int h) const;
 	void refreshVisibility();
-
-	// Resizes content and counts natural widget height for the desired width.
-	int resizeGetHeight(int newWidth) override;
 
 	void paintContents(Painter &p) override;
 

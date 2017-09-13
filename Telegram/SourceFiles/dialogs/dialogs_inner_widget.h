@@ -107,7 +107,6 @@ public:
 	void setLoadMoreCallback(base::lambda<void()> callback) {
 		_loadMoreCallback = std::move(callback);
 	}
-	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
 	base::Observable<UserData*> searchFromUserChanged;
 
@@ -133,6 +132,10 @@ signals:
 	void refreshHashtags();
 
 protected:
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
+
 	void paintRegion(Painter &p, const QRegion &region, bool paintingOther) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;

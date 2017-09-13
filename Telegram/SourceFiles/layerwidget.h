@@ -20,16 +20,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "ui/rp_widget.h"
+
 namespace Window {
 class MainMenu;
 class Controller;
 } // namespace Window
 
-class LayerWidget : public TWidget {
-	Q_OBJECT
-
+class LayerWidget : public Ui::RpWidget {
 public:
-	using TWidget::TWidget;
+	using RpWidget::RpWidget;
 
 	virtual void parentResized() = 0;
 	virtual void showFinished() {

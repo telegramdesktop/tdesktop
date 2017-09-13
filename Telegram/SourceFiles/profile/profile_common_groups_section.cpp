@@ -105,7 +105,9 @@ InnerWidget::InnerWidget(QWidget *parent, not_null<UserData*> user) : TWidget(pa
 	_contentTop = st::profileCommonGroupsSkip;
 }
 
-void InnerWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
+void InnerWidget::visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) {
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
 
@@ -449,7 +451,7 @@ bool Widget::wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Windo
 	return _scroll->viewportEvent(e);
 }
 
-QRect Widget::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) {
+QRect Widget::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) const {
 	return mapToGlobal(_scroll->geometry());
 }
 

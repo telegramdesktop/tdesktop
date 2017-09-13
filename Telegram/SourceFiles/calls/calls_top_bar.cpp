@@ -75,7 +75,10 @@ void DebugInfoBox::updateText() {
 
 } // namespace
 
-TopBar::TopBar(QWidget *parent, const base::weak_unique_ptr<Call> &call) : TWidget(parent)
+TopBar::TopBar(
+	QWidget *parent,
+	const base::weak_unique_ptr<Call> &call)
+: RpWidget(parent)
 , _call(call)
 , _durationLabel(this, st::callBarLabel)
 , _fullInfoLabel(this, st::callBarInfoLabel)

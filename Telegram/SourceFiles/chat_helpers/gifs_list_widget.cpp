@@ -156,9 +156,11 @@ object_ptr<TabbedSelector::InnerFooter> GifsListWidget::createFooter() {
 	return std::move(result);
 }
 
-void GifsListWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
+void GifsListWidget::visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) {
 	auto top = getVisibleTop();
-	Inner::setVisibleTopBottom(visibleTop, visibleBottom);
+	Inner::visibleTopBottomUpdated(visibleTop, visibleBottom);
 	if (top != getVisibleTop()) {
 		_lastScrolled = getms();
 	}

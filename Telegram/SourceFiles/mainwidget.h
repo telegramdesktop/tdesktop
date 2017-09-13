@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_common.h"
 #include "core/single_timer.h"
 #include "base/weak_unique_ptr.h"
+#include "ui/rp_widget.h"
 
 namespace Notify {
 struct PeerUpdate;
@@ -46,7 +47,7 @@ namespace Ui {
 class PlainShadow;
 class DropdownMenu;
 template <typename Widget>
-class WidgetSlideWrap;
+class SlideWrap;
 } // namespace Ui
 
 namespace Window {
@@ -149,7 +150,7 @@ class ItemBase;
 } // namespace Layout
 } // namespace InlineBots
 
-class MainWidget : public TWidget, public RPCSender, private base::Subscriber {
+class MainWidget : public Ui::RpWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -506,7 +507,7 @@ private:
 	void setCurrentCall(Calls::Call *call);
 	void createCallTopBar();
 	void destroyCallTopBar();
-	void callTopBarHeightUpdated();
+	void callTopBarHeightUpdated(int callTopBarHeight);
 
 	void sendReadRequest(PeerData *peer, MsgId upTo);
 	void channelReadDone(PeerData *peer, const MTPBool &result);
@@ -620,7 +621,7 @@ private:
 	object_ptr<OverviewWidget> _overview = { nullptr };
 
 	base::weak_unique_ptr<Calls::Call> _currentCall;
-	object_ptr<Ui::WidgetSlideWrap<Calls::TopBar>> _callTopBar = { nullptr };
+	object_ptr<Ui::SlideWrap<Calls::TopBar>> _callTopBar = { nullptr };
 
 	object_ptr<Window::PlayerWrapWidget> _player = { nullptr };
 	object_ptr<Media::Player::VolumeWidget> _playerVolume = { nullptr };

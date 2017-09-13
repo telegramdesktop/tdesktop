@@ -3515,7 +3515,7 @@ bool HistoryWidget::wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn
 	return _scroll->viewportEvent(e);
 }
 
-QRect HistoryWidget::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) {
+QRect HistoryWidget::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) const {
 	if (playerColumn == Window::Column::Third && _tabbedSection) {
 		auto tabbedColumn = (myColumn == Window::Column::First) ? Window::Column::Second : Window::Column::Third;
 		return _tabbedSection->rectForFloatPlayer(tabbedColumn, playerColumn);

@@ -24,20 +24,22 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Window {
 
-PlayerWrapWidget::PlayerWrapWidget(QWidget *parent, base::lambda<void()> updateCallback) : Parent(parent
-	, object_ptr<Media::Player::Widget>(parent)
-	, style::margins(0, 0, 0, 0)
-	, std::move(updateCallback)) {
+PlayerWrapWidget::PlayerWrapWidget(QWidget *parent)
+: Parent(parent, object_ptr<Media::Player::Widget>(parent)) {
+	sizeValue()
+		| rpl::on_next([this](QSize &&size) {
+			updateShadowGeometry(size);
+		})
+		| rpl::start(lifetime());
 }
 
-void PlayerWrapWidget::resizeEvent(QResizeEvent *e) {
-	updateShadowGeometry();
-	Parent::resizeEvent(e);
-}
-
-void PlayerWrapWidget::updateShadowGeometry() {
+void PlayerWrapWidget::updateShadowGeometry(QSize size) {
 	auto skip = Adaptive::OneColumn() ? 0 : st::lineWidth;
-	entity()->setShadowGeometryToLeft(skip, height() - st::lineWidth, width() - skip, st::lineWidth);
+	entity()->setShadowGeometryToLeft(
+		skip,
+		size.height() - st::lineWidth,
+		size.width() - skip,
+		st::lineWidth);
 }
 
 } // namespace Window

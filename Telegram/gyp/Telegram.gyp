@@ -112,6 +112,7 @@
       '<@(qrc_files)',
       '<@(style_files)',
       '<!@(<(list_sources_command) <(qt_moc_list_sources_arg))',
+      'telegram_sources.txt',
     ],
     'sources!': [
       '<!@(<(list_sources_command) <(qt_moc_list_sources_arg) --exclude_for <(build_os))',

@@ -92,7 +92,6 @@ public:
 
 	using Section = Ui::Emoji::Section;
 
-	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 	void refreshRecent() override;
 	void clearSelection() override;
 	object_ptr<TabbedSelector::InnerFooter> createFooter() override;
@@ -112,6 +111,10 @@ signals:
 	void switchToStickers();
 
 protected:
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
+
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -136,6 +139,7 @@ private:
 		int rowsTop = 0;
 		int rowsBottom = 0;
 	};
+
 	template <typename Callback>
 	bool enumerateSections(Callback callback) const;
 	SectionInfo sectionInfo(int section) const;

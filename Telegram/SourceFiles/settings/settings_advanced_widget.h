@@ -52,15 +52,15 @@ private:
 	void supportGot(const MTPhelp_Support &support);
 	QString getNightThemeToggleText() const;
 
-	object_ptr<Ui::LinkButton> _manageLocalStorage = { nullptr };
+	Ui::LinkButton *_manageLocalStorage = nullptr;
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-	object_ptr<LabeledLink> _connectionType = { nullptr };
+	LabeledLink *_connectionType = nullptr;
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
-	object_ptr<Ui::WidgetSlideWrap<Ui::LinkButton>> _useDefaultTheme = { nullptr };
-	object_ptr<Ui::WidgetSlideWrap<Ui::LinkButton>> _toggleNightTheme = { nullptr };
-	object_ptr<Ui::LinkButton> _askQuestion = { nullptr };
-	object_ptr<Ui::LinkButton> _telegramFAQ = { nullptr };
-	object_ptr<Ui::LinkButton> _logOut = { nullptr };
+	Ui::SlideWrap<Ui::LinkButton> *_useDefaultTheme = nullptr;
+	Ui::SlideWrap<Ui::LinkButton> *_toggleNightTheme = nullptr;
+	Ui::LinkButton *_askQuestion = nullptr;
+	Ui::LinkButton *_telegramFAQ = nullptr;
+	Ui::LinkButton *_logOut = nullptr;
 
 	mtpRequestId _supportGetRequest = 0;
 

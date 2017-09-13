@@ -28,7 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/local_storage_box.h"
 #include "mainwindow.h"
 #include "ui/widgets/buttons.h"
-#include "ui/effects/widget_slide_wrap.h"
+#include "ui/wrap/slide_wrap.h"
 #include "storage/localstorage.h"
 #include "window/themes/window_theme.h"
 
@@ -62,31 +62,31 @@ void AdvancedWidget::createControls() {
 #endif // TDESKTOP_DISABLE_NETWORK_PROXY
 	})();
 	if (self()) {
-		addChildRow(_manageLocalStorage, marginLocalStorage, lang(lng_settings_manage_local_storage), SLOT(onManageLocalStorage()));
+		createChildRow(_manageLocalStorage, marginLocalStorage, lang(lng_settings_manage_local_storage), SLOT(onManageLocalStorage()));
 	}
 
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-	addChildRow(_connectionType, marginLarge, lang(lng_connection_type), lang(lng_connection_auto_connecting), LabeledLink::Type::Primary, SLOT(onConnectionType()));
+	createChildRow(_connectionType, marginLarge, lang(lng_connection_type), lang(lng_connection_auto_connecting), LabeledLink::Type::Primary, SLOT(onConnectionType()));
 	connectionTypeUpdated();
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 
 	if (self()) {
-		addChildRow(_askQuestion, marginSmall, lang(lng_settings_ask_question), SLOT(onAskQuestion()));
+		createChildRow(_askQuestion, marginSmall, lang(lng_settings_ask_question), SLOT(onAskQuestion()));
 	} else {
 		style::margins slidedPadding(0, marginLarge.bottom() / 2, 0, marginLarge.bottom() - (marginLarge.bottom() / 2));
-		addChildRow(_useDefaultTheme, marginLarge, slidedPadding, lang(lng_settings_bg_use_default), SLOT(onUseDefaultTheme()));
+		createChildRow(_useDefaultTheme, marginLarge, slidedPadding, lang(lng_settings_bg_use_default), SLOT(onUseDefaultTheme()));
 		if (!Window::Theme::IsNonDefaultUsed()) {
 			_useDefaultTheme->hideFast();
 		}
-		addChildRow(_toggleNightTheme, marginLarge, slidedPadding, getNightThemeToggleText(), SLOT(onToggleNightTheme()));
+		createChildRow(_toggleNightTheme, marginLarge, slidedPadding, getNightThemeToggleText(), SLOT(onToggleNightTheme()));
 		if (Window::Theme::IsNonDefaultUsed()) {
 			_toggleNightTheme->hideFast();
 		}
 	}
-	addChildRow(_telegramFAQ, marginLarge, lang(lng_settings_faq), SLOT(onTelegramFAQ()));
+	createChildRow(_telegramFAQ, marginLarge, lang(lng_settings_faq), SLOT(onTelegramFAQ()));
 	if (self()) {
 		style::margins marginLogout(0, 0, 0, 2 * st::settingsLargeSkip);
-		addChildRow(_logOut, marginLogout, lang(lng_settings_logout), SLOT(onLogOut()));
+		createChildRow(_logOut, marginLogout, lang(lng_settings_logout), SLOT(onLogOut()));
 	}
 }
 

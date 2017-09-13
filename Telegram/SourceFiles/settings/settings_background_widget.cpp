@@ -24,7 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "boxes/background_box.h"
-#include "ui/effects/widget_slide_wrap.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "storage/localstorage.h"
@@ -35,7 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Settings {
 
-BackgroundRow::BackgroundRow(QWidget *parent) : TWidget(parent)
+BackgroundRow::BackgroundRow(QWidget *parent) : RpWidget(parent)
 , _chooseFromGallery(this, lang(lng_settings_bg_from_gallery), st::boxLinkButton)
 , _chooseFromFile(this, lang(lng_settings_bg_from_file), st::boxLinkButton)
 , _editTheme(this, lang(lng_settings_bg_edit_theme), st::boxLinkButton)
@@ -216,14 +216,14 @@ void BackgroundWidget::createControls() {
 	style::margins margin(0, 0, 0, st::settingsSmallSkip);
 	style::margins slidedPadding(0, margin.bottom() / 2, 0, margin.bottom() - (margin.bottom() / 2));
 
-	addChildRow(_background, margin);
+	createChildRow(_background, margin);
 	connect(_background, SIGNAL(chooseFromGallery()), this, SLOT(onChooseFromGallery()));
 	connect(_background, SIGNAL(chooseFromFile()), this, SLOT(onChooseFromFile()));
 	connect(_background, SIGNAL(editTheme()), this, SLOT(onEditTheme()));
 	connect(_background, SIGNAL(useDefault()), this, SLOT(onUseDefaultTheme()));
 
-	addChildRow(_tile, margin, lang(lng_settings_bg_tile), [this](bool) { onTile(); }, Window::Theme::Background()->tile());
-	addChildRow(_adaptive, margin, slidedPadding, lang(lng_settings_adaptive_wide), [this](bool) { onAdaptive(); }, Global::AdaptiveForWide());
+	createChildRow(_tile, margin, lang(lng_settings_bg_tile), [this](bool) { onTile(); }, Window::Theme::Background()->tile());
+	createChildRow(_adaptive, margin, slidedPadding, lang(lng_settings_adaptive_wide), [this](bool) { onAdaptive(); }, Global::AdaptiveForWide());
 	if (Global::AdaptiveChatLayout() != Adaptive::ChatLayout::Wide) {
 		_adaptive->hideFast();
 	}

@@ -78,6 +78,8 @@ slideDuration: 240;
 slideShift: 100px;
 slideShadow: icon {{ "slide_shadow", slideFadeOutShadowFg }};
 
+slideWrapDuration: 150;
+
 linkCropLimit: 360px;
 linkFont: normalFont;
 linkOverFont: font(fsize underline);

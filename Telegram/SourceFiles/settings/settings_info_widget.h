@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "settings/settings_block_widget.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 class FlatLabel;
@@ -46,11 +47,16 @@ private:
 	void refreshUsername();
 	void refreshBio();
 
-	class LabeledWidget : public TWidget {
+	class LabeledWidget : public Ui::RpWidget {
 	public:
 		LabeledWidget(QWidget *parent, const style::FlatLabel &valueSt);
 
-		void setLabeledText(const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText);
+		void setLabeledText(
+			const QString &label,
+			const TextWithEntities &textWithEntities,
+			const TextWithEntities &shortTextWithEntities,
+			const QString &copyText,
+			int availableWidth);
 
 		Ui::FlatLabel *textLabel() const;
 		Ui::FlatLabel *shortTextLabel() const;
@@ -61,7 +67,10 @@ private:
 		int resizeGetHeight(int newWidth) override;
 
 	private:
-		void setLabelText(object_ptr<Ui::FlatLabel> &text, const TextWithEntities &textWithEntities, const QString &copyText);
+		void setLabelText(
+			object_ptr<Ui::FlatLabel> &text,
+			const TextWithEntities &textWithEntities,
+			const QString &copyText);
 
 		const style::FlatLabel &_valueSt;
 		object_ptr<Ui::FlatLabel> _label = { nullptr };
@@ -70,12 +79,17 @@ private:
 
 	};
 
-	using LabeledWrap = Ui::WidgetSlideWrap<LabeledWidget>;
-	void setLabeledText(object_ptr<LabeledWrap> &row, const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText);
+	using LabeledWrap = Ui::SlideWrap<LabeledWidget>;
+	void setLabeledText(
+		LabeledWrap *row,
+		const QString &label,
+		const TextWithEntities &textWithEntities,
+		const TextWithEntities &shortTextWithEntities,
+		const QString &copyText);
 
-	object_ptr<LabeledWrap> _mobileNumber = { nullptr };
-	object_ptr<LabeledWrap> _username = { nullptr };
-	object_ptr<LabeledWrap> _bio = { nullptr };
+	LabeledWrap *_mobileNumber = nullptr;
+	LabeledWrap *_username = nullptr;
+	LabeledWrap *_bio = nullptr;
 
 };
 

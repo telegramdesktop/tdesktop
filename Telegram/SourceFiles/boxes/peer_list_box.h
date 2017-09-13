@@ -29,7 +29,7 @@ class RippleAnimation;
 class RoundImageCheckbox;
 class MultiSelect;
 template <typename Widget>
-class WidgetSlideWrap;
+class SlideWrap;
 class FlatLabel;
 } // namespace Ui
 
@@ -378,7 +378,7 @@ private:
 	void updateScrollSkips();
 	void searchQueryChanged(const QString &query);
 
-	object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>> _select = { nullptr };
+	object_ptr<Ui::SlideWrap<Ui::MultiSelect>> _select = { nullptr };
 
 	class Inner;
 	QPointer<Inner> _inner;
@@ -400,8 +400,6 @@ public:
 	void selectSkipPage(int height, int direction);
 
 	void clearSelection();
-
-	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
 	void searchQueryChanged(QString query);
 	void submitted();
@@ -441,10 +439,11 @@ public:
 signals:
 	void mustScrollTo(int ymin, int ymax);
 
-public slots:
-
 protected:
 	int resizeGetHeight(int newWidth) override;
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
 
 	void paintEvent(QPaintEvent *e) override;
 	void enterEventHook(QEvent *e) override;

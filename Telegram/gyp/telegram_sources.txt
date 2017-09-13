@@ -465,8 +465,6 @@
 <(src_loc)/ui/effects/slide_animation.h
 <(src_loc)/ui/effects/widget_fade_wrap.cpp
 <(src_loc)/ui/effects/widget_fade_wrap.h
-<(src_loc)/ui/effects/widget_slide_wrap.cpp
-<(src_loc)/ui/effects/widget_slide_wrap.h
 <(src_loc)/ui/style/style_core.cpp
 <(src_loc)/ui/style/style_core.h
 <(src_loc)/ui/style/style_core_color.cpp
@@ -517,6 +515,13 @@
 <(src_loc)/ui/widgets/shadow.h
 <(src_loc)/ui/widgets/tooltip.cpp
 <(src_loc)/ui/widgets/tooltip.h
+<(src_loc)/ui/wrap/padding_wrap.cpp
+<(src_loc)/ui/wrap/padding_wrap.h
+<(src_loc)/ui/wrap/slide_wrap.cpp
+<(src_loc)/ui/wrap/slide_wrap.h
+<(src_loc)/ui/wrap/vertical_layout.cpp
+<(src_loc)/ui/wrap/vertical_layout.h
+<(src_loc)/ui/wrap/wrap.h
 <(src_loc)/ui/abstract_button.cpp
 <(src_loc)/ui/abstract_button.h
 <(src_loc)/ui/animation.cpp
@@ -527,6 +532,7 @@
 <(src_loc)/ui/emoji_config.h
 <(src_loc)/ui/images.cpp
 <(src_loc)/ui/images.h
+<(src_loc)/ui/rp_widget.h
 <(src_loc)/ui/special_buttons.cpp
 <(src_loc)/ui/special_buttons.h
 <(src_loc)/ui/twidget.cpp

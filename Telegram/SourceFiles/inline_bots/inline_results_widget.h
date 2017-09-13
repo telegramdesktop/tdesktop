@@ -74,7 +74,6 @@ public:
 	void hideInlineRowsPanel();
 	void clearInlineRowsPanel();
 
-	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 	void preloadImages();
 
 	void inlineItemLayoutChanged(const ItemBase *layout) override;
@@ -90,6 +89,10 @@ public:
 	~Inner();
 
 protected:
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
+
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;

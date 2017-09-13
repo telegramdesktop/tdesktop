@@ -28,7 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/labels.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/effects/ripple_animation.h"
-#include "ui/effects/widget_slide_wrap.h"
+#include "ui/wrap/slide_wrap.h"
 #include "lang/lang_keys.h"
 #include "observer_peer.h"
 #include "storage/file_download.h"
@@ -44,9 +44,10 @@ void PeerListBox::createMultiSelect() {
 	Expects(_select == nullptr);
 
 	auto entity = object_ptr<Ui::MultiSelect>(this, st::contactsMultiSelect, langFactory(lng_participant_filter));
-	auto margins = style::margins(0, 0, 0, 0);
-	auto callback = [this] { updateScrollSkips(); };
-	_select.create(this, std::move(entity), margins, std::move(callback));
+	_select.create(this, std::move(entity));
+	_select->heightValue()
+		| rpl::on_next([this](int) { updateScrollSkips(); })
+		| rpl::start(lifetime());
 	_select->entity()->setSubmittedCallback([this](bool chtrlShiftEnter) { _inner->submitted(); });
 	_select->entity()->setQueryChangedCallback([this](const QString &query) { searchQueryChanged(query); });
 	_select->entity()->setItemRemovedCallback([this](uint64 itemId) {
@@ -86,7 +87,7 @@ void PeerListBox::prepare() {
 
 	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
 	if (_select) {
-		_select->finishAnimation();
+		_select->finishAnimations();
 		_scrollBottomFixed = true;
 		onScrollToY(0);
 	}
@@ -1158,7 +1159,9 @@ void PeerListBox::Inner::submitted() {
 	}
 }
 
-void PeerListBox::Inner::setVisibleTopBottom(int visibleTop, int visibleBottom) {
+void PeerListBox::Inner::visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) {
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
 	loadProfilePhotos();

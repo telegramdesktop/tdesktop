@@ -127,7 +127,7 @@ constexpr auto kTagsCount = " << langpack_.tags.size() << ";\n\
 	}
 	header_->stream() << "\
 \n\
-enum LangKey {\n";
+enum LangKey : int {\n";
 	for (auto &entry : langpack_.entries) {
 		header_->stream() << "\t" << getFullKey(entry) << ",\n";
 	}

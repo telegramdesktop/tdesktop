@@ -2149,7 +2149,7 @@ bool OverviewWidget::wheelEventFromFloatPlayer(QEvent *e, Window::Column myColum
 	return _scroll->viewportEvent(e);
 }
 
-QRect OverviewWidget::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) {
+QRect OverviewWidget::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) const {
 	return mapToGlobal(_scroll->geometry());
 }
 

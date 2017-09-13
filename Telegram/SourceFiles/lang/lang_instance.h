@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include <rpl/producer.h>
 #include "lang_auto.h"
 #include "base/weak_unique_ptr.h"
 
@@ -47,6 +48,8 @@ QString DefaultLanguageId();
 
 class Instance;
 Instance &Current();
+
+rpl::producer<QString> Viewer(LangKey key);
 
 class Instance {
 public:
@@ -84,15 +87,20 @@ public:
 		return _updated;
 	}
 
-	QString getValue(LangKey key) {
+	QString getValue(LangKey key) const {
 		Expects(key >= 0 && key < kLangKeysCount);
 		Expects(_values.size() == kLangKeysCount);
 		return _values[key];
 	}
-	bool isNonDefaultPlural(LangKey key) {
+	bool isNonDefaultPlural(LangKey key) const {
 		Expects(key >= 0 && key < kLangKeysCount);
 		Expects(_nonDefaultSet.size() == kLangKeysCount);
-		return _nonDefaultSet[key] || _nonDefaultSet[key + 1] || _nonDefaultSet[key + 2] || _nonDefaultSet[key + 3] || _nonDefaultSet[key + 4] || _nonDefaultSet[key + 5];
+		return _nonDefaultSet[key]
+			|| _nonDefaultSet[key + 1]
+			|| _nonDefaultSet[key + 2]
+			|| _nonDefaultSet[key + 3]
+			|| _nonDefaultSet[key + 4]
+			|| _nonDefaultSet[key + 5];
 	}
 
 private:

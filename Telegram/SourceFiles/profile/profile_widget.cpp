@@ -165,7 +165,7 @@ bool Widget::wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Windo
 	return _scroll->viewportEvent(e);
 }
 
-QRect Widget::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) {
+QRect Widget::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) const {
 	return mapToGlobal(_scroll->geometry());
 }
 

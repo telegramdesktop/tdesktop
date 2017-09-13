@@ -73,7 +73,6 @@ public:
 	base::lambda<TextWithEntities()> title() const;
 	QString shortName() const;
 
-	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 	void install();
 
 	~Inner();
@@ -119,8 +118,6 @@ private:
 	int32 _setHash = 0;
 	MTPDstickerSet::Flags _setFlags = 0;
 
-	int _visibleTop = 0;
-	int _visibleBottom = 0;
 	MTPInputStickerSet _input;
 
 	mtpRequestId _installRequest = 0;

@@ -233,7 +233,9 @@ InnerWidget::InnerWidget(QWidget *parent, not_null<Window::Controller*> controll
 	requestAdmins();
 }
 
-void InnerWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
+void InnerWidget::visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) {
 	auto scrolledUp = (visibleTop < _visibleTop);
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;

@@ -125,7 +125,6 @@ public:
 	void activateSkipRow(int direction);
 	void activateSkipColumn(int direction);
 	void activateSkipPage(int pageHeight, int direction);
-	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 	void updateFilter(QString filter = QString());
 
 	~Inner();
@@ -138,6 +137,10 @@ signals:
 	void searchByUsername();
 
 protected:
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
+
 	void paintEvent(QPaintEvent *e) override;
 	void enterEventHook(QEvent *e) override;
 	void leaveEventHook(QEvent *e) override;

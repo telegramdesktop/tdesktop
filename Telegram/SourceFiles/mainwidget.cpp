@@ -119,7 +119,10 @@ MainWidget::Float::Float(QWidget *parent, HistoryItem *item, ToggleCallback togg
 }) {
 }
 
-MainWidget::MainWidget(QWidget *parent, not_null<Window::Controller*> controller) : TWidget(parent)
+MainWidget::MainWidget(
+	QWidget *parent,
+	not_null<Window::Controller*> controller)
+: RpWidget(parent)
 , _controller(controller)
 , _dialogsWidth(st::dialogsWidthMin)
 , _sideShadow(this, st::shadowFg)
@@ -1813,7 +1816,10 @@ void MainWidget::createPlayer() {
 		return;
 	}
 	if (!_player) {
-		_player.create(this, [this] { playerHeightUpdated(); });
+		_player.create(this);
+		_player->heightValue()
+			| rpl::on_next([this](int) { playerHeightUpdated(); })
+			| rpl::start(lifetime());
 		_player->entity()->setCloseCallback([this] { closeBothPlayers(); });
 		_playerVolume.create(this);
 		_player->entity()->volumeWidgetCreated(_playerVolume);
@@ -1870,7 +1876,12 @@ void MainWidget::setCurrentCall(Calls::Call *call) {
 
 void MainWidget::createCallTopBar() {
 	Expects(_currentCall != nullptr);
-	_callTopBar.create(this, object_ptr<Calls::TopBar>(this, _currentCall), style::margins(0, 0, 0, 0), [this] { callTopBarHeightUpdated(); });
+	_callTopBar.create(this, object_ptr<Calls::TopBar>(this, _currentCall));
+	_callTopBar->heightValue()
+		| rpl::on_next([this](int value) {
+			callTopBarHeightUpdated(value);
+		})
+		| rpl::start(lifetime());
 	orderWidgets();
 	if (_a_show.animating()) {
 		_callTopBar->showFast();
@@ -1889,8 +1900,7 @@ void MainWidget::destroyCallTopBar() {
 	}
 }
 
-void MainWidget::callTopBarHeightUpdated() {
-	auto callTopBarHeight = _callTopBar ? _callTopBar->height() : 0;
+void MainWidget::callTopBarHeightUpdated(int callTopBarHeight) {
 	if (!callTopBarHeight && !_currentCall) {
 		_callTopBar.destroyDelayed();
 	}

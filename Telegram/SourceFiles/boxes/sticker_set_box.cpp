@@ -401,11 +401,6 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void StickerSetBox::Inner::setVisibleTopBottom(int visibleTop, int visibleBottom) {
-	_visibleTop = visibleTop;
-	_visibleBottom = visibleBottom;
-}
-
 bool StickerSetBox::Inner::loaded() const {
 	return _loaded && !_pack.isEmpty();
 }

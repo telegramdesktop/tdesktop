@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "layerwidget.h"
+#include "ui/rp_widget.h"
 #include "ui/widgets/shadow.h"
 
 namespace Ui {
@@ -58,7 +59,7 @@ public:
 
 };
 
-class BoxContent : public TWidget, protected base::Subscriber {
+class BoxContent : public Ui::RpWidget, protected base::Subscriber {
 	Q_OBJECT
 
 public:

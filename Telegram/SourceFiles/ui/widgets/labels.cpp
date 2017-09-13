@@ -137,14 +137,20 @@ void LabelSimple::paintEvent(QPaintEvent *e) {
 	p.drawTextLeft(0, 0, width(), _text, _textWidth);
 }
 
-FlatLabel::FlatLabel(QWidget *parent, const style::FlatLabel &st) : TWidget(parent)
+FlatLabel::FlatLabel(QWidget *parent, const style::FlatLabel &st)
+: RpWidget(parent)
 , _text(st.width ? st.width : QFIXED_MAX)
 , _st(st)
 , _contextCopyText(lang(lng_context_copy_text)) {
 	init();
 }
 
-FlatLabel::FlatLabel(QWidget *parent, const QString &text, InitType initType, const style::FlatLabel &st) : TWidget(parent)
+FlatLabel::FlatLabel(
+	QWidget *parent,
+	const QString &text,
+	InitType initType,
+	const style::FlatLabel &st)
+: RpWidget(parent)
 , _text(st.width ? st.width : QFIXED_MAX)
 , _st(st)
 , _contextCopyText(lang(lng_context_copy_text)) {
@@ -154,6 +160,36 @@ FlatLabel::FlatLabel(QWidget *parent, const QString &text, InitType initType, co
 		setText(text);
 	}
 	init();
+}
+
+FlatLabel::FlatLabel(
+	QWidget *parent,
+	rpl::producer<QString> &&text,
+	const style::FlatLabel &st)
+: RpWidget(parent)
+, _text(st.width ? st.width : QFIXED_MAX)
+, _st(st)
+, _contextCopyText(lang(lng_context_copy_text)) {
+	std::move(text)
+		| rpl::on_next([this](QString &&value) {
+			setText(std::move(value));
+		})
+		| rpl::start(lifetime());
+}
+
+FlatLabel::FlatLabel(
+	QWidget *parent,
+	rpl::producer<TextWithEntities> &&text,
+	const style::FlatLabel &st)
+: RpWidget(parent)
+, _text(st.width ? st.width : QFIXED_MAX)
+, _st(st)
+, _contextCopyText(lang(lng_context_copy_text)) {
+	std::move(text)
+		| rpl::on_next([this](TextWithEntities &&value) {
+			setMarkedText(std::move(value));
+		})
+		| rpl::start(lifetime());
 }
 
 void FlatLabel::init() {

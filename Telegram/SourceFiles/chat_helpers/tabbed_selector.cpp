@@ -285,7 +285,7 @@ void TabbedSelector::Tab::saveScrollTop() {
 	_scrollTop = widget()->getVisibleTop();
 }
 
-TabbedSelector::TabbedSelector(QWidget *parent, not_null<Window::Controller*> controller) : TWidget(parent)
+TabbedSelector::TabbedSelector(QWidget *parent, not_null<Window::Controller*> controller) : RpWidget(parent)
 , _tabsSlider(this, st::emojiTabs)
 , _topShadow(this, st::shadowFg)
 , _bottomShadow(this, st::shadowFg)
@@ -472,7 +472,7 @@ bool TabbedSelector::wheelEventFromFloatPlayer(QEvent *e) {
 	return _scroll->viewportEvent(e);
 }
 
-QRect TabbedSelector::rectForFloatPlayer() {
+QRect TabbedSelector::rectForFloatPlayer() const {
 	return mapToGlobal(_scroll->geometry());
 }
 
@@ -602,9 +602,9 @@ void TabbedSelector::createTabsSlider() {
 	_tabsSlider->setSections(sections);
 
 	_tabsSlider->setActiveSectionFast(static_cast<int>(_currentTabType));
-	_tabsSlider->setSectionActivatedCallback([this] {
-		switchTab();
-	});
+	_tabsSlider->sectionActivated()
+		| rpl::on_next([this](int) { switchTab(); })
+		| rpl::start(lifetime());
 
 	_tabsSlider->resizeToWidth(width());
 	_tabsSlider->moveToLeft(0, 0);
@@ -701,7 +701,7 @@ TabbedSelector::Inner::Inner(QWidget *parent, not_null<Window::Controller*> cont
 , _controller(controller) {
 }
 
-void TabbedSelector::Inner::setVisibleTopBottom(int visibleTop, int visibleBottom) {
+void TabbedSelector::Inner::visibleTopBottomUpdated(int visibleTop, int visibleBottom) {
 	auto oldVisibleHeight = getVisibleBottom() - getVisibleTop();
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;

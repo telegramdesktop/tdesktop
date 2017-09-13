@@ -70,7 +70,7 @@ void InnerWidget::createBlocks() {
 	}
 }
 
-void InnerWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
+void InnerWidget::visibleTopBottomUpdated(int visibleTop, int visibleBottom) {
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
 

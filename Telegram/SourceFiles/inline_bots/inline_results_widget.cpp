@@ -80,7 +80,9 @@ Inner::Inner(QWidget *parent, not_null<Window::Controller*> controller) : TWidge
 	}));
 }
 
-void Inner::setVisibleTopBottom(int visibleTop, int visibleBottom) {
+void Inner::visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) {
 	_visibleBottom = visibleBottom;
 	if (_visibleTop != visibleTop) {
 		_visibleTop = visibleTop;

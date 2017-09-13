@@ -77,7 +77,7 @@ bool TabbedSection::wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn
 	return _selector->wheelEventFromFloatPlayer(e);
 }
 
-QRect TabbedSection::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) {
+QRect TabbedSection::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) const {
 	return _selector->rectForFloatPlayer();
 }
 

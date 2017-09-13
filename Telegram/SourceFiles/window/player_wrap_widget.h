@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ui/effects/widget_slide_wrap.h"
+#include "ui/wrap/slide_wrap.h"
 #include "media/player/media_player_widget.h"
 
 namespace Ui {
@@ -9,14 +9,14 @@ class PlainShadow;
 
 namespace Window {
 
-class PlayerWrapWidget : public Ui::WidgetSlideWrap<Media::Player::Widget> {
-	using Parent = Ui::WidgetSlideWrap<Media::Player::Widget>;
+class PlayerWrapWidget : public Ui::SlideWrap<Media::Player::Widget> {
+	using Parent = Ui::SlideWrap<Media::Player::Widget>;
 
 public:
-	PlayerWrapWidget(QWidget *parent, base::lambda<void()> updateCallback);
+	PlayerWrapWidget(QWidget *parent);
 
 	void updateAdaptiveLayout() {
-		updateShadowGeometry();
+		updateShadowGeometry(size());
 	}
 	void showShadow() {
 		entity()->showShadow();
@@ -28,11 +28,8 @@ public:
 		return qMax(height() - st::lineWidth, 0);
 	}
 
-protected:
-	void resizeEvent(QResizeEvent *e) override;
-
 private:
-	void updateShadowGeometry();
+	void updateShadowGeometry(QSize size);
 
 };
 

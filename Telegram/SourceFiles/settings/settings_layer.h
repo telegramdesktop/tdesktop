@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "layerwidget.h"
+#include "ui/rp_widget.h"
 
 class BoxLayerTitleShadow;
 
@@ -34,9 +35,9 @@ class WidgetFadeWrap;
 namespace Settings {
 
 class FixedBar;
-class LayerInner : public TWidget {
+class LayerInner : public Ui::RpWidget {
 public:
-	LayerInner(QWidget *parent) : TWidget(parent) {
+	LayerInner(QWidget *parent) : RpWidget(parent) {
 	}
 
 	virtual void resizeToWidth(int newWidth, int contentLeft) {
@@ -46,8 +47,6 @@ public:
 };
 
 class Layer : public LayerWidget {
-	Q_OBJECT
-
 public:
 	Layer();
 
@@ -69,10 +68,6 @@ protected:
 	void setRoundedCorners(bool roundedCorners) {
 		_roundedCorners = roundedCorners;
 	}
-
-private slots:
-	void onInnerHeightUpdated();
-	void onScroll();
 
 private:
 	void doSetInnerWidget(object_ptr<LayerInner> widget);

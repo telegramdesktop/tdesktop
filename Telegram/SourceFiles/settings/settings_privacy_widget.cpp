@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "settings/settings_privacy_widget.h"
 
-#include "ui/effects/widget_slide_wrap.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/buttons.h"
 #include "styles/style_settings.h"
 #include "lang/lang_keys.h"
@@ -36,7 +36,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Settings {
 
-LocalPasscodeState::LocalPasscodeState(QWidget *parent) : TWidget(parent)
+LocalPasscodeState::LocalPasscodeState(QWidget *parent) : RpWidget(parent)
 , _edit(this, GetEditPasscodeText(), st::boxLinkButton)
 , _turnOff(this, lang(lng_passcode_turn_off), st::boxLinkButton) {
 	updateControls();
@@ -69,7 +69,7 @@ QString LocalPasscodeState::GetEditPasscodeText() {
 	return lang(Global::LocalPasscode() ? lng_passcode_change : lng_passcode_turn_on);
 }
 
-CloudPasswordState::CloudPasswordState(QWidget *parent) : TWidget(parent)
+CloudPasswordState::CloudPasswordState(QWidget *parent) : RpWidget(parent)
 , _edit(this, lang(lng_cloud_password_set), st::boxLinkButton)
 , _turnOff(this, lang(lng_passcode_turn_off), st::boxLinkButton) {
 	_turnOff->hide();
@@ -182,20 +182,20 @@ void PrivacyWidget::createControls() {
 	style::margins marginSkip(0, 0, 0, st::settingsSkip);
 	style::margins slidedPadding(0, marginSmall.bottom() / 2, 0, marginSmall.bottom() - (marginSmall.bottom() / 2));
 
-	addChildRow(_blockedUsers, marginSmall, lang(lng_settings_blocked_users), SLOT(onBlockedUsers()));
-	addChildRow(_lastSeenPrivacy, marginSmall, lang(lng_settings_last_seen_privacy), SLOT(onLastSeenPrivacy()));
-	addChildRow(_callsPrivacy, marginSmall, lang(lng_settings_calls_privacy), SLOT(onCallsPrivacy()));
-	addChildRow(_groupsInvitePrivacy, marginSmall, lang(lng_settings_groups_invite_privacy), SLOT(onGroupsInvitePrivacy()));
-	addChildRow(_localPasscodeState, marginSmall);
+	createChildRow(_blockedUsers, marginSmall, lang(lng_settings_blocked_users), SLOT(onBlockedUsers()));
+	createChildRow(_lastSeenPrivacy, marginSmall, lang(lng_settings_last_seen_privacy), SLOT(onLastSeenPrivacy()));
+	createChildRow(_callsPrivacy, marginSmall, lang(lng_settings_calls_privacy), SLOT(onCallsPrivacy()));
+	createChildRow(_groupsInvitePrivacy, marginSmall, lang(lng_settings_groups_invite_privacy), SLOT(onGroupsInvitePrivacy()));
+	createChildRow(_localPasscodeState, marginSmall);
 	auto label = lang(psIdleSupported() ? lng_passcode_autolock_away : lng_passcode_autolock_inactive);
 	auto value = GetAutoLockText();
-	addChildRow(_autoLock, marginSmall, slidedPadding, label, value, LabeledLink::Type::Primary, SLOT(onAutoLock()));
+	createChildRow(_autoLock, marginSmall, slidedPadding, label, value, LabeledLink::Type::Primary, SLOT(onAutoLock()));
 	if (!Global::LocalPasscode()) {
 		_autoLock->hideFast();
 	}
-	addChildRow(_cloudPasswordState, marginSmall);
-	addChildRow(_showAllSessions, marginSmall, lang(lng_settings_show_sessions), SLOT(onShowSessions()));
-	addChildRow(_selfDestruction, marginSmall, lang(lng_settings_self_destruct), SLOT(onSelfDestruction()));
+	createChildRow(_cloudPasswordState, marginSmall);
+	createChildRow(_showAllSessions, marginSmall, lang(lng_settings_show_sessions), SLOT(onShowSessions()));
+	createChildRow(_selfDestruction, marginSmall, lang(lng_settings_self_destruct), SLOT(onSelfDestruction()));
 }
 
 void PrivacyWidget::autoLockUpdated() {

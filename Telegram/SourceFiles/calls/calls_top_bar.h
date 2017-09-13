@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "base/weak_unique_ptr.h"
 #include "base/timer.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 class IconButton;
@@ -34,7 +35,7 @@ namespace Calls {
 
 class Call;
 
-class TopBar : public TWidget, private base::Subscriber {
+class TopBar : public Ui::RpWidget, private base::Subscriber {
 public:
 	TopBar(QWidget *parent, const base::weak_unique_ptr<Call> &call);
 

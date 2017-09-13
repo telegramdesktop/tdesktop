@@ -311,7 +311,9 @@ void ShareBox::Inner::invalidateCache() {
 	}
 }
 
-void ShareBox::Inner::setVisibleTopBottom(int visibleTop, int visibleBottom) {
+void ShareBox::Inner::visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) {
 	loadProfilePhotos(visibleTop);
 }
 

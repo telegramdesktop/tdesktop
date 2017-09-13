@@ -54,8 +54,6 @@ public:
 	void fillIcons(QList<StickerIcon> &icons);
 	bool preventAutoHide();
 
-	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
-
 	uint64 currentSet(int yOffset) const;
 
 	void installedLocally(uint64 setId);
@@ -65,6 +63,10 @@ public:
 	~StickersListWidget();
 
 protected:
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
+
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;

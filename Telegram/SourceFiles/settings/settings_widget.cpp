@@ -245,7 +245,7 @@ void Widget::parentResized() {
 }
 
 void Widget::resizeUsingInnerHeight(int newWidth, int innerHeight) {
-	if (!App::wnd()) return;
+	if (!parentWidget()) return;
 
 	auto parentSize = parentWidget()->size();
 	auto windowWidth = parentSize.width();

@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "styles/style_widgets.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 
@@ -28,7 +29,7 @@ class InputField;
 class CrossButton;
 class ScrollArea;
 
-class MultiSelect : public TWidget {
+class MultiSelect : public RpWidget {
 public:
 	MultiSelect(QWidget *parent, const style::MultiSelect &st, base::lambda<QString()> placeholderFactory = base::lambda<QString()>());
 

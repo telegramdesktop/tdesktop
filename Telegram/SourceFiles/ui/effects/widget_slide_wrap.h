@@ -21,100 +21,263 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "styles/style_widgets.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 
+template <typename Widget, typename ParentType = RpWidget>
+class Wrap;
+
+namespace details {
+
+struct UnwrapHelper {
+	struct Large {
+		char data[2];
+	};
+	static char Check(...);
+	template <typename Widget, typename Parent>
+	static Large Check(Wrap<Widget, Parent>*);
+	template <typename Widget, typename Parent>
+	static Large Check(const Wrap<Widget, Parent>*);
+
+	template <typename Entity>
+	static constexpr bool Is() {
+		return sizeof(Check(std::declval<Entity>()))
+			== sizeof(Large);
+	}
+	template <typename Entity>
+	static auto Unwrap(Entity *entity, std::true_type) {
+		return entity
+			? entity->entity()
+			: nullptr;
+	}
+	template <typename Entity>
+	static Entity *Unwrap(Entity *entity, std::false_type) {
+		return entity;
+	}
+	template <typename Entity>
+	static auto Unwrap(Entity *entity) {
+		return Unwrap(
+			entity,
+			std::integral_constant<bool, Is<Entity*>()>());
+	}
+};
+
+} // namespace details
+
 template <typename Widget>
-class WidgetSlideWrap;
+class Wrap<Widget, RpWidget> : public RpWidget {
+public:
+	Wrap(QWidget *parent, object_ptr<Widget> child);
+
+	Widget *wrapped() {
+		return _wrapped;
+	}
+	const Widget *wrapped() const {
+		return _wrapped;
+	}
+	auto entity() {
+		return details::UnwrapHelper::Unwrap(wrapped());
+	}
+	auto entity() const {
+		return details::UnwrapHelper::Unwrap(wrapped());
+	}
+
+	QMargins getMargins() const override {
+		if (auto weak = wrapped()) {
+			return weak->getMargins();
+		}
+		return RpWidget::getMargins();
+	}
+	int naturalWidth() const override {
+		if (auto weak = wrapped()) {
+			return weak->naturalWidth();
+		}
+		return RpWidget::naturalWidth();
+	}
+
+private:
+	object_ptr<Widget> _wrapped;
+
+};
+
+template <typename Widget>
+Wrap<Widget, RpWidget>::Wrap(QWidget *parent, object_ptr<Widget> child)
+: RpWidget(parent)
+, _wrapped(std::move(child)) {
+	if (_wrapped) {
+		resize(_wrapped->size());
+		AttachParentChild(this, _wrapped);
+		_wrapped->move(0, 0);
+		_wrapped->alive()
+			| rpl::on_done([this] {
+				_wrapped->setParent(nullptr);
+				_wrapped = nullptr;
+				delete this;
+			})
+			| rpl::start(lifetime());
+	}
+}
+
+template <typename Widget, typename ParentType>
+class Wrap : public ParentType {
+public:
+	using ParentType::ParentType;
+
+	Widget *wrapped() {
+		return static_cast<Widget*>(ParentType::wrapped());
+	}
+	const Widget *wrapped() const {
+		return static_cast<const Widget*>(ParentType::wrapped());
+	}
+	auto entity() {
+		return details::UnwrapHelper::Unwrap(wrapped());
+	}
+	auto entity() const {
+		return details::UnwrapHelper::Unwrap(wrapped());
+	}
+
+};
+
+template <typename Widget>
+class PaddingWrap;
 
 template <>
-class WidgetSlideWrap<TWidget> : public TWidget {
-public:
-	WidgetSlideWrap(QWidget *parent
-		, object_ptr<TWidget> entity
-		, style::margins entityPadding
-		, base::lambda<void()> updateCallback
-		, int duration = st::widgetSlideDuration);
+class PaddingWrap<RpWidget> : public Wrap<RpWidget> {
+	using Parent = Wrap<RpWidget>;
 
-	void showAnimated();
-	void hideAnimated();
-	void toggleAnimated(bool visible) {
-		if (visible) {
-			showAnimated();
-		} else {
-			hideAnimated();
-		}
+public:
+	PaddingWrap(
+		QWidget *parent,
+		object_ptr<RpWidget> child,
+		const style::margins &padding);
+
+	PaddingWrap(
+		QWidget *parent,
+		const style::margins &padding)
+		: PaddingWrap(parent, nullptr, padding) {
 	}
+
+	int naturalWidth() const override;
+
+protected:
+	int resizeGetHeight(int newWidth) override;
+
+private:
+	void updateSize();
+
+	int _innerWidth = 0;
+	style::margins _padding;
+
+};
+
+template <typename Widget>
+class PaddingWrap : public Wrap<Widget, PaddingWrap<RpWidget>> {
+	using Parent = Wrap<Widget, PaddingWrap<RpWidget>>;
+
+public:
+	PaddingWrap(
+		QWidget *parent,
+		object_ptr<Widget> child,
+		const style::margins &padding)
+	: Parent(parent, std::move(child), padding) {
+	}
+
+	PaddingWrap(QWidget *parent, const style::margins &padding)
+	: Parent(parent, padding) {
+	}
+
+};
+
+template <typename Widget>
+class SlideWrap;
+
+template <>
+class SlideWrap<RpWidget> : public Wrap<PaddingWrap<RpWidget>> {
+	using Parent = Wrap<PaddingWrap<RpWidget>>;
+
+public:
+	SlideWrap(QWidget *parent, object_ptr<RpWidget> child);
+	SlideWrap(
+		QWidget *parent,
+		object_ptr<RpWidget> child,
+		const style::margins &padding);
+	SlideWrap(
+		QWidget *parent,
+		object_ptr<RpWidget> child,
+		int duration);
+	SlideWrap(
+		QWidget *parent,
+		object_ptr<RpWidget> child,
+		const style::margins &padding,
+		int duration);
+
+	void toggleAnimated(bool visible);
+	void toggleFast(bool visible);
+
+	void showAnimated() {
+		toggleAnimated(true);
+	}
+	void hideAnimated() {
+		toggleAnimated(false);
+	}
+
 	void showFast() {
 		toggleFast(true);
 	}
 	void hideFast() {
 		toggleFast(false);
 	}
-	void toggleFast(bool visible);
 
-	bool isHiddenOrHiding() const {
-		return isHidden() || (_a_height.animating() && _hiding);
-	}
-
-	void finishAnimation() {
-		_a_height.finish();
-		myEnsureResized(_entity);
-		animationCallback();
-	}
 	bool animating() const {
-		return _a_height.animating();
+		return _slideAnimation.animating();
 	}
-
-	TWidget *entity() {
-		return _entity;
-	}
-
-	const TWidget *entity() const {
-		return _entity;
-	}
+	void finishAnimations();
 
 	QMargins getMargins() const override;
-	int naturalWidth() const override;
+
+	bool isHiddenOrHiding() const {
+		return !_visible;
+	}
 
 protected:
-	bool eventFilter(QObject *object, QEvent *event) override;
 	int resizeGetHeight(int newWidth) override;
 
 private:
-	void animationCallback();
+	void animationStep();
 
-	object_ptr<TWidget> _entity;
-	bool _inResizeToWidth = false;
-	style::margins _padding;
-	int _duration;
-	base::lambda<void()> _updateCallback;
-
-	style::size _realSize;
-	int _forceHeight = -1;
-	Animation _a_height;
-	bool _hiding = false;
+	bool _visible = true;
+	Animation _slideAnimation;
+	int _duration = 0;
 
 };
 
 template <typename Widget>
-class WidgetSlideWrap : public WidgetSlideWrap<TWidget> {
+class SlideWrap : public Wrap<PaddingWrap<Widget>, SlideWrap<RpWidget>> {
+	using Parent = Wrap<PaddingWrap<Widget>, SlideWrap<RpWidget>>;
+
 public:
-	WidgetSlideWrap(QWidget *parent
-		, object_ptr<Widget> entity
-		, style::margins entityPadding
-		, base::lambda<void()> updateCallback
-		, int duration = st::widgetSlideDuration) : WidgetSlideWrap<TWidget>(parent
-			, std::move(entity)
-			, entityPadding
-			, std::move(updateCallback)
-			, duration) {
+	SlideWrap(QWidget *parent, object_ptr<Widget> child)
+	: Parent(parent, std::move(child)) {
 	}
-	Widget *entity() {
-		return static_cast<Widget*>(WidgetSlideWrap<TWidget>::entity());
+	SlideWrap(
+		QWidget *parent,
+		object_ptr<Widget> child,
+		const style::margins &padding)
+	: Parent(parent, std::move(child), padding) {
 	}
-	const Widget *entity() const {
-		return static_cast<const Widget*>(WidgetSlideWrap<TWidget>::entity());
+	SlideWrap(
+		QWidget *parent,
+		object_ptr<Widget> child,
+		int duration)
+	: Parent(parent, std::move(child), duration) {
+	}
+	SlideWrap(
+		QWidget *parent,
+		object_ptr<Widget> child,
+		const style::margins &padding,
+		int duration)
+	: Parent(parent, std::move(child), padding, duration) {
 	}
 
 };

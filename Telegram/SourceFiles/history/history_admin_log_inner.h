@@ -50,9 +50,6 @@ public:
 		return _channel;
 	}
 
-	// Updates the area that is visible inside the scroll container.
-	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
-
 	// Set the correct scroll position after being resized.
 	void restoreScrollPosition();
 
@@ -76,6 +73,10 @@ public:
 	~InnerWidget();
 
 protected:
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
+
 	void paintEvent(QPaintEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;

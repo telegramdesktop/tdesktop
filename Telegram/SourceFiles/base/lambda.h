@@ -365,9 +365,14 @@ public:
 		}
 	}
 
-	inline Return operator()(Args... args) {
+	template <
+		typename ...OtherArgs,
+		typename = std::enable_if_t<(sizeof...(Args) == sizeof...(OtherArgs))>>
+	inline Return operator()(OtherArgs&&... args) {
 		Assert(data_.vtable != nullptr);
-		return data_.vtable->call(data_.storage, std::forward<Args>(args)...);
+		return data_.vtable->call(
+			data_.storage,
+			std::forward<OtherArgs>(args)...);
 	}
 
 	explicit operator bool() const {
@@ -437,9 +442,14 @@ public:
 		return *this;
 	}
 
-	inline Return operator()(Args... args) const {
+	template <
+		typename ...OtherArgs,
+		typename = std::enable_if_t<(sizeof...(Args) == sizeof...(OtherArgs))>>
+	inline Return operator()(OtherArgs&&... args) const {
 		Assert(this->data_.vtable != nullptr);
-		return this->data_.vtable->const_call(this->data_.storage, std::forward<Args>(args)...);
+		return this->data_.vtable->const_call(
+			this->data_.storage,
+			std::forward<OtherArgs>(args)...);
 	}
 
 	void swap(lambda &other) {

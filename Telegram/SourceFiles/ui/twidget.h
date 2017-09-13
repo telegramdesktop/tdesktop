@@ -57,18 +57,6 @@ inline ChildWidget *AttachParentChild(
 	return nullptr;
 }
 
-template <typename ChildWidget>
-inline ChildWidget *AttachParentChildToBottom(
-		not_null<QWidget*> parent,
-		const object_ptr<ChildWidget> &child) {
-	if (auto raw = AttachParentChild(parent, child)) {
-		raw->resizeToWidth(parent->width());
-		raw->move(0, parent->height());
-		return raw;
-	}
-	return nullptr;
-}
-
 } // namespace Ui
 
 enum class RectPart {
@@ -288,7 +276,7 @@ public:
 	QRect mapFromGlobal(const QRect &rect) const {
 		return QRect(mapFromGlobal(rect.topLeft()), rect.size());
 	}
-	QRect mapToGlobal(const QRect &rect) {
+	QRect mapToGlobal(const QRect &rect) const {
 		return QRect(mapToGlobal(rect.topLeft()), rect.size());
 	}
 
@@ -410,7 +398,11 @@ public:
 	}
 
 	// Updates the area that is visible inside the scroll container.
-	virtual void setVisibleTopBottom(int visibleTop, int visibleBottom) {
+	void setVisibleTopBottom(int visibleTop, int visibleBottom) {
+		auto max = height();
+		visibleTopBottomUpdated(
+			snap(visibleTop, 0, max),
+			snap(visibleBottom, 0, max));
 	}
 
 signals:
@@ -418,9 +410,26 @@ signals:
 	void heightUpdated();
 
 protected:
+	void setChildVisibleTopBottom(
+			TWidget *child,
+			int visibleTop,
+			int visibleBottom) {
+		if (child) {
+			auto top = child->y();
+			child->setVisibleTopBottom(
+				visibleTop - top,
+				visibleBottom - top);
+		}
+	}
+
 	// Resizes content and counts natural widget height for the desired width.
 	virtual int resizeGetHeight(int newWidth) {
 		return height();
+	}
+
+	virtual void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) {
 	}
 
 };

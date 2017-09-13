@@ -468,9 +468,11 @@ object_ptr<TabbedSelector::InnerFooter> StickersListWidget::createFooter() {
 	return std::move(result);
 }
 
-void StickersListWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
+void StickersListWidget::visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) {
 	auto top = getVisibleTop();
-	Inner::setVisibleTopBottom(visibleTop, visibleBottom);
+	Inner::visibleTopBottomUpdated(visibleTop, visibleBottom);
 	if (_section == Section::Featured) {
 		readVisibleSets();
 	}

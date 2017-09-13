@@ -271,7 +271,7 @@ bool DialogsWidget::wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn
 	return _scroll->viewportEvent(e);
 }
 
-QRect DialogsWidget::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) {
+QRect DialogsWidget::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) const {
 	return mapToGlobal(_scroll->geometry());
 }
 
