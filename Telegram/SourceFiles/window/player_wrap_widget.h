@@ -29,7 +29,7 @@ public:
 	}
 
 private:
-	void updateShadowGeometry(QSize size);
+	void updateShadowGeometry(const QSize &size);
 
 };
 

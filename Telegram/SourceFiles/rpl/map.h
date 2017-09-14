@@ -25,6 +25,40 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace rpl {
 namespace details {
 
+template <
+	typename Transform,
+	typename NewValue,
+	typename Error,
+	typename Value>
+class map_transform_helper {
+public:
+	map_transform_helper(
+		const consumer<NewValue, Error> &consumer,
+		Transform &&transform)
+		: _transform(std::move(transform))
+		, _consumer(consumer) {
+	}
+	template <
+		typename OtherValue,
+		typename = std::enable_if_t<
+			std::is_rvalue_reference_v<OtherValue&&>>>
+	void operator()(OtherValue &&value) const {
+		_consumer.put_next_forward(_transform(std::move(value)));
+	}
+	template <
+		typename OtherValue,
+		typename = decltype(
+			std::declval<Transform>()(const_ref_val<OtherValue>()))>
+	void operator()(const OtherValue &value) const {
+		_consumer.put_next_forward(_transform(value));
+	}
+
+private:
+	consumer<NewValue, Error> _consumer;
+	Transform _transform;
+
+};
+
 template <typename Transform>
 class map_helper {
 public:
@@ -46,13 +80,11 @@ public:
 			transform = std::move(_transform)
 		](const consumer<NewValue, Error> &consumer) mutable {
 			return std::move(initial).start(
-				[
-					consumer,
-					transform = std::move(transform)
-				](Value &&value) {
-				consumer.put_next(transform(std::move(value)));
-			}, [consumer](Error &&error) {
-				consumer.put_error(std::move(error));
+			map_transform_helper<Transform, NewValue, Error, Value>(
+				consumer,
+				std::move(transform)
+			), [consumer](auto &&error) {
+				consumer.put_error_forward(std::forward<decltype(error)>(error));
 			}, [consumer] {
 				consumer.put_done();
 			});

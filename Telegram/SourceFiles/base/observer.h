@@ -470,7 +470,8 @@ inline rpl::producer<Type> ObservableViewer(
 		auto lifetime = rpl::lifetime();
 		lifetime.make_state<base::Subscription>(
 			observable.add_subscription([consumer](auto &&update) {
-				consumer.put_next_copy(update);
+				consumer.put_next_forward(
+					std::forward<decltype(update)>(update));
 			}));
 		return lifetime;
 	};

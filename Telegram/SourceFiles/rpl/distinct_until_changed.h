@@ -37,13 +37,13 @@ public:
 				base::optional<Value>
 			>();
 			return std::move(initial).start(
-				[consumer, previous](Value &&value) {
+				[consumer, previous](auto &&value) {
 					if (!(*previous) || (**previous) != value) {
 						*previous = value;
-						consumer.put_next(std::move(value));
+						consumer.put_next_forward(std::forward<decltype(value)>(value));
 					}
-				}, [consumer](Error &&error) {
-					consumer.put_error(std::move(error));
+				}, [consumer](auto &&error) {
+					consumer.put_error_forward(std::forward<decltype(error)>(error));
 				}, [consumer] {
 					consumer.put_done();
 				});

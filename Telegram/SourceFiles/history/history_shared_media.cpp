@@ -434,14 +434,14 @@ rpl::producer<SharedMediaSlice> SharedMediaViewer(
 			limitBefore,
 			limitAfter);
 		auto applyUpdate = [=](auto &&update) {
-			if (builder->applyUpdate(std::move(update))) {
+			if (builder->applyUpdate(std::forward<decltype(update)>(update))) {
 				consumer.put_next(builder->snapshot());
 			}
 		};
 		auto requestMediaAround = [
 			peer = App::peer(key.peerId),
 			type = key.type
-		](SharedMediaSliceBuilder::AroundData data) {
+		](const SharedMediaSliceBuilder::AroundData &data) {
 			Auth().api().requestSharedMedia(
 				peer,
 				type,
@@ -465,8 +465,7 @@ rpl::producer<SharedMediaSlice> SharedMediaViewer(
 		Auth().storage().query(Storage::SharedMediaQuery(
 			key,
 			limitBefore,
-			limitAfter
-		))
+			limitAfter))
 			| rpl::on_next(applyUpdate)
 			| rpl::on_done([=] { builder->checkInsufficientMedia(); })
 			| rpl::start(lifetime);

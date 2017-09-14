@@ -40,10 +40,10 @@ public:
 			[consumer, state](rpl::producer<Value, Error> &&inner) {
 				state->finished = false;
 				state->alive = std::move(inner).start(
-				[consumer](Value &&value) {
-					consumer.put_next(std::move(value));
-				}, [consumer](Error &&error) {
-					consumer.put_error(std::move(error));
+				[consumer](auto &&value) {
+					consumer.put_next_forward(std::forward<decltype(value)>(value));
+				}, [consumer](auto &&error) {
+					consumer.put_error_forward(std::forward<decltype(error)>(error));
 				}, [consumer, state] {
 					if (state->finished) {
 						consumer.put_done();
@@ -51,8 +51,8 @@ public:
 						state->finished = true;
 					}
 				});
-			}, [consumer](Error &&error) {
-				consumer.put_error(std::move(error));
+			}, [consumer](auto &&error) {
+				consumer.put_error_forward(std::forward<decltype(error)>(error));
 			}, [consumer, state] {
 				if (state->finished) {
 					consumer.put_done();

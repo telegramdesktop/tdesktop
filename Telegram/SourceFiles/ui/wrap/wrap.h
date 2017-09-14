@@ -126,7 +126,7 @@ Wrap<Widget, RpWidget>::Wrap(QWidget *parent, object_ptr<Widget> child)
 , _wrapped(std::move(child)) {
 	if (_wrapped) {
 		_wrapped->sizeValue()
-			| rpl::on_next([this](QSize &&value) {
+			| rpl::on_next([this](const QSize &value) {
 				wrappedSizeUpdated(value);
 			})
 			| rpl::start(lifetime());

@@ -37,10 +37,13 @@ public:
 	event_stream();
 	event_stream(event_stream &&other);
 
-	void fire(Value &&value);
+	template <typename OtherValue>
+	void fire_forward(OtherValue &&value);
+	void fire(Value &&value) {
+		return fire_forward(std::move(value));
+	}
 	void fire_copy(const Value &value) {
-		auto copy = value;
-		fire(std::move(copy));
+		return fire_forward(value);
 	}
 	producer<Value, no_error> events() const;
 	producer<Value, no_error> events_starting_with(
@@ -49,8 +52,7 @@ public:
 	}
 	producer<Value, no_error> events_starting_with_copy(
 			const Value &value) const {
-		auto copy = value;
-		return events_starting_with(std::move(copy));
+		return single(value) | then(events());
 	}
 
 	~event_stream();
@@ -72,7 +74,8 @@ event_stream<Value>::event_stream(event_stream &&other)
 }
 
 template <typename Value>
-void event_stream<Value>::fire(Value &&value) {
+template <typename OtherValue>
+void event_stream<Value>::fire_forward(OtherValue &&value) {
 	if (!_consumers) {
 		return;
 	}
@@ -87,8 +90,8 @@ void event_stream<Value>::fire(Value &&value) {
 			return !consumer.put_next_copy(value);
 		});
 
-		// Move value for the last consumer.
-		if (prev->put_next(std::move(value))) {
+		// Perhaps move value for the last consumer.
+		if (prev->put_next_forward(std::forward<OtherValue>(value))) {
 			if (removeFrom != prev) {
 				*removeFrom++ = std::move(*prev);
 			} else {
@@ -152,8 +155,8 @@ event_stream<Value>::~event_stream() {
 
 template <typename Value>
 inline auto to_stream(event_stream<Value> &stream) {
-	return on_next([&stream](Value &&value) {
-		stream.fire(std::move(value));
+	return on_next([&stream](auto &&value) {
+		stream.fire_forward(std::forward<decltype(value)>(value));
 	});
 }
 

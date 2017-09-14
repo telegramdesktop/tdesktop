@@ -222,11 +222,12 @@ rpl::producer<UserPhotosSlice> UserPhotosViewer(
 			limitBefore,
 			limitAfter);
 		auto applyUpdate = [=](auto &&update) {
-			if (builder->applyUpdate(std::move(update))) {
+			if (builder->applyUpdate(std::forward<decltype(update)>(update))) {
 				consumer.put_next(builder->snapshot());
 			}
 		};
-		auto requestPhotosAround = [user = App::user(key.userId)](PhotoId photoId) {
+		auto requestPhotosAround = [user = App::user(key.userId)](
+				PhotoId photoId) {
 			Auth().api().requestUserPhotos(user, photoId);
 		};
 		builder->insufficientPhotosAround()

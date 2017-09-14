@@ -25,6 +25,28 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/lifetime.h>
 
 namespace rpl {
+namespace details {
+
+template <typename Arg>
+const Arg &const_ref_val();
+
+template <
+	typename Func,
+	typename Arg,
+	typename = decltype(std::declval<Func>()(const_ref_val<Arg>()))>
+void const_ref_call_helper(Func &handler, const Arg &value, int) {
+	handler(value);
+}
+
+template <
+	typename Func,
+	typename Arg>
+void const_ref_call_helper(Func &handler, const Arg &value, double) {
+	auto copy = value;
+	handler(std::move(copy));
+}
+
+} // namespace details
 
 struct no_value {
 	no_value() = delete;
@@ -57,15 +79,27 @@ public:
 
 	bool put_next(Value &&value) const;
 	bool put_next_copy(const Value &value) const;
+	bool put_next_forward(Value &&value) const {
+		return put_next(std::move(value));
+	}
+	bool put_next_forward(const Value &value) const {
+		return put_next_copy(value);
+	}
 	void put_error(Error &&error) const;
 	void put_error_copy(const Error &error) const;
+	void put_error_forward(Error &&error) const {
+		return put_error(std::move(error));
+	}
+	void put_error_forward(const Error &error) const {
+		return put_error_copy(error);
+	}
 	void put_done() const;
 
 	void add_lifetime(lifetime &&lifetime) const;
 
 	template <typename Type, typename... Args>
 	Type *make_state(Args&& ...args) const;
-	
+
 	void terminate() const;
 
 	bool operator==(const consumer &other) const {
@@ -108,7 +142,9 @@ template <typename Value, typename Error>
 class consumer<Value, Error>::abstract_consumer_instance {
 public:
 	virtual bool put_next(Value &&value) = 0;
+	virtual bool put_next_copy(const Value &value) = 0;
 	virtual void put_error(Error &&error) = 0;
+	virtual void put_error_copy(const Error &error) = 0;
 	virtual void put_done() = 0;
 
 	void add_lifetime(lifetime &&lifetime);
@@ -141,7 +177,9 @@ public:
 	}
 
 	bool put_next(Value &&value) override;
+	bool put_next_copy(const Value &value) override;
 	void put_error(Error &&error) override;
+	void put_error_copy(const Error &error) override;
 	void put_done() override;
 
 private:
@@ -197,8 +235,13 @@ bool consumer<Value, Error>::put_next(Value &&value) const {
 
 template <typename Value, typename Error>
 bool consumer<Value, Error>::put_next_copy(const Value &value) const {
-	auto copy = value;
-	return put_next(std::move(copy));
+	if (_instance) {
+		if (_instance->put_next_copy(value)) {
+			return true;
+		}
+		_instance = nullptr;
+	}
+	return false;
 }
 
 template <typename Value, typename Error>
@@ -210,8 +253,9 @@ void consumer<Value, Error>::put_error(Error &&error) const {
 
 template <typename Value, typename Error>
 void consumer<Value, Error>::put_error_copy(const Error &error) const {
-	auto copy = error;
-	return put_error(std::move(error));
+	if (_instance) {
+		std::exchange(_instance, nullptr)->put_error_copy(error);
+	}
 }
 
 template <typename Value, typename Error>
@@ -295,6 +339,21 @@ bool consumer<Value, Error>::consumer_instance<OnNext, OnError, OnDone>::put_nex
 
 template <typename Value, typename Error>
 template <typename OnNext, typename OnError, typename OnDone>
+bool consumer<Value, Error>::consumer_instance<OnNext, OnError, OnDone>::put_next_copy(
+		const Value &value) {
+	std::unique_lock<std::mutex> lock(this->_mutex);
+	if (this->_terminated) {
+		return false;
+	}
+	auto handler = this->_next;
+	lock.unlock();
+
+	details::const_ref_call_helper(handler, value, 0);
+	return true;
+}
+
+template <typename Value, typename Error>
+template <typename OnNext, typename OnError, typename OnDone>
 void consumer<Value, Error>::consumer_instance<OnNext, OnError, OnDone>::put_error(
 		Error &&error) {
 	std::unique_lock<std::mutex> lock(this->_mutex);
@@ -303,6 +362,20 @@ void consumer<Value, Error>::consumer_instance<OnNext, OnError, OnDone>::put_err
 		lock.unlock();
 
 		handler(std::move(error));
+		this->terminate();
+	}
+}
+
+template <typename Value, typename Error>
+template <typename OnNext, typename OnError, typename OnDone>
+void consumer<Value, Error>::consumer_instance<OnNext, OnError, OnDone>::put_error_copy(
+		const Error &error) {
+	std::unique_lock<std::mutex> lock(this->_mutex);
+	if (!this->_terminated) {
+		auto handler = std::move(this->_error);
+		lock.unlock();
+
+		details::const_ref_call_helper(handler, error, 0);
 		this->terminate();
 	}
 }

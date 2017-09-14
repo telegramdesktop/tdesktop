@@ -98,6 +98,7 @@
     ],
     'sources': [
       '<(src_loc)/rpl/before_next.h',
+      '<(src_loc)/rpl/combine_latest.h',
       '<(src_loc)/rpl/complete.h',
       '<(src_loc)/rpl/consumer.h',
       '<(src_loc)/rpl/deferred.h',

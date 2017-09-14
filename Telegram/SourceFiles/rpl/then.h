@@ -34,19 +34,19 @@ auto then(producer<Value, Error> &&following) {
 			following = std::move(following)
 		](const consumer<Value, Error> &consumer) mutable {
 			return std::move(initial).start(
-			[consumer](Value &&value) {
-				consumer.put_next(std::move(value));
-			}, [consumer](Error &&error) {
-				consumer.put_error(std::move(error));
+			[consumer](auto &&value) {
+				consumer.put_next_forward(std::forward<decltype(value)>(value));
+			}, [consumer](auto &&error) {
+				consumer.put_error_forward(std::forward<decltype(error)>(error));
 			}, [
 				consumer,
 				following = std::move(following)
 			]() mutable {
 				consumer.add_lifetime(std::move(following).start(
-				[consumer](Value &&value) {
-					consumer.put_next(std::move(value));
-				}, [consumer](Error &&error) {
-					consumer.put_error(std::move(error));
+				[consumer](auto &&value) {
+					consumer.put_next_forward(std::forward<decltype(value)>(value));
+				}, [consumer](auto &&error) {
+					consumer.put_error_forward(std::forward<decltype(error)>(error));
 				}, [consumer] {
 					consumer.put_done();
 				}));

@@ -27,13 +27,13 @@ namespace Window {
 PlayerWrapWidget::PlayerWrapWidget(QWidget *parent)
 : Parent(parent, object_ptr<Media::Player::Widget>(parent)) {
 	sizeValue()
-		| rpl::on_next([this](QSize &&size) {
+		| rpl::on_next([this](const QSize &size) {
 			updateShadowGeometry(size);
 		})
 		| rpl::start(lifetime());
 }
 
-void PlayerWrapWidget::updateShadowGeometry(QSize size) {
+void PlayerWrapWidget::updateShadowGeometry(const QSize &size) {
 	auto skip = Adaptive::OneColumn() ? 0 : st::lineWidth;
 	entity()->setShadowGeometryToLeft(
 		skip,
