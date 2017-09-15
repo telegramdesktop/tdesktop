@@ -51,7 +51,7 @@ void ConnectionBox::ShowApplyProxyConfirmation(const QMap<QString, QString> &fie
 			reinitLocationManager();
 			reinitWebLoadManager();
 			if (*weakBox) (*weakBox)->closeBox();
-		}), KeepOtherLayers);
+		}), LayerOption::KeepOther);
 		*weakBox = box;
 	}
 }

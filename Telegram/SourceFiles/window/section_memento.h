@@ -38,6 +38,9 @@ public:
 			not_null<Window::Controller*> controller) {
 		return nullptr;
 	}
+	virtual bool instant() const {
+		return false;
+	}
 
 	virtual ~SectionMemento() = default;
 

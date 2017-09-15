@@ -68,8 +68,8 @@ public:
 		not_null<PeerData*> peer,
 		Type type);
 
-	not_null<PeerData*> peer() const;
 	Type type() const;
+	Section section() const override;
 
 	bool showInternal(
 		not_null<ContentMemento*> memento) override;

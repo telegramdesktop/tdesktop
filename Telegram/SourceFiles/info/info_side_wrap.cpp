@@ -35,9 +35,21 @@ namespace Info {
 SideWrap::SideWrap(
 	QWidget *parent,
 	not_null<Window::Controller*> controller,
-	not_null<PeerData*> peer)
-: Window::SectionWidget(parent, controller)
-, _peer(peer) {
+	not_null<Memento*> memento)
+: Window::SectionWidget(parent, controller) {
+	setInternalState(geometry(), memento);
+}
+
+SideWrap::SideWrap(
+	QWidget *parent,
+	not_null<Window::Controller*> controller,
+	not_null<MoveMemento*> memento)
+: Window::SectionWidget(parent, controller) {
+	restoreState(memento);
+}
+
+not_null<PeerData*> SideWrap::peer() const {
+	return _content->peer();
 }
 
 void SideWrap::setupTabs() {
@@ -65,19 +77,41 @@ void SideWrap::setupTabs() {
 }
 
 void SideWrap::showTab(Tab tab) {
-	showInner(createInner(tab));
+	showContent(createContent(tab));
 }
 
-void SideWrap::showInner(object_ptr<ContentWidget> inner) {
-	_inner = std::move(inner);
-	_inner->setGeometry(innerGeometry());
-	_inner->show();
+void SideWrap::showContent(object_ptr<ContentWidget> content) {
+	auto section = content->section();
+	switch (section.type()) {
+	case Section::Type::Profile:
+		setCurrentTab(Tab::Profile);
+		break;
+	case Section::Type::Media:
+		switch (section.mediaType()) {
+		case Section::MediaType::Photo:
+		case Section::MediaType::Video:
+		case Section::MediaType::File:
+			setCurrentTab(Tab::Media);
+			break;
+		default:
+			setCurrentTab(Tab::None);
+			break;
+		}
+		break;
+	case Section::Type::CommonGroups:
+		setCurrentTab(Tab::None);
+		break;
+	}
 
-	_desiredHeights.fire(desiredHeightForInner()); 
+	_content = std::move(content);
+	_content->setGeometry(contentGeometry());
+	_content->show();
+
+	_desiredHeights.fire(desiredHeightForContent());
 }
 
-rpl::producer<int> SideWrap::desiredHeightForInner() const {
-	auto result = _inner->desiredHeightValue();
+rpl::producer<int> SideWrap::desiredHeightForContent() const {
+	auto result = _content->desiredHeightValue();
 	if (_tabs) {
 		result = std::move(result)
 			| rpl::map(func::add(_tabs->height()));
@@ -85,7 +119,7 @@ rpl::producer<int> SideWrap::desiredHeightForInner() const {
 	return result;
 }
 
-object_ptr<ContentWidget> SideWrap::createInner(Tab tab) {
+object_ptr<ContentWidget> SideWrap::createContent(Tab tab) {
 	switch (tab) {
 	case Tab::Profile: return createProfileWidget();
 	case Tab::Media: return createMediaWidget();
@@ -98,7 +132,7 @@ object_ptr<Profile::Widget> SideWrap::createProfileWidget() {
 		this,
 		Wrap::Side,
 		controller(),
-		_peer);
+		_content->peer());
 	return result;
 }
 
@@ -107,7 +141,7 @@ object_ptr<Media::Widget> SideWrap::createMediaWidget() {
 		this,
 		Wrap::Side,
 		controller(),
-		_peer,
+		_content->peer(),
 		Media::Widget::Type::Photo);
 	return result;
 }
@@ -121,7 +155,7 @@ QPixmap SideWrap::grabForShowAnimation(
 }
 
 void SideWrap::doSetInnerFocus() {
-	_inner->setInnerFocus();
+	_content->setInnerFocus();
 }
 
 bool SideWrap::showInternal(
@@ -153,45 +187,31 @@ std::unique_ptr<Window::SectionMemento> SideWrap::createMemento() {
 
 rpl::producer<int> SideWrap::desiredHeightValue() const {
 	return
-		rpl::single(desiredHeightForInner())
+		rpl::single(desiredHeightForContent())
 		| rpl::then(_desiredHeights.events())
 		| rpl::flatten_latest();
 }
 
 void SideWrap::saveState(not_null<Memento*> memento) {
-	memento->setInner(_inner->createMemento());
+	memento->setInner(_content->createMemento());
 }
 
-QRect SideWrap::innerGeometry() const {
+QRect SideWrap::contentGeometry() const {
 	return (_tab == Tab::None)
 		? rect()
 		: rect().marginsRemoved({ 0, _tabs->height(), 0, 0 });
 }
 
 void SideWrap::restoreState(not_null<Memento*> memento) {
-	switch (memento->section().type()) {
-	case Section::Type::Profile:
-		setCurrentTab(Tab::Profile);
-		break;
-	case Section::Type::Media:
-		switch (memento->section().mediaType()) {
-		case Section::MediaType::Photo:
-		case Section::MediaType::Video:
-		case Section::MediaType::File:
-			setCurrentTab(Tab::Media);
-			break;
-		default:
-			setCurrentTab(Tab::None);
-			break;
-		}
-		break;
-	}
-
-	showInner(memento->content()->createWidget(
+	showContent(memento->content()->createWidget(
 		this,
 		Wrap::Side,
 		controller(),
-		innerGeometry()));
+		contentGeometry()));
+}
+
+void SideWrap::restoreState(not_null<MoveMemento*> memento) {
+	showContent(memento->content(this, Wrap::Side));
 }
 
 void SideWrap::setCurrentTab(Tab tab) {
@@ -209,8 +229,8 @@ void SideWrap::resizeEvent(QResizeEvent *e) {
 	if (_tabs) {
 		_tabs->resizeToWidth(width());
 	}
-	if (_inner) {
-		_inner->setGeometry(innerGeometry());
+	if (_content) {
+		_content->setGeometry(contentGeometry());
 	}
 }
 
@@ -223,13 +243,13 @@ bool SideWrap::wheelEventFromFloatPlayer(
 		QEvent *e,
 		Window::Column myColumn,
 		Window::Column playerColumn) {
-	return _inner->wheelEventFromFloatPlayer(e);
+	return _content->wheelEventFromFloatPlayer(e);
 }
 
 QRect SideWrap::rectForFloatPlayer(
 		Window::Column myColumn,
 		Window::Column playerColumn) const {
-	return _inner->rectForFloatPlayer();
+	return _content->rectForFloatPlayer();
 }
 
 } // namespace Info

@@ -320,14 +320,19 @@ void MainWindow::setupMain(const MTPUser *self) {
 void MainWindow::showSettings() {
 	if (isHidden()) showFromTray();
 
-	showSpecialLayer(Box<Settings::Widget>());
+	controller()->showSpecialLayer(Box<Settings::Widget>());
 }
 
-void MainWindow::showSpecialLayer(object_ptr<LayerWidget> layer) {
+void MainWindow::showSpecialLayer(
+		object_ptr<LayerWidget> layer,
+		LayerOptions options) {
 	if (_passcode) return;
 
 	ensureLayerCreated();
 	_layerBg->showSpecialLayer(std::move(layer));
+	if (options & LayerOption::ForceFast) {
+		_layerBg->finishAnimation();
+	}
 }
 
 void MainWindow::showMainMenu() {
@@ -357,10 +362,10 @@ void MainWindow::destroyLayerDelayed() {
 	}
 }
 
-void MainWindow::ui_hideSettingsAndLayer(ShowLayerOptions options) {
+void MainWindow::ui_hideSettingsAndLayer(LayerOptions options) {
 	if (_layerBg) {
 		_layerBg->hideAll();
-		if (options & ForceFastShowLayer) {
+		if (options & LayerOption::ForceFast) {
 			destroyLayerDelayed();
 		}
 	}
@@ -396,11 +401,13 @@ PasscodeWidget *MainWindow::passcodeWidget() {
 	return _passcode;
 }
 
-void MainWindow::ui_showBox(object_ptr<BoxContent> box, ShowLayerOptions options) {
+void MainWindow::ui_showBox(
+		object_ptr<BoxContent> box,
+		LayerOptions options) {
 	if (box) {
 		ensureLayerCreated();
-		if (options & KeepOtherLayers) {
-			if (options & ShowAfterOtherLayers) {
+		if (options & LayerOption::KeepOther) {
+			if (options & LayerOption::ShowAfterOther) {
 				_layerBg->prependBox(std::move(box));
 			} else {
 				_layerBg->appendBox(std::move(box));
@@ -408,13 +415,13 @@ void MainWindow::ui_showBox(object_ptr<BoxContent> box, ShowLayerOptions options
 		} else {
 			_layerBg->showBox(std::move(box));
 		}
-		if (options & ForceFastShowLayer) {
+		if (options & LayerOption::ForceFast) {
 			_layerBg->finishAnimation();
 		}
 	} else {
 		if (_layerBg) {
 			_layerBg->hideTopLayer();
-			if ((options & ForceFastShowLayer) && !_layerBg->layerShown()) {
+			if ((options & LayerOption::ForceFast) && !_layerBg->layerShown()) {
 				destroyLayerDelayed();
 			}
 		}
@@ -638,7 +645,7 @@ void MainWindow::onShowAddContact() {
 	if (isHidden()) showFromTray();
 
 	if (App::self()) {
-		Ui::show(Box<AddContactBox>(), KeepOtherLayers);
+		Ui::show(Box<AddContactBox>(), LayerOption::KeepOther);
 	}
 }
 
@@ -646,14 +653,20 @@ void MainWindow::onShowNewGroup() {
 	if (isHidden()) showFromTray();
 
 	if (App::self()) {
-		Ui::show(Box<GroupInfoBox>(CreatingGroupGroup, false), KeepOtherLayers);
+		Ui::show(
+			Box<GroupInfoBox>(CreatingGroupGroup, false),
+			LayerOption::KeepOther);
 	}
 }
 
 void MainWindow::onShowNewChannel() {
 	if (isHidden()) showFromTray();
 
-	if (_main) Ui::show(Box<GroupInfoBox>(CreatingGroupChannel, false), KeepOtherLayers);
+	if (_main) {
+		Ui::show(
+			Box<GroupInfoBox>(CreatingGroupChannel, false),
+			LayerOption::KeepOther);
+	}
 }
 
 void MainWindow::onLogout() {
@@ -798,6 +811,8 @@ void MainWindow::updateControlsGeometry() {
 	if (_mediaPreview) _mediaPreview->setGeometry(body);
 	if (_connecting) _connecting->moveToLeft(0, body.height() - _connecting->height());
 	if (_testingThemeWarning) _testingThemeWarning->setGeometry(body);
+
+	if (_main) _main->checkWideSectionToLayer();
 }
 
 MainWindow::TempDirState MainWindow::tempDirState() {

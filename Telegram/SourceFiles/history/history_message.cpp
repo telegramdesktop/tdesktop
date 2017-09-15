@@ -236,7 +236,9 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			restrictedEverywhere = false;
 		}
 		if (restrictedEverywhere) {
-			Ui::show(Box<InformBox>(firstError), KeepOtherLayers);
+			Ui::show(
+				Box<InformBox>(firstError),
+				LayerOption::KeepOther);
 			return;
 		}
 

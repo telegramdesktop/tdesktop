@@ -317,7 +317,7 @@ void SessionsBox::Inner::onTerminate() {
 					i.value()->clearState();
 					i.value()->hide();
 				}
-			})), KeepOtherLayers);
+			})), LayerOption::KeepOther);
 		}
 	}
 }
@@ -331,7 +331,7 @@ void SessionsBox::Inner::onTerminateAll() {
 		}
 		MTP::send(MTPauth_ResetAuthorizations(), rpcDone(&Inner::terminateAllDone), rpcFail(&Inner::terminateAllFail));
 		emit terminateAll();
-	})), KeepOtherLayers);
+	})), LayerOption::KeepOther);
 }
 
 void SessionsBox::Inner::terminateDone(uint64 hash, const MTPBool &result) {

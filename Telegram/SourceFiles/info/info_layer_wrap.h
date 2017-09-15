@@ -29,6 +29,7 @@ class Controller;
 namespace Info {
 
 class Memento;
+class MoveMemento;
 class ContentWidget;
 class TopBar;
 
@@ -37,28 +38,33 @@ public:
 	LayerWrap(
 		not_null<Window::Controller*> controller,
 		not_null<Memento*> memento);
+	LayerWrap(
+		not_null<Window::Controller*> controller,
+		not_null<MoveMemento*> memento);
 
 	void showFinished() override;
 	void parentResized() override;
 
+	static int MinimalSupportedWidth();
+
 protected:
+	int resizeGetHeight(int newWidth) override;
+
 	void paintEvent(QPaintEvent *e) override;
 
-	void setRoundedCorners(bool roundedCorners);
-
 private:
-	object_ptr<TopBar> createTopBar(
-		not_null<Window::Controller*> controller,
-		not_null<Memento*> memento);
+	void setupHeightConsumers();
+
 	object_ptr<ContentWidget> createContent(
 		not_null<Window::Controller*> controller,
 		not_null<Memento*> memento);
+	object_ptr<TopBar> createTopBar();
 
-	void resizeToWidth(int newWidth, int newContentLeft);
-	void resizeToDesiredHeight();
+	void setRoundedCorners(bool roundedCorners);
 
-	object_ptr<TopBar> _topBar;
+	not_null<Window::Controller*> _controller;
 	object_ptr<ContentWidget> _content;
+	object_ptr<TopBar> _topBar;
 
 	int _desiredHeight = 0;
 	bool _roundedCorners = false;

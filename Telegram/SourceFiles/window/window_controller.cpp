@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "window/main_window.h"
 #include "mainwidget.h"
+#include "mainwindow.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
 #include "boxes/calendar_box.h"
@@ -181,6 +182,35 @@ void Controller::showJumpToDate(not_null<PeerData*> peer, QDate requestedDate) {
 	box->setMinDate(minPeerDate());
 	box->setMaxDate(maxPeerDate());
 	Ui::show(std::move(box));
+}
+
+void Controller::showPeerHistory(
+		not_null<PeerData*> peer,
+		Ui::ShowWay way,
+		MsgId msgId) {
+	Ui::showPeerHistory(peer, msgId, way);
+}
+
+void Controller::showWideSection(SectionMemento &&memento) {
+	App::main()->showWideSection(std::move(memento));
+}
+
+void Controller::showBackFromStack() {
+	chats()->showBackFromStack();
+}
+
+void Controller::showSpecialLayer(
+		object_ptr<LayerWidget> &&layer,
+		LayerOptions options) {
+	App::wnd()->showSpecialLayer(std::move(layer), options);
+}
+
+void Controller::hideSpecialLayer(LayerOptions options) {
+	Ui::hideSettingsAndLayer(options & LayerOption::ForceFast);
+}
+
+not_null<MainWidget*> Controller::chats() const {
+	return App::wnd()->chatsWidget();
 }
 
 } // namespace Window

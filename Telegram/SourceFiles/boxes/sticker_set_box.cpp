@@ -436,7 +436,9 @@ QString StickerSetBox::Inner::shortName() const {
 
 void StickerSetBox::Inner::install() {
 	if (isMasksSet()) {
-		Ui::show(Box<InformBox>(lang(lng_stickers_masks_pack)), KeepOtherLayers);
+		Ui::show(
+			Box<InformBox>(lang(lng_stickers_masks_pack)),
+			LayerOption::KeepOther);
 		return;
 	}
 	if (_installRequest) return;

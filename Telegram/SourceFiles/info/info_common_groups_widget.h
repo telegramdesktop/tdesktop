@@ -57,6 +57,7 @@ public:
 		not_null<UserData*> user);
 
 	not_null<UserData*> user() const;
+	Section section() const override;
 
 	bool showInternal(
 		not_null<ContentMemento*> memento) override;

@@ -24,6 +24,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/rp_widget.h"
 #include "ui/wrap/vertical_layout.h"
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 namespace Info {
 namespace Profile {
 
@@ -31,7 +35,10 @@ class Memento;
 
 class InnerWidget final : public Ui::RpWidget {
 public:
-	InnerWidget(QWidget *parent, not_null<PeerData*> peer);
+	InnerWidget(
+		QWidget *parent,
+		not_null<Window::Controller*> controller,
+		not_null<PeerData*> peer);
 
 	not_null<PeerData*> peer() const {
 		return _peer;
@@ -60,6 +67,7 @@ private:
 		Ui::VerticalLayout *wrap,
 		not_null<UserData*> user) const;
 
+	not_null<Window::Controller*> _controller;
 	not_null<PeerData*> _peer;
 
 	int _visibleTop = 0;

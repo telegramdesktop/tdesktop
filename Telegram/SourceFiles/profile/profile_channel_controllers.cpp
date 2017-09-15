@@ -80,13 +80,17 @@ void ParticipantsBoxController::Start(not_null<ChannelData*> channel, Role role)
 			box->addLeftButton(addNewItemText(), [controller] { controller->addNewItem(); });
 		}
 	};
-	Ui::show(Box<PeerListBox>(std::move(controller), std::move(initBox)), KeepOtherLayers);
+	Ui::show(
+		Box<PeerListBox>(std::move(controller), std::move(initBox)),
+		LayerOption::KeepOther);
 }
 
 void ParticipantsBoxController::addNewItem() {
 	if (_role == Role::Members) {
 		if (_channel->membersCount() >= Global::ChatSizeMax()) {
-			Ui::show(Box<MaxInviteBox>(_channel), KeepOtherLayers);
+			Ui::show(
+				Box<MaxInviteBox>(_channel),
+				LayerOption::KeepOther);
 		} else {
 			auto already = std::vector<not_null<UserData*>>();
 			already.reserve(delegate()->peerListFullRowsCount());
@@ -108,7 +112,7 @@ void ParticipantsBoxController::addNewItem() {
 		}
 	}), [](not_null<PeerListBox*> box) {
 		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
-	}), KeepOtherLayers);
+	}), LayerOption::KeepOther);
 }
 
 void ParticipantsBoxController::peerListSearchAddRow(not_null<PeerData*> peer) {
@@ -351,7 +355,7 @@ void ParticipantsBoxController::showAdmin(not_null<UserData*> user) {
 			}));
 		});
 	}
-	_editBox = Ui::show(std::move(box), KeepOtherLayers);
+	_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
 }
 
 void ParticipantsBoxController::editAdminDone(not_null<UserData*> user, const MTPChannelAdminRights &rights) {
@@ -405,7 +409,7 @@ void ParticipantsBoxController::showRestricted(not_null<UserData*> user) {
 			}));
 		});
 	}
-	_editBox = Ui::show(std::move(box), KeepOtherLayers);
+	_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
 }
 
 void ParticipantsBoxController::editRestrictedDone(not_null<UserData*> user, const MTPChannelBannedRights &rights) {
@@ -457,7 +461,7 @@ void ParticipantsBoxController::kickMember(not_null<UserData*> user) {
 		if (weak) {
 			weak->kickMemberSure(user);
 		}
-	}), KeepOtherLayers);
+	}), LayerOption::KeepOther);
 }
 
 void ParticipantsBoxController::kickMemberSure(not_null<UserData*> user) {
@@ -820,15 +824,19 @@ void AddParticipantBoxController::showAdmin(not_null<UserData*> user, bool sure)
 						if (weak) {
 							weak->showAdmin(user, true);
 						}
-					}), KeepOtherLayers);
+					}), LayerOption::KeepOther);
 					return;
 				}
 			} else {
-				Ui::show(Box<InformBox>(lang(lng_error_cant_add_admin_unban)), KeepOtherLayers);
+				Ui::show(Box<InformBox>(
+					lang(lng_error_cant_add_admin_unban)),
+					LayerOption::KeepOther);
 				return;
 			}
 		} else {
-			Ui::show(Box<InformBox>(lang(lng_error_cant_add_admin_invite)), KeepOtherLayers);
+			Ui::show(Box<InformBox>(
+				lang(lng_error_cant_add_admin_invite)),
+				LayerOption::KeepOther);
 			return;
 		}
 	} else if (_additional.restrictedRights.find(user) != _additional.restrictedRights.end()) {
@@ -839,11 +847,13 @@ void AddParticipantBoxController::showAdmin(not_null<UserData*> user, bool sure)
 					if (weak) {
 						weak->showAdmin(user, true);
 					}
-				}), KeepOtherLayers);
+				}), LayerOption::KeepOther);
 				return;
 			}
 		} else {
-			Ui::show(Box<InformBox>(lang(lng_error_cant_add_admin_unban)), KeepOtherLayers);
+			Ui::show(Box<InformBox>(
+				lang(lng_error_cant_add_admin_unban)),
+				LayerOption::KeepOther);
 			return;
 		}
 	} else if (_additional.external.find(user) != _additional.external.end()) {
@@ -854,11 +864,13 @@ void AddParticipantBoxController::showAdmin(not_null<UserData*> user, bool sure)
 					if (weak) {
 						weak->showAdmin(user, true);
 					}
-				}), KeepOtherLayers);
+				}), LayerOption::KeepOther);
 				return;
 			}
 		} else {
-			Ui::show(Box<InformBox>(lang(lng_error_cant_add_admin_invite)), KeepOtherLayers);
+			Ui::show(
+				Box<InformBox>(lang(lng_error_cant_add_admin_invite)),
+				LayerOption::KeepOther);
 			return;
 		}
 	}
@@ -881,9 +893,16 @@ void AddParticipantBoxController::showAdmin(not_null<UserData*> user, bool sure)
 					return false;
 				}
 				if (error.type() == qstr("USER_NOT_MUTUAL_CONTACT")) {
-					Ui::show(Box<InformBox>(PeerFloodErrorText(channel->isMegagroup() ? PeerFloodType::InviteGroup : PeerFloodType::InviteChannel)), KeepOtherLayers);
+					Ui::show(
+						Box<InformBox>(PeerFloodErrorText(
+							channel->isMegagroup()
+								? PeerFloodType::InviteGroup
+								: PeerFloodType::InviteChannel)),
+						LayerOption::KeepOther);
 				} else if (error.type() == qstr("BOT_GROUPS_BLOCKED")) {
-					Ui::show(Box<InformBox>(lang(lng_error_cant_add_bot)), KeepOtherLayers);
+					Ui::show(
+						Box<InformBox>(lang(lng_error_cant_add_bot)),
+						LayerOption::KeepOther);
 				}
 				if (weak && weak->_editBox) {
 					weak->_editBox->closeBox();
@@ -892,7 +911,7 @@ void AddParticipantBoxController::showAdmin(not_null<UserData*> user, bool sure)
 			}));
 		});
 	}
-	_editBox = Ui::show(std::move(box), KeepOtherLayers);
+	_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
 }
 
 void AddParticipantBoxController::editAdminDone(not_null<UserData*> user, const MTPChannelAdminRights &rights) {
@@ -945,11 +964,13 @@ void AddParticipantBoxController::showRestricted(not_null<UserData*> user, bool 
 					if (weak) {
 						weak->showRestricted(user, true);
 					}
-				}), KeepOtherLayers);
+				}), LayerOption::KeepOther);
 				return;
 			}
 		} else {
-			Ui::show(Box<InformBox>(lang(lng_error_cant_ban_admin)), KeepOtherLayers);
+			Ui::show(
+				Box<InformBox>(lang(lng_error_cant_ban_admin)),
+				LayerOption::KeepOther);
 			return;
 		}
 	}
@@ -961,7 +982,7 @@ void AddParticipantBoxController::showRestricted(not_null<UserData*> user, bool 
 			weak->restrictUserSure(user, oldRights, newRights);
 		}
 	});
-	_editBox = Ui::show(std::move(box), KeepOtherLayers);
+	_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
 }
 
 void AddParticipantBoxController::restrictUserSure(not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
@@ -1013,11 +1034,13 @@ void AddParticipantBoxController::kickUser(not_null<UserData*> user, bool sure) 
 					if (weak) {
 						weak->kickUser(user, true);
 					}
-				}), KeepOtherLayers);
+				}), LayerOption::KeepOther);
 				return;
 			}
 		} else {
-			Ui::show(Box<InformBox>(lang(lng_error_cant_ban_admin)), KeepOtherLayers);
+			Ui::show(
+				Box<InformBox>(lang(lng_error_cant_ban_admin)),
+				LayerOption::KeepOther);
 			return;
 		}
 	}
@@ -1029,7 +1052,7 @@ void AddParticipantBoxController::kickUser(not_null<UserData*> user, bool sure) 
 			if (weak) {
 				weak->kickUser(user, true);
 			}
-		}), KeepOtherLayers);
+		}), LayerOption::KeepOther);
 		return;
 	}
 	auto currentRights = MTP_channelBannedRights(MTP_flags(0), MTP_int(0));

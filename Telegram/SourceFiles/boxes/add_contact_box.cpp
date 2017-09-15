@@ -355,7 +355,13 @@ void GroupInfoBox::setupPhotoButton() {
 			if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
 				return;
 			}
-			auto box = Ui::show(Box<PhotoCropBox>(img, (_creating == CreatingGroupChannel) ? peerFromChannel(0) : peerFromChat(0)), KeepOtherLayers);
+			auto box = Ui::show(
+				Box<PhotoCropBox>(
+					img,
+					(_creating == CreatingGroupChannel)
+						? peerFromChannel(0)
+						: peerFromChat(0)),
+				LayerOption::KeepOther);
 			connect(box, SIGNAL(ready(const QImage&)), this, SLOT(onPhotoReady(const QImage&)));
 		}));
 	}));
@@ -445,9 +451,14 @@ void GroupInfoBox::createGroup(not_null<PeerListBox*> selectUsersBox, const QStr
 			}
 		} else if (error.type() == qstr("USERS_TOO_FEW")) {
 		} else if (error.type() == qstr("PEER_FLOOD")) {
-			Ui::show(Box<InformBox>(PeerFloodErrorText(PeerFloodType::InviteGroup)), KeepOtherLayers);
+			Ui::show(
+				Box<InformBox>(
+					PeerFloodErrorText(PeerFloodType::InviteGroup)),
+				LayerOption::KeepOther);
 		} else if (error.type() == qstr("USER_RESTRICTED")) {
-			Ui::show(Box<InformBox>(lang(lng_cant_do_this)), KeepOtherLayers);
+			Ui::show(
+				Box<InformBox>(lang(lng_cant_do_this)),
+				LayerOption::KeepOther);
 		}
 	}).send();
 }
@@ -476,7 +487,12 @@ void GroupInfoBox::onNext() {
 			});
 			box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
 		};
-		Ui::show(Box<PeerListBox>(std::make_unique<AddParticipantsBoxController>(nullptr), std::move(initBox)), KeepOtherLayers);
+		Ui::show(
+			Box<PeerListBox>(
+				std::make_unique<AddParticipantsBoxController>(
+					nullptr),
+				std::move(initBox)),
+			LayerOption::KeepOther);
 	}
 }
 
@@ -792,7 +808,7 @@ void SetupChannelBox::privacyChanged(Privacy value) {
 				_tooMuchUsernames = false;
 				_privacyGroup->setValue(Privacy::Public);
 				onCheck();
-			})), KeepOtherLayers);
+			})), LayerOption::KeepOther);
 			return;
 		}
 		_link->show();
@@ -883,8 +899,10 @@ bool SetupChannelBox::onCheckFail(const RPCError &error) {
 void SetupChannelBox::showRevokePublicLinkBoxForEdit() {
 	closeBox();
 	Ui::show(Box<RevokePublicLinkBox>([channel = _channel, existing = _existing]() {
-		Ui::show(Box<SetupChannelBox>(channel, existing), KeepOtherLayers);
-	}), KeepOtherLayers);
+		Ui::show(
+			Box<SetupChannelBox>(channel, existing),
+			LayerOption::KeepOther);
+	}), LayerOption::KeepOther);
 }
 
 bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
@@ -1278,7 +1296,9 @@ void EditChannelBox::onSave() {
 }
 
 void EditChannelBox::onPublicLink() {
-	Ui::show(Box<SetupChannelBox>(_channel, true), KeepOtherLayers);
+	Ui::show(
+		Box<SetupChannelBox>(_channel, true),
+		LayerOption::KeepOther);
 }
 
 void EditChannelBox::saveDescription() {
@@ -1473,7 +1493,7 @@ void RevokePublicLinkBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 					_revokeCallback();
 				}
 			}).send();
-		})), KeepOtherLayers);
+		})), LayerOption::KeepOther);
 	}
 }
 

@@ -1077,7 +1077,9 @@ void StickersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 						setMegagroupSelectedSet(MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access)));
 					} else {
 						setSelected(-1);
-						Ui::show(Box<StickerSetBox>(Stickers::inputSetId(*it)), KeepOtherLayers);
+						Ui::show(
+							Box<StickerSetBox>(Stickers::inputSetId(*it)),
+							LayerOption::KeepOther);
 					}
 				}
 			}

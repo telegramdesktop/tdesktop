@@ -38,12 +38,22 @@ namespace Info {
 ContentWidget::ContentWidget(
 	QWidget *parent,
 	Wrap wrap,
-	not_null<Window::Controller*> controller)
+	not_null<Window::Controller*> controller,
+	not_null<PeerData*> peer)
 : RpWidget(parent)
 , _controller(controller)
+, _peer(peer)
 , _wrap(wrap)
 , _scroll(this, st::infoScroll) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
+}
+
+void ContentWidget::setWrap(Wrap wrap) {
+	if (_wrap != wrap) {
+		_wrap = wrap;
+		wrapUpdatedHook();
+		update();
+	}
 }
 
 void ContentWidget::resizeEvent(QResizeEvent *e) {
@@ -118,11 +128,6 @@ rpl::producer<int> ContentWidget::scrollTopValue() const {
 	return _scroll->scrollTopValue();
 }
 
-void ContentWidget::setWrap(Wrap wrap) {
-	_wrap = wrap;
-	update();
-}
-
 int ContentWidget::scrollTopSave() const {
 	return _scroll->scrollTop();
 }
@@ -176,6 +181,52 @@ object_ptr<LayerWidget> Memento::createLayer(
 		return nullptr;
 	}
 	return object_ptr<LayerWrap>(controller, this);
+}
+
+MoveMemento::MoveMemento(
+	object_ptr<ContentWidget> content,
+	Wrap wrap)
+: _content(std::move(content))
+, _wrap(wrap) {
+}
+
+object_ptr<Window::SectionWidget> MoveMemento::createWidget(
+		QWidget *parent,
+		not_null<Window::Controller*> controller,
+		const QRect &geometry) {
+	if (_wrap == Wrap::Narrow) {
+		auto result = object_ptr<NarrowWrap>(
+			parent,
+			controller,
+			this);
+		result->setGeometry(geometry);
+		return result;
+	}
+	auto result = object_ptr<SideWrap>(
+		parent,
+		controller,
+		this);
+	result->setGeometry(geometry);
+	return result;
+}
+
+object_ptr<LayerWidget> MoveMemento::createLayer(
+		not_null<Window::Controller*> controller) {
+	if (_wrap == Wrap::Layer) {
+		auto result = object_ptr<LayerWrap>(
+			controller,
+			this);
+		return result;
+	}
+	return nullptr;
+}
+
+object_ptr<ContentWidget> MoveMemento::content(
+		QWidget *parent,
+		Wrap wrap) {
+	Ui::AttachParentChild(parent, _content);
+	_content->setWrap(wrap);
+	return std::move(_content);
 }
 
 rpl::producer<QString> TitleValue(

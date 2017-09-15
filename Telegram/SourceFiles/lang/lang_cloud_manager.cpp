@@ -177,7 +177,7 @@ bool CloudManager::showOfferSwitchBox() {
 		Ui::hideLayer();
 		changeIdAndReInitConnection(DefaultLanguageId());
 		Local::writeLangPack();
-	}), KeepOtherLayers);
+	}), LayerOption::KeepOther);
 	return true;
 }
 
@@ -236,7 +236,7 @@ void CloudManager::switchToLanguage(QString id) {
 			auto cancel = getValue(lng_cancel);
 			Ui::show(Box<ConfirmBox>(text, save, cancel, [this, id] {
 				performSwitchAndRestart(id);
-			}), KeepOtherLayers);
+			}), LayerOption::KeepOther);
 		}).send();
 	}
 }
@@ -267,10 +267,12 @@ void CloudManager::performSwitchToCustom() {
 				Ui::show(Box<ConfirmBox>(text, save, cancel, [weak, filePath] {
 					weak->_langpack.switchToCustomFile(filePath);
 					App::restart();
-				}), KeepOtherLayers);
+				}), LayerOption::KeepOther);
 			}
 		} else {
-			Ui::show(Box<InformBox>("Custom lang failed :(\n\nError: " + loader.errors()), KeepOtherLayers);
+			Ui::show(
+				Box<InformBox>("Custom lang failed :(\n\nError: " + loader.errors()),
+				LayerOption::KeepOther);
 		}
 	});
 }

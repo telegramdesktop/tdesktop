@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Info {
 namespace CommonGroups {
-	
+
 object_ptr<ContentWidget> Memento::createWidget(
 		QWidget *parent,
 		Wrap wrap,
@@ -45,12 +45,16 @@ Widget::Widget(
 	Wrap wrap,
 	not_null<Window::Controller*> controller,
 	not_null<UserData*> user)
-: ContentWidget(parent, wrap, controller) {
+: ContentWidget(parent, wrap, controller, user) {
 	_inner = setInnerWidget(object_ptr<InnerWidget>(this, user));
 }
 
 not_null<UserData*> Widget::user() const {
 	return _inner->user();
+}
+
+Section Widget::section() const {
+	return Section(Section::Type::CommonGroups);
 }
 
 bool Widget::showInternal(not_null<ContentMemento*> memento) {

@@ -37,28 +37,52 @@ namespace Info {
 LayerWrap::LayerWrap(
 	not_null<Window::Controller*> controller,
 	not_null<Memento*> memento)
-: _topBar(createTopBar(controller, memento))
-, _content(createContent(controller, memento)) {
+: _controller(controller)
+, _content(createContent(controller, memento))
+, _topBar(createTopBar()) {
+	setupHeightConsumers();
+}
+
+LayerWrap::LayerWrap(
+	not_null<Window::Controller*> controller,
+	not_null<MoveMemento*> memento)
+: _controller(controller)
+, _content(memento->content(this, Wrap::Layer))
+, _topBar(createTopBar()) {
+	setupHeightConsumers();
+}
+
+void LayerWrap::setupHeightConsumers() {
 	_content->desiredHeightValue()
 		| rpl::on_next([this](int height) {
 			_desiredHeight = height;
-			resizeToDesiredHeight();
+			resizeToWidth(width());
+		})
+		| rpl::start(lifetime());
+	heightValue()
+		| rpl::on_next([this](int height) {
+			_content->resize(
+				width(),
+				height - _topBar->bottomNoMargins() - st::boxRadius);
 		})
 		| rpl::start(lifetime());
 }
 
-object_ptr<TopBar> LayerWrap::createTopBar(
-		not_null<Window::Controller*> controller,
-		not_null<Memento*> memento) {
+object_ptr<TopBar> LayerWrap::createTopBar() {
 	auto result = object_ptr<TopBar>(
 		this,
 		st::infoLayerTopBar);
-	result->addButton(object_ptr<Ui::IconButton>(
+	auto close = result->addButton(object_ptr<Ui::IconButton>(
 		result.data(),
 		st::infoLayerTopBarClose));
+	close->clicks()
+		| rpl::on_next([this](auto&&) {
+			_controller->hideSpecialLayer();
+		})
+		| rpl::start(close->lifetime());
 	result->setTitle(TitleValue(
-		memento->section(),
-		App::peer(memento->peerId())));
+		_content->section(),
+		_content->peer()));
 	return result;
 }
 
@@ -69,7 +93,7 @@ object_ptr<ContentWidget> LayerWrap::createContent(
 		this,
 		Wrap::Layer,
 		controller,
-		controller->window()->rect());
+		QRect());
 }
 
 void LayerWrap::showFinished() {
@@ -78,58 +102,55 @@ void LayerWrap::showFinished() {
 void LayerWrap::parentResized() {
 	auto parentSize = parentWidget()->size();
 	auto windowWidth = parentSize.width();
-	auto newWidth = st::settingsMaxWidth;
-	auto newContentLeft = st::settingsMaxPadding;
-	if (windowWidth <= st::settingsMaxWidth) {
-		newWidth = windowWidth;
-		newContentLeft = st::settingsMinPadding;
-		if (windowWidth > st::windowMinWidth) {
-			// Width changes from st::windowMinWidth to st::settingsMaxWidth.
-			// Padding changes from st::settingsMinPadding to st::settingsMaxPadding.
-			newContentLeft += ((newWidth - st::windowMinWidth) * (st::settingsMaxPadding - st::settingsMinPadding)) / (st::settingsMaxWidth - st::windowMinWidth);
-		}
-	} else if (windowWidth < st::settingsMaxWidth + 2 * st::settingsMargin) {
-		newWidth = windowWidth - 2 * st::settingsMargin;
-		newContentLeft = st::settingsMinPadding;
-		if (windowWidth > st::windowMinWidth) {
-			// Width changes from st::windowMinWidth to st::settingsMaxWidth.
-			// Padding changes from st::settingsMinPadding to st::settingsMaxPadding.
-			newContentLeft += ((newWidth - st::windowMinWidth) * (st::settingsMaxPadding - st::settingsMinPadding)) / (st::settingsMaxWidth - st::windowMinWidth);
-		}
+	if (windowWidth < MinimalSupportedWidth()) {
+		hide();
+		setParent(nullptr);
+		auto localCopy = _controller;
+		localCopy->showWideSection(
+			MoveMemento(std::move(_content), Wrap::Narrow));
+		localCopy->hideSpecialLayer(LayerOption::ForceFast);
+	} else {
+		auto newWidth = qMin(
+			windowWidth - 2 * st::infoMinimalLayerMargin,
+			st::infoDesiredWidth);
+		resizeToWidth(newWidth);
 	}
-	resizeToWidth(newWidth, newContentLeft);
 }
 
-void LayerWrap::resizeToWidth(int newWidth, int newContentLeft) {
-	resize(newWidth, height());
+int LayerWrap::MinimalSupportedWidth() {
+	auto minimalMargins = 2 * st::infoMinimalLayerMargin;
+	return st::infoMinimalWidth + minimalMargins;
+}
 
+int LayerWrap::resizeGetHeight(int newWidth) {
+	if (!parentWidget()) {
+		return 0;
+	}
+
+	// First resize content to new width and get the new desired height.
 	_topBar->resizeToWidth(newWidth);
-	_topBar->moveToLeft(0, 0, newWidth);
-
-	// Widget height depends on content height, so we
-	// resize it here, not in the resizeEvent() handler.
+	_topBar->moveToLeft(0, st::boxRadius, newWidth);
 	_content->resizeToWidth(newWidth);
-	_content->moveToLeft(0, _topBar->height(), newWidth);
-
-	resizeToDesiredHeight();
-}
-
-void LayerWrap::resizeToDesiredHeight() {
-	if (!parentWidget()) return;
+	_content->moveToLeft(0, _topBar->bottomNoMargins(), newWidth);
 
 	auto parentSize = parentWidget()->size();
 	auto windowWidth = parentSize.width();
 	auto windowHeight = parentSize.height();
 	auto maxHeight = _topBar->height() + _desiredHeight;
-	auto newHeight = maxHeight + st::boxRadius;
-	if (newHeight > windowHeight || width() >= windowWidth) {
+	auto newHeight = st::boxRadius + maxHeight + st::boxRadius;
+	if (newHeight > windowHeight || newWidth >= windowWidth) {
 		newHeight = windowHeight;
 	}
 
 	setRoundedCorners(newHeight < windowHeight);
 
-	setGeometry((windowWidth - width()) / 2, (windowHeight - newHeight) / 2, width(), newHeight);
+	moveToLeft((windowWidth - newWidth) / 2, (windowHeight - newHeight) / 2);
+
+	_topBar->update();
+	_content->update();
 	update();
+
+	return newHeight;
 }
 
 void LayerWrap::setRoundedCorners(bool rounded) {

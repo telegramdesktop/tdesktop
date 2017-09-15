@@ -77,15 +77,20 @@ public:
 	ContentWidget(
 		QWidget *parent,
 		Wrap wrap,
-		not_null<Window::Controller*> controller);
+		not_null<Window::Controller*> controller,
+		not_null<PeerData*> peer);
 
 	virtual bool showInternal(
 		not_null<ContentMemento*> memento) = 0;
 	virtual std::unique_ptr<ContentMemento> createMemento() = 0;
 
 	virtual rpl::producer<Section> sectionRequest() const;
-	
-	virtual void setWrap(Wrap wrap);
+
+	void setWrap(Wrap wrap);
+	virtual Section section() const = 0;
+	not_null<PeerData*> peer() const {
+		return _peer;
+	}
 
 	rpl::producer<int> desiredHeightValue() const override;
 
@@ -127,12 +132,16 @@ protected:
 	int scrollTopSave() const;
 	void scrollTopRestore(int scrollTop);
 
+	virtual void wrapUpdatedHook() {
+	}
+
 private:
 	RpWidget *doSetInnerWidget(
 		object_ptr<RpWidget> inner,
 		int scrollTopSkip);
 
-	not_null<Window::Controller*> _controller;
+	const not_null<Window::Controller*> _controller;
+	const not_null<PeerData*> _peer;
 	Wrap _wrap = Wrap::Layer;
 
 	int _scrollTopSkip = 0;
@@ -213,6 +222,32 @@ private:
 	PeerId _peerId = 0;
 	Section _section = Section::Type::Profile;
 	std::unique_ptr<ContentMemento> _content;
+
+};
+
+class MoveMemento final : public Window::SectionMemento {
+public:
+	MoveMemento(object_ptr<ContentWidget> content, Wrap wrap);
+
+	object_ptr<Window::SectionWidget> createWidget(
+		QWidget *parent,
+		not_null<Window::Controller*> controller,
+		const QRect &geometry) override;
+
+	object_ptr<LayerWidget> createLayer(
+		not_null<Window::Controller*> controller) override;
+
+	bool instant() const override {
+		return true;
+	}
+
+	object_ptr<ContentWidget> content(
+		QWidget *parent,
+		Wrap wrap);
+
+private:
+	object_ptr<ContentWidget> _content;
+	Wrap _wrap = Wrap::Layer;
 
 };
 

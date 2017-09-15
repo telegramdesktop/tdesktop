@@ -37,7 +37,11 @@ void SectionWidget::setGeometryWithTopMoved(
 	_topDelta = topDelta;
 	bool willBeResized = (size() != newGeometry.size());
 	if (geometry() != newGeometry) {
+		auto that = weak(this);
 		setGeometry(newGeometry);
+		if (!that) {
+			return;
+		}
 	}
 	if (!willBeResized) {
 		resizeEvent(nullptr);

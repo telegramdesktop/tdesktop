@@ -42,7 +42,7 @@ void ShowSearchFromBox(PeerData *peer, base::lambda<void(not_null<UserData*>)> c
 		auto subscription = std::make_shared<base::Subscription>();
 		auto box = Ui::show(Box<PeerListBox>(std::move(controller), [subscription](not_null<PeerListBox*> box) {
 			box->addButton(langFactory(lng_cancel), [box, subscription] { box->closeBox(); });
-		}), KeepOtherLayers);
+		}), LayerOption::KeepOther);
 		*subscription = box->boxClosing.add_subscription(std::move(closedCallback));
 	}
 }

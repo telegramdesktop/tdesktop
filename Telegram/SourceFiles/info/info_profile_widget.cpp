@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Info {
 namespace Profile {
-	
+
 object_ptr<ContentWidget> Memento::createWidget(
 		QWidget *parent,
 		Wrap wrap,
@@ -45,13 +45,16 @@ Widget::Widget(
 	Wrap wrap,
 	not_null<Window::Controller*> controller,
 	not_null<PeerData*> peer)
-: ContentWidget(parent, wrap, controller) {
-	_inner = setInnerWidget(object_ptr<InnerWidget>(this, peer));
+: ContentWidget(parent, wrap, controller, peer) {
+	_inner = setInnerWidget(object_ptr<InnerWidget>(
+		this,
+		controller,
+		peer));
 	_inner->move(0, 0);
 }
 
-not_null<PeerData*> Widget::peer() const {
-	return _inner->peer();
+Section Widget::section() const {
+	return Section(Section::Type::Profile);
 }
 
 void Widget::setInnerFocus() {

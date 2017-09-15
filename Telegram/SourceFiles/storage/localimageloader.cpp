@@ -574,11 +574,21 @@ void FileLoadTask::process() {
 
 void FileLoadTask::finish() {
 	if (!_result || !_result->filesize) {
-		Ui::show(Box<InformBox>(lng_send_image_empty(lt_name, _filepath)), KeepOtherLayers);
+		Ui::show(
+			Box<InformBox>(lng_send_image_empty(lt_name, _filepath)),
+			LayerOption::KeepOther);
 	} else if (_result->filesize == -1) { // dir
-		Ui::show(Box<InformBox>(lng_send_folder(lt_name, QFileInfo(_filepath).dir().dirName())), KeepOtherLayers);
+		Ui::show(
+			Box<InformBox>(
+				lng_send_folder(
+					lt_name,
+					QFileInfo(_filepath).dir().dirName())),
+			LayerOption::KeepOther);
 	} else if (_result->filesize > App::kFileSizeLimit) {
-		Ui::show(Box<InformBox>(lng_send_image_too_large(lt_name, _filepath)), KeepOtherLayers);
+		Ui::show(
+			Box<InformBox>(
+				lng_send_image_too_large(lt_name, _filepath)),
+			LayerOption::KeepOther);
 	} else if (App::main()) {
 		App::main()->onSendFileConfirm(_result);
 	}

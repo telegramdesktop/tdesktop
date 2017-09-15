@@ -219,6 +219,7 @@ public:
 	void orderWidgets();
 	QRect historyRect() const;
 	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params);
+	void checkWideSectionToLayer();
 
 	void onSendFileConfirm(const FileLoadResultPtr &file);
 	bool onSendSticker(DocumentData *sticker);
@@ -524,6 +525,7 @@ private:
 
 	Window::SectionSlideParams prepareShowAnimation(bool willHaveTopBarShadow, bool willHaveTabbedSection);
 	void showNewWideSection(Window::SectionMemento &&memento, bool back, bool saveInStack);
+	void dropWideSection(Window::SectionWidget *widget);
 
 	// All this methods use the prepareShowAnimation().
 	Window::SectionSlideParams prepareWideSectionAnimation(Window::SectionWidget *section);

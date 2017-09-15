@@ -86,7 +86,7 @@ void ApplyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	toast.maxWidth = st::stickersToastMaxWidth;
 	toast.padding = st::stickersToastPadding;
 	Ui::Toast::Show(toast);
-//	Ui::show(Box<StickersBox>(archived), KeepOtherLayers);
+//	Ui::show(Box<StickersBox>(archived), LayerOption::KeepOther);
 
 	Auth().data().stickersUpdated().notify(true);
 }
@@ -169,7 +169,9 @@ void UndoInstallLocally(uint64 setId) {
 	Local::writeInstalledStickers();
 	Auth().data().stickersUpdated().notify(true);
 
-	Ui::show(Box<InformBox>(lang(lng_stickers_not_found)), KeepOtherLayers);
+	Ui::show(
+		Box<InformBox>(lang(lng_stickers_not_found)),
+		LayerOption::KeepOther);
 }
 
 void MarkFeaturedAsRead(uint64 setId) {

@@ -33,7 +33,7 @@ public:
 	}
 
 	rpl::producer<QRect> geometryValue() const {
-		auto &stream = eventFilter().geometry;
+		auto &stream = eventStreams().geometry;
 		return stream.events_starting_with_copy(geometry());
 	}
 	rpl::producer<QSize> sizeValue() const {
@@ -71,57 +71,61 @@ public:
 	}
 
 	rpl::producer<QRect> paintRequest() const {
-		return eventFilter().paint.events();
+		return eventStreams().paint.events();
 	}
 
 	rpl::producer<> alive() const {
-		return eventFilter().alive.events();
+		return eventStreams().alive.events();
 	}
 
 	rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
 
-private:
-	class EventFilter : public QObject {
-	public:
-		EventFilter(RpWidget *parent) : QObject(parent) {
-			parent->installEventFilter(this);
+protected:
+	bool event(QEvent *event) override {
+		switch (event->type()) {
+		case QEvent::Move:
+		case QEvent::Resize:
+			if (auto streams = _eventStreams.get()) {
+				auto that = weak(this);
+				streams->geometry.fire_copy(geometry());
+				if (!that) {
+					return true;
+				}
+			}
+			break;
+
+		case QEvent::Paint:
+			if (auto streams = _eventStreams.get()) {
+				auto that = weak(this);
+				streams->paint.fire_copy(
+					static_cast<QPaintEvent*>(event)->rect());
+				if (!that) {
+					return true;
+				}
+			}
+			break;
 		}
+
+		return TWidget::event(event);
+	}
+
+private:
+	struct EventStreams {
 		rpl::event_stream<QRect> geometry;
 		rpl::event_stream<QRect> paint;
 		rpl::event_stream<> alive;
-
-	protected:
-		bool eventFilter(QObject *object, QEvent *event) {
-			auto widget = static_cast<RpWidget*>(parent());
-
-			switch (event->type()) {
-			case QEvent::Move:
-			case QEvent::Resize:
-				geometry.fire_copy(widget->geometry());
-				break;
-
-			case QEvent::Paint:
-				paint.fire_copy(
-					static_cast<QPaintEvent*>(event)->rect());
-				break;
-			}
-
-			return QObject::eventFilter(object, event);
-		}
-
 	};
 
-	EventFilter &eventFilter() const {
-		if (!_eventFilter) {
-			auto that = const_cast<RpWidget*>(this);
-			that->_eventFilter = std::make_unique<EventFilter>(that);
+	EventStreams &eventStreams() const {
+		if (!_eventStreams) {
+			_eventStreams = std::make_unique<EventStreams>();
 		}
-		return *_eventFilter;
+		return *_eventStreams;
 	}
 
-	std::unique_ptr<EventFilter> _eventFilter;
+	mutable std::unique_ptr<EventStreams> _eventStreams;
 
 	rpl::lifetime _lifetime;
 

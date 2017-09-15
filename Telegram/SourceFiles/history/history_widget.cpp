@@ -5304,7 +5304,9 @@ void HistoryWidget::onFieldTabbed() {
 bool HistoryWidget::onStickerSend(DocumentData *sticker) {
 	if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
 		if (megagroup->restrictedRights().is_send_stickers()) {
-			Ui::show(Box<InformBox>(lang(lng_restricted_send_stickers)), KeepOtherLayers);
+			Ui::show(
+				Box<InformBox>(lang(lng_restricted_send_stickers)),
+				LayerOption::KeepOther);
 			return false;
 		}
 	}
@@ -5314,7 +5316,9 @@ bool HistoryWidget::onStickerSend(DocumentData *sticker) {
 void HistoryWidget::onPhotoSend(PhotoData *photo) {
 	if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
 		if (megagroup->restrictedRights().is_send_media()) {
-			Ui::show(Box<InformBox>(lang(lng_restricted_send_media)), KeepOtherLayers);
+			Ui::show(
+				Box<InformBox>(lang(lng_restricted_send_media)),
+				LayerOption::KeepOther);
 			return;
 		}
 	}

@@ -117,6 +117,12 @@ public:
 
 	virtual rpl::producer<int> desiredHeight() const;
 
+	// Some sections convert to layers on some geometry sizes.
+	virtual object_ptr<LayerWidget> moveContentToLayer(
+			int availableWidth) {
+		return nullptr;
+	}
+
 	// Global shortcut handler. For now that ugly :(
 	virtual bool cmd_search() {
 		return false;

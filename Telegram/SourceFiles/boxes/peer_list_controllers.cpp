@@ -377,10 +377,14 @@ void AddParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
 		updateTitle();
 	} else if (auto channel = _peer ? _peer->asChannel() : nullptr) {
 		if (!_peer->isMegagroup()) {
-			Ui::show(Box<MaxInviteBox>(_peer->asChannel()), KeepOtherLayers);
+			Ui::show(
+				Box<MaxInviteBox>(_peer->asChannel()),
+				LayerOption::KeepOther);
 		}
 	} else if (count >= Global::ChatSizeMax() && count < Global::MegagroupSizeMax()) {
-		Ui::show(Box<InformBox>(lng_profile_add_more_after_upgrade(lt_count, Global::MegagroupSizeMax())), KeepOtherLayers);
+		Ui::show(
+			Box<InformBox>(lng_profile_add_more_after_upgrade(lt_count, Global::MegagroupSizeMax())),
+			LayerOption::KeepOther);
 	}
 }
 
@@ -744,13 +748,17 @@ void AddBotToGroupBoxController::shareBotGame(not_null<PeerData*> chat) {
 		}
 		return lng_bot_sure_share_game_group(lt_group, chat->name);
 	};
-	Ui::show(Box<ConfirmBox>(confirmText(), send), KeepOtherLayers);
+	Ui::show(
+		Box<ConfirmBox>(confirmText(), send),
+		LayerOption::KeepOther);
 }
 
 void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 	if (auto megagroup = chat->asMegagroup()) {
 		if (!megagroup->canAddMembers()) {
-			Ui::show(Box<InformBox>(lang(lng_error_cant_add_member)), KeepOtherLayers);
+			Ui::show(
+				Box<InformBox>(lang(lng_error_cant_add_member)),
+				LayerOption::KeepOther);
 			return;
 		}
 	}
@@ -786,7 +794,9 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 		Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
 	};
 	auto confirmText = lng_bot_sure_invite(lt_group, chat->name);
-	Ui::show(Box<ConfirmBox>(confirmText, send), KeepOtherLayers);
+	Ui::show(
+		Box<ConfirmBox>(confirmText, send),
+		LayerOption::KeepOther);
 }
 
 std::unique_ptr<ChatsListBoxController::Row> AddBotToGroupBoxController::createRow(not_null<History*> history) {

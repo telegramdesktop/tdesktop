@@ -64,7 +64,7 @@ public:
 		not_null<Window::Controller*> controller,
 		not_null<PeerData*> peer);
 
-	not_null<PeerData*> peer() const;
+	Section section() const override;
 
 	bool showInternal(
 		not_null<ContentMemento*> memento) override;

@@ -22,6 +22,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "base/flags.h"
 
+class MainWidget;
+
 namespace Window {
 
 enum class GifPauseReason {
@@ -36,6 +38,7 @@ using GifPauseReasons = base::flags<GifPauseReason>;
 inline constexpr bool is_flag_type(GifPauseReason) { return true; };
 
 class MainWindow;
+class SectionMemento;
 
 class Controller {
 public:
@@ -103,7 +106,21 @@ public:
 		return _dialogsListDisplayForced;
 	}
 
+	void showPeerHistory(
+		not_null<PeerData*> peer,
+		Ui::ShowWay way = Ui::ShowWay::ClearStack,
+		MsgId msgId = ShowAtUnreadMsgId);
+	void showWideSection(SectionMemento &&memento);
+	void showBackFromStack();
+	void showSpecialLayer(
+		object_ptr<LayerWidget> &&layer,
+		LayerOptions options = LayerOption::Animated);
+	void hideSpecialLayer(
+		LayerOptions options = LayerOption::Animated);
+
 private:
+	not_null<MainWidget*> chats() const;
+
 	not_null<MainWindow*> _window;
 
 	base::Observable<PeerData*> _searchInPeerChanged;

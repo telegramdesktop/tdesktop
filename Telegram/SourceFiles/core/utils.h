@@ -559,17 +559,6 @@ enum ForwardWhatMessages {
 	ForwardPressedLinkMessage
 };
 
-enum ShowLayerOption {
-	CloseOtherLayers     = (1 << 0),
-	KeepOtherLayers      = (1 << 1),
-	ShowAfterOtherLayers = (1 << 2),
-
-	AnimatedShowLayer    = (1 << 3),
-	ForceFastShowLayer   = (1 << 4),
-};
-using ShowLayerOptions = base::flags<ShowLayerOption>;
-inline constexpr auto is_flag_type(ShowLayerOption) { return true; };
-
 static int32 FullArcLength = 360 * 16;
 static int32 QuarterArcLength = (FullArcLength / 4);
 static int32 MinArcLength = (FullArcLength / 360);

@@ -37,6 +37,7 @@ infoTopBarBack: IconButton(defaultIconButton) {
 
 	icon: infoTopBarBackIcon;
 	iconOver: infoTopBarBackIconOver;
+	iconPosition: point(10px, -1px);
 
 	rippleAreaPosition: point(6px, 6px);
 	rippleAreaSize: 44px;

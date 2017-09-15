@@ -194,7 +194,9 @@ void BlockedBoxController::BlockNewUser() {
 		});
 		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
 	};
-	Ui::show(Box<PeerListBox>(std::move(controller), std::move(initBox)), KeepOtherLayers);
+	Ui::show(
+		Box<PeerListBox>(std::move(controller), std::move(initBox)),
+		LayerOption::KeepOther);
 }
 
 bool BlockedBoxController::appendRow(UserData *user) {
@@ -276,7 +278,7 @@ void LastSeenPrivacyController::confirmSave(bool someAreDisallowed, base::lambda
 			Local::writeUserSettings();
 		};
 		auto box = Box<ConfirmBox>(lang(lng_edit_privacy_lastseen_warning), lang(lng_continue), lang(lng_cancel), std::move(callback));
-		*weakBox = Ui::show(std::move(box), KeepOtherLayers);
+		*weakBox = Ui::show(std::move(box), LayerOption::KeepOther);
 	} else {
 		saveCallback();
 	}

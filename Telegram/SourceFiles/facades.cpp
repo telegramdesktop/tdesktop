@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/info_memento.h"
 #include "core/click_handler_types.h"
 #include "media/media_clip_reader.h"
+#include "window/window_controller.h"
 #include "observer_peer.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -201,7 +202,7 @@ void logOutDelayed() {
 namespace Ui {
 namespace internal {
 
-void showBox(object_ptr<BoxContent> content, ShowLayerOptions options) {
+void showBox(object_ptr<BoxContent> content, LayerOptions options) {
 	if (auto w = App::wnd()) {
 		w->ui_showBox(std::move(content), options);
 	}
@@ -229,13 +230,17 @@ void hideMediaPreview() {
 
 void hideLayer(bool fast) {
 	if (auto w = App::wnd()) {
-		w->ui_showBox({ nullptr }, CloseOtherLayers | (fast ? ForceFastShowLayer : AnimatedShowLayer));
+		w->ui_showBox(
+			{ nullptr },
+			LayerOption::CloseOther | (fast ? LayerOption::ForceFast : LayerOption::Animated));
 	}
 }
 
 void hideSettingsAndLayer(bool fast) {
 	if (auto w = App::wnd()) {
-		w->ui_hideSettingsAndLayer(fast ? ForceFastShowLayer : AnimatedShowLayer);
+		w->ui_hideSettingsAndLayer(fast
+			? LayerOption::ForceFast
+			: LayerOption::Animated);
 	}
 }
 
@@ -264,7 +269,7 @@ void showPeerProfile(const PeerId &peer) {
 	if (auto window = App::wnd()) {
 		auto memento = Info::Memento(peer);
 		if (auto layer = memento.createLayer(window->controller())) {
-			window->showSpecialLayer(std::move(layer));
+			window->controller()->showSpecialLayer(std::move(layer));
 		} else {
 			App::main()->showWideSection(std::move(memento));
 		}

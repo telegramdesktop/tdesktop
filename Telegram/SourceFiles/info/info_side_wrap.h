@@ -38,6 +38,7 @@ class Widget;
 } // namespace Media
 
 class Memento;
+class MoveMemento;
 class ContentWidget;
 
 class SideWrap final : public Window::SectionWidget {
@@ -45,13 +46,15 @@ public:
 	SideWrap(
 		QWidget *parent,
 		not_null<Window::Controller*> controller,
-		not_null<PeerData*> peer);
+		not_null<Memento*> memento);
+	SideWrap(
+		QWidget *parent,
+		not_null<Window::Controller*> controller,
+		not_null<MoveMemento*> memento);
 
-	not_null<PeerData*> peer() const {
-		return _peer;
-	}
+	not_null<PeerData*> peer() const;
 	PeerData *peerForDialogs() const override {
-		return _peer;
+		return peer();
 	}
 
 	bool hasTopBarShadow() const override {
@@ -94,23 +97,22 @@ private:
 	};
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
+	void restoreState(not_null<MoveMemento*> memento);
 
-	QRect innerGeometry() const;
-	rpl::producer<int> desiredHeightForInner() const;
+	QRect contentGeometry() const;
+	rpl::producer<int> desiredHeightForContent() const;
 
 	void setupTabs();
 	void showTab(Tab tab);
 	void setCurrentTab(Tab tab);
-	void showInner(object_ptr<ContentWidget> inner);
-	object_ptr<ContentWidget> createInner(Tab tab);
+	void showContent(object_ptr<ContentWidget> content);
+	object_ptr<ContentWidget> createContent(Tab tab);
 	object_ptr<Profile::Widget> createProfileWidget();
 	object_ptr<Media::Widget> createMediaWidget();
 
-	not_null<PeerData*> _peer;
-	
 	object_ptr<Ui::PlainShadow> _tabsShadow = { nullptr };
 	object_ptr<Ui::SettingsSlider> _tabs = { nullptr };
-	object_ptr<ContentWidget> _inner = { nullptr };
+	object_ptr<ContentWidget> _content = { nullptr };
 	Tab _tab = Tab::Profile;
 
 	rpl::event_stream<rpl::producer<int>> _desiredHeights;

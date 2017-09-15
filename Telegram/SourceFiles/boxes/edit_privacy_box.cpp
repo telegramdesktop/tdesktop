@@ -205,7 +205,9 @@ void EditPrivacyBox::editExceptionUsers(Exception exception) {
 		}));
 		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
 	};
-	Ui::show(Box<PeerListBox>(std::move(controller), std::move(initBox)), KeepOtherLayers);
+	Ui::show(
+		Box<PeerListBox>(std::move(controller), std::move(initBox)),
+		LayerOption::KeepOther);
 }
 
 QString EditPrivacyBox::exceptionLinkText(Exception exception) {

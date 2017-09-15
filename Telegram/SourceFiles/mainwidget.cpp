@@ -2498,10 +2498,12 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 				return false;
 			}
 		}
-		if (back || way == Ui::ShowWay::Forward) {
-			return true;
+		if (_history->isHidden()) {
+			return (_wideSection != nullptr)
+				|| (_overview != nullptr)
+				|| (Adaptive::OneColumn() && !_dialogs->isHidden());
 		}
-		if (_history->isHidden() && (_wideSection || _overview || Adaptive::OneColumn())) {
+		if (back || way == Ui::ShowWay::Forward) {
 			return true;
 		}
 		return false;
@@ -2828,16 +2830,16 @@ void MainWidget::showNewWideSection(Window::SectionMemento &&memento, bool back,
 	auto sectionTop = getSectionTop();
 	auto newWideGeometry = QRect(_history->x(), sectionTop, _history->width(), height() - sectionTop);
 	auto newWideSection = memento.createWidget(this, _controller, newWideGeometry);
-	auto animatedShow = [this] {
-		if (_a_show.animating() || App::passcoded()) {
+	auto animatedShow = [&] {
+		if (_a_show.animating() || App::passcoded() || memento.instant()) {
 			return false;
 		}
 		if (Adaptive::OneColumn() || isSectionShown()) {
 			return true;
 		}
 		return false;
-	};
-	auto animationParams = animatedShow() ? prepareWideSectionAnimation(newWideSection) : Window::SectionSlideParams();
+	}();
+	auto animationParams = animatedShow ? prepareWideSectionAnimation(newWideSection) : Window::SectionSlideParams();
 
 	setFocus(); // otherwise dialogs widget could be focused.
 
@@ -2858,6 +2860,7 @@ void MainWidget::showNewWideSection(Window::SectionMemento &&memento, bool back,
 		_wideSection = nullptr;
 	}
 	_wideSection = std::move(newWideSection);
+
 	updateControlsGeometry();
 	_history->finishAnimation();
 	_history->showHistory(0, 0);
@@ -2873,6 +2876,26 @@ void MainWidget::showNewWideSection(Window::SectionMemento &&memento, bool back,
 
 	checkFloatPlayerVisibility();
 	orderWidgets();
+}
+
+void MainWidget::checkWideSectionToLayer() {
+	if (!_wideSection) {
+		return;
+	}
+	if (auto layer = _wideSection->moveContentToLayer(width())) {
+		dropWideSection(_wideSection);
+		_controller->showSpecialLayer(
+			std::move(layer),
+			LayerOption::ForceFast);
+	}
+}
+
+void MainWidget::dropWideSection(Window::SectionWidget *widget) {
+	if (_wideSection != widget) {
+		return;
+	}
+	_wideSection.destroy();
+	showBackFromStack();
 }
 
 bool MainWidget::isSectionShown() const {
@@ -3142,7 +3165,7 @@ void MainWidget::showAll() {
 					if (_hider) _hider->offerPeer(0);
 				}), base::lambda_guarded(this, [this] {
 					if (_hider && _forwardConfirm) _hider->offerPeer(0);
-				})), ForceFastShowLayer);
+				})), LayerOption::ForceFast);
 			}
 		}
 		if (selectingPeer()) {

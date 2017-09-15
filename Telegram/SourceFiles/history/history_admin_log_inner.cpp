@@ -1033,7 +1033,9 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 					(*weakBox)->closeBox();
 				}
 			});
-			*weakBox = Ui::show(std::move(box), KeepOtherLayers);
+			*weakBox = Ui::show(
+				std::move(box),
+				LayerOption::KeepOther);
 		};
 		if (base::contains(_admins, user)) {
 			editRestrictions(true, MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));

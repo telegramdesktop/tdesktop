@@ -89,6 +89,10 @@ public:
 
 	void mtpStateChanged(int32 dc, int32 state);
 
+	MainWidget *chatsWidget() {
+		return mainWidget();
+	}
+
 	MainWidget *mainWidget();
 	PasscodeWidget *passcodeWidget();
 
@@ -129,10 +133,14 @@ public:
 	void showMainMenu();
 	void updateTrayMenu(bool force = false) override;
 
-	void showSpecialLayer(object_ptr<LayerWidget> layer);
+	void showSpecialLayer(
+		object_ptr<LayerWidget> layer,
+		LayerOptions options);
 
-	void ui_showBox(object_ptr<BoxContent> box, ShowLayerOptions options);
-	void ui_hideSettingsAndLayer(ShowLayerOptions options);
+	void ui_showBox(
+		object_ptr<BoxContent> box,
+		LayerOptions options);
+	void ui_hideSettingsAndLayer(LayerOptions options);
 	bool ui_isLayerShown();
 	void ui_showMediaPreview(DocumentData *document);
 	void ui_showMediaPreview(PhotoData *photo);

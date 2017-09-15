@@ -82,10 +82,22 @@ void logOutDelayed();
 
 } // namespace App
 
+
+enum class LayerOption {
+	CloseOther = (1 << 0),
+	KeepOther = (1 << 1),
+	ShowAfterOther = (1 << 2),
+
+	Animated = (1 << 3),
+	ForceFast = (1 << 4),
+};
+using LayerOptions = base::flags<LayerOption>;
+inline constexpr auto is_flag_type(LayerOption) { return true; };
+
 namespace Ui {
 namespace internal {
 
-void showBox(object_ptr<BoxContent> content, ShowLayerOptions options);
+void showBox(object_ptr<BoxContent> content, LayerOptions options);
 
 } // namespace internal
 
@@ -94,7 +106,9 @@ void showMediaPreview(PhotoData *photo);
 void hideMediaPreview();
 
 template <typename BoxType>
-QPointer<BoxType> show(object_ptr<BoxType> content, ShowLayerOptions options = CloseOtherLayers) {
+QPointer<BoxType> show(
+		object_ptr<BoxType> content,
+		LayerOptions options = LayerOption::CloseOther) {
 	auto result = QPointer<BoxType>(content.data());
 	internal::showBox(std::move(content), options);
 	return result;

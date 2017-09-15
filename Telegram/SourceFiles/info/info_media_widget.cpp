@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Info {
 namespace Media {
-	
+
 object_ptr<ContentWidget> Memento::createWidget(
 		QWidget *parent,
 		Wrap wrap,
@@ -47,12 +47,12 @@ Widget::Widget(
 	not_null<Window::Controller*> controller,
 	not_null<PeerData*> peer,
 	Type type)
-: ContentWidget(parent, wrap, controller) {
+: ContentWidget(parent, wrap, controller, peer) {
 	_inner = setInnerWidget(object_ptr<InnerWidget>(this, peer, type));
 }
 
-not_null<PeerData*> Widget::peer() const {
-	return _inner->peer();
+Section Widget::section() const {
+	return Section(type());
 }
 
 Widget::Type Widget::type() const {

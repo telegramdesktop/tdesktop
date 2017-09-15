@@ -169,7 +169,13 @@ void ChangePhoneBox::EnterPhone::sendPhoneDone(const QString &phoneNumber, const
 	if (data.has_next_type() && data.vnext_type.type() == mtpc_auth_codeTypeCall) {
 		callTimeout = data.has_timeout() ? data.vtimeout.v : 60;
 	}
-	Ui::show(Box<EnterCode>(phoneNumber, phoneCodeHash, codeLength, callTimeout), KeepOtherLayers);
+	Ui::show(
+		Box<EnterCode>(
+			phoneNumber,
+			phoneCodeHash,
+			codeLength,
+			callTimeout),
+		LayerOption::KeepOther);
 }
 
 bool ChangePhoneBox::EnterPhone::sendPhoneFail(const QString &phoneNumber, const RPCError &error) {

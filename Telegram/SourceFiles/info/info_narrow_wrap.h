@@ -38,7 +38,9 @@ class Widget;
 } // namespace Media
 
 class Memento;
+class MoveMemento;
 class ContentWidget;
+class TopBar;
 
 class NarrowWrap final : public Window::SectionWidget {
 public:
@@ -46,12 +48,14 @@ public:
 		QWidget *parent,
 		not_null<Window::Controller*> controller,
 		not_null<Memento*> memento);
+	NarrowWrap(
+		QWidget *parent,
+		not_null<Window::Controller*> controller,
+		not_null<MoveMemento*> memento);
 
-	not_null<PeerData*> peer() const {
-		return _peer;
-	}
+	not_null<PeerData*> peer() const;
 	PeerData *peerForDialogs() const override {
-		return _peer;
+		return peer();
 	}
 
 	bool hasTopBarShadow() const override {
@@ -66,6 +70,9 @@ public:
 	std::unique_ptr<Window::SectionMemento> createMemento() override;
 
 	rpl::producer<int> desiredHeight() const override;
+
+	object_ptr<LayerWidget> moveContentToLayer(
+		int availableWidth) override;
 
 	void setInternalState(
 		const QRect &geometry,
@@ -89,19 +96,17 @@ protected:
 private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
+	void restoreState(not_null<MoveMemento*> memento);
 
-	QRect innerGeometry() const;
-	rpl::producer<int> desiredHeightForInner() const;
+	QRect contentGeometry() const;
+	rpl::producer<int> desiredHeightForContent() const;
 
-	void showInner(object_ptr<ContentWidget> inner);
+	void showContent(object_ptr<ContentWidget> content);
+	object_ptr<TopBar> createTopBar();
 
-	object_ptr<Profile::Widget> createProfileWidget();
-	object_ptr<Media::Widget> createMediaWidget();
-
-	not_null<PeerData*> _peer;
-	
-	object_ptr<Ui::PlainShadow> _tabsShadow = { nullptr };
-	object_ptr<ContentWidget> _inner = { nullptr };
+	object_ptr<Ui::PlainShadow> _topShadow = { nullptr };
+	object_ptr<ContentWidget> _content = { nullptr };
+	object_ptr<TopBar> _topBar = { nullptr };
 
 	rpl::event_stream<rpl::producer<int>> _desiredHeights;
 

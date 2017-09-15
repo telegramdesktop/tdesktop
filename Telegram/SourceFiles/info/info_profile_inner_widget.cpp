@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "info/info_profile_widget.h"
 #include "info/info_profile_lines.h"
+#include "window/window_controller.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
 #include "ui/widgets/buttons.h"
@@ -33,8 +34,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Info {
 namespace Profile {
 
-InnerWidget::InnerWidget(QWidget *parent, not_null<PeerData*> peer)
+InnerWidget::InnerWidget(
+	QWidget *parent,
+	not_null<Window::Controller*> controller,
+	not_null<PeerData*> peer)
 : RpWidget(parent)
+, _controller(controller)
 , _peer(peer)
 , _content(this) {
 	setupContent();
@@ -121,10 +126,9 @@ void InnerWidget::setupMainUserButtons(
 		Lang::Viewer(lng_profile_send_message) | ToUpperValue(),
 		st::infoMainButton));
 	sendMessage->clicks()
-		| rpl::on_next([user](auto&&) {
-			Ui::showPeerHistory(
+		| rpl::on_next([this, user](auto&&) {
+			_controller->showPeerHistory(
 				user,
-				ShowAtUnreadMsgId,
 				Ui::ShowWay::Forward);
 		})
 		| rpl::start(sendMessage->lifetime());

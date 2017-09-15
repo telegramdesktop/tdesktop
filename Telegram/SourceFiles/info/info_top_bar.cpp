@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "info/info_top_bar.h"
 
+#include "styles/style_info.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 
@@ -33,6 +34,10 @@ TopBar::TopBar(QWidget *parent, const style::InfoTopBar &st)
 
 void TopBar::setTitle(rpl::producer<QString> &&title) {
 	_title.create(this, std::move(title), _st.title);
+	if (_back) {
+		_title->setAttribute(Qt::WA_TransparentForMouseEvents);
+	}
+	updateControlsGeometry(width());
 }
 
 void TopBar::enableBackButton(bool enable) {
@@ -72,7 +77,18 @@ void TopBar::updateControlsGeometry(int newWidth) {
 		right += button->width();
 	}
 	if (_back) {
-		_back->setGeometryToLeft(0, 0, newWidth - right, _back->height(), newWidth);
+		_back->setGeometryToLeft(
+			0,
+			0,
+			newWidth - right,
+			_back->height(),
+			newWidth);
+	}
+	if (_title) {
+		_title->moveToLeft(
+			_back ? _st.back.width : _st.titlePosition.x(),
+			_st.titlePosition.y(),
+			newWidth);
 	}
 }
 

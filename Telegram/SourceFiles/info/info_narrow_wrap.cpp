@@ -21,12 +21,20 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/info_narrow_wrap.h"
 
 #include <rpl/flatten_latest.h>
+#include <rpl/filter.h>
 #include "info/info_profile_widget.h"
 #include "info/info_media_widget.h"
 #include "info/info_memento.h"
+#include "info/info_top_bar.h"
+#include "info/info_layer_wrap.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/shadow.h"
+#include "ui/widgets/buttons.h"
+#include "window/window_controller.h"
+#include "window/main_window.h"
+#include "mainwindow.h"
 #include "lang/lang_keys.h"
+#include "mainwidget.h"
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
 
@@ -36,52 +44,73 @@ NarrowWrap::NarrowWrap(
 	QWidget *parent,
 	not_null<Window::Controller*> controller,
 	not_null<Memento*> memento)
-: Window::SectionWidget(parent, controller)
-, _peer(App::peer(memento->peerId())) {
+: Window::SectionWidget(parent, controller) {
 	setInternalState(geometry(), memento);
 }
 
-void NarrowWrap::showInner(object_ptr<ContentWidget> inner) {
-	_inner = std::move(inner);
-	_inner->setGeometry(innerGeometry());
-	_inner->show();
-
-	_desiredHeights.fire(desiredHeightForInner()); 
+NarrowWrap::NarrowWrap(
+	QWidget *parent,
+	not_null<Window::Controller*> controller,
+	not_null<MoveMemento*> memento)
+: Window::SectionWidget(parent, controller) {
+	restoreState(memento);
 }
 
-rpl::producer<int> NarrowWrap::desiredHeightForInner() const {
-	return _inner->desiredHeightValue();
+object_ptr<LayerWidget> NarrowWrap::moveContentToLayer(
+		int availableWidth) {
+	if (width() < LayerWrap::MinimalSupportedWidth()) {
+		return nullptr;
+	}
+	return MoveMemento(
+		std::move(_content),
+		Wrap::Layer
+	).createLayer(controller());
 }
 
-object_ptr<Profile::Widget> NarrowWrap::createProfileWidget() {
-	auto result = object_ptr<Profile::Widget>(
+not_null<PeerData*> NarrowWrap::peer() const {
+	return _content->peer();
+}
+
+void NarrowWrap::showContent(object_ptr<ContentWidget> content) {
+	_content = std::move(content);
+	_content->setGeometry(contentGeometry());
+	_content->show();
+
+	_topBar = createTopBar();
+
+	_desiredHeights.fire(desiredHeightForContent());
+}
+
+object_ptr<TopBar> NarrowWrap::createTopBar() {
+	auto result = object_ptr<TopBar>(
 		this,
-		Wrap::Narrow,
-		controller(),
-		_peer);
+		st::infoLayerTopBar);
+	result->enableBackButton(true);
+	result->backRequest()
+		| rpl::on_next([this](auto&&) {
+			controller()->showBackFromStack();
+		})
+		| rpl::start(result->lifetime());
+	result->setTitle(TitleValue(
+		_content->section(),
+		_content->peer()));
 	return result;
 }
 
-object_ptr<Media::Widget> NarrowWrap::createMediaWidget() {
-	auto result = object_ptr<Media::Widget>(
-		this,
-		Wrap::Narrow,
-		controller(),
-		_peer,
-		Media::Widget::Type::Photo);
-	return result;
+rpl::producer<int> NarrowWrap::desiredHeightForContent() const {
+	return _content->desiredHeightValue();
 }
 
 QPixmap NarrowWrap::grabForShowAnimation(
 		const Window::SectionSlideParams &params) {
-//	if (params.withTopBarShadow) _tabsShadow->hide();
+//	if (params.withTopBarShadow) _topShadow->hide();
 	auto result = myGrab(this);
-//	if (params.withTopBarShadow) _tabsShadow->show();
+//	if (params.withTopBarShadow) _topShadow->show();
 	return result;
 }
 
 void NarrowWrap::doSetInnerFocus() {
-	_inner->setInnerFocus();
+//	_content->setInnerFocus();
 }
 
 bool NarrowWrap::showInternal(
@@ -110,30 +139,39 @@ std::unique_ptr<Window::SectionMemento> NarrowWrap::createMemento() {
 
 rpl::producer<int> NarrowWrap::desiredHeight() const {
 	return
-		rpl::single(desiredHeightForInner())
+		rpl::single(desiredHeightForContent())
 		| rpl::then(_desiredHeights.events())
 		| rpl::flatten_latest();
 }
 
 void NarrowWrap::saveState(not_null<Memento*> memento) {
-	memento->setInner(_inner->createMemento());
+	memento->setInner(_content->createMemento());
 }
 
-QRect NarrowWrap::innerGeometry() const {
-	return rect();
+QRect NarrowWrap::contentGeometry() const {
+	return rect().marginsRemoved(
+		QMargins(0, _topBar ? _topBar->bottomNoMargins() : 0, 0, 0));
 }
 
 void NarrowWrap::restoreState(not_null<Memento*> memento) {
-	showInner(memento->content()->createWidget(
+	showContent(memento->content()->createWidget(
 		this,
 		Wrap::Narrow,
 		controller(),
-		innerGeometry()));
+		contentGeometry()));
+}
+
+void NarrowWrap::restoreState(not_null<MoveMemento*> memento) {
+	showContent(memento->content(this, Wrap::Narrow));
 }
 
 void NarrowWrap::resizeEvent(QResizeEvent *e) {
-	if (_inner) {
-		_inner->setGeometry(innerGeometry());
+	if (_topBar) {
+		_topBar->resizeToWidth(width());
+		_topBar->moveToLeft(0, 0);
+	}
+	if (_content) {
+		_content->setGeometry(contentGeometry());
 	}
 }
 
@@ -146,13 +184,13 @@ bool NarrowWrap::wheelEventFromFloatPlayer(
 		QEvent *e,
 		Window::Column myColumn,
 		Window::Column playerColumn) {
-	return _inner->wheelEventFromFloatPlayer(e);
+	return _content->wheelEventFromFloatPlayer(e);
 }
 
 QRect NarrowWrap::rectForFloatPlayer(
 		Window::Column myColumn,
 		Window::Column playerColumn) const {
-	return _inner->rectForFloatPlayer();
+	return _content->rectForFloatPlayer();
 }
 
 } // namespace Info

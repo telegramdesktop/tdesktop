@@ -400,7 +400,14 @@ void EditRestrictedBox::showRestrictUntil() {
 	auto tomorrow = QDate::currentDate().addDays(1);
 	auto highlighted = isUntilForever() ? tomorrow : date(getRealUntilValue()).date();
 	auto month = highlighted;
-	_restrictUntilBox = Ui::show(Box<CalendarBox>(month, highlighted, [this](const QDate &date) { setRestrictUntil(static_cast<int>(QDateTime(date).toTime_t())); }), KeepOtherLayers);
+	_restrictUntilBox = Ui::show(
+		Box<CalendarBox>(
+			month,
+			highlighted,
+			[this](const QDate &date) {
+				setRestrictUntil(static_cast<int>(QDateTime(date).toTime_t()));
+			}),
+		LayerOption::KeepOther);
 	_restrictUntilBox->setMaxDate(QDate::currentDate().addDays(kMaxRestrictDelayDays));
 	_restrictUntilBox->setMinDate(tomorrow);
 	_restrictUntilBox->addLeftButton(langFactory(lng_rights_chat_banned_forever), [this] { setRestrictUntil(0); });
