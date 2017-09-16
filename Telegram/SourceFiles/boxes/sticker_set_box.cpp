@@ -56,12 +56,12 @@ void StickerSetBox::prepare() {
 	onUpdateButtons();
 
 	connect(_inner, SIGNAL(updateButtons()), this, SLOT(onUpdateButtons()));
-	connect(_inner, SIGNAL(installed(uint64)), this, SLOT(onInstalled(uint64)));
-}
-
-void StickerSetBox::onInstalled(uint64 setId) {
-	emit installed(setId);
-	closeBox();
+	_inner->setInstalled()
+		| rpl::on_next([this](auto &&setId) {
+			Auth().api().stickerSetInstalled(setId);
+			closeBox();
+		})
+		| rpl::start(lifetime());
 }
 
 void StickerSetBox::onAddStickers() {
@@ -250,7 +250,7 @@ void StickerSetBox::Inner::installDone(const MTPmessages_StickerSetInstallResult
 		Local::writeInstalledStickers();
 		Auth().data().stickersUpdated().notify(true);
 	}
-	emit installed(_setId);
+	_setInstalled.fire_copy(_setId);
 }
 
 bool StickerSetBox::Inner::installFail(const RPCError &error) {

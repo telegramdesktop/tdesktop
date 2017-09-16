@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/window_controller.h"
 
 #include "window/main_window.h"
+#include "info/info_memento.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "styles/style_window.h"
@@ -30,6 +31,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 
 namespace Window {
+namespace {
+
+constexpr auto kThirdSectionInfoTimeoutMs = 1000;
+
+} // namespace
 
 void Controller::enableGifPauseReason(GifPauseReason reason) {
 	if (!(_gifPauseReasons & reason)) {
@@ -61,21 +67,29 @@ int Controller::dialogsSmallColumnWidth() const {
 	return st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPadding.x();
 }
 
+int Controller::minimalThreeColumnWidth() const {
+	return st::columnMinimalWidthLeft
+		+ st::columnMinimalWidthMain
+		+ st::columnMinimalWidthThird;
+}
+
 Controller::ColumnLayout Controller::computeColumnLayout() const {
 	auto layout = Adaptive::WindowLayout::OneColumn;
 
 	auto bodyWidth = window()->bodyWidget()->width();
 	auto dialogsWidth = qRound(bodyWidth * dialogsWidthRatio().value());
 	auto chatWidth = bodyWidth - dialogsWidth;
-	accumulate_max(chatWidth, st::windowMinWidth);
+	auto thirdWidth = 0;
+	accumulate_max(chatWidth, st::columnMinimalWidthMain);
 	dialogsWidth = bodyWidth - chatWidth;
 
 	auto useOneColumnLayout = [this, bodyWidth, dialogsWidth] {
-		auto someSectionShown = !App::main()->selectingPeer() && App::main()->isSectionShown();
-		if (dialogsWidth < st::dialogsPadding.x() && (Adaptive::OneColumn() || someSectionShown)) {
+		if (dialogsWidth < st::dialogsPadding.x() && Adaptive::OneColumn()) {
 			return true;
 		}
-		if (bodyWidth < st::windowMinWidth + st::dialogsWidthMin) {
+		auto minimalNormal = st::columnMinimalWidthLeft
+			+ st::columnMinimalWidthMain;
+		if (bodyWidth < minimalNormal) {
 			return true;
 		}
 		return false;
@@ -84,6 +98,18 @@ Controller::ColumnLayout Controller::computeColumnLayout() const {
 	auto useSmallColumnLayout = [this, dialogsWidth] {
 		// Used if useOneColumnLayout() == false.
 		if (dialogsWidth < st::dialogsWidthMin / 2) {
+			return true;
+		}
+		return false;
+	};
+
+	auto useNormalLayout = [this, bodyWidth] {
+		// Used if useSmallColumnLayout() == false.
+		if (bodyWidth < minimalThreeColumnWidth()) {
+			return true;
+		}
+		if (!Auth().data().tabbedSelectorSectionEnabled()
+			&& !Auth().data().thirdSectionInfoEnabled()) {
 			return true;
 		}
 		return false;
@@ -99,7 +125,7 @@ Controller::ColumnLayout Controller::computeColumnLayout() const {
 			} else if (dialogsListFocused().value()) {
 				return true;
 			}
-			return !App::main()->isSectionShown();
+			return !App::main()->isMainSectionShown();
 		};
 		if (forceWideDialogs()) {
 			dialogsWidth = st::dialogsWidthMin;
@@ -107,33 +133,81 @@ Controller::ColumnLayout Controller::computeColumnLayout() const {
 			dialogsWidth = dialogsSmallColumnWidth();
 		}
 		chatWidth = bodyWidth - dialogsWidth;
-	} else {
+	} else if (useNormalLayout()) {
 		layout = Adaptive::WindowLayout::Normal;
-		accumulate_max(dialogsWidth, st::dialogsWidthMin);
+		accumulate_max(dialogsWidth, st::columnMinimalWidthLeft);
 		chatWidth = bodyWidth - dialogsWidth;
+	} else {
+		layout = Adaptive::WindowLayout::ThreeColumn;
+		accumulate_max(dialogsWidth, st::columnMinimalWidthLeft);
+		thirdWidth = st::columnMinimalWidthThird;
+		accumulate_min(
+			dialogsWidth,
+			bodyWidth - thirdWidth - st::columnMinimalWidthMain);
+		chatWidth = bodyWidth - dialogsWidth - thirdWidth;
 	}
-	return { bodyWidth, dialogsWidth, chatWidth, layout };
+	return { bodyWidth, dialogsWidth, chatWidth, thirdWidth, layout };
 }
 
-bool Controller::canProvideChatWidth(int requestedWidth) const {
+bool Controller::canShowThirdSection() const {
 	auto currentLayout = computeColumnLayout();
-	auto extendBy = requestedWidth - currentLayout.chatWidth;
+	auto extendBy = minimalThreeColumnWidth()
+		- currentLayout.bodyWidth;
 	if (extendBy <= 0) {
 		return true;
 	}
 	return window()->canExtendWidthBy(extendBy);
 }
 
-void Controller::provideChatWidth(int requestedWidth) {
-	auto currentLayout = computeColumnLayout();
-	auto extendBy = requestedWidth - currentLayout.chatWidth;
-	if (extendBy <= 0) {
+void Controller::resizeForThirdSection() {
+	auto layout = computeColumnLayout();
+	if (layout.windowLayout == Adaptive::WindowLayout::ThreeColumn) {
 		return;
 	}
+
+	auto tabbedSelectorSectionEnabled =
+		Auth().data().tabbedSelectorSectionEnabled();
+	auto thirdSectionInfoEnabled =
+		Auth().data().thirdSectionInfoEnabled();
+	Auth().data().setTabbedSelectorSectionEnabled(false);
+	Auth().data().setThirdSectionInfoEnabled(false);
+
+	auto extendBy = st::columnMinimalWidthThird;
+	auto newBodyWidth = layout.bodyWidth + extendBy;
+	dialogsWidthRatio().set(
+		float64(layout.dialogsWidth) / newBodyWidth,
+		true);
 	window()->tryToExtendWidthBy(extendBy);
-	auto newLayout = computeColumnLayout();
-	if (newLayout.windowLayout != Adaptive::WindowLayout::OneColumn) {
-		dialogsWidthRatio().set(float64(newLayout.bodyWidth - requestedWidth) / newLayout.bodyWidth, true);
+
+	Auth().data().setTabbedSelectorSectionEnabled(
+		tabbedSelectorSectionEnabled);
+	Auth().data().setThirdSectionInfoEnabled(
+		thirdSectionInfoEnabled);
+}
+
+void Controller::closeThirdSection() {
+	auto newWindowSize = window()->size();
+	auto layout = computeColumnLayout();
+	if (layout.windowLayout == Adaptive::WindowLayout::ThreeColumn) {
+		auto noResize = window()->isFullScreen()
+			|| window()->isMaximized();
+		auto newBodyWidth = noResize
+			? layout.bodyWidth
+			: (layout.bodyWidth - layout.thirdWidth);
+		dialogsWidthRatio().set(
+			float64(layout.dialogsWidth) / newBodyWidth,
+			true);
+		newWindowSize = QSize(
+			window()->width() + (newBodyWidth - layout.bodyWidth),
+			window()->height());
+	}
+	Auth().data().setTabbedSelectorSectionEnabled(false);
+	Auth().data().setThirdSectionInfoEnabled(false);
+	Auth().saveDataDelayed(kThirdSectionInfoTimeoutMs);
+	if (window()->size() != newWindowSize) {
+		window()->resize(newWindowSize);
+	} else {
+		updateColumnLayout();
 	}
 }
 
@@ -184,15 +258,57 @@ void Controller::showJumpToDate(not_null<PeerData*> peer, QDate requestedDate) {
 	Ui::show(std::move(box));
 }
 
+void Controller::updateColumnLayout() {
+	App::main()->updateColumnLayout();
+}
+
+void Controller::showPeerHistory(
+		PeerId peerId,
+		Ui::ShowWay way,
+		MsgId msgId) {
+	Ui::showPeerHistory(peerId, msgId, way);
+}
+
 void Controller::showPeerHistory(
 		not_null<PeerData*> peer,
 		Ui::ShowWay way,
 		MsgId msgId) {
-	Ui::showPeerHistory(peer, msgId, way);
+	showPeerHistory(peer->id, way, msgId);
 }
 
-void Controller::showWideSection(SectionMemento &&memento) {
-	App::main()->showWideSection(std::move(memento));
+void Controller::showPeerHistory(
+		not_null<History*> history,
+		Ui::ShowWay way,
+		MsgId msgId) {
+	showPeerHistory(history->peer->id, way, msgId);
+}
+
+void Controller::showPeerInfo(
+		PeerId peerId,
+		anim::type animated) {
+	if (Adaptive::ThreeColumn()) {
+		Auth().data().setThirdSectionInfoEnabled(true);
+		Auth().saveDataDelayed(kThirdSectionInfoTimeoutMs);
+	}
+	showSection(Info::Memento(peerId), animated);
+}
+
+void Controller::showPeerInfo(
+		not_null<PeerData*> peer,
+		anim::type animated) {
+	showPeerInfo(peer->id, animated);
+}
+
+void Controller::showPeerInfo(
+		not_null<History*> history,
+		anim::type animated) {
+	showPeerInfo(history->peer->id, animated);
+}
+
+void Controller::showSection(
+		SectionMemento &&memento,
+		anim::type animated) {
+	App::main()->showSection(std::move(memento), animated);
 }
 
 void Controller::showBackFromStack() {

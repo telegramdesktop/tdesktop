@@ -22,6 +22,8 @@ using "basic.style";
 using "dialogs/dialogs.style";
 using "ui/widgets/widgets.style";
 
+historyMinimalWidth: 380px;
+
 historyScroll: ScrollArea(defaultScrollArea) {
 	bg: historyScrollBg;
 	bgOver: historyScrollBgOver;

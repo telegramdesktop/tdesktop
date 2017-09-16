@@ -176,20 +176,20 @@ void NarrowWrap::resizeEvent(QResizeEvent *e) {
 }
 
 void NarrowWrap::paintEvent(QPaintEvent *e) {
+	SectionWidget::paintEvent(e);
+	if (animating()) {
+		return;
+	}
+
 	Painter p(this);
 	p.fillRect(e->rect(), st::profileBg);
 }
 
-bool NarrowWrap::wheelEventFromFloatPlayer(
-		QEvent *e,
-		Window::Column myColumn,
-		Window::Column playerColumn) {
+bool NarrowWrap::wheelEventFromFloatPlayer(QEvent *e) {
 	return _content->wheelEventFromFloatPlayer(e);
 }
 
-QRect NarrowWrap::rectForFloatPlayer(
-		Window::Column myColumn,
-		Window::Column playerColumn) const {
+QRect NarrowWrap::rectForFloatPlayer() const {
 	return _content->rectForFloatPlayer();
 }
 

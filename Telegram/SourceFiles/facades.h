@@ -238,6 +238,7 @@ enum class WindowLayout {
 	OneColumn,
 	SmallColumn,
 	Normal,
+	ThreeColumn,
 };
 
 enum class ChatLayout {
@@ -424,8 +425,13 @@ inline bool Normal() {
 	return Global::AdaptiveWindowLayout() == WindowLayout::Normal;
 }
 
+inline bool ThreeColumn() {
+	return Global::AdaptiveWindowLayout() == WindowLayout::ThreeColumn;
+}
+
 inline bool ChatNormal() {
-	return !Global::AdaptiveForWide() || (Global::AdaptiveChatLayout() == ChatLayout::Normal);
+	return !Global::AdaptiveForWide()
+		|| (Global::AdaptiveChatLayout() == ChatLayout::Normal);
 }
 
 inline bool ChatWide() {

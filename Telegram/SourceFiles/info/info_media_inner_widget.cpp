@@ -30,14 +30,6 @@ InnerWidget::InnerWidget(
 : RpWidget(parent)
 , _peer(peer)
 , _type(type) {
-	base::lambda<void(int)> launch = [this, &launch](int counter) {
-		QTimer::singleShot(500, this, [this, launch, counter] {
-			_rowsHeightFake += 300;
-			resizeToWidth(width(), _minHeight);
-			launch(counter - 1);
-		});
-	};
-	launch(10);
 }
 
 void InnerWidget::visibleTopBottomUpdated(

@@ -26,12 +26,14 @@ namespace Window {
 
 class Controller;
 class SectionWidget;
+enum class Column;
 
 class SectionMemento {
 public:
 	virtual object_ptr<Window::SectionWidget> createWidget(
 		QWidget *parent,
 		not_null<Window::Controller*> controller,
+		Column column,
 		const QRect &geometry) = 0;
 
 	virtual object_ptr<LayerWidget> createLayer(

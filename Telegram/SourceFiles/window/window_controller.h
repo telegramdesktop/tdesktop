@@ -78,12 +78,47 @@ public:
 		int bodyWidth;
 		int dialogsWidth;
 		int chatWidth;
+		int thirdWidth;
 		Adaptive::WindowLayout windowLayout;
 	};
 	ColumnLayout computeColumnLayout() const;
 	int dialogsSmallColumnWidth() const;
-	bool canProvideChatWidth(int requestedWidth) const;
-	void provideChatWidth(int requestedWidth);
+	void updateColumnLayout();
+	bool canShowThirdSection() const;
+	void resizeForThirdSection();
+	void closeThirdSection();
+	void showSection(
+		SectionMemento &&memento,
+		anim::type animated = anim::type::normal);
+	void showBackFromStack();
+	void showSpecialLayer(
+		object_ptr<LayerWidget> &&layer,
+		LayerOptions options = LayerOption::Animated);
+	void hideSpecialLayer(
+		LayerOptions options = LayerOption::Animated);
+
+	void showPeerHistory(
+		PeerId peerId,
+		Ui::ShowWay way = Ui::ShowWay::ClearStack,
+		MsgId msgId = ShowAtUnreadMsgId);
+	void showPeerHistory(
+		not_null<PeerData*> peer,
+		Ui::ShowWay way = Ui::ShowWay::ClearStack,
+		MsgId msgId = ShowAtUnreadMsgId);
+	void showPeerHistory(
+		not_null<History*> history,
+		Ui::ShowWay way = Ui::ShowWay::ClearStack,
+		MsgId msgId = ShowAtUnreadMsgId);
+
+	void showPeerInfo(
+		PeerId peerId,
+		anim::type animated = anim::type::normal);
+	void showPeerInfo(
+		not_null<PeerData*> peer,
+		anim::type animated = anim::type::normal);
+	void showPeerInfo(
+		not_null<History*> history,
+		anim::type animated = anim::type::normal);
 
 	void showJumpToDate(not_null<PeerData*> peer, QDate requestedDate);
 
@@ -106,19 +141,8 @@ public:
 		return _dialogsListDisplayForced;
 	}
 
-	void showPeerHistory(
-		not_null<PeerData*> peer,
-		Ui::ShowWay way = Ui::ShowWay::ClearStack,
-		MsgId msgId = ShowAtUnreadMsgId);
-	void showWideSection(SectionMemento &&memento);
-	void showBackFromStack();
-	void showSpecialLayer(
-		object_ptr<LayerWidget> &&layer,
-		LayerOptions options = LayerOption::Animated);
-	void hideSpecialLayer(
-		LayerOptions options = LayerOption::Animated);
-
 private:
+	int minimalThreeColumnWidth() const;
 	not_null<MainWidget*> chats() const;
 
 	not_null<MainWindow*> _window;

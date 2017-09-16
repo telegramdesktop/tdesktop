@@ -219,7 +219,7 @@ void SettingsWidget::onManageAdmins() {
 void SettingsWidget::onRecentActions() {
 	if (auto channel = peer()->asChannel()) {
 		if (auto main = App::main()) {
-			main->showWideSection(AdminLog::SectionMemento(channel));
+			main->showSection(AdminLog::SectionMemento(channel), anim::type::normal);
 		}
 	}
 }

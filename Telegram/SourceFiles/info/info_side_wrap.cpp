@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/info_media_widget.h"
 #include "info/info_memento.h"
 #include "ui/widgets/discrete_sliders.h"
+#include "auth_session.h"
 #include "ui/widgets/shadow.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
@@ -80,8 +81,7 @@ void SideWrap::showTab(Tab tab) {
 	showContent(createContent(tab));
 }
 
-void SideWrap::showContent(object_ptr<ContentWidget> content) {
-	auto section = content->section();
+void SideWrap::setSection(const Section &section) {
 	switch (section.type()) {
 	case Section::Type::Profile:
 		setCurrentTab(Tab::Profile);
@@ -102,7 +102,9 @@ void SideWrap::showContent(object_ptr<ContentWidget> content) {
 		setCurrentTab(Tab::None);
 		break;
 	}
+}
 
+void SideWrap::showContent(object_ptr<ContentWidget> content) {
 	_content = std::move(content);
 	_content->setGeometry(contentGeometry());
 	_content->show();
@@ -158,6 +160,9 @@ void SideWrap::doSetInnerFocus() {
 	_content->setInnerFocus();
 }
 
+void SideWrap::showFinishedHook() {
+}
+
 bool SideWrap::showInternal(
 		not_null<Window::SectionMemento*> memento) {
 	if (auto infoMemento = dynamic_cast<Memento*>(memento.get())) {
@@ -203,6 +208,8 @@ QRect SideWrap::contentGeometry() const {
 }
 
 void SideWrap::restoreState(not_null<Memento*> memento) {
+	// Validates contentGeometry().
+	setSection(memento->section());
 	showContent(memento->content()->createWidget(
 		this,
 		Wrap::Side,
@@ -211,7 +218,9 @@ void SideWrap::restoreState(not_null<Memento*> memento) {
 }
 
 void SideWrap::restoreState(not_null<MoveMemento*> memento) {
-	showContent(memento->content(this, Wrap::Side));
+	auto content = memento->content(this, Wrap::Side);
+	setSection(content->section());
+	showContent(std::move(content));
 }
 
 void SideWrap::setCurrentTab(Tab tab) {
@@ -235,20 +244,20 @@ void SideWrap::resizeEvent(QResizeEvent *e) {
 }
 
 void SideWrap::paintEvent(QPaintEvent *e) {
+	SectionWidget::paintEvent(e);
+	if (animating()) {
+		return;
+	}
+
 	Painter p(this);
 	p.fillRect(e->rect(), st::profileBg);
 }
 
-bool SideWrap::wheelEventFromFloatPlayer(
-		QEvent *e,
-		Window::Column myColumn,
-		Window::Column playerColumn) {
+bool SideWrap::wheelEventFromFloatPlayer(QEvent *e) {
 	return _content->wheelEventFromFloatPlayer(e);
 }
 
-QRect SideWrap::rectForFloatPlayer(
-		Window::Column myColumn,
-		Window::Column playerColumn) const {
+QRect SideWrap::rectForFloatPlayer() const {
 	return _content->rectForFloatPlayer();
 }
 

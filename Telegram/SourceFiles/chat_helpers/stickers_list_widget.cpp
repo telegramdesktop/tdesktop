@@ -440,7 +440,7 @@ StickersListWidget::StickersListWidget(QWidget *parent, not_null<Window::Control
 , _addText(lang(lng_stickers_featured_add).toUpper())
 , _addWidth(st::stickersTrendingAdd.font->width(_addText))
 , _settings(this, lang(lng_stickers_you_have)) {
-	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, countHeight());
+	updateSize();
 
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -559,11 +559,8 @@ StickersListWidget::SectionInfo StickersListWidget::sectionInfoByOffset(int yOff
 	return result;
 }
 
-int StickersListWidget::countHeight() {
-	auto visibleHeight = getVisibleBottom() - getVisibleTop();
-	if (visibleHeight <= 0) {
-		visibleHeight = st::emojiPanMaxHeight - st::emojiCategory.height;
-	}
+int StickersListWidget::countDesiredHeight() {
+	auto visibleHeight = minimalHeight();
 	auto minimalLastHeight = (visibleHeight - st::stickerPanPadding);
 	auto countResult = [this, minimalLastHeight] {
 		if (_section == Section::Featured) {
@@ -1154,10 +1151,7 @@ void StickersListWidget::refreshStickers() {
 		appendSet(_featuredSets, setId, AppendSkip::Installed);
 	}
 
-	auto newHeight = countHeight();
-	if (newHeight != height()) {
-		resize(width(), newHeight);
-	}
+	updateSize();
 
 	if (_footer) {
 		_footer->refreshIcons(ValidateIconAnimations::None);
@@ -1283,12 +1277,7 @@ void StickersListWidget::refreshRecentStickers(bool performResize) {
 	}
 
 	if (performResize && (_section == Section::Stickers || _section == Section::Featured)) {
-		int32 h = countHeight();
-		if (h != height()) {
-			resize(width(), h);
-			update();
-		}
-
+		updateSize();
 		updateSelected();
 	}
 }

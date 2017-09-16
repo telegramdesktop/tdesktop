@@ -262,17 +262,9 @@ void autoplayMediaInlineAsync(const FullMsgId &msgId) {
 }
 
 void showPeerProfile(const PeerId &peer) {
-	//if (auto main = App::main()) {
-	//	main->showWideSection(Profile::SectionMemento(App::peer(peer)));
-	//}
-
-	if (auto window = App::wnd()) {
-		auto memento = Info::Memento(peer);
-		if (auto layer = memento.createLayer(window->controller())) {
-			window->controller()->showSpecialLayer(std::move(layer));
-		} else {
-			App::main()->showWideSection(std::move(memento));
-		}
+	if (auto main = App::main()) {
+//		main->showSection(Profile::SectionMemento(App::peer(peer)));
+		main->showSection(Info::Memento(peer), anim::type::normal);
 	}
 }
 

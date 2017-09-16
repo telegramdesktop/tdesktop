@@ -346,6 +346,14 @@ TabbedSelector::TabbedSelector(QWidget *parent, not_null<Window::Controller*> co
 		}
 	}));
 
+	Auth().api().stickerSetInstalled()
+		| rpl::on_next([this](uint64 setId) {
+			_tabsSlider->setActiveSection(static_cast<int>(SelectorTab::Stickers));
+			stickers()->showStickerSet(setId);
+			_showRequests.fire({});
+		})
+		| rpl::start(lifetime());
+
 	//	setAttribute(Qt::WA_AcceptTouchEvents);
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
 	showAll();
@@ -356,9 +364,11 @@ void TabbedSelector::resizeEvent(QResizeEvent *e) {
 	if (e->oldSize().height() > height()) {
 		_scroll->resize(_scroll->width(), contentHeight);
 		auto scrollTop = _scroll->scrollTop();
+		currentTab()->widget()->setMinimalHeight(contentHeight);
 		currentTab()->widget()->setVisibleTopBottom(scrollTop, scrollTop + contentHeight);
 	} else {
 		auto scrollTop = _scroll->scrollTop();
+		currentTab()->widget()->setMinimalHeight(contentHeight);
 		currentTab()->widget()->setVisibleTopBottom(scrollTop, scrollTop + contentHeight);
 		_scroll->resize(_scroll->width(), contentHeight);
 	}
@@ -512,11 +522,6 @@ void TabbedSelector::afterShown() {
 			_afterShownCallback(_currentTabType);
 		}
 	}
-}
-
-void TabbedSelector::stickersInstalled(uint64 setId) {
-	_tabsSlider->setActiveSection(static_cast<int>(SelectorTab::Stickers));
-	stickers()->showStickerSet(setId);
 }
 
 void TabbedSelector::showMegagroupSet(ChannelData *megagroup) {
@@ -702,13 +707,34 @@ TabbedSelector::Inner::Inner(QWidget *parent, not_null<Window::Controller*> cont
 }
 
 void TabbedSelector::Inner::visibleTopBottomUpdated(int visibleTop, int visibleBottom) {
-	auto oldVisibleHeight = getVisibleBottom() - getVisibleTop();
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
-	auto visibleHeight = getVisibleBottom() - getVisibleTop();
-	if (visibleHeight != oldVisibleHeight) {
-		resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, countHeight());
+}
+
+void TabbedSelector::Inner::setMinimalHeight(int newMinimalHeight) {
+	if (_minimalHeight != newMinimalHeight) {
+		_minimalHeight = newMinimalHeight;
+		updateSize();
 	}
+}
+
+void TabbedSelector::Inner::updateSize() {
+	auto width = st::emojiPanWidth
+		- st::emojiScroll.width
+		- st::buttonRadius;
+	auto height = qMax(countDesiredHeight(), minimalHeight());
+	auto newSize = QSize(width, height);
+	if (size() != newSize) {
+		resize(newSize);
+		update();
+	}
+}
+
+int TabbedSelector::Inner::minimalHeight() const {
+	auto result = _minimalHeight;
+	return (_minimalHeight > 0)
+		? _minimalHeight
+		: (st::emojiPanMaxHeight - st::emojiCategory.height);
 }
 
 void TabbedSelector::Inner::hideFinished() {

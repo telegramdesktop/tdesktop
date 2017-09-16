@@ -37,6 +37,7 @@ namespace Media {
 class Widget;
 } // namespace Media
 
+class Section;
 class Memento;
 class MoveMemento;
 class ContentWidget;
@@ -75,19 +76,15 @@ public:
 		not_null<Memento*> memento);
 
 	// Float player interface.
-	bool wheelEventFromFloatPlayer(
-		QEvent *e,
-		Window::Column myColumn,
-		Window::Column playerColumn) override;
-	QRect rectForFloatPlayer(
-		Window::Column myColumn,
-		Window::Column playerColumn) const override;
+	bool wheelEventFromFloatPlayer(QEvent *e) override;
+	QRect rectForFloatPlayer() const override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
 	void doSetInnerFocus() override;
+	void showFinishedHook() override;
 
 private:
 	enum class Tab {
@@ -105,6 +102,7 @@ private:
 	void setupTabs();
 	void showTab(Tab tab);
 	void setCurrentTab(Tab tab);
+	void setSection(const Section &section);
 	void showContent(object_ptr<ContentWidget> content);
 	object_ptr<ContentWidget> createContent(Tab tab);
 	object_ptr<Profile::Widget> createProfileWidget();

@@ -165,7 +165,14 @@ std::unique_ptr<ContentMemento> Memento::Default(
 object_ptr<Window::SectionWidget> Memento::createWidget(
 		QWidget *parent,
 		not_null<Window::Controller*> controller,
+		Window::Column column,
 		const QRect &geometry) {
+	if (column == Window::Column::Third) {
+		return object_ptr<SideWrap>(
+			parent,
+			controller,
+			this);
+	}
 	return object_ptr<NarrowWrap>(
 		parent,
 		controller,
@@ -193,21 +200,24 @@ MoveMemento::MoveMemento(
 object_ptr<Window::SectionWidget> MoveMemento::createWidget(
 		QWidget *parent,
 		not_null<Window::Controller*> controller,
+		Window::Column column,
 		const QRect &geometry) {
-	if (_wrap == Wrap::Narrow) {
+	if (_wrap == Wrap::Narrow && column != Window::Column::Third) {
 		auto result = object_ptr<NarrowWrap>(
 			parent,
 			controller,
 			this);
 		result->setGeometry(geometry);
 		return result;
+	} else if (_wrap == Wrap::Side && column == Window::Column::Third) {
+		auto result = object_ptr<SideWrap>(
+			parent,
+			controller,
+			this);
+		result->setGeometry(geometry);
+		return result;
 	}
-	auto result = object_ptr<SideWrap>(
-		parent,
-		controller,
-		this);
-	result->setGeometry(geometry);
-	return result;
+	return nullptr;
 }
 
 object_ptr<LayerWidget> MoveMemento::createLayer(

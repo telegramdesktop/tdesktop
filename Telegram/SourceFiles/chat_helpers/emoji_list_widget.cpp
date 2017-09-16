@@ -304,7 +304,7 @@ void EmojiColorPicker::drawVariant(Painter &p, int variant) {
 
 EmojiListWidget::EmojiListWidget(QWidget *parent, not_null<Window::Controller*> controller) : Inner(parent, controller)
 , _picker(this) {
-	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, countHeight());
+	updateSize();
 
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -381,7 +381,7 @@ EmojiListWidget::SectionInfo EmojiListWidget::sectionInfoByOffset(int yOffset) c
 	return result;
 }
 
-int EmojiListWidget::countHeight() {
+int EmojiListWidget::countDesiredHeight() {
 	return sectionInfo(kEmojiSectionCount - 1).rowsBottom + st::emojiPanPadding;
 }
 
@@ -648,11 +648,7 @@ void EmojiListWidget::refreshRecent() {
 	clearSelection();
 	_emoji[0] = Ui::Emoji::GetSection(Section::Recent);
 	_counts[0] = _emoji[0].size();
-	auto h = countHeight();
-	if (h != height()) {
-		resize(width(), h);
-		update();
-	}
+	updateSize();
 }
 
 bool EmojiListWidget::event(QEvent *e) {

@@ -88,7 +88,14 @@ private:
 
 };
 
-object_ptr<Window::SectionWidget> SectionMemento::createWidget(QWidget *parent, not_null<Window::Controller*> controller, const QRect &geometry) {
+object_ptr<Window::SectionWidget> SectionMemento::createWidget(
+		QWidget *parent,
+		not_null<Window::Controller*> controller,
+		Window::Column column,
+		const QRect &geometry) {
+	if (column == Window::Column::Third) {
+		return nullptr;
+	}
 	auto result = object_ptr<Widget>(parent, controller, _channel);
 	result->setInternalState(geometry, this);
 	return std::move(result);
@@ -427,11 +434,11 @@ void Widget::showFinishedHook() {
 	_fixedBar->setAnimatingMode(false);
 }
 
-bool Widget::wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) {
+bool Widget::wheelEventFromFloatPlayer(QEvent *e) {
 	return _scroll->viewportEvent(e);
 }
 
-QRect Widget::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) const {
+QRect Widget::rectForFloatPlayer() const {
 	return mapToGlobal(_scroll->geometry());
 }
 

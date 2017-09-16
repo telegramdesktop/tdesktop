@@ -195,6 +195,7 @@ public:
 	object_ptr<Window::SectionWidget> createWidget(
 		QWidget *parent,
 		not_null<Window::Controller*> controller,
+		Window::Column column,
 		const QRect &geometry) override;
 
 	object_ptr<LayerWidget> createLayer(
@@ -232,6 +233,7 @@ public:
 	object_ptr<Window::SectionWidget> createWidget(
 		QWidget *parent,
 		not_null<Window::Controller*> controller,
+		Window::Column column,
 		const QRect &geometry) override;
 
 	object_ptr<LayerWidget> createLayer(

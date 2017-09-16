@@ -148,7 +148,7 @@ int InnerWidget::countBlocksHeight(RectPart countSide) const {
 
 int InnerWidget::countBlocksLeft(int newWidth) const {
 	int result = st::profileBlockLeftMin;
-	result += (newWidth - st::windowMinWidth) / 2;
+	result += (newWidth - st::columnMinimalWidthMain) / 2;
 	return qMin(result, st::profileBlockLeftMax);
 }
 

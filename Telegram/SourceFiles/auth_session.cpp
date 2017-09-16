@@ -71,6 +71,7 @@ QByteArray AuthSessionData::serialize() const {
 		for (auto peerId : _variables.groupStickersSectionHidden) {
 			stream << quint64(peerId);
 		}
+		stream << qint32(_variables.thirdSectionInfoEnabled ? 1 : 0);
 	}
 	return result;
 }
@@ -89,7 +90,8 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	qint32 floatPlayerColumn = static_cast<qint32>(Window::Column::Second);
 	qint32 floatPlayerCorner = static_cast<qint32>(RectPart::TopRight);
 	QMap<QString, QString> soundOverrides;
-	OrderedSet<PeerId> groupStickersSectionHidden;
+	base::flat_set<PeerId> groupStickersSectionHidden;
+	qint32 thirdSectionInfoEnabled = 0;
 	stream >> selectorTab;
 	stream >> lastSeenWarningSeen;
 	if (!stream.atEnd()) {
@@ -123,6 +125,9 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 			}
 		}
 	}
+	if (!stream.atEnd()) {
+		stream >> thirdSectionInfoEnabled;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: Bad data for AuthSessionData::constructFromSerialized()"));
 		return;
@@ -152,6 +157,24 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	case RectPart::BottomRight: _variables.floatPlayerCorner = uncheckedCorner; break;
 	}
 	_variables.groupStickersSectionHidden = std::move(groupStickersSectionHidden);
+	_variables.thirdSectionInfoEnabled = thirdSectionInfoEnabled;
+}
+
+void AuthSessionData::setTabbedSelectorSectionEnabled(bool enabled) {
+	_variables.tabbedSelectorSectionEnabled = enabled;
+	if (enabled) {
+		setThirdSectionInfoEnabled(false);
+	}
+}
+
+void AuthSessionData::setThirdSectionInfoEnabled(bool enabled) {
+	if (_variables.thirdSectionInfoEnabled != enabled) {
+		_variables.thirdSectionInfoEnabled = enabled;
+		if (enabled) {
+			setTabbedSelectorSectionEnabled(false);
+		}
+		_thirdSectionInfoEnabledValue.fire_copy(enabled);
+	}
 }
 
 QString AuthSessionData::getSoundPath(const QString &key) const {

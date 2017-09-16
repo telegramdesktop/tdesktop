@@ -62,7 +62,7 @@ OverviewInner::OverviewInner(OverviewWidget *overview, Ui::ScrollArea *scroll, P
 , _search(this, st::overviewFilter, langFactory(lng_dlg_filter))
 , _cancelSearch(this, st::dialogsCancelSearch)
 , _itemsToBeLoaded(LinksOverviewPerPage * 2)
-, _width(st::windowMinWidth) {
+, _width(st::columnMinimalWidthMain) {
 	subscribe(Auth().downloader().taskFinished(), [this] { update(); });
 	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
 		itemRemoved(item);
@@ -1314,7 +1314,7 @@ int32 OverviewInner::resizeToWidth(int32 nwidth, int32 scrollTop, int32 minHeigh
 			contentLeftMin -= st::overviewFileLayout.songPadding.left();
 			contentLeftMax -= st::overviewFileLayout.songPadding.left();
 		}
-		auto widthWithMin = st::windowMinWidth;
+		auto widthWithMin = st::columnMinimalWidthMain;
 		auto widthWithMax = st::overviewFileLayout.maxWidth + 2 * contentLeftMax;
 		_rowsLeft = anim::interpolate(contentLeftMax, contentLeftMin, qMax(widthWithMax - _width, 0) / float64(widthWithMax - widthWithMin));
 		_rowWidth = qMin(_width - 2 * _rowsLeft, st::overviewFileLayout.maxWidth);
@@ -2145,11 +2145,11 @@ int32 OverviewWidget::lastScrollTop() const {
 	return _scroll->scrollTop();
 }
 
-bool OverviewWidget::wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) {
+bool OverviewWidget::wheelEventFromFloatPlayer(QEvent *e) {
 	return _scroll->viewportEvent(e);
 }
 
-QRect OverviewWidget::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) const {
+QRect OverviewWidget::rectForFloatPlayer() const {
 	return mapToGlobal(_scroll->geometry());
 }
 

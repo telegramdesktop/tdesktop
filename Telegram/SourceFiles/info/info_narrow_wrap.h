@@ -79,13 +79,8 @@ public:
 		not_null<Memento*> memento);
 
 	// Float player interface.
-	bool wheelEventFromFloatPlayer(
-		QEvent *e,
-		Window::Column myColumn,
-		Window::Column playerColumn) override;
-	QRect rectForFloatPlayer(
-		Window::Column myColumn,
-		Window::Column playerColumn) const override;
+	bool wheelEventFromFloatPlayer(QEvent *e) override;
+	QRect rectForFloatPlayer() const override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;

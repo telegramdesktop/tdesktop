@@ -92,9 +92,6 @@ public:
 	base::Observable<void> &dragFinished() {
 		return _dragFinished;
 	}
-	base::Observable<void> &widgetGrabbed() {
-		return _widgetGrabbed;
-	}
 
 public slots:
 	bool minimizeToTray();
@@ -184,8 +181,7 @@ private:
 	base::Timer _inactivePressTimer;
 
 	base::Observable<void> _dragFinished;
-	base::Observable<void> _widgetGrabbed;
-
+	
 };
 
 } // namespace Window

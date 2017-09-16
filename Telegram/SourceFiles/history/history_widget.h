@@ -207,15 +207,13 @@ public:
 	void unreadCountChanged(History *history);
 
 	QRect historyRect() const;
-	int tabbedSelectorSectionWidth() const;
-	int minimalWidthForTabbedSelectorSection() const;
-	bool willSwitchToTabbedSelectorWithWidth(int newWidth) const;
+	void pushTabbedSelectorToThirdSection();
+	void pushInfoToThirdSection();
 
 	void updateSendAction(History *history, SendAction::Type type, int32 progress = 0);
 	void cancelSendAction(History *history, SendAction::Type type);
 
 	void updateRecentStickers();
-	void stickersInstalled(uint64 setId);
 	void sendActionDone(const MTPBool &result, mtpRequestId req);
 
 	void destroyData();
@@ -347,8 +345,8 @@ public:
 	void deleteSelectedItems(bool forEveryone);
 
 	// Float player interface.
-	bool wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) override;
-	QRect rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) const override;
+	bool wheelEventFromFloatPlayer(QEvent *e) override;
+	QRect rectForFloatPlayer() const override;
 
 	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, not_null<const HistoryItem*> msg, int row, int col);
 
@@ -479,12 +477,14 @@ private:
 		QStringList filesToSend;
 		bool allFilesForCompress = true;
 	};
+	using TabbedPanel = ChatHelpers::TabbedPanel;
+	using TabbedSelector = ChatHelpers::TabbedSelector;
 
 	void handlePendingHistoryUpdate();
 	void fullPeerUpdated(PeerData *peer);
 	void topBarClick();
 	void toggleTabbedSelectorMode();
-	void updateTabbedSelectorSectionShown();
+	void returnTabbedSelector(object_ptr<TabbedSelector> selector);
 	void recountChatWidth();
 	void setReportSpamStatus(DBIPeerReportSpamStatus status);
 	void historyDownClicked();
@@ -562,7 +562,6 @@ private:
 	int _toForwardNameVersion = 0;
 	int _forwardingItemRemovedSubscription = 0;
 
-	int _chatWidth = 0;
 	MsgId _editMsgId = 0;
 
 	HistoryItem *_replyEditMsg = nullptr;
@@ -822,10 +821,8 @@ private:
 	QTimer _membersDropdownShowTimer;
 
 	object_ptr<InlineBots::Layout::Widget> _inlineResults = { nullptr };
-	object_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;
-	object_ptr<ChatHelpers::TabbedSection> _tabbedSection = { nullptr };
-	QPointer<ChatHelpers::TabbedSelector> _tabbedSelector;
-	bool _tabbedSectionUsed = false;
+	object_ptr<TabbedPanel> _tabbedPanel;
+	QPointer<TabbedSelector> _tabbedSelector;
 	DragState _attachDrag = DragStateNone;
 	object_ptr<DragArea> _attachDragDocument, _attachDragPhoto;
 
@@ -863,7 +860,6 @@ private:
 	QTimer _saveDraftTimer, _saveCloudDraftTimer;
 
 	object_ptr<Ui::PlainShadow> _topShadow;
-	object_ptr<Ui::PlainShadow> _rightShadow = { nullptr };
 	bool _inGrab = false;
 
 };

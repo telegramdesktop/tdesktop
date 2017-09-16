@@ -42,7 +42,11 @@ constexpr int kCommonGroupsPerPage = 40;
 
 } // namespace
 
-object_ptr<Window::SectionWidget> SectionMemento::createWidget(QWidget *parent, not_null<Window::Controller*> controller, const QRect &geometry) {
+object_ptr<Window::SectionWidget> SectionMemento::createWidget(
+		QWidget *parent,
+		not_null<Window::Controller*> controller,
+		Window::Column column,
+		const QRect &geometry) {
 	auto result = object_ptr<Widget>(parent, controller, _user);
 	result->setInternalState(geometry, this);
 	return std::move(result);
@@ -196,7 +200,7 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 
 	auto contentLeftMin = st::profileCommonGroupsLeftMin;
 	auto contentLeftMax = st::profileCommonGroupsLeftMax;
-	auto widthWithMin = st::windowMinWidth;
+	auto widthWithMin = st::columnMinimalWidthMain;
 	auto widthWithMax = st::profileCommonGroupsWidthMax + 2 * contentLeftMax;
 	_contentLeft = anim::interpolate(contentLeftMax, contentLeftMin, qMax(widthWithMax - newWidth, 0) / float64(widthWithMax - widthWithMin));
 	_contentWidth = qMin(newWidth - 2 * _contentLeft, st::profileCommonGroupsWidthMax);
@@ -447,11 +451,11 @@ void Widget::showFinishedHook() {
 	_fixedBar->setAnimatingMode(false);
 }
 
-bool Widget::wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) {
+bool Widget::wheelEventFromFloatPlayer(QEvent *e) {
 	return _scroll->viewportEvent(e);
 }
 
-QRect Widget::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) const {
+QRect Widget::rectForFloatPlayer() const {
 	return mapToGlobal(_scroll->geometry());
 }
 

@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include <rpl/event_stream.h>
 #include "base/timer.h"
 
 namespace Storage {
@@ -100,8 +101,14 @@ public:
 	bool tabbedSelectorSectionEnabled() const {
 		return _variables.tabbedSelectorSectionEnabled;
 	}
-	void setTabbedSelectorSectionEnabled(bool enabled) {
-		_variables.tabbedSelectorSectionEnabled = enabled;
+	void setTabbedSelectorSectionEnabled(bool enabled);
+	bool thirdSectionInfoEnabled() const {
+		return _variables.thirdSectionInfoEnabled;
+	}
+	void setThirdSectionInfoEnabled(bool enabled);
+	rpl::producer<bool> thirdSectionInfoEnabledValue() const {
+		return _thirdSectionInfoEnabledValue.events_starting_with(
+			thirdSectionInfoEnabled());
 	}
 	void setLastTimeVideoPlayedAt(TimeMs time) {
 		_lastTimeVideoPlayedAt = time;
@@ -155,7 +162,8 @@ private:
 		QMap<QString, QString> soundOverrides;
 		Window::Column floatPlayerColumn;
 		RectPart floatPlayerCorner;
-		OrderedSet<PeerId> groupStickersSectionHidden;
+		base::flat_set<PeerId> groupStickersSectionHidden;
+		bool thirdSectionInfoEnabled = false;
 	};
 
 	base::Variable<bool> _contactsLoaded = { false };
@@ -167,6 +175,8 @@ private:
 	base::Observable<not_null<const HistoryItem*>> _repaintLogEntry;
 	base::Observable<void> _pendingHistoryResize;
 	base::Observable<ItemVisibilityQuery> _queryItemVisibility;
+	rpl::event_stream<bool> _thirdSectionInfoEnabledValue;
+
 	Variables _variables;
 	TimeMs _lastTimeVideoPlayedAt = 0;
 

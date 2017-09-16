@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/section_widget.h"
 
 #include "application.h"
+#include "window/section_memento.h"
 #include <rpl/single.h>
 
 namespace Window {
@@ -28,7 +29,7 @@ namespace Window {
 SectionWidget::SectionWidget(
 	QWidget *parent,
 	not_null<Window::Controller*> controller)
-	: AbstractSectionWidget(parent, controller) {
+: AbstractSectionWidget(parent, controller) {
 }
 
 void SectionWidget::setGeometryWithTopMoved(
@@ -70,6 +71,10 @@ void SectionWidget::showAnimated(
 	_showAnimation->start();
 
 	show();
+}
+
+std::unique_ptr<SectionMemento> SectionWidget::createMemento() {
+	return nullptr;
 }
 
 void SectionWidget::showFast() {

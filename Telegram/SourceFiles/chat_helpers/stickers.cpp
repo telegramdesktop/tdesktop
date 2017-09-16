@@ -262,7 +262,7 @@ void SetIsFaved(not_null<DocumentData*> document, base::optional<std::vector<not
 	}
 	Local::writeFavedStickers();
 	Auth().data().stickersUpdated().notify(true);
-	App::main()->onStickersInstalled(FavedSetId);
+	Auth().api().stickerSetInstalled(FavedSetId);
 }
 
 void RequestSetToPushFaved(not_null<DocumentData*> document) {

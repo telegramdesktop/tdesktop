@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/twidget.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 class PeerAvatarButton;
@@ -33,7 +33,7 @@ namespace Window {
 
 class Controller;
 
-class TopBarWidget : public TWidget, private base::Subscriber {
+class TopBarWidget : public Ui::RpWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -68,6 +68,7 @@ private:
 	void refreshLang();
 	void updateControlsGeometry();
 	void selectedShowCallback();
+	void updateInfoToggleActive();
 
 	void onForwardSelection();
 	void onDeleteSelection();
@@ -76,6 +77,7 @@ private:
 	void onCall();
 	void onSearch();
 	void showMenu();
+	void toggleInfoSection();
 
 	void updateAdaptiveLayout();
 	int countSelectedButtonsTop(float64 selectedShown);
@@ -97,6 +99,7 @@ private:
 
 	object_ptr<Ui::IconButton> _call;
 	object_ptr<Ui::IconButton> _search;
+	object_ptr<Ui::IconButton> _infoToggle;
 	object_ptr<Ui::IconButton> _menuToggle;
 	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
 

@@ -21,15 +21,42 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "window/section_widget.h"
+#include "window/section_memento.h"
 
 namespace ChatHelpers {
 
 class TabbedSelector;
 
-class TabbedSection : public Window::AbstractSectionWidget {
+class TabbedMemento : public Window::SectionMemento {
 public:
-	TabbedSection(QWidget *parent, not_null<Window::Controller*> controller);
-	TabbedSection(QWidget *parent, not_null<Window::Controller*> controller, object_ptr<TabbedSelector> selector);
+	TabbedMemento(
+		object_ptr<TabbedSelector> selector,
+		base::lambda<void(object_ptr<TabbedSelector>)> returnMethod);
+
+	object_ptr<Window::SectionWidget> createWidget(
+		QWidget *parent,
+		not_null<Window::Controller*> controller,
+		Window::Column column,
+		const QRect &geometry) override;
+
+	~TabbedMemento();
+
+private:
+	object_ptr<TabbedSelector> _selector;
+	base::lambda<void(object_ptr<TabbedSelector>)> _returnMethod;
+
+};
+
+class TabbedSection : public Window::SectionWidget {
+public:
+	TabbedSection(
+		QWidget *parent,
+		not_null<Window::Controller*> controller);
+	TabbedSection(
+		QWidget *parent,
+		not_null<Window::Controller*> controller,
+		object_ptr<TabbedSelector> selector,
+		base::lambda<void(object_ptr<TabbedSelector>)> returnMethod);
 
 	void beforeHiding();
 	void afterShown();
@@ -40,18 +67,28 @@ public:
 	object_ptr<TabbedSelector> takeSelector();
 	QPointer<TabbedSelector> getSelector() const;
 
-	void stickersInstalled(uint64 setId);
-
+	bool showInternal(
+		not_null<Window::SectionMemento*> memento) override;
+	bool forceAnimateBack() const override {
+		return true;
+	}
 	// Float player interface.
-	bool wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) override;
-	QRect rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) const override;
+	bool wheelEventFromFloatPlayer(QEvent *e) override;
+	QRect rectForFloatPlayer() const override;
+
+	~TabbedSection();
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 
+	void showFinishedHook() override {
+		afterShown();
+	}
+
 private:
 	object_ptr<TabbedSelector> _selector;
 	base::lambda<void()> _cancelledCallback;
+	base::lambda<void(object_ptr<TabbedSelector>)> _returnMethod;
 
 };
 

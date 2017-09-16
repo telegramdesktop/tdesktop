@@ -93,6 +93,11 @@ enum Notification {
 
 namespace anim {
 
+enum class type {
+	normal,
+	instant,
+};
+
 using transition = base::lambda<float64(float64 delta, float64 dt)>;
 
 extern transition linear;

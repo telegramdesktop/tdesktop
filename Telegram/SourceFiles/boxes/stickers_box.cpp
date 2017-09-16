@@ -1094,7 +1094,7 @@ void StickersBox::Inner::saveGroupSet() {
 	auto newId = (_megagroupSetInput.type() == mtpc_inputStickerSetID) ? _megagroupSetInput.c_inputStickerSetID().vid.v : 0;
 	if (newId != oldId) {
 		Auth().api().setGroupStickerSet(_megagroupSet, _megagroupSetInput);
-		App::main()->onStickersInstalled(Stickers::MegagroupSetId);
+		Auth().api().stickerSetInstalled(Stickers::MegagroupSetId);
 	}
 }
 

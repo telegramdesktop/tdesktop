@@ -106,7 +106,7 @@ void LayerWrap::parentResized() {
 		hide();
 		setParent(nullptr);
 		auto localCopy = _controller;
-		localCopy->showWideSection(
+		localCopy->showSection(
 			MoveMemento(std::move(_content), Wrap::Narrow));
 		localCopy->hideSpecialLayer(LayerOption::ForceFast);
 	} else {

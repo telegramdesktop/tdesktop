@@ -267,11 +267,11 @@ void DialogsWidget::showAnimated(Window::SlideDirection direction, const Window:
 	_a_show.start([this] { animationCallback(); }, 0., 1., st::slideDuration, Window::SlideAnimation::transition());
 }
 
-bool DialogsWidget::wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) {
+bool DialogsWidget::wheelEventFromFloatPlayer(QEvent *e) {
 	return _scroll->viewportEvent(e);
 }
 
-QRect DialogsWidget::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) const {
+QRect DialogsWidget::rectForFloatPlayer() const {
 	return mapToGlobal(_scroll->geometry());
 }
 

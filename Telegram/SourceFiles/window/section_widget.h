@@ -45,10 +45,10 @@ public:
 	}
 
 	// Float player interface.
-	virtual bool wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) {
+	virtual bool wheelEventFromFloatPlayer(QEvent *e) {
 		return false;
 	}
-	virtual QRect rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) const {
+	virtual QRect rectForFloatPlayer() const {
 		return mapToGlobal(rect());
 	}
 
@@ -67,7 +67,6 @@ class SectionMemento;
 struct SectionSlideParams {
 	QPixmap oldContentCache;
 	bool withTopBarShadow = false;
-	bool withTabbedSection = false;
 
 	explicit operator bool() const {
 		return !oldContentCache.isNull();
@@ -90,6 +89,9 @@ public:
 	virtual bool hasTopBarShadow() const {
 		return false;
 	}
+	virtual bool forceAnimateBack() const {
+		return false;
+	}
 	void showAnimated(SlideDirection direction, const SectionSlideParams &params);
 	void showFast();
 
@@ -109,7 +111,7 @@ public:
 
 	// Create a memento of that section to store it in the history stack.
 	// This method may modify the section ("take" heavy items).
-	virtual std::unique_ptr<SectionMemento> createMemento() = 0;
+	virtual std::unique_ptr<SectionMemento> createMemento();
 
 	void setInnerFocus() {
 		doSetInnerFocus();

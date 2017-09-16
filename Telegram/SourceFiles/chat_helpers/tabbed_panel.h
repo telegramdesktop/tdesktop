@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/twidget.h"
+#include "ui/rp_widget.h"
 #include "base/timer.h"
 
 namespace Window {
@@ -35,7 +35,7 @@ namespace ChatHelpers {
 
 class TabbedSelector;
 
-class TabbedPanel : public TWidget {
+class TabbedPanel : public Ui::RpWidget{
 	Q_OBJECT
 
 public:
@@ -50,8 +50,6 @@ public:
 	bool hiding() const {
 		return _hiding || _hideTimer.isActive();
 	}
-
-	void stickersInstalled(uint64 setId);
 
 	bool overlaps(const QRect &globalRect) const;
 
@@ -79,6 +77,7 @@ private:
 	bool isDestroying() const {
 		return !_selector;
 	}
+	void showFromSelector();
 
 	style::margins innerPadding() const;
 

@@ -34,10 +34,20 @@ constexpr auto kDelayedHideTimeoutMs = 3000;
 
 } // namespace
 
-TabbedPanel::TabbedPanel(QWidget *parent, not_null<Window::Controller*> controller) : TabbedPanel(parent, controller, object_ptr<TabbedSelector>(nullptr, controller)) {
+TabbedPanel::TabbedPanel(
+	QWidget *parent,
+	not_null<Window::Controller*> controller)
+: TabbedPanel(
+	parent,
+	controller,
+	object_ptr<TabbedSelector>(nullptr, controller)) {
 }
 
-TabbedPanel::TabbedPanel(QWidget *parent, not_null<Window::Controller*> controller, object_ptr<TabbedSelector> selector) : TWidget(parent)
+TabbedPanel::TabbedPanel(
+	QWidget *parent,
+	not_null<Window::Controller*> controller,
+	object_ptr<TabbedSelector> selector)
+: RpWidget(parent)
 , _controller(controller)
 , _selector(std::move(selector)) {
 	_selector->setParent(this);
@@ -52,6 +62,9 @@ TabbedPanel::TabbedPanel(QWidget *parent, not_null<Window::Controller*> controll
 			_controller->disableGifPauseReason(Window::GifPauseReason::SavedGifs);
 		}
 	});
+	_selector->showRequests()
+		| rpl::on_next([this](auto&&) { showFromSelector(); })
+		| rpl::start(lifetime());
 
 	resize(QRect(0, 0, st::emojiPanWidth, st::emojiPanMaxHeight).marginsAdded(innerPadding()).size());
 
@@ -376,11 +389,7 @@ bool TabbedPanel::eventFilter(QObject *obj, QEvent *e) {
 	return false;
 }
 
-void TabbedPanel::stickersInstalled(uint64 setId) {
-	if (isDestroying()) {
-		return;
-	}
-	_selector->stickersInstalled(setId);
+void TabbedPanel::showFromSelector() {
 	if (isHidden()) {
 		moveByBottom();
 		startShowAnimation();

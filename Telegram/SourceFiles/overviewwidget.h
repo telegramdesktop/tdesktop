@@ -349,8 +349,8 @@ public:
 	void deleteSelectedItems(bool forEveryone);
 
 	// Float player interface.
-	bool wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) override;
-	QRect rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) const override;
+	bool wheelEventFromFloatPlayer(QEvent *e) override;
+	QRect rectForFloatPlayer() const override;
 
 	void ui_repaintHistoryItem(not_null<const HistoryItem*> item);
 

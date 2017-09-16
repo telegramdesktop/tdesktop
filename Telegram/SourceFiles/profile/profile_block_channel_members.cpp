@@ -156,7 +156,7 @@ void ChannelMembersWidget::onAdmins() {
 void ChannelMembersWidget::onRecentActions() {
 	if (auto channel = peer()->asChannel()) {
 		if (auto main = App::main()) {
-			main->showWideSection(AdminLog::SectionMemento(channel));
+			main->showSection(AdminLog::SectionMemento(channel), anim::type::normal);
 		}
 	}
 }

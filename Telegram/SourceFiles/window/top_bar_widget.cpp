@@ -23,9 +23,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_window.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
+#include "info/info_memento.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "shortcuts.h"
+#include "auth_session.h"
 #include "lang/lang_keys.h"
 #include "ui/special_buttons.h"
 #include "ui/widgets/buttons.h"
@@ -36,8 +38,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 
 namespace Window {
+namespace {
 
-TopBarWidget::TopBarWidget(QWidget *parent, not_null<Window::Controller*> controller) : TWidget(parent)
+constexpr auto kThirdSectionInfoTimeoutMs = 1000;
+
+} // namespace
+
+TopBarWidget::TopBarWidget(QWidget *parent, not_null<Window::Controller*> controller) : RpWidget(parent)
 , _controller(controller)
 , _clearSelection(this, langFactory(lng_selected_clear), st::topBarClearButton)
 , _forward(this, langFactory(lng_selected_forward), st::defaultActiveButton)
@@ -46,6 +53,7 @@ TopBarWidget::TopBarWidget(QWidget *parent, not_null<Window::Controller*> contro
 , _mediaType(this, langFactory(lng_media_type), st::topBarButton)
 , _call(this, st::topBarCall)
 , _search(this, st::topBarSearch)
+, _infoToggle(this, st::topBarInfo)
 , _menuToggle(this, st::topBarMenuToggle) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 
@@ -58,6 +66,7 @@ TopBarWidget::TopBarWidget(QWidget *parent, not_null<Window::Controller*> contro
 	_call->setClickedCallback([this] { onCall(); });
 	_search->setClickedCallback([this] { onSearch(); });
 	_menuToggle->setClickedCallback([this] { showMenu(); });
+	_infoToggle->setClickedCallback([this] { toggleInfoSection(); });
 
 	subscribe(_controller->searchInPeerChanged(), [this](PeerData *peer) {
 		_searchInPeer = peer;
@@ -85,7 +94,12 @@ TopBarWidget::TopBarWidget(QWidget *parent, not_null<Window::Controller*> contro
 			updateControlsVisibility();
 		}
 	}));
-	subscribe(Global::RefPhoneCallsEnabledChanged(), [this] { updateControlsVisibility(); });
+	subscribe(Global::RefPhoneCallsEnabledChanged(), [this] {
+		updateControlsVisibility(); });
+
+	Auth().data().thirdSectionInfoEnabledValue()
+		| rpl::on_next([this](bool) { updateInfoToggleActive(); })
+		| rpl::start(lifetime());
 
 	setCursor(style::cur_pointer);
 	updateControlsVisibility();
@@ -109,7 +123,9 @@ void TopBarWidget::onClearSelection() {
 
 void TopBarWidget::onInfoClicked() {
 	auto p = App::main() ? App::main()->historyPeer() : nullptr;
-	if (p) Ui::showPeerProfile(p);
+	if (p) {
+		_controller->showPeerInfo(p);
+	}
 }
 
 void TopBarWidget::onSearch() {
@@ -160,6 +176,28 @@ void TopBarWidget::showMenu() {
 				_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
 			}
 		}
+	}
+}
+
+void TopBarWidget::toggleInfoSection() {
+	if (Adaptive::ThreeColumn()
+		&& Auth().data().thirdSectionInfoEnabled()) {
+		_controller->closeThirdSection();
+	} else if (auto peer = App::main()->historyPeer()) {
+		if (_controller->canShowThirdSection()) {
+			Auth().data().setThirdSectionInfoEnabled(true);
+			Auth().saveDataDelayed(kThirdSectionInfoTimeoutMs);
+			if (Adaptive::ThreeColumn()) {
+				_controller->showSection(Info::Memento(peer->id));
+			} else {
+				_controller->resizeForThirdSection();
+				_controller->updateColumnLayout();
+			}
+		} else {
+			_controller->showSection(Info::Memento(peer->id));
+		}
+	} else {
+		updateControlsVisibility();
 	}
 }
 
@@ -288,9 +326,13 @@ void TopBarWidget::updateControlsGeometry() {
 	_menuToggle->moveToRight(right, otherButtonsTop);
 	_mediaType->moveToRight(right, otherButtonsTop);
 	if (_info->isHidden()) {
-		right += _menuToggle->width();
+		right += _menuToggle->width() + st::topBarSkip;
 	} else {
 		right += _info->width();
+	}
+	_infoToggle->moveToRight(right, otherButtonsTop);
+	if (!_infoToggle->isHidden()) {
+		right += _infoToggle->width() + st::topBarSkip;
 	}
 	_search->moveToRight(right, otherButtonsTop);
 	right += _search->width() + st::topBarCallSkip;
@@ -322,6 +364,8 @@ void TopBarWidget::updateControlsVisibility() {
 			_menuToggle->show();
 		}
 		_search->show();
+		_infoToggle->setVisible(!Adaptive::OneColumn()
+			&& _controller->canShowThirdSection());
 		auto callsEnabled = false;
 		if (auto user = historyPeer->asUser()) {
 			callsEnabled = Global::PhoneCallsEnabled() && user->hasCalls();
@@ -421,6 +465,20 @@ void TopBarWidget::updateAdaptiveLayout() {
 			rtlupdate(0, 0, st::titleUnreadCounterRight, st::titleUnreadCounterTop);
 		});
 	}
+	updateInfoToggleActive();
+}
+
+void TopBarWidget::updateInfoToggleActive() {
+	auto infoThirdActive = Adaptive::ThreeColumn()
+		&& Auth().data().thirdSectionInfoEnabled();
+	auto iconOverride = infoThirdActive
+		? &st::topBarInfoActive
+		: nullptr;
+	auto ripplOverride = infoThirdActive
+		? &st::lightButtonBgOver
+		: nullptr;
+	_infoToggle->setIconOverride(iconOverride, iconOverride);
+	_infoToggle->setRippleColorOverride(ripplOverride);
 }
 
 Ui::RoundButton *TopBarWidget::mediaTypeButton() {

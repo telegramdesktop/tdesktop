@@ -30,6 +30,10 @@ windowDefaultHeight: 600px;
 windowShadow: icon {{ "window_shadow", windowShadowFg }};
 windowShadowShift: 1px;
 
+columnMinimalWidthLeft: 260px;
+columnMinimalWidthMain: 380px;
+columnMinimalWidthThird: 345px;
+
 adaptiveChatWideWidth: 880px;
 
 notifyBorder: windowShadowFgFallback;
@@ -257,9 +261,9 @@ topBarSearch: IconButton {
 	width: 40px;
 	height: topBarHeight;
 
-	icon: icon {{ "title_search-flip_horizontal", menuIconFg }};
-	iconOver: icon {{ "title_search-flip_horizontal", menuIconFgOver }};
-	iconPosition: point(11px, 19px);
+	icon: icon {{ "top_bar_search", menuIconFg }};
+	iconOver: icon {{ "top_bar_search", menuIconFgOver }};
+	iconPosition: point(4px, 11px);
 
 	rippleAreaPosition: point(0px, 7px);
 	rippleAreaSize: 40px;
@@ -268,10 +272,16 @@ topBarSearch: IconButton {
 	}
 }
 topBarCall: IconButton(topBarSearch) {
-	icon: icon {{ "add_contact_phone", menuIconFg }};
-	iconOver: icon {{ "add_contact_phone", menuIconFgOver }};
+	icon: icon {{ "top_bar_call", menuIconFg }};
+	iconOver: icon {{ "top_bar_call", menuIconFgOver }};
 }
-topBarCallSkip: 4px;
+topBarInfo: IconButton(topBarSearch) {
+	icon: icon {{ "top_bar_profile", menuIconFg }};
+	iconOver: icon {{ "top_bar_profile", menuIconFgOver }};
+}
+topBarInfoActive: icon {{ "top_bar_profile", windowBgActive }};
+topBarSkip: -2px;
+topBarCallSkip: -1px;
 topBarMenuToggle: IconButton(topBarSearch) {
 	width: 44px;
 

@@ -35,9 +35,6 @@ class StickerSetBox : public BoxContent, public RPCSender {
 public:
 	StickerSetBox(QWidget*, const MTPInputStickerSet &set);
 
-signals:
-	void installed(uint64 id);
-
 protected:
 	void prepare() override;
 
@@ -47,8 +44,6 @@ private slots:
 	void onAddStickers();
 	void onShareStickers();
 	void onUpdateButtons();
-
-	void onInstalled(uint64 id);
 
 private:
 	void updateButtons();
@@ -74,6 +69,9 @@ public:
 	QString shortName() const;
 
 	void install();
+	rpl::producer<uint64> setInstalled() const {
+		return _setInstalled.events();
+	}
 
 	~Inner();
 
@@ -89,7 +87,6 @@ private slots:
 
 signals:
 	void updateButtons();
-	void installed(uint64 id);
 
 private:
 	void updateSelected();
@@ -126,5 +123,7 @@ private:
 
 	QTimer _previewTimer;
 	int _previewShown = -1;
+
+	rpl::event_stream<uint64> _setInstalled;
 
 };

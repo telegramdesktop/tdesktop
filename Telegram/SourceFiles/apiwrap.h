@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include <rpl/event_stream.h>
 #include "base/timer.h"
 #include "core/single_timer.h"
 #include "mtproto/sender.h"
@@ -131,6 +132,13 @@ public:
 	void requestUserPhotos(
 		not_null<UserData*> user,
 		PhotoId afterId);
+
+	void stickerSetInstalled(uint64 setId) {
+		_stickerSetInstalled.fire_copy(setId);
+	}
+	rpl::producer<uint64> stickerSetInstalled() const {
+		return _stickerSetInstalled.events();
+	}
 
 	~ApiWrap();
 
@@ -261,5 +269,7 @@ private:
 	base::flat_map<not_null<UserData*>, mtpRequestId> _userPhotosRequests;
 
 	base::Observable<PeerData*> _fullPeerUpdated;
+
+	rpl::event_stream<uint64> _stickerSetInstalled;
 
 };

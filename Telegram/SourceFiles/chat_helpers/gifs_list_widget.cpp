@@ -122,7 +122,7 @@ void GifsListWidget::Footer::processPanelHideFinished() {
 
 GifsListWidget::GifsListWidget(QWidget *parent, not_null<Window::Controller*> controller) : Inner(parent, controller)
 , _section(Section::Gifs) {
-	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, countHeight());
+	updateSize();
 
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -174,17 +174,12 @@ void GifsListWidget::checkLoadMore() {
 	}
 }
 
-int GifsListWidget::countHeight() {
-	auto visibleHeight = getVisibleBottom() - getVisibleTop();
-	if (visibleHeight <= 0) {
-		visibleHeight = st::emojiPanMaxHeight - st::emojiCategory.height;
-	}
-	auto minimalLastHeight = (visibleHeight - st::stickerPanPadding);
+int GifsListWidget::countDesiredHeight() {
 	auto result = st::stickerPanPadding;
 	for (int i = 0, l = _rows.count(); i < l; ++i) {
 		result += _rows[i].height;
 	}
-	return qMax(minimalLastHeight, result) + st::stickerPanPadding;
+	return result + st::stickerPanPadding;
 }
 
 GifsListWidget::~GifsListWidget() {
@@ -475,11 +470,7 @@ void GifsListWidget::refreshSavedGifs() {
 		}
 		deleteUnusedGifLayouts();
 
-		auto newHeight = countHeight();
-		if (newHeight != height()) {
-			resize(width(), newHeight);
-		}
-
+		updateSize();
 		update();
 	}
 
@@ -642,8 +633,7 @@ int GifsListWidget::refreshInlineRows(const InlineCacheEntry *entry, bool result
 		inlineRowFinalize(row, sumWidth, true);
 	}
 
-	int32 h = countHeight();
-	if (h != height()) resize(width(), h);
+	updateSize();
 	update();
 
 	_lastMousePos = QCursor::pos();

@@ -156,7 +156,8 @@ class MainWidget : public Ui::RpWidget, public RPCSender, private base::Subscrib
 public:
 	MainWidget(QWidget *parent, not_null<Window::Controller*> controller);
 
-	bool isSectionShown() const;
+	bool isMainSectionShown() const;
+	bool isThirdSectionShown() const;
 
 	// Temporary methods, while top bar was not done inside HistoryWidget / OverviewWidget.
 	bool paintTopBar(Painter &, int decreaseWidth, TimeMs ms);
@@ -212,14 +213,17 @@ public:
 	int backgroundFromY() const;
 	PeerData *overviewPeer();
 	bool showMediaTypeSwitch() const;
-	void showWideSection(Window::SectionMemento &&memento);
+	void showSection(
+		Window::SectionMemento &&memento,
+		anim::type animated);
+	void updateColumnLayout();
 	void showMediaOverview(PeerData *peer, MediaOverviewType type, bool back = false, int32 lastScrollTop = -1);
 	bool stackIsEmpty() const;
 	void showBackFromStack();
 	void orderWidgets();
 	QRect historyRect() const;
 	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params);
-	void checkWideSectionToLayer();
+	void checkMainSectionToLayer();
 
 	void onSendFileConfirm(const FileLoadResultPtr &file);
 	bool onSendSticker(DocumentData *sticker);
@@ -442,8 +446,6 @@ public slots:
 
 	void onUpdateMuted();
 
-	void onStickersInstalled(uint64 setId);
-
 	void onViewsIncrement();
 
 	void ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId, Ui::ShowWay way);
@@ -523,12 +525,19 @@ private:
 		mtpRequestId req);
 	void mediaOverviewUpdated(const Notify::PeerUpdate &update);
 
-	Window::SectionSlideParams prepareShowAnimation(bool willHaveTopBarShadow, bool willHaveTabbedSection);
-	void showNewWideSection(Window::SectionMemento &&memento, bool back, bool saveInStack);
-	void dropWideSection(Window::SectionWidget *widget);
+	Window::SectionSlideParams prepareShowAnimation(
+		bool willHaveTopBarShadow);
+	void showNewSection(
+		Window::SectionMemento &&memento,
+		bool back,
+		bool saveInStack,
+		anim::type animated);
+	void dropMainSection(Window::SectionWidget *widget);
+
+	Window::SectionSlideParams prepareThirdSectionAnimation(Window::SectionWidget *section);
 
 	// All this methods use the prepareShowAnimation().
-	Window::SectionSlideParams prepareWideSectionAnimation(Window::SectionWidget *section);
+	Window::SectionSlideParams prepareMainSectionAnimation(Window::SectionWidget *section);
 	Window::SectionSlideParams prepareHistoryAnimation(PeerId historyPeerId);
 	Window::SectionSlideParams prepareOverviewAnimation();
 	Window::SectionSlideParams prepareDialogsAnimation();
@@ -564,7 +573,8 @@ private:
 	void inviteImportDone(const MTPUpdates &result);
 	bool inviteImportFail(const RPCError &error);
 
-	int getSectionTop() const;
+	int getMainSectionTop() const;
+	int getThirdSectionTop() const;
 
 	void hideAll();
 	void showAll();
@@ -581,11 +591,17 @@ private:
 	Float *currentFloatPlayer() const {
 		return _playerFloats.empty() ? nullptr : _playerFloats.back().get();
 	}
-	Window::AbstractSectionWidget *getFloatPlayerSection(not_null<Window::Column*> column) const;
-	void finishFloatPlayerDrag(not_null<Float*> instance, bool closed);
+	Window::AbstractSectionWidget *getFloatPlayerSection(
+		Window::Column column) const;
+	void finishFloatPlayerDrag(
+		not_null<Float*> instance,
+		bool closed);
 	void updateFloatPlayerColumnCorner(QPoint center);
 	QPoint getFloatPlayerPosition(not_null<Float*> instance) const;
-	QPoint getFloatPlayerHiddenPosition(QPoint position, QSize size, RectPart side) const;
+	QPoint getFloatPlayerHiddenPosition(
+		QPoint position,
+		QSize size,
+		RectPart side) const;
 	RectPart getFloatPlayerSide(QPoint center) const;
 
 	bool ptsUpdateAndApply(int32 pts, int32 ptsCount, const MTPUpdates &updates);
@@ -615,10 +631,11 @@ private:
 	Animation _a_dialogsWidth;
 
 	object_ptr<Ui::PlainShadow> _sideShadow;
+	object_ptr<Ui::PlainShadow> _thirdShadow = { nullptr };
 	object_ptr<TWidget> _sideResizeArea;
 	object_ptr<DialogsWidget> _dialogs;
 	object_ptr<HistoryWidget> _history;
-	object_ptr<Window::SectionWidget> _wideSection = { nullptr };
+	object_ptr<Window::SectionWidget> _mainSection = { nullptr };
 	object_ptr<Window::SectionWidget> _thirdSection = { nullptr };
 	object_ptr<OverviewWidget> _overview = { nullptr };
 

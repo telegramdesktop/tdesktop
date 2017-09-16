@@ -25,11 +25,49 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace ChatHelpers {
 
-TabbedSection::TabbedSection(QWidget *parent, not_null<Window::Controller*> controller) : TabbedSection(parent, controller, object_ptr<TabbedSelector>(this, controller)) {
+TabbedMemento::TabbedMemento(
+	object_ptr<TabbedSelector> selector,
+	base::lambda<void(object_ptr<TabbedSelector>)> returnMethod)
+: _selector(std::move(selector))
+, _returnMethod(std::move(returnMethod)) {
 }
 
-TabbedSection::TabbedSection(QWidget *parent, not_null<Window::Controller*> controller, object_ptr<TabbedSelector> selector) : Window::AbstractSectionWidget(parent, controller)
-, _selector(std::move(selector)) {
+object_ptr<Window::SectionWidget> TabbedMemento::createWidget(
+		QWidget *parent,
+		not_null<Window::Controller*> controller,
+		Window::Column column,
+		const QRect &geometry) {
+	return object_ptr<TabbedSection>(
+		parent,
+		controller,
+		std::move(_selector),
+		std::move(_returnMethod));
+}
+
+TabbedMemento::~TabbedMemento() {
+	if (_returnMethod && _selector) {
+		_returnMethod(std::move(_selector));
+	}
+}
+
+TabbedSection::TabbedSection(
+	QWidget *parent,
+	not_null<Window::Controller*> controller)
+: TabbedSection(
+	parent,
+	controller,
+	object_ptr<TabbedSelector>(this, controller),
+	base::lambda<void(object_ptr<TabbedSelector>)>()) {
+}
+
+TabbedSection::TabbedSection(
+	QWidget *parent,
+	not_null<Window::Controller*> controller,
+	object_ptr<TabbedSelector> selector,
+	base::lambda<void(object_ptr<TabbedSelector>)> returnMethod)
+: Window::SectionWidget(parent, controller)
+, _selector(std::move(selector))
+, _returnMethod(std::move(returnMethod)) {
 	resize(st::emojiPanWidth, st::emojiPanMaxHeight);
 
 	_selector->setParent(this);
@@ -68,17 +106,24 @@ object_ptr<TabbedSelector> TabbedSection::takeSelector() {
 QPointer<TabbedSelector> TabbedSection::getSelector() const {
 	return _selector.data();
 }
-
-void TabbedSection::stickersInstalled(uint64 setId) {
-	_selector->stickersInstalled(setId);
+bool TabbedSection::showInternal(
+		not_null<Window::SectionMemento*> memento) {
+	return false;
 }
 
-bool TabbedSection::wheelEventFromFloatPlayer(QEvent *e, Window::Column myColumn, Window::Column playerColumn) {
+bool TabbedSection::wheelEventFromFloatPlayer(QEvent *e) {
 	return _selector->wheelEventFromFloatPlayer(e);
 }
 
-QRect TabbedSection::rectForFloatPlayer(Window::Column myColumn, Window::Column playerColumn) const {
+QRect TabbedSection::rectForFloatPlayer() const {
 	return _selector->rectForFloatPlayer();
+}
+
+TabbedSection::~TabbedSection() {
+	beforeHiding();
+	if (_returnMethod) {
+		_returnMethod(takeSelector());
+	}
 }
 
 } // namespace ChatHelpers

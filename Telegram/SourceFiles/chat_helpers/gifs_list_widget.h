@@ -82,7 +82,7 @@ protected:
 	TabbedSelector::InnerFooter *getFooter() const override;
 	void processHideFinished() override;
 	void processPanelHideFinished() override;
-	int countHeight() override;
+	int countDesiredHeight() override;
 
 private slots:
 	void onPreview();

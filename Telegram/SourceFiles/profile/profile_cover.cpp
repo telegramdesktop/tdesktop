@@ -117,7 +117,7 @@ void CoverWidget::onCancelPhotoUpload() {
 
 int CoverWidget::countPhotoLeft(int newWidth) const {
 	int result = st::profilePhotoLeftMin;
-	result += (newWidth - st::windowMinWidth) / 2;
+	result += (newWidth - st::columnMinimalWidthMain) / 2;
 	return qMin(result, st::profilePhotoLeftMax);
 }
 

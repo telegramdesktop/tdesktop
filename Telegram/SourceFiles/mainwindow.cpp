@@ -812,7 +812,7 @@ void MainWindow::updateControlsGeometry() {
 	if (_connecting) _connecting->moveToLeft(0, body.height() - _connecting->height());
 	if (_testingThemeWarning) _testingThemeWarning->setGeometry(body);
 
-	if (_main) _main->checkWideSectionToLayer();
+	if (_main) _main->checkMainSectionToLayer();
 }
 
 MainWindow::TempDirState MainWindow::tempDirState() {

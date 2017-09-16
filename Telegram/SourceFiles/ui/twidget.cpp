@@ -191,8 +191,6 @@ QPixmap myGrab(TWidget *target, QRect rect, QColor bg) {
 		result.fill(bg);
 	}
 
-	App::wnd()->widgetGrabbed().notify(true);
-
 	target->grabStart();
 	target->render(&result, QPoint(0, 0), rect, QWidget::DrawChildren | QWidget::IgnoreMask);
 	target->grabFinish();

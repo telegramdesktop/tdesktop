@@ -126,7 +126,7 @@ protected:
 
 	TabbedSelector::InnerFooter *getFooter() const override;
 	void processHideFinished() override;
-	int countHeight() override;
+	int countDesiredHeight() override;
 
 private:
 	class Footer;

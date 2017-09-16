@@ -60,7 +60,6 @@ public:
 
 	void setRoundRadius(int radius);
 	void refreshStickers();
-	void stickersInstalled(uint64 setId);
 	void showMegagroupSet(ChannelData *megagroup);
 	void setCurrentPeer(PeerData *peer);
 
@@ -87,6 +86,10 @@ public:
 	// Float player interface.
 	bool wheelEventFromFloatPlayer(QEvent *e);
 	QRect rectForFloatPlayer() const;
+
+	rpl::producer<> showRequests() const {
+		return _showRequests.events();
+	}
 
 	~TabbedSelector();
 
@@ -199,6 +202,8 @@ private:
 	base::lambda<void(SelectorTab)> _afterShownCallback;
 	base::lambda<void(SelectorTab)> _beforeHidingCallback;
 
+	rpl::event_stream<> _showRequests;
+
 };
 
 class TabbedSelector::Inner : public TWidget {
@@ -213,6 +218,7 @@ public:
 	int getVisibleBottom() const {
 		return _visibleBottom;
 	}
+	void setMinimalHeight(int newMinimalHeight);
 
 	virtual void refreshRecent() = 0;
 	virtual void preloadImages() {
@@ -236,12 +242,14 @@ protected:
 	void visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) override;
+	void updateSize();
+	int minimalHeight() const;
 
 	not_null<Window::Controller*> controller() const {
 		return _controller;
 	}
 
-	virtual int countHeight() = 0;
+	virtual int countDesiredHeight() = 0;
 	virtual InnerFooter *getFooter() const = 0;
 	virtual void processHideFinished() {
 	}
@@ -253,6 +261,7 @@ private:
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
+	int _minimalHeight = 0;
 
 };
 
