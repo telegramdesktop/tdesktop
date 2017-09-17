@@ -146,6 +146,10 @@ struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded
 };
 
 struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply> {
+	HistoryMessageReply() = default;
+	HistoryMessageReply(const HistoryMessageReply &other) = delete;
+	HistoryMessageReply(HistoryMessageReply &&other) = delete;
+	HistoryMessageReply &operator=(const HistoryMessageReply &other) = delete;
 	HistoryMessageReply &operator=(HistoryMessageReply &&other) {
 		replyToMsgId = other.replyToMsgId;
 		std::swap(replyToMsg, other.replyToMsg);
