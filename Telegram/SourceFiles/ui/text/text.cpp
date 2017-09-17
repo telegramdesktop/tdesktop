@@ -717,7 +717,7 @@ enum { _MaxItemLength = 4096 };
 
 struct BidiControl {
 	inline BidiControl(bool rtl)
-		: cCtx(0), base(rtl ? 1 : 0), level(rtl ? 1 : 0), override(false) {}
+		: base(rtl ? 1 : 0), level(rtl ? 1 : 0) {}
 
 	inline void embed(bool rtl, bool o = false) {
 		unsigned int toAdd = 1;
@@ -751,13 +751,13 @@ struct BidiControl {
 	}
 
 	struct {
-		unsigned int level;
-		bool override;
+		unsigned int level = 0;
+		bool override = false;
 	} ctx[_MaxBidiLevel];
-	unsigned int cCtx;
+	unsigned int cCtx = 0;
 	const unsigned int base;
 	unsigned int level;
-	bool override;
+	bool override = false;
 };
 
 static void eAppendItems(QScriptAnalysis *analysis, int &start, int &stop, const BidiControl &control, QChar::Direction dir) {

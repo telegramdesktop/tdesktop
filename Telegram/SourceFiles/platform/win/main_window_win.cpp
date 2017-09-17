@@ -113,7 +113,7 @@ public:
 	using Change = MainWindow::ShadowsChange;
 	using Changes = MainWindow::ShadowsChanges;
 
-	_PsShadowWindows() : screenDC(0), max_w(0), max_h(0), _x(0), _y(0), _w(0), _h(0), hidden(true), r(0), g(0), b(0), noKeyColor(RGB(255, 255, 255)) {
+	_PsShadowWindows() : screenDC(0), noKeyColor(RGB(255, 255, 255)) {
 		for (int i = 0; i < 4; ++i) {
 			dcs[i] = 0;
 			bitmaps[i] = 0;
@@ -511,19 +511,19 @@ public:
 
 private:
 
-	int _x, _y, _w, _h;
-	int _metaSize, _fullsize, _size, _shift;
+	int _x = 0, _y = 0, _w = 0, _h = 0;
+	int _metaSize = 0, _fullsize = 0, _size = 0, _shift = 0;
 	QVector<BYTE> _alphas, _colors;
 
-	bool hidden;
+	bool hidden = true;
 
 	HWND hwnds[4];
 	HDC dcs[4], screenDC;
 	HBITMAP bitmaps[4];
-	int max_w, max_h;
+	int max_w = 0, max_h = 0;
 	BLENDFUNCTION blend;
 
-	BYTE r, g, b;
+	BYTE r = 0, g = 0, b = 0;
 	COLORREF noKeyColor;
 
 	static LRESULT CALLBACK _PsShadowWindows::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
