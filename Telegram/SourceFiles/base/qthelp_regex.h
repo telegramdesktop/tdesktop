@@ -26,10 +26,14 @@ namespace qthelp {
 
 class RegularExpressionMatch {
 public:
+	RegularExpressionMatch(const QRegularExpressionMatch &other) = delete;
+	RegularExpressionMatch(const RegularExpressionMatch &other) = delete;
 	RegularExpressionMatch(QRegularExpressionMatch &&match) : data_(std::move(match)) {
 	}
 	RegularExpressionMatch(RegularExpressionMatch &&other) : data_(std::move(other.data_)) {
 	}
+	RegularExpressionMatch &operator=(const QRegularExpressionMatch &match) = delete;
+	RegularExpressionMatch &operator=(const RegularExpressionMatch &other) = delete;
 	RegularExpressionMatch &operator=(QRegularExpressionMatch &&match) {
 		data_ = std::move(match);
 		return *this;
