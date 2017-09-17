@@ -189,7 +189,7 @@ struct FileLoadResult {
 
 	uint64 id;
 	FileLoadTo to;
-	SendMediaType type;
+	SendMediaType type = SendMediaType::File;
 	QString filepath;
 	QByteArray content;
 
