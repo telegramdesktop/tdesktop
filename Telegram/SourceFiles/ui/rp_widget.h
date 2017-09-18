@@ -28,7 +28,7 @@ namespace Ui {
 
 class RpWidget : public TWidget {
 public:
-	RpWidget::RpWidget(QWidget *parent = nullptr) : TWidget(parent) {
+	RpWidget(QWidget *parent = nullptr) : TWidget(parent) {
 		setGeometry(0, 0, 0, 0);
 	}
 

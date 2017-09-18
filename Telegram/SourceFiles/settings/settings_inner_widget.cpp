@@ -36,8 +36,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Settings {
 
 InnerWidget::InnerWidget(QWidget *parent) : LayerInner(parent)
-, _self(App::self())
-, _blocks(this) {
+, _blocks(this)
+, _self(App::self()) {
 	refreshBlocks();
 	subscribe(Global::RefSelfChanged(), [this] { fullRebuild(); });
 	subscribe(Lang::Current().updated(), [this] { fullRebuild(); });
@@ -83,10 +83,9 @@ void InnerWidget::refreshBlocks() {
 	}
 	_blocks->show();
 	_blocks->heightValue()
-		| rpl::on_next([this](int blocksHeight) {
+		| rpl::start([this](int blocksHeight) {
 			resize(width(), _blocks->y() + blocksHeight);
-		})
-		| rpl::start(lifetime());
+		}, lifetime());
 }
 
 void InnerWidget::showFinished() {

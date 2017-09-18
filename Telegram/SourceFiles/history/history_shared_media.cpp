@@ -449,26 +449,23 @@ rpl::producer<SharedMediaSlice> SharedMediaViewer(
 				data.second);
 		};
 		builder->insufficientMediaAround()
-			| rpl::on_next(requestMediaAround)
-			| rpl::start(lifetime);
+			| rpl::start(requestMediaAround, lifetime);
 
 		Auth().storage().sharedMediaSliceUpdated()
-			| rpl::on_next(applyUpdate)
-			| rpl::start(lifetime);
+			| rpl::start(applyUpdate, lifetime);
 		Auth().storage().sharedMediaOneRemoved()
-			| rpl::on_next(applyUpdate)
-			| rpl::start(lifetime);
+			| rpl::start(applyUpdate, lifetime);
 		Auth().storage().sharedMediaAllRemoved()
-			| rpl::on_next(applyUpdate)
-			| rpl::start(lifetime);
+			| rpl::start(applyUpdate, lifetime);
 
 		Auth().storage().query(Storage::SharedMediaQuery(
 			key,
 			limitBefore,
 			limitAfter))
-			| rpl::on_next(applyUpdate)
-			| rpl::on_done([=] { builder->checkInsufficientMedia(); })
-			| rpl::start(lifetime);
+			| rpl::start(
+				applyUpdate,
+				[=] { builder->checkInsufficientMedia(); },
+				lifetime);
 
 		return lifetime;
 	};
@@ -600,20 +597,20 @@ rpl::producer<SharedMediaMergedSlice> SharedMediaMergedViewer(
 			SharedMediaMergedSlice::PartKey(key),
 			limitBefore,
 			limitAfter
-		) | rpl::on_next([=](SharedMediaSlice &&update) {
+		) | rpl::start([=](SharedMediaSlice &&update) {
 			builder->applyPartUpdate(std::move(update));
 			consumer.put_next(builder->snapshot());
-		}) | rpl::start(lifetime);
+		}, lifetime);
 
 		if (key.migratedPeerId) {
 			SharedMediaViewer(
 				SharedMediaMergedSlice::MigratedKey(key),
 				limitBefore,
 				limitAfter
-			) | rpl::on_next([=](SharedMediaSlice &&update) {
+			) | rpl::start([=](SharedMediaSlice &&update) {
 				builder->applyMigratedUpdate(std::move(update));
 				consumer.put_next(builder->snapshot());
-			}) | rpl::start(lifetime);
+			}, lifetime);
 		}
 
 		return lifetime;
@@ -752,20 +749,20 @@ rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastViewer(
 			SharedMediaWithLastSlice::ViewerKey(key),
 			limitBefore,
 			limitAfter
-		) | rpl::on_next([=](SharedMediaMergedSlice &&update) {
+		) | rpl::start([=](SharedMediaMergedSlice &&update) {
 			builder->applyViewerUpdate(std::move(update));
 			consumer.put_next(builder->snapshot());
-		}) | rpl::start(lifetime);
+		}, lifetime);
 
 		if (base::get_if<SharedMediaWithLastSlice::MessageId>(&key.universalId)) {
 			SharedMediaMergedViewer(
 				SharedMediaWithLastSlice::EndingKey(key),
 				1,
 				1
-			) | rpl::on_next([=](SharedMediaMergedSlice &&update) {
+			) | rpl::start([=](SharedMediaMergedSlice &&update) {
 				builder->applyEndingUpdate(std::move(update));
 				consumer.put_next(builder->snapshot());
-			}) | rpl::start(lifetime);
+			}, lifetime);
 		}
 
 		return lifetime;

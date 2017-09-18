@@ -63,8 +63,9 @@ TabbedPanel::TabbedPanel(
 		}
 	});
 	_selector->showRequests()
-		| rpl::on_next([this](auto&&) { showFromSelector(); })
-		| rpl::start(lifetime());
+		| rpl::start([this](auto&&) {
+			showFromSelector();
+		}, lifetime());
 
 	resize(QRect(0, 0, st::emojiPanWidth, st::emojiPanMaxHeight).marginsAdded(innerPadding()).size());
 

@@ -62,8 +62,7 @@ void SideWrap::setupTabs() {
 	_tabs->setSections(sections);
 	_tabs->sectionActivated()
 		| rpl::map([](int index) { return static_cast<Tab>(index); })
-		| rpl::on_next([this](Tab tab) { showTab(tab); })
-		| rpl::start(_lifetime);
+		| rpl::start([this](Tab tab) { showTab(tab); }, _lifetime);
 
 	_tabs->move(0, 0);
 	_tabs->resizeToWidth(width());

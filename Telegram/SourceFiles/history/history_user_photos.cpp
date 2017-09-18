@@ -231,21 +231,19 @@ rpl::producer<UserPhotosSlice> UserPhotosViewer(
 			Auth().api().requestUserPhotos(user, photoId);
 		};
 		builder->insufficientPhotosAround()
-			| rpl::on_next(requestPhotosAround)
-			| rpl::start(lifetime);
+			| rpl::start(requestPhotosAround, lifetime);
 
 		Auth().storage().userPhotosSliceUpdated()
-			| rpl::on_next(applyUpdate)
-			| rpl::start(lifetime);
+			| rpl::start(applyUpdate, lifetime);
 
 		Auth().storage().query(Storage::UserPhotosQuery(
 			key,
 			limitBefore,
-			limitAfter
-		))
-			| rpl::on_next(applyUpdate)
-			| rpl::on_done([=] { builder->checkInsufficientPhotos(); })
-			| rpl::start(lifetime);
+			limitAfter))
+			| rpl::start(
+				applyUpdate,
+				[=] { builder->checkInsufficientPhotos(); },
+				lifetime);
 
 		return lifetime;
 	};

@@ -347,12 +347,11 @@ TabbedSelector::TabbedSelector(QWidget *parent, not_null<Window::Controller*> co
 	}));
 
 	Auth().api().stickerSetInstalled()
-		| rpl::on_next([this](uint64 setId) {
+		| rpl::start([this](uint64 setId) {
 			_tabsSlider->setActiveSection(static_cast<int>(SelectorTab::Stickers));
 			stickers()->showStickerSet(setId);
 			_showRequests.fire({});
-		})
-		| rpl::start(lifetime());
+		}, lifetime());
 
 	//	setAttribute(Qt::WA_AcceptTouchEvents);
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
@@ -608,8 +607,7 @@ void TabbedSelector::createTabsSlider() {
 
 	_tabsSlider->setActiveSectionFast(static_cast<int>(_currentTabType));
 	_tabsSlider->sectionActivated()
-		| rpl::on_next([this](int) { switchTab(); })
-		| rpl::start(lifetime());
+		| rpl::start([this](int) { switchTab(); }, lifetime());
 
 	_tabsSlider->resizeToWidth(width());
 	_tabsSlider->moveToLeft(0, 0);

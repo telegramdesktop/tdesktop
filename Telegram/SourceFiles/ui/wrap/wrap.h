@@ -30,20 +30,12 @@ class Wrap;
 namespace details {
 
 struct UnwrapHelper {
-	struct Large {
-		char data[2];
-	};
-	static char Check(...);
-	template <typename Widget, typename Parent>
-	static Large Check(Wrap<Widget, Parent>*);
-	template <typename Widget, typename Parent>
-	static Large Check(const Wrap<Widget, Parent>*);
+	template <
+		typename Widget,
+		typename = typename std::decay_t<Widget>::WrapParentType>
+	static std::true_type Is(Widget &&widget);
+	static std::false_type Is(...);
 
-	template <typename Entity>
-	static constexpr bool Is() {
-		return sizeof(Check(std::declval<Entity>()))
-			== sizeof(Large);
-	}
 	template <typename Entity>
 	static auto Unwrap(Entity *entity, std::true_type) {
 		return entity
@@ -56,10 +48,12 @@ struct UnwrapHelper {
 	}
 	template <typename Entity>
 	static auto Unwrap(Entity *entity) {
+		using Selector = decltype(Is(std::declval<Entity>()));
 		return Unwrap(
 			entity,
-			std::integral_constant<bool, Is<Entity*>()>());
+			Selector());
 	}
+
 };
 
 } // namespace details
@@ -126,10 +120,9 @@ Wrap<Widget, RpWidget>::Wrap(QWidget *parent, object_ptr<Widget> child)
 , _wrapped(std::move(child)) {
 	if (_wrapped) {
 		_wrapped->sizeValue()
-			| rpl::on_next([this](const QSize &value) {
+			| rpl::start([this](const QSize &value) {
 				wrappedSizeUpdated(value);
-			})
-			| rpl::start(lifetime());
+			}, lifetime());
 		AttachParentChild(this, _wrapped);
 		_wrapped->move(0, 0);
 		_wrapped->alive()
@@ -159,6 +152,8 @@ public:
 	auto entity() const {
 		return details::UnwrapHelper::Unwrap(wrapped());
 	}
+
+	using WrapParentType = ParentType;
 
 };
 

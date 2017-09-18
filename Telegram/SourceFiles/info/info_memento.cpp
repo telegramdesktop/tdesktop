@@ -104,12 +104,11 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 	_inner->move(0, 0);
 
 	scrollTopValue()
-		| rpl::on_next([this, inner = _inner](int value) {
+		| rpl::start([this, inner = _inner](int value) {
 			inner->setVisibleTopBottom(
 				value,
 				value + _scroll->height()); // TODO rpl::combine
-		})
-		| rpl::start(_inner->lifetime());
+		}, _inner->lifetime());
 	return _inner;
 }
 
@@ -208,14 +207,14 @@ object_ptr<Window::SectionWidget> MoveMemento::createWidget(
 			controller,
 			this);
 		result->setGeometry(geometry);
-		return result;
+		return std::move(result);
 	} else if (_wrap == Wrap::Side && column == Window::Column::Third) {
 		auto result = object_ptr<SideWrap>(
 			parent,
 			controller,
 			this);
 		result->setGeometry(geometry);
-		return result;
+		return std::move(result);
 	}
 	return nullptr;
 }
@@ -226,7 +225,7 @@ object_ptr<LayerWidget> MoveMemento::createLayer(
 		auto result = object_ptr<LayerWrap>(
 			controller,
 			this);
-		return result;
+		return std::move(result);
 	}
 	return nullptr;
 }

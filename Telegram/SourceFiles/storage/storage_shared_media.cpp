@@ -234,15 +234,14 @@ std::map<PeerId, SharedMedia::Lists>::iterator
 		auto type = static_cast<SharedMediaType>(index);
 
 		list.sliceUpdated()
-			| rpl::on_next([this, peer, type](const SliceUpdate &update) {
+			| rpl::start([this, peer, type](const SliceUpdate &update) {
 				_sliceUpdated.fire(SharedMediaSliceUpdate(
 					peer,
 					type,
 					update.messages,
 					update.range,
 					update.count));
-			})
-			| rpl::start(_lifetime);
+			}, _lifetime);
 	}
 	return result;
 }

@@ -122,12 +122,12 @@ UserPhotos::enforceLists(UserId user) {
 	}
 	result = _lists.emplace(user, List {}).first;
 	result->second.sliceUpdated(
-	) | rpl::on_next([this, user](const SliceUpdate &update) {
+	) | rpl::start([this, user](const SliceUpdate &update) {
 		_sliceUpdated.fire(UserPhotosSliceUpdate(
 			user,
 			update.photoIds,
 			update.count));
-	}) | rpl::start(_lifetime);
+	}, _lifetime);
 	return result;
 }
 

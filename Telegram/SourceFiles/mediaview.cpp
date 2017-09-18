@@ -1064,9 +1064,9 @@ void MediaView::validateSharedMedia() {
 			*key,
 			kIdsLimit,
 			kIdsLimit
-		) | rpl::on_next([this](SharedMediaWithLastSlice &&update) {
+		) | rpl::start([this](SharedMediaWithLastSlice &&update) {
 			handleSharedMediaUpdate(std::move(update));
-		}) | rpl::start(_sharedMedia->lifetime);
+		}, _sharedMedia->lifetime);
 	} else {
 		_sharedMedia = nullptr;
 		_sharedMediaData = base::none;
@@ -1123,9 +1123,9 @@ void MediaView::validateUserPhotos() {
 			*key,
 			kIdsLimit,
 			kIdsLimit
-		) | rpl::on_next([this](UserPhotosSlice &&update) {
+		) | rpl::start([this](UserPhotosSlice &&update) {
 			handleUserPhotosUpdate(std::move(update));
-		}) | rpl::start(_userPhotos->lifetime);
+		}, _userPhotos->lifetime);
 	} else {
 		_userPhotos = nullptr;
 		_userPhotosData = base::none;

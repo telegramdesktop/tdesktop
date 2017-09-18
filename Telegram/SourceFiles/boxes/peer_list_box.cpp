@@ -46,8 +46,9 @@ void PeerListBox::createMultiSelect() {
 	auto entity = object_ptr<Ui::MultiSelect>(this, st::contactsMultiSelect, langFactory(lng_participant_filter));
 	_select.create(this, std::move(entity));
 	_select->heightValue()
-		| rpl::on_next([this](int) { updateScrollSkips(); })
-		| rpl::start(lifetime());
+		| rpl::start(
+			[this](int) { updateScrollSkips(); },
+			lifetime());
 	_select->entity()->setSubmittedCallback([this](bool chtrlShiftEnter) { _inner->submitted(); });
 	_select->entity()->setQueryChangedCallback([this](const QString &query) { searchQueryChanged(query); });
 	_select->entity()->setItemRemovedCallback([this](uint64 itemId) {

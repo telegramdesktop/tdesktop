@@ -98,8 +98,9 @@ TopBarWidget::TopBarWidget(QWidget *parent, not_null<Window::Controller*> contro
 		updateControlsVisibility(); });
 
 	Auth().data().thirdSectionInfoEnabledValue()
-		| rpl::on_next([this](bool) { updateInfoToggleActive(); })
-		| rpl::start(lifetime());
+		| rpl::start(
+			[this](bool) { updateInfoToggleActive(); },
+			lifetime());
 
 	setCursor(style::cur_pointer);
 	updateControlsVisibility();

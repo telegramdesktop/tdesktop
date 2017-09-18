@@ -43,8 +43,6 @@ private:
 
 	QPointer<InnerWidget> _inner;
 
-	int _contentLeft = 0;
-
 };
 
 } // namespace Settings

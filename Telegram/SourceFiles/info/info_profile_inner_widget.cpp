@@ -55,9 +55,9 @@ void InnerWidget::setupContent() {
 			std::move(hiddenDetailsContent)));
 		cover->setHasToggle(true);
 		cover->toggled()
-		| rpl::on_next([=](bool expanded) {
+		| rpl::start([=](bool expanded) {
 			hiddenDetails->toggleAnimated(expanded);
-		}) | rpl::start(_lifetime);
+		}, _lifetime);
 		hiddenDetails->hideFast();
 	} else {
 		_content->add(setupDetailsContent(_content));
@@ -65,9 +65,9 @@ void InnerWidget::setupContent() {
 	_content->add(object_ptr<BoxContentDivider>(this));
 
 	_content->heightValue()
-		| rpl::on_next([this](int height) {
+		| rpl::start([this](int height) {
 			TWidget::resizeToWidth(width());
-		}) | rpl::start(_lifetime);
+		}, _lifetime);
 }
 
 object_ptr<Ui::RpWidget> InnerWidget::setupDetailsContent(
@@ -87,7 +87,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupDetailsContent(
 
 	result->add(object_ptr<Ui::PaddingWrap<>>(result, skipPadding));
 
-	return result;
+	return std::move(result);
 }
 
 object_ptr<Ui::RpWidget> InnerWidget::setupMuteToggle(
@@ -98,24 +98,22 @@ object_ptr<Ui::RpWidget> InnerWidget::setupMuteToggle(
 		Lang::Viewer(lng_profile_enable_notifications),
 		st::infoNotificationsButton));
 	NotificationsEnabledViewer(_peer)
-		| rpl::on_next([button](bool enabled) {
+		| rpl::start([button](bool enabled) {
 			button->setToggled(enabled);
-		})
-		| rpl::start(button->lifetime());
+		}, button->lifetime());
 	button->clicks()
-		| rpl::on_next([this](auto) {
+		| rpl::start([this](auto) {
 			App::main()->updateNotifySetting(
 				_peer,
 				_peer->isMuted()
 					? NotifySettingSetNotify
 					: NotifySettingSetMuted);
-		})
-		| rpl::start(button->lifetime());
+		}, button->lifetime());
 
 	object_ptr<FloatingIcon>(
 		result,
 		st::infoIconNotifications);
-	return result;
+	return std::move(result);
 }
 
 void InnerWidget::setupMainUserButtons(
@@ -126,12 +124,11 @@ void InnerWidget::setupMainUserButtons(
 		Lang::Viewer(lng_profile_send_message) | ToUpperValue(),
 		st::infoMainButton));
 	sendMessage->clicks()
-		| rpl::on_next([this, user](auto&&) {
+		| rpl::start([this, user](auto&&) {
 			_controller->showPeerHistory(
 				user,
 				Ui::ShowWay::Forward);
-		})
-		| rpl::start(sendMessage->lifetime());
+		}, sendMessage->lifetime());
 
 	auto addContact = wrap->add(object_ptr<Ui::SlideWrap<Button>>(
 		wrap,
@@ -140,16 +137,14 @@ void InnerWidget::setupMainUserButtons(
 			Lang::Viewer(lng_info_add_as_contact) | ToUpperValue(),
 			st::infoMainButton)));
 	CanAddContactViewer(user)
-		| rpl::on_next([addContact](bool canAdd) {
+		| rpl::start([addContact](bool canAdd) {
 			addContact->toggleAnimated(canAdd);
-		})
-		| rpl::start(addContact->lifetime());
+		}, addContact->lifetime());
 	addContact->finishAnimations();
 	addContact->entity()->clicks()
-		| rpl::on_next([user](auto&&) {
+		| rpl::start([user](auto&&) {
 			App::main()->shareContactLayer(user);
-		})
-		| rpl::start(addContact->lifetime());
+		}, addContact->lifetime());
 }
 
 object_ptr<Ui::RpWidget> InnerWidget::setupInfoLines(
@@ -181,15 +176,14 @@ object_ptr<Ui::RpWidget> InnerWidget::setupInfoLines(
 			return base::find(values, true) != values.end();
 		})
 		| rpl::distinct_until_changed()
-		| rpl::on_next([separator](bool someShown) {
+		| rpl::start([separator](bool someShown) {
 			separator->toggleAnimated(someShown);
-		})
-		| rpl::start(separator->lifetime());
+		}, separator->lifetime());
 	separator->finishAnimations();
 
 	object_ptr<FloatingIcon>(result, st::infoIconInformation);
 
-	return result;
+	return std::move(result);
 }
 
 void InnerWidget::visibleTopBottomUpdated(

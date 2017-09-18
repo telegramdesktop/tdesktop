@@ -57,11 +57,10 @@ void StickerSetBox::prepare() {
 
 	connect(_inner, SIGNAL(updateButtons()), this, SLOT(onUpdateButtons()));
 	_inner->setInstalled()
-		| rpl::on_next([this](auto &&setId) {
+		| rpl::start([this](auto &&setId) {
 			Auth().api().stickerSetInstalled(setId);
 			closeBox();
-		})
-		| rpl::start(lifetime());
+		}, lifetime());
 }
 
 void StickerSetBox::onAddStickers() {

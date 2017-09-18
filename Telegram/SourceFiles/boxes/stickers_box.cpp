@@ -244,8 +244,7 @@ void StickersBox::prepare() {
 		}
 		setNoContentMargin(true);
 		_tabs->sectionActivated()
-			| rpl::on_next([this](int) { switchTab(); })
-			| rpl::start(lifetime());
+			| rpl::start([this](int) { switchTab(); }, lifetime());
 		refreshTabs();
 	}
 	if (_installed.widget() && _section != Section::Installed) _installed.widget()->hide();

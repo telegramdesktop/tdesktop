@@ -28,14 +28,17 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Settings {
 
 BlockWidget::BlockWidget(QWidget *parent, UserData *self, const QString &title) : RpWidget(parent)
+, _content(this)
 , _self(self)
-, _title(title)
-, _content(this) {
+, _title(title) {
 	_content->heightValue()
-		| rpl::on_next([this](int contentHeight) {
-			resize(width(), contentTop() + contentHeight + st::settingsBlockMarginBottom);
-		})
-		| rpl::start(lifetime());
+		| rpl::start([this](int contentHeight) {
+			resize(
+				width(),
+				contentTop()
+					+ contentHeight
+					+ st::settingsBlockMarginBottom);
+		}, lifetime());
 }
 
 void BlockWidget::setContentLeft(int contentLeft) {

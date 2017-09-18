@@ -232,13 +232,12 @@ FloatingIcon::FloatingIcon(
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	if (above) {
 		above->geometryValue()
-			| rpl::on_next([this](QRect &&geometry) {
+			| rpl::start([this](const QRect &geometry) {
 				auto topLeft = rtlpoint(
 					geometry.topLeft(),
 					parentWidget()->width());
 				moveToLeft(topLeft.x(), topLeft.y() + geometry.height());
-			})
-			| rpl::start(lifetime());
+			}, lifetime());
 	} else {
 		moveToLeft(0, 0);
 	}
@@ -323,15 +322,18 @@ void CoverLine::setHasToggle(bool hasToggle) {
 void CoverLine::initViewers() {
 	using Flag = Notify::PeerUpdate::Flag;
 	PeerUpdateViewer(_peer, Flag::PhotoChanged)
-		| rpl::on_next([this](auto&&) { refreshUserpicLink(); })
-		| rpl::start(_lifetime);
+		| rpl::start(
+			[this](auto&&) { refreshUserpicLink(); },
+			_lifetime);
 	PeerUpdateViewer(_peer, Flag::NameChanged)
-		| rpl::on_next([this](auto&&) { refreshNameText(); })
-		| rpl::start(_lifetime);
+		| rpl::start(
+			[this](auto&&) { refreshNameText(); },
+			_lifetime);
 	PeerUpdateViewer(_peer,
 		Flag::UserOnlineChanged | Flag::MembersChanged)
-		| rpl::on_next([this](auto&&) { refreshStatusText(); })
-		| rpl::start(_lifetime);
+		| rpl::start(
+			[this](auto&&) { refreshStatusText(); },
+			_lifetime);
 }
 
 void CoverLine::initUserpicButton() {
@@ -449,10 +451,9 @@ Button::Button(
 : RippleButton(parent, st.ripple)
 , _st(st) {
 	std::move(text)
-		| rpl::on_next([this](QString &&value) {
+		| rpl::start([this](QString &&value) {
 			setText(std::move(value));
-		})
-		| rpl::start(lifetime());
+		}, lifetime());
 }
 
 void Button::setToggled(bool toggled) {
@@ -462,10 +463,9 @@ void Button::setToggled(bool toggled) {
 			toggled,
 			[this] { rtlupdate(toggleRect()); });
 		clicks()
-			| rpl::on_next([this](auto) {
+			| rpl::start([this](auto) {
 				_toggle->setCheckedAnimated(!_toggle->checked());
-			})
-			| rpl::start(lifetime());
+			}, lifetime());
 	} else {
 		_toggle->setCheckedAnimated(toggled);
 	}

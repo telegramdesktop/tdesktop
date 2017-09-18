@@ -59,10 +59,9 @@ void TopBar::pushButton(object_ptr<Ui::RpWidget> button) {
 	auto weak = Ui::AttachParentChild(this, button);
 	_buttons.push_back(std::move(button));
 	weak->widthValue()
-		| rpl::on_next([this](auto) {
+		| rpl::start([this](auto) {
 			updateControlsGeometry(width());
-		})
-		| rpl::start(_lifetime);
+		}, _lifetime);
 }
 
 int TopBar::resizeGetHeight(int newWidth) {

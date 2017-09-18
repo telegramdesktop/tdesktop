@@ -115,13 +115,11 @@ RpWidget *VerticalLayout::addChild(
 			width() - margins.left() - margins.right(),
 			height() - margins.top() - margins.bottom());
 		weak->heightValue()
-			| rpl::on_next([this, weak](int) {
+			| rpl::start([this, weak](int) {
 				childHeightUpdated(weak);
-			})
-			| rpl::on_done([this, weak] {
+			}, [this, weak] {
 				removeChild(weak);
-			})
-			| rpl::start(lifetime());
+			}, lifetime());
 		return weak;
 	}
 	return nullptr;

@@ -1846,8 +1846,9 @@ void MainWidget::createPlayer() {
 	if (!_player) {
 		_player.create(this);
 		_player->heightValue()
-			| rpl::on_next([this](int) { playerHeightUpdated(); })
-			| rpl::start(lifetime());
+			| rpl::start(
+				[this](int) { playerHeightUpdated(); },
+				lifetime());
 		_player->entity()->setCloseCallback([this] { closeBothPlayers(); });
 		_playerVolume.create(this);
 		_player->entity()->volumeWidgetCreated(_playerVolume);
@@ -1906,10 +1907,9 @@ void MainWidget::createCallTopBar() {
 	Expects(_currentCall != nullptr);
 	_callTopBar.create(this, object_ptr<Calls::TopBar>(this, _currentCall));
 	_callTopBar->heightValue()
-		| rpl::on_next([this](int value) {
+		| rpl::start([this](int value) {
 			callTopBarHeightUpdated(value);
-		})
-		| rpl::start(lifetime());
+		}, lifetime());
 	orderWidgets();
 	if (_a_show.animating()) {
 		_callTopBar->showFast();

@@ -288,9 +288,9 @@ void EditPrivacyBox::createWidgets() {
 	auto createExceptionLink = [this](Exception exception) {
 		exceptionLink(exception).create(this, object_ptr<Ui::LinkButton>(this, exceptionLinkText(exception)), exceptionLinkMargins());
 		exceptionLink(exception)->heightValue()
-			| rpl::start(
-				[this](int) { resizeToWidth(width()); },
-				lifetime());
+			| rpl::start([this](int) {
+				resizeToWidth(width());
+			}, lifetime());
 		exceptionLink(exception)->entity()->setClickedCallback([this, exception] { editExceptionUsers(exception); });
 	};
 

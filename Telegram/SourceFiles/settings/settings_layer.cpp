@@ -53,10 +53,9 @@ Layer::Layer()
 	_scroll->scrollTopValue()
 		| rpl::map([](int scrollTop) { return scrollTop > 0; })
 		| rpl::distinct_until_changed()
-		| rpl::on_next([this](bool scrolled) {
+		| rpl::start([this](bool scrolled) {
 			_fixedBarShadow->toggleAnimated(scrolled);
-		})
-		| rpl::start(lifetime());
+		}, lifetime());
 }
 
 void Layer::setCloseClickHandler(base::lambda<void()> callback) {
@@ -74,10 +73,9 @@ void Layer::resizeToWidth(int newWidth, int newContentLeft) {
 void Layer::doSetInnerWidget(object_ptr<LayerInner> widget) {
 	_inner = _scroll->setOwnedWidget(std::move(widget));
 	_inner->heightValue()
-		| rpl::on_next([this](int innerHeight) {
+		| rpl::start([this](int innerHeight) {
 			resizeUsingInnerHeight(width(), innerHeight);
-		})
-		| rpl::start(lifetime());
+		}, lifetime());
 }
 
 void Layer::paintEvent(QPaintEvent *e) {
