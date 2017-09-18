@@ -34,22 +34,24 @@ public:
 	map_transform_helper(
 		Transform &&transform,
 		const consumer<NewValue, Error> &consumer)
-		: _transform(std::move(transform))
-		, _consumer(consumer) {
+		: _consumer(consumer)
+		, _transform(std::move(transform)) {
 	}
 	template <
 		typename OtherValue,
 		typename = std::enable_if_t<
 			std::is_rvalue_reference_v<OtherValue&&>>>
 	void operator()(OtherValue &&value) const {
-		_consumer.put_next_forward(_transform(std::move(value)));
+		_consumer.put_next_forward(
+			details::callable_invoke(_transform, std::move(value)));
 	}
 	template <
 		typename OtherValue,
 		typename = decltype(
 			std::declval<Transform>()(const_ref_val<OtherValue>()))>
 	void operator()(const OtherValue &value) const {
-		_consumer.put_next_forward(_transform(value));
+		_consumer.put_next_forward(
+			details::callable_invoke(_transform, value));
 	}
 
 private:
@@ -64,7 +66,8 @@ template <
 	typename Error,
 	typename = std::enable_if_t<
 		std::is_rvalue_reference_v<Transform&&>>>
-map_transform_helper<Transform, NewValue, Error> map_transform(
+inline map_transform_helper<Transform, NewValue, Error>
+map_transform(
 		Transform &&transform,
 		const consumer<NewValue, Error> &consumer) {
 	return { std::move(transform), consumer };
@@ -81,9 +84,9 @@ public:
 	template <
 		typename Value,
 		typename Error,
-		typename NewValue = decltype(
-			std::declval<Transform>()(std::declval<Value>())
-		)>
+		typename NewValue = details::callable_result<
+			Transform,
+			Value>>
 	rpl::producer<NewValue, Error> operator()(
 			rpl::producer<Value, Error> &&initial) {
 		return [
@@ -111,7 +114,7 @@ private:
 } // namespace details
 
 template <typename Transform>
-auto map(Transform &&transform)
+inline auto map(Transform &&transform)
 -> details::map_helper<std::decay_t<Transform>> {
 	return details::map_helper<std::decay_t<Transform>>(
 		std::forward<Transform>(transform));
@@ -136,14 +139,16 @@ public:
 		typename = std::enable_if_t<
 			std::is_rvalue_reference_v<OtherError&&>>>
 	void operator()(OtherError &&error) const {
-		_consumer.put_error_forward(_transform(std::move(error)));
+		_consumer.put_error_forward(
+			details::callable_invoke(_transform, std::move(error)));
 	}
 	template <
 		typename OtherError,
 		typename = decltype(
 			std::declval<Transform>()(const_ref_val<OtherError>()))>
 	void operator()(const OtherError &error) const {
-		_consumer.put_error_forward(_transform(error));
+		_consumer.put_error_forward(
+			details::callable_invoke(_transform, error));
 	}
 
 private:
@@ -158,7 +163,7 @@ template <
 	typename NewError,
 	typename = std::enable_if_t<
 		std::is_rvalue_reference_v<Transform&&>>>
-map_error_transform_helper<Transform, Value, NewError>
+inline map_error_transform_helper<Transform, Value, NewError>
 map_error_transform(
 		Transform &&transform,
 		const consumer<Value, NewError> &consumer) {
@@ -176,9 +181,9 @@ public:
 	template <
 		typename Value,
 		typename Error,
-		typename NewError = decltype(
-			std::declval<Transform>()(std::declval<Error>())
-		)>
+		typename NewError = details::callable_result<
+			Transform,
+			Error>>
 	rpl::producer<Value, NewError> operator()(
 			rpl::producer<Value, Error> &&initial) {
 		return [
@@ -206,7 +211,7 @@ private:
 } // namespace details
 
 template <typename Transform>
-auto map_error(Transform &&transform)
+inline auto map_error(Transform &&transform)
 -> details::map_error_helper<std::decay_t<Transform>> {
 	return details::map_error_helper<std::decay_t<Transform>>(
 		std::forward<Transform>(transform));

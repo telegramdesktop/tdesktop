@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/filter.h>
 #include <rpl/never.h>
 #include <rpl/before_next.h>
-#include <rpl/combine_latest.h>
+#include <rpl/combine.h>
 #include "styles/style_info.h"
 #include "profile/profile_userpic_button.h"
 #include "observer_peer.h"
@@ -182,15 +182,11 @@ rpl::producer<bool> CanShareContactViewer(
 
 rpl::producer<bool> CanAddContactViewer(
 		not_null<UserData*> user) {
-	return rpl::combine_latest(
+	using namespace rpl::mappers;
+	return rpl::combine(
 			IsContactViewer(user),
-			CanShareContactViewer(user))
-		| rpl::map([](auto &&value) {
-			return !std::get<0>(value) && std::get<1>(value);
-		})
-		| rpl::map_error([](auto &&error) {
-			return *base::get_if<rpl::no_error>(&error);
-		});
+			CanShareContactViewer(user),
+			!$1 && $2);
 }
 
 FloatingIcon::FloatingIcon(

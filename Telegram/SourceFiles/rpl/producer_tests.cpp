@@ -157,6 +157,21 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 		saved.destroy();
 		REQUIRE(*lifetimeEndCount == 3);
 	}
+
+	SECTION("tuple producer test") {
+		auto result = std::make_shared<int>(0);
+		{
+			producer<std::tuple<int, double>>([=](auto &&consumer) {
+				consumer.put_next(std::make_tuple(1, 2.));
+				return lifetime();
+			}).start([=](int a, double b) {
+				*result = a + int(b);
+			}, [=](no_error error) {
+			}, [=]() {
+			});
+		}
+		REQUIRE(*result == 3);
+	}
 }
 
 TEST_CASE("basic event_streams tests", "[rpl::event_stream]") {
@@ -446,5 +461,36 @@ TEST_CASE("basic piping tests", "[rpl::producer]") {
 			}
 		}
 		REQUIRE(*sum == 3);
+	}
+
+	SECTION("rich start calls") {
+		auto sum = std::make_shared<int>(0);
+		{
+			auto alive = lifetime();
+			producer<int, int>([=](auto &&consumer) {
+				consumer.put_next(33);
+				return lifetime();
+			})
+				| start([=](int value) {
+					*sum += value;
+				}, alive);
+			producer<no_value, int>([=](auto &&consumer) {
+				consumer.put_error(33);
+				return lifetime();
+			})
+				| start([](no_value) {
+				}, [=](int value) {
+					*sum += value;
+				}, alive);
+			producer<int, int>([=](auto &&consumer) {
+				consumer.put_next(33);
+				consumer.put_done();
+				return lifetime();
+			})
+				| start([=] {
+					*sum += 33;
+				}, alive);
+		}
+		REQUIRE(*sum == 99);
 	}
 }

@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "info/info_profile_inner_widget.h"
 
-#include <rpl/combine_latest.h>
+#include <rpl/combine.h>
 #include "boxes/abstract_box.h"
 #include "mainwidget.h"
 #include "info/info_profile_widget.h"
@@ -177,8 +177,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupInfoLines(
 		result,
 		object_ptr<Ui::PlainShadow>(result, st::shadowFg),
 		st::infoProfileSeparatorPadding));
-	rpl::combine_latest(std::move(infoPartsShown))
-		| rpl::map([](const std::vector<bool> &values) {
+	rpl::combine(std::move(infoPartsShown),	[](const auto &values) {
 			return base::find(values, true) != values.end();
 		})
 		| rpl::distinct_until_changed()

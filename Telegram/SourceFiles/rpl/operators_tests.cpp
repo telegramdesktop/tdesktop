@@ -69,6 +69,7 @@ public:
 		if (_copyCounter) {
 			++*_copyCounter;
 		}
+		return *this;
 	}
 	InvokeCounter &operator=(InvokeCounter &&other) {
 		_copyCounter = base::take(other._copyCounter);
@@ -76,6 +77,7 @@ public:
 		if (_moveCounter) {
 			++*_moveCounter;
 		}
+		return *this;
 	}
 
 private:
@@ -133,16 +135,19 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 
 			rpl::lifetime lifetime;
 			std::move(testing)
-			| then(complete<InvokeCounter>())
-			| on_next([=](InvokeCounter&&) {
-				(void)destroyCalled;
-				++*sum;
-			}) | on_error([=](no_error) {
-				(void)destroyCalled;
-			}) | on_done([=] {
-				(void)destroyCalled;
-				*doneGenerated = true;
-			}) | start(lifetime);
+				| then(complete<InvokeCounter>())
+				| on_next([=](InvokeCounter&&) {
+					(void)destroyCalled;
+					++*sum;
+				})
+				| on_error([=](no_error) {
+					(void)destroyCalled;
+				})
+				| on_done([=] {
+					(void)destroyCalled;
+					*doneGenerated = true;
+				})
+				| start(lifetime);
 		}
 		REQUIRE(*sum == 5);
 		REQUIRE(*doneGenerated);
@@ -160,10 +165,12 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 				| then(single(4))
 				| then(single(5))
 				| map([](int value) {
-				return std::to_string(value);
-			}) | on_next([=](std::string &&value) {
-				*sum += std::move(value) + ' ';
-			}) | start(lifetime);
+					return std::to_string(value);
+				})
+				| on_next([=](std::string &&value) {
+					*sum += std::move(value) + ' ';
+				})
+				| start(lifetime);
 		}
 		REQUIRE(*sum == "1 2 3 4 5 ");
 	}
@@ -186,7 +193,8 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 				| on_next([=](int value) {
 					REQUIRE(++*checked == *launched);
 					REQUIRE(*checked == value);
-				}) | start(lifetime);
+				})
+				| start(lifetime);
 			REQUIRE(*launched == 5);
 		}
 	}
@@ -203,9 +211,11 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 				| filter([](int value) { return value != 2; })
 				| map([](int value) {
 					return std::to_string(value);
-				}) | on_next([=](std::string &&value) {
+				})
+				| on_next([=](std::string &&value) {
 					*sum += std::move(value) + ' ';
-				}) | start(lifetime);
+				})
+				| start(lifetime);
 		}
 		REQUIRE(*sum == "1 1 3 ");
 	}
@@ -221,10 +231,12 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 				| then(single(3))
 				| distinct_until_changed()
 				| map([](int value) {
-				return std::to_string(value);
-			}) | on_next([=](std::string &&value) {
-				*sum += std::move(value) + ' ';
-			}) | start(lifetime);
+					return std::to_string(value);
+				})
+				| on_next([=](std::string &&value) {
+					*sum += std::move(value) + ' ';
+				})
+				| start(lifetime);
 		}
 		REQUIRE(*sum == "1 2 3 ");
 	}
@@ -238,11 +250,130 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 				| then(single(single(5) | then(single(6))))
 				| flatten_latest()
 				| map([](int value) {
-				return std::to_string(value);
-			}) | on_next([=](std::string &&value) {
-				*sum += std::move(value) + ' ';
-			}) | start(lifetime);
+					return std::to_string(value);
+				})
+				| on_next([=](std::string &&value) {
+					*sum += std::move(value) + ' ';
+				})
+				| start(lifetime);
 		}
 		REQUIRE(*sum == "1 2 3 4 5 6 ");
+	}
+
+	SECTION("combine vector test") {
+		auto sum = std::make_shared<std::string>("");
+		{
+			rpl::lifetime lifetime;
+			rpl::event_stream<bool> a;
+			rpl::event_stream<bool> b;
+			rpl::event_stream<bool> c;
+
+			std::vector<rpl::producer<bool>> v;
+			v.push_back(a.events());
+			v.push_back(b.events());
+			v.push_back(c.events());
+
+			combine(std::move(v), [](const auto &values) {
+					return values[0] && values[1] && !values[2];
+				})
+				| on_next([=](bool value) {
+					*sum += std::to_string(value ? 1 : 0);
+				})
+				| start(lifetime);
+
+			a.fire(true);
+			b.fire(true);
+			c.fire(false);
+			a.fire(false);
+			b.fire(true);
+			a.fire(true);
+			c.fire(true);
+		}
+		REQUIRE(*sum == "10010");
+	}
+
+	SECTION("combine test") {
+		auto sum = std::make_shared<std::string>("");
+		{
+			rpl::lifetime lifetime;
+			rpl::event_stream<int> a;
+			rpl::event_stream<short> b;
+			rpl::event_stream<char> c;
+
+			combine(
+				a.events(),
+				b.events(),
+				c.events(),
+				[](long a, long b, long c) {
+					return a;
+				})
+				| on_next([=](int value) {
+					*sum += std::to_string(value);
+				})
+				| start(lifetime);
+
+			combine(
+				a.events(),
+				b.events(),
+				c.events(),
+				[](auto &&value) {
+					return std::get<1>(value);
+				})
+				| on_next([=](int value) {
+					*sum += std::to_string(value);
+				})
+				| start(lifetime);
+
+			combine(a.events(), b.events(), c.events())
+				| map([](auto &&value) {
+					return std::make_tuple(
+						std::to_string(std::get<0>(value)),
+						std::to_string(std::get<1>(value)),
+						std::to_string(std::get<2>(value)));
+				})
+				| on_next([=](auto &&value) {
+					*sum += std::get<0>(value) + ' '
+						+ std::get<1>(value) + ' '
+						+ std::get<2>(value) + ' ';
+				})
+				| start(lifetime);
+			a.fire(1);
+			b.fire(2);
+			c.fire(3);
+			a.fire(4);
+			b.fire(5);
+			c.fire(6);
+		}
+		REQUIRE(*sum == "121 2 3 424 2 3 454 5 3 454 5 6 ");
+	}
+
+	SECTION("mappers test") {
+		auto sum = std::make_shared<std::string>("");
+		{
+			rpl::lifetime lifetime;
+			rpl::event_stream<int> a;
+			rpl::event_stream<short> b;
+			rpl::event_stream<char> c;
+
+			using namespace mappers;
+
+			combine(
+				a.events(),
+				b.events(),
+				c.events(),
+				$1 + $2 + $3 + 10)
+				| on_next([=](int value) {
+					*sum += std::to_string(value);
+				})
+				| start(lifetime);
+
+			a.fire(1);
+			b.fire(2);
+			c.fire(3);
+			a.fire(4);
+			b.fire(5);
+			c.fire(6);
+		}
+		REQUIRE(*sum == "16192225");
 	}
 }

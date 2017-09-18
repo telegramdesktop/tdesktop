@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace rpl {
 
 template <typename Value, typename Error>
-auto then(producer<Value, Error> &&following) {
+inline auto then(producer<Value, Error> &&following) {
 	return [following = std::move(following)](
 			producer<Value, Error> &&initial) mutable
 			-> producer<Value, Error> {

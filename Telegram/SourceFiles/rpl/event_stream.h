@@ -65,17 +65,17 @@ private:
 };
 
 template <typename Value>
-event_stream<Value>::event_stream() {
+inline event_stream<Value>::event_stream() {
 }
 
 template <typename Value>
-event_stream<Value>::event_stream(event_stream &&other)
-	: _consumers(base::take(other._consumers)) {
+inline event_stream<Value>::event_stream(event_stream &&other)
+: _consumers(base::take(other._consumers)) {
 }
 
 template <typename Value>
 template <typename OtherValue>
-void event_stream<Value>::fire_forward(OtherValue &&value) {
+inline void event_stream<Value>::fire_forward(OtherValue &&value) {
 	if (!_consumers) {
 		return;
 	}
@@ -116,7 +116,7 @@ void event_stream<Value>::fire_forward(OtherValue &&value) {
 }
 
 template <typename Value>
-producer<Value, no_error> event_stream<Value>::events() const {
+inline producer<Value, no_error> event_stream<Value>::events() const {
 	return producer<Value, no_error>([weak = weak()](
 			const consumer<Value, no_error> &consumer) {
 		if (auto strong = weak.lock()) {
@@ -136,7 +136,7 @@ producer<Value, no_error> event_stream<Value>::events() const {
 }
 
 template <typename Value>
-std::weak_ptr<std::vector<consumer<Value, no_error>>> event_stream<Value>::weak() const {
+inline std::weak_ptr<std::vector<consumer<Value, no_error>>> event_stream<Value>::weak() const {
 	if (!_consumers) {
 		_consumers = std::make_shared<std::vector<consumer<Value, no_error>>>();
 	}
@@ -145,7 +145,7 @@ std::weak_ptr<std::vector<consumer<Value, no_error>>> event_stream<Value>::weak(
 
 
 template <typename Value>
-event_stream<Value>::~event_stream() {
+inline event_stream<Value>::~event_stream() {
 	if (auto consumers = base::take(_consumers)) {
 		for (auto &consumer : *consumers) {
 			consumer.put_done();

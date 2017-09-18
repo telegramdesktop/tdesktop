@@ -66,7 +66,7 @@ private:
 } // namespace details
 
 template <typename Predicate>
-auto filter(Predicate &&predicate)
+inline auto filter(Predicate &&predicate)
 -> details::filter_helper<std::decay_t<Predicate>> {
 	return details::filter_helper<std::decay_t<Predicate>>(
 		std::forward<Predicate>(predicate));

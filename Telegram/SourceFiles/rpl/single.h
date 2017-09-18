@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace rpl {
 
 template <typename Value, typename Error = no_error>
-producer<std::decay_t<Value>, Error> single(Value &&value) {
+inline producer<std::decay_t<Value>, Error> single(Value &&value) {
 	using consumer_t = consumer<std::decay_t<Value>, Error>;
 	return [value = std::forward<Value>(value)](
 			const consumer_t &consumer) mutable {
@@ -36,7 +36,7 @@ producer<std::decay_t<Value>, Error> single(Value &&value) {
 }
 
 template <typename Error = no_error>
-producer<empty_value, Error> single() {
+inline producer<empty_value, Error> single() {
 	return [](const consumer<empty_value, Error> &consumer) {
 		consumer.put_next({});
 		consumer.put_done();

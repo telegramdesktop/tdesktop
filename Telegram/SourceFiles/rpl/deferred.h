@@ -28,7 +28,7 @@ template <
 	typename Creator,
 	typename Value = typename decltype(std::declval<Creator>()())::value_type,
 	typename Error = typename decltype(std::declval<Creator>()())::error_type>
-producer<Value, Error> deferred(Creator &&creator) {
+inline producer<Value, Error> deferred(Creator &&creator) {
 	return [creator = std::forward<Creator>(creator)](
 			const consumer<Value, Error> &consumer) mutable {
 		return std::move(creator)().start_existing(consumer);

@@ -107,7 +107,7 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 		| rpl::on_next([this, inner = _inner](int value) {
 			inner->setVisibleTopBottom(
 				value,
-				value + _scroll->height()); // TODO rpl::combine_latest
+				value + _scroll->height()); // TODO rpl::combine
 		})
 		| rpl::start(_inner->lifetime());
 	return _inner;

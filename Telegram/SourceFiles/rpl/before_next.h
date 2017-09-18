@@ -26,7 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace rpl {
 
 template <typename SideEffect>
-auto before_next(SideEffect &&method) {
+inline auto before_next(SideEffect &&method) {
 	return filter([method = std::forward<SideEffect>(method)](
 			const auto &value) {
 		method(value);

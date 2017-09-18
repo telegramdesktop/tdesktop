@@ -33,7 +33,7 @@ public:
 			rpl::producer<Value, Error> &&initial) const {
 		return [initial = std::move(initial)](
 				const consumer<Value, Error> &consumer) mutable {
-			auto previous = consumer.make_state<
+			auto previous = consumer.template make_state<
 				base::optional<Value>
 			>();
 			return std::move(initial).start(

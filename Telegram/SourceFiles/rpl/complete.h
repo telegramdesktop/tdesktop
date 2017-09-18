@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace rpl {
 
 template <typename Value = empty_value, typename Error = no_error>
-producer<Value, Error> complete() {
+inline producer<Value, Error> complete() {
 	return [](const consumer<Value, Error> &consumer) mutable {
 		consumer.put_done();
 		return lifetime();

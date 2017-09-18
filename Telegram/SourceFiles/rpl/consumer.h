@@ -23,30 +23,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <mutex>
 #include <gsl/gsl_assert>
 #include <rpl/lifetime.h>
+#include <rpl/details/callable.h>
 
 namespace rpl {
-namespace details {
-
-template <typename Arg>
-const Arg &const_ref_val();
-
-template <
-	typename Func,
-	typename Arg,
-	typename = decltype(std::declval<Func>()(const_ref_val<Arg>()))>
-void const_ref_call_helper(Func &handler, const Arg &value, int) {
-	handler(value);
-}
-
-template <
-	typename Func,
-	typename Arg>
-void const_ref_call_helper(Func &handler, const Arg &value, double) {
-	auto copy = value;
-	handler(std::move(copy));
-}
-
-} // namespace details
 
 struct no_value {
 	no_value() = delete;
@@ -69,8 +48,10 @@ public:
 		typename OnNext,
 		typename OnError,
 		typename OnDone,
-		typename = decltype(std::declval<OnNext>()(std::declval<Value>())),
-		typename = decltype(std::declval<OnError>()(std::declval<Error>())),
+		typename = std::enable_if_t<
+			details::is_callable_v<OnNext, Value>>,
+		typename = decltype(std::declval<OnError>()(
+			std::declval<Error>())),
 		typename = decltype(std::declval<OnDone>()())>
 	consumer(
 		OnNext &&next,
@@ -122,24 +103,24 @@ public:
 	}
 
 private:
-	class abstract_consumer_instance;
+	class abstract_instance;
 
 	template <typename OnNext, typename OnError, typename OnDone>
-	class consumer_instance;
+	class instance;
 
 	template <typename OnNext, typename OnError, typename OnDone>
-	std::shared_ptr<abstract_consumer_instance> ConstructInstance(
+	std::shared_ptr<abstract_instance> ConstructInstance(
 		OnNext &&next,
 		OnError &&error,
 		OnDone &&done);
 
-	mutable std::shared_ptr<abstract_consumer_instance> _instance;
+	mutable std::shared_ptr<abstract_instance> _instance;
 
 };
 
 
 template <typename Value, typename Error>
-class consumer<Value, Error>::abstract_consumer_instance {
+class consumer<Value, Error>::abstract_instance {
 public:
 	virtual bool put_next(Value &&value) = 0;
 	virtual bool put_next_copy(const Value &value) = 0;
@@ -163,11 +144,14 @@ protected:
 
 template <typename Value, typename Error>
 template <typename OnNext, typename OnError, typename OnDone>
-class consumer<Value, Error>::consumer_instance
-	: public consumer<Value, Error>::abstract_consumer_instance {
+class consumer<Value, Error>::instance
+	: public consumer<Value, Error>::abstract_instance {
 public:
-	template <typename OnNextImpl, typename OnErrorImpl, typename OnDoneImpl>
-	consumer_instance(
+	template <
+		typename OnNextImpl,
+		typename OnErrorImpl,
+		typename OnDoneImpl>
+	instance(
 		OnNextImpl &&next,
 		OnErrorImpl &&error,
 		OnDoneImpl &&done)
@@ -191,12 +175,13 @@ private:
 
 template <typename Value, typename Error>
 template <typename OnNext, typename OnError, typename OnDone>
-std::shared_ptr<typename consumer<Value, Error>::abstract_consumer_instance>
+inline std::shared_ptr<
+	typename consumer<Value, Error>::abstract_instance>
 consumer<Value, Error>::ConstructInstance(
 		OnNext &&next,
 		OnError &&error,
 		OnDone &&done) {
-	return std::make_shared<consumer_instance<
+	return std::make_shared<instance<
 		std::decay_t<OnNext>,
 		std::decay_t<OnError>,
 		std::decay_t<OnDone>>>(
@@ -213,7 +198,7 @@ template <
 	typename,
 	typename,
 	typename>
-consumer<Value, Error>::consumer(
+inline consumer<Value, Error>::consumer(
 	OnNext &&next,
 	OnError &&error,
 	OnDone &&done) : _instance(ConstructInstance(
@@ -223,7 +208,7 @@ consumer<Value, Error>::consumer(
 }
 
 template <typename Value, typename Error>
-bool consumer<Value, Error>::put_next(Value &&value) const {
+inline bool consumer<Value, Error>::put_next(Value &&value) const {
 	if (_instance) {
 		if (_instance->put_next(std::move(value))) {
 			return true;
@@ -234,7 +219,8 @@ bool consumer<Value, Error>::put_next(Value &&value) const {
 }
 
 template <typename Value, typename Error>
-bool consumer<Value, Error>::put_next_copy(const Value &value) const {
+inline bool consumer<Value, Error>::put_next_copy(
+		const Value &value) const {
 	if (_instance) {
 		if (_instance->put_next_copy(value)) {
 			return true;
@@ -245,28 +231,30 @@ bool consumer<Value, Error>::put_next_copy(const Value &value) const {
 }
 
 template <typename Value, typename Error>
-void consumer<Value, Error>::put_error(Error &&error) const {
+inline void consumer<Value, Error>::put_error(Error &&error) const {
 	if (_instance) {
-		std::exchange(_instance, nullptr)->put_error(std::move(error));
+		std::exchange(_instance, nullptr)->put_error(
+			std::move(error));
 	}
 }
 
 template <typename Value, typename Error>
-void consumer<Value, Error>::put_error_copy(const Error &error) const {
+inline void consumer<Value, Error>::put_error_copy(
+		const Error &error) const {
 	if (_instance) {
 		std::exchange(_instance, nullptr)->put_error_copy(error);
 	}
 }
 
 template <typename Value, typename Error>
-void consumer<Value, Error>::put_done() const {
+inline void consumer<Value, Error>::put_done() const {
 	if (_instance) {
 		std::exchange(_instance, nullptr)->put_done();
 	}
 }
 
 template <typename Value, typename Error>
-void consumer<Value, Error>::add_lifetime(lifetime &&lifetime) const {
+inline void consumer<Value, Error>::add_lifetime(lifetime &&lifetime) const {
 	if (_instance) {
 		_instance->add_lifetime(std::move(lifetime));
 	} else {
@@ -276,20 +264,20 @@ void consumer<Value, Error>::add_lifetime(lifetime &&lifetime) const {
 
 template <typename Value, typename Error>
 template <typename Type, typename... Args>
-Type *consumer<Value, Error>::make_state(Args&& ...args) const {
+inline Type *consumer<Value, Error>::make_state(Args&& ...args) const {
 	Expects(_instance != nullptr);
 	return _instance->template make_state<Type>(std::forward<Args>(args)...);
 }
 
 template <typename Value, typename Error>
-void consumer<Value, Error>::terminate() const {
+inline void consumer<Value, Error>::terminate() const {
 	if (_instance) {
 		std::exchange(_instance, nullptr)->terminate();
 	}
 }
 
 template <typename Value, typename Error>
-void consumer<Value, Error>::abstract_consumer_instance::add_lifetime(
+inline void consumer<Value, Error>::abstract_instance::add_lifetime(
 		lifetime &&lifetime) {
 	std::unique_lock<std::mutex> lock(_mutex);
 	if (_terminated) {
@@ -303,15 +291,15 @@ void consumer<Value, Error>::abstract_consumer_instance::add_lifetime(
 
 template <typename Value, typename Error>
 template <typename Type, typename... Args>
-Type *consumer<Value, Error>::abstract_consumer_instance::make_state(
+inline Type *consumer<Value, Error>::abstract_instance::make_state(
 		Args&& ...args) {
 	std::unique_lock<std::mutex> lock(_mutex);
 	Expects(!_terminated);
-	return _lifetime.template make_state<Type>(std::forward<Args>(args)...);
+	return _lifetime.make_state<Type>(std::forward<Args>(args)...);
 }
 
 template <typename Value, typename Error>
-void consumer<Value, Error>::abstract_consumer_instance::terminate() {
+inline void consumer<Value, Error>::abstract_instance::terminate() {
 	std::unique_lock<std::mutex> lock(_mutex);
 	if (!_terminated) {
 		_terminated = true;
@@ -324,7 +312,7 @@ void consumer<Value, Error>::abstract_consumer_instance::terminate() {
 
 template <typename Value, typename Error>
 template <typename OnNext, typename OnError, typename OnDone>
-bool consumer<Value, Error>::consumer_instance<OnNext, OnError, OnDone>::put_next(
+bool consumer<Value, Error>::instance<OnNext, OnError, OnDone>::put_next(
 		Value &&value) {
 	std::unique_lock<std::mutex> lock(this->_mutex);
 	if (this->_terminated) {
@@ -333,13 +321,16 @@ bool consumer<Value, Error>::consumer_instance<OnNext, OnError, OnDone>::put_nex
 	auto handler = this->_next;
 	lock.unlock();
 
-	handler(std::move(value));
+	details::callable_helper(
+		handler,
+		std::move(value),
+		details::is_callable_plain<OnNext, Value>());
 	return true;
 }
 
 template <typename Value, typename Error>
 template <typename OnNext, typename OnError, typename OnDone>
-bool consumer<Value, Error>::consumer_instance<OnNext, OnError, OnDone>::put_next_copy(
+bool consumer<Value, Error>::instance<OnNext, OnError, OnDone>::put_next_copy(
 		const Value &value) {
 	std::unique_lock<std::mutex> lock(this->_mutex);
 	if (this->_terminated) {
@@ -348,41 +339,47 @@ bool consumer<Value, Error>::consumer_instance<OnNext, OnError, OnDone>::put_nex
 	auto handler = this->_next;
 	lock.unlock();
 
-	details::const_ref_call_helper(handler, value, 0);
+	details::const_ref_call_helper(
+		handler,
+		value,
+		details::allows_const_ref<OnNext, Value>());
 	return true;
 }
 
 template <typename Value, typename Error>
 template <typename OnNext, typename OnError, typename OnDone>
-void consumer<Value, Error>::consumer_instance<OnNext, OnError, OnDone>::put_error(
+void consumer<Value, Error>::instance<OnNext, OnError, OnDone>::put_error(
 		Error &&error) {
 	std::unique_lock<std::mutex> lock(this->_mutex);
 	if (!this->_terminated) {
 		auto handler = std::move(this->_error);
 		lock.unlock();
 
-		handler(std::move(error));
+		details::callable_invoke(handler, std::move(error));
 		this->terminate();
 	}
 }
 
 template <typename Value, typename Error>
 template <typename OnNext, typename OnError, typename OnDone>
-void consumer<Value, Error>::consumer_instance<OnNext, OnError, OnDone>::put_error_copy(
+void consumer<Value, Error>::instance<OnNext, OnError, OnDone>::put_error_copy(
 		const Error &error) {
 	std::unique_lock<std::mutex> lock(this->_mutex);
 	if (!this->_terminated) {
 		auto handler = std::move(this->_error);
 		lock.unlock();
 
-		details::const_ref_call_helper(handler, error, 0);
+		details::const_ref_call_helper(
+			handler,
+			error,
+			details::allows_const_ref<OnError, Error>());
 		this->terminate();
 	}
 }
 
 template <typename Value, typename Error>
 template <typename OnNext, typename OnError, typename OnDone>
-void consumer<Value, Error>::consumer_instance<OnNext, OnError, OnDone>::put_done() {
+void consumer<Value, Error>::instance<OnNext, OnError, OnDone>::put_done() {
 	std::unique_lock<std::mutex> lock(this->_mutex);
 	if (!this->_terminated) {
 		auto handler = std::move(this->_done);

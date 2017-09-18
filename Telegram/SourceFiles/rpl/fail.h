@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace rpl {
 
 template <typename Value, typename Error>
-producer<Value, std::decay_t<Error>> fail(Error &&error) {
+inline producer<Value, std::decay_t<Error>> fail(Error &&error) {
 	using consumer_t = consumer<Value, std::decay_t<Error>>;
 	return [error = std::forward<Error>(error)](
 			const consumer_t &consumer) mutable {
