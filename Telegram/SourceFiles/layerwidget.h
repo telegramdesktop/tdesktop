@@ -52,6 +52,9 @@ public:
 	void setResizedCallback(base::lambda<void()> callback) {
 		_resizedCallback = std::move(callback);
 	}
+	virtual bool takeToThirdSection() {
+		return false;
+	}
 
 protected:
 	void closeLayer() {
@@ -96,15 +99,16 @@ public:
 	void showMainMenu();
 	void appendBox(object_ptr<BoxContent> box);
 	void prependBox(object_ptr<BoxContent> box);
+	bool takeToThirdSection();
 
 	bool canSetFocus() const;
 	void setInnerFocus();
 
 	bool contentOverlapped(const QRect &globalRect);
 
-	void hideLayers();
-	void hideAll();
-	void hideTopLayer();
+	void hideLayers(LayerOptions options);
+	void hideAll(LayerOptions options);
+	void hideTopLayer(LayerOptions options);
 
 	bool layerShown() const;
 
@@ -123,7 +127,7 @@ private slots:
 private:
 	LayerWidget *pushBox(object_ptr<BoxContent> box);
 	void showFinished();
-	void hideCurrent();
+	void hideCurrent(LayerOptions options);
 
 	enum class Action {
 		ShowMainMenu,
@@ -133,7 +137,11 @@ private:
 		HideAll,
 	};
 	template <typename SetupNew, typename ClearOld>
-	void startAnimation(SetupNew setupNewWidgets, ClearOld clearOldWidgets, Action action);
+	void startAnimation(
+		SetupNew setupNewWidgets,
+		ClearOld clearOldWidgets,
+		Action action,
+		LayerOptions options);
 
 	void prepareForAnimation();
 	void animationDone();

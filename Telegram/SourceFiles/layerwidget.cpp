@@ -54,6 +54,7 @@ public:
 	void setLayerBoxes(const QRect &specialLayerBox, const QRect &layerBox);
 	void setCacheImages(QPixmap &&bodyCache, QPixmap &&mainMenuCache, QPixmap &&specialLayerCache, QPixmap &&layerCache);
 	void startAnimation(Action action);
+	void skipAnimation(Action action);
 	void finishAnimation();
 
 	bool animating() const {
@@ -127,6 +128,11 @@ void LayerStackWidget::BackgroundWidget::startAnimation(Action action) {
 	}
 	_wasAnimating = true;
 	checkIfDone();
+}
+
+void LayerStackWidget::BackgroundWidget::skipAnimation(Action action) {
+	startAnimation(action);
+	finishAnimation();
 }
 
 void LayerStackWidget::BackgroundWidget::checkIfDone() {
@@ -346,37 +352,37 @@ bool LayerWidget::overlaps(const QRect &globalRect) {
 
 void LayerStackWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
-		hideCurrent();
+		hideCurrent(LayerOption::Animated);
 	}
 }
 
 void LayerStackWidget::mousePressEvent(QMouseEvent *e) {
-	hideCurrent();
+	hideCurrent(LayerOption::Animated);
 }
 
-void LayerStackWidget::hideCurrent() {
-	return currentLayer() ? hideLayers() : hideAll();
+void LayerStackWidget::hideCurrent(LayerOptions options) {
+	return currentLayer() ? hideLayers(options) : hideAll(options);
 }
 
-void LayerStackWidget::hideLayers() {
+void LayerStackWidget::hideLayers(LayerOptions options) {
 	startAnimation([] {}, [this] {
 		clearLayers();
-	}, Action::HideLayer);
+	}, Action::HideLayer, options);
 }
 
-void LayerStackWidget::hideAll() {
+void LayerStackWidget::hideAll(LayerOptions options) {
 	startAnimation([] {}, [this] {
 		clearLayers();
 		clearSpecialLayer();
 		_mainMenu.destroyDelayed();
-	}, Action::HideAll);
+	}, Action::HideAll, options);
 }
 
-void LayerStackWidget::hideTopLayer() {
+void LayerStackWidget::hideTopLayer(LayerOptions options) {
 	if (_specialLayer) {
-		hideLayers();
+		hideLayers(options);
 	} else {
-		hideAll();
+		hideAll(options);
 	}
 }
 
@@ -424,10 +430,10 @@ void LayerStackWidget::onLayerClosed(LayerWidget *layer) {
 	}
 	layer->deleteLater();
 	if (layer == _specialLayer) {
-		hideAll();
+		hideAll(LayerOption::Animated);
 	} else if (layer == currentLayer()) {
 		if (_layers.size() == 1) {
-			hideCurrent();
+			hideCurrent(LayerOption::Animated);
 		} else {
 			if (layer->inFocusChain()) setFocus();
 			layer->hide();
@@ -501,14 +507,25 @@ bool LayerStackWidget::contentOverlapped(const QRect &globalRect) {
 }
 
 template <typename SetupNew, typename ClearOld>
-void LayerStackWidget::startAnimation(SetupNew setupNewWidgets, ClearOld clearOldWidgets, Action action) {
+void LayerStackWidget::startAnimation(
+		SetupNew setupNewWidgets,
+		ClearOld clearOldWidgets,
+		Action action,
+		LayerOptions options) {
 	if (App::quitting()) return;
 
-	setupNewWidgets();
-	setCacheImages();
-	clearOldWidgets();
-	prepareForAnimation();
-	_background->startAnimation(action);
+	if (options & LayerOption::ForceFast) {
+		setupNewWidgets();
+		clearOldWidgets();
+		prepareForAnimation();
+		_background->skipAnimation(action);
+	} else {
+		setupNewWidgets();
+		setCacheImages();
+		clearOldWidgets();
+		prepareForAnimation();
+		_background->startAnimation(action);
+	}
 }
 
 void LayerStackWidget::resizeEvent(QResizeEvent *e) {
@@ -601,7 +618,7 @@ void LayerStackWidget::showSpecialLayer(object_ptr<LayerWidget> layer) {
 	}, [this] {
 		clearLayers();
 		_mainMenu.destroyDelayed();
-	}, Action::ShowSpecialLayer);
+	}, Action::ShowSpecialLayer, LayerOption::Animated);
 }
 
 void LayerStackWidget::showMainMenu() {
@@ -612,7 +629,7 @@ void LayerStackWidget::showMainMenu() {
 	}, [this] {
 		clearLayers();
 		_specialLayer.destroyDelayed();
-	}, Action::ShowMainMenu);
+	}, Action::ShowMainMenu, LayerOption::Animated);
 }
 
 void LayerStackWidget::appendBox(object_ptr<BoxContent> box) {
@@ -637,7 +654,7 @@ LayerWidget *LayerStackWidget::pushBox(object_ptr<BoxContent> box) {
 	} else {
 		startAnimation([] {}, [this] {
 			_mainMenu.destroyDelayed();
-		}, Action::ShowLayer);
+		}, Action::ShowLayer, LayerOption::Animated);
 	}
 
 	return layer.data();
@@ -651,6 +668,12 @@ void LayerStackWidget::prependBox(object_ptr<BoxContent> box) {
 	layer->hide();
 	_layers.push_front(layer);
 	initChildLayer(layer);
+}
+
+bool LayerStackWidget::takeToThirdSection() {
+	return _specialLayer
+		? _specialLayer->takeToThirdSection()
+		: false;
 }
 
 void LayerStackWidget::clearLayers() {
@@ -697,7 +720,7 @@ void LayerStackWidget::sendFakeMouseEvent() {
 void LayerStackWidget::onLayerDestroyed(QObject *obj) {
 	if (obj == _specialLayer) {
 		_specialLayer = nullptr;
-		hideAll();
+		hideAll(LayerOption::Animated);
 	} else if (obj == currentLayer()) {
 		_layers.pop_back();
 		if (auto newLayer = currentLayer()) {
@@ -707,7 +730,7 @@ void LayerStackWidget::onLayerDestroyed(QObject *obj) {
 				showFinished();
 			}
 		} else if (!_specialLayer) {
-			hideAll();
+			hideAll(LayerOption::Animated);
 		}
 	} else {
 		for (auto i = _layers.begin(), e = _layers.end(); i != e; ++i) {

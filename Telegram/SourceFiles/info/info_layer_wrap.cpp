@@ -27,12 +27,18 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/section_widget.h"
 #include "window/window_controller.h"
 #include "window/main_window.h"
+#include "auth_session.h"
 #include "styles/style_info.h"
 #include "styles/style_settings.h"
 #include "styles/style_window.h"
 #include "styles/style_boxes.h"
 
 namespace Info {
+namespace {
+
+constexpr auto kThirdSectionInfoTimeoutMs = 1000;
+
+} // namespace
 
 LayerWrap::LayerWrap(
 	not_null<Window::Controller*> controller,
@@ -98,20 +104,31 @@ void LayerWrap::showFinished() {
 
 void LayerWrap::parentResized() {
 	auto parentSize = parentWidget()->size();
-	auto windowWidth = parentSize.width();
-	if (windowWidth < MinimalSupportedWidth()) {
-		hide();
-		setParent(nullptr);
+	auto parentWidth = parentSize.width();
+	if (parentWidth < MinimalSupportedWidth()) {
 		auto localCopy = _controller;
-		localCopy->showSection(
-			MoveMemento(std::move(_content), Wrap::Narrow));
+		auto memento = MoveMemento(std::move(_content), Wrap::Narrow);
 		localCopy->hideSpecialLayer(LayerOption::ForceFast);
+		localCopy->showSection(std::move(memento));
+	} else if (_controller->canShowThirdSectionWithoutResize()) {
+		takeToThirdSection();
 	} else {
 		auto newWidth = qMin(
-			windowWidth - 2 * st::infoMinimalLayerMargin,
+			parentWidth - 2 * st::infoMinimalLayerMargin,
 			st::infoDesiredWidth);
 		resizeToWidth(newWidth);
 	}
+}
+
+bool LayerWrap::takeToThirdSection() {
+	auto localCopy = _controller;
+	auto memento = MoveMemento(std::move(_content), Wrap::Side);
+	localCopy->hideSpecialLayer(LayerOption::ForceFast);
+
+	Auth().data().setThirdSectionInfoEnabled(true);
+	Auth().saveDataDelayed(kThirdSectionInfoTimeoutMs);
+	localCopy->showSection(std::move(memento));
+	return true;
 }
 
 int LayerWrap::MinimalSupportedWidth() {
@@ -120,7 +137,7 @@ int LayerWrap::MinimalSupportedWidth() {
 }
 
 int LayerWrap::resizeGetHeight(int newWidth) {
-	if (!parentWidget()) {
+	if (!parentWidget() || !_content) {
 		return 0;
 	}
 

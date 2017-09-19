@@ -236,6 +236,11 @@ void SideWrap::setCurrentTab(Tab tab) {
 void SideWrap::resizeEvent(QResizeEvent *e) {
 	if (_tabs) {
 		_tabs->resizeToWidth(width());
+		_tabsShadow->setGeometry(
+			0,
+			_tabs->height() - st::lineWidth,
+			width(),
+			st::lineWidth);
 	}
 	if (_content) {
 		_content->setGeometry(contentGeometry());

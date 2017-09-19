@@ -45,6 +45,8 @@ public:
 	void showFinished() override;
 	void parentResized() override;
 
+	bool takeToThirdSection() override;
+
 	static int MinimalSupportedWidth();
 
 protected:

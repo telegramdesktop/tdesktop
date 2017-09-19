@@ -44,7 +44,10 @@ constexpr auto kThirdSectionInfoTimeoutMs = 1000;
 
 } // namespace
 
-TopBarWidget::TopBarWidget(QWidget *parent, not_null<Window::Controller*> controller) : RpWidget(parent)
+TopBarWidget::TopBarWidget(
+	QWidget *parent,
+	not_null<Window::Controller*> controller)
+: RpWidget(parent)
 , _controller(controller)
 , _clearSelection(this, langFactory(lng_selected_clear), st::topBarClearButton)
 , _forward(this, langFactory(lng_selected_forward), st::defaultActiveButton)

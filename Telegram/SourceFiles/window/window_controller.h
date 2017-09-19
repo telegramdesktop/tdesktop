@@ -85,6 +85,8 @@ public:
 	int dialogsSmallColumnWidth() const;
 	void updateColumnLayout();
 	bool canShowThirdSection() const;
+	bool canShowThirdSectionWithoutResize() const;
+	bool takeThirdSectionFromLayer();
 	void resizeForThirdSection();
 	void closeThirdSection();
 	void showSection(

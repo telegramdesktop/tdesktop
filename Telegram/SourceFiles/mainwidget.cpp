@@ -3417,7 +3417,8 @@ void MainWidget::updateControlsGeometry() {
 		_dialogs->stopWidthAnimation();
 	}
 	if (Adaptive::ThreeColumn()) {
-		if (!_thirdSection) {
+		if (!_thirdSection
+			&& !_controller->takeThirdSectionFromLayer()) {
 			if (Auth().data().tabbedSelectorSectionEnabled()) {
 				_history->pushTabbedSelectorToThirdSection();
 			} else if (Auth().data().thirdSectionInfoEnabled()) {

@@ -104,6 +104,7 @@ public:
 	void noIntro(Intro::Widget *was);
 	void noLayerStack(LayerStackWidget *was);
 	void layerFinishedHide(LayerStackWidget *was);
+	bool takeThirdSectionFromLayer();
 
 	void checkHistoryActivation();
 

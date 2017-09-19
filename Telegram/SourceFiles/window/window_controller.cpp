@@ -159,6 +159,15 @@ bool Controller::canShowThirdSection() const {
 	return window()->canExtendWidthBy(extendBy);
 }
 
+bool Controller::canShowThirdSectionWithoutResize() const {
+	auto currentWidth = computeColumnLayout().bodyWidth;
+	return currentWidth >= minimalThreeColumnWidth();
+}
+
+bool Controller::takeThirdSectionFromLayer() {
+	return App::wnd()->takeThirdSectionFromLayer();
+}
+
 void Controller::resizeForThirdSection() {
 	auto layout = computeColumnLayout();
 	if (layout.windowLayout == Adaptive::WindowLayout::ThreeColumn) {

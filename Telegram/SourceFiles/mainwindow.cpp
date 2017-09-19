@@ -364,7 +364,7 @@ void MainWindow::destroyLayerDelayed() {
 
 void MainWindow::ui_hideSettingsAndLayer(LayerOptions options) {
 	if (_layerBg) {
-		_layerBg->hideAll();
+		_layerBg->hideAll(options);
 		if (options & LayerOption::ForceFast) {
 			destroyLayerDelayed();
 		}
@@ -420,7 +420,7 @@ void MainWindow::ui_showBox(
 		}
 	} else {
 		if (_layerBg) {
-			_layerBg->hideTopLayer();
+			_layerBg->hideTopLayer(options);
 			if ((options & LayerOption::ForceFast) && !_layerBg->layerShown()) {
 				destroyLayerDelayed();
 			}
@@ -719,6 +719,10 @@ void MainWindow::layerFinishedHide(LayerStackWidget *was) {
 			checkHistoryActivation();
 		});
 	}
+}
+
+bool MainWindow::takeThirdSectionFromLayer() {
+	return _layerBg ? _layerBg->takeToThirdSection() : false;
 }
 
 void MainWindow::fixOrder() {
