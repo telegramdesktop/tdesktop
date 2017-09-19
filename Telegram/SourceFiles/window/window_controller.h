@@ -83,6 +83,7 @@ public:
 	};
 	ColumnLayout computeColumnLayout() const;
 	int dialogsSmallColumnWidth() const;
+	bool forceWideDialogs() const;
 	void updateColumnLayout();
 	bool canShowThirdSection() const;
 	bool canShowThirdSectionWithoutResize() const;

@@ -73,31 +73,25 @@ int Controller::minimalThreeColumnWidth() const {
 		+ st::columnMinimalWidthThird;
 }
 
+bool Controller::forceWideDialogs() const {
+	if (dialogsListDisplayForced().value()) {
+		return true;
+	} else if (dialogsListFocused().value()) {
+		return true;
+	}
+	return !App::main()->isMainSectionShown();
+}
+
 Controller::ColumnLayout Controller::computeColumnLayout() const {
 	auto layout = Adaptive::WindowLayout::OneColumn;
 
 	auto bodyWidth = window()->bodyWidget()->width();
-	auto dialogsWidth = qRound(bodyWidth * dialogsWidthRatio().value());
-	auto chatWidth = bodyWidth - dialogsWidth;
-	auto thirdWidth = 0;
-	accumulate_max(chatWidth, st::columnMinimalWidthMain);
-	dialogsWidth = bodyWidth - chatWidth;
+	auto dialogsWidth = 0, chatWidth = 0, thirdWidth = 0;
 
-	auto useOneColumnLayout = [this, bodyWidth, dialogsWidth] {
-		if (dialogsWidth < st::dialogsPadding.x() && Adaptive::OneColumn()) {
-			return true;
-		}
+	auto useOneColumnLayout = [this, bodyWidth] {
 		auto minimalNormal = st::columnMinimalWidthLeft
 			+ st::columnMinimalWidthMain;
 		if (bodyWidth < minimalNormal) {
-			return true;
-		}
-		return false;
-	};
-
-	auto useSmallColumnLayout = [this, dialogsWidth] {
-		// Used if useOneColumnLayout() == false.
-		if (dialogsWidth < st::dialogsWidthMin / 2) {
 			return true;
 		}
 		return false;
@@ -117,28 +111,15 @@ Controller::ColumnLayout Controller::computeColumnLayout() const {
 
 	if (useOneColumnLayout()) {
 		dialogsWidth = chatWidth = bodyWidth;
-	} else if (useSmallColumnLayout()) {
-		layout = Adaptive::WindowLayout::SmallColumn;
-		auto forceWideDialogs = [this] {
-			if (dialogsListDisplayForced().value()) {
-				return true;
-			} else if (dialogsListFocused().value()) {
-				return true;
-			}
-			return !App::main()->isMainSectionShown();
-		};
-		if (forceWideDialogs()) {
-			dialogsWidth = st::dialogsWidthMin;
-		} else {
-			dialogsWidth = dialogsSmallColumnWidth();
-		}
-		chatWidth = bodyWidth - dialogsWidth;
 	} else if (useNormalLayout()) {
 		layout = Adaptive::WindowLayout::Normal;
+		dialogsWidth = qRound(bodyWidth * dialogsWidthRatio().value());
 		accumulate_max(dialogsWidth, st::columnMinimalWidthLeft);
+		accumulate_min(dialogsWidth, bodyWidth - st::columnMinimalWidthMain);
 		chatWidth = bodyWidth - dialogsWidth;
 	} else {
 		layout = Adaptive::WindowLayout::ThreeColumn;
+		dialogsWidth = qRound(bodyWidth * dialogsWidthRatio().value());
 		accumulate_max(dialogsWidth, st::columnMinimalWidthLeft);
 		thirdWidth = st::columnMinimalWidthThird;
 		accumulate_min(
@@ -184,7 +165,7 @@ void Controller::resizeForThirdSection() {
 	auto extendBy = st::columnMinimalWidthThird;
 	auto newBodyWidth = layout.bodyWidth + extendBy;
 	dialogsWidthRatio().set(
-		float64(layout.dialogsWidth) / newBodyWidth,
+		(dialogsWidthRatio().value() * layout.bodyWidth) / newBodyWidth,
 		true);
 	window()->tryToExtendWidthBy(extendBy);
 
@@ -204,7 +185,7 @@ void Controller::closeThirdSection() {
 			? layout.bodyWidth
 			: (layout.bodyWidth - layout.thirdWidth);
 		dialogsWidthRatio().set(
-			float64(layout.dialogsWidth) / newBodyWidth,
+			(dialogsWidthRatio().value() * layout.bodyWidth) / newBodyWidth,
 			true);
 		newWindowSize = QSize(
 			window()->width() + (newBodyWidth - layout.bodyWidth),

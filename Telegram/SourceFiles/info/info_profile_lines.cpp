@@ -395,9 +395,13 @@ void CoverLine::refreshStatusText() {
 }
 
 void CoverLine::refreshNameGeometry(int newWidth) {
-	_name->resizeToWidth(newWidth
+	auto nameWidth = newWidth
 		- st::infoProfileNameLeft
-		- st::infoProfileNameRight);
+		- st::infoProfileNameRight;
+	if (_toggle) {
+		nameWidth -= _toggle->width() + st::infoProfileToggleRight;
+	}
+	_name->resizeToWidth(nameWidth);
 	_name->moveToLeft(
 		st::infoProfileNameLeft,
 		st::infoProfileNameTop,
@@ -405,9 +409,13 @@ void CoverLine::refreshNameGeometry(int newWidth) {
 }
 
 void CoverLine::refreshStatusGeometry(int newWidth) {
-	_status->resizeToWidth(newWidth
+	auto statusWidth = newWidth
 		- st::infoProfileStatusLeft
-		- st::infoProfileStatusRight);
+		- st::infoProfileStatusRight;
+	if (_toggle) {
+		statusWidth -= _toggle->width() + st::infoProfileToggleRight;
+	}
+	_status->resizeToWidth(statusWidth);
 	_status->moveToLeft(
 		st::infoProfileStatusLeft,
 		st::infoProfileStatusTop,

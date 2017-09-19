@@ -110,6 +110,12 @@ public:
 		return _thirdSectionInfoEnabledValue.events_starting_with(
 			thirdSectionInfoEnabled());
 	}
+	void setSmallDialogsList(bool enabled) {
+		_variables.smallDialogsList = enabled;
+	}
+	bool smallDialogsList() const {
+		return _variables.smallDialogsList;
+	}
 	void setLastTimeVideoPlayedAt(TimeMs time) {
 		_lastTimeVideoPlayedAt = time;
 	}
@@ -164,6 +170,7 @@ private:
 		RectPart floatPlayerCorner;
 		base::flat_set<PeerId> groupStickersSectionHidden;
 		bool thirdSectionInfoEnabled = false;
+		bool smallDialogsList = false;
 	};
 
 	base::Variable<bool> _contactsLoaded = { false };

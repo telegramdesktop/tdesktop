@@ -236,7 +236,6 @@ namespace Adaptive {
 
 enum class WindowLayout {
 	OneColumn,
-	SmallColumn,
 	Normal,
 	ThreeColumn,
 };
@@ -415,10 +414,6 @@ inline base::Observable<void> &Changed() {
 
 inline bool OneColumn() {
 	return Global::AdaptiveWindowLayout() == WindowLayout::OneColumn;
-}
-
-inline bool SmallColumn() {
-	return Global::AdaptiveWindowLayout() == WindowLayout::SmallColumn;
 }
 
 inline bool Normal() {

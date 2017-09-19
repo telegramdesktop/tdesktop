@@ -131,7 +131,7 @@ infoProfileSeparatorPadding: margins(
 	infoProfileSkip);
 
 infoIconFg: menuIconFg;
-infoIconPosition: point(28px, 8px);
+infoIconPosition: point(28px, 4px);
 infoIconInformation: icon {{ "info_information", infoIconFg }};
 infoIconMembers: icon {{ "info_members", infoIconFg }};
 infoIconNotifications: icon {{ "info_notifications", infoIconFg }};
