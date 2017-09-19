@@ -99,6 +99,7 @@
     'sources': [
       '<(src_loc)/rpl/details/callable.h',
       '<(src_loc)/rpl/details/type_list.h',
+      '<(src_loc)/rpl/after_next.h',
       '<(src_loc)/rpl/before_next.h',
       '<(src_loc)/rpl/combine.h',
       '<(src_loc)/rpl/complete.h',
@@ -119,6 +120,7 @@
       '<(src_loc)/rpl/rpl.h',
       '<(src_loc)/rpl/single.h',
       '<(src_loc)/rpl/then.h',
+      '<(src_loc)/rpl/variable.h',
     ],
   }],
 }

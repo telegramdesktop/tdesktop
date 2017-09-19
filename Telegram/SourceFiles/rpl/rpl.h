@@ -38,5 +38,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/distinct_until_changed.h>
 #include <rpl/flatten_latest.h>
 #include <rpl/combine.h>
+#include <rpl/combine_previous.h>
+#include <rpl/variable.h>
 
 #include <rpl/before_next.h>
+#include <rpl/after_next.h>

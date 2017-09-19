@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "base/optional.h"
 #include <rpl/producer.h>
 #include <rpl/details/type_list.h>
 #include <rpl/details/callable.h>

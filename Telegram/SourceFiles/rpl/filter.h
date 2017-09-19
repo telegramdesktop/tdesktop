@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include <rpl/producer.h>
+#include <rpl/combine.h>
 
 namespace rpl {
 namespace details {
@@ -33,7 +34,11 @@ public:
 		: _predicate(std::forward<OtherPredicate>(predicate)) {
 	}
 
-	template <typename Value, typename Error>
+	template <
+		typename Value,
+		typename Error,
+		typename = std::enable_if_t<
+			details::is_callable_v<Predicate, Value>>>
 	rpl::producer<Value, Error> operator()(
 			rpl::producer<Value, Error> &&initial) {
 		return [
@@ -47,7 +52,7 @@ public:
 					predicate = std::move(predicate)
 				](auto &&value) {
 					const auto &immutable = value;
-					if (predicate(immutable)) {
+					if (details::callable_invoke(predicate, immutable)) {
 						consumer.put_next_forward(std::forward<decltype(value)>(value));
 					}
 				}, [consumer](auto &&error) {
@@ -72,4 +77,31 @@ inline auto filter(Predicate &&predicate)
 		std::forward<Predicate>(predicate));
 }
 
+namespace details {
+
+template <>
+class filter_helper<producer<bool>> {
+public:
+	filter_helper(producer<bool> &&filterer)
+		: _filterer(std::move(filterer)) {
+	}
+
+	template <
+		typename Value,
+		typename Error>
+	rpl::producer<Value, Error> operator()(
+			rpl::producer<Value, Error> &&initial) {
+		return combine(std::move(initial), std::move(_filterer))
+			| filter([](auto &&value, bool let) { return let; })
+			| map([](auto &&value, bool) {
+				return std::forward<decltype(value)>(value);
+			});
+	}
+
+private:
+	producer<bool> _filterer;
+
+};
+
+} // namespace details
 } // namespace rpl
