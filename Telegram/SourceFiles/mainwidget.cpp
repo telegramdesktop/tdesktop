@@ -169,13 +169,10 @@ MainWidget::MainWidget(
 		checkFloatPlayerVisibility();
 	});
 	subscribe(_controller->historyPeerChanged(), [this](PeerData *peer) {
-		if (!peer) {
-			_thirdSection.destroy();
-			_thirdShadow.destroy();
-		} else if (Adaptive::ThreeColumn()
-			&& Auth().data().thirdSectionInfoEnabled()) {
-			_controller->showPeerInfo(peer, anim::type::instant);
-		}
+		updateThirdColumnToCurrentPeer(peer);
+	});
+	subscribe(_controller->historyPeerCanWriteChanged(), [this](PeerData *peer) {
+		updateThirdColumnToCurrentPeer(peer);
 	});
 
 	QCoreApplication::instance()->installEventFilter(this);
@@ -3526,6 +3523,30 @@ void MainWidget::updateDialogsWidthAnimated() {
 			st::dialogsWidthDuration,
 			anim::easeOutCirc);
 		updateControlsGeometry();
+	}
+}
+
+void MainWidget::updateThirdColumnToCurrentPeer(PeerData *peer) {
+	if (Adaptive::ThreeColumn()
+		&& Auth().data().tabbedSelectorSectionEnabled()
+		&& peer) {
+		if (!peer->canWrite()) {
+			_controller->showPeerInfo(peer);
+			Auth().data().setTabbedSelectorSectionEnabled(true);
+			Auth().data().setTabbedReplacedWithInfo(true);
+		} else if (Auth().data().tabbedReplacedWithInfo()) {
+			Auth().data().setTabbedReplacedWithInfo(false);
+			_history->pushTabbedSelectorToThirdSection();
+		}
+	} else {
+		Auth().data().setTabbedReplacedWithInfo(false);
+		if (!peer) {
+			_thirdSection.destroy();
+			_thirdShadow.destroy();
+		} else if (Adaptive::ThreeColumn()
+			&& Auth().data().thirdSectionInfoEnabled()) {
+			_controller->showPeerInfo(peer, anim::type::instant);
+		}
 	}
 }
 

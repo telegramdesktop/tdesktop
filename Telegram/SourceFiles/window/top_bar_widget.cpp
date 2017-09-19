@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "window/top_bar_widget.h"
 
+#include <rpl/combine.h>
 #include "styles/style_window.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
@@ -100,9 +101,11 @@ TopBarWidget::TopBarWidget(
 	subscribe(Global::RefPhoneCallsEnabledChanged(), [this] {
 		updateControlsVisibility(); });
 
-	Auth().data().thirdSectionInfoEnabledValue()
+	rpl::combine(
+		Auth().data().thirdSectionInfoEnabledValue(),
+		Auth().data().tabbedReplacedWithInfoValue())
 		| rpl::start(
-			[this](bool) { updateInfoToggleActive(); },
+			[this](auto&&) { updateInfoToggleActive(); },
 			lifetime());
 
 	setCursor(style::cur_pointer);
@@ -185,7 +188,8 @@ void TopBarWidget::showMenu() {
 
 void TopBarWidget::toggleInfoSection() {
 	if (Adaptive::ThreeColumn()
-		&& Auth().data().thirdSectionInfoEnabled()) {
+		&& (Auth().data().thirdSectionInfoEnabled()
+			|| Auth().data().tabbedReplacedWithInfo())) {
 		_controller->closeThirdSection();
 	} else if (auto peer = App::main()->historyPeer()) {
 		if (_controller->canShowThirdSection()) {
@@ -474,7 +478,8 @@ void TopBarWidget::updateAdaptiveLayout() {
 
 void TopBarWidget::updateInfoToggleActive() {
 	auto infoThirdActive = Adaptive::ThreeColumn()
-		&& Auth().data().thirdSectionInfoEnabled();
+		&& (Auth().data().thirdSectionInfoEnabled()
+			|| Auth().data().tabbedReplacedWithInfo());
 	auto iconOverride = infoThirdActive
 		? &st::topBarInfoActive
 		: nullptr;

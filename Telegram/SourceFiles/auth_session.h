@@ -110,6 +110,14 @@ public:
 		return _thirdSectionInfoEnabledValue.events_starting_with(
 			thirdSectionInfoEnabled());
 	}
+	bool tabbedReplacedWithInfo() const {
+		return _tabbedReplacedWithInfo;
+	}
+	void setTabbedReplacedWithInfo(bool enabled);
+	rpl::producer<bool> tabbedReplacedWithInfoValue() const {
+		return _tabbedReplacedWithInfoValue.events_starting_with(
+			tabbedReplacedWithInfo());
+	}
 	void setSmallDialogsList(bool enabled) {
 		_variables.smallDialogsList = enabled;
 	}
@@ -183,6 +191,8 @@ private:
 	base::Observable<void> _pendingHistoryResize;
 	base::Observable<ItemVisibilityQuery> _queryItemVisibility;
 	rpl::event_stream<bool> _thirdSectionInfoEnabledValue;
+	bool _tabbedReplacedWithInfo = false;
+	rpl::event_stream<bool> _tabbedReplacedWithInfoValue;
 
 	Variables _variables;
 	TimeMs _lastTimeVideoPlayedAt = 0;

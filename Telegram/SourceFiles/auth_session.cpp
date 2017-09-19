@@ -169,6 +169,7 @@ void AuthSessionData::setTabbedSelectorSectionEnabled(bool enabled) {
 	if (enabled) {
 		setThirdSectionInfoEnabled(false);
 	}
+	setTabbedReplacedWithInfo(false);
 }
 
 void AuthSessionData::setThirdSectionInfoEnabled(bool enabled) {
@@ -177,7 +178,15 @@ void AuthSessionData::setThirdSectionInfoEnabled(bool enabled) {
 		if (enabled) {
 			setTabbedSelectorSectionEnabled(false);
 		}
+		setTabbedReplacedWithInfo(false);
 		_thirdSectionInfoEnabledValue.fire_copy(enabled);
+	}
+}
+
+void AuthSessionData::setTabbedReplacedWithInfo(bool enabled) {
+	if (_tabbedReplacedWithInfo != enabled) {
+		_tabbedReplacedWithInfo = enabled;
+		_tabbedReplacedWithInfoValue.fire_copy(enabled);
 	}
 }
 

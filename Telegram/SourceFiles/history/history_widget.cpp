@@ -3760,7 +3760,12 @@ void HistoryWidget::topBarClick() {
 void HistoryWidget::pushTabbedSelectorToThirdSection() {
 	if (!_history || !_tabbedPanel) {
 		return;
+	} else if (!_canSendMessages) {
+		Auth().data().setTabbedReplacedWithInfo(true);
+		controller()->showPeerInfo(_peer);
+		return;
 	}
+	Auth().data().setTabbedReplacedWithInfo(false);
 	_tabbedSelectorToggle->setColorOverrides(
 		&st::historyAttachEmojiActive,
 		&st::historyRecordVoiceFgActive,
@@ -5899,6 +5904,7 @@ void HistoryWidget::fullPeerUpdated(PeerData *peer) {
 		bool newCanSendMessages = canSendMessages(_peer);
 		if (newCanSendMessages != _canSendMessages) {
 			_canSendMessages = newCanSendMessages;
+			controller()->historyPeerCanWriteChanged().notify(_peer);
 			if (!_canSendMessages) {
 				cancelReply();
 			}
@@ -5937,6 +5943,7 @@ void HistoryWidget::handlePeerUpdate() {
 		bool newCanSendMessages = canSendMessages(_peer);
 		if (newCanSendMessages != _canSendMessages) {
 			_canSendMessages = newCanSendMessages;
+			controller()->historyPeerCanWriteChanged().notify(_peer);
 			if (!_canSendMessages) {
 				cancelReply();
 			}

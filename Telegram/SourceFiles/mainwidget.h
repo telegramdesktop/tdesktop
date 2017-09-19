@@ -500,6 +500,7 @@ private:
 	void updateMediaPlaylistPosition(int x);
 	void updateControlsGeometry();
 	void updateDialogsWidthAnimated();
+	void updateThirdColumnToCurrentPeer(PeerData *peer);
 
 	void createPlayer();
 	void switchToPanelPlayer();

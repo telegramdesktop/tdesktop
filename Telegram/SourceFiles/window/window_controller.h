@@ -63,6 +63,9 @@ public:
 	base::Observable<PeerData*> &historyPeerChanged() {
 		return _historyPeerChanged;
 	}
+	base::Observable<PeerData*> &historyPeerCanWriteChanged() {
+		return _historyPeerCanWriteChanged;
+	}
 
 	void enableGifPauseReason(GifPauseReason reason);
 	void disableGifPauseReason(GifPauseReason reason);
@@ -152,6 +155,7 @@ private:
 
 	base::Observable<PeerData*> _searchInPeerChanged;
 	base::Observable<PeerData*> _historyPeerChanged;
+	base::Observable<PeerData*> _historyPeerCanWriteChanged;
 
 	GifPauseReasons _gifPauseReasons = 0;
 	base::Observable<void> _gifPauseLevelChanged;
