@@ -88,7 +88,7 @@ object_ptr<TopBar> NarrowWrap::createTopBar() {
 	result->enableBackButton(true);
 	result->backRequest()
 		| rpl::start([this](auto&&) {
-			controller()->showBackFromStack();
+			this->controller()->showBackFromStack();
 		}, result->lifetime());
 	result->setTitle(TitleValue(
 		_content->section(),

@@ -59,8 +59,8 @@ void TopBar::pushButton(object_ptr<Ui::RpWidget> button) {
 	auto weak = Ui::AttachParentChild(this, button);
 	_buttons.push_back(std::move(button));
 	weak->widthValue()
-		| rpl::start([this](auto) {
-			updateControlsGeometry(width());
+		| rpl::start([this](auto&&) {
+			this->updateControlsGeometry(this->width());
 		}, _lifetime);
 }
 

@@ -323,16 +323,16 @@ void CoverLine::initViewers() {
 	using Flag = Notify::PeerUpdate::Flag;
 	PeerUpdateViewer(_peer, Flag::PhotoChanged)
 		| rpl::start(
-			[this](auto&&) { refreshUserpicLink(); },
+			[this](auto&&) { this->refreshUserpicLink(); },
 			_lifetime);
 	PeerUpdateViewer(_peer, Flag::NameChanged)
 		| rpl::start(
-			[this](auto&&) { refreshNameText(); },
+			[this](auto&&) { this->refreshNameText(); },
 			_lifetime);
 	PeerUpdateViewer(_peer,
 		Flag::UserOnlineChanged | Flag::MembersChanged)
 		| rpl::start(
-			[this](auto&&) { refreshStatusText(); },
+			[this](auto&&) { this->refreshStatusText(); },
 			_lifetime);
 }
 

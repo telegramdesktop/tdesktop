@@ -59,7 +59,7 @@ void StickerSetBox::prepare() {
 	_inner->setInstalled()
 		| rpl::start([this](auto &&setId) {
 			Auth().api().stickerSetInstalled(setId);
-			closeBox();
+			this->closeBox();
 		}, lifetime());
 }
 

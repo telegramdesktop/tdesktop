@@ -64,7 +64,7 @@ TabbedPanel::TabbedPanel(
 	});
 	_selector->showRequests()
 		| rpl::start([this](auto&&) {
-			showFromSelector();
+			this->showFromSelector();
 		}, lifetime());
 
 	resize(QRect(0, 0, st::emojiPanWidth, st::emojiPanMaxHeight).marginsAdded(innerPadding()).size());
