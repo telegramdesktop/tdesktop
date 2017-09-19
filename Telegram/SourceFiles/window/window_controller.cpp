@@ -162,7 +162,9 @@ void Controller::resizeForThirdSection() {
 	Auth().data().setTabbedSelectorSectionEnabled(false);
 	Auth().data().setThirdSectionInfoEnabled(false);
 
-	auto extendBy = st::columnMinimalWidthThird;
+	auto extendBy = qMax(
+		minimalThreeColumnWidth() - layout.bodyWidth,
+		st::columnMinimalWidthThird);
 	auto newBodyWidth = layout.bodyWidth + extendBy;
 	dialogsWidthRatio().set(
 		(dialogsWidthRatio().value() * layout.bodyWidth) / newBodyWidth,

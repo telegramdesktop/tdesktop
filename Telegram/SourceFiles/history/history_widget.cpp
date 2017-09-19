@@ -3784,7 +3784,8 @@ void HistoryWidget::pushInfoToThirdSection() {
 
 void HistoryWidget::toggleTabbedSelectorMode() {
 	if (_tabbedPanel) {
-		if (controller()->canShowThirdSection()) {
+		if (controller()->canShowThirdSection()
+			&& !Adaptive::OneColumn()) {
 			Auth().data().setTabbedSelectorSectionEnabled(true);
 			Auth().saveDataDelayed(kSaveTabbedSelectorSectionTimeoutMs);
 			pushTabbedSelectorToThirdSection();
