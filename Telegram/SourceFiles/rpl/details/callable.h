@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "base/build_config.h"
+#include <tuple>
 
 
 // Custom libc++ build used for old OS X versions already has this.
@@ -150,12 +151,14 @@ constexpr bool is_callable_v = is_callable<Method, Args...>::value;
 
 template <typename Method, typename Arg>
 inline decltype(auto) callable_helper(Method &&method, Arg &&arg, std::true_type) {
-	return std::move(method)(std::forward<Arg>(arg));
+	return std::forward<Method>(method)(std::forward<Arg>(arg));
 }
 
 template <typename Method, typename Arg>
 inline decltype(auto) callable_helper(Method &&method, Arg &&arg, std::false_type) {
-	return std::apply(std::move(method), std::forward<Arg>(arg));
+	return std::apply(
+		std::forward<Method>(method),
+		std::forward<Arg>(arg));
 }
 
 template <typename Method, typename Arg>
@@ -192,19 +195,31 @@ struct allows_const_ref
 
 template <typename Method, typename Arg>
 inline decltype(auto) const_ref_call_helper(
-		Method &method,
+		Method &&method,
 		const Arg &arg,
 		std::true_type) {
-	return callable_invoke(method, arg);
+	return callable_invoke(std::forward<Method>(method), arg);
 }
 
 template <typename Method, typename Arg>
 inline decltype(auto) const_ref_call_helper(
-		Method &method,
+		Method &&method,
 		const Arg &arg,
 		std::false_type) {
 	auto copy = arg;
-	return callable_invoke(method, std::move(copy));
+	return callable_invoke(
+		std::forward<Method>(method),
+		std::move(copy));
+}
+
+template <typename Method, typename Arg>
+inline decltype(auto) const_ref_call_invoke(
+		Method &&method,
+		const Arg &arg) {
+	return const_ref_call_helper(
+		std::forward<Method>(method),
+		arg,
+		allows_const_ref<Method, Arg>());
 }
 
 } // namespace details

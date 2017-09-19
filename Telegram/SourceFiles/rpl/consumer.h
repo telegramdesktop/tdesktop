@@ -20,7 +20,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <mutex>
 #include <gsl/gsl_assert>
 #include <rpl/lifetime.h>
 #include <rpl/details/callable.h>
@@ -138,7 +137,6 @@ public:
 protected:
 	lifetime _lifetime;
 	bool _terminated = false;
-	std::mutex _mutex;
 
 };
 
@@ -279,10 +277,7 @@ inline void consumer<Value, Error>::terminate() const {
 template <typename Value, typename Error>
 inline void consumer<Value, Error>::abstract_instance::add_lifetime(
 		lifetime &&lifetime) {
-	std::unique_lock<std::mutex> lock(_mutex);
 	if (_terminated) {
-		lock.unlock();
-
 		lifetime.destroy();
 	} else {
 		_lifetime.add(std::move(lifetime));
@@ -293,20 +288,15 @@ template <typename Value, typename Error>
 template <typename Type, typename... Args>
 inline Type *consumer<Value, Error>::abstract_instance::make_state(
 		Args&& ...args) {
-	std::unique_lock<std::mutex> lock(_mutex);
 	Expects(!_terminated);
 	return _lifetime.make_state<Type>(std::forward<Args>(args)...);
 }
 
 template <typename Value, typename Error>
 inline void consumer<Value, Error>::abstract_instance::terminate() {
-	std::unique_lock<std::mutex> lock(_mutex);
 	if (!_terminated) {
 		_terminated = true;
-		auto handler = std::exchange(_lifetime, lifetime());
-		lock.unlock();
-
-		handler.destroy();
+		base::take(_lifetime).destroy();
 	}
 }
 
@@ -314,17 +304,11 @@ template <typename Value, typename Error>
 template <typename OnNext, typename OnError, typename OnDone>
 bool consumer<Value, Error>::instance<OnNext, OnError, OnDone>::put_next(
 		Value &&value) {
-	std::unique_lock<std::mutex> lock(this->_mutex);
 	if (this->_terminated) {
 		return false;
 	}
 	auto handler = this->_next;
-	lock.unlock();
-
-	details::callable_helper(
-		handler,
-		std::move(value),
-		details::is_callable_plain<OnNext, Value>());
+	details::callable_invoke(std::move(handler), std::move(value));
 	return true;
 }
 
@@ -332,17 +316,11 @@ template <typename Value, typename Error>
 template <typename OnNext, typename OnError, typename OnDone>
 bool consumer<Value, Error>::instance<OnNext, OnError, OnDone>::put_next_copy(
 		const Value &value) {
-	std::unique_lock<std::mutex> lock(this->_mutex);
 	if (this->_terminated) {
 		return false;
 	}
 	auto handler = this->_next;
-	lock.unlock();
-
-	details::const_ref_call_helper(
-		handler,
-		value,
-		details::allows_const_ref<OnNext, Value>());
+	details::const_ref_call_invoke(std::move(handler), value);
 	return true;
 }
 
@@ -350,12 +328,10 @@ template <typename Value, typename Error>
 template <typename OnNext, typename OnError, typename OnDone>
 void consumer<Value, Error>::instance<OnNext, OnError, OnDone>::put_error(
 		Error &&error) {
-	std::unique_lock<std::mutex> lock(this->_mutex);
 	if (!this->_terminated) {
-		auto handler = std::move(this->_error);
-		lock.unlock();
-
-		details::callable_invoke(handler, std::move(error));
+		details::callable_invoke(
+			std::move(this->_error),
+			std::move(error));
 		this->terminate();
 	}
 }
@@ -364,15 +340,10 @@ template <typename Value, typename Error>
 template <typename OnNext, typename OnError, typename OnDone>
 void consumer<Value, Error>::instance<OnNext, OnError, OnDone>::put_error_copy(
 		const Error &error) {
-	std::unique_lock<std::mutex> lock(this->_mutex);
 	if (!this->_terminated) {
-		auto handler = std::move(this->_error);
-		lock.unlock();
-
-		details::const_ref_call_helper(
-			handler,
-			error,
-			details::allows_const_ref<OnError, Error>());
+		details::const_ref_call_invoke(
+			std::move(this->_error),
+			error);
 		this->terminate();
 	}
 }
@@ -380,12 +351,8 @@ void consumer<Value, Error>::instance<OnNext, OnError, OnDone>::put_error_copy(
 template <typename Value, typename Error>
 template <typename OnNext, typename OnError, typename OnDone>
 void consumer<Value, Error>::instance<OnNext, OnError, OnDone>::put_done() {
-	std::unique_lock<std::mutex> lock(this->_mutex);
 	if (!this->_terminated) {
-		auto handler = std::move(this->_done);
-		lock.unlock();
-
-		handler();
+		std::move(this->_done)();
 		this->terminate();
 	}
 }
