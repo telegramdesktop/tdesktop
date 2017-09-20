@@ -3771,17 +3771,18 @@ void HistoryWidget::pushTabbedSelectorToThirdSection() {
 		&st::historyRecordVoiceFgActive,
 		&st::historyRecordVoiceRippleBgActive);
 	auto destroyingPanel = std::move(_tabbedPanel);
-	controller()->resizeForThirdSection();
 	auto memento = ChatHelpers::TabbedMemento(
 		destroyingPanel->takeSelector(),
 		base::lambda_guarded(this, [this](
 				object_ptr<TabbedSelector> selector) {
 			returnTabbedSelector(std::move(selector));
 		}));
+	controller()->resizeForThirdSection();
 	controller()->showSection(
 		std::move(memento),
 		anim::type::instant,
 		anim::activation::background);
+	destroyingPanel.destroy();
 }
 
 void HistoryWidget::pushInfoToThirdSection() {
@@ -3819,6 +3820,7 @@ void HistoryWidget::returnTabbedSelector(
 	_tabbedSelectorToggle->installEventFilter(_tabbedPanel);
 	_tabbedSelectorToggle->setColorOverrides(nullptr, nullptr, nullptr);
 	_tabbedSelectorToggleTooltipShown = false;
+	moveFieldControls();
 }
 
 void HistoryWidget::recountChatWidth() {
