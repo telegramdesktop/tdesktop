@@ -171,13 +171,13 @@ private:
 
 		bool lastSeenWarningSeen = false;
 		ChatHelpers::SelectorTab selectorTab;
-		bool tabbedSelectorSectionEnabled = true;
+		bool tabbedSelectorSectionEnabled = false;
 		int tabbedSelectorSectionTooltipShown = 0;
 		QMap<QString, QString> soundOverrides;
 		Window::Column floatPlayerColumn;
 		RectPart floatPlayerCorner;
 		base::flat_set<PeerId> groupStickersSectionHidden;
-		bool thirdSectionInfoEnabled = false;
+		bool thirdSectionInfoEnabled = true;
 		bool smallDialogsList = false;
 	};
 
