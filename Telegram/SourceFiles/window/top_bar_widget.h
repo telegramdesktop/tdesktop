@@ -84,7 +84,6 @@ private:
 
 	not_null<Window::Controller*> _controller;
 
-	PeerData *_searchInPeer = nullptr;
 	int _selectedCount = 0;
 	bool _canDelete = false;
 	bool _canForward = false;

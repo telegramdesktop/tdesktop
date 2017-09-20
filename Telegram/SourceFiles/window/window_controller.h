@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include <rpl/variable.h>
 #include "base/flags.h"
 
 class MainWidget;
@@ -53,19 +54,13 @@ public:
 
 	// This is needed for History TopBar updating when searchInPeer
 	// is changed in the DialogsWidget of the current window.
-	base::Observable<PeerData*> &searchInPeerChanged() {
-		return _searchInPeerChanged;
-	}
+	rpl::variable<PeerData*> searchInPeer;
 
 	// This is needed while we have one HistoryWidget and one TopBarWidget
 	// for all histories we show in a window. Once each history is shown
 	// in its own HistoryWidget with its own TopBarWidget this can be removed.
-	base::Observable<PeerData*> &historyPeerChanged() {
-		return _historyPeerChanged;
-	}
-	base::Observable<PeerData*> &historyPeerCanWriteChanged() {
-		return _historyPeerCanWriteChanged;
-	}
+	rpl::variable<PeerData*> historyPeer;
+	rpl::variable<bool> historyCanWrite;
 
 	void enableGifPauseReason(GifPauseReason reason);
 	void disableGifPauseReason(GifPauseReason reason);
@@ -179,10 +174,6 @@ private:
 	not_null<MainWidget*> chats() const;
 
 	not_null<MainWindow*> _window;
-
-	base::Observable<PeerData*> _searchInPeerChanged;
-	base::Observable<PeerData*> _historyPeerChanged;
-	base::Observable<PeerData*> _historyPeerCanWriteChanged;
 
 	GifPauseReasons _gifPauseReasons = 0;
 	base::Observable<void> _gifPauseLevelChanged;

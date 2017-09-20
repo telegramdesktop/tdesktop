@@ -30,6 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
+#include "ui/effects/widget_fade_wrap.h"
 #include "window/window_controller.h"
 #include "window/main_window.h"
 #include "mainwindow.h"
@@ -44,7 +45,10 @@ NarrowWrap::NarrowWrap(
 	QWidget *parent,
 	not_null<Window::Controller*> controller,
 	not_null<Memento*> memento)
-: Window::SectionWidget(parent, controller) {
+: Window::SectionWidget(parent, controller)
+, _topShadow(this, object_ptr<Ui::PlainShadow>(this, st::shadowFg)) {
+	_topShadow->hideFast();
+	_topShadow->raise();
 	setInternalState(geometry(), memento);
 }
 
@@ -52,7 +56,10 @@ NarrowWrap::NarrowWrap(
 	QWidget *parent,
 	not_null<Window::Controller*> controller,
 	not_null<MoveMemento*> memento)
-: Window::SectionWidget(parent, controller) {
+: Window::SectionWidget(parent, controller)
+, _topShadow(this, object_ptr<Ui::PlainShadow>(this, st::shadowFg)) {
+	_topShadow->hideFast();
+	_topShadow->raise();
 	restoreState(memento);
 }
 
@@ -102,14 +109,20 @@ rpl::producer<int> NarrowWrap::desiredHeightForContent() const {
 
 QPixmap NarrowWrap::grabForShowAnimation(
 		const Window::SectionSlideParams &params) {
-//	if (params.withTopBarShadow) _topShadow->hide();
+	anim::SetDisabled(true);
+	if (params.withTopBarShadow) _topShadow->hide();
 	auto result = myGrab(this);
-//	if (params.withTopBarShadow) _topShadow->show();
+	if (params.withTopBarShadow) _topShadow->show();
+	anim::SetDisabled(false);
 	return result;
 }
 
 void NarrowWrap::doSetInnerFocus() {
 //	_content->setInnerFocus();
+}
+
+bool NarrowWrap::hasTopBarShadow() const {
+	return !_topShadow->isHidden() && !_topShadow->animating();
 }
 
 bool NarrowWrap::showInternal(

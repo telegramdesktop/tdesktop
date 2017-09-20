@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/filter.h>
 #include <rpl/never.h>
 #include <rpl/before_next.h>
+#include <rpl/after_next.h>
 #include <rpl/combine.h>
 #include "styles/style_info.h"
 #include "profile/profile_userpic_button.h"
@@ -274,10 +275,16 @@ LabeledLine::LabeledLine(
 	auto layout = entity();
 	auto nonEmptyText = std::move(text)
 		| rpl::before_next([this](const TextWithEntities &value) {
-		toggleAnimated(!value.text.isEmpty());
-	}) | rpl::filter([this](const TextWithEntities &value) {
-		return !value.text.isEmpty();
-	});
+			if (value.text.isEmpty()) {
+				hideAnimated();
+			}
+		})
+		| rpl::filter([this](const TextWithEntities &value) {
+			return !value.text.isEmpty();
+		})
+		| rpl::after_next([this](const TextWithEntities &value) {
+			showAnimated();
+		});
 	layout->add(object_ptr<Ui::FlatLabel>(
 		this,
 		std::move(nonEmptyText),

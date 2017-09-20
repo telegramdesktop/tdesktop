@@ -26,6 +26,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Ui {
 class PlainShadow;
 class SettingsSlider;
+template <typename Widget>
+class WidgetFadeWrap;
 } // namespace Ui
 
 namespace Info {
@@ -58,9 +60,7 @@ public:
 		return peer();
 	}
 
-	bool hasTopBarShadow() const override {
-		return true;
-	}
+	bool hasTopBarShadow() const override;
 
 	QPixmap grabForShowAnimation(
 		const Window::SectionSlideParams &params) override;
@@ -99,7 +99,7 @@ private:
 	void showContent(object_ptr<ContentWidget> content);
 	object_ptr<TopBar> createTopBar();
 
-	object_ptr<Ui::PlainShadow> _topShadow = { nullptr };
+	object_ptr<Ui::WidgetFadeWrap<Ui::PlainShadow>> _topShadow = { nullptr };
 	object_ptr<ContentWidget> _content = { nullptr };
 	object_ptr<TopBar> _topBar = { nullptr };
 

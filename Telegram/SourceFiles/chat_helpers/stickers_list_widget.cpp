@@ -335,7 +335,7 @@ bool StickersListWidget::Footer::event(QEvent *e) {
 			}
 		}
 	}
-	return TWidget::event(e);
+	return InnerFooter::event(e);
 }
 
 void StickersListWidget::Footer::updateSelected() {

@@ -505,7 +505,9 @@ private:
 	void updateMediaPlaylistPosition(int x);
 	void updateControlsGeometry();
 	void updateDialogsWidthAnimated();
-	void updateThirdColumnToCurrentPeer(PeerData *peer);
+	void updateThirdColumnToCurrentPeer(
+		PeerData *peer,
+		bool canWrite);
 
 	void createPlayer();
 	void switchToPanelPlayer();

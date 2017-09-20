@@ -843,7 +843,7 @@ void DialogsWidget::setSearchInPeer(PeerData *peer, UserData *from) {
 	if (searchInPeerUpdated) {
 		_searchInPeer = newSearchInPeer;
 		from = nullptr;
-		controller()->searchInPeerChanged().notify(_searchInPeer, true);
+		controller()->searchInPeer = _searchInPeer;
 		updateJumpToDateVisibility();
 	} else if (!_searchInPeer) {
 		from = nullptr;

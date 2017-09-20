@@ -66,7 +66,9 @@ RippleButton::RippleButton(QWidget *parent, const style::RippleAnimation &st) : 
 , _st(st) {
 }
 
-void RippleButton::setForceRippled(bool rippled, SetForceRippledWay way) {
+void RippleButton::setForceRippled(
+		bool rippled,
+		anim::type animated) {
 	if (_forceRippled != rippled) {
 		_forceRippled = rippled;
 		if (_forceRippled) {
@@ -80,7 +82,7 @@ void RippleButton::setForceRippled(bool rippled, SetForceRippledWay way) {
 			_ripple->lastStop();
 		}
 	}
-	if (way == SetForceRippledWay::SkipAnimation && _ripple) {
+	if (animated == anim::type::instant && _ripple) {
 		_ripple->lastFinish();
 	}
 	update();

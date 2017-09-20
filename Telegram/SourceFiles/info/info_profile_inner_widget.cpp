@@ -120,16 +120,24 @@ object_ptr<Ui::RpWidget> InnerWidget::setupMuteToggle(
 void InnerWidget::setupMainUserButtons(
 		Ui::VerticalLayout *wrap,
 		not_null<UserData*> user) const {
-	auto sendMessage = wrap->add(object_ptr<Button>(
+	auto sendMessage = wrap->add(object_ptr<Ui::SlideWrap<Button>>(
 		wrap,
-		Lang::Viewer(lng_profile_send_message) | ToUpperValue(),
-		st::infoMainButton));
-	sendMessage->clicks()
+		object_ptr<Button>(
+			wrap,
+			Lang::Viewer(lng_profile_send_message) | ToUpperValue(),
+			st::infoMainButton)));
+	_controller->historyPeer.value()
+		| rpl::map([user](PeerData *peer) { return peer == user; })
+		| rpl::start([sendMessage](bool peerHistoryShown) {
+			sendMessage->toggleAnimated(!peerHistoryShown);
+		}, sendMessage->lifetime());
+	sendMessage->entity()->clicks()
 		| rpl::start([this, user](auto&&) {
 			_controller->showPeerHistory(
 				user,
 				Ui::ShowWay::Forward);
 		}, sendMessage->lifetime());
+	sendMessage->finishAnimations();
 
 	auto addContact = wrap->add(object_ptr<Ui::SlideWrap<Button>>(
 		wrap,

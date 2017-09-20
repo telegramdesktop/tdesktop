@@ -578,7 +578,7 @@ bool HistoryInner::event(QEvent *e) {
 			return true;
 		}
 	}
-	return QWidget::event(e);
+	return TWidget::event(e);
 }
 
 void HistoryInner::onTouchScrollTimer() {

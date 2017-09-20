@@ -170,6 +170,7 @@ FlatLabel::FlatLabel(
 , _text(st.width ? st.width : QFIXED_MAX)
 , _st(st)
 , _contextCopyText(lang(lng_context_copy_text)) {
+	textUpdated();
 	std::move(text)
 		| rpl::start([this](const QString &value) {
 			setText(value);
@@ -184,6 +185,7 @@ FlatLabel::FlatLabel(
 , _text(st.width ? st.width : QFIXED_MAX)
 , _st(st)
 , _contextCopyText(lang(lng_context_copy_text)) {
+	textUpdated();
 	std::move(text)
 		| rpl::start([this](const TextWithEntities &value) {
 			setMarkedText(value);
@@ -455,7 +457,7 @@ bool FlatLabel::event(QEvent *e) {
 			return true;
 		}
 	}
-	return QWidget::event(e);
+	return RpWidget::event(e);
 }
 
 void FlatLabel::touchEvent(QTouchEvent *e) {

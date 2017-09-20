@@ -116,6 +116,9 @@ bool Disabled() {
 
 void SetDisabled(bool disabled) {
 	AnimationsDisabled = disabled;
+	if (disabled && _manager) {
+		_manager->timeout();
+	}
 }
 
 } // anim

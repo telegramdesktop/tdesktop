@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/top_bar_widget.h"
 
 #include <rpl/combine.h>
+#include <rpl/combine_previous.h>
 #include "styles/style_window.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
@@ -72,15 +73,28 @@ TopBarWidget::TopBarWidget(
 	_menuToggle->setClickedCallback([this] { showMenu(); });
 	_infoToggle->setClickedCallback([this] { toggleInfoSection(); });
 
-	subscribe(_controller->searchInPeerChanged(), [this](PeerData *peer) {
-		_searchInPeer = peer;
-		auto historyPeer = App::main() ? App::main()->historyPeer() : nullptr;
-		_search->setForceRippled(historyPeer && historyPeer == _searchInPeer);
-	});
-	subscribe(_controller->historyPeerChanged(), [this](PeerData *peer) {
-		_search->setForceRippled(peer && peer == _searchInPeer, Ui::IconButton::SetForceRippledWay::SkipAnimation);
-		update();
-	});
+	rpl::combine(
+		_controller->historyPeer.value(),
+		_controller->searchInPeer.value())
+		| rpl::combine_previous(std::make_tuple(nullptr, nullptr))
+		| rpl::map([](
+				const std::tuple<PeerData*, PeerData*> &previous,
+				const std::tuple<PeerData*, PeerData*> &current) {
+			auto peer = std::get<0>(current);
+			auto searchPeer = std::get<1>(current);
+			auto peerChanged = (peer != std::get<0>(previous));
+			auto searchInPeer
+				= (peer != nullptr) && (peer == searchPeer);
+			return std::make_tuple(searchInPeer, peerChanged);
+		})
+		| rpl::start([this](
+				bool searchInHistoryPeer,
+				bool peerChanged) {
+			auto animated = peerChanged
+				? anim::type::instant
+				: anim::type::normal;
+			_search->setForceRippled(searchInHistoryPeer, animated);
+		}, lifetime());
 
 	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
 	if (Adaptive::OneColumn()) {

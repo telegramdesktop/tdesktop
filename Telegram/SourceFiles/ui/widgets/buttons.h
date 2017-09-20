@@ -53,12 +53,9 @@ class RippleButton : public AbstractButton {
 public:
 	RippleButton(QWidget *parent, const style::RippleAnimation &st);
 
-	// Displays full ripple circle constantly.
-	enum class SetForceRippledWay {
-		Default,
-		SkipAnimation,
-	};
-	void setForceRippled(bool rippled, SetForceRippledWay way = SetForceRippledWay::Default);
+	void setForceRippled(
+		bool rippled,
+		anim::type animated = anim::type::normal);
 	bool forceRippled() const {
 		return _forceRippled;
 	}

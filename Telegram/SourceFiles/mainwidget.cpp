@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "mainwidget.h"
 
+#include <rpl/combine.h>
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
 #include "ui/special_buttons.h"
@@ -168,12 +169,12 @@ MainWidget::MainWidget(
 	subscribe(_controller->floatPlayerAreaUpdated(), [this] {
 		checkFloatPlayerVisibility();
 	});
-	subscribe(_controller->historyPeerChanged(), [this](PeerData *peer) {
-		updateThirdColumnToCurrentPeer(peer);
-	});
-	subscribe(_controller->historyPeerCanWriteChanged(), [this](PeerData *peer) {
-		updateThirdColumnToCurrentPeer(peer);
-	});
+	rpl::combine(
+		_controller->historyPeer.value(),
+		_controller->historyCanWrite.value())
+		| rpl::start([this](PeerData *peer, bool canWrite) {
+			updateThirdColumnToCurrentPeer(peer, canWrite);
+		}, lifetime());
 
 	QCoreApplication::instance()->installEventFilter(this);
 
@@ -3545,11 +3546,13 @@ void MainWidget::updateDialogsWidthAnimated() {
 	}
 }
 
-void MainWidget::updateThirdColumnToCurrentPeer(PeerData *peer) {
+void MainWidget::updateThirdColumnToCurrentPeer(
+		PeerData *peer,
+		bool canWrite) {
 	if (Adaptive::ThreeColumn()
 		&& Auth().data().tabbedSelectorSectionEnabled()
 		&& peer) {
-		if (!peer->canWrite()) {
+		if (!canWrite) {
 			_controller->showPeerInfo(
 				peer,
 				anim::type::instant,
@@ -3750,7 +3753,7 @@ int MainWidget::backgroundFromY() const {
 }
 
 void MainWidget::onHistoryShown(History *history, MsgId atMsgId) {
-	updateControlsGeometry();
+//	updateControlsGeometry();
 	dlgUpdated(history ? history->peer : nullptr, atMsgId);
 }
 

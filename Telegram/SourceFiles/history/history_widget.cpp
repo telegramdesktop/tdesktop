@@ -1817,7 +1817,8 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	App::main()->dlgUpdated(wasHistory ? wasHistory->peer : nullptr, wasMsgId);
 	emit historyShown(_history, _showAtMsgId);
 
-	controller()->historyPeerChanged().notify(_peer, true);
+	controller()->historyCanWrite = _canSendMessages;
+	controller()->historyPeer = _peer;
 	update();
 }
 
@@ -5913,7 +5914,7 @@ void HistoryWidget::fullPeerUpdated(PeerData *peer) {
 		bool newCanSendMessages = canSendMessages(_peer);
 		if (newCanSendMessages != _canSendMessages) {
 			_canSendMessages = newCanSendMessages;
-			controller()->historyPeerCanWriteChanged().notify(_peer);
+			controller()->historyCanWrite = _canSendMessages;
 			if (!_canSendMessages) {
 				cancelReply();
 			}
@@ -5952,7 +5953,7 @@ void HistoryWidget::handlePeerUpdate() {
 		bool newCanSendMessages = canSendMessages(_peer);
 		if (newCanSendMessages != _canSendMessages) {
 			_canSendMessages = newCanSendMessages;
-			controller()->historyPeerCanWriteChanged().notify(_peer);
+			controller()->historyCanWrite = _canSendMessages;
 			if (!_canSendMessages) {
 				cancelReply();
 			}
