@@ -29,8 +29,9 @@ void MuteSettingsBox::prepare() {
 
 	object_ptr<Ui::FlatLabel> title(this, st::muteChatTitle);
 	title->setText(App::peerName(_peer, true));
-	title->moveToLeft(st::boxPadding.left(),
-		y + icon->height() / 2 - title->height() / 2);
+	title->moveToLeft(
+		st::boxPadding.left() + st::muteChatTitleLeft,
+		y + (icon->height() / 2) - (title->height() / 2));
 	// the icon is always higher than this chat title
 	y += icon->height() + st::boxMediumSkip;
 

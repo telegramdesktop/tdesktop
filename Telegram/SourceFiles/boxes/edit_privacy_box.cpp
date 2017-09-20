@@ -119,7 +119,7 @@ int EditPrivacyBox::resizeGetHeight(int newWidth) {
 	layoutRow(_contacts, st::editPrivacyOptionMargin);
 	layoutRow(_nobody, st::editPrivacyOptionMargin);
 	layoutRow(_warning, st::editPrivacyWarningPadding);
-	layoutRow(_exceptionsTitle, st::editPrivacyPadding);
+	layoutRow(_exceptionsTitle, st::editPrivacyTitlePadding);
 	auto linksTop = top;
 	layoutRow(_alwaysLink, st::editPrivacyPadding);
 	layoutRow(_neverLink, st::editPrivacyPadding);
@@ -167,7 +167,7 @@ int EditPrivacyBox::countDefaultHeight(int newWidth) {
 	height += optionHeight(Option::Contacts);
 	height += optionHeight(Option::Nobody);
 	height += labelHeight(_controller->warning(), st::editPrivacyLabel, st::editPrivacyWarningPadding);
-	height += labelHeight(lang(lng_edit_privacy_exceptions), st::editPrivacyTitle, st::editPrivacyPadding);
+	height += labelHeight(lang(lng_edit_privacy_exceptions), st::editPrivacyTitle, st::editPrivacyTitlePadding);
 	height += linkHeight();
 	height += linkHeight();
 	height += labelHeight(_controller->exceptionsDescription(), st::editPrivacyLabel, st::editPrivacyPadding);

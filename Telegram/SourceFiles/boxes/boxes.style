@@ -582,13 +582,13 @@ editPrivacyTitle: FlatLabel(defaultFlatLabel) {
 	width: 320px;
 	textFg: boxTitleFg;
 	maxHeight: 56px;
-	margin: margins(0px, 20px, 0px, 13px);
 	style: TextStyle(defaultTextStyle) {
 		font: boxTitleFont;
 		linkFont: boxTitleFont;
 		linkFontOver: boxTitleFont;
 	}
 }
+editPrivacyTitlePadding: margins(23px, 20px, 21px, 13px);
 editPrivacyLabel: FlatLabel(defaultFlatLabel) {
 	width: 320px;
 	textFg: membersAboutLimitFg;
@@ -674,11 +674,11 @@ mutePhotoButton: PeerAvatarButton {
 muteChatTitle: FlatLabel(boxLabel) {
 	width: 235px;
 	maxHeight: 20px;  // block word wrap
-	margin: margins(50px, 0px, 0px, 0px);  // left offset for place peer avatar
 	style: TextStyle(boxTextStyle) {
 		font: font(boxFontSize semibold);
 	}
 }
+muteChatTitleLeft: 50px;
 
 groupStickersRemove: contactsSearchCancel;
 groupStickersRemovePosition: point(6px, 6px);

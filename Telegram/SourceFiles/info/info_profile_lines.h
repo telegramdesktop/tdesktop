@@ -134,7 +134,8 @@ public:
 		rpl::producer<TextWithEntities> &&label,
 		rpl::producer<TextWithEntities> &&text,
 		const style::FlatLabel &textSt,
-		const style::margins &padding);
+		const style::margins &padding,
+		bool doubleClickSelects);
 
 };
 

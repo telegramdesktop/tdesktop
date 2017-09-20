@@ -167,19 +167,34 @@ object_ptr<Ui::RpWidget> InnerWidget::setupInfoLines(
 	auto infoPartsShown = std::vector<rpl::producer<bool>>();
 	auto addInfoLine = [&](
 			LangKey label,
-			rpl::producer<TextWithEntities> &&text) {
+			rpl::producer<TextWithEntities> &&text,
+			bool selectByDoubleClick = false,
+			const style::FlatLabel &textSt = st::infoLabeled) {
 		auto line = result->add(object_ptr<LabeledLine>(
 			result,
 			Lang::Viewer(label) | WithEmptyEntities(),
-			std::move(text)));
+			std::move(text),
+			textSt,
+			st::infoProfileLabeledPadding,
+			selectByDoubleClick));
 		infoPartsShown.push_back(line->shownValue());
+		return line;
+	};
+	auto addInfoOneLine = [&](
+			LangKey label,
+			rpl::producer<TextWithEntities> &&text) {
+		addInfoLine(
+			label,
+			std::move(text),
+			true,
+			st::infoLabeledOneLine);
 	};
 	if (auto user = _peer->asUser()) {
-		addInfoLine(lng_info_mobile_label, PhoneViewer(user));
+		addInfoOneLine(lng_info_mobile_label, PhoneViewer(user));
 		addInfoLine(lng_info_bio_label, BioViewer(user));
-		addInfoLine(lng_info_username_label, UsernameViewer(user));
+		addInfoOneLine(lng_info_username_label, UsernameViewer(user));
 	} else {
-		addInfoLine(lng_info_link_label, LinkViewer(_peer));
+		addInfoOneLine(lng_info_link_label, LinkViewer(_peer));
 		addInfoLine(lng_info_about_label, AboutViewer(_peer));
 	}
 	auto separator = result->add(object_ptr<Ui::SlideWrap<>>(

@@ -245,15 +245,21 @@ int FlatLabel::resizeGetHeight(int newWidth) {
 	_allowedWidth = newWidth;
 	int textWidth = countTextWidth();
 	int textHeight = countTextHeight(textWidth);
-	return _st.margin.top() + textHeight + _st.margin.bottom();
+	return textHeight;
 }
 
 int FlatLabel::naturalWidth() const {
 	return _text.maxWidth();
 }
 
+QMargins FlatLabel::getMargins() const {
+	return _st.margin;
+}
+
 int FlatLabel::countTextWidth() const {
-	return _allowedWidth ? (_allowedWidth - _st.margin.left() - _st.margin.right()) : (_st.width ? _st.width : _text.maxWidth());
+	return _allowedWidth
+		? _allowedWidth
+		: (_st.width ? _st.width : _text.maxWidth());
 }
 
 int FlatLabel::countTextHeight(int textWidth) {
@@ -449,7 +455,7 @@ void FlatLabel::contextMenuEvent(QContextMenuEvent *e) {
 	showContextMenu(e, ContextMenuReason::FromEvent);
 }
 
-bool FlatLabel::event(QEvent *e) {
+bool FlatLabel::eventHook(QEvent *e) {
 	if (e->type() == QEvent::TouchBegin || e->type() == QEvent::TouchUpdate || e->type() == QEvent::TouchEnd || e->type() == QEvent::TouchCancel) {
 		QTouchEvent *ev = static_cast<QTouchEvent*>(e);
 		if (ev->device()->type() == QTouchDevice::TouchScreen) {
@@ -457,7 +463,7 @@ bool FlatLabel::event(QEvent *e) {
 			return true;
 		}
 	}
-	return RpWidget::event(e);
+	return RpWidget::eventHook(e);
 }
 
 void FlatLabel::touchEvent(QTouchEvent *e) {

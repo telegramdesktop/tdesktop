@@ -153,24 +153,23 @@ void CoverWidget::refreshButtonsGeometry(int newWidth) {
 void CoverWidget::refreshNameGeometry(int newWidth) {
 	auto margins = getMargins();
 	auto infoLeft = _userpicButton->x() + _userpicButton->width();
-	auto nameLeft = infoLeft + st::settingsNameLeft - st::settingsNameLabel.margin.left();
-	auto nameTop = _userpicButton->y() + st::settingsNameTop - st::settingsNameLabel.margin.top();
+	auto nameLeft = infoLeft + st::settingsNameLeft;
+	auto nameTop = _userpicButton->y() + st::settingsNameTop;
 	auto nameWidth = newWidth - infoLeft - st::settingsNameLeft;
 	auto editNameInlineVisible = !_editNameVisible;
 	if (editNameInlineVisible) {
 		nameWidth -= _editNameInline->width();
 	}
-	int marginsAdd = st::settingsNameLabel.margin.left() + st::settingsNameLabel.margin.right();
 
-	_name->resizeToWidth(qMin(nameWidth - marginsAdd, _name->naturalWidth()) + marginsAdd);
+	_name->resizeToNaturalWidth(nameWidth);
 	_name->moveToLeft(
 		margins.left() + nameLeft,
 		margins.top() + nameTop,
 		newWidth);
 
 	_editNameInline->moveToLeft(
-		margins.left() + nameLeft + _name->width(),
-		margins.top() + nameTop,
+		margins.left() + nameLeft + _name->widthNoMargins(),
+		margins.top() + nameTop + st::settingsNameLabel.margin.top(),
 		newWidth);
 	_editNameInline->setVisible(editNameInlineVisible);
 }

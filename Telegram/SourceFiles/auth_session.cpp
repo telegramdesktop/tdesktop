@@ -162,6 +162,10 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	_variables.groupStickersSectionHidden = std::move(groupStickersSectionHidden);
 	_variables.thirdSectionInfoEnabled = thirdSectionInfoEnabled;
 	_variables.smallDialogsList = smallDialogsList;
+
+	if (_variables.thirdSectionInfoEnabled) {
+		_variables.tabbedSelectorSectionEnabled = false;
+	}
 }
 
 void AuthSessionData::setTabbedSelectorSectionEnabled(bool enabled) {

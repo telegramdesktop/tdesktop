@@ -117,6 +117,7 @@ public:
 	void setBreakEverywhere(bool breakEverywhere);
 
 	int naturalWidth() const override;
+	QMargins getMargins() const override;
 
 	void setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk);
 
@@ -141,7 +142,7 @@ protected:
 	void focusInEvent(QFocusEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
-	bool event(QEvent *e) override; // calls touchEvent when necessary
+	bool eventHook(QEvent *e) override; // calls touchEvent when necessary
 	void touchEvent(QTouchEvent *e);
 
 	int resizeGetHeight(int newWidth) override;

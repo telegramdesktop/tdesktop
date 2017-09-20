@@ -210,12 +210,12 @@ int InfoWidget::LabeledWidget::naturalWidth() const {
 }
 
 int InfoWidget::LabeledWidget::resizeGetHeight(int newWidth) {
-	int marginLeft = st::settingsBlockOneLineTextPart.margin.left();
-	int marginRight = st::settingsBlockOneLineTextPart.margin.right();
-
 	if (!_label) return 0;
 
-	_label->moveToLeft(0, st::settingsBlockOneLineTextPart.margin.top(), newWidth);
+	_label->moveToLeft(
+		0,
+		st::settingsBlockOneLineTextPart.margin.top(),
+		newWidth);
 	_label->resizeToNaturalWidth(newWidth);
 
 	int textLeft = _label->width() + st::normalFont->spacew;
@@ -224,14 +224,20 @@ int InfoWidget::LabeledWidget::resizeGetHeight(int newWidth) {
 	bool doesNotFit = (textWidth > availableWidth);
 	accumulate_min(textWidth, availableWidth);
 	accumulate_min(textWidth, st::msgMaxWidth);
-	if (textWidth + marginLeft + marginRight < 0) {
-		textWidth = -(marginLeft + marginRight);
+	if (textWidth < 0) {
+		textWidth = 0;
 	}
-	_text->resizeToWidth(textWidth + marginLeft + marginRight);
-	_text->moveToLeft(textLeft - marginLeft, 0, newWidth);
+	_text->resizeToWidth(textWidth);
+	_text->moveToLeft(
+		textLeft,
+		st::settingsBlockOneLineTextPart.margin.top(),
+		newWidth);
 	if (_shortText) {
-		_shortText->resizeToWidth(textWidth + marginLeft + marginRight);
-		_shortText->moveToLeft(textLeft - marginLeft, 0, newWidth);
+		_shortText->resizeToWidth(textWidth);
+		_shortText->moveToLeft(
+			textLeft,
+			st::settingsBlockOneLineTextPart.margin.top(),
+			newWidth);
 		if (doesNotFit) {
 			_shortText->show();
 			_text->hide();
@@ -240,7 +246,9 @@ int InfoWidget::LabeledWidget::resizeGetHeight(int newWidth) {
 			_text->show();
 		}
 	}
-	return st::settingsBlockOneLineTextPart.margin.top() + qMax(_label->height(), _text->height() - st::settingsBlockOneLineTextPart.margin.top() - st::settingsBlockOneLineTextPart.margin.bottom()) + st::settingsBlockOneLineTextPart.margin.bottom();
+	return st::settingsBlockOneLineTextPart.margin.top()
+		+ qMax(_label->heightNoMargins(), _text->heightNoMargins())
+		+ st::settingsBlockOneLineTextPart.margin.bottom();
 }
 
 } // namespace Settings

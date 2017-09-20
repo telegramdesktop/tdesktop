@@ -26,11 +26,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 
-class RpWidget : public TWidget {
+template <typename Parent>
+class RpWidgetWrap : public Parent {
 public:
-	RpWidget(QWidget *parent = nullptr) : TWidget(parent) {
-		setGeometry(0, 0, 0, 0);
-	}
+	using Parent::Parent;
 
 	rpl::producer<QRect> geometryValue() const {
 		auto &stream = eventStreams().geometry;
@@ -79,11 +78,11 @@ public:
 	}
 
 	rpl::lifetime &lifetime() {
-		return _lifetime;
+		return _lifetime.data;
 	}
 
 protected:
-	bool event(QEvent *event) override {
+	bool event(QEvent *event) final override {
 		switch (event->type()) {
 		case QEvent::Move:
 		case QEvent::Resize:
@@ -108,6 +107,9 @@ protected:
 			break;
 		}
 
+		return eventHook(event);
+	}
+	virtual bool eventHook(QEvent *event) {
 		return TWidget::event(event);
 	}
 
@@ -116,6 +118,12 @@ private:
 		rpl::event_stream<QRect> geometry;
 		rpl::event_stream<QRect> paint;
 		rpl::event_stream<> alive;
+	};
+	struct LifetimeHolder {
+		LifetimeHolder(QWidget *parent) {
+			parent->setGeometry(0, 0, 0, 0);
+		}
+		rpl::lifetime data;
 	};
 
 	EventStreams &eventStreams() const {
@@ -127,7 +135,13 @@ private:
 
 	mutable std::unique_ptr<EventStreams> _eventStreams;
 
-	rpl::lifetime _lifetime;
+	LifetimeHolder _lifetime = { this };
+
+};
+
+class RpWidget : public RpWidgetWrap<TWidget> {
+public:
+	using RpWidgetWrap<TWidget>::RpWidgetWrap;
 
 };
 

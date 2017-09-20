@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_calls.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/padding_wrap.h"
 #include "lang/lang_keys.h"
 #include "calls/calls_call.h"
 #include "calls/calls_instance.h"
@@ -59,7 +60,11 @@ void DebugInfoBox::prepare() {
 	setTitle([] { return QString("Call Debug"); });
 
 	addButton(langFactory(lng_close), [this] { closeBox(); });
-	_text = setInnerWidget(object_ptr<Ui::FlatLabel>(this, st::callDebugLabel));
+	_text = setInnerWidget(
+		object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
+			this,
+			object_ptr<Ui::FlatLabel>(this, st::callDebugLabel),
+			st::callDebugPadding))->entity();
 	_text->setSelectable(true);
 	updateText();
 	_updateTextTimer.setCallback([this] { updateText(); });

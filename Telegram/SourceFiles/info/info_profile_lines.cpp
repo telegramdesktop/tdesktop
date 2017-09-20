@@ -257,8 +257,9 @@ LabeledLine::LabeledLine(
 	parent,
 	std::move(label),
 	std::move(text),
-	st::infoLabeled,
-	st::infoProfileLabeledPadding) {
+	st::infoLabeledOneLine,
+	st::infoProfileLabeledPadding,
+	true) {
 }
 
 LabeledLine::LabeledLine(
@@ -266,7 +267,8 @@ LabeledLine::LabeledLine(
 	rpl::producer<TextWithEntities> &&label,
 	rpl::producer<TextWithEntities> &&text,
 	const style::FlatLabel &textSt,
-	const style::margins &padding)
+	const style::margins &padding,
+	bool doubleClickSelects)
 : SlideWrap<Ui::VerticalLayout>(
 	parent,
 	object_ptr<Ui::VerticalLayout>(parent),
@@ -285,10 +287,12 @@ LabeledLine::LabeledLine(
 		| rpl::after_next([this](const TextWithEntities &value) {
 			showAnimated();
 		});
-	layout->add(object_ptr<Ui::FlatLabel>(
+	auto labeled = layout->add(object_ptr<Ui::FlatLabel>(
 		this,
 		std::move(nonEmptyText),
 		textSt));
+	labeled->setSelectable(true);
+	labeled->setDoubleClickSelectsParagraph(doubleClickSelects);
 	layout->add(object_ptr<Ui::FlatLabel>(
 		this,
 		std::move(label),
