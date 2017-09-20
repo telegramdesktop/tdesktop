@@ -32,6 +32,8 @@ public:
 	TabbedMemento(
 		object_ptr<TabbedSelector> selector,
 		base::lambda<void(object_ptr<TabbedSelector>)> returnMethod);
+	TabbedMemento(TabbedMemento &&other) = default;
+	TabbedMemento &operator=(TabbedMemento &&other) = default;
 
 	object_ptr<Window::SectionWidget> createWidget(
 		QWidget *parent,

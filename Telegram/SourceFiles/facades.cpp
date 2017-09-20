@@ -202,9 +202,12 @@ void logOutDelayed() {
 namespace Ui {
 namespace internal {
 
-void showBox(object_ptr<BoxContent> content, LayerOptions options) {
+void showBox(
+		object_ptr<BoxContent> content,
+		LayerOptions options,
+		anim::type animated) {
 	if (auto w = App::wnd()) {
-		w->ui_showBox(std::move(content), options);
+		w->ui_showBox(std::move(content), options, animated);
 	}
 }
 
@@ -228,19 +231,18 @@ void hideMediaPreview() {
 	}
 }
 
-void hideLayer(bool fast) {
+void hideLayer(anim::type animated) {
 	if (auto w = App::wnd()) {
 		w->ui_showBox(
 			{ nullptr },
-			LayerOption::CloseOther | (fast ? LayerOption::ForceFast : LayerOption::Animated));
+			LayerOption::CloseOther,
+			animated);
 	}
 }
 
-void hideSettingsAndLayer(bool fast) {
+void hideSettingsAndLayer(anim::type animated) {
 	if (auto w = App::wnd()) {
-		w->ui_hideSettingsAndLayer(fast
-			? LayerOption::ForceFast
-			: LayerOption::Animated);
+		w->ui_hideSettingsAndLayer(animated);
 	}
 }
 
@@ -257,14 +259,23 @@ void repaintHistoryItem(not_null<const HistoryItem*> item) {
 
 void autoplayMediaInlineAsync(const FullMsgId &msgId) {
 	if (auto main = App::main()) {
-		QMetaObject::invokeMethod(main, "ui_autoplayMediaInlineAsync", Qt::QueuedConnection, Q_ARG(qint32, msgId.channel), Q_ARG(qint32, msgId.msg));
+		InvokeQueued(main, [msgId] {
+			if (auto item = App::histItemById(msgId)) {
+				if (auto media = item->getMedia()) {
+					media->playInline(true);
+				}
+			}
+		});
 	}
 }
 
 void showPeerProfile(const PeerId &peer) {
 	if (auto main = App::main()) {
 //		main->showSection(Profile::SectionMemento(App::peer(peer)));
-		main->showSection(Info::Memento(peer), anim::type::normal);
+		main->showSection(
+			Info::Memento(peer),
+			anim::type::normal,
+			anim::activation::normal);
 	}
 }
 
@@ -274,14 +285,22 @@ void showPeerOverview(const PeerId &peer, MediaOverviewType type) {
 	}
 }
 
-void showPeerHistory(const PeerId &peer, MsgId msgId, ShowWay way) {
-	if (MainWidget *m = App::main()) m->ui_showPeerHistory(peer, msgId, way);
+void showPeerHistory(
+		const PeerId &peer,
+		MsgId msgId,
+		ShowWay way,
+		anim::type animated,
+		anim::activation activation) {
+	if (MainWidget *m = App::main()) {
+		m->ui_showPeerHistory(peer, msgId, way, animated, activation);
+	}
 }
 
 void showPeerHistoryAsync(const PeerId &peer, MsgId msgId, ShowWay way) {
 	if (MainWidget *m = App::main()) {
-		qRegisterMetaType<Ui::ShowWay>();
-		QMetaObject::invokeMethod(m, "ui_showPeerHistoryAsync", Qt::QueuedConnection, Q_ARG(quint64, peer), Q_ARG(qint32, msgId), Q_ARG(Ui::ShowWay, way));
+		InvokeQueued(m, [peer, msgId, way] {
+			showPeerHistory(peer, msgId, way);
+		});
 	}
 }
 

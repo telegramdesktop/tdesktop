@@ -647,11 +647,6 @@ void MediaView::updateMixerVideoVolume() const {
 }
 
 void MediaView::close() {
-	_sharedMedia = nullptr;
-	_sharedMediaData = base::none;
-	_userPhotos = nullptr;
-	_userPhotosData = base::none;
-	if (_menu) _menu->hideMenu(true);
 	Messenger::Instance().hideMediaView();
 }
 
@@ -1256,7 +1251,7 @@ void MediaView::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
 			_caption.setMarkedText(
 				st::mediaviewCaptionStyle,
 				photoMsg->getCaption(),
-				asBot ? _captionBotOptions : _captionTextOptions);
+				itemTextOptions(item));
 		}
 	}
 
@@ -2728,6 +2723,11 @@ bool MediaView::eventFilter(QObject *obj, QEvent *e) {
 
 void MediaView::setVisible(bool visible) {
 	if (!visible) {
+		_sharedMedia = nullptr;
+		_sharedMediaData = base::none;
+		_userPhotos = nullptr;
+		_userPhotosData = base::none;
+		if (_menu) _menu->hideMenu(true);
 		_controlsHideTimer.stop();
 		_controlsState = ControlsShown;
 		a_cOpacity = anim::value(1, 1);

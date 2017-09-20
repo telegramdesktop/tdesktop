@@ -98,6 +98,11 @@ enum class type {
 	instant,
 };
 
+enum class activation {
+	normal,
+	background,
+};
+
 using transition = base::lambda<float64(float64 delta, float64 dt)>;
 
 extern transition linear;

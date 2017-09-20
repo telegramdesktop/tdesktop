@@ -227,7 +227,7 @@ void MainWindow::setupPasscode() {
 
 	if (_main) _main->hide();
 	Messenger::Instance().hideMediaView();
-	Ui::hideSettingsAndLayer(true);
+	Ui::hideSettingsAndLayer(anim::type::instant);
 	if (_intro) _intro->hide();
 	if (animated) {
 		_passcode->showAnimated(bg);
@@ -239,7 +239,7 @@ void MainWindow::setupPasscode() {
 void MainWindow::setupIntro() {
 	if (_intro && !_intro->isHidden() && !_main) return;
 
-	Ui::hideSettingsAndLayer(true);
+	Ui::hideSettingsAndLayer(anim::type::instant);
 
 	auto animated = (_main || _passcode);
 	auto bg = animated ? grabInner() : QPixmap();
@@ -325,13 +325,14 @@ void MainWindow::showSettings() {
 
 void MainWindow::showSpecialLayer(
 		object_ptr<LayerWidget> layer,
-		LayerOptions options) {
+		anim::type animated) {
 	if (_passcode) return;
 
-	ensureLayerCreated();
-	_layerBg->showSpecialLayer(std::move(layer));
-	if (options & LayerOption::ForceFast) {
-		_layerBg->finishAnimation();
+	if (layer) {
+		ensureLayerCreated();
+		_layerBg->showSpecialLayer(std::move(layer), animated);
+	} else if (_layerBg) {
+		_layerBg->hideSpecialLayer(animated);
 	}
 }
 
@@ -341,7 +342,7 @@ void MainWindow::showMainMenu() {
 	if (isHidden()) showFromTray();
 
 	ensureLayerCreated();
-	_layerBg->showMainMenu();
+	_layerBg->showMainMenu(anim::type::normal);
 }
 
 void MainWindow::ensureLayerCreated() {
@@ -362,10 +363,10 @@ void MainWindow::destroyLayerDelayed() {
 	}
 }
 
-void MainWindow::ui_hideSettingsAndLayer(LayerOptions options) {
+void MainWindow::ui_hideSettingsAndLayer(anim::type animated) {
 	if (_layerBg) {
-		_layerBg->hideAll(options);
-		if (options & LayerOption::ForceFast) {
+		_layerBg->hideAll(animated);
+		if (animated == anim::type::instant) {
 			destroyLayerDelayed();
 		}
 	}
@@ -403,25 +404,24 @@ PasscodeWidget *MainWindow::passcodeWidget() {
 
 void MainWindow::ui_showBox(
 		object_ptr<BoxContent> box,
-		LayerOptions options) {
+		LayerOptions options,
+		anim::type animated) {
 	if (box) {
 		ensureLayerCreated();
 		if (options & LayerOption::KeepOther) {
 			if (options & LayerOption::ShowAfterOther) {
-				_layerBg->prependBox(std::move(box));
+				_layerBg->prependBox(std::move(box), animated);
 			} else {
-				_layerBg->appendBox(std::move(box));
+				_layerBg->appendBox(std::move(box), animated);
 			}
 		} else {
-			_layerBg->showBox(std::move(box));
-		}
-		if (options & LayerOption::ForceFast) {
-			_layerBg->finishAnimation();
+			_layerBg->showBox(std::move(box), animated);
 		}
 	} else {
 		if (_layerBg) {
-			_layerBg->hideTopLayer(options);
-			if ((options & LayerOption::ForceFast) && !_layerBg->layerShown()) {
+			_layerBg->hideTopLayer(animated);
+			if ((animated == anim::type::instant)
+				&& !_layerBg->layerShown()) {
 				destroyLayerDelayed();
 			}
 		}
@@ -978,7 +978,7 @@ QImage MainWindow::iconWithCounter(int size, int count, style::color bg, style::
 void MainWindow::sendPaths() {
 	if (App::passcoded()) return;
 	Messenger::Instance().hideMediaView();
-	Ui::hideSettingsAndLayer(true);
+	Ui::hideSettingsAndLayer(anim::type::instant);
 	if (_main) {
 		_main->activate();
 	}

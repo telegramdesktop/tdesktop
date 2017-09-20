@@ -201,7 +201,10 @@ void SharedMediaWidget::onShowCommonGroups() {
 		return;
 	}
 	if (auto main = App::main()) {
-		main->showSection(Profile::CommonGroups::SectionMemento(peer()->asUser()), anim::type::normal);
+		main->showSection(
+			Profile::CommonGroups::SectionMemento(peer()->asUser()),
+			anim::type::normal,
+			anim::activation::normal);
 	}
 }
 

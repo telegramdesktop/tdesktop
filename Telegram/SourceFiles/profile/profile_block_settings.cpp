@@ -212,27 +212,36 @@ void SettingsWidget::onManageAdmins() {
 	if (auto chat = peer()->asChat()) {
 		EditChatAdminsBoxController::Start(chat);
 	} else if (auto channel = peer()->asChannel()) {
-		ParticipantsBoxController::Start(channel, ParticipantsBoxController::Role::Admins);
+		ParticipantsBoxController::Start(
+			channel,
+			ParticipantsBoxController::Role::Admins);
 	}
 }
 
 void SettingsWidget::onRecentActions() {
 	if (auto channel = peer()->asChannel()) {
 		if (auto main = App::main()) {
-			main->showSection(AdminLog::SectionMemento(channel), anim::type::normal);
+			main->showSection(
+				AdminLog::SectionMemento(channel),
+				anim::type::normal,
+				anim::activation::normal);
 		}
 	}
 }
 
 void SettingsWidget::onManageBannedUsers() {
 	if (auto channel = peer()->asMegagroup()) {
-		ParticipantsBoxController::Start(channel, ParticipantsBoxController::Role::Kicked);
+		ParticipantsBoxController::Start(
+			channel,
+			ParticipantsBoxController::Role::Kicked);
 	}
 }
 
 void SettingsWidget::onManageRestrictedUsers() {
 	if (auto channel = peer()->asMegagroup()) {
-		ParticipantsBoxController::Start(channel, ParticipantsBoxController::Role::Restricted);
+		ParticipantsBoxController::Start(
+			channel,
+			ParticipantsBoxController::Role::Restricted);
 	}
 }
 

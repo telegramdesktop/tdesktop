@@ -136,12 +136,12 @@ public:
 
 	void showSpecialLayer(
 		object_ptr<LayerWidget> layer,
-		LayerOptions options);
-
+		anim::type animated);
 	void ui_showBox(
 		object_ptr<BoxContent> box,
-		LayerOptions options);
-	void ui_hideSettingsAndLayer(LayerOptions options);
+		LayerOptions options,
+		anim::type animated);
+	void ui_hideSettingsAndLayer(anim::type animated);
 	bool ui_isLayerShown();
 	void ui_showMediaPreview(DocumentData *document);
 	void ui_showMediaPreview(PhotoData *photo);

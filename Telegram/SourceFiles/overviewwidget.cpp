@@ -1131,7 +1131,7 @@ void OverviewInner::keyPressEvent(QKeyEvent *e) {
 	if ((_search->isHidden() || !_search->hasFocus()) && !_overview->isHidden() && e->key() == Qt::Key_Escape) {
 		onCancel();
 	} else if (e->key() == Qt::Key_Back) {
-		App::main()->showBackFromStack();
+		App::main()->showBackFromStack(anim::type::normal, anim::activation::normal);
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
 		onSearchMessages();
 	}
@@ -1527,7 +1527,7 @@ void OverviewInner::onSearchUpdate() {
 void OverviewInner::onCancel() {
 	if (_selected.isEmpty()) {
 		if (onCancelSearch()) return;
-		App::main()->showBackFromStack();
+		App::main()->showBackFromStack(anim::type::normal, anim::activation::normal);
 	} else {
 		_overview->onClearSelected();
 	}
@@ -2070,7 +2070,7 @@ bool OverviewWidget::paintTopBar(Painter &p, int decreaseWidth) {
 }
 
 void OverviewWidget::topBarClick() {
-	App::main()->showBackFromStack();
+	App::main()->showBackFromStack(anim::type::normal, anim::activation::normal);
 }
 
 PeerData *OverviewWidget::peer() const {

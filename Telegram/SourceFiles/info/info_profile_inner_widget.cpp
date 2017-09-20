@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <rpl/combine.h>
 #include "boxes/abstract_box.h"
+#include "boxes/add_contact_box.h"
 #include "mainwidget.h"
 #include "info/info_profile_widget.h"
 #include "info/info_profile_lines.h"
@@ -143,7 +144,12 @@ void InnerWidget::setupMainUserButtons(
 	addContact->finishAnimations();
 	addContact->entity()->clicks()
 		| rpl::start([user](auto&&) {
-			App::main()->shareContactLayer(user);
+			auto firstName = user->firstName;
+			auto lastName = user->lastName;
+			auto phone = user->phone().isEmpty()
+				? App::phoneFromSharedContact(user->bareId())
+				: user->phone();
+			Ui::show(Box<AddContactBox>(firstName, lastName, phone));
 		}, addContact->lifetime());
 }
 

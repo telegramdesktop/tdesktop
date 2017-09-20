@@ -204,14 +204,14 @@ void Messenger::showPhoto(not_null<const PhotoOpenClickHandler*> link, HistoryIt
 }
 
 void Messenger::showPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
-	if (_mediaView->isHidden()) Ui::hideLayer(true);
+	if (_mediaView->isHidden()) Ui::hideLayer(anim::type::instant);
 	_mediaView->showPhoto(photo, item);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
 }
 
 void Messenger::showPhoto(not_null<PhotoData*> photo, PeerData *peer) {
-	if (_mediaView->isHidden()) Ui::hideLayer(true);
+	if (_mediaView->isHidden()) Ui::hideLayer(anim::type::instant);
 	_mediaView->showPhoto(photo, peer);
 	_mediaView->activateWindow();
 	_mediaView->setFocus();
@@ -221,7 +221,9 @@ void Messenger::showDocument(not_null<DocumentData*> document, HistoryItem *item
 	if (cUseExternalVideoPlayer() && document->isVideo()) {
 		QDesktopServices::openUrl(QUrl("file:///" + document->location(false).fname));
 	} else {
-		if (_mediaView->isHidden()) Ui::hideLayer(true);
+		if (_mediaView->isHidden()) {
+			Ui::hideLayer(anim::type::instant);
+		}
 		_mediaView->showDocument(document, item);
 		_mediaView->activateWindow();
 		_mediaView->setFocus();

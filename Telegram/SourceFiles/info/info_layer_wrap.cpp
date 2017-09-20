@@ -108,8 +108,11 @@ void LayerWrap::parentResized() {
 	if (parentWidth < MinimalSupportedWidth()) {
 		auto localCopy = _controller;
 		auto memento = MoveMemento(std::move(_content), Wrap::Narrow);
-		localCopy->hideSpecialLayer(LayerOption::ForceFast);
-		localCopy->showSection(std::move(memento));
+		localCopy->hideSpecialLayer(anim::type::instant);
+		localCopy->showSection(
+			std::move(memento),
+			anim::type::instant,
+			anim::activation::background);
 	} else if (_controller->canShowThirdSectionWithoutResize()) {
 		takeToThirdSection();
 	} else {
@@ -123,11 +126,14 @@ void LayerWrap::parentResized() {
 bool LayerWrap::takeToThirdSection() {
 	auto localCopy = _controller;
 	auto memento = MoveMemento(std::move(_content), Wrap::Side);
-	localCopy->hideSpecialLayer(LayerOption::ForceFast);
+	localCopy->hideSpecialLayer(anim::type::instant);
 
 	Auth().data().setThirdSectionInfoEnabled(true);
 	Auth().saveDataDelayed(kThirdSectionInfoTimeoutMs);
-	localCopy->showSection(std::move(memento));
+	localCopy->showSection(
+		std::move(memento),
+		anim::type::instant,
+		anim::activation::background);
 	return true;
 }
 

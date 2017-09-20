@@ -62,7 +62,7 @@ QByteArray EscapeShell(const QByteArray &content) {
 } // namespace internal
 
 void UnsafeShowInFolder(const QString &filepath) {
-	Ui::hideLayer(true); // Hide mediaview to make other apps visible.
+	Ui::hideLayer(anim::type::instant); // Hide mediaview to make other apps visible.
 
 	auto absolutePath = QFileInfo(filepath).absoluteFilePath();
 	QProcess process;

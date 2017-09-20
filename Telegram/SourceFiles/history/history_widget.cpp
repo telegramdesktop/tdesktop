@@ -706,7 +706,7 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 			if (update.flags & UpdateFlag::RestrictionReasonChanged) {
 				auto restriction = _peer->restrictionReason();
 				if (!restriction.isEmpty()) {
-					App::main()->showBackFromStack();
+					this->controller()->showBackFromStack();
 					Ui::show(Box<InformBox>(restriction));
 					return;
 				}
@@ -2217,7 +2217,7 @@ bool HistoryWidget::messagesFailed(const RPCError &error, mtpRequestId requestId
 
 	if (error.type() == qstr("CHANNEL_PRIVATE") || error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA") || error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
 		auto was = _peer;
-		App::main()->showBackFromStack();
+		controller()->showBackFromStack();
 		Ui::show(Box<InformBox>(lang((was && was->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
 		return true;
 	}
@@ -2229,7 +2229,7 @@ bool HistoryWidget::messagesFailed(const RPCError &error, mtpRequestId requestId
 		_preloadDownRequest = 0;
 	} else if (_firstLoadRequest == requestId) {
 		_firstLoadRequest = 0;
-		App::main()->showBackFromStack();
+		controller()->showBackFromStack();
 	} else if (_delayedShowAtRequest == requestId) {
 		_delayedShowAtRequest = 0;
 	}
@@ -3751,7 +3751,7 @@ void HistoryWidget::onModerateKeyActivate(int index, bool *outHandled) {
 
 void HistoryWidget::topBarClick() {
 	if (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) {
-		App::main()->showBackFromStack();
+		controller()->showBackFromStack();
 	} else if (_peer) {
 		controller()->showPeerInfo(_peer);
 	}
@@ -3772,19 +3772,26 @@ void HistoryWidget::pushTabbedSelectorToThirdSection() {
 		&st::historyRecordVoiceRippleBgActive);
 	auto destroyingPanel = std::move(_tabbedPanel);
 	controller()->resizeForThirdSection();
-	controller()->showSection(ChatHelpers::TabbedMemento(
+	auto memento = ChatHelpers::TabbedMemento(
 		destroyingPanel->takeSelector(),
 		base::lambda_guarded(this, [this](
 				object_ptr<TabbedSelector> selector) {
 			returnTabbedSelector(std::move(selector));
-		})));
+		}));
+	controller()->showSection(
+		std::move(memento),
+		anim::type::instant,
+		anim::activation::background);
 }
 
 void HistoryWidget::pushInfoToThirdSection() {
 	if (!_peer) {
 		return;
 	}
-	controller()->showPeerInfo(_peer);
+	controller()->showPeerInfo(
+		_peer,
+		anim::type::instant,
+		anim::activation::background);
 }
 
 void HistoryWidget::toggleTabbedSelectorMode() {
@@ -4527,7 +4534,7 @@ void HistoryWidget::onReportSpamClear() {
 	});
 
 	// Invalidates _peer.
-	App::main()->showBackFromStack();
+	controller()->showBackFromStack();
 }
 
 void HistoryWidget::peerMessagesUpdated(PeerId peer) {
@@ -5092,7 +5099,7 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		e->ignore();
 	} else if (e->key() == Qt::Key_Back) {
-		App::main()->showBackFromStack();
+		controller()->showBackFromStack();
 		emit cancelled();
 	} else if (e->key() == Qt::Key_PageDown) {
 		_scroll->keyPressEvent(e);
@@ -5894,7 +5901,7 @@ void HistoryWidget::onCancel() {
 	} else if (!_fieldAutocomplete->isHidden()) {
 		_fieldAutocomplete->hideAnimated();
 	} else  {
-		App::main()->showBackFromStack();
+		controller()->showBackFromStack();
 		emit cancelled();
 	}
 }

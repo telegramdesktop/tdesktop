@@ -99,7 +99,7 @@ bool MainWindow::hideNoQuit() {
 }
 
 void MainWindow::clearWidgets() {
-	Ui::hideLayer(true);
+	Ui::hideLayer(anim::type::instant);
 	clearWidgetsHook();
 	updateGlobalMenu();
 }

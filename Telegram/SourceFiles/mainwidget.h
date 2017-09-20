@@ -215,11 +215,14 @@ public:
 	bool showMediaTypeSwitch() const;
 	void showSection(
 		Window::SectionMemento &&memento,
-		anim::type animated);
+		anim::type animated,
+		anim::activation activation);
 	void updateColumnLayout();
 	void showMediaOverview(PeerData *peer, MediaOverviewType type, bool back = false, int32 lastScrollTop = -1);
 	bool stackIsEmpty() const;
-	void showBackFromStack();
+	void showBackFromStack(
+		anim::type animated,
+		anim::activation activation);
 	void orderWidgets();
 	QRect historyRect() const;
 	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params);
@@ -391,7 +394,12 @@ public:
 	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col);
 
 	void ui_repaintHistoryItem(not_null<const HistoryItem*> item);
-	void ui_showPeerHistory(quint64 peer, qint32 msgId, Ui::ShowWay way);
+	void ui_showPeerHistory(
+		PeerId peer,
+		MsgId msgId,
+		Ui::ShowWay way,
+		anim::type animated,
+		anim::activation activation);
 	PeerData *ui_getPeerForMouseAction();
 
 	void notify_botCommandsChanged(UserData *bot);
@@ -447,9 +455,6 @@ public slots:
 	void onUpdateMuted();
 
 	void onViewsIncrement();
-
-	void ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId, Ui::ShowWay way);
-	void ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -532,7 +537,8 @@ private:
 		Window::SectionMemento &&memento,
 		bool back,
 		bool saveInStack,
-		anim::type animated);
+		anim::type animated,
+		anim::activation activation);
 	void dropMainSection(Window::SectionWidget *widget);
 
 	Window::SectionSlideParams prepareThirdSectionAnimation(Window::SectionWidget *section);

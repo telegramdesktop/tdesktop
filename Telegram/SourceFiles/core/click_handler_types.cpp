@@ -269,5 +269,5 @@ void BotCommandClickHandler::onClick(Qt::MouseButton button) const {
 }
 
 TextWithEntities BotCommandClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const {
-	return simpleTextWithEntity({ EntityInTextHashtag, entityOffset, textPart.size() });
+	return simpleTextWithEntity({ EntityInTextBotCommand, entityOffset, textPart.size() });
 }

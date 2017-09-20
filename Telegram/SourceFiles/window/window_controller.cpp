@@ -257,64 +257,93 @@ void Controller::updateColumnLayout() {
 void Controller::showPeerHistory(
 		PeerId peerId,
 		Ui::ShowWay way,
-		MsgId msgId) {
-	Ui::showPeerHistory(peerId, msgId, way);
+		MsgId msgId,
+		anim::type animated,
+		anim::activation activation) {
+	Ui::showPeerHistory(
+		peerId,
+		msgId,
+		way,
+		animated,
+		activation);
 }
 
 void Controller::showPeerHistory(
 		not_null<PeerData*> peer,
 		Ui::ShowWay way,
-		MsgId msgId) {
-	showPeerHistory(peer->id, way, msgId);
+		MsgId msgId,
+		anim::type animated,
+		anim::activation activation) {
+	showPeerHistory(
+		peer->id,
+		way,
+		msgId,
+		animated,
+		activation);
 }
 
 void Controller::showPeerHistory(
 		not_null<History*> history,
 		Ui::ShowWay way,
-		MsgId msgId) {
-	showPeerHistory(history->peer->id, way, msgId);
+		MsgId msgId,
+		anim::type animated,
+		anim::activation activation) {
+	showPeerHistory(
+		history->peer->id,
+		way,
+		msgId,
+		animated,
+		activation);
 }
 
 void Controller::showPeerInfo(
 		PeerId peerId,
-		anim::type animated) {
+		anim::type animated,
+		anim::activation activation) {
 	if (Adaptive::ThreeColumn()) {
 		Auth().data().setThirdSectionInfoEnabled(true);
 		Auth().saveDataDelayed(kThirdSectionInfoTimeoutMs);
 	}
-	showSection(Info::Memento(peerId), animated);
+	showSection(
+		Info::Memento(peerId),
+		animated,
+		activation);
 }
 
 void Controller::showPeerInfo(
 		not_null<PeerData*> peer,
-		anim::type animated) {
-	showPeerInfo(peer->id, animated);
+		anim::type animated,
+		anim::activation activation) {
+	showPeerInfo(peer->id, animated, activation);
 }
 
 void Controller::showPeerInfo(
 		not_null<History*> history,
-		anim::type animated) {
-	showPeerInfo(history->peer->id, animated);
+		anim::type animated,
+		anim::activation activation) {
+	showPeerInfo(history->peer->id, animated, activation);
 }
 
 void Controller::showSection(
 		SectionMemento &&memento,
-		anim::type animated) {
-	App::main()->showSection(std::move(memento), animated);
+		anim::type animated,
+		anim::activation activation) {
+	App::main()->showSection(
+		std::move(memento),
+		animated,
+		activation);
 }
 
-void Controller::showBackFromStack() {
-	chats()->showBackFromStack();
+void Controller::showBackFromStack(
+		anim::type animated,
+		anim::activation activation) {
+	chats()->showBackFromStack(animated, activation);
 }
 
 void Controller::showSpecialLayer(
 		object_ptr<LayerWidget> &&layer,
-		LayerOptions options) {
-	App::wnd()->showSpecialLayer(std::move(layer), options);
-}
-
-void Controller::hideSpecialLayer(LayerOptions options) {
-	Ui::hideSettingsAndLayer(options & LayerOption::ForceFast);
+		anim::type animated) {
+	App::wnd()->showSpecialLayer(std::move(layer), animated);
 }
 
 not_null<MainWidget*> Controller::chats() const {

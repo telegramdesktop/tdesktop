@@ -148,7 +148,7 @@ void FixedBar::addRightAction(RightActionType type, base::lambda<QString()> text
 }
 
 void FixedBar::onBack() {
-	App::main()->showBackFromStack();
+	App::main()->showBackFromStack(anim::type::normal, anim::activation::normal);
 }
 
 void FixedBar::onEditChannel() {

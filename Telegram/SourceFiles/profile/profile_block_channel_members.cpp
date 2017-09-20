@@ -149,14 +149,19 @@ void ChannelMembersWidget::onMembers() {
 
 void ChannelMembersWidget::onAdmins() {
 	if (auto channel = peer()->asChannel()) {
-		ParticipantsBoxController::Start(channel, ParticipantsBoxController::Role::Admins);
+		ParticipantsBoxController::Start(
+			channel,
+			ParticipantsBoxController::Role::Admins);
 	}
 }
 
 void ChannelMembersWidget::onRecentActions() {
 	if (auto channel = peer()->asChannel()) {
 		if (auto main = App::main()) {
-			main->showSection(AdminLog::SectionMemento(channel), anim::type::normal);
+			main->showSection(
+				AdminLog::SectionMemento(channel),
+				anim::type::normal,
+				anim::activation::normal);
 		}
 	}
 }

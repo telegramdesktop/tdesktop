@@ -94,11 +94,19 @@ public:
 	}
 	void finishAnimation();
 
-	void showBox(object_ptr<BoxContent> box);
-	void showSpecialLayer(object_ptr<LayerWidget> layer);
-	void showMainMenu();
-	void appendBox(object_ptr<BoxContent> box);
-	void prependBox(object_ptr<BoxContent> box);
+	void showBox(
+		object_ptr<BoxContent> box,
+		anim::type animated);
+	void showSpecialLayer(
+		object_ptr<LayerWidget> layer,
+		anim::type animated);
+	void showMainMenu(anim::type animated);
+	void appendBox(
+		object_ptr<BoxContent> box,
+		anim::type animated);
+	void prependBox(
+		object_ptr<BoxContent> box,
+		anim::type animated);
 	bool takeToThirdSection();
 
 	bool canSetFocus() const;
@@ -106,9 +114,10 @@ public:
 
 	bool contentOverlapped(const QRect &globalRect);
 
-	void hideLayers(LayerOptions options);
-	void hideAll(LayerOptions options);
-	void hideTopLayer(LayerOptions options);
+	void hideSpecialLayer(anim::type animated);
+	void hideLayers(anim::type animated);
+	void hideAll(anim::type animated);
+	void hideTopLayer(anim::type animated);
 
 	bool layerShown() const;
 
@@ -125,14 +134,17 @@ private slots:
 	void onLayerResized();
 
 private:
-	LayerWidget *pushBox(object_ptr<BoxContent> box);
+	LayerWidget *pushBox(
+		object_ptr<BoxContent> box,
+		anim::type animated);
 	void showFinished();
-	void hideCurrent(LayerOptions options);
+	void hideCurrent(anim::type animated);
 
 	enum class Action {
 		ShowMainMenu,
 		ShowSpecialLayer,
 		ShowLayer,
+		HideSpecialLayer,
 		HideLayer,
 		HideAll,
 	};
@@ -141,7 +153,7 @@ private:
 		SetupNew setupNewWidgets,
 		ClearOld clearOldWidgets,
 		Action action,
-		LayerOptions options);
+		anim::type animated);
 
 	void prepareForAnimation();
 	void animationDone();

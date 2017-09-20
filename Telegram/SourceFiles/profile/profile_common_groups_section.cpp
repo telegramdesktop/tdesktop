@@ -59,7 +59,9 @@ FixedBar::FixedBar(QWidget *parent) : TWidget(parent)
 }
 
 void FixedBar::onBack() {
-	App::main()->showBackFromStack();
+	App::main()->showBackFromStack(
+		anim::type::normal,
+		anim::activation::normal);
 }
 
 int FixedBar::resizeGetHeight(int newWidth) {

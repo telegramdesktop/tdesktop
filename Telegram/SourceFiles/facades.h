@@ -87,9 +87,6 @@ enum class LayerOption {
 	CloseOther = (1 << 0),
 	KeepOther = (1 << 1),
 	ShowAfterOther = (1 << 2),
-
-	Animated = (1 << 3),
-	ForceFast = (1 << 4),
 };
 using LayerOptions = base::flags<LayerOption>;
 inline constexpr auto is_flag_type(LayerOption) { return true; };
@@ -97,7 +94,10 @@ inline constexpr auto is_flag_type(LayerOption) { return true; };
 namespace Ui {
 namespace internal {
 
-void showBox(object_ptr<BoxContent> content, LayerOptions options);
+void showBox(
+	object_ptr<BoxContent> content,
+	LayerOptions options,
+	anim::type animated);
 
 } // namespace internal
 
@@ -108,14 +108,15 @@ void hideMediaPreview();
 template <typename BoxType>
 QPointer<BoxType> show(
 		object_ptr<BoxType> content,
-		LayerOptions options = LayerOption::CloseOther) {
+		LayerOptions options = LayerOption::CloseOther,
+		anim::type animated = anim::type::normal) {
 	auto result = QPointer<BoxType>(content.data());
-	internal::showBox(std::move(content), options);
+	internal::showBox(std::move(content), options, animated);
 	return result;
 }
 
-void hideLayer(bool fast = false);
-void hideSettingsAndLayer(bool fast = false);
+void hideLayer(anim::type animated = anim::type::normal);
+void hideSettingsAndLayer(anim::type animated = anim::type::normal);
 bool isLayerShown();
 
 void repaintHistoryItem(not_null<const HistoryItem*> item);
@@ -142,14 +143,28 @@ enum class ShowWay {
 	Forward,
 	Backward,
 };
-void showPeerHistory(const PeerId &peer, MsgId msgId, ShowWay way = ShowWay::ClearStack);
-inline void showPeerHistory(const PeerData *peer, MsgId msgId, ShowWay way = ShowWay::ClearStack) {
+void showPeerHistory(
+	const PeerId &peer,
+	MsgId msgId,
+	ShowWay way = ShowWay::ClearStack,
+	anim::type animated = anim::type::normal,
+	anim::activation activation = anim::activation::normal);
+
+inline void showPeerHistory(
+		const PeerData *peer,
+		MsgId msgId,
+		ShowWay way = ShowWay::ClearStack) {
 	showPeerHistory(peer->id, msgId, way);
 }
-inline void showPeerHistory(const History *history, MsgId msgId, ShowWay way = ShowWay::ClearStack) {
+inline void showPeerHistory(
+		const History *history,
+		MsgId msgId,
+		ShowWay way = ShowWay::ClearStack) {
 	showPeerHistory(history->peer->id, msgId, way);
 }
-inline void showPeerHistoryAtItem(const HistoryItem *item, ShowWay way = ShowWay::ClearStack) {
+inline void showPeerHistoryAtItem(
+		const HistoryItem *item,
+		ShowWay way = ShowWay::ClearStack) {
 	showPeerHistory(item->history()->peer->id, item->id, way);
 }
 void showPeerHistoryAsync(const PeerId &peer, MsgId msgId, ShowWay way = ShowWay::ClearStack);

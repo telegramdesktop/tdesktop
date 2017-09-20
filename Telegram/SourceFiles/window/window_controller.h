@@ -95,38 +95,65 @@ public:
 	void closeThirdSection();
 	void showSection(
 		SectionMemento &&memento,
-		anim::type animated = anim::type::normal);
-	void showBackFromStack();
+		anim::type animated = anim::type::normal,
+		anim::activation activation = anim::activation::normal);
+	void showBackFromStack(
+		anim::type animated = anim::type::normal,
+		anim::activation activation = anim::activation::normal);
 	void showSpecialLayer(
 		object_ptr<LayerWidget> &&layer,
-		LayerOptions options = LayerOption::Animated);
+		anim::type animated = anim::type::normal);
 	void hideSpecialLayer(
-		LayerOptions options = LayerOption::Animated);
+			anim::type animated = anim::type::normal) {
+		showSpecialLayer(nullptr, animated);
+	}
 
 	void showPeerHistory(
 		PeerId peerId,
 		Ui::ShowWay way = Ui::ShowWay::ClearStack,
-		MsgId msgId = ShowAtUnreadMsgId);
+		MsgId msgId = ShowAtUnreadMsgId,
+		anim::type animated = anim::type::normal,
+		anim::activation activation = anim::activation::normal);
 	void showPeerHistory(
 		not_null<PeerData*> peer,
 		Ui::ShowWay way = Ui::ShowWay::ClearStack,
-		MsgId msgId = ShowAtUnreadMsgId);
+		MsgId msgId = ShowAtUnreadMsgId,
+		anim::type animated = anim::type::normal,
+		anim::activation activation = anim::activation::normal);
 	void showPeerHistory(
 		not_null<History*> history,
 		Ui::ShowWay way = Ui::ShowWay::ClearStack,
-		MsgId msgId = ShowAtUnreadMsgId);
+		MsgId msgId = ShowAtUnreadMsgId,
+		anim::type animated = anim::type::normal,
+		anim::activation activation = anim::activation::normal);
 
 	void showPeerInfo(
 		PeerId peerId,
-		anim::type animated = anim::type::normal);
+		anim::type animated = anim::type::normal,
+		anim::activation activation = anim::activation::normal);
 	void showPeerInfo(
 		not_null<PeerData*> peer,
-		anim::type animated = anim::type::normal);
+		anim::type animated = anim::type::normal,
+		anim::activation activation = anim::activation::normal);
 	void showPeerInfo(
 		not_null<History*> history,
-		anim::type animated = anim::type::normal);
+		anim::type animated = anim::type::normal,
+		anim::activation activation = anim::activation::normal);
 
-	void showJumpToDate(not_null<PeerData*> peer, QDate requestedDate);
+	void clearSectionStack(
+		anim::type animated = anim::type::normal,
+		anim::activation activation = anim::activation::normal) {
+		showPeerHistory(
+			PeerId(0),
+			Ui::ShowWay::ClearStack,
+			ShowAtUnreadMsgId,
+			animated,
+			activation);
+	}
+
+	void showJumpToDate(
+		not_null<PeerData*> peer,
+		QDate requestedDate);
 
 	base::Variable<float64> &dialogsWidthRatio() {
 		return _dialogsWidthRatio;

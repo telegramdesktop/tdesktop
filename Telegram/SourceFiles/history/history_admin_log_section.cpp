@@ -33,6 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "window/themes/window_theme.h"
+#include "window/window_controller.h"
 #include "boxes/confirm_box.h"
 #include "base/timer.h"
 #include "lang/lang_keys.h"
@@ -41,7 +42,10 @@ namespace AdminLog {
 
 class FixedBar final : public TWidget, private base::Subscriber {
 public:
-	FixedBar(QWidget *parent, not_null<ChannelData*> channel);
+	FixedBar(
+		QWidget *parent,
+		not_null<Window::Controller*> controller,
+		not_null<ChannelData*> channel);
 
 	base::Observable<void> showFilterSignal;
 	base::Observable<void> searchCancelledSignal;
@@ -74,6 +78,7 @@ private:
 	void applySearch();
 	void searchAnimationCallback();
 
+	not_null<Window::Controller*> _controller;
 	not_null<ChannelData*> _channel;
 	object_ptr<Ui::FlatInput> _field;
 	object_ptr<Profile::BackButton> _backButton;
@@ -101,7 +106,11 @@ object_ptr<Window::SectionWidget> SectionMemento::createWidget(
 	return std::move(result);
 }
 
-FixedBar::FixedBar(QWidget *parent, not_null<ChannelData*> channel) : TWidget(parent)
+FixedBar::FixedBar(
+	QWidget *parent,
+	not_null<Window::Controller*> controller,
+	not_null<ChannelData*> channel) : TWidget(parent)
+, _controller(controller)
 , _channel(channel)
 , _field(this, st::historyAdminLogSearchField, langFactory(lng_dlg_filter))
 , _backButton(this, lang(lng_admin_log_title_all))
@@ -128,7 +137,7 @@ void FixedBar::applyFilter(const FilterValue &value) {
 }
 
 void FixedBar::goBack() {
-	App::main()->showBackFromStack();
+	_controller->showBackFromStack();
 }
 
 void FixedBar::showSearch() {
@@ -241,7 +250,7 @@ void FixedBar::mousePressEvent(QMouseEvent *e) {
 
 Widget::Widget(QWidget *parent, not_null<Window::Controller*> controller, not_null<ChannelData*> channel) : Window::SectionWidget(parent, controller)
 , _scroll(this, st::historyScroll, false)
-, _fixedBar(this, channel)
+, _fixedBar(this, controller, channel)
 , _fixedBarShadow(this, st::shadowFg)
 , _whatIsThis(this, lang(lng_admin_log_about).toUpper(), st::historyComposeButton) {
 	_fixedBar->move(0, 0);

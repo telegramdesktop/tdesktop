@@ -1577,7 +1577,6 @@ bool MainWidget::insertBotCommand(const QString &cmd) {
 }
 
 void MainWidget::searchMessages(const QString &query, PeerData *inPeer) {
-	Messenger::Instance().hideMediaView();
 	_dialogs->searchMessages(query, inPeer);
 	if (Adaptive::OneColumn()) {
 		Ui::showChatsList();
@@ -1739,18 +1738,6 @@ void MainWidget::messagesAffected(PeerData *peer, const MTPmessages_AffectedMess
 	if (auto h = App::historyLoaded(peer ? peer->id : 0)) {
 		if (!h->lastMsg) {
 			checkPeerHistory(peer);
-		}
-	}
-}
-
-void MainWidget::ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId, Ui::ShowWay way) {
-	Ui::showPeerHistory(peerId, showAtMsgId, way);
-}
-
-void MainWidget::ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId) {
-	if (HistoryItem *item = App::histItemById(channelId, msgId)) {
-		if (HistoryMedia *media = item->getMedia()) {
-			media->playInline(true);
 		}
 	}
 }
@@ -2457,17 +2444,23 @@ void MainWidget::ctrlEnterSubmitUpdated() {
 	_history->updateFieldSubmitSettings();
 }
 
-void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::ShowWay way) {
+void MainWidget::ui_showPeerHistory(
+		PeerId peerId,
+		MsgId showAtMsgId,
+		Ui::ShowWay way,
+		anim::type animated,
+		anim::activation activation) {
 	if (auto peer = App::peerLoaded(peerId)) {
 		if (peer->migrateTo()) {
 			peer = peer->migrateTo();
 			peerId = peer->id;
 			if (showAtMsgId > 0) showAtMsgId = -showAtMsgId;
 		}
-		QString restriction = peer->restrictionReason();
+		auto restriction = peer->restrictionReason();
 		if (!restriction.isEmpty()) {
-			Ui::showChatsList();
-			Ui::show(Box<InformBox>(restriction));
+			if (activation != anim::activation::background) {
+				Ui::show(Box<InformBox>(restriction));
+			}
 			return;
 		}
 	}
@@ -2505,8 +2498,9 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 	}
 
 	auto wasActivePeer = activePeer();
-
-	Ui::hideSettingsAndLayer();
+	if (activation != anim::activation::background) {
+		Ui::hideSettingsAndLayer();
+	}
 	if (_hider) {
 		_hider->startHide();
 		_hider = nullptr;
@@ -2695,7 +2689,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 		if (_overview->type() != type) {
 			_overview->switchType(type);
 		} else if (type == OverviewMusicFiles) { // hack for player
-			showBackFromStack();
+			_controller->showBackFromStack();
 		}
 		return;
 	}
@@ -2758,7 +2752,8 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 
 void MainWidget::showSection(
 		Window::SectionMemento &&memento,
-		anim::type animated) {
+		anim::type animated,
+		anim::activation activation) {
 	if (_mainSection && _mainSection->showInternal(&memento)) {
 		return;
 	} else if (_thirdSection && _thirdSection->showInternal(&memento)) {
@@ -2770,7 +2765,12 @@ void MainWidget::showSection(
 	// we need to update adaptive layout to Adaptive::ThirdColumn().
 	updateColumnLayout();
 
-	showNewSection(std::move(memento), false, true, animated);
+	showNewSection(
+		std::move(memento),
+		false,
+		true,
+		animated,
+		activation);
 }
 
 void MainWidget::updateColumnLayout() {
@@ -2902,7 +2902,8 @@ void MainWidget::showNewSection(
 		Window::SectionMemento &&memento,
 		bool back,
 		bool saveInStack,
-		anim::type animated) {
+		anim::type animated,
+		anim::activation activation) {
 	using Column = Window::Column;
 
 	auto thirdSectionTop = getThirdSectionTop();
@@ -2925,6 +2926,10 @@ void MainWidget::showNewSection(
 			_controller->showSpecialLayer(std::move(layer));
 			return;
 		}
+	}
+
+	if (activation != anim::activation::background) {
+		Ui::hideSettingsAndLayer();
 	}
 
 	QPixmap animCache;
@@ -3026,7 +3031,7 @@ void MainWidget::checkMainSectionToLayer() {
 		dropMainSection(_mainSection);
 		_controller->showSpecialLayer(
 			std::move(layer),
-			LayerOption::ForceFast);
+			anim::type::instant);
 	}
 }
 
@@ -3035,7 +3040,9 @@ void MainWidget::dropMainSection(Window::SectionWidget *widget) {
 		return;
 	}
 	_mainSection.destroy();
-	showBackFromStack();
+	_controller->showBackFromStack(
+		anim::type::instant,
+		anim::activation::background);
 }
 
 bool MainWidget::isMainSectionShown() const {
@@ -3050,10 +3057,12 @@ bool MainWidget::stackIsEmpty() const {
 	return _stack.empty();
 }
 
-void MainWidget::showBackFromStack() {
+void MainWidget::showBackFromStack(
+		anim::type animated,
+		anim::activation activation) {
 	if (selectingPeer()) return;
 	if (_stack.empty()) {
-		Ui::showChatsList();
+		_controller->clearSectionStack(animated, activation);
 		if (App::wnd()) QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
 		return;
 	}
@@ -3076,7 +3085,12 @@ void MainWidget::showBackFromStack() {
 			}
 		}
 		auto historyItem = static_cast<StackItemHistory*>(item.get());
-		Ui::showPeerHistory(historyItem->peer->id, ShowAtUnreadMsgId, Ui::ShowWay::Backward);
+		_controller->showPeerHistory(
+			historyItem->peer->id,
+			Ui::ShowWay::Backward,
+			ShowAtUnreadMsgId,
+			animated,
+			activation);
 		_history->setReplyReturns(historyItem->peer->id, historyItem->replyReturns);
 	} else if (item->type() == SectionStackItem) {
 		auto sectionItem = static_cast<StackItemSection*>(item.get());
@@ -3084,10 +3098,15 @@ void MainWidget::showBackFromStack() {
 			std::move(*sectionItem->memento()),
 			true,
 			false,
-			anim::type::normal);
+			animated,
+			activation);
 	} else if (item->type() == OverviewStackItem) {
 		auto overviewItem = static_cast<StackItemOverview*>(item.get());
-		showMediaOverview(overviewItem->peer, overviewItem->mediaType, true, overviewItem->lastScrollTop);
+		showMediaOverview(
+			overviewItem->peer,
+			overviewItem->mediaType,
+			true,
+			overviewItem->lastScrollTop);
 	}
 }
 
@@ -3332,7 +3351,7 @@ void MainWidget::showAll() {
 					if (_hider) _hider->offerPeer(0);
 				}), base::lambda_guarded(this, [this] {
 					if (_hider && _forwardConfirm) _hider->offerPeer(0);
-				})), LayerOption::ForceFast);
+				})), LayerOption::CloseOther, anim::type::instant);
 			}
 		}
 		if (selectingPeer()) {
@@ -3364,7 +3383,7 @@ void MainWidget::showAll() {
 			_hider->show();
 			if (_forwardConfirm) {
 				_forwardConfirm = nullptr;
-				Ui::hideLayer(true);
+				Ui::hideLayer(anim::type::instant);
 				if (_hider->wasOffered()) {
 					_hider->setFocus();
 				}
@@ -3531,7 +3550,10 @@ void MainWidget::updateThirdColumnToCurrentPeer(PeerData *peer) {
 		&& Auth().data().tabbedSelectorSectionEnabled()
 		&& peer) {
 		if (!peer->canWrite()) {
-			_controller->showPeerInfo(peer);
+			_controller->showPeerInfo(
+				peer,
+				anim::type::instant,
+				anim::activation::background);
 			Auth().data().setTabbedSelectorSectionEnabled(true);
 			Auth().data().setTabbedReplacedWithInfo(true);
 		} else if (Auth().data().tabbedReplacedWithInfo()) {
@@ -3545,7 +3567,10 @@ void MainWidget::updateThirdColumnToCurrentPeer(PeerData *peer) {
 			_thirdShadow.destroy();
 		} else if (Adaptive::ThreeColumn()
 			&& Auth().data().thirdSectionInfoEnabled()) {
-			_controller->showPeerInfo(peer, anim::type::instant);
+			_controller->showPeerInfo(
+				peer,
+				anim::type::instant,
+				anim::activation::background);
 		}
 	}
 }
@@ -3616,7 +3641,7 @@ bool MainWidget::eventFilter(QObject *o, QEvent *e) {
 		}
 	} else if (e->type() == QEvent::MouseButtonPress) {
 		if (static_cast<QMouseEvent*>(e)->button() == Qt::BackButton) {
-			showBackFromStack();
+			_controller->showBackFromStack();
 			return true;
 		}
 	} else if (e->type() == QEvent::Wheel && !_playerFloats.empty()) {
