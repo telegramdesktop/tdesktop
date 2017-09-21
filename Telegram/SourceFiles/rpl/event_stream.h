@@ -21,8 +21,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include <rpl/producer.h>
-#include <rpl/single.h>
+#include <rpl/range.h>
 #include <rpl/then.h>
+#include <rpl/range.h>
 #include "base/algorithm.h"
 #include "base/assertion.h"
 #include "base/index_based_iterator.h"
@@ -154,10 +155,51 @@ inline event_stream<Value>::~event_stream() {
 }
 
 template <typename Value>
-inline auto to_stream(event_stream<Value> &stream) {
-	return on_next([&stream](auto &&value) {
+inline auto start_to_stream(
+		event_stream<Value> &stream,
+		lifetime &alive_while) {
+	return start([&stream](auto &&value) {
 		stream.fire_forward(std::forward<decltype(value)>(value));
-	});
+	}, alive_while);
+}
+
+namespace details {
+
+class start_spawning_helper {
+public:
+	start_spawning_helper(lifetime &alive_while)
+	: _lifetime(alive_while) {
+	}
+	template <typename Value, typename Error>
+	producer<Value, Error> operator()(
+			producer<Value, Error> &&initial) {
+		auto stream = _lifetime.make_state<event_stream<Value>>();
+		auto collected = std::vector<Value>();
+		{
+			auto collecting = stream->events().start(
+				[&collected](Value &&value) {
+					collected.push_back(std::move(value));
+				},
+				[](const Error &error) {},
+				[] {});
+			std::move(initial) | start_to_stream(*stream, _lifetime);
+		}
+		return collected.empty()
+			? stream->events()
+			: vector(std::move(collected))
+				| then(stream->events());
+	}
+
+private:
+	lifetime &_lifetime;
+
+};
+
+} // namespace details
+
+inline auto start_spawning(lifetime &alive_while)
+-> details::start_spawning_helper {
+	return details::start_spawning_helper(alive_while);
 }
 
 } // namespace rpl

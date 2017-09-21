@@ -44,8 +44,7 @@ void TopBar::enableBackButton(bool enable) {
 	if (enable) {
 		_back.create(this, _st.back);
 		_back->clicks()
-			| rpl::to_stream(_backClicks)
-			| rpl::start(_lifetime);
+			| rpl::start_to_stream(_backClicks, _lifetime);
 	} else {
 		_back.destroy();
 	}

@@ -28,53 +28,69 @@ SlideWrap<RpWidget>::SlideWrap(
 : SlideWrap(
 	parent,
 	std::move(child),
-	style::margins(),
-	st::slideWrapDuration) {
+	style::margins()) {
+}
+
+SlideWrap<RpWidget>::SlideWrap(
+	QWidget *parent,
+	const style::margins &padding)
+: SlideWrap(parent, nullptr, padding) {
 }
 
 SlideWrap<RpWidget>::SlideWrap(
 	QWidget *parent,
 	object_ptr<RpWidget> child,
 	const style::margins &padding)
-: SlideWrap(
-	parent,
-	std::move(child),
-	padding,
-	st::slideWrapDuration) {
-}
-
-SlideWrap<RpWidget>::SlideWrap(
-	QWidget *parent,
-	object_ptr<RpWidget> child,
-	int duration)
-: SlideWrap(parent, std::move(child), style::margins(), duration) {
-}
-
-SlideWrap<RpWidget>::SlideWrap(
-	QWidget *parent,
-	const style::margins &padding)
-: SlideWrap(parent, nullptr, padding, st::slideWrapDuration) {
-}
-
-SlideWrap<RpWidget>::SlideWrap(
-	QWidget *parent,
-	const style::margins &padding,
-	int duration)
-: SlideWrap(parent, nullptr, padding, duration) {
-}
-
-SlideWrap<RpWidget>::SlideWrap(
-	QWidget *parent,
-	object_ptr<RpWidget> child,
-	const style::margins &padding,
-	int duration)
 : Parent(
 	parent,
 	object_ptr<PaddingWrap<RpWidget>>(
 		parent,
 		std::move(child),
 		padding))
-, _duration(duration) {
+, _duration(st::slideWrapDuration) {
+}
+
+SlideWrap<RpWidget> *SlideWrap<RpWidget>::setDuration(int duration) {
+	_duration = duration;
+	return this;
+}
+
+SlideWrap<RpWidget> *SlideWrap<RpWidget>::toggleAnimated(
+		bool shown) {
+	if (_shown != shown) {
+		setShown(shown);
+		_slideAnimation.start(
+			[this] { animationStep(); },
+			_shown ? 0. : 1.,
+			_shown ? 1. : 0.,
+			_duration,
+			anim::linear);
+	}
+	animationStep();
+	return this;
+}
+
+SlideWrap<RpWidget> *SlideWrap<RpWidget>::toggleFast(bool shown) {
+	setShown(shown);
+	finishAnimations();
+	return this;
+}
+
+SlideWrap<RpWidget> *SlideWrap<RpWidget>::finishAnimations() {
+	_slideAnimation.finish();
+	animationStep();
+	return this;
+}
+
+SlideWrap<RpWidget> *SlideWrap<RpWidget>::toggleOn(
+		rpl::producer<bool> &&shown) {
+	_toggleOnLifetime.destroy();
+	std::move(shown)
+		| rpl::start([this](bool shown) {
+			toggleAnimated(shown);
+		}, _toggleOnLifetime);
+	finishAnimations();
+	return this;
 }
 
 void SlideWrap<RpWidget>::animationStep() {
@@ -105,31 +121,6 @@ void SlideWrap<RpWidget>::animationStep() {
 void SlideWrap<RpWidget>::setShown(bool shown) {
 	_shown = shown;
 	_shownUpdated.fire_copy(_shown);
-}
-
-void SlideWrap<RpWidget>::toggleAnimated(bool shown) {
-	if (_shown == shown) {
-		animationStep();
-		return;
-	}
-	setShown(shown);
-	_slideAnimation.start(
-		[this] { animationStep(); },
-		_shown ? 0. : 1.,
-		_shown ? 1. : 0.,
-		_duration,
-		anim::linear);
-	animationStep();
-}
-
-void SlideWrap<RpWidget>::toggleFast(bool shown) {
-	setShown(shown);
-	finishAnimations();
-}
-
-void SlideWrap<RpWidget>::finishAnimations() {
-	_slideAnimation.finish();
-	animationStep();
 }
 
 QMargins SlideWrap<RpWidget>::getMargins() const {

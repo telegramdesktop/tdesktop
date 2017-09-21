@@ -627,6 +627,7 @@ adminLogFilterCheckbox: Checkbox(defaultBoxCheckbox) {
 adminLogFilterSkip: 32px;
 adminLogFilterUserCheckbox: Checkbox(defaultBoxCheckbox) {
 	margin: margins(8px, 6px, 8px, 6px);
+	checkPosition: point(8px, 6px);
 }
 
 rightsCheckbox: Checkbox(defaultBoxCheckbox) {

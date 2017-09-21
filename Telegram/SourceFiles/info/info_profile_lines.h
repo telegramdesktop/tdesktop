@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include <rpl/producer.h>
+#include "ui/widgets/checkbox.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -31,6 +32,7 @@ enum LangKey : int;
 namespace style {
 struct FlatLabel;
 struct InfoProfileButton;
+struct InfoToggle;
 } // namespace style
 
 namespace Lang {
@@ -81,26 +83,18 @@ rpl::producer<bool> CanShareContactViewer(
 	not_null<UserData*> user);
 rpl::producer<bool> CanAddContactViewer(
 	not_null<UserData*> user);
+rpl::producer<int> MembersCountViewer(
+	not_null<PeerData*> peer);
+rpl::producer<int> SharedMediaCountViewer(
+	not_null<PeerData*> peer,
+	Storage::SharedMediaType type);
+rpl::producer<int> CommonGroupsCountViewer(
+	not_null<UserData*> user);
 
 class FloatingIcon : public Ui::RpWidget {
 public:
 	FloatingIcon(
-		QWidget *parent,
-		not_null<RpWidget*> above,
-		const style::icon &icon);
-
-	FloatingIcon(
-		QWidget *parent,
-		not_null<RpWidget*> above,
-		const style::icon &icon,
-		QPoint position);
-
-	FloatingIcon(
-		QWidget *parent,
-		const style::icon &icon);
-
-	FloatingIcon(
-		QWidget *parent,
+		RpWidget *parent,
 		const style::icon &icon,
 		QPoint position);
 
@@ -111,8 +105,7 @@ private:
 	struct Tag {
 	};
 	FloatingIcon(
-		QWidget *parent,
-		RpWidget *above,
+		RpWidget *parent,
 		const style::icon &icon,
 		QPoint position,
 		const Tag &);
@@ -139,19 +132,16 @@ public:
 
 };
 
-class CoverLine : public Ui::RpWidget {
+class Cover : public Ui::FixedHeightWidget {
 public:
-	CoverLine(QWidget *parent, not_null<PeerData*> peer);
+	Cover(QWidget *parent, not_null<PeerData*> peer);
 
-	void setOnlineCount(int onlineCount);
-	void setHasToggle(bool hasToggle);
-
-	rpl::producer<bool> toggled() const;
-
-protected:
-	int resizeGetHeight(int newWidth) override;
+	Cover *setOnlineCount(rpl::producer<int> &&count);
+	Cover *setToggleShown(rpl::producer<bool> &&shown);
+	rpl::producer<bool> toggledValue() const;
 
 private:
+	void setupChildGeometry();
 	void initViewers();
 	void initUserpicButton();
 	void refreshUserpicLink();
@@ -169,7 +159,21 @@ private:
 	object_ptr<Ui::Checkbox> _toggle = { nullptr };
 	//object_ptr<CoverDropArea> _dropArea = { nullptr };
 
-	rpl::lifetime _lifetime;
+};
+
+class SharedMediaCover : public Ui::FixedHeightWidget {
+public:
+	SharedMediaCover(QWidget *parent);
+
+	SharedMediaCover *setToggleShown(rpl::producer<bool> &&shown);
+	rpl::producer<bool> toggledValue() const;
+
+	QMargins getMargins() const override;
+
+private:
+	void createLabel();
+
+	object_ptr<Ui::Checkbox> _toggle = { nullptr };
 
 };
 
@@ -183,7 +187,7 @@ public:
 		rpl::producer<QString> &&text,
 		const style::InfoProfileButton &st);
 
-	void setToggled(bool toggled);
+	Button *toggleOn(rpl::producer<bool> &&toggled);
 	rpl::producer<bool> toggledValue() const;
 
 protected:
@@ -205,6 +209,7 @@ private:
 	int _originalWidth = 0;
 	int _textWidth = 0;
 	std::unique_ptr<Ui::ToggleView> _toggle;
+	rpl::lifetime _toggleOnLifetime;
 
 };
 
@@ -219,6 +224,30 @@ public:
 
 private:
 	std::vector<const Ui::SlideWrap<Ui::RpWidget>*> _widgets;
+
+};
+
+class SectionToggle : public Ui::AbstractCheckView {
+public:
+	SectionToggle(
+		const style::InfoToggle &st,
+		bool checked,
+		base::lambda<void()> updateCallback);
+
+	QSize getSize() const override;
+	void paint(
+		Painter &p,
+		int left,
+		int top,
+		int outerWidth,
+		TimeMs ms) override;
+	QImage prepareRippleMask() const override;
+	bool checkRippleStartPosition(QPoint position) const override;
+
+private:
+	QSize rippleSize() const;
+
+	const style::InfoToggle &_st;
 
 };
 

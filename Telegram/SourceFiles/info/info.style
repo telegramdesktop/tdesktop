@@ -23,6 +23,30 @@ using "basic.style";
 using "boxes/boxes.style";
 using "ui/widgets/widgets.style";
 
+InfoToggle {
+	color: color;
+	duration: int;
+	size: pixels;
+	skip: pixels;
+	stroke: pixels;
+	rippleAreaPadding: pixels;
+}
+
+infoToggleCheckbox: Checkbox(defaultCheckbox) {
+	margin: margins(0px, 0px, 0px, 0px);
+	rippleBgActive: windowBgOver;
+	checkPosition: point(16px, 8px);
+	rippleAreaPosition: point(-8px, -8px);
+}
+infoToggle: InfoToggle {
+	color: menuIconFg;
+	duration: slideWrapDuration;
+	size: 24px;
+	skip: 5px;
+	stroke: 2px;
+	rippleAreaPadding: 8px;
+}
+
 infoScroll: ScrollArea(defaultScrollArea) {
 	bottomsh: 0px;
 	topsh: 0px;
@@ -85,27 +109,11 @@ infoProfilePhotoLeft: 19px;
 infoProfilePhotoTop: 18px;
 infoProfilePhotoBottom: 18px;
 
-infoProfileNameLeft: 109px;
-infoProfileNameRight: 20px;
-infoProfileNameTop: 32px;
-infoProfileNameLabel: FlatLabel(defaultFlatLabel) {
-	margin: margins(10px, 5px, 10px, 5px);
-	width: 160px;
-	maxHeight: 24px;
-	textFg: windowBoldFg;
-	style: TextStyle(defaultTextStyle) {
-		font: font(16px semibold);
-		linkFont: font(16px semibold);
-		linkFontOver: font(16px semibold underline);
-	}
-}
-
-infoProfileStatusLeft: infoProfileNameLeft;
-infoProfileStatusRight: infoProfileNameRight;
+infoProfileStatusLeft: 109px;
+infoProfileStatusRight: 20px;
 infoProfileStatusTop: 58px;
-infoProfileStatusLabel: FlatLabel(infoProfileNameLabel) {
-	margin: margins(10px, 5px, 10px, 5px);
-	width: 160px;
+infoProfileStatusLabel: FlatLabel(defaultFlatLabel) {
+	width: 0px;
 	maxHeight: 18px;
 	textFg: windowSubTextFg;
 	style: TextStyle(defaultTextStyle) {
@@ -118,8 +126,18 @@ infoProfileStatusLabel: FlatLabel(infoProfileNameLabel) {
 	}
 }
 
-infoProfileToggleRight: 12px;
-infoProfileToggleTop: 40px;
+infoProfileNameLeft: infoProfileStatusLeft;
+infoProfileNameRight: infoProfileStatusRight;
+infoProfileNameTop: 32px;
+infoProfileNameLabel: FlatLabel(infoProfileStatusLabel) {
+	maxHeight: 24px;
+	textFg: windowBoldFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(16px semibold);
+		linkFont: font(16px semibold);
+		linkFontOver: font(16px semibold underline);
+	}
+}
 
 infoProfileSkip: 12px;
 
@@ -131,11 +149,15 @@ infoProfileSeparatorPadding: margins(
 	infoProfileSkip);
 
 infoIconFg: menuIconFg;
-infoIconPosition: point(25px, 12px);
+infoIconPosition: point(20px, 12px);
 infoIconInformation: icon {{ "info_information", infoIconFg }};
 infoIconMembers: icon {{ "info_members", infoIconFg }};
 infoIconNotifications: icon {{ "info_notifications", infoIconFg }};
 infoIconActions: icon {{ "info_actions", infoIconFg }};
+infoIconMediaPhoto: icon {{ "info_media_photo", infoIconFg }};
+infoInformationIconPosition: point(25px, 12px);
+infoNotificationsIconPosition: point(20px, 5px);
+infoSharedMediaIconPosition: point(20px, 24px);
 
 infoLabeledOneLine: FlatLabel(defaultFlatLabel) {
 	width: 0px; // No need to set minWidth in one-line text.
@@ -182,8 +204,19 @@ infoProfileButton: InfoProfileButton {
 infoNotificationsButton: InfoProfileButton(infoProfileButton) {
 	padding: margins(79px, 13px, 8px, 9px);
 }
-infoNotificationsIconPosition: point(20px, 5px);
 infoMainButton: InfoProfileButton(infoProfileButton) {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;
 }
+infoSharedMediaCoverHeight: 62px;
+infoSharedMediaLabelPosition: point(79px, 22px);
+infoSharedMediaLabel: FlatLabel(infoProfileStatusLabel) {
+	textFg: windowBoldFg;
+	style: TextStyle(defaultTextStyle) {
+		font: semiboldFont;
+		linkFont: semiboldFont;
+		linkFontOver: semiboldFont;
+	}
+}
+infoSharedMediaButton: infoProfileButton;
+infoSharedMediaBottomSkip: 12px;

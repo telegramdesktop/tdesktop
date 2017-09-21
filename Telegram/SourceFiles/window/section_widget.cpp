@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "application.h"
 #include "window/section_memento.h"
-#include <rpl/single.h>
+#include <rpl/range.h>
 
 namespace Window {
 

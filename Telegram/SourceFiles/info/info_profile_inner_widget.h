@@ -65,15 +65,23 @@ protected:
 
 private:
 	void setupContent();
-	object_ptr<RpWidget> setupDetailsContent(RpWidget *parent) const;
+	object_ptr<RpWidget> setupDetails(RpWidget *parent) const;
+	object_ptr<RpWidget> setupSharedMedia(RpWidget *parent) const;
 	object_ptr<RpWidget> setupMuteToggle(RpWidget *parent) const;
-	object_ptr<RpWidget> setupInfoLines(RpWidget *parent) const;
-	void setupMainUserButtons(
+	object_ptr<RpWidget> setupInfo(RpWidget *parent) const;
+	void setupUserButtons(
 		Ui::VerticalLayout *wrap,
 		not_null<UserData*> user) const;
+	object_ptr<RpWidget> setupUserActions(
+		RpWidget *parent,
+		not_null<UserData*> user) const;
+
 	object_ptr<RpWidget> createSkipWidget(RpWidget *parent) const;
 	object_ptr<Ui::SlideWrap<RpWidget>> createSlideSkipWidget(
 		RpWidget *parent) const;
+
+	bool canHideDetailsEver() const;
+	rpl::producer<bool> canHideDetails() const;
 
 	not_null<Window::Controller*> _controller;
 	not_null<PeerData*> _peer;

@@ -37,12 +37,6 @@ public:
 		object_ptr<RpWidget> child,
 		const style::margins &padding);
 
-	PaddingWrap(
-		QWidget *parent,
-		const style::margins &padding)
-		: PaddingWrap(parent, nullptr, padding) {
-	}
-
 	int naturalWidth() const override;
 
 protected:
@@ -66,18 +60,23 @@ public:
 	: Parent(parent, std::move(child), padding) {
 	}
 
-	PaddingWrap(QWidget *parent, const style::margins &padding)
-	: Parent(parent, padding) {
+};
+
+class FixedHeightWidget : public RpWidget {
+public:
+	FixedHeightWidget(QWidget *parent, int height)
+	: RpWidget(parent) {
+		resize(width(), height);
 	}
 
 };
 
-inline object_ptr<PaddingWrap<>> CreateSkipWidget(
+inline object_ptr<FixedHeightWidget> CreateSkipWidget(
 		QWidget *parent,
 		int skip) {
-	return object_ptr<PaddingWrap<>>(
+	return object_ptr<FixedHeightWidget>(
 		parent,
-		QMargins(0, 0, 0, skip));
+		skip);
 }
 
 } // namespace Ui

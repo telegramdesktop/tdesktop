@@ -40,7 +40,43 @@ inline producer<empty_value, Error> single() {
 	return [](const consumer<empty_value, Error> &consumer) {
 		consumer.put_next({});
 		consumer.put_done();
+		return lifetime();
 	};
 }
 
+template <typename Value, typename Error = no_error>
+inline producer<Value, Error> vector(std::vector<Value> &&values) {
+	return [values = std::move(values)](
+			const consumer<Value, Error> &consumer) mutable {
+		for (auto &value : values) {
+			consumer.put_next(std::move(value));
+		}
+		consumer.put_done();
+		return lifetime();
+	};
+}
+
+template <typename Value, typename Error = no_error, typename Range>
+inline producer<Value, Error> range(Range &&range) {
+	return vector(std::vector<Value>(
+		std::begin(range),
+		std::end(range)));
+}
+
+inline producer<int> ints(int from, int till) {
+	Expects(from <= till);
+	return [from, till](const consumer<int> &consumer) {
+		for (auto i = from; i != till; ++i) {
+			consumer.put_next_copy(i);
+		}
+		consumer.put_done();
+		return lifetime();
+	};
+}
+
+inline producer<int> ints(int count) {
+	return ints(0, count);
+}
+
 } // namespace rpl
+

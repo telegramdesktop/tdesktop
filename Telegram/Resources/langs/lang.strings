@@ -599,6 +599,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_files_header" = "Files";
 "lng_profile_audios#one" = "{count} voice message";
 "lng_profile_audios#other" = "{count} voice messages";
+"lng_profile_rounds#one" = "{count} video message";
+"lng_profile_rounds#other" = "{count} video messages";
 "lng_profile_audios_header" = "Voice messages";
 "lng_profile_shared_links#one" = "{count} shared link";
 "lng_profile_shared_links#other" = "{count} shared links";

@@ -138,6 +138,7 @@ Checkbox {
 	margin: margins;
 
 	textPosition: point;
+	checkPosition: point;
 
 	style: TextStyle;
 
@@ -744,10 +745,11 @@ defaultCheckbox: Checkbox {
 	margin: margins(8px, 8px, 8px, 8px);
 
 	textPosition: point(10px, 2px);
+	checkPosition: point(8px, 8px);
 
 	style: defaultTextStyle;
 
-	rippleAreaPosition: point(0px, 0px);
+	rippleAreaPosition: point(-8px, -8px);
 	rippleBg: windowBgOver;
 	rippleBgActive: lightButtonBgOver;
 	ripple: defaultRippleAnimation;

@@ -2808,6 +2808,8 @@ void MediaView::updateHeader() {
 	} else {
 		if (_doc) {
 			_headerText = _doc->name.isEmpty() ? lang(lng_mediaview_doc_image) : _doc->name;
+		} else if (_msgid) {
+			_headerText = lang(lng_mediaview_single_photo);
 		} else if (_user) {
 			_headerText = lang(lng_mediaview_profile_photo);
 		} else if ((_history && _history->channelId() && !_history->isMegagroup())

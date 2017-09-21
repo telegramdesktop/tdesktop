@@ -174,11 +174,16 @@ void SharedMedia::List::removeAll() {
 rpl::producer<SharedMediaResult> SharedMedia::List::query(
 		SharedMediaQuery &&query) const {
 	return [this, query = std::move(query)](auto consumer) {
-		auto slice = base::lower_bound(
-			_slices,
-			query.key.messageId,
-			[](const Slice &slice, MsgId id) { return slice.range.till < id; });
-		if (slice != _slices.end() && slice->range.from <= query.key.messageId) {
+		auto slice = query.key.messageId
+			? base::lower_bound(
+				_slices,
+				query.key.messageId,
+				[](const Slice &slice, MsgId id) {
+					return slice.range.till < id;
+				})
+			: _slices.end();
+		if (slice != _slices.end()
+			&& slice->range.from <= query.key.messageId) {
 			consumer.put_next(queryFromSlice(query, *slice));
 		} else if (_count) {
 			auto result = SharedMediaResult {};

@@ -91,6 +91,8 @@ private:
 		After,
 	};
 	void requestMessages(RequestDirection direction);
+	void requestMessagesCount();
+	void fillSkippedAndSliceToLimits();
 	void sliceToLimits();
 
 	void mergeSliceData(
@@ -244,11 +246,15 @@ bool SharedMediaSliceBuilder::applyUpdate(const SliceUpdate &update) {
 		return false;
 	}
 	auto intersects = [](MsgRange range1, MsgRange range2) {
-		return (range1.from <= range2.till) && (range2.from <= range1.till);
+		return (range1.from <= range2.till)
+			&& (range2.from <= range1.till);
 	};
-	if (!intersects(update.range, {
-		_ids.empty() ? _key.messageId : _ids.front(),
-		_ids.empty() ? _key.messageId : _ids.back() })) {
+	auto needMergeMessages = (update.messages != nullptr)
+		&& intersects(update.range, {
+			_ids.empty() ? _key.messageId : _ids.front(),
+			_ids.empty() ? _key.messageId : _ids.back()
+		});
+	if (!needMergeMessages && !update.count) {
 		return false;
 	}
 	auto skippedBefore = (update.range.from == 0)
@@ -259,7 +265,9 @@ bool SharedMediaSliceBuilder::applyUpdate(const SliceUpdate &update) {
 		: base::optional<int> {};
 	mergeSliceData(
 		update.count,
-		update.messages ? *update.messages : base::flat_set<MsgId> {},
+		needMergeMessages
+			? *update.messages
+			: base::flat_set<MsgId> {},
 		skippedBefore,
 		skippedAfter);
 	return true;
@@ -322,7 +330,7 @@ void SharedMediaSliceBuilder::mergeSliceData(
 				_skippedBefore = _skippedAfter = 0;
 			}
 		}
-		sliceToLimits();
+		fillSkippedAndSliceToLimits();
 		return;
 	}
 	if (count) {
@@ -359,7 +367,10 @@ void SharedMediaSliceBuilder::mergeSliceData(
 	} else {
 		_skippedAfter = base::none;
 	}
+	fillSkippedAndSliceToLimits();
+}
 
+void SharedMediaSliceBuilder::fillSkippedAndSliceToLimits() {
 	if (_fullCount) {
 		if (_skippedBefore && !_skippedAfter) {
 			_skippedAfter = *_fullCount
@@ -371,11 +382,17 @@ void SharedMediaSliceBuilder::mergeSliceData(
 				- int(_ids.size());
 		}
 	}
-
 	sliceToLimits();
 }
 
 void SharedMediaSliceBuilder::sliceToLimits() {
+	if (!_key.messageId) {
+		if (!_fullCount) {
+			requestMessagesCount();
+		}
+		return;
+	}
+	auto requestedSomething = false;
 	auto aroundIt = base::lower_bound(_ids, _key.messageId);
 	auto removeFromBegin = (aroundIt - _ids.begin() - _limitBefore);
 	auto removeFromEnd = (_ids.end() - aroundIt - _limitAfter - 1);
@@ -384,7 +401,9 @@ void SharedMediaSliceBuilder::sliceToLimits() {
 		if (_skippedBefore) {
 			*_skippedBefore += removeFromBegin;
 		}
-	} else if (removeFromBegin < 0 && (!_skippedBefore || *_skippedBefore > 0)) {
+	} else if (removeFromBegin < 0
+		&& (!_skippedBefore || *_skippedBefore > 0)) {
+		requestedSomething = true;
 		requestMessages(RequestDirection::Before);
 	}
 	if (removeFromEnd > 0) {
@@ -392,12 +411,18 @@ void SharedMediaSliceBuilder::sliceToLimits() {
 		if (_skippedAfter) {
 			*_skippedAfter += removeFromEnd;
 		}
-	} else if (removeFromEnd < 0 && (!_skippedAfter || *_skippedAfter > 0)) {
+	} else if (removeFromEnd < 0
+		&& (!_skippedAfter || *_skippedAfter > 0)) {
+		requestedSomething = true;
 		requestMessages(RequestDirection::After);
+	}
+	if (!_fullCount && !requestedSomething) {
+		requestMessagesCount();
 	}
 }
 
-void SharedMediaSliceBuilder::requestMessages(RequestDirection direction) {
+void SharedMediaSliceBuilder::requestMessages(
+		RequestDirection direction) {
 	using SliceType = ApiWrap::SliceType;
 	auto requestAroundData = [&]() -> AroundData {
 		if (_ids.empty()) {
@@ -408,6 +433,10 @@ void SharedMediaSliceBuilder::requestMessages(RequestDirection direction) {
 		return { _ids.back(), SliceType::After };
 	};
 	_insufficientMediaAround.fire(requestAroundData());
+}
+
+void SharedMediaSliceBuilder::requestMessagesCount() {
+	_insufficientMediaAround.fire({ 0, ApiWrap::SliceType::Around });
 }
 
 SharedMediaSlice SharedMediaSliceBuilder::snapshot() const {

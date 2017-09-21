@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/producer.h>
 #include <rpl/event_stream.h>
 
-#include <rpl/single.h>
+#include <rpl/range.h>
 #include <rpl/complete.h>
 #include <rpl/fail.h>
 #include <rpl/never.h>

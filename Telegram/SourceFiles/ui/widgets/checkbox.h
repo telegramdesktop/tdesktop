@@ -130,6 +130,7 @@ public:
 	Checkbox(QWidget *parent, const QString &text, const style::Checkbox &st, std::unique_ptr<AbstractCheckView> check);
 
 	void setText(const QString &text);
+	void setCheckAlignment(style::align alignment);
 
 	bool checked() const;
 	enum class NotifyAboutChange {
@@ -146,6 +147,11 @@ public:
 	}
 	int naturalWidth() const override;
 
+	void updateCheck() {
+		rtlupdate(checkRect());
+	}
+	QRect checkRect() const;
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
@@ -157,10 +163,6 @@ protected:
 
 	virtual void handlePress();
 
-	void updateCheck() {
-		rtlupdate(_checkRect);
-	}
-
 private:
 	void resizeToText();
 	QPixmap grabCheckCache() const;
@@ -170,7 +172,7 @@ private:
 	QPixmap _checkCache;
 
 	Text _text;
-	QRect _checkRect;
+	style::align _checkAlignment = style::al_left;
 
 };
 

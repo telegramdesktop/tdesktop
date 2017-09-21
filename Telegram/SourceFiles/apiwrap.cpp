@@ -286,6 +286,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 	App::feedUsers(d.vusers);
 	App::feedChats(d.vchats);
 
+	using UpdateFlag = Notify::PeerUpdate::Flag;
 	if (auto chat = peer->asChat()) {
 		if (d.vfull_chat.type() != mtpc_chatFull) {
 			LOG(("MTP Error: bad type in gotChatFull for chat: %1").arg(d.vfull_chat.type()));
@@ -305,11 +306,14 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 			} break;
 			}
 		}
+		auto newPhotoId = 0;
 		if (auto photo = App::feedPhoto(f.vchat_photo)) {
-			chat->photoId = photo->id;
+			newPhotoId = photo->id;
 			photo->peer = chat;
-		} else {
-			chat->photoId = 0;
+		}
+		if (chat->photoId != newPhotoId) {
+			chat->photoId = newPhotoId;
+			Notify::peerUpdatedDelayed(chat, UpdateFlag::PhotoChanged);
 		}
 		chat->setInviteLink((f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString());
 		chat->fullUpdated();
@@ -327,11 +331,14 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		auto canEditStickers = channel->canEditStickers();
 
 		channel->flagsFull = f.vflags.v;
+		auto newPhotoId = 0;
 		if (auto photo = App::feedPhoto(f.vchat_photo)) {
-			channel->photoId = photo->id;
+			newPhotoId = photo->id;
 			photo->peer = channel;
-		} else {
-			channel->photoId = 0;
+		}
+		if (channel->photoId != newPhotoId) {
+			channel->photoId = newPhotoId;
+			Notify::peerUpdatedDelayed(channel, UpdateFlag::PhotoChanged);
 		}
 		if (f.has_migrated_from_chat_id()) {
 			if (!channel->mgInfo) {
@@ -402,14 +409,14 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 				stickersChanged = true;
 			}
 			if (stickersChanged) {
-				Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::ChannelStickersChanged);
+				Notify::peerUpdatedDelayed(channel, UpdateFlag::ChannelStickersChanged);
 			}
 		}
 		channel->fullUpdated();
 
 		if (canViewAdmins != channel->canViewAdmins()
 			|| canViewMembers != channel->canViewMembers()) {
-			Notify::peerUpdatedDelayed(channel, Notify::PeerUpdate::Flag::ChannelRightsChanged);
+			Notify::peerUpdatedDelayed(channel, UpdateFlag::ChannelRightsChanged);
 		}
 
 		notifySettingReceived(MTP_inputNotifyPeer(peer->input), f.vnotify_settings);

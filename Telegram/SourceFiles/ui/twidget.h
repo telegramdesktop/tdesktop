@@ -424,7 +424,7 @@ protected:
 
 	// Resizes content and counts natural widget height for the desired width.
 	virtual int resizeGetHeight(int newWidth) {
-		return height();
+		return heightNoMargins();
 	}
 
 	virtual void visibleTopBottomUpdated(

@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <rpl/producer.h>
 #include <rpl/combine.h>
+#include "base/optional.h"
 
 namespace rpl {
 namespace details {
@@ -52,11 +53,16 @@ public:
 					predicate = std::move(predicate)
 				](auto &&value) {
 					const auto &immutable = value;
-					if (details::callable_invoke(predicate, immutable)) {
-						consumer.put_next_forward(std::forward<decltype(value)>(value));
+					if (details::callable_invoke(
+						predicate,
+						immutable)
+					) {
+						consumer.put_next_forward(
+							std::forward<decltype(value)>(value));
 					}
 				}, [consumer](auto &&error) {
-					consumer.put_error_forward(std::forward<decltype(error)>(error));
+					consumer.put_error_forward(
+						std::forward<decltype(error)>(error));
 				}, [consumer] {
 					consumer.put_done();
 				});
@@ -103,5 +109,50 @@ private:
 
 };
 
+template <typename Value>
+inline const Value &deref_optional_helper(
+		const base::optional<Value> &value) {
+	return *value;
+}
+
+template <typename Value>
+inline Value &&deref_optional_helper(
+		base::optional<Value> &&value) {
+	return std::move(*value);
+}
+
+class filter_optional_helper {
+public:
+	template <typename Value, typename Error>
+	rpl::producer<Value, Error> operator()(
+		rpl::producer<base::optional<Value>, Error> &&initial
+	) const {
+		return [initial = std::move(initial)](
+				const consumer<Value, Error> &consumer) mutable {
+			return std::move(initial).start(
+				[consumer](auto &&value) {
+					if (value) {
+						consumer.put_next_forward(
+							deref_optional_helper(
+								std::forward<decltype(value)>(
+									value)));
+					}
+				}, [consumer](auto &&error) {
+					consumer.put_error_forward(
+						std::forward<decltype(error)>(error));
+				}, [consumer] {
+					consumer.put_done();
+				});
+		};
+	}
+
+};
+
 } // namespace details
+
+inline auto filter_optional()
+-> details::filter_optional_helper {
+	return details::filter_optional_helper();
+}
+
 } // namespace rpl

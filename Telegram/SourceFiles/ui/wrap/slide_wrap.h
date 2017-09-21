@@ -32,49 +32,30 @@ class SlideWrap<RpWidget> : public Wrap<PaddingWrap<RpWidget>> {
 	using Parent = Wrap<PaddingWrap<RpWidget>>;
 
 public:
-	SlideWrap(QWidget *parent, object_ptr<RpWidget> child);
 	SlideWrap(
 		QWidget *parent,
-		object_ptr<RpWidget> child,
-		const style::margins &padding);
-	SlideWrap(
-		QWidget *parent,
-		object_ptr<RpWidget> child,
-		int duration);
+		object_ptr<RpWidget> child);
 	SlideWrap(
 		QWidget *parent,
 		const style::margins &padding);
 	SlideWrap(
 		QWidget *parent,
-		const style::margins &padding,
-		int duration);
-	SlideWrap(
-		QWidget *parent,
 		object_ptr<RpWidget> child,
-		const style::margins &padding,
-		int duration);
+		const style::margins &padding);
 
-	void toggleAnimated(bool shown);
-	void toggleFast(bool shown);
-
-	void showAnimated() {
-		toggleAnimated(true);
-	}
-	void hideAnimated() {
-		toggleAnimated(false);
-	}
-
-	void showFast() {
-		toggleFast(true);
-	}
-	void hideFast() {
-		toggleFast(false);
-	}
+	SlideWrap *setDuration(int duration);
+	SlideWrap *toggleAnimated(bool shown);
+	SlideWrap *toggleFast(bool shown);
+	SlideWrap *showAnimated() { return toggleAnimated(true); }
+	SlideWrap *hideAnimated() { return toggleAnimated(false); }
+	SlideWrap *showFast() { return toggleFast(true); }
+	SlideWrap *hideFast() { return toggleFast(false); }
+	SlideWrap *finishAnimations();
+	SlideWrap *toggleOn(rpl::producer<bool> &&shown);
 
 	bool animating() const {
 		return _slideAnimation.animating();
 	}
-	void finishAnimations();
 
 	QMargins getMargins() const override;
 
@@ -96,6 +77,7 @@ private:
 
 	bool _shown = true;
 	rpl::event_stream<bool> _shownUpdated;
+	rpl::lifetime _toggleOnLifetime;
 	Animation _slideAnimation;
 	int _duration = 0;
 
@@ -106,20 +88,10 @@ class SlideWrap : public Wrap<PaddingWrap<Widget>, SlideWrap<RpWidget>> {
 	using Parent = Wrap<PaddingWrap<Widget>, SlideWrap<RpWidget>>;
 
 public:
-	SlideWrap(QWidget *parent, object_ptr<Widget> child)
+	SlideWrap(
+		QWidget *parent,
+		object_ptr<Widget> child)
 	: Parent(parent, std::move(child)) {
-	}
-	SlideWrap(
-		QWidget *parent,
-		object_ptr<Widget> child,
-		const style::margins &padding)
-	: Parent(parent, std::move(child), padding) {
-	}
-	SlideWrap(
-		QWidget *parent,
-		object_ptr<Widget> child,
-		int duration)
-	: Parent(parent, std::move(child), duration) {
 	}
 	SlideWrap(
 		QWidget *parent,
@@ -128,16 +100,42 @@ public:
 	}
 	SlideWrap(
 		QWidget *parent,
-		const style::margins &padding,
-		int duration)
-	: Parent(parent, nullptr, padding, duration) {
-	}
-	SlideWrap(
-		QWidget *parent,
 		object_ptr<Widget> child,
-		const style::margins &padding,
-		int duration)
-	: Parent(parent, std::move(child), padding, duration) {
+		const style::margins &padding)
+	: Parent(parent, std::move(child), padding) {
+	}
+
+	SlideWrap *setDuration(int duration) {
+		return chain(Parent::setDuration(duration));
+	}
+	SlideWrap *toggleAnimated(bool shown) {
+		return chain(Parent::toggleAnimated(shown));
+	}
+	SlideWrap *toggleFast(bool shown) {
+		return chain(Parent::toggleFast(shown));
+	}
+	SlideWrap *showAnimated() {
+		return chain(Parent::showAnimated());
+	}
+	SlideWrap *hideAnimated() {
+		return chain(Parent::hideAnimated());
+	}
+	SlideWrap *showFast() {
+		return chain(Parent::showFast());
+	}
+	SlideWrap *hideFast() {
+		return chain(Parent::hideFast());
+	}
+	SlideWrap *finishAnimations() {
+		return chain(Parent::finishAnimations());
+	}
+	SlideWrap *toggleOn(rpl::producer<bool> &&shown) {
+		return chain(Parent::toggleOn(std::move(shown)));
+	}
+
+private:
+	SlideWrap *chain(SlideWrap<RpWidget> *result) {
+		return static_cast<SlideWrap*>(result);
 	}
 
 };
