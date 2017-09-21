@@ -509,6 +509,7 @@ InfoProfileButton {
 
 	toggle: Toggle;
 	toggleOver: Toggle;
+	toggleSkip: pixels;
 
 	ripple: RippleAnimation;
 }

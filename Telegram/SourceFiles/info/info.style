@@ -81,11 +81,11 @@ infoTabs: SettingsSlider(defaultTabsSlider) {
 }
 
 infoProfilePhotoSize: 72px;
-infoProfilePhotoLeft: 27px;
-infoProfilePhotoTop: 22px;
-infoProfilePhotoBottom: 22px;
+infoProfilePhotoLeft: 19px;
+infoProfilePhotoTop: 18px;
+infoProfilePhotoBottom: 18px;
 
-infoProfileNameLeft: 111px;
+infoProfileNameLeft: 109px;
 infoProfileNameRight: 20px;
 infoProfileNameTop: 32px;
 infoProfileNameLabel: FlatLabel(defaultFlatLabel) {
@@ -102,7 +102,7 @@ infoProfileNameLabel: FlatLabel(defaultFlatLabel) {
 
 infoProfileStatusLeft: infoProfileNameLeft;
 infoProfileStatusRight: infoProfileNameRight;
-infoProfileStatusTop: 62px;
+infoProfileStatusTop: 58px;
 infoProfileStatusLabel: FlatLabel(infoProfileNameLabel) {
 	margin: margins(10px, 5px, 10px, 5px);
 	width: 160px;
@@ -123,32 +123,45 @@ infoProfileToggleTop: 40px;
 
 infoProfileSkip: 12px;
 
-infoProfileLabeledPadding: margins(77px, 10px, 10px, 10px);
+infoProfileLabeledPadding: margins(79px, 9px, 30px, 7px);
 infoProfileSeparatorPadding: margins(
-	73px,
+	77px,
 	infoProfileSkip,
 	0px,
 	infoProfileSkip);
 
 infoIconFg: menuIconFg;
-infoIconPosition: point(28px, 4px);
+infoIconPosition: point(25px, 12px);
 infoIconInformation: icon {{ "info_information", infoIconFg }};
 infoIconMembers: icon {{ "info_members", infoIconFg }};
 infoIconNotifications: icon {{ "info_notifications", infoIconFg }};
 infoIconActions: icon {{ "info_actions", infoIconFg }};
 
-infoLabel: FlatLabel(defaultFlatLabel) {
-	textFg: windowSubTextFg;
-}
-infoLabeled: FlatLabel(defaultFlatLabel) {
-	width: 180px;
-	margin: margins(5px, 5px, 5px, 5px);
-}
-infoLabeledOneLine: FlatLabel(infoLabeled) {
+infoLabeledOneLine: FlatLabel(defaultFlatLabel) {
 	width: 0px; // No need to set minWidth in one-line text.
 	maxHeight: 20px;
+	style: TextStyle(defaultTextStyle) {
+		lineHeight: 19px;
+	}
+}
+infoLabelSkip: 2px;
+infoLabel: FlatLabel(infoLabeledOneLine) {
+	textFg: windowSubTextFg;
+}
+infoLabeled: FlatLabel(infoLabeledOneLine) {
+	width: 180px;
+	maxHeight: 0px;
+	margin: margins(5px, 5px, 5px, 5px);
 }
 
+infoProfileToggle: Toggle(defaultToggle) {
+	diameter: 16px;
+	width: 14px;
+	untoggledFg: menuIconFg;
+}
+infoProfileToggleOver: Toggle(infoProfileToggle) {
+	untoggledFg: menuIconFgOver;
+}
 infoProfileButton: InfoProfileButton {
 	textFg: windowBoldFg;
 	textFgOver: windowBoldFgOver;
@@ -157,17 +170,19 @@ infoProfileButton: InfoProfileButton {
 
 	font: semiboldFont;
 
-	height: 22px;
-	padding: margins(80px, 8px, 8px, 8px);
+	height: 20px;
+	padding: margins(79px, 10px, 8px, 8px);
 
-	toggle: defaultMenuToggle;
-	toggleOver: defaultMenuToggleOver;
+	toggle: infoProfileToggle;
+	toggleOver: infoProfileToggleOver;
+	toggleSkip: 23px;
 
 	ripple: defaultRippleAnimation;
 }
 infoNotificationsButton: InfoProfileButton(infoProfileButton) {
-	padding: margins(80px, 11px, 8px, 9px);
+	padding: margins(79px, 13px, 8px, 9px);
 }
+infoNotificationsIconPosition: point(20px, 5px);
 infoMainButton: InfoProfileButton(infoProfileButton) {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;

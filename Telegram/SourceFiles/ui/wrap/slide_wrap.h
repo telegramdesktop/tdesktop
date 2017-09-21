@@ -43,6 +43,13 @@ public:
 		int duration);
 	SlideWrap(
 		QWidget *parent,
+		const style::margins &padding);
+	SlideWrap(
+		QWidget *parent,
+		const style::margins &padding,
+		int duration);
+	SlideWrap(
+		QWidget *parent,
 		object_ptr<RpWidget> child,
 		const style::margins &padding,
 		int duration);
@@ -116,6 +123,17 @@ public:
 	}
 	SlideWrap(
 		QWidget *parent,
+		const style::margins &padding)
+	: Parent(parent, padding) {
+	}
+	SlideWrap(
+		QWidget *parent,
+		const style::margins &padding,
+		int duration)
+	: Parent(parent, nullptr, padding, duration) {
+	}
+	SlideWrap(
+		QWidget *parent,
 		object_ptr<Widget> child,
 		const style::margins &padding,
 		int duration)
@@ -123,6 +141,14 @@ public:
 	}
 
 };
+
+inline object_ptr<SlideWrap<>> CreateSlideSkipWidget(
+		QWidget *parent,
+		int skip) {
+	return object_ptr<SlideWrap<>>(
+		parent,
+		QMargins(0, 0, 0, skip));
+}
 
 } // namespace Ui
 

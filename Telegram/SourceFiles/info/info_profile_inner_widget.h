@@ -22,11 +22,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <rpl/producer.h>
 #include "ui/rp_widget.h"
-#include "ui/wrap/vertical_layout.h"
 
 namespace Window {
 class Controller;
 } // namespace Window
+
+namespace Ui {
+class VerticalLayout;
+template <typename Widget>
+class SlideWrap;
+} // namespace Ui
 
 namespace Info {
 namespace Profile {
@@ -66,6 +71,9 @@ private:
 	void setupMainUserButtons(
 		Ui::VerticalLayout *wrap,
 		not_null<UserData*> user) const;
+	object_ptr<RpWidget> createSkipWidget(RpWidget *parent) const;
+	object_ptr<Ui::SlideWrap<RpWidget>> createSlideSkipWidget(
+		RpWidget *parent) const;
 
 	not_null<Window::Controller*> _controller;
 	not_null<PeerData*> _peer;

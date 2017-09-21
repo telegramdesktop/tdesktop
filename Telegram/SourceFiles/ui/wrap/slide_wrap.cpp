@@ -52,10 +52,28 @@ SlideWrap<RpWidget>::SlideWrap(
 
 SlideWrap<RpWidget>::SlideWrap(
 	QWidget *parent,
+	const style::margins &padding)
+: SlideWrap(parent, nullptr, padding, st::slideWrapDuration) {
+}
+
+SlideWrap<RpWidget>::SlideWrap(
+	QWidget *parent,
+	const style::margins &padding,
+	int duration)
+: SlideWrap(parent, nullptr, padding, duration) {
+}
+
+SlideWrap<RpWidget>::SlideWrap(
+	QWidget *parent,
 	object_ptr<RpWidget> child,
 	const style::margins &padding,
 	int duration)
-: Parent(parent, object_ptr<PaddingWrap<RpWidget>>(parent, std::move(child), padding))
+: Parent(
+	parent,
+	object_ptr<PaddingWrap<RpWidget>>(
+		parent,
+		std::move(child),
+		padding))
 , _duration(duration) {
 }
 

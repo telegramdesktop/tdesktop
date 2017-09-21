@@ -76,17 +76,13 @@ object_ptr<Ui::RpWidget> InnerWidget::setupDetailsContent(
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
 
 	result->add(object_ptr<BoxContentDivider>(result));
-
-	auto skipPadding = QMargins(0, 0, 0, st::infoProfileSkip);
-	result->add(object_ptr<Ui::PaddingWrap<>>(result, skipPadding));
-
+	result->add(createSkipWidget(result));
 	result->add(setupInfoLines(result));
 	result->add(setupMuteToggle(result));
 	if (auto user = _peer->asUser()) {
 		setupMainUserButtons(result, user);
 	}
-
-	result->add(object_ptr<Ui::PaddingWrap<>>(result, skipPadding));
+	result->add(createSkipWidget(result));
 
 	return std::move(result);
 }
@@ -113,19 +109,28 @@ object_ptr<Ui::RpWidget> InnerWidget::setupMuteToggle(
 
 	object_ptr<FloatingIcon>(
 		result,
-		st::infoIconNotifications);
+		st::infoIconNotifications,
+		st::infoNotificationsIconPosition);
 	return std::move(result);
 }
 
 void InnerWidget::setupMainUserButtons(
 		Ui::VerticalLayout *wrap,
 		not_null<UserData*> user) const {
-	auto sendMessage = wrap->add(object_ptr<Ui::SlideWrap<Button>>(
-		wrap,
-		object_ptr<Button>(
+	auto tracker = MultiLineTracker();
+	auto topSkip = wrap->add(createSlideSkipWidget(wrap));
+	auto addButton = [&](rpl::producer<QString> &&text) {
+		auto result = wrap->add(object_ptr<Ui::SlideWrap<Button>>(
 			wrap,
-			Lang::Viewer(lng_profile_send_message) | ToUpperValue(),
-			st::infoMainButton)));
+			object_ptr<Button>(
+				wrap,
+				std::move(text),
+				st::infoMainButton)));
+		tracker.track(result);
+		return result;
+	};
+	auto sendMessage = addButton(
+		Lang::Viewer(lng_profile_send_message) | ToUpperValue());
 	_controller->historyPeer.value()
 		| rpl::map([user](PeerData *peer) { return peer == user; })
 		| rpl::start([sendMessage](bool peerHistoryShown) {
@@ -139,12 +144,8 @@ void InnerWidget::setupMainUserButtons(
 		}, sendMessage->lifetime());
 	sendMessage->finishAnimations();
 
-	auto addContact = wrap->add(object_ptr<Ui::SlideWrap<Button>>(
-		wrap,
-		object_ptr<Button>(
-			wrap,
-			Lang::Viewer(lng_info_add_as_contact) | ToUpperValue(),
-			st::infoMainButton)));
+	auto addContact = addButton(
+		Lang::Viewer(lng_info_add_as_contact) | ToUpperValue());
 	CanAddContactViewer(user)
 		| rpl::start([addContact](bool canAdd) {
 			addContact->toggleAnimated(canAdd);
@@ -159,12 +160,18 @@ void InnerWidget::setupMainUserButtons(
 				: user->phone();
 			Ui::show(Box<AddContactBox>(firstName, lastName, phone));
 		}, addContact->lifetime());
+
+	std::move(tracker).atLeastOneShownValue()
+		| rpl::start([topSkip](bool someShown) {
+			topSkip->toggleAnimated(someShown);
+		}, topSkip->lifetime());
+	topSkip->finishAnimations();
 }
 
 object_ptr<Ui::RpWidget> InnerWidget::setupInfoLines(
 		RpWidget *parent) const {
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
-	auto infoPartsShown = std::vector<rpl::producer<bool>>();
+	auto tracker = MultiLineTracker();
 	auto addInfoLine = [&](
 			LangKey label,
 			rpl::producer<TextWithEntities> &&text,
@@ -177,7 +184,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupInfoLines(
 			textSt,
 			st::infoProfileLabeledPadding,
 			selectByDoubleClick));
-		infoPartsShown.push_back(line->shownValue());
+		tracker.track(line);
 		return line;
 	};
 	auto addInfoOneLine = [&](
@@ -201,10 +208,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupInfoLines(
 		result,
 		object_ptr<Ui::PlainShadow>(result, st::shadowFg),
 		st::infoProfileSeparatorPadding));
-	rpl::combine(std::move(infoPartsShown),	[](const auto &values) {
-			return base::find(values, true) != values.end();
-		})
-		| rpl::distinct_until_changed()
+	std::move(tracker).atLeastOneShownValue()
 		| rpl::start([separator](bool someShown) {
 			separator->toggleAnimated(someShown);
 		}, separator->lifetime());
@@ -213,6 +217,16 @@ object_ptr<Ui::RpWidget> InnerWidget::setupInfoLines(
 	object_ptr<FloatingIcon>(result, st::infoIconInformation);
 
 	return std::move(result);
+}
+
+object_ptr<Ui::RpWidget> InnerWidget::createSkipWidget(
+		RpWidget *parent) const {
+	return Ui::CreateSkipWidget(parent, st::infoProfileSkip);
+}
+
+object_ptr<Ui::SlideWrap<>> InnerWidget::createSlideSkipWidget(
+		RpWidget *parent) const {
+	return Ui::CreateSlideSkipWidget(parent, st::infoProfileSkip);
 }
 
 void InnerWidget::visibleTopBottomUpdated(
@@ -230,7 +244,8 @@ void InnerWidget::restoreState(not_null<Memento*> memento) {
 
 int InnerWidget::resizeGetHeight(int newWidth) {
 	_content->resizeToWidth(newWidth);
-	return qMax(_content->height(), _minHeight);
+	_content->moveToLeft(0, 0);
+	return qMax(_content->heightNoMargins(), _minHeight);
 }
 
 } // namespace Profile

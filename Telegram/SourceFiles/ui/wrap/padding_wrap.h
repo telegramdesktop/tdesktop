@@ -72,4 +72,12 @@ public:
 
 };
 
+inline object_ptr<PaddingWrap<>> CreateSkipWidget(
+		QWidget *parent,
+		int skip) {
+	return object_ptr<PaddingWrap<>>(
+		parent,
+		QMargins(0, 0, 0, skip));
+}
+
 } // namespace Ui

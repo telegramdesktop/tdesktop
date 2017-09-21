@@ -641,7 +641,7 @@ rightsToggle: Toggle(defaultToggle) {
 	stroke: 2px;
 	duration: 120;
 }
-rightsDividerHeight: 11px;
+rightsDividerHeight: 10px;
 rightsHeaderMargin: margins(23px, 20px, 23px, 8px);
 rightsToggleMargin: margins(23px, 8px, 23px, 8px);
 rightsAboutMargin: margins(23px, 8px, 23px, 8px);

@@ -293,6 +293,7 @@ LabeledLine::LabeledLine(
 		textSt));
 	labeled->setSelectable(true);
 	labeled->setDoubleClickSelectsParagraph(doubleClickSelects);
+	layout->add(Ui::CreateSkipWidget(this, st::infoLabelSkip));
 	layout->add(object_ptr<Ui::FlatLabel>(
 		this,
 		std::move(label),
@@ -522,7 +523,7 @@ void Button::paintEvent(QPaintEvent *e) {
 QRect Button::toggleRect() const {
 	Expects(_toggle != nullptr);
 	auto size = _toggle->getSize();
-	auto left = width() - _st.padding.right() - size.width();
+	auto left = width() - _st.toggleSkip - size.width();
 	auto top = (height() - size.height()) / 2;
 	return { QPoint(left, top), size };
 }
@@ -552,8 +553,7 @@ void Button::updateVisibleText(int newWidth) {
 		- _st.padding.left()
 		- _st.padding.right();
 	if (_toggle) {
-		availableWidth -= _toggle->getSize().width()
-			+ _st.padding.right();
+		availableWidth -= (width() - toggleRect().x());
 	}
 	accumulate_max(availableWidth, 0);
 	if (availableWidth < _originalWidth) {
@@ -564,6 +564,19 @@ void Button::updateVisibleText(int newWidth) {
 		_textWidth = _originalWidth;
 	}
 	update();
+}
+
+rpl::producer<bool> MultiLineTracker::atLeastOneShownValue() const {
+	auto shown = std::vector<rpl::producer<bool>>();
+	shown.reserve(_widgets.size());
+	for (auto &widget : _widgets) {
+		shown.push_back(widget->shownValue());
+	}
+	return rpl::combine(
+		std::move(shown),
+		[](const std::vector<bool> &values) {
+			return base::find(values, true) != values.end();
+		});
 }
 
 } // namespace Profile
