@@ -41,7 +41,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 
 ## Build instructions
 
-* [Visual Studio 2015][msvc]
+* [Visual Studio 2017][msvc]
 * [Xcode 8][xcode]
 * [GYP/CMake on GNU/Linux][cmake]
 

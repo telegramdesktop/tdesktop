@@ -40,6 +40,7 @@
             '/MP',   # Enable multi process build.
             '/EHsc', # Catch C++ exceptions only, extern C functions never throw a C++ exception.
             '/WX',   # Treat warnings as errors.
+            '/std:c++latest',
           ],
           'TreatWChar_tAsBuiltInType': 'false',
         },

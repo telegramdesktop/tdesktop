@@ -34,6 +34,7 @@
 *.xcodeproj
 /Win32/
 ipch/
+.vs/
 
 /Telegram/log.txt
 /Telegram/data

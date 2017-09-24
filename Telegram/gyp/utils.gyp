@@ -110,7 +110,7 @@
     'include_dirs': [
       '<(src_loc)',
       '<(libs_loc)/lzma/C',
-      '<(libs_loc)/zlib-1.2.8',
+      '<(libs_loc)/zlib',
     ],
     'sources': [
       '<(src_loc)/_other/packer.cpp',
@@ -121,12 +121,12 @@
         'conditions': [
           [ 'build_win', {
             'include_dirs': [
-              '<(libs_loc)/openssl_debug/Debug/include',
+              '<(libs_loc)/openssl/Debug/include',
             ],
             'library_dirs': [
-              '<(libs_loc)/openssl_debug/Debug/lib',
+              '<(libs_loc)/openssl/Debug/lib',
               '<(libs_loc)/lzma/C/Util/LzmaLib/Debug',
-              '<(libs_loc)/zlib-1.2.8/contrib/vstudio/vc11/x86/ZlibStatDebug',
+              '<(libs_loc)/zlib/contrib/vstudio/vc14/x86/ZlibStatDebug',
             ],
           }, {
             'include_dirs': [
@@ -148,7 +148,7 @@
             'library_dirs': [
               '<(libs_loc)/openssl/Release/lib',
               '<(libs_loc)/lzma/C/Util/LzmaLib/Release',
-              '<(libs_loc)/zlib-1.2.8/contrib/vstudio/vc11/x86/ZlibStatRelease',
+              '<(libs_loc)/zlib/contrib/vstudio/vc14/x86/ZlibStatReleaseWithoutAsm',
             ],
           }, {
             'include_dirs': [
