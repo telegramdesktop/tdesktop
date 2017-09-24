@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/info_side_wrap.h"
 
 #include <rpl/flatten_latest.h>
-#include "info/info_profile_widget.h"
+#include "info/profile/info_profile_widget.h"
 #include "info/info_media_widget.h"
 #include "info/info_memento.h"
 #include "ui/widgets/discrete_sliders.h"

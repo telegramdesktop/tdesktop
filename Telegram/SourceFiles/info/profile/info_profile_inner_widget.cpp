@@ -18,7 +18,7 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "info/info_profile_inner_widget.h"
+#include "info/profile/info_profile_inner_widget.h"
 
 #include <rpl/combine.h>
 #include <rpl/range.h>
@@ -26,8 +26,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/abstract_box.h"
 #include "boxes/add_contact_box.h"
 #include "mainwidget.h"
-#include "info/info_profile_widget.h"
-#include "info/info_profile_lines.h"
+#include "info/profile/info_profile_widget.h"
+#include "info/profile/info_profile_lines.h"
 #include "window/window_controller.h"
 #include "storage/storage_shared_media.h"
 #include "lang/lang_keys.h"

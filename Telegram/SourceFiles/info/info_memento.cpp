@@ -24,7 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/window_controller.h"
 #include "ui/widgets/scroll_area.h"
 #include "lang/lang_keys.h"
-#include "info/info_profile_widget.h"
+#include "info/profile/info_profile_widget.h"
 #include "info/info_media_widget.h"
 #include "info/info_common_groups_widget.h"
 #include "info/info_layer_wrap.h"
