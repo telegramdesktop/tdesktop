@@ -1,6 +1,6 @@
 @echo off
 
-SET BUILD_DIR=C:\TBuild
+IF "%BUILD_DIR%"=="" SET BUILD_DIR=C:\TBuild
 SET LIB_DIR=%BUILD_DIR%\Libraries
 SET SRC_DIR=%BUILD_DIR%\tdesktop
 SET QT_VERSION=5_6_2
@@ -45,7 +45,7 @@ GOTO:EOF
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
     git checkout a478c1ab51
-    SET PATH=%PATH%;C:\TBuild\Libraries\gyp;C:\TBuild\Libraries\ninja;
+    SET PATH=%PATH%;%BUILD_DIR%\Libraries\gyp;%BUILD_DIR%\Libraries\ninja;
     cd %SRC_DIR%
     git submodule init
     git submodule update
