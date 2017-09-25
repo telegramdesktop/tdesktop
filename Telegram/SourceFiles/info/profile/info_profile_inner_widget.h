@@ -64,7 +64,7 @@ protected:
 		int visibleBottom) override;
 
 private:
-	void setupContent();
+	object_ptr<RpWidget> setupContent(RpWidget *parent) const;
 	object_ptr<RpWidget> setupDetails(RpWidget *parent) const;
 	object_ptr<RpWidget> setupSharedMedia(RpWidget *parent) const;
 	object_ptr<RpWidget> setupMuteToggle(RpWidget *parent) const;
@@ -90,9 +90,7 @@ private:
 	int _visibleBottom = 0;
 	int _minHeight = 0;
 
-	object_ptr<Ui::VerticalLayout> _content;
-
-	rpl::lifetime _lifetime;
+	object_ptr<RpWidget> _content;
 
 };
 

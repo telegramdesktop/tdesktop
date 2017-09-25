@@ -21,19 +21,23 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_inner_widget.h"
 
 #include <rpl/combine.h>
-#include <rpl/range.h>
-#include <rpl/then.h>
+#include "info/profile/info_profile_button.h"
+#include "info/profile/info_profile_widget.h"
+#include "info/profile/info_profile_text.h"
+#include "info/profile/info_profile_values.h"
+#include "info/profile/info_profile_cover.h"
+#include "info/profile/info_profile_icon.h"
 #include "boxes/abstract_box.h"
 #include "boxes/add_contact_box.h"
 #include "mainwidget.h"
-#include "info/profile/info_profile_widget.h"
-#include "info/profile/info_profile_lines.h"
 #include "window/window_controller.h"
 #include "storage/storage_shared_media.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/vertical_layout.h"
 
 namespace Info {
 namespace Profile {
@@ -45,8 +49,11 @@ InnerWidget::InnerWidget(
 : RpWidget(parent)
 , _controller(controller)
 , _peer(peer)
-, _content(this) {
-	setupContent();
+, _content(setupContent(this)) {
+	_content->heightValue()
+		| rpl::start([this](int height) {
+			TWidget::resizeToWidth(width());
+		}, lifetime());
 }
 
 bool InnerWidget::canHideDetailsEver() const {
@@ -55,36 +62,38 @@ bool InnerWidget::canHideDetailsEver() const {
 
 rpl::producer<bool> InnerWidget::canHideDetails() const {
 	using namespace rpl::mappers;
-	return MembersCountViewer(_peer)
+	return MembersCountValue(_peer)
 		| rpl::map($1 > 0);
 }
 
-void InnerWidget::setupContent() {
-	auto cover = _content->add(object_ptr<Cover>(
-		this,
+object_ptr<Ui::RpWidget> InnerWidget::setupContent(
+		RpWidget *parent) const {
+	auto result = object_ptr<Ui::VerticalLayout>(parent);
+	auto cover = result->add(object_ptr<Cover>(
+		result,
 		_peer)
 	);
 	cover->setOnlineCount(rpl::single(0));
-	auto details = setupDetails(_content);
+	auto details = setupDetails(parent);
 	if (canHideDetailsEver()) {
 		cover->setToggleShown(canHideDetails());
-		_content->add(object_ptr<Ui::SlideWrap<>>(
-			this,
+		result->add(object_ptr<Ui::SlideWrap<>>(
+			result,
 			std::move(details))
 		)->toggleOn(cover->toggledValue());
 	} else {
-		_content->add(std::move(details));
+		result->add(std::move(details));
 	}
-	_content->add(setupSharedMedia(_content));
-	_content->add(object_ptr<BoxContentDivider>(this));
+	result->add(setupSharedMedia(result));
+	result->add(object_ptr<BoxContentDivider>(result));
 	if (auto user = _peer->asUser()) {
-		_content->add(setupUserActions(_content, user));
+		result->add(setupUserActions(result, user));
+	//} else if (auto channel = _peer->asChannel()) {
+	//	if (!channel->isMegagroup()) {
+	//		setupChannelActions(result, channel);
+	//	}
 	}
-
-	_content->heightValue()
-		| rpl::start([this](int height) {
-			TWidget::resizeToWidth(width());
-		}, _lifetime);
+	return std::move(result);
 }
 
 object_ptr<Ui::RpWidget> InnerWidget::setupDetails(
@@ -114,7 +123,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupInfo(
 			rpl::producer<TextWithEntities> &&text,
 			bool selectByDoubleClick = false,
 			const style::FlatLabel &textSt = st::infoLabeled) {
-		auto line = result->add(object_ptr<LabeledLine>(
+		auto line = result->add(CreateTextWithLabel(
 			result,
 			Lang::Viewer(label) | WithEmptyEntities(),
 			std::move(text),
@@ -134,12 +143,12 @@ object_ptr<Ui::RpWidget> InnerWidget::setupInfo(
 			st::infoLabeledOneLine);
 	};
 	if (auto user = _peer->asUser()) {
-		addInfoOneLine(lng_info_mobile_label, PhoneViewer(user));
-		addInfoLine(lng_info_bio_label, BioViewer(user));
-		addInfoOneLine(lng_info_username_label, UsernameViewer(user));
+		addInfoOneLine(lng_info_mobile_label, PhoneValue(user));
+		addInfoLine(lng_info_bio_label, BioValue(user));
+		addInfoOneLine(lng_info_username_label, UsernameValue(user));
 	} else {
-		addInfoOneLine(lng_info_link_label, LinkViewer(_peer));
-		addInfoLine(lng_info_about_label, AboutViewer(_peer));
+		addInfoOneLine(lng_info_link_label, LinkValue(_peer));
+		addInfoLine(lng_info_about_label, AboutValue(_peer));
 	}
 	result->add(object_ptr<Ui::SlideWrap<>>(
 		result,
@@ -160,7 +169,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupMuteToggle(
 		Lang::Viewer(lng_profile_enable_notifications),
 		st::infoNotificationsButton);
 	result->toggleOn(
-		NotificationsEnabledViewer(_peer)
+		NotificationsEnabledValue(_peer)
 	)->clicks()
 		| rpl::start([this](auto) {
 			App::main()->updateNotifySetting(
@@ -207,7 +216,7 @@ void InnerWidget::setupUserButtons(
 	addButton(
 		Lang::Viewer(lng_info_add_as_contact) | ToUpperValue()
 	)->toggleOn(
-		CanAddContactViewer(user)
+		CanAddContactValue(user)
 	)->entity()->clicks()
 		| rpl::start([user](auto&&) {
 			auto firstName = user->firstName;
@@ -230,8 +239,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 	auto addButton = [&](
 			rpl::producer<int> &&count,
 			auto textFromCount) {
-		auto forked = rpl::single(0)
-			| rpl::then(std::move(count))
+		auto forked = std::move(count)
 			| start_spawning(content->lifetime());
 		auto button = content->add(object_ptr<Ui::SlideWrap<Button>>(
 			content,
@@ -265,14 +273,14 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 	};
 	auto addMediaButton = [&](MediaType type) {
 		return addButton(
-			SharedMediaCountViewer(_peer, type),
+			SharedMediaCountValue(_peer, type),
 			[phrase = mediaText(type)](int count) {
 				return phrase(lt_count, count);
 			});
 	};
 	auto addCommonGroupsButton = [&](not_null<UserData*> user) {
 		return addButton(
-			CommonGroupsCountViewer(user),
+			CommonGroupsCountValue(user),
 			[](int count) {
 				return lng_profile_common_groups(lt_count, count);
 			});
