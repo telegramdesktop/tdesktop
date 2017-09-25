@@ -90,27 +90,7 @@ membersInnerDropdown: InnerDropdown(defaultInnerDropdown) {
 	scrollMargin: margins(0px, 5px, 0px, 5px);
 	scrollPadding: margins(0px, 3px, 0px, 3px);
 }
-membersInnerItem: ProfilePeerListItem {
-	left: 0px;
-	bottom: 0px;
-	button: OutlineButton {
-		outlineWidth: 0px;
-
-		textBg: windowBg;
-		textBgOver: windowBgOver;
-
-		textFg: windowSubTextFg;
-		textFgOver: windowSubTextFgOver;
-
-		font: normalFont;
-		padding: margins(11px, 5px, 11px, 5px);
-
-		ripple: defaultRippleAnimation;
-	}
-	statusFg: windowSubTextFg;
-	statusFgOver: windowSubTextFgOver;
-	statusFgActive: windowActiveTextFg;
-}
+membersInnerItem: defaultProfileMemberItem;
 
 historyFileOutImage: icon {{ "history_file_image", historyFileOutIconFg }};
 historyFileOutImageSelected: icon {{ "history_file_image", historyFileOutIconFgSelected }};
@@ -456,14 +436,14 @@ historyAdminLogCancelSearch: CrossButton {
 	height: 54px;
 
 	cross: CrossAnimation {
-		size: 36px;
+		size: 32px;
 		skip: 10px;
 		stroke: 2px;
 		minScale: 0.3;
 	}
 	crossFg: menuIconFg;
 	crossFgOver: menuIconFgOver;
-	crossPosition: point(4px, 9px);
+	crossPosition: point(6px, 11px);
 
 	duration: 150;
 	loadingPeriod: 1000;

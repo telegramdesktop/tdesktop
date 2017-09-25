@@ -158,6 +158,7 @@ infoIconMediaPhoto: icon {{ "info_media_photo", infoIconFg }};
 infoInformationIconPosition: point(25px, 12px);
 infoNotificationsIconPosition: point(20px, 5px);
 infoSharedMediaIconPosition: point(20px, 24px);
+infoMembersIconPosition: point(20px, 15px);
 
 infoLabeledOneLine: FlatLabel(defaultFlatLabel) {
 	width: 0px; // No need to set minWidth in one-line text.
@@ -175,6 +176,16 @@ infoLabeled: FlatLabel(infoLabeledOneLine) {
 	maxHeight: 0px;
 	margin: margins(5px, 5px, 5px, 5px);
 }
+
+infoBlockHeaderLabel: FlatLabel(infoProfileStatusLabel) {
+	textFg: windowBoldFg;
+	style: TextStyle(defaultTextStyle) {
+		font: semiboldFont;
+		linkFont: semiboldFont;
+		linkFontOver: semiboldFont;
+	}
+}
+infoBlockHeaderPosition: point(79px, 22px);
 
 infoProfileToggle: Toggle(defaultToggle) {
 	diameter: 16px;
@@ -209,14 +220,93 @@ infoMainButton: InfoProfileButton(infoProfileButton) {
 	textFgOver: lightButtonFgOver;
 }
 infoSharedMediaCoverHeight: 62px;
-infoSharedMediaLabelPosition: point(79px, 22px);
-infoSharedMediaLabel: FlatLabel(infoProfileStatusLabel) {
-	textFg: windowBoldFg;
-	style: TextStyle(defaultTextStyle) {
-		font: semiboldFont;
-		linkFont: semiboldFont;
-		linkFontOver: semiboldFont;
-	}
-}
 infoSharedMediaButton: infoProfileButton;
 infoSharedMediaBottomSkip: 12px;
+
+infoMembersHeader: 56px;
+infoMembersItem: ProfilePeerListItem(defaultProfileMemberItem) {
+	photoPosition: point(18px, 6px);
+	namePosition: point(79px, 11px);
+	statusPosition: point(79px, 31px);
+}
+infoMembersButtonPosition: point(12px, 9px);
+infoMembersButtonIconPosition: point(6px, 6px);
+infoMembersButton: IconButton(defaultIconButton) {
+	width: 44px;
+	height: 44px;
+	iconPosition: infoMembersButtonIconPosition;
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 44px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+infoMembersAddMember: IconButton(infoMembersButton) {
+	icon: icon {{ "info_add_member", menuIconFg }};
+	iconOver: icon {{ "info_add_member", menuIconFgOver }};
+}
+infoMembersSearch: IconButton(infoMembersButton) {
+	icon: icon {{
+		"top_bar_search",
+		menuIconFg,
+		infoMembersButtonIconPosition
+	}};
+	iconOver: icon {{
+		"top_bar_search",
+		menuIconFgOver,
+		infoMembersButtonIconPosition
+	}};
+	iconPosition: point(0px, 0px);
+}
+infoMembersSearchActive: icon {
+	{ size(44px, 44px), windowBg },
+	{
+		"top_bar_search",
+		menuIconFgOver,
+		infoMembersButtonIconPosition
+	}
+};
+infoMembersSearchActiveLayer: icon {
+	{ size(44px, 44px), boxBg },
+	{
+		"top_bar_search",
+		menuIconFgOver,
+		infoMembersButtonIconPosition
+	}
+};
+infoMembersSearchField: FlatInput(defaultFlatInput) {
+	textColor: windowFg;
+	bgColor: topBarBg;
+	bgActive: topBarBg;
+
+	font: font(fsize);
+
+	borderWidth: 0px;
+	borderColor: topBarBg;
+	borderActive: topBarBg;
+
+	width: 100px;
+	height: 32px;
+	textMrg: margins(0px, 0px, 0px, 0px);
+}
+infoMembersCancelSearch: CrossButton {
+	width: 44px;
+	height: 44px;
+
+	cross: CrossAnimation {
+		size: 44px;
+		skip: 16px;
+		stroke: 2px;
+		minScale: 0.3;
+	}
+	crossFg: menuIconFg;
+	crossFgOver: menuIconFgOver;
+	crossPosition: point(0px, 0px);
+
+	duration: 150;
+	loadingPeriod: 1000;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+infoMembersSearchTop: 15px;

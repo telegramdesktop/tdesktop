@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_cover.h"
 
 #include <rpl/never.h>
+#include <rpl/combine.h>
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
@@ -35,6 +36,102 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Info {
 namespace Profile {
 namespace {
+
+class SectionToggle : public Ui::AbstractCheckView {
+public:
+	SectionToggle(
+		const style::InfoToggle &st,
+		bool checked,
+		base::lambda<void()> updateCallback);
+
+	QSize getSize() const override;
+	void paint(
+		Painter &p,
+		int left,
+		int top,
+		int outerWidth,
+		TimeMs ms) override;
+	QImage prepareRippleMask() const override;
+	bool checkRippleStartPosition(QPoint position) const override;
+
+private:
+	QSize rippleSize() const;
+
+	const style::InfoToggle &_st;
+
+};
+
+SectionToggle::SectionToggle(
+		const style::InfoToggle &st,
+		bool checked,
+		base::lambda<void()> updateCallback)
+: AbstractCheckView(st.duration, checked, std::move(updateCallback))
+, _st(st) {
+}
+
+QSize SectionToggle::getSize() const {
+	return QSize(_st.size, _st.size);
+}
+
+void SectionToggle::paint(
+		Painter &p,
+		int left,
+		int top,
+		int outerWidth,
+		TimeMs ms) {
+	auto sqrt2 = sqrt(2.);
+	auto vLeft = rtlpoint(left + _st.skip, 0, outerWidth).x() + 0.;
+	auto vTop = top + _st.skip + 0.;
+	auto vWidth = _st.size - 2 * _st.skip;
+	auto vHeight = _st.size - 2 * _st.skip;
+	auto vStroke = _st.stroke / sqrt2;
+	constexpr auto kPointCount = 6;
+	std::array<QPointF, kPointCount> pathV = { {
+		{ vLeft, vTop + (vHeight / 4.) + vStroke },
+		{ vLeft + vStroke, vTop + (vHeight / 4.) },
+		{ vLeft + (vWidth / 2.), vTop + (vHeight * 3. / 4.) - vStroke },
+		{ vLeft + vWidth - vStroke, vTop + (vHeight / 4.) },
+		{ vLeft + vWidth, vTop + (vHeight / 4.) + vStroke },
+		{ vLeft + (vWidth / 2.), vTop + (vHeight * 3. / 4.) + vStroke },
+	} };
+
+	auto toggled = currentAnimationValue(ms);
+	auto alpha = (toggled - 1.) * M_PI_2;
+	auto cosalpha = cos(alpha);
+	auto sinalpha = sin(alpha);
+	auto shiftx = vLeft + (vWidth / 2.);
+	auto shifty = vTop + (vHeight / 2.);
+	for (auto &point : pathV) {
+		auto x = point.x() - shiftx;
+		auto y = point.y() - shifty;
+		point.setX(shiftx + x * cosalpha - y * sinalpha);
+		point.setY(shifty + y * cosalpha + x * sinalpha);
+	}
+	QPainterPath path;
+	path.moveTo(pathV[0]);
+	for (int i = 1; i != kPointCount; ++i) {
+		path.lineTo(pathV[i]);
+	}
+	path.lineTo(pathV[0]);
+
+	PainterHighQualityEnabler hq(p);
+	p.fillPath(path, _st.color);
+}
+
+QImage SectionToggle::prepareRippleMask() const {
+	return Ui::RippleAnimation::ellipseMask(rippleSize());
+}
+
+QSize SectionToggle::rippleSize() const {
+	return getSize() + 2 * QSize(
+		_st.rippleAreaPadding,
+		_st.rippleAreaPadding);
+}
+
+bool SectionToggle::checkRippleStartPosition(QPoint position) const {
+	return QRect(QPoint(0, 0), rippleSize()).contains(position);
+
+}
 
 auto MembersStatusText(int count) {
 	return lng_chat_status_members(lt_count, count);
@@ -59,8 +156,55 @@ auto ChatStatusText(int fullCount, int onlineCount, bool isGroup) {
 
 } // namespace
 
+SectionWithToggle *SectionWithToggle::setToggleShown(
+		rpl::producer<bool> &&shown) {
+	_toggle.create(
+		this,
+		QString(),
+		st::infoToggleCheckbox,
+		std::make_unique<SectionToggle>(
+			st::infoToggle,
+			false,
+			[this] { _toggle->updateCheck(); }));
+	_toggle->hide();
+	_toggle->lower();
+	_toggle->setCheckAlignment(style::al_right);
+	widthValue()
+		| rpl::start([this](int newValue) {
+			_toggle->setGeometry(0, 0, newValue, height());
+		}, _toggle->lifetime());
+	std::move(shown)
+		| rpl::start([this](bool shown) {
+			if (_toggle->isHidden() == shown) {
+				_toggle->setVisible(shown);
+				_toggleShown.fire_copy(shown);
+			}
+		}, lifetime());
+	return this;
+}
+
+rpl::producer<bool> SectionWithToggle::toggledValue() const {
+	return _toggle
+		? (rpl::single(_toggle->checked())
+			| rpl::then(
+				base::ObservableViewer(_toggle->checkedChanged)))
+		: rpl::never<bool>();
+}
+
+rpl::producer<bool> SectionWithToggle::toggleShownValue() const {
+	return _toggleShown.events_starting_with(
+		_toggle && !_toggle->isHidden());
+}
+
+int SectionWithToggle::toggleSkip() const {
+	return (!_toggle || _toggle->isHidden())
+		? 0
+		: st::infoToggleCheckbox.checkPosition.x()
+			+ _toggle->checkRect().width();
+}
+
 Cover::Cover(QWidget *parent, not_null<PeerData*> peer)
-: FixedHeightWidget(
+: SectionWithToggle(
 	parent,
 	st::infoProfilePhotoTop
 		+ st::infoProfilePhotoSize
@@ -80,7 +224,11 @@ Cover::Cover(QWidget *parent, not_null<PeerData*> peer)
 }
 
 void Cover::setupChildGeometry() {
-	widthValue()
+	using namespace rpl::mappers;
+	rpl::combine(
+		toggleShownValue(),
+		widthValue(),
+		$2)
 		| rpl::start([this](int newWidth) {
 			_userpic->moveToLeft(
 				st::infoProfilePhotoLeft,
@@ -96,30 +244,6 @@ Cover *Cover::setOnlineCount(rpl::producer<int> &&count) {
 		| rpl::start([this](int count) {
 			_onlineCount = count;
 			refreshStatusText();
-		}, lifetime());
-	return this;
-}
-
-Cover *Cover::setToggleShown(rpl::producer<bool> &&shown) {
-	_toggle.create(
-		this,
-		QString(),
-		st::infoToggleCheckbox,
-		std::make_unique<SectionToggle>(
-			st::infoToggle,
-			false,
-			[this] { _toggle->updateCheck(); }));
-	_toggle->lower();
-	_toggle->setCheckAlignment(style::al_right);
-	widthValue()
-		| rpl::start([this](int newValue) {
-			_toggle->setGeometry(0, 0, newValue, height());
-		}, _toggle->lifetime());
-	std::move(shown)
-		| rpl::start([this](bool shown) {
-			if (_toggle->isHidden() == shown) {
-				_toggle->setVisible(shown);
-			}
 		}, lifetime());
 	return this;
 }
@@ -201,11 +325,8 @@ void Cover::refreshStatusText() {
 void Cover::refreshNameGeometry(int newWidth) {
 	auto nameWidth = newWidth
 		- st::infoProfileNameLeft
-		- st::infoProfileNameRight;
-	if (_toggle) {
-		nameWidth -= st::infoToggleCheckbox.checkPosition.x()
-			+ _toggle->checkRect().width();
-	}
+		- st::infoProfileNameRight
+		- toggleSkip();
 	_name->resizeToWidth(nameWidth);
 	_name->moveToLeft(
 		st::infoProfileNameLeft,
@@ -216,11 +337,8 @@ void Cover::refreshNameGeometry(int newWidth) {
 void Cover::refreshStatusGeometry(int newWidth) {
 	auto statusWidth = newWidth
 		- st::infoProfileStatusLeft
-		- st::infoProfileStatusRight;
-	if (_toggle) {
-		statusWidth -= st::infoToggleCheckbox.checkPosition.x()
-			+ _toggle->checkRect().width();
-	}
+		- st::infoProfileStatusRight
+		- toggleSkip();
 	_status->resizeToWidth(statusWidth);
 	_status->moveToLeft(
 		st::infoProfileStatusLeft,
@@ -228,144 +346,37 @@ void Cover::refreshStatusGeometry(int newWidth) {
 		newWidth);
 }
 
-rpl::producer<bool> Cover::toggledValue() const {
-	return _toggle
-		? (rpl::single(_toggle->checked())
-			| rpl::then(
-				base::ObservableViewer(_toggle->checkedChanged)))
-		: rpl::never<bool>();
-}
-
 QMargins SharedMediaCover::getMargins() const {
 	return QMargins(0, 0, 0, st::infoSharedMediaBottomSkip);
 }
 
 SharedMediaCover::SharedMediaCover(QWidget *parent)
-: FixedHeightWidget(parent, st::infoSharedMediaCoverHeight) {
+: SectionWithToggle(parent, st::infoSharedMediaCoverHeight) {
 	createLabel();
 }
 
 void SharedMediaCover::createLabel() {
+	using namespace rpl::mappers;
 	auto label = object_ptr<Ui::FlatLabel>(
 		this,
 		Lang::Viewer(lng_profile_shared_media) | ToUpperValue(),
-		st::infoSharedMediaLabel);
+		st::infoBlockHeaderLabel);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-	widthValue()
-		| rpl::start([weak = label.data()](int newWidth) {
-			weak->resizeToNaturalWidth(newWidth
-				- st::infoSharedMediaLabelPosition.x()
-				- st::infoSharedMediaButton.padding.right());
+	rpl::combine(
+		toggleShownValue(),
+		widthValue(),
+		$2)
+		| rpl::start([this, weak = label.data()](int newWidth) {
+			auto availableWidth = newWidth
+				- st::infoBlockHeaderPosition.x()
+				- st::infoSharedMediaButton.padding.right()
+				- toggleSkip();
+			weak->resizeToWidth(availableWidth);
 			weak->moveToLeft(
-				st::infoSharedMediaLabelPosition.x(),
-				st::infoSharedMediaLabelPosition.y(),
+				st::infoBlockHeaderPosition.x(),
+				st::infoBlockHeaderPosition.y(),
 				newWidth);
 		}, label->lifetime());
-}
-
-SharedMediaCover *SharedMediaCover::setToggleShown(
-		rpl::producer<bool> &&shown) {
-	_toggle.create(
-		this,
-		QString(),
-		st::infoToggleCheckbox,
-		std::make_unique<SectionToggle>(
-			st::infoToggle,
-			false,
-			[this] { _toggle->updateCheck(); }));
-	_toggle->lower();
-	_toggle->setCheckAlignment(style::al_right);
-	widthValue()
-		| rpl::start([this](int newValue) {
-			_toggle->setGeometry(0, 0, newValue, height());
-		}, _toggle->lifetime());
-	std::move(shown)
-		| rpl::start([this](bool shown) {
-			if (_toggle->isHidden() == shown) {
-				_toggle->setVisible(shown);
-			}
-		}, lifetime());
-	return this;
-}
-
-rpl::producer<bool> SharedMediaCover::toggledValue() const {
-	return _toggle
-		? (rpl::single(_toggle->checked())
-			| rpl::then(
-				base::ObservableViewer(_toggle->checkedChanged)))
-		: rpl::never<bool>();
-}
-
-SectionToggle::SectionToggle(
-		const style::InfoToggle &st,
-		bool checked,
-		base::lambda<void()> updateCallback)
-: AbstractCheckView(st.duration, checked, std::move(updateCallback))
-, _st(st) {
-}
-
-QSize SectionToggle::getSize() const {
-	return QSize(_st.size, _st.size);
-}
-
-void SectionToggle::paint(
-		Painter &p,
-		int left,
-		int top,
-		int outerWidth,
-		TimeMs ms) {
-	auto sqrt2 = sqrt(2.);
-	auto vLeft = rtlpoint(left + _st.skip, 0, outerWidth).x() + 0.;
-	auto vTop = top + _st.skip + 0.;
-	auto vWidth = _st.size - 2 * _st.skip;
-	auto vHeight = _st.size - 2 * _st.skip;
-	auto vStroke = _st.stroke / sqrt2;
-	constexpr auto kPointCount = 6;
-	std::array<QPointF, kPointCount> pathV = { {
-		{ vLeft, vTop + (vHeight / 4.) + vStroke },
-		{ vLeft + vStroke, vTop + (vHeight / 4.) },
-		{ vLeft + (vWidth / 2.), vTop + (vHeight * 3. / 4.) - vStroke },
-		{ vLeft + vWidth - vStroke, vTop + (vHeight / 4.) },
-		{ vLeft + vWidth, vTop + (vHeight / 4.) + vStroke },
-		{ vLeft + (vWidth / 2.), vTop + (vHeight * 3. / 4.) + vStroke },
-	} };
-
-	auto toggled = currentAnimationValue(ms);
-	auto alpha = (toggled - 1.) * M_PI_2;
-	auto cosalpha = cos(alpha);
-	auto sinalpha = sin(alpha);
-	auto shiftx = vLeft + (vWidth / 2.);
-	auto shifty = vTop + (vHeight / 2.);
-	for (auto &point : pathV) {
-		auto x = point.x() - shiftx;
-		auto y = point.y() - shifty;
-		point.setX(shiftx + x * cosalpha - y * sinalpha);
-		point.setY(shifty + y * cosalpha + x * sinalpha);
-	}
-	QPainterPath path;
-	path.moveTo(pathV[0]);
-	for (int i = 1; i != kPointCount; ++i) {
-		path.lineTo(pathV[i]);
-	}
-	path.lineTo(pathV[0]);
-
-	PainterHighQualityEnabler hq(p);
-	p.fillPath(path, _st.color);
-}
-
-QImage SectionToggle::prepareRippleMask() const {
-	return Ui::RippleAnimation::ellipseMask(rippleSize());
-}
-
-QSize SectionToggle::rippleSize() const {
-	return getSize() + 2 * QSize(
-		_st.rippleAreaPadding,
-		_st.rippleAreaPadding);
-}
-
-bool SectionToggle::checkRippleStartPosition(QPoint position) const {
-	return QRect(QPoint(0, 0), rippleSize()).contains(position);
-
 }
 
 } // namespace Profile

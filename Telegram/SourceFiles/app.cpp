@@ -961,23 +961,28 @@ namespace {
 	}
 
 	void feedChatAdmins(const MTPDupdateChatAdmins &d) {
-		ChatData *chat = App::chat(d.vchat_id.v);
+		auto chat = App::chat(d.vchat_id.v);
 		if (chat->version <= d.vversion.v) {
-			bool badVersion = (chat->version + 1 < d.vversion.v);
-			if (badVersion) {
-				chat->invalidateParticipants();
-				Auth().api().requestPeer(chat);
-			}
+			auto wasCanEdit = chat->canEdit();
+			auto badVersion = (chat->version + 1 < d.vversion.v);
 			chat->version = d.vversion.v;
 			if (mtpIsTrue(d.venabled)) {
-				if (!badVersion) {
-					chat->invalidateParticipants();
-				}
 				chat->flags |= MTPDchat::Flag::f_admins_enabled;
 			} else {
 				chat->flags &= ~MTPDchat::Flag::f_admins_enabled;
 			}
-			Notify::peerUpdatedDelayed(chat, Notify::PeerUpdate::Flag::AdminsChanged);
+			if (badVersion || mtpIsTrue(d.venabled)) {
+				chat->invalidateParticipants();
+				Auth().api().requestPeer(chat);
+			}
+			if (wasCanEdit != chat->canEdit()) {
+				Notify::peerUpdatedDelayed(
+					chat,
+					Notify::PeerUpdate::Flag::ChatCanEdit);
+			}
+			Notify::peerUpdatedDelayed(
+				chat,
+				Notify::PeerUpdate::Flag::AdminsChanged);
 		}
 	}
 

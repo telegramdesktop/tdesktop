@@ -220,6 +220,26 @@ rpl::producer<int> CommonGroupsCountValue(
 		});
 }
 
+rpl::producer<bool> CanAddMemberValue(
+		not_null<PeerData*> peer) {
+	if (auto chat = peer->asChat()) {
+		return PeerUpdateValue(
+			chat,
+			Notify::PeerUpdate::Flag::ChatCanEdit)
+			| rpl::map([chat](auto&&) {
+				return chat->canEdit();
+			});
+	} else if (auto channel = peer->asChannel()) {
+		return PeerUpdateValue(
+			channel,
+			Notify::PeerUpdate::Flag::ChannelRightsChanged)
+			| rpl::map([channel](auto&&) {
+				return channel->canAddMembers();
+			});
+	}
+	return rpl::single(false);
+}
+
 rpl::producer<bool> MultiLineTracker::atLeastOneShownValue() const {
 	auto shown = std::vector<rpl::producer<bool>>();
 	shown.reserve(_widgets.size());

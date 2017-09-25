@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_cover.h"
 #include "info/profile/info_profile_icon.h"
+#include "info/profile/info_profile_members.h"
 #include "boxes/abstract_box.h"
 #include "boxes/add_contact_box.h"
 #include "mainwidget.h"
@@ -44,12 +45,13 @@ namespace Profile {
 
 InnerWidget::InnerWidget(
 	QWidget *parent,
+	rpl::producer<Wrap> &&wrapValue,
 	not_null<Window::Controller*> controller,
 	not_null<PeerData*> peer)
 : RpWidget(parent)
 , _controller(controller)
 , _peer(peer)
-, _content(setupContent(this)) {
+, _content(setupContent(this, std::move(wrapValue))) {
 	_content->heightValue()
 		| rpl::start([this](int height) {
 			TWidget::resizeToWidth(width());
@@ -67,7 +69,8 @@ rpl::producer<bool> InnerWidget::canHideDetails() const {
 }
 
 object_ptr<Ui::RpWidget> InnerWidget::setupContent(
-		RpWidget *parent) const {
+		RpWidget *parent,
+		rpl::producer<Wrap> &&wrapValue) const {
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
 	auto cover = result->add(object_ptr<Cover>(
 		result,
@@ -92,6 +95,12 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	//	if (!channel->isMegagroup()) {
 	//		setupChannelActions(result, channel);
 	//	}
+	}
+	if (_peer->isChat() || _peer->isMegagroup()) {
+		result->add(object_ptr<Members>(
+			result,
+			std::move(wrapValue),
+			_peer));
 	}
 	return std::move(result);
 }
@@ -361,8 +370,7 @@ object_ptr<Ui::SlideWrap<>> InnerWidget::createSlideSkipWidget(
 void InnerWidget::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
-	_visibleTop = visibleTop;
-	_visibleBottom = visibleBottom;
+	setChildVisibleTopBottom(_content, visibleTop, visibleBottom);
 }
 
 void InnerWidget::saveState(not_null<Memento*> memento) {

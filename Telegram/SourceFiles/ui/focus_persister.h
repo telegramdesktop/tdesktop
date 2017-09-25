@@ -20,49 +20,36 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/widgets/buttons.h"
-
 namespace Ui {
-class ToggleView;
-} // namespace Ui
 
-namespace Info {
-namespace Profile {
-
-class Button : public Ui::RippleButton {
+class FocusPersister {
 public:
-	Button(
-		QWidget *parent,
-		rpl::producer<QString> &&text);
-	Button(
-		QWidget *parent,
-		rpl::producer<QString> &&text,
-		const style::InfoProfileButton &st);
+	FocusPersister(QWidget *parent, QWidget *steal = nullptr)
+	: _weak(GrabFocused(parent)) {
+		if (steal) {
+			steal->setFocus();
+		}
+	}
 
-	Button *toggleOn(rpl::producer<bool> &&toggled);
-	rpl::producer<bool> toggledValue() const;
-
-protected:
-	int resizeGetHeight(int newWidth) override;
-	void onStateChanged(
-		State was,
-		StateChangeSource source) override;
-
-	void paintEvent(QPaintEvent *e) override;
+	~FocusPersister() {
+		if (auto strong = _weak.data()) {
+			if (auto window = strong->window()) {
+				if (window->focusWidget() != strong) {
+					strong->setFocus();
+				}
+			}
+		}
+	}
 
 private:
-	void setText(QString &&text);
-	QRect toggleRect() const;
-	void updateVisibleText(int newWidth);
-
-	const style::InfoProfileButton &_st;
-	QString _original;
-	QString _text;
-	int _originalWidth = 0;
-	int _textWidth = 0;
-	std::unique_ptr<Ui::ToggleView> _toggle;
+	static QWidget *GrabFocused(QWidget *parent) {
+		if (auto window = parent ? parent->window() : nullptr) {
+			return window->focusWidget();
+		}
+		return nullptr;
+	}
+	QPointer<QWidget> _weak;
 
 };
 
-} // namespace Profile
-} // namespace Info
+} // namespace Ui

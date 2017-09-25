@@ -21,12 +21,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "base/observer.h"
+#include "ui/rp_widget.h"
 
 namespace Profile {
 
 class SectionMemento;
 
-class BlockWidget : public TWidget, protected base::Subscriber {
+class BlockWidget : public Ui::RpWidget, protected base::Subscriber {
 	Q_OBJECT
 
 public:

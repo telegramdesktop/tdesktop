@@ -121,21 +121,15 @@ profileInviteLinkText: FlatLabel(profileBlockTextPart) {
 
 profileLimitReachedSkip: 6px;
 
-profileMemberItem: ProfilePeerListItem {
+profileMemberItem: ProfilePeerListItem(defaultProfileMemberItem) {
 	left: 8px;
 	bottom: profileBlockMarginBottom;
 	button: defaultLeftOutlineButton;
-	statusFg: windowSubTextFg;
+	maximalWidth: profileBlockWideWidthMax;
 	statusFgOver: profileStatusFgOver;
-	statusFgActive: windowActiveTextFg;
 }
-profileMemberHeight: 58px;
 profileMemberPaddingLeft: 16px;
-profileMemberPhotoSize: 46px;
-profileMemberPhotoPosition: point(12px, 6px);
-profileMemberNamePosition: point(68px, 11px);
 profileMemberNameFg: windowBoldFg;
-profileMemberStatusPosition: point(68px, 31px);
 profileMemberCreatorIcon: icon {{ "profile_admin_star", profileAdminStartFg, point(4px, 3px) }};
 profileMemberCreatorIconOver: icon {{ "profile_admin_star", profileAdminStarFgOver, point(4px, 3px) }};
 profileMemberAdminIcon: icon {{ "profile_admin_star", profileOtherAdminStarFg, point(4px, 3px) }};

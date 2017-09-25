@@ -25,7 +25,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Profile {
 
-BlockWidget::BlockWidget(QWidget *parent, PeerData *peer, const QString &title) : TWidget(parent)
+BlockWidget::BlockWidget(
+	QWidget *parent,
+	PeerData *peer,
+	const QString &title) : RpWidget(parent)
 , _peer(peer)
 , _title(title) {
 }

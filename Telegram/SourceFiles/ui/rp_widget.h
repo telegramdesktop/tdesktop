@@ -26,8 +26,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 
-template <typename Parent>
-class RpWidgetWrap : public Parent {
+template <typename Widget>
+using RpWidgetParent = std::conditional_t<
+	std::is_same_v<Widget, QWidget>,
+	TWidget,
+	TWidgetHelper<Widget>>;
+
+template <typename Widget>
+class RpWidgetWrap : public RpWidgetParent<Widget> {
+	using Parent = RpWidgetParent<Widget>;
+
 public:
 	using Parent::Parent;
 
@@ -77,6 +85,13 @@ public:
 		return eventStreams().alive.events();
 	}
 
+	void showOn(rpl::producer<bool> &&shown) {
+		std::move(shown)
+			| rpl::start([this](bool visible) {
+				setVisible(visible);
+			}, lifetime());
+	}
+
 	rpl::lifetime &lifetime() {
 		return _lifetime.data;
 	}
@@ -110,7 +125,7 @@ protected:
 		return eventHook(event);
 	}
 	virtual bool eventHook(QEvent *event) {
-		return TWidget::event(event);
+		return Parent::event(event);
 	}
 
 private:
@@ -139,9 +154,9 @@ private:
 
 };
 
-class RpWidget : public RpWidgetWrap<TWidget> {
+class RpWidget : public RpWidgetWrap<QWidget> {
 public:
-	using RpWidgetWrap<TWidget>::RpWidgetWrap;
+	using RpWidgetWrap<QWidget>::RpWidgetWrap;
 
 };
 

@@ -31,6 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/top_bar_widget.h"
 #include "data/data_drafts.h"
 #include "ui/widgets/dropdown_menu.h"
+#include "ui/focus_persister.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"
 #include "observer_peer.h"
@@ -3028,6 +3029,7 @@ void MainWidget::checkMainSectionToLayer() {
 	if (!_mainSection) {
 		return;
 	}
+	Ui::FocusPersister persister(this);
 	if (auto layer = _mainSection->moveContentToLayer(width())) {
 		dropMainSection(_mainSection);
 		_controller->showSpecialLayer(

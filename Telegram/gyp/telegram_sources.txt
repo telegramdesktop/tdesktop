@@ -564,6 +564,7 @@
 <(src_loc)/ui/countryinput.h
 <(src_loc)/ui/emoji_config.cpp
 <(src_loc)/ui/emoji_config.h
+<(src_loc)/ui/focus_persister.h
 <(src_loc)/ui/images.cpp
 <(src_loc)/ui/images.h
 <(src_loc)/ui/rp_widget.h

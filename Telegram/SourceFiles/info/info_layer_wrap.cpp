@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/info_memento.h"
 #include "info/info_top_bar.h"
 #include "ui/rp_widget.h"
+#include "ui/focus_persister.h"
 #include "ui/widgets/buttons.h"
 #include "window/section_widget.h"
 #include "window/window_controller.h"
@@ -106,6 +107,7 @@ void LayerWrap::parentResized() {
 	auto parentSize = parentWidget()->size();
 	auto parentWidth = parentSize.width();
 	if (parentWidth < MinimalSupportedWidth()) {
+		Ui::FocusPersister persister(this);
 		auto localCopy = _controller;
 		auto memento = MoveMemento(std::move(_content), Wrap::Narrow);
 		localCopy->hideSpecialLayer(anim::type::instant);
@@ -124,6 +126,7 @@ void LayerWrap::parentResized() {
 }
 
 bool LayerWrap::takeToThirdSection() {
+	Ui::FocusPersister persister(this);
 	auto localCopy = _controller;
 	auto memento = MoveMemento(std::move(_content), Wrap::Side);
 	localCopy->hideSpecialLayer(anim::type::instant);

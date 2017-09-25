@@ -34,6 +34,9 @@ class SlideWrap;
 } // namespace Ui
 
 namespace Info {
+
+enum class Wrap;
+
 namespace Profile {
 
 class Memento;
@@ -42,6 +45,7 @@ class InnerWidget final : public Ui::RpWidget {
 public:
 	InnerWidget(
 		QWidget *parent,
+		rpl::producer<Wrap> &&wrapValue,
 		not_null<Window::Controller*> controller,
 		not_null<PeerData*> peer);
 
@@ -64,7 +68,9 @@ protected:
 		int visibleBottom) override;
 
 private:
-	object_ptr<RpWidget> setupContent(RpWidget *parent) const;
+	object_ptr<RpWidget> setupContent(
+		RpWidget *parent,
+		rpl::producer<Wrap> &&wrapValue) const;
 	object_ptr<RpWidget> setupDetails(RpWidget *parent) const;
 	object_ptr<RpWidget> setupSharedMedia(RpWidget *parent) const;
 	object_ptr<RpWidget> setupMuteToggle(RpWidget *parent) const;
@@ -86,8 +92,6 @@ private:
 	not_null<Window::Controller*> _controller;
 	not_null<PeerData*> _peer;
 
-	int _visibleTop = 0;
-	int _visibleBottom = 0;
 	int _minHeight = 0;
 
 	object_ptr<RpWidget> _content;

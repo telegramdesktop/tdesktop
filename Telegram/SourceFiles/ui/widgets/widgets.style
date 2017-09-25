@@ -1055,11 +1055,42 @@ MediaPlayerButton {
 ProfilePeerListItem {
 	left: pixels;
 	bottom: pixels;
+	height: pixels;
+	photoPosition: point;
+	namePosition: point;
+	statusPosition: point;
+	photoSize: pixels;
+	maximalWidth: pixels;
 
 	button: OutlineButton;
 	statusFg: color;
 	statusFgOver: color;
 	statusFgActive: color;
+}
+
+defaultProfileMemberItem: ProfilePeerListItem {
+	height: 58px;
+	photoPosition: point(12px, 6px);
+	namePosition: point(68px, 11px);
+	statusPosition: point(68px, 31px);
+	photoSize: 46px;
+	button: OutlineButton {
+		outlineWidth: 0px;
+
+		textBg: windowBg;
+		textBgOver: windowBgOver;
+
+		textFg: windowSubTextFg;
+		textFgOver: windowSubTextFgOver;
+
+		font: normalFont;
+		padding: margins(11px, 5px, 11px, 5px);
+
+		ripple: defaultRippleAnimation;
+	}
+	statusFg: windowSubTextFg;
+	statusFgOver: windowSubTextFgOver;
+	statusFgActive: windowActiveTextFg;
 }
 
 InfoTopBar {

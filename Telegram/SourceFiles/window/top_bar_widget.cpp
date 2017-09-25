@@ -263,6 +263,9 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 		if (!_menuToggle->isHidden()) {
 			decreaseWidth += _menuToggle->width();
 		}
+		if (!_infoToggle->isHidden()) {
+			decreaseWidth += _infoToggle->width() + st::topBarSkip;
+		}
 		if (!_search->isHidden()) {
 			decreaseWidth += _search->width();
 		}

@@ -121,8 +121,8 @@ protected:
 	not_null<Window::Controller*> controller() const {
 		return _controller;
 	}
-	Wrap wrap() const {
-		return _wrap;
+	rpl::producer<Wrap> wrapValue() const {
+		return _wrapChanges.events_starting_with_copy(_wrap);
 	}
 
 	void resizeEvent(QResizeEvent *e) override;
@@ -132,9 +132,6 @@ protected:
 	int scrollTopSave() const;
 	void scrollTopRestore(int scrollTop);
 
-	virtual void wrapUpdatedHook() {
-	}
-
 private:
 	RpWidget *doSetInnerWidget(
 		object_ptr<RpWidget> inner,
@@ -143,6 +140,7 @@ private:
 	const not_null<Window::Controller*> _controller;
 	const not_null<PeerData*> _peer;
 	Wrap _wrap = Wrap::Layer;
+	rpl::event_stream<Wrap> _wrapChanges;
 
 	int _scrollTopSkip = 0;
 	object_ptr<Ui::ScrollArea> _scroll;

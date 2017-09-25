@@ -40,13 +40,33 @@ class SlideWrap;
 namespace Info {
 namespace Profile {
 
-class Cover : public Ui::FixedHeightWidget {
+class SectionWithToggle : public Ui::FixedHeightWidget {
+public:
+	using FixedHeightWidget::FixedHeightWidget;
+
+	SectionWithToggle *setToggleShown(rpl::producer<bool> &&shown);
+	rpl::producer<bool> toggledValue() const;
+
+protected:
+	rpl::producer<bool> toggleShownValue() const;
+	int toggleSkip() const;
+
+private:
+	object_ptr<Ui::Checkbox> _toggle = { nullptr };
+	rpl::event_stream<bool> _toggleShown;
+
+};
+
+class Cover : public SectionWithToggle {
 public:
 	Cover(QWidget *parent, not_null<PeerData*> peer);
 
 	Cover *setOnlineCount(rpl::producer<int> &&count);
-	Cover *setToggleShown(rpl::producer<bool> &&shown);
-	rpl::producer<bool> toggledValue() const;
+
+	Cover *setToggleShown(rpl::producer<bool> &&shown) {
+		return static_cast<Cover*>(
+			SectionWithToggle::setToggleShown(std::move(shown)));
+	}
 
 private:
 	void setupChildGeometry();
@@ -64,48 +84,23 @@ private:
 	object_ptr<::Profile::UserpicButton> _userpic;
 	object_ptr<Ui::FlatLabel> _name = { nullptr };
 	object_ptr<Ui::FlatLabel> _status = { nullptr };
-	object_ptr<Ui::Checkbox> _toggle = { nullptr };
 	//object_ptr<CoverDropArea> _dropArea = { nullptr };
 
 };
 
-class SharedMediaCover : public Ui::FixedHeightWidget {
+class SharedMediaCover : public SectionWithToggle {
 public:
 	SharedMediaCover(QWidget *parent);
 
-	SharedMediaCover *setToggleShown(rpl::producer<bool> &&shown);
-	rpl::producer<bool> toggledValue() const;
+	SharedMediaCover *setToggleShown(rpl::producer<bool> &&shown) {
+		return static_cast<SharedMediaCover*>(
+			SectionWithToggle::setToggleShown(std::move(shown)));
+	}
 
 	QMargins getMargins() const override;
 
 private:
 	void createLabel();
-
-	object_ptr<Ui::Checkbox> _toggle = { nullptr };
-
-};
-
-class SectionToggle : public Ui::AbstractCheckView {
-public:
-	SectionToggle(
-		const style::InfoToggle &st,
-		bool checked,
-		base::lambda<void()> updateCallback);
-
-	QSize getSize() const override;
-	void paint(
-		Painter &p,
-		int left,
-		int top,
-		int outerWidth,
-		TimeMs ms) override;
-	QImage prepareRippleMask() const override;
-	bool checkRippleStartPosition(QPoint position) const override;
-
-private:
-	QSize rippleSize() const;
-
-	const style::InfoToggle &_st;
 
 };
 

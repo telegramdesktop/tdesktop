@@ -48,6 +48,7 @@ Widget::Widget(
 : ContentWidget(parent, wrap, controller, peer) {
 	_inner = setInnerWidget(object_ptr<InnerWidget>(
 		this,
+		wrapValue(),
 		controller,
 		peer));
 	_inner->move(0, 0);

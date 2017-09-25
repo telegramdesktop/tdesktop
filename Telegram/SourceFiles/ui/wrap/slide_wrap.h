@@ -77,7 +77,6 @@ private:
 
 	bool _shown = true;
 	rpl::event_stream<bool> _shownUpdated;
-	rpl::lifetime _toggleOnLifetime;
 	Animation _slideAnimation;
 	int _duration = 0;
 

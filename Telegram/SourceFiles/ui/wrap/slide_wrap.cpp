@@ -84,11 +84,10 @@ SlideWrap<RpWidget> *SlideWrap<RpWidget>::finishAnimations() {
 
 SlideWrap<RpWidget> *SlideWrap<RpWidget>::toggleOn(
 		rpl::producer<bool> &&shown) {
-	_toggleOnLifetime.destroy();
 	std::move(shown)
 		| rpl::start([this](bool shown) {
 			toggleAnimated(shown);
-		}, _toggleOnLifetime);
+		}, lifetime());
 	finishAnimations();
 	return this;
 }

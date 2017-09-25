@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/info_memento.h"
 
 #include <rpl/never.h>
+#include <rpl/combine.h>
 #include "window/window_controller.h"
 #include "ui/widgets/scroll_area.h"
 #include "lang/lang_keys.h"
@@ -51,7 +52,7 @@ ContentWidget::ContentWidget(
 void ContentWidget::setWrap(Wrap wrap) {
 	if (_wrap != wrap) {
 		_wrap = wrap;
-		wrapUpdatedHook();
+		_wrapChanges.fire_copy(_wrap);
 		update();
 	}
 }
@@ -62,7 +63,6 @@ void ContentWidget::resizeEvent(QResizeEvent *e) {
 		QMargins(0, _scrollTopSkip, 0, 0));
 	if (_scroll->geometry() != scrollGeometry) {
 		_scroll->setGeometry(scrollGeometry);
-		_inner->setMinimumHeight(_scroll->height());
 		_inner->resizeToWidth(_scroll->width());
 	}
 
@@ -100,14 +100,18 @@ void ContentWidget::setGeometryWithTopMoved(
 Ui::RpWidget *ContentWidget::doSetInnerWidget(
 		object_ptr<RpWidget> inner,
 		int scrollTopSkip) {
+	using namespace rpl::mappers;
+
 	_inner = _scroll->setOwnedWidget(std::move(inner));
 	_inner->move(0, 0);
 
-	scrollTopValue()
-		| rpl::start([this, inner = _inner](int value) {
-			inner->setVisibleTopBottom(
-				value,
-				value + _scroll->height()); // TODO rpl::combine
+	rpl::combine(
+		_scroll->scrollTopValue(),
+		_scroll->heightValue(),
+		_inner->desiredHeightValue(),
+		tuple($1, $1 + $2, $3))
+		| rpl::start([inner = _inner](int top, int bottom, int desired) {
+			inner->setVisibleTopBottom(top, bottom);
 		}, _inner->lifetime());
 	return _inner;
 }

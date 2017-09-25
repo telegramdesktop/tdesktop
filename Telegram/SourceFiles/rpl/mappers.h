@@ -432,6 +432,45 @@ inline auto operator~(Type &&value) {
 			std::forward<Type>(value));
 }
 
+template <typename ...Mappers>
+class tuple_mapper {
+	template <typename ...Args>
+	using tuple_result = std::tuple<decltype(
+		std::declval<wrap_mapper_t<std::decay_t<Mappers>>>()(
+			std::declval<Args>()...))...>;
+public:
+	template <typename ...OtherMappers>
+	tuple_mapper(OtherMappers &&...mappers) : _mappers(
+		std::forward<OtherMappers>(mappers)...) {
+	}
+
+	template <typename ...Args>
+	constexpr tuple_result<Args...> operator()(
+			Args &&...args) const {
+		constexpr auto kArity = sizeof...(Mappers);
+		return call_helper(
+			std::make_index_sequence<kArity>(),
+			std::forward<Args>(args)...);
+	}
+
+private:
+	template <typename ...Args, std::size_t ...I>
+	inline tuple_result<Args...> call_helper(
+			std::index_sequence<I...>,
+			Args &&...args) const {
+		return std::make_tuple(
+			std::get<I>(_mappers)(std::forward<Args>(args)...)...);
+	}
+
+	std::tuple<wrap_mapper_t<std::decay_t<Mappers>>...> _mappers;
+
+};
+
+template <typename ...Args>
+tuple_mapper<Args...> tuple(Args &&...args) {
+	return tuple_mapper<Args...>(std::forward<Args>(args)...);
+}
+
 } // namespace details
 
 namespace mappers {

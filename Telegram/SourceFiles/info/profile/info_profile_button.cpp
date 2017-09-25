@@ -46,7 +46,7 @@ Button::Button(
 }
 
 Button *Button::toggleOn(rpl::producer<bool> &&toggled) {
-	_toggleOnLifetime.destroy();
+	Expects(_toggle == nullptr);
 	_toggle = std::make_unique<Ui::ToggleView>(
 		isOver() ? _st.toggleOver : _st.toggle,
 		false,
@@ -54,11 +54,11 @@ Button *Button::toggleOn(rpl::producer<bool> &&toggled) {
 	clicks()
 		| rpl::start([this](auto) {
 			_toggle->setCheckedAnimated(!_toggle->checked());
-		}, _toggleOnLifetime);
+		}, lifetime());
 	std::move(toggled)
 		| rpl::start([this](bool toggled) {
 			_toggle->setCheckedAnimated(toggled);
-		}, _toggleOnLifetime);
+		}, lifetime());
 	_toggle->finishAnimation();
 	return this;
 }

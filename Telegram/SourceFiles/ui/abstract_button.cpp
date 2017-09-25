@@ -71,12 +71,15 @@ void AbstractButton::mouseReleaseEvent(QMouseEvent *e) {
 		onStateChanged(was, StateChangeSource::ByPress);
 		if (was & StateFlag::Over) {
 			_modifiers = e->modifiers();
+			auto test = weak(this);
 			if (_clickedCallback) {
 				_clickedCallback();
 			} else {
 				emit clicked();
 			}
-			_clicks.fire({});
+			if (test) {
+				_clicks.fire({});
+			}
 		} else {
 			setOver(false, StateChangeSource::ByHover);
 		}

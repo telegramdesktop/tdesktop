@@ -74,6 +74,8 @@ rpl::producer<int> SharedMediaCountValue(
 	Storage::SharedMediaType type);
 rpl::producer<int> CommonGroupsCountValue(
 	not_null<UserData*> user);
+rpl::producer<bool> CanAddMemberValue(
+	not_null<PeerData*> peer);
 
 class MultiLineTracker {
 public:
