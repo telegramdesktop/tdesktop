@@ -22,6 +22,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "history/history_media.h"
 #include "ui/effects/radial_animation.h"
+#include "data/data_document.h"
+#include "data/data_photo.h"
+#include "data/data_web_page.h"
+#include "data/data_game.h"
 
 namespace Media {
 namespace Clip {

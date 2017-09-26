@@ -188,7 +188,14 @@ auto GenerateUserString(MTPint userId) {
 	// User name in "User name (@username)" format with entities.
 	auto user = App::user(userId.v);
 	auto name = TextWithEntities { App::peerName(user) };
-	name.entities.push_back(EntityInText(EntityInTextMentionName, 0, name.text.size(), QString::number(user->id) + '.' + QString::number(user->access)));
+	auto entityData = QString::number(user->id)
+		+ '.'
+		+ QString::number(user->accessHash());
+	name.entities.push_back(EntityInText(
+		EntityInTextMentionName,
+		0,
+		name.text.size(),
+		entityData));
 	auto username = user->userName();
 	if (username.isEmpty()) {
 		return name;

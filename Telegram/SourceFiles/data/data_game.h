@@ -20,31 +20,40 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "data/data_photo.h"
 #include "data/data_document.h"
 
-namespace Serialize {
+struct GameData {
+	GameData(const GameId &id) : id(id) {
+	}
+	GameData(
+		const GameId &id,
+		const uint64 &accessHash,
+		const QString &shortName,
+		const QString &title,
+		const QString &description,
+		PhotoData *photo,
+		DocumentData *document)
+	: id(id)
+	, accessHash(accessHash)
+	, shortName(shortName)
+	, title(title)
+	, description(description)
+	, photo(photo)
+	, document(document) {
+	}
 
-class Document {
-public:
-	struct StickerSetInfo {
-		StickerSetInfo(uint64 setId, uint64 accessHash, QString shortName)
-			: setId(setId)
-			, accessHash(accessHash)
-			, shortName(shortName) {
-		}
-		uint64 setId;
-		uint64 accessHash;
-		QString shortName;
-	};
+	void forget() {
+		if (document) document->forget();
+		if (photo) photo->forget();
+	}
 
-	static void writeToStream(QDataStream &stream, DocumentData *document);
-	static DocumentData *readStickerFromStream(int streamAppVersion, QDataStream &stream, const StickerSetInfo &info);
-	static DocumentData *readFromStream(int streamAppVersion, QDataStream &stream);
-	static int sizeInStream(DocumentData *document);
-
-private:
-	static DocumentData *readFromStreamHelper(int streamAppVersion, QDataStream &stream, const StickerSetInfo *info);
+	GameId id = 0;
+	uint64 accessHash = 0;
+	QString shortName;
+	QString title;
+	QString description;
+	PhotoData *photo = nullptr;
+	DocumentData *document = nullptr;
 
 };
-
-} // namespace Serialize

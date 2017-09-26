@@ -394,8 +394,7 @@ namespace {
 			data->inputUser = MTP_inputUser(d.vid, MTP_long(0));
 			data->setName(lang(lng_deleted), QString(), QString(), QString());
 			data->setPhoto(MTP_userProfilePhotoEmpty());
-			data->setIsInaccessible();
-			data->flags = 0;
+			data->setFlags(MTPDuser_ClientFlag::f_inaccessible | 0);
 			data->setBotInfoVersion(-1);
 			status = &emptyStatus;
 			data->contact = -1;
@@ -411,14 +410,18 @@ namespace {
 			data = App::user(peer);
 			auto canShareThisContact = data->canShareThisContactFast();
 			wasContact = data->isContact();
-			if (!minimal) {
-				data->flags = d.vflags.v;
+			if (minimal) {
+				auto mask = 0
+					| MTPDuser_ClientFlag::f_inaccessible;
+				data->setFlags((data->flags() & ~mask) | (d.vflags.v & mask));
+			} else {
+				data->setFlags(d.vflags.v);
 				if (d.is_self()) {
 					data->input = MTP_inputPeerSelf();
 					data->inputUser = MTP_inputUserSelf();
 				} else if (!d.has_access_hash()) {
-					data->input = MTP_inputPeerUser(d.vid, MTP_long(data->isInaccessible() ? 0 : data->access));
-					data->inputUser = MTP_inputUser(d.vid, MTP_long(data->isInaccessible() ? 0 : data->access));
+					data->input = MTP_inputPeerUser(d.vid, MTP_long(data->accessHash()));
+					data->inputUser = MTP_inputUser(d.vid, MTP_long(data->accessHash()));
 				} else {
 					data->input = MTP_inputPeerUser(d.vid, d.vaccess_hash);
 					data->inputUser = MTP_inputUser(d.vid, d.vaccess_hash);
@@ -436,7 +439,6 @@ namespace {
 				}
 				data->setName(lang(lng_deleted), QString(), QString(), QString());
 				data->setPhoto(MTP_userProfilePhotoEmpty());
-				data->setIsInaccessible();
 				status = &emptyStatus;
 			} else {
 				// apply first_name and last_name from minimal user only if we don't have
@@ -475,7 +477,9 @@ namespace {
 				} else {
 					data->setPhoto(MTP_userProfilePhotoEmpty());
 				}
-				if (d.has_access_hash()) data->access = d.vaccess_hash.v;
+				if (d.has_access_hash()) {
+					data->setAccessHash(d.vaccess_hash.v);
+				}
 				status = d.has_status() ? &d.vstatus : &emptyStatus;
 			}
 			if (!minimal) {
@@ -579,12 +583,9 @@ namespace {
 			cdata->date = d.vdate.v;
 
 			if (d.has_migrated_to() && d.vmigrated_to.type() == mtpc_inputChannel) {
-				const auto &c(d.vmigrated_to.c_inputChannel());
-				ChannelData *channel = App::channel(peerFromChannel(c.vchannel_id));
-				if (!channel->mgInfo) {
-					channel->flags |= MTPDchannel::Flag::f_megagroup;
-					channel->flagsUpdated();
-				}
+				auto &c = d.vmigrated_to.c_inputChannel();
+				auto channel = App::channel(peerFromChannel(c.vchannel_id));
+				channel->addFlags(MTPDchannel::Flag::f_megagroup);
 				if (!channel->access) {
 					channel->input = MTP_inputPeerChannel(c.vchannel_id, c.vaccess_hash);
 					channel->inputChannel = d.vmigrated_to;
@@ -615,13 +616,12 @@ namespace {
 				}
 			}
 
-			if (!(cdata->flags & MTPDchat::Flag::f_admins_enabled) && (d.vflags.v & MTPDchat::Flag::f_admins_enabled)) {
+			if (!(cdata->flags() & MTPDchat::Flag::f_admins_enabled) && (d.vflags.v & MTPDchat::Flag::f_admins_enabled)) {
 				cdata->invalidateParticipants();
 			}
-			cdata->flags = d.vflags.v;
+			cdata->setFlags(d.vflags.v);
 
 			cdata->count = d.vparticipants_count.v;
-			cdata->setIsForbidden(false);
 			if (canEdit != cdata->canEdit()) {
 				update.flags |= UpdateFlag::ChatCanEdit;
 			}
@@ -639,8 +639,7 @@ namespace {
 			cdata->date = 0;
 			cdata->count = -1;
 			cdata->invalidateParticipants();
-			cdata->flags = 0;
-			cdata->setIsForbidden(true);
+			cdata->setFlags(MTPDchat_ClientFlag::f_forbidden | 0);
 			if (canEdit != cdata->canEdit()) {
 				update.flags |= UpdateFlag::ChatCanEdit;
 			}
@@ -667,8 +666,13 @@ namespace {
 			auto canAddMembers = cdata->canAddMembers();
 
 			if (minimal) {
-				auto mask = MTPDchannel::Flag::f_broadcast | MTPDchannel::Flag::f_verified | MTPDchannel::Flag::f_megagroup | MTPDchannel::Flag::f_democracy;
-				cdata->flags = (cdata->flags & ~mask) | (d.vflags.v & mask);
+				auto mask = 0
+					| MTPDchannel::Flag::f_broadcast
+					| MTPDchannel::Flag::f_verified
+					| MTPDchannel::Flag::f_megagroup
+					| MTPDchannel::Flag::f_democracy
+					| MTPDchannel_ClientFlag::f_forbidden;
+				cdata->setFlags((cdata->flags() & ~mask) | (d.vflags.v & mask));
 			} else {
 				if (d.has_admin_rights()) {
 					cdata->setAdminRights(d.vadmin_rights);
@@ -691,14 +695,12 @@ namespace {
 				} else {
 					cdata->setRestrictionReason(QString());
 				}
-				cdata->flags = d.vflags.v;
+				cdata->setFlags(d.vflags.v);
 			}
-			cdata->flagsUpdated();
 
 			QString uname = d.has_username() ? TextUtilities::SingleLine(qs(d.vusername)) : QString();
 			cdata->setName(qs(d.vtitle), uname);
 
-			cdata->setIsForbidden(false);
 			cdata->setPhoto(d.vphoto);
 
 			if (wasInChannel != cdata->amIn()) update.flags |= UpdateFlag::ChannelAmIn;
@@ -722,8 +724,7 @@ namespace {
 			cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
 
 			auto mask = mtpCastFlags(MTPDchannelForbidden::Flag::f_broadcast | MTPDchannelForbidden::Flag::f_megagroup);
-			cdata->flags = (cdata->flags & ~mask) | (mtpCastFlags(d.vflags) & mask);
-			cdata->flagsUpdated();
+			cdata->setFlags((cdata->flags() & ~mask) | (mtpCastFlags(d.vflags) & mask) | MTPDchannel_ClientFlag::f_forbidden);
 
 			if (cdata->hasAdminRights()) {
 				cdata->setAdminRights(MTP_channelAdminRights(MTP_flags(0)));
@@ -738,7 +739,6 @@ namespace {
 			cdata->setPhoto(MTP_chatPhotoEmpty());
 			cdata->date = 0;
 			cdata->setMembersCount(0);
-			cdata->setIsForbidden(true);
 
 			if (wasInChannel != cdata->amIn()) update.flags |= UpdateFlag::ChannelAmIn;
 			if (canViewAdmins != cdata->canViewAdmins()
@@ -795,7 +795,7 @@ namespace {
 				int32 pversion = chat->participants.isEmpty() ? 1 : (chat->participants.begin().value() + 1);
 				chat->invitedByMe.clear();
 				chat->admins.clear();
-				chat->flags &= ~MTPDchat::Flag::f_admin;
+				chat->removeFlags(MTPDchat::Flag::f_admin);
 				for (auto i = v.cbegin(), e = v.cend(); i != e; ++i) {
 					int32 uid = 0, inviter = 0;
 					switch (i->type()) {
@@ -826,7 +826,7 @@ namespace {
 						if (i->type() == mtpc_chatParticipantAdmin) {
 							chat->admins.insert(user);
 							if (user->isSelf()) {
-								chat->flags |= MTPDchat::Flag::f_admin;
+								chat->addFlags(MTPDchat::Flag::f_admin);
 							}
 						}
 					} else {
@@ -927,7 +927,7 @@ namespace {
 						chat->invitedByMe.remove(user);
 						chat->admins.remove(user);
 						if (user->isSelf()) {
-							chat->flags &= ~MTPDchat::Flag::f_admin;
+							chat->removeFlags(MTPDchat::Flag::f_admin);
 						}
 
 						History *h = App::historyLoaded(chat->id);
@@ -967,9 +967,9 @@ namespace {
 			auto badVersion = (chat->version + 1 < d.vversion.v);
 			chat->version = d.vversion.v;
 			if (mtpIsTrue(d.venabled)) {
-				chat->flags |= MTPDchat::Flag::f_admins_enabled;
+				chat->addFlags(MTPDchat::Flag::f_admins_enabled);
 			} else {
-				chat->flags &= ~MTPDchat::Flag::f_admins_enabled;
+				chat->removeFlags(MTPDchat::Flag::f_admins_enabled);
 			}
 			if (badVersion || mtpIsTrue(d.venabled)) {
 				chat->invalidateParticipants();
@@ -999,7 +999,7 @@ namespace {
 			if (user) {
 				if (mtpIsTrue(d.vis_admin)) {
 					if (user->isSelf()) {
-						chat->flags |= MTPDchat::Flag::f_admin;
+						chat->addFlags(MTPDchat::Flag::f_admin);
 					}
 					if (chat->noParticipantInfo()) {
 						Auth().api().requestFullPeer(chat);
@@ -1008,7 +1008,7 @@ namespace {
 					}
 				} else {
 					if (user->isSelf()) {
-						chat->flags &= ~MTPDchat::Flag::f_admin;
+						chat->removeFlags(MTPDchat::Flag::f_admin);
 					}
 					chat->admins.remove(user);
 				}

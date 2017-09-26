@@ -18,33 +18,38 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#pragma once
+#include "data/data_types.h"
 
 #include "data/data_document.h"
 
-namespace Serialize {
+void AudioMsgId::setTypeFromAudio() {
+	if (_audio->voice() || _audio->isRoundVideo()) {
+		_type = Type::Voice;
+	} else if (_audio->isVideo()) {
+		_type = Type::Video;
+	} else if (_audio->tryPlaySong()) {
+		_type = Type::Song;
+	} else {
+		_type = Type::Unknown;
+	}
+}
 
-class Document {
-public:
-	struct StickerSetInfo {
-		StickerSetInfo(uint64 setId, uint64 accessHash, QString shortName)
-			: setId(setId)
-			, accessHash(accessHash)
-			, shortName(shortName) {
-		}
-		uint64 setId;
-		uint64 accessHash;
-		QString shortName;
-	};
+void MessageCursor::fillFrom(const QTextEdit *edit) {
+	QTextCursor c = edit->textCursor();
+	position = c.position();
+	anchor = c.anchor();
+	QScrollBar *s = edit->verticalScrollBar();
+	scroll = (s && (s->value() != s->maximum()))
+		? s->value()
+		: QFIXED_MAX;
+}
 
-	static void writeToStream(QDataStream &stream, DocumentData *document);
-	static DocumentData *readStickerFromStream(int streamAppVersion, QDataStream &stream, const StickerSetInfo &info);
-	static DocumentData *readFromStream(int streamAppVersion, QDataStream &stream);
-	static int sizeInStream(DocumentData *document);
-
-private:
-	static DocumentData *readFromStreamHelper(int streamAppVersion, QDataStream &stream, const StickerSetInfo *info);
-
-};
-
-} // namespace Serialize
+void MessageCursor::applyTo(QTextEdit *edit) {
+	auto cursor = edit->textCursor();
+	cursor.setPosition(anchor, QTextCursor::MoveAnchor);
+	cursor.setPosition(position, QTextCursor::KeepAnchor);
+	edit->setTextCursor(cursor);
+	if (auto scrollbar = edit->verticalScrollBar()) {
+		scrollbar->setValue(scroll);
+	}
+}

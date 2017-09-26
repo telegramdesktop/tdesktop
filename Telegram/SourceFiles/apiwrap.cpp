@@ -21,6 +21,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 
 #include "data/data_drafts.h"
+#include "data/data_photo.h"
+#include "data/data_web_page.h"
 #include "observer_peer.h"
 #include "lang/lang_keys.h"
 #include "application.h"
@@ -330,7 +332,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		auto canViewMembers = channel->canViewMembers();
 		auto canEditStickers = channel->canEditStickers();
 
-		channel->flagsFull = f.vflags.v;
+		channel->setFullFlags(f.vflags.v);
 		auto newPhotoId = 0;
 		if (auto photo = App::feedPhoto(f.vchat_photo)) {
 			newPhotoId = photo->id;
@@ -341,10 +343,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 			Notify::peerUpdatedDelayed(channel, UpdateFlag::PhotoChanged);
 		}
 		if (f.has_migrated_from_chat_id()) {
-			if (!channel->mgInfo) {
-				channel->flags |= MTPDchannel::Flag::f_megagroup;
-				channel->flagsUpdated();
-			}
+			channel->addFlags(MTPDchannel::Flag::f_megagroup);
 			auto cfrom = App::chat(peerFromChat(f.vmigrated_from_chat_id));
 			bool updatedTo = (cfrom->migrateToPtr != channel), updatedFrom = (channel->mgInfo->migrateFromPtr != cfrom);
 			if (updatedTo) {
@@ -441,6 +440,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 
 void ApiWrap::gotUserFull(UserData *user, const MTPUserFull &result, mtpRequestId req) {
 	auto &d = result.c_userFull();
+
 	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser));
 	if (d.has_profile_photo()) {
 		App::feedPhoto(d.vprofile_photo);

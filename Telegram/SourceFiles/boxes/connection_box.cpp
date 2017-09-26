@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "boxes/connection_box.h"
 
+#include "data/data_photo.h"
+#include "data/data_document.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"

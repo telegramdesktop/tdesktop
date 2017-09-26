@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "media/player/media_player_instance.h"
 
+#include "data/data_document.h"
 #include "media/media_audio.h"
 #include "media/media_audio_capture.h"
 #include "observer_peer.h"

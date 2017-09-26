@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "mainwindow.h"
 
+#include "data/data_document.h"
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"

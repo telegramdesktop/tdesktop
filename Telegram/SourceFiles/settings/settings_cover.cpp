@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "settings/settings_cover.h"
 
+#include "data/data_photo.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "observer_peer.h"

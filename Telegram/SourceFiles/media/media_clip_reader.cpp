@@ -20,7 +20,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "media/media_clip_reader.h"
 
+#include "data/data_document.h"
 #include "storage/file_download.h"
+#include "media/media_clip_ffmpeg.h"
+#include "media/media_clip_qtgif.h"
+#include "mainwidget.h"
+#include "mainwindow.h"
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -28,11 +33,6 @@ extern "C" {
 #include <libavutil/opt.h>
 #include <libswscale/swscale.h>
 }
-
-#include "media/media_clip_ffmpeg.h"
-#include "media/media_clip_qtgif.h"
-#include "mainwidget.h"
-#include "mainwindow.h"
 
 namespace Media {
 namespace Clip {

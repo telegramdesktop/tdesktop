@@ -888,7 +888,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> dcIdWithShift >> flags >> ip >> port;
 		if (!_checkStreamStatus(stream)) return false;
 
-		context.dcOptions.constructAddOne(dcIdWithShift, MTPDdcOption::Flags(flags), ip.toStdString(), port);
+		context.dcOptions.constructAddOne(dcIdWithShift, MTPDdcOption::Flags::from_raw(flags), ip.toStdString(), port);
 	} break;
 
 	case dbiDcOptions: {
@@ -3335,7 +3335,7 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 		if (stickers.version > 8033) {
 			qint32 setFlagsValue = 0;
 			stickers.stream >> setHash >> setFlagsValue;
-			setFlags = MTPDstickerSet::Flags{ setFlagsValue };
+			setFlags = MTPDstickerSet::Flags::from_raw(setFlagsValue);
 			if (setFlags & MTPDstickerSet_ClientFlag::f_not_loaded__old) {
 				setFlags &= ~MTPDstickerSet_ClientFlag::f_not_loaded__old;
 				setFlags |= MTPDstickerSet_ClientFlag::f_not_loaded;
@@ -4012,13 +4012,13 @@ uint32 _peerSize(PeerData *peer) {
 	} else if (peer->isChat()) {
 		ChatData *chat = peer->asChat();
 
-		// name + count + date + version + admin + forbidden + left + inviteLink
-		result += Serialize::stringSize(chat->name) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + Serialize::stringSize(chat->inviteLink());
+		// name + count + date + version + admin + old forbidden + left + inviteLink
+		result += Serialize::stringSize(chat->name) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(quint32) + Serialize::stringSize(chat->inviteLink());
 	} else if (peer->isChannel()) {
 		ChannelData *channel = peer->asChannel();
 
-		// name + access + date + version + forbidden + flags + inviteLink
-		result += Serialize::stringSize(channel->name) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + Serialize::stringSize(channel->inviteLink());
+		// name + access + date + version + old forbidden + flags + inviteLink
+		result += Serialize::stringSize(channel->name) + sizeof(quint64) + sizeof(qint32) + sizeof(qint32) + sizeof(qint32) + sizeof(quint32) + Serialize::stringSize(channel->inviteLink());
 	}
 	return result;
 }
@@ -4029,26 +4029,24 @@ void _writePeer(QDataStream &stream, PeerData *peer) {
 	if (peer->isUser()) {
 		UserData *user = peer->asUser();
 
-		stream << user->firstName << user->lastName << user->phone() << user->username << quint64(user->access);
+		stream << user->firstName << user->lastName << user->phone() << user->username << quint64(user->accessHash());
 		if (AppVersion >= 9012) {
-			stream << qint32(user->flags);
+			stream << qint32(user->flags());
 		}
 		if (AppVersion >= 9016) {
 			stream << (user->botInfo ? user->botInfo->inlinePlaceholder : QString());
 		}
 		stream << qint32(user->onlineTill) << qint32(user->contact) << qint32(user->botInfo ? user->botInfo->version : -1);
 	} else if (peer->isChat()) {
-		ChatData *chat = peer->asChat();
-
-		qint32 flagsData = (AppVersion >= 9012) ? chat->flags : (chat->haveLeft() ? 1 : 0);
+		auto chat = peer->asChat();
 
 		stream << chat->name << qint32(chat->count) << qint32(chat->date) << qint32(chat->version) << qint32(chat->creator);
-		stream << qint32(chat->isForbidden() ? 1 : 0) << qint32(flagsData) << chat->inviteLink();
+		stream << qint32(0) << quint32(chat->flags()) << chat->inviteLink();
 	} else if (peer->isChannel()) {
-		ChannelData *channel = peer->asChannel();
+		auto channel = peer->asChannel();
 
 		stream << channel->name << quint64(channel->access) << qint32(channel->date) << qint32(channel->version);
-		stream << qint32(channel->isForbidden() ? 1 : 0) << qint32(channel->flags) << channel->inviteLink();
+		stream << qint32(0) << quint32(channel->flags()) << channel->inviteLink();
 	}
 }
 
@@ -4086,8 +4084,8 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 			user->setPhone(phone);
 			user->setName(first, last, pname, username);
 
-			user->access = access;
-			user->flags = MTPDuser::Flags(flags);
+			user->setFlags(MTPDuser::Flags::from_raw(flags));
+			user->setAccessHash(access);
 			user->onlineTill = onlineTill;
 			user->contact = contact;
 			user->setBotInfoVersion(botInfoVersion);
@@ -4099,8 +4097,8 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 				user->input = MTP_inputPeerSelf();
 				user->inputUser = MTP_inputUserSelf();
 			} else {
-				user->input = MTP_inputPeerUser(MTP_int(peerToUser(user->id)), MTP_long(user->isInaccessible() ? 0 : user->access));
-				user->inputUser = MTP_inputUser(MTP_int(peerToUser(user->id)), MTP_long(user->isInaccessible() ? 0 : user->access));
+				user->input = MTP_inputPeerUser(MTP_int(peerToUser(user->id)), MTP_long(user->accessHash()));
+				user->inputUser = MTP_inputUser(MTP_int(peerToUser(user->id)), MTP_long(user->accessHash()));
 			}
 
 			user->setUserpic(photoLoc.isNull() ? ImagePtr() : ImagePtr(photoLoc));
@@ -4109,14 +4107,20 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 		ChatData *chat = result->asChat();
 
 		QString name, inviteLink;
-		qint32 count, date, version, creator, forbidden, flagsData, flags;
-		from.stream >> name >> count >> date >> version >> creator >> forbidden >> flagsData >> inviteLink;
+		qint32 count, date, version, creator, oldForbidden;
+		quint32 flagsData, flags;
+		from.stream >> name >> count >> date >> version >> creator >> oldForbidden >> flagsData >> inviteLink;
 
 		if (from.version >= 9012) {
 			flags = flagsData;
 		} else {
 			// flagsData was haveLeft
-			flags = (flagsData == 1) ? MTPDchat::Flags(MTPDchat::Flag::f_left) : MTPDchat::Flags(0);
+			flags = (flagsData == 1)
+				? MTPDchat::Flags(MTPDchat::Flag::f_left)
+				: MTPDchat::Flags(0);
+		}
+		if (oldForbidden) {
+			flags |= quint32(MTPDchat_ClientFlag::f_forbidden);
 		}
 		if (!wasLoaded) {
 			chat->setName(name);
@@ -4124,8 +4128,7 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 			chat->date = date;
 			chat->version = version;
 			chat->creator = creator;
-			chat->setIsForbidden(forbidden == 1);
-			chat->flags = MTPDchat::Flags(flags);
+			chat->setFlags(MTPDchat::Flags::from_raw(flags));
 			chat->setInviteLink(inviteLink);
 
 			chat->input = MTP_inputPeerChat(MTP_int(peerToChat(chat->id)));
@@ -4138,16 +4141,18 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 
 		QString name, inviteLink;
 		quint64 access;
-		qint32 date, version, forbidden, flags;
-		from.stream >> name >> access >> date >> version >> forbidden >> flags >> inviteLink;
-
+		qint32 date, version, oldForbidden;
+		quint32 flags;
+		from.stream >> name >> access >> date >> version >> oldForbidden >> flags >> inviteLink;
+		if (oldForbidden) {
+			flags |= quint32(MTPDchannel_ClientFlag::f_forbidden);
+		}
 		if (!wasLoaded) {
 			channel->setName(name, QString());
 			channel->access = access;
 			channel->date = date;
 			channel->version = version;
-			channel->setIsForbidden(forbidden == 1);
-			channel->flags = MTPDchannel::Flags(flags);
+			channel->setFlags(MTPDchannel::Flags::from_raw(flags));
 			channel->setInviteLink(inviteLink);
 
 			channel->input = MTP_inputPeerChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));

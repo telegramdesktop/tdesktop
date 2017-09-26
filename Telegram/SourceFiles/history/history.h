@@ -20,7 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "structs.h"
+#include "data/data_types.h"
+#include "data/data_peer.h"
 #include "dialogs/dialogs_common.h"
 #include "ui/effects/send_action_animations.h"
 #include "base/observer.h"

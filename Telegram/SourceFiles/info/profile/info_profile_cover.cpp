@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <rpl/never.h>
 #include <rpl/combine.h>
+#include "data/data_photo.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"

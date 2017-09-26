@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "profile/profile_cover.h"
 
+#include "data/data_photo.h"
 #include "styles/style_profile.h"
 #include "styles/style_window.h"
 #include "profile/profile_cover_drop_area.h"

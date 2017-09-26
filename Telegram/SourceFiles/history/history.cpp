@@ -1051,8 +1051,9 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			} break;
 
 			case mtpc_messageActionChatMigrateTo: {
-				peer->asChat()->flags |= MTPDchat::Flag::f_deactivated;
-
+				if (auto chat = peer->asChat()) {
+					chat->addFlags(MTPDchat::Flag::f_deactivated);
+				}
 				//auto &d = action.c_messageActionChatMigrateTo();
 				//auto channel = App::channelLoaded(d.vchannel_id.v);
 			} break;

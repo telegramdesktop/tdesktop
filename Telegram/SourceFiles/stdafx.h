@@ -103,6 +103,7 @@ namespace func = base::functors;
 #include "ui/images.h"
 #include "ui/text/text.h"
 
+#include "data/data_types.h"
 #include "app.h"
 #include "facades.h"
 

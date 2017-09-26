@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "lang/lang_keys.h"
 
+#include "data/data_photo.h"
+#include "data/data_document.h"
 #include "media/media_clip_reader.h"
 #include "boxes/abstract_box.h"
 #include "layerwidget.h"

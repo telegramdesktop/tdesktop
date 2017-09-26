@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "inline_bots/inline_bot_layout_internal.h"
 
+#include "data/data_photo.h"
+#include "data/data_document.h"
 #include "styles/style_overview.h"
 #include "styles/style_history.h"
 #include "styles/style_chat_helpers.h"

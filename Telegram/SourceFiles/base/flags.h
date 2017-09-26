@@ -22,12 +22,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <type_traits>
 
-#if defined _MSC_VER && _MSC_VER < 1910
-#define FLAGS_CONSTEXPR
-#else // MSVS2015
-#define FLAGS_CONSTEXPR constexpr
-#endif // MSVS2015
-
 namespace base {
 
 template <typename EnumType>
@@ -69,9 +63,11 @@ public:
 	constexpr flags() = default;
 	constexpr flags(details::flags_zero_helper) noexcept {
 	}
-	constexpr flags(Enum value) noexcept : _value(static_cast<Type>(value)) {
+	constexpr flags(Enum value) noexcept
+	: _value(static_cast<Type>(value)) {
 	}
-	explicit constexpr flags(Type value) noexcept : _value(value) {
+	static constexpr flags from_raw(Type value) noexcept {
+		return flags(static_cast<Enum>(value));
 	}
 
 	constexpr auto value() const noexcept {
@@ -81,40 +77,40 @@ public:
 		return value();
 	}
 
-	FLAGS_CONSTEXPR auto &operator|=(flags b) noexcept {
+	constexpr auto &operator|=(flags b) noexcept {
 		_value |= b.value();
 		return *this;
 	}
-	FLAGS_CONSTEXPR auto &operator&=(flags b) noexcept {
+	constexpr auto &operator&=(flags b) noexcept {
 		_value &= b.value();
 		return *this;
 	}
-	FLAGS_CONSTEXPR auto &operator^=(flags b) noexcept {
+	constexpr auto &operator^=(flags b) noexcept {
 		_value ^= b.value();
 		return *this;
 	}
 
-	FLAGS_CONSTEXPR auto operator~() const noexcept {
-		return flags(~value());
+	constexpr auto operator~() const noexcept {
+		return from_raw(~value());
 	}
 
-	FLAGS_CONSTEXPR auto operator|(flags b) const noexcept {
+	constexpr auto operator|(flags b) const noexcept {
 		return (flags(*this) |= b);
 	}
-	FLAGS_CONSTEXPR auto operator&(flags b) const noexcept {
+	constexpr auto operator&(flags b) const noexcept {
 		return (flags(*this) &= b);
 	}
-	FLAGS_CONSTEXPR auto operator^(flags b) const noexcept {
+	constexpr auto operator^(flags b) const noexcept {
 		return (flags(*this) ^= b);
 	}
 
-	FLAGS_CONSTEXPR auto operator|(Enum b) const noexcept {
+	constexpr auto operator|(Enum b) const noexcept {
 		return (flags(*this) |= b);
 	}
-	FLAGS_CONSTEXPR auto operator&(Enum b) const noexcept {
+	constexpr auto operator&(Enum b) const noexcept {
 		return (flags(*this) &= b);
 	}
-	FLAGS_CONSTEXPR auto operator^(Enum b) const noexcept {
+	constexpr auto operator^(Enum b) const noexcept {
 		return (flags(*this) ^= b);
 	}
 
@@ -295,8 +291,6 @@ inline constexpr auto operator>=(ExtendedEnum a, flags<extended_flags_t<Extended
 }
 
 } // namespace base
-
-#undef FLAGS_CONSTEXPR
 
 template <typename Enum,
 	typename = std::enable_if_t<std::is_enum<Enum>::value>,

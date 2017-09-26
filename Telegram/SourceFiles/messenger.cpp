@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "messenger.h"
 
+#include "data/data_photo.h"
+#include "data/data_document.h"
 #include "base/timer.h"
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"

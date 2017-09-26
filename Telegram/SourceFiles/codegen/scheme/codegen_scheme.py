@@ -311,16 +311,16 @@ with open(input_file) as f:
       prmsInit = [];
       prmsNames = [];
       if (hasFlags != ''):
-        funcsText += '\tenum class Flag : int32 {\n';
+        funcsText += '\tenum class Flag : uint32 {\n';
         maxbit = 0;
         parentFlagsCheck['MTP' + name] = {};
         for paramName in conditionsList:
-          funcsText += '\t\tf_' + paramName + ' = (1 << ' + conditions[paramName] + '),\n';
+          funcsText += '\t\tf_' + paramName + ' = (1U << ' + conditions[paramName] + '),\n';
           parentFlagsCheck['MTP' + name][paramName] = conditions[paramName];
           maxbit = max(maxbit, int(conditions[paramName]));
         if (maxbit > 0):
           funcsText += '\n';
-        funcsText += '\t\tMAX_FIELD = (1 << ' + str(maxbit) + '),\n';
+        funcsText += '\t\tMAX_FIELD = (1U << ' + str(maxbit) + '),\n';
         funcsText += '\t};\n';
         funcsText += '\tusing Flags = base::flags<Flag>;\n';
         funcsText += '\tfriend inline constexpr auto is_flag_type(Flag) { return true; };\n';
@@ -453,9 +453,9 @@ def addTextSerialize(lst, dct, dataLetter):
       conditions = data[6];
       trivialConditions = data[7];
 
-      result += 'void Serialize_' + name + '(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {\n';
+      result += 'void Serialize_' + name + '(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, uint32 iflag) {\n';
       if (len(conditions)):
-        result += '\tMTP' + dataLetter + name + '::Flags flag(iflag);\n\n';
+        result += '\tauto flag = MTP' + dataLetter + name + '::Flags::from_raw(iflag);\n\n';
       if (len(prms)):
         result += '\tif (stage) {\n';
         result += '\t\tto.add(",\\n").addSpaces(lev);\n';
@@ -592,16 +592,16 @@ for restype in typesList:
     writeText = '';
 
     if (hasFlags != ''):
-      dataText += '\tenum class Flag : int32 {\n';
+      dataText += '\tenum class Flag : uint32 {\n';
       maxbit = 0;
       parentFlagsCheck['MTPD' + name] = {};
       for paramName in conditionsList:
-        dataText += '\t\tf_' + paramName + ' = (1 << ' + conditions[paramName] + '),\n';
+        dataText += '\t\tf_' + paramName + ' = (1U << ' + conditions[paramName] + '),\n';
         parentFlagsCheck['MTPD' + name][paramName] = conditions[paramName];
         maxbit = max(maxbit, int(conditions[paramName]));
       if (maxbit > 0):
         dataText += '\n';
-      dataText += '\t\tMAX_FIELD = (1 << ' + str(maxbit) + '),\n';
+      dataText += '\t\tMAX_FIELD = (1U << ' + str(maxbit) + '),\n';
       dataText += '\t};\n';
       dataText += '\tusing Flags = base::flags<Flag>;\n';
       dataText += '\tfriend inline constexpr auto is_flag_type(Flag) { return true; };\n';
@@ -853,7 +853,7 @@ for childName in parentFlagsList:
 
 # manual types added here
 textSerializeMethods += '\
-void _serialize_rpc_result(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {\n\
+void _serialize_rpc_result(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, uint32 iflag) {\n\
 	if (stage) {\n\
 		to.add(",\\n").addSpaces(lev);\n\
 	} else {\n\
@@ -867,7 +867,7 @@ void _serialize_rpc_result(MTPStringLogger &to, int32 stage, int32 lev, Types &t
 	}\n\
 }\n\
 \n\
-void _serialize_msg_container(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {\n\
+void _serialize_msg_container(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, uint32 iflag) {\n\
 	if (stage) {\n\
 		to.add(",\\n").addSpaces(lev);\n\
 	} else {\n\
@@ -880,7 +880,7 @@ void _serialize_msg_container(MTPStringLogger &to, int32 stage, int32 lev, Types
 	}\n\
 }\n\
 \n\
-void _serialize_core_message(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {\n\
+void _serialize_core_message(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, uint32 iflag) {\n\
 	if (stage) {\n\
 		to.add(",\\n").addSpaces(lev);\n\
 	} else {\n\
@@ -1012,7 +1012,7 @@ using StagesFlags = QVector<int32>;\n\
 ' + textSerializeMethods + '\n\
 namespace {\n\
 \n\
-using TextSerializer = void (*)(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag);\n\
+using TextSerializer = void (*)(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, uint32 iflag);\n\
 using TextSerializers = QMap<mtpTypeId, TextSerializer>;\n\
 \n\
 QMap<mtpTypeId, TextSerializer> createTextSerializers() {\n\

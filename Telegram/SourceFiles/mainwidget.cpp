@@ -21,6 +21,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 
 #include <rpl/combine.h>
+#include "data/data_photo.h"
+#include "data/data_document.h"
+#include "data/data_web_page.h"
+#include "data/data_game.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
 #include "ui/special_buttons.h"
@@ -586,7 +590,7 @@ bool MainWidget::setForwardDraft(PeerId peerId, const SelectedItemSet &items) {
 
 bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QString &text) {
 	PeerData *p = App::peer(peer);
-	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->isInaccessible())) {
+	if (!peer || p->canWrite()) {
 		Ui::show(Box<InformBox>(lang(lng_share_cant)));
 		return false;
 	}
@@ -606,7 +610,7 @@ bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QStrin
 
 bool MainWidget::onInlineSwitchChosen(const PeerId &peer, const QString &botAndQuery) {
 	PeerData *p = App::peer(peer);
-	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->isInaccessible())) {
+	if (!peer || p->canWrite()) {
 		Ui::show(Box<InformBox>(lang(lng_inline_switch_cant)));
 		return false;
 	}

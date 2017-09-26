@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "overview/overview_layout.h"
 
+#include "data/data_document.h"
 #include "styles/style_overview.h"
 #include "styles/style_history.h"
 #include "core/file_utilities.h"
@@ -73,6 +74,16 @@ void ItemBase::clickHandlerActiveChanged(const ClickHandlerPtr &action, bool act
 void ItemBase::clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) {
 	App::pressedLinkItem(pressed ? _parent : nullptr);
 	Ui::repaintHistoryItem(_parent);
+}
+
+void RadialProgressItem::setDocumentLinks(DocumentData *document) {
+	ClickHandlerPtr save;
+	if (document->voice()) {
+		save.reset(new DocumentOpenClickHandler(document));
+	} else {
+		save.reset(new DocumentSaveClickHandler(document));
+	}
+	setLinks(MakeShared<DocumentOpenClickHandler>(document), std::move(save), MakeShared<DocumentCancelClickHandler>(document));
 }
 
 void RadialProgressItem::clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
@@ -461,6 +472,21 @@ void Video::invalidateCache() {
 		_check->invalidateCache();
 	}
 }
+float64 Video::dataProgress() const {
+	return _data->progress();
+}
+
+bool Video::dataFinished() const {
+	return !_data->loading();
+}
+
+bool Video::dataLoaded() const {
+	return _data->loaded();
+}
+
+bool Video::iconAnimated() const {
+	return true;
+}
 
 void Video::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const {
 	bool loaded = _data->loaded();
@@ -640,6 +666,22 @@ void Voice::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint p
 		link = _namel;
 		return;
 	}
+}
+
+float64 Voice::dataProgress() const {
+	return _data->progress();
+}
+
+bool Voice::dataFinished() const {
+	return !_data->loading();
+}
+
+bool Voice::dataLoaded() const {
+	return _data->loaded();
+}
+
+bool Voice::iconAnimated() const {
+	return true;
 }
 
 void Voice::updateName() {
@@ -935,6 +977,30 @@ void Document::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoin
 			}
 		}
 	}
+}
+
+float64 Document::dataProgress() const {
+	return _data->progress();
+}
+
+bool Document::dataFinished() const {
+	return !_data->loading();
+}
+
+bool Document::dataLoaded() const {
+	return _data->loaded();
+}
+
+bool Document::iconAnimated() const {
+	return _data->song() || !_data->loaded() || (_radial && _radial->animating());
+}
+
+bool Document::withThumb() const {
+	return !_data->song()
+		&& !_data->thumb->isNull()
+		&& _data->thumb->width()
+		&& _data->thumb->height()
+		&& !documentIsExecutableName(_data->name);
 }
 
 bool Document::updateStatusText() {

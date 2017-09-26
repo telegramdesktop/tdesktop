@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "storage/localimageloader.h"
 
+#include "data/data_document.h"
 #include "core/file_utilities.h"
 #include "media/media_audio.h"
 #include "boxes/send_files_box.h"

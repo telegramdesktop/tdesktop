@@ -300,7 +300,8 @@ void Controller::showPeerInfo(
 		PeerId peerId,
 		anim::type animated,
 		anim::activation activation) {
-	if (Adaptive::ThreeColumn()) {
+	if (Adaptive::ThreeColumn()
+		&& !Auth().data().thirdSectionInfoEnabled()) {
 		Auth().data().setThirdSectionInfoEnabled(true);
 		Auth().saveDataDelayed(kThirdSectionInfoTimeoutMs);
 	}

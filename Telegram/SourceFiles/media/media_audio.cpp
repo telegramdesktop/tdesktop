@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "media/media_audio.h"
 
+#include "data/data_document.h"
 #include "media/media_audio_ffmpeg_loader.h"
 #include "media/media_child_ffmpeg_loader.h"
 #include "media/media_audio_loaders.h"

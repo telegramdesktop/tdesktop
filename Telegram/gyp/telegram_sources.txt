@@ -141,8 +141,19 @@
 <(src_loc)/core/version.h
 <(src_loc)/data/data_abstract_structure.cpp
 <(src_loc)/data/data_abstract_structure.h
+<(src_loc)/data/data_document.cpp
+<(src_loc)/data/data_document.h
 <(src_loc)/data/data_drafts.cpp
 <(src_loc)/data/data_drafts.h
+<(src_loc)/data/data_flags.h
+<(src_loc)/data/data_game.h
+<(src_loc)/data/data_peer.cpp
+<(src_loc)/data/data_peer.h
+<(src_loc)/data/data_photo.cpp
+<(src_loc)/data/data_photo.h
+<(src_loc)/data/data_types.cpp
+<(src_loc)/data/data_types.h
+<(src_loc)/data/data_web_page.h
 <(src_loc)/dialogs/dialogs_common.h
 <(src_loc)/dialogs/dialogs_indexed_list.cpp
 <(src_loc)/dialogs/dialogs_indexed_list.h
@@ -646,8 +657,6 @@
 <(src_loc)/shortcuts.h
 <(src_loc)/stdafx.cpp
 <(src_loc)/stdafx.h
-<(src_loc)/structs.cpp
-<(src_loc)/structs.h
 <(emoji_suggestions_loc)/emoji_suggestions.cpp
 <(emoji_suggestions_loc)/emoji_suggestions.h
 

@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "calls/calls_panel.h"
 
+#include "data/data_photo.h"
 #include "calls/calls_emoji_fingerprint.h"
 #include "styles/style_calls.h"
 #include "styles/style_history.h"

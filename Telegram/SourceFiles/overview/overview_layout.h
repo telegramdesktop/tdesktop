@@ -100,15 +100,7 @@ public:
 protected:
 	ClickHandlerPtr _openl, _savel, _cancell;
 	void setLinks(ClickHandlerPtr &&openl, ClickHandlerPtr &&savel, ClickHandlerPtr &&cancell);
-	void setDocumentLinks(DocumentData *document) {
-		ClickHandlerPtr save;
-		if (document->voice()) {
-			save.reset(new DocumentOpenClickHandler(document));
-		} else {
-			save.reset(new DocumentSaveClickHandler(document));
-		}
-		setLinks(MakeShared<DocumentOpenClickHandler>(document), std::move(save), MakeShared<DocumentCancelClickHandler>(document));
-	}
+	void setDocumentLinks(DocumentData *document);
 
 	void step_radial(TimeMs ms, bool timer);
 
@@ -219,18 +211,10 @@ public:
 	void invalidateCache() override;
 
 protected:
-	float64 dataProgress() const override {
-		return _data->progress();
-	}
-	bool dataFinished() const override {
-		return !_data->loading();
-	}
-	bool dataLoaded() const override {
-		return _data->loaded();
-	}
-	bool iconAnimated() const override {
-		return true;
-	}
+	float64 dataProgress() const override;
+	bool dataFinished() const override;
+	bool dataLoaded() const override;
+	bool iconAnimated() const override;
 
 private:
 	void ensureCheckboxCreated();
@@ -257,18 +241,10 @@ public:
 	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const override;
 
 protected:
-	float64 dataProgress() const override {
-		return _data->progress();
-	}
-	bool dataFinished() const override {
-		return !_data->loading();
-	}
-	bool dataLoaded() const override {
-		return _data->loaded();
-	}
-	bool iconAnimated() const override {
-		return true;
-	}
+	float64 dataProgress() const override;
+	bool dataFinished() const override;
+	bool dataLoaded() const override;
+	bool iconAnimated() const override;
 
 private:
 	DocumentData *_data;
@@ -298,18 +274,10 @@ public:
 	}
 
 protected:
-	float64 dataProgress() const override {
-		return _data->progress();
-	}
-	bool dataFinished() const override {
-		return !_data->loading();
-	}
-	bool dataLoaded() const override {
-		return _data->loaded();
-	}
-	bool iconAnimated() const override {
-		return _data->song() || !_data->loaded() || (_radial && _radial->animating());
-	}
+	float64 dataProgress() const override;
+	bool dataFinished() const override;
+	bool dataLoaded() const override;
+	bool iconAnimated() const override;
 
 private:
 	DocumentData *_data;
@@ -326,9 +294,7 @@ private:
 	int32 _datew, _extw;
 	int32 _thumbw, _colorIndex;
 
-	bool withThumb() const {
-		return !_data->song() && !_data->thumb->isNull() && _data->thumb->width() && _data->thumb->height() && !documentIsExecutableName(_data->name);
-	}
+	bool withThumb() const;
 	bool updateStatusText();
 
 };

@@ -970,7 +970,10 @@ void HistoryWidget::onMentionInsert(UserData *user) {
 		if (replacement.isEmpty()) {
 			replacement = App::peerName(user);
 		}
-		entityTag = qsl("mention://user.") + QString::number(user->bareId()) + '.' + QString::number(user->access);
+		entityTag = qsl("mention://user.")
+			+ QString::number(user->bareId())
+			+ '.'
+			+ QString::number(user->accessHash());
 	} else {
 		replacement = '@' + user->username;
 	}

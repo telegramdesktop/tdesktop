@@ -1465,7 +1465,9 @@ EntitiesInText EntitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 				auto &d = entity.c_messageEntityMentionName();
 				auto data = [&d] {
 					if (auto user = App::userLoaded(peerFromUser(d.vuser_id))) {
-						return MentionNameDataFromFields({ d.vuser_id.v, user->access });
+						return MentionNameDataFromFields({
+							d.vuser_id.v,
+							user->accessHash() });
 					}
 					return MentionNameDataFromFields(d.vuser_id.v);
 				};

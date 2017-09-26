@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "stickers.h"
 
+#include "data/data_document.h"
 #include "boxes/stickers_box.h"
 #include "boxes/confirm_box.h"
 #include "lang/lang_keys.h"

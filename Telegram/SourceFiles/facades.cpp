@@ -291,9 +291,12 @@ void showPeerHistory(
 		ShowWay way,
 		anim::type animated,
 		anim::activation activation) {
+	auto ms = getms();
+	LOG(("Show Peer Start"));
 	if (MainWidget *m = App::main()) {
 		m->ui_showPeerHistory(peer, msgId, way, animated, activation);
 	}
+	LOG(("Show Peer End: %1").arg(getms() - ms));
 }
 
 void showPeerHistoryAsync(const PeerId &peer, MsgId msgId, ShowWay way) {

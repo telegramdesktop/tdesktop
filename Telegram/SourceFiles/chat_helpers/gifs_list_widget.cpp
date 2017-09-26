@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "chat_helpers/gifs_list_widget.h"
 
+#include "data/data_photo.h"
+#include "data/data_document.h"
 #include "styles/style_chat_helpers.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"

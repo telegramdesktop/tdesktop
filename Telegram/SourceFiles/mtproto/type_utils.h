@@ -47,80 +47,107 @@ namespace base {\
 }
 
 // we use the same flags field for some additional client side flags
-enum class MTPDmessage_ClientFlag : int32 {
+enum class MTPDmessage_ClientFlag : uint32 {
 	// message has links for "shared links" indexing
-	f_has_text_links = (1 << 30),
+	f_has_text_links = (1U << 30),
 
 	// message is a group migrate (group -> supergroup) service message
-	f_is_group_migrate = (1 << 29),
+	f_is_group_migrate = (1U << 29),
 
 	// message needs initDimensions() + resize() + paint()
-	f_pending_init_dimensions = (1 << 28),
+	f_pending_init_dimensions = (1U << 28),
 
 	// message needs resize() + paint()
-	f_pending_resize = (1 << 27),
+	f_pending_resize = (1U << 27),
 
 	// message needs paint()
-	f_pending_paint = (1 << 26),
+	f_pending_paint = (1U << 26),
 
 	// message is attached to previous one when displaying the history
-	f_attach_to_previous = (1 << 25),
+	f_attach_to_previous = (1U << 25),
 
 	// message is attached to next one when displaying the history
-	f_attach_to_next = (1 << 24),
+	f_attach_to_next = (1U << 24),
 
 	// message was sent from inline bot, need to re-set media when sent
-	f_from_inline_bot = (1 << 23),
+	f_from_inline_bot = (1U << 23),
 
 	// message has a switch inline keyboard button, need to return to inline
-	f_has_switch_inline_button = (1 << 22),
+	f_has_switch_inline_button = (1U << 22),
 
 	// message is generated on the client side and should be unread
-	f_clientside_unread = (1 << 21),
+	f_clientside_unread = (1U << 21),
 
 	// update this when adding new client side flags
-	MIN_FIELD = (1 << 21),
+	MIN_FIELD = (1U << 21),
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDmessage)
 
-enum class MTPDreplyKeyboardMarkup_ClientFlag : int32 {
+enum class MTPDreplyKeyboardMarkup_ClientFlag : uint32 {
 	// none (zero) markup
-	f_zero = (1 << 30),
+	f_zero = (1U << 30),
 
 	// markup just wants a text reply
-	f_force_reply = (1 << 29),
+	f_force_reply = (1U << 29),
 
 	// markup keyboard is inline
-	f_inline = (1 << 28),
+	f_inline = (1U << 28),
 
 	// markup has a switch inline keyboard button
-	f_has_switch_inline_button = (1 << 27),
+	f_has_switch_inline_button = (1U << 27),
 
 	// update this when adding new client side flags
-	MIN_FIELD = (1 << 27),
+	MIN_FIELD = (1U << 27),
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDreplyKeyboardMarkup)
 
-enum class MTPDstickerSet_ClientFlag : int32 {
+enum class MTPDstickerSet_ClientFlag : uint32 {
 	// old value for sticker set is not yet loaded flag
-	f_not_loaded__old = (1 << 31),
+	f_not_loaded__old = (1U << 31),
 
 	// sticker set is not yet loaded
-	f_not_loaded = (1 << 30),
+	f_not_loaded = (1U << 30),
 
 	// sticker set is one of featured (should be saved locally)
-	f_featured = (1 << 29),
+	f_featured = (1U << 29),
 
 	// sticker set is an unread featured set
-	f_unread = (1 << 28),
+	f_unread = (1U << 28),
 
 	// special set like recent or custom stickers
-	f_special = (1 << 27),
+	f_special = (1U << 27),
 
 	// update this when adding new client side flags
-	MIN_FIELD = (1 << 27),
+	MIN_FIELD = (1U << 27),
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDstickerSet)
+
+enum class MTPDuser_ClientFlag : uint32 {
+	// forbidden constructor received
+	f_inaccessible = (1U << 31),
+
+	// update this when adding new client side flags
+	MIN_FIELD = (1U << 31),
+};
+DEFINE_MTP_CLIENT_FLAGS(MTPDuser)
+
+enum class MTPDchat_ClientFlag : uint32 {
+	// forbidden constructor received
+	f_forbidden = (1U << 31),
+
+	// update this when adding new client side flags
+	MIN_FIELD = (1U << 31),
+};
+DEFINE_MTP_CLIENT_FLAGS(MTPDchat)
+
+enum class MTPDchannel_ClientFlag : uint32 {
+	// forbidden constructor received
+	f_forbidden = (1U << 31),
+
+	// update this when adding new client side flags
+	MIN_FIELD = (1U << 31),
+};
+DEFINE_MTP_CLIENT_FLAGS(MTPDchannel)
 
 extern const MTPReplyMarkup MTPnullMarkup;
 extern const MTPVector<MTPMessageEntity> MTPnullEntities;
