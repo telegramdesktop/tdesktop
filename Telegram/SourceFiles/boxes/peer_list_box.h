@@ -20,9 +20,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include <rpl/event_stream.h>
+#include "ui/rp_widget.h"
 #include "boxes/abstract_box.h"
 #include "mtproto/sender.h"
 #include "base/timer.h"
+
+namespace style {
+struct PeerList;
+} // namespace style
 
 namespace Ui {
 class RippleAnimation;
@@ -31,6 +37,7 @@ class MultiSelect;
 template <typename Widget>
 class SlideWrap;
 class FlatLabel;
+struct ScrollToRequest;
 } // namespace Ui
 
 namespace Notify {
@@ -135,10 +142,20 @@ public:
 	void invalidatePixmapsCache();
 
 	template <typename UpdateCallback>
-	void addRipple(QSize size, QPoint point, UpdateCallback updateCallback);
+	void addRipple(
+		const style::PeerListItem &st,
+		QSize size,
+		QPoint point,
+		UpdateCallback updateCallback);
 	void stopLastRipple();
 	void paintRipple(Painter &p, TimeMs ms, int x, int y, int outerWidth);
-	void paintUserpic(Painter &p, TimeMs ms, int x, int y, int outerWidth);
+	void paintUserpic(
+		Painter &p,
+		const style::PeerListItem &st,
+		TimeMs ms,
+		int x,
+		int y,
+		int outerWidth);
 	float64 checkedRatio();
 
 	void setNameFirstChars(const OrderedSet<QChar> &nameFirstChars) {
@@ -149,7 +166,14 @@ public:
 	}
 
 	virtual void lazyInitialize();
-	virtual void paintStatusText(Painter &p, int x, int y, int availableWidth, int outerWidth, bool selected);
+	virtual void paintStatusText(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int availableWidth,
+		int outerWidth,
+		bool selected);
 
 protected:
 	bool isInitialized() const {
@@ -159,7 +183,12 @@ protected:
 private:
 	void createCheckbox(base::lambda<void()> updateCallback);
 	void setCheckedInternal(bool checked, SetStyle style);
-	void paintDisabledCheckUserpic(Painter &p, int x, int y, int outerWidth) const;
+	void paintDisabledCheckUserpic(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int outerWidth) const;
 	void setStatusText(const QString &text);
 
 	PeerListRowId _id = 0;
@@ -323,78 +352,14 @@ private:
 
 };
 
-class PeerListBox : public BoxContent, public PeerListDelegate {
+class PeerListContent
+	: public Ui::RpWidget
+	, private base::Subscriber {
 public:
-	PeerListBox(QWidget*, std::unique_ptr<PeerListController> controller, base::lambda<void(not_null<PeerListBox*>)> init);
-
-	void peerListSetTitle(base::lambda<QString()> title) override {
-		setTitle(std::move(title));
-	}
-	void peerListSetAdditionalTitle(base::lambda<QString()> title) override {
-		setAdditionalTitle(std::move(title));
-	}
-	void peerListSetDescription(object_ptr<Ui::FlatLabel> description) override;
-	void peerListSetSearchLoading(object_ptr<Ui::FlatLabel> loading) override;
-	void peerListSetSearchNoResults(object_ptr<Ui::FlatLabel> noResults) override;
-	void peerListSetAboveWidget(object_ptr<TWidget> aboveWidget) override;
-	void peerListSetSearchMode(PeerListSearchMode mode) override;
-	void peerListAppendRow(std::unique_ptr<PeerListRow> row) override;
-	void peerListAppendSearchRow(std::unique_ptr<PeerListRow> row) override;
-	void peerListAppendFoundRow(not_null<PeerListRow*> row) override;
-	void peerListPrependRow(std::unique_ptr<PeerListRow> row) override;
-	void peerListPrependRowFromSearchResult(not_null<PeerListRow*> row) override;
-	void peerListUpdateRow(not_null<PeerListRow*> row) override;
-	void peerListRemoveRow(not_null<PeerListRow*> row) override;
-	void peerListConvertRowToSearchResult(not_null<PeerListRow*> row) override;
-	void peerListSetRowChecked(not_null<PeerListRow*> row, bool checked) override;
-	not_null<PeerListRow*> peerListRowAt(int index) override;
-	bool peerListIsRowSelected(not_null<PeerData*> peer) override;
-	int peerListSelectedRowsCount() override;
-	std::vector<not_null<PeerData*>> peerListCollectSelectedRows() override;
-	void peerListRefreshRows() override;
-	void peerListScrollToTop() override;
-	int peerListFullRowsCount() override;
-	PeerListRow *peerListFindRow(PeerListRowId id) override;
-	void peerListSortRows(base::lambda<bool(PeerListRow &a, PeerListRow &b)> compare) override;
-	void peerListPartitionRows(base::lambda<bool(PeerListRow &a)> border) override;
-
-protected:
-	void prepare() override;
-	void setInnerFocus() override;
-
-	void keyPressEvent(QKeyEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	void peerListAddSelectedRowInBunch(not_null<PeerData*> peer) override {
-		addSelectItem(peer, PeerListRow::SetStyle::Fast);
-	}
-	void peerListFinishSelectedRowsBunch() override;
-
-	void addSelectItem(not_null<PeerData*> peer, PeerListRow::SetStyle style);
-	void createMultiSelect();
-	int getTopScrollSkip() const;
-	void updateScrollSkips();
-	void searchQueryChanged(const QString &query);
-
-	object_ptr<Ui::SlideWrap<Ui::MultiSelect>> _select = { nullptr };
-
-	class Inner;
-	QPointer<Inner> _inner;
-
-	std::unique_ptr<PeerListController> _controller;
-	base::lambda<void(PeerListBox*)> _init;
-	bool _scrollBottomFixed = true;
-
-};
-
-// This class is hold in header because it requires Qt preprocessing.
-class PeerListBox::Inner : public TWidget, private base::Subscriber {
-	Q_OBJECT
-
-public:
-	Inner(QWidget *parent, not_null<PeerListController*> controller);
+	PeerListContent(
+		QWidget *parent,
+		not_null<PeerListController*> controller,
+		const style::PeerList &st);
 
 	void selectSkip(int direction);
 	void selectSkipPage(int height, int direction);
@@ -436,8 +401,9 @@ public:
 		refreshIndices();
 	}
 
-signals:
-	void mustScrollTo(int ymin, int ymax);
+	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const {
+		return _scrollToRequests.events();
+	}
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -528,6 +494,7 @@ private:
 
 	void clearSearchRows();
 
+	const style::PeerList &_st;
 	not_null<PeerListController*> _controller;
 	PeerListSearchMode _searchMode = PeerListSearchMode::Disabled;
 
@@ -538,6 +505,8 @@ private:
 	Selected _selected;
 	Selected _pressed;
 	bool _mouseSelection = false;
+
+	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 
 	std::vector<std::unique_ptr<PeerListRow>> _rows;
 	std::map<PeerListRowId, not_null<PeerListRow*>> _rowsById;
@@ -558,5 +527,158 @@ private:
 	QPoint _lastMousePosition;
 
 	std::vector<std::unique_ptr<PeerListRow>> _searchRows;
+
+};
+
+class PeerListContentDelegate : public PeerListDelegate {
+public:
+	void setContent(PeerListContent *content) {
+		_content = content;
+	}
+
+	void peerListAppendRow(
+			std::unique_ptr<PeerListRow> row) override {
+		_content->appendRow(std::move(row));
+	}
+	void peerListAppendSearchRow(
+			std::unique_ptr<PeerListRow> row) override {
+		_content->appendSearchRow(std::move(row));
+	}
+	void peerListAppendFoundRow(
+			not_null<PeerListRow*> row) override {
+		_content->appendFoundRow(row);
+	}
+	void peerListPrependRow(
+			std::unique_ptr<PeerListRow> row) override {
+		_content->prependRow(std::move(row));
+	}
+	void peerListPrependRowFromSearchResult(
+			not_null<PeerListRow*> row) override {
+		_content->prependRowFromSearchResult(row);
+	}
+	PeerListRow *peerListFindRow(PeerListRowId id) override {
+		return _content->findRow(id);
+	}
+	void peerListUpdateRow(not_null<PeerListRow*> row) override {
+		_content->updateRow(row);
+	}
+	void peerListRemoveRow(not_null<PeerListRow*> row) override {
+		_content->removeRow(row);
+	}
+	void peerListConvertRowToSearchResult(
+			not_null<PeerListRow*> row) override {
+		_content->convertRowToSearchResult(row);
+	}
+	void peerListSetRowChecked(
+			not_null<PeerListRow*> row,
+			bool checked) override {
+		_content->changeCheckState(
+			row,
+			checked,
+			PeerListRow::SetStyle::Animated);
+	}
+	int peerListFullRowsCount() override {
+		return _content->fullRowsCount();
+	}
+	not_null<PeerListRow*> peerListRowAt(int index) override {
+		return _content->rowAt(index);
+	}
+	void peerListRefreshRows() override {
+		_content->refreshRows();
+	}
+	void peerListSetDescription(object_ptr<Ui::FlatLabel> description) override {
+		_content->setDescription(std::move(description));
+	}
+	void peerListSetSearchLoading(object_ptr<Ui::FlatLabel> loading) override {
+		_content->setSearchLoading(std::move(loading));
+	}
+	void peerListSetSearchNoResults(object_ptr<Ui::FlatLabel> noResults) override {
+		_content->setSearchNoResults(std::move(noResults));
+	}
+	void peerListSetAboveWidget(object_ptr<TWidget> aboveWidget) override {
+		_content->setAboveWidget(std::move(aboveWidget));
+	}
+	void peerListSetSearchMode(PeerListSearchMode mode) override {
+		_content->setSearchMode(mode);
+	}
+	void peerListSortRows(
+			base::lambda<bool(PeerListRow &a, PeerListRow &b)> compare) override {
+		_content->reorderRows([compare = std::move(compare)](
+				auto &&begin,
+				auto &&end) {
+			std::sort(begin, end, [&compare](auto &&a, auto &&b) {
+				return compare(*a, *b);
+			});
+		});
+	}
+	void peerListPartitionRows(
+			base::lambda<bool(PeerListRow &a)> border) override {
+		_content->reorderRows([border = std::move(border)](
+				auto &&begin,
+				auto &&end) {
+			std::stable_partition(begin, end, [&border](
+					auto &&current) {
+				return border(*current);
+			});
+		});
+	}
+
+protected:
+	not_null<PeerListContent*> content() const {
+		return _content;
+	}
+
+private:
+	PeerListContent *_content = nullptr;
+
+};
+
+class PeerListBox : public BoxContent, public PeerListContentDelegate {
+public:
+	PeerListBox(
+		QWidget*,
+		std::unique_ptr<PeerListController> controller,
+		base::lambda<void(not_null<PeerListBox*>)> init);
+
+	void peerListSetTitle(base::lambda<QString()> title) override {
+		setTitle(std::move(title));
+	}
+	void peerListSetAdditionalTitle(base::lambda<QString()> title) override {
+		setAdditionalTitle(std::move(title));
+	}
+	void peerListSetSearchMode(PeerListSearchMode mode) override;
+	void peerListSetRowChecked(
+		not_null<PeerListRow*> row,
+		bool checked) override;
+	bool peerListIsRowSelected(not_null<PeerData*> peer) override;
+	int peerListSelectedRowsCount() override;
+	std::vector<not_null<PeerData*>> peerListCollectSelectedRows() override;
+	void peerListScrollToTop() override;
+
+protected:
+	void prepare() override;
+	void setInnerFocus() override;
+
+	void keyPressEvent(QKeyEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	void peerListAddSelectedRowInBunch(not_null<PeerData*> peer) override {
+		addSelectItem(peer, PeerListRow::SetStyle::Fast);
+	}
+	void peerListFinishSelectedRowsBunch() override;
+
+	void addSelectItem(not_null<PeerData*> peer, PeerListRow::SetStyle style);
+	void createMultiSelect();
+	int getTopScrollSkip() const;
+	void updateScrollSkips();
+	void searchQueryChanged(const QString &query);
+
+	object_ptr<Ui::SlideWrap<Ui::MultiSelect>> _select = { nullptr };
+
+	std::unique_ptr<PeerListController> _controller;
+	base::lambda<void(PeerListBox*)> _init;
+	bool _scrollBottomFixed = true;
 
 };

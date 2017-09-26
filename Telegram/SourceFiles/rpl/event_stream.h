@@ -39,11 +39,11 @@ public:
 	event_stream(event_stream &&other);
 
 	template <typename OtherValue>
-	void fire_forward(OtherValue &&value);
-	void fire(Value &&value) {
+	void fire_forward(OtherValue &&value) const;
+	void fire(Value &&value) const {
 		return fire_forward(std::move(value));
 	}
-	void fire_copy(const Value &value) {
+	void fire_copy(const Value &value) const {
 		return fire_forward(value);
 	}
 	producer<Value, no_error> events() const;
@@ -76,7 +76,8 @@ inline event_stream<Value>::event_stream(event_stream &&other)
 
 template <typename Value>
 template <typename OtherValue>
-inline void event_stream<Value>::fire_forward(OtherValue &&value) {
+inline void event_stream<Value>::fire_forward(
+		OtherValue &&value) const {
 	if (!_consumers) {
 		return;
 	}

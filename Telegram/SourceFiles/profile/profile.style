@@ -121,7 +121,7 @@ profileInviteLinkText: FlatLabel(profileBlockTextPart) {
 
 profileLimitReachedSkip: 6px;
 
-profileMemberItem: ProfilePeerListItem(defaultProfileMemberItem) {
+profileMemberItem: PeerListItem(defaultPeerListItem) {
 	left: 8px;
 	bottom: profileBlockMarginBottom;
 	button: defaultLeftOutlineButton;

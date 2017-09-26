@@ -38,7 +38,8 @@ constexpr auto kParticipantsPerPage = 200;
 
 } // namespace
 
-ParticipantsBoxController::ParticipantsBoxController(not_null<ChannelData*> channel, Role role) : PeerListController(CreateSearchController(channel, role, &_additional))
+ParticipantsBoxController::ParticipantsBoxController(not_null<ChannelData*> channel, Role role)
+: PeerListController(CreateSearchController(channel, role, &_additional))
 , _channel(channel)
 , _role(role) {
 	if (_channel->mgInfo) {
@@ -46,10 +47,17 @@ ParticipantsBoxController::ParticipantsBoxController(not_null<ChannelData*> chan
 	}
 }
 
-std::unique_ptr<PeerListSearchController> ParticipantsBoxController::CreateSearchController(not_null<ChannelData*> channel, Role role, not_null<Additional*> additional) {
+std::unique_ptr<PeerListSearchController>
+ParticipantsBoxController::CreateSearchController(
+		not_null<ChannelData*> channel,
+		Role role,
+		not_null<Additional*> additional) {
 	// In admins box complex search is used for adding new admins.
 	if (role != Role::Admins || channel->canAddAdmins()) {
-		return std::make_unique<ParticipantsBoxSearchController>(channel, role, additional);
+		return std::make_unique<ParticipantsBoxSearchController>(
+			channel,
+			role,
+			additional);
 	}
 	return nullptr;
 }
@@ -86,6 +94,7 @@ void ParticipantsBoxController::Start(not_null<ChannelData*> channel, Role role)
 }
 
 void ParticipantsBoxController::addNewItem() {
+	Expects(_role != Role::Profile);
 	if (_role == Role::Members) {
 		if (_channel->membersCount() >= Global::ChatSizeMax()) {
 			Ui::show(
@@ -131,7 +140,10 @@ std::unique_ptr<PeerListRow> ParticipantsBoxController::createSearchRow(not_null
 
 template <typename Callback>
 void ParticipantsBoxController::HandleParticipant(const MTPChannelParticipant &participant, Role role, not_null<Additional*> additional, Callback callback) {
-	if ((role == Role::Members || role == Role::Admins) && participant.type() == mtpc_channelParticipantAdmin) {
+	if ((role == Role::Profile
+		|| role == Role::Members
+		|| role == Role::Admins)
+		&& participant.type() == mtpc_channelParticipantAdmin) {
 		auto &admin = participant.c_channelParticipantAdmin();
 		if (auto user = App::userLoaded(admin.vuser_id.v)) {
 			additional->adminRights[user] = admin.vadmin_rights;
@@ -152,13 +164,20 @@ void ParticipantsBoxController::HandleParticipant(const MTPChannelParticipant &p
 			}
 			callback(user);
 		}
-	} else if ((role == Role::Members || role == Role::Admins) && participant.type() == mtpc_channelParticipantCreator) {
+	} else if ((role == Role::Profile
+		|| role == Role::Members
+		|| role == Role::Admins)
+		&& participant.type() == mtpc_channelParticipantCreator) {
 		auto &creator = participant.c_channelParticipantCreator();
 		if (auto user = App::userLoaded(creator.vuser_id.v)) {
 			additional->creator = user;
 			callback(user);
 		}
-	} else if ((role == Role::Members || role == Role::Restricted || role == Role::Kicked) && participant.type() == mtpc_channelParticipantBanned) {
+	} else if ((role == Role::Profile
+		|| role == Role::Members
+		|| role == Role::Restricted
+		|| role == Role::Kicked)
+		&& participant.type() == mtpc_channelParticipantBanned) {
 		auto &banned = participant.c_channelParticipantBanned();
 		if (auto user = App::userLoaded(banned.vuser_id.v)) {
 			additional->restrictedRights[user] = banned.vbanned_rights;
@@ -172,12 +191,16 @@ void ParticipantsBoxController::HandleParticipant(const MTPChannelParticipant &p
 			}
 			callback(user);
 		}
-	} else if (role == Role::Members && participant.type() == mtpc_channelParticipant) {
+	} else if ((role == Role::Profile
+		|| role == Role::Members)
+		&& participant.type() == mtpc_channelParticipant) {
 		auto &member = participant.c_channelParticipant();
 		if (auto user = App::userLoaded(member.vuser_id.v)) {
 			callback(user);
 		}
-	} else if (role == Role::Members && participant.type() == mtpc_channelParticipantSelf) {
+	} else if ((role == Role::Profile
+		|| role == Role::Members)
+		&& participant.type() == mtpc_channelParticipantSelf) {
 		auto &member = participant.c_channelParticipantSelf();
 		if (auto user = App::userLoaded(member.vuser_id.v)) {
 			callback(user);
@@ -191,6 +214,7 @@ void ParticipantsBoxController::prepare() {
 	auto titleKey = [this] {
 		switch (_role) {
 		case Role::Admins: return lng_channel_admins;
+		case Role::Profile:
 		case Role::Members: return lng_profile_participants_section;
 		case Role::Restricted: return lng_restricted_list_title;
 		case Role::Kicked: return lng_banned_list_title;
@@ -219,7 +243,7 @@ void ParticipantsBoxController::loadMoreRows() {
 	}
 
 	auto filter = [this] {
-		if (_role == Role::Members) {
+		if (_role == Role::Members || _role == Role::Profile) {
 			return MTP_channelParticipantsRecent();
 		} else if (_role == Role::Admins) {
 			return MTP_channelParticipantsAdmins();
@@ -261,7 +285,8 @@ void ParticipantsBoxController::loadMoreRows() {
 }
 
 bool ParticipantsBoxController::feedMegagroupLastParticipants() {
-	if (_role != Role::Members || _offset > 0) {
+	if ((_role != Role::Members && _role != Role::Profile)
+		|| _offset > 0) {
 		return false;
 	}
 	auto megagroup = _channel->asMegagroup();
@@ -322,7 +347,7 @@ void ParticipantsBoxController::rowActionClicked(not_null<PeerListRow*> row) {
 	auto user = row->peer()->asUser();
 	Expects(user != nullptr);
 
-	if (_role == Role::Members) {
+	if (_role == Role::Members || _role == Role::Profile) {
 		kickMember(user);
 	} else if (_role == Role::Admins) {
 		showAdmin(user);
@@ -617,6 +642,7 @@ bool ParticipantsBoxSearchController::loadMoreRows() {
 		auto filter = [this] {
 			switch (_role) {
 			case Role::Admins: // Search for members, appoint as admin on found.
+			case Role::Profile:
 			case Role::Members: return MTP_channelParticipantsSearch(MTP_string(_query));
 			case Role::Restricted: return MTP_channelParticipantsBanned(MTP_string(_query));
 			case Role::Kicked: return MTP_channelParticipantsKicked(MTP_string(_query));

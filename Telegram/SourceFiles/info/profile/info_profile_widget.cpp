@@ -52,6 +52,15 @@ Widget::Widget(
 		controller,
 		peer));
 	_inner->move(0, 0);
+	_inner->scrollToRequests()
+		| rpl::start([this](Ui::ScrollToRequest request) {
+			if (request.ymin < 0) {
+				scrollTopRestore(
+					qMin(scrollTopSave(), request.ymax));
+			} else {
+				scrollTo(request);
+			}
+		}, lifetime());
 }
 
 Section Widget::section() const {

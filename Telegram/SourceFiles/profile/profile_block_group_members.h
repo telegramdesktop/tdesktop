@@ -41,7 +41,7 @@ public:
 		Visible,
 		Hidden,
 	};
-	GroupMembersWidget(QWidget *parent, PeerData *peer, TitleVisibility titleVisibility = TitleVisibility::Visible, const style::ProfilePeerListItem &st = st::profileMemberItem);
+	GroupMembersWidget(QWidget *parent, PeerData *peer, TitleVisibility titleVisibility = TitleVisibility::Visible, const style::PeerListItem &st = st::profileMemberItem);
 
 	int onlineCount() const {
 		return _onlineCount;

@@ -333,6 +333,29 @@ contactsMarginBottom: 4px;
 membersMarginTop: 10px;
 membersMarginBottom: 10px;
 
+peerListBox: PeerList(defaultPeerList) {
+	padding: margins(
+		0px,
+		membersMarginTop,
+		0px,
+		membersMarginBottom);
+	item: PeerListItem(defaultPeerListItem) {
+		height: 56px;
+		photoSize: contactsPhotoSize;
+		photoPosition: point(16px, 7px);
+		namePosition: point(74px, 9px);
+		statusPosition: point(74px, 30px);
+		button: OutlineButton(defaultPeerListButton) {
+			textBg: contactsBg;
+			textBgOver: contactsBgOver;
+			ripple: contactsRipple;
+		}
+		statusFg: contactsStatusFg;
+		statusFgOver: contactsStatusFgOver;
+		statusFgActive: contactsStatusFgOnline;
+	}
+}
+
 localStorageBoxSkip: 10px;
 
 shareRowsTop: 12px;

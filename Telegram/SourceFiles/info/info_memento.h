@@ -29,6 +29,7 @@ enum class SharedMediaType : char;
 
 namespace Ui {
 class ScrollArea;
+struct ScrollToRequest;
 } // namespace Ui
 
 namespace Info {
@@ -131,6 +132,8 @@ protected:
 	rpl::producer<int> scrollTopValue() const;
 	int scrollTopSave() const;
 	void scrollTopRestore(int scrollTop);
+
+	void scrollTo(const Ui::ScrollToRequest &request);
 
 private:
 	RpWidget *doSetInnerWidget(

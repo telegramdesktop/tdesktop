@@ -685,6 +685,10 @@ void ScrollArea::leaveEventHook(QEvent *e) {
 	return QScrollArea::leaveEvent(e);
 }
 
+void ScrollArea::scrollTo(ScrollToRequest request) {
+	scrollToY(request.ymin, request.ymax);
+}
+
 void ScrollArea::scrollToY(int toTop, int toBottom) {
 	myEnsureResized(widget());
 	myEnsureResized(this);

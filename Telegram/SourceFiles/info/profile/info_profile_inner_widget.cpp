@@ -37,6 +37,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_info.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/scroll_area.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 
@@ -55,6 +56,7 @@ InnerWidget::InnerWidget(
 	_content->heightValue()
 		| rpl::start([this](int height) {
 			TWidget::resizeToWidth(width());
+			_desiredHeight.fire(countDesiredHeight());
 		}, lifetime());
 }
 
@@ -70,7 +72,7 @@ rpl::producer<bool> InnerWidget::canHideDetails() const {
 
 object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		RpWidget *parent,
-		rpl::producer<Wrap> &&wrapValue) const {
+		rpl::producer<Wrap> &&wrapValue) {
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
 	auto cover = result->add(object_ptr<Cover>(
 		result,
@@ -97,10 +99,24 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	//	}
 	}
 	if (_peer->isChat() || _peer->isMegagroup()) {
-		result->add(object_ptr<Members>(
+		_members = result->add(object_ptr<Members>(
 			result,
+			_controller,
 			std::move(wrapValue),
-			_peer));
+			_peer)
+		);
+		_members->scrollToRequests()
+			| rpl::start([this](Ui::ScrollToRequest request) {
+				auto min = (request.ymin < 0)
+					? request.ymin
+					: mapFromGlobal(_members->mapToGlobal({ 0, request.ymin })).y();
+				auto max = (request.ymin < 0)
+					? mapFromGlobal(_members->mapToGlobal({ 0, 0 })).y()
+					: (request.ymax < 0)
+						? request.ymax
+						: mapFromGlobal(_members->mapToGlobal({ 0, request.ymax })).y();
+				_scrollToRequests.fire({ min, max });
+			}, _members->lifetime());
 	}
 	return std::move(result);
 }
@@ -365,6 +381,12 @@ object_ptr<Ui::RpWidget> InnerWidget::createSkipWidget(
 object_ptr<Ui::SlideWrap<>> InnerWidget::createSlideSkipWidget(
 		RpWidget *parent) const {
 	return Ui::CreateSlideSkipWidget(parent, st::infoProfileSkip);
+}
+
+int InnerWidget::countDesiredHeight() const {
+	return _content->height() + (_members
+		? (_members->desiredHeight() - _members->height())
+		: 0);
 }
 
 void InnerWidget::visibleTopBottomUpdated(

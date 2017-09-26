@@ -33,7 +33,7 @@ PeerListWidget::Item::Item(PeerData *peer) : peer(peer) {
 
 PeerListWidget::Item::~Item() = default;
 
-PeerListWidget::PeerListWidget(QWidget *parent, PeerData *peer, const QString &title, const style::ProfilePeerListItem &st, const QString &removeText)
+PeerListWidget::PeerListWidget(QWidget *parent, PeerData *peer, const QString &title, const style::PeerListItem &st, const QString &removeText)
 : BlockWidget(parent, peer, title)
 , _st(st)
 , _removeText(removeText)

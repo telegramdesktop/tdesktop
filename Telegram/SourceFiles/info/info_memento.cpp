@@ -139,6 +139,10 @@ void ContentWidget::scrollTopRestore(int scrollTop) {
 	_scroll->scrollToY(scrollTop);
 }
 
+void ContentWidget::scrollTo(const Ui::ScrollToRequest &request) {
+	_scroll->scrollTo(request);
+}
+
 bool ContentWidget::wheelEventFromFloatPlayer(QEvent *e) {
 	return _scroll->viewportEvent(e);
 }

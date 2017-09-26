@@ -31,6 +31,7 @@ namespace Ui {
 class VerticalLayout;
 template <typename Widget>
 class SlideWrap;
+struct ScrollToRequest;
 } // namespace Ui
 
 namespace Info {
@@ -40,6 +41,7 @@ enum class Wrap;
 namespace Profile {
 
 class Memento;
+class Members;
 
 class InnerWidget final : public Ui::RpWidget {
 public:
@@ -61,6 +63,14 @@ public:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
 
+	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const {
+		return _scrollToRequests.events();
+	}
+
+	rpl::producer<int> desiredHeightValue() const override {
+		return _desiredHeight.events_starting_with(countDesiredHeight());
+	}
+
 protected:
 	int resizeGetHeight(int newWidth) override;
 	void visibleTopBottomUpdated(
@@ -70,7 +80,7 @@ protected:
 private:
 	object_ptr<RpWidget> setupContent(
 		RpWidget *parent,
-		rpl::producer<Wrap> &&wrapValue) const;
+		rpl::producer<Wrap> &&wrapValue);
 	object_ptr<RpWidget> setupDetails(RpWidget *parent) const;
 	object_ptr<RpWidget> setupSharedMedia(RpWidget *parent) const;
 	object_ptr<RpWidget> setupMuteToggle(RpWidget *parent) const;
@@ -86,6 +96,8 @@ private:
 	object_ptr<Ui::SlideWrap<RpWidget>> createSlideSkipWidget(
 		RpWidget *parent) const;
 
+	int countDesiredHeight() const;
+
 	bool canHideDetailsEver() const;
 	rpl::producer<bool> canHideDetails() const;
 
@@ -94,7 +106,11 @@ private:
 
 	int _minHeight = 0;
 
+	Members *_members = nullptr;
 	object_ptr<RpWidget> _content;
+
+	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
+	rpl::event_stream<int> _desiredHeight;
 
 };
 

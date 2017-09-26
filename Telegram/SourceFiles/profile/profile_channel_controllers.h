@@ -27,9 +27,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Profile {
 
 // Viewing admins, banned or restricted users list with search.
-class ParticipantsBoxController : public PeerListController, private base::Subscriber, private MTP::Sender, public base::enable_weak_from_this {
+class ParticipantsBoxController
+	: public PeerListController
+	, private base::Subscriber
+	, private MTP::Sender
+	, public base::enable_weak_from_this {
 public:
 	enum class Role {
+		Profile,
 		Members,
 		Admins,
 		Restricted,

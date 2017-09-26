@@ -77,7 +77,14 @@ public:
 		return _items.front()->id;
 	}
 
-	void paintStatusText(Painter &p, int x, int y, int availableWidth, int outerWidth, bool selected) override;
+	void paintStatusText(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int availableWidth,
+		int outerWidth,
+		bool selected) override;
 	void addActionRipple(QPoint point, base::lambda<void()> updateCallback) override;
 	void stopLastActionRipple() override;
 
@@ -111,7 +118,7 @@ BoxController::Row::Row(HistoryItem *item) : PeerListRow(item->history()->peer, 
 	refreshStatus();
 }
 
-void BoxController::Row::paintStatusText(Painter &p, int x, int y, int availableWidth, int outerWidth, bool selected) {
+void BoxController::Row::paintStatusText(Painter &p, const style::PeerListItem &st, int x, int y, int availableWidth, int outerWidth, bool selected) {
 	auto icon = ([this] {
 		switch (_type) {
 		case Type::In: return &st::callArrowIn;
@@ -125,7 +132,7 @@ void BoxController::Row::paintStatusText(Painter &p, int x, int y, int available
 	x += shift;
 	availableWidth -= shift;
 
-	PeerListRow::paintStatusText(p, x, y, availableWidth, outerWidth, selected);
+	PeerListRow::paintStatusText(p, st, x, y, availableWidth, outerWidth, selected);
 }
 
 void BoxController::Row::paintAction(Painter &p, TimeMs ms, int x, int y, int outerWidth, bool actionSelected) {

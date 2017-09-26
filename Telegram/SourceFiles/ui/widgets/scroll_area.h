@@ -34,21 +34,29 @@ enum class TouchScrollState {
 
 class ScrollArea;
 
+struct ScrollToRequest {
+	ScrollToRequest(int ymin, int ymax)
+	: ymin(ymin)
+	, ymax(ymax) {
+	}
+
+	int ymin = 0;
+	int ymax = 0;
+
+};
+
 class ScrollShadow : public QWidget {
 	Q_OBJECT
 
 public:
-
 	ScrollShadow(ScrollArea *parent, const style::ScrollArea *st);
 
 	void paintEvent(QPaintEvent *e);
 
 public slots:
-
 	void changeVisibility(bool shown);
 
 private:
-
 	const style::ScrollArea *_st;
 
 };
@@ -209,6 +217,8 @@ public:
 	rpl::producer<int> scrollTopValue() const {
 		return _scrollTopUpdated.events_starting_with(scrollTop());
 	}
+
+	void scrollTo(ScrollToRequest request);
 
 protected:
 	bool eventFilter(QObject *obj, QEvent *e) override;

@@ -1052,7 +1052,7 @@ MediaPlayerButton {
 	ripple: RippleAnimation;
 }
 
-ProfilePeerListItem {
+PeerListItem {
 	left: pixels;
 	bottom: pixels;
 	height: pixels;
@@ -1068,29 +1068,41 @@ ProfilePeerListItem {
 	statusFgActive: color;
 }
 
-defaultProfileMemberItem: ProfilePeerListItem {
+PeerList {
+	padding: margins;
+	item: PeerListItem;
+}
+
+defaultPeerListButton: OutlineButton {
+	outlineWidth: 0px;
+
+	textBg: windowBg;
+	textBgOver: windowBgOver;
+
+	textFg: windowSubTextFg;
+	textFgOver: windowSubTextFgOver;
+
+	font: normalFont;
+	padding: margins(11px, 5px, 11px, 5px);
+
+	ripple: defaultRippleAnimation;
+}
+
+defaultPeerListItem: PeerListItem {
 	height: 58px;
 	photoPosition: point(12px, 6px);
 	namePosition: point(68px, 11px);
 	statusPosition: point(68px, 31px);
 	photoSize: 46px;
-	button: OutlineButton {
-		outlineWidth: 0px;
-
-		textBg: windowBg;
-		textBgOver: windowBgOver;
-
-		textFg: windowSubTextFg;
-		textFgOver: windowSubTextFgOver;
-
-		font: normalFont;
-		padding: margins(11px, 5px, 11px, 5px);
-
-		ripple: defaultRippleAnimation;
-	}
+	button: defaultPeerListButton;
 	statusFg: windowSubTextFg;
 	statusFgOver: windowSubTextFgOver;
 	statusFgActive: windowActiveTextFg;
+}
+
+defaultPeerList: PeerList {
+	padding: margins(0px, 0px, 0px, 0px);
+	item: defaultPeerListItem;
 }
 
 InfoTopBar {

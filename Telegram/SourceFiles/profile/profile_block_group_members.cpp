@@ -39,7 +39,7 @@ GroupMembersWidget::GroupMembersWidget(
 	QWidget *parent,
 	PeerData *peer,
 	TitleVisibility titleVisibility,
-	const style::ProfilePeerListItem &st)
+	const style::PeerListItem &st)
 : PeerListWidget(parent
 	, peer
 	, (titleVisibility == TitleVisibility::Visible) ? lang(lng_profile_participants_section) : QString()

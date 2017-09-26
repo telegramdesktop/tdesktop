@@ -233,6 +233,8 @@
 <(src_loc)/info/profile/info_profile_inner_widget.h
 <(src_loc)/info/profile/info_profile_members.cpp
 <(src_loc)/info/profile/info_profile_members.h
+<(src_loc)/info/profile/info_profile_members_controllers.cpp
+<(src_loc)/info/profile/info_profile_members_controllers.h
 <(src_loc)/info/profile/info_profile_text.cpp
 <(src_loc)/info/profile/info_profile_text.h
 <(src_loc)/info/profile/info_profile_values.cpp

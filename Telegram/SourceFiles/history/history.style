@@ -90,7 +90,7 @@ membersInnerDropdown: InnerDropdown(defaultInnerDropdown) {
 	scrollMargin: margins(0px, 5px, 0px, 5px);
 	scrollPadding: margins(0px, 3px, 0px, 3px);
 }
-membersInnerItem: defaultProfileMemberItem;
+membersInnerItem: defaultPeerListItem;
 
 historyFileOutImage: icon {{ "history_file_image", historyFileOutIconFg }};
 historyFileOutImageSelected: icon {{ "history_file_image", historyFileOutIconFgSelected }};

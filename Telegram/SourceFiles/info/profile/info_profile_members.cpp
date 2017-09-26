@@ -24,11 +24,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_values.h"
+#include "info/profile/info_profile_members_controllers.h"
 #include "info/info_memento.h"
 #include "profile/profile_block_group_members.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/widgets/scroll_area.h"
+#include "styles/style_boxes.h"
 #include "styles/style_info.h"
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
@@ -44,10 +47,12 @@ constexpr auto kEnableSearchMembersAfterCount = 50;
 
 Members::Members(
 	QWidget *parent,
+	not_null<Window::Controller*> controller,
 	rpl::producer<Wrap> &&wrapValue,
 	not_null<PeerData*> peer)
 : RpWidget(parent)
 , _peer(peer)
+, _controller(CreateMembersController(_peer))
 , _labelWrap(this)
 , _label(setupHeader())
 , _addMember(this, st::infoMembersAddMember)
@@ -57,13 +62,30 @@ Members::Members(
 	langFactory(lng_participant_filter))
 , _search(this, st::infoMembersSearch)
 , _cancelSearch(this, st::infoMembersCancelSearch)
-, _list(setupList(this)) {
+, _list(setupList(this, _controller.get())) {
 	setupButtons();
 	std::move(wrapValue)
 		| rpl::start([this](Wrap wrap) {
 			_wrap = wrap;
 			updateSearchOverrides();
 		}, lifetime());
+	setContent(_list.data());
+	_controller->setDelegate(static_cast<PeerListDelegate*>(this));
+}
+
+int Members::desiredHeight() const {
+	auto desired = st::infoMembersHeader;
+	auto count = [this] {
+		if (auto chat = _peer->asChat()) {
+			return chat->count;
+		} else if (auto channel = _peer->asChannel()) {
+			return channel->membersCount();
+		}
+		return 0;
+	}();
+	desired += qMax(count, _list->fullRowsCount())
+		* st::infoMembersList.item.height;
+	return qMax(height(), desired);
 }
 
 object_ptr<Ui::FlatLabel> Members::setupHeader() {
@@ -128,12 +150,24 @@ void Members::setupButtons() {
 }
 
 object_ptr<Members::ListWidget> Members::setupList(
-		RpWidget *parent) const {
+		RpWidget *parent,
+		not_null<PeerListController*> controller) const {
 	auto result = object_ptr<ListWidget>(
 		parent,
-		_peer,
-		::Profile::GroupMembersWidget::TitleVisibility::Hidden,
-		st::infoMembersItem);
+		controller,
+		st::infoMembersList);
+	result->scrollToRequests()
+		| rpl::start([this](Ui::ScrollToRequest request) {
+			auto addmin = (request.ymin < 0)
+				? 0
+				: st::infoMembersHeader;
+			auto addmax = (request.ymax < 0)
+				? 0
+				: st::infoMembersHeader;
+			_scrollToRequests.fire({
+				request.ymin + addmin,
+				request.ymax + addmax });
+		}, result->lifetime());
 	result->moveToLeft(0, st::infoMembersHeader);
 	parent->widthValue()
 		| rpl::start([list = result.data()](int newWidth) {
@@ -141,7 +175,7 @@ object_ptr<Members::ListWidget> Members::setupList(
 		}, result->lifetime());
 	result->heightValue()
 		| rpl::start([parent](int listHeight) {
-			auto newHeight = (listHeight > 0)
+			auto newHeight = (listHeight > st::membersMarginBottom)
 				? (st::infoMembersHeader + listHeight)
 				: 0;
 			parent->resize(parent->width(), newHeight);
@@ -182,6 +216,15 @@ int Members::resizeGetHeight(int newWidth) {
 		st::infoMembersSearchTop,
 		cancelLeft - fieldLeft,
 		_searchField->height());
+	connect(_searchField, &Ui::FlatInput::cancelled, this, [this] {
+		cancelSearch();
+	});
+	connect(_searchField, &Ui::FlatInput::changed, this, [this] {
+		applySearch();
+	});
+	connect(_searchField, &Ui::FlatInput::submitted, this, [this] {
+		forceSearchSubmit();
+	});
 
 	_labelWrap->resize(
 		searchCurrentLeft - st::infoBlockHeaderPosition.x(),
@@ -267,7 +310,12 @@ void Members::cancelSearch() {
 }
 
 void Members::applySearch() {
+	peerListScrollToTop();
+	content()->searchQueryChanged(_searchField->getLastText());
+}
 
+void Members::forceSearchSubmit() {
+	content()->submitted();
 }
 
 void Members::visibleTopBottomUpdated(
@@ -275,6 +323,42 @@ void Members::visibleTopBottomUpdated(
 		int visibleBottom) {
 	setChildVisibleTopBottom(_list, visibleTop, visibleBottom);
 }
+
+void Members::peerListSetTitle(base::lambda<QString()> title) {
+}
+
+void Members::peerListSetAdditionalTitle(
+		base::lambda<QString()> title) {
+}
+
+bool Members::peerListIsRowSelected(not_null<PeerData*> peer) {
+	return false;
+}
+
+int Members::peerListSelectedRowsCount() {
+	return 0;
+}
+
+std::vector<not_null<PeerData*>> Members::peerListCollectSelectedRows() {
+	return {};
+}
+
+void Members::peerListScrollToTop() {
+	_scrollToRequests.fire({ -1, -1 });
+}
+
+void Members::peerListAddSelectedRowInBunch(not_null<PeerData*> peer) {
+	Unexpected("Item selection in Info::Profile::Members.");
+}
+
+void Members::peerListFinishSelectedRowsBunch() {
+}
+
+void Members::peerListSetDescription(
+		object_ptr<Ui::FlatLabel> description) {
+	description.destroy();
+}
+
 
 } // namespace Profile
 } // namespace Info

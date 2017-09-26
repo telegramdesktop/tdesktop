@@ -224,10 +224,12 @@ infoSharedMediaButton: infoProfileButton;
 infoSharedMediaBottomSkip: 12px;
 
 infoMembersHeader: 56px;
-infoMembersItem: ProfilePeerListItem(defaultProfileMemberItem) {
-	photoPosition: point(18px, 6px);
-	namePosition: point(79px, 11px);
-	statusPosition: point(79px, 31px);
+infoMembersList: PeerList(defaultPeerList) {
+	item: PeerListItem(defaultPeerListItem) {
+		photoPosition: point(18px, 6px);
+		namePosition: point(79px, 11px);
+		statusPosition: point(79px, 31px);
+	}
 }
 infoMembersButtonPosition: point(12px, 9px);
 infoMembersButtonIconPosition: point(6px, 6px);
