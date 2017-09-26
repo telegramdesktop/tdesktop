@@ -94,7 +94,7 @@ void Inner::visibleTopBottomUpdated(
 
 void Inner::checkRestrictedPeer() {
 	if (auto megagroup = _inlineQueryPeer ? _inlineQueryPeer->asMegagroup() : nullptr) {
-		if (megagroup->restrictedRights().is_send_inline()) {
+		if (megagroup->restricted(ChannelRestriction::f_send_inline)) {
 			if (!_restrictedLabel) {
 				_restrictedLabel.create(this, lang(lng_restricted_send_inline), Ui::FlatLabel::InitType::Simple, st::stickersRestrictedLabel);
 				_restrictedLabel->show();

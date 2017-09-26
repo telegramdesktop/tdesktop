@@ -1820,7 +1820,6 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	App::main()->dlgUpdated(wasHistory ? wasHistory->peer : nullptr, wasMsgId);
 	emit historyShown(_history, _showAtMsgId);
 
-	controller()->historyCanWrite = _canSendMessages;
 	controller()->historyPeer = _peer;
 	update();
 }
@@ -1979,7 +1978,8 @@ bool HistoryWidget::canWriteMessage() const {
 
 bool HistoryWidget::isRestrictedWrite() const {
 	if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
-		return megagroup->restrictedRights().is_send_messages();
+		return megagroup->restricted(
+			ChannelRestriction::f_send_messages);
 	}
 	return false;
 }
@@ -3038,7 +3038,7 @@ void HistoryWidget::step_recording(float64 ms, bool timer) {
 void HistoryWidget::chooseAttach() {
 	if (!_peer || !_peer->canWrite()) return;
 	if (auto megagroup = _peer->asMegagroup()) {
-		if (megagroup->restrictedRights().is_send_media()) {
+		if (megagroup->restricted(ChannelRestriction::f_send_media)) {
 			Ui::show(Box<InformBox>(lang(lng_restricted_send_media)));
 			return;
 		}
@@ -3142,7 +3142,7 @@ void HistoryWidget::recordStartCallback() {
 		return;
 	}
 	if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
-		if (megagroup->restrictedRights().is_send_media()) {
+		if (megagroup->restricted(ChannelRestriction::f_send_media)) {
 			Ui::show(Box<InformBox>(lang(lng_restricted_send_media)));
 			return;
 		}
@@ -4128,7 +4128,7 @@ bool HistoryWidget::confirmSendingFiles(const QStringList &files, CompressConfir
 
 bool HistoryWidget::confirmSendingFiles(const SendingFilesLists &lists, CompressConfirm compressed, const QString *addedComment) {
 	if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
-		if (megagroup->restrictedRights().is_send_media()) {
+		if (megagroup->restricted(ChannelRestriction::f_send_media)) {
 			Ui::show(Box<InformBox>(lang(lng_restricted_send_media)));
 			return false;
 		}
@@ -5141,7 +5141,7 @@ void HistoryWidget::onFieldTabbed() {
 
 bool HistoryWidget::onStickerSend(DocumentData *sticker) {
 	if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
-		if (megagroup->restrictedRights().is_send_stickers()) {
+		if (megagroup->restricted(ChannelRestriction::f_send_stickers)) {
 			Ui::show(
 				Box<InformBox>(lang(lng_restricted_send_stickers)),
 				LayerOption::KeepOther);
@@ -5153,7 +5153,7 @@ bool HistoryWidget::onStickerSend(DocumentData *sticker) {
 
 void HistoryWidget::onPhotoSend(PhotoData *photo) {
 	if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
-		if (megagroup->restrictedRights().is_send_media()) {
+		if (megagroup->restricted(ChannelRestriction::f_send_media)) {
 			Ui::show(
 				Box<InformBox>(lang(lng_restricted_send_media)),
 				LayerOption::KeepOther);
@@ -5769,7 +5769,7 @@ void HistoryWidget::onPreviewParse() {
 void HistoryWidget::onPreviewCheck() {
 	auto previewRestricted = [this] {
 		if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
-			if (megagroup->restrictedRights().is_embed_links()) {
+			if (megagroup->restricted(ChannelRestriction::f_embed_links)) {
 				return true;
 			}
 		}
@@ -5917,7 +5917,6 @@ void HistoryWidget::fullPeerUpdated(PeerData *peer) {
 		bool newCanSendMessages = canSendMessages(_peer);
 		if (newCanSendMessages != _canSendMessages) {
 			_canSendMessages = newCanSendMessages;
-			controller()->historyCanWrite = _canSendMessages;
 			if (!_canSendMessages) {
 				cancelReply();
 			}
@@ -5956,7 +5955,6 @@ void HistoryWidget::handlePeerUpdate() {
 		bool newCanSendMessages = canSendMessages(_peer);
 		if (newCanSendMessages != _canSendMessages) {
 			_canSendMessages = newCanSendMessages;
-			controller()->historyCanWrite = _canSendMessages;
 			if (!_canSendMessages) {
 				cancelReply();
 			}

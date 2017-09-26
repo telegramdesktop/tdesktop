@@ -91,7 +91,8 @@ MTPDmessage::Flags NewForwardedFlags(not_null<PeerData*> peer, UserId from, not_
 		if (auto media = fwd->getMedia()) {
 			if (media->type() == MediaTypeWebPage) {
 				// Drop web page if we're not allowed to send it.
-				if (channel->restrictedRights().is_embed_links()) {
+				if (channel->restricted(
+						ChannelRestriction::f_embed_links)) {
 					result &= MTPDmessage::Flag::f_media;
 				}
 			}
@@ -311,15 +312,15 @@ QString GetErrorTextForForward(not_null<PeerData*> peer, const SelectedItemSet &
 	}
 
 	if (auto megagroup = peer->asMegagroup()) {
-		if (megagroup->restrictedRights().is_send_media() && HasMediaItems(items)) {
+		if (megagroup->restricted(ChannelRestriction::f_send_media) && HasMediaItems(items)) {
 			return lang(lng_restricted_send_media);
-		} else if (megagroup->restrictedRights().is_send_stickers() && HasStickerItems(items)) {
+		} else if (megagroup->restricted(ChannelRestriction::f_send_stickers) && HasStickerItems(items)) {
 			return lang(lng_restricted_send_stickers);
-		} else if (megagroup->restrictedRights().is_send_gifs() && HasGifItems(items)) {
+		} else if (megagroup->restricted(ChannelRestriction::f_send_gifs) && HasGifItems(items)) {
 			return lang(lng_restricted_send_gifs);
-		} else if (megagroup->restrictedRights().is_send_games() && HasGameItems(items)) {
+		} else if (megagroup->restricted(ChannelRestriction::f_send_games) && HasGameItems(items)) {
 			return lang(lng_restricted_send_inline);
-		} else if (megagroup->restrictedRights().is_send_inline() && HasInlineItems(items)) {
+		} else if (megagroup->restricted(ChannelRestriction::f_send_inline) && HasInlineItems(items)) {
 			return lang(lng_restricted_send_inline);
 		}
 	}
@@ -694,7 +695,7 @@ HistoryMessage::HistoryMessage(not_null<History*> history, MsgId id, MTPDmessage
 	auto cloneMedia = [this, history, mediaType] {
 		if (mediaType == MediaTypeWebPage) {
 			if (auto channel = history->peer->asChannel()) {
-				if (channel->restrictedRights().is_embed_links()) {
+				if (channel->restricted(ChannelRestriction::f_embed_links)) {
 					return false;
 				}
 			}

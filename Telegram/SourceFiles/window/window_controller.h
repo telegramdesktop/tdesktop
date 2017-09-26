@@ -60,7 +60,6 @@ public:
 	// for all histories we show in a window. Once each history is shown
 	// in its own HistoryWidget with its own TopBarWidget this can be removed.
 	rpl::variable<PeerData*> historyPeer;
-	rpl::variable<bool> historyCanWrite;
 
 	void enableGifPauseReason(GifPauseReason reason);
 	void disableGifPauseReason(GifPauseReason reason);

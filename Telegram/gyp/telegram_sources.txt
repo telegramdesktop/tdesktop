@@ -149,6 +149,7 @@
 <(src_loc)/data/data_game.h
 <(src_loc)/data/data_peer.cpp
 <(src_loc)/data/data_peer.h
+<(src_loc)/data/data_peer_values.h
 <(src_loc)/data/data_photo.cpp
 <(src_loc)/data/data_photo.h
 <(src_loc)/data/data_types.cpp

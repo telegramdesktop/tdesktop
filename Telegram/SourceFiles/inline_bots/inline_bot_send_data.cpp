@@ -48,7 +48,7 @@ UserId viaBotId, MsgId replyToId, const QString &postAuthor, const MTPReplyMarku
 
 QString SendDataCommon::getErrorOnSend(const Result *owner, History *history) const {
 	if (auto megagroup = history->peer->asMegagroup()) {
-		if (megagroup->restrictedRights().is_send_messages()) {
+		if (megagroup->restricted(ChannelRestriction::f_send_messages)) {
 			return lang(lng_restricted_send_message);
 		}
 	}
@@ -96,7 +96,7 @@ UserId viaBotId, MsgId replyToId, const QString &postAuthor, const MTPReplyMarku
 
 QString SendPhoto::getErrorOnSend(const Result *owner, History *history) const {
 	if (auto megagroup = history->peer->asMegagroup()) {
-		if (megagroup->restrictedRights().is_send_media()) {
+		if (megagroup->restricted(ChannelRestriction::f_send_media)) {
 			return lang(lng_restricted_send_media);
 		}
 	}
@@ -111,11 +111,11 @@ UserId viaBotId, MsgId replyToId, const QString &postAuthor, const MTPReplyMarku
 
 QString SendFile::getErrorOnSend(const Result *owner, History *history) const {
 	if (auto megagroup = history->peer->asMegagroup()) {
-		if (megagroup->restrictedRights().is_send_media()) {
+		if (megagroup->restricted(ChannelRestriction::f_send_media)) {
 			return lang(lng_restricted_send_media);
-		} else if (megagroup->restrictedRights().is_send_stickers() && (_document->sticker() != nullptr)) {
+		} else if (megagroup->restricted(ChannelRestriction::f_send_stickers) && (_document->sticker() != nullptr)) {
 			return lang(lng_restricted_send_stickers);
-		} else if (megagroup->restrictedRights().is_send_gifs() && _document->isAnimation() && !_document->isRoundVideo()) {
+		} else if (megagroup->restricted(ChannelRestriction::f_send_gifs) && _document->isAnimation() && !_document->isRoundVideo()) {
 			return lang(lng_restricted_send_gifs);
 		}
 	}
@@ -130,7 +130,7 @@ void SendGame::addToHistory(const Result *owner, History *history,
 
 QString SendGame::getErrorOnSend(const Result *owner, History *history) const {
 	if (auto megagroup = history->peer->asMegagroup()) {
-		if (megagroup->restrictedRights().is_send_games()) {
+		if (megagroup->restricted(ChannelRestriction::f_send_games)) {
 			return lang(lng_restricted_send_inline);
 		}
 	}

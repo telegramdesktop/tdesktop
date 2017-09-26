@@ -812,7 +812,7 @@ bool AddBotToGroupBoxController::needToCreateRow(not_null<PeerData*> peer) const
 			return false;
 		}
 		if (auto group = peer->asMegagroup()) {
-			if (group->restrictedRights().is_send_games()) {
+			if (group->restricted(ChannelRestriction::f_send_games)) {
 				return false;
 			}
 		}

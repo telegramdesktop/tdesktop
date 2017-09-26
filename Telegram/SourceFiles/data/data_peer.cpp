@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <rpl/filter.h>
 #include <rpl/map.h>
+#include "data/data_peer_values.h"
 #include "lang/lang_keys.h"
 #include "observer_peer.h"
 #include "mainwidget.h"
@@ -609,7 +610,8 @@ void UserData::madeAction(TimeId when) {
 void UserData::setAccessHash(uint64 accessHash) {
 	if (accessHash == kInaccessibleAccessHashOld) {
 		_accessHash = 0;
-		_flags.add(MTPDuser_ClientFlag::f_inaccessible | 0);
+//		_flags.add(MTPDuser_ClientFlag::f_inaccessible | 0);
+		_flags.add(MTPDuser::Flag::f_deleted);
 	} else {
 		_accessHash = accessHash;
 	}
@@ -689,13 +691,7 @@ void ChatData::setInviteLink(const QString &newInviteLink) {
 ChannelData::ChannelData(const PeerId &id)
 : PeerData(id)
 , inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))) {
-	flagsValue()
-		| rpl::filter([](const Flags::Change &change) {
-			return change.diff & MTPDchannel::Flag::f_megagroup;
-		})
-		| rpl::map([](const Flags::Change &change) -> bool {
-			return change.value & MTPDchannel::Flag::f_megagroup;
-		})
+	Data::PeerFlagValue(this, MTPDchannel::Flag::f_megagroup)
 		| rpl::start([this](bool megagroup) {
 			if (megagroup) {
 				if (!mgInfo) {
@@ -947,7 +943,7 @@ bool ChannelData::canEditAdmin(not_null<UserData*> user) const {
 	} else if (canNotEditLastAdmin(user)) {
 		return false;
 	}
-	return adminRights().is_add_admins();
+	return adminRights() & AdminRight::f_add_admins;
 }
 
 bool ChannelData::canRestrictUser(not_null<UserData*> user) const {
@@ -958,18 +954,18 @@ bool ChannelData::canRestrictUser(not_null<UserData*> user) const {
 	} else if (canNotEditLastAdmin(user)) {
 		return false;
 	}
-	return adminRights().is_ban_users();
+	return adminRights() & AdminRight::f_ban_users;
 }
 
 void ChannelData::setAdminRights(const MTPChannelAdminRights &rights) {
-	if (rights.c_channelAdminRights().vflags.v == _adminRights.c_channelAdminRights().vflags.v) {
+	if (rights.c_channelAdminRights().vflags.v == adminRights()) {
 		return;
 	}
-	_adminRights = rights;
+	_adminRights.set(rights.c_channelAdminRights().vflags.v);
 	if (isMegagroup()) {
 		if (hasAdminRights()) {
 			if (!amCreator()) {
-				auto me = MegagroupInfo::Admin { _adminRights };
+				auto me = MegagroupInfo::Admin { rights };
 				me.canEdit = false;
 				mgInfo->lastAdmins.insert(App::self(), me);
 			}
@@ -982,15 +978,16 @@ void ChannelData::setAdminRights(const MTPChannelAdminRights &rights) {
 }
 
 void ChannelData::setRestrictedRights(const MTPChannelBannedRights &rights) {
-	if (rights.c_channelBannedRights().vflags.v == _restrictedRights.c_channelBannedRights().vflags.v
-		&& rights.c_channelBannedRights().vuntil_date.v == _restrictedRights.c_channelBannedRights().vuntil_date.v) {
+	if (rights.c_channelBannedRights().vflags.v == restrictions()
+		&& rights.c_channelBannedRights().vuntil_date.v == _restrictedUntill) {
 		return;
 	}
-	_restrictedRights = rights;
+	_restrictedUntill = rights.c_channelBannedRights().vuntil_date.v;
+	_restrictions.set(rights.c_channelBannedRights().vflags.v);
 	if (isMegagroup()) {
-		if (hasRestrictedRights()) {
+		if (hasRestrictions()) {
 			if (!amCreator()) {
-				auto me = MegagroupInfo::Restricted { _restrictedRights };
+				auto me = MegagroupInfo::Restricted { rights };
 				mgInfo->lastRestricted.insert(App::self(), me);
 			}
 			mgInfo->lastAdmins.remove(App::self());

@@ -29,38 +29,44 @@ template <
 	typename FlagsType::Type kEssential = -1>
 class Flags {
 public:
+	using Type = FlagsType;
+	using Enum = typename Type::Enum;
+
 	struct Change {
-		Change(FlagsType diff, FlagsType value)
+		using Type = FlagsType;
+		using Enum = typename Type::Enum;
+
+		Change(Type diff, Type value)
 		: diff(diff)
 		, value(value) {
 		}
-		FlagsType diff = 0;
-		FlagsType value = 0;
+		Type diff = 0;
+		Type value = 0;
 	};
 
 	Flags() = default;
-	Flags(FlagsType value) : _value(value) {
+	Flags(Type value) : _value(value) {
 	}
 
-	void set(FlagsType which) {
+	void set(Type which) {
 		if (auto diff = which ^ _value) {
 			_value = which;
 			updated(diff);
 		}
 	}
-	void add(FlagsType which) {
+	void add(Type which) {
 		if (auto diff = which & ~_value) {
 			_value |= which;
 			updated(diff);
 		}
 	}
-	void remove(FlagsType which) {
+	void remove(Type which) {
 		if (auto diff = which & _value) {
 			_value &= ~which;
 			updated(diff);
 		}
 	}
-	FlagsType current() const {
+	Type current() const {
 		return _value;
 	}
 	rpl::producer<Change> changes() const {
@@ -68,18 +74,18 @@ public:
 	}
 	rpl::producer<Change> value() const {
 		return _changes.events_starting_with({
-			FlagsType::from_raw(kEssential),
+			Type::from_raw(kEssential),
 			_value });
 	}
 
 private:
-	void updated(FlagsType diff) {
-		if ((diff &= FlagsType::from_raw(kEssential))) {
+	void updated(Type diff) {
+		if ((diff &= Type::from_raw(kEssential))) {
 			_changes.fire({ diff, _value });
 		}
 	}
 
-	FlagsType _value = 0;
+	Type _value = 0;
 	rpl::event_stream<Change> _changes;
 
 };

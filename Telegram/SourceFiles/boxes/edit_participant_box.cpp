@@ -222,7 +222,7 @@ void EditAdminBox::prepare() {
 			InvokeQueued(this, [this, control] { applyDependencies(control); });
 		});
 		if (!channel()->amCreator()) {
-			if (!(channel()->adminRights().vflags.v & flags)) {
+			if (!(channel()->adminRights() & flags)) {
 				control->setDisabled(true); // Grey out options that we don't have ourselves.
 			}
 		}
@@ -272,7 +272,7 @@ void EditAdminBox::prepare() {
 			}
 			if (!channel()->amCreator()) {
 				// Leave only rights that we have so we could save them.
-				newFlags &= channel()->adminRights().vflags.v;
+				newFlags &= channel()->adminRights();
 			}
 			_saveCallback(_oldRights, MTP_channelAdminRights(MTP_flags(newFlags)));
 		});

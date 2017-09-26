@@ -21,10 +21,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 
 #include <rpl/combine.h>
+#include <rpl/flatten_latest.h>
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "data/data_web_page.h"
 #include "data/data_game.h"
+#include "data/data_peer_values.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
 #include "ui/special_buttons.h"
@@ -174,9 +176,17 @@ MainWidget::MainWidget(
 	subscribe(_controller->floatPlayerAreaUpdated(), [this] {
 		checkFloatPlayerVisibility();
 	});
-	rpl::combine(
-		_controller->historyPeer.value(),
-		_controller->historyCanWrite.value())
+
+	using namespace rpl::mappers;
+	_controller->historyPeer.value()
+		| rpl::map([](PeerData *peer) {
+			auto canWrite = peer
+				? Data::CanWriteValue(peer)
+				: rpl::single(false);
+			return std::move(canWrite)
+					| rpl::map(tuple(peer, $1));
+		})
+		| rpl::flatten_latest()
 		| rpl::start([this](PeerData *peer, bool canWrite) {
 			updateThirdColumnToCurrentPeer(peer, canWrite);
 		}, lifetime());
@@ -759,7 +769,7 @@ bool MainWidget::onSendPaths(const PeerId &peerId) {
 		Ui::show(Box<InformBox>(lang(lng_forward_send_files_cant)));
 		return false;
 	} else if (auto megagroup = peer->asMegagroup()) {
-		if (megagroup->restrictedRights().is_send_media()) {
+		if (megagroup->restricted(ChannelRestriction::f_send_media)) {
 			Ui::show(Box<InformBox>(lang(lng_restricted_send_media)));
 			return false;
 		}

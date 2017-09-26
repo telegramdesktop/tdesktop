@@ -425,9 +425,13 @@ public:
 		return flags() & MTPDuser::Flag::f_bot_inline_geo;
 	}
 	bool isInaccessible() const {
-		return flags() & MTPDuser_ClientFlag::f_inaccessible;
+		constexpr auto inaccessible = 0
+			| MTPDuser::Flag::f_deleted;
+//			| MTPDuser_ClientFlag::f_inaccessible;
+		return flags() & inaccessible;
 	}
 	bool canWrite() const {
+		// Duplicated in Data::CanWriteValue().
 		return !isInaccessible();
 	}
 	bool isContact() const {
@@ -584,6 +588,7 @@ public:
 				|| (adminsEnabled() ? amAdmin() : amIn()));
 	}
 	bool canWrite() const {
+		// Duplicated in Data::CanWriteValue().
 		return !isDeactivated() && amIn();
 	}
 	bool haveLeft() const {
@@ -752,6 +757,11 @@ struct MegagroupInfo {
 
 };
 
+using ChannelAdminRight = MTPDchannelAdminRights::Flag;
+using ChannelRestriction = MTPDchannelBannedRights::Flag;
+using ChannelAdminRights = MTPDchannelAdminRights::Flags;
+using ChannelRestrictions = MTPDchannelBannedRights::Flags;
+
 class ChannelData : public PeerData {
 public:
 	static constexpr auto kEssentialFlags = 0
@@ -906,63 +916,83 @@ public:
 	bool amCreator() const {
 		return flags() & MTPDchannel::Flag::f_creator;
 	}
-	const MTPChannelAdminRights &adminRightsBoxed() const {
-		return _adminRights;
+
+	using AdminRight = ChannelAdminRight;
+	using Restriction = ChannelRestriction;
+	using AdminRights = ChannelAdminRights;
+	using Restrictions = ChannelRestrictions;
+	using AdminRightFlags = Data::Flags<AdminRights>;
+	using RestrictionFlags = Data::Flags<Restrictions>;
+	AdminRights adminRights() const {
+		return _adminRights.current();
 	}
-	const MTPDchannelAdminRights &adminRights() const {
-		return _adminRights.c_channelAdminRights();
+	rpl::producer<AdminRightFlags::Change> adminRightsValue() const {
+		return _adminRights.value();
 	}
 	void setAdminRights(const MTPChannelAdminRights &rights);
 	bool hasAdminRights() const {
-		return (adminRights().vflags.v != 0);
+		return (adminRights() != 0);
 	}
-	const MTPChannelBannedRights &restrictedRightsBoxed() const {
-		return _restrictedRights;
+	Restrictions restrictions() const {
+		return _restrictions.current();
 	}
-	const MTPDchannelBannedRights &restrictedRights() const {
-		return _restrictedRights.c_channelBannedRights();
+	rpl::producer<RestrictionFlags::Change> restrictionsValue() const {
+		return _restrictions.value();
+	}
+	bool restricted(Restriction right) const {
+		return restrictions() & right;
+	}
+	TimeId restrictedUntil() const {
+		return _restrictedUntill;
 	}
 	void setRestrictedRights(const MTPChannelBannedRights &rights);
-	bool hasRestrictedRights() const {
-		return (restrictedRights().vflags.v != 0);
+	bool hasRestrictions() const {
+		return (restrictions() != 0);
 	}
-	bool hasRestrictedRights(int32 now) const {
-		return hasRestrictedRights()
-			&& (restrictedRights().vuntil_date.v > now);
+	bool hasRestrictions(TimeId now) const {
+		return hasRestrictions()
+			&& (restrictedUntil() > now);
 	}
 	bool canBanMembers() const {
-		return adminRights().is_ban_users() || amCreator();
+		return (adminRights() & AdminRight::f_ban_users)
+			|| amCreator();
 	}
 	bool canEditMessages() const {
-		return adminRights().is_edit_messages() || amCreator();
+		return (adminRights() & AdminRight::f_edit_messages)
+			|| amCreator();
 	}
 	bool canDeleteMessages() const {
-		return adminRights().is_delete_messages() || amCreator();
+		return (adminRights() & AdminRight::f_delete_messages)
+			|| amCreator();
 	}
 	bool anyoneCanAddMembers() const {
 		return (flags() & MTPDchannel::Flag::f_democracy);
 	}
 	bool canAddMembers() const {
-		return adminRights().is_invite_users()
+		return (adminRights() & AdminRight::f_invite_users)
 			|| amCreator()
 			|| (anyoneCanAddMembers()
 				&& amIn()
-				&& !hasRestrictedRights());
+				&& !hasRestrictions());
 	}
 	bool canAddAdmins() const {
-		return adminRights().is_add_admins() || amCreator();
+		return (adminRights() & AdminRight::f_add_admins)
+			|| amCreator();
 	}
 	bool canPinMessages() const {
-		return adminRights().is_pin_messages() || amCreator();
+		return (adminRights() & AdminRight::f_pin_messages)
+			|| amCreator();
 	}
 	bool canPublish() const {
-		return adminRights().is_post_messages() || amCreator();
+		return (adminRights() & AdminRight::f_post_messages)
+			|| amCreator();
 	}
 	bool canWrite() const {
+		// Duplicated in Data::CanWriteValue().
 		return amIn()
 			&& (canPublish()
 				|| (!isBroadcast()
-					&& !restrictedRights().is_send_messages()));
+					&& !restricted(Restriction::f_send_messages)));
 	}
 	bool canViewMembers() const {
 		return fullFlags()
@@ -975,7 +1005,8 @@ public:
 		return (hasAdminRights() || amCreator());
 	}
 	bool canEditInformation() const {
-		return adminRights().is_change_info() || amCreator();
+		return (adminRights() & AdminRight::f_change_info)
+			|| amCreator();
 	}
 	bool canEditUsername() const {
 		return amCreator()
@@ -999,7 +1030,8 @@ public:
 		return _inviteLink;
 	}
 	bool canHaveInviteLink() const {
-		return adminRights().is_invite_link() || amCreator();
+		return (adminRights() & AdminRight::f_invite_link)
+			|| amCreator();
 	}
 
 	int32 inviter = 0; // > 0 - user who invited me to channel, < 0 - not in channel
@@ -1069,10 +1101,9 @@ private:
 	int _restrictedCount = 0;
 	int _kickedCount = 0;
 
-	MTPChannelAdminRights _adminRights
-		= MTP_channelAdminRights(MTP_flags(0));
-	MTPChannelBannedRights _restrictedRights
-		= MTP_channelBannedRights(MTP_flags(0), MTP_int(0));
+	AdminRightFlags _adminRights;
+	RestrictionFlags _restrictions;
+	TimeId _restrictedUntill;
 
 	QString _restrictionReason;
 	QString _about;

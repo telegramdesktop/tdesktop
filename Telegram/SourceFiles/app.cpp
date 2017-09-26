@@ -394,7 +394,8 @@ namespace {
 			data->inputUser = MTP_inputUser(d.vid, MTP_long(0));
 			data->setName(lang(lng_deleted), QString(), QString(), QString());
 			data->setPhoto(MTP_userProfilePhotoEmpty());
-			data->setFlags(MTPDuser_ClientFlag::f_inaccessible | 0);
+			//data->setFlags(MTPDuser_ClientFlag::f_inaccessible | 0);
+			data->setFlags(MTPDuser::Flag::f_deleted);
 			data->setBotInfoVersion(-1);
 			status = &emptyStatus;
 			data->contact = -1;
@@ -412,7 +413,8 @@ namespace {
 			wasContact = data->isContact();
 			if (minimal) {
 				auto mask = 0
-					| MTPDuser_ClientFlag::f_inaccessible;
+					//| MTPDuser_ClientFlag::f_inaccessible
+					| MTPDuser::Flag::f_deleted;
 				data->setFlags((data->flags() & ~mask) | (d.vflags.v & mask));
 			} else {
 				data->setFlags(d.vflags.v);
@@ -681,7 +683,7 @@ namespace {
 				}
 				if (d.has_banned_rights()) {
 					cdata->setRestrictedRights(d.vbanned_rights);
-				} else if (cdata->hasRestrictedRights()) {
+				} else if (cdata->hasRestrictions()) {
 					cdata->setRestrictedRights(MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
 				}
 				cdata->inputChannel = MTP_inputChannel(d.vid, d.vaccess_hash);
@@ -729,7 +731,7 @@ namespace {
 			if (cdata->hasAdminRights()) {
 				cdata->setAdminRights(MTP_channelAdminRights(MTP_flags(0)));
 			}
-			if (cdata->hasRestrictedRights()) {
+			if (cdata->hasRestrictions()) {
 				cdata->setRestrictedRights(MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
 			}
 
