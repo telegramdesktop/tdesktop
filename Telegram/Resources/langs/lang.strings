@@ -560,8 +560,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_bio" = "Bio:";
 "lng_profile_add_contact" = "Add Contact";
 "lng_profile_edit_contact" = "Edit";
-"lng_profile_clear_history" = "Clear history";
-"lng_profile_delete_conversation" = "Delete conversation";
 "lng_profile_clear_and_exit" = "Delete and exit";
 "lng_profile_leave_channel" = "Leave channel";
 "lng_profile_delete_channel" = "Delete channel";
@@ -569,11 +567,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_delete_group" = "Delete group";
 "lng_profile_report" = "Report";
 "lng_profile_search_messages" = "Search for messages";
-"lng_profile_block_user" = "Block user";
-"lng_profile_unblock_user" = "Unblock user";
 "lng_profile_block_bot" = "Stop and block bot";
 "lng_profile_unblock_bot" = "Unblock bot";
-"lng_profile_share_contact" = "Share Contact";
 "lng_profile_invite_to_group" = "Add to Group";
 "lng_profile_delete_contact" = "Delete";
 "lng_profile_set_group_photo" = "Set Photo";
@@ -635,6 +630,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_media_type_links" = "Shared links";
 "lng_media_type_rounds" = "Video messages";
 "lng_profile_common_groups_section" = "Groups in common";
+"lng_profile_share_contact" = "Share Contact";
+"lng_info_edit_contact" = "Edit contact";
+"lng_profile_clear_history" = "Clear history";
+"lng_profile_delete_conversation" = "Delete conversation";
+"lng_profile_block_user" = "Block user";
+"lng_profile_unblock_user" = "Unblock user";
 
 "lng_report_title" = "Report channel";
 "lng_report_group_title" = "Report group";

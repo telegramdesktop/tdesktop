@@ -149,7 +149,6 @@ infoProfileSeparatorPadding: margins(
 	infoProfileSkip);
 
 infoIconFg: menuIconFg;
-infoIconPosition: point(20px, 12px);
 infoIconInformation: icon {{ "info_information", infoIconFg }};
 infoIconMembers: icon {{ "info_members", infoIconFg }};
 infoIconNotifications: icon {{ "info_notifications", infoIconFg }};
@@ -158,7 +157,7 @@ infoIconMediaPhoto: icon {{ "info_media_photo", infoIconFg }};
 infoInformationIconPosition: point(25px, 12px);
 infoNotificationsIconPosition: point(20px, 5px);
 infoSharedMediaIconPosition: point(20px, 24px);
-infoMembersIconPosition: point(20px, 15px);
+infoIconPosition: point(20px, 15px);
 
 infoLabeledOneLine: FlatLabel(defaultFlatLabel) {
 	width: 0px; // No need to set minWidth in one-line text.
@@ -222,6 +221,12 @@ infoMainButton: InfoProfileButton(infoProfileButton) {
 infoSharedMediaCoverHeight: 62px;
 infoSharedMediaButton: infoProfileButton;
 infoSharedMediaBottomSkip: 12px;
+
+infoBlockButton: InfoProfileButton(infoProfileButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+}
+infoBlockButtonSkip: 8px;
 
 infoMembersHeader: 56px;
 infoMembersList: PeerList(defaultPeerList) {

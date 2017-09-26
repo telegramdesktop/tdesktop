@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_inner_widget.h"
 
 #include <rpl/combine.h>
+#include <rpl/flatten_latest.h>
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_widget.h"
 #include "info/profile/info_profile_text.h"
@@ -30,11 +31,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_members.h"
 #include "boxes/abstract_box.h"
 #include "boxes/add_contact_box.h"
+#include "boxes/confirm_box.h"
 #include "mainwidget.h"
+#include "auth_session.h"
+#include "apiwrap.h"
 #include "window/window_controller.h"
 #include "storage/storage_shared_media.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
+#include "styles/style_boxes.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/scroll_area.h"
@@ -368,18 +373,94 @@ object_ptr<Ui::RpWidget> InnerWidget::setupUserActions(
 		RpWidget *parent,
 		not_null<UserData*> user) const {
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
-	auto tracker = MultiLineTracker();
-	auto addButton = [&](rpl::producer<QString> &&text) {
-		auto button = result->add(object_ptr<Ui::SlideWrap<Button>>(
+	result->add(createSkipWidget(result));
+	auto addButton = [&](
+			rpl::producer<QString> &&text,
+			rpl::producer<bool> &&toggleOn,
+			auto &&callback,
+			const style::InfoProfileButton &st
+				= st::infoSharedMediaButton) {
+		return result->add(object_ptr<Ui::SlideWrap<Button>>(
 			result,
 			object_ptr<Button>(
 				result,
 				std::move(text),
-				st::infoSharedMediaButton)));
-		tracker.track(button);
-		return button;
+				st))
+		)->toggleOn(
+			std::move(toggleOn)
+		)->entity()->clicks()
+			| rpl::start([callback = std::move(callback)](auto&&) {
+				callback();
+			}, result->lifetime());
 	};
-	addButton(rpl::single(QString("test action")));
+
+	addButton(
+		Lang::Viewer(lng_profile_share_contact),
+		CanShareContactValue(user),
+		[user] { App::main()->shareContactLayer(user); });
+	addButton(
+		Lang::Viewer(lng_info_edit_contact),
+		IsContactValue(user),
+		[user] { Ui::show(Box<AddContactBox>(user)); });
+	addButton(
+		Lang::Viewer(lng_profile_clear_history),
+		rpl::single(true),
+		[user] {
+			auto confirmation = lng_sure_delete_history(lt_contact, App::peerName(user));
+			Ui::show(Box<ConfirmBox>(confirmation, lang(lng_box_delete), st::attentionBoxButton, [user] {
+				Ui::hideLayer();
+				App::main()->clearHistory(user);
+				Ui::showPeerHistory(user, ShowAtUnreadMsgId);
+			}));
+		});
+	addButton(
+		Lang::Viewer(lng_profile_delete_conversation),
+		rpl::single(true),
+		[user] {
+			auto confirmation = lng_sure_delete_history(lt_contact, App::peerName(user));
+			auto confirmButton = lang(lng_box_delete);
+			Ui::show(Box<ConfirmBox>(confirmation, confirmButton, st::attentionBoxButton, [user] {
+				Ui::hideLayer();
+				Ui::showChatsList();
+				App::main()->deleteConversation(user);
+			}));
+		});
+
+	if (!user->isSelf()) {
+		result->add(CreateSkipWidget(
+			result,
+			st::infoBlockButtonSkip));
+
+		auto text = PeerUpdateValue(user, Notify::PeerUpdate::Flag::UserIsBlocked)
+			| rpl::map([user](auto&&) {
+				switch (user->blockStatus()) {
+				case UserData::BlockStatus::Blocked:
+					return Lang::Viewer(lng_profile_unblock_user);
+				case UserData::BlockStatus::NotBlocked:
+					return Lang::Viewer(lng_profile_block_user);
+				default:
+					return rpl::single(QString());
+				}
+			})
+			| rpl::flatten_latest()
+			| rpl::start_spawning(result->lifetime());
+		addButton(
+			rpl::duplicate(text),
+			rpl::duplicate(text)
+				| rpl::map([](const QString &text) {
+					return !text.isEmpty();
+				}),
+			[user] {
+				if (user->isBlocked()) {
+					Auth().api().unblockUser(user);
+				} else {
+					Auth().api().blockUser(user);
+				}
+			},
+			st::infoBlockButton);
+	}
+	result->add(createSkipWidget(result));
+
 	object_ptr<FloatingIcon>(
 		result,
 		st::infoIconActions,

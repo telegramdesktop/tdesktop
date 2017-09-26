@@ -146,7 +146,7 @@ void Members::setupButtons() {
 	object_ptr<FloatingIcon>(
 		this,
 		st::infoIconMembers,
-		st::infoMembersIconPosition)->lower();
+		st::infoIconPosition)->lower();
 }
 
 object_ptr<Members::ListWidget> Members::setupList(
@@ -195,7 +195,7 @@ int Members::resizeGetHeight(int newWidth) {
 		cancelLeft,
 		st::infoMembersButtonPosition.y());
 
-	auto searchShownLeft = st::infoMembersIconPosition.x()
+	auto searchShownLeft = st::infoIconPosition.x()
 		- st::infoMembersSearch.iconPosition.x();
 	auto searchHiddenLeft = availableWidth - _search->width();
 	auto searchShown = _searchShownAnimation.current(_searchShown ? 1. : 0.);
