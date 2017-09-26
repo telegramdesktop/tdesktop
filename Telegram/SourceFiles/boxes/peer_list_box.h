@@ -399,6 +399,7 @@ public:
 			callback(searchEntity.second.begin(), searchEntity.second.end());
 		}
 		refreshIndices();
+		update();
 	}
 
 	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const {

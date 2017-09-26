@@ -61,11 +61,20 @@ void ChatMembersController::prepare() {
 	if (!delegate()->peerListFullRowsCount()) {
 		Auth().api().requestFullPeer(_chat);
 	}
+	using UpdateFlag = Notify::PeerUpdate::Flag;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(
-		Notify::PeerUpdate::Flag::MembersChanged,
+		UpdateFlag::MembersChanged | UpdateFlag::UserOnlineChanged,
 		[this](const Notify::PeerUpdate &update) {
-			if (update.peer == _chat) {
-				rebuildRows();
+			if (update.flags & UpdateFlag::MembersChanged) {
+				if (update.peer == _chat) {
+					rebuildRows();
+				}
+			} else if (update.flags & UpdateFlag::UserOnlineChanged) {
+				auto now = unixtime();
+				delegate()->peerListSortRows([now](const PeerListRow &a, const PeerListRow &b) {
+					return App::onlineForSort(a.peer()->asUser(), now) >
+						App::onlineForSort(b.peer()->asUser(), now);
+				});
 			}
 		}));
 }

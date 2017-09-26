@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "boxes/peer_list_box.h"
 #include "mtproto/sender.h"
+#include "base/timer.h"
 #include "base/weak_unique_ptr.h"
 
 namespace Profile {
@@ -76,6 +77,9 @@ protected:
 private:
 	static std::unique_ptr<PeerListSearchController> CreateSearchController(not_null<ChannelData*> channel, Role role, not_null<Additional*> additional);
 
+	void setupSortByOnline();
+	void sortByOnlineDelayed();
+	void sortByOnline();
 	void showAdmin(not_null<UserData*> user);
 	void editAdminDone(not_null<UserData*> user, const MTPChannelAdminRights &rights);
 	void showRestricted(not_null<UserData*> user);
@@ -97,6 +101,8 @@ private:
 	Additional _additional;
 	QPointer<BoxContent> _editBox;
 	QPointer<PeerListBox> _addBox;
+
+	base::Timer _sortByOnlineTimer;
 
 };
 

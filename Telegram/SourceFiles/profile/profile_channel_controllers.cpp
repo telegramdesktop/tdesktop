@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
+#include "observer_peer.h"
 #include "dialogs/dialogs_indexed_list.h"
 
 namespace Profile {
@@ -35,16 +36,56 @@ namespace {
 
 constexpr auto kParticipantsFirstPageCount = 16;
 constexpr auto kParticipantsPerPage = 200;
+constexpr auto kSortByOnlineDelay = TimeMs(1000);
 
 } // namespace
 
-ParticipantsBoxController::ParticipantsBoxController(not_null<ChannelData*> channel, Role role)
+ParticipantsBoxController::ParticipantsBoxController(
+	not_null<ChannelData*> channel,
+	Role role)
 : PeerListController(CreateSearchController(channel, role, &_additional))
 , _channel(channel)
 , _role(role) {
 	if (_channel->mgInfo) {
 		_additional.creator = _channel->mgInfo->creator;
 	}
+	if (_role == Role::Profile) {
+		setupSortByOnline();
+	}
+}
+
+void ParticipantsBoxController::setupSortByOnline() {
+	_sortByOnlineTimer.setCallback([this] { sortByOnline(); });
+	using UpdateFlag = Notify::PeerUpdate::Flag;
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(
+		UpdateFlag::UserOnlineChanged,
+		[this](const Notify::PeerUpdate &update) {
+			if (auto row = delegate()->peerListFindRow(
+					update.peer->id)) {
+				row->refreshStatus();
+				sortByOnlineDelayed();
+			}
+		}));
+}
+
+void ParticipantsBoxController::sortByOnlineDelayed() {
+	if (!_sortByOnlineTimer.isActive()) {
+		_sortByOnlineTimer.callOnce(kSortByOnlineDelay);
+	}
+}
+
+void ParticipantsBoxController::sortByOnline() {
+	if (_role != Role::Profile
+		|| _channel->membersCount() > Global::ChatSizeMax()) {
+		return;
+	}
+	auto now = unixtime();
+	delegate()->peerListSortRows([now](
+		const PeerListRow &a,
+		const PeerListRow &b) {
+		return App::onlineForSort(a.peer()->asUser(), now) >
+			App::onlineForSort(b.peer()->asUser(), now);
+	});
 }
 
 std::unique_ptr<PeerListSearchController>
@@ -278,6 +319,7 @@ void ParticipantsBoxController::loadMoreRows() {
 				});
 			}
 		}
+		sortByOnline();
 		delegate()->peerListRefreshRows();
 	}).fail([this](const RPCError &error) {
 		_loadRequestId = 0;
@@ -327,6 +369,7 @@ bool ParticipantsBoxController::feedMegagroupLastParticipants() {
 		appendRow(user);
 		++_offset;
 	}
+	sortByOnline();
 	return true;
 }
 
