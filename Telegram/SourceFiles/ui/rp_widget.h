@@ -41,7 +41,7 @@ public:
 
 	rpl::producer<QRect> geometryValue() const {
 		auto &stream = eventStreams().geometry;
-		return stream.events_starting_with_copy(geometry());
+		return stream.events_starting_with_copy(this->geometry());
 	}
 	rpl::producer<QSize> sizeValue() const {
 		return geometryValue()
@@ -88,7 +88,7 @@ public:
 	void showOn(rpl::producer<bool> &&shown) {
 		std::move(shown)
 			| rpl::start([this](bool visible) {
-				setVisible(visible);
+				this->setVisible(visible);
 			}, lifetime());
 	}
 
@@ -103,7 +103,7 @@ protected:
 		case QEvent::Resize:
 			if (auto streams = _eventStreams.get()) {
 				auto that = weak(this);
-				streams->geometry.fire_copy(geometry());
+				streams->geometry.fire_copy(this->geometry());
 				if (!that) {
 					return true;
 				}

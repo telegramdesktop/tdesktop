@@ -1,4 +1,4 @@
-## Build instructions for Xcode 8.0
+## Build instructions for Xcode 9.0
 
 ### Prepare folder
 

@@ -370,7 +370,7 @@ public:
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_flags) {
 		if (from + 1 > end) throw mtpErrorInsufficient();
 		if (cons != mtpc_flags) throw mtpErrorUnexpected(cons, "MTPflags");
-		v = Flags::from_raw(static_cast<Flags::Type>(*(from++)));
+		v = Flags::from_raw(static_cast<typename Flags::Type>(*(from++)));
 	}
 	void write(mtpBuffer &to) const {
 		to.push_back(static_cast<mtpPrime>(v.value()));

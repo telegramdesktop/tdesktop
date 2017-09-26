@@ -24,9 +24,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Data {
 
+template <typename FlagsType>
+using FlagsUnderlying = typename FlagsType::Type;
+
 template <
 	typename FlagsType,
-	typename FlagsType::Type kEssential = -1>
+	FlagsUnderlying<FlagsType> kEssential = FlagsUnderlying<FlagsType>(-1)>
 class Flags {
 public:
 	using Type = FlagsType;

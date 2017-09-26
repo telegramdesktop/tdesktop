@@ -1,4 +1,4 @@
-## Build instructions for Xcode 7.2.1
+## Build instructions for Xcode 9.0
 
 **NB** These are outdated, please refer to [Building using Xcode][xcode] instructions.
 

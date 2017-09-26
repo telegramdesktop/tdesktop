@@ -56,6 +56,18 @@ inline producer<Value, Error> vector(std::vector<Value> &&values) {
 	};
 }
 
+template <typename Error = no_error>
+inline producer<bool, Error> vector(std::vector<bool> &&values) {
+	return [values = std::move(values)](
+			const consumer<bool, Error> &consumer) mutable {
+		for (auto value : values) {
+			consumer.put_next_copy(value);
+		}
+		consumer.put_done();
+		return lifetime();
+	};
+}
+
 template <typename Value, typename Error = no_error, typename Range>
 inline producer<Value, Error> range(Range &&range) {
 	return vector(std::vector<Value>(

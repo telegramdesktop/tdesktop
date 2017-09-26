@@ -23,19 +23,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/build_config.h"
 #include <tuple>
 
-
-// Custom libc++ build used for old OS X versions already has this.
-#ifndef OS_MAC_OLD
-
-#if defined COMPILER_CLANG || defined COMPILER_GCC
-namespace std {
-
 #ifdef COMPILER_GCC
+namespace std {
 
 template <bool Value>
 using bool_constant = integral_constant<bool, Value>;
-
-#endif // COMPILER_GCC
 
 template <typename ...Args>
 constexpr auto tuple_size_v = std::tuple_size<Args...>::value;
@@ -70,9 +62,7 @@ constexpr decltype(auto) apply(Method &&method, Tuple&& tuple) {
 }
 
 } // namespace std
-#endif // COMPILER_CLANG || COMPILER_GCC
-
-#endif // OS_MAC_OLD
+#endif // COMPILER_GCC
 
 namespace rpl {
 namespace details {

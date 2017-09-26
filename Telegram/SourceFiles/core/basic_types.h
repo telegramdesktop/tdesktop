@@ -29,10 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 using gsl::not_null;
 
-// Custom libc++ build used for old OS X versions already has this.
-#ifndef OS_MAC_OLD
-
-#if defined COMPILER_CLANG || defined COMPILER_GCC
+#if defined COMPILER_GCC
 namespace std {
 
 template <typename T>
@@ -44,9 +41,7 @@ template <typename T>
 void as_const(const T&&) = delete;
 
 } // namespace std
-#endif // COMPILER_CLANG || COMPILER_GCC
-
-#endif // OS_MAC_OLD
+#endif // COMPILER_GCC
 
 #include "base/ordered_set.h"
 

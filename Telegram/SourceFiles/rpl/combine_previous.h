@@ -42,7 +42,7 @@ public:
 			return std::move(initial).start(
 				[consumer, previous](auto &&value) {
 					if (auto exists = *previous) {
-						&existing = *exists;
+						auto &existing = *exists;
 						auto next = std::make_tuple(
 							std::move(existing),
 							value);
