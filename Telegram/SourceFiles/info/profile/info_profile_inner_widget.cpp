@@ -40,6 +40,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "history/history_shared_media.h"
+#include "profile/profile_common_groups_section.h"
 
 namespace Info {
 namespace Profile {
@@ -301,14 +303,26 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 			SharedMediaCountValue(_peer, type),
 			[phrase = mediaText(type)](int count) {
 				return phrase(lt_count, count);
-			});
+			}
+		)->entity()->clicks()
+			| rpl::start([peer = _peer, type](auto&&) {
+				SharedMediaShowOverview(type, App::history(peer));
+			}, content->lifetime());
 	};
 	auto addCommonGroupsButton = [&](not_null<UserData*> user) {
 		return addButton(
 			CommonGroupsCountValue(user),
 			[](int count) {
 				return lng_profile_common_groups(lt_count, count);
-			});
+			}
+		)->entity()->clicks()
+			| rpl::start([peer = _peer](auto&&) {
+				App::main()->showSection(
+					::Profile::CommonGroups::SectionMemento(
+						peer->asUser()),
+					anim::type::normal,
+					anim::activation::normal);
+			}, content->lifetime());
 	};
 	addMediaButton(MediaType::Photo);
 	addMediaButton(MediaType::Video);
