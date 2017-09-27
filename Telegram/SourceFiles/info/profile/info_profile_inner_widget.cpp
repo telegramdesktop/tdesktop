@@ -432,7 +432,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupUserActions(
 			st::infoBlockButtonSkip));
 
 		auto text = PeerUpdateValue(user, Notify::PeerUpdate::Flag::UserIsBlocked)
-			| rpl::map([user](auto&&) {
+			| rpl::map([user](auto&&) -> rpl::producer<QString> {
 				switch (user->blockStatus()) {
 				case UserData::BlockStatus::Blocked:
 					return Lang::Viewer(lng_profile_unblock_user);

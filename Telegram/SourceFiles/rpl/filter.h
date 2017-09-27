@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <rpl/producer.h>
 #include <rpl/combine.h>
+#include <rpl/mappers.h>
 #include "base/optional.h"
 
 namespace rpl {
@@ -38,15 +39,15 @@ public:
 	template <
 		typename Value,
 		typename Error,
+		typename Generator,
 		typename = std::enable_if_t<
 			details::is_callable_v<Predicate, Value>>>
-	rpl::producer<Value, Error> operator()(
-			rpl::producer<Value, Error> &&initial) {
-		return [
-				initial = std::move(initial),
-				predicate = std::move(_predicate)
-			](
-				const consumer<Value, Error> &consumer) mutable {
+	auto operator()(producer<Value, Error, Generator> &&initial) {
+		using consumer_type = consumer<Value, Error>;
+		return make_producer<Value, Error>([
+			initial = std::move(initial),
+			predicate = std::move(_predicate)
+		](const consumer_type &consumer) mutable {
 			return std::move(initial).start(
 				[
 					consumer,
@@ -66,7 +67,7 @@ public:
 				}, [consumer] {
 					consumer.put_done();
 				});
-		};
+		});
 	}
 
 private:
@@ -85,27 +86,24 @@ inline auto filter(Predicate &&predicate)
 
 namespace details {
 
-template <>
-class filter_helper<producer<bool>> {
+template <typename FilterError, typename FilterGenerator>
+class filter_helper<producer<bool, FilterError, FilterGenerator>> {
 public:
-	filter_helper(producer<bool> &&filterer)
-		: _filterer(std::move(filterer)) {
+	filter_helper(
+		producer<bool, FilterError, FilterGenerator> &&filterer)
+	: _filterer(std::move(filterer)) {
 	}
 
-	template <
-		typename Value,
-		typename Error>
-	rpl::producer<Value, Error> operator()(
-			rpl::producer<Value, Error> &&initial) {
+	template <typename Value, typename Error, typename Generator>
+	auto operator()(producer<Value, Error, Generator> &&initial) {
+		using namespace mappers;
 		return combine(std::move(initial), std::move(_filterer))
-			| filter([](auto &&value, bool let) { return let; })
-			| map([](auto &&value, bool) {
-				return std::forward<decltype(value)>(value);
-			});
+			| filter($2)
+			| map($1_of_two);
 	}
 
 private:
-	producer<bool> _filterer;
+	producer<bool, FilterError, FilterGenerator> _filterer;
 
 };
 
@@ -123,12 +121,15 @@ inline Value &&deref_optional_helper(
 
 class filter_optional_helper {
 public:
-	template <typename Value, typename Error>
-	rpl::producer<Value, Error> operator()(
-		rpl::producer<base::optional<Value>, Error> &&initial
-	) const {
-		return [initial = std::move(initial)](
-				const consumer<Value, Error> &consumer) mutable {
+	template <typename Value, typename Error, typename Generator>
+	auto operator()(producer<
+			base::optional<Value>,
+			Error,
+			Generator> &&initial) const {
+		using consumer_type = consumer<Value, Error>;
+		return make_producer<Value, Error>([
+			initial = std::move(initial)
+		](const consumer_type &consumer) mutable {
 			return std::move(initial).start(
 				[consumer](auto &&value) {
 					if (value) {
@@ -143,7 +144,7 @@ public:
 				}, [consumer] {
 					consumer.put_done();
 				});
-		};
+		});
 	}
 
 };

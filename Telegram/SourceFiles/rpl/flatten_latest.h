@@ -27,17 +27,22 @@ namespace details {
 
 class flatten_latest_helper {
 public:
-	template <typename Value, typename Error>
-	rpl::producer<Value, Error> operator()(
-			rpl::producer<
-				rpl::producer<Value, Error>,
-				Error
-			> &&initial) const {
-		return [initial = std::move(initial)](
-				const consumer<Value, Error> &consumer) mutable {
+	template <
+		typename Value,
+		typename Error,
+		typename Generator,
+		typename MetaGenerator>
+	auto operator()(producer<
+			producer<Value, Error, Generator>,
+			Error,
+			MetaGenerator> &&initial) const {
+		using consumer_type = consumer<Value, Error>;
+		return make_producer<Value, Error>([
+			initial = std::move(initial)
+		](const consumer_type &consumer) mutable {
 			auto state = std::make_shared<State>();
 			return std::move(initial).start(
-			[consumer, state](rpl::producer<Value, Error> &&inner) {
+			[consumer, state](producer<Value, Error> &&inner) {
 				state->finished = false;
 				state->alive = std::move(inner).start(
 				[consumer](auto &&value) {
@@ -60,7 +65,7 @@ public:
 					state->finished = true;
 				}
 			});
-		};
+		});
 	}
 
 private:

@@ -28,14 +28,15 @@ namespace details {
 
 class combine_previous_helper {
 public:
-	template <typename Value, typename Error>
-	rpl::producer<std::tuple<Value, Value>, Error> operator()(
-			rpl::producer<Value, Error> &&initial) const {
+	template <typename Value, typename Error, typename Generator>
+	auto operator()(
+			producer<Value, Error, Generator> &&initial) const {
 		using consumer_type = consumer<
 			std::tuple<Value, Value>,
 			Error>;
-		return [initial = std::move(initial)](
-				const consumer_type &consumer) mutable {
+		return make_producer<std::tuple<Value, Value>, Error>([
+			initial = std::move(initial)
+		](const consumer_type &consumer) mutable {
 			auto previous = consumer.template make_state<
 				base::optional<Value>
 			>();
@@ -58,7 +59,7 @@ public:
 				}, [consumer] {
 					consumer.put_done();
 				});
-		};
+		});
 	}
 
 };
@@ -71,13 +72,12 @@ public:
 		: _value(std::forward<OtherValue>(value)) {
 	}
 
-	template <typename Value, typename Error>
-	rpl::producer<std::tuple<Value, Value>, Error> operator()(
-			rpl::producer<Value, Error> &&initial) {
+	template <typename Value, typename Error, typename Generator>
+	auto operator()(producer<Value, Error, Generator> &&initial) {
 		using consumer_type = consumer<
 			std::tuple<Value, Value>,
 			Error>;
-		return [
+		return make_producer<std::tuple<Value, Value>, Error>([
 			initial = std::move(initial),
 			value = Value(std::move(_value))
 		](const consumer_type &consumer) mutable {
@@ -96,7 +96,7 @@ public:
 				}, [consumer] {
 					consumer.put_done();
 				});
-		};
+		});
 	}
 
 private:

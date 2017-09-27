@@ -24,69 +24,78 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace rpl {
 
-template <typename Value, typename Error = no_error>
-inline producer<std::decay_t<Value>, Error> single(Value &&value) {
-	using consumer_t = consumer<std::decay_t<Value>, Error>;
-	return [value = std::forward<Value>(value)](
-			const consumer_t &consumer) mutable {
+template <typename Value>
+inline auto single(Value &&value) {
+	using consumer_type = consumer<std::decay_t<Value>, no_error>;
+	return make_producer<std::decay_t<Value>>([
+		value = std::forward<Value>(value)
+	](const consumer_type &consumer) mutable {
 		consumer.put_next(std::move(value));
 		consumer.put_done();
 		return lifetime();
-	};
+	});
 }
 
-template <typename Error = no_error>
-inline producer<empty_value, Error> single() {
-	return [](const consumer<empty_value, Error> &consumer) {
+inline auto single() {
+	using consumer_type = consumer<empty_value, no_error>;
+	return make_producer<>([](
+			const consumer_type &consumer) {
 		consumer.put_next({});
 		consumer.put_done();
 		return lifetime();
-	};
+	});
 }
 
-template <typename Value, typename Error = no_error>
-inline producer<Value, Error> vector(std::vector<Value> &&values) {
-	return [values = std::move(values)](
-			const consumer<Value, Error> &consumer) mutable {
+template <typename Value>
+inline auto vector(std::vector<Value> &&values) {
+	using consumer_type = consumer<Value, no_error>;
+	return make_producer<Value>([
+		values = std::move(values)
+	](const consumer_type &consumer) mutable {
 		for (auto &value : values) {
 			consumer.put_next(std::move(value));
 		}
 		consumer.put_done();
 		return lifetime();
-	};
+	});
 }
 
-template <typename Error = no_error>
-inline producer<bool, Error> vector(std::vector<bool> &&values) {
-	return [values = std::move(values)](
-			const consumer<bool, Error> &consumer) mutable {
+inline auto vector(std::vector<bool> &&values) {
+	using consumer_type = consumer<bool, no_error>;
+	return make_producer<bool>([
+		values = std::move(values)
+	](const consumer_type &consumer) {
 		for (auto value : values) {
 			consumer.put_next_copy(value);
 		}
 		consumer.put_done();
 		return lifetime();
-	};
+	});
 }
 
-template <typename Value, typename Error = no_error, typename Range>
-inline producer<Value, Error> range(Range &&range) {
+template <
+	typename Range,
+	typename Value = std::decay_t<
+		decltype(*std::begin(std::declval<Range>()))>>
+inline auto range(Range &&range) {
 	return vector(std::vector<Value>(
 		std::begin(range),
 		std::end(range)));
 }
 
-inline producer<int> ints(int from, int till) {
+inline auto ints(int from, int till) {
 	Expects(from <= till);
-	return [from, till](const consumer<int> &consumer) {
+	return make_producer<int>([from, till](
+			const consumer<int> &consumer) {
 		for (auto i = from; i != till; ++i) {
 			consumer.put_next_copy(i);
 		}
 		consumer.put_done();
 		return lifetime();
-	};
+	});
 }
 
-inline producer<int> ints(int count) {
+inline auto ints(int count) {
 	return ints(0, count);
 }
 

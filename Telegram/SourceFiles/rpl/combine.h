@@ -58,8 +58,8 @@ public:
 	, _state(state) {
 	}
 
-	template <typename Value, typename Error>
-	void subscribe(producer<Value, Error> &&producer) {
+	template <typename Value, typename Error, typename Generator>
+	void subscribe(producer<Value, Error, Generator> &&producer) {
 		_consumer.add_lifetime(std::move(producer).start(
 			[consumer = _consumer, state = _state](Value &&value) {
 			if (!state->accumulated) {
@@ -101,12 +101,13 @@ template <
 	typename consumer_type,
 	typename ...Values,
 	typename ...Errors,
+	typename ...Generators,
 	std::size_t ...I>
 inline void combine_subscribe(
 		const consumer_type &consumer,
 		combine_state<Values...> *state,
 		std::index_sequence<I...>,
-		producer<Values, Errors> &&...producers) {
+		producer<Values, Errors, Generators> &&...producers) {
 	auto consume = { (
 		details::combine_subscribe_one<
 			I,
@@ -119,17 +120,18 @@ inline void combine_subscribe(
 	(void)consume;
 }
 
-template <typename ...Values, typename ...Errors>
+template <
+	typename ...Values,
+	typename ...Errors,
+	typename ...Generators>
 inline auto combine_implementation(
-		producer<Values, Errors> &&...producers) {
+		producer<Values, Errors, Generators> &&...producers) {
+	using CombinedValue = std::tuple<Values...>;
 	using CombinedError = details::normalized_variant_t<Errors...>;
-	using Result = producer<
-		std::tuple<Values...>,
-		CombinedError>;
-	using consumer_type = typename Result::consumer_type;
+	using consumer_type = consumer<CombinedValue, CombinedError>;
 	auto result = [](
 			const consumer_type &consumer,
-			producer<Values, Errors> &...producers) {
+			producer<Values, Errors, Generators> &...producers) {
 		auto state = consumer.template make_state<
 			details::combine_state<Values...>>();
 
@@ -142,7 +144,7 @@ inline auto combine_implementation(
 
 		return lifetime();
 	};
-	return Result(std::bind(
+	return make_producer<CombinedValue, CombinedError>(std::bind(
 		result,
 		std::placeholders::_1,
 		std::move(producers)...));
@@ -156,8 +158,12 @@ template <typename ...Args>
 constexpr bool combine_just_producers_v
 	= combine_just_producers<Args...>::value;
 
-template <typename ...Values, typename ...Errors>
-struct combine_just_producers<producer<Values, Errors>...>
+template <
+	typename ...Values,
+	typename ...Errors,
+	typename ...Generators>
+struct combine_just_producers<
+		producer<Values, Errors, Generators>...>
 	: std::true_type {
 };
 
@@ -173,8 +179,11 @@ template <typename ...Args>
 using combine_result_type_t
 	= typename combine_result_type<Args...>::type;
 
-template <typename ...Values, typename ...Errors>
-struct combine_result_type<producer<Values, Errors>...> {
+template <
+	typename ...Values,
+	typename ...Errors,
+	typename ...Generators>
+struct combine_result_type<producer<Values, Errors, Generators>...> {
 	using type = std::tuple<Values...>;
 };
 
@@ -222,10 +231,13 @@ template <typename ...Args>
 constexpr bool combine_producers_with_mapper_v
 	 = combine_producers_with_mapper<Args...>::value;
 
-template <typename ...Values, typename ...Errors>
+template <
+	typename ...Values,
+	typename ...Errors,
+	typename ...Generators>
 inline decltype(auto) combine_helper(
 		std::true_type,
-		producer<Values, Errors> &&...producers) {
+		producer<Values, Errors, Generators> &&...producers) {
 	return combine_implementation(std::move(producers)...);
 }
 
@@ -274,17 +286,14 @@ struct combine_vector_state {
 
 } // namespace details
 
-template <typename Value, typename Error>
-inline producer<std::vector<Value>, Error> combine(
-		std::vector<producer<Value, Error>> &&producers) {
-	if (producers.empty()) {
-		return complete<std::vector<Value>, Error>();
-	}
-
+template <typename Value, typename Error, typename Generator>
+inline auto combine(
+		std::vector<producer<Value, Error, Generator>> &&producers) {
 	using state_type = details::combine_vector_state<Value>;
 	using consumer_type = consumer<std::vector<Value>, Error>;
-	return [producers = std::move(producers)](
-			const consumer_type &consumer) mutable {
+	return make_producer<std::vector<Value>, Error>([
+		producers = std::move(producers)
+	](const consumer_type &consumer) mutable {
 		auto count = producers.size();
 		auto state = consumer.template make_state<state_type>();
 		state->accumulated.resize(count);
@@ -320,13 +329,20 @@ inline producer<std::vector<Value>, Error> combine(
 				}
 			}));
 		}
+		if (!count) {
+			consumer.put_done();
+		}
 		return lifetime();
-	};
+	});
 }
 
-template <typename Value, typename Error, typename Mapper>
+template <
+	typename Value,
+	typename Error,
+	typename Generator,
+	typename Mapper>
 inline auto combine(
-		std::vector<producer<Value, Error>> &&producers,
+		std::vector<producer<Value, Error, Generator>> &&producers,
 		Mapper &&mapper) {
 	return combine(std::move(producers))
 		| map(std::forward<Mapper>(mapper));

@@ -46,13 +46,29 @@ public:
 	void fire_copy(const Value &value) const {
 		return fire_forward(value);
 	}
-	producer<Value, no_error> events() const;
-	producer<Value, no_error> events_starting_with(
-			Value &&value) const {
+	auto events() const {
+		using consumer_type = consumer<Value, no_error>;
+		return make_producer<Value>([weak = weak()](
+			const consumer_type &consumer) {
+			if (auto strong = weak.lock()) {
+				auto result = [weak, consumer] {
+					if (auto strong = weak.lock()) {
+						auto it = base::find(*strong, consumer);
+						if (it != strong->end()) {
+							it->terminate();
+						}
+					}
+				};
+				strong->push_back(std::move(consumer));
+				return lifetime(std::move(result));
+			}
+			return lifetime();
+		});
+	}
+	auto events_starting_with(Value &&value) const {
 		return single(std::move(value)) | then(events());
 	}
-	producer<Value, no_error> events_starting_with_copy(
-			const Value &value) const {
+	auto events_starting_with_copy(const Value &value) const {
 		return single(value) | then(events());
 	}
 
@@ -118,26 +134,6 @@ inline void event_stream<Value>::fire_forward(
 }
 
 template <typename Value>
-inline producer<Value, no_error> event_stream<Value>::events() const {
-	return producer<Value, no_error>([weak = weak()](
-			const consumer<Value, no_error> &consumer) {
-		if (auto strong = weak.lock()) {
-			auto result = [weak, consumer] {
-				if (auto strong = weak.lock()) {
-					auto it = base::find(*strong, consumer);
-					if (it != strong->end()) {
-						it->terminate();
-					}
-				}
-			};
-			strong->push_back(std::move(consumer));
-			return lifetime(std::move(result));
-		}
-		return lifetime();
-	});
-}
-
-template <typename Value>
 inline std::weak_ptr<std::vector<consumer<Value, no_error>>> event_stream<Value>::weak() const {
 	if (!_consumers) {
 		_consumers = std::make_shared<std::vector<consumer<Value, no_error>>>();
@@ -171,9 +167,9 @@ public:
 	start_spawning_helper(lifetime &alive_while)
 	: _lifetime(alive_while) {
 	}
-	template <typename Value, typename Error>
-	producer<Value, Error> operator()(
-			producer<Value, Error> &&initial) {
+
+	template <typename Value, typename Error, typename Generator>
+	auto operator()(producer<Value, Error, Generator> &&initial) {
 		auto stream = _lifetime.make_state<event_stream<Value>>();
 		auto collected = std::vector<Value>();
 		{
@@ -185,9 +181,7 @@ public:
 				[] {});
 			std::move(initial) | start_to_stream(*stream, _lifetime);
 		}
-		return collected.empty()
-			? stream->events()
-			: vector(std::move(collected))
+		return vector(std::move(collected))
 				| then(stream->events());
 	}
 

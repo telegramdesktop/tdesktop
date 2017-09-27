@@ -33,10 +33,9 @@ public:
 		: _method(std::forward<OtherSideEffect>(method)) {
 	}
 
-	template <typename Value, typename Error>
-	rpl::producer<Value, Error> operator()(
-			rpl::producer<Value, Error> &&initial) {
-		return [
+	template <typename Value, typename Error, typename Generator>
+	auto operator()(producer<Value, Error, Generator> &&initial) {
+		return make_producer<Value, Error>([
 			initial = std::move(initial),
 			method = std::move(_method)
 		](const consumer<Value, Error> &consumer) mutable {
@@ -52,7 +51,7 @@ public:
 			}, [consumer] {
 				consumer.put_done();
 			});
-		};
+		});
 	}
 
 private:

@@ -123,7 +123,7 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 		auto copyCount = std::make_shared<int>(0);
 		auto moveCount = std::make_shared<int>(0);
 		{
-			auto testing = complete<InvokeCounter>();
+			auto testing = complete<InvokeCounter>() | type_erased();
 			for (auto i = 0; i != 5; ++i) {
 				InvokeCounter counter(copyCount, moveCount);
 				testing = std::move(testing)
@@ -248,8 +248,18 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 				| start_with_next([=](std::string &&value) {
 					*sum += std::move(value) + ' ';
 				}, lifetime);
+			single(single(1))
+				| then(single(single(2) | then(single(3))))
+				| then(single(single(4) | then(single(5)) | then(single(6))))
+				| flatten_latest()
+				| map([](int value) {
+					return std::to_string(value);
+				})
+				| start_with_next([=](std::string &&value) {
+					*sum += std::move(value) + ' ';
+				}, lifetime);
 		}
-		REQUIRE(*sum == "1 2 3 4 5 6 ");
+		REQUIRE(*sum == "1 2 3 4 5 6 1 2 3 4 5 6 ");
 	}
 
 	SECTION("combine vector test") {
@@ -362,5 +372,20 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 			c.fire(6);
 		}
 		REQUIRE(*sum == "16192225");
+	}
+
+	SECTION("after_next test") {
+		auto sum = std::make_shared<std::string>("");
+		{
+			rpl::lifetime lifetime;
+			rpl::ints(3)
+				| after_next([=](int value) {
+					*sum += std::to_string(-value-1);
+				})
+				| start_with_next([=](int value) {
+					*sum += std::to_string(value);
+				}, lifetime);
+		}
+		REQUIRE(*sum == "0-11-22-3");
 	}
 }

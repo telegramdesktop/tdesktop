@@ -25,10 +25,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace rpl {
 
 template <typename Value = empty_value, typename Error = no_error>
-inline producer<Value, Error> never() {
-	return [](const consumer<Value, Error> &consumer) mutable {
+inline auto never() {
+	using consumer_type = consumer<Value, Error>;
+	return make_producer<Value, Error>([](
+			const consumer_type &consumer) {
 		return lifetime();
-	};
+	});
 }
 
 } // namespace rpl

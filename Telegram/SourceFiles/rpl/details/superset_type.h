@@ -20,19 +20,17 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <rpl/producer.h>
-
 namespace rpl {
 
-template <typename Value, typename Error>
-inline auto fail(Error &&error) {
-	using consumer_t = consumer<Value, std::decay_t<Error>>;
-	return make_producer<Value, std::decay_t<Error>>([
-		error = std::forward<Error>(error)
-	](const consumer_t &consumer) mutable {
-		consumer.put_error(std::move(error));
-		return lifetime();
-	});
-}
+template <typename Value1, typename Value2>
+struct superset_type;
+
+template <typename Value1, typename Value2>
+using superset_type_t = typename superset_type<Value1, Value2>::type;
+
+template <typename Value>
+struct superset_type<Value, Value> {
+	using type = Value;
+};
 
 } // namespace rpl

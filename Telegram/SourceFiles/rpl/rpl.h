@@ -36,6 +36,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/mappers.h>
 #include <rpl/filter.h>
 #include <rpl/distinct_until_changed.h>
+#include <rpl/type_erased.h>
 #include <rpl/flatten_latest.h>
 #include <rpl/combine.h>
 #include <rpl/combine_previous.h>

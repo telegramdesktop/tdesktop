@@ -84,12 +84,12 @@ public:
 	template <
 		typename Value,
 		typename Error,
+		typename Generator,
 		typename NewValue = details::callable_result<
 			Transform,
 			Value>>
-	rpl::producer<NewValue, Error> operator()(
-			rpl::producer<Value, Error> &&initial) {
-		return [
+	auto operator()(producer<Value, Error, Generator> &&initial) {
+		return make_producer<NewValue, Error>([
 			initial = std::move(initial),
 			transform = std::move(_transform)
 		](const consumer<NewValue, Error> &consumer) mutable {
@@ -103,7 +103,7 @@ public:
 			}, [consumer] {
 				consumer.put_done();
 			});
-		};
+		});
 	}
 
 private:
@@ -181,12 +181,12 @@ public:
 	template <
 		typename Value,
 		typename Error,
+		typename Generator,
 		typename NewError = details::callable_result<
 			Transform,
 			Error>>
-	rpl::producer<Value, NewError> operator()(
-			rpl::producer<Value, Error> &&initial) {
-		return [
+	auto operator()(producer<Value, Error, Generator> &&initial) {
+		return make_producer<Value, NewError>([
 			initial = std::move(initial),
 			transform = std::move(_transform)
 		](const consumer<Value, NewError> &consumer) mutable {
@@ -200,7 +200,7 @@ public:
 			), [consumer] {
 				consumer.put_done();
 			});
-		};
+		});
 	}
 
 private:

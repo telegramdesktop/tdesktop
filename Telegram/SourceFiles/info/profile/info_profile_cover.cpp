@@ -185,11 +185,12 @@ SectionWithToggle *SectionWithToggle::setToggleShown(
 }
 
 rpl::producer<bool> SectionWithToggle::toggledValue() const {
-	return _toggle
-		? (rpl::single(_toggle->checked())
+	if (_toggle) {
+		return rpl::single(_toggle->checked())
 			| rpl::then(
-				base::ObservableViewer(_toggle->checkedChanged)))
-		: rpl::never<bool>();
+				base::ObservableViewer(_toggle->checkedChanged));
+	}
+	return rpl::never<bool>();
 }
 
 rpl::producer<bool> SectionWithToggle::toggleShownValue() const {

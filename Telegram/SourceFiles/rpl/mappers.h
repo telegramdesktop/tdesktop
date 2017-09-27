@@ -501,5 +501,7 @@ inline auto $val(Type &&value) {
 	return details::make_value_mapper(std::forward<Type>(value));
 }
 
+constexpr const auto $1_of_two = ((void)$2, $1);
+
 } // namespace mappers
 } // namespace rpl

@@ -98,6 +98,7 @@
     ],
     'sources': [
       '<(src_loc)/rpl/details/callable.h',
+      '<(src_loc)/rpl/details/superset_type.h',
       '<(src_loc)/rpl/details/type_list.h',
       '<(src_loc)/rpl/after_next.h',
       '<(src_loc)/rpl/before_next.h',
@@ -121,6 +122,7 @@
       '<(src_loc)/rpl/range.h',
       '<(src_loc)/rpl/rpl.h',
       '<(src_loc)/rpl/then.h',
+      '<(src_loc)/rpl/type_erased.h',
       '<(src_loc)/rpl/variable.h',
     ],
   }],

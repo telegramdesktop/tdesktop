@@ -28,11 +28,12 @@ namespace details {
 
 class distinct_until_changed_helper {
 public:
-	template <typename Value, typename Error>
-	rpl::producer<Value, Error> operator()(
-			rpl::producer<Value, Error> &&initial) const {
-		return [initial = std::move(initial)](
-				const consumer<Value, Error> &consumer) mutable {
+	template <typename Value, typename Error, typename Generator>
+	auto operator()(
+			producer<Value, Error, Generator> &&initial) const {
+		return make_producer<Value, Error>([
+			initial = std::move(initial)
+		](const consumer<Value, Error> &consumer) mutable {
 			auto previous = consumer.template make_state<
 				base::optional<Value>
 			>();
@@ -47,7 +48,7 @@ public:
 				}, [consumer] {
 					consumer.put_done();
 				});
-		};
+		});
 	}
 
 };

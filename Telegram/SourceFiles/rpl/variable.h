@@ -62,9 +62,11 @@ public:
 
 	template <
 		typename OtherType,
+		typename Error,
+		typename Generator,
 		typename = std::enable_if_t<
 			std::is_assignable_v<Type, OtherType>>>
-	variable(rpl::producer<OtherType> &&stream) {
+	variable(producer<OtherType, Error, Generator> &&stream) {
 		std::move(stream)
 			| start_with_next([this](auto &&data) {
 				*this = std::forward<decltype(data)>(data);
@@ -73,9 +75,12 @@ public:
 
 	template <
 		typename OtherType,
+		typename Error,
+		typename Generator,
 		typename = std::enable_if_t<
 			std::is_assignable_v<Type, OtherType>>>
-	variable &operator=(rpl::producer<OtherType> &&stream) {
+	variable &operator=(
+			producer<OtherType, Error, Generator> &&stream) {
 		_lifetime.destroy();
 		std::move(stream)
 			| start_with_next([this](auto &&data) {
@@ -86,7 +91,7 @@ public:
 	Type current() const {
 		return _data;
 	}
-	rpl::producer<Type> value() const {
+	auto value() const {
 		return _changes.events_starting_with_copy(_data);
 	}
 
@@ -100,8 +105,8 @@ private:
 	}
 
 	Type _data;
-	rpl::event_stream<Type> _changes;
-	rpl::lifetime _lifetime;
+	event_stream<Type> _changes;
+	lifetime _lifetime;
 
 };
 

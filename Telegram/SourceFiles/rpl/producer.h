@@ -23,9 +23,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/lambda.h"
 #include <rpl/consumer.h>
 #include <rpl/lifetime.h>
+#include <rpl/details/superset_type.h>
+#include <rpl/details/callable.h>
 
 namespace rpl {
 namespace details {
+
+template <typename Value, typename Error>
+const consumer<Value, Error> &const_ref_consumer();
 
 template <typename Lambda>
 class mutable_lambda_wrap {
@@ -33,6 +38,12 @@ public:
 	mutable_lambda_wrap(Lambda &&lambda)
 		: _lambda(std::move(lambda)) {
 	}
+	mutable_lambda_wrap(const mutable_lambda_wrap &other) = default;
+	mutable_lambda_wrap(mutable_lambda_wrap &&other) = default;
+	mutable_lambda_wrap &operator=(
+		const mutable_lambda_wrap &other) = default;
+	mutable_lambda_wrap &operator=(
+		mutable_lambda_wrap &&other) = default;
 
 	template <typename... Args>
 	auto operator()(Args&&... args) const {
@@ -46,62 +57,134 @@ private:
 };
 
 // Type-erased copyable mutable lambda using base::lambda.
-template <typename Function> class mutable_lambda;
-
-template <typename Return, typename ...Args>
-class mutable_lambda<Return(Args...)> {
+template <typename Value, typename Error>
+class type_erased_generator final {
 public:
+	using value_type = Value;
+	using error_type = Error;
+	using consumer_type = consumer<Value, Error>;
 
-	// Copy / move construct / assign from an arbitrary type.
+	type_erased_generator(
+		const type_erased_generator &other) = default;
+	type_erased_generator(
+		type_erased_generator &&other) = default;
+	type_erased_generator &operator=(
+		const type_erased_generator &other) = default;
+	type_erased_generator &operator=(
+		type_erased_generator &&other) = default;
+
 	template <
-		typename Lambda,
-		typename = std::enable_if_t<std::is_convertible<
-			decltype(std::declval<Lambda>()(
-				std::declval<Args>()...)),
-			Return
-		>::value>>
-	mutable_lambda(Lambda other) : _implementation(
-		mutable_lambda_wrap<Lambda>(std::move(other))) {
+		typename Generator,
+		typename = std::enable_if_t<
+			std::is_convertible_v<
+				decltype(std::declval<Generator>()(
+					const_ref_consumer<Value, Error>())),
+				lifetime> &&
+			!std::is_same_v<
+				std::decay_t<Generator>,
+				type_erased_generator>>>
+	type_erased_generator(Generator other) : _implementation(
+		mutable_lambda_wrap<Generator>(std::move(other))) {
+	}
+	template <
+		typename Generator,
+		typename = std::enable_if_t<
+			std::is_convertible_v<
+				decltype(std::declval<Generator>()(
+					const_ref_consumer<Value, Error>())),
+				lifetime> &&
+			!std::is_same_v<
+				std::decay_t<Generator>,
+				type_erased_generator>>>
+	type_erased_generator &operator=(Generator other) {
+		_implementation = mutable_lambda_wrap<Generator>(
+			std::move(other));
+		return *this;
 	}
 
-	template <
-		typename ...OtherArgs,
-		typename = std::enable_if_t<
-			(sizeof...(Args) == sizeof...(OtherArgs))>>
-	Return operator()(OtherArgs&&... args) {
-		return _implementation(std::forward<OtherArgs>(args)...);
+	lifetime operator()(const consumer_type &consumer) {
+		return _implementation(consumer);
 	}
 
 private:
-	base::lambda<Return(Args...)> _implementation;
+	base::lambda<lifetime(const consumer_type &)> _implementation;
 
 };
 
 } // namespace details
 
-template <typename Value = empty_value, typename Error = no_error>
-class producer {
+template <
+	typename Value = empty_value,
+	typename Error = no_error,
+	typename Generator = details::type_erased_generator<
+		Value,
+		Error>>
+class producer;
+
+template <
+	typename Value1,
+	typename Value2,
+	typename Error1,
+	typename Error2,
+	typename Generator>
+struct superset_type<
+		producer<Value1, Error1, Generator>,
+		producer<Value2, Error2, Generator>> {
+	using type = producer<
+		superset_type_t<Value1, Value2>,
+		superset_type_t<Error1, Error2>,
+		Generator>;
+};
+
+template <
+	typename Value,
+	typename Error,
+	typename Generator1,
+	typename Generator2>
+struct superset_type<
+		producer<Value, Error, Generator1>,
+		producer<Value, Error, Generator2>> {
+	using type = producer<Value, Error>;
+};
+
+template <
+	typename Value,
+	typename Error,
+	typename Generator>
+struct superset_type<
+		producer<Value, Error, Generator>,
+		producer<Value, Error, Generator>> {
+	using type = producer<Value, Error, Generator>;
+};
+
+namespace details {
+
+template <typename Value, typename Error, typename Generator>
+class producer_base {
 public:
 	using value_type = Value;
 	using error_type = Error;
 	using consumer_type = consumer<Value, Error>;
 
 	template <
-		typename Generator,
-		typename = std::enable_if<std::is_convertible<
-			decltype(std::declval<Generator>()(
-				std::declval<consumer_type>())),
-			lifetime>::value>>
-	producer(Generator &&generator);
+		typename OtherGenerator,
+		typename = std::enable_if_t<
+			std::is_constructible_v<Generator, OtherGenerator&&>>>
+	producer_base(OtherGenerator &&generator);
+
+	producer_base(const producer_base &other) = default;
+	producer_base(producer_base &&other) = default;
+	producer_base &operator=(const producer_base &other) = default;
+	producer_base &operator=(producer_base &&other) = default;
 
 	template <
 		typename OnNext,
 		typename OnError,
 		typename OnDone,
 		typename = std::enable_if_t<
-			details::is_callable_v<OnNext, Value>
-			&& details::is_callable_v<OnError, Error>
-			&& details::is_callable_v<OnDone>>>
+			is_callable_v<OnNext, Value>
+			&& is_callable_v<OnError, Error>
+			&& is_callable_v<OnDone>>>
 	lifetime start(
 		OnNext &&next,
 		OnError &&error,
@@ -112,9 +195,9 @@ public:
 		typename OnError,
 		typename OnDone,
 		typename = std::enable_if_t<
-			details::is_callable_v<OnNext, Value>
-			&& details::is_callable_v<OnError, Error>
-			&& details::is_callable_v<OnDone>>>
+			is_callable_v<OnNext, Value>
+			&& is_callable_v<OnError, Error>
+			&& is_callable_v<OnDone>>>
 	lifetime start_copy(
 		OnNext &&next,
 		OnError &&error,
@@ -123,24 +206,30 @@ public:
 	lifetime start_existing(const consumer_type &consumer) &&;
 
 private:
-	details::mutable_lambda<
-		lifetime(const consumer_type &)> _generator;
+	Generator _generator;
+
+	template <
+		typename OtherValue,
+		typename OtherError,
+		typename OtherGenerator>
+	friend class ::rpl::producer;
 
 };
 
-template <typename Value, typename Error>
-template <typename Generator, typename>
-inline producer<Value, Error>::producer(Generator &&generator)
-: _generator(std::forward<Generator>(generator)) {
+template <typename Value, typename Error, typename Generator>
+template <typename OtherGenerator, typename>
+inline producer_base<Value, Error, Generator>::producer_base(
+	OtherGenerator &&generator)
+: _generator(std::forward<OtherGenerator>(generator)) {
 }
 
-template <typename Value, typename Error>
+template <typename Value, typename Error, typename Generator>
 template <
 	typename OnNext,
 	typename OnError,
 	typename OnDone,
 	typename>
-inline lifetime producer<Value, Error>::start(
+inline lifetime producer_base<Value, Error, Generator>::start(
 		OnNext &&next,
 		OnError &&error,
 		OnDone &&done) && {
@@ -150,13 +239,13 @@ inline lifetime producer<Value, Error>::start(
 		std::forward<OnDone>(done)));
 }
 
-template <typename Value, typename Error>
+template <typename Value, typename Error, typename Generator>
 template <
 	typename OnNext,
 	typename OnError,
 	typename OnDone,
 	typename>
-inline lifetime producer<Value, Error>::start_copy(
+inline lifetime producer_base<Value, Error, Generator>::start_copy(
 		OnNext &&next,
 		OnError &&error,
 		OnDone &&done) const & {
@@ -167,26 +256,122 @@ inline lifetime producer<Value, Error>::start_copy(
 		std::forward<OnDone>(done));
 }
 
-template <typename Value, typename Error>
-inline lifetime producer<Value, Error>::start_existing(
+template <typename Value, typename Error, typename Generator>
+inline lifetime producer_base<Value, Error, Generator>::start_existing(
 		const consumer_type &consumer) && {
 	consumer.add_lifetime(std::move(_generator)(consumer));
 	return [consumer] { consumer.terminate(); };
 }
 
 template <typename Value, typename Error>
-inline producer<Value, Error> duplicate(
-		const producer<Value, Error> &value) {
+using producer_base_type_erased = producer_base<
+	Value,
+	Error,
+	type_erased_generator<Value, Error>>;
+
+} // namespace details
+
+template <typename Value, typename Error, typename Generator>
+class producer final
+: public details::producer_base<Value, Error, Generator> {
+	using parent_type = details::producer_base<
+		Value,
+		Error,
+		Generator>;
+public:
+	using parent_type::parent_type;
+
+};
+
+template <typename Value, typename Error>
+class producer<
+	Value,
+	Error,
+	details::type_erased_generator<Value, Error>> final
+: public details::producer_base_type_erased<Value, Error> {
+	using parent_type = details::producer_base_type_erased<
+		Value,
+		Error>;
+public:
+	using parent_type::parent_type;;
+
+	producer(const producer &other) = default;
+	producer(producer &&other) = default;
+	producer &operator=(const producer &other) = default;
+	producer &operator=(producer &&other) = default;
+
+	template <
+		typename Generic,
+		typename = std::enable_if_t<!std::is_same_v<
+			Generic,
+			details::type_erased_generator<Value, Error>>>>
+	producer(const details::producer_base<Value, Error, Generic> &other)
+		: parent_type(other._generator) {
+	}
+
+	template <
+		typename Generic,
+		typename = std::enable_if_t<!std::is_same_v<
+			Generic,
+			details::type_erased_generator<Value, Error>>>>
+	producer(details::producer_base<Value, Error, Generic> &&other)
+		: parent_type(std::move(other._generator)) {
+	}
+
+	template <
+		typename Generic,
+		typename = std::enable_if_t<!std::is_same_v<
+			Generic,
+			details::type_erased_generator<Value, Error>>>>
+	producer &operator=(
+			const details::producer_base<Value, Error, Generic> &other) {
+		this->_generator = other._generator;
+		return *this;
+	}
+
+	template <
+		typename Generic,
+		typename = std::enable_if_t<!std::is_same_v<
+			Generic,
+			details::type_erased_generator<Value, Error>>>>
+	producer &operator=(
+			details::producer_base<Value, Error, Generic> &&other) {
+		this->_generator = std::move(other._generator);
+		return *this;
+	}
+
+};
+
+template <
+	typename Value = empty_value,
+	typename Error = no_error,
+	typename Generator,
+	typename = std::enable_if_t<
+		std::is_convertible_v<
+			decltype(std::declval<Generator>()(
+				details::const_ref_consumer<Value, Error>())),
+			lifetime>>>
+inline auto make_producer(Generator &&generator)
+-> producer<Value, Error, std::decay_t<Generator>> {
+	return std::forward<Generator>(generator);
+}
+
+template <typename Value, typename Error, typename Generator>
+inline producer<Value, Error, Generator> duplicate(
+		const producer<Value, Error, Generator> &value) {
 	return value;
 }
 
 template <
 	typename Value,
 	typename Error,
+	typename Generator,
 	typename Method,
 	typename = decltype(std::declval<Method>()(
-		std::declval<producer<Value, Error>>()))>
-inline auto operator|(producer<Value, Error> &&value, Method &&method) {
+		std::declval<producer<Value, Error, Generator>>()))>
+inline auto operator|(
+		producer<Value, Error, Generator> &&value,
+		Method &&method) {
 	return std::forward<Method>(method)(std::move(value));
 }
 
@@ -333,9 +518,9 @@ inline auto start_with_next_error_done(
 
 namespace details {
 
-template <typename Value, typename Error>
+template <typename Value, typename Error, typename Generator>
 inline void operator|(
-		producer<Value, Error> &&value,
+		producer<Value, Error, Generator> &&value,
 		lifetime_with_none &&lifetime) {
 	lifetime.alive_while.add(
 		std::move(value).start(
@@ -347,10 +532,11 @@ inline void operator|(
 template <
 	typename Value,
 	typename Error,
+	typename Generator,
 	typename OnNext,
 	typename = std::enable_if_t<is_callable_v<OnNext, Value>>>
 inline void operator|(
-		producer<Value, Error> &&value,
+		producer<Value, Error, Generator> &&value,
 		lifetime_with_next<OnNext> &&lifetime) {
 	lifetime.alive_while.add(
 		std::move(value).start(
@@ -362,10 +548,11 @@ inline void operator|(
 template <
 	typename Value,
 	typename Error,
+	typename Generator,
 	typename OnError,
 	typename = std::enable_if_t<is_callable_v<OnError, Error>>>
 inline void operator|(
-		producer<Value, Error> &&value,
+		producer<Value, Error, Generator> &&value,
 		lifetime_with_error<OnError> &&lifetime) {
 	lifetime.alive_while.add(
 		std::move(value).start(
@@ -377,10 +564,11 @@ inline void operator|(
 template <
 	typename Value,
 	typename Error,
+	typename Generator,
 	typename OnDone,
 	typename = std::enable_if_t<is_callable_v<OnDone>>>
 inline void operator|(
-		producer<Value, Error> &&value,
+		producer<Value, Error, Generator> &&value,
 		lifetime_with_done<OnDone> &&lifetime) {
 	lifetime.alive_while.add(
 		std::move(value).start(
@@ -392,13 +580,14 @@ inline void operator|(
 template <
 	typename Value,
 	typename Error,
+	typename Generator,
 	typename OnNext,
 	typename OnError,
 	typename = std::enable_if_t<
 		is_callable_v<OnNext, Value> &&
 		is_callable_v<OnError, Error>>>
 inline void operator|(
-		producer<Value, Error> &&value,
+		producer<Value, Error, Generator> &&value,
 		lifetime_with_next_error<OnNext, OnError> &&lifetime) {
 	lifetime.alive_while.add(
 		std::move(value).start(
@@ -410,13 +599,14 @@ inline void operator|(
 template <
 	typename Value,
 	typename Error,
+	typename Generator,
 	typename OnError,
 	typename OnDone,
 	typename = std::enable_if_t<
 		is_callable_v<OnError, Error> &&
 		is_callable_v<OnDone>>>
 inline void operator|(
-		producer<Value, Error> &&value,
+		producer<Value, Error, Generator> &&value,
 		lifetime_with_error_done<OnError, OnDone> &&lifetime) {
 	lifetime.alive_while.add(
 		std::move(value).start(
@@ -428,13 +618,14 @@ inline void operator|(
 template <
 	typename Value,
 	typename Error,
+	typename Generator,
 	typename OnNext,
 	typename OnDone,
 	typename = std::enable_if_t<
 		is_callable_v<OnNext, Value> &&
 		is_callable_v<OnDone>>>
 inline void operator|(
-		producer<Value, Error> &&value,
+		producer<Value, Error, Generator> &&value,
 		lifetime_with_next_done<OnNext, OnDone> &&lifetime) {
 	lifetime.alive_while.add(
 		std::move(value).start(
@@ -446,6 +637,7 @@ inline void operator|(
 template <
 	typename Value,
 	typename Error,
+	typename Generator,
 	typename OnNext,
 	typename OnError,
 	typename OnDone,
@@ -454,7 +646,7 @@ template <
 		is_callable_v<OnError, Error> &&
 		is_callable_v<OnDone>>>
 inline void operator|(
-		producer<Value, Error> &&value,
+		producer<Value, Error, Generator> &&value,
 		lifetime_with_next_error_done<
 			OnNext,
 			OnError,

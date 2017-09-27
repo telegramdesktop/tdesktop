@@ -23,16 +23,23 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/producer.h>
 
 namespace rpl {
+namespace details {
 
-template <typename Value, typename Error>
-inline auto fail(Error &&error) {
-	using consumer_t = consumer<Value, std::decay_t<Error>>;
-	return make_producer<Value, std::decay_t<Error>>([
-		error = std::forward<Error>(error)
-	](const consumer_t &consumer) mutable {
-		consumer.put_error(std::move(error));
-		return lifetime();
-	});
+class type_erased_helper {
+public:
+	template <typename Value, typename Error, typename Generator>
+	producer<Value, Error> operator()(
+			producer<Value, Error, Generator> &&initial) const {
+		return std::move(initial);
+	}
+
+};
+
+} // namespace details
+
+inline auto type_erased()
+-> details::type_erased_helper {
+	return details::type_erased_helper();
 }
 
 } // namespace rpl
