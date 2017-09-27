@@ -395,9 +395,9 @@ bool History::updateSendActionNeedsAnimating(TimeMs ms, bool force) {
 void ChannelHistory::getRangeDifference() {
 	auto fromId = MsgId(0);
 	auto toId = MsgId(0);
-	for (auto blockIndex = 0, blocksCount = blocks.size(); blockIndex < blocksCount; ++blockIndex) {
+	for (auto blockIndex = 0, blocksCount = int(blocks.size()); blockIndex < blocksCount; ++blockIndex) {
 		auto block = blocks[blockIndex];
-		for (auto itemIndex = 0, itemsCount = block->items.size(); itemIndex < itemsCount; ++itemIndex) {
+		for (auto itemIndex = 0, itemsCount = int(block->items.size()); itemIndex < itemsCount; ++itemIndex) {
 			auto item = block->items[itemIndex];
 			if (item->id > 0) {
 				fromId = item->id;
@@ -518,7 +518,7 @@ void ChannelHistory::checkJoinedMessage(bool createUnread) {
 
 	QDateTime inviteDate = peer->asChannel()->inviteDate;
 	QDateTime firstDate, lastDate;
-	if (!blocks.isEmpty()) {
+	if (!blocks.empty()) {
 		firstDate = blocks.front()->items.front()->date;
 		lastDate = blocks.back()->items.back()->date;
 	}
@@ -1418,7 +1418,7 @@ HistoryBlock *History::prepareBlockForAddingItem() {
 		return result;
 	}
 
-	auto addNewBlock = blocks.isEmpty() || (blocks.back()->items.size() >= kNewBlockEachMessage);
+	auto addNewBlock = blocks.empty() || (blocks.back()->items.size() >= kNewBlockEachMessage);
 	if (!addNewBlock) {
 		return blocks.back();
 	}
@@ -1817,7 +1817,7 @@ void History::getNextShowFrom(HistoryBlock *block, int i) {
 		}
 	}
 
-	for (auto j = block->indexInHistory() + 1, s = blocks.size(); j < s; ++j) {
+	for (auto j = block->indexInHistory() + 1, s = int(blocks.size()); j < s; ++j) {
 		block = blocks[j];
 		for_const (auto item, block->items) {
 			if (item->id > 0) {
@@ -1933,7 +1933,7 @@ HistoryItem *History::addNewInTheMiddle(HistoryItem *newItem, int32 blockIndex, 
 	auto block = blocks[blockIndex];
 
 	newItem->attachToBlock(block, itemIndex);
-	block->items.insert(itemIndex, newItem);
+	block->items.insert(block->items.begin() + itemIndex, newItem);
 	newItem->previousItemChanged();
 	if (itemIndex + 1 < block->items.size()) {
 		for (int i = itemIndex + 1, l = block->items.size(); i < l; ++i) {
@@ -2434,14 +2434,14 @@ void History::changeMsgId(MsgId oldId, MsgId newId) {
 }
 
 void History::removeBlock(HistoryBlock *block) {
-	Expects(block->items.isEmpty());
+	Expects(block->items.empty());
 
 	if (_buildingFrontBlock && block == _buildingFrontBlock->block) {
 		_buildingFrontBlock->block = nullptr;
 	}
 
 	int index = block->indexInHistory();
-	blocks.removeAt(index);
+	blocks.erase(blocks.begin() + index);
 	if (index < blocks.size()) {
 		for (int i = index, l = blocks.size(); i < l; ++i) {
 			blocks[i]->setIndexInHistory(i);
@@ -2503,11 +2503,11 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 	}
 
 	item->detachFast();
-	items.remove(itemIndex);
-	for (auto i = itemIndex, l = items.size(); i < l; ++i) {
+	items.erase(items.begin() + itemIndex);
+	for (auto i = itemIndex, l = int(items.size()); i < l; ++i) {
 		items[i]->setIndexInBlock(i);
 	}
-	if (items.isEmpty()) {
+	if (items.empty()) {
 		_history->removeBlock(this);
 	} else if (itemIndex < items.size()) {
 		items[itemIndex]->previousItemChanged();
@@ -2517,7 +2517,7 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 		_history->blocks.back()->items.back()->nextItemChanged();
 	}
 
-	if (items.isEmpty()) {
+	if (items.empty()) {
 		delete this;
 	}
 }

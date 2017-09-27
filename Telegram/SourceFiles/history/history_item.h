@@ -988,7 +988,7 @@ protected:
 				return _block->items.at(_indexInBlock - 1);
 			}
 			if (auto previous = _block->previousBlock()) {
-				Assert(!previous->items.isEmpty());
+				Assert(!previous->items.empty());
 				return previous->items.back();
 			}
 		}
@@ -1000,7 +1000,7 @@ protected:
 				return _block->items.at(_indexInBlock + 1);
 			}
 			if (auto next = _block->nextBlock()) {
-				Assert(!next->items.isEmpty());
+				Assert(!next->items.empty());
 				return next->items.front();
 			}
 		}

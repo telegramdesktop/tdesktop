@@ -216,7 +216,7 @@ public:
 	History *migrateFrom() const;
 
 	bool isEmpty() const {
-		return blocks.isEmpty();
+		return blocks.empty();
 	}
 	bool isDisplayedEmpty() const;
 
@@ -376,7 +376,7 @@ public:
 	void eraseFromUnreadMentions(MsgId msgId);
 	void addUnreadMentionsSlice(const MTPmessages_Messages &result);
 
-	using Blocks = QList<HistoryBlock*>;
+	using Blocks = std::deque<HistoryBlock*>;
 	Blocks blocks;
 
 	int width = 0;
@@ -658,7 +658,7 @@ public:
 	HistoryBlock(const HistoryBlock &) = delete;
 	HistoryBlock &operator=(const HistoryBlock &) = delete;
 
-	QVector<HistoryItem*> items;
+	std::vector<HistoryItem*> items;
 
 	void clear(bool leaveItems = false);
 	~HistoryBlock() {

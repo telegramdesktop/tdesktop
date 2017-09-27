@@ -539,7 +539,7 @@ public:
 			details::is_specific_handlers_v<Value, Error, Handlers>>>
 	consumer &operator=(
 			const details::consumer_base<Value, Error, Handlers> &other) {
-		_handlers = other._handlers;
+		this->_handlers = other._handlers;
 		return *this;
 	}
 
@@ -549,7 +549,7 @@ public:
 			details::is_specific_handlers_v<Value, Error, Handlers>>>
 	consumer &operator=(
 			details::consumer_base<Value, Error, Handlers> &&other) {
-		_handlers = std::move(other._handlers);
+		this->_handlers = std::move(other._handlers);
 		return *this;
 	}
 
