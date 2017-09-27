@@ -159,7 +159,7 @@ template <typename Value>
 inline auto start_to_stream(
 		event_stream<Value> &stream,
 		lifetime &alive_while) {
-	return start([&stream](auto &&value) {
+	return start_with_next([&stream](auto &&value) {
 		stream.fire_forward(std::forward<decltype(value)>(value));
 	}, alive_while);
 }

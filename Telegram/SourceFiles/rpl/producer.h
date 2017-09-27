@@ -190,967 +190,280 @@ inline auto operator|(producer<Value, Error> &&value, Method &&method) {
 	return std::forward<Method>(method)(std::move(value));
 }
 
-template <typename OnNext>
-inline auto bind_on_next(OnNext &&handler) {
-	return [handler = std::forward<OnNext>(handler)](
-			auto &&existing) mutable {
-		using error_type = typename std::decay_t<decltype(existing)>::error_type;
-		return producer<no_value, error_type>([
-			existing = std::move(existing),
-			handler = std::move(handler)
-		](const consumer<no_value, error_type> &consumer) mutable {
-			return std::move(existing).start(
-				std::move(handler),
-				[consumer](error_type &&error) {
-					consumer.put_error(std::move(error));
-				}, [consumer] {
-					consumer.put_done();
-				});
-		});
-	};
-}
-
-template <typename OnError>
-inline auto bind_on_error(OnError &&handler) {
-	return [handler = std::forward<OnError>(handler)](auto &&existing) mutable {
-		using value_type = typename std::decay_t<decltype(existing)>::value_type;
-		return producer<value_type, no_error>([
-			existing = std::move(existing),
-			handler = std::move(handler)
-		](const consumer<value_type, no_error> &consumer) mutable {
-			return std::move(existing).start(
-				[consumer](value_type &&value) {
-					consumer.put_next(std::move(value));
-				},
-				std::move(handler),
-				[consumer] {
-					consumer.put_done();
-				});
-		});
-	};
-}
-
-template <typename OnDone>
-inline auto bind_on_done(OnDone &&handler) {
-	return [handler = std::forward<OnDone>(handler)](auto &&existing) mutable {
-		using value_type = typename std::decay_t<decltype(existing)>::value_type;
-		using error_type = typename std::decay_t<decltype(existing)>::error_type;
-		return producer<value_type, error_type>([
-			existing = std::move(existing),
-			handler = std::move(handler)
-		](const consumer<value_type, error_type> &consumer) mutable {
-			return std::move(existing).start(
-				[consumer](value_type &&value) {
-					consumer.put_next(std::move(value));
-				},
-				[consumer](error_type &&value) {
-					consumer.put_error(std::move(value));
-				},
-				std::move(handler));
-		});
-	};
-}
-
 namespace details {
 
+struct lifetime_with_none {
+	lifetime &alive_while;
+};
+
 template <typename OnNext>
-struct next_holder {
+struct lifetime_with_next {
+	lifetime &alive_while;
 	OnNext next;
 };
 
 template <typename OnError>
-struct error_holder {
+struct lifetime_with_error {
+	lifetime &alive_while;
 	OnError error;
 };
 
 template <typename OnDone>
-struct done_holder {
+struct lifetime_with_done {
+	lifetime &alive_while;
 	OnDone done;
 };
 
-template <
-	typename Value,
-	typename Error,
-	typename OnNext>
-struct producer_with_next {
-	producer<Value, Error> bound;
-	OnNext next;
-};
-
-template <
-	typename Value,
-	typename Error,
-	typename OnError>
-struct producer_with_error {
-	producer<Value, Error> bound;
-	OnError error;
-};
-
-template <
-	typename Value,
-	typename Error,
-	typename OnDone>
-struct producer_with_done {
-	producer<Value, Error> bound;
-	OnDone done;
-};
-
-template <
-	typename Value,
-	typename Error,
-	typename OnNext,
-	typename OnError>
-struct producer_with_next_error {
-	producer<Value, Error> bound;
+template <typename OnNext, typename OnError>
+struct lifetime_with_next_error {
+	lifetime &alive_while;
 	OnNext next;
 	OnError error;
 };
 
-template <
-	typename Value,
-	typename Error,
-	typename OnNext,
-	typename OnDone>
-struct producer_with_next_done {
-	producer<Value, Error> bound;
-	OnNext next;
-	OnDone done;
-};
-
-template <
-	typename Value,
-	typename Error,
-	typename OnError,
-	typename OnDone>
-struct producer_with_error_done {
-	producer<Value, Error> bound;
+template <typename OnError, typename OnDone>
+struct lifetime_with_error_done {
+	lifetime &alive_while;
 	OnError error;
 	OnDone done;
 };
 
-template <
-	typename Value,
-	typename Error,
-	typename OnNext,
-	typename OnError,
-	typename OnDone>
-struct producer_with_next_error_done {
-	producer<Value, Error> bound;
+template <typename OnNext, typename OnDone>
+struct lifetime_with_next_done {
+	lifetime &alive_while;
+	OnNext next;
+	OnDone done;
+};
+
+template <typename OnNext, typename OnError, typename OnDone>
+struct lifetime_with_next_error_done {
+	lifetime &alive_while;
 	OnNext next;
 	OnError error;
 	OnDone done;
 };
-
-struct lifetime_holder {
-	lifetime &alive_while;
-};
-
-template <typename Callback1>
-struct lifetime_holder_1 {
-	Callback1 callback1;
-	lifetime &alive_while;
-};
-
-template <typename Callback1, typename Callback2>
-struct lifetime_holder_2 {
-	Callback1 callback1;
-	Callback2 callback2;
-	lifetime &alive_while;
-};
-
-template <typename Callback1, typename Callback2, typename Callback3>
-struct lifetime_holder_3 {
-	Callback1 callback1;
-	Callback2 callback2;
-	Callback3 callback3;
-	lifetime &alive_while;
-};
-
-enum class CallbackType {
-	Next,
-	Error,
-	Done,
-	Invalid,
-};
-
-template <typename Callback, CallbackType type>
-inline auto on_next_dispatch(
-		Callback &&callback,
-		std::integral_constant<CallbackType, type>) {
-	return [](const auto&) {};
-}
-
-template <typename Callback>
-inline decltype(auto) on_next_dispatch(
-		Callback &&callback,
-		std::integral_constant<CallbackType, CallbackType::Next>) {
-	return std::forward<Callback>(callback);
-}
-
-template <typename Callback, CallbackType type>
-inline auto on_error_dispatch(
-		Callback &&callback,
-		std::integral_constant<CallbackType, type>) {
-	return [](const auto&) {};
-}
-
-template <typename Callback>
-inline decltype(auto) on_error_dispatch(
-		Callback &&callback,
-		std::integral_constant<CallbackType, CallbackType::Error>) {
-	return std::forward<Callback>(callback);
-}
-
-template <typename Callback, CallbackType type>
-inline auto on_done_dispatch(
-		Callback &&callback,
-		std::integral_constant<CallbackType, type>) {
-	return [] {};
-}
-
-template <typename Callback>
-inline decltype(auto) on_done_dispatch(
-		Callback &&callback,
-		std::integral_constant<CallbackType, CallbackType::Done>) {
-	return std::forward<Callback>(callback);
-}
-
-enum class CallbacksType {
-	NextError,
-	NextDone,
-	ErrorDone,
-	Invalid,
-};
-
-template <typename Callback1, CallbacksType type>
-inline auto on_next_dispatch(
-		Callback1 &&callback1,
-		std::integral_constant<CallbacksType, type>) {
-	return [](const auto&) {};
-}
-
-template <typename Callback1>
-inline decltype(auto) on_next_dispatch(
-		Callback1 &&callback1,
-		std::integral_constant<CallbacksType, CallbacksType::NextError>) {
-	return std::forward<Callback1>(callback1);
-}
-
-template <typename Callback1>
-inline decltype(auto) on_next_dispatch(
-		Callback1 &&callback1,
-		std::integral_constant<CallbacksType, CallbacksType::NextDone>) {
-	return std::forward<Callback1>(callback1);
-}
-
-template <typename Callback1, typename Callback2, CallbacksType type>
-inline auto on_error_dispatch(
-		Callback1 &&callback1,
-		Callback2 &&callback2,
-		std::integral_constant<CallbacksType, type>) {
-	return [](const auto&) {};
-}
-
-template <typename Callback1, typename Callback2>
-inline decltype(auto) on_error_dispatch(
-		Callback1 &&callback1,
-		Callback2 &&callback2,
-		std::integral_constant<CallbacksType, CallbacksType::NextError>) {
-	return std::forward<Callback2>(callback2);
-}
-
-template <typename Callback1, typename Callback2>
-inline decltype(auto) on_error_dispatch(
-		Callback1 &&callback1,
-		Callback2 &&callback2,
-		std::integral_constant<CallbacksType, CallbacksType::ErrorDone>) {
-	return std::forward<Callback1>(callback1);
-}
-
-template <typename Callback2, CallbacksType type>
-inline auto on_done_dispatch(
-		Callback2 &&callback2,
-		std::integral_constant<CallbacksType, type>) {
-	return [] {};
-}
-
-template <typename Callback2>
-inline decltype(auto) on_done_dispatch(
-		Callback2 &&callback2,
-		std::integral_constant<CallbacksType, CallbacksType::NextDone>) {
-	return std::forward<Callback2>(callback2);
-}
-
-template <typename Callback2>
-inline decltype(auto) on_done_dispatch(
-		Callback2 &&callback2,
-		std::integral_constant<CallbacksType, CallbacksType::ErrorDone>) {
-	return std::forward<Callback2>(callback2);
-}
 
 } // namespace details
 
-template <typename OnNext>
-inline details::next_holder<std::decay_t<OnNext>> on_next(OnNext &&handler) {
-	return { std::forward<OnNext>(handler) };
-}
-
-template <typename OnError>
-inline details::error_holder<std::decay_t<OnError>> on_error(OnError &&handler) {
-	return { std::forward<OnError>(handler) };
-}
-
-template <typename OnDone>
-inline details::done_holder<std::decay_t<OnDone>> on_done(OnDone &&handler) {
-	return { std::forward<OnDone>(handler) };
-}
-
-inline details::lifetime_holder start(lifetime &alive_while) {
+inline auto start(lifetime &alive_while)
+-> details::lifetime_with_none {
 	return { alive_while };
 }
 
-template <typename Callback1>
-inline details::lifetime_holder_1<
-	std::decay_t<Callback1>> start(
-		Callback1 &&callback1,
-		lifetime &alive_while) {
-	return {
-		std::forward<Callback1>(callback1),
-		alive_while };
+template <typename OnNext>
+inline auto start_with_next(OnNext &&next, lifetime &alive_while)
+-> details::lifetime_with_next<std::decay_t<OnNext>> {
+	return { alive_while, std::forward<OnNext>(next) };
 }
 
-template <typename Callback1, typename Callback2>
-inline details::lifetime_holder_2<
-	std::decay_t<Callback1>,
-	std::decay_t<Callback2>> start(
-		Callback1 &&callback1,
-		Callback2 &&callback2,
-		lifetime &alive_while) {
-	return {
-		std::forward<Callback1>(callback1),
-		std::forward<Callback2>(callback2),
-		alive_while };
+template <typename OnError>
+inline auto start_with_error(OnError &&error, lifetime &alive_while)
+-> details::lifetime_with_error<std::decay_t<OnError>> {
+	return { alive_while, std::forward<OnError>(error) };
 }
 
-template <typename Callback1, typename Callback2, typename Callback3>
-inline details::lifetime_holder_3<
-	std::decay_t<Callback1>,
-	std::decay_t<Callback2>,
-	std::decay_t<Callback3>> start(
-		Callback1 &&callback1,
-		Callback2 &&callback2,
-		Callback3 &&callback3,
-		lifetime &alive_while) {
+template <typename OnDone>
+inline auto start_with_done(OnDone &&done, lifetime &alive_while)
+-> details::lifetime_with_done<std::decay_t<OnDone>> {
+	return { alive_while, std::forward<OnDone>(done) };
+}
+
+template <typename OnNext, typename OnError>
+inline auto start_with_next_error(
+	OnNext &&next,
+	OnError &&error,
+	lifetime &alive_while)
+-> details::lifetime_with_next_error<
+		std::decay_t<OnNext>,
+		std::decay_t<OnError>> {
 	return {
-		std::forward<Callback1>(callback1),
-		std::forward<Callback2>(callback2),
-		std::forward<Callback3>(callback3),
-		alive_while };
+		alive_while,
+		std::forward<OnNext>(next),
+		std::forward<OnError>(error)
+	};
+}
+
+template <typename OnError, typename OnDone>
+inline auto start_with_error_done(
+	OnError &&error,
+	OnDone &&done,
+	lifetime &alive_while)
+-> details::lifetime_with_error_done<
+		std::decay_t<OnError>,
+		std::decay_t<OnDone>> {
+	return {
+		alive_while,
+		std::forward<OnError>(error),
+		std::forward<OnDone>(done)
+	};
+}
+
+template <typename OnNext, typename OnDone>
+inline auto start_with_next_done(
+	OnNext &&next,
+	OnDone &&done,
+	lifetime &alive_while)
+-> details::lifetime_with_next_done<
+		std::decay_t<OnNext>,
+		std::decay_t<OnDone>> {
+	return {
+		alive_while,
+		std::forward<OnNext>(next),
+		std::forward<OnDone>(done)
+	};
+}
+
+template <typename OnNext, typename OnError, typename OnDone>
+inline auto start_with_next_error_done(
+	OnNext &&next,
+	OnError &&error,
+	OnDone &&done,
+	lifetime &alive_while)
+-> details::lifetime_with_next_error_done<
+		std::decay_t<OnNext>,
+		std::decay_t<OnError>,
+		std::decay_t<OnDone>> {
+	return {
+		alive_while,
+		std::forward<OnNext>(next),
+		std::forward<OnError>(error),
+		std::forward<OnDone>(done)
+	};
 }
 
 namespace details {
-
-template <
-	typename Value,
-	typename Error,
-	typename OnNext,
-	typename = std::enable_if_t<
-		is_callable_v<OnNext, Value>>>
-inline producer_with_next<Value, Error, OnNext> operator|(
-		producer<Value, Error> &&value,
-		next_holder<OnNext> &&handler) {
-	return { std::move(value), std::move(handler.next) };
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnError,
-	typename = std::enable_if_t<
-		is_callable_v<OnError, Error>>>
-inline producer_with_error<Value, Error, OnError> operator|(
-		producer<Value, Error> &&value,
-		error_holder<OnError> &&handler) {
-	return { std::move(value), std::move(handler.error) };
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnDone,
-	typename = std::enable_if_t<
-		is_callable_v<OnDone>>>
-inline producer_with_done<Value, Error, OnDone> operator|(
-		producer<Value, Error> &&value,
-		done_holder<OnDone> &&handler) {
-	return { std::move(value), std::move(handler.done) };
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnNext,
-	typename OnError,
-	typename = std::enable_if_t<
-		is_callable_v<OnNext, Value>>,
-	typename = std::enable_if_t<
-		is_callable_v<OnError, Error>>>
-inline producer_with_next_error<Value, Error, OnNext, OnError> operator|(
-		producer_with_next<Value, Error, OnNext> &&producer_with_next,
-		error_holder<OnError> &&handler) {
-	return {
-		std::move(producer_with_next.bound),
-		std::move(producer_with_next.next),
-		std::move(handler.error) };
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnNext,
-	typename OnError,
-	typename = std::enable_if_t<
-		is_callable_v<OnNext, Value>>,
-	typename = std::enable_if_t<
-		is_callable_v<OnError, Error>>>
-inline producer_with_next_error<Value, Error, OnNext, OnError> operator|(
-		producer_with_error<Value, Error, OnError> &&producer_with_error,
-		next_holder<OnNext> &&handler) {
-	return {
-		std::move(producer_with_error.bound),
-		std::move(handler.next),
-		std::move(producer_with_error.error) };
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnNext,
-	typename OnDone,
-	typename = std::enable_if_t<
-		is_callable_v<OnNext, Value>
-		&& is_callable_v<OnDone>>>
-inline producer_with_next_done<Value, Error, OnNext, OnDone> operator|(
-		producer_with_next<Value, Error, OnNext> &&producer_with_next,
-		done_holder<OnDone> &&handler) {
-	return {
-		std::move(producer_with_next.bound),
-		std::move(producer_with_next.next),
-		std::move(handler.done) };
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnNext,
-	typename OnDone,
-	typename = std::enable_if_t<
-		is_callable_v<OnNext, Value>
-		&& is_callable_v<OnDone>>>
-inline producer_with_next_done<Value, Error, OnNext, OnDone> operator|(
-		producer_with_done<Value, Error, OnDone> &&producer_with_done,
-		next_holder<OnNext> &&handler) {
-	return {
-		std::move(producer_with_done.bound),
-		std::move(handler.next),
-		std::move(producer_with_done.done) };
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnError,
-	typename OnDone,
-	typename = std::enable_if_t<
-		is_callable_v<OnError, Error>
-		&& is_callable_v<OnDone>>>
-inline producer_with_error_done<Value, Error, OnError, OnDone> operator|(
-		producer_with_error<Value, Error, OnError> &&producer_with_error,
-		done_holder<OnDone> &&handler) {
-	return {
-		std::move(producer_with_error.bound),
-		std::move(producer_with_error.error),
-		std::move(handler.done) };
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnError,
-	typename OnDone,
-	typename = std::enable_if_t<
-		is_callable_v<OnError, Error>
-		&& is_callable_v<OnDone>>>
-inline producer_with_error_done<Value, Error, OnError, OnDone> operator|(
-		producer_with_done<Value, Error, OnDone> &&producer_with_done,
-		error_holder<OnError> &&handler) {
-	return {
-		std::move(producer_with_done.bound),
-		std::move(handler.error),
-		std::move(producer_with_done.done) };
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnNext,
-	typename OnError,
-	typename OnDone,
-	typename = std::enable_if_t<
-		is_callable_v<OnNext, Value>
-		&& is_callable_v<OnError, Error>
-		&& is_callable_v<OnDone>>>
-inline producer_with_next_error_done<
-	Value,
-	Error,
-	OnNext,
-	OnError,
-	OnDone> operator|(
-		producer_with_next_error<
-			Value,
-			Error,
-			OnNext,
-			OnError> &&producer_with_next_error,
-		done_holder<OnDone> &&handler) {
-	return {
-		std::move(producer_with_next_error.bound),
-		std::move(producer_with_next_error.next),
-		std::move(producer_with_next_error.error),
-		std::move(handler.done) };
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnNext,
-	typename OnError,
-	typename OnDone,
-	typename = std::enable_if_t<
-		is_callable_v<OnNext, Value>
-		&& is_callable_v<OnError, Error>
-		&& is_callable_v<OnDone>>>
-inline producer_with_next_error_done<
-	Value,
-	Error,
-	OnNext,
-	OnError,
-	OnDone> operator|(
-		producer_with_next_done<
-			Value,
-			Error,
-			OnNext,
-			OnDone> &&producer_with_next_done,
-		error_holder<OnError> &&handler) {
-	return {
-		std::move(producer_with_next_done.bound),
-		std::move(producer_with_next_done.next),
-		std::move(handler.error),
-		std::move(producer_with_next_done.done) };
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnNext,
-	typename OnError,
-	typename OnDone,
-	typename = std::enable_if_t<
-		is_callable_v<OnNext, Value>
-		&& is_callable_v<OnError, Error>
-		&& is_callable_v<OnDone>>>
-inline producer_with_next_error_done<
-	Value,
-	Error,
-	OnNext,
-	OnError,
-	OnDone> operator|(
-		producer_with_error_done<
-			Value,
-			Error,
-			OnError,
-			OnDone> &&producer_with_error_done,
-		next_holder<OnNext> &&handler) {
-	return {
-		std::move(producer_with_error_done.bound),
-		std::move(handler.next),
-		std::move(producer_with_error_done.error),
-		std::move(producer_with_error_done.done) };
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnNext,
-	typename OnError,
-	typename OnDone>
-inline void operator|(
-		producer_with_next_error_done<
-			Value,
-			Error,
-			OnNext,
-			OnError,
-			OnDone> &&producer_with_next_error_done,
-		lifetime_holder &&lifetime) {
-	lifetime.alive_while.add(
-		std::move(producer_with_next_error_done.bound).start(
-			std::move(producer_with_next_error_done.next),
-			std::move(producer_with_next_error_done.error),
-			std::move(producer_with_next_error_done.done)));
-}
 
 template <typename Value, typename Error>
 inline void operator|(
 		producer<Value, Error> &&value,
-		lifetime_holder &&start_with_lifetime) {
-	return std::move(value)
-		| on_next([](const Value&) {})
-		| on_error([](const Error&) {})
-		| on_done([] {})
-		| std::move(start_with_lifetime);
-}
-
-template <typename Value, typename Error, typename OnNext>
-inline void operator|(
-		producer_with_next<
-			Value,
-			Error,
-			OnNext> &&producer_with_next,
-		lifetime_holder &&start_with_lifetime) {
-	return std::move(producer_with_next)
-		| on_error([](const Error&) {})
-		| on_done([] {})
-		| std::move(start_with_lifetime);
-}
-
-template <typename Value, typename Error, typename OnError>
-inline void operator|(
-		producer_with_error<
-			Value,
-			Error,
-			OnError> &&producer_with_error,
-		lifetime_holder &&start_with_lifetime) {
-	return std::move(producer_with_error)
-		| on_next([](const Value&) {})
-		| on_done([] {})
-		| std::move(start_with_lifetime);
-}
-
-template <typename Value, typename Error, typename OnDone>
-inline void operator|(
-		producer_with_done<
-			Value,
-			Error,
-			OnDone> &&producer_with_done,
-		lifetime_holder &&start_with_lifetime) {
-	return std::move(producer_with_done)
-		| on_next([](const Value&) {})
-		| on_error([](const Error&) {})
-		| std::move(start_with_lifetime);
+		lifetime_with_none &&lifetime) {
+	lifetime.alive_while.add(
+		std::move(value).start(
+			[](const Value&) {},
+			[](const Error&) {},
+			[] {}));
 }
 
 template <
 	typename Value,
 	typename Error,
 	typename OnNext,
-	typename OnError>
+	typename = std::enable_if_t<is_callable_v<OnNext, Value>>>
 inline void operator|(
-		producer_with_next_error<
-			Value,
-			Error,
-			OnNext,
-			OnError> &&producer_with_next_error,
-		lifetime_holder &&start_with_lifetime) {
-	return std::move(producer_with_next_error)
-		| on_done([] {})
-		| std::move(start_with_lifetime);
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnNext,
-	typename OnDone>
-inline void operator|(
-		producer_with_next_done<
-			Value,
-			Error,
-			OnNext,
-			OnDone> &&producer_with_next_done,
-		lifetime_holder &&start_with_lifetime) {
-	return std::move(producer_with_next_done)
-		| on_error([](const Error&) {})
-		| std::move(start_with_lifetime);
+		producer<Value, Error> &&value,
+		lifetime_with_next<OnNext> &&lifetime) {
+	lifetime.alive_while.add(
+		std::move(value).start(
+			std::move(lifetime.next),
+			[](const Error&) {},
+			[] {}));
 }
 
 template <
 	typename Value,
 	typename Error,
 	typename OnError,
-	typename OnDone>
+	typename = std::enable_if_t<is_callable_v<OnError, Error>>>
 inline void operator|(
-		producer_with_error_done<
-			Value,
-			Error,
+		producer<Value, Error> &&value,
+		lifetime_with_error<OnError> &&lifetime) {
+	lifetime.alive_while.add(
+		std::move(value).start(
+			[](const Value&) {},
+			std::move(lifetime.error),
+			[] {}));
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename OnDone,
+	typename = std::enable_if_t<is_callable_v<OnDone>>>
+inline void operator|(
+		producer<Value, Error> &&value,
+		lifetime_with_done<OnDone> &&lifetime) {
+	lifetime.alive_while.add(
+		std::move(value).start(
+			[](const Value&) {},
+			[](const Error&) {},
+			std::move(lifetime.done)));
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename OnNext,
+	typename OnError,
+	typename = std::enable_if_t<
+		is_callable_v<OnNext, Value> &&
+		is_callable_v<OnError, Error>>>
+inline void operator|(
+		producer<Value, Error> &&value,
+		lifetime_with_next_error<OnNext, OnError> &&lifetime) {
+	lifetime.alive_while.add(
+		std::move(value).start(
+			std::move(lifetime.next),
+			std::move(lifetime.error),
+			[] {}));
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename OnError,
+	typename OnDone,
+	typename = std::enable_if_t<
+		is_callable_v<OnError, Error> &&
+		is_callable_v<OnDone>>>
+inline void operator|(
+		producer<Value, Error> &&value,
+		lifetime_with_error_done<OnError, OnDone> &&lifetime) {
+	lifetime.alive_while.add(
+		std::move(value).start(
+			[](const Value&) {},
+			std::move(lifetime.error),
+			std::move(lifetime.done)));
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename OnNext,
+	typename OnDone,
+	typename = std::enable_if_t<
+		is_callable_v<OnNext, Value> &&
+		is_callable_v<OnDone>>>
+inline void operator|(
+		producer<Value, Error> &&value,
+		lifetime_with_next_done<OnNext, OnDone> &&lifetime) {
+	lifetime.alive_while.add(
+		std::move(value).start(
+			std::move(lifetime.next),
+			[](const Error&) {},
+			std::move(lifetime.done)));
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename OnNext,
+	typename OnError,
+	typename OnDone,
+	typename = std::enable_if_t<
+		is_callable_v<OnNext, Value> &&
+		is_callable_v<OnError, Error> &&
+		is_callable_v<OnDone>>>
+inline void operator|(
+		producer<Value, Error> &&value,
+		lifetime_with_next_error_done<
+			OnNext,
 			OnError,
-			OnDone> &&producer_with_error_done,
-		lifetime_holder &&start_with_lifetime) {
-	return std::move(producer_with_error_done)
-		| on_next([](const Value&) {})
-		| std::move(start_with_lifetime);
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename Callback1,
-	typename = std::enable_if_t<
-		is_callable_v<Callback1, Value>
-//		|| is_callable_v<Callback1, Error>
-		|| is_callable_v<Callback1>
-	>>
-inline void operator|(
-		producer<Value, Error> &&value,
-		lifetime_holder_1<Callback1> &&start_with_lifetime) {
-	using callback1_type = std::integral_constant<CallbackType,
-		is_callable_v<Callback1, Value> ? CallbackType::Next :
-//		is_callable_v<Callback1, Error> ? CallbackType::Error :
-		is_callable_v<Callback1> ? CallbackType::Done :
-		CallbackType::Invalid>;
-	start_with_lifetime.alive_while.add(
+			OnDone> &&lifetime) {
+	lifetime.alive_while.add(
 		std::move(value).start(
-			on_next_dispatch(std::move(start_with_lifetime.callback1), callback1_type{}),
-			on_error_dispatch(std::move(start_with_lifetime.callback1), callback1_type{}),
-			on_done_dispatch(std::move(start_with_lifetime.callback1), callback1_type{})));
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnNext,
-	typename Callback1,
-	typename = std::enable_if_t<
-		is_callable_v<Callback1, Error>
-		|| is_callable_v<Callback1>
-	>>
-inline void operator|(
-		producer_with_next<Value, Error, OnNext> &&producer_with_next,
-		lifetime_holder_1<Callback1> &&start_with_lifetime) {
-	using callback1_type = std::integral_constant<CallbackType,
-		is_callable_v<Callback1, Error> ? CallbackType::Error :
-		is_callable_v<Callback1> ? CallbackType::Done :
-		CallbackType::Invalid>;
-	start_with_lifetime.alive_while.add(
-		std::move(producer_with_next.bound).start(
-			std::move(producer_with_next.next),
-			on_error_dispatch(std::move(start_with_lifetime.callback1), callback1_type{}),
-			on_done_dispatch(std::move(start_with_lifetime.callback1), callback1_type{})));
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnError,
-	typename Callback1,
-	typename = std::enable_if_t<
-		is_callable_v<Callback1, Value>
-		|| is_callable_v<Callback1>
-	>>
-inline void operator|(
-		producer_with_error<Value, Error, OnError> &&producer_with_error,
-		lifetime_holder_1<Callback1> &&start_with_lifetime) {
-	using callback1_type = std::integral_constant<CallbackType,
-		is_callable_v<Callback1, Value> ? CallbackType::Next :
-		is_callable_v<Callback1> ? CallbackType::Done :
-		CallbackType::Invalid>;
-	start_with_lifetime.alive_while.add(
-		std::move(producer_with_error.bound).start(
-			on_next_dispatch(std::move(start_with_lifetime.callback1), callback1_type{}),
-			std::move(producer_with_error.error),
-			on_done_dispatch(std::move(start_with_lifetime.callback1), callback1_type{})));
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnDone,
-	typename Callback1,
-	typename = std::enable_if_t<
-		is_callable_v<Callback1, Value>
-//		|| is_callable_v<Callback1, Error>
-	>>
-inline void operator|(
-		producer_with_done<Value, Error, OnDone> &&producer_with_done,
-		lifetime_holder_1<Callback1> &&start_with_lifetime) {
-	using callback1_type = std::integral_constant<CallbackType,
-		is_callable_v<Callback1, Value> ? CallbackType::Next :
-//		is_callable_v<Callback1, Error> ? CallbackType::Error :
-		CallbackType::Invalid>;
-	start_with_lifetime.alive_while.add(
-		std::move(producer_with_done.bound).start(
-			on_next_dispatch(std::move(start_with_lifetime.callback1), callback1_type{}),
-			on_error_dispatch(std::move(start_with_lifetime.callback1), callback1_type{}),
-			std::move(producer_with_done.done)));
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnNext,
-	typename OnError,
-	typename Callback1,
-	typename = std::enable_if_t<
-		is_callable_v<Callback1>>>
-inline void operator|(
-		producer_with_next_error<Value, Error, OnNext, OnError> &&producer_with_next_error,
-		lifetime_holder_1<Callback1> &&start_with_lifetime) {
-	start_with_lifetime.alive_while.add(
-		std::move(producer_with_next_error.bound).start(
-			std::move(producer_with_next_error.next),
-			std::move(producer_with_next_error.error),
-			std::move(start_with_lifetime.callback1)));
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnNext,
-	typename OnDone,
-	typename Callback1,
-	typename = std::enable_if_t<
-		is_callable_v<Callback1, Error>>>
-inline void operator|(
-		producer_with_next_done<Value, Error, OnNext, OnDone> &&producer_with_next_done,
-		lifetime_holder_1<Callback1> &&start_with_lifetime) {
-	start_with_lifetime.alive_while.add(
-		std::move(producer_with_next_done.bound).start(
-			std::move(producer_with_next_done.next),
-			std::move(start_with_lifetime.callback1),
-			std::move(producer_with_next_done.done)));
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnError,
-	typename OnDone,
-	typename Callback1,
-	typename = std::enable_if_t<
-		is_callable_v<Callback1, Value>>>
-inline void operator|(
-		producer_with_error_done<Value, Error, OnError, OnDone> &&producer_with_error_done,
-		lifetime_holder_1<Callback1> &&start_with_lifetime) {
-	start_with_lifetime.alive_while.add(
-		std::move(producer_with_error_done.bound).start(
-			std::move(start_with_lifetime.callback1),
-			std::move(producer_with_error_done.error),
-			std::move(producer_with_error_done.done)));
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename Callback1,
-	typename Callback2,
-	typename = std::enable_if_t<
-		(is_callable_v<Callback1, Value> && is_callable_v<Callback2, Error>)
-		|| (is_callable_v<Callback1, Value> && is_callable_v<Callback2>)
-//		|| (is_callable_v<Callback1, Error> && is_callable_v<Callback2>)
-	>>
-inline void operator|(
-		producer<Value, Error> &&value,
-		lifetime_holder_2<Callback1, Callback2> &&start_with_lifetime) {
-	using callbacks_type = std::integral_constant<CallbacksType,
-		(is_callable_v<Callback1, Value> && is_callable_v<Callback2, Error>) ? CallbacksType::NextError :
-		(is_callable_v<Callback1, Value> && is_callable_v<Callback2>) ? CallbacksType::NextDone :
-//		(is_callable_v<Callback1, Error> && is_callable_v<Callback2>) ? CallbacksType::ErrorDone :
-		CallbacksType::Invalid>;
-	start_with_lifetime.alive_while.add(
-		std::move(value).start(
-			on_next_dispatch(std::move(start_with_lifetime.callback1), callbacks_type{}),
-			on_error_dispatch(std::move(start_with_lifetime.callback1), std::move(start_with_lifetime.callback2), callbacks_type{}),
-			on_done_dispatch(std::move(start_with_lifetime.callback2), callbacks_type{})));
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnNext,
-	typename Callback1,
-	typename Callback2,
-	typename = std::enable_if_t<
-		is_callable_v<Callback1, Error>>,
-	typename = std::enable_if_t<
-		is_callable_v<Callback2>>>
-inline void operator|(
-		producer_with_next<Value, Error, OnNext> &&producer_with_next,
-		lifetime_holder_2<Callback1, Callback2> &&start_with_lifetime) {
-	start_with_lifetime.alive_while.add(
-		std::move(producer_with_next.bound).start(
-			std::move(producer_with_next.next),
-			std::move(start_with_lifetime.callback1),
-			std::move(start_with_lifetime.callback2)));
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnError,
-	typename Callback1,
-	typename Callback2,
-	typename = std::enable_if_t<
-		is_callable_v<Callback1, Value>>,
-	typename = std::enable_if_t<
-		is_callable_v<Callback2>>>
-inline void operator|(
-		producer_with_error<Value, Error, OnError> &&producer_with_error,
-		lifetime_holder_2<Callback1, Callback2> &&start_with_lifetime) {
-	start_with_lifetime.alive_while.add(
-		std::move(producer_with_error.bound).start(
-			std::move(start_with_lifetime.callback1),
-			std::move(producer_with_error.error),
-			std::move(start_with_lifetime.callback2)));
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename OnDone,
-	typename Callback1,
-	typename Callback2,
-	typename = std::enable_if_t<
-		is_callable_v<Callback1, Value>>,
-	typename = std::enable_if_t<
-		is_callable_v<Callback1, Error>>>
-inline void operator|(
-		producer_with_done<Value, Error, OnDone> &&producer_with_done,
-		lifetime_holder_2<Callback1, Callback2> &&start_with_lifetime) {
-	start_with_lifetime.alive_while.add(
-		std::move(producer_with_done.bound).start(
-			std::move(start_with_lifetime.callback1),
-			std::move(start_with_lifetime.callback2),
-			std::move(producer_with_done.done)));
-}
-
-template <
-	typename Value,
-	typename Error,
-	typename Callback1,
-	typename Callback2,
-	typename Callback3,
-	typename = std::enable_if_t<
-		is_callable_v<Callback1, Value>>,
-	typename = std::enable_if_t<
-		is_callable_v<Callback2, Error>>,
-	typename = std::enable_if_t<
-		is_callable_v<Callback3>>>
-inline void operator|(
-		producer<Value, Error> &&value,
-		lifetime_holder_3<Callback1, Callback2, Callback3> &&start_with_lifetime) {
-	start_with_lifetime.alive_while.add(
-		std::move(value).start(
-			std::move(start_with_lifetime.callback1),
-			std::move(start_with_lifetime.callback2),
-			std::move(start_with_lifetime.callback3)));
+			std::move(lifetime.next),
+			std::move(lifetime.error),
+			std::move(lifetime.done)));
 }
 
 } // namespace details

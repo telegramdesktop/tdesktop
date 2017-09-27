@@ -40,7 +40,7 @@ Button::Button(
 : RippleButton(parent, st.ripple)
 , _st(st) {
 	std::move(text)
-		| rpl::start([this](QString &&value) {
+		| rpl::start_with_next([this](QString &&value) {
 			setText(std::move(value));
 		}, lifetime());
 }
@@ -52,11 +52,11 @@ Button *Button::toggleOn(rpl::producer<bool> &&toggled) {
 		false,
 		[this] { rtlupdate(toggleRect()); });
 	clicks()
-		| rpl::start([this](auto) {
+		| rpl::start_with_next([this](auto) {
 			_toggle->setCheckedAnimated(!_toggle->checked());
 		}, lifetime());
 	std::move(toggled)
-		| rpl::start([this](bool toggled) {
+		| rpl::start_with_next([this](bool toggled) {
 			_toggle->setCheckedAnimated(toggled);
 		}, lifetime());
 	_toggle->finishAnimation();

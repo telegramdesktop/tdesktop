@@ -172,7 +172,7 @@ FlatLabel::FlatLabel(
 , _contextCopyText(lang(lng_context_copy_text)) {
 	textUpdated();
 	std::move(text)
-		| rpl::start([this](const QString &value) {
+		| rpl::start_with_next([this](const QString &value) {
 			setText(value);
 		}, lifetime());
 }
@@ -187,7 +187,7 @@ FlatLabel::FlatLabel(
 , _contextCopyText(lang(lng_context_copy_text)) {
 	textUpdated();
 	std::move(text)
-		| rpl::start([this](const TextWithEntities &value) {
+		| rpl::start_with_next([this](const TextWithEntities &value) {
 			setMarkedText(value);
 		}, lifetime());
 }

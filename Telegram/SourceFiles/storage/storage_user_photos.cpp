@@ -122,7 +122,8 @@ UserPhotos::enforceLists(UserId user) {
 	}
 	result = _lists.emplace(user, List {}).first;
 	result->second.sliceUpdated(
-	) | rpl::start([this, user](const SliceUpdate &update) {
+	) | rpl::start_with_next([this, user](
+			const SliceUpdate &update) {
 		_sliceUpdated.fire(UserPhotosSliceUpdate(
 			user,
 			update.photoIds,

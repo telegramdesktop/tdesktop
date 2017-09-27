@@ -478,20 +478,20 @@ rpl::producer<SharedMediaSlice> SharedMediaViewer(
 				data.second);
 		};
 		builder->insufficientMediaAround()
-			| rpl::start(requestMediaAround, lifetime);
+			| rpl::start_with_next(requestMediaAround, lifetime);
 
 		Auth().storage().sharedMediaSliceUpdated()
-			| rpl::start(applyUpdate, lifetime);
+			| rpl::start_with_next(applyUpdate, lifetime);
 		Auth().storage().sharedMediaOneRemoved()
-			| rpl::start(applyUpdate, lifetime);
+			| rpl::start_with_next(applyUpdate, lifetime);
 		Auth().storage().sharedMediaAllRemoved()
-			| rpl::start(applyUpdate, lifetime);
+			| rpl::start_with_next(applyUpdate, lifetime);
 
 		Auth().storage().query(Storage::SharedMediaQuery(
 			key,
 			limitBefore,
 			limitAfter))
-			| rpl::start(
+			| rpl::start_with_next_done(
 				applyUpdate,
 				[=] { builder->checkInsufficientMedia(); },
 				lifetime);
@@ -626,7 +626,7 @@ rpl::producer<SharedMediaMergedSlice> SharedMediaMergedViewer(
 			SharedMediaMergedSlice::PartKey(key),
 			limitBefore,
 			limitAfter
-		) | rpl::start([=](SharedMediaSlice &&update) {
+		) | rpl::start_with_next([=](SharedMediaSlice &&update) {
 			builder->applyPartUpdate(std::move(update));
 			consumer.put_next(builder->snapshot());
 		}, lifetime);
@@ -636,7 +636,7 @@ rpl::producer<SharedMediaMergedSlice> SharedMediaMergedViewer(
 				SharedMediaMergedSlice::MigratedKey(key),
 				limitBefore,
 				limitAfter
-			) | rpl::start([=](SharedMediaSlice &&update) {
+			) | rpl::start_with_next([=](SharedMediaSlice &&update) {
 				builder->applyMigratedUpdate(std::move(update));
 				consumer.put_next(builder->snapshot());
 			}, lifetime);
@@ -778,7 +778,7 @@ rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastViewer(
 			SharedMediaWithLastSlice::ViewerKey(key),
 			limitBefore,
 			limitAfter
-		) | rpl::start([=](SharedMediaMergedSlice &&update) {
+		) | rpl::start_with_next([=](SharedMediaMergedSlice &&update) {
 			builder->applyViewerUpdate(std::move(update));
 			consumer.put_next(builder->snapshot());
 		}, lifetime);
@@ -788,7 +788,7 @@ rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastViewer(
 				SharedMediaWithLastSlice::EndingKey(key),
 				1,
 				1
-			) | rpl::start([=](SharedMediaMergedSlice &&update) {
+			) | rpl::start_with_next([=](SharedMediaMergedSlice &&update) {
 				builder->applyEndingUpdate(std::move(update));
 				consumer.put_next(builder->snapshot());
 			}, lifetime);

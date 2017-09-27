@@ -347,8 +347,9 @@ TabbedSelector::TabbedSelector(QWidget *parent, not_null<Window::Controller*> co
 	}));
 
 	Auth().api().stickerSetInstalled()
-		| rpl::start([this](uint64 setId) {
-			_tabsSlider->setActiveSection(static_cast<int>(SelectorTab::Stickers));
+		| rpl::start_with_next([this](uint64 setId) {
+			_tabsSlider->setActiveSection(
+				static_cast<int>(SelectorTab::Stickers));
 			stickers()->showStickerSet(setId);
 			_showRequests.fire({});
 		}, lifetime());
@@ -607,7 +608,9 @@ void TabbedSelector::createTabsSlider() {
 
 	_tabsSlider->setActiveSectionFast(static_cast<int>(_currentTabType));
 	_tabsSlider->sectionActivated()
-		| rpl::start([this](int) { switchTab(); }, lifetime());
+		| rpl::start_with_next(
+			[this](int) { switchTab(); },
+			lifetime());
 
 	_tabsSlider->resizeToWidth(width());
 	_tabsSlider->moveToLeft(0, 0);

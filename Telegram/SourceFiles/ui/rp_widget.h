@@ -87,7 +87,7 @@ public:
 
 	void showOn(rpl::producer<bool> &&shown) {
 		std::move(shown)
-			| rpl::start([this](bool visible) {
+			| rpl::start_with_next([this](bool visible) {
 				this->setVisible(visible);
 			}, lifetime());
 	}

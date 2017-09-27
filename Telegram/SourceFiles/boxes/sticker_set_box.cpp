@@ -58,7 +58,7 @@ void StickerSetBox::prepare() {
 
 	connect(_inner, SIGNAL(updateButtons()), this, SLOT(onUpdateButtons()));
 	_inner->setInstalled()
-		| rpl::start([this](auto &&setId) {
+		| rpl::start_with_next([this](auto &&setId) {
 			Auth().api().stickerSetInstalled(setId);
 			this->closeBox();
 		}, lifetime());

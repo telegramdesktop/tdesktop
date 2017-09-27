@@ -61,12 +61,12 @@ LayerWrap::LayerWrap(
 
 void LayerWrap::setupHeightConsumers() {
 	_content->desiredHeightValue()
-		| rpl::start([this](int height) {
+		| rpl::start_with_next([this](int height) {
 			_desiredHeight = height;
 			resizeToWidth(width());
 		}, lifetime());
 	heightValue()
-		| rpl::start([this](int height) {
+		| rpl::start_with_next([this](int height) {
 			_content->resize(
 				width(),
 				height - _topBar->bottomNoMargins() - st::boxRadius);
@@ -81,7 +81,7 @@ object_ptr<TopBar> LayerWrap::createTopBar() {
 		result.data(),
 		st::infoLayerTopBarClose));
 	close->clicks()
-		| rpl::start([this](auto&&) {
+		| rpl::start_with_next([this](auto&&) {
 			_controller->hideSpecialLayer();
 		}, close->lifetime());
 	result->setTitle(TitleValue(

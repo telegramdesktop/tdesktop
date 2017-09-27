@@ -128,7 +128,9 @@ void NotificationsBox::prepare() {
 	}
 	_countSlider->setActiveSectionFast(_oldCount - 1);
 	_countSlider->sectionActivated()
-		| rpl::start([this](int) { countChanged(); }, lifetime());
+		| rpl::start_with_next(
+			[this](int) { countChanged(); },
+			lifetime());
 
 	setMouseTracking(true);
 

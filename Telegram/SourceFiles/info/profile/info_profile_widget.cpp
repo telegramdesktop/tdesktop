@@ -53,7 +53,7 @@ Widget::Widget(
 		peer));
 	_inner->move(0, 0);
 	_inner->scrollToRequests()
-		| rpl::start([this](Ui::ScrollToRequest request) {
+		| rpl::start_with_next([this](Ui::ScrollToRequest request) {
 			if (request.ymin < 0) {
 				scrollTopRestore(
 					qMin(scrollTopSave(), request.ymax));

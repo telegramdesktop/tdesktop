@@ -87,7 +87,7 @@ TopBarWidget::TopBarWidget(
 				= (peer != nullptr) && (peer == searchPeer);
 			return std::make_tuple(searchInPeer, peerChanged);
 		})
-		| rpl::start([this](
+		| rpl::start_with_next([this](
 				bool searchInHistoryPeer,
 				bool peerChanged) {
 			auto animated = peerChanged
@@ -118,7 +118,7 @@ TopBarWidget::TopBarWidget(
 	rpl::combine(
 		Auth().data().thirdSectionInfoEnabledValue(),
 		Auth().data().tabbedReplacedWithInfoValue())
-		| rpl::start(
+		| rpl::start_with_next(
 			[this](auto&&) { updateInfoToggleActive(); },
 			lifetime());
 

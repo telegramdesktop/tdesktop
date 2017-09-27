@@ -692,7 +692,7 @@ ChannelData::ChannelData(const PeerId &id)
 : PeerData(id)
 , inputChannel(MTP_inputChannel(MTP_int(bareId()), MTP_long(0))) {
 	Data::PeerFlagValue(this, MTPDchannel::Flag::f_megagroup)
-		| rpl::start([this](bool megagroup) {
+		| rpl::start_with_next([this](bool megagroup) {
 			if (megagroup) {
 				if (!mgInfo) {
 					mgInfo = std::make_unique<MegagroupInfo>();

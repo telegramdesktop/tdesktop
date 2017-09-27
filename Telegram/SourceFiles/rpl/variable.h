@@ -66,7 +66,7 @@ public:
 			std::is_assignable_v<Type, OtherType>>>
 	variable(rpl::producer<OtherType> &&stream) {
 		std::move(stream)
-			| start([this](auto &&data) {
+			| start_with_next([this](auto &&data) {
 				*this = std::forward<decltype(data)>(data);
 			}, _lifetime);
 	}
@@ -78,7 +78,7 @@ public:
 	variable &operator=(rpl::producer<OtherType> &&stream) {
 		_lifetime.destroy();
 		std::move(stream)
-			| start([this](auto &&data) {
+			| start_with_next([this](auto &&data) {
 				*this = std::forward<decltype(data)>(data);
 			}, _lifetime);
 	}

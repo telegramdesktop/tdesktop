@@ -171,11 +171,11 @@ SectionWithToggle *SectionWithToggle::setToggleShown(
 	_toggle->lower();
 	_toggle->setCheckAlignment(style::al_right);
 	widthValue()
-		| rpl::start([this](int newValue) {
+		| rpl::start_with_next([this](int newValue) {
 			_toggle->setGeometry(0, 0, newValue, height());
 		}, _toggle->lifetime());
 	std::move(shown)
-		| rpl::start([this](bool shown) {
+		| rpl::start_with_next([this](bool shown) {
 			if (_toggle->isHidden() == shown) {
 				_toggle->setVisible(shown);
 				_toggleShown.fire_copy(shown);
@@ -230,7 +230,7 @@ void Cover::setupChildGeometry() {
 		toggleShownValue(),
 		widthValue(),
 		$2)
-		| rpl::start([this](int newWidth) {
+		| rpl::start_with_next([this](int newWidth) {
 			_userpic->moveToLeft(
 				st::infoProfilePhotoLeft,
 				st::infoProfilePhotoTop,
@@ -242,7 +242,7 @@ void Cover::setupChildGeometry() {
 
 Cover *Cover::setOnlineCount(rpl::producer<int> &&count) {
 	std::move(count)
-		| rpl::start([this](int count) {
+		| rpl::start_with_next([this](int count) {
 			_onlineCount = count;
 			refreshStatusText();
 		}, lifetime());
@@ -252,16 +252,16 @@ Cover *Cover::setOnlineCount(rpl::producer<int> &&count) {
 void Cover::initViewers() {
 	using Flag = Notify::PeerUpdate::Flag;
 	PeerUpdateValue(_peer, Flag::PhotoChanged)
-		| rpl::start(
+		| rpl::start_with_next(
 			[this](auto&&) { this->refreshUserpicLink(); },
 			lifetime());
 	PeerUpdateValue(_peer, Flag::NameChanged)
-		| rpl::start(
+		| rpl::start_with_next(
 			[this](auto&&) { this->refreshNameText(); },
 			lifetime());
 	PeerUpdateValue(_peer,
 		Flag::UserOnlineChanged | Flag::MembersChanged)
-		| rpl::start(
+		| rpl::start_with_next(
 			[this](auto&&) { this->refreshStatusText(); },
 			lifetime());
 }
@@ -367,7 +367,7 @@ void SharedMediaCover::createLabel() {
 		toggleShownValue(),
 		widthValue(),
 		$2)
-		| rpl::start([this, weak = label.data()](int newWidth) {
+		| rpl::start_with_next([this, weak = label.data()](int newWidth) {
 			auto availableWidth = newWidth
 				- st::infoBlockHeaderPosition.x()
 				- st::infoSharedMediaButton.padding.right()

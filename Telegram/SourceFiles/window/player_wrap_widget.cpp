@@ -27,7 +27,7 @@ namespace Window {
 PlayerWrapWidget::PlayerWrapWidget(QWidget *parent)
 : Parent(parent, object_ptr<Media::Player::Widget>(parent)) {
 	sizeValue()
-		| rpl::start([this](const QSize &size) {
+		| rpl::start_with_next([this](const QSize &size) {
 			updateShadowGeometry(size);
 		}, lifetime());
 }

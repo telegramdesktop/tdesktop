@@ -32,7 +32,7 @@ BlockWidget::BlockWidget(QWidget *parent, UserData *self, const QString &title) 
 , _self(self)
 , _title(title) {
 	_content->heightValue()
-		| rpl::start([this](int contentHeight) {
+		| rpl::start_with_next([this](int contentHeight) {
 			resize(
 				width(),
 				contentTop()

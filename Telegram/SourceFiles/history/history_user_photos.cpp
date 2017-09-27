@@ -231,16 +231,16 @@ rpl::producer<UserPhotosSlice> UserPhotosViewer(
 			Auth().api().requestUserPhotos(user, photoId);
 		};
 		builder->insufficientPhotosAround()
-			| rpl::start(requestPhotosAround, lifetime);
+			| rpl::start_with_next(requestPhotosAround, lifetime);
 
 		Auth().storage().userPhotosSliceUpdated()
-			| rpl::start(applyUpdate, lifetime);
+			| rpl::start_with_next(applyUpdate, lifetime);
 
 		Auth().storage().query(Storage::UserPhotosQuery(
 			key,
 			limitBefore,
 			limitAfter))
-			| rpl::start(
+			| rpl::start_with_next_done(
 				applyUpdate,
 				[=] { builder->checkInsufficientPhotos(); },
 				lifetime);

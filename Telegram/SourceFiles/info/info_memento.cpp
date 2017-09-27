@@ -110,7 +110,10 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 		_scroll->heightValue(),
 		_inner->desiredHeightValue(),
 		tuple($1, $1 + $2, $3))
-		| rpl::start([inner = _inner](int top, int bottom, int desired) {
+		| rpl::start_with_next([inner = _inner](
+				int top,
+				int bottom,
+				int desired) {
 			inner->setVisibleTopBottom(top, bottom);
 		}, _inner->lifetime());
 	return _inner;

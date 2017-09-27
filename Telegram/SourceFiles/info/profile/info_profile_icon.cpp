@@ -43,7 +43,7 @@ FloatingIcon::FloatingIcon(
 		_point.y() + _icon->height());
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	parent->widthValue()
-		| rpl::start(
+		| rpl::start_with_next(
 			[this](auto&&) { moveToLeft(0, 0); },
 			lifetime());
 }

@@ -187,7 +187,7 @@ MainWidget::MainWidget(
 					| rpl::map(tuple(peer, $1));
 		})
 		| rpl::flatten_latest()
-		| rpl::start([this](PeerData *peer, bool canWrite) {
+		| rpl::start_with_next([this](PeerData *peer, bool canWrite) {
 			updateThirdColumnToCurrentPeer(peer, canWrite);
 		}, lifetime());
 
@@ -1846,7 +1846,7 @@ void MainWidget::createPlayer() {
 	if (!_player) {
 		_player.create(this);
 		_player->heightValue()
-			| rpl::start(
+			| rpl::start_with_next(
 				[this](int) { playerHeightUpdated(); },
 				lifetime());
 		_player->entity()->setCloseCallback([this] { closeBothPlayers(); });
@@ -1907,7 +1907,7 @@ void MainWidget::createCallTopBar() {
 	Expects(_currentCall != nullptr);
 	_callTopBar.create(this, object_ptr<Calls::TopBar>(this, _currentCall));
 	_callTopBar->heightValue()
-		| rpl::start([this](int value) {
+		| rpl::start_with_next([this](int value) {
 			callTopBarHeightUpdated(value);
 		}, lifetime());
 	orderWidgets();

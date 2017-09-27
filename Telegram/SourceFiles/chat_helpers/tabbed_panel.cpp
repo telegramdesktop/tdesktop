@@ -63,7 +63,7 @@ TabbedPanel::TabbedPanel(
 		}
 	});
 	_selector->showRequests()
-		| rpl::start([this](auto&&) {
+		| rpl::start_with_next([this](auto&&) {
 			this->showFromSelector();
 		}, lifetime());
 

@@ -51,7 +51,7 @@ void PeerListBox::createMultiSelect() {
 	auto entity = object_ptr<Ui::MultiSelect>(this, st::contactsMultiSelect, langFactory(lng_participant_filter));
 	_select.create(this, std::move(entity));
 	_select->heightValue()
-		| rpl::start(
+		| rpl::start_with_next(
 			[this](int) { updateScrollSkips(); },
 			lifetime());
 	_select->entity()->setSubmittedCallback([this](bool chtrlShiftEnter) { content()->submitted(); });
@@ -105,7 +105,7 @@ void PeerListBox::prepare() {
 	}
 
 	content()->scrollToRequests()
-		| rpl::start([this](Ui::ScrollToRequest request) {
+		| rpl::start_with_next([this](Ui::ScrollToRequest request) {
 			onScrollToY(request.ymin, request.ymax);
 		}, lifetime());
 

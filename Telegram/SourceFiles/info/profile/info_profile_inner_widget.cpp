@@ -61,7 +61,7 @@ InnerWidget::InnerWidget(
 , _peer(peer)
 , _content(setupContent(this, std::move(wrapValue))) {
 	_content->heightValue()
-		| rpl::start([this](int height) {
+		| rpl::start_with_next([this](int height) {
 			TWidget::resizeToWidth(width());
 			_desiredHeight.fire(countDesiredHeight());
 		}, lifetime());
@@ -113,7 +113,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 			_peer)
 		);
 		_members->scrollToRequests()
-			| rpl::start([this](Ui::ScrollToRequest request) {
+			| rpl::start_with_next([this](Ui::ScrollToRequest request) {
 				auto min = (request.ymin < 0)
 					? request.ymin
 					: mapFromGlobal(_members->mapToGlobal({ 0, request.ymin })).y();
@@ -203,7 +203,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupMuteToggle(
 	result->toggleOn(
 		NotificationsEnabledValue(_peer)
 	)->clicks()
-		| rpl::start([this](auto) {
+		| rpl::start_with_next([this](auto) {
 			App::main()->updateNotifySetting(
 				_peer,
 				_peer->isMuted()
@@ -239,7 +239,7 @@ void InnerWidget::setupUserButtons(
 		_controller->historyPeer.value()
 		| rpl::map($1 != user)
 	)->entity()->clicks()
-		| rpl::start([this, user](auto&&) {
+		| rpl::start_with_next([this, user](auto&&) {
 			_controller->showPeerHistory(
 				user,
 				Ui::ShowWay::Forward);
@@ -250,7 +250,7 @@ void InnerWidget::setupUserButtons(
 	)->toggleOn(
 		CanAddContactValue(user)
 	)->entity()->clicks()
-		| rpl::start([user](auto&&) {
+		| rpl::start_with_next([user](auto&&) {
 			auto firstName = user->firstName;
 			auto lastName = user->lastName;
 			auto phone = user->phone().isEmpty()
@@ -310,7 +310,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 				return phrase(lt_count, count);
 			}
 		)->entity()->clicks()
-			| rpl::start([peer = _peer, type](auto&&) {
+			| rpl::start_with_next([peer = _peer, type](auto&&) {
 				SharedMediaShowOverview(type, App::history(peer));
 			}, content->lifetime());
 	};
@@ -321,7 +321,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 				return lng_profile_common_groups(lt_count, count);
 			}
 		)->entity()->clicks()
-			| rpl::start([peer = _peer](auto&&) {
+			| rpl::start_with_next([peer = _peer](auto&&) {
 				App::main()->showSection(
 					::Profile::CommonGroups::SectionMemento(
 						peer->asUser()),
@@ -389,7 +389,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupUserActions(
 		)->toggleOn(
 			std::move(toggleOn)
 		)->entity()->clicks()
-			| rpl::start([callback = std::move(callback)](auto&&) {
+			| rpl::start_with_next([callback = std::move(callback)](auto&&) {
 				callback();
 			}, result->lifetime());
 	};

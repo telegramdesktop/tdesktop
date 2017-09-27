@@ -53,7 +53,7 @@ Layer::Layer()
 	_scroll->scrollTopValue()
 		| rpl::map([](int scrollTop) { return scrollTop > 0; })
 		| rpl::distinct_until_changed()
-		| rpl::start([this](bool scrolled) {
+		| rpl::start_with_next([this](bool scrolled) {
 			_fixedBarShadow->toggleAnimated(scrolled);
 		}, lifetime());
 }
@@ -73,7 +73,7 @@ void Layer::resizeToWidth(int newWidth, int newContentLeft) {
 void Layer::doSetInnerWidget(object_ptr<LayerInner> widget) {
 	_inner = _scroll->setOwnedWidget(std::move(widget));
 	_inner->heightValue()
-		| rpl::start([this](int innerHeight) {
+		| rpl::start_with_next([this](int innerHeight) {
 			resizeUsingInnerHeight(width(), innerHeight);
 		}, lifetime());
 }

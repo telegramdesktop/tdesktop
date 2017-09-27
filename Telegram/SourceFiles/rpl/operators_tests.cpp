@@ -100,15 +100,15 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 			});
 			rpl::lifetime lifetime;
 			single(std::move(counter))
-				| on_next([=](InvokeCounter&&) {
+				| start_with_next_error_done([=](InvokeCounter&&) {
 					(void)destroyCalled;
 					++*sum;
-				}) | on_error([=](no_error) {
+				}, [=](no_error) {
 					(void)destroyCalled;
-				}) | on_done([=] {
+				}, [=] {
 					(void)destroyCalled;
 					*doneGenerated = true;
-				}) | start(lifetime);
+				}, lifetime);
 		}
 		REQUIRE(*sum == 1);
 		REQUIRE(*doneGenerated);
@@ -136,18 +136,15 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 			rpl::lifetime lifetime;
 			std::move(testing)
 				| then(complete<InvokeCounter>())
-				| on_next([=](InvokeCounter&&) {
+				| start_with_next_error_done([=](InvokeCounter&&) {
 					(void)destroyCalled;
 					++*sum;
-				})
-				| on_error([=](no_error) {
+				}, [=](no_error) {
 					(void)destroyCalled;
-				})
-				| on_done([=] {
+				}, [=] {
 					(void)destroyCalled;
 					*doneGenerated = true;
-				})
-				| start(lifetime);
+				}, lifetime);
 		}
 		REQUIRE(*sum == 5);
 		REQUIRE(*doneGenerated);
@@ -167,10 +164,9 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 				| map([](int value) {
 					return std::to_string(value);
 				})
-				| on_next([=](std::string &&value) {
+				| start_with_next([=](std::string &&value) {
 					*sum += std::move(value) + ' ';
-				})
-				| start(lifetime);
+				}, lifetime);
 		}
 		REQUIRE(*sum == "1 2 3 4 5 ");
 	}
@@ -190,11 +186,10 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 				| then(make_next())
 				| then(make_next())
 				| then(make_next())
-				| on_next([=](int value) {
+				| start_with_next([=](int value) {
 					REQUIRE(++*checked == *launched);
 					REQUIRE(*checked == value);
-				})
-				| start(lifetime);
+				}, lifetime);
 			REQUIRE(*launched == 5);
 		}
 	}
@@ -212,10 +207,9 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 				| map([](int value) {
 					return std::to_string(value);
 				})
-				| on_next([=](std::string &&value) {
+				| start_with_next([=](std::string &&value) {
 					*sum += std::move(value) + ' ';
-				})
-				| start(lifetime);
+				}, lifetime);
 		}
 		REQUIRE(*sum == "1 1 3 ");
 	}
@@ -233,10 +227,9 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 				| map([](int value) {
 					return std::to_string(value);
 				})
-				| on_next([=](std::string &&value) {
+				| start_with_next([=](std::string &&value) {
 					*sum += std::move(value) + ' ';
-				})
-				| start(lifetime);
+				}, lifetime);
 		}
 		REQUIRE(*sum == "1 2 3 ");
 	}
@@ -252,10 +245,9 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 				| map([](int value) {
 					return std::to_string(value);
 				})
-				| on_next([=](std::string &&value) {
+				| start_with_next([=](std::string &&value) {
 					*sum += std::move(value) + ' ';
-				})
-				| start(lifetime);
+				}, lifetime);
 		}
 		REQUIRE(*sum == "1 2 3 4 5 6 ");
 	}
@@ -276,10 +268,9 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 			combine(std::move(v), [](const auto &values) {
 					return values[0] && values[1] && !values[2];
 				})
-				| on_next([=](bool value) {
+				| start_with_next([=](bool value) {
 					*sum += std::to_string(value ? 1 : 0);
-				})
-				| start(lifetime);
+				}, lifetime);
 
 			a.fire(true);
 			b.fire(true);
@@ -307,10 +298,9 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 				[](long a, long b, long c) {
 					return a;
 				})
-				| on_next([=](int value) {
+				| start_with_next([=](int value) {
 					*sum += std::to_string(value);
-				})
-				| start(lifetime);
+				}, lifetime);
 
 			combine(
 				a.events(),
@@ -319,10 +309,9 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 				[](auto &&value) {
 					return std::get<1>(value);
 				})
-				| on_next([=](int value) {
+				| start_with_next([=](int value) {
 					*sum += std::to_string(value);
-				})
-				| start(lifetime);
+				}, lifetime);
 
 			combine(a.events(), b.events(), c.events())
 				| map([](auto &&value) {
@@ -331,12 +320,11 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 						std::to_string(std::get<1>(value)),
 						std::to_string(std::get<2>(value)));
 				})
-				| on_next([=](auto &&value) {
+				| start_with_next([=](auto &&value) {
 					*sum += std::get<0>(value) + ' '
 						+ std::get<1>(value) + ' '
 						+ std::get<2>(value) + ' ';
-				})
-				| start(lifetime);
+				}, lifetime);
 			a.fire(1);
 			b.fire(2);
 			c.fire(3);
@@ -362,10 +350,9 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 				b.events(),
 				c.events(),
 				$1 + $2 + $3 + 10)
-				| on_next([=](int value) {
+				| start_with_next([=](int value) {
 					*sum += std::to_string(value);
-				})
-				| start(lifetime);
+				}, lifetime);
 
 			a.fire(1);
 			b.fire(2);

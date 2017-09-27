@@ -65,7 +65,7 @@ Members::Members(
 , _list(setupList(this, _controller.get())) {
 	setupButtons();
 	std::move(wrapValue)
-		| rpl::start([this](Wrap wrap) {
+		| rpl::start_with_next([this](Wrap wrap) {
 			_wrap = wrap;
 			updateSearchOverrides();
 		}, lifetime());
@@ -110,7 +110,7 @@ void Members::setupButtons() {
 	auto addMemberShown = CanAddMemberValue(_peer)
 		| rpl::start_spawning(lifetime());
 	widthValue()
-		| rpl::start([button = _addMember.data()](int newWidth) {
+		| rpl::start_with_next([button = _addMember.data()](int newWidth) {
 			button->moveToRight(
 				st::infoMembersButtonPosition.x(),
 				st::infoMembersButtonPosition.y(),
@@ -118,7 +118,7 @@ void Members::setupButtons() {
 		}, _addMember->lifetime());
 	_addMember->showOn(rpl::duplicate(addMemberShown));
 	_addMember->clicks() // TODO throttle(ripple duration)
-		| rpl::start([this](auto&&) {
+		| rpl::start_with_next([this](auto&&) {
 			this->addMember();
 		}, _addMember->lifetime());
 
@@ -128,18 +128,18 @@ void Members::setupButtons() {
 		| rpl::start_spawning(lifetime());
 	_search->showOn(rpl::duplicate(searchShown));
 	_search->clicks()
-		| rpl::start([this](auto&&) {
+		| rpl::start_with_next([this](auto&&) {
 			this->showSearch();
 		}, _search->lifetime());
 	_cancelSearch->clicks()
-		| rpl::start([this](auto&&) {
+		| rpl::start_with_next([this](auto&&) {
 			this->cancelSearch();
 		}, _cancelSearch->lifetime());
 
 	rpl::combine(
 		std::move(addMemberShown),
 		std::move(searchShown))
-		| rpl::start([this](auto&&) {
+		| rpl::start_with_next([this](auto&&) {
 			this->resizeToWidth(width());
 		}, lifetime());
 
@@ -157,7 +157,7 @@ object_ptr<Members::ListWidget> Members::setupList(
 		controller,
 		st::infoMembersList);
 	result->scrollToRequests()
-		| rpl::start([this](Ui::ScrollToRequest request) {
+		| rpl::start_with_next([this](Ui::ScrollToRequest request) {
 			auto addmin = (request.ymin < 0)
 				? 0
 				: st::infoMembersHeader;
@@ -170,11 +170,11 @@ object_ptr<Members::ListWidget> Members::setupList(
 		}, result->lifetime());
 	result->moveToLeft(0, st::infoMembersHeader);
 	parent->widthValue()
-		| rpl::start([list = result.data()](int newWidth) {
+		| rpl::start_with_next([list = result.data()](int newWidth) {
 			list->resizeToWidth(newWidth);
 		}, result->lifetime());
 	result->heightValue()
-		| rpl::start([parent](int listHeight) {
+		| rpl::start_with_next([parent](int listHeight) {
 			auto newHeight = (listHeight > st::membersMarginBottom)
 				? (st::infoMembersHeader + listHeight)
 				: 0;
