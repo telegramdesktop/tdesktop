@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "platform/linux/linux_desktop_environment.h"
 
+#include <QDBusInterface>
+
 namespace Platform {
 namespace DesktopEnvironment {
 namespace {
@@ -120,7 +122,8 @@ bool TryQtTrayIcon() {
 }
 
 bool PreferAppIndicatorTrayIcon() {
-	return IsXFCE() || IsUnity();
+	return IsXFCE() || IsUnity() ||
+	       (IsGnome() && QDBusInterface("org.kde.StatusNotifierWatcher", "/").isValid());
 }
 
 bool TryUnityCounter() {
