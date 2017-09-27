@@ -41,11 +41,10 @@ public:
 	auto operator()(
 		producer<OtherValue, OtherError, OtherGenerator> &&initial
 	) {
-		using consumer_type = consumer<NewValue, NewError>;
 		return make_producer<NewValue, NewError>([
 			initial = std::move(initial),
 			following = std::move(_following)
-		](const consumer_type &consumer) mutable {
+		](const auto &consumer) mutable {
 			return std::move(initial).start(
 			[consumer](auto &&value) {
 				consumer.put_next_forward(

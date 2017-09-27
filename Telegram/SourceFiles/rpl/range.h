@@ -26,10 +26,9 @@ namespace rpl {
 
 template <typename Value>
 inline auto single(Value &&value) {
-	using consumer_type = consumer<std::decay_t<Value>, no_error>;
 	return make_producer<std::decay_t<Value>>([
 		value = std::forward<Value>(value)
-	](const consumer_type &consumer) mutable {
+	](const auto &consumer) mutable {
 		consumer.put_next(std::move(value));
 		consumer.put_done();
 		return lifetime();
@@ -37,9 +36,7 @@ inline auto single(Value &&value) {
 }
 
 inline auto single() {
-	using consumer_type = consumer<empty_value, no_error>;
-	return make_producer<>([](
-			const consumer_type &consumer) {
+	return make_producer<>([](const auto &consumer) {
 		consumer.put_next({});
 		consumer.put_done();
 		return lifetime();
@@ -48,10 +45,9 @@ inline auto single() {
 
 template <typename Value>
 inline auto vector(std::vector<Value> &&values) {
-	using consumer_type = consumer<Value, no_error>;
 	return make_producer<Value>([
 		values = std::move(values)
-	](const consumer_type &consumer) mutable {
+	](const auto &consumer) mutable {
 		for (auto &value : values) {
 			consumer.put_next(std::move(value));
 		}
@@ -61,10 +57,9 @@ inline auto vector(std::vector<Value> &&values) {
 }
 
 inline auto vector(std::vector<bool> &&values) {
-	using consumer_type = consumer<bool, no_error>;
 	return make_producer<bool>([
 		values = std::move(values)
-	](const consumer_type &consumer) {
+	](const auto &consumer) {
 		for (auto value : values) {
 			consumer.put_next_copy(value);
 		}
@@ -85,8 +80,7 @@ inline auto range(Range &&range) {
 
 inline auto ints(int from, int till) {
 	Expects(from <= till);
-	return make_producer<int>([from, till](
-			const consumer<int> &consumer) {
+	return make_producer<int>([from, till](const auto &consumer) {
 		for (auto i = from; i != till; ++i) {
 			consumer.put_next_copy(i);
 		}

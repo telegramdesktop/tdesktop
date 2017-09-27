@@ -107,7 +107,7 @@ inline void combine_subscribe(
 		const consumer_type &consumer,
 		combine_state<Values...> *state,
 		std::index_sequence<I...>,
-		producer<Values, Errors, Generators> &&...producers) {
+		std::tuple<producer<Values, Errors, Generators>...> &&saved) {
 	auto consume = { (
 		details::combine_subscribe_one<
 			I,
@@ -116,9 +116,52 @@ inline void combine_subscribe(
 		>(
 			consumer,
 			state
-		).subscribe(std::move(producers)), 0)... };
+		).subscribe(std::get<I>(std::move(saved))), 0)... };
 	(void)consume;
 }
+
+template <typename ...Producers>
+class combine_implementation_helper;
+
+template <typename ...Producers>
+combine_implementation_helper<std::decay_t<Producers>...>
+make_combine_implementation_helper(Producers &&...producers) {
+	return combine_implementation_helper<std::decay_t<Producers>...>(
+		std::forward<Producers>(producers)...);
+}
+
+template <
+	typename ...Values,
+	typename ...Errors,
+	typename ...Generators>
+class combine_implementation_helper<producer<Values, Errors, Generators>...> {
+public:
+	using CombinedValue = std::tuple<Values...>;
+	using CombinedError = details::normalized_variant_t<Errors...>;
+
+	combine_implementation_helper(
+		producer<Values, Errors, Generators> &&...producers)
+	: _saved(std::make_tuple(std::move(producers)...)) {
+	}
+
+	template <typename Handlers>
+	lifetime operator()(const consumer<CombinedValue, CombinedError, Handlers> &consumer) {
+		auto state = consumer.template make_state<
+			details::combine_state<Values...>>();
+		constexpr auto kArity = sizeof...(Values);
+		details::combine_subscribe(
+			consumer,
+			state,
+			std::make_index_sequence<kArity>(),
+			std::move(_saved));
+
+		return lifetime();
+	}
+
+private:
+	std::tuple<producer<Values, Errors, Generators>...> _saved;
+
+};
 
 template <
 	typename ...Values,
@@ -128,26 +171,9 @@ inline auto combine_implementation(
 		producer<Values, Errors, Generators> &&...producers) {
 	using CombinedValue = std::tuple<Values...>;
 	using CombinedError = details::normalized_variant_t<Errors...>;
-	using consumer_type = consumer<CombinedValue, CombinedError>;
-	auto result = [](
-			const consumer_type &consumer,
-			producer<Values, Errors, Generators> &...producers) {
-		auto state = consumer.template make_state<
-			details::combine_state<Values...>>();
 
-		constexpr auto kArity = sizeof...(Values);
-		details::combine_subscribe(
-			consumer,
-			state,
-			std::make_index_sequence<kArity>(),
-			std::move(producers)...);
-
-		return lifetime();
-	};
-	return make_producer<CombinedValue, CombinedError>(std::bind(
-		result,
-		std::placeholders::_1,
-		std::move(producers)...));
+	return make_producer<CombinedValue, CombinedError>(
+		make_combine_implementation_helper(std::move(producers)...));
 }
 
 template <typename ...Args>
@@ -290,10 +316,9 @@ template <typename Value, typename Error, typename Generator>
 inline auto combine(
 		std::vector<producer<Value, Error, Generator>> &&producers) {
 	using state_type = details::combine_vector_state<Value>;
-	using consumer_type = consumer<std::vector<Value>, Error>;
 	return make_producer<std::vector<Value>, Error>([
 		producers = std::move(producers)
-	](const consumer_type &consumer) mutable {
+	](const auto &consumer) mutable {
 		auto count = producers.size();
 		auto state = consumer.template make_state<state_type>();
 		state->accumulated.resize(count);

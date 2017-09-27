@@ -466,7 +466,7 @@ template <
 	typename = std::enable_if_t<!std::is_same_v<Type, void>>>
 inline auto ObservableViewer(base::Observable<Type> &observable) {
 	return rpl::make_producer<Type>([&observable](
-			const rpl::consumer<Type> &consumer) {
+			const auto &consumer) {
 		auto lifetime = rpl::lifetime();
 		lifetime.make_state<base::Subscription>(
 			observable.add_subscription([consumer](auto &&update) {
@@ -479,7 +479,7 @@ inline auto ObservableViewer(base::Observable<Type> &observable) {
 
 inline auto ObservableViewer(base::Observable<void> &observable) {
 	return rpl::make_producer<>([&observable](
-			const rpl::consumer<> &consumer) {
+			const auto &consumer) {
 		auto lifetime = rpl::lifetime();
 		lifetime.make_state<base::Subscription>(
 			observable.add_subscription([consumer]() {

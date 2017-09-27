@@ -60,9 +60,10 @@ private:
 template <typename Value, typename Error>
 class type_erased_generator final {
 public:
+	template <typename Handlers>
+	using consumer_type = consumer<Value, Error, Handlers>;
 	using value_type = Value;
 	using error_type = Error;
-	using consumer_type = consumer<Value, Error>;
 
 	type_erased_generator(
 		const type_erased_generator &other) = default;
@@ -102,12 +103,13 @@ public:
 		return *this;
 	}
 
-	lifetime operator()(const consumer_type &consumer) {
+	template <typename Handlers>
+	lifetime operator()(const consumer_type<Handlers> &consumer) {
 		return _implementation(consumer);
 	}
 
 private:
-	base::lambda<lifetime(const consumer_type &)> _implementation;
+	base::lambda<lifetime(const consumer_type<type_erased_handlers<Value, Error>> &)> _implementation;
 
 };
 
@@ -162,9 +164,10 @@ namespace details {
 template <typename Value, typename Error, typename Generator>
 class producer_base {
 public:
+	template <typename Handlers>
+	using consumer_type = consumer<Value, Error, Handlers>;
 	using value_type = Value;
 	using error_type = Error;
-	using consumer_type = consumer<Value, Error>;
 
 	template <
 		typename OtherGenerator,
@@ -203,7 +206,9 @@ public:
 		OnError &&error,
 		OnDone &&done) const &;
 
-	lifetime start_existing(const consumer_type &consumer) &&;
+	template <typename Handlers>
+	lifetime start_existing(
+		const consumer_type<Handlers> &consumer) &&;
 
 private:
 	Generator _generator;
@@ -233,7 +238,7 @@ inline lifetime producer_base<Value, Error, Generator>::start(
 		OnNext &&next,
 		OnError &&error,
 		OnDone &&done) && {
-	return std::move(*this).start_existing(consumer<Value, Error>(
+	return std::move(*this).start_existing(make_consumer<Value, Error>(
 		std::forward<OnNext>(next),
 		std::forward<OnError>(error),
 		std::forward<OnDone>(done)));
@@ -257,8 +262,9 @@ inline lifetime producer_base<Value, Error, Generator>::start_copy(
 }
 
 template <typename Value, typename Error, typename Generator>
+template <typename Handlers>
 inline lifetime producer_base<Value, Error, Generator>::start_existing(
-		const consumer_type &consumer) && {
+		const consumer_type<Handlers> &consumer) && {
 	consumer.add_lifetime(std::move(_generator)(consumer));
 	return [consumer] { consumer.terminate(); };
 }
@@ -278,6 +284,7 @@ class producer final
 		Value,
 		Error,
 		Generator>;
+
 public:
 	using parent_type::parent_type;
 
@@ -292,6 +299,7 @@ class producer<
 	using parent_type = details::producer_base_type_erased<
 		Value,
 		Error>;
+
 public:
 	using parent_type::parent_type;;
 

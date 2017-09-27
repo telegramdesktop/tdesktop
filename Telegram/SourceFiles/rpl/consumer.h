@@ -25,6 +25,241 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/details/callable.h>
 
 namespace rpl {
+namespace details {
+
+template <
+	typename Value,
+	typename Error,
+	typename OnNext,
+	typename OnError,
+	typename OnDone>
+class consumer_handlers;
+
+template <typename Value, typename Error>
+class type_erased_handlers {
+public:
+	template <
+		typename OnNext,
+		typename OnError,
+		typename OnDone>
+	static std::shared_ptr<type_erased_handlers> create(
+			OnNext &&next,
+			OnError &&error,
+			OnDone &&done) {
+		return std::make_shared<consumer_handlers<
+			Value,
+			Error,
+			std::decay_t<OnNext>,
+			std::decay_t<OnError>,
+			std::decay_t<OnDone>>>(
+				std::forward<OnNext>(next),
+				std::forward<OnError>(error),
+				std::forward<OnDone>(done));
+	}
+
+	virtual bool put_next(Value &&value) = 0;
+	virtual bool put_next_copy(const Value &value) = 0;
+	virtual void put_error(Error &&error) = 0;
+	virtual void put_error_copy(const Error &error) = 0;
+	virtual void put_done() = 0;
+
+	void add_lifetime(lifetime &&lifetime);
+
+	template <typename Type, typename... Args>
+	Type *make_state(Args&& ...args);
+
+	void terminate();
+
+protected:
+	lifetime _lifetime;
+	bool _terminated = false;
+
+};
+
+template <typename Handlers>
+struct is_type_erased_handlers
+	: std::false_type {
+};
+
+template <typename Value, typename Error>
+struct is_type_erased_handlers<type_erased_handlers<Value, Error>>
+	: std::true_type {
+};
+
+template <typename Value, typename Error, typename OnNext, typename OnError, typename OnDone>
+class consumer_handlers final
+	: public type_erased_handlers<Value, Error> {
+public:
+	template <
+		typename OnNextOther,
+		typename OnErrorOther,
+		typename OnDoneOther>
+	consumer_handlers(
+		OnNextOther &&next,
+		OnErrorOther &&error,
+		OnDoneOther &&done)
+		: _next(std::forward<OnNextOther>(next))
+		, _error(std::forward<OnErrorOther>(error))
+		, _done(std::forward<OnDoneOther>(done)) {
+	}
+
+	template <
+		typename OnNextOther,
+		typename OnErrorOther,
+		typename OnDoneOther>
+	static std::shared_ptr<consumer_handlers> create(
+			OnNextOther &&next,
+			OnErrorOther &&error,
+			OnDoneOther &&done) {
+		return std::make_shared<consumer_handlers>(
+				std::forward<OnNextOther>(next),
+				std::forward<OnErrorOther>(error),
+				std::forward<OnDoneOther>(done));
+	}
+
+	bool put_next(Value &&value) final override;
+	bool put_next_copy(const Value &value) final override;
+	void put_error(Error &&error) final override;
+	void put_error_copy(const Error &error) final override;
+	void put_done() final override;
+
+private:
+	OnNext _next;
+	OnError _error;
+	OnDone _done;
+
+};
+
+template <typename Value, typename Error>
+inline void type_erased_handlers<Value, Error>::add_lifetime(
+		lifetime &&lifetime) {
+	if (_terminated) {
+		lifetime.destroy();
+	} else {
+		_lifetime.add(std::move(lifetime));
+	}
+}
+
+template <typename Value, typename Error>
+template <typename Type, typename... Args>
+inline Type *type_erased_handlers<Value, Error>::make_state(
+		Args&& ...args) {
+	Expects(!_terminated);
+	return _lifetime.make_state<Type>(std::forward<Args>(args)...);
+}
+
+template <typename Value, typename Error>
+inline void type_erased_handlers<Value, Error>::terminate() {
+	if (!_terminated) {
+		_terminated = true;
+		base::take(_lifetime).destroy();
+	}
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename OnNext,
+	typename OnError,
+	typename OnDone>
+bool consumer_handlers<
+	Value,
+	Error,
+	OnNext,
+	OnError,
+	OnDone
+>::put_next(Value &&value) {
+	if (this->_terminated) {
+		return false;
+	}
+	auto handler = this->_next;
+	details::callable_invoke(std::move(handler), std::move(value));
+	return true;
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename OnNext,
+	typename OnError,
+	typename OnDone>
+bool consumer_handlers<
+	Value,
+	Error,
+	OnNext,
+	OnError,
+	OnDone
+>::put_next_copy(const Value &value) {
+	if (this->_terminated) {
+		return false;
+	}
+	auto handler = this->_next;
+	details::const_ref_call_invoke(std::move(handler), value);
+	return true;
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename OnNext,
+	typename OnError,
+	typename OnDone>
+void consumer_handlers<
+	Value,
+	Error,
+	OnNext,
+	OnError,
+	OnDone
+>::put_error(Error &&error) {
+	if (!this->_terminated) {
+		details::callable_invoke(
+			std::move(this->_error),
+			std::move(error));
+		this->terminate();
+	}
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename OnNext,
+	typename OnError,
+	typename OnDone>
+void consumer_handlers<
+	Value,
+	Error,
+	OnNext,
+	OnError,
+	OnDone
+>::put_error_copy(const Error &error) {
+	if (!this->_terminated) {
+		details::const_ref_call_invoke(
+			std::move(this->_error),
+			error);
+		this->terminate();
+	}
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename OnNext,
+	typename OnError,
+	typename OnDone>
+void consumer_handlers<
+	Value,
+	Error,
+	OnNext,
+	OnError,
+	OnDone
+>::put_done() {
+	if (!this->_terminated) {
+		std::move(this->_done)();
+		this->terminate();
+	}
+}
+
+} // namespace details
 
 struct no_value {
 	no_value() = delete;
@@ -40,19 +275,24 @@ struct empty_value {
 struct empty_error {
 };
 
-template <typename Value = empty_value, typename Error = no_error>
-class consumer {
+template <
+	typename Value = empty_value,
+	typename Error = no_error,
+	typename Handlers = details::type_erased_handlers<Value, Error>>
+class consumer;
+
+namespace details {
+
+template <typename Value, typename Error, typename Handlers>
+class consumer_base {
+	using is_type_erased = is_type_erased_handlers<Handlers>;
+
 public:
 	template <
 		typename OnNext,
 		typename OnError,
-		typename OnDone,
-		typename = std::enable_if_t<
-			details::is_callable_v<OnNext, Value>>,
-		typename = decltype(std::declval<OnError>()(
-			std::declval<Error>())),
-		typename = decltype(std::declval<OnDone>()())>
-	consumer(
+		typename OnDone>
+	consumer_base(
 		OnNext &&next,
 		OnError &&error,
 		OnDone &&done);
@@ -82,279 +322,328 @@ public:
 
 	void terminate() const;
 
-	bool operator==(const consumer &other) const {
-		return _instance == other._instance;
-	}
-	bool operator!=(const consumer &other) const {
-		return !(*this == other);
-	}
-	bool operator<(const consumer &other) const {
-		return _instance < other._instance;
-	}
-	bool operator>(const consumer &other) const {
-		return other < *this;
-	}
-	bool operator<=(const consumer &other) const {
-		return !(other < *this);
-	}
-	bool operator>=(const consumer &other) const {
-		return !(*this < other);
+	const details::type_erased_handlers<Value, Error> *comparable() const {
+		return _handlers.get();
 	}
 
 private:
-	class abstract_instance;
-
-	template <typename OnNext, typename OnError, typename OnDone>
-	class instance;
-
-	template <typename OnNext, typename OnError, typename OnDone>
-	std::shared_ptr<abstract_instance> ConstructInstance(
-		OnNext &&next,
-		OnError &&error,
-		OnDone &&done);
-
-	mutable std::shared_ptr<abstract_instance> _instance;
-
-};
-
-
-template <typename Value, typename Error>
-class consumer<Value, Error>::abstract_instance {
-public:
-	virtual bool put_next(Value &&value) = 0;
-	virtual bool put_next_copy(const Value &value) = 0;
-	virtual void put_error(Error &&error) = 0;
-	virtual void put_error_copy(const Error &error) = 0;
-	virtual void put_done() = 0;
-
-	void add_lifetime(lifetime &&lifetime);
-
-	template <typename Type, typename... Args>
-	Type *make_state(Args&& ...args);
-
-	void terminate();
-
-protected:
-	lifetime _lifetime;
-	bool _terminated = false;
-
-};
-
-template <typename Value, typename Error>
-template <typename OnNext, typename OnError, typename OnDone>
-class consumer<Value, Error>::instance
-	: public consumer<Value, Error>::abstract_instance {
-public:
 	template <
-		typename OnNextImpl,
-		typename OnErrorImpl,
-		typename OnDoneImpl>
-	instance(
-		OnNextImpl &&next,
-		OnErrorImpl &&error,
-		OnDoneImpl &&done)
-		: _next(std::forward<OnNextImpl>(next))
-		, _error(std::forward<OnErrorImpl>(error))
-		, _done(std::forward<OnDoneImpl>(done)) {
+		typename OtherHandlers,
+		typename = std::enable_if_t<
+			std::is_base_of_v<Handlers, OtherHandlers>>>
+	consumer_base(const std::shared_ptr<OtherHandlers> &handlers)
+	: _handlers(handlers) {
 	}
 
-	bool put_next(Value &&value) override;
-	bool put_next_copy(const Value &value) override;
-	void put_error(Error &&error) override;
-	void put_error_copy(const Error &error) override;
-	void put_done() override;
+	template <
+		typename OtherHandlers,
+		typename = std::enable_if_t<
+			std::is_base_of_v<Handlers, OtherHandlers>>>
+	consumer_base(std::shared_ptr<OtherHandlers> &&handlers)
+	: _handlers(std::move(handlers)) {
+	}
 
-private:
-	OnNext _next;
-	OnError _error;
-	OnDone _done;
+	mutable std::shared_ptr<Handlers> _handlers;
+
+	bool handlers_put_next(Value &&value, std::true_type) const {
+		return _handlers->put_next(std::move(value));
+	}
+	bool handlers_put_next_copy(
+			const Value &value,
+			std::true_type) const {
+		return _handlers->put_next_copy(value);
+	}
+	void handlers_put_error(Error &&error, std::true_type) const {
+		return std::exchange(_handlers, nullptr)->put_error(std::move(error));
+	}
+	void handlers_put_error_copy(
+			const Error &error,
+			std::true_type) const {
+		return std::exchange(_handlers, nullptr)->put_error_copy(error);
+	}
+	void handlers_put_done(std::true_type) const {
+		return std::exchange(_handlers, nullptr)->put_done();
+	}
+
+	bool handlers_put_next(Value &&value, std::false_type) const {
+		return _handlers->Handlers::put_next(std::move(value));
+	}
+	bool handlers_put_next_copy(
+			const Value &value,
+			std::false_type) const {
+		return _handlers->Handlers::put_next_copy(value);
+	}
+	void handlers_put_error(Error &&error, std::false_type) const {
+		return std::exchange(_handlers, nullptr)->Handlers::put_error(std::move(error));
+	}
+	void handlers_put_error_copy(
+			const Error &error,
+			std::false_type) const {
+		return std::exchange(_handlers, nullptr)->Handlers::put_error_copy(error);
+	}
+	void handlers_put_done(std::false_type) const {
+		return std::exchange(_handlers, nullptr)->Handlers::put_done();
+	}
+
+	template <
+		typename OtherValue,
+		typename OtherError,
+		typename OtherHandlers>
+	friend class ::rpl::consumer;
+
+};
+
+template <typename Value, typename Error, typename Handlers>
+template <typename OnNext, typename OnError, typename OnDone>
+inline consumer_base<Value, Error, Handlers>::consumer_base(
+	OnNext &&next,
+	OnError &&error,
+	OnDone &&done) : _handlers(Handlers::create(
+		std::forward<OnNext>(next),
+		std::forward<OnError>(error),
+		std::forward<OnDone>(done))) {
+}
+
+template <typename Value, typename Error, typename Handlers>
+inline bool consumer_base<Value, Error, Handlers>::put_next(
+		Value &&value) const {
+	if (_handlers) {
+		if (handlers_put_next(std::move(value), is_type_erased())) {
+			return true;
+		}
+		_handlers = nullptr;
+	}
+	return false;
+}
+
+template <typename Value, typename Error, typename Handlers>
+inline bool consumer_base<Value, Error, Handlers>::put_next_copy(
+		const Value &value) const {
+	if (_handlers) {
+		if (handlers_put_next_copy(value, is_type_erased())) {
+			return true;
+		}
+		_handlers = nullptr;
+	}
+	return false;
+}
+
+template <typename Value, typename Error, typename Handlers>
+inline void consumer_base<Value, Error, Handlers>::put_error(
+		Error &&error) const {
+	if (_handlers) {
+		handlers_put_error(std::move(error), is_type_erased());
+	}
+}
+
+template <typename Value, typename Error, typename Handlers>
+inline void consumer_base<Value, Error, Handlers>::put_error_copy(
+		const Error &error) const {
+	if (_handlers) {
+		handlers_put_error_copy(error, is_type_erased());
+	}
+}
+
+template <typename Value, typename Error, typename Handlers>
+inline void consumer_base<Value, Error, Handlers>::put_done() const {
+	if (_handlers) {
+		handlers_put_done(is_type_erased());
+	}
+}
+
+template <typename Value, typename Error, typename Handlers>
+inline void consumer_base<Value, Error, Handlers>::add_lifetime(
+		lifetime &&lifetime) const {
+	if (_handlers) {
+		_handlers->add_lifetime(std::move(lifetime));
+	} else {
+		lifetime.destroy();
+	}
+}
+
+template <typename Value, typename Error, typename Handlers>
+template <typename Type, typename... Args>
+inline Type *consumer_base<Value, Error, Handlers>::make_state(
+		Args&& ...args) const {
+	Expects(_handlers != nullptr);
+	return _handlers->template make_state<Type>(
+		std::forward<Args>(args)...);
+}
+
+template <typename Value, typename Error, typename Handlers>
+inline void consumer_base<Value, Error, Handlers>::terminate() const {
+	if (_handlers) {
+		std::exchange(_handlers, nullptr)->terminate();
+	}
+}
+
+template <typename Value, typename Error>
+using consumer_base_type_erased = consumer_base<
+	Value,
+	Error,
+	details::type_erased_handlers<Value, Error>>;
+
+template <typename Value, typename Error, typename Handlers>
+constexpr bool is_specific_handlers_v = !std::is_same_v<
+	details::type_erased_handlers<Value, Error>,
+	Handlers
+> && std::is_base_of_v<
+	details::type_erased_handlers<Value, Error>,
+	Handlers
+>;
+
+} // namespace details
+
+template <typename Value, typename Error, typename Handlers>
+class consumer final
+: public details::consumer_base<Value, Error, Handlers> {
+	using parent_type = details::consumer_base<
+		Value,
+		Error,
+		Handlers>;
+
+public:
+	using parent_type::parent_type;
 
 };
 
 template <typename Value, typename Error>
-template <typename OnNext, typename OnError, typename OnDone>
-inline std::shared_ptr<
-	typename consumer<Value, Error>::abstract_instance>
-consumer<Value, Error>::ConstructInstance(
+class consumer<Value, Error, details::type_erased_handlers<Value, Error>> final
+: public details::consumer_base_type_erased<Value, Error> {
+	using parent_type = details::consumer_base_type_erased<
+		Value,
+		Error>;
+
+public:
+	using parent_type::parent_type;
+
+	template <
+		typename Handlers,
+		typename = std::enable_if_t<
+			details::is_specific_handlers_v<Value, Error, Handlers>>>
+	consumer(const details::consumer_base<Value, Error, Handlers> &other)
+	: parent_type(other._handlers) {
+	}
+
+	template <
+		typename Handlers,
+		typename = std::enable_if_t<
+			details::is_specific_handlers_v<Value, Error, Handlers>>>
+	consumer(details::consumer_base<Value, Error, Handlers> &&other)
+	: parent_type(std::move(other._handlers)) {
+	}
+
+	template <
+		typename Handlers,
+		typename = std::enable_if_t<
+			details::is_specific_handlers_v<Value, Error, Handlers>>>
+	consumer &operator=(
+			const details::consumer_base<Value, Error, Handlers> &other) {
+		_handlers = other._handlers;
+		return *this;
+	}
+
+	template <
+		typename Handlers,
+		typename = std::enable_if_t<
+			details::is_specific_handlers_v<Value, Error, Handlers>>>
+	consumer &operator=(
+			details::consumer_base<Value, Error, Handlers> &&other) {
+		_handlers = std::move(other._handlers);
+		return *this;
+	}
+
+};
+
+template <
+	typename Value,
+	typename Error,
+	typename Handlers1,
+	typename Handlers2>
+inline bool operator==(
+		const consumer<Value, Error, Handlers1> &a,
+		const consumer<Value, Error, Handlers2> &b) {
+	return a.comparable() == b.comparable();
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename Handlers1,
+	typename Handlers2>
+inline bool operator<(
+		const consumer<Value, Error, Handlers1> &a,
+		const consumer<Value, Error, Handlers2> &b) {
+	return a.comparable() < b.comparable();
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename Handlers1,
+	typename Handlers2>
+inline bool operator!=(
+		const consumer<Value, Error, Handlers1> &a,
+		const consumer<Value, Error, Handlers2> &b) {
+	return !(a == b);
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename Handlers1,
+	typename Handlers2>
+inline bool operator>(
+		const consumer<Value, Error, Handlers1> &a,
+		const consumer<Value, Error, Handlers2> &b) {
+	return b < a;
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename Handlers1,
+	typename Handlers2>
+inline bool operator<=(
+		const consumer<Value, Error, Handlers1> &a,
+		const consumer<Value, Error, Handlers2> &b) {
+	return !(b < a);
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename Handlers1,
+	typename Handlers2>
+inline bool operator>=(
+		const consumer<Value, Error, Handlers1> &a,
+		const consumer<Value, Error, Handlers2> &b) {
+	return !(a < b);
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename OnNext,
+	typename OnError,
+	typename OnDone,
+	typename = std::enable_if_t<
+		details::is_callable_v<OnNext, Value> &&
+		details::is_callable_v<OnError, Error> &&
+		details::is_callable_v<OnDone>>>
+inline auto make_consumer(
 		OnNext &&next,
 		OnError &&error,
 		OnDone &&done) {
-	return std::make_shared<instance<
+	return consumer<Value, Error, details::consumer_handlers<
+		Value,
+		Error,
 		std::decay_t<OnNext>,
 		std::decay_t<OnError>,
 		std::decay_t<OnDone>>>(
 			std::forward<OnNext>(next),
 			std::forward<OnError>(error),
 			std::forward<OnDone>(done));
-}
-
-template <typename Value, typename Error>
-template <
-	typename OnNext,
-	typename OnError,
-	typename OnDone,
-	typename,
-	typename,
-	typename>
-inline consumer<Value, Error>::consumer(
-	OnNext &&next,
-	OnError &&error,
-	OnDone &&done) : _instance(ConstructInstance(
-		std::forward<OnNext>(next),
-		std::forward<OnError>(error),
-		std::forward<OnDone>(done))) {
-}
-
-template <typename Value, typename Error>
-inline bool consumer<Value, Error>::put_next(Value &&value) const {
-	if (_instance) {
-		if (_instance->put_next(std::move(value))) {
-			return true;
-		}
-		_instance = nullptr;
-	}
-	return false;
-}
-
-template <typename Value, typename Error>
-inline bool consumer<Value, Error>::put_next_copy(
-		const Value &value) const {
-	if (_instance) {
-		if (_instance->put_next_copy(value)) {
-			return true;
-		}
-		_instance = nullptr;
-	}
-	return false;
-}
-
-template <typename Value, typename Error>
-inline void consumer<Value, Error>::put_error(Error &&error) const {
-	if (_instance) {
-		std::exchange(_instance, nullptr)->put_error(
-			std::move(error));
-	}
-}
-
-template <typename Value, typename Error>
-inline void consumer<Value, Error>::put_error_copy(
-		const Error &error) const {
-	if (_instance) {
-		std::exchange(_instance, nullptr)->put_error_copy(error);
-	}
-}
-
-template <typename Value, typename Error>
-inline void consumer<Value, Error>::put_done() const {
-	if (_instance) {
-		std::exchange(_instance, nullptr)->put_done();
-	}
-}
-
-template <typename Value, typename Error>
-inline void consumer<Value, Error>::add_lifetime(lifetime &&lifetime) const {
-	if (_instance) {
-		_instance->add_lifetime(std::move(lifetime));
-	} else {
-		lifetime.destroy();
-	}
-}
-
-template <typename Value, typename Error>
-template <typename Type, typename... Args>
-inline Type *consumer<Value, Error>::make_state(Args&& ...args) const {
-	Expects(_instance != nullptr);
-	return _instance->template make_state<Type>(std::forward<Args>(args)...);
-}
-
-template <typename Value, typename Error>
-inline void consumer<Value, Error>::terminate() const {
-	if (_instance) {
-		std::exchange(_instance, nullptr)->terminate();
-	}
-}
-
-template <typename Value, typename Error>
-inline void consumer<Value, Error>::abstract_instance::add_lifetime(
-		lifetime &&lifetime) {
-	if (_terminated) {
-		lifetime.destroy();
-	} else {
-		_lifetime.add(std::move(lifetime));
-	}
-}
-
-template <typename Value, typename Error>
-template <typename Type, typename... Args>
-inline Type *consumer<Value, Error>::abstract_instance::make_state(
-		Args&& ...args) {
-	Expects(!_terminated);
-	return _lifetime.make_state<Type>(std::forward<Args>(args)...);
-}
-
-template <typename Value, typename Error>
-inline void consumer<Value, Error>::abstract_instance::terminate() {
-	if (!_terminated) {
-		_terminated = true;
-		base::take(_lifetime).destroy();
-	}
-}
-
-template <typename Value, typename Error>
-template <typename OnNext, typename OnError, typename OnDone>
-bool consumer<Value, Error>::instance<OnNext, OnError, OnDone>::put_next(
-		Value &&value) {
-	if (this->_terminated) {
-		return false;
-	}
-	auto handler = this->_next;
-	details::callable_invoke(std::move(handler), std::move(value));
-	return true;
-}
-
-template <typename Value, typename Error>
-template <typename OnNext, typename OnError, typename OnDone>
-bool consumer<Value, Error>::instance<OnNext, OnError, OnDone>::put_next_copy(
-		const Value &value) {
-	if (this->_terminated) {
-		return false;
-	}
-	auto handler = this->_next;
-	details::const_ref_call_invoke(std::move(handler), value);
-	return true;
-}
-
-template <typename Value, typename Error>
-template <typename OnNext, typename OnError, typename OnDone>
-void consumer<Value, Error>::instance<OnNext, OnError, OnDone>::put_error(
-		Error &&error) {
-	if (!this->_terminated) {
-		details::callable_invoke(
-			std::move(this->_error),
-			std::move(error));
-		this->terminate();
-	}
-}
-
-template <typename Value, typename Error>
-template <typename OnNext, typename OnError, typename OnDone>
-void consumer<Value, Error>::instance<OnNext, OnError, OnDone>::put_error_copy(
-		const Error &error) {
-	if (!this->_terminated) {
-		details::const_ref_call_invoke(
-			std::move(this->_error),
-			error);
-		this->terminate();
-	}
-}
-
-template <typename Value, typename Error>
-template <typename OnNext, typename OnError, typename OnDone>
-void consumer<Value, Error>::instance<OnNext, OnError, OnDone>::put_done() {
-	if (!this->_terminated) {
-		std::move(this->_done)();
-		this->terminate();
-	}
 }
 
 } // namespace rpl

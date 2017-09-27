@@ -43,11 +43,10 @@ public:
 		typename = std::enable_if_t<
 			details::is_callable_v<Predicate, Value>>>
 	auto operator()(producer<Value, Error, Generator> &&initial) {
-		using consumer_type = consumer<Value, Error>;
 		return make_producer<Value, Error>([
 			initial = std::move(initial),
 			predicate = std::move(_predicate)
-		](const consumer_type &consumer) mutable {
+		](const auto &consumer) mutable {
 			return std::move(initial).start(
 				[
 					consumer,
@@ -126,10 +125,9 @@ public:
 			base::optional<Value>,
 			Error,
 			Generator> &&initial) const {
-		using consumer_type = consumer<Value, Error>;
 		return make_producer<Value, Error>([
 			initial = std::move(initial)
-		](const consumer_type &consumer) mutable {
+		](const auto &consumer) mutable {
 			return std::move(initial).start(
 				[consumer](auto &&value) {
 					if (value) {

@@ -38,7 +38,7 @@ public:
 		return make_producer<Value, Error>([
 			initial = std::move(initial),
 			method = std::move(_method)
-		](const consumer<Value, Error> &consumer) mutable {
+		](const auto &consumer) mutable {
 			return std::move(initial).start(
 			[method = std::move(method), consumer](auto &&value) {
 				auto copy = method;

@@ -31,7 +31,7 @@ template <
 inline auto deferred(Creator &&creator) {
 	return make_producer<Value, Error>([
 		creator = std::forward<Creator>(creator)
-	](const consumer<Value, Error> &consumer) mutable {
+	](const auto &consumer) mutable {
 		return std::move(creator)().start_existing(consumer);
 	});
 }

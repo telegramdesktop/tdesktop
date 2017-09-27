@@ -33,7 +33,7 @@ public:
 			producer<Value, Error, Generator> &&initial) const {
 		return make_producer<Value, Error>([
 			initial = std::move(initial)
-		](const consumer<Value, Error> &consumer) mutable {
+		](const auto &consumer) mutable {
 			auto previous = consumer.template make_state<
 				base::optional<Value>
 			>();

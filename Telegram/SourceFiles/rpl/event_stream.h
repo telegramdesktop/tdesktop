@@ -47,9 +47,8 @@ public:
 		return fire_forward(value);
 	}
 	auto events() const {
-		using consumer_type = consumer<Value, no_error>;
 		return make_producer<Value>([weak = weak()](
-			const consumer_type &consumer) {
+			const auto &consumer) {
 			if (auto strong = weak.lock()) {
 				auto result = [weak, consumer] {
 					if (auto strong = weak.lock()) {

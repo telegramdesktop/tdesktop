@@ -36,10 +36,9 @@ public:
 			producer<Value, Error, Generator>,
 			Error,
 			MetaGenerator> &&initial) const {
-		using consumer_type = consumer<Value, Error>;
 		return make_producer<Value, Error>([
 			initial = std::move(initial)
-		](const consumer_type &consumer) mutable {
+		](const auto &consumer) mutable {
 			auto state = std::make_shared<State>();
 			return std::move(initial).start(
 			[consumer, state](producer<Value, Error> &&inner) {

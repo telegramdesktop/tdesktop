@@ -28,12 +28,13 @@ namespace details {
 template <
 	typename Transform,
 	typename NewValue,
-	typename Error>
+	typename Error,
+	typename Handlers>
 class map_transform_helper {
 public:
 	map_transform_helper(
 		Transform &&transform,
-		const consumer<NewValue, Error> &consumer)
+		const consumer<NewValue, Error, Handlers> &consumer)
 		: _consumer(consumer)
 		, _transform(std::move(transform)) {
 	}
@@ -55,7 +56,7 @@ public:
 	}
 
 private:
-	consumer<NewValue, Error> _consumer;
+	consumer<NewValue, Error, Handlers> _consumer;
 	Transform _transform;
 
 };
@@ -64,12 +65,13 @@ template <
 	typename Transform,
 	typename NewValue,
 	typename Error,
+	typename Handlers,
 	typename = std::enable_if_t<
 		std::is_rvalue_reference_v<Transform&&>>>
-inline map_transform_helper<Transform, NewValue, Error>
+inline map_transform_helper<Transform, NewValue, Error, Handlers>
 map_transform(
 		Transform &&transform,
-		const consumer<NewValue, Error> &consumer) {
+		const consumer<NewValue, Error, Handlers> &consumer) {
 	return { std::move(transform), consumer };
 }
 
@@ -92,7 +94,7 @@ public:
 		return make_producer<NewValue, Error>([
 			initial = std::move(initial),
 			transform = std::move(_transform)
-		](const consumer<NewValue, Error> &consumer) mutable {
+		](const auto &consumer) mutable {
 			return std::move(initial).start(
 			map_transform(
 				std::move(transform),
@@ -125,12 +127,13 @@ namespace details {
 template <
 	typename Transform,
 	typename Value,
-	typename NewError>
+	typename NewError,
+	typename Handlers>
 class map_error_transform_helper {
 public:
 	map_error_transform_helper(
 		Transform &&transform,
-		const consumer<Value, NewError> &consumer)
+		const consumer<Value, NewError, Handlers> &consumer)
 		: _transform(std::move(transform))
 		, _consumer(consumer) {
 	}
@@ -152,7 +155,7 @@ public:
 	}
 
 private:
-	consumer<Value, NewError> _consumer;
+	consumer<Value, NewError, Handlers> _consumer;
 	Transform _transform;
 
 };
@@ -161,12 +164,13 @@ template <
 	typename Transform,
 	typename Value,
 	typename NewError,
+	typename Handlers,
 	typename = std::enable_if_t<
 		std::is_rvalue_reference_v<Transform&&>>>
-inline map_error_transform_helper<Transform, Value, NewError>
+inline map_error_transform_helper<Transform, Value, NewError, Handlers>
 map_error_transform(
 		Transform &&transform,
-		const consumer<Value, NewError> &consumer) {
+		const consumer<Value, NewError, Handlers> &consumer) {
 	return { std::move(transform), consumer };
 }
 
@@ -189,7 +193,7 @@ public:
 		return make_producer<Value, NewError>([
 			initial = std::move(initial),
 			transform = std::move(_transform)
-		](const consumer<Value, NewError> &consumer) mutable {
+		](const auto &consumer) mutable {
 			return std::move(initial).start(
 			[consumer](auto &&value) {
 				consumer.put_next_forward(

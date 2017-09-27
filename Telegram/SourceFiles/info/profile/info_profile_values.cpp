@@ -34,7 +34,7 @@ namespace Profile {
 
 rpl::producer<Notify::PeerUpdate> PeerUpdateViewer(
 		Notify::PeerUpdate::Flags flags) {
-	return [=](const rpl::consumer<Notify::PeerUpdate> &consumer) {
+	return [=](const auto &consumer) {
 		auto lifetime = rpl::lifetime();
 		lifetime.make_state<base::Subscription>(
 			Notify::PeerUpdated().add_subscription({ flags, [=](

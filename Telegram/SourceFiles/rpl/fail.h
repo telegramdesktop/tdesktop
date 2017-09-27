@@ -26,10 +26,9 @@ namespace rpl {
 
 template <typename Value, typename Error>
 inline auto fail(Error &&error) {
-	using consumer_t = consumer<Value, std::decay_t<Error>>;
 	return make_producer<Value, std::decay_t<Error>>([
 		error = std::forward<Error>(error)
-	](const consumer_t &consumer) mutable {
+	](const auto &consumer) mutable {
 		consumer.put_error(std::move(error));
 		return lifetime();
 	});
