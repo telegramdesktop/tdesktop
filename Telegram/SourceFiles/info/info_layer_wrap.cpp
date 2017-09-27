@@ -81,7 +81,7 @@ object_ptr<TopBar> LayerWrap::createTopBar() {
 		result.data(),
 		st::infoLayerTopBarClose));
 	close->clicks()
-		| rpl::start_with_next([this](auto&&) {
+		| rpl::start_with_next([this] {
 			_controller->hideSpecialLayer();
 		}, close->lifetime());
 	result->setTitle(TitleValue(

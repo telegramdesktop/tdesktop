@@ -52,7 +52,7 @@ Button *Button::toggleOn(rpl::producer<bool> &&toggled) {
 		false,
 		[this] { rtlupdate(toggleRect()); });
 	clicks()
-		| rpl::start_with_next([this](auto) {
+		| rpl::start_with_next([this] {
 			_toggle->setCheckedAnimated(!_toggle->checked());
 		}, lifetime());
 	std::move(toggled)

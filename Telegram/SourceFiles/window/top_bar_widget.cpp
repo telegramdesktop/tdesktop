@@ -119,7 +119,7 @@ TopBarWidget::TopBarWidget(
 		Auth().data().thirdSectionInfoEnabledValue(),
 		Auth().data().tabbedReplacedWithInfoValue())
 		| rpl::start_with_next(
-			[this](auto&&) { updateInfoToggleActive(); },
+			[this] { updateInfoToggleActive(); },
 			lifetime());
 
 	setCursor(style::cur_pointer);

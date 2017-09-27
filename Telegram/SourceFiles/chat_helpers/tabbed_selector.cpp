@@ -609,7 +609,7 @@ void TabbedSelector::createTabsSlider() {
 	_tabsSlider->setActiveSectionFast(static_cast<int>(_currentTabType));
 	_tabsSlider->sectionActivated()
 		| rpl::start_with_next(
-			[this](int) { switchTab(); },
+			[this] { switchTab(); },
 			lifetime());
 
 	_tabsSlider->resizeToWidth(width());

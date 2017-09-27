@@ -203,7 +203,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupMuteToggle(
 	result->toggleOn(
 		NotificationsEnabledValue(_peer)
 	)->clicks()
-		| rpl::start_with_next([this](auto) {
+		| rpl::start_with_next([this] {
 			App::main()->updateNotifySetting(
 				_peer,
 				_peer->isMuted()
@@ -239,7 +239,7 @@ void InnerWidget::setupUserButtons(
 		_controller->historyPeer.value()
 		| rpl::map($1 != user)
 	)->entity()->clicks()
-		| rpl::start_with_next([this, user](auto&&) {
+		| rpl::start_with_next([this, user] {
 			_controller->showPeerHistory(
 				user,
 				Ui::ShowWay::Forward);
@@ -250,7 +250,7 @@ void InnerWidget::setupUserButtons(
 	)->toggleOn(
 		CanAddContactValue(user)
 	)->entity()->clicks()
-		| rpl::start_with_next([user](auto&&) {
+		| rpl::start_with_next([user] {
 			auto firstName = user->firstName;
 			auto lastName = user->lastName;
 			auto phone = user->phone().isEmpty()
@@ -310,7 +310,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 				return phrase(lt_count, count);
 			}
 		)->entity()->clicks()
-			| rpl::start_with_next([peer = _peer, type](auto&&) {
+			| rpl::start_with_next([peer = _peer, type] {
 				SharedMediaShowOverview(type, App::history(peer));
 			}, content->lifetime());
 	};
@@ -321,7 +321,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 				return lng_profile_common_groups(lt_count, count);
 			}
 		)->entity()->clicks()
-			| rpl::start_with_next([peer = _peer](auto&&) {
+			| rpl::start_with_next([peer = _peer] {
 				App::main()->showSection(
 					::Profile::CommonGroups::SectionMemento(
 						peer->asUser()),
@@ -389,7 +389,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupUserActions(
 		)->toggleOn(
 			std::move(toggleOn)
 		)->entity()->clicks()
-			| rpl::start_with_next([callback = std::move(callback)](auto&&) {
+			| rpl::start_with_next([callback = std::move(callback)] {
 				callback();
 			}, result->lifetime());
 	};
@@ -432,7 +432,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupUserActions(
 			st::infoBlockButtonSkip));
 
 		auto text = PeerUpdateValue(user, Notify::PeerUpdate::Flag::UserIsBlocked)
-			| rpl::map([user](auto&&) -> rpl::producer<QString> {
+			| rpl::map([user]() -> rpl::producer<QString> {
 				switch (user->blockStatus()) {
 				case UserData::BlockStatus::Blocked:
 					return Lang::Viewer(lng_profile_unblock_user);

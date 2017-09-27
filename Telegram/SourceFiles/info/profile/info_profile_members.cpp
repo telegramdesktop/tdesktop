@@ -118,7 +118,7 @@ void Members::setupButtons() {
 		}, _addMember->lifetime());
 	_addMember->showOn(rpl::duplicate(addMemberShown));
 	_addMember->clicks() // TODO throttle(ripple duration)
-		| rpl::start_with_next([this](auto&&) {
+		| rpl::start_with_next([this] {
 			this->addMember();
 		}, _addMember->lifetime());
 
@@ -128,18 +128,18 @@ void Members::setupButtons() {
 		| rpl::start_spawning(lifetime());
 	_search->showOn(rpl::duplicate(searchShown));
 	_search->clicks()
-		| rpl::start_with_next([this](auto&&) {
+		| rpl::start_with_next([this] {
 			this->showSearch();
 		}, _search->lifetime());
 	_cancelSearch->clicks()
-		| rpl::start_with_next([this](auto&&) {
+		| rpl::start_with_next([this] {
 			this->cancelSearch();
 		}, _cancelSearch->lifetime());
 
 	rpl::combine(
 		std::move(addMemberShown),
 		std::move(searchShown))
-		| rpl::start_with_next([this](auto&&) {
+		| rpl::start_with_next([this] {
 			this->resizeToWidth(width());
 		}, lifetime());
 

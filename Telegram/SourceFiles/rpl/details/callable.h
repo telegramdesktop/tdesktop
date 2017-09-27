@@ -91,31 +91,62 @@ struct is_callable<Method>
 template <typename Method, typename Arg>
 struct is_callable<Method, Arg>
 	: std::bool_constant<
-		is_callable_plain_v<Method, Arg>
-		|| is_callable_tuple_v<Method, Arg>> {
+		is_callable_plain_v<Method, Arg> ||
+		is_callable_tuple_v<Method, Arg> ||
+		is_callable_plain_v<Method>> {
 };
 
 template <typename Method, typename ...Args>
 constexpr bool is_callable_v = is_callable<Method, Args...>::value;
 
+enum class CallableArgTag {
+	Plain,
+	Tuple,
+	Empty,
+};
+template <CallableArgTag Arg>
+using callable_arg_tag = std::integral_constant<CallableArgTag, Arg>;
+
 template <typename Method, typename Arg>
-inline decltype(auto) callable_helper(Method &&method, Arg &&arg, std::true_type) {
+inline decltype(auto) callable_helper(
+		Method &&method,
+		Arg &&arg,
+		callable_arg_tag<CallableArgTag::Plain>) {
 	return std::forward<Method>(method)(std::forward<Arg>(arg));
 }
 
 template <typename Method, typename Arg>
-inline decltype(auto) callable_helper(Method &&method, Arg &&arg, std::false_type) {
+inline decltype(auto) callable_helper(
+		Method &&method,
+		Arg &&arg,
+		callable_arg_tag<CallableArgTag::Tuple>) {
 	return std::apply(
 		std::forward<Method>(method),
 		std::forward<Arg>(arg));
 }
 
 template <typename Method, typename Arg>
+inline decltype(auto) callable_helper(
+		Method &&method,
+		Arg &&,
+		callable_arg_tag<CallableArgTag::Empty>) {
+	return std::forward<Method>(method)();
+}
+
+template <typename Method, typename Arg>
 inline decltype(auto) callable_invoke(Method &&method, Arg &&arg) {
+	// #TODO if constexpr
+	constexpr auto kTag = is_callable_plain_v<Method, Arg>
+		? CallableArgTag::Plain
+		: is_callable_tuple_v<Method, Arg>
+		? CallableArgTag::Tuple
+		: is_callable_v<Method>
+		? CallableArgTag::Empty
+		: throw "Bad callable_invoke instance.";
 	return callable_helper(
 		std::forward<Method>(method),
 		std::forward<Arg>(arg),
-		is_callable_plain<Method, Arg>());
+		callable_arg_tag<kTag>());
 }
 
 template <typename Method, typename Arg>

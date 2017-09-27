@@ -94,7 +94,7 @@ object_ptr<TopBar> NarrowWrap::createTopBar() {
 		st::infoLayerTopBar);
 	result->enableBackButton(true);
 	result->backRequest()
-		| rpl::start_with_next([this](auto&&) {
+		| rpl::start_with_next([this] {
 			this->controller()->showBackFromStack();
 		}, result->lifetime());
 	result->setTitle(TitleValue(

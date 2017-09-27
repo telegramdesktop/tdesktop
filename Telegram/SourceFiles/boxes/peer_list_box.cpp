@@ -52,7 +52,7 @@ void PeerListBox::createMultiSelect() {
 	_select.create(this, std::move(entity));
 	_select->heightValue()
 		| rpl::start_with_next(
-			[this](int) { updateScrollSkips(); },
+			[this] { updateScrollSkips(); },
 			lifetime());
 	_select->entity()->setSubmittedCallback([this](bool chtrlShiftEnter) { content()->submitted(); });
 	_select->entity()->setQueryChangedCallback([this](const QString &query) { searchQueryChanged(query); });

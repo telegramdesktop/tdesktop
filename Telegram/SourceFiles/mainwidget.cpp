@@ -1847,7 +1847,7 @@ void MainWidget::createPlayer() {
 		_player.create(this);
 		_player->heightValue()
 			| rpl::start_with_next(
-				[this](int) { playerHeightUpdated(); },
+				[this] { playerHeightUpdated(); },
 				lifetime());
 		_player->entity()->setCloseCallback([this] { closeBothPlayers(); });
 		_playerVolume.create(this);

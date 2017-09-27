@@ -504,7 +504,7 @@ rpl::producer<QString> Viewer(LangKey key) {
 		rpl::single(Current().getValue(key))
 		| then(
 			base::ObservableViewer(Current().updated())
-			| rpl::map([=](auto&&) {
+			| rpl::map([=] {
 				return Current().getValue(key);
 			}));
 }

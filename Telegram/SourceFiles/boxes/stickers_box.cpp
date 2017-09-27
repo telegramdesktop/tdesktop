@@ -246,7 +246,7 @@ void StickersBox::prepare() {
 		setNoContentMargin(true);
 		_tabs->sectionActivated()
 			| rpl::start_with_next(
-				[this](int) { switchTab(); },
+				[this] { switchTab(); },
 				lifetime());
 		refreshTabs();
 	}

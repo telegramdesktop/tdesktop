@@ -62,7 +62,7 @@ void ScaleWidget::createControls() {
 	_scale->setActiveSectionFast(cEvalScale(cConfigScale()) - 1);
 	_scale->sectionActivated()
 		| rpl::start_with_next(
-			[this](int) { scaleChanged(); },
+			[this] { scaleChanged(); },
 			lifetime());
 }
 
