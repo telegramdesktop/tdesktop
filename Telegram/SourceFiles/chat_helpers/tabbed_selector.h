@@ -87,7 +87,7 @@ public:
 	bool wheelEventFromFloatPlayer(QEvent *e);
 	QRect rectForFloatPlayer() const;
 
-	rpl::producer<> showRequests() const {
+	auto showRequests() const {
 		return _showRequests.events();
 	}
 

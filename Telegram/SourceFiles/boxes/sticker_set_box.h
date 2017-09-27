@@ -69,7 +69,7 @@ public:
 	QString shortName() const;
 
 	void install();
-	rpl::producer<uint64> setInstalled() const {
+	auto setInstalled() const {
 		return _setInstalled.events();
 	}
 

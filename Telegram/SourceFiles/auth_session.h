@@ -106,7 +106,7 @@ public:
 		return _variables.thirdSectionInfoEnabled;
 	}
 	void setThirdSectionInfoEnabled(bool enabled);
-	rpl::producer<bool> thirdSectionInfoEnabledValue() const {
+	auto thirdSectionInfoEnabledValue() const {
 		return _thirdSectionInfoEnabledValue.events_starting_with(
 			thirdSectionInfoEnabled());
 	}
@@ -114,7 +114,7 @@ public:
 		return _tabbedReplacedWithInfo;
 	}
 	void setTabbedReplacedWithInfo(bool enabled);
-	rpl::producer<bool> tabbedReplacedWithInfoValue() const {
+	auto tabbedReplacedWithInfoValue() const {
 		return _tabbedReplacedWithInfoValue.events_starting_with(
 			tabbedReplacedWithInfo());
 	}

@@ -402,7 +402,7 @@ public:
 		update();
 	}
 
-	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const {
+	auto scrollToRequests() const {
 		return _scrollToRequests.events();
 	}
 

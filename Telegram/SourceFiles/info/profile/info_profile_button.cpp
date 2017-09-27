@@ -64,7 +64,10 @@ Button *Button::toggleOn(rpl::producer<bool> &&toggled) {
 }
 
 rpl::producer<bool> Button::toggledValue() const {
-	return _toggle ? _toggle->checkedValue() : rpl::never<bool>();
+	if (_toggle) {
+		return _toggle->checkedValue();
+	}
+	return rpl::never<bool>();
 }
 
 void Button::paintEvent(QPaintEvent *e) {

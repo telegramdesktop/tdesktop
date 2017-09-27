@@ -34,7 +34,7 @@ public:
 	bool applyUpdate(const Storage::UserPhotosResult &update);
 	bool applyUpdate(const Storage::UserPhotosSliceUpdate &update);
 	void checkInsufficientPhotos();
-	rpl::producer<PhotoId> insufficientPhotosAround() const {
+	auto insufficientPhotosAround() const {
 		return _insufficientPhotosAround.events();
 	}
 

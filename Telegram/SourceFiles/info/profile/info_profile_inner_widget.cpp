@@ -223,7 +223,7 @@ void InnerWidget::setupUserButtons(
 	using namespace rpl::mappers;
 	auto tracker = MultiLineTracker();
 	auto topSkip = wrap->add(createSlideSkipWidget(wrap));
-	auto addButton = [&](rpl::producer<QString> &&text) {
+	auto addButton = [&](auto &&text) {
 		auto result = wrap->add(object_ptr<Ui::SlideWrap<Button>>(
 			wrap,
 			object_ptr<Button>(
@@ -269,7 +269,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 	auto content = object_ptr<Ui::VerticalLayout>(parent);
 	auto tracker = MultiLineTracker();
 	auto addButton = [&](
-			rpl::producer<int> &&count,
+			auto &&count,
 			auto textFromCount) {
 		auto forked = std::move(count)
 			| start_spawning(content->lifetime());
@@ -375,8 +375,8 @@ object_ptr<Ui::RpWidget> InnerWidget::setupUserActions(
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
 	result->add(createSkipWidget(result));
 	auto addButton = [&](
-			rpl::producer<QString> &&text,
-			rpl::producer<bool> &&toggleOn,
+			auto &&text,
+			auto &&toggleOn,
 			auto &&callback,
 			const style::InfoProfileButton &st
 				= st::infoSharedMediaButton) {

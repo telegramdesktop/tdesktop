@@ -395,10 +395,10 @@ public:
 	void removeFlags(MTPDuser::Flags which) {
 		_flags.remove(which);
 	}
-	MTPDuser::Flags flags() const {
+	auto flags() const {
 		return _flags.current();
 	}
-	rpl::producer<Flags::Change> flagsValue() const {
+	auto flagsValue() const {
 		return _flags.value();
 	}
 
@@ -411,10 +411,10 @@ public:
 	void removeFullFlags(MTPDuserFull::Flags which) {
 		_fullFlags.remove(which);
 	}
-	MTPDuserFull::Flags fullFlags() const {
+	auto fullFlags() const {
 		return _fullFlags.current();
 	}
-	rpl::producer<FullFlags::Change> fullFlagsValue() const {
+	auto fullFlagsValue() const {
 		return _fullFlags.value();
 	}
 
@@ -569,10 +569,10 @@ public:
 	void removeFlags(MTPDchat::Flags which) {
 		_flags.remove(which);
 	}
-	MTPDchat::Flags flags() const {
+	auto flags() const {
 		return _flags.current();
 	}
-	rpl::producer<Flags::Change> flagsValue() const {
+	auto flagsValue() const {
 		return _flags.value();
 	}
 
@@ -803,10 +803,10 @@ public:
 	void removeFlags(MTPDchannel::Flags which) {
 		_flags.remove(which);
 	}
-	MTPDchannel::Flags flags() const {
+	auto flags() const {
 		return _flags.current();
 	}
-	rpl::producer<Flags::Change> flagsValue() const {
+	auto flagsValue() const {
 		return _flags.value();
 	}
 
@@ -819,10 +819,10 @@ public:
 	void removeFullFlags(MTPDchannelFull::Flags which) {
 		_fullFlags.remove(which);
 	}
-	MTPDchannelFull::Flags fullFlags() const {
+	auto fullFlags() const {
 		return _fullFlags.current();
 	}
-	rpl::producer<FullFlags::Change> fullFlagsValue() const {
+	auto fullFlagsValue() const {
 		return _fullFlags.value();
 	}
 
@@ -923,20 +923,20 @@ public:
 	using Restrictions = ChannelRestrictions;
 	using AdminRightFlags = Data::Flags<AdminRights>;
 	using RestrictionFlags = Data::Flags<Restrictions>;
-	AdminRights adminRights() const {
+	auto adminRights() const {
 		return _adminRights.current();
 	}
-	rpl::producer<AdminRightFlags::Change> adminRightsValue() const {
+	auto adminRightsValue() const {
 		return _adminRights.value();
 	}
 	void setAdminRights(const MTPChannelAdminRights &rights);
 	bool hasAdminRights() const {
 		return (adminRights() != 0);
 	}
-	Restrictions restrictions() const {
+	auto restrictions() const {
 		return _restrictions.current();
 	}
-	rpl::producer<RestrictionFlags::Change> restrictionsValue() const {
+	auto restrictionsValue() const {
 		return _restrictions.value();
 	}
 	bool restricted(Restriction right) const {

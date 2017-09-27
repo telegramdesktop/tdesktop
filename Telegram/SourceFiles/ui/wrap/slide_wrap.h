@@ -63,7 +63,7 @@ public:
 		return !_shown;
 	}
 
-	rpl::producer<bool> shownValue() const {
+	auto shownValue() const {
 		return _shownUpdated.events_starting_with_copy(_shown);
 	}
 

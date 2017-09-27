@@ -65,7 +65,7 @@ public:
 		}
 	}
 
-	rpl::producer<> clicks() const {
+	auto clicks() const {
 		return _clicks.events();
 	}
 

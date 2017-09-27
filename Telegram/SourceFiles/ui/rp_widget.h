@@ -39,36 +39,36 @@ class RpWidgetWrap : public RpWidgetParent<Widget> {
 public:
 	using Parent::Parent;
 
-	rpl::producer<QRect> geometryValue() const {
+	auto geometryValue() const {
 		auto &stream = eventStreams().geometry;
 		return stream.events_starting_with_copy(this->geometry());
 	}
-	rpl::producer<QSize> sizeValue() const {
+	auto sizeValue() const {
 		return geometryValue()
 			| rpl::map([](QRect &&value) { return value.size(); })
 			| rpl::distinct_until_changed();
 	}
-	rpl::producer<int> heightValue() const {
+	auto heightValue() const {
 		return geometryValue()
 			| rpl::map([](QRect &&value) { return value.height(); })
 			| rpl::distinct_until_changed();
 	}
-	rpl::producer<int> widthValue() const {
+	auto widthValue() const {
 		return geometryValue()
 			| rpl::map([](QRect &&value) { return value.width(); })
 			| rpl::distinct_until_changed();
 	}
-	rpl::producer<QPoint> positionValue() const {
+	auto positionValue() const {
 		return geometryValue()
 			| rpl::map([](QRect &&value) { return value.topLeft(); })
 			| rpl::distinct_until_changed();
 	}
-	rpl::producer<int> leftValue() const {
+	auto leftValue() const {
 		return geometryValue()
 			| rpl::map([](QRect &&value) { return value.left(); })
 			| rpl::distinct_until_changed();
 	}
-	rpl::producer<int> topValue() const {
+	auto topValue() const {
 		return geometryValue()
 			| rpl::map([](QRect &&value) { return value.top(); })
 			| rpl::distinct_until_changed();
@@ -77,15 +77,16 @@ public:
 		return heightValue();
 	}
 
-	rpl::producer<QRect> paintRequest() const {
+	auto paintRequest() const {
 		return eventStreams().paint.events();
 	}
 
-	rpl::producer<> alive() const {
+	auto alive() const {
 		return eventStreams().alive.events();
 	}
 
-	void showOn(rpl::producer<bool> &&shown) {
+	template <typename Error, typename Generator>
+	void showOn(rpl::producer<bool, Error, Generator> &&shown) {
 		std::move(shown)
 			| rpl::start_with_next([this](bool visible) {
 				this->setVisible(visible);

@@ -37,7 +37,7 @@ class TopBar : public Ui::RpWidget {
 public:
 	TopBar(QWidget *parent, const style::InfoTopBar &st);
 
-	rpl::producer<> backRequest() const {
+	auto backRequest() const {
 		return _backClicks.events();
 	}
 

@@ -214,7 +214,7 @@ public:
 	bool viewportEvent(QEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 
-	rpl::producer<int> scrollTopValue() const {
+	auto scrollTopValue() const {
 		return _scrollTopUpdated.events_starting_with(scrollTop());
 	}
 

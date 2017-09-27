@@ -39,7 +39,7 @@ public:
 	}
 	float64 currentAnimationValue(TimeMs ms);
 
-	rpl::producer<bool> checkedValue() const {
+	auto checkedValue() const {
 		return _checks.events_starting_with(checked());
 	}
 

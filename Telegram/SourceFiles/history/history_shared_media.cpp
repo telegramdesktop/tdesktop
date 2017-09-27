@@ -79,7 +79,7 @@ public:
 
 	void checkInsufficientMedia();
 	using AroundData = std::pair<MsgId, ApiWrap::SliceType>;
-	rpl::producer<AroundData> insufficientMediaAround() const {
+	auto insufficientMediaAround() const {
 		return _insufficientMediaAround.events();
 	}
 

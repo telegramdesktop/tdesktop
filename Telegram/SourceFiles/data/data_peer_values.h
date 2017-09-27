@@ -27,9 +27,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Data {
 
-template <typename ChangeType>
+template <typename ChangeType, typename Error, typename Generator>
 inline auto FlagsValueWithMask(
-		rpl::producer<ChangeType> &&value,
+		rpl::producer<ChangeType, Error, Generator> &&value,
 		typename ChangeType::Type mask) {
 	return std::move(value)
 		| rpl::filter([mask](const ChangeType &change) {
@@ -40,9 +40,9 @@ inline auto FlagsValueWithMask(
 		});
 }
 
-template <typename ChangeType>
+template <typename ChangeType, typename Error, typename Generator>
 inline auto SingleFlagValue(
-		rpl::producer<ChangeType> &&value,
+		rpl::producer<ChangeType, Error, Generator> &&value,
 		typename ChangeType::Enum flag) {
 	return FlagsValueWithMask(std::move(value), flag)
 		| rpl::map([flag](typename ChangeType::Type value) {
@@ -169,7 +169,7 @@ inline auto CanWriteValue(ChatData *chat) {
 		| rpl::map(!$1);
 }
 
-inline rpl::producer<bool> CanWriteValue(ChannelData *channel) {
+inline auto CanWriteValue(ChannelData *channel) {
 	auto flagsMask = 0
 		| MTPDchannel::Flag::f_left
 		| MTPDchannel_ClientFlag::f_forbidden

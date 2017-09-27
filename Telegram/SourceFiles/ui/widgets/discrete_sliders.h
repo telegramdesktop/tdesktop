@@ -41,7 +41,7 @@ public:
 	void setActiveSectionFast(int index);
 	void finishAnimations();
 
-	rpl::producer<int> sectionActivated() const {
+	auto sectionActivated() const {
 		return _sectionActivated.events();
 	}
 

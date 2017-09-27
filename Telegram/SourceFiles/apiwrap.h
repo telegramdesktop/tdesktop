@@ -136,7 +136,7 @@ public:
 	void stickerSetInstalled(uint64 setId) {
 		_stickerSetInstalled.fire_copy(setId);
 	}
-	rpl::producer<uint64> stickerSetInstalled() const {
+	auto stickerSetInstalled() const {
 		return _stickerSetInstalled.events();
 	}
 

@@ -69,13 +69,13 @@ public:
 			updated(diff);
 		}
 	}
-	Type current() const {
+	auto current() const {
 		return _value;
 	}
-	rpl::producer<Change> changes() const {
+	auto changes() const {
 		return _changes.events();
 	}
-	rpl::producer<Change> value() const {
+	auto value() const {
 		return _changes.events_starting_with({
 			Type::from_raw(kEssential),
 			_value });
