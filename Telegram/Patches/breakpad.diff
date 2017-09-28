@@ -1,5 +1,5 @@
 diff --git a/src/build/common.gypi b/src/build/common.gypi
-index b9466a3..9fb31aa 100644
+index 29990c6..53e99d4 100644
 --- a/src/build/common.gypi
 +++ b/src/build/common.gypi
 @@ -330,6 +330,7 @@
@@ -479,3 +479,151 @@ index 1d2e519..943310f 100644
    return true;
  }
  
+diff --git a/src/common/language.cc b/src/common/language.cc
+index 978fb85..a95ae5f 100644
+--- a/src/common/language.cc
++++ b/src/common/language.cc
+@@ -46,8 +46,27 @@
+ 
+ #include <limits>
+ 
++#include <cstdio>
++#include <iostream>
++#include <memory>
++#include <stdexcept>
++#include <string>
++#include <array>
++
+ namespace {
+ 
++std::string exec(std::string cmd) {
++    std::array<char, 128> buffer;
++    std::string result;
++    std::shared_ptr<FILE> pipe(popen(cmd.c_str(), "r"), pclose);
++    if (!pipe) throw std::runtime_error("popen() failed!");
++    while (!feof(pipe.get())) {
++        if (fgets(buffer.data(), 128, pipe.get()) != nullptr)
++            result += buffer.data();
++    }
++    return result;
++}
++
+ string MakeQualifiedNameWithSeparator(const string& parent_name,
+                                       const char* separator,
+                                       const string& name) {
+@@ -79,11 +98,29 @@ class CPPLanguage: public Language {
+     demangled->clear();
+     return kDontDemangle;
+ #else
++    DemangleResult result;
++    if (mangled.find("type_erased_handlers") != std::string::npos
++            && mangled.find("vtable_once_impl") != std::string::npos) {
++
++        auto demangled_str = exec("c++filt " + mangled);
++        if (!demangled_str.empty() && demangled_str.back() == '\n') {
++            demangled_str.pop_back();
++        }
++        if (demangled_str != mangled) {
++            result = kDemangleSuccess;
++            demangled->assign(demangled_str.c_str());
++        } else {
++            result = kDemangleFailure;
++            demangled->clear();
++        }
++
++    } else {
++
+     int status;
+     char* demangled_c =
+         abi::__cxa_demangle(mangled.c_str(), NULL, NULL, &status);
+ 
+-    DemangleResult result;
++//    DemangleResult result;
+     if (status == 0) {
+       result = kDemangleSuccess;
+       demangled->assign(demangled_c);
+@@ -96,6 +133,8 @@ class CPPLanguage: public Language {
+       free(reinterpret_cast<void*>(demangled_c));
+     }
+ 
++    }
++
+     return result;
+ #endif
+   }
+diff --git a/src/common/linux/elf_symbols_to_module.cc b/src/common/linux/elf_symbols_to_module.cc
+index 562875e..4367851 100644
+--- a/src/common/linux/elf_symbols_to_module.cc
++++ b/src/common/linux/elf_symbols_to_module.cc
+@@ -39,6 +39,29 @@
+ #include "common/byte_cursor.h"
+ #include "common/module.h"
+ 
++#include <cstdio>
++#include <iostream>
++#include <memory>
++#include <stdexcept>
++#include <string>
++#include <array>
++
++namespace {
++
++std::string exec(std::string cmd) {
++    std::array<char, 128> buffer;
++    std::string result;
++    std::shared_ptr<FILE> pipe(popen(cmd.c_str(), "r"), pclose);
++    if (!pipe) throw std::runtime_error("popen() failed!");
++    while (!feof(pipe.get())) {
++        if (fgets(buffer.data(), 128, pipe.get()) != nullptr)
++            result += buffer.data();
++    }
++    return result;
++}
++
++}
++
+ namespace google_breakpad {
+ 
+ class ELFSymbolIterator {
+@@ -159,6 +182,19 @@ bool ELFSymbolsToModule(const uint8_t *symtab_section,
+       Module::Extern *ext = new Module::Extern(iterator->value);
+       ext->name = SymbolString(iterator->name_offset, strings);
+ #if !defined(__ANDROID__)  // Android NDK doesn't provide abi::__cxa_demangle.
++      if (ext->name.find("type_erased_handlers") != std::string::npos
++              && ext->name.find("vtable_once_impl") != std::string::npos) {
++
++          auto demangled_str = exec("c++filt " + ext->name);
++          if (!demangled_str.empty() && demangled_str.back() == '\n') {
++              demangled_str.pop_back();
++          }
++          if (demangled_str != ext->name) {
++              ext->name = demangled_str;
++          }
++
++      } else {
++
+       int status = 0;
+       char* demangled =
+           abi::__cxa_demangle(ext->name.c_str(), NULL, NULL, &status);
+@@ -167,6 +203,8 @@ bool ELFSymbolsToModule(const uint8_t *symtab_section,
+           ext->name = demangled;
+         free(demangled);
+       }
++
++      }
+ #endif
+       module->AddExtern(ext);
+     }
+diff --git a/src/tools/linux/tools_linux.gypi b/src/tools/linux/tools_linux.gypi
+index 1c15992..020e4c1 100644
+--- a/src/tools/linux/tools_linux.gypi
++++ b/src/tools/linux/tools_linux.gypi
+@@ -58,7 +58,7 @@
+       'target_name': 'minidump_upload',
+       'type': 'executable',
+       'sources': [
+-        'symupload/minidump_upload.m',
++        'symupload/minidump_upload.cc',
+       ],
+       'dependencies': [
+         '../common/common.gyp:common',

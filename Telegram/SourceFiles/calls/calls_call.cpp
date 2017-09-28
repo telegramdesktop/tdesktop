@@ -597,7 +597,7 @@ void Call::setState(State state) {
 			break;
 		case State::Ended:
 			_delegate->playSound(Delegate::Sound::Ended);
-			// [[fallthrough]]
+			[[fallthrough]];
 		case State::EndedByOtherDevice:
 			_delegate->callFinished(this);
 			break;

@@ -19,9 +19,9 @@ cd $FullScriptPath
 if [ "$MySystem" == "Linux" ]; then
   ../../../Libraries/gyp/gyp --depth=. --generator-output=.. -Goutput_dir=../out -Dofficial_build_target=$BuildTarget Telegram.gyp --format=cmake
   cd ../../out/Debug
-  ../../../Libraries/cmake-3.6.2/bin/cmake .
+  cmake .
   cd ../Release
-  ../../../Libraries/cmake-3.6.2/bin/cmake .
+  cmake .
   cd ../../Telegram/gyp
 else
   #gyp --depth=. --generator-output=../.. -Goutput_dir=out Telegram.gyp --format=ninja

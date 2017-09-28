@@ -2119,7 +2119,7 @@ private:
 								status.eor = QChar::DirON;
 								dir = QChar::DirAN;
 							}
-							// fall through
+							[[fallthrough]];
 						case QChar::DirEN:
 						case QChar::DirL:
 							eor = current;
@@ -2133,12 +2133,14 @@ private:
 							else
 								eor = current;
 							status.eor = QChar::DirEN;
-							dir = QChar::DirAN; break;
+							dir = QChar::DirAN;
+							break;
 						case QChar::DirES:
 						case QChar::DirCS:
 							if(status.eor == QChar::DirEN || dir == QChar::DirAN) {
 								eor = current; break;
 							}
+							[[fallthrough]];
 						case QChar::DirBN:
 						case QChar::DirB:
 						case QChar::DirS:
@@ -2168,11 +2170,13 @@ private:
 									eor = current; status.eor = dirCurrent;
 								}
 							}
+							[[fallthrough]];
 						default:
 							break;
 						}
 					break;
 				}
+				[[fallthrough]];
 			case QChar::DirAN:
 				hasBidi = true;
 				dirCurrent = QChar::DirAN;
@@ -2181,7 +2185,8 @@ private:
 					{
 					case QChar::DirL:
 					case QChar::DirAN:
-						eor = current; status.eor = QChar::DirAN; break;
+						eor = current; status.eor = QChar::DirAN;
+						break;
 					case QChar::DirR:
 					case QChar::DirAL:
 					case QChar::DirEN:
@@ -2196,6 +2201,7 @@ private:
 						if(status.eor == QChar::DirAN) {
 							eor = current; break;
 						}
+						[[fallthrough]];
 					case QChar::DirES:
 					case QChar::DirET:
 					case QChar::DirBN:
@@ -2226,6 +2232,7 @@ private:
 								eor = current; status.eor = dirCurrent;
 							}
 						}
+						[[fallthrough]];
 					default:
 						break;
 					}
@@ -2297,7 +2304,7 @@ private:
 					status.last = QChar::DirL;
 					break;
 				}
-				// fall through
+				[[fallthrough]];
 			default:
 				status.last = dirCurrent;
 			}

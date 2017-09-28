@@ -23,47 +23,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/build_config.h"
 #include <tuple>
 
-#ifdef COMPILER_GCC
-namespace std {
-
-template <bool Value>
-using bool_constant = integral_constant<bool, Value>;
-
-template <typename ...Args>
-constexpr auto tuple_size_v = std::tuple_size<Args...>::value;
-
-template <typename ...Args>
-constexpr auto is_rvalue_reference_v = is_rvalue_reference<Args...>::value;
-
-template <typename ...Args>
-constexpr auto is_base_of_v = is_base_of<Args...>::value;
-
-template <typename ...Args>
-constexpr auto is_same_v = is_same<Args...>::value;
-
-namespace detail {
-
-template <typename Method, typename Tuple, size_t... I>
-constexpr decltype(auto) apply_impl(
-		Method &&method,
-		Tuple &&tuple,
-		index_sequence<I...>) {
-    return forward<Method>(method)(get<I>(forward<Tuple>(tuple))...);
-}
-
-} // namespace detail
-
-template <class Method, class Tuple>
-constexpr decltype(auto) apply(Method &&method, Tuple&& tuple) {
-    return detail::apply_impl(
-        forward<Method>(method),
-		forward<Tuple>(tuple),
-        make_index_sequence<tuple_size_v<decay_t<Tuple>>>{});
-}
-
-} // namespace std
-#endif // COMPILER_GCC
-
 namespace rpl {
 namespace details {
 

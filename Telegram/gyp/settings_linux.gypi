@@ -23,7 +23,6 @@
       'variables': {
         'linux_common_flags': [
           '-pipe',
-          '-g',
           '-Wall',
           '-Werror',
           '-W',
@@ -70,7 +69,8 @@
       ],
       'cflags_cc': [
         '<@(linux_common_flags)',
-        '-std=gnu++14',
+        '-std=c++1z',
+        '-Wno-register',
       ],
       'configurations': {
         'Debug': {

@@ -18,27 +18,26 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#pragma once
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
 
-#include <string>
-#include <exception>
-#include <memory>
-#include <ctime>
+void *__wrap_aligned_alloc(size_t alignment, size_t size) {
+	void *result = NULL;
+	return (posix_memalign(&result, alignment, size) == 0)
+		? result
+		: NULL;
+}
 
-#include "base/build_config.h"
-#include "base/ordered_set.h"
+int enable_secure_inited = 0;
+int enable_secure = 1;
 
-using gsl::not_null;
+char *__wrap_secure_getenv(const char *name) {
+	if (enable_secure_inited == 0) {
+		enable_secure_inited = 1;
+		enable_secure = (geteuid() != getuid())
+		|| (getegid() != getgid());
+	}
+	return enable_secure ? NULL : getenv(name);
+}
 
-//using uchar = unsigned char; // Qt has uchar
-using int16 = qint16;
-using uint16 = quint16;
-using int32 = qint32;
-using uint32 = quint32;
-using int64 = qint64;
-using uint64 = quint64;
-using float32 = float;
-using float64 = double;
-
-#define qsl(s) QStringLiteral(s)
-#define qstr(s) QLatin1String(s, sizeof(s) - 1)

@@ -18,27 +18,38 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#pragma once
+#include <time.h>
+#include <stdint.h>
 
-#include <string>
-#include <exception>
-#include <memory>
-#include <ctime>
+int __clock_gettime_glibc_old(clockid_t clk_id, struct timespec *tp);
+__asm__(".symver __clock_gettime_glibc_old,clock_gettime@GLIBC_2.2");
 
-#include "base/build_config.h"
-#include "base/ordered_set.h"
+int __wrap_clock_gettime(clockid_t clk_id, struct timespec *tp) {
+        return __clock_gettime_glibc_old(clk_id, tp);
+}
 
-using gsl::not_null;
+uint64_t __udivmoddi4(uint64_t num, uint64_t den, uint64_t *rem_p);
 
-//using uchar = unsigned char; // Qt has uchar
-using int16 = qint16;
-using uint16 = quint16;
-using int32 = qint32;
-using uint32 = quint32;
-using int64 = qint64;
-using uint64 = quint64;
-using float32 = float;
-using float64 = double;
+int64_t __wrap___divmoddi4(int64_t num, int64_t den, int64_t *rem_p) {
+	int minus = 0;
+	int64_t v;
 
-#define qsl(s) QStringLiteral(s)
-#define qstr(s) QLatin1String(s, sizeof(s) - 1)
+	if (num < 0) {
+		num = -num;
+		minus = 1;
+	}
+	if (den < 0) {
+		den = -den;
+		minus ^= 1;
+	}
+
+	v = __udivmoddi4(num, den, (uint64_t *)rem_p);
+	if (minus) {
+		v = -v;
+		if (rem_p)
+			*rem_p = -(*rem_p);
+	}
+
+	return v;
+}
+

@@ -144,7 +144,7 @@
     'linux_path_xkbcommon%': '/usr/local',
     'linux_lib_ssl%': '/usr/local/ssl/lib/libssl.a',
     'linux_lib_crypto%': '/usr/local/ssl/lib/libcrypto.a',
-    'linux_lib_icu%': '/usr/lib/libicutu.a /usr/lib/libicui18n.a /usr/lib/libicuuc.a /usr/lib/libicudata.a',
+    'linux_lib_icu%': 'libicutu.a libicui18n.a libicuuc.a libicudata.a',
   },
 
   'configurations': {
@@ -217,10 +217,14 @@
   ],
   'conditions': [
     [ 'build_linux', {
+      'dependencies': [
+        '<(DEPTH)/linux_glibc_wraps.gyp:linux_glibc_wraps',
+      ],
       'library_dirs': [
         '<(qt_loc)/plugins/platforminputcontexts',
       ],
       'libraries': [
+        '<(PRODUCT_DIR)/obj.target/liblinux_glibc_wraps.a',
         '<(linux_path_xkbcommon)/lib/libxkbcommon.a',
         '<@(qt_libs_release)',
         '<(linux_lib_ssl)',
@@ -241,7 +245,6 @@
       'ldflags': [
         '-static-libstdc++',
         '-pthread',
-        '-g',
         '-rdynamic',
       ],
     }],
