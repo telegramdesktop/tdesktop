@@ -289,7 +289,7 @@ void Widget::resetAccount() {
 				Ui::show(Box<InformBox>(lang(lng_signin_reset_cancelled)));
 			} else {
 				Ui::hideLayer();
-				getStep()->showError(langFactory(lng_server_error));
+				getStep()->showError(&Lang::Hard::ServerError);
 			}
 		}).send();
 	})));

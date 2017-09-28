@@ -161,7 +161,7 @@ void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
 	stopCheck();
 	auto &d = result.c_auth_authorization();
 	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
-		showError(langFactory(lng_server_error));
+		showError(&Lang::Hard::ServerError);
 		return;
 	}
 	finish(d.vuser, _photoImage);
@@ -203,7 +203,7 @@ bool SignupWidget::nameSubmitFail(const RPCError &error) {
 		auto text = err + ": " + error.description();
 		showError([text] { return text; });
 	} else {
-		showError(langFactory(lng_server_error));
+		showError(&Lang::Hard::ServerError);
 	}
 	if (_invertOrder) {
 		_last->setFocus();

@@ -3358,7 +3358,7 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 			setTitle = lang(lng_recent_stickers);
 			setFlags |= MTPDstickerSet_ClientFlag::f_special;
 		} else if (setId == Stickers::FavedSetId) {
-			setTitle = lang(lng_faved_stickers);
+			setTitle = Lang::Hard::FavedSetTitle();
 			setFlags |= MTPDstickerSet_ClientFlag::f_special;
 		} else if (setId) {
 			if (readingInstalled && outOrder && stickers.version < 9061) {

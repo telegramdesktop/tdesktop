@@ -1552,7 +1552,7 @@ void ApiWrap::requestFavedStickers(TimeId now) {
 		case mtpc_messages_favedStickersNotModified: return;
 		case mtpc_messages_favedStickers: {
 			auto &d = result.c_messages_favedStickers();
-			Stickers::SpecialSetReceived(Stickers::FavedSetId, lang(lng_faved_stickers), d.vstickers.v, d.vhash.v, d.vpacks.v);
+			Stickers::SpecialSetReceived(Stickers::FavedSetId, Lang::Hard::FavedSetTitle(), d.vstickers.v, d.vhash.v, d.vpacks.v);
 		} return;
 		default: Unexpected("Type in ApiWrap::favedStickersDone()");
 		}

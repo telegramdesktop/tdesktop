@@ -172,7 +172,7 @@ void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 	_sentRequest = 0;
 
 	if (result.type() != mtpc_auth_sentCode) {
-		showPhoneError(langFactory(lng_server_error));
+		showPhoneError(&Lang::Hard::ServerError);
 		return;
 	}
 
@@ -222,7 +222,7 @@ bool PhoneWidget::phoneSubmitFail(const RPCError &error) {
 		auto text = err + ": " + error.description();
 		showPhoneError([text] { return text; });
 	} else {
-		showPhoneError(langFactory(lng_server_error));
+		showPhoneError(&Lang::Hard::ServerError);
 	}
 	return false;
 }

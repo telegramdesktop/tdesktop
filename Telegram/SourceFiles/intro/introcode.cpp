@@ -220,7 +220,7 @@ void CodeWidget::codeSubmitDone(const MTPauth_Authorization &result) {
 	_sentRequest = 0;
 	auto &d = result.c_auth_authorization();
 	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
-		showCodeError(langFactory(lng_server_error));
+		showCodeError(&Lang::Hard::ServerError);
 		return;
 	}
 	cSetLoggedPhoneNumber(getData()->phone);
@@ -259,7 +259,7 @@ bool CodeWidget::codeSubmitFail(const RPCError &error) {
 		auto text = err + ": " + error.description();
 		showCodeError([text] { return text; });
 	} else {
-		showCodeError(langFactory(lng_server_error));
+		showCodeError(&Lang::Hard::ServerError);
 	}
 	return false;
 }
@@ -337,7 +337,7 @@ void CodeWidget::onNoTelegramCode() {
 
 void CodeWidget::noTelegramCodeDone(const MTPauth_SentCode &result) {
 	if (result.type() != mtpc_auth_sentCode) {
-		showCodeError(langFactory(lng_server_error));
+		showCodeError(&Lang::Hard::ServerError);
 		return;
 	}
 
@@ -366,7 +366,7 @@ bool CodeWidget::noTelegramCodeFail(const RPCError &error) {
 		auto text = error.type() + ": " + error.description();
 		showCodeError([text] { return text; });
 	} else {
-		showCodeError(langFactory(lng_server_error));
+		showCodeError(&Lang::Hard::ServerError);
 	}
 	return false;
 }

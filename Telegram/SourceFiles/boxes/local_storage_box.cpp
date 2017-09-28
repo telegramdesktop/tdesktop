@@ -100,7 +100,7 @@ void LocalStorageBox::paintEvent(QPaintEvent *e) {
 		switch (_state) {
 		case State::Clearing: return lang(lng_local_storage_clearing);
 		case State::Cleared: return lang(lng_local_storage_cleared);
-		case State::ClearFailed: return lang(lng_local_storage_clear_failed);
+		case State::ClearFailed: return Lang::Hard::ClearPathFailed();
 		}
 		return QString();
 	})();

@@ -525,7 +525,7 @@ bool RecoverBox::codeSubmitFail(const RPCError &error) {
 	if (cDebug()) { // internal server error
 		_error =  err + ": " + error.description();
 	} else {
-		_error = lang(lng_server_error);
+		_error = Lang::Hard::ServerError();
 	}
 	update();
 	_recoverCode->setFocus();

@@ -167,13 +167,13 @@ void ChangePhoneBox::EnterPhone::sendPhoneDone(const QString &phoneNumber, const
 	switch (data.vtype.type()) {
 	case mtpc_auth_sentCodeTypeApp:
 		LOG(("Error: should not be in-app code!"));
-		showError(lang(lng_server_error));
+		showError(Lang::Hard::ServerError());
 		return;
 	case mtpc_auth_sentCodeTypeSms: codeLength = data.vtype.c_auth_sentCodeTypeSms().vlength.v; break;
 	case mtpc_auth_sentCodeTypeCall: codeLength = data.vtype.c_auth_sentCodeTypeCall().vlength.v; break;
 	case mtpc_auth_sentCodeTypeFlashCall:
 		LOG(("Error: should not be flashcall!"));
-		showError(lang(lng_server_error));
+		showError(Lang::Hard::ServerError());
 		return;
 	}
 	auto phoneCodeHash = qs(data.vphone_code_hash);
@@ -191,7 +191,7 @@ void ChangePhoneBox::EnterPhone::sendPhoneDone(const QString &phoneNumber, const
 }
 
 bool ChangePhoneBox::EnterPhone::sendPhoneFail(const QString &phoneNumber, const RPCError &error) {
-	auto errorText = lang(lng_server_error);
+	auto errorText = Lang::Hard::ServerError();
 	if (MTP::isFloodError(error)) {
 		errorText = lang(lng_flood_error);
 	} else if (MTP::isDefaultHandledError(error)) {
@@ -300,7 +300,7 @@ void ChangePhoneBox::EnterCode::showError(const QString &text) {
 }
 
 bool ChangePhoneBox::EnterCode::sendCodeFail(const RPCError &error) {
-	auto errorText = lang(lng_server_error);
+	auto errorText = Lang::Hard::ServerError();
 	if (MTP::isFloodError(error)) {
 		errorText = lang(lng_flood_error);
 	} else if (MTP::isDefaultHandledError(error)) {

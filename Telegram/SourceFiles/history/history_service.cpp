@@ -786,7 +786,14 @@ HistoryJoined::HistoryJoined(not_null<History*> history, const QDateTime &invite
 
 HistoryJoined::PreparedText HistoryJoined::GenerateText(not_null<History*> history, not_null<UserData*> inviter) {
 	if (inviter->id == Auth().userPeerId()) {
-		return { lang(history->isMegagroup() ? lng_action_you_joined_group : lng_action_you_joined) };
+		if (history->isMegagroup()) {
+			auto self = App::user(Auth().userPeerId());
+			auto result = PreparedText {};
+			result.links.push_back(self->createOpenLink());
+			result.text = lng_action_user_joined(lt_from, textcmdLink(1, self->name));
+			return result;
+		}
+		return { lang(lng_action_you_joined) };
 	}
 	auto result = PreparedText {};
 	result.links.push_back(inviter->createOpenLink());

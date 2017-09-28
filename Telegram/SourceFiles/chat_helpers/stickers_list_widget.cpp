@@ -1290,7 +1290,7 @@ void StickersListWidget::refreshFavedStickers() {
 	if (it == sets.cend() || it->stickers.isEmpty()) {
 		return;
 	}
-	_mySets.push_back(Set(Stickers::FavedSetId, MTPDstickerSet::Flag::f_official | MTPDstickerSet_ClientFlag::f_special, lang(lng_faved_stickers), it->stickers.size() * 2, it->stickers));
+	_mySets.push_back(Set(Stickers::FavedSetId, MTPDstickerSet::Flag::f_official | MTPDstickerSet_ClientFlag::f_special, Lang::Hard::FavedSetTitle(), it->stickers.size() * 2, it->stickers));
 	_favedStickersMap = base::flat_set<not_null<DocumentData*>> { it->stickers.begin(), it->stickers.end() };
 }
 

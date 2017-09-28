@@ -1066,13 +1066,7 @@ void Widget::queryInlineBot(UserData *bot, PeerData *peer, QString query) {
 		inlineBotChanged();
 		_inlineBot = bot;
 		force = true;
-		//if (_inlineBot->isBotInlineGeo()) {
-		//	Ui::show(Box<InformBox>(lang(lng_bot_inline_geo_unavailable)));
-		//}
 	}
-	//if (_inlineBot && _inlineBot->isBotInlineGeo()) {
-	//	return;
-	//}
 
 	if (_inlineQuery != query || force) {
 		if (_inlineRequestId) {

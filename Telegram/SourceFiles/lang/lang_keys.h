@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "lang/lang_instance.h"
+#include "lang/lang_hardcoded.h"
 
 inline QString lang(LangKey key) {
 	return Lang::Current().getValue(key);

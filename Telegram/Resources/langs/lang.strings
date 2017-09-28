@@ -122,7 +122,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_channel_admins_link#one" = "{count} administrator";
 "lng_channel_admins_link#other" = "{count} administrators";
 
-"lng_server_error" = "Internal server error.";
 "lng_flood_error" = "Too many tries. Please try again later.";
 "lng_gif_error" = "An error has occurred while reading GIF animation :(";
 "lng_edit_error" = "You cannot edit this message";
@@ -343,7 +342,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_download_finish_failed" = "File download could not be finished.\n\nWould you like to try again?";
 "lng_download_path_clearing" = "Clearing...";
 "lng_download_path_cleared" = "Cleared!";
-"lng_download_path_clear_failed" = "Clear failed :(";
 
 "lng_settings_section_privacy" = "Privacy and Security";
 
@@ -356,7 +354,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_local_storage_clear" = "Clear all";
 "lng_local_storage_clearing" = "Clearing...";
 "lng_local_storage_cleared" = "Cleared!";
-"lng_local_storage_clear_failed" = "Clear failed :(";
 
 "lng_settings_section_advanced_settings" = "Advanced Settings";
 "lng_settings_enable_night_theme" = "Enable night mode";
@@ -444,7 +441,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_reset_sure" = "Are you sure you want to terminate\nall other sessions?";
 "lng_settings_reset_one_sure" = "Do you want to terminate this session?";
 "lng_settings_reset_button" = "Terminate";
-"lng_settings_reset_done" = "Other sessions terminated";
 "lng_settings_manage_local_storage" = "Manage local storage";
 "lng_settings_ask_question" = "Ask a Question";
 "lng_settings_ask_sure" = "Please note that Telegram Support is done by volunteers. We try to respond as quickly as possible, but it may take a while.\n\nPlease take a look at the Telegram FAQ: it has important troubleshooting tips and answers to most questions.";
@@ -459,7 +455,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_sessions_header" = "Current session";
 "lng_sessions_other_header" = "Active sessions";
-"lng_sessions_no_other" = "No other sessions";
 "lng_sessions_other_desc" = "You can log in to Telegram from other mobile, tablet and desktop devices, using the same phone number. All your data will be instantly synchronized.";
 "lng_sessions_terminate_all" = "Terminate all other sessions";
 
@@ -724,7 +719,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_add_you" = "{from} added you to this channel";
 "lng_action_you_joined" = "You joined this channel";
 "lng_action_add_you_group" = "{from} added you to this group";
-"lng_action_you_joined_group" = "You joined this group";
 "lng_action_kick_user" = "{from} removed {user}";
 "lng_action_user_left" = "{from} left the group";
 "lng_action_user_joined" = "{from} joined the group";
@@ -825,7 +819,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_cancel_edit_post_no" = "No";
 
 "lng_bot_share_location_unavailable" = "Sorry, the location sharing is currently unavailable in Telegram Desktop.";
-"lng_bot_inline_geo_unavailable" = "Sorry, this bot requires location sharing.\nIt is not available in Telegram Desktop.";
 "lng_bot_share_phone" = "Share Phone Number?";
 "lng_bot_share_phone_confirm" = "Share";
 
@@ -860,7 +853,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_emoji_hide_panel" = "Click here to hide the emoji sidebar";
 
 "lng_recent_stickers" = "Frequently used";
-"lng_faved_stickers" = "Favorite stickers";
 "lng_faved_stickers_add" = "Add to Favorites";
 "lng_faved_stickers_remove" = "Remove from Favorites";
 "lng_group_stickers" = "Group stickers";
@@ -923,10 +915,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_cant_invite_banned" = "Sorry, only admin can add this user.";
 "lng_cant_invite_privacy" = "Sorry, you cannot add this user to groups because of their privacy settings.";
 "lng_cant_invite_privacy_channel" = "Sorry, you cannot add this user to channels because of their privacy settings.";
-"lng_cant_delete_group#one" = "Sorry, it is currently not possible to manually delete communities that have more than {count} member. Please contact Telegram support if you would like to delete this group.";
-"lng_cant_delete_group#other" = "Sorry, it is currently not possible to manually delete communities that have more than {count} members. Please contact Telegram support if you would like to delete this group.";
-"lng_cant_delete_channel#one" = "Sorry, it is currently not possible to manually delete communities that have more than {count} member. Please contact Telegram support if you would like to delete this channel.";
-"lng_cant_delete_channel#other" = "Sorry, it is currently not possible to manually delete communities that have more than {count} members. Please contact Telegram support if you would like to delete this channel.";
 "lng_cant_do_this" = "Sorry, this action is unavailable.";
 
 "lng_send_button" = "Send";
@@ -995,10 +983,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_user_action_upload_photo" = "{user} is sending a photo";
 "lng_send_action_upload_file" = "sending a file";
 "lng_user_action_upload_file" = "{user} is sending a file";
-"lng_send_action_geo_location" = "picking a location";
-"lng_user_action_geo_location" = "{user} is picking a location";
-"lng_send_action_choose_contact" = "choosing a contact";
-"lng_user_action_choose_contact" = "{user} is choosing a contact";
 "lng_unread_bar#one" = "{count} unread message";
 "lng_unread_bar#other" = "{count} unread messages";
 
@@ -1064,7 +1048,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_send_images_compress#other" = "Compress images";
 "lng_send_image_empty" = "Could not send an empty file: {name}";
 "lng_send_image_too_large" = "Could not send a file, because it is larger than 1500 MB: {name}";
-"lng_send_folder" = "Could not send «{name}» because it is a directory :(";
 "lng_send_images_selected#one" = "{count} image selected";
 "lng_send_images_selected#other" = "{count} images selected";
 "lng_send_photos#one" = "Send {count} photo";
@@ -1239,7 +1222,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_call_fingerprint_tooltip" = "If emoji on {user}'s screen are the same, this call is 100% secure";
 
 "lng_call_error_not_available" = "Sorry, {user} doesn't accept calls.";
-"lng_call_error_incompatible" = "{user}'s app is using an incompatible protocol. They need to update their app before you can call them.";
 "lng_call_error_outdated" = "{user}'s app does not support calls. They need to update their app before you can call them.";
 "lng_call_error_audio_io" = "There seems to be a problem with audio playback on your computer. Please make sure that your computer's speakers and microphone are working and try again.";
 

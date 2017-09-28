@@ -176,7 +176,7 @@ void ConfirmPhoneBox::sendCodeDone(const MTPauth_SentCode &result) {
 }
 
 bool ConfirmPhoneBox::sendCodeFail(const RPCError &error) {
-	auto errorText = lang(lng_server_error);
+	auto errorText = Lang::Hard::ServerError();
 	if (MTP::isFloodError(error)) {
 		errorText = lang(lng_flood_error);
 	} else if (MTP::isDefaultHandledError(error)) {
@@ -254,7 +254,7 @@ void ConfirmPhoneBox::confirmDone(const MTPBool &result) {
 }
 
 bool ConfirmPhoneBox::confirmFail(const RPCError &error) {
-	auto errorText = lang(lng_server_error);
+	auto errorText = Lang::Hard::ServerError();
 	if (MTP::isFloodError(error)) {
 		errorText = lang(lng_flood_error);
 	} else if (MTP::isDefaultHandledError(error)) {

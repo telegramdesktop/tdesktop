@@ -337,13 +337,6 @@ void ActionsWidget::onUpgradeToSupergroup() {
 }
 
 void ActionsWidget::onDeleteChannel() {
-	if (auto channel = peer()->asChannel()) {
-		if (channel->membersCount() > kMaxChannelMembersDeleteAllowed) {
-			Ui::show(Box<InformBox>((channel->isMegagroup() ? lng_cant_delete_group : lng_cant_delete_channel)(lt_count, kMaxChannelMembersDeleteAllowed)));
-			return;
-		}
-	}
-
 	auto text = lang(peer()->isMegagroup() ? lng_sure_delete_group : lng_sure_delete_channel);
 	Ui::show(Box<ConfirmBox>(text, lang(lng_box_delete), st::attentionBoxButton, base::lambda_guarded(this, [this] {
 		Ui::hideLayer();
