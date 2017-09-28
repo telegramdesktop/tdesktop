@@ -621,6 +621,9 @@ inline bool operator>=(
 	return !(a < b);
 }
 
+// GCC 7.2 can't handle not type-erased consumers.
+// It eats up 4GB RAM + 16GB swap on the unittest and dies.
+// Clang and Visual C++ both handle it without such problems.
 template <
 	typename Value,
 	typename Error,
@@ -631,7 +634,11 @@ template <
 		details::is_callable_v<OnNext, Value> &&
 		details::is_callable_v<OnError, Error> &&
 		details::is_callable_v<OnDone>>>
+#ifdef COMPILER_GCC
+inline consumer<Value, Error> make_consumer(
+#else // COMPILER_GCC
 inline auto make_consumer(
+#endif // COMPILER_GCC
 		OnNext &&next,
 		OnError &&error,
 		OnDone &&done) {
