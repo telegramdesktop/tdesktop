@@ -86,6 +86,10 @@ struct is_type_erased_handlers<type_erased_handlers<Value, Error>>
 	: std::true_type {
 };
 
+template <typename Handlers>
+constexpr bool is_type_erased_handlers_v
+	= is_type_erased_handlers<Handlers>::value;
+
 template <typename Value, typename Error, typename OnNext, typename OnError, typename OnDone>
 class consumer_handlers final
 	: public type_erased_handlers<Value, Error> {
@@ -285,7 +289,8 @@ namespace details {
 
 template <typename Value, typename Error, typename Handlers>
 class consumer_base {
-	using is_type_erased = is_type_erased_handlers<Handlers>;
+	static constexpr bool is_type_erased
+		= is_type_erased_handlers_v<Handlers>;
 
 public:
 	template <
@@ -345,44 +350,22 @@ private:
 
 	mutable std::shared_ptr<Handlers> _handlers;
 
-	bool handlers_put_next(Value &&value, std::true_type) const {
-		return _handlers->put_next(std::move(value));
+	bool handlers_put_next(Value &&value) const {
+		if constexpr (is_type_erased) {
+			return _handlers->put_next(std::move(value));
+		} else {
+			return _handlers->Handlers::put_next(std::move(value));
+		}
 	}
-	bool handlers_put_next_copy(
-			const Value &value,
-			std::true_type) const {
-		return _handlers->put_next_copy(value);
+	bool handlers_put_next_copy(const Value &value) const {
+		if constexpr (is_type_erased) {
+			return _handlers->put_next_copy(value);
+		} else {
+			return _handlers->Handlers::put_next_copy(value);
+		}
 	}
-	void handlers_put_error(Error &&error, std::true_type) const {
-		return std::exchange(_handlers, nullptr)->put_error(std::move(error));
-	}
-	void handlers_put_error_copy(
-			const Error &error,
-			std::true_type) const {
-		return std::exchange(_handlers, nullptr)->put_error_copy(error);
-	}
-	void handlers_put_done(std::true_type) const {
-		return std::exchange(_handlers, nullptr)->put_done();
-	}
-
-	bool handlers_put_next(Value &&value, std::false_type) const {
-		return _handlers->Handlers::put_next(std::move(value));
-	}
-	bool handlers_put_next_copy(
-			const Value &value,
-			std::false_type) const {
-		return _handlers->Handlers::put_next_copy(value);
-	}
-	void handlers_put_error(Error &&error, std::false_type) const {
-		return std::exchange(_handlers, nullptr)->Handlers::put_error(std::move(error));
-	}
-	void handlers_put_error_copy(
-			const Error &error,
-			std::false_type) const {
-		return std::exchange(_handlers, nullptr)->Handlers::put_error_copy(error);
-	}
-	void handlers_put_done(std::false_type) const {
-		return std::exchange(_handlers, nullptr)->Handlers::put_done();
+	std::shared_ptr<Handlers> take_handlers() const {
+		return std::exchange(_handlers, nullptr);
 	}
 
 	template <
@@ -408,7 +391,7 @@ template <typename Value, typename Error, typename Handlers>
 inline bool consumer_base<Value, Error, Handlers>::put_next(
 		Value &&value) const {
 	if (_handlers) {
-		if (handlers_put_next(std::move(value), is_type_erased())) {
+		if (handlers_put_next(std::move(value))) {
 			return true;
 		}
 		_handlers = nullptr;
@@ -420,7 +403,7 @@ template <typename Value, typename Error, typename Handlers>
 inline bool consumer_base<Value, Error, Handlers>::put_next_copy(
 		const Value &value) const {
 	if (_handlers) {
-		if (handlers_put_next_copy(value, is_type_erased())) {
+		if (handlers_put_next_copy(value)) {
 			return true;
 		}
 		_handlers = nullptr;
@@ -432,7 +415,11 @@ template <typename Value, typename Error, typename Handlers>
 inline void consumer_base<Value, Error, Handlers>::put_error(
 		Error &&error) const {
 	if (_handlers) {
-		handlers_put_error(std::move(error), is_type_erased());
+		if constexpr (is_type_erased) {
+			take_handlers()->put_error(std::move(error));
+		} else {
+			take_handlers()->Handlers::put_error(std::move(error));
+		}
 	}
 }
 
@@ -440,14 +427,22 @@ template <typename Value, typename Error, typename Handlers>
 inline void consumer_base<Value, Error, Handlers>::put_error_copy(
 		const Error &error) const {
 	if (_handlers) {
-		handlers_put_error_copy(error, is_type_erased());
+		if constexpr (is_type_erased) {
+			take_handlers()->put_error_copy(error);
+		} else {
+			take_handlers()->Handlers::put_error_copy(error);
+		}
 	}
 }
 
 template <typename Value, typename Error, typename Handlers>
 inline void consumer_base<Value, Error, Handlers>::put_done() const {
 	if (_handlers) {
-		handlers_put_done(is_type_erased());
+		if constexpr (is_type_erased) {
+			take_handlers()->put_done();
+		} else {
+			take_handlers()->Handlers::put_done();
+		}
 	}
 }
 

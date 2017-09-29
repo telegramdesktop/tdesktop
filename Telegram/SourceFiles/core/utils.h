@@ -43,25 +43,16 @@ inline span<const char> make_span(const QByteArray &cont) {
 #endif // OS_MAC_OLD
 
 namespace base {
-namespace internal {
-
-template <typename D, typename T>
-inline constexpr D up_cast_helper(std::true_type, T object) {
-	return object;
-}
-
-template <typename D, typename T>
-inline constexpr D up_cast_helper(std::false_type, T object) {
-	return nullptr;
-}
-
-} // namespace internal
 
 template <typename D, typename T>
 inline constexpr D up_cast(T object) {
 	using DV = std::decay_t<decltype(*D())>;
 	using TV = std::decay_t<decltype(*T())>;
-	return internal::up_cast_helper<D>(std::integral_constant<bool, std::is_base_of<DV, TV>::value || std::is_same<DV, TV>::value>(), object);
+	if constexpr (std::is_base_of_v<DV, TV>) {
+		return object;
+	} else {
+		return nullptr;
+	}
 }
 
 template <typename Container, typename T>

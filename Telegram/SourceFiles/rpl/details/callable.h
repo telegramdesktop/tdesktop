@@ -99,54 +99,19 @@ struct is_callable<Method, Arg>
 template <typename Method, typename ...Args>
 constexpr bool is_callable_v = is_callable<Method, Args...>::value;
 
-enum class CallableArgTag {
-	Plain,
-	Tuple,
-	Empty,
-};
-template <CallableArgTag Arg>
-using callable_arg_tag = std::integral_constant<CallableArgTag, Arg>;
-
-template <typename Method, typename Arg>
-inline decltype(auto) callable_helper(
-		Method &&method,
-		Arg &&arg,
-		callable_arg_tag<CallableArgTag::Plain>) {
-	return std::forward<Method>(method)(std::forward<Arg>(arg));
-}
-
-template <typename Method, typename Arg>
-inline decltype(auto) callable_helper(
-		Method &&method,
-		Arg &&arg,
-		callable_arg_tag<CallableArgTag::Tuple>) {
-	return std::apply(
-		std::forward<Method>(method),
-		std::forward<Arg>(arg));
-}
-
-template <typename Method, typename Arg>
-inline decltype(auto) callable_helper(
-		Method &&method,
-		Arg &&,
-		callable_arg_tag<CallableArgTag::Empty>) {
-	return std::forward<Method>(method)();
-}
-
 template <typename Method, typename Arg>
 inline decltype(auto) callable_invoke(Method &&method, Arg &&arg) {
-	// #TODO if constexpr
-	constexpr auto kTag = is_callable_plain_v<Method, Arg>
-		? CallableArgTag::Plain
-		: is_callable_tuple_v<Method, Arg>
-		? CallableArgTag::Tuple
-		: is_callable_v<Method>
-		? CallableArgTag::Empty
-		: throw "Bad callable_invoke instance.";
-	return callable_helper(
-		std::forward<Method>(method),
-		std::forward<Arg>(arg),
-		callable_arg_tag<kTag>());
+	if constexpr (is_callable_plain_v<Method, Arg>) {
+		return std::forward<Method>(method)(std::forward<Arg>(arg));
+	} else if constexpr (is_callable_tuple_v<Method, Arg>) {
+		return std::apply(
+			std::forward<Method>(method),
+			std::forward<Arg>(arg));
+	} else if constexpr (is_callable_v<Method>) {
+		return std::forward<Method>(method)();
+	} else {
+		static_assert(false_(method, arg), "Bad callable_invoke() call.");
+	}
 }
 
 template <typename Method, typename Arg>
@@ -168,38 +133,17 @@ constexpr bool allows_const_ref_v = (sizeof(test_allows_const_ref(
 	std::declval<Arg>())) == sizeof(true_t));
 
 template <typename Method, typename Arg>
-struct allows_const_ref
-	: std::bool_constant<
-		allows_const_ref_v<Method, Arg>> {
-};
-
-template <typename Method, typename Arg>
-inline decltype(auto) const_ref_call_helper(
-		Method &&method,
-		const Arg &arg,
-		std::true_type) {
-	return callable_invoke(std::forward<Method>(method), arg);
-}
-
-template <typename Method, typename Arg>
-inline decltype(auto) const_ref_call_helper(
-		Method &&method,
-		const Arg &arg,
-		std::false_type) {
-	auto copy = arg;
-	return callable_invoke(
-		std::forward<Method>(method),
-		std::move(copy));
-}
-
-template <typename Method, typename Arg>
 inline decltype(auto) const_ref_call_invoke(
 		Method &&method,
 		const Arg &arg) {
-	return const_ref_call_helper(
-		std::forward<Method>(method),
-		arg,
-		allows_const_ref<Method, Arg>());
+	if constexpr (allows_const_ref_v<Method, Arg>) {
+		return callable_invoke(std::forward<Method>(method), arg);
+	} else {
+		auto copy = arg;
+		return callable_invoke(
+			std::forward<Method>(method),
+			std::move(copy));
+	}
 }
 
 } // namespace details

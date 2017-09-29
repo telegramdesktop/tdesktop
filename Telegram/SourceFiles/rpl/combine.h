@@ -257,34 +257,12 @@ template <typename ...Args>
 constexpr bool combine_producers_with_mapper_v
 	 = combine_producers_with_mapper<Args...>::value;
 
-template <
-	typename ...Values,
-	typename ...Errors,
-	typename ...Generators>
-inline decltype(auto) combine_helper(
-		std::true_type,
-		producer<Values, Errors, Generators> &&...producers) {
-	return combine_implementation(std::move(producers)...);
-}
-
 template <typename ...Producers, std::size_t ...I>
 inline decltype(auto) combine_call(
 		std::index_sequence<I...>,
 		Producers &&...producers) {
 	return combine_implementation(
 		argument_mapper<I>::call(std::move(producers)...)...);
-}
-
-template <typename ...Args>
-inline decltype(auto) combine_helper(
-		std::false_type,
-		Args &&...args) {
-	constexpr auto kProducersCount = sizeof...(Args) - 1;
-	return combine_call(
-		std::make_index_sequence<kProducersCount>(),
-		std::forward<Args>(args)...)
-		| map(argument_mapper<kProducersCount>::call(
-			std::forward<Args>(args)...));
 }
 
 } // namespace details
@@ -295,9 +273,18 @@ template <
 		details::combine_just_producers_v<Args...>
 	|| details::combine_producers_with_mapper_v<Args...>>>
 inline decltype(auto) combine(Args &&...args) {
-	return details::combine_helper(
-		details::combine_just_producers<Args...>(),
-		std::forward<Args>(args)...);
+	if constexpr (details::combine_just_producers_v<Args...>) {
+		return details::combine_implementation(std::move(args)...);
+	} else if constexpr (details::combine_producers_with_mapper_v<Args...>) {
+		constexpr auto kProducersCount = sizeof...(Args) - 1;
+		return details::combine_call(
+			std::make_index_sequence<kProducersCount>(),
+			std::forward<Args>(args)...)
+				| map(details::argument_mapper<kProducersCount>::call(
+					std::forward<Args>(args)...));
+	} else {
+		static_assert(false_(args...), "Bad combine() call.");
+	}
 }
 
 namespace details {
