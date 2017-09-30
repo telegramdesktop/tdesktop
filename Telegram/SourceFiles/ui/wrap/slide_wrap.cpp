@@ -72,11 +72,11 @@ SlideWrap<RpWidget> *SlideWrap<RpWidget>::toggleAnimated(
 
 SlideWrap<RpWidget> *SlideWrap<RpWidget>::toggleFast(bool shown) {
 	setShown(shown);
-	finishAnimations();
+	finishAnimating();
 	return this;
 }
 
-SlideWrap<RpWidget> *SlideWrap<RpWidget>::finishAnimations() {
+SlideWrap<RpWidget> *SlideWrap<RpWidget>::finishAnimating() {
 	_animation.finish();
 	animationStep();
 	return this;
@@ -88,7 +88,7 @@ SlideWrap<RpWidget> *SlideWrap<RpWidget>::toggleOn(
 		| rpl::start_with_next([this](bool shown) {
 			toggleAnimated(shown);
 		}, lifetime());
-	finishAnimations();
+	finishAnimating();
 	return this;
 }
 

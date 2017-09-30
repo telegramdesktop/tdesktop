@@ -169,7 +169,7 @@ void ConnectionBox::typeChanged(DBIConnectionType type) {
 		}
 		if ((type == dbictHttpProxy) && !_portInput->getLastText().toInt()) {
 			_portInput->setText(qsl("80"));
-			_portInput->finishAnimations();
+			_portInput->finishAnimating();
 		}
 	}
 	update();

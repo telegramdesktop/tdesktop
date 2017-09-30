@@ -38,7 +38,7 @@ public:
 	QAction *addAction(const QString &text, base::lambda<void()> callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
 	QAction *addSeparator();
 	void clearActions();
-	void finishAnimations();
+	void finishAnimating();
 
 	void clearSelection();
 

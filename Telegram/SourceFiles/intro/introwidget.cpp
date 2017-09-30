@@ -71,7 +71,7 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 	getData()->country = country;
 
 	_back->entity()->setClickedCallback([this] { historyMove(Direction::Back); });
-	_back->hideFast();
+	_back->hide(anim::type::instant);
 
 	_next->setClickedCallback([this] { getStep()->submit(); });
 
@@ -84,7 +84,7 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 
 	subscribe(Lang::CurrentCloudManager().firstLanguageSuggestion(), [this] { createLanguageLink(); });
 	createLanguageLink();
-	if (_changeLanguage) _changeLanguage->finishAnimations();
+	if (_changeLanguage) _changeLanguage->finishAnimating();
 
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 
@@ -116,12 +116,11 @@ void Widget::createLanguageLink() {
 		_changeLanguage.create(
 			this,
 			object_ptr<Ui::LinkButton>(this, text));
-		_changeLanguage->show();
-		_changeLanguage->hideFast();
+		_changeLanguage->hide(anim::type::instant);
 		_changeLanguage->entity()->setClickedCallback([this, languageId] {
 			Lang::CurrentCloudManager().switchToLanguage(languageId);
 		});
-		_changeLanguage->toggleAnimated(!_resetAccount);
+		_changeLanguage->toggle(!_resetAccount, anim::type::normal);
 		updateControlsGeometry();
 	};
 
@@ -151,7 +150,9 @@ void Widget::onCheckUpdateStatus() {
 				this,
 				langFactory(lng_menu_update),
 				st::defaultBoxButton));
-		if (!_a_show.animating()) _update->show();
+		if (!_a_show.animating()) {
+			_update->setVisible(true);
+		}
 		_update->entity()->setClickedCallback([] {
 			checkReadyUpdate();
 			App::restart();
@@ -197,14 +198,14 @@ void Widget::historyMove(Direction direction) {
 	if (direction == Direction::Back || direction == Direction::Replace) {
 		delete base::take(wasStep);
 	}
-	_back->toggleAnimated(getStep()->hasBack());
+	_back->toggle(getStep()->hasBack(), anim::type::normal);
 
 	auto stepHasCover = getStep()->hasCover();
-	_settings->toggleAnimated(!stepHasCover);
-	if (_update) _update->toggleAnimated(!stepHasCover);
-	if (_changeLanguage) _changeLanguage->toggleAnimated(!_resetAccount);
+	_settings->toggle(!stepHasCover, anim::type::normal);
+	if (_update) _update->toggle(!stepHasCover, anim::type::normal);
+	if (_changeLanguage) _changeLanguage->toggle(!_resetAccount, anim::type::normal);
 	_next->setText([this] { return getStep()->nextButtonText(); });
-	if (_resetAccount) _resetAccount->hideAnimated();
+	if (_resetAccount) _resetAccount->hide(anim::type::normal);
 	getStep()->showAnimated(direction);
 	fixOrder();
 }
@@ -248,12 +249,12 @@ void Widget::showResetButton() {
 		_resetAccount.create(
 			this,
 			std::move(entity));
-		_resetAccount->hideFast();
+		_resetAccount->hide(anim::type::instant);
 		_resetAccount->entity()->setClickedCallback([this] { resetAccount(); });
 		updateControlsGeometry();
 	}
-	_resetAccount->showAnimated();
-	if (_changeLanguage) _changeLanguage->hideAnimated();
+	_resetAccount->show(anim::type::normal);
+	if (_changeLanguage) _changeLanguage->hide(anim::type::normal);
 }
 
 void Widget::resetAccount() {
@@ -313,19 +314,19 @@ void Widget::showControls() {
 	_next->show();
 	_next->setText([this] { return getStep()->nextButtonText(); });
 	auto hasCover = getStep()->hasCover();
-	_settings->toggleFast(!hasCover);
-	if (_update) _update->toggleFast(!hasCover);
-	if (_changeLanguage) _changeLanguage->toggleFast(!_resetAccount);
-	_back->toggleFast(getStep()->hasBack());
+	_settings->toggle(!hasCover, anim::type::instant);
+	if (_update) _update->toggle(!hasCover, anim::type::instant);
+	if (_changeLanguage) _changeLanguage->toggle(!_resetAccount, anim::type::instant);
+	_back->toggle(getStep()->hasBack(), anim::type::instant);
 }
 
 void Widget::hideControls() {
 	getStep()->hide();
 	_next->hide();
-	_settings->hideFast();
-	if (_update) _update->hideFast();
-	if (_changeLanguage) _changeLanguage->hideFast();
-	_back->hideFast();
+	_settings->hide(anim::type::instant);
+	if (_update) _update->hide(anim::type::instant);
+	if (_changeLanguage) _changeLanguage->hide(anim::type::instant);
+	_back->hide(anim::type::instant);
 }
 
 void Widget::showAnimated(const QPixmap &bgAnimCache, bool back) {
@@ -604,11 +605,11 @@ void Widget::Step::fillSentCodeData(const MTPauth_SentCodeType &type) {
 }
 
 void Widget::Step::showDescription() {
-	_description->showAnimated();
+	_description->show(anim::type::normal);
 }
 
 void Widget::Step::hideDescription() {
-	_description->hideAnimated();
+	_description->hide(anim::type::normal);
 }
 
 void Widget::Step::paintContentSnapshot(Painter &p, const QPixmap &snapshot, float64 alpha, float64 howMuchHidden) {
@@ -712,7 +713,7 @@ void Widget::Step::showError(base::lambda<QString()> textFactory) {
 
 void Widget::Step::refreshError() {
 	if (!_errorTextFactory) {
-		if (_error) _error->hideAnimated();
+		if (_error) _error->hide(anim::type::normal);
 	} else {
 		if (!_error) {
 			_error.create(
@@ -722,11 +723,11 @@ void Widget::Step::refreshError() {
 					_errorCentered
 						? st::introErrorCentered
 						: st::introError));
-			_error->hideFast();
+			_error->hide(anim::type::instant);
 		}
 		_error->entity()->setText(_errorTextFactory());
 		updateLabelsPosition();
-		_error->showAnimated();
+		_error->show(anim::type::normal);
 	}
 }
 
@@ -827,9 +828,9 @@ bool Widget::Step::hasBack() const {
 
 void Widget::Step::activate() {
 	_title->show();
-	_description->show();
+	_description->show(anim::type::instant);
 	if (_errorTextFactory) {
-		_error->showFast();
+		_error->show(anim::type::instant);
 	}
 }
 

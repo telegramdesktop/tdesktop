@@ -173,9 +173,9 @@ void WrapWidget::finishShowContent() {
 		: _content->desiredShadowVisibility());
 
 	if (_topTabs) {
-		_topTabs->finishAnimations();
+		_topTabs->finishAnimating();
 	}
-	_topShadow->finishAnimations();
+	_topShadow->finishAnimating();
 
 	updateContentGeometry();
 
@@ -219,14 +219,14 @@ object_ptr<Media::Widget> WrapWidget::createMediaWidget() {
 }
 
 bool WrapWidget::hasTopBarShadow() const {
-	return !_topShadow->isHiddenOrHiding();
+	return _topShadow->toggled();
 }
 
 QPixmap WrapWidget::grabForShowAnimation(
 		const Window::SectionSlideParams &params) {
-	if (params.withTopBarShadow) _topShadow->hide();
+	if (params.withTopBarShadow) _topShadow->hide(anim::type::instant);
 	auto result = myGrab(this);
-	if (params.withTopBarShadow) _topShadow->show();
+	if (params.withTopBarShadow) _topShadow->show(anim::type::instant);
 	return result;
 }
 

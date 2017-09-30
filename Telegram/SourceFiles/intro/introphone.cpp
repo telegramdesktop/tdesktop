@@ -84,7 +84,7 @@ void PhoneWidget::showPhoneError(base::lambda<QString()> textFactory) {
 void PhoneWidget::hidePhoneError() {
 	hideError();
 	if (_signup) {
-		_signup->hideAnimated();
+		_signup->hide(anim::type::instant);
 		showDescription();
 	}
 }
@@ -99,10 +99,10 @@ void PhoneWidget::showSignup() {
 		_signup->entity()->setLink(2, MakeShared<LambdaClickHandler>([this] {
 			toSignUp();
 		}));
-		_signup->hideFast();
+		_signup->hide(anim::type::instant);
 		updateSignupGeometry();
 	}
-	_signup->showAnimated();
+	_signup->show(anim::type::normal);
 	hideDescription();
 }
 

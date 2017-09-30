@@ -1796,7 +1796,7 @@ InputArea::InputArea(QWidget *parent, const style::InputField &st, base::lambda<
 
 	startBorderAnimation();
 	startPlaceholderAnimation();
-	finishAnimations();
+	finishAnimating();
 }
 
 void InputArea::updatePalette() {
@@ -2344,10 +2344,10 @@ void InputArea::onRedoAvailable(bool avail) {
 
 void InputArea::setDisplayFocused(bool focused) {
 	setFocused(focused);
-	finishAnimations();
+	finishAnimating();
 }
 
-void InputArea::finishAnimations() {
+void InputArea::finishAnimating() {
 	_a_focused.finish();
 	_a_error.finish();
 	_a_placeholderShifted.finish();
@@ -2554,7 +2554,7 @@ InputField::InputField(QWidget *parent, const style::InputField &st, base::lambd
 
 	startPlaceholderAnimation();
 	startBorderAnimation();
-	finishAnimations();
+	finishAnimating();
 }
 
 void InputField::updatePalette() {
@@ -3115,10 +3115,10 @@ void InputField::selectAll() {
 
 void InputField::setDisplayFocused(bool focused) {
 	setFocused(focused);
-	finishAnimations();
+	finishAnimating();
 }
 
-void InputField::finishAnimations() {
+void InputField::finishAnimating() {
 	_a_focused.finish();
 	_a_error.finish();
 	_a_placeholderShifted.finish();
@@ -3304,7 +3304,7 @@ MaskedInputField::MaskedInputField(QWidget *parent, const style::InputField &st,
 
 	startPlaceholderAnimation();
 	startBorderAnimation();
-	finishAnimations();
+	finishAnimating();
 }
 
 void MaskedInputField::updatePalette() {
@@ -3579,10 +3579,10 @@ QSize MaskedInputField::minimumSizeHint() const {
 
 void MaskedInputField::setDisplayFocused(bool focused) {
 	setFocused(focused);
-	finishAnimations();
+	finishAnimating();
 }
 
-void MaskedInputField::finishAnimations() {
+void MaskedInputField::finishAnimating() {
 	_a_focused.finish();
 	_a_error.finish();
 	_a_placeholderShifted.finish();

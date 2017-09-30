@@ -201,7 +201,7 @@ public:
 	}
 	void setText(const QString &text, int value);
 	void stepAnimation(TimeMs ms);
-	void finishAnimation();
+	void finishAnimating();
 
 	void paint(Painter &p, int x, int y, int outerWidth);
 	int countWidth() const;
@@ -312,7 +312,7 @@ void RoundButton::Numbers::stepAnimation(TimeMs ms) {
 	_a_ready.step(ms);
 }
 
-void RoundButton::Numbers::finishAnimation() {
+void RoundButton::Numbers::finishAnimating() {
 	auto width = countWidth();
 	_a_ready.finish();
 	if (_widthChangedCallback && countWidth() != width) {
@@ -398,7 +398,7 @@ void RoundButton::stepNumbersAnimation(TimeMs ms) {
 
 void RoundButton::finishNumbersAnimation() {
 	if (_numbers) {
-		_numbers->finishAnimation();
+		_numbers->finishAnimating();
 	}
 }
 

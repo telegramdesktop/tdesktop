@@ -120,16 +120,12 @@ void BoxContent::updateShadowsVisibility() {
 	if (!_scroll) return;
 
 	auto top = _scroll->scrollTop();
-	if (top > 0 || _innerTopSkip > 0) {
-		_topShadow->showAnimated();
-	} else {
-		_topShadow->hideAnimated();
-	}
-	if (top < _scroll->scrollTopMax()) {
-		_bottomShadow->showAnimated();
-	} else {
-		_bottomShadow->hideAnimated();
-	}
+	_topShadow->toggle(
+		(top > 0 || _innerTopSkip > 0),
+		anim::type::normal);
+	_bottomShadow->toggle(
+		(top < _scroll->scrollTopMax()),
+		anim::type::normal);
 }
 
 void BoxContent::onScroll() {
@@ -165,11 +161,11 @@ void BoxContent::setInnerVisible(bool scrollAreaVisible) {
 QPixmap BoxContent::grabInnerCache() {
 	auto isTopShadowVisible = !_topShadow->isHidden();
 	auto isBottomShadowVisible = !_bottomShadow->isHidden();
-	if (isTopShadowVisible) _topShadow->hide();
-	if (isBottomShadowVisible) _bottomShadow->hide();
+	if (isTopShadowVisible) _topShadow->setVisible(false);
+	if (isBottomShadowVisible) _bottomShadow->setVisible(false);
 	auto result = myGrab(this, _scroll->geometry());
-	if (isTopShadowVisible) _topShadow->show();
-	if (isBottomShadowVisible) _bottomShadow->show();
+	if (isTopShadowVisible) _topShadow->setVisible(true);
+	if (isBottomShadowVisible) _bottomShadow->setVisible(true);
 	return result;
 }
 
@@ -191,8 +187,12 @@ void BoxContent::updateScrollAreaGeometry() {
 		updateInnerVisibleTopBottom();
 
 		auto top = _scroll->scrollTop();
-		_topShadow->toggleFast(top > 0 || _innerTopSkip > 0);
-		_bottomShadow->toggleFast(top < _scroll->scrollTopMax());
+		_topShadow->toggle(
+			(top > 0 || _innerTopSkip > 0),
+			anim::type::instant);
+		_bottomShadow->toggle(
+			(top < _scroll->scrollTopMax()),
+			anim::type::instant);
 	}
 }
 

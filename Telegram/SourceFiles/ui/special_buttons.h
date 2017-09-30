@@ -98,7 +98,7 @@ public:
 	}
 	void setType(Type state);
 	void setRecordActive(bool recordActive);
-	void finishAnimation();
+	void finishAnimating();
 
 	void setRecordStartCallback(base::lambda<void()> callback) {
 		_recordStartCallback = std::move(callback);

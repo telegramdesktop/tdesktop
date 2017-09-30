@@ -92,7 +92,7 @@ public:
 	Controller *controller() const {
 		return _controller;
 	}
-	void finishAnimation();
+	void finishAnimating();
 
 	void showBox(
 		object_ptr<BoxContent> box,

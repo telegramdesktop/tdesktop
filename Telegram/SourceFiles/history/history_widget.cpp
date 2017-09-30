@@ -1656,7 +1656,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 				onBotStart();
 				_history->clearLocalDraft();
 				applyDraft();
-				_send->finishAnimation();
+				_send->finishAnimating();
 			}
 			return;
 		}
@@ -1791,7 +1791,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 			_history->takeLocalDraft(_migrated);
 		}
 		applyDraft(false);
-		_send->finishAnimation();
+		_send->finishAnimating();
 
 		_tabbedSelector->showMegagroupSet(_peer->asMegagroup());
 
@@ -3005,7 +3005,7 @@ void HistoryWidget::doneShow() {
 	}
 }
 
-void HistoryWidget::finishAnimation() {
+void HistoryWidget::finishAnimating() {
 	if (!_a_show.animating()) return;
 	_a_show.finish();
 	_topShadow->setVisible(_peer != nullptr);

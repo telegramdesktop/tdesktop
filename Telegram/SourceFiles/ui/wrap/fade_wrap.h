@@ -45,25 +45,24 @@ public:
 		bool scaled);
 
 	FadeWrap *setDuration(int duration);
-	FadeWrap *toggleAnimated(bool shown);
-	FadeWrap *toggleFast(bool shown);
-	FadeWrap *showAnimated() { return toggleAnimated(true); }
-	FadeWrap *hideAnimated() { return toggleAnimated(false); }
-	FadeWrap *showFast() { return toggleFast(true); }
-	FadeWrap *hideFast() { return toggleFast(false); }
-	FadeWrap *finishAnimations();
+	FadeWrap *toggle(bool shown, anim::type animated);
+	FadeWrap *show(anim::type animated) {
+		return toggle(true, animated);
+	}
+	FadeWrap *hide(anim::type animated) {
+		return toggle(false, animated);
+	}
+	FadeWrap *finishAnimating();
 	FadeWrap *toggleOn(rpl::producer<bool> &&shown);
 
 	bool animating() const {
 		return _animation.animating();
 	}
-
-	bool isHiddenOrHiding() const {
-		return !_animation.visible();
+	bool toggled() const {
+		return _animation.visible();
 	}
-
-	auto shownValue() const {
-		return _shownUpdated.events_starting_with(
+	auto toggledValue() const {
+		return _toggledChanged.events_starting_with(
 			_animation.visible());
 	}
 
@@ -71,7 +70,7 @@ protected:
 	void paintEvent(QPaintEvent *e) final override;
 
 private:
-	rpl::event_stream<bool> _shownUpdated;
+	rpl::event_stream<bool> _toggledChanged;
 	FadeAnimation _animation;
 	int _duration = 0;
 
@@ -95,26 +94,17 @@ public:
 	FadeWrap *setDuration(int duration) {
 		return chain(Parent::setDuration(duration));
 	}
-	FadeWrap *toggleAnimated(bool shown) {
-		return chain(Parent::toggleAnimated(shown));
+	FadeWrap *toggle(bool shown, anim::type animated) {
+		return chain(Parent::toggle(shown, animated));
 	}
-	FadeWrap *toggleFast(bool shown) {
-		return chain(Parent::toggleFast(shown));
+	FadeWrap *show(anim::type animated) {
+		return chain(Parent::show(animated));
 	}
-	FadeWrap *showAnimated() {
-		return chain(Parent::showAnimated());
+	FadeWrap *hide(anim::type animated) {
+		return chain(Parent::hide(animated));
 	}
-	FadeWrap *hideAnimated() {
-		return chain(Parent::hideAnimated());
-	}
-	FadeWrap *showFast() {
-		return chain(Parent::showFast());
-	}
-	FadeWrap *hideFast() {
-		return chain(Parent::hideFast());
-	}
-	FadeWrap *finishAnimations() {
-		return chain(Parent::finishAnimations());
+	FadeWrap *finishAnimating() {
+		return chain(Parent::finishAnimating());
 	}
 	FadeWrap *toggleOn(rpl::producer<bool> &&shown) {
 		return chain(Parent::toggleOn(std::move(shown)));

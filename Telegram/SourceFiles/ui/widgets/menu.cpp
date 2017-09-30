@@ -112,13 +112,13 @@ void Menu::clearActions() {
 	}
 }
 
-void Menu::finishAnimations() {
+void Menu::finishAnimating() {
 	for (auto &data : _actionsData) {
 		if (data.ripple) {
 			data.ripple.reset();
 		}
 		if (data.toggle) {
-			data.toggle->finishAnimation();
+			data.toggle->finishAnimating();
 		}
 	}
 }

@@ -68,7 +68,7 @@ object_ptr<Ui::SlideWrap<Ui::VerticalLayout>> CreateTextWithLabel(
 		layout,
 		std::move(label),
 		st::infoLabel));
-	result->finishAnimations();
+	result->finishAnimating();
 	return result;
 }
 

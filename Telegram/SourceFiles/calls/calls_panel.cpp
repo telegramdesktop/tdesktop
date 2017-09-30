@@ -341,8 +341,8 @@ void Panel::initControls() {
 
 	reinitControls();
 
-	_decline->finishAnimations();
-	_cancel->finishAnimations();
+	_decline->finishAnimating();
+	_cancel->finishAnimating();
 }
 
 void Panel::reinitControls() {
@@ -397,7 +397,7 @@ void Panel::toggleOpacityAnimation(bool visible) {
 	}
 }
 
-void Panel::finishAnimation() {
+void Panel::finishAnimating() {
 	_animationCache = QPixmap();
 	if (_call) {
 		if (!_visible) {
@@ -413,8 +413,8 @@ void Panel::finishAnimation() {
 void Panel::showControls() {
 	Expects(_call != nullptr);
 	showChildren();
-	_decline->setVisible(!_decline->isHiddenOrHiding());
-	_cancel->setVisible(!_cancel->isHiddenOrHiding());
+	_decline->setVisible(_decline->toggled());
+	_cancel->setVisible(_cancel->toggled());
 }
 
 void Panel::destroyDelayed() {
@@ -607,7 +607,7 @@ void Panel::paintEvent(QPaintEvent *e) {
 	if (!_animationCache.isNull()) {
 		auto opacity = _opacityAnimation.current(getms(), _call ? 1. : 0.);
 		if (!_opacityAnimation.animating()) {
-			finishAnimation();
+			finishAnimating();
 			if (!_call || isHidden()) return;
 		} else {
 			Platform::StartTranslucentPaint(p, e);
@@ -722,11 +722,11 @@ void Panel::stateChanged(State state) {
 			&& (state != State::FailedHangingUp)
 			&& (state != State::Failed)) {
 			auto toggleButton = [this](auto &&button, bool visible) {
-				if (isHidden()) {
-					button->toggleFast(visible);
-				} else {
-					button->toggleAnimated(visible);
-				}
+				button->toggle(
+					visible,
+					isHidden()
+						? anim::type::instant
+						: anim::type::normal);
 			};
 			auto incomingWaiting = _call->isIncomingWaiting();
 			if (incomingWaiting) {
@@ -734,7 +734,8 @@ void Panel::stateChanged(State state) {
 			}
 			toggleButton(_decline, incomingWaiting);
 			toggleButton(_cancel, (state == State::Busy));
-			auto hangupShown = _decline->isHiddenOrHiding() && _cancel->isHiddenOrHiding();
+			auto hangupShown = !_decline->toggled()
+				&& !_cancel->toggled();
 			if (_hangupShown != hangupShown) {
 				_hangupShown = hangupShown;
 				_hangupShownProgress.start([this] { updateHangupGeometry(); }, _hangupShown ? 0. : 1., _hangupShown ? 1. : 0., st::callPanelDuration, anim::sineInOut);

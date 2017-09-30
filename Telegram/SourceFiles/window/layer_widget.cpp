@@ -59,7 +59,7 @@ public:
 	void setCacheImages(QPixmap &&bodyCache, QPixmap &&mainMenuCache, QPixmap &&specialLayerCache, QPixmap &&layerCache);
 	void startAnimation(Action action);
 	void skipAnimation(Action action);
-	void finishAnimation();
+	void finishAnimating();
 
 	bool animating() const {
 		return _a_mainMenuShown.animating() || _a_specialLayerShown.animating() || _a_layerShown.animating();
@@ -140,7 +140,7 @@ void LayerStackWidget::BackgroundWidget::startAnimation(Action action) {
 
 void LayerStackWidget::BackgroundWidget::skipAnimation(Action action) {
 	startAnimation(action);
-	finishAnimation();
+	finishAnimating();
 }
 
 void LayerStackWidget::BackgroundWidget::checkIfDone() {
@@ -314,7 +314,7 @@ void LayerStackWidget::BackgroundWidget::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void LayerStackWidget::BackgroundWidget::finishAnimation() {
+void LayerStackWidget::BackgroundWidget::finishAnimating() {
 	_a_shown.finish();
 	_a_mainMenuShown.finish();
 	_a_specialLayerShown.finish();
@@ -484,8 +484,8 @@ void LayerStackWidget::updateLayerBoxes() {
 	update();
 }
 
-void LayerStackWidget::finishAnimation() {
-	_background->finishAnimation();
+void LayerStackWidget::finishAnimating() {
+	_background->finishAnimating();
 }
 
 bool LayerStackWidget::canSetFocus() const {

@@ -39,7 +39,7 @@ Widget::Widget(QWidget *parent, not_null<Window::Controller*> controller, PeerDa
 	_fixedBar->resizeToWidth(width());
 	_fixedBar->show();
 
-	_fixedBarShadow->hideFast();
+	_fixedBarShadow->hide(anim::type::instant);
 	_fixedBarShadow->raise();
 	updateAdaptiveLayout();
 	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
@@ -65,9 +65,9 @@ bool Widget::hasTopBarShadow() const {
 }
 
 QPixmap Widget::grabForShowAnimation(const Window::SectionSlideParams &params) {
-	if (params.withTopBarShadow || !_scroll->scrollTop()) _fixedBarShadow->hide();
+	if (params.withTopBarShadow || !_scroll->scrollTop()) _fixedBarShadow->hide(anim::type::instant);
 	auto result = myGrab(this);
-	if (params.withTopBarShadow) _fixedBarShadow->show();
+	if (params.withTopBarShadow) _fixedBarShadow->show(anim::type::instant);
 	return result;
 }
 
@@ -107,7 +107,7 @@ void Widget::restoreState(not_null<SectionMemento*> memento) {
 	auto scrollTop = memento->getScrollTop();
 	_scroll->scrollToY(scrollTop);
 	updateScrollState();
-	_fixedBarShadow->finishAnimations();
+	_fixedBarShadow->finishAnimating();
 }
 
 void Widget::resizeEvent(QResizeEvent *e) {
@@ -136,11 +136,7 @@ void Widget::resizeEvent(QResizeEvent *e) {
 void Widget::updateScrollState() {
 	auto scrollTop = _scroll->scrollTop();
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
-	if (scrollTop > 0) {
-		_fixedBarShadow->showAnimated();
-	} else {
-		_fixedBarShadow->hideAnimated();
-	}
+	_fixedBarShadow->toggle(scrollTop > 0, anim::type::normal);
 }
 
 void Widget::onScroll() {
@@ -154,7 +150,7 @@ void Widget::showAnimatedHook() {
 void Widget::showFinishedHook() {
 	_fixedBar->setAnimatingMode(false);
 	if (!_scroll->scrollTop()) {
-		_fixedBarShadow->hide();
+		_fixedBarShadow->hide(anim::type::instant);
 	}
 	_inner->showFinished();
 }

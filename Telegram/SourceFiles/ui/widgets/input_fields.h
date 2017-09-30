@@ -333,7 +333,7 @@ public:
 	}
 	void setPlaceholder(base::lambda<QString()> placeholderFactory);
 	void setDisplayFocused(bool focused);
-	void finishAnimations();
+	void finishAnimating();
 	void setFocusFast() {
 		setDisplayFocused(true);
 		setFocus();
@@ -513,7 +513,7 @@ public:
 	void setPlaceholder(base::lambda<QString()> placeholderFactory);
 	void setPlaceholderHidden(bool forcePlaceholderHidden);
 	void setDisplayFocused(bool focused);
-	void finishAnimations();
+	void finishAnimating();
 	void setFocusFast() {
 		setDisplayFocused(true);
 		setFocus();
@@ -699,7 +699,7 @@ public:
 	void setPlaceholder(base::lambda<QString()> placeholderFactory);
 	void setPlaceholderHidden(bool forcePlaceholderHidden);
 	void setDisplayFocused(bool focused);
-	void finishAnimations();
+	void finishAnimating();
 	void setFocusFast() {
 		setDisplayFocused(true);
 		setFocus();

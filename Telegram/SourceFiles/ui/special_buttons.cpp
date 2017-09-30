@@ -182,7 +182,7 @@ void SendButton::setRecordActive(bool recordActive) {
 	}
 }
 
-void SendButton::finishAnimation() {
+void SendButton::finishAnimating() {
 	_a_typeChanged.finish();
 	_a_recordActive.finish();
 	update();

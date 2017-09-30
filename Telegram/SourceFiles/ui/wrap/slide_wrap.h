@@ -50,7 +50,7 @@ public:
 	SlideWrap *hideAnimated() { return toggleAnimated(false); }
 	SlideWrap *showFast() { return toggleFast(true); }
 	SlideWrap *hideFast() { return toggleFast(false); }
-	SlideWrap *finishAnimations();
+	SlideWrap *finishAnimating();
 	SlideWrap *toggleOn(rpl::producer<bool> &&shown);
 
 	bool animating() const {
@@ -125,8 +125,8 @@ public:
 	SlideWrap *hideFast() {
 		return chain(Parent::hideFast());
 	}
-	SlideWrap *finishAnimations() {
-		return chain(Parent::finishAnimations());
+	SlideWrap *finishAnimating() {
+		return chain(Parent::finishAnimating());
 	}
 	SlideWrap *toggleOn(rpl::producer<bool> &&shown) {
 		return chain(Parent::toggleOn(std::move(shown)));

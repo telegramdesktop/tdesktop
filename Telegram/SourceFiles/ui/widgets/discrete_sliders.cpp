@@ -56,10 +56,10 @@ void DiscreteSlider::timerEvent(QTimerEvent *e) {
 
 void DiscreteSlider::setActiveSectionFast(int index) {
 	setActiveSection(index);
-	finishAnimations();
+	finishAnimating();
 }
 
-void DiscreteSlider::finishAnimations() {
+void DiscreteSlider::finishAnimating() {
 	_a_left.finish();
 	update();
 }

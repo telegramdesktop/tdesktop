@@ -43,7 +43,7 @@ AbstractCheckView::AbstractCheckView(int duration, bool checked, base::lambda<vo
 
 void AbstractCheckView::setCheckedFast(bool checked) {
 	_checked = checked;
-	finishAnimation();
+	finishAnimating();
 	if (_updateCallback) {
 		_updateCallback();
 	}
@@ -63,7 +63,7 @@ void AbstractCheckView::setCheckedAnimated(bool checked) {
 	}
 }
 
-void AbstractCheckView::finishAnimation() {
+void AbstractCheckView::finishAnimating() {
 	_toggleAnimation.finish();
 }
 
@@ -372,8 +372,8 @@ void Checkbox::setChecked(bool checked, NotifyAboutChange notify) {
 	}
 }
 
-void Checkbox::finishAnimations() {
-	_check->finishAnimation();
+void Checkbox::finishAnimating() {
+	_check->finishAnimating();
 }
 
 int Checkbox::naturalWidth() const {
@@ -462,7 +462,7 @@ void Checkbox::onStateChanged(State was, StateChangeSource source) {
 
 	if (isDisabled() && !(was & StateFlag::Disabled)) {
 		setCursor(style::cur_default);
-		finishAnimations();
+		finishAnimating();
 		_checkCache = grabCheckCache();
 	} else if (!isDisabled() && (was & StateFlag::Disabled)) {
 		setCursor(style::cur_pointer);

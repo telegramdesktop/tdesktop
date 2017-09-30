@@ -43,7 +43,7 @@ public:
 	};
 	void setChecked(bool checked, NotifyAboutChange notify = NotifyAboutChange::Notify);
 
-	void finishAnimations();
+	void finishAnimating();
 
 	QMargins getMargins() const override {
 		return _st.margin;
@@ -125,8 +125,8 @@ void UserCheckbox::paintEvent(QPaintEvent *e) {
 	p.drawTextLeft(statusLeft, statusTop, width(), _statusText);
 }
 
-void UserCheckbox::finishAnimations() {
-	_check->finishAnimation();
+void UserCheckbox::finishAnimating() {
+	_check->finishAnimating();
 }
 
 int UserCheckbox::resizeGetHeight(int newWidth) {

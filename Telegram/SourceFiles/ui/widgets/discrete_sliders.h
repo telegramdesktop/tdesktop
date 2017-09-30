@@ -39,7 +39,7 @@ public:
 	}
 	void setActiveSection(int index);
 	void setActiveSectionFast(int index);
-	void finishAnimations();
+	void finishAnimating();
 
 	auto sectionActivated() const {
 		return _sectionActivated.events();

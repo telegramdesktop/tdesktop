@@ -59,7 +59,7 @@ Button *Button::toggleOn(rpl::producer<bool> &&toggled) {
 		| rpl::start_with_next([this](bool toggled) {
 			_toggle->setCheckedAnimated(toggled);
 		}, lifetime());
-	_toggle->finishAnimation();
+	_toggle->finishAnimating();
 	return this;
 }
 

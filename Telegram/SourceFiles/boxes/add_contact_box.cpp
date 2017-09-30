@@ -143,7 +143,7 @@ void AddContactBox::prepare() {
 void AddContactBox::setInnerFocus() {
 	if ((_first->getLastText().isEmpty() && _last->getLastText().isEmpty()) || !_phone->isEnabled()) {
 		(_invertOrder ? _last : _first)->setFocusFast();
-		_phone->finishAnimations();
+		_phone->finishAnimating();
 	} else {
 		_phone->setFocusFast();
 	}

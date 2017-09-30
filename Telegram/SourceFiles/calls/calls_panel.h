@@ -85,7 +85,7 @@ private:
 	void startDurationUpdateTimer(TimeMs currentDuration);
 	void fillFingerprint();
 	void toggleOpacityAnimation(bool visible);
-	void finishAnimation();
+	void finishAnimating();
 	void destroyDelayed();
 
 	Call *_call = nullptr;

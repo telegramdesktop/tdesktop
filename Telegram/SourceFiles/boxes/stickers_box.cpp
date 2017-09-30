@@ -1223,7 +1223,7 @@ void StickersBox::Inner::rebuildMegagroupSet() {
 	if (_megagroupSetInput.type() != mtpc_inputStickerSetID) {
 		if (_megagroupSelectedSet) {
 			_megagroupSetField->setText(QString());
-			_megagroupSetField->finishAnimations();
+			_megagroupSetField->finishAnimating();
 		}
 		_megagroupSelectedSet.reset();
 		_megagroupSelectedRemove.destroy();
@@ -1249,7 +1249,7 @@ void StickersBox::Inner::rebuildMegagroupSet() {
 	auto installed = true, official = false, unread = false, archived = false, removed = false;
 	if (!_megagroupSelectedSet || _megagroupSelectedSet->id != it->id) {
 		_megagroupSetField->setText(it->shortName);
-		_megagroupSetField->finishAnimations();
+		_megagroupSetField->finishAnimating();
 	}
 	_megagroupSelectedSet = std::make_unique<Row>(it->id, sticker, count, title, titleWidth, installed, official, unread, archived, removed, pixw, pixh);
 	_itemsTop += st::lineWidth + _rowHeight;

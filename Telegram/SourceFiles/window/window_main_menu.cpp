@@ -123,7 +123,7 @@ void MainMenu::refreshMenu() {
 		*_nightThemeAction = action;
 		action->setCheckable(true);
 		action->setChecked(Window::Theme::IsNightTheme());
-		_menu->finishAnimations();
+		_menu->finishAnimating();
 	}
 
 	updatePhone();

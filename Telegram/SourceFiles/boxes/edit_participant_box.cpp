@@ -283,7 +283,7 @@ void EditAdminBox::prepare() {
 
 	applyDependencies(nullptr);
 	for (auto &&checkbox : _checkboxes) {
-		checkbox.second->finishAnimations();
+		checkbox.second->finishAnimating();
 	}
 
 	resizeToContent();
@@ -381,7 +381,7 @@ void EditRestrictedBox::prepare() {
 
 	applyDependencies(nullptr);
 	for (auto &&checkbox : _checkboxes) {
-		checkbox.second->finishAnimations();
+		checkbox.second->finishAnimating();
 	}
 
 	resizeToContent();

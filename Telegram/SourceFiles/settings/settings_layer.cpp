@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "settings/settings_layer.h"
 
+#include <rpl/mappers.h>
 #include "settings/settings_inner_widget.h"
 #include "settings/settings_fixed_bar.h"
 #include "styles/style_settings.h"
@@ -48,15 +49,12 @@ Layer::Layer()
 	_fixedBarClose->moveToRight(0, 0);
 	_fixedBarShadow->entity()->resize(width(), st::lineWidth);
 	_fixedBarShadow->moveToLeft(0, _fixedBar->y() + _fixedBar->height());
-	_fixedBarShadow->hideFast();
+	_fixedBarShadow->hide(anim::type::instant);
 	_scroll->moveToLeft(0, st::settingsFixedBarHeight);
 
-	_scroll->scrollTopValue()
-		| rpl::map([](int scrollTop) { return scrollTop > 0; })
-		| rpl::distinct_until_changed()
-		| rpl::start_with_next([this](bool scrolled) {
-			_fixedBarShadow->toggleAnimated(scrolled);
-		}, lifetime());
+	using namespace rpl::mappers;
+	_fixedBarShadow->toggleOn(_scroll->scrollTopValue()
+		| rpl::map($1 > 0));
 }
 
 void Layer::setCloseClickHandler(base::lambda<void()> callback) {

@@ -250,7 +250,7 @@ public:
 		return peer() != nullptr;
 	}
 	void showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params);
-	void finishAnimation();
+	void finishAnimating();
 
 	void doneShow();
 

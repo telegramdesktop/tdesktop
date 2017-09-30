@@ -259,9 +259,9 @@ void DialogsWidget::showAnimated(Window::SlideDirection direction, const Window:
 	_mainMenuToggle->hide();
 	if (_forwardCancel) _forwardCancel->hide();
 	_filter->hide();
-	_cancelSearch->hideFast();
-	_jumpToDate->hideFast();
-	_chooseFromUser->hideFast();
+	_cancelSearch->hide();
+	_jumpToDate->hide(anim::type::instant);
+	_chooseFromUser->hide(anim::type::instant);
 	_lockUnlock->hide();
 
 	int delta = st::slideShift;
@@ -822,7 +822,7 @@ void DialogsWidget::onFilterUpdate(bool force) {
 		_peerSearchQuery = QString();
 	}
 
-	if (!_chooseFromUser->isHiddenOrHiding() || _searchFromUser) {
+	if (_chooseFromUser->toggled() || _searchFromUser) {
 		auto switchToChooseFrom = SwitchToChooseFromQuery();
 		if (_lastFilterText != switchToChooseFrom
 			&& switchToChooseFrom.startsWith(_lastFilterText)
@@ -938,22 +938,17 @@ void DialogsWidget::updateLockUnlockVisibility() {
 void DialogsWidget::updateJumpToDateVisibility(bool fast) {
 	if (_a_show.animating()) return;
 
-	auto jumpToDateVisible = (_searchInPeer && _filter->getLastText().isEmpty());
-	if (fast) {
-		_jumpToDate->toggleFast(jumpToDateVisible);
-	} else {
-		_jumpToDate->toggleAnimated(jumpToDateVisible);
-	}
+	_jumpToDate->toggle(
+		(_searchInPeer && _filter->getLastText().isEmpty()),
+		fast ? anim::type::instant : anim::type::normal);
 }
 
 void DialogsWidget::updateSearchFromVisibility(bool fast) {
 	auto visible = _searchInPeer && (_searchInPeer->isChat() || _searchInPeer->isMegagroup()) && !_searchFromUser;
-	auto changed = (visible == _chooseFromUser->isHiddenOrHiding());
-	if (fast) {
-		_chooseFromUser->toggleFast(visible);
-	} else {
-		_chooseFromUser->toggleAnimated(visible);
-	}
+	auto changed = (visible == !_chooseFromUser->toggled());
+	_chooseFromUser->toggle(
+		visible,
+		fast ? anim::type::instant : anim::type::normal);
 	if (changed) {
 		auto margins = st::dialogsFilter.textMrg;
 		if (visible) {

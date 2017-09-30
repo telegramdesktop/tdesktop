@@ -76,7 +76,7 @@ public:
 	void setOrigin(PanelAnimation::Origin origin);
 	void showAnimated(PanelAnimation::Origin origin);
 	void hideAnimated(HideOption option = HideOption::Default);
-	void finishAnimations();
+	void finishAnimating();
 	void showFast();
 	void hideFast();
 

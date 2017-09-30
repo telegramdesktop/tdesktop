@@ -108,7 +108,7 @@ void PasscodeWidget::showAnimated(const QPixmap &bgAnimCache, bool back) {
 
 	showAll();
 	setInnerFocus();
-	_passcode->finishAnimations();
+	_passcode->finishAnimating();
 	(_showBack ? _cacheUnder : _cacheOver) = myGrab(this);
 	hideAll();
 

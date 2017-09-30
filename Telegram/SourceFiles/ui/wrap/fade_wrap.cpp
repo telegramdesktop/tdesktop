@@ -38,34 +38,30 @@ FadeWrap<RpWidget> *FadeWrap<RpWidget>::setDuration(int duration) {
 	return this;
 }
 
-FadeWrap<RpWidget> *FadeWrap<RpWidget>::toggleAnimated(
-		bool shown) {
+FadeWrap<RpWidget> *FadeWrap<RpWidget>::toggle(
+		bool shown,
+		anim::type animated) {
 	auto updated = (shown != _animation.visible());
 	if (shown) {
-		_animation.fadeIn(_duration);
+		if (animated == anim::type::normal) {
+			_animation.fadeIn(_duration);
+		} else {
+			_animation.show();
+		}
 	} else {
-		_animation.fadeOut(_duration);
+		if (animated == anim::type::normal) {
+			_animation.fadeOut(_duration);
+		} else {
+			_animation.hide();
+		}
 	}
 	if (updated) {
-		_shownUpdated.fire_copy(shown);
+		_toggledChanged.fire_copy(shown);
 	}
 	return this;
 }
 
-FadeWrap<RpWidget> *FadeWrap<RpWidget>::toggleFast(bool shown) {
-	auto updated = (shown != _animation.visible());
-	if (shown) {
-		_animation.show();
-	} else {
-		_animation.hide();
-	}
-	if (updated) {
-		_shownUpdated.fire_copy(shown);
-	}
-	return this;
-}
-
-FadeWrap<RpWidget> *FadeWrap<RpWidget>::finishAnimations() {
+FadeWrap<RpWidget> *FadeWrap<RpWidget>::finishAnimating() {
 	_animation.finish();
 	return this;
 }
@@ -74,9 +70,9 @@ FadeWrap<RpWidget> *FadeWrap<RpWidget>::toggleOn(
 		rpl::producer<bool> &&shown) {
 	std::move(shown)
 		| rpl::start_with_next([this](bool shown) {
-			toggleAnimated(shown);
+			toggle(shown, anim::type::normal);
 		}, lifetime());
-	finishAnimations();
+	finishAnimating();
 	return this;
 }
 
@@ -91,7 +87,7 @@ FadeShadow::FadeShadow(QWidget *parent)
 
 FadeShadow::FadeShadow(QWidget *parent, style::color color)
 : Parent(parent, object_ptr<PlainShadow>(parent, color)) {
-	hideFast();
+	hide(anim::type::instant);
 }
 
 } // namespace Ui

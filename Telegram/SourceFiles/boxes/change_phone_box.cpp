@@ -38,7 +38,7 @@ void createErrorLabel(
 		int x,
 		int y) {
 	if (label) {
-		label->hideAnimated();
+		label->hide(anim::type::normal);
 		auto context = label.data();
 		App::CallDelayed(
 			st::fadeWrapDuration,
@@ -55,9 +55,9 @@ void createErrorLabel(
 				text,
 				Ui::FlatLabel::InitType::Simple,
 				st::changePhoneError));
-		label->hideFast();
+		label->hide(anim::type::instant);
 		label->moveToLeft(x, y);
-		label->showAnimated();
+		label->show(anim::type::normal);
 	}
 }
 

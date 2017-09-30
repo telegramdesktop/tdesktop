@@ -647,7 +647,7 @@ void MultiSelect::Inner::finishItemsBunch(AddItemWay way) {
 	if (way != AddItemWay::SkipAnimation) {
 		_items.back()->showAnimated();
 	} else {
-		_field->finishAnimations();
+		_field->finishAnimating();
 		finishHeightAnimation();
 	}
 }

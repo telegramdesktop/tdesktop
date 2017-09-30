@@ -54,7 +54,7 @@ SettingsWidget::SettingsWidget(QWidget *parent, PeerData *peer) : BlockWidget(pa
 	}));
 
 	refreshButtons();
-	_enableNotifications->finishAnimations();
+	_enableNotifications->finishAnimating();
 
 	show();
 }

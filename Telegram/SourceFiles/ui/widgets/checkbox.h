@@ -32,7 +32,7 @@ public:
 
 	void setCheckedFast(bool checked);
 	void setCheckedAnimated(bool checked);
-	void finishAnimation();
+	void finishAnimating();
 	void setUpdateCallback(base::lambda<void()> updateCallback);
 	bool checked() const {
 		return _checked;
@@ -140,7 +140,7 @@ public:
 	void setChecked(bool checked, NotifyAboutChange notify = NotifyAboutChange::Notify);
 	base::Observable<bool> checkedChanged;
 
-	void finishAnimations();
+	void finishAnimating();
 
 	QMargins getMargins() const override {
 		return _st.margin;

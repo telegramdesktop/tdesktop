@@ -2752,7 +2752,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 	} else {
 		_overview->fastShow();
 	}
-	_history->finishAnimation();
+	_history->finishAnimating();
 	if (back) {
 		clearBotStartToken(_history->peer());
 	}
@@ -3018,7 +3018,7 @@ void MainWidget::showNewSection(
 		}
 		_mainSection = std::move(newMainSection);
 		updateControlsGeometry();
-		_history->finishAnimation();
+		_history->finishAnimating();
 		_history->showHistory(0, 0);
 		_history->hide();
 		if (Adaptive::OneColumn()) _dialogs->hide();
