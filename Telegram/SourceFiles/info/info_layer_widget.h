@@ -20,61 +20,51 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <rpl/producer.h>
-#include "info/info_content_widget.h"
+#include "window/layer_widget.h"
+
+namespace Window {
+class Controller;
+} // namespace Window
 
 namespace Info {
-namespace CommonGroups {
 
-class InnerWidget;
+class Memento;
+class MoveMemento;
+class WrapWidget;
+class TopBar;
 
-class Memento final : public ContentMemento {
+class LayerWidget : public Window::LayerWidget {
 public:
-	Memento(UserId userId) : _userId(userId) {
-	}
-
-	object_ptr<ContentWidget> createWidget(
-		QWidget *parent,
-		Wrap wrap,
+	LayerWidget(
 		not_null<Window::Controller*> controller,
-		const QRect &geometry) override;
-
-	UserId userId() const {
-		return _userId;
-	}
-
-private:
-	UserId _userId = 0;
-
-};
-
-class Widget final : public ContentWidget {
-public:
-	Widget(
-		QWidget *parent,
-		Wrap wrap,
-		not_null<Window::Controller*> controller,
-		not_null<UserData*> user);
-
-	not_null<UserData*> user() const;
-	Section section() const override;
-
-	bool showInternal(
-		not_null<ContentMemento*> memento) override;
-	std::unique_ptr<ContentMemento> createMemento() override;
-
-	void setInternalState(
-		const QRect &geometry,
 		not_null<Memento*> memento);
+	LayerWidget(
+		not_null<Window::Controller*> controller,
+		not_null<MoveMemento*> memento);
+
+	void showFinished() override;
+	void parentResized() override;
+
+	bool takeToThirdSection() override;
+
+	static int MinimalSupportedWidth();
+
+protected:
+	int resizeGetHeight(int newWidth) override;
+
+	void paintEvent(QPaintEvent *e) override;
 
 private:
-	void saveState(not_null<Memento*> memento);
-	void restoreState(not_null<Memento*> memento);
+	void setupHeightConsumers();
 
-	InnerWidget *_inner = nullptr;
+	void setRoundedCorners(bool roundedCorners);
+
+	not_null<Window::Controller*> _controller;
+	object_ptr<WrapWidget> _content;
+
+	int _desiredHeight = 0;
+	bool _roundedCorners = false;
 
 };
 
-} // namespace CommonGroups
 } // namespace Info
-

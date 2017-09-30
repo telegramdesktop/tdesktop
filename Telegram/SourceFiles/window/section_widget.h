@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Window {
 
 class Controller;
+class LayerWidget;
 
 enum class Column {
 	First,
@@ -121,7 +122,7 @@ public:
 
 	// Some sections convert to layers on some geometry sizes.
 	virtual object_ptr<LayerWidget> moveContentToLayer(
-			int availableWidth) {
+			QRect bodyGeometry) {
 		return nullptr;
 	}
 

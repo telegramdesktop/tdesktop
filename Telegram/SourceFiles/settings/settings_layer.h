@@ -20,16 +20,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "layerwidget.h"
+#include "window/layer_widget.h"
 #include "ui/rp_widget.h"
-
-class BoxLayerTitleShadow;
 
 namespace Ui {
 class ScrollArea;
 class IconButton;
-template <typename Widget>
-class WidgetFadeWrap;
+class FadeShadow;
 } // namespace Ui
 
 namespace Settings {
@@ -46,7 +43,7 @@ public:
 
 };
 
-class Layer : public LayerWidget {
+class Layer : public Window::LayerWidget {
 public:
 	Layer();
 
@@ -80,7 +77,7 @@ private:
 	QPointer<LayerInner> _inner;
 	object_ptr<FixedBar> _fixedBar;
 	object_ptr<Ui::IconButton> _fixedBarClose;
-	object_ptr<Ui::WidgetFadeWrap<BoxLayerTitleShadow>> _fixedBarShadow;
+	object_ptr<Ui::FadeShadow> _fixedBarShadow;
 
 	bool _roundedCorners = false;
 

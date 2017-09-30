@@ -20,7 +20,19 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "ui/widgets/shadow.h"
 
+#include "styles/style_widgets.h"
+
 namespace Ui {
+
+PlainShadow::PlainShadow(QWidget *parent)
+: PlainShadow(parent, st::shadowFg) {
+}
+
+PlainShadow::PlainShadow(QWidget *parent, style::color color)
+: RpWidget(parent)
+, _color(color) {
+	resize(st::lineWidth, st::lineWidth);
+}
 
 void Shadow::paint(Painter &p, const QRect &box, int outerWidth, const style::Shadow &st, RectParts sides) {
 	auto left = (sides & RectPart::Left);
@@ -98,6 +110,11 @@ QPixmap Shadow::grab(TWidget *target, const style::Shadow &shadow, RectParts sid
 		target->grabFinish();
 	}
 	return result;
+}
+
+void Shadow::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	paint(p, rect().marginsRemoved(_st.extend), width(), _st, _sides);
 }
 
 } // namespace Ui

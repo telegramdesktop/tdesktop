@@ -26,16 +26,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "profile/profile_section_memento.h"
 #include "mainwindow.h"
 #include "application.h"
-#include "ui/effects/widget_fade_wrap.h"
 #include "ui/widgets/scroll_area.h"
-#include "ui/widgets/shadow.h"
+#include "ui/wrap/fade_wrap.h"
 
 namespace Profile {
 
 Widget::Widget(QWidget *parent, not_null<Window::Controller*> controller, PeerData *peer) : Window::SectionWidget(parent, controller)
 , _scroll(this, st::settingsScroll)
 , _fixedBar(this, peer)
-, _fixedBarShadow(this, object_ptr<Ui::PlainShadow>(this, st::shadowFg)) {
+, _fixedBarShadow(this) {
 	_fixedBar->move(0, 0);
 	_fixedBar->resizeToWidth(width());
 	_fixedBar->show();
@@ -108,7 +107,7 @@ void Widget::restoreState(not_null<SectionMemento*> memento) {
 	auto scrollTop = memento->getScrollTop();
 	_scroll->scrollToY(scrollTop);
 	updateScrollState();
-	_fixedBarShadow->finishAnimation();
+	_fixedBarShadow->finishAnimations();
 }
 
 void Widget::resizeEvent(QResizeEvent *e) {
@@ -118,7 +117,6 @@ void Widget::resizeEvent(QResizeEvent *e) {
 
 	int newScrollTop = _scroll->scrollTop() + topDelta();
 	_fixedBar->resizeToWidth(width());
-	_fixedBarShadow->entity()->resize(width(), st::lineWidth);
 
 	QSize scrollSize(width(), height() - _fixedBar->height());
 	if (_scroll->size() != scrollSize) {

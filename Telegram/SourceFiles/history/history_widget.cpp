@@ -36,6 +36,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/inner_dropdown.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/shadow.h"
 #include "ui/effects/ripple_animation.h"
 #include "inline_bots/inline_bot_result.h"
 #include "data/data_drafts.h"
@@ -77,7 +78,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace {
 
-constexpr auto kSaveTabbedSelectorSectionTimeoutMs = 1000;
 constexpr auto kMessagesPerPageFirst = 30;
 constexpr auto kMessagesPerPage = 50;
 constexpr auto kPreloadHeightsCount = 3; // when 3 screens to scroll left make a preload request
@@ -539,7 +539,7 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 , _attachDragDocument(this)
 , _attachDragPhoto(this)
 , _fileLoader(this, FileLoaderQueueStopTimeout)
-, _topShadow(this, st::shadowFg) {
+, _topShadow(this) {
 	setAcceptDrops(true);
 
 	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
@@ -3804,7 +3804,7 @@ void HistoryWidget::toggleTabbedSelectorMode() {
 		if (controller()->canShowThirdSection()
 			&& !Adaptive::OneColumn()) {
 			Auth().data().setTabbedSelectorSectionEnabled(true);
-			Auth().saveDataDelayed(kSaveTabbedSelectorSectionTimeoutMs);
+			Auth().saveDataDelayed();
 			pushTabbedSelectorToThirdSection();
 		} else {
 			_tabbedPanel->toggleAnimated();
@@ -5244,7 +5244,7 @@ void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot
 HistoryWidget::PinnedBar::PinnedBar(MsgId msgId, HistoryWidget *parent)
 : msgId(msgId)
 , cancel(parent, st::historyReplyCancel)
-, shadow(parent, st::shadowFg) {
+, shadow(parent) {
 }
 
 HistoryWidget::PinnedBar::~PinnedBar() {

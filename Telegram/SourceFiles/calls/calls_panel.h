@@ -29,7 +29,7 @@ namespace Ui {
 class IconButton;
 class FlatLabel;
 template <typename Widget>
-class WidgetFadeWrap;
+class FadeWrap;
 } // namespace Ui
 
 namespace Calls {
@@ -103,8 +103,8 @@ private:
 
 	class Button;
 	object_ptr<Button> _answerHangupRedial;
-	object_ptr<Ui::WidgetFadeWrap<Button>> _decline;
-	object_ptr<Ui::WidgetFadeWrap<Button>> _cancel;
+	object_ptr<Ui::FadeWrap<Button>> _decline;
+	object_ptr<Ui::FadeWrap<Button>> _cancel;
 	bool _hangupShown = false;
 	Animation _hangupShownProgress;
 	object_ptr<Ui::IconButton> _mute;

@@ -1,0 +1,111 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+*/
+#include "info/info_section_widget.h"
+
+#include "info/info_content_widget.h"
+#include "info/info_wrap_widget.h"
+#include "info/info_layer_widget.h"
+#include "info/info_memento.h"
+
+namespace Info {
+
+SectionWidget::SectionWidget(
+	QWidget *parent,
+	not_null<Window::Controller*> controller,
+	Wrap wrap,
+	not_null<Memento*> memento)
+: Window::SectionWidget(parent, controller)
+, _content(this, controller, wrap, memento) {
+	init();
+}
+
+SectionWidget::SectionWidget(
+	QWidget *parent,
+	not_null<Window::Controller*> controller,
+	Wrap wrap,
+	not_null<MoveMemento*> memento)
+: Window::SectionWidget(parent, controller)
+, _content(memento->takeContent(this, wrap)) {
+	init();
+}
+
+void SectionWidget::init() {
+	_content->move(0, 0);
+	sizeValue()
+		| rpl::start_with_next([wrap = _content.data()](QSize size) {
+			wrap->resize(size);
+		}, _content->lifetime());
+}
+
+PeerData *SectionWidget::peerForDialogs() const {
+	return _content->peer();
+}
+
+bool SectionWidget::hasTopBarShadow() const {
+	return _content->hasTopBarShadow();
+}
+
+QPixmap SectionWidget::grabForShowAnimation(
+		const Window::SectionSlideParams &params) {
+	return _content->grabForShowAnimation(params);
+}
+
+void SectionWidget::doSetInnerFocus() {
+	_content->setInnerFocus();
+}
+
+void SectionWidget::showFinishedHook() {
+	_content->showFinished();
+}
+
+bool SectionWidget::showInternal(
+		not_null<Window::SectionMemento*> memento) {
+	if (auto infoMemento = dynamic_cast<Memento*>(memento.get())) {
+		_content->showInternal(infoMemento);
+	}
+	return false;
+}
+
+std::unique_ptr<Window::SectionMemento> SectionWidget::createMemento() {
+	auto result = std::make_unique<Memento>(_content->peer()->id);
+	_content->saveState(result.get());
+	return std::move(result);
+}
+
+object_ptr<Window::LayerWidget> SectionWidget::moveContentToLayer(
+		QRect bodyGeometry) {
+	if (_content->wrap() != Wrap::Narrow
+		|| width() < LayerWidget::MinimalSupportedWidth()) {
+		return nullptr;
+	}
+	return MoveMemento(
+		std::move(_content)).createLayer(controller(), bodyGeometry);
+}
+
+bool SectionWidget::wheelEventFromFloatPlayer(QEvent *e) {
+	return _content->wheelEventFromFloatPlayer(e);
+}
+
+QRect SectionWidget::rectForFloatPlayer() const {
+	return _content->rectForFloatPlayer();
+}
+
+} // namespace Info

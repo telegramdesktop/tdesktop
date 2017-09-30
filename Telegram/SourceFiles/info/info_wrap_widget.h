@@ -24,8 +24,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/section_widget.h"
 
 namespace Ui {
-class PlainShadow;
 class SettingsSlider;
+class FadeShadow;
 } // namespace Ui
 
 namespace Info {
@@ -41,50 +41,84 @@ class Section;
 class Memento;
 class MoveMemento;
 class ContentWidget;
+class TopBar;
 
-class SideWrap final : public Window::SectionWidget {
+enum class Wrap {
+	Layer,
+	Narrow,
+	Side,
+};
+
+class Section final {
 public:
-	SideWrap(
+	enum class Type {
+		Profile,
+		Media,
+		CommonGroups,
+	};
+	using MediaType = Storage::SharedMediaType;
+
+	Section(Type type) : _type(type) {
+		Expects(type != Type::Media);
+	}
+	Section(MediaType mediaType)
+		: _type(Type::Media)
+		, _mediaType(mediaType) {
+	}
+
+	Type type() const {
+		return _type;
+	}
+	MediaType mediaType() const {
+		Expects(_type == Type::Media);
+		return _mediaType;
+	}
+
+private:
+	Type _type;
+	Storage::SharedMediaType _mediaType;
+
+};
+
+class WrapWidget final : public Ui::RpWidget {
+public:
+	WrapWidget(
 		QWidget *parent,
 		not_null<Window::Controller*> controller,
+		Wrap wrap,
 		not_null<Memento*> memento);
-	SideWrap(
-		QWidget *parent,
-		not_null<Window::Controller*> controller,
-		not_null<MoveMemento*> memento);
 
 	not_null<PeerData*> peer() const;
-	PeerData *peerForDialogs() const override {
-		return peer();
-	}
+	Wrap wrap() const;
+	void setWrap(Wrap wrap);
 
-	bool hasTopBarShadow() const override {
-		return true;
-	}
-
+	bool hasTopBarShadow() const;
 	QPixmap grabForShowAnimation(
-		const Window::SectionSlideParams &params) override;
+		const Window::SectionSlideParams &params);
 
 	bool showInternal(
-		not_null<Window::SectionMemento*> memento) override;
-	std::unique_ptr<Window::SectionMemento> createMemento() override;
+		not_null<Window::SectionMemento*> memento);
+	std::unique_ptr<Window::SectionMemento> createMemento();
 
-	rpl::producer<int> desiredHeightValue() const override;
+	rpl::producer<int> desiredHeightValue() const;
 
-	void setInternalState(
-		const QRect &geometry,
-		not_null<Memento*> memento);
+	void setInnerFocus();
+	void showFinished();
+
+	void updateInternalState(not_null<Memento*> memento);
+	void saveState(not_null<Memento*> memento);
 
 	// Float player interface.
-	bool wheelEventFromFloatPlayer(QEvent *e) override;
-	QRect rectForFloatPlayer() const override;
+	bool wheelEventFromFloatPlayer(QEvent *e);
+	QRect rectForFloatPlayer() const;
 
 protected:
-	void resizeEvent(QResizeEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e);
+	void paintEvent(QPaintEvent *e);
 
-	void doSetInnerFocus() override;
-	void showFinishedHook() override;
+	not_null<Window::Controller*> controller() const {
+		return _controller;
+	}
 
 private:
 	enum class Tab {
@@ -92,30 +126,36 @@ private:
 		Media,
 		None,
 	};
-	void saveState(not_null<Memento*> memento);
-	void restoreState(not_null<Memento*> memento);
-	void restoreState(not_null<MoveMemento*> memento);
+	void applyState(Wrap wrap, not_null<Memento*> memento);
+	void setupTop(Wrap wrap, const Section &section, PeerId peerId);
+	void setupTabbedTop(const Section &section);
+	void setupTabs(Tab tab);
+	void createTabs();
+	void createTopBar(
+		Wrap wrap,
+		const Section &section,
+		PeerId peerId);
+	not_null<RpWidget*> topWidget() const;
 
 	QRect contentGeometry() const;
 	rpl::producer<int> desiredHeightForContent() const;
+	void finishShowContent();
+	void updateContentGeometry();
 
-	void setupTabs();
 	void showTab(Tab tab);
-	void setCurrentTab(Tab tab);
-	void setSection(const Section &section);
 	void showContent(object_ptr<ContentWidget> content);
 	object_ptr<ContentWidget> createContent(Tab tab);
 	object_ptr<Profile::Widget> createProfileWidget();
 	object_ptr<Media::Widget> createMediaWidget();
 
-	object_ptr<Ui::PlainShadow> _tabsShadow = { nullptr };
-	object_ptr<Ui::SettingsSlider> _tabs = { nullptr };
+	not_null<Window::Controller*> _controller;
 	object_ptr<ContentWidget> _content = { nullptr };
+	object_ptr<Ui::SettingsSlider> _topTabs = { nullptr };
+	object_ptr<TopBar> _topBar = { nullptr };
+	object_ptr<Ui::FadeShadow> _topShadow = { nullptr };
 	Tab _tab = Tab::Profile;
 
 	rpl::event_stream<rpl::producer<int>> _desiredHeights;
-
-	rpl::lifetime _lifetime;
 
 };
 

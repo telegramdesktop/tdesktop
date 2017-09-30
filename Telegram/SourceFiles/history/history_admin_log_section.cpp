@@ -251,7 +251,7 @@ void FixedBar::mousePressEvent(QMouseEvent *e) {
 Widget::Widget(QWidget *parent, not_null<Window::Controller*> controller, not_null<ChannelData*> channel) : Window::SectionWidget(parent, controller)
 , _scroll(this, st::historyScroll, false)
 , _fixedBar(this, controller, channel)
-, _fixedBarShadow(this, st::shadowFg)
+, _fixedBarShadow(this)
 , _whatIsThis(this, lang(lng_admin_log_about).toUpper(), st::historyComposeButton) {
 	_fixedBar->move(0, 0);
 	_fixedBar->resizeToWidth(width());

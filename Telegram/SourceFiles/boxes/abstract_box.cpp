@@ -24,10 +24,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_profile.h"
 #include "storage/localstorage.h"
 #include "lang/lang_keys.h"
-#include "ui/effects/widget_fade_wrap.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/shadow.h"
+#include "ui/wrap/fade_wrap.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 
@@ -53,8 +54,8 @@ void BoxContent::setInner(object_ptr<TWidget> inner, const style::ScrollArea &st
 			_topShadow->raise();
 			_bottomShadow->raise();
 		} else {
-			_topShadow.create(this, object_ptr<BoxLayerTitleShadow>(this));
-			_bottomShadow.create(this, object_ptr<BoxLayerTitleShadow>(this));
+			_topShadow.create(this);
+			_bottomShadow.create(this);
 		}
 		if (!_preparing) {
 			// We didn't set dimensions yet, this will be called from finishPrepare();
@@ -419,9 +420,6 @@ void AbstractBox::keyPressEvent(QKeyEvent *e) {
 	} else {
 		LayerWidget::keyPressEvent(e);
 	}
-}
-
-BoxLayerTitleShadow::BoxLayerTitleShadow(QWidget *parent) : Ui::PlainShadow(parent, st::boxLayerTitleShadow) {
 }
 
 BoxContentDivider::BoxContentDivider(QWidget *parent) : RpWidget(parent) {

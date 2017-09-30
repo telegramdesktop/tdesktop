@@ -79,6 +79,7 @@ slideShift: 100px;
 slideShadow: icon {{ "slide_shadow", slideFadeOutShadowFg }};
 
 slideWrapDuration: 150;
+fadeWrapDuration: 200;
 
 linkCropLimit: 360px;
 linkFont: normalFont;

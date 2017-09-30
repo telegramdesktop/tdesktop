@@ -20,13 +20,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-class BoxLayerTitleShadow;
-
 namespace Ui {
 class FlatButton;
 class ScrollArea;
 class CrossButton;
 class MultiSelect;
+class PlainShadow;
 } // namespace Ui
 
 namespace Window {
@@ -55,8 +54,8 @@ private:
 	QPointer<Inner> _inner;
 	object_ptr<Ui::CrossButton> _close;
 	object_ptr<Ui::MultiSelect> _select;
-	object_ptr<BoxLayerTitleShadow> _leftShadow;
-	object_ptr<BoxLayerTitleShadow> _topShadow;
+	object_ptr<Ui::PlainShadow> _leftShadow;
+	object_ptr<Ui::PlainShadow> _topShadow;
 	object_ptr<Ui::FlatButton> _export;
 
 };

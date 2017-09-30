@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/shadow.h"
 #include "base/zlib_help.h"
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_instance.h"
@@ -38,7 +39,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "passcodewidget.h"
 #include "intro/introwidget.h"
 #include "mainwidget.h"
-#include "layerwidget.h"
 #include "boxes/confirm_box.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/connection_box.h"
@@ -49,6 +49,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "settings/settings_widget.h"
 #include "platform/platform_notifications_manager.h"
+#include "window/layer_widget.h"
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_warning.h"
@@ -325,7 +326,7 @@ void MainWindow::showSettings() {
 }
 
 void MainWindow::showSpecialLayer(
-		object_ptr<LayerWidget> layer,
+		object_ptr<Window::LayerWidget> layer,
 		anim::type animated) {
 	if (_passcode) return;
 
@@ -702,16 +703,17 @@ void MainWindow::noIntro(Intro::Widget *was) {
 	}
 }
 
-void MainWindow::noLayerStack(LayerStackWidget *was) {
+void MainWindow::noLayerStack(Window::LayerStackWidget *was) {
 	if (was == _layerBg) {
 		_layerBg = nullptr;
 		if (controller()) {
-			controller()->disableGifPauseReason(Window::GifPauseReason::Layer);
+			controller()->disableGifPauseReason(
+				Window::GifPauseReason::Layer);
 		}
 	}
 }
 
-void MainWindow::layerFinishedHide(LayerStackWidget *was) {
+void MainWindow::layerFinishedHide(Window::LayerStackWidget *was) {
 	if (was == _layerBg) {
 		auto resetFocus = Ui::InFocusChain(was);
 		if (resetFocus) setFocus();

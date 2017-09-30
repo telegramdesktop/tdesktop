@@ -39,7 +39,7 @@ class FlatButton;
 class FlatInput;
 class CrossButton;
 template <typename Widget>
-class WidgetScaledFadeWrap;
+class FadeWrapScaled;
 } // namespace Ui
 
 namespace Window {
@@ -182,8 +182,8 @@ private:
 	object_ptr<Ui::IconButton> _forwardCancel = { nullptr };
 	object_ptr<Ui::IconButton> _mainMenuToggle;
 	object_ptr<Ui::FlatInput> _filter;
-	object_ptr<Ui::WidgetScaledFadeWrap<Ui::IconButton>> _chooseFromUser;
-	object_ptr<Ui::WidgetScaledFadeWrap<Ui::IconButton>> _jumpToDate;
+	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseFromUser;
+	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _jumpToDate;
 	object_ptr<Ui::CrossButton> _cancelSearch;
 	object_ptr<Ui::IconButton> _lockUnlock;
 	object_ptr<Ui::ScrollArea> _scroll;

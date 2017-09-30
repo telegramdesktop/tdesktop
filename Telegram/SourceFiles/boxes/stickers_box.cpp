@@ -34,6 +34,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/widgets/shadow.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/slide_animation.h"
 #include "ui/widgets/discrete_sliders.h"

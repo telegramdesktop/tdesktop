@@ -24,44 +24,33 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/section_widget.h"
 
 namespace Ui {
-class PlainShadow;
 class SettingsSlider;
-template <typename Widget>
-class WidgetFadeWrap;
 } // namespace Ui
 
 namespace Info {
-namespace Profile {
-class Widget;
-} // namespace Profile
-
-namespace Media {
-class Widget;
-} // namespace Media
 
 class Memento;
 class MoveMemento;
-class ContentWidget;
-class TopBar;
+class WrapWidget;
+enum class Wrap;
 
-class NarrowWrap final : public Window::SectionWidget {
+class SectionWidget final : public Window::SectionWidget {
 public:
-	NarrowWrap(
+	SectionWidget(
 		QWidget *parent,
 		not_null<Window::Controller*> controller,
+		Wrap wrap,
 		not_null<Memento*> memento);
-	NarrowWrap(
+	SectionWidget(
 		QWidget *parent,
 		not_null<Window::Controller*> controller,
+		Wrap wrap,
 		not_null<MoveMemento*> memento);
 
 	not_null<PeerData*> peer() const;
-	PeerData *peerForDialogs() const override {
-		return peer();
-	}
+	PeerData *peerForDialogs() const override;
 
 	bool hasTopBarShadow() const override;
-
 	QPixmap grabForShowAnimation(
 		const Window::SectionSlideParams &params) override;
 
@@ -69,43 +58,21 @@ public:
 		not_null<Window::SectionMemento*> memento) override;
 	std::unique_ptr<Window::SectionMemento> createMemento() override;
 
-	rpl::producer<int> desiredHeight() const override;
-
-	object_ptr<LayerWidget> moveContentToLayer(
-		int availableWidth) override;
-
-	void setInternalState(
-		const QRect &geometry,
-		not_null<Memento*> memento);
+	object_ptr<Window::LayerWidget> moveContentToLayer(
+		QRect bodyGeometry) override;
 
 	// Float player interface.
 	bool wheelEventFromFloatPlayer(QEvent *e) override;
 	QRect rectForFloatPlayer() const override;
 
 protected:
-	void resizeEvent(QResizeEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-
 	void doSetInnerFocus() override;
+	void showFinishedHook() override;
 
 private:
-	void saveState(not_null<Memento*> memento);
-	void restoreState(not_null<Memento*> memento);
-	void restoreState(not_null<MoveMemento*> memento);
+	void init();
 
-	QRect contentGeometry() const;
-	rpl::producer<int> desiredHeightForContent() const;
-
-	void showContent(object_ptr<ContentWidget> content);
-	object_ptr<TopBar> createTopBar();
-
-	object_ptr<Ui::WidgetFadeWrap<Ui::PlainShadow>> _topShadow = { nullptr };
-	object_ptr<ContentWidget> _content = { nullptr };
-	object_ptr<TopBar> _topBar = { nullptr };
-
-	rpl::event_stream<rpl::producer<int>> _desiredHeights;
-
-	rpl::lifetime _lifetime;
+	object_ptr<WrapWidget> _content;
 
 };
 

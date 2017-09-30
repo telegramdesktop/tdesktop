@@ -31,11 +31,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 
 namespace Window {
-namespace {
-
-constexpr auto kThirdSectionInfoTimeoutMs = 1000;
-
-} // namespace
 
 void Controller::enableGifPauseReason(GifPauseReason reason) {
 	if (!(_gifPauseReasons & reason)) {
@@ -195,7 +190,7 @@ void Controller::closeThirdSection() {
 	}
 	Auth().data().setTabbedSelectorSectionEnabled(false);
 	Auth().data().setThirdSectionInfoEnabled(false);
-	Auth().saveDataDelayed(kThirdSectionInfoTimeoutMs);
+	Auth().saveDataDelayed();
 	if (window()->size() != newWindowSize) {
 		window()->resize(newWindowSize);
 	} else {
@@ -303,7 +298,7 @@ void Controller::showPeerInfo(
 	if (Adaptive::ThreeColumn()
 		&& !Auth().data().thirdSectionInfoEnabled()) {
 		Auth().data().setThirdSectionInfoEnabled(true);
-		Auth().saveDataDelayed(kThirdSectionInfoTimeoutMs);
+		Auth().saveDataDelayed();
 	}
 	showSection(
 		Info::Memento(peerId),

@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "boxes/abstract_box.h"
 #include "mtproto/sender.h"
+#include "styles/style_widgets.h"
 
 class ConfirmBox;
 class PeerListBox;

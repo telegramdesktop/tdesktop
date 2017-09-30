@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include <rpl/producer.h>
-#include "info/info_memento.h"
+#include "info/info_content_widget.h"
 
 namespace Info {
 namespace Profile {
@@ -80,11 +80,7 @@ private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
 
-	void scrollTopUpdated(int scrollTop);
-
 	InnerWidget *_inner = nullptr;
-
-	rpl::lifetime _lifetime;
 
 };
 

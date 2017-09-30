@@ -33,6 +33,12 @@ class FlatLabel;
 
 namespace Info {
 
+class Section;
+
+rpl::producer<QString> TitleValue(
+	const Section &section,
+	PeerId peerId);
+
 class TopBar : public Ui::RpWidget {
 public:
 	TopBar(QWidget *parent, const style::InfoTopBar &st);
@@ -65,7 +71,6 @@ private:
 	object_ptr<Ui::FlatLabel> _title = { nullptr };
 
 	rpl::event_stream<> _backClicks;
-	rpl::lifetime _lifetime;
 
 };
 

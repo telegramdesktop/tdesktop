@@ -37,7 +37,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/text/text.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
-#include "ui/effects/widget_fade_wrap.h"
+#include "ui/wrap/fade_wrap.h"
 #include "ui/effects/slide_animation.h"
 #include "autoupdater.h"
 #include "window/window_slide_animation.h"
@@ -56,8 +56,13 @@ constexpr str_const kDefaultCountry = "US";
 } // namespace
 
 Widget::Widget(QWidget *parent) : TWidget(parent)
-, _back(this, object_ptr<Ui::IconButton>(this, st::introBackButton), st::introSlideDuration)
-, _settings(this, object_ptr<Ui::RoundButton>(this, langFactory(lng_menu_settings), st::defaultBoxButton), st::introCoverDuration)
+, _back(this, object_ptr<Ui::IconButton>(this, st::introBackButton))
+, _settings(
+	this,
+	object_ptr<Ui::RoundButton>(
+		this,
+		langFactory(lng_menu_settings),
+		st::defaultBoxButton))
 , _next(this, base::lambda<QString()>(), st::introNextButton) {
 	auto country = Platform::SystemCountry();
 	if (country.isEmpty()) {
@@ -79,7 +84,7 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 
 	subscribe(Lang::CurrentCloudManager().firstLanguageSuggestion(), [this] { createLanguageLink(); });
 	createLanguageLink();
-	if (_changeLanguage) _changeLanguage->finishAnimation();
+	if (_changeLanguage) _changeLanguage->finishAnimations();
 
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 
@@ -108,7 +113,9 @@ void Widget::createLanguageLink() {
 	if (_changeLanguage) return;
 
 	auto createLink = [this](const QString &text, const QString &languageId) {
-		_changeLanguage.create(this, object_ptr<Ui::LinkButton>(this, text), st::introCoverDuration);
+		_changeLanguage.create(
+			this,
+			object_ptr<Ui::LinkButton>(this, text));
 		_changeLanguage->show();
 		_changeLanguage->hideFast();
 		_changeLanguage->entity()->setClickedCallback([this, languageId] {
@@ -138,7 +145,12 @@ void Widget::createLanguageLink() {
 void Widget::onCheckUpdateStatus() {
 	if (Sandbox::updatingState() == Application::UpdatingReady) {
 		if (_update) return;
-		_update.create(this, object_ptr<Ui::RoundButton>(this, langFactory(lng_menu_update), st::defaultBoxButton), st::introCoverDuration);
+		_update.create(
+			this,
+			object_ptr<Ui::RoundButton>(
+				this,
+				langFactory(lng_menu_update),
+				st::defaultBoxButton));
 		if (!_a_show.animating()) _update->show();
 		_update->entity()->setClickedCallback([] {
 			checkReadyUpdate();
@@ -233,7 +245,9 @@ void Widget::appendStep(Step *step) {
 void Widget::showResetButton() {
 	if (!_resetAccount) {
 		auto entity = object_ptr<Ui::RoundButton>(this, langFactory(lng_signin_reset_account), st::introResetButton);
-		_resetAccount.create(this, std::move(entity), st::introErrorDuration);
+		_resetAccount.create(
+			this,
+			std::move(entity));
 		_resetAccount->hideFast();
 		_resetAccount->entity()->setClickedCallback([this] { resetAccount(); });
 		updateControlsGeometry();
@@ -701,7 +715,13 @@ void Widget::Step::refreshError() {
 		if (_error) _error->hideAnimated();
 	} else {
 		if (!_error) {
-			_error.create(this, object_ptr<Ui::FlatLabel>(this, _errorCentered ? st::introErrorCentered : st::introError), st::introErrorDuration);
+			_error.create(
+				this,
+				object_ptr<Ui::FlatLabel>(
+					this,
+					_errorCentered
+						? st::introErrorCentered
+						: st::introError));
 			_error->hideFast();
 		}
 		_error->entity()->setText(_errorTextFactory());
@@ -714,9 +734,16 @@ Widget::Step::Step(QWidget *parent, Data *data, bool hasCover) : TWidget(parent)
 , _data(data)
 , _hasCover(hasCover)
 , _title(this, _hasCover ? st::introCoverTitle : st::introTitle)
-, _description(this, object_ptr<Ui::FlatLabel>(this, _hasCover ? st::introCoverDescription : st::introDescription), st::introErrorDuration) {
+, _description(
+	this,
+	object_ptr<Ui::FlatLabel>(
+		this,
+		_hasCover
+			? st::introCoverDescription
+			: st::introDescription)) {
 	hide();
-	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
+	subscribe(Window::Theme::Background(), [this](
+			const Window::Theme::BackgroundUpdate &update) {
 		if (update.paletteChanged()) {
 			if (!_coverMask.isNull()) {
 				_coverMask = QPixmap();

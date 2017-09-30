@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_search_from_controllers.h"
 #include "styles/style_dialogs.h"
 #include "ui/widgets/buttons.h"
+#include "ui/wrap/fade_wrap.h"
 #include "lang/lang_keys.h"
 #include "application.h"
 #include "mainwindow.h"
@@ -32,7 +33,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "autoupdater.h"
 #include "auth_session.h"
 #include "messenger.h"
-#include "ui/effects/widget_fade_wrap.h"
 #include "boxes/peer_list_box.h"
 #include "window/window_controller.h"
 #include "profile/profile_channel_controllers.h"
@@ -94,8 +94,12 @@ void DialogsWidget::UpdateButton::paintEvent(QPaintEvent *e) {
 DialogsWidget::DialogsWidget(QWidget *parent, not_null<Window::Controller*> controller) : Window::AbstractSectionWidget(parent, controller)
 , _mainMenuToggle(this, st::dialogsMenuToggle)
 , _filter(this, st::dialogsFilter, langFactory(lng_dlg_filter))
-, _chooseFromUser(this, object_ptr<Ui::IconButton>(this, st::dialogsSearchFrom))
-, _jumpToDate(this, object_ptr<Ui::IconButton>(this, st::dialogsCalendar))
+, _chooseFromUser(
+	this,
+	object_ptr<Ui::IconButton>(this, st::dialogsSearchFrom))
+, _jumpToDate(
+	this,
+	object_ptr<Ui::IconButton>(this, st::dialogsCalendar))
 , _cancelSearch(this, st::dialogsCancelSearch)
 , _lockUnlock(this, st::dialogsLock)
 , _scroll(this, st::dialogsScroll) {

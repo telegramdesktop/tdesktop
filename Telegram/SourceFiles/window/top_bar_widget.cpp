@@ -40,11 +40,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 
 namespace Window {
-namespace {
-
-constexpr auto kThirdSectionInfoTimeoutMs = 1000;
-
-} // namespace
 
 TopBarWidget::TopBarWidget(
 	QWidget *parent,
@@ -208,7 +203,7 @@ void TopBarWidget::toggleInfoSection() {
 	} else if (auto peer = App::main()->historyPeer()) {
 		if (_controller->canShowThirdSection()) {
 			Auth().data().setThirdSectionInfoEnabled(true);
-			Auth().saveDataDelayed(kThirdSectionInfoTimeoutMs);
+			Auth().saveDataDelayed();
 			if (Adaptive::ThreeColumn()) {
 				_controller->showSection(Info::Memento(peer->id));
 			} else {

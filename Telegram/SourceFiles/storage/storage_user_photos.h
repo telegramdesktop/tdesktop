@@ -183,8 +183,9 @@ private:
 
 	std::map<UserId, List> _lists;
 
-	rpl::lifetime _lifetime;
 	rpl::event_stream<UserPhotosSliceUpdate> _sliceUpdated;
+
+	rpl::lifetime _lifetime;
 
 };
 

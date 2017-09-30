@@ -26,7 +26,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 class PasscodeWidget;
 class MainWidget;
-class LayerStackWidget;
 class BoxContent;
 
 namespace Intro {
@@ -38,6 +37,7 @@ class ClearManager;
 } // namespace Local
 
 namespace Window {
+class LayerStackWidget;
 namespace Theme {
 struct BackgroundUpdate;
 class WarningWidget;
@@ -102,8 +102,8 @@ public:
 	void activate();
 
 	void noIntro(Intro::Widget *was);
-	void noLayerStack(LayerStackWidget *was);
-	void layerFinishedHide(LayerStackWidget *was);
+	void noLayerStack(Window::LayerStackWidget *was);
+	void layerFinishedHide(Window::LayerStackWidget *was);
 	bool takeThirdSectionFromLayer();
 
 	void checkHistoryActivation();
@@ -135,7 +135,7 @@ public:
 	void updateTrayMenu(bool force = false) override;
 
 	void showSpecialLayer(
-		object_ptr<LayerWidget> layer,
+		object_ptr<Window::LayerWidget> layer,
 		anim::type animated);
 	void ui_showBox(
 		object_ptr<BoxContent> box,
@@ -209,7 +209,7 @@ private:
 	object_ptr<PasscodeWidget> _passcode = { nullptr };
 	object_ptr<Intro::Widget> _intro = { nullptr };
 	object_ptr<MainWidget> _main = { nullptr };
-	object_ptr<LayerStackWidget> _layerBg = { nullptr };
+	object_ptr<Window::LayerStackWidget> _layerBg = { nullptr };
 	object_ptr<MediaPreviewWidget> _mediaPreview = { nullptr };
 
 	object_ptr<ConnectingWidget> _connecting = { nullptr };

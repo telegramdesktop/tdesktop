@@ -126,7 +126,7 @@ private:
 	ChannelData *_megagroupSet = nullptr;
 
 	std::unique_ptr<Ui::SlideAnimation> _slideAnimation;
-	object_ptr<BoxLayerTitleShadow> _titleShadow = { nullptr };
+	object_ptr<Ui::PlainShadow> _titleShadow = { nullptr };
 
 	mtpRequestId _archivedRequestId = 0;
 	bool _archivedLoaded = false;
@@ -303,7 +303,7 @@ private:
 	MTPInputStickerSet _megagroupSetInput = MTP_inputStickerSetEmpty();
 	std::unique_ptr<Row> _megagroupSelectedSet;
 	object_ptr<Ui::UsernameInput> _megagroupSetField = { nullptr };
-	object_ptr<BoxLayerTitleShadow> _megagroupSelectedShadow = { nullptr };
+	object_ptr<Ui::PlainShadow> _megagroupSelectedShadow = { nullptr };
 	object_ptr<Ui::CrossButton> _megagroupSelectedRemove = { nullptr };
 	object_ptr<BoxContentDivider> _megagroupDivider = { nullptr };
 	object_ptr<Ui::FlatLabel> _megagroupSubTitle = { nullptr };

@@ -34,13 +34,13 @@ class SlideWrap<RpWidget> : public Wrap<PaddingWrap<RpWidget>> {
 public:
 	SlideWrap(
 		QWidget *parent,
-		object_ptr<RpWidget> child);
+		object_ptr<RpWidget> &&child);
 	SlideWrap(
 		QWidget *parent,
 		const style::margins &padding);
 	SlideWrap(
 		QWidget *parent,
-		object_ptr<RpWidget> child,
+		object_ptr<RpWidget> &&child,
 		const style::margins &padding);
 
 	SlideWrap *setDuration(int duration);
@@ -54,7 +54,7 @@ public:
 	SlideWrap *toggleOn(rpl::producer<bool> &&shown);
 
 	bool animating() const {
-		return _slideAnimation.animating();
+		return _animation.animating();
 	}
 
 	QMargins getMargins() const override;
@@ -77,7 +77,7 @@ private:
 
 	bool _shown = true;
 	rpl::event_stream<bool> _shownUpdated;
-	Animation _slideAnimation;
+	Animation _animation;
 	int _duration = 0;
 
 };
@@ -89,7 +89,7 @@ class SlideWrap : public Wrap<PaddingWrap<Widget>, SlideWrap<RpWidget>> {
 public:
 	SlideWrap(
 		QWidget *parent,
-		object_ptr<Widget> child)
+		object_ptr<Widget> &&child)
 	: Parent(parent, std::move(child)) {
 	}
 	SlideWrap(
@@ -99,7 +99,7 @@ public:
 	}
 	SlideWrap(
 		QWidget *parent,
-		object_ptr<Widget> child,
+		object_ptr<Widget> &&child,
 		const style::margins &padding)
 	: Parent(parent, std::move(child), padding) {
 	}

@@ -30,6 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/widgets/shadow.h"
 #include "window/top_bar_widget.h"
 #include "window/themes/window_theme.h"
 #include "lang/lang_keys.h"
@@ -1954,7 +1955,7 @@ OverviewWidget::OverviewWidget(QWidget *parent, not_null<Window::Controller*> co
 , _topBar(this, controller)
 , _scroll(this, st::settingsScroll, false)
 , _mediaType(this, st::defaultDropdownMenu)
-, _topShadow(this, st::shadowFg) {
+, _topShadow(this) {
 	_inner = _scroll->setOwnedWidget(object_ptr<OverviewInner>(this, _scroll, peer, type));
 	_scroll->move(0, 0);
 	_inner->move(0, 0);

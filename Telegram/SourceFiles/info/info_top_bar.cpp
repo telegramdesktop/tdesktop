@@ -21,8 +21,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/info_top_bar.h"
 
 #include "styles/style_info.h"
+#include "lang/lang_keys.h"
+#include "info/info_wrap_widget.h"
+#include "storage/storage_shared_media.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/fade_wrap.h"
+#include "ui/widgets/shadow.h"
 
 namespace Info {
 
@@ -44,7 +49,7 @@ void TopBar::enableBackButton(bool enable) {
 	if (enable) {
 		_back.create(this, _st.back);
 		_back->clicks()
-			| rpl::start_to_stream(_backClicks, _lifetime);
+			| rpl::start_to_stream(_backClicks, lifetime());
 	} else {
 		_back.destroy();
 	}
@@ -60,7 +65,7 @@ void TopBar::pushButton(object_ptr<Ui::RpWidget> button) {
 	weak->widthValue()
 		| rpl::start_with_next([this] {
 			this->updateControlsGeometry(this->width());
-		}, _lifetime);
+		}, lifetime());
 }
 
 int TopBar::resizeGetHeight(int newWidth) {
@@ -93,6 +98,52 @@ void TopBar::updateControlsGeometry(int newWidth) {
 void TopBar::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	p.fillRect(e->rect(), _st.bg);
+}
+
+rpl::producer<QString> TitleValue(
+		const Section &section,
+		PeerId peerId) {
+	return Lang::Viewer([&] {
+		switch (section.type()) {
+		case Section::Type::Profile:
+			if (peerIsUser(peerId)) {
+				return App::user(peerId)->botInfo
+					? lng_info_bot_title
+					: lng_info_user_title;
+			} else if (peerIsChannel(peerId)) {
+				return App::channel(peerId)->isMegagroup()
+					? lng_info_group_title
+					: lng_info_channel_title;
+			} else if (peerIsChat(peerId)) {
+				return lng_info_group_title;
+			}
+			Unexpected("Bad peer type in Info::TitleValue()");
+
+		case Section::Type::Media:
+			switch (section.mediaType()) {
+			case Section::MediaType::Photo:
+				return lng_media_type_photos;
+			case Section::MediaType::Video:
+				return lng_media_type_videos;
+			case Section::MediaType::MusicFile:
+				return lng_media_type_songs;
+			case Section::MediaType::File:
+				return lng_media_type_files;
+			case Section::MediaType::VoiceFile:
+				return lng_media_type_audios;
+			case Section::MediaType::Link:
+				return lng_media_type_links;
+			case Section::MediaType::RoundFile:
+				return lng_media_type_rounds;
+			}
+			Unexpected("Bad media type in Info::TitleValue()");
+
+		case Section::Type::CommonGroups:
+			return lng_profile_common_groups_section;
+
+		}
+		Unexpected("Bad section type in Info::TitleValue()");
+	}());
 }
 
 } // namespace Info

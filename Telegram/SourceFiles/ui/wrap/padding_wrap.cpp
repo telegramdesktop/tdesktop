@@ -24,7 +24,7 @@ namespace Ui {
 
 PaddingWrap<RpWidget>::PaddingWrap(
 	QWidget *parent,
-	object_ptr<RpWidget> child,
+	object_ptr<RpWidget> &&child,
 	const style::margins &padding)
 : Parent(parent, std::move(child))
 , _padding(padding) {

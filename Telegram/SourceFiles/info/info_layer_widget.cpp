@@ -18,10 +18,12 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "info/info_layer_wrap.h"
+#include "info/info_layer_widget.h"
 
-#include "info/info_memento.h"
+#include <rpl/mappers.h>
+#include "info/info_content_widget.h"
 #include "info/info_top_bar.h"
+#include "info/info_memento.h"
 #include "ui/rp_widget.h"
 #include "ui/focus_persister.h"
 #include "ui/widgets/buttons.h"
@@ -35,81 +37,41 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 
 namespace Info {
-namespace {
 
-constexpr auto kThirdSectionInfoTimeoutMs = 1000;
-
-} // namespace
-
-LayerWrap::LayerWrap(
+LayerWidget::LayerWidget(
 	not_null<Window::Controller*> controller,
 	not_null<Memento*> memento)
 : _controller(controller)
-, _content(createContent(controller, memento))
-, _topBar(createTopBar()) {
+, _content(this, controller, Wrap::Layer, memento) {
 	setupHeightConsumers();
 }
 
-LayerWrap::LayerWrap(
+LayerWidget::LayerWidget(
 	not_null<Window::Controller*> controller,
 	not_null<MoveMemento*> memento)
 : _controller(controller)
-, _content(memento->content(this, Wrap::Layer))
-, _topBar(createTopBar()) {
+, _content(memento->takeContent(this, Wrap::Layer)) {
 	setupHeightConsumers();
 }
 
-void LayerWrap::setupHeightConsumers() {
+void LayerWidget::setupHeightConsumers() {
 	_content->desiredHeightValue()
 		| rpl::start_with_next([this](int height) {
 			_desiredHeight = height;
 			resizeToWidth(width());
 		}, lifetime());
-	heightValue()
-		| rpl::start_with_next([this](int height) {
-			_content->resize(
-				width(),
-				height - _topBar->bottomNoMargins() - st::boxRadius);
-		}, lifetime());
 }
 
-object_ptr<TopBar> LayerWrap::createTopBar() {
-	auto result = object_ptr<TopBar>(
-		this,
-		st::infoLayerTopBar);
-	auto close = result->addButton(object_ptr<Ui::IconButton>(
-		result.data(),
-		st::infoLayerTopBarClose));
-	close->clicks()
-		| rpl::start_with_next([this] {
-			_controller->hideSpecialLayer();
-		}, close->lifetime());
-	result->setTitle(TitleValue(
-		_content->section(),
-		_content->peer()));
-	return result;
+void LayerWidget::showFinished() {
 }
 
-object_ptr<ContentWidget> LayerWrap::createContent(
-		not_null<Window::Controller*> controller,
-		not_null<Memento*> memento) {
-	return memento->content()->createWidget(
-		this,
-		Wrap::Layer,
-		controller,
-		QRect());
-}
-
-void LayerWrap::showFinished() {
-}
-
-void LayerWrap::parentResized() {
+void LayerWidget::parentResized() {
 	auto parentSize = parentWidget()->size();
 	auto parentWidth = parentSize.width();
 	if (parentWidth < MinimalSupportedWidth()) {
 		Ui::FocusPersister persister(this);
 		auto localCopy = _controller;
-		auto memento = MoveMemento(std::move(_content), Wrap::Narrow);
+		auto memento = MoveMemento(std::move(_content));
 		localCopy->hideSpecialLayer(anim::type::instant);
 		localCopy->showSection(
 			std::move(memento),
@@ -125,14 +87,14 @@ void LayerWrap::parentResized() {
 	}
 }
 
-bool LayerWrap::takeToThirdSection() {
+bool LayerWidget::takeToThirdSection() {
 	Ui::FocusPersister persister(this);
 	auto localCopy = _controller;
-	auto memento = MoveMemento(std::move(_content), Wrap::Side);
+	auto memento = MoveMemento(std::move(_content));
 	localCopy->hideSpecialLayer(anim::type::instant);
 
 	Auth().data().setThirdSectionInfoEnabled(true);
-	Auth().saveDataDelayed(kThirdSectionInfoTimeoutMs);
+	Auth().saveDataDelayed();
 	localCopy->showSection(
 		std::move(memento),
 		anim::type::instant,
@@ -140,50 +102,50 @@ bool LayerWrap::takeToThirdSection() {
 	return true;
 }
 
-int LayerWrap::MinimalSupportedWidth() {
+int LayerWidget::MinimalSupportedWidth() {
 	auto minimalMargins = 2 * st::infoMinimalLayerMargin;
 	return st::infoMinimalWidth + minimalMargins;
 }
 
-int LayerWrap::resizeGetHeight(int newWidth) {
+int LayerWidget::resizeGetHeight(int newWidth) {
 	if (!parentWidget() || !_content) {
 		return 0;
 	}
 
-	// First resize content to new width and get the new desired height.
-	_topBar->resizeToWidth(newWidth);
-	_topBar->moveToLeft(0, st::boxRadius, newWidth);
-	_content->resizeToWidth(newWidth);
-	_content->moveToLeft(0, _topBar->bottomNoMargins(), newWidth);
-
 	auto parentSize = parentWidget()->size();
 	auto windowWidth = parentSize.width();
 	auto windowHeight = parentSize.height();
-	auto maxHeight = _topBar->height() + _desiredHeight;
-	auto newHeight = st::boxRadius + maxHeight + st::boxRadius;
+	auto newHeight = st::boxRadius + _desiredHeight + st::boxRadius;
 	if (newHeight > windowHeight || newWidth >= windowWidth) {
 		newHeight = windowHeight;
 	}
 
 	setRoundedCorners(newHeight < windowHeight);
 
+	// First resize content to new width and get the new desired height.
+	auto contentTop = st::boxRadius;
+	auto contentHeight = newHeight - contentTop;
+	if (_roundedCorners) {
+		contentHeight -= st::boxRadius;
+	}
+	_content->setGeometry(0, contentTop, newWidth, contentHeight);
+
 	moveToLeft((windowWidth - newWidth) / 2, (windowHeight - newHeight) / 2);
 
-	_topBar->update();
 	_content->update();
 	update();
 
 	return newHeight;
 }
 
-void LayerWrap::setRoundedCorners(bool rounded) {
+void LayerWidget::setRoundedCorners(bool rounded) {
 	_roundedCorners = rounded;
 	setAttribute(Qt::WA_OpaquePaintEvent, !_roundedCorners);
 }
 
-void LayerWrap::paintEvent(QPaintEvent *e) {
+void LayerWidget::paintEvent(QPaintEvent *e) {
+	Painter p(this);
 	if (_roundedCorners) {
-		Painter p(this);
 		auto clip = e->rect();
 		auto r = st::boxRadius;
 		auto parts = RectPart::None | 0;
@@ -202,6 +164,8 @@ void LayerWrap::paintEvent(QPaintEvent *e) {
 				nullptr,
 				parts);
 		}
+	} else {
+		p.fillRect(0, 0, width(), st::boxRadius, st::boxBg);
 	}
 }
 

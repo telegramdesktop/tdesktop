@@ -24,9 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class ScrollArea;
-class PlainShadow;
-template <typename Widget>
-class WidgetFadeWrap;
+class FadeShadow;
 } // namespace Ui
 
 namespace Profile {
@@ -77,7 +75,7 @@ private:
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<InnerWidget> _inner;
 	object_ptr<FixedBar> _fixedBar;
-	object_ptr<Ui::WidgetFadeWrap<Ui::PlainShadow>> _fixedBarShadow;
+	object_ptr<Ui::FadeShadow> _fixedBarShadow;
 
 };
 

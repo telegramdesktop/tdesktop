@@ -575,7 +575,12 @@ void IconButton::onStateChanged(State was, StateChangeSource source) {
 }
 
 QPoint IconButton::prepareRippleStartPosition() const {
-	return mapFromGlobal(QCursor::pos()) - _st.rippleAreaPosition;
+	auto result = mapFromGlobal(QCursor::pos())
+		- _st.rippleAreaPosition;
+	auto rect = QRect(0, 0, _st.rippleAreaSize, _st.rippleAreaSize);
+	return rect.contains(result)
+		? result
+		: DisabledRippleStartPosition();
 }
 
 QImage IconButton::prepareRippleMask() const {

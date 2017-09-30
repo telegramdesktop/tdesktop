@@ -289,10 +289,11 @@ private:
 
 	std::map<PeerId, Lists> _lists;
 
-	rpl::lifetime _lifetime;
 	rpl::event_stream<SharedMediaSliceUpdate> _sliceUpdated;
 	rpl::event_stream<SharedMediaRemoveOne> _oneRemoved;
 	rpl::event_stream<SharedMediaRemoveAll> _allRemoved;
+
+	rpl::lifetime _lifetime;
 
 };
 

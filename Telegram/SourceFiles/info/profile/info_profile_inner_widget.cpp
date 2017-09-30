@@ -43,6 +43,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/widgets/shadow.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "history/history_shared_media.h"
@@ -184,7 +185,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupInfo(
 	}
 	result->add(object_ptr<Ui::SlideWrap<>>(
 		result,
-		object_ptr<Ui::PlainShadow>(result, st::shadowFg),
+		object_ptr<Ui::PlainShadow>(result),
 		st::infoProfileSeparatorPadding)
 	)->toggleOn(std::move(tracker).atLeastOneShownValue());
 	object_ptr<FloatingIcon>(

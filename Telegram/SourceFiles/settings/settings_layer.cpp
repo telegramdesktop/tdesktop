@@ -25,9 +25,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_settings.h"
 #include "styles/style_window.h"
 #include "styles/style_boxes.h"
-#include "ui/effects/widget_fade_wrap.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/shadow.h"
+#include "ui/wrap/fade_wrap.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "storage/localstorage.h"
@@ -42,7 +43,7 @@ Layer::Layer()
 : _scroll(this, st::settingsScroll)
 , _fixedBar(this)
 , _fixedBarClose(this, st::settingsFixedBarClose)
-, _fixedBarShadow(this, object_ptr<BoxLayerTitleShadow>(this)) {
+, _fixedBarShadow(this) {
 	_fixedBar->moveToLeft(0, st::boxRadius);
 	_fixedBarClose->moveToRight(0, 0);
 	_fixedBarShadow->entity()->resize(width(), st::lineWidth);
@@ -107,6 +108,7 @@ void Layer::resizeEvent(QResizeEvent *e) {
 
 	_fixedBar->resizeToWidth(width());
 	_fixedBar->moveToLeft(0, st::boxRadius);
+	_fixedBar->update();
 	_fixedBarClose->moveToRight(0, 0);
 	auto shadowTop = _fixedBar->y() + _fixedBar->height();
 	_fixedBarShadow->entity()->resize(width(), st::lineWidth);

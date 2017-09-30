@@ -89,8 +89,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace {
 
-constexpr auto kSaveFloatPlayerPositionTimeoutMs = TimeMs(1000);
-
 MTPMessagesFilter TypeToMediaFilter(MediaOverviewType &type) {
 	switch (type) {
 	case OverviewPhotos: return MTP_inputMessagesFilterPhotos();
@@ -133,7 +131,7 @@ MainWidget::MainWidget(
 : RpWidget(parent)
 , _controller(controller)
 , _dialogsWidth(st::dialogsWidthMin)
-, _sideShadow(this, st::shadowFg)
+, _sideShadow(this)
 , _sideResizeArea(this)
 , _dialogs(this, _controller)
 , _history(this, _controller)
@@ -516,11 +514,11 @@ void MainWidget::updateFloatPlayerColumnCorner(QPoint center) {
 	}
 	if (Auth().data().floatPlayerColumn() != column) {
 		Auth().data().setFloatPlayerColumn(column);
-		Auth().saveDataDelayed(kSaveFloatPlayerPositionTimeoutMs);
+		Auth().saveDataDelayed();
 	}
 	if (Auth().data().floatPlayerCorner() != corner) {
 		Auth().data().setFloatPlayerCorner(corner);
-		Auth().saveDataDelayed(kSaveFloatPlayerPositionTimeoutMs);
+		Auth().saveDataDelayed();
 	}
 }
 
@@ -2938,7 +2936,7 @@ void MainWidget::showNewSection(
 	if (newThirdSection) {
 		saveInStack = false;
 	} else {
-		if (auto layer = memento.createLayer(_controller)) {
+		if (auto layer = memento.createLayer(_controller, rect())) {
 			_controller->showSpecialLayer(std::move(layer));
 			return;
 		}
@@ -3007,7 +3005,7 @@ void MainWidget::showNewSection(
 	if (newThirdSection) {
 		_thirdSection = std::move(newThirdSection);
 		if (!_thirdShadow) {
-			_thirdShadow.create(this, st::shadowFg);
+			_thirdShadow.create(this);
 			_thirdShadow->show();
 			orderWidgets();
 		}
@@ -3044,7 +3042,7 @@ void MainWidget::checkMainSectionToLayer() {
 		return;
 	}
 	Ui::FocusPersister persister(this);
-	if (auto layer = _mainSection->moveContentToLayer(width())) {
+	if (auto layer = _mainSection->moveContentToLayer(rect())) {
 		dropMainSection(_mainSection);
 		_controller->showSpecialLayer(
 			std::move(layer),

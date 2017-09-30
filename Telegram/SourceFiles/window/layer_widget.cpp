@@ -18,13 +18,13 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "lang/lang_keys.h"
+#include "window/layer_widget.h"
 
+#include "lang/lang_keys.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "media/media_clip_reader.h"
 #include "boxes/abstract_box.h"
-#include "layerwidget.h"
 #include "application.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -43,6 +43,8 @@ namespace {
 constexpr int kStickerPreviewEmojiLimit = 10;
 
 } // namespace
+
+namespace Window {
 
 class LayerStackWidget::BackgroundWidget : public TWidget {
 public:
@@ -325,7 +327,10 @@ void LayerStackWidget::BackgroundWidget::animationCallback() {
 	checkIfDone();
 }
 
-LayerStackWidget::LayerStackWidget(QWidget *parent, Window::Controller *controller) : TWidget(parent)
+LayerStackWidget::LayerStackWidget(
+	QWidget *parent,
+	Controller *controller)
+: TWidget(parent)
 , _controller(controller)
 , _background(this) {
 	setGeometry(parentWidget()->rect());
@@ -779,6 +784,8 @@ LayerStackWidget::~LayerStackWidget() {
 	}
 	if (App::wnd()) App::wnd()->noLayerStack(this);
 }
+
+} // namespace Window
 
 MediaPreviewWidget::MediaPreviewWidget(QWidget *parent, not_null<Window::Controller*> controller) : TWidget(parent)
 , _controller(controller)

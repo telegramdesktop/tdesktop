@@ -240,7 +240,7 @@ public:
 	AuthSessionData &data() {
 		return _data;
 	}
-	void saveDataDelayed(TimeMs delay);
+	void saveDataDelayed(TimeMs delay = kDefaultSaveDelay);
 
 	ApiWrap &api() {
 		return *_api;
@@ -259,6 +259,8 @@ public:
 	~AuthSession();
 
 private:
+	static constexpr auto kDefaultSaveDelay = TimeMs(1000);
+
 	const UserId _userId = 0;
 	AuthSessionData _data;
 	base::Timer _saveDataTimer;

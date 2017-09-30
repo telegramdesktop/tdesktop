@@ -20,8 +20,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "window/section_memento.h"
 #include "ui/rp_widget.h"
+#include "info/info_wrap_widget.h"
+#include "window/section_memento.h"
 
 namespace Storage {
 enum class SharedMediaType : char;
@@ -34,164 +35,17 @@ struct ScrollToRequest;
 
 namespace Info {
 
-enum class Wrap {
-	Layer,
-	Narrow,
-	Side,
-};
-
-class Section final {
-public:
-	enum class Type {
-		Profile,
-		Media,
-		CommonGroups,
-	};
-	using MediaType = Storage::SharedMediaType;
-
-	Section(Type type) : _type(type) {
-		Expects(type != Type::Media);
-	}
-	Section(MediaType mediaType)
-		: _type(Type::Media)
-		, _mediaType(mediaType) {
-	}
-
-	Type type() const {
-		return _type;
-	}
-	MediaType mediaType() const {
-		Expects(_type == Type::Media);
-		return _mediaType;
-	}
-
-private:
-	Type _type;
-	Storage::SharedMediaType _mediaType;
-
-};
-
 class ContentMemento;
-
-class ContentWidget : public Ui::RpWidget {
-public:
-	ContentWidget(
-		QWidget *parent,
-		Wrap wrap,
-		not_null<Window::Controller*> controller,
-		not_null<PeerData*> peer);
-
-	virtual bool showInternal(
-		not_null<ContentMemento*> memento) = 0;
-	virtual std::unique_ptr<ContentMemento> createMemento() = 0;
-
-	virtual rpl::producer<Section> sectionRequest() const;
-
-	void setWrap(Wrap wrap);
-	virtual Section section() const = 0;
-	not_null<PeerData*> peer() const {
-		return _peer;
-	}
-
-	rpl::producer<int> desiredHeightValue() const override;
-
-	virtual void setInnerFocus() {
-		_inner->setFocus();
-	}
-
-	// When resizing the widget with top edge moved up or down and we
-	// want to add this top movement to the scroll position, so inner
-	// content will not move.
-	void setGeometryWithTopMoved(
-		const QRect &newGeometry,
-		int topDelta);
-
-	// Float player interface.
-	bool wheelEventFromFloatPlayer(QEvent *e);
-	QRect rectForFloatPlayer() const;
-
-protected:
-	template <typename Widget>
-	Widget *setInnerWidget(
-			object_ptr<Widget> inner,
-			int scrollTopSkip = 0) {
-		return static_cast<Widget*>(
-			doSetInnerWidget(std::move(inner), scrollTopSkip));
-	}
-
-	not_null<Window::Controller*> controller() const {
-		return _controller;
-	}
-	rpl::producer<Wrap> wrapValue() const {
-		return _wrapChanges.events_starting_with_copy(_wrap);
-	}
-
-	void resizeEvent(QResizeEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-
-	rpl::producer<int> scrollTopValue() const;
-	int scrollTopSave() const;
-	void scrollTopRestore(int scrollTop);
-
-	void scrollTo(const Ui::ScrollToRequest &request);
-
-private:
-	RpWidget *doSetInnerWidget(
-		object_ptr<RpWidget> inner,
-		int scrollTopSkip);
-
-	const not_null<Window::Controller*> _controller;
-	const not_null<PeerData*> _peer;
-	Wrap _wrap = Wrap::Layer;
-	rpl::event_stream<Wrap> _wrapChanges;
-
-	int _scrollTopSkip = 0;
-	object_ptr<Ui::ScrollArea> _scroll;
-	Ui::RpWidget *_inner = nullptr;
-
-	// Saving here topDelta in setGeometryWithTopMoved() to get it passed to resizeEvent().
-	int _topDelta = 0;
-
-};
-
-class ContentMemento {
-public:
-	virtual object_ptr<ContentWidget> createWidget(
-		QWidget *parent,
-		Wrap wrap,
-		not_null<Window::Controller*> controller,
-		const QRect &geometry) = 0;
-
-	virtual ~ContentMemento() = default;
-
-	void setScrollTop(int scrollTop) {
-		_scrollTop = scrollTop;
-	}
-	int scrollTop() const {
-		return _scrollTop;
-	}
-
-private:
-	int _scrollTop = 0;
-
-};
+class WrapWidget;
 
 class Memento final : public Window::SectionMemento {
 public:
-	Memento(PeerId peerId)
-		: Memento(peerId, Section::Type::Profile) {
-	}
-	Memento(PeerId peerId, Section section)
-		: Memento(peerId, section, Default(peerId, section)) {
-	}
+	Memento(PeerId peerId);
+	Memento(PeerId peerId, Section section);
 	Memento(
 		PeerId peerId,
 		Section section,
-		std::unique_ptr<ContentMemento> content)
-		: _peerId(peerId)
-		, _section(section)
-		, _content(std::move(content)) {
-	}
+		std::unique_ptr<ContentMemento> content);
 
 	object_ptr<Window::SectionWidget> createWidget(
 		QWidget *parent,
@@ -199,12 +53,11 @@ public:
 		Window::Column column,
 		const QRect &geometry) override;
 
-	object_ptr<LayerWidget> createLayer(
-		not_null<Window::Controller*> controller) override;
+	object_ptr<Window::LayerWidget> createLayer(
+		not_null<Window::Controller*> controller,
+		const QRect &geometry) override;
 
-	void setInner(std::unique_ptr<ContentMemento> content) {
-		_content = std::move(content);
-	}
+	void setInner(std::unique_ptr<ContentMemento> content);
 	not_null<ContentMemento*> content() {
 		return _content.get();
 	}
@@ -215,6 +68,8 @@ public:
 	Section section() const {
 		return _section;
 	}
+
+	~Memento();
 
 private:
 	static std::unique_ptr<ContentMemento> Default(
@@ -229,7 +84,7 @@ private:
 
 class MoveMemento final : public Window::SectionMemento {
 public:
-	MoveMemento(object_ptr<ContentWidget> content, Wrap wrap);
+	MoveMemento(object_ptr<WrapWidget> content);
 
 	object_ptr<Window::SectionWidget> createWidget(
 		QWidget *parent,
@@ -237,25 +92,21 @@ public:
 		Window::Column column,
 		const QRect &geometry) override;
 
-	object_ptr<LayerWidget> createLayer(
-		not_null<Window::Controller*> controller) override;
+	object_ptr<Window::LayerWidget> createLayer(
+		not_null<Window::Controller*> controller,
+		const QRect &geometry) override;
 
 	bool instant() const override {
 		return true;
 	}
 
-	object_ptr<ContentWidget> content(
+	object_ptr<WrapWidget> takeContent(
 		QWidget *parent,
 		Wrap wrap);
 
 private:
-	object_ptr<ContentWidget> _content;
-	Wrap _wrap = Wrap::Layer;
+	object_ptr<WrapWidget> _content;
 
 };
-
-rpl::producer<QString> TitleValue(
-	const Section &section,
-	not_null<PeerData*> peer);
 
 } // namespace Info

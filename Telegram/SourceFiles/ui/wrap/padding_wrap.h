@@ -34,7 +34,7 @@ class PaddingWrap<RpWidget> : public Wrap<RpWidget> {
 public:
 	PaddingWrap(
 		QWidget *parent,
-		object_ptr<RpWidget> child,
+		object_ptr<RpWidget> &&child,
 		const style::margins &padding);
 
 	int naturalWidth() const override;
@@ -55,7 +55,7 @@ class PaddingWrap : public Wrap<Widget, PaddingWrap<RpWidget>> {
 public:
 	PaddingWrap(
 		QWidget *parent,
-		object_ptr<Widget> child,
+		object_ptr<Widget> &&child,
 		const style::margins &padding)
 	: Parent(parent, std::move(child), padding) {
 	}

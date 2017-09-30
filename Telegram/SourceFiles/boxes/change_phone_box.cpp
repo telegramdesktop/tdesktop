@@ -24,25 +24,37 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/input_fields.h"
-#include "ui/effects/widget_fade_wrap.h"
+#include "ui/wrap/fade_wrap.h"
 #include "boxes/confirm_phone_box.h"
 #include "ui/toast/toast.h"
 #include "boxes/confirm_box.h"
 
 namespace {
 
-void createErrorLabel(QWidget *parent, object_ptr<Ui::WidgetFadeWrap<Ui::FlatLabel>> &label, const QString &text, int x, int y) {
+void createErrorLabel(
+		QWidget *parent,
+		object_ptr<Ui::FadeWrap<Ui::FlatLabel>> &label,
+		const QString &text,
+		int x,
+		int y) {
 	if (label) {
-		auto errorFadeOut = std::move(label);
-		errorFadeOut->setUpdateCallback([label = errorFadeOut.data()] {
-			if (label->isHidden() || !label->animating()) {
-				label->deleteLater();
-			}
-		});
-		errorFadeOut->hideAnimated();
+		label->hideAnimated();
+		auto context = label.data();
+		App::CallDelayed(
+			st::fadeWrapDuration,
+			context,
+			[old = std::move(label)]() mutable {
+				old.destroy();
+			});
 	}
 	if (!text.isEmpty()) {
-		label.create(parent, object_ptr<Ui::FlatLabel>(parent, text, Ui::FlatLabel::InitType::Simple, st::changePhoneError));
+		label.create(
+			parent,
+			object_ptr<Ui::FlatLabel>(
+				parent,
+				text,
+				Ui::FlatLabel::InitType::Simple,
+				st::changePhoneError));
 		label->hideFast();
 		label->moveToLeft(x, y);
 		label->showAnimated();
@@ -73,7 +85,7 @@ private:
 	}
 
 	object_ptr<Ui::PhoneInput> _phone = { nullptr };
-	object_ptr<Ui::WidgetFadeWrap<Ui::FlatLabel>> _error = { nullptr };
+	object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _error = { nullptr };
 	mtpRequestId _requestId = 0;
 
 };
@@ -105,7 +117,7 @@ private:
 	int _codeLength = 0;
 	int _callTimeout = 0;
 	object_ptr<SentCodeField> _code = { nullptr };
-	object_ptr<Ui::WidgetFadeWrap<Ui::FlatLabel>> _error = { nullptr };
+	object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _error = { nullptr };
 	object_ptr<Ui::FlatLabel> _callLabel = { nullptr };
 	mtpRequestId _requestId = 0;
 	SentCodeCall _call;

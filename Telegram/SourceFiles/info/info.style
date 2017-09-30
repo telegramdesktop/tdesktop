@@ -54,20 +54,36 @@ infoScroll: ScrollArea(defaultScrollArea) {
 
 infoTopBarBackIcon: icon {{ "info_back", boxTitleCloseFg }};
 infoTopBarBackIconOver: icon {{ "info_back", boxTitleCloseFgOver }};
-infoTopBarHeight: boxLayerTitleHeight;
+infoTopBarHeight: 54px;
 infoTopBarBack: IconButton(defaultIconButton) {
-	width: infoTopBarHeight;
+	width: 70px;
 	height: infoTopBarHeight;
 
 	icon: infoTopBarBackIcon;
 	iconOver: infoTopBarBackIconOver;
-	iconPosition: point(10px, -1px);
+	iconPosition: point(11px, -1px);
 
 	rippleAreaPosition: point(6px, 6px);
-	rippleAreaSize: 44px;
+	rippleAreaSize: 42px;
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: windowBgOver;
 	}
+}
+infoTopBarTitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
+	maxHeight: 20px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+		linkFont: font(14px semibold);
+		linkFontOver: font(14px semibold);
+	}
+}
+infoTopBar: InfoTopBar {
+	height: infoTopBarHeight;
+	back: infoTopBarBack;
+	title: infoTopBarTitle;
+	titlePosition: point(23px, 18px);
+	bg: windowBg;
 }
 
 infoLayerTopBarHeight: boxLayerTitleHeight;
@@ -77,8 +93,11 @@ infoLayerTopBarBack: IconButton(infoTopBarBack) {
 	width: infoLayerTopBarHeight;
 	height: infoLayerTopBarHeight;
 
+	iconPosition: point(12px, -1px);
 	icon: infoLayerTopBarBackIcon;
 	iconOver: infoLayerTopBarBackIconOver;
+
+	rippleAreaSize: 44px;
 }
 infoLayerTopBarCloseIcon: icon {{ "info_close", boxTitleCloseFg }};
 infoLayerTopBarCloseIconOver: icon {{ "info_close", boxTitleCloseFgOver }};

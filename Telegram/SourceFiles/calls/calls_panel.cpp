@@ -28,7 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
 #include "ui/effects/ripple_animation.h"
-#include "ui/effects/widget_fade_wrap.h"
+#include "ui/wrap/fade_wrap.h"
 #include "messenger.h"
 #include "mainwindow.h"
 #include "lang/lang_keys.h"
@@ -245,11 +245,14 @@ Panel::Panel(not_null<Call*> call)
 : _call(call)
 , _user(call->user())
 , _answerHangupRedial(this, st::callAnswer, &st::callHangup)
-, _decline(this, object_ptr<Button>(this, st::callHangup), st::callPanelDuration)
-, _cancel(this, object_ptr<Button>(this, st::callCancel), st::callPanelDuration)
+, _decline(this, object_ptr<Button>(this, st::callHangup))
+, _cancel(this, object_ptr<Button>(this, st::callCancel))
 , _mute(this, st::callMuteToggle)
 , _name(this, st::callName)
 , _status(this, st::callStatus) {
+	_decline->setDuration(st::callPanelDuration);
+	_cancel->setDuration(st::callPanelDuration);
+
 	setMouseTracking(true);
 	setWindowIcon(Window::CreateIcon());
 	initControls();
@@ -338,8 +341,8 @@ void Panel::initControls() {
 
 	reinitControls();
 
-	_decline->finishAnimation();
-	_cancel->finishAnimation();
+	_decline->finishAnimations();
+	_cancel->finishAnimations();
 }
 
 void Panel::reinitControls() {

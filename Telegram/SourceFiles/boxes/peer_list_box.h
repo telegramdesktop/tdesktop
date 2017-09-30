@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace style {
 struct PeerList;
+struct PeerListItem;
 } // namespace style
 
 namespace Ui {

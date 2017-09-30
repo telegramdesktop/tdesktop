@@ -18,7 +18,7 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "ui/effects/widget_fade_wrap.h"
+#include "ui/effects/fade_animation.h"
 
 namespace Ui {
 namespace {
@@ -151,45 +151,6 @@ void FadeAnimation::updateCallback() {
 	} else {
 		stopAnimation();
 	}
-}
-
-WidgetFadeWrap<TWidget>::WidgetFadeWrap(QWidget *parent
-, object_ptr<TWidget> entity
-, int duration
-, base::lambda<void()> updateCallback
-, bool scaled) : TWidget(parent)
-, _entity(std::move(entity))
-, _duration(duration)
-, _updateCallback(std::move(updateCallback))
-, _animation(this, scaled) {
-	_animation.show();
-	installCallbacks();
-	_entity->setParent(this);
-	_entity->moveToLeft(0, 0);
-	_entity->installEventFilter(this);
-	resize(_entity->size());
-}
-
-void WidgetFadeWrap<TWidget>::installCallbacks() {
-	if (_updateCallback) {
-		_animation.setFinishedCallback([this] { _updateCallback(); });
-		_animation.setUpdatedCallback([this](float64 opacity) { _updateCallback(); });
-	} else {
-		_animation.setFinishedCallback(base::lambda<void()>());
-		_animation.setUpdatedCallback(base::lambda<void(float64)>());
-	}
-}
-
-bool WidgetFadeWrap<TWidget>::eventFilter(QObject *object, QEvent *event) {
-	if (object == _entity && event->type() == QEvent::Resize) {
-		resize(_entity->rect().size());
-	}
-	return TWidget::eventFilter(object, event);
-}
-
-void WidgetFadeWrap<TWidget>::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	_animation.paint(p);
 }
 
 } // namespace Ui

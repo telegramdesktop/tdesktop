@@ -528,9 +528,10 @@ public:
 
 	// Use that instead "= new Object(parent, ...)"
 	template <typename Parent, typename... Args>
-	void create(Parent &&parent, Args&&... args) {
+	Object *create(Parent &&parent, Args&&... args) {
 		destroy();
 		_object = new Object(std::forward<Parent>(parent), std::forward<Args>(args)...);
+		return data();
 	}
 	void destroy() {
 		delete base::take(_object);

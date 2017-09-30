@@ -61,7 +61,7 @@ struct UnwrapHelper {
 template <typename Widget>
 class Wrap<Widget, RpWidget> : public RpWidget {
 public:
-	Wrap(QWidget *parent, object_ptr<Widget> child);
+	Wrap(QWidget *parent, object_ptr<Widget> &&child);
 
 	Widget *wrapped() {
 		return _wrapped;
@@ -115,7 +115,9 @@ private:
 };
 
 template <typename Widget>
-Wrap<Widget, RpWidget>::Wrap(QWidget *parent, object_ptr<Widget> child)
+Wrap<Widget, RpWidget>::Wrap(
+	QWidget *parent,
+	object_ptr<Widget> &&child)
 : RpWidget(parent)
 , _wrapped(std::move(child)) {
 	if (_wrapped) {

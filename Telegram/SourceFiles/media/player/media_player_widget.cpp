@@ -92,7 +92,7 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 , _volumeToggle(this, st::mediaPlayerVolumeToggle)
 , _repeatTrack(this, st::mediaPlayerRepeatButton)
 , _close(this, st::mediaPlayerClose)
-, _shadow(this, st::shadowFg)
+, _shadow(this)
 , _playbackSlider(this, st::mediaPlayerPlayback)
 , _playback(std::make_unique<Clip::Playback>()) {
 	setAttribute(Qt::WA_OpaquePaintEvent);

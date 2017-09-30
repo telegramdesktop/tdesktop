@@ -20,51 +20,59 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "styles/style_widgets.h"
 #include "ui/rp_widget.h"
-#include "info/info_media_widget.h"
 
-namespace Info {
-namespace Media {
+namespace Ui {
 
-class InnerWidget final : public Ui::RpWidget {
+class FadeAnimation {
 public:
-	using Type = Widget::Type;
-	InnerWidget(
-		QWidget *parent,
-		not_null<PeerData*> peer,
-		Type type);
+	FadeAnimation(TWidget *widget, bool scaled = false);
 
-	not_null<PeerData*> peer() const {
-		return _peer;
+	bool paint(Painter &p);
+	void refreshCache();
+
+	using FinishedCallback = base::lambda<void()>;
+	void setFinishedCallback(FinishedCallback &&callback);
+
+	using UpdatedCallback = base::lambda<void(float64)>;
+	void setUpdatedCallback(UpdatedCallback &&callback);
+
+	void show();
+	void hide();
+
+	void fadeIn(int duration);
+	void fadeOut(int duration);
+
+	void finish() {
+		stopAnimation();
 	}
-	Type type() const {
-		return _type;
+
+	bool animating() const {
+		return _animation.animating();
 	}
-
-	void resizeToWidth(int newWidth, int minHeight) {
-		_minHeight = minHeight;
-		return RpWidget::resizeToWidth(newWidth);
+	bool visible() const {
+		return _visible;
 	}
-
-	void saveState(not_null<Memento*> memento);
-	void restoreState(not_null<Memento*> memento);
-
-protected:
-	int resizeGetHeight(int newWidth) override;
-	void visibleTopBottomUpdated(
-		int visibleTop,
-		int visibleBottom) override;
 
 private:
-	not_null<PeerData*> _peer;
-	Type _type = Type::Photo;
+	void startAnimation(int duration);
+	void stopAnimation();
 
-	int _rowsHeightFake = 0;
-	int _visibleTop = 0;
-	int _visibleBottom = 0;
-	int _minHeight = 0;
+	void updateCallback();
+	QPixmap grabContent();
+
+	TWidget *_widget = nullptr;
+	bool _scaled = false;
+
+	Animation _animation;
+	QSize _size;
+	QPixmap _cache;
+	bool _visible = false;
+
+	FinishedCallback _finishedCallback;
+	UpdatedCallback _updatedCallback;
 
 };
 
-} // namespace Media
-} // namespace Info
+} // namespace Ui

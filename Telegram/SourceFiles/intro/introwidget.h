@@ -30,7 +30,7 @@ class SlideAnimation;
 class CrossFadeAnimation;
 class FlatLabel;
 template <typename Widget>
-class WidgetFadeWrap;
+class FadeWrap;
 } // namespace Ui
 
 namespace Intro {
@@ -198,13 +198,13 @@ public:
 
 		object_ptr<Ui::FlatLabel> _title;
 		base::lambda<QString()> _titleTextFactory;
-		object_ptr<Ui::WidgetFadeWrap<Ui::FlatLabel>> _description;
+		object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _description;
 		base::lambda<QString()> _descriptionTextFactory;
 
 		bool _errorCentered = false;
 		bool _errorBelowLink = false;
 		base::lambda<QString()> _errorTextFactory;
-		object_ptr<Ui::WidgetFadeWrap<Ui::FlatLabel>> _error = { nullptr };
+		object_ptr<Ui::FadeWrap<Ui::FlatLabel>> _error = { nullptr };
 
 		Animation _a_show;
 		CoverAnimation _coverAnimation;
@@ -253,13 +253,13 @@ private:
 	int _nextTopFrom = 0;
 	int _controlsTopFrom = 0;
 
-	object_ptr<Ui::WidgetFadeWrap<Ui::IconButton>> _back;
-	object_ptr<Ui::WidgetFadeWrap<Ui::RoundButton>> _update = { nullptr };
-	object_ptr<Ui::WidgetFadeWrap<Ui::RoundButton>> _settings;
+	object_ptr<Ui::FadeWrap<Ui::IconButton>> _back;
+	object_ptr<Ui::FadeWrap<Ui::RoundButton>> _update = { nullptr };
+	object_ptr<Ui::FadeWrap<Ui::RoundButton>> _settings;
 
 	object_ptr<Ui::RoundButton> _next;
-	object_ptr<Ui::WidgetFadeWrap<Ui::LinkButton>> _changeLanguage = { nullptr };
-	object_ptr<Ui::WidgetFadeWrap<Ui::RoundButton>> _resetAccount = { nullptr };
+	object_ptr<Ui::FadeWrap<Ui::LinkButton>> _changeLanguage = { nullptr };
+	object_ptr<Ui::FadeWrap<Ui::RoundButton>> _resetAccount = { nullptr };
 
 	mtpRequestId _resetRequest = 0;
 

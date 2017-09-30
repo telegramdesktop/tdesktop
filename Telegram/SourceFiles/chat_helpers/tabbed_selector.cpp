@@ -37,11 +37,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 
 namespace ChatHelpers {
-namespace {
-
-constexpr auto kSaveChosenTabTimeout = 1000;
-
-} // namespace
 
 class TabbedSelector::SlideAnimation : public Ui::RoundShadowAnimation {
 public:
@@ -287,8 +282,8 @@ void TabbedSelector::Tab::saveScrollTop() {
 
 TabbedSelector::TabbedSelector(QWidget *parent, not_null<Window::Controller*> controller) : RpWidget(parent)
 , _tabsSlider(this, st::emojiTabs)
-, _topShadow(this, st::shadowFg)
-, _bottomShadow(this, st::shadowFg)
+, _topShadow(this)
+, _bottomShadow(this)
 , _scroll(this, st::emojiScroll)
 , _tabs { {
 	Tab { SelectorTab::Emoji, object_ptr<EmojiListWidget>(this, controller) },
@@ -672,7 +667,7 @@ void TabbedSelector::switchTab() {
 	update();
 
 	Auth().data().setSelectorTab(_currentTabType);
-	Auth().saveDataDelayed(kSaveChosenTabTimeout);
+	Auth().saveDataDelayed();
 }
 
 not_null<EmojiListWidget*> TabbedSelector::emoji() const {

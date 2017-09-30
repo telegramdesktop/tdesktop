@@ -26,7 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_intro.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
-#include "ui/effects/widget_fade_wrap.h"
+#include "ui/wrap/fade_wrap.h"
 #include "core/click_handler_types.h"
 #include "boxes/confirm_box.h"
 #include "messenger.h"
@@ -94,7 +94,7 @@ void PhoneWidget::showSignup() {
 	if (!_signup) {
 		auto signupText = lng_phone_notreg(lt_link_start, textcmdStartLink(1), lt_link_end, textcmdStopLink(), lt_signup_start, textcmdStartLink(2), lt_signup_end, textcmdStopLink());
 		auto inner = object_ptr<Ui::FlatLabel>(this, signupText, Ui::FlatLabel::InitType::Rich, st::introDescription);
-		_signup.create(this, std::move(inner), st::introErrorDuration);
+		_signup.create(this, std::move(inner));
 		_signup->entity()->setLink(1, MakeShared<UrlClickHandler>(qsl("https://telegram.org"), false));
 		_signup->entity()->setLink(2, MakeShared<LambdaClickHandler>([this] {
 			toSignUp();

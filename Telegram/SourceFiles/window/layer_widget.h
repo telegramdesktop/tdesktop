@@ -23,9 +23,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/rp_widget.h"
 
 namespace Window {
+
 class MainMenu;
 class Controller;
-} // namespace Window
 
 class LayerWidget : public Ui::RpWidget {
 public:
@@ -87,9 +87,9 @@ class LayerStackWidget : public TWidget {
 	Q_OBJECT
 
 public:
-	LayerStackWidget(QWidget *parent, Window::Controller *controller);
+	LayerStackWidget(QWidget *parent, Controller *controller);
 
-	Window::Controller *controller() const {
+	Controller *controller() const {
 		return _controller;
 	}
 	void finishAnimation();
@@ -173,17 +173,19 @@ private:
 		return const_cast<LayerStackWidget*>(this)->currentLayer();
 	}
 
-	Window::Controller *_controller = nullptr;
+	Controller *_controller = nullptr;
 
 	QList<LayerWidget*> _layers;
 
 	object_ptr<LayerWidget> _specialLayer = { nullptr };
-	object_ptr<Window::MainMenu> _mainMenu = { nullptr };
+	object_ptr<MainMenu> _mainMenu = { nullptr };
 
 	class BackgroundWidget;
 	object_ptr<BackgroundWidget> _background;
 
 };
+
+} // namespace Window
 
 class MediaPreviewWidget : public TWidget, private base::Subscriber {
 	Q_OBJECT

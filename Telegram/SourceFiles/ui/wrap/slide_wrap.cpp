@@ -24,7 +24,7 @@ namespace Ui {
 
 SlideWrap<RpWidget>::SlideWrap(
 	QWidget *parent,
-	object_ptr<RpWidget> child)
+	object_ptr<RpWidget> &&child)
 : SlideWrap(
 	parent,
 	std::move(child),
@@ -39,7 +39,7 @@ SlideWrap<RpWidget>::SlideWrap(
 
 SlideWrap<RpWidget>::SlideWrap(
 	QWidget *parent,
-	object_ptr<RpWidget> child,
+	object_ptr<RpWidget> &&child,
 	const style::margins &padding)
 : Parent(
 	parent,
@@ -59,7 +59,7 @@ SlideWrap<RpWidget> *SlideWrap<RpWidget>::toggleAnimated(
 		bool shown) {
 	if (_shown != shown) {
 		setShown(shown);
-		_slideAnimation.start(
+		_animation.start(
 			[this] { animationStep(); },
 			_shown ? 0. : 1.,
 			_shown ? 1. : 0.,
@@ -77,7 +77,7 @@ SlideWrap<RpWidget> *SlideWrap<RpWidget>::toggleFast(bool shown) {
 }
 
 SlideWrap<RpWidget> *SlideWrap<RpWidget>::finishAnimations() {
-	_slideAnimation.finish();
+	_animation.finish();
 	animationStep();
 	return this;
 }
@@ -99,16 +99,16 @@ void SlideWrap<RpWidget>::animationStep() {
 		weak->moveToLeft(margins.left(), margins.top());
 		newWidth = weak->width();
 	}
-	auto current = _slideAnimation.current(_shown ? 1. : 0.);
+	auto current = _animation.current(_shown ? 1. : 0.);
 	auto newHeight = wrapped()
-		? (_slideAnimation.animating()
+		? (_animation.animating()
 		? anim::interpolate(0, wrapped()->heightNoMargins(), current)
 		: (_shown ? wrapped()->height() : 0))
 		: 0;
 	if (newWidth != width() || newHeight != height()) {
 		resize(newWidth, newHeight);
 	}
-	auto shouldBeHidden = !_shown && !_slideAnimation.animating();
+	auto shouldBeHidden = !_shown && !_animation.animating();
 	if (shouldBeHidden != isHidden()) {
 		setVisible(!shouldBeHidden);
 		if (shouldBeHidden) {
@@ -137,7 +137,7 @@ int SlideWrap<RpWidget>::resizeGetHeight(int newWidth) {
 }
 
 void SlideWrap<RpWidget>::wrappedSizeUpdated(QSize size) {
-	if (_slideAnimation.animating()) {
+	if (_animation.animating()) {
 		animationStep();
 	} else if (_shown) {
 		resize(size);
