@@ -180,7 +180,7 @@ void GeneralWidget::refreshControls() {
 	createChildRow(_updateRow, marginLink, slidedPadding);
 	connect(_updateRow->entity(), SIGNAL(restart()), this, SLOT(onRestart()));
 	if (!cAutoUpdate()) {
-		_updateRow->hideFast();
+		_updateRow->hide(anim::type::instant);
 	}
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
@@ -197,7 +197,7 @@ void GeneralWidget::refreshControls() {
 				_startMinimized->entity()->setChecked(cStartMinimized() && !Global::LocalPasscode());
 			});
 			if (!cAutoStart()) {
-				_startMinimized->hideFast();
+				_startMinimized->hide(anim::type::instant);
 			}
 			createChildRow(_addInSendTo, marginSmall, lang(lng_settings_add_sendto), [this](bool) { onAddInSendTo(); }, cSendToMenu());
 #endif // OS_WIN_STORE
@@ -234,7 +234,9 @@ void GeneralWidget::onRestart() {
 void GeneralWidget::onUpdateAutomatically() {
 	cSetAutoUpdate(_updateAutomatically->checked());
 	Local::writeSettings();
-	_updateRow->toggleAnimated(cAutoUpdate());
+	_updateRow->toggle(
+		cAutoUpdate(),
+		anim::type::normal);
 	if (cAutoUpdate()) {
 		Sandbox::startUpdateCheck();
 	} else {
@@ -282,7 +284,7 @@ void GeneralWidget::onAutoStart() {
 			Local::writeSettings();
 		}
 	}
-	_startMinimized->toggleAnimated(cAutoStart());
+	_startMinimized->toggle(cAutoStart(), anim::type::normal);
 }
 
 void GeneralWidget::onStartMinimized() {

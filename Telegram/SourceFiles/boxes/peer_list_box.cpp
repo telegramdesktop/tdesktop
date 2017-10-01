@@ -156,7 +156,7 @@ void PeerListBox::paintEvent(QPaintEvent *e) {
 }
 
 void PeerListBox::setInnerFocus() {
-	if (!_select || _select->isHiddenOrHiding()) {
+	if (!_select || !_select->toggled()) {
 		content()->setFocus();
 	} else {
 		_select->entity()->setInnerFocus();
@@ -191,10 +191,10 @@ void PeerListBox::peerListSetSearchMode(PeerListSearchMode mode) {
 	auto selectVisible = (mode != PeerListSearchMode::Disabled);
 	if (selectVisible && !_select) {
 		createMultiSelect();
-		_select->toggleFast(!selectVisible);
+		_select->toggle(!selectVisible, anim::type::instant);
 	}
 	if (_select) {
-		_select->toggleAnimated(selectVisible);
+		_select->toggle(selectVisible, anim::type::normal);
 		_scrollBottomFixed = false;
 		setInnerFocus();
 	}
@@ -256,7 +256,7 @@ void PeerListController::setSearchNoResultsText(const QString &text) {
 void PeerListBox::addSelectItem(not_null<PeerData*> peer, PeerListRow::SetStyle style) {
 	if (!_select) {
 		createMultiSelect();
-		_select->toggleFast(false);
+		_select->hide(anim::type::instant);
 	}
 	if (style == PeerListRow::SetStyle::Fast) {
 		_select->entity()->addItemInBunch(peer->id, peer->shortName(), st::activeButtonBg, PaintUserpicCallback(peer));

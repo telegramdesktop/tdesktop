@@ -208,7 +208,9 @@ BackgroundWidget::BackgroundWidget(QWidget *parent, UserData *self) : BlockWidge
 		}
 	});
 	subscribe(Adaptive::Changed(), [this]() {
-		_adaptive->toggleAnimated(Global::AdaptiveChatLayout() == Adaptive::ChatLayout::Wide);
+		_adaptive->toggle(
+			(Global::AdaptiveChatLayout() == Adaptive::ChatLayout::Wide),
+			anim::type::normal);
 	});
 }
 
@@ -225,7 +227,7 @@ void BackgroundWidget::createControls() {
 	createChildRow(_tile, margin, lang(lng_settings_bg_tile), [this](bool) { onTile(); }, Window::Theme::Background()->tile());
 	createChildRow(_adaptive, margin, slidedPadding, lang(lng_settings_adaptive_wide), [this](bool) { onAdaptive(); }, Global::AdaptiveForWide());
 	if (Global::AdaptiveChatLayout() != Adaptive::ChatLayout::Wide) {
-		_adaptive->hideFast();
+		_adaptive->hide(anim::type::instant);
 	}
 }
 

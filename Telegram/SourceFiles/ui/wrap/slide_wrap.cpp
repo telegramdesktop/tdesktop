@@ -55,24 +55,29 @@ SlideWrap<RpWidget> *SlideWrap<RpWidget>::setDuration(int duration) {
 	return this;
 }
 
-SlideWrap<RpWidget> *SlideWrap<RpWidget>::toggleAnimated(
-		bool shown) {
-	if (_shown != shown) {
-		setShown(shown);
-		_animation.start(
-			[this] { animationStep(); },
-			_shown ? 0. : 1.,
-			_shown ? 1. : 0.,
-			_duration,
-			anim::linear);
+SlideWrap<RpWidget> *SlideWrap<RpWidget>::toggle(
+		bool shown,
+		anim::type animated) {
+	auto changed = (_toggled != shown);
+	if (changed) {
+		_toggled = shown;
+		if (animated == anim::type::normal) {
+			_animation.start(
+				[this] { animationStep(); },
+				_toggled ? 0. : 1.,
+				_toggled ? 1. : 0.,
+				_duration,
+				anim::linear);
+		}
 	}
-	animationStep();
-	return this;
-}
-
-SlideWrap<RpWidget> *SlideWrap<RpWidget>::toggleFast(bool shown) {
-	setShown(shown);
-	finishAnimating();
+	if (animated == anim::type::normal) {
+		animationStep();
+	} else {
+		finishAnimating();
+	}
+	if (changed) {
+		_toggledChanged.fire_copy(_toggled);
+	}
 	return this;
 }
 
@@ -86,7 +91,7 @@ SlideWrap<RpWidget> *SlideWrap<RpWidget>::toggleOn(
 		rpl::producer<bool> &&shown) {
 	std::move(shown)
 		| rpl::start_with_next([this](bool shown) {
-			toggleAnimated(shown);
+			toggle(shown, anim::type::normal);
 		}, lifetime());
 	finishAnimating();
 	return this;
@@ -99,16 +104,16 @@ void SlideWrap<RpWidget>::animationStep() {
 		weak->moveToLeft(margins.left(), margins.top());
 		newWidth = weak->width();
 	}
-	auto current = _animation.current(_shown ? 1. : 0.);
+	auto current = _animation.current(_toggled ? 1. : 0.);
 	auto newHeight = wrapped()
 		? (_animation.animating()
 		? anim::interpolate(0, wrapped()->heightNoMargins(), current)
-		: (_shown ? wrapped()->height() : 0))
+		: (_toggled ? wrapped()->height() : 0))
 		: 0;
 	if (newWidth != width() || newHeight != height()) {
 		resize(newWidth, newHeight);
 	}
-	auto shouldBeHidden = !_shown && !_animation.animating();
+	auto shouldBeHidden = !_toggled && !_animation.animating();
 	if (shouldBeHidden != isHidden()) {
 		setVisible(!shouldBeHidden);
 		if (shouldBeHidden) {
@@ -117,14 +122,9 @@ void SlideWrap<RpWidget>::animationStep() {
 	}
 }
 
-void SlideWrap<RpWidget>::setShown(bool shown) {
-	_shown = shown;
-	_shownUpdated.fire_copy(_shown);
-}
-
 QMargins SlideWrap<RpWidget>::getMargins() const {
 	auto result = wrapped()->getMargins();
-	return (animating() || !_shown)
+	return (animating() || !_toggled)
 		? QMargins(result.left(), 0, result.right(), 0)
 		: result;
 }
@@ -139,7 +139,7 @@ int SlideWrap<RpWidget>::resizeGetHeight(int newWidth) {
 void SlideWrap<RpWidget>::wrappedSizeUpdated(QSize size) {
 	if (_animation.animating()) {
 		animationStep();
-	} else if (_shown) {
+	} else if (_toggled) {
 		resize(size);
 	}
 }

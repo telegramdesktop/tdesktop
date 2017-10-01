@@ -41,7 +41,7 @@ FadeWrap<RpWidget> *FadeWrap<RpWidget>::setDuration(int duration) {
 FadeWrap<RpWidget> *FadeWrap<RpWidget>::toggle(
 		bool shown,
 		anim::type animated) {
-	auto updated = (shown != _animation.visible());
+	auto changed = (shown != _animation.visible());
 	if (shown) {
 		if (animated == anim::type::normal) {
 			_animation.fadeIn(_duration);
@@ -55,7 +55,7 @@ FadeWrap<RpWidget> *FadeWrap<RpWidget>::toggle(
 			_animation.hide();
 		}
 	}
-	if (updated) {
+	if (changed) {
 		_toggledChanged.fire_copy(shown);
 	}
 	return this;

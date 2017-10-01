@@ -191,7 +191,7 @@ void PrivacyWidget::createControls() {
 	auto value = GetAutoLockText();
 	createChildRow(_autoLock, marginSmall, slidedPadding, label, value, LabeledLink::Type::Primary, SLOT(onAutoLock()));
 	if (!Global::LocalPasscode()) {
-		_autoLock->hideFast();
+		_autoLock->hide(anim::type::instant);
 	}
 	createChildRow(_cloudPasswordState, marginSmall);
 	createChildRow(_showAllSessions, marginSmall, lang(lng_settings_show_sessions), SLOT(onShowSessions()));
@@ -204,7 +204,9 @@ void PrivacyWidget::autoLockUpdated() {
 		_autoLock->entity()->link()->setText(value);
 		resizeToWidth(width());
 	}
-	_autoLock->toggleAnimated(Global::LocalPasscode());
+	_autoLock->toggle(
+		Global::LocalPasscode(),
+		anim::type::normal);
 }
 
 void PrivacyWidget::onBlockedUsers() {

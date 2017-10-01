@@ -316,13 +316,21 @@ void EditPrivacyBox::createWidgets() {
 
 	_optionGroup->setChangedCallback([this](Option value) {
 		_option = value;
-		_alwaysLink->toggleAnimated(showExceptionLink(Exception::Always));
-		_neverLink->toggleAnimated(showExceptionLink(Exception::Never));
+		_alwaysLink->toggle(
+			showExceptionLink(Exception::Always),
+			anim::type::normal);
+		_neverLink->toggle(
+			showExceptionLink(Exception::Never),
+			anim::type::normal);
 	});
 
 	showChildren();
-	_alwaysLink->toggleFast(showExceptionLink(Exception::Always));
-	_neverLink->toggleFast(showExceptionLink(Exception::Never));
+	_alwaysLink->toggle(
+		showExceptionLink(Exception::Always),
+		anim::type::instant);
+	_neverLink->toggle(
+		showExceptionLink(Exception::Never),
+		anim::type::instant);
 
 	setDimensions(st::boxWideWidth, resizeGetHeight(st::boxWideWidth));
 }

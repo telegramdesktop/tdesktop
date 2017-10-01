@@ -166,7 +166,7 @@ void ChatSettingsWidget::createControls() {
 	style::margins marginPath(st::defaultCheck.diameter + st::defaultBoxCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
 	createChildRow(_downloadPath, marginPath, slidedPadding);
 	if (Global::AskDownloadPath()) {
-		_downloadPath->hideFast();
+		_downloadPath->hide(anim::type::instant);
 	}
 #endif // OS_WIN_STORE
 
@@ -190,7 +190,9 @@ void ChatSettingsWidget::onDontAskDownloadPath() {
 	Global::SetAskDownloadPath(!_dontAskDownloadPath->checked());
 	Local::writeUserSettings();
 #ifndef OS_WIN_STORE
-	_downloadPath->toggleAnimated(_dontAskDownloadPath->checked());
+	_downloadPath->toggle(
+		_dontAskDownloadPath->checked(),
+		anim::type::normal);
 #endif // OS_WIN_STORE
 }
 

@@ -143,7 +143,7 @@ void InfoWidget::setLabeledText(
 			copyText,
 			width());
 	}
-	row->toggleAnimated(nonEmptyText);
+	row->toggle(nonEmptyText, anim::type::normal);
 }
 
 InfoWidget::LabeledWidget::LabeledWidget(QWidget *parent, const style::FlatLabel &valueSt) : RpWidget(parent)

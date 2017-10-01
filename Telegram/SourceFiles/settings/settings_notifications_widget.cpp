@@ -60,11 +60,11 @@ void NotificationsWidget::createControls() {
 	createChildRow(_showSenderName, margin, slidedPadding, lang(lng_settings_show_name), [this](bool) { onShowSenderName(); }, Global::NotifyView() <= dbinvShowName);
 	createChildRow(_showMessagePreview, margin, slidedPadding, lang(lng_settings_show_preview), [this](bool) { onShowMessagePreview(); }, Global::NotifyView() <= dbinvShowPreview);
 	if (!_showSenderName->entity()->checked()) {
-		_showMessagePreview->hideFast();
+		_showMessagePreview->hide(anim::type::instant);
 	}
 	if (!_desktopNotifications->checked()) {
-		_showSenderName->hideFast();
-		_showMessagePreview->hideFast();
+		_showSenderName->hide(anim::type::instant);
+		_showMessagePreview->hide(anim::type::instant);
 	}
 	createChildRow(_playSound, margin, lang(lng_settings_sound_notify), [this](bool) { onPlaySound(); }, Global::SoundNotify());
 	createChildRow(_includeMuted, margin, lang(lng_settings_include_muted), [this](bool) { onIncludeMuted(); }, Global::IncludeMuted());
@@ -91,7 +91,7 @@ void NotificationsWidget::createNotificationsControls() {
 	}
 	createChildRow(_advanced, margin, slidedPadding, lang(lng_settings_advanced_notifications), SLOT(onAdvanced()));
 	if (!nativeNotificationsLabel.isEmpty() && Global::NativeNotifications()) {
-		_advanced->hideFast();
+		_advanced->hide(anim::type::instant);
 	}
 }
 
@@ -106,8 +106,13 @@ void NotificationsWidget::onDesktopNotifications() {
 
 void NotificationsWidget::desktopEnabledUpdated() {
 	_desktopNotifications->setChecked(Global::DesktopNotify());
-	_showSenderName->toggleAnimated(Global::DesktopNotify());
-	_showMessagePreview->toggleAnimated(Global::DesktopNotify() && _showSenderName->entity()->checked());
+	_showSenderName->toggle(
+		Global::DesktopNotify(),
+		anim::type::normal);
+	_showMessagePreview->toggle(
+		Global::DesktopNotify()
+			&& _showSenderName->entity()->checked(),
+		anim::type::normal);
 }
 
 void NotificationsWidget::onShowSenderName() {
@@ -146,7 +151,9 @@ void NotificationsWidget::onShowMessagePreview() {
 }
 
 void NotificationsWidget::viewParamUpdated() {
-	_showMessagePreview->toggleAnimated(_showSenderName->entity()->checked());
+	_showMessagePreview->toggle(
+		_showSenderName->entity()->checked(),
+		anim::type::normal);
 }
 
 void NotificationsWidget::onNativeNotifications() {
@@ -159,7 +166,9 @@ void NotificationsWidget::onNativeNotifications() {
 
 	Auth().notifications().createManager();
 
-	_advanced->toggleAnimated(!Global::NativeNotifications());
+	_advanced->toggle(
+		!Global::NativeNotifications(),
+		anim::type::normal);
 }
 
 void NotificationsWidget::onAdvanced() {

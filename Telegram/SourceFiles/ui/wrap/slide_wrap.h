@@ -44,28 +44,27 @@ public:
 		const style::margins &padding);
 
 	SlideWrap *setDuration(int duration);
-	SlideWrap *toggleAnimated(bool shown);
-	SlideWrap *toggleFast(bool shown);
-	SlideWrap *showAnimated() { return toggleAnimated(true); }
-	SlideWrap *hideAnimated() { return toggleAnimated(false); }
-	SlideWrap *showFast() { return toggleFast(true); }
-	SlideWrap *hideFast() { return toggleFast(false); }
+	SlideWrap *toggle(bool shown, anim::type animated);
+	SlideWrap *show(anim::type animated) {
+		return toggle(true, animated);
+	}
+	SlideWrap *hide(anim::type animated) {
+		return toggle(false, animated);
+	}
 	SlideWrap *finishAnimating();
 	SlideWrap *toggleOn(rpl::producer<bool> &&shown);
 
 	bool animating() const {
 		return _animation.animating();
 	}
+	bool toggled() const {
+		return _toggled;
+	}
+	auto toggledValue() const {
+		return _toggledChanged.events_starting_with_copy(_toggled);
+	}
 
 	QMargins getMargins() const override;
-
-	bool isHiddenOrHiding() const {
-		return !_shown;
-	}
-
-	auto shownValue() const {
-		return _shownUpdated.events_starting_with_copy(_shown);
-	}
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -73,10 +72,9 @@ protected:
 
 private:
 	void animationStep();
-	void setShown(bool shown);
 
-	bool _shown = true;
-	rpl::event_stream<bool> _shownUpdated;
+	bool _toggled = true;
+	rpl::event_stream<bool> _toggledChanged;
 	Animation _animation;
 	int _duration = 0;
 
@@ -107,23 +105,14 @@ public:
 	SlideWrap *setDuration(int duration) {
 		return chain(Parent::setDuration(duration));
 	}
-	SlideWrap *toggleAnimated(bool shown) {
-		return chain(Parent::toggleAnimated(shown));
+	SlideWrap *toggle(bool shown, anim::type animated) {
+		return chain(Parent::toggle(shown, animated));
 	}
-	SlideWrap *toggleFast(bool shown) {
-		return chain(Parent::toggleFast(shown));
+	SlideWrap *show(anim::type animated) {
+		return chain(Parent::show(animated));
 	}
-	SlideWrap *showAnimated() {
-		return chain(Parent::showAnimated());
-	}
-	SlideWrap *hideAnimated() {
-		return chain(Parent::hideAnimated());
-	}
-	SlideWrap *showFast() {
-		return chain(Parent::showFast());
-	}
-	SlideWrap *hideFast() {
-		return chain(Parent::hideFast());
+	SlideWrap *hide(anim::type animated) {
+		return chain(Parent::hide(animated));
 	}
 	SlideWrap *finishAnimating() {
 		return chain(Parent::finishAnimating());

@@ -1793,7 +1793,7 @@ void MainWidget::switchToPanelPlayer() {
 	if (_playerUsingPanel) return;
 	_playerUsingPanel = true;
 
-	_player->hideAnimated();
+	_player->hide(anim::type::normal);
 	_playerVolume.destroyDelayed();
 	_playerPlaylist->hideIgnoringEnterEvents();
 
@@ -1807,7 +1807,7 @@ void MainWidget::switchToFixedPlayer() {
 	if (!_player) {
 		createPlayer();
 	} else {
-		_player->showAnimated();
+		_player->show(anim::type::normal);
 		if (!_playerVolume) {
 			_playerVolume.create(this);
 			_player->entity()->volumeWidgetCreated(_playerVolume);
@@ -1824,7 +1824,7 @@ void MainWidget::closeBothPlayers() {
 		_playerUsingPanel = false;
 		_player.destroyDelayed();
 	} else {
-		_player->hideAnimated();
+		_player->hide(anim::type::normal);
 	}
 	_playerVolume.destroyDelayed();
 
@@ -1852,16 +1852,16 @@ void MainWidget::createPlayer() {
 		_player->entity()->volumeWidgetCreated(_playerVolume);
 		orderWidgets();
 		if (_a_show.animating()) {
-			_player->showFast();
-			_player->hide();
+			_player->show(anim::type::instant);
+			_player->setVisible(false);
 			Shortcuts::enableMediaShortcuts();
 		} else {
-			_player->hideFast();
+			_player->hide(anim::type::instant);
 		}
 	}
-	if (_player && _player->isHiddenOrHiding()) {
+	if (_player && !_player->toggled()) {
 		if (!_a_show.animating()) {
-			_player->showAnimated();
+			_player->show(anim::type::normal);
 			_playerHeight = _contentScrollAddToY = _player->contentHeight();
 			updateControlsGeometry();
 			Shortcuts::enableMediaShortcuts();
@@ -1910,11 +1910,11 @@ void MainWidget::createCallTopBar() {
 		}, lifetime());
 	orderWidgets();
 	if (_a_show.animating()) {
-		_callTopBar->showFast();
-		_callTopBar->hide();
+		_callTopBar->show(anim::type::instant);
+		_callTopBar->setVisible(false);
 	} else {
-		_callTopBar->hideFast();
-		_callTopBar->showAnimated();
+		_callTopBar->hide(anim::type::instant);
+		_callTopBar->show(anim::type::normal);
 		_callTopBarHeight = _contentScrollAddToY = _callTopBar->height();
 		updateControlsGeometry();
 	}
@@ -1922,7 +1922,7 @@ void MainWidget::createCallTopBar() {
 
 void MainWidget::destroyCallTopBar() {
 	if (_callTopBar) {
-		_callTopBar->hideAnimated();
+		_callTopBar->hide(anim::type::normal);
 	}
 }
 
@@ -3342,7 +3342,7 @@ void MainWidget::hideAll() {
 		_thirdShadow->hide();
 	}
 	if (_player) {
-		_player->hide();
+		_player->setVisible(false);
 		_playerHeight = 0;
 	}
 	for (auto &instance : _playerFloats) {
@@ -3421,7 +3421,7 @@ void MainWidget::showAll() {
 		}
 	}
 	if (_player) {
-		_player->show();
+		_player->setVisible(true);
 		_playerHeight = _player->contentHeight();
 	}
 	updateControlsGeometry();

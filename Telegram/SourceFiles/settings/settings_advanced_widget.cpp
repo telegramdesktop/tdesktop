@@ -76,11 +76,11 @@ void AdvancedWidget::createControls() {
 		style::margins slidedPadding(0, marginLarge.bottom() / 2, 0, marginLarge.bottom() - (marginLarge.bottom() / 2));
 		createChildRow(_useDefaultTheme, marginLarge, slidedPadding, lang(lng_settings_bg_use_default), SLOT(onUseDefaultTheme()));
 		if (!Window::Theme::IsNonDefaultUsed()) {
-			_useDefaultTheme->hideFast();
+			_useDefaultTheme->hide(anim::type::instant);
 		}
 		createChildRow(_toggleNightTheme, marginLarge, slidedPadding, getNightThemeToggleText(), SLOT(onToggleNightTheme()));
 		if (Window::Theme::IsNonDefaultUsed()) {
-			_toggleNightTheme->hideFast();
+			_toggleNightTheme->hide(anim::type::instant);
 		}
 	}
 	createChildRow(_telegramFAQ, marginLarge, lang(lng_settings_faq), SLOT(onTelegramFAQ()));
@@ -92,9 +92,13 @@ void AdvancedWidget::createControls() {
 
 void AdvancedWidget::checkNonDefaultTheme() {
 	if (self()) return;
-	_useDefaultTheme->toggleAnimated(Window::Theme::IsNonDefaultUsed());
+	_useDefaultTheme->toggle(
+		Window::Theme::IsNonDefaultUsed(),
+		anim::type::normal);
 	_toggleNightTheme->entity()->setText(getNightThemeToggleText());
-	_toggleNightTheme->toggleAnimated(!Window::Theme::IsNonDefaultUsed());
+	_toggleNightTheme->toggle(
+		!Window::Theme::IsNonDefaultUsed(),
+		anim::type::normal);
 }
 
 void AdvancedWidget::onManageLocalStorage() {

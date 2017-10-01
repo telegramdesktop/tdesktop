@@ -47,7 +47,7 @@ object_ptr<Ui::SlideWrap<Ui::VerticalLayout>> CreateTextWithLabel(
 		| rpl::before_next([slide = result.data()](
 				const TextWithEntities &value) {
 			if (value.text.isEmpty()) {
-				slide->hideAnimated();
+				slide->hide(anim::type::normal);
 			}
 		})
 		| rpl::filter([](const TextWithEntities &value) {
@@ -55,7 +55,7 @@ object_ptr<Ui::SlideWrap<Ui::VerticalLayout>> CreateTextWithLabel(
 		})
 		| rpl::after_next([slide = result.data()](
 				const TextWithEntities &value) {
-			slide->showAnimated();
+			slide->show(anim::type::normal);
 		});
 	auto labeled = layout->add(object_ptr<Ui::FlatLabel>(
 		layout,

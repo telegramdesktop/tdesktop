@@ -244,7 +244,7 @@ rpl::producer<bool> MultiLineTracker::atLeastOneShownValue() const {
 	auto shown = std::vector<rpl::producer<bool>>();
 	shown.reserve(_widgets.size());
 	for (auto &widget : _widgets) {
-		shown.push_back(widget->shownValue());
+		shown.push_back(widget->toggledValue());
 	}
 	return rpl::combine(
 		std::move(shown),
