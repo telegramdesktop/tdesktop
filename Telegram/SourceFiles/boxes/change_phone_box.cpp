@@ -20,6 +20,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "boxes/change_phone_box.h"
 
+#include <rpl/filter.h>
+#include <rpl/mappers.h>
+#include <rpl/take.h>
 #include "lang/lang_keys.h"
 #include "styles/style_boxes.h"
 #include "ui/widgets/labels.h"
@@ -39,13 +42,19 @@ void createErrorLabel(
 		int y) {
 	if (label) {
 		label->hide(anim::type::normal);
-		auto context = label.data();
-		App::CallDelayed(
-			st::fadeWrapDuration,
-			context,
-			[old = std::move(label)]() mutable {
-				old.destroy();
-			});
+
+		auto saved = label.data();
+		auto destroy = [old = std::move(label)]() mutable {
+			old.destroyDelayed();
+		};
+
+		using namespace rpl::mappers;
+		saved->shownValue()
+			| rpl::filter($1 == false)
+			| rpl::take(1)
+			| rpl::start_with_done(
+				std::move(destroy),
+				saved->lifetime());
 	}
 	if (!text.isEmpty()) {
 		label.create(

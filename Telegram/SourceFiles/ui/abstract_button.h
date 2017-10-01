@@ -30,9 +30,7 @@ class AbstractButton : public RpWidget {
 	Q_OBJECT
 
 public:
-	AbstractButton(QWidget *parent) : RpWidget(parent) {
-		setMouseTracking(true);
-	}
+	AbstractButton(QWidget *parent);
 
 	Qt::KeyboardModifiers clickModifiers() const {
 		return _modifiers;
@@ -56,13 +54,6 @@ public:
 
 	void setClickedCallback(base::lambda<void()> callback) {
 		_clickedCallback = std::move(callback);
-	}
-
-	void setVisible(bool visible) override {
-		TWidget::setVisible(visible);
-		if (!visible) {
-			clearState();
-		}
 	}
 
 	auto clicks() const {

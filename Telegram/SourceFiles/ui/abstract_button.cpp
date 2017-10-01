@@ -20,7 +20,19 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "ui/abstract_button.h"
 
+#include <rpl/filter.h>
+#include <rpl/mappers.h>
+
 namespace Ui {
+
+AbstractButton::AbstractButton(QWidget *parent) : RpWidget(parent) {
+	setMouseTracking(true);
+
+	using namespace rpl::mappers;
+	shownValue()
+		| rpl::filter($1 == false)
+		| rpl::start_with_next([this] { clearState(); }, lifetime());
+}
 
 void AbstractButton::leaveEventHook(QEvent *e) {
 	if (_state & StateFlag::Down) return;

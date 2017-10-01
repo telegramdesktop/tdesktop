@@ -30,6 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/fail.h>
 #include <rpl/never.h>
 
+#include <rpl/take.h>
 #include <rpl/then.h>
 #include <rpl/deferred.h>
 #include <rpl/map.h>

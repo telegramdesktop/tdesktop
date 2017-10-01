@@ -76,6 +76,10 @@ public:
 	virtual rpl::producer<int> desiredHeightValue() const {
 		return heightValue();
 	}
+	auto shownValue() const {
+		auto &stream = eventStreams().shown;
+		return stream.events_starting_with(!this->isHidden());
+	}
 
 	auto paintRequest() const {
 		return eventStreams().paint.events();
@@ -83,6 +87,17 @@ public:
 
 	auto alive() const {
 		return eventStreams().alive.events();
+	}
+
+	void setVisible(bool visible) final override {
+		auto wasVisible = !this->isHidden();
+		Parent::setVisible(visible);
+		auto nowVisible = !this->isHidden();
+		if (nowVisible != wasVisible) {
+			if (auto streams = _eventStreams.get()) {
+				streams->shown.fire_copy(nowVisible);
+			}
+		}
 	}
 
 	template <typename Error, typename Generator>
@@ -133,6 +148,7 @@ private:
 	struct EventStreams {
 		rpl::event_stream<QRect> geometry;
 		rpl::event_stream<QRect> paint;
+		rpl::event_stream<bool> shown;
 		rpl::event_stream<> alive;
 	};
 	struct LifetimeHolder {

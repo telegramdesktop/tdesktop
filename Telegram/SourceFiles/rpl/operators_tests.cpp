@@ -388,4 +388,18 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 		}
 		REQUIRE(*sum == "0-11-22-3");
 	}
+
+	SECTION("take test") {
+		auto sum = std::make_shared<std::string>("");
+		{
+			rpl::lifetime lifetime;
+			rpl::ints(10) | take(3)
+				| start_with_next_done([=](int value) {
+					*sum += std::to_string(value);
+				}, [=] {
+					*sum += "done";
+				}, lifetime);
+		}
+		REQUIRE(*sum == "012done");
+	}
 }

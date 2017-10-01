@@ -100,7 +100,6 @@ void FadeAnimation::stopAnimation() {
 	_animation.finish();
 	if (!_cache.isNull()) {
 		_cache = QPixmap();
-		updateCallback();
 		if (_visible) {
 			_widget->showChildren();
 		}
