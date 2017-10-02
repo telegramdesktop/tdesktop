@@ -39,11 +39,12 @@ public:
 		return make_producer<Value, Error>([
 			initial = std::move(initial)
 		](const auto &consumer) mutable {
-			auto state = std::make_shared<State>();
+			auto state = consumer.template make_state<State>();
 			return std::move(initial).start(
 			[consumer, state](producer<Value, Error> &&inner) {
 				state->finished = false;
-				state->alive = std::move(inner).start(
+				state->alive = lifetime();
+				auto started = std::move(inner).start(
 				[consumer](auto &&value) {
 					consumer.put_next_forward(std::forward<decltype(value)>(value));
 				}, [consumer](auto &&error) {
@@ -55,6 +56,9 @@ public:
 						state->finished = true;
 					}
 				});
+				if (started) {
+					state->alive = std::move(started);
+				}
 			}, [consumer](auto &&error) {
 				consumer.put_error_forward(std::forward<decltype(error)>(error));
 			}, [consumer, state] {

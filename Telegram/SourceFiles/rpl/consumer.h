@@ -63,7 +63,7 @@ public:
 	virtual void put_error_copy(const Error &error) = 0;
 	virtual void put_done() = 0;
 
-	void add_lifetime(lifetime &&lifetime);
+	bool add_lifetime(lifetime &&lifetime);
 
 	template <typename Type, typename... Args>
 	Type *make_state(Args&& ...args);
@@ -135,20 +135,23 @@ private:
 };
 
 template <typename Value, typename Error>
-inline void type_erased_handlers<Value, Error>::add_lifetime(
+inline bool type_erased_handlers<Value, Error>::add_lifetime(
 		lifetime &&lifetime) {
 	if (_terminated) {
 		lifetime.destroy();
-	} else {
-		_lifetime.add(std::move(lifetime));
+		return false;
 	}
+	_lifetime.add(std::move(lifetime));
+	return true;
 }
 
 template <typename Value, typename Error>
 template <typename Type, typename... Args>
 inline Type *type_erased_handlers<Value, Error>::make_state(
 		Args&& ...args) {
-	Expects(!_terminated);
+	if (_terminated) {
+		return nullptr;
+	}
 	return _lifetime.make_state<Type>(std::forward<Args>(args)...);
 }
 
@@ -320,7 +323,7 @@ public:
 	}
 	void put_done() const;
 
-	void add_lifetime(lifetime &&lifetime) const;
+	bool add_lifetime(lifetime &&lifetime) const;
 
 	template <typename Type, typename... Args>
 	Type *make_state(Args&& ...args) const;
@@ -447,22 +450,32 @@ inline void consumer_base<Value, Error, Handlers>::put_done() const {
 }
 
 template <typename Value, typename Error, typename Handlers>
-inline void consumer_base<Value, Error, Handlers>::add_lifetime(
+inline bool consumer_base<Value, Error, Handlers>::add_lifetime(
 		lifetime &&lifetime) const {
-	if (_handlers) {
-		_handlers->add_lifetime(std::move(lifetime));
-	} else {
+	if (!_handlers) {
 		lifetime.destroy();
+		return false;
 	}
+	if (_handlers->add_lifetime(std::move(lifetime))) {
+		return true;
+	}
+	_handlers = nullptr;
+	return false;
 }
 
 template <typename Value, typename Error, typename Handlers>
 template <typename Type, typename... Args>
 inline Type *consumer_base<Value, Error, Handlers>::make_state(
 		Args&& ...args) const {
-	Expects(_handlers != nullptr);
-	return _handlers->template make_state<Type>(
-		std::forward<Args>(args)...);
+	if (!_handlers) {
+		return nullptr;
+	}
+	if (auto result = _handlers->template make_state<Type>(
+			std::forward<Args>(args)...)) {
+		return result;
+	}
+	_handlers = nullptr;
+	return nullptr;
 }
 
 template <typename Value, typename Error, typename Handlers>

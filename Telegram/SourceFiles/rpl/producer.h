@@ -265,8 +265,10 @@ template <typename Value, typename Error, typename Generator>
 template <typename Handlers>
 inline lifetime producer_base<Value, Error, Generator>::start_existing(
 		const consumer_type<Handlers> &consumer) && {
-	consumer.add_lifetime(std::move(_generator)(consumer));
-	return [consumer] { consumer.terminate(); };
+	if (consumer.add_lifetime(std::move(_generator)(consumer))) {
+		return [consumer] { consumer.terminate(); };
+	}
+	return lifetime();
 }
 
 template <typename Value, typename Error>

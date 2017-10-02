@@ -238,16 +238,22 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 		auto sum = std::make_shared<std::string>("");
 		{
 			rpl::lifetime lifetime;
-			single(single(1) | then(single(2)))
-				| then(single(single(3) | then(single(4))))
-				| then(single(single(5) | then(single(6))))
-				| flatten_latest()
-				| map([](int value) {
-					return std::to_string(value);
-				})
-				| start_with_next([=](std::string &&value) {
-					*sum += std::move(value) + ' ';
-				}, lifetime);
+			{
+				rpl::event_stream<int> stream;
+				single(single(1) | then(single(2)))
+					| then(single(single(3) | then(single(4))))
+					| then(single(single(5) | then(stream.events())))
+					| flatten_latest()
+					| map([](int value) {
+						return std::to_string(value);
+					})
+					| start_with_next_done([=](std::string &&value) {
+						*sum += std::move(value) + ' ';
+					}, [=] {
+						*sum += "done ";
+					}, lifetime);
+				stream.fire(6);
+			}
 			single(single(1))
 				| then(single(single(2) | then(single(3))))
 				| then(single(single(4) | then(single(5)) | then(single(6))))
@@ -259,7 +265,7 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 					*sum += std::move(value) + ' ';
 				}, lifetime);
 		}
-		REQUIRE(*sum == "1 2 3 4 5 6 1 2 3 4 5 6 ");
+		REQUIRE(*sum == "1 2 3 4 5 6 done 1 2 3 4 5 6 ");
 	}
 
 	SECTION("combine vector test") {
