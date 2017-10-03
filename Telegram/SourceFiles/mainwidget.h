@@ -74,65 +74,7 @@ class HistoryWidget;
 class OverviewWidget;
 class HistoryHider;
 
-enum StackItemType {
-	HistoryStackItem,
-	SectionStackItem,
-	OverviewStackItem,
-};
-
-class StackItem {
-public:
-	StackItem(PeerData *peer) : peer(peer) {
-	}
-	virtual StackItemType type() const = 0;
-	virtual ~StackItem() {
-	}
-	PeerData *peer;
-};
-
-class StackItemHistory : public StackItem {
-public:
-	StackItemHistory(PeerData *peer, MsgId msgId, QList<MsgId> replyReturns) : StackItem(peer)
-		, msgId(msgId)
-		, replyReturns(replyReturns) {
-	}
-	StackItemType type() const {
-		return HistoryStackItem;
-	}
-	MsgId msgId;
-	QList<MsgId> replyReturns;
-};
-
-class StackItemSection : public StackItem {
-public:
-	StackItemSection(std::unique_ptr<Window::SectionMemento> &&memento);
-	~StackItemSection();
-
-	StackItemType type() const {
-		return SectionStackItem;
-	}
-	Window::SectionMemento *memento() const {
-		return _memento.get();
-	}
-
-private:
-	std::unique_ptr<Window::SectionMemento> _memento;
-
-};
-
-class StackItemOverview : public StackItem {
-public:
-	StackItemOverview(PeerData *peer, MediaOverviewType mediaType, int32 lastWidth, int32 lastScrollTop) : StackItem(peer)
-		, mediaType(mediaType)
-		, lastWidth(lastWidth)
-		, lastScrollTop(lastScrollTop) {
-	}
-	StackItemType type() const {
-		return OverviewStackItem;
-	}
-	MediaOverviewType mediaType;
-	int32 lastWidth, lastScrollTop;
-};
+class StackItem;
 
 enum SilentNotifiesStatus {
 	SilentNotifiesDontChange,

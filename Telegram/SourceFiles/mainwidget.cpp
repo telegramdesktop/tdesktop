@@ -107,11 +107,104 @@ MTPMessagesFilter TypeToMediaFilter(MediaOverviewType &type) {
 
 } // namespace
 
-StackItemSection::StackItemSection(std::unique_ptr<Window::SectionMemento> &&memento) : StackItem(nullptr)
-, _memento(std::move(memento)) {
+enum StackItemType {
+	HistoryStackItem,
+	SectionStackItem,
+	OverviewStackItem,
+};
+
+class StackItem {
+public:
+	StackItem(PeerData *peer) : _peer(peer) {
+	}
+
+	PeerData *peer() const {
+		return _peer;
+	}
+
+	void setThirdSectionMemento(
+		std::unique_ptr<Window::SectionMemento> &&memento);
+	Window::SectionMemento *thirdSectionMemento() const {
+		return _thirdSectionMemento.get();
+	}
+
+	virtual StackItemType type() const = 0;
+	virtual ~StackItem() = default;
+
+private:
+	PeerData *_peer = nullptr;
+	std::unique_ptr<Window::SectionMemento> _thirdSectionMemento;
+
+};
+
+class StackItemHistory : public StackItem {
+public:
+	StackItemHistory(
+		PeerData *peer,
+		MsgId msgId,
+		QList<MsgId> replyReturns)
+	: StackItem(peer)
+	, msgId(msgId)
+	, replyReturns(replyReturns) {
+	}
+
+	StackItemType type() const override {
+		return HistoryStackItem;
+	}
+
+	MsgId msgId;
+	QList<MsgId> replyReturns;
+
+};
+
+class StackItemSection : public StackItem {
+public:
+	StackItemSection(
+		std::unique_ptr<Window::SectionMemento> &&memento);
+
+	StackItemType type() const override {
+		return SectionStackItem;
+	}
+	Window::SectionMemento *memento() const {
+		return _memento.get();
+	}
+
+private:
+	std::unique_ptr<Window::SectionMemento> _memento;
+
+};
+
+class StackItemOverview : public StackItem {
+public:
+	StackItemOverview(
+		PeerData *peer,
+		MediaOverviewType mediaType,
+		int32 lastWidth,
+		int32 lastScrollTop)
+	: StackItem(peer)
+	, mediaType(mediaType)
+	, lastWidth(lastWidth)
+	, lastScrollTop(lastScrollTop) {
+	}
+
+	StackItemType type() const {
+		return OverviewStackItem;
+	}
+
+	MediaOverviewType mediaType;
+	int32 lastWidth, lastScrollTop;
+
+};
+
+void StackItem::setThirdSectionMemento(
+		std::unique_ptr<Window::SectionMemento> &&memento) {
+	_thirdSectionMemento = std::move(memento);
 }
 
-StackItemSection::~StackItemSection() {
+StackItemSection::StackItemSection(
+	std::unique_ptr<Window::SectionMemento> &&memento)
+: StackItem(nullptr)
+, _memento(std::move(memento)) {
 }
 
 template <typename ToggleCallback, typename DraggedCallback>
@@ -2487,15 +2580,15 @@ void MainWidget::ui_showPeerHistory(
 	bool foundInStack = !peerId;
 	if (foundInStack || (way == Way::ClearStack)) {
 		for_const (auto &item, _stack) {
-			clearBotStartToken(item->peer);
+			clearBotStartToken(item->peer());
 		}
 		_stack.clear();
 	} else {
 		for (auto i = 0, s = int(_stack.size()); i < s; ++i) {
-			if (_stack.at(i)->type() == HistoryStackItem && _stack.at(i)->peer->id == peerId) {
+			if (_stack.at(i)->type() == HistoryStackItem && _stack.at(i)->peer()->id == peerId) {
 				foundInStack = true;
 				while (int(_stack.size()) > i + 1) {
-					clearBotStartToken(_stack.back()->peer);
+					clearBotStartToken(_stack.back()->peer());
 					_stack.pop_back();
 				}
 				_stack.pop_back();
@@ -3095,7 +3188,7 @@ void MainWidget::showBackFromStack(
 		for (auto i = _stack.size(); i > 0;) {
 			if (_stack[--i]->type() == HistoryStackItem) {
 				auto historyItem = static_cast<StackItemHistory*>(_stack[i].get());
-				_peerInStack = historyItem->peer;
+				_peerInStack = historyItem->peer();
 				_msgIdInStack = historyItem->msgId;
 				dlgUpdated();
 				break;
@@ -3103,10 +3196,10 @@ void MainWidget::showBackFromStack(
 		}
 		auto historyItem = static_cast<StackItemHistory*>(item.get());
 		_controller->showPeerHistory(
-			historyItem->peer->id,
+			historyItem->peer()->id,
 			params.withWay(SectionShow::Way::Backward),
 			ShowAtUnreadMsgId);
-		_history->setReplyReturns(historyItem->peer->id, historyItem->replyReturns);
+		_history->setReplyReturns(historyItem->peer()->id, historyItem->replyReturns);
 	} else if (item->type() == SectionStackItem) {
 		auto sectionItem = static_cast<StackItemSection*>(item.get());
 		showNewSection(
@@ -3115,10 +3208,20 @@ void MainWidget::showBackFromStack(
 	} else if (item->type() == OverviewStackItem) {
 		auto overviewItem = static_cast<StackItemOverview*>(item.get());
 		showMediaOverview(
-			overviewItem->peer,
+			overviewItem->peer(),
 			overviewItem->mediaType,
 			true,
 			overviewItem->lastScrollTop);
+	}
+	if (auto memento = item->thirdSectionMemento()) {
+		if (_thirdSection) {
+			_controller->showSection(
+				std::move(*memento),
+				SectionShow(
+					SectionShow::Way::ClearStack,
+					anim::type::instant,
+					anim::activation::background));
+		}
 	}
 }
 
@@ -3560,21 +3663,35 @@ void MainWidget::updateDialogsWidthAnimated() {
 void MainWidget::updateThirdColumnToCurrentPeer(
 		PeerData *peer,
 		bool canWrite) {
+	auto saveOldThirdSection = [&] {
+		if (!_stack.empty() && _thirdSection) {
+			_stack.back()->setThirdSectionMemento(
+				_thirdSection->createMemento());
+		}
+	};
+	auto switchInfoFast = [&] {
+		saveOldThirdSection();
+		_controller->showPeerInfo(
+			peer,
+			SectionShow(
+				SectionShow::Way::ClearStack,
+				anim::type::instant,
+				anim::activation::background));
+	};
+	auto switchTabbedFast = [&] {
+		saveOldThirdSection();
+		_history->pushTabbedSelectorToThirdSection();
+	};
 	if (Adaptive::ThreeColumn()
 		&& Auth().data().tabbedSelectorSectionEnabled()
 		&& peer) {
 		if (!canWrite) {
-			_controller->showPeerInfo(
-				peer,
-				SectionShow(
-					SectionShow::Way::ClearStack,
-					anim::type::instant,
-					anim::activation::background));
+			switchInfoFast();
 			Auth().data().setTabbedSelectorSectionEnabled(true);
 			Auth().data().setTabbedReplacedWithInfo(true);
 		} else if (Auth().data().tabbedReplacedWithInfo()) {
 			Auth().data().setTabbedReplacedWithInfo(false);
-			_history->pushTabbedSelectorToThirdSection();
+			switchTabbedFast();
 		}
 	} else {
 		Auth().data().setTabbedReplacedWithInfo(false);
@@ -3583,12 +3700,7 @@ void MainWidget::updateThirdColumnToCurrentPeer(
 			_thirdShadow.destroy();
 		} else if (Adaptive::ThreeColumn()
 			&& Auth().data().thirdSectionInfoEnabled()) {
-			_controller->showPeerInfo(
-				peer,
-				SectionShow(
-					SectionShow::Way::ClearStack,
-					anim::type::instant,
-					anim::activation::background));
+			switchInfoFast();
 		}
 	}
 }
