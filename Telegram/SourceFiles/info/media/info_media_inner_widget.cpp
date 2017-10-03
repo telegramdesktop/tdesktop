@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "info/media/info_media_inner_widget.h"
 
+#include "ui/widgets/labels.h"
+
 namespace Info {
 namespace Media {
 
@@ -30,6 +32,16 @@ InnerWidget::InnerWidget(
 : RpWidget(parent)
 , _peer(peer)
 , _type(type) {
+	auto text = qsl("Media Overview\n\n");
+	auto label = object_ptr<Ui::FlatLabel>(this);
+	label->setText(text.repeated(50));
+	widthValue() | rpl::start_with_next([inner = label.data()](int w) {
+		inner->resizeToWidth(w);
+	}, lifetime());
+	label->heightValue() | rpl::start_with_next([this](int h) {
+		_rowsHeightFake = h;
+		resizeToWidth(width());
+	}, lifetime());
 }
 
 void InnerWidget::visibleTopBottomUpdated(
@@ -46,8 +58,7 @@ void InnerWidget::restoreState(not_null<Memento*> memento) {
 }
 
 int InnerWidget::resizeGetHeight(int newWidth) {
-	auto rowsHeight = _rowsHeightFake;
-	return qMax(rowsHeight, _minHeight);
+	return _rowsHeightFake;
 }
 
 } // namespace Media

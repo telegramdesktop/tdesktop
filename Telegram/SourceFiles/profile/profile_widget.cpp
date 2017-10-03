@@ -145,7 +145,8 @@ void Widget::onScroll() {
 	updateScrollState();
 }
 
-void Widget::showAnimatedHook() {
+void Widget::showAnimatedHook(
+		const Window::SectionSlideParams &params) {
 	_fixedBar->setAnimatingMode(true);
 }
 

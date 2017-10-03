@@ -34,6 +34,7 @@ public:
 	void setDirection(SlideDirection direction);
 	void setPixmaps(const QPixmap &oldContentCache, const QPixmap &newContentCache);
 	void setTopBarShadow(bool enabled);
+	void setWithFade(bool withFade);
 
 	using RepaintCallback = base::lambda<void()>;
 	void setRepaintCallback(RepaintCallback &&callback);
@@ -52,6 +53,7 @@ private:
 
 	SlideDirection _direction = SlideDirection::FromRight;
 	bool _topBarShadowEnabled = false;
+	bool _withFade = false;
 
 	mutable Animation _animation;
 	QPixmap _cacheUnder, _cacheOver;

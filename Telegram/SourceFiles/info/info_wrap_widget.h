@@ -106,6 +106,8 @@ public:
 	bool hasTopBarShadow() const override;
 	QPixmap grabForShowAnimation(
 		const Window::SectionSlideParams &params) override;
+	void showAnimatedHook(
+		const Window::SectionSlideParams &params) override;
 
 	bool showInternal(
 		not_null<Window::SectionMemento*> memento,

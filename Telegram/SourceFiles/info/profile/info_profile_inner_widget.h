@@ -42,6 +42,8 @@ namespace Profile {
 
 class Memento;
 class Members;
+class Cover;
+class SharedMediaCover;
 
 class InnerWidget final : public Ui::RpWidget {
 public:
@@ -53,11 +55,6 @@ public:
 
 	not_null<PeerData*> peer() const {
 		return _peer;
-	}
-
-	void resizeToWidth(int newWidth, int minHeight) {
-		_minHeight = minHeight;
-		return RpWidget::resizeToWidth(newWidth);
 	}
 
 	void saveState(not_null<Memento*> memento);
@@ -82,7 +79,7 @@ private:
 		RpWidget *parent,
 		rpl::producer<Wrap> &&wrapValue);
 	object_ptr<RpWidget> setupDetails(RpWidget *parent) const;
-	object_ptr<RpWidget> setupSharedMedia(RpWidget *parent) const;
+	object_ptr<RpWidget> setupSharedMedia(RpWidget *parent);
 	object_ptr<RpWidget> setupMuteToggle(RpWidget *parent) const;
 	object_ptr<RpWidget> setupInfo(RpWidget *parent) const;
 	void setupUserButtons(
@@ -104,9 +101,11 @@ private:
 	not_null<Window::Controller*> _controller;
 	not_null<PeerData*> _peer;
 
-	int _minHeight = 0;
-
 	Members *_members = nullptr;
+	Cover *_cover = nullptr;
+	Ui::SlideWrap<RpWidget> *_infoWrap = nullptr;
+	SharedMediaCover *_sharedMediaCover = nullptr;
+	Ui::SlideWrap<RpWidget> *_sharedMediaWrap = nullptr;
 	object_ptr<RpWidget> _content;
 
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;

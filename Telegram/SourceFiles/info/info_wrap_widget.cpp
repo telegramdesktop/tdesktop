@@ -99,7 +99,27 @@ void WrapWidget::createTabs() {
 }
 
 void WrapWidget::showTab(Tab tab) {
-	showContent(createContent(tab));
+	Expects(_content != nullptr);
+	auto direction = (tab > _tab)
+		? SlideDirection::FromRight
+		: SlideDirection::FromLeft;
+	auto newAnotherMemento = _content->createMemento();
+	auto newContent = _anotherTabMemento
+		? createContent(_anotherTabMemento.get())
+		: createContent(tab);
+	auto animationParams = SectionSlideParams();
+//	animationParams.withFade = (wrap() == Wrap::Layer);
+	animationParams.withTabs = true;
+	animationParams.withTopBarShadow = hasTopBarShadow()
+			&& newContent->hasTopBarShadow();
+	animationParams.oldContentCache = grabForShowAnimation(
+		animationParams);
+
+	showContent(std::move(newContent));
+
+	showAnimated(direction, animationParams);
+
+	_anotherTabMemento = std::move(newAnotherMemento);
 }
 
 void WrapWidget::setupTabbedTop(const Section &section) {
@@ -276,9 +296,25 @@ QPixmap WrapWidget::grabForShowAnimation(
 	} else {
 		_topShadow->toggle(_topShadow->toggled(), anim::type::instant);
 	}
+	if (params.withTabs && _topTabs) {
+		_topTabs->hide();
+	}
 	auto result = myGrab(this);
-	if (params.withTopBarShadow) _topShadow->setVisible(true);
+	if (params.withTopBarShadow) {
+		_topShadow->setVisible(true);
+	}
+	if (params.withTabs && _topTabs) {
+		_topTabs->show();
+	}
 	return result;
+}
+
+void WrapWidget::showAnimatedHook(
+		const Window::SectionSlideParams &params) {
+	if (params.withTabs && _topTabs) {
+		_topTabs->show();
+		_topTabsBackground->show();
+	}
 }
 
 void WrapWidget::doSetInnerFocus() {
@@ -334,12 +370,14 @@ void WrapWidget::showNewContent(
 	auto needAnimation = (_content != nullptr)
 		&& (params.animated != anim::type::instant);
 	auto animationParams = SectionSlideParams();
+	auto newContent = object_ptr<ContentWidget>(nullptr);
 	if (needAnimation) {
-		auto newContent = createContent(memento);
+		newContent = createContent(memento);
 		animationParams.withTopBarShadow = hasTopBarShadow()
 			&& newContent->hasTopBarShadow();
 		animationParams.oldContentCache = grabForShowAnimation(
 			animationParams);
+//		animationParams.withFade = (wrap() == Wrap::Layer);
 	}
 	if (saveToStack) {
 		auto item = StackItem();
@@ -351,7 +389,12 @@ void WrapWidget::showNewContent(
 	} else if (params.way == Window::SectionShow::Way::ClearStack) {
 		_historyStack.clear();
 	}
-	showNewContent(memento);
+	if (newContent) {
+		setupTop(newContent->section(), newContent->peer()->id);
+		showContent(std::move(newContent));
+	} else {
+		showNewContent(memento);
+	}
 	if (animationParams) {
 		showAnimated(
 			saveToStack

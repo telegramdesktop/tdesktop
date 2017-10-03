@@ -449,7 +449,8 @@ void Widget::onScroll() {
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
 }
 
-void Widget::showAnimatedHook() {
+void Widget::showAnimatedHook(
+		const Window::SectionSlideParams &params) {
 	_fixedBar->setAnimatingMode(true);
 }
 

@@ -288,7 +288,10 @@ void showPeerHistory(
 	auto ms = getms();
 	LOG(("Show Peer Start"));
 	if (auto m = App::main()) {
-		m->ui_showPeerHistory(peer, Window::SectionShow(), msgId);
+		m->ui_showPeerHistory(
+			peer,
+			Window::SectionShow::Way::ClearStack,
+			msgId);
 	}
 	LOG(("Show Peer End: %1").arg(getms() - ms));
 }

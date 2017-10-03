@@ -114,7 +114,8 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
-	void showAnimatedHook() override;
+	void showAnimatedHook(
+		const Window::SectionSlideParams &params) override;
 	void showFinishedHook() override;
 	void doSetInnerFocus() override;
 

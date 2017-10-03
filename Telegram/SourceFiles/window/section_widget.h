@@ -70,6 +70,8 @@ class SectionMemento;
 struct SectionSlideParams {
 	QPixmap oldContentCache;
 	bool withTopBarShadow = false;
+	bool withTabs = false;
+	bool withFade = false;
 
 	explicit operator bool() const {
 		return !oldContentCache.isNull();
@@ -147,7 +149,8 @@ protected:
 	}
 
 	// Called after the hideChildren() call in showAnimated().
-	virtual void showAnimatedHook() {
+	virtual void showAnimatedHook(
+		const Window::SectionSlideParams &params) {
 	}
 
 	// Called after the showChildren() call in showFinished().

@@ -59,7 +59,7 @@ void SectionWidget::showAnimated(
 	showChildren();
 	auto myContentCache = grabForShowAnimation(params);
 	hideChildren();
-	showAnimatedHook();
+	showAnimatedHook(params);
 
 	_showAnimation = std::make_unique<SlideAnimation>();
 	_showAnimation->setDirection(direction);
@@ -69,6 +69,7 @@ void SectionWidget::showAnimated(
 		params.oldContentCache,
 		myContentCache);
 	_showAnimation->setTopBarShadow(params.withTopBarShadow);
+	_showAnimation->setWithFade(params.withFade);
 	_showAnimation->start();
 
 	show();

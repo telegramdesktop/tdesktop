@@ -184,6 +184,16 @@ SectionWithToggle *SectionWithToggle::setToggleShown(
 	return this;
 }
 
+void SectionWithToggle::toggle(bool toggled) {
+	if (_toggle) {
+		_toggle->setChecked(toggled);
+	}
+}
+
+bool SectionWithToggle::toggled() const {
+	return _toggle ? _toggle->checked() : false;
+}
+
 rpl::producer<bool> SectionWithToggle::toggledValue() const {
 	if (_toggle) {
 		return rpl::single(_toggle->checked())

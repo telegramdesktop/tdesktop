@@ -41,11 +41,6 @@ public:
 		return _type;
 	}
 
-	void resizeToWidth(int newWidth, int minHeight) {
-		_minHeight = minHeight;
-		return RpWidget::resizeToWidth(newWidth);
-	}
-
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
 
@@ -62,7 +57,6 @@ private:
 	int _rowsHeightFake = 0;
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
-	int _minHeight = 0;
 
 };
 

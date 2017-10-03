@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <rpl/combine.h>
 #include <rpl/flatten_latest.h>
+#include "info/info_memento.h"
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_widget.h"
 #include "info/profile/info_profile_text.h"
@@ -64,7 +65,7 @@ InnerWidget::InnerWidget(
 , _content(setupContent(this, std::move(wrapValue))) {
 	_content->heightValue()
 		| rpl::start_with_next([this](int height) {
-			TWidget::resizeToWidth(width());
+			resizeToWidth(width());
 			_desiredHeight.fire(countDesiredHeight());
 		}, lifetime());
 }
@@ -83,18 +84,17 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		RpWidget *parent,
 		rpl::producer<Wrap> &&wrapValue) {
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
-	auto cover = result->add(object_ptr<Cover>(
+	_cover = result->add(object_ptr<Cover>(
 		result,
-		_peer)
-	);
-	cover->setOnlineCount(rpl::single(0));
+		_peer));
+	_cover->setOnlineCount(rpl::single(0));
 	auto details = setupDetails(parent);
 	if (canHideDetailsEver()) {
-		cover->setToggleShown(canHideDetails());
-		result->add(object_ptr<Ui::SlideWrap<>>(
+		_cover->setToggleShown(canHideDetails());
+		_infoWrap = result->add(object_ptr<Ui::SlideWrap<>>(
 			result,
 			std::move(details))
-		)->toggleOn(cover->toggledValue());
+		)->toggleOn(_cover->toggledValue());
 	} else {
 		result->add(std::move(details));
 	}
@@ -262,7 +262,7 @@ void InnerWidget::setupUserButtons(
 }
 
 object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
-		RpWidget *parent) const {
+		RpWidget *parent) {
 	using namespace rpl::mappers;
 
 	auto content = object_ptr<Ui::VerticalLayout>(parent);
@@ -308,8 +308,9 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 			[phrase = mediaText(type)](int count) {
 				return phrase(lt_count, count);
 			}
-		)->entity()->addClickHandler([peer = _peer, type] {
-			SharedMediaShowOverview(type, App::history(peer));
+		)->entity()->addClickHandler([this, peer = _peer, type] {
+			_controller->showSection(
+				Info::Memento(peer->id, Section(type)));
 		});
 	};
 	auto addCommonGroupsButton = [&](not_null<UserData*> user) {
@@ -343,13 +344,13 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 	auto layout = result->entity();
 
 	layout->add(object_ptr<BoxContentDivider>(result));
-	auto cover = layout->add(object_ptr<SharedMediaCover>(layout));
+	_sharedMediaCover = layout->add(object_ptr<SharedMediaCover>(layout));
 	if (canHideDetailsEver()) {
-		cover->setToggleShown(canHideDetails());
-		layout->add(object_ptr<Ui::SlideWrap<>>(
+		_sharedMediaCover->setToggleShown(canHideDetails());
+		_sharedMediaWrap = layout->add(object_ptr<Ui::SlideWrap<>>(
 			layout,
 			std::move(content))
-		)->toggleOn(cover->toggledValue());
+		)->toggleOn(_sharedMediaCover->toggledValue());
 	} else {
 		layout->add(std::move(content));
 	}
@@ -483,15 +484,25 @@ void InnerWidget::visibleTopBottomUpdated(
 }
 
 void InnerWidget::saveState(not_null<Memento*> memento) {
+	memento->setInfoExpanded(_cover->toggled());
+	memento->setMediaExpanded(_sharedMediaCover->toggled());
 }
 
 void InnerWidget::restoreState(not_null<Memento*> memento) {
+	_cover->toggle(memento->infoExpanded());
+	if (_infoWrap) {
+		_infoWrap->finishAnimating();
+	}
+	_sharedMediaCover->toggle(memento->mediaExpanded());
+	if (_sharedMediaWrap) {
+		_sharedMediaWrap->finishAnimating();
+	}
 }
 
 int InnerWidget::resizeGetHeight(int newWidth) {
 	_content->resizeToWidth(newWidth);
 	_content->moveToLeft(0, 0);
-	return qMax(_content->heightNoMargins(), _minHeight);
+	return _content->heightNoMargins();
 }
 
 } // namespace Profile

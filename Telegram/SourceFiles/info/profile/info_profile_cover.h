@@ -45,6 +45,8 @@ public:
 	using FixedHeightWidget::FixedHeightWidget;
 
 	SectionWithToggle *setToggleShown(rpl::producer<bool> &&shown);
+	void toggle(bool toggled);
+	bool toggled() const;
 	rpl::producer<bool> toggledValue() const;
 
 protected:

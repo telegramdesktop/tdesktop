@@ -43,15 +43,22 @@ public:
 		return Section(Section::Type::Profile);
 	}
 
-	void setScrollTop(int scrollTop) {
-		_scrollTop = scrollTop;
+	void setInfoExpanded(bool expanded) {
+		_infoExpanded = expanded;
 	}
-	int scrollTop() const {
-		return _scrollTop;
+	bool infoExpanded() const {
+		return _infoExpanded;
+	}
+	void setMediaExpanded(bool expanded) {
+		_mediaExpanded = expanded;
+	}
+	bool mediaExpanded() const {
+		return _mediaExpanded;
 	}
 
 private:
-	int _scrollTop = 0;
+	bool _infoExpanded = false;
+	bool _mediaExpanded = false;
 
 };
 

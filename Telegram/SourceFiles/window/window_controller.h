@@ -45,7 +45,7 @@ struct SectionShow {
 		ClearStack,
 	};
 	SectionShow(
-		Way way = Way::ClearStack,
+		Way way = Way::Forward,
 		anim::type animated = anim::type::normal,
 		anim::activation activation = anim::activation::normal)
 	: way(way)
@@ -127,26 +127,26 @@ public:
 
 	void showPeerHistory(
 		PeerId peerId,
-		const SectionShow &params = SectionShow(),
+		const SectionShow &params = SectionShow::Way::ClearStack,
 		MsgId msgId = ShowAtUnreadMsgId);
 	void showPeerHistory(
 		not_null<PeerData*> peer,
-		const SectionShow &params = SectionShow(),
+		const SectionShow &params = SectionShow::Way::ClearStack,
 		MsgId msgId = ShowAtUnreadMsgId);
 	void showPeerHistory(
 		not_null<History*> history,
-		const SectionShow &params = SectionShow(),
+		const SectionShow &params = SectionShow::Way::ClearStack,
 		MsgId msgId = ShowAtUnreadMsgId);
 
 	void showPeerInfo(
 		PeerId peerId,
-		const SectionShow &params = SectionShow::Way::Forward);
+		const SectionShow &params = SectionShow());
 	void showPeerInfo(
 		not_null<PeerData*> peer,
-		const SectionShow &params = SectionShow::Way::Forward);
+		const SectionShow &params = SectionShow());
 	void showPeerInfo(
 		not_null<History*> history,
-		const SectionShow &params = SectionShow::Way::Forward);
+		const SectionShow &params = SectionShow());
 
 	void clearSectionStack(
 			const SectionShow &params = SectionShow::Way::ClearStack) {
