@@ -56,7 +56,7 @@ void SectionWidget::init() {
 }
 
 PeerData *SectionWidget::peerForDialogs() const {
-	return _content->peer();
+	return _content->peerForDialogs();
 }
 
 bool SectionWidget::hasTopBarShadow() const {
@@ -73,7 +73,7 @@ void SectionWidget::doSetInnerFocus() {
 }
 
 void SectionWidget::showFinishedHook() {
-	_content->showFinished();
+	_content->showFast();
 }
 
 bool SectionWidget::showInternal(

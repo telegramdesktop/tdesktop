@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Ui {
 class SettingsSlider;
 class FadeShadow;
+class PlainShadow;
 } // namespace Ui
 
 namespace Window {
@@ -86,7 +87,7 @@ private:
 
 };
 
-class WrapWidget final : public Ui::RpWidget {
+class WrapWidget final : public Window::SectionWidget {
 public:
 	WrapWidget(
 		QWidget *parent,
@@ -95,39 +96,38 @@ public:
 		not_null<Memento*> memento);
 
 	not_null<PeerData*> peer() const;
+	PeerData *peerForDialogs() const override {
+		return peer();
+	}
+
 	Wrap wrap() const;
 	void setWrap(Wrap wrap);
 
-	bool hasTopBarShadow() const;
+	bool hasTopBarShadow() const override;
 	QPixmap grabForShowAnimation(
-		const Window::SectionSlideParams &params);
+		const Window::SectionSlideParams &params) override;
 
 	bool showInternal(
 		not_null<Window::SectionMemento*> memento,
-		const Window::SectionShow &params);
-	std::unique_ptr<Window::SectionMemento> createMemento();
+		const Window::SectionShow &params) override;
+	std::unique_ptr<Window::SectionMemento> createMemento() override;
 
 	rpl::producer<int> desiredHeightValue() const;
-
-	void setInnerFocus();
-	void showFinished();
 
 	void updateInternalState(not_null<Memento*> memento);
 	void saveState(not_null<Memento*> memento);
 
 	// Float player interface.
-	bool wheelEventFromFloatPlayer(QEvent *e);
-	QRect rectForFloatPlayer() const;
+	bool wheelEventFromFloatPlayer(QEvent *e) override;
+	QRect rectForFloatPlayer() const override;
 
 	~WrapWidget();
 
 protected:
 	void resizeEvent(QResizeEvent *e);
-	void paintEvent(QPaintEvent *e);
 
-	not_null<Window::Controller*> controller() const {
-		return _controller;
-	}
+	void doSetInnerFocus() override;
+	void showFinishedHook() override;
 
 private:
 	using SlideDirection = Window::SlideDirection;
@@ -153,9 +153,6 @@ private:
 		PeerId peerId);
 
 	not_null<RpWidget*> topWidget() const;
-	int topHeightAddition() const;
-	int topHeight() const;
-	rpl::producer<int> topHeightValue() const;
 
 	QRect contentGeometry() const;
 	rpl::producer<int> desiredHeightForContent() const;
@@ -172,8 +169,8 @@ private:
 		not_null<ContentMemento*> memento);
 
 	rpl::variable<Wrap> _wrap;
-	not_null<Window::Controller*> _controller;
 	object_ptr<ContentWidget> _content = { nullptr };
+	object_ptr<Ui::PlainShadow> _topTabsBackground = { nullptr };
 	object_ptr<Ui::SettingsSlider> _topTabs = { nullptr };
 	object_ptr<TopBar> _topBar = { nullptr };
 	object_ptr<Ui::FadeShadow> _topShadow;

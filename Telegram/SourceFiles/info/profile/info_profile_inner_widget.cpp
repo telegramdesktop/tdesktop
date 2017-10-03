@@ -204,14 +204,13 @@ object_ptr<Ui::RpWidget> InnerWidget::setupMuteToggle(
 		st::infoNotificationsButton);
 	result->toggleOn(
 		NotificationsEnabledValue(_peer)
-	)->clicks()
-		| rpl::start_with_next([this] {
-			App::main()->updateNotifySetting(
-				_peer,
-				_peer->isMuted()
-					? NotifySettingSetNotify
-					: NotifySettingSetMuted);
-		}, result->lifetime());
+	)->addClickHandler([this] {
+		App::main()->updateNotifySetting(
+			_peer,
+			_peer->isMuted()
+				? NotifySettingSetNotify
+				: NotifySettingSetMuted);
+	});
 	object_ptr<FloatingIcon>(
 		result,
 		st::infoIconNotifications,
@@ -240,26 +239,24 @@ void InnerWidget::setupUserButtons(
 	)->toggleOn(
 		_controller->historyPeer.value()
 		| rpl::map($1 != user)
-	)->entity()->clicks()
-		| rpl::start_with_next([this, user] {
-			_controller->showPeerHistory(
-				user,
-				Window::SectionShow::Way::Forward);
-		}, wrap->lifetime());
+	)->entity()->addClickHandler([this, user] {
+		_controller->showPeerHistory(
+			user,
+			Window::SectionShow::Way::Forward);
+	});
 
 	addButton(
 		Lang::Viewer(lng_info_add_as_contact) | ToUpperValue()
 	)->toggleOn(
 		CanAddContactValue(user)
-	)->entity()->clicks()
-		| rpl::start_with_next([user] {
-			auto firstName = user->firstName;
-			auto lastName = user->lastName;
-			auto phone = user->phone().isEmpty()
-				? App::phoneFromSharedContact(user->bareId())
-				: user->phone();
-			Ui::show(Box<AddContactBox>(firstName, lastName, phone));
-		}, wrap->lifetime());
+	)->entity()->addClickHandler([user] {
+		auto firstName = user->firstName;
+		auto lastName = user->lastName;
+		auto phone = user->phone().isEmpty()
+			? App::phoneFromSharedContact(user->bareId())
+			: user->phone();
+		Ui::show(Box<AddContactBox>(firstName, lastName, phone));
+	});
 
 	topSkip->toggleOn(std::move(tracker).atLeastOneShownValue());
 }
@@ -311,10 +308,9 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 			[phrase = mediaText(type)](int count) {
 				return phrase(lt_count, count);
 			}
-		)->entity()->clicks()
-			| rpl::start_with_next([peer = _peer, type] {
-				SharedMediaShowOverview(type, App::history(peer));
-			}, content->lifetime());
+		)->entity()->addClickHandler([peer = _peer, type] {
+			SharedMediaShowOverview(type, App::history(peer));
+		});
 	};
 	auto addCommonGroupsButton = [&](not_null<UserData*> user) {
 		return addButton(
@@ -322,12 +318,11 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 			[](int count) {
 				return lng_profile_common_groups(lt_count, count);
 			}
-		)->entity()->clicks()
-			| rpl::start_with_next([this, peer = _peer] {
-				_controller->showSection(
-					::Profile::CommonGroups::SectionMemento(
-						peer->asUser()));
-			}, content->lifetime());
+		)->entity()->addClickHandler([this, peer = _peer] {
+			_controller->showSection(
+				::Profile::CommonGroups::SectionMemento(
+					peer->asUser()));
+		});
 	};
 	addMediaButton(MediaType::Photo);
 	addMediaButton(MediaType::Video);
@@ -388,10 +383,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupUserActions(
 				st))
 		)->toggleOn(
 			std::move(toggleOn)
-		)->entity()->clicks()
-			| rpl::start_with_next([callback = std::move(callback)] {
-				callback();
-			}, result->lifetime());
+		)->entity()->addClickHandler(std::move(callback));
 	};
 
 	addButton(

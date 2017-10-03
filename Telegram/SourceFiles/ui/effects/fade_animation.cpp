@@ -118,9 +118,6 @@ void FadeAnimation::stopAnimation() {
 	}
 	if (_visible == _widget->isHidden()) {
 		_widget->setVisible(_visible);
-		if (_visible) {
-			_widget->showChildren();
-		}
 	}
 }
 

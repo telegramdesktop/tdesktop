@@ -57,7 +57,7 @@ LayerWidget::LayerWidget(
 void LayerWidget::setupHeightConsumers() {
 	_content->desiredHeightValue()
 		| rpl::start_with_next([this](int height) {
-			_desiredHeight = height;
+			accumulate_max(_desiredHeight, height);
 			resizeToWidth(width());
 		}, lifetime());
 }

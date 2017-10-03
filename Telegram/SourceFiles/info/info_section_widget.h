@@ -47,7 +47,6 @@ public:
 		Wrap wrap,
 		not_null<MoveMemento*> memento);
 
-	not_null<PeerData*> peer() const;
 	PeerData *peerForDialogs() const override;
 
 	bool hasTopBarShadow() const override;

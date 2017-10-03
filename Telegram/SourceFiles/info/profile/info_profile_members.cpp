@@ -117,24 +117,21 @@ void Members::setupButtons() {
 				newWidth);
 		}, _addMember->lifetime());
 	_addMember->showOn(rpl::duplicate(addMemberShown));
-	_addMember->clicks() // TODO throttle(ripple duration)
-		| rpl::start_with_next([this] {
-			this->addMember();
-		}, _addMember->lifetime());
+	_addMember->addClickHandler([this] { // TODO throttle(ripple duration)
+		this->addMember();
+	});
 
 	auto searchShown = MembersCountValue(_peer)
 		| rpl::map($1 >= kEnableSearchMembersAfterCount)
 		| rpl::distinct_until_changed()
 		| rpl::start_spawning(lifetime());
 	_search->showOn(rpl::duplicate(searchShown));
-	_search->clicks()
-		| rpl::start_with_next([this] {
-			this->showSearch();
-		}, _search->lifetime());
-	_cancelSearch->clicks()
-		| rpl::start_with_next([this] {
-			this->cancelSearch();
-		}, _cancelSearch->lifetime());
+	_search->addClickHandler([this] {
+		this->showSearch();
+	});
+	_cancelSearch->addClickHandler([this] {
+		this->cancelSearch();
+	});
 
 	rpl::combine(
 		std::move(addMemberShown),

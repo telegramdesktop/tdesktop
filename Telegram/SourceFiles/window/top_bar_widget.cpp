@@ -396,6 +396,7 @@ void TopBarWidget::updateControlsVisibility() {
 		_call->hide();
 		_info->hide();
 		_menuToggle->hide();
+		_infoToggle->hide();
 		_menu.destroy();
 	}
 	if (_membersShowArea) {

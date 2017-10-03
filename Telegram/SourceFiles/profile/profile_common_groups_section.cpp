@@ -310,6 +310,8 @@ void InnerWidget::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void InnerWidget::mouseReleaseEvent(QMouseEvent *e) {
+	setCursor(_selected ? style::cur_pointer : style::cur_default);
+	updateRow(_selected);
 	updateRow(_pressed);
 	auto pressed = std::exchange(_pressed, -1);
 	if (pressed >= 0 && pressed < _items.size()) {
@@ -322,8 +324,6 @@ void InnerWidget::mouseReleaseEvent(QMouseEvent *e) {
 				Window::SectionShow::Way::Forward);
 		}
 	}
-	setCursor(_selected ? style::cur_pointer : style::cur_default);
-	updateRow(_selected);
 }
 
 InnerWidget::Item *InnerWidget::computeItem(PeerData *group) {

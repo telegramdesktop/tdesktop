@@ -62,6 +62,7 @@ public:
 
 	rpl::producer<int> desiredHeightValue() const override;
 	rpl::producer<bool> desiredShadowVisibility() const;
+	bool hasTopBarShadow() const;
 
 	virtual void setInnerFocus() {
 		_inner->setFocus();

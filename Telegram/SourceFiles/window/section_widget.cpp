@@ -84,8 +84,6 @@ void SectionWidget::showFast() {
 }
 
 void SectionWidget::paintEvent(QPaintEvent *e) {
-	if (Ui::skipPaintEvent(this, e)) return;
-
 	if (_showAnimation) {
 		Painter p(this);
 		_showAnimation->paintContents(p, e->rect());

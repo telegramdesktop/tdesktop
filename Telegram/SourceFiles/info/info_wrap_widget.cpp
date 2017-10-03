@@ -50,9 +50,8 @@ WrapWidget::WrapWidget(
 	not_null<Window::Controller*> controller,
 	Wrap wrap,
 	not_null<Memento*> memento)
-: RpWidget(parent)
+: SectionWidget(parent, controller)
 , _wrap(wrap)
-, _controller(controller)
 , _topShadow(this) {
 	_topShadow->toggleOn(topShadowToggledValue());
 	showNewContent(memento->content());
@@ -89,6 +88,14 @@ void WrapWidget::createTabs() {
 	_topTabs->move(0, 0);
 	_topTabs->resizeToWidth(width());
 	_topTabs->show();
+
+	_topTabsBackground.create(this, st::profileBg);
+
+	_topTabsBackground->move(0, 0);
+	_topTabsBackground->resize(
+		width(),
+		_topTabs->height() - st::lineWidth);
+	_topTabsBackground->show();
 }
 
 void WrapWidget::showTab(Tab tab) {
@@ -156,10 +163,9 @@ void WrapWidget::createTopBar(
 		auto close = _topBar->addButton(object_ptr<Ui::IconButton>(
 			_topBar,
 			st::infoLayerTopBarClose));
-		close->clicks()
-			| rpl::start_with_next([this] {
-			_controller->hideSpecialLayer();
-		}, close->lifetime());
+		close->addClickHandler([this] {
+			controller()->hideSpecialLayer();
+		});
 	}
 
 	_topBar->move(0, 0);
@@ -178,39 +184,20 @@ void WrapWidget::showBackFromStack() {
 			last.section.get(),
 			params);
 	} else {
-		_controller->showBackFromStack(params);
+		controller()->showBackFromStack(params);
 	}
 }
 
 not_null<Ui::RpWidget*> WrapWidget::topWidget() const {
 	if (_topTabs) {
-		return _topTabs;
+		return _topTabsBackground;
 	}
 	return _topBar;
-}
-
-int WrapWidget::topHeightAddition() const {
-	return _topTabs ? -st::lineWidth : 0;
-}
-
-int WrapWidget::topHeight() const {
-	return topWidget()->height() + topHeightAddition();
-}
-
-rpl::producer<int> WrapWidget::topHeightValue() const {
-	using namespace rpl::mappers;
-	return topWidget()->heightValue()
-		| rpl::map($1 + topHeightAddition());
 }
 
 void WrapWidget::showContent(object_ptr<ContentWidget> content) {
 	_content = std::move(content);
 	_content->show();
-	_topShadow->raise();
-	if (_topTabs) {
-		_topTabs->raise();
-	}
-
 	finishShowContent();
 }
 
@@ -218,10 +205,12 @@ void WrapWidget::finishShowContent() {
 	updateContentGeometry();
 	_desiredHeights.fire(desiredHeightForContent());
 	_desiredShadowVisibilities.fire(_content->desiredShadowVisibility());
+	_topShadow->raise();
+	_topShadow->finishAnimating();
 	if (_topTabs) {
+		_topTabs->raise();
 		_topTabs->finishAnimating();
 	}
-	_topShadow->finishAnimating();
 }
 
 rpl::producer<bool> WrapWidget::topShadowToggledValue() const {
@@ -236,7 +225,7 @@ rpl::producer<int> WrapWidget::desiredHeightForContent() const {
 	using namespace rpl::mappers;
 	return rpl::combine(
 		_content->desiredHeightValue(),
-		topHeightValue(),
+		topWidget()->heightValue(),
 		$1 + $2);
 }
 
@@ -282,17 +271,23 @@ bool WrapWidget::hasTopBarShadow() const {
 
 QPixmap WrapWidget::grabForShowAnimation(
 		const Window::SectionSlideParams &params) {
-	if (params.withTopBarShadow) _topShadow->hide(anim::type::instant);
+	if (params.withTopBarShadow) {
+		_topShadow->setVisible(false);
+	} else {
+		_topShadow->toggle(_topShadow->toggled(), anim::type::instant);
+	}
 	auto result = myGrab(this);
-	if (params.withTopBarShadow) _topShadow->show(anim::type::instant);
+	if (params.withTopBarShadow) _topShadow->setVisible(true);
 	return result;
 }
 
-void WrapWidget::setInnerFocus() {
+void WrapWidget::doSetInnerFocus() {
 	_content->setInnerFocus();
 }
 
-void WrapWidget::showFinished() {
+void WrapWidget::showFinishedHook() {
+	// Restore shadow visibility after showChildren() call.
+	_topShadow->toggle(_topShadow->toggled(), anim::type::instant);
 }
 
 bool WrapWidget::showInternal(
@@ -328,7 +323,7 @@ void WrapWidget::saveState(not_null<Memento*> memento) {
 }
 
 QRect WrapWidget::contentGeometry() const {
-	return rect().marginsRemoved({ 0, topHeight(), 0, 0 });
+	return rect().marginsRemoved({ 0, topWidget()->height(), 0, 0 });
 }
 
 void WrapWidget::showNewContent(
@@ -336,14 +331,15 @@ void WrapWidget::showNewContent(
 		const Window::SectionShow &params) {
 	auto saveToStack = (_content != nullptr)
 		&& (params.way == Window::SectionShow::Way::Forward);
-	auto showAnimated = (_content != nullptr)
+	auto needAnimation = (_content != nullptr)
 		&& (params.animated != anim::type::instant);
-	if (showAnimated) {
+	auto animationParams = SectionSlideParams();
+	if (needAnimation) {
 		auto newContent = createContent(memento);
-		auto params = SectionSlideParams();
-//		params.withTopBarShadow = newContent;
-	} else {
-
+		animationParams.withTopBarShadow = hasTopBarShadow()
+			&& newContent->hasTopBarShadow();
+		animationParams.oldContentCache = grabForShowAnimation(
+			animationParams);
 	}
 	if (saveToStack) {
 		auto item = StackItem();
@@ -356,6 +352,13 @@ void WrapWidget::showNewContent(
 		_historyStack.clear();
 	}
 	showNewContent(memento);
+	if (animationParams) {
+		showAnimated(
+			saveToStack
+				? SlideDirection::FromRight
+				: SlideDirection::FromLeft,
+			animationParams);
+	}
 }
 
 void WrapWidget::showNewContent(not_null<ContentMemento*> memento) {
@@ -368,6 +371,7 @@ void WrapWidget::setupTabs(Tab tab) {
 	_tab = tab;
 	if (_tab == Tab::None) {
 		_topTabs.destroy();
+		_topTabsBackground.destroy();
 	} else if (!_topTabs) {
 		createTabs();
 	} else {
@@ -376,21 +380,23 @@ void WrapWidget::setupTabs(Tab tab) {
 }
 
 void WrapWidget::resizeEvent(QResizeEvent *e) {
-	topWidget()->resizeToWidth(width());
+	if (_topTabs) {
+		_topTabs->resizeToWidth(width());
+		_topTabsBackground->resize(
+			width(),
+			_topTabs->height() - st::lineWidth);
+	} else if (_topBar) {
+		_topBar->resizeToWidth(width());
+	}
 	updateContentGeometry();
 }
 
 void WrapWidget::updateContentGeometry() {
 	if (_content) {
 		_topShadow->resizeToWidth(width());
-		_topShadow->moveToLeft(0, topHeight());
+		_topShadow->moveToLeft(0, topWidget()->height());
 		_content->setGeometry(contentGeometry());
 	}
-}
-
-void WrapWidget::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	p.fillRect(e->rect(), st::profileBg);
 }
 
 bool WrapWidget::wheelEventFromFloatPlayer(QEvent *e) {

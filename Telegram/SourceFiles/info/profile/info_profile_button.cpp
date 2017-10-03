@@ -51,10 +51,9 @@ Button *Button::toggleOn(rpl::producer<bool> &&toggled) {
 		isOver() ? _st.toggleOver : _st.toggle,
 		false,
 		[this] { rtlupdate(toggleRect()); });
-	clicks()
-		| rpl::start_with_next([this] {
-			_toggle->setCheckedAnimated(!_toggle->checked());
-		}, lifetime());
+	addClickHandler([this] {
+		_toggle->setCheckedAnimated(!_toggle->checked());
+	});
 	std::move(toggled)
 		| rpl::start_with_next([this](bool toggled) {
 			_toggle->setCheckedAnimated(toggled);

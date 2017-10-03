@@ -125,10 +125,15 @@ rpl::producer<int> ContentWidget::desiredHeightValue() const {
 			return value + _scrollTopSkip;
 		});
 }
+
 rpl::producer<bool> ContentWidget::desiredShadowVisibility() const {
 	using namespace rpl::mappers;
 	return _scroll->scrollTopValue()
 		| rpl::map($1 > 0);
+}
+
+bool ContentWidget::hasTopBarShadow() const {
+	return (_scroll->scrollTop() > 0);
 }
 
 int ContentWidget::scrollTopSave() const {
