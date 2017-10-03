@@ -35,6 +35,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "auth_session.h"
 #include "media/media_audio.h"
 #include "messenger.h"
+#include "mainwindow.h"
+#include "window/window_controller.h"
 
 namespace {
 
@@ -1234,7 +1236,10 @@ ClickHandlerPtr goToMessageClickHandler(PeerData *peer, MsgId msgId) {
 			if (current && current->history()->peer == peer) {
 				App::main()->pushReplyReturn(current);
 			}
-			Ui::showPeerHistory(peer, msgId, Ui::ShowWay::Forward);
+			App::wnd()->controller()->showPeerHistory(
+				peer,
+				Window::SectionShow::Way::Forward,
+				msgId);
 		}
 	});
 }

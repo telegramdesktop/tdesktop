@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include <rpl/variable.h>
 #include "ui/rp_widget.h"
 #include "info/info_wrap_widget.h"
 
@@ -44,7 +45,7 @@ class ContentWidget : public Ui::RpWidget {
 public:
 	ContentWidget(
 		QWidget *parent,
-		Wrap wrap,
+		rpl::producer<Wrap> wrap,
 		not_null<Window::Controller*> controller,
 		not_null<PeerData*> peer);
 
@@ -53,11 +54,6 @@ public:
 	virtual std::unique_ptr<ContentMemento> createMemento() = 0;
 
 	virtual rpl::producer<Section> sectionRequest() const;
-
-	Wrap wrap() const {
-		return _wrap;
-	}
-	void setWrap(Wrap wrap);
 
 	virtual Section section() const = 0;
 	not_null<PeerData*> peer() const {
@@ -94,9 +90,6 @@ protected:
 	not_null<Window::Controller*> controller() const {
 		return _controller;
 	}
-	rpl::producer<Wrap> wrapValue() const {
-		return _wrapChanges.events_starting_with_copy(_wrap);
-	}
 
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
@@ -113,9 +106,8 @@ private:
 
 	const not_null<Window::Controller*> _controller;
 	const not_null<PeerData*> _peer;
-	Wrap _wrap = Wrap::Layer;
-	rpl::event_stream<Wrap> _wrapChanges;
 
+	style::color _bg;
 	int _scrollTopSkip = 0;
 	object_ptr<Ui::ScrollArea> _scroll;
 	Ui::RpWidget *_inner = nullptr;
@@ -127,11 +119,19 @@ private:
 
 class ContentMemento {
 public:
+	ContentMemento(PeerId peerId) : _peerId(peerId) {
+	}
+
 	virtual object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
-		Wrap wrap,
+		rpl::producer<Wrap> wrap,
 		not_null<Window::Controller*> controller,
 		const QRect &geometry) = 0;
+
+	virtual PeerId peerId() const {
+		return _peerId;
+	}
+	virtual Section section() const = 0;
 
 	virtual ~ContentMemento() = default;
 
@@ -143,6 +143,7 @@ public:
 	}
 
 private:
+	PeerId _peerId = 0;
 	int _scrollTop = 0;
 
 };

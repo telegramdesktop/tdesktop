@@ -21,12 +21,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/rp_widget.h"
-#include "window/window_slide_animation.h"
 
 namespace Window {
 
 class Controller;
 class LayerWidget;
+class SlideAnimation;
+struct SectionShow;
+enum class SlideDirection;
 
 enum class Column {
 	First,
@@ -93,7 +95,9 @@ public:
 	virtual bool forceAnimateBack() const {
 		return false;
 	}
-	void showAnimated(SlideDirection direction, const SectionSlideParams &params);
+	void showAnimated(
+		SlideDirection direction,
+		const SectionSlideParams &params);
 	void showFast();
 
 	// This can be used to grab with or without top bar shadow.
@@ -108,7 +112,9 @@ public:
 	//
 	// If this method returns false it is not supposed to modify the memento.
 	// If this method returns true it may modify the memento ("take" heavy items).
-	virtual bool showInternal(not_null<SectionMemento*> memento) = 0;
+	virtual bool showInternal(
+		not_null<SectionMemento*> memento,
+		const SectionShow &params) = 0;
 
 	// Create a memento of that section to store it in the history stack.
 	// This method may modify the section ("take" heavy items).
@@ -155,6 +161,8 @@ protected:
 	bool animating() const {
 		return _showAnimation != nullptr;
 	}
+
+	~SectionWidget();
 
 private:
 	void showFinished();

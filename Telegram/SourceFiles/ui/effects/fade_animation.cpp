@@ -54,12 +54,21 @@ void FadeAnimation::refreshCache() {
 	if (!_cache.isNull()) {
 		_cache = QPixmap();
 		_cache = grabContent();
+		Assert(!_cache.isNull());
 	}
 }
 
 QPixmap FadeAnimation::grabContent() {
 	myEnsureResized(_widget);
 	_size = _widget->size();
+	if (_size.isEmpty()) {
+		auto image = QImage(
+			cIntRetinaFactor(),
+			cIntRetinaFactor(),
+			QImage::Format_ARGB32_Premultiplied);
+		image.fill(Qt::transparent);
+		return App::pixmapFromImageInPlace(std::move(image));
+	}
 	auto widgetContent = myGrab(_widget);
 	if (!_scaled) {
 		return widgetContent;
@@ -109,6 +118,9 @@ void FadeAnimation::stopAnimation() {
 	}
 	if (_visible == _widget->isHidden()) {
 		_widget->setVisible(_visible);
+		if (_visible) {
+			_widget->showChildren();
+		}
 	}
 }
 
@@ -130,6 +142,7 @@ void FadeAnimation::startAnimation(int duration) {
 	if (_cache.isNull()) {
 		_widget->showChildren();
 		_cache = grabContent();
+		Assert(!_cache.isNull());
 		_widget->hideChildren();
 	}
 	auto from = _visible ? 0. : 1.;

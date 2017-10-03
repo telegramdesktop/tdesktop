@@ -55,7 +55,8 @@ public:
 		const Window::SectionSlideParams &params) override;
 
 	bool showInternal(
-		not_null<Window::SectionMemento*> memento) override;
+		not_null<Window::SectionMemento*> memento,
+		const Window::SectionShow &params) override;
 	std::unique_ptr<Window::SectionMemento> createMemento() override;
 
 	object_ptr<Window::LayerWidget> moveContentToLayer(

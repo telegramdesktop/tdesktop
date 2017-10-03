@@ -39,6 +39,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "messenger.h"
 #include "platform/platform_file_utilities.h"
+#include "window/main_window.h"
+#include "window/window_controller.h"
 
 namespace Profile {
 namespace {
@@ -490,7 +492,9 @@ void CoverWidget::onOnlineCountUpdated(int onlineCount) {
 }
 
 void CoverWidget::onSendMessage() {
-	Ui::showPeerHistory(_peer, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
+	App::wnd()->controller()->showPeerHistory(
+		_peer,
+		Window::SectionShow::Way::Forward);
 }
 
 void CoverWidget::onShareContact() {

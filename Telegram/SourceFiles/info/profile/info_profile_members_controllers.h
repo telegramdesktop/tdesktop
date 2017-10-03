@@ -22,10 +22,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 class PeerListController;
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 namespace Info {
 namespace Profile {
 
 std::unique_ptr<PeerListController> CreateMembersController(
+	not_null<Window::Controller*> window,
 	not_null<PeerData*> peer);
 
 } // namespace Profile

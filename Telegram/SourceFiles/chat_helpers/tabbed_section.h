@@ -70,7 +70,8 @@ public:
 	QPointer<TabbedSelector> getSelector() const;
 
 	bool showInternal(
-		not_null<Window::SectionMemento*> memento) override;
+		not_null<Window::SectionMemento*> memento,
+		const Window::SectionShow &params) override;
 	bool forceAnimateBack() const override {
 		return true;
 	}

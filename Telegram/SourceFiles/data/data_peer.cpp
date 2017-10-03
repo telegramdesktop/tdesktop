@@ -31,6 +31,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_history.h"
 #include "auth_session.h"
 #include "messenger.h"
+#include "mainwindow.h"
+#include "window/window_controller.h"
 
 namespace {
 
@@ -252,7 +254,9 @@ void PeerClickHandler::onClick(Qt::MouseButton button) const {
 			if (!_peer->asChannel()->isPublic() && !_peer->asChannel()->amIn()) {
 				Ui::show(Box<InformBox>(lang((_peer->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
 			} else {
-				Ui::showPeerHistory(_peer, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
+				App::wnd()->controller()->showPeerHistory(
+					_peer,
+					Window::SectionShow::Way::Forward);
 			}
 		} else {
 			Ui::showPeerProfile(_peer);

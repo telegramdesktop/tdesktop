@@ -38,6 +38,37 @@ enum class GifPauseReason {
 using GifPauseReasons = base::flags<GifPauseReason>;
 inline constexpr bool is_flag_type(GifPauseReason) { return true; };
 
+struct SectionShow {
+	enum class Way {
+		Forward,
+		Backward,
+		ClearStack,
+	};
+	SectionShow(
+		Way way = Way::ClearStack,
+		anim::type animated = anim::type::normal,
+		anim::activation activation = anim::activation::normal)
+	: way(way)
+	, animated(animated)
+	, activation(activation) {
+	}
+	SectionShow(
+		anim::type animated,
+		anim::activation activation = anim::activation::normal)
+	: animated(animated)
+	, activation(activation) {
+	}
+
+	SectionShow withWay(Way newWay) const {
+		return SectionShow(newWay, animated, activation);
+	}
+
+	Way way = Way::Forward;
+	anim::type animated = anim::type::normal;
+	anim::activation activation = anim::activation::normal;
+
+};
+
 class MainWindow;
 class SectionMemento;
 
@@ -87,62 +118,50 @@ public:
 	bool takeThirdSectionFromLayer();
 	void resizeForThirdSection();
 	void closeThirdSection();
+
 	void showSection(
 		SectionMemento &&memento,
-		anim::type animated = anim::type::normal,
-		anim::activation activation = anim::activation::normal);
+		const SectionShow &params = SectionShow());
 	void showBackFromStack(
-		anim::type animated = anim::type::normal,
-		anim::activation activation = anim::activation::normal);
+		const SectionShow &params = SectionShow());
+
+	void showPeerHistory(
+		PeerId peerId,
+		const SectionShow &params = SectionShow(),
+		MsgId msgId = ShowAtUnreadMsgId);
+	void showPeerHistory(
+		not_null<PeerData*> peer,
+		const SectionShow &params = SectionShow(),
+		MsgId msgId = ShowAtUnreadMsgId);
+	void showPeerHistory(
+		not_null<History*> history,
+		const SectionShow &params = SectionShow(),
+		MsgId msgId = ShowAtUnreadMsgId);
+
+	void showPeerInfo(
+		PeerId peerId,
+		const SectionShow &params = SectionShow::Way::Forward);
+	void showPeerInfo(
+		not_null<PeerData*> peer,
+		const SectionShow &params = SectionShow::Way::Forward);
+	void showPeerInfo(
+		not_null<History*> history,
+		const SectionShow &params = SectionShow::Way::Forward);
+
+	void clearSectionStack(
+			const SectionShow &params = SectionShow::Way::ClearStack) {
+		showPeerHistory(
+			PeerId(0),
+			params,
+			ShowAtUnreadMsgId);
+	}
+
 	void showSpecialLayer(
 		object_ptr<LayerWidget> &&layer,
 		anim::type animated = anim::type::normal);
 	void hideSpecialLayer(
 			anim::type animated = anim::type::normal) {
 		showSpecialLayer(nullptr, animated);
-	}
-
-	void showPeerHistory(
-		PeerId peerId,
-		Ui::ShowWay way = Ui::ShowWay::ClearStack,
-		MsgId msgId = ShowAtUnreadMsgId,
-		anim::type animated = anim::type::normal,
-		anim::activation activation = anim::activation::normal);
-	void showPeerHistory(
-		not_null<PeerData*> peer,
-		Ui::ShowWay way = Ui::ShowWay::ClearStack,
-		MsgId msgId = ShowAtUnreadMsgId,
-		anim::type animated = anim::type::normal,
-		anim::activation activation = anim::activation::normal);
-	void showPeerHistory(
-		not_null<History*> history,
-		Ui::ShowWay way = Ui::ShowWay::ClearStack,
-		MsgId msgId = ShowAtUnreadMsgId,
-		anim::type animated = anim::type::normal,
-		anim::activation activation = anim::activation::normal);
-
-	void showPeerInfo(
-		PeerId peerId,
-		anim::type animated = anim::type::normal,
-		anim::activation activation = anim::activation::normal);
-	void showPeerInfo(
-		not_null<PeerData*> peer,
-		anim::type animated = anim::type::normal,
-		anim::activation activation = anim::activation::normal);
-	void showPeerInfo(
-		not_null<History*> history,
-		anim::type animated = anim::type::normal,
-		anim::activation activation = anim::activation::normal);
-
-	void clearSectionStack(
-		anim::type animated = anim::type::normal,
-		anim::activation activation = anim::activation::normal) {
-		showPeerHistory(
-			PeerId(0),
-			Ui::ShowWay::ClearStack,
-			ShowAtUnreadMsgId,
-			animated,
-			activation);
 	}
 
 	void showJumpToDate(

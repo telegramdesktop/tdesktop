@@ -42,10 +42,7 @@ class Memento final : public Window::SectionMemento {
 public:
 	Memento(PeerId peerId);
 	Memento(PeerId peerId, Section section);
-	Memento(
-		PeerId peerId,
-		Section section,
-		std::unique_ptr<ContentMemento> content);
+	Memento(std::unique_ptr<ContentMemento> content);
 
 	object_ptr<Window::SectionWidget> createWidget(
 		QWidget *parent,
@@ -62,12 +59,8 @@ public:
 		return _content.get();
 	}
 
-	PeerId peerId() const {
-		return _peerId;
-	}
-	Section section() const {
-		return _section;
-	}
+	PeerId peerId() const;
+	Section section() const;
 
 	~Memento();
 
@@ -76,8 +69,6 @@ private:
 		PeerId peerId,
 		Section section);
 
-	PeerId _peerId = 0;
-	Section _section = Section::Type::Profile;
 	std::unique_ptr<ContentMemento> _content;
 
 };

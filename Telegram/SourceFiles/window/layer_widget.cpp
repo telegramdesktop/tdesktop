@@ -635,6 +635,15 @@ void LayerStackWidget::showSpecialLayer(
 	}, Action::ShowSpecialLayer, animated);
 }
 
+bool LayerStackWidget::showSectionInternal(
+		not_null<Window::SectionMemento *> memento,
+		const SectionShow &params) {
+	if (_specialLayer) {
+		return _specialLayer->showSectionInternal(memento, params);
+	}
+	return false;
+}
+
 void LayerStackWidget::hideSpecialLayer(anim::type animated) {
 	startAnimation([] {}, [this] {
 		clearSpecialLayer();

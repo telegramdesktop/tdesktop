@@ -28,27 +28,27 @@ namespace Profile {
 
 object_ptr<ContentWidget> Memento::createWidget(
 		QWidget *parent,
-		Wrap wrap,
+		rpl::producer<Wrap> wrap,
 		not_null<Window::Controller*> controller,
 		const QRect &geometry) {
 	auto result = object_ptr<Widget>(
 		parent,
-		wrap,
+		std::move(wrap),
 		controller,
-		App::peer(_peerId));
+		App::peer(peerId()));
 	result->setInternalState(geometry, this);
 	return std::move(result);
 }
 
 Widget::Widget(
 	QWidget *parent,
-	Wrap wrap,
+	rpl::producer<Wrap> wrap,
 	not_null<Window::Controller*> controller,
 	not_null<PeerData*> peer)
-: ContentWidget(parent, wrap, controller, peer) {
+: ContentWidget(parent, rpl::duplicate(wrap), controller, peer) {
 	_inner = setInnerWidget(object_ptr<InnerWidget>(
 		this,
-		wrapValue(),
+		std::move(wrap),
 		controller,
 		peer));
 	_inner->move(0, 0);

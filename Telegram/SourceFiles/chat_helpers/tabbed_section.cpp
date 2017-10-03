@@ -107,7 +107,8 @@ QPointer<TabbedSelector> TabbedSection::getSelector() const {
 	return _selector.data();
 }
 bool TabbedSection::showInternal(
-		not_null<Window::SectionMemento*> memento) {
+		not_null<Window::SectionMemento*> memento,
+		const Window::SectionShow &params) {
 	return false;
 }
 

@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/ripple_animation.h"
 #include "calls/calls_instance.h"
 #include "history/history_media_types.h"
+#include "mainwidget.h"
 
 namespace Calls {
 namespace {
@@ -253,7 +254,9 @@ void BoxController::refreshAbout() {
 void BoxController::rowClicked(not_null<PeerListRow*> row) {
 	auto itemsRow = static_cast<Row*>(row.get());
 	auto itemId = itemsRow->maxItemId();
-	Ui::showPeerHistoryAsync(row->peer()->id, itemId);
+	InvokeQueued(App::main(), [peerId = row->peer()->id, itemId] {
+		Ui::showPeerHistory(peerId, itemId);
+	});
 }
 
 void BoxController::rowActionClicked(not_null<PeerListRow*> row) {

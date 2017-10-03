@@ -30,6 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "styles/style_boxes.h"
 #include "profile/profile_back_button.h"
+#include "window/window_controller.h"
 
 namespace Profile {
 namespace {
@@ -148,7 +149,7 @@ void FixedBar::addRightAction(RightActionType type, base::lambda<QString()> text
 }
 
 void FixedBar::onBack() {
-	App::main()->showBackFromStack(anim::type::normal, anim::activation::normal);
+	App::main()->showBackFromStack(Window::SectionShow());
 }
 
 void FixedBar::onEditChannel() {

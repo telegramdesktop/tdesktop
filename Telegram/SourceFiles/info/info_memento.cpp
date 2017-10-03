@@ -33,16 +33,19 @@ Memento::Memento(PeerId peerId)
 }
 
 Memento::Memento(PeerId peerId, Section section)
-: Memento(peerId, section, Default(peerId, section)) {
+: Memento(Default(peerId, section)) {
 }
 
-Memento::Memento(
-	PeerId peerId,
-	Section section,
-	std::unique_ptr<ContentMemento> content)
-: _peerId(peerId)
-, _section(section)
-, _content(std::move(content)) {
+Memento::Memento(std::unique_ptr<ContentMemento> content)
+: _content(std::move(content)) {
+}
+
+PeerId Memento::peerId() const {
+	return _content->peerId();
+}
+
+Section Memento::section() const {
+	return _content->section();
 }
 
 std::unique_ptr<ContentMemento> Memento::Default(

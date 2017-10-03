@@ -28,21 +28,21 @@ namespace CommonGroups {
 
 object_ptr<ContentWidget> Memento::createWidget(
 		QWidget *parent,
-		Wrap wrap,
+		rpl::producer<Wrap> wrap,
 		not_null<Window::Controller*> controller,
 		const QRect &geometry) {
 	auto result = object_ptr<Widget>(
 		parent,
-		wrap,
+		std::move(wrap),
 		controller,
-		App::user(_userId));
+		App::user(userId()));
 	result->setInternalState(geometry, this);
 	return std::move(result);
 }
 
 Widget::Widget(
 	QWidget *parent,
-	Wrap wrap,
+	rpl::producer<Wrap> wrap,
 	not_null<Window::Controller*> controller,
 	not_null<UserData*> user)
 : ContentWidget(parent, wrap, controller, user) {

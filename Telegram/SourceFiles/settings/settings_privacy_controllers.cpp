@@ -143,7 +143,9 @@ void BlockedBoxController::loadMoreRows() {
 }
 
 void BlockedBoxController::rowClicked(not_null<PeerListRow*> row) {
-	Ui::showPeerHistoryAsync(row->peer()->id, ShowAtUnreadMsgId);
+	InvokeQueued(App::main(), [peerId = row->peer()->id] {
+		Ui::showPeerHistory(peerId, ShowAtUnreadMsgId);
+	});
 }
 
 void BlockedBoxController::rowActionClicked(not_null<PeerListRow*> row) {

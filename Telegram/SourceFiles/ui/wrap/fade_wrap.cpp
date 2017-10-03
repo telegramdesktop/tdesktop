@@ -31,6 +31,9 @@ FadeWrap<RpWidget>::FadeWrap(
 : Parent(parent, std::move(child))
 , _duration(st::fadeWrapDuration)
 , _animation(this, scaled) {
+	if (auto weak = wrapped()) {
+		weak->show();
+	}
 }
 
 FadeWrap<RpWidget> *FadeWrap<RpWidget>::setDuration(int duration) {

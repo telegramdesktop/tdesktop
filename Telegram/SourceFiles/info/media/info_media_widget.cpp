@@ -28,14 +28,14 @@ namespace Media {
 
 object_ptr<ContentWidget> Memento::createWidget(
 		QWidget *parent,
-		Wrap wrap,
+		rpl::producer<Wrap> wrap,
 		not_null<Window::Controller*> controller,
 		const QRect &geometry) {
 	auto result = object_ptr<Widget>(
 		parent,
-		wrap,
+		std::move(wrap),
 		controller,
-		App::peer(_peerId),
+		App::peer(peerId()),
 		_type);
 	result->setInternalState(geometry, this);
 	return std::move(result);
@@ -43,11 +43,11 @@ object_ptr<ContentWidget> Memento::createWidget(
 
 Widget::Widget(
 	QWidget *parent,
-	Wrap wrap,
+	rpl::producer<Wrap> wrap,
 	not_null<Window::Controller*> controller,
 	not_null<PeerData*> peer,
 	Type type)
-: ContentWidget(parent, wrap, controller, peer) {
+: ContentWidget(parent, std::move(wrap), controller, peer) {
 	_inner = setInnerWidget(object_ptr<InnerWidget>(this, peer, type));
 }
 

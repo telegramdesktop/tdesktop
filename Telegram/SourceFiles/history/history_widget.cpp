@@ -73,6 +73,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "auth_session.h"
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
+#include "window/window_slide_animation.h"
 #include "inline_bots/inline_results_widget.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 
@@ -3766,7 +3767,11 @@ void HistoryWidget::pushTabbedSelectorToThirdSection() {
 		return;
 	} else if (!_canSendMessages) {
 		Auth().data().setTabbedReplacedWithInfo(true);
-		controller()->showPeerInfo(_peer);
+		controller()->showPeerInfo(_peer,
+			Window::SectionShow(
+				Window::SectionShow::Way::ClearStack,
+				anim::type::instant,
+				anim::activation::background));
 		return;
 	}
 	Auth().data().setTabbedReplacedWithInfo(false);
@@ -3784,8 +3789,10 @@ void HistoryWidget::pushTabbedSelectorToThirdSection() {
 	controller()->resizeForThirdSection();
 	controller()->showSection(
 		std::move(memento),
-		anim::type::instant,
-		anim::activation::background);
+		Window::SectionShow(
+			Window::SectionShow::Way::ClearStack,
+			anim::type::instant,
+			anim::activation::background));
 	destroyingPanel.destroy();
 }
 
@@ -3795,8 +3802,10 @@ void HistoryWidget::pushInfoToThirdSection() {
 	}
 	controller()->showPeerInfo(
 		_peer,
-		anim::type::instant,
-		anim::activation::background);
+		Window::SectionShow(
+			Window::SectionShow::Way::ClearStack,
+			anim::type::instant,
+			anim::activation::background));
 }
 
 void HistoryWidget::toggleTabbedSelectorMode() {

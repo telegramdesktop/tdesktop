@@ -34,25 +34,25 @@ public:
 	using Type = Storage::SharedMediaType;
 
 	Memento(PeerId peerId, Type type)
-		: _peerId(peerId)
-		, _type(type) {
+	: ContentMemento(peerId)
+	, _type(type) {
 	}
 
 	object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
-		Wrap wrap,
+		rpl::producer<Wrap> wrap,
 		not_null<Window::Controller*> controller,
 		const QRect &geometry) override;
 
-	PeerId peerId() const {
-		return _peerId;
+	Section section() const override {
+		return Section(_type);
 	}
+
 	Type type() const {
 		return _type;
 	}
 
 private:
-	PeerId _peerId = 0;
 	Type _type = Type::Photo;
 
 };
@@ -63,7 +63,7 @@ public:
 
 	Widget(
 		QWidget *parent,
-		Wrap wrap,
+		rpl::producer<Wrap> wrap,
 		not_null<Window::Controller*> controller,
 		not_null<PeerData*> peer,
 		Type type);

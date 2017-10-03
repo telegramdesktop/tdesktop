@@ -24,17 +24,18 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_search_from_controllers.h"
 #include "styles/style_dialogs.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/input_fields.h"
 #include "ui/wrap/fade_wrap.h"
 #include "lang/lang_keys.h"
 #include "application.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "ui/widgets/input_fields.h"
 #include "autoupdater.h"
 #include "auth_session.h"
 #include "messenger.h"
 #include "boxes/peer_list_box.h"
 #include "window/window_controller.h"
+#include "window/window_slide_animation.h"
 #include "profile/profile_channel_controllers.h"
 
 namespace {
@@ -873,12 +874,20 @@ void DialogsWidget::clearSearchCache() {
 }
 
 void DialogsWidget::showSearchFrom() {
+	if (!_searchInPeer) {
+		return;
+	}
 	auto peer = _searchInPeer;
-	Dialogs::ShowSearchFromBox(peer, base::lambda_guarded(this, [this, peer](not_null<UserData*> user) {
-		Ui::hideLayer();
-		setSearchInPeer(peer, user);
-		onFilterUpdate(true);
-	}), base::lambda_guarded(this, [this] { _filter->setFocus(); }));
+	Dialogs::ShowSearchFromBox(
+		controller(),
+		peer,
+		base::lambda_guarded(this, [this, peer](
+				not_null<UserData*> user) {
+			Ui::hideLayer();
+			setSearchInPeer(peer, user);
+			onFilterUpdate(true);
+		}),
+		base::lambda_guarded(this, [this] { _filter->setFocus(); }));
 }
 
 void DialogsWidget::onFilterCursorMoved(int from, int to) {

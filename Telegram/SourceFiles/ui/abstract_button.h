@@ -59,6 +59,12 @@ public:
 	auto clicks() const {
 		return _clicks.events();
 	}
+	template <typename Handler>
+	void addClickHandler(Handler &&handler) {
+		clicks() | rpl::start_with_next(
+			std::forward<Handler>(handler),
+			lifetime());
+	}
 
 protected:
 	void enterEventHook(QEvent *e) override;

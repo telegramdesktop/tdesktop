@@ -534,8 +534,8 @@ inline void operator|(
 		lifetime_with_none &&lifetime) {
 	lifetime.alive_while.add(
 		std::move(value).start(
-			[](const Value&) {},
-			[](const Error&) {},
+			[] {},
+			[] {},
 			[] {}));
 }
 
@@ -551,7 +551,7 @@ inline void operator|(
 	lifetime.alive_while.add(
 		std::move(value).start(
 			std::move(lifetime.next),
-			[](const Error&) {},
+			[] {},
 			[] {}));
 }
 
@@ -566,7 +566,7 @@ inline void operator|(
 		lifetime_with_error<OnError> &&lifetime) {
 	lifetime.alive_while.add(
 		std::move(value).start(
-			[](const Value&) {},
+			[] {},
 			std::move(lifetime.error),
 			[] {}));
 }
@@ -582,8 +582,8 @@ inline void operator|(
 		lifetime_with_done<OnDone> &&lifetime) {
 	lifetime.alive_while.add(
 		std::move(value).start(
-			[](const Value&) {},
-			[](const Error&) {},
+			[] {},
+			[] {},
 			std::move(lifetime.done)));
 }
 
@@ -620,7 +620,7 @@ inline void operator|(
 		lifetime_with_error_done<OnError, OnDone> &&lifetime) {
 	lifetime.alive_while.add(
 		std::move(value).start(
-			[](const Value&) {},
+			[] {},
 			std::move(lifetime.error),
 			std::move(lifetime.done)));
 }
@@ -640,7 +640,7 @@ inline void operator|(
 	lifetime.alive_while.add(
 		std::move(value).start(
 			std::move(lifetime.next),
-			[](const Error&) {},
+			[] {},
 			std::move(lifetime.done)));
 }
 

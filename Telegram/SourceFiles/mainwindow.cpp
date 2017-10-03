@@ -338,6 +338,15 @@ void MainWindow::showSpecialLayer(
 	}
 }
 
+bool MainWindow::showSectionInExistingLayer(
+		not_null<Window::SectionMemento*> memento,
+		const Window::SectionShow &params) {
+	if (_layerBg) {
+		return _layerBg->showSectionInternal(memento, params);
+	}
+	return false;
+}
+
 void MainWindow::showMainMenu() {
 	if (_passcode) return;
 

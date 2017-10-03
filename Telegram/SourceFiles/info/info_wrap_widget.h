@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include <rpl/variable.h>
 #include <rpl/event_stream.h>
 #include "window/section_widget.h"
 
@@ -27,6 +28,10 @@ namespace Ui {
 class SettingsSlider;
 class FadeShadow;
 } // namespace Ui
+
+namespace Window {
+enum class SlideDirection;
+} // namespace Window
 
 namespace Info {
 namespace Profile {
@@ -40,6 +45,7 @@ class Widget;
 class Section;
 class Memento;
 class MoveMemento;
+class ContentMemento;
 class ContentWidget;
 class TopBar;
 
@@ -97,7 +103,8 @@ public:
 		const Window::SectionSlideParams &params);
 
 	bool showInternal(
-		not_null<Window::SectionMemento*> memento);
+		not_null<Window::SectionMemento*> memento,
+		const Window::SectionShow &params);
 	std::unique_ptr<Window::SectionMemento> createMemento();
 
 	rpl::producer<int> desiredHeightValue() const;
@@ -112,6 +119,8 @@ public:
 	bool wheelEventFromFloatPlayer(QEvent *e);
 	QRect rectForFloatPlayer() const;
 
+	~WrapWidget();
+
 protected:
 	void resizeEvent(QResizeEvent *e);
 	void paintEvent(QPaintEvent *e);
@@ -121,25 +130,37 @@ protected:
 	}
 
 private:
+	using SlideDirection = Window::SlideDirection;
+	using SectionSlideParams = Window::SectionSlideParams;
 	enum class Tab {
 		Profile,
 		Media,
 		None,
 	};
-	void applyState(Wrap wrap, not_null<Memento*> memento);
-	void setupTop(Wrap wrap, const Section &section, PeerId peerId);
+	struct StackItem;
+
+	void showBackFromStack();
+	void showNewContent(not_null<ContentMemento*> memento);
+	void showNewContent(
+		not_null<ContentMemento*> memento,
+		const Window::SectionShow &params);
+	void setupTop(const Section &section, PeerId peerId);
 	void setupTabbedTop(const Section &section);
 	void setupTabs(Tab tab);
 	void createTabs();
 	void createTopBar(
-		Wrap wrap,
 		const Section &section,
 		PeerId peerId);
+
 	not_null<RpWidget*> topWidget() const;
+	int topHeightAddition() const;
+	int topHeight() const;
+	rpl::producer<int> topHeightValue() const;
 
 	QRect contentGeometry() const;
 	rpl::producer<int> desiredHeightForContent() const;
 	void finishShowContent();
+	rpl::producer<bool> topShadowToggledValue() const;
 	void updateContentGeometry();
 
 	void showTab(Tab tab);
@@ -147,15 +168,21 @@ private:
 	object_ptr<ContentWidget> createContent(Tab tab);
 	object_ptr<Profile::Widget> createProfileWidget();
 	object_ptr<Media::Widget> createMediaWidget();
+	object_ptr<ContentWidget> createContent(
+		not_null<ContentMemento*> memento);
 
+	rpl::variable<Wrap> _wrap;
 	not_null<Window::Controller*> _controller;
 	object_ptr<ContentWidget> _content = { nullptr };
 	object_ptr<Ui::SettingsSlider> _topTabs = { nullptr };
 	object_ptr<TopBar> _topBar = { nullptr };
-	object_ptr<Ui::FadeShadow> _topShadow = { nullptr };
+	object_ptr<Ui::FadeShadow> _topShadow;
 	Tab _tab = Tab::Profile;
+	std::unique_ptr<ContentMemento> _anotherTabMemento;
+	std::vector<StackItem> _historyStack;
 
 	rpl::event_stream<rpl::producer<int>> _desiredHeights;
+	rpl::event_stream<rpl::producer<bool>> _desiredShadowVisibilities;
 
 };
 

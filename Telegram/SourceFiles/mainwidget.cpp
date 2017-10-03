@@ -72,14 +72,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
 #include "base/flat_set.h"
-#include "window/themes/window_theme.h"
 #include "window/player_wrap_widget.h"
+#include "window/notifications_manager.h"
+#include "window/window_slide_animation.h"
+#include "window/window_controller.h"
+#include "window/themes/window_theme.h"
 #include "styles/style_boxes.h"
 #include "mtproto/dc_options.h"
 #include "core/file_utilities.h"
 #include "auth_session.h"
-#include "window/notifications_manager.h"
-#include "window/window_controller.h"
 #include "calls/calls_instance.h"
 #include "calls/calls_top_bar.h"
 #include "auth_session.h"
@@ -2460,10 +2461,8 @@ void MainWidget::ctrlEnterSubmitUpdated() {
 
 void MainWidget::ui_showPeerHistory(
 		PeerId peerId,
-		MsgId showAtMsgId,
-		Ui::ShowWay way,
-		anim::type animated,
-		anim::activation activation) {
+		const SectionShow &params,
+		MsgId showAtMsgId) {
 	if (auto peer = App::peerLoaded(peerId)) {
 		if (peer->migrateTo()) {
 			peer = peer->migrateTo();
@@ -2472,7 +2471,7 @@ void MainWidget::ui_showPeerHistory(
 		}
 		auto restriction = peer->restrictionReason();
 		if (!restriction.isEmpty()) {
-			if (activation != anim::activation::background) {
+			if (params.activation != anim::activation::background) {
 				Ui::show(Box<InformBox>(restriction));
 			}
 			return;
@@ -2482,9 +2481,11 @@ void MainWidget::ui_showPeerHistory(
 	_controller->dialogsListFocused().set(false, true);
 	_a_dialogsWidth.finish();
 
-	bool back = (way == Ui::ShowWay::Backward || !peerId);
+	using Way = SectionShow::Way;
+	auto way = params.way;
+	bool back = (way == Way::Backward || !peerId);
 	bool foundInStack = !peerId;
-	if (foundInStack || (way == Ui::ShowWay::ClearStack)) {
+	if (foundInStack || (way == Way::ClearStack)) {
 		for_const (auto &item, _stack) {
 			clearBotStartToken(item->peer);
 		}
@@ -2505,14 +2506,14 @@ void MainWidget::ui_showPeerHistory(
 			}
 		}
 		if (auto historyPeer = _history->peer()) {
-			if (way == Ui::ShowWay::Forward && historyPeer->id == peerId) {
-				way = Ui::ShowWay::ClearStack;
+			if (way == Way::Forward && historyPeer->id == peerId) {
+				way = Way::ClearStack;
 			}
 		}
 	}
 
 	auto wasActivePeer = activePeer();
-	if (activation != anim::activation::background) {
+	if (params.activation != anim::activation::background) {
 		Ui::hideSettingsAndLayer();
 	}
 	if (_hider) {
@@ -2520,8 +2521,10 @@ void MainWidget::ui_showPeerHistory(
 		_hider = nullptr;
 	}
 
-	auto animatedShow = [this, peerId, back, way] {
-		if (_a_show.animating() || App::passcoded()) {
+	auto animatedShow = [&] {
+		if (_a_show.animating()
+			|| App::passcoded()
+			|| (params.animated == anim::type::instant)) {
 			return false;
 		}
 		if (!peerId) {
@@ -2536,7 +2539,7 @@ void MainWidget::ui_showPeerHistory(
 				|| (_overview != nullptr)
 				|| (Adaptive::OneColumn() && !_dialogs->isHidden());
 		}
-		if (back || way == Ui::ShowWay::Forward) {
+		if (back || way == Way::Forward) {
 			return true;
 		}
 		return false;
@@ -2545,7 +2548,7 @@ void MainWidget::ui_showPeerHistory(
 	auto animationParams = animatedShow() ? prepareHistoryAnimation(peerId) : Window::SectionSlideParams();
 
 	dlgUpdated();
-	if (back || (way == Ui::ShowWay::ClearStack)) {
+	if (back || (way == Way::ClearStack)) {
 		_peerInStack = nullptr;
 		_msgIdInStack = 0;
 	} else {
@@ -2554,7 +2557,7 @@ void MainWidget::ui_showPeerHistory(
 	}
 	dlgUpdated();
 
-	if (_history->peer() && _history->peer()->id != peerId && way != Ui::ShowWay::Forward) {
+	if (_history->peer() && _history->peer()->id != peerId && way != Way::Forward) {
 		clearBotStartToken(_history->peer());
 	}
 	_history->showHistory(peerId, showAtMsgId);
@@ -2766,11 +2769,14 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 
 void MainWidget::showSection(
 		Window::SectionMemento &&memento,
-		anim::type animated,
-		anim::activation activation) {
-	if (_mainSection && _mainSection->showInternal(&memento)) {
+		const SectionShow &params) {
+	if (_mainSection && _mainSection->showInternal(
+			&memento,
+			params)) {
 		return;
-	} else if (_thirdSection && _thirdSection->showInternal(&memento)) {
+	} else if (_thirdSection && _thirdSection->showInternal(
+			&memento,
+			params)) {
 		return;
 	}
 
@@ -2781,10 +2787,7 @@ void MainWidget::showSection(
 
 	showNewSection(
 		std::move(memento),
-		false,
-		true,
-		animated,
-		activation);
+		params);
 }
 
 void MainWidget::updateColumnLayout() {
@@ -2914,12 +2917,10 @@ Window::SectionSlideParams MainWidget::prepareDialogsAnimation() {
 
 void MainWidget::showNewSection(
 		Window::SectionMemento &&memento,
-		bool back,
-		bool saveInStack,
-		anim::type animated,
-		anim::activation activation) {
+		const SectionShow &params) {
 	using Column = Window::Column;
 
+	auto saveInStack = (params.way == SectionShow::Way::Forward);
 	auto thirdSectionTop = getThirdSectionTop();
 	auto newThirdGeometry = QRect(
 		width() - st::columnMinimalWidthThird,
@@ -2942,7 +2943,7 @@ void MainWidget::showNewSection(
 		}
 	}
 
-	if (activation != anim::activation::background) {
+	if (params.activation != anim::activation::background) {
 		Ui::hideSettingsAndLayer();
 	}
 
@@ -2969,7 +2970,7 @@ void MainWidget::showNewSection(
 	auto animatedShow = [&] {
 		if (_a_show.animating()
 			|| App::passcoded()
-			|| (animated == anim::type::instant)
+			|| (params.animated == anim::type::instant)
 			|| memento.instant()) {
 			return false;
 		}
@@ -3025,6 +3026,7 @@ void MainWidget::showNewSection(
 	}
 
 	if (animationParams) {
+		auto back = (params.way == SectionShow::Way::Backward);
 		auto direction = (back || settingSection->forceAnimateBack())
 			? Window::SlideDirection::FromLeft
 			: Window::SlideDirection::FromRight;
@@ -3056,8 +3058,9 @@ void MainWidget::dropMainSection(Window::SectionWidget *widget) {
 	}
 	_mainSection.destroy();
 	_controller->showBackFromStack(
-		anim::type::instant,
-		anim::activation::background);
+		SectionShow(
+			anim::type::instant,
+			anim::activation::background));
 }
 
 bool MainWidget::isMainSectionShown() const {
@@ -3073,11 +3076,10 @@ bool MainWidget::stackIsEmpty() const {
 }
 
 void MainWidget::showBackFromStack(
-		anim::type animated,
-		anim::activation activation) {
+		const SectionShow &params) {
 	if (selectingPeer()) return;
 	if (_stack.empty()) {
-		_controller->clearSectionStack(animated, activation);
+		_controller->clearSectionStack(params);
 		if (App::wnd()) QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
 		return;
 	}
@@ -3102,19 +3104,14 @@ void MainWidget::showBackFromStack(
 		auto historyItem = static_cast<StackItemHistory*>(item.get());
 		_controller->showPeerHistory(
 			historyItem->peer->id,
-			Ui::ShowWay::Backward,
-			ShowAtUnreadMsgId,
-			animated,
-			activation);
+			params.withWay(SectionShow::Way::Backward),
+			ShowAtUnreadMsgId);
 		_history->setReplyReturns(historyItem->peer->id, historyItem->replyReturns);
 	} else if (item->type() == SectionStackItem) {
 		auto sectionItem = static_cast<StackItemSection*>(item.get());
 		showNewSection(
 			std::move(*sectionItem->memento()),
-			true,
-			false,
-			animated,
-			activation);
+			params.withWay(SectionShow::Way::Backward));
 	} else if (item->type() == OverviewStackItem) {
 		auto overviewItem = static_cast<StackItemOverview*>(item.get());
 		showMediaOverview(
@@ -3569,8 +3566,10 @@ void MainWidget::updateThirdColumnToCurrentPeer(
 		if (!canWrite) {
 			_controller->showPeerInfo(
 				peer,
-				anim::type::instant,
-				anim::activation::background);
+				SectionShow(
+					SectionShow::Way::ClearStack,
+					anim::type::instant,
+					anim::activation::background));
 			Auth().data().setTabbedSelectorSectionEnabled(true);
 			Auth().data().setTabbedReplacedWithInfo(true);
 		} else if (Auth().data().tabbedReplacedWithInfo()) {
@@ -3586,8 +3585,10 @@ void MainWidget::updateThirdColumnToCurrentPeer(
 			&& Auth().data().thirdSectionInfoEnabled()) {
 			_controller->showPeerInfo(
 				peer,
-				anim::type::instant,
-				anim::activation::background);
+				SectionShow(
+					SectionShow::Way::ClearStack,
+					anim::type::instant,
+					anim::activation::background));
 		}
 	}
 }
@@ -4290,7 +4291,11 @@ void MainWidget::openPeerByName(const QString &username, MsgId msgId, const QStr
 				peer->asUser()->botInfo->shareGameShortName = startToken;
 				AddBotToGroupBoxController::Start(peer->asUser());
 			} else {
-				Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
+				InvokeQueued(this, [this, peer] {
+					_controller->showPeerHistory(
+						peer->id,
+						SectionShow::Way::Forward);
+				});
 			}
 		} else if (msgId == ShowAtProfileMsgId && !peer->isChannel()) {
 			if (peer->isUser() && peer->asUser()->botInfo && !peer->asUser()->botInfo->cantJoinGroups && !startToken.isEmpty()) {
@@ -4298,7 +4303,11 @@ void MainWidget::openPeerByName(const QString &username, MsgId msgId, const QStr
 				AddBotToGroupBoxController::Start(peer->asUser());
 			} else if (peer->isUser() && peer->asUser()->botInfo) {
 				// Always open bot chats, even from mention links.
-				Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
+				InvokeQueued(this, [this, peer] {
+					_controller->showPeerHistory(
+						peer->id,
+						SectionShow::Way::Forward);
+				});
 			} else {
 				_controller->showPeerInfo(peer);
 			}
@@ -4313,7 +4322,12 @@ void MainWidget::openPeerByName(const QString &username, MsgId msgId, const QStr
 					_history->updateControlsGeometry();
 				}
 			}
-			Ui::showPeerHistoryAsync(peer->id, msgId, Ui::ShowWay::Forward);
+			InvokeQueued(this, [this, peer, msgId] {
+				_controller->showPeerHistory(
+					peer->id,
+					SectionShow::Way::Forward,
+					msgId);
+			});
 		}
 	} else {
 		MTP::send(MTPcontacts_ResolveUsername(MTP_string(username)), rpcDone(&MainWidget::usernameResolveDone, qMakePair(msgId, startToken)), rpcFail(&MainWidget::usernameResolveFail, username));
@@ -4376,7 +4390,11 @@ void MainWidget::usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, c
 			AddBotToGroupBoxController::Start(peer->asUser());
 		} else if (peer->isUser() && peer->asUser()->botInfo) {
 			// Always open bot chats, even from mention links.
-			Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
+			InvokeQueued(this, [this, peer] {
+				_controller->showPeerHistory(
+					peer->id,
+					SectionShow::Way::Forward);
+			});
 		} else {
 			_controller->showPeerInfo(peer);
 		}
@@ -4391,7 +4409,12 @@ void MainWidget::usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, c
 				_history->updateControlsGeometry();
 			}
 		}
-		Ui::showPeerHistory(peer->id, msgId, Ui::ShowWay::Forward);
+		InvokeQueued(this, [this, peer, msgId] {
+			_controller->showPeerHistory(
+				peer->id,
+				SectionShow::Way::Forward,
+				msgId);
+		});
 	}
 }
 

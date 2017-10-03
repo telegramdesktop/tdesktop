@@ -46,6 +46,9 @@ public:
 	void parentResized() override;
 
 	bool takeToThirdSection() override;
+	bool showSectionInternal(
+		not_null<Window::SectionMemento*> memento,
+		const Window::SectionShow &params) override;
 
 	static int MinimalSupportedWidth();
 

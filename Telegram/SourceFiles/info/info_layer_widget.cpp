@@ -75,8 +75,10 @@ void LayerWidget::parentResized() {
 		localCopy->hideSpecialLayer(anim::type::instant);
 		localCopy->showSection(
 			std::move(memento),
-			anim::type::instant,
-			anim::activation::background);
+			Window::SectionShow(
+				Window::SectionShow::Way::Forward,
+				anim::type::instant,
+				anim::activation::background));
 	} else if (_controller->canShowThirdSectionWithoutResize()) {
 		takeToThirdSection();
 	} else {
@@ -97,9 +99,17 @@ bool LayerWidget::takeToThirdSection() {
 	Auth().saveDataDelayed();
 	localCopy->showSection(
 		std::move(memento),
-		anim::type::instant,
-		anim::activation::background);
+		Window::SectionShow(
+			Window::SectionShow::Way::ClearStack,
+			anim::type::instant,
+			anim::activation::background));
 	return true;
+}
+
+bool LayerWidget::showSectionInternal(
+		not_null<Window::SectionMemento*> memento,
+		const Window::SectionShow &params) {
+	return _content->showInternal(memento, params);
 }
 
 int LayerWidget::MinimalSupportedWidth() {

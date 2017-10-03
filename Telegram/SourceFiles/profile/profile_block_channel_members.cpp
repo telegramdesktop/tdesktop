@@ -27,6 +27,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "history/history_admin_log_section.h"
 #include "lang/lang_keys.h"
+#include "mainwindow.h"
+#include "window/window_controller.h"
 
 namespace Profile {
 
@@ -143,13 +145,17 @@ int ChannelMembersWidget::resizeGetHeight(int newWidth) {
 
 void ChannelMembersWidget::onMembers() {
 	if (auto channel = peer()->asChannel()) {
-		ParticipantsBoxController::Start(channel, ParticipantsBoxController::Role::Members);
+		ParticipantsBoxController::Start(
+			App::wnd()->controller(),
+			channel,
+			ParticipantsBoxController::Role::Members);
 	}
 }
 
 void ChannelMembersWidget::onAdmins() {
 	if (auto channel = peer()->asChannel()) {
 		ParticipantsBoxController::Start(
+			App::wnd()->controller(),
 			channel,
 			ParticipantsBoxController::Role::Admins);
 	}
@@ -160,8 +166,7 @@ void ChannelMembersWidget::onRecentActions() {
 		if (auto main = App::main()) {
 			main->showSection(
 				AdminLog::SectionMemento(channel),
-				anim::type::normal,
-				anim::activation::normal);
+				Window::SectionShow());
 		}
 	}
 }

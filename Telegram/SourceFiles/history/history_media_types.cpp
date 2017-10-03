@@ -34,6 +34,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/click_handler_types.h"
 #include "history/history_location_manager.h"
 #include "history/history_message.h"
+#include "window/main_window.h"
 #include "window/window_controller.h"
 #include "styles/style_history.h"
 #include "calls/calls_instance.h"
@@ -2940,7 +2941,9 @@ namespace {
 
 ClickHandlerPtr sendMessageClickHandler(PeerData *peer) {
 	return MakeShared<LambdaClickHandler>([peer] {
-		Ui::showPeerHistory(peer->id, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
+		App::wnd()->controller()->showPeerHistory(
+			peer->id,
+			Window::SectionShow::Way::Forward);
 	});
 }
 

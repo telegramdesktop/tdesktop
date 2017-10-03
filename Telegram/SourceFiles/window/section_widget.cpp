@@ -20,9 +20,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "window/section_widget.h"
 
+#include <rpl/range.h>
 #include "application.h"
 #include "window/section_memento.h"
-#include <rpl/range.h>
+#include "window/window_slide_animation.h"
 
 namespace Window {
 
@@ -104,5 +105,7 @@ void SectionWidget::showFinished() {
 rpl::producer<int> SectionWidget::desiredHeight() const {
 	return rpl::single(height());
 }
+
+SectionWidget::~SectionWidget() = default;
 
 } // namespace Window

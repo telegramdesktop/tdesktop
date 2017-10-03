@@ -30,6 +30,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "mainwidget.h"
+#include "mainwindow.h"
+#include "window/window_controller.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 
@@ -213,6 +215,7 @@ void SettingsWidget::onManageAdmins() {
 		EditChatAdminsBoxController::Start(chat);
 	} else if (auto channel = peer()->asChannel()) {
 		ParticipantsBoxController::Start(
+			App::wnd()->controller(),
 			channel,
 			ParticipantsBoxController::Role::Admins);
 	}
@@ -223,8 +226,7 @@ void SettingsWidget::onRecentActions() {
 		if (auto main = App::main()) {
 			main->showSection(
 				AdminLog::SectionMemento(channel),
-				anim::type::normal,
-				anim::activation::normal);
+				Window::SectionShow());
 		}
 	}
 }
@@ -232,6 +234,7 @@ void SettingsWidget::onRecentActions() {
 void SettingsWidget::onManageBannedUsers() {
 	if (auto channel = peer()->asMegagroup()) {
 		ParticipantsBoxController::Start(
+			App::wnd()->controller(),
 			channel,
 			ParticipantsBoxController::Role::Kicked);
 	}
@@ -240,6 +243,7 @@ void SettingsWidget::onManageBannedUsers() {
 void SettingsWidget::onManageRestrictedUsers() {
 	if (auto channel = peer()->asMegagroup()) {
 		ParticipantsBoxController::Start(
+			App::wnd()->controller(),
 			channel,
 			ParticipantsBoxController::Role::Restricted);
 	}

@@ -26,6 +26,8 @@ namespace Window {
 
 class MainMenu;
 class Controller;
+class SectionMemento;
+struct SectionShow;
 
 class LayerWidget : public Ui::RpWidget {
 public:
@@ -53,6 +55,11 @@ public:
 		_resizedCallback = std::move(callback);
 	}
 	virtual bool takeToThirdSection() {
+		return false;
+	}
+	virtual bool showSectionInternal(
+			not_null<SectionMemento*> memento,
+			const SectionShow &params) {
 		return false;
 	}
 
@@ -118,6 +125,10 @@ public:
 	void hideLayers(anim::type animated);
 	void hideAll(anim::type animated);
 	void hideTopLayer(anim::type animated);
+
+	bool showSectionInternal(
+		not_null<SectionMemento*> memento,
+		const SectionShow &params);
 
 	bool layerShown() const;
 

@@ -38,6 +38,8 @@ class ClearManager;
 
 namespace Window {
 class LayerStackWidget;
+class SectionMemento;
+struct SectionShow;
 namespace Theme {
 struct BackgroundUpdate;
 class WarningWidget;
@@ -137,6 +139,9 @@ public:
 	void showSpecialLayer(
 		object_ptr<Window::LayerWidget> layer,
 		anim::type animated);
+	bool showSectionInExistingLayer(
+		not_null<Window::SectionMemento*> memento,
+		const Window::SectionShow &params);
 	void ui_showBox(
 		object_ptr<BoxContent> box,
 		LayerOptions options,

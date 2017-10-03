@@ -37,23 +37,22 @@ namespace Info {
 
 ContentWidget::ContentWidget(
 	QWidget *parent,
-	Wrap wrap,
+	rpl::producer<Wrap> wrap,
 	not_null<Window::Controller*> controller,
 	not_null<PeerData*> peer)
 : RpWidget(parent)
 , _controller(controller)
 , _peer(peer)
-, _wrap(wrap)
 , _scroll(this, st::infoScroll) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
-}
-
-void ContentWidget::setWrap(Wrap wrap) {
-	if (_wrap != wrap) {
-		_wrap = wrap;
-		_wrapChanges.fire_copy(_wrap);
-		update();
-	}
+	std::move(wrap) | rpl::start_with_next(
+		[this](Wrap value) {
+			_bg = (value == Wrap::Layer)
+				? st::boxBg
+				: st::profileBg;
+			update();
+		},
+		lifetime());
 }
 
 void ContentWidget::resizeEvent(QResizeEvent *e) {
@@ -76,9 +75,7 @@ void ContentWidget::resizeEvent(QResizeEvent *e) {
 
 void ContentWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	p.fillRect(e->rect(), (_wrap == Wrap::Layer)
-		? st::boxBg
-		: st::profileBg);
+	p.fillRect(e->rect(), _bg);
 }
 
 void ContentWidget::setGeometryWithTopMoved(

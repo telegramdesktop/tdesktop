@@ -141,41 +141,21 @@ inline void showPeerOverview(const History *history, MediaOverviewType type) {
 	showPeerOverview(history->peer->id, type);
 }
 
-enum class ShowWay {
-	ClearStack,
-	Forward,
-	Backward,
-};
-void showPeerHistory(
-	const PeerId &peer,
-	MsgId msgId,
-	ShowWay way = ShowWay::ClearStack,
-	anim::type animated = anim::type::normal,
-	anim::activation activation = anim::activation::normal);
+void showPeerHistory(const PeerId &peer, MsgId msgId);
 
-inline void showPeerHistory(
-		const PeerData *peer,
-		MsgId msgId,
-		ShowWay way = ShowWay::ClearStack) {
-	showPeerHistory(peer->id, msgId, way);
+inline void showPeerHistory(const PeerData *peer, MsgId msgId) {
+	showPeerHistory(peer->id, msgId);
 }
 inline void showPeerHistory(
 		const History *history,
-		MsgId msgId,
-		ShowWay way = ShowWay::ClearStack) {
-	showPeerHistory(history->peer->id, msgId, way);
+		MsgId msgId) {
+	showPeerHistory(history->peer->id, msgId);
 }
-inline void showPeerHistoryAtItem(
-		const HistoryItem *item,
-		ShowWay way = ShowWay::ClearStack) {
-	showPeerHistory(item->history()->peer->id, item->id, way);
+inline void showPeerHistoryAtItem(const HistoryItem *item) {
+	showPeerHistory(item->history()->peer->id, item->id);
 }
-void showPeerHistoryAsync(const PeerId &peer, MsgId msgId, ShowWay way = ShowWay::ClearStack);
 inline void showChatsList() {
-	showPeerHistory(PeerId(0), 0, ShowWay::ClearStack);
-}
-inline void showChatsListAsync() {
-	showPeerHistoryAsync(PeerId(0), 0, ShowWay::ClearStack);
+	showPeerHistory(PeerId(0), 0);
 }
 PeerData *getPeerForMouseAction();
 

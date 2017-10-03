@@ -39,7 +39,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 Q_DECLARE_METATYPE(ClickHandlerPtr);
 Q_DECLARE_METATYPE(Qt::MouseButton);
-Q_DECLARE_METATYPE(Ui::ShowWay);
 
 namespace App {
 namespace internal {
@@ -270,12 +269,10 @@ void autoplayMediaInlineAsync(const FullMsgId &msgId) {
 }
 
 void showPeerProfile(const PeerId &peer) {
-	if (auto main = App::main()) {
-//		main->showSection(Profile::SectionMemento(App::peer(peer)));
-		main->showSection(
-			Info::Memento(peer),
-			anim::type::normal,
-			anim::activation::normal);
+	if (auto window = App::wnd()) {
+		if (auto controller = window->controller()) {
+			controller->showPeerInfo(peer);
+		}
 	}
 }
 
@@ -287,24 +284,13 @@ void showPeerOverview(const PeerId &peer, MediaOverviewType type) {
 
 void showPeerHistory(
 		const PeerId &peer,
-		MsgId msgId,
-		ShowWay way,
-		anim::type animated,
-		anim::activation activation) {
+		MsgId msgId) {
 	auto ms = getms();
 	LOG(("Show Peer Start"));
-	if (MainWidget *m = App::main()) {
-		m->ui_showPeerHistory(peer, msgId, way, animated, activation);
+	if (auto m = App::main()) {
+		m->ui_showPeerHistory(peer, Window::SectionShow(), msgId);
 	}
 	LOG(("Show Peer End: %1").arg(getms() - ms));
-}
-
-void showPeerHistoryAsync(const PeerId &peer, MsgId msgId, ShowWay way) {
-	if (MainWidget *m = App::main()) {
-		InvokeQueued(m, [peer, msgId, way] {
-			showPeerHistory(peer, msgId, way);
-		});
-	}
 }
 
 PeerData *getPeerForMouseAction() {

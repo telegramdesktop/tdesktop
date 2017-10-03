@@ -75,7 +75,9 @@ void Widget::doSetInnerFocus() {
 	_inner->setFocus();
 }
 
-bool Widget::showInternal(not_null<Window::SectionMemento*> memento) {
+bool Widget::showInternal(
+		not_null<Window::SectionMemento*> memento,
+		const Window::SectionShow &params) {
 	if (auto profileMemento = dynamic_cast<SectionMemento*>(memento.get())) {
 		if (profileMemento->getPeer() == peer()) {
 			restoreState(profileMemento);

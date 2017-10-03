@@ -58,6 +58,7 @@ class SectionMemento;
 class SectionWidget;
 class AbstractSectionWidget;
 struct SectionSlideParams;
+struct SectionShow;
 enum class Column;
 } // namespace Window
 
@@ -154,6 +155,8 @@ class MainWidget : public Ui::RpWidget, public RPCSender, private base::Subscrib
 	Q_OBJECT
 
 public:
+	using SectionShow = Window::SectionShow;
+
 	MainWidget(QWidget *parent, not_null<Window::Controller*> controller);
 
 	bool isMainSectionShown() const;
@@ -215,14 +218,16 @@ public:
 	bool showMediaTypeSwitch() const;
 	void showSection(
 		Window::SectionMemento &&memento,
-		anim::type animated,
-		anim::activation activation);
+		const SectionShow &params);
 	void updateColumnLayout();
-	void showMediaOverview(PeerData *peer, MediaOverviewType type, bool back = false, int32 lastScrollTop = -1);
+	void showMediaOverview(
+		PeerData *peer,
+		MediaOverviewType type,
+		bool back = false,
+		int32 lastScrollTop = -1);
 	bool stackIsEmpty() const;
 	void showBackFromStack(
-		anim::type animated,
-		anim::activation activation);
+		const SectionShow &params);
 	void orderWidgets();
 	QRect historyRect() const;
 	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params);
@@ -396,10 +401,8 @@ public:
 	void ui_repaintHistoryItem(not_null<const HistoryItem*> item);
 	void ui_showPeerHistory(
 		PeerId peer,
-		MsgId msgId,
-		Ui::ShowWay way,
-		anim::type animated,
-		anim::activation activation);
+		const SectionShow &params,
+		MsgId msgId);
 	PeerData *ui_getPeerForMouseAction();
 
 	void notify_botCommandsChanged(UserData *bot);
@@ -537,10 +540,7 @@ private:
 		bool willHaveTopBarShadow);
 	void showNewSection(
 		Window::SectionMemento &&memento,
-		bool back,
-		bool saveInStack,
-		anim::type animated,
-		anim::activation activation);
+		const SectionShow &params);
 	void dropMainSection(Window::SectionWidget *widget);
 
 	Window::SectionSlideParams prepareThirdSectionAnimation(Window::SectionWidget *section);

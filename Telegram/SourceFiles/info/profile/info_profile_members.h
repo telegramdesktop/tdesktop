@@ -99,7 +99,7 @@ private:
 
 	Wrap _wrap;
 	not_null<PeerData*> _peer;
-	std::unique_ptr<PeerListController> _controller;
+	std::unique_ptr<PeerListController> _listController;
 	object_ptr<Ui::RpWidget> _labelWrap;
 	object_ptr<Ui::FlatLabel> _label;
 	object_ptr<Ui::IconButton> _addMember;

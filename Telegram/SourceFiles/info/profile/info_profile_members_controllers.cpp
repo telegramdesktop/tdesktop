@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "auth_session.h"
 #include "observer_peer.h"
+#include "window/window_controller.h"
 
 namespace Info {
 namespace Profile {
@@ -34,7 +35,9 @@ class ChatMembersController
 	: public PeerListController
 	, private base::Subscriber {
 public:
-	ChatMembersController(not_null<ChatData*> chat);
+	ChatMembersController(
+		not_null<Window::Controller*> window,
+		not_null<ChatData*> chat);
 
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
@@ -43,12 +46,16 @@ private:
 	void rebuildRows();
 	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user);
 
+	not_null<Window::Controller*> _window;
 	not_null<ChatData*> _chat;
 
 };
 
-ChatMembersController::ChatMembersController(not_null<ChatData*> chat)
+ChatMembersController::ChatMembersController(
+	not_null<Window::Controller*> window,
+	not_null<ChatData*> chat)
 : PeerListController()
+, _window(window)
 , _chat(chat) {
 }
 
@@ -110,19 +117,23 @@ std::unique_ptr<PeerListRow> ChatMembersController::createRow(not_null<UserData*
 }
 
 void ChatMembersController::rowClicked(not_null<PeerListRow*> row) {
-	Ui::showPeerProfile(row->peer());
+	_window->showPeerInfo(row->peer());
 }
 
 } // namespace
 
 std::unique_ptr<PeerListController> CreateMembersController(
+		not_null<Window::Controller*> window,
 		not_null<PeerData*> peer) {
 	if (auto chat = peer->asChat()) {
-		return std::make_unique<ChatMembersController>(chat);
+		return std::make_unique<ChatMembersController>(
+			window,
+			chat);
 	} else if (auto channel = peer->asChannel()) {
 		using ChannelMembersController
 			= ::Profile::ParticipantsBoxController;
 		return std::make_unique<ChannelMembersController>(
+			window,
 			channel,
 			ChannelMembersController::Role::Profile);
 	}

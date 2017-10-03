@@ -304,7 +304,9 @@ void Widget::doSetInnerFocus() {
 	}
 }
 
-bool Widget::showInternal(not_null<Window::SectionMemento*> memento) {
+bool Widget::showInternal(
+		not_null<Window::SectionMemento*> memento,
+		const Window::SectionShow &params) {
 	if (auto logMemento = dynamic_cast<SectionMemento*>(memento.get())) {
 		if (logMemento->getChannel() == channel()) {
 			restoreState(logMemento);

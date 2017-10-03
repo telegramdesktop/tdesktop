@@ -35,6 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "auth_session.h"
 #include "apiwrap.h"
+#include "window/main_window.h"
 #include "window/window_controller.h"
 #include "storage/storage_shared_media.h"
 #include "lang/lang_keys.h"
@@ -243,7 +244,7 @@ void InnerWidget::setupUserButtons(
 		| rpl::start_with_next([this, user] {
 			_controller->showPeerHistory(
 				user,
-				Ui::ShowWay::Forward);
+				Window::SectionShow::Way::Forward);
 		}, wrap->lifetime());
 
 	addButton(
@@ -322,12 +323,10 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 				return lng_profile_common_groups(lt_count, count);
 			}
 		)->entity()->clicks()
-			| rpl::start_with_next([peer = _peer] {
-				App::main()->showSection(
+			| rpl::start_with_next([this, peer = _peer] {
+				_controller->showSection(
 					::Profile::CommonGroups::SectionMemento(
-						peer->asUser()),
-					anim::type::normal,
-					anim::activation::normal);
+						peer->asUser()));
 			}, content->lifetime());
 	};
 	addMediaButton(MediaType::Photo);

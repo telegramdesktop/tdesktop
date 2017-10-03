@@ -30,21 +30,24 @@ class InnerWidget;
 
 class Memento final : public ContentMemento {
 public:
-	Memento(UserId userId) : _userId(userId) {
+	Memento(UserId userId) : ContentMemento(peerFromUser(userId)) {
 	}
 
 	object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
-		Wrap wrap,
+		rpl::producer<Wrap> wrap,
 		not_null<Window::Controller*> controller,
 		const QRect &geometry) override;
 
+	Section section() const override {
+		return Section(Section::Type::CommonGroups);
+	}
+
 	UserId userId() const {
-		return _userId;
+		return peerToUser(peerId());
 	}
 
 private:
-	UserId _userId = 0;
 
 };
 
@@ -52,7 +55,7 @@ class Widget final : public ContentWidget {
 public:
 	Widget(
 		QWidget *parent,
-		Wrap wrap,
+		rpl::producer<Wrap> wrap,
 		not_null<Window::Controller*> controller,
 		not_null<UserData*> user);
 

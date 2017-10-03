@@ -31,6 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "auth_session.h"
 #include "lang/lang_keys.h"
 #include "profile/profile_channel_controllers.h"
+#include "mainwindow.h"
 
 namespace Profile {
 
@@ -362,7 +363,10 @@ void ActionsWidget::onLeaveChannel() {
 
 void ActionsWidget::onSearchMembers() {
 	if (auto channel = peer()->asChannel()) {
-		ParticipantsBoxController::Start(channel, ParticipantsBoxController::Role::Members);
+		ParticipantsBoxController::Start(
+			App::wnd()->controller(),
+			channel,
+			ParticipantsBoxController::Role::Members);
 	}
 }
 

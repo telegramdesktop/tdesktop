@@ -52,7 +52,7 @@ Members::Members(
 	not_null<PeerData*> peer)
 : RpWidget(parent)
 , _peer(peer)
-, _controller(CreateMembersController(_peer))
+, _listController(CreateMembersController(controller, _peer))
 , _labelWrap(this)
 , _label(setupHeader())
 , _addMember(this, st::infoMembersAddMember)
@@ -62,7 +62,7 @@ Members::Members(
 	langFactory(lng_participant_filter))
 , _search(this, st::infoMembersSearch)
 , _cancelSearch(this, st::infoMembersCancelSearch)
-, _list(setupList(this, _controller.get())) {
+, _list(setupList(this, _listController.get())) {
 	setupButtons();
 	std::move(wrapValue)
 		| rpl::start_with_next([this](Wrap wrap) {
@@ -70,7 +70,7 @@ Members::Members(
 			updateSearchOverrides();
 		}, lifetime());
 	setContent(_list.data());
-	_controller->setDelegate(static_cast<PeerListDelegate*>(this));
+	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
 }
 
 int Members::desiredHeight() const {

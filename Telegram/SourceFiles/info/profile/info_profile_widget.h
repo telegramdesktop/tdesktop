@@ -30,17 +30,17 @@ class InnerWidget;
 
 class Memento final : public ContentMemento {
 public:
-	Memento(PeerId peerId) : _peerId(peerId) {
+	Memento(PeerId peerId) : ContentMemento(peerId) {
 	}
 
 	object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
-		Wrap wrap,
+		rpl::producer<Wrap> wrap,
 		not_null<Window::Controller*> controller,
 		const QRect &geometry) override;
 
-	PeerId peerId() const {
-		return _peerId;
+	Section section() const override {
+		return Section(Section::Type::Profile);
 	}
 
 	void setScrollTop(int scrollTop) {
@@ -51,7 +51,6 @@ public:
 	}
 
 private:
-	PeerId _peerId = 0;
 	int _scrollTop = 0;
 
 };
@@ -60,7 +59,7 @@ class Widget final : public ContentWidget {
 public:
 	Widget(
 		QWidget *parent,
-		Wrap wrap,
+		rpl::producer<Wrap> wrap,
 		not_null<Window::Controller*> controller,
 		not_null<PeerData*> peer);
 

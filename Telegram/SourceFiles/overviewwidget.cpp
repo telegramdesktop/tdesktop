@@ -32,7 +32,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/shadow.h"
 #include "window/top_bar_widget.h"
+#include "window/window_slide_animation.h"
 #include "window/themes/window_theme.h"
+#include "window/window_controller.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -1132,7 +1134,7 @@ void OverviewInner::keyPressEvent(QKeyEvent *e) {
 	if ((_search->isHidden() || !_search->hasFocus()) && !_overview->isHidden() && e->key() == Qt::Key_Escape) {
 		onCancel();
 	} else if (e->key() == Qt::Key_Back) {
-		App::main()->showBackFromStack(anim::type::normal, anim::activation::normal);
+		App::main()->showBackFromStack(Window::SectionShow());
 	} else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) {
 		onSearchMessages();
 	}
@@ -1528,7 +1530,7 @@ void OverviewInner::onSearchUpdate() {
 void OverviewInner::onCancel() {
 	if (_selected.isEmpty()) {
 		if (onCancelSearch()) return;
-		App::main()->showBackFromStack(anim::type::normal, anim::activation::normal);
+		App::main()->showBackFromStack(Window::SectionShow());
 	} else {
 		_overview->onClearSelected();
 	}
@@ -2071,7 +2073,7 @@ bool OverviewWidget::paintTopBar(Painter &p, int decreaseWidth) {
 }
 
 void OverviewWidget::topBarClick() {
-	App::main()->showBackFromStack(anim::type::normal, anim::activation::normal);
+	App::main()->showBackFromStack(Window::SectionShow());
 }
 
 PeerData *OverviewWidget::peer() const {

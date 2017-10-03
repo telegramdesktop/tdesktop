@@ -30,6 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "observer_peer.h"
 #include "dialogs/dialogs_indexed_list.h"
+#include "window/window_controller.h"
 
 namespace Profile {
 namespace {
@@ -41,9 +42,11 @@ constexpr auto kSortByOnlineDelay = TimeMs(1000);
 } // namespace
 
 ParticipantsBoxController::ParticipantsBoxController(
+	not_null<Window::Controller*> window,
 	not_null<ChannelData*> channel,
 	Role role)
 : PeerListController(CreateSearchController(channel, role, &_additional))
+, _window(window)
 , _channel(channel)
 , _role(role) {
 	if (_channel->mgInfo) {
@@ -103,8 +106,14 @@ ParticipantsBoxController::CreateSearchController(
 	return nullptr;
 }
 
-void ParticipantsBoxController::Start(not_null<ChannelData*> channel, Role role) {
-	auto controller = std::make_unique<ParticipantsBoxController>(channel, role);
+void ParticipantsBoxController::Start(
+		not_null<Window::Controller*> window,
+		not_null<ChannelData*> channel,
+		Role role) {
+	auto controller = std::make_unique<ParticipantsBoxController>(
+		window,
+		channel,
+		role);
 	auto initBox = [role, channel, controller = controller.get()](not_null<PeerListBox*> box) {
 		box->addButton(langFactory(lng_close), [box] { box->closeBox(); });
 		auto canAddNewItem = [role, channel] {
@@ -382,7 +391,7 @@ void ParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
 	} else if (_role == Role::Restricted || _role == Role::Kicked) {
 		showRestricted(user);
 	} else {
-		Ui::showPeerProfile(row->peer());
+		_window->showPeerInfo(row->peer());
 	}
 }
 

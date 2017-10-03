@@ -77,11 +77,9 @@ void SectionWidget::showFinishedHook() {
 }
 
 bool SectionWidget::showInternal(
-		not_null<Window::SectionMemento*> memento) {
-	if (auto infoMemento = dynamic_cast<Memento*>(memento.get())) {
-		_content->showInternal(infoMemento);
-	}
-	return false;
+		not_null<Window::SectionMemento*> memento,
+		const Window::SectionShow &params) {
+	return _content->showInternal(memento, params);
 }
 
 std::unique_ptr<Window::SectionMemento> SectionWidget::createMemento() {

@@ -33,6 +33,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
+#include "mainwindow.h"
+#include "window/window_controller.h"
 
 namespace Profile {
 namespace CommonGroups {
@@ -59,9 +61,7 @@ FixedBar::FixedBar(QWidget *parent) : TWidget(parent)
 }
 
 void FixedBar::onBack() {
-	App::main()->showBackFromStack(
-		anim::type::normal,
-		anim::activation::normal);
+	App::main()->showBackFromStack(Window::SectionShow());
 }
 
 int FixedBar::resizeGetHeight(int newWidth) {
@@ -317,7 +317,9 @@ void InnerWidget::mouseReleaseEvent(QMouseEvent *e) {
 			ripple->lastStop();
 		}
 		if (pressed == _selected) {
-			Ui::showPeerHistory(_items[pressed]->peer, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
+			App::wnd()->controller()->showPeerHistory(
+				_items[pressed]->peer,
+				Window::SectionShow::Way::Forward);
 		}
 	}
 	setCursor(_selected ? style::cur_pointer : style::cur_default);
@@ -382,7 +384,9 @@ void Widget::doSetInnerFocus() {
 	_inner->setFocus();
 }
 
-bool Widget::showInternal(not_null<Window::SectionMemento*> memento) {
+bool Widget::showInternal(
+		not_null<Window::SectionMemento*> memento,
+		const Window::SectionShow &params) {
 	if (auto profileMemento = dynamic_cast<SectionMemento*>(memento.get())) {
 		if (profileMemento->getUser() == user()) {
 			restoreState(profileMemento);

@@ -25,6 +25,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/timer.h"
 #include "base/weak_unique_ptr.h"
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 namespace Profile {
 
 // Viewing admins, banned or restricted users list with search.
@@ -41,7 +45,10 @@ public:
 		Restricted,
 		Kicked,
 	};
-	static void Start(not_null<ChannelData*> channel, Role role);
+	static void Start(
+		not_null<Window::Controller*> window,
+		not_null<ChannelData*> channel,
+		Role role);
 
 	struct Additional {
 		std::map<not_null<UserData*>, MTPChannelAdminRights> adminRights;
@@ -55,7 +62,10 @@ public:
 		UserData *creator = nullptr;
 	};
 
-	ParticipantsBoxController(not_null<ChannelData*> channel, Role role);
+	ParticipantsBoxController(
+		not_null<Window::Controller*> window,
+		not_null<ChannelData*> channel,
+		Role role);
 
 	void addNewItem();
 
@@ -93,6 +103,7 @@ private:
 	void refreshCustomStatus(not_null<PeerListRow*> row) const;
 	bool feedMegagroupLastParticipants();
 
+	not_null<Window::Controller*> _window;
 	not_null<ChannelData*> _channel;
 	Role _role = Role::Admins;
 	int _offset = 0;
