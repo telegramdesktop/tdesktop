@@ -191,13 +191,15 @@ rpl::producer<int> MembersCountValue(
 rpl::producer<int> SharedMediaCountValue(
 		not_null<PeerData*> peer,
 		Storage::SharedMediaType type) {
-	auto initial = peer->migrateFrom() ? peer->migrateFrom() : peer;
-	auto migrated = initial->migrateTo();
+	auto real = peer->migrateTo() ? peer->migrateTo() : peer;
+	auto migrated = real->migrateFrom()
+		? real->migrateFrom()
+		: nullptr;
 	auto aroundId = 0;
 	auto limit = 0;
 	auto updated = SharedMediaMergedViewer(
 		SharedMediaMergedSlice::Key(
-			peer->id,
+			real->id,
 			migrated ? migrated->id : 0,
 			type,
 			aroundId),

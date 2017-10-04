@@ -22,6 +22,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "ui/rp_widget.h"
 #include "info/media/info_media_widget.h"
+#include "history/history_shared_media.h"
+
+namespace Overview {
+namespace Layout {
+class ItemBase;
+} // namespace Layout
+} // namespace Overview
 
 namespace Window {
 class Controller;
@@ -49,10 +56,50 @@ public:
 		return _type;
 	}
 
+	~ListWidget();
+
+protected:
+	int resizeGetHeight(int newWidth) override;
+	void paintEvent(QPaintEvent *e) override;
+
 private:
+	using ItemBase = Overview::Layout::ItemBase;
+
+	int recountHeight();
+
+	void refreshViewer();
+	void invalidatePaletteCache();
+	void refreshRows();
+	int countIdsLimit() const;
+	SharedMediaMergedSlice::Key sliceKey() const;
+	ItemBase *getLayout(const FullMsgId &itemId);
+	std::unique_ptr<ItemBase> createLayout(
+		const FullMsgId &itemId,
+		Type type);
+
+	void markLayoutsStale();
+	void clearStaleLayouts();
+
 	not_null<Window::Controller*> _controller;
 	not_null<PeerData*> _peer;
 	Type _type = Type::Photo;
+
+	MsgId _universalAroundId = ServerMaxMsgId - 1;
+	SharedMediaMergedSlice _slice;
+
+	struct CachedItem {
+		CachedItem(std::unique_ptr<ItemBase> item);
+		~CachedItem();
+
+		std::unique_ptr<ItemBase> item;
+		bool stale = false;
+	};
+	std::map<FullMsgId, CachedItem> _layouts;
+
+	class Section;
+	std::vector<Section> _sections;
+
+	rpl::lifetime _viewerLifetime;
 
 };
 

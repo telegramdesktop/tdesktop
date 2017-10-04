@@ -32,6 +32,8 @@ InfoToggle {
 	rippleAreaPadding: pixels;
 }
 
+infoMediaHeaderFg: windowFg;
+
 infoToggleCheckbox: Checkbox(defaultCheckbox) {
 	margin: margins(0px, 0px, 0px, 0px);
 	rippleBgActive: windowBgOver;
@@ -113,7 +115,7 @@ infoLayerTopBar: InfoTopBar {
 	bg: boxBg;
 }
 
-infoMinimalWidth: 320px;
+infoMinimalWidth: 324px;
 infoDesiredWidth: 360px;
 infoMinimalLayerMargin: 48px;
 
@@ -342,3 +344,11 @@ infoMembersCancelSearch: CrossButton {
 	}
 }
 infoMembersSearchTop: 15px;
+
+infoMediaHeaderStyle: TextStyle(semiboldTextStyle) {
+}
+infoMediaHeaderHeight: 28px;
+infoMediaHeaderPosition: point(14px, 6px);
+infoMediaSkip: 6px;
+infoMediaMargin: margins(0px, 6px, 0px, 2px);
+infoMediaMinGridSize: minPhotoSize;

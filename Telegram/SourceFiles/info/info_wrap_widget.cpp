@@ -79,6 +79,9 @@ void WrapWidget::createTabs() {
 	sections.push_back(lang(lng_profile_info_section).toUpper());
 	sections.push_back(lang(lng_info_tab_media).toUpper());
 	_topTabs->setSections(sections);
+	_topTabs->setActiveSection(static_cast<int>(_tab));
+	_topTabs->finishAnimating();
+
 	_topTabs->sectionActivated()
 		| rpl::map([](int index) { return static_cast<Tab>(index); })
 		| rpl::start_with_next(
@@ -111,6 +114,9 @@ void WrapWidget::forceContentRepaint() {
 }
 
 void WrapWidget::showTab(Tab tab) {
+	if (_tab == tab) {
+		return;
+	}
 	Expects(_content != nullptr);
 	auto direction = (tab > _tab)
 		? SlideDirection::FromRight
@@ -132,6 +138,7 @@ void WrapWidget::showTab(Tab tab) {
 	showAnimated(direction, animationParams);
 
 	_anotherTabMemento = std::move(newAnotherMemento);
+	_tab = tab;
 }
 
 void WrapWidget::setupTabbedTop(const Section &section) {
@@ -241,7 +248,6 @@ void WrapWidget::finishShowContent() {
 	_topShadow->finishAnimating();
 	if (_topTabs) {
 		_topTabs->raise();
-		_topTabs->finishAnimating();
 	}
 }
 

@@ -69,13 +69,13 @@ public:
 	ItemBase(HistoryItem *parent) : _parent(parent) {
 	}
 
-	ItemBase *toMediaItem() override {
+	ItemBase *toMediaItem() final override {
 		return this;
 	}
-	const ItemBase *toMediaItem() const override {
+	const ItemBase *toMediaItem() const final override {
 		return this;
 	}
-	HistoryItem *getItem() const override {
+	HistoryItem *getItem() const final override {
 		return _parent;
 	}
 

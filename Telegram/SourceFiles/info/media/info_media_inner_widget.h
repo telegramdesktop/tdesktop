@@ -78,6 +78,7 @@ private:
 
 	Ui::SettingsSlider *_otherTabs = nullptr;
 	object_ptr<Ui::VerticalLayout> _otherTypes = { nullptr };
+	object_ptr<Ui::PlainShadow> _otherTabsShadow = { nullptr };
 	object_ptr<ListWidget> _list = { nullptr };
 
 	int _visibleTop = 0;

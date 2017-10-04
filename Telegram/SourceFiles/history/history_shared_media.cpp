@@ -510,9 +510,9 @@ SharedMediaMergedSlice::SharedMediaMergedSlice(
 	Key key,
 	SharedMediaSlice part,
 	base::optional<SharedMediaSlice> migrated)
-	: _key(key)
-	, _part(std::move(part))
-	, _migrated(std::move(migrated)) {
+: _key(key)
+, _part(std::move(part))
+, _migrated(std::move(migrated)) {
 }
 
 base::optional<int> SharedMediaMergedSlice::fullCount() const {

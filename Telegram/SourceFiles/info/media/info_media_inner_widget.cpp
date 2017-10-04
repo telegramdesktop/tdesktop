@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_icon.h"
 #include "ui/widgets/discrete_sliders.h"
+#include "ui/widgets/shadow.h"
 #include "ui/wrap/vertical_layout.h"
 #include "styles/style_info.h"
 #include "lang/lang_keys.h"
@@ -82,8 +83,12 @@ void InnerWidget::setupOtherTypes(rpl::producer<Wrap> &&wrap) {
 }
 
 void InnerWidget::createOtherTypes() {
+	_otherTabsShadow.create(this);
+	_otherTabsShadow->show();
+
 	_otherTabs = nullptr;
 	_otherTypes.create(this);
+	_otherTypes->show();
 
 	createTypeButtons();
 	_otherTypes->add(object_ptr<BoxContentDivider>(_otherTypes));
@@ -157,6 +162,9 @@ void InnerWidget::createTabs() {
 	sections.push_back(lang(lng_media_type_videos).toUpper());
 	sections.push_back(lang(lng_media_type_files).toUpper());
 	_otherTabs->setSections(sections);
+	_otherTabs->setActiveSection(*TypeToTabIndex(type()));
+	_otherTabs->finishAnimating();
+
 	_otherTabs->sectionActivated()
 		| rpl::map([](int index) { return TabIndexToType(index); })
 		| rpl::start_with_next(
@@ -204,7 +212,14 @@ void InnerWidget::switchToTab(Memento &&memento) {
 	auto type = memento.section().mediaType();
 	_list = setupList(controller(), peer(), type);
 	restoreState(&memento);
-	_otherTabs->setActiveSection(*TypeToTabIndex(type));
+	_list->show();
+	_list->resizeToWidth(width());
+	refreshHeight();
+	if (_otherTypes) {
+		_otherTabsShadow->raise();
+		_otherTypes->raise();
+		_otherTabs->setActiveSection(*TypeToTabIndex(type));
+	}
 }
 
 not_null<Window::Controller*> InnerWidget::controller() const {
@@ -239,6 +254,7 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 
 	if (_otherTypes) {
 		_otherTypes->resizeToWidth(newWidth);
+		_otherTabsShadow->resizeToWidth(newWidth);
 	}
 	_list->resizeToWidth(newWidth);
 	return recountHeight();
@@ -255,7 +271,8 @@ int InnerWidget::recountHeight() {
 	auto top = 0;
 	if (_otherTypes) {
 		_otherTypes->moveToLeft(0, top);
-		top += _otherTypes->heightNoMargins();
+		top += _otherTypes->heightNoMargins() - st::lineWidth;
+		_otherTabsShadow->moveToLeft(0, top);
 	}
 	if (_list) {
 		_list->moveToLeft(0, top);
