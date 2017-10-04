@@ -23,65 +23,36 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/rp_widget.h"
 #include "info/media/info_media_widget.h"
 
-namespace Ui {
-class SettingsSlider;
-class VerticalLayout;
-} // namespace Ui
+namespace Window {
+class Controller;
+} // namespace Window
 
 namespace Info {
 namespace Media {
 
-class Memento;
-class ListWidget;
-
-class InnerWidget final : public Ui::RpWidget {
+class ListWidget : public Ui::RpWidget {
 public:
 	using Type = Widget::Type;
-	InnerWidget(
+	ListWidget(
 		QWidget *parent,
-		rpl::producer<Wrap> &&wrap,
 		not_null<Window::Controller*> controller,
 		not_null<PeerData*> peer,
 		Type type);
 
-	not_null<PeerData*> peer() const;
-	Type type() const;
-
-	bool showInternal(not_null<Memento*> memento);
-
-	void saveState(not_null<Memento*> memento);
-	void restoreState(not_null<Memento*> memento);
-
-protected:
-	int resizeGetHeight(int newWidth) override;
-	void visibleTopBottomUpdated(
-		int visibleTop,
-		int visibleBottom) override;
+	not_null<Window::Controller*> controller() const {
+		return _controller;
+	}
+	not_null<PeerData*> peer() const {
+		return _peer;
+	}
+	Type type() const {
+		return _type;
+	}
 
 private:
-	int recountHeight();
-	void refreshHeight();
-	void setupOtherTypes(rpl::producer<Wrap> &&wrap);
-	void createOtherTypes();
-	void createTypeButtons();
-	void createTabs();
-	void switchToTab(Memento &&memento);
-
-	not_null<Window::Controller*> controller() const;
-
-	object_ptr<ListWidget> setupList(
-		not_null<Window::Controller*> controller,
-		not_null<PeerData*> peer,
-		Type type);
-
-	bool _inResize = false;
-
-	Ui::SettingsSlider *_otherTabs = nullptr;
-	object_ptr<Ui::VerticalLayout> _otherTypes = { nullptr };
-	object_ptr<ListWidget> _list = { nullptr };
-
-	int _visibleTop = 0;
-	int _visibleBottom = 0;
+	not_null<Window::Controller*> _controller;
+	not_null<PeerData*> _peer;
+	Type _type = Type::Photo;
 
 };
 

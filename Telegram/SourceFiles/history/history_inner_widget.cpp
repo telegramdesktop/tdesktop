@@ -1579,7 +1579,7 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-void HistoryInner::recountHeight() {
+void HistoryInner::recountHistoryGeometry() {
 	int visibleHeight = _scroll->height();
 	int oldHistoryPaddingTop = qMax(visibleHeight - historyHeight() - st::historyPaddingBottom, 0);
 	if (_botAbout && !_botAbout->info->text.isEmpty()) {

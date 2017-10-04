@@ -4785,7 +4785,7 @@ int HistoryWidget::countAutomaticScrollTop() {
 void HistoryWidget::updateHistoryGeometry(bool initial, bool loadedDown, const ScrollChange &change) {
 	if (!_history || (initial && _historyInited) || (!initial && !_historyInited)) return;
 	if (_firstLoadRequest || _a_show.animating()) {
-		return; // scrollTopMax etc are not working after recountHeight()
+		return; // scrollTopMax etc are not working after recountHistoryGeometry()
 	}
 
 	auto newScrollHeight = height() - _topBar->height();
@@ -4868,7 +4868,7 @@ void HistoryWidget::updateHistoryGeometry(bool initial, bool loadedDown, const S
 }
 
 void HistoryWidget::updateListSize() {
-	_list->recountHeight();
+	_list->recountHistoryGeometry();
 	auto washidden = _scroll->isHidden();
 	if (washidden) {
 		_scroll->show();

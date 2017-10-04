@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "ui/wrap/slide_wrap.h"
 
+#include <rpl/combine.h>
+
 namespace Ui {
 
 SlideWrap<RpWidget>::SlideWrap(
@@ -142,6 +144,19 @@ void SlideWrap<RpWidget>::wrappedSizeUpdated(QSize size) {
 	} else if (_toggled) {
 		resize(size);
 	}
+}
+
+rpl::producer<bool> MultiSlideTracker::atLeastOneShownValue() const {
+	auto shown = std::vector<rpl::producer<bool>>();
+	shown.reserve(_widgets.size());
+	for (auto &widget : _widgets) {
+		shown.push_back(widget->toggledValue());
+	}
+	return rpl::combine(
+		std::move(shown),
+		[](const std::vector<bool> &values) {
+			return base::find(values, true) != values.end();
+		});
 }
 
 } // namespace Ui

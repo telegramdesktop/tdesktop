@@ -173,9 +173,15 @@ infoIconMembers: icon {{ "info_members", infoIconFg }};
 infoIconNotifications: icon {{ "info_notifications", infoIconFg }};
 infoIconActions: icon {{ "info_actions", infoIconFg }};
 infoIconMediaPhoto: icon {{ "info_media_photo", infoIconFg }};
+infoIconMediaAudio: icon {{ "info_media_audio", infoIconFg }};
+infoIconMediaLink: icon {{ "info_media_link", infoIconFg }};
+infoIconMediaGroup: icon {{ "info_common_groups", infoIconFg }};
+infoIconMediaVoice: icon {{ "info_media_voice", infoIconFg }};
+infoIconMediaRound: icon {{ "info_media_round", infoIconFg }};
 infoInformationIconPosition: point(25px, 12px);
 infoNotificationsIconPosition: point(20px, 5px);
 infoSharedMediaIconPosition: point(20px, 24px);
+infoSharedMediaButtonIconPosition: point(20px, 3px);
 infoIconPosition: point(20px, 15px);
 
 infoLabeledOneLine: FlatLabel(defaultFlatLabel) {

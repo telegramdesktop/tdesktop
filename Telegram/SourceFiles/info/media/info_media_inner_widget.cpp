@@ -20,28 +20,160 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "info/media/info_media_inner_widget.h"
 
-#include "ui/widgets/labels.h"
+#include "boxes/abstract_box.h"
+#include "info/media/info_media_list_widget.h"
+#include "info/media/info_media_buttons.h"
+#include "info/profile/info_profile_button.h"
+#include "info/profile/info_profile_icon.h"
+#include "ui/widgets/discrete_sliders.h"
+#include "ui/wrap/vertical_layout.h"
+#include "styles/style_info.h"
+#include "lang/lang_keys.h"
 
 namespace Info {
 namespace Media {
+namespace {
+
+using Type = InnerWidget::Type;
+
+base::optional<int> TypeToTabIndex(Type type) {
+	switch (type) {
+	case Type::Photo: return 0;
+	case Type::Video: return 1;
+	case Type::File: return 2;
+	}
+	return base::none;
+}
+
+Type TabIndexToType(int index) {
+	switch (index) {
+	case 0: return Type::Photo;
+	case 1: return Type::Video;
+	case 2: return Type::File;
+	}
+	Unexpected("Index in Info::Media::TabIndexToType()");
+}
+
+} // namespace
 
 InnerWidget::InnerWidget(
 	QWidget *parent,
+	rpl::producer<Wrap> &&wrap,
+	not_null<Window::Controller*> controller,
 	not_null<PeerData*> peer,
 	Type type)
-: RpWidget(parent)
-, _peer(peer)
-, _type(type) {
-	auto text = qsl("Media Overview\n\n");
-	auto label = object_ptr<Ui::FlatLabel>(this);
-	label->setText(text.repeated(50));
-	widthValue() | rpl::start_with_next([inner = label.data()](int w) {
-		inner->resizeToWidth(w);
-	}, lifetime());
-	label->heightValue() | rpl::start_with_next([this](int h) {
-		_rowsHeightFake = h;
-		resizeToWidth(width());
-	}, lifetime());
+: RpWidget(parent) {
+	_list = setupList(controller, peer, type);
+	setupOtherTypes(std::move(wrap));
+}
+
+void InnerWidget::setupOtherTypes(rpl::producer<Wrap> &&wrap) {
+	std::move(wrap)
+		| rpl::start_with_next([this](Wrap value) {
+			if (value == Wrap::Side
+				&& TypeToTabIndex(type())) {
+				createOtherTypes();
+			} else {
+				_otherTabs = nullptr;
+				_otherTypes.destroy();
+				refreshHeight();
+			}
+		}, lifetime());
+}
+
+void InnerWidget::createOtherTypes() {
+	_otherTabs = nullptr;
+	_otherTypes.create(this);
+
+	createTypeButtons();
+	_otherTypes->add(object_ptr<BoxContentDivider>(_otherTypes));
+	createTabs();
+
+	_otherTypes->heightValue()
+		| rpl::start_with_next(
+			[this] { refreshHeight(); },
+			_otherTypes->lifetime());
+}
+
+void InnerWidget::createTypeButtons() {
+	auto wrap = _otherTypes->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		_otherTypes,
+		object_ptr<Ui::VerticalLayout>(_otherTypes)));
+	auto content = wrap->entity();
+	content->add(object_ptr<Ui::FixedHeightWidget>(
+		content,
+		st::infoProfileSkip));
+
+	auto tracker = Ui::MultiSlideTracker();
+	auto addMediaButton = [&](
+			Type type,
+			const style::icon &icon) {
+		auto result = AddButton(
+			content,
+			controller(),
+			peer(),
+			type,
+			tracker);
+		object_ptr<Profile::FloatingIcon>(
+			result,
+			icon,
+			st::infoSharedMediaButtonIconPosition);
+	};
+	auto addCommonGroupsButton = [&](
+			not_null<UserData*> user,
+			const style::icon &icon) {
+		auto result = AddCommonGroupsButton(
+			content,
+			controller(),
+			user,
+			tracker);
+		object_ptr<Profile::FloatingIcon>(
+			result,
+			icon,
+			st::infoSharedMediaButtonIconPosition);
+	};
+
+	addMediaButton(Type::MusicFile, st::infoIconMediaAudio);
+	addMediaButton(Type::Link, st::infoIconMediaLink);
+	if (auto user = peer()->asUser()) {
+		addCommonGroupsButton(user, st::infoIconMediaGroup);
+	}
+	addMediaButton(Type::VoiceFile, st::infoIconMediaVoice);
+	addMediaButton(Type::RoundFile, st::infoIconMediaRound);
+
+	content->add(object_ptr<Ui::FixedHeightWidget>(
+		content,
+		st::infoProfileSkip));
+	wrap->toggleOn(tracker.atLeastOneShownValue());
+	wrap->finishAnimating();
+}
+
+void InnerWidget::createTabs() {
+	_otherTabs = _otherTypes->add(object_ptr<Ui::SettingsSlider>(
+		this,
+		st::infoTabs));
+	auto sections = QStringList();
+	sections.push_back(lang(lng_media_type_photos).toUpper());
+	sections.push_back(lang(lng_media_type_videos).toUpper());
+	sections.push_back(lang(lng_media_type_files).toUpper());
+	_otherTabs->setSections(sections);
+	_otherTabs->sectionActivated()
+		| rpl::map([](int index) { return TabIndexToType(index); })
+		| rpl::start_with_next(
+			[this](Type type) {
+				if (_list->type() != type) {
+					switchToTab(Memento(peer()->id, type));
+				}
+			},
+			_otherTabs->lifetime());
+}
+
+not_null<PeerData*> InnerWidget::peer() const {
+	return _list->peer();
+}
+
+Type InnerWidget::type() const {
+	return _list->type();
 }
 
 void InnerWidget::visibleTopBottomUpdated(
@@ -51,6 +183,50 @@ void InnerWidget::visibleTopBottomUpdated(
 	_visibleBottom = visibleBottom;
 }
 
+bool InnerWidget::showInternal(not_null<Memento*> memento) {
+	if (memento->peerId() != peer()->id) {
+		return false;
+	}
+	auto mementoType = memento->section().mediaType();
+	if (mementoType == type()) {
+		restoreState(memento);
+		return true;
+	} else if (_otherTypes) {
+		if (TypeToTabIndex(mementoType)) {
+			switchToTab(std::move(*memento));
+			return true;
+		}
+	}
+	return false;
+}
+
+void InnerWidget::switchToTab(Memento &&memento) {
+	auto type = memento.section().mediaType();
+	_list = setupList(controller(), peer(), type);
+	restoreState(&memento);
+	_otherTabs->setActiveSection(*TypeToTabIndex(type));
+}
+
+not_null<Window::Controller*> InnerWidget::controller() const {
+	return _list->controller();
+}
+
+object_ptr<ListWidget> InnerWidget::setupList(
+		not_null<Window::Controller*> controller,
+		not_null<PeerData*> peer,
+		Type type) {
+	auto result = object_ptr<ListWidget>(
+		this,
+		controller,
+		peer,
+		type);
+	result->heightValue()
+		| rpl::start_with_next(
+			[this] { refreshHeight(); },
+			result->lifetime());
+	return result;
+}
+
 void InnerWidget::saveState(not_null<Memento*> memento) {
 }
 
@@ -58,7 +234,34 @@ void InnerWidget::restoreState(not_null<Memento*> memento) {
 }
 
 int InnerWidget::resizeGetHeight(int newWidth) {
-	return _rowsHeightFake;
+	_inResize = true;
+	auto guard = gsl::finally([this] { _inResize = false; });
+
+	if (_otherTypes) {
+		_otherTypes->resizeToWidth(newWidth);
+	}
+	_list->resizeToWidth(newWidth);
+	return recountHeight();
+}
+
+void InnerWidget::refreshHeight() {
+	if (_inResize) {
+		return;
+	}
+	resize(width(), recountHeight());
+}
+
+int InnerWidget::recountHeight() {
+	auto top = 0;
+	if (_otherTypes) {
+		_otherTypes->moveToLeft(0, top);
+		top += _otherTypes->heightNoMargins();
+	}
+	if (_list) {
+		_list->moveToLeft(0, top);
+		top += _list->heightNoMargins();
+	}
+	return top;
 }
 
 } // namespace Media

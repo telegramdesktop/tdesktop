@@ -240,18 +240,5 @@ rpl::producer<bool> CanAddMemberValue(
 	return rpl::single(false);
 }
 
-rpl::producer<bool> MultiLineTracker::atLeastOneShownValue() const {
-	auto shown = std::vector<rpl::producer<bool>>();
-	shown.reserve(_widgets.size());
-	for (auto &widget : _widgets) {
-		shown.push_back(widget->toggledValue());
-	}
-	return rpl::combine(
-		std::move(shown),
-		[](const std::vector<bool> &values) {
-			return base::find(values, true) != values.end();
-		});
-}
-
 } // namespace Profile
 } // namespace Info

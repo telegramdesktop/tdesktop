@@ -77,19 +77,5 @@ rpl::producer<int> CommonGroupsCountValue(
 rpl::producer<bool> CanAddMemberValue(
 	not_null<PeerData*> peer);
 
-class MultiLineTracker {
-public:
-	template <typename Widget>
-	void track(const Ui::SlideWrap<Widget> *wrap) {
-		_widgets.push_back(wrap);
-	}
-
-	rpl::producer<bool> atLeastOneShownValue() const;
-
-private:
-	std::vector<const Ui::SlideWrap<Ui::RpWidget>*> _widgets;
-
-};
-
 } // namespace Profile
 } // namespace Info

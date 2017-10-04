@@ -30,6 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_cover.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_members.h"
+#include "info/media/info_media_buttons.h"
 #include "boxes/abstract_box.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
@@ -151,7 +152,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupDetails(
 object_ptr<Ui::RpWidget> InnerWidget::setupInfo(
 		RpWidget *parent) const {
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
-	auto tracker = MultiLineTracker();
+	auto tracker = Ui::MultiSlideTracker();
 	auto addInfoLine = [&](
 			LangKey label,
 			rpl::producer<TextWithEntities> &&text,
@@ -222,7 +223,7 @@ void InnerWidget::setupUserButtons(
 		Ui::VerticalLayout *wrap,
 		not_null<UserData*> user) const {
 	using namespace rpl::mappers;
-	auto tracker = MultiLineTracker();
+	auto tracker = Ui::MultiSlideTracker();
 	auto topSkip = wrap->add(createSlideSkipWidget(wrap));
 	auto addButton = [&](auto &&text) {
 		auto result = wrap->add(object_ptr<Ui::SlideWrap<Button>>(
@@ -264,67 +265,26 @@ void InnerWidget::setupUserButtons(
 object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 		RpWidget *parent) {
 	using namespace rpl::mappers;
+	using MediaType = Media::Type;
 
 	auto content = object_ptr<Ui::VerticalLayout>(parent);
-	auto tracker = MultiLineTracker();
-	auto addButton = [&](
-			auto &&count,
-			auto textFromCount) {
-		auto forked = std::move(count)
-			| start_spawning(content->lifetime());
-		auto button = content->add(object_ptr<Ui::SlideWrap<Button>>(
-			content,
-			object_ptr<Button>(
-				content,
-				rpl::duplicate(forked)
-					| rpl::map([textFromCount](int count) {
-						return (count > 0)
-							? textFromCount(count)
-							: QString();
-					}),
-				st::infoSharedMediaButton))
-		)->toggleOn(
-			rpl::duplicate(forked)
-				| rpl::map($1 > 0));
-		tracker.track(button);
-		return button;
-	};
-	using MediaType = Storage::SharedMediaType;
-	auto mediaText = [](MediaType type) {
-		switch (type) {
-		case MediaType::Photo: return lng_profile_photos;
-		case MediaType::Video: return lng_profile_videos;
-		case MediaType::File: return lng_profile_files;
-		case MediaType::MusicFile: return lng_profile_songs;
-		case MediaType::Link: return lng_profile_shared_links;
-		case MediaType::VoiceFile: return lng_profile_audios;
-		case MediaType::RoundFile: return lng_profile_rounds;
-		}
-		Unexpected("Type in setupSharedMedia()");
-	};
+	auto tracker = Ui::MultiSlideTracker();
 	auto addMediaButton = [&](MediaType type) {
-		return addButton(
-			SharedMediaCountValue(_peer, type),
-			[phrase = mediaText(type)](int count) {
-				return phrase(lt_count, count);
-			}
-		)->entity()->addClickHandler([this, peer = _peer, type] {
-			_controller->showSection(
-				Info::Memento(peer->id, Section(type)));
-		});
+		return Media::AddButton(
+			content,
+			_controller,
+			peer(),
+			type,
+			tracker);
 	};
 	auto addCommonGroupsButton = [&](not_null<UserData*> user) {
-		return addButton(
-			CommonGroupsCountValue(user),
-			[](int count) {
-				return lng_profile_common_groups(lt_count, count);
-			}
-		)->entity()->addClickHandler([this, peer = _peer] {
-			_controller->showSection(
-				::Profile::CommonGroups::SectionMemento(
-					peer->asUser()));
-		});
+		return Media::AddCommonGroupsButton(
+			content,
+			_controller,
+			user,
+			tracker);
 	};
+
 	addMediaButton(MediaType::Photo);
 	addMediaButton(MediaType::Video);
 	addMediaButton(MediaType::File);
@@ -343,8 +303,9 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 	result->toggleOn(tracker.atLeastOneShownValue());
 	auto layout = result->entity();
 
-	layout->add(object_ptr<BoxContentDivider>(result));
-	_sharedMediaCover = layout->add(object_ptr<SharedMediaCover>(layout));
+	layout->add(object_ptr<BoxContentDivider>(layout));
+	_sharedMediaCover = layout->add(
+		object_ptr<SharedMediaCover>(layout));
 	if (canHideDetailsEver()) {
 		_sharedMediaCover->setToggleShown(canHideDetails());
 		_sharedMediaWrap = layout->add(object_ptr<Ui::SlideWrap<>>(

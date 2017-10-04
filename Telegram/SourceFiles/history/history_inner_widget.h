@@ -47,7 +47,7 @@ public:
 	void touchScrollUpdated(const QPoint &screenPos);
 	QPoint mapPointToItem(QPoint p, HistoryItem *item);
 
-	void recountHeight();
+	void recountHistoryGeometry();
 	void updateSize();
 
 	void repaintItem(const HistoryItem *item);

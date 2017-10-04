@@ -47,8 +47,13 @@ Widget::Widget(
 	not_null<Window::Controller*> controller,
 	not_null<PeerData*> peer,
 	Type type)
-: ContentWidget(parent, std::move(wrap), controller, peer) {
-	_inner = setInnerWidget(object_ptr<InnerWidget>(this, peer, type));
+: ContentWidget(parent, rpl::duplicate(wrap), controller, peer) {
+	_inner = setInnerWidget(object_ptr<InnerWidget>(
+		this,
+		std::move(wrap),
+		controller,
+		peer,
+		type));
 }
 
 Section Widget::section() const {
@@ -61,8 +66,7 @@ Widget::Type Widget::type() const {
 
 bool Widget::showInternal(not_null<ContentMemento*> memento) {
 	if (auto mediaMemento = dynamic_cast<Memento*>(memento.get())) {
-		if (mediaMemento->peerId() == peer()->id) {
-			restoreState(mediaMemento);
+		if (_inner->showInternal(mediaMemento)) {
 			return true;
 		}
 	}
