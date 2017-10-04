@@ -108,6 +108,7 @@ public:
 		const Window::SectionSlideParams &params) override;
 	void showAnimatedHook(
 		const Window::SectionSlideParams &params) override;
+	void forceContentRepaint();
 
 	bool showInternal(
 		not_null<Window::SectionMemento*> memento,

@@ -76,8 +76,8 @@ void WrapWidget::setWrap(Wrap wrap) {
 void WrapWidget::createTabs() {
 	_topTabs.create(this, st::infoTabs);
 	auto sections = QStringList();
-	sections.push_back(lang(lng_profile_info_section));
-	sections.push_back(lang(lng_info_tab_media));
+	sections.push_back(lang(lng_profile_info_section).toUpper());
+	sections.push_back(lang(lng_info_tab_media).toUpper());
 	_topTabs->setSections(sections);
 	_topTabs->sectionActivated()
 		| rpl::map([](int index) { return static_cast<Tab>(index); })
@@ -90,12 +90,24 @@ void WrapWidget::createTabs() {
 	_topTabs->show();
 
 	_topTabsBackground.create(this, st::profileBg);
+	_topTabsBackground->setAttribute(Qt::WA_OpaquePaintEvent);
 
 	_topTabsBackground->move(0, 0);
 	_topTabsBackground->resize(
 		width(),
 		_topTabs->height() - st::lineWidth);
 	_topTabsBackground->show();
+}
+
+void WrapWidget::forceContentRepaint() {
+	// WA_OpaquePaintEvent on TopBar creates render glitches when
+	// animating the LayerWidget's height :( Fixing by repainting.
+	if (_topTabs) {
+		_topTabsBackground->update();
+	} else if (_topBar) {
+		_topBar->update();
+	}
+	_content->update();
 }
 
 void WrapWidget::showTab(Tab tab) {
