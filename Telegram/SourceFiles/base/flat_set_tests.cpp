@@ -29,6 +29,8 @@ TEST_CASE("flat_sets should keep items sorted", "[flat_set]") {
 	v.insert(4);
 	v.insert(2);
 
+	REQUIRE(v.contains(4));
+
 	auto checkSorted = [&] {
 		auto prev = v.begin();
 		REQUIRE(prev != v.end());

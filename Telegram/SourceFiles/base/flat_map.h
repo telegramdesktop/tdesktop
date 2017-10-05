@@ -26,15 +26,22 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace base {
 
-template <typename Key, typename Type>
+template <
+	typename Key,
+	typename Type,
+	typename Compare = std::less<>>
 class flat_map;
 
-template <typename Key, typename Type>
+template <
+	typename Key,
+	typename Type,
+	typename Compare = std::less<>>
 class flat_multi_map;
 
 template <
 	typename Key,
 	typename Type,
+	typename Compare,
 	typename iterator_impl,
 	typename pointer_impl,
 	typename reference_impl>
@@ -43,6 +50,7 @@ class flat_multi_map_iterator_base_impl;
 template <
 	typename Key,
 	typename Type,
+	typename Compare,
 	typename iterator_impl,
 	typename pointer_impl,
 	typename reference_impl>
@@ -50,12 +58,12 @@ class flat_multi_map_iterator_base_impl {
 public:
 	using iterator_category = typename iterator_impl::iterator_category;
 
-	using value_type = typename flat_multi_map<Key, Type>::value_type;
+	using value_type = typename flat_multi_map<Key, Type, Compare>::value_type;
 	using difference_type = typename iterator_impl::difference_type;
 	using pointer = pointer_impl;
-	using const_pointer = typename flat_multi_map<Key, Type>::const_pointer;
+	using const_pointer = typename flat_multi_map<Key, Type, Compare>::const_pointer;
 	using reference = reference_impl;
-	using const_reference = typename flat_multi_map<Key, Type>::const_reference;
+	using const_reference = typename flat_multi_map<Key, Type, Compare>::const_reference;
 
 	flat_multi_map_iterator_base_impl(iterator_impl impl = iterator_impl())
 		: _impl(impl) {
@@ -123,64 +131,129 @@ public:
 
 private:
 	iterator_impl _impl;
-	friend class flat_multi_map<Key, Type>;
+	friend class flat_multi_map<Key, Type, Compare>;
 
 };
 
-template <typename Key, typename Type>
+template <typename Key, typename Type, typename Compare>
 class flat_multi_map {
-	using self = flat_multi_map<Key, Type>;
 	class key_const_wrap {
 	public:
-		key_const_wrap(const Key &value) : _value(value) {
+		constexpr key_const_wrap(const Key &value) : _value(value) {
 		}
-		key_const_wrap(Key &&value) : _value(std::move(value)) {
+		constexpr key_const_wrap(Key &&value) : _value(std::move(value)) {
 		}
-		inline operator const Key&() const {
+		inline constexpr operator const Key&() const {
 			return _value;
-		}
-
-		friend inline bool operator<(const Key &a, const key_const_wrap &b) {
-			return a < ((const Key&)b);
-		}
-		friend inline bool operator<(const key_const_wrap &a, const Key &b) {
-			return ((const Key&)a) < b;
-		}
-		friend inline bool operator<(
-				const key_const_wrap &a,
-				const key_const_wrap &b) {
-			return ((const Key&)a) < ((const Key&)b);
 		}
 
 	private:
 		Key _value;
 
 	};
-
 	using pair_type = std::pair<key_const_wrap, Type>;
+
+	class compare {
+	public:
+		template <
+			typename OtherType1,
+			typename OtherType2,
+			typename = std::enable_if_t<
+				!std::is_same_v<std::decay_t<OtherType1>, key_const_wrap> &&
+				!std::is_same_v<std::decay_t<OtherType1>, pair_type> &&
+				!std::is_same_v<std::decay_t<OtherType2>, key_const_wrap> &&
+				!std::is_same_v<std::decay_t<OtherType2>, pair_type>>>
+		inline constexpr auto operator()(
+				OtherType1 &&a,
+				OtherType2 &b) const {
+			return Compare()(
+				std::forward<OtherType1>(a),
+				std::forward<OtherType2>(b));
+		}
+		inline constexpr auto operator()(
+				const key_const_wrap &a,
+				const key_const_wrap &b) const {
+			return operator()(
+				static_cast<const Key&>(a),
+				static_cast<const Key&>(b));
+		}
+		template <
+			typename OtherType,
+			typename = std::enable_if_t<
+				!std::is_same_v<std::decay_t<OtherType>, key_const_wrap> &&
+				!std::is_same_v<std::decay_t<OtherType>, pair_type>>>
+		inline constexpr auto operator()(
+				const key_const_wrap &a,
+				OtherType &&b) const {
+			return operator()(
+				static_cast<const Key&>(a),
+				std::forward<OtherType>(b));
+		}
+		template <
+			typename OtherType,
+			typename = std::enable_if_t<
+				!std::is_same_v<std::decay_t<OtherType>, key_const_wrap> &&
+				!std::is_same_v<std::decay_t<OtherType>, pair_type>>>
+		inline constexpr auto operator()(
+				OtherType &&a,
+				const key_const_wrap &b) const {
+			return operator()(
+				std::forward<OtherType>(a),
+				static_cast<const Key&>(b));
+		}
+		inline constexpr auto operator()(
+				const pair_type &a,
+				const pair_type &b) const {
+			return operator()(a.first, b.first);
+		}
+		template <
+			typename OtherType,
+			typename = std::enable_if_t<
+				!std::is_same_v<std::decay_t<OtherType>, pair_type>>>
+		inline constexpr auto operator()(
+				const pair_type &a,
+				OtherType &&b) const {
+			return operator()(a.first, std::forward<OtherType>(b));
+		}
+		template <
+			typename OtherType,
+			typename = std::enable_if_t<
+				!std::is_same_v<std::decay_t<OtherType>, pair_type>>>
+		inline constexpr auto operator()(
+				OtherType &&a,
+				const pair_type &b) const {
+			return operator()(std::forward<OtherType>(a), b.first);
+		}
+
+	};
+
 	using impl = std::deque<pair_type>;
 
 	using iterator_base = flat_multi_map_iterator_base_impl<
 		Key,
 		Type,
+		Compare,
 		typename impl::iterator,
 		pair_type*,
 		pair_type&>;
 	using const_iterator_base = flat_multi_map_iterator_base_impl<
 		Key,
 		Type,
+		Compare,
 		typename impl::const_iterator,
 		const pair_type*,
 		const pair_type&>;
 	using reverse_iterator_base = flat_multi_map_iterator_base_impl<
 		Key,
 		Type,
+		Compare,
 		typename impl::reverse_iterator,
 		pair_type*,
 		pair_type&>;
 	using const_reverse_iterator_base = flat_multi_map_iterator_base_impl<
 		Key,
 		Type,
+		Compare,
 		typename impl::const_reverse_iterator,
 		const pair_type*,
 		const pair_type&>;
@@ -292,10 +365,10 @@ public:
 	}
 
 	iterator insert(const value_type &value) {
-		if (empty() || (value.first < front().first)) {
+		if (empty() || compare()(value.first, front().first)) {
 			_impl.push_front(value);
 			return begin();
-		} else if (!(value.first < back().first)) {
+		} else if (!compare()(value.first, back().first)) {
 			_impl.push_back(value);
 			return (end() - 1);
 		}
@@ -303,10 +376,10 @@ public:
 		return _impl.insert(where, value);
 	}
 	iterator insert(value_type &&value) {
-		if (empty() || (value.first < front().first)) {
+		if (empty() || compare()(value.first, front().first)) {
 			_impl.push_front(std::move(value));
 			return begin();
-		} else if (!(value.first < back().first)) {
+		} else if (!compare()(value.first, back().first)) {
 			_impl.push_back(std::move(value));
 			return (end() - 1);
 		}
@@ -319,18 +392,22 @@ public:
 	}
 
 	bool removeOne(const Key &key) {
-		if (empty() || (key < front().first) || (back().first < key)) {
+		if (empty()
+			|| compare()(key, front().first)
+			|| compare()(back().first, key)) {
 			return false;
 		}
 		auto where = getLowerBound(key);
-		if (key < where->first) {
+		if (compare()(key, where->first)) {
 			return false;
 		}
 		_impl.erase(where);
 		return true;
 	}
 	int removeAll(const Key &key) {
-		if (empty() || (key < front().first) || (back().first < key)) {
+		if (empty()
+			|| compare()(key, front().first)
+			|| compare()(back().first, key)) {
 			return 0;
 		}
 		auto range = getEqualRange(key);
@@ -349,26 +426,32 @@ public:
 	}
 
 	iterator findFirst(const Key &key) {
-		if (empty() || (key < front().first) || (back().first < key)) {
+		if (empty()
+			|| compare()(key, front().first)
+			|| compare()(back().first, key)) {
 			return end();
 		}
 		auto where = getLowerBound(key);
-		return (key < where->first) ? _impl.end() : where;
+		return compare()(key, where->first) ? _impl.end() : where;
 	}
 
 	const_iterator findFirst(const Key &key) const {
-		if (empty() || (key < front().first) || (back().first < key)) {
+		if (empty()
+			|| compare()(key, front().first)
+			|| compare()(back().first, key)) {
 			return end();
 		}
 		auto where = getLowerBound(key);
-		return (key < where->first) ? _impl.end() : where;
+		return compare()(key, where->first) ? _impl.end() : where;
 	}
 
 	bool contains(const Key &key) const {
 		return findFirst(key) != end();
 	}
 	int count(const Key &key) const {
-		if (empty() || (key < front().first) || (back().first < key)) {
+		if (empty()
+			|| compare()(key, front().first)
+			|| compare()(back().first, key)) {
 			return 0;
 		}
 		auto range = getEqualRange(key);
@@ -377,46 +460,39 @@ public:
 
 private:
 	impl _impl;
-	friend class flat_map<Key, Type>;
+	friend class flat_map<Key, Type, Compare>;
 
-	struct Comparator {
-		inline bool operator()(const pair_type &a, const Key &b) {
-			return a.first < b;
-		}
-		inline bool operator()(const Key &a, const pair_type &b) {
-			return a < b.first;
-		}
-	};
 	typename impl::iterator getLowerBound(const Key &key) {
-		return base::lower_bound(_impl, key, Comparator());
+		return base::lower_bound(_impl, key, compare());
 	}
 	typename impl::const_iterator getLowerBound(const Key &key) const {
-		return base::lower_bound(_impl, key, Comparator());
+		return base::lower_bound(_impl, key, compare());
 	}
 	typename impl::iterator getUpperBound(const Key &key) {
-		return base::upper_bound(_impl, key, Comparator());
+		return base::upper_bound(_impl, key, compare());
 	}
 	typename impl::const_iterator getUpperBound(const Key &key) const {
-		return base::upper_bound(_impl, key, Comparator());
+		return base::upper_bound(_impl, key, compare());
 	}
 	std::pair<
 		typename impl::iterator,
 		typename impl::iterator
 	> getEqualRange(const Key &key) {
-		return base::equal_range(_impl, key, Comparator());
+		return base::equal_range(_impl, key, compare());
 	}
 	std::pair<
 		typename impl::const_iterator,
 		typename impl::const_iterator
 	> getEqualRange(const Key &key) const {
-		return base::equal_range(_impl, key, Comparator());
+		return base::equal_range(_impl, key, compare());
 	}
 
 };
 
-template <typename Key, typename Type>
-class flat_map : private flat_multi_map<Key, Type> {
-	using parent = flat_multi_map<Key, Type>;
+template <typename Key, typename Type, typename Compare>
+class flat_map : private flat_multi_map<Key, Type, Compare> {
+	using parent = flat_multi_map<Key, Type, Compare>;
+	using compare = typename parent::compare;
 	using pair_type = typename parent::pair_type;
 
 public:
@@ -450,29 +526,29 @@ public:
 	using parent::contains;
 
 	iterator insert(const value_type &value) {
-		if (this->empty() || (value.first < this->front().first)) {
+		if (this->empty() || compare()(value.first, this->front().first)) {
 			this->_impl.push_front(value);
 			return this->begin();
-		} else if (this->back().first < value.first) {
+		} else if (compare()(this->back().first, value.first)) {
 			this->_impl.push_back(value);
 			return (this->end() - 1);
 		}
 		auto where = this->getLowerBound(value.first);
-		if (value.first < where->first) {
+		if (compare()(value.first, where->first)) {
 			return this->_impl.insert(where, value);
 		}
 		return this->end();
 	}
 	iterator insert(value_type &&value) {
-		if (this->empty() || (value.first < this->front().first)) {
+		if (this->empty() || compare()(value.first, this->front().first)) {
 			this->_impl.push_front(std::move(value));
 			return this->begin();
-		} else if (this->back().first < value.first) {
+		} else if (compare()(this->back().first, value.first)) {
 			this->_impl.push_back(std::move(value));
 			return (this->end() - 1);
 		}
 		auto where = this->getLowerBound(value.first);
-		if (value.first < where->first) {
+		if (compare()(value.first, where->first)) {
 			return this->_impl.insert(where, std::move(value));
 		}
 		return this->end();
@@ -494,15 +570,15 @@ public:
 	}
 
 	Type &operator[](const Key &key) {
-		if (this->empty() || (key < this->front().first)) {
+		if (this->empty() || compare()(key, this->front().first)) {
 			this->_impl.push_front({ key, Type() });
 			return this->front().second;
-		} else if (this->back().first < key) {
+		} else if (compare()(this->back().first, key)) {
 			this->_impl.push_back({ key, Type() });
 			return this->back().second;
 		}
 		auto where = this->getLowerBound(key);
-		if (key < where->first) {
+		if (compare()(key, where->first)) {
 			return this->_impl.insert(where, { key, Type() })->second;
 		}
 		return where->second;
