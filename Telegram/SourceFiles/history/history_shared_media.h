@@ -52,6 +52,7 @@ public:
 	int size() const { return _ids.size(); }
 	MsgId operator[](int index) const;
 	base::optional<int> distance(const Key &a, const Key &b) const;
+	base::optional<MsgId> nearest(MsgId msgId) const;
 
 	QString debug() const;
 
@@ -82,10 +83,10 @@ public:
 			PeerId migratedPeerId,
 			Type type,
 			UniversalMsgId universalId)
-			: peerId(peerId)
-			, migratedPeerId(migratedPeerId)
-			, type(type)
-			, universalId(universalId) {
+		: peerId(peerId)
+		, migratedPeerId(migratedPeerId)
+		, type(type)
+		, universalId(universalId) {
 		}
 
 		bool operator==(const Key &other) const {
@@ -117,6 +118,7 @@ public:
 	int size() const;
 	FullMsgId operator[](int index) const;
 	base::optional<int> distance(const Key &a, const Key &b) const;
+	base::optional<UniversalMsgId> nearest(UniversalMsgId id) const;
 
 	QString debug() const;
 

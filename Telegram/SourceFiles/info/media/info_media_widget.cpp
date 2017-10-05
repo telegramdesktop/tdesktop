@@ -54,6 +54,10 @@ Widget::Widget(
 		controller,
 		peer,
 		type));
+	_inner->scrollToRequests()
+		| rpl::start_with_next([this](int skip) {
+			scrollTo({ skip, -1 });
+		}, _inner->lifetime());
 }
 
 Section Widget::section() const {

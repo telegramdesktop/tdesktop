@@ -52,6 +52,10 @@ public:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
 
+	rpl::producer<int> scrollToRequests() const {
+		return _scrollToRequests.events();
+	}
+
 protected:
 	int resizeGetHeight(int newWidth) override;
 	void visibleTopBottomUpdated(
@@ -80,6 +84,8 @@ private:
 	object_ptr<Ui::VerticalLayout> _otherTypes = { nullptr };
 	object_ptr<Ui::PlainShadow> _otherTabsShadow = { nullptr };
 	object_ptr<ListWidget> _list = { nullptr };
+
+	rpl::event_stream<int> _scrollToRequests;
 
 };
 

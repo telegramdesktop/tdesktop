@@ -52,7 +52,7 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 				*destroyed = true;
 			});
 			{
-				make_producer<int>([=](auto &&consumer) {
+				auto alive = make_producer<int>([=](auto &&consumer) {
 					(void)destroyCaller;
 					consumer.put_next(1);
 					consumer.put_next(2);
@@ -82,7 +82,7 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 	SECTION("producer error test") {
 		auto errorGenerated = std::make_shared<bool>(false);
 		{
-			make_producer<no_value, bool>([=](auto &&consumer) {
+			auto alive = make_producer<no_value, bool>([=](auto &&consumer) {
 				consumer.put_error(true);
 				return lifetime();
 			}).start([=](no_value) {
@@ -104,14 +104,14 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 						++*lifetimeEndCount;
 					};
 				});
-				lifetimes.add(testProducer.start_copy([=](no_value) {
+				testProducer.start_copy([=](no_value) {
 				}, [=](no_error) {
 				}, [=] {
-				}));
-				lifetimes.add(std::move(testProducer).start([=](no_value) {
+				}, lifetimes);
+				std::move(testProducer).start([=](no_value) {
 				}, [=](no_error) {
 				}, [=] {
-				}));
+				}, lifetimes);
 			}
 			REQUIRE(*lifetimeEndCount == 0);
 		}
@@ -123,7 +123,7 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 		auto lifetimeEndCount = std::make_shared<int>(0);
 		auto saved = lifetime();
 		{
-			saved = make_producer<int>([=](auto &&consumer) {
+			make_producer<int>([=](auto &&consumer) {
 				auto inner = make_producer<int>([=](auto &&consumer) {
 					consumer.put_next(1);
 					consumer.put_next(2);
@@ -135,22 +135,22 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 				auto result = lifetime([=] {
 					++*lifetimeEndCount;
 				});
-				result.add(inner.start_copy([=](int value) {
+				inner.start_copy([=](int value) {
 					consumer.put_next_copy(value);
 				}, [=](no_error) {
 				}, [=] {
-				}));
-				result.add(std::move(inner).start([=](int value) {
+				}, result);
+				std::move(inner).start([=](int value) {
 					consumer.put_next_copy(value);
 				}, [=](no_error) {
 				}, [=] {
-				}));
+				}, result);
 				return result;
 			}).start([=](int value) {
 				*sum += value;
 			}, [=](no_error) {
 			}, [=] {
-			});
+			}, saved);
 		}
 		REQUIRE(*sum == 1 + 2 + 3 + 1 + 2 + 3);
 		REQUIRE(*lifetimeEndCount == 0);
@@ -161,7 +161,7 @@ TEST_CASE("basic producer tests", "[rpl::producer]") {
 	SECTION("tuple producer test") {
 		auto result = std::make_shared<int>(0);
 		{
-			make_producer<std::tuple<int, double>>([=](
+			auto alive = make_producer<std::tuple<int, double>>([=](
 					auto &&consumer) {
 				consumer.put_next(std::make_tuple(1, 2.));
 				return lifetime();
@@ -183,11 +183,12 @@ TEST_CASE("basic event_streams tests", "[rpl::event_stream]") {
 		stream.fire(2);
 		stream.fire(3);
 		{
-			auto lifetime = stream.events().start([=, &stream](int value) {
+			auto saved = lifetime();
+			stream.events().start([=, &stream](int value) {
 				*sum += value;
 			}, [=](no_error) {
 			}, [=] {
-			});
+			}, saved);
 			stream.fire(11);
 			stream.fire(12);
 			stream.fire(13);
@@ -205,29 +206,29 @@ TEST_CASE("basic event_streams tests", "[rpl::event_stream]") {
 
 		{
 			auto composite = lifetime();
-			composite = stream.events().start([=, &stream, &composite](int value) {
+			stream.events().start([=, &stream, &composite](int value) {
 				*sum += value;
-				composite.add(stream.events().start([=](int value) {
+				stream.events().start([=](int value) {
 					*sum += value;
 				}, [=](no_error) {
 				}, [=] {
-				}));
+				}, composite);
 			}, [=](no_error) {
 			}, [=] {
-			});
+			}, composite);
 
 			{
 				auto inner = lifetime();
-				inner = stream.events().start([=, &stream, &inner](int value) {
+				stream.events().start([=, &stream, &inner](int value) {
 					*sum += value;
-					inner.add(stream.events().start([=](int value) {
+					stream.events().start([=](int value) {
 						*sum += value;
 					}, [=](no_error) {
 					}, [=] {
-					}));
+					}, inner);
 				}, [=](no_error) {
 				}, [=] {
-				});
+				}, inner);
 
 				stream.fire(1);
 				stream.fire(2);
@@ -256,29 +257,31 @@ TEST_CASE("basic event_streams tests", "[rpl::event_stream]") {
 
 		{
 			auto composite = lifetime();
-			composite = stream.events().start([=, &stream, &composite](int value) {
+			stream.events().start([=, &stream, &composite](int value) {
 				*sum += value;
-				composite = stream.events().start([=](int value) {
+				composite.destroy();
+				stream.events().start([=](int value) {
 					*sum += value;
 				}, [=](no_error) {
 				}, [=] {
-				});
+				}, composite);
 			}, [=](no_error) {
 			}, [=] {
-			});
+			}, composite);
 
 			{
 				auto inner = lifetime();
-				inner = stream.events().start([=, &stream, &inner](int value) {
+				stream.events().start([=, &stream, &inner](int value) {
 					*sum += value;
-					inner = stream.events().start([=](int value) {
+					inner.destroy();
+					stream.events().start([=](int value) {
 						*sum += value;
 					}, [=](no_error) {
 					}, [=] {
-					});
+					}, inner);
 				}, [=](no_error) {
 				}, [=] {
-				});
+				}, inner);
 
 				stream.fire(1);
 				stream.fire(2);
@@ -306,11 +309,11 @@ TEST_CASE("basic event_streams tests", "[rpl::event_stream]") {
 		lifetime extended;
 		{
 			event_stream<int> stream;
-			extended = stream.events().start([=](int value) {
+			stream.events().start([=](int value) {
 				*sum += value;
 			}, [=](no_error) {
 			}, [=] {
-			});
+			}, extended);
 			stream.fire(1);
 			stream.fire(2);
 			stream.fire(3);

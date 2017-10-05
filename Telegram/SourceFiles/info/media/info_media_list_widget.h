@@ -56,6 +56,10 @@ public:
 		return _type;
 	}
 
+	rpl::producer<int> scrollToRequests() const {
+		return _scrollToRequests.events();
+	}
+
 	~ListWidget();
 
 protected:
@@ -77,6 +81,11 @@ private:
 		bool stale = false;
 	};
 	class Section;
+	struct FoundItem {
+		not_null<ItemBase*> layout;
+		QRect geometry;
+		bool exact = false;
+	};
 
 	void start();
 	int recountHeight();
@@ -92,8 +101,8 @@ private:
 	void refreshViewer();
 	void invalidatePaletteCache();
 	void refreshRows();
-	int countIdsLimit() const;
-	SharedMediaMergedSlice::Key sliceKey() const;
+	SharedMediaMergedSlice::Key sliceKey(
+		UniversalMsgId universalId) const;
 	ItemBase *getLayout(const FullMsgId &itemId);
 	std::unique_ptr<ItemBase> createLayout(
 		const FullMsgId &itemId,
@@ -109,16 +118,30 @@ private:
 	std::vector<Section>::const_iterator findSectionAfterBottom(
 		std::vector<Section>::const_iterator from,
 		int bottom) const;
+	FoundItem findItemByPoint(QPoint point);
+	FoundItem foundItemInSection(
+		const FoundItem &item,
+		const Section &section);
+
+	void saveScrollState();
+	void restoreScrollState();
 
 	not_null<Window::Controller*> _controller;
 	not_null<PeerData*> _peer;
 	Type _type = Type::Photo;
 
 	UniversalMsgId _universalAroundId = ServerMaxMsgId - 1;
+	static constexpr auto kMinimalIdsLimit = 16;
+	int _idsLimit = kMinimalIdsLimit;
 	SharedMediaMergedSlice _slice;
 
 	std::map<UniversalMsgId, CachedItem> _layouts;
 	std::vector<Section> _sections;
+
+	int _visibleTop = 0;
+	UniversalMsgId _scrollTopId = 0;
+	int _scrollTopShift = 0;
+	rpl::event_stream<int> _scrollToRequests;
 
 	rpl::lifetime _viewerLifetime;
 

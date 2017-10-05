@@ -35,7 +35,10 @@ namespace Info {
 namespace Media {
 namespace {
 
-constexpr auto kIdsLimit = 256;
+constexpr auto kPreloadedScreensCount = 4;
+constexpr auto kPreloadIfLessThanScreens = 2;
+constexpr auto kPreloadedScreensCountFull
+	= kPreloadedScreensCount + 1 + kPreloadedScreensCount;
 
 using ItemBase = Layout::ItemBase;
 using UniversalMsgId = int32;
@@ -93,14 +96,16 @@ public:
 	}
 
 	bool removeItem(UniversalMsgId universalId);
-	base::optional<QRect> findItemRect(
-		UniversalMsgId universalId) const;
+	FoundItem findItemNearId(UniversalMsgId universalId) const;
+	FoundItem findItemByPoint(QPoint point) const;
 
 	void paint(
 		Painter &p,
 		QRect clip,
 		int outerWidth,
 		TimeMs ms) const;
+
+	static int MinItemHeight(Type type, int width);
 
 private:
 	using Items = base::flat_map<
@@ -117,6 +122,9 @@ private:
 		Items::const_iterator from,
 		int bottom) const;
 	QRect findItemRect(not_null<ItemBase*> item) const;
+	FoundItem completeResult(
+		not_null<ItemBase*> item,
+		bool exact) const;
 
 	int recountHeight() const;
 	void refreshHeight();
@@ -204,14 +212,6 @@ bool ListWidget::Section::removeItem(UniversalMsgId universalId) {
 	return false;
 }
 
-base::optional<QRect> ListWidget::Section::findItemRect(
-		UniversalMsgId universalId) const {
-	if (auto it = _items.find(universalId); it != _items.end()) {
-		return findItemRect(it->second);
-	}
-	return base::none;
-}
-
 QRect ListWidget::Section::findItemRect(
 		not_null<ItemBase*> item) const {
 	auto position = item->position();
@@ -220,6 +220,41 @@ QRect ListWidget::Section::findItemRect(
 	auto left = _itemsLeft
 		+ indexInRow * (_itemWidth + st::infoMediaSkip);
 	return QRect(left, top, _itemWidth, item->height());
+}
+
+auto ListWidget::Section::completeResult(
+		not_null<ItemBase*> item,
+		bool exact) const -> FoundItem {
+	return { item, findItemRect(item), exact };
+}
+
+auto ListWidget::Section::findItemByPoint(
+		QPoint point) const -> FoundItem {
+	Expects(!_items.empty());
+	auto itemIt = findItemAfterTop(point.y());
+	if (itemIt == _items.end()) {
+		--itemIt;
+	}
+	auto item = itemIt->second;
+	auto rect = findItemRect(item);
+	return { item, rect, rect.contains(point) };
+}
+
+auto ListWidget::Section::findItemNearId(
+		UniversalMsgId universalId) const -> FoundItem {
+	Expects(!_items.empty());
+	auto itemIt = base::lower_bound(
+		_items,
+		universalId,
+		[this](const auto &item, UniversalMsgId universalId) {
+			return (item.first > universalId);
+		});
+	if (itemIt == _items.end()) {
+		--itemIt;
+	}
+	auto item = itemIt->second;
+	auto exact = (GetUniversalId(item) == universalId);
+	return { item, findItemRect(item), exact };
 }
 
 auto ListWidget::Section::findItemAfterTop(
@@ -350,6 +385,30 @@ void ListWidget::Section::resizeToWidth(int newWidth) {
 	refreshHeight();
 }
 
+int ListWidget::Section::MinItemHeight(Type type, int width) {
+	auto &songSt = st::overviewFileLayout;
+	switch (type) {
+	case Type::Photo:
+	case Type::Video:
+	case Type::RoundFile: {
+		auto itemsLeft = st::infoMediaSkip;
+		auto itemsInRow = (width - itemsLeft)
+			/ (st::infoMediaMinGridSize + st::infoMediaSkip);
+		return (st::infoMediaMinGridSize + st::infoMediaSkip) / itemsInRow;
+	} break;
+
+	case Type::VoiceFile:
+		return songSt.songPadding.top() + songSt.songThumbSize + songSt.songPadding.bottom() + st::lineWidth;
+	case Type::File:
+		return songSt.filePadding.top() + songSt.fileThumbSize + songSt.filePadding.bottom() + st::lineWidth;
+	case Type::MusicFile:
+		return songSt.songPadding.top() + songSt.songThumbSize + songSt.songPadding.bottom();
+	case Type::Link:
+		return st::linksPhotoSize + st::linksMargin.top() + st::linksMargin.bottom() + st::linksBorder;
+	}
+	Unexpected("Type in ListWidget::Section::MinItemHeight()");
+}
+
 int ListWidget::Section::recountHeight() const {
 	auto result = headerHeight();
 
@@ -403,7 +462,7 @@ ListWidget::ListWidget(
 , _controller(controller)
 , _peer(peer)
 , _type(type)
-, _slice(sliceKey()) {
+, _slice(sliceKey(_universalAroundId)) {
 	start();
 	refreshViewer();
 }
@@ -460,9 +519,10 @@ void ListWidget::repaintItem(not_null<const HistoryItem*> item) {
 void ListWidget::repaintItem(UniversalMsgId universalId) {
 	auto sectionIt = findSectionByItem(universalId);
 	if (sectionIt != _sections.end()) {
-		if (auto rect = sectionIt->findItemRect(universalId)) {
-			auto top = padding().top() + sectionIt->top();
-			rtlupdate(rect->translated(0, top));
+		auto item = sectionIt->findItemNearId(universalId);
+		if (item.exact) {
+			auto top = sectionIt->top();
+			rtlupdate(item.geometry.translated(0, top));
 		}
 	}
 }
@@ -478,28 +538,33 @@ void ListWidget::invalidatePaletteCache() {
 	}
 }
 
-SharedMediaMergedSlice::Key ListWidget::sliceKey() const {
-	auto universalId = _universalAroundId;
+SharedMediaMergedSlice::Key ListWidget::sliceKey(
+		UniversalMsgId universalId) const {
 	using Key = SharedMediaMergedSlice::Key;
 	if (auto migrateFrom = _peer->migrateFrom()) {
 		return Key(_peer->id, migrateFrom->id, _type, universalId);
+	}
+	if (universalId < 0) {
+		// Convert back to plain id for non-migrated histories.
+		universalId += ServerMaxMsgId;
 	}
 	return Key(_peer->id, 0, _type, universalId);
 }
 
 void ListWidget::refreshViewer() {
+	_viewerLifetime.destroy();
 	SharedMediaMergedViewer(
-		sliceKey(),
-		countIdsLimit(),
-		countIdsLimit())
-		| rpl::start_with_next([this](SharedMediaMergedSlice &&slice) {
+		sliceKey(_universalAroundId),
+		_idsLimit,
+		_idsLimit)
+		| rpl::start_with_next([this](
+				SharedMediaMergedSlice &&slice) {
 			_slice = std::move(slice);
+			if (auto nearest = _slice.nearest(_universalAroundId)) {
+				_universalAroundId = *nearest;
+			}
 			refreshRows();
 		}, _viewerLifetime);
-}
-
-int ListWidget::countIdsLimit() const {
-	return kIdsLimit;
 }
 
 ItemBase *ListWidget::getLayout(const FullMsgId &itemId) {
@@ -541,7 +606,7 @@ std::unique_ptr<ItemBase> ListWidget::createLayout(
 		return nullptr;
 	};
 
-	auto &fileSt = st::overviewFileLayout;
+	auto &songSt = st::overviewFileLayout;
 	using namespace Layout;
 	switch (type) {
 	case Type::Photo:
@@ -556,17 +621,17 @@ std::unique_ptr<ItemBase> ListWidget::createLayout(
 		return nullptr;
 	case Type::File:
 		if (auto file = getFile()) {
-			return std::make_unique<Document>(item, file, fileSt);
+			return std::make_unique<Document>(item, file, songSt);
 		}
 		return nullptr;
 	case Type::MusicFile:
 		if (auto file = getFile()) {
-			return std::make_unique<Document>(item, file, fileSt);
+			return std::make_unique<Document>(item, file, songSt);
 		}
 		return nullptr;
 	case Type::VoiceFile:
 		if (auto file = getFile()) {
-			return std::make_unique<Voice>(item, file, fileSt);
+			return std::make_unique<Voice>(item, file, songSt);
 		}
 		return nullptr;
 	case Type::Link:
@@ -578,6 +643,8 @@ std::unique_ptr<ItemBase> ListWidget::createLayout(
 }
 
 void ListWidget::refreshRows() {
+	saveScrollState();
+
 	markLayoutsStale();
 
 	_sections.clear();
@@ -600,6 +667,8 @@ void ListWidget::refreshRows() {
 	clearStaleLayouts();
 
 	resizeToWidth(width());
+
+	restoreScrollState();
 }
 
 void ListWidget::markLayoutsStale() {
@@ -617,11 +686,113 @@ int ListWidget::resizeGetHeight(int newWidth) {
 	return recountHeight();
 }
 
+auto ListWidget::findItemByPoint(QPoint point) -> FoundItem {
+	Expects(!_sections.empty());
+	auto sectionIt = findSectionAfterTop(point.y());
+	if (sectionIt == _sections.end()) {
+		--sectionIt;
+	}
+	auto shift = QPoint(0, sectionIt->top());
+	return foundItemInSection(
+		sectionIt->findItemByPoint(point - shift),
+		*sectionIt);
+}
+
+auto ListWidget::foundItemInSection(
+		const FoundItem &item,
+		const Section &section) -> FoundItem {
+	return {
+		item.layout,
+		item.geometry.translated(0, section.top()),
+		item.exact };
+}
+
 void ListWidget::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
-	if (width() <= 0) {
+	auto visibleHeight = (visibleBottom - visibleTop);
+	if (width() <= 0 || visibleHeight <= 0 || _sections.empty() || _scrollTopId) {
 		return;
+	}
+
+	_visibleTop = visibleTop;
+
+	auto topItem = findItemByPoint({ 0, visibleTop });
+	auto bottomItem = findItemByPoint({ 0, visibleBottom });
+
+	auto preloadedHeight = kPreloadedScreensCountFull * visibleHeight;
+	auto minItemHeight = Section::MinItemHeight(_type, width());
+	auto preloadedCount = preloadedHeight / minItemHeight;
+	auto preloadIdsLimitMin = (preloadedCount / 2) + 1;
+	auto preloadIdsLimit = preloadIdsLimitMin
+		+ (visibleHeight / minItemHeight);
+
+	auto preloadBefore = kPreloadIfLessThanScreens * visibleHeight;
+	auto after = _slice.skippedAfter();
+	auto preloadTop = (visibleTop < preloadBefore);
+	auto topLoaded = after && (*after == 0);
+	auto before = _slice.skippedBefore();
+	auto preloadBottom = (height() - visibleBottom < preloadBefore);
+	auto bottomLoaded = before && (*before == 0);
+
+	auto minScreenDelta = kPreloadedScreensCount
+		- kPreloadIfLessThanScreens;
+	auto minUniversalIdDelta = (minScreenDelta * visibleHeight)
+		/ minItemHeight;
+	auto preloadAroundItem = [&](const FoundItem &item) {
+		auto preloadRequired = false;
+		auto universalId = GetUniversalId(item.layout);
+		if (!preloadRequired) {
+			preloadRequired = (_idsLimit < preloadIdsLimitMin);
+		}
+		if (!preloadRequired) {
+			auto delta = _slice.distance(
+				sliceKey(_universalAroundId),
+				sliceKey(universalId));
+			Assert(delta != base::none);
+			preloadRequired = (qAbs(*delta) >= minUniversalIdDelta);
+		}
+		if (preloadRequired) {
+			_idsLimit = preloadIdsLimit;
+			_universalAroundId = universalId;
+			refreshViewer();
+		}
+	};
+
+	if (preloadTop && !topLoaded) {
+		preloadAroundItem(topItem);
+	} else if (preloadBottom && !bottomLoaded) {
+		preloadAroundItem(bottomItem);
+	}
+}
+
+void ListWidget::saveScrollState() {
+	if (_sections.empty()) {
+		_scrollTopId = 0;
+		_scrollTopShift = 0;
+		return;
+	}
+	auto topItem = findItemByPoint({ 0, _visibleTop });
+	_scrollTopId = GetUniversalId(topItem.layout);
+	_scrollTopShift = _visibleTop - topItem.geometry.y();
+}
+
+void ListWidget::restoreScrollState() {
+	auto scrollTopId = base::take(_scrollTopId);
+	auto scrollTopShift = base::take(_scrollTopShift);
+	if (_sections.empty() || !scrollTopId) {
+		return;
+	}
+	auto sectionIt = findSectionByItem(scrollTopId);
+	if (sectionIt == _sections.end()) {
+		--sectionIt;
+	}
+	auto item = foundItemInSection(
+		sectionIt->findItemNearId(scrollTopId),
+		*sectionIt);
+	auto newVisibleTop = item.geometry.y() + scrollTopShift;
+	if (_visibleTop != newVisibleTop) {
+		_scrollToRequests.fire_copy(newVisibleTop);
 	}
 }
 

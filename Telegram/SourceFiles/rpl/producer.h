@@ -188,7 +188,21 @@ public:
 			is_callable_v<OnNext, Value>
 			&& is_callable_v<OnError, Error>
 			&& is_callable_v<OnDone>>>
-	lifetime start(
+	void start(
+		OnNext &&next,
+		OnError &&error,
+		OnDone &&done,
+		lifetime &alive_while) &&;
+
+	template <
+		typename OnNext,
+		typename OnError,
+		typename OnDone,
+		typename = std::enable_if_t<
+			is_callable_v<OnNext, Value>
+			&& is_callable_v<OnError, Error>
+			&& is_callable_v<OnDone>>>
+	[[nodiscard]] lifetime start(
 		OnNext &&next,
 		OnError &&error,
 		OnDone &&done) &&;
@@ -201,13 +215,32 @@ public:
 			is_callable_v<OnNext, Value>
 			&& is_callable_v<OnError, Error>
 			&& is_callable_v<OnDone>>>
-	lifetime start_copy(
+	void start_copy(
+		OnNext &&next,
+		OnError &&error,
+		OnDone &&done,
+		lifetime &alive_while) const &;
+
+	template <
+		typename OnNext,
+		typename OnError,
+		typename OnDone,
+		typename = std::enable_if_t<
+			is_callable_v<OnNext, Value>
+			&& is_callable_v<OnError, Error>
+			&& is_callable_v<OnDone>>>
+	[[nodiscard]] lifetime start_copy(
 		OnNext &&next,
 		OnError &&error,
 		OnDone &&done) const &;
 
 	template <typename Handlers>
-	lifetime start_existing(
+	void start_existing(
+		const consumer_type<Handlers> &consumer,
+		lifetime &alive_while) &&;
+
+	template <typename Handlers>
+	[[nodiscard]] lifetime start_existing(
 		const consumer_type<Handlers> &consumer) &&;
 
 private:
@@ -234,14 +267,17 @@ template <
 	typename OnError,
 	typename OnDone,
 	typename>
-inline lifetime producer_base<Value, Error, Generator>::start(
+inline void producer_base<Value, Error, Generator>::start(
 		OnNext &&next,
 		OnError &&error,
-		OnDone &&done) && {
-	return std::move(*this).start_existing(make_consumer<Value, Error>(
-		std::forward<OnNext>(next),
-		std::forward<OnError>(error),
-		std::forward<OnDone>(done)));
+		OnDone &&done,
+		lifetime &alive_while) && {
+	return std::move(*this).start_existing(
+		make_consumer<Value, Error>(
+			std::forward<OnNext>(next),
+			std::forward<OnError>(error),
+			std::forward<OnDone>(done)),
+		alive_while);
 }
 
 template <typename Value, typename Error, typename Generator>
@@ -250,25 +286,77 @@ template <
 	typename OnError,
 	typename OnDone,
 	typename>
-inline lifetime producer_base<Value, Error, Generator>::start_copy(
+[[nodiscard]] inline lifetime producer_base<Value, Error, Generator>::start(
+		OnNext &&next,
+		OnError &&error,
+		OnDone &&done) && {
+	auto result = lifetime();
+	std::move(*this).start_existing(
+		make_consumer<Value, Error>(
+			std::forward<OnNext>(next),
+			std::forward<OnError>(error),
+			std::forward<OnDone>(done)),
+		result);
+	return result;
+}
+
+template <typename Value, typename Error, typename Generator>
+template <
+	typename OnNext,
+	typename OnError,
+	typename OnDone,
+	typename>
+inline void producer_base<Value, Error, Generator>::start_copy(
+		OnNext &&next,
+		OnError &&error,
+		OnDone &&done,
+		lifetime &alive_while) const & {
+	auto copy = *this;
+	return std::move(copy).start_existing(
+		make_consumer<Value, Error>(
+			std::forward<OnNext>(next),
+			std::forward<OnError>(error),
+			std::forward<OnDone>(done)),
+		alive_while);
+}
+
+template <typename Value, typename Error, typename Generator>
+template <
+	typename OnNext,
+	typename OnError,
+	typename OnDone,
+	typename>
+[[nodiscard]] inline lifetime producer_base<Value, Error, Generator>::start_copy(
 		OnNext &&next,
 		OnError &&error,
 		OnDone &&done) const & {
+	auto result = lifetime();
 	auto copy = *this;
-	return std::move(copy).start(
-		std::forward<OnNext>(next),
-		std::forward<OnError>(error),
-		std::forward<OnDone>(done));
+	std::move(copy).start_existing(
+		make_consumer<Value, Error>(
+			std::forward<OnNext>(next),
+			std::forward<OnError>(error),
+			std::forward<OnDone>(done)),
+		result);
+	return result;
 }
 
 template <typename Value, typename Error, typename Generator>
 template <typename Handlers>
-inline lifetime producer_base<Value, Error, Generator>::start_existing(
+inline void producer_base<Value, Error, Generator>::start_existing(
+		const consumer_type<Handlers> &consumer,
+		lifetime &alive_while) && {
+	alive_while.add([consumer] { consumer.terminate(); });
+	consumer.add_lifetime(std::move(_generator)(consumer));
+}
+
+template <typename Value, typename Error, typename Generator>
+template <typename Handlers>
+[[nodiscard]] inline lifetime producer_base<Value, Error, Generator>::start_existing(
 		const consumer_type<Handlers> &consumer) && {
-	if (consumer.add_lifetime(std::move(_generator)(consumer))) {
-		return [consumer] { consumer.terminate(); };
-	}
-	return lifetime();
+	auto result = lifetime();
+	std::move(*this).start_existing(consumer, result);
+	return result;
 }
 
 template <typename Value, typename Error>
@@ -387,8 +475,16 @@ inline auto operator|(
 
 namespace details {
 
+struct with_none {
+};
+
 struct lifetime_with_none {
 	lifetime &alive_while;
+};
+
+template <typename OnNext>
+struct with_next {
+	OnNext next;
 };
 
 template <typename OnNext>
@@ -398,15 +494,31 @@ struct lifetime_with_next {
 };
 
 template <typename OnError>
+struct with_error {
+	OnError error;
+};
+
+template <typename OnError>
 struct lifetime_with_error {
 	lifetime &alive_while;
 	OnError error;
 };
 
 template <typename OnDone>
+struct with_done {
+	OnDone done;
+};
+
+template <typename OnDone>
 struct lifetime_with_done {
 	lifetime &alive_while;
 	OnDone done;
+};
+
+template <typename OnNext, typename OnError>
+struct with_next_error {
+	OnNext next;
+	OnError error;
 };
 
 template <typename OnNext, typename OnError>
@@ -417,6 +529,12 @@ struct lifetime_with_next_error {
 };
 
 template <typename OnError, typename OnDone>
+struct with_error_done {
+	OnError error;
+	OnDone done;
+};
+
+template <typename OnError, typename OnDone>
 struct lifetime_with_error_done {
 	lifetime &alive_while;
 	OnError error;
@@ -424,9 +542,22 @@ struct lifetime_with_error_done {
 };
 
 template <typename OnNext, typename OnDone>
+struct with_next_done {
+	OnNext next;
+	OnDone done;
+};
+
+template <typename OnNext, typename OnDone>
 struct lifetime_with_next_done {
 	lifetime &alive_while;
 	OnNext next;
+	OnDone done;
+};
+
+template <typename OnNext, typename OnError, typename OnDone>
+struct with_next_error_done {
+	OnNext next;
+	OnError error;
 	OnDone done;
 };
 
@@ -440,9 +571,20 @@ struct lifetime_with_next_error_done {
 
 } // namespace details
 
+inline auto start()
+-> details::with_none {
+	return {};
+}
+
 inline auto start(lifetime &alive_while)
 -> details::lifetime_with_none {
 	return { alive_while };
+}
+
+template <typename OnNext>
+inline auto start_with_next(OnNext &&next)
+-> details::with_next<std::decay_t<OnNext>> {
+	return { std::forward<OnNext>(next) };
 }
 
 template <typename OnNext>
@@ -452,15 +594,40 @@ inline auto start_with_next(OnNext &&next, lifetime &alive_while)
 }
 
 template <typename OnError>
+inline auto start_with_error(OnError &&error)
+-> details::with_error<std::decay_t<OnError>> {
+	return { std::forward<OnError>(error) };
+}
+
+template <typename OnError>
 inline auto start_with_error(OnError &&error, lifetime &alive_while)
 -> details::lifetime_with_error<std::decay_t<OnError>> {
 	return { alive_while, std::forward<OnError>(error) };
 }
 
 template <typename OnDone>
+inline auto start_with_done(OnDone &&done)
+-> details::with_done<std::decay_t<OnDone>> {
+	return { std::forward<OnDone>(done) };
+}
+
+template <typename OnDone>
 inline auto start_with_done(OnDone &&done, lifetime &alive_while)
 -> details::lifetime_with_done<std::decay_t<OnDone>> {
 	return { alive_while, std::forward<OnDone>(done) };
+}
+
+template <typename OnNext, typename OnError>
+inline auto start_with_next_error(
+	OnNext &&next,
+	OnError &&error)
+-> details::with_next_error<
+		std::decay_t<OnNext>,
+		std::decay_t<OnError>> {
+	return {
+		std::forward<OnNext>(next),
+		std::forward<OnError>(error)
+	};
 }
 
 template <typename OnNext, typename OnError>
@@ -475,6 +642,19 @@ inline auto start_with_next_error(
 		alive_while,
 		std::forward<OnNext>(next),
 		std::forward<OnError>(error)
+	};
+}
+
+template <typename OnError, typename OnDone>
+inline auto start_with_error_done(
+	OnError &&error,
+	OnDone &&done)
+-> details::with_error_done<
+		std::decay_t<OnError>,
+		std::decay_t<OnDone>> {
+	return {
+		std::forward<OnError>(error),
+		std::forward<OnDone>(done)
 	};
 }
 
@@ -496,6 +676,19 @@ inline auto start_with_error_done(
 template <typename OnNext, typename OnDone>
 inline auto start_with_next_done(
 	OnNext &&next,
+	OnDone &&done)
+-> details::with_next_done<
+		std::decay_t<OnNext>,
+		std::decay_t<OnDone>> {
+	return {
+		std::forward<OnNext>(next),
+		std::forward<OnDone>(done)
+	};
+}
+
+template <typename OnNext, typename OnDone>
+inline auto start_with_next_done(
+	OnNext &&next,
 	OnDone &&done,
 	lifetime &alive_while)
 -> details::lifetime_with_next_done<
@@ -504,6 +697,22 @@ inline auto start_with_next_done(
 	return {
 		alive_while,
 		std::forward<OnNext>(next),
+		std::forward<OnDone>(done)
+	};
+}
+
+template <typename OnNext, typename OnError, typename OnDone>
+inline auto start_with_next_error_done(
+	OnNext &&next,
+	OnError &&error,
+	OnDone &&done)
+-> details::with_next_error_done<
+		std::decay_t<OnNext>,
+		std::decay_t<OnError>,
+		std::decay_t<OnDone>> {
+	return {
+		std::forward<OnNext>(next),
+		std::forward<OnError>(error),
 		std::forward<OnDone>(done)
 	};
 }
@@ -529,14 +738,39 @@ inline auto start_with_next_error_done(
 namespace details {
 
 template <typename Value, typename Error, typename Generator>
+[[nodiscard]] inline lifetime operator|(
+		producer<Value, Error, Generator> &&value,
+		with_none &&handlers) {
+	return std::move(value).start(
+		[] {},
+		[] {},
+		[] {});
+}
+
+template <typename Value, typename Error, typename Generator>
 inline void operator|(
 		producer<Value, Error, Generator> &&value,
-		lifetime_with_none &&lifetime) {
-	lifetime.alive_while.add(
-		std::move(value).start(
-			[] {},
-			[] {},
-			[] {}));
+		lifetime_with_none &&handlers) {
+	std::move(value).start(
+		[] {},
+		[] {},
+		[] {},
+		handlers.alive_while);
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename Generator,
+	typename OnNext,
+	typename = std::enable_if_t<is_callable_v<OnNext, Value>>>
+[[nodiscard]] inline lifetime operator|(
+		producer<Value, Error, Generator> &&value,
+		with_next<OnNext> &&handlers) {
+	return std::move(value).start(
+		std::move(handlers.next),
+		[] {},
+		[] {});
 }
 
 template <
@@ -547,12 +781,27 @@ template <
 	typename = std::enable_if_t<is_callable_v<OnNext, Value>>>
 inline void operator|(
 		producer<Value, Error, Generator> &&value,
-		lifetime_with_next<OnNext> &&lifetime) {
-	lifetime.alive_while.add(
-		std::move(value).start(
-			std::move(lifetime.next),
-			[] {},
-			[] {}));
+		lifetime_with_next<OnNext> &&handlers) {
+	std::move(value).start(
+		std::move(handlers.next),
+		[] {},
+		[] {},
+		handlers.alive_while);
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename Generator,
+	typename OnError,
+	typename = std::enable_if_t<is_callable_v<OnError, Error>>>
+[[nodiscard]] inline lifetime operator|(
+		producer<Value, Error, Generator> &&value,
+		with_error<OnError> &&handlers) {
+	return std::move(value).start(
+		[] {},
+		std::move(handlers.error),
+		[] {});
 }
 
 template <
@@ -563,12 +812,27 @@ template <
 	typename = std::enable_if_t<is_callable_v<OnError, Error>>>
 inline void operator|(
 		producer<Value, Error, Generator> &&value,
-		lifetime_with_error<OnError> &&lifetime) {
-	lifetime.alive_while.add(
-		std::move(value).start(
-			[] {},
-			std::move(lifetime.error),
-			[] {}));
+		lifetime_with_error<OnError> &&handlers) {
+	std::move(value).start(
+		[] {},
+		std::move(handlers.error),
+		[] {},
+		handlers.alive_while);
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename Generator,
+	typename OnDone,
+	typename = std::enable_if_t<is_callable_v<OnDone>>>
+[[nodiscard]] inline lifetime operator|(
+		producer<Value, Error, Generator> &&value,
+		with_done<OnDone> &&handlers) {
+	return std::move(value).start(
+		[] {},
+		[] {},
+		std::move(handlers.done));
 }
 
 template <
@@ -579,12 +843,30 @@ template <
 	typename = std::enable_if_t<is_callable_v<OnDone>>>
 inline void operator|(
 		producer<Value, Error, Generator> &&value,
-		lifetime_with_done<OnDone> &&lifetime) {
-	lifetime.alive_while.add(
-		std::move(value).start(
-			[] {},
-			[] {},
-			std::move(lifetime.done)));
+		lifetime_with_done<OnDone> &&handlers) {
+	std::move(value).start(
+		[] {},
+		[] {},
+		std::move(handlers.done),
+		handlers.alive_while);
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename Generator,
+	typename OnNext,
+	typename OnError,
+	typename = std::enable_if_t<
+		is_callable_v<OnNext, Value> &&
+		is_callable_v<OnError, Error>>>
+[[nodiscard]] inline lifetime operator|(
+		producer<Value, Error, Generator> &&value,
+		with_next_error<OnNext, OnError> &&handlers) {
+	return std::move(value).start(
+		std::move(handlers.next),
+		std::move(handlers.error),
+		[] {});
 }
 
 template <
@@ -598,12 +880,30 @@ template <
 		is_callable_v<OnError, Error>>>
 inline void operator|(
 		producer<Value, Error, Generator> &&value,
-		lifetime_with_next_error<OnNext, OnError> &&lifetime) {
-	lifetime.alive_while.add(
-		std::move(value).start(
-			std::move(lifetime.next),
-			std::move(lifetime.error),
-			[] {}));
+		lifetime_with_next_error<OnNext, OnError> &&handlers) {
+	std::move(value).start(
+		std::move(handlers.next),
+		std::move(handlers.error),
+		[] {},
+		handlers.alive_while);
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename Generator,
+	typename OnError,
+	typename OnDone,
+	typename = std::enable_if_t<
+		is_callable_v<OnError, Error> &&
+		is_callable_v<OnDone>>>
+[[nodiscard]] inline lifetime operator|(
+		producer<Value, Error, Generator> &&value,
+		with_error_done<OnError, OnDone> &&handlers) {
+	return std::move(value).start(
+		[] {},
+		std::move(handlers.error),
+		std::move(handlers.done));
 }
 
 template <
@@ -617,12 +917,30 @@ template <
 		is_callable_v<OnDone>>>
 inline void operator|(
 		producer<Value, Error, Generator> &&value,
-		lifetime_with_error_done<OnError, OnDone> &&lifetime) {
-	lifetime.alive_while.add(
-		std::move(value).start(
-			[] {},
-			std::move(lifetime.error),
-			std::move(lifetime.done)));
+		lifetime_with_error_done<OnError, OnDone> &&handlers) {
+	std::move(value).start(
+		[] {},
+		std::move(handlers.error),
+		std::move(handlers.done),
+		handlers.alive_while);
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename Generator,
+	typename OnNext,
+	typename OnDone,
+	typename = std::enable_if_t<
+		is_callable_v<OnNext, Value> &&
+		is_callable_v<OnDone>>>
+[[nodiscard]] inline lifetime operator|(
+		producer<Value, Error, Generator> &&value,
+		with_next_done<OnNext, OnDone> &&handlers) {
+	return std::move(value).start(
+		std::move(handlers.next),
+		[] {},
+		std::move(handlers.done));
 }
 
 template <
@@ -636,12 +954,35 @@ template <
 		is_callable_v<OnDone>>>
 inline void operator|(
 		producer<Value, Error, Generator> &&value,
-		lifetime_with_next_done<OnNext, OnDone> &&lifetime) {
-	lifetime.alive_while.add(
-		std::move(value).start(
-			std::move(lifetime.next),
-			[] {},
-			std::move(lifetime.done)));
+		lifetime_with_next_done<OnNext, OnDone> &&handlers) {
+	std::move(value).start(
+		std::move(handlers.next),
+		[] {},
+		std::move(handlers.done),
+		handlers.alive_while);
+}
+
+template <
+	typename Value,
+	typename Error,
+	typename Generator,
+	typename OnNext,
+	typename OnError,
+	typename OnDone,
+	typename = std::enable_if_t<
+		is_callable_v<OnNext, Value> &&
+		is_callable_v<OnError, Error> &&
+		is_callable_v<OnDone>>>
+[[nodiscard]] inline lifetime operator|(
+		producer<Value, Error, Generator> &&value,
+		with_next_error_done<
+			OnNext,
+			OnError,
+			OnDone> &&handlers) {
+	return std::move(value).start(
+		std::move(handlers.next),
+		std::move(handlers.error),
+		std::move(handlers.done));
 }
 
 template <
@@ -660,12 +1001,12 @@ inline void operator|(
 		lifetime_with_next_error_done<
 			OnNext,
 			OnError,
-			OnDone> &&lifetime) {
-	lifetime.alive_while.add(
-		std::move(value).start(
-			std::move(lifetime.next),
-			std::move(lifetime.error),
-			std::move(lifetime.done)));
+			OnDone> &&handlers) {
+	std::move(value).start(
+		std::move(handlers.next),
+		std::move(handlers.error),
+		std::move(handlers.done),
+		handlers.alive_while);
 }
 
 } // namespace details

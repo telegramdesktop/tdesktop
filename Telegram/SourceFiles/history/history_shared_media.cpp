@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "history/history_shared_media.h"
 
+#include <rpl/combine.h>
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "storage/storage_facade.h"
@@ -114,25 +115,6 @@ private:
 
 };
 
-class SharedMediaMergedSliceBuilder {
-public:
-	using Type = SharedMediaMergedSlice::Type;
-	using Key = SharedMediaMergedSlice::Key;
-
-	SharedMediaMergedSliceBuilder(Key key);
-
-	void applyPartUpdate(SharedMediaSlice &&update);
-	void applyMigratedUpdate(SharedMediaSlice &&update);
-
-	SharedMediaMergedSlice snapshot() const;
-
-private:
-	Key _key;
-	SharedMediaSlice _part;
-	base::optional<SharedMediaSlice> _migrated;
-
-};
-
 class SharedMediaWithLastSliceBuilder {
 public:
 	using Type = SharedMediaWithLastSlice::Type;
@@ -202,6 +184,15 @@ base::optional<int> SharedMediaSlice::distance(const Key &a, const Key &b) const
 		}
 	}
 	return base::none;
+}
+
+base::optional<MsgId> SharedMediaSlice::nearest(MsgId msgId) const {
+	if (auto it = base::lower_bound(_ids, msgId); it != _ids.end()) {
+		return *it;
+	} else if (_ids.empty()) {
+		return base::none;
+	}
+	return _ids.back();
 }
 
 QString SharedMediaSlice::debug() const {
@@ -566,7 +557,9 @@ FullMsgId SharedMediaMergedSlice::operator[](int index) const {
 	return ComputeId(_part, index);
 }
 
-base::optional<int> SharedMediaMergedSlice::distance(const Key &a, const Key &b) const {
+base::optional<int> SharedMediaMergedSlice::distance(
+		const Key &a,
+		const Key &b) const {
 	if (a.type != _key.type
 		|| b.type != _key.type
 		|| a.peerId != _key.peerId
@@ -583,29 +576,33 @@ base::optional<int> SharedMediaMergedSlice::distance(const Key &a, const Key &b)
 	return base::none;
 }
 
+auto SharedMediaMergedSlice::nearest(
+		UniversalMsgId id) const -> base::optional<UniversalMsgId> {
+	auto convertFromMigratedNearest = [](MsgId result) {
+		return result - ServerMaxMsgId;
+	};
+	if (IsServerMsgId(id)) {
+		if (auto partNearestId = _part.nearest(id)) {
+			return partNearestId;
+		} else if (isolatedInPart()) {
+			return base::none;
+		}
+		return _migrated->nearest(ServerMaxMsgId - 1)
+			| convertFromMigratedNearest;
+	}
+	if (auto migratedNearestId = _migrated
+		? _migrated->nearest(id + ServerMaxMsgId)
+		: base::none) {
+		return migratedNearestId
+			| convertFromMigratedNearest;
+	} else if (isolatedInMigrated()) {
+		return base::none;
+	}
+	return _part.nearest(0);
+}
+
 QString SharedMediaMergedSlice::debug() const {
 	return (_migrated ? (_migrated->debug() + '|') : QString()) + _part.debug();
-}
-
-SharedMediaMergedSliceBuilder::SharedMediaMergedSliceBuilder(Key key)
-	: _key(key)
-	, _part(SharedMediaMergedSlice::PartKey(_key))
-	, _migrated(SharedMediaMergedSlice::MigratedSlice(_key)) {
-}
-
-void SharedMediaMergedSliceBuilder::applyPartUpdate(SharedMediaSlice &&update) {
-	_part = std::move(update);
-}
-
-void SharedMediaMergedSliceBuilder::applyMigratedUpdate(SharedMediaSlice &&update) {
-	_migrated = std::move(update);
-}
-
-SharedMediaMergedSlice SharedMediaMergedSliceBuilder::snapshot() const {
-	return SharedMediaMergedSlice(
-		_key,
-		_part,
-		_migrated);
 }
 
 rpl::producer<SharedMediaMergedSlice> SharedMediaMergedViewer(
@@ -618,30 +615,35 @@ rpl::producer<SharedMediaMergedSlice> SharedMediaMergedViewer(
 	Expects((key.universalId != 0) || (limitBefore == 0 && limitAfter == 0));
 
 	return [=](auto consumer) {
-		auto lifetime = rpl::lifetime();
-		auto builder = lifetime.make_state<SharedMediaMergedSliceBuilder>(key);
-
-		SharedMediaViewer(
+		if (key.migratedPeerId) {
+			return rpl::combine(
+				SharedMediaViewer(
+					SharedMediaMergedSlice::PartKey(key),
+					limitBefore,
+					limitAfter),
+				SharedMediaViewer(
+					SharedMediaMergedSlice::MigratedKey(key),
+					limitBefore,
+					limitAfter))
+				| rpl::start_with_next([=](
+						SharedMediaSlice &&part,
+						SharedMediaSlice &&migrated) {
+					consumer.put_next(SharedMediaMergedSlice(
+						key,
+						std::move(part),
+						std::move(migrated)));
+				});
+		}
+		return SharedMediaViewer(
 			SharedMediaMergedSlice::PartKey(key),
 			limitBefore,
-			limitAfter
-		) | rpl::start_with_next([=](SharedMediaSlice &&update) {
-			builder->applyPartUpdate(std::move(update));
-			consumer.put_next(builder->snapshot());
-		}, lifetime);
-
-		if (key.migratedPeerId) {
-			SharedMediaViewer(
-				SharedMediaMergedSlice::MigratedKey(key),
-				limitBefore,
-				limitAfter
-			) | rpl::start_with_next([=](SharedMediaSlice &&update) {
-				builder->applyMigratedUpdate(std::move(update));
-				consumer.put_next(builder->snapshot());
-			}, lifetime);
-		}
-
-		return lifetime;
+			limitAfter)
+			| rpl::start_with_next([=](SharedMediaSlice &&part) {
+				consumer.put_next(SharedMediaMergedSlice(
+					key,
+					std::move(part),
+					base::none));
+			});
 	};
 }
 

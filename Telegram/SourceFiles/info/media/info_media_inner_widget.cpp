@@ -238,6 +238,14 @@ object_ptr<ListWidget> InnerWidget::setupList(
 		| rpl::start_with_next(
 			[this] { refreshHeight(); },
 			result->lifetime());
+	using namespace rpl::mappers;
+	result->scrollToRequests()
+		| rpl::map([widget = result.data()](int to) {
+			return widget->y() + to;
+		})
+		| rpl::start_to_stream(
+			_scrollToRequests,
+			result->lifetime());
 	return result;
 }
 
