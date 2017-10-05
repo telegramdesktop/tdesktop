@@ -1954,8 +1954,10 @@ namespace {
 			}
 		}
 		Auth().notifications().clearFromItem(item);
-		if (Global::started() && !App::quitting()) {
-			Global::RefItemRemoved().notify(item, true);
+		if (Global::started()
+			&& !App::quitting()
+			&& AuthSession::Exists()) {
+			Auth().data().markItemRemoved(item);
 		}
 	}
 

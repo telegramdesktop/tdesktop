@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "calls/calls_instance.h"
 #include "history/history_media_types.h"
 #include "mainwidget.h"
+#include "auth_session.h"
 
 namespace Calls {
 namespace {
@@ -39,7 +40,7 @@ constexpr auto kPerPageCount = 100;
 
 class BoxController::Row : public PeerListRow {
 public:
-	Row(HistoryItem *item);
+	Row(not_null<HistoryItem*> item);
 
 	enum class Type {
 		Out,
@@ -47,7 +48,7 @@ public:
 		Missed,
 	};
 
-	bool canAddItem(HistoryItem *item) const {
+	bool canAddItem(not_null<const HistoryItem*> item) const {
 		return (ComputeType(item) == _type && item->date.date() == _date);
 	}
 	void addItem(HistoryItem *item) {
@@ -58,7 +59,7 @@ public:
 		});
 		refreshStatus();
 	}
-	void itemRemoved(HistoryItem *item) {
+	void itemRemoved(not_null<const HistoryItem*> item) {
 		if (hasItems() && item->id >= minItemId() && item->id <= maxItemId()) {
 			_items.erase(std::remove(_items.begin(), _items.end(), item), _items.end());
 			refreshStatus();
@@ -102,7 +103,7 @@ public:
 
 private:
 	void refreshStatus();
-	static Type ComputeType(HistoryItem *item);
+	static Type ComputeType(not_null<const HistoryItem*> item);
 
 	std::vector<HistoryItem*> _items;
 	QDate _date;
@@ -112,7 +113,8 @@ private:
 
 };
 
-BoxController::Row::Row(HistoryItem *item) : PeerListRow(item->history()->peer, item->id)
+BoxController::Row::Row(not_null<HistoryItem*> item)
+: PeerListRow(item->history()->peer, item->id)
 , _items(1, item)
 , _date(item->date.date())
 , _type(ComputeType(item)) {
@@ -164,7 +166,8 @@ void BoxController::Row::refreshStatus() {
 	setCustomStatus((_items.size() > 1) ? lng_call_box_status_group(lt_count, QString::number(_items.size()), lt_status, text()) : text());
 }
 
-BoxController::Row::Type BoxController::Row::ComputeType(HistoryItem *item) {
+BoxController::Row::Type BoxController::Row::ComputeType(
+		not_null<const HistoryItem*> item) {
 	if (item->out()) {
 		return Type::Out;
 	} else if (auto media = item->getMedia()) {
@@ -193,18 +196,19 @@ void BoxController::Row::stopLastActionRipple() {
 }
 
 void BoxController::prepare() {
-	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
-		if (auto row = rowForItem(item)) {
-			row->itemRemoved(item);
-			if (!row->hasItems()) {
-				delegate()->peerListRemoveRow(row);
-				if (!delegate()->peerListFullRowsCount()) {
-					refreshAbout();
+	Auth().data().itemRemoved()
+		| rpl::start_with_next([this](auto item) {
+			if (auto row = rowForItem(item)) {
+				row->itemRemoved(item);
+				if (!row->hasItems()) {
+					delegate()->peerListRemoveRow(row);
+					if (!delegate()->peerListFullRowsCount()) {
+						refreshAbout();
+					}
 				}
+				delegate()->peerListRefreshRows();
 			}
-			delegate()->peerListRefreshRows();
-		}
-	});
+		}, lifetime());
 	subscribe(Current().newServiceMessage(), [this](const FullMsgId &msgId) {
 		if (auto item = App::histItemById(msgId)) {
 			insertRow(item, InsertWay::Prepend);
@@ -287,21 +291,25 @@ void BoxController::receivedCalls(const QVector<MTPMessage> &result) {
 	delegate()->peerListRefreshRows();
 }
 
-bool BoxController::insertRow(HistoryItem *item, InsertWay way) {
+bool BoxController::insertRow(
+		not_null<HistoryItem*> item,
+		InsertWay way) {
 	if (auto row = rowForItem(item)) {
 		if (row->canAddItem(item)) {
 			row->addItem(item);
 			return false;
 		}
 	}
-	(way == InsertWay::Append) ? delegate()->peerListAppendRow(createRow(item)) : delegate()->peerListPrependRow(createRow(item));
+	(way == InsertWay::Append)
+		? delegate()->peerListAppendRow(createRow(item))
+		: delegate()->peerListPrependRow(createRow(item));
 	delegate()->peerListSortRows([](PeerListRow &a, PeerListRow &b) {
 		return static_cast<Row&>(a).maxItemId() > static_cast<Row&>(b).maxItemId();
 	});
 	return true;
 }
 
-BoxController::Row *BoxController::rowForItem(HistoryItem *item) {
+BoxController::Row *BoxController::rowForItem(not_null<const HistoryItem*> item) {
 	auto v = delegate();
 	if (auto fullRowsCount = v->peerListFullRowsCount()) {
 		auto itemId = item->id;
@@ -343,7 +351,8 @@ BoxController::Row *BoxController::rowForItem(HistoryItem *item) {
 	return nullptr;
 }
 
-std::unique_ptr<PeerListRow> BoxController::createRow(HistoryItem *item) const {
+std::unique_ptr<PeerListRow> BoxController::createRow(
+		not_null<HistoryItem*> item) const {
 	auto row = std::make_unique<Row>(item);
 	return std::move(row);
 }

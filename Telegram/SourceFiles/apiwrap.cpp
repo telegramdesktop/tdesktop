@@ -1661,7 +1661,7 @@ void ApiWrap::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 			if (auto item = App::histItemById(NoChannel, msgId.v)) {
 				if (item->isMediaUnread()) {
 					item->markMediaRead();
-					Ui::repaintHistoryItem(item);
+					Auth().data().requestItemRepaint(item);
 
 					if (item->out() && item->history()->peer->isUser()) {
 						auto when = App::main()->requestingDifference() ? 0 : unixtime();

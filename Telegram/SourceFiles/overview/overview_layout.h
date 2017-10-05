@@ -66,7 +66,14 @@ public:
 
 class ItemBase : public AbstractItem {
 public:
-	ItemBase(HistoryItem *parent) : _parent(parent) {
+	ItemBase(not_null<HistoryItem*> parent) : _parent(parent) {
+	}
+
+	void setPosition(int position) {
+		_position = position;
+	}
+	int position() const {
+		return _position;
 	}
 
 	ItemBase *toMediaItem() final override {
@@ -83,13 +90,14 @@ public:
 	void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) override;
 
 protected:
-	HistoryItem *_parent;
+	not_null<HistoryItem*> _parent = nullptr;
+	int _position = 0;
 
 };
 
 class RadialProgressItem : public ItemBase {
 public:
-	RadialProgressItem(HistoryItem *parent) : ItemBase(parent) {
+	RadialProgressItem(not_null<HistoryItem*> parent) : ItemBase(parent) {
 	}
 	RadialProgressItem(const RadialProgressItem &other) = delete;
 
@@ -99,8 +107,11 @@ public:
 
 protected:
 	ClickHandlerPtr _openl, _savel, _cancell;
-	void setLinks(ClickHandlerPtr &&openl, ClickHandlerPtr &&savel, ClickHandlerPtr &&cancell);
-	void setDocumentLinks(DocumentData *document);
+	void setLinks(
+		ClickHandlerPtr &&openl,
+		ClickHandlerPtr &&savel,
+		ClickHandlerPtr &&cancell);
+	void setDocumentLinks(not_null<DocumentData*> document);
 
 	void step_radial(TimeMs ms, bool timer);
 
@@ -171,7 +182,9 @@ class PhotoVideoCheckbox;
 
 class Photo : public ItemBase {
 public:
-	Photo(PhotoData *photo, HistoryItem *parent);
+	Photo(
+		not_null<HistoryItem*> parent,
+		not_null<PhotoData*> photo);
 
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
@@ -188,7 +201,7 @@ private:
 
 	std::unique_ptr<PhotoVideoCheckbox> _check;
 
-	PhotoData *_data;
+	not_null<PhotoData*> _data;
 	ClickHandlerPtr _link;
 
 	QPixmap _pix;
@@ -198,7 +211,9 @@ private:
 
 class Video : public RadialProgressItem {
 public:
-	Video(DocumentData *video, HistoryItem *parent);
+	Video(
+		not_null<HistoryItem*> parent,
+		not_null<DocumentData*> video);
 
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
@@ -221,7 +236,7 @@ private:
 
 	std::unique_ptr<PhotoVideoCheckbox> _check;
 
-	DocumentData *_data;
+	not_null<DocumentData*> _data;
 	StatusText _status;
 
 	QString _duration;
@@ -234,7 +249,10 @@ private:
 
 class Voice : public RadialProgressItem {
 public:
-	Voice(DocumentData *voice, HistoryItem *parent, const style::OverviewFileLayout &st);
+	Voice(
+		not_null<HistoryItem*> parent,
+		not_null<DocumentData*> voice,
+		const style::OverviewFileLayout &st);
 
 	void initDimensions() override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
@@ -247,7 +265,7 @@ protected:
 	bool iconAnimated() const override;
 
 private:
-	DocumentData *_data;
+	not_null<DocumentData*> _data;
 	StatusText _status;
 	ClickHandlerPtr _namel;
 
@@ -263,7 +281,10 @@ private:
 
 class Document : public RadialProgressItem {
 public:
-	Document(DocumentData *document, HistoryItem *parent, const style::OverviewFileLayout &st);
+	Document(
+		not_null<HistoryItem*> parent,
+		not_null<DocumentData*> document,
+		const style::OverviewFileLayout &st);
 
 	void initDimensions() override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
@@ -280,7 +301,7 @@ protected:
 	bool iconAnimated() const override;
 
 private:
-	DocumentData *_data;
+	not_null<DocumentData*> _data;
 	StatusText _status;
 	ClickHandlerPtr _msgl, _namel;
 
@@ -301,7 +322,9 @@ private:
 
 class Link : public ItemBase {
 public:
-	Link(HistoryMedia *media, HistoryItem *parent);
+	Link(
+		not_null<HistoryItem*> parent,
+		HistoryMedia *media);
 
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;

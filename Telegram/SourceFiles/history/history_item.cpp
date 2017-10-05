@@ -685,7 +685,7 @@ void HistoryItem::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool activ
 		}
 	}
 	App::hoveredLinkItem(active ? this : nullptr);
-	Ui::repaintHistoryItem(this);
+	Auth().data().requestItemRepaint(this);
 }
 
 void HistoryItem::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
@@ -695,7 +695,7 @@ void HistoryItem::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pres
 		}
 	}
 	App::pressedLinkItem(pressed ? this : nullptr);
-	Ui::repaintHistoryItem(this);
+	Auth().data().requestItemRepaint(this);
 }
 
 void HistoryItem::addLogEntryOriginal(WebPageId localId, const QString &label, const TextWithEntities &content) {
@@ -1103,14 +1103,14 @@ void HistoryItem::clipCallback(Media::Clip::Notification notification) {
 		}
 		if (!stopped) {
 			setPendingInitDimensions();
-			Notify::historyItemLayoutChanged(this);
+			Auth().data().markItemLayoutChanged(this);
 			Global::RefPendingRepaintItems().insert(this);
 		}
 	} break;
 
 	case NotificationRepaint: {
 		if (!reader->currentDisplayed()) {
-			Ui::repaintHistoryItem(this);
+			Auth().data().requestItemRepaint(this);
 		}
 	} break;
 	}

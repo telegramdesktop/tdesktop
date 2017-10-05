@@ -352,10 +352,6 @@ public:
 	bool wheelEventFromFloatPlayer(QEvent *e) override;
 	QRect rectForFloatPlayer() const override;
 
-	void ui_repaintHistoryItem(not_null<const HistoryItem*> item);
-
-	void notify_historyItemLayoutChanged(const HistoryItem *item);
-
 	~OverviewWidget();
 
 protected:

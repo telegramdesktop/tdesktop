@@ -205,7 +205,11 @@ void InnerWidget::enumerateDates(Method method) {
 	enumerateItems<EnumItemsDirection::BottomToTop>(dateCallback);
 }
 
-InnerWidget::InnerWidget(QWidget *parent, not_null<Window::Controller*> controller, not_null<ChannelData*> channel) : TWidget(parent)
+InnerWidget::InnerWidget(
+	QWidget *parent,
+	not_null<Window::Controller*> controller,
+	not_null<ChannelData*> channel)
+: RpWidget(parent)
 , _controller(controller)
 , _channel(channel)
 , _history(App::history(channel))
@@ -213,11 +217,12 @@ InnerWidget::InnerWidget(QWidget *parent, not_null<Window::Controller*> controll
 , _emptyText(st::historyAdminLogEmptyWidth - st::historyAdminLogEmptyPadding.left() - st::historyAdminLogEmptyPadding.left()) {
 	setMouseTracking(true);
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
-	subscribe(Auth().data().repaintLogEntry(), [this](not_null<const HistoryItem*> historyItem) {
-		if (_history == historyItem->history()) {
-			repaintItem(historyItem);
-		}
-	});
+	Auth().data().itemRepaintRequest()
+		| rpl::start_with_next([this](auto item) {
+			if (item->isLogEntry() && _history == item->history()) {
+				repaintItem(item);
+			}
+		}, lifetime());
 	subscribe(Auth().data().pendingHistoryResize(), [this] { handlePendingHistoryResize(); });
 	subscribe(Auth().data().queryItemVisibility(), [this](const AuthSessionData::ItemVisibilityQuery &query) {
 		if (_history != query.item->history() || !query.item->isLogEntry() || !isVisible()) {

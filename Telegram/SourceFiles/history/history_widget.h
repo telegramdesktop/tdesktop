@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/section_widget.h"
 #include "core/single_timer.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/rp_widget.h"
 #include "base/flags.h"
 
 namespace InlineBots {
@@ -97,7 +98,7 @@ private:
 
 };
 
-class HistoryHider : public TWidget, private base::Subscriber {
+class HistoryHider : public Ui::RpWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -276,7 +277,6 @@ public:
 	void cancelEdit();
 	void updateForwarding();
 	void updateForwardingTexts();
-	void updateForwardingItemRemovedSubscription();
 
 	void clearReplyReturns();
 	void pushReplyReturn(HistoryItem *item);
@@ -350,10 +350,8 @@ public:
 
 	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, not_null<const HistoryItem*> msg, int row, int col);
 
-	void ui_repaintHistoryItem(not_null<const HistoryItem*> item);
 	PeerData *ui_getPeerForMouseAction();
 
-	void notify_historyItemLayoutChanged(const HistoryItem *item);
 	void notify_botCommandsChanged(UserData *user);
 	void notify_inlineBotRequesting(bool requesting);
 	void notify_replyMarkupUpdated(const HistoryItem *item);
@@ -480,6 +478,7 @@ private:
 	using TabbedPanel = ChatHelpers::TabbedPanel;
 	using TabbedSelector = ChatHelpers::TabbedSelector;
 
+	void repaintHistoryItem(not_null<const HistoryItem*> item);
 	void handlePendingHistoryUpdate();
 	void fullPeerUpdated(PeerData *peer);
 	void topBarClick();
@@ -519,7 +518,7 @@ private:
 	// If an empty filepath is found we upload (possible) "image" with (possible) "content".
 	void uploadFilesAfterConfirmation(const QStringList &files, const QByteArray &content, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, SendMediaType type, QString caption);
 
-	void itemRemoved(HistoryItem *item);
+	void itemRemoved(not_null<const HistoryItem*> item);
 
 	// Updates position of controls around the message field,
 	// like send button, emoji button and others.
@@ -560,7 +559,6 @@ private:
 	SelectedItemSet _toForward;
 	Text _toForwardFrom, _toForwardText;
 	int _toForwardNameVersion = 0;
-	int _forwardingItemRemovedSubscription = 0;
 
 	MsgId _editMsgId = 0;
 

@@ -81,9 +81,6 @@ private:
 	object_ptr<Ui::PlainShadow> _otherTabsShadow = { nullptr };
 	object_ptr<ListWidget> _list = { nullptr };
 
-	int _visibleTop = 0;
-	int _visibleBottom = 0;
-
 };
 
 } // namespace Media

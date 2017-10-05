@@ -20,24 +20,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "data/data_photo.h"
 
-//#include "lang/lang_keys.h"
-//#include "inline_bots/inline_bot_layout_item.h"
-//#include "observer_peer.h"
 #include "mainwidget.h"
-//#include "application.h"
-//#include "storage/file_upload.h"
-//#include "mainwindow.h"
-//#include "core/file_utilities.h"
-//#include "apiwrap.h"
-//#include "boxes/confirm_box.h"
-//#include "media/media_audio.h"
-//#include "storage/localstorage.h"
 #include "history/history_media_types.h"
-//#include "styles/style_history.h"
-//#include "window/themes/window_theme.h"
-//#include "auth_session.h"
+#include "auth_session.h"
 #include "messenger.h"
-//#include "storage/file_download.h"
 
 PhotoData::PhotoData(const PhotoId &id, const uint64 &access, int32 date, const ImagePtr &thumb, const ImagePtr &medium, const ImagePtr &full)
 : id(id)
@@ -90,7 +76,7 @@ void PhotoData::notifyLayoutChanged() const {
 	auto i = items.constFind(const_cast<PhotoData*>(this));
 	if (i != items.cend()) {
 		for_const (auto item, i.value()) {
-			Notify::historyItemLayoutChanged(item);
+			Auth().data().markItemLayoutChanged(item);
 		}
 	}
 }

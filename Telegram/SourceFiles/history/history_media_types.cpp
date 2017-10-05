@@ -176,11 +176,11 @@ void HistoryFileMedia::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool 
 }
 
 void HistoryFileMedia::thumbAnimationCallback() {
-	Ui::repaintHistoryItem(_parent);
+	Auth().data().requestItemRepaint(_parent);
 }
 
 void HistoryFileMedia::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
-	Ui::repaintHistoryItem(_parent);
+	Auth().data().requestItemRepaint(_parent);
 }
 
 void HistoryFileMedia::setLinks(ClickHandlerPtr &&openl, ClickHandlerPtr &&savel, ClickHandlerPtr &&cancell) {
@@ -206,7 +206,7 @@ void HistoryFileMedia::setStatusSize(int32 newSize, int32 fullSize, int32 durati
 
 void HistoryFileMedia::step_radial(TimeMs ms, bool timer) {
 	if (timer) {
-		Ui::repaintHistoryItem(_parent);
+		Auth().data().requestItemRepaint(_parent);
 	} else {
 		_animation->radial.update(dataProgress(), dataFinished(), ms);
 		if (!_animation->radial.animating()) {
@@ -1553,7 +1553,7 @@ void HistoryDocument::updatePressed(QPoint point) {
 				nameright = st::msgFilePadding.left();
 			}
 			voice->setSeekingCurrent(snap((point.x() - nameleft) / float64(_width - nameleft - nameright), 0., 1.));
-			Ui::repaintHistoryItem(_parent);
+			Auth().data().requestItemRepaint(_parent);
 		}
 	}
 }
@@ -1748,7 +1748,7 @@ void HistoryDocument::step_voiceProgress(float64 ms, bool timer) {
 			} else {
 				voice->_playback->a_progress.update(qMin(dt, 1.), anim::linear);
 			}
-			if (timer) Ui::repaintHistoryItem(_parent);
+			if (timer) Auth().data().requestItemRepaint(_parent);
 		}
 	}
 }
@@ -2613,7 +2613,7 @@ bool HistoryGif::playInline(bool autoplay) {
 		if (mode == Mode::Video) {
 			_roundPlayback = std::make_unique<Media::Clip::Playback>();
 			_roundPlayback->setValueChangedCallback([this](float64 value) {
-				Ui::repaintHistoryItem(_parent);
+				Auth().data().requestItemRepaint(_parent);
 			});
 			if (App::main()) {
 				App::main()->mediaMarkRead(_data);
@@ -2638,7 +2638,7 @@ void HistoryGif::stopInline() {
 	clearClipReader();
 
 	_parent->setPendingInitDimensions();
-	Notify::historyItemLayoutChanged(_parent);
+	Auth().data().markItemLayoutChanged(_parent);
 }
 
 void HistoryGif::setClipReader(Media::Clip::ReaderPointer gif) {

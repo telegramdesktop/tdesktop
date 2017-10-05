@@ -171,35 +171,35 @@ void ReportSpamPanel::setReported(bool reported, PeerData *onPeer) {
 	update();
 }
 
-HistoryHider::HistoryHider(MainWidget *parent, const SelectedItemSet &items) : TWidget(parent)
+HistoryHider::HistoryHider(MainWidget *parent, const SelectedItemSet &items) : RpWidget(parent)
 , _forwardItems(items)
 , _send(this, langFactory(lng_forward_send), st::defaultBoxButton)
 , _cancel(this, langFactory(lng_cancel), st::defaultBoxButton) {
 	init();
 }
 
-HistoryHider::HistoryHider(MainWidget *parent, UserData *sharedContact) : TWidget(parent)
+HistoryHider::HistoryHider(MainWidget *parent, UserData *sharedContact) : RpWidget(parent)
 , _sharedContact(sharedContact)
 , _send(this, langFactory(lng_forward_send), st::defaultBoxButton)
 , _cancel(this, langFactory(lng_cancel), st::defaultBoxButton) {
 	init();
 }
 
-HistoryHider::HistoryHider(MainWidget *parent) : TWidget(parent)
+HistoryHider::HistoryHider(MainWidget *parent) : RpWidget(parent)
 , _sendPath(true)
 , _send(this, langFactory(lng_forward_send), st::defaultBoxButton)
 , _cancel(this, langFactory(lng_cancel), st::defaultBoxButton) {
 	init();
 }
 
-HistoryHider::HistoryHider(MainWidget *parent, const QString &botAndQuery) : TWidget(parent)
+HistoryHider::HistoryHider(MainWidget *parent, const QString &botAndQuery) : RpWidget(parent)
 , _botAndQuery(botAndQuery)
 , _send(this, langFactory(lng_forward_send), st::defaultBoxButton)
 , _cancel(this, langFactory(lng_cancel), st::defaultBoxButton) {
 	init();
 }
 
-HistoryHider::HistoryHider(MainWidget *parent, const QString &url, const QString &text) : TWidget(parent)
+HistoryHider::HistoryHider(MainWidget *parent, const QString &url, const QString &text) : RpWidget(parent)
 , _shareUrl(url)
 , _shareText(text)
 , _send(this, langFactory(lng_forward_send), st::defaultBoxButton)
@@ -210,17 +210,18 @@ HistoryHider::HistoryHider(MainWidget *parent, const QString &url, const QString
 void HistoryHider::init() {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
 	if (!_forwardItems.empty()) {
-		subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
-			for (auto i = _forwardItems.begin(); i != _forwardItems.end(); ++i) {
-				if (i->get() == item) {
-					i = _forwardItems.erase(i);
-					break;
+		Auth().data().itemRemoved()
+			| rpl::start_with_next([this](auto item) {
+				for (auto i = _forwardItems.begin(); i != _forwardItems.end(); ++i) {
+					if (i->get() == item) {
+						i = _forwardItems.erase(i);
+						break;
+					}
 				}
-			}
-			if (_forwardItems.empty()) {
-				startHide();
-			}
-		});
+				if (_forwardItems.empty()) {
+					startHide();
+				}
+			}, lifetime());
 	}
 	connect(_send, SIGNAL(clicked()), this, SLOT(forward()));
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(startHide()));
@@ -665,9 +666,14 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 	connect(&_updateEditTimeLeftDisplay, SIGNAL(timeout()), this, SLOT(updateField()));
 
 	subscribe(Adaptive::Changed(), [this] { update(); });
-	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
-		itemRemoved(item);
-	});
+	Auth().data().itemRemoved()
+		| rpl::start_with_next(
+			[this](auto item) { itemRemoved(item); },
+			lifetime());
+	Auth().data().itemRepaintRequest()
+		| rpl::start_with_next(
+			[this](auto item) { repaintHistoryItem(item); },
+			lifetime());
 	subscribe(Auth().data().contactsLoaded(), [this](bool) {
 		if (_peer) {
 			updateReportSpamStatus();
@@ -740,6 +746,16 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 			}
 		}
 	});
+	Auth().data().itemLayoutChanged()
+		| rpl::start_with_next([this](auto item) {
+			if (_peer && _list) {
+				if ((item == App::mousedItem())
+					|| (item == App::hoveredItem())
+					|| (item == App::hoveredLinkItem())) {
+					_list->onUpdateSelected();
+				}
+			}
+		}, lifetime());
 
 	orderWidgets();
 }
@@ -913,7 +929,7 @@ void HistoryWidget::updateHighlightedMessage() {
 		return stopMessageHighlight();
 	}
 
-	Ui::repaintHistoryItem(item);
+	Auth().data().requestItemRepaint(item);
 }
 
 TimeMs HistoryWidget::highlightStartTime(not_null<const HistoryItem*> item) const {
@@ -3272,7 +3288,7 @@ void HistoryWidget::app_sendBotCallback(const HistoryMessageReplyMarkup::Button 
 		sendData = button->data;
 	}
 	button->requestId = MTP::send(MTPmessages_GetBotCallbackAnswer(MTP_flags(flags), _peer->input, MTP_int(msg->id), MTP_bytes(sendData)), rpcDone(&HistoryWidget::botCallbackDone, info), rpcFail(&HistoryWidget::botCallbackFail, info));
-	Ui::repaintHistoryItem(msg);
+	Auth().data().requestItemRepaint(msg);
 
 	if (_replyToId == msg->id) {
 		cancelReply();
@@ -3290,7 +3306,7 @@ void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotC
 			if (info.row < markup->rows.size() && info.col < markup->rows.at(info.row).size()) {
 				if (markup->rows.at(info.row).at(info.col).requestId == req) {
 					markup->rows.at(info.row).at(info.col).requestId = 0;
-					Ui::repaintHistoryItem(item);
+					Auth().data().requestItemRepaint(item);
 				}
 			}
 		}
@@ -3325,7 +3341,7 @@ bool HistoryWidget::botCallbackFail(BotCallbackInfo info, const RPCError &error,
 			if (info.row < markup->rows.size() && info.col < markup->rows.at(info.row).size()) {
 				if (markup->rows.at(info.row).at(info.col).requestId == req) {
 					markup->rows.at(info.row).at(info.col).requestId = 0;
-					Ui::repaintHistoryItem(item);
+					Auth().data().requestItemRepaint(item);
 				}
 			}
 		}
@@ -4449,7 +4465,7 @@ void HistoryWidget::onPhotoProgress(const FullMsgId &newId) {
 		if (!item->isPost()) {
 			updateSendAction(item->history(), SendAction::Type::UploadPhoto, 0);
 		}
-		Ui::repaintHistoryItem(item);
+		Auth().data().requestItemRepaint(item);
 	}
 }
 
@@ -4460,17 +4476,16 @@ void HistoryWidget::onDocumentProgress(const FullMsgId &newId) {
 		if (!item->isPost()) {
 			updateSendAction(item->history(), (document && document->voice()) ? SendAction::Type::UploadVoice : SendAction::Type::UploadFile, document ? document->uploadOffset : 0);
 		}
-		Ui::repaintHistoryItem(item);
+		Auth().data().requestItemRepaint(item);
 	}
 }
 
 void HistoryWidget::onPhotoFailed(const FullMsgId &newId) {
-	HistoryItem *item = App::histItemById(newId);
-	if (item) {
+	if (auto item = App::histItemById(newId)) {
 		if (!item->isPost()) {
 			updateSendAction(item->history(), SendAction::Type::UploadPhoto, -1);
 		}
-//		Ui::repaintHistoryItem(item);
+		Auth().data().requestItemRepaint(item);
 	}
 }
 
@@ -4481,7 +4496,7 @@ void HistoryWidget::onDocumentFailed(const FullMsgId &newId) {
 		if (!item->isPost()) {
 			updateSendAction(item->history(), (document && document->voice()) ? SendAction::Type::UploadVoice : SendAction::Type::UploadFile, -1);
 		}
-		Ui::repaintHistoryItem(item);
+		Auth().data().requestItemRepaint(item);
 	}
 }
 
@@ -4585,13 +4600,16 @@ void HistoryWidget::grabFinish() {
 	_topShadow->show();
 }
 
-void HistoryWidget::ui_repaintHistoryItem(not_null<const HistoryItem*> item) {
-	if (_peer && _list && (item->history() == _history || (_migrated && item->history() == _migrated))) {
+void HistoryWidget::repaintHistoryItem(
+		not_null<const HistoryItem*> item) {
+	auto itemHistory = item->history();
+	if (itemHistory == _history || itemHistory == _migrated) {
 		auto ms = getms();
 		if (_lastScrolled + kSkipRepaintWhileScrollMs <= ms) {
 			_list->repaintItem(item);
 		} else {
-			_updateHistoryItems.start(_lastScrolled + kSkipRepaintWhileScrollMs - ms);
+			_updateHistoryItems.start(
+				_lastScrolled + kSkipRepaintWhileScrollMs - ms);
 		}
 	}
 }
@@ -4609,12 +4627,6 @@ void HistoryWidget::onUpdateHistoryItems() {
 
 PeerData *HistoryWidget::ui_getPeerForMouseAction() {
 	return _peer;
-}
-
-void HistoryWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
-	if (_peer && _list && (item == App::mousedItem() || item == App::hoveredItem() || item == App::hoveredLinkItem())) {
-		_list->onUpdateSelected();
-	}
 }
 
 void HistoryWidget::handlePendingHistoryUpdate() {
@@ -4689,7 +4701,7 @@ void HistoryWidget::updateControlsGeometry() {
 		st::lineWidth);
 }
 
-void HistoryWidget::itemRemoved(HistoryItem *item) {
+void HistoryWidget::itemRemoved(not_null<const HistoryItem*> item) {
 	if (item == _replyEditMsg) {
 		if (_editMsgId) {
 			cancelEdit();
@@ -4706,6 +4718,17 @@ void HistoryWidget::itemRemoved(HistoryItem *item) {
 	if (_kbReplyTo && item == _kbReplyTo) {
 		onKbToggle();
 		_kbReplyTo = 0;
+	}
+	for (auto i = _toForward.begin(); i != _toForward.end(); ++i) {
+		if (i->get() == item) {
+			i = _toForward.erase(i);
+			updateForwardingTexts();
+			if (_toForward.empty()) {
+				updateControlsVisibility();
+				updateControlsGeometry();
+			}
+			break;
+		}
 	}
 }
 
@@ -6148,7 +6171,6 @@ void HistoryWidget::updateForwarding() {
 	} else {
 		_toForward.clear();
 	}
-	updateForwardingItemRemovedSubscription();
 	updateControlsVisibility();
 	updateControlsGeometry();
 }
@@ -6196,24 +6218,6 @@ void HistoryWidget::checkForwardingInfo() {
 		if (version != _toForwardNameVersion) {
 			updateForwardingTexts();
 		}
-	}
-}
-
-void HistoryWidget::updateForwardingItemRemovedSubscription() {
-	if (_toForward.isEmpty()) {
-		unsubscribe(_forwardingItemRemovedSubscription);
-		_forwardingItemRemovedSubscription = 0;
-	} else if (!_forwardingItemRemovedSubscription) {
-		_forwardingItemRemovedSubscription = subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
-			for (auto i = _toForward.begin(); i != _toForward.end(); ++i) {
-				if (i->get() == item) {
-					i = _toForward.erase(i);
-					updateForwardingItemRemovedSubscription();
-					updateForwardingTexts();
-					break;
-				}
-			}
-		});
 	}
 }
 

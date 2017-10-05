@@ -131,7 +131,9 @@ public:
 		return {
 			key.migratedPeerId,
 			key.type,
-			(key.universalId <= 0) ? (-key.universalId) : (ServerMaxMsgId - 1)
+			(key.universalId < 0)
+				? (ServerMaxMsgId + key.universalId)
+				: (key.universalId > 0) ? (ServerMaxMsgId - 1) : 0
 		};
 	}
 
@@ -157,9 +159,9 @@ private:
 		return ComputeId(slice.key().peerId, slice[index]);
 	};
 	static FullMsgId ComputeId(const Key &key) {
-		return (key.universalId > 0)
+		return (key.universalId >= 0)
 			? ComputeId(key.peerId, key.universalId)
-			: ComputeId(key.migratedPeerId, -key.universalId);
+			: ComputeId(key.migratedPeerId, ServerMaxMsgId + key.universalId);
 	}
 	static base::optional<int> Add(
 			const base::optional<int> &a,
@@ -181,7 +183,7 @@ private:
 			&& (!_migrated || _part.skippedBefore() != 0);
 	}
 	bool isolatedInMigrated() const {
-		return IsServerMsgId(-_key.universalId)
+		return IsServerMsgId(ServerMaxMsgId + _key.universalId)
 			&& (_migrated->skippedAfter() != 0);
 	}
 
@@ -298,9 +300,9 @@ private:
 	}
 	static Value ComputeId(const Key &key) {
 		if (auto messageId = base::get_if<MessageId>(&key.universalId)) {
-			return (*messageId > 0)
+			return (*messageId >= 0)
 				? ComputeId(key.peerId, *messageId)
-				: ComputeId(key.migratedPeerId, -*messageId);
+				: ComputeId(key.migratedPeerId, ServerMaxMsgId + *messageId);
 		}
 		return *base::get_if<not_null<PhotoData*>>(&key.universalId);
 	}

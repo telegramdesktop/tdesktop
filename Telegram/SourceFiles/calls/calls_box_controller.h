@@ -24,7 +24,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Calls {
 
-class BoxController : public PeerListController, private base::Subscriber, private MTP::Sender {
+class BoxController
+	: public PeerListController
+	, private base::Subscriber
+	, private MTP::Sender {
 public:
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
@@ -36,14 +39,15 @@ private:
 	void refreshAbout();
 
 	class Row;
-	Row *rowForItem(HistoryItem *item);
+	Row *rowForItem(not_null<const HistoryItem*> item);
 
 	enum class InsertWay {
 		Append,
 		Prepend,
 	};
-	bool insertRow(HistoryItem *item, InsertWay way);
-	std::unique_ptr<PeerListRow> createRow(HistoryItem *item) const;
+	bool insertRow(not_null<HistoryItem*> item, InsertWay way);
+	std::unique_ptr<PeerListRow> createRow(
+		not_null<HistoryItem*> item) const;
 
 	MsgId _offsetId = 0;
 	mtpRequestId _loadRequestId = 0;

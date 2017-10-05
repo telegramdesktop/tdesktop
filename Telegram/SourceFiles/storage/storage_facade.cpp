@@ -33,7 +33,6 @@ public:
 	void remove(SharedMediaRemoveOne &&query);
 	void remove(SharedMediaRemoveAll &&query);
 	rpl::producer<SharedMediaResult> query(SharedMediaQuery &&query) const;
-
 	rpl::producer<SharedMediaSliceUpdate> sharedMediaSliceUpdated() const;
 	rpl::producer<SharedMediaRemoveOne> sharedMediaOneRemoved() const;
 	rpl::producer<SharedMediaRemoveAll> sharedMediaAllRemoved() const;
@@ -43,7 +42,6 @@ public:
 	void remove(UserPhotosRemoveOne &&query);
 	void remove(UserPhotosRemoveAfter &&query);
 	rpl::producer<UserPhotosResult> query(UserPhotosQuery &&query) const;
-
 	rpl::producer<UserPhotosSliceUpdate> userPhotosSliceUpdated() const;
 
 private:

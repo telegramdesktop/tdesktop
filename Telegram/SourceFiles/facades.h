@@ -122,7 +122,6 @@ void hideLayer(anim::type animated = anim::type::normal);
 void hideSettingsAndLayer(anim::type animated = anim::type::normal);
 bool isLayerShown();
 
-void repaintHistoryItem(not_null<const HistoryItem*> item);
 void autoplayMediaInlineAsync(const FullMsgId &msgId);
 
 void showPeerProfile(const PeerId &peer);
@@ -181,7 +180,6 @@ bool switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot =
 
 void migrateUpdated(PeerData *peer);
 
-void historyItemLayoutChanged(const HistoryItem *item);
 void historyMuteUpdated(History *history);
 
 // handle pending resize() / paint() on history items
@@ -399,7 +397,6 @@ DeclareRefVar(base::Observable<void>, LocalPasscodeChanged);
 
 DeclareRefVar(base::Variable<DBIWorkMode>, WorkMode);
 
-DeclareRefVar(base::Observable<HistoryItem*>, ItemRemoved);
 DeclareRefVar(base::Observable<void>, UnreadCounterUpdate);
 DeclareRefVar(base::Observable<void>, PeerChooseCancel);
 

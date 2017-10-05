@@ -935,31 +935,6 @@ void MainWidget::notify_migrateUpdated(PeerData *peer) {
 	_history->notify_migrateUpdated(peer);
 }
 
-void MainWidget::ui_repaintHistoryItem(not_null<const HistoryItem*> item) {
-	if (item->isLogEntry()) {
-		Auth().data().repaintLogEntry().notify(item, true);
-	} else {
-		_history->ui_repaintHistoryItem(item);
-		if (item->history()->lastMsg == item) {
-			item->history()->updateChatListEntry();
-		}
-		_playerPlaylist->ui_repaintHistoryItem(item);
-		_playerPanel->ui_repaintHistoryItem(item);
-	}
-	if (_overview) _overview->ui_repaintHistoryItem(item);
-	if (auto last = currentFloatPlayer()) {
-		last->widget->ui_repaintHistoryItem(item);
-	}
-}
-
-void MainWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
-	_history->notify_historyItemLayoutChanged(item);
-	if (_overview) _overview->notify_historyItemLayoutChanged(item);
-	if (auto last = currentFloatPlayer()) {
-		last->widget->ui_repaintHistoryItem(item);
-	}
-}
-
 void MainWidget::notify_historyMuteUpdated(History *history) {
 	_dialogs->notify_historyMuteUpdated(history);
 }
@@ -1873,7 +1848,7 @@ void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 	}
 
 	if (auto item = App::histItemById(audioId.contextId())) {
-		Ui::repaintHistoryItem(item);
+		Auth().data().requestItemRepaint(item);
 		item->audioTrackUpdated();
 	}
 	if (auto items = InlineBots::Layout::documentItems()) {
@@ -2046,7 +2021,7 @@ void MainWidget::documentLoadProgress(DocumentData *document) {
 	auto i = items.constFind(document);
 	if (i != items.cend()) {
 		for_const (auto item, i.value()) {
-			Ui::repaintHistoryItem(item);
+			Auth().data().requestItemRepaint(item);
 		}
 	}
 	Auth().documentUpdated.notify(document, true);
@@ -5301,7 +5276,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 						msgRow->history()->unregSendAction(App::self());
 					}
 					App::historyRegItem(msgRow);
-					Ui::repaintHistoryItem(msgRow);
+					Auth().data().requestItemRepaint(msgRow);
 				}
 			}
 			App::historyUnregRandom(d.vrandom_id.v);
@@ -5329,7 +5304,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			if (auto item = App::histItemById(channel, msgId.v)) {
 				if (item->isMediaUnread()) {
 					item->markMediaRead();
-					Ui::repaintHistoryItem(item);
+					Auth().data().requestItemRepaint(item);
 				}
 			} else {
 				// Perhaps it was an unread mention!

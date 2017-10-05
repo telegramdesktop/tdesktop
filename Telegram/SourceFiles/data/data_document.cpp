@@ -22,23 +22,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "lang/lang_keys.h"
 #include "inline_bots/inline_bot_layout_item.h"
-//#include "observer_peer.h"
 #include "mainwidget.h"
-//#include "application.h"
-//#include "storage/file_upload.h"
-//#include "mainwindow.h"
 #include "core/file_utilities.h"
-//#include "apiwrap.h"
-//#include "boxes/confirm_box.h"
 #include "media/media_audio.h"
 #include "storage/localstorage.h"
 #include "platform/platform_specific.h"
 #include "history/history_media_types.h"
-//#include "styles/style_history.h"
-//#include "window/themes/window_theme.h"
-//#include "auth_session.h"
+#include "auth_session.h"
 #include "messenger.h"
-//#include "storage/file_download.h"
 
 QString joinList(const QStringList &list, const QString &sep) {
 	QString result;
@@ -728,7 +719,7 @@ void DocumentData::cancel() {
 void DocumentData::notifyLayoutChanged() const {
 	auto &items = App::documentItems();
 	for (auto item : items.value(const_cast<DocumentData*>(this))) {
-		Notify::historyItemLayoutChanged(item);
+		Auth().data().markItemLayoutChanged(item);
 	}
 
 	if (auto items = InlineBots::Layout::documentItems()) {

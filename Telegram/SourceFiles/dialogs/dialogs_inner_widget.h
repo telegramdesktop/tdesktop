@@ -176,7 +176,7 @@ private:
 	}
 	void handlePeerNameChange(not_null<PeerData*> peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
 
-	void itemRemoved(HistoryItem *item);
+	void itemRemoved(not_null<const HistoryItem*> item);
 	enum class UpdateRowSection {
 		Default       = (1 << 0),
 		Filtered      = (1 << 1),

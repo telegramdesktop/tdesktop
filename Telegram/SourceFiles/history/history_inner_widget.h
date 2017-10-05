@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "ui/rp_widget.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/scroll_area.h"
 #include "window/top_bar_widget.h"
@@ -33,11 +34,18 @@ class PopupMenu;
 } // namespace Ui
 
 class HistoryWidget;
-class HistoryInner : public TWidget, public Ui::AbstractTooltipShower, private base::Subscriber {
+class HistoryInner
+	: public Ui::RpWidget
+	, public Ui::AbstractTooltipShower
+	, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	HistoryInner(HistoryWidget *historyWidget, not_null<Window::Controller*> controller, Ui::ScrollArea *scroll, History *history);
+	HistoryInner(
+		HistoryWidget *historyWidget,
+		not_null<Window::Controller*> controller,
+		Ui::ScrollArea *scroll,
+		History *history);
 
 	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages);
 	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages);
@@ -91,7 +99,7 @@ public:
 protected:
 	bool focusNextPrevChild(bool next) override;
 
-	bool event(QEvent *e) override; // calls touchEvent when necessary
+	bool eventHook(QEvent *e) override; // calls touchEvent when necessary
 	void touchEvent(QTouchEvent *e);
 	void paintEvent(QPaintEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -141,7 +149,7 @@ private:
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
 
-	void itemRemoved(HistoryItem *item);
+	void itemRemoved(not_null<const HistoryItem*> item);
 	void savePhotoToFile(PhotoData *photo);
 	void saveDocumentToFile(DocumentData *document);
 	void copyContextImage(PhotoData *photo);
@@ -206,7 +214,7 @@ private:
 	bool _firstLoading = false;
 
 	style::cursor _cursor = style::cur_default;
-	using SelectedItems = QMap<HistoryItem*, TextSelection>;
+	using SelectedItems = std::map<HistoryItem*, TextSelection, std::less<>>;
 	SelectedItems _selected;
 	void applyDragSelection();
 	void applyDragSelection(SelectedItems *toItems) const;

@@ -605,8 +605,7 @@ SharedMediaMergedSlice SharedMediaMergedSliceBuilder::snapshot() const {
 	return SharedMediaMergedSlice(
 		_key,
 		_part,
-		_migrated
-	);
+		_migrated);
 }
 
 rpl::producer<SharedMediaMergedSlice> SharedMediaMergedViewer(
@@ -615,7 +614,7 @@ rpl::producer<SharedMediaMergedSlice> SharedMediaMergedViewer(
 		int limitAfter) {
 	Expects(IsServerMsgId(key.universalId)
 		|| (key.universalId == 0)
-		|| (IsServerMsgId(-key.universalId) && key.migratedPeerId != 0));
+		|| (IsServerMsgId(ServerMaxMsgId + key.universalId) && key.migratedPeerId != 0));
 	Expects((key.universalId != 0) || (limitBefore == 0 && limitAfter == 0));
 
 	return [=](auto consumer) {

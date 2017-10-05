@@ -66,9 +66,6 @@ public:
 	base::Observable<not_null<History*>> &historyCleared() {
 		return _historyCleared;
 	}
-	base::Observable<not_null<const HistoryItem*>> &repaintLogEntry() {
-		return _repaintLogEntry;
-	}
 	base::Observable<void> &pendingHistoryResize() {
 		return _pendingHistoryResize;
 	}
@@ -78,6 +75,24 @@ public:
 	};
 	base::Observable<ItemVisibilityQuery> &queryItemVisibility() {
 		return _queryItemVisibility;
+	}
+	void markItemLayoutChanged(not_null<const HistoryItem*> item) {
+		_itemLayoutChanged.fire(std::move(item));
+	}
+	rpl::producer<not_null<const HistoryItem*>> itemLayoutChanged() const {
+		return _itemLayoutChanged.events();
+	}
+	void requestItemRepaint(not_null<const HistoryItem*> item) {
+		_itemRepaintRequest.fire(std::move(item));
+	}
+	rpl::producer<not_null<const HistoryItem*>> itemRepaintRequest() const {
+		return _itemRepaintRequest.events();
+	}
+	void markItemRemoved(not_null<const HistoryItem*> item) {
+		_itemRemoved.fire(std::move(item));
+	}
+	rpl::producer<not_null<const HistoryItem*>> itemRemoved() const {
+		return _itemRemoved.events();
 	}
 
 	void copyFrom(const AuthSessionData &other) {
@@ -187,9 +202,12 @@ private:
 	base::Observable<void> _stickersUpdated;
 	base::Observable<void> _savedGifsUpdated;
 	base::Observable<not_null<History*>> _historyCleared;
-	base::Observable<not_null<const HistoryItem*>> _repaintLogEntry;
 	base::Observable<void> _pendingHistoryResize;
 	base::Observable<ItemVisibilityQuery> _queryItemVisibility;
+	rpl::event_stream<not_null<const HistoryItem*>> _itemLayoutChanged;
+	rpl::event_stream<not_null<const HistoryItem*>> _itemRepaintRequest;
+	rpl::event_stream<not_null<const HistoryItem*>> _itemRemoved;
+
 	rpl::event_stream<bool> _thirdSectionInfoEnabledValue;
 	bool _tabbedReplacedWithInfo = false;
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue;

@@ -218,10 +218,10 @@ void WrapWidget::showBackFromStack() {
 	if (!_historyStack.empty()) {
 		auto last = std::move(_historyStack.back());
 		_historyStack.pop_back();
-		_anotherTabMemento = std::move(last.anotherTab);
 		showNewContent(
 			last.section.get(),
 			params);
+		_anotherTabMemento = std::move(last.anotherTab);
 	} else {
 		controller()->showBackFromStack(params);
 	}
@@ -237,6 +237,7 @@ not_null<Ui::RpWidget*> WrapWidget::topWidget() const {
 void WrapWidget::showContent(object_ptr<ContentWidget> content) {
 	_content = std::move(content);
 	_content->show();
+	_anotherTabMemento = nullptr;
 	finishShowContent();
 }
 

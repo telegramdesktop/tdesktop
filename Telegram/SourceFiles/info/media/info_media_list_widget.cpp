@@ -23,7 +23,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "overview/overview_layout.h"
 #include "history/history_media_types.h"
 #include "window/themes/window_theme.h"
+#include "storage/file_download.h"
 #include "lang/lang_keys.h"
+#include "auth_session.h"
 #include "styles/style_overview.h"
 #include "styles/style_info.h"
 
@@ -36,6 +38,21 @@ namespace {
 constexpr auto kIdsLimit = 256;
 
 using ItemBase = Layout::ItemBase;
+using UniversalMsgId = int32;
+
+UniversalMsgId GetUniversalId(FullMsgId itemId) {
+	return (itemId.channel != 0)
+		? itemId.msg
+		: (itemId.msg - ServerMaxMsgId);
+}
+
+UniversalMsgId GetUniversalId(not_null<const HistoryItem*> item) {
+	return GetUniversalId(item->fullId());
+}
+
+UniversalMsgId GetUniversalId(not_null<const ItemBase*> layout) {
+	return GetUniversalId(layout->getItem()->fullId());
+}
 
 } // namespace
 
@@ -55,10 +72,29 @@ public:
 		return _items.empty();
 	}
 
+	UniversalMsgId minId() const {
+		Expects(!empty());
+		return _items.back().first;
+	}
+	UniversalMsgId maxId() const {
+		Expects(!empty());
+		return _items.front().first;
+	}
+
+	void setTop(int top) {
+		_top = top;
+	}
+	int top() const {
+		return _top;
+	}
 	void resizeToWidth(int newWidth);
 	int height() const {
 		return _height;
 	}
+
+	bool removeItem(UniversalMsgId universalId);
+	base::optional<QRect> findItemRect(
+		UniversalMsgId universalId) const;
 
 	void paint(
 		Painter &p,
@@ -67,20 +103,33 @@ public:
 		TimeMs ms) const;
 
 private:
+	using Items = base::flat_map<
+		UniversalMsgId,
+		not_null<ItemBase*>,
+		std::greater<>>;
 	int headerHeight() const;
 	void appendItem(not_null<ItemBase*> item);
 	void setHeader(not_null<ItemBase*> item);
 	bool belongsHere(not_null<ItemBase*> item) const;
-	int countRowHeight(not_null<ItemBase*> item) const;
+	Items::iterator findItemAfterTop(int top);
+	Items::const_iterator findItemAfterTop(int top) const;
+	Items::const_iterator findItemAfterBottom(
+		Items::const_iterator from,
+		int bottom) const;
+	QRect findItemRect(not_null<ItemBase*> item) const;
+
+	int recountHeight() const;
+	void refreshHeight();
 
 	Type _type = Type::Photo;
 	Text _header;
-	std::vector<not_null<ItemBase*>> _items;
+	Items _items;
 	int _itemsLeft = 0;
 	int _itemsTop = 0;
 	int _itemWidth = 0;
 	int _itemsInRow = 1;
-	int _rowsCount = 0;
+	mutable int _rowsCount = 0;
+	int _top = 0;
 	int _height = 0;
 
 };
@@ -120,7 +169,7 @@ bool ListWidget::Section::belongsHere(
 		not_null<ItemBase*> item) const {
 	Expects(!_items.empty());
 	auto date = item->getItem()->date.date();
-	auto myDate = _items.back()->getItem()->date.date();
+	auto myDate = _items.back().second->getItem()->date.date();
 
 	switch (_type) {
 	case Type::Photo:
@@ -142,25 +191,70 @@ bool ListWidget::Section::belongsHere(
 	Unexpected("Type in ListWidget::Section::belongsHere()");
 }
 
-int ListWidget::Section::countRowHeight(
-		not_null<ItemBase*> item) const {
-	switch (_type) {
-	case Type::Photo:
-	case Type::Video:
-	case Type::RoundFile:
-		return _itemWidth + st::infoMediaSkip;
-
-	case Type::VoiceFile:
-	case Type::File:
-	case Type::Link:
-	case Type::MusicFile:
-		return item->height();
-	}
-	Unexpected("Type in ListWidget::Section::countRowHeight()");
+void ListWidget::Section::appendItem(not_null<ItemBase*> item) {
+	_items.emplace(GetUniversalId(item), item);
 }
 
-void ListWidget::Section::appendItem(not_null<ItemBase*> item) {
-	_items.push_back(item);
+bool ListWidget::Section::removeItem(UniversalMsgId universalId) {
+	if (auto it = _items.find(universalId); it != _items.end()) {
+		it = _items.erase(it);
+		refreshHeight();
+		return true;
+	}
+	return false;
+}
+
+base::optional<QRect> ListWidget::Section::findItemRect(
+		UniversalMsgId universalId) const {
+	if (auto it = _items.find(universalId); it != _items.end()) {
+		return findItemRect(it->second);
+	}
+	return base::none;
+}
+
+QRect ListWidget::Section::findItemRect(
+		not_null<ItemBase*> item) const {
+	auto position = item->position();
+	auto top = position / _itemsInRow;
+	auto indexInRow = position % _itemsInRow;
+	auto left = _itemsLeft
+		+ indexInRow * (_itemWidth + st::infoMediaSkip);
+	return QRect(left, top, _itemWidth, item->height());
+}
+
+auto ListWidget::Section::findItemAfterTop(
+		int top) -> Items::iterator {
+	return base::lower_bound(
+		_items,
+		top,
+		[this](const auto &item, int top) {
+			auto itemTop = item.second->position() / _itemsInRow;
+			return (itemTop + item.second->height()) <= top;
+		});
+}
+
+auto ListWidget::Section::findItemAfterTop(
+		int top) const -> Items::const_iterator {
+	return base::lower_bound(
+		_items,
+		top,
+		[this](const auto &item, int top) {
+		auto itemTop = item.second->position() / _itemsInRow;
+		return (itemTop + item.second->height()) <= top;
+	});
+}
+
+auto ListWidget::Section::findItemAfterBottom(
+		Items::const_iterator from,
+		int bottom) const -> Items::const_iterator {
+	return std::lower_bound(
+		from,
+		_items.end(),
+		bottom,
+		[this](const auto &item, int bottom) {
+			auto itemTop = item.second->position() / _itemsInRow;
+			return itemTop < bottom;
+		});
 }
 
 void ListWidget::Section::paint(
@@ -169,9 +263,8 @@ void ListWidget::Section::paint(
 		int outerWidth,
 		TimeMs ms) const {
 	auto baseIndex = 0;
-	auto top = _itemsTop;
 	auto header = headerHeight();
-	if (header) {
+	if (QRect(0, 0, outerWidth, header).intersects(clip)) {
 		p.setPen(st::infoMediaHeaderFg);
 		_header.drawLeftElided(
 			p,
@@ -179,14 +272,14 @@ void ListWidget::Section::paint(
 			st::infoMediaHeaderPosition.y(),
 			outerWidth - 2 * st::infoMediaHeaderPosition.x(),
 			outerWidth);
-		top += header;
 	}
-	auto fromitem = floorclamp(
+	auto top = header + _itemsTop;
+	auto fromcol = floorclamp(
 		clip.x() - _itemsLeft,
 		_itemWidth,
 		0,
 		_itemsInRow);
-	auto tillitem = ceilclamp(
+	auto tillcol = ceilclamp(
 		clip.x() + clip.width() - _itemsLeft,
 		_itemWidth,
 		0,
@@ -194,35 +287,23 @@ void ListWidget::Section::paint(
 	Layout::PaintContext context(ms, false);
 	context.isAfterDate = (header > 0);
 
-	// #TODO ranges, binary search for visible slice.
-	for (auto row = 0; row != _rowsCount; ++row) {
-		auto rowHeight = countRowHeight(_items[baseIndex]);
-		auto increment = gsl::finally([&] {
-			top += rowHeight;
-			baseIndex += _itemsInRow;
-			context.isAfterDate = false;
-		});
-
-		if (top >= clip.y() + clip.height()) {
-			break;
-		} else if (top + rowHeight <= clip.y()) {
-			continue;
-		}
-		for (auto col = fromitem; col != tillitem; ++col) {
-			auto index = baseIndex + col;
-			if (index >= int(_items.size())) {
-				break;
-			}
-			auto item = _items[index];
-			auto left = _itemsLeft
-				+ col * (_itemWidth + st::infoMediaSkip);
-			p.translate(left, top);
+	auto fromIt = findItemAfterTop(clip.y());
+	auto tillIt = findItemAfterBottom(
+		fromIt,
+		clip.y() + clip.height());
+	for (auto it = fromIt; it != tillIt; ++it) {
+		auto item = it->second;
+		auto rect = findItemRect(item);
+		context.isAfterDate = (header > 0)
+			&& (rect.y() <= header + _itemsTop);
+		if (rect.intersects(clip)) {
+			p.translate(rect.topLeft());
 			item->paint(
 				p,
-				clip.translated(-left, -top),
+				clip.translated(-rect.topLeft()),
 				TextSelection(),
 				&context);
-			p.translate(-left, -top);
+			p.translate(-rect.topLeft());
 		}
 	}
 }
@@ -237,7 +318,6 @@ void ListWidget::Section::resizeToWidth(int newWidth) {
 		return;
 	}
 
-	_height = headerHeight();
 	switch (_type) {
 	case Type::Photo:
 	case Type::Video:
@@ -248,42 +328,70 @@ void ListWidget::Section::resizeToWidth(int newWidth) {
 			/ (st::infoMediaMinGridSize + st::infoMediaSkip);
 		_itemWidth = ((newWidth - _itemsLeft) / _itemsInRow)
 			- st::infoMediaSkip;
-		auto itemHeight = _itemWidth + st::infoMediaSkip;
-		_rowsCount = (int(_items.size()) + _itemsInRow - 1)
-			/ _itemsInRow;
-		_height += _itemsTop + _rowsCount * itemHeight;
+		for (auto &item : _items) {
+			item.second->resizeGetHeight(_itemWidth);
+		}
 	} break;
 
 	case Type::VoiceFile:
 	case Type::File:
-	case Type::MusicFile: {
-		_itemsLeft = 0;
-		_itemsTop = 0;
-		_itemsInRow = 1;
-		_itemWidth = newWidth;
-		auto itemHeight = _items.empty() ? 0 : _items.front()->height();
-		_rowsCount = _items.size();
-		_height += _rowsCount * itemHeight;
-	} break;
-
+	case Type::MusicFile:
 	case Type::Link:
 		_itemsLeft = 0;
 		_itemsTop = 0;
 		_itemsInRow = 1;
 		_itemWidth = newWidth;
-		auto top = 0;
-		for (auto item : _items) {
-			top += item->resizeGetHeight(_itemWidth);
+		for (auto &item : _items) {
+			item.second->resizeGetHeight(_itemWidth);
 		}
-		_height += top;
 		break;
 	}
 
-	if (_type != Type::Link) {
-		for (auto item : _items) {
-			item->resizeGetHeight(_itemWidth);
+	refreshHeight();
+}
+
+int ListWidget::Section::recountHeight() const {
+	auto result = headerHeight();
+
+	switch (_type) {
+	case Type::Photo:
+	case Type::Video:
+	case Type::RoundFile: {
+		auto itemHeight = _itemWidth + st::infoMediaSkip;
+		auto index = 0;
+		result += _itemsTop;
+		for (auto &item : _items) {
+			item.second->setPosition(_itemsInRow * result + index);
+			if (++index == _itemsInRow) {
+				result += itemHeight;
+				index = 0;
+			}
 		}
+		if (_items.size() % _itemsInRow) {
+			_rowsCount = int(_items.size()) / _itemsInRow + 1;
+			result += itemHeight;
+		} else {
+			_rowsCount = int(_items.size()) / _itemsInRow;
+		}
+	} break;
+
+	case Type::VoiceFile:
+	case Type::File:
+	case Type::MusicFile:
+	case Type::Link:
+		for (auto &item : _items) {
+			item.second->setPosition(result);
+			result += item.second->height();
+		}
+		_rowsCount = _items.size();
+		break;
 	}
+
+	return result;
+}
+
+void ListWidget::Section::refreshHeight() {
+	_height = recountHeight();
 }
 
 ListWidget::ListWidget(
@@ -296,13 +404,72 @@ ListWidget::ListWidget(
 , _peer(peer)
 , _type(type)
 , _slice(sliceKey()) {
+	start();
 	refreshViewer();
+}
+
+void ListWidget::start() {
 	ObservableViewer(*Window::Theme::Background())
 		| rpl::start_with_next([this](const auto &update) {
 			if (update.paletteChanged()) {
 				invalidatePaletteCache();
 			}
 		}, lifetime());
+	ObservableViewer(Auth().downloader().taskFinished())
+		| rpl::start_with_next([this] { update(); }, lifetime());
+	Auth().data().itemLayoutChanged()
+		| rpl::start_with_next([this](auto item) {
+			if ((item == App::mousedItem())
+				|| (item == App::hoveredItem())
+				|| (item == App::hoveredLinkItem())) {
+				updateSelected();
+			}
+		}, lifetime());
+	Auth().data().itemRemoved()
+		| rpl::start_with_next([this](auto item) {
+			itemRemoved(item);
+		}, lifetime());
+	Auth().data().itemRepaintRequest()
+		| rpl::start_with_next([this](auto item) {
+			repaintItem(item);
+		}, lifetime());
+}
+
+void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
+	if (myItem(item)) {
+		auto universalId = GetUniversalId(item);
+		auto sectionIt = findSectionByItem(universalId);
+		if (sectionIt != _sections.end()) {
+			if (sectionIt->removeItem(universalId)) {
+				auto top = sectionIt->top();
+				if (sectionIt->empty()) {
+					_sections.erase(sectionIt);
+				}
+				refreshHeight();
+			}
+		}
+	}
+}
+
+void ListWidget::repaintItem(not_null<const HistoryItem*> item) {
+	if (myItem(item)) {
+		repaintItem(GetUniversalId(item));
+	}
+}
+
+void ListWidget::repaintItem(UniversalMsgId universalId) {
+	auto sectionIt = findSectionByItem(universalId);
+	if (sectionIt != _sections.end()) {
+		if (auto rect = sectionIt->findItemRect(universalId)) {
+			auto top = padding().top() + sectionIt->top();
+			rtlupdate(rect->translated(0, top));
+		}
+	}
+}
+
+bool ListWidget::myItem(not_null<const HistoryItem*> item) const {
+	auto peer = item->history()->peer;
+	return (_peer == peer || _peer == peer->migrateTo());
 }
 
 void ListWidget::invalidatePaletteCache() {
@@ -314,9 +481,7 @@ void ListWidget::invalidatePaletteCache() {
 SharedMediaMergedSlice::Key ListWidget::sliceKey() const {
 	auto universalId = _universalAroundId;
 	using Key = SharedMediaMergedSlice::Key;
-	if (auto migrateTo = _peer->migrateTo()) {
-		return Key(migrateTo->id, _peer->id, _type, universalId);
-	} else if (auto migrateFrom = _peer->migrateFrom()) {
+	if (auto migrateFrom = _peer->migrateFrom()) {
 		return Key(_peer->id, migrateFrom->id, _type, universalId);
 	}
 	return Key(_peer->id, 0, _type, universalId);
@@ -338,11 +503,14 @@ int ListWidget::countIdsLimit() const {
 }
 
 ItemBase *ListWidget::getLayout(const FullMsgId &itemId) {
-	auto it = _layouts.find(itemId);
+	auto universalId = GetUniversalId(itemId);
+	auto it = _layouts.find(universalId);
 	if (it == _layouts.end()) {
 		if (auto layout = createLayout(itemId, _type)) {
 			layout->initDimensions();
-			it = _layouts.emplace(itemId, std::move(layout)).first;
+			it = _layouts.emplace(
+				universalId,
+				std::move(layout)).first;
 		} else {
 			return nullptr;
 		}
@@ -372,34 +540,37 @@ std::unique_ptr<ItemBase> ListWidget::createLayout(
 		}
 		return nullptr;
 	};
+
+	auto &fileSt = st::overviewFileLayout;
+	using namespace Layout;
 	switch (type) {
 	case Type::Photo:
 		if (auto photo = getPhoto()) {
-			return std::make_unique<Layout::Photo>(photo, item);
+			return std::make_unique<Photo>(item, photo);
 		}
 		return nullptr;
 	case Type::Video:
 		if (auto file = getFile()) {
-			return std::make_unique<Layout::Video>(file, item);
+			return std::make_unique<Video>(item, file);
 		}
 		return nullptr;
 	case Type::File:
 		if (auto file = getFile()) {
-			return std::make_unique<Layout::Document>(file, item, st::overviewFileLayout);
+			return std::make_unique<Document>(item, file, fileSt);
 		}
 		return nullptr;
 	case Type::MusicFile:
 		if (auto file = getFile()) {
-			return std::make_unique<Layout::Document>(file, item, st::overviewFileLayout);
+			return std::make_unique<Document>(item, file, fileSt);
 		}
 		return nullptr;
 	case Type::VoiceFile:
 		if (auto file = getFile()) {
-			return std::make_unique<Layout::Voice>(file, item, st::overviewFileLayout);
+			return std::make_unique<Voice>(item, file, fileSt);
 		}
 		return nullptr;
 	case Type::Link:
-		return std::make_unique<Layout::Link>(item->getMedia(), item);
+		return std::make_unique<Link>(item, item->getMedia());
 	case Type::RoundFile:
 		return nullptr;
 	}
@@ -438,10 +609,24 @@ void ListWidget::markLayoutsStale() {
 }
 
 int ListWidget::resizeGetHeight(int newWidth) {
-	for (auto &section : _sections) {
-		section.resizeToWidth(newWidth);
+	if (newWidth > 0) {
+		for (auto &section : _sections) {
+			section.resizeToWidth(newWidth);
+		}
 	}
 	return recountHeight();
+}
+
+void ListWidget::visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) {
+	if (width() <= 0) {
+		return;
+	}
+}
+
+QMargins ListWidget::padding() const {
+	return st::infoMediaMargin;
 }
 
 void ListWidget::paintEvent(QPaintEvent *e) {
@@ -450,25 +635,34 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	auto outerWidth = width();
 	auto clip = e->rect();
 	auto ms = getms();
-	auto top = st::infoMediaMargin.top();
-	p.translate(0, top);
-	clip = clip.translated(0, -top);
-	for (auto &section : _sections) {
-		section.paint(p, clip, outerWidth, ms);
-		auto height = section.height();
-		p.translate(0, height);
-		clip = clip.translated(0, -height);
+	auto fromSectionIt = findSectionAfterTop(clip.y());
+	auto tillSectionIt = findSectionAfterBottom(
+		fromSectionIt,
+		clip.y() + clip.height());
+	for (auto it = fromSectionIt; it != tillSectionIt; ++it) {
+		auto top = it->top();
+		p.translate(0, top);
+		it->paint(p, clip.translated(0, -top), outerWidth, ms);
+		p.translate(0, -top);
 	}
 }
 
+void ListWidget::refreshHeight() {
+	resize(width(), recountHeight());
+}
+
 int ListWidget::recountHeight() {
-	auto result = 0;
+	auto cachedPadding = padding();
+	auto result = cachedPadding.top();
 	for (auto &section : _sections) {
+		section.setTop(result);
 		result += section.height();
 	}
-	return st::infoMediaMargin.top()
-		+ result
-		+ st::infoMediaMargin.bottom();
+	return result
+		+ cachedPadding.bottom();
+}
+
+void ListWidget::updateSelected() {
 }
 
 void ListWidget::clearStaleLayouts() {
@@ -479,6 +673,47 @@ void ListWidget::clearStaleLayouts() {
 			++i;
 		}
 	}
+}
+
+auto ListWidget::findSectionByItem(
+		UniversalMsgId universalId) -> std::vector<Section>::iterator {
+	return base::lower_bound(
+		_sections,
+		universalId,
+		[](const Section &section, int universalId) {
+			return section.minId() > universalId;
+		});
+}
+
+auto ListWidget::findSectionAfterTop(
+		int top) -> std::vector<Section>::iterator {
+	return base::lower_bound(
+		_sections,
+		top,
+		[](const Section &section, int top) {
+			return (section.top() + section.height()) <= top;
+		});
+}
+
+auto ListWidget::findSectionAfterTop(
+		int top) const -> std::vector<Section>::const_iterator {
+	return base::lower_bound(
+		_sections,
+		top,
+		[](const Section &section, int top) {
+		return (section.top() + section.height()) <= top;
+	});
+}
+auto ListWidget::findSectionAfterBottom(
+		std::vector<Section>::const_iterator from,
+		int bottom) const -> std::vector<Section>::const_iterator {
+	return std::lower_bound(
+		from,
+		_sections.end(),
+		bottom,
+		[](const Section &section, int bottom) {
+			return section.top() < bottom;
+		});
 }
 
 ListWidget::~ListWidget() = default;

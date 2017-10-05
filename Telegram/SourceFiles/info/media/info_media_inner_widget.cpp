@@ -187,8 +187,7 @@ Type InnerWidget::type() const {
 void InnerWidget::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
-	_visibleTop = visibleTop;
-	_visibleBottom = visibleBottom;
+	setChildVisibleTopBottom(_list, visibleTop, visibleBottom);
 }
 
 bool InnerWidget::showInternal(not_null<Memento*> memento) {

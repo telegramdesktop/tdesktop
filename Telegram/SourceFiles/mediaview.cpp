@@ -1023,7 +1023,7 @@ base::optional<MediaView::SharedMediaKey> MediaView::sharedMediaKey() const {
 			_history->peer->id,
 			_migrated ? _migrated->peer->id : 0,
 			type,
-			(_msgid.channel == _history->channelId()) ? _msgid.msg : -_msgid.msg };
+			(_msgid.channel == _history->channelId()) ? _msgid.msg : (_msgid.msg - ServerMaxMsgId) };
 	};
 	return
 		sharedMediaType()

@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "ui/rp_widget.h"
+
 namespace Media {
 namespace Clip {
 class Playback;
@@ -27,7 +29,7 @@ class Playback;
 
 namespace Player {
 
-class Float : public TWidget, private base::Subscriber {
+class Float : public Ui::RpWidget, private base::Subscriber {
 public:
 	Float(QWidget *parent, HistoryItem *item, base::lambda<void(bool visible)> toggleCallback, base::lambda<void(bool closed)> draggedCallback);
 
@@ -57,11 +59,6 @@ public:
 		_down = false;
 		if (_drag) {
 			finishDrag(false);
-		}
-	}
-	void ui_repaintHistoryItem(not_null<const HistoryItem*> item) {
-		if (item == _item) {
-			repaintItem();
 		}
 	}
 

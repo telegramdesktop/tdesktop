@@ -96,12 +96,6 @@ void Panel::updateControlsGeometry() {
 	}
 }
 
-void Panel::ui_repaintHistoryItem(not_null<const HistoryItem*> item) {
-	if (auto list = static_cast<ListWidget*>(_scroll->widget())) {
-		list->ui_repaintHistoryItem(item);
-	}
-}
-
 int Panel::bestPositionFor(int left) const {
 	left -= contentLeft();
 	left -= st::mediaPlayerFileLayout.songPadding.left();

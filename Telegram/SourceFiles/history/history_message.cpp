@@ -556,7 +556,7 @@ const style::TextStyle &HistoryMessage::KeyboardStyle::textStyle() const {
 }
 
 void HistoryMessage::KeyboardStyle::repaint(not_null<const HistoryItem*> item) const {
-	Ui::repaintHistoryItem(item);
+	Auth().data().requestItemRepaint(item);
 }
 
 int HistoryMessage::KeyboardStyle::buttonRadius() const {
@@ -1581,7 +1581,7 @@ void HistoryMessage::setViewsCount(int32 count) {
 	views->_viewsText = (views->_views >= 0) ? formatViewsCount(views->_views) : QString();
 	views->_viewsWidth = views->_viewsText.isEmpty() ? 0 : st::msgDateFont->width(views->_viewsText);
 	if (was == views->_viewsWidth) {
-		Ui::repaintHistoryItem(this);
+		Auth().data().requestItemRepaint(this);
 	} else {
 		if (_text.hasSkipBlock()) {
 			_text.setSkipBlock(HistoryMessage::skipBlockWidth(), HistoryMessage::skipBlockHeight());
@@ -1596,7 +1596,7 @@ void HistoryMessage::setId(MsgId newId) {
 	bool wasPositive = (id > 0), positive = (newId > 0);
 	HistoryItem::setId(newId);
 	if (wasPositive == positive) {
-		Ui::repaintHistoryItem(this);
+		Auth().data().requestItemRepaint(this);
 	} else {
 		if (_text.hasSkipBlock()) {
 			_text.setSkipBlock(HistoryMessage::skipBlockWidth(), HistoryMessage::skipBlockHeight());

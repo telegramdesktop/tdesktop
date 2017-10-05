@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "ui/rp_widget.h"
+
 namespace Overview {
 namespace Layout {
 class Document;
@@ -29,11 +31,9 @@ class Document;
 namespace Media {
 namespace Player {
 
-class ListWidget : public TWidget, private base::Subscriber {
+class ListWidget : public Ui::RpWidget, private base::Subscriber {
 public:
 	ListWidget(QWidget *parent);
-
-	void ui_repaintHistoryItem(not_null<const HistoryItem*> item);
 
 	QRect getCurrentTrackGeometry() const;
 
@@ -48,7 +48,7 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
-	void itemRemoved(HistoryItem *item);
+	void itemRemoved(not_null<const HistoryItem*> item);
 	int marginTop() const;
 	void repaintItem(const HistoryItem *item);
 	void playlistUpdated();

@@ -52,8 +52,6 @@ public:
 	void setPinCallback(ButtonCallback &&callback);
 	void setCloseCallback(ButtonCallback &&callback);
 
-	void ui_repaintHistoryItem(not_null<const HistoryItem*> item);
-
 	int bestPositionFor(int left) const;
 
 protected:

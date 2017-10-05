@@ -250,12 +250,6 @@ bool isLayerShown() {
 	return false;
 }
 
-void repaintHistoryItem(not_null<const HistoryItem*> item) {
-	if (auto main = App::main()) {
-		main->ui_repaintHistoryItem(item);
-	}
-}
-
 void autoplayMediaInlineAsync(const FullMsgId &msgId) {
 	if (auto main = App::main()) {
 		InvokeQueued(main, [msgId] {
@@ -355,10 +349,6 @@ void migrateUpdated(PeerData *peer) {
 	if (MainWidget *m = App::main()) m->notify_migrateUpdated(peer);
 }
 
-void historyItemLayoutChanged(const HistoryItem *item) {
-	if (MainWidget *m = App::main()) m->notify_historyItemLayoutChanged(item);
-}
-
 void historyMuteUpdated(History *history) {
 	if (MainWidget *m = App::main()) m->notify_historyMuteUpdated(history);
 }
@@ -370,7 +360,7 @@ void handlePendingHistoryUpdate() {
 	Auth().data().pendingHistoryResize().notify(true);
 
 	for (auto item : base::take(Global::RefPendingRepaintItems())) {
-		Ui::repaintHistoryItem(item);
+		Auth().data().requestItemRepaint(item);
 
 		// Start the video if it is waiting for that.
 		if (item->pendingInitDimensions()) {
@@ -639,7 +629,6 @@ struct Data {
 
 	base::Variable<DBIWorkMode> WorkMode = { dbiwmWindowAndTray };
 
-	base::Observable<HistoryItem*> ItemRemoved;
 	base::Observable<void> UnreadCounterUpdate;
 	base::Observable<void> PeerChooseCancel;
 
@@ -762,7 +751,6 @@ DefineRefVar(Global, base::Observable<void>, LocalPasscodeChanged);
 
 DefineRefVar(Global, base::Variable<DBIWorkMode>, WorkMode);
 
-DefineRefVar(Global, base::Observable<HistoryItem*>, ItemRemoved);
 DefineRefVar(Global, base::Observable<void>, UnreadCounterUpdate);
 DefineRefVar(Global, base::Observable<void>, PeerChooseCancel);
 

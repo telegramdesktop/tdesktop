@@ -24,17 +24,25 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "overview/overview_layout.h"
 #include "styles/style_media_player.h"
 #include "history/history_media.h"
+#include "auth_session.h"
 
 namespace Media {
 namespace Player {
 
-ListWidget::ListWidget(QWidget *parent) : TWidget(parent) {
+ListWidget::ListWidget(QWidget *parent) : RpWidget(parent) {
 	setMouseTracking(true);
 	playlistUpdated();
-	subscribe(instance()->playlistChangedNotifier(), [this](AudioMsgId::Type type) { playlistUpdated(); });
-	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
-		itemRemoved(item);
-	});
+	subscribe(
+		instance()->playlistChangedNotifier(),
+		[this](AudioMsgId::Type type) { playlistUpdated(); });
+	Auth().data().itemRemoved()
+		| rpl::start_with_next(
+			[this](auto item) { itemRemoved(item); },
+			lifetime());
+	Auth().data().itemRepaintRequest()
+		| rpl::start_with_next(
+			[this](auto item) { repaintItem(item); },
+			lifetime());
 }
 
 ListWidget::~ListWidget() {
@@ -118,10 +126,6 @@ void ListWidget::mouseMoveEvent(QMouseEvent *e) {
 	}
 }
 
-void ListWidget::ui_repaintHistoryItem(not_null<const HistoryItem*> item) {
-	repaintItem(item);
-}
-
 void ListWidget::repaintItem(const HistoryItem *item) {
 	if (!item) return;
 
@@ -139,7 +143,7 @@ void ListWidget::repaintItem(const HistoryItem *item) {
 	}
 }
 
-void ListWidget::itemRemoved(HistoryItem *item) {
+void ListWidget::itemRemoved(not_null<const HistoryItem *> item) {
 	auto layoutIt = _layouts.find(item->fullId());
 	if (layoutIt != _layouts.cend()) {
 		auto layout = layoutIt.value();
@@ -204,7 +208,7 @@ void ListWidget::playlistUpdated() {
 			if (auto item = App::histItemById(msgId)) {
 				if (auto media = item->getMedia()) {
 					if (media->type() == MediaTypeMusicFile) {
-						layoutIt = _layouts.insert(msgId, new Overview::Layout::Document(media->getDocument(), item, st::mediaPlayerFileLayout));
+						layoutIt = _layouts.insert(msgId, new Overview::Layout::Document(item, media->getDocument(), st::mediaPlayerFileLayout));
 						layoutIt.value()->initDimensions();
 					}
 				}

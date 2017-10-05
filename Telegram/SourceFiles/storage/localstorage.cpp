@@ -3162,7 +3162,7 @@ public:
 			auto i = items.constFind(_doc);
 			if (i != items.cend()) {
 				for_const (auto item, i.value()) {
-					Ui::repaintHistoryItem(item);
+					Auth().data().requestItemRepaint(item);
 				}
 			}
 		}

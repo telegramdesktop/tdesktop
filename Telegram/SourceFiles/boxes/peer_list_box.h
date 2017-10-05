@@ -324,6 +324,10 @@ public:
 	void peerListSearchAddRow(not_null<PeerData*> peer) override;
 	void peerListSearchRefreshRows() override;
 
+	rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
+
 	virtual ~PeerListController() = default;
 
 protected:
@@ -350,6 +354,8 @@ protected:
 private:
 	PeerListDelegate *_delegate = nullptr;
 	std::unique_ptr<PeerListSearchController> _searchController = nullptr;
+
+	rpl::lifetime _lifetime;
 
 };
 

@@ -122,11 +122,11 @@ private:
 	QRect _bar;
 };
 
-class SplittedWidget : public TWidget {
+class SplittedWidget : public Ui::RpWidget {
 	Q_OBJECT
 
 public:
-	SplittedWidget(QWidget *parent) : TWidget(parent) {
+	SplittedWidget(QWidget *parent) : RpWidget(parent) {
 		setAttribute(Qt::WA_OpaquePaintEvent);
 	}
 	void setHeight(int32 newHeight) {

@@ -340,7 +340,6 @@ public:
 
 	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col);
 
-	void ui_repaintHistoryItem(not_null<const HistoryItem*> item);
 	void ui_showPeerHistory(
 		PeerId peer,
 		const SectionShow &params,
@@ -355,7 +354,6 @@ public:
 	void notify_userIsBotChanged(UserData *bot);
 	void notify_userIsContactChanged(UserData *user, bool fromThisApp);
 	void notify_migrateUpdated(PeerData *peer);
-	void notify_historyItemLayoutChanged(const HistoryItem *item);
 	void notify_historyMuteUpdated(History *history);
 
 	bool cmd_search();

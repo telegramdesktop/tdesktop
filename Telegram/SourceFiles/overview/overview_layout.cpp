@@ -67,30 +67,40 @@ TextWithEntities ComposeNameWithEntities(DocumentData *document) {
 } // namespace
 
 void ItemBase::clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
-	App::hoveredLinkItem(active ? _parent : nullptr);
-	Ui::repaintHistoryItem(_parent);
+	App::hoveredLinkItem(active ? _parent.get() : nullptr);
+	Auth().data().requestItemRepaint(_parent);
 }
 
 void ItemBase::clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) {
-	App::pressedLinkItem(pressed ? _parent : nullptr);
-	Ui::repaintHistoryItem(_parent);
+	App::pressedLinkItem(pressed ? _parent.get() : nullptr);
+	Auth().data().requestItemRepaint(_parent);
 }
 
-void RadialProgressItem::setDocumentLinks(DocumentData *document) {
-	ClickHandlerPtr save;
-	if (document->voice()) {
-		save.reset(new DocumentOpenClickHandler(document));
-	} else {
-		save.reset(new DocumentSaveClickHandler(document));
-	}
-	setLinks(MakeShared<DocumentOpenClickHandler>(document), std::move(save), MakeShared<DocumentCancelClickHandler>(document));
+void RadialProgressItem::setDocumentLinks(
+		not_null<DocumentData*> document) {
+	auto createSaveHandler = [](
+		not_null<DocumentData*> document
+	) -> ClickHandlerPtr {
+		if (document->voice()) {
+			return MakeShared<DocumentOpenClickHandler>(document);
+		}
+		return MakeShared<DocumentSaveClickHandler>(document);
+	};
+	setLinks(
+		MakeShared<DocumentOpenClickHandler>(document),
+		createSaveHandler(document),
+		MakeShared<DocumentCancelClickHandler>(document));
 }
 
 void RadialProgressItem::clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
 	ItemBase::clickHandlerActiveChanged(action, active);
 	if (action == _openl || action == _savel || action == _cancell) {
 		if (iconAnimated()) {
-			_a_iconOver.start([this] { Ui::repaintHistoryItem(_parent); }, active ? 0. : 1., active ? 1. : 0., st::msgFileOverDuration);
+			_a_iconOver.start(
+				[this] { Auth().data().requestItemRepaint(_parent); },
+				active ? 0. : 1.,
+				active ? 1. : 0.,
+				st::msgFileOverDuration);
 		}
 	}
 }
@@ -103,7 +113,7 @@ void RadialProgressItem::setLinks(ClickHandlerPtr &&openl, ClickHandlerPtr &&sav
 
 void RadialProgressItem::step_radial(TimeMs ms, bool timer) {
 	if (timer) {
-		Ui::repaintHistoryItem(_parent);
+		Auth().data().requestItemRepaint(_parent);
 	} else {
 		_radial->update(dataProgress(), dataFinished(), ms);
 		if (!_radial->animating()) {
@@ -221,9 +231,12 @@ void PhotoVideoCheckbox::startAnimation() {
 	_pression.start(_updateCallback, showPressed ? 0. : 1., showPressed ? 1. : 0., st::overviewCheck.duration);
 }
 
-Photo::Photo(PhotoData *photo, HistoryItem *parent) : ItemBase(parent)
+Photo::Photo(
+	not_null<HistoryItem*> parent,
+	not_null<PhotoData*> photo)
+: ItemBase(parent)
 , _data(photo)
-, _link(new PhotoOpenClickHandler(photo)) {
+, _link(MakeShared<PhotoOpenClickHandler>(photo)) {
 }
 
 void Photo::initDimensions() {
@@ -289,7 +302,7 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 
 void Photo::ensureCheckboxCreated() {
 	if (!_check) _check = std::make_unique<PhotoVideoCheckbox>([this] {
-		Ui::repaintHistoryItem(_parent);
+		Auth().data().requestItemRepaint(_parent);
 	});
 }
 
@@ -319,7 +332,10 @@ void Photo::invalidateCache() {
 	}
 }
 
-Video::Video(DocumentData *video, HistoryItem *parent) : RadialProgressItem(parent)
+Video::Video(
+	not_null<HistoryItem*> parent,
+	not_null<DocumentData*> video)
+: RadialProgressItem(parent)
 , _data(video)
 , _duration(formatDurationText(_data->duration()))
 , _thumbLoaded(false) {
@@ -449,7 +465,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 
 void Video::ensureCheckboxCreated() {
 	if (!_check) _check = std::make_unique<PhotoVideoCheckbox>([this] {
-		Ui::repaintHistoryItem(_parent);
+		Auth().data().requestItemRepaint(_parent);
 	});
 }
 
@@ -521,9 +537,13 @@ void Video::updateStatusText() {
 	}
 }
 
-Voice::Voice(DocumentData *voice, HistoryItem *parent, const style::OverviewFileLayout &st) : RadialProgressItem(parent)
+Voice::Voice(
+	not_null<HistoryItem*> parent,
+	not_null<DocumentData*> voice,
+	const style::OverviewFileLayout &st)
+: RadialProgressItem(parent)
 , _data(voice)
-, _namel(new DocumentOpenClickHandler(_data))
+, _namel(MakeShared<DocumentOpenClickHandler>(_data))
 , _st(st) {
 	AddComponents(Info::Bit());
 
@@ -722,10 +742,14 @@ bool Voice::updateStatusText() {
 	return showPause;
 }
 
-Document::Document(DocumentData *document, HistoryItem *parent, const style::OverviewFileLayout &st) : RadialProgressItem(parent)
+Document::Document(
+	not_null<HistoryItem*> parent,
+	not_null<DocumentData*> document,
+	const style::OverviewFileLayout &st)
+: RadialProgressItem(parent)
 , _data(document)
 , _msgl(goToMessageClickHandler(parent))
-, _namel(new DocumentOpenClickHandler(_data))
+, _namel(MakeShared<DocumentOpenClickHandler>(_data))
 , _st(st)
 , _date(langDateTime(date(_data->date)))
 , _datew(st::normalFont->width(_date))
@@ -1037,7 +1061,10 @@ bool Document::updateStatusText() {
 	return showPause;
 }
 
-Link::Link(HistoryMedia *media, HistoryItem *parent) : ItemBase(parent) {
+Link::Link(
+	not_null<HistoryItem*> parent,
+	HistoryMedia *media)
+: ItemBase(parent) {
 	AddComponents(Info::Bit());
 
 	auto textWithEntities = _parent->originalText();

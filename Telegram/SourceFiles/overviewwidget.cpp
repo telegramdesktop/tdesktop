@@ -67,9 +67,6 @@ OverviewInner::OverviewInner(OverviewWidget *overview, Ui::ScrollArea *scroll, P
 , _itemsToBeLoaded(LinksOverviewPerPage * 2)
 , _width(st::columnMinimalWidthMain) {
 	subscribe(Auth().downloader().taskFinished(), [this] { update(); });
-	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
-		itemRemoved(item);
-	});
 
 	resize(_width, st::windowMinHeight);
 
@@ -1891,34 +1888,34 @@ Overview::Layout::ItemBase *OverviewInner::layoutPrepare(HistoryItem *item) {
 	if (_type == OverviewPhotos) {
 		if (media && media->type() == MediaTypePhoto) {
 			if ((i = _layoutItems.constFind(item)) == _layoutItems.cend()) {
-				i = _layoutItems.insert(item, new Overview::Layout::Photo(static_cast<HistoryPhoto*>(media)->photo(), item));
+				i = _layoutItems.insert(item, new Overview::Layout::Photo(item, static_cast<HistoryPhoto*>(media)->photo()));
 				i.value()->initDimensions();
 			}
 		}
 	} else if (_type == OverviewVideos) {
 		if (media && media->type() == MediaTypeVideo) {
 			if ((i = _layoutItems.constFind(item)) == _layoutItems.cend()) {
-				i = _layoutItems.insert(item, new Overview::Layout::Video(media->getDocument(), item));
+				i = _layoutItems.insert(item, new Overview::Layout::Video(item, media->getDocument()));
 				i.value()->initDimensions();
 			}
 		}
 	} else if (_type == OverviewVoiceFiles) {
 		if (media && (media->type() == MediaTypeVoiceFile)) {
 			if ((i = _layoutItems.constFind(item)) == _layoutItems.cend()) {
-				i = _layoutItems.insert(item, new Overview::Layout::Voice(media->getDocument(), item, st::overviewFileLayout));
+				i = _layoutItems.insert(item, new Overview::Layout::Voice(item, media->getDocument(), st::overviewFileLayout));
 				i.value()->initDimensions();
 			}
 		}
 	} else if (_type == OverviewFiles || _type == OverviewMusicFiles) {
 		if (media && (media->type() == MediaTypeFile || media->type() == MediaTypeMusicFile || media->type() == MediaTypeGif)) {
 			if ((i = _layoutItems.constFind(item)) == _layoutItems.cend()) {
-				i = _layoutItems.insert(item, new Overview::Layout::Document(media->getDocument(), item, st::overviewFileLayout));
+				i = _layoutItems.insert(item, new Overview::Layout::Document(item, media->getDocument(), st::overviewFileLayout));
 				i.value()->initDimensions();
 			}
 		}
 	} else if (_type == OverviewLinks) {
 		if ((i = _layoutItems.constFind(item)) == _layoutItems.cend()) {
-			i = _layoutItems.insert(item, new Overview::Layout::Link(media, item));
+			i = _layoutItems.insert(item, new Overview::Layout::Link(item, media));
 			i.value()->initDimensions();
 		}
 	}
@@ -2291,18 +2288,6 @@ void OverviewWidget::grabFinish() {
 	_inGrab = false;
 	resizeEvent(0);
 	_topShadow->show();
-}
-
-void OverviewWidget::ui_repaintHistoryItem(not_null<const HistoryItem*> item) {
-	if (peer() == item->history()->peer || migratePeer() == item->history()->peer) {
-		_inner->repaintItem(item);
-	}
-}
-
-void OverviewWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
-	if (peer() == item->history()->peer || migratePeer() == item->history()->peer) {
-		_inner->onUpdateSelected();
-	}
 }
 
 SelectedItemSet OverviewWidget::getSelectedItems() const {

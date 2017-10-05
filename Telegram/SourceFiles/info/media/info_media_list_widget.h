@@ -60,12 +60,34 @@ public:
 
 protected:
 	int resizeGetHeight(int newWidth) override;
+	void visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) override;
+
 	void paintEvent(QPaintEvent *e) override;
 
 private:
 	using ItemBase = Overview::Layout::ItemBase;
+	using UniversalMsgId = int32;
+	struct CachedItem {
+		CachedItem(std::unique_ptr<ItemBase> item);
+		~CachedItem();
 
+		std::unique_ptr<ItemBase> item;
+		bool stale = false;
+	};
+	class Section;
+
+	void start();
 	int recountHeight();
+	void refreshHeight();
+
+	QMargins padding() const;
+	void updateSelected();
+	bool myItem(not_null<const HistoryItem*> item) const;
+	void repaintItem(not_null<const HistoryItem*> item);
+	void repaintItem(UniversalMsgId msgId);
+	void itemRemoved(not_null<const HistoryItem*> item);
 
 	void refreshViewer();
 	void invalidatePaletteCache();
@@ -79,24 +101,23 @@ private:
 
 	void markLayoutsStale();
 	void clearStaleLayouts();
+	std::vector<Section>::iterator findSectionByItem(
+		UniversalMsgId universalId);
+	std::vector<Section>::iterator findSectionAfterTop(int top);
+	std::vector<Section>::const_iterator findSectionAfterTop(
+		int top) const;
+	std::vector<Section>::const_iterator findSectionAfterBottom(
+		std::vector<Section>::const_iterator from,
+		int bottom) const;
 
 	not_null<Window::Controller*> _controller;
 	not_null<PeerData*> _peer;
 	Type _type = Type::Photo;
 
-	MsgId _universalAroundId = ServerMaxMsgId - 1;
+	UniversalMsgId _universalAroundId = ServerMaxMsgId - 1;
 	SharedMediaMergedSlice _slice;
 
-	struct CachedItem {
-		CachedItem(std::unique_ptr<ItemBase> item);
-		~CachedItem();
-
-		std::unique_ptr<ItemBase> item;
-		bool stale = false;
-	};
-	std::map<FullMsgId, CachedItem> _layouts;
-
-	class Section;
+	std::map<UniversalMsgId, CachedItem> _layouts;
 	std::vector<Section> _sections;
 
 	rpl::lifetime _viewerLifetime;
