@@ -333,7 +333,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		auto canEditStickers = channel->canEditStickers();
 
 		channel->setFullFlags(f.vflags.v);
-		auto newPhotoId = 0;
+		auto newPhotoId = PhotoId(0);
 		if (auto photo = App::feedPhoto(f.vchat_photo)) {
 			newPhotoId = photo->id;
 			photo->peer = channel;

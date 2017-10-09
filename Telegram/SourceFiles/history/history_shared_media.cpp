@@ -115,24 +115,6 @@ private:
 
 };
 
-class SharedMediaWithLastSliceBuilder {
-public:
-	using Type = SharedMediaWithLastSlice::Type;
-	using Key = SharedMediaWithLastSlice::Key;
-
-	SharedMediaWithLastSliceBuilder(Key key);
-
-	void applyViewerUpdate(SharedMediaMergedSlice &&update);
-	void applyEndingUpdate(SharedMediaMergedSlice &&update);
-
-	SharedMediaWithLastSlice snapshot() const;
-
-private:
-	Key _key;
-	SharedMediaWithLastSlice _data;
-
-};
-
 SharedMediaSlice::SharedMediaSlice(Key key) : SharedMediaSlice(
 	key,
 	{},
@@ -478,14 +460,15 @@ rpl::producer<SharedMediaSlice> SharedMediaViewer(
 		Auth().storage().sharedMediaAllRemoved()
 			| rpl::start_with_next(applyUpdate, lifetime);
 
-		Auth().storage().query(Storage::SharedMediaQuery(
-			key,
-			limitBefore,
-			limitAfter))
-			| rpl::start_with_next_done(
-				applyUpdate,
-				[=] { builder->checkInsufficientMedia(); },
-				lifetime);
+		Auth().storage().query(
+			Storage::SharedMediaQuery(
+				key,
+				limitBefore,
+				limitAfter)
+		) | rpl::start_with_next_done(
+			applyUpdate,
+			[=] { builder->checkInsufficientMedia(); },
+			lifetime);
 
 		return lifetime;
 	};
@@ -615,39 +598,40 @@ rpl::producer<SharedMediaMergedSlice> SharedMediaMergedViewer(
 	Expects((key.universalId != 0) || (limitBefore == 0 && limitAfter == 0));
 
 	return [=](auto consumer) {
-		if (key.migratedPeerId) {
-			return rpl::combine(
-				SharedMediaViewer(
-					SharedMediaMergedSlice::PartKey(key),
-					limitBefore,
-					limitAfter),
-				SharedMediaViewer(
-					SharedMediaMergedSlice::MigratedKey(key),
-					limitBefore,
-					limitAfter))
-				| rpl::start_with_next([=](
-						SharedMediaSlice &&part,
-						SharedMediaSlice &&migrated) {
-					consumer.put_next(SharedMediaMergedSlice(
-						key,
-						std::move(part),
-						std::move(migrated)));
-				});
-		}
-		return SharedMediaViewer(
-			SharedMediaMergedSlice::PartKey(key),
-			limitBefore,
-			limitAfter)
-			| rpl::start_with_next([=](SharedMediaSlice &&part) {
+		if (!key.migratedPeerId) {
+			return SharedMediaViewer(
+				SharedMediaMergedSlice::PartKey(key),
+				limitBefore,
+				limitAfter
+			) | rpl::start_with_next([=](SharedMediaSlice &&part) {
 				consumer.put_next(SharedMediaMergedSlice(
 					key,
 					std::move(part),
 					base::none));
 			});
+		}
+		return rpl::combine(
+			SharedMediaViewer(
+				SharedMediaMergedSlice::PartKey(key),
+				limitBefore,
+				limitAfter),
+			SharedMediaViewer(
+				SharedMediaMergedSlice::MigratedKey(key),
+				limitBefore,
+				limitAfter)
+		) | rpl::start_with_next([=](
+				SharedMediaSlice &&part,
+				SharedMediaSlice &&migrated) {
+			consumer.put_next(SharedMediaMergedSlice(
+				key,
+				std::move(part),
+				std::move(migrated)));
+		});
 	};
 }
 
-SharedMediaWithLastSlice::SharedMediaWithLastSlice(Key key) : SharedMediaWithLastSlice(
+SharedMediaWithLastSlice::SharedMediaWithLastSlice(Key key)
+: SharedMediaWithLastSlice(
 	key,
 	SharedMediaMergedSlice(ViewerKey(key)),
 	EndingSlice(key)) {
@@ -772,54 +756,34 @@ rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastViewer(
 		int limitBefore,
 		int limitAfter) {
 	return [=](auto consumer) {
-		auto lifetime = rpl::lifetime();
-		auto builder = lifetime.make_state<SharedMediaWithLastSliceBuilder>(key);
-
-		SharedMediaMergedViewer(
-			SharedMediaWithLastSlice::ViewerKey(key),
-			limitBefore,
-			limitAfter
-		) | rpl::start_with_next([=](SharedMediaMergedSlice &&update) {
-			builder->applyViewerUpdate(std::move(update));
-			consumer.put_next(builder->snapshot());
-		}, lifetime);
-
-		if (base::get_if<SharedMediaWithLastSlice::MessageId>(&key.universalId)) {
+		if (base::get_if<not_null<PhotoData*>>(&key.universalId)) {
+			return SharedMediaMergedViewer(
+				SharedMediaWithLastSlice::ViewerKey(key),
+				limitBefore,
+				limitAfter
+			) | rpl::start_with_next([=](SharedMediaMergedSlice &&update) {
+				consumer.put_next(SharedMediaWithLastSlice(
+					key,
+					std::move(update),
+					base::none));
+			});
+		}
+		return rpl::combine(
+			SharedMediaMergedViewer(
+				SharedMediaWithLastSlice::ViewerKey(key),
+				limitBefore,
+				limitAfter),
 			SharedMediaMergedViewer(
 				SharedMediaWithLastSlice::EndingKey(key),
 				1,
-				1
-			) | rpl::start_with_next([=](SharedMediaMergedSlice &&update) {
-				builder->applyEndingUpdate(std::move(update));
-				consumer.put_next(builder->snapshot());
-			}, lifetime);
-		}
-
-		return lifetime;
+				1)
+		) | rpl::start_with_next([=](
+				SharedMediaMergedSlice &&viewer,
+				SharedMediaMergedSlice &&ending) {
+			consumer.put_next(SharedMediaWithLastSlice(
+				key,
+				std::move(viewer),
+				std::move(ending)));
+		});
 	};
-}
-
-SharedMediaWithLastSliceBuilder::SharedMediaWithLastSliceBuilder(Key key)
-	: _key(key)
-	, _data(_key) {
-}
-
-void SharedMediaWithLastSliceBuilder::applyViewerUpdate(
-		SharedMediaMergedSlice &&update) {
-	_data = SharedMediaWithLastSlice(
-		_key,
-		std::move(update),
-		std::move(_data._ending));
-}
-
-void SharedMediaWithLastSliceBuilder::applyEndingUpdate(
-		SharedMediaMergedSlice &&update) {
-	_data = SharedMediaWithLastSlice(
-		_key,
-		std::move(_data._slice),
-		std::move(update));
-}
-
-SharedMediaWithLastSlice SharedMediaWithLastSliceBuilder::snapshot() const {
-	return _data;
 }

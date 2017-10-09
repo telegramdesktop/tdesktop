@@ -24,6 +24,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/media/info_media_widget.h"
 #include "history/history_shared_media.h"
 
+namespace Ui {
+class PopupMenu;
+} // namespace Ui
+
 namespace Overview {
 namespace Layout {
 class ItemBase;
@@ -36,6 +40,9 @@ class Controller;
 
 namespace Info {
 namespace Media {
+
+using BaseLayout = Overview::Layout::ItemBase;
+using UniversalMsgId = int32;
 
 class ListWidget : public Ui::RpWidget {
 public:
@@ -69,20 +76,31 @@ protected:
 		int visibleBottom) override;
 
 	void paintEvent(QPaintEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void mouseDoubleClickEvent(QMouseEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 
 private:
-	using ItemBase = Overview::Layout::ItemBase;
-	using UniversalMsgId = int32;
+	enum class MouseAction {
+		None,
+		PrepareDrag,
+		Dragging,
+		PrepareSelect,
+		Selecting,
+	};
 	struct CachedItem {
-		CachedItem(std::unique_ptr<ItemBase> item);
+		CachedItem(std::unique_ptr<BaseLayout> item);
 		~CachedItem();
 
-		std::unique_ptr<ItemBase> item;
+		std::unique_ptr<BaseLayout> item;
 		bool stale = false;
 	};
 	class Section;
 	struct FoundItem {
-		not_null<ItemBase*> layout;
+		not_null<BaseLayout*> layout;
 		QRect geometry;
 		bool exact = false;
 	};
@@ -93,18 +111,24 @@ private:
 
 	QMargins padding() const;
 	void updateSelected();
-	bool myItem(not_null<const HistoryItem*> item) const;
-	void repaintItem(not_null<const HistoryItem*> item);
+	bool isMyItem(not_null<const HistoryItem*> item) const;
+	bool isItemLayout(
+		not_null<const HistoryItem*> item,
+		BaseLayout *layout) const;
+	void repaintItem(const HistoryItem *item);
 	void repaintItem(UniversalMsgId msgId);
+	void repaintItem(const BaseLayout *item);
 	void itemRemoved(not_null<const HistoryItem*> item);
+	void itemLayoutChanged(not_null<const HistoryItem*> item);
 
 	void refreshViewer();
 	void invalidatePaletteCache();
 	void refreshRows();
 	SharedMediaMergedSlice::Key sliceKey(
 		UniversalMsgId universalId) const;
-	ItemBase *getLayout(const FullMsgId &itemId);
-	std::unique_ptr<ItemBase> createLayout(
+	BaseLayout *getLayout(const FullMsgId &itemId);
+	BaseLayout *getExistingLayout(const FullMsgId &itemId) const;
+	std::unique_ptr<BaseLayout> createLayout(
 		const FullMsgId &itemId,
 		Type type);
 
@@ -119,6 +143,8 @@ private:
 		std::vector<Section>::const_iterator from,
 		int bottom) const;
 	FoundItem findItemByPoint(QPoint point);
+	base::optional<FoundItem> findItemById(UniversalMsgId universalId);
+	base::optional<FoundItem> findItemDetails(BaseLayout *item);
 	FoundItem foundItemInSection(
 		const FoundItem &item,
 		const Section &section);
@@ -126,12 +152,23 @@ private:
 	void saveScrollState();
 	void restoreScrollState();
 
+	QPoint clampMousePosition(QPoint position) const;
+	void mouseActionStart(
+		const QPoint &screenPos,
+		Qt::MouseButton button);
+	void mouseActionUpdate(const QPoint &screenPos);
+	void mouseActionFinish(
+		const QPoint &screenPos,
+		Qt::MouseButton button);
+	void mouseActionCancel();
+	void performDrag();
+
 	not_null<Window::Controller*> _controller;
 	not_null<PeerData*> _peer;
 	Type _type = Type::Photo;
 
-	UniversalMsgId _universalAroundId = ServerMaxMsgId - 1;
 	static constexpr auto kMinimalIdsLimit = 16;
+	UniversalMsgId _universalAroundId = (ServerMaxMsgId - 1);
 	int _idsLimit = kMinimalIdsLimit;
 	SharedMediaMergedSlice _slice;
 
@@ -139,9 +176,36 @@ private:
 	std::vector<Section> _sections;
 
 	int _visibleTop = 0;
+	int _visibleBottom = 0;
 	UniversalMsgId _scrollTopId = 0;
 	int _scrollTopShift = 0;
 	rpl::event_stream<int> _scrollToRequests;
+
+	MouseAction _mouseAction = MouseAction::None;
+	TextSelectType _mouseSelectType = TextSelectType::Letters;
+	QPoint _dragStartPosition;
+	QPoint _mousePosition;
+	BaseLayout *_itemNearestToCursor = nullptr;
+	BaseLayout *_itemUnderCursor = nullptr;
+	BaseLayout *_itemUnderPress = nullptr;
+	HistoryCursorState _mouseCursorState = HistoryDefaultCursorState;
+	uint16 _mouseTextSymbol = 0;
+	bool _pressWasInactive = false;
+	using SelectedItems = std::map<
+		UniversalMsgId,
+		TextSelection,
+		std::less<>>;
+	SelectedItems _selected;
+	style::cursor _cursor = style::cur_default;
+	BaseLayout *_dragSelFrom = nullptr;
+	BaseLayout *_dragSelTo = nullptr;
+	bool _dragSelecting = false;
+	bool _wasSelectedText = false; // was some text selected in current drag action
+	Ui::PopupMenu *_contextMenu = nullptr;
+	ClickHandlerPtr _contextMenuLink;
+
+	QPoint _trippleClickPoint;
+	QTimer _trippleClickTimer;
 
 	rpl::lifetime _viewerLifetime;
 
