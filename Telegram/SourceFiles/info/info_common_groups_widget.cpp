@@ -46,7 +46,10 @@ Widget::Widget(
 	not_null<Window::Controller*> controller,
 	not_null<UserData*> user)
 : ContentWidget(parent, wrap, controller, user) {
-	_inner = setInnerWidget(object_ptr<InnerWidget>(this, user));
+	_inner = setInnerWidget(object_ptr<InnerWidget>(
+		this,
+		controller,
+		user));
 }
 
 not_null<UserData*> Widget::user() const {

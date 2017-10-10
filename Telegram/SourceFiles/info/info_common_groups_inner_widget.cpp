@@ -23,20 +23,110 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/info_common_groups_widget.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
+#include "styles/style_widgets.h"
+#include "mtproto/sender.h"
+#include "window/window_controller.h"
+#include "ui/widgets/scroll_area.h"
+#include "apiwrap.h"
 
 namespace Info {
 namespace CommonGroups {
+namespace {
 
-InnerWidget::InnerWidget(QWidget *parent, not_null<UserData*> user)
-: RpWidget(parent)
+constexpr int kCommonGroupsPerPage = 40;
+
+class Controller
+	: public PeerListController
+	, private base::Subscriber
+	, private MTP::Sender {
+public:
+	Controller(
+		not_null<Window::Controller*> window,
+		not_null<UserData*> user);
+
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+	void loadMoreRows() override;
+
+private:
+	not_null<Window::Controller*> _window;
+	not_null<UserData*> _user;
+	mtpRequestId _preloadRequestId = 0;
+	bool _allLoaded = false;
+	int32 _preloadGroupId = 0;
+
+};
+
+Controller::Controller(
+	not_null<Window::Controller*> window,
+	not_null<UserData*> user)
+: PeerListController()
+, _window(window)
 , _user(user) {
+}
+
+void Controller::prepare() {
+	setSearchNoResultsText(lang(lng_blocked_list_not_found));
+	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
+	delegate()->peerListSetTitle(langFactory(lng_profile_common_groups_section));
+}
+
+void Controller::loadMoreRows() {
+	if (_preloadRequestId || _allLoaded) {
+		return;
+	}
+	_preloadRequestId = request(MTPmessages_GetCommonChats(
+		_user->inputUser,
+		MTP_int(_preloadGroupId),
+		MTP_int(kCommonGroupsPerPage)
+	)).done([this](const MTPmessages_Chats &result) {
+		_preloadRequestId = 0;
+		_preloadGroupId = 0;
+		_allLoaded = true;
+		if (auto chats = Api::getChatsFromMessagesChats(result)) {
+			auto &list = chats->v;
+			if (!list.empty()) {
+				for_const (auto &chatData, list) {
+					if (auto chat = App::feedChat(chatData)) {
+						if (!chat->migrateTo()) {
+							auto row = std::make_unique<PeerListRow>(chat);
+							row->setCustomStatus(QString());
+							delegate()->peerListAppendRow(std::move(row));
+						}
+						_preloadGroupId = chat->bareId();
+						_allLoaded = false;
+					}
+				}
+				delegate()->peerListRefreshRows();
+			}
+		}
+	}).send();
+}
+
+void Controller::rowClicked(not_null<PeerListRow*> row) {
+	_window->showPeerHistory(
+		row->peer(),
+		Window::SectionShow::Way::Forward);
+}
+
+} // namespace
+
+InnerWidget::InnerWidget(
+	QWidget *parent,
+	not_null<Window::Controller*> controller,
+	not_null<UserData*> user)
+: RpWidget(parent)
+, _user(user)
+, _listController(std::make_unique<Controller>(controller, _user))
+, _list(setupList(this, _listController.get())) {
+	setContent(_list.data());
+	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
 }
 
 void InnerWidget::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
-	_visibleTop = visibleTop;
-	_visibleBottom = visibleBottom;
+	setChildVisibleTopBottom(_list, visibleTop, visibleBottom);
 }
 
 void InnerWidget::saveState(not_null<Memento*> memento) {
@@ -45,9 +135,81 @@ void InnerWidget::saveState(not_null<Memento*> memento) {
 void InnerWidget::restoreState(not_null<Memento*> memento) {
 }
 
-int InnerWidget::resizeGetHeight(int newWidth) {
-	auto rowsHeight = _rowsHeightFake;
-	return qMax(rowsHeight, _minHeight);
+int InnerWidget::desiredHeight() const {
+	auto desired = 0;
+	auto count = qMax(_user->commonChatsCount(), 1);
+	desired += qMax(count, _list->fullRowsCount())
+		* st::infoCommonGroupsList.item.height;
+	return qMax(height(), desired);
+}
+
+object_ptr<InnerWidget::ListWidget> InnerWidget::setupList(
+		RpWidget *parent,
+		not_null<PeerListController*> controller) const {
+	auto result = object_ptr<ListWidget>(
+		parent,
+		controller,
+		st::infoCommonGroupsList);
+	result->scrollToRequests()
+		| rpl::start_with_next([this](Ui::ScrollToRequest request) {
+			auto addmin = (request.ymin < 0)
+				? 0
+				: st::infoCommonGroupsMargin.top();
+			auto addmax = (request.ymax < 0)
+				? 0
+				: st::infoCommonGroupsMargin.top();
+			_scrollToRequests.fire({
+				request.ymin + addmin,
+				request.ymax + addmax });
+		}, result->lifetime());
+	result->moveToLeft(0, st::infoCommonGroupsMargin.top());
+	parent->widthValue()
+		| rpl::start_with_next([list = result.data()](int newWidth) {
+			list->resizeToWidth(newWidth);
+		}, result->lifetime());
+	result->heightValue()
+		| rpl::start_with_next([parent](int listHeight) {
+			auto newHeight = st::infoCommonGroupsMargin.top()
+				+ listHeight
+				+ st::infoCommonGroupsMargin.bottom();
+			parent->resize(parent->width(), newHeight);
+		}, result->lifetime());
+	return result;
+}
+
+void InnerWidget::peerListSetTitle(base::lambda<QString()> title) {
+}
+
+void InnerWidget::peerListSetAdditionalTitle(
+		base::lambda<QString()> title) {
+}
+
+bool InnerWidget::peerListIsRowSelected(not_null<PeerData*> peer) {
+	return false;
+}
+
+int InnerWidget::peerListSelectedRowsCount() {
+	return 0;
+}
+
+std::vector<not_null<PeerData*>> InnerWidget::peerListCollectSelectedRows() {
+	return {};
+}
+
+void InnerWidget::peerListScrollToTop() {
+	_scrollToRequests.fire({ -1, -1 });
+}
+
+void InnerWidget::peerListAddSelectedRowInBunch(not_null<PeerData*> peer) {
+	Unexpected("Item selection in Info::Profile::Members.");
+}
+
+void InnerWidget::peerListFinishSelectedRowsBunch() {
+}
+
+void InnerWidget::peerListSetDescription(
+		object_ptr<Ui::FlatLabel> description) {
+	description.destroy();
 }
 
 } // namespace CommonGroups

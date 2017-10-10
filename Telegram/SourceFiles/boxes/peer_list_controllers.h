@@ -47,7 +47,7 @@ public:
 
 	void setActionLink(const QString &action);
 
-	void lazyInitialize() override;
+	void lazyInitialize(const style::PeerListItem &st) override;
 
 private:
 	void refreshActionLink();

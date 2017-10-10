@@ -340,11 +340,11 @@ void PeerListRow::refreshStatus() {
 	}
 }
 
-void PeerListRow::refreshName() {
+void PeerListRow::refreshName(const style::PeerListItem &st) {
 	if (!_initialized) {
 		return;
 	}
-	_name.setText(st::contactsNameStyle, peer()->name, _textNameOptions);
+	_name.setText(st.nameStyle, peer()->name, _textNameOptions);
 }
 
 PeerListRow::~PeerListRow() = default;
@@ -457,12 +457,12 @@ float64 PeerListRow::checkedRatio() {
 	return _checkbox ? _checkbox->checkedAnimationRatio() : 0.;
 }
 
-void PeerListRow::lazyInitialize() {
+void PeerListRow::lazyInitialize(const style::PeerListItem &st) {
 	if (_initialized) {
 		return;
 	}
 	_initialized = true;
-	refreshName();
+	refreshName(st);
 	refreshStatus();
 }
 
@@ -896,7 +896,7 @@ void PeerListContent::setPressed(Selected pressed) {
 void PeerListContent::paintRow(Painter &p, TimeMs ms, RowIndex index) {
 	auto row = getRow(index);
 	Assert(row != nullptr);
-	row->lazyInitialize();
+	row->lazyInitialize(_st.item);
 
 	auto peer = row->peer();
 	auto user = peer->asUser();
@@ -1066,7 +1066,7 @@ void PeerListContent::loadProfilePhotos() {
 }
 
 void PeerListContent::checkScrollForPreload() {
-	if (_visibleBottom + PreloadHeightsCount * (_visibleBottom - _visibleTop) > height()) {
+	if (_visibleBottom + PreloadHeightsCount * (_visibleBottom - _visibleTop) >= height()) {
 		_controller->loadMoreRows();
 	}
 }
@@ -1295,7 +1295,7 @@ void PeerListContent::handleNameChanged(const Notify::PeerUpdate &update) {
 			if (addingToSearchIndex()) {
 				addToSearchIndex(row);
 			}
-			row->refreshName();
+			row->refreshName(_st.item);
 			updateRow(row);
 		}
 	}

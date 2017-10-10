@@ -118,8 +118,8 @@ void PeerListRowWithLink::refreshActionLink() {
 	_actionWidth = _action.isEmpty() ? 0 : st::normalFont->width(_action);
 }
 
-void PeerListRowWithLink::lazyInitialize() {
-	PeerListRow::lazyInitialize();
+void PeerListRowWithLink::lazyInitialize(const style::PeerListItem &st) {
+	PeerListRow::lazyInitialize(st);
 	refreshActionLink();
 }
 

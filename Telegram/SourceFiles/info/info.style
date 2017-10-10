@@ -352,3 +352,19 @@ infoMediaHeaderPosition: point(14px, 6px);
 infoMediaSkip: 6px;
 infoMediaMargin: margins(0px, 6px, 0px, 2px);
 infoMediaMinGridSize: minPhotoSize;
+
+infoCommonGroupsMargin: margins(0px, 13px, 0px, 2px);
+infoCommonGroupsList: PeerList(infoMembersList) {
+	item: PeerListItem(defaultPeerListItem) {
+		height: 52px;
+		photoSize: 40px;
+		photoPosition: point(16px, 6px);
+		namePosition: point(71px, 15px);
+		nameStyle: TextStyle(defaultTextStyle) {
+			font: font(14px semibold);
+			linkFont: font(14px semibold);
+			linkFontOver: font(14px semibold);
+		}
+		statusPosition: point(79px, 31px);
+	}
+}

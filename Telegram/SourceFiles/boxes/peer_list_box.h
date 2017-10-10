@@ -101,7 +101,7 @@ public:
 	virtual void paintAction(Painter &p, TimeMs ms, int x, int y, int outerWidth, bool actionSelected) {
 	}
 
-	void refreshName();
+	void refreshName(const style::PeerListItem &st);
 	const Text &name() const {
 		return _name;
 	}
@@ -166,7 +166,7 @@ public:
 		return _nameFirstChars;
 	}
 
-	virtual void lazyInitialize();
+	virtual void lazyInitialize(const style::PeerListItem &st);
 	virtual void paintStatusText(
 		Painter &p,
 		const style::PeerListItem &st,

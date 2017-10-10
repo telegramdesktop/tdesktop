@@ -1058,6 +1058,7 @@ PeerListItem {
 	height: pixels;
 	photoPosition: point;
 	namePosition: point;
+	nameStyle: TextStyle;
 	statusPosition: point;
 	photoSize: pixels;
 	maximalWidth: pixels;
@@ -1092,6 +1093,11 @@ defaultPeerListItem: PeerListItem {
 	height: 58px;
 	photoPosition: point(12px, 6px);
 	namePosition: point(68px, 11px);
+	nameStyle: TextStyle(defaultTextStyle) {
+		font: semiboldFont;
+		linkFont: semiboldFont;
+		linkFontOver: semiboldFont;
+	}
 	statusPosition: point(68px, 31px);
 	photoSize: 46px;
 	button: defaultPeerListButton;

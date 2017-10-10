@@ -144,6 +144,16 @@ void Members::setupButtons() {
 		this,
 		st::infoIconMembers,
 		st::infoIconPosition)->lower();
+
+	connect(_searchField, &Ui::FlatInput::cancelled, this, [this] {
+		cancelSearch();
+	});
+	connect(_searchField, &Ui::FlatInput::changed, this, [this] {
+		applySearch();
+	});
+	connect(_searchField, &Ui::FlatInput::submitted, this, [this] {
+		forceSearchSubmit();
+	});
 }
 
 object_ptr<Members::ListWidget> Members::setupList(
@@ -213,15 +223,6 @@ int Members::resizeGetHeight(int newWidth) {
 		st::infoMembersSearchTop,
 		cancelLeft - fieldLeft,
 		_searchField->height());
-	connect(_searchField, &Ui::FlatInput::cancelled, this, [this] {
-		cancelSearch();
-	});
-	connect(_searchField, &Ui::FlatInput::changed, this, [this] {
-		applySearch();
-	});
-	connect(_searchField, &Ui::FlatInput::submitted, this, [this] {
-		forceSearchSubmit();
-	});
 
 	_labelWrap->resize(
 		searchCurrentLeft - st::infoBlockHeaderPosition.x(),
@@ -355,7 +356,6 @@ void Members::peerListSetDescription(
 		object_ptr<Ui::FlatLabel> description) {
 	description.destroy();
 }
-
 
 } // namespace Profile
 } // namespace Info
