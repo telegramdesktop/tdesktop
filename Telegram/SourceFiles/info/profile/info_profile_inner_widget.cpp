@@ -294,7 +294,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 		addCommonGroupsButton(user);
 	}
 	addMediaButton(MediaType::VoiceFile);
-	addMediaButton(MediaType::RoundFile);
+//	addMediaButton(MediaType::RoundFile);
 
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		parent,
