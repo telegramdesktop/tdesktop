@@ -189,7 +189,7 @@ private:
 	BaseLayout *_itemUnderCursor = nullptr;
 	BaseLayout *_itemUnderPress = nullptr;
 	HistoryCursorState _mouseCursorState = HistoryDefaultCursorState;
-	uint16 _mouseTextSymbol = 0;
+//	uint16 _mouseTextSymbol = 0;
 	bool _pressWasInactive = false;
 	using SelectedItems = std::map<
 		UniversalMsgId,
@@ -199,7 +199,7 @@ private:
 	style::cursor _cursor = style::cur_default;
 	BaseLayout *_dragSelFrom = nullptr;
 	BaseLayout *_dragSelTo = nullptr;
-	bool _dragSelecting = false;
+//	bool _dragSelecting = false;
 	bool _wasSelectedText = false; // was some text selected in current drag action
 	Ui::PopupMenu *_contextMenu = nullptr;
 	ClickHandlerPtr _contextMenuLink;

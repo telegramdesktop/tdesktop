@@ -90,7 +90,7 @@ public:
 	void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) override;
 
 protected:
-	not_null<HistoryItem*> _parent = nullptr;
+	not_null<HistoryItem*> _parent;
 	int _position = 0;
 
 };
@@ -196,6 +196,8 @@ public:
 
 	void invalidateCache() override;
 
+	~Photo();
+
 private:
 	void ensureCheckboxCreated();
 
@@ -224,6 +226,8 @@ public:
 	void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) override;
 
 	void invalidateCache() override;
+
+	~Video();
 
 protected:
 	float64 dataProgress() const override;

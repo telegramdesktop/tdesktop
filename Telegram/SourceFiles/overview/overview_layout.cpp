@@ -332,6 +332,8 @@ void Photo::invalidateCache() {
 	}
 }
 
+Photo::~Photo() = default;
+
 Video::Video(
 	not_null<HistoryItem*> parent,
 	not_null<DocumentData*> video)
@@ -536,6 +538,8 @@ void Video::updateStatusText() {
 		_status.setSize(statusSize);
 	}
 }
+
+Video::~Video() = default;
 
 Voice::Voice(
 	not_null<HistoryItem*> parent,

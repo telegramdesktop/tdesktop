@@ -115,7 +115,7 @@ public:
 		const Window::SectionShow &params) override;
 	std::unique_ptr<Window::SectionMemento> createMemento() override;
 
-	rpl::producer<int> desiredHeightValue() const;
+	rpl::producer<int> desiredHeightValue() const override;
 
 	void updateInternalState(not_null<Memento*> memento);
 	void saveState(not_null<Memento*> memento);
@@ -127,7 +127,7 @@ public:
 	~WrapWidget();
 
 protected:
-	void resizeEvent(QResizeEvent *e);
+	void resizeEvent(QResizeEvent *e) override;
 
 	void doSetInnerFocus() override;
 	void showFinishedHook() override;
