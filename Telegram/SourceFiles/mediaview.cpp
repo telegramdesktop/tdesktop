@@ -2324,12 +2324,14 @@ void MediaView::preloadData(int32 delta) {
 	auto till = *_index + (delta ? delta * kPreloadCount : 1);
 	if (from > till) std::swap(from, till);
 
-	auto forgetIndex = *_index - delta * 2;
-	auto entity = entityByIndex(forgetIndex);
-	if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
-		(*photo)->forget();
-	} else if (auto document = base::get_if<not_null<DocumentData*>>(&entity.data)) {
-		(*document)->forget();
+	if (delta != 0) {
+		auto forgetIndex = *_index - delta * 2;
+		auto entity = entityByIndex(forgetIndex);
+		if (auto photo = base::get_if<not_null<PhotoData*>>(&entity.data)) {
+			(*photo)->forget();
+		} else if (auto document = base::get_if<not_null<DocumentData*>>(&entity.data)) {
+			(*document)->forget();
+		}
 	}
 
 	for (auto index = from; index != till; ++index) {
