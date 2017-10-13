@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "overview/overview_layout.h"
 #include "history/history_media_types.h"
+#include "history/history_item.h"
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
 #include "storage/file_download.h"
