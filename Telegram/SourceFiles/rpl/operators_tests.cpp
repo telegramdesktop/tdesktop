@@ -406,6 +406,24 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 					*sum += "done";
 				}, lifetime);
 		}
-		REQUIRE(*sum == "012done");
+		{
+			rpl::lifetime lifetime;
+			rpl::ints(3) | take(3)
+				| start_with_next_done([=](int value) {
+					*sum += std::to_string(value);
+				}, [=] {
+					*sum += "done";
+				}, lifetime);
+		}
+		{
+			rpl::lifetime lifetime;
+			rpl::ints(3) | take(10)
+				| start_with_next_done([=](int value) {
+					*sum += std::to_string(value);
+				}, [=] {
+					*sum += "done";
+				}, lifetime);
+		}
+		REQUIRE(*sum == "012done012done012done");
 	}
 }

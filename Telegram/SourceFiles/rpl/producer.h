@@ -346,7 +346,7 @@ template <typename Handlers>
 inline void producer_base<Value, Error, Generator>::start_existing(
 		const consumer_type<Handlers> &consumer,
 		lifetime &alive_while) && {
-	alive_while.add([consumer] { consumer.terminate(); });
+	alive_while.add(consumer.terminator());
 	consumer.add_lifetime(std::move(_generator)(consumer));
 }
 

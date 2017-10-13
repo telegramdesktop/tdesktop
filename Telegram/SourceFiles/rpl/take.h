@@ -38,7 +38,7 @@ public:
 			limit = _count
 		](const auto &consumer) mutable {
 			auto count = consumer.template make_state<int>(limit);
-			return std::move(initial).start(
+			auto initial_consumer = make_consumer<Value, Error>(
 			[consumer, count](auto &&value) {
 				auto left = (*count)--;
 				if (left) {
@@ -55,6 +55,8 @@ public:
 			}, [consumer] {
 				consumer.put_done();
 			});
+			consumer.add_lifetime(initial_consumer.terminator());
+			return std::move(initial).start_existing(initial_consumer);
 		});
 	}
 

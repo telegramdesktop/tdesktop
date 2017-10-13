@@ -329,6 +329,11 @@ public:
 	Type *make_state(Args&& ...args) const;
 
 	void terminate() const;
+	auto terminator() const {
+		return [self = *this] {
+			self.terminate();
+		};
+	}
 
 	const details::type_erased_handlers<Value, Error> *comparable() const {
 		return _handlers.get();

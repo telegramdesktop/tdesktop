@@ -44,7 +44,7 @@ public:
 			[consumer, state](producer<Value, Error> &&inner) {
 				state->finished = false;
 				state->alive = lifetime();
-				auto started = std::move(inner).start(
+				std::move(inner).start(
 				[consumer](auto &&value) {
 					consumer.put_next_forward(std::forward<decltype(value)>(value));
 				}, [consumer](auto &&error) {
@@ -55,10 +55,7 @@ public:
 					} else {
 						state->finished = true;
 					}
-				});
-				if (started) {
-					state->alive = std::move(started);
-				}
+				}, state->alive);
 			}, [consumer](auto &&error) {
 				consumer.put_error_forward(std::forward<decltype(error)>(error));
 			}, [consumer, state] {
