@@ -98,7 +98,6 @@
       '<(SHARED_INTERMEDIATE_DIR)',
       '<(libs_loc)/breakpad/src',
       '<(libs_loc)/lzma/C',
-      '<(libs_loc)/libexif-0.6.20',
       '<(libs_loc)/zlib',
       '<(libs_loc)/ffmpeg',
       '<(libs_loc)/openal-soft/include',

@@ -98,7 +98,7 @@ if access_token == '':
   sys.exit(1)
 
 print('Version: ' + version_full);
-local_folder = '/Volumes/Storage/backup/' + version_major + '/' + version_full
+local_folder = '$HOME/Telegram/backup/' + version_major + '/' + version_full
 
 if stable == 1:
   if os.path.isdir(local_folder + '.dev'):

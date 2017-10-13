@@ -210,7 +210,7 @@ fi
 
 if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" == "macstore" ]; then
 
-  DropboxSymbolsPath="/Volumes/Storage/Dropbox/Telegram/symbols"
+  DropboxSymbolsPath="$HOME/Dropbox/Telegram/symbols"
   if [ ! -d "$DropboxSymbolsPath" ]; then
     Error "Dropbox path not found!"
   fi
@@ -349,7 +349,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
     mv "$ReleasePath/$SetupFile" "$DeployPath/"
 
     if [ "$BuildTarget" == "mac32" ]; then
-      ReleaseToPath="$HomePath/../../tother/tmac32"
+      ReleaseToPath="$HomePath/../../deploy_temp/tmac32"
       DeployToPath="$ReleaseToPath/$AppVersionStrMajor/$AppVersionStrFull"
       if [ ! -d "$ReleaseToPath/$AppVersionStrMajor" ]; then
         mkdir "$ReleaseToPath/$AppVersionStrMajor"
