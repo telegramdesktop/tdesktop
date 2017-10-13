@@ -66,6 +66,18 @@ public:
 	rpl::producer<int> scrollToRequests() const {
 		return _scrollToRequests.events();
 	}
+	struct SelectedItem {
+		explicit SelectedItem(FullMsgId msgId) : msgId(msgId) {
+		}
+
+		FullMsgId msgId;
+		bool canDelete = false;
+		bool canForward = false;
+	};
+	using SelectedItems = std::vector<SelectedItem>;
+	rpl::producer<SelectedItems> selectedItemsValue() const {
+		return _selectedItemsStream.events();
+	}
 
 	~ListWidget();
 
@@ -98,11 +110,44 @@ private:
 		std::unique_ptr<BaseLayout> item;
 		bool stale = false;
 	};
+	struct Context;
 	class Section;
 	struct FoundItem {
 		not_null<BaseLayout*> layout;
 		QRect geometry;
 		bool exact = false;
+	};
+	struct SelectionData {
+		explicit SelectionData(TextSelection text) : text(text) {
+		}
+
+		TextSelection text;
+		bool canDelete = false;
+		bool canForward = false;
+	};
+	using SelectedMap = base::flat_map<
+		UniversalMsgId,
+		SelectionData,
+		std::less<>>;
+	enum class DragSelectAction {
+		None,
+		Selecting,
+		Deselecting,
+	};
+	struct CursorState {
+		UniversalMsgId itemId = 0;
+		QSize size;
+		QPoint cursor;
+		bool inside = false;
+
+		inline bool operator==(const CursorState &other) const {
+			return (itemId == other.itemId)
+				&& (cursor == other.cursor);
+		}
+		inline bool operator!=(const CursorState &other) const {
+			return !(*this == other);
+		}
+
 	};
 
 	void start();
@@ -110,7 +155,6 @@ private:
 	void refreshHeight();
 
 	QMargins padding() const;
-	void updateSelected();
 	bool isMyItem(not_null<const HistoryItem*> item) const;
 	bool isItemLayout(
 		not_null<const HistoryItem*> item,
@@ -118,6 +162,7 @@ private:
 	void repaintItem(const HistoryItem *item);
 	void repaintItem(UniversalMsgId msgId);
 	void repaintItem(const BaseLayout *item);
+	void repaintItem(QRect itemGeometry);
 	void itemRemoved(not_null<const HistoryItem*> item);
 	void itemLayoutChanged(not_null<const HistoryItem*> item);
 
@@ -126,11 +171,45 @@ private:
 	void refreshRows();
 	SharedMediaMergedSlice::Key sliceKey(
 		UniversalMsgId universalId) const;
-	BaseLayout *getLayout(const FullMsgId &itemId);
-	BaseLayout *getExistingLayout(const FullMsgId &itemId) const;
+	BaseLayout *getLayout(UniversalMsgId universalId);
+	BaseLayout *getExistingLayout(UniversalMsgId universalId) const;
 	std::unique_ptr<BaseLayout> createLayout(
-		const FullMsgId &itemId,
+		UniversalMsgId universalId,
 		Type type);
+
+	SelectedItems collectSelectedItems() const;
+	void pushSelectedItems();
+	FullMsgId computeFullId(UniversalMsgId universalId) const;
+	bool hasSelected() const;
+	bool isSelectedItem(
+		const SelectedMap::const_iterator &i) const;
+	void removeItemSelection(
+		const SelectedMap::const_iterator &i);
+	bool hasSelectedText() const;
+	bool hasSelectedItems() const;
+	void clearSelected();
+	void applyItemSelection(
+		UniversalMsgId universalId,
+		TextSelection selection);
+	void toggleItemSelection(
+		UniversalMsgId universalId);
+	SelectedMap::iterator itemUnderPressSelection();
+	SelectedMap::const_iterator itemUnderPressSelection() const;
+	bool isItemUnderPressSelected() const;
+	bool requiredToStartDragging(not_null<BaseLayout*> layout) const;
+	bool isPressInSelectedText(HistoryTextState state) const;
+	void applyDragSelection();
+	void applyDragSelection(SelectedMap &applyTo) const;
+	bool changeItemSelection(
+		SelectedMap &selected,
+		UniversalMsgId universalId,
+		TextSelection selection) const;
+
+	static bool IsAfter(
+		const CursorState &a,
+		const CursorState &b);
+	static bool SkipSelectFromItem(const CursorState &state);
+	static bool SkipSelectTillItem(const CursorState &state);
 
 	void markLayoutsStale();
 	void clearStaleLayouts();
@@ -157,11 +236,25 @@ private:
 		const QPoint &screenPos,
 		Qt::MouseButton button);
 	void mouseActionUpdate(const QPoint &screenPos);
+	void mouseActionUpdate();
 	void mouseActionFinish(
 		const QPoint &screenPos,
 		Qt::MouseButton button);
 	void mouseActionCancel();
 	void performDrag();
+	style::cursor computeMouseCursor() const;
+
+	void updateDragSelection();
+	void clearDragSelection();
+	void setDragSelection(
+		BaseLayout *dragSelectFrom,
+		BaseLayout *dragSelectTill,
+		DragSelectAction action);
+
+	void trySwitchToWordSelection();
+	void switchToWordSelection();
+	void validateTrippleClickStartTime();
+	void checkMoveToOtherViewer();
 
 	not_null<Window::Controller*> _controller;
 	not_null<PeerData*> _peer;
@@ -183,29 +276,24 @@ private:
 
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;
-	QPoint _dragStartPosition;
 	QPoint _mousePosition;
-	BaseLayout *_itemNearestToCursor = nullptr;
-	BaseLayout *_itemUnderCursor = nullptr;
-	BaseLayout *_itemUnderPress = nullptr;
+	CursorState _overState;
+	CursorState _pressState;
+	BaseLayout *_overLayout = nullptr;
 	HistoryCursorState _mouseCursorState = HistoryDefaultCursorState;
-//	uint16 _mouseTextSymbol = 0;
+	uint16 _mouseTextSymbol = 0;
 	bool _pressWasInactive = false;
-	using SelectedItems = std::map<
-		UniversalMsgId,
-		TextSelection,
-		std::less<>>;
-	SelectedItems _selected;
+	SelectedMap _selected;
+	SelectedMap _dragSelected;
+	rpl::event_stream<SelectedItems> _selectedItemsStream;
 	style::cursor _cursor = style::cur_default;
-	BaseLayout *_dragSelFrom = nullptr;
-	BaseLayout *_dragSelTo = nullptr;
-//	bool _dragSelecting = false;
+	DragSelectAction _dragSelectAction = DragSelectAction::None;
 	bool _wasSelectedText = false; // was some text selected in current drag action
 	Ui::PopupMenu *_contextMenu = nullptr;
 	ClickHandlerPtr _contextMenuLink;
 
 	QPoint _trippleClickPoint;
-	QTimer _trippleClickTimer;
+	TimeMs _trippleClickStartTime = 0;
 
 	rpl::lifetime _viewerLifetime;
 

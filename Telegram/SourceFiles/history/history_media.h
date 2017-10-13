@@ -93,27 +93,37 @@ public:
 
 	// if we are in selecting items mode perhaps we want to
 	// toggle selection instead of activating the pressed link
-	virtual bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const = 0;
+	virtual bool toggleSelectionByHandlerClick(
+		const ClickHandlerPtr &p) const = 0;
 
 	// if we press and drag on this media should we drag the item
-	virtual bool dragItem() const WARN_UNUSED_RESULT {
+	[[nodiscard]] virtual bool dragItem() const {
 		return false;
 	}
 
-	virtual TextSelection adjustSelection(TextSelection selection, TextSelectType type) const WARN_UNUSED_RESULT {
+	[[nodiscard]] virtual TextSelection adjustSelection(
+			TextSelection selection,
+			TextSelectType type) const {
 		return selection;
 	}
-	virtual bool consumeMessageText(const TextWithEntities &textWithEntities) WARN_UNUSED_RESULT {
+	[[nodiscard]] virtual bool consumeMessageText(
+			const TextWithEntities &textWithEntities) {
 		return false;
 	}
-	virtual uint16 fullSelectionLength() const WARN_UNUSED_RESULT {
+	[[nodiscard]] virtual uint16 fullSelectionLength() const {
 		return 0;
 	}
-	TextSelection skipSelection(TextSelection selection) const WARN_UNUSED_RESULT {
-		return internal::unshiftSelection(selection, fullSelectionLength());
+	[[nodiscard]] TextSelection skipSelection(
+			TextSelection selection) const {
+		return internal::unshiftSelection(
+			selection,
+			fullSelectionLength());
 	}
-	TextSelection unskipSelection(TextSelection selection) const WARN_UNUSED_RESULT {
-		return internal::shiftSelection(selection, fullSelectionLength());
+	[[nodiscard]] TextSelection unskipSelection(
+			TextSelection selection) const {
+		return internal::shiftSelection(
+			selection,
+			fullSelectionLength());
 	}
 
 	// if we press and drag this link should we drag the item

@@ -64,12 +64,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #error Please add support for your architecture in base/build_config.h
 #endif
 
-#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
-#define WARN_UNUSED_RESULT __attribute__((warn_unused_result))
-#else
-#define WARN_UNUSED_RESULT
-#endif
-
 #if defined(__GNUC__)
 #define FORCE_INLINE inline __attribute__((always_inline))
 #elif defined(_MSC_VER)

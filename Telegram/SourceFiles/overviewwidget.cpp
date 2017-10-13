@@ -900,7 +900,9 @@ void OverviewInner::onUpdateSelected() {
 				item = media->getItem();
 				index = i;
 				if (upon) {
-					media->getState(lnk, cursorState, m - QPoint(col * w + st::overviewPhotoSkip, _marginTop + row * vsize + st::overviewPhotoSkip));
+					auto result = media->getState(m - QPoint(col * w + st::overviewPhotoSkip, _marginTop + row * vsize + st::overviewPhotoSkip), HistoryStateRequest());
+					lnk = result.link;
+					cursorState = result.cursor;
 					lnkhost = media;
 				}
 			}
@@ -936,7 +938,9 @@ void OverviewInner::onUpdateSelected() {
 				if (auto media = _items.at(i)->toMediaItem()) {
 					item = media->getItem();
 					index = i;
-					media->getState(lnk, cursorState, m - QPoint(_rowsLeft, _marginTop + top));
+					auto result = media->getState(m - QPoint(_rowsLeft, _marginTop + top), HistoryStateRequest());
+					lnk = result.link;
+					cursorState = result.cursor;
 					lnkhost = media;
 				}
 				break;

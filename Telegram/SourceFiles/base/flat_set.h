@@ -47,6 +47,13 @@ public:
 	flat_multi_set_iterator_base_impl(iterator_impl impl = iterator_impl())
 		: _impl(impl) {
 	}
+	template <typename other_iterator_impl>
+	flat_multi_set_iterator_base_impl(
+			const flat_multi_set_iterator_base_impl<
+				Type,
+				Compare,
+				other_iterator_impl> &other) : _impl(other._impl) {
+	}
 
 	reference operator*() const {
 		return *_impl;
@@ -82,20 +89,40 @@ public:
 	flat_multi_set_iterator_base_impl operator-(difference_type offset) const {
 		return _impl - offset;
 	}
-	difference_type operator-(const flat_multi_set_iterator_base_impl &right) const {
+	template <typename other_iterator_impl>
+	difference_type operator-(
+			const flat_multi_set_iterator_base_impl<
+				Type,
+				Compare,
+				other_iterator_impl> &right) const {
 		return _impl - right._impl;
 	}
 	reference operator[](difference_type offset) const {
 		return _impl[offset];
 	}
 
-	bool operator==(const flat_multi_set_iterator_base_impl &right) const {
+	template <typename other_iterator_impl>
+	bool operator==(
+			const flat_multi_set_iterator_base_impl<
+				Type,
+				Compare,
+				other_iterator_impl> &right) const {
 		return _impl == right._impl;
 	}
-	bool operator!=(const flat_multi_set_iterator_base_impl &right) const {
+	template <typename other_iterator_impl>
+	bool operator!=(
+			const flat_multi_set_iterator_base_impl<
+				Type,
+				Compare,
+				other_iterator_impl> &right) const {
 		return _impl != right._impl;
 	}
-	bool operator<(const flat_multi_set_iterator_base_impl &right) const {
+	template <typename other_iterator_impl>
+	bool operator<(
+			const flat_multi_set_iterator_base_impl<
+				Type,
+				Compare,
+				other_iterator_impl> &right) const {
 		return _impl < right._impl;
 	}
 
@@ -103,6 +130,12 @@ private:
 	iterator_impl _impl;
 	friend class flat_multi_set<Type, Compare>;
 	friend class flat_set<Type, Compare>;
+
+	template <
+		typename OtherType,
+		typename OtherCompare,
+		typename other_iterator_impl>
+	friend class flat_multi_set_iterator_base_impl;
 
 	Type &wrapped() {
 		return _impl->wrapped();
@@ -205,43 +238,24 @@ public:
 	using pointer = const Type*;
 	using reference = const Type&;
 
-	class const_iterator;
 	class iterator : public iterator_base {
 	public:
 		using iterator_base::iterator_base;
-		iterator(const iterator_base &other) : iterator_base(other) {
-		}
-		friend class const_iterator;
 
 	};
 	class const_iterator : public const_iterator_base {
 	public:
 		using const_iterator_base::const_iterator_base;
-		const_iterator(const_iterator_base other) : const_iterator_base(other) {
-		}
-		const_iterator(const iterator &other) : const_iterator_base(other._impl) {
-		}
 
 	};
-	class const_reverse_iterator;
 	class reverse_iterator : public reverse_iterator_base {
 	public:
 		using reverse_iterator_base::reverse_iterator_base;
-		reverse_iterator(reverse_iterator_base other)
-			: reverse_iterator_base(other) {
-		}
-		friend class const_reverse_iterator;
 
 	};
 	class const_reverse_iterator : public const_reverse_iterator_base {
 	public:
 		using const_reverse_iterator_base::const_reverse_iterator_base;
-		const_reverse_iterator(const_reverse_iterator_base other)
-			: const_reverse_iterator_base(other) {
-		}
-		const_reverse_iterator(const reverse_iterator &other)
-			: const_reverse_iterator_base(other._impl) {
-		}
 
 	};
 
@@ -366,10 +380,10 @@ public:
 		return (range.second - range.first);
 	}
 
-	iterator erase(iterator where) {
+	iterator erase(const_iterator where) {
 		return _impl.erase(where._impl);
 	}
-	iterator erase(iterator from, iterator till) {
+	iterator erase(const_iterator from, const_iterator till) {
 		return _impl.erase(from._impl, till._impl);
 	}
 

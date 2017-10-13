@@ -119,14 +119,15 @@ public:
 		return _height;
 	}
 
-	virtual void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, QPoint point) const {
-		link.clear();
-		cursor = HistoryDefaultCursorState;
+	[[nodiscard]] virtual HistoryTextState getState(
+			QPoint point,
+			HistoryStateRequest request) const {
+		return {};
 	}
-	virtual void getSymbol(uint16 &symbol, bool &after, bool &upon, QPoint point) const { // from text
-		upon = hasPoint(point);
-		symbol = upon ? 0xFFFF : 0;
-		after = false;
+	[[nodiscard]] virtual TextSelection adjustSelection(
+			TextSelection selection,
+			TextSelectType type) const {
+		return selection;
 	}
 
 	int width() const {

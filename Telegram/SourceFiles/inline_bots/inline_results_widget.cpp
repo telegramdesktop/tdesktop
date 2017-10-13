@@ -644,8 +644,10 @@ void Inner::updateSelected() {
 		}
 		if (col < inlineItems.size()) {
 			sel = row * MatrixRowShift + col;
-			inlineItems.at(col)->getState(lnk, cursor, QPoint(sx, sy));
-			lnkhost = inlineItems.at(col);
+			auto result = inlineItems[col]->getState(QPoint(sx, sy), HistoryStateRequest());
+			lnk = result.link;
+			cursor = result.cursor;
+			lnkhost = inlineItems[col];
 		} else {
 			row = col = -1;
 		}

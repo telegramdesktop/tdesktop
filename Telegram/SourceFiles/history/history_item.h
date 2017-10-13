@@ -91,6 +91,8 @@ struct HistoryTextState {
 		symbol = state.symbol;
 		return *this;
 	}
+	HistoryTextState(ClickHandlerPtr link) : link(link) {
+	}
 	HistoryCursorState cursor = HistoryDefaultCursorState;
 	ClickHandlerPtr link;
 	bool afterSymbol = false;
@@ -656,11 +658,15 @@ public:
 		return false;
 	}
 
-	virtual HistoryTextState getState(QPoint point, HistoryStateRequest request) const WARN_UNUSED_RESULT = 0;
+	[[nodiscard]] virtual HistoryTextState getState(
+		QPoint point,
+		HistoryStateRequest request) const = 0;
 	virtual void updatePressed(QPoint point) {
 	}
 
-	virtual TextSelection adjustSelection(TextSelection selection, TextSelectType type) const WARN_UNUSED_RESULT {
+	[[nodiscard]] virtual TextSelection adjustSelection(
+			TextSelection selection,
+			TextSelectType type) const {
 		return selection;
 	}
 
@@ -1051,10 +1057,12 @@ protected:
 		return nullptr;
 	}
 
-	TextSelection skipTextSelection(TextSelection selection) const WARN_UNUSED_RESULT {
+	[[nodiscard]] TextSelection skipTextSelection(
+			TextSelection selection) const {
 		return internal::unshiftSelection(selection, _text);
 	}
-	TextSelection unskipTextSelection(TextSelection selection) const WARN_UNUSED_RESULT {
+	[[nodiscard]] TextSelection unskipTextSelection(
+			TextSelection selection) const {
 		return internal::shiftSelection(selection, _text);
 	}
 

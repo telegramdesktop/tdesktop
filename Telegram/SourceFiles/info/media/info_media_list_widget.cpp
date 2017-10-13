@@ -59,11 +59,12 @@ UniversalMsgId GetUniversalId(not_null<const BaseLayout*> layout) {
 
 } // namespace
 
-ListWidget::CachedItem::CachedItem(std::unique_ptr<BaseLayout> item)
-: item(std::move(item)) {
-}
-
-ListWidget::CachedItem::~CachedItem() = default;
+struct ListWidget::Context {
+	Layout::PaintContext layoutContext;
+	not_null<SelectedMap*> selected;
+	not_null<SelectedMap*> dragSelected;
+	DragSelectAction dragSelectAction;
+};
 
 class ListWidget::Section {
 public:
@@ -101,9 +102,9 @@ public:
 
 	void paint(
 		Painter &p,
+		const Context &context,
 		QRect clip,
-		int outerWidth,
-		TimeMs ms) const;
+		int outerWidth) const;
 
 	static int MinItemHeight(Type type, int width);
 
@@ -121,10 +122,13 @@ private:
 	Items::const_iterator findItemAfterBottom(
 		Items::const_iterator from,
 		int bottom) const;
-	QRect findItemRect(not_null<BaseLayout*> item) const;
+	QRect findItemRect(not_null<const BaseLayout*> item) const;
 	FoundItem completeResult(
 		not_null<BaseLayout*> item,
 		bool exact) const;
+	TextSelection itemSelection(
+		not_null<const BaseLayout*> item,
+		const Context &context) const;
 
 	int recountHeight() const;
 	void refreshHeight();
@@ -141,6 +145,45 @@ private:
 	int _height = 0;
 
 };
+
+bool ListWidget::IsAfter(
+		const CursorState &a,
+		const CursorState &b) {
+	if (a.itemId != b.itemId) {
+		return (a.itemId < b.itemId);
+	}
+	auto xAfter = a.cursor.x() - b.cursor.x();
+	auto yAfter = a.cursor.y() - b.cursor.y();
+	return (xAfter + yAfter >= 0);
+}
+
+bool ListWidget::SkipSelectFromItem(const CursorState &state) {
+	if (state.cursor.y() >= state.size.height()
+		&& state.cursor.x() >= 0) {
+		return true;
+	} else if (state.cursor.x() >= state.size.width()
+		&& state.cursor.y() >= 0) {
+		return true;
+	}
+	return false;
+}
+
+bool ListWidget::SkipSelectTillItem(const CursorState &state) {
+	if (state.cursor.y() < state.size.height()
+		&& state.cursor.x() < 0) {
+		return true;
+	} else if (state.cursor.x() < state.size.width()
+		&& state.cursor.y() < 0) {
+		return true;
+	}
+	return false;
+}
+
+ListWidget::CachedItem::CachedItem(std::unique_ptr<BaseLayout> item)
+: item(std::move(item)) {
+}
+
+ListWidget::CachedItem::~CachedItem() = default;
 
 bool ListWidget::Section::addItem(not_null<BaseLayout*> item) {
 	if (_items.empty() || belongsHere(item)) {
@@ -213,7 +256,7 @@ bool ListWidget::Section::removeItem(UniversalMsgId universalId) {
 }
 
 QRect ListWidget::Section::findItemRect(
-		not_null<BaseLayout*> item) const {
+		not_null<const BaseLayout*> item) const {
 	auto position = item->position();
 	auto top = position / _itemsInRow;
 	auto indexInRow = position % _itemsInRow;
@@ -232,19 +275,26 @@ auto ListWidget::Section::findItemByPoint(
 		QPoint point) const -> FoundItem {
 	Expects(!_items.empty());
 	auto itemIt = findItemAfterTop(point.y());
-	auto shift = floorclamp(
-		point.x(),
-		(_itemWidth + st::infoMediaSkip),
-		0,
-		_itemsInRow);
-	while (shift-- && itemIt != _items.end()) {
-		++itemIt;
-	}
 	if (itemIt == _items.end()) {
 		--itemIt;
 	}
 	auto item = itemIt->second;
 	auto rect = findItemRect(item);
+	if (point.y() >= rect.top()) {
+		auto shift = floorclamp(
+			point.x(),
+			(_itemWidth + st::infoMediaSkip),
+			0,
+			_itemsInRow);
+		while (shift-- && itemIt != _items.end()) {
+			++itemIt;
+		}
+		if (itemIt == _items.end()) {
+			--itemIt;
+		}
+		item = itemIt->second;
+		rect = findItemRect(item);
+	}
 	return { item, rect, rect.contains(point) };
 }
 
@@ -302,9 +352,9 @@ auto ListWidget::Section::findItemAfterBottom(
 
 void ListWidget::Section::paint(
 		Painter &p,
+		const Context &context,
 		QRect clip,
-		int outerWidth,
-		TimeMs ms) const {
+		int outerWidth) const {
 	auto baseIndex = 0;
 	auto header = headerHeight();
 	if (QRect(0, 0, outerWidth, header).intersects(clip)) {
@@ -327,8 +377,8 @@ void ListWidget::Section::paint(
 		_itemWidth,
 		0,
 		_itemsInRow);
-	Layout::PaintContext context(ms, false);
-	context.isAfterDate = (header > 0);
+	auto localContext = context.layoutContext;
+	localContext.isAfterDate = (header > 0);
 
 	auto fromIt = findItemAfterTop(clip.y());
 	auto tillIt = findItemAfterBottom(
@@ -337,18 +387,37 @@ void ListWidget::Section::paint(
 	for (auto it = fromIt; it != tillIt; ++it) {
 		auto item = it->second;
 		auto rect = findItemRect(item);
-		context.isAfterDate = (header > 0)
+		localContext.isAfterDate = (header > 0)
 			&& (rect.y() <= header + _itemsTop);
 		if (rect.intersects(clip)) {
 			p.translate(rect.topLeft());
 			item->paint(
 				p,
 				clip.translated(-rect.topLeft()),
-				TextSelection(),
-				&context);
+				itemSelection(item, context),
+				&localContext);
 			p.translate(-rect.topLeft());
 		}
 	}
+}
+
+TextSelection ListWidget::Section::itemSelection(
+		not_null<const BaseLayout*> item,
+		const Context &context) const {
+	auto universalId = GetUniversalId(item);
+	auto dragSelectAction = context.dragSelectAction;
+	if (dragSelectAction != DragSelectAction::None) {
+		auto i = context.dragSelected->find(universalId);
+		if (i != context.dragSelected->end()) {
+			return (dragSelectAction == DragSelectAction::Selecting)
+				? FullSelection
+				: TextSelection();
+		}
+	}
+	auto i = context.selected->find(universalId);
+	return (i == context.selected->cend())
+		? TextSelection()
+		: i->second.text;
 }
 
 int ListWidget::Section::headerHeight() const {
@@ -510,12 +579,6 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 	if (isMyItem(item)) {
 		auto universalId = GetUniversalId(item);
 
-		auto i = _selected.find(universalId);
-		if (i != _selected.cend()) {
-			_selected.erase(i);
-			// updateSelectedCounters();
-		}
-
 		auto sectionIt = findSectionByItem(universalId);
 		if (sectionIt != _sections.end()) {
 			if (sectionIt->removeItem(universalId)) {
@@ -527,22 +590,92 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 			}
 		}
 
-		if (isItemLayout(item, _dragSelFrom)
-			|| isItemLayout(item, _dragSelTo)) {
-			_dragSelFrom = _dragSelTo = nullptr;
-			update();
+		if (isItemLayout(item, _overLayout)) {
+			_overLayout = nullptr;
 		}
 
 		_layouts.erase(universalId);
-		mouseActionUpdate(QCursor::pos());
+		_dragSelected.remove(universalId);
+
+		auto i = _selected.find(universalId);
+		if (i != _selected.cend()) {
+			removeItemSelection(i);
+			pushSelectedItems();
+		}
+
+		mouseActionUpdate(_mousePosition);
 	}
+}
+
+FullMsgId ListWidget::computeFullId(
+		UniversalMsgId universalId) const {
+	Expects(universalId != 0);
+	auto peerChannel = [&] {
+		return _peer->isChannel() ? _peer->bareId() : NoChannel;
+	};
+	return (universalId > 0)
+		? FullMsgId(peerChannel(), universalId)
+		: FullMsgId(NoChannel, ServerMaxMsgId + universalId);
+}
+
+auto ListWidget::collectSelectedItems() const -> SelectedItems {
+	auto convert = [&](
+			UniversalMsgId universalId,
+			const SelectionData &selection) {
+		auto result = SelectedItem(computeFullId(universalId));
+		result.canDelete = selection.canDelete;
+		result.canForward = selection.canForward;
+		return result;
+	};
+	auto transformation = [&](const auto &item) {
+		return convert(item.first, item.second);
+	};
+	auto items = SelectedItems();
+	items.reserve(_selected.size());
+	std::transform(
+		_selected.begin(),
+		_selected.end(),
+		std::back_inserter(items),
+		transformation);
+	return items;
+}
+
+void ListWidget::pushSelectedItems() {
+	_selectedItemsStream.fire(collectSelectedItems());
+}
+
+bool ListWidget::hasSelected() const {
+	return !_selected.empty();
+}
+
+bool ListWidget::isSelectedItem(
+		const SelectedMap::const_iterator &i) const {
+	return (i != _selected.end())
+		&& (i->second.text == FullSelection);
+}
+
+void ListWidget::removeItemSelection(
+		const SelectedMap::const_iterator &i) {
+	Expects(i != _selected.cend());
+	_selected.erase(i);
+	if (_selected.empty()) {
+		update();
+	}
+}
+
+bool ListWidget::hasSelectedText() const {
+	return hasSelected()
+		&& !hasSelectedItems();
+}
+
+bool ListWidget::hasSelectedItems() const {
+	return isSelectedItem(_selected.cbegin());
 }
 
 void ListWidget::itemLayoutChanged(
 		not_null<const HistoryItem*> item) {
-	if (isItemLayout(item, _itemNearestToCursor)
-		|| isItemLayout(item, _itemUnderCursor)) {
-		updateSelected();
+	if (isItemLayout(item, _overLayout)) {
+		mouseActionUpdate();
 	}
 }
 
@@ -554,7 +687,7 @@ void ListWidget::repaintItem(const HistoryItem *item) {
 
 void ListWidget::repaintItem(UniversalMsgId universalId) {
 	if (auto item = findItemById(universalId)) {
-		rtlupdate(item->geometry);
+		repaintItem(item->geometry);
 	}
 }
 
@@ -562,6 +695,10 @@ void ListWidget::repaintItem(const BaseLayout *item) {
 	if (item) {
 		repaintItem(GetUniversalId(item));
 	}
+}
+
+void ListWidget::repaintItem(QRect itemGeometry) {
+	rtlupdate(itemGeometry);
 }
 
 bool ListWidget::isMyItem(not_null<const HistoryItem*> item) const {
@@ -610,11 +747,10 @@ void ListWidget::refreshViewer() {
 		}, _viewerLifetime);
 }
 
-BaseLayout *ListWidget::getLayout(const FullMsgId &itemId) {
-	auto universalId = GetUniversalId(itemId);
+BaseLayout *ListWidget::getLayout(UniversalMsgId universalId) {
 	auto it = _layouts.find(universalId);
 	if (it == _layouts.end()) {
-		if (auto layout = createLayout(itemId, _type)) {
+		if (auto layout = createLayout(universalId, _type)) {
 			layout->initDimensions();
 			it = _layouts.emplace(
 				universalId,
@@ -628,8 +764,7 @@ BaseLayout *ListWidget::getLayout(const FullMsgId &itemId) {
 }
 
 BaseLayout *ListWidget::getExistingLayout(
-		const FullMsgId &itemId) const {
-	auto universalId = GetUniversalId(itemId);
+		UniversalMsgId universalId) const {
 	auto it = _layouts.find(universalId);
 	return (it != _layouts.end())
 		? it->second.item.get()
@@ -637,9 +772,9 @@ BaseLayout *ListWidget::getExistingLayout(
 }
 
 std::unique_ptr<BaseLayout> ListWidget::createLayout(
-		const FullMsgId &itemId,
+		UniversalMsgId universalId,
 		Type type) {
-	auto item = App::histItemById(itemId);
+	auto item = App::histItemById(computeFullId(universalId));
 	if (!item) {
 		return nullptr;
 	}
@@ -703,8 +838,8 @@ void ListWidget::refreshRows() {
 	auto section = Section(_type);
 	auto count = _slice.size();
 	for (auto i = count; i != 0;) {
-		auto itemId = _slice[--i];
-		if (auto layout = getLayout(itemId)) {
+		auto universalId = GetUniversalId(_slice[--i]);
+		if (auto layout = getLayout(universalId)) {
 			if (!section.addItem(layout)) {
 				_sections.push_back(std::move(section));
 				section = Section(_type);
@@ -781,16 +916,23 @@ auto ListWidget::foundItemInSection(
 void ListWidget::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
-	auto visibleHeight = (visibleBottom - visibleTop);
-	if (width() <= 0 || visibleHeight <= 0 || _sections.empty() || _scrollTopId) {
-		return;
-	}
-
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
 
-	auto topItem = findItemByPoint({ 0, visibleTop });
-	auto bottomItem = findItemByPoint({ 0, visibleBottom });
+	checkMoveToOtherViewer();
+}
+
+void ListWidget::checkMoveToOtherViewer() {
+	auto visibleHeight = (_visibleBottom - _visibleTop);
+	if (width() <= 0
+		|| visibleHeight <= 0
+		|| _sections.empty()
+		|| _scrollTopId) {
+		return;
+	}
+
+	auto topItem = findItemByPoint({ 0, _visibleTop });
+	auto bottomItem = findItemByPoint({ 0, _visibleBottom });
 
 	auto preloadedHeight = kPreloadedScreensCountFull * visibleHeight;
 	auto minItemHeight = Section::MinItemHeight(_type, width());
@@ -801,10 +943,10 @@ void ListWidget::visibleTopBottomUpdated(
 
 	auto preloadBefore = kPreloadIfLessThanScreens * visibleHeight;
 	auto after = _slice.skippedAfter();
-	auto preloadTop = (visibleTop < preloadBefore);
+	auto preloadTop = (_visibleTop < preloadBefore);
 	auto topLoaded = after && (*after == 0);
 	auto before = _slice.skippedBefore();
-	auto preloadBottom = (height() - visibleBottom < preloadBefore);
+	auto preloadBottom = (height() - _visibleBottom < preloadBefore);
 	auto bottomLoaded = before && (*before == 0);
 
 	auto minScreenDelta = kPreloadedScreensCount
@@ -882,10 +1024,16 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	auto tillSectionIt = findSectionAfterBottom(
 		fromSectionIt,
 		clip.y() + clip.height());
+	auto context = Context {
+		Layout::PaintContext(ms, !_selected.empty()),
+		&_selected,
+		&_dragSelected,
+		_dragSelectAction
+	};
 	for (auto it = fromSectionIt; it != tillSectionIt; ++it) {
 		auto top = it->top();
 		p.translate(0, top);
-		it->paint(p, clip.translated(0, -top), outerWidth, ms);
+		it->paint(p, context, clip.translated(0, -top), outerWidth);
 		p.translate(0, -top);
 	}
 }
@@ -915,38 +1063,159 @@ void ListWidget::mouseReleaseEvent(QMouseEvent *e) {
 
 void ListWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 	mouseActionStart(e->globalPos(), e->button());
+	trySwitchToWordSelection();
+}
 
-	//auto selectingSome = (_mouseAction == MouseAction::Selecting)
-	//	&& !_selected.empty()
-	//	&& (_selected.cbegin()->second != FullSelection);
-	//auto willSelectSome = (_mouseAction == MouseAction::None)
-	//	&& (_selected.empty()
-	//		|| _selected.cbegin()->second != FullSelection);
-	//auto checkSwitchToWordSelection = _itemUnderPress
-	//	&& (_mouseSelectType == TextSelectType::Letters)
-	//	&& (selectingSome || willSelectSome);
-	//if (checkSwitchToWordSelection) {
-	//	HistoryStateRequest request;
-	//	request.flags |= Text::StateRequest::Flag::LookupSymbol;
-	//	auto dragState = _itemUnderPress->getState(_dragStartPosition, request);
-	//	if (dragState.cursor == HistoryInTextCursorState) {
-	//		_mouseTextSymbol = dragState.symbol;
-	//		_mouseSelectType = TextSelectType::Words;
-	//		if (_mouseAction == MouseAction::None) {
-	//			_mouseAction = MouseAction::Selecting;
-	//			TextSelection selStatus = { dragState.symbol, dragState.symbol };
-	//			if (!_selected.empty()) {
-	//				repaintItem(_selected.cbegin()->first);
-	//				_selected.clear();
-	//			}
-	//			_selected.emplace(_itemUnderPress, selStatus);
-	//		}
-	//		mouseMoveEvent(e);
+void ListWidget::trySwitchToWordSelection() {
+	auto selectingSome = (_mouseAction == MouseAction::Selecting)
+		&& hasSelectedText();
+	auto willSelectSome = (_mouseAction == MouseAction::None)
+		&& !hasSelectedItems();
+	auto checkSwitchToWordSelection = _overLayout
+		&& (_mouseSelectType == TextSelectType::Letters)
+		&& (selectingSome || willSelectSome);
+	if (checkSwitchToWordSelection) {
+		switchToWordSelection();
+	}
+}
 
-	//		_trippleClickPoint = e->globalPos();
-	//		_trippleClickTimer.start(QApplication::doubleClickInterval());
-	//	}
-	//}
+void ListWidget::switchToWordSelection() {
+	Expects(_overLayout != nullptr);
+
+	HistoryStateRequest request;
+	request.flags |= Text::StateRequest::Flag::LookupSymbol;
+	auto dragState = _overLayout->getState(_pressState.cursor, request);
+	if (dragState.cursor != HistoryInTextCursorState) {
+		return;
+	}
+	_mouseTextSymbol = dragState.symbol;
+	_mouseSelectType = TextSelectType::Words;
+	if (_mouseAction == MouseAction::None) {
+		_mouseAction = MouseAction::Selecting;
+		clearSelected();
+		auto selStatus = TextSelection {
+			dragState.symbol,
+			dragState.symbol
+		};
+		applyItemSelection(_overState.itemId, selStatus);
+	}
+	mouseActionUpdate();
+
+	_trippleClickPoint = _mousePosition;
+	_trippleClickStartTime = getms();
+}
+
+void ListWidget::applyItemSelection(
+		UniversalMsgId universalId,
+		TextSelection selection) {
+	if (changeItemSelection(
+			_selected,
+			universalId,
+			selection)) {
+		repaintItem(universalId);
+	}
+}
+
+void ListWidget::toggleItemSelection(UniversalMsgId universalId) {
+	auto it = _selected.find(universalId);
+	if (it == _selected.cend()) {
+		applyItemSelection(universalId, FullSelection);
+	} else {
+		removeItemSelection(it);
+	}
+}
+
+bool ListWidget::changeItemSelection(
+		SelectedMap &selected,
+		UniversalMsgId universalId,
+		TextSelection selection) const {
+	auto changeExisting = [&](auto it) {
+		if (it == selected.cend()) {
+			return false;
+		} else if (it->second.text != selection) {
+			it->second.text = selection;
+			return true;
+		}
+		return false;
+	};
+	if (selected.size() < MaxSelectedItems) {
+		auto [iterator, ok] = selected.try_emplace(
+			universalId,
+			selection);
+		if (ok) {
+			auto item = App::histItemById(computeFullId(universalId));
+			if (!item) {
+				selected.erase(iterator);
+				return false;
+			}
+			iterator->second.canDelete = item->canDelete();
+			iterator->second.canForward = item->canForward();
+			return true;
+		}
+		return changeExisting(iterator);
+	}
+	return changeExisting(selected.find(universalId));
+}
+
+bool ListWidget::isItemUnderPressSelected() const {
+	return itemUnderPressSelection() != _selected.end();
+}
+
+auto ListWidget::itemUnderPressSelection() -> SelectedMap::iterator {
+	return (_pressState.itemId && _pressState.inside)
+		? _selected.find(_pressState.itemId)
+		: _selected.end();
+}
+
+auto ListWidget::itemUnderPressSelection() const
+-> SelectedMap::const_iterator {
+	return (_pressState.itemId && _pressState.inside)
+		? _selected.find(_pressState.itemId)
+		: _selected.end();
+}
+
+bool ListWidget::requiredToStartDragging(
+		not_null<BaseLayout*> layout) const {
+	if (_mouseCursorState == HistoryInDateCursorState) {
+		return true;
+	}
+//	return dynamic_cast<HistorySticker*>(layout->getMedia());
+	return false;
+}
+
+bool ListWidget::isPressInSelectedText(HistoryTextState state) const {
+	if (state.cursor != HistoryInTextCursorState) {
+		return false;
+	}
+	if (!hasSelectedText()
+		|| !isItemUnderPressSelected()) {
+		return false;
+	}
+	auto pressedSelection = itemUnderPressSelection();
+	auto from = pressedSelection->second.text.from;
+	auto to = pressedSelection->second.text.to;
+	return (state.symbol >= from && state.symbol < to);
+}
+
+void ListWidget::clearSelected() {
+	if (_selected.empty()) {
+		return;
+	}
+	if (hasSelectedText()) {
+		repaintItem(_selected.begin()->first);
+	} else {
+		update();
+	}
+	_selected.clear();
+}
+
+void ListWidget::validateTrippleClickStartTime() {
+	if (_trippleClickStartTime) {
+		auto elapsed = (getms() - _trippleClickStartTime);
+		if (elapsed >= QApplication::doubleClickInterval()) {
+			_trippleClickStartTime = 0;
+		}
+	}
 }
 
 void ListWidget::enterEventHook(QEvent *e) {
@@ -955,9 +1224,11 @@ void ListWidget::enterEventHook(QEvent *e) {
 }
 
 void ListWidget::leaveEventHook(QEvent *e) {
-	if (auto item = _itemUnderCursor) {
-		repaintItem(item);
-		_itemUnderCursor = nullptr;
+	if (auto item = _overLayout) {
+		if (_overState.inside) {
+			repaintItem(item);
+			_overState.inside = false;
+		}
 	}
 	ClickHandler::clearActive();
 	if (!ClickHandler::getPressed() && _cursor != style::cur_default) {
@@ -984,26 +1255,35 @@ void ListWidget::mouseActionUpdate(const QPoint &screenPos) {
 	auto local = mapFromGlobal(_mousePosition);
 	auto point = clampMousePosition(local);
 	auto [layout, geometry, inside] = findItemByPoint(point);
+	auto state = CursorState {
+		GetUniversalId(layout),
+		geometry.size(),
+		point - geometry.topLeft(),
+		inside
+	};
 	auto item = layout ? layout->getItem() : nullptr;
-	auto relative = point - geometry.topLeft();
-	if (inside) {
-		if (_itemUnderCursor != layout) {
-			repaintItem(_itemUnderCursor);
-			_itemUnderCursor = layout;
-			repaintItem(_itemUnderCursor);
-		}
-	} else if (_itemUnderCursor) {
-		repaintItem(_itemUnderCursor);
-		_itemUnderCursor = nullptr;
+	if (_overLayout != layout) {
+		repaintItem(_overLayout);
+		_overLayout = layout;
+		repaintItem(geometry);
 	}
+	_overState = state;
 
-	ClickHandlerPtr dragStateHandler;
-	HistoryCursorState dragStateCursor = HistoryDefaultCursorState;
 	HistoryTextState dragState;
 	ClickHandlerHost *lnkhost = nullptr;
-	bool selectingText = (layout == _itemUnderPress && layout == _itemUnderCursor && !_selected.empty() && _selected.cbegin()->second != FullSelection);
-	if (layout) {
-		if (layout != _itemUnderPress || (relative - _dragStartPosition).manhattanLength() >= QApplication::startDragDistance()) {
+	auto inTextSelection = _overState.inside
+		&& (_overState.itemId == _pressState.itemId)
+		&& hasSelectedText();
+	auto cursorDeltaLength = [&] {
+		auto cursorDelta = (_overState.cursor - _pressState.cursor);
+		return cursorDelta.manhattanLength();
+	};
+	auto dragStartLength = [] {
+		return QApplication::startDragDistance();
+	};
+	if (_overLayout) {
+		if (_overState.itemId != _pressState.itemId
+			|| cursorDeltaLength() >= dragStartLength()) {
 			if (_mouseAction == MouseAction::PrepareDrag) {
 				_mouseAction = MouseAction::Dragging;
 				InvokeQueued(this, [this] { performDrag(); });
@@ -1015,112 +1295,127 @@ void ListWidget::mouseActionUpdate(const QPoint &screenPos) {
 		if (_mouseAction == MouseAction::Selecting) {
 			request.flags |= Text::StateRequest::Flag::LookupSymbol;
 		} else {
-			selectingText = false;
+			inTextSelection = false;
 		}
-		//dragState = layout->getState(relative, request);
-		layout->getState(dragState.link, dragState.cursor, relative);
-		lnkhost = layout;
+		dragState = _overLayout->getState(_overState.cursor, request);
+		lnkhost = _overLayout;
 	}
-	auto lnkChanged = ClickHandler::setActive(dragState.link, lnkhost);
+	ClickHandler::setActive(dragState.link, lnkhost);
 
-	Qt::CursorShape cur = style::cur_default;
 	if (_mouseAction == MouseAction::None) {
 		_mouseCursorState = dragState.cursor;
-		if (dragState.link) {
-			cur = style::cur_pointer;
-		} else if (_mouseCursorState == HistoryInTextCursorState && (_selected.empty() || _selected.cbegin()->second != FullSelection)) {
-			cur = style::cur_text;
-		} else if (_mouseCursorState == HistoryInDateCursorState) {
-			//			cur = style::cur_cross;
+		auto cursor = computeMouseCursor();
+		if (_cursor != cursor) {
+			setCursor(_cursor = cursor);
 		}
-	} else if (item) {
-		if (_mouseAction == MouseAction::Selecting) {
-			//auto canSelectMany = (_history != nullptr);
-			//if (selectingText) {
-			//	uint16 second = dragState.symbol;
-			//	if (dragState.afterSymbol && _mouseSelectType == TextSelectType::Letters) {
-			//		++second;
-			//	}
-			//	auto selState = TextSelection { qMin(second, _mouseTextSymbol), qMax(second, _mouseTextSymbol) };
-			//	if (_mouseSelectType != TextSelectType::Letters) {
-			//		selState = _itemUnderPress->adjustSelection(selState, _mouseSelectType);
-			//	}
-			//	if (_selected[_itemUnderPress] != selState) {
-			//		_selected[_itemUnderPress] = selState;
-			//		repaintItem(_itemUnderPress);
-			//	}
-			//	if (!_wasSelectedText && (selState == FullSelection || selState.from != selState.to)) {
-			//		_wasSelectedText = true;
-			//		setFocus();
-			//	}
-			//	updateDragSelection(0, 0, false);
-			//} else if (canSelectMany) {
-			//	auto selectingDown = (itemTop(_itemUnderPress) < itemTop(item)) || (_itemUnderPress == item && _dragStartPosition.y() < m.y());
-			//	auto dragSelFrom = _itemUnderPress, dragSelTo = item;
-			//	if (!dragSelFrom->hasPoint(_dragStartPosition)) { // maybe exclude dragSelFrom
-			//		if (selectingDown) {
-			//			if (_dragStartPosition.y() >= dragSelFrom->height() - dragSelFrom->marginBottom() || ((item == dragSelFrom) && (m.y() < _dragStartPosition.y() + QApplication::startDragDistance() || m.y() < dragSelFrom->marginTop()))) {
-			//				dragSelFrom = (dragSelFrom == dragSelTo) ? 0 : nextItem(dragSelFrom);
-			//			}
-			//		} else {
-			//			if (_dragStartPosition.y() < dragSelFrom->marginTop() || ((item == dragSelFrom) && (m.y() >= _dragStartPosition.y() - QApplication::startDragDistance() || m.y() >= dragSelFrom->height() - dragSelFrom->marginBottom()))) {
-			//				dragSelFrom = (dragSelFrom == dragSelTo) ? 0 : prevItem(dragSelFrom);
-			//			}
-			//		}
-			//	}
-			//	if (_itemUnderPress != item) { // maybe exclude dragSelTo
-			//		if (selectingDown) {
-			//			if (m.y() < dragSelTo->marginTop()) {
-			//				dragSelTo = (dragSelFrom == dragSelTo) ? 0 : prevItem(dragSelTo);
-			//			}
-			//		} else {
-			//			if (m.y() >= dragSelTo->height() - dragSelTo->marginBottom()) {
-			//				dragSelTo = (dragSelFrom == dragSelTo) ? 0 : nextItem(dragSelTo);
-			//			}
-			//		}
-			//	}
-			//	auto dragSelecting = false;
-			//	auto dragFirstAffected = dragSelFrom;
-			//	while (dragFirstAffected && (dragFirstAffected->id < 0 || dragFirstAffected->serviceMsg())) {
-			//		dragFirstAffected = (dragFirstAffected == dragSelTo) ? 0 : (selectingDown ? nextItem(dragFirstAffected) : prevItem(dragFirstAffected));
-			//	}
-			//	if (dragFirstAffected) {
-			//		auto i = _selected.find(dragFirstAffected);
-			//		dragSelecting = (i == _selected.cend() || i->second != FullSelection);
-			//	}
-			//	updateDragSelection(dragSelFrom, dragSelTo, dragSelecting);
-			//}
-		} else if (_mouseAction == MouseAction::Dragging) {
-		}
-
-		if (ClickHandler::getPressed()) {
-			cur = style::cur_pointer;
-		} else if (_mouseAction == MouseAction::Selecting && !_selected.empty() && _selected.cbegin()->second != FullSelection) {
-			if (!_dragSelFrom || !_dragSelTo) {
-				cur = style::cur_text;
+	} else if (_mouseAction == MouseAction::Selecting) {
+		if (inTextSelection) {
+			auto second = dragState.symbol;
+			if (dragState.afterSymbol && _mouseSelectType == TextSelectType::Letters) {
+				++second;
 			}
+			auto selState = TextSelection {
+				qMin(second, _mouseTextSymbol),
+				qMax(second, _mouseTextSymbol)
+			};
+			if (_mouseSelectType != TextSelectType::Letters) {
+				selState = _overLayout->adjustSelection(selState, _mouseSelectType);
+			}
+			applyItemSelection(_overState.itemId, selState);
+			auto hasSelection = (selState == FullSelection)
+				|| (selState.from != selState.to);
+			if (!_wasSelectedText && hasSelection) {
+				_wasSelectedText = true;
+				setFocus();
+			}
+			clearDragSelection();
+		} else if (_pressState.itemId) {
+			updateDragSelection();
 		}
+	} else if (_mouseAction == MouseAction::Dragging) {
 	}
 
-	// Voice message seek support.
-	//if (auto pressedItem = App::pressedLinkItem()) {
-	//	if (!pressedItem->detached()) {
-	//		if (pressedItem->history() == _history || pressedItem->history() == _migrated) {
-	//			auto adjustedPoint = mapPointToItem(point, pressedItem);
-	//			pressedItem->updatePressed(adjustedPoint);
-	//		}
-	//	}
-	//}
-
+	// #TODO scroll by drag
 	//if (_mouseAction == MouseAction::Selecting) {
 	//	_widget->checkSelectingScroll(mousePos);
 	//} else {
-	//	updateDragSelection(0, 0, false);
+	//	clearDragSelection();
 	//	_widget->noSelectingScroll();
 	//}
+}
 
-	if (_mouseAction == MouseAction::None && (lnkChanged || cur != _cursor)) {
-		setCursor(_cursor = cur);
+style::cursor ListWidget::computeMouseCursor() const {
+	if (ClickHandler::getPressed() || ClickHandler::getActive()) {
+		return style::cur_pointer;
+	} else if (!hasSelectedItems()
+		&& (_mouseCursorState == HistoryInTextCursorState)) {
+		return style::cur_text;
+	}
+	return style::cur_default;
+}
+
+void ListWidget::updateDragSelection() {
+	auto fromState = _pressState;
+	auto tillState = _overState;
+	auto swapStates = IsAfter(fromState, tillState);
+	if (swapStates) {
+		std::swap(fromState, tillState);
+	}
+	if (!fromState.itemId || !tillState.itemId) {
+		clearDragSelection();
+		return;
+	}
+	auto fromId = SkipSelectFromItem(fromState)
+		? (fromState.itemId - 1)
+		: fromState.itemId;
+	auto tillId = SkipSelectTillItem(tillState)
+		? tillState.itemId
+		: (tillState.itemId - 1);
+	for (auto i = _dragSelected.begin(); i != _dragSelected.end();) {
+		auto itemId = i->first;
+		if (itemId > fromId || itemId <= tillId) {
+			i = _dragSelected.erase(i);
+		} else {
+			++i;
+		}
+	}
+	for (auto &layoutItem : _layouts) {
+		auto &&universalId = layoutItem.first;
+		auto &&layout = layoutItem.second;
+		if (universalId <= fromId && universalId > tillId) {
+			changeItemSelection(
+				_dragSelected,
+				universalId,
+				FullSelection);
+		}
+	}
+	_dragSelectAction = [&] {
+		if (_dragSelected.empty()) {
+			return DragSelectAction::None;
+		}
+		auto &[firstDragItem, data] = swapStates
+			? _dragSelected.front()
+			: _dragSelected.back();
+		if (isSelectedItem(_selected.find(firstDragItem))) {
+			return DragSelectAction::Deselecting;
+		} else {
+			return DragSelectAction::Selecting;
+		}
+	}();
+	if (!_wasSelectedText
+		&& !_dragSelected.empty()
+		&& _dragSelectAction == DragSelectAction::Selecting) {
+		_wasSelectedText = true;
+		setFocus();
+	}
+	update();
+}
+
+void ListWidget::clearDragSelection() {
+	_dragSelectAction = DragSelectAction::None;
+	if (!_dragSelected.empty()) {
+		_dragSelected.clear();
+		update();
 	}
 }
 
@@ -1129,144 +1424,111 @@ void ListWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butto
 	if (button != Qt::LeftButton) return;
 
 	ClickHandler::pressed();
-	if (_itemUnderPress != _itemUnderCursor) {
-		repaintItem(_itemUnderPress);
-		_itemUnderPress = _itemUnderCursor;
-		repaintItem(_itemUnderPress);
+	if (_pressState != _overState) {
+		if (_pressState.itemId != _overState.itemId) {
+			repaintItem(_pressState.itemId);
+		}
+		_pressState = _overState;
+		repaintItem(_overLayout);
 	}
+	auto pressLayout = _overLayout;
 
 	_mouseAction = MouseAction::None;
-	if (auto item = findItemDetails(_itemUnderPress)) {
-		_dragStartPosition = mapFromGlobal(screenPos) - item->geometry.topLeft();
-	} else {
-		_dragStartPosition = QPoint();
-	}
 	_pressWasInactive = _controller->window()->wasInactivePress();
 	if (_pressWasInactive) _controller->window()->setInactivePress(false);
 
 	if (ClickHandler::getPressed()) {
 		_mouseAction = MouseAction::PrepareDrag;
-	} else if (!_selected.empty()) {
-		if (_selected.cbegin()->second == FullSelection) {
-			//if (_selected.find(_itemUnderPress) != _selected.cend() && _itemUnderCursor) {
-			//	_mouseAction = MouseAction::PrepareDrag; // start items drag
-			//} else if (!_pressWasInactive) {
-			//	_mouseAction = MouseAction::PrepareSelect; // start items select
-			//}
+	} else if (hasSelectedItems()) {
+		if (isItemUnderPressSelected()) {
+			_mouseAction = MouseAction::PrepareDrag; // start items drag
+		} else if (!_pressWasInactive) {
+			_mouseAction = MouseAction::PrepareSelect; // start items select
 		}
 	}
-	if (_mouseAction == MouseAction::None && _itemUnderPress) {
+	if (_mouseAction == MouseAction::None && pressLayout) {
 		HistoryTextState dragState;
-		if (_trippleClickTimer.isActive() && (screenPos - _trippleClickPoint).manhattanLength() < QApplication::startDragDistance()) {
-			//HistoryStateRequest request;
-			//request.flags = Text::StateRequest::Flag::LookupSymbol;
-			//dragState = _itemUnderPress->getState(_dragStartPosition, request);
-			//if (dragState.cursor == HistoryInTextCursorState) {
-			//	TextSelection selStatus = { dragState.symbol, dragState.symbol };
-			//	if (selStatus != FullSelection && (_selected.empty() || _selected.cbegin()->second != FullSelection)) {
-			//		if (!_selected.empty()) {
-			//			repaintItem(_selected.cbegin()->first);
-			//			_selected.clear();
-			//		}
-			//		_selected.emplace(_itemUnderPress, selStatus);
-			//		_mouseTextSymbol = dragState.symbol;
-			//		_mouseAction = MouseAction::Selecting;
-			//		_mouseSelectType = TextSelectType::Paragraphs;
-			//		mouseActionUpdate(_mousePosition);
-			//		_trippleClickTimer.start(QApplication::doubleClickInterval());
-			//	}
-			//}
-		} else if (_itemUnderPress) {
+		validateTrippleClickStartTime();
+		auto startDistance = (screenPos - _trippleClickPoint).manhattanLength();
+		auto validStartPoint = startDistance < QApplication::startDragDistance();
+		if (_trippleClickStartTime != 0 && validStartPoint) {
 			HistoryStateRequest request;
 			request.flags = Text::StateRequest::Flag::LookupSymbol;
-//			dragState = _itemUnderPress->getState(_dragStartPosition, request);
-			_itemUnderPress->getState(dragState.link, dragState.cursor, _dragStartPosition);
+			dragState = pressLayout->getState(_pressState.cursor, request);
+			if (dragState.cursor == HistoryInTextCursorState) {
+				TextSelection selStatus = { dragState.symbol, dragState.symbol };
+				if (selStatus != FullSelection && !hasSelectedItems()) {
+					clearSelected();
+					applyItemSelection(_pressState.itemId, selStatus);
+					_mouseTextSymbol = dragState.symbol;
+					_mouseAction = MouseAction::Selecting;
+					_mouseSelectType = TextSelectType::Paragraphs;
+					mouseActionUpdate(_mousePosition);
+					_trippleClickStartTime = getms();
+				}
+			}
+		} else {
+			HistoryStateRequest request;
+			request.flags = Text::StateRequest::Flag::LookupSymbol;
+			dragState = pressLayout->getState(_pressState.cursor, request);
 		}
 		if (_mouseSelectType != TextSelectType::Paragraphs) {
-			if (_itemUnderPress) {
-				//_mouseTextSymbol = dragState.symbol;
-				//bool uponSelected = (dragState.cursor == HistoryInTextCursorState);
-				//if (uponSelected) {
-				//	if (_selected.empty()
-				//		|| _selected.cbegin()->second == FullSelection
-				//		|| _selected.cbegin()->first != _itemUnderPress) {
-				//		uponSelected = false;
-				//	} else {
-				//		uint16 selFrom = _selected.cbegin()->second.from, selTo = _selected.cbegin()->second.to;
-				//		if (_mouseTextSymbol < selFrom || _mouseTextSymbol >= selTo) {
-				//			uponSelected = false;
-				//		}
-				//	}
-				//}
-				//if (uponSelected) {
-				//	_mouseAction = MouseAction::PrepareDrag; // start text drag
-				//} else if (!_pressWasInactive) {
-				//	if (dynamic_cast<HistorySticker*>(_itemUnderPress->getMedia()) || _mouseCursorState == HistoryInDateCursorState) {
-				//		_mouseAction = MouseAction::PrepareDrag; // start sticker drag or by-date drag
-				//	} else {
-				//		if (dragState.afterSymbol) ++_mouseTextSymbol;
-				//		TextSelection selStatus = { _mouseTextSymbol, _mouseTextSymbol };
-				//		if (selStatus != FullSelection && (_selected.empty() || _selected.cbegin()->second != FullSelection)) {
-				//			if (!_selected.empty()) {
-				//				repaintItem(_selected.cbegin()->first);
-				//				_selected.clear();
-				//			}
-				//			_selected.emplace(_itemUnderPress, selStatus);
-				//			_mouseAction = MouseAction::Selecting;
-				//			repaintItem(_itemUnderPress);
-				//		} else {
-				//			_mouseAction = MouseAction::PrepareSelect;
-				//		}
-				//	}
-				//}
+			if (_pressState.inside) {
+				_mouseTextSymbol = dragState.symbol;
+				if (isPressInSelectedText(dragState)) {
+					_mouseAction = MouseAction::PrepareDrag; // start text drag
+				} else if (!_pressWasInactive) {
+					if (requiredToStartDragging(pressLayout)) {
+						_mouseAction = MouseAction::PrepareDrag;
+					} else {
+						if (dragState.afterSymbol) ++_mouseTextSymbol;
+						TextSelection selStatus = { _mouseTextSymbol, _mouseTextSymbol };
+						if (selStatus != FullSelection && !hasSelectedItems()) {
+							clearSelected();
+							applyItemSelection(_pressState.itemId, selStatus);
+							_mouseAction = MouseAction::Selecting;
+							repaintItem(pressLayout);
+						} else {
+							_mouseAction = MouseAction::PrepareSelect;
+						}
+					}
+				}
 			} else if (!_pressWasInactive) {
 				_mouseAction = MouseAction::PrepareSelect; // start items select
 			}
 		}
 	}
 
-	if (!_itemUnderPress) {
+	if (!pressLayout) {
 		_mouseAction = MouseAction::None;
 	} else if (_mouseAction == MouseAction::None) {
-		_itemUnderPress = nullptr;
+		mouseActionCancel();
 	}
 }
 
 void ListWidget::mouseActionCancel() {
-	_itemUnderPress = nullptr;
+	_pressState = CursorState();
 	_mouseAction = MouseAction::None;
-	_dragStartPosition = QPoint(0, 0);
-	_dragSelFrom = _dragSelTo = nullptr;
+	clearDragSelection();
 	_wasSelectedText = false;
-//	_widget->noSelectingScroll();
+//	_widget->noSelectingScroll(); // #TODO scroll by drag
 }
 
 void ListWidget::performDrag() {
 	if (_mouseAction != MouseAction::Dragging) return;
 
-	bool uponSelected = false;
-	if (_itemUnderPress) {
-		if (!_selected.empty() && _selected.cbegin()->second == FullSelection) {
-//			uponSelected = (_selected.find(_itemUnderPress) != _selected.cend());
-		} else {
+	auto uponSelected = false;
+	if (_pressState.itemId && _pressState.inside) {
+		if (hasSelectedItems()) {
+			uponSelected = isItemUnderPressSelected();
+		} else if (auto pressLayout = getExistingLayout(
+				_pressState.itemId)) {
 			HistoryStateRequest request;
 			request.flags |= Text::StateRequest::Flag::LookupSymbol;
-//			auto dragState = _itemUnderPress->getState(_dragStartPosition, request);
-			HistoryTextState dragState;
-			_itemUnderPress->getState(dragState.link, dragState.cursor, _dragStartPosition);
-			uponSelected = (dragState.cursor == HistoryInTextCursorState);
-			if (uponSelected) {
-				//if (_selected.empty()
-				//	|| _selected.cbegin()->second == FullSelection
-				//	|| _selected.cbegin()->first != _itemUnderPress) {
-				//	uponSelected = false;
-				//} else {
-				//	uint16 selFrom = _selected.cbegin()->second.from, selTo = _selected.cbegin()->second.to;
-				//	if (dragState.symbol < selFrom || dragState.symbol >= selTo) {
-				//		uponSelected = false;
-				//	}
-				//}
-			}
+			auto dragState = pressLayout->getState(
+				_pressState.cursor,
+				request);
+			uponSelected = isPressInSelectedText(dragState);
 		}
 	}
 	auto pressedHandler = ClickHandler::getPressed();
@@ -1286,7 +1548,7 @@ void ListWidget::performDrag() {
 		//}
 	}
 	//if (auto mimeData = MimeDataFromTextWithEntities(sel)) {
-	//	updateDragSelection(0, 0, false);
+	//	clearDragSelection();
 	//	_widget->noSelectingScroll();
 
 	//	if (!urls.isEmpty()) mimeData->setUrls(urls);
@@ -1301,7 +1563,7 @@ void ListWidget::performDrag() {
 	//} else {
 	//	auto forwardMimeType = QString();
 	//	auto pressedMedia = static_cast<HistoryMedia*>(nullptr);
-	//	if (auto pressedItem = _itemUnderPress) {
+	//	if (auto pressedItem = _pressState.layout) {
 	//		pressedMedia = pressedItem->getMedia();
 	//		if (_mouseCursorState == HistoryInDateCursorState || (pressedMedia && pressedMedia->dragItem())) {
 	//			forwardMimeType = qsl("application/x-td-forward-pressed");
@@ -1336,82 +1598,77 @@ void ListWidget::performDrag() {
 void ListWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton button) {
 	mouseActionUpdate(screenPos);
 
-	ClickHandlerPtr activated = ClickHandler::unpressed();
+	auto pressState = base::take(_pressState);
+	repaintItem(pressState.itemId);
+
+	auto simpleSelectionChange = pressState.itemId
+		&& pressState.inside
+		&& !_pressWasInactive
+		&& (button != Qt::RightButton)
+		&& (_mouseAction == MouseAction::PrepareDrag
+			|| _mouseAction == MouseAction::PrepareSelect);
+	auto needSelectionToggle = simpleSelectionChange
+		&& hasSelectedItems();
+	auto needSelectionClear = simpleSelectionChange
+		&& hasSelectedText();
+
+	auto activated = ClickHandler::unpressed();
 	if (_mouseAction == MouseAction::Dragging) {
 		activated.clear();
-	} else if (auto pressed = App::pressedLinkItem()) {
-		// if we are in selecting items mode perhaps we want to
-		// toggle selection instead of activating the pressed link
-		if (_mouseAction == MouseAction::PrepareDrag && !_pressWasInactive && !_selected.empty() && _selected.cbegin()->second == FullSelection && button != Qt::RightButton) {
-			if (auto media = pressed->getMedia()) {
-				if (media->toggleSelectionByHandlerClick(activated)) {
-					activated.clear();
-				}
-			}
-		}
-	}
-	if (_itemUnderPress) {
-		repaintItem(_itemUnderPress);
-		_itemUnderPress = nullptr;
+	} else if (needSelectionToggle) {
+		activated.clear();
 	}
 
 	_wasSelectedText = false;
-
 	if (activated) {
 		mouseActionCancel();
 		App::activateClickHandler(activated, button);
 		return;
 	}
-	if (_mouseAction == MouseAction::PrepareSelect && !_pressWasInactive && !_selected.empty() && _selected.cbegin()->second == FullSelection) {
-		//SelectedItems::iterator i = _selected.find(_itemUnderPress);
-		//if (i == _selected.cend() && !_itemUnderPress->serviceMsg() && _itemUnderPress->id > 0) {
-		//	if (_selected.size() < MaxSelectedItems) {
-		//		if (!_selected.empty() && _selected.cbegin()->second != FullSelection) {
-		//			_selected.clear();
-		//		}
-		//		_selected.emplace(_itemUnderPress, FullSelection);
-		//	}
-		//} else {
-		//	_selected.erase(i);
-		//}
-		repaintItem(_itemUnderPress);
-	} else if (_mouseAction == MouseAction::PrepareDrag && !_pressWasInactive && button != Qt::RightButton) {
-		//auto i = _selected.find(_itemUnderPress);
-		//if (i != _selected.cend() && i->second == FullSelection) {
-		//	_selected.erase(i);
-		//	repaintItem(_itemUnderPress);
-		//} else if (i == _selected.cend() && !_itemUnderPress->serviceMsg() && _itemUnderPress->id > 0 && !_selected.empty() && _selected.cbegin()->second == FullSelection) {
-		//	if (_selected.size() < MaxSelectedItems) {
-		//		_selected.emplace(_itemUnderPress, FullSelection);
-		//		repaintItem(_itemUnderPress);
-		//	}
-		//} else {
-		//	_selected.clear();
-		//	update();
-		//}
+
+	if (needSelectionToggle) {
+		toggleItemSelection(pressState.itemId);
+	} else if (needSelectionClear) {
+		clearSelected();
 	} else if (_mouseAction == MouseAction::Selecting) {
-		//if (_dragSelFrom && _dragSelTo) {
-		//	applyDragSelection();
-		//	_dragSelFrom = _dragSelTo = 0;
-		//} else if (!_selected.empty() && !_pressWasInactive) {
-		//	auto sel = _selected.cbegin()->second;
-		//	if (sel != FullSelection && sel.from == sel.to) {
-		//		_selected.clear();
-		//		App::wnd()->setInnerFocus();
-		//	}
-		//}
+		if (!_dragSelected.empty()) {
+			applyDragSelection();
+		} else if (!_selected.empty() && !_pressWasInactive) {
+			auto selection = _selected.cbegin()->second;
+			if (selection.text != FullSelection
+				&& selection.text.from == selection.text.to) {
+				clearSelected();
+				//_controller->window()->setInnerFocus(); // #TODO focus
+			}
+		}
 	}
 	_mouseAction = MouseAction::None;
-	_itemUnderPress = nullptr;
 	_mouseSelectType = TextSelectType::Letters;
-	//_widget->noSelectingScroll();
+	//_widget->noSelectingScroll(); // #TODO scroll by drag
 	//_widget->updateTopBarSelection();
 
 #if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
-	//if (!_selected.empty() && _selected.cbegin()->second != FullSelection) {
+	//if (hasSelectedText()) { // #TODO linux clipboard
 	//	setToClipboard(_selected.cbegin()->first->selectedText(_selected.cbegin()->second), QClipboard::Selection);
 	//}
 #endif // Q_OS_LINUX32 || Q_OS_LINUX64
+}
+
+void ListWidget::applyDragSelection() {
+	applyDragSelection(_selected);
+	clearDragSelection();
+}
+
+void ListWidget::applyDragSelection(SelectedMap &applyTo) const {
+	if (_dragSelectAction == DragSelectAction::Selecting) {
+		for (auto &[universalId,data] : _dragSelected) {
+			changeItemSelection(applyTo, universalId, FullSelection);
+		}
+	} else if (_dragSelectAction == DragSelectAction::Deselecting) {
+		for (auto &[universalId,data] : _dragSelected) {
+			applyTo.remove(universalId);
+		}
+	}
 }
 
 void ListWidget::refreshHeight() {
@@ -1429,7 +1686,7 @@ int ListWidget::recountHeight() {
 		+ cachedPadding.bottom();
 }
 
-void ListWidget::updateSelected() {
+void ListWidget::mouseActionUpdate() {
 	mouseActionUpdate(_mousePosition);
 }
 
@@ -1472,6 +1729,7 @@ auto ListWidget::findSectionAfterTop(
 		return (section.top() + section.height()) <= top;
 	});
 }
+
 auto ListWidget::findSectionAfterBottom(
 		std::vector<Section>::const_iterator from,
 		int bottom) const -> std::vector<Section>::const_iterator {

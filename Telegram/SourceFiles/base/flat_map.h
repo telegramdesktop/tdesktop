@@ -109,7 +109,18 @@ public:
 	flat_multi_map_iterator_base_impl operator-(difference_type offset) const {
 		return _impl - offset;
 	}
-	difference_type operator-(const flat_multi_map_iterator_base_impl &right) const {
+	template <
+		typename other_iterator_impl,
+		typename other_pointer_impl,
+		typename other_reference_impl>
+	difference_type operator-(
+			const flat_multi_map_iterator_base_impl<
+				Key,
+				Type,
+				Compare,
+				other_iterator_impl,
+				other_pointer_impl,
+				other_reference_impl> &right) const {
 		return _impl - right._impl;
 	}
 	reference operator[](difference_type offset) {
@@ -119,19 +130,61 @@ public:
 		return _impl[offset];
 	}
 
-	bool operator==(const flat_multi_map_iterator_base_impl &right) const {
+	template <
+		typename other_iterator_impl,
+		typename other_pointer_impl,
+		typename other_reference_impl>
+	bool operator==(
+			const flat_multi_map_iterator_base_impl<
+				Key,
+				Type,
+				Compare,
+				other_iterator_impl,
+				other_pointer_impl,
+				other_reference_impl> &right) const {
 		return _impl == right._impl;
 	}
-	bool operator!=(const flat_multi_map_iterator_base_impl &right) const {
+	template <
+		typename other_iterator_impl,
+		typename other_pointer_impl,
+		typename other_reference_impl>
+	bool operator!=(
+			const flat_multi_map_iterator_base_impl<
+				Key,
+				Type,
+				Compare,
+				other_iterator_impl,
+				other_pointer_impl,
+				other_reference_impl> &right) const {
 		return _impl != right._impl;
 	}
-	bool operator<(const flat_multi_map_iterator_base_impl &right) const {
+	template <
+		typename other_iterator_impl,
+		typename other_pointer_impl,
+		typename other_reference_impl>
+	bool operator<(
+			const flat_multi_map_iterator_base_impl<
+				Key,
+				Type,
+				Compare,
+				other_iterator_impl,
+				other_pointer_impl,
+				other_reference_impl> &right) const {
 		return _impl < right._impl;
 	}
 
 private:
 	iterator_impl _impl;
 	friend class flat_multi_map<Key, Type, Compare>;
+
+	template <
+		typename OtherKey,
+		typename OtherType,
+		typename OtherCompare,
+		typename other_iterator_impl,
+		typename other_pointer_impl,
+		typename other_reference_impl>
+	friend class flat_multi_map_iterator_base_impl;
 
 };
 
@@ -418,10 +471,10 @@ public:
 		return (range.second - range.first);
 	}
 
-	iterator erase(iterator where) {
+	iterator erase(const_iterator where) {
 		return _impl.erase(where._impl);
 	}
-	iterator erase(iterator from, iterator till) {
+	iterator erase(const_iterator from, const_iterator till) {
 		return _impl.erase(from._impl, till._impl);
 	}
 
@@ -525,37 +578,69 @@ public:
 	using parent::erase;
 	using parent::contains;
 
-	iterator insert(const value_type &value) {
+	std::pair<iterator, bool> insert(const value_type &value) {
 		if (this->empty() || compare()(value.first, this->front().first)) {
 			this->_impl.push_front(value);
-			return this->begin();
+			return { this->begin(), true };
 		} else if (compare()(this->back().first, value.first)) {
 			this->_impl.push_back(value);
-			return (this->end() - 1);
+			return { this->end() - 1, true };
 		}
 		auto where = this->getLowerBound(value.first);
 		if (compare()(value.first, where->first)) {
-			return this->_impl.insert(where, value);
+			return { this->_impl.insert(where, value), true };
 		}
-		return this->end();
+		return { where, false };
 	}
-	iterator insert(value_type &&value) {
+	std::pair<iterator, bool> insert(value_type &&value) {
 		if (this->empty() || compare()(value.first, this->front().first)) {
 			this->_impl.push_front(std::move(value));
-			return this->begin();
+			return { this->begin(), true };
 		} else if (compare()(this->back().first, value.first)) {
 			this->_impl.push_back(std::move(value));
-			return (this->end() - 1);
+			return { this->end() - 1, true };
 		}
 		auto where = this->getLowerBound(value.first);
 		if (compare()(value.first, where->first)) {
-			return this->_impl.insert(where, std::move(value));
+			return { this->_impl.insert(where, std::move(value)), true };
 		}
-		return this->end();
+		return { where, false };
 	}
 	template <typename... Args>
-	iterator emplace(Args&&... args) {
-		return this->insert(value_type(std::forward<Args>(args)...));
+	std::pair<iterator, bool> emplace(
+			const Key &key,
+			Args&&... args) {
+		return this->insert(value_type(
+			key,
+			Type(std::forward<Args>(args)...)));
+	}
+	template <typename... Args>
+	std::pair<iterator, bool> try_emplace(
+			const Key &key,
+			Args&&... args) {
+		if (this->empty() || compare()(key, this->front().first)) {
+			this->_impl.push_front(value_type(
+				key,
+				Type(std::forward<Args>(args)...)));
+			return { this->begin(), true };
+		} else if (compare()(this->back().first, key)) {
+			this->_impl.push_back(value_type(
+				key,
+				Type(std::forward<Args>(args)...)));
+			return { this->end() - 1, true };
+		}
+		auto where = this->getLowerBound(key);
+		if (compare()(key, where->first)) {
+			return {
+				this->_impl.insert(
+					where,
+					value_type(
+						key,
+						Type(std::forward<Args>(args)...))),
+				true
+			};
+		}
+		return { where, false };
 	}
 
 	bool remove(const Key &key) {

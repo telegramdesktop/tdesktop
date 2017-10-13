@@ -1033,10 +1033,11 @@ void HistoryInner::itemRemoved(not_null<const HistoryItem*> item) {
 void HistoryInner::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton button) {
 	mouseActionUpdate(screenPos);
 
-	ClickHandlerPtr activated = ClickHandler::unpressed();
+	auto pressedLinkItem = App::pressedLinkItem();
+	auto activated = ClickHandler::unpressed();
 	if (_mouseAction == MouseAction::Dragging) {
 		activated.clear();
-	} else if (auto pressed = App::pressedLinkItem()) {
+	} else if (auto pressed = pressedLinkItem) {
 		// if we are in selecting items mode perhaps we want to
 		// toggle selection instead of activating the pressed link
 		if (_mouseAction == MouseAction::PrepareDrag && !_pressWasInactive && !_selected.empty() && _selected.cbegin()->second == FullSelection && button != Qt::RightButton) {
@@ -2249,23 +2250,21 @@ void HistoryInner::onUpdateSelected() {
 	}
 }
 
-void HistoryInner::updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dragSelTo, bool dragSelecting, bool force) {
-	if (_dragSelFrom != dragSelFrom || _dragSelTo != dragSelTo || _dragSelecting != dragSelecting) {
-		_dragSelFrom = dragSelFrom;
-		_dragSelTo = dragSelTo;
-		int32 fromy = itemTop(_dragSelFrom), toy = itemTop(_dragSelTo);
-		if (fromy >= 0 && toy >= 0 && fromy > toy) {
-			qSwap(_dragSelFrom, _dragSelTo);
-		}
-		_dragSelecting = dragSelecting;
-		if (!_wasSelectedText && _dragSelFrom && _dragSelTo && _dragSelecting) {
-			_wasSelectedText = true;
-			setFocus();
-		}
-		force = true;
+void HistoryInner::updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dragSelTo, bool dragSelecting) {
+	if (_dragSelFrom == dragSelFrom && _dragSelTo == dragSelTo && _dragSelecting == dragSelecting) {
+		return;
 	}
-	if (!force) return;
-
+	_dragSelFrom = dragSelFrom;
+	_dragSelTo = dragSelTo;
+	int32 fromy = itemTop(_dragSelFrom), toy = itemTop(_dragSelTo);
+	if (fromy >= 0 && toy >= 0 && fromy > toy) {
+		qSwap(_dragSelFrom, _dragSelTo);
+	}
+	_dragSelecting = dragSelecting;
+	if (!_wasSelectedText && _dragSelFrom && _dragSelTo && _dragSelecting) {
+		_wasSelectedText = true;
+		setFocus();
+	}
 	update();
 }
 

@@ -1153,7 +1153,11 @@ void MediaView::refreshMediaViewer() {
 }
 
 void MediaView::showPhoto(not_null<PhotoData*> photo, HistoryItem *context) {
-	setContext(context);
+	if (context) {
+		setContext(context);
+	} else {
+		setContext(base::none);
+	}
 
 	_firstOpenedPeerPhoto = false;
 	_saveMsgStarted = 0;

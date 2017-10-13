@@ -104,7 +104,9 @@ void ListWidget::mouseMoveEvent(QMouseEvent *e) {
 			if (y <= m.y()) {
 				if (auto media = layout->toMediaItem()) {
 					item = media->getItem();
-					media->getState(lnk, cursorState, m - QPoint(0, y));
+					auto result = media->getState(m - QPoint(0, y), HistoryStateRequest());
+					lnk = result.link;
+					cursorState = result.cursor;
 					lnkhost = media;
 				}
 			}
