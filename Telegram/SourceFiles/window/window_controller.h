@@ -27,6 +27,8 @@ class MainWidget;
 
 namespace Window {
 
+class LayerWidget;
+
 enum class GifPauseReason {
 	Any           = 0,
 	InlineResults = (1 << 0),

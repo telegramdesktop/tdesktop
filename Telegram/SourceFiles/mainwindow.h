@@ -37,6 +37,7 @@ class ClearManager;
 } // namespace Local
 
 namespace Window {
+class LayerWidget;
 class LayerStackWidget;
 class SectionMemento;
 struct SectionShow;
