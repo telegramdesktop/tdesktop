@@ -129,7 +129,6 @@ Messenger::Messenger() : QObject()
 	QMimeDatabase().mimeTypeForName(qsl("text/plain"));
 
 	_window = std::make_unique<MainWindow>();
-	_window->createWinId();
 	_window->init();
 
 	auto currentGeometry = _window->geometry();

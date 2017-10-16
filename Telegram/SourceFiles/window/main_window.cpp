@@ -135,6 +135,9 @@ void MainWindow::updateWindowIcon() {
 }
 
 void MainWindow::init() {
+	Expects(!windowHandle());
+	createWinId();
+
 	initHook();
 	updateWindowIcon();
 

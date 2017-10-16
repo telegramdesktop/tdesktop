@@ -216,6 +216,8 @@ MainWindow::Private::~Private() {
 
 MainWindow::MainWindow()
 : _private(std::make_unique<Private>(this)) {
+	auto forceOpenGL = std::make_unique<QOpenGLWidget>(this);
+
 	trayImg = st::macTrayIcon.instance(QColor(0, 0, 0, 180), dbisOne);
 	trayImgSel = st::macTrayIcon.instance(QColor(255, 255, 255), dbisOne);
 
