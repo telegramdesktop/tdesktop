@@ -115,6 +115,7 @@
       '<(src_loc)/rpl/lifetime.h',
       '<(src_loc)/rpl/map.h',
       '<(src_loc)/rpl/mappers.h',
+	  '<(src_loc)/rpl/merge.h',
       '<(src_loc)/rpl/never.h',
       '<(src_loc)/rpl/operators_tests.cpp',
       '<(src_loc)/rpl/producer.h',

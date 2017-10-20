@@ -35,6 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/deferred.h>
 #include <rpl/map.h>
 #include <rpl/mappers.h>
+#include <rpl/merge.h>
 #include <rpl/filter.h>
 #include <rpl/distinct_until_changed.h>
 #include <rpl/type_erased.h>

@@ -82,8 +82,9 @@ public:
 					}
 				}
 			}
-		}, [consumer = _consumer](Error &&error) {
-			consumer.put_error(std::move(error));
+		}, [consumer = _consumer](auto &&error) {
+			consumer.put_error_forward(
+				std::forward<decltype(error)>(error));
 		}, [consumer = _consumer, state = _state] {
 			if (!--state->working) {
 				consumer.put_done();
@@ -109,11 +110,7 @@ inline void combine_subscribe(
 		std::index_sequence<I...>,
 		std::tuple<producer<Values, Errors, Generators>...> &&saved) {
 	auto consume = { (
-		details::combine_subscribe_one<
-			I,
-			consumer_type,
-			Values...
-		>(
+		combine_subscribe_one<I, consumer_type, Values...>(
 			consumer,
 			state
 		).subscribe(std::get<I>(std::move(saved))), 0)... };
@@ -137,7 +134,7 @@ template <
 class combine_implementation_helper<producer<Values, Errors, Generators>...> {
 public:
 	using CombinedValue = std::tuple<Values...>;
-	using CombinedError = details::normalized_variant_t<Errors...>;
+	using CombinedError = normalized_variant_t<Errors...>;
 
 	combine_implementation_helper(
 		producer<Values, Errors, Generators> &&...producers)
@@ -147,9 +144,9 @@ public:
 	template <typename Handlers>
 	lifetime operator()(const consumer<CombinedValue, CombinedError, Handlers> &consumer) {
 		auto state = consumer.template make_state<
-			details::combine_state<Values...>>();
+			combine_state<Values...>>();
 		constexpr auto kArity = sizeof...(Values);
-		details::combine_subscribe(
+		combine_subscribe(
 			consumer,
 			state,
 			std::make_index_sequence<kArity>(),
@@ -170,7 +167,7 @@ template <
 inline auto combine_implementation(
 		producer<Values, Errors, Generators> &&...producers) {
 	using CombinedValue = std::tuple<Values...>;
-	using CombinedError = details::normalized_variant_t<Errors...>;
+	using CombinedError = normalized_variant_t<Errors...>;
 
 	return make_producer<CombinedValue, CombinedError>(
 		make_combine_implementation_helper(std::move(producers)...));
@@ -333,8 +330,9 @@ inline auto combine(
 						consumer.put_next_copy(state->latest);
 					}
 				}
-			}, [consumer](Error &&error) {
-				consumer.put_error(std::move(error));
+			}, [consumer](auto &&error) {
+				consumer.put_error_forward(
+					std::forward<decltype(error)>(error));
 			}, [consumer, state] {
 				if (!--state->working) {
 					consumer.put_done();
