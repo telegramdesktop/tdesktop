@@ -70,6 +70,7 @@ public:
 		not_null<Window::Controller*> controller,
 		not_null<PeerData*> peer);
 
+	void setIsStackBottom(bool isStackBottom) override;
 	Section section() const override;
 
 	bool showInternal(

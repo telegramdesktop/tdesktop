@@ -300,6 +300,7 @@ void WrapWidget::showContent(object_ptr<ContentWidget> content) {
 }
 
 void WrapWidget::finishShowContent() {
+	_content->setIsStackBottom(_historyStack.empty());
 	updateContentGeometry();
 	_desiredHeights.fire(desiredHeightForContent());
 	_desiredShadowVisibilities.fire(_content->desiredShadowVisibility());

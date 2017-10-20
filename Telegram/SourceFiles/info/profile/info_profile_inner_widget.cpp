@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_inner_widget.h"
 
 #include <rpl/combine.h>
+#include <rpl/combine_previous.h>
 #include <rpl/flatten_latest.h>
 #include "info/info_memento.h"
 #include "info/profile/info_profile_button.h"
@@ -100,7 +101,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	} else {
 		result->add(std::move(details));
 	}
-	result->add(setupSharedMedia(result));
+	result->add(setupSharedMedia(result, rpl::duplicate(wrapValue)));
 	result->add(object_ptr<BoxContentDivider>(result));
 	if (auto user = _peer->asUser()) {
 		result->add(setupUserActions(result, user));
@@ -264,66 +265,100 @@ void InnerWidget::setupUserButtons(
 }
 
 object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
-		RpWidget *parent) {
+		RpWidget *parent,
+		rpl::producer<Wrap> &&wrapValue) {
 	using namespace rpl::mappers;
 	using MediaType = Media::Type;
 
 	auto content = object_ptr<Ui::VerticalLayout>(parent);
 	auto tracker = Ui::MultiSlideTracker();
-	auto addMediaButton = [&](MediaType type) {
-		return Media::AddButton(
+	auto addMediaButton = [&](
+			MediaType type,
+			const style::icon &icon) {
+		auto result = Media::AddButton(
 			content,
 			_controller,
 			peer(),
 			type,
 			tracker);
+		object_ptr<Profile::FloatingIcon>(
+			result,
+			icon,
+			st::infoSharedMediaButtonIconPosition);
 	};
-	auto addCommonGroupsButton = [&](not_null<UserData*> user) {
-		return Media::AddCommonGroupsButton(
+	auto addCommonGroupsButton = [&](
+			not_null<UserData*> user,
+			const style::icon &icon) {
+		auto result = Media::AddCommonGroupsButton(
 			content,
 			_controller,
 			user,
 			tracker);
+		object_ptr<Profile::FloatingIcon>(
+			result,
+			icon,
+			st::infoSharedMediaButtonIconPosition);
 	};
 
-	addMediaButton(MediaType::Photo);
-	addMediaButton(MediaType::Video);
-	addMediaButton(MediaType::File);
-	addMediaButton(MediaType::MusicFile);
-	addMediaButton(MediaType::Link);
-	if (auto user = _peer->asUser()) {
-		addCommonGroupsButton(user);
+	addMediaButton(MediaType::Photo, st::infoIconMediaPhoto);
+	addMediaButton(MediaType::Video, st::infoIconMediaVideo);
+	addMediaButton(MediaType::File, st::infoIconMediaFile);
+	addMediaButton(MediaType::MusicFile, st::infoIconMediaAudio);
+	addMediaButton(MediaType::Link, st::infoIconMediaLink);
+	if (auto user = peer()->asUser()) {
+		addCommonGroupsButton(user, st::infoIconMediaGroup);
 	}
-	addMediaButton(MediaType::VoiceFile);
-//	addMediaButton(MediaType::RoundFile);
+	addMediaButton(MediaType::VoiceFile, st::infoIconMediaVoice);
+//	addMediaButton(MediaType::RoundFile, st::infoIconMediaRound);
 
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		parent,
 		object_ptr<Ui::VerticalLayout>(parent)
 	);
-	result->toggleOn(tracker.atLeastOneShownValue());
+
+	//result->toggleOn(rpl::combine(
+	//	tracker.atLeastOneShownValue(),
+	//	std::move(wrapValue),
+	//	_isStackBottom.events(),
+	//	$1 && ($2 != Wrap::Side || !$3)));
+
+	using ToggledData = std::tuple<bool, Wrap, bool>;
+	rpl::combine(
+		tracker.atLeastOneShownValue(),
+		std::move(wrapValue),
+		_isStackBottom.events())
+		| rpl::combine_previous(ToggledData())
+		| rpl::start_with_next([wrap = result.data()](
+				const ToggledData &was,
+				const ToggledData &now) {
+			bool wasOneShown, wasStackBottom, nowOneShown, nowStackBottom;
+			Wrap wasWrap, nowWrap;
+			std::tie(wasOneShown, wasWrap, wasStackBottom) = was;
+			std::tie(nowOneShown, nowWrap, nowStackBottom) = now;
+			// MSVC Internal Compiler Error
+			//auto [wasOneShown, wasWrap, wasStackBottom] = was;
+			//auto [nowOneShown, nowWrap, nowStackBottom] = now;
+			wrap->toggle(
+				nowOneShown && (nowWrap != Wrap::Side || !nowStackBottom),
+				(wasOneShown == nowOneShown && wasWrap == nowWrap)
+					? anim::type::normal
+					: anim::type::instant);
+		}, result->lifetime());
+
 	auto layout = result->entity();
 
 	layout->add(object_ptr<BoxContentDivider>(layout));
-	_sharedMediaCover = layout->add(
-		object_ptr<SharedMediaCover>(layout));
-	if (canHideDetailsEver()) {
-		_sharedMediaCover->setToggleShown(canHideDetails());
-		_sharedMediaWrap = layout->add(object_ptr<Ui::SlideWrap<>>(
-			layout,
-			std::move(content))
-		)->toggleOn(_sharedMediaCover->toggledValue());
-	} else {
-		layout->add(std::move(content));
-	}
 	layout->add(object_ptr<Ui::FixedHeightWidget>(
 		layout,
 		st::infoSharedMediaBottomSkip)
 	)->setAttribute(Qt::WA_TransparentForMouseEvents);
-	object_ptr<FloatingIcon>(
-		result,
-		st::infoIconMediaPhoto,
-		st::infoSharedMediaIconPosition);
+	layout->add(std::move(content));
+	layout->add(object_ptr<Ui::FixedHeightWidget>(
+		layout,
+		st::infoSharedMediaBottomSkip)
+	)->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	_sharedMediaWrap = result;
 	return std::move(result);
 }
 
@@ -477,7 +512,7 @@ void InnerWidget::visibleTopBottomUpdated(
 
 void InnerWidget::saveState(not_null<Memento*> memento) {
 	memento->setInfoExpanded(_cover->toggled());
-	memento->setMediaExpanded(_sharedMediaCover->toggled());
+	memento->setMediaExpanded(true);
 }
 
 void InnerWidget::restoreState(not_null<Memento*> memento) {
@@ -485,7 +520,6 @@ void InnerWidget::restoreState(not_null<Memento*> memento) {
 	if (_infoWrap) {
 		_infoWrap->finishAnimating();
 	}
-	_sharedMediaCover->toggle(memento->mediaExpanded());
 	if (_sharedMediaWrap) {
 		_sharedMediaWrap->finishAnimating();
 	}

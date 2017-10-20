@@ -631,6 +631,20 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_delete_conversation" = "Delete conversation";
 "lng_profile_block_user" = "Block user";
 "lng_profile_unblock_user" = "Unblock user";
+"lng_media_selected_photo#one" = "{count} Photo";
+"lng_media_selected_photo#other" = "{count} Photos";
+"lng_media_selected_video#one" = "{count} Video";
+"lng_media_selected_video#other" = "{count} Videos";
+"lng_media_selected_song#one" = "{count} Audio file";
+"lng_media_selected_song#other" = "{count} Audio files";
+"lng_media_selected_file#one" = "{count} File";
+"lng_media_selected_file#other" = "{count} Files";
+"lng_media_selected_audio#one" = "{count} Voice message";
+"lng_media_selected_audio#other" = "{count} Voice messages";
+"lng_media_selected_round#one" = "{count} Video message";
+"lng_media_selected_round#other" = "{count} video messages";
+"lng_media_selected_link#one" = "{count} Shared link";
+"lng_media_selected_link#other" = "{count} Shared links";
 
 "lng_report_title" = "Report channel";
 "lng_report_group_title" = "Report group";

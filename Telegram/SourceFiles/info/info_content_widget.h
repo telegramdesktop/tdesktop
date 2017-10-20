@@ -54,6 +54,8 @@ public:
 	virtual std::unique_ptr<ContentMemento> createMemento() = 0;
 
 	virtual rpl::producer<Section> sectionRequest() const;
+	virtual void setIsStackBottom(bool isStackBottom) {
+	}
 
 	virtual Section section() const = 0;
 	not_null<PeerData*> peer() const {

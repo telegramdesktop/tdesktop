@@ -77,13 +77,13 @@ QString TopBarOverride::generateText() const {
 	using Type = Storage::SharedMediaType;
 	auto phrase = [&] {
 		switch (_items.type) {
-		case Type::Photo: return lng_profile_photos;
-		case Type::Video: return lng_profile_videos;
-		case Type::File: return lng_profile_files;
-		case Type::MusicFile: return lng_profile_songs;
-		case Type::Link: return lng_profile_shared_links;
-		case Type::VoiceFile: return lng_profile_audios;
-		case Type::RoundFile: return lng_profile_rounds;
+		case Type::Photo: return lng_media_selected_photo;
+		case Type::Video: return lng_media_selected_video;
+		case Type::File: return lng_media_selected_file;
+		case Type::MusicFile: return lng_media_selected_song;
+		case Type::Link: return lng_media_selected_link;
+		case Type::VoiceFile: return lng_media_selected_audio;
+		case Type::RoundFile: return lng_media_selected_round;
 		}
 		Unexpected("Type in TopBarOverride::generateText()");
 	}();

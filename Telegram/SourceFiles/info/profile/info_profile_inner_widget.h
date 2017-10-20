@@ -43,7 +43,6 @@ namespace Profile {
 class Memento;
 class Members;
 class Cover;
-class SharedMediaCover;
 
 class InnerWidget final : public Ui::RpWidget {
 public:
@@ -60,6 +59,9 @@ public:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
 
+	void setIsStackBottom(bool isStackBottom) {
+		_isStackBottom.fire_copy(isStackBottom);
+	}
 	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const {
 		return _scrollToRequests.events();
 	}
@@ -79,7 +81,9 @@ private:
 		RpWidget *parent,
 		rpl::producer<Wrap> &&wrapValue);
 	object_ptr<RpWidget> setupDetails(RpWidget *parent) const;
-	object_ptr<RpWidget> setupSharedMedia(RpWidget *parent);
+	object_ptr<RpWidget> setupSharedMedia(
+		RpWidget *parent,
+		rpl::producer<Wrap> &&wrapValue);
 	object_ptr<RpWidget> setupMuteToggle(RpWidget *parent) const;
 	object_ptr<RpWidget> setupInfo(RpWidget *parent) const;
 	void setupUserButtons(
@@ -99,13 +103,14 @@ private:
 	bool canHideDetailsEver() const;
 	rpl::producer<bool> canHideDetails() const;
 
+	rpl::event_stream<bool> _isStackBottom;
+
 	not_null<Window::Controller*> _controller;
 	not_null<PeerData*> _peer;
 
 	Members *_members = nullptr;
 	Cover *_cover = nullptr;
 	Ui::SlideWrap<RpWidget> *_infoWrap = nullptr;
-	SharedMediaCover *_sharedMediaCover = nullptr;
 	Ui::SlideWrap<RpWidget> *_sharedMediaWrap = nullptr;
 	object_ptr<RpWidget> _content;
 

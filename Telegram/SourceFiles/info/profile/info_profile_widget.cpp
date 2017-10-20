@@ -63,6 +63,10 @@ Widget::Widget(
 		}, lifetime());
 }
 
+void Widget::setIsStackBottom(bool isStackBottom) {
+	_inner->setIsStackBottom(isStackBottom);
+}
+
 Section Widget::section() const {
 	return Section(Section::Type::Profile);
 }

@@ -209,6 +209,8 @@ infoIconMembers: icon {{ "info_members", infoIconFg }};
 infoIconNotifications: icon {{ "info_notifications", infoIconFg }};
 infoIconActions: icon {{ "info_actions", infoIconFg }};
 infoIconMediaPhoto: icon {{ "info_media_photo", infoIconFg }};
+infoIconMediaVideo: icon {{ "info_media_video", infoIconFg }};
+infoIconMediaFile: icon {{ "info_media_file", infoIconFg }};
 infoIconMediaAudio: icon {{ "info_media_audio", infoIconFg }};
 infoIconMediaLink: icon {{ "info_media_link", infoIconFg }};
 infoIconMediaGroup: icon {{ "info_common_groups", infoIconFg }};
