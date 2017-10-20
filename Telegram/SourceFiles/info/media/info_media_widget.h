@@ -79,10 +79,13 @@ public:
 		const QRect &geometry,
 		not_null<Memento*> memento);
 
+	rpl::producer<SelectedItems> selectedListValue() const override;
+	void cancelSelection() override;
+
 private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
-
+	
 	InnerWidget *_inner = nullptr;
 
 };

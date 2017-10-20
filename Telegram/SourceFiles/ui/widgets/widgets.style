@@ -1117,4 +1117,8 @@ InfoTopBar {
 	title: FlatLabel;
 	titlePosition: point;
 	bg: color;
+	mediaCancel: IconButton;
+	mediaActionsSkip: pixels;
+	mediaForward: IconButton;
+	mediaDelete: IconButton;
 }

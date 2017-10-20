@@ -47,7 +47,7 @@ inline auto MediaTextPhrase(Type type) {
 	case Type::VoiceFile: return lng_profile_audios;
 	case Type::RoundFile: return lng_profile_rounds;
 	}
-	Unexpected("Type in setupSharedMedia()");
+	Unexpected("Type in MediaTextPhrase()");
 };
 
 inline auto MediaText(Type type) {

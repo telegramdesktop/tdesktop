@@ -88,6 +88,7 @@ private:
 	object_ptr<RpWidget> setupUserActions(
 		RpWidget *parent,
 		not_null<UserData*> user) const;
+	void shareContact(not_null<UserData*> user) const;
 
 	object_ptr<RpWidget> createSkipWidget(RpWidget *parent) const;
 	object_ptr<Ui::SlideWrap<RpWidget>> createSlideSkipWidget(

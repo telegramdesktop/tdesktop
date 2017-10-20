@@ -100,6 +100,7 @@ void PeerListBox::prepare() {
 	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
 	if (_select) {
 		_select->finishAnimating();
+		myEnsureResized(_select);
 		_scrollBottomFixed = true;
 		onScrollToY(0);
 	}

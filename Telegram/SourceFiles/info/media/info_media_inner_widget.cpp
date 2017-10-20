@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "info/media/info_media_inner_widget.h"
 
+#include <rpl/flatten_latest.h>
 #include "boxes/abstract_box.h"
 #include "info/media/info_media_list_widget.h"
 #include "info/media/info_media_buttons.h"
@@ -246,6 +247,7 @@ object_ptr<ListWidget> InnerWidget::setupList(
 		| rpl::start_to_stream(
 			_scrollToRequests,
 			result->lifetime());
+	_selectedLists.fire(result->selectedListValue());
 	return result;
 }
 
@@ -253,6 +255,15 @@ void InnerWidget::saveState(not_null<Memento*> memento) {
 }
 
 void InnerWidget::restoreState(not_null<Memento*> memento) {
+}
+
+rpl::producer<SelectedItems> InnerWidget::selectedListValue() const {
+	return _selectedLists.events_starting_with(_list->selectedListValue())
+		| rpl::flatten_latest();
+}
+
+void InnerWidget::cancelSelection() {
+	_list->cancelSelection();
 }
 
 int InnerWidget::resizeGetHeight(int newWidth) {

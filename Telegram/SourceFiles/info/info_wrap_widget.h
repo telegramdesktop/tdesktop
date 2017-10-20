@@ -49,6 +49,7 @@ class MoveMemento;
 class ContentMemento;
 class ContentWidget;
 class TopBar;
+class TopBarOverride;
 
 enum class Wrap {
 	Layer,
@@ -84,6 +85,25 @@ public:
 private:
 	Type _type;
 	Storage::SharedMediaType _mediaType;
+
+};
+
+struct SelectedItem {
+	explicit SelectedItem(FullMsgId msgId) : msgId(msgId) {
+	}
+
+	FullMsgId msgId;
+	bool canDelete = false;
+	bool canForward = false;
+};
+
+struct SelectedItems {
+	explicit SelectedItems(Storage::SharedMediaType type)
+	: type(type) {
+	}
+
+	Storage::SharedMediaType type;
+	std::vector<SelectedItem> list;
 
 };
 
@@ -171,11 +191,18 @@ private:
 	object_ptr<ContentWidget> createContent(
 		not_null<ContentMemento*> memento);
 
+	rpl::producer<SelectedItems> selectedListValue() const;
+	void refreshTopBarOverride(SelectedItems &&items);
+	void createTopBarOverride(SelectedItems &&items);
+	void destroyTopBarOverride();
+
 	rpl::variable<Wrap> _wrap;
 	object_ptr<ContentWidget> _content = { nullptr };
 	object_ptr<Ui::PlainShadow> _topTabsBackground = { nullptr };
 	object_ptr<Ui::SettingsSlider> _topTabs = { nullptr };
 	object_ptr<TopBar> _topBar = { nullptr };
+	object_ptr<TopBarOverride> _topBarOverride = { nullptr };
+	Animation _topBarOverrideAnimation;
 	object_ptr<Ui::FadeShadow> _topShadow;
 	Tab _tab = Tab::Profile;
 	std::unique_ptr<ContentMemento> _anotherTabMemento;
@@ -183,6 +210,7 @@ private:
 
 	rpl::event_stream<rpl::producer<int>> _desiredHeights;
 	rpl::event_stream<rpl::producer<bool>> _desiredShadowVisibilities;
+	rpl::event_stream<rpl::producer<SelectedItems>> _selectedLists;
 
 };
 

@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <rpl/never.h>
 #include <rpl/combine.h>
+#include <rpl/range.h>
 #include "window/window_controller.h"
 #include "ui/widgets/scroll_area.h"
 #include "lang/lang_keys.h"
@@ -154,6 +155,10 @@ bool ContentWidget::wheelEventFromFloatPlayer(QEvent *e) {
 
 QRect ContentWidget::rectForFloatPlayer() const {
 	return mapToGlobal(_scroll->geometry());
+}
+
+rpl::producer<SelectedItems> ContentWidget::selectedListValue() const {
+	return rpl::single(SelectedItems(Storage::SharedMediaType::Photo));
 }
 
 } // namespace Info

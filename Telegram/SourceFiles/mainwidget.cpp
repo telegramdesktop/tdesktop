@@ -677,7 +677,7 @@ bool MainWidget::setForwardDraft(PeerId peerId, const SelectedItemSet &items) {
 	auto peer = App::peer(peerId);
 	auto error = GetErrorTextForForward(peer, items);
 	if (!error.isEmpty()) {
-		Ui::show(Box<InformBox>(error));
+		Ui::show(Box<InformBox>(error), LayerOption::KeepOther);
 		return false;
 	}
 

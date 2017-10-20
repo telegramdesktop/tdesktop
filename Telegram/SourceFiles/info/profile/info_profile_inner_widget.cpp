@@ -31,6 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_members.h"
 #include "info/media/info_media_buttons.h"
+#include "info/info_top_bar_override.h"
 #include "boxes/abstract_box.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
@@ -351,7 +352,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupUserActions(
 	addButton(
 		Lang::Viewer(lng_profile_share_contact),
 		CanShareContactValue(user),
-		[user] { App::main()->shareContactLayer(user); });
+		[this, user] { shareContact(user); });
 	addButton(
 		Lang::Viewer(lng_info_edit_contact),
 		IsContactValue(user),
@@ -420,6 +421,36 @@ object_ptr<Ui::RpWidget> InnerWidget::setupUserActions(
 		st::infoIconActions,
 		st::infoIconPosition);
 	return std::move(result);
+}
+
+void InnerWidget::shareContact(not_null<UserData*> user) const {
+	auto callback = [user](not_null<PeerData*> peer) {
+		if (!peer->canWrite()) {
+			Ui::show(Box<InformBox>(
+				lang(lng_forward_share_cant)),
+				LayerOption::KeepOther);
+			return;
+		}
+		auto recipient = peer->isUser()
+			? peer->name
+			: '\xAB' + peer->name + '\xBB';
+		Ui::show(Box<ConfirmBox>(
+			lng_forward_share_contact(lt_recipient, recipient),
+			lang(lng_forward_send),
+			[peer, user] {
+				App::main()->onShareContact(
+					peer->id,
+					user);
+				Ui::hideLayer();
+			}), LayerOption::KeepOther);
+	};
+	Ui::show(Box<PeerListBox>(
+		std::make_unique<ChooseRecipientBoxController>(std::move(callback)),
+		[](not_null<PeerListBox*> box) {
+			box->addButton(langFactory(lng_cancel), [box] {
+				box->closeBox();
+			});
+		}));
 }
 
 object_ptr<Ui::RpWidget> InnerWidget::createSkipWidget(

@@ -79,6 +79,10 @@ public:
 	bool wheelEventFromFloatPlayer(QEvent *e);
 	QRect rectForFloatPlayer() const;
 
+	virtual rpl::producer<SelectedItems> selectedListValue() const;
+	virtual void cancelSelection() {
+	}
+
 protected:
 	template <typename Widget>
 	Widget *setInnerWidget(

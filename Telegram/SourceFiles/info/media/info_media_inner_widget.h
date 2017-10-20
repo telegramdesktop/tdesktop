@@ -55,6 +55,8 @@ public:
 	rpl::producer<int> scrollToRequests() const {
 		return _scrollToRequests.events();
 	}
+	rpl::producer<SelectedItems> selectedListValue() const;
+	void cancelSelection();
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -86,6 +88,7 @@ private:
 	object_ptr<ListWidget> _list = { nullptr };
 
 	rpl::event_stream<int> _scrollToRequests;
+	rpl::event_stream<rpl::producer<SelectedItems>> _selectedLists;
 
 };
 

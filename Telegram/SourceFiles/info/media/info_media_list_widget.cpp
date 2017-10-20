@@ -159,21 +159,14 @@ bool ListWidget::IsAfter(
 
 bool ListWidget::SkipSelectFromItem(const CursorState &state) {
 	if (state.cursor.y() >= state.size.height()
-		&& state.cursor.x() >= 0) {
-		return true;
-	} else if (state.cursor.x() >= state.size.width()
-		&& state.cursor.y() >= 0) {
+		|| state.cursor.x() >= state.size.width()) {
 		return true;
 	}
 	return false;
 }
 
 bool ListWidget::SkipSelectTillItem(const CursorState &state) {
-	if (state.cursor.y() < state.size.height()
-		&& state.cursor.x() < 0) {
-		return true;
-	} else if (state.cursor.x() < state.size.width()
-		&& state.cursor.y() < 0) {
+	if (state.cursor.x() < 0 || state.cursor.y() < 0) {
 		return true;
 	}
 	return false;
@@ -600,7 +593,6 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 		auto i = _selected.find(universalId);
 		if (i != _selected.cend()) {
 			removeItemSelection(i);
-			pushSelectedItems();
 		}
 
 		mouseActionUpdate(_mousePosition);
@@ -630,18 +622,20 @@ auto ListWidget::collectSelectedItems() const -> SelectedItems {
 	auto transformation = [&](const auto &item) {
 		return convert(item.first, item.second);
 	};
-	auto items = SelectedItems();
-	items.reserve(_selected.size());
-	std::transform(
-		_selected.begin(),
-		_selected.end(),
-		std::back_inserter(items),
-		transformation);
+	auto items = SelectedItems(_type);
+	if (hasSelectedItems()) {
+		items.list.reserve(_selected.size());
+		std::transform(
+			_selected.begin(),
+			_selected.end(),
+			std::back_inserter(items.list),
+			transformation);
+	}
 	return items;
 }
 
 void ListWidget::pushSelectedItems() {
-	_selectedItemsStream.fire(collectSelectedItems());
+	_selectedListStream.fire(collectSelectedItems());
 }
 
 bool ListWidget::hasSelected() const {
@@ -661,6 +655,7 @@ void ListWidget::removeItemSelection(
 	if (_selected.empty()) {
 		update();
 	}
+	pushSelectedItems();
 }
 
 bool ListWidget::hasSelectedText() const {
@@ -854,8 +849,8 @@ void ListWidget::refreshRows() {
 	clearStaleLayouts();
 
 	resizeToWidth(width());
-
 	restoreScrollState();
+	mouseActionUpdate();
 }
 
 void ListWidget::markLayoutsStale() {
@@ -1025,7 +1020,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		fromSectionIt,
 		clip.y() + clip.height());
 	auto context = Context {
-		Layout::PaintContext(ms, !_selected.empty()),
+		Layout::PaintContext(ms, hasSelectedItems()),
 		&_selected,
 		&_dragSelected,
 		_dragSelectAction
@@ -1113,6 +1108,7 @@ void ListWidget::applyItemSelection(
 			universalId,
 			selection)) {
 		repaintItem(universalId);
+		pushSelectedItems();
 	}
 }
 
@@ -1203,10 +1199,12 @@ void ListWidget::clearSelected() {
 	}
 	if (hasSelectedText()) {
 		repaintItem(_selected.begin()->first);
+		_selected.clear();
 	} else {
+		_selected.clear();
+		pushSelectedItems();
 		update();
 	}
-	_selected.clear();
 }
 
 void ListWidget::validateTrippleClickStartTime() {
@@ -1246,7 +1244,7 @@ QPoint ListWidget::clampMousePosition(QPoint position) const {
 }
 
 void ListWidget::mouseActionUpdate(const QPoint &screenPos) {
-	if (_sections.empty()) {
+	if (_sections.empty() || _visibleBottom <= _visibleTop) {
 		return;
 	}
 
@@ -1657,6 +1655,7 @@ void ListWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton butt
 void ListWidget::applyDragSelection() {
 	applyDragSelection(_selected);
 	clearDragSelection();
+	pushSelectedItems();
 }
 
 void ListWidget::applyDragSelection(SelectedMap &applyTo) const {
@@ -1693,6 +1692,9 @@ void ListWidget::mouseActionUpdate() {
 void ListWidget::clearStaleLayouts() {
 	for (auto i = _layouts.begin(); i != _layouts.end();) {
 		if (i->second.stale) {
+			if (i->second.item.get() == _overLayout) {
+				_overLayout = nullptr;
+			}
 			i = _layouts.erase(i);
 		} else {
 			++i;

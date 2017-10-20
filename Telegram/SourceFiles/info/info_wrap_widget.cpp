@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/info_content_widget.h"
 #include "info/info_memento.h"
 #include "info/info_top_bar.h"
+#include "info/info_top_bar_override.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
@@ -39,6 +40,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_profile.h"
 
 namespace Info {
+namespace {
+
+const style::InfoTopBar &TopBarStyle(Wrap wrap) {
+	return (wrap == Wrap::Layer)
+		? st::infoLayerTopBar
+		: st::infoTopBar;
+}
+
+} // namespace
 
 struct WrapWidget::StackItem {
 	std::unique_ptr<ContentMemento> section;
@@ -54,6 +64,12 @@ WrapWidget::WrapWidget(
 , _wrap(wrap)
 , _topShadow(this) {
 	_topShadow->toggleOn(topShadowToggledValue());
+	selectedListValue()
+		| rpl::start_with_next([this](SelectedItems &&items) {
+			InvokeQueued(this, [this, items = std::move(items)]() mutable {
+				refreshTopBarOverride(std::move(items));
+			});
+		}, lifetime());
 	showNewContent(memento->content());
 }
 
@@ -182,11 +198,7 @@ void WrapWidget::setupTop(
 void WrapWidget::createTopBar(
 		const Section &section,
 		PeerId peerId) {
-	_topBar.create(
-		this,
-		(wrap() == Wrap::Layer)
-			? st::infoLayerTopBar
-			: st::infoTopBar);
+	_topBar.create(this, TopBarStyle(wrap()));
 
 	_topBar->setTitle(TitleValue(
 		section,
@@ -210,6 +222,52 @@ void WrapWidget::createTopBar(
 	_topBar->move(0, 0);
 	_topBar->resizeToWidth(width());
 	_topBar->show();
+}
+
+void WrapWidget::refreshTopBarOverride(SelectedItems &&items) {
+	if (items.list.empty()) {
+		destroyTopBarOverride();
+	} else if (_topBarOverride) {
+		_topBarOverride->setItems(std::move(items));
+	} else {
+		createTopBarOverride(std::move(items));
+	}
+}
+
+void WrapWidget::destroyTopBarOverride() {
+	if (!_topBarOverride) {
+		return;
+	}
+	auto widget = std::exchange(_topBarOverride, nullptr);
+	auto handle = weak(widget.data());
+	_topBarOverrideAnimation.start([this, handle] {
+	}, 1., 0., st::slideWrapDuration);
+	widget.destroy();
+	if (_topTabs) {
+		_topTabs->show();
+	} else if (_topBar) {
+		_topBar->show();
+	}
+}
+
+void WrapWidget::createTopBarOverride(SelectedItems &&items) {
+	Expects(_topBarOverride == nullptr);
+	_topBarOverride.create(
+		this,
+		TopBarStyle(wrap()),
+		std::move(items));
+	if (_topTabs) {
+		_topTabs->hide();
+	} else if (_topBar) {
+		_topBar->hide();
+	}
+	_topBarOverride->cancelRequests()
+		| rpl::start_with_next([this](auto) {
+			_content->cancelSelection();
+		}, _topBarOverride->lifetime());
+	_topBarOverride->moveToLeft(0, 0);
+	_topBarOverride->resizeToWidth(width());
+	_topBarOverride->show();
 }
 
 void WrapWidget::showBackFromStack() {
@@ -245,6 +303,7 @@ void WrapWidget::finishShowContent() {
 	updateContentGeometry();
 	_desiredHeights.fire(desiredHeightForContent());
 	_desiredShadowVisibilities.fire(_content->desiredShadowVisibility());
+	_selectedLists.fire(_content->selectedListValue());
 	_topShadow->raise();
 	_topShadow->finishAnimating();
 	if (_topTabs) {
@@ -266,6 +325,10 @@ rpl::producer<int> WrapWidget::desiredHeightForContent() const {
 		_content->desiredHeightValue(),
 		topWidget()->heightValue(),
 		$1 + $2);
+}
+
+rpl::producer<SelectedItems> WrapWidget::selectedListValue() const {
+	return _selectedLists.events() | rpl::flatten_latest();
 }
 
 object_ptr<ContentWidget> WrapWidget::createContent(Tab tab) {
@@ -449,6 +512,9 @@ void WrapWidget::resizeEvent(QResizeEvent *e) {
 			_topTabs->height() - st::lineWidth);
 	} else if (_topBar) {
 		_topBar->resizeToWidth(width());
+	}
+	if (_topBarOverride) {
+		_topBarOverride->resizeToWidth(width());
 	}
 	updateContentGeometry();
 }

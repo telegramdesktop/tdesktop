@@ -60,6 +60,14 @@ Widget::Widget(
 		}, _inner->lifetime());
 }
 
+rpl::producer<SelectedItems> Widget::selectedListValue() const {
+	return _inner->selectedListValue();
+}
+
+void Widget::cancelSelection() {
+	_inner->cancelSelection();
+}
+
 Section Widget::section() const {
 	return Section(type());
 }

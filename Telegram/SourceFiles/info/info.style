@@ -80,12 +80,31 @@ infoTopBarTitle: FlatLabel(defaultFlatLabel) {
 		linkFontOver: font(14px semibold);
 	}
 }
+infoTopBarClose: IconButton(infoTopBarBack) {
+	icon: icon {{ "info_close", boxTitleCloseFg }};
+	iconOver: icon {{ "info_close", boxTitleCloseFgOver }};
+}
+infoTopBarForward: IconButton(infoTopBarBack) {
+	width: 46px;
+	icon: icon {{ "info_media_forward", boxTitleCloseFg }};
+	iconOver: icon {{ "info_media_forward", boxTitleCloseFgOver }};
+	iconPosition: point(6px, -1px);
+	rippleAreaPosition: point(1px, 6px);
+}
+infoTopBarDelete: IconButton(infoTopBarForward) {
+	icon: icon {{ "info_media_delete", boxTitleCloseFg }};
+	iconOver: icon {{ "info_media_delete", boxTitleCloseFgOver }};
+}
 infoTopBar: InfoTopBar {
 	height: infoTopBarHeight;
 	back: infoTopBarBack;
 	title: infoTopBarTitle;
 	titlePosition: point(23px, 18px);
 	bg: windowBg;
+	mediaCancel: infoTopBarClose;
+	mediaActionsSkip: 4px;
+	mediaForward: infoTopBarForward;
+	mediaDelete: infoTopBarDelete;
 }
 
 infoLayerTopBarHeight: boxLayerTitleHeight;
@@ -107,12 +126,27 @@ infoLayerTopBarClose: IconButton(infoLayerTopBarBack) {
 	icon: infoLayerTopBarCloseIcon;
 	iconOver: infoLayerTopBarCloseIconOver;
 }
+infoLayerTopBarForward: IconButton(infoLayerTopBarBack) {
+	width: 45px;
+	icon: icon {{ "info_media_forward", boxTitleCloseFg }};
+	iconOver: icon {{ "info_media_forward", boxTitleCloseFgOver }};
+	iconPosition: point(6px, -1px);
+	rippleAreaPosition: point(1px, 6px);
+}
+infoLayerTopBarDelete: IconButton(infoLayerTopBarForward) {
+	icon: icon {{ "info_media_delete", boxTitleCloseFg }};
+	iconOver: icon {{ "info_media_delete", boxTitleCloseFgOver }};
+}
 infoLayerTopBar: InfoTopBar {
 	height: infoLayerTopBarHeight;
 	back: infoLayerTopBarBack;
 	title: boxTitle;
 	titlePosition: boxLayerTitlePosition;
 	bg: boxBg;
+	mediaCancel: infoLayerTopBarClose;
+	mediaActionsSkip: 6px;
+	mediaForward: infoLayerTopBarForward;
+	mediaDelete: infoLayerTopBarDelete;
 }
 
 infoMinimalWidth: 324px;

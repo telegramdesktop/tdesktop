@@ -66,17 +66,12 @@ public:
 	rpl::producer<int> scrollToRequests() const {
 		return _scrollToRequests.events();
 	}
-	struct SelectedItem {
-		explicit SelectedItem(FullMsgId msgId) : msgId(msgId) {
-		}
-
-		FullMsgId msgId;
-		bool canDelete = false;
-		bool canForward = false;
-	};
-	using SelectedItems = std::vector<SelectedItem>;
-	rpl::producer<SelectedItems> selectedItemsValue() const {
-		return _selectedItemsStream.events();
+	rpl::producer<SelectedItems> selectedListValue() const {
+		return _selectedListStream.events_starting_with(
+			collectSelectedItems());
+	}
+	void cancelSelection() {
+		clearSelected();
 	}
 
 	~ListWidget();
@@ -246,10 +241,6 @@ private:
 
 	void updateDragSelection();
 	void clearDragSelection();
-	void setDragSelection(
-		BaseLayout *dragSelectFrom,
-		BaseLayout *dragSelectTill,
-		DragSelectAction action);
 
 	void trySwitchToWordSelection();
 	void switchToWordSelection();
@@ -285,7 +276,7 @@ private:
 	bool _pressWasInactive = false;
 	SelectedMap _selected;
 	SelectedMap _dragSelected;
-	rpl::event_stream<SelectedItems> _selectedItemsStream;
+	rpl::event_stream<SelectedItems> _selectedListStream;
 	style::cursor _cursor = style::cur_default;
 	DragSelectAction _dragSelectAction = DragSelectAction::None;
 	bool _wasSelectedText = false; // was some text selected in current drag action
