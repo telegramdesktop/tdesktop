@@ -32,10 +32,10 @@ template <typename Type, typename Compare = std::less<>>
 class flat_multi_set;
 
 template <typename Type, typename Compare, typename iterator_impl>
-class flat_multi_set_iterator_base_impl;
+class flat_multi_set_iterator_impl;
 
 template <typename Type, typename Compare, typename iterator_impl>
-class flat_multi_set_iterator_base_impl {
+class flat_multi_set_iterator_impl {
 public:
 	using iterator_category = typename iterator_impl::iterator_category;
 
@@ -44,12 +44,12 @@ public:
 	using pointer = typename flat_multi_set<Type, Compare>::pointer;
 	using reference = typename flat_multi_set<Type, Compare>::reference;
 
-	flat_multi_set_iterator_base_impl(iterator_impl impl = iterator_impl())
+	flat_multi_set_iterator_impl(iterator_impl impl = iterator_impl())
 		: _impl(impl) {
 	}
 	template <typename other_iterator_impl>
-	flat_multi_set_iterator_base_impl(
-			const flat_multi_set_iterator_base_impl<
+	flat_multi_set_iterator_impl(
+			const flat_multi_set_iterator_impl<
 				Type,
 				Compare,
 				other_iterator_impl> &other) : _impl(other._impl) {
@@ -61,37 +61,37 @@ public:
 	pointer operator->() const {
 		return std::addressof(**this);
 	}
-	flat_multi_set_iterator_base_impl &operator++() {
+	flat_multi_set_iterator_impl &operator++() {
 		++_impl;
 		return *this;
 	}
-	flat_multi_set_iterator_base_impl operator++(int) {
+	flat_multi_set_iterator_impl operator++(int) {
 		return _impl++;
 	}
-	flat_multi_set_iterator_base_impl &operator--() {
+	flat_multi_set_iterator_impl &operator--() {
 		--_impl;
 		return *this;
 	}
-	flat_multi_set_iterator_base_impl operator--(int) {
+	flat_multi_set_iterator_impl operator--(int) {
 		return _impl--;
 	}
-	flat_multi_set_iterator_base_impl &operator+=(difference_type offset) {
+	flat_multi_set_iterator_impl &operator+=(difference_type offset) {
 		_impl += offset;
 		return *this;
 	}
-	flat_multi_set_iterator_base_impl operator+(difference_type offset) const {
+	flat_multi_set_iterator_impl operator+(difference_type offset) const {
 		return _impl + offset;
 	}
-	flat_multi_set_iterator_base_impl &operator-=(difference_type offset) {
+	flat_multi_set_iterator_impl &operator-=(difference_type offset) {
 		_impl -= offset;
 		return *this;
 	}
-	flat_multi_set_iterator_base_impl operator-(difference_type offset) const {
+	flat_multi_set_iterator_impl operator-(difference_type offset) const {
 		return _impl - offset;
 	}
 	template <typename other_iterator_impl>
 	difference_type operator-(
-			const flat_multi_set_iterator_base_impl<
+			const flat_multi_set_iterator_impl<
 				Type,
 				Compare,
 				other_iterator_impl> &right) const {
@@ -103,7 +103,7 @@ public:
 
 	template <typename other_iterator_impl>
 	bool operator==(
-			const flat_multi_set_iterator_base_impl<
+			const flat_multi_set_iterator_impl<
 				Type,
 				Compare,
 				other_iterator_impl> &right) const {
@@ -111,7 +111,7 @@ public:
 	}
 	template <typename other_iterator_impl>
 	bool operator!=(
-			const flat_multi_set_iterator_base_impl<
+			const flat_multi_set_iterator_impl<
 				Type,
 				Compare,
 				other_iterator_impl> &right) const {
@@ -119,7 +119,7 @@ public:
 	}
 	template <typename other_iterator_impl>
 	bool operator<(
-			const flat_multi_set_iterator_base_impl<
+			const flat_multi_set_iterator_impl<
 				Type,
 				Compare,
 				other_iterator_impl> &right) const {
@@ -135,7 +135,7 @@ private:
 		typename OtherType,
 		typename OtherCompare,
 		typename other_iterator_impl>
-	friend class flat_multi_set_iterator_base_impl;
+	friend class flat_multi_set_iterator_impl;
 
 	Type &wrapped() {
 		return _impl->wrapped();
@@ -214,23 +214,6 @@ class flat_multi_set {
 
 	using impl = std::deque<const_wrap>;
 
-	using iterator_base = flat_multi_set_iterator_base_impl<
-		Type,
-		Compare,
-		typename impl::iterator>;
-	using const_iterator_base = flat_multi_set_iterator_base_impl<
-		Type,
-		Compare,
-		typename impl::const_iterator>;
-	using reverse_iterator_base = flat_multi_set_iterator_base_impl<
-		Type,
-		Compare,
-		typename impl::reverse_iterator>;
-	using const_reverse_iterator_base = flat_multi_set_iterator_base_impl<
-		Type,
-		Compare,
-		typename impl::const_reverse_iterator>;
-
 public:
 	using value_type = Type;
 	using size_type = typename impl::size_type;
@@ -238,26 +221,22 @@ public:
 	using pointer = const Type*;
 	using reference = const Type&;
 
-	class iterator : public iterator_base {
-	public:
-		using iterator_base::iterator_base;
-
-	};
-	class const_iterator : public const_iterator_base {
-	public:
-		using const_iterator_base::const_iterator_base;
-
-	};
-	class reverse_iterator : public reverse_iterator_base {
-	public:
-		using reverse_iterator_base::reverse_iterator_base;
-
-	};
-	class const_reverse_iterator : public const_reverse_iterator_base {
-	public:
-		using const_reverse_iterator_base::const_reverse_iterator_base;
-
-	};
+	using iterator = flat_multi_set_iterator_impl<
+		Type,
+		Compare,
+		typename impl::iterator>;
+	using const_iterator = flat_multi_set_iterator_impl<
+		Type,
+		Compare,
+		typename impl::const_iterator>;
+	using reverse_iterator = flat_multi_set_iterator_impl<
+		Type,
+		Compare,
+		typename impl::reverse_iterator>;
+	using const_reverse_iterator = flat_multi_set_iterator_impl<
+		Type,
+		Compare,
+		typename impl::const_reverse_iterator>;
 
 	flat_multi_set() = default;
 

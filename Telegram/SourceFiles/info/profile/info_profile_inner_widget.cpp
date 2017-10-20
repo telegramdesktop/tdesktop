@@ -316,12 +316,6 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 		object_ptr<Ui::VerticalLayout>(parent)
 	);
 
-	//result->toggleOn(rpl::combine(
-	//	tracker.atLeastOneShownValue(),
-	//	std::move(wrapValue),
-	//	_isStackBottom.events(),
-	//	$1 && ($2 != Wrap::Side || !$3)));
-
 	using ToggledData = std::tuple<bool, Wrap, bool>;
 	rpl::combine(
 		tracker.atLeastOneShownValue(),

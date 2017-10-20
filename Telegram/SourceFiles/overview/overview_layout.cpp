@@ -1332,7 +1332,7 @@ HistoryTextState Link::getState(
 	}
 	for (int32 i = 0, l = _links.size(); i < l; ++i) {
 		if (rtlrect(left, top, qMin(w, _links.at(i).width), st::normalFont->height, _width).contains(point)) {
-			return _links.at(i).lnk;
+			return ClickHandlerPtr(_links[i].lnk);
 		}
 		top += st::normalFont->height;
 	}

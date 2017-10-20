@@ -193,6 +193,7 @@ void WrapWidget::setupTop(
 	} else {
 		createTopBar(section, peerId);
 	}
+	refreshTopBarOverride();
 }
 
 void WrapWidget::createTopBar(
@@ -230,6 +231,14 @@ void WrapWidget::refreshTopBarOverride(SelectedItems &&items) {
 	} else if (_topBarOverride) {
 		_topBarOverride->setItems(std::move(items));
 	} else {
+		createTopBarOverride(std::move(items));
+	}
+}
+
+void WrapWidget::refreshTopBarOverride() {
+	if (_topBarOverride) {
+		auto items = _topBarOverride->takeItems();
+		destroyTopBarOverride();
 		createTopBarOverride(std::move(items));
 	}
 }

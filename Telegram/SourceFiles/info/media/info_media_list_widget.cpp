@@ -1435,7 +1435,7 @@ void ListWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butto
 	_pressWasInactive = _controller->window()->wasInactivePress();
 	if (_pressWasInactive) _controller->window()->setInactivePress(false);
 
-	if (ClickHandler::getPressed()) {
+	if (ClickHandler::getPressed() && !hasSelected()) {
 		_mouseAction = MouseAction::PrepareDrag;
 	} else if (hasSelectedItems()) {
 		if (isItemUnderPressSelected()) {
@@ -1611,7 +1611,8 @@ void ListWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton butt
 		&& hasSelectedText();
 
 	auto activated = ClickHandler::unpressed();
-	if (_mouseAction == MouseAction::Dragging) {
+	if (_mouseAction == MouseAction::Dragging
+		|| _mouseAction == MouseAction::Selecting) {
 		activated.clear();
 	} else if (needSelectionToggle) {
 		activated.clear();

@@ -192,6 +192,7 @@ private:
 		not_null<ContentMemento*> memento);
 
 	rpl::producer<SelectedItems> selectedListValue() const;
+	void refreshTopBarOverride();
 	void refreshTopBarOverride(SelectedItems &&items);
 	void createTopBarOverride(SelectedItems &&items);
 	void destroyTopBarOverride();

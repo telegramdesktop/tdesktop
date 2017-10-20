@@ -59,6 +59,7 @@ public:
 		SelectedItems &&items);
 
 	void setItems(SelectedItems &&items);
+	SelectedItems takeItems();
 
 	rpl::producer<> cancelRequests() const;
 

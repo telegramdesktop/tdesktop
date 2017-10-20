@@ -105,6 +105,11 @@ void TopBarOverride::setItems(SelectedItems &&items) {
 	updateControlsGeometry(width());
 }
 
+SelectedItems TopBarOverride::takeItems() {
+	_canDelete = false;
+	return std::move(_items);
+}
+
 rpl::producer<> TopBarOverride::cancelRequests() const {
 	return rpl::merge(
 		_cancel->clicks(),
