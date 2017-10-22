@@ -99,7 +99,7 @@ template <
 	typename = typename PeerType::FullFlags::Change>
 inline auto PeerFullFlagsValue(PeerType *peer) {
 	Expects(peer != nullptr);
-	return peer->flagsValue();
+	return peer->fullFlagsValue();
 }
 
 template <

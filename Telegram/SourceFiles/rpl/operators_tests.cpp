@@ -213,6 +213,25 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 		}
 		REQUIRE(*sum == "1 1 3 ");
 	}
+	
+	SECTION("filter tuple test") {
+		auto sum = std::make_shared<std::string>("");
+		{
+			auto lifetime = single(std::make_tuple(1, 2))
+				| then(single(std::make_tuple(1, 2)))
+				| then(single(std::make_tuple(2, 3)))
+				| then(single(std::make_tuple(2, 3)))
+				| then(single(std::make_tuple(3, 4)))
+				| filter([](auto first, auto second) { return first != 2; })
+				| map([](auto first, auto second) {
+					return std::to_string(second);
+				})
+				| start_with_next([=](std::string &&value) {
+					*sum += std::move(value) + ' ';
+				});
+		}
+		REQUIRE(*sum == "2 2 4 ");
+	}
 
 	SECTION("distinct_until_changed test") {
 		auto sum = std::make_shared<std::string>("");

@@ -303,8 +303,11 @@ bool BoxController::insertRow(
 	(way == InsertWay::Append)
 		? delegate()->peerListAppendRow(createRow(item))
 		: delegate()->peerListPrependRow(createRow(item));
-	delegate()->peerListSortRows([](PeerListRow &a, PeerListRow &b) {
-		return static_cast<Row&>(a).maxItemId() > static_cast<Row&>(b).maxItemId();
+	delegate()->peerListSortRows([](
+			const PeerListRow &a,
+			const PeerListRow &b) {
+		return static_cast<const Row&>(a).maxItemId()
+			> static_cast<const Row&>(b).maxItemId();
 	});
 	return true;
 }

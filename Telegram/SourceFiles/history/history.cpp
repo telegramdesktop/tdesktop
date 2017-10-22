@@ -933,14 +933,17 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			switch (action.type()) {
 			case mtpc_messageActionChatAddUser: {
 				auto &d = action.c_messageActionChatAddUser();
-				if (peer->isMegagroup()) {
+				if (auto megagroup = peer->asMegagroup()) {
+					auto mgInfo = megagroup->mgInfo.get();
+					Assert(mgInfo != nullptr);
 					auto &v = d.vusers.v;
 					for (auto i = 0, l = v.size(); i != l; ++i) {
 						if (auto user = App::userLoaded(peerFromUser(v[i]))) {
-							if (peer->asChannel()->mgInfo->lastParticipants.indexOf(user) < 0) {
-								peer->asChannel()->mgInfo->lastParticipants.push_front(user);
-								peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
+							if (mgInfo->lastParticipants.indexOf(user) < 0) {
+								mgInfo->lastParticipants.push_front(user);
+								mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
 								Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
+								Auth().data().addNewMegagroupParticipant(megagroup, user);
 							}
 							if (user->botInfo) {
 								peer->asChannel()->mgInfo->bots.insert(user);
@@ -955,16 +958,19 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 
 			case mtpc_messageActionChatJoinedByLink: {
 				auto &d = action.c_messageActionChatJoinedByLink();
-				if (peer->isMegagroup()) {
-					if (result->from()->isUser()) {
-						if (peer->asChannel()->mgInfo->lastParticipants.indexOf(result->from()->asUser()) < 0) {
-							peer->asChannel()->mgInfo->lastParticipants.push_front(result->from()->asUser());
+				if (auto megagroup = peer->asMegagroup()) {
+					auto mgInfo = megagroup->mgInfo.get();
+					Assert(mgInfo != nullptr);
+					if (auto user = result->from()->asUser()) {
+						if (mgInfo->lastParticipants.indexOf(user) < 0) {
+							mgInfo->lastParticipants.push_front(user);
 							Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
+							Auth().data().addNewMegagroupParticipant(megagroup, user);
 						}
-						if (result->from()->asUser()->botInfo) {
-							peer->asChannel()->mgInfo->bots.insert(result->from()->asUser());
-							if (peer->asChannel()->mgInfo->botStatus != 0 && peer->asChannel()->mgInfo->botStatus < 2) {
-								peer->asChannel()->mgInfo->botStatus = 2;
+						if (user->botInfo) {
+							mgInfo->bots.insert(user);
+							if (mgInfo->botStatus != 0 && mgInfo->botStatus < 2) {
+								mgInfo->botStatus = 2;
 							}
 						}
 					}
@@ -982,32 +988,32 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 				if (lastKeyboardFrom == uid) {
 					clearLastKeyboard();
 				}
-				if (peer->isMegagroup()) {
+				if (auto megagroup = peer->asMegagroup()) {
 					if (auto user = App::userLoaded(uid)) {
-						auto channel = peer->asChannel();
-						auto &megagroupInfo = channel->mgInfo;
-
-						auto index = megagroupInfo->lastParticipants.indexOf(user);
+						auto mgInfo = megagroup->mgInfo.get();
+						Assert(mgInfo != nullptr);
+						auto index = mgInfo->lastParticipants.indexOf(user);
 						if (index >= 0) {
-							megagroupInfo->lastParticipants.removeAt(index);
+							mgInfo->lastParticipants.removeAt(index);
 							Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
 						}
-						if (peer->asChannel()->membersCount() > 1) {
-							peer->asChannel()->setMembersCount(channel->membersCount() - 1);
+						Auth().data().removeMegagroupParticipant(megagroup, user);
+						if (megagroup->membersCount() > 1) {
+							megagroup->setMembersCount(megagroup->membersCount() - 1);
 						} else {
-							megagroupInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
-							megagroupInfo->lastParticipantsCount = 0;
+							mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
+							mgInfo->lastParticipantsCount = 0;
 						}
-						if (megagroupInfo->lastAdmins.contains(user)) {
-							megagroupInfo->lastAdmins.remove(user);
-							if (channel->adminsCount() > 1) {
-								channel->setAdminsCount(channel->adminsCount() - 1);
+						if (mgInfo->lastAdmins.contains(user)) {
+							mgInfo->lastAdmins.remove(user);
+							if (megagroup->adminsCount() > 1) {
+								megagroup->setAdminsCount(megagroup->adminsCount() - 1);
 							}
 							Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::AdminsChanged);
 						}
-						megagroupInfo->bots.remove(user);
-						if (megagroupInfo->bots.isEmpty() && megagroupInfo->botStatus > 0) {
-							megagroupInfo->botStatus = -1;
+						mgInfo->bots.remove(user);
+						if (mgInfo->bots.isEmpty() && mgInfo->botStatus > 0) {
+							mgInfo->botStatus = -1;
 						}
 					}
 				}
@@ -1294,26 +1300,29 @@ HistoryItem *History::addNewItem(HistoryItem *adding, bool newMsg) {
 				}
 				return nullptr;
 			};
-			if (auto channel = peer->asMegagroup()) {
-				if (adding->from()->asUser()->botInfo) {
-					channel->mgInfo->bots.insert(adding->from()->asUser());
-					if (channel->mgInfo->botStatus != 0 && channel->mgInfo->botStatus < 2) {
-						channel->mgInfo->botStatus = 2;
+			if (auto megagroup = peer->asMegagroup()) {
+				if (user->botInfo) {
+					auto mgInfo = megagroup->mgInfo.get();
+					Assert(mgInfo != nullptr);
+					mgInfo->bots.insert(user);
+					if (mgInfo->botStatus != 0 && mgInfo->botStatus < 2) {
+						mgInfo->botStatus = 2;
 					}
 				}
 			}
 			if (auto lastAuthors = getLastAuthors()) {
-				int prev = lastAuthors->indexOf(adding->from()->asUser());
+				int prev = lastAuthors->indexOf(user);
 				if (prev > 0) {
 					lastAuthors->removeAt(prev);
 				} else if (prev < 0 && peer->isMegagroup()) { // nothing is outdated if just reordering
 					peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
 				}
 				if (prev) {
-					lastAuthors->push_front(adding->from()->asUser());
+					lastAuthors->push_front(user);
 				}
-				if (peer->isMegagroup()) {
+				if (auto megagroup = peer->asMegagroup()) {
 					Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
+					Auth().data().addNewMegagroupParticipant(megagroup, user);
 				}
 			}
 		}

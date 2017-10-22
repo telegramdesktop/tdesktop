@@ -308,7 +308,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 			} break;
 			}
 		}
-		auto newPhotoId = 0;
+		auto newPhotoId = PhotoId(0);
 		if (auto photo = App::feedPhoto(f.vchat_photo)) {
 			newPhotoId = photo->id;
 			photo->peer = chat;

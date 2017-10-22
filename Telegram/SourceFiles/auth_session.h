@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include <rpl/event_stream.h>
+#include <rpl/filter.h>
 #include "base/timer.h"
 
 namespace Storage {
@@ -93,6 +94,45 @@ public:
 	}
 	rpl::producer<not_null<const HistoryItem*>> itemRemoved() const {
 		return _itemRemoved.events();
+	}
+	using MegagroupParticipant = std::tuple<
+		not_null<ChannelData*>,
+		not_null<UserData*>>;
+	void removeMegagroupParticipant(
+			not_null<ChannelData*> channel,
+			not_null<UserData*> user) {
+		_megagroupParticipantRemoved.fire({ channel, user });
+	}
+	auto megagroupParticipantRemoved() const {
+		return _megagroupParticipantRemoved.events();
+	}
+	auto megagroupParticipantRemoved(
+			not_null<ChannelData*> channel) const {
+		return megagroupParticipantRemoved()
+			| rpl::filter([channel](auto updateChannel, auto user) {
+				return (updateChannel == channel);
+			})
+			| rpl::map([](auto updateChannel, auto user) {
+				return user;
+			});
+	}
+	void addNewMegagroupParticipant(
+			not_null<ChannelData*> channel,
+			not_null<UserData*> user) {
+		_megagroupParticipantAdded.fire({ channel, user });
+	}
+	auto megagroupParticipantAdded() const {
+		return _megagroupParticipantAdded.events();
+	}
+	auto megagroupParticipantAdded(
+			not_null<ChannelData*> channel) const {
+		return megagroupParticipantAdded()
+			| rpl::filter([channel](auto updateChannel, auto user) {
+				return (updateChannel == channel);
+			})
+			| rpl::map([](auto updateChannel, auto user) {
+				return user;
+			});
 	}
 
 	void copyFrom(const AuthSessionData &other) {
@@ -207,6 +247,8 @@ private:
 	rpl::event_stream<not_null<const HistoryItem*>> _itemLayoutChanged;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemRepaintRequest;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemRemoved;
+	rpl::event_stream<MegagroupParticipant> _megagroupParticipantRemoved;
+	rpl::event_stream<MegagroupParticipant> _megagroupParticipantAdded;
 
 	rpl::event_stream<bool> _thirdSectionInfoEnabledValue;
 	bool _tabbedReplacedWithInfo = false;

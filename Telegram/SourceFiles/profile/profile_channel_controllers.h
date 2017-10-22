@@ -73,6 +73,8 @@ public:
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void rowActionClicked(not_null<PeerListRow*> row) override;
+	Ui::PopupMenu *rowContextMenu(
+		not_null<PeerListRow*> row) override;
 	void loadMoreRows() override;
 
 	void peerListSearchAddRow(not_null<PeerData*> peer) override;
@@ -93,6 +95,7 @@ private:
 	static std::unique_ptr<PeerListSearchController> CreateSearchController(not_null<ChannelData*> channel, Role role, not_null<Additional*> additional);
 
 	void setupSortByOnline();
+	void setupListChangeViewers();
 	void sortByOnlineDelayed();
 	void sortByOnline();
 	void showAdmin(not_null<UserData*> user);

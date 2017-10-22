@@ -30,6 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "observer_peer.h"
 #include "dialogs/dialogs_indexed_list.h"
+#include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
 
 namespace Profile {
@@ -54,6 +55,7 @@ ParticipantsBoxController::ParticipantsBoxController(
 	}
 	if (_role == Role::Profile) {
 		setupSortByOnline();
+		setupListChangeViewers();
 	}
 }
 
@@ -69,6 +71,33 @@ void ParticipantsBoxController::setupSortByOnline() {
 				sortByOnlineDelayed();
 			}
 		}));
+}
+
+void ParticipantsBoxController::setupListChangeViewers() {
+	Auth().data().megagroupParticipantAdded(_channel)
+		| rpl::start_with_next([this](not_null<UserData*> user) {
+			if (delegate()->peerListFullRowsCount() > 0) {
+				if (delegate()->peerListRowAt(0)->peer() == user) {
+					return;
+				}
+			}
+			if (auto row = delegate()->peerListFindRow(user->id)) {
+				delegate()->peerListPartitionRows([user](const PeerListRow &row) {
+					return (row.peer() == user);
+				});
+			} else {
+				delegate()->peerListPrependRow(createRow(user));
+				delegate()->peerListRefreshRows();
+				sortByOnline();
+			}
+		}, lifetime());
+	Auth().data().megagroupParticipantRemoved(_channel)
+		| rpl::start_with_next([this](not_null<UserData*> user) {
+			if (auto row = delegate()->peerListFindRow(user->id)) {
+				delegate()->peerListRemoveRow(row);
+			}
+			delegate()->peerListRefreshRows();
+		}, lifetime());
 }
 
 void ParticipantsBoxController::sortByOnlineDelayed() {
@@ -366,6 +395,7 @@ bool ParticipantsBoxController::feedMegagroupLastParticipants() {
 	}
 	auto info = megagroup->mgInfo.get();
 	if (info->lastParticipantsStatus != MegagroupInfo::LastParticipantsUpToDate) {
+		_channel->updateFull();
 		return false;
 	}
 	if (info->lastParticipants.isEmpty()) {
@@ -430,6 +460,53 @@ void ParticipantsBoxController::rowActionClicked(not_null<PeerListRow*> row) {
 	}
 }
 
+Ui::PopupMenu *ParticipantsBoxController::rowContextMenu(
+		not_null<PeerListRow*> row) {
+	Expects(row->peer()->isUser());
+
+	auto user = row->peer()->asUser();
+	auto result = new Ui::PopupMenu(nullptr);
+	result->addAction(
+		lang(lng_context_view_profile),
+		[weak = base::make_weak_unique(this), user] {
+			if (weak) {
+				weak->_window->showPeerInfo(user);
+			}
+		});
+	if (_channel->canEditAdmin(user)) {
+		auto it = _additional.adminRights.find(user);
+		auto isCreator = (user == _additional.creator);
+		auto notAdmin = !isCreator && (it == _additional.adminRights.cend());
+		auto label = lang(notAdmin
+			? lng_context_promote_admin
+			: lng_context_edit_permissions);
+		result->addAction(
+			label,
+			[weak = base::make_weak_unique(this), user] {
+				if (weak) {
+					weak->showAdmin(user);
+				}
+			});
+	}
+	if (_channel->canRestrictUser(user)) {
+		result->addAction(
+			lang(lng_context_restrict_user),
+			[weak = base::make_weak_unique(this), user]{
+				if (weak) {
+					weak->showRestricted(user);
+				}
+			});
+		result->addAction(
+			lang(lng_context_remove_from_group),
+			[weak = base::make_weak_unique(this), user] {
+				if (weak) {
+					weak->kickMember(user);
+				}
+			});
+	}
+	return result;
+}
+
 void ParticipantsBoxController::showAdmin(not_null<UserData*> user) {
 	auto it = _additional.adminRights.find(user);
 	auto isCreator = (user == _additional.creator);
@@ -480,7 +557,7 @@ void ParticipantsBoxController::editAdminDone(not_null<UserData*> user, const MT
 		_additional.restrictedBy.erase(user);
 		if (_role == Role::Admins) {
 			prependRow(user);
-		} else {
+		} else if (_role == Role::Kicked || _role == Role::Restricted) {
 			removeRow(user);
 		}
 	}
@@ -489,12 +566,12 @@ void ParticipantsBoxController::editAdminDone(not_null<UserData*> user, const MT
 
 void ParticipantsBoxController::showRestricted(not_null<UserData*> user) {
 	auto it = _additional.restrictedRights.find(user);
-	if (it == _additional.restrictedRights.cend()) {
-		return;
-	}
+	auto restrictedRights = (it == _additional.restrictedRights.cend())
+		? MTP_channelBannedRights(MTP_flags(0), MTP_int(0))
+		: it->second;
 	auto weak = base::make_weak_unique(this);
 	auto hasAdminRights = false;
-	auto box = Box<EditRestrictedBox>(_channel, user, hasAdminRights, it->second);
+	auto box = Box<EditRestrictedBox>(_channel, user, hasAdminRights, restrictedRights);
 	if (_channel->canBanMembers()) {
 		box->setSaveCallback([megagroup = _channel.get(), user, weak](const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
 			MTP::send(MTPchannels_EditBanned(megagroup->inputChannel, user->inputUser, newRights), rpcDone([megagroup, user, weak, oldRights, newRights](const MTPUpdates &result) {
@@ -522,7 +599,7 @@ void ParticipantsBoxController::editRestrictedDone(not_null<UserData*> user, con
 		_additional.kicked.erase(user);
 		_additional.restrictedRights.erase(user);
 		_additional.restrictedBy.erase(user);
-		if (_role != Role::Admins) {
+		if (_role == Role::Kicked || _role == Role::Restricted) {
 			removeRow(user);
 		}
 	} else {
@@ -535,7 +612,9 @@ void ParticipantsBoxController::editRestrictedDone(not_null<UserData*> user, con
 			_additional.restrictedRights.erase(user);
 			if (_role == Role::Kicked) {
 				prependRow(user);
-			} else {
+			} else if (_role == Role::Admins
+				|| _role == Role::Restricted
+				|| _role == Role::Members) {
 				removeRow(user);
 			}
 		} else {
@@ -543,7 +622,9 @@ void ParticipantsBoxController::editRestrictedDone(not_null<UserData*> user, con
 			_additional.kicked.erase(user);
 			if (_role == Role::Restricted) {
 				prependRow(user);
-			} else {
+			} else if (_role == Role::Kicked
+				|| _role == Role::Admins
+				|| _role == Role::Members) {
 				removeRow(user);
 			}
 		}

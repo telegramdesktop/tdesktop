@@ -29,6 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/wrap/slide_wrap.h"
@@ -863,7 +864,10 @@ void PeerListContent::leaveEventHook(QEvent *e) {
 }
 
 void PeerListContent::mouseMoveEvent(QMouseEvent *e) {
-	auto position = e->globalPos();
+	handleMouseMove(e->globalPos());
+}
+
+void PeerListContent::handleMouseMove(QPoint position) {
 	if (_mouseSelection || _lastMousePosition != position) {
 		_lastMousePosition = position;
 		_mouseSelection = true;
@@ -872,6 +876,7 @@ void PeerListContent::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void PeerListContent::mousePressEvent(QMouseEvent *e) {
+	_pressButton = e->button();
 	_mouseSelection = true;
 	_lastMousePosition = e->globalPos();
 	updateSelection();
@@ -896,18 +901,57 @@ void PeerListContent::mousePressEvent(QMouseEvent *e) {
 }
 
 void PeerListContent::mouseReleaseEvent(QMouseEvent *e) {
+	mousePressReleased(e->button());
+}
+
+void PeerListContent::mousePressReleased(Qt::MouseButton button) {
 	updateRow(_pressed.index);
 	updateRow(_selected.index);
 
 	auto pressed = _pressed;
 	setPressed(Selected());
-	if (e->button() == Qt::LeftButton && pressed == _selected) {
+	if (button == Qt::LeftButton && pressed == _selected) {
 		if (auto row = getRow(pressed.index)) {
 			if (pressed.action) {
 				_controller->rowActionClicked(row);
 			} else {
 				_controller->rowClicked(row);
 			}
+		}
+	}
+}
+
+void PeerListContent::contextMenuEvent(QContextMenuEvent *e) {
+	if (_menu) {
+		_menu->deleteLater();
+		_menu = nullptr;
+	}
+	if (_context.index.value >= 0) {
+		updateRow(_context.index);
+		_context = Selected();
+	}
+
+	if (e->reason() == QContextMenuEvent::Mouse) {
+		handleMouseMove(e->globalPos());
+	}
+
+	_context = _selected;
+	if (_pressButton != Qt::LeftButton) {
+		mousePressReleased(_pressButton);
+	}
+
+	if (auto row = getRow(_context.index)) {
+		_menu = _controller->rowContextMenu(row);
+		if (_menu) {
+			_menu->setDestroyedCallback(base::lambda_guarded(
+				this,
+				[this] {
+					updateRow(_context.index);
+					_context = Selected();
+					handleMouseMove(QCursor::pos());
+				}));
+			_menu->popup(e->globalPos());
+			e->accept();
 		}
 	}
 }
@@ -933,7 +977,11 @@ TimeMs PeerListContent::paintRow(Painter &p, TimeMs ms, RowIndex index) {
 
 	auto peer = row->peer();
 	auto user = peer->asUser();
-	auto active = (_pressed.index.value >= 0) ? _pressed : _selected;
+	auto active = (_context.index.value >= 0)
+		? _context
+		: (_pressed.index.value >= 0)
+		? _pressed
+		: _selected;
 	auto selected = (active.index == index);
 	auto actionSelected = (selected && active.action);
 

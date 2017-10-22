@@ -66,6 +66,14 @@ template <
 true_t test_callable_tuple(
 	Method &&,
 	std::tuple<Types...> &&) noexcept;
+template <
+	typename Method,
+	typename ...Types,
+	typename = decltype(std::declval<Method>()(
+		const_ref_val<Types>()...))>
+true_t test_callable_tuple(
+	Method &&,
+	const std::tuple<Types...> &) noexcept;
 false_t test_callable_tuple(...) noexcept;
 
 template <typename Method, typename Arg>

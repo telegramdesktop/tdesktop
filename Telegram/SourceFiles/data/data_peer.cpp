@@ -915,6 +915,7 @@ void ChannelData::applyEditBanned(not_null<UserData*> user, const MTPChannelBann
 					}
 				}
 				flags |= Notify::PeerUpdate::Flag::MembersChanged;
+				Auth().data().removeMegagroupParticipant(this, user);
 			}
 		}
 	}

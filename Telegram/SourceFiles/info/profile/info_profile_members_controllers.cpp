@@ -21,11 +21,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_members_controllers.h"
 
 #include <rpl/variable.h>
+#include "base/weak_unique_ptr.h"
 #include "profile/profile_channel_controllers.h"
+#include "ui/widgets/popup_menu.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "auth_session.h"
+#include "mainwidget.h"
 #include "observer_peer.h"
+#include "boxes/confirm_box.h"
 #include "window/window_controller.h"
 
 namespace Info {
@@ -36,7 +40,8 @@ constexpr auto kSortByOnlineDelay = TimeMs(1000);
 
 class ChatMembersController
 	: public PeerListController
-	, private base::Subscriber {
+	, private base::Subscriber
+	, public base::enable_weak_from_this {
 public:
 	ChatMembersController(
 		not_null<Window::Controller*> window,
@@ -44,6 +49,8 @@ public:
 
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
+	Ui::PopupMenu *rowContextMenu(
+		not_null<PeerListRow*> row) override;
 
 	rpl::producer<int> onlineCountValue() const override {
 		return _onlineCount.value();
@@ -55,6 +62,7 @@ private:
 	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user);
 	void sortByOnline();
 	void sortByOnlineDelayed();
+	void removeMember(not_null<UserData*> user);
 
 	not_null<Window::Controller*> _window;
 	not_null<ChatData*> _chat;
@@ -119,27 +127,33 @@ void ChatMembersController::sortByOnline() {
 
 void ChatMembersController::rebuildRows() {
 	if (_chat->participants.empty()) {
+		while (delegate()->peerListFullRowsCount() > 0) {
+			delegate()->peerListRemoveRow(
+				delegate()->peerListRowAt(0));
+		}
 		return;
 	}
 
-	std::vector<not_null<UserData*>> users;
 	auto &participants = _chat->participants;
-	for (auto i = participants.cbegin(), e = participants.cend();
-			i != e;
-			++i) {
-		users.push_back(i.key());
+	for (auto i = 0, count = delegate()->peerListFullRowsCount();
+			i != count;) {
+		auto row = delegate()->peerListRowAt(i);
+		auto user = row->peer()->asUser();
+		if (participants.contains(user)) {
+			++i;
+		} else {
+			delegate()->peerListRemoveRow(row);
+			--count;
+		}
 	}
-	auto now = unixtime();
-	base::sort(users, [now](auto a, auto b) {
-		return App::onlineForSort(a, now)
-			> App::onlineForSort(b, now);
-	});
-	base::for_each(users, [this](not_null<UserData*> user) {
-		if (auto row = createRow(user)) {
+	for (auto i = participants.cbegin(), e = participants.cend();
+		i != e;
+		++i) {
+		if (auto row = createRow(i.key())) {
 			delegate()->peerListAppendRow(std::move(row));
 		}
-	});
-	refreshOnlineCount();
+	}
+	sortByOnline();
 
 	delegate()->peerListRefreshRows();
 }
@@ -165,6 +179,52 @@ std::unique_ptr<PeerListRow> ChatMembersController::createRow(not_null<UserData*
 
 void ChatMembersController::rowClicked(not_null<PeerListRow*> row) {
 	_window->showPeerInfo(row->peer());
+}
+
+Ui::PopupMenu *ChatMembersController::rowContextMenu(
+		not_null<PeerListRow*> row) {
+	Expects(row->peer()->isUser());
+
+	auto user = row->peer()->asUser();
+	auto isCreator = (peerFromUser(_chat->creator) == user->id);
+	auto isAdmin = _chat->adminsEnabled() && _chat->admins.contains(user);
+	auto canRemoveMember = (user->id == Auth().userPeerId())
+		? false
+		: _chat->amCreator()
+		? true
+		: (_chat->amAdmin() && !isCreator && !isAdmin)
+		? true
+		: (_chat->invitedByMe.contains(user) && !isCreator && !isAdmin)
+		? true
+		: false;
+	
+	auto result = new Ui::PopupMenu(nullptr);
+	result->addAction(
+		lang(lng_context_view_profile),
+		[weak = base::make_weak_unique(this), user] {
+			if (weak) {
+				weak->_window->showPeerInfo(user);
+			}
+		});
+	if (canRemoveMember) {
+		result->addAction(
+			lang(lng_context_remove_from_group),
+			[weak = base::make_weak_unique(this), user] {
+				if (weak) {
+					weak->removeMember(user);
+				}
+			});
+	}
+
+	return result;
+}
+
+void ChatMembersController::removeMember(not_null<UserData*> user) {
+	auto text = lng_profile_sure_kick(lt_user, user->firstName);
+	Ui::show(Box<ConfirmBox>(text, lang(lng_box_remove), [user, chat = _chat] {
+		Ui::hideLayer();
+		if (App::main()) App::main()->kickParticipant(chat, user);
+	}));
 }
 
 } // namespace

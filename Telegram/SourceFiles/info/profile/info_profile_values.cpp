@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "messenger.h"
 #include "ui/wrap/slide_wrap.h"
+#include "data/data_peer_values.h"
 #include "history/history_shared_media.h"
 
 namespace Info {
@@ -174,9 +175,13 @@ rpl::producer<int> MembersCountValue(
 					: 0;
 			});
 	} else if (auto channel = peer->asChannel()) {
-		return PeerUpdateValue(
-				peer,
-				Notify::PeerUpdate::Flag::MembersChanged)
+		return rpl::combine(
+				PeerUpdateValue(
+					channel,
+					Notify::PeerUpdate::Flag::MembersChanged),
+				Data::PeerFullFlagValue(
+					channel,
+					MTPDchannelFull::Flag::f_can_view_participants))
 			| rpl::map([channel] {
 				auto canViewCount = channel->canViewMembers()
 					|| !channel->isMegagroup();

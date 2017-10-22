@@ -39,6 +39,7 @@ template <typename Widget>
 class SlideWrap;
 class FlatLabel;
 struct ScrollToRequest;
+class PopupMenu;
 } // namespace Ui
 
 namespace Notify {
@@ -238,8 +239,8 @@ public:
 	virtual void peerListScrollToTop() = 0;
 	virtual int peerListFullRowsCount() = 0;
 	virtual PeerListRow *peerListFindRow(PeerListRowId id) = 0;
-	virtual void peerListSortRows(base::lambda<bool(PeerListRow &a, PeerListRow &b)> compare) = 0;
-	virtual int peerListPartitionRows(base::lambda<bool(PeerListRow &a)> border) = 0;
+	virtual void peerListSortRows(base::lambda<bool(const PeerListRow &a, const PeerListRow &b)> compare) = 0;
+	virtual int peerListPartitionRows(base::lambda<bool(const PeerListRow &a)> border) = 0;
 
 	template <typename PeerDataRange>
 	void peerListAddSelectedRows(PeerDataRange &&range) {
@@ -305,6 +306,10 @@ public:
 	virtual void loadMoreRows() {
 	}
 	virtual void itemDeselectedHook(not_null<PeerData*> peer) {
+	}
+	virtual Ui::PopupMenu *rowContextMenu(
+			not_null<PeerListRow*> row) {
+		return nullptr;
 	}
 	bool isSearchLoading() const {
 		return _searchController ? _searchController->isLoading() : false;
@@ -429,6 +434,7 @@ protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 private:
 	void refreshIndices();
@@ -505,6 +511,8 @@ private:
 	int labelHeight() const;
 
 	void clearSearchRows();
+	void handleMouseMove(QPoint position);
+	void mousePressReleased(Qt::MouseButton button);
 
 	const style::PeerList &_st;
 	not_null<PeerListController*> _controller;
@@ -516,7 +524,9 @@ private:
 
 	Selected _selected;
 	Selected _pressed;
+	Selected _context;
 	bool _mouseSelection = false;
+	Qt::MouseButton _pressButton = Qt::LeftButton;
 
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 
@@ -540,6 +550,7 @@ private:
 
 	std::vector<std::unique_ptr<PeerListRow>> _searchRows;
 	base::Timer _repaintByStatus;
+	QPointer<Ui::PopupMenu> _menu;
 
 };
 
@@ -615,7 +626,7 @@ public:
 		_content->setSearchMode(mode);
 	}
 	void peerListSortRows(
-			base::lambda<bool(PeerListRow &a, PeerListRow &b)> compare) override {
+			base::lambda<bool(const PeerListRow &a, const PeerListRow &b)> compare) override {
 		_content->reorderRows([compare = std::move(compare)](
 				auto &&begin,
 				auto &&end) {
@@ -625,7 +636,7 @@ public:
 		});
 	}
 	int peerListPartitionRows(
-			base::lambda<bool(PeerListRow &a)> border) override {
+			base::lambda<bool(const PeerListRow &a)> border) override {
 		auto result = 0;
 		_content->reorderRows([border = std::move(border), &result](
 				auto &&begin,

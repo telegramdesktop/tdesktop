@@ -243,8 +243,8 @@ void ChatsListBoxController::rebuildRows() {
 	added += appendList(App::main()->contactsNoDialogsList());
 	if (!wasEmpty && added > 0) {
 		// Place dialogs list before contactsNoDialogs list.
-		delegate()->peerListPartitionRows([](PeerListRow &a) {
-			auto history = static_cast<Row&>(a).history();
+		delegate()->peerListPartitionRows([](const PeerListRow &a) {
+			auto history = static_cast<const Row&>(a).history();
 			return history->inChatList(Dialogs::Mode::All);
 		});
 	}
