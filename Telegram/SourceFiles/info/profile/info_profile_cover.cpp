@@ -143,7 +143,7 @@ auto OnlineStatusText(int count) {
 };
 
 auto ChatStatusText(int fullCount, int onlineCount, bool isGroup) {
-	if (onlineCount > 0 && onlineCount <= fullCount) {
+	if (onlineCount > 1 && onlineCount <= fullCount) {
 		return lng_chat_status_members_online(
 			lt_members_count, MembersStatusText(fullCount),
 			lt_online_count, OnlineStatusText(onlineCount));

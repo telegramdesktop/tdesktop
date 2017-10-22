@@ -88,6 +88,10 @@ int Members::desiredHeight() const {
 	return qMax(height(), desired);
 }
 
+rpl::producer<int> Members::onlineCountValue() const {
+	return _listController->onlineCountValue();
+}
+
 object_ptr<Ui::FlatLabel> Members::setupHeader() {
 	auto result = object_ptr<Ui::FlatLabel>(
 		_labelWrap,
@@ -183,7 +187,9 @@ object_ptr<Members::ListWidget> Members::setupList(
 	result->heightValue()
 		| rpl::start_with_next([parent](int listHeight) {
 			auto newHeight = (listHeight > st::membersMarginBottom)
-				? (st::infoMembersHeader + listHeight)
+				? (st::infoMembersHeader
+					+ listHeight
+					+ st::membersMarginBottom)
 				: 0;
 			parent->resize(parent->width(), newHeight);
 		}, result->lifetime());

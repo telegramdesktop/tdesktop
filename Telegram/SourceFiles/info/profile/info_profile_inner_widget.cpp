@@ -129,6 +129,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 						: mapFromGlobal(_members->mapToGlobal({ 0, request.ymax })).y();
 				_scrollToRequests.fire({ min, max });
 			}, _members->lifetime());
+		_cover->setOnlineCount(_members->onlineCountValue());
 	}
 	return std::move(result);
 }

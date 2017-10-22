@@ -80,15 +80,35 @@ void ParticipantsBoxController::sortByOnlineDelayed() {
 void ParticipantsBoxController::sortByOnline() {
 	if (_role != Role::Profile
 		|| _channel->membersCount() > Global::ChatSizeMax()) {
+		_onlineCount = 0;
 		return;
 	}
 	auto now = unixtime();
 	delegate()->peerListSortRows([now](
-		const PeerListRow &a,
-		const PeerListRow &b) {
+			const PeerListRow &a,
+			const PeerListRow &b) {
 		return App::onlineForSort(a.peer()->asUser(), now) >
 			App::onlineForSort(b.peer()->asUser(), now);
 	});
+	refreshOnlineCount();
+}
+
+void ParticipantsBoxController::refreshOnlineCount() {
+	Expects(_role == Role::Profile);
+	Expects(_channel->membersCount() <= Global::ChatSizeMax());
+
+	auto now = unixtime();
+	auto left = 0, right = delegate()->peerListFullRowsCount();
+	while (right > left) {
+		auto middle = (left + right) / 2;
+		auto row = delegate()->peerListRowAt(middle);
+		if (App::onlineColorUse(row->peer()->asUser(), now)) {
+			left = middle + 1;
+		} else {
+			right = middle;
+		}
+	}
+	_onlineCount = left;
 }
 
 std::unique_ptr<PeerListSearchController>

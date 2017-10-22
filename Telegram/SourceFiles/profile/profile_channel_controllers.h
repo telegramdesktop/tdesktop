@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include <rpl/variable.h>
 #include "boxes/peer_list_box.h"
 #include "mtproto/sender.h"
 #include "base/timer.h"
@@ -81,6 +82,10 @@ public:
 	template <typename Callback>
 	static void HandleParticipant(const MTPChannelParticipant &participant, Role role, not_null<Additional*> additional, Callback callback);
 
+	rpl::producer<int> onlineCountValue() const override {
+		return _onlineCount.value();
+	}
+
 protected:
 	virtual std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;
 
@@ -102,6 +107,7 @@ private:
 	bool removeRow(not_null<UserData*> user);
 	void refreshCustomStatus(not_null<PeerListRow*> row) const;
 	bool feedMegagroupLastParticipants();
+	void refreshOnlineCount();
 
 	not_null<Window::Controller*> _window;
 	not_null<ChannelData*> _channel;
@@ -114,6 +120,7 @@ private:
 	QPointer<PeerListBox> _addBox;
 
 	base::Timer _sortByOnlineTimer;
+	rpl::variable<int> _onlineCount = 0;
 
 };
 

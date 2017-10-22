@@ -126,6 +126,7 @@
       '<(src_loc)/rpl/then.h',
       '<(src_loc)/rpl/type_erased.h',
       '<(src_loc)/rpl/variable.h',
+      '<(src_loc)/rpl/variable_tests.cpp',
     ],
   }],
 }

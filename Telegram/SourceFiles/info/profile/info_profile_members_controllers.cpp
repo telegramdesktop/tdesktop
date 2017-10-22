@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "info/profile/info_profile_members_controllers.h"
 
+#include <rpl/variable.h>
 #include "profile/profile_channel_controllers.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
@@ -30,6 +31,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Info {
 namespace Profile {
 namespace {
+
+constexpr auto kSortByOnlineDelay = TimeMs(1000);
 
 class ChatMembersController
 	: public PeerListController
@@ -42,12 +45,22 @@ public:
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 
+	rpl::producer<int> onlineCountValue() const override {
+		return _onlineCount.value();
+	}
+
 private:
 	void rebuildRows();
+	void refreshOnlineCount();
 	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user);
+	void sortByOnline();
+	void sortByOnlineDelayed();
 
 	not_null<Window::Controller*> _window;
 	not_null<ChatData*> _chat;
+
+	base::Timer _sortByOnlineTimer;
+	rpl::variable<int> _onlineCount = 0;
 
 };
 
@@ -57,6 +70,7 @@ ChatMembersController::ChatMembersController(
 : PeerListController()
 , _window(window)
 , _chat(chat) {
+	_sortByOnlineTimer.setCallback([this] { sortByOnline(); });
 }
 
 void ChatMembersController::prepare() {
@@ -77,13 +91,30 @@ void ChatMembersController::prepare() {
 					rebuildRows();
 				}
 			} else if (update.flags & UpdateFlag::UserOnlineChanged) {
-				auto now = unixtime();
-				delegate()->peerListSortRows([now](const PeerListRow &a, const PeerListRow &b) {
-					return App::onlineForSort(a.peer()->asUser(), now) >
-						App::onlineForSort(b.peer()->asUser(), now);
-				});
+				if (auto row = delegate()->peerListFindRow(
+					update.peer->id)) {
+					row->refreshStatus();
+					sortByOnlineDelayed();
+				}
 			}
 		}));
+}
+
+void ChatMembersController::sortByOnlineDelayed() {
+	if (!_sortByOnlineTimer.isActive()) {
+		_sortByOnlineTimer.callOnce(kSortByOnlineDelay);
+	}
+}
+
+void ChatMembersController::sortByOnline() {
+	auto now = unixtime();
+	delegate()->peerListSortRows([now](
+			const PeerListRow &a,
+			const PeerListRow &b) {
+		return App::onlineForSort(a.peer()->asUser(), now) >
+			App::onlineForSort(b.peer()->asUser(), now);
+	});
+	refreshOnlineCount();
 }
 
 void ChatMembersController::rebuildRows() {
@@ -108,8 +139,24 @@ void ChatMembersController::rebuildRows() {
 			delegate()->peerListAppendRow(std::move(row));
 		}
 	});
+	refreshOnlineCount();
 
 	delegate()->peerListRefreshRows();
+}
+
+void ChatMembersController::refreshOnlineCount() {
+	auto now = unixtime();
+	auto left = 0, right = delegate()->peerListFullRowsCount();
+	while (right > left) {
+		auto middle = (left + right) / 2;
+		auto row = delegate()->peerListRowAt(middle);
+		if (App::onlineColorUse(row->peer()->asUser(), now)) {
+			left = middle + 1;
+		} else {
+			right = middle;
+		}
+	}
+	_onlineCount = left;
 }
 
 std::unique_ptr<PeerListRow> ChatMembersController::createRow(not_null<UserData*> user) {

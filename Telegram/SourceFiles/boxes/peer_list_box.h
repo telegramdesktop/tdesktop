@@ -112,6 +112,7 @@ public:
 		Custom,
 	};
 	void refreshStatus();
+	TimeMs refreshStatusTime() const;
 
 	void setAbsoluteIndex(int index) {
 		_absoluteIndex = index;
@@ -199,6 +200,7 @@ private:
 	Text _name;
 	Text _status;
 	StatusType _statusType = StatusType::Online;
+	TimeMs _statusValidTill = 0;
 	OrderedSet<QChar> _nameFirstChars;
 	int _absoluteIndex = -1;
 	State _disabledState = State::Active;
@@ -237,7 +239,7 @@ public:
 	virtual int peerListFullRowsCount() = 0;
 	virtual PeerListRow *peerListFindRow(PeerListRowId id) = 0;
 	virtual void peerListSortRows(base::lambda<bool(PeerListRow &a, PeerListRow &b)> compare) = 0;
-	virtual void peerListPartitionRows(base::lambda<bool(PeerListRow &a)> border) = 0;
+	virtual int peerListPartitionRows(base::lambda<bool(PeerListRow &a)> border) = 0;
 
 	template <typename PeerDataRange>
 	void peerListAddSelectedRows(PeerDataRange &&range) {
@@ -323,6 +325,8 @@ public:
 
 	void peerListSearchAddRow(not_null<PeerData*> peer) override;
 	void peerListSearchRefreshRows() override;
+
+	virtual rpl::producer<int> onlineCountValue() const;
 
 	rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -479,7 +483,7 @@ private:
 	RowIndex findRowIndex(not_null<PeerListRow*> row, RowIndex hint = RowIndex());
 	QRect getActionRect(not_null<PeerListRow*> row, RowIndex index) const;
 
-	void paintRow(Painter &p, TimeMs ms, RowIndex index);
+	TimeMs paintRow(Painter &p, TimeMs ms, RowIndex index);
 
 	void addRowEntry(not_null<PeerListRow*> row);
 	void addToSearchIndex(not_null<PeerListRow*> row);
@@ -535,6 +539,7 @@ private:
 	QPoint _lastMousePosition;
 
 	std::vector<std::unique_ptr<PeerListRow>> _searchRows;
+	base::Timer _repaintByStatus;
 
 };
 
@@ -619,16 +624,19 @@ public:
 			});
 		});
 	}
-	void peerListPartitionRows(
+	int peerListPartitionRows(
 			base::lambda<bool(PeerListRow &a)> border) override {
-		_content->reorderRows([border = std::move(border)](
+		auto result = 0;
+		_content->reorderRows([border = std::move(border), &result](
 				auto &&begin,
 				auto &&end) {
-			std::stable_partition(begin, end, [&border](
+			auto edge = std::stable_partition(begin, end, [&border](
 					auto &&current) {
 				return border(*current);
 			});
+			result = (edge - begin);
 		});
+		return result;
 	}
 
 protected:

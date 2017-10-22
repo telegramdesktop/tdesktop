@@ -26,37 +26,24 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace rpl {
 
 template <typename Type>
-class variable {
+class variable final {
 public:
 	variable() : _data{} {
-	}
-	variable(const variable &other) = default;
-	variable(variable &&other) = default;
-	variable &operator=(const variable &other) = default;
-	variable &operator=(variable &&other) = default;
-
-	variable(const Type &data) : _data(data) {
-	}
-	variable(Type &&data) : _data(std::move(data)) {
-	}
-	variable &operator=(const Type &data) {
-		return assign(data);
 	}
 
 	template <
 		typename OtherType,
 		typename = std::enable_if_t<
-			std::is_constructible_v<Type, OtherType&&>
-			&& !std::is_same_v<std::decay_t<OtherType>, Type>>>
+			std::is_constructible_v<Type, OtherType&&>>>
 	variable(OtherType &&data) : _data(std::forward<OtherType>(data)) {
 	}
 
 	template <
 		typename OtherType,
 		typename = std::enable_if_t<
-			std::is_assignable_v<Type, OtherType&&>
-			&& !std::is_same_v<std::decay_t<OtherType>, Type>>>
+			std::is_assignable_v<Type&, OtherType&&>>>
 	variable &operator=(OtherType &&data) {
+		_lifetime.destroy();
 		return assign(std::forward<OtherType>(data));
 	}
 
@@ -65,11 +52,11 @@ public:
 		typename Error,
 		typename Generator,
 		typename = std::enable_if_t<
-			std::is_assignable_v<Type, OtherType>>>
+			std::is_assignable_v<Type&, OtherType>>>
 	variable(producer<OtherType, Error, Generator> &&stream) {
 		std::move(stream)
 			| start_with_next([this](auto &&data) {
-				*this = std::forward<decltype(data)>(data);
+				assign(std::forward<decltype(data)>(data));
 			}, _lifetime);
 	}
 
@@ -78,13 +65,13 @@ public:
 		typename Error,
 		typename Generator,
 		typename = std::enable_if_t<
-			std::is_assignable_v<Type, OtherType>>>
+			std::is_assignable_v<Type&, OtherType>>>
 	variable &operator=(
 			producer<OtherType, Error, Generator> &&stream) {
 		_lifetime.destroy();
 		std::move(stream)
 			| start_with_next([this](auto &&data) {
-				*this = std::forward<decltype(data)>(data);
+				assign(std::forward<decltype(data)>(data));
 			}, _lifetime);
 	}
 
@@ -96,11 +83,39 @@ public:
 	}
 
 private:
+	template <typename A, typename B>
+	struct supports_equality_compare {
+		template <typename U, typename V>
+		static auto test(const U *u, const V *v)
+			-> decltype(*u == *v, details::true_t());
+		static details::false_t test(...);
+		static constexpr bool value
+			= (sizeof(test(
+				(std::decay_t<A>*)nullptr,
+				(std::decay_t<B>*)nullptr
+			)) == sizeof(details::true_t));
+	};
+	template <typename A, typename B>
+	static constexpr bool supports_equality_compare_v
+		= supports_equality_compare<A, B>::value;
+
 	template <typename OtherType>
 	variable &assign(OtherType &&data) {
-		_lifetime.destroy();
-		_data = std::forward<OtherType>(data);
-		_changes.fire_copy(_data);
+		if constexpr (supports_equality_compare_v<Type, OtherType>) {
+			if (!(_data == data)) {
+				_data = std::forward<OtherType>(data);
+				_changes.fire_copy(_data);
+			}
+		} else if constexpr (supports_equality_compare_v<Type, Type>) {
+			auto old = std::move(_data);
+			_data = std::forward<OtherType>(data);
+			if (!(_data == old)) {
+				_changes.fire_copy(_data);
+			}
+		} else {
+			_data = std::forward<OtherType>(data);
+			_changes.fire_copy(_data);
+		}
 		return *this;
 	}
 

@@ -57,6 +57,7 @@ public:
 	}
 
 	int desiredHeight() const;
+	rpl::producer<int> onlineCountValue() const;
 
 protected:
 	void visibleTopBottomUpdated(

@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "boxes/peer_list_box.h"
 
+#include <rpl/range.h>
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
@@ -230,6 +231,10 @@ void PeerListController::peerListSearchRefreshRows() {
 	delegate()->peerListRefreshRows();
 }
 
+rpl::producer<int> PeerListController::onlineCountValue() const {
+	return rpl::single(0);
+}
+
 void PeerListController::setDescriptionText(const QString &text) {
 	if (text.isEmpty()) {
 		setDescription(nullptr);
@@ -308,6 +313,7 @@ bool PeerListRow::checked() const {
 void PeerListRow::setCustomStatus(const QString &status) {
 	setStatusText(status);
 	_statusType = StatusType::Custom;
+	_statusValidTill = 0;
 }
 
 void PeerListRow::clearCustomStatus() {
@@ -320,12 +326,15 @@ void PeerListRow::refreshStatus() {
 		return;
 	}
 	_statusType = StatusType::LastSeen;
+	_statusValidTill = 0;
 	if (auto user = peer()->asUser()) {
 		auto time = unixtime();
 		setStatusText(App::onlineText(user, time));
 		if (App::onlineColorUse(user, time)) {
 			_statusType = StatusType::Online;
 		}
+		_statusValidTill = getms()
+			+ App::onlineWillChangeIn(user, time);
 	} else if (auto chat = peer()->asChat()) {
 		if (!chat->amIn()) {
 			setStatusText(lang(lng_chat_status_unaccessible));
@@ -339,6 +348,10 @@ void PeerListRow::refreshStatus() {
 	} else if (peer()->isChannel()) {
 		setStatusText(lang(lng_channel_status));
 	}
+}
+
+TimeMs PeerListRow::refreshStatusTime() const {
+	return _statusValidTill;
 }
 
 void PeerListRow::refreshName(const style::PeerListItem &st) {
@@ -505,6 +518,7 @@ PeerListContent::PeerListContent(
 			invalidatePixmapsCache();
 		}
 	});
+	_repaintByStatus.setCallback([this] { update(); });
 }
 
 void PeerListContent::appendRow(std::unique_ptr<PeerListRow> row) {
@@ -773,15 +787,18 @@ void PeerListContent::clearSearchRows() {
 }
 
 void PeerListContent::paintEvent(QPaintEvent *e) {
-	QRect r(e->rect());
 	Painter p(this);
 
-	p.fillRect(r, _st.item.button.textBg);
+	auto clip = e->rect();
+	p.fillRect(clip, _st.item.button.textBg);
+
+	auto repaintByStatusAfter = _repaintByStatus.remainingTime();
+	auto repaintAfterMin = repaintByStatusAfter;
 
 	auto rowsTopCached = rowsTop();
 	auto ms = getms();
-	auto yFrom = r.y() - rowsTopCached;
-	auto yTo = r.y() + r.height() - rowsTopCached;
+	auto yFrom = clip.y() - rowsTopCached;
+	auto yTo = clip.y() + clip.height() - rowsTopCached;
 	p.translate(0, rowsTopCached);
 	auto count = shownRowsCount();
 	if (count > 0) {
@@ -789,9 +806,18 @@ void PeerListContent::paintEvent(QPaintEvent *e) {
 		auto to = ceilclamp(yTo, _rowHeight, 0, count);
 		p.translate(0, from * _rowHeight);
 		for (auto index = from; index != to; ++index) {
-			paintRow(p, ms, RowIndex(index));
+			auto repaintAfter = paintRow(p, ms, RowIndex(index));
+			if (repaintAfter >= 0
+				&& (repaintAfterMin < 0
+					|| repaintAfterMin > repaintAfter)) {
+				repaintAfterMin = repaintAfter;
+			}
 			p.translate(0, _rowHeight);
 		}
+	}
+	if (repaintAfterMin != repaintByStatusAfter) {
+		Assert(repaintAfterMin >= 0);
+		_repaintByStatus.callOnce(repaintAfterMin);
 	}
 }
 
@@ -894,10 +920,16 @@ void PeerListContent::setPressed(Selected pressed) {
 	_pressed = pressed;
 }
 
-void PeerListContent::paintRow(Painter &p, TimeMs ms, RowIndex index) {
+TimeMs PeerListContent::paintRow(Painter &p, TimeMs ms, RowIndex index) {
 	auto row = getRow(index);
 	Assert(row != nullptr);
 	row->lazyInitialize(_st.item);
+	
+	auto refreshStatusAt = row->refreshStatusTime();
+	if (refreshStatusAt >= 0 && ms >= refreshStatusAt) {
+		row->refreshStatus();
+		refreshStatusAt = row->refreshStatusTime();
+	}
 
 	auto peer = row->peer();
 	auto user = peer->asUser();
@@ -968,6 +1000,7 @@ void PeerListContent::paintRow(Painter &p, TimeMs ms, RowIndex index) {
 	} else {
 		row->paintStatusText(p, _st.item, _st.item.statusPosition.x(), _st.item.statusPosition.y(), statusw, width(), selected);
 	}
+	return (refreshStatusAt - ms);
 }
 
 void PeerListContent::selectSkip(int direction) {
