@@ -26,6 +26,7 @@
 <(src_loc)/base/timer.cpp
 <(src_loc)/base/timer.h
 <(src_loc)/base/type_traits.h
+<(src_loc)/base/unique_any.h
 <(src_loc)/base/variant.h
 <(src_loc)/base/virtual_method.h
 <(src_loc)/base/weak_unique_ptr.h

@@ -161,10 +161,10 @@ public:
 		int outerWidth);
 	float64 checkedRatio();
 
-	void setNameFirstChars(const OrderedSet<QChar> &nameFirstChars) {
+	void setNameFirstChars(const base::flat_set<QChar> &nameFirstChars) {
 		_nameFirstChars = nameFirstChars;
 	}
-	const OrderedSet<QChar> &nameFirstChars() const {
+	const base::flat_set<QChar> &nameFirstChars() const {
 		return _nameFirstChars;
 	}
 
@@ -202,7 +202,7 @@ private:
 	Text _status;
 	StatusType _statusType = StatusType::Online;
 	TimeMs _statusValidTill = 0;
-	OrderedSet<QChar> _nameFirstChars;
+	base::flat_set<QChar> _nameFirstChars;
 	int _absoluteIndex = -1;
 	State _disabledState = State::Active;
 	bool _initialized : 1;
@@ -213,6 +213,17 @@ private:
 enum class PeerListSearchMode {
 	Disabled,
 	Enabled,
+};
+
+struct PeerListState {
+	PeerListState() = default;
+	PeerListState(PeerListState &&other) = delete;
+	PeerListState &operator=(PeerListState &&other) = delete;
+
+	base::unique_any controllerState;
+	std::vector<not_null<PeerData*>> list;
+	std::vector<not_null<PeerData*>> filterResults;
+	QString searchQuery;
 };
 
 class PeerListDelegate {
@@ -252,6 +263,9 @@ public:
 
 	virtual int peerListSelectedRowsCount() = 0;
 	virtual std::vector<not_null<PeerData*>> peerListCollectSelectedRows() = 0;
+	virtual std::unique_ptr<PeerListState> peerListSaveState() = 0;
+	virtual void peerListRestoreState(
+		std::unique_ptr<PeerListState> state) = 0;
 	virtual ~PeerListDelegate() = default;
 
 private:
@@ -277,6 +291,12 @@ public:
 
 	void setDelegate(not_null<PeerListSearchDelegate*> delegate) {
 		_delegate = delegate;
+	}
+
+	virtual base::unique_any saveState() {
+		return {};
+	}
+	virtual void restoreState(base::unique_any &&state) {
 	}
 
 protected:
@@ -314,8 +334,21 @@ public:
 	bool isSearchLoading() const {
 		return _searchController ? _searchController->isLoading() : false;
 	}
-	virtual std::unique_ptr<PeerListRow> createSearchRow(not_null<PeerData*> peer) {
+	virtual std::unique_ptr<PeerListRow> createSearchRow(
+			not_null<PeerData*> peer) {
 		return nullptr;
+	}
+	virtual std::unique_ptr<PeerListRow> createRestoredRow(
+			not_null<PeerData*> peer) {
+		return nullptr;
+	}
+
+	virtual std::unique_ptr<PeerListState> saveState() {
+		return delegate()->peerListSaveState();
+	}
+	virtual void restoreState(
+			std::unique_ptr<PeerListState> state) {
+		delegate()->peerListRestoreState(std::move(state));
 	}
 
 	bool isRowSelected(not_null<PeerData*> peer) {
@@ -418,6 +451,9 @@ public:
 		update();
 	}
 
+	std::unique_ptr<PeerListState> saveState() const;
+	void restoreState(std::unique_ptr<PeerListState> state);
+
 	auto scrollToRequests() const {
 		return _scrollToRequests.events();
 	}
@@ -473,10 +509,23 @@ private:
 	friend inline bool operator!=(Selected a, Selected b) {
 		return !(a == b);
 	}
+	struct SelectedSaved {
+		SelectedSaved(PeerListRowId id, Selected old)
+		: id(id), old(old) {
+		}
+		PeerListRowId id = 0;
+		Selected old;
+	};
+
+	struct EmptyControllerState {
+	};
 
 	void setSelected(Selected selected);
 	void setPressed(Selected pressed);
+	void setContexted(Selected contexted);
 	void restoreSelection();
+	SelectedSaved saveSelectedData(Selected from);
+	Selected restoreSelectedData(SelectedSaved from);
 
 	void updateSelection();
 	void loadProfilePhotos();
@@ -511,6 +560,7 @@ private:
 	int labelHeight() const;
 
 	void clearSearchRows();
+	void clearAllContent();
 	void handleMouseMove(QPoint position);
 	void mousePressReleased(Qt::MouseButton button);
 
@@ -524,7 +574,7 @@ private:
 
 	Selected _selected;
 	Selected _pressed;
-	Selected _context;
+	Selected _contexted;
 	bool _mouseSelection = false;
 	Qt::MouseButton _pressButton = Qt::LeftButton;
 
@@ -649,6 +699,13 @@ public:
 		});
 		return result;
 	}
+	std::unique_ptr<PeerListState> peerListSaveState() override {
+		return _content->saveState();
+	}
+	void peerListRestoreState(
+			std::unique_ptr<PeerListState> state) override {
+		_content->restoreState(std::move(state));
+	}
 
 protected:
 	not_null<PeerListContent*> content() const {
@@ -660,7 +717,9 @@ private:
 
 };
 
-class PeerListBox : public BoxContent, public PeerListContentDelegate {
+class PeerListBox
+	: public BoxContent
+	, public PeerListContentDelegate {
 public:
 	PeerListBox(
 		QWidget*,
@@ -670,7 +729,8 @@ public:
 	void peerListSetTitle(base::lambda<QString()> title) override {
 		setTitle(std::move(title));
 	}
-	void peerListSetAdditionalTitle(base::lambda<QString()> title) override {
+	void peerListSetAdditionalTitle(
+			base::lambda<QString()> title) override {
 		setAdditionalTitle(std::move(title));
 	}
 	void peerListSetSearchMode(PeerListSearchMode mode) override;
@@ -691,12 +751,15 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	void peerListAddSelectedRowInBunch(not_null<PeerData*> peer) override {
+	void peerListAddSelectedRowInBunch(
+			not_null<PeerData*> peer) override {
 		addSelectItem(peer, PeerListRow::SetStyle::Fast);
 	}
 	void peerListFinishSelectedRowsBunch() override;
 
-	void addSelectItem(not_null<PeerData*> peer, PeerListRow::SetStyle style);
+	void addSelectItem(
+		not_null<PeerData*> peer,
+		PeerListRow::SetStyle style);
 	void createMultiSelect();
 	int getTopScrollSkip() const;
 	void updateScrollSkips();

@@ -289,17 +289,17 @@ CountrySelectBox::Inner::Inner(QWidget *parent) : TWidget(parent)
 			countriesAll.push_back(ins);
 		}
 
-		QStringList namesList = QString::fromUtf8(ins->name).toLower().split(QRegularExpression("[\\s\\-]"), QString::SkipEmptyParts);
-		CountryNames &names(countriesNames[i]);
+		auto namesList = QString::fromUtf8(ins->name).toLower().split(QRegularExpression("[\\s\\-]"), QString::SkipEmptyParts);
+		auto &names = countriesNames[i];
 		int l = namesList.size();
 		names.resize(0);
 		names.reserve(l);
 		for (int j = 0, l = namesList.size(); j < l; ++j) {
-			QString name = namesList[j].trimmed();
+			auto name = namesList[j].trimmed();
 			if (!name.length()) continue;
 
-			QChar ch = name[0];
-			CountriesIds &v(countriesByLetter[ch]);
+			auto ch = name[0];
+			auto &v = countriesByLetter[ch];
 			if (v.isEmpty() || v.back() != i) {
 				v.push_back(i);
 			}

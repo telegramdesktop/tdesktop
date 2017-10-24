@@ -46,7 +46,6 @@ base::Observable<PeerUpdate, PeerUpdatedHandler> PeerUpdatedObservable;
 void mergePeerUpdate(PeerUpdate &mergeTo, const PeerUpdate &mergeFrom) {
 	if (!(mergeTo.flags & PeerUpdate::Flag::NameChanged)) {
 		if (mergeFrom.flags & PeerUpdate::Flag::NameChanged) {
-			mergeTo.oldNames = mergeFrom.oldNames;
 			mergeTo.oldNameFirstChars = mergeFrom.oldNameFirstChars;
 		}
 	}

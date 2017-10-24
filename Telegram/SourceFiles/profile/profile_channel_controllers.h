@@ -78,11 +78,21 @@ public:
 	void loadMoreRows() override;
 
 	void peerListSearchAddRow(not_null<PeerData*> peer) override;
-	std::unique_ptr<PeerListRow> createSearchRow(not_null<PeerData*> peer) override;
+	std::unique_ptr<PeerListRow> createSearchRow(
+		not_null<PeerData*> peer) override;
+	std::unique_ptr<PeerListRow> createRestoredRow(
+		not_null<PeerData*> peer) override;
+
+	std::unique_ptr<PeerListState> saveState() override;
+	void restoreState(std::unique_ptr<PeerListState> state) override;
 
 	// Callback(not_null<UserData*>)
 	template <typename Callback>
-	static void HandleParticipant(const MTPChannelParticipant &participant, Role role, not_null<Additional*> additional, Callback callback);
+	static void HandleParticipant(
+		const MTPChannelParticipant &participant,
+		Role role,
+		not_null<Additional*> additional,
+		Callback callback);
 
 	rpl::producer<int> onlineCountValue() const override {
 		return _onlineCount.value();
@@ -92,7 +102,19 @@ protected:
 	virtual std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;
 
 private:
-	static std::unique_ptr<PeerListSearchController> CreateSearchController(not_null<ChannelData*> channel, Role role, not_null<Additional*> additional);
+	struct SavedState {
+		base::unique_any searchState;
+		int offset = 0;
+		bool allLoaded = false;
+		bool wasLoading = false;
+		Additional additional;
+		rpl::lifetime lifetime;
+	};
+	
+	static std::unique_ptr<PeerListSearchController> CreateSearchController(
+		not_null<ChannelData*> channel,
+		Role role,
+		not_null<Additional*> additional);
 
 	void setupSortByOnline();
 	void setupListChangeViewers();
@@ -139,7 +161,16 @@ public:
 	bool isLoading() override;
 	bool loadMoreRows() override;
 
+	base::unique_any saveState() override;
+	void restoreState(base::unique_any &&state) override;
+
 private:
+	struct SavedState {
+		QString query;
+		int offset = 0;
+		bool allLoaded = false;
+		bool wasLoading = false;
+	};
 	struct CacheEntry {
 		MTPchannels_ChannelParticipants result;
 		int requestedCount = 0;
@@ -151,7 +182,10 @@ private:
 
 	void searchOnServer();
 	bool searchInCache();
-	void searchDone(mtpRequestId requestId, const MTPchannels_ChannelParticipants &result, int requestedCount);
+	void searchDone(
+		mtpRequestId requestId,
+		const MTPchannels_ChannelParticipants &result,
+		int requestedCount);
 
 	not_null<ChannelData*> _channel;
 	Role _role = Role::Restricted;

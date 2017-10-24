@@ -204,10 +204,15 @@ public:
 
 	QString name;
 	Text nameText;
-	using Names = OrderedSet<QString>;
-	Names names; // for filtering
-	using NameFirstChars = OrderedSet<QChar>;
-	NameFirstChars chars;
+
+	using NameWords = base::flat_set<QString>;
+	using NameFirstChars = base::flat_set<QChar>;
+	const NameWords &nameWords() const {
+		return _nameWords;
+	}
+	const NameFirstChars &nameFirstChars() const {
+		return _nameFirstChars;
+	}
 
 	enum LoadedStatus {
 		NotLoaded = 0x00,
@@ -292,6 +297,8 @@ private:
 	void fillNames();
 
 	ClickHandlerPtr _openLink;
+	NameWords _nameWords; // for filtering
+	NameFirstChars _nameFirstChars;
 
 	int _colorIndex = 0;
 	TimeMs _lastFullUpdate = 0;

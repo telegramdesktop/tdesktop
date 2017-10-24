@@ -20,6 +20,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include <rpl/producer.h>
+#include <rpl/filter.h>
+#include <rpl/then.h>
+#include <rpl/range.h>
 #include "base/observer.h"
 #include "base/flags.h"
 
@@ -81,7 +85,6 @@ struct PeerUpdate {
 	Flags flags = 0;
 
 	// NameChanged data
-	PeerData::Names oldNames;
 	PeerData::NameFirstChars oldNameFirstChars;
 
 	// SharedMediaChanged data
@@ -121,5 +124,37 @@ private:
 
 };
 base::Observable<PeerUpdate, PeerUpdatedHandler> &PeerUpdated();
+
+inline auto PeerUpdateViewer(
+		PeerUpdate::Flags flags) {
+	return rpl::make_producer<PeerUpdate>([=](
+			const auto &consumer) {
+		auto lifetime = rpl::lifetime();
+		lifetime.make_state<base::Subscription>(
+			PeerUpdated().add_subscription({ flags, [=](
+					const PeerUpdate &update) {
+				consumer.put_next_copy(update);
+			}}));
+		return lifetime;
+	});
+}
+
+inline auto PeerUpdateViewer(
+		not_null<PeerData*> peer,
+		PeerUpdate::Flags flags) {
+	return PeerUpdateViewer(flags)
+		| rpl::filter([=](const PeerUpdate &update) {
+			return (update.peer == peer);
+		});
+}
+
+inline auto PeerUpdateValue(
+		not_null<PeerData*> peer,
+		PeerUpdate::Flags flags) {
+	auto initial = PeerUpdate(peer);
+	initial.flags = flags;
+	return rpl::single(initial)
+		| rpl::then(PeerUpdateViewer(peer, flags));
+}
 
 } // namespace Notify

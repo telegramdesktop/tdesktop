@@ -230,11 +230,94 @@ void ParticipantsBoxController::peerListSearchAddRow(not_null<PeerData*> peer) {
 	}
 }
 
-std::unique_ptr<PeerListRow> ParticipantsBoxController::createSearchRow(not_null<PeerData*> peer) {
+std::unique_ptr<PeerListRow> ParticipantsBoxController::createSearchRow(
+		not_null<PeerData*> peer) {
 	if (auto user = peer->asUser()) {
 		return createRow(user);
 	}
 	return nullptr;
+}
+
+std::unique_ptr<PeerListRow> ParticipantsBoxController::createRestoredRow(
+		not_null<PeerData*> peer) {
+	if (auto user = peer->asUser()) {
+		return createRow(user);
+	}
+	return nullptr;
+}
+
+std::unique_ptr<PeerListState> ParticipantsBoxController::saveState() {
+	Expects(_role == Role::Profile);
+
+	auto result = PeerListController::saveState();
+
+	auto my = SavedState();
+	my.additional = std::move(_additional);
+	my.offset = _offset;
+	my.allLoaded = _allLoaded;
+	if (auto requestId = base::take(_loadRequestId)) {
+		request(requestId).cancel();
+		my.wasLoading = true;
+	}
+	if (auto search = searchController()) {
+		my.searchState = search->saveState();
+	}
+
+	auto weak = result.get();
+	Auth().data().megagroupParticipantAdded(_channel)
+		| rpl::start_with_next([weak](not_null<UserData*> user) {
+			if (!weak->list.empty()) {
+				if (weak->list[0] == user) {
+					return;
+				}
+			}
+			auto pos = base::find(weak->list, user);
+			if (pos == weak->list.cend()) {
+				weak->list.push_back(user);
+			}
+			base::stable_partition(weak->list, [user](not_null<PeerData*> peer) {
+				return (peer == user);
+			});
+		}, my.lifetime);
+	Auth().data().megagroupParticipantRemoved(_channel)
+		| rpl::start_with_next([weak](not_null<UserData*> user) {
+			weak->list.erase(std::remove(
+				weak->list.begin(),
+				weak->list.end(),
+				user), weak->list.end());
+			weak->filterResults.erase(std::remove(
+				weak->filterResults.begin(),
+				weak->filterResults.end(),
+				user), weak->filterResults.end());
+		}, my.lifetime);
+
+	result->controllerState = std::move(my);
+	return result;
+}
+
+void ParticipantsBoxController::restoreState(
+		std::unique_ptr<PeerListState> state) {
+	auto typeErasedState = &state->controllerState;
+	if (auto my = base::any_cast<SavedState>(typeErasedState)) {
+		if (auto requestId = base::take(_loadRequestId)) {
+			request(requestId).cancel();
+		}
+
+		_additional = std::move(my->additional);
+		_offset = my->offset;
+		_allLoaded = my->allLoaded;
+		if (auto search = searchController()) {
+			search->restoreState(std::move(my->searchState));
+		}
+		if (my->wasLoading) {
+			loadMoreRows();
+		}
+		PeerListController::restoreState(std::move(state));
+		if (!_offset) {
+			setDescriptionText(QString());
+		}
+		sortByOnline();
+	}
 }
 
 template <typename Callback>
@@ -764,6 +847,36 @@ void ParticipantsBoxSearchController::searchQuery(const QString &query) {
 			_timer.callOnce(AutoSearchTimeout);
 		} else {
 			_timer.cancel();
+		}
+	}
+}
+
+base::unique_any ParticipantsBoxSearchController::saveState() {
+	auto result = SavedState();
+	result.query = _query;
+	result.offset = _offset;
+	result.allLoaded = _allLoaded;
+	if (auto requestId = base::take(_requestId)) {
+		request(requestId).cancel();
+		result.wasLoading = true;
+	}
+	return result;
+}
+
+void ParticipantsBoxSearchController::restoreState(
+		base::unique_any &&state) {
+	if (auto my = base::any_cast<SavedState>(&state)) {
+		if (auto requestId = base::take(_requestId)) {
+			request(requestId).cancel();
+		}
+		_cache.clear();
+		_queries.clear();
+
+		_allLoaded = my->allLoaded;
+		_offset = my->offset;
+		_query = my->query;
+		if (my->wasLoading) {
+			searchOnServer();
 		}
 	}
 }
@@ -1540,7 +1653,7 @@ void AddParticipantBoxSearchController::addChatsContacts() {
 		return;
 	}
 
-	auto getSmallestIndex = [&wordList](Dialogs::IndexedList *list) -> const Dialogs::List* {
+	auto getSmallestIndex = [&](Dialogs::IndexedList *list) -> const Dialogs::List* {
 		if (list->isEmpty()) {
 			return nullptr;
 		}
@@ -1560,10 +1673,10 @@ void AddParticipantBoxSearchController::addChatsContacts() {
 	auto dialogsIndex = getSmallestIndex(App::main()->dialogsList());
 	auto contactsIndex = getSmallestIndex(App::main()->contactsNoDialogsList());
 
-	auto allWordsAreFound = [&wordList](const OrderedSet<QString> &names) {
-		auto hasNamePartStartingWith = [&names](const QString &word) {
-			for_const (auto &namePart, names) {
-				if (namePart.startsWith(word)) {
+	auto allWordsAreFound = [&](const base::flat_set<QString> &nameWords) {
+		auto hasNamePartStartingWith = [&](const QString &word) {
+			for (auto &nameWord : nameWords) {
+				if (nameWord.startsWith(word)) {
 					return true;
 				}
 			}
@@ -1577,14 +1690,14 @@ void AddParticipantBoxSearchController::addChatsContacts() {
 		}
 		return true;
 	};
-	auto filterAndAppend = [this, allWordsAreFound](const Dialogs::List *list) {
+	auto filterAndAppend = [&](const Dialogs::List *list) {
 		if (!list) {
 			return;
 		}
 
 		for_const (auto row, *list) {
 			if (auto user = row->history()->peer->asUser()) {
-				if (allWordsAreFound(user->names)) {
+				if (allWordsAreFound(user->nameWords())) {
 					delegate()->peerListSearchAddRow(user);
 				}
 			}

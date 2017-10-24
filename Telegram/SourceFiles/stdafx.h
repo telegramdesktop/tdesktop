@@ -84,6 +84,7 @@ namespace func = base::functors;
 
 #include "base/flat_set.h"
 #include "base/flat_map.h"
+#include "base/unique_any.h"
 
 #include "core/basic_types.h"
 #include "logs.h"

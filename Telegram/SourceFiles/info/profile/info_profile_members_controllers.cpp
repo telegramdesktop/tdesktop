@@ -56,6 +56,12 @@ public:
 		return _onlineCount.value();
 	}
 
+	std::unique_ptr<PeerListRow> createRestoredRow(
+		not_null<PeerData*> peer) override;
+
+	std::unique_ptr<PeerListState> saveState() override;
+	void restoreState(std::unique_ptr<PeerListState> state) override;
+
 private:
 	void rebuildRows();
 	void refreshOnlineCount();
@@ -125,6 +131,24 @@ void ChatMembersController::sortByOnline() {
 	refreshOnlineCount();
 }
 
+std::unique_ptr<PeerListState> ChatMembersController::saveState() {
+	auto result = PeerListController::saveState();
+	auto lifetime = rpl::lifetime();
+	using Flag = Notify::PeerUpdate::Flag;
+	Notify::PeerUpdateViewer(_chat, Flag::MembersChanged)
+		| rpl::start_with_next([state = result.get()](auto update) {
+			state->controllerState = base::unique_any{};
+		}, lifetime);
+	result->controllerState = std::move(lifetime);
+	return result;
+}
+
+void ChatMembersController::restoreState(
+		std::unique_ptr<PeerListState> state) {
+	PeerListController::restoreState(std::move(state));
+	sortByOnline();
+}
+
 void ChatMembersController::rebuildRows() {
 	if (_chat->participants.empty()) {
 		while (delegate()->peerListFullRowsCount() > 0) {
@@ -173,7 +197,16 @@ void ChatMembersController::refreshOnlineCount() {
 	_onlineCount = left;
 }
 
-std::unique_ptr<PeerListRow> ChatMembersController::createRow(not_null<UserData*> user) {
+std::unique_ptr<PeerListRow> ChatMembersController::createRestoredRow(
+		not_null<PeerData*> peer) {
+	if (auto user = peer->asUser()) {
+		return createRow(user);
+	}
+	return nullptr;
+}
+
+std::unique_ptr<PeerListRow> ChatMembersController::createRow(
+		not_null<UserData*> user) {
 	return std::make_unique<PeerListRow>(user);
 }
 

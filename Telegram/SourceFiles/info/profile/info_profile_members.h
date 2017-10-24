@@ -42,6 +42,8 @@ enum class Wrap;
 
 namespace Profile {
 
+class Memento;
+
 class Members
 	: public Ui::RpWidget
 	, private PeerListContentDelegate {
@@ -55,6 +57,9 @@ public:
 	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const {
 		return _scrollToRequests.events();
 	}
+
+	void saveState(not_null<Memento*> memento);
+	void restoreState(not_null<Memento*> memento);
 
 	int desiredHeight() const;
 	rpl::producer<int> onlineCountValue() const;
@@ -92,7 +97,7 @@ private:
 
 	void addMember();
 	void showSearch();
-	void toggleSearch();
+	void toggleSearch(anim::type animated = anim::type::normal);
 	void cancelSearch();
 	void applySearch();
 	void forceSearchSubmit();

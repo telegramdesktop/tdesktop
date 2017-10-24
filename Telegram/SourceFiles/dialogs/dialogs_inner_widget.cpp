@@ -122,7 +122,7 @@ DialogsInner::DialogsInner(QWidget *parent, not_null<Window::Controller*> contro
 			stopReorderPinned();
 		}
 		if (update.flags & UpdateFlag::NameChanged) {
-			handlePeerNameChange(update.peer, update.oldNames, update.oldNameFirstChars);
+			handlePeerNameChange(update.peer, update.oldNameFirstChars);
 		}
 		if (update.flags & UpdateFlag::PhotoChanged) {
 			this->update();
@@ -1271,13 +1271,13 @@ void DialogsInner::onParentGeometryChanged() {
 	}
 }
 
-void DialogsInner::handlePeerNameChange(not_null<PeerData*> peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
-	_dialogs->peerNameChanged(Dialogs::Mode::All, peer, oldNames, oldChars);
+void DialogsInner::handlePeerNameChange(not_null<PeerData*> peer, const PeerData::NameFirstChars &oldChars) {
+	_dialogs->peerNameChanged(Dialogs::Mode::All, peer, oldChars);
 	if (_dialogsImportant) {
-		_dialogsImportant->peerNameChanged(Dialogs::Mode::Important, peer, oldNames, oldChars);
+		_dialogsImportant->peerNameChanged(Dialogs::Mode::Important, peer, oldChars);
 	}
-	_contactsNoDialogs->peerNameChanged(peer, oldNames, oldChars);
-	_contacts->peerNameChanged(peer, oldNames, oldChars);
+	_contactsNoDialogs->peerNameChanged(peer, oldChars);
+	_contacts->peerNameChanged(peer, oldChars);
 	update();
 }
 
@@ -1323,12 +1323,12 @@ void DialogsInner::onFilterUpdate(QString newFilter, bool force) {
 				_filterResults.reserve((toFilter ? toFilter->size() : 0) + (toFilterContacts ? toFilterContacts->size() : 0));
 				if (toFilter) {
 					for_const (auto row, *toFilter) {
-						const PeerData::Names &names(row->history()->peer->names);
-						PeerData::Names::const_iterator nb = names.cbegin(), ne = names.cend(), ni;
+						const auto &nameWords = row->history()->peer->nameWords();
+						auto nb = nameWords.cbegin(), ne = nameWords.cend(), ni = nb;
 						for (fi = fb; fi != fe; ++fi) {
-							QString filterName(*fi);
+							auto filterWord = *fi;
 							for (ni = nb; ni != ne; ++ni) {
-								if (ni->startsWith(*fi)) {
+								if (ni->startsWith(filterWord)) {
 									break;
 								}
 							}
@@ -1343,12 +1343,12 @@ void DialogsInner::onFilterUpdate(QString newFilter, bool force) {
 				}
 				if (toFilterContacts) {
 					for_const (auto row, *toFilterContacts) {
-						const PeerData::Names &names(row->history()->peer->names);
-						PeerData::Names::const_iterator nb = names.cbegin(), ne = names.cend(), ni;
+						const auto &nameWords = row->history()->peer->nameWords();
+						auto nb = nameWords.cbegin(), ne = nameWords.cend(), ni = nb;
 						for (fi = fb; fi != fe; ++fi) {
-							QString filterName(*fi);
+							auto filterWord = *fi;
 							for (ni = nb; ni != ne; ++ni) {
-								if (ni->startsWith(*fi)) {
+								if (ni->startsWith(filterWord)) {
 									break;
 								}
 							}

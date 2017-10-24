@@ -416,7 +416,9 @@ object_ptr<Ui::RpWidget> InnerWidget::setupUserActions(
 			result,
 			st::infoBlockButtonSkip));
 
-		auto text = PeerUpdateValue(user, Notify::PeerUpdate::Flag::UserIsBlocked)
+		auto text = Notify::PeerUpdateValue(
+			user,
+			Notify::PeerUpdate::Flag::UserIsBlocked)
 			| rpl::map([user]() -> rpl::producer<QString> {
 				switch (user->blockStatus()) {
 				case UserData::BlockStatus::Blocked:
@@ -507,11 +509,16 @@ void InnerWidget::visibleTopBottomUpdated(
 
 void InnerWidget::saveState(not_null<Memento*> memento) {
 	memento->setInfoExpanded(_cover->toggled());
-	memento->setMediaExpanded(true);
+	if (_members) {
+		_members->saveState(memento);
+	}
 }
 
 void InnerWidget::restoreState(not_null<Memento*> memento) {
 	_cover->toggle(memento->infoExpanded());
+	if (_members) {
+		_members->restoreState(memento);
+	}
 	if (_infoWrap) {
 		_infoWrap->finishAnimating();
 	}

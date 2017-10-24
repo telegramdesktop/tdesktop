@@ -174,7 +174,7 @@ private:
 	bool isSelected() const {
 		return _importantSwitchSelected || _selected || (_hashtagSelected >= 0) || (_filteredSelected >= 0) || (_peerSearchSelected >= 0) || (_searchedSelected >= 0);
 	}
-	void handlePeerNameChange(not_null<PeerData*> peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
+	void handlePeerNameChange(not_null<PeerData*> peer, const PeerData::NameFirstChars &oldChars);
 
 	void itemRemoved(not_null<const HistoryItem*> item);
 	enum class UpdateRowSection {

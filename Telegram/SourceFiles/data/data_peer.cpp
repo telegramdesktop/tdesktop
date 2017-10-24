@@ -293,8 +293,7 @@ void PeerData::updateNameDelayed(const QString &newName, const QString &newNameO
 
 	Notify::PeerUpdate update(this);
 	update.flags |= UpdateFlag::NameChanged;
-	update.oldNames = names;
-	update.oldNameFirstChars = chars;
+	update.oldNameFirstChars = nameFirstChars();
 
 	if (isUser()) {
 		if (asUser()->username != newUsername) {
@@ -453,8 +452,8 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer a
 }
 
 void PeerData::fillNames() {
-	names.clear();
-	chars.clear();
+	_nameWords.clear();
+	_nameFirstChars.clear();
 	auto toIndex = TextUtilities::RemoveAccents(name);
 	if (cRussianLetters().match(toIndex).hasMatch()) {
 		toIndex += ' ' + translitRusEng(toIndex);
@@ -469,8 +468,8 @@ void PeerData::fillNames() {
 
 	auto namesList = TextUtilities::PrepareSearchWords(toIndex);
 	for (auto &name : namesList) {
-		names.insert(name);
-		chars.insert(name[0]);
+		_nameWords.insert(name);
+		_nameFirstChars.insert(name[0]);
 	}
 }
 

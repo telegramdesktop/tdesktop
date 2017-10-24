@@ -45,10 +45,6 @@ inline auto ToUpperValue() {
 	});
 }
 
-rpl::producer<Notify::PeerUpdate> PeerUpdateValue(
-	not_null<PeerData*> peer,
-	Notify::PeerUpdate::Flags flags);
-
 rpl::producer<TextWithEntities> PhoneValue(
 	not_null<UserData*> user);
 rpl::producer<TextWithEntities> BioValue(

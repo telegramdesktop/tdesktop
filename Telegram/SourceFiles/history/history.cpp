@@ -2330,7 +2330,7 @@ void History::removeChatListEntryByLetter(Dialogs::Mode list, QChar letter) {
 void History::addChatListEntryByLetter(Dialogs::Mode list, QChar letter, Dialogs::Row *row) {
 	Assert(letter != 0);
 	if (inChatList(list)) {
-		chatListLinks(list).insert(letter, row);
+		chatListLinks(list).emplace(letter, row);
 	}
 }
 

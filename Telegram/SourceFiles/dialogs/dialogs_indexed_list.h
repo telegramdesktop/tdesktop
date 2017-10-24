@@ -34,26 +34,28 @@ public:
 	RowsByLetter addToEnd(History *history);
 	Row *addByName(History *history);
 	void adjustByPos(const RowsByLetter &links);
-	void moveToTop(PeerData *peer);
+	void moveToTop(not_null<PeerData*> peer);
 
 	// row must belong to this indexed list all().
 	void movePinned(Row *row, int deltaSign);
 
 	// For sortMode != SortMode::Date
-	void peerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
+	void peerNameChanged(not_null<PeerData*> peer, const PeerData::NameFirstChars &oldChars);
 
 	//For sortMode == SortMode::Date
-	void peerNameChanged(Mode list, PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
+	void peerNameChanged(Mode list, not_null<PeerData*> peer, const PeerData::NameFirstChars &oldChars);
 
-	void del(const PeerData *peer, Row *replacedBy = nullptr);
+	void del(not_null<const PeerData*> peer, Row *replacedBy = nullptr);
 	void clear();
 
 	const List &all() const {
 		return _list;
 	}
 	const List *filtered(QChar ch) const {
-		static StaticNeverFreedPointer<List> empty(new List(SortMode::Add));
-		return _index.value(ch, empty.data());
+		if (auto it = _index.find(ch); it != _index.cend()) {
+			return it->second.get();
+		}
+		return &_empty;
 	}
 
 	~IndexedList();
@@ -81,13 +83,12 @@ public:
 	iterator find(int y, int h) { return all().find(y, h); }
 
 private:
-	void adjustByName(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
-	void adjustNames(Mode list, PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
+	void adjustByName(not_null<PeerData*> peer, const PeerData::NameFirstChars &oldChars);
+	void adjustNames(Mode list, not_null<PeerData*> peer, const PeerData::NameFirstChars &oldChars);
 
 	SortMode _sortMode;
-	List _list;
-	using Index = QMap<QChar, List*>;
-	Index _index;
+	List _list, _empty;
+	base::flat_map<QChar, std::unique_ptr<List>> _index;
 
 };
 

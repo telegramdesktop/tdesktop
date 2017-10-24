@@ -285,7 +285,7 @@ public:
 	};
 	PositionInChatListChange adjustByPosInChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed);
 	bool inChatList(Dialogs::Mode list) const {
-		return !chatListLinks(list).isEmpty();
+		return !chatListLinks(list).empty();
 	}
 	int posInChatList(Dialogs::Mode list) const;
 	Dialogs::Row *addToChatList(Dialogs::Mode list, Dialogs::IndexedList *indexed);
@@ -576,9 +576,9 @@ private:
 		return _chatListLinks[static_cast<int>(list)];
 	}
 	Dialogs::Row *mainChatListLink(Dialogs::Mode list) const {
-		auto it = chatListLinks(list).constFind(0);
+		auto it = chatListLinks(list).find(0);
 		Assert(it != chatListLinks(list).cend());
-		return it.value();
+		return it->second;
 	}
 	uint64 _sortKeyInChatList = 0; // like ((unixtime) << 32) | (incremented counter)
 

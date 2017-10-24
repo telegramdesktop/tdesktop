@@ -262,15 +262,15 @@ Cover *Cover::setOnlineCount(rpl::producer<int> &&count) {
 
 void Cover::initViewers() {
 	using Flag = Notify::PeerUpdate::Flag;
-	PeerUpdateValue(_peer, Flag::PhotoChanged)
+	Notify::PeerUpdateValue(_peer, Flag::PhotoChanged)
 		| rpl::start_with_next(
 			[this] { this->refreshUserpicLink(); },
 			lifetime());
-	PeerUpdateValue(_peer, Flag::NameChanged)
+	Notify::PeerUpdateValue(_peer, Flag::NameChanged)
 		| rpl::start_with_next(
 			[this] { this->refreshNameText(); },
 			lifetime());
-	PeerUpdateValue(_peer,
+	Notify::PeerUpdateValue(_peer,
 		Flag::UserOnlineChanged | Flag::MembersChanged)
 		| rpl::start_with_next(
 			[this] { this->refreshStatusText(); },

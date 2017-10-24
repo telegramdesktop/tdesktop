@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <rpl/producer.h>
 #include "info/info_content_widget.h"
+#include "boxes/peer_list_box.h"
 
 namespace Info {
 namespace Profile {
@@ -49,16 +50,23 @@ public:
 	bool infoExpanded() const {
 		return _infoExpanded;
 	}
-	void setMediaExpanded(bool expanded) {
-		_mediaExpanded = expanded;
+	void setMembersSearch(QString query) {
+		_membersSearch = query;
 	}
-	bool mediaExpanded() const {
-		return _mediaExpanded;
+	base::optional<QString> membersSearch() const {
+		return _membersSearch;
+	}
+	void setMembersState(std::unique_ptr<PeerListState> state) {
+		_membersState = std::move(state);
+	}
+	std::unique_ptr<PeerListState> membersState() {
+		return std::move(_membersState);
 	}
 
 private:
 	bool _infoExpanded = false;
-	bool _mediaExpanded = false;
+	base::optional<QString> _membersSearch;
+	std::unique_ptr<PeerListState> _membersState;
 
 };
 

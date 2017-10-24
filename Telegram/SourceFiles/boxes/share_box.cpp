@@ -349,7 +349,7 @@ void ShareBox::Inner::activateSkipPage(int pageHeight, int direction) {
 
 void ShareBox::Inner::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 	if (update.flags & Notify::PeerUpdate::Flag::NameChanged) {
-		_chatsIndexed->peerNameChanged(update.peer, update.oldNames, update.oldNameFirstChars);
+		_chatsIndexed->peerNameChanged(update.peer, update.oldNameFirstChars);
 	}
 
 	updateChat(update.peer);
@@ -635,7 +635,10 @@ void ShareBox::Inner::changeCheckState(Chat *chat) {
 	if (!_filter.isEmpty()) {
 		auto row = _chatsIndexed->getRow(chat->peer->id);
 		if (!row) {
-			row = _chatsIndexed->addToEnd(App::history(chat->peer)).value(0);
+			auto rowsByLetter = _chatsIndexed->addToEnd(App::history(chat->peer));
+			auto it = rowsByLetter.find(0);
+			Assert(it != rowsByLetter.cend());
+			row = it->second;
 		}
 		chat = getChat(row);
 		if (!chat->checkbox.checked()) {
@@ -712,8 +715,8 @@ void ShareBox::Inner::updateFilter(QString filter) {
 				if (toFilter) {
 					_filtered.reserve(toFilter->size());
 					for_const (auto row, *toFilter) {
-						auto &names = row->history()->peer->names;
-						PeerData::Names::const_iterator nb = names.cbegin(), ne = names.cend(), ni;
+						auto &nameWords = row->history()->peer->nameWords();
+						auto nb = nameWords.cbegin(), ne = nameWords.cend(), ni = nb;
 						for (fi = fb; fi != fe; ++fi) {
 							auto filterName = *fi;
 							for (ni = nb; ni != ne; ++ni) {

@@ -586,8 +586,8 @@ void PeerListContent::addToSearchIndex(not_null<PeerListRow*> row) {
 	}
 
 	removeFromSearchIndex(row);
-	row->setNameFirstChars(row->peer()->chars);
-	for_const (auto ch, row->nameFirstChars()) {
+	row->setNameFirstChars(row->peer()->nameFirstChars());
+	for (auto ch : row->nameFirstChars()) {
 		_searchIndex[ch].push_back(row);
 	}
 }
@@ -595,7 +595,7 @@ void PeerListContent::addToSearchIndex(not_null<PeerListRow*> row) {
 void PeerListContent::removeFromSearchIndex(not_null<PeerListRow*> row) {
 	auto &nameFirstChars = row->nameFirstChars();
 	if (!nameFirstChars.empty()) {
-		for_const (auto ch, row->nameFirstChars()) {
+		for (auto ch : row->nameFirstChars()) {
 			auto it = _searchIndex.find(ch);
 			if (it != _searchIndex.cend()) {
 				auto &entry = it->second;
@@ -605,7 +605,7 @@ void PeerListContent::removeFromSearchIndex(not_null<PeerListRow*> row) {
 				}
 			}
 		}
-		row->setNameFirstChars(OrderedSet<QChar>());
+		row->setNameFirstChars({});
 	}
 }
 
@@ -644,7 +644,9 @@ void PeerListContent::refreshIndices() {
 	}
 }
 
-void PeerListContent::removeRowAtIndex(std::vector<std::unique_ptr<PeerListRow>> &from, int index) {
+void PeerListContent::removeRowAtIndex(
+		std::vector<std::unique_ptr<PeerListRow>> &from,
+		int index) {
 	from.erase(from.begin() + index);
 	for (auto i = index, count = int(from.size()); i != count; ++i) {
 		from[i]->setAbsoluteIndex(i);
@@ -664,17 +666,40 @@ void PeerListContent::removeRow(not_null<PeerListRow*> row) {
 	Assert(index >= 0 && index < eraseFrom.size());
 	Assert(eraseFrom[index].get() == row);
 
+	auto pressedData = saveSelectedData(_pressed);
+	auto contextedData = saveSelectedData(_contexted);
 	setSelected(Selected());
 	setPressed(Selected());
+	setContexted(Selected());
 
 	_rowsById.erase(row->id());
 	auto &byPeer = _rowsByPeer[row->peer()];
 	byPeer.erase(std::remove(byPeer.begin(), byPeer.end(), row), byPeer.end());
 	removeFromSearchIndex(row);
-	_filterResults.erase(std::find(_filterResults.begin(), _filterResults.end(), row), _filterResults.end());
+	_filterResults.erase(
+		std::find(_filterResults.begin(), _filterResults.end(), row),
+		_filterResults.end());
 	removeRowAtIndex(eraseFrom, index);
 
 	restoreSelection();
+	setPressed(restoreSelectedData(pressedData));
+	setContexted(restoreSelectedData(contextedData));
+}
+
+void PeerListContent::clearAllContent() {
+	setSelected(Selected());
+	setPressed(Selected());
+	setContexted(Selected());
+	_rowsById.clear();
+	_rowsByPeer.clear();
+	_filterResults.clear();
+	_searchIndex.clear();
+	_rows.clear();
+	_searchRows.clear();
+	_searchQuery
+		= _normalizedSearchQuery
+		= _mentionHighlight
+		= QString();
 }
 
 void PeerListContent::convertRowToSearchResult(not_null<PeerListRow*> row) {
@@ -926,28 +951,23 @@ void PeerListContent::contextMenuEvent(QContextMenuEvent *e) {
 		_menu->deleteLater();
 		_menu = nullptr;
 	}
-	if (_context.index.value >= 0) {
-		updateRow(_context.index);
-		_context = Selected();
-	}
-
+	setContexted(Selected());
 	if (e->reason() == QContextMenuEvent::Mouse) {
 		handleMouseMove(e->globalPos());
 	}
 
-	_context = _selected;
+	setContexted(_selected);
 	if (_pressButton != Qt::LeftButton) {
 		mousePressReleased(_pressButton);
 	}
 
-	if (auto row = getRow(_context.index)) {
+	if (auto row = getRow(_contexted.index)) {
 		_menu = _controller->rowContextMenu(row);
 		if (_menu) {
 			_menu->setDestroyedCallback(base::lambda_guarded(
 				this,
 				[this] {
-					updateRow(_context.index);
-					_context = Selected();
+					setContexted(Selected());
 					handleMouseMove(QCursor::pos());
 				}));
 			_menu->popup(e->globalPos());
@@ -977,8 +997,8 @@ TimeMs PeerListContent::paintRow(Painter &p, TimeMs ms, RowIndex index) {
 
 	auto peer = row->peer();
 	auto user = peer->asUser();
-	auto active = (_context.index.value >= 0)
-		? _context
+	auto active = (_contexted.index.value >= 0)
+		? _contexted
 		: (_pressed.index.value >= 0)
 		? _pressed
 		: _selected;
@@ -1155,7 +1175,7 @@ void PeerListContent::checkScrollForPreload() {
 
 void PeerListContent::searchQueryChanged(QString query) {
 	auto searchWordsList = TextUtilities::PrepareSearchWords(query);
-	auto normalizedQuery = searchWordsList.isEmpty() ? QString() : searchWordsList.join(' ');
+	auto normalizedQuery = searchWordsList.join(' ');
 	if (_normalizedSearchQuery != normalizedQuery) {
 		setSearchQuery(query, normalizedQuery);
 		if (_controller->searchInLocal() && !searchWordsList.isEmpty()) {
@@ -1172,15 +1192,18 @@ void PeerListContent::searchQueryChanged(QString query) {
 				}
 			}
 			if (minimalList) {
-				auto searchWordInNames = [](PeerData *peer, const QString &searchWord) {
-					for_const (auto &nameWord, peer->names) {
+				auto searchWordInNames = [](
+						not_null<PeerData*> peer,
+						const QString &searchWord) {
+					for (auto &nameWord : peer->nameWords()) {
 						if (nameWord.startsWith(searchWord)) {
 							return true;
 						}
 					}
 					return false;
 				};
-				auto allSearchWordsInNames = [searchWordInNames, &searchWordsList](PeerData *peer) {
+				auto allSearchWordsInNames = [&](
+						not_null<PeerData*> peer) {
 					for_const (auto &searchWord, searchWordsList) {
 						if (!searchWordInNames(peer, searchWord)) {
 							return false;
@@ -1205,12 +1228,58 @@ void PeerListContent::searchQueryChanged(QString query) {
 	}
 }
 
-void PeerListContent::setSearchQuery(const QString &query, const QString &normalizedQuery) {
+std::unique_ptr<PeerListState> PeerListContent::saveState() const {
+	auto result = std::make_unique<PeerListState>();
+	result->controllerState = EmptyControllerState();
+	result->list.reserve(_rows.size());
+	for (auto &row : _rows) {
+		result->list.push_back(row->peer());
+	}
+	result->filterResults.reserve(_filterResults.size());
+	for (auto &row : _filterResults) {
+		result->filterResults.push_back(row->peer());
+	}
+	result->searchQuery = _searchQuery;
+	return result;
+}
+
+void PeerListContent::restoreState(
+		std::unique_ptr<PeerListState> state) {
+	if (!state || !state->controllerState.has_value()) {
+		return;
+	}
+
+	clearAllContent();
+
+	for (auto peer : state->list) {
+		if (auto row = _controller->createRestoredRow(peer)) {
+			appendRow(std::move(row));
+		}
+	}
+	auto query = state->searchQuery;
+	auto searchWords = TextUtilities::PrepareSearchWords(query);
+	setSearchQuery(query, searchWords.join(' '));
+	for (auto peer : state->filterResults) {
+		if (auto existingRow = findRow(peer->id)) {
+			_filterResults.push_back(existingRow);
+		} else if (auto row = _controller->createSearchRow(peer)) {
+			appendSearchRow(std::move(row));
+		}
+	}
+	refreshRows();
+}
+
+void PeerListContent::setSearchQuery(
+		const QString &query,
+		const QString &normalizedQuery) {
 	setSelected(Selected());
 	setPressed(Selected());
+	setContexted(Selected());
 	_searchQuery = query;
 	_normalizedSearchQuery = normalizedQuery;
-	_mentionHighlight = _searchQuery.startsWith('@') ? _searchQuery.mid(1) : _searchQuery;
+	_mentionHighlight = _searchQuery.startsWith('@')
+		? _searchQuery.mid(1)
+		: _searchQuery;
 	_filterResults.clear();
 	clearSearchRows();
 }
@@ -1239,9 +1308,36 @@ void PeerListContent::setSelected(Selected selected) {
 	}
 }
 
+void PeerListContent::setContexted(Selected contexted) {
+	updateRow(_contexted.index);
+	if (_contexted != contexted) {
+		_contexted = contexted;
+		updateRow(_contexted.index);
+	}
+}
+
 void PeerListContent::restoreSelection() {
 	_lastMousePosition = QCursor::pos();
 	updateSelection();
+}
+
+auto PeerListContent::saveSelectedData(Selected from)
+-> SelectedSaved {
+	if (auto row = getRow(from.index)) {
+		return { row->id(), from };
+	}
+	return { PeerListRowId(0), from };
+}
+
+auto PeerListContent::restoreSelectedData(SelectedSaved from)
+-> Selected {
+	auto result = from.old;
+	if (auto row = findRow(from.id)) {
+		result.index = findRowIndex(row, result.index);
+	} else {
+		result.index.value = -1;
+	}
+	return result;
 }
 
 void PeerListContent::updateSelection() {
@@ -1305,6 +1401,9 @@ void PeerListContent::updateRow(RowIndex index) {
 		if (index == _pressed.index) {
 			setPressed(Selected());
 		}
+		if (index == _contexted.index) {
+			setContexted(Selected());
+		}
 	}
 	update(0, getRowTop(index), width(), _rowHeight);
 }
@@ -1349,7 +1448,9 @@ PeerListRow *PeerListContent::getRow(RowIndex index) {
 	return nullptr;
 }
 
-PeerListContent::RowIndex PeerListContent::findRowIndex(not_null<PeerListRow*> row, RowIndex hint) {
+PeerListContent::RowIndex PeerListContent::findRowIndex(
+		not_null<PeerListRow*> row,
+		RowIndex hint) {
 	if (!showingSearch()) {
 		Assert(!row->isSearchResult());
 		return RowIndex(row->absoluteIndex());

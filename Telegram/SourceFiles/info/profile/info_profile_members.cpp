@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_members.h"
 
 #include <rpl/combine.h>
+#include "info/profile/info_profile_widget.h"
 #include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_values.h"
@@ -90,6 +91,27 @@ int Members::desiredHeight() const {
 
 rpl::producer<int> Members::onlineCountValue() const {
 	return _listController->onlineCountValue();
+}
+
+void Members::saveState(not_null<Memento*> memento) {
+	if (_searchShown) {
+		memento->setMembersSearch(_searchField->getLastText());
+	}
+	memento->setMembersState(_listController->saveState());
+}
+
+void Members::restoreState(not_null<Memento*> memento) {
+	_listController->restoreState(memento->membersState());
+	if (auto text = memento->membersSearch()) {
+		if (!_searchShown) {
+			toggleSearch(anim::type::instant);
+		}
+		_searchField->setText(*text);
+		_searchField->updatePlaceholder();
+		applySearch();
+	} else if (_searchShown) {
+		toggleSearch(anim::type::instant);
+	}
 }
 
 object_ptr<Ui::FlatLabel> Members::setupHeader() {
@@ -265,14 +287,20 @@ void Members::showSearch() {
 	}
 }
 
-void Members::toggleSearch() {
+void Members::toggleSearch(anim::type animated) {
 	_searchShown = !_searchShown;
-	_cancelSearch->toggleAnimated(_searchShown);
-	_searchShownAnimation.start(
-		[this] { searchAnimationCallback(); },
-		_searchShown ? 0. : 1.,
-		_searchShown ? 1. : 0.,
-		st::slideWrapDuration);
+	if (animated == anim::type::normal) {
+		_cancelSearch->toggleAnimated(_searchShown);
+		_searchShownAnimation.start(
+			[this] { searchAnimationCallback(); },
+			_searchShown ? 0. : 1.,
+			_searchShown ? 1. : 0.,
+			st::slideWrapDuration);
+	} else {
+		_cancelSearch->toggleFast(_searchShown);
+		_searchShownAnimation.finish();
+		searchAnimationCallback();
+	}
 	_search->setDisabled(_searchShown);
 	if (_searchShown) {
 		_searchField->show();
