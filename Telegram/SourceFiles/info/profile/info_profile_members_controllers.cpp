@@ -63,6 +63,9 @@ public:
 	void restoreState(std::unique_ptr<PeerListState> state) override;
 
 private:
+	struct SavedState : SavedStateBase {
+		rpl::lifetime lifetime;
+	};
 	void rebuildRows();
 	void refreshOnlineCount();
 	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user);
@@ -133,13 +136,13 @@ void ChatMembersController::sortByOnline() {
 
 std::unique_ptr<PeerListState> ChatMembersController::saveState() {
 	auto result = PeerListController::saveState();
-	auto lifetime = rpl::lifetime();
+	auto my = std::make_unique<SavedState>();
 	using Flag = Notify::PeerUpdate::Flag;
 	Notify::PeerUpdateViewer(_chat, Flag::MembersChanged)
 		| rpl::start_with_next([state = result.get()](auto update) {
-			state->controllerState = base::unique_any{};
-		}, lifetime);
-	result->controllerState = std::move(lifetime);
+			state->controllerState = nullptr;
+		}, my->lifetime);
+	result->controllerState = std::move(my);
 	return result;
 }
 

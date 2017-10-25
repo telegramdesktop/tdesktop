@@ -215,16 +215,7 @@ enum class PeerListSearchMode {
 	Enabled,
 };
 
-struct PeerListState {
-	PeerListState() = default;
-	PeerListState(PeerListState &&other) = delete;
-	PeerListState &operator=(PeerListState &&other) = delete;
-
-	base::unique_any controllerState;
-	std::vector<not_null<PeerData*>> list;
-	std::vector<not_null<PeerData*>> filterResults;
-	QString searchQuery;
-};
+struct PeerListState;
 
 class PeerListDelegate {
 public:
@@ -284,6 +275,10 @@ public:
 
 class PeerListSearchController {
 public:
+	struct SavedStateBase {
+		virtual ~SavedStateBase() = default;
+	};
+
 	virtual void searchQuery(const QString &query) = 0;
 	virtual bool isLoading() = 0;
 	virtual bool loadMoreRows() = 0;
@@ -293,10 +288,11 @@ public:
 		_delegate = delegate;
 	}
 
-	virtual base::unique_any saveState() {
-		return {};
+	virtual std::unique_ptr<SavedStateBase> saveState() {
+		return nullptr;
 	}
-	virtual void restoreState(base::unique_any &&state) {
+	virtual void restoreState(
+		std::unique_ptr<SavedStateBase> state) {
 	}
 
 protected:
@@ -311,6 +307,10 @@ private:
 
 class PeerListController : public PeerListSearchDelegate {
 public:
+	struct SavedStateBase {
+		virtual ~SavedStateBase() = default;
+	};
+
 	// Search works only with RowId == peer->id.
 	PeerListController(std::unique_ptr<PeerListSearchController> searchController = nullptr);
 
@@ -343,13 +343,9 @@ public:
 		return nullptr;
 	}
 
-	virtual std::unique_ptr<PeerListState> saveState() {
-		return delegate()->peerListSaveState();
-	}
+	virtual std::unique_ptr<PeerListState> saveState();
 	virtual void restoreState(
-			std::unique_ptr<PeerListState> state) {
-		delegate()->peerListRestoreState(std::move(state));
-	}
+		std::unique_ptr<PeerListState> state);
 
 	bool isRowSelected(not_null<PeerData*> peer) {
 		return delegate()->peerListIsRowSelected(peer);
@@ -399,6 +395,17 @@ private:
 
 	rpl::lifetime _lifetime;
 
+};
+
+struct PeerListState {
+	PeerListState() = default;
+	PeerListState(PeerListState &&other) = delete;
+	PeerListState &operator=(PeerListState &&other) = delete;
+
+	std::unique_ptr<PeerListController::SavedStateBase> controllerState;
+	std::vector<not_null<PeerData*>> list;
+	std::vector<not_null<PeerData*>> filterResults;
+	QString searchQuery;
 };
 
 class PeerListContent
@@ -515,9 +522,6 @@ private:
 		}
 		PeerListRowId id = 0;
 		Selected old;
-	};
-
-	struct EmptyControllerState {
 	};
 
 	void setSelected(Selected selected);

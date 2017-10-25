@@ -251,16 +251,16 @@ std::unique_ptr<PeerListState> ParticipantsBoxController::saveState() {
 
 	auto result = PeerListController::saveState();
 
-	auto my = SavedState();
-	my.additional = std::move(_additional);
-	my.offset = _offset;
-	my.allLoaded = _allLoaded;
+	auto my = std::make_unique<SavedState>();
+	my->additional = std::move(_additional);
+	my->offset = _offset;
+	my->allLoaded = _allLoaded;
 	if (auto requestId = base::take(_loadRequestId)) {
 		request(requestId).cancel();
-		my.wasLoading = true;
+		my->wasLoading = true;
 	}
 	if (auto search = searchController()) {
-		my.searchState = search->saveState();
+		my->searchState = search->saveState();
 	}
 
 	auto weak = result.get();
@@ -278,7 +278,7 @@ std::unique_ptr<PeerListState> ParticipantsBoxController::saveState() {
 			base::stable_partition(weak->list, [user](not_null<PeerData*> peer) {
 				return (peer == user);
 			});
-		}, my.lifetime);
+		}, my->lifetime);
 	Auth().data().megagroupParticipantRemoved(_channel)
 		| rpl::start_with_next([weak](not_null<UserData*> user) {
 			weak->list.erase(std::remove(
@@ -289,7 +289,7 @@ std::unique_ptr<PeerListState> ParticipantsBoxController::saveState() {
 				weak->filterResults.begin(),
 				weak->filterResults.end(),
 				user), weak->filterResults.end());
-		}, my.lifetime);
+		}, my->lifetime);
 
 	result->controllerState = std::move(my);
 	return result;
@@ -297,8 +297,10 @@ std::unique_ptr<PeerListState> ParticipantsBoxController::saveState() {
 
 void ParticipantsBoxController::restoreState(
 		std::unique_ptr<PeerListState> state) {
-	auto typeErasedState = &state->controllerState;
-	if (auto my = base::any_cast<SavedState>(typeErasedState)) {
+	auto typeErasedState = state
+		? state->controllerState.get()
+		: nullptr;
+	if (auto my = dynamic_cast<SavedState*>(typeErasedState)) {
 		if (auto requestId = base::take(_loadRequestId)) {
 			request(requestId).cancel();
 		}
@@ -851,21 +853,22 @@ void ParticipantsBoxSearchController::searchQuery(const QString &query) {
 	}
 }
 
-base::unique_any ParticipantsBoxSearchController::saveState() {
-	auto result = SavedState();
-	result.query = _query;
-	result.offset = _offset;
-	result.allLoaded = _allLoaded;
+auto ParticipantsBoxSearchController::saveState()
+-> std::unique_ptr<SavedStateBase> {
+	auto result = std::make_unique<SavedState>();
+	result->query = _query;
+	result->offset = _offset;
+	result->allLoaded = _allLoaded;
 	if (auto requestId = base::take(_requestId)) {
 		request(requestId).cancel();
-		result.wasLoading = true;
+		result->wasLoading = true;
 	}
-	return result;
+	return std::move(result);
 }
 
 void ParticipantsBoxSearchController::restoreState(
-		base::unique_any &&state) {
-	if (auto my = base::any_cast<SavedState>(&state)) {
+		std::unique_ptr<SavedStateBase> state) {
+	if (auto my = dynamic_cast<SavedState*>(state.get())) {
 		if (auto requestId = base::take(_requestId)) {
 			request(requestId).cancel();
 		}

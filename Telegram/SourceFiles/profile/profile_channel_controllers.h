@@ -102,8 +102,8 @@ protected:
 	virtual std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;
 
 private:
-	struct SavedState {
-		base::unique_any searchState;
+	struct SavedState : SavedStateBase {
+		std::unique_ptr<PeerListSearchController::SavedStateBase> searchState;
 		int offset = 0;
 		bool allLoaded = false;
 		bool wasLoading = false;
@@ -150,7 +150,9 @@ private:
 };
 
 // Members, banned and restricted users server side search.
-class ParticipantsBoxSearchController : public PeerListSearchController, private MTP::Sender {
+class ParticipantsBoxSearchController
+	: public PeerListSearchController
+	, private MTP::Sender {
 public:
 	using Role = ParticipantsBoxController::Role;
 	using Additional = ParticipantsBoxController::Additional;
@@ -161,11 +163,11 @@ public:
 	bool isLoading() override;
 	bool loadMoreRows() override;
 
-	base::unique_any saveState() override;
-	void restoreState(base::unique_any &&state) override;
+	std::unique_ptr<SavedStateBase> saveState() override;
+	void restoreState(std::unique_ptr<SavedStateBase> state) override;
 
 private:
-	struct SavedState {
+	struct SavedState : SavedStateBase {
 		QString query;
 		int offset = 0;
 		bool allLoaded = false;

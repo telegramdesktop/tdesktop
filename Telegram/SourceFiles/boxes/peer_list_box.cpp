@@ -260,6 +260,15 @@ void PeerListController::setSearchNoResultsText(const QString &text) {
 	}
 }
 
+std::unique_ptr<PeerListState> PeerListController::saveState() {
+	return delegate()->peerListSaveState();
+}
+
+void PeerListController::restoreState(
+		std::unique_ptr<PeerListState> state) {
+	delegate()->peerListRestoreState(std::move(state));
+}
+
 void PeerListBox::addSelectItem(not_null<PeerData*> peer, PeerListRow::SetStyle style) {
 	if (!_select) {
 		createMultiSelect();
@@ -1230,7 +1239,8 @@ void PeerListContent::searchQueryChanged(QString query) {
 
 std::unique_ptr<PeerListState> PeerListContent::saveState() const {
 	auto result = std::make_unique<PeerListState>();
-	result->controllerState = EmptyControllerState();
+	result->controllerState
+		= std::make_unique<PeerListController::SavedStateBase>();
 	result->list.reserve(_rows.size());
 	for (auto &row : _rows) {
 		result->list.push_back(row->peer());
@@ -1245,7 +1255,7 @@ std::unique_ptr<PeerListState> PeerListContent::saveState() const {
 
 void PeerListContent::restoreState(
 		std::unique_ptr<PeerListState> state) {
-	if (!state || !state->controllerState.has_value()) {
+	if (!state || !state->controllerState) {
 		return;
 	}
 
