@@ -334,6 +334,9 @@ void Cover::refreshStatusText() {
 	refreshStatusGeometry(width());
 }
 
+Cover::~Cover() {
+}
+
 void Cover::refreshNameGeometry(int newWidth) {
 	auto nameWidth = newWidth
 		- st::infoProfileNameLeft

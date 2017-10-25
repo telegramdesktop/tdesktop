@@ -26,11 +26,17 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
 #include "storage/file_download.h"
+#include "ui/widgets/popup_menu.h"
 #include "lang/lang_keys.h"
 #include "auth_session.h"
+#include "mainwidget.h"
 #include "window/main_window.h"
 #include "styles/style_overview.h"
 #include "styles/style_info.h"
+#include "boxes/peer_list_box.h"
+#include "boxes/confirm_box.h"
+#include "info/info_top_bar_override.h"
+#include "core/file_utilities.h"
 
 namespace Layout = Overview::Layout;
 
@@ -634,6 +640,19 @@ auto ListWidget::collectSelectedItems() const -> SelectedItems {
 	return items;
 }
 
+SelectedItemSet ListWidget::collectSelectedSet() const {
+	auto items = SelectedItemSet();
+	if (hasSelectedItems()) {
+		for (auto &data : _selected) {
+			auto fullId = computeFullId(data.first);
+			if (auto item = App::histItemById(fullId)) {
+				items.insert(items.size(), item);
+			}
+		}
+	}
+	return items;
+}
+
 void ListWidget::pushSelectedItems() {
 	_selectedListStream.fire(collectSelectedItems());
 }
@@ -1059,6 +1078,260 @@ void ListWidget::mouseReleaseEvent(QMouseEvent *e) {
 void ListWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 	mouseActionStart(e->globalPos(), e->button());
 	trySwitchToWordSelection();
+}
+
+void ListWidget::showContextMenu(
+		QContextMenuEvent *e,
+		ContextMenuSource source) {
+	if (_contextMenu) {
+		_contextMenu->deleteLater();
+		_contextMenu = nullptr;
+		repaintItem(_contextUniversalId);
+	}
+	if (e->reason() == QContextMenuEvent::Mouse) {
+		mouseActionUpdate(e->globalPos());
+	}
+
+	auto item = App::histItemById(computeFullId(_overState.itemId));
+	if (!item || !_overState.inside) {
+		return;
+	}
+	auto universalId = _contextUniversalId = _overState.itemId;
+
+	enum class SelectionState {
+		NoSelectedItems,
+		NotOverSelectedItems,
+		OverSelectedItems,
+		NotOverSelectedText,
+		OverSelectedText,
+	};
+	auto overSelected = SelectionState::NoSelectedItems;
+	if (source == ContextMenuSource::Touch) {
+		if (hasSelectedItems()) {
+			overSelected = SelectionState::OverSelectedItems;
+		} else if (hasSelectedText()) {
+			overSelected = SelectionState::OverSelectedItems;
+		}
+	} else if (hasSelectedText()) {
+		// #TODO text selection
+	} else if (hasSelectedItems()) {
+		auto it = _selected.find(_overState.itemId);
+		if (isSelectedItem(it) && _overState.inside) {
+			overSelected = SelectionState::OverSelectedItems;
+		} else {
+			overSelected = SelectionState::NotOverSelectedItems;
+		}
+	}
+
+	auto canDeleteAll = [&] {
+		return base::find_if(_selected, [](auto &item) {
+			return !item.second.canDelete;
+		}) == _selected.end();
+	};
+	auto canForwardAll = [&] {
+		return base::find_if(_selected, [](auto &item) {
+			return !item.second.canForward;
+		}) == _selected.end();
+	};
+
+	auto link = ClickHandler::getActive();
+
+	_contextMenu = new Ui::PopupMenu(nullptr);
+	_contextMenu->addAction(
+		lang(lng_context_to_msg),
+		[itemFullId = item->fullId()] {
+			if (auto item = App::histItemById(itemFullId)) {
+				Ui::showPeerHistoryAtItem(item);
+			}
+		});
+
+	auto photoLink = dynamic_cast<PhotoClickHandler*>(link.data());
+	auto fileLink = dynamic_cast<DocumentClickHandler*>(link.data());
+	if (photoLink || fileLink) {
+		auto [isVideo, isVoice, isSong] = [&] {
+			if (fileLink) {
+				auto document = fileLink->document();
+				return std::make_tuple(
+					document->isVideo(),
+					(document->voice() != nullptr),
+					(document->song() != nullptr)
+				);
+			}
+			return std::make_tuple(false, false, false);
+		}();
+
+		if (photoLink) {
+		} else {
+			if (auto document = fileLink->document()) {
+				if (document->loading()) {
+					_contextMenu->addAction(
+						lang(lng_context_cancel_download),
+						[document] {
+							document->cancel();
+						});
+				} else {
+					auto filepath = document->filepath(DocumentData::FilePathResolveChecked);
+					if (!filepath.isEmpty()) {
+						auto handler = App::LambdaDelayed(
+							st::defaultDropdownMenu.menu.ripple.hideDuration,
+							this,
+							[filepath] {
+								File::ShowInFolder(filepath);
+							});
+						_contextMenu->addAction(
+							lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld)
+								? lng_context_show_in_finder
+								: lng_context_show_in_folder),
+							std::move(handler));
+					}
+					auto handler = App::LambdaDelayed(
+						st::defaultDropdownMenu.menu.ripple.hideDuration,
+						this,
+						[document] {
+							DocumentSaveClickHandler::doSave(document, true);
+						});
+					_contextMenu->addAction(
+						lang(isVideo
+							? lng_context_save_video
+							: isVoice
+							? lng_context_save_audio
+							: isSong
+							? lng_context_save_audio_file
+							: lng_context_save_file),
+						std::move(handler));
+				}
+			}
+		}
+	} else if (link) {
+		auto linkCopyToClipboardText
+			= link->copyToClipboardContextItemText();
+		if (!linkCopyToClipboardText.isEmpty()) {
+			_contextMenu->addAction(
+				linkCopyToClipboardText,
+				[link] {
+					link->copyToClipboard();
+				});
+		}
+	}
+	if (overSelected == SelectionState::OverSelectedItems) {
+		if (canForwardAll()) {
+			_contextMenu->addAction(
+				lang(lng_context_forward_selected),
+				base::lambda_guarded(this, [this] {
+					forwardSelected();
+				}));
+		}
+		if (canDeleteAll()) {
+			_contextMenu->addAction(
+				lang(lng_context_delete_selected),
+				base::lambda_guarded(this, [this] {
+					deleteSelected();
+				}));
+		}
+		_contextMenu->addAction(
+			lang(lng_context_clear_selection),
+			base::lambda_guarded(this, [this] {
+				clearSelected();
+			}));
+	} else {
+		if (overSelected != SelectionState::NotOverSelectedItems) {
+			if (item->canForward()) {
+				_contextMenu->addAction(
+					lang(lng_context_forward_msg),
+					base::lambda_guarded(this, [this, universalId] {
+						forwardItem(universalId);
+					}));
+			}
+			if (item->canDelete()) {
+				_contextMenu->addAction(
+					lang(lng_context_delete_msg),
+					base::lambda_guarded(this, [this, universalId] {
+						deleteItem(universalId);
+					}));
+			}
+		}
+		_contextMenu->addAction(
+			lang(lng_context_select_msg),
+			base::lambda_guarded(this, [this, universalId] {
+				if (hasSelectedText()) {
+					clearSelected();
+				} else if (_selected.size() == MaxSelectedItems) {
+					return;
+				} else if (_selected.empty()) {
+					update();
+				}
+				applyItemSelection(universalId, FullSelection);
+			}));
+	}
+
+	_contextMenu->setDestroyedCallback(base::lambda_guarded(
+		this,
+		[this, universalId] {
+			_contextMenu = nullptr;
+			mouseActionUpdate(QCursor::pos());
+			repaintItem(universalId);
+		}));
+	_contextMenu->popup(e->globalPos());
+	e->accept();
+}
+
+void ListWidget::contextMenuEvent(QContextMenuEvent *e) {
+	showContextMenu(
+		e,
+		(e->reason() == QContextMenuEvent::Mouse)
+			? ContextMenuSource::Mouse
+			: ContextMenuSource::Other);
+}
+
+void ListWidget::forwardSelected() {
+	forwardItems(collectSelectedSet());
+}
+
+void ListWidget::forwardItem(UniversalMsgId universalId) {
+	if (auto item = App::histItemById(computeFullId(universalId))) {
+		auto items = SelectedItemSet();
+		items.insert(0, item);
+		forwardItems(std::move(items));
+	}
+}
+
+void ListWidget::forwardItems(SelectedItemSet items) {
+	if (items.empty()) {
+		return;
+	}
+	auto that = weak(this);
+	auto controller = std::make_unique<ChooseRecipientBoxController>(
+		[that, items = std::move(items)](not_null<PeerData*> peer) {
+			App::main()->setForwardDraft(peer->id, items);
+			if (that) {
+				that->clearSelected();
+			}
+		});
+	Ui::show(Box<PeerListBox>(
+		std::move(controller),
+		[](not_null<PeerListBox*> box) {
+			box->addButton(langFactory(lng_cancel), [box] {
+				box->closeBox();
+			});
+		}));
+}
+
+void ListWidget::deleteSelected() {
+	deleteItems(collectSelectedSet());
+}
+
+void ListWidget::deleteItem(UniversalMsgId universalId) {
+	if (auto item = App::histItemById(computeFullId(universalId))) {
+		auto items = SelectedItemSet();
+		items.insert(0, item);
+		deleteItems(std::move(items));
+	}
+}
+
+void ListWidget::deleteItems(SelectedItemSet items) {
+	if (!items.empty()) {
+		Ui::show(Box<DeleteMessagesBox>(items));
+	}
 }
 
 void ListWidget::trySwitchToWordSelection() {

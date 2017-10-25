@@ -604,7 +604,7 @@ private:
 
 	std::vector<std::unique_ptr<PeerListRow>> _searchRows;
 	base::Timer _repaintByStatus;
-	QPointer<Ui::PopupMenu> _menu;
+	QPointer<Ui::PopupMenu> _contextMenu;
 
 };
 

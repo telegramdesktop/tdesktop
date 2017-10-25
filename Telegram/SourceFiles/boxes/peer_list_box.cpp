@@ -956,9 +956,9 @@ void PeerListContent::mousePressReleased(Qt::MouseButton button) {
 }
 
 void PeerListContent::contextMenuEvent(QContextMenuEvent *e) {
-	if (_menu) {
-		_menu->deleteLater();
-		_menu = nullptr;
+	if (_contextMenu) {
+		_contextMenu->deleteLater();
+		_contextMenu = nullptr;
 	}
 	setContexted(Selected());
 	if (e->reason() == QContextMenuEvent::Mouse) {
@@ -971,15 +971,15 @@ void PeerListContent::contextMenuEvent(QContextMenuEvent *e) {
 	}
 
 	if (auto row = getRow(_contexted.index)) {
-		_menu = _controller->rowContextMenu(row);
-		if (_menu) {
-			_menu->setDestroyedCallback(base::lambda_guarded(
+		_contextMenu = _controller->rowContextMenu(row);
+		if (_contextMenu) {
+			_contextMenu->setDestroyedCallback(base::lambda_guarded(
 				this,
 				[this] {
 					setContexted(Selected());
 					handleMouseMove(QCursor::pos());
 				}));
-			_menu->popup(e->globalPos());
+			_contextMenu->popup(e->globalPos());
 			e->accept();
 		}
 	}

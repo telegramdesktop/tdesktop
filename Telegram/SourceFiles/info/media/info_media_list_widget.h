@@ -87,6 +87,7 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseDoubleClickEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 	void enterEventHook(QEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 
@@ -144,6 +145,11 @@ private:
 		}
 
 	};
+	enum class ContextMenuSource {
+		Mouse,
+		Touch,
+		Other,
+	};
 
 	void start();
 	int recountHeight();
@@ -173,6 +179,7 @@ private:
 		Type type);
 
 	SelectedItems collectSelectedItems() const;
+	SelectedItemSet collectSelectedSet() const;
 	void pushSelectedItems();
 	FullMsgId computeFullId(UniversalMsgId universalId) const;
 	bool hasSelected() const;
@@ -183,6 +190,12 @@ private:
 	bool hasSelectedText() const;
 	bool hasSelectedItems() const;
 	void clearSelected();
+	void forwardSelected();
+	void forwardItem(UniversalMsgId universalId);
+	void forwardItems(SelectedItemSet items);
+	void deleteSelected();
+	void deleteItem(UniversalMsgId universalId);
+	void deleteItems(SelectedItemSet items);
 	void applyItemSelection(
 		UniversalMsgId universalId,
 		TextSelection selection);
@@ -238,6 +251,9 @@ private:
 	void mouseActionCancel();
 	void performDrag();
 	style::cursor computeMouseCursor() const;
+	void showContextMenu(
+		QContextMenuEvent *e,
+		ContextMenuSource source);
 
 	void updateDragSelection();
 	void clearDragSelection();
@@ -271,6 +287,7 @@ private:
 	CursorState _overState;
 	CursorState _pressState;
 	BaseLayout *_overLayout = nullptr;
+	UniversalMsgId _contextUniversalId = 0;
 	HistoryCursorState _mouseCursorState = HistoryDefaultCursorState;
 	uint16 _mouseTextSymbol = 0;
 	bool _pressWasInactive = false;
@@ -281,7 +298,6 @@ private:
 	DragSelectAction _dragSelectAction = DragSelectAction::None;
 	bool _wasSelectedText = false; // was some text selected in current drag action
 	Ui::PopupMenu *_contextMenu = nullptr;
-	ClickHandlerPtr _contextMenuLink;
 
 	QPoint _trippleClickPoint;
 	TimeMs _trippleClickStartTime = 0;

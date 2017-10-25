@@ -70,6 +70,8 @@ public:
 			SectionWithToggle::setToggleShown(std::move(shown)));
 	}
 
+	~Cover();
+
 private:
 	void setupChildGeometry();
 	void initViewers();
