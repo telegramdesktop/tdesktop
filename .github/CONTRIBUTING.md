@@ -5,8 +5,6 @@ This document describes how you can contribute to Telegram Desktop. Please read 
 **Table of Contents**
 
 * [What contributions are accepted](#what-contributions-are-accepted)
-* [Sign your work](#sign-your-work)
-  * [Change commit message of a pushed commit](#change-commit-message-of-a-pushed-commit)
 * [Build instructions](#build-instructions)
 * [Pull upstream changes into your fork regularly](#pull-upstream-changes-into-your-fork-regularly)
 * [How to get your pull request accepted](#how-to-get-your-pull-request-accepted)
@@ -27,49 +25,6 @@ If we find issues with your pull request, we may suggest some changes and improv
 Unfortunately we **do not merge** any pull requests that have new feature implementations, translations to new languages and those which introduce any new user interface elements.
 
 Telegram Desktop is not a standalone application but a part of [Telegram project][telegram], so all the decisions about the features, languages, user experience, user interface and the design are made inside Telegram team, often according to some roadmap which is not public.
-
-## Sign your work
-
-For contributions to be accepted they should be granted into the public domain. This will solve the issue if Telegram team needs to use full Telegram Desktop source code with some different license.
-
-The sign-off is a simple line at the end of the explanation for the patch. Your signature certifies that you wrote the patch and you have the right to put it in the public domain. The rules are pretty simple: if you can certify the below:
-
-```
-Telegram Desktop Developer Certificate of Origin
-
-By making a contribution to this project, I certify that:
-
-(a) The contribution was created in whole by me or is based upon
-    previous work that, to the best of my knowledge, is in the
-    public domain and I have the right to put it in the public domain.
-
-(d) I understand and agree that this project and the contribution are
-    public and that a record of the contribution (including all
-    metadata and personal information I submit with it, including my
-    sign-off) is maintained indefinitely and may be redistributed.
-
-(e) I am granting this work into the public domain.
-```
-
-Then you just add a line to every **git commit message** that states:
-
-    Signed-off-by: Random J Developer <random@developer.example.org> (github: rndjdev_github)
-
-Replacing Random Developer’s details with your name, email address and GitHub username.
-
-### Change commit message of a pushed commit
-
-If you already pushed a commit and forgot to add the signature to the commit message, follow these steps to change the message of the commit:
-
-1. Open `Git Bash` (or `Git Shell`)
-2. Enter following command to change the commit message of the most recent commit: `git commit --amend`
-3. Press <kbd>i</kbd> to get into Insert-mode
-4. Change the commit message (and add the [signature](#sign-your-work) at the and)
-5. After editing the message, press <kbd>ESC</kbd> to get out of the Insert-mode
-6. Write `:wq` and press <kbd>Enter</kbd> to save the new message or write `:q!` to discard your changes
-7. Enter `git push --force` to push the commit with the new commit message to the remote repository
-
-For more info, see [GitHub Help][help_change_commit_message].
 
 ## Build instructions
 
@@ -118,7 +73,7 @@ If you already have multiple commits, you can add the commits together (squash t
 1. Open `Git Bash` (or `Git Shell`)
 2. Enter following command to squash the recent {N} commits: `git reset --soft HEAD~{N} && git commit` (replace `{N}` with the number of commits you want to squash)
 3. Press <kbd>i</kbd> to get into Insert-mode
-4. Enter the commit message of the new commit (and add the [signature](#sign-your-work) at the end)
+4. Enter the commit message of the new commit
 5. After adding the message, press <kbd>ESC</kbd> to get out of the Insert-mode
 6. Write `:wq` and press <kbd>Enter</kbd> to save the new message or write `:q!` to discard your changes
 7. Enter `git push --force` to push the new commit to the remote repository
@@ -149,8 +104,6 @@ Before you submit a pull request, please test your changes. Verify that Telegram
 * If you fix an issue with your commit, please close the issue by [adding one of the keywords and the issue number][closing-issues-via-commit-messages] to your commit message.
 
   For example: `Fix #545`
-
-* Don't forget to [sign your patch](#sign-your-work) to put it in the public domain!
 
 [//]: # (LINKS)
 [telegram]: https://telegram.org/
