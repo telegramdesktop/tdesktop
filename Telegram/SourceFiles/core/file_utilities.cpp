@@ -253,3 +253,20 @@ bool GetDefault(QStringList &files, QByteArray &remoteContent, const QString &ca
 
 } // namespace internal
 } // namespace FileDialog
+
+void Resources::LoadAllData() {
+#ifdef TDESKTOP_USE_PACKED_RESOURCES
+	// Load resources packed into a separated file
+	QStringList paths;
+#ifdef _DEBUG
+	paths += cExeDir();
+#endif
+	paths += QStandardPaths::standardLocations(QStandardPaths::AppDataLocation);
+	for (QString directory : paths) {
+		if (QResource::registerResource(directory + qsl("/tresources.rcc"))) {
+			return;  // found
+		}
+	}
+	qFatal("Packed resources not found");
+#endif
+}
