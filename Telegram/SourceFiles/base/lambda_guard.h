@@ -31,8 +31,6 @@ namespace lambda_internal {
 template <int N, typename Lambda>
 class guard_data {
 public:
-	using return_type = typename lambda_type<Lambda>::return_type;
-
 	template <typename ...PointersAndLambda>
 	inline guard_data(PointersAndLambda&&... qobjectsAndLambda) : _lambda(init(_pointers, std::forward<PointersAndLambda>(qobjectsAndLambda)...)) {
 	}
@@ -43,8 +41,10 @@ public:
 		}
 	}
 
-	template <typename ...Args>
-	inline return_type operator()(Args&&... args) {
+	template <
+		typename ...Args,
+		typename return_type = decltype(std::declval<Lambda>()(std::declval<Args>()...))>
+	inline auto operator()(Args&&... args) {
 		for (int i = 0; i != N; ++i) {
 			if (!_pointers[i]) {
 				return return_type();
@@ -53,8 +53,10 @@ public:
 		return _lambda(std::forward<Args>(args)...);
 	}
 
-	template <typename ...Args>
-	inline return_type operator()(Args&&... args) const {
+	template <
+		typename ...Args,
+		typename return_type = decltype(std::declval<Lambda>()(std::declval<Args>()...))>
+	inline auto operator()(Args&&... args) const {
 		for (int i = 0; i != N; ++i) {
 			if (!_pointers[i]) {
 				return return_type();
@@ -74,15 +76,18 @@ private:
 	}
 
 	QPointer<QObject> _pointers[N];
-	Lambda _lambda;
+	mutable Lambda _lambda;
 
+};
+
+template <int N, typename Lambda>
+struct lambda_call_type<guard_data<N, Lambda>> {
+	using type = lambda_call_type_t<Lambda>;
 };
 
 template <int N, typename Lambda>
 class guard {
 public:
-	using return_type = typename lambda_type<Lambda>::return_type;
-
 	template <typename Pointer, typename Other, typename ...PointersAndLambda>
 	inline guard(Pointer &&qobject, Other &&other, PointersAndLambda&&... qobjectsAndLambda) : _data(std::make_unique<guard_data<N, Lambda>>(std::forward<Pointer>(qobject), std::forward<Other>(other), std::forward<PointersAndLambda>(qobjectsAndLambda)...)) {
 		static_assert(1 + 1 + sizeof...(PointersAndLambda) == N + 1, "Wrong argument count!");
@@ -104,13 +109,17 @@ public:
 		return *this;
 	}
 
-	template <typename ...Args>
-	inline return_type operator()(Args&&... args) {
+	template <
+		typename ...Args,
+		typename = decltype(std::declval<Lambda>()(std::declval<Args>()...))>
+	inline decltype(auto) operator()(Args&&... args) {
 		return (*_data)(std::forward<Args>(args)...);
 	}
 
-	template <typename ...Args>
-	inline return_type operator()(Args&&... args) const {
+	template <
+		typename ...Args,
+		typename = decltype(std::declval<Lambda>()(std::declval<Args>()...))>
+	inline decltype(auto) operator()(Args&&... args) const {
 		return (*_data)(std::forward<Args>(args)...);
 	}
 
@@ -123,6 +132,11 @@ private:
 
 };
 
+template <int N, typename Lambda>
+struct lambda_call_type<guard<N, Lambda>> {
+	using type = lambda_call_type_t<Lambda>;
+};
+
 template <int N, int K, typename ...PointersAndLambda>
 struct guard_type;
 
@@ -133,7 +147,7 @@ struct guard_type<N, K, Pointer, PointersAndLambda...> {
 
 template <int N, typename Lambda>
 struct guard_type<N, 0, Lambda> {
-	using type = guard<N, Lambda>;
+	using type = guard<N, std::decay_t<Lambda>>;
 };
 
 template <typename ...PointersAndLambda>
@@ -144,12 +158,6 @@ struct guard_type_helper {
 
 template <typename ...PointersAndLambda>
 using guard_t = typename guard_type_helper<PointersAndLambda...>::type;
-
-template <int N, typename Lambda>
-struct type_helper<guard<N, Lambda>> {
-	using type = typename type_helper<Lambda>::type;
-	static constexpr auto is_mutable = type_helper<Lambda>::is_mutable;
-};
 
 } // namespace lambda_internal
 

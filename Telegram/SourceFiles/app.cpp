@@ -208,7 +208,11 @@ namespace {
 
 	void logOut() {
 		if (auto mtproto = Messenger::Instance().mtp()) {
-			mtproto->logout(rpcDone(&loggedOut), rpcFail(&loggedOut));
+			mtproto->logout(rpcDone([] {
+				return loggedOut();
+			}), rpcFail([] {
+				return loggedOut();
+			}));
 		} else {
 			// We log out because we've forgotten passcode.
 			// So we just start mtproto from scratch.

@@ -22,6 +22,36 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <memory>
 
+#ifndef CUSTOM_LAMBDA_WRAP
+
+#include <functional>
+#include "base/unique_function.h"
+
+namespace base {
+
+template <typename Function>
+using lambda = std::function<Function>;
+
+template <typename Function>
+using lambda_once = unique_function<Function>;
+
+namespace lambda_internal {
+
+template <typename Lambda>
+struct lambda_call_type {
+	using type = decltype(&Lambda::operator());
+};
+
+} // namespace lambda_internal
+
+template <typename Lambda>
+using lambda_call_type_t
+	= typename lambda_internal::lambda_call_type<Lambda>::type;
+
+} // namespace base
+
+#else // CUSTOM_LAMBDA_WRAP
+
 #ifndef Assert
 #define LambdaAssertDefined
 #define Assert(v) ((v) ? ((void)0) : std::abort())
@@ -66,9 +96,6 @@ struct type_helper {
 
 template <typename Lambda>
 using lambda_type = typename lambda_internal::type_helper<std::decay_t<Lambda>>::type;
-
-template <typename Lambda>
-constexpr bool lambda_is_mutable = lambda_internal::type_helper<std::decay_t<Lambda>>::is_mutable;
 
 namespace lambda_internal {
 
@@ -469,3 +496,5 @@ public:
 #ifdef LambdaUnexpectedDefined
 #undef Unexpected
 #endif // LambdaUnexpectedDefined
+
+#endif // CUSTOM_LAMBDA_WRAP
