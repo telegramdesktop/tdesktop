@@ -110,6 +110,7 @@ private:
 	RpWidget *doSetInnerWidget(
 		object_ptr<RpWidget> inner,
 		int scrollTopSkip);
+	void updateControlsGeometry();
 
 	const not_null<Window::Controller*> _controller;
 	const not_null<PeerData*> _peer;

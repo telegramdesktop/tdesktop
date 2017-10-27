@@ -74,6 +74,9 @@ public:
 		clearSelected();
 	}
 
+	void saveState(not_null<Memento*> memento);
+	void restoreState(not_null<Memento*> memento);
+
 	~ListWidget();
 
 protected:
@@ -150,6 +153,10 @@ private:
 		Touch,
 		Other,
 	};
+	struct ScrollTopState {
+		UniversalMsgId item = 0;
+		int shift = 0;
+	};
 
 	void start();
 	int recountHeight();
@@ -160,6 +167,7 @@ private:
 	bool isItemLayout(
 		not_null<const HistoryItem*> item,
 		BaseLayout *layout) const;
+	bool isPossiblyMyId(FullMsgId fullId) const;
 	void repaintItem(const HistoryItem *item);
 	void repaintItem(UniversalMsgId msgId);
 	void repaintItem(const BaseLayout *item);
@@ -229,13 +237,14 @@ private:
 	std::vector<Section>::const_iterator findSectionAfterBottom(
 		std::vector<Section>::const_iterator from,
 		int bottom) const;
-	FoundItem findItemByPoint(QPoint point);
+	FoundItem findItemByPoint(QPoint point) const;
 	base::optional<FoundItem> findItemById(UniversalMsgId universalId);
 	base::optional<FoundItem> findItemDetails(BaseLayout *item);
 	FoundItem foundItemInSection(
 		const FoundItem &item,
-		const Section &section);
+		const Section &section) const;
 
+	ScrollTopState countScrollState() const;
 	void saveScrollState();
 	void restoreScrollState();
 
@@ -268,7 +277,8 @@ private:
 	Type _type = Type::Photo;
 
 	static constexpr auto kMinimalIdsLimit = 16;
-	UniversalMsgId _universalAroundId = (ServerMaxMsgId - 1);
+	static constexpr auto kDefaultAroundId = (ServerMaxMsgId - 1);
+	UniversalMsgId _universalAroundId = kDefaultAroundId;
 	int _idsLimit = kMinimalIdsLimit;
 	SharedMediaMergedSlice _slice;
 
@@ -277,8 +287,7 @@ private:
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
-	UniversalMsgId _scrollTopId = 0;
-	int _scrollTopShift = 0;
+	ScrollTopState _scrollTopState;
 	rpl::event_stream<int> _scrollToRequests;
 
 	MouseAction _mouseAction = MouseAction::None;

@@ -52,8 +52,37 @@ public:
 		return _type;
 	}
 
+	void setAroundId(FullMsgId aroundId) {
+		_aroundId = aroundId;
+	}
+	FullMsgId aroundId() const {
+		return _aroundId;
+	}
+	void setIdsLimit(int limit) {
+		_idsLimit = limit;
+	}
+	int idsLimit() const {
+		return _idsLimit;
+	}
+	void setScrollTopItem(FullMsgId item) {
+		_scrollTopItem = item;
+	}
+	FullMsgId scrollTopItem() const {
+		return _scrollTopItem;
+	}
+	void setScrollTopShift(int shift) {
+		_scrollTopShift = shift;
+	}
+	int scrollTopShift() const {
+		return _scrollTopShift;
+	}
+
 private:
 	Type _type = Type::Photo;
+	FullMsgId _aroundId;
+	int _idsLimit = 0;
+	FullMsgId _scrollTopItem;
+	int _scrollTopShift = 0;;
 
 };
 

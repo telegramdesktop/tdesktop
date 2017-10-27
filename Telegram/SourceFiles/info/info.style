@@ -150,7 +150,7 @@ infoLayerTopBar: InfoTopBar {
 }
 
 infoMinimalWidth: 324px;
-infoDesiredWidth: 360px;
+infoDesiredWidth: 430px;
 infoMinimalLayerMargin: 48px;
 
 infoTabs: SettingsSlider(defaultTabsSlider) {

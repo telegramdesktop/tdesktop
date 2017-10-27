@@ -252,9 +252,11 @@ object_ptr<ListWidget> InnerWidget::setupList(
 }
 
 void InnerWidget::saveState(not_null<Memento*> memento) {
+	_list->saveState(memento);
 }
 
 void InnerWidget::restoreState(not_null<Memento*> memento) {
+	_list->restoreState(memento);
 }
 
 rpl::producer<SelectedItems> InnerWidget::selectedListValue() const {

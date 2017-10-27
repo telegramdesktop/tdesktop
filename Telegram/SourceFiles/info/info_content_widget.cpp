@@ -57,6 +57,10 @@ ContentWidget::ContentWidget(
 }
 
 void ContentWidget::resizeEvent(QResizeEvent *e) {
+	updateControlsGeometry();
+}
+
+void ContentWidget::updateControlsGeometry() {
 	auto newScrollTop = _scroll->scrollTop() + _topDelta;
 	auto scrollGeometry = rect().marginsRemoved(
 		QMargins(0, _scrollTopSkip, 0, 0));
@@ -113,6 +117,10 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 				int desired) {
 			inner->setVisibleTopBottom(top, bottom);
 		}, _inner->lifetime());
+
+	_scrollTopSkip = scrollTopSkip;
+	updateControlsGeometry();
+
 	return _inner;
 }
 

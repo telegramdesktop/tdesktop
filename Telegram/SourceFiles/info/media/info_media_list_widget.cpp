@@ -720,6 +720,12 @@ bool ListWidget::isMyItem(not_null<const HistoryItem*> item) const {
 	return (_peer == peer || _peer == peer->migrateTo());
 }
 
+bool ListWidget::isPossiblyMyId(FullMsgId fullId) const {
+	return (fullId.channel != 0)
+		? (_peer->isChannel() && _peer->bareId() == fullId.channel)
+		: (!_peer->isChannel() || _peer->migrateFrom());
+}
+
 bool ListWidget::isItemLayout(
 		not_null<const HistoryItem*> item,
 		BaseLayout *layout) const {
@@ -878,6 +884,29 @@ void ListWidget::markLayoutsStale() {
 	}
 }
 
+void ListWidget::saveState(not_null<Memento*> memento) {
+	if (_universalAroundId != kDefaultAroundId) {
+		memento->setAroundId(computeFullId(_universalAroundId));
+		memento->setIdsLimit(_idsLimit);
+		auto state = countScrollState();
+		memento->setScrollTopItem(computeFullId(state.item));
+		memento->setScrollTopShift(state.shift);
+	}
+}
+
+void ListWidget::restoreState(not_null<Memento*> memento) {
+	if (auto limit = memento->idsLimit()) {
+		auto wasAroundId = memento->aroundId();
+		if (isPossiblyMyId(wasAroundId)) {
+			_idsLimit = limit;
+			_universalAroundId = GetUniversalId(wasAroundId);
+			_scrollTopState.item = GetUniversalId(memento->scrollTopItem());
+			_scrollTopState.shift = memento->scrollTopShift();
+			refreshViewer();
+		}
+	}
+}
+
 int ListWidget::resizeGetHeight(int newWidth) {
 	if (newWidth > 0) {
 		for (auto &section : _sections) {
@@ -887,7 +916,7 @@ int ListWidget::resizeGetHeight(int newWidth) {
 	return recountHeight();
 }
 
-auto ListWidget::findItemByPoint(QPoint point) -> FoundItem {
+auto ListWidget::findItemByPoint(QPoint point) const -> FoundItem {
 	Expects(!_sections.empty());
 	auto sectionIt = findSectionAfterTop(point.y());
 	if (sectionIt == _sections.end()) {
@@ -920,7 +949,7 @@ auto ListWidget::findItemDetails(
 
 auto ListWidget::foundItemInSection(
 		const FoundItem &item,
-		const Section &section) -> FoundItem {
+		const Section &section) const -> FoundItem {
 	return {
 		item.layout,
 		item.geometry.translated(0, section.top()),
@@ -941,7 +970,7 @@ void ListWidget::checkMoveToOtherViewer() {
 	if (width() <= 0
 		|| visibleHeight <= 0
 		|| _sections.empty()
-		|| _scrollTopId) {
+		|| _scrollTopState.item) {
 		return;
 	}
 
@@ -994,34 +1023,39 @@ void ListWidget::checkMoveToOtherViewer() {
 	}
 }
 
-void ListWidget::saveScrollState() {
+auto ListWidget::countScrollState() const -> ScrollTopState {
 	if (_sections.empty()) {
-		_scrollTopId = 0;
-		_scrollTopShift = 0;
-		return;
+		return { 0, 0 };
 	}
 	auto topItem = findItemByPoint({ 0, _visibleTop });
-	_scrollTopId = GetUniversalId(topItem.layout);
-	_scrollTopShift = _visibleTop - topItem.geometry.y();
+	return {
+		GetUniversalId(topItem.layout),
+		_visibleTop - topItem.geometry.y()
+	};
+}
+
+void ListWidget::saveScrollState() {
+	if (!_scrollTopState.item) {
+		_scrollTopState = countScrollState();
+	}
 }
 
 void ListWidget::restoreScrollState() {
-	auto scrollTopId = base::take(_scrollTopId);
-	auto scrollTopShift = base::take(_scrollTopShift);
-	if (_sections.empty() || !scrollTopId) {
+	if (_sections.empty() || !_scrollTopState.item) {
 		return;
 	}
-	auto sectionIt = findSectionByItem(scrollTopId);
+	auto sectionIt = findSectionByItem(_scrollTopState.item);
 	if (sectionIt == _sections.end()) {
 		--sectionIt;
 	}
 	auto item = foundItemInSection(
-		sectionIt->findItemNearId(scrollTopId),
+		sectionIt->findItemNearId(_scrollTopState.item),
 		*sectionIt);
-	auto newVisibleTop = item.geometry.y() + scrollTopShift;
+	auto newVisibleTop = item.geometry.y() + _scrollTopState.shift;
 	if (_visibleTop != newVisibleTop) {
 		_scrollToRequests.fire_copy(newVisibleTop);
 	}
+	_scrollTopState = ScrollTopState();
 }
 
 QMargins ListWidget::padding() const {
