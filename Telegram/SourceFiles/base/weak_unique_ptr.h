@@ -45,14 +45,16 @@ private:
 	template <typename Child>
 	friend class weak_unique_ptr;
 
-	std::shared_ptr<enable_weak_from_this*> getGuarded() {
+	std::shared_ptr<enable_weak_from_this*> getGuarded() const {
 		if (!_guarded) {
-			_guarded = std::make_shared<enable_weak_from_this*>(static_cast<enable_weak_from_this*>(this));
+			_guarded = std::make_shared<enable_weak_from_this*>(
+				const_cast<enable_weak_from_this*>(
+					static_cast<const enable_weak_from_this*>(this)));
 		}
 		return _guarded;
 	}
 
-	std::shared_ptr<enable_weak_from_this*> _guarded;
+	mutable std::shared_ptr<enable_weak_from_this*> _guarded;
 
 };
 
@@ -60,13 +62,19 @@ template <typename T>
 class weak_unique_ptr {
 public:
 	weak_unique_ptr() = default;
-	weak_unique_ptr(T *value) : _guarded(value ? value->getGuarded() : std::shared_ptr<enable_weak_from_this*>()) {
+	weak_unique_ptr(T *value)
+	: _guarded(value
+		? value->getGuarded()
+		: std::shared_ptr<enable_weak_from_this*>()) {
 	}
-	weak_unique_ptr(const std::unique_ptr<T> &value) : weak_unique_ptr(value.get()) {
+	weak_unique_ptr(const std::unique_ptr<T> &value)
+	: weak_unique_ptr(value.get()) {
 	}
 
 	weak_unique_ptr &operator=(T *value) {
-		_guarded = value ? value->getGuarded() : std::shared_ptr<enable_weak_from_this*>();
+		_guarded = value
+			? value->getGuarded()
+			: std::shared_ptr<enable_weak_from_this*>();
 		return *this;
 	}
 	weak_unique_ptr &operator=(const std::unique_ptr<T> &value) {

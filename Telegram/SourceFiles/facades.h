@@ -38,30 +38,95 @@ void CallDelayed(int duration, base::lambda_once<void()> &&lambda);
 
 } // namespace internal
 
-template <int N, typename Lambda>
-inline void CallDelayed(int duration, base::lambda_internal::guard<N, Lambda> &&guarded) {
-	return internal::CallDelayed(duration, [guarded = std::move(guarded)] { guarded(); });
+template <typename Lambda>
+inline void CallDelayed(
+		int duration,
+		base::lambda_internal::guard_with_QObject<Lambda> &&guarded) {
+	return internal::CallDelayed(
+		duration,
+		std::move(guarded));
 }
 
-template <typename Pointer, typename ...PointersAndLambda>
-inline void CallDelayed(int duration, Pointer &&qobject, PointersAndLambda&&... qobjectsAndLambda) {
-	auto guarded = base::lambda_guarded(std::forward<Pointer>(qobject), std::forward<PointersAndLambda>(qobjectsAndLambda)...);
-	return CallDelayed(duration, std::move(guarded));
+template <typename Lambda>
+inline void CallDelayed(
+		int duration,
+		base::lambda_internal::guard_with_weak<Lambda> &&guarded) {
+	return internal::CallDelayed(
+		duration,
+		std::move(guarded));
 }
 
-template <typename ...PointersAndLambda>
-inline base::lambda<void()> LambdaDelayed(int duration, PointersAndLambda&&... qobjectsAndLambda) {
-	auto guarded = base::lambda_guarded(std::forward<PointersAndLambda>(qobjectsAndLambda)...);
-	return [guarded = std::move(guarded), duration] {
-		internal::CallDelayed(duration, [guarded] { guarded(); });
+template <typename Lambda>
+inline void CallDelayed(
+		int duration,
+		const QObject *object,
+		Lambda &&lambda) {
+	return internal::CallDelayed(
+		duration,
+		base::lambda_guarded(object, std::forward<Lambda>(lambda)));
+}
+
+template <typename Lambda>
+inline void CallDelayed(
+		int duration,
+		const base::enable_weak_from_this *object,
+		Lambda &&lambda) {
+	return internal::CallDelayed(
+		duration,
+		base::lambda_guarded(object, std::forward<Lambda>(lambda)));
+}
+
+template <typename Lambda>
+inline auto LambdaDelayed(
+		int duration,
+		const QObject *object,
+		Lambda &&lambda) {
+	auto guarded = base::lambda_guarded(
+		object,
+		std::forward<Lambda>(lambda));
+	return [saved = std::move(guarded), duration] {
+		auto copy = saved;
+		internal::CallDelayed(duration, std::move(copy));
 	};
 }
 
-template <typename ...PointersAndLambda>
-inline base::lambda_once<void()> LambdaDelayedOnce(int duration, PointersAndLambda&&... qobjectsAndLambda) {
-	auto guarded = base::lambda_guarded(std::forward<PointersAndLambda>(qobjectsAndLambda)...);
-	return [guarded = std::move(guarded), duration]() mutable {
-		internal::CallDelayed(duration, [guarded = std::move(guarded)] { guarded(); });
+template <typename Lambda>
+inline auto LambdaDelayed(
+		int duration,
+		const base::enable_weak_from_this *object,
+		Lambda &&lambda) {
+	auto guarded = base::lambda_guarded(
+		object,
+		std::forward<Lambda>(lambda));
+	return [saved = std::move(guarded), duration] {
+		auto copy = saved;
+		internal::CallDelayed(duration, std::move(copy));
+	};
+}
+
+template <typename Lambda>
+inline auto LambdaDelayedOnce(
+		int duration,
+		const QObject *object,
+		Lambda &&lambda) {
+	auto guarded = base::lambda_guarded(
+		object,
+		std::forward<Lambda>(lambda));
+	return [saved = std::move(guarded), duration]() mutable {
+		internal::CallDelayed(duration, std::move(saved));
+	};
+}
+
+template <typename Lambda>
+inline auto LambdaDelayedOnce(
+		int duration,
+		const base::enable_weak_from_this *object,
+		Lambda &&lambda) {
+	auto guarded = base::lambda_guarded(
+		object,
+		std::forward<Lambda>(lambda));
+	return [saved = std::move(guarded), duration]() mutable {
+		internal::CallDelayed(duration, std::move(saved));
 	};
 }
 
