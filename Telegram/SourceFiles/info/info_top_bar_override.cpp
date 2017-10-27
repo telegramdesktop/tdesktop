@@ -157,8 +157,12 @@ void TopBarOverride::performForward() {
 		_correctionCancelRequests.fire({});
 		return;
 	}
-	auto callback = [items = std::move(items)](not_null<PeerData*> peer) {
+	auto callback = [items = std::move(items), that = weak(this)](
+			not_null<PeerData*> peer) {
 		App::main()->setForwardDraft(peer->id, items);
+		if (that) {
+			that->_correctionCancelRequests.fire({});
+		}
 	};
 	Ui::show(Box<PeerListBox>(
 		std::make_unique<ChooseRecipientBoxController>(std::move(callback)),
