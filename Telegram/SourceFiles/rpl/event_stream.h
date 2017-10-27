@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/range.h>
 #include <rpl/then.h>
 #include <rpl/range.h>
+#include <algorithm>
 #include "base/algorithm.h"
 #include "base/assertion.h"
 #include "base/index_based_iterator.h"

@@ -38,25 +38,6 @@ class consumer_handlers;
 template <typename Value, typename Error>
 class type_erased_handlers {
 public:
-	template <
-		typename OnNext,
-		typename OnError,
-		typename OnDone>
-	static std::shared_ptr<type_erased_handlers> create(
-			OnNext &&next,
-			OnError &&error,
-			OnDone &&done) {
-		return std::make_shared<consumer_handlers<
-			Value,
-			Error,
-			std::decay_t<OnNext>,
-			std::decay_t<OnError>,
-			std::decay_t<OnDone>>>(
-				std::forward<OnNext>(next),
-				std::forward<OnError>(error),
-				std::forward<OnDone>(done));
-	}
-
 	virtual bool put_next(Value &&value) = 0;
 	virtual bool put_next_copy(const Value &value) = 0;
 	virtual void put_error(Error &&error) = 0;
@@ -69,6 +50,8 @@ public:
 	Type *make_state(Args&& ...args);
 
 	void terminate();
+
+	virtual ~type_erased_handlers() = default;
 
 protected:
 	lifetime _lifetime;
@@ -105,20 +88,6 @@ public:
 		: _next(std::forward<OnNextOther>(next))
 		, _error(std::forward<OnErrorOther>(error))
 		, _done(std::forward<OnDoneOther>(done)) {
-	}
-
-	template <
-		typename OnNextOther,
-		typename OnErrorOther,
-		typename OnDoneOther>
-	static std::shared_ptr<consumer_handlers> create(
-			OnNextOther &&next,
-			OnErrorOther &&error,
-			OnDoneOther &&done) {
-		return std::make_shared<consumer_handlers>(
-				std::forward<OnNextOther>(next),
-				std::forward<OnErrorOther>(error),
-				std::forward<OnDoneOther>(done));
 	}
 
 	bool put_next(Value &&value) final override;
@@ -389,7 +358,13 @@ template <typename OnNext, typename OnError, typename OnDone>
 inline consumer_base<Value, Error, Handlers>::consumer_base(
 	OnNext &&next,
 	OnError &&error,
-	OnDone &&done) : _handlers(Handlers::create(
+	OnDone &&done)
+: _handlers(std::make_shared<consumer_handlers<
+	Value,
+	Error,
+	std::decay_t<OnNext>,
+	std::decay_t<OnError>,
+	std::decay_t<OnDone>>>(
 		std::forward<OnNext>(next),
 		std::forward<OnError>(error),
 		std::forward<OnDone>(done))) {
