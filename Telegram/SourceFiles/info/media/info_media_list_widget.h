@@ -178,7 +178,7 @@ private:
 	void refreshViewer();
 	void invalidatePaletteCache();
 	void refreshRows();
-	SharedMediaMergedSlice::Key sliceKey(
+	SparseIdsMergedSlice::Key sliceKey(
 		UniversalMsgId universalId) const;
 	BaseLayout *getLayout(UniversalMsgId universalId);
 	BaseLayout *getExistingLayout(UniversalMsgId universalId) const;
@@ -280,7 +280,7 @@ private:
 	static constexpr auto kDefaultAroundId = (ServerMaxMsgId - 1);
 	UniversalMsgId _universalAroundId = kDefaultAroundId;
 	int _idsLimit = kMinimalIdsLimit;
-	SharedMediaMergedSlice _slice;
+	SparseIdsMergedSlice _slice;
 
 	std::map<UniversalMsgId, CachedItem> _layouts;
 	std::vector<Section> _sections;

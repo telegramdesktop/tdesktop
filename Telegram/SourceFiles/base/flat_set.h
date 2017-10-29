@@ -386,6 +386,32 @@ public:
 		return compare()(value, *where) ? _impl.end() : where;
 	}
 
+	template <
+		typename OtherType,
+		typename = typename Compare::is_transparent>
+	iterator findFirst(const OtherType &value) {
+		if (empty()
+			|| compare()(value, front())
+			|| compare()(back(), value)) {
+			return end();
+		}
+		auto where = getLowerBound(value);
+		return compare()(value, *where) ? _impl.end() : where;
+	}
+
+	template <
+		typename OtherType,
+		typename = typename Compare::is_transparent>
+	const_iterator findFirst(const OtherType &value) const {
+		if (empty()
+			|| compare()(value, front())
+			|| compare()(back(), value)) {
+			return end();
+		}
+		auto where = getLowerBound(value);
+		return compare()(value, *where) ? _impl.end() : where;
+	}
+
 	bool contains(const Type &value) const {
 		return findFirst(value) != end();
 	}
@@ -444,6 +470,18 @@ private:
 		return base::lower_bound(_impl, value, compare());
 	}
 	typename impl::const_iterator getLowerBound(const Type &value) const {
+		return base::lower_bound(_impl, value, compare());
+	}
+	template <
+		typename OtherType,
+		typename = typename Compare::is_transparent>
+	typename impl::iterator getLowerBound(const OtherType &value) {
+		return base::lower_bound(_impl, value, compare());
+	}
+	template <
+		typename OtherType,
+		typename = typename Compare::is_transparent>
+	typename impl::const_iterator getLowerBound(const OtherType &value) const {
 		return base::lower_bound(_impl, value, compare());
 	}
 	typename impl::iterator getUpperBound(const Type &value) {
@@ -555,6 +593,18 @@ public:
 		return this->findFirst(value);
 	}
 	const_iterator find(const Type &value) const {
+		return this->findFirst(value);
+	}
+	template <
+		typename OtherType,
+		typename = typename Compare::is_transparent>
+	iterator find(const OtherType &value) {
+		return this->findFirst(value);
+	}
+	template <
+		typename OtherType,
+		typename = typename Compare::is_transparent>
+	const_iterator find(const OtherType &value) const {
 		return this->findFirst(value);
 	}
 

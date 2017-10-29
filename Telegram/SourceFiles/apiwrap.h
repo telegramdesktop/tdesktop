@@ -33,6 +33,8 @@ namespace Storage {
 enum class SharedMediaType : char;
 } // namespace Storage
 
+enum class SparseIdsLoadDirection;
+
 namespace Api {
 
 inline const MTPVector<MTPChat> *getChatsFromMessagesChats(const MTPmessages_Chats &chats) {
@@ -113,11 +115,7 @@ public:
 		bool adminsEnabled,
 		base::flat_set<not_null<UserData*>> &&admins);
 
-	enum class SliceType {
-		Around,
-		Before,
-		After,
-	};
+	using SliceType = SparseIdsLoadDirection;
 	void requestSharedMedia(
 		not_null<PeerData*> peer,
 		Storage::SharedMediaType type,
@@ -125,9 +123,7 @@ public:
 		SliceType slice);
 	void requestSharedMediaCount(
 			not_null<PeerData*> peer,
-			Storage::SharedMediaType type) {
-		requestSharedMedia(peer, type, 0, SliceType::Before);
-	}
+			Storage::SharedMediaType type);
 
 	void requestUserPhotos(
 		not_null<UserData*> user,

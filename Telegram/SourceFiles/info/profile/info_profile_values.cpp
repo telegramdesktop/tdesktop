@@ -172,14 +172,15 @@ rpl::producer<int> SharedMediaCountValue(
 	auto aroundId = 0;
 	auto limit = 0;
 	auto updated = SharedMediaMergedViewer(
-		SharedMediaMergedSlice::Key(
-			real->id,
-			migrated ? migrated->id : 0,
-			type,
-			aroundId),
+		SharedMediaMergedKey(
+			SparseIdsMergedSlice::Key(
+				real->id,
+				migrated ? migrated->id : 0,
+				aroundId),
+			type),
 		limit,
 		limit)
-		| rpl::map([](const SharedMediaMergedSlice &slice) {
+		| rpl::map([](const SparseIdsMergedSlice &slice) {
 			return slice.fullCount();
 		})
 		| rpl::filter_optional();

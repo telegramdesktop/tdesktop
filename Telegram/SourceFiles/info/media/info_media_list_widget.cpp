@@ -738,27 +738,29 @@ void ListWidget::invalidatePaletteCache() {
 	}
 }
 
-SharedMediaMergedSlice::Key ListWidget::sliceKey(
+SparseIdsMergedSlice::Key ListWidget::sliceKey(
 		UniversalMsgId universalId) const {
-	using Key = SharedMediaMergedSlice::Key;
+	using Key = SparseIdsMergedSlice::Key;
 	if (auto migrateFrom = _peer->migrateFrom()) {
-		return Key(_peer->id, migrateFrom->id, _type, universalId);
+		return Key(_peer->id, migrateFrom->id, universalId);
 	}
 	if (universalId < 0) {
 		// Convert back to plain id for non-migrated histories.
 		universalId += ServerMaxMsgId;
 	}
-	return Key(_peer->id, 0, _type, universalId);
+	return Key(_peer->id, 0, universalId);
 }
 
 void ListWidget::refreshViewer() {
 	_viewerLifetime.destroy();
 	SharedMediaMergedViewer(
-		sliceKey(_universalAroundId),
+		SharedMediaMergedKey(
+			sliceKey(_universalAroundId),
+			_type),
 		_idsLimit,
 		_idsLimit)
 		| rpl::start_with_next([this](
-				SharedMediaMergedSlice &&slice) {
+				SparseIdsMergedSlice &&slice) {
 			_slice = std::move(slice);
 			if (auto nearest = _slice.nearest(_universalAroundId)) {
 				_universalAroundId = *nearest;

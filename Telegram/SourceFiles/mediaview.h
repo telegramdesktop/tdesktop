@@ -252,6 +252,7 @@ private:
 	DocumentData *_doc = nullptr;
 	std::unique_ptr<SharedMedia> _sharedMedia;
 	base::optional<SharedMediaWithLastSlice> _sharedMediaData;
+	base::optional<SharedMediaWithLastSlice::Key> _sharedMediaDataKey;
 	std::unique_ptr<UserPhotos> _userPhotos;
 	base::optional<UserPhotosSlice> _userPhotosData;
 

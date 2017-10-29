@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <rpl/event_stream.h>
 #include "storage/storage_facade.h"
+#include "storage/storage_sparse_ids_list.h"
 
 namespace Storage {
 
@@ -105,9 +106,9 @@ struct SharedMediaRemoveOne {
 		PeerId peerId,
 		SharedMediaTypesMask types,
 		MsgId messageId)
-		: peerId(peerId)
-		, messageId(messageId)
-		, types(types) {
+	: peerId(peerId)
+	, messageId(messageId)
+	, types(types) {
 	}
 
 	PeerId peerId = 0;
@@ -129,9 +130,9 @@ struct SharedMediaKey {
 		PeerId peerId,
 		SharedMediaType type,
 		MsgId messageId)
-		: peerId(peerId)
-		, type(type)
-		, messageId(messageId) {
+	: peerId(peerId)
+	, type(type)
+	, messageId(messageId) {
 	}
 
 	bool operator==(const SharedMediaKey &other) const {
@@ -154,9 +155,9 @@ struct SharedMediaQuery {
 		SharedMediaKey key,
 		int limitBefore,
 		int limitAfter)
-		: key(key)
-		, limitBefore(limitBefore)
-		, limitAfter(limitAfter) {
+	: key(key)
+	, limitBefore(limitBefore)
+	, limitAfter(limitAfter) {
 	}
 
 	SharedMediaKey key;
@@ -165,32 +166,21 @@ struct SharedMediaQuery {
 
 };
 
-struct SharedMediaResult {
-	base::optional<int> count;
-	base::optional<int> skippedBefore;
-	base::optional<int> skippedAfter;
-	base::flat_set<MsgId> messageIds;
-};
+using SharedMediaResult = SparseIdsListResult;
 
 struct SharedMediaSliceUpdate {
 	SharedMediaSliceUpdate(
 		PeerId peerId,
 		SharedMediaType type,
-		const base::flat_set<MsgId> *messages,
-		MsgRange range,
-		base::optional<int> count)
-		: peerId(peerId)
-		, type(type)
-		, messages(messages)
-		, range(range)
-		, count(count) {
+		const SparseIdsSliceUpdate &data)
+	: peerId(peerId)
+	, type(type)
+	, data(data) {
 	}
 
 	PeerId peerId = 0;
 	SharedMediaType type = SharedMediaType::kCount;
-	const base::flat_set<MsgId> *messages = nullptr;
-	MsgRange range;
-	base::optional<int> count;
+	SparseIdsSliceUpdate data;
 };
 
 class SharedMedia {
@@ -216,74 +206,7 @@ public:
 	}
 
 private:
-	class List {
-	public:
-		void addNew(MsgId messageId);
-		void addExisting(MsgId messageId, MsgRange noSkipRange);
-		void addSlice(
-			std::vector<MsgId> &&messageIds,
-			MsgRange noSkipRange,
-			base::optional<int> count);
-		void removeOne(MsgId messageId);
-		void removeAll();
-		rpl::producer<SharedMediaResult> query(SharedMediaQuery &&query) const;
-
-		struct SliceUpdate {
-			const base::flat_set<MsgId> *messages = nullptr;
-			MsgRange range;
-			base::optional<int> count;
-		};
-		rpl::producer<SliceUpdate> sliceUpdated() const {
-			return _sliceUpdated.events();
-		}
-
-	private:
-		struct Slice {
-			Slice(base::flat_set<MsgId> &&messages, MsgRange range);
-
-			template <typename Range>
-			void merge(const Range &moreMessages, MsgRange moreNoSkipRange);
-
-			base::flat_set<MsgId> messages;
-			MsgRange range;
-
-			inline bool operator<(const Slice &other) const {
-				return range.from < other.range.from;
-			}
-
-		};
-
-		template <typename Range>
-		int uniteAndAdd(
-			SliceUpdate &update,
-			base::flat_set<Slice>::iterator uniteFrom,
-			base::flat_set<Slice>::iterator uniteTill,
-			const Range &messages,
-			MsgRange noSkipRange);
-		template <typename Range>
-		int addRangeItemsAndCountNew(
-			SliceUpdate &update,
-			const Range &messages,
-			MsgRange noSkipRange);
-		template <typename Range>
-		void addRange(
-			const Range &messages,
-			MsgRange noSkipRange,
-			base::optional<int> count,
-			bool incrementCount = false);
-
-		SharedMediaResult queryFromSlice(
-			const SharedMediaQuery &query,
-			const Slice &slice) const;
-
-		base::optional<int> _count;
-		base::flat_set<Slice> _slices;
-
-		rpl::event_stream<SliceUpdate> _sliceUpdated;
-
-	};
-	using SliceUpdate = List::SliceUpdate;
-	using Lists = std::array<List, kSharedMediaTypeCount>;
+	using Lists = std::array<SparseIdsList, kSharedMediaTypeCount>;
 
 	std::map<PeerId, Lists>::iterator enforceLists(PeerId peer);
 

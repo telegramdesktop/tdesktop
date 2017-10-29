@@ -40,6 +40,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "storage/storage_user_photos.h"
+#include "history/history_sparse_ids.h"
 
 namespace {
 
@@ -1920,6 +1921,12 @@ void ApiWrap::sendSaveChatAdminsRequests(not_null<ChatData*> chat) {
 	base::for_each(toRemove, removeOne);
 	base::for_each(toAppoint, appointOne);
 	requestSendDelayed();
+}
+
+void ApiWrap::requestSharedMediaCount(
+		not_null<PeerData*> peer,
+		Storage::SharedMediaType type) {
+	requestSharedMedia(peer, type, 0, SliceType::Before);
 }
 
 void ApiWrap::requestSharedMedia(

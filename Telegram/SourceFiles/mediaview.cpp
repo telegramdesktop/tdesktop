@@ -1035,14 +1035,27 @@ bool MediaView::validSharedMedia() const {
 		if (!_sharedMedia) {
 			return false;
 		}
-		auto countDistanceInData = [](const auto &a, const auto &b) {
+		using Key = SharedMediaWithLastSlice::Key;
+		auto inSameDomain = [](const Key &a, const Key &b) {
+			return (a.type == b.type)
+				&& (a.peerId == b.peerId)
+				&& (a.migratedPeerId == b.migratedPeerId);
+		};
+		auto countDistanceInData = [&](const Key &a, const Key &b) {
 			return [&](const SharedMediaWithLastSlice &data) {
-				return data.distance(a, b);
+				return inSameDomain(a, b)
+					? data.distance(a, b)
+					: base::optional<int>();
 			};
 		};
 
-		auto distance = (key == _sharedMedia->key) ? 0 :
-			_sharedMediaData
+		if (key == _sharedMedia->key) {
+			return true;
+		} else if (!_sharedMediaDataKey
+			|| _sharedMedia->key != *_sharedMediaDataKey) {
+			return false;
+		}
+		auto distance = _sharedMediaData
 			| countDistanceInData(*key, _sharedMedia->key)
 			| func::abs;
 		if (distance) {
@@ -1066,14 +1079,17 @@ void MediaView::validateSharedMedia() {
 	} else {
 		_sharedMedia = nullptr;
 		_sharedMediaData = base::none;
+		_sharedMediaDataKey = base::none;
 	}
 }
 
 void MediaView::handleSharedMediaUpdate(SharedMediaWithLastSlice &&update) {
 	if ((!_photo && !_doc) || !_sharedMedia) {
 		_sharedMediaData = base::none;
+		_sharedMediaDataKey = base::none;
 	} else {
 		_sharedMediaData = std::move(update);
+		_sharedMediaDataKey = _sharedMedia->key;
 	}
 	findCurrent();
 	updateControls();
@@ -2733,6 +2749,7 @@ void MediaView::setVisible(bool visible) {
 	if (!visible) {
 		_sharedMedia = nullptr;
 		_sharedMediaData = base::none;
+		_sharedMediaDataKey = base::none;
 		_userPhotos = nullptr;
 		_userPhotosData = base::none;
 		if (_menu) _menu->hideMenu(true);

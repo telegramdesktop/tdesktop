@@ -26,10 +26,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "history/history_media_types.h"
+#include "history/history_sparse_ids.h"
 
 namespace {
 
-using Type = SharedMediaSlice::Type;
+using Type = Storage::SharedMediaType;
 
 inline MediaOverviewType SharedMediaTypeToOverview(Type type) {
 	switch (type) {
@@ -62,368 +63,8 @@ void SharedMediaShowOverview(
 	}
 }
 
-class SharedMediaSliceBuilder {
-public:
-	using Type = Storage::SharedMediaType;
-	using Key = Storage::SharedMediaKey;
-
-	SharedMediaSliceBuilder(Key key, int limitBefore, int limitAfter);
-
-	using Result = Storage::SharedMediaResult;
-	using SliceUpdate = Storage::SharedMediaSliceUpdate;
-	using RemoveOne = Storage::SharedMediaRemoveOne;
-	using RemoveAll = Storage::SharedMediaRemoveAll;
-	bool applyUpdate(const Result &result);
-	bool applyUpdate(const SliceUpdate &update);
-	bool applyUpdate(const RemoveOne &update);
-	bool applyUpdate(const RemoveAll &update);
-
-	void checkInsufficientMedia();
-	using AroundData = std::pair<MsgId, ApiWrap::SliceType>;
-	auto insufficientMediaAround() const {
-		return _insufficientMediaAround.events();
-	}
-
-	SharedMediaSlice snapshot() const;
-
-private:
-	enum class RequestDirection {
-		Before,
-		After,
-	};
-	void requestMessages(RequestDirection direction);
-	void requestMessagesCount();
-	void fillSkippedAndSliceToLimits();
-	void sliceToLimits();
-
-	void mergeSliceData(
-		base::optional<int> count,
-		const base::flat_set<MsgId> &messageIds,
-		base::optional<int> skippedBefore = base::none,
-		base::optional<int> skippedAfter = base::none);
-
-	Key _key;
-	base::flat_set<MsgId> _ids;
-	MsgRange _range;
-	base::optional<int> _fullCount;
-	base::optional<int> _skippedBefore;
-	base::optional<int> _skippedAfter;
-	int _limitBefore = 0;
-	int _limitAfter = 0;
-
-	rpl::event_stream<AroundData> _insufficientMediaAround;
-
-};
-
-SharedMediaSlice::SharedMediaSlice(Key key) : SharedMediaSlice(
-	key,
-	{},
-	{},
-	base::none,
-	base::none,
-	base::none) {
-}
-
-SharedMediaSlice::SharedMediaSlice(
-	Key key,
-	const base::flat_set<MsgId> &ids,
-	MsgRange range,
-	base::optional<int> fullCount,
-	base::optional<int> skippedBefore,
-	base::optional<int> skippedAfter)
-	: _key(key)
-	, _ids(ids)
-	, _range(range)
-	, _fullCount(fullCount)
-	, _skippedBefore(skippedBefore)
-	, _skippedAfter(skippedAfter) {
-}
-
-base::optional<int> SharedMediaSlice::indexOf(MsgId msgId) const {
-	auto it = _ids.find(msgId);
-	if (it != _ids.end()) {
-		return (it - _ids.begin());
-	}
-	return base::none;
-}
-
-MsgId SharedMediaSlice::operator[](int index) const {
-	Expects(index >= 0 && index < size());
-
-	return *(_ids.begin() + index);
-}
-
-base::optional<int> SharedMediaSlice::distance(const Key &a, const Key &b) const {
-	if (a.type != _key.type
-		|| b.type != _key.type
-		|| a.peerId != _key.peerId
-		|| b.peerId != _key.peerId) {
-		return base::none;
-	}
-	if (auto i = indexOf(a.messageId)) {
-		if (auto j = indexOf(b.messageId)) {
-			return *j - *i;
-		}
-	}
-	return base::none;
-}
-
-base::optional<MsgId> SharedMediaSlice::nearest(MsgId msgId) const {
-	if (auto it = base::lower_bound(_ids, msgId); it != _ids.end()) {
-		return *it;
-	} else if (_ids.empty()) {
-		return base::none;
-	}
-	return _ids.back();
-}
-
-QString SharedMediaSlice::debug() const {
-	auto before = _skippedBefore
-		? (*_skippedBefore
-			? ('(' + QString::number(*_skippedBefore) + ").. ")
-			: QString())
-		: QString(".. ");
-	auto after = _skippedAfter
-		? (*_skippedAfter
-			? (" ..(" + QString::number(*_skippedAfter) + ')')
-			: QString())
-		: QString(" ..");
-	auto middle = (size() > 2)
-		? QString::number((*this)[0]) + " .. " + QString::number((*this)[size() - 1])
-		: (size() > 1)
-		? QString::number((*this)[0]) + ' ' + QString::number((*this)[1])
-		: ((size() > 0) ? QString::number((*this)[0]) : QString());
-	return before + middle + after;
-}
-
-SharedMediaSliceBuilder::SharedMediaSliceBuilder(
-	Key key,
-	int limitBefore,
-	int limitAfter)
-	: _key(key)
-	, _limitBefore(limitBefore)
-	, _limitAfter(limitAfter) {
-}
-
-bool SharedMediaSliceBuilder::applyUpdate(const Result &result) {
-	mergeSliceData(
-		result.count,
-		result.messageIds,
-		result.skippedBefore,
-		result.skippedAfter);
-	return true;
-}
-
-bool SharedMediaSliceBuilder::applyUpdate(const SliceUpdate &update) {
-	if (update.peerId != _key.peerId || update.type != _key.type) {
-		return false;
-	}
-	auto intersects = [](MsgRange range1, MsgRange range2) {
-		return (range1.from <= range2.till)
-			&& (range2.from <= range1.till);
-	};
-	auto needMergeMessages = (update.messages != nullptr)
-		&& intersects(update.range, {
-			_ids.empty() ? _key.messageId : _ids.front(),
-			_ids.empty() ? _key.messageId : _ids.back()
-		});
-	if (!needMergeMessages && !update.count) {
-		return false;
-	}
-	auto skippedBefore = (update.range.from == 0)
-		? 0
-		: base::optional<int> {};
-	auto skippedAfter = (update.range.till == ServerMaxMsgId)
-		? 0
-		: base::optional<int> {};
-	mergeSliceData(
-		update.count,
-		needMergeMessages
-			? *update.messages
-			: base::flat_set<MsgId> {},
-		skippedBefore,
-		skippedAfter);
-	return true;
-}
-
-bool SharedMediaSliceBuilder::applyUpdate(const RemoveOne &update) {
-	if (update.peerId != _key.peerId || !update.types.test(_key.type)) {
-		return false;
-	}
-	auto changed = false;
-	if (_fullCount && *_fullCount > 0) {
-		--*_fullCount;
-		changed = true;
-	}
-	if (_ids.contains(update.messageId)) {
-		_ids.remove(update.messageId);
-		changed = true;
-	} else if (!_ids.empty()) {
-		if (_ids.front() > update.messageId
-			&& _skippedBefore
-			&& *_skippedBefore > 0) {
-			--*_skippedBefore;
-			changed = true;
-		} else if (_ids.back() < update.messageId
-			&& _skippedAfter
-			&& *_skippedAfter > 0) {
-			--*_skippedAfter;
-			changed = true;
-		}
-	}
-	return changed;
-}
-
-bool SharedMediaSliceBuilder::applyUpdate(const RemoveAll &update) {
-	if (update.peerId != _key.peerId) {
-		return false;
-	}
-	_ids = {};
-	_range = { 0, ServerMaxMsgId };
-	_fullCount = 0;
-	_skippedBefore = 0;
-	_skippedAfter = 0;
-	return true;
-}
-
-void SharedMediaSliceBuilder::checkInsufficientMedia() {
-	sliceToLimits();
-}
-
-void SharedMediaSliceBuilder::mergeSliceData(
-	base::optional<int> count,
-	const base::flat_set<MsgId> &messageIds,
-	base::optional<int> skippedBefore,
-	base::optional<int> skippedAfter) {
-	if (messageIds.empty()) {
-		if (count && _fullCount != count) {
-			_fullCount = count;
-			if (*_fullCount <= _ids.size()) {
-				_fullCount = _ids.size();
-				_skippedBefore = _skippedAfter = 0;
-			}
-		}
-		fillSkippedAndSliceToLimits();
-		return;
-	}
-	if (count) {
-		_fullCount = count;
-	}
-	auto wasMinId = _ids.empty() ? -1 : _ids.front();
-	auto wasMaxId = _ids.empty() ? -1 : _ids.back();
-	_ids.merge(messageIds.begin(), messageIds.end());
-
-	auto adjustSkippedBefore = [&](MsgId oldId, int oldSkippedBefore) {
-		auto it = _ids.find(oldId);
-		Assert(it != _ids.end());
-		_skippedBefore = oldSkippedBefore - (it - _ids.begin());
-		accumulate_max(*_skippedBefore, 0);
-	};
-	if (skippedBefore) {
-		adjustSkippedBefore(messageIds.front(), *skippedBefore);
-	} else if (wasMinId >= 0 && _skippedBefore) {
-		adjustSkippedBefore(wasMinId, *_skippedBefore);
-	} else {
-		_skippedBefore = base::none;
-	}
-
-	auto adjustSkippedAfter = [&](MsgId oldId, int oldSkippedAfter) {
-		auto it = _ids.find(oldId);
-		Assert(it != _ids.end());
-		_skippedAfter = oldSkippedAfter - (_ids.end() - it - 1);
-		accumulate_max(*_skippedAfter, 0);
-	};
-	if (skippedAfter) {
-		adjustSkippedAfter(messageIds.back(), *skippedAfter);
-	} else if (wasMaxId >= 0 && _skippedAfter) {
-		adjustSkippedAfter(wasMaxId, *_skippedAfter);
-	} else {
-		_skippedAfter = base::none;
-	}
-	fillSkippedAndSliceToLimits();
-}
-
-void SharedMediaSliceBuilder::fillSkippedAndSliceToLimits() {
-	if (_fullCount) {
-		if (_skippedBefore && !_skippedAfter) {
-			_skippedAfter = *_fullCount
-				- *_skippedBefore
-				- int(_ids.size());
-		} else if (_skippedAfter && !_skippedBefore) {
-			_skippedBefore = *_fullCount
-				- *_skippedAfter
-				- int(_ids.size());
-		}
-	}
-	sliceToLimits();
-}
-
-void SharedMediaSliceBuilder::sliceToLimits() {
-	if (!_key.messageId) {
-		if (!_fullCount) {
-			requestMessagesCount();
-		}
-		return;
-	}
-	auto requestedSomething = false;
-	auto aroundIt = base::lower_bound(_ids, _key.messageId);
-	auto removeFromBegin = (aroundIt - _ids.begin() - _limitBefore);
-	auto removeFromEnd = (_ids.end() - aroundIt - _limitAfter - 1);
-	if (removeFromBegin > 0) {
-		_ids.erase(_ids.begin(), _ids.begin() + removeFromBegin);
-		if (_skippedBefore) {
-			*_skippedBefore += removeFromBegin;
-		}
-	} else if (removeFromBegin < 0
-		&& (!_skippedBefore || *_skippedBefore > 0)) {
-		requestedSomething = true;
-		requestMessages(RequestDirection::Before);
-	}
-	if (removeFromEnd > 0) {
-		_ids.erase(_ids.end() - removeFromEnd, _ids.end());
-		if (_skippedAfter) {
-			*_skippedAfter += removeFromEnd;
-		}
-	} else if (removeFromEnd < 0
-		&& (!_skippedAfter || *_skippedAfter > 0)) {
-		requestedSomething = true;
-		requestMessages(RequestDirection::After);
-	}
-	if (!_fullCount && !requestedSomething) {
-		requestMessagesCount();
-	}
-}
-
-void SharedMediaSliceBuilder::requestMessages(
-		RequestDirection direction) {
-	using SliceType = ApiWrap::SliceType;
-	auto requestAroundData = [&]() -> AroundData {
-		if (_ids.empty()) {
-			return { _key.messageId, SliceType::Around };
-		} else if (direction == RequestDirection::Before) {
-			return { _ids.front(), SliceType::Before };
-		}
-		return { _ids.back(), SliceType::After };
-	};
-	_insufficientMediaAround.fire(requestAroundData());
-}
-
-void SharedMediaSliceBuilder::requestMessagesCount() {
-	_insufficientMediaAround.fire({ 0, ApiWrap::SliceType::Around });
-}
-
-SharedMediaSlice SharedMediaSliceBuilder::snapshot() const {
-	return SharedMediaSlice(
-		_key,
-		_ids,
-		_range,
-		_fullCount,
-		_skippedBefore,
-		_skippedAfter);
-}
-
-rpl::producer<SharedMediaSlice> SharedMediaViewer(
-		SharedMediaSlice::Key key,
+rpl::producer<SparseIdsSlice> SharedMediaViewer(
+		Storage::SharedMediaKey key,
 		int limitBefore,
 		int limitAfter) {
 	Expects(IsServerMsgId(key.messageId) || (key.messageId == 0));
@@ -431,199 +72,123 @@ rpl::producer<SharedMediaSlice> SharedMediaViewer(
 
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
-		auto builder = lifetime.make_state<SharedMediaSliceBuilder>(
-			key,
+		auto builder = lifetime.make_state<SparseIdsSliceBuilder>(
+			key.messageId,
 			limitBefore,
 			limitAfter);
-		auto applyUpdate = [=](auto &&update) {
-			if (builder->applyUpdate(std::forward<decltype(update)>(update))) {
-				consumer.put_next(builder->snapshot());
-			}
-		};
 		auto requestMediaAround = [
 			peer = App::peer(key.peerId),
 			type = key.type
-		](const SharedMediaSliceBuilder::AroundData &data) {
+		](const SparseIdsSliceBuilder::AroundData &data) {
 			Auth().api().requestSharedMedia(
 				peer,
 				type,
 				data.first,
 				data.second);
 		};
-		builder->insufficientMediaAround()
+		builder->insufficientAround()
 			| rpl::start_with_next(requestMediaAround, lifetime);
 
-		Auth().storage().sharedMediaSliceUpdated()
-			| rpl::start_with_next(applyUpdate, lifetime);
-		Auth().storage().sharedMediaOneRemoved()
-			| rpl::start_with_next(applyUpdate, lifetime);
-		Auth().storage().sharedMediaAllRemoved()
-			| rpl::start_with_next(applyUpdate, lifetime);
+		auto pushNextSnapshot = [=] {
+			consumer.put_next(builder->snapshot());
+		};
 
+		using SliceUpdate = Storage::SharedMediaSliceUpdate;
+		Auth().storage().sharedMediaSliceUpdated()
+			| rpl::filter([=](const SliceUpdate &update) {
+				return (update.peerId == key.peerId)
+					&& (update.type == key.type);
+			})
+			| rpl::filter([=](const SliceUpdate &update) {
+				return builder->applyUpdate(update.data);
+			})
+			| rpl::start_with_next(pushNextSnapshot, lifetime);
+
+		using OneRemoved = Storage::SharedMediaRemoveOne;
+		Auth().storage().sharedMediaOneRemoved()
+			| rpl::filter([=](const OneRemoved &update) {
+				return (update.peerId == key.peerId)
+					&& update.types.test(key.type);
+			})
+			| rpl::filter([=](const OneRemoved &update) {
+				return builder->removeOne(update.messageId);
+			})
+			| rpl::start_with_next(pushNextSnapshot, lifetime);
+
+		using AllRemoved = Storage::SharedMediaRemoveAll;
+		Auth().storage().sharedMediaAllRemoved()
+			| rpl::filter([=](const AllRemoved &update) {
+				return (update.peerId == key.peerId);
+			})
+			| rpl::filter([=](const AllRemoved &update) {
+				return builder->removeAll();
+			})
+			| rpl::start_with_next(pushNextSnapshot, lifetime);
+
+		using Result = Storage::SharedMediaResult;
 		Auth().storage().query(
 			Storage::SharedMediaQuery(
 				key,
 				limitBefore,
-				limitAfter)
-		) | rpl::start_with_next_done(
-			applyUpdate,
-			[=] { builder->checkInsufficientMedia(); },
-			lifetime);
+				limitAfter))
+			| rpl::filter([=](const Result &result) {
+				return builder->applyInitial(result);
+			})
+			| rpl::start_with_next_done(
+				pushNextSnapshot,
+				[=] { builder->checkInsufficient(); },
+				lifetime);
 
 		return lifetime;
 	};
 }
 
-SharedMediaMergedSlice::SharedMediaMergedSlice(Key key) : SharedMediaMergedSlice(
-	key,
-	SharedMediaSlice(PartKey(key)),
-	MigratedSlice(key)) {
-}
-
-SharedMediaMergedSlice::SharedMediaMergedSlice(
-	Key key,
-	SharedMediaSlice part,
-	base::optional<SharedMediaSlice> migrated)
-: _key(key)
-, _part(std::move(part))
-, _migrated(std::move(migrated)) {
-}
-
-base::optional<int> SharedMediaMergedSlice::fullCount() const {
-	return Add(
-		_part.fullCount(),
-		_migrated ? _migrated->fullCount() : 0);
-}
-
-base::optional<int> SharedMediaMergedSlice::skippedBefore() const {
-	return Add(
-		isolatedInMigrated() ? 0 : _part.skippedBefore(),
-		_migrated
-			? (isolatedInPart()
-				? _migrated->fullCount()
-				: _migrated->skippedBefore())
-			: 0
-	);
-}
-
-base::optional<int> SharedMediaMergedSlice::skippedAfter() const {
-	return Add(
-		isolatedInMigrated() ? _part.fullCount() : _part.skippedAfter(),
-		isolatedInPart() ? 0 : _migrated->skippedAfter()
-	);
-}
-
-base::optional<int> SharedMediaMergedSlice::indexOf(FullMsgId fullId) const {
-	return isFromPart(fullId)
-		? (_part.indexOf(fullId.msg) | func::add(migratedSize()))
-		: isolatedInPart()
-			? base::none
-			: isFromMigrated(fullId)
-				? _migrated->indexOf(fullId.msg)
-				: base::none;
-}
-
-int SharedMediaMergedSlice::size() const {
-	return (isolatedInPart() ? 0 : migratedSize())
-		+ (isolatedInMigrated() ? 0 : _part.size());
-}
-
-FullMsgId SharedMediaMergedSlice::operator[](int index) const {
-	Expects(index >= 0 && index < size());
-
-	if (auto size = migratedSize()) {
-		if (index < size) {
-			return ComputeId(*_migrated, index);
-		}
-		index -= size;
-	}
-	return ComputeId(_part, index);
-}
-
-base::optional<int> SharedMediaMergedSlice::distance(
-		const Key &a,
-		const Key &b) const {
-	if (a.type != _key.type
-		|| b.type != _key.type
-		|| a.peerId != _key.peerId
-		|| b.peerId != _key.peerId
-		|| a.migratedPeerId != _key.migratedPeerId
-		|| b.migratedPeerId != _key.migratedPeerId) {
-		return base::none;
-	}
-	if (auto i = indexOf(ComputeId(a))) {
-		if (auto j = indexOf(ComputeId(b))) {
-			return *j - *i;
-		}
-	}
-	return base::none;
-}
-
-auto SharedMediaMergedSlice::nearest(
-		UniversalMsgId id) const -> base::optional<UniversalMsgId> {
-	auto convertFromMigratedNearest = [](MsgId result) {
-		return result - ServerMaxMsgId;
-	};
-	if (IsServerMsgId(id)) {
-		if (auto partNearestId = _part.nearest(id)) {
-			return partNearestId;
-		} else if (isolatedInPart()) {
-			return base::none;
-		}
-		return _migrated->nearest(ServerMaxMsgId - 1)
-			| convertFromMigratedNearest;
-	}
-	if (auto migratedNearestId = _migrated
-		? _migrated->nearest(id + ServerMaxMsgId)
-		: base::none) {
-		return migratedNearestId
-			| convertFromMigratedNearest;
-	} else if (isolatedInMigrated()) {
-		return base::none;
-	}
-	return _part.nearest(0);
-}
-
-QString SharedMediaMergedSlice::debug() const {
-	return (_migrated ? (_migrated->debug() + '|') : QString()) + _part.debug();
-}
-
-rpl::producer<SharedMediaMergedSlice> SharedMediaMergedViewer(
-		SharedMediaMergedSlice::Key key,
+rpl::producer<SparseIdsMergedSlice> SharedMediaMergedViewer(
+		SharedMediaMergedKey key,
 		int limitBefore,
 		int limitAfter) {
-	Expects(IsServerMsgId(key.universalId)
-		|| (key.universalId == 0)
-		|| (IsServerMsgId(ServerMaxMsgId + key.universalId) && key.migratedPeerId != 0));
-	Expects((key.universalId != 0) || (limitBefore == 0 && limitAfter == 0));
+	Expects(IsServerMsgId(key.mergedKey.universalId)
+		|| (key.mergedKey.universalId == 0)
+		|| (IsServerMsgId(ServerMaxMsgId + key.mergedKey.universalId) && key.mergedKey.migratedPeerId != 0));
+	Expects((key.mergedKey.universalId != 0)
+		|| (limitBefore == 0 && limitAfter == 0));
 
 	return [=](auto consumer) {
-		if (!key.migratedPeerId) {
+		if (!key.mergedKey.migratedPeerId) {
 			return SharedMediaViewer(
-				SharedMediaMergedSlice::PartKey(key),
+				Storage::SharedMediaKey(
+					key.mergedKey.peerId,
+					key.type,
+					SparseIdsMergedSlice::PartKey(key.mergedKey)),
 				limitBefore,
 				limitAfter
-			) | rpl::start_with_next([=](SharedMediaSlice &&part) {
-				consumer.put_next(SharedMediaMergedSlice(
-					key,
+			) | rpl::start_with_next([=](SparseIdsSlice &&part) {
+				consumer.put_next(SparseIdsMergedSlice(
+					key.mergedKey,
 					std::move(part),
 					base::none));
 			});
 		}
 		return rpl::combine(
 			SharedMediaViewer(
-				SharedMediaMergedSlice::PartKey(key),
+				Storage::SharedMediaKey(
+					key.mergedKey.peerId,
+					key.type,
+					SparseIdsMergedSlice::PartKey(key.mergedKey)),
 				limitBefore,
 				limitAfter),
 			SharedMediaViewer(
-				SharedMediaMergedSlice::MigratedKey(key),
+				Storage::SharedMediaKey(
+					key.mergedKey.migratedPeerId,
+					key.type,
+					SparseIdsMergedSlice::MigratedKey(key.mergedKey)),
 				limitBefore,
 				limitAfter)
 		) | rpl::start_with_next([=](
-				SharedMediaSlice &&part,
-				SharedMediaSlice &&migrated) {
-			consumer.put_next(SharedMediaMergedSlice(
-				key,
+				SparseIdsSlice &&part,
+				SparseIdsSlice &&migrated) {
+			consumer.put_next(SparseIdsMergedSlice(
+				key.mergedKey,
 				std::move(part),
 				std::move(migrated)));
 		});
@@ -633,21 +198,21 @@ rpl::producer<SharedMediaMergedSlice> SharedMediaMergedViewer(
 SharedMediaWithLastSlice::SharedMediaWithLastSlice(Key key)
 : SharedMediaWithLastSlice(
 	key,
-	SharedMediaMergedSlice(ViewerKey(key)),
+	SparseIdsMergedSlice(ViewerKey(key)),
 	EndingSlice(key)) {
 }
 
 SharedMediaWithLastSlice::SharedMediaWithLastSlice(
 	Key key,
-	SharedMediaMergedSlice slice,
-	base::optional<SharedMediaMergedSlice> ending)
-	: _key(key)
-	, _slice(std::move(slice))
-	, _ending(std::move(ending))
-	, _lastPhotoId(LastPeerPhotoId(key.peerId))
-	, _isolatedLastPhoto(_key.type == Type::ChatPhoto
-		? IsLastIsolated(_slice, _ending, _lastPhotoId)
-		: false) {
+	SparseIdsMergedSlice slice,
+	base::optional<SparseIdsMergedSlice> ending)
+: _key(key)
+, _slice(std::move(slice))
+, _ending(std::move(ending))
+, _lastPhotoId(LastPeerPhotoId(key.peerId))
+, _isolatedLastPhoto(_key.type == Type::ChatPhoto
+	? IsLastIsolated(_slice, _ending, _lastPhotoId)
+	: false) {
 }
 
 base::optional<int> SharedMediaWithLastSlice::fullCount() const {
@@ -690,27 +255,15 @@ SharedMediaWithLastSlice::Value SharedMediaWithLastSlice::operator[](int index) 
 		: Value(App::photo(_lastPhotoId));
 }
 
-base::optional<int> SharedMediaWithLastSlice::distance(const Key &a, const Key &b) const {
-	if (a.type != _key.type
-		|| b.type != _key.type
-		|| a.peerId != _key.peerId
-		|| b.peerId != _key.peerId
-		|| a.migratedPeerId != _key.migratedPeerId
-		|| b.migratedPeerId != _key.migratedPeerId) {
-		return base::none;
-	}
+base::optional<int> SharedMediaWithLastSlice::distance(
+		const Key &a,
+		const Key &b) const {
 	if (auto i = indexOf(ComputeId(a))) {
 		if (auto j = indexOf(ComputeId(b))) {
 			return *j - *i;
 		}
 	}
 	return base::none;
-}
-
-QString SharedMediaWithLastSlice::debug() const {
-	return _slice.debug() + (_isolatedLastPhoto
-		? (*_isolatedLastPhoto ? "@" : "")
-		: "?");
 }
 
 PhotoId SharedMediaWithLastSlice::LastPeerPhotoId(PeerId peerId) {
@@ -721,8 +274,8 @@ PhotoId SharedMediaWithLastSlice::LastPeerPhotoId(PeerId peerId) {
 }
 
 base::optional<bool> SharedMediaWithLastSlice::IsLastIsolated(
-		const SharedMediaMergedSlice &slice,
-		const base::optional<SharedMediaMergedSlice> &ending,
+		const SparseIdsMergedSlice &slice,
+		const base::optional<SparseIdsMergedSlice> &ending,
 		PhotoId lastPeerPhotoId) {
 	if (lastPeerPhotoId == UnknownPeerPhotoId) {
 		return base::none;
@@ -742,7 +295,7 @@ base::optional<bool> SharedMediaWithLastSlice::IsLastIsolated(
 }
 
 base::optional<FullMsgId> SharedMediaWithLastSlice::LastFullMsgId(
-		const SharedMediaMergedSlice &slice) {
+		const SparseIdsMergedSlice &slice) {
 	if (slice.fullCount() == 0) {
 		return FullMsgId();
 	} else if (slice.size() == 0 || slice.skippedAfter() != 0) {
@@ -758,10 +311,12 @@ rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastViewer(
 	return [=](auto consumer) {
 		if (base::get_if<not_null<PhotoData*>>(&key.universalId)) {
 			return SharedMediaMergedViewer(
-				SharedMediaWithLastSlice::ViewerKey(key),
+				SharedMediaMergedKey(
+					SharedMediaWithLastSlice::ViewerKey(key),
+					key.type),
 				limitBefore,
 				limitAfter
-			) | rpl::start_with_next([=](SharedMediaMergedSlice &&update) {
+			) | rpl::start_with_next([=](SparseIdsMergedSlice &&update) {
 				consumer.put_next(SharedMediaWithLastSlice(
 					key,
 					std::move(update),
@@ -770,16 +325,20 @@ rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastViewer(
 		}
 		return rpl::combine(
 			SharedMediaMergedViewer(
-				SharedMediaWithLastSlice::ViewerKey(key),
+				SharedMediaMergedKey(
+					SharedMediaWithLastSlice::ViewerKey(key),
+					key.type),
 				limitBefore,
 				limitAfter),
 			SharedMediaMergedViewer(
-				SharedMediaWithLastSlice::EndingKey(key),
+				SharedMediaMergedKey(
+					SharedMediaWithLastSlice::EndingKey(key),
+					key.type),
 				1,
 				1)
 		) | rpl::start_with_next([=](
-				SharedMediaMergedSlice &&viewer,
-				SharedMediaMergedSlice &&ending) {
+				SparseIdsMergedSlice &&viewer,
+				SparseIdsMergedSlice &&ending) {
 			consumer.put_next(SharedMediaWithLastSlice(
 				key,
 				std::move(viewer),

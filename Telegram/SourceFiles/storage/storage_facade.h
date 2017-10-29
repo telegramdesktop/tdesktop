@@ -25,13 +25,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Storage {
 
+struct SparseIdsListResult;
+
 struct SharedMediaAddNew;
 struct SharedMediaAddExisting;
 struct SharedMediaAddSlice;
 struct SharedMediaRemoveOne;
 struct SharedMediaRemoveAll;
 struct SharedMediaQuery;
-struct SharedMediaResult;
+using SharedMediaResult = SparseIdsListResult;
 struct SharedMediaSliceUpdate;
 
 struct UserPhotosAddNew;

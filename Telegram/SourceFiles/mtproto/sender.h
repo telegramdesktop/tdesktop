@@ -279,12 +279,15 @@ public:
 
 	};
 
-	template <typename Request, typename = std::enable_if_t<std::is_rvalue_reference<Request&&>::value>, typename = typename Request::Unboxed>
+	template <
+		typename Request,
+		typename = std::enable_if_t<!std::is_reference_v<Request>>,
+		typename = typename Request::Unboxed>
 	[[nodiscard]] SpecificRequestBuilder<Request> request(Request &&request) noexcept;
 
 	[[nodiscard]] SentRequestWrap request(mtpRequestId requestId) noexcept;
 
-	[[nodiscard]] decltype(auto) requestCanceller() noexcept {
+	[[nodiscard]] auto requestCanceller() noexcept {
 		return [this](mtpRequestId requestId) {
 			request(requestId).cancel();
 		};
@@ -305,7 +308,20 @@ public:
 private:
 	class RequestWrap {
 	public:
-		RequestWrap(Instance *instance, mtpRequestId requestId) noexcept : _id(requestId) {
+		RequestWrap(
+			Instance *instance,
+			mtpRequestId requestId) noexcept
+		: _id(requestId) {
+		}
+
+		RequestWrap(const RequestWrap &other) = delete;
+		RequestWrap &operator=(const RequestWrap &other) = delete;
+		RequestWrap(RequestWrap &&other) : _id(base::take(other._id)) {
+		}
+		RequestWrap &operator=(RequestWrap &&other) {
+			cancelRequest();
+			_id = base::take(other._id);
+			return *this;
 		}
 
 		mtpRequestId id() const noexcept {
@@ -315,12 +331,17 @@ private:
 		}
 
 		~RequestWrap() {
-			if (auto instance = MainInstance()) {
-				instance->cancel(_id);
-			}
+			cancelRequest();
 		}
 
 	private:
+		void cancelRequest() {
+			if (_id) {
+				if (auto instance = MainInstance()) {
+					instance->cancel(_id);
+				}
+			}
+		}
 		mtpRequestId _id = 0;
 
 	};
@@ -370,7 +391,7 @@ private:
 		}
 	}
 
-	std::set<RequestWrap, RequestWrapComparator> _requests; // Better to use flatmap.
+	base::flat_set<RequestWrap, RequestWrapComparator> _requests;
 
 };
 
