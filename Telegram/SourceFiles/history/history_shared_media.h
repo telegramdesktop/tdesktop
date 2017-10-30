@@ -29,6 +29,7 @@ base::optional<Storage::SharedMediaType> SharedMediaOverviewType(
 void SharedMediaShowOverview(
 	Storage::SharedMediaType type,
 	not_null<History*> history);
+bool SharedMediaAllowSearch(Storage::SharedMediaType type);
 
 rpl::producer<SparseIdsSlice> SharedMediaViewer(
 	Storage::SharedMediaKey key,

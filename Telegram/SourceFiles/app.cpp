@@ -603,8 +603,8 @@ namespace {
 				}
 				if (updatedFrom) {
 					channel->mgInfo->migrateFromPtr = cdata;
-					if (History *h = App::historyLoaded(cdata->id)) {
-						if (History *hto = App::historyLoaded(channel->id)) {
+					if (auto h = App::historyLoaded(cdata->id)) {
+						if (auto hto = App::historyLoaded(channel->id)) {
 							if (!h->isEmpty()) {
 								h->clear(true);
 							}

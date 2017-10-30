@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "history/history_sparse_ids.h"
 
+#include <rpl/combine.h>
 #include "storage/storage_sparse_ids_list.h"
 
 SparseIdsSlice::SparseIdsSlice(
@@ -388,4 +389,50 @@ SparseIdsSlice SparseIdsSliceBuilder::snapshot() const {
 		_fullCount,
 		_skippedBefore,
 		_skippedAfter);
+}
+
+rpl::producer<SparseIdsMergedSlice> SparseIdsMergedSlice::CreateViewer(
+		SparseIdsMergedSlice::Key key,
+		int limitBefore,
+		int limitAfter,
+		base::lambda<SimpleViewerFunction> simpleViewer) {
+	Expects(IsServerMsgId(key.universalId)
+		|| (key.universalId == 0)
+		|| (IsServerMsgId(ServerMaxMsgId + key.universalId) && key.migratedPeerId != 0));
+	Expects((key.universalId != 0)
+		|| (limitBefore == 0 && limitAfter == 0));
+
+	return [=](auto consumer) {
+		auto partViewer = simpleViewer(
+			key.peerId,
+			SparseIdsMergedSlice::PartKey(key),
+			limitBefore,
+			limitAfter
+		);
+		if (!key.migratedPeerId) {
+			return std::move(partViewer)
+				| rpl::start_with_next([=](SparseIdsSlice &&part) {
+					consumer.put_next(SparseIdsMergedSlice(
+						key,
+						std::move(part),
+						base::none));
+				});
+		}
+		auto migratedViewer = simpleViewer(
+			key.migratedPeerId,
+			SparseIdsMergedSlice::MigratedKey(key),
+			limitBefore,
+			limitAfter);
+		return rpl::combine(
+			std::move(partViewer),
+			std::move(migratedViewer)
+		) | rpl::start_with_next([=](
+				SparseIdsSlice &&part,
+				SparseIdsSlice &&migrated) {
+			consumer.put_next(SparseIdsMergedSlice(
+				key,
+				std::move(part),
+				std::move(migrated)));
+		});
+	};
 }

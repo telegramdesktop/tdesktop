@@ -48,7 +48,7 @@ inline MediaOverviewType SharedMediaTypeToOverview(Type type) {
 } // namespace
 
 base::optional<Storage::SharedMediaType> SharedMediaOverviewType(
-	Storage::SharedMediaType type) {
+		Storage::SharedMediaType type) {
 	if (SharedMediaTypeToOverview(type) != OverviewCount) {
 		return type;
 	}
@@ -56,10 +56,19 @@ base::optional<Storage::SharedMediaType> SharedMediaOverviewType(
 }
 
 void SharedMediaShowOverview(
-	Storage::SharedMediaType type,
-	not_null<History*> history) {
+		Storage::SharedMediaType type,
+		not_null<History*> history) {
 	if (SharedMediaOverviewType(type)) {
 		Ui::showPeerOverview(history, SharedMediaTypeToOverview(type));
+	}
+}
+
+bool SharedMediaAllowSearch(Storage::SharedMediaType type) {
+	switch (type) {
+	case Type::MusicFile:
+	case Type::File:
+	case Type::Link: return true;
+	default: return false;
 	}
 }
 
@@ -83,8 +92,8 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 			Auth().api().requestSharedMedia(
 				peer,
 				type,
-				data.first,
-				data.second);
+				data.aroundId,
+				data.direction);
 		};
 		builder->insufficientAround()
 			| rpl::start_with_next(requestMediaAround, lifetime);
@@ -120,9 +129,7 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 			| rpl::filter([=](const AllRemoved &update) {
 				return (update.peerId == key.peerId);
 			})
-			| rpl::filter([=](const AllRemoved &update) {
-				return builder->removeAll();
-			})
+			| rpl::filter([=] { return builder->removeAll(); })
 			| rpl::start_with_next(pushNextSnapshot, lifetime);
 
 		using Result = Storage::SharedMediaResult;
@@ -147,52 +154,25 @@ rpl::producer<SparseIdsMergedSlice> SharedMediaMergedViewer(
 		SharedMediaMergedKey key,
 		int limitBefore,
 		int limitAfter) {
-	Expects(IsServerMsgId(key.mergedKey.universalId)
-		|| (key.mergedKey.universalId == 0)
-		|| (IsServerMsgId(ServerMaxMsgId + key.mergedKey.universalId) && key.mergedKey.migratedPeerId != 0));
-	Expects((key.mergedKey.universalId != 0)
-		|| (limitBefore == 0 && limitAfter == 0));
-
-	return [=](auto consumer) {
-		if (!key.mergedKey.migratedPeerId) {
-			return SharedMediaViewer(
-				Storage::SharedMediaKey(
-					key.mergedKey.peerId,
-					key.type,
-					SparseIdsMergedSlice::PartKey(key.mergedKey)),
-				limitBefore,
-				limitAfter
-			) | rpl::start_with_next([=](SparseIdsSlice &&part) {
-				consumer.put_next(SparseIdsMergedSlice(
-					key.mergedKey,
-					std::move(part),
-					base::none));
-			});
-		}
-		return rpl::combine(
-			SharedMediaViewer(
-				Storage::SharedMediaKey(
-					key.mergedKey.peerId,
-					key.type,
-					SparseIdsMergedSlice::PartKey(key.mergedKey)),
-				limitBefore,
-				limitAfter),
-			SharedMediaViewer(
-				Storage::SharedMediaKey(
-					key.mergedKey.migratedPeerId,
-					key.type,
-					SparseIdsMergedSlice::MigratedKey(key.mergedKey)),
-				limitBefore,
-				limitAfter)
-		) | rpl::start_with_next([=](
-				SparseIdsSlice &&part,
-				SparseIdsSlice &&migrated) {
-			consumer.put_next(SparseIdsMergedSlice(
-				key.mergedKey,
-				std::move(part),
-				std::move(migrated)));
-		});
+	auto createSimpleViewer = [=](
+			PeerId peerId,
+			SparseIdsSlice::Key simpleKey,
+			int limitBefore,
+			int limitAfter) {
+		return SharedMediaViewer(
+			Storage::SharedMediaKey(
+				peerId,
+				key.type,
+				simpleKey),
+			limitBefore,
+			limitAfter
+		);
 	};
+	return SparseIdsMergedSlice::CreateViewer(
+		key.mergedKey,
+		limitBefore,
+		limitAfter,
+		std::move(createSimpleViewer));
 }
 
 SharedMediaWithLastSlice::SharedMediaWithLastSlice(Key key)

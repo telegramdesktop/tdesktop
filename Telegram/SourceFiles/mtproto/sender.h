@@ -319,8 +319,10 @@ private:
 		RequestWrap(RequestWrap &&other) : _id(base::take(other._id)) {
 		}
 		RequestWrap &operator=(RequestWrap &&other) {
-			cancelRequest();
-			_id = base::take(other._id);
+			if (_id != other._id) {
+				cancelRequest();
+				_id = base::take(other._id);
+			}
 			return *this;
 		}
 

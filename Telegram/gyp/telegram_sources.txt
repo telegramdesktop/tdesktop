@@ -28,6 +28,7 @@
 <(src_loc)/base/type_traits.h
 <(src_loc)/base/unique_any.h
 <(src_loc)/base/unique_function.h
+<(src_loc)/base/unique_qptr.h
 <(src_loc)/base/variant.h
 <(src_loc)/base/virtual_method.h
 <(src_loc)/base/weak_unique_ptr.h
@@ -197,6 +198,8 @@
 <(src_loc)/history/history_media_types.h
 <(src_loc)/history/history_message.cpp
 <(src_loc)/history/history_message.h
+<(src_loc)/history/history_search_controller.cpp
+<(src_loc)/history/history_search_controller.h
 <(src_loc)/history/history_service.cpp
 <(src_loc)/history/history_service.h
 <(src_loc)/history/history_service_layout.cpp
@@ -598,6 +601,8 @@
 <(src_loc)/ui/images.cpp
 <(src_loc)/ui/images.h
 <(src_loc)/ui/rp_widget.h
+<(src_loc)/ui/search_field_controller.cpp
+<(src_loc)/ui/search_field_controller.h
 <(src_loc)/ui/special_buttons.cpp
 <(src_loc)/ui/special_buttons.h
 <(src_loc)/ui/twidget.cpp

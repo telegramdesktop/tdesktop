@@ -101,16 +101,26 @@ public:
 	base::optional<int> distance(const Key &a, const Key &b) const;
 	base::optional<UniversalMsgId> nearest(UniversalMsgId id) const;
 
+	using SimpleViewerFunction = rpl::producer<SparseIdsSlice>(
+		PeerId peerId,
+		SparseIdsSlice::Key simpleKey,
+		int limitBefore,
+		int limitAfter);
+	static rpl::producer<SparseIdsMergedSlice> CreateViewer(
+		SparseIdsMergedSlice::Key key,
+		int limitBefore,
+		int limitAfter,
+		base::lambda<SimpleViewerFunction> simpleViewer);
+
+private:
 	static SparseIdsSlice::Key PartKey(const Key &key) {
 		return (key.universalId < 0) ? 1 : key.universalId;
 	}
 	static SparseIdsSlice::Key MigratedKey(const Key &key) {
 		return (key.universalId < 0)
-				? (ServerMaxMsgId + key.universalId)
-				: (key.universalId > 0) ? (ServerMaxMsgId - 1) : 0;
+			? (ServerMaxMsgId + key.universalId)
+			: (key.universalId > 0) ? (ServerMaxMsgId - 1) : 0;
 	}
-
-private:
 	static base::optional<SparseIdsSlice> MigratedSlice(const Key &key) {
 		return key.migratedPeerId
 			? base::make_optional(SparseIdsSlice())
@@ -176,7 +186,17 @@ public:
 	bool removeAll();
 
 	void checkInsufficient();
-	using AroundData = std::pair<MsgId, SparseIdsLoadDirection>;
+	struct AroundData {
+		MsgId aroundId = 0;
+		SparseIdsLoadDirection direction
+			= SparseIdsLoadDirection::Around;
+
+		inline bool operator<(const AroundData &other) const {
+			return (aroundId < other.aroundId)
+				|| ((aroundId == other.aroundId)
+					&& (direction < other.direction));
+		}
+	};
 	auto insufficientAround() const {
 		return _insufficientAround.events();
 	}

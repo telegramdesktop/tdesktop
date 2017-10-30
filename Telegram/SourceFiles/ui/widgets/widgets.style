@@ -1122,3 +1122,12 @@ InfoTopBar {
 	mediaForward: IconButton;
 	mediaDelete: IconButton;
 }
+SearchFieldRow {
+	height: pixels;
+	padding: margins;
+	field: InputField;
+	fieldIcon: icon;
+	fieldIconSkip: pixels;
+	fieldCancel: CrossButton;
+	fieldCancelSkip: pixels;
+}

@@ -41,6 +41,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/storage_shared_media.h"
 #include "storage/storage_user_photos.h"
 #include "history/history_sparse_ids.h"
+#include "history/history_search_controller.h"
 
 namespace {
 
@@ -1939,71 +1940,22 @@ void ApiWrap::requestSharedMedia(
 		return;
 	}
 
-	auto filter = [&] {
-		using Type = SharedMediaType;
-		switch (type) {
-		case Type::Photo:
-			return MTP_inputMessagesFilterPhotos();
-		case Type::Video:
-			return MTP_inputMessagesFilterVideo();
-		case Type::MusicFile:
-			return MTP_inputMessagesFilterMusic();
-		case Type::File:
-			return MTP_inputMessagesFilterDocument();
-		case Type::VoiceFile:
-			return MTP_inputMessagesFilterVoice();
-		case Type::RoundVoiceFile:
-			return MTP_inputMessagesFilterRoundVoice();
-		case Type::RoundFile:
-			return MTP_inputMessagesFilterRoundVideo();
-		case Type::GIF:
-			return MTP_inputMessagesFilterGif();
-		case Type::Link:
-			return MTP_inputMessagesFilterUrl();
-		case Type::ChatPhoto:
-			return MTP_inputMessagesFilterChatPhotos();
-		}
-		return MTP_inputMessagesFilterEmpty();
-	}();
-	if (filter.type() == mtpc_inputMessagesFilterEmpty) {
+	auto prepared = Api::PrepareSearchRequest(
+		peer,
+		type,
+		QString(),
+		messageId,
+		slice);
+	if (prepared.vfilter.type() == mtpc_inputMessagesFilterEmpty) {
 		return;
 	}
 
-	auto minId = 0;
-	auto maxId = 0;
-	auto limit = messageId ? kSharedMediaLimit : 0;
-	auto offsetId = [&] {
-		switch (slice) {
-		case SliceType::Before:
-		case SliceType::Around: return messageId;
-		case SliceType::After: return messageId + 1;
-		}
-		Unexpected("Slice type in ApiWrap::requestSharedMedia");
-	}();
-	auto addOffset = [&] {
-		switch (slice) {
-		case SliceType::Before: return 0;
-		case SliceType::Around: return -limit / 2;
-		case SliceType::After: return -limit;
-		}
-		Unexpected("Slice type in ApiWrap::requestSharedMedia");
-	}();
-
-	auto requestId = request(MTPmessages_Search(
-		MTP_flags(0),
-		peer->input,
-		MTPstring(),
-		MTP_inputUserEmpty(),
-		filter,
-		MTP_int(0),
-		MTP_int(0),
-		MTP_int(offsetId),
-		MTP_int(addOffset),
-		MTP_int(limit),
-		MTP_int(maxId),
-		MTP_int(minId)
-	)).done([this, peer, type, messageId, slice](const MTPmessages_Messages &result) {
-		_sharedMediaRequests.remove(std::make_tuple(peer, type, messageId, slice));
+	auto requestId = request(
+		std::move(prepared)
+	).done([this, peer, type, messageId, slice](
+			const MTPmessages_Messages &result) {
+		auto key = std::make_tuple(peer, type, messageId, slice);
+		_sharedMediaRequests.remove(key);
 		sharedMediaDone(peer, type, messageId, slice, result);
 	}).fail([this, key](const RPCError &error) {
 		_sharedMediaRequests.remove(key);
@@ -2017,74 +1969,18 @@ void ApiWrap::sharedMediaDone(
 		MsgId messageId,
 		SliceType slice,
 		const MTPmessages_Messages &result) {
-	auto fullCount = 0;
-	auto &messages = *[&] {
-		switch (result.type()) {
-		case mtpc_messages_messages: {
-			auto &d = result.c_messages_messages();
-			App::feedUsers(d.vusers);
-			App::feedChats(d.vchats);
-			fullCount = d.vmessages.v.size();
-			return &d.vmessages.v;
-		} break;
-
-		case mtpc_messages_messagesSlice: {
-			auto &d = result.c_messages_messagesSlice();
-			App::feedUsers(d.vusers);
-			App::feedChats(d.vchats);
-			fullCount = d.vcount.v;
-			return &d.vmessages.v;
-		} break;
-
-		case mtpc_messages_channelMessages: {
-			auto &d = result.c_messages_channelMessages();
-			if (auto channel = peer->asChannel()) {
-				channel->ptsReceived(d.vpts.v);
-			} else {
-				LOG(("API Error: received messages.channelMessages when no channel was passed! (ApiWrap::sharedMediaDone)"));
-			}
-			App::feedUsers(d.vusers);
-			App::feedChats(d.vchats);
-			fullCount = d.vcount.v;
-			return &d.vmessages.v;
-		} break;
-		}
-		Unexpected("messages.Messages type in sharedMediaDone()");
-	}();
-
-	auto noSkipRange = MsgRange { messageId, messageId };
-	auto messageIds = std::vector<MsgId>();
-	auto addType = NewMessageExisting;
-	messageIds.reserve(messages.size());
-	for (auto &message : messages) {
-		if (auto item = App::histories().addNewMessage(message, addType)) {
-			if (item->sharedMediaTypes().test(type)) {
-				auto itemId = item->id;
-				messageIds.push_back(itemId);
-				accumulate_min(noSkipRange.from, itemId);
-				accumulate_max(noSkipRange.till, itemId);
-			}
-		}
-	}
-	if (messageId && messageIds.empty()) {
-		noSkipRange = [&]() -> MsgRange {
-			switch (slice) {
-			case SliceType::Before: // All old loaded.
-				return { 0, noSkipRange.till };
-			case SliceType::Around: // All loaded.
-				return { 0, ServerMaxMsgId };
-			case SliceType::After: // All new loaded.
-				return { noSkipRange.from, ServerMaxMsgId };
-			}
-			Unexpected("Slice type in ApiWrap::sharedMediaDone");
-		}();
-	}
+	auto parsed = Api::ParseSearchResult(
+		peer,
+		type,
+		messageId,
+		slice,
+		result);
 	Auth().storage().add(Storage::SharedMediaAddSlice(
 		peer->id,
 		type,
-		std::move(messageIds),
-		noSkipRange,
-		fullCount
+		std::move(parsed.messageIds),
+		parsed.noSkipRange,
+		parsed.fullCount
 	));
 }
 

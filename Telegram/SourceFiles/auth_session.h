@@ -64,9 +64,6 @@ public:
 	base::Observable<void> &savedGifsUpdated() {
 		return _savedGifsUpdated;
 	}
-	base::Observable<not_null<History*>> &historyCleared() {
-		return _historyCleared;
-	}
 	base::Observable<void> &pendingHistoryResize() {
 		return _pendingHistoryResize;
 	}
@@ -78,22 +75,34 @@ public:
 		return _queryItemVisibility;
 	}
 	void markItemLayoutChanged(not_null<const HistoryItem*> item) {
-		_itemLayoutChanged.fire(std::move(item));
+		_itemLayoutChanged.fire_copy(item);
 	}
 	rpl::producer<not_null<const HistoryItem*>> itemLayoutChanged() const {
 		return _itemLayoutChanged.events();
 	}
 	void requestItemRepaint(not_null<const HistoryItem*> item) {
-		_itemRepaintRequest.fire(std::move(item));
+		_itemRepaintRequest.fire_copy(item);
 	}
 	rpl::producer<not_null<const HistoryItem*>> itemRepaintRequest() const {
 		return _itemRepaintRequest.events();
 	}
 	void markItemRemoved(not_null<const HistoryItem*> item) {
-		_itemRemoved.fire(std::move(item));
+		_itemRemoved.fire_copy(item);
 	}
 	rpl::producer<not_null<const HistoryItem*>> itemRemoved() const {
 		return _itemRemoved.events();
+	}
+	void markHistoryUnloaded(not_null<const History*> history) {
+		_historyUnloaded.fire_copy(history);
+	}
+	rpl::producer<not_null<const History*>> historyUnloaded() const {
+		return _historyUnloaded.events();
+	}
+	void markHistoryCleared(not_null<const History*> history) {
+		_historyCleared.fire_copy(history);
+	}
+	rpl::producer<not_null<const History*>> historyCleared() const {
+		return _historyCleared.events();
 	}
 	using MegagroupParticipant = std::tuple<
 		not_null<ChannelData*>,
@@ -241,12 +250,13 @@ private:
 	base::Observable<void> _moreChatsLoaded;
 	base::Observable<void> _stickersUpdated;
 	base::Observable<void> _savedGifsUpdated;
-	base::Observable<not_null<History*>> _historyCleared;
 	base::Observable<void> _pendingHistoryResize;
 	base::Observable<ItemVisibilityQuery> _queryItemVisibility;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemLayoutChanged;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemRepaintRequest;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemRemoved;
+	rpl::event_stream<not_null<const History*>> _historyUnloaded;
+	rpl::event_stream<not_null<const History*>> _historyCleared;
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantRemoved;
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantAdded;
 

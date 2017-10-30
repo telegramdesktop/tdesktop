@@ -404,3 +404,13 @@ infoCommonGroupsList: PeerList(infoMembersList) {
 		statusPosition: point(79px, 31px);
 	}
 }
+
+infoMediaSearch: SearchFieldRow {
+	height: 44px;
+	padding: margins(8px, 6px, 8px, 6px);
+	field: contactsSearchField;
+	fieldIcon: boxFieldSearchIcon;
+	fieldIconSkip: 36px;
+	fieldCancel: contactsSearchCancel;
+	fieldCancelSkip: 40px;
+}

@@ -2038,7 +2038,7 @@ void History::getReadyFor(MsgId msgId) {
 		return;
 	}
 	if (msgId == ShowAtUnreadMsgId && peer->migrateFrom()) {
-		if (History *h = App::historyLoaded(peer->migrateFrom()->id)) {
+		if (auto h = App::historyLoaded(peer->migrateFrom()->id)) {
 			if (h->unreadCount()) {
 				clear(true);
 				h->getReadyFor(msgId);
@@ -2217,7 +2217,9 @@ void History::clear(bool leaveItems) {
 	if (scrollTopItem) {
 		forgetScrollState();
 	}
-	if (!leaveItems) {
+	if (leaveItems) {
+		Auth().data().markHistoryUnloaded(this);
+	} else {
 		setLastMessage(nullptr);
 		notifies.clear();
 		auto &pending = Global::RefPendingRepaintItems();
@@ -2238,6 +2240,7 @@ void History::clear(bool leaveItems) {
 			}
 		}
 		Auth().storage().remove(Storage::SharedMediaRemoveAll(peer->id));
+		Auth().data().markHistoryCleared(this);
 	}
 	clearBlocks(leaveItems);
 	if (leaveItems) {
@@ -2262,9 +2265,6 @@ void History::clear(bool leaveItems) {
 		if (isMegagroup()) {
 			peer->asChannel()->mgInfo->markupSenders.clear();
 		}
-	}
-	if (leaveItems) {
-		Auth().data().historyCleared().notify(this, true);
 	}
 }
 

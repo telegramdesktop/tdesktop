@@ -47,11 +47,17 @@ using UniversalMsgId = int32;
 class ListWidget : public Ui::RpWidget {
 public:
 	using Type = Widget::Type;
+	using Source = base::lambda<
+		rpl::producer<SparseIdsMergedSlice>(
+			SparseIdsMergedSlice::UniversalMsgId aroundId,
+			int limitBefore,
+			int limitAfter)>;
 	ListWidget(
 		QWidget *parent,
 		not_null<Window::Controller*> controller,
 		not_null<PeerData*> peer,
-		Type type);
+		Type type,
+		Source source);
 
 	not_null<Window::Controller*> controller() const {
 		return _controller;
@@ -62,6 +68,8 @@ public:
 	Type type() const {
 		return _type;
 	}
+
+	void restart();
 
 	rpl::producer<int> scrollToRequests() const {
 		return _scrollToRequests.events();
@@ -275,6 +283,7 @@ private:
 	not_null<Window::Controller*> _controller;
 	not_null<PeerData*> _peer;
 	Type _type = Type::Photo;
+	Source _source;
 
 	static constexpr auto kMinimalIdsLimit = 16;
 	static constexpr auto kDefaultAroundId = (ServerMaxMsgId - 1);

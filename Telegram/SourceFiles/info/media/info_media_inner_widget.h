@@ -22,10 +22,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "ui/rp_widget.h"
 #include "info/media/info_media_widget.h"
+#include "info/media/info_media_list_widget.h"
+#include "history/history_search_controller.h"
 
 namespace Ui {
 class SettingsSlider;
 class VerticalLayout;
+class SearchFieldController;
 } // namespace Ui
 
 namespace Info {
@@ -58,6 +61,8 @@ public:
 	rpl::producer<SelectedItems> selectedListValue() const;
 	void cancelSelection();
 
+	~InnerWidget();
+
 protected:
 	int resizeGetHeight(int newWidth) override;
 	void visibleTopBottomUpdated(
@@ -73,6 +78,13 @@ private:
 	void createTabs();
 	void switchToTab(Memento &&memento);
 
+	using SearchQuery = Api::DelayedSearchController::Query;
+	ListWidget::Source produceListSource();
+	SearchQuery produceSearchQuery(
+		not_null<PeerData*> peer,
+		Type type,
+		QString &&query = QString()) const;
+
 	not_null<Window::Controller*> controller() const;
 
 	object_ptr<ListWidget> setupList(
@@ -85,10 +97,13 @@ private:
 	Ui::SettingsSlider *_otherTabs = nullptr;
 	object_ptr<Ui::VerticalLayout> _otherTypes = { nullptr };
 	object_ptr<Ui::PlainShadow> _otherTabsShadow = { nullptr };
+	std::unique_ptr<Ui::SearchFieldController> _searchFieldController;
+	Ui::RpWidget *_searchField = nullptr;
 	object_ptr<ListWidget> _list = { nullptr };
 
 	rpl::event_stream<int> _scrollToRequests;
 	rpl::event_stream<rpl::producer<SelectedItems>> _selectedLists;
+	Api::DelayedSearchController _searchController;
 
 };
 

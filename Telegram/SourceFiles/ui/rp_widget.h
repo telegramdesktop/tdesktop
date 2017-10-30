@@ -23,8 +23,26 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/event_stream.h>
 #include <rpl/map.h>
 #include <rpl/distinct_until_changed.h>
+#include "base/unique_qptr.h"
 
 namespace Ui {
+
+template <typename Widget, typename ...Args>
+inline base::unique_qptr<Widget> CreateObject(Args &&...args) {
+	return base::make_unique_q<Widget>(
+		nullptr,
+		std::forward<Args>(args)...);
+}
+
+template <typename Widget, typename Parent, typename ...Args>
+inline Widget *CreateChild(
+		Parent *parent,
+		Args &&...args) {
+	Expects(parent != nullptr);
+	return base::make_unique_q<Widget>(
+		parent,
+		std::forward<Args>(args)...).release();
+}
 
 template <typename Widget>
 using RpWidgetParent = std::conditional_t<

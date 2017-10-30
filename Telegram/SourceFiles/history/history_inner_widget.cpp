@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "history/history_inner_widget.h"
 
+#include <rpl/merge.h>
 #include "styles/style_history.h"
 #include "core/file_utilities.h"
 #include "history/history_message.h"
@@ -110,10 +111,6 @@ HistoryInner::HistoryInner(
 	notifyIsBotChanged();
 
 	setMouseTracking(true);
-	Auth().data().itemRemoved()
-		| rpl::start_with_next(
-			[this](auto item) { itemRemoved(item); },
-			lifetime());
 	subscribe(_controller->gifPauseLevelChanged(), [this] {
 		if (!_controller->isGifPausedAtLeastFor(Window::GifPauseReason::Any)) {
 			update();
@@ -122,11 +119,19 @@ HistoryInner::HistoryInner(
 	subscribe(_controller->window()->dragFinished(), [this] {
 		mouseActionUpdate(QCursor::pos());
 	});
-	subscribe(Auth().data().historyCleared(), [this](not_null<History*> history) {
-		if (_history == history) {
+	Auth().data().itemRemoved()
+		| rpl::start_with_next(
+			[this](auto item) { itemRemoved(item); },
+			lifetime());
+	rpl::merge(
+		Auth().data().historyUnloaded(),
+		Auth().data().historyCleared())
+		| rpl::filter([this](not_null<const History*> history) {
+			return (_history == history);
+		})
+		| rpl::start_with_next([this] {
 			mouseActionCancel();
-		}
-	});
+		}, lifetime());
 }
 
 void HistoryInner::messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages) {

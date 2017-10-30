@@ -237,7 +237,11 @@ class FlatInput : public TWidgetHelper<QLineEdit>, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	FlatInput(QWidget *parent, const style::FlatInput &st, base::lambda<QString()> placeholderFactory = base::lambda<QString()>(), const QString &val = QString());
+	FlatInput(
+		QWidget *parent,
+		const style::FlatInput &st,
+		base::lambda<QString()> placeholderFactory = nullptr,
+		const QString &val = QString());
 
 	void updatePlaceholder();
 	void setPlaceholder(base::lambda<QString()> placeholderFactory);

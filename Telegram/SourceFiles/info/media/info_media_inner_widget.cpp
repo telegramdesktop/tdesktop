@@ -29,6 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/shadow.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/search_field_controller.h"
 #include "styles/style_info.h"
 #include "lang/lang_keys.h"
 
@@ -230,11 +231,36 @@ object_ptr<ListWidget> InnerWidget::setupList(
 		not_null<Window::Controller*> controller,
 		not_null<PeerData*> peer,
 		Type type) {
+	if (SharedMediaAllowSearch(type)) {
+		_searchFieldController
+			= std::make_unique<Ui::SearchFieldController>();
+		_searchFieldController->queryValue()
+			| rpl::start_with_next([=](QString &&query) {
+				_searchController.setQuery(produceSearchQuery(
+					peer,
+					type,
+					std::move(query)));
+			}, _searchFieldController->lifetime());
+		_searchField = _searchFieldController->createView(
+			this,
+			st::infoMediaSearch);
+		_searchField->resizeToWidth(width());
+		_searchField->show();
+	} else {
+		_searchField = nullptr;
+		_searchFieldController = nullptr;
+	}
+	_searchController.setQueryFast(produceSearchQuery(peer, type));
 	auto result = object_ptr<ListWidget>(
 		this,
 		controller,
 		peer,
-		type);
+		type,
+		produceListSource());
+	_searchController.sourceChanged()
+		| rpl::start_with_next([widget = result.data()]{
+			widget->restart();
+		}, result->lifetime());
 	result->heightValue()
 		| rpl::start_with_next(
 			[this] { refreshHeight(); },
@@ -268,6 +294,49 @@ void InnerWidget::cancelSelection() {
 	_list->cancelSelection();
 }
 
+InnerWidget::~InnerWidget() = default;
+
+ListWidget::Source InnerWidget::produceListSource() {
+	return [this](
+			SparseIdsMergedSlice::UniversalMsgId aroundId,
+			int limitBefore,
+			int limitAfter) {
+		auto query = _searchController.currentQuery();
+		if (query.query.isEmpty()) {
+			return SharedMediaMergedViewer(
+				SharedMediaMergedKey(
+					SparseIdsMergedSlice::Key(
+						query.peerId,
+						query.migratedPeerId,
+						aroundId),
+					query.type),
+				limitBefore,
+				limitAfter);
+		}
+		return _searchController.idsSlice(
+			aroundId,
+			limitBefore,
+			limitAfter);
+	};
+}
+
+auto InnerWidget::produceSearchQuery(
+		not_null<PeerData*> peer,
+		Type type,
+		QString &&query) const -> SearchQuery {
+	auto result = SearchQuery();
+	result.type = type;
+	result.peerId = peer->id;
+	result.query = std::move(query);
+	result.migratedPeerId = [&] {
+		if (auto migrateFrom = peer->migrateFrom()) {
+			return migrateFrom->id;
+		}
+		return PeerId(0);
+	}();
+	return result;
+}
+
 int InnerWidget::resizeGetHeight(int newWidth) {
 	_inResize = true;
 	auto guard = gsl::finally([this] { _inResize = false; });
@@ -275,6 +344,9 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 	if (_otherTypes) {
 		_otherTypes->resizeToWidth(newWidth);
 		_otherTabsShadow->resizeToWidth(newWidth);
+	}
+	if (_searchField) {
+		_searchField->resizeToWidth(newWidth);
 	}
 	_list->resizeToWidth(newWidth);
 	return recountHeight();
@@ -293,6 +365,10 @@ int InnerWidget::recountHeight() {
 		_otherTypes->moveToLeft(0, top);
 		top += _otherTypes->heightNoMargins() - st::lineWidth;
 		_otherTabsShadow->moveToLeft(0, top);
+	}
+	if (_searchField) {
+		_searchField->moveToLeft(0, top);
+		top += _searchField->heightNoMargins() - st::lineWidth;
 	}
 	if (_list) {
 		_list->moveToLeft(0, top);

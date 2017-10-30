@@ -540,11 +540,13 @@ ListWidget::ListWidget(
 	QWidget *parent,
 	not_null<Window::Controller*> controller,
 	not_null<PeerData*> peer,
-	Type type)
+	Type type,
+	Source source)
 : RpWidget(parent)
 , _controller(controller)
 , _peer(peer)
 , _type(type)
+, _source(std::move(source))
 , _slice(sliceKey(_universalAroundId)) {
 	setAttribute(Qt::WA_MouseTracking);
 	start();
@@ -572,6 +574,20 @@ void ListWidget::start() {
 		| rpl::start_with_next([this](auto item) {
 			repaintItem(item);
 		}, lifetime());
+}
+
+void ListWidget::restart() {
+	mouseActionCancel();
+
+	_overLayout = nullptr;
+	_sections.clear();
+	_layouts.clear();
+
+	_universalAroundId = kDefaultAroundId;
+	_idsLimit = kMinimalIdsLimit;
+	_slice = SparseIdsMergedSlice(sliceKey(_universalAroundId));
+
+	refreshViewer();
 }
 
 void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
@@ -753,12 +769,7 @@ SparseIdsMergedSlice::Key ListWidget::sliceKey(
 
 void ListWidget::refreshViewer() {
 	_viewerLifetime.destroy();
-	SharedMediaMergedViewer(
-		SharedMediaMergedKey(
-			sliceKey(_universalAroundId),
-			_type),
-		_idsLimit,
-		_idsLimit)
+	_source(_universalAroundId, _idsLimit, _idsLimit)
 		| rpl::start_with_next([this](
 				SparseIdsMergedSlice &&slice) {
 			_slice = std::move(slice);

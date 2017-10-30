@@ -75,8 +75,11 @@ public:
 		return *this;
 	}
 
+	bool has_value() const {
+		return !is<none_type>();
+	}
 	explicit operator bool() const {
-		return (get_if<none_type>(&_impl) == nullptr);
+		return has_value();
 	}
 	bool operator==(const optional_variant &other) const {
 		return _impl == other._impl;
