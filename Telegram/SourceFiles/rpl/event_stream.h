@@ -50,17 +50,19 @@ public:
 	}
 	auto events() const {
 		return make_producer<Value>([weak = weak()](
-			const auto &consumer) {
+				const auto &consumer) {
 			if (auto strong = weak.lock()) {
 				auto result = [weak, consumer] {
 					if (auto strong = weak.lock()) {
-						auto it = base::find(*strong, consumer);
-						if (it != strong->end()) {
+						auto it = base::find(
+							strong->consumers,
+							consumer);
+						if (it != strong->consumers.end()) {
 							it->terminate();
 						}
 					}
 				};
-				strong->push_back(std::move(consumer));
+				strong->consumers.push_back(std::move(consumer));
 				return lifetime(std::move(result));
 			}
 			return lifetime();
@@ -76,9 +78,13 @@ public:
 	~event_stream();
 
 private:
-	std::weak_ptr<std::vector<consumer<Value, no_error>>> weak() const;
+	struct Data {
+		std::vector<consumer<Value, no_error>> consumers;
+		int depth = 0;
+	};
+	std::weak_ptr<Data> weak() const;
 
-	mutable std::shared_ptr<std::vector<consumer<Value, no_error>>> _consumers;
+	mutable std::shared_ptr<Data> _data;
 
 };
 
@@ -88,13 +94,13 @@ inline event_stream<Value>::event_stream() {
 
 template <typename Value>
 inline event_stream<Value>::event_stream(event_stream &&other)
-: _consumers(base::take(other._consumers)) {
+: _data(base::take(other._data)) {
 }
 
 template <typename Value>
 inline event_stream<Value> &event_stream<Value>::operator=(
 		event_stream &&other) {
-	_consumers = base::take(other._consumers);
+	_data = base::take(other._data);
 	return *this;
 }
 
@@ -102,11 +108,13 @@ template <typename Value>
 template <typename OtherValue>
 inline void event_stream<Value>::fire_forward(
 		OtherValue &&value) const {
-	if (!_consumers) {
+	auto copy = _data;
+	if (!copy) {
 		return;
 	}
 
-	auto &consumers = *_consumers;
+	++copy->depth;
+	auto &consumers = copy->consumers;
 	auto begin = base::index_based_begin(consumers);
 	auto end = base::index_based_end(consumers);
 	if (begin != end) {
@@ -136,24 +144,28 @@ inline void event_stream<Value>::fire_forward(
 			}
 
 			// Erase stale consumers.
-			consumers.erase(removeFrom.base(), consumers.end());
+			if (copy->depth == 1) {
+				consumers.erase(removeFrom.base(), consumers.end());
+			}
 		}
 	}
+	--copy->depth;
 }
 
 template <typename Value>
-inline std::weak_ptr<std::vector<consumer<Value, no_error>>> event_stream<Value>::weak() const {
-	if (!_consumers) {
-		_consumers = std::make_shared<std::vector<consumer<Value, no_error>>>();
+inline auto event_stream<Value>::weak() const
+-> std::weak_ptr<Data> {
+	if (!_data) {
+		_data = std::make_shared<Data>();
 	}
-	return _consumers;
+	return _data;
 }
 
 
 template <typename Value>
 inline event_stream<Value>::~event_stream() {
-	if (auto consumers = base::take(_consumers)) {
-		for (auto &consumer : *consumers) {
+	if (auto data = base::take(_data)) {
+		for (auto &consumer : data->consumers) {
 			consumer.put_done();
 		}
 	}

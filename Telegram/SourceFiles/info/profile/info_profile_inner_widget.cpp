@@ -24,6 +24,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/combine_previous.h>
 #include <rpl/flatten_latest.h>
 #include "info/info_memento.h"
+#include "info/info_controller.h"
+#include "info/info_top_bar_override.h"
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_widget.h"
 #include "info/profile/info_profile_text.h"
@@ -32,7 +34,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_members.h"
 #include "info/media/info_media_buttons.h"
-#include "info/info_top_bar_override.h"
 #include "boxes/abstract_box.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
@@ -59,13 +60,12 @@ namespace Profile {
 
 InnerWidget::InnerWidget(
 	QWidget *parent,
-	rpl::producer<Wrap> &&wrapValue,
-	not_null<Window::Controller*> controller,
-	not_null<PeerData*> peer)
+	not_null<Controller*> controller)
 : RpWidget(parent)
 , _controller(controller)
-, _peer(peer)
-, _content(setupContent(this, std::move(wrapValue))) {
+, _peer(_controller->peer())
+, _migrated(_controller->migrated())
+, _content(setupContent(this)) {
 	_content->heightValue()
 		| rpl::start_with_next([this](int height) {
 			resizeToWidth(width());
@@ -84,8 +84,7 @@ rpl::producer<bool> InnerWidget::canHideDetails() const {
 }
 
 object_ptr<Ui::RpWidget> InnerWidget::setupContent(
-		RpWidget *parent,
-		rpl::producer<Wrap> &&wrapValue) {
+		RpWidget *parent) {
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
 	_cover = result->add(object_ptr<Cover>(
 		result,
@@ -101,7 +100,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	} else {
 		result->add(std::move(details));
 	}
-	result->add(setupSharedMedia(result, rpl::duplicate(wrapValue)));
+	result->add(setupSharedMedia(result));
 	result->add(object_ptr<BoxContentDivider>(result));
 	if (auto user = _peer->asUser()) {
 		result->add(setupUserActions(result, user));
@@ -114,7 +113,6 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		_members = result->add(object_ptr<Members>(
 			result,
 			_controller,
-			std::move(wrapValue),
 			_peer)
 		);
 		_members->scrollToRequests()
@@ -241,10 +239,10 @@ void InnerWidget::setupUserButtons(
 	addButton(
 		Lang::Viewer(lng_profile_send_message) | ToUpperValue()
 	)->toggleOn(
-		_controller->historyPeer.value()
+		_controller->window()->historyPeer.value()
 		| rpl::map($1 != user)
 	)->entity()->addClickHandler([this, user] {
-		_controller->showPeerHistory(
+		_controller->window()->showPeerHistory(
 			user,
 			Window::SectionShow::Way::Forward);
 	});
@@ -266,8 +264,7 @@ void InnerWidget::setupUserButtons(
 }
 
 object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
-		RpWidget *parent,
-		rpl::producer<Wrap> &&wrapValue) {
+		RpWidget *parent) {
 	using namespace rpl::mappers;
 	using MediaType = Media::Type;
 
@@ -278,8 +275,9 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 			const style::icon &icon) {
 		auto result = Media::AddButton(
 			content,
-			_controller,
-			peer(),
+			_controller->window(),
+			_peer,
+			_migrated,
 			type,
 			tracker);
 		object_ptr<Profile::FloatingIcon>(
@@ -292,7 +290,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 			const style::icon &icon) {
 		auto result = Media::AddCommonGroupsButton(
 			content,
-			_controller,
+			_controller->window(),
 			user,
 			tracker);
 		object_ptr<Profile::FloatingIcon>(
@@ -306,7 +304,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 	addMediaButton(MediaType::File, st::infoIconMediaFile);
 	addMediaButton(MediaType::MusicFile, st::infoIconMediaAudio);
 	addMediaButton(MediaType::Link, st::infoIconMediaLink);
-	if (auto user = peer()->asUser()) {
+	if (auto user = _peer->asUser()) {
 		addCommonGroupsButton(user, st::infoIconMediaGroup);
 	}
 	addMediaButton(MediaType::VoiceFile, st::infoIconMediaVoice);
@@ -320,7 +318,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 	using ToggledData = std::tuple<bool, Wrap, bool>;
 	rpl::combine(
 		tracker.atLeastOneShownValue(),
-		std::move(wrapValue),
+		_controller->wrapValue(),
 		_isStackBottom.events())
 		| rpl::combine_previous(ToggledData())
 		| rpl::start_with_next([wrap = result.data()](

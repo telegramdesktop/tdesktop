@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_widget.h"
 #include "info/media/info_media_widget.h"
 #include "info/info_content_widget.h"
+#include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "info/info_top_bar.h"
 #include "info/info_top_bar_override.h"
@@ -57,13 +58,19 @@ struct WrapWidget::StackItem {
 
 WrapWidget::WrapWidget(
 	QWidget *parent,
-	not_null<Window::Controller*> controller,
+	not_null<Window::Controller*> window,
 	Wrap wrap,
 	not_null<Memento*> memento)
-: SectionWidget(parent, controller)
+: SectionWidget(parent, window)
 , _wrap(wrap)
+, _controller(createController(window, memento->content()))
 , _topShadow(this) {
 	_topShadow->toggleOn(topShadowToggledValue());
+	_wrap.changes()
+		| rpl::start_with_next([this] {
+			setupTop();
+			finishShowContent();
+		}, lifetime());
 	selectedListValue()
 		| rpl::start_with_next([this](SelectedItems &&items) {
 			InvokeQueued(this, [this, items = std::move(items)]() mutable {
@@ -73,20 +80,18 @@ WrapWidget::WrapWidget(
 	showNewContent(memento->content());
 }
 
+std::unique_ptr<Controller> WrapWidget::createController(
+		not_null<Window::Controller*> window,
+		not_null<ContentMemento*> memento) {
+	auto result = std::make_unique<Controller>(
+		this,
+		window,
+		memento);
+	return result;
+}
+
 not_null<PeerData*> WrapWidget::peer() const {
-	return _content->peer();
-}
-
-Wrap WrapWidget::wrap() const {
-	return _wrap.current();
-}
-
-void WrapWidget::setWrap(Wrap wrap) {
-	if (_wrap.current() != wrap) {
-		_wrap = wrap;
-		setupTop(_content->section(), _content->peer()->id);
-		finishShowContent();
-	}
+	return _controller->peer();
 }
 
 void WrapWidget::createTabs() {
@@ -138,9 +143,15 @@ void WrapWidget::showTab(Tab tab) {
 		? SlideDirection::FromRight
 		: SlideDirection::FromLeft;
 	auto newAnotherMemento = _content->createMemento();
-	auto newContent = _anotherTabMemento
-		? createContent(_anotherTabMemento.get())
-		: createContent(tab);
+	if (!_anotherTabMemento) {
+		_anotherTabMemento = createTabMemento(tab);
+	}
+	auto newController = createController(
+		_controller->window(),
+		_anotherTabMemento.get());
+	auto newContent = createContent(
+		_anotherTabMemento.get(),
+		newController.get());
 	auto animationParams = SectionSlideParams();
 //	animationParams.withFade = (wrap() == Wrap::Layer);
 	animationParams.withTabs = true;
@@ -149,6 +160,7 @@ void WrapWidget::showTab(Tab tab) {
 	animationParams.oldContentCache = grabForShowAnimation(
 		animationParams);
 
+	_controller = std::move(newController);
 	showContent(std::move(newContent));
 
 	showAnimated(direction, animationParams);
@@ -157,7 +169,8 @@ void WrapWidget::showTab(Tab tab) {
 	_tab = tab;
 }
 
-void WrapWidget::setupTabbedTop(const Section &section) {
+void WrapWidget::setupTabbedTop() {
+	auto section = _controller->section();
 	switch (section.type()) {
 	case Section::Type::Profile:
 		setupTabs(Tab::Profile);
@@ -180,30 +193,26 @@ void WrapWidget::setupTabbedTop(const Section &section) {
 	}
 }
 
-void WrapWidget::setupTop(
-		const Section &section,
-		PeerId peerId) {
+void WrapWidget::setupTop() {
 	if (wrap() == Wrap::Side && _historyStack.empty()) {
-		setupTabbedTop(section);
+		setupTabbedTop();
 	} else {
 		setupTabs(Tab::None);
 	}
 	if (_topTabs) {
 		_topBar.destroy();
 	} else {
-		createTopBar(section, peerId);
+		createTopBar();
 	}
 	refreshTopBarOverride();
 }
 
-void WrapWidget::createTopBar(
-		const Section &section,
-		PeerId peerId) {
+void WrapWidget::createTopBar() {
 	_topBar.create(this, TopBarStyle(wrap()));
 
 	_topBar->setTitle(TitleValue(
-		section,
-		peerId));
+		_controller->section(),
+		_controller->peer()));
 	if (wrap() != Wrap::Layer || !_historyStack.empty()) {
 		_topBar->enableBackButton(true);
 		_topBar->backRequest()
@@ -216,7 +225,7 @@ void WrapWidget::createTopBar(
 			_topBar,
 			st::infoLayerTopBarClose));
 		close->addClickHandler([this] {
-			controller()->hideSpecialLayer();
+			_controller->window()->hideSpecialLayer();
 		});
 	}
 
@@ -290,7 +299,7 @@ void WrapWidget::showBackFromStack() {
 			params);
 		_anotherTabMemento = std::move(last.anotherTab);
 	} else {
-		controller()->showBackFromStack(params);
+		_controller->window()->showBackFromStack(params);
 	}
 }
 
@@ -324,7 +333,7 @@ void WrapWidget::finishShowContent() {
 rpl::producer<bool> WrapWidget::topShadowToggledValue() const {
 	using namespace rpl::mappers;
 	return rpl::combine(
-		_wrap.value(),
+		_controller->wrapValue(),
 		_desiredShadowVisibilities.events() | rpl::flatten_latest(),
 		($1 == Wrap::Side) || $2);
 }
@@ -341,39 +350,26 @@ rpl::producer<SelectedItems> WrapWidget::selectedListValue() const {
 	return _selectedLists.events() | rpl::flatten_latest();
 }
 
-object_ptr<ContentWidget> WrapWidget::createContent(Tab tab) {
+std::unique_ptr<ContentMemento> WrapWidget::createTabMemento(
+		Tab tab) {
 	switch (tab) {
-	case Tab::Profile: return createProfileWidget();
-	case Tab::Media: return createMediaWidget();
+	case Tab::Profile: return std::make_unique<Profile::Memento>(
+		_controller->peerId(),
+		_controller->migratedPeerId());
+	case Tab::Media: return std::make_unique<Media::Memento>(
+		_controller->peerId(),
+		_controller->migratedPeerId(),
+		Media::Memento::Type::Photo);
 	}
 	Unexpected("Tab value in Info::WrapWidget::createInner()");
 }
 
-object_ptr<Profile::Widget> WrapWidget::createProfileWidget() {
-	auto result = object_ptr<Profile::Widget>(
-		this,
-		_wrap.value(),
-		controller(),
-		_content->peer());
-	return result;
-}
-
-object_ptr<Media::Widget> WrapWidget::createMediaWidget() {
-	auto result = object_ptr<Media::Widget>(
-		this,
-		_wrap.value(),
-		controller(),
-		_content->peer(),
-		Media::Widget::Type::Photo);
-	return result;
-}
-
 object_ptr<ContentWidget> WrapWidget::createContent(
-		not_null<ContentMemento*> memento) {
+		not_null<ContentMemento*> memento,
+		not_null<Controller*> controller) {
 	return memento->createWidget(
 		this,
-		_wrap.value(),
-		controller(),
+		controller,
 		contentGeometry());
 }
 
@@ -423,20 +419,21 @@ bool WrapWidget::showInternal(
 		const Window::SectionShow &params) {
 	if (auto infoMemento = dynamic_cast<Memento*>(memento.get())) {
 		auto content = infoMemento->content();
-		if (!_content->showInternal(content)) {
-			showNewContent(
-				content,
-				params);
+		if (_controller->validateMementoPeer(content)) {
+			if (_content->showInternal(content)) {
+				return true;
+			}
 		}
+		showNewContent(
+			content,
+			params);
 		return true;
 	}
 	return false;
 }
 
 std::unique_ptr<Window::SectionMemento> WrapWidget::createMemento() {
-	auto result = std::make_unique<Memento>(_content->peer()->id);
-	saveState(result.get());
-	return std::move(result);
+	return std::make_unique<Memento>(_content->createMemento());
 }
 
 rpl::producer<int> WrapWidget::desiredHeightValue() const {
@@ -444,10 +441,6 @@ rpl::producer<int> WrapWidget::desiredHeightValue() const {
 		rpl::single(desiredHeightForContent())
 		| rpl::then(_desiredHeights.events())
 		| rpl::flatten_latest();
-}
-
-void WrapWidget::saveState(not_null<Memento*> memento) {
-	memento->setInner(_content->createMemento());
 }
 
 QRect WrapWidget::contentGeometry() const {
@@ -462,9 +455,12 @@ void WrapWidget::showNewContent(
 	auto needAnimation = (_content != nullptr)
 		&& (params.animated != anim::type::instant);
 	auto animationParams = SectionSlideParams();
+	auto newController = createController(
+		_controller->window(),
+		memento);
 	auto newContent = object_ptr<ContentWidget>(nullptr);
 	if (needAnimation) {
-		newContent = createContent(memento);
+		newContent = createContent(memento, newController.get());
 		animationParams.withTopBarShadow = hasTopBarShadow()
 			&& newContent->hasTopBarShadow();
 		animationParams.oldContentCache = grabForShowAnimation(
@@ -481,8 +477,10 @@ void WrapWidget::showNewContent(
 	} else if (params.way == Window::SectionShow::Way::ClearStack) {
 		_historyStack.clear();
 	}
+
+	_controller = std::move(newController);
 	if (newContent) {
-		setupTop(newContent->section(), newContent->peer()->id);
+		setupTop();
 		showContent(std::move(newContent));
 	} else {
 		showNewContent(memento);
@@ -498,8 +496,8 @@ void WrapWidget::showNewContent(
 
 void WrapWidget::showNewContent(not_null<ContentMemento*> memento) {
 	// Validates contentGeometry().
-	setupTop(memento->section(), memento->peerId());
-	showContent(createContent(memento));
+	setupTop();
+	showContent(createContent(memento, _controller.get()));
 }
 
 void WrapWidget::setupTabs(Tab tab) {

@@ -40,7 +40,7 @@ public:
 	unique_qptr &operator=(unique_qptr &&other) {
 		if (_object != other._object) {
 			destroy();
-			_object = std::move(other._object);
+			_object = base::take(other._object);
 		}
 		return *this;
 	}
@@ -58,18 +58,17 @@ public:
 	unique_qptr &operator=(unique_qptr<U> &&other) {
 		if (_object != other._object) {
 			destroy();
-			_object = std::move(other._object);
+			_object = base::take(other._object);
 		}
 		return *this;
 	}
 
 	unique_qptr &operator=(std::nullptr_t) {
 		destroy();
-		_object = nullptr;
 		return *this;
 	}
 
-	void reset(T *value) {
+	void reset(T *value = nullptr) {
 		if (_object != value) {
 			destroy();
 			_object = value;

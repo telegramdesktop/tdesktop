@@ -33,21 +33,16 @@ class ScrollArea;
 struct ScrollToRequest;
 } // namespace Ui
 
-namespace Window {
-class Controller;
-} // namespace Window
-
 namespace Info {
 
 class ContentMemento;
+class Controller;
 
 class ContentWidget : public Ui::RpWidget {
 public:
 	ContentWidget(
 		QWidget *parent,
-		rpl::producer<Wrap> wrap,
-		not_null<Window::Controller*> controller,
-		not_null<PeerData*> peer);
+		not_null<Controller*> controller);
 
 	virtual bool showInternal(
 		not_null<ContentMemento*> memento) = 0;
@@ -55,11 +50,6 @@ public:
 
 	virtual rpl::producer<Section> sectionRequest() const;
 	virtual void setIsStackBottom(bool isStackBottom) {
-	}
-
-	virtual Section section() const = 0;
-	not_null<PeerData*> peer() const {
-		return _peer;
 	}
 
 	rpl::producer<int> desiredHeightValue() const override;
@@ -94,7 +84,7 @@ protected:
 			doSetInnerWidget(std::move(inner), scrollTopSkip));
 	}
 
-	not_null<Window::Controller*> controller() const {
+	not_null<Controller*> controller() const {
 		return _controller;
 	}
 
@@ -112,8 +102,7 @@ private:
 		int scrollTopSkip);
 	void updateControlsGeometry();
 
-	const not_null<Window::Controller*> _controller;
-	const not_null<PeerData*> _peer;
+	const not_null<Controller*> _controller;
 
 	style::color _bg;
 	int _scrollTopSkip = 0;
@@ -127,18 +116,23 @@ private:
 
 class ContentMemento {
 public:
-	ContentMemento(PeerId peerId) : _peerId(peerId) {
+	ContentMemento(PeerId peerId, PeerId migratedPeerId)
+	: _peerId(peerId)
+	, _migratedPeerId(migratedPeerId) {
 	}
 
 	virtual object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
-		rpl::producer<Wrap> wrap,
-		not_null<Window::Controller*> controller,
+		not_null<Controller*> controller,
 		const QRect &geometry) = 0;
 
-	virtual PeerId peerId() const {
+	PeerId peerId() const {
 		return _peerId;
 	}
+	PeerId migratedPeerId() const {
+		return _migratedPeerId;
+	}
+
 	virtual Section section() const = 0;
 
 	virtual ~ContentMemento() = default;
@@ -151,7 +145,8 @@ public:
 	}
 
 private:
-	PeerId _peerId = 0;
+	const PeerId _peerId = 0;
+	const PeerId _migratedPeerId = 0;
 	int _scrollTop = 0;
 
 };

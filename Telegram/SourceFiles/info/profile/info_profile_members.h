@@ -38,6 +38,7 @@ class ParticipantsBoxController;
 
 namespace Info {
 
+class Controller;
 enum class Wrap;
 
 namespace Profile {
@@ -50,8 +51,7 @@ class Members
 public:
 	Members(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
-		rpl::producer<Wrap> &&wrapValue,
+		not_null<Controller*> controller,
 		not_null<PeerData*> peer);
 
 	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const {

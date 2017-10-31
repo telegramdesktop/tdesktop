@@ -31,6 +31,7 @@ namespace Info {
 
 class Memento;
 class MoveMemento;
+class Controller;
 class WrapWidget;
 enum class Wrap;
 
@@ -38,12 +39,12 @@ class SectionWidget final : public Window::SectionWidget {
 public:
 	SectionWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::Controller*> window,
 		Wrap wrap,
 		not_null<Memento*> memento);
 	SectionWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::Controller*> window,
 		Wrap wrap,
 		not_null<MoveMemento*> memento);
 
@@ -71,6 +72,8 @@ protected:
 
 private:
 	void init();
+
+	not_null<Controller*> controller() const;
 
 	object_ptr<WrapWidget> _content;
 

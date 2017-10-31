@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_info.h"
 #include "lang/lang_keys.h"
 #include "info/info_wrap_widget.h"
+#include "info/info_controller.h"
 #include "storage/storage_shared_media.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -102,19 +103,19 @@ void TopBar::paintEvent(QPaintEvent *e) {
 
 rpl::producer<QString> TitleValue(
 		const Section &section,
-		PeerId peerId) {
+		not_null<PeerData*> peer) {
 	return Lang::Viewer([&] {
 		switch (section.type()) {
 		case Section::Type::Profile:
-			if (peerIsUser(peerId)) {
-				return App::user(peerId)->botInfo
+			if (auto user = peer->asUser()) {
+				return user->botInfo
 					? lng_info_bot_title
 					: lng_info_user_title;
-			} else if (peerIsChannel(peerId)) {
-				return App::channel(peerId)->isMegagroup()
+			} else if (auto channel = peer->asChannel()) {
+				return channel->isMegagroup()
 					? lng_info_group_title
 					: lng_info_channel_title;
-			} else if (peerIsChat(peerId)) {
+			} else if (peer->isChat()) {
 				return lng_info_group_title;
 			}
 			Unexpected("Bad peer type in Info::TitleValue()");

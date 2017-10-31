@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "base/unique_qptr.h"
 #include "info/media/info_media_widget.h"
 #include "info/media/info_media_list_widget.h"
 #include "history/history_search_controller.h"
@@ -32,6 +33,9 @@ class SearchFieldController;
 } // namespace Ui
 
 namespace Info {
+
+class Controller;
+
 namespace Media {
 
 class Memento;
@@ -42,13 +46,7 @@ public:
 	using Type = Widget::Type;
 	InnerWidget(
 		QWidget *parent,
-		rpl::producer<Wrap> &&wrap,
-		not_null<Window::Controller*> controller,
-		not_null<PeerData*> peer,
-		Type type);
-
-	not_null<PeerData*> peer() const;
-	Type type() const;
+		not_null<Controller*> controller);
 
 	bool showInternal(not_null<Memento*> memento);
 
@@ -72,38 +70,29 @@ protected:
 private:
 	int recountHeight();
 	void refreshHeight();
-	void setupOtherTypes(rpl::producer<Wrap> &&wrap);
+	void setupOtherTypes();
 	void createOtherTypes();
 	void createTypeButtons();
 	void createTabs();
 	void switchToTab(Memento &&memento);
 
-	using SearchQuery = Api::DelayedSearchController::Query;
-	ListWidget::Source produceListSource();
-	SearchQuery produceSearchQuery(
-		not_null<PeerData*> peer,
-		Type type,
-		QString &&query = QString()) const;
+	Type type() const;
 
-	not_null<Window::Controller*> controller() const;
+	void refreshSearchField();
+	object_ptr<ListWidget> setupList();
 
-	object_ptr<ListWidget> setupList(
-		not_null<Window::Controller*> controller,
-		not_null<PeerData*> peer,
-		Type type);
-
-	bool _inResize = false;
+	const not_null<Controller*> _controller;
 
 	Ui::SettingsSlider *_otherTabs = nullptr;
 	object_ptr<Ui::VerticalLayout> _otherTypes = { nullptr };
 	object_ptr<Ui::PlainShadow> _otherTabsShadow = { nullptr };
-	std::unique_ptr<Ui::SearchFieldController> _searchFieldController;
-	Ui::RpWidget *_searchField = nullptr;
+	base::unique_qptr<Ui::RpWidget> _searchField = nullptr;
 	object_ptr<ListWidget> _list = { nullptr };
+
+	bool _inResize = false;
 
 	rpl::event_stream<int> _scrollToRequests;
 	rpl::event_stream<rpl::producer<SelectedItems>> _selectedLists;
-	Api::DelayedSearchController _searchController;
 
 };
 

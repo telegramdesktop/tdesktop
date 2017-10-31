@@ -24,25 +24,26 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/info_wrap_widget.h"
 #include "info/info_layer_widget.h"
 #include "info/info_memento.h"
+#include "info/info_controller.h"
 
 namespace Info {
 
 SectionWidget::SectionWidget(
 	QWidget *parent,
-	not_null<Window::Controller*> controller,
+	not_null<Window::Controller*> window,
 	Wrap wrap,
 	not_null<Memento*> memento)
-: Window::SectionWidget(parent, controller)
-, _content(this, controller, wrap, memento) {
+: Window::SectionWidget(parent, window)
+, _content(this, window, wrap, memento) {
 	init();
 }
 
 SectionWidget::SectionWidget(
 	QWidget *parent,
-	not_null<Window::Controller*> controller,
+	not_null<Window::Controller*> window,
 	Wrap wrap,
 	not_null<MoveMemento*> memento)
-: Window::SectionWidget(parent, controller)
+: Window::SectionWidget(parent, window)
 , _content(memento->takeContent(this, wrap)) {
 	init();
 }
@@ -53,6 +54,11 @@ void SectionWidget::init() {
 		| rpl::start_with_next([wrap = _content.data()](QSize size) {
 			wrap->resize(size);
 		}, _content->lifetime());
+}
+
+not_null<Controller*> SectionWidget::controller() const {
+	Expects(_content != nullptr);
+	return _content->controller();
 }
 
 PeerData *SectionWidget::peerForDialogs() const {
@@ -83,19 +89,19 @@ bool SectionWidget::showInternal(
 }
 
 std::unique_ptr<Window::SectionMemento> SectionWidget::createMemento() {
-	auto result = std::make_unique<Memento>(_content->peer()->id);
-	_content->saveState(result.get());
-	return std::move(result);
+	return _content->createMemento();
 }
 
 object_ptr<Window::LayerWidget> SectionWidget::moveContentToLayer(
 		QRect bodyGeometry) {
-	if (_content->wrap() != Wrap::Narrow
+	if (controller()->wrap() != Wrap::Narrow
 		|| width() < LayerWidget::MinimalSupportedWidth()) {
 		return nullptr;
 	}
 	return MoveMemento(
-		std::move(_content)).createLayer(controller(), bodyGeometry);
+		std::move(_content)).createLayer(
+			controller()->window(),
+			bodyGeometry);
 }
 
 bool SectionWidget::wheelEventFromFloatPlayer(QEvent *e) {

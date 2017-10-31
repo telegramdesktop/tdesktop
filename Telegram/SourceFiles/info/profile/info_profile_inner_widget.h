@@ -37,6 +37,7 @@ struct ScrollToRequest;
 namespace Info {
 
 enum class Wrap;
+class Controller;
 
 namespace Profile {
 
@@ -48,13 +49,7 @@ class InnerWidget final : public Ui::RpWidget {
 public:
 	InnerWidget(
 		QWidget *parent,
-		rpl::producer<Wrap> &&wrapValue,
-		not_null<Window::Controller*> controller,
-		not_null<PeerData*> peer);
-
-	not_null<PeerData*> peer() const {
-		return _peer;
-	}
+		not_null<Controller*> controller);
 
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
@@ -77,13 +72,9 @@ protected:
 		int visibleBottom) override;
 
 private:
-	object_ptr<RpWidget> setupContent(
-		RpWidget *parent,
-		rpl::producer<Wrap> &&wrapValue);
+	object_ptr<RpWidget> setupContent(RpWidget *parent);
 	object_ptr<RpWidget> setupDetails(RpWidget *parent) const;
-	object_ptr<RpWidget> setupSharedMedia(
-		RpWidget *parent,
-		rpl::producer<Wrap> &&wrapValue);
+	object_ptr<RpWidget> setupSharedMedia(RpWidget *parent);
 	object_ptr<RpWidget> setupMuteToggle(RpWidget *parent) const;
 	object_ptr<RpWidget> setupInfo(RpWidget *parent) const;
 	void setupUserButtons(
@@ -105,8 +96,9 @@ private:
 
 	rpl::event_stream<bool> _isStackBottom;
 
-	not_null<Window::Controller*> _controller;
-	not_null<PeerData*> _peer;
+	const not_null<Controller*> _controller;
+	const not_null<PeerData*> _peer;
+	PeerData * const _migrated = nullptr;
 
 	Members *_members = nullptr;
 	Cover *_cover = nullptr;

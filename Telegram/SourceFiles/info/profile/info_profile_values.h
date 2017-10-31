@@ -67,6 +67,7 @@ rpl::producer<int> MembersCountValue(
 	not_null<PeerData*> peer);
 rpl::producer<int> SharedMediaCountValue(
 	not_null<PeerData*> peer,
+	PeerData *migrated,
 	Storage::SharedMediaType type);
 rpl::producer<int> CommonGroupsCountValue(
 	not_null<UserData*> user);

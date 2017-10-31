@@ -25,6 +25,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/peer_list_box.h"
 
 namespace Info {
+
+class Controller;
+
 namespace CommonGroups {
 
 class Memento;
@@ -35,7 +38,7 @@ class InnerWidget final
 public:
 	InnerWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Controller*> controller,
 		not_null<UserData*> user);
 
 	not_null<UserData*> user() const {

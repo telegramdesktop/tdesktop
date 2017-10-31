@@ -43,6 +43,7 @@ namespace Media {
 class Widget;
 } // namespace Media
 
+class Controller;
 class Section;
 class Memento;
 class MoveMemento;
@@ -55,37 +56,6 @@ enum class Wrap {
 	Layer,
 	Narrow,
 	Side,
-};
-
-class Section final {
-public:
-	enum class Type {
-		Profile,
-		Media,
-		CommonGroups,
-	};
-	using MediaType = Storage::SharedMediaType;
-
-	Section(Type type) : _type(type) {
-		Expects(type != Type::Media);
-	}
-	Section(MediaType mediaType)
-		: _type(Type::Media)
-		, _mediaType(mediaType) {
-	}
-
-	Type type() const {
-		return _type;
-	}
-	MediaType mediaType() const {
-		Expects(_type == Type::Media);
-		return _mediaType;
-	}
-
-private:
-	Type _type;
-	Storage::SharedMediaType _mediaType;
-
 };
 
 struct SelectedItem {
@@ -111,7 +81,7 @@ class WrapWidget final : public Window::SectionWidget {
 public:
 	WrapWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::Controller*> window,
 		Wrap wrap,
 		not_null<Memento*> memento);
 
@@ -119,9 +89,19 @@ public:
 	PeerData *peerForDialogs() const override {
 		return peer();
 	}
+	Wrap wrap() const {
+		return _wrap.current();
+	}
+	rpl::producer<Wrap> wrapValue() const {
+		return _wrap.value();
+	}
+	void setWrap(Wrap wrap) {
+		_wrap = wrap;
+	}
 
-	Wrap wrap() const;
-	void setWrap(Wrap wrap);
+	not_null<Controller*> controller() {
+		return _controller.get();
+	}
 
 	bool hasTopBarShadow() const override;
 	QPixmap grabForShowAnimation(
@@ -138,7 +118,6 @@ public:
 	rpl::producer<int> desiredHeightValue() const override;
 
 	void updateInternalState(not_null<Memento*> memento);
-	void saveState(not_null<Memento*> memento);
 
 	// Float player interface.
 	bool wheelEventFromFloatPlayer(QEvent *e) override;
@@ -167,13 +146,11 @@ private:
 	void showNewContent(
 		not_null<ContentMemento*> memento,
 		const Window::SectionShow &params);
-	void setupTop(const Section &section, PeerId peerId);
-	void setupTabbedTop(const Section &section);
+	void setupTop();
+	void setupTabbedTop();
 	void setupTabs(Tab tab);
 	void createTabs();
-	void createTopBar(
-		const Section &section,
-		PeerId peerId);
+	void createTopBar();
 
 	not_null<RpWidget*> topWidget() const;
 
@@ -185,10 +162,12 @@ private:
 
 	void showTab(Tab tab);
 	void showContent(object_ptr<ContentWidget> content);
-	object_ptr<ContentWidget> createContent(Tab tab);
-	object_ptr<Profile::Widget> createProfileWidget();
-	object_ptr<Media::Widget> createMediaWidget();
+	std::unique_ptr<ContentMemento> createTabMemento(Tab tab);
 	object_ptr<ContentWidget> createContent(
+		not_null<ContentMemento*> memento,
+		not_null<Controller*> controller);
+	std::unique_ptr<Controller> createController(
+		not_null<Window::Controller*> window,
 		not_null<ContentMemento*> memento);
 
 	rpl::producer<SelectedItems> selectedListValue() const;
@@ -198,6 +177,7 @@ private:
 	void destroyTopBarOverride();
 
 	rpl::variable<Wrap> _wrap;
+	std::unique_ptr<Controller> _controller;
 	object_ptr<ContentWidget> _content = { nullptr };
 	object_ptr<Ui::PlainShadow> _topTabsBackground = { nullptr };
 	object_ptr<Ui::SettingsSlider> _topTabs = { nullptr };

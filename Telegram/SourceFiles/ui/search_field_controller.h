@@ -35,7 +35,7 @@ class InputField;
 
 class SearchFieldController {
 public:
-	object_ptr<Ui::RpWidget> createView(
+	base::unique_qptr<Ui::RpWidget> createView(
 		QWidget *parent,
 		const style::SearchFieldRow &st);
 

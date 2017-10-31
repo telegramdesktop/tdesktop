@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang/lang_keys.h"
 #include "storage/storage_shared_media.h"
 #include "info/info_memento.h"
+#include "info/info_controller.h"
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_values.h"
 #include "ui/wrap/slide_wrap.h"
@@ -90,11 +91,12 @@ inline auto AddButton(
 		Ui::VerticalLayout *parent,
 		not_null<Window::Controller*> controller,
 		not_null<PeerData*> peer,
+		PeerData *migrated,
 		Type type,
 		Ui::MultiSlideTracker &tracker) {
 	auto result = AddCountedButton(
 		parent,
-		Profile::SharedMediaCountValue(peer, type),
+		Profile::SharedMediaCountValue(peer, migrated, type),
 		MediaText(type),
 		tracker)->entity();
 	result->addClickHandler([controller, peer, type] {
@@ -118,9 +120,7 @@ inline auto AddCommonGroupsButton(
 		tracker)->entity();
 	result->addClickHandler([controller, user] {
 		controller->showSection(
-			Info::Memento(
-				user->id,
-				Section::Type::CommonGroups));
+			Info::Memento(user->id, Section::Type::CommonGroups));
 	});
 	return std::move(result);
 };

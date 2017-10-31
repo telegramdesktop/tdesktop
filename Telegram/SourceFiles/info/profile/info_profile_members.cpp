@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_members_controllers.h"
 #include "info/info_content_widget.h"
+#include "info/info_controller.h"
 #include "profile/profile_block_group_members.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
@@ -48,12 +49,11 @@ constexpr auto kEnableSearchMembersAfterCount = 50;
 
 Members::Members(
 	QWidget *parent,
-	not_null<Window::Controller*> controller,
-	rpl::producer<Wrap> &&wrapValue,
+	not_null<Controller*> controller,
 	not_null<PeerData*> peer)
 : RpWidget(parent)
 , _peer(peer)
-, _listController(CreateMembersController(controller, _peer))
+, _listController(CreateMembersController(controller->window(), _peer))
 , _labelWrap(this)
 , _label(setupHeader())
 , _addMember(this, st::infoMembersAddMember)
@@ -65,7 +65,7 @@ Members::Members(
 , _cancelSearch(this, st::infoMembersCancelSearch)
 , _list(setupList(this, _listController.get())) {
 	setupButtons();
-	std::move(wrapValue)
+	controller->wrapValue()
 		| rpl::start_with_next([this](Wrap wrap) {
 			_wrap = wrap;
 			updateSearchOverrides();

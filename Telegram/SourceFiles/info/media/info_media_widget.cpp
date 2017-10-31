@@ -21,39 +21,41 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/media/info_media_widget.h"
 
 #include "info/media/info_media_inner_widget.h"
+#include "info/info_controller.h"
 #include "ui/widgets/scroll_area.h"
 
 namespace Info {
 namespace Media {
 
+Memento::Memento(not_null<Controller*> controller)
+: Memento(
+	controller->peerId(),
+	controller->migratedPeerId(),
+	controller->section().mediaType()) {
+}
+
+Section Memento::section() const {
+	return Section(_type);
+}
+
 object_ptr<ContentWidget> Memento::createWidget(
 		QWidget *parent,
-		rpl::producer<Wrap> wrap,
-		not_null<Window::Controller*> controller,
+		not_null<Controller*> controller,
 		const QRect &geometry) {
 	auto result = object_ptr<Widget>(
 		parent,
-		std::move(wrap),
-		controller,
-		App::peer(peerId()),
-		_type);
+		controller);
 	result->setInternalState(geometry, this);
 	return std::move(result);
 }
 
 Widget::Widget(
 	QWidget *parent,
-	rpl::producer<Wrap> wrap,
-	not_null<Window::Controller*> controller,
-	not_null<PeerData*> peer,
-	Type type)
-: ContentWidget(parent, rpl::duplicate(wrap), controller, peer) {
+	not_null<Controller*> controller)
+: ContentWidget(parent, controller) {
 	_inner = setInnerWidget(object_ptr<InnerWidget>(
 		this,
-		std::move(wrap),
-		controller,
-		peer,
-		type));
+		controller));
 	_inner->scrollToRequests()
 		| rpl::start_with_next([this](int skip) {
 			scrollTo({ skip, -1 });
@@ -68,15 +70,10 @@ void Widget::cancelSelection() {
 	_inner->cancelSelection();
 }
 
-Section Widget::section() const {
-	return Section(type());
-}
-
-Widget::Type Widget::type() const {
-	return _inner->type();
-}
-
 bool Widget::showInternal(not_null<ContentMemento*> memento) {
+	if (!controller()->validateMementoPeer(memento)) {
+		return false;
+	}
 	if (auto mediaMemento = dynamic_cast<Memento*>(memento.get())) {
 		if (_inner->showInternal(mediaMemento)) {
 			return true;
@@ -92,7 +89,7 @@ void Widget::setInternalState(const QRect &geometry, not_null<Memento*> memento)
 }
 
 std::unique_ptr<ContentMemento> Widget::createMemento() {
-	auto result = std::make_unique<Memento>(peer()->id, type());
+	auto result = std::make_unique<Memento>(controller());
 	saveState(result.get());
 	return std::move(result);
 }

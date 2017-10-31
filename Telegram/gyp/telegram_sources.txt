@@ -219,6 +219,8 @@
 <(src_loc)/info/info_common_groups_widget.h
 <(src_loc)/info/info_content_widget.cpp
 <(src_loc)/info/info_content_widget.h
+<(src_loc)/info/info_controller.cpp
+<(src_loc)/info/info_controller.h
 <(src_loc)/info/info_layer_widget.cpp
 <(src_loc)/info/info_layer_widget.h
 <(src_loc)/info/info_memento.cpp

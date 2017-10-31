@@ -31,18 +31,17 @@ class InnerWidget;
 
 class Memento final : public ContentMemento {
 public:
-	Memento(PeerId peerId) : ContentMemento(peerId) {
+	Memento(not_null<Controller*> controller);
+	Memento(PeerId peerId, PeerId migratedPeerId)
+	: ContentMemento(peerId, migratedPeerId) {
 	}
 
 	object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
-		rpl::producer<Wrap> wrap,
-		not_null<Window::Controller*> controller,
+		not_null<Controller*> controller,
 		const QRect &geometry) override;
 
-	Section section() const override {
-		return Section(Section::Type::Profile);
-	}
+	Section section() const override;
 
 	void setInfoExpanded(bool expanded) {
 		_infoExpanded = expanded;
@@ -74,12 +73,9 @@ class Widget final : public ContentWidget {
 public:
 	Widget(
 		QWidget *parent,
-		rpl::producer<Wrap> wrap,
-		not_null<Window::Controller*> controller,
-		not_null<PeerData*> peer);
+		not_null<Controller*> controller);
 
 	void setIsStackBottom(bool isStackBottom) override;
-	Section section() const override;
 
 	bool showInternal(
 		not_null<ContentMemento*> memento) override;

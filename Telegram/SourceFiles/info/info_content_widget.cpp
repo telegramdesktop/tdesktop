@@ -31,6 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/info_common_groups_widget.h"
 #include "info/info_layer_widget.h"
 #include "info/info_section_widget.h"
+#include "info/info_controller.h"
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
 
@@ -38,22 +39,18 @@ namespace Info {
 
 ContentWidget::ContentWidget(
 	QWidget *parent,
-	rpl::producer<Wrap> wrap,
-	not_null<Window::Controller*> controller,
-	not_null<PeerData*> peer)
+	not_null<Controller*> controller)
 : RpWidget(parent)
 , _controller(controller)
-, _peer(peer)
 , _scroll(this, st::infoScroll) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
-	std::move(wrap) | rpl::start_with_next(
-		[this](Wrap value) {
+	_controller->wrapValue()
+		| rpl::start_with_next([this](Wrap value) {
 			_bg = (value == Wrap::Layer)
 				? st::boxBg
 				: st::profileBg;
 			update();
-		},
-		lifetime());
+		}, lifetime());
 }
 
 void ContentWidget::resizeEvent(QResizeEvent *e) {

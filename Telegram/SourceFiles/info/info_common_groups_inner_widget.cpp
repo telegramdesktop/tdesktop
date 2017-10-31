@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/info_common_groups_inner_widget.h"
 
 #include "info/info_common_groups_widget.h"
+#include "info/info_controller.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
 #include "styles/style_widgets.h"
@@ -35,13 +36,13 @@ namespace {
 
 constexpr int kCommonGroupsPerPage = 40;
 
-class Controller
+class ListController
 	: public PeerListController
 	, private base::Subscriber
 	, private MTP::Sender {
 public:
-	Controller(
-		not_null<Window::Controller*> window,
+	ListController(
+		not_null<Controller*> controller,
 		not_null<UserData*> user);
 
 	void prepare() override;
@@ -49,7 +50,7 @@ public:
 	void loadMoreRows() override;
 
 private:
-	not_null<Window::Controller*> _window;
+	const not_null<Controller*> _controller;
 	not_null<UserData*> _user;
 	mtpRequestId _preloadRequestId = 0;
 	bool _allLoaded = false;
@@ -57,21 +58,21 @@ private:
 
 };
 
-Controller::Controller(
-	not_null<Window::Controller*> window,
+ListController::ListController(
+	not_null<Controller*> controller,
 	not_null<UserData*> user)
 : PeerListController()
-, _window(window)
+, _controller(controller)
 , _user(user) {
 }
 
-void Controller::prepare() {
+void ListController::prepare() {
 	setSearchNoResultsText(lang(lng_blocked_list_not_found));
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
 	delegate()->peerListSetTitle(langFactory(lng_profile_common_groups_section));
 }
 
-void Controller::loadMoreRows() {
+void ListController::loadMoreRows() {
 	if (_preloadRequestId || _allLoaded) {
 		return;
 	}
@@ -103,8 +104,8 @@ void Controller::loadMoreRows() {
 	}).send();
 }
 
-void Controller::rowClicked(not_null<PeerListRow*> row) {
-	_window->showPeerHistory(
+void ListController::rowClicked(not_null<PeerListRow*> row) {
+	_controller->window()->showPeerHistory(
 		row->peer(),
 		Window::SectionShow::Way::Forward);
 }
@@ -113,11 +114,11 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 
 InnerWidget::InnerWidget(
 	QWidget *parent,
-	not_null<Window::Controller*> controller,
+	not_null<Controller*> controller,
 	not_null<UserData*> user)
 : RpWidget(parent)
 , _user(user)
-, _listController(std::make_unique<Controller>(controller, _user))
+, _listController(std::make_unique<ListController>(controller, _user))
 , _list(setupList(this, _listController.get())) {
 	setContent(_list.data());
 	_listController->setDelegate(static_cast<PeerListDelegate*>(this));

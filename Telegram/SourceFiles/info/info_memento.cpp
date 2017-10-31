@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/info_common_groups_widget.h"
 #include "info/info_section_widget.h"
 #include "info/info_layer_widget.h"
+#include "info/info_controller.h"
 
 namespace Info {
 
@@ -40,23 +41,28 @@ Memento::Memento(std::unique_ptr<ContentMemento> content)
 : _content(std::move(content)) {
 }
 
-PeerId Memento::peerId() const {
-	return _content->peerId();
-}
-
-Section Memento::section() const {
-	return _content->section();
-}
-
 std::unique_ptr<ContentMemento> Memento::Default(
 		PeerId peerId,
 		Section section) {
+	Expects(peerId != 0);
+
+	auto peer = App::peer(peerId);
+	if (auto to = peer->migrateTo()) {
+		peer = to;
+	}
+	auto migrated = peer->migrateFrom();
+	peerId = peer->id;
+	auto migratedPeerId = migrated ? migrated->id : PeerId(0);
+
 	switch (section.type()) {
 	case Section::Type::Profile:
-		return std::make_unique<Profile::Memento>(peerId);
+		return std::make_unique<Profile::Memento>(
+			peerId,
+			migratedPeerId);
 	case Section::Type::Media:
 		return std::make_unique<Media::Memento>(
 			peerId,
+			migratedPeerId,
 			section.mediaType());
 	case Section::Type::CommonGroups:
 		Assert(peerIsUser(peerId));

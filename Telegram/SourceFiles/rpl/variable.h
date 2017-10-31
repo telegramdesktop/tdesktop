@@ -81,6 +81,9 @@ public:
 	auto value() const {
 		return _changes.events_starting_with_copy(_data);
 	}
+	auto changes() const {
+		return _changes.events();
+	}
 
 private:
 	template <typename A, typename B>

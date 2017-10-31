@@ -22,35 +22,39 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "info/profile/info_profile_inner_widget.h"
 #include "ui/widgets/scroll_area.h"
+#include "info/info_controller.h"
 
 namespace Info {
 namespace Profile {
 
+Memento::Memento(not_null<Controller*> controller)
+: Memento(
+	controller->peerId(),
+	controller->migratedPeerId()) {
+}
+
+Section Memento::section() const {
+	return Section(Section::Type::Profile);
+}
+
 object_ptr<ContentWidget> Memento::createWidget(
 		QWidget *parent,
-		rpl::producer<Wrap> wrap,
-		not_null<Window::Controller*> controller,
+		not_null<Controller*> controller,
 		const QRect &geometry) {
 	auto result = object_ptr<Widget>(
 		parent,
-		std::move(wrap),
-		controller,
-		App::peer(peerId()));
+		controller);
 	result->setInternalState(geometry, this);
 	return std::move(result);
 }
 
 Widget::Widget(
 	QWidget *parent,
-	rpl::producer<Wrap> wrap,
-	not_null<Window::Controller*> controller,
-	not_null<PeerData*> peer)
-: ContentWidget(parent, rpl::duplicate(wrap), controller, peer) {
+	not_null<Controller*> controller)
+: ContentWidget(parent, controller) {
 	_inner = setInnerWidget(object_ptr<InnerWidget>(
 		this,
-		std::move(wrap),
-		controller,
-		peer));
+		controller));
 	_inner->move(0, 0);
 	_inner->scrollToRequests()
 		| rpl::start_with_next([this](Ui::ScrollToRequest request) {
@@ -67,20 +71,17 @@ void Widget::setIsStackBottom(bool isStackBottom) {
 	_inner->setIsStackBottom(isStackBottom);
 }
 
-Section Widget::section() const {
-	return Section(Section::Type::Profile);
-}
-
 void Widget::setInnerFocus() {
 	_inner->setFocus();
 }
 
 bool Widget::showInternal(not_null<ContentMemento*> memento) {
+	if (!controller()->validateMementoPeer(memento)) {
+		return false;
+	}
 	if (auto profileMemento = dynamic_cast<Memento*>(memento.get())) {
-		if (profileMemento->peerId() == peer()->id) {
-			restoreState(profileMemento);
-			return true;
-		}
+		restoreState(profileMemento);
+		return true;
 	}
 	return false;
 }
@@ -92,7 +93,7 @@ void Widget::setInternalState(const QRect &geometry, not_null<Memento*> memento)
 }
 
 std::unique_ptr<ContentMemento> Widget::createMemento() {
-	auto result = std::make_unique<Memento>(peer()->id);
+	auto result = std::make_unique<Memento>(controller());
 	saveState(result.get());
 	return std::move(result);
 }

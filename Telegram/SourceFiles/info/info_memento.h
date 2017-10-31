@@ -59,9 +59,6 @@ public:
 		return _content.get();
 	}
 
-	PeerId peerId() const;
-	Section section() const;
-
 	~Memento();
 
 private:

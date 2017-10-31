@@ -39,6 +39,9 @@ class Controller;
 } // namespace Window
 
 namespace Info {
+
+class Controller;
+
 namespace Media {
 
 using BaseLayout = Overview::Layout::ItemBase;
@@ -47,27 +50,9 @@ using UniversalMsgId = int32;
 class ListWidget : public Ui::RpWidget {
 public:
 	using Type = Widget::Type;
-	using Source = base::lambda<
-		rpl::producer<SparseIdsMergedSlice>(
-			SparseIdsMergedSlice::UniversalMsgId aroundId,
-			int limitBefore,
-			int limitAfter)>;
 	ListWidget(
 		QWidget *parent,
-		not_null<Window::Controller*> controller,
-		not_null<PeerData*> peer,
-		Type type,
-		Source source);
-
-	not_null<Window::Controller*> controller() const {
-		return _controller;
-	}
-	not_null<PeerData*> peer() const {
-		return _peer;
-	}
-	Type type() const {
-		return _type;
-	}
+		not_null<Controller*> controller);
 
 	void restart();
 
@@ -103,6 +88,7 @@ protected:
 	void leaveEventHook(QEvent *e) override;
 
 private:
+	using Type = Widget::Type;
 	enum class MouseAction {
 		None,
 		PrepareDrag,
@@ -280,10 +266,10 @@ private:
 	void validateTrippleClickStartTime();
 	void checkMoveToOtherViewer();
 
-	not_null<Window::Controller*> _controller;
-	not_null<PeerData*> _peer;
+	const not_null<Controller*> _controller;
+	const not_null<PeerData*> _peer;
+	PeerData * const _migrated = nullptr;
 	Type _type = Type::Photo;
-	Source _source;
 
 	static constexpr auto kMinimalIdsLimit = 16;
 	static constexpr auto kDefaultAroundId = (ServerMaxMsgId - 1);

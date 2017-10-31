@@ -33,20 +33,19 @@ class Memento final : public ContentMemento {
 public:
 	using Type = Storage::SharedMediaType;
 
-	Memento(PeerId peerId, Type type)
-	: ContentMemento(peerId)
+	Memento(not_null<Controller*> controller);
+
+	Memento(PeerId peerId, PeerId migratedPeerId, Type type)
+	: ContentMemento(peerId, migratedPeerId)
 	, _type(type) {
 	}
 
 	object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
-		rpl::producer<Wrap> wrap,
-		not_null<Window::Controller*> controller,
+		not_null<Controller*> controller,
 		const QRect &geometry) override;
 
-	Section section() const override {
-		return Section(_type);
-	}
+	Section section() const override;
 
 	Type type() const {
 		return _type;
@@ -92,13 +91,7 @@ public:
 
 	Widget(
 		QWidget *parent,
-		rpl::producer<Wrap> wrap,
-		not_null<Window::Controller*> controller,
-		not_null<PeerData*> peer,
-		Type type);
-
-	Type type() const;
-	Section section() const override;
+		not_null<Controller*> controller);
 
 	bool showInternal(
 		not_null<ContentMemento*> memento) override;
@@ -114,7 +107,7 @@ public:
 private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
-	
+
 	InnerWidget *_inner = nullptr;
 
 };

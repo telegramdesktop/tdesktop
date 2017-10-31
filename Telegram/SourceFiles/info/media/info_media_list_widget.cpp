@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "info/media/info_media_list_widget.h"
 
+#include "info/info_controller.h"
 #include "overview/overview_layout.h"
 #include "history/history_media_types.h"
 #include "history/history_item.h"
@@ -538,15 +539,12 @@ void ListWidget::Section::refreshHeight() {
 
 ListWidget::ListWidget(
 	QWidget *parent,
-	not_null<Window::Controller*> controller,
-	not_null<PeerData*> peer,
-	Type type,
-	Source source)
+	not_null<Controller*> controller)
 : RpWidget(parent)
 , _controller(controller)
-, _peer(peer)
-, _type(type)
-, _source(std::move(source))
+, _peer(_controller->peer())
+, _migrated(_controller->migrated())
+, _type(_controller->section().mediaType())
 , _slice(sliceKey(_universalAroundId)) {
 	setAttribute(Qt::WA_MouseTracking);
 	start();
@@ -573,6 +571,10 @@ void ListWidget::start() {
 	Auth().data().itemRepaintRequest()
 		| rpl::start_with_next([this](auto item) {
 			repaintItem(item);
+		}, lifetime());
+	_controller->mediaSourceChanged()
+		| rpl::start_with_next([this]{
+			restart();
 		}, lifetime());
 }
 
@@ -733,13 +735,13 @@ void ListWidget::repaintItem(QRect itemGeometry) {
 
 bool ListWidget::isMyItem(not_null<const HistoryItem*> item) const {
 	auto peer = item->history()->peer;
-	return (_peer == peer || _peer == peer->migrateTo());
+	return (_peer == peer) || (_migrated == peer);
 }
 
 bool ListWidget::isPossiblyMyId(FullMsgId fullId) const {
 	return (fullId.channel != 0)
 		? (_peer->isChannel() && _peer->bareId() == fullId.channel)
-		: (!_peer->isChannel() || _peer->migrateFrom());
+		: (!_peer->isChannel() || _migrated);
 }
 
 bool ListWidget::isItemLayout(
@@ -757,8 +759,8 @@ void ListWidget::invalidatePaletteCache() {
 SparseIdsMergedSlice::Key ListWidget::sliceKey(
 		UniversalMsgId universalId) const {
 	using Key = SparseIdsMergedSlice::Key;
-	if (auto migrateFrom = _peer->migrateFrom()) {
-		return Key(_peer->id, migrateFrom->id, universalId);
+	if (_migrated) {
+		return Key(_peer->id, _migrated->id, universalId);
 	}
 	if (universalId < 0) {
 		// Convert back to plain id for non-migrated histories.
@@ -769,7 +771,10 @@ SparseIdsMergedSlice::Key ListWidget::sliceKey(
 
 void ListWidget::refreshViewer() {
 	_viewerLifetime.destroy();
-	_source(_universalAroundId, _idsLimit, _idsLimit)
+	_controller->mediaSource(
+		sliceKey(_universalAroundId).universalId,
+		_idsLimit,
+		_idsLimit)
 		| rpl::start_with_next([this](
 				SparseIdsMergedSlice &&slice) {
 			_slice = std::move(slice);
@@ -1752,8 +1757,8 @@ void ListWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butto
 	auto pressLayout = _overLayout;
 
 	_mouseAction = MouseAction::None;
-	_pressWasInactive = _controller->window()->wasInactivePress();
-	if (_pressWasInactive) _controller->window()->setInactivePress(false);
+	_pressWasInactive = _controller->window()->window()->wasInactivePress();
+	if (_pressWasInactive) _controller->window()->window()->setInactivePress(false);
 
 	if (ClickHandler::getPressed() && !hasSelected()) {
 		_mouseAction = MouseAction::PrepareDrag;

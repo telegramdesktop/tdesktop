@@ -29,20 +29,20 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 
-object_ptr<Ui::RpWidget> SearchFieldController::createView(
+base::unique_qptr<Ui::RpWidget> SearchFieldController::createView(
 		QWidget *parent,
 		const style::SearchFieldRow &st) {
-	auto result = object_ptr<Ui::FixedHeightWidget>(
+	auto result = base::make_unique_q<Ui::FixedHeightWidget>(
 		parent,
 		st.height);
 
 	auto cancel = CreateChild<Ui::CrossButton>(
-		result.data(),
+		result.get(),
 		st.fieldCancel);
 	cancel->addClickHandler([=] { clearQuery(); });
 
 	auto field = CreateChild<Ui::InputField>(
-		result.data(),
+		result.get(),
 		st.field,
 		langFactory(lng_dlg_filter),
 		_query.current());
@@ -54,7 +54,7 @@ object_ptr<Ui::RpWidget> SearchFieldController::createView(
 		clearQuery();
 	});
 
-	auto shadow = CreateChild<Ui::PlainShadow>(result.data());
+	auto shadow = CreateChild<Ui::PlainShadow>(result.get());
 	shadow->show();
 
 	result->widthValue()
@@ -84,7 +84,7 @@ object_ptr<Ui::RpWidget> SearchFieldController::createView(
 				_view.wrap->width());
 		}, result->lifetime());
 
-	_view.wrap.reset(result);
+	_view.wrap.reset(result.get());
 	_view.cancel = cancel;
 	_view.field = field;
 	return std::move(result);

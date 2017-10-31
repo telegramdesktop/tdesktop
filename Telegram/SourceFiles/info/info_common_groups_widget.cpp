@@ -21,19 +21,22 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/info_common_groups_widget.h"
 
 #include "info/info_common_groups_inner_widget.h"
+#include "info/info_controller.h"
 #include "ui/widgets/scroll_area.h"
 
 namespace Info {
 namespace CommonGroups {
 
+Section Memento::section() const {
+	return Section(Section::Type::CommonGroups);
+}
+
 object_ptr<ContentWidget> Memento::createWidget(
 		QWidget *parent,
-		rpl::producer<Wrap> wrap,
-		not_null<Window::Controller*> controller,
+		not_null<Controller*> controller,
 		const QRect &geometry) {
 	auto result = object_ptr<Widget>(
 		parent,
-		std::move(wrap),
 		controller,
 		App::user(userId()));
 	result->setInternalState(geometry, this);
@@ -42,10 +45,9 @@ object_ptr<ContentWidget> Memento::createWidget(
 
 Widget::Widget(
 	QWidget *parent,
-	rpl::producer<Wrap> wrap,
-	not_null<Window::Controller*> controller,
+	not_null<Controller*> controller,
 	not_null<UserData*> user)
-: ContentWidget(parent, wrap, controller, user) {
+: ContentWidget(parent, controller) {
 	_inner = setInnerWidget(object_ptr<InnerWidget>(
 		this,
 		controller,
@@ -56,11 +58,10 @@ not_null<UserData*> Widget::user() const {
 	return _inner->user();
 }
 
-Section Widget::section() const {
-	return Section(Section::Type::CommonGroups);
-}
-
 bool Widget::showInternal(not_null<ContentMemento*> memento) {
+	if (!controller()->validateMementoPeer(memento)) {
+		return false;
+	}
 	if (auto groupsMemento = dynamic_cast<Memento*>(memento.get())) {
 		if (groupsMemento->userId() == user()->bareId()) {
 			restoreState(groupsMemento);

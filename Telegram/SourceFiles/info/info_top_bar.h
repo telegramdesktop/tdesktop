@@ -37,7 +37,7 @@ class Section;
 
 rpl::producer<QString> TitleValue(
 	const Section &section,
-	PeerId peerId);
+	not_null<PeerData*> peer);
 
 class TopBar : public Ui::RpWidget {
 public:

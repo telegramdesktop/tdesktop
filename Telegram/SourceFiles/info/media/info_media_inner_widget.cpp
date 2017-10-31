@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/media/info_media_buttons.h"
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_icon.h"
+#include "info/info_controller.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/shadow.h"
 #include "ui/wrap/vertical_layout.h"
@@ -61,17 +62,15 @@ Type TabIndexToType(int index) {
 
 InnerWidget::InnerWidget(
 	QWidget *parent,
-	rpl::producer<Wrap> &&wrap,
-	not_null<Window::Controller*> controller,
-	not_null<PeerData*> peer,
-	Type type)
-: RpWidget(parent) {
-	_list = setupList(controller, peer, type);
-	setupOtherTypes(std::move(wrap));
+	not_null<Controller*> controller)
+: RpWidget(parent)
+, _controller(controller) {
+	_list = setupList();
+	setupOtherTypes();
 }
 
-void InnerWidget::setupOtherTypes(rpl::producer<Wrap> &&wrap) {
-	std::move(wrap)
+void InnerWidget::setupOtherTypes() {
+	_controller->wrapValue()
 		| rpl::start_with_next([this](Wrap value) {
 			if (value == Wrap::Side
 				&& TypeToTabIndex(type())) {
@@ -81,6 +80,7 @@ void InnerWidget::setupOtherTypes(rpl::producer<Wrap> &&wrap) {
 				_otherTypes.destroy();
 				refreshHeight();
 			}
+			refreshSearchField();
 		}, lifetime());
 }
 
@@ -117,8 +117,9 @@ void InnerWidget::createTypeButtons() {
 			const style::icon &icon) {
 		auto result = AddButton(
 			content,
-			controller(),
-			peer(),
+			_controller->window(),
+			_controller->peer(),
+			_controller->migrated(),
 			type,
 			tracker);
 		object_ptr<Profile::FloatingIcon>(
@@ -131,7 +132,7 @@ void InnerWidget::createTypeButtons() {
 			const style::icon &icon) {
 		auto result = AddCommonGroupsButton(
 			content,
-			controller(),
+			_controller->window(),
 			user,
 			tracker);
 		object_ptr<Profile::FloatingIcon>(
@@ -142,7 +143,7 @@ void InnerWidget::createTypeButtons() {
 
 	addMediaButton(Type::MusicFile, st::infoIconMediaAudio);
 	addMediaButton(Type::Link, st::infoIconMediaLink);
-	if (auto user = peer()->asUser()) {
+	if (auto user = _controller->peer()->asUser()) {
 		addCommonGroupsButton(user, st::infoIconMediaGroup);
 	}
 	addMediaButton(Type::VoiceFile, st::infoIconMediaVoice);
@@ -170,20 +171,19 @@ void InnerWidget::createTabs() {
 	_otherTabs->sectionActivated()
 		| rpl::map([](int index) { return TabIndexToType(index); })
 		| rpl::start_with_next(
-			[this](Type type) {
-				if (_list->type() != type) {
-					switchToTab(Memento(peer()->id, type));
+			[this](Type newType) {
+				if (type() != newType) {
+					switchToTab(Memento(
+						_controller->peerId(),
+						_controller->migratedPeerId(),
+						newType));
 				}
 			},
 			_otherTabs->lifetime());
 }
 
-not_null<PeerData*> InnerWidget::peer() const {
-	return _list->peer();
-}
-
 Type InnerWidget::type() const {
-	return _list->type();
+	return _controller->section().mediaType();
 }
 
 void InnerWidget::visibleTopBottomUpdated(
@@ -193,7 +193,7 @@ void InnerWidget::visibleTopBottomUpdated(
 }
 
 bool InnerWidget::showInternal(not_null<Memento*> memento) {
-	if (memento->peerId() != peer()->id) {
+	if (!_controller->validateMementoPeer(memento)) {
 		return false;
 	}
 	auto mementoType = memento->section().mediaType();
@@ -210,8 +210,9 @@ bool InnerWidget::showInternal(not_null<Memento*> memento) {
 }
 
 void InnerWidget::switchToTab(Memento &&memento) {
-	auto type = memento.section().mediaType();
-	_list = setupList(controller(), peer(), type);
+	// Save state of the tab before setSection() call.
+	_controller->setSection(memento.section());
+	_list = setupList();
 	restoreState(&memento);
 	_list->show();
 	_list->resizeToWidth(width());
@@ -219,48 +220,28 @@ void InnerWidget::switchToTab(Memento &&memento) {
 	if (_otherTypes) {
 		_otherTabsShadow->raise();
 		_otherTypes->raise();
-		_otherTabs->setActiveSection(*TypeToTabIndex(type));
+		_otherTabs->setActiveSection(*TypeToTabIndex(type()));
 	}
 }
 
-not_null<Window::Controller*> InnerWidget::controller() const {
-	return _list->controller();
-}
-
-object_ptr<ListWidget> InnerWidget::setupList(
-		not_null<Window::Controller*> controller,
-		not_null<PeerData*> peer,
-		Type type) {
-	if (SharedMediaAllowSearch(type)) {
-		_searchFieldController
-			= std::make_unique<Ui::SearchFieldController>();
-		_searchFieldController->queryValue()
-			| rpl::start_with_next([=](QString &&query) {
-				_searchController.setQuery(produceSearchQuery(
-					peer,
-					type,
-					std::move(query)));
-			}, _searchFieldController->lifetime());
-		_searchField = _searchFieldController->createView(
+void InnerWidget::refreshSearchField() {
+	auto search = _controller->searchFieldController();
+	if (search && _otherTabs) {
+		_searchField = search->createView(
 			this,
 			st::infoMediaSearch);
 		_searchField->resizeToWidth(width());
 		_searchField->show();
 	} else {
 		_searchField = nullptr;
-		_searchFieldController = nullptr;
 	}
-	_searchController.setQueryFast(produceSearchQuery(peer, type));
+}
+
+object_ptr<ListWidget> InnerWidget::setupList() {
+	refreshSearchField();
 	auto result = object_ptr<ListWidget>(
 		this,
-		controller,
-		peer,
-		type,
-		produceListSource());
-	_searchController.sourceChanged()
-		| rpl::start_with_next([widget = result.data()]{
-			widget->restart();
-		}, result->lifetime());
+		_controller);
 	result->heightValue()
 		| rpl::start_with_next(
 			[this] { refreshHeight(); },
@@ -295,47 +276,6 @@ void InnerWidget::cancelSelection() {
 }
 
 InnerWidget::~InnerWidget() = default;
-
-ListWidget::Source InnerWidget::produceListSource() {
-	return [this](
-			SparseIdsMergedSlice::UniversalMsgId aroundId,
-			int limitBefore,
-			int limitAfter) {
-		auto query = _searchController.currentQuery();
-		if (query.query.isEmpty()) {
-			return SharedMediaMergedViewer(
-				SharedMediaMergedKey(
-					SparseIdsMergedSlice::Key(
-						query.peerId,
-						query.migratedPeerId,
-						aroundId),
-					query.type),
-				limitBefore,
-				limitAfter);
-		}
-		return _searchController.idsSlice(
-			aroundId,
-			limitBefore,
-			limitAfter);
-	};
-}
-
-auto InnerWidget::produceSearchQuery(
-		not_null<PeerData*> peer,
-		Type type,
-		QString &&query) const -> SearchQuery {
-	auto result = SearchQuery();
-	result.type = type;
-	result.peerId = peer->id;
-	result.query = std::move(query);
-	result.migratedPeerId = [&] {
-		if (auto migrateFrom = peer->migrateFrom()) {
-			return migrateFrom->id;
-		}
-		return PeerId(0);
-	}();
-	return result;
-}
 
 int InnerWidget::resizeGetHeight(int newWidth) {
 	_inResize = true;
