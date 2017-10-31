@@ -38,6 +38,7 @@ class event_stream {
 public:
 	event_stream();
 	event_stream(event_stream &&other);
+	event_stream &operator=(event_stream &&other);
 
 	template <typename OtherValue>
 	void fire_forward(OtherValue &&value) const;
@@ -88,6 +89,13 @@ inline event_stream<Value>::event_stream() {
 template <typename Value>
 inline event_stream<Value>::event_stream(event_stream &&other)
 : _consumers(base::take(other._consumers)) {
+}
+
+template <typename Value>
+inline event_stream<Value> &event_stream<Value>::operator=(
+		event_stream &&other) {
+	_consumers = base::take(other._consumers);
+	return *this;
 }
 
 template <typename Value>

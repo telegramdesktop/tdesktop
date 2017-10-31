@@ -169,19 +169,39 @@ SearchResult ParseSearchResult(
 	return result;
 }
 
-SingleSearchController::SingleSearchController(const Query &query)
-: _query(query)
-, _peerData(App::peer(query.peerId))
-, _migratedData(query.migratedPeerId
+SearchController::CacheEntry::CacheEntry(const Query &query)
+: peerData(App::peer(query.peerId))
+, migratedData(query.migratedPeerId
 	? base::make_optional(Data(App::peer(query.migratedPeerId)))
 	: base::none) {
 }
 
-rpl::producer<SparseIdsMergedSlice> SingleSearchController::idsSlice(
+bool SearchController::hasInCache(const Query &query) const {
+	return query.query.isEmpty() || _cache.contains(query);
+}
+
+void SearchController::setQuery(const Query &query) {
+	if (query.query.isEmpty()) {
+		_cache.clear();
+		_current = _cache.end();
+	} else {
+		_current = _cache.find(query);
+	}
+	if (_current == _cache.end()) {
+		_current = _cache.emplace(
+			query,
+			std::make_unique<CacheEntry>(query)).first;
+	}
+}
+
+rpl::producer<SparseIdsMergedSlice> SearchController::idsSlice(
 		SparseIdsMergedSlice::UniversalMsgId aroundId,
 		int limitBefore,
 		int limitAfter) {
-	auto createSimpleViewer = [this](
+	Expects(_current != _cache.cend());
+
+	auto query = (const Query&)_current->first;
+	auto createSimpleViewer = [=](
 			PeerId peerId,
 			SparseIdsSlice::Key simpleKey,
 			int limitBefore,
@@ -189,34 +209,41 @@ rpl::producer<SparseIdsMergedSlice> SingleSearchController::idsSlice(
 		return simpleIdsSlice(
 			peerId,
 			simpleKey,
+			query,
 			limitBefore,
 			limitAfter);
 	};
 	return SparseIdsMergedSlice::CreateViewer(
 		SparseIdsMergedSlice::Key(
-			_query.peerId,
-			_query.migratedPeerId,
+			query.peerId,
+			query.migratedPeerId,
 			aroundId),
 		limitBefore,
 		limitAfter,
 		std::move(createSimpleViewer));
 }
 
-rpl::producer<SparseIdsSlice> SingleSearchController::simpleIdsSlice(
+rpl::producer<SparseIdsSlice> SearchController::simpleIdsSlice(
 		PeerId peerId,
 		MsgId aroundId,
+		const Query &query,
 		int limitBefore,
 		int limitAfter) {
 	Expects(peerId != 0);
 	Expects(IsServerMsgId(aroundId) || (aroundId == 0));
 	Expects((aroundId != 0)
 		|| (limitBefore == 0 && limitAfter == 0));
-	Expects((_query.peerId == peerId)
-		|| (_query.migratedPeerId == peerId));
+	Expects((query.peerId == peerId)
+		|| (query.migratedPeerId == peerId));
 
-	auto listData = (peerId == _query.peerId)
-		? &_peerData
-		: &*_migratedData;
+	auto it = _cache.find(query);
+	if (it == _cache.end()) {
+		return [=](auto) { return rpl::lifetime(); };
+	}
+
+	auto listData = (peerId == query.peerId)
+		? &it->second->peerData
+		: &*it->second->migratedData;
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 		auto builder = lifetime.make_state<SparseIdsSliceBuilder>(
@@ -226,7 +253,7 @@ rpl::producer<SparseIdsSlice> SingleSearchController::simpleIdsSlice(
 		builder->insufficientAround()
 			| rpl::start_with_next([=](
 					const SparseIdsSliceBuilder::AroundData &data) {
-				requestMore(data, listData);
+				requestMore(data, query, listData);
 			}, lifetime);
 
 		auto pushNextSnapshot = [=] {
@@ -255,28 +282,41 @@ rpl::producer<SparseIdsSlice> SingleSearchController::simpleIdsSlice(
 			| rpl::filter([=] { return builder->removeAll(); })
 			| rpl::start_with_next(pushNextSnapshot, lifetime);
 
-		builder->checkInsufficient();
+		using Result = Storage::SparseIdsListResult;
+		listData->list.query(Storage::SparseIdsListQuery(
+			aroundId,
+			limitBefore,
+			limitAfter))
+			| rpl::filter([=](const Result &result) {
+				return builder->applyInitial(result);
+			})
+			| rpl::start_with_next_done(
+				pushNextSnapshot,
+				[=] { builder->checkInsufficient(); },
+				lifetime);
 
 		return lifetime;
 	};
 }
 
-void SingleSearchController::requestMore(
+void SearchController::requestMore(
 		const SparseIdsSliceBuilder::AroundData &key,
+		const Query &query,
 		Data *listData) {
 	if (listData->requests.contains(key)) {
 		return;
 	}
 	auto requestId = request(PrepareSearchRequest(
 		listData->peer,
-		_query.type,
-		_query.query,
+		query.type,
+		query.query,
 		key.aroundId,
 		key.direction)
 	).done([=](const MTPmessages_Messages &result) {
+		listData->requests.remove(key);
 		auto parsed = ParseSearchResult(
 			listData->peer,
-			_query.type,
+			query.type,
 			key.aroundId,
 			key.direction,
 			result);
@@ -285,8 +325,9 @@ void SingleSearchController::requestMore(
 			parsed.noSkipRange,
 			parsed.fullCount);
 	}).send();
-
-	listData->requests.emplace(key, requestId);
+	listData->requests.emplace(key, [=] {
+		request(requestId).cancel();
+	});
 }
 
 DelayedSearchController::DelayedSearchController() {
@@ -294,9 +335,18 @@ DelayedSearchController::DelayedSearchController() {
 }
 
 void DelayedSearchController::setQuery(const Query &query) {
-	setQuery(
-		query,
-		query.query.isEmpty() ? 0 : kDefaultSearchTimeoutMs);
+	setQuery(query, kDefaultSearchTimeoutMs);
+}
+
+void DelayedSearchController::setQuery(
+		const Query &query,
+		TimeMs delay) {
+	if (_controller.hasInCache(query)) {
+		setQueryFast(query);
+	} else {
+		_nextQuery = query;
+		_timer.callOnce(delay);
+	}
 }
 
 void DelayedSearchController::setQueryFast(const Query &query) {

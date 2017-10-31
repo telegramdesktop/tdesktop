@@ -29,6 +29,7 @@
 <(src_loc)/base/unique_any.h
 <(src_loc)/base/unique_function.h
 <(src_loc)/base/unique_qptr.h
+<(src_loc)/base/value_ordering.h
 <(src_loc)/base/variant.h
 <(src_loc)/base/virtual_method.h
 <(src_loc)/base/weak_unique_ptr.h

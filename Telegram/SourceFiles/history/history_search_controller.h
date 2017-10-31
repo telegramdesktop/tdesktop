@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_sparse_ids.h"
 #include "storage/storage_sparse_ids_list.h"
 #include "storage/storage_shared_media.h"
+#include "base/value_ordering.h"
 
 namespace Api {
 
@@ -47,7 +48,7 @@ SearchResult ParseSearchResult(
 	SparseIdsLoadDirection direction,
 	const MTPmessages_Messages &data);
 
-class SingleSearchController : private MTP::Sender {
+class SearchController : private MTP::Sender {
 public:
 	struct Query {
 		using MediaType = Storage::SharedMediaType;
@@ -57,18 +58,29 @@ public:
 		MediaType type = MediaType::kCount;
 		QString query;
 		// from_id, min_date, max_date
+
+		friend inline auto value_ordering_helper(const Query &value) {
+			return std::tie(
+				value.peerId,
+				value.migratedPeerId,
+				value.type,
+				value.query);
+		}
+
 	};
 
-	SingleSearchController(const Query &query);
+	void setQuery(const Query &query);
+	bool hasInCache(const Query &query) const;
+
+	Query query() const {
+		Expects(_current != _cache.cend());
+		return _current->first;
+	}
 
 	rpl::producer<SparseIdsMergedSlice> idsSlice(
 		SparseIdsMergedSlice::UniversalMsgId aroundId,
 		int limitBefore,
 		int limitAfter);
-
-	Query query() const {
-		return _query;
-	}
 
 private:
 	struct Data {
@@ -79,49 +91,40 @@ private:
 		Storage::SparseIdsList list;
 		base::flat_map<
 			SparseIdsSliceBuilder::AroundData,
-			mtpRequestId> requests;
+			rpl::lifetime> requests;
 	};
 	using SliceUpdate = Storage::SparseIdsSliceUpdate;
+
+	struct CacheEntry {
+		CacheEntry(const Query &query);
+
+		Data peerData;
+		base::optional<Data> migratedData;
+	};
+
+	struct CacheLess {
+		inline bool operator()(const Query &a, const Query &b) const {
+			return (a < b);
+		}
+	};
+	using Cache = base::flat_map<
+		Query,
+		std::unique_ptr<CacheEntry>,
+		CacheLess>;
 
 	rpl::producer<SparseIdsSlice> simpleIdsSlice(
 		PeerId peerId,
 		MsgId aroundId,
+		const Query &query,
 		int limitBefore,
 		int limitAfter);
 	void requestMore(
 		const SparseIdsSliceBuilder::AroundData &key,
+		const Query &query,
 		Data *listData);
 
-	Query _query;
-	Data _peerData;
-	base::optional<Data> _migratedData;
-
-};
-
-class SearchController {
-public:
-	using Query = SingleSearchController::Query;
-	void setQuery(const Query &query) {
-		_controller = SingleSearchController(query);
-	}
-
-	Query query() const {
-		return _controller ? _controller->query() : Query();
-	}
-
-	rpl::producer<SparseIdsMergedSlice> idsSlice(
-			SparseIdsMergedSlice::UniversalMsgId aroundId,
-			int limitBefore,
-			int limitAfter) {
-		Expects(_controller.has_value());
-		return _controller->idsSlice(
-			aroundId,
-			limitBefore,
-			limitAfter);
-	}
-
-private:
-	base::optional<SingleSearchController> _controller;
+	Cache _cache;
+	Cache::iterator _current = _cache.end();
 
 };
 
@@ -129,12 +132,9 @@ class DelayedSearchController {
 public:
 	DelayedSearchController();
 
-	using Query = SingleSearchController::Query;
+	using Query = SearchController::Query;
 	void setQuery(const Query &query);
-	void setQuery(const Query &query, TimeMs delay) {
-		_nextQuery = query;
-		_timer.callOnce(delay);
-	}
+	void setQuery(const Query &query, TimeMs delay);
 	void setQueryFast(const Query &query);
 
 	Query currentQuery() const {
