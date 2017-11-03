@@ -27,8 +27,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/storage_shared_media.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
-#include "ui/wrap/fade_wrap.h"
+#include "ui/widgets/input_fields.h"
 #include "ui/widgets/shadow.h"
+#include "ui/wrap/fade_wrap.h"
+#include "ui/wrap/padding_wrap.h"
+#include "ui/search_field_controller.h"
 
 namespace Info {
 
@@ -60,13 +63,117 @@ void TopBar::enableBackButton(bool enable) {
 	updateControlsGeometry(width());
 }
 
-void TopBar::pushButton(object_ptr<Ui::RpWidget> button) {
-	auto weak = Ui::AttachParentChild(this, button);
+void TopBar::createSearchView(
+		not_null<Ui::SearchFieldController*> controller) {
+	setSearchField(controller->createField(
+		this,
+		_st.searchRow.field));
+}
+
+void TopBar::pushButton(base::unique_qptr<Ui::RpWidget> button) {
+	auto weak = button.get();
 	_buttons.push_back(std::move(button));
+	weak->setParent(this);
 	weak->widthValue()
 		| rpl::start_with_next([this] {
-			this->updateControlsGeometry(this->width());
+			updateControlsGeometry(width());
 		}, lifetime());
+}
+
+void TopBar::setSearchField(
+		base::unique_qptr<Ui::InputField> field) {
+	if (auto value = field.release()) {
+		createSearchView(value);
+	} else {
+		_searchView = nullptr;
+	}
+}
+
+void TopBar::createSearchView(not_null<Ui::InputField*> field) {
+	_searchView = base::make_unique_q<Ui::FixedHeightWidget>(
+		this,
+		_st.searchRow.height);
+	auto wrap = _searchView.get();
+
+	field->setParent(wrap);
+
+	auto search = addButton(
+		base::make_unique_q<Ui::FadeWrapScaled<Ui::IconButton>>(
+			this,
+			object_ptr<Ui::IconButton>(this, _st.search)));
+	auto cancel = Ui::CreateChild<Ui::CrossButton>(
+		wrap,
+		_st.searchRow.fieldCancel);
+
+	auto toggleSearchMode = [=](bool enabled, anim::type animated) {
+		if (_title) {
+			_title->setVisible(!enabled);
+		}
+		field->setVisible(enabled);
+		cancel->toggleAnimated(enabled);
+		if (animated == anim::type::instant) {
+			cancel->finishAnimations();
+		}
+		search->toggle(!enabled, animated);
+	};
+
+	auto cancelSearch = [=] {
+		if (!field->getLastText().isEmpty()) {
+			field->setText(QString());
+		} else {
+			toggleSearchMode(false, anim::type::normal);
+		}
+	};
+
+	cancel->addClickHandler(cancelSearch);
+	field->connect(field, &Ui::InputField::cancelled, cancelSearch);
+
+	wrap->widthValue()
+		| rpl::start_with_next([=](int newWidth) {
+			auto availableWidth = newWidth
+				- _st.searchRow.fieldCancelSkip;
+			field->setGeometryToLeft(
+				_st.searchRow.padding.left(),
+				_st.searchRow.padding.top(),
+				availableWidth,
+				field->height());
+			cancel->moveToRight(0, 0);
+		}, wrap->lifetime());
+
+	widthValue()
+		| rpl::start_with_next([=](int newWidth) {
+			auto left = _back
+				? _st.back.width
+				: _st.titlePosition.x();
+			wrap->setGeometryToLeft(
+				left,
+				0,
+				newWidth - left,
+				wrap->height(),
+				newWidth);
+		}, wrap->lifetime());
+
+	search->entity()->addClickHandler([=] {
+		toggleSearchMode(true, anim::type::normal);
+		field->setFocus();
+	});
+
+	field->alive()
+		| rpl::start_with_done([=] {
+			field->setParent(nullptr);
+			removeButton(search);
+			setSearchField(nullptr);
+		}, _searchView->lifetime());
+
+	toggleSearchMode(
+		!field->getLastText().isEmpty(),
+		anim::type::instant);
+}
+
+void TopBar::removeButton(not_null<Ui::RpWidget*> button) {
+	_buttons.erase(
+		std::remove(_buttons.begin(), _buttons.end(), button),
+		_buttons.end());
 }
 
 int TopBar::resizeGetHeight(int newWidth) {
@@ -77,6 +184,7 @@ int TopBar::resizeGetHeight(int newWidth) {
 void TopBar::updateControlsGeometry(int newWidth) {
 	auto right = 0;
 	for (auto &button : _buttons) {
+		if (!button) continue;
 		button->moveToRight(right, 0, newWidth);
 		right += button->width();
 	}

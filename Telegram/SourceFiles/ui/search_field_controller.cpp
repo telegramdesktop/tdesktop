@@ -29,35 +29,39 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 
-base::unique_qptr<Ui::RpWidget> SearchFieldController::createView(
+base::unique_qptr<Ui::RpWidget> SearchFieldController::createRowView(
 		QWidget *parent,
 		const style::SearchFieldRow &st) {
 	auto result = base::make_unique_q<Ui::FixedHeightWidget>(
 		parent,
 		st.height);
+	auto wrap = result.get();
+
+	auto field = createField(wrap, st.field).release();
+	field->show();
+	field->connect(field, &Ui::InputField::cancelled, [=] {
+		field->setText(QString());
+	});
 
 	auto cancel = CreateChild<Ui::CrossButton>(
-		result.get(),
+		wrap,
 		st.fieldCancel);
-	cancel->addClickHandler([=] { clearQuery(); });
-
-	auto field = CreateChild<Ui::InputField>(
-		result.get(),
-		st.field,
-		langFactory(lng_dlg_filter),
-		_query.current());
-	field->show();
-	field->connect(field, &Ui::InputField::changed, [=] {
-		setQueryFromField(field->getLastText());
+	cancel->addClickHandler([=] {
+		field->setText(QString());
 	});
-	field->connect(field, &Ui::InputField::cancelled, [=] {
-		clearQuery();
-	});
+	queryValue()
+		| rpl::map([](const QString &value) {
+			return !value.isEmpty();
+		})
+		| rpl::start_with_next([cancel](bool shown) {
+			cancel->toggleAnimated(shown);
+		}, cancel->lifetime());
+	cancel->finishAnimations();
 
-	auto shadow = CreateChild<Ui::PlainShadow>(result.get());
+	auto shadow = CreateChild<Ui::PlainShadow>(wrap);
 	shadow->show();
 
-	result->widthValue()
+	wrap->widthValue()
 		| rpl::start_with_next([=, &st](int newWidth) {
 			auto availableWidth = newWidth
 				- st.fieldIconSkip
@@ -73,36 +77,36 @@ base::unique_qptr<Ui::RpWidget> SearchFieldController::createView(
 				st.height - st::lineWidth,
 				newWidth,
 				st::lineWidth);
-		}, result->lifetime());
-	result->paintRequest()
+		}, wrap->lifetime());
+	wrap->paintRequest()
 		| rpl::start_with_next([=, &st] {
-			Painter p(_view.wrap);
+			Painter p(wrap);
 			st.fieldIcon.paint(
 				p,
 				st.padding.left(),
 				st.padding.top(),
-				_view.wrap->width());
-		}, result->lifetime());
+				wrap->width());
+		}, wrap->lifetime());
 
-	_view.wrap.reset(result.get());
-	_view.cancel = cancel;
-	_view.field = field;
+	_view.release();
+	_view.reset(wrap);
 	return std::move(result);
 }
 
-void SearchFieldController::setQueryFromField(const QString &query) {
-	_query = query;
-	if (_view.cancel) {
-		_view.cancel->toggleAnimated(!query.isEmpty());
-	}
-}
-
-void SearchFieldController::clearQuery() {
-	if (_view.field) {
-		_view.field->setText(QString());
-	} else {
-		setQueryFromField(QString());
-	}
+base::unique_qptr<Ui::InputField> SearchFieldController::createField(
+		QWidget *parent,
+		const style::InputField &st) {
+	auto result = base::make_unique_q<Ui::InputField>(
+		parent,
+		st,
+		langFactory(lng_dlg_filter),
+		_query.current());
+	auto field = result.get();
+	field->connect(field, &Ui::InputField::changed, [=] {
+		_query = field->getLastText();
+	});
+	_view.reset(field);
+	return result;
 }
 
 } // namespace Ui

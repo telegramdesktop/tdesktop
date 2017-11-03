@@ -54,6 +54,54 @@ infoScroll: ScrollArea(defaultScrollArea) {
 	topsh: 0px;
 }
 
+infoMediaSearch: SearchFieldRow {
+	height: 44px;
+	padding: margins(8px, 6px, 8px, 6px);
+	field: contactsSearchField;
+	fieldIcon: icon {{
+		"box_search-flip_horizontal",
+		menuIconFg,
+		point(6px, 8px)
+	}};
+	fieldIconSkip: 36px;
+	fieldCancel: contactsSearchCancel;
+	fieldCancelSkip: 40px;
+}
+infoLayerMediaSearch: SearchFieldRow(infoMediaSearch) {
+	height: 46px;
+	fieldIcon: icon {{
+		"box_search-flip_horizontal",
+		menuIconFg,
+		point(9px, 9px)
+	}};
+	fieldIconSkip: 34px;
+	fieldCancel: CrossButton(contactsSearchCancel) {
+		width: 50px;
+		cross: CrossAnimation {
+			size: 38px;
+			skip: 12px;
+			stroke: 2px;
+			minScale: 0.3;
+		}
+		crossPosition: point(3px, 4px);
+	}
+	fieldCancelSkip: 46px;
+}
+infoTopBarSearchRow: SearchFieldRow(infoLayerMediaSearch) {
+	padding: margins(0px, 12px, 8px, 10px);
+	fieldCancel: CrossButton(contactsSearchCancel) {
+		width: 50px;
+		height: 52px;
+		cross: CrossAnimation {
+			size: 38px;
+			skip: 12px;
+			stroke: 2px;
+			minScale: 0.3;
+		}
+		crossPosition: point(3px, 8px);
+	}
+}
+
 infoTopBarBackIcon: icon {{ "info_back", boxTitleCloseFg }};
 infoTopBarBackIconOver: icon {{ "info_back", boxTitleCloseFgOver }};
 infoTopBarHeight: 54px;
@@ -84,6 +132,11 @@ infoTopBarClose: IconButton(infoTopBarBack) {
 	icon: icon {{ "info_close", boxTitleCloseFg }};
 	iconOver: icon {{ "info_close", boxTitleCloseFgOver }};
 }
+infoTopBarSearch: IconButton(infoTopBarBack) {
+	width: 56px;
+	icon: icon {{ "top_bar_search", boxTitleCloseFg }};
+	iconOver: icon {{ "top_bar_search", boxTitleCloseFgOver }};
+}
 infoTopBarForward: IconButton(infoTopBarBack) {
 	width: 46px;
 	icon: icon {{ "info_media_forward", boxTitleCloseFg }};
@@ -105,6 +158,8 @@ infoTopBar: InfoTopBar {
 	mediaActionsSkip: 4px;
 	mediaForward: infoTopBarForward;
 	mediaDelete: infoTopBarDelete;
+	search: infoTopBarSearch;
+	searchRow: infoTopBarSearchRow;
 }
 
 infoLayerTopBarHeight: boxLayerTitleHeight;
@@ -147,6 +202,8 @@ infoLayerTopBar: InfoTopBar {
 	mediaActionsSkip: 6px;
 	mediaForward: infoLayerTopBarForward;
 	mediaDelete: infoLayerTopBarDelete;
+	search: infoTopBarSearch;
+	searchRow: infoTopBarSearchRow;
 }
 
 infoMinimalWidth: 324px;
@@ -403,14 +460,4 @@ infoCommonGroupsList: PeerList(infoMembersList) {
 		}
 		statusPosition: point(79px, 31px);
 	}
-}
-
-infoMediaSearch: SearchFieldRow {
-	height: 44px;
-	padding: margins(8px, 6px, 8px, 6px);
-	field: contactsSearchField;
-	fieldIcon: boxFieldSearchIcon;
-	fieldIconSkip: 36px;
-	fieldCancel: contactsSearchCancel;
-	fieldCancelSkip: 40px;
 }

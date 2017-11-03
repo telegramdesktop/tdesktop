@@ -1111,6 +1111,16 @@ defaultPeerList: PeerList {
 	item: defaultPeerListItem;
 }
 
+SearchFieldRow {
+	height: pixels;
+	padding: margins;
+	field: InputField;
+	fieldIcon: icon;
+	fieldIconSkip: pixels;
+	fieldCancel: CrossButton;
+	fieldCancelSkip: pixels;
+}
+
 InfoTopBar {
 	height: pixels;
 	back: IconButton;
@@ -1121,13 +1131,6 @@ InfoTopBar {
 	mediaActionsSkip: pixels;
 	mediaForward: IconButton;
 	mediaDelete: IconButton;
-}
-SearchFieldRow {
-	height: pixels;
-	padding: margins;
-	field: InputField;
-	fieldIcon: icon;
-	fieldIconSkip: pixels;
-	fieldCancel: CrossButton;
-	fieldCancelSkip: pixels;
+	search: IconButton;
+	searchRow: SearchFieldRow;
 }

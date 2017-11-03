@@ -51,6 +51,10 @@ ContentWidget::ContentWidget(
 				: st::profileBg;
 			update();
 		}, lifetime());
+	_scrollTopSkip.changes()
+		| rpl::start_with_next([this] {
+			updateControlsGeometry();
+		}, lifetime());
 }
 
 void ContentWidget::resizeEvent(QResizeEvent *e) {
@@ -60,7 +64,7 @@ void ContentWidget::resizeEvent(QResizeEvent *e) {
 void ContentWidget::updateControlsGeometry() {
 	auto newScrollTop = _scroll->scrollTop() + _topDelta;
 	auto scrollGeometry = rect().marginsRemoved(
-		QMargins(0, _scrollTopSkip, 0, 0));
+		QMargins(0, _scrollTopSkip.current(), 0, 0));
 	if (_scroll->geometry() != scrollGeometry) {
 		_scroll->setGeometry(scrollGeometry);
 		_inner->resizeToWidth(_scroll->width());
@@ -115,10 +119,13 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 			inner->setVisibleTopBottom(top, bottom);
 		}, _inner->lifetime());
 
-	_scrollTopSkip = scrollTopSkip;
-	updateControlsGeometry();
+	setScrollTopSkip(scrollTopSkip);
 
 	return _inner;
+}
+
+void ContentWidget::setScrollTopSkip(int scrollTopSkip) {
+	_scrollTopSkip = scrollTopSkip;
 }
 
 rpl::producer<Section> ContentWidget::sectionRequest() const {
@@ -126,16 +133,19 @@ rpl::producer<Section> ContentWidget::sectionRequest() const {
 }
 
 rpl::producer<int> ContentWidget::desiredHeightValue() const {
-	return _inner->desiredHeightValue()
-		| rpl::map([this](int value) {
-			return value + _scrollTopSkip;
-		});
+	using namespace rpl::mappers;
+	return rpl::combine(
+		_inner->desiredHeightValue(),
+		_scrollTopSkip.value())
+		| rpl::map($1 + $2);
 }
 
 rpl::producer<bool> ContentWidget::desiredShadowVisibility() const {
 	using namespace rpl::mappers;
-	return _scroll->scrollTopValue()
-		| rpl::map($1 > 0);
+	return rpl::combine(
+		_scroll->scrollTopValue(),
+		_scrollTopSkip.value())
+		| rpl::map(($1 > 0) || ($2 > 0));
 }
 
 bool ContentWidget::hasTopBarShadow() const {

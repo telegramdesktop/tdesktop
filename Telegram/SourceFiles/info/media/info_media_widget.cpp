@@ -23,9 +23,29 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/media/info_media_inner_widget.h"
 #include "info/info_controller.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/search_field_controller.h"
+#include "styles/style_info.h"
 
 namespace Info {
 namespace Media {
+
+base::optional<int> TypeToTabIndex(Type type) {
+	switch (type) {
+	case Type::Photo: return 0;
+	case Type::Video: return 1;
+	case Type::File: return 2;
+	}
+	return base::none;
+}
+
+Type TabIndexToType(int index) {
+	switch (index) {
+	case 0: return Type::Photo;
+	case 1: return Type::Video;
+	case 2: return Type::File;
+	}
+	Unexpected("Index in Info::Media::TabIndexToType()");
+}
 
 Memento::Memento(not_null<Controller*> controller)
 : Memento(
@@ -60,6 +80,10 @@ Widget::Widget(
 		| rpl::start_with_next([this](int skip) {
 			scrollTo({ skip, -1 });
 		}, _inner->lifetime());
+	controller->wrapValue()
+		| rpl::start_with_next([this] {
+			refreshSearchField();
+		}, lifetime());
 }
 
 rpl::producer<SelectedItems> Widget::selectedListValue() const {
@@ -101,6 +125,26 @@ void Widget::saveState(not_null<Memento*> memento) {
 
 void Widget::restoreState(not_null<Memento*> memento) {
 	_inner->restoreState(memento);
+}
+
+void Widget::refreshSearchField() {
+	auto search = controller()->searchFieldController();
+	if (search && controller()->wrap() == Wrap::Layer) {
+		_searchField = search->createRowView(
+			this,
+			st::infoLayerMediaSearch);
+		auto field = _searchField.get();
+		widthValue()
+			| rpl::start_with_next([field](int newWidth) {
+				field->resizeToWidth(newWidth);
+				field->moveToLeft(0, 0);
+			}, field->lifetime());
+		field->show();
+		setScrollTopSkip(field->heightNoMargins() - st::lineWidth);
+	} else {
+		_searchField = nullptr;
+		setScrollTopSkip(0);
+	}
 }
 
 } // namespace Media

@@ -95,8 +95,9 @@ public:
 	rpl::producer<Wrap> wrapValue() const {
 		return _wrap.value();
 	}
-	void setWrap(Wrap wrap) {
-		_wrap = wrap;
+	void setWrap(Wrap wrap);
+	bool hasStackHistory() const {
+		return !_historyStack.empty();
 	}
 
 	not_null<Controller*> controller() {
@@ -169,12 +170,14 @@ private:
 	std::unique_ptr<Controller> createController(
 		not_null<Window::Controller*> window,
 		not_null<ContentMemento*> memento);
+	void convertProfileFromStackToTab();
 
 	rpl::producer<SelectedItems> selectedListValue() const;
 	void refreshTopBarOverride();
 	void refreshTopBarOverride(SelectedItems &&items);
 	void createTopBarOverride(SelectedItems &&items);
 	void destroyTopBarOverride();
+	bool requireTopBarSearch() const;
 
 	rpl::variable<Wrap> _wrap;
 	std::unique_ptr<Controller> _controller;

@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "ui/rp_widget.h"
 #include "styles/style_widgets.h"
 
 class UserData;
@@ -499,7 +500,7 @@ private:
 
 };
 
-class InputField : public TWidget, private base::Subscriber {
+class InputField : public RpWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -645,10 +646,10 @@ private:
 
 	const style::InputField &_st;
 
+	std::unique_ptr<Inner> _inner;
+
 	int _maxLength = -1;
 	bool _forcePlaceholderHidden = false;
-
-	object_ptr<Inner> _inner;
 
 	QString _oldtext;
 

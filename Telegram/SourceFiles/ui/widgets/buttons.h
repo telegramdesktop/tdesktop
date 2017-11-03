@@ -227,6 +227,9 @@ public:
 	}
 	void toggleFast(bool visible) {
 		toggleAnimated(visible);
+		finishAnimations();
+	}
+	void finishAnimations() {
 		_a_show.finish();
 	}
 

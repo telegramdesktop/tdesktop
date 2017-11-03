@@ -29,6 +29,8 @@ struct InfoTopBar;
 namespace Ui {
 class IconButton;
 class FlatLabel;
+class InputField;
+class SearchFieldController;
 } // namespace Ui
 
 namespace Info {
@@ -51,11 +53,14 @@ public:
 	void enableBackButton(bool enable);
 
 	template <typename ButtonWidget>
-	ButtonWidget *addButton(object_ptr<ButtonWidget> button) {
-		auto result = button.data();
+	ButtonWidget *addButton(base::unique_qptr<ButtonWidget> button) {
+		auto result = button.get();
 		pushButton(std::move(button));
 		return result;
 	}
+
+	void createSearchView(
+		not_null<Ui::SearchFieldController*> controller);
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -63,12 +68,18 @@ protected:
 
 private:
 	void updateControlsGeometry(int newWidth);
-	void pushButton(object_ptr<Ui::RpWidget> button);
+	void pushButton(base::unique_qptr<Ui::RpWidget> button);
+	void removeButton(not_null<Ui::RpWidget*> button);
+
+	void setSearchField(base::unique_qptr<Ui::InputField> field);
+	void createSearchView(not_null<Ui::InputField*> field);
 
 	const style::InfoTopBar &_st;
 	object_ptr<Ui::IconButton> _back = { nullptr };
-	std::vector<object_ptr<Ui::RpWidget>> _buttons;
+	std::vector<base::unique_qptr<Ui::RpWidget>> _buttons;
 	object_ptr<Ui::FlatLabel> _title = { nullptr };
+
+	base::unique_qptr<Ui::RpWidget> _searchView;
 
 	rpl::event_stream<> _backClicks;
 

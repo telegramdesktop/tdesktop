@@ -24,7 +24,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/unique_qptr.h"
 #include "info/media/info_media_widget.h"
 #include "info/media/info_media_list_widget.h"
-#include "history/history_search_controller.h"
 
 namespace Ui {
 class SettingsSlider;
@@ -43,7 +42,6 @@ class ListWidget;
 
 class InnerWidget final : public Ui::RpWidget {
 public:
-	using Type = Widget::Type;
 	InnerWidget(
 		QWidget *parent,
 		not_null<Controller*> controller);

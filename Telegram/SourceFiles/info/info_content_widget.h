@@ -91,9 +91,9 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
+	void setScrollTopSkip(int scrollTopSkip);
 	int scrollTopSave() const;
 	void scrollTopRestore(int scrollTop);
-
 	void scrollTo(const Ui::ScrollToRequest &request);
 
 private:
@@ -105,7 +105,7 @@ private:
 	const not_null<Controller*> _controller;
 
 	style::color _bg;
-	int _scrollTopSkip = 0;
+	rpl::variable<int> _scrollTopSkip = -1;
 	object_ptr<Ui::ScrollArea> _scroll;
 	Ui::RpWidget *_inner = nullptr;
 

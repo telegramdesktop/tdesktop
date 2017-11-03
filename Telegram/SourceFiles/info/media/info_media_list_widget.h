@@ -49,7 +49,6 @@ using UniversalMsgId = int32;
 
 class ListWidget : public Ui::RpWidget {
 public:
-	using Type = Widget::Type;
 	ListWidget(
 		QWidget *parent,
 		not_null<Controller*> controller);
@@ -88,7 +87,6 @@ protected:
 	void leaveEventHook(QEvent *e) override;
 
 private:
-	using Type = Widget::Type;
 	enum class MouseAction {
 		None,
 		PrepareDrag,

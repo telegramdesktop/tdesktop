@@ -36,29 +36,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Info {
 namespace Media {
-namespace {
-
-using Type = InnerWidget::Type;
-
-base::optional<int> TypeToTabIndex(Type type) {
-	switch (type) {
-	case Type::Photo: return 0;
-	case Type::Video: return 1;
-	case Type::File: return 2;
-	}
-	return base::none;
-}
-
-Type TabIndexToType(int index) {
-	switch (index) {
-	case 0: return Type::Photo;
-	case 1: return Type::Video;
-	case 2: return Type::File;
-	}
-	Unexpected("Index in Info::Media::TabIndexToType()");
-}
-
-} // namespace
 
 InnerWidget::InnerWidget(
 	QWidget *parent,
@@ -73,6 +50,7 @@ void InnerWidget::setupOtherTypes() {
 	_controller->wrapValue()
 		| rpl::start_with_next([this](Wrap value) {
 			if (value == Wrap::Side
+				&& !_controller->hasStackHistory()
 				&& TypeToTabIndex(type())) {
 				createOtherTypes();
 			} else {
@@ -227,7 +205,7 @@ void InnerWidget::switchToTab(Memento &&memento) {
 void InnerWidget::refreshSearchField() {
 	auto search = _controller->searchFieldController();
 	if (search && _otherTabs) {
-		_searchField = search->createView(
+		_searchField = search->createRowView(
 			this,
 			st::infoMediaSearch);
 		_searchField->resizeToWidth(width());

@@ -33,6 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/search_field_controller.h"
 #include "window/window_controller.h"
 #include "window/window_slide_animation.h"
 #include "auth_session.h"
@@ -221,12 +222,17 @@ void WrapWidget::createTopBar() {
 			}, _topBar->lifetime());
 	}
 	if (wrap() == Wrap::Layer) {
-		auto close = _topBar->addButton(object_ptr<Ui::IconButton>(
-			_topBar,
-			st::infoLayerTopBarClose));
+		auto close = _topBar->addButton(
+			base::make_unique_q<Ui::IconButton>(
+				_topBar,
+				st::infoLayerTopBarClose));
 		close->addClickHandler([this] {
 			_controller->window()->hideSpecialLayer();
 		});
+	} else if (requireTopBarSearch()) {
+		auto search = _controller->searchFieldController();
+		Assert(search != nullptr);
+		_topBar->createSearchView(search);
 	}
 
 	_topBar->move(0, 0);
@@ -286,6 +292,19 @@ void WrapWidget::createTopBarOverride(SelectedItems &&items) {
 	_topBarOverride->moveToLeft(0, 0);
 	_topBarOverride->resizeToWidth(width());
 	_topBarOverride->show();
+}
+
+bool WrapWidget::requireTopBarSearch() const {
+	if (!_controller->searchFieldController()) {
+		return false;
+	} else if (_controller->wrap() == Wrap::Layer) {
+		return false;
+	} else if (hasStackHistory()) {
+		return true;
+	}
+	auto section = _controller->section();
+	return (section.type() != Section::Type::Media)
+		|| !Media::TypeToTabIndex(section.mediaType()).has_value();
 }
 
 void WrapWidget::showBackFromStack() {
@@ -359,7 +378,7 @@ std::unique_ptr<ContentMemento> WrapWidget::createTabMemento(
 	case Tab::Media: return std::make_unique<Media::Memento>(
 		_controller->peerId(),
 		_controller->migratedPeerId(),
-		Media::Memento::Type::Photo);
+		Media::Type::Photo);
 	}
 	Unexpected("Tab value in Info::WrapWidget::createInner()");
 }
@@ -371,6 +390,38 @@ object_ptr<ContentWidget> WrapWidget::createContent(
 		this,
 		controller,
 		contentGeometry());
+}
+
+void WrapWidget::convertProfileFromStackToTab() {
+	if (_historyStack.empty()) {
+		return;
+	}
+	auto &entry = _historyStack[0];
+	if (entry.section->section().type() != Section::Type::Profile) {
+		return;
+	}
+	auto convertInsideStack = (_historyStack.size() > 1);
+	auto checkSection = convertInsideStack
+		? _historyStack[1].section->section()
+		: _controller->section();
+	auto &anotherMemento = convertInsideStack
+		? _historyStack[1].anotherTab
+		: _anotherTabMemento;
+	if (checkSection.type() != Section::Type::Media) {
+		return;
+	}
+	if (!Info::Media::TypeToTabIndex(checkSection.mediaType())) {
+		return;
+	}
+	anotherMemento = std::move(entry.section);
+	_historyStack.erase(_historyStack.begin());
+}
+
+void WrapWidget::setWrap(Wrap wrap) {
+	if (_wrap.current() != Wrap::Side && wrap == Wrap::Side) {
+		convertProfileFromStackToTab();
+	}
+	_wrap = wrap;
 }
 
 bool WrapWidget::hasTopBarShadow() const {

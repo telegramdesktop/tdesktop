@@ -2499,9 +2499,14 @@ void InputArea::setErrorShown(bool error) {
 	}
 }
 
-InputField::InputField(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val) : TWidget(parent)
+InputField::InputField(
+	QWidget *parent,
+	const style::InputField &st,
+	base::lambda<QString()> placeholderFactory,
+	const QString &val)
+: RpWidget(parent)
 , _st(st)
-, _inner(this)
+, _inner(std::make_unique<Inner>(this))
 , _oldtext(val)
 , _placeholderFactory(std::move(placeholderFactory)) {
 	_inner->setAcceptRichText(false);
@@ -2542,9 +2547,9 @@ InputField::InputField(QWidget *parent, const style::InputField &st, base::lambd
 
 	connect(_inner->document(), SIGNAL(contentsChange(int,int,int)), this, SLOT(onDocumentContentsChange(int,int,int)));
 	connect(_inner->document(), SIGNAL(contentsChanged()), this, SLOT(onDocumentContentsChanged()));
-	connect(_inner, SIGNAL(undoAvailable(bool)), this, SLOT(onUndoAvailable(bool)));
-	connect(_inner, SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
-	if (App::wnd()) connect(_inner, SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
+	connect(_inner.get(), SIGNAL(undoAvailable(bool)), this, SLOT(onUndoAvailable(bool)));
+	connect(_inner.get(), SIGNAL(redoAvailable(bool)), this, SLOT(onRedoAvailable(bool)));
+	if (App::wnd()) connect(_inner.get(), SIGNAL(selectionChanged()), App::wnd(), SLOT(updateGlobalMenu()));
 
 	setCursor(style::cur_text);
 	if (!val.isEmpty()) {
@@ -2744,7 +2749,9 @@ void InputField::setFocused(bool focused) {
 }
 
 void InputField::startPlaceholderAnimation() {
-	auto placeholderShifted = _forcePlaceholderHidden || (_focused && _st.placeholderScale > 0.) || !getLastText().isEmpty();
+	auto placeholderShifted = _forcePlaceholderHidden
+		|| (_focused && _st.placeholderScale > 0.)
+		|| !getLastText().isEmpty();
 	if (_placeholderShifted != placeholderShifted) {
 		_placeholderShifted = placeholderShifted;
 		_a_placeholderShifted.start([this] { update(); }, _placeholderShifted ? 0. : 1., _placeholderShifted ? 1. : 0., _st.duration);

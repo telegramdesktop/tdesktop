@@ -24,15 +24,22 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/info_content_widget.h"
 #include "storage/storage_shared_media.h"
 
+namespace Ui {
+class SearchFieldController;
+} // namespace Ui
+
 namespace Info {
 namespace Media {
+
+using Type = Storage::SharedMediaType;
+
+base::optional<int> TypeToTabIndex(Type type);
+Type TabIndexToType(int index);
 
 class InnerWidget;
 
 class Memento final : public ContentMemento {
 public:
-	using Type = Storage::SharedMediaType;
-
 	Memento(not_null<Controller*> controller);
 
 	Memento(PeerId peerId, PeerId migratedPeerId, Type type)
@@ -87,8 +94,6 @@ private:
 
 class Widget final : public ContentWidget {
 public:
-	using Type = Memento::Type;
-
 	Widget(
 		QWidget *parent,
 		not_null<Controller*> controller);
@@ -108,7 +113,10 @@ private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
 
+	void refreshSearchField();
+
 	InnerWidget *_inner = nullptr;
+	base::unique_qptr<Ui::RpWidget> _searchField = nullptr;
 
 };
 

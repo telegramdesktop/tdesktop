@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace style {
 struct SearchFieldRow;
+struct InputField;
 } // namespace style
 
 namespace Ui {
@@ -35,7 +36,10 @@ class InputField;
 
 class SearchFieldController {
 public:
-	base::unique_qptr<Ui::RpWidget> createView(
+	base::unique_qptr<Ui::InputField> createField(
+		QWidget *parent,
+		const style::InputField &st);
+	base::unique_qptr<Ui::RpWidget> createRowView(
 		QWidget *parent,
 		const style::SearchFieldRow &st);
 
@@ -48,15 +52,7 @@ public:
 	}
 
 private:
-	void setQueryFromField(const QString &query);
-	void clearQuery();
-
-	struct View {
-		base::unique_qptr<Ui::RpWidget> wrap;
-		Ui::InputField *field = nullptr;
-		Ui::CrossButton *cancel = nullptr;
-	};
-	View _view;
+	base::unique_qptr<QWidget> _view;
 	rpl::variable<QString> _query;
 
 	rpl::lifetime _lifetime;

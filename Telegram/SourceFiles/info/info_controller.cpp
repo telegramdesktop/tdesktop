@@ -61,6 +61,10 @@ rpl::producer<Wrap> Controller::wrapValue() const {
 	return _widget->wrapValue();
 }
 
+bool Controller::hasStackHistory() const {
+	return _widget->hasStackHistory();
+}
+
 bool Controller::validateMementoPeer(
 		not_null<ContentMemento*> memento) const {
 	return memento->peerId() == peerId()
