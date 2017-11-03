@@ -58,6 +58,12 @@ void InnerWidget::setupOtherTypes() {
 				_otherTypes.destroy();
 				refreshHeight();
 			}
+		}, lifetime());
+	rpl::combine(
+		_controller->wrapValue(),
+		_controller->searchEnabledByContent())
+		| rpl::start_with_next([this](Wrap wrap, bool enabled) {
+			_searchEnabled = enabled;
 			refreshSearchField();
 		}, lifetime());
 }
@@ -204,7 +210,7 @@ void InnerWidget::switchToTab(Memento &&memento) {
 
 void InnerWidget::refreshSearchField() {
 	auto search = _controller->searchFieldController();
-	if (search && _otherTabs) {
+	if (search && _otherTabs && _searchEnabled) {
 		_searchField = search->createRowView(
 			this,
 			st::infoMediaSearch);
@@ -216,7 +222,6 @@ void InnerWidget::refreshSearchField() {
 }
 
 object_ptr<ListWidget> InnerWidget::setupList() {
-	refreshSearchField();
 	auto result = object_ptr<ListWidget>(
 		this,
 		_controller);

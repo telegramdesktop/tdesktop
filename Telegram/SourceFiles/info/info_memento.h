@@ -42,7 +42,7 @@ class Memento final : public Window::SectionMemento {
 public:
 	Memento(PeerId peerId);
 	Memento(PeerId peerId, Section section);
-	Memento(std::unique_ptr<ContentMemento> content);
+	Memento(std::vector<std::unique_ptr<ContentMemento>> stack);
 
 	object_ptr<Window::SectionWidget> createWidget(
 		QWidget *parent,
@@ -54,19 +54,27 @@ public:
 		not_null<Window::Controller*> controller,
 		const QRect &geometry) override;
 
-	void setInner(std::unique_ptr<ContentMemento> content);
+	int stackSize() const {
+		return int(_stack.size());
+	}
+	std::vector<std::unique_ptr<ContentMemento>> takeStack();
+
 	not_null<ContentMemento*> content() {
-		return _content.get();
+		Expects(!_stack.empty());
+		return _stack.back().get();
 	}
 
 	~Memento();
 
 private:
+	static std::vector<std::unique_ptr<ContentMemento>> DefaultStack(
+		PeerId peerId,
+		Section section);
 	static std::unique_ptr<ContentMemento> Default(
 		PeerId peerId,
 		Section section);
 
-	std::unique_ptr<ContentMemento> _content;
+	std::vector<std::unique_ptr<ContentMemento>> _stack;
 
 };
 

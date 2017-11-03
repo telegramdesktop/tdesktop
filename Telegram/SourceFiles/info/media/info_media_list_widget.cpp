@@ -49,6 +49,7 @@ constexpr auto kPreloadedScreensCount = 4;
 constexpr auto kPreloadIfLessThanScreens = 2;
 constexpr auto kPreloadedScreensCountFull
 	= kPreloadedScreensCount + 1 + kPreloadedScreensCount;
+constexpr auto kMediaCountForSearch = 10;
 
 UniversalMsgId GetUniversalId(FullMsgId itemId) {
 	return (itemId.channel != 0)
@@ -552,6 +553,7 @@ ListWidget::ListWidget(
 }
 
 void ListWidget::start() {
+	_controller->setSearchEnabledByContent(false);
 	ObservableViewer(*Window::Theme::Background())
 		| rpl::start_with_next([this](const auto &update) {
 			if (update.paletteChanged()) {
@@ -887,6 +889,10 @@ void ListWidget::refreshRows() {
 	}
 	if (!section.empty()) {
 		_sections.push_back(std::move(section));
+	}
+
+	if (_layouts.size() > kMediaCountForSearch) {
+		_controller->setSearchEnabledByContent(true);
 	}
 
 	clearStaleLayouts();

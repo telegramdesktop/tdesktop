@@ -60,7 +60,8 @@ public:
 	}
 
 	void createSearchView(
-		not_null<Ui::SearchFieldController*> controller);
+		not_null<Ui::SearchFieldController*> controller,
+		rpl::producer<bool> &&shown);
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -71,8 +72,12 @@ private:
 	void pushButton(base::unique_qptr<Ui::RpWidget> button);
 	void removeButton(not_null<Ui::RpWidget*> button);
 
-	void setSearchField(base::unique_qptr<Ui::InputField> field);
-	void createSearchView(not_null<Ui::InputField*> field);
+	void setSearchField(
+		base::unique_qptr<Ui::InputField> field,
+		rpl::producer<bool> &&shown);
+	void createSearchView(
+		not_null<Ui::InputField*> field,
+		rpl::producer<bool> &&shown);
 
 	const style::InfoTopBar &_st;
 	object_ptr<Ui::IconButton> _back = { nullptr };

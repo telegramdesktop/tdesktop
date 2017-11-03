@@ -78,7 +78,24 @@ WrapWidget::WrapWidget(
 				refreshTopBarOverride(std::move(items));
 			});
 		}, lifetime());
-	showNewContent(memento->content());
+	restoreHistoryStack(memento->takeStack());
+}
+
+void WrapWidget::restoreHistoryStack(
+		std::vector<std::unique_ptr<ContentMemento>> stack) {
+	Expects(!stack.empty());
+	Expects(_historyStack.empty());
+	auto content = std::move(stack.back());
+	stack.pop_back();
+	if (!stack.empty()) {
+		_historyStack.reserve(stack.size());
+		for (auto &stackItem : stack) {
+			auto item = StackItem();
+			item.section = std::move(stackItem);
+			_historyStack.push_back(std::move(item));
+		}
+	}
+	showNewContent(content.get());
 }
 
 std::unique_ptr<Controller> WrapWidget::createController(
@@ -232,7 +249,9 @@ void WrapWidget::createTopBar() {
 	} else if (requireTopBarSearch()) {
 		auto search = _controller->searchFieldController();
 		Assert(search != nullptr);
-		_topBar->createSearchView(search);
+		_topBar->createSearchView(
+			search,
+			_controller->searchEnabledByContent());
 	}
 
 	_topBar->move(0, 0);
@@ -469,6 +488,9 @@ bool WrapWidget::showInternal(
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) {
 	if (auto infoMemento = dynamic_cast<Memento*>(memento.get())) {
+		if (infoMemento->stackSize() > 1) {
+			return false;
+		}
 		auto content = infoMemento->content();
 		if (_controller->validateMementoPeer(content)) {
 			if (_content->showInternal(content)) {
@@ -484,7 +506,13 @@ bool WrapWidget::showInternal(
 }
 
 std::unique_ptr<Window::SectionMemento> WrapWidget::createMemento() {
-	return std::make_unique<Memento>(_content->createMemento());
+	auto stack = std::vector<std::unique_ptr<ContentMemento>>();
+	stack.reserve(_historyStack.size() + 1);
+	for (auto &stackItem : _historyStack) {
+		stack.push_back(std::move(stackItem.section));
+	}
+	stack.push_back(_content->createMemento());
+	return std::make_unique<Memento>(std::move(stack));
 }
 
 rpl::producer<int> WrapWidget::desiredHeightValue() const {

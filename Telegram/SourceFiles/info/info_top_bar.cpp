@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "info/info_top_bar.h"
 
+#include <rpl/never.h>
 #include "styles/style_info.h"
 #include "lang/lang_keys.h"
 #include "info/info_wrap_widget.h"
@@ -64,10 +65,11 @@ void TopBar::enableBackButton(bool enable) {
 }
 
 void TopBar::createSearchView(
-		not_null<Ui::SearchFieldController*> controller) {
-	setSearchField(controller->createField(
-		this,
-		_st.searchRow.field));
+		not_null<Ui::SearchFieldController*> controller,
+		rpl::producer<bool> &&shown) {
+	setSearchField(
+		controller->createField(this, _st.searchRow.field),
+		std::move(shown));
 }
 
 void TopBar::pushButton(base::unique_qptr<Ui::RpWidget> button) {
@@ -81,15 +83,18 @@ void TopBar::pushButton(base::unique_qptr<Ui::RpWidget> button) {
 }
 
 void TopBar::setSearchField(
-		base::unique_qptr<Ui::InputField> field) {
+		base::unique_qptr<Ui::InputField> field,
+		rpl::producer<bool> &&shown) {
 	if (auto value = field.release()) {
-		createSearchView(value);
+		createSearchView(value, std::move(shown));
 	} else {
 		_searchView = nullptr;
 	}
 }
 
-void TopBar::createSearchView(not_null<Ui::InputField*> field) {
+void TopBar::createSearchView(
+		not_null<Ui::InputField*> field,
+		rpl::producer<bool> &&shown) {
 	_searchView = base::make_unique_q<Ui::FixedHeightWidget>(
 		this,
 		_st.searchRow.height);
@@ -162,12 +167,22 @@ void TopBar::createSearchView(not_null<Ui::InputField*> field) {
 		| rpl::start_with_done([=] {
 			field->setParent(nullptr);
 			removeButton(search);
-			setSearchField(nullptr);
+			setSearchField(nullptr, rpl::never<bool>());
 		}, _searchView->lifetime());
 
 	toggleSearchMode(
 		!field->getLastText().isEmpty(),
 		anim::type::instant);
+
+	std::move(shown)
+		| rpl::start_with_next([=](bool visible) {
+			if (!field->getLastText().isEmpty()) {
+				return;
+			}
+			toggleSearchMode(false, anim::type::instant);
+			wrap->setVisible(visible);
+			search->toggle(visible, anim::type::instant);
+		}, wrap->lifetime());
 }
 
 void TopBar::removeButton(not_null<Ui::RpWidget*> button) {

@@ -28,13 +28,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/sender.h"
 #include "window/window_controller.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/search_field_controller.h"
 #include "apiwrap.h"
 
 namespace Info {
 namespace CommonGroups {
 namespace {
 
-constexpr int kCommonGroupsPerPage = 40;
+constexpr auto kCommonGroupsPerPage = 40;
+constexpr auto kCommonGroupsSearchAfter = 20;
 
 class ListController
 	: public PeerListController
@@ -49,7 +51,22 @@ public:
 	void rowClicked(not_null<PeerListRow*> row) override;
 	void loadMoreRows() override;
 
+	std::unique_ptr<PeerListRow> createRestoredRow(
+			not_null<PeerData*> peer) override {
+		return createRow(peer);
+	}
+
+	std::unique_ptr<PeerListState> saveState() override;
+	void restoreState(std::unique_ptr<PeerListState> state) override;
+
 private:
+	std::unique_ptr<PeerListRow> createRow(not_null<PeerData*> peer);
+
+	struct SavedState : SavedStateBase {
+		int32 preloadGroupId = 0;
+		bool allLoaded = false;
+		bool wasLoading = false;
+	};
 	const not_null<Controller*> _controller;
 	not_null<UserData*> _user;
 	mtpRequestId _preloadRequestId = 0;
@@ -64,6 +81,14 @@ ListController::ListController(
 : PeerListController()
 , _controller(controller)
 , _user(user) {
+	_controller->setSearchEnabledByContent(false);
+}
+
+std::unique_ptr<PeerListRow> ListController::createRow(
+		not_null<PeerData*> peer) {
+	auto result = std::make_unique<PeerListRow>(peer);
+	result->setCustomStatus(QString());
+	return result;
 }
 
 void ListController::prepare() {
@@ -90,9 +115,8 @@ void ListController::loadMoreRows() {
 				for_const (auto &chatData, list) {
 					if (auto chat = App::feedChat(chatData)) {
 						if (!chat->migrateTo()) {
-							auto row = std::make_unique<PeerListRow>(chat);
-							row->setCustomStatus(QString());
-							delegate()->peerListAppendRow(std::move(row));
+							delegate()->peerListAppendRow(
+								createRow(chat));
 						}
 						_preloadGroupId = chat->bareId();
 						_allLoaded = false;
@@ -101,7 +125,46 @@ void ListController::loadMoreRows() {
 				delegate()->peerListRefreshRows();
 			}
 		}
+		auto fullCount = delegate()->peerListFullRowsCount();
+		if (fullCount > kCommonGroupsSearchAfter) {
+			_controller->setSearchEnabledByContent(true);
+		}
 	}).send();
+}
+
+std::unique_ptr<PeerListState> ListController::saveState() {
+	auto result = PeerListController::saveState();
+	auto my = std::make_unique<SavedState>();
+	my->preloadGroupId = _preloadGroupId;
+	my->allLoaded = _allLoaded;
+	if (auto requestId = base::take(_preloadRequestId)) {
+		request(requestId).cancel();
+		my->wasLoading = true;
+	}
+	result->controllerState = std::move(my);
+	return result;
+}
+
+void ListController::restoreState(
+		std::unique_ptr<PeerListState> state) {
+	auto typeErasedState = state
+		? state->controllerState.get()
+		: nullptr;
+	if (auto my = dynamic_cast<SavedState*>(typeErasedState)) {
+		if (auto requestId = base::take(_preloadRequestId)) {
+			request(requestId).cancel();
+		}
+		_allLoaded = my->allLoaded;
+		_preloadGroupId = my->preloadGroupId;
+		if (my->wasLoading) {
+			loadMoreRows();
+		}
+		PeerListController::restoreState(std::move(state));
+		auto fullCount = delegate()->peerListFullRowsCount();
+		if (fullCount > kCommonGroupsSearchAfter) {
+			_controller->setSearchEnabledByContent(true);
+		}
+	}
 }
 
 void ListController::rowClicked(not_null<PeerListRow*> row) {
@@ -117,11 +180,17 @@ InnerWidget::InnerWidget(
 	not_null<Controller*> controller,
 	not_null<UserData*> user)
 : RpWidget(parent)
+, _controller(controller)
 , _user(user)
 , _listController(std::make_unique<ListController>(controller, _user))
 , _list(setupList(this, _listController.get())) {
 	setContent(_list.data());
 	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
+	_controller->searchFieldController()->queryValue()
+		| rpl::start_with_next([this](QString &&query) {
+			peerListScrollToTop();
+			content()->searchQueryChanged(std::move(query));
+		}, lifetime());
 }
 
 void InnerWidget::visibleTopBottomUpdated(
@@ -131,9 +200,11 @@ void InnerWidget::visibleTopBottomUpdated(
 }
 
 void InnerWidget::saveState(not_null<Memento*> memento) {
+	memento->setListState(_listController->saveState());
 }
 
 void InnerWidget::restoreState(not_null<Memento*> memento) {
+	_listController->restoreState(std::move(memento->listState()));
 }
 
 int InnerWidget::desiredHeight() const {

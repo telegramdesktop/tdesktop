@@ -22,7 +22,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "info/common_groups/info_common_groups_inner_widget.h"
 #include "info/info_controller.h"
+#include "ui/search_field_controller.h"
 #include "ui/widgets/scroll_area.h"
+#include "styles/style_info.h"
 
 namespace Info {
 namespace CommonGroups {
@@ -42,6 +44,16 @@ object_ptr<ContentWidget> Memento::createWidget(
 	result->setInternalState(geometry, this);
 	return std::move(result);
 }
+
+void Memento::setListState(std::unique_ptr<PeerListState> state) {
+	_listState = std::move(state);
+}
+
+std::unique_ptr<PeerListState> Memento::listState() {
+	return std::move(_listState);
+}
+
+Memento::~Memento() = default;
 
 Widget::Widget(
 	QWidget *parent,
@@ -77,7 +89,7 @@ void Widget::setInternalState(const QRect &geometry, not_null<Memento*> memento)
 	restoreState(memento);
 }
 
-std::unique_ptr<ContentMemento> Widget::createMemento() {
+std::unique_ptr<ContentMemento> Widget::doCreateMemento() {
 	auto result = std::make_unique<Memento>(user()->bareId());
 	saveState(result.get());
 	return std::move(result);
@@ -92,7 +104,6 @@ void Widget::restoreState(not_null<Memento*> memento) {
 	_inner->restoreState(memento);
 	auto scrollTop = memento->scrollTop();
 	scrollTopRestore(memento->scrollTop());
-	// TODO is setVisibleTopBottom called?
 }
 
 } // namespace CommonGroups

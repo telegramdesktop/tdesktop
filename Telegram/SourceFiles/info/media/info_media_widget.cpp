@@ -91,10 +91,6 @@ Widget::Widget(
 		| rpl::start_with_next([this](int skip) {
 			scrollTo({ skip, -1 });
 		}, _inner->lifetime());
-	controller->wrapValue()
-		| rpl::start_with_next([this] {
-			refreshSearchField();
-		}, lifetime());
 }
 
 rpl::producer<SelectedItems> Widget::selectedListValue() const {
@@ -123,39 +119,18 @@ void Widget::setInternalState(const QRect &geometry, not_null<Memento*> memento)
 	restoreState(memento);
 }
 
-std::unique_ptr<ContentMemento> Widget::createMemento() {
+std::unique_ptr<ContentMemento> Widget::doCreateMemento() {
 	auto result = std::make_unique<Memento>(controller());
 	saveState(result.get());
 	return std::move(result);
 }
 
 void Widget::saveState(not_null<Memento*> memento) {
-	controller()->saveSearchState(memento);
 	_inner->saveState(memento);
 }
 
 void Widget::restoreState(not_null<Memento*> memento) {
 	_inner->restoreState(memento);
-}
-
-void Widget::refreshSearchField() {
-	auto search = controller()->searchFieldController();
-	if (search && controller()->wrap() == Wrap::Layer) {
-		_searchField = search->createRowView(
-			this,
-			st::infoLayerMediaSearch);
-		auto field = _searchField.get();
-		widthValue()
-			| rpl::start_with_next([field](int newWidth) {
-				field->resizeToWidth(newWidth);
-				field->moveToLeft(0, 0);
-			}, field->lifetime());
-		field->show();
-		setScrollTopSkip(field->heightNoMargins() - st::lineWidth);
-	} else {
-		_searchField = nullptr;
-		setScrollTopSkip(0);
-	}
 }
 
 } // namespace Media

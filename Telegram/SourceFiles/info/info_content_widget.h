@@ -46,7 +46,7 @@ public:
 
 	virtual bool showInternal(
 		not_null<ContentMemento*> memento) = 0;
-	virtual std::unique_ptr<ContentMemento> createMemento() = 0;
+	std::unique_ptr<ContentMemento> createMemento();
 
 	virtual rpl::producer<Section> sectionRequest() const;
 	virtual void setIsStackBottom(bool isStackBottom) {
@@ -77,11 +77,9 @@ public:
 
 protected:
 	template <typename Widget>
-	Widget *setInnerWidget(
-			object_ptr<Widget> inner,
-			int scrollTopSkip = 0) {
+	Widget *setInnerWidget(object_ptr<Widget> inner) {
 		return static_cast<Widget*>(
-			doSetInnerWidget(std::move(inner), scrollTopSkip));
+			doSetInnerWidget(std::move(inner)));
 	}
 
 	not_null<Controller*> controller() const {
@@ -97,10 +95,11 @@ protected:
 	void scrollTo(const Ui::ScrollToRequest &request);
 
 private:
-	RpWidget *doSetInnerWidget(
-		object_ptr<RpWidget> inner,
-		int scrollTopSkip);
+	RpWidget *doSetInnerWidget(object_ptr<RpWidget> inner);
 	void updateControlsGeometry();
+	void refreshSearchField(bool shown);
+
+	virtual std::unique_ptr<ContentMemento> doCreateMemento() = 0;
 
 	const not_null<Controller*> _controller;
 
@@ -108,6 +107,7 @@ private:
 	rpl::variable<int> _scrollTopSkip = -1;
 	object_ptr<Ui::ScrollArea> _scroll;
 	Ui::RpWidget *_inner = nullptr;
+	base::unique_qptr<Ui::RpWidget> _searchField = nullptr;
 
 	// Saving here topDelta in setGeometryWithTopMoved() to get it passed to resizeEvent().
 	int _topDelta = 0;
@@ -149,12 +149,19 @@ public:
 	QString searchFieldQuery() const {
 		return _searchFieldQuery;
 	}
+	void setSearchEnabledByContent(bool enabled) {
+		_searchEnabledByContent = enabled;
+	}
+	bool searchEnabledByContent() const {
+		return _searchEnabledByContent;
+	}
 
 private:
 	const PeerId _peerId = 0;
 	const PeerId _migratedPeerId = 0;
 	int _scrollTop = 0;
 	QString _searchFieldQuery;
+	bool _searchEnabledByContent = false;
 
 };
 

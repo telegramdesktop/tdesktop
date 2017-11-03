@@ -34,11 +34,19 @@ Memento::Memento(PeerId peerId)
 }
 
 Memento::Memento(PeerId peerId, Section section)
-: Memento(Default(peerId, section)) {
+: Memento(DefaultStack(peerId, section)) {
 }
 
-Memento::Memento(std::unique_ptr<ContentMemento> content)
-: _content(std::move(content)) {
+Memento::Memento(std::vector<std::unique_ptr<ContentMemento>> stack)
+: _stack(std::move(stack)) {
+}
+
+std::vector<std::unique_ptr<ContentMemento>> Memento::DefaultStack(
+		PeerId peerId,
+		Section section) {
+	auto result = std::vector<std::unique_ptr<ContentMemento>>();
+	result.push_back(Default(peerId, section));
+	return result;
 }
 
 std::unique_ptr<ContentMemento> Memento::Default(
@@ -98,8 +106,8 @@ object_ptr<Window::LayerWidget> Memento::createLayer(
 	return nullptr;
 }
 
-void Memento::setInner(std::unique_ptr<ContentMemento> content) {
-	_content = std::move(content);
+std::vector<std::unique_ptr<ContentMemento>> Memento::takeStack() {
+	return std::move(_stack);
 }
 
 Memento::~Memento() = default;

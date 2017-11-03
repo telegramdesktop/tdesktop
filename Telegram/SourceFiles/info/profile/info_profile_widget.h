@@ -79,7 +79,6 @@ public:
 
 	bool showInternal(
 		not_null<ContentMemento*> memento) override;
-	std::unique_ptr<ContentMemento> createMemento() override;
 
 	void setInternalState(
 		const QRect &geometry,
@@ -90,6 +89,8 @@ public:
 private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
+
+	std::unique_ptr<ContentMemento> doCreateMemento() override;
 
 	InnerWidget *_inner = nullptr;
 

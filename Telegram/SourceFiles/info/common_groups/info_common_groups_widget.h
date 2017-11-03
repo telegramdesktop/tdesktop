@@ -23,6 +23,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/producer.h>
 #include "info/info_content_widget.h"
 
+struct PeerListState;
+
+namespace Ui {
+class SearchFieldController;
+} // namespace Ui
+
 namespace Info {
 namespace CommonGroups {
 
@@ -45,7 +51,13 @@ public:
 		return peerToUser(peerId());
 	}
 
+	void setListState(std::unique_ptr<PeerListState> state);
+	std::unique_ptr<PeerListState> listState();
+
+	~Memento();
+
 private:
+	std::unique_ptr<PeerListState> _listState;
 
 };
 
@@ -60,7 +72,6 @@ public:
 
 	bool showInternal(
 		not_null<ContentMemento*> memento) override;
-	std::unique_ptr<ContentMemento> createMemento() override;
 
 	void setInternalState(
 		const QRect &geometry,
@@ -69,6 +80,8 @@ public:
 private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
+
+	std::unique_ptr<ContentMemento> doCreateMemento() override;
 
 	InnerWidget *_inner = nullptr;
 

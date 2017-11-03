@@ -86,6 +86,7 @@ private:
 	object_ptr<Ui::PlainShadow> _otherTabsShadow = { nullptr };
 	base::unique_qptr<Ui::RpWidget> _searchField = nullptr;
 	object_ptr<ListWidget> _list = { nullptr };
+	bool _searchEnabled = false;
 
 	bool _inResize = false;
 

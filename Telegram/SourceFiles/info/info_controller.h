@@ -106,6 +106,12 @@ public:
 	Ui::SearchFieldController *searchFieldController() const {
 		return _searchFieldController.get();
 	}
+	void setSearchEnabledByContent(bool enabled) {
+		_seachEnabledByContent = enabled;
+	}
+	rpl::producer<bool> searchEnabledByContent() const {
+		return _seachEnabledByContent.value();
+	}
 	rpl::producer<SparseIdsMergedSlice> mediaSource(
 		SparseIdsMergedSlice::UniversalMsgId aroundId,
 		int limitBefore,
@@ -137,6 +143,7 @@ private:
 
 	std::unique_ptr<Ui::SearchFieldController> _searchFieldController;
 	std::unique_ptr<Api::DelayedSearchController> _searchController;
+	rpl::variable<bool> _seachEnabledByContent = false;
 
 	rpl::lifetime _lifetime;
 

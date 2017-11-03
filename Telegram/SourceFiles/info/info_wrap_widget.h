@@ -142,6 +142,8 @@ private:
 	};
 	struct StackItem;
 
+	void restoreHistoryStack(
+		std::vector<std::unique_ptr<ContentMemento>> stack);
 	void showBackFromStack();
 	void showNewContent(not_null<ContentMemento*> memento);
 	void showNewContent(

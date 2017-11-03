@@ -106,7 +106,6 @@ public:
 
 	bool showInternal(
 		not_null<ContentMemento*> memento) override;
-	std::unique_ptr<ContentMemento> createMemento() override;
 
 	void setInternalState(
 		const QRect &geometry,
@@ -119,10 +118,9 @@ private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
 
-	void refreshSearchField();
+	std::unique_ptr<ContentMemento> doCreateMemento() override;
 
 	InnerWidget *_inner = nullptr;
-	base::unique_qptr<Ui::RpWidget> _searchField = nullptr;
 
 };
 

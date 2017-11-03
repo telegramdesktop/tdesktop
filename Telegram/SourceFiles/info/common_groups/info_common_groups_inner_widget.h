@@ -80,6 +80,7 @@ private:
 		RpWidget *parent,
 		not_null<PeerListController*> controller) const;
 
+	not_null<Controller*> _controller;
 	not_null<UserData*> _user;
 	std::unique_ptr<PeerListController> _listController;
 	object_ptr<ListWidget> _list;

@@ -85,8 +85,8 @@ void Controller::updateSearchControllers(
 		: Section::MediaType::kCount;
 	auto hasMediaSearch = isMedia
 		&& SharedMediaAllowSearch(mediaType);
-//	auto hasCommonGroupsSearch
-//		= (_section.type() == Section::Type::CommonGroups);
+	auto hasCommonGroupsSearch
+		= (_section.type() == Section::Type::CommonGroups);
 	auto searchQuery = memento->searchFieldQuery();
 	if (isMedia) {
 		_searchController
@@ -98,15 +98,18 @@ void Controller::updateSearchControllers(
 	} else {
 		_searchController = nullptr;
 	}
-	if (hasMediaSearch) {
+	if (hasMediaSearch || hasCommonGroupsSearch) {
 		_searchFieldController
 			= std::make_unique<Ui::SearchFieldController>(
 				searchQuery);
-		_searchFieldController->queryValue()
-			| rpl::start_with_next([=](QString &&query) {
-				_searchController->setQuery(
-					produceSearchQuery(std::move(query)));
-			}, _searchFieldController->lifetime());
+		if (_searchController) {
+			_searchFieldController->queryValue()
+				| rpl::start_with_next([=](QString &&query) {
+					_searchController->setQuery(
+						produceSearchQuery(std::move(query)));
+				}, _searchFieldController->lifetime());
+		}
+		_seachEnabledByContent = memento->searchEnabledByContent();
 	} else {
 		_searchFieldController = nullptr;
 	}
@@ -116,6 +119,8 @@ void Controller::saveSearchState(not_null<ContentMemento*> memento) {
 	if (_searchFieldController) {
 		memento->setSearchFieldQuery(
 			_searchFieldController->query());
+		memento->setSearchEnabledByContent(
+			_seachEnabledByContent.current());
 	}
 	if (_searchController) {
 		auto mediaMemento = dynamic_cast<Media::Memento*>(

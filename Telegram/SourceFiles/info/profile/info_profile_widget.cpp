@@ -92,7 +92,7 @@ void Widget::setInternalState(const QRect &geometry, not_null<Memento*> memento)
 	restoreState(memento);
 }
 
-std::unique_ptr<ContentMemento> Widget::createMemento() {
+std::unique_ptr<ContentMemento> Widget::doCreateMemento() {
 	auto result = std::make_unique<Memento>(controller());
 	saveState(result.get());
 	return std::move(result);

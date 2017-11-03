@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/range.h>
 #include "window/window_controller.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/search_field_controller.h"
 #include "lang/lang_keys.h"
 #include "info/profile/info_profile_widget.h"
 #include "info/media/info_media_widget.h"
@@ -43,6 +44,8 @@ ContentWidget::ContentWidget(
 : RpWidget(parent)
 , _controller(controller)
 , _scroll(this, st::infoScroll) {
+	using namespace rpl::mappers;
+
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	_controller->wrapValue()
 		| rpl::start_with_next([this](Wrap value) {
@@ -50,6 +53,13 @@ ContentWidget::ContentWidget(
 				? st::boxBg
 				: st::profileBg;
 			update();
+		}, lifetime());
+	rpl::combine(
+		_controller->wrapValue(),
+		_controller->searchEnabledByContent(),
+		($1 == Wrap::Layer) && $2)
+		| rpl::start_with_next([this](bool shown) {
+			refreshSearchField(shown);
 		}, lifetime());
 	_scrollTopSkip.changes()
 		| rpl::start_with_next([this] {
@@ -62,6 +72,9 @@ void ContentWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void ContentWidget::updateControlsGeometry() {
+	if (!_inner) {
+		return;
+	}
 	auto newScrollTop = _scroll->scrollTop() + _topDelta;
 	auto scrollGeometry = rect().marginsRemoved(
 		QMargins(0, _scrollTopSkip.current(), 0, 0));
@@ -75,8 +88,16 @@ void ContentWidget::updateControlsGeometry() {
 			_scroll->scrollToY(newScrollTop);
 		}
 		auto scrollTop = _scroll->scrollTop();
-		_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
+		_inner->setVisibleTopBottom(
+			scrollTop,
+			scrollTop + _scroll->height());
 	}
+}
+
+std::unique_ptr<ContentMemento> ContentWidget::createMemento() {
+	auto result = doCreateMemento();
+	_controller->saveSearchState(result.get());
+	return result;
 }
 
 void ContentWidget::paintEvent(QPaintEvent *e) {
@@ -100,8 +121,7 @@ void ContentWidget::setGeometryWithTopMoved(
 }
 
 Ui::RpWidget *ContentWidget::doSetInnerWidget(
-		object_ptr<RpWidget> inner,
-		int scrollTopSkip) {
+		object_ptr<RpWidget> inner) {
 	using namespace rpl::mappers;
 
 	_inner = _scroll->setOwnedWidget(std::move(inner));
@@ -118,8 +138,6 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 				int desired) {
 			inner->setVisibleTopBottom(top, bottom);
 		}, _inner->lifetime());
-
-	setScrollTopSkip(scrollTopSkip);
 
 	return _inner;
 }
@@ -174,6 +192,26 @@ QRect ContentWidget::rectForFloatPlayer() const {
 
 rpl::producer<SelectedItems> ContentWidget::selectedListValue() const {
 	return rpl::single(SelectedItems(Storage::SharedMediaType::Photo));
+}
+
+void ContentWidget::refreshSearchField(bool shown) {
+	auto search = _controller->searchFieldController();
+	if (search && shown) {
+		_searchField = search->createRowView(
+			this,
+			st::infoLayerMediaSearch);
+		auto field = _searchField.get();
+		widthValue()
+			| rpl::start_with_next([field](int newWidth) {
+				field->resizeToWidth(newWidth);
+				field->moveToLeft(0, 0);
+			}, field->lifetime());
+		field->show();
+		setScrollTopSkip(field->heightNoMargins() - st::lineWidth);
+	} else {
+		_searchField = nullptr;
+		setScrollTopSkip(0);
+	}
 }
 
 } // namespace Info
