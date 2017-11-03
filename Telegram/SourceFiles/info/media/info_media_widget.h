@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/producer.h>
 #include "info/info_content_widget.h"
 #include "storage/storage_shared_media.h"
+#include "history/history_search_controller.h"
 
 namespace Ui {
 class SearchFieldController;
@@ -41,11 +42,9 @@ class InnerWidget;
 class Memento final : public ContentMemento {
 public:
 	Memento(not_null<Controller*> controller);
+	Memento(PeerId peerId, PeerId migratedPeerId, Type type);
 
-	Memento(PeerId peerId, PeerId migratedPeerId, Type type)
-	: ContentMemento(peerId, migratedPeerId)
-	, _type(type) {
-	}
+	using SearchState = Api::DelayedSearchController::SavedState;
 
 	object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
@@ -82,13 +81,20 @@ public:
 	int scrollTopShift() const {
 		return _scrollTopShift;
 	}
+	void setSearchState(SearchState &&state) {
+		_searchState = std::move(state);
+	}
+	SearchState searchState() {
+		return std::move(_searchState);
+	}
 
 private:
 	Type _type = Type::Photo;
 	FullMsgId _aroundId;
 	int _idsLimit = 0;
 	FullMsgId _scrollTopItem;
-	int _scrollTopShift = 0;;
+	int _scrollTopShift = 0;
+	SearchState _searchState;
 
 };
 

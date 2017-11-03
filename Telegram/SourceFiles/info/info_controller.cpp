@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_shared_media.h"
 #include "info/info_content_widget.h"
 #include "info/info_memento.h"
+#include "info/media/info_media_widget.h"
 
 namespace Info {
 namespace {
@@ -50,7 +51,7 @@ Controller::Controller(
 	: nullptr)
 , _window(window)
 , _section(memento->section()) {
-	updateSearchControllers();
+	updateSearchControllers(memento);
 }
 
 Wrap Controller::wrap() const {
@@ -71,12 +72,13 @@ bool Controller::validateMementoPeer(
 		&& memento->migratedPeerId() == migratedPeerId();
 }
 
-void Controller::setSection(const Section &section) {
-	_section = section;
-	updateSearchControllers();
+void Controller::setSection(not_null<ContentMemento*> memento) {
+	_section = memento->section();
+	updateSearchControllers(memento);
 }
 
-void Controller::updateSearchControllers() {
+void Controller::updateSearchControllers(
+		not_null<ContentMemento*> memento) {
 	auto isMedia = (_section.type() == Section::Type::Media);
 	auto mediaType = isMedia
 		? _section.mediaType()
@@ -85,16 +87,21 @@ void Controller::updateSearchControllers() {
 		&& SharedMediaAllowSearch(mediaType);
 //	auto hasCommonGroupsSearch
 //		= (_section.type() == Section::Type::CommonGroups);
+	auto searchQuery = memento->searchFieldQuery();
 	if (isMedia) {
 		_searchController
 			= std::make_unique<Api::DelayedSearchController>();
-		_searchController->setQueryFast(produceSearchQuery());
+		auto mediaMemento = dynamic_cast<Media::Memento*>(memento.get());
+		Assert(mediaMemento != nullptr);
+		_searchController->restoreState(
+			mediaMemento->searchState());
 	} else {
 		_searchController = nullptr;
 	}
 	if (hasMediaSearch) {
 		_searchFieldController
-			= std::make_unique<Ui::SearchFieldController>();
+			= std::make_unique<Ui::SearchFieldController>(
+				searchQuery);
 		_searchFieldController->queryValue()
 			| rpl::start_with_next([=](QString &&query) {
 				_searchController->setQuery(
@@ -105,12 +112,25 @@ void Controller::updateSearchControllers() {
 	}
 }
 
+void Controller::saveSearchState(not_null<ContentMemento*> memento) {
+	if (_searchFieldController) {
+		memento->setSearchFieldQuery(
+			_searchFieldController->query());
+	}
+	if (_searchController) {
+		auto mediaMemento = dynamic_cast<Media::Memento*>(
+			memento.get());
+		Assert(mediaMemento != nullptr);
+		mediaMemento->setSearchState(_searchController->saveState());
+	}
+}
+
 auto Controller::produceSearchQuery(
-		QString &&query) const -> SearchQuery {
+		const QString &query) const -> SearchQuery {
 	auto result = SearchQuery();
 	result.type = _section.mediaType();
 	result.peerId = _peer->id;
-	result.query = std::move(query);
+	result.query = query;
 	result.migratedPeerId = _migrated ? _migrated->id : PeerId(0);
 	return result;
 }

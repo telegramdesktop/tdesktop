@@ -143,11 +143,18 @@ public:
 	int scrollTop() const {
 		return _scrollTop;
 	}
+	void setSearchFieldQuery(const QString &query) {
+		_searchFieldQuery = query;
+	}
+	QString searchFieldQuery() const {
+		return _searchFieldQuery;
+	}
 
 private:
 	const PeerId _peerId = 0;
 	const PeerId _migratedPeerId = 0;
 	int _scrollTop = 0;
+	QString _searchFieldQuery;
 
 };
 

@@ -29,6 +29,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 
+SearchFieldController::SearchFieldController(const QString &query)
+: _query(query) {
+}
+
 base::unique_qptr<Ui::RpWidget> SearchFieldController::createRowView(
 		QWidget *parent,
 		const style::SearchFieldRow &st) {

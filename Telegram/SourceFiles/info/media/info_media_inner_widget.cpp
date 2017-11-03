@@ -189,7 +189,7 @@ bool InnerWidget::showInternal(not_null<Memento*> memento) {
 
 void InnerWidget::switchToTab(Memento &&memento) {
 	// Save state of the tab before setSection() call.
-	_controller->setSection(memento.section());
+	_controller->setSection(&memento);
 	_list = setupList();
 	restoreState(&memento);
 	_list->show();

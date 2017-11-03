@@ -54,6 +54,17 @@ Memento::Memento(not_null<Controller*> controller)
 	controller->section().mediaType()) {
 }
 
+Memento::Memento(PeerId peerId, PeerId migratedPeerId, Type type)
+: ContentMemento(peerId, migratedPeerId)
+, _type(type) {
+	_searchState.query.type = type;
+	_searchState.query.peerId = peerId;
+	_searchState.query.migratedPeerId = migratedPeerId;
+	if (migratedPeerId) {
+		_searchState.migratedList = Storage::SparseIdsList();
+	}
+}
+
 Section Memento::section() const {
 	return Section(_type);
 }
@@ -119,7 +130,7 @@ std::unique_ptr<ContentMemento> Widget::createMemento() {
 }
 
 void Widget::saveState(not_null<Memento*> memento) {
-	memento->setScrollTop(scrollTopSave());
+	controller()->saveSearchState(memento);
 	_inner->saveState(memento);
 }
 

@@ -97,7 +97,7 @@ public:
 
 	Wrap wrap() const;
 	rpl::producer<Wrap> wrapValue() const;
-	void setSection(const Section &section);
+	void setSection(not_null<ContentMemento*> memento);
 	bool hasStackHistory() const;
 
 	not_null<Window::Controller*> window() const {
@@ -114,6 +114,8 @@ public:
 		return _searchController->sourceChanged();
 	}
 
+	void saveSearchState(not_null<ContentMemento*> memento);
+
 	rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
@@ -123,9 +125,8 @@ public:
 private:
 	using SearchQuery = Api::DelayedSearchController::Query;
 
-	void updateSearchControllers();
-	SearchQuery produceSearchQuery(
-		QString &&query = QString()) const;
+	void updateSearchControllers(not_null<ContentMemento*> memento);
+	SearchQuery produceSearchQuery(const QString &query) const;
 
 	not_null<WrapWidget*> _widget;
 	not_null<PeerData*> _peer;

@@ -88,17 +88,18 @@ infoLayerMediaSearch: SearchFieldRow(infoMediaSearch) {
 	fieldCancelSkip: 46px;
 }
 infoTopBarSearchRow: SearchFieldRow(infoLayerMediaSearch) {
+	height: 52px;
 	padding: margins(0px, 12px, 8px, 10px);
 	fieldCancel: CrossButton(contactsSearchCancel) {
-		width: 50px;
+		width: 51px;
 		height: 52px;
 		cross: CrossAnimation {
-			size: 38px;
-			skip: 12px;
+			size: 42px;
+			skip: 14px;
 			stroke: 2px;
 			minScale: 0.3;
 		}
-		crossPosition: point(3px, 8px);
+		crossPosition: point(1px, 6px);
 	}
 }
 

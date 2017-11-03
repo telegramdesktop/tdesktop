@@ -36,6 +36,8 @@ class InputField;
 
 class SearchFieldController {
 public:
+	SearchFieldController(const QString &query);
+
 	base::unique_qptr<Ui::InputField> createField(
 		QWidget *parent,
 		const style::InputField &st);
@@ -43,6 +45,9 @@ public:
 		QWidget *parent,
 		const style::SearchFieldRow &st);
 
+	QString query() const {
+		return _query.current();
+	}
 	rpl::producer<QString> queryValue() const {
 		return _query.value();
 	}

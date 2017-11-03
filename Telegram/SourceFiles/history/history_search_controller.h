@@ -50,6 +50,7 @@ SearchResult ParseSearchResult(
 
 class SearchController : private MTP::Sender {
 public:
+	using IdsList = Storage::SparseIdsList;
 	struct Query {
 		using MediaType = Storage::SharedMediaType;
 
@@ -68,6 +69,11 @@ public:
 		}
 
 	};
+	struct SavedState {
+		Query query;
+		IdsList peerList;
+		base::optional<IdsList> migratedList;
+	};
 
 	void setQuery(const Query &query);
 	bool hasInCache(const Query &query) const;
@@ -82,13 +88,16 @@ public:
 		int limitBefore,
 		int limitAfter);
 
+	SavedState saveState();
+	void restoreState(SavedState &&state);
+
 private:
 	struct Data {
 		explicit Data(not_null<PeerData*> peer) : peer(peer) {
 		}
 
 		not_null<PeerData*> peer;
-		Storage::SparseIdsList list;
+		IdsList list;
 		base::flat_map<
 			SparseIdsSliceBuilder::AroundData,
 			rpl::lifetime> requests;
@@ -133,6 +142,8 @@ public:
 	DelayedSearchController();
 
 	using Query = SearchController::Query;
+	using SavedState = SearchController::SavedState;
+
 	void setQuery(const Query &query);
 	void setQuery(const Query &query, TimeMs delay);
 	void setQueryFast(const Query &query);
@@ -153,6 +164,14 @@ public:
 
 	rpl::producer<> sourceChanged() const {
 		return _sourceChanges.events();
+	}
+
+	SavedState saveState() {
+		return _controller.saveState();
+	}
+
+	void restoreState(SavedState &&state) {
+		_controller.restoreState(std::move(state));
 	}
 
 private:

@@ -299,6 +299,41 @@ rpl::producer<SparseIdsSlice> SearchController::simpleIdsSlice(
 	};
 }
 
+auto SearchController::saveState() -> SavedState {
+	auto result = SavedState();
+	if (_current != _cache.end()) {
+		result.query = _current->first;
+		result.peerList = std::move(_current->second->peerData.list);
+		if (auto &migrated = _current->second->migratedData) {
+			result.migratedList = std::move(migrated->list);
+		}
+	}
+	return result;
+}
+
+void SearchController::restoreState(SavedState &&state) {
+	if (!state.query.peerId) {
+		return;
+	}
+
+	auto it = _cache.find(state.query);
+	if (it == _cache.end()) {
+		it = _cache.emplace(
+			state.query,
+			std::make_unique<CacheEntry>(state.query)).first;
+	}
+	auto replace = Data(it->second->peerData.peer);
+	replace.list = std::move(state.peerList);
+	it->second->peerData = std::move(replace);
+	if (auto &migrated = state.migratedList) {
+		Assert(it->second->migratedData.has_value());
+		auto replace = Data(it->second->migratedData->peer);
+		replace.list = std::move(*migrated);
+		it->second->migratedData = std::move(replace);
+	}
+	_current = it;
+}
+
 void SearchController::requestMore(
 		const SparseIdsSliceBuilder::AroundData &key,
 		const Query &query,
@@ -341,6 +376,10 @@ void DelayedSearchController::setQuery(const Query &query) {
 void DelayedSearchController::setQuery(
 		const Query &query,
 		TimeMs delay) {
+	if (currentQuery() == query) {
+		_timer.cancel();
+		return;
+	}
 	if (_controller.hasInCache(query)) {
 		setQueryFast(query);
 	} else {
