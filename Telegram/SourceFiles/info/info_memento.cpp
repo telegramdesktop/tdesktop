@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "info/profile/info_profile_widget.h"
 #include "info/media/info_media_widget.h"
-#include "info/info_common_groups_widget.h"
+#include "info/common_groups/info_common_groups_widget.h"
 #include "info/info_section_widget.h"
 #include "info/info_layer_widget.h"
 #include "info/info_controller.h"

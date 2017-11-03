@@ -213,10 +213,6 @@
 <(src_loc)/history/history_user_photos.h
 <(src_loc)/history/history_widget.cpp
 <(src_loc)/history/history_widget.h
-<(src_loc)/info/info_common_groups_inner_widget.cpp
-<(src_loc)/info/info_common_groups_inner_widget.h
-<(src_loc)/info/info_common_groups_widget.cpp
-<(src_loc)/info/info_common_groups_widget.h
 <(src_loc)/info/info_content_widget.cpp
 <(src_loc)/info/info_content_widget.h
 <(src_loc)/info/info_controller.cpp
@@ -233,6 +229,10 @@
 <(src_loc)/info/info_top_bar_override.h
 <(src_loc)/info/info_wrap_widget.cpp
 <(src_loc)/info/info_wrap_widget.h
+<(src_loc)/info/common_groups/info_common_groups_inner_widget.cpp
+<(src_loc)/info/common_groups/info_common_groups_inner_widget.h
+<(src_loc)/info/common_groups/info_common_groups_widget.cpp
+<(src_loc)/info/common_groups/info_common_groups_widget.h
 <(src_loc)/info/media/info_media_buttons.h
 <(src_loc)/info/media/info_media_inner_widget.cpp
 <(src_loc)/info/media/info_media_inner_widget.h
