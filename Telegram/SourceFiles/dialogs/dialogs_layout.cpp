@@ -58,7 +58,21 @@ void paintRowDate(Painter &p, const QDateTime &date, QRect &rectForName, bool ac
 }
 
 template <typename PaintItemCallback, typename PaintCounterCallback>
-void paintRow(Painter &p, const RippleRow *row, History *history, not_null<PeerData*> from, HistoryItem *item, Data::Draft *draft, QDateTime date, int fullWidth, bool active, bool selected, bool onlyBackground, TimeMs ms, PaintItemCallback paintItemCallback, PaintCounterCallback paintCounterCallback) {
+void paintRow(
+		Painter &p,
+		const RippleRow *row,
+		History *history,
+		not_null<PeerData*> from,
+		HistoryItem *item,
+		Data::Draft *draft,
+		QDateTime date,
+		int fullWidth,
+		bool active,
+		bool selected,
+		bool onlyBackground,
+		TimeMs ms,
+		PaintItemCallback &&paintItemCallback,
+		PaintCounterCallback &&paintCounterCallback) {
 	QRect fullRect(0, 0, fullWidth, st::dialogsRowHeight);
 	p.fillRect(fullRect, active ? st::dialogsBgActive : (selected ? st::dialogsBgOver : st::dialogsBg));
 	row->paintRipple(p, 0, 0, fullWidth, ms, &(active ? st::dialogsRippleBgActive : st::dialogsRippleBg)->c);
@@ -122,7 +136,7 @@ void paintRow(Painter &p, const RippleRow *row, History *history, not_null<PeerD
 	} else if (!item->isEmpty()) {
 		paintRowDate(p, date, rectForName, active, selected);
 
-		paintItemCallback(nameleft, namewidth, item);
+		paintItemCallback(nameleft, namewidth);
 	} else if (history->isPinnedDialog()) {
 		auto availableWidth = namewidth;
 		auto &icon = (active ? st::dialogsPinnedIconActive : (selected ? st::dialogsPinnedIconOver : st::dialogsPinnedIcon));
@@ -281,7 +295,7 @@ void RowPainter::paint(Painter &p, const Row *row, int fullWidth, bool active, b
 		}
 		return cloudDraft ? cloudDraft->date : QDateTime();
 	};
-	int unreadCount = history->unreadCount();
+	auto unreadCount = history->unreadCount();
 	if (history->peer->migrateFrom()) {
 		if (auto migrated = App::historyLoaded(history->peer->migrateFrom()->id)) {
 			unreadCount += migrated->unreadCount();
@@ -291,8 +305,10 @@ void RowPainter::paint(Painter &p, const Row *row, int fullWidth, bool active, b
 	if (item && cloudDraft && unreadCount > 0) {
 		cloudDraft = nullptr; // Draw item, if draft is older.
 	}
-	auto from = (history->peer->migrateTo() ? history->peer->migrateTo() : history->peer);
-	paintRow(p, row, history, from, item, cloudDraft, displayDate(), fullWidth, active, selected, onlyBackground, ms, [&p, fullWidth, active, selected, ms, history, unreadCount](int nameleft, int namewidth, HistoryItem *item) {
+	auto from = history->peer->migrateTo()
+		? history->peer->migrateTo()
+		: history->peer;
+	auto paintItemCallback = [&](int nameleft, int namewidth) {
 		auto availableWidth = namewidth;
 		auto texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
 		auto hadOneBadge = false;
@@ -341,18 +357,36 @@ void RowPainter::paint(Painter &p, const Row *row, int fullWidth, bool active, b
 			paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
 			availableWidth -= unreadWidth + st.padding + (hadOneBadge ? st::dialogsUnreadPadding : 0);
 		}
-		auto &color = active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService);
-		if (!history->paintSendAction(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
+		auto &color = active
+			? st::dialogsTextFgServiceActive
+			: (selected
+				? st::dialogsTextFgServiceOver
+				: st::dialogsTextFgService);
+		auto actionWasPainted = history->paintSendAction(
+			p,
+			nameleft,
+			texttop,
+			availableWidth,
+			fullWidth,
+			color,
+			ms);
+		if (!actionWasPainted) {
+			auto itemRect = QRect(
+				nameleft,
+				texttop,
+				availableWidth,
+				st::dialogsTextFont->height);
 			item->drawInDialog(
 				p,
-				QRect(nameleft, texttop, availableWidth, st::dialogsTextFont->height),
+				itemRect,
 				active,
 				selected,
 				HistoryItem::DrawInDialog::Normal,
 				history->textCachedFor,
 				history->lastItemTextCache);
 		}
-	}, [&p, fullWidth, active, selected, ms, history, unreadCount] {
+	};
+	auto paintCounterCallback = [&] {
 		if (unreadCount) {
 			auto counter = QString::number(unreadCount);
 			if (counter.size() > 4) {
@@ -368,7 +402,22 @@ void RowPainter::paint(Painter &p, const Row *row, int fullWidth, bool active, b
 			st.muted = history->mute();
 			paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
 		}
-	});
+	};
+	paintRow(
+		p,
+		row,
+		history,
+		from,
+		item,
+		cloudDraft,
+		displayDate(),
+		fullWidth,
+		active,
+		selected,
+		onlyBackground,
+		ms,
+		paintItemCallback,
+		paintCounterCallback);
 }
 
 void RowPainter::paint(Painter &p, const FakeRow *row, int fullWidth, bool active, bool selected, bool onlyBackground, TimeMs ms) {
@@ -382,18 +431,42 @@ void RowPainter::paint(Painter &p, const FakeRow *row, int fullWidth, bool activ
 		}
 		return (history->peer->migrateTo() ? history->peer->migrateTo() : history->peer);
 	}();
-	paintRow(p, row, history, from, item, nullptr, item->date, fullWidth, active, selected, onlyBackground, ms, [&p, row, active, selected](int nameleft, int namewidth, HistoryItem *item) {
-		int lastWidth = namewidth, texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
+	auto drawInDialogWay = [&] {
+		if (auto searchPeer = row->searchInPeer()) {
+			if (!searchPeer->isChannel() || searchPeer->isMegagroup()) {
+				return HistoryItem::DrawInDialog::WithoutSender;
+			}
+		}
+		return HistoryItem::DrawInDialog::Normal;
+	}();
+	auto paintItemCallback = [&](int nameleft, int namewidth) {
+		auto lastWidth = namewidth;
+		auto texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
 		item->drawInDialog(
 			p,
 			QRect(nameleft, texttop, lastWidth, st::dialogsTextFont->height),
 			active,
 			selected,
-			HistoryItem::DrawInDialog::WithoutSender,
+			drawInDialogWay,
 			row->_cacheFor,
 			row->_cache);
-	}, [] {
-	});
+	};
+	auto paintCounterCallback = [] {};
+	paintRow(
+		p,
+		row,
+		history,
+		from,
+		item,
+		nullptr,
+		item->date,
+		fullWidth,
+		active,
+		selected,
+		onlyBackground,
+		ms,
+		paintItemCallback,
+		paintCounterCallback);
 }
 
 QRect RowPainter::sendActionAnimationRect(int animationWidth, int animationHeight, int fullWidth, bool textUpdated) {
