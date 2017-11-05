@@ -108,13 +108,13 @@ Controller::ColumnLayout Controller::computeColumnLayout() const {
 		dialogsWidth = chatWidth = bodyWidth;
 	} else if (useNormalLayout()) {
 		layout = Adaptive::WindowLayout::Normal;
-		dialogsWidth = qRound(bodyWidth * dialogsWidthRatio().value());
+		dialogsWidth = qRound(bodyWidth * Auth().data().dialogsWidthRatio());
 		accumulate_max(dialogsWidth, st::columnMinimalWidthLeft);
 		accumulate_min(dialogsWidth, bodyWidth - st::columnMinimalWidthMain);
 		chatWidth = bodyWidth - dialogsWidth;
 	} else {
 		layout = Adaptive::WindowLayout::ThreeColumn;
-		dialogsWidth = qRound(bodyWidth * dialogsWidthRatio().value());
+		dialogsWidth = qRound(bodyWidth * Auth().data().dialogsWidthRatio());
 		accumulate_max(dialogsWidth, st::columnMinimalWidthLeft);
 		thirdWidth = st::columnMinimalWidthThird;
 		accumulate_min(
@@ -161,9 +161,8 @@ void Controller::resizeForThirdSection() {
 		minimalThreeColumnWidth() - layout.bodyWidth,
 		st::columnMinimalWidthThird);
 	auto newBodyWidth = layout.bodyWidth + extendBy;
-	dialogsWidthRatio().set(
-		(dialogsWidthRatio().value() * layout.bodyWidth) / newBodyWidth,
-		true);
+	auto currentRatio = Auth().data().dialogsWidthRatio();
+	Auth().data().setDialogsWidthRatio((currentRatio * layout.bodyWidth) / newBodyWidth);
 	window()->tryToExtendWidthBy(extendBy);
 
 	Auth().data().setTabbedSelectorSectionEnabled(
@@ -181,9 +180,8 @@ void Controller::closeThirdSection() {
 		auto newBodyWidth = noResize
 			? layout.bodyWidth
 			: (layout.bodyWidth - layout.thirdWidth);
-		dialogsWidthRatio().set(
-			(dialogsWidthRatio().value() * layout.bodyWidth) / newBodyWidth,
-			true);
+		auto currentRatio = Auth().data().dialogsWidthRatio();
+		Auth().data().setDialogsWidthRatio((currentRatio * layout.bodyWidth) / newBodyWidth);
 		newWindowSize = QSize(
 			window()->width() + (newBodyWidth - layout.bodyWidth),
 			window()->height());

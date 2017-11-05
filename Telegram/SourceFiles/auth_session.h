@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <rpl/event_stream.h>
 #include <rpl/filter.h>
+#include <rpl/variable.h>
 #include "base/timer.h"
 
 namespace Storage {
@@ -144,8 +145,8 @@ public:
 			});
 	}
 
-	void copyFrom(const AuthSessionData &other) {
-		_variables = other._variables;
+	void moveFrom(AuthSessionData &&other) {
+		_variables = std::move(other._variables);
 	}
 	QByteArray serialize() const;
 	void constructFromSerialized(const QByteArray &serialized);
@@ -219,6 +220,16 @@ public:
 	RectPart floatPlayerCorner() const {
 		return _variables.floatPlayerCorner;
 	}
+	void setDialogsWidthRatio(float64 ratio) {
+		_variables.dialogsWidthRatio = ratio;
+	}
+	float64 dialogsWidthRatio() const {
+		return _variables.dialogsWidthRatio.current();
+	}
+	rpl::producer<float64> dialogsWidthRatioChanges() const {
+		return _variables.dialogsWidthRatio.changes();
+	}
+
 	void setGroupStickersSectionHidden(PeerId peerId) {
 		_variables.groupStickersSectionHidden.insert(peerId);
 	}
@@ -233,16 +244,19 @@ private:
 	struct Variables {
 		Variables();
 
+		static constexpr auto kDefaultDialogsWidthRatio = 5. / 14;
+
 		bool lastSeenWarningSeen = false;
-		ChatHelpers::SelectorTab selectorTab;
-		bool tabbedSelectorSectionEnabled = false;
+		ChatHelpers::SelectorTab selectorTab; // per-window
+		bool tabbedSelectorSectionEnabled = false; // per-window
 		int tabbedSelectorSectionTooltipShown = 0;
 		QMap<QString, QString> soundOverrides;
-		Window::Column floatPlayerColumn;
-		RectPart floatPlayerCorner;
+		Window::Column floatPlayerColumn; // per-window
+		RectPart floatPlayerCorner; // per-window
 		base::flat_set<PeerId> groupStickersSectionHidden;
-		bool thirdSectionInfoEnabled = true;
-		bool smallDialogsList = false;
+		bool thirdSectionInfoEnabled = true; // per-window
+		bool smallDialogsList = false; // per-window
+		rpl::variable<float64> dialogsWidthRatio = kDefaultDialogsWidthRatio; // per-window
 	};
 
 	base::Variable<bool> _contactsLoaded = { false };

@@ -166,10 +166,6 @@ void joinGroupByHash(const QString &hash) {
 	if (MainWidget *m = main()) m->joinGroupByHash(hash);
 }
 
-void stickersBox(const QString &name) {
-	if (MainWidget *m = main()) m->stickersBox(MTP_inputStickerSetShortName(MTP_string(name)));
-}
-
 void removeDialog(History *history) {
 	if (MainWidget *m = main()) {
 		m->removeDialog(history);

@@ -571,7 +571,7 @@ enum {
 	dbiNotificationsCount  = 0x45,
 	dbiNotificationsCorner = 0x46,
 	dbiThemeKey = 0x47,
-	dbiDialogsWidthRatio = 0x48,
+	dbiDialogsWidthRatioOld = 0x48,
 	dbiUseExternalVideoPlayer = 0x49,
 	dbiDcOptions = 0x4a,
 	dbiMtpAuthorization = 0x4b,
@@ -646,10 +646,10 @@ enum class WriteMapWhen {
 	Soon,
 };
 
-std::unique_ptr<StoredAuthSession> StoredAuthSessionCache;
-StoredAuthSession &GetStoredAuthSessionCache() {
+std::unique_ptr<AuthSessionData> StoredAuthSessionCache;
+AuthSessionData &GetStoredAuthSessionCache() {
 	if (!StoredAuthSessionCache) {
-		StoredAuthSessionCache = std::make_unique<StoredAuthSession>();
+		StoredAuthSessionCache = std::make_unique<AuthSessionData>();
 	}
 	return *StoredAuthSessionCache;
 }
@@ -1102,12 +1102,12 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		Global::SetNotificationsCorner(static_cast<Notify::ScreenCorner>((v >= 0 && v < 4) ? v : 2));
 	} break;
 
-	case dbiDialogsWidthRatio: {
+	case dbiDialogsWidthRatioOld: {
 		qint32 v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		GetStoredAuthSessionCache().dialogsWidthRatio = v / 1000000.;
+		GetStoredAuthSessionCache().setDialogsWidthRatio(v / 1000000.);
 	} break;
 
 	case dbiLastSeenWarningSeenOld: {
@@ -1115,7 +1115,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		GetStoredAuthSessionCache().data.setLastSeenWarningSeen(v == 1);
+		GetStoredAuthSessionCache().setLastSeenWarningSeen(v == 1);
 	} break;
 
 	case dbiAuthSessionData: {
@@ -1123,7 +1123,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		GetStoredAuthSessionCache().data.constructFromSerialized(v);
+		GetStoredAuthSessionCache().constructFromSerialized(v);
 	} break;
 
 	case dbiWorkMode: {
@@ -1766,18 +1766,8 @@ void _writeUserSettings() {
 			recentEmojiPreloadData.push_back(qMakePair(item.first->id(), item.second));
 		}
 	}
-	auto userDataInstance = StoredAuthSessionCache ? &StoredAuthSessionCache->data : Messenger::Instance().getAuthSessionData();
+	auto userDataInstance = StoredAuthSessionCache ? StoredAuthSessionCache.get() : Messenger::Instance().getAuthSessionData();
 	auto userData = userDataInstance ? userDataInstance->serialize() : QByteArray();
-	auto dialogsWidthRatio = [] {
-		if (StoredAuthSessionCache) {
-			return StoredAuthSessionCache->dialogsWidthRatio;
-		} else if (auto window = App::wnd()) {
-			if (auto controller = window->controller()) {
-				return controller->dialogsWidthRatio().value();
-			}
-		}
-		return Window::Controller::kDefaultDialogsWidthRatio;
-	};
 
 	uint32 size = 21 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::stringSize(Global::AskDownloadPath() ? QString() : Global::DownloadPath()) + Serialize::bytearraySize(Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
@@ -1822,7 +1812,6 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiDialogsMode) << qint32(Global::DialogsModeEnabled() ? 1 : 0) << static_cast<qint32>(Global::DialogsMode());
 	data.stream << quint32(dbiModerateMode) << qint32(Global::ModerateModeEnabled() ? 1 : 0);
 	data.stream << quint32(dbiAutoPlay) << qint32(cAutoPlayGif() ? 1 : 0);
-	data.stream << quint32(dbiDialogsWidthRatio) << qint32(snap(qRound(dialogsWidthRatio() * 1000000), 0, 1000000));
 	data.stream << quint32(dbiUseExternalVideoPlayer) << qint32(cUseExternalVideoPlayer());
 	if (!userData.isEmpty()) {
 		data.stream << quint32(dbiAuthSessionData) << userData;

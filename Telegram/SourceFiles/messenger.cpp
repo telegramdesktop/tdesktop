@@ -68,7 +68,7 @@ Messenger *Messenger::InstancePointer() {
 
 struct Messenger::Private {
 	UserId authSessionUserId = 0;
-	std::unique_ptr<Local::StoredAuthSession> storedAuthSession;
+	std::unique_ptr<AuthSessionData> storedAuthSession;
 	MTP::Instance::Config mtpConfig;
 	MTP::AuthKeysList mtpKeysToDestroy;
 	base::Timer quitTimer;
@@ -337,14 +337,14 @@ void Messenger::setAuthSessionUserId(UserId userId) {
 	_private->authSessionUserId = userId;
 }
 
-void Messenger::setAuthSessionFromStorage(std::unique_ptr<Local::StoredAuthSession> data) {
+void Messenger::setAuthSessionFromStorage(std::unique_ptr<AuthSessionData> data) {
 	Expects(!authSession());
 	_private->storedAuthSession = std::move(data);
 }
 
 AuthSessionData *Messenger::getAuthSessionData() {
 	if (_private->authSessionUserId) {
-		return _private->storedAuthSession ? &_private->storedAuthSession->data : nullptr;
+		return _private->storedAuthSession ? _private->storedAuthSession.get() : nullptr;
 	} else if (_authSession) {
 		return &_authSession->data();
 	}
@@ -414,11 +414,8 @@ void Messenger::startMtp() {
 	}
 	if (_private->storedAuthSession) {
 		if (_authSession) {
-			_authSession->data().copyFrom(_private->storedAuthSession->data);
-			if (auto window = App::wnd()) {
-				Assert(window->controller() != nullptr);
-				window->controller()->dialogsWidthRatio().set(_private->storedAuthSession->dialogsWidthRatio);
-			}
+			_authSession->data().moveFrom(
+				std::move(*_private->storedAuthSession));
 		}
 		_private->storedAuthSession.reset();
 	}

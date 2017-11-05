@@ -76,8 +76,6 @@ class SectionMemento;
 
 class Controller {
 public:
-	static constexpr auto kDefaultDialogsWidthRatio = 5. / 14;
-
 	Controller(not_null<MainWindow*> window) : _window(window) {
 	}
 
@@ -170,12 +168,6 @@ public:
 		not_null<PeerData*> peer,
 		QDate requestedDate);
 
-	base::Variable<float64> &dialogsWidthRatio() {
-		return _dialogsWidthRatio;
-	}
-	const base::Variable<float64> &dialogsWidthRatio() const {
-		return _dialogsWidthRatio;
-	}
 	base::Variable<bool> &dialogsListFocused() {
 		return _dialogsListFocused;
 	}
@@ -199,7 +191,6 @@ private:
 	base::Observable<void> _gifPauseLevelChanged;
 	base::Observable<void> _floatPlayerAreaUpdated;
 
-	base::Variable<float64> _dialogsWidthRatio = { kDefaultDialogsWidthRatio };
 	base::Variable<bool> _dialogsListFocused = { false };
 	base::Variable<bool> _dialogsListDisplayForced = { false };
 

@@ -262,9 +262,10 @@ MainWidget::MainWidget(
 	subscribe(_controller->dialogsListDisplayForced(), [this](bool) {
 		updateDialogsWidthAnimated();
 	});
-	subscribe(_controller->dialogsWidthRatio(), [this](float64) {
-		updateControlsGeometry();
-	});
+	Auth().data().dialogsWidthRatioChanges()
+		| rpl::start_with_next(
+			[this] { updateControlsGeometry(); },
+			lifetime());
 	subscribe(_controller->floatPlayerAreaUpdated(), [this] {
 		checkFloatPlayerVisibility();
 	});
@@ -3516,7 +3517,7 @@ void MainWidget::resizeEvent(QResizeEvent *e) {
 
 void MainWidget::updateControlsGeometry() {
 	updateWindowAdaptiveLayout();
-	if (_controller->dialogsWidthRatio().value() > 0) {
+	if (Auth().data().dialogsWidthRatio() > 0) {
 		_a_dialogsWidth.finish();
 	}
 	if (!_a_dialogsWidth.animating()) {
@@ -3616,12 +3617,12 @@ void MainWidget::updateControlsGeometry() {
 }
 
 void MainWidget::updateDialogsWidthAnimated() {
-	if (_controller->dialogsWidthRatio().value() > 0) {
+	if (Auth().data().dialogsWidthRatio() > 0) {
 		return;
 	}
 	auto dialogsWidth = _dialogsWidth;
 	updateWindowAdaptiveLayout();
-	if (!_controller->dialogsWidthRatio().value()
+	if (!Auth().data().dialogsWidthRatio()
 		&& (_dialogsWidth != dialogsWidth
 			|| _a_dialogsWidth.animating())) {
 		_dialogs->startWidthAnimation();
@@ -3722,16 +3723,15 @@ bool MainWidget::eventFilter(QObject *o, QEvent *e) {
 		} else if (e->type() == QEvent::MouseButtonRelease) {
 			_resizingSide = false;
 			if (!Adaptive::OneColumn()
-				&& _controller->dialogsWidthRatio().value() > 0) {
-				_controller->dialogsWidthRatio().set(
-					float64(_dialogsWidth) / width(),
-					true);
+				&& Auth().data().dialogsWidthRatio() > 0) {
+				Auth().data().setDialogsWidthRatio(
+					float64(_dialogsWidth) / width());
 			}
 			Local::writeUserSettings();
 		} else if (e->type() == QEvent::MouseMove && _resizingSide) {
 			auto newWidth = mouseLeft() - _resizingSideShift;
 			auto newRatio = (newWidth < st::dialogsWidthMin / 2) ? 0. : float64(newWidth) / width();
-			_controller->dialogsWidthRatio().set(newRatio, true);
+			Auth().data().setDialogsWidthRatio(newRatio);
 		}
 	} else if (e->type() == QEvent::FocusIn) {
 		if (auto widget = qobject_cast<QWidget*>(o)) {
@@ -3771,7 +3771,7 @@ void MainWidget::handleAdaptiveLayoutUpdate() {
 
 void MainWidget::updateWindowAdaptiveLayout() {
 	auto layout = _controller->computeColumnLayout();
-	auto dialogsWidthRatio = _controller->dialogsWidthRatio().value();
+	auto dialogsWidthRatio = Auth().data().dialogsWidthRatio();
 
 	// Check if we are in a single-column layout in a wide enough window
 	// for the normal layout. If so, switch to the normal layout.
@@ -3814,7 +3814,7 @@ void MainWidget::updateWindowAdaptiveLayout() {
 		//}
 	}
 
-	_controller->dialogsWidthRatio().set(dialogsWidthRatio, true);
+	Auth().data().setDialogsWidthRatio(dialogsWidthRatio);
 
 	auto useSmallColumnWidth = !Adaptive::OneColumn()
 		&& !dialogsWidthRatio

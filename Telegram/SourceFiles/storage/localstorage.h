@@ -32,11 +32,6 @@ struct Cached;
 
 namespace Local {
 
-struct StoredAuthSession {
-	AuthSessionData data;
-	float64 dialogsWidthRatio;
-};
-
 void start();
 void finish();
 

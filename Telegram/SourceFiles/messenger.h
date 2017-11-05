@@ -43,10 +43,6 @@ class FileUploader;
 class Translator;
 class MediaView;
 
-namespace Local {
-struct StoredAuthSession;
-} // namespace Local
-
 namespace Media {
 namespace Audio {
 class Instance;
@@ -112,7 +108,7 @@ public:
 	void setMtpMainDcId(MTP::DcId mainDcId);
 	void setMtpKey(MTP::DcId dcId, const MTP::AuthKey::Data &keyData);
 	void setAuthSessionUserId(UserId userId);
-	void setAuthSessionFromStorage(std::unique_ptr<Local::StoredAuthSession> data);
+	void setAuthSessionFromStorage(std::unique_ptr<AuthSessionData> data);
 	AuthSessionData *getAuthSessionData();
 
 	// Serialization.

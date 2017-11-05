@@ -136,7 +136,6 @@ void activateBotCommand(const HistoryItem *msg, int row, int col);
 void searchByHashtag(const QString &tag, PeerData *inPeer);
 void openPeerByName(const QString &username, MsgId msgId = ShowAtUnreadMsgId, const QString &startToken = QString());
 void joinGroupByHash(const QString &hash);
-void stickersBox(const QString &name);
 void removeDialog(History *history);
 void showSettings();
 
