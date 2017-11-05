@@ -499,10 +499,17 @@ void Widget::handleSongChange() {
 	} else {
 		auto song = current.audio()->song();
 		if (!song || song->performer.isEmpty()) {
-			textWithEntities.text = (!song || song->title.isEmpty()) ? (current.audio()->name.isEmpty() ? qsl("Unknown Track") : current.audio()->name) : song->title;
+			textWithEntities.text = (!song || song->title.isEmpty())
+				? (current.audio()->filename().isEmpty()
+					? qsl("Unknown Track")
+					: current.audio()->filename())
+				: song->title;
 		} else {
-			auto title = song->title.isEmpty() ? qsl("Unknown Track") : TextUtilities::Clean(song->title);
-			textWithEntities.text = song->performer + QString::fromUtf8(" \xe2\x80\x93 ") + title;
+			auto title = song->title.isEmpty()
+				? qsl("Unknown Track")
+				: TextUtilities::Clean(song->title);
+			auto dash = QString::fromUtf8(" \xe2\x80\x93 ");
+			textWithEntities.text = song->performer + dash + title;
 			textWithEntities.entities.append({ EntityInTextBold, 0, song->performer.size(), QString() });
 		}
 	}

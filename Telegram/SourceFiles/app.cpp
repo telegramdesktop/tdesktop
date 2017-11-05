@@ -1616,7 +1616,7 @@ namespace {
 				versionChanged = convert->setRemoteVersion(version);
 				convert->setRemoteLocation(dc, access);
 				convert->date = date;
-				convert->mime = mime;
+				convert->setMimeString(mime);
 				if (!thumb->isNull() && (convert->thumb->isNull() || convert->thumb->width() < thumb->width() || convert->thumb->height() < thumb->height() || versionChanged)) {
 					updateImage(convert->thumb, thumb);
 				}
@@ -1648,7 +1648,7 @@ namespace {
 			} else {
 				result = DocumentData::create(document, dc, access, version, attributes);
 				result->date = date;
-				result->mime = mime;
+				result->setMimeString(mime);
 				result->thumb = thumb;
 				result->size = size;
 				result->recountIsImage();
@@ -1666,7 +1666,7 @@ namespace {
 					result->setRemoteLocation(dc, access);
 				}
 				result->date = date;
-				result->mime = mime;
+				result->setMimeString(mime);
 				if (!thumb->isNull() && (result->thumb->isNull() || result->thumb->width() < thumb->width() || result->thumb->height() < thumb->height() || versionChanged)) {
 					result->thumb = thumb;
 				}

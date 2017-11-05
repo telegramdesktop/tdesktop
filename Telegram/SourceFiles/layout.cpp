@@ -152,28 +152,33 @@ QString formatPlayedText(qint64 played, qint64 duration) {
 }
 
 int32 documentColorIndex(DocumentData *document, QString &ext) {
-	int32 colorIndex = 0;
+	auto colorIndex = 0;
 
-	QString name = document ? (document->name.isEmpty() ? (document->sticker() ? lang(lng_in_dlg_sticker) : qsl("Unknown File")) : document->name) : lang(lng_message_empty);
+	auto name = document
+		? (document->filename().isEmpty()
+			? (document->sticker()
+				? lang(lng_in_dlg_sticker)
+				: qsl("Unknown File"))
+			: document->filename())
+		: lang(lng_message_empty);
 	name = name.toLower();
-	int32 lastDot = name.lastIndexOf('.');
-	QString mime = document ? document->mime.toLower() : QString();
+	auto lastDot = name.lastIndexOf('.');
+	auto mime = document
+		? document->mimeString().toLower()
+		: QString();
 	if (name.endsWith(qstr(".doc")) ||
 		name.endsWith(qstr(".txt")) ||
 		name.endsWith(qstr(".psd")) ||
-		mime.startsWith(qstr("text/"))
-		) {
+		mime.startsWith(qstr("text/"))) {
 		colorIndex = 0;
 	} else if (
 		name.endsWith(qstr(".xls")) ||
-		name.endsWith(qstr(".csv"))
-		) {
+		name.endsWith(qstr(".csv"))) {
 		colorIndex = 1;
 	} else if (
 		name.endsWith(qstr(".pdf")) ||
 		name.endsWith(qstr(".ppt")) ||
-		name.endsWith(qstr(".key"))
-		) {
+		name.endsWith(qstr(".key"))) {
 		colorIndex = 2;
 	} else if (
 		name.endsWith(qstr(".zip")) ||
@@ -181,15 +186,22 @@ int32 documentColorIndex(DocumentData *document, QString &ext) {
 		name.endsWith(qstr(".ai")) ||
 		name.endsWith(qstr(".mp3")) ||
 		name.endsWith(qstr(".mov")) ||
-		name.endsWith(qstr(".avi"))
-		) {
+		name.endsWith(qstr(".avi"))) {
 		colorIndex = 3;
 	} else {
-		QChar ch = (lastDot >= 0 && lastDot + 1 < name.size()) ? name.at(lastDot + 1) : (name.isEmpty() ? (mime.isEmpty() ? '0' : mime.at(0)) : name.at(0));
+		auto ch = (lastDot >= 0 && lastDot + 1 < name.size())
+			? name.at(lastDot + 1)
+			: (name.isEmpty()
+				? (mime.isEmpty() ? '0' : mime.at(0))
+				: name.at(0));
 		colorIndex = (ch.unicode() % 4);
 	}
 
-	ext = document ? ((lastDot < 0 || lastDot + 2 > name.size()) ? name : name.mid(lastDot + 1)) : QString();
+	ext = document
+		? ((lastDot < 0 || lastDot + 2 > name.size())
+			? name
+			: name.mid(lastDot + 1))
+		: QString();
 
 	return colorIndex;
 }

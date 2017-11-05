@@ -1107,7 +1107,7 @@ void HistoryDocument::createComponents(bool caption) {
 	} else {
 		mask |= HistoryDocumentNamed::Bit();
 		if (!_data->song()
-			&& !documentIsExecutableName(_data->name)
+			&& !documentIsExecutableName(_data->filename())
 			&& !_data->thumb->isNull()
 			&& _data->thumb->width()
 			&& _data->thumb->height()) {
@@ -1128,8 +1128,8 @@ void HistoryDocument::createComponents(bool caption) {
 }
 
 void HistoryDocument::fillNamedFromData(HistoryDocumentNamed *named) {
-	auto name = named->_name = _data->composeNameString();
-	named->_namew = st::semiboldFont->width(name);
+	auto nameString = named->_name = _data->composeNameString();
+	named->_namew = st::semiboldFont->width(nameString);
 }
 
 void HistoryDocument::initDimensions() {

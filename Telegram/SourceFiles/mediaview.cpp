@@ -738,7 +738,7 @@ void MediaView::onSaveAs() {
 			QFileInfo alreadyInfo(location.name());
 			QDir alreadyDir(alreadyInfo.dir());
 			QString name = alreadyInfo.fileName(), filter;
-			MimeType mimeType = mimeTypeForName(_doc->mime);
+			MimeType mimeType = mimeTypeForName(_doc->mimeString());
 			QStringList p = mimeType.globPatterns();
 			QString pattern = p.isEmpty() ? QString() : p.front();
 			if (name.isEmpty()) {
@@ -873,7 +873,10 @@ void MediaView::onDownload() {
 		const FileLocation &location(_doc->location(true));
 		if (location.accessEnable()) {
 			if (!QDir().exists(path)) QDir().mkpath(path);
-			toName = filedialogNextFilename(_doc->name, location.name(), path);
+			toName = filedialogNextFilename(
+				_doc->filename(),
+				location.name(),
+				path);
 			if (!toName.isEmpty() && toName != location.name()) {
 				QFile(toName).remove();
 				if (!QFile(location.name()).copy(toName)) {
@@ -1398,7 +1401,13 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 		int32 maxw = st::mediaviewFileSize.width() - st::mediaviewFileIconSize - st::mediaviewFilePadding * 3;
 
 		if (_doc) {
-			_docName = (_doc->type == StickerDocument) ? lang(lng_in_dlg_sticker) : (_doc->type == AnimatedDocument ? qsl("GIF") : (_doc->name.isEmpty() ? lang(lng_mediaview_doc_image) : _doc->name));
+			_docName = (_doc->type == StickerDocument)
+				? lang(lng_in_dlg_sticker)
+				: (_doc->type == AnimatedDocument
+					? qsl("GIF")
+					: (_doc->filename().isEmpty()
+						? lang(lng_mediaview_doc_image)
+						: _doc->filename()));
 		} else {
 			_docName = lang(lng_message_empty);
 		}
@@ -2826,13 +2835,13 @@ void MediaView::updateHeader() {
 	auto count = _fullCount ? *_fullCount : -1;
 	if (index >= 0 && index < count && count > 1) {
 		if (_doc) {
-			_headerText = lng_mediaview_file_n_of_count(lt_file, _doc->name.isEmpty() ? lang(lng_mediaview_doc_image) : _doc->name, lt_n, QString::number(index + 1), lt_count, QString::number(count));
+			_headerText = lng_mediaview_file_n_of_count(lt_file, _doc->filename().isEmpty() ? lang(lng_mediaview_doc_image) : _doc->filename(), lt_n, QString::number(index + 1), lt_count, QString::number(count));
 		} else {
 			_headerText = lng_mediaview_n_of_count(lt_n, QString::number(index + 1), lt_count, QString::number(count));
 		}
 	} else {
 		if (_doc) {
-			_headerText = _doc->name.isEmpty() ? lang(lng_mediaview_doc_image) : _doc->name;
+			_headerText = _doc->filename().isEmpty() ? lang(lng_mediaview_doc_image) : _doc->filename();
 		} else if (_msgid) {
 			_headerText = lang(lng_mediaview_single_photo);
 		} else if (_user) {

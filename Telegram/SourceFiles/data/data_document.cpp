@@ -159,18 +159,18 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 	}
 
 	QString name, filter, caption, prefix;
-	MimeType mimeType = mimeTypeForName(data->mime);
+	MimeType mimeType = mimeTypeForName(data->mimeString());
 	QStringList p = mimeType.globPatterns();
 	QString pattern = p.isEmpty() ? QString() : p.front();
 	if (data->voice()) {
-		bool mp3 = (data->mime == qstr("audio/mp3"));
+		auto mp3 = data->hasMimeType(qstr("audio/mp3"));
 		name = already.isEmpty() ? (mp3 ? qsl(".mp3") : qsl(".ogg")) : already;
 		filter = mp3 ? qsl("MP3 Audio (*.mp3);;") : qsl("OGG Opus Audio (*.ogg);;");
 		filter += FileDialog::AllFilesFilter();
 		caption = lang(lng_save_audio);
 		prefix = qsl("audio");
 	} else if (data->isVideo()) {
-		name = already.isEmpty() ? data->name : already;
+		name = already.isEmpty() ? data->filename() : already;
 		if (name.isEmpty()) {
 			name = pattern.isEmpty() ? qsl(".mov") : pattern.replace('*', QString());
 		}
@@ -182,7 +182,7 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 		caption = lang(lng_save_video);
 		prefix = qsl("video");
 	} else {
-		name = already.isEmpty() ? data->name : already;
+		name = already.isEmpty() ? data->filename() : already;
 		if (name.isEmpty()) {
 			name = pattern.isEmpty() ? qsl(".unknown") : pattern.replace('*', QString());
 		}
@@ -444,7 +444,17 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 				song()->performer = qs(d.vperformer);
 			}
 		} break;
-		case mtpc_documentAttributeFilename: name = qs(attributes[i].c_documentAttributeFilename().vfile_name); break;
+		case mtpc_documentAttributeFilename: {
+			auto &attribute = attributes[i];
+			auto remoteFileName = qs(
+				attribute.c_documentAttributeFilename().vfile_name);
+
+			// We don't want RTL Override characters in filenames,
+			// because they introduce a security issue, when a filename
+			// "Fil[RTLO]gepj.exe" looks like "Filexe.jpeg" being ".exe"
+			auto rtlOverride = QChar(0x202E);
+			_filename = std::move(remoteFileName).replace(rtlOverride, "");
+		} break;
 		}
 	}
 	if (type == StickerDocument) {
@@ -868,7 +878,7 @@ void DocumentData::recountIsImage() {
 	if (isAnimation() || isVideo()) {
 		return;
 	}
-	_duration = fileIsImage(name, mime) ? 1 : -1; // hack
+	_duration = fileIsImage(filename(), mimeString()) ? 1 : -1; // hack
 }
 
 bool DocumentData::setRemoteVersion(int32 version) {
@@ -928,7 +938,10 @@ DocumentData::~DocumentData() {
 	}
 }
 
-QString DocumentData::composeNameString(const QString &filename, const QString &songTitle, const QString &songPerformer) {
+QString DocumentData::ComposeNameString(
+		const QString &filename,
+		const QString &songTitle,
+		const QString &songPerformer) {
 	if (songTitle.isEmpty() && songPerformer.isEmpty()) {
 		return filename.isEmpty() ? qsl("Unknown File") : filename;
 	}

@@ -184,24 +184,26 @@ public:
 	bool isAnimation() const {
 		return (type == AnimatedDocument)
 			|| isRoundVideo()
-			|| !mime.compare(qstr("image/gif"), Qt::CaseInsensitive);
+			|| hasMimeType(qstr("image/gif"));
 	}
 	bool isGifv() const {
 		return (type == AnimatedDocument)
-			&& !mime.compare(qstr("video/mp4"), Qt::CaseInsensitive);
+			&& hasMimeType(qstr("video/mp4"));
 	}
 	bool isTheme() const {
 		return
-			name.endsWith(
+			_filename.endsWith(
 				qstr(".tdesktop-theme"),
 				Qt::CaseInsensitive)
-			|| name.endsWith(
+			|| _filename.endsWith(
 				qstr(".tdesktop-palette"),
 				Qt::CaseInsensitive);
 	}
 	bool tryPlaySong() const {
 		return (song() != nullptr)
-			|| mime.startsWith(qstr("audio/"), Qt::CaseInsensitive);
+			|| _mimeString.startsWith(
+				qstr("audio/"),
+				Qt::CaseInsensitive);
 	}
 	bool isMusic() const {
 		if (auto s = song()) {
@@ -247,14 +249,25 @@ public:
 	// to (this) received from the server "same" document.
 	void collectLocalData(DocumentData *local);
 
+	QString filename() const {
+		return _filename;
+	}
+	QString mimeString() const {
+		return _mimeString;
+	}
+	bool hasMimeType(QLatin1String mime) const {
+		return !_mimeString.compare(mime, Qt::CaseInsensitive);
+	}
+	void setMimeString(const QString &mime) {
+		_mimeString = mime;
+	}
+
 	~DocumentData();
 
 	DocumentId id = 0;
 	DocumentType type = FileDocument;
 	QSize dimensions;
 	int32 date = 0;
-	QString name;
-	QString mime;
 	ImagePtr thumb, replyPreview;
 	int32 size = 0;
 
@@ -267,18 +280,18 @@ public:
 		return ::mediaKey(locationType(), _dc, id, _version);
 	}
 
-	static QString composeNameString(
+	static QString ComposeNameString(
 		const QString &filename,
 		const QString &songTitle,
 		const QString &songPerformer);
 	QString composeNameString() const {
 		if (auto songData = song()) {
-			return composeNameString(
-				name,
+			return ComposeNameString(
+				_filename,
 				songData->title,
 				songData->performer);
 		}
-		return composeNameString(name, QString(), QString());
+		return ComposeNameString(_filename, QString(), QString());
 	}
 
 private:
@@ -305,6 +318,8 @@ private:
 	uint64 _access = 0;
 	int32 _version = 0;
 	QString _url;
+	QString _filename;
+	QString _mimeString;
 
 	FileLocation _location;
 	QByteArray _data;

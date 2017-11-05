@@ -52,7 +52,9 @@ TextWithEntities ComposeNameWithEntities(DocumentData *document) {
 	TextWithEntities result;
 	auto song = document->song();
 	if (!song || (song->title.isEmpty() && song->performer.isEmpty())) {
-		result.text = document->name.isEmpty() ? qsl("Unknown File") : document->name;
+		result.text = document->filename().isEmpty()
+			? qsl("Unknown File")
+			: document->filename();
 		result.entities.push_back({ EntityInTextBold, 0, result.text.size() });
 	} else if (song->performer.isEmpty()) {
 		result.text = song->title;
@@ -1037,7 +1039,7 @@ bool Document::withThumb() const {
 		&& !_data->thumb->isNull()
 		&& _data->thumb->width()
 		&& _data->thumb->height()
-		&& !documentIsExecutableName(_data->name);
+		&& !documentIsExecutableName(_data->filename());
 }
 
 bool Document::updateStatusText() {

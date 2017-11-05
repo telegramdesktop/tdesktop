@@ -199,10 +199,18 @@ void SendFilesBox::prepareDocumentLayout() {
 			}
 		}
 
-		auto nameString = DocumentData::composeNameString(filename, songTitle, songPerformer);
-		_nameText.setText(st::semiboldTextStyle, nameString, _textNameOptions);
+		auto nameString = DocumentData::ComposeNameString(
+			filename,
+			songTitle,
+			songPerformer);
+		_nameText.setText(
+			st::semiboldTextStyle,
+			nameString,
+			_textNameOptions);
 		_statusText = formatSizeText(fileinfo.size());
-		_statusWidth = qMax(_nameText.maxWidth(), st::normalFont->width(_statusText));
+		_statusWidth = qMax(
+			_nameText.maxWidth(),
+			st::normalFont->width(_statusText));
 	}
 }
 
@@ -504,13 +512,17 @@ EditCaptionBox::EditCaptionBox(QWidget*, HistoryMedia *media, FullMsgId msgId) :
 		}
 
 		if (doc) {
-			if (doc->voice()) {
-				_name.setText(st::semiboldTextStyle, lang(lng_media_audio), _textNameOptions);
-			} else {
-				_name.setText(st::semiboldTextStyle, doc->composeNameString(), _textNameOptions);
-			}
+			auto nameString = doc->voice()
+				? lang(lng_media_audio)
+				: doc->composeNameString();
+			_name.setText(
+				st::semiboldTextStyle,
+				nameString,
+				_textNameOptions);
 			_status = formatSizeText(doc->size);
-			_statusw = qMax(_name.maxWidth(), st::normalFont->width(_status));
+			_statusw = qMax(
+				_name.maxWidth(),
+				st::normalFont->width(_status));
 			_isImage = doc->isImage();
 			_isAudio = (doc->voice() || doc->song());
 		}
