@@ -90,7 +90,12 @@ void InfoWidget::refreshUsername() {
 		usernameText.text = '@' + self()->username;
 		copyText = lang(lng_context_copy_mention);
 	}
-	usernameText.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, usernameText.text.size(), Messenger::Instance().createInternalLinkFull(self()->username)));
+	usernameText.entities.push_back(EntityInText(
+		EntityInTextCustomUrl,
+		0,
+		usernameText.text.size(),
+		Messenger::Instance().createInternalLinkFull(
+			self()->username)));
 	setLabeledText(
 		_username,
 		lang(lng_profile_username),
@@ -113,7 +118,11 @@ void InfoWidget::refreshBio() {
 	} else {
 		bioText.text = aboutText;
 	}
-	bioText.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, bioText.text.size(), QString()));
+	bioText.entities.push_back(EntityInText(
+		EntityInTextCustomUrl,
+		0,
+		bioText.text.size(),
+		QString("internal:edit_bio")));
 	setLabeledText(
 		_bio,
 		lang(lng_profile_bio),
