@@ -23,6 +23,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/abstract_box.h"
 #include "base/timer.h"
 #include "mtproto/sender.h"
+#include "chat_helpers/stickers.h"
+#include "ui/widgets/input_fields.h"
 
 class ConfirmBox;
 
@@ -35,7 +37,6 @@ class PlainShadow;
 class RippleAnimation;
 class SettingsSlider;
 class SlideAnimation;
-class UsernameInput;
 class CrossButton;
 } // namespace Ui
 
@@ -223,6 +224,27 @@ private:
 		anim::value yadd;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
 	};
+	struct MegagroupSet {
+		inline bool operator==(const MegagroupSet &other) const {
+			return true;
+		}
+		inline bool operator!=(const MegagroupSet &other) const {
+			return false;
+		}
+	};
+	using SelectedRow = base::optional_variant<MegagroupSet, int>;
+	class AddressField : public Ui::UsernameInput {
+	public:
+		using UsernameInput::UsernameInput;
+
+	protected:
+		void correctValue(
+			const QString &was,
+			int wasCursor,
+			QString &now,
+			int &nowCursor) override;
+
+	};
 
 	template <typename Check>
 	Stickers::Order collectSets(Check check) const;
@@ -232,9 +254,9 @@ private:
 	int getRowIndex(uint64 setId) const;
 	void setRowRemoved(int index, bool removed);
 
-	void setSelected(int selected);
+	void setSelected(SelectedRow selected);
 	void setActionDown(int newActionDown);
-	void setPressed(int pressed);
+	void setPressed(SelectedRow pressed);
 	void setup();
 	QRect relativeButtonRect(bool removeButton) const;
 	void ensureRipple(const style::RippleAnimation &st, QImage mask, bool removeButton);
@@ -255,6 +277,7 @@ private:
 	QString fillSetTitle(const Stickers::Set &set, int maxNameWidth, int *outTitleWidth) const;
 	void fillSetFlags(const Stickers::Set &set, bool *outInstalled, bool *outOfficial, bool *outUnread, bool *outArchived);
 	void rebuildMegagroupSet();
+	void fixupMegagroupSetAddress();
 	void handleMegagroupSetAddressChange();
 	void setMegagroupSelectedSet(const MTPInputStickerSet &set);
 
@@ -289,8 +312,8 @@ private:
 
 	QPoint _mouse;
 	bool _inDragArea = false;
-	int _selected = -1;
-	int _pressed = -1;
+	SelectedRow _selected;
+	SelectedRow _pressed;
 	QPoint _dragStart;
 	int _started = -1;
 	int _dragging = -1;
@@ -302,7 +325,7 @@ private:
 	ChannelData *_megagroupSet = nullptr;
 	MTPInputStickerSet _megagroupSetInput = MTP_inputStickerSetEmpty();
 	std::unique_ptr<Row> _megagroupSelectedSet;
-	object_ptr<Ui::UsernameInput> _megagroupSetField = { nullptr };
+	object_ptr<AddressField> _megagroupSetField = { nullptr };
 	object_ptr<Ui::PlainShadow> _megagroupSelectedShadow = { nullptr };
 	object_ptr<Ui::CrossButton> _megagroupSelectedRemove = { nullptr };
 	object_ptr<BoxContentDivider> _megagroupDivider = { nullptr };

@@ -698,7 +698,10 @@ void TabbedSelector::scrollToY(int y) {
 	_topShadow->update();
 }
 
-TabbedSelector::Inner::Inner(QWidget *parent, not_null<Window::Controller*> controller) : TWidget(parent)
+TabbedSelector::Inner::Inner(
+	QWidget *parent,
+	not_null<Window::Controller*> controller)
+: RpWidget(parent)
 , _controller(controller) {
 }
 

@@ -206,7 +206,7 @@ private:
 
 };
 
-class TabbedSelector::Inner : public TWidget {
+class TabbedSelector::Inner : public Ui::RpWidget {
 	Q_OBJECT
 
 public:

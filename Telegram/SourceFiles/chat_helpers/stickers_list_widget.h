@@ -35,7 +35,10 @@ namespace ChatHelpers {
 
 struct StickerIcon;
 
-class StickersListWidget : public TabbedSelector::Inner, private base::Subscriber, private MTP::Sender {
+class StickersListWidget
+	: public TabbedSelector::Inner
+	, private base::Subscriber
+	, private MTP::Sender {
 	Q_OBJECT
 
 public:
@@ -135,12 +138,12 @@ private:
 	};
 
 	struct Set {
-		Set(uint64 id, MTPDstickerSet::Flags flags, const QString &title, int32 hoversSize, const StickerPack &pack = StickerPack()) : id(id), flags(flags), title(title), pack(pack) {
+		Set(uint64 id, MTPDstickerSet::Flags flags, const QString &title, int32 hoversSize, const Stickers::Pack &pack = Stickers::Pack()) : id(id), flags(flags), title(title), pack(pack) {
 		}
 		uint64 id;
 		MTPDstickerSet::Flags flags;
 		QString title;
-		StickerPack pack;
+		Stickers::Pack pack;
 		QSharedPointer<Ui::RippleAnimation> ripple;
 	};
 	using Sets = QList<Set>;

@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "boxes/abstract_box.h"
-#include <vector>
+#include "chat_helpers/stickers.h"
 
 class ConfirmBox;
 
@@ -105,8 +105,8 @@ private:
 	}
 
 	std::vector<Animation> _packOvers;
-	StickerPack _pack;
-	StickersByEmojiMap _emoji;
+	Stickers::Pack _pack;
+	Stickers::ByEmojiMap _emoji;
 	bool _loaded = false;
 	uint64 _setId = 0;
 	uint64 _setAccess = 0;

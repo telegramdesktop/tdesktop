@@ -309,46 +309,6 @@ enum Flags {
 };
 } // namespace DebugLogging
 
-namespace Stickers {
-
-constexpr auto DefaultSetId = 0; // for backward compatibility
-constexpr auto CustomSetId = 0xFFFFFFFFFFFFFFFFULL;
-constexpr auto RecentSetId = 0xFFFFFFFFFFFFFFFEULL; // for emoji/stickers panel, should not appear in Sets
-constexpr auto NoneSetId = 0xFFFFFFFFFFFFFFFDULL; // for emoji/stickers panel, should not appear in Sets
-constexpr auto CloudRecentSetId = 0xFFFFFFFFFFFFFFFCULL; // for cloud-stored recent stickers
-constexpr auto FeaturedSetId = 0xFFFFFFFFFFFFFFFBULL; // for emoji/stickers panel, should not appear in Sets
-constexpr auto FavedSetId = 0xFFFFFFFFFFFFFFFAULL; // for cloud-stored faved stickers
-constexpr auto MegagroupSetId = 0xFFFFFFFFFFFFFFEFULL; // for setting up megagroup sticker set
-
-struct Set {
-	Set(uint64 id, uint64 access, const QString &title, const QString &shortName, int32 count, int32 hash, MTPDstickerSet::Flags flags)
-		: id(id)
-		, access(access)
-		, title(title)
-		, shortName(shortName)
-		, count(count)
-		, hash(hash)
-		, flags(flags) {
-	}
-	uint64 id, access;
-	QString title, shortName;
-	int32 count, hash;
-	MTPDstickerSet::Flags flags;
-	StickerPack stickers;
-	StickersByEmojiMap emoji;
-};
-using Sets = QMap<uint64, Set>;
-using Order = QList<uint64>;
-
-inline MTPInputStickerSet inputSetId(const Set &set) {
-	if (set.id && set.access) {
-		return MTP_inputStickerSetID(MTP_long(set.id), MTP_long(set.access));
-	}
-	return MTP_inputStickerSetShortName(MTP_string(set.shortName));
-}
-
-} // namespace Stickers
-
 namespace Global {
 
 bool started();
@@ -413,17 +373,6 @@ DeclareVar(HiddenPinnedMessagesMap, HiddenPinnedMessages);
 
 typedef OrderedSet<HistoryItem*> PendingItemsMap;
 DeclareRefVar(PendingItemsMap, PendingRepaintItems);
-
-DeclareVar(Stickers::Sets, StickerSets);
-DeclareVar(Stickers::Order, StickerSetsOrder);
-DeclareVar(TimeMs, LastStickersUpdate);
-DeclareVar(TimeMs, LastRecentStickersUpdate);
-DeclareVar(TimeMs, LastFavedStickersUpdate);
-DeclareVar(Stickers::Order, FeaturedStickerSetsOrder);
-DeclareVar(int, FeaturedStickerSetsUnreadCount);
-DeclareRefVar(base::Observable<void>, FeaturedStickerSetsUnreadCountChanged);
-DeclareVar(TimeMs, LastFeaturedStickersUpdate);
-DeclareVar(Stickers::Order, ArchivedStickerSetsOrder);
 
 typedef QMap<uint64, QPixmap> CircleMasksMap;
 DeclareRefVar(CircleMasksMap, CircleMasks);

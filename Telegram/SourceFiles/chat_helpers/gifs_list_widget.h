@@ -40,7 +40,11 @@ class Controller;
 
 namespace ChatHelpers {
 
-class GifsListWidget : public TabbedSelector::Inner, public InlineBots::Layout::Context, private base::Subscriber, private MTP::Sender {
+class GifsListWidget
+	: public TabbedSelector::Inner
+	, public InlineBots::Layout::Context
+	, private base::Subscriber
+	, private MTP::Sender {
 	Q_OBJECT
 
 public:

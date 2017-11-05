@@ -3632,8 +3632,8 @@ void MaskedInputField::keyPressEvent(QKeyEvent *e) {
 		QLineEdit::keyPressEvent(e);
 	}
 
-	QString newText(text());
-	int32 newCursor(cursorPosition());
+	auto newText = text();
+	auto newCursor = cursorPosition();
 	if (wasText == newText && wasCursor == newCursor) { // call correct manually
 		correctValue(wasText, wasCursor, newText, newCursor);
 		_oldtext = newText;
@@ -3700,7 +3700,11 @@ void CountryCodeInput::codeSelected(const QString &code) {
 	emit changed();
 }
 
-void CountryCodeInput::correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) {
+void CountryCodeInput::correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) {
 	QString newText, addToNumber;
 	int oldPos(nowCursor), newPos(-1), oldLen(now.length()), start = 0, digits = 5;
 	newText.reserve(oldLen + 1);
@@ -3767,7 +3771,11 @@ void PhonePartInput::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-void PhonePartInput::correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) {
+void PhonePartInput::correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) {
 	QString newText;
 	int oldPos(nowCursor), newPos(-1), oldLen(now.length()), digitCount = 0;
 	for (int i = 0; i < oldLen; ++i) {
@@ -3875,7 +3883,11 @@ PortInput::PortInput(QWidget *parent, const style::InputField &st, base::lambda<
 	}
 }
 
-void PortInput::correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) {
+void PortInput::correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) {
 	QString newText;
 	newText.reserve(now.size());
 	auto newPos = nowCursor;
@@ -3916,7 +3928,11 @@ void UsernameInput::paintAdditionalPlaceholder(Painter &p, TimeMs ms) {
 	}
 }
 
-void UsernameInput::correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) {
+void UsernameInput::correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) {
 	auto newPos = nowCursor;
 	auto from = 0, len = now.size();
 	for (; from < len; ++from) {
@@ -3982,7 +3998,11 @@ void PhoneInput::paintAdditionalPlaceholder(Painter &p, TimeMs ms) {
 	}
 }
 
-void PhoneInput::correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) {
+void PhoneInput::correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) {
 	auto digits = now;
 	digits.replace(QRegularExpression(qsl("[^\\d]")), QString());
 	_pattern = phoneNumberParse(digits);

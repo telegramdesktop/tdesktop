@@ -113,7 +113,7 @@ void FieldAutocomplete::showStickers(EmojiPtr emoji) {
 	_emoji = emoji;
 	_type = Type::Stickers;
 	if (!emoji) {
-		rowsUpdated(_mrows, _hrows, _brows, StickerPack(), false);
+		rowsUpdated(_mrows, _hrows, _brows, Stickers::Pack(), false);
 		return;
 	}
 
@@ -147,7 +147,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 	internal::MentionRows mrows;
 	internal::HashtagRows hrows;
 	internal::BotCommandRows brows;
-	StickerPack srows;
+	Stickers::Pack srows;
 	if (_emoji) {
 		srows = Stickers::GetListByEmoji(_emoji);
 	} else if (_type == Type::Mentions) {
@@ -330,7 +330,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 	_inner->setRecentInlineBotsInRows(recentInlineBots);
 }
 
-void FieldAutocomplete::rowsUpdated(const internal::MentionRows &mrows, const internal::HashtagRows &hrows, const internal::BotCommandRows &brows, const StickerPack &srows, bool resetScroll) {
+void FieldAutocomplete::rowsUpdated(const internal::MentionRows &mrows, const internal::HashtagRows &hrows, const internal::BotCommandRows &brows, const Stickers::Pack &srows, bool resetScroll) {
 	if (mrows.isEmpty() && hrows.isEmpty() && brows.isEmpty() && srows.isEmpty()) {
 		if (!isHidden()) {
 			hideAnimated();
@@ -508,7 +508,7 @@ FieldAutocomplete::~FieldAutocomplete() {
 
 namespace internal {
 
-FieldAutocompleteInner::FieldAutocompleteInner(FieldAutocomplete *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, StickerPack *srows)
+FieldAutocompleteInner::FieldAutocompleteInner(FieldAutocomplete *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, Stickers::Pack *srows)
 : _parent(parent)
 , _mrows(mrows)
 , _hrows(hrows)

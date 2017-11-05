@@ -24,13 +24,52 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Stickers {
 
+constexpr auto DefaultSetId = 0; // for backward compatibility
+constexpr auto CustomSetId = 0xFFFFFFFFFFFFFFFFULL;
+constexpr auto RecentSetId = 0xFFFFFFFFFFFFFFFEULL; // for emoji/stickers panel, should not appear in Sets
+constexpr auto NoneSetId = 0xFFFFFFFFFFFFFFFDULL; // for emoji/stickers panel, should not appear in Sets
+constexpr auto CloudRecentSetId = 0xFFFFFFFFFFFFFFFCULL; // for cloud-stored recent stickers
+constexpr auto FeaturedSetId = 0xFFFFFFFFFFFFFFFBULL; // for emoji/stickers panel, should not appear in Sets
+constexpr auto FavedSetId = 0xFFFFFFFFFFFFFFFAULL; // for cloud-stored faved stickers
+constexpr auto MegagroupSetId = 0xFFFFFFFFFFFFFFEFULL; // for setting up megagroup sticker set
+
+using Order = QList<uint64>;
+using SavedGifs = QVector<DocumentData*>;
+using Pack = QVector<DocumentData*>;
+using ByEmojiMap = QMap<EmojiPtr, Pack>;
+
+struct Set {
+	Set(uint64 id, uint64 access, const QString &title, const QString &shortName, int32 count, int32 hash, MTPDstickerSet::Flags flags)
+		: id(id)
+		, access(access)
+		, title(title)
+		, shortName(shortName)
+		, count(count)
+		, hash(hash)
+		, flags(flags) {
+	}
+	uint64 id, access;
+	QString title, shortName;
+	int32 count, hash;
+	MTPDstickerSet::Flags flags;
+	Pack stickers;
+	ByEmojiMap emoji;
+};
+using Sets = QMap<uint64, Set>;
+
+inline MTPInputStickerSet inputSetId(const Set &set) {
+	if (set.id && set.access) {
+		return MTP_inputStickerSetID(MTP_long(set.id), MTP_long(set.access));
+	}
+	return MTP_inputStickerSetShortName(MTP_string(set.shortName));
+}
+
 constexpr auto kPanelPerRow = 5;
 
 void ApplyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d);
 bool ApplyArchivedResultFake(); // For testing.
 void InstallLocally(uint64 setId);
 void UndoInstallLocally(uint64 setId);
-void MarkFeaturedAsRead(uint64 setId);
 bool IsFaved(not_null<DocumentData*> document);
 void SetFaved(not_null<DocumentData*> document, bool faved);
 
@@ -39,7 +78,7 @@ void SpecialSetReceived(uint64 setId, const QString &setTitle, const QVector<MTP
 void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVector<MTPlong> &unread, int32 hash);
 void GifsReceived(const QVector<MTPDocument> &items, int32 hash);
 
-StickerPack GetListByEmoji(not_null<EmojiPtr> emoji);
+Pack GetListByEmoji(not_null<EmojiPtr> emoji);
 base::optional<std::vector<not_null<EmojiPtr>>> GetEmojiListFromSet(
 	not_null<DocumentData*> document);
 
@@ -48,20 +87,4 @@ Set *FeedSetFull(const MTPmessages_StickerSet &data);
 
 QString GetSetTitle(const MTPDstickerSet &s);
 
-namespace internal {
-
-class FeaturedReader : public QObject, private MTP::Sender {
-public:
-	FeaturedReader(QObject *parent);
-	void scheduleRead(uint64 setId);
-
-private:
-	void readSets();
-
-	object_ptr<SingleTimer> _timer;
-	OrderedSet<uint64> _setIds;
-
-};
-
-} // namespace internal
 } // namespace Stickers

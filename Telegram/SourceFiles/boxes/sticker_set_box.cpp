@@ -50,7 +50,10 @@ void StickerSetBox::prepare() {
 	setTitle(langFactory(lng_contacts_loading));
 
 	_inner = setInnerWidget(object_ptr<Inner>(this, _set), st::stickersScroll);
-	subscribe(Auth().data().stickersUpdated(), [this] { updateButtons(); });
+	Auth().data().stickersUpdated()
+		| rpl::start_with_next(
+			[this] { updateButtons(); },
+			lifetime());
 
 	setDimensions(st::boxWideWidth, st::stickersMaxHeight);
 
@@ -145,7 +148,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 				emoji = emoji->original();
 				auto &stickers = pack.vdocuments.v;
 
-				StickerPack p;
+				Stickers::Pack p;
 				p.reserve(stickers.size());
 				for (auto j = 0, c = stickers.size(); j != c; ++j) {
 					auto doc = App::document(stickers[j].v);
@@ -165,7 +168,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			_setCount = s.vcount.v;
 			_setHash = s.vhash.v;
 			_setFlags = s.vflags.v;
-			auto &sets = Global::RefStickerSets();
+			auto &sets = Auth().data().stickerSetsRef();
 			auto it = sets.find(_setId);
 			if (it != sets.cend()) {
 				auto clientFlags = it->flags & (MTPDstickerSet_ClientFlag::f_featured | MTPDstickerSet_ClientFlag::f_not_loaded | MTPDstickerSet_ClientFlag::f_unread | MTPDstickerSet_ClientFlag::f_special);
@@ -201,13 +204,13 @@ bool StickerSetBox::Inner::failedSet(const RPCError &error) {
 }
 
 void StickerSetBox::Inner::installDone(const MTPmessages_StickerSetInstallResult &result) {
-	auto &sets = Global::RefStickerSets();
+	auto &sets = Auth().data().stickerSetsRef();
 
 	bool wasArchived = (_setFlags & MTPDstickerSet::Flag::f_archived);
 	if (wasArchived) {
-		auto index = Global::RefArchivedStickerSetsOrder().indexOf(_setId);
+		auto index = Auth().data().archivedStickerSetsOrderRef().indexOf(_setId);
 		if (index >= 0) {
-			Global::RefArchivedStickerSetsOrder().removeAt(index);
+			Auth().data().archivedStickerSetsOrderRef().removeAt(index);
 		}
 	}
 	_setFlags &= ~MTPDstickerSet::Flag::f_archived;
@@ -221,7 +224,7 @@ void StickerSetBox::Inner::installDone(const MTPmessages_StickerSetInstallResult
 	it->stickers = _pack;
 	it->emoji = _emoji;
 
-	auto &order = Global::RefStickerSetsOrder();
+	auto &order = Auth().data().stickerSetsOrderRef();
 	int insertAtIndex = 0, currentIndex = order.indexOf(_setId);
 	if (currentIndex != insertAtIndex) {
 		if (currentIndex > 0) {
@@ -248,7 +251,7 @@ void StickerSetBox::Inner::installDone(const MTPmessages_StickerSetInstallResult
 			Local::writeArchivedStickers();
 		}
 		Local::writeInstalledStickers();
-		Auth().data().stickersUpdated().notify(true);
+		Auth().data().markStickersUpdated();
 	}
 	_setInstalled.fire_copy(_setId);
 }
@@ -407,8 +410,8 @@ bool StickerSetBox::Inner::loaded() const {
 
 int32 StickerSetBox::Inner::notInstalled() const {
 	if (!_loaded) return 0;
-	auto it = Global::StickerSets().constFind(_setId);
-	if (it == Global::StickerSets().cend() || !(it->flags & MTPDstickerSet::Flag::f_installed) || (it->flags & MTPDstickerSet::Flag::f_archived)) return _pack.size();
+	auto it = Auth().data().stickerSets().constFind(_setId);
+	if (it == Auth().data().stickerSets().cend() || !(it->flags & MTPDstickerSet::Flag::f_installed) || (it->flags & MTPDstickerSet::Flag::f_archived)) return _pack.size();
 	return 0;
 }
 

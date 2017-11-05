@@ -1079,7 +1079,7 @@ namespace {
 	}
 
 	void addSavedGif(DocumentData *doc) {
-		SavedGifs &saved(cRefSavedGifs());
+		auto &saved = Auth().data().savedGifsRef();
 		int32 index = saved.indexOf(doc);
 		if (index) {
 			if (index > 0) saved.remove(index);
@@ -1087,8 +1087,8 @@ namespace {
 			if (saved.size() > Global::SavedGifsLimit()) saved.pop_back();
 			Local::writeSavedGifs();
 
-			Auth().data().savedGifsUpdated().notify();
-			cSetLastSavedGifsUpdate(0);
+			Auth().data().markSavedGifsUpdated();
+			Auth().data().setLastSavedGifsUpdate(0);
 			Auth().api().updateStickers();
 		}
 	}
@@ -1636,7 +1636,7 @@ namespace {
 				}
 			}
 
-			if (cSavedGifs().indexOf(convert) >= 0) { // id changed
+			if (Auth().data().savedGifs().indexOf(convert) >= 0) { // id changed
 				Local::writeSavedGifs();
 			}
 		}
@@ -1682,8 +1682,8 @@ namespace {
 		}
 		if (versionChanged) {
 			if (result->sticker() && result->sticker()->set.type() == mtpc_inputStickerSetID) {
-				auto it = Global::StickerSets().constFind(result->sticker()->set.c_inputStickerSetID().vid.v);
-				if (it != Global::StickerSets().cend()) {
+				auto it = Auth().data().stickerSets().constFind(result->sticker()->set.c_inputStickerSetID().vid.v);
+				if (it != Auth().data().stickerSets().cend()) {
 					if (it->id == Stickers::CloudRecentSetId) {
 						Local::writeRecentStickers();
 					} else if (it->id == Stickers::FavedSetId) {
@@ -2035,19 +2035,6 @@ namespace {
 			Auth().api().clearWebPageRequests();
 		}
 		cSetRecentStickers(RecentStickerPack());
-		Global::SetStickerSets(Stickers::Sets());
-		Global::SetStickerSetsOrder(Stickers::Order());
-		Global::SetLastStickersUpdate(0);
-		Global::SetLastRecentStickersUpdate(0);
-		Global::SetFeaturedStickerSetsOrder(Stickers::Order());
-		if (Global::FeaturedStickerSetsUnreadCount() != 0) {
-			Global::SetFeaturedStickerSetsUnreadCount(0);
-			Global::RefFeaturedStickerSetsUnreadCountChanged().notify();
-		}
-		Global::SetLastFeaturedStickersUpdate(0);
-		Global::SetArchivedStickerSetsOrder(Stickers::Order());
-		cSetSavedGifs(SavedGifs());
-		cSetLastSavedGifsUpdate(0);
 		cSetReportSpamStatuses(ReportSpamStatuses());
 		cSetAutoDownloadPhoto(0);
 		cSetAutoDownloadAudio(0);

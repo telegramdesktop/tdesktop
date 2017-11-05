@@ -971,12 +971,13 @@ int HistoryWidget::itemTopForHighlight(not_null<HistoryItem*> item) const {
 }
 
 void HistoryWidget::start() {
-	subscribe(Auth().data().stickersUpdated(), [this] {
-		_tabbedSelector->refreshStickers();
-		updateStickersByEmoji();
-	});
+	Auth().data().stickersUpdated()
+		| rpl::start_with_next([this] {
+			_tabbedSelector->refreshStickers();
+			updateStickersByEmoji();
+		}, lifetime());
 	updateRecentStickers();
-	Auth().data().savedGifsUpdated().notify();
+	Auth().data().markSavedGifsUpdated();
 	subscribe(Auth().api().fullPeerUpdated(), [this](PeerData *peer) {
 		fullPeerUpdated(peer);
 	});
@@ -1473,7 +1474,7 @@ bool HistoryWidget::cmd_previous_chat() {
 }
 
 void HistoryWidget::saveGif(DocumentData *doc) {
-	if (doc->isGifv() && cSavedGifs().indexOf(doc) != 0) {
+	if (doc->isGifv() && Auth().data().savedGifs().indexOf(doc) != 0) {
 		MTPInputDocument mtpInput = doc->mtpInput();
 		if (mtpInput.type() != mtpc_inputDocumentEmpty) {
 			MTP::send(MTPmessages_SaveGif(mtpInput, MTP_bool(false)), rpcDone(&HistoryWidget::saveGifDone, doc));

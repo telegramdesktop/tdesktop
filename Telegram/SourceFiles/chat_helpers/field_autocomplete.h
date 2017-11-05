@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/twidget.h"
+#include "chat_helpers/stickers.h"
 
 namespace Ui {
 class ScrollArea;
@@ -104,9 +105,9 @@ private:
 	internal::MentionRows _mrows;
 	internal::HashtagRows _hrows;
 	internal::BotCommandRows _brows;
-	StickerPack _srows;
+	Stickers::Pack _srows;
 
-	void rowsUpdated(const internal::MentionRows &mrows, const internal::HashtagRows &hrows, const internal::BotCommandRows &brows, const StickerPack &srows, bool resetScroll);
+	void rowsUpdated(const internal::MentionRows &mrows, const internal::HashtagRows &hrows, const internal::BotCommandRows &brows, const Stickers::Pack &srows, bool resetScroll);
 
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<internal::FieldAutocompleteInner> _inner;
@@ -141,7 +142,7 @@ class FieldAutocompleteInner final : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	FieldAutocompleteInner(FieldAutocomplete *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, StickerPack *srows);
+	FieldAutocompleteInner(FieldAutocomplete *parent, MentionRows *mrows, HashtagRows *hrows, BotCommandRows *brows, Stickers::Pack *srows);
 
 	void clearSel(bool hidden = false);
 	bool moveSel(int key);
@@ -179,7 +180,7 @@ private:
 	MentionRows *_mrows;
 	HashtagRows *_hrows;
 	BotCommandRows *_brows;
-	StickerPack *_srows;
+	Stickers::Pack *_srows;
 	int32 _stickersPerRow, _recentInlineBotsInRows;
 	int32 _sel, _down;
 	bool _mouseSel;

@@ -122,7 +122,10 @@ void GifsListWidget::Footer::processPanelHideFinished() {
 	//_field->setText(QString());
 }
 
-GifsListWidget::GifsListWidget(QWidget *parent, not_null<Window::Controller*> controller) : Inner(parent, controller)
+GifsListWidget::GifsListWidget(
+	QWidget *parent,
+	not_null<Window::Controller*> controller)
+: Inner(parent, controller)
 , _section(Section::Gifs) {
 	updateSize();
 
@@ -138,9 +141,10 @@ GifsListWidget::GifsListWidget(QWidget *parent, not_null<Window::Controller*> co
 	_inlineRequestTimer.setSingleShot(true);
 	connect(&_inlineRequestTimer, &QTimer::timeout, this, [this] { sendInlineRequest(); });
 
-	subscribe(Auth().data().savedGifsUpdated(), [this] {
-		refreshSavedGifs();
-	});
+	Auth().data().savedGifsUpdated()
+		| rpl::start_with_next([this] {
+			refreshSavedGifs();
+		}, lifetime());
 	subscribe(Auth().downloaderTaskFinished(), [this] {
 		update();
 	});
@@ -459,7 +463,7 @@ void GifsListWidget::refreshSavedGifs() {
 	if (_section == Section::Gifs) {
 		clearInlineRows(false);
 
-		auto &saved = cSavedGifs();
+		auto &saved = Auth().data().savedGifs();
 		if (!saved.isEmpty()) {
 			_rows.reserve(saved.size());
 			auto row = Row();

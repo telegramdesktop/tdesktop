@@ -124,14 +124,14 @@ void Gif::setPosition(int32 position) {
 }
 
 void DeleteSavedGifClickHandler::onClickImpl() const {
-	auto index = cSavedGifs().indexOf(_data);
+	auto index = Auth().data().savedGifs().indexOf(_data);
 	if (index >= 0) {
-		cRefSavedGifs().remove(index);
+		Auth().data().savedGifsRef().remove(index);
 		Local::writeSavedGifs();
 
 		MTP::send(MTPmessages_SaveGif(_data->mtpInput(), MTP_bool(true)));
 	}
-	Auth().data().savedGifsUpdated().notify();
+	Auth().data().markSavedGifsUpdated();
 }
 
 void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) const {

@@ -3198,7 +3198,7 @@ void _writeStickerSet(QDataStream &stream, const Stickers::Set &set) {
 	}
 
 	stream << quint64(set.id) << quint64(set.access) << set.title << set.shortName << qint32(set.stickers.size()) << qint32(set.hash) << qint32(set.flags);
-	for (StickerPack::const_iterator j = set.stickers.cbegin(), e = set.stickers.cend(); j != e; ++j) {
+	for (auto j = set.stickers.cbegin(), e = set.stickers.cend(); j != e; ++j) {
 		Serialize::Document::writeToStream(stream, *j);
 	}
 
@@ -3226,7 +3226,7 @@ template <typename CheckSet>
 void _writeStickerSets(FileKey &stickersKey, CheckSet checkSet, const Stickers::Order &order) {
 	if (!_working()) return;
 
-	auto &sets = Global::StickerSets();
+	auto &sets = Auth().data().stickerSets();
 	if (sets.isEmpty()) {
 		if (stickersKey) {
 			clearKey(stickersKey);
@@ -3304,7 +3304,7 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 
 	bool readingInstalled = (readingFlags == MTPDstickerSet::Flag::f_installed);
 
-	auto &sets = Global::RefStickerSets();
+	auto &sets = Auth().data().stickerSetsRef();
 	if (outOrder) outOrder->clear();
 
 	quint32 cnt;
@@ -3406,7 +3406,7 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 				QString emojiString;
 				qint32 stickersCount;
 				stickers.stream >> emojiString >> stickersCount;
-				StickerPack pack;
+				Stickers::Pack pack;
 				pack.reserve(stickersCount);
 				for (int32 k = 0; k < stickersCount; ++k) {
 					quint64 id;
@@ -3460,7 +3460,7 @@ void writeInstalledStickers() {
 			return StickerSetCheckResult::Skip;
 		}
 		return StickerSetCheckResult::Write;
-	}, Global::StickerSetsOrder());
+	}, Auth().data().stickerSetsOrder());
 }
 
 void writeFeaturedStickers() {
@@ -3479,7 +3479,7 @@ void writeFeaturedStickers() {
 			return StickerSetCheckResult::Skip;
 		}
 		return StickerSetCheckResult::Write;
-	}, Global::FeaturedStickerSetsOrder());
+	}, Auth().data().featuredStickerSetsOrder());
 }
 
 void writeRecentStickers() {
@@ -3512,7 +3512,7 @@ void writeArchivedStickers() {
 			return StickerSetCheckResult::Skip;
 		}
 		return StickerSetCheckResult::Write;
-	}, Global::ArchivedStickerSetsOrder());
+	}, Auth().data().archivedStickerSetsOrder());
 }
 
 void importOldRecentStickers() {
@@ -3526,10 +3526,10 @@ void importOldRecentStickers() {
 		return;
 	}
 
-	auto &sets = Global::RefStickerSets();
+	auto &sets = Auth().data().stickerSetsRef();
 	sets.clear();
 
-	auto &order = Global::RefStickerSetsOrder();
+	auto &order = Auth().data().stickerSetsOrderRef();
 	order.clear();
 
 	auto &recent = cRefRecentStickers();
@@ -3596,25 +3596,22 @@ void readInstalledStickers() {
 		return importOldRecentStickers();
 	}
 
-	Global::RefStickerSets().clear();
-	_readStickerSets(_installedStickersKey, &Global::RefStickerSetsOrder(), MTPDstickerSet::Flag::f_installed);
+	Auth().data().stickerSetsRef().clear();
+	_readStickerSets(_installedStickersKey, &Auth().data().stickerSetsOrderRef(), MTPDstickerSet::Flag::f_installed);
 }
 
 void readFeaturedStickers() {
-	_readStickerSets(_featuredStickersKey, &Global::RefFeaturedStickerSetsOrder(), MTPDstickerSet::Flags() | MTPDstickerSet_ClientFlag::f_featured);
+	_readStickerSets(_featuredStickersKey, &Auth().data().featuredStickerSetsOrderRef(), MTPDstickerSet::Flags() | MTPDstickerSet_ClientFlag::f_featured);
 
-	auto &sets = Global::StickerSets();
+	auto &sets = Auth().data().stickerSets();
 	int unreadCount = 0;
-	for_const (auto setId, Global::FeaturedStickerSetsOrder()) {
+	for_const (auto setId, Auth().data().featuredStickerSetsOrder()) {
 		auto it = sets.constFind(setId);
 		if (it != sets.cend() && (it->flags & MTPDstickerSet_ClientFlag::f_unread)) {
 			++unreadCount;
 		}
 	}
-	if (Global::FeaturedStickerSetsUnreadCount() != unreadCount) {
-		Global::SetFeaturedStickerSetsUnreadCount(unreadCount);
-		Global::RefFeaturedStickerSetsUnreadCountChanged().notify();
-	}
+	Auth().data().setFeaturedStickerSetsUnreadCount(unreadCount);
 }
 
 void readRecentStickers() {
@@ -3628,7 +3625,7 @@ void readFavedStickers() {
 void readArchivedStickers() {
 	static bool archivedStickersRead = false;
 	if (!archivedStickersRead) {
-		_readStickerSets(_archivedStickersKey, &Global::RefArchivedStickerSetsOrder());
+		_readStickerSets(_archivedStickersKey, &Auth().data().archivedStickerSetsOrderRef());
 		archivedStickersRead = true;
 	}
 }
@@ -3644,7 +3641,7 @@ int32 countDocumentVectorHash(const QVector<DocumentData*> vector) {
 }
 
 int32 countSpecialStickerSetHash(uint64 setId) {
-	auto &sets = Global::StickerSets();
+	auto &sets = Auth().data().stickerSets();
 	auto it = sets.constFind(setId);
 	if (it != sets.cend()) {
 		return countDocumentVectorHash(it->stickers);
@@ -3655,8 +3652,8 @@ int32 countSpecialStickerSetHash(uint64 setId) {
 int32 countStickersHash(bool checkOutdatedInfo) {
 	uint32 acc = 0;
 	bool foundOutdated = false;
-	auto &sets = Global::StickerSets();
-	auto &order = Global::StickerSetsOrder();
+	auto &sets = Auth().data().stickerSets();
+	auto &order = Auth().data().stickerSetsOrder();
 	for (auto i = order.cbegin(), e = order.cend(); i != e; ++i) {
 		auto j = sets.constFind(*i);
 		if (j != sets.cend()) {
@@ -3681,8 +3678,8 @@ int32 countFavedStickersHash() {
 
 int32 countFeaturedStickersHash() {
 	uint32 acc = 0;
-	auto &sets = Global::StickerSets();
-	auto &featured = Global::FeaturedStickerSetsOrder();
+	auto &sets = Auth().data().stickerSets();
+	auto &featured = Auth().data().featuredStickerSetsOrder();
 	for_const (auto setId, featured) {
 		acc = (acc * 20261) + uint32(setId >> 32);
 		acc = (acc * 20261) + uint32(setId & 0xFFFFFFFF);
@@ -3696,13 +3693,13 @@ int32 countFeaturedStickersHash() {
 }
 
 int32 countSavedGifsHash() {
-	return countDocumentVectorHash(cSavedGifs());
+	return countDocumentVectorHash(Auth().data().savedGifs());
 }
 
 void writeSavedGifs() {
 	if (!_working()) return;
 
-	auto &saved = cSavedGifs();
+	auto &saved = Auth().data().savedGifs();
 	if (saved.isEmpty()) {
 		if (_savedGifsKey) {
 			clearKey(_savedGifsKey);
@@ -3742,7 +3739,7 @@ void readSavedGifs() {
 		return;
 	}
 
-	SavedGifs &saved(cRefSavedGifs());
+	auto &saved = Auth().data().savedGifsRef();
 	saved.clear();
 
 	quint32 cnt;

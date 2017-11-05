@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/sender.h"
 #include "base/flat_map.h"
 #include "base/flat_set.h"
+#include "chat_helpers/stickers.h"
 
 class AuthSession;
 
@@ -135,6 +136,7 @@ public:
 	auto stickerSetInstalled() const {
 		return _stickerSetInstalled.events();
 	}
+	void readFeaturedSetDelayed(uint64 setId);
 
 	~ApiWrap();
 
@@ -177,6 +179,7 @@ private:
 	void requestFavedStickers(TimeId now);
 	void requestFeaturedStickers(TimeId now);
 	void requestSavedGifs(TimeId now);
+	void readFeaturedSets();
 
 	void cancelEditChatAdmins(not_null<ChatData*> chat);
 	void saveChatAdmins(not_null<ChatData*> chat);
@@ -229,7 +232,7 @@ private:
 	QMap<History*, mtpRequestId> _draftsSaveRequestIds;
 	base::Timer _draftsSaveTimer;
 
-	OrderedSet<mtpRequestId> _stickerSetDisenableRequests;
+	base::flat_set<mtpRequestId> _stickerSetDisenableRequests;
 	Stickers::Order _stickersOrder;
 	mtpRequestId _stickersReorderRequestId = 0;
 	mtpRequestId _stickersClearRecentRequestId = 0;
@@ -239,6 +242,9 @@ private:
 	mtpRequestId _favedStickersUpdateRequest = 0;
 	mtpRequestId _featuredStickersUpdateRequest = 0;
 	mtpRequestId _savedGifsUpdateRequest = 0;
+
+	base::Timer _featuredSetsReadTimer;
+	base::flat_set<uint64> _featuredSetsRead;
 
 	QMap<mtpTypeId, mtpRequestId> _privacySaveRequests;
 

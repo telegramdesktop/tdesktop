@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/filter.h>
 #include <rpl/variable.h>
 #include "base/timer.h"
+#include "chat_helpers/stickers.h"
 
 namespace Storage {
 class Downloader;
@@ -58,12 +59,6 @@ public:
 	}
 	base::Observable<void> &moreChatsLoaded() {
 		return _moreChatsLoaded;
-	}
-	base::Observable<void> &stickersUpdated() {
-		return _stickersUpdated;
-	}
-	base::Observable<void> &savedGifsUpdated() {
-		return _savedGifsUpdated;
 	}
 	base::Observable<void> &pendingHistoryResize() {
 		return _pendingHistoryResize;
@@ -230,6 +225,18 @@ public:
 		return _variables.dialogsWidthRatio.changes();
 	}
 
+	void markStickersUpdated() {
+		_stickersUpdated.fire({});
+	}
+	rpl::producer<> stickersUpdated() const {
+		return _stickersUpdated.events();
+	}
+	void markSavedGifsUpdated() {
+		_savedGifsUpdated.fire({});
+	}
+	rpl::producer<> savedGifsUpdated() const {
+		return _savedGifsUpdated.events();
+	}
 	void setGroupStickersSectionHidden(PeerId peerId) {
 		_variables.groupStickersSectionHidden.insert(peerId);
 	}
@@ -238,6 +245,75 @@ public:
 	}
 	void removeGroupStickersSectionHidden(PeerId peerId) {
 		_variables.groupStickersSectionHidden.remove(peerId);
+	}
+	bool stickersUpdateNeeded(TimeMs now) const {
+		return stickersUpdateNeeded(_lastStickersUpdate, now);
+	}
+	void setLastStickersUpdate(TimeMs update) {
+		_lastStickersUpdate = update;
+	}
+	bool recentStickersUpdateNeeded(TimeMs now) const {
+		return stickersUpdateNeeded(_lastRecentStickersUpdate, now);
+	}
+	void setLastRecentStickersUpdate(TimeMs update) {
+		_lastRecentStickersUpdate = update;
+	}
+	bool favedStickersUpdateNeeded(TimeMs now) const {
+		return stickersUpdateNeeded(_lastFavedStickersUpdate, now);
+	}
+	void setLastFavedStickersUpdate(TimeMs update) {
+		_lastFavedStickersUpdate = update;
+	}
+	bool featuredStickersUpdateNeeded(TimeMs now) const {
+		return stickersUpdateNeeded(_lastFeaturedStickersUpdate, now);
+	}
+	void setLastFeaturedStickersUpdate(TimeMs update) {
+		_lastFeaturedStickersUpdate = update;
+	}
+	bool savedGifsUpdateNeeded(TimeMs now) const {
+		return stickersUpdateNeeded(_lastSavedGifsUpdate, now);
+	}
+	void setLastSavedGifsUpdate(TimeMs update) {
+		_lastSavedGifsUpdate = update;
+	}
+	int featuredStickerSetsUnreadCount() const {
+		return _featuredStickerSetsUnreadCount.current();
+	}
+	void setFeaturedStickerSetsUnreadCount(int count) {
+		_featuredStickerSetsUnreadCount = count;
+	}
+	rpl::producer<int> featuredStickerSetsUnreadCountValue() const {
+		return _featuredStickerSetsUnreadCount.value();
+	}
+	const Stickers::Sets &stickerSets() const {
+		return _stickerSets;
+	}
+	Stickers::Sets &stickerSetsRef() {
+		return _stickerSets;
+	}
+	const Stickers::Order &stickerSetsOrder() const {
+		return _stickerSetsOrder;
+	}
+	Stickers::Order &stickerSetsOrderRef() {
+		return _stickerSetsOrder;
+	}
+	const Stickers::Order &featuredStickerSetsOrder() const {
+		return _featuredStickerSetsOrder;
+	}
+	Stickers::Order &featuredStickerSetsOrderRef() {
+		return _featuredStickerSetsOrder;
+	}
+	const Stickers::Order &archivedStickerSetsOrder() const {
+		return _archivedStickerSetsOrder;
+	}
+	Stickers::Order &archivedStickerSetsOrderRef() {
+		return _archivedStickerSetsOrder;
+	}
+	const Stickers::SavedGifs &savedGifs() const {
+		return _savedGifs;
+	}
+	Stickers::SavedGifs &savedGifsRef() {
+		return _savedGifs;
 	}
 
 private:
@@ -259,11 +335,15 @@ private:
 		rpl::variable<float64> dialogsWidthRatio = kDefaultDialogsWidthRatio; // per-window
 	};
 
+	bool stickersUpdateNeeded(TimeMs lastUpdate, TimeMs now) const {
+		constexpr auto kStickersUpdateTimeout = TimeMs(3600'000);
+		return (lastUpdate == 0)
+			|| (now >= lastUpdate + kStickersUpdateTimeout);
+	}
+
 	base::Variable<bool> _contactsLoaded = { false };
 	base::Variable<bool> _allChatsLoaded = { false };
 	base::Observable<void> _moreChatsLoaded;
-	base::Observable<void> _stickersUpdated;
-	base::Observable<void> _savedGifsUpdated;
 	base::Observable<void> _pendingHistoryResize;
 	base::Observable<ItemVisibilityQuery> _queryItemVisibility;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemLayoutChanged;
@@ -273,6 +353,20 @@ private:
 	rpl::event_stream<not_null<const History*>> _historyCleared;
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantRemoved;
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantAdded;
+
+	rpl::event_stream<> _stickersUpdated;
+	rpl::event_stream<> _savedGifsUpdated;
+	TimeMs _lastStickersUpdate = 0;
+	TimeMs _lastRecentStickersUpdate = 0;
+	TimeMs _lastFavedStickersUpdate = 0;
+	TimeMs _lastFeaturedStickersUpdate = 0;
+	TimeMs _lastSavedGifsUpdate = 0;
+	rpl::variable<int> _featuredStickerSetsUnreadCount = 0;
+	Stickers::Sets _stickerSets;
+	Stickers::Order _stickerSetsOrder;
+	Stickers::Order _featuredStickerSetsOrder;
+	Stickers::Order _archivedStickerSetsOrder;
+	Stickers::SavedGifs _savedGifs;
 
 	rpl::event_stream<bool> _thirdSectionInfoEnabledValue;
 	bool _tabbedReplacedWithInfo = false;

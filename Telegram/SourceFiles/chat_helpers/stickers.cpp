@@ -32,16 +32,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_chat_helpers.h"
 
 namespace Stickers {
-namespace {
-
-constexpr int kReadFeaturedSetsTimeoutMs = 1000;
-QPointer<internal::FeaturedReader> FeaturedReaderInstance;
-
-} // namespace
 
 void ApplyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	auto &v = d.vsets.v;
-	auto &order = Global::RefStickerSetsOrder();
+	auto &order = Auth().data().stickerSetsOrderRef();
 	Order archived;
 	archived.reserve(v.size());
 	QMap<uint64, uint64> setsToRequest;
@@ -89,13 +83,13 @@ void ApplyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	Ui::Toast::Show(toast);
 //	Ui::show(Box<StickersBox>(archived), LayerOption::KeepOther);
 
-	Auth().data().stickersUpdated().notify(true);
+	Auth().data().markStickersUpdated();
 }
 
 // For testing: Just apply random subset or your sticker sets as archived.
 bool ApplyArchivedResultFake() {
 	auto sets = QVector<MTPStickerSetCovered>();
-	for (auto &set : Global::RefStickerSets()) {
+	for (auto &set : Auth().data().stickerSetsRef()) {
 		if ((set.flags & MTPDstickerSet::Flag::f_installed) && !(set.flags & MTPDstickerSet_ClientFlag::f_special)) {
 			if (rand_value<uint32>() % 128 < 64) {
 				auto data = MTP_stickerSet(MTP_flags(set.flags | MTPDstickerSet::Flag::f_archived), MTP_long(set.id), MTP_long(set.access), MTP_string(set.title), MTP_string(set.shortName), MTP_int(set.count), MTP_int(set.hash));
@@ -110,7 +104,7 @@ bool ApplyArchivedResultFake() {
 }
 
 void InstallLocally(uint64 setId) {
-	auto &sets = Global::RefStickerSets();
+	auto &sets = Auth().data().stickerSetsRef();
 	auto it = sets.find(setId);
 	if (it == sets.end()) {
 		return;
@@ -121,7 +115,7 @@ void InstallLocally(uint64 setId) {
 	it->flags |= MTPDstickerSet::Flag::f_installed;
 	auto changedFlags = flags ^ it->flags;
 
-	auto &order = Global::RefStickerSetsOrder();
+	auto &order = Auth().data().stickerSetsOrderRef();
 	int insertAtIndex = 0, currentIndex = order.indexOf(setId);
 	if (currentIndex != insertAtIndex) {
 		if (currentIndex > 0) {
@@ -143,17 +137,17 @@ void InstallLocally(uint64 setId) {
 	Local::writeInstalledStickers();
 	if (changedFlags & MTPDstickerSet_ClientFlag::f_unread) Local::writeFeaturedStickers();
 	if (changedFlags & MTPDstickerSet::Flag::f_archived) {
-		auto index = Global::RefArchivedStickerSetsOrder().indexOf(setId);
+		auto index = Auth().data().archivedStickerSetsOrderRef().indexOf(setId);
 		if (index >= 0) {
-			Global::RefArchivedStickerSetsOrder().removeAt(index);
+			Auth().data().archivedStickerSetsOrderRef().removeAt(index);
 			Local::writeArchivedStickers();
 		}
 	}
-	Auth().data().stickersUpdated().notify(true);
+	Auth().data().markStickersUpdated();
 }
 
 void UndoInstallLocally(uint64 setId) {
-	auto &sets = Global::RefStickerSets();
+	auto &sets = Auth().data().stickerSetsRef();
 	auto it = sets.find(setId);
 	if (it == sets.end()) {
 		return;
@@ -161,34 +155,23 @@ void UndoInstallLocally(uint64 setId) {
 
 	it->flags &= ~MTPDstickerSet::Flag::f_installed;
 
-	auto &order = Global::RefStickerSetsOrder();
+	auto &order = Auth().data().stickerSetsOrderRef();
 	int currentIndex = order.indexOf(setId);
 	if (currentIndex >= 0) {
 		order.removeAt(currentIndex);
 	}
 
 	Local::writeInstalledStickers();
-	Auth().data().stickersUpdated().notify(true);
+	Auth().data().markStickersUpdated();
 
 	Ui::show(
 		Box<InformBox>(lang(lng_stickers_not_found)),
 		LayerOption::KeepOther);
 }
 
-void MarkFeaturedAsRead(uint64 setId) {
-	if (!FeaturedReaderInstance) {
-		if (auto main = App::main()) {
-			FeaturedReaderInstance = object_ptr<internal::FeaturedReader>(main);
-		} else {
-			return;
-		}
-	}
-	FeaturedReaderInstance->scheduleRead(setId);
-}
-
 bool IsFaved(not_null<DocumentData*> document) {
-	auto it = Global::StickerSets().constFind(FavedSetId);
-	return (it != Global::StickerSets().cend()) && it->stickers.contains(document);
+	auto it = Auth().data().stickerSets().constFind(FavedSetId);
+	return (it != Auth().data().stickerSets().cend()) && it->stickers.contains(document);
 }
 
 void CheckFavedLimit(Set &set) {
@@ -242,7 +225,7 @@ void MoveFavedToFront(Set &set, int index) {
 void RequestSetToPushFaved(not_null<DocumentData*> document);
 
 void SetIsFaved(not_null<DocumentData*> document, base::optional<std::vector<not_null<EmojiPtr>>> emojiList = base::none) {
-	auto &sets = Global::RefStickerSets();
+	auto &sets = Auth().data().stickerSetsRef();
 	auto it = sets.find(FavedSetId);
 	if (it == sets.end()) {
 		it = sets.insert(FavedSetId, Set(FavedSetId, 0, Lang::Hard::FavedSetTitle(), QString(), 0, 0, MTPDstickerSet_ClientFlag::f_special | 0));
@@ -262,7 +245,7 @@ void SetIsFaved(not_null<DocumentData*> document, base::optional<std::vector<not
 		return;
 	}
 	Local::writeFavedStickers();
-	Auth().data().stickersUpdated().notify(true);
+	Auth().data().markStickersUpdated();
 	Auth().api().stickerSetInstalled(FavedSetId);
 }
 
@@ -305,7 +288,7 @@ void RequestSetToPushFaved(not_null<DocumentData*> document) {
 }
 
 void SetIsNotFaved(not_null<DocumentData*> document) {
-	auto &sets = Global::RefStickerSets();
+	auto &sets = Auth().data().stickerSetsRef();
 	auto it = sets.find(FavedSetId);
 	if (it == sets.end()) {
 		return;
@@ -330,7 +313,7 @@ void SetIsNotFaved(not_null<DocumentData*> document) {
 		sets.erase(it);
 	}
 	Local::writeFavedStickers();
-	Auth().data().stickersUpdated().notify(true);
+	Auth().data().markStickersUpdated();
 }
 
 void SetFaved(not_null<DocumentData*> document, bool faved) {
@@ -342,10 +325,10 @@ void SetFaved(not_null<DocumentData*> document, bool faved) {
 }
 
 void SetsReceived(const QVector<MTPStickerSet> &data, int32 hash) {
-	auto &setsOrder = Global::RefStickerSetsOrder();
+	auto &setsOrder = Auth().data().stickerSetsOrderRef();
 	setsOrder.clear();
 
-	auto &sets = Global::RefStickerSets();
+	auto &sets = Auth().data().stickerSetsRef();
 	QMap<uint64, uint64> setsToRequest;
 	for (auto &set : sets) {
 		if (!(set.flags & MTPDstickerSet::Flag::f_archived)) {
@@ -402,10 +385,10 @@ void SetsReceived(const QVector<MTPStickerSet> &data, int32 hash) {
 		LOG(("API Error: received stickers hash %1 while counted hash is %2").arg(hash).arg(Local::countStickersHash()));
 	}
 
-	Auth().data().stickersUpdated().notify(true);
+	Auth().data().markStickersUpdated();
 }
 
-void SetPackAndEmoji(Set &set, StickerPack &&pack, const QVector<MTPStickerPack> &packs) {
+void SetPackAndEmoji(Set &set, Pack &&pack, const QVector<MTPStickerPack> &packs) {
 	set.stickers = std::move(pack);
 	set.emoji.clear();
 	for_const (auto &mtpPack, packs) {
@@ -415,7 +398,7 @@ void SetPackAndEmoji(Set &set, StickerPack &&pack, const QVector<MTPStickerPack>
 			emoji = emoji->original();
 			auto &stickers = pack.vdocuments.v;
 
-			auto p = StickerPack();
+			auto p = Pack();
 			p.reserve(stickers.size());
 			for (auto j = 0, c = stickers.size(); j != c; ++j) {
 				auto document = App::document(stickers[j].v);
@@ -429,7 +412,7 @@ void SetPackAndEmoji(Set &set, StickerPack &&pack, const QVector<MTPStickerPack>
 }
 
 void SpecialSetReceived(uint64 setId, const QString &setTitle, const QVector<MTPDocument> &items, int32 hash, const QVector<MTPStickerPack> &packs) {
-	auto &sets = Global::RefStickerSets();
+	auto &sets = Auth().data().stickerSetsRef();
 	auto it = sets.find(setId);
 
 	auto &d_docs = items;
@@ -446,7 +429,7 @@ void SpecialSetReceived(uint64 setId, const QString &setTitle, const QVector<MTP
 		it->hash = hash;
 
 		auto custom = sets.find(CustomSetId);
-		auto pack = StickerPack();
+		auto pack = Pack();
 		pack.reserve(d_docs.size());
 		for_const (auto &mtpDocument, d_docs) {
 			auto document = App::feedDocument(mtpDocument);
@@ -503,7 +486,7 @@ void SpecialSetReceived(uint64 setId, const QString &setTitle, const QVector<MTP
 	default: Unexpected("setId in SpecialSetReceived()");
 	}
 
-	Auth().data().stickersUpdated().notify(true);
+	Auth().data().markStickersUpdated();
 }
 
 void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVector<MTPlong> &unread, int32 hash) {
@@ -512,10 +495,10 @@ void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVect
 		unreadMap.insert(unreadSetId.v);
 	}
 
-	auto &setsOrder = Global::RefFeaturedStickerSetsOrder();
+	auto &setsOrder = Auth().data().featuredStickerSetsOrderRef();
 	setsOrder.clear();
 
-	auto &sets = Global::RefStickerSets();
+	auto &sets = Auth().data().stickerSetsRef();
 	QMap<uint64, uint64> setsToRequest;
 	for (auto &set : sets) {
 		set.flags &= ~MTPDstickerSet_ClientFlag::f_featured; // mark for removing
@@ -587,10 +570,7 @@ void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVect
 			it = sets.erase(it);
 		}
 	}
-	if (Global::FeaturedStickerSetsUnreadCount() != unreadCount) {
-		Global::SetFeaturedStickerSetsUnreadCount(unreadCount);
-		Global::RefFeaturedStickerSetsUnreadCountChanged().notify();
-	}
+	Auth().data().setFeaturedStickerSetsUnreadCount(unreadCount);
 
 	if (Local::countFeaturedStickersHash() != hash) {
 		LOG(("API Error: received featured stickers hash %1 while counted hash is %2").arg(hash).arg(Local::countFeaturedStickersHash()));
@@ -606,11 +586,11 @@ void FeaturedSetsReceived(const QVector<MTPStickerSetCovered> &data, const QVect
 
 	Local::writeFeaturedStickers();
 
-	Auth().data().stickersUpdated().notify(true);
+	Auth().data().markStickersUpdated();
 }
 
 void GifsReceived(const QVector<MTPDocument> &items, int32 hash) {
-	auto &saved = cRefSavedGifs();
+	auto &saved = Auth().data().savedGifsRef();
 	saved.clear();
 
 	saved.reserve(items.size());
@@ -629,16 +609,16 @@ void GifsReceived(const QVector<MTPDocument> &items, int32 hash) {
 
 	Local::writeSavedGifs();
 
-	Auth().data().savedGifsUpdated().notify();
+	Auth().data().markSavedGifsUpdated();
 }
 
-StickerPack GetListByEmoji(not_null<EmojiPtr> emoji) {
+Pack GetListByEmoji(not_null<EmojiPtr> emoji) {
 	auto original = emoji->original();
-	auto result = StickerPack();
+	auto result = Pack();
 	auto setsToRequest = QMap<uint64, uint64>();
-	auto &sets = Global::RefStickerSets();
+	auto &sets = Auth().data().stickerSetsRef();
 
-	auto faved = StickerPack();
+	auto faved = Pack();
 	auto favedIt = sets.find(Stickers::FavedSetId);
 	if (favedIt != sets.cend()) {
 		auto i = favedIt->emoji.constFind(original);
@@ -647,7 +627,7 @@ StickerPack GetListByEmoji(not_null<EmojiPtr> emoji) {
 			result = faved;
 		}
 	}
-	auto &order = Global::StickerSetsOrder();
+	auto &order = Auth().data().stickerSetsOrder();
 	for (auto i = 0, l = order.size(); i != l; ++i) {
 		auto it = sets.find(order[i]);
 		if (it != sets.cend()) {
@@ -683,7 +663,7 @@ base::optional<std::vector<not_null<EmojiPtr>>> GetEmojiListFromSet(
 		if (inputSet.type() != mtpc_inputStickerSetID) {
 			return base::none;
 		}
-		auto &sets = Global::StickerSets();
+		auto &sets = Auth().data().stickerSets();
 		auto it = sets.constFind(inputSet.c_inputStickerSetID().vid.v);
 		if (it == sets.cend()) {
 			return base::none;
@@ -703,7 +683,7 @@ base::optional<std::vector<not_null<EmojiPtr>>> GetEmojiListFromSet(
 }
 
 Set *FeedSet(const MTPDstickerSet &set) {
-	auto &sets = Global::RefStickerSets();
+	auto &sets = Auth().data().stickerSetsRef();
 	auto it = sets.find(set.vid.v);
 	auto title = GetSetTitle(set);
 	auto flags = MTPDstickerSet::Flags(0);
@@ -724,13 +704,13 @@ Set *FeedSet(const MTPDstickerSet &set) {
 	}
 	auto changedFlags = (flags ^ it->flags);
 	if (changedFlags & MTPDstickerSet::Flag::f_archived) {
-		auto index = Global::ArchivedStickerSetsOrder().indexOf(it->id);
+		auto index = Auth().data().archivedStickerSetsOrder().indexOf(it->id);
 		if (it->flags & MTPDstickerSet::Flag::f_archived) {
 			if (index < 0) {
-				Global::RefArchivedStickerSetsOrder().push_front(it->id);
+				Auth().data().archivedStickerSetsOrderRef().push_front(it->id);
 			}
 		} else if (index >= 0) {
-			Global::RefArchivedStickerSetsOrder().removeAt(index);
+			Auth().data().archivedStickerSetsOrderRef().removeAt(index);
 		}
 	}
 	return &it.value();
@@ -744,11 +724,11 @@ Set *FeedSetFull(const MTPmessages_StickerSet &data) {
 
 	set->flags &= ~MTPDstickerSet_ClientFlag::f_not_loaded;
 
-	auto &sets = Global::RefStickerSets();
+	auto &sets = Auth().data().stickerSetsRef();
 	auto &d_docs = d.vdocuments.v;
 	auto custom = sets.find(Stickers::CustomSetId);
 
-	auto pack = StickerPack();
+	auto pack = Pack();
 	pack.reserve(d_docs.size());
 	for (auto i = 0, l = d_docs.size(); i != l; ++i) {
 		auto doc = App::feedDocument(d_docs.at(i));
@@ -779,8 +759,8 @@ Set *FeedSetFull(const MTPmessages_StickerSet &data) {
 	}
 
 	if (pack.isEmpty()) {
-		int removeIndex = Global::StickerSetsOrder().indexOf(set->id);
-		if (removeIndex >= 0) Global::RefStickerSetsOrder().removeAt(removeIndex);
+		int removeIndex = Auth().data().stickerSetsOrder().indexOf(set->id);
+		if (removeIndex >= 0) Auth().data().stickerSetsOrderRef().removeAt(removeIndex);
 		sets.remove(set->id);
 		set = nullptr;
 	} else {
@@ -795,7 +775,7 @@ Set *FeedSetFull(const MTPmessages_StickerSet &data) {
 				emoji = emoji->original();
 				auto &stickers = pack.vdocuments.v;
 
-				StickerPack p;
+				Pack p;
 				p.reserve(stickers.size());
 				for (auto j = 0, c = stickers.size(); j != c; ++j) {
 					auto doc = App::document(stickers[j].v);
@@ -823,7 +803,7 @@ Set *FeedSetFull(const MTPmessages_StickerSet &data) {
 		}
 	}
 
-	Auth().data().stickersUpdated().notify(true);
+	Auth().data().markStickersUpdated();
 
 	return set;
 }
@@ -836,51 +816,4 @@ QString GetSetTitle(const MTPDstickerSet &s) {
 	return title;
 }
 
-namespace internal {
-
-FeaturedReader::FeaturedReader(QObject *parent) : QObject(parent)
-, _timer(this) {
-	_timer->setTimeoutHandler([this] { readSets(); });
-}
-
-void FeaturedReader::scheduleRead(uint64 setId) {
-	if (!_setIds.contains(setId)) {
-		_setIds.insert(setId);
-		_timer->start(kReadFeaturedSetsTimeoutMs);
-	}
-}
-
-void FeaturedReader::readSets() {
-	auto &sets = Global::RefStickerSets();
-	auto count = Global::FeaturedStickerSetsUnreadCount();
-	QVector<MTPlong> wrappedIds;
-	wrappedIds.reserve(_setIds.size());
-	for_const (auto setId, _setIds) {
-		auto it = sets.find(setId);
-		if (it != sets.cend()) {
-			it->flags &= ~MTPDstickerSet_ClientFlag::f_unread;
-			wrappedIds.append(MTP_long(setId));
-			if (count) {
-				--count;
-			}
-		}
-	}
-	_setIds.clear();
-
-	if (!wrappedIds.empty()) {
-		request(MTPmessages_ReadFeaturedStickers(MTP_vector<MTPlong>(wrappedIds))).done([](const MTPBool &result) {
-			Local::writeFeaturedStickers();
-			if (AuthSession::Exists()) {
-				Auth().data().stickersUpdated().notify(true);
-			}
-		}).send();
-
-		if (Global::FeaturedStickerSetsUnreadCount() != count) {
-			Global::SetFeaturedStickerSetsUnreadCount(count);
-			Global::RefFeaturedStickerSetsUnreadCountChanged().notify();
-		}
-	}
-}
-
-} // namespace internal
 } // namespace Stickers

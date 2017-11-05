@@ -78,9 +78,6 @@ EmojiColorVariants gEmojiVariants;
 RecentStickerPreload gRecentStickersPreload;
 RecentStickerPack gRecentStickers;
 
-SavedGifs gSavedGifs;
-TimeMs gLastSavedGifsUpdate = 0;
-
 RecentHashtagPack gRecentWriteHashtags, gRecentSearchHashtags;
 
 RecentInlineBots gRecentInlineBots;

@@ -4714,7 +4714,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	if (sticker->sticker()->set.type() == mtpc_inputStickerSetEmpty) return;
 
 	bool writeRecentStickers = false;
-	auto &sets = Global::RefStickerSets();
+	auto &sets = Auth().data().stickerSetsRef();
 	auto it = sets.find(Stickers::CloudRecentSetId);
 	if (it == sets.cend()) {
 		if (it == sets.cend()) {
@@ -5703,7 +5703,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			if (set.vset.type() == mtpc_stickerSet) {
 				auto &s = set.vset.c_stickerSet();
 				if (!s.is_masks()) {
-					auto &sets = Global::RefStickerSets();
+					auto &sets = Auth().data().stickerSetsRef();
 					auto it = sets.find(s.vid.v);
 					if (it == sets.cend()) {
 						it = sets.insert(s.vid.v, Stickers::Set(s.vid.v, s.vaccess_hash.v, Stickers::GetSetTitle(s), qs(s.vshort_name), s.vcount.v, s.vhash.v, s.vflags.v | MTPDstickerSet::Flag::f_installed));
@@ -5736,7 +5736,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 							emoji = emoji->original();
 							auto &stickers = pack.vdocuments.v;
 
-							StickerPack p;
+							Stickers::Pack p;
 							p.reserve(stickers.size());
 							for (auto j = 0, c = stickers.size(); j != c; ++j) {
 								auto doc = App::document(stickers[j].v);
@@ -5748,7 +5748,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 						}
 					}
 
-					auto &order(Global::RefStickerSetsOrder());
+					auto &order = Auth().data().stickerSetsOrderRef();
 					int32 insertAtIndex = 0, currentIndex = order.indexOf(s.vid.v);
 					if (currentIndex != insertAtIndex) {
 						if (currentIndex > 0) {
@@ -5769,7 +5769,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					}
 					Local::writeInstalledStickers();
 					if (writeArchived) Local::writeArchivedStickers();
-					Auth().data().stickersUpdated().notify(true);
+					Auth().data().markStickersUpdated();
 				}
 			}
 		}
@@ -5779,7 +5779,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		auto &d = update.c_updateStickerSetsOrder();
 		if (!d.is_masks()) {
 			auto &order = d.vorder.v;
-			auto &sets = Global::StickerSets();
+			auto &sets = Auth().data().stickerSets();
 			Stickers::Order result;
 			for (int i = 0, l = order.size(); i < l; ++i) {
 				if (sets.constFind(order.at(i).v) == sets.cend()) {
@@ -5787,29 +5787,29 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				}
 				result.push_back(order.at(i).v);
 			}
-			if (result.size() != Global::StickerSetsOrder().size() || result.size() != order.size()) {
-				Global::SetLastStickersUpdate(0);
+			if (result.size() != Auth().data().stickerSetsOrder().size() || result.size() != order.size()) {
+				Auth().data().setLastStickersUpdate(0);
 				Auth().api().updateStickers();
 			} else {
-				Global::SetStickerSetsOrder(result);
+				Auth().data().stickerSetsOrderRef() = std::move(result);
 				Local::writeInstalledStickers();
-				Auth().data().stickersUpdated().notify(true);
+				Auth().data().markStickersUpdated();
 			}
 		}
 	} break;
 
 	case mtpc_updateStickerSets: {
-		Global::SetLastStickersUpdate(0);
+		Auth().data().setLastStickersUpdate(0);
 		Auth().api().updateStickers();
 	} break;
 
 	case mtpc_updateRecentStickers: {
-		Global::SetLastRecentStickersUpdate(0);
+		Auth().data().setLastRecentStickersUpdate(0);
 		Auth().api().updateStickers();
 	} break;
 
 	case mtpc_updateFavedStickers: {
-		Global::SetLastFavedStickersUpdate(0);
+		Auth().data().setLastFavedStickersUpdate(0);
 		Auth().api().updateStickers();
 	} break;
 
@@ -5817,13 +5817,13 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		// We read some of the featured stickers, perhaps not all of them.
 		// Here we don't know what featured sticker sets were read, so we
 		// request all of them once again.
-		Global::SetLastFeaturedStickersUpdate(0);
+		Auth().data().setLastFeaturedStickersUpdate(0);
 		Auth().api().updateStickers();
 	} break;
 
 	////// Cloud saved GIFs
 	case mtpc_updateSavedGifs: {
-		cSetLastSavedGifsUpdate(0);
+		Auth().data().setLastSavedGifsUpdate(0);
 		Auth().api().updateStickers();
 	} break;
 

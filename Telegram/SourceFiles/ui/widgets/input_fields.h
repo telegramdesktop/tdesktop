@@ -142,7 +142,10 @@ protected:
 	void dropEvent(QDropEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
 
-	virtual void correctValue(const QString &was, QString &now, TagList &nowTags) {
+	virtual void correctValue(
+		const QString &was,
+		QString &now,
+		TagList &nowTags) {
 	}
 
 	void insertEmoji(EmojiPtr emoji, QTextCursor c);
@@ -755,7 +758,11 @@ protected:
 	void contextMenuEvent(QContextMenuEvent *e) override;
 	void inputMethodEvent(QInputMethodEvent *e) override;
 
-	virtual void correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) {
+	virtual void correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) {
 	}
 	void setCorrectedText(QString &now, int &nowCursor, const QString &newText, int newPos);
 
@@ -832,7 +839,11 @@ signals:
 	void addedToNumber(const QString &added);
 
 protected:
-	void correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) override;
+	void correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) override;
 
 private:
 	bool _nosignal;
@@ -855,7 +866,11 @@ signals:
 protected:
 	void keyPressEvent(QKeyEvent *e) override;
 
-	void correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) override;
+	void correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) override;
 	void paintAdditionalPlaceholder(Painter &p, TimeMs ms) override;
 
 private:
@@ -875,7 +890,11 @@ public:
 	PortInput(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val);
 
 protected:
-	void correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) override;
+	void correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) override;
 
 };
 
@@ -886,7 +905,11 @@ public:
 	void setLinkPlaceholder(const QString &placeholder);
 
 protected:
-	void correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) override;
+	void correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) override;
 	void paintAdditionalPlaceholder(Painter &p, TimeMs ms) override;
 
 private:
@@ -903,7 +926,11 @@ public:
 protected:
 	void focusInEvent(QFocusEvent *e) override;
 
-	void correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) override;
+	void correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) override;
 	void paintAdditionalPlaceholder(Painter &p, TimeMs ms) override;
 
 private:

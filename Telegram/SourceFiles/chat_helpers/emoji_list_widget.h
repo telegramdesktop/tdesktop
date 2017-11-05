@@ -122,7 +122,7 @@ protected:
 	void leaveEventHook(QEvent *e) override;
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void enterFromChildEvent(QEvent *e, QWidget *child) override;
-	bool event(QEvent *e) override;
+	bool eventHook(QEvent *e) override;
 
 	TabbedSelector::InnerFooter *getFooter() const override;
 	void processHideFinished() override;

@@ -651,14 +651,14 @@ void EmojiListWidget::refreshRecent() {
 	updateSize();
 }
 
-bool EmojiListWidget::event(QEvent *e) {
+bool EmojiListWidget::eventHook(QEvent *e) {
 	if (e->type() == QEvent::ParentChange) {
 		if (_picker->parentWidget() != parentWidget()) {
 			_picker->setParent(parentWidget());
 		}
 		_picker->raise();
 	}
-	return Inner::event(e);
+	return Inner::eventHook(e);
 }
 
 void EmojiListWidget::updateSelected() {

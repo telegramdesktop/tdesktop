@@ -49,11 +49,11 @@ constexpr auto kReloadChannelMembersTimeout = 1000; // 1 second wait before relo
 constexpr auto kSaveCloudDraftTimeout = 1000; // save draft to the cloud with 1 sec extra delay
 constexpr auto kSaveDraftBeforeQuitTimeout = 1500; // give the app 1.5 secs to save drafts to cloud when quitting
 constexpr auto kSmallDelayMs = 5;
-constexpr auto kStickersUpdateTimeout = 3600000; // update not more than once in an hour
 constexpr auto kUnreadMentionsPreloadIfLess = 5;
 constexpr auto kUnreadMentionsFirstRequestLimit = 10;
 constexpr auto kUnreadMentionsNextRequestLimit = 100;
 constexpr auto kSharedMediaLimit = 100;
+constexpr auto kReadFeaturedSetsTimeout = TimeMs(1000);
 
 } // namespace
 
@@ -61,7 +61,8 @@ ApiWrap::ApiWrap(not_null<AuthSession*> session)
 : _session(session)
 , _messageDataResolveDelayed([this] { resolveMessageDatas(); })
 , _webPagesTimer([this] { resolveWebPages(); })
-, _draftsSaveTimer([this] { saveDraftsToCloud(); }) {
+, _draftsSaveTimer([this] { saveDraftsToCloud(); })
+, _featuredSetsReadTimer([this] { readFeaturedSets(); }) {
 }
 
 void ApiWrap::start() {
@@ -838,7 +839,7 @@ void ApiWrap::saveStickerSets(const Stickers::Order &localOrder, const Stickers:
 
 	auto writeInstalled = true, writeRecent = false, writeCloudRecent = false, writeFaved = false, writeArchived = false;
 	auto &recent = cGetRecentStickers();
-	auto &sets = Global::RefStickerSets();
+	auto &sets = Auth().data().stickerSetsRef();
 
 	_stickersOrder = localOrder;
 	for_const (auto removedSetId, localRemoved) {
@@ -883,8 +884,8 @@ void ApiWrap::saveStickerSets(const Stickers::Order &localOrder, const Stickers:
 
 				_stickerSetDisenableRequests.insert(requestId);
 
-				int removeIndex = Global::StickerSetsOrder().indexOf(it->id);
-				if (removeIndex >= 0) Global::RefStickerSetsOrder().removeAt(removeIndex);
+				int removeIndex = Auth().data().stickerSetsOrder().indexOf(it->id);
+				if (removeIndex >= 0) Auth().data().stickerSetsOrderRef().removeAt(removeIndex);
 				if (!(it->flags & MTPDstickerSet_ClientFlag::f_featured) && !(it->flags & MTPDstickerSet_ClientFlag::f_special)) {
 					sets.erase(it);
 				} else {
@@ -904,7 +905,7 @@ void ApiWrap::saveStickerSets(const Stickers::Order &localOrder, const Stickers:
 		}
 	}
 
-	auto &order(Global::RefStickerSetsOrder());
+	auto &order = Auth().data().stickerSetsOrderRef();
 	order.clear();
 	for_const (auto setId, _stickersOrder) {
 		auto it = sets.find(setId);
@@ -943,9 +944,9 @@ void ApiWrap::saveStickerSets(const Stickers::Order &localOrder, const Stickers:
 	if (writeArchived) Local::writeArchivedStickers();
 	if (writeCloudRecent) Local::writeRecentStickers();
 	if (writeFaved) Local::writeFavedStickers();
-	Auth().data().stickersUpdated().notify(true);
+	Auth().data().markStickersUpdated();
 
-	if (_stickerSetDisenableRequests.isEmpty()) {
+	if (_stickerSetDisenableRequests.empty()) {
 		stickersSaveOrder();
 	} else {
 		requestSendDelayed();
@@ -954,7 +955,7 @@ void ApiWrap::saveStickerSets(const Stickers::Order &localOrder, const Stickers:
 
 void ApiWrap::stickerSetDisenabled(mtpRequestId requestId) {
 	_stickerSetDisenableRequests.remove(requestId);
-	if (_stickerSetDisenableRequests.isEmpty()) {
+	if (_stickerSetDisenableRequests.empty()) {
 		stickersSaveOrder();
 	}
 };
@@ -1465,7 +1466,7 @@ void ApiWrap::stickersSaveOrder() {
 			_stickersReorderRequestId = 0;
 		}).fail([this](const RPCError &error) {
 			_stickersReorderRequestId = 0;
-			Global::SetLastStickersUpdate(0);
+			Auth().data().setLastStickersUpdate(0);
 			updateStickers();
 		}).send();
 	}
@@ -1484,18 +1485,16 @@ void ApiWrap::setGroupStickerSet(not_null<ChannelData*> megagroup, const MTPInpu
 	Expects(megagroup->mgInfo != nullptr);
 	megagroup->mgInfo->stickerSet = set;
 	request(MTPchannels_SetStickers(megagroup->inputChannel, set)).send();
-	Auth().data().stickersUpdated().notify(true);
+	Auth().data().markStickersUpdated();
 }
 
 void ApiWrap::requestStickers(TimeId now) {
-	if (Global::LastStickersUpdate() != 0 && now < Global::LastStickersUpdate() + kStickersUpdateTimeout) {
-		return;
-	}
-	if (_stickersUpdateRequest) {
+	if (!Auth().data().stickersUpdateNeeded(now)
+		|| _stickersUpdateRequest) {
 		return;
 	}
 	auto onDone = [this](const MTPmessages_AllStickers &result) {
-		Global::SetLastStickersUpdate(getms(true));
+		Auth().data().setLastStickersUpdate(getms(true));
 		_stickersUpdateRequest = 0;
 
 		switch (result.type()) {
@@ -1514,14 +1513,12 @@ void ApiWrap::requestStickers(TimeId now) {
 }
 
 void ApiWrap::requestRecentStickers(TimeId now) {
-	if (Global::LastRecentStickersUpdate() != 0 && now < Global::LastRecentStickersUpdate() + kStickersUpdateTimeout) {
-		return;
-	}
-	if (_recentStickersUpdateRequest) {
+	if (!Auth().data().recentStickersUpdateNeeded(now)
+		|| _recentStickersUpdateRequest) {
 		return;
 	}
 	auto onDone = [this](const MTPmessages_RecentStickers &result) {
-		Global::SetLastRecentStickersUpdate(getms(true));
+		Auth().data().setLastRecentStickersUpdate(getms(true));
 		_recentStickersUpdateRequest = 0;
 
 		switch (result.type()) {
@@ -1540,14 +1537,12 @@ void ApiWrap::requestRecentStickers(TimeId now) {
 }
 
 void ApiWrap::requestFavedStickers(TimeId now) {
-	if (Global::LastFavedStickersUpdate() != 0 && now < Global::LastFavedStickersUpdate() + kStickersUpdateTimeout) {
-		return;
-	}
-	if (_favedStickersUpdateRequest) {
+	if (!Auth().data().favedStickersUpdateNeeded(now)
+		|| _favedStickersUpdateRequest) {
 		return;
 	}
 	auto onDone = [this](const MTPmessages_FavedStickers &result) {
-		Global::SetLastFavedStickersUpdate(getms(true));
+		Auth().data().setLastFavedStickersUpdate(getms(true));
 		_favedStickersUpdateRequest = 0;
 
 		switch (result.type()) {
@@ -1566,14 +1561,12 @@ void ApiWrap::requestFavedStickers(TimeId now) {
 }
 
 void ApiWrap::requestFeaturedStickers(TimeId now) {
-	if (Global::LastFeaturedStickersUpdate() != 0 && now < Global::LastFeaturedStickersUpdate() + kStickersUpdateTimeout) {
-		return;
-	}
-	if (_featuredStickersUpdateRequest) {
+	if (!Auth().data().featuredStickersUpdateNeeded(now)
+		|| _featuredStickersUpdateRequest) {
 		return;
 	}
 	auto onDone = [this](const MTPmessages_FeaturedStickers &result) {
-		Global::SetLastFeaturedStickersUpdate(getms(true));
+		Auth().data().setLastFeaturedStickersUpdate(getms(true));
 		_featuredStickersUpdateRequest = 0;
 
 		switch (result.type()) {
@@ -1592,14 +1585,12 @@ void ApiWrap::requestFeaturedStickers(TimeId now) {
 }
 
 void ApiWrap::requestSavedGifs(TimeId now) {
-	if (cLastSavedGifsUpdate() != 0 && now < cLastSavedGifsUpdate() + kStickersUpdateTimeout) {
-		return;
-	}
-	if (_savedGifsUpdateRequest) {
+	if (!Auth().data().savedGifsUpdateNeeded(now)
+		|| _savedGifsUpdateRequest) {
 		return;
 	}
 	auto onDone = [this](const MTPmessages_SavedGifs &result) {
-		cSetLastSavedGifsUpdate(getms(true));
+		Auth().data().setLastSavedGifsUpdate(getms(true));
 		_savedGifsUpdateRequest = 0;
 
 		switch (result.type()) {
@@ -1615,6 +1606,42 @@ void ApiWrap::requestSavedGifs(TimeId now) {
 		LOG(("App Fail: Failed to get saved gifs!"));
 		onDone(MTP_messages_savedGifsNotModified());
 	}).send();
+}
+
+void ApiWrap::readFeaturedSetDelayed(uint64 setId) {
+	if (!_featuredSetsRead.contains(setId)) {
+		_featuredSetsRead.insert(setId);
+		_featuredSetsReadTimer.callOnce(kReadFeaturedSetsTimeout);
+	}
+}
+
+void ApiWrap::readFeaturedSets() {
+	auto &sets = Auth().data().stickerSetsRef();
+	auto count = Auth().data().featuredStickerSetsUnreadCount();
+	QVector<MTPlong> wrappedIds;
+	wrappedIds.reserve(_featuredSetsRead.size());
+	for (auto setId : _featuredSetsRead) {
+		auto it = sets.find(setId);
+		if (it != sets.cend()) {
+			it->flags &= ~MTPDstickerSet_ClientFlag::f_unread;
+			wrappedIds.append(MTP_long(setId));
+			if (count) {
+				--count;
+			}
+		}
+	}
+	_featuredSetsRead.clear();
+
+	if (!wrappedIds.empty()) {
+		auto requestData = MTPmessages_ReadFeaturedStickers(
+			MTP_vector<MTPlong>(wrappedIds));
+		request(std::move(requestData)).done([](const MTPBool &result) {
+			Local::writeFeaturedStickers();
+			Auth().data().markStickersUpdated();
+		}).send();
+
+		Auth().data().setFeaturedStickerSetsUnreadCount(count);
+	}
 }
 
 void ApiWrap::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
