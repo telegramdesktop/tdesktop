@@ -1023,7 +1023,7 @@ public:
 	QString getTitle() const {
 		return _title.originalText();
 	}
-	static QString fillAmountAndCurrency(int amount, const QString &currency);
+	static QString fillAmountAndCurrency(uint64 amount, const QString &currency);
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;

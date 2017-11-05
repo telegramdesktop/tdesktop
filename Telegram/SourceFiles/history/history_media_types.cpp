@@ -4225,14 +4225,20 @@ int HistoryGame::bottomInfoPadding() const {
 	return result;
 }
 
-HistoryInvoice::HistoryInvoice(not_null<HistoryItem*> parent, const MTPDmessageMediaInvoice &data) : HistoryMedia(parent)
+HistoryInvoice::HistoryInvoice(
+	not_null<HistoryItem*> parent,
+	const MTPDmessageMediaInvoice &data)
+: HistoryMedia(parent)
 , _title(st::msgMinWidth)
 , _description(st::msgMinWidth)
 , _status(st::msgMinWidth) {
 	fillFromData(data);
 }
 
-HistoryInvoice::HistoryInvoice(not_null<HistoryItem*> parent, const HistoryInvoice &other) : HistoryMedia(parent)
+HistoryInvoice::HistoryInvoice(
+	not_null<HistoryItem*> parent,
+	const HistoryInvoice &other)
+: HistoryMedia(parent)
 , _attach(other._attach ? other._attach->clone(parent) : nullptr)
 , _titleHeight(other._titleHeight)
 , _descriptionHeight(other._descriptionHeight)
@@ -4241,7 +4247,7 @@ HistoryInvoice::HistoryInvoice(not_null<HistoryItem*> parent, const HistoryInvoi
 , _status(other._status) {
 }
 
-QString HistoryInvoice::fillAmountAndCurrency(int amount, const QString &currency) {
+QString HistoryInvoice::fillAmountAndCurrency(uint64 amount, const QString &currency) {
 	static auto shortCurrencyNames = QMap<QString, QString> {
 		{ qsl("USD"), QString::fromUtf8("\x24") },
 		{ qsl("GBP"), QString::fromUtf8("\xC2\xA3") },
@@ -4285,7 +4291,6 @@ void HistoryInvoice::fillFromData(const MTPDmessageMediaInvoice &data) {
 			_attach = std::make_unique<HistoryPhoto>(_parent, photo, QString());
 		}
 	}
-
 	auto labelText = [&data] {
 		if (data.has_receipt_msg_id()) {
 			if (data.is_test()) {
@@ -4297,7 +4302,10 @@ void HistoryInvoice::fillFromData(const MTPDmessageMediaInvoice &data) {
 		}
 		return lang(lng_payments_invoice_label);
 	};
-	auto statusText = TextWithEntities { fillAmountAndCurrency(data.vtotal_amount.v, qs(data.vcurrency)), EntitiesInText() };
+	auto statusText = TextWithEntities {
+		fillAmountAndCurrency(data.vtotal_amount.v, qs(data.vcurrency)),
+		EntitiesInText()
+	};
 	statusText.entities.push_back(EntityInText(EntityInTextBold, 0, statusText.text.size()));
 	statusText.text += ' ' + labelText().toUpper();
 	_status.setMarkedText(st::defaultTextStyle, statusText, itemTextOptions(_parent));
