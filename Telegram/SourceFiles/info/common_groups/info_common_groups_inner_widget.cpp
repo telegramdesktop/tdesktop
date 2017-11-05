@@ -204,7 +204,7 @@ void InnerWidget::saveState(not_null<Memento*> memento) {
 }
 
 void InnerWidget::restoreState(not_null<Memento*> memento) {
-	_listController->restoreState(std::move(memento->listState()));
+	_listController->restoreState(memento->listState());
 }
 
 int InnerWidget::desiredHeight() const {

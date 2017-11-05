@@ -56,11 +56,6 @@ void SectionWidget::init() {
 		}, _content->lifetime());
 }
 
-not_null<Controller*> SectionWidget::controller() const {
-	Expects(_content != nullptr);
-	return _content->controller();
-}
-
 PeerData *SectionWidget::peerForDialogs() const {
 	return _content->peerForDialogs();
 }
@@ -94,13 +89,13 @@ std::unique_ptr<Window::SectionMemento> SectionWidget::createMemento() {
 
 object_ptr<Window::LayerWidget> SectionWidget::moveContentToLayer(
 		QRect bodyGeometry) {
-	if (controller()->wrap() != Wrap::Narrow
+	if (_content->controller()->wrap() != Wrap::Narrow
 		|| width() < LayerWidget::MinimalSupportedWidth()) {
 		return nullptr;
 	}
 	return MoveMemento(
 		std::move(_content)).createLayer(
-			controller()->window(),
+			controller(),
 			bodyGeometry);
 }
 

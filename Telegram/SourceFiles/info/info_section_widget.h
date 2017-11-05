@@ -73,8 +73,6 @@ protected:
 private:
 	void init();
 
-	not_null<Controller*> controller() const;
-
 	object_ptr<WrapWidget> _content;
 
 };
