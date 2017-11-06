@@ -51,6 +51,9 @@ public:
 	rpl::producer<QString> queryValue() const {
 		return _query.value();
 	}
+	rpl::producer<QString> queryChanges() const {
+		return _query.changes();
+	}
 
 	rpl::lifetime &lifetime() {
 		return _lifetime;

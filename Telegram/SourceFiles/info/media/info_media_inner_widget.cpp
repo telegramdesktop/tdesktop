@@ -216,9 +216,21 @@ void InnerWidget::refreshSearchField() {
 			st::infoMediaSearch);
 		_searchField->resizeToWidth(width());
 		_searchField->show();
+		search->queryChanges()
+			| rpl::start_with_next([this] {
+				scrollToSearchField();
+			}, _searchField->lifetime());
 	} else {
 		_searchField = nullptr;
 	}
+}
+
+void InnerWidget::scrollToSearchField() {
+	Expects(_searchField != nullptr);
+
+	auto top = _searchField->y();
+	auto bottom = top + _searchField->height();
+	_scrollToRequests.fire({ top, bottom });
 }
 
 object_ptr<ListWidget> InnerWidget::setupList() {
@@ -232,7 +244,10 @@ object_ptr<ListWidget> InnerWidget::setupList() {
 	using namespace rpl::mappers;
 	result->scrollToRequests()
 		| rpl::map([widget = result.data()](int to) {
-			return widget->y() + to;
+			return Ui::ScrollToRequest {
+				widget->y() + to,
+				-1
+			};
 		})
 		| rpl::start_to_stream(
 			_scrollToRequests,

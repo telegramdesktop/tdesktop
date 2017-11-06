@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/widgets/scroll_area.h"
 #include "base/unique_qptr.h"
 #include "info/media/info_media_widget.h"
 #include "info/media/info_media_list_widget.h"
@@ -51,7 +52,7 @@ public:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
 
-	rpl::producer<int> scrollToRequests() const {
+	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const {
 		return _scrollToRequests.events();
 	}
 	rpl::producer<SelectedItems> selectedListValue() const;
@@ -77,6 +78,7 @@ private:
 	Type type() const;
 
 	void refreshSearchField();
+	void scrollToSearchField();
 	object_ptr<ListWidget> setupList();
 
 	const not_null<Controller*> _controller;
@@ -90,7 +92,7 @@ private:
 
 	bool _inResize = false;
 
-	rpl::event_stream<int> _scrollToRequests;
+	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 	rpl::event_stream<rpl::producer<SelectedItems>> _selectedLists;
 
 };

@@ -25,10 +25,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/storage_shared_media.h"
 #include "data/data_search_controller.h"
 
-namespace Ui {
-class SearchFieldController;
-} // namespace Ui
-
 namespace Info {
 namespace Media {
 
