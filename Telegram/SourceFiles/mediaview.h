@@ -22,8 +22,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/effects/radial_animation.h"
-#include "history/history_shared_media.h"
-#include "history/history_user_photos.h"
+#include "data/data_shared_media.h"
+#include "data/data_user_photos.h"
 
 namespace Media {
 namespace Player {

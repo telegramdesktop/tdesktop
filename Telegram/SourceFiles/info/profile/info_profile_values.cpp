@@ -28,7 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "messenger.h"
 #include "ui/wrap/slide_wrap.h"
 #include "data/data_peer_values.h"
-#include "history/history_shared_media.h"
+#include "data/data_shared_media.h"
 
 namespace Info {
 namespace Profile {

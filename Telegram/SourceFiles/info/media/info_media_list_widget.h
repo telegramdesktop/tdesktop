@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "ui/rp_widget.h"
 #include "info/media/info_media_widget.h"
-#include "history/history_shared_media.h"
+#include "data/data_shared_media.h"
 
 namespace Ui {
 class PopupMenu;

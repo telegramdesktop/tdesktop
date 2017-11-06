@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include <rpl/variable.h>
-#include "history/history_search_controller.h"
+#include "data/data_search_controller.h"
 
 namespace Ui {
 class SearchFieldController;

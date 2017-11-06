@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/producer.h>
 #include "info/info_content_widget.h"
 #include "storage/storage_shared_media.h"
-#include "history/history_search_controller.h"
+#include "data/data_search_controller.h"
 
 namespace Ui {
 class SearchFieldController;

@@ -40,8 +40,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "storage/storage_user_photos.h"
-#include "history/history_sparse_ids.h"
-#include "history/history_search_controller.h"
+#include "data/data_sparse_ids.h"
+#include "data/data_search_controller.h"
 
 namespace {
 

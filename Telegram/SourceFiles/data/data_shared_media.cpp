@@ -18,7 +18,7 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "history/history_shared_media.h"
+#include "data/data_shared_media.h"
 
 #include <rpl/combine.h>
 #include "auth_session.h"
@@ -26,7 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "history/history_media_types.h"
-#include "history/history_sparse_ids.h"
+#include "data/data_sparse_ids.h"
 
 namespace {
 

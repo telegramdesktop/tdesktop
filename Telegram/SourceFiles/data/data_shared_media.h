@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "storage/storage_shared_media.h"
 #include "base/weak_unique_ptr.h"
-#include "history/history_sparse_ids.h"
+#include "data/data_sparse_ids.h"
 
 base::optional<Storage::SharedMediaType> SharedMediaOverviewType(
 	Storage::SharedMediaType type);
