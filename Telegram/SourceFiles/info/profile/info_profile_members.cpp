@@ -135,13 +135,6 @@ void Members::setupButtons() {
 
 	auto addMemberShown = CanAddMemberValue(_peer)
 		| rpl::start_spawning(lifetime());
-	widthValue()
-		| rpl::start_with_next([button = _addMember.data()](int newWidth) {
-			button->moveToRight(
-				st::infoMembersButtonPosition.x(),
-				st::infoMembersButtonPosition.y(),
-				newWidth);
-		}, _addMember->lifetime());
 	_addMember->showOn(rpl::duplicate(addMemberShown));
 	_addMember->addClickHandler([this] { // TODO throttle(ripple duration)
 		this->addMember();
@@ -221,9 +214,6 @@ object_ptr<Members::ListWidget> Members::setupList(
 int Members::resizeGetHeight(int newWidth) {
 	auto availableWidth = newWidth
 		- st::infoMembersButtonPosition.x();
-	if (!_addMember->isHidden()) {
-		availableWidth -= st::infoMembersAddMember.width;
-	}
 
 	auto cancelLeft = availableWidth - _cancelSearch->width();
 	_cancelSearch->moveToLeft(
@@ -241,6 +231,14 @@ int Members::resizeGetHeight(int newWidth) {
 	_search->moveToLeft(
 		searchCurrentLeft,
 		st::infoMembersButtonPosition.y());
+
+	if (!_search->isHidden()) {
+		availableWidth -= st::infoMembersSearch.width;
+	}
+	_addMember->moveToLeft(
+		availableWidth - _addMember->width(),
+		st::infoMembersButtonPosition.y(),
+		newWidth);
 
 	auto fieldLeft = anim::interpolate(
 		cancelLeft,
