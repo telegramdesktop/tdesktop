@@ -133,6 +133,7 @@ private:
 
 	void updateSearchControllers(not_null<ContentMemento*> memento);
 	SearchQuery produceSearchQuery(const QString &query) const;
+	void setupMigrationViewer();
 
 	not_null<WrapWidget*> _widget;
 	not_null<PeerData*> _peer;

@@ -25,6 +25,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/info_content_widget.h"
 #include "info/info_memento.h"
 #include "info/media/info_media_widget.h"
+#include "observer_peer.h"
+#include "window/window_controller.h"
 
 namespace Info {
 namespace {
@@ -52,6 +54,29 @@ Controller::Controller(
 , _window(window)
 , _section(memento->section()) {
 	updateSearchControllers(memento);
+	setupMigrationViewer();
+}
+
+void Controller::setupMigrationViewer() {
+	if (!_peer->isChat() && (!_peer->isChannel() || _migrated != nullptr)) {
+		return;
+	}
+	Notify::PeerUpdateValue(_peer, Notify::PeerUpdate::Flag::MigrationChanged)
+		| rpl::start_with_next([this] {
+			if (_peer->migrateTo() || (_peer->migrateFrom() != _migrated)) {
+				auto windowController = window();
+				auto peerId = _peer->id;
+				auto section = _section;
+				InvokeQueued(_widget, [=] {
+					windowController->showSection(
+						Memento(peerId, section),
+						Window::SectionShow(
+							Window::SectionShow::Way::Backward,
+							anim::type::instant,
+							anim::activation::background));
+				});
+			}
+		}, lifetime());
 }
 
 Wrap Controller::wrap() const {
