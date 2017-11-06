@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <rpl/producer.h>
+#include <rpl/variable.h>
 #include "ui/rp_widget.h"
 
 namespace Window {
@@ -55,7 +55,7 @@ public:
 	void restoreState(not_null<Memento*> memento);
 
 	void setIsStackBottom(bool isStackBottom) {
-		_isStackBottom.fire_copy(isStackBottom);
+		_isStackBottom = isStackBottom;
 	}
 	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const {
 		return _scrollToRequests.events();
@@ -94,7 +94,7 @@ private:
 	bool canHideDetailsEver() const;
 	rpl::producer<bool> canHideDetails() const;
 
-	rpl::event_stream<bool> _isStackBottom;
+	rpl::variable<bool> _isStackBottom = true;
 
 	const not_null<Controller*> _controller;
 	const not_null<PeerData*> _peer;

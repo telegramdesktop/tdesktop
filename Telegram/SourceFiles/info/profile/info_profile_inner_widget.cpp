@@ -319,7 +319,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 	rpl::combine(
 		tracker.atLeastOneShownValue(),
 		_controller->wrapValue(),
-		_isStackBottom.events())
+		_isStackBottom.value())
 		| rpl::combine_previous(ToggledData())
 		| rpl::start_with_next([wrap = result.data()](
 				const ToggledData &was,
@@ -333,7 +333,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 			//auto [nowOneShown, nowWrap, nowStackBottom] = now;
 			wrap->toggle(
 				nowOneShown && (nowWrap != Wrap::Side || !nowStackBottom),
-				(wasOneShown == nowOneShown && wasWrap == nowWrap)
+				(wasStackBottom == nowStackBottom && wasWrap == nowWrap)
 					? anim::type::normal
 					: anim::type::instant);
 		}, result->lifetime());
