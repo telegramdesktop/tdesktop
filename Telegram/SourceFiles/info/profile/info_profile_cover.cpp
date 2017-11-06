@@ -264,17 +264,40 @@ void Cover::initViewers() {
 	using Flag = Notify::PeerUpdate::Flag;
 	Notify::PeerUpdateValue(_peer, Flag::PhotoChanged)
 		| rpl::start_with_next(
-			[this] { this->refreshUserpicLink(); },
+			[this] { refreshUserpicLink(); },
 			lifetime());
 	Notify::PeerUpdateValue(_peer, Flag::NameChanged)
 		| rpl::start_with_next(
-			[this] { this->refreshNameText(); },
+			[this] { refreshNameText(); },
 			lifetime());
 	Notify::PeerUpdateValue(_peer,
 		Flag::UserOnlineChanged | Flag::MembersChanged)
 		| rpl::start_with_next(
-			[this] { this->refreshStatusText(); },
+			[this] { refreshStatusText(); },
 			lifetime());
+	VerifiedValue(_peer)
+		| rpl::start_with_next(
+			[this](bool verified) { setVerified(verified); },
+			lifetime());
+}
+
+void Cover::setVerified(bool verified) {
+	if ((_verifiedCheck != nullptr) == verified) {
+		return;
+	}
+	if (verified) {
+		_verifiedCheck.create(this);
+		_verifiedCheck->show();
+		_verifiedCheck->resize(st::infoVerifiedCheck.size());
+		_verifiedCheck->paintRequest()
+			| rpl::start_with_next([check = _verifiedCheck.data()] {
+				Painter p(check);
+				st::infoVerifiedCheck.paint(p, 0, 0, check->width());
+			}, _verifiedCheck->lifetime());
+	} else {
+		_verifiedCheck.destroy();
+	}
+	refreshNameGeometry(width());
 }
 
 void Cover::initUserpicButton() {
@@ -338,15 +361,26 @@ Cover::~Cover() {
 }
 
 void Cover::refreshNameGeometry(int newWidth) {
+	auto nameLeft = st::infoProfileNameLeft;
+	auto nameTop = st::infoProfileNameTop;
 	auto nameWidth = newWidth
-		- st::infoProfileNameLeft
+		- nameLeft
 		- st::infoProfileNameRight
 		- toggleSkip();
-	_name->resizeToWidth(nameWidth);
-	_name->moveToLeft(
-		st::infoProfileNameLeft,
-		st::infoProfileNameTop,
-		newWidth);
+	if (_verifiedCheck) {
+		nameWidth -= st::infoVerifiedCheckPosition.x()
+			+ st::infoVerifiedCheck.width();
+	}
+	_name->resizeToNaturalWidth(nameWidth);
+	_name->moveToLeft(nameLeft, nameTop, newWidth);
+	if (_verifiedCheck) {
+		auto checkLeft = nameLeft
+			+ _name->width()
+			+ st::infoVerifiedCheckPosition.x();
+		auto checkTop = nameTop
+			+ st::infoVerifiedCheckPosition.y();
+		_verifiedCheck->moveToLeft(checkLeft, checkTop, newWidth);
+	}
 }
 
 void Cover::refreshStatusGeometry(int newWidth) {

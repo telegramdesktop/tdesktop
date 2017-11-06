@@ -214,5 +214,17 @@ rpl::producer<bool> CanAddMemberValue(
 	return rpl::single(false);
 }
 
+rpl::producer<bool> VerifiedValue(
+		not_null<PeerData*> peer) {
+	if (auto user = peer->asUser()) {
+		return Data::PeerFlagValue(user, MTPDuser::Flag::f_verified);
+	} else if (auto channel = peer->asChannel()) {
+		return Data::PeerFlagValue(
+			channel,
+			MTPDchannel::Flag::f_verified);
+	}
+	return rpl::single(false);
+}
+
 } // namespace Profile
 } // namespace Info

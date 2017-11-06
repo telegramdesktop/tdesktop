@@ -81,12 +81,14 @@ private:
 	void refreshStatusText();
 	void refreshNameGeometry(int newWidth);
 	void refreshStatusGeometry(int newWidth);
+	void setVerified(bool verified);
 
 	not_null<PeerData*> _peer;
 	int _onlineCount = 0;
 
 	object_ptr<::Profile::UserpicButton> _userpic;
 	object_ptr<Ui::FlatLabel> _name = { nullptr };
+	object_ptr<Ui::RpWidget> _verifiedCheck = { nullptr };
 	object_ptr<Ui::FlatLabel> _status = { nullptr };
 	//object_ptr<CoverDropArea> _dropArea = { nullptr };
 

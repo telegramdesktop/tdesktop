@@ -73,6 +73,8 @@ rpl::producer<int> CommonGroupsCountValue(
 	not_null<UserData*> user);
 rpl::producer<bool> CanAddMemberValue(
 	not_null<PeerData*> peer);
+rpl::producer<bool> VerifiedValue(
+	not_null<PeerData*> peer);
 
 } // namespace Profile
 } // namespace Info
