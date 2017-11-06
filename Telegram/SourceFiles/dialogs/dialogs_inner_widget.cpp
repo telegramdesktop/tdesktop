@@ -38,6 +38,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "auth_session.h"
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
+#include "window/window_peer_menu.h"
 #include "ui/widgets/multi_select.h"
 
 namespace {
@@ -1240,9 +1241,14 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 	}
 
 	_menu = new Ui::PopupMenu(nullptr);
-	App::main()->fillPeerMenu(_menuPeer, [this](const QString &text, base::lambda<void()> callback) {
-		return _menu->addAction(text, std::move(callback));
-	}, true);
+	Window::PeerMenuOptions options;
+	options.pinToggle = options.showInfo = options.search = true;
+	Window::FillPeerMenu(
+		_menuPeer,
+		[this](const QString &text, base::lambda<void()> callback) {
+			return _menu->addAction(text, std::move(callback));
+		},
+		options);
 	connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroyed(QObject*)));
 	_menu->popup(e->globalPos());
 	e->accept();

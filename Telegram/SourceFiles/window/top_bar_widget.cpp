@@ -36,6 +36,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/dropdown_menu.h"
 #include "dialogs/dialogs_layout.h"
 #include "window/window_controller.h"
+#include "window/window_peer_menu.h"
 #include "calls/calls_instance.h"
 #include "observer_peer.h"
 
@@ -185,9 +186,23 @@ void TopBarWidget::showMenu() {
 					}
 				}));
 				_menuToggle->installEventFilter(_menu);
-				App::main()->fillPeerMenu(peer, [this](const QString &text, base::lambda<void()> callback) {
-					return _menu->addAction(text, std::move(callback));
-				}, false);
+				Window::PeerMenuOptions options;
+				options.showInfo = [&] {
+					if (!Adaptive::ThreeColumn()) {
+						return true;
+					} else if (
+						!Auth().data().thirdSectionInfoEnabled() &&
+						!Auth().data().tabbedReplacedWithInfo()) {
+						return true;
+					}
+					return false;
+				}();
+				Window::FillPeerMenu(
+					peer,
+					[this](const QString &text, base::lambda<void()> callback) {
+						return _menu->addAction(text, std::move(callback));
+					},
+					options);
 				_menu->moveToRight((parentWidget()->width() - width()) + st::topBarMenuPosition.x(), st::topBarMenuPosition.y());
 				_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
 			}

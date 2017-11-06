@@ -4565,12 +4565,12 @@ void HistoryWidget::onReportSpamClear() {
 		if (peer->isUser()) {
 			App::main()->deleteConversation(peer);
 		} else if (auto chat = peer->asChat()) {
-			MTP::send(MTPmessages_DeleteChatUser(chat->inputChat, App::self()->inputUser), App::main()->rpcDone(&MainWidget::deleteHistoryAfterLeave, peer), App::main()->rpcFail(&MainWidget::leaveChatFailed, peer));
+			App::main()->deleteAndExit(chat);
 		} else if (auto channel = peer->asChannel()) {
 			if (channel->migrateFrom()) {
 				App::main()->deleteConversation(channel->migrateFrom());
 			}
-			MTP::send(MTPchannels_LeaveChannel(channel->inputChannel), App::main()->rpcDone(&MainWidget::sentUpdatesReceived));
+			Auth().api().leaveChannel(channel);
 		}
 	});
 

@@ -26,6 +26,23 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/unique_qptr.h"
 
 namespace Ui {
+namespace details {
+
+template <typename Value>
+class AttachmentOwner : public QObject {
+public:
+	template <typename OtherValue>
+	AttachmentOwner(QObject *parent, OtherValue &&value)
+	: QObject(parent)
+	, _value(std::forward<OtherValue>(value)) {
+	}
+
+private:
+	Value _value;
+
+};
+
+} // namespace details
 
 template <typename Widget, typename ...Args>
 inline base::unique_qptr<Widget> CreateObject(Args &&...args) {
@@ -42,6 +59,14 @@ inline Widget *CreateChild(
 	return base::make_unique_q<Widget>(
 		parent,
 		std::forward<Args>(args)...).release();
+}
+
+template <typename Value>
+inline void AttachAsChild(not_null<QObject*> parent, Value &&value) {
+	using PlainValue = std::decay_t<Value>;
+	CreateChild<details::AttachmentOwner<PlainValue>>(
+		parent.get(),
+		std::forward<Value>(value));
 }
 
 template <typename Widget>
