@@ -71,10 +71,6 @@ void SlideAnimation::paintContents(Painter &p, const QRect &update) const {
 		p.setOpacity(progress);
 		st::slideShadow.fill(p, QRect(coordOver - st::slideShadow.width(), 0, st::slideShadow.width(), _cacheOver.height() / retina));
 	}
-	if (_topBarShadowEnabled) {
-		p.setOpacity(1);
-		p.fillRect(0, st::topBarHeight, _cacheOver.width() / retina, st::lineWidth, st::shadowFg);
-	}
 }
 
 void SlideAnimation::setDirection(SlideDirection direction) {

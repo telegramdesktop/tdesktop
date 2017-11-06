@@ -66,7 +66,10 @@ WrapWidget::WrapWidget(
 , _wrap(wrap)
 , _controller(createController(window, memento->content()))
 , _topShadow(this) {
-	_topShadow->toggleOn(topShadowToggledValue());
+	_topShadow->toggleOn(topShadowToggledValue()
+		| rpl::filter([](bool shown) {
+			return true;
+		}));
 	_wrap.changes()
 		| rpl::start_with_next([this] {
 			setupTop();
@@ -452,7 +455,7 @@ QPixmap WrapWidget::grabForShowAnimation(
 	if (params.withTopBarShadow) {
 		_topShadow->setVisible(false);
 	} else {
-		_topShadow->toggle(_topShadow->toggled(), anim::type::instant);
+		_topShadow->setVisible(_topShadow->toggled());
 	}
 	if (params.withTabs && _topTabs) {
 		_topTabs->hide();
@@ -472,6 +475,9 @@ void WrapWidget::showAnimatedHook(
 	if (params.withTabs && _topTabs) {
 		_topTabs->show();
 		_topTabsBackground->show();
+	}
+	if (params.withTopBarShadow) {
+		_topShadow->setVisible(true);
 	}
 }
 
@@ -544,7 +550,7 @@ void WrapWidget::showNewContent(
 			&& newContent->hasTopBarShadow();
 		animationParams.oldContentCache = grabForShowAnimation(
 			animationParams);
-//		animationParams.withFade = (wrap() == Wrap::Layer);
+		animationParams.withFade = (wrap() == Wrap::Layer);
 	}
 	if (saveToStack) {
 		auto item = StackItem();

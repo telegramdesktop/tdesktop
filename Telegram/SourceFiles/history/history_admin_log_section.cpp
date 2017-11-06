@@ -440,6 +440,7 @@ void Widget::onScroll() {
 void Widget::showAnimatedHook(
 		const Window::SectionSlideParams &params) {
 	_fixedBar->setAnimatingMode(true);
+	if (params.withTopBarShadow) _fixedBarShadow->show();
 }
 
 void Widget::showFinishedHook() {
