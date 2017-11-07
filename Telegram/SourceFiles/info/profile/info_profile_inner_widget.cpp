@@ -33,6 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_cover.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_members.h"
+#include "info/profile/info_profile_actions.h"
 #include "info/media/info_media_buttons.h"
 #include "boxes/abstract_box.h"
 #include "boxes/add_contact_box.h"
@@ -58,268 +59,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Info {
 namespace Profile {
-namespace {
-
-template <typename Text, typename ToggleOn, typename Callback>
-void AddActionButton(
-		not_null<Ui::VerticalLayout*> parent,
-		Text &&text,
-		ToggleOn &&toggleOn,
-		Callback &&callback,
-		const style::InfoProfileButton &st
-			= st::infoSharedMediaButton) {
-	parent->add(object_ptr<Ui::SlideWrap<Button>>(
-		parent,
-		object_ptr<Button>(
-			parent,
-			std::move(text),
-			st))
-	)->toggleOn(
-		std::move(toggleOn)
-	)->entity()->addClickHandler(std::move(callback));
-};
-
-void ShareContactBox(not_null<UserData*> user) {
-	auto callback = [user](not_null<PeerData*> peer) {
-		if (!peer->canWrite()) {
-			Ui::show(Box<InformBox>(
-				lang(lng_forward_share_cant)),
-				LayerOption::KeepOther);
-			return;
-		}
-		auto recipient = peer->isUser()
-			? peer->name
-			: '\xAB' + peer->name + '\xBB';
-		Ui::show(Box<ConfirmBox>(
-			lng_forward_share_contact(lt_recipient, recipient),
-			lang(lng_forward_send),
-			[peer, user] {
-				App::main()->onShareContact(
-					peer->id,
-					user);
-				Ui::hideLayer();
-			}), LayerOption::KeepOther);
-	};
-	Ui::show(Box<PeerListBox>(
-		std::make_unique<ChooseRecipientBoxController>(std::move(callback)),
-		[](not_null<PeerListBox*> box) {
-			box->addButton(langFactory(lng_cancel), [box] {
-				box->closeBox();
-			});
-		}));
-}
-
-object_ptr<Ui::RpWidget> createSkipWidget(
-		not_null<Ui::RpWidget*> parent) {
-	return Ui::CreateSkipWidget(parent, st::infoProfileSkip);
-}
-
-object_ptr<Ui::SlideWrap<>> createSlideSkipWidget(
-		not_null<Ui::RpWidget*> parent) {
-	return Ui::CreateSlideSkipWidget(parent, st::infoProfileSkip);
-}
-
-void addShareContactAction(
-		not_null<Ui::VerticalLayout*> parent,
-		not_null<UserData*> user) {
-	AddActionButton(
-		parent,
-		Lang::Viewer(lng_profile_share_contact),
-		CanShareContactValue(user),
-		[user] { ShareContactBox(user); });
-}
-
-void addEditContactAction(
-		not_null<Ui::VerticalLayout*> parent,
-		not_null<UserData*> user) {
-	AddActionButton(
-		parent,
-		Lang::Viewer(lng_info_edit_contact),
-		IsContactValue(user),
-		[user] { Ui::show(Box<AddContactBox>(user)); });
-}
-
-void addClearHistoryAction(
-		not_null<Ui::VerticalLayout*> parent,
-		not_null<UserData*> user) {
-	auto callback = [user] {
-		auto confirmation = lng_sure_delete_history(
-			lt_contact,
-			App::peerName(user));
-		auto confirmCallback = [user] {
-			Ui::hideLayer();
-			App::main()->clearHistory(user);
-			Ui::showPeerHistory(user, ShowAtUnreadMsgId);
-		};
-		auto box = Box<ConfirmBox>(
-			confirmation,
-			lang(lng_box_delete),
-			st::attentionBoxButton,
-			std::move(confirmCallback));
-		Ui::show(std::move(box));
-	};
-	AddActionButton(
-		parent,
-		Lang::Viewer(lng_profile_clear_history),
-		rpl::single(true),
-		std::move(callback));
-}
-
-void addDeleteConversationAction(
-		not_null<Ui::VerticalLayout*> parent,
-		not_null<UserData*> user) {
-	auto callback = [user] {
-		auto confirmation = lng_sure_delete_history(
-			lt_contact,
-			App::peerName(user));
-		auto confirmButton = lang(lng_box_delete);
-		auto confirmCallback = [user] {
-			Ui::hideLayer();
-			Ui::showChatsList();
-			App::main()->deleteConversation(user);
-		};
-		auto box = Box<ConfirmBox>(
-			confirmation,
-			confirmButton,
-			st::attentionBoxButton,
-			std::move(confirmCallback));
-		Ui::show(std::move(box));
-	};
-	AddActionButton(
-		parent,
-		Lang::Viewer(lng_profile_delete_conversation),
-		rpl::single(true),
-		std::move(callback));
-}
-
-void addBotCommandActions(
-		not_null<Ui::VerticalLayout*> parent,
-		not_null<UserData*> user) {
-	auto findBotCommand = [user](const QString &command) {
-		if (!user->botInfo) {
-			return QString();
-		}
-		for_const (auto &data, user->botInfo->commands) {
-			auto isSame = data.command.compare(
-				command,
-				Qt::CaseInsensitive) == 0;
-			if (isSame) {
-				return data.command;
-			}
-		}
-		return QString();
-	};
-	auto hasBotCommandValue = [=](const QString &command) {
-		return Notify::PeerUpdateValue(
-			user,
-			Notify::PeerUpdate::Flag::BotCommandsChanged)
-			| rpl::map([=] {
-				return !findBotCommand(command).isEmpty();
-			});
-	};
-	auto sendBotCommand = [=](const QString &command) {
-		auto original = findBotCommand(command);
-		if (!original.isEmpty()) {
-			Ui::showPeerHistory(user, ShowAtTheEndMsgId);
-			App::sendBotCommand(user, user, '/' + original);
-		}
-	};
-	auto addBotCommand = [=](LangKey key, const QString &command) {
-		AddActionButton(
-			parent,
-			Lang::Viewer(key),
-			hasBotCommandValue(command),
-			[=] { sendBotCommand(command); });
-	};
-	addBotCommand(lng_profile_bot_help, qsl("help"));
-	addBotCommand(lng_profile_bot_settings, qsl("settings"));
-}
-
-void addReportAction(
-		not_null<Ui::VerticalLayout*> parent,
-		not_null<UserData*> user) {
-	AddActionButton(
-		parent,
-		Lang::Viewer(lng_profile_report),
-		rpl::single(true),
-		[user] { Ui::show(Box<ReportBox>(user)); },
-		st::infoBlockButton);
-}
-
-void addBlockAction(
-		not_null<Ui::VerticalLayout*> parent,
-		not_null<UserData*> user) {
-	auto text = Notify::PeerUpdateValue(
-		user,
-		Notify::PeerUpdate::Flag::UserIsBlocked)
-		| rpl::map([user]() -> rpl::producer<QString> {
-			switch (user->blockStatus()) {
-			case UserData::BlockStatus::Blocked:
-				return Lang::Viewer(user->botInfo
-					? lng_profile_unblock_bot
-					: lng_profile_unblock_user);
-			case UserData::BlockStatus::NotBlocked:
-				return Lang::Viewer(user->botInfo
-					? lng_profile_block_bot
-					: lng_profile_block_user);
-			default:
-				return rpl::single(QString());
-			}
-		})
-		| rpl::flatten_latest()
-		| rpl::start_spawning(parent->lifetime());
-
-	auto toggleOn = rpl::duplicate(text)
-		| rpl::map([](const QString &text) {
-			return !text.isEmpty();
-		});
-	auto callback = [user] {
-		if (user->isBlocked()) {
-			Auth().api().unblockUser(user);
-		} else {
-			Auth().api().blockUser(user);
-		}
-	};
-	AddActionButton(
-		parent,
-		rpl::duplicate(text),
-		std::move(toggleOn),
-		std::move(callback),
-		st::infoBlockButton);
-}
-
-object_ptr<Ui::RpWidget> setupUserActions(
-		not_null<Ui::RpWidget*> parent,
-		not_null<UserData*> user) {
-	auto result = object_ptr<Ui::VerticalLayout>(parent);
-	result->add(createSkipWidget(result));
-
-	addShareContactAction(result, user);
-	addEditContactAction(result, user);
-	addClearHistoryAction(result, user);
-	addDeleteConversationAction(result, user);
-	if (!user->isSelf()) {
-		if (user->botInfo) {
-			addBotCommandActions(result, user);
-		}
-		result->add(CreateSkipWidget(
-			result,
-			st::infoBlockButtonSkip));
-		if (user->botInfo) {
-			addReportAction(result, user);
-		}
-		addBlockAction(result, user);
-	}
-	result->add(createSkipWidget(result));
-
-	object_ptr<FloatingIcon>(
-		result,
-		st::infoIconActions,
-		st::infoIconPosition);
-	return std::move(result);
-}
-
-} // namespace
 
 InnerWidget::InnerWidget(
 	QWidget *parent,
@@ -347,13 +86,13 @@ rpl::producer<bool> InnerWidget::canHideDetails() const {
 }
 
 object_ptr<Ui::RpWidget> InnerWidget::setupContent(
-		RpWidget *parent) {
+		not_null<RpWidget*> parent) {
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
 	_cover = result->add(object_ptr<Cover>(
 		result,
 		_peer));
 	_cover->setOnlineCount(rpl::single(0));
-	auto details = setupDetails(parent);
+	auto details = SetupDetails(_controller, parent, _peer);
 	if (canHideDetailsEver()) {
 		_cover->setToggleShown(canHideDetails());
 		_infoWrap = result->add(object_ptr<Ui::SlideWrap<>>(
@@ -363,15 +102,13 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	} else {
 		result->add(std::move(details));
 	}
-	result->add(setupSharedMedia(result));
+	result->add(setupSharedMedia(result.data()));
 	result->add(object_ptr<BoxContentDivider>(result));
-	if (auto user = _peer->asUser()) {
-		result->add(setupUserActions(result, user));
-	//} else if (auto channel = _peer->asChannel()) {
-	//	if (!channel->isMegagroup()) {
-	//		setupChannelActions(result, channel);
-	//	}
+
+	if (auto actions = SetupActions(_controller, result.data(), _peer)) {
+		result->add(std::move(actions));
 	}
+
 	if (_peer->isChat() || _peer->isMegagroup()) {
 		_members = result->add(object_ptr<Members>(
 			result,
@@ -395,143 +132,8 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	return std::move(result);
 }
 
-object_ptr<Ui::RpWidget> InnerWidget::setupDetails(
-		RpWidget *parent) const {
-	auto result = object_ptr<Ui::VerticalLayout>(parent);
-	result->add(object_ptr<BoxContentDivider>(result));
-	result->add(createSkipWidget(result));
-	result->add(setupInfo(result));
-	result->add(setupMuteToggle(result));
-	if (auto user = _peer->asUser()) {
-		setupUserButtons(result, user);
-	//} else if (auto channel = _peer->asChannel()) {
-	//	if (!channel->isMegagroup()) {
-	//		setupChannelButtons(result, channel);
-	//	}
-	}
-	result->add(createSkipWidget(result));
-	return std::move(result);
-}
-
-object_ptr<Ui::RpWidget> InnerWidget::setupInfo(
-		RpWidget *parent) const {
-	auto result = object_ptr<Ui::VerticalLayout>(parent);
-	auto tracker = Ui::MultiSlideTracker();
-	auto addInfoLine = [&](
-			LangKey label,
-			rpl::producer<TextWithEntities> &&text,
-			bool selectByDoubleClick = false,
-			const style::FlatLabel &textSt = st::infoLabeled) {
-		auto line = result->add(CreateTextWithLabel(
-			result,
-			Lang::Viewer(label) | WithEmptyEntities(),
-			std::move(text),
-			textSt,
-			st::infoProfileLabeledPadding,
-			selectByDoubleClick));
-		tracker.track(line);
-		return line;
-	};
-	auto addInfoOneLine = [&](
-			LangKey label,
-			rpl::producer<TextWithEntities> &&text) {
-		addInfoLine(
-			label,
-			std::move(text),
-			true,
-			st::infoLabeledOneLine);
-	};
-	if (auto user = _peer->asUser()) {
-		addInfoOneLine(lng_info_mobile_label, PhoneValue(user));
-		if (user->botInfo) {
-			addInfoLine(lng_info_about_label, AboutValue(user));
-		} else {
-			addInfoLine(lng_info_bio_label, BioValue(user));
-		}
-		addInfoOneLine(lng_info_username_label, UsernameValue(user));
-	} else {
-		addInfoOneLine(lng_info_link_label, LinkValue(_peer));
-		addInfoLine(lng_info_about_label, AboutValue(_peer));
-	}
-	result->add(object_ptr<Ui::SlideWrap<>>(
-		result,
-		object_ptr<Ui::PlainShadow>(result),
-		st::infoProfileSeparatorPadding)
-	)->toggleOn(std::move(tracker).atLeastOneShownValue());
-	object_ptr<FloatingIcon>(
-		result,
-		st::infoIconInformation,
-		st::infoInformationIconPosition);
-	return std::move(result);
-}
-
-object_ptr<Ui::RpWidget> InnerWidget::setupMuteToggle(
-		RpWidget *parent) const {
-	auto result = object_ptr<Button>(
-		parent,
-		Lang::Viewer(lng_profile_enable_notifications),
-		st::infoNotificationsButton);
-	result->toggleOn(
-		NotificationsEnabledValue(_peer)
-	)->addClickHandler([this] {
-		App::main()->updateNotifySetting(
-			_peer,
-			_peer->isMuted()
-				? NotifySettingSetNotify
-				: NotifySettingSetMuted);
-	});
-	object_ptr<FloatingIcon>(
-		result,
-		st::infoIconNotifications,
-		st::infoNotificationsIconPosition);
-	return std::move(result);
-}
-
-void InnerWidget::setupUserButtons(
-		Ui::VerticalLayout *wrap,
-		not_null<UserData*> user) const {
-	using namespace rpl::mappers;
-	auto tracker = Ui::MultiSlideTracker();
-	auto topSkip = wrap->add(createSlideSkipWidget(wrap));
-	auto addButton = [&](auto &&text) {
-		auto result = wrap->add(object_ptr<Ui::SlideWrap<Button>>(
-			wrap,
-			object_ptr<Button>(
-				wrap,
-				std::move(text),
-				st::infoMainButton)));
-		tracker.track(result);
-		return result;
-	};
-	addButton(
-		Lang::Viewer(lng_profile_send_message) | ToUpperValue()
-	)->toggleOn(
-		_controller->window()->historyPeer.value()
-		| rpl::map($1 != user)
-	)->entity()->addClickHandler([this, user] {
-		_controller->window()->showPeerHistory(
-			user,
-			Window::SectionShow::Way::Forward);
-	});
-
-	addButton(
-		Lang::Viewer(lng_info_add_as_contact) | ToUpperValue()
-	)->toggleOn(
-		CanAddContactValue(user)
-	)->entity()->addClickHandler([user] {
-		auto firstName = user->firstName;
-		auto lastName = user->lastName;
-		auto phone = user->phone().isEmpty()
-			? App::phoneFromSharedContact(user->bareId())
-			: user->phone();
-		Ui::show(Box<AddContactBox>(firstName, lastName, phone));
-	});
-
-	topSkip->toggleOn(std::move(tracker).atLeastOneShownValue());
-}
-
 object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
-		RpWidget *parent) {
+		not_null<RpWidget*> parent) {
 	using namespace rpl::mappers;
 	using MediaType = Media::Type;
 

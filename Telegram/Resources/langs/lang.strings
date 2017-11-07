@@ -565,11 +565,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_block_bot" = "Stop and block bot";
 "lng_profile_unblock_bot" = "Unblock bot";
 "lng_profile_invite_to_group" = "Add to Group";
-"lng_profile_delete_contact" = "Delete";
+"lng_profile_delete_contact" = "Delete Contact";
 "lng_profile_set_group_photo" = "Set Photo";
 "lng_profile_add_participant" = "Add Members";
 "lng_profile_view_channel" = "View Channel";
-"lng_profile_join_channel" = "Join";
+"lng_profile_join_channel" = "Join Channel";
 "lng_profile_delete_and_exit" = "Leave";
 "lng_profile_kick" = "Remove";
 "lng_profile_sure_kick" = "Remove {user} from the group?";

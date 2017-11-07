@@ -20,23 +20,25 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-namespace Window {
+namespace Ui {
+class RpWidget;
+}
+
+namespace Info {
 
 class Controller;
 
-struct PeerMenuOptions {
-	bool fromChatsList = false;
-	bool showInfo = false;
-};
+namespace Profile {
 
-using PeerMenuCallback = base::lambda<QAction*(
-	const QString &text,
-	base::lambda<void()> handler)>;
-
-void FillPeerMenu(
+object_ptr<Ui::RpWidget> SetupDetails(
 	not_null<Controller*> controller,
-	not_null<PeerData*> peer,
-	const PeerMenuCallback &callback,
-	const PeerMenuOptions &options);
+	not_null<Ui::RpWidget*> parent,
+	not_null<PeerData*> peer);
 
-} // namespace Window
+object_ptr<Ui::RpWidget> SetupActions(
+	not_null<Controller*> controller,
+	not_null<Ui::RpWidget*> parent,
+	not_null<PeerData*> peer);
+
+} // namespace Profile
+} // namespace Info

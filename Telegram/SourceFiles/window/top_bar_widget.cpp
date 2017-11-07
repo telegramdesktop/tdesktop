@@ -198,6 +198,7 @@ void TopBarWidget::showMenu() {
 					return false;
 				}();
 				Window::FillPeerMenu(
+					_controller,
 					peer,
 					[this](const QString &text, base::lambda<void()> callback) {
 						return _menu->addAction(text, std::move(callback));

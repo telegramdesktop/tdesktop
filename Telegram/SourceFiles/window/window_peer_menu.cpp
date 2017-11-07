@@ -23,11 +23,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
 #include "boxes/mute_settings_box.h"
+#include "boxes/report_box.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "observer_peer.h"
 #include "styles/style_boxes.h"
+#include "window/window_controller.h"
 
 namespace Window {
 namespace{
@@ -35,6 +37,7 @@ namespace{
 class Filler {
 public:
 	Filler(
+		not_null<Controller*> controller,
 		not_null<PeerData*> peer,
 		const PeerMenuCallback &callback,
 		const PeerMenuOptions &options);
@@ -50,6 +53,7 @@ private:
 	void addChatActions(not_null<ChatData*> chat);
 	void addChannelActions(not_null<ChannelData*> channel);
 
+	not_null<Controller*> _controller;
 	not_null<PeerData*> _peer;
 	const PeerMenuCallback &_callback;
 	const PeerMenuOptions &_options;
@@ -97,9 +101,12 @@ auto DeleteAndLeaveHandler(not_null<PeerData*> peer) {
 			} else if (auto chat = peer->asChat()) {
 				App::main()->deleteAndExit(chat);
 			} else if (auto channel = peer->asChannel()) {
-				if (auto migrateFrom = channel->migrateFrom()) {
-					App::main()->deleteConversation(migrateFrom);
-				}
+				// Don't delete old history by default,
+				// because Android app doesn't.
+				//
+				//if (auto migrateFrom = channel->migrateFrom()) {
+				//	App::main()->deleteConversation(migrateFrom);
+				//}
 				Auth().api().leaveChannel(channel);
 			}
 		}));
@@ -107,10 +114,12 @@ auto DeleteAndLeaveHandler(not_null<PeerData*> peer) {
 }
 
 Filler::Filler(
+	not_null<Controller*> controller,
 	not_null<PeerData*> peer,
 	const PeerMenuCallback &callback,
 	const PeerMenuOptions &options)
-: _peer(peer)
+: _controller(controller)
+, _peer(peer)
 , _callback(callback)
 , _options(options) {
 }
@@ -172,13 +181,15 @@ void Filler::addPinToggle() {
 }
 
 void Filler::addInfo() {
-	auto infoKey = (_peer->isChat() || _peer->isMegagroup())
+	auto controller = _controller;
+	auto peer = _peer;
+	auto infoKey = (peer->isChat() || peer->isMegagroup())
 		? lng_context_view_group
-		: (_peer->isUser()
+		: (peer->isUser()
 			? lng_context_view_profile
 			: lng_context_view_channel);
-	_callback(lang(infoKey), [peer = _peer] {
-		Ui::showPeerProfile(peer);
+	_callback(lang(infoKey), [=] {
+		controller->showPeerInfo(peer);
 	});
 }
 
@@ -286,23 +297,32 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 }
 
 void Filler::addChannelActions(not_null<ChannelData*> channel) {
-	if (channel->amIn() && !channel->amCreator()) {
+	if (channel->amIn()) {
 		auto leaveText = lang(channel->isMegagroup()
 			? lng_profile_leave_group
 			: lng_profile_leave_channel);
 		_callback(leaveText, DeleteAndLeaveHandler(channel));
 	}
+	if (!_options.fromChatsList) {
+		auto needReport = !channel->amCreator()
+			&& (!channel->isMegagroup() || channel->isPublic());
+		if (needReport) {
+			_callback(lang(lng_profile_report), [channel] {
+				Ui::show(Box<ReportBox>(channel));
+			});
+		}
+	}
 }
 
 void Filler::fill() {
-	if (_options.pinToggle) {
+	if (_options.fromChatsList) {
 		addPinToggle();
 	}
 	if (_options.showInfo) {
 		addInfo();
 	}
 	addNotifications();
-	if (_options.search) {
+	if (_options.fromChatsList) {
 		addSearch();
 	}
 
@@ -318,10 +338,11 @@ void Filler::fill() {
 } // namespace
 
 void FillPeerMenu(
+		not_null<Controller*> controller,
 		not_null<PeerData*> peer,
 		const PeerMenuCallback &callback,
 		const PeerMenuOptions &options) {
-	Filler filler(peer, callback, options);
+	Filler filler(controller, peer, callback, options);
 	filler.fill();
 }
 

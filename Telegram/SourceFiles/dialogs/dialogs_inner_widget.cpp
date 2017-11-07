@@ -1242,8 +1242,9 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 
 	_menu = new Ui::PopupMenu(nullptr);
 	Window::PeerMenuOptions options;
-	options.pinToggle = options.showInfo = options.search = true;
+	options.fromChatsList = options.showInfo = true;
 	Window::FillPeerMenu(
+		_controller,
 		_menuPeer,
 		[this](const QString &text, base::lambda<void()> callback) {
 			return _menu->addAction(text, std::move(callback));

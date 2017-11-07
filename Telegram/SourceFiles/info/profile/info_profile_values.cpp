@@ -132,6 +132,19 @@ rpl::producer<bool> IsContactValue(
 		| rpl::map([user] { return user->isContact(); });
 }
 
+rpl::producer<bool> CanInviteBotToGroupValue(
+		not_null<UserData*> user) {
+	if (!user->botInfo) {
+		return rpl::single(false);
+	}
+	return Notify::PeerUpdateValue(
+			user,
+			Notify::PeerUpdate::Flag::BotCanAddToGroups)
+		| rpl::map([user] {
+			return !user->botInfo->cantJoinGroups;
+		});
+}
+
 rpl::producer<bool> CanShareContactValue(
 		not_null<UserData*> user) {
 	return Notify::PeerUpdateValue(
@@ -151,12 +164,20 @@ rpl::producer<bool> CanAddContactValue(
 			!$1 && $2);
 }
 
+rpl::producer<bool> AmInChannelValue(
+		not_null<ChannelData*> channel) {
+	return Notify::PeerUpdateValue(
+		channel,
+		Notify::PeerUpdate::Flag::ChannelAmIn)
+		| rpl::map([channel] { return channel->amIn(); });
+}
+
 rpl::producer<int> MembersCountValue(
 		not_null<PeerData*> peer) {
 	if (auto chat = peer->asChat()) {
 		return Notify::PeerUpdateValue(
-				peer,
-				Notify::PeerUpdate::Flag::MembersChanged)
+			peer,
+			Notify::PeerUpdate::Flag::MembersChanged)
 			| rpl::map([chat] {
 				return chat->amIn()
 					? qMax(chat->count, chat->participants.size())

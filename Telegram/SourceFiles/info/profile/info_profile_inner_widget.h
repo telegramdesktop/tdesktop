@@ -32,6 +32,7 @@ class VerticalLayout;
 template <typename Widget>
 class SlideWrap;
 struct ScrollToRequest;
+class MultiSlideTracker;
 } // namespace Ui
 
 namespace Info {
@@ -72,15 +73,8 @@ protected:
 		int visibleBottom) override;
 
 private:
-	object_ptr<RpWidget> setupContent(RpWidget *parent);
-	object_ptr<RpWidget> setupDetails(RpWidget *parent) const;
-	object_ptr<RpWidget> setupSharedMedia(RpWidget *parent);
-	object_ptr<RpWidget> setupMuteToggle(RpWidget *parent) const;
-	object_ptr<RpWidget> setupInfo(RpWidget *parent) const;
-
-	void setupUserButtons(
-		Ui::VerticalLayout *wrap,
-		not_null<UserData*> user) const;
+	object_ptr<RpWidget> setupContent(not_null<RpWidget*> parent);
+	object_ptr<RpWidget> setupSharedMedia(not_null<RpWidget*> parent);
 
 	int countDesiredHeight() const;
 
