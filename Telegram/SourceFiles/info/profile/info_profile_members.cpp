@@ -28,7 +28,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_members_controllers.h"
 #include "info/info_content_widget.h"
 #include "info/info_controller.h"
-#include "profile/profile_block_group_members.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"

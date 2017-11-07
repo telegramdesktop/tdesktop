@@ -55,7 +55,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "data/data_shared_media.h"
-#include "profile/profile_common_groups_section.h"
 
 namespace Info {
 namespace Profile {

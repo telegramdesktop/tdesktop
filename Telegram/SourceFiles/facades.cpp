@@ -20,7 +20,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "facades.h"
 
-#include "profile/profile_section_memento.h"
 #include "info/info_memento.h"
 #include "core/click_handler_types.h"
 #include "media/media_clip_reader.h"

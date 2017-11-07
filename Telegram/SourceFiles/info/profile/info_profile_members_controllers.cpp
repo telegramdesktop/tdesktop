@@ -154,10 +154,12 @@ void ChatMembersController::restoreState(
 
 void ChatMembersController::rebuildRows() {
 	if (_chat->participants.empty()) {
-		while (delegate()->peerListFullRowsCount() > 0) {
-			delegate()->peerListRemoveRow(
-				delegate()->peerListRowAt(0));
-		}
+		// We get such updates often
+		// (when participants list was invalidated).
+		//while (delegate()->peerListFullRowsCount() > 0) {
+		//	delegate()->peerListRemoveRow(
+		//		delegate()->peerListRowAt(0));
+		//}
 		return;
 	}
 
@@ -233,7 +235,7 @@ Ui::PopupMenu *ChatMembersController::rowContextMenu(
 		: (_chat->invitedByMe.contains(user) && !isCreator && !isAdmin)
 		? true
 		: false;
-	
+
 	auto result = new Ui::PopupMenu(nullptr);
 	result->addAction(
 		lang(lng_context_view_profile),

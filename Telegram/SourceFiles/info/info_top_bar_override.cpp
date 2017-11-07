@@ -35,24 +35,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Info {
 
-ChooseRecipientBoxController::ChooseRecipientBoxController(
-	base::lambda<void(not_null<PeerData*>)> callback)
-: _callback(std::move(callback)) {
-}
-
-void ChooseRecipientBoxController::prepareViewHook() {
-	delegate()->peerListSetTitle(langFactory(lng_forward_choose));
-}
-
-void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
-	_callback(row->peer());
-}
-
-auto ChooseRecipientBoxController::createRow(
-		not_null<History*> history) -> std::unique_ptr<Row> {
-	return std::make_unique<Row>(history);
-}
-
 TopBarOverride::TopBarOverride(
 	QWidget *parent,
 	const style::InfoTopBar &st,

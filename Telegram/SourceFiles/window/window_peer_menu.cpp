@@ -23,7 +23,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
 #include "boxes/mute_settings_box.h"
+#include "boxes/add_contact_box.h"
 #include "boxes/report_box.h"
+#include "boxes/peer_list_controllers.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
@@ -32,14 +34,37 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/window_controller.h"
 
 namespace Window {
-namespace{
+namespace {
+
+void AddChatMembers(not_null<ChatData*> chat) {
+	if (chat->count >= Global::ChatSizeMax() && chat->amCreator()) {
+		Ui::show(Box<ConvertToSupergroupBox>(chat));
+	} else {
+		AddParticipantsBoxController::Start(chat);
+	}
+}
+
+void AddChannelMembers(not_null<ChannelData*> channel) {
+	if (channel->isMegagroup()) {
+		auto &participants = channel->mgInfo->lastParticipants;
+		AddParticipantsBoxController::Start(
+			channel,
+			{ participants.cbegin(), participants.cend() });
+	} else if (channel->membersCount() >= Global::ChatSizeMax()) {
+		Ui::show(
+			Box<MaxInviteBox>(channel),
+			LayerOption::KeepOther);
+	} else {
+		AddParticipantsBoxController::Start(channel, { });
+	}
+}
 
 class Filler {
 public:
 	Filler(
 		not_null<Controller*> controller,
 		not_null<PeerData*> peer,
-		const PeerMenuCallback &callback,
+		const PeerMenuCallback &addAction,
 		const PeerMenuOptions &options);
 	void fill();
 
@@ -55,7 +80,7 @@ private:
 
 	not_null<Controller*> _controller;
 	not_null<PeerData*> _peer;
-	const PeerMenuCallback &_callback;
+	const PeerMenuCallback &_addAction;
 	const PeerMenuOptions &_options;
 
 };
@@ -116,11 +141,11 @@ auto DeleteAndLeaveHandler(not_null<PeerData*> peer) {
 Filler::Filler(
 	not_null<Controller*> controller,
 	not_null<PeerData*> peer,
-	const PeerMenuCallback &callback,
+	const PeerMenuCallback &addAction,
 	const PeerMenuOptions &options)
 : _controller(controller)
 , _peer(peer)
-, _callback(callback)
+, _addAction(addAction)
 , _options(options) {
 }
 
@@ -167,7 +192,7 @@ void Filler::addPinToggle() {
 			}
 		}
 	};
-	auto pinAction = _callback(pinText(isPinned), pinToggle);
+	auto pinAction = _addAction(pinText(isPinned), pinToggle);
 
 	auto lifetime = Notify::PeerUpdateViewer(
 		peer,
@@ -188,7 +213,7 @@ void Filler::addInfo() {
 		: (peer->isUser()
 			? lng_context_view_profile
 			: lng_context_view_channel);
-	_callback(lang(infoKey), [=] {
+	_addAction(lang(infoKey), [=] {
 		controller->showPeerInfo(peer);
 	});
 }
@@ -200,7 +225,7 @@ void Filler::addNotifications() {
 			? lng_enable_notifications_from_tray
 			: lng_disable_notifications_from_tray);
 	};
-	auto muteAction = _callback(muteText(peer->isMuted()), [peer] {
+	auto muteAction = _addAction(muteText(peer->isMuted()), [peer] {
 		if (!peer->isMuted()) {
 			Ui::show(Box<MuteSettingsBox>(peer));
 		} else {
@@ -221,7 +246,7 @@ void Filler::addNotifications() {
 }
 
 void Filler::addSearch() {
-	_callback(lang(lng_profile_search_messages), [peer = _peer] {
+	_addAction(lang(lng_profile_search_messages), [peer = _peer] {
 		App::main()->searchInPeer(peer);
 	});
 }
@@ -236,7 +261,7 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 				? lng_profile_block_bot
 				: lng_profile_block_user));
 	};
-	auto blockAction = _callback(blockText(user), [user] {
+	auto blockAction = _addAction(blockText(user), [user] {
 		auto willBeBlocked = !user->isBlocked();
 		auto handler = ::rpcDone([user, willBeBlocked](const MTPBool &result) {
 			user->setBlockStatus(willBeBlocked
@@ -269,17 +294,34 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 }
 
 void Filler::addUserActions(not_null<UserData*> user) {
-	if (user->isContact()) {
-		// edit contact
-		// share contact
-	} else if (user->canShareThisContact()) {
-		// add contact
-		// share contact
+	if (!_options.fromChatsList) {
+		if (user->isContact()) {
+			_addAction(
+				lang(lng_info_share_contact),
+				[user] { PeerMenuShareContactBox(user); });
+			_addAction(
+				lang(lng_info_edit_contact),
+				[user] { Ui::show(Box<AddContactBox>(user)); });
+			_addAction(
+				lang(lng_info_delete_contact),
+				[user] { PeerMenuDeleteContact(user); });
+		} else if (user->canShareThisContact()) {
+			_addAction(
+				lang(lng_info_add_as_contact),
+				[user] { PeerMenuAddContact(user); });
+			_addAction(
+				lang(lng_info_share_contact),
+				[user] { PeerMenuShareContactBox(user); });
+		} else if (user->botInfo && !user->botInfo->cantJoinGroups) {
+			_addAction(
+				lang(lng_profile_invite_to_group),
+				[user] { AddBotToGroupBoxController::Start(user); });
+		}
 	}
-	_callback(
+	_addAction(
 		lang(lng_profile_delete_conversation),
 		DeleteAndLeaveHandler(user));
-	_callback(
+	_addAction(
 		lang(lng_profile_clear_history),
 		ClearHistoryHandler(user));
 	if (!user->isInaccessible() && user != App::self()) {
@@ -288,26 +330,62 @@ void Filler::addUserActions(not_null<UserData*> user) {
 }
 
 void Filler::addChatActions(not_null<ChatData*> chat) {
-	_callback(
+	if (!_options.fromChatsList) {
+		if (chat->canEdit()) {
+			_addAction(
+				lang(lng_profile_edit_contact),
+				[chat] { Ui::show(Box<EditNameTitleBox>(chat)); });
+		}
+		if (chat->amCreator()
+			&& !chat->isDeactivated()) {
+			_addAction(
+				lang(lng_profile_manage_admins),
+				[chat] { EditChatAdminsBoxController::Start(chat); });
+			_addAction(
+				lang(lng_profile_migrate_button),
+				[chat] { Ui::show(Box<ConvertToSupergroupBox>(chat)); });
+		}
+		if (chat->canEdit()) {
+			_addAction(
+				lang(lng_profile_add_participant),
+				[chat] { AddChatMembers(chat); });
+		}
+	}
+	_addAction(
 		lang(lng_profile_clear_and_exit),
 		DeleteAndLeaveHandler(_peer));
-	_callback(
+	_addAction(
 		lang(lng_profile_clear_history),
 		ClearHistoryHandler(_peer));
 }
 
 void Filler::addChannelActions(not_null<ChannelData*> channel) {
+	if (!_options.fromChatsList) {
+		//_addAction(manage);
+		if (channel->canAddMembers()) {
+			_addAction(
+				lang(lng_channel_add_members),
+				[channel] { AddChannelMembers(channel); });
+		}
+	}
 	if (channel->amIn()) {
 		auto leaveText = lang(channel->isMegagroup()
 			? lng_profile_leave_group
 			: lng_profile_leave_channel);
-		_callback(leaveText, DeleteAndLeaveHandler(channel));
+		_addAction(leaveText, DeleteAndLeaveHandler(channel));
+	} else {
+		auto joinText = lang(channel->isMegagroup()
+			? lng_profile_join_group
+			: lng_profile_join_channel);
+		_addAction(
+			joinText,
+			[channel] { Auth().api().joinChannel(channel); });
 	}
 	if (!_options.fromChatsList) {
 		auto needReport = !channel->amCreator()
 			&& (!channel->isMegagroup() || channel->isPublic());
 		if (needReport) {
-			_callback(lang(lng_profile_report), [channel] {
+			_addAction(lang(lng_profile_report), [channel] {
 				Ui::show(Box<ReportBox>(channel));
 			});
 		}
@@ -336,6 +414,65 @@ void Filler::fill() {
 }
 
 } // namespace
+
+void PeerMenuDeleteContact(not_null<UserData*> user) {
+	auto text = lng_sure_delete_contact(
+		lt_contact,
+		App::peerName(user));
+	auto deleteSure = [=] {
+		Ui::showChatsList();
+		Ui::hideLayer();
+		MTP::send(
+			MTPcontacts_DeleteContact(user->inputUser),
+			App::main()->rpcDone(
+				&MainWidget::deletedContact,
+				user.get()));
+	};
+	auto box = Box<ConfirmBox>(
+		text,
+		lang(lng_box_delete),
+		std::move(deleteSure));
+	Ui::show(std::move(box));
+}
+
+void PeerMenuAddContact(not_null<UserData*> user) {
+	auto firstName = user->firstName;
+	auto lastName = user->lastName;
+	auto phone = user->phone().isEmpty()
+		? App::phoneFromSharedContact(user->bareId())
+		: user->phone();
+	Ui::show(Box<AddContactBox>(firstName, lastName, phone));
+}
+
+void PeerMenuShareContactBox(not_null<UserData*> user) {
+	auto callback = [user](not_null<PeerData*> peer) {
+		if (!peer->canWrite()) {
+			Ui::show(Box<InformBox>(
+				lang(lng_forward_share_cant)),
+				LayerOption::KeepOther);
+			return;
+		}
+		auto recipient = peer->isUser()
+			? peer->name
+			: '\xAB' + peer->name + '\xBB';
+		Ui::show(Box<ConfirmBox>(
+			lng_forward_share_contact(lt_recipient, recipient),
+			lang(lng_forward_send),
+			[peer, user] {
+				App::main()->onShareContact(
+					peer->id,
+					user);
+				Ui::hideLayer();
+			}), LayerOption::KeepOther);
+	};
+	Ui::show(Box<PeerListBox>(
+		std::make_unique<ChooseRecipientBoxController>(std::move(callback)),
+		[](not_null<PeerListBox*> box) {
+			box->addButton(langFactory(lng_cancel), [box] {
+				box->closeBox();
+			});
+		}));
+}
 
 void FillPeerMenu(
 		not_null<Controller*> controller,

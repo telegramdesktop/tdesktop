@@ -228,3 +228,19 @@ private:
 	not_null<UserData*> _bot;
 
 };
+
+class ChooseRecipientBoxController : public ChatsListBoxController {
+public:
+	ChooseRecipientBoxController(
+		base::lambda<void(not_null<PeerData*>)> callback);
+
+	void rowClicked(not_null<PeerListRow*> row) override;
+
+protected:
+	void prepareViewHook() override;
+	std::unique_ptr<Row> createRow(
+		not_null<History*> history) override;
+
+	base::lambda<void(not_null<PeerData*>)> _callback;
+
+};

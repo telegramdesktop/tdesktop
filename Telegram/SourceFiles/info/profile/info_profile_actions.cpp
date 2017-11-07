@@ -39,6 +39,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_text.h"
 #include "window/window_controller.h"
+#include "window/window_peer_menu.h"
 #include "mainwidget.h"
 #include "auth_session.h"
 #include "apiwrap.h"
@@ -93,36 +94,6 @@ auto AddMainButton(
 		std::move(toggleOn),
 		std::move(callback),
 		st::infoMainButton));
-}
-
-void ShareContactBox(not_null<UserData*> user) {
-	auto callback = [user](not_null<PeerData*> peer) {
-		if (!peer->canWrite()) {
-			Ui::show(Box<InformBox>(
-				lang(lng_forward_share_cant)),
-				LayerOption::KeepOther);
-			return;
-		}
-		auto recipient = peer->isUser()
-			? peer->name
-			: '\xAB' + peer->name + '\xBB';
-		Ui::show(Box<ConfirmBox>(
-			lng_forward_share_contact(lt_recipient, recipient),
-			lang(lng_forward_send),
-			[peer, user] {
-				App::main()->onShareContact(
-					peer->id,
-					user);
-				Ui::hideLayer();
-			}), LayerOption::KeepOther);
-	};
-	Ui::show(Box<PeerListBox>(
-		std::make_unique<ChooseRecipientBoxController>(std::move(callback)),
-		[](not_null<PeerListBox*> box) {
-			box->addButton(langFactory(lng_cancel), [box] {
-				box->closeBox();
-			});
-		}));
 }
 
 class DetailsFiller {
@@ -314,20 +285,11 @@ Ui::MultiSlideTracker DetailsFiller::fillUserButtons(
 		std::move(sendMessageVisible),
 		std::move(sendMessage),
 		tracker);
-
-	auto addContact = [user] {
-		auto firstName = user->firstName;
-		auto lastName = user->lastName;
-		auto phone = user->phone().isEmpty()
-			? App::phoneFromSharedContact(user->bareId())
-			: user->phone();
-		Ui::show(Box<AddContactBox>(firstName, lastName, phone));
-	};
 	AddMainButton(
 		_wrap,
 		Lang::Viewer(lng_info_add_as_contact),
 		CanAddContactValue(user),
-		std::move(addContact),
+		[user] { Window::PeerMenuAddContact(user); },
 		tracker);
 
 	return tracker;
@@ -387,9 +349,9 @@ void ActionsFiller::addInviteToGroupAction(
 void ActionsFiller::addShareContactAction(not_null<UserData*> user) {
 	AddActionButton(
 		_wrap,
-		Lang::Viewer(lng_profile_share_contact),
+		Lang::Viewer(lng_info_share_contact),
 		CanShareContactValue(user),
-		[user] { ShareContactBox(user); });
+		[user] { Window::PeerMenuShareContactBox(user); });
 }
 
 void ActionsFiller::addEditContactAction(not_null<UserData*> user) {
@@ -402,30 +364,11 @@ void ActionsFiller::addEditContactAction(not_null<UserData*> user) {
 
 void ActionsFiller::addDeleteContactAction(
 		not_null<UserData*> user) {
-	auto callback = [=] {
-		auto text = lng_sure_delete_contact(
-			lt_contact,
-			App::peerName(user));
-		auto deleteSure = [=] {
-			Ui::showChatsList();
-			Ui::hideLayer();
-			MTP::send(
-				MTPcontacts_DeleteContact(user->inputUser),
-				App::main()->rpcDone(
-					&MainWidget::deletedContact,
-					user.get()));
-		};
-		auto box = Box<ConfirmBox>(
-			text,
-			lang(lng_box_delete),
-			std::move(deleteSure));
-		Ui::show(std::move(box));
-	};
 	AddActionButton(
 		_wrap,
-		Lang::Viewer(lng_profile_delete_contact),
+		Lang::Viewer(lng_info_delete_contact),
 		IsContactValue(user),
-		std::move(callback));
+		[user] { Window::PeerMenuDeleteContact(user); });
 }
 
 void ActionsFiller::addClearHistoryAction(not_null<UserData*> user) {

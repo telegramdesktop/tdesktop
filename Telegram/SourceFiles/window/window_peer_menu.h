@@ -36,7 +36,11 @@ using PeerMenuCallback = base::lambda<QAction*(
 void FillPeerMenu(
 	not_null<Controller*> controller,
 	not_null<PeerData*> peer,
-	const PeerMenuCallback &callback,
+	const PeerMenuCallback &addAction,
 	const PeerMenuOptions &options);
+
+void PeerMenuDeleteContact(not_null<UserData*> user);
+void PeerMenuShareContactBox(not_null<UserData*> user);
+void PeerMenuAddContact(not_null<UserData*> user);
 
 } // namespace Window

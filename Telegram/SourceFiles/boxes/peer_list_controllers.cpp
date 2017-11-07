@@ -860,3 +860,21 @@ void AddBotToGroupBoxController::prepareViewHook() {
 	updateLabels();
 	subscribe(Auth().data().allChatsLoaded(), [this](bool) { updateLabels(); });
 }
+
+ChooseRecipientBoxController::ChooseRecipientBoxController(
+	base::lambda<void(not_null<PeerData*>)> callback)
+: _callback(std::move(callback)) {
+}
+
+void ChooseRecipientBoxController::prepareViewHook() {
+	delegate()->peerListSetTitle(langFactory(lng_forward_choose));
+}
+
+void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
+	_callback(row->peer());
+}
+
+auto ChooseRecipientBoxController::createRow(
+		not_null<History*> history) -> std::unique_ptr<Row> {
+	return std::make_unique<Row>(history);
+}
