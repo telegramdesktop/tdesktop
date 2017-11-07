@@ -28,6 +28,8 @@ namespace Ui {
 class SettingsSlider;
 class FadeShadow;
 class PlainShadow;
+class DropdownMenu;
+class IconButton;
 } // namespace Ui
 
 namespace Window {
@@ -181,6 +183,10 @@ private:
 	void destroyTopBarOverride();
 	bool requireTopBarSearch() const;
 
+	void addProfileMenuButton();
+	void addProfileNotificationsButton();
+	void showProfileMenu();
+
 	rpl::variable<Wrap> _wrap;
 	std::unique_ptr<Controller> _controller;
 	object_ptr<ContentWidget> _content = { nullptr };
@@ -190,6 +196,9 @@ private:
 	object_ptr<TopBarOverride> _topBarOverride = { nullptr };
 	Animation _topBarOverrideAnimation;
 	object_ptr<Ui::FadeShadow> _topShadow;
+	base::unique_qptr<Ui::IconButton> _topBarMenuToggle;
+	base::unique_qptr<Ui::DropdownMenu> _topBarMenu;
+
 	Tab _tab = Tab::Profile;
 	std::unique_ptr<ContentMemento> _anotherTabMemento;
 	std::vector<StackItem> _historyStack;

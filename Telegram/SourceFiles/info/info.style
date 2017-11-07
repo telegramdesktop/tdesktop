@@ -138,6 +138,24 @@ infoTopBarSearch: IconButton(infoTopBarBack) {
 	icon: icon {{ "top_bar_search", boxTitleCloseFg }};
 	iconOver: icon {{ "top_bar_search", boxTitleCloseFgOver }};
 }
+infoTopBarMenu: IconButton(infoTopBarBack) {
+	width: 48px;
+	icon: icon {{ "title_menu_dots", boxTitleCloseFg }};
+	iconOver: icon {{ "title_menu_dots", boxTitleCloseFgOver }};
+	iconPosition: point(18px, -1px);
+	rippleAreaPosition: point(1px, 6px);
+}
+infoTopBarNotifications: IconButton(infoTopBarMenu) {
+	width: 42px;
+	icon: icon {{ "info_notifications", boxTitleCloseFg }};
+	iconOver: icon {{ "info_notifications", boxTitleCloseFgOver }};
+	iconPosition: point(5px, 10px);
+	rippleAreaPosition: point(0px, 6px);
+}
+infoNotificationsActive: icon {{
+	"info_notifications",
+	windowBgActive
+}};
 infoTopBarForward: IconButton(infoTopBarBack) {
 	width: 46px;
 	icon: icon {{ "info_media_forward", boxTitleCloseFg }};
@@ -173,14 +191,27 @@ infoLayerTopBarBack: IconButton(infoTopBarBack) {
 	iconPosition: point(12px, -1px);
 	icon: infoLayerTopBarBackIcon;
 	iconOver: infoLayerTopBarBackIconOver;
-
 	rippleAreaSize: 44px;
 }
 infoLayerTopBarCloseIcon: icon {{ "info_close", boxTitleCloseFg }};
 infoLayerTopBarCloseIconOver: icon {{ "info_close", boxTitleCloseFgOver }};
 infoLayerTopBarClose: IconButton(infoLayerTopBarBack) {
+	width: 50px;
 	icon: infoLayerTopBarCloseIcon;
 	iconOver: infoLayerTopBarCloseIconOver;
+	iconPosition: point(6px, -1px);
+	rippleAreaPosition: point(0px, 6px);
+}
+infoLayerTopBarMenu: IconButton(infoLayerTopBarClose) {
+	width: 44px;
+	icon: icon {{ "title_menu_dots", boxTitleCloseFg }};
+	iconOver: icon {{ "title_menu_dots", boxTitleCloseFgOver }};
+	iconPosition: point(18px, -1px);
+}
+infoLayerTopBarNotifications: IconButton(infoLayerTopBarMenu) {
+	icon: icon {{ "info_notifications", boxTitleCloseFg }};
+	iconOver: icon {{ "info_notifications", boxTitleCloseFgOver }};
+	iconPosition: point(5px, 11px);
 }
 infoLayerTopBarForward: IconButton(infoLayerTopBarBack) {
 	width: 45px;
@@ -206,6 +237,9 @@ infoLayerTopBar: InfoTopBar {
 	search: infoTopBarSearch;
 	searchRow: infoTopBarSearchRow;
 }
+
+infoTopBarMenuPosition: point(-2px, 35px);
+infoLayerTopBarMenuPosition: point(40px, 37px);
 
 infoMinimalWidth: 324px;
 infoDesiredWidth: 430px;

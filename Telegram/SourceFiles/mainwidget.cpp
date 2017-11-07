@@ -4525,9 +4525,6 @@ void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNoti
 		if (_history->peer() == updatePeer) {
 			_history->updateNotifySettings();
 		}
-		if (changed) {
-			Notify::peerUpdatedDelayed(updatePeer, Notify::PeerUpdate::Flag::NotificationsEnabled);
-		}
 	}
 }
 

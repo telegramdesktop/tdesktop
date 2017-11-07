@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/flatten_latest.h>
 #include <rpl/combine.h>
 #include "info/profile/info_profile_widget.h"
+#include "info/profile/info_profile_values.h"
 #include "info/media/info_media_widget.h"
 #include "info/info_content_widget.h"
 #include "info/info_controller.h"
@@ -32,11 +33,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
+#include "ui/widgets/dropdown_menu.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/search_field_controller.h"
 #include "window/window_controller.h"
 #include "window/window_slide_animation.h"
+#include "window/window_peer_menu.h"
 #include "auth_session.h"
+#include "mainwidget.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
@@ -256,10 +260,98 @@ void WrapWidget::createTopBar() {
 			search,
 			_controller->searchEnabledByContent());
 	}
+	if (_controller->section().type() == Section::Type::Profile) {
+		addProfileMenuButton();
+		addProfileNotificationsButton();
+	}
 
 	_topBar->move(0, 0);
 	_topBar->resizeToWidth(width());
 	_topBar->show();
+}
+
+void WrapWidget::addProfileMenuButton() {
+	Expects(_topBar != nullptr);
+
+	_topBarMenuToggle.reset(_topBar->addButton(
+		base::make_unique_q<Ui::IconButton>(
+			_topBar,
+			(wrap() == Wrap::Layer
+				? st::infoLayerTopBarMenu
+				: st::infoTopBarMenu))));
+	_topBarMenuToggle->addClickHandler([this] {
+		showProfileMenu();
+	});
+}
+
+void WrapWidget::addProfileNotificationsButton() {
+	Expects(_topBar != nullptr);
+
+	auto peer = _controller->peer();
+	auto notifications = _topBar->addButton(
+		base::make_unique_q<Ui::IconButton>(
+			_topBar,
+			(wrap() == Wrap::Layer
+				? st::infoLayerTopBarNotifications
+				: st::infoTopBarNotifications)));
+	notifications->addClickHandler([peer] {
+		App::main()->updateNotifySetting(
+			peer,
+			peer->isMuted()
+				? NotifySettingSetNotify
+				: NotifySettingSetMuted);
+	});
+	Profile::NotificationsEnabledValue(peer)
+		| rpl::start_with_next([notifications](bool enabled) {
+			auto iconOverride = enabled
+				? &st::infoNotificationsActive
+				: nullptr;
+			auto rippleOverride = enabled
+				? &st::lightButtonBgOver
+				: nullptr;
+			notifications->setIconOverride(iconOverride, iconOverride);
+			notifications->setRippleColorOverride(rippleOverride);
+		}, notifications->lifetime());
+}
+
+void WrapWidget::showProfileMenu() {
+	if (_topBarMenu) {
+		_topBarMenu->hideAnimated(
+			Ui::InnerDropdown::HideOption::IgnoreShow);
+		return;
+	}
+	_topBarMenu = base::make_unique_q<Ui::DropdownMenu>(this);
+
+	_topBarMenu->setHiddenCallback([this] {
+		InvokeQueued(this, [this] { _topBarMenu = nullptr; });
+		if (auto toggle = _topBarMenuToggle.get()) {
+			toggle->setForceRippled(false);
+		}
+	});
+	_topBarMenu->setShowStartCallback([this] {
+		if (auto toggle = _topBarMenuToggle.get()) {
+			toggle->setForceRippled(true);
+		}
+	});
+	_topBarMenu->setHideStartCallback([this] {
+		if (auto toggle = _topBarMenuToggle.get()) {
+			toggle->setForceRippled(false);
+		}
+	});
+	_topBarMenuToggle->installEventFilter(_topBarMenu.get());
+
+	Window::FillPeerMenu(
+		_controller->window(),
+		_controller->peer(),
+		[this](const QString &text, base::lambda<void()> callback) {
+			return _topBarMenu->addAction(text, std::move(callback));
+		},
+		Window::PeerMenuSource::Profile);
+	auto position = (wrap() == Wrap::Layer)
+		? st::infoLayerTopBarMenuPosition
+		: st::infoTopBarMenuPosition;
+	_topBarMenu->moveToRight(position.x(), position.y());
+	_topBarMenu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
 }
 
 void WrapWidget::refreshTopBarOverride(SelectedItems &&items) {

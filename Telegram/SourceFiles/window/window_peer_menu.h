@@ -24,9 +24,10 @@ namespace Window {
 
 class Controller;
 
-struct PeerMenuOptions {
-	bool fromChatsList = false;
-	bool showInfo = false;
+enum class PeerMenuSource {
+	ChatsList,
+	History,
+	Profile,
 };
 
 using PeerMenuCallback = base::lambda<QAction*(
@@ -37,7 +38,7 @@ void FillPeerMenu(
 	not_null<Controller*> controller,
 	not_null<PeerData*> peer,
 	const PeerMenuCallback &addAction,
-	const PeerMenuOptions &options);
+	PeerMenuSource source);
 
 void PeerMenuDeleteContact(not_null<UserData*> user);
 void PeerMenuShareContactBox(not_null<UserData*> user);

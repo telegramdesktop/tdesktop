@@ -1044,7 +1044,7 @@ void DialogsInner::createDialog(History *history) {
 void DialogsInner::removeDialog(History *history) {
 	if (!history) return;
 	if (history->peer == _menuPeer && _menu) {
-		_menu->deleteLater();
+		InvokeQueued(this, [this] { _menu = nullptr; });
 	}
 	if (_selected && _selected->history() == history) {
 		_selected = nullptr;
@@ -1211,53 +1211,41 @@ void DialogsInner::clearSelection() {
 }
 
 void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
-	if (_menu) {
-		_menu->deleteLater();
-		_menu = nullptr;
-	}
-	if (_menuPeer) {
-		updateSelectedRow(_menuPeer);
-		_menuPeer = nullptr;
-	}
+	_menu = nullptr;
 
 	if (e->reason() == QContextMenuEvent::Mouse) {
 		_mouseSelection = true;
 		updateSelected();
 	}
 
-	History *history = nullptr;
-	if (_state == DefaultState) {
-		if (_selected) history = _selected->history();
-	} else if (_state == FilteredState || _state == SearchedState) {
-		if (_filteredSelected >= 0 && _filteredSelected < _filterResults.size()) {
-			history = _filterResults[_filteredSelected]->history();
+	auto history = [&]() -> History* {
+		if (_state == DefaultState) {
+			if (_selected) {
+				return _selected->history();
+			}
+		} else if (_state == FilteredState || _state == SearchedState) {
+			if (_filteredSelected >= 0 && _filteredSelected < _filterResults.size()) {
+				return _filterResults[_filteredSelected]->history();
+			}
 		}
-	}
+		return nullptr;
+	}();
 	if (!history) return;
-	_menuPeer = history->peer;
 
+	_menuPeer = history->peer;
 	if (_pressButton != Qt::LeftButton) {
 		mousePressReleased(_pressButton);
 	}
 
-	_menu = new Ui::PopupMenu(nullptr);
-	Window::PeerMenuOptions options;
-	options.fromChatsList = options.showInfo = true;
+	_menu = base::make_unique_q<Ui::PopupMenu>(nullptr);
 	Window::FillPeerMenu(
 		_controller,
 		_menuPeer,
 		[this](const QString &text, base::lambda<void()> callback) {
 			return _menu->addAction(text, std::move(callback));
 		},
-		options);
-	connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroyed(QObject*)));
-	_menu->popup(e->globalPos());
-	e->accept();
-}
-
-void DialogsInner::onMenuDestroyed(QObject *obj) {
-	if (_menu == obj) {
-		_menu = nullptr;
+		Window::PeerMenuSource::ChatsList);
+	connect(_menu.get(), &QObject::destroyed, [this] {
 		if (_menuPeer) {
 			updateSelectedRow(base::take(_menuPeer));
 		}
@@ -1267,7 +1255,9 @@ void DialogsInner::onMenuDestroyed(QObject *obj) {
 			setMouseTracking(true);
 			updateSelected(localPos);
 		}
-	}
+	});
+	_menu->popup(e->globalPos());
+	e->accept();
 }
 
 void DialogsInner::onParentGeometryChanged() {

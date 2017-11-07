@@ -65,10 +65,11 @@ public:
 		not_null<Controller*> controller,
 		not_null<PeerData*> peer,
 		const PeerMenuCallback &addAction,
-		const PeerMenuOptions &options);
+		PeerMenuSource source);
 	void fill();
 
 private:
+	bool showInfo();
 	void addPinToggle();
 	void addInfo();
 	void addNotifications();
@@ -81,7 +82,7 @@ private:
 	not_null<Controller*> _controller;
 	not_null<PeerData*> _peer;
 	const PeerMenuCallback &_addAction;
-	const PeerMenuOptions &_options;
+	PeerMenuSource _source;
 
 };
 
@@ -142,11 +143,26 @@ Filler::Filler(
 	not_null<Controller*> controller,
 	not_null<PeerData*> peer,
 	const PeerMenuCallback &addAction,
-	const PeerMenuOptions &options)
+	PeerMenuSource source)
 : _controller(controller)
 , _peer(peer)
 , _addAction(addAction)
-, _options(options) {
+, _source(source) {
+}
+
+bool Filler::showInfo() {
+	if (_source == PeerMenuSource::Profile) {
+		return false;
+	} else if (_controller->historyPeer.current() != _peer) {
+		return true;
+	} else if (!Adaptive::ThreeColumn()) {
+		return true;
+	} else if (
+		!Auth().data().thirdSectionInfoEnabled() &&
+		!Auth().data().tabbedReplacedWithInfo()) {
+		return true;
+	}
+	return false;
 }
 
 void Filler::addPinToggle() {
@@ -294,7 +310,7 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 }
 
 void Filler::addUserActions(not_null<UserData*> user) {
-	if (!_options.fromChatsList) {
+	if (_source != PeerMenuSource::ChatsList) {
 		if (user->isContact()) {
 			_addAction(
 				lang(lng_info_share_contact),
@@ -330,7 +346,7 @@ void Filler::addUserActions(not_null<UserData*> user) {
 }
 
 void Filler::addChatActions(not_null<ChatData*> chat) {
-	if (!_options.fromChatsList) {
+	if (_source != PeerMenuSource::ChatsList) {
 		if (chat->canEdit()) {
 			_addAction(
 				lang(lng_profile_edit_contact),
@@ -360,7 +376,7 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 }
 
 void Filler::addChannelActions(not_null<ChannelData*> channel) {
-	if (!_options.fromChatsList) {
+	if (_source != PeerMenuSource::ChatsList) {
 		//_addAction(manage);
 		if (channel->canAddMembers()) {
 			_addAction(
@@ -381,7 +397,7 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 			joinText,
 			[channel] { Auth().api().joinChannel(channel); });
 	}
-	if (!_options.fromChatsList) {
+	if (_source != PeerMenuSource::ChatsList) {
 		auto needReport = !channel->amCreator()
 			&& (!channel->isMegagroup() || channel->isPublic());
 		if (needReport) {
@@ -393,14 +409,16 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 }
 
 void Filler::fill() {
-	if (_options.fromChatsList) {
+	if (_source == PeerMenuSource::ChatsList) {
 		addPinToggle();
 	}
-	if (_options.showInfo) {
+	if (showInfo()) {
 		addInfo();
 	}
-	addNotifications();
-	if (_options.fromChatsList) {
+	if (_source != PeerMenuSource::Profile) {
+		addNotifications();
+	}
+	if (_source == PeerMenuSource::ChatsList) {
 		addSearch();
 	}
 
@@ -478,8 +496,8 @@ void FillPeerMenu(
 		not_null<Controller*> controller,
 		not_null<PeerData*> peer,
 		const PeerMenuCallback &callback,
-		const PeerMenuOptions &options) {
-	Filler filler(controller, peer, callback, options);
+		PeerMenuSource source) {
+	Filler filler(controller, peer, callback, source);
 	filler.fill();
 }
 

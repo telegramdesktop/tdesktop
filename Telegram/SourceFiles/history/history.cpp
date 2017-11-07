@@ -1812,6 +1812,9 @@ void History::setUnreadCount(int newUnreadCount) {
 			Notify::historyMuteUpdated(this);
 		}
 		updateChatListEntry();
+		Notify::peerUpdatedDelayed(
+			peer,
+			Notify::PeerUpdate::Flag::NotificationsEnabled);
 	}
 }
 

@@ -186,24 +186,13 @@ void TopBarWidget::showMenu() {
 					}
 				}));
 				_menuToggle->installEventFilter(_menu);
-				Window::PeerMenuOptions options;
-				options.showInfo = [&] {
-					if (!Adaptive::ThreeColumn()) {
-						return true;
-					} else if (
-						!Auth().data().thirdSectionInfoEnabled() &&
-						!Auth().data().tabbedReplacedWithInfo()) {
-						return true;
-					}
-					return false;
-				}();
 				Window::FillPeerMenu(
 					_controller,
 					peer,
 					[this](const QString &text, base::lambda<void()> callback) {
 						return _menu->addAction(text, std::move(callback));
 					},
-					options);
+					Window::PeerMenuSource::History);
 				_menu->moveToRight((parentWidget()->width() - width()) + st::topBarMenuPosition.x(), st::topBarMenuPosition.y());
 				_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
 			}
@@ -512,11 +501,11 @@ void TopBarWidget::updateInfoToggleActive() {
 	auto iconOverride = infoThirdActive
 		? &st::topBarInfoActive
 		: nullptr;
-	auto ripplOverride = infoThirdActive
+	auto rippleOverride = infoThirdActive
 		? &st::lightButtonBgOver
 		: nullptr;
 	_infoToggle->setIconOverride(iconOverride, iconOverride);
-	_infoToggle->setRippleColorOverride(ripplOverride);
+	_infoToggle->setRippleColorOverride(rippleOverride);
 }
 
 Ui::RoundButton *TopBarWidget::mediaTypeButton() {

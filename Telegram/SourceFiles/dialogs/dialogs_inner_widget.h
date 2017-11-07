@@ -119,8 +119,6 @@ public slots:
 	void onParentGeometryChanged();
 	void onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow);
 
-	void onMenuDestroyed(QObject*);
-
 signals:
 	void draggingScrollDelta(int delta);
 	void mustScrollTo(int scrollToTop, int scrollToBottom);
@@ -293,8 +291,8 @@ private:
 	Text _searchFromUserText;
 	PeerData *_menuPeer = nullptr;
 
-	Ui::PopupMenu *_menu = nullptr;
-
 	base::lambda<void()> _loadMoreCallback;
+
+	base::unique_qptr<Ui::PopupMenu> _menu;
 
 };
