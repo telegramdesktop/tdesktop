@@ -44,16 +44,22 @@ rpl::producer<TextWithEntities> PhoneValue(
 		| WithEmptyEntities();
 }
 
-rpl::producer<TextWithEntities> BioValue(
+auto PlainBioValue(
 		not_null<UserData*> user) {
 	return Notify::PeerUpdateValue(
 			user,
 			Notify::PeerUpdate::Flag::AboutChanged)
-		| rpl::map([user] { return user->about(); })
+		| rpl::map([user] { return user->about(); });
+}
+
+rpl::producer<TextWithEntities> BioValue(
+		not_null<UserData*> user) {
+	return PlainBioValue(user)
+		| ToSingleLine()
 		| WithEmptyEntities();
 }
 
-rpl::producer<QString> PlainUsernameViewer(
+auto PlainUsernameValue(
 		not_null<PeerData*> peer) {
 	return Notify::PeerUpdateValue(
 			peer,
@@ -65,7 +71,7 @@ rpl::producer<QString> PlainUsernameViewer(
 
 rpl::producer<TextWithEntities> UsernameValue(
 		not_null<UserData*> user) {
-	return PlainUsernameViewer(user)
+	return PlainUsernameValue(user)
 		| rpl::map([](QString &&username) {
 			return username.isEmpty()
 				? QString()
@@ -82,13 +88,26 @@ rpl::producer<TextWithEntities> AboutValue(
 				Notify::PeerUpdate::Flag::AboutChanged)
 			| rpl::map([channel] { return channel->about(); })
 			| WithEmptyEntities();
+	} else if (auto user = peer->asUser()) {
+		if (user->botInfo) {
+			return PlainBioValue(user)
+				| WithEmptyEntities()
+				| rpl::map([](TextWithEntities &&text) {
+					auto flags = TextParseLinks
+						| TextParseMentions
+						| TextParseHashtags
+						| TextParseBotCommands;
+					TextUtilities::ParseEntities(text, flags);
+					return std::move(text);
+				});
+		}
 	}
 	return rpl::single(TextWithEntities{});
 }
 
 rpl::producer<TextWithEntities> LinkValue(
 		not_null<PeerData*> peer) {
-	return PlainUsernameViewer(peer)
+	return PlainUsernameValue(peer)
 		| rpl::map([](QString &&username) {
 			return username.isEmpty()
 				? QString()

@@ -33,6 +33,12 @@ class SlideWrap;
 namespace Info {
 namespace Profile {
 
+inline auto ToSingleLine() {
+	return rpl::map([](const QString &text) {
+		return TextUtilities::SingleLine(text);
+	});
+}
+
 inline auto WithEmptyEntities() {
 	return rpl::map([](QString &&text) {
 		return TextWithEntities{ std::move(text), {} };

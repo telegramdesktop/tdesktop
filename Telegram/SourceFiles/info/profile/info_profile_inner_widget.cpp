@@ -180,7 +180,11 @@ object_ptr<Ui::RpWidget> InnerWidget::setupInfo(
 	};
 	if (auto user = _peer->asUser()) {
 		addInfoOneLine(lng_info_mobile_label, PhoneValue(user));
-		addInfoLine(lng_info_bio_label, BioValue(user));
+		if (user->botInfo) {
+			addInfoLine(lng_info_about_label, AboutValue(user));
+		} else {
+			addInfoLine(lng_info_bio_label, BioValue(user));
+		}
 		addInfoOneLine(lng_info_username_label, UsernameValue(user));
 	} else {
 		addInfoOneLine(lng_info_link_label, LinkValue(_peer));

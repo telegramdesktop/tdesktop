@@ -155,7 +155,14 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 }
 
 void searchByHashtag(const QString &tag, PeerData *inPeer) {
-	if (MainWidget *m = main()) m->searchMessages(tag + ' ', (inPeer && inPeer->isChannel() && !inPeer->isMegagroup()) ? inPeer : 0);
+	if (MainWidget *m = main()) {
+		Ui::hideSettingsAndLayer();
+		Messenger::Instance().hideMediaView();
+		if (inPeer && (!inPeer->isChannel() || inPeer->isMegagroup())) {
+			inPeer = nullptr;
+		}
+		m->searchMessages(tag + ' ', inPeer);
+	}
 }
 
 void openPeerByName(const QString &username, MsgId msgId, const QString &startToken) {
