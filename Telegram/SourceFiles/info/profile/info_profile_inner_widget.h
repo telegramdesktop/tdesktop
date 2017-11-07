@@ -77,17 +77,10 @@ private:
 	object_ptr<RpWidget> setupSharedMedia(RpWidget *parent);
 	object_ptr<RpWidget> setupMuteToggle(RpWidget *parent) const;
 	object_ptr<RpWidget> setupInfo(RpWidget *parent) const;
+
 	void setupUserButtons(
 		Ui::VerticalLayout *wrap,
 		not_null<UserData*> user) const;
-	object_ptr<RpWidget> setupUserActions(
-		RpWidget *parent,
-		not_null<UserData*> user) const;
-	void shareContact(not_null<UserData*> user) const;
-
-	object_ptr<RpWidget> createSkipWidget(RpWidget *parent) const;
-	object_ptr<Ui::SlideWrap<RpWidget>> createSlideSkipWidget(
-		RpWidget *parent) const;
 
 	int countDesiredHeight() const;
 

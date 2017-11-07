@@ -37,6 +37,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/abstract_box.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
+#include "boxes/report_box.h"
 #include "mainwidget.h"
 #include "auth_session.h"
 #include "apiwrap.h"
@@ -57,6 +58,268 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Info {
 namespace Profile {
+namespace {
+
+template <typename Text, typename ToggleOn, typename Callback>
+void AddActionButton(
+		not_null<Ui::VerticalLayout*> parent,
+		Text &&text,
+		ToggleOn &&toggleOn,
+		Callback &&callback,
+		const style::InfoProfileButton &st
+			= st::infoSharedMediaButton) {
+	parent->add(object_ptr<Ui::SlideWrap<Button>>(
+		parent,
+		object_ptr<Button>(
+			parent,
+			std::move(text),
+			st))
+	)->toggleOn(
+		std::move(toggleOn)
+	)->entity()->addClickHandler(std::move(callback));
+};
+
+void ShareContactBox(not_null<UserData*> user) {
+	auto callback = [user](not_null<PeerData*> peer) {
+		if (!peer->canWrite()) {
+			Ui::show(Box<InformBox>(
+				lang(lng_forward_share_cant)),
+				LayerOption::KeepOther);
+			return;
+		}
+		auto recipient = peer->isUser()
+			? peer->name
+			: '\xAB' + peer->name + '\xBB';
+		Ui::show(Box<ConfirmBox>(
+			lng_forward_share_contact(lt_recipient, recipient),
+			lang(lng_forward_send),
+			[peer, user] {
+				App::main()->onShareContact(
+					peer->id,
+					user);
+				Ui::hideLayer();
+			}), LayerOption::KeepOther);
+	};
+	Ui::show(Box<PeerListBox>(
+		std::make_unique<ChooseRecipientBoxController>(std::move(callback)),
+		[](not_null<PeerListBox*> box) {
+			box->addButton(langFactory(lng_cancel), [box] {
+				box->closeBox();
+			});
+		}));
+}
+
+object_ptr<Ui::RpWidget> createSkipWidget(
+		not_null<Ui::RpWidget*> parent) {
+	return Ui::CreateSkipWidget(parent, st::infoProfileSkip);
+}
+
+object_ptr<Ui::SlideWrap<>> createSlideSkipWidget(
+		not_null<Ui::RpWidget*> parent) {
+	return Ui::CreateSlideSkipWidget(parent, st::infoProfileSkip);
+}
+
+void addShareContactAction(
+		not_null<Ui::VerticalLayout*> parent,
+		not_null<UserData*> user) {
+	AddActionButton(
+		parent,
+		Lang::Viewer(lng_profile_share_contact),
+		CanShareContactValue(user),
+		[user] { ShareContactBox(user); });
+}
+
+void addEditContactAction(
+		not_null<Ui::VerticalLayout*> parent,
+		not_null<UserData*> user) {
+	AddActionButton(
+		parent,
+		Lang::Viewer(lng_info_edit_contact),
+		IsContactValue(user),
+		[user] { Ui::show(Box<AddContactBox>(user)); });
+}
+
+void addClearHistoryAction(
+		not_null<Ui::VerticalLayout*> parent,
+		not_null<UserData*> user) {
+	auto callback = [user] {
+		auto confirmation = lng_sure_delete_history(
+			lt_contact,
+			App::peerName(user));
+		auto confirmCallback = [user] {
+			Ui::hideLayer();
+			App::main()->clearHistory(user);
+			Ui::showPeerHistory(user, ShowAtUnreadMsgId);
+		};
+		auto box = Box<ConfirmBox>(
+			confirmation,
+			lang(lng_box_delete),
+			st::attentionBoxButton,
+			std::move(confirmCallback));
+		Ui::show(std::move(box));
+	};
+	AddActionButton(
+		parent,
+		Lang::Viewer(lng_profile_clear_history),
+		rpl::single(true),
+		std::move(callback));
+}
+
+void addDeleteConversationAction(
+		not_null<Ui::VerticalLayout*> parent,
+		not_null<UserData*> user) {
+	auto callback = [user] {
+		auto confirmation = lng_sure_delete_history(
+			lt_contact,
+			App::peerName(user));
+		auto confirmButton = lang(lng_box_delete);
+		auto confirmCallback = [user] {
+			Ui::hideLayer();
+			Ui::showChatsList();
+			App::main()->deleteConversation(user);
+		};
+		auto box = Box<ConfirmBox>(
+			confirmation,
+			confirmButton,
+			st::attentionBoxButton,
+			std::move(confirmCallback));
+		Ui::show(std::move(box));
+	};
+	AddActionButton(
+		parent,
+		Lang::Viewer(lng_profile_delete_conversation),
+		rpl::single(true),
+		std::move(callback));
+}
+
+void addBotCommandActions(
+		not_null<Ui::VerticalLayout*> parent,
+		not_null<UserData*> user) {
+	auto findBotCommand = [user](const QString &command) {
+		if (!user->botInfo) {
+			return QString();
+		}
+		for_const (auto &data, user->botInfo->commands) {
+			auto isSame = data.command.compare(
+				command,
+				Qt::CaseInsensitive) == 0;
+			if (isSame) {
+				return data.command;
+			}
+		}
+		return QString();
+	};
+	auto hasBotCommandValue = [=](const QString &command) {
+		return Notify::PeerUpdateValue(
+			user,
+			Notify::PeerUpdate::Flag::BotCommandsChanged)
+			| rpl::map([=] {
+				return !findBotCommand(command).isEmpty();
+			});
+	};
+	auto sendBotCommand = [=](const QString &command) {
+		auto original = findBotCommand(command);
+		if (!original.isEmpty()) {
+			Ui::showPeerHistory(user, ShowAtTheEndMsgId);
+			App::sendBotCommand(user, user, '/' + original);
+		}
+	};
+	auto addBotCommand = [=](LangKey key, const QString &command) {
+		AddActionButton(
+			parent,
+			Lang::Viewer(key),
+			hasBotCommandValue(command),
+			[=] { sendBotCommand(command); });
+	};
+	addBotCommand(lng_profile_bot_help, qsl("help"));
+	addBotCommand(lng_profile_bot_settings, qsl("settings"));
+}
+
+void addReportAction(
+		not_null<Ui::VerticalLayout*> parent,
+		not_null<UserData*> user) {
+	AddActionButton(
+		parent,
+		Lang::Viewer(lng_profile_report),
+		rpl::single(true),
+		[user] { Ui::show(Box<ReportBox>(user)); },
+		st::infoBlockButton);
+}
+
+void addBlockAction(
+		not_null<Ui::VerticalLayout*> parent,
+		not_null<UserData*> user) {
+	auto text = Notify::PeerUpdateValue(
+		user,
+		Notify::PeerUpdate::Flag::UserIsBlocked)
+		| rpl::map([user]() -> rpl::producer<QString> {
+			switch (user->blockStatus()) {
+			case UserData::BlockStatus::Blocked:
+				return Lang::Viewer(user->botInfo
+					? lng_profile_unblock_bot
+					: lng_profile_unblock_user);
+			case UserData::BlockStatus::NotBlocked:
+				return Lang::Viewer(user->botInfo
+					? lng_profile_block_bot
+					: lng_profile_block_user);
+			default:
+				return rpl::single(QString());
+			}
+		})
+		| rpl::flatten_latest()
+		| rpl::start_spawning(parent->lifetime());
+
+	auto toggleOn = rpl::duplicate(text)
+		| rpl::map([](const QString &text) {
+			return !text.isEmpty();
+		});
+	auto callback = [user] {
+		if (user->isBlocked()) {
+			Auth().api().unblockUser(user);
+		} else {
+			Auth().api().blockUser(user);
+		}
+	};
+	AddActionButton(
+		parent,
+		rpl::duplicate(text),
+		std::move(toggleOn),
+		std::move(callback),
+		st::infoBlockButton);
+}
+
+object_ptr<Ui::RpWidget> setupUserActions(
+		not_null<Ui::RpWidget*> parent,
+		not_null<UserData*> user) {
+	auto result = object_ptr<Ui::VerticalLayout>(parent);
+	result->add(createSkipWidget(result));
+
+	addShareContactAction(result, user);
+	addEditContactAction(result, user);
+	addClearHistoryAction(result, user);
+	addDeleteConversationAction(result, user);
+	if (!user->isSelf()) {
+		if (user->botInfo) {
+			addBotCommandActions(result, user);
+		}
+		result->add(CreateSkipWidget(
+			result,
+			st::infoBlockButtonSkip));
+		if (user->botInfo) {
+			addReportAction(result, user);
+		}
+		addBlockAction(result, user);
+	}
+	result->add(createSkipWidget(result));
+
+	object_ptr<FloatingIcon>(
+		result,
+		st::infoIconActions,
+		st::infoIconPosition);
+	return std::move(result);
+}
+
+} // namespace
 
 InnerWidget::InnerWidget(
 	QWidget *parent,
@@ -357,144 +620,6 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 
 	_sharedMediaWrap = result;
 	return std::move(result);
-}
-
-object_ptr<Ui::RpWidget> InnerWidget::setupUserActions(
-		RpWidget *parent,
-		not_null<UserData*> user) const {
-	auto result = object_ptr<Ui::VerticalLayout>(parent);
-	result->add(createSkipWidget(result));
-	auto addButton = [&](
-			auto &&text,
-			auto &&toggleOn,
-			auto &&callback,
-			const style::InfoProfileButton &st
-				= st::infoSharedMediaButton) {
-		return result->add(object_ptr<Ui::SlideWrap<Button>>(
-			result,
-			object_ptr<Button>(
-				result,
-				std::move(text),
-				st))
-		)->toggleOn(
-			std::move(toggleOn)
-		)->entity()->addClickHandler(std::move(callback));
-	};
-
-	addButton(
-		Lang::Viewer(lng_profile_share_contact),
-		CanShareContactValue(user),
-		[this, user] { shareContact(user); });
-	addButton(
-		Lang::Viewer(lng_info_edit_contact),
-		IsContactValue(user),
-		[user] { Ui::show(Box<AddContactBox>(user)); });
-	addButton(
-		Lang::Viewer(lng_profile_clear_history),
-		rpl::single(true),
-		[user] {
-			auto confirmation = lng_sure_delete_history(lt_contact, App::peerName(user));
-			Ui::show(Box<ConfirmBox>(confirmation, lang(lng_box_delete), st::attentionBoxButton, [user] {
-				Ui::hideLayer();
-				App::main()->clearHistory(user);
-				Ui::showPeerHistory(user, ShowAtUnreadMsgId);
-			}));
-		});
-	addButton(
-		Lang::Viewer(lng_profile_delete_conversation),
-		rpl::single(true),
-		[user] {
-			auto confirmation = lng_sure_delete_history(lt_contact, App::peerName(user));
-			auto confirmButton = lang(lng_box_delete);
-			Ui::show(Box<ConfirmBox>(confirmation, confirmButton, st::attentionBoxButton, [user] {
-				Ui::hideLayer();
-				Ui::showChatsList();
-				App::main()->deleteConversation(user);
-			}));
-		});
-
-	if (!user->isSelf()) {
-		result->add(CreateSkipWidget(
-			result,
-			st::infoBlockButtonSkip));
-
-		auto text = Notify::PeerUpdateValue(
-			user,
-			Notify::PeerUpdate::Flag::UserIsBlocked)
-			| rpl::map([user]() -> rpl::producer<QString> {
-				switch (user->blockStatus()) {
-				case UserData::BlockStatus::Blocked:
-					return Lang::Viewer(lng_profile_unblock_user);
-				case UserData::BlockStatus::NotBlocked:
-					return Lang::Viewer(lng_profile_block_user);
-				default:
-					return rpl::single(QString());
-				}
-			})
-			| rpl::flatten_latest()
-			| rpl::start_spawning(result->lifetime());
-		addButton(
-			rpl::duplicate(text),
-			rpl::duplicate(text)
-				| rpl::map([](const QString &text) {
-					return !text.isEmpty();
-				}),
-			[user] {
-				if (user->isBlocked()) {
-					Auth().api().unblockUser(user);
-				} else {
-					Auth().api().blockUser(user);
-				}
-			},
-			st::infoBlockButton);
-	}
-	result->add(createSkipWidget(result));
-
-	object_ptr<FloatingIcon>(
-		result,
-		st::infoIconActions,
-		st::infoIconPosition);
-	return std::move(result);
-}
-
-void InnerWidget::shareContact(not_null<UserData*> user) const {
-	auto callback = [user](not_null<PeerData*> peer) {
-		if (!peer->canWrite()) {
-			Ui::show(Box<InformBox>(
-				lang(lng_forward_share_cant)),
-				LayerOption::KeepOther);
-			return;
-		}
-		auto recipient = peer->isUser()
-			? peer->name
-			: '\xAB' + peer->name + '\xBB';
-		Ui::show(Box<ConfirmBox>(
-			lng_forward_share_contact(lt_recipient, recipient),
-			lang(lng_forward_send),
-			[peer, user] {
-				App::main()->onShareContact(
-					peer->id,
-					user);
-				Ui::hideLayer();
-			}), LayerOption::KeepOther);
-	};
-	Ui::show(Box<PeerListBox>(
-		std::make_unique<ChooseRecipientBoxController>(std::move(callback)),
-		[](not_null<PeerListBox*> box) {
-			box->addButton(langFactory(lng_cancel), [box] {
-				box->closeBox();
-			});
-		}));
-}
-
-object_ptr<Ui::RpWidget> InnerWidget::createSkipWidget(
-		RpWidget *parent) const {
-	return Ui::CreateSkipWidget(parent, st::infoProfileSkip);
-}
-
-object_ptr<Ui::SlideWrap<>> InnerWidget::createSlideSkipWidget(
-		RpWidget *parent) const {
-	return Ui::CreateSlideSkipWidget(parent, st::infoProfileSkip);
 }
 
 int InnerWidget::countDesiredHeight() const {
