@@ -478,6 +478,27 @@ infoMembersCancelSearch: CrossButton {
 }
 infoMembersSearchTop: 15px;
 
+infoMembersCreatorIcon: icon {{
+	"profile_admin_star",
+	profileAdminStartFg,
+	point(4px, 3px)
+}};
+infoMembersAdminIcon: icon {{
+	"profile_admin_star",
+	profileOtherAdminStarFg,
+	point(4px, 3px)
+}};
+infoMembersRemoveIcon: icon {{
+	"simple_close",
+	menuIconFg
+}};
+infoMembersRemoveIconOver: icon {{
+	"simple_close",
+	menuIconFgOver
+}};
+infoMembersAdminIconMarigns: margins(10px, 18px, 10px, 10px);
+infoMembersRemoveIconMargins: margins(10px, 12px, 12px, 10px);
+
 infoMediaHeaderStyle: TextStyle(semiboldTextStyle) {
 }
 infoMediaHeaderHeight: 28px;

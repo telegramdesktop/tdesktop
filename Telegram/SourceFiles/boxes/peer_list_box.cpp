@@ -379,6 +379,18 @@ void PeerListRow::invalidatePixmapsCache() {
 	}
 }
 
+int PeerListRow::nameIconWidth() const {
+	return _peer->isVerified() ? st::dialogsVerifiedIcon.width() : 0;
+}
+
+void PeerListRow::paintNameIcon(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth) {
+	st::dialogsVerifiedIcon.paint(p, x, y, outerWidth);
+}
+
 void PeerListRow::paintStatusText(
 		Painter &p,
 		const style::PeerListItem &st,
@@ -997,7 +1009,7 @@ TimeMs PeerListContent::paintRow(Painter &p, TimeMs ms, RowIndex index) {
 	auto row = getRow(index);
 	Assert(row != nullptr);
 	row->lazyInitialize(_st.item);
-	
+
 	auto refreshStatusAt = row->refreshStatusTime();
 	if (refreshStatusAt >= 0 && ms >= refreshStatusAt) {
 		row->refreshStatus();
@@ -1029,28 +1041,44 @@ TimeMs PeerListContent::paintRow(Painter &p, TimeMs ms, RowIndex index) {
 
 	p.setPen(st::contactsNameFg);
 
+	auto skipRight = _st.item.photoPosition.x();
 	auto actionSize = row->actionSize();
 	auto actionMargins = actionSize.isEmpty() ? QMargins() : row->actionMargins();
 	auto &name = row->name();
 	auto namex = _st.item.namePosition.x();
-	auto namew = width() - namex - _st.item.photoPosition.x();
+	auto namew = width() - namex - skipRight;
 	if (!actionSize.isEmpty()) {
-		namew -= actionMargins.left() + actionSize.width() + actionMargins.right();
+		namew -= actionMargins.left()
+			+ actionSize.width()
+			+ actionMargins.right()
+			- skipRight;
 	}
 	auto statusw = namew;
-	if (row->needsVerifiedIcon()) {
-		auto icon = &st::dialogsVerifiedIcon;
-		namew -= icon->width();
-		icon->paint(p, namex + qMin(name.maxWidth(), namew), _st.item.namePosition.y(), width());
+	if (auto iconWidth = row->nameIconWidth()) {
+		namew -= iconWidth;
+		row->paintNameIcon(
+			p,
+			namex + qMin(name.maxWidth(), namew),
+			_st.item.namePosition.y(),
+			width());
 	}
 	auto nameCheckedRatio = row->disabled() ? 0. : row->checkedRatio();
 	p.setPen(anim::pen(st::contactsNameFg, st::contactsNameCheckedFg, nameCheckedRatio));
 	name.drawLeftElided(p, namex, _st.item.namePosition.y(), namew, width());
 
 	if (!actionSize.isEmpty()) {
-		auto actionLeft = width() - _st.item.photoPosition.x() - actionMargins.right() - actionSize.width();
+		auto actionLeft = width()
+			- actionMargins.right()
+			- actionSize.width();
 		auto actionTop = actionMargins.top();
-		row->paintAction(p, ms, actionLeft, actionTop, width(), actionSelected);
+		row->paintAction(
+			p,
+			ms,
+			actionLeft,
+			actionTop,
+			width(),
+			selected,
+			actionSelected);
 	}
 
 	p.setFont(st::contactsStatusFont);
@@ -1377,7 +1405,7 @@ QRect PeerListContent::getActionRect(not_null<PeerListRow*> row, RowIndex index)
 		return QRect();
 	}
 	auto actionMargins = row->actionMargins();
-	auto actionRight = _st.item.photoPosition.x() + actionMargins.right();
+	auto actionRight = actionMargins.right();
 	auto actionTop = actionMargins.top();
 	auto actionLeft = width() - actionRight - actionSize.width();
 	auto rowTop = getRowTop(index);

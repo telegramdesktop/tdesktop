@@ -128,10 +128,21 @@ QSize PeerListRowWithLink::actionSize() const {
 }
 
 QMargins PeerListRowWithLink::actionMargins() const {
-	return QMargins(st::contactsCheckPosition.x(), (st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom() - st::normalFont->height) / 2, st::contactsCheckPosition.x(), 0);
+	return QMargins(
+		st::contactsCheckPosition.x(),
+		(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom() - st::normalFont->height) / 2,
+		st::defaultPeerListItem.photoPosition.x() + st::contactsCheckPosition.x(),
+		0);
 }
 
-void PeerListRowWithLink::paintAction(Painter &p, TimeMs ms, int x, int y, int outerWidth, bool actionSelected) {
+void PeerListRowWithLink::paintAction(
+		Painter &p,
+		TimeMs ms,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) {
 	p.setFont(actionSelected ? st::linkOverFont : st::linkFont);
 	p.setPen(actionSelected ? st::defaultLinkButton.overColor : st::defaultLinkButton.color);
 	p.drawTextLeft(x, y, outerWidth, _action, _actionWidth);

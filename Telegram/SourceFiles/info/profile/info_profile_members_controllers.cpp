@@ -31,6 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "boxes/confirm_box.h"
 #include "window/window_controller.h"
+#include "styles/style_info.h"
 
 namespace Info {
 namespace Profile {
@@ -49,6 +50,7 @@ public:
 
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
+	void rowActionClicked(not_null<PeerListRow*> row) override;
 	Ui::PopupMenu *rowContextMenu(
 		not_null<PeerListRow*> row) override;
 
@@ -63,15 +65,20 @@ public:
 	void restoreState(std::unique_ptr<PeerListState> state) override;
 
 private:
+	using Rights = MemberListRow::Rights;
+	using Type = MemberListRow::Type;
 	struct SavedState : SavedStateBase {
 		rpl::lifetime lifetime;
 	};
 	void rebuildRows();
+	void rebuildRowTypes();
 	void refreshOnlineCount();
-	std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user);
+	std::unique_ptr<PeerListRow> createRow(
+		not_null<UserData*> user);
 	void sortByOnline();
 	void sortByOnlineDelayed();
 	void removeMember(not_null<UserData*> user);
+	Type computeType(not_null<UserData*> user);
 
 	not_null<Window::Controller*> _window;
 	not_null<ChatData*> _chat;
@@ -101,11 +108,17 @@ void ChatMembersController::prepare() {
 	}
 	using UpdateFlag = Notify::PeerUpdate::Flag;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(
-		UpdateFlag::MembersChanged | UpdateFlag::UserOnlineChanged,
+		UpdateFlag::MembersChanged
+		| UpdateFlag::UserOnlineChanged
+		| UpdateFlag::AdminsChanged,
 		[this](const Notify::PeerUpdate &update) {
 			if (update.flags & UpdateFlag::MembersChanged) {
 				if (update.peer == _chat) {
 					rebuildRows();
+				}
+			} else if (update.flags & UpdateFlag::AdminsChanged) {
+				if (update.peer == _chat) {
+					rebuildRowTypes();
 				}
 			} else if (update.flags & UpdateFlag::UserOnlineChanged) {
 				if (auto row = delegate()->peerListFindRow(
@@ -187,6 +200,16 @@ void ChatMembersController::rebuildRows() {
 	delegate()->peerListRefreshRows();
 }
 
+void ChatMembersController::rebuildRowTypes() {
+	auto count = delegate()->peerListFullRowsCount();
+	for (auto i = 0; i != count; ++i) {
+		auto row = static_cast<MemberListRow*>(
+			delegate()->peerListRowAt(i).get());
+		row->setType(computeType(row->user()));
+	}
+	delegate()->peerListRefreshRows();
+}
+
 void ChatMembersController::refreshOnlineCount() {
 	auto now = unixtime();
 	auto left = 0, right = delegate()->peerListFullRowsCount();
@@ -212,29 +235,53 @@ std::unique_ptr<PeerListRow> ChatMembersController::createRestoredRow(
 
 std::unique_ptr<PeerListRow> ChatMembersController::createRow(
 		not_null<UserData*> user) {
-	return std::make_unique<PeerListRow>(user);
+	return std::make_unique<MemberListRow>(user, computeType(user));
+}
+
+auto ChatMembersController::computeType(
+		not_null<UserData*> user) -> Type {
+	auto isCreator = (peerFromUser(_chat->creator) == user->id);
+	auto isAdmin = _chat->adminsEnabled()
+		&& _chat->admins.contains(user);
+	auto canRemove = [&] {
+		if (user->isSelf()) {
+			return false;
+		} else if (_chat->amCreator()) {
+			return true;
+		} else if (isAdmin || isCreator) {
+			return false;
+		} else if (_chat->amAdmin()) {
+			return true;
+		} else if (_chat->invitedByMe.contains(user)) {
+			return true;
+		}
+		return false;
+	}();
+
+	auto result = Type();
+	result.rights = isCreator
+		? Rights::Creator
+		: isAdmin
+		? Rights::Admin
+		: Rights::Normal;
+	result.canRemove = canRemove;
+	return result;
 }
 
 void ChatMembersController::rowClicked(not_null<PeerListRow*> row) {
 	_window->showPeerInfo(row->peer());
 }
 
+void ChatMembersController::rowActionClicked(
+		not_null<PeerListRow*> row) {
+	removeMember(row->peer()->asUser());
+}
+
 Ui::PopupMenu *ChatMembersController::rowContextMenu(
 		not_null<PeerListRow*> row) {
-	Expects(row->peer()->isUser());
-
-	auto user = row->peer()->asUser();
-	auto isCreator = (peerFromUser(_chat->creator) == user->id);
-	auto isAdmin = _chat->adminsEnabled() && _chat->admins.contains(user);
-	auto canRemoveMember = (user->id == Auth().userPeerId())
-		? false
-		: _chat->amCreator()
-		? true
-		: (_chat->amAdmin() && !isCreator && !isAdmin)
-		? true
-		: (_chat->invitedByMe.contains(user) && !isCreator && !isAdmin)
-		? true
-		: false;
+	auto my = static_cast<MemberListRow*>(row.get());
+	auto user = my->user();
+	auto canRemoveMember = my->canRemove();
 
 	auto result = new Ui::PopupMenu(nullptr);
 	result->addAction(
@@ -266,6 +313,64 @@ void ChatMembersController::removeMember(not_null<UserData*> user) {
 }
 
 } // namespace
+
+MemberListRow::MemberListRow(
+	not_null<UserData*> user,
+	Type type)
+: PeerListRow(user)
+, _type(type) {
+}
+
+void MemberListRow::setType(Type type) {
+	_type = type;
+}
+
+QSize MemberListRow::actionSize() const {
+	return canRemove()
+		? QRect(
+			QPoint(),
+			st::infoMembersRemoveIcon.size()).marginsAdded(
+				st::infoMembersRemoveIconMargins).size()
+		: QSize();
+}
+
+void MemberListRow::paintAction(
+		Painter &p,
+		TimeMs ms,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) {
+	if (_type.canRemove && selected) {
+		x += st::infoMembersRemoveIconMargins.left();
+		y += st::infoMembersRemoveIconMargins.top();
+		(actionSelected
+			? st::infoMembersRemoveIconOver
+			: st::infoMembersRemoveIcon).paint(p, x, y, outerWidth);
+	}
+}
+
+int MemberListRow::nameIconWidth() const {
+	return (_type.rights == Rights::Admin)
+		? st::infoMembersAdminIcon.width()
+		: (_type.rights == Rights::Creator)
+		? st::infoMembersCreatorIcon.width()
+		: 0;
+}
+
+void MemberListRow::paintNameIcon(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth) {
+	auto icon = [&] {
+		return (_type.rights == Rights::Admin)
+			? &st::infoMembersAdminIcon
+			: &st::infoMembersCreatorIcon;
+	}();
+	icon->paint(p, x, y, outerWidth);
+}
 
 std::unique_ptr<PeerListController> CreateMembersController(
 		not_null<Window::Controller*> window,

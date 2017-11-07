@@ -545,6 +545,38 @@ void ParticipantsBoxController::rowActionClicked(not_null<PeerListRow*> row) {
 	}
 }
 
+bool ParticipantsBoxController::canEditAdminByRights(
+		not_null<UserData*> user) const {
+	if (_additional.adminCanEdit.find(user) != _additional.adminCanEdit.cend()) {
+		return true;
+	}
+	return (user != _additional.creator);
+}
+
+bool ParticipantsBoxController::canEditAdmin(
+		not_null<UserData*> user) const {
+	if (user->isSelf()) {
+		return false;
+	} else if (_channel->amCreator()) {
+		return true;
+	} else if (!canEditAdminByRights(user)) {
+		return false;
+	}
+	return _channel->adminRights() & ChannelAdminRight::f_add_admins;
+}
+
+bool ParticipantsBoxController::canRestrictUser(
+		not_null<UserData*> user) const {
+	if (user->isSelf()) {
+		return false;
+	} else if (_channel->amCreator()) {
+		return true;
+	} else if (!canEditAdminByRights(user)) {
+		return false;
+	}
+	return _channel->adminRights() & ChannelAdminRight::f_ban_users;
+}
+
 Ui::PopupMenu *ParticipantsBoxController::rowContextMenu(
 		not_null<PeerListRow*> row) {
 	Expects(row->peer()->isUser());
@@ -558,7 +590,7 @@ Ui::PopupMenu *ParticipantsBoxController::rowContextMenu(
 				weak->_window->showPeerInfo(user);
 			}
 		});
-	if (_channel->canEditAdmin(user)) {
+	if (canEditAdmin(user)) {
 		auto it = _additional.adminRights.find(user);
 		auto isCreator = (user == _additional.creator);
 		auto notAdmin = !isCreator && (it == _additional.adminRights.cend());
@@ -573,7 +605,7 @@ Ui::PopupMenu *ParticipantsBoxController::rowContextMenu(
 				}
 			});
 	}
-	if (_channel->canRestrictUser(user)) {
+	if (canRestrictUser(user)) {
 		result->addAction(
 			lang(lng_context_restrict_user),
 			[weak = base::make_weak_unique(this), user]{
@@ -617,7 +649,9 @@ void ParticipantsBoxController::showAdmin(not_null<UserData*> user) {
 	_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
 }
 
-void ParticipantsBoxController::editAdminDone(not_null<UserData*> user, const MTPChannelAdminRights &rights) {
+void ParticipantsBoxController::editAdminDone(
+		not_null<UserData*> user,
+		const MTPChannelAdminRights &rights) {
 	if (_editBox) {
 		_editBox->closeBox();
 	}
@@ -646,6 +680,7 @@ void ParticipantsBoxController::editAdminDone(not_null<UserData*> user, const MT
 			removeRow(user);
 		}
 	}
+	recomputeTypeFor(user);
 	delegate()->peerListRefreshRows();
 }
 
@@ -714,6 +749,7 @@ void ParticipantsBoxController::editRestrictedDone(not_null<UserData*> user, con
 			}
 		}
 	}
+	recomputeTypeFor(user);
 	delegate()->peerListRefreshRows();
 }
 
@@ -750,6 +786,7 @@ void ParticipantsBoxController::removeKicked(not_null<PeerListRow*> row, not_nul
 
 bool ParticipantsBoxController::appendRow(not_null<UserData*> user) {
 	if (delegate()->peerListFindRow(user->id)) {
+		recomputeTypeFor(user);
 		return false;
 	}
 	delegate()->peerListAppendRow(createRow(user));
@@ -761,6 +798,7 @@ bool ParticipantsBoxController::appendRow(not_null<UserData*> user) {
 
 bool ParticipantsBoxController::prependRow(not_null<UserData*> user) {
 	if (auto row = delegate()->peerListFindRow(user->id)) {
+		recomputeTypeFor(user);
 		refreshCustomStatus(row);
 		if (_role == Role::Admins) {
 			// Perhaps we've added a new admin from search.
@@ -792,7 +830,11 @@ bool ParticipantsBoxController::removeRow(not_null<UserData*> user) {
 	return false;
 }
 
-std::unique_ptr<PeerListRow> ParticipantsBoxController::createRow(not_null<UserData*> user) const {
+std::unique_ptr<PeerListRow> ParticipantsBoxController::createRow(
+		not_null<UserData*> user) const {
+	if (_role == Role::Profile) {
+		return std::make_unique<Row>(user, computeType(user));
+	}
 	auto row = std::make_unique<PeerListRowWithLink>(user);
 	refreshCustomStatus(row.get());
 	if (_role == Role::Restricted || (_role == Role::Admins && _additional.adminCanEdit.find(user) != _additional.adminCanEdit.cend())) {
@@ -807,6 +849,31 @@ std::unique_ptr<PeerListRow> ParticipantsBoxController::createRow(not_null<UserD
 		}
 	}
 	return std::move(row);
+}
+
+auto ParticipantsBoxController::computeType(
+		not_null<UserData*> user) const -> Type {
+	auto isCreator = (user == _additional.creator);
+	auto isAdmin = (_additional.adminRights.find(user) != _additional.adminRights.cend());
+
+	auto result = Type();
+	result.rights = isCreator
+		? Rights::Creator
+		: isAdmin
+		? Rights::Admin
+		: Rights::Normal;
+	result.canRemove = canRestrictUser(user);
+	return result;
+}
+
+void ParticipantsBoxController::recomputeTypeFor(
+		not_null<UserData*> user) {
+	if (_role != Role::Profile) {
+		return;
+	}
+	if (auto row = delegate()->peerListFindRow(user->id)) {
+		static_cast<Row*>(row)->setType(computeType(user));
+	}
 }
 
 void ParticipantsBoxController::refreshCustomStatus(not_null<PeerListRow*> row) const {
@@ -1209,7 +1276,9 @@ void AddParticipantBoxController::showAdmin(not_null<UserData*> user, bool sure)
 	_editBox = Ui::show(std::move(box), LayerOption::KeepOther);
 }
 
-void AddParticipantBoxController::editAdminDone(not_null<UserData*> user, const MTPChannelAdminRights &rights) {
+void AddParticipantBoxController::editAdminDone(
+		not_null<UserData*> user,
+		const MTPChannelAdminRights &rights) {
 	if (_editBox) _editBox->closeBox();
 	_additional.restrictedRights.erase(user);
 	_additional.restrictedBy.erase(user);
@@ -1291,7 +1360,9 @@ void AddParticipantBoxController::restrictUserSure(not_null<UserData*> user, con
 	}));
 }
 
-void AddParticipantBoxController::editRestrictedDone(not_null<UserData*> user, const MTPChannelBannedRights &rights) {
+void AddParticipantBoxController::editRestrictedDone(
+		not_null<UserData*> user,
+		const MTPChannelBannedRights &rights) {
 	if (_editBox) _editBox->closeBox();
 	_additional.adminRights.erase(user);
 	_additional.adminCanEdit.erase(user);
@@ -1380,7 +1451,10 @@ std::unique_ptr<PeerListRow> AddParticipantBoxController::createRow(not_null<Use
 }
 
 template <typename Callback>
-void AddParticipantBoxController::HandleParticipant(const MTPChannelParticipant &participant, not_null<Additional*> additional, Callback callback) {
+void AddParticipantBoxController::HandleParticipant(
+		const MTPChannelParticipant &participant,
+		not_null<Additional*> additional,
+		Callback callback) {
 	switch (participant.type()) {
 	case mtpc_channelParticipantAdmin: {
 		auto &admin = participant.c_channelParticipantAdmin();

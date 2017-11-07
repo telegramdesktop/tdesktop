@@ -53,7 +53,14 @@ private:
 	void refreshActionLink();
 	QSize actionSize() const override;
 	QMargins actionMargins() const override;
-	void paintAction(Painter &p, TimeMs ms, int x, int y, int outerWidth, bool actionSelected) override;
+	void paintAction(
+		Painter &p,
+		TimeMs ms,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) override;
 
 	QString _action;
 	int _actionWidth = 0;

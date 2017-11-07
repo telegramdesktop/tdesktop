@@ -86,9 +86,12 @@ public:
 	virtual ~PeerListRow();
 
 	// Box interface.
-	virtual bool needsVerifiedIcon() const {
-		return _peer->isVerified();
-	}
+	virtual int nameIconWidth() const;
+	virtual void paintNameIcon(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth);
 	virtual QSize actionSize() const {
 		return QSize();
 	}
@@ -99,7 +102,14 @@ public:
 	}
 	virtual void stopLastActionRipple() {
 	}
-	virtual void paintAction(Painter &p, TimeMs ms, int x, int y, int outerWidth, bool actionSelected) {
+	virtual void paintAction(
+		Painter &p,
+		TimeMs ms,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) {
 	}
 
 	void refreshName(const style::PeerListItem &st);

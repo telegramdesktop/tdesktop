@@ -1096,7 +1096,7 @@ private:
 	void flagsUpdated(MTPDchannel::Flags diff);
 	void fullFlagsUpdated(MTPDchannelFull::Flags diff);
 
-	bool canNotEditLastAdmin(not_null<UserData*> user) const;
+	bool canEditLastAdmin(not_null<UserData*> user) const;
 
 	Flags _flags = Flags(MTPDchannel_ClientFlag::f_forbidden | 0);
 	FullFlags _fullFlags;

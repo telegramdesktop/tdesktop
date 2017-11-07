@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-class PeerListController;
+#include "boxes/peer_list_box.h"
 
 namespace Window {
 class Controller;
@@ -28,6 +28,49 @@ class Controller;
 
 namespace Info {
 namespace Profile {
+
+class MemberListRow final : public PeerListRow {
+public:
+	enum class Rights {
+		Normal,
+		Admin,
+		Creator,
+	};
+	struct Type {
+		Rights rights;
+		bool canRemove = false;
+	};
+
+	MemberListRow(not_null<UserData*> user, Type type);
+
+	void setType(Type type);
+	QSize actionSize() const override;
+	void paintAction(
+		Painter &p,
+		TimeMs ms,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) override;
+	int nameIconWidth() const override;
+	void paintNameIcon(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth) override;
+
+	not_null<UserData*> user() const {
+		return peer()->asUser();
+	}
+	bool canRemove() const {
+		return _type.canRemove;
+	}
+
+private:
+	Type _type;
+
+};
 
 std::unique_ptr<PeerListController> CreateMembersController(
 	not_null<Window::Controller*> window,

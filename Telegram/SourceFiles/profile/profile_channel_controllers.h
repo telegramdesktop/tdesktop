@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/sender.h"
 #include "base/timer.h"
 #include "base/weak_unique_ptr.h"
+#include "info/profile/info_profile_members_controllers.h"
 
 namespace Window {
 class Controller;
@@ -102,6 +103,9 @@ protected:
 	virtual std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;
 
 private:
+	using Row = Info::Profile::MemberListRow;
+	using Type = Row::Type;
+	using Rights = Row::Rights;
 	struct SavedState : SavedStateBase {
 		std::unique_ptr<PeerListSearchController::SavedStateBase> searchState;
 		int offset = 0;
@@ -110,7 +114,7 @@ private:
 		Additional additional;
 		rpl::lifetime lifetime;
 	};
-	
+
 	static std::unique_ptr<PeerListSearchController> CreateSearchController(
 		not_null<ChannelData*> channel,
 		Role role,
@@ -133,6 +137,11 @@ private:
 	void refreshCustomStatus(not_null<PeerListRow*> row) const;
 	bool feedMegagroupLastParticipants();
 	void refreshOnlineCount();
+	Type computeType(not_null<UserData*> user) const;
+	void recomputeTypeFor(not_null<UserData*> user);
+	bool canEditAdmin(not_null<UserData*> user) const;
+	bool canRestrictUser(not_null<UserData*> user) const;
+	bool canEditAdminByRights(not_null<UserData*> user) const;
 
 	not_null<Window::Controller*> _window;
 	not_null<ChannelData*> _channel;

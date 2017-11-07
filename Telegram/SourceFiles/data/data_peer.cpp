@@ -928,7 +928,8 @@ void ChannelData::setRestrictionReason(const QString &text) {
 	}
 }
 
-bool ChannelData::canNotEditLastAdmin(not_null<UserData*> user) const {
+bool ChannelData::canEditLastAdmin(not_null<UserData*> user) const {
+	// Duplicated in ParticipantsBoxController::canEditAdmin :(
 	if (mgInfo) {
 		auto i = mgInfo->lastAdmins.constFind(user);
 		if (i != mgInfo->lastAdmins.cend()) {
@@ -940,22 +941,24 @@ bool ChannelData::canNotEditLastAdmin(not_null<UserData*> user) const {
 }
 
 bool ChannelData::canEditAdmin(not_null<UserData*> user) const {
+	// Duplicated in ParticipantsBoxController::canEditAdmin :(
 	if (user->isSelf()) {
 		return false;
 	} else if (amCreator()) {
 		return true;
-	} else if (canNotEditLastAdmin(user)) {
+	} else if (!canEditLastAdmin(user)) {
 		return false;
 	}
 	return adminRights() & AdminRight::f_add_admins;
 }
 
 bool ChannelData::canRestrictUser(not_null<UserData*> user) const {
+	// Duplicated in ParticipantsBoxController::canRestrictUser :(
 	if (user->isSelf()) {
 		return false;
 	} else if (amCreator()) {
 		return true;
-	} else if (canNotEditLastAdmin(user)) {
+	} else if (!canEditLastAdmin(user)) {
 		return false;
 	}
 	return adminRights() & AdminRight::f_ban_users;

@@ -90,16 +90,27 @@ public:
 	void addActionRipple(QPoint point, base::lambda<void()> updateCallback) override;
 	void stopLastActionRipple() override;
 
-	bool needsVerifiedIcon() const override {
-		return false;
+	int nameIconWidth() const override {
+		return 0;
 	}
 	QSize actionSize() const override {
 		return peer()->isUser() ? QSize(st::callReDial.width, st::callReDial.height) : QSize();
 	}
 	QMargins actionMargins() const override {
-		return QMargins(0, 0, 0, 0);
+		return QMargins(
+			0,
+			0,
+			st::defaultPeerListItem.photoPosition.x(),
+			0);
 	}
-	void paintAction(Painter &p, TimeMs ms, int x, int y, int outerWidth, bool actionSelected) override;
+	void paintAction(
+		Painter &p,
+		TimeMs ms,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) override;
 
 private:
 	void refreshStatus();
@@ -138,7 +149,14 @@ void BoxController::Row::paintStatusText(Painter &p, const style::PeerListItem &
 	PeerListRow::paintStatusText(p, st, x, y, availableWidth, outerWidth, selected);
 }
 
-void BoxController::Row::paintAction(Painter &p, TimeMs ms, int x, int y, int outerWidth, bool actionSelected) {
+void BoxController::Row::paintAction(
+		Painter &p,
+		TimeMs ms,
+		int x,
+		int y,
+		int outerWidth,
+		bool selected,
+		bool actionSelected) {
 	auto size = actionSize();
 	if (_actionRipple) {
 		_actionRipple->paint(p, x + st::callReDial.rippleAreaPosition.x(), y + st::callReDial.rippleAreaPosition.y(), outerWidth, ms);
