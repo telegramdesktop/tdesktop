@@ -4377,7 +4377,7 @@ void MainWidget::inviteCheckDone(QString hash, const MTPChatInvite &invite) {
 	case mtpc_chatInvite: {
 		auto &d = invite.c_chatInvite();
 
-		QVector<UserData*> participants;
+		auto participants = QVector<UserData*>();
 		if (d.has_participants()) {
 			auto &v = d.vparticipants.v;
 			participants.reserve(v.size());
@@ -4388,15 +4388,21 @@ void MainWidget::inviteCheckDone(QString hash, const MTPChatInvite &invite) {
 			}
 		}
 		_inviteHash = hash;
-		auto isChannel = d.is_channel() && !d.is_megagroup();
-		Ui::show(Box<ConfirmInviteBox>(qs(d.vtitle), isChannel, d.vphoto, d.vparticipants_count.v, participants));
+		auto box = Box<ConfirmInviteBox>(
+			qs(d.vtitle),
+			d.is_channel() && !d.is_megagroup(),
+			d.vphoto,
+			d.vparticipants_count.v,
+			participants);
+		Ui::show(std::move(box));
 	} break;
 
 	case mtpc_chatInviteAlready: {
-		const auto &d(invite.c_chatInviteAlready());
-		PeerData *chat = App::feedChats(MTP_vector<MTPChat>(1, d.vchat));
-		if (chat) {
-			Ui::showPeerHistory(chat->id, ShowAtUnreadMsgId);
+		auto &d = invite.c_chatInviteAlready();
+		if (auto chat = App::feedChat(d.vchat)) {
+			_controller->showPeerHistory(
+				chat,
+				SectionShow::Way::Forward);
 		}
 	} break;
 	}
@@ -4413,7 +4419,10 @@ bool MainWidget::inviteCheckFail(const RPCError &error) {
 
 void MainWidget::onInviteImport() {
 	if (_inviteHash.isEmpty()) return;
-	MTP::send(MTPmessages_ImportChatInvite(MTP_string(_inviteHash)), rpcDone(&MainWidget::inviteImportDone), rpcFail(&MainWidget::inviteImportFail));
+	MTP::send(
+		MTPmessages_ImportChatInvite(MTP_string(_inviteHash)),
+		rpcDone(&MainWidget::inviteImportDone),
+		rpcFail(&MainWidget::inviteImportFail));
 }
 
 void MainWidget::inviteImportDone(const MTPUpdates &updates) {
@@ -4427,10 +4436,19 @@ void MainWidget::inviteImportDone(const MTPUpdates &updates) {
 	default: LOG(("API Error: unexpected update cons %1 (MainWidget::inviteImportDone)").arg(updates.type())); break;
 	}
 	if (v && !v->isEmpty()) {
-		if (v->front().type() == mtpc_chat) {
-			Ui::showPeerHistory(peerFromChat(v->front().c_chat().vid.v), ShowAtTheEndMsgId);
-		} else if (v->front().type() == mtpc_channel) {
-			Ui::showPeerHistory(peerFromChannel(v->front().c_channel().vid.v), ShowAtTheEndMsgId);
+		auto &mtpChat = v->front();
+		auto peerId = [&] {
+			if (mtpChat.type() == mtpc_chat) {
+				return peerFromChat(mtpChat.c_chat().vid.v);
+			} else if (mtpChat.type() == mtpc_channel) {
+				return peerFromChannel(mtpChat.c_channel().vid.v);
+			}
+			return PeerId(0);
+		}();
+		if (auto peer = App::peerLoaded(peerId)) {
+			_controller->showPeerHistory(
+				peer,
+				SectionShow::Way::Forward);
 		}
 	}
 }
