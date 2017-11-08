@@ -149,7 +149,6 @@ public:
 
 	void peerBefore(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg);
 	void peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPeer, MsgId &outMsg);
-	PeerData *historyPeer();
 	PeerData *peer();
 
 	PeerData *activePeer();

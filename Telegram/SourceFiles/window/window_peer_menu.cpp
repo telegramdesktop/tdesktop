@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/add_contact_box.h"
 #include "boxes/report_box.h"
 #include "boxes/peer_list_controllers.h"
+#include "boxes/peers/manage_peer_box.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
@@ -153,7 +154,7 @@ Filler::Filler(
 bool Filler::showInfo() {
 	if (_source == PeerMenuSource::Profile) {
 		return false;
-	} else if (_controller->historyPeer.current() != _peer) {
+	} else if (_controller->activePeer.current() != _peer) {
 		return true;
 	} else if (!Adaptive::ThreeColumn()) {
 		return true;
@@ -377,7 +378,14 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 
 void Filler::addChannelActions(not_null<ChannelData*> channel) {
 	if (_source != PeerMenuSource::ChatsList) {
-		//_addAction(manage);
+		if (ManagePeerBox::Available(channel)) {
+			auto text = lang(channel->isMegagroup()
+				? lng_manage_group_title
+				: lng_manage_channel_title);
+			_addAction(text, [channel] {
+				Ui::show(Box<ManagePeerBox>(channel));
+			});
+		}
 		if (channel->canAddMembers()) {
 			_addAction(
 				lang(lng_channel_add_members),

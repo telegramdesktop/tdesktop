@@ -245,16 +245,20 @@ using UpdateFlag = Notify::PeerUpdate::Flag;
 NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
 NotifySettingsPtr globalNotifyAllPtr = UnknownNotifySettings, globalNotifyUsersPtr = UnknownNotifySettings, globalNotifyChatsPtr = UnknownNotifySettings;
 
-PeerClickHandler::PeerClickHandler(not_null<PeerData*> peer) : _peer(peer) {
+PeerClickHandler::PeerClickHandler(not_null<PeerData*> peer)
+: _peer(peer) {
 }
 
 void PeerClickHandler::onClick(Qt::MouseButton button) const {
-	if (button == Qt::LeftButton && App::main()) {
-		if (_peer && _peer->isChannel() && App::main()->historyPeer() != _peer) {
+	if (button == Qt::LeftButton && App::wnd()) {
+		auto controller = App::wnd()->controller();
+		if (_peer && _peer->isChannel() && controller->historyPeer.current() != _peer) {
 			if (!_peer->asChannel()->isPublic() && !_peer->asChannel()->amIn()) {
-				Ui::show(Box<InformBox>(lang((_peer->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
+				Ui::show(Box<InformBox>(lang(_peer->isMegagroup()
+					? lng_group_not_accessible
+					: lng_channel_not_accessible)));
 			} else {
-				App::wnd()->controller()->showPeerHistory(
+				controller->showPeerHistory(
 					_peer,
 					Window::SectionShow::Way::Forward);
 			}
@@ -264,15 +268,21 @@ void PeerClickHandler::onClick(Qt::MouseButton button) const {
 	}
 }
 
-PeerData::PeerData(const PeerId &id) : id(id), _colorIndex(peerColorIndex(id)) {
+PeerData::PeerData(const PeerId &id)
+: id(id)
+, _colorIndex(peerColorIndex(id)) {
 	nameText.setText(st::msgNameStyle, QString(), _textNameOptions);
 	_userpicEmpty.set(_colorIndex, QString());
 }
 
-void PeerData::updateNameDelayed(const QString &newName, const QString &newNameOrPhone, const QString &newUsername) {
+void PeerData::updateNameDelayed(
+		const QString &newName,
+		const QString &newNameOrPhone,
+		const QString &newUsername) {
 	if (name == newName) {
 		if (isUser()) {
-			if (asUser()->nameOrPhone == newNameOrPhone && asUser()->username == newUsername) {
+			if (asUser()->nameOrPhone == newNameOrPhone
+				&& asUser()->username == newUsername) {
 				return;
 			}
 		} else if (isChannel()) {

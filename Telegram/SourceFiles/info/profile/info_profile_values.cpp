@@ -202,6 +202,45 @@ rpl::producer<int> MembersCountValue(
 	Unexpected("User in MembersCountViewer().");
 }
 
+rpl::producer<int> AdminsCountValue(
+		not_null<ChannelData*> channel) {
+	using Flag = Notify::PeerUpdate::Flag;
+	return Notify::PeerUpdateValue(
+		channel,
+		Flag::AdminsChanged | Flag::ChannelRightsChanged)
+		| rpl::map([channel] {
+			return channel->canViewAdmins()
+				? channel->adminsCount()
+				: 0;
+		});
+}
+
+rpl::producer<int> RestrictedCountValue(
+		not_null<ChannelData*> channel) {
+	using Flag = Notify::PeerUpdate::Flag;
+	return Notify::PeerUpdateValue(
+		channel,
+		Flag::BannedUsersChanged | Flag::ChannelRightsChanged)
+		| rpl::map([channel] {
+			return channel->canViewBanned()
+				? channel->restrictedCount()
+				: 0;
+		});
+}
+
+rpl::producer<int> KickedCountValue(
+		not_null<ChannelData*> channel) {
+	using Flag = Notify::PeerUpdate::Flag;
+	return Notify::PeerUpdateValue(
+		channel,
+		Flag::BannedUsersChanged | Flag::ChannelRightsChanged)
+		| rpl::map([channel] {
+			return channel->canViewBanned()
+				? channel->kickedCount()
+				: 0;
+		});
+}
+
 rpl::producer<int> SharedMediaCountValue(
 		not_null<PeerData*> peer,
 		PeerData *migrated,

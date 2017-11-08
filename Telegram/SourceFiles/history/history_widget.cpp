@@ -1731,6 +1731,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 	if (peerId) {
 		_peer = App::peer(peerId);
+		_topBar->setHistoryPeer(_peer);
 		_channel = peerToChannel(_peer->id);
 		_canSendMessages = canSendMessages(_peer);
 		_tabbedSelector->setCurrentPeer(_peer);
@@ -1843,6 +1844,9 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	emit historyShown(_history, _showAtMsgId);
 
 	controller()->historyPeer = _peer;
+	if (_peer) {
+		controller()->activePeer = _peer;
+	}
 	update();
 }
 

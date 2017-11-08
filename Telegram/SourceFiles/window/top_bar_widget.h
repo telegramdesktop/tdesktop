@@ -52,6 +52,9 @@ public:
 	void updateMembersShowArea();
 
 	Ui::RoundButton *mediaTypeButton();
+	void setHistoryPeer(not_null<PeerData*> historyPeer) {
+		_historyPeer = historyPeer;
+	}
 
 	static void paintUnreadCounter(Painter &p, int outerWidth);
 
@@ -83,6 +86,7 @@ private:
 	int countSelectedButtonsTop(float64 selectedShown);
 
 	not_null<Window::Controller*> _controller;
+	PeerData *_historyPeer = nullptr;
 
 	int _selectedCount = 0;
 	bool _canDelete = false;

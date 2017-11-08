@@ -58,7 +58,8 @@ public:
 		Painter &p,
 		int x,
 		int y,
-		int outerWidth) override;
+		int outerWidth,
+		bool selected) override;
 
 	not_null<UserData*> user() const {
 		return peer()->asUser();

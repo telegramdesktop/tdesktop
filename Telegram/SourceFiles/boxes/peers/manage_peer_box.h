@@ -20,31 +20,20 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-// rpl - reactive programming library
+#include "boxes/abstract_box.h"
 
-#include <rpl/lifetime.h>
-#include <rpl/consumer.h>
-#include <rpl/producer.h>
-#include <rpl/event_stream.h>
+class ManagePeerBox : public BoxContent {
+public:
+	ManagePeerBox(QWidget*, not_null<ChannelData*> channel);
 
-#include <rpl/range.h>
-#include <rpl/complete.h>
-#include <rpl/fail.h>
-#include <rpl/never.h>
+	static bool Available(not_null<ChannelData*> channel);
 
-#include <rpl/take.h>
-#include <rpl/then.h>
-#include <rpl/deferred.h>
-#include <rpl/map.h>
-#include <rpl/mappers.h>
-#include <rpl/merge.h>
-#include <rpl/filter.h>
-#include <rpl/distinct_until_changed.h>
-#include <rpl/type_erased.h>
-#include <rpl/flatten_latest.h>
-#include <rpl/combine.h>
-#include <rpl/combine_previous.h>
-#include <rpl/variable.h>
+protected:
+	void prepare() override;
 
-#include <rpl/before_next.h>
-#include <rpl/after_next.h>
+private:
+	void setupContent();
+
+	not_null<ChannelData*> _channel;
+
+};

@@ -39,7 +39,7 @@ public:
 	Widget(QWidget *parent, not_null<Window::Controller*> controller, PeerData *peer);
 
 	PeerData *peer() const;
-	PeerData *peerForDialogs() const override {
+	PeerData *activePeer() const override {
 		return peer();
 	}
 

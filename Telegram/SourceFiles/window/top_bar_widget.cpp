@@ -99,7 +99,7 @@ TopBarWidget::TopBarWidget(
 		});
 	}
 	subscribe(App::histories().sendActionAnimationUpdated(), [this](const Histories::SendActionAnimationUpdate &update) {
-		if (App::main() && update.history->peer == App::main()->historyPeer()) {
+		if (update.history->peer == _controller->historyPeer.current()) {
 			rtlupdate(0, 0, width(), height());
 		}
 	});
@@ -139,9 +139,8 @@ void TopBarWidget::onClearSelection() {
 }
 
 void TopBarWidget::onInfoClicked() {
-	auto p = App::main() ? App::main()->historyPeer() : nullptr;
-	if (p) {
-		_controller->showPeerInfo(p);
+	if (auto peer = _controller->historyPeer.current()) {
+		_controller->showPeerInfo(peer);
 	}
 }
 
@@ -205,7 +204,7 @@ void TopBarWidget::toggleInfoSection() {
 		&& (Auth().data().thirdSectionInfoEnabled()
 			|| Auth().data().tabbedReplacedWithInfo())) {
 		_controller->closeThirdSection();
-	} else if (auto peer = App::main()->historyPeer()) {
+	} else if (auto peer = _controller->historyPeer.current()) {
 		if (_controller->canShowThirdSection()) {
 			Auth().data().setThirdSectionInfoEnabled(true);
 			Auth().saveDataDelayed();
@@ -289,7 +288,7 @@ void TopBarWidget::paintUnreadCounter(Painter &p, int outerWidth) {
 	auto fullCounter = App::histories().unreadBadge() + (Global::IncludeMuted() ? 0 : mutedCount);
 
 	// Do not include currently shown chat in the top bar unread counter.
-	if (auto historyShown = App::historyLoaded(App::main()->historyPeer())) {
+	if (auto historyShown = App::historyLoaded(App::wnd()->controller()->historyPeer.current())) {
 		auto shownUnreadCount = historyShown->unreadCount();
 		if (!historyShown->mute() || Global::IncludeMuted()) {
 			fullCounter -= shownUnreadCount;
@@ -370,7 +369,6 @@ void TopBarWidget::animationFinished() {
 }
 
 void TopBarWidget::updateControlsVisibility() {
-	auto historyPeer = App::main() ? App::main()->historyPeer() : nullptr;
 	auto overviewPeer = App::main() ? App::main()->overviewPeer() : nullptr;
 
 	_clearSelection->show();
@@ -378,9 +376,9 @@ void TopBarWidget::updateControlsVisibility() {
 	_forward->setVisible(_canForward);
 
 	_mediaType->setVisible(App::main() ? App::main()->showMediaTypeSwitch() : false);
-	if (historyPeer && !overviewPeer) {
+	if (_historyPeer && !overviewPeer) {
 		if (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) {
-			_info->setPeer(historyPeer);
+			_info->setPeer(_historyPeer);
 			_info->show();
 			_menuToggle->hide();
 			_menu.destroy();
@@ -392,7 +390,7 @@ void TopBarWidget::updateControlsVisibility() {
 		_infoToggle->setVisible(!Adaptive::OneColumn()
 			&& _controller->canShowThirdSection());
 		auto callsEnabled = false;
-		if (auto user = historyPeer->asUser()) {
+		if (auto user = _historyPeer->asUser()) {
 			callsEnabled = Global::PhoneCallsEnabled() && user->hasCalls();
 		}
 		_call->setVisible(callsEnabled);

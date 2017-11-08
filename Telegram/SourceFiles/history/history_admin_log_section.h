@@ -85,7 +85,7 @@ public:
 	Widget(QWidget *parent, not_null<Window::Controller*> controller, not_null<ChannelData*> channel);
 
 	not_null<ChannelData*> channel() const;
-	PeerData *peerForDialogs() const override {
+	PeerData *activePeer() const override {
 		return channel();
 	}
 

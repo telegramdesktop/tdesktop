@@ -90,7 +90,12 @@ public:
 	// This is needed while we have one HistoryWidget and one TopBarWidget
 	// for all histories we show in a window. Once each history is shown
 	// in its own HistoryWidget with its own TopBarWidget this can be removed.
+	//
+	// Also used in the Info::Profile to toggle Send Message button.
 	rpl::variable<PeerData*> historyPeer;
+
+	// This is used for auto-switch in third column Info::Profile.
+	rpl::variable<PeerData*> activePeer;
 
 	void enableGifPauseReason(GifPauseReason reason);
 	void disableGifPauseReason(GifPauseReason reason);

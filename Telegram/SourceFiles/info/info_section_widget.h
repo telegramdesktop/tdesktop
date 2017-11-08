@@ -48,7 +48,7 @@ public:
 		Wrap wrap,
 		not_null<MoveMemento*> memento);
 
-	PeerData *peerForDialogs() const override;
+	PeerData *activePeer() const override;
 
 	bool hasTopBarShadow() const override;
 	QPixmap grabForShowAnimation(

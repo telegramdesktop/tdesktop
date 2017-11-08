@@ -75,6 +75,12 @@ rpl::producer<bool> AmInChannelValue(
 	not_null<ChannelData*> channel);
 rpl::producer<int> MembersCountValue(
 	not_null<PeerData*> peer);
+rpl::producer<int> AdminsCountValue(
+	not_null<ChannelData*> channel);
+rpl::producer<int> RestrictedCountValue(
+	not_null<ChannelData*> channel);
+rpl::producer<int> KickedCountValue(
+	not_null<ChannelData*> channel);
 rpl::producer<int> SharedMediaCountValue(
 	not_null<PeerData*> peer,
 	PeerData *migrated,

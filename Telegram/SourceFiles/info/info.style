@@ -313,6 +313,10 @@ infoIconMediaLink: icon {{ "info_media_link", infoIconFg }};
 infoIconMediaGroup: icon {{ "info_common_groups", infoIconFg }};
 infoIconMediaVoice: icon {{ "info_media_voice", infoIconFg }};
 infoIconMediaRound: icon {{ "info_media_round", infoIconFg }};
+infoIconRecentActions: icon {{ "info_recent_actions", infoIconFg }};
+infoIconAdministrators: icon {{ "info_administrators", infoIconFg }};
+infoIconBlacklist: icon {{ "info_blacklist", infoIconFg }};
+infoIconRestrictedUsers: icon {{ "info_restricted_users", infoIconFg }};
 infoInformationIconPosition: point(25px, 12px);
 infoNotificationsIconPosition: point(20px, 5px);
 infoSharedMediaIconPosition: point(20px, 24px);
@@ -483,9 +487,19 @@ infoMembersCreatorIcon: icon {{
 	profileAdminStartFg,
 	point(4px, 3px)
 }};
+infoMembersCreatorIconOver: icon {{
+	"profile_admin_star",
+	profileAdminStarFgOver,
+	point(4px, 3px)
+}};
 infoMembersAdminIcon: icon {{
 	"profile_admin_star",
 	profileOtherAdminStarFg,
+	point(4px, 3px)
+}};
+infoMembersAdminIconOver: icon {{
+	"profile_admin_star",
+	profileOtherAdminStarFgOver,
 	point(4px, 3px)
 }};
 infoMembersRemoveIcon: icon {{
@@ -522,3 +536,13 @@ infoCommonGroupsList: PeerList(infoMembersList) {
 		statusPosition: point(79px, 31px);
 	}
 }
+
+managePeerButton: InfoProfileButton(infoProfileButton) {
+	padding: margins(76px, 10px, 76px, 8px);
+}
+managePeerButtonIconPosition: infoSharedMediaButtonIconPosition;
+managePeerButtonLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowActiveTextFg;
+	style: semiboldTextStyle;
+}
+managePeerButtonLabelPosition: point(25px, 10px);

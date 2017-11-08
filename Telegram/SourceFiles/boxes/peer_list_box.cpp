@@ -387,7 +387,8 @@ void PeerListRow::paintNameIcon(
 		Painter &p,
 		int x,
 		int y,
-		int outerWidth) {
+		int outerWidth,
+		bool selected) {
 	st::dialogsVerifiedIcon.paint(p, x, y, outerWidth);
 }
 
@@ -1060,7 +1061,8 @@ TimeMs PeerListContent::paintRow(Painter &p, TimeMs ms, RowIndex index) {
 			p,
 			namex + qMin(name.maxWidth(), namew),
 			_st.item.namePosition.y(),
-			width());
+			width(),
+			selected);
 	}
 	auto nameCheckedRatio = row->disabled() ? 0. : row->checkedRatio();
 	p.setPen(anim::pen(st::contactsNameFg, st::contactsNameCheckedFg, nameCheckedRatio));

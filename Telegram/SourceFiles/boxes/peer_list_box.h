@@ -91,7 +91,8 @@ public:
 		Painter &p,
 		int x,
 		int y,
-		int outerWidth);
+		int outerWidth,
+		bool selected);
 	virtual QSize actionSize() const {
 		return QSize();
 	}

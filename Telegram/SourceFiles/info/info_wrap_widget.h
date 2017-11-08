@@ -88,7 +88,7 @@ public:
 		not_null<Memento*> memento);
 
 	not_null<PeerData*> peer() const;
-	PeerData *peerForDialogs() const override {
+	PeerData *activePeer() const override {
 		return peer();
 	}
 	Wrap wrap() const {

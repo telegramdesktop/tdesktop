@@ -271,7 +271,7 @@ MainWidget::MainWidget(
 	});
 
 	using namespace rpl::mappers;
-	_controller->historyPeer.value()
+	_controller->activePeer.value()
 		| rpl::map([](PeerData *peer) {
 			auto canWrite = peer
 				? Data::CanWriteValue(peer)
@@ -2432,7 +2432,7 @@ void MainWidget::ui_showPeerHistory(
 				break;
 			}
 		}
-		if (auto historyPeer = _history->peer()) {
+		if (auto historyPeer = _controller->historyPeer.current()) {
 			if (way == Way::Forward && historyPeer->id == peerId) {
 				way = Way::ClearStack;
 			}
@@ -2552,6 +2552,10 @@ void MainWidget::ui_showPeerHistory(
 		_dialogs->update();
 	}
 
+	if (!peerId) {
+		_controller->activePeer = nullptr;
+	}
+
 	checkFloatPlayerVisibility();
 }
 
@@ -2575,10 +2579,6 @@ void MainWidget::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPe
 		return;
 	}
 	_dialogs->peerAfter(inPeer, inMsg, outPeer, outMsg);
-}
-
-PeerData *MainWidget::historyPeer() {
-	return _history->peer();
 }
 
 PeerData *MainWidget::peer() {
@@ -2960,6 +2960,10 @@ void MainWidget::showNewSection(
 		settingSection->showAnimated(direction, animationParams);
 	} else {
 		settingSection->showFast();
+	}
+
+	if (settingSection.data() == _mainSection.data()) {
+		_controller->activePeer = _mainSection->activePeer();
 	}
 
 	checkFloatPlayerVisibility();
@@ -3530,8 +3534,11 @@ void MainWidget::updateThirdColumnToCurrentPeer(
 	} else {
 		Auth().data().setTabbedReplacedWithInfo(false);
 		if (!peer) {
-			_thirdSection.destroy();
-			_thirdShadow.destroy();
+			if (_thirdSection) {
+				_thirdSection.destroy();
+				_thirdShadow.destroy();
+				updateControlsGeometry();
+			}
 		} else if (Adaptive::ThreeColumn()
 			&& Auth().data().thirdSectionInfoEnabled()) {
 			switchInfoFast();

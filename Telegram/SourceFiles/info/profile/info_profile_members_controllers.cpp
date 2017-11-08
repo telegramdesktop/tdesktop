@@ -363,11 +363,16 @@ void MemberListRow::paintNameIcon(
 		Painter &p,
 		int x,
 		int y,
-		int outerWidth) {
+		int outerWidth,
+		bool selected) {
 	auto icon = [&] {
 		return (_type.rights == Rights::Admin)
-			? &st::infoMembersAdminIcon
-			: &st::infoMembersCreatorIcon;
+			? (selected
+				? &st::infoMembersAdminIconOver
+				: &st::infoMembersAdminIcon)
+			: (selected
+				? &st::infoMembersCreatorIconOver
+				: &st::infoMembersCreatorIcon);
 	}();
 	icon->paint(p, x, y, outerWidth);
 }

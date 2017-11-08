@@ -82,7 +82,7 @@ class SectionWidget : public AbstractSectionWidget {
 public:
 	SectionWidget(QWidget *parent, not_null<Window::Controller*> controller);
 
-	virtual PeerData *peerForDialogs() const {
+	virtual PeerData *activePeer() const {
 		return nullptr;
 	}
 
