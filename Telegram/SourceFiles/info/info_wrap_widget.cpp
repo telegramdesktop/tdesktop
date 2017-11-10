@@ -262,7 +262,7 @@ void WrapWidget::createTopBar() {
 	}
 	if (_controller->section().type() == Section::Type::Profile) {
 		addProfileMenuButton();
-		addProfileNotificationsButton();
+//		addProfileNotificationsButton();
 	}
 
 	_topBar->move(0, 0);

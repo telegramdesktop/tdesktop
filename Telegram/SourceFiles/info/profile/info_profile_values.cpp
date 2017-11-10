@@ -183,19 +183,11 @@ rpl::producer<int> MembersCountValue(
 					: 0;
 			});
 	} else if (auto channel = peer->asChannel()) {
-		return rpl::combine(
-			Notify::PeerUpdateValue(
+		return Notify::PeerUpdateValue(
 				channel,
-				Notify::PeerUpdate::Flag::MembersChanged),
-			Data::PeerFullFlagValue(
-				channel,
-				MTPDchannelFull::Flag::f_can_view_participants))
+				Notify::PeerUpdate::Flag::MembersChanged)
 			| rpl::map([channel] {
-				auto canViewCount = channel->canViewMembers()
-					|| !channel->isMegagroup();
-				return canViewCount
-					? qMax(channel->membersCount(), 1)
-					: 0;
+				return channel->membersCount();
 			});
 	}
 	Unexpected("User in MembersCountViewer().");

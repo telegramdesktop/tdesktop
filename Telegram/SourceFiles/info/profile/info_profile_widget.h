@@ -63,7 +63,7 @@ public:
 	}
 
 private:
-	bool _infoExpanded = false;
+	bool _infoExpanded = true;
 	base::optional<QString> _membersSearch;
 	std::unique_ptr<PeerListState> _membersState;
 

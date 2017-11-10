@@ -40,5 +40,10 @@ object_ptr<Ui::RpWidget> SetupActions(
 	not_null<Ui::RpWidget*> parent,
 	not_null<PeerData*> peer);
 
+object_ptr<Ui::RpWidget> SetupChannelMembers(
+	not_null<Controller*> controller,
+	not_null<Ui::RpWidget*> parent,
+	not_null<PeerData*> peer);
+
 } // namespace Profile
 } // namespace Info

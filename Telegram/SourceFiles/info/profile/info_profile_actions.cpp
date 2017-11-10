@@ -21,6 +21,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_actions.h"
 
 #include <rpl/flatten_latest.h>
+#include <rpl/combine.h>
+#include "data/data_peer_values.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
@@ -42,6 +44,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_text.h"
 #include "window/window_controller.h"
 #include "window/window_peer_menu.h"
+#include "profile/profile_channel_controllers.h"
 #include "mainwidget.h"
 #include "auth_session.h"
 #include "messenger.h"
@@ -557,8 +560,7 @@ void ActionsFiller::addLeaveChannelAction(
 		_wrap,
 		Lang::Viewer(lng_profile_leave_channel),
 		AmInChannelValue(channel),
-		[channel] { Auth().api().leaveChannel(channel); },
-		st::infoBlockButton);
+		[channel] { Auth().api().leaveChannel(channel); });
 }
 
 void ActionsFiller::addJoinChannelAction(
@@ -608,10 +610,10 @@ void ActionsFiller::fillChannelActions(
 	using namespace rpl::mappers;
 
 	addJoinChannelAction(channel);
+	addLeaveChannelAction(channel);
 	if (!channel->amCreator()) {
 		addReportAction();
 	}
-	addLeaveChannelAction(channel);
 }
 
 object_ptr<Ui::RpWidget> ActionsFiller::fill() {
@@ -631,11 +633,12 @@ object_ptr<Ui::RpWidget> ActionsFiller::fill() {
 			fillUserActions(user);
 		});
 	} else if (auto channel = _peer->asChannel()) {
-		if (!channel->isMegagroup()) {
-			return wrapResult([=] {
-				fillChannelActions(channel);
-			});
+		if (channel->isMegagroup()) {
+			return { nullptr };
 		}
+		return wrapResult([=] {
+			fillChannelActions(channel);
+		});
 	}
 	return { nullptr };
 }
@@ -656,6 +659,57 @@ object_ptr<Ui::RpWidget> SetupActions(
 		not_null<PeerData*> peer) {
 	ActionsFiller filler(controller, parent, peer);
 	return filler.fill();
+}
+
+object_ptr<Ui::RpWidget> SetupChannelMembers(
+		not_null<Controller*> controller,
+		not_null<Ui::RpWidget*> parent,
+		not_null<PeerData*> peer) {
+	using namespace rpl::mappers;
+
+	auto channel = peer->asChannel();
+	if (!channel || channel->isMegagroup()) {
+		return { nullptr };
+	}
+
+	auto membersShown = rpl::combine(
+		MembersCountValue(channel),
+		Data::PeerFullFlagValue(
+			channel,
+			MTPDchannelFull::Flag::f_can_view_participants),
+			($1 > 0) && $2);
+	auto membersText = MembersCountValue(channel)
+		| rpl::map([](int count) {
+		return lng_chat_status_members(lt_count, count);
+	});
+	auto membersCallback = [controller, channel] {
+		using Controller = ::Profile::ParticipantsBoxController;
+		Controller::Start(
+			controller->window(),
+			channel,
+			Controller::Role::Members);
+	};
+
+	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		parent,
+		object_ptr<Ui::VerticalLayout>(parent));
+	result->toggleOn(std::move(membersShown));
+
+	auto members = result->entity();
+	members->add(object_ptr<BoxContentDivider>(members));
+	members->add(CreateSkipWidget(members));
+	AddActionButton(
+		members,
+		std::move(membersText),
+		rpl::single(true),
+		std::move(membersCallback));
+	object_ptr<FloatingIcon>(
+		members,
+		st::infoIconMembers,
+		st::infoChannelMembersIconPosition);
+	members->add(CreateSkipWidget(members));
+
+	return std::move(result);
 }
 
 } // namespace Profile

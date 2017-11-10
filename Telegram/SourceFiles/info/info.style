@@ -321,7 +321,7 @@ infoNotificationsIconPosition: point(20px, 5px);
 infoSharedMediaIconPosition: point(20px, 24px);
 infoSharedMediaButtonIconPosition: point(20px, 3px);
 infoIconPosition: point(20px, 15px);
-
+infoChannelMembersIconPosition: point(20px, 24px);
 infoLabeledOneLine: FlatLabel(defaultFlatLabel) {
 	maxHeight: 20px;
 	style: TextStyle(defaultTextStyle) {

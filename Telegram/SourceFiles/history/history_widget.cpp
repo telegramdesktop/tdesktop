@@ -696,7 +696,8 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 		| UpdateFlag::UserIsBlocked
 		| UpdateFlag::AdminsChanged
 		| UpdateFlag::MembersChanged
-		| UpdateFlag::UserOnlineChanged;
+		| UpdateFlag::UserOnlineChanged
+		| UpdateFlag::ChannelAmIn;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(changes, [this](const Notify::PeerUpdate &update) {
 		if (update.peer == _peer) {
 			if (update.flags & UpdateFlag::ChannelRightsChanged) {
@@ -730,7 +731,8 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 			if (update.flags & (UpdateFlag::UserIsBlocked
 				| UpdateFlag::AdminsChanged
 				| UpdateFlag::MembersChanged
-				| UpdateFlag::UserOnlineChanged)) {
+				| UpdateFlag::UserOnlineChanged
+				| UpdateFlag::ChannelAmIn)) {
 				handlePeerUpdate();
 			}
 		}
