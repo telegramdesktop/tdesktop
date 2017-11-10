@@ -158,4 +158,42 @@ public:
 
 };
 
+class IgnoreMargins : public Wrap<RpWidget> {
+	using Parent = Wrap<RpWidget>;
+
+public:
+	IgnoreMargins(QWidget *parent, object_ptr<RpWidget> &&child)
+	: Parent(parent, std::move(child)) {
+		if (auto weak = wrapped()) {
+			auto margins = weak->getMargins();
+			resizeToWidth(weak->width()
+				- margins.left()
+				- margins.right());
+		}
+	}
+
+	QMargins getMargins() const override {
+		return QMargins();
+	}
+
+protected:
+	int resizeGetHeight(int newWidth) override {
+		if (auto weak = wrapped()) {
+			weak->resizeToWidth(newWidth);
+			weak->moveToLeft(0, 0);
+			return weak->heightNoMargins();
+		}
+		return height();
+	}
+
+private:
+	void wrappedSizeUpdated(QSize size) override {
+		auto margins = wrapped()->getMargins();
+		resize(
+			size.width() - margins.left() - margins.right(),
+			size.height() - margins.top() - margins.bottom());
+	}
+
+};
+
 } // namespace Ui

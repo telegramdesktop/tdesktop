@@ -95,7 +95,7 @@ callMuteRight: 8px;
 
 callNameTop: 15px;
 callName: FlatLabel(defaultFlatLabel) {
-	width: 260px;
+	minWidth: 260px;
 	maxHeight: 30px;
 	textFg: callNameFg;
 	align: align(top);
@@ -107,7 +107,7 @@ callName: FlatLabel(defaultFlatLabel) {
 }
 callStatusTop: 46px;
 callStatus: FlatLabel(defaultFlatLabel) {
-	width: 260px;
+	minWidth: 260px;
 	maxHeight: 20px;
 	textFg: callStatusFg;
 	align: align(top);

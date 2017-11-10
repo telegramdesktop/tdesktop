@@ -315,8 +315,10 @@ void ParticipantsBoxController::restoreState(
 			loadMoreRows();
 		}
 		PeerListController::restoreState(std::move(state));
-		if (!_offset) {
-			setDescriptionText(QString());
+		if (delegate()->peerListFullRowsCount() > 0) {
+			setNonEmptyDescription();
+		} else if (_allLoaded) {
+			setDescriptionText(lang(lng_blocked_list_not_found));
 		}
 		sortByOnline();
 	}
@@ -442,11 +444,9 @@ void ParticipantsBoxController::loadMoreRows() {
 	_loadRequestId = request(MTPchannels_GetParticipants(_channel->inputChannel, filter(), MTP_int(_offset), MTP_int(perPage))).done([this](const MTPchannels_ChannelParticipants &result) {
 		Expects(result.type() == mtpc_channels_channelParticipants);
 
+		auto firstLoad = !_offset;
 		_loadRequestId = 0;
 
-		if (!_offset) {
-			setDescriptionText((_role == Role::Restricted) ? lang(lng_group_blocked_list_about) : QString());
-		}
 		auto &participants = result.c_channels_channelParticipants();
 		App::feedUsers(participants.vusers);
 
@@ -462,11 +462,24 @@ void ParticipantsBoxController::loadMoreRows() {
 				});
 			}
 		}
-		sortByOnline();
+		if (delegate()->peerListFullRowsCount() > 0) {
+			sortByOnline();
+			if (firstLoad) {
+				setNonEmptyDescription();
+			}
+		} else if (_allLoaded) {
+			setDescriptionText(lang(lng_blocked_list_not_found));
+		}
 		delegate()->peerListRefreshRows();
 	}).fail([this](const RPCError &error) {
 		_loadRequestId = 0;
 	}).send();
+}
+
+void ParticipantsBoxController::setNonEmptyDescription() {
+	setDescriptionText((_role == Role::Kicked)
+		? lang(lng_group_blocked_list_about)
+		: QString());
 }
 
 bool ParticipantsBoxController::feedMegagroupLastParticipants() {
@@ -822,7 +835,8 @@ bool ParticipantsBoxController::removeRow(not_null<UserData*> user) {
 		} else {
 			delegate()->peerListRemoveRow(row);
 		}
-		if (!delegate()->peerListFullRowsCount()) {
+		if (_role != Role::Kicked
+			&& !delegate()->peerListFullRowsCount()) {
 			setDescriptionText(lang(lng_blocked_list_not_found));
 		}
 		return true;

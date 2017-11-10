@@ -49,7 +49,7 @@ settingsNameLeft: 26px;
 settingsNameTop: 9px;
 settingsNameLabel: FlatLabel(defaultFlatLabel) {
 	margin: margins(10px, 5px, 10px, 5px);
-	width: 160px;
+	minWidth: 160px;
 	maxHeight: 24px;
 	textFg: windowBoldFg;
 	style: TextStyle(defaultTextStyle) {
@@ -98,12 +98,12 @@ settingsBlockLabel: FlatLabel(settingsPrimaryLabel) {
 	textFg: windowSubTextFg;
 }
 settingsBlockOneLineTextPart: FlatLabel(settingsPrimaryLabel) {
-	width: 0px; // No need to set minWidth in one-line text.
+	minWidth: 0px; // No need to set minWidth in one-line text.
 	margin: margins(5px, 5px, 5px, 5px);
 	maxHeight: 20px;
 }
 settingsBioValue: FlatLabel(settingsBlockOneLineTextPart) {
-	width: 120px;
+	minWidth: 120px;
 	maxHeight: 0px;
 }
 settingsSubSkip: 4px;

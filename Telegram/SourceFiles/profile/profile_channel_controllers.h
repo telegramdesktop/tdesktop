@@ -120,6 +120,7 @@ private:
 		Role role,
 		not_null<Additional*> additional);
 
+	void setNonEmptyDescription();
 	void setupSortByOnline();
 	void setupListChangeViewers();
 	void sortByOnlineDelayed();

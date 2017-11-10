@@ -825,6 +825,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_group_invite_create" = "Create an invite link";
 "lng_group_invite_about" = "Telegram users will be able to join\nyour group by following this link.";
+"lng_group_invite_about_channel" = "Telegram users will be able to join\nyour channel by following this link.";
 "lng_group_invite_create_new" = "Revoke invite link";
 "lng_group_invite_about_new" = "Your previous link will be deactivated and we'll generate a new invite link for you.";
 "lng_group_invite_copied" = "Invite link copied to clipboard.";

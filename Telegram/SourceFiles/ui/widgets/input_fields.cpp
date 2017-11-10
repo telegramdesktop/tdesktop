@@ -1744,7 +1744,12 @@ void FlatInput::onTextChange(const QString &text) {
 	if (App::wnd()) App::wnd()->updateGlobalMenu();
 }
 
-InputArea::InputArea(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val) : TWidget(parent)
+InputArea::InputArea(
+	QWidget *parent,
+	const style::InputField &st,
+	base::lambda<QString()> placeholderFactory,
+	const QString &val)
+: RpWidget(parent)
 , _st(st)
 , _inner(this)
 , _oldtext(val)
@@ -3272,7 +3277,12 @@ void InputField::setErrorShown(bool error) {
 	}
 }
 
-MaskedInputField::MaskedInputField(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory, const QString &val) : TWidgetHelper<QLineEdit>(val, parent)
+MaskedInputField::MaskedInputField(
+	QWidget *parent,
+	const style::InputField &st,
+	base::lambda<QString()> placeholderFactory,
+	const QString &val)
+: Parent(val, parent)
 , _st(st)
 , _oldtext(val)
 , _placeholderFactory(std::move(placeholderFactory)) {
@@ -3350,15 +3360,18 @@ void MaskedInputField::onTouchTimer() {
 	_touchRightButton = true;
 }
 
-bool MaskedInputField::event(QEvent *e) {
-	if (e->type() == QEvent::TouchBegin || e->type() == QEvent::TouchUpdate || e->type() == QEvent::TouchEnd || e->type() == QEvent::TouchCancel) {
-		QTouchEvent *ev = static_cast<QTouchEvent*>(e);
-		if (ev->device()->type() == QTouchDevice::TouchScreen) {
-			touchEvent(ev);
-			return QLineEdit::event(e);
+bool MaskedInputField::eventHook(QEvent *e) {
+	auto type = e->type();
+	if (type == QEvent::TouchBegin
+		|| type == QEvent::TouchUpdate
+		|| type == QEvent::TouchEnd
+		|| type == QEvent::TouchCancel) {
+		auto event = static_cast<QTouchEvent*>(e);
+		if (event->device()->type() == QTouchDevice::TouchScreen) {
+			touchEvent(event);
 		}
 	}
-	return QLineEdit::event(e);
+	return Parent::eventHook(e);
 }
 
 void MaskedInputField::touchEvent(QTouchEvent *e) {

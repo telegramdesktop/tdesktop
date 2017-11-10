@@ -78,7 +78,7 @@ public:
 	Return operator()(OtherArgs &&...args) {
 		return _guard
 			? _callable(std::forward<OtherArgs>(args)...)
-			: Return{};
+			: Return();
 	}
 
 	template <
@@ -87,7 +87,7 @@ public:
 	Return operator()(OtherArgs &&...args) const {
 		return _guard
 			? _callable(std::forward<OtherArgs>(args)...)
-			: Return{};
+			: Return();
 	}
 
 private:

@@ -235,8 +235,8 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 		NotificationsEnabledValue(peer)
 	)->addClickHandler([=] {
 		App::main()->updateNotifySetting(
-			_peer,
-			_peer->isMuted()
+			peer,
+			peer->isMuted()
 				? NotifySettingSetNotify
 				: NotifySettingSetMuted);
 	});

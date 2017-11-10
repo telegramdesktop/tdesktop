@@ -260,7 +260,6 @@ infoProfileStatusLeft: 109px;
 infoProfileStatusRight: 20px;
 infoProfileStatusTop: 58px;
 infoProfileStatusLabel: FlatLabel(defaultFlatLabel) {
-	width: 0px;
 	maxHeight: 18px;
 	textFg: windowSubTextFg;
 	style: TextStyle(defaultTextStyle) {
@@ -324,7 +323,6 @@ infoSharedMediaButtonIconPosition: point(20px, 3px);
 infoIconPosition: point(20px, 15px);
 
 infoLabeledOneLine: FlatLabel(defaultFlatLabel) {
-	width: 0px; // No need to set minWidth in one-line text.
 	maxHeight: 20px;
 	style: TextStyle(defaultTextStyle) {
 		lineHeight: 19px;
@@ -335,7 +333,7 @@ infoLabel: FlatLabel(infoLabeledOneLine) {
 	textFg: windowSubTextFg;
 }
 infoLabeled: FlatLabel(infoLabeledOneLine) {
-	width: 180px;
+	minWidth: 180px;
 	maxHeight: 0px;
 	margin: margins(5px, 5px, 5px, 5px);
 }
@@ -538,11 +536,58 @@ infoCommonGroupsList: PeerList(infoMembersList) {
 }
 
 managePeerButton: InfoProfileButton(infoProfileButton) {
-	padding: margins(76px, 10px, 76px, 8px);
+	padding: margins(76px, 12px, 76px, 10px);
 }
-managePeerButtonIconPosition: infoSharedMediaButtonIconPosition;
+managePeerButtonIconPosition: point(20px, 5px);
 managePeerButtonLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowActiveTextFg;
 	style: semiboldTextStyle;
 }
 managePeerButtonLabelPosition: point(25px, 10px);
+
+editPeerDeleteButtonMargins: margins(23px, 16px, 23px, 16px);
+editPeerDeleteButton: sessionTerminateAllButton;
+editPeerPhotoSize: newGroupPhotoSize;
+editPeerPhotoIconPosition: newGroupPhotoIconPosition;
+editPeerPhotoMargins: margins(23px, 16px, 23px, 8px);
+editPeerTitle: defaultInputField;
+editPeerTitleMargins: margins(27px, 21px, 23px, 8px);
+editPeerDescription: newGroupDescription;
+editPeerDescriptionMargins: margins(23px, 5px, 23px, 16px);
+editPeerPrivaciesMargins: margins(23px, 10px, 23px, 0px);
+editPeerPrivacyTopSkip: 10px;
+editPeerPrivacyBottomSkip: 16px;
+editPeerPrivacyLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 263px;
+	textFg: windowSubTextFg;
+}
+editPeerPrivacyLabelMargins: margins(34px, 0px, 0px, 0px);
+editPeerSectionLabel: FlatLabel(boxTitle) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(15px semibold);
+		linkFont: font(15px semibold);
+		linkFontOver: font(15px semibold underline);
+	}
+}
+editPeerUsername: setupChannelLink;
+editPeerUsernameSkip: 8px;
+editPeerInviteLink: FlatLabel(defaultFlatLabel) {
+	minWidth: 1px; // for break everywhere
+	style: boxTextStyle;
+}
+editPeerInviteLinkButton: boxLinkButton;
+editPeerUsernameMargins: margins(0px, 10px, 0px, 0px);
+editPeerUsernameGood: FlatLabel(defaultFlatLabel) {
+	textFg: boxTextFgGood;
+	style: boxTextStyle;
+}
+editPeerUsernameError: FlatLabel(editPeerUsernameGood) {
+	textFg: boxTextFgError;
+}
+editPeerUsernamePosition: point(0px, 10px);
+editPeerInviteLinkSkip: 10px;
+editPeerInviteLinkMargins: margins(23px, 10px, 14px, 0px);
+editPeerSignaturesMargins: margins(23px, 16px, 23px, 8px);
+editPeerInvitesMargins: margins(23px, 18px, 23px, 16px);
+editPeerInvitesTopSkip: 10px;
+editPeerInvitesSkip: 10px;

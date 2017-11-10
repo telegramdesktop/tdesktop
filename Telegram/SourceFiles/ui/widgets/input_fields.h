@@ -324,11 +324,15 @@ enum class CtrlEnterSubmit {
 	Both,
 };
 
-class InputArea : public TWidget, private base::Subscriber {
+class InputArea : public RpWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	InputArea(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory = base::lambda<QString()>(), const QString &val = QString());
+	InputArea(
+		QWidget *parent,
+		const style::InputField &st,
+		base::lambda<QString()> placeholderFactory = base::lambda<QString()>(),
+		const QString &val = QString());
 
 	void showError();
 
@@ -687,9 +691,12 @@ private:
 	bool _correcting = false;
 };
 
-class MaskedInputField : public TWidgetHelper<QLineEdit>, private base::Subscriber {
+class MaskedInputField
+	: public RpWidgetWrap<QLineEdit>
+	, private base::Subscriber {
 	Q_OBJECT
 
+	using Parent = RpWidgetWrap<QLineEdit>;
 public:
 	MaskedInputField(QWidget *parent, const style::InputField &st, base::lambda<QString()> placeholderFactory = base::lambda<QString()>(), const QString &val = QString());
 
@@ -748,7 +755,7 @@ protected:
 	void startBorderAnimation();
 	void startPlaceholderAnimation();
 
-	bool event(QEvent *e) override;
+	bool eventHook(QEvent *e) override;
 	void touchEvent(QTouchEvent *e);
 	void paintEvent(QPaintEvent *e) override;
 	void focusInEvent(QFocusEvent *e) override;

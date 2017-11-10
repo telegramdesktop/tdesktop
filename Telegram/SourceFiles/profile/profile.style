@@ -37,7 +37,7 @@ profileNameLeft: 26px;
 profileNameTop: 9px;
 profileNameLabel: FlatLabel(defaultFlatLabel) {
 	margin: margins(10px, 5px, 10px, 5px);
-	width: 160px;
+	minWidth: 160px;
 	maxHeight: 24px;
 	textFg: windowBoldFg;
 	style: TextStyle(defaultTextStyle) {
@@ -98,15 +98,15 @@ profileBlockLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 profileBlockTextPart: FlatLabel(defaultFlatLabel) {
-	width: 180px;
+	minWidth: 180px;
 	margin: margins(5px, 5px, 5px, 5px);
 }
 profileBlockOneLineTextPart: FlatLabel(profileBlockTextPart) {
-	width: 0px; // No need to set minWidth in one-line text.
+	minWidth: 0px; // No need to set minWidth in one-line text.
 	maxHeight: 20px;
 }
 profileBioLabel: FlatLabel(profileBlockOneLineTextPart) {
-	width: 120px;
+	minWidth: 120px;
 	maxHeight: 0px;
 }
 profileBlockOneLineSkip: 9px;
@@ -116,7 +116,7 @@ profileEnableNotificationsTop: 7px;
 profileSettingsBlockSkip: 8px;
 
 profileInviteLinkText: FlatLabel(profileBlockTextPart) {
-	width: 1px; // Required for BreakEverywhere
+	minWidth: 1px; // Required for BreakEverywhere
 }
 
 profileLimitReachedSkip: 6px;
@@ -135,7 +135,7 @@ profileMemberCreatorIconOver: icon {{ "profile_admin_star", profileAdminStarFgOv
 profileMemberAdminIcon: icon {{ "profile_admin_star", profileOtherAdminStarFg, point(4px, 3px) }};
 profileMemberAdminIconOver: icon {{ "profile_admin_star", profileOtherAdminStarFgOver, point(4px, 3px) }};
 profileLimitReachedLabel: FlatLabel(defaultFlatLabel) {
-	width: 180px;
+	minWidth: 180px;
 	margin: margins(profileMemberPaddingLeft, 9px, profileMemberPaddingLeft, 6px);
 	style: TextStyle(defaultTextStyle) {
 		lineHeight: 19px;

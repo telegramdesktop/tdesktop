@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <rpl/combine.h>
 #include "lang/lang_keys.h"
+#include "boxes/peers/edit_peer_info_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/labels.h"
 #include "history/history_admin_log_section.h"
@@ -35,7 +36,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace {
 
-base::lambda<QString()> ManageBoxTitle(
+base::lambda<QString()> ManagePeerTitle(
 		not_null<ChannelData*> channel) {
 	return langFactory(channel->isMegagroup()
 		? lng_manage_group_title
@@ -83,6 +84,7 @@ void AddButtonWithCount(
 		button,
 		std::move(count),
 		st::managePeerButtonLabel);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 	rpl::combine(button->widthValue(), label->widthValue())
 		| rpl::start_with_next([label](int outerWidth, int width) {
 			label->moveToRight(
@@ -118,9 +120,7 @@ void FillManageBox(
 			Lang::Viewer(isGroup
 				? lng_manage_group_info
 				: lng_manage_channel_info),
-			[=] {
-
-			},
+			[=] { Ui::show(Box<EditPeerInfoBox>(channel)); },
 			st::infoIconInformation);
 	}
 	if (HasRecentActions(channel)) {
@@ -195,10 +195,14 @@ ManagePeerBox::ManagePeerBox(
 }
 
 bool ManagePeerBox::Available(not_null<ChannelData*> channel) {
+	// canViewMembers() is removed, because in supergroups you
+	// see them in profile and in channels only admins can see them.
+
 	// canViewAdmins() is removed, because in supergroups it is
 	// always true and in channels it is equal to canViewBanned().
 
-	return channel->canViewMembers()
+	return false
+//		|| channel->canViewMembers()
 //		|| channel->canViewAdmins()
 		|| channel->canViewBanned()
 		|| channel->canEditInformation()
@@ -208,7 +212,7 @@ bool ManagePeerBox::Available(not_null<ChannelData*> channel) {
 void ManagePeerBox::prepare() {
 	_channel->updateFull();
 
-	setTitle(ManageBoxTitle(_channel));
+	setTitle(ManagePeerTitle(_channel));
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
 	setupContent();

@@ -139,7 +139,7 @@ void LabelSimple::paintEvent(QPaintEvent *e) {
 
 FlatLabel::FlatLabel(QWidget *parent, const style::FlatLabel &st)
 : RpWidget(parent)
-, _text(st.width ? st.width : QFIXED_MAX)
+, _text(st.minWidth ? st.minWidth : QFIXED_MAX)
 , _st(st)
 , _contextCopyText(lang(lng_context_copy_text)) {
 	init();
@@ -151,7 +151,7 @@ FlatLabel::FlatLabel(
 	InitType initType,
 	const style::FlatLabel &st)
 : RpWidget(parent)
-, _text(st.width ? st.width : QFIXED_MAX)
+, _text(st.minWidth ? st.minWidth : QFIXED_MAX)
 , _st(st)
 , _contextCopyText(lang(lng_context_copy_text)) {
 	if (initType == InitType::Rich) {
@@ -167,7 +167,7 @@ FlatLabel::FlatLabel(
 	rpl::producer<QString> &&text,
 	const style::FlatLabel &st)
 : RpWidget(parent)
-, _text(st.width ? st.width : QFIXED_MAX)
+, _text(st.minWidth ? st.minWidth : QFIXED_MAX)
 , _st(st)
 , _contextCopyText(lang(lng_context_copy_text)) {
 	textUpdated();
@@ -182,7 +182,7 @@ FlatLabel::FlatLabel(
 	rpl::producer<TextWithEntities> &&text,
 	const style::FlatLabel &st)
 : RpWidget(parent)
-, _text(st.width ? st.width : QFIXED_MAX)
+, _text(st.minWidth ? st.minWidth : QFIXED_MAX)
 , _st(st)
 , _contextCopyText(lang(lng_context_copy_text)) {
 	textUpdated();
@@ -259,7 +259,7 @@ QMargins FlatLabel::getMargins() const {
 int FlatLabel::countTextWidth() const {
 	return _allowedWidth
 		? _allowedWidth
-		: (_st.width ? _st.width : _text.maxWidth());
+		: (_st.minWidth ? _st.minWidth : _text.maxWidth());
 }
 
 int FlatLabel::countTextHeight(int textWidth) {

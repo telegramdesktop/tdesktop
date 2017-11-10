@@ -126,7 +126,7 @@ boxMediumSkip: 20px;
 boxButtonPadding: margins(8px, 12px, 13px, 12px);
 boxLayerButtonPadding: margins(8px, 8px, 8px, 8px);
 boxLabel: FlatLabel(defaultFlatLabel) {
-	width: 285px;
+	minWidth: 285px;
 	align: align(topleft);
 	style: boxLabelStyle;
 }
@@ -159,7 +159,7 @@ cropMinSize: 20px;
 
 confirmInviteTitle: FlatLabel(defaultFlatLabel) {
 	align: align(center);
-	width: 320px;
+	minWidth: 320px;
 	maxHeight: 24px;
 	textFg: windowBoldFg;
 	style: TextStyle(defaultTextStyle) {
@@ -170,7 +170,7 @@ confirmInviteTitle: FlatLabel(defaultFlatLabel) {
 }
 confirmInviteStatus: FlatLabel(boxLabel) {
 	align: align(center);
-	width: 320px;
+	minWidth: 320px;
 	maxHeight: 20px;
 	textFg: windowSubTextFg;
 }
@@ -183,13 +183,13 @@ confirmInviteUserPhotoSize: 56px;
 confirmInviteUserPhotoTop: 166px;
 confirmInviteUserName: FlatLabel(defaultFlatLabel) {
 	align: align(center);
-	width: 66px;
+	minWidth: 66px;
 	maxHeight: 20px;
 }
 confirmInviteUserNameTop: 227px;
 
 confirmPhoneAboutLabel: FlatLabel(defaultFlatLabel) {
-	width: 282px;
+	minWidth: 282px;
 }
 confirmPhoneCodeField: InputField(defaultInputField) {
 }
@@ -199,7 +199,7 @@ revokePublicLinkStatusPalette: TextPalette(defaultTextPalette) {
 }
 aboutRevokePublicLabel: FlatLabel(defaultFlatLabel) {
 	align: align(topleft);
-	width: 320px;
+	minWidth: 320px;
 }
 editBioCountdownLabel: FlatLabel(defaultFlatLabel) {
 	style: boxTextStyle;
@@ -394,7 +394,7 @@ notificationSampleSize: size(64px, 16px);
 
 membersAboutLimitPadding: margins(0px, 12px, 0px, 12px);
 membersAbout: FlatLabel(defaultFlatLabel) {
-	width: 332px;
+	minWidth: 332px;
 	textFg: membersAboutLimitFg;
 	align: align(top);
 	style: boxLabelStyle;
@@ -490,7 +490,7 @@ aboutVersionLink: LinkButton(defaultLinkButton) {
 aboutTextTop: 34px;
 aboutSkip: 14px;
 aboutLabel: FlatLabel(defaultFlatLabel) {
-	width: 330px;
+	minWidth: 330px;
 	align: align(topleft);
 	style: TextStyle(defaultTextStyle) {
 		lineHeight: 22px;
@@ -601,7 +601,7 @@ editPrivacyOptionMargin: margins(23px, 14px, 21px, 0px);
 editPrivacyPadding: margins(23px, 0px, 21px, 0px);
 editPrivacyWarningPadding: margins(23px, 14px, 21px, 0px);
 editPrivacyTitle: FlatLabel(defaultFlatLabel) {
-	width: 320px;
+	minWidth: 320px;
 	textFg: boxTitleFg;
 	maxHeight: 56px;
 	style: TextStyle(defaultTextStyle) {
@@ -612,7 +612,7 @@ editPrivacyTitle: FlatLabel(defaultFlatLabel) {
 }
 editPrivacyTitlePadding: margins(23px, 20px, 21px, 13px);
 editPrivacyLabel: FlatLabel(defaultFlatLabel) {
-	width: 320px;
+	minWidth: 320px;
 	textFg: membersAboutLimitFg;
 	style: defaultTextStyle;
 }
@@ -624,13 +624,13 @@ changePhoneIcon: icon {
 	{ "phone_simcard_to", changePhoneSimcardTo, point(78px, 0px) }
 };
 changePhoneDescription: FlatLabel(boxLabel) {
-	width: 332px;
+	minWidth: 332px;
 	align: align(top);
 }
 changePhoneIconTop: 20px;
 changePhoneDescriptionTop: 96px;
 changePhoneLabel: FlatLabel(defaultFlatLabel) {
-	width: 275px;
+	minWidth: 275px;
 	textFg: windowSubTextFg;
 }
 changePhoneError: FlatLabel(changePhoneLabel) {
@@ -695,7 +695,7 @@ mutePhotoButton: PeerAvatarButton {
 	photoSize: 40px;
 }
 muteChatTitle: FlatLabel(boxLabel) {
-	width: 235px;
+	minWidth: 235px;
 	maxHeight: 20px;  // block word wrap
 	style: TextStyle(boxTextStyle) {
 		font: font(boxFontSize semibold);

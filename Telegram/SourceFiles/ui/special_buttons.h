@@ -168,6 +168,10 @@ public:
 
 	void setImage(const QImage &image);
 
+	int naturalWidth() const override {
+		return height();
+	}
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 

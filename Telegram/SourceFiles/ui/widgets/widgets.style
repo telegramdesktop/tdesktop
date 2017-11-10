@@ -29,7 +29,7 @@ LabelSimple {
 
 FlatLabel {
 	margin: margins;
-	width: pixels;
+	minWidth: pixels;
 	align: align;
 	textFg: color;
 	maxHeight: pixels;
@@ -522,7 +522,7 @@ defaultLabelSimple: LabelSimple {
 }
 
 defaultFlatLabel: FlatLabel {
-	width: 0px;
+	minWidth: 0px;
 	maxHeight: 0px;
 	align: align(left);
 	textFg: windowFg;
