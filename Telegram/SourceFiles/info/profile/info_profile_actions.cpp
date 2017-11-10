@@ -25,6 +25,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/shadow.h"
+#include "ui/widgets/labels.h"
+#include "ui/toast/toast.h"
 #include "boxes/abstract_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/peer_list_box.h"
@@ -42,7 +44,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/window_peer_menu.h"
 #include "mainwidget.h"
 #include "auth_session.h"
+#include "messenger.h"
 #include "apiwrap.h"
+#include "application.h"
 #include "styles/style_info.h"
 #include "styles/style_boxes.h"
 
@@ -180,37 +184,72 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 	auto addInfoLine = [&](
 			LangKey label,
 			rpl::producer<TextWithEntities> &&text,
-			bool selectByDoubleClick = false,
 			const style::FlatLabel &textSt = st::infoLabeled) {
-		auto line = result->add(CreateTextWithLabel(
+		auto line = CreateTextWithLabel(
 			result,
 			Lang::Viewer(label) | WithEmptyEntities(),
 			std::move(text),
 			textSt,
-			st::infoProfileLabeledPadding,
-			selectByDoubleClick));
-		tracker.track(line);
-		return line;
+			st::infoProfileLabeledPadding);
+		tracker.track(result->add(std::move(line.wrap)));
+		return line.text;
 	};
 	auto addInfoOneLine = [&](
 			LangKey label,
-			rpl::producer<TextWithEntities> &&text) {
-		addInfoLine(
+			rpl::producer<TextWithEntities> &&text,
+			const QString &contextCopyText) {
+		auto result = addInfoLine(
 			label,
 			std::move(text),
-			true,
 			st::infoLabeledOneLine);
+		result->setDoubleClickSelectsParagraph(true);
+		result->setContextCopyText(contextCopyText);
+		return result;
 	};
 	if (auto user = _peer->asUser()) {
-		addInfoOneLine(lng_info_mobile_label, PhoneValue(user));
+		addInfoOneLine(
+			lng_info_mobile_label,
+			PhoneValue(user),
+			lang(lng_profile_copy_phone));
 		if (user->botInfo) {
 			addInfoLine(lng_info_about_label, AboutValue(user));
 		} else {
 			addInfoLine(lng_info_bio_label, BioValue(user));
 		}
-		addInfoOneLine(lng_info_username_label, UsernameValue(user));
+		addInfoOneLine(
+			lng_info_username_label,
+			UsernameValue(user),
+			lang(lng_context_copy_mention));
 	} else {
-		addInfoOneLine(lng_info_link_label, LinkValue(_peer));
+		auto linkText = LinkValue(_peer)
+			| rpl::map([](const QString &link) {
+				auto result = TextWithEntities{ link, {} };
+				if (!link.isEmpty()) {
+					auto remove = qstr("https://");
+					if (result.text.startsWith(remove)) {
+						result.text.remove(0, remove.size());
+					}
+					result.entities.push_back(EntityInText(
+						EntityInTextCustomUrl,
+						0,
+						result.text.size(),
+						link));
+				}
+				return result;
+			});
+		auto link = addInfoOneLine(
+			lng_info_link_label,
+			std::move(linkText),
+			QString());
+		link->setClickHandlerHook([peer = _peer](auto&&...) {
+			auto link = Messenger::Instance().createInternalLinkFull(
+				peer->userName());
+			if (!link.isEmpty()) {
+				Application::clipboard()->setText(link);
+				Ui::Toast::Show(lang(lng_username_copied));
+			}
+			return false;
+		});
 		addInfoLine(lng_info_about_label, AboutValue(_peer));
 	}
 	result->add(object_ptr<Ui::SlideWrap<>>(

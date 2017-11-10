@@ -59,7 +59,7 @@ rpl::producer<TextWithEntities> UsernameValue(
 	not_null<UserData*> user);
 rpl::producer<TextWithEntities> AboutValue(
 	not_null<PeerData*> peer);
-rpl::producer<TextWithEntities> LinkValue(
+rpl::producer<QString> LinkValue(
 	not_null<PeerData*> peer);
 rpl::producer<bool> NotificationsEnabledValue(
 	not_null<PeerData*> peer);

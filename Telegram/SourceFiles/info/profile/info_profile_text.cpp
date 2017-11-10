@@ -31,13 +31,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Info {
 namespace Profile {
 
-object_ptr<Ui::SlideWrap<Ui::VerticalLayout>> CreateTextWithLabel(
+TextWithLabel CreateTextWithLabel(
 		QWidget *parent,
 		rpl::producer<TextWithEntities> &&label,
 		rpl::producer<TextWithEntities> &&text,
 		const style::FlatLabel &textSt,
-		const style::margins &padding,
-		bool doubleClickSelects) {
+		const style::margins &padding) {
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		parent,
 		object_ptr<Ui::VerticalLayout>(parent),
@@ -62,14 +61,13 @@ object_ptr<Ui::SlideWrap<Ui::VerticalLayout>> CreateTextWithLabel(
 		std::move(nonEmptyText),
 		textSt));
 	labeled->setSelectable(true);
-	labeled->setDoubleClickSelectsParagraph(doubleClickSelects);
 	layout->add(Ui::CreateSkipWidget(layout, st::infoLabelSkip));
 	layout->add(object_ptr<Ui::FlatLabel>(
 		layout,
 		std::move(label),
 		st::infoLabel));
 	result->finishAnimating();
-	return result;
+	return { std::move(result), labeled };
 }
 
 } // namespace Profile

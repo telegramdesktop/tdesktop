@@ -228,6 +228,7 @@ Cover::Cover(QWidget *parent, not_null<PeerData*> peer)
 	_peer->updateFull();
 
 	_name->setSelectable(true);
+	_name->setContextCopyText(lang(lng_profile_copy_fullname));
 	_status->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 	initUserpicButton();

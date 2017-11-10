@@ -105,15 +105,14 @@ rpl::producer<TextWithEntities> AboutValue(
 	return rpl::single(TextWithEntities{});
 }
 
-rpl::producer<TextWithEntities> LinkValue(
+rpl::producer<QString> LinkValue(
 		not_null<PeerData*> peer) {
 	return PlainUsernameValue(peer)
 		| rpl::map([](QString &&username) {
 			return username.isEmpty()
 				? QString()
-				: Messenger::Instance().createInternalLink(username);
-		})
-		| WithEmptyEntities();
+				: Messenger::Instance().createInternalLinkFull(username);
+		});
 }
 
 rpl::producer<bool> NotificationsEnabledValue(

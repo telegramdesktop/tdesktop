@@ -28,6 +28,7 @@ struct FlatLabel;
 
 namespace Ui {
 class VerticalLayout;
+class FlatLabel;
 template <typename Widget>
 class SlideWrap;
 } // namespace Ui
@@ -35,13 +36,17 @@ class SlideWrap;
 namespace Info {
 namespace Profile {
 
-object_ptr<Ui::SlideWrap<Ui::VerticalLayout>> CreateTextWithLabel(
+struct TextWithLabel {
+	object_ptr<Ui::SlideWrap<Ui::VerticalLayout>> wrap;
+	not_null<Ui::FlatLabel*> text;
+};
+
+TextWithLabel CreateTextWithLabel(
 	QWidget *parent,
 	rpl::producer<TextWithEntities> &&label,
 	rpl::producer<TextWithEntities> &&text,
 	const style::FlatLabel &textSt,
-	const style::margins &padding,
-	bool doubleClickSelects);
+	const style::margins &padding);
 
 } // namespace Profile
 } // namespace Info
