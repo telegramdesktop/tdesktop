@@ -689,6 +689,16 @@ void ScrollArea::scrollTo(ScrollToRequest request) {
 	scrollToY(request.ymin, request.ymax);
 }
 
+void ScrollArea::scrollToWidget(not_null<QWidget*> widget) {
+	if (auto local = this->widget()) {
+		auto globalPosition = widget->mapToGlobal(QPoint(0, 0));
+		auto localPosition = local->mapFromGlobal(globalPosition);
+		auto localTop = localPosition.y();
+		auto localBottom = localTop + widget->height();
+		scrollToY(localTop, localBottom);
+	}
+}
+
 void ScrollArea::scrollToY(int toTop, int toBottom) {
 	myEnsureResized(widget());
 	myEnsureResized(this);

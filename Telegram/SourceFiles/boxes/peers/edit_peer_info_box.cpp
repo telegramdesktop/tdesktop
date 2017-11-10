@@ -93,6 +93,13 @@ private:
 		std::shared_ptr<Ui::RadioenumGroup<Invites>> invites;
 		Ui::Checkbox *signatures = nullptr;
 	};
+	struct Saving {
+		base::optional<QString> username;
+		base::optional<QString> title;
+		base::optional<QString> description;
+		base::optional<bool> signatures;
+		base::optional<bool> everyoneInvites;
+	};
 
 	base::lambda<QString()> computeTitle() const;
 	object_ptr<Ui::RpWidget> createPhotoAndTitleEdit();
@@ -110,7 +117,6 @@ private:
 	void refreshInitialPhotoImage();
 	void submitTitle();
 	void submitDescription();
-	void save();
 	void deleteWithConfirmation();
 	void choosePhotoDelayed();
 	void choosePhoto();
@@ -136,6 +142,23 @@ private:
 	void revokeInviteLink();
 	void exportInviteLink(const QString &confirmation);
 
+	base::optional<Saving> validate() const;
+	bool validateUsername(Saving &to) const;
+	bool validateTitle(Saving &to) const;
+	bool validateDescription(Saving &to) const;
+	bool validateInvites(Saving &to) const;
+	bool validateSignatures(Saving &to) const;
+
+	void save();
+	void saveUsername();
+	void saveTitle();
+	void saveDescription();
+	void saveInvites();
+	void saveSignatures();
+	void pushSaveStage(base::lambda_once<void()> &&lambda);
+	void continueSave();
+	void cancelSave();
+
 	not_null<BoxContent*> _box;
 	not_null<ChannelData*> _channel;
 	bool _isGroup;
@@ -146,6 +169,9 @@ private:
 	mtpRequestId _checkUsernameRequestId = 0;
 	UsernameState _usernameState = UsernameState::Normal;
 	rpl::event_stream<rpl::producer<QString>> _usernameResultTexts;
+
+	std::deque<base::lambda_once<void()>> _saveStagesQueue;
+	Saving _savingData;
 
 };
 
@@ -453,6 +479,7 @@ void Controller::privacyChanged(Privacy value) {
 		refreshVisibilities();
 		_controls.username->setDisplayFocused(true);
 		_controls.username->setFocus();
+		_box->scrollToWidget(_controls.username);
 	} else {
 		request(base::take(_checkUsernameRequestId)).cancel();
 		_checkUsernameTimer.cancel();
@@ -496,7 +523,7 @@ void Controller::checkUsernameAvailability() {
 		if (type == qstr("CHANNEL_PUBLIC_GROUP_NA")) {
 			_usernameState = UsernameState::NotAvailable;
 			_controls.privacy->setValue(Privacy::Private);
-		} else if (rand() % 10 < 2 || type == qstr("CHANNELS_ADMIN_PUBLIC_TOO_MUCH")) {
+		} else if (type == qstr("CHANNELS_ADMIN_PUBLIC_TOO_MUCH")) {
 			_usernameState = UsernameState::TooMany;
 			if (_controls.privacy->value() == Privacy::Public) {
 				askUsernameRevoke();
@@ -505,6 +532,7 @@ void Controller::checkUsernameAvailability() {
 			if (_controls.privacy->value() == Privacy::Public) {
 				_controls.usernameResult = nullptr;
 				_controls.username->setFocus();
+				_box->scrollToWidget(_controls.username);
 			}
 		} else if (type == qstr("USERNAME_INVALID")) {
 			showUsernameError(
@@ -840,8 +868,10 @@ void Controller::submitTitle() {
 
 	if (_controls.title->getLastText().isEmpty()) {
 		_controls.title->showError();
+		_box->scrollToWidget(_controls.title);
 	} else {
 		_controls.description->setFocus();
+		_box->scrollToWidget(_controls.description);
 	}
 }
 
@@ -851,15 +881,245 @@ void Controller::submitDescription() {
 
 	if (_controls.title->getLastText().isEmpty()) {
 		_controls.title->showError();
-		_controls.title->setFocus();
+		_box->scrollToWidget(_controls.title);
 	} else {
 		save();
 	}
 }
 
+base::optional<Controller::Saving> Controller::validate() const {
+	auto result = Saving();
+	if (validateUsername(result)
+		&& validateTitle(result)
+		&& validateDescription(result)
+		&& validateInvites(result)
+		&& validateSignatures(result)) {
+		return result;
+	}
+	return {};
+}
+
+bool Controller::validateUsername(Saving &to) const {
+	if (!_controls.privacy) {
+		return true;
+	} else if (_controls.privacy->value() == Privacy::Private) {
+		to.username = QString();
+		return true;
+	}
+	auto username = _controls.username->getLastText().trimmed();
+	if (username.isEmpty()) {
+		_controls.username->showError();
+		_box->scrollToWidget(_controls.username);
+		return false;
+	}
+	to.username = username;
+	return true;
+}
+
+bool Controller::validateTitle(Saving &to) const {
+	if (!_controls.title) {
+		return true;
+	}
+	auto title = _controls.title->getLastText().trimmed();
+	if (title.isEmpty()) {
+		_controls.title->showError();
+		_box->scrollToWidget(_controls.title);
+		return false;
+	}
+	to.title = title;
+	return true;
+}
+
+bool Controller::validateDescription(Saving &to) const {
+	if (!_controls.description) {
+		return true;
+	}
+	to.description = _controls.description->getLastText().trimmed();
+	return true;
+}
+
+bool Controller::validateInvites(Saving &to) const {
+	if (!_controls.invites) {
+		return true;
+	}
+	to.everyoneInvites
+		= (_controls.invites->value() == Invites::Everyone);
+	return true;
+}
+
+bool Controller::validateSignatures(Saving &to) const {
+	if (!_controls.signatures) {
+		return true;
+	}
+	to.signatures = _controls.signatures->checked();
+	return true;
+}
+
 void Controller::save() {
 	Expects(_wrap != nullptr);
 
+	if (!_saveStagesQueue.empty()) {
+		return;
+	}
+	if (auto saving = validate()) {
+		_savingData = *saving;
+		pushSaveStage([this] { saveUsername(); });
+		pushSaveStage([this] { saveTitle(); });
+		pushSaveStage([this] { saveDescription(); });
+		pushSaveStage([this] { saveInvites(); });
+		pushSaveStage([this] { saveSignatures(); });
+		pushSaveStage([this] { _box->closeBox(); });
+		continueSave();
+	}
+}
+
+void Controller::pushSaveStage(base::lambda_once<void()> &&lambda) {
+	_saveStagesQueue.push_back(std::move(lambda));
+}
+
+void Controller::continueSave() {
+	if (!_saveStagesQueue.empty()) {
+		auto next = std::move(_saveStagesQueue.front());
+		_saveStagesQueue.pop_front();
+		next();
+	}
+}
+
+void Controller::cancelSave() {
+	_saveStagesQueue.clear();
+}
+
+void Controller::saveUsername() {
+	if (!_savingData.username
+		|| *_savingData.username == _channel->username) {
+		return continueSave();
+	}
+	request(MTPchannels_UpdateUsername(
+		_channel->inputChannel,
+		MTP_string(*_savingData.username)
+	)).done([this](const MTPBool &result) {
+		_channel->setName(
+			TextUtilities::SingleLine(_channel->name),
+			*_savingData.username);
+		continueSave();
+	}).fail([this](const RPCError &error) {
+		auto type = error.type();
+		if (type == qstr("USERNAME_NOT_MODIFIED")) {
+			_channel->setName(
+				TextUtilities::SingleLine(_channel->name),
+				TextUtilities::SingleLine(*_savingData.username));
+			continueSave();
+			return;
+		}
+		auto errorKey = [&] {
+			if (type == qstr("USERNAME_INVALID")) {
+				return lng_create_channel_link_invalid;
+			} else if (type == qstr("USERNAME_OCCUPIED")
+				|| type == qstr("USERNAMES_UNAVAILABLE")) {
+				return lng_create_channel_link_invalid;
+			}
+			return lng_create_channel_link_invalid;
+		}();
+		_controls.username->showError();
+		_box->scrollToWidget(_controls.username);
+		showUsernameError(Lang::Viewer(errorKey));
+		cancelSave();
+	}).send();
+}
+
+void Controller::saveTitle() {
+	if (!_savingData.title || *_savingData.title == _channel->name) {
+		return continueSave();
+	}
+	request(MTPchannels_EditTitle(
+		_channel->inputChannel,
+		MTP_string(*_savingData.title)
+	)).done([this](const MTPUpdates &result) {
+		Auth().api().applyUpdates(result);
+		continueSave();
+	}).fail([this](const RPCError &error) {
+		auto type = error.type();
+		if (type == qstr("CHAT_NOT_MODIFIED")
+			|| type == qstr("CHAT_TITLE_NOT_MODIFIED")) {
+			_channel->setName(*_savingData.title, _channel->username);
+			continueSave();
+			return;
+		}
+		if (type == qstr("NO_CHAT_TITLE")) {
+			_controls.title->showError();
+			_box->scrollToWidget(_controls.title);
+		} else {
+			_controls.title->setFocus();
+		}
+		cancelSave();
+	}).send();
+}
+
+void Controller::saveDescription() {
+	if (!_savingData.description
+		|| *_savingData.description == _channel->about()) {
+		return continueSave();
+	}
+	auto successCallback = [this] {
+		if (_channel->setAbout(*_savingData.description)) {
+			Auth().api().fullPeerUpdated().notify(_channel);
+		}
+		continueSave();
+	};
+	request(MTPchannels_EditAbout(
+		_channel->inputChannel,
+		MTP_string(*_savingData.description)
+	)).done([=](const MTPBool &result) {
+		successCallback();
+	}).fail([=](const RPCError &error) {
+		auto type = error.type();
+		if (type == qstr("CHAT_ABOUT_NOT_MODIFIED")) {
+			successCallback();
+			return;
+		}
+		_controls.description->setFocus();
+		cancelSave();
+	}).send();
+}
+
+void Controller::saveInvites() {
+	if (!_savingData.everyoneInvites
+		|| *_savingData.everyoneInvites == _channel->anyoneCanAddMembers()) {
+		return continueSave();
+	}
+	request(MTPchannels_ToggleInvites(
+		_channel->inputChannel,
+		MTP_bool(*_savingData.everyoneInvites)
+	)).done([this](const MTPUpdates &result) {
+		Auth().api().applyUpdates(result);
+		continueSave();
+	}).fail([this](const RPCError &error) {
+		if (error.type() == qstr("CHAT_NOT_MODIFIED")) {
+			continueSave();
+		} else {
+			cancelSave();
+		}
+	}).send();
+}
+
+void Controller::saveSignatures() {
+	if (!_savingData.signatures
+		|| *_savingData.signatures == _channel->addsSignature()) {
+		return continueSave();
+	}
+	request(MTPchannels_ToggleSignatures(
+		_channel->inputChannel,
+		MTP_bool(*_savingData.signatures)
+	)).done([this](const MTPUpdates &result) {
+		Auth().api().applyUpdates(result);
+		continueSave();
+	}).fail([this](const RPCError &error) {
+		if (error.type() == qstr("CHAT_NOT_MODIFIED")) {
+			continueSave();
+		} else {
+			cancelSave();
+		}
+	}).send();
 }
 
 void Controller::deleteWithConfirmation() {

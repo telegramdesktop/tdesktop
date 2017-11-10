@@ -89,6 +89,8 @@ public:
 		getDelegate()->setAdditionalTitle(std::move(additional));
 	}
 
+	void scrollToWidget(not_null<QWidget*> widget);
+
 	void clearButtons() {
 		getDelegate()->clearButtons();
 	}

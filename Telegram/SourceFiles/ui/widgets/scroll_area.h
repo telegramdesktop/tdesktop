@@ -219,6 +219,7 @@ public:
 	}
 
 	void scrollTo(ScrollToRequest request);
+	void scrollToWidget(not_null<QWidget*> widget);
 
 protected:
 	bool eventFilter(QObject *obj, QEvent *e) override;

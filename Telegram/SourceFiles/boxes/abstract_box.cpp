@@ -84,6 +84,12 @@ void BoxContent::finishScrollCreate() {
 	connect(_scroll, SIGNAL(innerResized()), this, SLOT(onInnerResize()));
 }
 
+void BoxContent::scrollToWidget(not_null<QWidget*> widget) {
+	if (_scroll) {
+		_scroll->scrollToWidget(widget);
+	}
+}
+
 void BoxContent::onScrollToY(int top, int bottom) {
 	if (_scroll) {
 		_scroll->scrollToY(top, bottom);
