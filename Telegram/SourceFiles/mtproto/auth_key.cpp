@@ -21,6 +21,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/auth_key.h"
 
 #include <openssl/aes.h>
+extern "C" {
+#include <openssl/modes.h>
+}
 
 namespace MTP {
 
@@ -109,7 +112,7 @@ void aesCtrEncrypt(void *data, uint32 len, const void *key, CTRState *state) {
 	static_assert(CTRState::IvecSize == AES_BLOCK_SIZE, "Wrong size of ctr ivec!");
 	static_assert(CTRState::EcountSize == AES_BLOCK_SIZE, "Wrong size of ctr ecount!");
 
-	AES_ctr128_encrypt(static_cast<const uchar*>(data), static_cast<uchar*>(data), len, &aes, state->ivec, state->ecount, &state->num);
+	CRYPTO_ctr128_encrypt(static_cast<const uchar*>(data), static_cast<uchar*>(data), len, &aes, state->ivec, state->ecount, &state->num, (block128_f) AES_encrypt);
 }
 
 } // namespace MTP

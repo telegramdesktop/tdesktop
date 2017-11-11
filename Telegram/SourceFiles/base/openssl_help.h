@@ -55,8 +55,7 @@ private:
 
 class BigNum {
 public:
-	BigNum() {
-		BN_init(raw());
+	BigNum() : _data(BN_new()) {
 	}
 	BigNum(const BigNum &other) : BigNum() {
 		*this = other;
@@ -176,10 +175,10 @@ public:
 	}
 
 	BIGNUM *raw() {
-		return &_data;
+		return _data;
 	}
 	const BIGNUM *raw() const {
-		return &_data;
+		return _data;
 	}
 
 	bool failed() const {
@@ -193,7 +192,7 @@ public:
 	}
 
 private:
-	BIGNUM _data;
+	BIGNUM *_data = nullptr;
 	mutable bool _failed = false;
 
 };
