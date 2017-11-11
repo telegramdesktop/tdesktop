@@ -344,7 +344,7 @@ void PeerListRow::refreshStatus() {
 			_statusType = StatusType::Online;
 		}
 		_statusValidTill = getms()
-			+ App::onlineWillChangeIn(user, time);
+			+ App::onlineWillChangeIn(user, time) * 1000LL;
 	} else if (auto chat = peer()->asChat()) {
 		if (!chat->amIn()) {
 			setStatusText(lang(lng_chat_status_unaccessible));
