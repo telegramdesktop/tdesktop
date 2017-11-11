@@ -24,6 +24,26 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/event_stream.h>
 
 namespace rpl {
+namespace details {
+
+template <typename A, typename B>
+struct supports_equality_compare {
+	template <typename U, typename V>
+	static auto test(const U *u, const V *v)
+		-> decltype(*u == *v, details::true_t());
+	static details::false_t test(...);
+	static constexpr bool value
+		= (sizeof(test(
+		(std::decay_t<A>*)nullptr,
+			(std::decay_t<B>*)nullptr
+		)) == sizeof(details::true_t));
+};
+
+template <typename A, typename B>
+constexpr bool supports_equality_compare_v
+	= supports_equality_compare<A, B>::value;
+
+} // namespace details
 
 template <typename Type>
 class variable final {
@@ -86,30 +106,14 @@ public:
 	}
 
 private:
-	template <typename A, typename B>
-	struct supports_equality_compare {
-		template <typename U, typename V>
-		static auto test(const U *u, const V *v)
-			-> decltype(*u == *v, details::true_t());
-		static details::false_t test(...);
-		static constexpr bool value
-			= (sizeof(test(
-				(std::decay_t<A>*)nullptr,
-				(std::decay_t<B>*)nullptr
-			)) == sizeof(details::true_t));
-	};
-	template <typename A, typename B>
-	static constexpr bool supports_equality_compare_v
-		= supports_equality_compare<A, B>::value;
-
 	template <typename OtherType>
 	variable &assign(OtherType &&data) {
-		if constexpr (supports_equality_compare_v<Type, OtherType>) {
+		if constexpr (details::supports_equality_compare_v<Type, OtherType>) {
 			if (!(_data == data)) {
 				_data = std::forward<OtherType>(data);
 				_changes.fire_copy(_data);
 			}
-		} else if constexpr (supports_equality_compare_v<Type, Type>) {
+		} else if constexpr (details::supports_equality_compare_v<Type, Type>) {
 			auto old = std::move(_data);
 			_data = std::forward<OtherType>(data);
 			if (!(_data == old)) {

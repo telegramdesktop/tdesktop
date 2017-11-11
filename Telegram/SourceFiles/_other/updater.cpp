@@ -30,18 +30,26 @@ bool equal(const wstring &a, const wstring &b) {
 
 void updateError(const WCHAR *msg, DWORD errorCode) {
 	WCHAR errMsg[2048];
-	LPWSTR errorText = NULL, errorTextDefault = L"(Unknown error)";
-	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&errorText, 0, 0);
-	if (!errorText) {
-		errorText = errorTextDefault;
-	}
+	LPWSTR errorTextFormatted = nullptr;
+	auto formatFlags = FORMAT_MESSAGE_FROM_SYSTEM
+		| FORMAT_MESSAGE_ALLOCATE_BUFFER
+		| FORMAT_MESSAGE_IGNORE_INSERTS;
+	FormatMessage(
+		formatFlags,
+		NULL,
+		errorCode,
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPWSTR)&errorTextFormatted,
+		0,
+		0);
+	auto errorText = errorTextFormatted
+		? errorTextFormatted
+		: L"(Unknown error)";
 	wsprintf(errMsg, L"%s, error code: %d\nError message: %s", msg, errorCode, errorText);
 
 	MessageBox(0, errMsg, L"Update error!", MB_ICONERROR);
 
-	if (errorText != errorTextDefault) {
-		LocalFree(errorText);
-	}
+	LocalFree(errorTextFormatted);
 }
 
 HANDLE _logFile = 0;
@@ -309,20 +317,20 @@ void updateRegistry() {
 								WCHAR nameStr[bufSize], dateStr[bufSize], publisherStr[bufSize], icongroupStr[bufSize];
 								SYSTEMTIME stLocalTime;
 								GetLocalTime(&stLocalTime);
-								RegSetValueEx(rkey, L"DisplayVersion", 0, REG_SZ, (BYTE*)versionStr, ((versionLen / 2) + 1) * sizeof(WCHAR));
+								RegSetValueEx(rkey, L"DisplayVersion", 0, REG_SZ, (const BYTE*)versionStr, ((versionLen / 2) + 1) * sizeof(WCHAR));
 								wsprintf(nameStr, L"Telegram Desktop version %s", versionStr);
-								RegSetValueEx(rkey, L"DisplayName", 0, REG_SZ, (BYTE*)nameStr, (wcslen(nameStr) + 1) * sizeof(WCHAR));
+								RegSetValueEx(rkey, L"DisplayName", 0, REG_SZ, (const BYTE*)nameStr, (wcslen(nameStr) + 1) * sizeof(WCHAR));
 								wsprintf(publisherStr, L"Telegram Messenger LLP");
-								RegSetValueEx(rkey, L"Publisher", 0, REG_SZ, (BYTE*)publisherStr, (wcslen(publisherStr) + 1) * sizeof(WCHAR));
+								RegSetValueEx(rkey, L"Publisher", 0, REG_SZ, (const BYTE*)publisherStr, (wcslen(publisherStr) + 1) * sizeof(WCHAR));
 								wsprintf(icongroupStr, L"Telegram Desktop");
-								RegSetValueEx(rkey, L"Inno Setup: Icon Group", 0, REG_SZ, (BYTE*)icongroupStr, (wcslen(icongroupStr) + 1) * sizeof(WCHAR));
+								RegSetValueEx(rkey, L"Inno Setup: Icon Group", 0, REG_SZ, (const BYTE*)icongroupStr, (wcslen(icongroupStr) + 1) * sizeof(WCHAR));
 								wsprintf(dateStr, L"%04d%02d%02d", stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay);
-								RegSetValueEx(rkey, L"InstallDate", 0, REG_SZ, (BYTE*)dateStr, (wcslen(dateStr) + 1) * sizeof(WCHAR));
+								RegSetValueEx(rkey, L"InstallDate", 0, REG_SZ, (const BYTE*)dateStr, (wcslen(dateStr) + 1) * sizeof(WCHAR));
 
-								WCHAR *appURL = L"https://desktop.telegram.org";
-								RegSetValueEx(rkey, L"HelpLink", 0, REG_SZ, (BYTE*)appURL, (wcslen(appURL) + 1) * sizeof(WCHAR));
-								RegSetValueEx(rkey, L"URLInfoAbout", 0, REG_SZ, (BYTE*)appURL, (wcslen(appURL) + 1) * sizeof(WCHAR));
-								RegSetValueEx(rkey, L"URLUpdateInfo", 0, REG_SZ, (BYTE*)appURL, (wcslen(appURL) + 1) * sizeof(WCHAR));
+								const WCHAR *appURL = L"https://desktop.telegram.org";
+								RegSetValueEx(rkey, L"HelpLink", 0, REG_SZ, (const BYTE*)appURL, (wcslen(appURL) + 1) * sizeof(WCHAR));
+								RegSetValueEx(rkey, L"URLInfoAbout", 0, REG_SZ, (const BYTE*)appURL, (wcslen(appURL) + 1) * sizeof(WCHAR));
+								RegSetValueEx(rkey, L"URLUpdateInfo", 0, REG_SZ, (const BYTE*)appURL, (wcslen(appURL) + 1) * sizeof(WCHAR));
 							}
 						}
 					}

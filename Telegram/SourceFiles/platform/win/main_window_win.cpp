@@ -526,7 +526,7 @@ private:
 	BYTE r = 0, g = 0, b = 0;
 	COLORREF noKeyColor;
 
-	static LRESULT CALLBACK _PsShadowWindows::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+	static LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 };
 _PsShadowWindows _psShadowWindows;

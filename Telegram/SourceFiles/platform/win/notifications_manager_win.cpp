@@ -209,10 +209,16 @@ typedef ABI::Windows::Foundation::ITypedEventHandler<ToastNotification*, ::IInsp
 typedef ABI::Windows::Foundation::ITypedEventHandler<ToastNotification*, ToastDismissedEventArgs*> DesktopToastDismissedEventHandler;
 typedef ABI::Windows::Foundation::ITypedEventHandler<ToastNotification*, ToastFailedEventArgs*> DesktopToastFailedEventHandler;
 
-class ToastEventHandler : public Implements<DesktopToastActivatedEventHandler, DesktopToastDismissedEventHandler, DesktopToastFailedEventHandler> {
+class ToastEventHandler : public Implements<
+	DesktopToastActivatedEventHandler,
+	DesktopToastDismissedEventHandler,
+	DesktopToastFailedEventHandler> {
 public:
 	// We keep a weak pointer to a member field of native notifications manager.
-	ToastEventHandler::ToastEventHandler(const std::shared_ptr<Manager*> &guarded, const PeerId &peer, MsgId msg)
+	ToastEventHandler(
+		const std::shared_ptr<Manager*> &guarded,
+		const PeerId &peer,
+		MsgId msg)
 	: _peerId(peer)
 	, _msgId(msg)
 	, _weak(guarded) {
@@ -607,8 +613,8 @@ void queryQuietHours() {
 		return;
 	}
 
-	LPTSTR lpKeyName = L"Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings";
-	LPTSTR lpValueName = L"NOC_GLOBAL_SETTING_TOASTS_ENABLED";
+	LPCWSTR lpKeyName = L"Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings";
+	LPCWSTR lpValueName = L"NOC_GLOBAL_SETTING_TOASTS_ENABLED";
 	HKEY key;
 	auto result = RegOpenKeyEx(HKEY_CURRENT_USER, lpKeyName, 0, KEY_READ, &key);
 	if (result != ERROR_SUCCESS) {

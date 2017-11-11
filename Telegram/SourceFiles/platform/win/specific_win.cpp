@@ -532,15 +532,23 @@ QString SystemLanguage() {
 
 namespace {
 	void _psLogError(const char *str, LSTATUS code) {
-		LPTSTR errorText = NULL, errorTextDefault = L"(Unknown error)";
-		FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, code, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&errorText, 0, 0);
-		if (!errorText) {
-			errorText = errorTextDefault;
-		}
+		LPWSTR errorTextFormatted = nullptr;
+		auto formatFlags = FORMAT_MESSAGE_FROM_SYSTEM
+			| FORMAT_MESSAGE_ALLOCATE_BUFFER
+			| FORMAT_MESSAGE_IGNORE_INSERTS;
+		FormatMessage(
+			formatFlags,
+			NULL,
+			code,
+			MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+			(LPTSTR)&errorTextFormatted,
+			0,
+			0);
+		auto errorText = errorTextFormatted
+			? errorTextFormatted
+			: L"(Unknown error)";
 		LOG((str).arg(code).arg(QString::fromStdWString(errorText)));
-		if (errorText != errorTextDefault) {
-			LocalFree(errorText);
-		}
+		LocalFree(errorTextFormatted);
 	}
 
 	bool _psOpenRegKey(LPCWSTR key, PHKEY rkey) {
