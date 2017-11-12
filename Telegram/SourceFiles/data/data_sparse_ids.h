@@ -99,7 +99,7 @@ public:
 	int size() const;
 	FullMsgId operator[](int index) const;
 	base::optional<int> distance(const Key &a, const Key &b) const;
-	base::optional<UniversalMsgId> nearest(UniversalMsgId id) const;
+	base::optional<FullMsgId> nearest(UniversalMsgId id) const;
 
 	using SimpleViewerFunction = rpl::producer<SparseIdsSlice>(
 		PeerId peerId,

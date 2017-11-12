@@ -773,15 +773,16 @@ SparseIdsMergedSlice::Key ListWidget::sliceKey(
 
 void ListWidget::refreshViewer() {
 	_viewerLifetime.destroy();
+	auto idForViewer = sliceKey(_universalAroundId).universalId;
 	_controller->mediaSource(
-		sliceKey(_universalAroundId).universalId,
+		idForViewer,
 		_idsLimit,
 		_idsLimit)
-		| rpl::start_with_next([this](
+		| rpl::start_with_next([=](
 				SparseIdsMergedSlice &&slice) {
 			_slice = std::move(slice);
-			if (auto nearest = _slice.nearest(_universalAroundId)) {
-				_universalAroundId = *nearest;
+			if (auto nearest = _slice.nearest(idForViewer)) {
+				_universalAroundId = GetUniversalId(*nearest);
 			}
 			refreshRows();
 		}, _viewerLifetime);

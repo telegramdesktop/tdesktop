@@ -32,7 +32,7 @@ windowShadowShift: 1px;
 
 columnMinimalWidthLeft: 260px;
 columnMinimalWidthMain: 380px;
-columnMinimalWidthThird: 292px;//345px;
+columnMinimalWidthThird: 345px;//292px;//345px;
 
 adaptiveChatWideWidth: 880px;
 

@@ -150,13 +150,17 @@ base::optional<int> SparseIdsMergedSlice::distance(
 }
 
 auto SparseIdsMergedSlice::nearest(
-		UniversalMsgId id) const -> base::optional<UniversalMsgId> {
-	auto convertFromMigratedNearest = [](MsgId result) {
-		return result - ServerMaxMsgId;
+		UniversalMsgId id) const -> base::optional<FullMsgId> {
+	auto convertFromPartNearest = [&](MsgId result) {
+		return ComputeId(_key.peerId, result);
+	};
+	auto convertFromMigratedNearest = [&](MsgId result) {
+		return ComputeId(_key.migratedPeerId, result);
 	};
 	if (IsServerMsgId(id)) {
 		if (auto partNearestId = _part.nearest(id)) {
-			return partNearestId;
+			return partNearestId
+				| convertFromPartNearest;
 		} else if (isolatedInPart()) {
 			return base::none;
 		}
@@ -171,7 +175,8 @@ auto SparseIdsMergedSlice::nearest(
 	} else if (isolatedInMigrated()) {
 		return base::none;
 	}
-	return _part.nearest(0);
+	return _part.nearest(0)
+		| convertFromPartNearest;
 }
 
 SparseIdsSliceBuilder::SparseIdsSliceBuilder(
