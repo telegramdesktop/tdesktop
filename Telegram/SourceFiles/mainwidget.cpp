@@ -38,6 +38,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "data/data_drafts.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/focus_persister.h"
+#include "ui/resize_area.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"
 #include "observer_peer.h"
@@ -226,7 +227,6 @@ MainWidget::MainWidget(
 , _controller(controller)
 , _dialogsWidth(st::dialogsWidthMin)
 , _sideShadow(this)
-, _sideResizeArea(this)
 , _dialogs(this, _controller)
 , _history(this, _controller)
 , _playerPlaylist(this, Media::Player::Panel::Layout::OnlyPlaylist)
@@ -292,8 +292,6 @@ MainWidget::MainWidget(
 	_webPageOrGameUpdater.setSingleShot(true);
 	connect(&_webPageOrGameUpdater, SIGNAL(timeout()), this, SLOT(webPagesOrGamesUpdate()));
 
-	_sideResizeArea->setCursor(style::cur_sizehor);
-
 	using Update = Window::Theme::BackgroundUpdate;
 	subscribe(Window::Theme::Background(), [this](const Update &update) {
 		if (update.type == Update::Type::New || update.type == Update::Type::Changed) {
@@ -353,8 +351,6 @@ MainWidget::MainWidget(
 	}
 
 	orderWidgets();
-
-	_sideResizeArea->installEventFilter(this);
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	Sandbox::startUpdateCheck();
@@ -3078,7 +3074,12 @@ void MainWidget::orderWidgets() {
 	if (_thirdShadow) {
 		_thirdShadow->raise();
 	}
-	_sideResizeArea->raise();
+	if (_firstColumnResizeArea) {
+		_firstColumnResizeArea->raise();
+	}
+	if (_thirdColumnResizeArea) {
+		_thirdColumnResizeArea->raise();
+	}
 	_playerPlaylist->raise();
 	_playerPanel->raise();
 	for (auto &instance : _playerFloats) {
@@ -3458,28 +3459,96 @@ void MainWidget::updateControlsGeometry() {
 			_hider->setGeometryToLeft(dialogsWidth, 0, mainSectionWidth, height());
 		}
 	}
-	_sideResizeArea->setGeometryToLeft(_history->x(), 0, st::historyResizeWidth, height());
-	auto isSideResizeAreaVisible = [this] {
-		if (width() < st::columnMinimalWidthLeft + st::columnMinimalWidthMain) {
-			return false;
-		}
-		if (Adaptive::OneColumn() && !isMainSectionShown()) {
-			return false;
-		}
-		return true;
-	};
-	_sideResizeArea->setVisible(isSideResizeAreaVisible());
 	if (_mainSection) {
 		auto mainSectionGeometry = QRect(_history->x(), mainSectionTop, _history->width(), height() - mainSectionTop);
 		_mainSection->setGeometryWithTopMoved(mainSectionGeometry, _contentScrollAddToY);
 	}
 	if (_overview) _overview->setGeometry(_history->geometry());
+	refreshResizeAreas();
 	updateMediaPlayerPosition();
 	updateMediaPlaylistPosition(_playerPlaylist->x());
 	_contentScrollAddToY = 0;
 	for (auto &instance : _playerFloats) {
 		updateFloatPlayerPosition(instance.get());
 	}
+}
+
+void MainWidget::refreshResizeAreas() {
+	if (!Adaptive::OneColumn()) {
+		ensureFirstColumnResizeAreaCreated();
+		_firstColumnResizeArea->setGeometryToLeft(
+			_history->x(),
+			0,
+			st::historyResizeWidth,
+			height());
+	} else if (_firstColumnResizeArea) {
+		_firstColumnResizeArea.destroy();
+	}
+
+	if (Adaptive::ThreeColumn() && _thirdSection) {
+		ensureThirdColumnResizeAreaCreated();
+		_thirdColumnResizeArea->setGeometryToLeft(
+			_thirdSection->x(),
+			0,
+			st::historyResizeWidth,
+			height());
+	} else if (_thirdColumnResizeArea) {
+		_thirdColumnResizeArea.destroy();
+	}
+}
+
+template <typename MoveCallback, typename FinishCallback>
+void MainWidget::createResizeArea(
+		object_ptr<Ui::ResizeArea> &area,
+		MoveCallback &&moveCallback,
+		FinishCallback &&finishCallback) {
+	area.create(this);
+	area->show();
+	area->addMoveLeftCallback(
+		std::forward<MoveCallback>(moveCallback));
+	area->addMoveFinishedCallback(
+		std::forward<FinishCallback>(finishCallback));
+	orderWidgets();
+}
+
+void MainWidget::ensureFirstColumnResizeAreaCreated() {
+	if (_firstColumnResizeArea) {
+		return;
+	}
+	auto moveLeftCallback = [=](int globalLeft) {
+		auto newWidth = globalLeft - mapToGlobal(QPoint(0, 0)).x();
+		auto newRatio = (newWidth < st::dialogsWidthMin / 2)
+			? 0.
+			: float64(newWidth) / width();
+		Auth().data().setDialogsWidthRatio(newRatio);
+	};
+	auto moveFinishedCallback = [=] {
+		if (!Adaptive::OneColumn()
+			&& Auth().data().dialogsWidthRatio() > 0) {
+			Auth().data().setDialogsWidthRatio(
+				float64(_dialogsWidth) / width());
+		}
+		Local::writeUserSettings();
+	};
+	createResizeArea(
+		_firstColumnResizeArea,
+		std::move(moveLeftCallback),
+		std::move(moveFinishedCallback));
+}
+
+void MainWidget::ensureThirdColumnResizeAreaCreated() {
+	if (_thirdColumnResizeArea) {
+		return;
+	}
+	auto moveLeftCallback = [=](int globalLeft) {
+	};
+	auto moveFinishedCallback = [=] {
+
+	};
+	createResizeArea(
+		_thirdColumnResizeArea,
+		std::move(moveLeftCallback),
+		std::move(moveFinishedCallback));
 }
 
 void MainWidget::updateDialogsWidthAnimated() {
@@ -3581,27 +3650,7 @@ void MainWidget::keyPressEvent(QKeyEvent *e) {
 }
 
 bool MainWidget::eventFilter(QObject *o, QEvent *e) {
-	if (o == _sideResizeArea) {
-		auto mouseLeft = [this, e] {
-			return mapFromGlobal(static_cast<QMouseEvent*>(e)->globalPos()).x();
-		};
-		if (e->type() == QEvent::MouseButtonPress && static_cast<QMouseEvent*>(e)->button() == Qt::LeftButton) {
-			_resizingSide = true;
-			_resizingSideShift = mouseLeft() - (Adaptive::OneColumn() ? 0 : _dialogsWidth);
-		} else if (e->type() == QEvent::MouseButtonRelease) {
-			_resizingSide = false;
-			if (!Adaptive::OneColumn()
-				&& Auth().data().dialogsWidthRatio() > 0) {
-				Auth().data().setDialogsWidthRatio(
-					float64(_dialogsWidth) / width());
-			}
-			Local::writeUserSettings();
-		} else if (e->type() == QEvent::MouseMove && _resizingSide) {
-			auto newWidth = mouseLeft() - _resizingSideShift;
-			auto newRatio = (newWidth < st::dialogsWidthMin / 2) ? 0. : float64(newWidth) / width();
-			Auth().data().setDialogsWidthRatio(newRatio);
-		}
-	} else if (e->type() == QEvent::FocusIn) {
+	if (e->type() == QEvent::FocusIn) {
 		if (auto widget = qobject_cast<QWidget*>(o)) {
 			if (_history == widget || _history->isAncestorOf(widget)
 				|| (_overview && (_overview == widget || _overview->isAncestorOf(widget)))

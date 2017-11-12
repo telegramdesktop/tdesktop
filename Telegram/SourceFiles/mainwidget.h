@@ -44,6 +44,7 @@ class Float;
 } // namespace Media
 
 namespace Ui {
+class ResizeArea;
 class PlainShadow;
 class DropdownMenu;
 template <typename Widget>
@@ -558,6 +559,15 @@ private:
 	void viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint> &result, mtpRequestId req);
 	bool viewsIncrementFail(const RPCError &error, mtpRequestId req);
 
+	void refreshResizeAreas();
+	template <typename MoveCallback, typename FinishCallback>
+	void createResizeArea(
+		object_ptr<Ui::ResizeArea> &area,
+		MoveCallback &&moveCallback,
+		FinishCallback &&finishCallback);
+	void ensureFirstColumnResizeAreaCreated();
+	void ensureThirdColumnResizeAreaCreated();
+
 	not_null<Window::Controller*> _controller;
 	bool _started = false;
 
@@ -578,7 +588,8 @@ private:
 
 	object_ptr<Ui::PlainShadow> _sideShadow;
 	object_ptr<Ui::PlainShadow> _thirdShadow = { nullptr };
-	object_ptr<TWidget> _sideResizeArea;
+	object_ptr<Ui::ResizeArea> _firstColumnResizeArea = { nullptr };
+	object_ptr<Ui::ResizeArea> _thirdColumnResizeArea = { nullptr };
 	object_ptr<DialogsWidget> _dialogs;
 	object_ptr<HistoryWidget> _history;
 	object_ptr<Window::SectionWidget> _mainSection = { nullptr };
@@ -670,7 +681,7 @@ private:
 
 	std::unique_ptr<App::WallPaper> _background;
 
-	bool _resizingSide = false;
-	int _resizingSideShift = 0;
+	bool _firstColumnResizing = false;
+	int _firstColumnResizingShift = 0;
 
 };
