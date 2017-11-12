@@ -34,8 +34,8 @@ IDI_ICON1               ICON                    "..\\art\\icon256.ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,1,23,2
- PRODUCTVERSION 1,1,23,2
+ FILEVERSION 1,1,23,3
+ PRODUCTVERSION 1,1,23,3
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -52,10 +52,10 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Telegram Messenger LLP"
             VALUE "FileDescription", "Telegram Desktop"
-            VALUE "FileVersion", "1.1.23.2"
+            VALUE "FileVersion", "1.1.23.3"
             VALUE "LegalCopyright", "Copyright (C) 2014-2017"
             VALUE "ProductName", "Telegram Desktop"
-            VALUE "ProductVersion", "1.1.23.2"
+            VALUE "ProductVersion", "1.1.23.3"
         END
     END
     BLOCK "VarFileInfo"
