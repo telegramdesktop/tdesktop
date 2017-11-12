@@ -588,16 +588,18 @@ int StickersListWidget::countDesiredHeight(int newWidth) {
 		return 0;
 	}
 	auto availableWidth = newWidth - (st::stickerPanPadding - st::buttonRadius);
-	_columnCount = availableWidth / st::stickerPanWidthMin;
-	auto singleWidth = availableWidth / _columnCount;
+	auto columnCount = availableWidth / st::stickerPanWidthMin;
+	auto singleWidth = availableWidth / columnCount;
 	auto fullWidth = (st::buttonRadius + newWidth + st::emojiScroll.width);
-	auto rowsRight = (fullWidth - _columnCount * singleWidth) / 2;
+	auto rowsRight = (fullWidth - columnCount * singleWidth) / 2;
 	accumulate_max(rowsRight, st::emojiScroll.width);
 	_rowsLeft = fullWidth
-		- _columnCount * singleWidth
+		- columnCount * singleWidth
 		- rowsRight
 		- st::buttonRadius;
 	_singleSize = QSize(singleWidth, singleWidth);
+	setColumnCount(columnCount);
+
 	auto visibleHeight = minimalHeight();
 	auto minimalLastHeight = (visibleHeight - st::stickerPanPadding);
 	auto countResult = [this, minimalLastHeight] {
@@ -1120,6 +1122,13 @@ void StickersListWidget::removeFavedSticker(int section, int index) {
 	MTP::send(MTPmessages_FaveSticker(sticker->mtpInput(), MTP_bool(unfave)));
 }
 
+void StickersListWidget::setColumnCount(int count) {
+	if (_columnCount != count) {
+		_columnCount = count;
+		refreshFooterIcons();
+	}
+}
+
 void StickersListWidget::mouseMoveEvent(QMouseEvent *e) {
 	_lastMousePosition = e->globalPos();
 	updateSelected();
@@ -1194,10 +1203,7 @@ void StickersListWidget::refreshStickers() {
 	resizeToWidth(width());
 
 	if (_footer && _columnCount > 0) {
-		_footer->refreshIcons(ValidateIconAnimations::None);
-		if (_footer->hasOnlyFeaturedSets() && _section != Section::Featured) {
-			showStickerSet(Stickers::FeaturedSetId);
-		}
+		refreshFooterIcons();
 	}
 
 	_settings->setVisible(_section == Section::Stickers && _mySets.isEmpty());
@@ -1205,6 +1211,15 @@ void StickersListWidget::refreshStickers() {
 	_lastMousePosition = QCursor::pos();
 	updateSelected();
 	update();
+}
+
+void StickersListWidget::refreshFooterIcons() {
+	Expects(_columnCount > 0);
+
+	_footer->refreshIcons(ValidateIconAnimations::None);
+	if (_footer->hasOnlyFeaturedSets() && _section != Section::Featured) {
+		showStickerSet(Stickers::FeaturedSetId);
+	}
 }
 
 void StickersListWidget::preloadImages() {

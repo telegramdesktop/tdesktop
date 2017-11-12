@@ -245,7 +245,7 @@ void InnerWidget::saveState(not_null<Memento*> memento) {
 }
 
 void InnerWidget::restoreState(not_null<Memento*> memento) {
-	_cover->toggle(memento->infoExpanded());
+	_cover->toggle(memento->infoExpanded(), anim::type::instant);
 	if (_members) {
 		_members->restoreState(memento);
 	}

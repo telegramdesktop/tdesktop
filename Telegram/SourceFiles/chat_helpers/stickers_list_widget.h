@@ -217,6 +217,8 @@ private:
 
 	void removeRecentSticker(int section, int index);
 	void removeFavedSticker(int section, int index);
+	void setColumnCount(int count);
+	void refreshFooterIcons();
 
 	ChannelData *_megagroupSet = nullptr;
 	Sets _mySets;

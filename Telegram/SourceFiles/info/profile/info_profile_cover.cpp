@@ -184,9 +184,12 @@ SectionWithToggle *SectionWithToggle::setToggleShown(
 	return this;
 }
 
-void SectionWithToggle::toggle(bool toggled) {
+void SectionWithToggle::toggle(bool toggled, anim::type animated) {
 	if (_toggle) {
 		_toggle->setChecked(toggled);
+		if (animated == anim::type::instant) {
+			_toggle->finishAnimating();
+		}
 	}
 }
 
