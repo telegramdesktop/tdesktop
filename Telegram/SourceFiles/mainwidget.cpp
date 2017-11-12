@@ -3388,10 +3388,14 @@ void MainWidget::updateControlsGeometry() {
 	if (Adaptive::ThreeColumn()) {
 		if (!_thirdSection
 			&& !_controller->takeThirdSectionFromLayer()) {
+			auto params = Window::SectionShow(
+				Window::SectionShow::Way::ClearStack,
+				anim::type::instant,
+				anim::activation::background);
 			if (Auth().data().tabbedSelectorSectionEnabled()) {
-				_history->pushTabbedSelectorToThirdSection();
+				_history->pushTabbedSelectorToThirdSection(params);
 			} else if (Auth().data().thirdSectionInfoEnabled()) {
-				_history->pushInfoToThirdSection();
+				_history->pushInfoToThirdSection(params);
 			}
 		}
 	} else {
@@ -3507,18 +3511,17 @@ void MainWidget::updateThirdColumnToCurrentPeer(
 				_thirdSection->createMemento());
 		}
 	};
+	auto params = Window::SectionShow(
+		Window::SectionShow::Way::ClearStack,
+		anim::type::instant,
+		anim::activation::background);
 	auto switchInfoFast = [&] {
 		saveOldThirdSection();
-		_controller->showPeerInfo(
-			peer,
-			SectionShow(
-				SectionShow::Way::ClearStack,
-				anim::type::instant,
-				anim::activation::background));
+		_controller->showPeerInfo(peer, params);
 	};
 	auto switchTabbedFast = [&] {
 		saveOldThirdSection();
-		_history->pushTabbedSelectorToThirdSection();
+		_history->pushTabbedSelectorToThirdSection(params);
 	};
 	if (Adaptive::ThreeColumn()
 		&& Auth().data().tabbedSelectorSectionEnabled()

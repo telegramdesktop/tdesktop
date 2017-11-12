@@ -39,7 +39,6 @@ namespace {
 
 constexpr auto kSaveChosenTabTimeout = 1000;
 constexpr auto kSearchRequestDelay = 400;
-constexpr auto kStickersPanelPerRow = Stickers::kPanelPerRow;
 constexpr auto kInlineItemsMaxPerRow = 5;
 constexpr auto kSearchBotUsername = str_const("gif");
 
@@ -57,6 +56,7 @@ public:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 	void processPanelHideFinished() override;
 
@@ -74,8 +74,6 @@ GifsListWidget::Footer::Footer(not_null<GifsListWidget*> parent) : InnerFooter(p
 , _pan(parent)
 , _field(this, st::gifsSearchField, langFactory(lng_gifs_search))
 , _cancel(this, st::gifsSearchCancel) {
-	_field->resize(width() - st::gifsSearchFieldPosition.x() - st::gifsSearchCancelPosition.x() - st::gifsSearchCancel.width, _field->height());
-	_field->moveToLeft(st::gifsSearchFieldPosition.x(), st::gifsSearchFieldPosition.y());
 	connect(_field, &Ui::InputField::submitted, this, [this](bool ctrlShiftEnter) {
 		_pan->sendInlineRequest();
 	});
@@ -90,7 +88,6 @@ GifsListWidget::Footer::Footer(not_null<GifsListWidget*> parent) : InnerFooter(p
 		_cancel->toggleAnimated(!_field->getLastText().isEmpty());
 		_pan->searchForGifs(_field->getLastText());
 	});
-	_cancel->moveToRight(st::gifsSearchCancelPosition.x(), st::gifsSearchCancelPosition.y());
 	_cancel->setClickedCallback([this] {
 		_field->setText(QString());
 	});
@@ -117,6 +114,16 @@ void GifsListWidget::Footer::paintEvent(QPaintEvent *e) {
 	st::gifsSearchIcon.paint(p, st::gifsSearchIconPosition.x(), st::gifsSearchIconPosition.y(), width());
 }
 
+void GifsListWidget::Footer::resizeEvent(QResizeEvent *e) {
+	auto fieldWidth = width()
+		- st::gifsSearchFieldPosition.x()
+		- st::gifsSearchCancelPosition.x()
+		- st::gifsSearchCancel.width;
+	_field->resizeToWidth(fieldWidth);
+	_field->moveToLeft(st::gifsSearchFieldPosition.x(), st::gifsSearchFieldPosition.y());
+	_cancel->moveToRight(st::gifsSearchCancelPosition.x(), st::gifsSearchCancelPosition.y());
+}
+
 void GifsListWidget::Footer::processPanelHideFinished() {
 	// Preserve panel state through visibility toggles.
 	//_field->setText(QString());
@@ -127,8 +134,6 @@ GifsListWidget::GifsListWidget(
 	not_null<Window::Controller*> controller)
 : Inner(parent, controller)
 , _section(Section::Gifs) {
-	updateSize();
-
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
@@ -180,9 +185,10 @@ void GifsListWidget::checkLoadMore() {
 	}
 }
 
-int GifsListWidget::countDesiredHeight() {
+int GifsListWidget::countDesiredHeight(int newWidth) {
 	auto result = st::stickerPanPadding;
 	for (int i = 0, l = _rows.count(); i < l; ++i) {
+		layoutInlineRow(_rows[i], newWidth);
 		result += _rows[i].height;
 	}
 	return result + st::stickerPanPadding;
@@ -448,9 +454,16 @@ bool GifsListWidget::inlineRowFinalize(Row &row, int32 &sumWidth, bool force) {
 	if (row.items.isEmpty()) return false;
 
 	auto full = (row.items.size() >= kInlineItemsMaxPerRow);
-	auto big = (sumWidth >= st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft);
+
+	// Currently use the same GIFs layout for all widget sizes.
+//	auto big = (sumWidth >= st::buttonRadius + width() - st::inlineResultsLeft);
+	auto big = (sumWidth >= st::emojiPanWidth - st::inlineResultsLeft);
 	if (full || big || force) {
-		_rows.push_back(layoutInlineRow(row, (full || big) ? sumWidth : 0));
+		row.maxWidth = (full || big) ? sumWidth : 0;
+		layoutInlineRow(
+			row,
+			width());
+		_rows.push_back(row);
 		row = Row();
 		row.items.reserve(kInlineItemsMaxPerRow);
 		sumWidth = 0;
@@ -476,7 +489,7 @@ void GifsListWidget::refreshSavedGifs() {
 		}
 		deleteUnusedGifLayouts();
 
-		updateSize();
+		resizeToWidth(width());
 		update();
 	}
 
@@ -561,7 +574,7 @@ void GifsListWidget::deleteUnusedInlineLayouts() {
 	}
 }
 
-GifsListWidget::Row &GifsListWidget::layoutInlineRow(Row &row, int32 sumWidth) {
+void GifsListWidget::layoutInlineRow(Row &row, int fullWidth) {
 	auto count = int(row.items.size());
 	Assert(count <= kInlineItemsMaxPerRow);
 
@@ -571,27 +584,30 @@ GifsListWidget::Row &GifsListWidget::layoutInlineRow(Row &row, int32 sumWidth) {
 	for (auto i = 0; i != count; ++i) {
 		indices[i] = i;
 	}
-	std::sort(indices, indices + count, [&row](int a, int b) -> bool {
-		return row.items.at(a)->maxWidth() < row.items.at(b)->maxWidth();
+	std::sort(indices, indices + count, [&](int a, int b) {
+		return row.items[a]->maxWidth()
+			< row.items[b]->maxWidth();
 	});
 
+	auto desiredWidth = row.maxWidth;
 	row.height = 0;
-	int availw = width() - (st::inlineResultsLeft - st::buttonRadius);
+	int availw = fullWidth - (st::inlineResultsLeft - st::buttonRadius);
 	for (int i = 0; i < count; ++i) {
 		int index = indices[i];
-		int w = sumWidth ? (row.items.at(index)->maxWidth() * availw / sumWidth) : row.items.at(index)->maxWidth();
+		int w = desiredWidth
+			? (row.items[index]->maxWidth() * availw / desiredWidth)
+			: row.items[index]->maxWidth();
 		int actualw = qMax(w, int(st::inlineResultsMinWidth));
 		row.height = qMax(row.height, row.items[index]->resizeGetHeight(actualw));
-		if (sumWidth) {
+		if (desiredWidth) {
 			availw -= actualw;
-			sumWidth -= row.items.at(index)->maxWidth();
-			if (index > 0 && row.items.at(index - 1)->hasRightSkip()) {
+			desiredWidth -= row.items[index]->maxWidth();
+			if (index > 0 && row.items[index - 1]->hasRightSkip()) {
 				availw -= st::inlineResultsSkip;
-				sumWidth -= st::inlineResultsSkip;
+				desiredWidth -= st::inlineResultsSkip;
 			}
 		}
 	}
-	return row;
 }
 
 void GifsListWidget::preloadImages() {
@@ -639,7 +655,7 @@ int GifsListWidget::refreshInlineRows(const InlineCacheEntry *entry, bool result
 		inlineRowFinalize(row, sumWidth, true);
 	}
 
-	updateSize();
+	resizeToWidth(width());
 	update();
 
 	_lastMousePos = QCursor::pos();
@@ -680,7 +696,12 @@ int GifsListWidget::validateExistingInlineRows(const InlineResults &results) {
 		}
 		_rows.resize(untilrow + 1);
 		_rows[untilrow].items.resize(untilcol);
-		_rows[untilrow] = layoutInlineRow(_rows[untilrow]);
+		_rows[untilrow].maxWidth = std::accumulate(
+			_rows[untilrow].items.begin(),
+			_rows[untilrow].items.end(),
+			0,
+			[](int w, auto &row) { return w + row->maxWidth(); });
+		layoutInlineRow(_rows[untilrow], width());
 		return until;
 	}
 	if (untilrow && !untilcol) { // remove last row, maybe it is not full

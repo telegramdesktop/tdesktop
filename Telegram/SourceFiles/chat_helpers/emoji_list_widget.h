@@ -41,6 +41,7 @@ public:
 	void clearSelection();
 	void handleMouseMove(QPoint globalPos);
 	void handleMouseRelease(QPoint globalPos);
+	void setSingleSize(QSize size);
 
 	void hideFast();
 
@@ -62,6 +63,7 @@ protected:
 
 private:
 	void animationCallback();
+	void updateSize();
 
 	void drawVariant(Painter &p, int variant);
 
@@ -75,6 +77,7 @@ private:
 	int _selected = -1;
 	int _pressedSel = -1;
 	QPoint _lastMousePos;
+	QSize _singleSize;
 
 	bool _hiding = false;
 	QPixmap _cache;
@@ -126,7 +129,7 @@ protected:
 
 	TabbedSelector::InnerFooter *getFooter() const override;
 	void processHideFinished() override;
-	int countDesiredHeight() override;
+	int countDesiredHeight(int newWidth) override;
 
 private:
 	class Footer;
@@ -159,7 +162,9 @@ private:
 	int _counts[kEmojiSectionCount];
 	QVector<EmojiPtr> _emoji[kEmojiSectionCount];
 
-	int32 _esize;
+	int _rowsLeft = 0;
+	QSize _singleSize;
+	int _esize = 0;
 
 	int _selected = -1;
 	int _pressedSel = -1;

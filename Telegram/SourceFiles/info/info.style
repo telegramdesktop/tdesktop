@@ -362,7 +362,7 @@ infoProfileButton: InfoProfileButton {
 	textBg: windowBg;
 	textBgOver: windowBgOver;
 
-	font: semiboldFont;
+	font: normalFont;
 
 	height: 20px;
 	padding: margins(79px, 10px, 8px, 8px);

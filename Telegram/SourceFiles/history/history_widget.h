@@ -208,8 +208,10 @@ public:
 	void unreadCountChanged(History *history);
 
 	QRect historyRect() const;
-	void pushTabbedSelectorToThirdSection();
-	void pushInfoToThirdSection();
+	void pushTabbedSelectorToThirdSection(
+		const Window::SectionShow &params);
+	void pushInfoToThirdSection(
+		const Window::SectionShow &params);
 
 	void updateSendAction(History *history, SendAction::Type type, int32 progress = 0);
 	void cancelSendAction(History *history, SendAction::Type type);

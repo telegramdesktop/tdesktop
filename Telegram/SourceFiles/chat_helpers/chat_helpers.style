@@ -133,11 +133,13 @@ emojiObjectsActive: icon {{ "emoji_objects", emojiIconFgActive }};
 emojiSymbols: icon {{ "emoji_symbols", emojiIconFg }};
 emojiSymbolsActive: icon {{ "emoji_symbols", emojiIconFgActive }};
 
+emojiFooterHeight: 46px;
+emojiCategorySkip: 4px;
 emojiCategory: IconButton {
 	width: 42px;
-	height: 46px;
+	height: emojiFooterHeight;
 
-	iconPosition: point(8px, 9px);
+	iconPosition: point(-1px, 9px);
 }
 emojiCategoryRecent: IconButton(emojiCategory) { icon: emojiRecent; }
 emojiCategoryPeople: IconButton(emojiCategory) { icon: emojiPeople; }
@@ -152,7 +154,6 @@ emojiPanAnimation: PanelAnimation(defaultPanelAnimation) {
 	fadeBg: emojiPanBg;
 }
 emojiPanPadding: 12px;
-emojiPanSize: size(45px, 41px);
 emojiPanWidth: 345px;
 emojiPanMinHeight: 278px;
 emojiPanMaxHeight: 640px;
@@ -192,7 +193,8 @@ hashtagClose: IconButton {
 	}
 }
 
-stickerPanSize: size(64px, 64px);
+stickerPanWidthMin: 64px;
+stickerPanSize: size(stickerPanWidthMin, stickerPanWidthMin);
 stickerPanPadding: 11px;
 stickerPanDeleteIconBg: icon {{ "emoji_delete_bg", stickerPanDeleteBg }};
 stickerPanDeleteIconFg: icon {{ "emoji_delete", stickerPanDeleteFg }};
@@ -201,6 +203,8 @@ stickerPanDeleteOpacityBgOver: 0.5;
 stickerPanDeleteOpacityFg: 0.8;
 stickerPanDeleteOpacityFgOver: 1.;
 stickerPanRemoveSet: hashtagClose;
+stickerIconWidth: 42px;
+stickerIconHeight: emojiFooterHeight;
 stickerIconPadding: 5px;
 stickerIconOpacity: 0.7;
 stickerIconSel: 2px;

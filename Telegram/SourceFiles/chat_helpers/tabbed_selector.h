@@ -218,7 +218,7 @@ public:
 	int getVisibleBottom() const {
 		return _visibleBottom;
 	}
-	void setMinimalHeight(int newMinimalHeight);
+	void setMinimalHeight(int newWidth, int newMinimalHeight);
 
 	virtual void refreshRecent() = 0;
 	virtual void preloadImages() {
@@ -242,14 +242,14 @@ protected:
 	void visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) override;
-	void updateSize();
 	int minimalHeight() const;
+	int resizeGetHeight(int newWidth) override final;
 
 	not_null<Window::Controller*> controller() const {
 		return _controller;
 	}
 
-	virtual int countDesiredHeight() = 0;
+	virtual int countDesiredHeight(int newWidth) = 0;
 	virtual InnerFooter *getFooter() const = 0;
 	virtual void processHideFinished() {
 	}

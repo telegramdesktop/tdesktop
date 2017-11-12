@@ -3789,16 +3789,13 @@ void HistoryWidget::topBarClick() {
 	}
 }
 
-void HistoryWidget::pushTabbedSelectorToThirdSection() {
+void HistoryWidget::pushTabbedSelectorToThirdSection(
+		const Window::SectionShow &params) {
 	if (!_history || !_tabbedPanel) {
 		return;
 	} else if (!_canSendMessages) {
 		Auth().data().setTabbedReplacedWithInfo(true);
-		controller()->showPeerInfo(_peer,
-			Window::SectionShow(
-				Window::SectionShow::Way::ClearStack,
-				anim::type::instant,
-				anim::activation::background));
+		controller()->showPeerInfo(_peer, params);
 		return;
 	}
 	Auth().data().setTabbedReplacedWithInfo(false);
@@ -3814,25 +3811,16 @@ void HistoryWidget::pushTabbedSelectorToThirdSection() {
 			returnTabbedSelector(std::move(selector));
 		}));
 	controller()->resizeForThirdSection();
-	controller()->showSection(
-		std::move(memento),
-		Window::SectionShow(
-			Window::SectionShow::Way::ClearStack,
-			anim::type::instant,
-			anim::activation::background));
+	controller()->showSection(std::move(memento), params);
 	destroyingPanel.destroy();
 }
 
-void HistoryWidget::pushInfoToThirdSection() {
+void HistoryWidget::pushInfoToThirdSection(
+		const Window::SectionShow &params) {
 	if (!_peer) {
 		return;
 	}
-	controller()->showPeerInfo(
-		_peer,
-		Window::SectionShow(
-			Window::SectionShow::Way::ClearStack,
-			anim::type::instant,
-			anim::activation::background));
+	controller()->showPeerInfo(_peer, params);
 }
 
 void HistoryWidget::toggleTabbedSelectorMode() {
@@ -3841,7 +3829,8 @@ void HistoryWidget::toggleTabbedSelectorMode() {
 			&& !Adaptive::OneColumn()) {
 			Auth().data().setTabbedSelectorSectionEnabled(true);
 			Auth().saveDataDelayed();
-			pushTabbedSelectorToThirdSection();
+			pushTabbedSelectorToThirdSection(
+				Window::SectionShow::Way::ClearStack);
 		} else {
 			_tabbedPanel->toggleAnimated();
 		}

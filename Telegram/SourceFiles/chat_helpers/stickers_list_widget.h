@@ -82,7 +82,7 @@ protected:
 	TabbedSelector::InnerFooter *getFooter() const override;
 	void processHideFinished() override;
 	void processPanelHideFinished() override;
-	int countDesiredHeight() override;
+	int countDesiredHeight(int newWidth) override;
 
 private slots:
 	void onSettings();
@@ -231,6 +231,9 @@ private:
 	uint64 _removingSetId = 0;
 
 	Footer *_footer = nullptr;
+	int _rowsLeft = 0;
+	int _columnCount = 0;
+	QSize _singleSize;
 
 	OverState _selected;
 	OverState _pressed;

@@ -37,11 +37,13 @@ object_ptr<Window::SectionWidget> TabbedMemento::createWidget(
 		not_null<Window::Controller*> controller,
 		Window::Column column,
 		const QRect &geometry) {
-	return object_ptr<TabbedSection>(
+	auto result = object_ptr<TabbedSection>(
 		parent,
 		controller,
 		std::move(_selector),
 		std::move(_returnMethod));
+	result->setGeometry(geometry);
+	return std::move(result);
 }
 
 TabbedMemento::~TabbedMemento() {
@@ -68,8 +70,6 @@ TabbedSection::TabbedSection(
 : Window::SectionWidget(parent, controller)
 , _selector(std::move(selector))
 , _returnMethod(std::move(returnMethod)) {
-	resize(st::emojiPanWidth, st::emojiPanMaxHeight);
-
 	_selector->setParent(this);
 	_selector->setRoundRadius(0);
 	_selector->setGeometry(rect());
