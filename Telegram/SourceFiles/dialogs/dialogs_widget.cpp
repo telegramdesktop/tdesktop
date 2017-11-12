@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_inner_widget.h"
 #include "dialogs/dialogs_search_from_controllers.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_window.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/fade_wrap.h"
@@ -64,7 +65,7 @@ private:
 DialogsWidget::UpdateButton::UpdateButton(QWidget *parent) : RippleButton(parent, st::dialogsUpdateButton.ripple)
 , _text(lang(lng_update_telegram).toUpper())
 , _st(st::dialogsUpdateButton) {
-	resize(st::dialogsWidthMin, _st.height);
+	resize(st::columnMinimalWidthLeft, _st.height);
 }
 
 void DialogsWidget::UpdateButton::onStateChanged(State was, StateChangeSource source) {
@@ -84,7 +85,7 @@ void DialogsWidget::UpdateButton::paintEvent(QPaintEvent *e) {
 	p.setRenderHint(QPainter::TextAntialiasing);
 	p.setPen(isOver() ? _st.overColor : _st.color);
 
-	if (width() >= st::dialogsWidthMin) {
+	if (width() >= st::columnMinimalWidthLeft) {
 		r.setTop(_st.textTop);
 		p.drawText(r, _text, style::al_top);
 	} else {
@@ -221,10 +222,16 @@ void DialogsWidget::startWidthAnimation() {
 		return;
 	}
 	auto scrollGeometry = _scroll->geometry();
-	auto grabGeometry = QRect(scrollGeometry.x(), scrollGeometry.y(), st::dialogsWidthMin, scrollGeometry.height());
+	auto grabGeometry = QRect(
+		scrollGeometry.x(),
+		scrollGeometry.y(),
+		st::columnMinimalWidthLeft,
+		scrollGeometry.height());
 	_scroll->setGeometry(grabGeometry);
 	myEnsureResized(_scroll);
-	auto image = QImage(grabGeometry.size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	auto image = QImage(
+		grabGeometry.size() * cIntRetinaFactor(),
+		QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(cRetinaFactor());
 	image.fill(Qt::transparent);
 	_scroll->render(&image, QPoint(0, 0), QRect(QPoint(0, 0), grabGeometry.size()), QWidget::DrawChildren | QWidget::IgnoreMask);
@@ -974,10 +981,10 @@ void DialogsWidget::updateControlsGeometry() {
 		filterAreaTop += st::dialogsForwardHeight;
 	}
 	auto smallLayoutWidth = (st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPadding.x());
-	auto smallLayoutRatio = (width() < st::dialogsWidthMin) ? (st::dialogsWidthMin - width()) / float64(st::dialogsWidthMin - smallLayoutWidth) : 0.;
+	auto smallLayoutRatio = (width() < st::columnMinimalWidthLeft) ? (st::columnMinimalWidthLeft - width()) / float64(st::columnMinimalWidthLeft - smallLayoutWidth) : 0.;
 	auto filterLeft = st::dialogsFilterPadding.x() + _mainMenuToggle->width() + st::dialogsFilterPadding.x();
 	auto filterRight = (Global::LocalPasscode() ? (st::dialogsFilterPadding.x() + _lockUnlock->width()) : st::dialogsFilterSkip) + st::dialogsFilterPadding.x();
-	auto filterWidth = qMax(width(), st::dialogsWidthMin) - filterLeft - filterRight;
+	auto filterWidth = qMax(width(), st::columnMinimalWidthLeft) - filterLeft - filterRight;
 	auto filterAreaHeight = st::dialogsFilterPadding.y() + _mainMenuToggle->height() + st::dialogsFilterPadding.y();
 	auto filterTop = filterAreaTop + (filterAreaHeight - _filter->height()) / 2;
 	filterLeft = anim::interpolate(filterLeft, smallLayoutWidth, smallLayoutRatio);

@@ -51,8 +51,6 @@ dialogsImportantBarHeight: 37px;
 
 dialogsSkip: 8px;
 
-dialogsWidthMin: 260px;
-dialogsWidthMax: 540px;
 dialogsWidthDuration: 120;
 dialogsTextWidthMin: 150px;
 dialogsScroll: ScrollArea(defaultScrollArea) {

@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_search_from_controllers.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_window.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "data/data_drafts.h"
@@ -959,7 +960,7 @@ void DialogsInner::setSearchedPressed(int pressed) {
 
 void DialogsInner::resizeEvent(QResizeEvent *e) {
 	_addContactLnk->move((width() - _addContactLnk->width()) / 2, (st::noContactsHeight + st::noContactsFont->height) / 2);
-	auto widthForCancelButton = qMax(width() + otherWidth(), st::dialogsWidthMin);
+	auto widthForCancelButton = qMax(width() + otherWidth(), st::columnMinimalWidthLeft);
 	_cancelSearchInPeer->moveToLeft(widthForCancelButton - st::dialogsSearchInSkip - _cancelSearchInPeer->width(), st::searchedBarHeight + (st::dialogsSearchInHeight - st::dialogsCancelSearchInPeer.height) / 2);
 	_cancelSearchFromUser->moveToLeft(widthForCancelButton - st::dialogsSearchInSkip - _cancelSearchFromUser->width(), st::searchedBarHeight + st::dialogsSearchInHeight + st::lineWidth + (st::dialogsSearchInHeight - st::dialogsCancelSearchInPeer.height) / 2);
 }

@@ -224,6 +224,15 @@ public:
 	rpl::producer<float64> dialogsWidthRatioChanges() const {
 		return _variables.dialogsWidthRatio.changes();
 	}
+	void setThirdColumnWidth(int width) {
+		_variables.thirdColumnWidth = width;
+	}
+	int thirdColumnWidth() const {
+		return _variables.thirdColumnWidth.current();
+	}
+	rpl::producer<int> thirdColumnWidthChanges() const {
+		return _variables.thirdColumnWidth.changes();
+	}
 
 	void markStickersUpdated() {
 		_stickersUpdated.fire({});
@@ -321,6 +330,7 @@ private:
 		Variables();
 
 		static constexpr auto kDefaultDialogsWidthRatio = 5. / 14;
+		static constexpr auto kDefaultThirdColumnWidth = 0;
 
 		bool lastSeenWarningSeen = false;
 		ChatHelpers::SelectorTab selectorTab; // per-window
@@ -332,7 +342,10 @@ private:
 		base::flat_set<PeerId> groupStickersSectionHidden;
 		bool thirdSectionInfoEnabled = true; // per-window
 		bool smallDialogsList = false; // per-window
-		rpl::variable<float64> dialogsWidthRatio = kDefaultDialogsWidthRatio; // per-window
+		rpl::variable<float64> dialogsWidthRatio
+			= kDefaultDialogsWidthRatio; // per-window
+		rpl::variable<int> thirdColumnWidth
+			= kDefaultThirdColumnWidth; // per-window
 	};
 
 	bool stickersUpdateNeeded(TimeMs lastUpdate, TimeMs now) const {

@@ -36,6 +36,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
+#include "styles/style_window.h"
 #include "window/notifications_manager.h"
 #include "observer_peer.h"
 #include "storage/storage_shared_media.h"
@@ -46,7 +47,7 @@ constexpr auto kPinnedMessageTextLimit = 16;
 
 inline void initTextOptions() {
 	_historySrvOptions.dir = _textNameOptions.dir = _textDlgOptions.dir = cLangDir();
-	_textDlgOptions.maxw = st::dialogsWidthMax * 2;
+	_textDlgOptions.maxw = st::columnMaximalWidthLeft * 2;
 }
 
 style::color fromNameFg(int index) {

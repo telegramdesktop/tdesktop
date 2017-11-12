@@ -108,21 +108,61 @@ Controller::ColumnLayout Controller::computeColumnLayout() const {
 		dialogsWidth = chatWidth = bodyWidth;
 	} else if (useNormalLayout()) {
 		layout = Adaptive::WindowLayout::Normal;
-		dialogsWidth = qRound(bodyWidth * Auth().data().dialogsWidthRatio());
-		accumulate_max(dialogsWidth, st::columnMinimalWidthLeft);
+		dialogsWidth = countDialogsWidthFromRatio(bodyWidth);
 		accumulate_min(dialogsWidth, bodyWidth - st::columnMinimalWidthMain);
 		chatWidth = bodyWidth - dialogsWidth;
 	} else {
 		layout = Adaptive::WindowLayout::ThreeColumn;
-		dialogsWidth = qRound(bodyWidth * Auth().data().dialogsWidthRatio());
-		accumulate_max(dialogsWidth, st::columnMinimalWidthLeft);
-		thirdWidth = st::columnMinimalWidthThird;
-		accumulate_min(
+		dialogsWidth = countDialogsWidthFromRatio(bodyWidth);
+		thirdWidth = countThirdColumnWidthFromRatio(bodyWidth);
+		auto shrink = shrinkDialogsAndThirdColumns(
 			dialogsWidth,
-			bodyWidth - thirdWidth - st::columnMinimalWidthMain);
+			thirdWidth,
+			bodyWidth);
+		dialogsWidth = shrink.dialogsWidth;
+		thirdWidth = shrink.thirdWidth;
+
 		chatWidth = bodyWidth - dialogsWidth - thirdWidth;
 	}
 	return { bodyWidth, dialogsWidth, chatWidth, thirdWidth, layout };
+}
+
+int Controller::countDialogsWidthFromRatio(int bodyWidth) const {
+	auto result = qRound(bodyWidth * Auth().data().dialogsWidthRatio());
+	accumulate_max(result, st::columnMinimalWidthLeft);
+	accumulate_min(result, st::columnMaximalWidthLeft);
+	return result;
+}
+
+int Controller::countThirdColumnWidthFromRatio(int bodyWidth) const {
+	auto result = Auth().data().thirdColumnWidth();
+	accumulate_max(result, st::columnMinimalWidthThird);
+	accumulate_min(result, st::columnMaximalWidthThird);
+	return result;
+}
+
+Controller::ShrinkResult Controller::shrinkDialogsAndThirdColumns(
+		int dialogsWidth,
+		int thirdWidth,
+		int bodyWidth) const {
+	auto chatWidth = st::columnMinimalWidthMain;
+	if (dialogsWidth + thirdWidth + chatWidth <= bodyWidth) {
+		return { dialogsWidth, thirdWidth };
+	}
+	auto thirdWidthNew = ((bodyWidth - chatWidth) * thirdWidth)
+		/ (dialogsWidth + thirdWidth);
+	auto dialogsWidthNew = ((bodyWidth - chatWidth) * dialogsWidth)
+		/ (dialogsWidth + thirdWidth);
+	if (thirdWidthNew < st::columnMinimalWidthThird) {
+		thirdWidthNew = st::columnMinimalWidthThird;
+		dialogsWidthNew = bodyWidth - thirdWidthNew - chatWidth;
+		Assert(dialogsWidthNew >= st::columnMinimalWidthLeft);
+	} else if (dialogsWidthNew < st::columnMinimalWidthLeft) {
+		dialogsWidthNew = st::columnMinimalWidthLeft;
+		thirdWidthNew = bodyWidth - dialogsWidthNew - chatWidth;
+		Assert(thirdWidthNew >= st::columnMinimalWidthThird);
+	}
+	return { dialogsWidthNew, thirdWidthNew };
 }
 
 bool Controller::canShowThirdSection() const {

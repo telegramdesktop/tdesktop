@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 
 #include <rpl/combine.h>
+#include <rpl/merge.h>
 #include <rpl/flatten_latest.h>
 #include "data/data_photo.h"
 #include "data/data_document.h"
@@ -225,7 +226,8 @@ MainWidget::MainWidget(
 	not_null<Window::Controller*> controller)
 : RpWidget(parent)
 , _controller(controller)
-, _dialogsWidth(st::dialogsWidthMin)
+, _dialogsWidth(st::columnMinimalWidthLeft)
+, _thirdColumnWidth(st::columnMinimalWidthThird)
 , _sideShadow(this)
 , _dialogs(this, _controller)
 , _history(this, _controller)
@@ -262,7 +264,11 @@ MainWidget::MainWidget(
 	subscribe(_controller->dialogsListDisplayForced(), [this](bool) {
 		updateDialogsWidthAnimated();
 	});
-	Auth().data().dialogsWidthRatioChanges()
+	rpl::merge(
+		Auth().data().dialogsWidthRatioChanges()
+			| rpl::map([] { return rpl::empty_value(); }),
+		Auth().data().thirdColumnWidthChanges()
+			| rpl::map([] { return rpl::empty_value(); }))
 		| rpl::start_with_next(
 			[this] { updateControlsGeometry(); },
 			lifetime());
@@ -2773,7 +2779,11 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 
 	auto sectionTop = getMainSectionTop();
 	if (selectingPeer() && Adaptive::OneColumn()) {
-		result.oldContentCache = myGrab(this, QRect(0, sectionTop, _dialogsWidth, height() - sectionTop));
+		result.oldContentCache = myGrab(this, QRect(
+			0,
+			sectionTop,
+			_dialogsWidth,
+			height() - sectionTop));
 	} else if (_mainSection) {
 		result.oldContentCache = _mainSection->grabForShowAnimation(result);
 	} else {
@@ -2785,13 +2795,21 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 			_history->grabStart();
 		}
 		if (Adaptive::OneColumn()) {
-			result.oldContentCache = myGrab(this, QRect(0, sectionTop, _dialogsWidth, height() - sectionTop));
+			result.oldContentCache = myGrab(this, QRect(
+				0,
+				sectionTop,
+				_dialogsWidth,
+				height() - sectionTop));
 		} else {
 			_sideShadow->hide();
 			if (_thirdShadow) {
 				_thirdShadow->hide();
 			}
-			result.oldContentCache = myGrab(this, QRect(_dialogsWidth, sectionTop, width() - _dialogsWidth, height() - sectionTop));
+			result.oldContentCache = myGrab(this, QRect(
+				_dialogsWidth,
+				sectionTop,
+				width() - _dialogsWidth,
+				height() - sectionTop));
 			_sideShadow->show();
 			if (_thirdShadow) {
 				_thirdShadow->show();
@@ -3118,13 +3136,21 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 
 	auto sectionTop = getMainSectionTop();
 	if (Adaptive::OneColumn()) {
-		result = myGrab(this, QRect(0, sectionTop, _dialogsWidth, height() - sectionTop));
+		result = myGrab(this, QRect(
+			0,
+			sectionTop,
+			_dialogsWidth,
+			height() - sectionTop));
 	} else {
 		_sideShadow->hide();
 		if (_thirdShadow) {
 			_thirdShadow->hide();
 		}
-		result = myGrab(this, QRect(_dialogsWidth, sectionTop, width() - _dialogsWidth, height() - sectionTop));
+		result = myGrab(this, QRect(
+			_dialogsWidth,
+			sectionTop,
+			width() - _dialogsWidth,
+			height() - sectionTop));
 		_sideShadow->show();
 		if (_thirdShadow) {
 			_thirdShadow->show();
@@ -3423,11 +3449,9 @@ void MainWidget::updateControlsGeometry() {
 		_history->setGeometry(mainSectionGeometry);
 		if (_hider) _hider->setGeometry(0, 0, dialogsWidth, height());
 	} else {
-		auto thirdSectionWidth = _thirdSection ? _thirdSection->width() : 0;
+		auto thirdSectionWidth = _thirdSection ? _thirdColumnWidth : 0;
 		if (_thirdSection) {
 			auto thirdSectionTop = getThirdSectionTop();
-			accumulate_min(thirdSectionWidth, width() - st::columnMinimalWidthMain - st::columnMinimalWidthLeft);
-			accumulate_max(thirdSectionWidth, st::columnMinimalWidthThird);
 			_thirdSection->setGeometry(
 				width() - thirdSectionWidth,
 				thirdSectionTop,
@@ -3517,14 +3541,16 @@ void MainWidget::ensureFirstColumnResizeAreaCreated() {
 	}
 	auto moveLeftCallback = [=](int globalLeft) {
 		auto newWidth = globalLeft - mapToGlobal(QPoint(0, 0)).x();
-		auto newRatio = (newWidth < st::dialogsWidthMin / 2)
+		auto newRatio = (newWidth < st::columnMinimalWidthLeft / 2)
 			? 0.
 			: float64(newWidth) / width();
 		Auth().data().setDialogsWidthRatio(newRatio);
 	};
 	auto moveFinishedCallback = [=] {
-		if (!Adaptive::OneColumn()
-			&& Auth().data().dialogsWidthRatio() > 0) {
+		if (Adaptive::OneColumn()) {
+			return;
+		}
+		if (Auth().data().dialogsWidthRatio() > 0) {
 			Auth().data().setDialogsWidthRatio(
 				float64(_dialogsWidth) / width());
 		}
@@ -3541,9 +3567,18 @@ void MainWidget::ensureThirdColumnResizeAreaCreated() {
 		return;
 	}
 	auto moveLeftCallback = [=](int globalLeft) {
+		auto newWidth = mapToGlobal(QPoint(width(), 0)).x() - globalLeft;
+		Auth().data().setThirdColumnWidth(newWidth);
 	};
 	auto moveFinishedCallback = [=] {
-
+		if (!Adaptive::ThreeColumn() || !_thirdSection) {
+			return;
+		}
+		Auth().data().setThirdColumnWidth(snap(
+			Auth().data().thirdColumnWidth(),
+			st::columnMinimalWidthThird,
+			st::columnMaximalWidthThird));
+		Local::writeUserSettings();
 	};
 	createResizeArea(
 		_thirdColumnResizeArea,
@@ -3739,6 +3774,7 @@ void MainWidget::updateWindowAdaptiveLayout() {
 	_dialogsWidth = useSmallColumnWidth
 		? _controller->dialogsSmallColumnWidth()
 		: layout.dialogsWidth;
+	_thirdColumnWidth = layout.thirdWidth;
 	if (layout.windowLayout != Global::AdaptiveWindowLayout()) {
 		Global::SetAdaptiveWindowLayout(layout.windowLayout);
 		Adaptive::Changed().notify(true);

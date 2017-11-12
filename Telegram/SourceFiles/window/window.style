@@ -31,8 +31,10 @@ windowShadow: icon {{ "window_shadow", windowShadowFg }};
 windowShadowShift: 1px;
 
 columnMinimalWidthLeft: 260px;
+columnMaximalWidthLeft: 540px;
 columnMinimalWidthMain: 380px;
 columnMinimalWidthThird: 292px;//345px;
+columnMaximalWidthThird: 345px;
 
 adaptiveChatWideWidth: 880px;
 

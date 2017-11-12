@@ -583,7 +583,8 @@ private:
 	bool _showBack = false;
 	QPixmap _cacheUnder, _cacheOver;
 
-	int _dialogsWidth;
+	int _dialogsWidth = 0;
+	int _thirdColumnWidth = 0;
 	Animation _a_dialogsWidth;
 
 	object_ptr<Ui::PlainShadow> _sideShadow;

@@ -189,6 +189,16 @@ public:
 private:
 	int minimalThreeColumnWidth() const;
 	not_null<MainWidget*> chats() const;
+	int countDialogsWidthFromRatio(int bodyWidth) const;
+	int countThirdColumnWidthFromRatio(int bodyWidth) const;
+	struct ShrinkResult {
+		int dialogsWidth;
+		int thirdWidth;
+	};
+	ShrinkResult shrinkDialogsAndThirdColumns(
+		int dialogsWidth,
+		int thirdWidth,
+		int bodyWidth) const;
 
 	not_null<MainWindow*> _window;
 
