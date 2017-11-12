@@ -71,6 +71,9 @@ protected:
 	template <typename Lambda>
 	void enumerateSections(Lambda callback);
 
+	template <typename Lambda>
+	void enumerateSections(Lambda callback) const;
+
 	virtual void startRipple(int sectionIndex) {
 	}
 
@@ -122,6 +125,7 @@ private:
 	QImage prepareRippleMask(int sectionIndex, const Section &section);
 
 	void resizeSections(int newWidth);
+	std::vector<float64> countSectionsWidths(int newWidth) const;
 
 	const style::SettingsSlider &_st;
 	int _rippleTopRoundRadius = 0;

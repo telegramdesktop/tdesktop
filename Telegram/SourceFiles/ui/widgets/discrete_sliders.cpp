@@ -103,6 +103,15 @@ void DiscreteSlider::enumerateSections(Lambda callback) {
 	}
 }
 
+template <typename Lambda>
+void DiscreteSlider::enumerateSections(Lambda callback) const {
+	for (auto &section : _sections) {
+		if (!callback(section)) {
+			return;
+		}
+	}
+}
+
 void DiscreteSlider::mousePressEvent(QMouseEvent *e) {
 	auto index = getIndexFromPosition(e->pos());
 	if (_selectOnPress) {
@@ -183,18 +192,53 @@ void SettingsSlider::resizeSections(int newWidth) {
 	auto count = getSectionsCount();
 	if (!count) return;
 
-	auto sectionsWidth = newWidth - (count - 1) * _st.barSkip;
-	auto sectionWidth = sectionsWidth / float64(count);
+	auto sectionWidths = countSectionsWidths(newWidth);
+
 	auto skip = 0;
 	auto x = 0.;
-	enumerateSections([this, &x, &skip, sectionWidth](Section &section) {
+	auto sectionWidth = sectionWidths.begin();
+	enumerateSections([&](Section &section) {
+		Expects(sectionWidth != sectionWidths.end());
+
 		section.left = qFloor(x) + skip;
-		x += sectionWidth;
+		x += *sectionWidth;
 		section.width = qRound(x) - (section.left - skip);
 		skip += _st.barSkip;
+		++sectionWidth;
 		return true;
 	});
 	stopAnimation();
+}
+
+std::vector<float64> SettingsSlider::countSectionsWidths(
+		int newWidth) const {
+	auto count = getSectionsCount();
+	auto sectionsWidth = newWidth - (count - 1) * _st.barSkip;
+	auto sectionWidth = sectionsWidth / float64(count);
+
+	auto result = std::vector<float64>(count, sectionWidth);
+	auto labelsWidth = 0;
+	auto commonWidth = true;
+	enumerateSections([&](const Section &section) {
+		labelsWidth += section.labelWidth;
+		if (section.labelWidth >= sectionWidth) {
+			commonWidth = false;
+		}
+		return true;
+	});
+	// If labelsWidth > sectionsWidth we're screwed anyway.
+	if (!commonWidth && labelsWidth <= sectionsWidth) {
+		auto padding = (sectionsWidth - labelsWidth) / (2. * count);
+		auto currentWidth = result.begin();
+		enumerateSections([&](const Section &section) {
+			Expects(currentWidth != result.end());
+
+			*currentWidth = padding + section.labelWidth + padding;
+			++currentWidth;
+			return true;
+		});
+	}
+	return result;
 }
 
 int SettingsSlider::resizeGetHeight(int newWidth) {
