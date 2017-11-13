@@ -586,7 +586,7 @@ bool WrapWidget::showInternal(
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) {
 	if (auto infoMemento = dynamic_cast<Memento*>(memento.get())) {
-		if (infoMemento->stackSize() > 1) {
+		if (!_controller || infoMemento->stackSize() > 1) {
 			return false;
 		}
 		auto content = infoMemento->content();
@@ -606,10 +606,14 @@ bool WrapWidget::showInternal(
 std::unique_ptr<Window::SectionMemento> WrapWidget::createMemento() {
 	auto stack = std::vector<std::unique_ptr<ContentMemento>>();
 	stack.reserve(_historyStack.size() + 1);
-	for (auto &stackItem : _historyStack) {
+	for (auto &stackItem : base::take(_historyStack)) {
 		stack.push_back(std::move(stackItem.section));
 	}
 	stack.push_back(_content->createMemento());
+
+	// We're not in valid state anymore and supposed to be destroyed.
+	_controller = nullptr;
+
 	return std::make_unique<Memento>(std::move(stack));
 }
 

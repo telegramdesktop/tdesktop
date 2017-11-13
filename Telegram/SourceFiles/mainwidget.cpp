@@ -3613,6 +3613,7 @@ void MainWidget::updateThirdColumnToCurrentPeer(
 		if (!_stack.empty() && _thirdSection) {
 			_stack.back()->setThirdSectionMemento(
 				_thirdSection->createMemento());
+			_thirdSection.destroy();
 		}
 	};
 	auto params = Window::SectionShow(
