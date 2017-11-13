@@ -39,7 +39,7 @@ class RadioenumGroup;
 template <typename Enum>
 class Radioenum;
 class LinkButton;
-class NewAvatarButton;
+class UserpicButton;
 } // namespace Ui
 
 enum class PeerFloodType {
@@ -105,8 +105,6 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private slots:
-	void onPhotoReady(const QImage &img);
-
 	void onNext();
 	void onNameSubmit();
 	void onDescriptionResized();
@@ -115,7 +113,6 @@ private slots:
 	}
 
 private:
-	void setupPhotoButton();
 	void createChannel(const QString &title, const QString &description);
 	void createGroup(not_null<PeerListBox*> selectUsersBox, const QString &title, const std::vector<not_null<PeerData*>> &users);
 
@@ -125,11 +122,9 @@ private:
 	CreatingGroupType _creating;
 	bool _fromTypeChoose = false;
 
-	object_ptr<Ui::NewAvatarButton> _photo;
-	object_ptr<Ui::InputField> _title;
+	object_ptr<Ui::UserpicButton> _photo = { nullptr };
+	object_ptr<Ui::InputField> _title = { nullptr };
 	object_ptr<Ui::InputArea> _description = { nullptr };
-
-	QImage _photoImage;
 
 	// group / channel creation
 	mtpRequestId _creationRequestId = 0;

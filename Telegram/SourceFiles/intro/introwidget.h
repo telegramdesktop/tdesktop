@@ -147,7 +147,7 @@ public:
 		Data *getData() const {
 			return _data;
 		}
-		void finish(const MTPUser &user, QImage photo = QImage());
+		void finish(const MTPUser &user, QImage &&photo = QImage());
 
 		void goBack() {
 			if (_goCallback) _goCallback(nullptr, Direction::Back);

@@ -307,14 +307,25 @@ void AddContactBox::updateButtons() {
 
 GroupInfoBox::GroupInfoBox(QWidget*, CreatingGroupType creating, bool fromTypeChoose)
 : _creating(creating)
-, _fromTypeChoose(fromTypeChoose)
-, _photo(this, st::newGroupPhotoSize, st::newGroupPhotoIconPosition)
-, _title(this, st::defaultInputField, langFactory(_creating == CreatingGroupChannel ? lng_dlg_new_channel_name : lng_dlg_new_group_name)) {
+, _fromTypeChoose(fromTypeChoose) {
 }
 
 void GroupInfoBox::prepare() {
 	setMouseTracking(true);
 
+	_photo.create(
+		this,
+		(_creating == CreatingGroupChannel)
+			? peerFromChannel(0)
+			: peerFromChat(0),
+		Ui::UserpicButton::Role::ChangePhoto,
+		st::defaultUserpicButton);
+	_title.create(
+		this,
+		st::defaultInputField,
+		langFactory(_creating == CreatingGroupChannel
+			? lng_dlg_new_channel_name
+			: lng_dlg_new_group_name));
 	_title->setMaxLength(kMaxGroupChannelTitle);
 
 	if (_creating == CreatingGroupChannel) {
@@ -332,39 +343,7 @@ void GroupInfoBox::prepare() {
 	addButton(langFactory(_creating == CreatingGroupChannel ? lng_create_group_create : lng_create_group_next), [this] { onNext(); });
 	addButton(langFactory(_fromTypeChoose ? lng_create_group_back : lng_cancel), [this] { closeBox(); });
 
-	setupPhotoButton();
-
 	updateMaxHeight();
-}
-
-void GroupInfoBox::setupPhotoButton() {
-	_photo->setClickedCallback(App::LambdaDelayed(st::defaultActiveButton.ripple.hideDuration, this, [this] {
-		auto imgExtensions = cImgExtensions();
-		auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + FileDialog::AllFilesFilter();
-		FileDialog::GetOpenPath(lang(lng_choose_image), filter, base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
-			if (result.remoteContent.isEmpty() && result.paths.isEmpty()) {
-				return;
-			}
-
-			QImage img;
-			if (!result.remoteContent.isEmpty()) {
-				img = App::readImage(result.remoteContent);
-			} else {
-				img = App::readImage(result.paths.front());
-			}
-			if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
-				return;
-			}
-			auto box = Ui::show(
-				Box<PhotoCropBox>(
-					img,
-					(_creating == CreatingGroupChannel)
-						? peerFromChannel(0)
-						: peerFromChat(0)),
-				LayerOption::KeepOther);
-			connect(box, SIGNAL(ready(const QImage&)), this, SLOT(onPhotoReady(const QImage&)));
-		}));
-	}));
 }
 
 void GroupInfoBox::setInnerFocus() {
@@ -376,12 +355,19 @@ void GroupInfoBox::resizeEvent(QResizeEvent *e) {
 
 	_photo->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::boxPadding.top() + st::newGroupInfoPadding.top());
 
-	auto nameLeft = st::newGroupPhotoSize + st::newGroupNamePosition.x();
+	auto nameLeft = st::defaultUserpicButton.size.width()
+		+ st::newGroupNamePosition.x();
 	_title->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right() - nameLeft, _title->height());
 	_title->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left() + nameLeft, st::boxPadding.top() + st::newGroupInfoPadding.top() + st::newGroupNamePosition.y());
 	if (_description) {
 		_description->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _description->height());
-		_description->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::boxPadding.top() + st::newGroupInfoPadding.top() + st::newGroupPhotoSize + st::newGroupDescriptionPadding.top());
+		auto descriptionLeft = st::boxPadding.left()
+			+ st::newGroupInfoPadding.left();
+		auto descriptionTop = st::boxPadding.top()
+			+ st::newGroupInfoPadding.top()
+			+ st::defaultUserpicButton.size.height()
+			+ st::newGroupDescriptionPadding.top();
+		_description->moveToLeft(descriptionLeft, descriptionTop);
 	}
 }
 
@@ -433,8 +419,11 @@ void GroupInfoBox::createGroup(not_null<PeerListBox*> selectUsersBox, const QStr
 				return App::chat(chats->front().c_chat().vid.v);
 			}
 			| [this](not_null<ChatData*> chat) {
-				if (!_photoImage.isNull()) {
-					Messenger::Instance().uploadProfilePhoto(_photoImage, chat->id);
+				auto image = _photo->takeResultImage();
+				if (!image.isNull()) {
+					Messenger::Instance().uploadProfilePhoto(
+						std::move(image),
+						chat->id);
 				}
 				Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
 			};
@@ -522,9 +511,10 @@ void GroupInfoBox::createChannel(const QString &title, const QString &descriptio
 				return App::channel(chats->front().c_channel().vid.v);
 			}
 			| [this](not_null<ChannelData*> channel) {
-				if (!_photoImage.isNull()) {
+				auto image = _photo->takeResultImage();
+				if (!image.isNull()) {
 					Messenger::Instance().uploadProfilePhoto(
-						_photoImage,
+						std::move(image),
 						channel->id);
 				}
 				_createdChannel = channel;
@@ -562,16 +552,17 @@ void GroupInfoBox::onDescriptionResized() {
 }
 
 void GroupInfoBox::updateMaxHeight() {
-	auto newHeight = st::boxPadding.top() + st::newGroupInfoPadding.top() + st::newGroupPhotoSize + st::boxPadding.bottom() + st::newGroupInfoPadding.bottom();
+	auto newHeight = st::boxPadding.top()
+		+ st::newGroupInfoPadding.top()
+		+ st::defaultUserpicButton.size.height()
+		+ st::boxPadding.bottom()
+		+ st::newGroupInfoPadding.bottom();
 	if (_description) {
-		newHeight += st::newGroupDescriptionPadding.top() + _description->height() + st::newGroupDescriptionPadding.bottom();
+		newHeight += st::newGroupDescriptionPadding.top()
+			+ _description->height()
+			+ st::newGroupDescriptionPadding.bottom();
 	}
 	setDimensions(st::boxWideWidth, newHeight);
-}
-
-void GroupInfoBox::onPhotoReady(const QImage &img) {
-	_photoImage = img;
-	_photo->setImage(_photoImage);
 }
 
 SetupChannelBox::SetupChannelBox(QWidget*, ChannelData *channel, bool existing)

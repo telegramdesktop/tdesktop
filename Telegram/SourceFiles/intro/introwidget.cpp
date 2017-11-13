@@ -449,7 +449,7 @@ QString Widget::Step::nextButtonText() const {
 	return lang(lng_intro_next);
 }
 
-void Widget::Step::finish(const MTPUser &user, QImage photo) {
+void Widget::Step::finish(const MTPUser &user, QImage &&photo) {
 	if (user.type() != mtpc_user || !user.c_user().is_self()) {
 		// No idea what to do here.
 		// We could've reset intro and MTP, but this really should not happen.
@@ -475,7 +475,9 @@ void Widget::Step::finish(const MTPUser &user, QImage photo) {
 		Auth().api().requestFullPeer(user);
 	}
 	if (!photo.isNull()) {
-		Messenger::Instance().uploadProfilePhoto(photo, Auth().userId());
+		Messenger::Instance().uploadProfilePhoto(
+			std::move(photo),
+			Auth().userId());
 	}
 }
 

@@ -26,6 +26,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 class PeerData;
 
+namespace Window {
+class Controller;
+} // namespace Window
+
+namespace FileDialog {
+struct OpenResult;
+} // namespace FileDialog
+
 namespace Ui {
 
 class HistoryDownButton : public RippleButton {
@@ -162,24 +170,69 @@ private:
 
 };
 
-class NewAvatarButton : public RippleButton {
+class UserpicButton : public RippleButton {
 public:
-	NewAvatarButton(QWidget *parent, int size, QPoint position);
+	enum class Role {
+		ChangePhoto,
+		OpenPhoto,
+		OpenProfile,
+		Custom,
+	};
 
-	void setImage(const QImage &image);
+	UserpicButton(
+		QWidget *parent,
+		PeerId peerForCrop,
+		Role role,
+		const style::UserpicButton &st);
+	UserpicButton(
+		QWidget *parent,
+		not_null<Window::Controller*> controller,
+		not_null<PeerData*> peer,
+		Role role,
+		const style::UserpicButton &st);
 
-	int naturalWidth() const override {
-		return height();
+	void switchChangePhotoOverlay(bool enabled);
+
+	QImage takeResultImage() {
+		return std::move(_result);
 	}
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
+	void paintEvent(QPaintEvent *e);
 
 	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
 
 private:
-	QPixmap _image;
-	QPoint _position;
+	void prepare();
+	void setImage(QImage &&image);
+	void setupPeerViewers();
+	void startAnimation();
+	void processPeerPhoto();
+	void processNewPeerPhoto();
+	void startNewPhotoShowing();
+	void prepareUserpicPixmap();
+	QPoint countPhotoPosition() const;
+
+	void setClickHandlerByRole();
+	void openPeerPhoto();
+	void changePhotoLazy();
+	void suggestPhotoFile(
+		const FileDialog::OpenResult &result);
+	void suggestPhoto(const QImage &image);
+
+	const style::UserpicButton &_st;
+	Window::Controller *_controller = nullptr;
+	PeerData *_peer = nullptr;
+	PeerId _peerForCrop = 0;
+	Role _role = Role::ChangePhoto;
+	bool _notShownYet = true;
+	bool _waiting = false;
+	QPixmap _userpic, _oldUserpic;
+	bool _userpicHasImage = false;
+	bool _userpicCustom = false;
+	Animation _a_appearance;
+	QImage _result;
 
 };
 

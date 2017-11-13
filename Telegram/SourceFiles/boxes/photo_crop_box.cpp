@@ -21,9 +21,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/photo_crop_box.h"
 
 #include "lang/lang_keys.h"
-#include "messenger.h"
-#include "mainwidget.h"
-#include "storage/file_upload.h"
 #include "ui/widgets/buttons.h"
 #include "styles/style_boxes.h"
 
@@ -33,7 +30,7 @@ PhotoCropBox::PhotoCropBox(QWidget*, const QImage &img, const PeerId &peer)
 	init(img, nullptr);
 }
 
-PhotoCropBox::PhotoCropBox(QWidget*, const QImage &img, PeerData *peer)
+PhotoCropBox::PhotoCropBox(QWidget*, const QImage &img, not_null<PeerData*> peer)
 : _img(img)
 , _peerId(peer->id) {
 	init(img, peer);
@@ -52,9 +49,6 @@ void PhotoCropBox::init(const QImage &img, PeerData *peer) {
 void PhotoCropBox::prepare() {
 	addButton(langFactory(lng_settings_save), [this] { sendPhoto(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
-	if (peerToBareInt(_peerId)) {
-		connect(this, SIGNAL(ready(const QImage&)), this, SLOT(onReady(const QImage&)));
-	}
 
 	int32 s = st::boxWideWidth - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
 	_thumb = App::pixmapFromImageInPlace(_img.scaled(s * cIntRetinaFactor(), s * cIntRetinaFactor(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
@@ -288,10 +282,9 @@ void PhotoCropBox::sendPhoto() {
 		tosend = cropped.copy();
 	}
 
-	emit ready(tosend);
-	closeBox();
-}
-
-void PhotoCropBox::onReady(const QImage &tosend) {
-	Messenger::Instance().uploadProfilePhoto(tosend, _peerId);
+	auto guard = weak(this);
+	_readyImages.fire(std::move(tosend));
+	if (guard) {
+		closeBox();
+	}
 }

@@ -350,7 +350,7 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 	if (_source != PeerMenuSource::ChatsList) {
 		if (chat->canEdit()) {
 			_addAction(
-				lang(lng_profile_edit_contact),
+				lang(lng_profile_edit_group_name),
 				[chat] { Ui::show(Box<EditNameTitleBox>(chat)); });
 		}
 		if (chat->amCreator()

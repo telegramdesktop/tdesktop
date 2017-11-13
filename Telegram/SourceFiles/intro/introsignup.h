@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Ui {
 class RoundButton;
 class InputField;
-class NewAvatarButton;
+class UserpicButton;
 } // namespace Ui
 
 namespace Intro {
@@ -48,10 +48,8 @@ protected:
 private slots:
 	void onInputChange();
 	void onCheckRequest();
-	void onPhotoReady(const QImage &img);
 
 private:
-	void setupPhotoButton();
 	void refreshLang();
 	void updateControlsGeometry();
 
@@ -60,9 +58,7 @@ private:
 
 	void stopCheck();
 
-	QImage _photoImage;
-
-	object_ptr<Ui::NewAvatarButton> _photo;
+	object_ptr<Ui::UserpicButton> _photo;
 	object_ptr<Ui::InputField> _first;
 	object_ptr<Ui::InputField> _last;
 	QString _firstName, _lastName;

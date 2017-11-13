@@ -457,11 +457,6 @@ newGroupLinkPadding: margins(4px, 27px, 4px, 21px);
 newGroupLinkTop: 3px;
 newGroupLinkFont: font(16px);
 
-newGroupPhotoSize: 76px;
-newGroupPhotoIcon: icon {{ "new_chat_photo", activeButtonFg }};
-newGroupPhotoIconPosition: point(23px, 25px);
-newGroupPhotoDuration: 150;
-
 newGroupNamePosition: point(27px, 5px);
 
 newGroupDescriptionPadding: margins(0px, 13px, 0px, 4px);

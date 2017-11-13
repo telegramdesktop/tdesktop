@@ -39,8 +39,6 @@ introCoverIconTop: 46px;
 
 introSettingsSkip: 10px;
 
-introPhotoSize: 76px;
-introPhotoIconPosition: point(23px, 25px);
 introPhotoTop: 10px;
 
 introCoverTitle: FlatLabel(defaultFlatLabel) {

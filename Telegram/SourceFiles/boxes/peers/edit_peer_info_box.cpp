@@ -36,8 +36,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/add_contact_box.h"
 #include "mtproto/sender.h"
 #include "lang/lang_keys.h"
-#include "core/file_utilities.h"
 #include "mainwidget.h"
+#include "messenger.h"
 #include "apiwrap.h"
 #include "application.h"
 #include "auth_session.h"
@@ -77,7 +77,7 @@ private:
 	struct Controls {
 		Ui::InputField *title = nullptr;
 		Ui::InputArea *description = nullptr;
-		Ui::NewAvatarButton *photo = nullptr;
+		Ui::UserpicButton *photo = nullptr;
 		rpl::lifetime initialPhotoImageWaiting;
 
 		std::shared_ptr<Ui::RadioenumGroup<Privacy>> privacy;
@@ -118,11 +118,6 @@ private:
 	void submitTitle();
 	void submitDescription();
 	void deleteWithConfirmation();
-	void choosePhotoDelayed();
-	void choosePhoto();
-	void suggestPhotoFile(
-		const FileDialog::OpenResult &result);
-	void suggestPhoto(const QImage &image);
 	void privacyChanged(Privacy value);
 
 	void checkUsernameAvailability();
@@ -155,6 +150,7 @@ private:
 	void saveDescription();
 	void saveInvites();
 	void saveSignatures();
+	void savePhoto();
 	void pushSaveStage(base::lambda_once<void()> &&lambda);
 	void continueSave();
 	void cancelSave();
@@ -245,7 +241,7 @@ object_ptr<Ui::RpWidget> Controller::createPhotoAndTitleEdit() {
 	container->widthValue()
 		| rpl::start_with_next([titleEdit](int width) {
 			auto left = st::editPeerPhotoMargins.left()
-				+ st::editPeerPhotoSize;
+				+ st::defaultUserpicButton.size.width();
 			titleEdit->resizeToWidth(width - left);
 			titleEdit->moveToLeft(left, 0, width);
 		}, titleEdit->lifetime());
@@ -256,16 +252,17 @@ object_ptr<Ui::RpWidget> Controller::createPhotoAndTitleEdit() {
 object_ptr<Ui::RpWidget> Controller::createPhotoEdit() {
 	Expects(_wrap != nullptr);
 
-	using PhotoWrap = Ui::PaddingWrap<Ui::NewAvatarButton>;
+	using PhotoWrap = Ui::PaddingWrap<Ui::UserpicButton>;
 	auto photoWrap = object_ptr<PhotoWrap>(
 		_wrap,
-		object_ptr<Ui::NewAvatarButton>(
+		object_ptr<Ui::UserpicButton>(
 			_wrap,
-			st::editPeerPhotoSize,
-			st::editPeerPhotoIconPosition),
+			_box->controller(),
+			_channel,
+			Ui::UserpicButton::Role::ChangePhoto,
+			st::defaultUserpicButton),
 		st::editPeerPhotoMargins);
 	_controls.photo = photoWrap->entity();
-	_controls.photo->addClickHandler([this] { choosePhotoDelayed(); });
 
 	_controls.initialPhotoImageWaiting = base::ObservableViewer(
 		Auth().downloaderTaskFinished())
@@ -278,18 +275,18 @@ object_ptr<Ui::RpWidget> Controller::createPhotoEdit() {
 }
 
 void Controller::refreshInitialPhotoImage() {
-	if (auto image = _channel->currentUserpic()) {
-		image->load();
-		if (image->loaded()) {
-			_controls.photo->setImage(image->pixNoCache(
-				st::editPeerPhotoSize * cIntRetinaFactor(),
-				st::editPeerPhotoSize * cIntRetinaFactor(),
-				Images::Option::Smooth).toImage());
-			_controls.initialPhotoImageWaiting.destroy();
-		}
-	} else {
-		_controls.initialPhotoImageWaiting.destroy();
-	}
+	//if (auto image = _channel->currentUserpic()) {
+	//	image->load();
+	//	if (image->loaded()) {
+	//		_controls.photo->setImage(image->pixNoCache(
+	//			st::editPeerPhotoSize * cIntRetinaFactor(),
+	//			st::editPeerPhotoSize * cIntRetinaFactor(),
+	//			Images::Option::Smooth).toImage());
+	//		_controls.initialPhotoImageWaiting.destroy();
+	//	}
+	//} else {
+	//	_controls.initialPhotoImageWaiting.destroy();
+	//}
 }
 
 object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
@@ -968,7 +965,7 @@ void Controller::save() {
 		pushSaveStage([this] { saveDescription(); });
 		pushSaveStage([this] { saveInvites(); });
 		pushSaveStage([this] { saveSignatures(); });
-		pushSaveStage([this] { _box->closeBox(); });
+		pushSaveStage([this] { savePhoto(); });
 		continueSave();
 	}
 }
@@ -1122,6 +1119,18 @@ void Controller::saveSignatures() {
 	}).send();
 }
 
+void Controller::savePhoto() {
+	auto image = _controls.photo
+		? _controls.photo->takeResultImage()
+		: QImage();
+	if (!image.isNull()) {
+		Messenger::Instance().uploadProfilePhoto(
+			std::move(image),
+			_channel->id);
+	}
+	_box->closeBox();
+}
+
 void Controller::deleteWithConfirmation() {
 	auto text = lang(_isGroup
 		? lng_sure_delete_group
@@ -1142,66 +1151,6 @@ void Controller::deleteWithConfirmation() {
 		lang(lng_box_delete),
 		st::attentionBoxButton,
 		std::move(deleteCallback)), LayerOption::KeepOther);
-}
-
-void Controller::choosePhotoDelayed() {
-	App::CallDelayed(
-		st::defaultRippleAnimation.hideDuration,
-		this,
-		[this] { choosePhoto(); });
-}
-
-void Controller::choosePhoto() {
-	auto handleChosenPhoto = base::lambda_guarded(
-		_controls.photo,
-		[this](auto &&result) { suggestPhotoFile(result); });
-
-	auto imgExtensions = cImgExtensions();
-	auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + FileDialog::AllFilesFilter();
-	FileDialog::GetOpenPath(
-		lang(lng_choose_image),
-		filter,
-		std::move(handleChosenPhoto));
-}
-
-void Controller::suggestPhotoFile(
-		const FileDialog::OpenResult &result) {
-	if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
-		return;
-	}
-
-	auto image = [&] {
-		if (!result.remoteContent.isEmpty()) {
-			return App::readImage(result.remoteContent);
-		} else if (!result.paths.isEmpty()) {
-			return App::readImage(result.paths.front());
-		}
-		return QImage();
-	}();
-	suggestPhoto(image);
-}
-
-void Controller::suggestPhoto(const QImage &image) {
-	auto badAspect = [](int a, int b) {
-		return (a >= 10 * b);
-	};
-	if (image.isNull()
-		|| badAspect(image.width(), image.height())
-		|| badAspect(image.height(), image.width())) {
-		Ui::show(Box<InformBox>(lang(lng_bad_photo)));
-		return;
-	}
-
-	auto callback = [this](const QImage &cropped) {
-		_controls.photo->setImage(cropped);
-	};
-	auto box = Ui::show(
-		Box<PhotoCropBox>(image, _channel),
-		LayerOption::KeepOther);
-	QObject::connect(
-		box,
-		&PhotoCropBox::ready,
-		base::lambda_guarded(_controls.photo, std::move(callback)));
 }
 
 } // namespace

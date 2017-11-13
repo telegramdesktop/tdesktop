@@ -150,7 +150,7 @@ public:
 	void checkStartUrl();
 	bool openLocalUrl(const QString &url);
 
-	void uploadProfilePhoto(const QImage &tosend, const PeerId &peerId);
+	void uploadProfilePhoto(QImage &&tosend, const PeerId &peerId);
 	void regPhotoUpdate(const PeerId &peer, const FullMsgId &msgId);
 	bool isPhotoUpdating(const PeerId &peer);
 	void cancelPhotoUpdate(const PeerId &peer);

@@ -497,6 +497,16 @@ PeerAvatarButton {
 	photoSize: pixels;
 }
 
+UserpicButton {
+	size: size;
+	photoSize: pixels;
+	photoPosition: point;
+	changeButton: RoundButton;
+	changeIcon: icon;
+	changeIconPosition: point;
+	duration: int;
+}
+
 InfoProfileButton {
 	textFg: color;
 	textFgOver: color;
@@ -973,6 +983,16 @@ defaultImportantTooltipLabel: FlatLabel(defaultFlatLabel) {
 		linkFg: importantTooltipFgLink;
 		selectLinkFg: importantTooltipFgLink;
 	}
+}
+
+defaultUserpicButton: UserpicButton {
+	size: size(76px, 76px);
+	photoSize: 76px;
+	photoPosition: point(-1px, -1px);
+	changeButton: defaultActiveButton;
+	changeIcon: icon {{ "new_chat_photo", activeButtonFg }};
+	changeIconPosition: point(23px, 25px);
+	duration: 500;
 }
 
 historyToDownBelow: icon {

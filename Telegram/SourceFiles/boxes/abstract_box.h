@@ -116,6 +116,10 @@ public:
 		finishPrepare();
 	}
 
+	Window::Controller *controller() {
+		return getDelegate()->controller();
+	}
+
 public slots:
 	void onScrollToY(int top, int bottom = -1);
 
@@ -123,10 +127,6 @@ public slots:
 
 protected:
 	virtual void prepare() = 0;
-
-	Window::Controller *controller() {
-		return getDelegate()->controller();
-	}
 
 	void setLayerType(bool layerType) {
 		getDelegate()->setLayerType(layerType);

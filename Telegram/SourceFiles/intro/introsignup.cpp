@@ -35,7 +35,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Intro {
 
 SignupWidget::SignupWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
-, _photo(this, st::introPhotoSize, st::introPhotoIconPosition)
+, _photo(
+	this,
+	peerFromUser(0),
+	Ui::UserpicButton::Role::ChangePhoto,
+	st::defaultUserpicButton)
 , _first(this, st::introName, langFactory(lng_signup_firstname))
 , _last(this, st::introName, langFactory(lng_signup_lastname))
 , _invertOrder(langFirstNameGoesSecond())
@@ -48,8 +52,6 @@ SignupWidget::SignupWidget(QWidget *parent, Widget::Data *data) : Step(parent, d
 	}
 
 	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
-
-	setupPhotoButton();
 
 	setErrorCentered(true);
 
@@ -66,32 +68,6 @@ void SignupWidget::refreshLang() {
 		setTabOrder(_first, _last);
 	}
 	updateControlsGeometry();
-}
-
-void SignupWidget::setupPhotoButton() {
-	_photo->setClickedCallback(App::LambdaDelayed(st::defaultActiveButton.ripple.hideDuration, this, [this] {
-		auto imgExtensions = cImgExtensions();
-		auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + FileDialog::AllFilesFilter();
-		FileDialog::GetOpenPath(lang(lng_choose_image), filter, base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
-			if (result.remoteContent.isEmpty() && result.paths.isEmpty()) {
-				return;
-			}
-
-			QImage img;
-			if (!result.remoteContent.isEmpty()) {
-				img = App::readImage(result.remoteContent);
-			} else {
-				img = App::readImage(result.paths.front());
-			}
-
-			if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
-				showError(langFactory(lng_bad_photo));
-				return;
-			}
-			auto box = Ui::show(Box<PhotoCropBox>(img, PeerId(0)));
-			connect(box, SIGNAL(ready(const QImage&)), this, SLOT(onPhotoReady(const QImage&)));
-		}));
-	}));
 }
 
 void SignupWidget::resizeEvent(QResizeEvent *e) {
@@ -152,11 +128,6 @@ void SignupWidget::onCheckRequest() {
 	}
 }
 
-void SignupWidget::onPhotoReady(const QImage &img) {
-	_photoImage = img;
-	_photo->setImage(_photoImage);
-}
-
 void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
 	stopCheck();
 	auto &d = result.c_auth_authorization();
@@ -164,7 +135,7 @@ void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
 		showError(&Lang::Hard::ServerError);
 		return;
 	}
-	finish(d.vuser, _photoImage);
+	finish(d.vuser, _photo->takeResultImage());
 }
 
 bool SignupWidget::nameSubmitFail(const RPCError &error) {

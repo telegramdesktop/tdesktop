@@ -849,7 +849,7 @@ bool Messenger::openLocalUrl(const QString &url) {
 	return false;
 }
 
-void Messenger::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId) {
+void Messenger::uploadProfilePhoto(QImage &&tosend, const PeerId &peerId) {
 	PreparedPhotoThumbs photoThumbs;
 	QVector<MTPPhotoSize> photoSizes;
 
