@@ -64,7 +64,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/player/media_player_instance.h"
 #include "storage/localstorage.h"
 #include "apiwrap.h"
-#include "window/top_bar_widget.h"
+#include "history/history_top_bar_widget.h"
 #include "window/themes/window_theme.h"
 #include "observer_peer.h"
 #include "base/qthelp_regex.h"
@@ -547,7 +547,6 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 	setAcceptDrops(true);
 
 	subscribe(Auth().downloaderTaskFinished(), [this] { update(); });
-	connect(_topBar, &Window::TopBarWidget::clicked, this, [this] { topBarClick(); });
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 	_historyDown->setClickedCallback([this] { historyDownClicked(); });
 	_unreadMentions->setClickedCallback([this] { showNextUnreadMention(); });
@@ -760,6 +759,10 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 				}
 			}
 		}, lifetime());
+	_topBar->membersShowAreaActive()
+		| rpl::start_with_next([this](bool active) {
+			setMembersShowAreaActive(active);
+		}, _topBar->lifetime());
 
 	orderWidgets();
 }
@@ -1753,12 +1756,9 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	}
 	_reportSpamSettingRequestId = ReportSpamRequestNeeded;
 
-	_titlePeerText = QString();
-	_titlePeerTextWidth = 0;
-
 	noSelectingScroll();
 	_nonEmptySelection = false;
-	_topBar->showSelected(Window::TopBarWidget::SelectedState {});
+	_topBar->showSelected(HistoryTopBarWidget::SelectedState {});
 
 	App::hoveredItem(nullptr);
 	App::pressedItem(nullptr);
@@ -2975,7 +2975,9 @@ MsgId HistoryWidget::msgId() const {
 	return _showAtMsgId;
 }
 
-void HistoryWidget::showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params) {
+void HistoryWidget::showAnimated(
+		Window::SlideDirection direction,
+		const Window::SectionSlideParams &params) {
 	_showDirection = direction;
 
 	_a_show.finish();
@@ -2997,7 +2999,7 @@ void HistoryWidget::showAnimated(Window::SlideDirection direction, const Window:
 	_a_show.start([this] { animationCallback(); }, 0., 1., st::slideDuration, Window::SlideAnimation::transition());
 	if (_history) {
 		_backAnimationButton.create(this);
-		_backAnimationButton->setClickedCallback([this] { topBarClick(); });
+		_backAnimationButton->setClickedCallback([this] { _topBar->clicked(); });
 		_backAnimationButton->setGeometry(_topBar->geometry());
 		_backAnimationButton->show();
 	}
@@ -3716,39 +3718,6 @@ void HistoryWidget::selectMessage() {
 	if (_list) _list->selectItem(item);
 }
 
-bool HistoryWidget::paintTopBar(Painter &p, int decreaseWidth, TimeMs ms) {
-	if (!_history) return false;
-
-	auto increaseLeft = (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) ? (st::topBarArrowPadding.left() - st::topBarArrowPadding.right()) : 0;
-	auto nameleft = st::topBarArrowPadding.right() + increaseLeft;
-	auto nametop = st::topBarArrowPadding.top();
-	auto statustop = st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height;
-	auto namewidth = width() - decreaseWidth - nameleft - st::topBarArrowPadding.right();
-	p.setFont(st::dialogsTextFont);
-	if (!_history->paintSendAction(p, nameleft, statustop, namewidth, width(), st::historyStatusFgTyping, ms)) {
-		p.setPen(_titlePeerTextOnline ? st::historyStatusFgActive : st::historyStatusFg);
-		p.drawText(nameleft, statustop + st::dialogsTextFont->ascent, _titlePeerText);
-	}
-
-	p.setPen(st::dialogsNameFg);
-	_peer->dialogName().drawElided(p, nameleft, nametop, namewidth);
-
-	if (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) {
-		st::topBarBackward.paint(p, (st::topBarArrowPadding.left() - st::topBarBackward.width()) / 2, (st::topBarHeight - st::topBarBackward.height()) / 2, width());
-	}
-	return true;
-}
-
-QRect HistoryWidget::getMembersShowAreaGeometry() const {
-	int increaseLeft = (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) ? (st::topBarArrowPadding.left() - st::topBarArrowPadding.right()) : 0;
-	int membersTextLeft = st::topBarArrowPadding.right() + increaseLeft;
-	int membersTextTop = st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height;
-	int membersTextWidth = _titlePeerTextWidth;
-	int membersTextHeight = st::topBarHeight - membersTextTop;
-
-	return myrtlrect(membersTextLeft, membersTextTop, membersTextWidth, membersTextHeight);
-}
-
 void HistoryWidget::setMembersShowAreaActive(bool active) {
 	if (!active) {
 		_membersDropdownShowTimer.stop();
@@ -3779,14 +3748,6 @@ void HistoryWidget::onMembersDropdownShow() {
 
 void HistoryWidget::onModerateKeyActivate(int index, bool *outHandled) {
 	*outHandled = _keyboard->isHidden() ? false : _keyboard->moderateKeyActivate(index);
-}
-
-void HistoryWidget::topBarClick() {
-	if (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) {
-		controller()->showBackFromStack();
-	} else if (_peer) {
-		controller()->showPeerInfo(_peer);
-	}
 }
 
 void HistoryWidget::pushTabbedSelectorToThirdSection(
@@ -3860,107 +3821,6 @@ void HistoryWidget::recountChatWidth() {
 		Global::SetAdaptiveChatLayout(layout);
 		Adaptive::Changed().notify(true);
 	}
-}
-
-void HistoryWidget::updateOnlineDisplay() {
-	if (!_history) return;
-
-	QString text;
-	int32 t = unixtime();
-	bool titlePeerTextOnline = false;
-	if (auto user = _peer->asUser()) {
-		text = App::onlineText(user, t);
-		titlePeerTextOnline = App::onlineColorUse(user, t);
-	} else if (_peer->isChat()) {
-		auto chat = _peer->asChat();
-		if (!chat->amIn()) {
-			text = lang(lng_chat_status_unaccessible);
-		} else if (chat->participants.isEmpty()) {
-			if (!_titlePeerText.isEmpty()) {
-				text = _titlePeerText;
-			} else if (chat->count <= 0) {
-				text = lang(lng_group_status);
-			} else {
-				text = lng_chat_status_members(lt_count, chat->count);
-			}
-		} else {
-			auto online = 0;
-			auto onlyMe = true;
-			for (auto i = chat->participants.cbegin(), e = chat->participants.cend(); i != e; ++i) {
-				if (i.key()->onlineTill > t) {
-					++online;
-					if (onlyMe && i.key() != App::self()) onlyMe = false;
-				}
-			}
-			if (online > 0 && !onlyMe) {
-				auto membersCount = lng_chat_status_members(lt_count, chat->participants.size());
-				auto onlineCount = lng_chat_status_online(lt_count, online);
-				text = lng_chat_status_members_online(lt_members_count, membersCount, lt_online_count, onlineCount);
-			} else if (chat->participants.size() > 0) {
-				text = lng_chat_status_members(lt_count, chat->participants.size());
-			} else {
-				text = lang(lng_group_status);
-			}
-		}
-	} else if (_peer->isChannel()) {
-		if (_peer->isMegagroup() && _peer->asChannel()->membersCount() > 0 && _peer->asChannel()->membersCount() <= Global::ChatSizeMax()) {
-			if (_peer->asChannel()->mgInfo->lastParticipants.size() < _peer->asChannel()->membersCount() || _peer->asChannel()->lastParticipantsCountOutdated()) {
-				Auth().api().requestLastParticipants(_peer->asChannel());
-			}
-			auto online = 0;
-			bool onlyMe = true;
-			for (auto i = _peer->asChannel()->mgInfo->lastParticipants.cbegin(), e = _peer->asChannel()->mgInfo->lastParticipants.cend(); i != e; ++i) {
-				if ((*i)->onlineTill > t) {
-					++online;
-					if (onlyMe && (*i) != App::self()) onlyMe = false;
-				}
-			}
-			if (online && !onlyMe) {
-				auto membersCount = lng_chat_status_members(lt_count, _peer->asChannel()->membersCount());
-				auto onlineCount = lng_chat_status_online(lt_count, online);
-				text = lng_chat_status_members_online(lt_members_count, membersCount, lt_online_count, onlineCount);
-			} else if (_peer->asChannel()->membersCount() > 0) {
-				text = lng_chat_status_members(lt_count, _peer->asChannel()->membersCount());
-			} else {
-				text = lang(lng_group_status);
-			}
-		} else if (_peer->asChannel()->membersCount() > 0) {
-			text = lng_chat_status_members(lt_count, _peer->asChannel()->membersCount());
-		} else {
-			text = lang(_peer->isMegagroup() ? lng_group_status : lng_channel_status);
-		}
-	}
-	if (_titlePeerText != text) {
-		_titlePeerText = text;
-		_titlePeerTextOnline = titlePeerTextOnline;
-		_titlePeerTextWidth = st::dialogsTextFont->width(_titlePeerText);
-		if (App::main()) {
-			_topBar->updateMembersShowArea();
-			_topBar->update();
-		}
-	}
-	updateOnlineDisplayTimer();
-}
-
-void HistoryWidget::updateOnlineDisplayTimer() {
-	if (!_history) return;
-
-	int32 t = unixtime(), minIn = 86400;
-	if (_peer->isUser()) {
-		minIn = App::onlineWillChangeIn(_peer->asUser(), t);
-	} else if (_peer->isChat()) {
-		ChatData *chat = _peer->asChat();
-		if (chat->participants.isEmpty()) return;
-
-		for (auto i = chat->participants.cbegin(), e = chat->participants.cend(); i != e; ++i) {
-			int32 onlineWillChangeIn = App::onlineWillChangeIn(i.key(), t);
-			if (onlineWillChangeIn < minIn) {
-				minIn = onlineWillChangeIn;
-			}
-		}
-	} else if (_peer->isChannel()) {
-	}
-	App::main()->updateOnlineDisplayIn(minIn * 1000);
 }
 
 void HistoryWidget::moveFieldControls() {
@@ -6005,7 +5865,6 @@ void HistoryWidget::handlePeerUpdate() {
 			updateControlsGeometry();
 		}
 	}
-	App::main()->updateOnlineDisplay();
 }
 
 void HistoryWidget::onForwardSelected() {
@@ -6113,7 +5972,7 @@ SelectedItemSet HistoryWidget::getSelectedItems() const {
 
 void HistoryWidget::updateTopBarSelection() {
 	if (!_list) {
-		_topBar->showSelected(Window::TopBarWidget::SelectedState {});
+		_topBar->showSelected(HistoryTopBarWidget::SelectedState {});
 		return;
 	}
 

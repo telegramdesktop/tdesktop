@@ -54,7 +54,6 @@ class SlideWrap;
 namespace Window {
 class Controller;
 class PlayerWrapWidget;
-class TopBarWidget;
 class SectionMemento;
 class SectionWidget;
 class AbstractSectionWidget;
@@ -72,7 +71,6 @@ class MainWindow;
 class ConfirmBox;
 class DialogsWidget;
 class HistoryWidget;
-class OverviewWidget;
 class HistoryHider;
 
 class StackItem;
@@ -104,11 +102,6 @@ public:
 
 	bool isMainSectionShown() const;
 	bool isThirdSectionShown() const;
-
-	// Temporary methods, while top bar was not done inside HistoryWidget / OverviewWidget.
-	bool paintTopBar(Painter &, int decreaseWidth, TimeMs ms);
-	QRect getMembersShowAreaGeometry() const;
-	void setMembersShowAreaActive(bool active);
 
 	int contentScrollAddToY() const;
 
@@ -156,17 +149,10 @@ public:
 	MsgId activeMsgId();
 
 	int backgroundFromY() const;
-	PeerData *overviewPeer();
-	bool showMediaTypeSwitch() const;
 	void showSection(
 		Window::SectionMemento &&memento,
 		const SectionShow &params);
 	void updateColumnLayout();
-	void showMediaOverview(
-		PeerData *peer,
-		MediaOverviewType type,
-		bool back = false,
-		int32 lastScrollTop = -1);
 	bool stackIsEmpty() const;
 	void showBackFromStack(
 		const SectionShow &params);
@@ -381,7 +367,6 @@ public slots:
 
 	void updateOnline(bool gotOtherOffline = false);
 	void checkIdleFinish();
-	void updateOnlineDisplay();
 
 	void onHistoryShown(History *history, MsgId atMsgId);
 
@@ -472,7 +457,6 @@ private:
 		std::pair<not_null<History*>, MsgId> historyAndStartMsgId,
 		const MTPmessages_Messages &result,
 		mtpRequestId req);
-	void mediaOverviewUpdated(const Notify::PeerUpdate &update);
 
 	Window::SectionSlideParams prepareShowAnimation(
 		bool willHaveTopBarShadow);
@@ -486,7 +470,6 @@ private:
 	// All this methods use the prepareShowAnimation().
 	Window::SectionSlideParams prepareMainSectionAnimation(Window::SectionWidget *section);
 	Window::SectionSlideParams prepareHistoryAnimation(PeerId historyPeerId);
-	Window::SectionSlideParams prepareOverviewAnimation();
 	Window::SectionSlideParams prepareDialogsAnimation();
 
 	void startWithSelf(const MTPUserFull &user);
@@ -595,7 +578,6 @@ private:
 	object_ptr<HistoryWidget> _history;
 	object_ptr<Window::SectionWidget> _mainSection = { nullptr };
 	object_ptr<Window::SectionWidget> _thirdSection = { nullptr };
-	object_ptr<OverviewWidget> _overview = { nullptr };
 
 	base::weak_unique_ptr<Calls::Call> _currentCall;
 	object_ptr<Ui::SlideWrap<Calls::TopBar>> _callTopBar = { nullptr };
@@ -636,7 +618,7 @@ private:
 	SingleTimer _byMinChannelTimer;
 
 	mtpRequestId _onlineRequest = 0;
-	SingleTimer _onlineTimer, _onlineUpdater, _idleFinishTimer;
+	SingleTimer _onlineTimer, _idleFinishTimer;
 	bool _lastWasOnline = false;
 	TimeMs _lastSetOnline = 0;
 	bool _isIdle = false;

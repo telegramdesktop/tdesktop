@@ -272,12 +272,6 @@ void showPeerProfile(const PeerId &peer) {
 	}
 }
 
-void showPeerOverview(const PeerId &peer, MediaOverviewType type) {
-	if (auto m = App::main()) {
-		m->showMediaOverview(App::peer(peer), type);
-	}
-}
-
 void showPeerHistory(
 		const PeerId &peer,
 		MsgId msgId) {

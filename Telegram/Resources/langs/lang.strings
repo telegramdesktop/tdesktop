@@ -854,8 +854,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_attach_file" = "File";
 "lng_attach_photo" = "Photo";
 
-"lng_media_type" = "Media type";
-
 "lng_media_open_with" = "Open With";
 "lng_media_download" = "Download";
 "lng_media_cancel" = "Cancel";

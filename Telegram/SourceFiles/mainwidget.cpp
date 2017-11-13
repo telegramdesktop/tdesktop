@@ -35,7 +35,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/shadow.h"
 #include "window/section_memento.h"
 #include "window/section_widget.h"
-#include "window/top_bar_widget.h"
 #include "data/data_drafts.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/focus_persister.h"
@@ -49,7 +48,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_message.h"
 #include "history/history_media.h"
 #include "history/history_service_layout.h"
-#include "overviewwidget.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_cloud_manager.h"
 #include "boxes/add_contact_box.h"
@@ -112,7 +110,6 @@ MTPMessagesFilter TypeToMediaFilter(MediaOverviewType &type) {
 enum StackItemType {
 	HistoryStackItem,
 	SectionStackItem,
-	OverviewStackItem,
 };
 
 class StackItem {
@@ -176,28 +173,6 @@ private:
 
 };
 
-class StackItemOverview : public StackItem {
-public:
-	StackItemOverview(
-		PeerData *peer,
-		MediaOverviewType mediaType,
-		int32 lastWidth,
-		int32 lastScrollTop)
-	: StackItem(peer)
-	, mediaType(mediaType)
-	, lastWidth(lastWidth)
-	, lastScrollTop(lastScrollTop) {
-	}
-
-	StackItemType type() const {
-		return OverviewStackItem;
-	}
-
-	MediaOverviewType mediaType;
-	int32 lastWidth, lastScrollTop;
-
-};
-
 void StackItem::setThirdSectionMemento(
 		std::unique_ptr<Window::SectionMemento> &&memento) {
 	_thirdSectionMemento = std::move(memento);
@@ -244,7 +219,6 @@ MainWidget::MainWidget(
 	connect(_history, SIGNAL(cancelled()), _dialogs, SLOT(activate()));
 	connect(&noUpdatesTimer, SIGNAL(timeout()), this, SLOT(mtpPing()));
 	connect(&_onlineTimer, SIGNAL(timeout()), this, SLOT(updateOnline()));
-	connect(&_onlineUpdater, SIGNAL(timeout()), this, SLOT(updateOnlineDisplay()));
 	connect(&_idleFinishTimer, SIGNAL(timeout()), this, SLOT(checkIdleFinish()));
 	connect(&_bySeqTimer, SIGNAL(timeout()), this, SLOT(getDifference()));
 	connect(&_byPtsTimer, SIGNAL(timeout()), this, SLOT(onGetDifferenceTimeByPts()));
@@ -343,11 +317,6 @@ MainWidget::MainWidget(
 	});
 
 	subscribe(Adaptive::Changed(), [this]() { handleAdaptiveLayoutUpdate(); });
-
-	auto observeEvents = Notify::PeerUpdate::Flag::SharedMediaChanged;
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
-		mediaOverviewUpdated(update);
-	}));
 
 	_dialogs->show();
 	if (Adaptive::OneColumn()) {
@@ -529,9 +498,6 @@ Window::AbstractSectionWidget *MainWidget::getFloatPlayerSection(Window::Column 
 	} else if (Adaptive::Normal()) {
 		if (column == Window::Column::First) {
 			return _dialogs;
-		}
-		if (_overview) {
-			return _overview;
 		} else if (_mainSection) {
 			return _mainSection;
 		}
@@ -539,8 +505,6 @@ Window::AbstractSectionWidget *MainWidget::getFloatPlayerSection(Window::Column 
 	}
 	if (Adaptive::OneColumn() && selectingPeer()) {
 		return _dialogs;
-	} else if (_overview) {
-		return _overview;
 	} else if (_mainSection) {
 		return _mainSection;
 	} else if (!Adaptive::OneColumn() || _history->peer()) {
@@ -589,9 +553,7 @@ void MainWidget::updateFloatPlayerColumnCorner(QPoint center) {
 		}
 	} else if (Adaptive::Normal()) {
 		checkSection(_dialogs, Window::Column::First);
-		if (_overview) {
-			checkSection(_overview, Window::Column::Second);
-		} else if (_mainSection) {
+		if (_mainSection) {
 			checkSection(_mainSection, Window::Column::Second);
 		} else {
 			checkSection(_history, Window::Column::Second);
@@ -599,8 +561,6 @@ void MainWidget::updateFloatPlayerColumnCorner(QPoint center) {
 	} else {
 		if (Adaptive::OneColumn() && selectingPeer()) {
 			checkSection(_dialogs, Window::Column::First);
-		} else if (_overview) {
-			checkSection(_overview, Window::Column::Second);
 		} else if (_mainSection) {
 			checkSection(_mainSection, Window::Column::Second);
 		} else if (!Adaptive::OneColumn() || _history->peer()) {
@@ -648,7 +608,7 @@ void MainWidget::finishFloatPlayerDrag(not_null<Float*> instance, bool closed) {
 bool MainWidget::setForwardDraft(PeerId peerId, ForwardWhatMessages what) {
 	auto toForward = SelectedItemSet();
 	if (what == ForwardSelectedMessages) {
-		toForward = _overview ? _overview->getSelectedItems() : _history->getSelectedItems();
+		toForward = _history->getSelectedItems();
 	} else {
 		auto item = (HistoryItem*)nullptr;
 		if (what == ForwardContextMessage) {
@@ -969,19 +929,15 @@ void MainWidget::noHider(HistoryHider *destroyed) {
 				_forwardConfirm = nullptr;
 			}
 			onHistoryShown(_history->history(), _history->msgId());
-			if (_mainSection || _overview || (_history->peer() && _history->peer()->id)) {
+			if (_mainSection || (_history->peer() && _history->peer()->id)) {
 				auto animationParams = ([this] {
-					if (_overview) {
-						return prepareOverviewAnimation();
-					} else if (_mainSection) {
+					if (_mainSection) {
 						return prepareMainSectionAnimation(_mainSection);
 					}
 					return prepareHistoryAnimation(_history->peer() ? _history->peer()->id : 0);
 				})();
 				_dialogs->hide();
-				if (_overview) {
-					_overview->showAnimated(Window::SlideDirection::FromRight, animationParams);
-				} else if (_mainSection) {
+				if (_mainSection) {
 					_mainSection->showAnimated(Window::SlideDirection::FromRight, animationParams);
 				} else {
 					_history->showAnimated(Window::SlideDirection::FromRight, animationParams);
@@ -1011,9 +967,7 @@ void MainWidget::hiderLayer(object_ptr<HistoryHider> h) {
 		auto animationParams = prepareDialogsAnimation();
 
 		onHistoryShown(0, 0);
-		if (_overview) {
-			_overview->hide();
-		} else if (_mainSection) {
+		if (_mainSection) {
 			_mainSection->hide();
 		} else {
 			_history->hide();
@@ -1042,12 +996,12 @@ void MainWidget::showSendPathsLayer() {
 void MainWidget::deleteLayer(int selectedCount) {
 	if (selectedCount) {
 		auto forDelete = true;
-		auto selected = _overview ? _overview->getSelectedItems() : _history->getSelectedItems();
+		auto selected = _history->getSelectedItems();
 		if (!selected.isEmpty()) {
 			Ui::show(Box<DeleteMessagesBox>(selected));
 		}
 	} else if (auto item = App::contextItem()) {
-		auto suggestModerateActions = !_overview;
+		auto suggestModerateActions = true;
 		Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
 	}
 }
@@ -1060,11 +1014,7 @@ void MainWidget::cancelUploadLayer() {
 
 	Auth().uploader().pause(item->fullId());
 	Ui::show(Box<ConfirmBox>(lang(lng_selected_cancel_sure_this), lang(lng_selected_upload_stop), lang(lng_continue), base::lambda_guarded(this, [this] {
-		if (_overview) {
-			_overview->deleteContextItem(false);
-		} else {
-			_history->deleteContextItem(false);
-		}
+		_history->deleteContextItem(false);
 		Auth().uploader().unpause();
 	}), base::lambda_guarded(this, [] {
 		Auth().uploader().unpause();
@@ -1473,27 +1423,15 @@ void MainWidget::onCacheBackground() {
 }
 
 void MainWidget::forwardSelectedItems() {
-	if (_overview) {
-		_overview->onForwardSelected();
-	} else {
-		_history->onForwardSelected();
-	}
+	_history->onForwardSelected();
 }
 
 void MainWidget::confirmDeleteSelectedItems() {
-	if (_overview) {
-		_overview->confirmDeleteSelectedItems();
-	} else {
-		_history->confirmDeleteSelectedItems();
-	}
+	_history->confirmDeleteSelectedItems();
 }
 
 void MainWidget::clearSelectedItems() {
-	if (_overview) {
-		_overview->onClearSelected();
-	} else {
-		_history->onClearSelected();
-	}
+	_history->onClearSelected();
 }
 
 Dialogs::IndexedList *MainWidget::contactsList() {
@@ -1682,11 +1620,32 @@ bool MainWidget::preloadOverview(PeerData *peer, MediaOverviewType type) {
 		return false;
 	}
 
-	_overviewPreload[type].insert(peer, MTP::send(MTPmessages_Search(MTP_flags(0), peer->input, MTP_string(""), MTP_inputUserEmpty(), filter, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::overviewPreloaded, peer), rpcFail(&MainWidget::overviewFailed, peer), 0, 10));
+	auto request = MTPmessages_Search(
+		MTP_flags(0),
+		peer->input,
+		MTP_string(""),
+		MTP_inputUserEmpty(),
+		filter,
+		MTP_int(0),
+		MTP_int(0),
+		MTP_int(0),
+		MTP_int(0),
+		MTP_int(0),
+		MTP_int(0),
+		MTP_int(0));
+	_overviewPreload[type].insert(peer, MTP::send(
+		request,
+		rpcDone(&MainWidget::overviewPreloaded, peer),
+		rpcFail(&MainWidget::overviewFailed, peer),
+		0,
+		10));
 	return true;
 }
 
-void MainWidget::overviewPreloaded(PeerData *peer, const MTPmessages_Messages &result, mtpRequestId req) {
+void MainWidget::overviewPreloaded(
+		PeerData *peer,
+		const MTPmessages_Messages &result,
+		mtpRequestId req) {
 	MediaOverviewType type = OverviewCount;
 	for (int32 i = 0; i < OverviewCount; ++i) {
 		OverviewsPreload::iterator j = _overviewPreload[i].find(peer);
@@ -1703,13 +1662,6 @@ void MainWidget::overviewPreloaded(PeerData *peer, const MTPmessages_Messages &r
 	App::history(peer->id)->overviewSliceDone(type, startMessageId, result, true);
 
 	Notify::mediaOverviewUpdated(peer, type);
-}
-
-void MainWidget::mediaOverviewUpdated(const Notify::PeerUpdate &update) {
-	auto peer = update.peer;
-	if (_overview && (_overview->peer() == peer || _overview->peer()->migrateFrom() == peer)) {
-		_overview->mediaOverviewUpdated(update);
-	}
 }
 
 void MainWidget::itemEdited(HistoryItem *item) {
@@ -2123,11 +2075,6 @@ void MainWidget::mediaMarkRead(not_null<HistoryItem*> item) {
 	}
 }
 
-void MainWidget::updateOnlineDisplay() {
-	if (this != App::main()) return;
-	_history->updateOnlineDisplay();
-}
-
 void MainWidget::onSendFileConfirm(const FileLoadResultPtr &file) {
 	_history->sendFileConfirmed(file);
 }
@@ -2274,8 +2221,6 @@ void MainWidget::setInnerFocus() {
 	if (_hider || !_history->peer()) {
 		if (_hider && _hider->wasOffered()) {
 			_hider->setFocus();
-		} else if (!_hider && _overview) {
-			_overview->activate();
 		} else if (!_hider && _mainSection) {
 			_mainSection->setInnerFocus();
 		} else if (!_hider && _thirdSection) {
@@ -2283,8 +2228,6 @@ void MainWidget::setInnerFocus() {
 		} else {
 			dialogsActivate();
 		}
-	} else if (_overview) {
-		_overview->activate();
 	} else if (_mainSection) {
 		_mainSection->setInnerFocus();
 	} else if (_history->peer() || !_thirdSection) {
@@ -2465,7 +2408,6 @@ void MainWidget::ui_showPeerHistory(
 		}
 		if (_history->isHidden()) {
 			return (_mainSection != nullptr)
-				|| (_overview != nullptr)
 				|| (Adaptive::OneColumn() && !_dialogs->isHidden());
 		}
 		if (back || way == Way::Forward) {
@@ -2493,19 +2435,10 @@ void MainWidget::ui_showPeerHistory(
 
 	auto noPeer = !_history->peer();
 	auto onlyDialogs = noPeer && Adaptive::OneColumn();
-	if (_mainSection || _overview) {
-		if (_mainSection) {
-			_mainSection->hide();
-			_mainSection->deleteLater();
-			_mainSection = nullptr;
-		}
-		if (_overview) {
-			_overview->hide();
-			_overview->clear();
-			_overview->deleteLater();
-			_overview->rpcClear();
-			_overview = nullptr;
-		}
+	if (_mainSection) {
+		_mainSection->hide();
+		_mainSection->deleteLater();
+		_mainSection = nullptr;
 	}
 
 	updateControlsGeometry();
@@ -2584,7 +2517,7 @@ void MainWidget::peerAfter(const PeerData *inPeer, MsgId inMsg, PeerData *&outPe
 }
 
 PeerData *MainWidget::peer() {
-	return _overview ? _overview->peer() : _history->peer();
+	return _history->peer();
 }
 
 PeerData *MainWidget::activePeer() {
@@ -2595,22 +2528,8 @@ MsgId MainWidget::activeMsgId() {
 	return _history->peer() ? _history->msgId() : _msgIdInStack;
 }
 
-PeerData *MainWidget::overviewPeer() {
-	return _overview ? _overview->peer() : 0;
-}
-
-bool MainWidget::showMediaTypeSwitch() const {
-	return _overview ? _overview->showMediaTypeSwitch() : false;
-}
-
 void MainWidget::saveSectionInStack() {
-	if (_overview) {
-		_stack.push_back(std::make_unique<StackItemOverview>(
-			_overview->peer(),
-			_overview->type(),
-			_overview->lastWidth(),
-			_overview->lastScrollTop()));
-	} else if (_mainSection) {
+	if (_mainSection) {
 		if (auto memento = _mainSection->createMemento()) {
 			_stack.push_back(std::make_unique<StackItemSection>(
 				std::move(memento)));
@@ -2623,77 +2542,6 @@ void MainWidget::saveSectionInStack() {
 			_msgIdInStack,
 			_history->replyReturns()));
 	}
-}
-
-void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool back, int32 lastScrollTop) {
-	if (peer->migrateTo()) {
-		peer = peer->migrateTo();
-	}
-
-	Ui::hideSettingsAndLayer();
-	if (_overview && _overview->peer() == peer) {
-		if (_overview->type() != type) {
-			_overview->switchType(type);
-		} else if (type == OverviewMusicFiles) { // hack for player
-			_controller->showBackFromStack();
-		}
-		return;
-	}
-
-	_controller->dialogsListFocused().set(false, true);
-	_a_dialogsWidth.finish();
-
-	auto animatedShow = [this] {
-		if (_a_show.animating() || App::passcoded()) {
-			return false;
-		}
-		if (Adaptive::OneColumn() || isMainSectionShown()) {
-			return true;
-		}
-		return false;
-	};
-	auto animationParams = animatedShow() ? prepareOverviewAnimation() : Window::SectionSlideParams();
-	setFocus(); // otherwise dialogs widget could be focused.
-
-	if (!back) {
-		saveSectionInStack();
-	}
-	if (_overview) {
-		_overview->hide();
-		_overview->clear();
-		_overview->deleteLater();
-		_overview->rpcClear();
-	}
-	if (_mainSection) {
-		_mainSection->hide();
-		_mainSection->deleteLater();
-		_mainSection = nullptr;
-	}
-	_overview.create(this, _controller, peer, type);
-	updateControlsGeometry();
-
-	// Send a fake update.
-	Notify::PeerUpdate update(peer);
-	update.flags |= Notify::PeerUpdate::Flag::SharedMediaChanged;
-	update.mediaTypesMask |= (1 << type);
-	mediaOverviewUpdated(update);
-
-	_overview->setLastScrollTop(lastScrollTop);
-	if (!animationParams.oldContentCache.isNull()) {
-		_overview->showAnimated(back ? Window::SlideDirection::FromLeft : Window::SlideDirection::FromRight, animationParams);
-	} else {
-		_overview->fastShow();
-	}
-	_history->finishAnimating();
-	if (back) {
-		clearBotStartToken(_history->peer());
-	}
-	_history->showHistory(0, 0);
-	_history->hide();
-	if (Adaptive::OneColumn()) _dialogs->hide();
-
-	checkFloatPlayerVisibility();
-	orderWidgets();
 }
 
 void MainWidget::showSection(
@@ -2754,7 +2602,7 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 		if (!_mainSection->hasTopBarShadow()) {
 			result.withTopBarShadow = false;
 		}
-	} else if (!_overview && !_history->peer()) {
+	} else if (!_history->peer()) {
 		result.withTopBarShadow = false;
 	}
 
@@ -2788,10 +2636,8 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 		result.oldContentCache = _mainSection->grabForShowAnimation(result);
 	} else {
 		if (result.withTopBarShadow) {
-			if (_overview) _overview->grapWithoutTopBarShadow();
 			_history->grapWithoutTopBarShadow();
 		} else {
-			if (_overview) _overview->grabStart();
 			_history->grabStart();
 		}
 		if (Adaptive::OneColumn()) {
@@ -2815,7 +2661,6 @@ Window::SectionSlideParams MainWidget::prepareShowAnimation(
 				_thirdShadow->show();
 			}
 		}
-		if (_overview) _overview->grabFinish();
 		_history->grabFinish();
 	}
 
@@ -2846,10 +2691,6 @@ Window::SectionSlideParams MainWidget::prepareMainSectionAnimation(Window::Secti
 
 Window::SectionSlideParams MainWidget::prepareHistoryAnimation(PeerId historyPeerId) {
 	return prepareShowAnimation(historyPeerId != 0);
-}
-
-Window::SectionSlideParams MainWidget::prepareOverviewAnimation() {
-	return prepareShowAnimation(true);
 }
 
 Window::SectionSlideParams MainWidget::prepareDialogsAnimation() {
@@ -2934,13 +2775,6 @@ void MainWidget::showNewSection(
 		// This may modify the current section, for example remove its contents.
 		saveSectionInStack();
 	}
-	if (_overview) {
-		_overview->hide();
-		_overview->clear();
-		_overview->deleteLater();
-		_overview->rpcClear();
-		_overview = nullptr;
-	}
 	auto &settingSection = newThirdSection
 		? _thirdSection
 		: _mainSection;
@@ -3009,7 +2843,7 @@ void MainWidget::dropMainSection(Window::SectionWidget *widget) {
 }
 
 bool MainWidget::isMainSectionShown() const {
-	return _mainSection || _overview || _history->peer();
+	return _mainSection || _history->peer();
 }
 
 bool MainWidget::isThirdSectionShown() const {
@@ -3057,13 +2891,6 @@ void MainWidget::showBackFromStack(
 		showNewSection(
 			std::move(*sectionItem->memento()),
 			params.withWay(SectionShow::Way::Backward));
-	} else if (item->type() == OverviewStackItem) {
-		auto overviewItem = static_cast<StackItemOverview*>(item.get());
-		showMediaOverview(
-			overviewItem->peer(),
-			overviewItem->mediaType,
-			true,
-			overviewItem->lastScrollTop);
 	}
 	if (auto memento = item->thirdSectionMemento()) {
 		if (_thirdSection) {
@@ -3299,9 +3126,6 @@ void MainWidget::hideAll() {
 	if (_thirdSection) {
 		_thirdSection->hide();
 	}
-	if (_overview) {
-		_overview->hide();
-	}
 	_sideShadow->hide();
 	if (_thirdShadow) {
 		_thirdShadow->hide();
@@ -3337,10 +3161,7 @@ void MainWidget::showAll() {
 		if (selectingPeer()) {
 			_dialogs->showFast();
 			_history->hide();
-			if (_overview) _overview->hide();
 			if (_mainSection) _mainSection->hide();
-		} else if (_overview) {
-			_overview->show();
 		} else if (_mainSection) {
 			_mainSection->show();
 		} else if (_history->peer()) {
@@ -3370,9 +3191,7 @@ void MainWidget::showAll() {
 			}
 		}
 		_dialogs->showFast();
-		if (_overview) {
-			_overview->show();
-		} else if (_mainSection) {
+		if (_mainSection) {
 			_mainSection->show();
 		} else {
 			_history->show();
@@ -3487,7 +3306,6 @@ void MainWidget::updateControlsGeometry() {
 		auto mainSectionGeometry = QRect(_history->x(), mainSectionTop, _history->width(), height() - mainSectionTop);
 		_mainSection->setGeometryWithTopMoved(mainSectionGeometry, _contentScrollAddToY);
 	}
-	if (_overview) _overview->setGeometry(_history->geometry());
 	refreshResizeAreas();
 	updateMediaPlayerPosition();
 	updateMediaPlaylistPosition(_playerPlaylist->x());
@@ -3689,7 +3507,6 @@ bool MainWidget::eventFilter(QObject *o, QEvent *e) {
 	if (e->type() == QEvent::FocusIn) {
 		if (auto widget = qobject_cast<QWidget*>(o)) {
 			if (_history == widget || _history->isAncestorOf(widget)
-				|| (_overview && (_overview == widget || _overview->isAncestorOf(widget)))
 				|| (_mainSection && (_mainSection == widget || _mainSection->isAncestorOf(widget)))
 				|| (_thirdSection && (_thirdSection == widget || _thirdSection->isAncestorOf(widget)))) {
 				_controller->dialogsListFocused().set(false);
@@ -3779,28 +3596,6 @@ void MainWidget::updateWindowAdaptiveLayout() {
 	if (layout.windowLayout != Global::AdaptiveWindowLayout()) {
 		Global::SetAdaptiveWindowLayout(layout.windowLayout);
 		Adaptive::Changed().notify(true);
-	}
-}
-
-bool MainWidget::paintTopBar(Painter &p, int decreaseWidth, TimeMs ms) {
-	if (_overview) {
-		return _overview->paintTopBar(p, decreaseWidth);
-	} else if (!_mainSection) {
-		return _history->paintTopBar(p, decreaseWidth, ms);
-	}
-	return false;
-}
-
-QRect MainWidget::getMembersShowAreaGeometry() const {
-	if (!_overview && !_mainSection) {
-		return _history->getMembersShowAreaGeometry();
-	}
-	return QRect();
-}
-
-void MainWidget::setMembersShowAreaActive(bool active) {
-	if (!active || (!_overview && !_mainSection)) {
-		_history->setMembersShowAreaActive(active);
 	}
 }
 
@@ -4406,7 +4201,6 @@ void MainWidget::onSelfParticipantUpdated(ChannelData *channel) {
 
 bool MainWidget::contentOverlapped(const QRect &globalRect) {
 	return (_history->contentOverlapped(globalRect)
-			|| (_overview && _overview->contentOverlapped(globalRect))
 			|| _playerPanel->overlaps(globalRect)
 			|| _playerPlaylist->overlaps(globalRect)
 			|| (_playerVolume && _playerVolume->overlaps(globalRect)));
@@ -4745,7 +4539,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 
 void MainWidget::activate() {
 	if (_a_show.animating()) return;
-	if (!_mainSection && !_overview) {
+	if (!_mainSection) {
 		if (_hider) {
 			if (_hider->wasOffered()) {
 				_hider->setFocus();
@@ -4770,20 +4564,16 @@ void MainWidget::destroyData() {
 	_dialogs->destroyData();
 }
 
-void MainWidget::updateOnlineDisplayIn(int32 msecs) {
-	_onlineUpdater.start(msecs);
-}
-
 bool MainWidget::isActive() const {
 	return !_isIdle && isVisible() && !_a_show.animating();
 }
 
 bool MainWidget::doWeReadServerHistory() const {
-	return isActive() && !_mainSection && !_overview && _history->doWeReadServerHistory();
+	return isActive() && !_mainSection && _history->doWeReadServerHistory();
 }
 
 bool MainWidget::doWeReadMentions() const {
-	return isActive() && !_mainSection && !_overview && _history->doWeReadMentions();
+	return isActive() && !_mainSection && _history->doWeReadMentions();
 }
 
 bool MainWidget::lastWasOnline() const {
@@ -4827,7 +4617,9 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 		}
 	}
 	auto ms = getms(true);
-	if (isOnline != _lastWasOnline || (isOnline && _lastSetOnline + Global::OnlineUpdatePeriod() <= ms) || (isOnline && gotOtherOffline)) {
+	if (isOnline != _lastWasOnline
+		|| (isOnline && _lastSetOnline + Global::OnlineUpdatePeriod() <= ms)
+		|| (isOnline && gotOtherOffline)) {
 		if (_onlineRequest) {
 			MTP::cancel(_onlineRequest);
 			_onlineRequest = 0;
@@ -4846,8 +4638,6 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 		}
 
 		_lastSetOnline = ms;
-
-		updateOnlineDisplay();
 	} else if (isOnline) {
 		updateIn = qMin(updateIn, int(_lastSetOnline + Global::OnlineUpdatePeriod() - ms));
 	}

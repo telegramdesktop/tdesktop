@@ -31,7 +31,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
-#include "window/top_bar_widget.h"
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "window/notifications_manager.h"

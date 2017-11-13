@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "base/timer.h"
 
 namespace Ui {
 class PeerAvatarButton;
@@ -30,14 +31,14 @@ class DropdownMenu;
 } // namespace Ui
 
 namespace Window {
-
 class Controller;
+} // namespace Window
 
-class TopBarWidget : public Ui::RpWidget, private base::Subscriber {
-	Q_OBJECT
-
+class HistoryTopBarWidget : public Ui::RpWidget, private base::Subscriber {
 public:
-	TopBarWidget(QWidget *parent, not_null<Window::Controller*> controller);
+	HistoryTopBarWidget(
+		QWidget *parent,
+		not_null<Window::Controller*> controller);
 
 	struct SelectedState {
 		bool textSelected = false;
@@ -49,23 +50,25 @@ public:
 	void updateControlsVisibility();
 	void showSelected(SelectedState state);
 	void animationFinished();
-	void updateMembersShowArea();
+	rpl::producer<bool> membersShowAreaActive() const {
+		return _membersShowAreaActive.events();
+	}
 
-	Ui::RoundButton *mediaTypeButton();
 	void setHistoryPeer(not_null<PeerData*> historyPeer) {
 		_historyPeer = historyPeer;
 	}
 
-	static void paintUnreadCounter(Painter &p, int outerWidth);
+	void clicked();
+	static void paintUnreadCounter(
+		Painter &p,
+		int outerWidth,
+		PeerData *substractPeer = nullptr);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	bool eventFilter(QObject *obj, QEvent *e) override;
-
-signals:
-	void clicked();
 
 private:
 	void refreshLang();
@@ -85,6 +88,13 @@ private:
 	void updateAdaptiveLayout();
 	int countSelectedButtonsTop(float64 selectedShown);
 
+	void paintTopBar(Painter &p, int decreaseWidth, TimeMs ms);
+	QRect getMembersShowAreaGeometry() const;
+	void updateMembersShowArea();
+	void updateOnlineDisplay();
+	void updateOnlineDisplayTimer();
+	void updateOnlineDisplayIn(TimeMs timeout);
+
 	not_null<Window::Controller*> _controller;
 	PeerData *_historyPeer = nullptr;
 
@@ -98,7 +108,6 @@ private:
 	object_ptr<Ui::RoundButton> _forward, _delete;
 
 	object_ptr<Ui::PeerAvatarButton> _info;
-	object_ptr<Ui::RoundButton> _mediaType;
 
 	object_ptr<Ui::IconButton> _call;
 	object_ptr<Ui::IconButton> _search;
@@ -107,9 +116,13 @@ private:
 	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
 
 	object_ptr<TWidget> _membersShowArea = { nullptr };
+	rpl::event_stream<bool> _membersShowAreaActive;
+
+	QString _titlePeerText;
+	bool _titlePeerTextOnline = false;
+	int _titlePeerTextWidth = 0;
 
 	int _unreadCounterSubscription = 0;
+	base::Timer _onlineUpdater;
 
 };
-
-} // namespace Window

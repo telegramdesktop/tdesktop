@@ -58,7 +58,6 @@ class SuggestionsController;
 
 namespace Window {
 class Controller;
-class TopBarWidget;
 } // namespace Window
 
 namespace ChatHelpers {
@@ -73,6 +72,7 @@ class SendFilesBox;
 class BotKeyboard;
 class MessageField;
 class HistoryInner;
+class HistoryTopBarWidget;
 
 class ReportSpamPanel : public TWidget {
 	Q_OBJECT
@@ -191,10 +191,6 @@ public:
 	bool isItemCompletelyHidden(HistoryItem *item) const;
 	void updateTopBarSelection();
 
-	bool paintTopBar(Painter &p, int decreaseWidth, TimeMs ms);
-	QRect getMembersShowAreaGeometry() const;
-	void setMembersShowAreaActive(bool active);
-
 	void loadMessages();
 	void loadMessagesDown();
 	void firstLoadMessages();
@@ -237,8 +233,6 @@ public:
 
 	void updateControlsVisibility();
 	void updateControlsGeometry();
-	void updateOnlineDisplay();
-	void updateOnlineDisplayTimer();
 
 	void onShareContact(const PeerId &peer, UserData *contact);
 
@@ -483,7 +477,6 @@ private:
 	void repaintHistoryItem(not_null<const HistoryItem*> item);
 	void handlePendingHistoryUpdate();
 	void fullPeerUpdated(PeerData *peer);
-	void topBarClick();
 	void toggleTabbedSelectorMode();
 	void returnTabbedSelector(object_ptr<TabbedSelector> selector);
 	void recountChatWidth();
@@ -491,6 +484,7 @@ private:
 	void historyDownClicked();
 	void showNextUnreadMention();
 	void handlePeerUpdate();
+	void setMembersShowAreaActive(bool active);
 
 	void highlightMessage(MsgId universalMessageId);
 	void adjustHighlightedMessageToMigrated();
@@ -735,7 +729,7 @@ private:
 	mtpRequestId _delayedShowAtRequest = 0;
 
 	object_ptr<Ui::AbstractButton> _backAnimationButton = { nullptr };
-	object_ptr<Window::TopBarWidget> _topBar;
+	object_ptr<HistoryTopBarWidget> _topBar;
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<HistoryInner> _list;
 	History *_migrated = nullptr;
@@ -835,10 +829,6 @@ private:
 
 	int64 _serviceImageCacheSize = 0;
 	QString _confirmSource;
-
-	QString _titlePeerText;
-	bool _titlePeerTextOnline = false;
-	int _titlePeerTextWidth = 0;
 
 	Animation _a_show;
 	Window::SlideDirection _showDirection;

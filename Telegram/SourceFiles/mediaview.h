@@ -69,8 +69,6 @@ public:
 		updateOver(mapFromGlobal(QCursor::pos()));
 	}
 
-	void mediaOverviewUpdated(const Notify::PeerUpdate &update);
-
 	void close();
 
 	void activateControls();

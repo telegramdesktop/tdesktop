@@ -215,6 +215,8 @@
 <(src_loc)/history/history_service.h
 <(src_loc)/history/history_service_layout.cpp
 <(src_loc)/history/history_service_layout.h
+<(src_loc)/history/history_top_bar_widget.cpp
+<(src_loc)/history/history_top_bar_widget.h
 <(src_loc)/history/history_widget.cpp
 <(src_loc)/history/history_widget.h
 <(src_loc)/info/info_content_widget.cpp
@@ -632,8 +634,6 @@
 <(src_loc)/window/section_memento.h
 <(src_loc)/window/section_widget.cpp
 <(src_loc)/window/section_widget.h
-<(src_loc)/window/top_bar_widget.cpp
-<(src_loc)/window/top_bar_widget.h
 <(src_loc)/window/window_controller.cpp
 <(src_loc)/window/window_controller.h
 <(src_loc)/window/window_main_menu.cpp
@@ -682,8 +682,6 @@
 <(src_loc)/messenger.h
 <(src_loc)/observer_peer.cpp
 <(src_loc)/observer_peer.h
-<(src_loc)/overviewwidget.cpp
-<(src_loc)/overviewwidget.h
 <(src_loc)/passcodewidget.cpp
 <(src_loc)/passcodewidget.h
 <(src_loc)/qt_static_plugins.cpp

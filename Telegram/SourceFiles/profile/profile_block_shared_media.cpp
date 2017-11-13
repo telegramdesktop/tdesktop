@@ -145,7 +145,7 @@ void SharedMediaWidget::onMediaChosen() {
 	for (int i = 0; i < OverviewCount; ++i) {
 		auto button = _mediaButtons[i];
 		if (button && button == sender()) {
-			App::main()->showMediaOverview(peer(), static_cast<MediaOverviewType>(i));
+			// SharedMediaShowOverview();
 			return;
 		}
 	}

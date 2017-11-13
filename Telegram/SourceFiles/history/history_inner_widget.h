@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/rp_widget.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/scroll_area.h"
-#include "window/top_bar_widget.h"
+#include "history/history_top_bar_widget.h"
 
 namespace Window {
 class Controller;
@@ -63,7 +63,7 @@ public:
 	bool canCopySelected() const;
 	bool canDeleteSelected() const;
 
-	Window::TopBarWidget::SelectedState getSelectionState() const;
+	HistoryTopBarWidget::SelectedState getSelectionState() const;
 	void clearSelectedItems(bool onlyTextSelection = false);
 	SelectedItemSet getSelectedItems() const;
 	void selectItem(HistoryItem *item);

@@ -1953,8 +1953,8 @@ bool HistoryInner::canDeleteSelected() const {
 	return (selectedState.count > 0) && (selectedState.count == selectedState.canDeleteCount);
 }
 
-Window::TopBarWidget::SelectedState HistoryInner::getSelectionState() const {
-	auto result = Window::TopBarWidget::SelectedState {};
+HistoryTopBarWidget::SelectedState HistoryInner::getSelectionState() const {
+	auto result = HistoryTopBarWidget::SelectedState {};
 	for (auto &selected : _selected) {
 		if (selected.second == FullSelection) {
 			++result.count;

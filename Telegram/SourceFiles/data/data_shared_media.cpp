@@ -27,6 +27,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/storage_shared_media.h"
 #include "history/history_media_types.h"
 #include "data/data_sparse_ids.h"
+#include "info/info_memento.h"
+#include "info/info_controller.h"
+#include "window/window_controller.h"
+#include "mainwindow.h"
 
 namespace {
 
@@ -59,7 +63,9 @@ void SharedMediaShowOverview(
 		Storage::SharedMediaType type,
 		not_null<History*> history) {
 	if (SharedMediaOverviewType(type)) {
-		Ui::showPeerOverview(history, SharedMediaTypeToOverview(type));
+		App::wnd()->controller()->showSection(Info::Memento(
+			history->peer->id,
+			Info::Section(type)));
 	}
 }
 
