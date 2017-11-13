@@ -251,7 +251,10 @@ infoTabs: SettingsSlider(defaultTabsSlider) {
 	labelTop: 19px;
 }
 
-infoProfilePhotoSize: 72px;
+infoProfilePhoto: UserpicButton(defaultUserpicButton) {
+	size: size(72px, 72px);
+	photoSize: 72px;
+}
 infoProfilePhotoLeft: 19px;
 infoProfilePhotoTop: 18px;
 infoProfilePhotoBottom: 18px;

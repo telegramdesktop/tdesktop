@@ -104,7 +104,10 @@ mainMenuWidth: 274px;
 mainMenuCoverHeight: 134px;
 mainMenuUserpicLeft: 24px;
 mainMenuUserpicTop: 20px;
-mainMenuUserpicSize: 48px;
+mainMenuUserpic: UserpicButton(defaultUserpicButton) {
+	size: size(48px, 48px);
+	photoSize: 48px;
+}
 mainMenuCloudButton: IconButton {
 	width: 64px;
 	height: 64px;

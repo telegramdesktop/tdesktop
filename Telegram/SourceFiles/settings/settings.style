@@ -42,7 +42,10 @@ settingsFixedBarClose: IconButton(boxTitleClose) {
 }
 
 settingsMarginTop: 34px;
-settingsPhotoSize: 112px;
+settingsPhoto: UserpicButton(defaultUserpicButton) {
+	size: size(112px, 112px);
+	photoSize: 112px;
+}
 settingsPhotoLeft: -8px;
 settingsPhotoDuration: 500;
 settingsNameLeft: 26px;

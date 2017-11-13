@@ -27,15 +27,16 @@ namespace style {
 struct InfoToggle;
 } // namespace style
 
-namespace Profile {
-class UserpicButton;
-} // namespace Profile
-
 namespace Ui {
+class UserpicButton;
 class FlatLabel;
 template <typename Widget>
 class SlideWrap;
 } // namespace Ui
+
+namespace Info {
+class Controller;
+} // namespace Info
 
 namespace Info {
 namespace Profile {
@@ -61,7 +62,10 @@ private:
 
 class Cover : public SectionWithToggle {
 public:
-	Cover(QWidget *parent, not_null<PeerData*> peer);
+	Cover(
+		QWidget *parent,
+		not_null<Controller*> controller,
+		not_null<PeerData*> peer);
 
 	Cover *setOnlineCount(rpl::producer<int> &&count);
 
@@ -86,7 +90,7 @@ private:
 	not_null<PeerData*> _peer;
 	int _onlineCount = 0;
 
-	object_ptr<::Profile::UserpicButton> _userpic;
+	object_ptr<Ui::UserpicButton> _userpic;
 	object_ptr<Ui::FlatLabel> _name = { nullptr };
 	object_ptr<Ui::RpWidget> _verifiedCheck = { nullptr };
 	object_ptr<Ui::FlatLabel> _status = { nullptr };

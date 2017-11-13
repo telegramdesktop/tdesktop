@@ -22,11 +22,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
-#include "profile/profile_userpic_button.h"
 #include "window/themes/window_theme.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/menu.h"
+#include "ui/special_buttons.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
 #include "boxes/about_box.h"
@@ -40,7 +40,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Window {
 
-MainMenu::MainMenu(QWidget *parent) : TWidget(parent)
+MainMenu::MainMenu(
+	QWidget *parent,
+	not_null<Controller*> controller)
+: TWidget(parent)
+, _controller(controller)
 , _menu(this, st::mainMenu)
 , _telegram(this, st::mainMenuTelegramLabel)
 , _version(this, st::mainMenuVersionLabel) {
@@ -136,7 +140,12 @@ void MainMenu::checkSelf() {
 				App::main()->choosePeer(self->id, ShowAtUnreadMsgId);
 			}
 		};
-		_userpicButton.create(this, self, st::mainMenuUserpicSize);
+		_userpicButton.create(
+			this,
+			_controller,
+			self,
+			Ui::UserpicButton::Role::Custom,
+			st::mainMenuUserpic);
 		_userpicButton->setClickedCallback(showSelfChat);
 		_userpicButton->show();
 		_cloudButton.create(this, st::mainMenuCloudButton);
@@ -144,19 +153,9 @@ void MainMenu::checkSelf() {
 		_cloudButton->show();
 		update();
 		updateControlsGeometry();
-		if (_showFinished) {
-			_userpicButton->showFinished();
-		}
 	} else {
 		_userpicButton.destroy();
 		_cloudButton.destroy();
-	}
-}
-
-void MainMenu::showFinished() {
-	_showFinished = true;
-	if (_userpicButton) {
-		_userpicButton->showFinished();
 	}
 }
 

@@ -27,6 +27,7 @@ namespace Ui {
 class FlatLabel;
 class RoundButton;
 class IconButton;
+class UserpicButton;
 } // namespace Ui
 
 namespace Notify {
@@ -34,7 +35,6 @@ struct PeerUpdate;
 } // namespace Notify
 
 namespace Profile {
-class UserpicButton;
 class CoverDropArea;
 } // namespace Profile
 
@@ -45,8 +45,6 @@ class CoverWidget : public BlockWidget {
 
 public:
 	CoverWidget(QWidget *parent, UserData *self);
-
-	void showFinished();
 
 private slots:
 	void onPhotoShow();
@@ -86,7 +84,7 @@ private:
 
 	UserData *_self;
 
-	object_ptr<Profile::UserpicButton> _userpicButton;
+	object_ptr<Ui::UserpicButton> _userpicButton;
 	object_ptr<Profile::CoverDropArea> _dropArea = { nullptr };
 
 	object_ptr<Ui::FlatLabel> _name;

@@ -23,13 +23,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "data/data_photo.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
+#include "ui/special_buttons.h"
 #include "observer_peer.h"
 #include "lang/lang_keys.h"
 #include "messenger.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "auth_session.h"
-#include "profile/profile_userpic_button.h"
 #include "profile/profile_cover_drop_area.h"
 #include "boxes/confirm_box.h"
 #include "boxes/photo_crop_box.h"
@@ -40,9 +40,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Settings {
 
-CoverWidget::CoverWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, QString())
+CoverWidget::CoverWidget(QWidget *parent, UserData *self)
+: BlockWidget(parent, self, QString())
 , _self(App::self())
-, _userpicButton(this, _self)
+, _userpicButton(
+	this,
+	App::wnd()->controller(),
+	_self,
+	Ui::UserpicButton::Role::OpenPhoto,
+	st::settingsPhoto)
 , _name(this, st::settingsNameLabel)
 , _editNameInline(this, st::settingsEditButton)
 , _setPhoto(this, langFactory(lng_settings_upload), st::settingsPrimaryButton)
@@ -123,7 +129,7 @@ int CoverWidget::resizeGetHeight(int newWidth) {
 	refreshButtonsGeometry(newWidth);
 	refreshNameGeometry(newWidth);
 
-	newHeight += st::settingsPhotoSize;
+	newHeight += st::settingsPhoto.size.height();
 	newHeight += st::settingsMarginBottom;
 
 	_dividerTop = newHeight;
@@ -173,10 +179,6 @@ void CoverWidget::refreshNameGeometry(int newWidth) {
 		margins.top() + nameTop + st::settingsNameLabel.margin.top(),
 		newWidth);
 	_editNameInline->setVisible(editNameInlineVisible);
-}
-
-void CoverWidget::showFinished() {
-	_userpicButton->showFinished();
 }
 
 void CoverWidget::paintContents(Painter &p) {

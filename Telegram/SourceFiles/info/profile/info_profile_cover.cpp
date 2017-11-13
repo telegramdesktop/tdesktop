@@ -24,15 +24,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/combine.h>
 #include "data/data_photo.h"
 #include "info/profile/info_profile_values.h"
+#include "info/info_controller.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
 #include "ui/widgets/labels.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/special_buttons.h"
 #include "observer_peer.h"
 #include "messenger.h"
 #include "auth_session.h"
 #include "apiwrap.h"
-#include "profile/profile_userpic_button.h"
 
 namespace Info {
 namespace Profile {
@@ -218,14 +219,22 @@ int SectionWithToggle::toggleSkip() const {
 			+ _toggle->checkRect().width();
 }
 
-Cover::Cover(QWidget *parent, not_null<PeerData*> peer)
+Cover::Cover(
+	QWidget *parent,
+	not_null<Controller*> controller,
+	not_null<PeerData*> peer)
 : SectionWithToggle(
 	parent,
 	st::infoProfilePhotoTop
-		+ st::infoProfilePhotoSize
+		+ st::infoProfilePhoto.size.height()
 		+ st::infoProfilePhotoBottom)
 , _peer(peer)
-, _userpic(this, _peer, st::infoProfilePhotoSize)
+, _userpic(
+	this,
+	controller->window(),
+	_peer,
+	Ui::UserpicButton::Role::OpenPhoto,
+	st::infoProfilePhoto)
 , _name(this, st::infoProfileNameLabel)
 , _status(this, st::infoProfileStatusLabel) {
 	_peer->updateFull();

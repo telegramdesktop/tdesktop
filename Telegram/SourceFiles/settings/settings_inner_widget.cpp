@@ -77,22 +77,12 @@ void InnerWidget::refreshBlocks() {
 
 	if (_cover) {
 		_cover->show();
-		if (_showFinished) {
-			_cover->showFinished();
-		}
 	}
 	_blocks->show();
 	_blocks->heightValue()
 		| rpl::start_with_next([this](int blocksHeight) {
 			resize(width(), _blocks->y() + blocksHeight);
 		}, lifetime());
-}
-
-void InnerWidget::showFinished() {
-	_showFinished = true;
-	if (_cover) {
-		_cover->showFinished();
-	}
 }
 
 int InnerWidget::resizeGetHeight(int newWidth) {

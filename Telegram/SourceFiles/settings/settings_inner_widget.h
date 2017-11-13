@@ -38,8 +38,6 @@ public:
 		return TWidget::resizeToWidth(newWidth);
 	}
 
-	void showFinished();
-
 protected:
 	int resizeGetHeight(int newWidth) override;
 	void visibleTopBottomUpdated(
@@ -56,7 +54,6 @@ private:
 	UserData *_self = nullptr;
 
 	int _contentLeft = 0;
-	bool _showFinished = false;
 
 };
 

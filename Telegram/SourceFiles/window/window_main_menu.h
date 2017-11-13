@@ -26,22 +26,20 @@ namespace Ui {
 class IconButton;
 class FlatLabel;
 class Menu;
-} // namespace Ui
-
-namespace Profile {
 class UserpicButton;
-} // namespace Profile
+} // namespace Ui
 
 namespace Window {
 
+class Controller;
+
 class MainMenu : public TWidget, private base::Subscriber {
 public:
-	MainMenu(QWidget *parent);
+	MainMenu(QWidget *parent, not_null<Controller*> controller);
 
 	void setInnerFocus() {
 		setFocus();
 	}
-	void showFinished();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -53,7 +51,8 @@ private:
 	void updatePhone();
 	void refreshMenu();
 
-	object_ptr<Profile::UserpicButton> _userpicButton = { nullptr };
+	not_null<Controller*> _controller;
+	object_ptr<Ui::UserpicButton> _userpicButton = { nullptr };
 	object_ptr<Ui::IconButton> _cloudButton = { nullptr };
 	object_ptr<Ui::Menu> _menu;
 	object_ptr<Ui::FlatLabel> _telegram;
@@ -61,7 +60,6 @@ private:
 	std::shared_ptr<QPointer<QAction>> _nightThemeAction;
 	base::Timer _nightThemeSwitch;
 
-	bool _showFinished = false;
 	QString _phoneText;
 
 };

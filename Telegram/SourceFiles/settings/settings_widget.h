@@ -32,7 +32,6 @@ public:
 
 	void refreshLang();
 
-	void showFinished() override;
 	void parentResized() override;
 
 protected:

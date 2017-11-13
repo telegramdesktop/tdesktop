@@ -89,6 +89,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
 	_cover = result->add(object_ptr<Cover>(
 		result,
+		_controller,
 		_peer));
 	_cover->setOnlineCount(rpl::single(0));
 	auto details = SetupDetails(_controller, parent, _peer);

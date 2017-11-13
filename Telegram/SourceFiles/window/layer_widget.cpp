@@ -609,9 +609,6 @@ void LayerStackWidget::showFinished() {
 	fixOrder();
 	sendFakeMouseEvent();
 	updateLayerBoxes();
-	if (_mainMenu) {
-		_mainMenu->showFinished();
-	}
 	if (_specialLayer) {
 		_specialLayer->showFinished();
 	}
@@ -653,7 +650,7 @@ void LayerStackWidget::hideSpecialLayer(anim::type animated) {
 
 void LayerStackWidget::showMainMenu(anim::type animated) {
 	startAnimation([this] {
-		_mainMenu.create(this);
+		_mainMenu.create(this, _controller);
 		_mainMenu->setGeometryToLeft(0, 0, _mainMenu->width(), height());
 		_mainMenu->setParent(this);
 	}, [this] {
