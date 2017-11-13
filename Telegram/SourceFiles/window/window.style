@@ -296,8 +296,8 @@ topBarMenuToggle: IconButton(topBarSearch) {
 }
 topBarActionSkip: 10px;
 
-topBarInfoButton: PeerAvatarButton {
-	size: topBarHeight;
+topBarInfoButton: UserpicButton(defaultUserpicButton) {
+	size: size(topBarHeight, topBarHeight);
 	photoSize: 42px;
 }
 topBarSlideDuration: 200;

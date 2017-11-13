@@ -75,7 +75,12 @@ void ApplyDependencies(CheckboxesMap &checkboxes, DependenciesMap &dependencies,
 
 class EditParticipantBox::Inner : public TWidget {
 public:
-	Inner(QWidget *parent, not_null<ChannelData*> channel, not_null<UserData*> user, bool hasAdminRights);
+	Inner(
+		QWidget *parent,
+		not_null<Window::Controller*> controller,
+		not_null<ChannelData*> channel,
+		not_null<UserData*> user,
+		bool hasAdminRights);
 
 	template <typename Widget>
 	QPointer<Widget> addControl(object_ptr<Widget> widget, QMargins margin) {
@@ -94,7 +99,7 @@ private:
 
 	not_null<ChannelData*> _channel;
 	not_null<UserData*> _user;
-	object_ptr<Ui::PeerAvatarButton> _userPhoto;
+	object_ptr<Ui::UserpicButton> _userPhoto;
 	Text _userName;
 	bool _hasAdminRights = false;
 	struct Control {
@@ -105,13 +110,24 @@ private:
 
 };
 
-EditParticipantBox::Inner::Inner(QWidget *parent, not_null<ChannelData*> channel, not_null<UserData*> user, bool hasAdminRights) : TWidget(parent)
+EditParticipantBox::Inner::Inner(
+	QWidget *parent,
+	not_null<Window::Controller*> controller,
+	not_null<ChannelData*> channel,
+	not_null<UserData*> user,
+	bool hasAdminRights)
+: TWidget(parent)
 , _channel(channel)
 , _user(user)
-, _userPhoto(this, _user, st::rightsPhotoButton)
+, _userPhoto(
+	this,
+	controller,
+	_user,
+	Ui::UserpicButton::Role::Custom,
+	st::rightsPhotoButton)
 , _hasAdminRights(hasAdminRights) {
+	_userPhoto->setPointerCursor(false);
 	_userName.setText(st::rightsNameStyle, App::peerName(_user), _textNameOptions);
-	_userPhoto->setClickedCallback([this] { Ui::showPeerProfile(_user); });
 }
 
 void EditParticipantBox::Inner::removeControl(QPointer<TWidget> widget) {
@@ -131,7 +147,9 @@ void EditParticipantBox::Inner::doAddControl(object_ptr<TWidget> widget, QMargin
 
 int EditParticipantBox::Inner::resizeGetHeight(int newWidth) {
 	_userPhoto->moveToLeft(st::rightsPhotoMargin.left(), st::rightsPhotoMargin.top());
-	auto newHeight = st::rightsPhotoMargin.top() + st::rightsPhotoButton.size + st::rightsPhotoMargin.bottom();
+	auto newHeight = st::rightsPhotoMargin.top()
+		+ st::rightsPhotoButton.size.height()
+		+ st::rightsPhotoMargin.bottom();
 	for (auto &&row : _rows) {
 		auto rowWidth = newWidth - row.margin.left() - row.margin.right();
 		newHeight += row.margin.top();
@@ -148,7 +166,9 @@ void EditParticipantBox::Inner::paintEvent(QPaintEvent *e) {
 	p.fillRect(e->rect(), st::boxBg);
 
 	p.setPen(st::contactsNameFg);
-	auto namex = st::rightsPhotoMargin.left() + st::rightsPhotoButton.size + st::rightsPhotoMargin.right();
+	auto namex = st::rightsPhotoMargin.left()
+		+ st::rightsPhotoButton.size .width()
+		+ st::rightsPhotoMargin.right();
 	auto namew = width() - namex - st::rightsPhotoMargin.right();
 	_userName.drawLeftElided(p, namex, st::rightsPhotoMargin.top() + st::rightsNameTop, namew, width());
 	auto statusText = [this] {
@@ -170,7 +190,12 @@ EditParticipantBox::EditParticipantBox(QWidget*, not_null<ChannelData*> channel,
 }
 
 void EditParticipantBox::prepare() {
-	_inner = setInnerWidget(object_ptr<Inner>(this, _channel, _user, hasAdminRights()));
+	_inner = setInnerWidget(object_ptr<Inner>(
+		this,
+		controller(),
+		_channel,
+		_user,
+		hasAdminRights()));
 }
 
 template <typename Widget>

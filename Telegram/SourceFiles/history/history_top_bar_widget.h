@@ -24,7 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/timer.h"
 
 namespace Ui {
-class PeerAvatarButton;
+class UserpicButton;
 class RoundButton;
 class IconButton;
 class DropdownMenu;
@@ -54,9 +54,7 @@ public:
 		return _membersShowAreaActive.events();
 	}
 
-	void setHistoryPeer(not_null<PeerData*> historyPeer) {
-		_historyPeer = historyPeer;
-	}
+	void setHistoryPeer(not_null<PeerData*> historyPeer);
 
 	void clicked();
 	static void paintUnreadCounter(
@@ -107,7 +105,7 @@ private:
 	object_ptr<Ui::RoundButton> _clearSelection;
 	object_ptr<Ui::RoundButton> _forward, _delete;
 
-	object_ptr<Ui::PeerAvatarButton> _info;
+	object_ptr<Ui::UserpicButton> _info = { nullptr };
 
 	object_ptr<Ui::IconButton> _call;
 	object_ptr<Ui::IconButton> _search;

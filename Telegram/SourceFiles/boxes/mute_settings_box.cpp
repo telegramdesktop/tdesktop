@@ -23,7 +23,12 @@ void MuteSettingsBox::prepare() {
 	info->moveToLeft(st::boxPadding.left(), y);
 	y += info->height() + st::boxLittleSkip;
 
-	object_ptr<Ui::PeerAvatarButton> icon(this, _peer, st::mutePhotoButton);
+	auto icon = object_ptr<Ui::UserpicButton>(
+		this,
+		controller(),
+		_peer,
+		Ui::UserpicButton::Role::Custom,
+		st::mutePhotoButton);
 	icon->setPointerCursor(false);
 	icon->moveToLeft(st::boxPadding.left(), y);
 

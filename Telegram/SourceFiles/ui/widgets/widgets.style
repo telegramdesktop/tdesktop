@@ -492,11 +492,6 @@ ImportantTooltip {
 	duration: int;
 }
 
-PeerAvatarButton {
-	size: pixels;
-	photoSize: pixels;
-}
-
 UserpicButton {
 	size: size;
 	photoSize: pixels;
@@ -985,12 +980,13 @@ defaultImportantTooltipLabel: FlatLabel(defaultFlatLabel) {
 	}
 }
 
+defaultChangeUserpicIcon: icon {{ "new_chat_photo", activeButtonFg }};
 defaultUserpicButton: UserpicButton {
 	size: size(76px, 76px);
 	photoSize: 76px;
 	photoPosition: point(-1px, -1px);
 	changeButton: defaultActiveButton;
-	changeIcon: icon {{ "new_chat_photo", activeButtonFg }};
+	changeIcon: defaultChangeUserpicIcon;
 	changeIconPosition: point(23px, 25px);
 	duration: 500;
 }

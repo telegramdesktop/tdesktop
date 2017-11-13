@@ -320,19 +320,6 @@ void SendButton::recordAnimationCallback() {
 	}
 }
 
-PeerAvatarButton::PeerAvatarButton(QWidget *parent, PeerData *peer, const style::PeerAvatarButton &st) : AbstractButton(parent)
-, _peer(peer)
-, _st(st) {
-	resize(_st.size, _st.size);
-}
-
-void PeerAvatarButton::paintEvent(QPaintEvent *e) {
-	if (_peer) {
-		Painter p(this);
-		_peer->paintUserpic(p, (_st.size - _st.photoSize) / 2, (_st.size - _st.photoSize) / 2, _st.photoSize);
-	}
-}
-
 UserpicButton::UserpicButton(
 	QWidget *parent,
 	PeerId peerForCrop,
@@ -587,17 +574,29 @@ void UserpicButton::processNewPeerPhoto() {
 	}
 	processPeerPhoto();
 	if (!_waiting) {
-		_oldUserpic = myGrab(this);
+		grabOldUserpic();
 		startNewPhotoShowing();
 	}
 }
 
+void UserpicButton::grabOldUserpic() {
+	auto photoRect = QRect(
+		countPhotoPosition(),
+		QSize(_st.photoSize, _st.photoSize)
+	);
+	_oldUserpic = myGrab(this, photoRect);
+}
+
 void UserpicButton::startNewPhotoShowing() {
+	auto oldUniqueKey = _userpicUniqueKey;
 	prepareUserpicPixmap();
 	if (_notShownYet) {
 		return;
 	}
-	startAnimation();
+	if (oldUniqueKey != _userpicUniqueKey
+		|| _a_appearance.animating()) {
+		startAnimation();
+	}
 	update();
 }
 
@@ -611,7 +610,7 @@ void UserpicButton::switchChangePhotoOverlay(bool enabled) {
 }
 
 void UserpicButton::setImage(QImage &&image) {
-	_oldUserpic = myGrab(this);
+	grabOldUserpic();
 
 	auto size = QSize(_st.photoSize, _st.photoSize);
 	auto small = image.scaled(
@@ -648,6 +647,9 @@ void UserpicButton::prepareUserpicPixmap() {
 			paintButton(p, _st.changeButton.textBg);
 		}
 	});
+	_userpicUniqueKey = _userpicHasImage
+		? _peer->userpicUniqueKey()
+		: StorageKey();
 }
 
 } // namespace Ui

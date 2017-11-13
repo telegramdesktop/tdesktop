@@ -51,7 +51,6 @@ HistoryTopBarWidget::HistoryTopBarWidget(
 , _clearSelection(this, langFactory(lng_selected_clear), st::topBarClearButton)
 , _forward(this, langFactory(lng_selected_forward), st::defaultActiveButton)
 , _delete(this, langFactory(lng_selected_delete), st::defaultActiveButton)
-, _info(this, nullptr, st::topBarInfoButton)
 , _call(this, st::topBarCall)
 , _search(this, st::topBarSearch)
 , _infoToggle(this, st::topBarInfo)
@@ -64,7 +63,6 @@ HistoryTopBarWidget::HistoryTopBarWidget(
 	_delete->setClickedCallback([this] { onDeleteSelection(); });
 	_delete->setWidthChangedCallback([this] { updateControlsGeometry(); });
 	_clearSelection->setClickedCallback([this] { onClearSelection(); });
-	_info->setClickedCallback([this] { onInfoClicked(); });
 	_call->setClickedCallback([this] { onCall(); });
 	_search->setClickedCallback([this] { onSearch(); });
 	_menuToggle->setClickedCallback([this] { showMenu(); });
@@ -256,7 +254,7 @@ void HistoryTopBarWidget::paintEvent(QPaintEvent *e) {
 
 		p.save();
 		auto decreaseWidth = 0;
-		if (!_info->isHidden()) {
+		if (_info && !_info->isHidden()) {
 			decreaseWidth += _info->width();
 		}
 		if (!_menuToggle->isHidden()) {
@@ -370,6 +368,25 @@ void HistoryTopBarWidget::clicked() {
 	}
 }
 
+void HistoryTopBarWidget::setHistoryPeer(
+		not_null<PeerData*> historyPeer) {
+	if (_historyPeer != historyPeer) {
+		_historyPeer = historyPeer;
+		if (_historyPeer) {
+			_info.create(
+				this,
+				_controller,
+				_historyPeer,
+				Ui::UserpicButton::Role::OpenProfile,
+				st::topBarInfoButton);
+		} else {
+			_info.destroy();
+		}
+		updateOnlineDisplay();
+		updateControlsVisibility();
+	}
+}
+
 void HistoryTopBarWidget::resizeEvent(QResizeEvent *e) {
 	updateControlsGeometry();
 }
@@ -401,9 +418,11 @@ void HistoryTopBarWidget::updateControlsGeometry() {
 	_clearSelection->moveToRight(st::topBarActionSkip, selectedButtonsTop);
 
 	auto right = 0;
-	_info->moveToRight(right, otherButtonsTop);
+	if (_info) {
+		_info->moveToRight(right, otherButtonsTop);
+	}
 	_menuToggle->moveToRight(right, otherButtonsTop);
-	if (_info->isHidden()) {
+	if (!_info || _info->isHidden()) {
 		right += _menuToggle->width() + st::topBarSkip;
 	} else {
 		right += _info->width();
@@ -427,32 +446,28 @@ void HistoryTopBarWidget::updateControlsVisibility() {
 	_delete->setVisible(_canDelete);
 	_forward->setVisible(_canForward);
 
-	if (_historyPeer) {
-		if (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) {
-			_info->setPeer(_historyPeer);
+	if (Adaptive::OneColumn()
+		|| (App::main() && !App::main()->stackIsEmpty())) {
+		if (_info) {
 			_info->show();
-			_menuToggle->hide();
-			_menu.destroy();
-		} else {
-			_info->hide();
-			_menuToggle->show();
 		}
-		_search->show();
-		_infoToggle->setVisible(!Adaptive::OneColumn()
-			&& _controller->canShowThirdSection());
-		auto callsEnabled = false;
-		if (auto user = _historyPeer->asUser()) {
-			callsEnabled = Global::PhoneCallsEnabled() && user->hasCalls();
-		}
-		_call->setVisible(callsEnabled);
-	} else {
-		_search->hide();
-		_call->hide();
-		_info->hide();
 		_menuToggle->hide();
-		_infoToggle->hide();
 		_menu.destroy();
+	} else {
+		if (_info) {
+			_info->hide();
+		}
+		_menuToggle->show();
 	}
+	_search->show();
+	_infoToggle->setVisible(!Adaptive::OneColumn()
+		&& _controller->canShowThirdSection());
+	auto callsEnabled = false;
+	if (auto user = _historyPeer ? _historyPeer->asUser() : nullptr) {
+		callsEnabled = Global::PhoneCallsEnabled() && user->hasCalls();
+	}
+	_call->setVisible(callsEnabled);
+
 	if (_membersShowArea) {
 		_membersShowArea->show();
 	}

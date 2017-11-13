@@ -152,24 +152,6 @@ private:
 
 };
 
-class PeerAvatarButton : public AbstractButton {
-public:
-	PeerAvatarButton(QWidget *parent,PeerData *peer, const style::PeerAvatarButton &st);
-
-	void setPeer(PeerData *peer) {
-		_peer = peer;
-		update();
-	}
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	PeerData *_peer = nullptr;
-	const style::PeerAvatarButton &_st;
-
-};
-
 class UserpicButton : public RippleButton {
 public:
 	enum class Role {
@@ -214,6 +196,7 @@ private:
 	void prepareUserpicPixmap();
 	QPoint countPhotoPosition() const;
 
+	void grabOldUserpic();
 	void setClickHandlerByRole();
 	void openPeerPhoto();
 	void changePhotoLazy();
@@ -231,6 +214,7 @@ private:
 	QPixmap _userpic, _oldUserpic;
 	bool _userpicHasImage = false;
 	bool _userpicCustom = false;
+	StorageKey _userpicUniqueKey;
 	Animation _a_appearance;
 	QImage _result;
 

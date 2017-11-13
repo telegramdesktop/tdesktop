@@ -663,8 +663,8 @@ rightsDividerHeight: 10px;
 rightsHeaderMargin: margins(23px, 20px, 23px, 8px);
 rightsToggleMargin: margins(23px, 8px, 23px, 8px);
 rightsAboutMargin: margins(23px, 8px, 23px, 8px);
-rightsPhotoButton: PeerAvatarButton {
-	size: 60px;
+rightsPhotoButton: UserpicButton(defaultUserpicButton) {
+	size: size(60px, 60px);
 	photoSize: 60px;
 }
 rightsPhotoMargin: margins(20px, 0px, 15px, 18px);
@@ -685,8 +685,8 @@ rightsHeaderLabel: FlatLabel(boxLabel) {
 }
 rightsUntilMargin: margins(0px, 8px, 0px, 0px);
 
-mutePhotoButton: PeerAvatarButton {
-	size: 40px;
+mutePhotoButton: UserpicButton(defaultUserpicButton) {
+	size: size(40px, 40px);
 	photoSize: 40px;
 }
 muteChatTitle: FlatLabel(boxLabel) {
