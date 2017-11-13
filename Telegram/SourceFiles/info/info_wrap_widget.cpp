@@ -590,9 +590,28 @@ bool WrapWidget::showInternal(
 			return false;
 		}
 		auto content = infoMemento->content();
-		if (_controller->validateMementoPeer(content)) {
-			if (_content->showInternal(content)) {
+		auto skipInternal = !_historyStack.empty()
+			&& (params.way == Window::SectionShow::Way::ClearStack);
+		if (_controller->validateMementoPeer(content)
+			&& infoMemento->stackSize() == 1) {
+			if (!skipInternal && _content->showInternal(content)) {
 				return true;
+			} else if (_topTabs) {
+				// If we open the profile being in the media tab.
+				// Just switch back to the profile tab.
+				auto type = content->section().type();
+				if (type == Section::Type::Profile
+					&& _tab != Tab::Profile) {
+					_anotherTabMemento = std::move(infoMemento->takeStack().back());
+					_topTabs->setActiveSection(static_cast<int>(Tab::Profile));
+					return true;
+				} else if (type == Section::Type::Media
+					&& _tab != Tab::Media
+					&& Media::TypeToTabIndex(content->section().mediaType()).has_value()) {
+					_anotherTabMemento = std::move(infoMemento->takeStack().back());
+					_topTabs->setActiveSection(static_cast<int>(Tab::Media));
+					return true;
+				}
 			}
 		}
 		showNewContent(

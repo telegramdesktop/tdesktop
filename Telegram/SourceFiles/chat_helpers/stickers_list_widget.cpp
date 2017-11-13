@@ -871,10 +871,18 @@ void StickersListWidget::paintSticker(Painter &p, Set &set, int y, int index, bo
 	auto w = qMax(qRound(coef * sticker->dimensions.width()), 1);
 	auto h = qMax(qRound(coef * sticker->dimensions.height()), 1);
 	auto ppos = pos + QPoint((_singleSize.width() - w) / 2, (_singleSize.height() - h) / 2);
+	auto paintImage = [&](ImagePtr image) {
+		if (image->loaded()) {
+			p.drawPixmapLeft(
+				ppos,
+				width(),
+				image->pixSingle(w, h, w, h, ImageRoundRadius::None));
+		}
+	};
 	if (goodThumb) {
-		p.drawPixmapLeft(ppos, width(), sticker->thumb->pixSingle(w, h, w, h, ImageRoundRadius::None));
+		paintImage(sticker->thumb);
 	} else if (!sticker->sticker()->img->isNull()) {
-		p.drawPixmapLeft(ppos, width(), sticker->sticker()->img->pixSingle(w, h, w, h, ImageRoundRadius::None));
+		paintImage(sticker->sticker()->img);
 	}
 
 	if (selected && stickerHasDeleteButton(set, index)) {
