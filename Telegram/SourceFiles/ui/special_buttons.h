@@ -30,10 +30,6 @@ namespace Window {
 class Controller;
 } // namespace Window
 
-namespace FileDialog {
-struct OpenResult;
-} // namespace FileDialog
-
 namespace Ui {
 
 class HistoryDownButton : public RippleButton {
@@ -180,7 +176,11 @@ public:
 	}
 
 protected:
-	void paintEvent(QPaintEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
+
+	void onStateChanged(State was, StateChangeSource source) override;
 
 	QImage prepareRippleMask() const override;
 	QPoint prepareRippleStartPosition() const override;
@@ -195,14 +195,16 @@ private:
 	void startNewPhotoShowing();
 	void prepareUserpicPixmap();
 	QPoint countPhotoPosition() const;
+	void startChangeOverlayAnimation();
+	void updateCursorInChangeOverlay(QPoint localPos);
+	void setCursorInChangeOverlay(bool inOverlay);
+	void updateCursor();
 
 	void grabOldUserpic();
 	void setClickHandlerByRole();
 	void openPeerPhoto();
 	void changePhotoLazy();
-	void suggestPhotoFile(
-		const FileDialog::OpenResult &result);
-	void suggestPhoto(const QImage &image);
+	void uploadNewPeerPhoto();
 
 	const style::UserpicButton &_st;
 	Window::Controller *_controller = nullptr;
@@ -217,6 +219,11 @@ private:
 	StorageKey _userpicUniqueKey;
 	Animation _a_appearance;
 	QImage _result;
+
+	bool _canOpenPhoto = false;
+	bool _cursorInChangeOverlay = false;
+	bool _changeOverlayEnabled = false;
+	Animation _changeOverlayShown;
 
 };
 

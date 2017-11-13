@@ -199,7 +199,7 @@ void Controller::resizeForThirdSection() {
 
 	auto extendBy = qMax(
 		minimalThreeColumnWidth() - layout.bodyWidth,
-		st::columnMinimalWidthThird);
+		countThirdColumnWidthFromRatio(layout.bodyWidth));
 	auto newBodyWidth = layout.bodyWidth + extendBy;
 	auto currentRatio = Auth().data().dialogsWidthRatio();
 	Auth().data().setDialogsWidthRatio(

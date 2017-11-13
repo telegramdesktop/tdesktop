@@ -114,7 +114,6 @@ private:
 	object_ptr<Ui::RpWidget> createInvitesEdit();
 	object_ptr<Ui::RpWidget> createDeleteButton();
 
-	void refreshInitialPhotoImage();
 	void submitTitle();
 	void submitDescription();
 	void deleteWithConfirmation();
@@ -264,29 +263,7 @@ object_ptr<Ui::RpWidget> Controller::createPhotoEdit() {
 		st::editPeerPhotoMargins);
 	_controls.photo = photoWrap->entity();
 
-	_controls.initialPhotoImageWaiting = base::ObservableViewer(
-		Auth().downloaderTaskFinished())
-		| rpl::start_with_next([=] {
-			refreshInitialPhotoImage();
-		});
-	refreshInitialPhotoImage();
-
 	return photoWrap;
-}
-
-void Controller::refreshInitialPhotoImage() {
-	//if (auto image = _channel->currentUserpic()) {
-	//	image->load();
-	//	if (image->loaded()) {
-	//		_controls.photo->setImage(image->pixNoCache(
-	//			st::editPeerPhotoSize * cIntRetinaFactor(),
-	//			st::editPeerPhotoSize * cIntRetinaFactor(),
-	//			Images::Option::Smooth).toImage());
-	//		_controls.initialPhotoImageWaiting.destroy();
-	//	}
-	//} else {
-	//	_controls.initialPhotoImageWaiting.destroy();
-	//}
 }
 
 object_ptr<Ui::RpWidget> Controller::createTitleEdit() {

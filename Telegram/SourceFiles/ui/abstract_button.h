@@ -83,6 +83,7 @@ protected:
 		Down     = (1 << 1),
 		Disabled = (1 << 2),
 	};
+	friend constexpr bool is_flag_type(StateFlag) { return true; };
 	using State = base::flags<StateFlag>;
 
 	State state() const {

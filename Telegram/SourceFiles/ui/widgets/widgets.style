@@ -500,6 +500,10 @@ UserpicButton {
 	changeIcon: icon;
 	changeIconPosition: point;
 	duration: int;
+	uploadHeight: pixels;
+	uploadBg: color;
+	uploadIcon: icon;
+	uploadIconPosition: point;
 }
 
 InfoProfileButton {
@@ -981,6 +985,7 @@ defaultImportantTooltipLabel: FlatLabel(defaultFlatLabel) {
 }
 
 defaultChangeUserpicIcon: icon {{ "new_chat_photo", activeButtonFg }};
+defaultUploadUserpicIcon: icon {{ "upload_chat_photo", msgDateImgFg }};
 defaultUserpicButton: UserpicButton {
 	size: size(76px, 76px);
 	photoSize: 76px;
@@ -989,6 +994,10 @@ defaultUserpicButton: UserpicButton {
 	changeIcon: defaultChangeUserpicIcon;
 	changeIconPosition: point(23px, 25px);
 	duration: 500;
+	uploadHeight: 24px;
+	uploadBg: msgDateImgBgOver;
+	uploadIcon: defaultUploadUserpicIcon;
+	uploadIconPosition: point(-1px, 1px);
 }
 
 historyToDownBelow: icon {

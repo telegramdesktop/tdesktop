@@ -243,7 +243,6 @@ Cover::Cover(
 	_name->setContextCopyText(lang(lng_profile_copy_fullname));
 	_status->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	initUserpicButton();
 	initViewers();
 	setupChildGeometry();
 }
@@ -275,10 +274,6 @@ Cover *Cover::setOnlineCount(rpl::producer<int> &&count) {
 
 void Cover::initViewers() {
 	using Flag = Notify::PeerUpdate::Flag;
-	Notify::PeerUpdateValue(_peer, Flag::PhotoChanged)
-		| rpl::start_with_next(
-			[this] { refreshUserpicLink(); },
-			lifetime());
 	Notify::PeerUpdateValue(_peer, Flag::NameChanged)
 		| rpl::start_with_next(
 			[this] { refreshNameText(); },
@@ -288,10 +283,28 @@ void Cover::initViewers() {
 		| rpl::start_with_next(
 			[this] { refreshStatusText(); },
 			lifetime());
+	if (!_peer->isUser()) {
+		Notify::PeerUpdateValue(_peer,
+			Flag::ChannelRightsChanged | Flag::ChatCanEdit)
+			| rpl::start_with_next(
+				[this] { refreshUploadPhotoOverlay(); },
+				lifetime());
+	}
 	VerifiedValue(_peer)
 		| rpl::start_with_next(
 			[this](bool verified) { setVerified(verified); },
 			lifetime());
+}
+
+void Cover::refreshUploadPhotoOverlay() {
+	_userpic->switchChangePhotoOverlay([&] {
+		if (auto chat = _peer->asChat()) {
+			return chat->canEdit();
+		} else if (auto channel = _peer->asChannel()) {
+			return channel->canEditInformation();
+		}
+		return false;
+	}());
 }
 
 void Cover::setVerified(bool verified) {
@@ -311,29 +324,6 @@ void Cover::setVerified(bool verified) {
 		_verifiedCheck.destroy();
 	}
 	refreshNameGeometry(width());
-}
-
-void Cover::initUserpicButton() {
-	_userpic->setClickedCallback([this] {
-		auto hasPhoto = (_peer->photoId != 0);
-		auto knownPhoto = (_peer->photoId != UnknownPeerPhotoId);
-		if (hasPhoto && knownPhoto) {
-			if (auto photo = App::photo(_peer->photoId)) {
-				if (photo->date) {
-					Messenger::Instance().showPhoto(photo, _peer);
-				}
-			}
-		}
-	});
-}
-
-void Cover::refreshUserpicLink() {
-	auto hasPhoto = (_peer->photoId != 0);
-	auto knownPhoto = (_peer->photoId != UnknownPeerPhotoId);
-	_userpic->setPointerCursor(hasPhoto && knownPhoto);
-	if (!knownPhoto) {
-		Auth().api().requestFullPeer(_peer);
-	}
 }
 
 void Cover::refreshNameText() {

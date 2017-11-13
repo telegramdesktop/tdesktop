@@ -52,6 +52,74 @@ QPixmap CreateSquarePixmap(int width, Callback &&paintCallback) {
 	return App::pixmapFromImageInPlace(std::move(image));
 };
 
+template <typename Callback>
+void SuggestPhoto(
+		const QImage &image,
+		PeerId peerForCrop,
+		Callback &&callback) {
+	auto badAspect = [](int a, int b) {
+		return (a >= 10 * b);
+	};
+	if (image.isNull()
+		|| badAspect(image.width(), image.height())
+		|| badAspect(image.height(), image.width())) {
+		Ui::show(
+			Box<InformBox>(lang(lng_bad_photo)),
+			LayerOption::KeepOther);
+		return;
+	}
+
+	auto box = Ui::show(
+		Box<PhotoCropBox>(image, peerForCrop),
+		LayerOption::KeepOther);
+	box->ready()
+		| rpl::start_with_next(
+			std::forward<Callback>(callback),
+			box->lifetime());
+}
+
+template <typename Callback>
+void SuggestPhotoFile(
+		const FileDialog::OpenResult &result,
+		PeerId peerForCrop,
+		Callback &&callback) {
+	if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
+		return;
+	}
+
+	auto image = [&] {
+		if (!result.remoteContent.isEmpty()) {
+			return App::readImage(result.remoteContent);
+		} else if (!result.paths.isEmpty()) {
+			return App::readImage(result.paths.front());
+		}
+		return QImage();
+	}();
+	SuggestPhoto(
+		image,
+		peerForCrop,
+		std::forward<Callback>(callback));
+}
+
+template <typename Callback>
+void ShowChoosePhotoBox(PeerId peerForCrop, Callback &&callback) {
+	auto imgExtensions = cImgExtensions();
+	auto filter = qsl("Image files (*")
+		+ imgExtensions.join(qsl(" *"))
+		+ qsl(");;")
+		+ FileDialog::AllFilesFilter();
+	auto handleChosenPhoto = [
+		peerForCrop,
+		callback = std::forward<Callback>(callback)
+	](auto &&result) mutable {
+		SuggestPhotoFile(result, peerForCrop, std::move(callback));
+	};
+	FileDialog::GetOpenPath(
+		lang(lng_choose_image),
+		filter,
+		std::move(handleChosenPhoto));
+}
+
 } // namespace
 
 HistoryDownButton::HistoryDownButton(QWidget *parent, const style::TwoIconButton &st) : RippleButton(parent, st.ripple)
@@ -387,62 +455,32 @@ void UserpicButton::setClickHandlerByRole() {
 }
 
 void UserpicButton::changePhotoLazy() {
-	auto imgExtensions = cImgExtensions();
-	auto filter = qsl("Image files (*")
-		+ imgExtensions.join(qsl(" *"))
-		+ qsl(");;")
-		+ FileDialog::AllFilesFilter();
-	auto handleChosenPhoto = base::lambda_guarded(
+	auto callback = base::lambda_guarded(
 		this,
-		[this](auto &&result) { suggestPhotoFile(result); });
-	FileDialog::GetOpenPath(
-		lang(lng_choose_image),
-		filter,
-		std::move(handleChosenPhoto));
+		[this](QImage &&image) { setImage(std::move(image)); });
+	ShowChoosePhotoBox(_peerForCrop, std::move(callback));
 }
 
-void UserpicButton::suggestPhotoFile(
-		const FileDialog::OpenResult &result) {
-	if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
-		return;
-	}
-
-	auto image = [&] {
-		if (!result.remoteContent.isEmpty()) {
-			return App::readImage(result.remoteContent);
-		} else if (!result.paths.isEmpty()) {
-			return App::readImage(result.paths.front());
-		}
-		return QImage();
-	}();
-	suggestPhoto(image);
-}
-
-void UserpicButton::suggestPhoto(const QImage &image) {
-	auto badAspect = [](int a, int b) {
-		return (a >= 10 * b);
-	};
-	if (image.isNull()
-		|| badAspect(image.width(), image.height())
-		|| badAspect(image.height(), image.width())) {
-		Ui::show(
-			Box<InformBox>(lang(lng_bad_photo)),
-			LayerOption::KeepOther);
-		return;
-	}
-
-	auto box = Ui::show(
-		Box<PhotoCropBox>(image, _peerForCrop),
-		LayerOption::KeepOther);
-	box->ready()
-		| rpl::start_with_next([this](QImage &&image) {
-			setImage(std::move(image));
-		}, box->lifetime());
+void UserpicButton::uploadNewPeerPhoto() {
+	auto callback = base::lambda_guarded(
+		this,
+		[this](QImage &&image) {
+			Messenger::Instance().uploadProfilePhoto(
+				std::move(image),
+				_peer->id
+			);
+		});
+	ShowChoosePhotoBox(_peerForCrop, std::move(callback));
 }
 
 void UserpicButton::openPeerPhoto() {
 	Expects(_peer != nullptr);
 	Expects(_controller != nullptr);
+
+	if (_changeOverlayEnabled && _cursorInChangeOverlay) {
+		uploadNewPeerPhoto();
+		return;
+	}
 
 	auto id = _peer->photoId;
 	if (!id || id == UnknownPeerPhotoId) {
@@ -524,6 +562,47 @@ void UserpicButton::paintEvent(QPaintEvent *e) {
 				photoTop + iconTop,
 				width());
 		}
+	} else if (_changeOverlayEnabled) {
+		auto current = _changeOverlayShown.current(
+			ms,
+			(isOver() || isDown()) ? 1. : 0.);
+		auto barHeight = anim::interpolate(
+			0,
+			_st.uploadHeight,
+			current);
+		if (barHeight > 0) {
+			auto barLeft = photoLeft;
+			auto barTop = photoTop + _st.photoSize - barHeight;
+			auto rect = QRect(
+				barLeft,
+				barTop,
+				_st.photoSize,
+				barHeight);
+			p.setClipRect(rect);
+			{
+				PainterHighQualityEnabler hq(p);
+				p.setPen(Qt::NoPen);
+				p.setBrush(_st.uploadBg);
+				p.drawEllipse(
+					photoLeft,
+					photoTop,
+					_st.photoSize,
+					_st.photoSize);
+			}
+			auto iconLeft = (_st.uploadIconPosition.x() < 0)
+				? (_st.photoSize - _st.uploadIcon.width()) / 2
+				: _st.uploadIconPosition.x();
+			auto iconTop = (_st.uploadIconPosition.y() < 0)
+				? (_st.uploadHeight - _st.uploadIcon.height()) / 2
+				: _st.uploadIconPosition.y();
+			if (iconTop < barHeight) {
+				_st.uploadIcon.paint(
+					p,
+					barLeft + iconLeft,
+					barTop + iconTop,
+					width());
+			}
+		}
 	}
 }
 
@@ -552,8 +631,8 @@ QPoint UserpicButton::prepareRippleStartPosition() const {
 void UserpicButton::processPeerPhoto() {
 	Expects(_peer != nullptr);
 
-	bool hasPhoto = (_peer->photoId && _peer->photoId != UnknownPeerPhotoId);
-	setCursor(hasPhoto ? style::cur_pointer : style::cur_default);
+	auto hasPhoto = (_peer->photoId
+		&& _peer->photoId != UnknownPeerPhotoId);
 	_waiting = !_peer->userpicLoaded();
 	if (_waiting) {
 		_peer->loadUserpic(true);
@@ -561,10 +640,52 @@ void UserpicButton::processPeerPhoto() {
 	if (_role == Role::OpenPhoto) {
 		auto id = _peer->photoId;
 		if (id == UnknownPeerPhotoId) {
-			_peer->updateFull();
+			_peer->updateFullForced();
 		}
-		auto canOpen = (id != 0 && id != UnknownPeerPhotoId);
-		setCursor(canOpen ? style::cur_pointer : style::cur_default);
+		_canOpenPhoto = (id != 0 && id != UnknownPeerPhotoId);
+		updateCursor();
+	}
+}
+
+void UserpicButton::updateCursor() {
+	Expects(_role == Role::OpenPhoto);
+
+	auto pointer = _canOpenPhoto
+		|| (_changeOverlayEnabled && _cursorInChangeOverlay);
+	setPointerCursor(pointer);
+}
+
+void UserpicButton::mouseMoveEvent(QMouseEvent *e) {
+	RippleButton::mouseMoveEvent(e);
+	if (_role == Role::OpenPhoto) {
+		updateCursorInChangeOverlay(e->pos());
+	}
+}
+
+void UserpicButton::updateCursorInChangeOverlay(QPoint localPos) {
+	auto photoPosition = countPhotoPosition();
+	auto overlayRect = QRect(
+		photoPosition.x(),
+		photoPosition.y() + _st.photoSize - _st.uploadHeight,
+		_st.photoSize,
+		_st.uploadHeight);
+	auto inOverlay = overlayRect.contains(localPos);
+	setCursorInChangeOverlay(inOverlay);
+}
+
+void UserpicButton::leaveEventHook(QEvent *e) {
+	if (_role == Role::OpenPhoto) {
+		setCursorInChangeOverlay(false);
+	}
+	return RippleButton::leaveEventHook(e);
+}
+
+void UserpicButton::setCursorInChangeOverlay(bool inOverlay) {
+	Expects(_role == Role::OpenPhoto);
+
+	if (_cursorInChangeOverlay != inOverlay) {
+		_cursorInChangeOverlay = inOverlay;
+		updateCursor();
 	}
 }
 
@@ -606,7 +727,45 @@ void UserpicButton::startAnimation() {
 }
 
 void UserpicButton::switchChangePhotoOverlay(bool enabled) {
+	Expects(_role == Role::OpenPhoto);
 
+	if (_changeOverlayEnabled != enabled) {
+		_changeOverlayEnabled = enabled;
+		if (enabled) {
+			if (isOver()) {
+				startChangeOverlayAnimation();
+			}
+			updateCursorInChangeOverlay(
+				mapFromGlobal(QCursor::pos()));
+		} else {
+			_changeOverlayShown.finish();
+			update();
+		}
+	}
+}
+
+void UserpicButton::startChangeOverlayAnimation() {
+	auto over = isOver() || isDown();
+	_changeOverlayShown.start(
+		[this] { update(); },
+		over ? 0. : 1.,
+		over ? 1. : 0.,
+		st::slideWrapDuration);
+	update();
+}
+
+void UserpicButton::onStateChanged(
+		State was,
+		StateChangeSource source) {
+	RippleButton::onStateChanged(was, source);
+	if (_changeOverlayEnabled) {
+		auto mask = (StateFlag::Over | StateFlag::Down);
+		auto wasOver = (was & mask) != 0;
+		auto nowOver = (state() & mask) != 0;
+		if (wasOver != nowOver) {
+			startChangeOverlayAnimation();
+		}
+	}
 }
 
 void UserpicButton::setImage(QImage &&image) {

@@ -79,12 +79,11 @@ public:
 private:
 	void setupChildGeometry();
 	void initViewers();
-	void initUserpicButton();
-	void refreshUserpicLink();
 	void refreshNameText();
 	void refreshStatusText();
 	void refreshNameGeometry(int newWidth);
 	void refreshStatusGeometry(int newWidth);
+	void refreshUploadPhotoOverlay();
 	void setVerified(bool verified);
 
 	not_null<PeerData*> _peer;
