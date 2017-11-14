@@ -235,7 +235,7 @@ private:
 
 	Footer *_footer = nullptr;
 	int _rowsLeft = 0;
-	int _columnCount = 0;
+	int _columnCount = 1;
 	QSize _singleSize;
 
 	OverState _selected;

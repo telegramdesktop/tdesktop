@@ -162,6 +162,7 @@ emojiPanShowDuration: 200;
 emojiPanDuration: 200;
 emojiPanHover: windowBgOver;
 emojiPanSlideDuration: 200;
+emojiPanDesiredSize: 45px;
 
 emojiPanHeader: 42px;
 emojiPanHeaderFont: semiboldFont;

@@ -27,8 +27,7 @@ namespace Ui {
 namespace Emoji {
 
 constexpr auto kPostfix = static_cast<ushort>(0xFE0F);
-constexpr auto kPanelPerRow = 7;
-constexpr auto kPanelRowsPerPage = 6;
+constexpr auto kRecentLimit = 42;
 
 void Init();
 

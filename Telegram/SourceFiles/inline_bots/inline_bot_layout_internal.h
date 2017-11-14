@@ -80,6 +80,11 @@ public:
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 
+	int resizeGetHeight(int width) {
+		_width = width;
+		return _minh;
+	}
+
 private:
 	QSize countFrameSize() const;
 

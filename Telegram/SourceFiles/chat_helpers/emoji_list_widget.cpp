@@ -26,12 +26,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang/lang_keys.h"
 
 namespace ChatHelpers {
-namespace {
-
-constexpr auto kEmojiPanelPerRow = Ui::Emoji::kPanelPerRow;
-constexpr auto kEmojiPanelRowsPerPage = Ui::Emoji::kPanelRowsPerPage;
-
-} // namespace
 
 class EmojiListWidget::Footer : public TabbedSelector::InnerFooter {
 public:
@@ -376,11 +370,13 @@ object_ptr<TabbedSelector::InnerFooter> EmojiListWidget::createFooter() {
 
 template <typename Callback>
 bool EmojiListWidget::enumerateSections(Callback callback) const {
+	Expects(_columnCount > 0);
+
 	auto info = SectionInfo();
 	for (auto i = 0; i != kEmojiSectionCount; ++i) {
 		info.section = i;
 		info.count = _counts[i];
-		info.rowsCount = (info.count / kEmojiPanelPerRow) + ((info.count % kEmojiPanelPerRow) ? 1 : 0);
+		info.rowsCount = (info.count / _columnCount) + ((info.count % _columnCount) ? 1 : 0);
 		info.rowsTop = info.top + (i == 0 ? st::emojiPanPadding : st::emojiPanHeader);
 		info.rowsBottom = info.rowsTop + info.rowsCount * _singleSize.height();
 		if (!callback(info)) {
@@ -418,10 +414,15 @@ EmojiListWidget::SectionInfo EmojiListWidget::sectionInfoByOffset(int yOffset) c
 
 int EmojiListWidget::countDesiredHeight(int newWidth) {
 	auto fullWidth = (st::buttonRadius + newWidth + st::emojiScroll.width);
-	_rowsLeft = fullWidth / (kEmojiPanelPerRow * 4 + 2);
+	_columnCount = std::max(
+		(fullWidth - st::emojiPadding * 2) / st::emojiPanDesiredSize,
+		1);
+
+	_rowsLeft = fullWidth / (_columnCount * 4 + 2);
 	auto rowsRight = std::max(_rowsLeft, st::emojiScroll.width);
 	auto singleWidth = (fullWidth - _rowsLeft - rowsRight)
-		/ kEmojiPanelPerRow;
+		/ _columnCount;
+	_rowsLeft -= st::buttonRadius;
 	_singleSize = QSize(singleWidth, singleWidth - 4 * st::lineWidth);
 	_picker->setSingleSize(_singleSize);
 	return sectionInfo(kEmojiSectionCount - 1).rowsBottom + st::emojiPanPadding;
@@ -455,12 +456,12 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 	}
 	p.fillRect(r, st::emojiPanBg);
 
-	auto fromColumn = floorclamp(r.x() - _rowsLeft, _singleSize.width(), 0, kEmojiPanelPerRow);
-	auto toColumn = ceilclamp(r.x() + r.width() - _rowsLeft, _singleSize.width(), 0, kEmojiPanelPerRow);
+	auto fromColumn = floorclamp(r.x() - _rowsLeft, _singleSize.width(), 0, _columnCount);
+	auto toColumn = ceilclamp(r.x() + r.width() - _rowsLeft, _singleSize.width(), 0, _columnCount);
 	if (rtl()) {
 		qSwap(fromColumn, toColumn);
-		fromColumn = kEmojiPanelPerRow - fromColumn;
-		toColumn = kEmojiPanelPerRow - toColumn;
+		fromColumn = _columnCount - fromColumn;
+		toColumn = _columnCount - toColumn;
 	}
 
 	enumerateSections([this, &p, r, fromColumn, toColumn](const SectionInfo &info) {
@@ -480,7 +481,7 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 			auto toRow = ceilclamp(r.y() + r.height() - info.rowsTop, _singleSize.height(), 0, info.rowsCount);
 			for (auto i = fromRow; i < toRow; ++i) {
 				for (auto j = fromColumn; j < toColumn; ++j) {
-					auto index = i * kEmojiPanelPerRow + j;
+					auto index = i * _columnCount + j;
 					if (index >= info.count) break;
 
 					auto selected = (!_picker->isHidden() && info.section * MatrixRowShift + index == _pickerSel) || (info.section * MatrixRowShift + index == _selected);
@@ -597,7 +598,7 @@ void EmojiListWidget::onShowPicker() {
 			y += _picker->height() - st::buttonRadius + _singleSize.height() - st::buttonRadius;
 		}
 		auto xmax = width() - _picker->width();
-		auto coef = float64(sel % kEmojiPanelPerRow) / float64(kEmojiPanelPerRow - 1);
+		auto coef = float64(sel % _columnCount) / float64(_columnCount - 1);
 		if (rtl()) coef = 1. - coef;
 		_picker->move(qRound(xmax * coef), y);
 
@@ -615,10 +616,12 @@ void EmojiListWidget::onPickerHidden() {
 }
 
 QRect EmojiListWidget::emojiRect(int section, int sel) {
+	Expects(_columnCount > 0);
+
 	auto info = sectionInfo(section);
-	auto countTillItem = (sel - (sel % kEmojiPanelPerRow));
-	auto rowsToSkip = (countTillItem / kEmojiPanelPerRow) + ((countTillItem % kEmojiPanelPerRow) ? 1 : 0);
-	auto x = _rowsLeft + ((sel % kEmojiPanelPerRow) * _singleSize.width());
+	auto countTillItem = (sel - (sel % _columnCount));
+	auto rowsToSkip = (countTillItem / _columnCount) + ((countTillItem % _columnCount) ? 1 : 0);
+	auto x = _rowsLeft + ((sel % _columnCount) * _singleSize.width());
 	auto y = info.rowsTop + rowsToSkip * _singleSize.height();
 	return QRect(x, y, _singleSize.width(), _singleSize.height());
 }
@@ -711,8 +714,8 @@ void EmojiListWidget::updateSelected() {
 	auto info = sectionInfoByOffset(p.y());
 	if (p.y() >= info.rowsTop && p.y() < info.rowsBottom) {
 		auto sx = (rtl() ? width() - p.x() : p.x()) - _rowsLeft;
-		if (sx >= 0 && sx < kEmojiPanelPerRow * _singleSize.width()) {
-			newSelected = qFloor((p.y() - info.rowsTop) / _singleSize.height()) * kEmojiPanelPerRow + qFloor(sx / _singleSize.width());
+		if (sx >= 0 && sx < _columnCount * _singleSize.width()) {
+			newSelected = qFloor((p.y() - info.rowsTop) / _singleSize.height()) * _columnCount + qFloor(sx / _singleSize.width());
 			if (newSelected >= _emoji[info.section].size()) {
 				newSelected = -1;
 			} else {

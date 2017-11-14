@@ -541,6 +541,7 @@ int StickersListWidget::featuredRowHeight() const {
 template <typename Callback>
 bool StickersListWidget::enumerateSections(Callback callback) const {
 	Expects(_section == Section::Stickers);
+
 	auto info = SectionInfo();
 	for (auto i = 0; i != _mySets.size(); ++i) {
 		auto &set = _mySets[i];
@@ -1137,6 +1138,8 @@ void StickersListWidget::removeFavedSticker(int section, int index) {
 }
 
 void StickersListWidget::setColumnCount(int count) {
+	Expects(count > 0);
+
 	if (_columnCount != count) {
 		_columnCount = count;
 		refreshFooterIcons();
@@ -1219,7 +1222,7 @@ void StickersListWidget::refreshStickers() {
 
 	resizeToWidth(width());
 
-	if (_footer && _columnCount > 0) {
+	if (_footer) {
 		refreshFooterIcons();
 	}
 	refreshSettingsVisibility();
@@ -1236,8 +1239,6 @@ void StickersListWidget::refreshSettingsVisibility() {
 }
 
 void StickersListWidget::refreshFooterIcons() {
-	Expects(_columnCount > 0);
-
 	_footer->refreshIcons(ValidateIconAnimations::None);
 	if (_footer->hasOnlyFeaturedSets() && _section != Section::Featured) {
 		showStickerSet(Stickers::FeaturedSetId);

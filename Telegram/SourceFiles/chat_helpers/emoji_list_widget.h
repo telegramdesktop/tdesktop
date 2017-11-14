@@ -163,6 +163,7 @@ private:
 	QVector<EmojiPtr> _emoji[kEmojiSectionCount];
 
 	int _rowsLeft = 0;
+	int _columnCount = 1;
 	QSize _singleSize;
 	int _esize = 0;
 

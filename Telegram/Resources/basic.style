@@ -291,7 +291,7 @@ inlineRowBorder: 1px;
 inlineRowBorderFg: shadowFg;
 inlineRowFileNameTop: 2px;
 inlineRowFileDescriptionTop: 23px;
-inlineResultsMinWidth: 64px;
+inlineResultsMinWidth: 48px;
 inlineDurationMargin: 3px;
 
 toastTextStyle: defaultTextStyle;

@@ -64,8 +64,6 @@ inline MTPInputStickerSet inputSetId(const Set &set) {
 	return MTP_inputStickerSetShortName(MTP_string(set.shortName));
 }
 
-constexpr auto kPanelPerRow = 5;
-
 void ApplyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d);
 bool ApplyArchivedResultFake(); // For testing.
 void InstallLocally(uint64 setId);

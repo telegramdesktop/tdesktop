@@ -269,7 +269,7 @@ RecentEmojiPack &GetRecent() {
 			0xD83DDE15LLU,
 		};
 		for (auto oldKey : defaultRecent) {
-			if (result.size() >= kPanelPerRow * kPanelRowsPerPage) break;
+			if (result.size() >= kRecentLimit) break;
 
 			if (auto emoji = Ui::Emoji::FromOldKey(oldKey)) {
 				if (!haveAlready(emoji)) {
@@ -307,7 +307,9 @@ void AddRecent(EmojiPtr emoji) {
 		}
 	}
 	if (i == e) {
-		while (recent.size() >= kPanelPerRow * kPanelRowsPerPage) recent.pop_back();
+		while (recent.size() >= kRecentLimit) {
+			recent.pop_back();
+		}
 		recent.push_back(qMakePair(emoji, 1));
 		for (i = recent.end() - 1; i != recent.begin(); --i) {
 			if ((i - 1)->second > i->second) {
