@@ -167,6 +167,7 @@ private:
 		Hidden,
 	};
 	void refreshMegagroupStickers(GroupStickersPlace place);
+	void refreshSettingsVisibility();
 
 	void updateSelected();
 	void setSelected(OverState newSelected);

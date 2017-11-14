@@ -185,11 +185,11 @@ bool Controller::takeThirdSectionFromLayer() {
 }
 
 void Controller::resizeForThirdSection() {
-	auto layout = computeColumnLayout();
-	if (layout.windowLayout == Adaptive::WindowLayout::ThreeColumn) {
+	if (Adaptive::ThreeColumn()) {
 		return;
 	}
 
+	auto layout = computeColumnLayout();
 	auto tabbedSelectorSectionEnabled =
 		Auth().data().tabbedSelectorSectionEnabled();
 	auto thirdSectionInfoEnabled =

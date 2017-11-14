@@ -155,6 +155,7 @@ private:
 
 	void checkRestrictedPeer();
 	bool isRestrictedView();
+	void updateRestrictedLabelGeometry();
 
 	QImage grabForAnimation();
 

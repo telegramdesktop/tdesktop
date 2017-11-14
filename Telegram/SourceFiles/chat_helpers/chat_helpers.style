@@ -29,7 +29,7 @@ switchPmButton: RoundButton(defaultBoxButton) {
 	textTop: 7px;
 }
 stickersRestrictedLabel: FlatLabel(defaultFlatLabel) {
-	minWidth: 320px;
+	minWidth: 200px;
 	align: align(center);
 	textFg: noContactsColor;
 }

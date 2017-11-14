@@ -493,6 +493,10 @@ object_ptr<TabbedSelector::InnerFooter> StickersListWidget::createFooter() {
 void StickersListWidget::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
+	if (!_columnCount) {
+		return;
+	}
+
 	auto top = getVisibleTop();
 	Inner::visibleTopBottomUpdated(visibleTop, visibleBottom);
 	if (_section == Section::Featured) {
@@ -831,7 +835,9 @@ void StickersListWidget::paintMegagroupEmptySet(Painter &p, int y, bool buttonSe
 	auto infoLeft = megagroupSetInfoLeft();
 	_megagroupSetAbout.drawLeft(p, infoLeft, y, width() - infoLeft, width());
 
-	auto &textBg = buttonSelected ? st::stickerGroupCategoryAdd.textBgOver : st::stickerGroupCategoryAdd.textBg;
+	auto &textBg = buttonSelected
+		? st::stickerGroupCategoryAdd.textBgOver
+		: st::stickerGroupCategoryAdd.textBg;
 
 	auto button = _megagroupSetButtonRect.translated(0, y);
 	App::roundRect(p, myrtlrect(button), textBg, ImageRoundRadius::Small);
@@ -1146,6 +1152,9 @@ void StickersListWidget::resizeEvent(QResizeEvent *e) {
 	_settings->moveToLeft(
 		(width() - _settings->width()) / 2,
 		height() / 3);
+	if (!_megagroupSetAbout.isEmpty()) {
+		refreshMegagroupSetGeometry();
+	}
 }
 
 void StickersListWidget::leaveEventHook(QEvent *e) {
@@ -1213,12 +1222,17 @@ void StickersListWidget::refreshStickers() {
 	if (_footer && _columnCount > 0) {
 		refreshFooterIcons();
 	}
-
-	_settings->setVisible(_section == Section::Stickers && _mySets.isEmpty());
+	refreshSettingsVisibility();
 
 	_lastMousePosition = QCursor::pos();
 	updateSelected();
 	update();
+}
+
+void StickersListWidget::refreshSettingsVisibility() {
+	auto visible = (_section == Section::Stickers)
+		&& _mySets.isEmpty();
+	_settings->setVisible(visible);
 }
 
 void StickersListWidget::refreshFooterIcons() {
@@ -1566,6 +1580,8 @@ void StickersListWidget::setSelected(OverState newSelected) {
 				} else {
 					rtlupdate(removeButtonRect(button->section));
 				}
+			} else if (base::get_if<OverGroupAdd>(&_selected)) {
+				rtlupdate(megagroupSetButtonRectFinal());
 			}
 		};
 		updateSelected();
@@ -1607,6 +1623,7 @@ void StickersListWidget::showStickerSet(uint64 setId) {
 			_section = Section::Featured;
 
 			refreshRecentStickers(true);
+			refreshSettingsVisibility();
 			if (_footer) {
 				_footer->refreshIcons(ValidateIconAnimations::Scroll);
 			}
@@ -1622,6 +1639,7 @@ void StickersListWidget::showStickerSet(uint64 setId) {
 	if (needRefresh) {
 		_section = Section::Stickers;
 		refreshRecentStickers(true);
+		refreshSettingsVisibility();
 	}
 
 	auto y = 0;
@@ -1659,7 +1677,9 @@ void StickersListWidget::showMegagroupSet(ChannelData *megagroup) {
 		_megagroupSet = megagroup;
 
 		if (_megagroupSetAbout.isEmpty()) {
-			_megagroupSetAbout.setText(st::stickerGroupCategoryAbout, lang(lng_group_stickers_description));
+			_megagroupSetAbout.setText(
+				st::stickerGroupCategoryAbout,
+				lang(lng_group_stickers_description));
 			_megagroupSetButtonText = lang(lng_group_stickers_add).toUpper();
 			refreshMegagroupSetGeometry();
 		}

@@ -386,9 +386,7 @@ void TabbedSelector::resizeEvent(QResizeEvent *e) {
 		updateScrollGeometry();
 	}
 	_bottomShadow->setGeometry(_tabsSlider->x(), _scroll->y() + _scroll->height() - st::lineWidth, _tabsSlider->width(), st::lineWidth);
-	if (_restrictedLabel) {
-		_restrictedLabel->move((width() - _restrictedLabel->width()), (height() / 3 - _restrictedLabel->height() / 2));
-	}
+	updateRestrictedLabelGeometry();
 
 	_footerTop = height() - st::emojiFooterHeight;
 	for (auto &tab : _tabs) {
@@ -397,6 +395,18 @@ void TabbedSelector::resizeEvent(QResizeEvent *e) {
 	}
 
 	update();
+}
+
+void TabbedSelector::updateRestrictedLabelGeometry() {
+	if (!_restrictedLabel) {
+		return;
+	}
+
+	auto labelWidth = width() - st::stickerPanPadding * 2;
+	_restrictedLabel->resizeToWidth(labelWidth);
+	_restrictedLabel->moveToLeft(
+		(width() - _restrictedLabel->width()) / 2,
+		(height() / 3 - _restrictedLabel->height() / 2));
 }
 
 void TabbedSelector::paintEvent(QPaintEvent *e) {
@@ -554,11 +564,18 @@ void TabbedSelector::checkRestrictedPeer() {
 			(_currentTabType == SelectorTab::Gifs) ? megagroup->restricted(ChannelRestriction::f_send_gifs) : false;
 		if (restricted) {
 			if (!_restrictedLabel) {
-				auto text = (_currentTabType == SelectorTab::Stickers) ? lang(lng_restricted_send_stickers) :
-					(_currentTabType == SelectorTab::Gifs) ? lang(lng_restricted_send_gifs) : QString();
-				_restrictedLabel.create(this, text, Ui::FlatLabel::InitType::Simple, st::stickersRestrictedLabel);
+				auto text = (_currentTabType == SelectorTab::Stickers)
+					? lang(lng_restricted_send_stickers)
+					: (_currentTabType == SelectorTab::Gifs)
+					? lang(lng_restricted_send_gifs)
+					: QString();
+				_restrictedLabel.create(
+					this,
+					text,
+					Ui::FlatLabel::InitType::Simple,
+					st::stickersRestrictedLabel);
 				_restrictedLabel->show();
-				_restrictedLabel->move((width() - _restrictedLabel->width()), (height() / 3 - _restrictedLabel->height() / 2));
+				updateRestrictedLabelGeometry();
 				currentTab()->footer()->hide();
 				_scroll->hide();
 				_bottomShadow->hide();
