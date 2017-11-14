@@ -735,7 +735,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_sure_delete_and_exit" = "Are you sure, you want to delete all message history and leave «{group}»?\n\nThis action cannot be undone.";
 "lng_sure_leave_channel" = "Are you sure, you want to leave\nthis channel?";
 "lng_sure_delete_channel" = "Are you sure, you want to delete this channel? All members will be removed and all messages will be lost.";
-"lng_sure_leave_group" = "Are you sure, you want to leave\nthis group? This action cannot be undone.";
+"lng_sure_leave_group" = "Are you sure, you want to leave\nthis group?";
 "lng_sure_delete_group" = "Are you sure, you want to delete this group? All members will be removed and all messages will be lost.";
 
 "lng_message_empty" = "Empty Message";

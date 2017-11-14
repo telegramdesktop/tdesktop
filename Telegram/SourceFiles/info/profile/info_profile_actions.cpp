@@ -556,11 +556,19 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 
 void ActionsFiller::addLeaveChannelAction(
 		not_null<ChannelData*> channel) {
+	auto callback = [=] {
+		auto text = lang(channel->isMegagroup()
+			? lng_sure_leave_group
+			: lng_sure_leave_channel);
+		Ui::show(Box<ConfirmBox>(text, lang(lng_box_leave), [=] {
+			Auth().api().leaveChannel(channel);
+		}), LayerOption::KeepOther);
+	};
 	AddActionButton(
 		_wrap,
 		Lang::Viewer(lng_profile_leave_channel),
 		AmInChannelValue(channel),
-		[channel] { Auth().api().leaveChannel(channel); });
+		std::move(callback));
 }
 
 void ActionsFiller::addJoinChannelAction(

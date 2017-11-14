@@ -44,6 +44,10 @@ InnerWidget::InnerWidget(
 : RpWidget(parent)
 , _controller(controller)
 , _empty(this) {
+	_empty->heightValue()
+		| rpl::start_with_next(
+			[this] { refreshHeight(); },
+			_empty->lifetime());
 	_list = setupList();
 	setupOtherTypes();
 }
