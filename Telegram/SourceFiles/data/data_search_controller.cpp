@@ -390,7 +390,7 @@ void DelayedSearchController::setQuery(
 
 void DelayedSearchController::setQueryFast(const Query &query) {
 	_controller.setQuery(query);
-	_sourceChanges.fire({});
+	_currentQueryChanges.fire_copy(query.query);
 }
 
 } // namespace Api

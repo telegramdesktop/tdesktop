@@ -116,8 +116,8 @@ public:
 		SparseIdsMergedSlice::UniversalMsgId aroundId,
 		int limitBefore,
 		int limitAfter) const;
-	rpl::producer<> mediaSourceChanged() const {
-		return _searchController->sourceChanged();
+	rpl::producer<QString> mediaSourceQueryValue() const {
+		return _searchController->currentQueryValue();
 	}
 
 	void saveSearchState(not_null<ContentMemento*> memento);

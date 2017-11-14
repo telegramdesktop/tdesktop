@@ -150,6 +150,10 @@ rpl::producer<Section> ContentWidget::sectionRequest() const {
 	return rpl::never<Section>();
 }
 
+rpl::producer<int> ContentWidget::scrollHeightValue() const {
+	return _scroll->heightValue();
+}
+
 rpl::producer<int> ContentWidget::desiredHeightValue() const {
 	using namespace rpl::mappers;
 	return rpl::combine(

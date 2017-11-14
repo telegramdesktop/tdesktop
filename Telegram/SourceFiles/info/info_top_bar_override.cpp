@@ -65,7 +65,7 @@ QString TopBarOverride::generateText() const {
 		case Type::MusicFile: return lng_media_selected_song;
 		case Type::Link: return lng_media_selected_link;
 		case Type::VoiceFile: return lng_media_selected_audio;
-		case Type::RoundFile: return lng_media_selected_round;
+//		case Type::RoundFile: return lng_media_selected_round;
 		}
 		Unexpected("Type in TopBarOverride::generateText()");
 	}();

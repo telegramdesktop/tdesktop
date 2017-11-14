@@ -549,7 +549,6 @@ ListWidget::ListWidget(
 , _slice(sliceKey(_universalAroundId)) {
 	setAttribute(Qt::WA_MouseTracking);
 	start();
-	refreshViewer();
 }
 
 void ListWidget::start() {
@@ -574,7 +573,7 @@ void ListWidget::start() {
 		| rpl::start_with_next([this](auto item) {
 			repaintItem(item);
 		}, lifetime());
-	_controller->mediaSourceChanged()
+	_controller->mediaSourceQueryValue()
 		| rpl::start_with_next([this]{
 			restart();
 		}, lifetime());
@@ -2014,8 +2013,9 @@ int ListWidget::recountHeight() {
 		section.setTop(result);
 		result += section.height();
 	}
-	return result
-		+ cachedPadding.bottom();
+	return (result > cachedPadding.top())
+		? (result + cachedPadding.bottom())
+		: 0;
 }
 
 void ListWidget::mouseActionUpdate() {

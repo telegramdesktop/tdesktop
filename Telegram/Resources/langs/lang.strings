@@ -590,8 +590,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_files_header" = "Files";
 "lng_profile_audios#one" = "{count} voice message";
 "lng_profile_audios#other" = "{count} voice messages";
-"lng_profile_rounds#one" = "{count} video message";
-"lng_profile_rounds#other" = "{count} video messages";
+//"lng_profile_rounds#one" = "{count} video message";
+//"lng_profile_rounds#other" = "{count} video messages";
 "lng_profile_audios_header" = "Voice messages";
 "lng_profile_shared_links#one" = "{count} shared link";
 "lng_profile_shared_links#other" = "{count} shared links";
@@ -645,10 +645,19 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_media_selected_file#other" = "{count} Files";
 "lng_media_selected_audio#one" = "{count} Voice message";
 "lng_media_selected_audio#other" = "{count} Voice messages";
-"lng_media_selected_round#one" = "{count} Video message";
-"lng_media_selected_round#other" = "{count} video messages";
+//"lng_media_selected_round#one" = "{count} Video message";
+//"lng_media_selected_round#other" = "{count} Video messages";
 "lng_media_selected_link#one" = "{count} Shared link";
 "lng_media_selected_link#other" = "{count} Shared links";
+"lng_media_photo_empty" = "No photos here yet";
+"lng_media_video_empty" = "No videos here yet";
+"lng_media_song_empty" = "No music files here yet";
+"lng_media_file_empty" = "No files here yet";
+"lng_media_audio_empty" = "No voice messages here yet";
+"lng_media_link_empty" = "No shared links here yet";
+"lng_media_song_empty_search" = "No music files found";
+"lng_media_file_empty_search" = "No files found";
+"lng_media_link_empty_search" = "No shared links found";
 
 "lng_manage_group_title" = "Manage Group";
 "lng_manage_channel_title" = "Manage Channel";

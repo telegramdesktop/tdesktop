@@ -40,6 +40,7 @@ namespace Media {
 
 class Memento;
 class ListWidget;
+class EmptyWidget;
 
 class InnerWidget final : public Ui::RpWidget {
 public:
@@ -51,6 +52,8 @@ public:
 
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
+
+	void setScrollHeightValue(rpl::producer<int> value);
 
 	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const {
 		return _scrollToRequests.events();
@@ -88,12 +91,14 @@ private:
 	object_ptr<Ui::PlainShadow> _otherTabsShadow = { nullptr };
 	base::unique_qptr<Ui::RpWidget> _searchField = nullptr;
 	object_ptr<ListWidget> _list = { nullptr };
+	object_ptr<EmptyWidget> _empty;
 	bool _searchEnabled = false;
 
 	bool _inResize = false;
 
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 	rpl::event_stream<rpl::producer<SelectedItems>> _selectedLists;
+	rpl::event_stream<rpl::producer<int>> _listTops;
 
 };
 

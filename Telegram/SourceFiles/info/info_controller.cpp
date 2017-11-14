@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "info/info_controller.h"
 
+#include <rpl/range.h>
+#include <rpl/then.h>
 #include "ui/search_field_controller.h"
 #include "data/data_shared_media.h"
 #include "info/info_content_widget.h"

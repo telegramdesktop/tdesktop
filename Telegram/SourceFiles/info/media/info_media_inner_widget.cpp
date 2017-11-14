@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/abstract_box.h"
 #include "info/media/info_media_list_widget.h"
 #include "info/media/info_media_buttons.h"
+#include "info/media/info_media_empty_widget.h"
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/info_controller.h"
@@ -41,7 +42,8 @@ InnerWidget::InnerWidget(
 	QWidget *parent,
 	not_null<Controller*> controller)
 : RpWidget(parent)
-, _controller(controller) {
+, _controller(controller)
+, _empty(this) {
 	_list = setupList();
 	setupOtherTypes();
 }
@@ -253,6 +255,12 @@ object_ptr<ListWidget> InnerWidget::setupList() {
 			_scrollToRequests,
 			result->lifetime());
 	_selectedLists.fire(result->selectedListValue());
+	_listTops.fire(result->topValue());
+	_empty->setType(_controller->section().mediaType());
+	_controller->mediaSourceQueryValue()
+		| rpl::start_with_next([this](const QString &query) {
+			_empty->setSearchQuery(query);
+		}, result->lifetime());
 	return result;
 }
 
@@ -287,6 +295,7 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 		_searchField->resizeToWidth(newWidth);
 	}
 	_list->resizeToWidth(newWidth);
+	_empty->resizeToWidth(newWidth);
 	return recountHeight();
 }
 
@@ -308,11 +317,29 @@ int InnerWidget::recountHeight() {
 		_searchField->moveToLeft(0, top);
 		top += _searchField->heightNoMargins() - st::lineWidth;
 	}
+	auto listHeight = 0;
 	if (_list) {
 		_list->moveToLeft(0, top);
-		top += _list->heightNoMargins();
+		listHeight = _list->heightNoMargins();
+		top += listHeight;
+	}
+	if (listHeight > 0) {
+		_empty->hide();
+	} else {
+		_empty->show();
+		_empty->moveToLeft(0, top);
+		top += _empty->heightNoMargins();
 	}
 	return top;
+}
+
+void InnerWidget::setScrollHeightValue(rpl::producer<int> value) {
+	using namespace rpl::mappers;
+	_empty->setFullHeight(rpl::combine(
+		std::move(value),
+		_listTops.events_starting_with(_list->topValue())
+			| rpl::flatten_latest(),
+		$1 - $2));
 }
 
 } // namespace Media

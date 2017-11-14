@@ -548,6 +548,21 @@ managePeerButtonLabel: FlatLabel(defaultFlatLabel) {
 }
 managePeerButtonLabelPosition: point(25px, 10px);
 
+infoEmptyFg: windowSubTextFg;
+infoEmptyPhoto: icon {{ "info_media_photo_empty", infoEmptyFg }};
+infoEmptyVideo: icon {{ "info_media_video_empty", infoEmptyFg }};
+infoEmptyAudio: icon {{ "info_media_audio_empty", infoEmptyFg }};
+infoEmptyFile: icon {{ "info_media_file_empty", infoEmptyFg }};
+infoEmptyVoice: icon {{ "info_media_voice_empty", infoEmptyFg }};
+infoEmptyLink: icon {{ "info_media_link_empty", infoEmptyFg }};
+infoEmptyIconTop: 120px;
+infoEmptyLabelTop: 40px;
+infoEmptyLabelSkip: 20px;
+infoEmptyLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 220px;
+	textFg: windowSubTextFg;
+}
+
 editPeerDeleteButtonMargins: margins(23px, 16px, 23px, 16px);
 editPeerDeleteButton: sessionTerminateAllButton;
 editPeerPhotoMargins: margins(23px, 16px, 23px, 8px);

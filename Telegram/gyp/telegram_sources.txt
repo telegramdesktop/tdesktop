@@ -240,6 +240,8 @@
 <(src_loc)/info/common_groups/info_common_groups_widget.cpp
 <(src_loc)/info/common_groups/info_common_groups_widget.h
 <(src_loc)/info/media/info_media_buttons.h
+<(src_loc)/info/media/info_media_empty_widget.cpp
+<(src_loc)/info/media/info_media_empty_widget.h
 <(src_loc)/info/media/info_media_inner_widget.cpp
 <(src_loc)/info/media/info_media_inner_widget.h
 <(src_loc)/info/media/info_media_list_widget.cpp

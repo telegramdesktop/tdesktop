@@ -162,8 +162,9 @@ public:
 			limitAfter);
 	}
 
-	rpl::producer<> sourceChanged() const {
-		return _sourceChanges.events();
+	rpl::producer<QString> currentQueryValue() const {
+		return _currentQueryChanges.events_starting_with(
+			currentQuery().query);
 	}
 
 	SavedState saveState() {
@@ -178,7 +179,7 @@ private:
 	SearchController _controller;
 	Query _nextQuery;
 	base::Timer _timer;
-	rpl::event_stream<> _sourceChanges;
+	rpl::event_stream<QString> _currentQueryChanges;
 
 };
 
