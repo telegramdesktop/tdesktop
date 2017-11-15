@@ -100,6 +100,7 @@
     }, {
       'xcode_settings': {
         'CLANG_CXX_LIBRARY': 'libc++',
+        'CLANG_ENABLE_OBJC_WEAK': 'YES',
         'OTHER_LDFLAGS': [
           '-framework', 'VideoToolbox',
           '-framework', 'VideoDecodeAcceleration',

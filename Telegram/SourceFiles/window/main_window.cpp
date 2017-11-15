@@ -173,6 +173,7 @@ void MainWindow::handleActiveChanged() {
 	}
 	App::CallDelayed(1, this, [this] {
 		updateTrayMenu();
+		handleActiveChangedHook();
 	});
 }
 

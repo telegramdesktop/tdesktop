@@ -65,6 +65,7 @@ public slots:
 protected:
 	bool eventFilter(QObject *obj, QEvent *evt) override;
 
+	void handleActiveChangedHook() override;
 	void stateChangedHook(Qt::WindowState state) override;
 	void initHook() override;
 	void updateWindowIcon() override;

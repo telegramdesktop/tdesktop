@@ -112,6 +112,9 @@ protected:
 	virtual void updateIsActiveHook() {
 	}
 
+	virtual void handleActiveChangedHook() {
+	}
+
 	void clearWidgets();
 	virtual void clearWidgetsHook() {
 	}

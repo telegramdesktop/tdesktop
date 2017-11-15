@@ -122,5 +122,7 @@ QString strNotificationAboutThemeChange();
 QString strNotificationAboutScreenLocked();
 QString strNotificationAboutScreenUnlocked();
 QString strStyleOfInterface();
+QString strTitleWrapClass();
+QString strTitleClass();
 
 bool psLaunchMaps(const LocationCoords &coords);
