@@ -61,9 +61,8 @@ overviewCheck: RoundCheckbox(defaultRoundCheckbox) {
 }
 overviewCheckSkip: 5px;
 
-overviewPhotoSkip: 10px;
 overviewPhotoBg: windowBgOver;
-overviewPhotoMinSize: minPhotoSize;
+overviewPhotoMinSize: 90px;
 overviewVideoBg: imageBg;
 
 overviewFileThumbBg: imageBg;
