@@ -130,6 +130,7 @@ infoTopBarTitle: FlatLabel(defaultFlatLabel) {
 	}
 }
 infoTopBarClose: IconButton(infoTopBarBack) {
+	width: infoTopBarHeight;
 	icon: icon {{ "info_close", boxTitleCloseFg }};
 	iconOver: icon {{ "info_close", boxTitleCloseFgOver }};
 }
@@ -179,6 +180,8 @@ infoTopBar: InfoTopBar {
 	mediaDelete: infoTopBarDelete;
 	search: infoTopBarSearch;
 	searchRow: infoTopBarSearchRow;
+	highlightBg: windowBgOver;
+	highlightDuration: 240;
 }
 
 infoLayerTopBarHeight: boxLayerTitleHeight;
@@ -224,7 +227,7 @@ infoLayerTopBarDelete: IconButton(infoLayerTopBarForward) {
 	icon: icon {{ "info_media_delete", boxTitleCloseFg }};
 	iconOver: icon {{ "info_media_delete", boxTitleCloseFgOver }};
 }
-infoLayerTopBar: InfoTopBar {
+infoLayerTopBar: InfoTopBar(infoTopBar) {
 	height: infoLayerTopBarHeight;
 	back: infoLayerTopBarBack;
 	title: boxTitle;

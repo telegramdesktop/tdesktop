@@ -1158,4 +1158,6 @@ InfoTopBar {
 	mediaDelete: IconButton;
 	search: IconButton;
 	searchRow: SearchFieldRow;
+	highlightBg: color;
+	highlightDuration: int;
 }

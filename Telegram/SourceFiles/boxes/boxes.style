@@ -394,7 +394,7 @@ notificationSampleSize: size(64px, 16px);
 
 membersAboutLimitPadding: margins(0px, 12px, 0px, 12px);
 membersAbout: FlatLabel(defaultFlatLabel) {
-	minWidth: 332px;
+	minWidth: 240px;
 	textFg: membersAboutLimitFg;
 	align: align(top);
 	style: boxLabelStyle;

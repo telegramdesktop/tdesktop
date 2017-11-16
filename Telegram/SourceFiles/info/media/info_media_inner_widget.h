@@ -72,27 +72,30 @@ protected:
 private:
 	int recountHeight();
 	void refreshHeight();
-	void setupOtherTypes();
-	void createOtherTypes();
-	void createTypeButtons();
-	void createTabs();
-	void switchToTab(Memento &&memento);
+	// Allows showing additional shared media links and tabs.
+	// Was done for top level tabs support.
+	//
+	//void setupOtherTypes();
+	//void createOtherTypes();
+	//void createTypeButtons();
+	//void createTabs();
+	//void switchToTab(Memento &&memento);
+	//void refreshSearchField();
+	//void scrollToSearchField();
 
 	Type type() const;
 
-	void refreshSearchField();
-	void scrollToSearchField();
 	object_ptr<ListWidget> setupList();
 
 	const not_null<Controller*> _controller;
 
-	Ui::SettingsSlider *_otherTabs = nullptr;
-	object_ptr<Ui::VerticalLayout> _otherTypes = { nullptr };
-	object_ptr<Ui::PlainShadow> _otherTabsShadow = { nullptr };
-	base::unique_qptr<Ui::RpWidget> _searchField = nullptr;
+	//Ui::SettingsSlider *_otherTabs = nullptr;
+	//object_ptr<Ui::VerticalLayout> _otherTypes = { nullptr };
+	//object_ptr<Ui::PlainShadow> _otherTabsShadow = { nullptr };
+	//base::unique_qptr<Ui::RpWidget> _searchField = nullptr;
 	object_ptr<ListWidget> _list = { nullptr };
 	object_ptr<EmptyWidget> _empty;
-	bool _searchEnabled = false;
+	//bool _searchEnabled = false;
 
 	bool _inResize = false;
 

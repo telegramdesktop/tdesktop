@@ -77,7 +77,7 @@ InnerWidget::InnerWidget(
 }
 
 bool InnerWidget::canHideDetailsEver() const {
-	return (_peer->isChat() || _peer->isMegagroup());
+	return false;// (_peer->isChat() || _peer->isMegagroup());
 }
 
 rpl::producer<bool> InnerWidget::canHideDetails() const {
@@ -188,28 +188,34 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 		object_ptr<Ui::VerticalLayout>(parent)
 	);
 
-	using ToggledData = std::tuple<bool, Wrap, bool>;
-	rpl::combine(
-		tracker.atLeastOneShownValue(),
-		_controller->wrapValue(),
-		_isStackBottom.value())
-		| rpl::combine_previous(ToggledData())
-		| rpl::start_with_next([wrap = result.data()](
-				const ToggledData &was,
-				const ToggledData &now) {
-			bool wasOneShown, wasStackBottom, nowOneShown, nowStackBottom;
-			Wrap wasWrap, nowWrap;
-			std::tie(wasOneShown, wasWrap, wasStackBottom) = was;
-			std::tie(nowOneShown, nowWrap, nowStackBottom) = now;
-			// MSVC Internal Compiler Error
-			//auto [wasOneShown, wasWrap, wasStackBottom] = was;
-			//auto [nowOneShown, nowWrap, nowStackBottom] = now;
-			wrap->toggle(
-				nowOneShown && (nowWrap != Wrap::Side || !nowStackBottom),
-				(wasStackBottom == nowStackBottom && wasWrap == nowWrap)
-					? anim::type::normal
-					: anim::type::instant);
-		}, result->lifetime());
+	// Allows removing shared media links in third column.
+	// Was done for tabs support.
+	//
+	//using ToggledData = std::tuple<bool, Wrap, bool>;
+	//rpl::combine(
+	//	tracker.atLeastOneShownValue(),
+	//	_controller->wrapValue(),
+	//	_isStackBottom.value())
+	//	| rpl::combine_previous(ToggledData())
+	//	| rpl::start_with_next([wrap = result.data()](
+	//			const ToggledData &was,
+	//			const ToggledData &now) {
+	//		bool wasOneShown, wasStackBottom, nowOneShown, nowStackBottom;
+	//		Wrap wasWrap, nowWrap;
+	//		std::tie(wasOneShown, wasWrap, wasStackBottom) = was;
+	//		std::tie(nowOneShown, nowWrap, nowStackBottom) = now;
+	//		// MSVC Internal Compiler Error
+	//		//auto [wasOneShown, wasWrap, wasStackBottom] = was;
+	//		//auto [nowOneShown, nowWrap, nowStackBottom] = now;
+	//		wrap->toggle(
+	//			nowOneShown && (nowWrap != Wrap::Side || !nowStackBottom),
+	//			(wasStackBottom == nowStackBottom && wasWrap == nowWrap)
+	//				? anim::type::normal
+	//				: anim::type::instant);
+	//	}, result->lifetime());
+	//
+	// Using that instead
+	result->toggleOn(tracker.atLeastOneShownValue());
 
 	auto layout = result->entity();
 

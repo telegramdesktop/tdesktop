@@ -883,15 +883,19 @@ int PeerListContent::resizeGetHeight(int newWidth) {
 	}
 	auto rowsCount = shownRowsCount();
 	auto labelTop = rowsTop() + qMax(1, shownRowsCount()) * _rowHeight;
+	auto labelWidth = newWidth - 2 * st::contactsPadding.left();
 	if (_description) {
+		_description->resizeToWidth(labelWidth);
 		_description->moveToLeft(st::contactsPadding.left(), labelTop + st::membersAboutLimitPadding.top(), newWidth);
 		_description->setVisible(!showingSearch());
 	}
 	if (_searchNoResults) {
+		_searchNoResults->resizeToWidth(labelWidth);
 		_searchNoResults->moveToLeft(st::contactsPadding.left(), labelTop + st::membersAboutLimitPadding.top(), newWidth);
 		_searchNoResults->setVisible(showingSearch() && _filterResults.empty() && !_controller->isSearchLoading());
 	}
 	if (_searchLoading) {
+		_searchLoading->resizeToWidth(labelWidth);
 		_searchLoading->moveToLeft(st::contactsPadding.left(), labelTop + st::membersAboutLimitPadding.top(), newWidth);
 		_searchLoading->setVisible(showingSearch() && _filterResults.empty() && _controller->isSearchLoading());
 	}

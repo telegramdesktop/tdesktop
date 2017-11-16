@@ -49,128 +49,134 @@ InnerWidget::InnerWidget(
 			[this] { refreshHeight(); },
 			_empty->lifetime());
 	_list = setupList();
-	setupOtherTypes();
+	// Allows showing additional shared media links and tabs.
+	// Was done for top level tabs support.
+	//
+	//setupOtherTypes();
 }
 
-void InnerWidget::setupOtherTypes() {
-	_controller->wrapValue()
-		| rpl::start_with_next([this](Wrap value) {
-			if (value == Wrap::Side
-				&& !_controller->hasStackHistory()
-				&& TypeToTabIndex(type())) {
-				createOtherTypes();
-			} else {
-				_otherTabs = nullptr;
-				_otherTypes.destroy();
-				refreshHeight();
-			}
-		}, lifetime());
-	rpl::combine(
-		_controller->wrapValue(),
-		_controller->searchEnabledByContent())
-		| rpl::start_with_next([this](Wrap wrap, bool enabled) {
-			_searchEnabled = enabled;
-			refreshSearchField();
-		}, lifetime());
-}
-
-void InnerWidget::createOtherTypes() {
-	_otherTabsShadow.create(this);
-	_otherTabsShadow->show();
-
-	_otherTabs = nullptr;
-	_otherTypes.create(this);
-	_otherTypes->show();
-
-	createTypeButtons();
-	_otherTypes->add(object_ptr<BoxContentDivider>(_otherTypes));
-	createTabs();
-
-	_otherTypes->heightValue()
-		| rpl::start_with_next(
-			[this] { refreshHeight(); },
-			_otherTypes->lifetime());
-}
-
-void InnerWidget::createTypeButtons() {
-	auto wrap = _otherTypes->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-		_otherTypes,
-		object_ptr<Ui::VerticalLayout>(_otherTypes)));
-	auto content = wrap->entity();
-	content->add(object_ptr<Ui::FixedHeightWidget>(
-		content,
-		st::infoProfileSkip));
-
-	auto tracker = Ui::MultiSlideTracker();
-	auto addMediaButton = [&](
-			Type type,
-			const style::icon &icon) {
-		auto result = AddButton(
-			content,
-			_controller->window(),
-			_controller->peer(),
-			_controller->migrated(),
-			type,
-			tracker);
-		object_ptr<Profile::FloatingIcon>(
-			result,
-			icon,
-			st::infoSharedMediaButtonIconPosition);
-	};
-	auto addCommonGroupsButton = [&](
-			not_null<UserData*> user,
-			const style::icon &icon) {
-		auto result = AddCommonGroupsButton(
-			content,
-			_controller->window(),
-			user,
-			tracker);
-		object_ptr<Profile::FloatingIcon>(
-			result,
-			icon,
-			st::infoSharedMediaButtonIconPosition);
-	};
-
-	addMediaButton(Type::MusicFile, st::infoIconMediaAudio);
-	addMediaButton(Type::Link, st::infoIconMediaLink);
-	if (auto user = _controller->peer()->asUser()) {
-		addCommonGroupsButton(user, st::infoIconMediaGroup);
-	}
-	addMediaButton(Type::VoiceFile, st::infoIconMediaVoice);
-//	addMediaButton(Type::RoundFile, st::infoIconMediaRound);
-
-	content->add(object_ptr<Ui::FixedHeightWidget>(
-		content,
-		st::infoProfileSkip));
-	wrap->toggleOn(tracker.atLeastOneShownValue());
-	wrap->finishAnimating();
-}
-
-void InnerWidget::createTabs() {
-	_otherTabs = _otherTypes->add(object_ptr<Ui::SettingsSlider>(
-		this,
-		st::infoTabs));
-	auto sections = QStringList();
-	sections.push_back(lang(lng_media_type_photos).toUpper());
-	sections.push_back(lang(lng_media_type_videos).toUpper());
-	sections.push_back(lang(lng_media_type_files).toUpper());
-	_otherTabs->setSections(sections);
-	_otherTabs->setActiveSection(*TypeToTabIndex(type()));
-	_otherTabs->finishAnimating();
-
-	_otherTabs->sectionActivated()
-		| rpl::map([](int index) { return TabIndexToType(index); })
-		| rpl::start_with_next(
-			[this](Type newType) {
-				if (type() != newType) {
-					switchToTab(Memento(
-						_controller->peerId(),
-						_controller->migratedPeerId(),
-						newType));
-				}
-			},
-			_otherTabs->lifetime());
-}
+// Allows showing additional shared media links and tabs.
+// Was done for top level tabs support.
+//
+//void InnerWidget::setupOtherTypes() {
+//	_controller->wrapValue()
+//		| rpl::start_with_next([this](Wrap value) {
+//			if (value == Wrap::Side
+//				&& !_controller->hasStackHistory()
+//				&& TypeToTabIndex(type())) {
+//				createOtherTypes();
+//			} else {
+//				_otherTabs = nullptr;
+//				_otherTypes.destroy();
+//				refreshHeight();
+//			}
+//		}, lifetime());
+//	rpl::combine(
+//		_controller->wrapValue(),
+//		_controller->searchEnabledByContent())
+//		| rpl::start_with_next([this](Wrap wrap, bool enabled) {
+//			_searchEnabled = enabled;
+//			refreshSearchField();
+//		}, lifetime());
+//}
+//
+//void InnerWidget::createOtherTypes() {
+//	_otherTabsShadow.create(this);
+//	_otherTabsShadow->show();
+//
+//	_otherTabs = nullptr;
+//	_otherTypes.create(this);
+//	_otherTypes->show();
+//
+//	createTypeButtons();
+//	_otherTypes->add(object_ptr<BoxContentDivider>(_otherTypes));
+//	createTabs();
+//
+//	_otherTypes->heightValue()
+//		| rpl::start_with_next(
+//			[this] { refreshHeight(); },
+//			_otherTypes->lifetime());
+//}
+//
+//void InnerWidget::createTypeButtons() {
+//	auto wrap = _otherTypes->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+//		_otherTypes,
+//		object_ptr<Ui::VerticalLayout>(_otherTypes)));
+//	auto content = wrap->entity();
+//	content->add(object_ptr<Ui::FixedHeightWidget>(
+//		content,
+//		st::infoProfileSkip));
+//
+//	auto tracker = Ui::MultiSlideTracker();
+//	auto addMediaButton = [&](
+//			Type type,
+//			const style::icon &icon) {
+//		auto result = AddButton(
+//			content,
+//			_controller->window(),
+//			_controller->peer(),
+//			_controller->migrated(),
+//			type,
+//			tracker);
+//		object_ptr<Profile::FloatingIcon>(
+//			result,
+//			icon,
+//			st::infoSharedMediaButtonIconPosition);
+//	};
+//	auto addCommonGroupsButton = [&](
+//			not_null<UserData*> user,
+//			const style::icon &icon) {
+//		auto result = AddCommonGroupsButton(
+//			content,
+//			_controller->window(),
+//			user,
+//			tracker);
+//		object_ptr<Profile::FloatingIcon>(
+//			result,
+//			icon,
+//			st::infoSharedMediaButtonIconPosition);
+//	};
+//
+//	addMediaButton(Type::MusicFile, st::infoIconMediaAudio);
+//	addMediaButton(Type::Link, st::infoIconMediaLink);
+//	if (auto user = _controller->peer()->asUser()) {
+//		addCommonGroupsButton(user, st::infoIconMediaGroup);
+//	}
+//	addMediaButton(Type::VoiceFile, st::infoIconMediaVoice);
+////	addMediaButton(Type::RoundFile, st::infoIconMediaRound);
+//
+//	content->add(object_ptr<Ui::FixedHeightWidget>(
+//		content,
+//		st::infoProfileSkip));
+//	wrap->toggleOn(tracker.atLeastOneShownValue());
+//	wrap->finishAnimating();
+//}
+//
+//void InnerWidget::createTabs() {
+//	_otherTabs = _otherTypes->add(object_ptr<Ui::SettingsSlider>(
+//		this,
+//		st::infoTabs));
+//	auto sections = QStringList();
+//	sections.push_back(lang(lng_media_type_photos).toUpper());
+//	sections.push_back(lang(lng_media_type_videos).toUpper());
+//	sections.push_back(lang(lng_media_type_files).toUpper());
+//	_otherTabs->setSections(sections);
+//	_otherTabs->setActiveSection(*TypeToTabIndex(type()));
+//	_otherTabs->finishAnimating();
+//
+//	_otherTabs->sectionActivated()
+//		| rpl::map([](int index) { return TabIndexToType(index); })
+//		| rpl::start_with_next(
+//			[this](Type newType) {
+//				if (type() != newType) {
+//					switchToTab(Memento(
+//						_controller->peerId(),
+//						_controller->migratedPeerId(),
+//						newType));
+//				}
+//			},
+//			_otherTabs->lifetime());
+//}
 
 Type InnerWidget::type() const {
 	return _controller->section().mediaType();
@@ -190,54 +196,62 @@ bool InnerWidget::showInternal(not_null<Memento*> memento) {
 	if (mementoType == type()) {
 		restoreState(memento);
 		return true;
-	} else if (_otherTypes) {
-		if (TypeToTabIndex(mementoType)) {
-			switchToTab(std::move(*memento));
-			return true;
-		}
+
+	// Allows showing additional shared media links and tabs.
+	// Was done for top level tabs support.
+	//
+	//} else if (_otherTypes) {
+	//	if (TypeToTabIndex(mementoType)) {
+	//		switchToTab(std::move(*memento));
+	//		return true;
+	//	}
+
 	}
 	return false;
 }
 
-void InnerWidget::switchToTab(Memento &&memento) {
-	// Save state of the tab before setSection() call.
-	_controller->setSection(&memento);
-	_list = setupList();
-	restoreState(&memento);
-	_list->show();
-	_list->resizeToWidth(width());
-	refreshHeight();
-	if (_otherTypes) {
-		_otherTabsShadow->raise();
-		_otherTypes->raise();
-		_otherTabs->setActiveSection(*TypeToTabIndex(type()));
-	}
-}
-
-void InnerWidget::refreshSearchField() {
-	auto search = _controller->searchFieldController();
-	if (search && _otherTabs && _searchEnabled) {
-		_searchField = search->createRowView(
-			this,
-			st::infoMediaSearch);
-		_searchField->resizeToWidth(width());
-		_searchField->show();
-		search->queryChanges()
-			| rpl::start_with_next([this] {
-				scrollToSearchField();
-			}, _searchField->lifetime());
-	} else {
-		_searchField = nullptr;
-	}
-}
-
-void InnerWidget::scrollToSearchField() {
-	Expects(_searchField != nullptr);
-
-	auto top = _searchField->y();
-	auto bottom = top + _searchField->height();
-	_scrollToRequests.fire({ top, bottom });
-}
+// Allows showing additional shared media links and tabs.
+// Was done for top level tabs support.
+//
+//void InnerWidget::switchToTab(Memento &&memento) {
+//	// Save state of the tab before setSection() call.
+//	_controller->setSection(&memento);
+//	_list = setupList();
+//	restoreState(&memento);
+//	_list->show();
+//	_list->resizeToWidth(width());
+//	refreshHeight();
+//	if (_otherTypes) {
+//		_otherTabsShadow->raise();
+//		_otherTypes->raise();
+//		_otherTabs->setActiveSection(*TypeToTabIndex(type()));
+//	}
+//}
+//
+//void InnerWidget::refreshSearchField() {
+//	auto search = _controller->searchFieldController();
+//	if (search && _otherTabs && _searchEnabled) {
+//		_searchField = search->createRowView(
+//			this,
+//			st::infoMediaSearch);
+//		_searchField->resizeToWidth(width());
+//		_searchField->show();
+//		search->queryChanges()
+//			| rpl::start_with_next([this] {
+//				scrollToSearchField();
+//			}, _searchField->lifetime());
+//	} else {
+//		_searchField = nullptr;
+//	}
+//}
+//
+//void InnerWidget::scrollToSearchField() {
+//	Expects(_searchField != nullptr);
+//
+//	auto top = _searchField->y();
+//	auto bottom = top + _searchField->height();
+//	_scrollToRequests.fire({ top, bottom });
+//}
 
 object_ptr<ListWidget> InnerWidget::setupList() {
 	auto result = object_ptr<ListWidget>(
@@ -291,13 +305,13 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 	_inResize = true;
 	auto guard = gsl::finally([this] { _inResize = false; });
 
-	if (_otherTypes) {
-		_otherTypes->resizeToWidth(newWidth);
-		_otherTabsShadow->resizeToWidth(newWidth);
-	}
-	if (_searchField) {
-		_searchField->resizeToWidth(newWidth);
-	}
+	//if (_otherTypes) {
+	//	_otherTypes->resizeToWidth(newWidth);
+	//	_otherTabsShadow->resizeToWidth(newWidth);
+	//}
+	//if (_searchField) {
+	//	_searchField->resizeToWidth(newWidth);
+	//}
 	_list->resizeToWidth(newWidth);
 	_empty->resizeToWidth(newWidth);
 	return recountHeight();
@@ -312,15 +326,15 @@ void InnerWidget::refreshHeight() {
 
 int InnerWidget::recountHeight() {
 	auto top = 0;
-	if (_otherTypes) {
-		_otherTypes->moveToLeft(0, top);
-		top += _otherTypes->heightNoMargins() - st::lineWidth;
-		_otherTabsShadow->moveToLeft(0, top);
-	}
-	if (_searchField) {
-		_searchField->moveToLeft(0, top);
-		top += _searchField->heightNoMargins() - st::lineWidth;
-	}
+	//if (_otherTypes) {
+	//	_otherTypes->moveToLeft(0, top);
+	//	top += _otherTypes->heightNoMargins() - st::lineWidth;
+	//	_otherTabsShadow->moveToLeft(0, top);
+	//}
+	//if (_searchField) {
+	//	_searchField->moveToLeft(0, top);
+	//	top += _searchField->heightNoMargins() - st::lineWidth;
+	//}
 	auto listHeight = 0;
 	if (_list) {
 		_list->moveToLeft(0, top);

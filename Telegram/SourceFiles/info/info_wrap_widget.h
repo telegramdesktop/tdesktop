@@ -152,10 +152,11 @@ private:
 		not_null<ContentMemento*> memento,
 		const Window::SectionShow &params);
 	void setupTop();
-	void setupTabbedTop();
-	void setupTabs(Tab tab);
-	void createTabs();
+	//void setupTabbedTop();
+	//void setupTabs(Tab tab);
+	//void createTabs();
 	void createTopBar();
+	void highlightTopBar();
 
 	not_null<RpWidget*> topWidget() const;
 
@@ -165,7 +166,7 @@ private:
 	rpl::producer<bool> topShadowToggledValue() const;
 	void updateContentGeometry();
 
-	void showTab(Tab tab);
+	//void showTab(Tab tab);
 	void showContent(object_ptr<ContentWidget> content);
 	std::unique_ptr<ContentMemento> createTabMemento(Tab tab);
 	object_ptr<ContentWidget> createContent(
@@ -174,7 +175,7 @@ private:
 	std::unique_ptr<Controller> createController(
 		not_null<Window::Controller*> window,
 		not_null<ContentMemento*> memento);
-	void convertProfileFromStackToTab();
+	//void convertProfileFromStackToTab();
 
 	rpl::producer<SelectedItems> selectedListValue() const;
 	void refreshTopBarOverride();
@@ -190,8 +191,8 @@ private:
 	rpl::variable<Wrap> _wrap;
 	std::unique_ptr<Controller> _controller;
 	object_ptr<ContentWidget> _content = { nullptr };
-	object_ptr<Ui::PlainShadow> _topTabsBackground = { nullptr };
-	object_ptr<Ui::SettingsSlider> _topTabs = { nullptr };
+	//object_ptr<Ui::PlainShadow> _topTabsBackground = { nullptr };
+	//object_ptr<Ui::SettingsSlider> _topTabs = { nullptr };
 	object_ptr<TopBar> _topBar = { nullptr };
 	object_ptr<TopBarOverride> _topBarOverride = { nullptr };
 	Animation _topBarOverrideAnimation;

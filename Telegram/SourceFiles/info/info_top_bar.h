@@ -51,6 +51,7 @@ public:
 
 	void setTitle(rpl::producer<QString> &&title);
 	void enableBackButton(bool enable);
+	void highlight();
 
 	template <typename ButtonWidget>
 	ButtonWidget *addButton(base::unique_qptr<ButtonWidget> button) {
@@ -71,6 +72,7 @@ private:
 	void updateControlsGeometry(int newWidth);
 	void pushButton(base::unique_qptr<Ui::RpWidget> button);
 	void removeButton(not_null<Ui::RpWidget*> button);
+	void startHighlightAnimation();
 
 	void setSearchField(
 		base::unique_qptr<Ui::InputField> field,
@@ -80,6 +82,8 @@ private:
 		rpl::producer<bool> &&shown);
 
 	const style::InfoTopBar &_st;
+	Animation _a_highlight;
+	bool _highlight = false;
 	object_ptr<Ui::IconButton> _back = { nullptr };
 	std::vector<base::unique_qptr<Ui::RpWidget>> _buttons;
 	object_ptr<Ui::FlatLabel> _title = { nullptr };

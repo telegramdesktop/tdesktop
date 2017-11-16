@@ -221,7 +221,28 @@ void TopBar::updateControlsGeometry(int newWidth) {
 
 void TopBar::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	p.fillRect(e->rect(), _st.bg);
+
+	auto ms = getms();
+	auto highlight = _a_highlight.current(ms, _highlight ? 1. : 0.);
+	if (_highlight && !_a_highlight.animating()) {
+		_highlight = false;
+		startHighlightAnimation();
+	}
+	auto brush = anim::brush(_st.bg, _st.highlightBg, highlight);
+	p.fillRect(e->rect(), brush);
+}
+
+void TopBar::highlight() {
+	_highlight = true;
+	startHighlightAnimation();
+}
+
+void TopBar::startHighlightAnimation() {
+	_a_highlight.start(
+		[this] { update(); },
+		_highlight ? 0. : 1.,
+		_highlight ? 1. : 0.,
+		_st.highlightDuration);
 }
 
 rpl::producer<QString> TitleValue(
