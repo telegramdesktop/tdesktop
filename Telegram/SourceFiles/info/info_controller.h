@@ -98,7 +98,6 @@ public:
 	Wrap wrap() const;
 	rpl::producer<Wrap> wrapValue() const;
 	void setSection(not_null<ContentMemento*> memento);
-	bool hasStackHistory() const;
 
 	not_null<Window::Controller*> window() const {
 		return _window;

@@ -98,9 +98,6 @@ public:
 		return _wrap.value();
 	}
 	void setWrap(Wrap wrap);
-	bool hasStackHistory() const {
-		return !_historyStack.empty();
-	}
 
 	not_null<Controller*> controller() {
 		return _controller.get();
@@ -141,15 +138,21 @@ protected:
 private:
 	using SlideDirection = Window::SlideDirection;
 	using SectionSlideParams = Window::SectionSlideParams;
-	enum class Tab {
-		Profile,
-		Media,
-		None,
-	};
+	//enum class Tab {
+	//	Profile,
+	//	Media,
+	//	None,
+	//};
 	struct StackItem;
 
+	void startInjectingActivePeerProfiles();
+	void afterStackHistoryInject();
+	void injectActivePeerProfile(not_null<PeerData*> peer);
 	void restoreHistoryStack(
 		std::vector<std::unique_ptr<ContentMemento>> stack);
+	bool hasStackHistory() const {
+		return !_historyStack.empty();
+	}
 	void showBackFromStack();
 	void showNewContent(not_null<ContentMemento*> memento);
 	void showNewContent(
@@ -172,7 +175,7 @@ private:
 
 	//void showTab(Tab tab);
 	void showContent(object_ptr<ContentWidget> content);
-	std::unique_ptr<ContentMemento> createTabMemento(Tab tab);
+	//std::unique_ptr<ContentMemento> createTabMemento(Tab tab);
 	object_ptr<ContentWidget> createContent(
 		not_null<ContentMemento*> memento,
 		not_null<Controller*> controller);
@@ -205,8 +208,8 @@ private:
 	base::unique_qptr<Ui::IconButton> _topBarMenuToggle;
 	base::unique_qptr<Ui::DropdownMenu> _topBarMenu;
 
-	Tab _tab = Tab::Profile;
-	std::unique_ptr<ContentMemento> _anotherTabMemento;
+//	Tab _tab = Tab::Profile;
+//	std::unique_ptr<ContentMemento> _anotherTabMemento;
 	std::vector<StackItem> _historyStack;
 
 	rpl::event_stream<rpl::producer<int>> _desiredHeights;

@@ -58,7 +58,7 @@ const style::InfoTopBar &TopBarStyle(Wrap wrap) {
 
 struct WrapWidget::StackItem {
 	std::unique_ptr<ContentMemento> section;
-	std::unique_ptr<ContentMemento> anotherTab;
+//	std::unique_ptr<ContentMemento> anotherTab;
 };
 
 WrapWidget::WrapWidget(
@@ -91,7 +91,10 @@ WrapWidget::WrapWidget(
 void WrapWidget::restoreHistoryStack(
 		std::vector<std::unique_ptr<ContentMemento>> stack) {
 	Expects(!stack.empty());
-	Expects(_historyStack.empty());
+	Expects(!hasStackHistory());
+
+	startInjectingActivePeerProfiles();
+
 	auto content = std::move(stack.back());
 	stack.pop_back();
 	if (!stack.empty()) {
@@ -103,6 +106,43 @@ void WrapWidget::restoreHistoryStack(
 		}
 	}
 	showNewContent(content.get());
+}
+
+void WrapWidget::startInjectingActivePeerProfiles() {
+	using namespace rpl::mappers;
+	rpl::combine(
+		_wrap.value(),
+		_controller->window()->activePeer.value())
+		| rpl::filter(($1 == Wrap::Side) && ($2 != nullptr))
+		| rpl::map($2)
+		| rpl::start_with_next([this](not_null<PeerData*> peer) {
+			injectActivePeerProfile(peer);
+		}, lifetime());
+
+}
+
+void WrapWidget::injectActivePeerProfile(not_null<PeerData*> peer) {
+	auto firstPeerId = hasStackHistory()
+		? _historyStack.front().section->peerId()
+		: _controller->peerId();
+	auto firstSectionType = hasStackHistory()
+		? _historyStack.front().section->section().type()
+		: _controller->section().type();
+	if (firstSectionType != Section::Type::Profile
+		|| firstPeerId != peer->id) {
+		auto injected = StackItem();
+		injected.section = std::move(
+			Memento(peer->id).takeStack().front());
+		_historyStack.insert(
+			_historyStack.begin(),
+			std::move(injected));
+		afterStackHistoryInject();
+	}
+}
+
+void WrapWidget::afterStackHistoryInject() {
+	setupTop();
+	finishShowContent();
 }
 
 std::unique_ptr<Controller> WrapWidget::createController(
@@ -230,7 +270,7 @@ void WrapWidget::forceContentRepaint() {
 void WrapWidget::setupTop() {
 	// This was done for tabs support.
 	//
-	//if (wrap() == Wrap::Side && _historyStack.empty()) {
+	//if (wrap() == Wrap::Side && !hasStackHistory()) {
 	//	setupTabbedTop();
 	//} else {
 	//	setupTabs(Tab::None);
@@ -459,13 +499,13 @@ bool WrapWidget::requireTopBarSearch() const {
 void WrapWidget::showBackFromStack() {
 	auto params = Window::SectionShow(
 		Window::SectionShow::Way::Backward);
-	if (!_historyStack.empty()) {
+	if (hasStackHistory()) {
 		auto last = std::move(_historyStack.back());
 		_historyStack.pop_back();
 		showNewContent(
 			last.section.get(),
 			params);
-		_anotherTabMemento = std::move(last.anotherTab);
+		//_anotherTabMemento = std::move(last.anotherTab);
 	} else {
 		_controller->window()->showBackFromStack(params);
 	}
@@ -483,12 +523,12 @@ not_null<Ui::RpWidget*> WrapWidget::topWidget() const {
 void WrapWidget::showContent(object_ptr<ContentWidget> content) {
 	_content = std::move(content);
 	_content->show();
-	_anotherTabMemento = nullptr;
+	//_anotherTabMemento = nullptr;
 	finishShowContent();
 }
 
 void WrapWidget::finishShowContent() {
-	_content->setIsStackBottom(_historyStack.empty());
+	_content->setIsStackBottom(!hasStackHistory());
 	updateContentGeometry();
 	_desiredHeights.fire(desiredHeightForContent());
 	_desiredShadowVisibilities.fire(_content->desiredShadowVisibility());
@@ -528,19 +568,21 @@ rpl::producer<SelectedItems> WrapWidget::selectedListValue() const {
 	return _selectedLists.events() | rpl::flatten_latest();
 }
 
-std::unique_ptr<ContentMemento> WrapWidget::createTabMemento(
-		Tab tab) {
-	switch (tab) {
-	case Tab::Profile: return std::make_unique<Profile::Memento>(
-		_controller->peerId(),
-		_controller->migratedPeerId());
-	case Tab::Media: return std::make_unique<Media::Memento>(
-		_controller->peerId(),
-		_controller->migratedPeerId(),
-		Media::Type::Photo);
-	}
-	Unexpected("Tab value in Info::WrapWidget::createInner()");
-}
+// Was done for top level tabs support.
+//
+//std::unique_ptr<ContentMemento> WrapWidget::createTabMemento(
+//		Tab tab) {
+//	switch (tab) {
+//	case Tab::Profile: return std::make_unique<Profile::Memento>(
+//		_controller->peerId(),
+//		_controller->migratedPeerId());
+//	case Tab::Media: return std::make_unique<Media::Memento>(
+//		_controller->peerId(),
+//		_controller->migratedPeerId(),
+//		Media::Type::Photo);
+//	}
+//	Unexpected("Tab value in Info::WrapWidget::createInner()");
+//}
 
 object_ptr<ContentWidget> WrapWidget::createContent(
 		not_null<ContentMemento*> memento,
@@ -554,7 +596,7 @@ object_ptr<ContentWidget> WrapWidget::createContent(
 // Was done for top level tabs support.
 //
 //void WrapWidget::convertProfileFromStackToTab() {
-//	if (_historyStack.empty()) {
+//	if (!hasStackHistory()) {
 //		return;
 //	}
 //	auto &entry = _historyStack[0];
@@ -641,7 +683,7 @@ bool WrapWidget::showInternal(
 			return false;
 		}
 		auto content = infoMemento->content();
-		auto skipInternal = !_historyStack.empty()
+		auto skipInternal = hasStackHistory()
 			&& (params.way == Window::SectionShow::Way::ClearStack);
 		if (_controller->validateMementoPeer(content)
 			&& infoMemento->stackSize() == 1) {
@@ -731,9 +773,9 @@ void WrapWidget::showNewContent(
 	if (saveToStack) {
 		auto item = StackItem();
 		item.section = _content->createMemento();
-		if (_anotherTabMemento) {
-			item.anotherTab = std::move(_anotherTabMemento);
-		}
+		//if (_anotherTabMemento) {
+		//	item.anotherTab = std::move(_anotherTabMemento);
+		//}
 		_historyStack.push_back(std::move(item));
 	} else if (params.way == Window::SectionShow::Way::ClearStack) {
 		_historyStack.clear();
