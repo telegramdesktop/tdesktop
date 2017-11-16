@@ -46,7 +46,6 @@ void EmptyWidget::setFullHeight(rpl::producer<int> fullHeightValue) {
 
 void EmptyWidget::setType(Type type) {
 	_type = type;
-	using Data = std::pair<const style::icon*, LangKey>;
 	_icon = [&] {
 		switch (_type) {
 		case Type::Photo: return &st::infoEmptyPhoto;

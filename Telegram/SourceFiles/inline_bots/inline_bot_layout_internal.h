@@ -80,7 +80,7 @@ public:
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 
-	int resizeGetHeight(int width) {
+	int resizeGetHeight(int width) override {
 		_width = width;
 		return _minh;
 	}
