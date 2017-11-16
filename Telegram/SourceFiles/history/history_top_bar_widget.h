@@ -49,14 +49,13 @@ public:
 
 	void updateControlsVisibility();
 	void showSelected(SelectedState state);
-	void animationFinished();
 	rpl::producer<bool> membersShowAreaActive() const {
 		return _membersShowAreaActive.events();
 	}
+	void setAnimationMode(bool enabled);
 
 	void setHistoryPeer(not_null<PeerData*> historyPeer);
 
-	void clicked();
 	static void paintUnreadCounter(
 		Painter &p,
 		int outerWidth,
@@ -77,7 +76,6 @@ private:
 	void onForwardSelection();
 	void onDeleteSelection();
 	void onClearSelection();
-	void onInfoClicked();
 	void onCall();
 	void onSearch();
 	void showMenu();
@@ -86,12 +84,15 @@ private:
 	void updateAdaptiveLayout();
 	int countSelectedButtonsTop(float64 selectedShown);
 
-	void paintTopBar(Painter &p, int decreaseWidth, TimeMs ms);
+	void paintTopBar(Painter &p, TimeMs ms);
 	QRect getMembersShowAreaGeometry() const;
 	void updateMembersShowArea();
 	void updateOnlineDisplay();
 	void updateOnlineDisplayTimer();
 	void updateOnlineDisplayIn(TimeMs timeout);
+
+	void infoClicked();
+	void backClicked();
 
 	not_null<Window::Controller*> _controller;
 	PeerData *_historyPeer = nullptr;
@@ -105,6 +106,7 @@ private:
 	object_ptr<Ui::RoundButton> _clearSelection;
 	object_ptr<Ui::RoundButton> _forward, _delete;
 
+	object_ptr<Ui::IconButton> _back;
 	object_ptr<Ui::UserpicButton> _info = { nullptr };
 
 	object_ptr<Ui::IconButton> _call;
@@ -119,6 +121,9 @@ private:
 	QString _titlePeerText;
 	bool _titlePeerTextOnline = false;
 	int _titlePeerTextWidth = 0;
+	int _leftTaken = 0;
+	int _rightTaken = 0;
+	bool _animationMode = false;
 
 	int _unreadCounterSubscription = 0;
 	base::Timer _onlineUpdater;

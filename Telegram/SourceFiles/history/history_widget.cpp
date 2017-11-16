@@ -2998,10 +2998,8 @@ void HistoryWidget::showAnimated(
 	}
 	_a_show.start([this] { animationCallback(); }, 0., 1., st::slideDuration, Window::SlideAnimation::transition());
 	if (_history) {
-		_backAnimationButton.create(this);
-		_backAnimationButton->setClickedCallback([this] { _topBar->clicked(); });
-		_backAnimationButton->setGeometry(_topBar->geometry());
-		_backAnimationButton->show();
+		_topBar->show();
+		_topBar->setAnimationMode(true);
 	}
 
 	activate();
@@ -3018,8 +3016,7 @@ void HistoryWidget::animationCallback() {
 }
 
 void HistoryWidget::doneShow() {
-	_topBar->animationFinished();
-	_backAnimationButton.destroy();
+	_topBar->setAnimationMode(false);
 	updateReportSpamStatus();
 	updateBotKeyboard();
 	updateControlsVisibility();

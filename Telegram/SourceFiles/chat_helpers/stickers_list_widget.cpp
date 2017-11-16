@@ -493,10 +493,6 @@ object_ptr<TabbedSelector::InnerFooter> StickersListWidget::createFooter() {
 void StickersListWidget::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
-	if (!_columnCount) {
-		return;
-	}
-
 	auto top = getVisibleTop();
 	Inner::visibleTopBottomUpdated(visibleTop, visibleBottom);
 	if (_section == Section::Featured) {

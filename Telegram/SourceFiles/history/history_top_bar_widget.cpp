@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
+#include "styles/style_info.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
 #include "info/info_memento.h"
@@ -51,12 +52,14 @@ HistoryTopBarWidget::HistoryTopBarWidget(
 , _clearSelection(this, langFactory(lng_selected_clear), st::topBarClearButton)
 , _forward(this, langFactory(lng_selected_forward), st::defaultActiveButton)
 , _delete(this, langFactory(lng_selected_delete), st::defaultActiveButton)
+, _back(this, st::historyTopBarBack)
 , _call(this, st::topBarCall)
 , _search(this, st::topBarSearch)
 , _infoToggle(this, st::topBarInfo)
 , _menuToggle(this, st::topBarMenuToggle)
 , _onlineUpdater([this] { updateOnlineDisplay(); }) {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
+	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	_forward->setClickedCallback([this] { onForwardSelection(); });
 	_forward->setWidthChangedCallback([this] { updateControlsGeometry(); });
@@ -67,6 +70,7 @@ HistoryTopBarWidget::HistoryTopBarWidget(
 	_search->setClickedCallback([this] { onSearch(); });
 	_menuToggle->setClickedCallback([this] { showMenu(); });
 	_infoToggle->setClickedCallback([this] { toggleInfoSection(); });
+	_back->addClickHandler([this] { backClicked(); });
 
 	rpl::combine(
 		_controller->historyPeer.value(),
@@ -116,7 +120,8 @@ HistoryTopBarWidget::HistoryTopBarWidget(
 		}
 	}));
 	subscribe(Global::RefPhoneCallsEnabledChanged(), [this] {
-		updateControlsVisibility(); });
+		updateControlsVisibility();
+	});
 
 	rpl::combine(
 		Auth().data().thirdSectionInfoEnabledValue(),
@@ -143,12 +148,6 @@ void HistoryTopBarWidget::onDeleteSelection() {
 
 void HistoryTopBarWidget::onClearSelection() {
 	if (App::main()) App::main()->clearSelectedItems();
-}
-
-void HistoryTopBarWidget::onInfoClicked() {
-	if (_historyPeer) {
-		_controller->showPeerInfo(_historyPeer);
-	}
 }
 
 void HistoryTopBarWidget::onSearch() {
@@ -240,6 +239,9 @@ bool HistoryTopBarWidget::eventFilter(QObject *obj, QEvent *e) {
 }
 
 void HistoryTopBarWidget::paintEvent(QPaintEvent *e) {
+	if (_animationMode) {
+		return;
+	}
 	Painter p(this);
 
 	auto ms = getms();
@@ -253,43 +255,21 @@ void HistoryTopBarWidget::paintEvent(QPaintEvent *e) {
 		p.translate(0, selectedButtonsTop + st::topBarHeight);
 
 		p.save();
-		auto decreaseWidth = 0;
-		if (_info && !_info->isHidden()) {
-			decreaseWidth += _info->width();
-		}
-		if (!_menuToggle->isHidden()) {
-			decreaseWidth += _menuToggle->width();
-		}
-		if (!_infoToggle->isHidden()) {
-			decreaseWidth += _infoToggle->width() + st::topBarSkip;
-		}
-		if (!_search->isHidden()) {
-			decreaseWidth += _search->width();
-		}
-		if (!_call->isHidden()) {
-			decreaseWidth += st::topBarCallSkip + _call->width();
-		}
-		paintTopBar(p, decreaseWidth, ms);
+		paintTopBar(p, ms);
 		p.restore();
 
 		paintUnreadCounter(p, width(), _historyPeer);
 	}
 }
 
-void HistoryTopBarWidget::paintTopBar(
-		Painter &p,
-		int decreaseWidth,
-		TimeMs ms) {
+void HistoryTopBarWidget::paintTopBar(Painter &p, TimeMs ms) {
 	auto history = App::historyLoaded(_historyPeer);
 	if (!history) return;
 
-	auto increaseLeft = (Adaptive::OneColumn() || !App::main()->stackIsEmpty())
-		? (st::topBarArrowPadding.left() - st::topBarArrowPadding.right())
-		: 0;
-	auto nameleft = st::topBarArrowPadding.right() + increaseLeft;
+	auto nameleft = _leftTaken;
 	auto nametop = st::topBarArrowPadding.top();
 	auto statustop = st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height;
-	auto namewidth = width() - decreaseWidth - nameleft - st::topBarArrowPadding.right();
+	auto namewidth = width() - _rightTaken - nameleft;
 	p.setFont(st::dialogsTextFont);
 	if (!history->paintSendAction(p, nameleft, statustop, namewidth, width(), st::historyStatusFgTyping, ms)) {
 		p.setPen(_titlePeerTextOnline ? st::historyStatusFgActive : st::historyStatusFg);
@@ -298,21 +278,10 @@ void HistoryTopBarWidget::paintTopBar(
 
 	p.setPen(st::dialogsNameFg);
 	_historyPeer->dialogName().drawElided(p, nameleft, nametop, namewidth);
-
-	if (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) {
-		st::topBarBackward.paint(
-			p,
-			(st::topBarArrowPadding.left() - st::topBarBackward.width()) / 2,
-			(st::topBarHeight - st::topBarBackward.height()) / 2,
-			width());
-	}
 }
 
 QRect HistoryTopBarWidget::getMembersShowAreaGeometry() const {
-	int increaseLeft = (Adaptive::OneColumn() || !App::main()->stackIsEmpty())
-		? (st::topBarArrowPadding.left() - st::topBarArrowPadding.right())
-		: 0;
-	int membersTextLeft = st::topBarArrowPadding.right() + increaseLeft;
+	int membersTextLeft = _leftTaken;
 	int membersTextTop = st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height;
 	int membersTextWidth = _titlePeerTextWidth;
 	int membersTextHeight = st::topBarHeight - membersTextTop;
@@ -353,19 +322,24 @@ void HistoryTopBarWidget::paintUnreadCounter(
 }
 
 void HistoryTopBarWidget::mousePressEvent(QMouseEvent *e) {
-	if (e->button() == Qt::LeftButton
-		&& e->pos().y() < st::topBarHeight
-		&& !_selectedCount) {
-		clicked();
+	auto handleClick = (e->button() == Qt::LeftButton)
+		&& (e->pos().y() < st::topBarHeight)
+		&& (!_selectedCount);
+	if (handleClick) {
+		if (_animationMode && _back->rect().contains(e->pos())) {
+			backClicked();
+		} else if (_historyPeer) {
+			infoClicked();
+		}
 	}
 }
 
-void HistoryTopBarWidget::clicked() {
-	if (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) {
-		_controller->showBackFromStack();
-	} else if (_historyPeer) {
-		_controller->showPeerInfo(_historyPeer);
-	}
+void HistoryTopBarWidget::infoClicked() {
+	_controller->showPeerInfo(_historyPeer);
+}
+
+void HistoryTopBarWidget::backClicked() {
+	_controller->showBackFromStack();
 }
 
 void HistoryTopBarWidget::setHistoryPeer(
@@ -377,8 +351,9 @@ void HistoryTopBarWidget::setHistoryPeer(
 				this,
 				_controller,
 				_historyPeer,
-				Ui::UserpicButton::Role::OpenProfile,
+				Ui::UserpicButton::Role::Custom,
 				st::topBarInfoButton);
+			_info->setAttribute(Qt::WA_TransparentForMouseEvents);
 		} else {
 			_info.destroy();
 		}
@@ -417,49 +392,58 @@ void HistoryTopBarWidget::updateControlsGeometry() {
 	_delete->moveToLeft(buttonsLeft, selectedButtonsTop);
 	_clearSelection->moveToRight(st::topBarActionSkip, selectedButtonsTop);
 
-	auto right = 0;
-	if (_info) {
-		_info->moveToRight(right, otherButtonsTop);
-	}
-	_menuToggle->moveToRight(right, otherButtonsTop);
-	if (!_info || _info->isHidden()) {
-		right += _menuToggle->width() + st::topBarSkip;
+	if (_back->isHidden()) {
+		_leftTaken = st::topBarArrowPadding.right();
 	} else {
-		right += _info->width();
+		_leftTaken = 0;
+		_back->moveToLeft(_leftTaken, otherButtonsTop);
+		_leftTaken += _back->width();
+		if (_info) {
+			_info->moveToLeft(_leftTaken, otherButtonsTop);
+			_leftTaken += _info->width();
+		}
 	}
-	_infoToggle->moveToRight(right, otherButtonsTop);
+
+	_rightTaken = 0;
+	_menuToggle->moveToRight(_rightTaken, otherButtonsTop);
+	_rightTaken += _menuToggle->width() + st::topBarSkip;
+	_infoToggle->moveToRight(_rightTaken, otherButtonsTop);
 	if (!_infoToggle->isHidden()) {
-		right += _infoToggle->width() + st::topBarSkip;
+		_rightTaken += _infoToggle->width() + st::topBarSkip;
 	}
-	_search->moveToRight(right, otherButtonsTop);
-	right += _search->width() + st::topBarCallSkip;
-	_call->moveToRight(right, otherButtonsTop);
+	_search->moveToRight(_rightTaken, otherButtonsTop);
+	_rightTaken += _search->width() + st::topBarCallSkip;
+	_call->moveToRight(_rightTaken, otherButtonsTop);
+	_rightTaken += _call->width();
 }
 
-void HistoryTopBarWidget::animationFinished() {
-	updateMembersShowArea();
-	updateControlsVisibility();
+void HistoryTopBarWidget::setAnimationMode(bool enabled) {
+	if (_animationMode != enabled) {
+		_animationMode = enabled;
+		setAttribute(Qt::WA_OpaquePaintEvent, !_animationMode);
+		_selectedShown.finish();
+		updateMembersShowArea();
+		updateControlsVisibility();
+	}
 }
 
 void HistoryTopBarWidget::updateControlsVisibility() {
+	if (_animationMode) {
+		hideChildren();
+		return;
+	}
 	_clearSelection->show();
 	_delete->setVisible(_canDelete);
 	_forward->setVisible(_canForward);
 
-	if (Adaptive::OneColumn()
-		|| (App::main() && !App::main()->stackIsEmpty())) {
-		if (_info) {
-			_info->show();
-		}
-		_menuToggle->hide();
-		_menu.destroy();
-	} else {
-		if (_info) {
-			_info->hide();
-		}
-		_menuToggle->show();
+	auto backVisible = Adaptive::OneColumn()
+		|| (App::main() && !App::main()->stackIsEmpty());
+	_back->setVisible(backVisible);
+	if (_info) {
+		_info->setVisible(backVisible);
 	}
 	_search->show();
+	_menuToggle->show();
 	_infoToggle->setVisible(!Adaptive::OneColumn()
 		&& _controller->canShowThirdSection());
 	auto callsEnabled = false;

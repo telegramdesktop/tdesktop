@@ -300,8 +300,9 @@ topBarMenuToggle: IconButton(topBarSearch) {
 topBarActionSkip: 10px;
 
 topBarInfoButton: UserpicButton(defaultUserpicButton) {
-	size: size(topBarHeight, topBarHeight);
+	size: size(52px, topBarHeight);
 	photoSize: 42px;
+	photoPosition: point(2px, -1px);
 }
 topBarSlideDuration: 200;
 

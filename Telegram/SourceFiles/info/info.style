@@ -385,6 +385,7 @@ infoNotificationsButton: InfoProfileButton(infoProfileButton) {
 infoMainButton: InfoProfileButton(infoProfileButton) {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;
+	font: semiboldFont;
 }
 infoSharedMediaCoverHeight: 62px;
 infoSharedMediaButton: infoProfileButton;
@@ -610,3 +611,7 @@ editPeerSignaturesMargins: margins(23px, 16px, 23px, 8px);
 editPeerInvitesMargins: margins(23px, 18px, 23px, 16px);
 editPeerInvitesTopSkip: 10px;
 editPeerInvitesSkip: 10px;
+
+historyTopBarBack: IconButton(infoTopBarBack) {
+	width: 52px;
+}

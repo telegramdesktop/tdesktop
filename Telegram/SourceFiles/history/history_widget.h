@@ -728,7 +728,6 @@ private:
 	MsgId _delayedShowAtMsgId = -1; // wtf?
 	mtpRequestId _delayedShowAtRequest = 0;
 
-	object_ptr<Ui::AbstractButton> _backAnimationButton = { nullptr };
 	object_ptr<HistoryTopBarWidget> _topBar;
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<HistoryInner> _list;

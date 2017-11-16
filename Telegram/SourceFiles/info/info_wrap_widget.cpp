@@ -620,6 +620,7 @@ void WrapWidget::showAnimatedHook(
 	if (params.withTopBarShadow) {
 		_topShadow->setVisible(true);
 	}
+	_topBarSurrogate = createTopBarSurrogate(this);
 }
 
 void WrapWidget::doSetInnerFocus() {
@@ -629,6 +630,7 @@ void WrapWidget::doSetInnerFocus() {
 void WrapWidget::showFinishedHook() {
 	// Restore shadow visibility after showChildren() call.
 	_topShadow->toggle(_topShadow->toggled(), anim::type::instant);
+	_topBarSurrogate.destroy();
 }
 
 bool WrapWidget::showInternal(
@@ -805,6 +807,24 @@ bool WrapWidget::wheelEventFromFloatPlayer(QEvent *e) {
 
 QRect WrapWidget::rectForFloatPlayer() const {
 	return _content->rectForFloatPlayer();
+}
+
+object_ptr<Ui::RpWidget> WrapWidget::createTopBarSurrogate(
+		QWidget *parent) {
+	if (hasStackHistory() || wrap() == Wrap::Narrow) {
+		Assert(_topBar != nullptr);
+
+		auto result = object_ptr<Ui::AbstractButton>(parent);
+		result->addClickHandler([wrap = weak(this)]{
+			if (wrap) {
+				wrap->showBackFromStack();
+			}
+		});
+		result->setGeometry(_topBar->geometry());
+		result->show();
+		return std::move(result);
+	}
+	return nullptr;
 }
 
 WrapWidget::~WrapWidget() = default;

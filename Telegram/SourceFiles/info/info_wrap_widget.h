@@ -109,8 +109,7 @@ public:
 	bool hasTopBarShadow() const override;
 	QPixmap grabForShowAnimation(
 		const Window::SectionSlideParams &params) override;
-	void showAnimatedHook(
-		const Window::SectionSlideParams &params) override;
+
 	void forceContentRepaint();
 
 	bool showInternal(
@@ -126,6 +125,8 @@ public:
 	bool wheelEventFromFloatPlayer(QEvent *e) override;
 	QRect rectForFloatPlayer() const override;
 
+	object_ptr<Ui::RpWidget> createTopBarSurrogate(QWidget *parent);
+
 	~WrapWidget();
 
 protected:
@@ -133,6 +134,9 @@ protected:
 
 	void doSetInnerFocus() override;
 	void showFinishedHook() override;
+
+	void showAnimatedHook(
+		const Window::SectionSlideParams &params) override;
 
 private:
 	using SlideDirection = Window::SlideDirection;
@@ -194,6 +198,7 @@ private:
 	//object_ptr<Ui::PlainShadow> _topTabsBackground = { nullptr };
 	//object_ptr<Ui::SettingsSlider> _topTabs = { nullptr };
 	object_ptr<TopBar> _topBar = { nullptr };
+	object_ptr<Ui::RpWidget> _topBarSurrogate = { nullptr };
 	object_ptr<TopBarOverride> _topBarOverride = { nullptr };
 	Animation _topBarOverrideAnimation;
 	object_ptr<Ui::FadeShadow> _topShadow;

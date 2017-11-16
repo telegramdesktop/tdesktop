@@ -74,7 +74,13 @@ void SectionWidget::doSetInnerFocus() {
 }
 
 void SectionWidget::showFinishedHook() {
+	_topBarSurrogate.destroy();
 	_content->showFast();
+}
+
+void SectionWidget::showAnimatedHook(
+		const Window::SectionSlideParams &params) {
+	_topBarSurrogate = _content->createTopBarSurrogate(this);
 }
 
 bool SectionWidget::showInternal(

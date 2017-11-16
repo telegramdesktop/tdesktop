@@ -70,10 +70,14 @@ protected:
 	void doSetInnerFocus() override;
 	void showFinishedHook() override;
 
+	void showAnimatedHook(
+		const Window::SectionSlideParams &params) override;
+
 private:
 	void init();
 
 	object_ptr<WrapWidget> _content;
+	object_ptr<Ui::RpWidget> _topBarSurrogate = { nullptr };
 
 };
 
