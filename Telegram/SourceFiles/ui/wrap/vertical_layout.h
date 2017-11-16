@@ -67,6 +67,7 @@ private:
 		style::margins margin;
 	};
 	std::vector<Row> _rows;
+	bool _inResize = false;
 
 };
 

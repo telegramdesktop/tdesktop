@@ -77,6 +77,9 @@ private:
 	object_ptr<RpWidget> setupSharedMedia(not_null<RpWidget*> parent);
 
 	int countDesiredHeight() const;
+	void updateDesiredHeight() {
+		_desiredHeight.fire(countDesiredHeight());
+	}
 
 	bool canHideDetailsEver() const;
 	rpl::producer<bool> canHideDetails() const;
@@ -93,6 +96,7 @@ private:
 	Ui::SlideWrap<RpWidget> *_sharedMediaWrap = nullptr;
 	object_ptr<RpWidget> _content;
 
+	bool _inResize = false;
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 	rpl::event_stream<int> _desiredHeight;
 

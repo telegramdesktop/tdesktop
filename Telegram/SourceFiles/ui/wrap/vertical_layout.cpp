@@ -59,6 +59,9 @@ int VerticalLayout::naturalWidth() const {
 }
 
 int VerticalLayout::resizeGetHeight(int newWidth) {
+	_inResize = true;
+	auto guard = gsl::finally([&] { _inResize = false; });
+
 	auto margins = getMargins();
 	auto result = 0;
 	for (auto &row : _rows) {
@@ -72,7 +75,7 @@ int VerticalLayout::resizeGetHeight(int newWidth) {
 			+ row.widget->heightNoMargins()
 			+ row.margin.bottom();
 	}
-	return height() - margins.top() - margins.bottom();
+	return result - margins.bottom();
 }
 
 void VerticalLayout::visibleTopBottomUpdated(
@@ -116,7 +119,9 @@ RpWidget *VerticalLayout::addChild(
 			height() - margins.top() - margins.bottom());
 		weak->heightValue()
 			| rpl::start_with_next_done([this, weak] {
-				childHeightUpdated(weak);
+				if (!_inResize) {
+					childHeightUpdated(weak);
+				}
 			}, [this, weak] {
 				removeChild(weak);
 			}, lifetime());

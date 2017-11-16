@@ -518,18 +518,17 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 	auto text = Notify::PeerUpdateValue(
 		user,
 		Notify::PeerUpdate::Flag::UserIsBlocked)
-		| rpl::map([user]() -> rpl::producer<QString> {
+		| rpl::map([user] {
 			switch (user->blockStatus()) {
 			case UserData::BlockStatus::Blocked:
 				return Lang::Viewer(user->botInfo
 					? lng_profile_unblock_bot
 					: lng_profile_unblock_user);
 			case UserData::BlockStatus::NotBlocked:
+			default:
 				return Lang::Viewer(user->botInfo
 					? lng_profile_block_bot
 					: lng_profile_block_user);
-			default:
-				return rpl::single(QString());
 			}
 		})
 		| rpl::flatten_latest()

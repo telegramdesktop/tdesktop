@@ -69,8 +69,10 @@ InnerWidget::InnerWidget(
 , _content(setupContent(this)) {
 	_content->heightValue()
 		| rpl::start_with_next([this](int height) {
-			resizeToWidth(width());
-			_desiredHeight.fire(countDesiredHeight());
+			if (!_inResize) {
+				resizeToWidth(width());
+				updateDesiredHeight();
+			}
 		}, lifetime());
 }
 
@@ -259,8 +261,12 @@ void InnerWidget::restoreState(not_null<Memento*> memento) {
 }
 
 int InnerWidget::resizeGetHeight(int newWidth) {
+	_inResize = true;
+	auto guard = gsl::finally([&] { _inResize = false; });
+
 	_content->resizeToWidth(newWidth);
 	_content->moveToLeft(0, 0);
+	updateDesiredHeight();
 	return _content->heightNoMargins();
 }
 

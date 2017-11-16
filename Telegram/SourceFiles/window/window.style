@@ -34,8 +34,8 @@ columnMinimalWidthLeft: 260px;
 columnMaximalWidthLeft: 540px;
 columnMinimalWidthMain: 380px;
 columnDesiredWidthMain: 512px;
-columnMinimalWidthThird: 292px;//345px;
-columnMaximalWidthThird: 430px;//345px;
+columnMinimalWidthThird: 292px;
+columnMaximalWidthThird: 392px;
 
 adaptiveChatWideWidth: 880px;
 

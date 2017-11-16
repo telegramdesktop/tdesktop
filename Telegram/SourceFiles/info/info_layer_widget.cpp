@@ -111,7 +111,13 @@ bool LayerWidget::takeToThirdSection() {
 bool LayerWidget::showSectionInternal(
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) {
-	return _content->showInternal(memento, params);
+	if (_content->showInternal(memento, params)) {
+		if (params.activation != anim::activation::background) {
+			Ui::hideLayer();
+		}
+		return true;
+	}
+	return false;
 }
 
 int LayerWidget::MinimalSupportedWidth() {

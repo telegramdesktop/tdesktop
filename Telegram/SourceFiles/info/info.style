@@ -242,7 +242,7 @@ infoTopBarMenuPosition: point(-2px, 35px);
 infoLayerTopBarMenuPosition: point(40px, 37px);
 
 infoMinimalWidth: 324px;
-infoDesiredWidth: 430px;
+infoDesiredWidth: 392px;
 infoMinimalLayerMargin: 48px;
 
 infoTabs: SettingsSlider(defaultTabsSlider) {

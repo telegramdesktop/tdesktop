@@ -446,7 +446,6 @@ void PeerMenuDeleteContact(not_null<UserData*> user) {
 		lt_contact,
 		App::peerName(user));
 	auto deleteSure = [=] {
-		Ui::showChatsList();
 		Ui::hideLayer();
 		MTP::send(
 			MTPcontacts_DeleteContact(user->inputUser),
