@@ -369,20 +369,35 @@ void MainWindow::showRightColumn(object_ptr<TWidget> widget) {
 	}
 }
 
-bool MainWindow::canExtendWidthBy(int addToWidth) {
+int MainWindow::maximalExtendBy() const {
 	auto desktop = QDesktopWidget().availableGeometry(this);
-	return (width() + addToWidth) <= desktop.width();
+	return std::max(desktop.width() - geometry().width(), 0);
 }
 
-void MainWindow::tryToExtendWidthBy(int addToWidth) {
+bool MainWindow::canExtendNoMove(int extendBy) const {
 	auto desktop = QDesktopWidget().availableGeometry(this);
-	auto newWidth = qMin(width() + addToWidth, desktop.width());
-	auto newLeft = qMin(x(), desktop.x() + desktop.width() - newWidth);
-	if (x() != newLeft || width() != newWidth) {
-		setGeometry(newLeft, y(), newWidth, height());
+	auto inner = geometry();
+	auto innerRight = (inner.x() + inner.width() + extendBy);
+	auto desktopRight = (desktop.x() + desktop.width());
+	return innerRight <= desktopRight;
+}
+
+int MainWindow::tryToExtendWidthBy(int addToWidth) {
+	auto desktop = QDesktopWidget().availableGeometry(this);
+	auto inner = geometry();
+	accumulate_min(
+		addToWidth,
+		std::max(desktop.width() - inner.width(), 0));
+	auto newWidth = inner.width() + addToWidth;
+	auto newLeft = std::min(
+		inner.x(),
+		desktop.x() + desktop.width() - newWidth);
+	if (inner.x() != newLeft || inner.width() != newWidth) {
+		setGeometry(newLeft, inner.y(), newWidth, inner.height());
 	} else {
 		updateControlsGeometry();
 	}
+	return addToWidth;
 }
 
 void MainWindow::launchDrag(std::unique_ptr<QMimeData> data) {

@@ -78,6 +78,7 @@ QByteArray AuthSessionData::serialize() const {
 			0,
 			1000000));
 		stream << qint32(_variables.thirdColumnWidth.current());
+		stream << qint32(_variables.thirdSectionExtendedBy);
 	}
 	return result;
 }
@@ -101,6 +102,7 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	qint32 smallDialogsList = 0;
 	float64 dialogsWidthRatio = _variables.dialogsWidthRatio.current();
 	int thirdColumnWidth = _variables.thirdColumnWidth.current();
+	int thirdSectionExtendedBy = _variables.thirdSectionExtendedBy;
 	stream >> selectorTab;
 	stream >> lastSeenWarningSeen;
 	if (!stream.atEnd()) {
@@ -145,6 +147,9 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 
 		stream >> value;
 		thirdColumnWidth = value;
+
+		stream >> value;
+		thirdSectionExtendedBy = value;
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: Bad data for AuthSessionData::constructFromSerialized()"));
@@ -179,6 +184,7 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	_variables.smallDialogsList = smallDialogsList;
 	_variables.dialogsWidthRatio = dialogsWidthRatio;
 	_variables.thirdColumnWidth = thirdColumnWidth;
+	_variables.thirdSectionExtendedBy = thirdSectionExtendedBy;
 	if (_variables.thirdSectionInfoEnabled) {
 		_variables.tabbedSelectorSectionEnabled = false;
 	}

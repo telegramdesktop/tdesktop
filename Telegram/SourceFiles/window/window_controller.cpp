@@ -167,12 +167,9 @@ Controller::ShrinkResult Controller::shrinkDialogsAndThirdColumns(
 
 bool Controller::canShowThirdSection() const {
 	auto currentLayout = computeColumnLayout();
-	auto extendBy = minimalThreeColumnWidth()
+	auto minimalExtendBy = minimalThreeColumnWidth()
 		- currentLayout.bodyWidth;
-	if (extendBy <= 0) {
-		return true;
-	}
-	return window()->canExtendWidthBy(extendBy);
+	return (minimalExtendBy <= window()->maximalExtendBy());
 }
 
 bool Controller::canShowThirdSectionWithoutResize() const {
@@ -197,14 +194,35 @@ void Controller::resizeForThirdSection() {
 	Auth().data().setTabbedSelectorSectionEnabled(false);
 	Auth().data().setThirdSectionInfoEnabled(false);
 
-	auto extendBy = qMax(
-		minimalThreeColumnWidth() - layout.bodyWidth,
-		countThirdColumnWidthFromRatio(layout.bodyWidth));
-	auto newBodyWidth = layout.bodyWidth + extendBy;
-	auto currentRatio = Auth().data().dialogsWidthRatio();
-	Auth().data().setDialogsWidthRatio(
-		(currentRatio * layout.bodyWidth) / newBodyWidth);
-	window()->tryToExtendWidthBy(extendBy);
+	auto wanted = countThirdColumnWidthFromRatio(layout.bodyWidth);
+	auto minimal = st::columnMinimalWidthThird;
+	auto extendBy = wanted;
+	auto extendedBy = [&] {
+		// Best - extend by third column without moving the window.
+		// Next - extend by minimal third column without moving.
+		// Next - show third column inside the window without moving.
+		// Last - extend with moving.
+		if (window()->canExtendNoMove(wanted)) {
+			return window()->tryToExtendWidthBy(wanted);
+		} else if (window()->canExtendNoMove(minimal)) {
+			extendBy = minimal;
+			return window()->tryToExtendWidthBy(minimal);
+		} else if (layout.bodyWidth >= minimalThreeColumnWidth()) {
+			return 0;
+		}
+		return window()->tryToExtendWidthBy(minimal);
+	}();
+	if (extendedBy) {
+		if (extendBy != Auth().data().thirdColumnWidth()) {
+			Auth().data().setThirdColumnWidth(extendBy);
+		}
+		auto newBodyWidth = layout.bodyWidth + extendedBy;
+		auto currentRatio = Auth().data().dialogsWidthRatio();
+		Auth().data().setDialogsWidthRatio(
+			(currentRatio * layout.bodyWidth) / newBodyWidth);
+	}
+	auto savedValue = (extendedBy == extendBy) ? -1 : extendedBy;
+	Auth().data().setThirdSectionExtendedBy(savedValue);
 
 	Auth().data().setTabbedSelectorSectionEnabled(
 		tabbedSelectorSectionEnabled);
@@ -218,11 +236,16 @@ void Controller::closeThirdSection() {
 	if (layout.windowLayout == Adaptive::WindowLayout::ThreeColumn) {
 		auto noResize = window()->isFullScreen()
 			|| window()->isMaximized();
+		auto savedValue = Auth().data().thirdSectionExtendedBy();
+		auto extendedBy = (savedValue == -1)
+			? layout.thirdWidth
+			: savedValue;
 		auto newBodyWidth = noResize
 			? layout.bodyWidth
-			: (layout.bodyWidth - layout.thirdWidth);
+			: (layout.bodyWidth - extendedBy);
 		auto currentRatio = Auth().data().dialogsWidthRatio();
-		Auth().data().setDialogsWidthRatio((currentRatio * layout.bodyWidth) / newBodyWidth);
+		Auth().data().setDialogsWidthRatio(
+			(currentRatio * layout.bodyWidth) / newBodyWidth);
 		newWindowSize = QSize(
 			window()->width() + (newBodyWidth - layout.bodyWidth),
 			window()->height());

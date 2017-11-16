@@ -76,8 +76,11 @@ public:
 	}
 
 	void showRightColumn(object_ptr<TWidget> widget);
-	bool canExtendWidthBy(int addToWidth);
-	void tryToExtendWidthBy(int addToWidth);
+	int maximalExtendBy() const;
+	bool canExtendNoMove(int extendBy) const;
+
+	// Returns how much could the window get extended.
+	int tryToExtendWidthBy(int addToWidth);
 
 	virtual void updateTrayMenu(bool force = false) {
 	}
@@ -184,7 +187,7 @@ private:
 	base::Timer _inactivePressTimer;
 
 	base::Observable<void> _dragFinished;
-	
+
 };
 
 } // namespace Window

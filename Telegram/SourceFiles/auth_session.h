@@ -170,6 +170,12 @@ public:
 		return _thirdSectionInfoEnabledValue.events_starting_with(
 			thirdSectionInfoEnabled());
 	}
+	int thirdSectionExtendedBy() const {
+		return _variables.thirdSectionExtendedBy;
+	}
+	void setThirdSectionExtendedBy(int savedValue) {
+		_variables.thirdSectionExtendedBy = savedValue;
+	}
 	bool tabbedReplacedWithInfo() const {
 		return _tabbedReplacedWithInfo;
 	}
@@ -342,6 +348,7 @@ private:
 		base::flat_set<PeerId> groupStickersSectionHidden;
 		bool thirdSectionInfoEnabled = true; // per-window
 		bool smallDialogsList = false; // per-window
+		int thirdSectionExtendedBy = -1; // per-window
 		rpl::variable<float64> dialogsWidthRatio
 			= kDefaultDialogsWidthRatio; // per-window
 		rpl::variable<int> thirdColumnWidth
