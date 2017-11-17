@@ -73,7 +73,10 @@ void SharedMedia::add(SharedMediaAddSlice &&query) {
 	Expects(IsValidSharedMediaType(query.type));
 	auto peerIt = enforceLists(query.peerId);
 	auto index = static_cast<int>(query.type);
-	peerIt->second[index].addSlice(std::move(query.messageIds), query.noSkipRange, query.count);
+	peerIt->second[index].addSlice(
+		std::move(query.messageIds),
+		query.noSkipRange,
+		query.count);
 }
 
 void SharedMedia::remove(SharedMediaRemoveOne &&query) {

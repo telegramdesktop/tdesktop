@@ -75,9 +75,8 @@ int SparseIdsList::addRangeItemsAndCountNew(
 		SparseIdsSliceUpdate &update,
 		const Range &messages,
 		MsgRange noSkipRange) {
-	Expects((noSkipRange.from < noSkipRange.till)
-		|| (noSkipRange.from == noSkipRange.till && messages.begin() == messages.end()));
-	if (noSkipRange.from == noSkipRange.till) {
+	Expects(noSkipRange.from <= noSkipRange.till);
+	if (messages.begin() == messages.end()) {
 		return 0;
 	}
 
@@ -114,7 +113,10 @@ void SparseIdsList::addRange(
 
 	auto wasCount = _count;
 	auto update = SparseIdsSliceUpdate();
-	auto result = addRangeItemsAndCountNew(update, messages, noSkipRange);
+	auto result = addRangeItemsAndCountNew(
+		update,
+		messages,
+		noSkipRange);
 	if (count) {
 		_count = count;
 	} else if (incrementCount && _count && result > 0) {

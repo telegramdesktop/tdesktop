@@ -1458,6 +1458,59 @@ template <int kSharedMediaTypeCount>
 void History::addToSharedMedia(std::vector<MsgId> (&medias)[kSharedMediaTypeCount], bool force) {
 	auto from = loadedAtTop() ? 0 : minMsgId();
 	auto till = loadedAtBottom() ? ServerMaxMsgId : maxMsgId();
+	if (from > till) {
+		// History is desync, nothing good can be added.
+		//// Logging
+		auto value = QStringList();
+		for (auto block : blocks) {
+			auto indices = QStringList();
+			auto &items = block->items;
+			auto count = int(items.size());
+			auto logItem = [&](auto &&item) {
+				indices.push_back(QString::number(item->id));
+			};
+			if (count < 4) {
+				for (auto item : items) {
+					logItem(item);
+				}
+			} else {
+				auto last = 0;
+				auto logLast = [&] {
+					logItem(items[last]);
+				};
+				auto logTill = [&](int till) {
+					if (last < till - 1) {
+						indices.push_back("...["
+							+ QString::number(till - 1 - last)
+							+ "]...");
+					}
+					last = till;
+					logLast();
+				};
+				auto badPair = [&](int index) {
+					auto prev = items[index - 1]->id;
+					auto next = items[index]->id;
+					return IsServerMsgId(prev)
+						&& IsServerMsgId(next)
+						&& (next < prev);
+				};
+
+				logLast();
+				for (auto i = 1; i != count - 1; ++i) {
+					if (badPair(i) || badPair(i + 1)) {
+						logTill(i);
+					}
+				}
+				logTill(count - 1);
+			}
+			value.push_back(indices.join(","));
+		}
+		SignalHandlers::setCrashAnnotation("full", value.join(";"));
+		Assert(!"History desync caught!");
+		//// Logging
+
+		return;
+	}
 	for (auto i = 0; i != Storage::kSharedMediaTypeCount; ++i) {
 		if (force || !medias[i].empty()) {
 			auto type = static_cast<Storage::SharedMediaType>(i);
@@ -1480,12 +1533,26 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 		return;
 	}
 
+	auto logged = QStringList();
+	logged.push_back(QString::number(minMsgId()));
+	logged.push_back(QString::number(maxMsgId()));
+
+	auto minAdded = -1;
+	auto maxAdded = -1;
+
 	startBuildingFrontBlock(slice.size());
 
 	for (auto i = slice.cend(), e = slice.cbegin(); i != e;) {
 		--i;
 		auto adding = createItem(*i, false, true);
 		if (!adding) continue;
+
+		if (minAdded < 0 || minAdded > adding->id) {
+			minAdded = adding->id;
+		}
+		if (maxAdded < 0 || maxAdded < adding->id) {
+			maxAdded = adding->id;
+		}
 
 		addItemToBlock(adding);
 	}
@@ -1578,7 +1645,14 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 			Notify::peerUpdatedDelayed(update);
 		}
 	}
+
+	logged.push_back(QString::number(minAdded));
+	logged.push_back(QString::number(maxAdded));
+	SignalHandlers::setCrashAnnotation("add", logged.join(";"));
+
 	addBlockToSharedMedia(block);
+
+	SignalHandlers::setCrashAnnotation("add", "");
 
 	if (isChannel()) {
 		asChannelHistory()->checkJoinedMessage();
@@ -1599,12 +1673,26 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 
 	Assert(!isBuildingFrontBlock());
 	if (!slice.isEmpty()) {
+		auto logged = QStringList();
+		logged.push_back(QString::number(minMsgId()));
+		logged.push_back(QString::number(maxMsgId()));
+
+		auto minAdded = -1;
+		auto maxAdded = -1;
+
 		std::vector<MsgId> medias[Storage::kSharedMediaTypeCount];
 		auto atLeastOneAdded = false;
 		for (auto i = slice.cend(), e = slice.cbegin(); i != e;) {
 			--i;
 			auto adding = createItem(*i, false, true);
 			if (!adding) continue;
+
+			if (minAdded < 0 || minAdded > adding->id) {
+				minAdded = adding->id;
+			}
+			if (maxAdded < 0 || maxAdded < adding->id) {
+				maxAdded = adding->id;
+			}
 
 			addItemToBlock(adding);
 			atLeastOneAdded = true;
@@ -1620,12 +1708,17 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 				}
 			}
 		}
+		logged.push_back(QString::number(minAdded));
+		logged.push_back(QString::number(maxAdded));
+		SignalHandlers::setCrashAnnotation("add", logged.join(";"));
 
 		if (!atLeastOneAdded) {
 			newLoaded = true;
 			setLastMessage(lastAvailableMessage());
 		}
 		addToSharedMedia(medias, wasLoadedAtBottom != loadedAtBottom());
+
+		SignalHandlers::setCrashAnnotation("add", "");
 	}
 
 	if (!wasLoadedAtBottom) {
