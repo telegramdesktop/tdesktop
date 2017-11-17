@@ -398,6 +398,7 @@ infoBlockButton: InfoProfileButton(infoProfileButton) {
 infoBlockButtonSkip: 8px;
 
 infoMembersHeader: 56px;
+infoMembersHeaderPaddingBottom: 6px;
 infoMembersList: PeerList(defaultPeerList) {
 	item: PeerListItem(defaultPeerListItem) {
 		photoPosition: point(18px, 6px);
@@ -405,17 +406,15 @@ infoMembersList: PeerList(defaultPeerList) {
 		statusPosition: point(79px, 31px);
 	}
 }
-infoMembersButtonPosition: point(12px, 9px);
-infoMembersButtonIconPosition: point(6px, 6px);
+infoMembersButtonPosition: point(12px, 0px);
+infoMembersButtonIconPosition: point(3px, 3px);
 infoMembersButton: IconButton(defaultIconButton) {
-	width: 44px;
-	height: 44px;
+	width: 38px;
+	height: 38px;
 	iconPosition: infoMembersButtonIconPosition;
 	rippleAreaPosition: point(0px, 0px);
-	rippleAreaSize: 44px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	rippleAreaSize: 38px;
+	ripple: defaultRippleAnimation;
 }
 infoMembersAddMember: IconButton(infoMembersButton) {
 	icon: icon {{ "info_add_member", menuIconFg }};

@@ -44,6 +44,7 @@ enum class Wrap;
 
 namespace Profile {
 
+class Button;
 class Memento;
 struct MembersState {
 	std::unique_ptr<PeerListState> list;
@@ -129,7 +130,7 @@ private:
 	object_ptr<Ui::RpWidget> _header = { nullptr };
 	object_ptr<ListWidget> _list = { nullptr };
 
-	Ui::AbstractButton *_openMembers = nullptr;
+	Button *_openMembers = nullptr;
 	Ui::RpWidget *_titleWrap = nullptr;
 	Ui::FlatLabel *_title = nullptr;
 	Ui::IconButton *_addMember = nullptr;

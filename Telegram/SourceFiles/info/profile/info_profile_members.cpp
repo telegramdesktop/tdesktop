@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_values.h"
+#include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_members_controllers.h"
 #include "info/info_content_widget.h"
 #include "info/info_controller.h"
@@ -122,16 +123,19 @@ void Members::setupHeader() {
 		st::infoMembersHeader);
 	auto parent = _header.data();
 
+	_openMembers = Ui::CreateChild<Button>(
+		parent,
+		rpl::single(QString()));
+
 	object_ptr<FloatingIcon>(
 		parent,
 		st::infoIconMembers,
 		st::infoIconPosition);
 
-	_openMembers = Ui::CreateChild<Ui::AbstractButton>(parent);
 	_titleWrap = Ui::CreateChild<Ui::RpWidget>(parent);
 	_title = setupTitle();
 	_addMember = Ui::CreateChild<Ui::IconButton>(
-		parent,
+		_openMembers,
 		st::infoMembersAddMember);
 	//_searchField = _controller->searchFieldController()->createField(
 	//	parent,
@@ -256,7 +260,7 @@ void Members::updateSearchEnabledByContent() {
 }
 
 void Members::updateHeaderControlsGeometry(int newWidth) {
-	_openMembers->setGeometry(0, 0, newWidth, st::infoMembersHeader);
+	_openMembers->setGeometry(0, st::infoProfileSkip, newWidth, st::infoMembersHeader - st::infoProfileSkip - st::infoMembersHeaderPaddingBottom);
 
 	auto availableWidth = newWidth
 		- st::infoMembersButtonPosition.x();
