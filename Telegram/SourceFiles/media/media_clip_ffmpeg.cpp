@@ -149,7 +149,7 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
 }
 
 void FFMpegReaderImplementation::processReadFrame() {
-	int64 duration = av_frame_get_pkt_duration(_frame);
+	int64 duration = _frame->pkt_duration;
 	int64 framePts = _frame->pts;
 	TimeMs frameMs = (framePts * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
 	_currentFrameDelay = _nextFrameDelay;
