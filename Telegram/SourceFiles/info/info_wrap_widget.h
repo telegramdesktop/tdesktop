@@ -146,7 +146,6 @@ private:
 	struct StackItem;
 
 	void startInjectingActivePeerProfiles();
-	void afterStackHistoryInject();
 	void injectActivePeerProfile(not_null<PeerData*> peer);
 	void restoreHistoryStack(
 		std::vector<std::unique_ptr<ContentMemento>> stack);
@@ -156,6 +155,9 @@ private:
 	void showBackFromStack();
 	void showNewContent(not_null<ContentMemento*> memento);
 	void showNewContent(
+		not_null<ContentMemento*> memento,
+		const Window::SectionShow &params);
+	bool returnToFirstStackFrame(
 		not_null<ContentMemento*> memento,
 		const Window::SectionShow &params);
 	void setupTop();

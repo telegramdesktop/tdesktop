@@ -93,8 +93,6 @@ void WrapWidget::restoreHistoryStack(
 	Expects(!stack.empty());
 	Expects(!hasStackHistory());
 
-	startInjectingActivePeerProfiles();
-
 	auto content = std::move(stack.back());
 	stack.pop_back();
 	if (!stack.empty()) {
@@ -105,6 +103,9 @@ void WrapWidget::restoreHistoryStack(
 			_historyStack.push_back(std::move(item));
 		}
 	}
+
+	startInjectingActivePeerProfiles();
+
 	showNewContent(content.get());
 }
 
@@ -136,13 +137,11 @@ void WrapWidget::injectActivePeerProfile(not_null<PeerData*> peer) {
 		_historyStack.insert(
 			_historyStack.begin(),
 			std::move(injected));
-		afterStackHistoryInject();
+		if (_content) {
+			setupTop();
+			finishShowContent();
+		}
 	}
-}
-
-void WrapWidget::afterStackHistoryInject() {
-	setupTop();
-	finishShowContent();
 }
 
 std::unique_ptr<Controller> WrapWidget::createController(
@@ -685,8 +684,7 @@ bool WrapWidget::showInternal(
 		auto content = infoMemento->content();
 		auto skipInternal = hasStackHistory()
 			&& (params.way == Window::SectionShow::Way::ClearStack);
-		if (_controller->validateMementoPeer(content)
-			&& infoMemento->stackSize() == 1) {
+		if (_controller->validateMementoPeer(content)) {
 			if (!skipInternal && _content->showInternal(content)) {
 				highlightTopBar();
 				return true;
@@ -711,6 +709,14 @@ bool WrapWidget::showInternal(
 			//	}
 			}
 		}
+
+		// If we're in a nested section and we're asked to show
+		// a chat profile that is at the bottom of the stack we'll
+		// just go back in the stack all the way instead of pushing.
+		if (returnToFirstStackFrame(content, params)) {
+			return true;
+		}
+
 		showNewContent(
 			content,
 			params);
@@ -748,6 +754,25 @@ rpl::producer<int> WrapWidget::desiredHeightValue() const {
 
 QRect WrapWidget::contentGeometry() const {
 	return rect().marginsRemoved({ 0, topWidget()->height(), 0, 0 });
+}
+
+
+bool WrapWidget::returnToFirstStackFrame(
+		not_null<ContentMemento*> memento,
+		const Window::SectionShow &params) {
+	if (!hasStackHistory()) {
+		return false;
+	}
+	auto firstPeerId = _historyStack.front().section->peerId();
+	auto firstSection = _historyStack.front().section->section();
+	if (firstPeerId == memento->peerId()
+		&& firstSection.type() == memento->section().type()
+		&& firstSection.type() == Section::Type::Profile) {
+		_historyStack.resize(1);
+		showBackFromStack();
+		return true;
+	}
+	return false;
 }
 
 void WrapWidget::showNewContent(
