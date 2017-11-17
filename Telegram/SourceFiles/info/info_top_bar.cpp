@@ -254,12 +254,6 @@ void TopBar::startHighlightAnimation() {
 rpl::producer<QString> TitleValue(
 		const Section &section,
 		not_null<PeerData*> peer) {
-	if (section.type() == Section::Type::Members) {
-		return Profile::MembersCountValue(peer)
-			| rpl::map([](int count) {
-				return lng_chat_status_members(lt_count, count);
-			});
-	}
 	return Lang::Viewer([&] {
 		switch (section.type()) {
 		case Section::Type::Profile:
@@ -297,6 +291,9 @@ rpl::producer<QString> TitleValue(
 
 		case Section::Type::CommonGroups:
 			return lng_profile_common_groups_section;
+
+		case Section::Type::Members:
+			return lng_profile_participants_section;
 
 		}
 		Unexpected("Bad section type in Info::TitleValue()");

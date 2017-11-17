@@ -273,8 +273,11 @@ infoProfileStatusLabel: FlatLabel(defaultFlatLabel) {
 		linkFont: normalFont;
 		linkFontOver: normalFont;
 	}
+}
+infoProfileMegagroupStatusLabel: FlatLabel(infoProfileStatusLabel) {
+	style: defaultTextStyle;
 	palette: TextPalette(defaultTextPalette) {
-		linkFg: windowActiveTextFg;
+		linkFg: windowSubTextFg;
 	}
 }
 

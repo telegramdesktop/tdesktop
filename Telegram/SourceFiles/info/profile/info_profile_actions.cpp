@@ -85,6 +85,7 @@ auto AddActionButton(
 	result->toggleOn(
 		std::move(toggleOn)
 	)->entity()->addClickHandler(std::move(callback));
+	result->finishAnimating();
 	return result;
 };
 
@@ -314,8 +315,10 @@ Ui::MultiSlideTracker DetailsFiller::fillUserButtons(
 
 	Ui::MultiSlideTracker tracker;
 	auto window = _controller->window();
-	auto sendMessageVisible = window->historyPeer.value()
-		| rpl::map($1 != user);
+	auto sendMessageVisible = rpl::combine(
+		_controller->wrapValue(),
+		window->historyPeer.value(),
+		($1 != Wrap::Side) || ($2 != user));
 	auto sendMessage = [window, user] {
 		window->showPeerHistory(
 			user,
@@ -343,8 +346,10 @@ Ui::MultiSlideTracker DetailsFiller::fillChannelButtons(
 
 	Ui::MultiSlideTracker tracker;
 	auto window = _controller->window();
-	auto viewChannelVisible = window->historyPeer.value()
-		| rpl::map($1 != channel);
+	auto viewChannelVisible = rpl::combine(
+		_controller->wrapValue(),
+		window->historyPeer.value(),
+		($1 != Wrap::Side) || ($2 != channel));
 	auto viewChannel = [=] {
 		window->showPeerHistory(
 			channel,

@@ -86,6 +86,7 @@ private:
 	void refreshUploadPhotoOverlay();
 	void setVerified(bool verified);
 
+	not_null<Controller*> _controller;
 	not_null<PeerData*> _peer;
 	int _onlineCount = 0;
 

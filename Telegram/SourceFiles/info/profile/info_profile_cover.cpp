@@ -25,11 +25,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "data/data_photo.h"
 #include "info/profile/info_profile_values.h"
 #include "info/info_controller.h"
+#include "info/info_memento.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
 #include "ui/widgets/labels.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/special_buttons.h"
+#include "window/window_controller.h"
 #include "observer_peer.h"
 #include "messenger.h"
 #include "auth_session.h"
@@ -228,6 +230,7 @@ Cover::Cover(
 	st::infoProfilePhotoTop
 		+ st::infoProfilePhoto.size.height()
 		+ st::infoProfilePhotoBottom)
+, _controller(controller)
 , _peer(peer)
 , _userpic(
 	this,
@@ -236,12 +239,19 @@ Cover::Cover(
 	Ui::UserpicButton::Role::OpenPhoto,
 	st::infoProfilePhoto)
 , _name(this, st::infoProfileNameLabel)
-, _status(this, st::infoProfileStatusLabel) {
+, _status(
+	this,
+	_peer->isMegagroup()
+		? st::infoProfileMegagroupStatusLabel
+		: st::infoProfileStatusLabel) {
 	_peer->updateFull();
 
 	_name->setSelectable(true);
 	_name->setContextCopyText(lang(lng_profile_copy_fullname));
-	_status->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	if (!_peer->isMegagroup()) {
+		_status->setAttribute(Qt::WA_TransparentForMouseEvents);
+	}
 
 	initViewers();
 	setupChildGeometry();
@@ -332,7 +342,13 @@ void Cover::refreshNameText() {
 }
 
 void Cover::refreshStatusText() {
-	auto statusText = [this] {
+	auto hasMembersLink = [&] {
+		if (auto megagroup = _peer->asMegagroup()) {
+			return megagroup->canViewMembers();
+		}
+		return false;
+	}();
+	auto statusText = [&] {
 		auto currentTime = unixtime();
 		if (auto user = _peer->asUser()) {
 			auto result = App::onlineText(user, currentTime, true);
@@ -349,14 +365,22 @@ void Cover::refreshStatusText() {
 			return ChatStatusText(fullCount, _onlineCount, true);
 		} else if (auto channel = _peer->asChannel()) {
 			auto fullCount = qMax(channel->membersCount(), 1);
-			return ChatStatusText(
+			auto result = ChatStatusText(
 				fullCount,
 				_onlineCount,
 				channel->isMegagroup());
+			return hasMembersLink ? textcmdLink(1, result) : result;
 		}
 		return lang(lng_chat_status_unaccessible);
 	}();
 	_status->setRichText(statusText);
+	if (hasMembersLink) {
+		_status->setLink(1, MakeShared<LambdaClickHandler>([=] {
+			_controller->window()->showSection(Info::Memento(
+				_controller->peerId(),
+				Section::Type::Members));
+		}));
+	}
 	refreshStatusGeometry(width());
 }
 
