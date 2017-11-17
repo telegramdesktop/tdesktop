@@ -80,29 +80,36 @@ rpl::producer<TextWithEntities> UsernameValue(
 		| WithEmptyEntities();
 }
 
-rpl::producer<TextWithEntities> AboutValue(
+rpl::producer<QString> PlainAboutValue(
 		not_null<PeerData*> peer) {
 	if (auto channel = peer->asChannel()) {
 		return Notify::PeerUpdateValue(
 				channel,
 				Notify::PeerUpdate::Flag::AboutChanged)
-			| rpl::map([channel] { return channel->about(); })
-			| WithEmptyEntities();
+			| rpl::map([channel] { return channel->about(); });
 	} else if (auto user = peer->asUser()) {
 		if (user->botInfo) {
-			return PlainBioValue(user)
-				| WithEmptyEntities()
-				| rpl::map([](TextWithEntities &&text) {
-					auto flags = TextParseLinks
-						| TextParseMentions
-						| TextParseHashtags
-						| TextParseBotCommands;
-					TextUtilities::ParseEntities(text, flags);
-					return std::move(text);
-				});
+			return PlainBioValue(user);
 		}
 	}
-	return rpl::single(TextWithEntities{});
+	return rpl::single(QString());
+}
+
+
+rpl::producer<TextWithEntities> AboutValue(
+		not_null<PeerData*> peer) {
+	auto flags = TextParseLinks
+		| TextParseMentions
+		| TextParseHashtags;
+	if (peer->isUser()) {
+		flags |= TextParseBotCommands;
+	}
+	return PlainAboutValue(peer)
+		| WithEmptyEntities()
+		| rpl::map([=](TextWithEntities &&text) {
+			TextUtilities::ParseEntities(text, flags);
+			return std::move(text);
+		});
 }
 
 rpl::producer<QString> LinkValue(
