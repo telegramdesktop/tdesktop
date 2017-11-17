@@ -92,7 +92,7 @@ std::unique_ptr<PeerListRow> ListController::createRow(
 }
 
 void ListController::prepare() {
-	setSearchNoResultsText(lang(lng_blocked_list_not_found));
+	setSearchNoResultsText(lang(lng_bot_groups_not_found));
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
 	delegate()->peerListSetTitle(langFactory(lng_profile_common_groups_section));
 }

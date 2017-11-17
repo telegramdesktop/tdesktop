@@ -866,10 +866,12 @@ void WrapWidget::resizeEvent(QResizeEvent *e) {
 
 void WrapWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
-		showBackFromStack();
-	} else {
-		SectionWidget::keyPressEvent(e);
+		if (hasStackHistory() || wrap() != Wrap::Layer) {
+			showBackFromStack();
+			return;
+		}
 	}
+	SectionWidget::keyPressEvent(e);
 }
 
 void WrapWidget::updateContentGeometry() {

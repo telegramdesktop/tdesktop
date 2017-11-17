@@ -2007,15 +2007,20 @@ void ListWidget::refreshHeight() {
 }
 
 int ListWidget::recountHeight() {
+	if (_sections.empty()) {
+		if (auto count = _slice.fullCount()) {
+			if (*count == 0) {
+				return 0;
+			}
+		}
+	}
 	auto cachedPadding = padding();
 	auto result = cachedPadding.top();
 	for (auto &section : _sections) {
 		section.setTop(result);
 		result += section.height();
 	}
-	return (result > cachedPadding.top())
-		? (result + cachedPadding.bottom())
-		: 0;
+	return result + cachedPadding.bottom();
 }
 
 void ListWidget::mouseActionUpdate() {
