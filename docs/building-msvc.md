@@ -1,7 +1,7 @@
 # Build instructions for Visual Studio 2017
 
 - [Prepare folder](#prepare-folder)
-- [Install Visual Studio tools]
+- [Install Visual Studio tools](#install-visual-studio-tools)
 - [Install third party software](#install-third-party-software)
 - [Clone source code and prepare libraries](#clone-source-code-and-prepare-libraries)
 - [Build the project](#build-the-project)
