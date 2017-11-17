@@ -14,6 +14,7 @@ All commands (if not stated otherwise) will be launched from **x86 Native Tools 
 
 ## Install third party software
 
+* In Visual Studio 2017 install **VC++ 2015.3 v140 toolset for desktop (x86,x64)** this is required for opus build
 * Download **ActivePerl** installer from [https://www.activestate.com/activeperl/downloads](https://www.activestate.com/activeperl/downloads) and install to ***BuildPath*\\ThirdParty\\Perl**
 * Download **NASM** installer from [http://www.nasm.us](http://www.nasm.us) and install to ***BuildPath*\\ThirdParty\\NASM**
 * Download **Yasm** executable from [http://yasm.tortall.net/Download.html](http://yasm.tortall.net/Download.html), rename to *yasm.exe* and put to ***BuildPath*\\ThirdParty\\yasm**
