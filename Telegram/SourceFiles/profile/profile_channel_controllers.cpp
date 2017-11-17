@@ -74,6 +74,9 @@ void ParticipantsBoxController::setupSortByOnline() {
 }
 
 void ParticipantsBoxController::setupListChangeViewers() {
+	if (!_channel->isMegagroup()) {
+		return;
+	}
 	Auth().data().megagroupParticipantAdded(_channel)
 		| rpl::start_with_next([this](not_null<UserData*> user) {
 			if (delegate()->peerListFullRowsCount() > 0) {
@@ -108,6 +111,7 @@ void ParticipantsBoxController::sortByOnlineDelayed() {
 
 void ParticipantsBoxController::sortByOnline() {
 	if (_role != Role::Profile
+		|| !_channel->isMegagroup()
 		|| _channel->membersCount() > Global::ChatSizeMax()) {
 		_onlineCount = 0;
 		return;
@@ -194,6 +198,7 @@ void ParticipantsBoxController::Start(
 
 void ParticipantsBoxController::addNewItem() {
 	Expects(_role != Role::Profile);
+
 	if (_role == Role::Members) {
 		if (_channel->membersCount() >= Global::ChatSizeMax()) {
 			Ui::show(
@@ -263,34 +268,35 @@ std::unique_ptr<PeerListState> ParticipantsBoxController::saveState() {
 		my->searchState = search->saveState();
 	}
 
-	auto weak = result.get();
-	Auth().data().megagroupParticipantAdded(_channel)
-		| rpl::start_with_next([weak](not_null<UserData*> user) {
-			if (!weak->list.empty()) {
-				if (weak->list[0] == user) {
-					return;
+	if (_channel->isMegagroup()) {
+		auto weak = result.get();
+		Auth().data().megagroupParticipantAdded(_channel)
+			| rpl::start_with_next([weak](not_null<UserData*> user) {
+				if (!weak->list.empty()) {
+					if (weak->list[0] == user) {
+						return;
+					}
 				}
-			}
-			auto pos = base::find(weak->list, user);
-			if (pos == weak->list.cend()) {
-				weak->list.push_back(user);
-			}
-			base::stable_partition(weak->list, [user](not_null<PeerData*> peer) {
-				return (peer == user);
-			});
-		}, my->lifetime);
-	Auth().data().megagroupParticipantRemoved(_channel)
-		| rpl::start_with_next([weak](not_null<UserData*> user) {
-			weak->list.erase(std::remove(
-				weak->list.begin(),
-				weak->list.end(),
-				user), weak->list.end());
-			weak->filterResults.erase(std::remove(
-				weak->filterResults.begin(),
-				weak->filterResults.end(),
-				user), weak->filterResults.end());
-		}, my->lifetime);
-
+				auto pos = base::find(weak->list, user);
+				if (pos == weak->list.cend()) {
+					weak->list.push_back(user);
+				}
+				base::stable_partition(weak->list, [user](not_null<PeerData*> peer) {
+					return (peer == user);
+				});
+			}, my->lifetime);
+		Auth().data().megagroupParticipantRemoved(_channel)
+			| rpl::start_with_next([weak](not_null<UserData*> user) {
+				weak->list.erase(std::remove(
+					weak->list.begin(),
+					weak->list.end(),
+					user), weak->list.end());
+				weak->filterResults.erase(std::remove(
+					weak->filterResults.begin(),
+					weak->filterResults.end(),
+					user), weak->filterResults.end());
+			}, my->lifetime);
+	}
 	result->controllerState = std::move(my);
 	return result;
 }
@@ -619,15 +625,20 @@ Ui::PopupMenu *ParticipantsBoxController::rowContextMenu(
 			});
 	}
 	if (canRestrictUser(user)) {
+		auto isGroup = _channel->isMegagroup();
+		if (isGroup) {
+			result->addAction(
+				lang(lng_context_restrict_user),
+				[weak = base::make_weak_unique(this), user]{
+					if (weak) {
+						weak->showRestricted(user);
+					}
+				});
+		}
 		result->addAction(
-			lang(lng_context_restrict_user),
-			[weak = base::make_weak_unique(this), user]{
-				if (weak) {
-					weak->showRestricted(user);
-				}
-			});
-		result->addAction(
-			lang(lng_context_remove_from_group),
+			lang(isGroup
+				? lng_context_remove_from_group
+				: lng_profile_kick),
 			[weak = base::make_weak_unique(this), user] {
 				if (weak) {
 					weak->kickMember(user);

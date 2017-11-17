@@ -37,6 +37,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/report_box.h"
 #include "lang/lang_keys.h"
 #include "info/info_controller.h"
+#include "info/info_memento.h"
 #include "info/info_top_bar_override.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_values.h"
@@ -44,7 +45,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_text.h"
 #include "window/window_controller.h"
 #include "window/window_peer_menu.h"
-#include "profile/profile_channel_controllers.h"
 #include "mainwidget.h"
 #include "auth_session.h"
 #include "messenger.h"
@@ -668,6 +668,33 @@ object_ptr<Ui::RpWidget> SetupActions(
 	return filler.fill();
 }
 
+void SetupAddChannelMember(
+		not_null<Ui::RpWidget*> parent,
+		not_null<ChannelData*> channel) {
+	auto add = Ui::CreateChild<Ui::IconButton>(
+		parent.get(),
+		st::infoMembersAddMember);
+	add->showOn(CanAddMemberValue(channel));
+	add->addClickHandler([channel] {
+		if (channel->membersCount() >= Global::ChatSizeMax()) {
+			Ui::show(
+				Box<MaxInviteBox>(channel),
+				LayerOption::KeepOther);
+		} else {
+			AddParticipantsBoxController::Start(channel, {});
+		}
+	});
+	parent->widthValue()
+		| rpl::start_with_next([add](int newWidth) {
+			auto availableWidth = newWidth
+				- st::infoMembersButtonPosition.x();
+			add->moveToLeft(
+				availableWidth - add->width(),
+				st::infoMembersButtonPosition.y(),
+				newWidth);
+		}, add->lifetime());
+}
+
 object_ptr<Ui::RpWidget> SetupChannelMembers(
 		not_null<Controller*> controller,
 		not_null<Ui::RpWidget*> parent,
@@ -690,11 +717,9 @@ object_ptr<Ui::RpWidget> SetupChannelMembers(
 		return lng_chat_status_members(lt_count, count);
 	});
 	auto membersCallback = [controller, channel] {
-		using Controller = ::Profile::ParticipantsBoxController;
-		Controller::Start(
-			controller->window(),
-			channel,
-			Controller::Role::Members);
+		controller->window()->showSection(Info::Memento(
+			channel->id,
+			Section::Type::Members));
 	};
 
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -705,11 +730,14 @@ object_ptr<Ui::RpWidget> SetupChannelMembers(
 	auto members = result->entity();
 	members->add(object_ptr<BoxContentDivider>(members));
 	members->add(CreateSkipWidget(members));
-	AddActionButton(
+	auto button = AddActionButton(
 		members,
 		std::move(membersText),
 		rpl::single(true),
-		std::move(membersCallback));
+		std::move(membersCallback))->entity();
+
+	SetupAddChannelMember(button, channel);
+
 	object_ptr<FloatingIcon>(
 		members,
 		st::infoIconMembers,
