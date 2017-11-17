@@ -248,6 +248,8 @@
 <(src_loc)/info/media/info_media_list_widget.h
 <(src_loc)/info/media/info_media_widget.cpp
 <(src_loc)/info/media/info_media_widget.h
+<(src_loc)/info/members/info_members_widget.cpp
+<(src_loc)/info/members/info_members_widget.h
 <(src_loc)/info/profile/info_profile_actions.cpp
 <(src_loc)/info/profile/info_profile_actions.h
 <(src_loc)/info/profile/info_profile_button.cpp

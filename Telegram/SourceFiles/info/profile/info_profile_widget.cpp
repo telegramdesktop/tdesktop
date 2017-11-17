@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_widget.h"
 
 #include "info/profile/info_profile_inner_widget.h"
+#include "info/profile/info_profile_members.h"
 #include "ui/widgets/scroll_area.h"
 #include "info/info_controller.h"
 
@@ -48,10 +49,22 @@ object_ptr<ContentWidget> Memento::createWidget(
 	return std::move(result);
 }
 
+void Memento::setMembersState(std::unique_ptr<MembersState> state) {
+	_membersState = std::move(state);
+}
+
+std::unique_ptr<MembersState> Memento::membersState() {
+	return std::move(_membersState);
+}
+
+Memento::~Memento() = default;
+
 Widget::Widget(
 	QWidget *parent,
 	not_null<Controller*> controller)
 : ContentWidget(parent, controller) {
+	controller->setSearchEnabledByContent(false);
+
 	_inner = setInnerWidget(object_ptr<InnerWidget>(
 		this,
 		controller));
@@ -86,7 +99,9 @@ bool Widget::showInternal(not_null<ContentMemento*> memento) {
 	return false;
 }
 
-void Widget::setInternalState(const QRect &geometry, not_null<Memento*> memento) {
+void Widget::setInternalState(
+		const QRect &geometry,
+		not_null<Memento*> memento) {
 	setGeometry(geometry);
 	myEnsureResized(this);
 	restoreState(memento);

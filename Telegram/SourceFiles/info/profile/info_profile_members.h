@@ -24,11 +24,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/peer_list_box.h"
 
 namespace Ui {
-class FlatInput;
+class InputField;
 class CrossButton;
 class IconButton;
 class FlatLabel;
 struct ScrollToRequest;
+class AbstractButton;
 } // namespace Ui
 
 namespace Profile {
@@ -44,6 +45,10 @@ enum class Wrap;
 namespace Profile {
 
 class Memento;
+struct MembersState {
+	std::unique_ptr<PeerListState> list;
+	base::optional<QString> search;
+};
 
 class Members
 	: public Ui::RpWidget
@@ -58,8 +63,8 @@ public:
 		return _scrollToRequests.events();
 	}
 
-	void saveState(not_null<Memento*> memento);
-	void restoreState(not_null<Memento*> memento);
+	std::unique_ptr<MembersState> saveState();
+	void restoreState(std::unique_ptr<MembersState> state);
 
 	int desiredHeight() const;
 	rpl::producer<int> onlineCountValue() const;
@@ -87,36 +92,54 @@ private:
 	void peerListSetDescription(
 		object_ptr<Ui::FlatLabel> description) override;
 
-	object_ptr<Ui::FlatLabel> setupHeader();
-	object_ptr<ListWidget> setupList(
-		RpWidget *parent,
-		not_null<PeerListController*> controller) const;
+	void peerListAppendRow(
+			std::unique_ptr<PeerListRow> row) override {
+		PeerListContentDelegate::peerListAppendRow(std::move(row));
+		updateSearchEnabledByContent();
+	}
+	void peerListPrependRow(
+			std::unique_ptr<PeerListRow> row) override {
+		PeerListContentDelegate::peerListPrependRow(std::move(row));
+		updateSearchEnabledByContent();
+	}
+	void peerListRemoveRow(not_null<PeerListRow*> row) override {
+		PeerListContentDelegate::peerListRemoveRow(row);
+		updateSearchEnabledByContent();
+	}
+
+	void setupHeader();
+	object_ptr<Ui::FlatLabel> setupTitle();
+	void setupList();
 
 	void setupButtons();
-	void updateSearchOverrides();
+	//void updateSearchOverrides();
 
 	void addMember();
-	void showSearch();
-	void toggleSearch(anim::type animated = anim::type::normal);
-	void cancelSearch();
-	void applySearch();
-	void forceSearchSubmit();
-	void searchAnimationCallback();
+	//void showSearch();
+	//void toggleSearch(anim::type animated = anim::type::normal);
+	//void cancelSearch();
+	//void searchAnimationCallback();
+	void updateHeaderControlsGeometry(int newWidth);
+	void updateSearchEnabledByContent();
 
 	Wrap _wrap;
+	not_null<Controller*> _controller;
 	not_null<PeerData*> _peer;
 	std::unique_ptr<PeerListController> _listController;
-	object_ptr<Ui::RpWidget> _labelWrap;
-	object_ptr<Ui::FlatLabel> _label;
-	object_ptr<Ui::IconButton> _addMember;
-	object_ptr<Ui::FlatInput> _searchField;
-	object_ptr<Ui::IconButton> _search;
-	object_ptr<Ui::CrossButton> _cancelSearch;
-	object_ptr<ListWidget> _list;
+	object_ptr<Ui::RpWidget> _header = { nullptr };
+	object_ptr<ListWidget> _list = { nullptr };
 
-	Animation _searchShownAnimation;
-	bool _searchShown = false;
-	base::Timer _searchTimer;
+	Ui::AbstractButton *_openMembers = nullptr;
+	Ui::RpWidget *_titleWrap = nullptr;
+	Ui::FlatLabel *_title = nullptr;
+	Ui::IconButton *_addMember = nullptr;
+	//base::unique_qptr<Ui::InputField> _searchField;
+	//Ui::IconButton *_search = nullptr;
+	//Ui::CrossButton *_cancelSearch = nullptr;
+
+	//Animation _searchShownAnimation;
+	//bool _searchShown = false;
+	//base::Timer _searchTimer;
 
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 

@@ -83,7 +83,9 @@ bool Widget::showInternal(not_null<ContentMemento*> memento) {
 	return false;
 }
 
-void Widget::setInternalState(const QRect &geometry, not_null<Memento*> memento) {
+void Widget::setInternalState(
+		const QRect &geometry,
+		not_null<Memento*> memento) {
 	setGeometry(geometry);
 	myEnsureResized(this);
 	restoreState(memento);

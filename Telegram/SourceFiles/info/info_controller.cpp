@@ -102,14 +102,18 @@ void Controller::setSection(not_null<ContentMemento*> memento) {
 
 void Controller::updateSearchControllers(
 		not_null<ContentMemento*> memento) {
-	auto isMedia = (_section.type() == Section::Type::Media);
+	using Type = Section::Type;
+	auto type = _section.type();
+	auto isMedia = (type == Type::Media);
 	auto mediaType = isMedia
 		? _section.mediaType()
 		: Section::MediaType::kCount;
 	auto hasMediaSearch = isMedia
 		&& SharedMediaAllowSearch(mediaType);
 	auto hasCommonGroupsSearch
-		= (_section.type() == Section::Type::CommonGroups);
+		= (type == Type::CommonGroups);
+	auto hasMembersSearch
+		= (type == Type::Members || type == Type::Profile);
 	auto searchQuery = memento->searchFieldQuery();
 	if (isMedia) {
 		_searchController
@@ -121,7 +125,7 @@ void Controller::updateSearchControllers(
 	} else {
 		_searchController = nullptr;
 	}
-	if (hasMediaSearch || hasCommonGroupsSearch) {
+	if (hasMediaSearch || hasCommonGroupsSearch || hasMembersSearch) {
 		_searchFieldController
 			= std::make_unique<Ui::SearchFieldController>(
 				searchQuery);

@@ -18,55 +18,25 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "info/media/info_media_widget.h"
+#include "info/members/info_members_widget.h"
 
-#include "info/media/info_media_inner_widget.h"
+#include "info/profile/info_profile_members.h"
 #include "info/info_controller.h"
-#include "ui/widgets/scroll_area.h"
 #include "ui/search_field_controller.h"
+#include "ui/widgets/scroll_area.h"
 #include "styles/style_info.h"
 
 namespace Info {
-namespace Media {
-
-base::optional<int> TypeToTabIndex(Type type) {
-	switch (type) {
-	case Type::Photo: return 0;
-	case Type::Video: return 1;
-	case Type::File: return 2;
-	}
-	return base::none;
-}
-
-Type TabIndexToType(int index) {
-	switch (index) {
-	case 0: return Type::Photo;
-	case 1: return Type::Video;
-	case 2: return Type::File;
-	}
-	Unexpected("Index in Info::Media::TabIndexToType()");
-}
+namespace Members {
 
 Memento::Memento(not_null<Controller*> controller)
 : Memento(
 	controller->peerId(),
-	controller->migratedPeerId(),
-	controller->section().mediaType()) {
-}
-
-Memento::Memento(PeerId peerId, PeerId migratedPeerId, Type type)
-: ContentMemento(peerId, migratedPeerId)
-, _type(type) {
-	_searchState.query.type = type;
-	_searchState.query.peerId = peerId;
-	_searchState.query.migratedPeerId = migratedPeerId;
-	if (migratedPeerId) {
-		_searchState.migratedList = Storage::SparseIdsList();
-	}
+	controller->migratedPeerId()) {
 }
 
 Section Memento::section() const {
-	return Section(_type);
+	return Section(Section::Type::Members);
 }
 
 object_ptr<ContentWidget> Memento::createWidget(
@@ -80,36 +50,33 @@ object_ptr<ContentWidget> Memento::createWidget(
 	return std::move(result);
 }
 
+void Memento::setState(std::unique_ptr<SavedState> state) {
+	_state = std::move(state);
+}
+
+std::unique_ptr<SavedState> Memento::state() {
+	return std::move(_state);
+}
+
+Memento::~Memento() = default;
+
 Widget::Widget(
 	QWidget *parent,
 	not_null<Controller*> controller)
 : ContentWidget(parent, controller) {
-	_inner = setInnerWidget(object_ptr<InnerWidget>(
+	_inner = setInnerWidget(object_ptr<Profile::Members>(
 		this,
-		controller));
-	_inner->setScrollHeightValue(scrollHeightValue());
-	_inner->scrollToRequests()
-		| rpl::start_with_next([this](Ui::ScrollToRequest request) {
-			scrollTo(request);
-		}, _inner->lifetime());
-}
-
-rpl::producer<SelectedItems> Widget::selectedListValue() const {
-	return _inner->selectedListValue();
-}
-
-void Widget::cancelSelection() {
-	_inner->cancelSelection();
+		controller,
+		controller->peer()));
 }
 
 bool Widget::showInternal(not_null<ContentMemento*> memento) {
 	if (!controller()->validateMementoPeer(memento)) {
 		return false;
 	}
-	if (auto mediaMemento = dynamic_cast<Memento*>(memento.get())) {
-		if (_inner->showInternal(mediaMemento)) {
-			return true;
-		}
+	if (auto membersMemento = dynamic_cast<Memento*>(memento.get())) {
+		restoreState(membersMemento);
+		return true;
 	}
 	return false;
 }
@@ -129,12 +96,16 @@ std::unique_ptr<ContentMemento> Widget::doCreateMemento() {
 }
 
 void Widget::saveState(not_null<Memento*> memento) {
-	_inner->saveState(memento);
+	memento->setScrollTop(scrollTopSave());
+	memento->setState(_inner->saveState());
 }
 
 void Widget::restoreState(not_null<Memento*> memento) {
-	_inner->restoreState(memento);
+	_inner->restoreState(memento->state());
+	auto scrollTop = memento->scrollTop();
+	scrollTopRestore(memento->scrollTop());
 }
 
-} // namespace Media
+} // namespace Members
 } // namespace Info
+

@@ -28,11 +28,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/search_field_controller.h"
 #include "lang/lang_keys.h"
 #include "info/profile/info_profile_widget.h"
+#include "info/profile/info_profile_members.h"
 #include "info/media/info_media_widget.h"
 #include "info/common_groups/info_common_groups_widget.h"
 #include "info/info_layer_widget.h"
 #include "info/info_section_widget.h"
 #include "info/info_controller.h"
+#include "boxes/peer_list_box.h"
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
 
@@ -54,13 +56,15 @@ ContentWidget::ContentWidget(
 				: st::profileBg;
 			update();
 		}, lifetime());
-	rpl::combine(
-		_controller->wrapValue(),
-		_controller->searchEnabledByContent(),
-		($1 == Wrap::Layer) && $2)
-		| rpl::start_with_next([this](bool shown) {
-			refreshSearchField(shown);
-		}, lifetime());
+	if (_controller->section().type() != Section::Type::Profile) {
+		rpl::combine(
+			_controller->wrapValue(),
+			_controller->searchEnabledByContent(),
+			($1 == Wrap::Layer) && $2)
+			| rpl::start_with_next([this](bool shown) {
+				refreshSearchField(shown);
+			}, lifetime());
+	}
 	_scrollTopSkip.changes()
 		| rpl::start_with_next([this] {
 			updateControlsGeometry();
@@ -211,8 +215,10 @@ void ContentWidget::refreshSearchField(bool shown) {
 				field->moveToLeft(0, 0);
 			}, field->lifetime());
 		field->show();
+		field->setFocus();
 		setScrollTopSkip(field->heightNoMargins() - st::lineWidth);
 	} else {
+		setFocus();
 		_searchField = nullptr;
 		setScrollTopSkip(0);
 	}

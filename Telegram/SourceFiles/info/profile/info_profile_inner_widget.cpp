@@ -249,14 +249,14 @@ void InnerWidget::visibleTopBottomUpdated(
 void InnerWidget::saveState(not_null<Memento*> memento) {
 	memento->setInfoExpanded(_cover->toggled());
 	if (_members) {
-		_members->saveState(memento);
+		memento->setMembersState(_members->saveState());
 	}
 }
 
 void InnerWidget::restoreState(not_null<Memento*> memento) {
 	_cover->toggle(memento->infoExpanded(), anim::type::instant);
 	if (_members) {
-		_members->restoreState(memento);
+		_members->restoreState(memento->membersState());
 	}
 	if (_infoWrap) {
 		_infoWrap->finishAnimating();

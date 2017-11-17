@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang/lang_keys.h"
 #include "info/info_wrap_widget.h"
 #include "info/info_controller.h"
+#include "info/profile/info_profile_values.h"
 #include "storage/storage_shared_media.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -111,6 +112,9 @@ void TopBar::createSearchView(
 		_st.searchRow.fieldCancel);
 
 	auto toggleSearchMode = [=](bool enabled, anim::type animated) {
+		if (!enabled) {
+			setFocus();
+		}
 		if (_title) {
 			_title->setVisible(!enabled);
 		}
@@ -120,6 +124,9 @@ void TopBar::createSearchView(
 			cancel->finishAnimations();
 		}
 		search->toggle(!enabled, animated);
+		if (enabled) {
+			field->setFocus();
+		}
 	};
 
 	auto cancelSearch = [=] {
@@ -160,7 +167,6 @@ void TopBar::createSearchView(
 
 	search->entity()->addClickHandler([=] {
 		toggleSearchMode(true, anim::type::normal);
-		field->setFocus();
 	});
 
 	field->alive()
@@ -248,6 +254,12 @@ void TopBar::startHighlightAnimation() {
 rpl::producer<QString> TitleValue(
 		const Section &section,
 		not_null<PeerData*> peer) {
+	if (section.type() == Section::Type::Members) {
+		return Profile::MembersCountValue(peer)
+			| rpl::map([](int count) {
+				return lng_chat_status_members(lt_count, count);
+			});
+	}
 	return Lang::Viewer([&] {
 		switch (section.type()) {
 		case Section::Type::Profile:

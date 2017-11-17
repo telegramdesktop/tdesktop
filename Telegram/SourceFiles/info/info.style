@@ -450,20 +450,7 @@ infoMembersSearchActiveLayer: icon {
 		infoMembersButtonIconPosition
 	}
 };
-infoMembersSearchField: FlatInput(defaultFlatInput) {
-	textColor: windowFg;
-	bgColor: topBarBg;
-	bgActive: topBarBg;
-
-	font: font(fsize);
-
-	borderWidth: 0px;
-	borderColor: topBarBg;
-	borderActive: topBarBg;
-
-	width: 100px;
-	height: 32px;
-	textMrg: margins(0px, 0px, 0px, 0px);
+infoMembersSearchField: InputField(contactsSearchField) {
 }
 infoMembersCancelSearch: CrossButton {
 	width: 44px;

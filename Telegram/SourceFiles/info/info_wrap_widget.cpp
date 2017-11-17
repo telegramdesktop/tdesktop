@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/flatten_latest.h>
 #include <rpl/combine.h>
 #include "info/profile/info_profile_widget.h"
+#include "info/profile/info_profile_members.h"
 #include "info/profile/info_profile_values.h"
 #include "info/media/info_media_widget.h"
 #include "info/info_content_widget.h"
@@ -39,6 +40,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/window_controller.h"
 #include "window/window_slide_animation.h"
 #include "window/window_peer_menu.h"
+#include "boxes/peer_list_box.h"
 #include "auth_session.h"
 #include "mainwidget.h"
 #include "lang/lang_keys.h"
@@ -261,6 +263,7 @@ void WrapWidget::forceContentRepaint() {
 //		}
 //		break;
 //	case Section::Type::CommonGroups:
+//  case Section::Type::Members:
 //		setupTabs(Tab::None);
 //		break;
 //	}
@@ -482,7 +485,8 @@ void WrapWidget::createTopBarOverride(SelectedItems &&items) {
 bool WrapWidget::requireTopBarSearch() const {
 	if (!_controller->searchFieldController()) {
 		return false;
-	} else if (_controller->wrap() == Wrap::Layer) {
+	} else if (_controller->wrap() == Wrap::Layer
+		|| _controller->section().type() == Section::Type::Profile) {
 		return false;
 	} else if (hasStackHistory()) {
 		return true;

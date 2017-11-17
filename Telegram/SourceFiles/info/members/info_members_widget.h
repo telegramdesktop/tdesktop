@@ -23,17 +23,27 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/producer.h>
 #include "info/info_content_widget.h"
 
+struct PeerListState;
+
+namespace Ui {
+class SearchFieldController;
+} // namespace Ui
+
 namespace Info {
 namespace Profile {
-
-class InnerWidget;
+class Members;
 struct MembersState;
+} // namespace Profile
+
+namespace Members {
+
+using SavedState = Profile::MembersState;
 
 class Memento final : public ContentMemento {
 public:
 	Memento(not_null<Controller*> controller);
 	Memento(PeerId peerId, PeerId migratedPeerId)
-	: ContentMemento(peerId, migratedPeerId) {
+		: ContentMemento(peerId, migratedPeerId) {
 	}
 
 	object_ptr<ContentWidget> createWidget(
@@ -43,21 +53,13 @@ public:
 
 	Section section() const override;
 
-	void setInfoExpanded(bool expanded) {
-		_infoExpanded = expanded;
-	}
-	bool infoExpanded() const {
-		return _infoExpanded;
-	}
-	void setMembersState(std::unique_ptr<MembersState> state);
-	std::unique_ptr<MembersState> membersState();
+	void setState(std::unique_ptr<SavedState> state);
+	std::unique_ptr<SavedState> state();
 
 	~Memento();
 
 private:
-	bool _infoExpanded = true;
-	base::optional<QString> _membersSearch;
-	std::unique_ptr<MembersState> _membersState;
+	std::unique_ptr<SavedState> _state;
 
 };
 
@@ -67,8 +69,6 @@ public:
 		QWidget *parent,
 		not_null<Controller*> controller);
 
-	void setIsStackBottom(bool isStackBottom) override;
-
 	bool showInternal(
 		not_null<ContentMemento*> memento) override;
 
@@ -76,17 +76,16 @@ public:
 		const QRect &geometry,
 		not_null<Memento*> memento);
 
-	void setInnerFocus() override;
-
 private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
 
 	std::unique_ptr<ContentMemento> doCreateMemento() override;
 
-	InnerWidget *_inner = nullptr;
+	Profile::Members *_inner = nullptr;
 
 };
 
-} // namespace Profile
+} // namespace Members
 } // namespace Info
+

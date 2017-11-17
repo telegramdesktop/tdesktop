@@ -186,6 +186,7 @@ InnerWidget::InnerWidget(
 , _list(setupList(this, _listController.get())) {
 	setContent(_list.data());
 	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
+
 	_controller->searchFieldController()->queryValue()
 		| rpl::start_with_next([this](QString &&query) {
 			peerListScrollToTop();

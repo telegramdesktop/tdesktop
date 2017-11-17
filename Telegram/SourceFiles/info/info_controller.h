@@ -44,6 +44,7 @@ public:
 		Profile,
 		Media,
 		CommonGroups,
+		Members,
 	};
 	using MediaType = Storage::SharedMediaType;
 

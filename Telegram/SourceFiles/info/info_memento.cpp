@@ -21,11 +21,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/info_memento.h"
 
 #include "info/profile/info_profile_widget.h"
+#include "info/profile/info_profile_members.h"
 #include "info/media/info_media_widget.h"
+#include "info/members/info_members_widget.h"
 #include "info/common_groups/info_common_groups_widget.h"
 #include "info/info_section_widget.h"
 #include "info/info_layer_widget.h"
 #include "info/info_controller.h"
+#include "boxes/peer_list_box.h"
 
 namespace Info {
 
@@ -76,6 +79,10 @@ std::unique_ptr<ContentMemento> Memento::Default(
 		Assert(peerIsUser(peerId));
 		return std::make_unique<CommonGroups::Memento>(
 			peerToUser(peerId));
+	case Section::Type::Members:
+		return std::make_unique<Members::Memento>(
+			peerId,
+			migratedPeerId);
 	}
 	Unexpected("Wrong section type in Info::Memento::Default()");
 }
