@@ -509,7 +509,7 @@ void WrapWidget::showBackFromStack() {
 			last.section.get(),
 			params);
 		//_anotherTabMemento = std::move(last.anotherTab);
-	} else {
+	} else if (wrap() != Wrap::Layer) {
 		_controller->window()->showBackFromStack(params);
 	}
 }
@@ -862,6 +862,14 @@ void WrapWidget::resizeEvent(QResizeEvent *e) {
 		_topBarOverride->resizeToWidth(width());
 	}
 	updateContentGeometry();
+}
+
+void WrapWidget::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Escape) {
+		showBackFromStack();
+	} else {
+		SectionWidget::keyPressEvent(e);
+	}
 }
 
 void WrapWidget::updateContentGeometry() {

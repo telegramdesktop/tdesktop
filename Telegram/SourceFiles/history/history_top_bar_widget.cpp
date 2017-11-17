@@ -44,6 +44,44 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "apiwrap.h"
 
+class HistoryTopBarWidget::UnreadBadge : public Ui::RpWidget {
+public:
+	using RpWidget::RpWidget;
+
+	void setText(const QString &text, bool active) {
+		_text = text;
+		_active = active;
+		update();
+	}
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	QString _text;
+	bool _active = false;
+
+};
+
+void HistoryTopBarWidget::UnreadBadge::paintEvent(QPaintEvent *e) {
+	if (_text.isEmpty()) {
+		return;
+	}
+
+	Painter p(this);
+
+	Dialogs::Layout::UnreadBadgeStyle unreadSt;
+	unreadSt.muted = !_active;
+	auto unreadRight = width();
+	auto unreadTop = 0;
+	Dialogs::Layout::paintUnreadCount(
+		p,
+		_text,
+		unreadRight,
+		unreadTop,
+		unreadSt);
+}
+
 HistoryTopBarWidget::HistoryTopBarWidget(
 	QWidget *parent,
 	not_null<Window::Controller*> controller)
@@ -95,15 +133,13 @@ HistoryTopBarWidget::HistoryTopBarWidget(
 			_search->setForceRippled(searchInHistoryPeer, animated);
 		}, lifetime());
 
-	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
+	subscribe(Adaptive::Changed(), [this] { updateAdaptiveLayout(); });
 	if (Adaptive::OneColumn()) {
-		_unreadCounterSubscription = subscribe(Global::RefUnreadCounterUpdate(), [this] {
-			rtlupdate(0, 0, st::titleUnreadCounterRight, st::titleUnreadCounterTop);
-		});
+		createUnreadBadge();
 	}
 	subscribe(App::histories().sendActionAnimationUpdated(), [this](const Histories::SendActionAnimationUpdate &update) {
 		if (update.history->peer == _historyPeer) {
-			rtlupdate(0, 0, width(), height());
+			this->update();
 		}
 	});
 	using UpdateFlag = Notify::PeerUpdate::Flag;
@@ -253,12 +289,7 @@ void HistoryTopBarWidget::paintEvent(QPaintEvent *e) {
 	p.fillRect(QRect(0, 0, width(), st::topBarHeight), st::topBarBg);
 	if (selectedButtonsTop < 0) {
 		p.translate(0, selectedButtonsTop + st::topBarHeight);
-
-		p.save();
 		paintTopBar(p, ms);
-		p.restore();
-
-		paintUnreadCounter(p, width(), _historyPeer);
 	}
 }
 
@@ -289,38 +320,6 @@ QRect HistoryTopBarWidget::getMembersShowAreaGeometry() const {
 	return myrtlrect(membersTextLeft, membersTextTop, membersTextWidth, membersTextHeight);
 }
 
-void HistoryTopBarWidget::paintUnreadCounter(
-		Painter &p,
-		int outerWidth,
-		PeerData *substractPeer) {
-	if (!Adaptive::OneColumn()) {
-		return;
-	}
-	auto mutedCount = App::histories().unreadMutedCount();
-	auto fullCounter = App::histories().unreadBadge() + (Global::IncludeMuted() ? 0 : mutedCount);
-
-	// Do not include currently shown chat in the top bar unread counter.
-	if (auto historyShown = App::historyLoaded(substractPeer)) {
-		auto shownUnreadCount = historyShown->unreadCount();
-		if (!historyShown->mute() || Global::IncludeMuted()) {
-			fullCounter -= shownUnreadCount;
-		}
-		if (historyShown->mute()) {
-			mutedCount -= shownUnreadCount;
-		}
-	}
-
-	if (auto counter = (fullCounter - (Global::IncludeMuted() ? 0 : mutedCount))) {
-		auto counterText = (counter > 99) ? qsl("..%1").arg(counter % 100) : QString::number(counter);
-		Dialogs::Layout::UnreadBadgeStyle unreadSt;
-		unreadSt.muted = (mutedCount >= fullCounter);
-		auto unreadRight = st::titleUnreadCounterRight;
-		if (rtl()) unreadRight = outerWidth - st::titleUnreadCounterRight;
-		auto unreadTop = st::titleUnreadCounterTop;
-		Dialogs::Layout::paintUnreadCount(p, counterText, unreadRight, unreadTop, unreadSt);
-	}
-}
-
 void HistoryTopBarWidget::mousePressEvent(QMouseEvent *e) {
 	auto handleClick = (e->button() == Qt::LeftButton)
 		&& (e->pos().y() < st::topBarHeight)
@@ -346,6 +345,7 @@ void HistoryTopBarWidget::setHistoryPeer(
 		not_null<PeerData*> historyPeer) {
 	if (_historyPeer != historyPeer) {
 		_historyPeer = historyPeer;
+		updateUnreadBadge();
 		if (_historyPeer) {
 			_info.create(
 				this,
@@ -392,6 +392,9 @@ void HistoryTopBarWidget::updateControlsGeometry() {
 	_delete->moveToLeft(buttonsLeft, selectedButtonsTop);
 	_clearSelection->moveToRight(st::topBarActionSkip, selectedButtonsTop);
 
+	if (_unreadBadge) {
+		_unreadBadge->setGeometryToLeft(0, st::titleUnreadCounterTop, _back->width(), st::dialogsUnreadHeight);
+	}
 	if (_back->isHidden()) {
 		_leftTaken = st::topBarArrowPadding.right();
 	} else {
@@ -415,6 +418,8 @@ void HistoryTopBarWidget::updateControlsGeometry() {
 	_rightTaken += _search->width() + st::topBarCallSkip;
 	_call->moveToRight(_rightTaken, otherButtonsTop);
 	_rightTaken += _call->width();
+
+	updateMembersShowArea();
 }
 
 void HistoryTopBarWidget::setAnimationMode(bool enabled) {
@@ -422,7 +427,6 @@ void HistoryTopBarWidget::setAnimationMode(bool enabled) {
 		_animationMode = enabled;
 		setAttribute(Qt::WA_OpaquePaintEvent, !_animationMode);
 		_selectedShown.finish();
-		updateMembersShowArea();
 		updateControlsVisibility();
 	}
 }
@@ -442,6 +446,9 @@ void HistoryTopBarWidget::updateControlsVisibility() {
 	if (_info) {
 		_info->setVisible(backVisible);
 	}
+	if (_unreadBadge) {
+		_unreadBadge->show();
+	}
 	_search->show();
 	_menuToggle->show();
 	_infoToggle->setVisible(!Adaptive::OneColumn()
@@ -459,6 +466,9 @@ void HistoryTopBarWidget::updateControlsVisibility() {
 }
 
 void HistoryTopBarWidget::updateMembersShowArea() {
+	if (!App::main()) {
+		return;
+	}
 	auto membersShowAreaNeeded = [this]() {
 		auto peer = App::main()->peer();
 		if ((_selectedCount > 0) || !peer) {
@@ -530,16 +540,57 @@ void HistoryTopBarWidget::selectedShowCallback() {
 }
 
 void HistoryTopBarWidget::updateAdaptiveLayout() {
-	updateMembersShowArea();
 	updateControlsVisibility();
-	if (!Adaptive::OneColumn()) {
+	if (Adaptive::OneColumn()) {
+		createUnreadBadge();
+	} else if (_unreadBadge) {
 		unsubscribe(base::take(_unreadCounterSubscription));
-	} else if (!_unreadCounterSubscription) {
-		_unreadCounterSubscription = subscribe(Global::RefUnreadCounterUpdate(), [this] {
-			rtlupdate(0, 0, st::titleUnreadCounterRight, st::titleUnreadCounterTop);
-		});
+		_unreadBadge.destroy();
 	}
 	updateInfoToggleActive();
+}
+
+void HistoryTopBarWidget::createUnreadBadge() {
+	if (_unreadBadge) {
+		return;
+	}
+	_unreadBadge.create(this);
+	_unreadBadge->setGeometryToLeft(0, st::titleUnreadCounterTop, _back->width(), st::dialogsUnreadHeight);
+	_unreadBadge->show();
+	_unreadBadge->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_unreadCounterSubscription = subscribe(
+		Global::RefUnreadCounterUpdate(),
+		[this] { updateUnreadBadge(); });
+	updateUnreadBadge();
+}
+
+void HistoryTopBarWidget::updateUnreadBadge() {
+	if (!_unreadBadge) return;
+
+	auto mutedCount = App::histories().unreadMutedCount();
+	auto fullCounter = App::histories().unreadBadge()
+		+ (Global::IncludeMuted() ? 0 : mutedCount);
+
+	// Do not include currently shown chat in the top bar unread counter.
+	if (auto historyShown = App::historyLoaded(_historyPeer)) {
+		auto shownUnreadCount = historyShown->unreadCount();
+		if (!historyShown->mute() || Global::IncludeMuted()) {
+			fullCounter -= shownUnreadCount;
+		}
+		if (historyShown->mute()) {
+			mutedCount -= shownUnreadCount;
+		}
+	}
+
+	auto active = (mutedCount < fullCounter);
+	_unreadBadge->setText([&] {
+		if (auto counter = (fullCounter - (Global::IncludeMuted() ? 0 : mutedCount))) {
+			return (counter > 999)
+				? qsl("..%1").arg(counter % 100, 2, 10, QChar('0'))
+				: QString::number(counter);
+		}
+		return QString();
+	}(), active);
 }
 
 void HistoryTopBarWidget::updateInfoToggleActive() {

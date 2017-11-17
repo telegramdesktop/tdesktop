@@ -68,6 +68,8 @@ protected:
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
 private:
+	class UnreadBadge;
+
 	void refreshLang();
 	void updateControlsGeometry();
 	void selectedShowCallback();
@@ -94,6 +96,9 @@ private:
 	void infoClicked();
 	void backClicked();
 
+	void createUnreadBadge();
+	void updateUnreadBadge();
+
 	not_null<Window::Controller*> _controller;
 	PeerData *_historyPeer = nullptr;
 
@@ -107,6 +112,7 @@ private:
 	object_ptr<Ui::RoundButton> _forward, _delete;
 
 	object_ptr<Ui::IconButton> _back;
+	object_ptr<UnreadBadge> _unreadBadge = { nullptr };
 	object_ptr<Ui::UserpicButton> _info = { nullptr };
 
 	object_ptr<Ui::IconButton> _call;
