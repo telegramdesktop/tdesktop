@@ -576,9 +576,7 @@ void HistoryTopBarWidget::updateUnreadBadge() {
 	// Do not include currently shown chat in the top bar unread counter.
 	if (auto historyShown = App::historyLoaded(_historyPeer)) {
 		auto shownUnreadCount = historyShown->unreadCount();
-		if (!historyShown->mute() || Global::IncludeMuted()) {
-			fullCounter -= shownUnreadCount;
-		}
+		fullCounter -= shownUnreadCount;
 		if (historyShown->mute()) {
 			mutedCount -= shownUnreadCount;
 		}
