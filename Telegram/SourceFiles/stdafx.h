@@ -47,6 +47,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #if QT_VERSION < QT_VERSION_CHECK(5, 5, 0)
 #define OS_MAC_OLD
+#define RANGES_CXX_THREAD_LOCAL 0
 #endif // QT_VERSION < 5.5.0
 
 #ifdef OS_MAC_STORE

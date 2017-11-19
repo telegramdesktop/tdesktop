@@ -123,7 +123,7 @@ private:
 	void updateHeaderControlsGeometry(int newWidth);
 	void updateSearchEnabledByContent();
 
-	Wrap _wrap;
+	//Wrap _wrap;
 	not_null<Controller*> _controller;
 	not_null<PeerData*> _peer;
 	std::unique_ptr<PeerListController> _listController;
