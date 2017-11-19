@@ -60,10 +60,11 @@ SlideWrap<RpWidget> *SlideWrap<RpWidget>::setDuration(int duration) {
 SlideWrap<RpWidget> *SlideWrap<RpWidget>::toggle(
 		bool shown,
 		anim::type animated) {
+	auto animate = (animated == anim::type::normal) && _duration;
 	auto changed = (_toggled != shown);
 	if (changed) {
 		_toggled = shown;
-		if (animated == anim::type::normal) {
+		if (animate) {
 			_animation.start(
 				[this] { animationStep(); },
 				_toggled ? 0. : 1.,
@@ -72,7 +73,7 @@ SlideWrap<RpWidget> *SlideWrap<RpWidget>::toggle(
 				anim::linear);
 		}
 	}
-	if (animated == anim::type::normal) {
+	if (animate) {
 		animationStep();
 	} else {
 		finishAnimating();

@@ -103,6 +103,8 @@ infoTopBarSearchRow: SearchFieldRow(infoLayerMediaSearch) {
 	}
 }
 
+infoSlideDuration: 0;
+
 infoTopBarBackIcon: icon {{ "info_back", boxTitleCloseFg }};
 infoTopBarBackIconOver: icon {{ "info_back", boxTitleCloseFgOver }};
 infoTopBarHeight: 54px;
@@ -184,6 +186,8 @@ infoTopBar: InfoTopBar {
 	highlightDuration: 240;
 }
 
+infoLayerTopMinimal: 20px;
+infoLayerTopMaximal: 40px;
 infoLayerTopBarHeight: boxLayerTitleHeight;
 infoLayerTopBarBackIcon: icon {{ "info_back", boxTitleCloseFg }};
 infoLayerTopBarBackIconOver: icon {{ "info_back", boxTitleCloseFgOver }};

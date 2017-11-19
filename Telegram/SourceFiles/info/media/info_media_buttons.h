@@ -80,9 +80,11 @@ inline auto AddCountedButton(
 			parent,
 			std::move(text),
 			st::infoSharedMediaButton))
+	)->setDuration(
+		st::infoSlideDuration
 	)->toggleOn(
-		rpl::duplicate(forked)
-		| rpl::map($1 > 0));
+		rpl::duplicate(forked) | rpl::map($1 > 0)
+	);
 	tracker.track(button);
 	return button;
 };

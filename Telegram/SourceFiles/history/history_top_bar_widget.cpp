@@ -345,6 +345,8 @@ void HistoryTopBarWidget::setHistoryPeer(
 		not_null<PeerData*> historyPeer) {
 	if (_historyPeer != historyPeer) {
 		_historyPeer = historyPeer;
+		update();
+
 		updateUnreadBadge();
 		if (_historyPeer) {
 			_info.create(

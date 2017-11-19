@@ -64,7 +64,11 @@ object_ptr<Ui::RpWidget> CreateSkipWidget(
 
 object_ptr<Ui::SlideWrap<>> CreateSlideSkipWidget(
 		not_null<Ui::RpWidget*> parent) {
-	return Ui::CreateSlideSkipWidget(parent, st::infoProfileSkip);
+	auto result = Ui::CreateSlideSkipWidget(
+		parent,
+		st::infoProfileSkip);
+	result->setDuration(st::infoSlideDuration);
+	return result;
 }
 
 template <typename Text, typename ToggleOn, typename Callback>
@@ -82,7 +86,9 @@ auto AddActionButton(
 			std::move(text),
 			st))
 	);
-	result->toggleOn(
+	result->setDuration(
+		st::infoSlideDuration
+	)->toggleOn(
 		std::move(toggleOn)
 	)->entity()->addClickHandler(std::move(callback));
 	result->finishAnimating();
@@ -260,7 +266,11 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		result,
 		object_ptr<Ui::PlainShadow>(result),
 		st::infoProfileSeparatorPadding)
-	)->toggleOn(std::move(tracker).atLeastOneShownValue());
+	)->setDuration(
+		st::infoSlideDuration
+	)->toggleOn(
+		std::move(tracker).atLeastOneShownValue()
+	);
 	object_ptr<FloatingIcon>(
 		result,
 		st::infoIconInformation,
@@ -591,7 +601,11 @@ void ActionsFiller::addJoinChannelAction(
 		CreateSkipWidget(
 			_wrap,
 			st::infoBlockButtonSkip))
-	)->toggleOn(rpl::duplicate(joinVisible));
+	)->setDuration(
+		st::infoSlideDuration
+	)->toggleOn(
+		rpl::duplicate(joinVisible)
+	);
 }
 
 void ActionsFiller::fillUserActions(not_null<UserData*> user) {
@@ -730,7 +744,11 @@ object_ptr<Ui::RpWidget> SetupChannelMembers(
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		parent,
 		object_ptr<Ui::VerticalLayout>(parent));
-	result->toggleOn(std::move(membersShown));
+	result->setDuration(
+		st::infoSlideDuration
+	)->toggleOn(
+		std::move(membersShown)
+	);
 
 	auto members = result->entity();
 	members->add(object_ptr<BoxContentDivider>(members));

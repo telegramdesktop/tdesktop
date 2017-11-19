@@ -100,7 +100,11 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		_infoWrap = result->add(object_ptr<Ui::SlideWrap<>>(
 			result,
 			std::move(details))
-		)->toggleOn(_cover->toggledValue());
+		)->setDuration(
+			st::infoSlideDuration
+		)->toggleOn(
+			_cover->toggledValue()
+		);
 	} else {
 		result->add(std::move(details));
 	}
@@ -215,7 +219,11 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 	//	}, result->lifetime());
 	//
 	// Using that instead
-	result->toggleOn(tracker.atLeastOneShownValue());
+	result->setDuration(
+		st::infoSlideDuration
+	)->toggleOn(
+		tracker.atLeastOneShownValue()
+	);
 
 	auto layout = result->entity();
 

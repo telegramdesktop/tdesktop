@@ -137,8 +137,12 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 	if (newHeight > windowHeight || newWidth >= windowWidth) {
 		newHeight = windowHeight;
 	}
+	auto layerTop = snap(
+		windowHeight / 24,
+		st::infoLayerTopMinimal,
+		st::infoLayerTopMaximal);
 
-	setRoundedCorners(newHeight < windowHeight);
+	setRoundedCorners(layerTop + newHeight < windowHeight);
 
 	// First resize content to new width and get the new desired height.
 	auto contentTop = st::boxRadius;
@@ -148,39 +152,38 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 	}
 	_content->setGeometry(0, contentTop, newWidth, contentHeight);
 
-	moveToLeft((windowWidth - newWidth) / 2, (windowHeight - newHeight) / 2);
+	moveToLeft((windowWidth - newWidth) / 2, layerTop);
 
 	return newHeight;
 }
 
 void LayerWidget::setRoundedCorners(bool rounded) {
 	_roundedCorners = rounded;
-	setAttribute(Qt::WA_OpaquePaintEvent, !_roundedCorners);
+//	setAttribute(Qt::WA_OpaquePaintEvent, !_roundedCorners);
 }
 
 void LayerWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
+
+	auto clip = e->rect();
+	auto r = st::boxRadius;
+	auto parts = RectPart::None | 0;
+	if (clip.intersects({ 0, 0, width(), r })) {
+		parts |= RectPart::FullTop;
+	}
 	if (_roundedCorners) {
-		auto clip = e->rect();
-		auto r = st::boxRadius;
-		auto parts = RectPart::None | 0;
-		if (clip.intersects({ 0, 0, width(), r })) {
-			parts |= RectPart::FullTop;
-		}
 		if (clip.intersects({ 0, height() - r, width(), r })) {
 			parts |= RectPart::FullBottom;
 		}
-		if (parts) {
-			App::roundRect(
-				p,
-				rect(),
-				st::boxBg,
-				BoxCorners,
-				nullptr,
-				parts);
-		}
-	} else {
-		p.fillRect(0, 0, width(), st::boxRadius, st::boxBg);
+	}
+	if (parts) {
+		App::roundRect(
+			p,
+			rect(),
+			st::boxBg,
+			BoxCorners,
+			nullptr,
+			parts);
 	}
 }
 

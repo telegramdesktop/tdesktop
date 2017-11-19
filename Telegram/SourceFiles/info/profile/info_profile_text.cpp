@@ -41,6 +41,9 @@ TextWithLabel CreateTextWithLabel(
 		parent,
 		object_ptr<Ui::VerticalLayout>(parent),
 		padding);
+	result->setDuration(
+		st::infoSlideDuration
+	);
 	auto layout = result->entity();
 	auto nonEmptyText = std::move(text)
 		| rpl::before_next([slide = result.data()](
