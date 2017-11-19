@@ -102,6 +102,7 @@
       '<(libs_loc)/ffmpeg',
       '<(libs_loc)/openal-soft/include',
       '<(libs_loc)/opus/include',
+      '<(libs_loc)/range-v3/include',
       '<(minizip_loc)',
       '<(sp_media_key_tap_loc)',
       '<(emoji_suggestions_loc)',

@@ -62,6 +62,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <map>
 #include <algorithm>
 #include <memory>
+#include <range/v3/all.hpp>
 
 // Ensures/Expects.
 #include <gsl/gsl_assert>

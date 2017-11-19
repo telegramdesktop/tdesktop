@@ -51,6 +51,8 @@ Open **x86 Native Tools Command Prompt for VS 2017.bat**, go to ***BuildPath*** 
     mkdir Libraries
     cd Libraries
 
+    git clone https://github.com/Microsoft/Range-V3-VS2015 range-v3
+
     git clone https://github.com/telegramdesktop/lzma.git
     cd lzma\C\Util\LzmaLib
     msbuild LzmaLib.sln /property:Configuration=Debug

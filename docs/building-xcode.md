@@ -20,6 +20,8 @@ Go to ***BuildPath*** and run
 
     cd Libraries
 
+    git clone https://github.com/ericniebler/range-v3
+
     cd xz-5.0.5
     ./configure
     make
