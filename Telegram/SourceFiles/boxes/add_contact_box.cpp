@@ -604,7 +604,6 @@ void SetupChannelBox::prepare() {
 			AddParticipantsBoxController::Start(_channel);
 		}
 	});
-
 	updateMaxHeight();
 }
 

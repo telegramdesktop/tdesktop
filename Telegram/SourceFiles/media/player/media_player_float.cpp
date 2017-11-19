@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "media/player/media_player_float.h"
 
+#include <rpl/merge.h>
 #include "data/data_document.h"
 #include "history/history_media.h"
 #include "media/media_clip_reader.h"
@@ -55,13 +56,9 @@ Float::Float(
 	prepareShadow();
 
 	// #TODO rpl::merge
-	Auth().data().itemLayoutChanged()
-		| rpl::start_with_next([this](auto item) {
-			if (_item == item) {
-				repaintItem();
-			}
-		}, lifetime());
-	Auth().data().itemRepaintRequest()
+	rpl::merge(
+		Auth().data().itemLayoutChanged(),
+		Auth().data().itemRepaintRequest())
 		| rpl::start_with_next([this](auto item) {
 			if (_item == item) {
 				repaintItem();

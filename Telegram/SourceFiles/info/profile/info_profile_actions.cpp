@@ -695,13 +695,7 @@ void SetupAddChannelMember(
 		st::infoMembersAddMember);
 	add->showOn(CanAddMemberValue(channel));
 	add->addClickHandler([channel] {
-		if (channel->membersCount() >= Global::ChatSizeMax()) {
-			Ui::show(
-				Box<MaxInviteBox>(channel),
-				LayerOption::KeepOther);
-		} else {
-			AddParticipantsBoxController::Start(channel, {});
-		}
+		Window::PeerMenuAddChannelMembers(channel);
 	});
 	parent->widthValue()
 		| rpl::start_with_next([add](int newWidth) {

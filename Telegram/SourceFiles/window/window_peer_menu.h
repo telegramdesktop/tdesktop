@@ -43,5 +43,6 @@ void FillPeerMenu(
 void PeerMenuDeleteContact(not_null<UserData*> user);
 void PeerMenuShareContactBox(not_null<UserData*> user);
 void PeerMenuAddContact(not_null<UserData*> user);
+void PeerMenuAddChannelMembers(not_null<ChannelData*> channel);
 
 } // namespace Window

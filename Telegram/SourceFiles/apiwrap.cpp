@@ -810,6 +810,35 @@ void ApiWrap::unblockParticipant(PeerData *peer, UserData *user) {
 	}
 }
 
+void ApiWrap::requestChannelMembersForAdd(
+		not_null<ChannelData*> channel,
+		base::lambda<void(const MTPchannels_ChannelParticipants&)> callback) {
+	_channelMembersForAddCallback = std::move(callback);
+	if (_channelMembersForAdd == channel) {
+		return;
+	}
+	request(base::take(_channelMembersForAddRequestId)).cancel();
+
+	auto requestData = MTPchannels_GetParticipants(
+		channel->inputChannel,
+		MTP_channelParticipantsRecent(),
+		MTP_int(0),
+		MTP_int(Global::ChatSizeMax()));
+
+	_channelMembersForAdd = channel;
+	_channelMembersForAddRequestId = request(
+		std::move(requestData)
+	).done([this](const MTPchannels_ChannelParticipants &result) {
+		base::take(_channelMembersForAddRequestId);
+		base::take(_channelMembersForAdd);
+		base::take(_channelMembersForAddCallback)(result);
+	}).fail([this](const RPCError &error) {
+		base::take(_channelMembersForAddRequestId);
+		base::take(_channelMembersForAdd);
+		base::take(_channelMembersForAddCallback);
+	}).send();
+}
+
 void ApiWrap::scheduleStickerSetRequest(uint64 setId, uint64 access) {
 	if (!_stickerSetRequests.contains(setId)) {
 		_stickerSetRequests.insert(setId, qMakePair(access, 0));

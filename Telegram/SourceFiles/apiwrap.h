@@ -65,6 +65,9 @@ public:
 	void requestBots(ChannelData *channel);
 	void requestParticipantsCountDelayed(ChannelData *channel);
 
+	void requestChannelMembersForAdd(
+		not_null<ChannelData*> channel,
+		base::lambda<void(const MTPchannels_ChannelParticipants&)> callback);
 	void processFullPeer(PeerData *peer, const MTPmessages_ChatFull &result);
 	void processFullPeer(UserData *user, const MTPUserFull &result);
 
@@ -211,6 +214,10 @@ private:
 	PeerRequests _participantsRequests;
 	PeerRequests _botsRequests;
 	base::DelayedCallTimer _participantsCountRequestTimer;
+
+	ChannelData *_channelMembersForAdd = nullptr;
+	mtpRequestId _channelMembersForAddRequestId = 0;
+	base::lambda<void(const MTPchannels_ChannelParticipants&)> _channelMembersForAddCallback;
 
 	typedef QPair<PeerData*, UserData*> KickRequest;
 	typedef QMap<KickRequest, mtpRequestId> KickRequests;
