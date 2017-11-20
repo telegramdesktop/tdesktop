@@ -97,8 +97,8 @@ public:
 	auto operator()(producer<Value, Error, Generator> &&initial) {
 		using namespace mappers;
 		return combine(std::move(initial), std::move(_filterer))
-			| filter($2)
-			| map($1_of_two);
+			| filter(_2)
+			| map(_1_of_two);
 	}
 
 private:

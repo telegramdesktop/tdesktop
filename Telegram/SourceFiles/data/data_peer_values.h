@@ -155,7 +155,7 @@ inline auto RestrictionValue(
 inline auto CanWriteValue(UserData *user) {
 	using namespace rpl::mappers;
 	return PeerFlagValue(user, MTPDuser::Flag::f_deleted)
-		| rpl::map(!$1);
+		| rpl::map(!_1);
 }
 
 inline auto CanWriteValue(ChatData *chat) {
@@ -166,7 +166,7 @@ inline auto CanWriteValue(ChatData *chat) {
 		| MTPDchat::Flag::f_left
 		| MTPDchat::Flag::f_kicked;
 	return PeerFlagsValue(chat, mask)
-		| rpl::map(!$1);
+		| rpl::map(!_1);
 }
 
 inline auto CanWriteValue(ChannelData *channel) {

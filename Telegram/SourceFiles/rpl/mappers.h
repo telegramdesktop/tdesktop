@@ -74,7 +74,7 @@ class value_mapper : public base_mapper {
 public:
 	template <typename OtherType>
 	constexpr value_mapper(OtherType &&value)
-		: _value(std::forward<OtherType>(value)) {
+	: _value(std::forward<OtherType>(value)) {
 	}
 
 	template <typename ...Args>
@@ -86,11 +86,6 @@ private:
 	Type _value;
 
 };
-
-template <typename Type>
-inline value_mapper<std::decay_t<Type>> make_value_mapper(Type &&value) {
-	return { std::forward<Type>(value) };
-}
 
 template <typename Type>
 struct wrap_mapper {
@@ -475,33 +470,18 @@ tuple_mapper<Args...> tuple(Args &&...args) {
 
 namespace mappers {
 
-constexpr const details::argument_mapper<0> $1;
-constexpr const details::argument_mapper<1> $2;
-constexpr const details::argument_mapper<2> $3;
-constexpr const details::argument_mapper<3> $4;
-constexpr const details::argument_mapper<4> $5;
-constexpr const details::argument_mapper<5> $6;
-constexpr const details::argument_mapper<6> $7;
-constexpr const details::argument_mapper<7> $8;
-constexpr const details::argument_mapper<8> $9;
-constexpr const details::argument_mapper<9> $10;
-constexpr const details::argument_mapper<10> $11;
-constexpr const details::argument_mapper<11> $12;
-constexpr const details::argument_mapper<12> $13;
-constexpr const details::argument_mapper<13> $14;
-constexpr const details::argument_mapper<14> $15;
-constexpr const details::argument_mapper<15> $16;
-constexpr const details::argument_mapper<16> $17;
-constexpr const details::argument_mapper<17> $18;
-constexpr const details::argument_mapper<18> $19;
-constexpr const details::argument_mapper<19> $20;
+constexpr const details::argument_mapper<0> _1;
+constexpr const details::argument_mapper<1> _2;
+constexpr const details::argument_mapper<2> _3;
+constexpr const details::argument_mapper<3> _4;
+constexpr const details::argument_mapper<4> _5;
+constexpr const details::argument_mapper<5> _6;
+constexpr const details::argument_mapper<6> _7;
+constexpr const details::argument_mapper<7> _8;
+constexpr const details::argument_mapper<8> _9;
+constexpr const details::argument_mapper<9> _10;
 
-template <typename Type>
-inline auto $val(Type &&value) {
-	return details::make_value_mapper(std::forward<Type>(value));
-}
-
-constexpr const auto $1_of_two = ((void)$2, $1);
+constexpr const auto _1_of_two = ((void)_2, _1);
 
 } // namespace mappers
 } // namespace rpl

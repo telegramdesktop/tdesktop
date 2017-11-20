@@ -262,7 +262,7 @@ void Cover::setupChildGeometry() {
 	rpl::combine(
 		toggleShownValue(),
 		widthValue(),
-		$2)
+		_2)
 		| rpl::start_with_next([this](int newWidth) {
 			_userpic->moveToLeft(
 				st::infoProfilePhotoLeft,
@@ -441,7 +441,7 @@ void SharedMediaCover::createLabel() {
 	rpl::combine(
 		toggleShownValue(),
 		widthValue(),
-		$2)
+		_2)
 		| rpl::start_with_next([this, weak = label.data()](int newWidth) {
 			auto availableWidth = newWidth
 				- st::infoBlockHeaderPosition.x()

@@ -257,7 +257,7 @@ MainWidget::MainWidget(
 				? Data::CanWriteValue(peer)
 				: rpl::single(false);
 			return std::move(canWrite)
-					| rpl::map(tuple(peer, $1));
+					| rpl::map(tuple(peer, _1));
 		})
 		| rpl::flatten_latest()
 		| rpl::start_with_next([this](PeerData *peer, bool canWrite) {

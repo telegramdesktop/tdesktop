@@ -384,7 +384,7 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 				a.events(),
 				b.events(),
 				c.events(),
-				$1 + $2 + $3 + 10)
+				_1 + _2 + _3 + 10)
 				| start_with_next([=](int value) {
 					*sum += std::to_string(value);
 				}, lifetime);

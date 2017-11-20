@@ -83,7 +83,7 @@ inline auto AddCountedButton(
 	)->setDuration(
 		st::infoSlideDuration
 	)->toggleOn(
-		rpl::duplicate(forked) | rpl::map($1 > 0)
+		rpl::duplicate(forked) | rpl::map(_1 > 0)
 	);
 	tracker.track(button);
 	return button;

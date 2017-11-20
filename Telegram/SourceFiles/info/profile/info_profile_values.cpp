@@ -167,7 +167,7 @@ rpl::producer<bool> CanAddContactValue(
 	return rpl::combine(
 			IsContactValue(user),
 			CanShareContactValue(user),
-			!$1 && $2);
+			!_1 && _2);
 }
 
 rpl::producer<bool> AmInChannelValue(

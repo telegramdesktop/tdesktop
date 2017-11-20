@@ -50,7 +50,7 @@ void createErrorLabel(
 
 		using namespace rpl::mappers;
 		saved->shownValue()
-			| rpl::filter($1 == false)
+			| rpl::filter(_1 == false)
 			| rpl::take(1)
 			| rpl::start_with_done(
 				std::move(destroy),

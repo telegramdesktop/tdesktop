@@ -83,7 +83,7 @@ bool InnerWidget::canHideDetailsEver() const {
 rpl::producer<bool> InnerWidget::canHideDetails() const {
 	using namespace rpl::mappers;
 	return MembersCountValue(_peer)
-		| rpl::map($1 > 0);
+		| rpl::map(_1 > 0);
 }
 
 object_ptr<Ui::RpWidget> InnerWidget::setupContent(

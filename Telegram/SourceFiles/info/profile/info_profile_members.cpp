@@ -193,7 +193,7 @@ void Members::setupButtons() {
 	});
 
 	//auto searchShown = MembersCountValue(_peer)
-	//	| rpl::map($1 >= kEnableSearchMembersAfterCount)
+	//	| rpl::map(_1 >= kEnableSearchMembersAfterCount)
 	//	| rpl::distinct_until_changed()
 	//	| rpl::start_spawning(lifetime());
 	//_search->showOn(rpl::duplicate(searchShown));

@@ -116,8 +116,8 @@ void WrapWidget::startInjectingActivePeerProfiles() {
 	rpl::combine(
 		_wrap.value(),
 		_controller->window()->activePeer.value())
-		| rpl::filter(($1 == Wrap::Side) && ($2 != nullptr))
-		| rpl::map($2)
+		| rpl::filter((_1 == Wrap::Side) && (_2 != nullptr))
+		| rpl::map(_2)
 		| rpl::start_with_next([this](not_null<PeerData*> peer) {
 			injectActivePeerProfile(peer);
 		}, lifetime());
@@ -554,7 +554,7 @@ rpl::producer<bool> WrapWidget::topShadowToggledValue() const {
 	//return rpl::combine(
 	//	_controller->wrapValue(),
 	//	_desiredShadowVisibilities.events() | rpl::flatten_latest(),
-	//	($1 == Wrap::Side) || $2);
+	//	(_1 == Wrap::Side) || _2);
 	return _desiredShadowVisibilities.events()
 		| rpl::flatten_latest();
 }
@@ -564,7 +564,7 @@ rpl::producer<int> WrapWidget::desiredHeightForContent() const {
 	return rpl::combine(
 		_content->desiredHeightValue(),
 		topWidget()->heightValue(),
-		$1 + $2);
+		_1 + _2);
 }
 
 rpl::producer<SelectedItems> WrapWidget::selectedListValue() const {

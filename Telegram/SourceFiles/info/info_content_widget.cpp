@@ -60,7 +60,7 @@ ContentWidget::ContentWidget(
 		rpl::combine(
 			_controller->wrapValue(),
 			_controller->searchEnabledByContent(),
-			($1 == Wrap::Layer) && $2)
+			(_1 == Wrap::Layer) && _2)
 			| rpl::start_with_next([this](bool shown) {
 				refreshSearchField(shown);
 			}, lifetime());
@@ -135,7 +135,7 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 		_scroll->scrollTopValue(),
 		_scroll->heightValue(),
 		_inner->desiredHeightValue(),
-		tuple($1, $1 + $2, $3))
+		tuple(_1, _1 + _2, _3))
 		| rpl::start_with_next([inner = _inner](
 				int top,
 				int bottom,
@@ -163,7 +163,7 @@ rpl::producer<int> ContentWidget::desiredHeightValue() const {
 	return rpl::combine(
 		_inner->desiredHeightValue(),
 		_scrollTopSkip.value())
-		| rpl::map($1 + $2);
+		| rpl::map(_1 + _2);
 }
 
 rpl::producer<bool> ContentWidget::desiredShadowVisibility() const {
@@ -171,7 +171,7 @@ rpl::producer<bool> ContentWidget::desiredShadowVisibility() const {
 	return rpl::combine(
 		_scroll->scrollTopValue(),
 		_scrollTopSkip.value())
-		| rpl::map(($1 > 0) || ($2 > 0));
+		| rpl::map((_1 > 0) || (_2 > 0));
 }
 
 bool ContentWidget::hasTopBarShadow() const {

@@ -54,7 +54,7 @@ Layer::Layer()
 
 	using namespace rpl::mappers;
 	_fixedBarShadow->toggleOn(_scroll->scrollTopValue()
-		| rpl::map($1 > 0));
+		| rpl::map(_1 > 0));
 }
 
 void Layer::setCloseClickHandler(base::lambda<void()> callback) {

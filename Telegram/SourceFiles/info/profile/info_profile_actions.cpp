@@ -328,7 +328,7 @@ Ui::MultiSlideTracker DetailsFiller::fillUserButtons(
 	auto sendMessageVisible = rpl::combine(
 		_controller->wrapValue(),
 		window->historyPeer.value(),
-		($1 != Wrap::Side) || ($2 != user));
+		(_1 != Wrap::Side) || (_2 != user));
 	auto sendMessage = [window, user] {
 		window->showPeerHistory(
 			user,
@@ -359,7 +359,7 @@ Ui::MultiSlideTracker DetailsFiller::fillChannelButtons(
 	auto viewChannelVisible = rpl::combine(
 		_controller->wrapValue(),
 		window->historyPeer.value(),
-		($1 != Wrap::Side) || ($2 != channel));
+		(_1 != Wrap::Side) || (_2 != channel));
 	auto viewChannel = [=] {
 		window->showPeerHistory(
 			channel,
@@ -589,7 +589,7 @@ void ActionsFiller::addJoinChannelAction(
 		not_null<ChannelData*> channel) {
 	using namespace rpl::mappers;
 	auto joinVisible = AmInChannelValue(channel)
-		| rpl::map(!$1)
+		| rpl::map(!_1)
 		| rpl::start_spawning(_wrap->lifetime());
 	AddActionButton(
 		_wrap,
@@ -724,7 +724,7 @@ object_ptr<Ui::RpWidget> SetupChannelMembers(
 		Data::PeerFullFlagValue(
 			channel,
 			MTPDchannelFull::Flag::f_can_view_participants),
-			($1 > 0) && $2);
+			(_1 > 0) && _2);
 	auto membersText = MembersCountValue(channel)
 		| rpl::map([](int count) {
 		return lng_chat_status_members(lt_count, count);

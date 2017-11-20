@@ -357,7 +357,7 @@ void InnerWidget::setScrollHeightValue(rpl::producer<int> value) {
 		std::move(value),
 		_listTops.events_starting_with(_list->topValue())
 			| rpl::flatten_latest(),
-		$1 - $2));
+		_1 - _2));
 }
 
 } // namespace Media
