@@ -27,14 +27,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/report_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/manage_peer_box.h"
+#include "core/tl_help.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "observer_peer.h"
 #include "styles/style_boxes.h"
 #include "window/window_controller.h"
-#include <range/v3/view/transform.hpp>
-#include <range/v3/view/filter.hpp>
 
 namespace Window {
 namespace {
@@ -500,44 +499,23 @@ void PeerMenuAddChannelMembers(not_null<ChannelData*> channel) {
 		return;
 	}
 	auto callback = [channel](const MTPchannels_ChannelParticipants &result) {
-		Expects(result.type() == mtpc_channels_channelParticipants);
-
-		auto &participants = result.c_channels_channelParticipants();
-		App::feedUsers(participants.vusers);
-
-		auto applyToParticipant = [](
-				const MTPChannelParticipant &p,
-				auto &&method) {
-			switch (p.type()) {
-			case mtpc_channelParticipant:
-				return method(p.c_channelParticipant());
-			case mtpc_channelParticipantSelf:
-				return method(p.c_channelParticipantSelf());
-			case mtpc_channelParticipantAdmin:
-				return method(p.c_channelParticipantAdmin());
-			case mtpc_channelParticipantCreator:
-				return method(p.c_channelParticipantCreator());
-			case mtpc_channelParticipantBanned:
-				return method(p.c_channelParticipantBanned());
-			default: Unexpected("Type in PeerMenuAddChannelMembers()");
-			}
-		};
-
-		auto already = (
-			participants.vparticipants.v
-		) | ranges::view::transform([&](auto &&participant) {
-			return applyToParticipant(participant, [](auto &&data) {
-				return data.vuser_id.v;
+		Auth().api().parseChannelParticipants(result, [&](
+				int fullCount,
+				const QVector<MTPChannelParticipant> &list) {
+			auto already = (
+				list
+			) | ranges::view::transform([&](auto &&p) {
+				return TLHelp::ReadChannelParticipantUserId(p);
+			}) | ranges::view::transform([](UserId userId) {
+				return App::userLoaded(userId);
+			}) | ranges::view::filter([](UserData *user) {
+				return (user != nullptr);
 			});
-		}) | ranges::view::transform([](UserId userId) {
-			return App::userLoaded(userId);
-		}) | ranges::view::filter([](UserData *user) {
-			return (user != nullptr);
-		}) | ranges::to_vector;
 
-		AddParticipantsBoxController::Start(
-			channel,
-			{ already.begin(), already.end() });
+			AddParticipantsBoxController::Start(
+				channel,
+				{ already.begin(), already.end() });
+		});
 	};
 	Auth().api().requestChannelMembersForAdd(channel, callback);
 }

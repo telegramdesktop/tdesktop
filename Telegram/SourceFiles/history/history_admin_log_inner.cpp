@@ -35,6 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "auth_session.h"
 #include "ui/widgets/popup_menu.h"
 #include "core/file_utilities.h"
+#include "core/tl_help.h"
 #include "lang/lang_keys.h"
 #include "boxes/edit_participant_box.h"
 
@@ -342,29 +343,43 @@ void InnerWidget::applySearch(const QString &query) {
 }
 
 void InnerWidget::requestAdmins() {
-	request(MTPchannels_GetParticipants(_channel->inputChannel, MTP_channelParticipantsAdmins(), MTP_int(0), MTP_int(kMaxChannelAdmins))).done([this](const MTPchannels_ChannelParticipants &result) {
-		Expects(result.type() == mtpc_channels_channelParticipants);
-		auto &participants = result.c_channels_channelParticipants();
-		App::feedUsers(participants.vusers);
-		for (auto &participant : participants.vparticipants.v) {
-			auto getUserId = [&participant] {
-				switch (participant.type()) {
-				case mtpc_channelParticipant: return participant.c_channelParticipant().vuser_id.v;
-				case mtpc_channelParticipantSelf: return participant.c_channelParticipantSelf().vuser_id.v;
-				case mtpc_channelParticipantAdmin: return participant.c_channelParticipantAdmin().vuser_id.v;
-				case mtpc_channelParticipantCreator: return participant.c_channelParticipantCreator().vuser_id.v;
-				case mtpc_channelParticipantBanned: return participant.c_channelParticipantBanned().vuser_id.v;
-				default: Unexpected("Type in AdminLog::Widget::showFilter()");
-				}
-			};
-			if (auto user = App::userLoaded(getUserId())) {
+	auto participantsHash = 0;
+	request(MTPchannels_GetParticipants(
+		_channel->inputChannel,
+		MTP_channelParticipantsAdmins(),
+		MTP_int(0),
+		MTP_int(kMaxChannelAdmins),
+		MTP_int(participantsHash)
+	)).done([this](const MTPchannels_ChannelParticipants &result) {
+		auto readCanEdit = ranges::overload([](const MTPDchannelParticipantAdmin &v) {
+			return v.is_can_edit();
+		}, [](auto &&) {
+			return false;
+		});
+		Auth().api().parseChannelParticipants(result, [&](
+				int fullCount,
+				const QVector<MTPChannelParticipant> &list) {
+			auto filtered = (
+				list
+			) | ranges::view::transform([&](const MTPChannelParticipant &p) {
+				return std::make_pair(
+					TLHelp::ReadChannelParticipantUserId(p),
+					TLHelp::VisitChannelParticipant(p, readCanEdit));
+			}) | ranges::view::transform([&](auto &&pair) {
+				return std::make_pair(
+					App::userLoaded(pair.first),
+					pair.second);
+			}) | ranges::view::filter([&](auto &&pair) {
+				return (pair.first != nullptr);
+			});
+
+			for (auto [user, canEdit] : filtered) {
 				_admins.push_back(user);
-				auto canEdit = (participant.type() == mtpc_channelParticipantAdmin) && (participant.c_channelParticipantAdmin().is_can_edit());
 				if (canEdit) {
 					_adminsCanEdit.push_back(user);
 				}
 			}
-		}
+		});
 		if (_admins.empty()) {
 			_admins.push_back(App::self());
 		}
@@ -1047,17 +1062,26 @@ void InnerWidget::suggestRestrictUser(not_null<UserData*> user) {
 		} else {
 			request(MTPchannels_GetParticipant(_channel->inputChannel, user->inputUser)).done([this, editRestrictions](const MTPchannels_ChannelParticipant &result) {
 				Expects(result.type() == mtpc_channels_channelParticipant);
+
 				auto &participant = result.c_channels_channelParticipant();
 				App::feedUsers(participant.vusers);
 				auto type = participant.vparticipant.type();
 				if (type == mtpc_channelParticipantBanned) {
-					editRestrictions(false, participant.vparticipant.c_channelParticipantBanned().vbanned_rights);
+					auto &banned = participant.vparticipant.c_channelParticipantBanned();
+					editRestrictions(false, banned.vbanned_rights);
 				} else {
-					auto hasAdminRights = (type == mtpc_channelParticipantAdmin || type == mtpc_channelParticipantCreator);
-					editRestrictions(hasAdminRights, MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
+					auto hasAdminRights = (type == mtpc_channelParticipantAdmin)
+						|| (type == mtpc_channelParticipantCreator);
+					auto bannedRights = MTP_channelBannedRights(
+						MTP_flags(0),
+						MTP_int(0));
+					editRestrictions(hasAdminRights, bannedRights);
 				}
 			}).fail([this, editRestrictions](const RPCError &error) {
-				editRestrictions(false, MTP_channelBannedRights(MTP_flags(0), MTP_int(0)));
+				auto bannedRights = MTP_channelBannedRights(
+					MTP_flags(0),
+					MTP_int(0));
+				editRestrictions(false, bannedRights);
 			}).send();
 		}
 	});

@@ -221,6 +221,7 @@ public:
 	bool isDisplayedEmpty() const;
 
 	void clear(bool leaveItems = false);
+	void clearUpTill(MsgId availableMinId);
 
 	virtual ~History();
 

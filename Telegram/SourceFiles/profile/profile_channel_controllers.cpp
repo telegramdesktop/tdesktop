@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/edit_participant_box.h"
 #include "boxes/confirm_box.h"
 #include "boxes/add_contact_box.h"
+#include "core/tl_help.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
@@ -443,31 +444,40 @@ void ParticipantsBoxController::loadMoreRows() {
 			return MTP_channelParticipantsBanned(MTP_string(QString()));
 		}
 		return MTP_channelParticipantsKicked(MTP_string(QString()));
-	};
+	}();
 
 	// First query is small and fast, next loads a lot of rows.
 	auto perPage = (_offset > 0) ? kParticipantsPerPage : kParticipantsFirstPageCount;
-	_loadRequestId = request(MTPchannels_GetParticipants(_channel->inputChannel, filter(), MTP_int(_offset), MTP_int(perPage))).done([this](const MTPchannels_ChannelParticipants &result) {
-		Expects(result.type() == mtpc_channels_channelParticipants);
+	auto participantsHash = 0;
 
+	_loadRequestId = request(MTPchannels_GetParticipants(
+		_channel->inputChannel,
+		filter,
+		MTP_int(_offset),
+		MTP_int(perPage),
+		MTP_int(participantsHash)
+	)).done([this](const MTPchannels_ChannelParticipants &result) {
 		auto firstLoad = !_offset;
 		_loadRequestId = 0;
 
-		auto &participants = result.c_channels_channelParticipants();
-		App::feedUsers(participants.vusers);
-
-		auto &list = participants.vparticipants.v;
-		if (list.isEmpty()) {
-			// To be sure - wait for a whole empty result list.
-			_allLoaded = true;
-		} else {
-			for_const (auto &participant, list) {
-				++_offset;
-				HandleParticipant(participant, _role, &_additional, [this](not_null<UserData*> user) {
-					appendRow(user);
-				});
+		Auth().api().parseChannelParticipants(result, [&](
+				int fullCount,
+				const QVector<MTPChannelParticipant> &list) {
+			for (auto &participant : list) {
+				HandleParticipant(
+					participant,
+					_role,
+					&_additional,
+					[&](auto user) { appendRow(user); });
 			}
-		}
+			if (auto size = list.size()) {
+				_offset += size;
+			} else {
+				// To be sure - wait for a whole empty result list.
+				_allLoaded = true;
+			}
+		});
+
 		if (delegate()->peerListFullRowsCount() > 0) {
 			sortByOnline();
 			if (firstLoad) {
@@ -1009,13 +1019,21 @@ bool ParticipantsBoxSearchController::loadMoreRows() {
 			case Role::Kicked: return MTP_channelParticipantsKicked(MTP_string(_query));
 			}
 			Unexpected("Role in ParticipantsBoxSearchController::loadMoreRows()");
-		};
+		}();
 
 		// For search we request a lot of rows from the first query.
 		// (because we've waited for search request by timer already,
 		// so we don't expect it to be fast, but we want to fill cache).
 		auto perPage = kParticipantsPerPage;
-		_requestId = request(MTPchannels_GetParticipants(_channel->inputChannel, filter(), MTP_int(_offset), MTP_int(perPage))).done([this, perPage](const MTPchannels_ChannelParticipants &result, mtpRequestId requestId) {
+		auto participantsHash = 0;
+
+		_requestId = request(MTPchannels_GetParticipants(
+			_channel->inputChannel,
+			filter,
+			MTP_int(_offset),
+			MTP_int(perPage),
+			MTP_int(participantsHash)
+		)).done([this, perPage](const MTPchannels_ChannelParticipants &result, mtpRequestId requestId) {
 			searchDone(requestId, result, perPage);
 		}).fail([this](const RPCError &error, mtpRequestId requestId) {
 			if (_requestId == requestId) {
@@ -1033,28 +1051,34 @@ bool ParticipantsBoxSearchController::loadMoreRows() {
 	return true;
 }
 
-void ParticipantsBoxSearchController::searchDone(mtpRequestId requestId, const MTPchannels_ChannelParticipants &result, int requestedCount) {
-	Expects(result.type() == mtpc_channels_channelParticipants);
-
-	auto &participants = result.c_channels_channelParticipants();
+void ParticipantsBoxSearchController::searchDone(
+		mtpRequestId requestId,
+		const MTPchannels_ChannelParticipants &result,
+		int requestedCount) {
 	auto query = _query;
 	if (requestId) {
-		App::feedUsers(participants.vusers);
-		auto it = _queries.find(requestId);
-		if (it != _queries.cend()) {
-			query = it->second.text;
-			if (it->second.offset == 0) {
-				auto &entry = _cache[query];
-				entry.result = result;
-				entry.requestedCount = requestedCount;
+		Auth().api().parseChannelParticipants(result, [&](auto&&...) {
+			auto it = _queries.find(requestId);
+			if (it != _queries.cend()) {
+				query = it->second.text;
+				if (it->second.offset == 0) {
+					auto &entry = _cache[query];
+					entry.result = result;
+					entry.requestedCount = requestedCount;
+				}
+				_queries.erase(it);
 			}
-			_queries.erase(it);
-		}
+		});
 	}
 
-	if (_requestId == requestId) {
-		_requestId = 0;
-		auto &list = participants.vparticipants.v;
+	if (_requestId != requestId) {
+		return;
+	}
+
+	_requestId = 0;
+	TLHelp::VisitChannelParticipants(result, ranges::overload([&](
+			const MTPDchannels_channelParticipants &data) {
+		auto &list = data.vparticipants.v;
 		if (list.size() < requestedCount) {
 			// We want cache to have full information about a query with small
 			// results count (if we don't need the second request). So we don't
@@ -1068,8 +1092,11 @@ void ParticipantsBoxSearchController::searchDone(mtpRequestId requestId, const M
 			});
 		}
 		_offset += list.size();
-		delegate()->peerListSearchRefreshRows();
-	}
+	}, [&](mtpTypeId type) {
+		_allLoaded = true;
+	}));
+
+	delegate()->peerListSearchRefreshRows();
 }
 
 AddParticipantBoxController::AddParticipantBoxController(not_null<ChannelData*> channel, Role role, AdminDoneCallback adminDoneCallback, BannedDoneCallback bannedDoneCallback) : PeerListController(std::make_unique<AddParticipantBoxSearchController>(channel, &_additional))
@@ -1120,26 +1147,34 @@ void AddParticipantBoxController::loadMoreRows() {
 
 	// First query is small and fast, next loads a lot of rows.
 	auto perPage = (_offset > 0) ? kParticipantsPerPage : kParticipantsFirstPageCount;
-	_loadRequestId = request(MTPchannels_GetParticipants(_channel->inputChannel, MTP_channelParticipantsRecent(), MTP_int(_offset), MTP_int(perPage))).done([this](const MTPchannels_ChannelParticipants &result) {
-		Expects(result.type() == mtpc_channels_channelParticipants);
+	auto participantsHash = 0;
 
+	_loadRequestId = request(MTPchannels_GetParticipants(
+		_channel->inputChannel,
+		MTP_channelParticipantsRecent(),
+		MTP_int(_offset),
+		MTP_int(perPage),
+		MTP_int(participantsHash)
+	)).done([this](const MTPchannels_ChannelParticipants &result) {
 		_loadRequestId = 0;
 
-		auto &participants = result.c_channels_channelParticipants();
-		App::feedUsers(participants.vusers);
-
-		auto &list = participants.vparticipants.v;
-		if (list.isEmpty()) {
-			// To be sure - wait for a whole empty result list.
-			_allLoaded = true;
-		} else {
-			for_const (auto &participant, list) {
-				++_offset;
-				HandleParticipant(participant, &_additional, [this](not_null<UserData*> user) {
-					appendRow(user);
-				});
+		Auth().api().parseChannelParticipants(result, [&](
+				int fullCount,
+				const QVector<MTPChannelParticipant> &list) {
+			for (auto &participant : list) {
+				HandleParticipant(
+					participant,
+					&_additional,
+					[this](auto user) { appendRow(user); });
 			}
-		}
+			if (auto size = list.size()) {
+				_offset += size;
+			} else {
+				// To be sure - wait for a whole empty result list.
+				_allLoaded = true;
+			}
+		});
+
 		if (delegate()->peerListFullRowsCount() > 0) {
 			setDescriptionText(QString());
 		} else if (_allLoaded) {
@@ -1632,7 +1667,15 @@ void AddParticipantBoxSearchController::requestParticipants() {
 	// (because we've waited for search request by timer already,
 	// so we don't expect it to be fast, but we want to fill cache).
 	auto perPage = kParticipantsPerPage;
-	_requestId = request(MTPchannels_GetParticipants(_channel->inputChannel, MTP_channelParticipantsSearch(MTP_string(_query)), MTP_int(_offset), MTP_int(perPage))).done([this, perPage](const MTPchannels_ChannelParticipants &result, mtpRequestId requestId) {
+	auto participantsHash = 0;
+
+	_requestId = request(MTPchannels_GetParticipants(
+		_channel->inputChannel,
+		MTP_channelParticipantsSearch(MTP_string(_query)),
+		MTP_int(_offset),
+		MTP_int(perPage),
+		MTP_int(participantsHash)
+	)).done([this, perPage](const MTPchannels_ChannelParticipants &result, mtpRequestId requestId) {
 		searchParticipantsDone(requestId, result, perPage);
 	}).fail([this](const RPCError &error, mtpRequestId requestId) {
 		if (_requestId == requestId) {
@@ -1649,27 +1692,29 @@ void AddParticipantBoxSearchController::requestParticipants() {
 }
 
 void AddParticipantBoxSearchController::searchParticipantsDone(mtpRequestId requestId, const MTPchannels_ChannelParticipants &result, int requestedCount) {
-	Expects(result.type() == mtpc_channels_channelParticipants);
-
-	auto &participants = result.c_channels_channelParticipants();
 	auto query = _query;
 	if (requestId) {
-		App::feedUsers(participants.vusers);
-		auto it = _participantsQueries.find(requestId);
-		if (it != _participantsQueries.cend()) {
-			query = it->second.text;
-			if (it->second.offset == 0) {
-				auto &entry = _participantsCache[query];
-				entry.result = result;
-				entry.requestedCount = requestedCount;
+		Auth().api().parseChannelParticipants(result, [&](auto&&...) {
+			auto it = _participantsQueries.find(requestId);
+			if (it != _participantsQueries.cend()) {
+				query = it->second.text;
+				if (it->second.offset == 0) {
+					auto &entry = _participantsCache[query];
+					entry.result = result;
+					entry.requestedCount = requestedCount;
+				}
+				_participantsQueries.erase(it);
 			}
-			_participantsQueries.erase(it);
-		}
+		});
 	}
 
-	if (_requestId == requestId) {
-		_requestId = 0;
-		auto &list = participants.vparticipants.v;
+	if (_requestId != requestId) {
+		return;
+	}
+	_requestId = 0;
+	TLHelp::VisitChannelParticipants(result, ranges::overload([&](
+			const MTPDchannels_channelParticipants &data) {
+		auto &list = data.vparticipants.v;
 		if (list.size() < requestedCount) {
 			// We want cache to have full information about a query with small
 			// results count (if we don't need the second request). So we don't
@@ -1680,14 +1725,21 @@ void AddParticipantBoxSearchController::searchParticipantsDone(mtpRequestId requ
 				loadMoreRows();
 			}
 		}
-		for_const (auto &participant, list) {
-			AddParticipantBoxController::HandleParticipant(participant, _additional, [this](not_null<UserData*> user) {
-				delegate()->peerListSearchAddRow(user);
-			});
+		auto addUser = [&](auto user) {
+			delegate()->peerListSearchAddRow(user);
+		};
+		for (auto &participant : list) {
+			AddParticipantBoxController::HandleParticipant(
+				participant,
+				_additional,
+				addUser);
 		}
 		_offset += list.size();
-		delegate()->peerListSearchRefreshRows();
-	}
+	}, [&](mtpTypeId type) {
+		_participantsLoaded = true;
+	}));
+
+	delegate()->peerListSearchRefreshRows();
 }
 
 void AddParticipantBoxSearchController::requestGlobal() {

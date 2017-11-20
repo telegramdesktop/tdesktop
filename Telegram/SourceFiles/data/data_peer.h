@@ -225,7 +225,7 @@ public:
 	int colorIndex() const {
 		return _colorIndex;
 	}
-	void setUserpic(ImagePtr userpic);
+	void setUserpic(ImagePtr userpic, StorageImageLocation location);
 	void paintUserpic(
 		Painter &p,
 		int x,
@@ -255,14 +255,21 @@ public:
 	bool userpicLoaded() const {
 		return _userpic->loaded();
 	}
+	bool useEmptyUserpic() const {
+		return _userpicLocation.isNull()
+			|| !_userpic
+			|| !_userpic->loaded();
+	}
 	StorageKey userpicUniqueKey() const;
 	void saveUserpic(const QString &path, int size) const;
 	void saveUserpicRounded(const QString &path, int size) const;
 	QPixmap genUserpic(int size) const;
 	QPixmap genUserpicRounded(int size) const;
+	StorageImageLocation userpicLocation() const {
+		return _userpicLocation;
+	}
 
 	PhotoId photoId = UnknownPeerPhotoId;
-	StorageImageLocation photoLoc;
 
 	int nameVersion = 1;
 
@@ -292,6 +299,7 @@ protected:
 
 	ImagePtr _userpic;
 	mutable EmptyUserpic _userpicEmpty;
+	StorageImageLocation _userpicLocation;
 
 private:
 	void fillNames();
@@ -1092,6 +1100,11 @@ public:
 	}
 	void setRestrictionReason(const QString &reason);
 
+	MsgId availableMinId() const {
+		return _availableMinId;
+	}
+	void setAvailableMinId(MsgId availableMinId);
+
 private:
 	void flagsUpdated(MTPDchannel::Flags diff);
 	void fullFlagsUpdated(MTPDchannelFull::Flags diff);
@@ -1107,6 +1120,7 @@ private:
 	int _adminsCount = 1;
 	int _restrictedCount = 0;
 	int _kickedCount = 0;
+	MsgId _availableMinId = 0;
 
 	AdminRightFlags _adminRights;
 	RestrictionFlags _restrictions;

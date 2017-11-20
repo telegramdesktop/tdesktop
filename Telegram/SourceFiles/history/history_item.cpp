@@ -669,6 +669,17 @@ void HistoryItem::finishEditionToEmpty() {
 	}
 }
 
+bool HistoryItem::isMediaUnread() const {
+	if (!mentionsMe() && _history->peer->isChannel()) {
+		auto now = ::date(unixtime());
+		auto passed = date.secsTo(now);
+		if (passed >= Global::ChannelsReadMediaPeriod()) {
+			return false;
+		}
+	}
+	return _flags & MTPDmessage::Flag::f_media_unread;
+}
+
 void HistoryItem::markMediaRead() {
 	_flags &= ~MTPDmessage::Flag::f_media_unread;
 
@@ -862,7 +873,9 @@ bool HistoryItem::canForward() const {
 
 bool HistoryItem::canEdit(const QDateTime &cur) const {
 	auto messageToMyself = _history->peer->isSelf();
-	auto messageTooOld = messageToMyself ? false : (date.secsTo(cur) >= Global::EditTimeLimit());
+	auto messageTooOld = messageToMyself
+		? false
+		: (date.secsTo(cur) >= Global::EditTimeLimit());
 	if (id < 0 || messageTooOld) {
 		return false;
 	}

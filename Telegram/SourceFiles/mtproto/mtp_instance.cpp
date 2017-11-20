@@ -608,6 +608,7 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	Global::SetStickersFavedLimit(data.vstickers_faved_limit.v);
 	Global::SetPinnedDialogsCountMax(data.vpinned_dialogs_count_max.v);
 	Messenger::Instance().setInternalLinkDomain(qs(data.vme_url_prefix));
+	Global::SetChannelsReadMediaPeriod(data.vchannels_read_media_period.v);
 	Global::SetCallReceiveTimeoutMs(data.vcall_receive_timeout_ms.v);
 	Global::SetCallRingTimeoutMs(data.vcall_ring_timeout_ms.v);
 	Global::SetCallConnectTimeoutMs(data.vcall_connect_timeout_ms.v);

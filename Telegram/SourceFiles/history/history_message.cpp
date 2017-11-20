@@ -951,6 +951,12 @@ void HistoryMessage::initMedia(const MTPMessageMedia *media) {
 			_media = std::make_unique<HistoryLocation>(this, LocationCoords(point.c_geoPoint()));
 		}
 	} break;
+	case mtpc_messageMediaGeoLive: {
+		auto &point = media->c_messageMediaGeoLive().vgeo;
+		if (point.type() == mtpc_geoPoint) {
+			_media = std::make_unique<HistoryLocation>(this, LocationCoords(point.c_geoPoint()));
+		}
+	} break;
 	case mtpc_messageMediaVenue: {
 		auto &d = media->c_messageMediaVenue();
 		if (d.vgeo.type() == mtpc_geoPoint) {

@@ -151,6 +151,7 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 	} break;
 
 	case mtpc_botInlineMessageMediaGeo: {
+		// #TODO layer 72 save period and send live location?..
 		auto &r = message->c_botInlineMessageMediaGeo();
 		if (r.vgeo.type() == mtpc_geoPoint) {
 			result->sendData = std::make_unique<internal::SendGeo>(r.vgeo.c_geoPoint());

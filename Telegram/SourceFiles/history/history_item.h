@@ -591,9 +591,7 @@ public:
 	bool mentionsMe() const {
 		return _flags & MTPDmessage::Flag::f_mentioned;
 	}
-	bool isMediaUnread() const {
-		return _flags & MTPDmessage::Flag::f_media_unread;
-	}
+	bool isMediaUnread() const;
 	void markMediaRead();
 
 	// Zero result means this message is not self-destructing right now.

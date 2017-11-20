@@ -859,6 +859,13 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			default: badMedia = MediaCheckResult::Unsupported; break;
 			}
 			break;
+		case mtpc_messageMediaGeoLive:
+			switch (m.vmedia.c_messageMediaGeoLive().vgeo.type()) {
+			case mtpc_geoPoint: break;
+			case mtpc_geoPointEmpty: badMedia = MediaCheckResult::Empty; break;
+			default: badMedia = MediaCheckResult::Unsupported; break;
+			}
+			break;
 		case mtpc_messageMediaPhoto: {
 			auto &photo = m.vmedia.c_messageMediaPhoto();
 			if (photo.has_ttl_seconds()) {
@@ -1236,21 +1243,27 @@ void History::addUnreadMentionsSlice(const MTPmessages_Messages &result) {
 	} break;
 
 	case mtpc_messages_channelMessages: {
-		LOG(("API Error: unexpected messages.channelMessages in History::addUnreadMentionsSlice"));
+		LOG(("API Error: unexpected messages.channelMessages! (History::addUnreadMentionsSlice)"));
 		auto &d = result.c_messages_channelMessages();
 		messages = getMessages(d);
 		count = d.vcount.v;
+	} break;
+
+	case mtpc_messages_messagesNotModified: {
+		LOG(("API Error: received messages.messagesNotModified! (History::addUnreadMentionsSlice)"));
 	} break;
 
 	default: Unexpected("type in History::addUnreadMentionsSlice");
 	}
 
 	auto added = false;
-	for (auto &message : *messages) {
-		if (auto item = addToHistory(message)) {
-			if (item->mentionsMe() && item->isMediaUnread()) {
-				_unreadMentions.insert(item->id);
-				added = true;
+	if (messages) {
+		for (auto &message : *messages) {
+			if (auto item = addToHistory(message)) {
+				if (item->mentionsMe() && item->isMediaUnread()) {
+					_unreadMentions.insert(item->id);
+					added = true;
+				}
 			}
 		}
 	}
@@ -2363,6 +2376,25 @@ void History::clear(bool leaveItems) {
 	}
 }
 
+void History::clearUpTill(MsgId availableMinId) {
+	auto minId = minMsgId();
+	if (!minId || minId >= availableMinId) {
+		return;
+	}
+	do {
+		auto item = blocks.front()->items.front();
+		auto itemId = item->id;
+		if (IsServerMsgId(itemId) && itemId >= availableMinId) {
+			break;
+		}
+		item->destroy();
+	} while (!isEmpty());
+
+	if (!lastMsg) {
+		App::main()->checkPeerHistory(peer);
+	}
+}
+
 void History::clearBlocks(bool leaveItems) {
 	Blocks lst;
 	std::swap(lst, blocks);
@@ -2463,7 +2495,8 @@ void History::overviewSliceDone(
 		const MTPmessages_Messages &result,
 		bool onlyCounts) {
 	auto fullCount = 0;
-	const QVector<MTPMessage> *v = 0;
+	auto v = (const QVector<MTPMessage>*)nullptr;
+
 	switch (result.type()) {
 	case mtpc_messages_messages: {
 		auto &d = result.c_messages_messages();
@@ -2495,10 +2528,14 @@ void History::overviewSliceDone(
 		v = &d.vmessages.v;
 	} break;
 
+	case mtpc_messages_messagesNotModified: {
+		LOG(("API Error: received messages.messagesNotModified! (History::overviewSliceDone, onlyCounts %1)").arg(Logs::b(onlyCounts)));
+	} break;
+
 	default: return;
 	}
 
-	if (!onlyCounts && v->isEmpty()) {
+	if (!onlyCounts && (!v || v->isEmpty())) {
 		_overviewCountData[overviewIndex] = 0;
 	}
 
@@ -2506,15 +2543,17 @@ void History::overviewSliceDone(
 	auto sharedMediaType = ConvertSharedMediaType(
 		static_cast<MediaOverviewType>(overviewIndex));
 	auto slice = std::vector<MsgId>();
-	slice.reserve(v->size());
-	for (auto i = v->cbegin(), e = v->cend(); i != e; ++i) {
-		if (auto item = App::histories().addNewMessage(*i, NewMessageExisting)) {
-			auto itemId = item->id;
-			_overview[overviewIndex].insert(itemId);
-			if (item->sharedMediaTypes().test(sharedMediaType)) {
-				slice.push_back(itemId);
-				accumulate_min(noSkipRange.from, itemId);
-				accumulate_max(noSkipRange.till, itemId);
+	if (v) {
+		slice.reserve(v->size());
+		for (auto &message : *v) {
+			if (auto item = App::histories().addNewMessage(message, NewMessageExisting)) {
+				auto itemId = item->id;
+				_overview[overviewIndex].insert(itemId);
+				if (item->sharedMediaTypes().test(sharedMediaType)) {
+					slice.push_back(itemId);
+					accumulate_min(noSkipRange.from, itemId);
+					accumulate_max(noSkipRange.till, itemId);
+				}
 			}
 		}
 	}

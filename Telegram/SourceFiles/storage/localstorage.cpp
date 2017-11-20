@@ -4011,7 +4011,7 @@ uint32 _peerSize(PeerData *peer) {
 
 void _writePeer(QDataStream &stream, PeerData *peer) {
 	stream << quint64(peer->id) << quint64(peer->photoId);
-	Serialize::writeStorageImageLocation(stream, peer->photoLoc);
+	Serialize::writeStorageImageLocation(stream, peer->userpicLocation());
 	if (peer->isUser()) {
 		UserData *user = peer->asUser();
 
@@ -4040,7 +4040,7 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 	quint64 peerId = 0, photoId = 0;
 	from.stream >> peerId >> photoId;
 
-	StorageImageLocation photoLoc(Serialize::readStorageImageLocation(from.stream));
+	auto photoLoc = Serialize::readStorageImageLocation(from.stream);
 
 	PeerData *result = App::peerLoaded(peerId);
 	bool wasLoaded = (result != nullptr);
@@ -4087,7 +4087,9 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 				user->inputUser = MTP_inputUser(MTP_int(peerToUser(user->id)), MTP_long(user->accessHash()));
 			}
 
-			user->setUserpic(photoLoc.isNull() ? ImagePtr() : ImagePtr(photoLoc));
+			user->setUserpic(
+				photoLoc.isNull() ? ImagePtr() : ImagePtr(photoLoc),
+				photoLoc);
 		}
 	} else if (result->isChat()) {
 		ChatData *chat = result->asChat();
@@ -4120,7 +4122,9 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 			chat->input = MTP_inputPeerChat(MTP_int(peerToChat(chat->id)));
 			chat->inputChat = MTP_int(peerToChat(chat->id));
 
-			chat->setUserpic(photoLoc.isNull() ? ImagePtr() : ImagePtr(photoLoc));
+			chat->setUserpic(
+				photoLoc.isNull() ? ImagePtr() : ImagePtr(photoLoc),
+				photoLoc);
 		}
 	} else if (result->isChannel()) {
 		ChannelData *channel = result->asChannel();
@@ -4144,7 +4148,9 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 			channel->input = MTP_inputPeerChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 			channel->inputChannel = MTP_inputChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 
-			channel->setUserpic(photoLoc.isNull() ? ImagePtr() : ImagePtr(photoLoc));
+			channel->setUserpic(
+				photoLoc.isNull() ? ImagePtr() : ImagePtr(photoLoc),
+				photoLoc);
 		}
 	}
 	return result;

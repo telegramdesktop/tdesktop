@@ -245,7 +245,20 @@ void BoxController::loadMoreRows() {
 		return;
 	}
 
-	_loadRequestId = request(MTPmessages_Search(MTP_flags(0), MTP_inputPeerEmpty(), MTP_string(QString()), MTP_inputUserEmpty(), MTP_inputMessagesFilterPhoneCalls(MTP_flags(0)), MTP_int(0), MTP_int(0), MTP_int(_offsetId), MTP_int(0), MTP_int(_offsetId ? kFirstPageCount : kPerPageCount), MTP_int(0), MTP_int(0))).done([this](const MTPmessages_Messages &result) {
+	_loadRequestId = request(MTPmessages_Search(
+		MTP_flags(0),
+		MTP_inputPeerEmpty(),
+		MTP_string(QString()),
+		MTP_inputUserEmpty(),
+		MTP_inputMessagesFilterPhoneCalls(MTP_flags(0)),
+		MTP_int(0),
+		MTP_int(0),
+		MTP_int(_offsetId),
+		MTP_int(0),
+		MTP_int(_offsetId ? kFirstPageCount : kPerPageCount),
+		MTP_int(0),
+		MTP_int(0)
+	)).done([this](const MTPmessages_Messages &result) {
 		_loadRequestId = 0;
 
 		auto handleResult = [this](auto &data) {
@@ -261,7 +274,9 @@ void BoxController::loadMoreRows() {
 			LOG(("API Error: received messages.channelMessages! (Calls::BoxController::preloadRows)"));
 			handleResult(result.c_messages_channelMessages());
 		} break;
-
+		case mtpc_messages_messagesNotModified: {
+			LOG(("API Error: received messages.messagesNotModified! (Calls::BoxController::preloadRows)"));
+		} break;
 		default: Unexpected("Type of messages.Messages (Calls::BoxController::preloadRows)");
 		}
 	}).fail([this](const RPCError &error) {

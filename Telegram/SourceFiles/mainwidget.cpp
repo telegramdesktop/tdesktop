@@ -1301,7 +1301,24 @@ bool MainWidget::kickParticipantFail(ChatData *chat, const RPCError &error) {
 }
 
 void MainWidget::checkPeerHistory(PeerData *peer) {
-	MTP::send(MTPmessages_GetHistory(peer->input, MTP_int(0), MTP_int(0), MTP_int(0), MTP_int(1), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::checkedHistory, peer));
+	auto offsetId = 0;
+	auto offsetDate = 0;
+	auto addOffset = 0;
+	auto limit = 1;
+	auto maxId = 0;
+	auto minId = 0;
+	auto historyHash = 0;
+	MTP::send(
+		MTPmessages_GetHistory(
+			peer->input,
+			MTP_int(offsetId),
+			MTP_int(offsetDate),
+			MTP_int(addOffset),
+			MTP_int(limit),
+			MTP_int(maxId),
+			MTP_int(minId),
+			MTP_int(historyHash)),
+		rpcDone(&MainWidget::checkedHistory, peer));
 }
 
 void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &result) {
@@ -1332,10 +1349,13 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 		App::feedChats(d.vchats);
 		v = &d.vmessages.v;
 	} break;
-	}
-	if (!v) return;
 
-	if (v->isEmpty()) {
+	case mtpc_messages_messagesNotModified: {
+		LOG(("API Error: received messages.messagesNotModified! (MainWidget::checkedHistory)"));
+	} break;
+	}
+
+	if (!v || v->isEmpty()) {
 		if (peer->isChat() && !peer->asChat()->haveLeft()) {
 			auto h = App::historyLoaded(peer->id);
 			if (h) Local::addSavedPeer(peer, h->lastMsgDate);
@@ -1353,13 +1373,13 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 			deleteConversation(peer, false);
 		}
 	} else {
-		History *h = App::history(peer->id);
+		auto h = App::history(peer->id);
 		if (!h->lastMsg) {
 			h->addNewMessage((*v)[0], NewMessageLast);
 		}
 		if (!h->lastMsgDate.isNull() && h->loadedAtBottom()) {
 			if (peer->isChannel() && peer->asChannel()->inviter > 0 && h->lastMsgDate <= peer->asChannel()->inviteDate && peer->asChannel()->amIn()) {
-				if (UserData *from = App::userLoaded(peer->asChannel()->inviter)) {
+				if (auto from = App::userLoaded(peer->asChannel()->inviter)) {
 					h->asChannelHistory()->insertJoinedMessage(true);
 					_history->peerMessagesUpdated(h->peer->id);
 				}
@@ -2105,28 +2125,29 @@ void MainWidget::insertCheckedServiceNotification(const TextWithEntities &messag
 }
 
 void MainWidget::serviceHistoryDone(const MTPmessages_Messages &msgs) {
+	auto handleResult = [&](auto &&result) {
+		App::feedUsers(result.vusers);
+		App::feedChats(result.vchats);
+		App::feedMsgs(result.vmessages, NewMessageLast);
+	};
+
 	switch (msgs.type()) {
-	case mtpc_messages_messages: {
-		auto &d(msgs.c_messages_messages());
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-		App::feedMsgs(d.vmessages, NewMessageLast);
-	} break;
+	case mtpc_messages_messages:
+		handleResult(msgs.c_messages_messages());
+		break;
 
-	case mtpc_messages_messagesSlice: {
-		auto &d(msgs.c_messages_messagesSlice());
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-		App::feedMsgs(d.vmessages, NewMessageLast);
-	} break;
+	case mtpc_messages_messagesSlice:
+		handleResult(msgs.c_messages_messagesSlice());
+		break;
 
-	case mtpc_messages_channelMessages: {
-		auto &d(msgs.c_messages_channelMessages());
+	case mtpc_messages_channelMessages:
 		LOG(("API Error: received messages.channelMessages! (MainWidget::serviceHistoryDone)"));
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-		App::feedMsgs(d.vmessages, NewMessageLast);
-	} break;
+		handleResult(msgs.c_messages_channelMessages());
+		break;
+
+	case mtpc_messages_messagesNotModified:
+		LOG(("API Error: received messages.messagesNotModified! (MainWidget::serviceHistoryDone)"));
+		break;
 	}
 
 	App::wnd()->showDelayedServiceMsgs();
@@ -5170,7 +5191,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateChannelWebPage: {
 		auto &d = update.c_updateChannelWebPage();
 
-		// update web page anyway
+		// Update web page anyway.
 		App::feedWebPage(d.vwebpage);
 		_history->updatePreview();
 		webPagesOrGamesUpdate();
@@ -5450,6 +5471,13 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		auto &d = update.c_updateChannelMessageViews();
 		if (auto item = App::histItemById(d.vchannel_id.v, d.vid.v)) {
 			item->setViewsCount(d.vviews.v);
+		}
+	} break;
+
+	case mtpc_updateChannelAvailableMessages: {
+		auto &d = update.c_updateChannelAvailableMessages();
+		if (auto channel = App::channelLoaded(d.vchannel_id.v)) {
+			channel->setAvailableMinId(d.vavailable_min_id.v);
 		}
 	} break;
 

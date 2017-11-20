@@ -105,7 +105,9 @@ SearchResult ParseSearchResult(
 		SparseIdsLoadDirection direction,
 		const MTPmessages_Messages &data) {
 	auto result = SearchResult();
-	auto &messages = *[&] {
+	result.noSkipRange = MsgRange{ messageId, messageId };
+
+	auto messages = [&] {
 		switch (data.type()) {
 		case mtpc_messages_messages: {
 			auto &d = data.c_messages_messages();
@@ -135,14 +137,22 @@ SearchResult ParseSearchResult(
 			result.fullCount = d.vcount.v;
 			return &d.vmessages.v;
 		} break;
+
+		case mtpc_messages_messagesNotModified: {
+			LOG(("API Error: received messages.messagesNotModified! (ParseSearchResult)"));
+			return (const QVector<MTPMessage>*)nullptr;
+		} break;
 		}
 		Unexpected("messages.Messages type in ParseSearchResult()");
 	}();
 
-	result.noSkipRange = MsgRange{ messageId, messageId };
+	if (!messages) {
+		return result;
+	}
+
 	auto addType = NewMessageExisting;
-	result.messageIds.reserve(messages.size());
-	for (auto &message : messages) {
+	result.messageIds.reserve(messages->size());
+	for (auto &message : *messages) {
 		if (auto item = App::histories().addNewMessage(message, addType)) {
 			if ((type == Storage::SharedMediaType::kCount)
 				|| item->sharedMediaTypes().test(type)) {

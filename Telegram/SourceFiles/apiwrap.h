@@ -141,6 +141,11 @@ public:
 	}
 	void readFeaturedSetDelayed(uint64 setId);
 
+	void parseChannelParticipants(
+		const MTPchannels_ChannelParticipants &result,
+		base::lambda<void(int fullCount, const QVector<MTPChannelParticipant> &list)> callbackList,
+		base::lambda<void()> callbackNotModified = nullptr);
+
 	~ApiWrap();
 
 private:
@@ -167,7 +172,16 @@ private:
 
 	void gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mtpRequestId req);
 	void gotUserFull(UserData *user, const MTPUserFull &result, mtpRequestId req);
-	void lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelParticipants &result, mtpRequestId req);
+	void lastParticipantsDone(
+		ChannelData *peer,
+		const MTPchannels_ChannelParticipants &result,
+		mtpRequestId req);
+	void applyLastParticipantsList(
+		ChannelData *peer,
+		int fullCount,
+		const QVector<MTPChannelParticipant> &list,
+		bool bots,
+		bool fromStart);
 	void resolveWebPages();
 	void gotWebPages(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
 	void gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result);

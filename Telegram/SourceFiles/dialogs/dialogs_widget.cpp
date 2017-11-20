@@ -678,6 +678,15 @@ void DialogsWidget::searchReceived(DialogsSearchRequestType type, const MTPmessa
 				}
 			}
 		} break;
+
+		case mtpc_messages_messagesNotModified: {
+			LOG(("API Error: received messages.messagesNotModified! (DialogsWidget::searchReceived)"));
+			if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
+				_searchFullMigrated = true;
+			} else {
+				_searchFull = true;
+			}
+		} break;
 		}
 
 		_searchRequest = 0;

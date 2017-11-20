@@ -163,6 +163,12 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareCustomAction = [&](const MTPDmessageActionCustomAction &action) {
+		auto result = PreparedText {};
+		result.text = qs(action.vmessage);
+		return result;
+	};
+
 	auto messageText = PreparedText {};
 
 	switch (action.type()) {
@@ -182,6 +188,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	case mtpc_messageActionPhoneCall: Unexpected("PhoneCall type in HistoryService.");
 	case mtpc_messageActionPaymentSent: messageText = preparePaymentSentText(); break;
 	case mtpc_messageActionScreenshotTaken: messageText = prepareScreenshotTaken(); break;
+	case mtpc_messageActionCustomAction: messageText = prepareCustomAction(action.c_messageActionCustomAction()); break;
 	default: messageText.text = lang(lng_message_empty); break;
 	}
 

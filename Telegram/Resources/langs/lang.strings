@@ -1370,6 +1370,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_admin_log_invites_disabled" = "{from} disabled group invites";
 "lng_admin_log_signatures_enabled" = "{from} enabled signatures";
 "lng_admin_log_signatures_disabled" = "{from} disabled signatures";
+"lng_admin_log_history_made_hidden" = "{from} made group history hidden for new members";
+"lng_admin_log_history_made_visible" = "{from} made group history visible for new members";
 "lng_admin_log_pinned_message" = "{from} pinned message:";
 "lng_admin_log_unpinned_message" = "{from} unpinned message";
 "lng_admin_log_edited_caption" = "{from} edited caption:";

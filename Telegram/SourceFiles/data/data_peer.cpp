@@ -297,7 +297,7 @@ void PeerData::updateNameDelayed(
 	++nameVersion;
 	name = newName;
 	nameText.setText(st::msgNameStyle, name, _textNameOptions);
-	if (!_userpic) {
+	if (useEmptyUserpic()) {
 		_userpicEmpty.set(_colorIndex, name);
 	}
 
@@ -331,9 +331,12 @@ ClickHandlerPtr PeerData::createOpenLink() {
 	return MakeShared<PeerClickHandler>(this);
 }
 
-void PeerData::setUserpic(ImagePtr userpic) {
+void PeerData::setUserpic(
+		ImagePtr userpic,
+		StorageImageLocation location) {
 	_userpic = userpic;
-	if (!_userpic || !_userpic->loaded()) {
+	_userpicLocation = location;
+	if (useEmptyUserpic()) {
 		_userpicEmpty.set(_colorIndex, name);
 	} else {
 		_userpicEmpty.clear();
@@ -344,7 +347,9 @@ ImagePtr PeerData::currentUserpic() const {
 	if (_userpic) {
 		_userpic->load();
 		if (_userpic->loaded()) {
-			_userpicEmpty.clear();
+			if (!useEmptyUserpic()) {
+				_userpicEmpty.clear();
+			}
 			return _userpic;
 		}
 	}
@@ -376,10 +381,10 @@ void PeerData::paintUserpicSquare(Painter &p, int x, int y, int size) const {
 }
 
 StorageKey PeerData::userpicUniqueKey() const {
-	if (photoLoc.isNull() || !_userpic || !_userpic->loaded()) {
+	if (useEmptyUserpic()) {
 		return _userpicEmpty.uniqueKey();
 	}
-	return storageKey(photoLoc);
+	return storageKey(_userpicLocation);
 }
 
 void PeerData::saveUserpic(const QString &path, int size) const {
@@ -430,9 +435,10 @@ bool UserData::canShareThisContact() const {
 }
 
 void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer as well
-	PhotoId newPhotoId = photoId;
-	ImagePtr newPhoto = _userpic;
-	StorageImageLocation newPhotoLoc = photoLoc;
+	auto newPhotoId = photoId;
+	auto newPhoto = _userpic;
+	auto newPhotoLoc = _userpicLocation;
+
 	switch (p.type()) {
 	case mtpc_userProfilePhoto: {
 		const auto &d(p.c_userProfilePhoto());
@@ -453,10 +459,9 @@ void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer a
 		newPhotoLoc = StorageImageLocation();
 	} break;
 	}
-	if (newPhotoId != photoId || newPhoto.v() != _userpic.v() || newPhotoLoc != photoLoc) {
+	if (newPhotoId != photoId || newPhoto.v() != _userpic.v() || newPhotoLoc != _userpicLocation) {
 		photoId = newPhotoId;
-		setUserpic(newPhoto);
-		photoLoc = newPhotoLoc;
+		setUserpic(newPhoto, newPhotoLoc);
 		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
 	}
 }
@@ -649,12 +654,13 @@ bool UserData::hasCalls() const {
 }
 
 void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Local::readPeer as well
-	PhotoId newPhotoId = photoId;
-	ImagePtr newPhoto = _userpic;
-	StorageImageLocation newPhotoLoc = photoLoc;
+	auto newPhotoId = photoId;
+	auto newPhoto = _userpic;
+	auto newPhotoLoc = _userpicLocation;
+
 	switch (p.type()) {
 	case mtpc_chatPhoto: {
-		const auto &d(p.c_chatPhoto());
+		auto &d = p.c_chatPhoto();
 		if (phId != UnknownPeerPhotoId) {
 			newPhotoId = phId;
 		}
@@ -669,10 +675,9 @@ void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Loc
 //		photoFull = ImagePtr();
 	} break;
 	}
-	if (newPhotoId != photoId || newPhoto.v() != _userpic.v() || newPhotoLoc != photoLoc) {
+	if (newPhotoId != photoId || newPhoto.v() != _userpic.v() || newPhotoLoc != _userpicLocation) {
 		photoId = newPhotoId;
-		setUserpic(newPhoto);
-		photoLoc = newPhotoLoc;
+		setUserpic(newPhoto, newPhotoLoc);
 		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
 	}
 }
@@ -717,12 +722,13 @@ ChannelData::ChannelData(const PeerId &id)
 }
 
 void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Local::readPeer as well
-	PhotoId newPhotoId = photoId;
-	ImagePtr newPhoto = _userpic;
-	StorageImageLocation newPhotoLoc = photoLoc;
+	auto newPhotoId = photoId;
+	auto newPhoto = _userpic;
+	auto newPhotoLoc = _userpicLocation;
+
 	switch (p.type()) {
 	case mtpc_chatPhoto: {
-		const auto &d(p.c_chatPhoto());
+		auto &d = p.c_chatPhoto();
 		if (phId != UnknownPeerPhotoId) {
 			newPhotoId = phId;
 		}
@@ -737,10 +743,9 @@ void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see 
 //		photoFull = ImagePtr();
 	} break;
 	}
-	if (newPhotoId != photoId || newPhoto.v() != _userpic.v() || newPhotoLoc != photoLoc) {
+	if (newPhotoId != photoId || newPhoto.v() != _userpic.v() || newPhotoLoc != _userpicLocation) {
 		photoId = newPhotoId;
-		setUserpic(newPhoto);
-		photoLoc = newPhotoLoc;
+		setUserpic(newPhoto, newPhotoLoc);
 		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
 	}
 }
@@ -940,6 +945,15 @@ void ChannelData::setRestrictionReason(const QString &text) {
 	if (_restrictionReason != text) {
 		_restrictionReason = text;
 		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::RestrictionReasonChanged);
+	}
+}
+
+void ChannelData::setAvailableMinId(MsgId availableMinId) {
+	if (_availableMinId != availableMinId) {
+		_availableMinId = availableMinId;
+		if (auto history = App::historyLoaded(this)) {
+			history->clearUpTill(availableMinId);
+		}
 	}
 }
 

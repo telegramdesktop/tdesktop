@@ -144,6 +144,7 @@
 <(src_loc)/core/file_utilities.h
 <(src_loc)/core/single_timer.cpp
 <(src_loc)/core/single_timer.h
+<(src_loc)/core/tl_help.h
 <(src_loc)/core/utils.cpp
 <(src_loc)/core/utils.h
 <(src_loc)/core/version.h
