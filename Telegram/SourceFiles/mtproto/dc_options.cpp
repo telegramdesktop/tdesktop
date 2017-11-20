@@ -341,7 +341,7 @@ DcOptions::Ids DcOptions::configEnumDcIds() const {
 			}
 		}
 	}
-	base::sort(result);
+	ranges::sort(result);
 	return result;
 }
 

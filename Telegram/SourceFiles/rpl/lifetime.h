@@ -21,10 +21,17 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "base/lambda.h"
-#include "base/algorithm.h"
 #include <deque>
 
 namespace rpl {
+namespace details {
+
+template <typename Type>
+inline Type take(Type &value) {
+	return std::exchange(value, Type{});
+}
+
+} // namespace details
 
 class lifetime {
 public:
@@ -47,7 +54,7 @@ public:
 		auto result = new Type(std::forward<Args>(args)...);
 		add([result]() mutable {
 			static_assert(sizeof(Type) > 0, "Can't delete unknown type.");
-			delete base::take(result);
+			delete details::take(result);
 		});
 		return result;
 	}
@@ -60,7 +67,7 @@ private:
 };
 
 inline lifetime::lifetime(lifetime &&other)
-: _callbacks(base::take(other._callbacks)) {
+: _callbacks(details::take(other._callbacks)) {
 }
 
 inline lifetime &lifetime::operator=(lifetime &&other) {
@@ -80,7 +87,7 @@ inline void lifetime::add(Destroy &&destroy) {
 }
 
 inline void lifetime::add(lifetime &&other) {
-	auto callbacks = base::take(other._callbacks);
+	auto callbacks = details::take(other._callbacks);
 	_callbacks.insert(
 		_callbacks.begin(),
 		std::make_move_iterator(callbacks.begin()),
@@ -88,7 +95,7 @@ inline void lifetime::add(lifetime &&other) {
 }
 
 inline void lifetime::destroy() {
-	for (auto &callback : base::take(_callbacks)) {
+	for (auto &callback : details::take(_callbacks)) {
 		callback();
 	}
 }

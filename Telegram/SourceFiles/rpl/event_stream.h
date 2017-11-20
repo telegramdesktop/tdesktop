@@ -25,7 +25,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/then.h>
 #include <rpl/range.h>
 #include <algorithm>
-#include "base/algorithm.h"
 #include "base/assertion.h"
 #include "base/index_based_iterator.h"
 
@@ -54,8 +53,9 @@ public:
 			if (auto strong = weak.lock()) {
 				auto result = [weak, consumer] {
 					if (auto strong = weak.lock()) {
-						auto it = base::find(
-							strong->consumers,
+						auto it = std::find(
+							strong->consumers.begin(),
+							strong->consumers.end(),
 							consumer);
 						if (it != strong->consumers.end()) {
 							it->terminate();
@@ -94,13 +94,13 @@ inline event_stream<Value>::event_stream() {
 
 template <typename Value>
 inline event_stream<Value>::event_stream(event_stream &&other)
-: _data(base::take(other._data)) {
+: _data(details::take(other._data)) {
 }
 
 template <typename Value>
 inline event_stream<Value> &event_stream<Value>::operator=(
 		event_stream &&other) {
-	_data = base::take(other._data);
+	_data = details::take(other._data);
 	return *this;
 }
 
@@ -164,7 +164,7 @@ inline auto event_stream<Value>::weak() const
 
 template <typename Value>
 inline event_stream<Value>::~event_stream() {
-	if (auto data = base::take(_data)) {
+	if (auto data = details::take(_data)) {
 		for (auto &consumer : data->consumers) {
 			consumer.put_done();
 		}

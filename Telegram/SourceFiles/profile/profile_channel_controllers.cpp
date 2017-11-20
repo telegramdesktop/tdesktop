@@ -277,13 +277,13 @@ std::unique_ptr<PeerListState> ParticipantsBoxController::saveState() {
 						return;
 					}
 				}
-				auto pos = base::find(weak->list, user);
+				auto pos = ranges::find(weak->list, user);
 				if (pos == weak->list.cend()) {
 					weak->list.push_back(user);
 				}
-				base::stable_partition(weak->list, [user](not_null<PeerData*> peer) {
-					return (peer == user);
-				});
+				ranges::stable_partition(
+					weak->list,
+					[user](auto peer) { return (peer == user); });
 			}, my->lifetime);
 		Auth().data().megagroupParticipantRemoved(_channel)
 			| rpl::start_with_next([weak](not_null<UserData*> user) {

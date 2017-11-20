@@ -104,6 +104,10 @@ public:
 		return _height;
 	}
 
+	int bottom() const {
+		return top() + height();
+	}
+
 	bool removeItem(UniversalMsgId universalId);
 	FoundItem findItemNearId(UniversalMsgId universalId) const;
 	FoundItem findItemByPoint(QPoint point) const;
@@ -302,12 +306,11 @@ auto ListWidget::Section::findItemByPoint(
 auto ListWidget::Section::findItemNearId(
 		UniversalMsgId universalId) const -> FoundItem {
 	Expects(!_items.empty());
-	auto itemIt = base::lower_bound(
+	auto itemIt = ranges::lower_bound(
 		_items,
 		universalId,
-		[this](const auto &item, UniversalMsgId universalId) {
-			return (item.first > universalId);
-		});
+		std::greater<>(),
+		[](const auto &item) -> UniversalMsgId { return item.first; });
 	if (itemIt == _items.end()) {
 		--itemIt;
 	}
@@ -318,36 +321,39 @@ auto ListWidget::Section::findItemNearId(
 
 auto ListWidget::Section::findItemAfterTop(
 		int top) -> Items::iterator {
-	return base::lower_bound(
+	return ranges::lower_bound(
 		_items,
 		top,
-		[this](const auto &item, int top) {
+		std::less_equal<>(),
+		[this](const auto &item) {
 			auto itemTop = item.second->position() / _itemsInRow;
-			return (itemTop + item.second->height()) <= top;
+			return itemTop + item.second->height();
 		});
 }
 
 auto ListWidget::Section::findItemAfterTop(
 		int top) const -> Items::const_iterator {
-	return base::lower_bound(
+	return ranges::lower_bound(
 		_items,
 		top,
-		[this](const auto &item, int top) {
-		auto itemTop = item.second->position() / _itemsInRow;
-		return (itemTop + item.second->height()) <= top;
-	});
+		std::less_equal<>(),
+		[this](const auto &item) {
+			auto itemTop = item.second->position() / _itemsInRow;
+			return itemTop + item.second->height();
+		});
 }
 
 auto ListWidget::Section::findItemAfterBottom(
 		Items::const_iterator from,
 		int bottom) const -> Items::const_iterator {
-	return std::lower_bound(
+	return ranges::lower_bound(
 		from,
 		_items.end(),
 		bottom,
-		[this](const auto &item, int bottom) {
+		std::less<>(),
+		[this](const auto &item) {
 			auto itemTop = item.second->position() / _itemsInRow;
-			return itemTop < bottom;
+			return itemTop;
 		});
 }
 
@@ -1182,12 +1188,12 @@ void ListWidget::showContextMenu(
 	}
 
 	auto canDeleteAll = [&] {
-		return base::find_if(_selected, [](auto &item) {
+		return ranges::find_if(_selected, [](auto &&item) {
 			return !item.second.canDelete;
 		}) == _selected.end();
 	};
 	auto canForwardAll = [&] {
-		return base::find_if(_selected, [](auto &item) {
+		return ranges::find_if(_selected, [](auto &&item) {
 			return !item.second.canForward;
 		}) == _selected.end();
 	};
@@ -2042,44 +2048,40 @@ void ListWidget::clearStaleLayouts() {
 
 auto ListWidget::findSectionByItem(
 		UniversalMsgId universalId) -> std::vector<Section>::iterator {
-	return base::lower_bound(
+	return ranges::lower_bound(
 		_sections,
 		universalId,
-		[](const Section &section, int universalId) {
-			return section.minId() > universalId;
-		});
+		std::greater<>(),
+		[](const Section &section) { return section.minId(); });
 }
 
 auto ListWidget::findSectionAfterTop(
 		int top) -> std::vector<Section>::iterator {
-	return base::lower_bound(
+	return ranges::lower_bound(
 		_sections,
 		top,
-		[](const Section &section, int top) {
-			return (section.top() + section.height()) <= top;
-		});
+		std::less_equal<>(),
+		[](const Section &section) { return section.bottom(); });
 }
 
 auto ListWidget::findSectionAfterTop(
 		int top) const -> std::vector<Section>::const_iterator {
-	return base::lower_bound(
+	return ranges::lower_bound(
 		_sections,
 		top,
-		[](const Section &section, int top) {
-		return (section.top() + section.height()) <= top;
-	});
+		std::less_equal<>(),
+		[](const Section &section) { return section.bottom(); });
 }
 
 auto ListWidget::findSectionAfterBottom(
 		std::vector<Section>::const_iterator from,
 		int bottom) const -> std::vector<Section>::const_iterator {
-	return std::lower_bound(
+	return ranges::lower_bound(
 		from,
 		_sections.end(),
 		bottom,
-		[](const Section &section, int bottom) {
-			return section.top() < bottom;
-		});
+		std::less<>(),
+		[](const Section &section) { return section.top(); });
 }
 
 ListWidget::~ListWidget() = default;

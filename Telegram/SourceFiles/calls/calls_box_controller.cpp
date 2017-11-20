@@ -51,10 +51,10 @@ public:
 	bool canAddItem(not_null<const HistoryItem*> item) const {
 		return (ComputeType(item) == _type && item->date.date() == _date);
 	}
-	void addItem(HistoryItem *item) {
+	void addItem(not_null<HistoryItem*> item) {
 		Expects(canAddItem(item));
 		_items.push_back(item);
-		base::sort(_items, [](HistoryItem *a, HistoryItem *b) {
+		ranges::sort(_items, [](not_null<HistoryItem*> a, auto b) {
 			return (a->id > b->id);
 		});
 		refreshStatus();
@@ -116,7 +116,7 @@ private:
 	void refreshStatus();
 	static Type ComputeType(not_null<const HistoryItem*> item);
 
-	std::vector<HistoryItem*> _items;
+	std::vector<not_null<HistoryItem*>> _items;
 	QDate _date;
 	Type _type;
 

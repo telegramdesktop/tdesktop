@@ -386,17 +386,23 @@ int Completer::findEqualCharsCount(int position, const utf16string *word) {
 
 std::vector<Suggestion> Completer::prepareResult() {
 	auto firstCharOfQuery = _query[0];
-	base::stable_partition(_result, [firstCharOfQuery](Result &result) {
+	auto reorder = [&](auto &&predicate) {
+		std::stable_partition(
+			std::begin(_result),
+			std::end(_result),
+			std::forward<decltype(predicate)>(predicate));
+	};
+	reorder([firstCharOfQuery](Result &result) {
 		auto firstCharAfterColon = result.replacement->replacement[1];
 		return (firstCharAfterColon == firstCharOfQuery);
 	});
-	base::stable_partition(_result, [](Result &result) {
+	reorder([](Result &result) {
 		return (result.wordsUsed < 2);
 	});
-	base::stable_partition(_result, [](Result &result) {
+	reorder([](Result &result) {
 		return (result.wordsUsed < 3);
 	});
-	base::stable_partition(_result, [this](Result &result) {
+	reorder([&](Result &result) {
 		return isExactMatch(result.replacement->replacement);
 	});
 
@@ -412,13 +418,19 @@ std::vector<Suggestion> Completer::prepareResult() {
 }
 
 string_span Completer::findWordsStartingWith(utf16char ch) {
-	auto begin = base::lower_bound(_currentItemWords, ch, [](utf16string word, utf16char ch) {
-		return word[0] < ch;
-	});
-	auto end = base::upper_bound(_currentItemWords, ch, [](utf16char ch, utf16string word) {
-		return ch < word[0];
-	});
-	return _currentItemWords.subspan(begin - _currentItemWords.begin(), end - begin);
+	auto begin = std::lower_bound(
+		std::begin(_currentItemWords),
+		std::end(_currentItemWords),
+		ch,
+		[](utf16string word, utf16char ch) { return word[0] < ch; });
+	auto end = std::upper_bound(
+		std::begin(_currentItemWords),
+		std::end(_currentItemWords),
+		ch,
+		[](utf16char ch, utf16string word) { return ch < word[0]; });
+	return _currentItemWords.subspan(
+		begin - _currentItemWords.begin(),
+		end - begin);
 }
 
 } // namespace

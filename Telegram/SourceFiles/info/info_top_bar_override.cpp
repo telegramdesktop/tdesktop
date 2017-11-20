@@ -73,7 +73,7 @@ QString TopBarOverride::generateText() const {
 }
 
 bool TopBarOverride::computeCanDelete() const {
-	return base::find_if(_items.list, [](const SelectedItem &item) {
+	return ranges::find_if(_items.list, [](const SelectedItem &item) {
 		return !item.canDelete;
 	}) == _items.list.end();
 }

@@ -326,7 +326,7 @@ inline auto combine(
 							state->latest.push_back(
 								std::move(*value));
 						}
-						base::take(state->accumulated);
+						details::take(state->accumulated);
 						consumer.put_next_copy(state->latest);
 					}
 				}

@@ -57,8 +57,8 @@ public:
 		}
 	}
 	InvokeCounter(InvokeCounter &&other)
-		: _copyCounter(base::take(other._copyCounter))
-		, _moveCounter(base::take(other._moveCounter)) {
+		: _copyCounter(details::take(other._copyCounter))
+		, _moveCounter(details::take(other._moveCounter)) {
 		if (_moveCounter) {
 			++*_moveCounter;
 		}
@@ -72,8 +72,8 @@ public:
 		return *this;
 	}
 	InvokeCounter &operator=(InvokeCounter &&other) {
-		_copyCounter = base::take(other._copyCounter);
-		_moveCounter = base::take(other._moveCounter);
+		_copyCounter = details::take(other._copyCounter);
+		_moveCounter = details::take(other._moveCounter);
 		if (_moveCounter) {
 			++*_moveCounter;
 		}
@@ -213,7 +213,7 @@ TEST_CASE("basic operators tests", "[rpl::operators]") {
 		}
 		REQUIRE(*sum == "1 1 3 ");
 	}
-	
+
 	SECTION("filter tuple test") {
 		auto sum = std::make_shared<std::string>("");
 		{

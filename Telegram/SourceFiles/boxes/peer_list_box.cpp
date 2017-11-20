@@ -593,8 +593,8 @@ void PeerListContent::addRowEntry(not_null<PeerListRow*> row) {
 
 void PeerListContent::invalidatePixmapsCache() {
 	auto invalidate = [](auto &&row) { row->invalidatePixmapsCache(); };
-	base::for_each(_rows, invalidate);
-	base::for_each(_searchRows, invalidate);
+	ranges::for_each(_rows, invalidate);
+	ranges::for_each(_searchRows, invalidate);
 }
 
 bool PeerListContent::addingToSearchIndex() const {

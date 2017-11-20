@@ -538,7 +538,7 @@ void Controller::usernameChanged() {
 		_checkUsernameTimer.cancel();
 		return;
 	}
-	auto bad = base::find_if(username, [](QChar ch) {
+	auto bad = ranges::find_if(username, [](QChar ch) {
 		return (ch < 'A' || ch > 'Z')
 			&& (ch < 'a' || ch > 'z')
 			&& (ch < '0' || ch > '9')

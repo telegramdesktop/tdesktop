@@ -80,14 +80,16 @@ int SparseIdsList::addRangeItemsAndCountNew(
 		return 0;
 	}
 
-	auto uniteFrom = base::lower_bound(
+	auto uniteFrom = ranges::lower_bound(
 		_slices,
 		noSkipRange.from,
-		[](const Slice &slice, MsgId from) { return slice.range.till < from; });
-	auto uniteTill = base::upper_bound(
+		std::less<>(),
+		[](const Slice &slice) { return slice.range.till; });
+	auto uniteTill = ranges::upper_bound(
 		_slices,
 		noSkipRange.till,
-		[](MsgId till, const Slice &slice) { return till < slice.range.from; });
+		std::less<>(),
+		[](const Slice &slice) { return slice.range.from; });
 	if (uniteFrom < uniteTill) {
 		return uniteAndAdd(update, uniteFrom, uniteTill, messages, noSkipRange);
 	}
@@ -151,10 +153,11 @@ void SparseIdsList::addSlice(
 }
 
 void SparseIdsList::removeOne(MsgId messageId) {
-	auto slice = base::lower_bound(
+	auto slice = ranges::lower_bound(
 		_slices,
 		messageId,
-		[](const Slice &slice, MsgId from) { return slice.range.till < from; });
+		std::less<>(),
+		[](const Slice &slice) { return slice.range.till; });
 	if (slice != _slices.end() && slice->range.from <= messageId) {
 		_slices.modify(slice, [messageId](Slice &slice) {
 			return slice.messages.remove(messageId);
@@ -175,12 +178,11 @@ rpl::producer<SparseIdsListResult> SparseIdsList::query(
 		SparseIdsListQuery &&query) const {
 	return [this, query = std::move(query)](auto consumer) {
 		auto slice = query.aroundId
-			? base::lower_bound(
+			? ranges::lower_bound(
 				_slices,
 				query.aroundId,
-				[](const Slice &slice, MsgId id) {
-					return slice.range.till < id;
-				})
+				std::less<>(),
+				[](const Slice &slice) { return slice.range.till; })
 			: _slices.end();
 		if (slice != _slices.end()
 			&& slice->range.from <= query.aroundId) {
@@ -199,7 +201,7 @@ SparseIdsListResult SparseIdsList::queryFromSlice(
 		const SparseIdsListQuery &query,
 		const Slice &slice) const {
 	auto result = SparseIdsListResult {};
-	auto position = base::lower_bound(slice.messages, query.aroundId);
+	auto position = ranges::lower_bound(slice.messages, query.aroundId);
 	auto haveBefore = int(position - slice.messages.begin());
 	auto haveEqualOrAfter = int(slice.messages.end() - position);
 	auto before = qMin(haveBefore, query.limitBefore);

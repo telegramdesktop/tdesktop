@@ -1873,11 +1873,15 @@ void ApiWrap::checkForUnreadMentions(const base::flat_set<MsgId> &possiblyReadMe
 }
 
 void ApiWrap::cancelEditChatAdmins(not_null<ChatData*> chat) {
-	_chatAdminsEnabledRequests.take(chat)
-		| requestCanceller();
+	_chatAdminsEnabledRequests.take(
+		chat
+	) | requestCanceller();
 
-	_chatAdminsSaveRequests.take(chat)
-		| base::for_each_apply(requestCanceller());
+	_chatAdminsSaveRequests.take(
+		chat
+	) | [&](auto &&requests) {
+		ranges::for_each(std::move(requests), requestCanceller());
+	};
 
 	_chatAdminsToSave.remove(chat);
 }
@@ -1975,8 +1979,8 @@ void ApiWrap::sendSaveChatAdminsRequests(not_null<ChatData*> chat) {
 			}
 		}
 	}
-	base::for_each(toRemove, removeOne);
-	base::for_each(toAppoint, appointOne);
+	ranges::for_each(toRemove, removeOne);
+	ranges::for_each(toAppoint, appointOne);
 	requestSendDelayed();
 }
 

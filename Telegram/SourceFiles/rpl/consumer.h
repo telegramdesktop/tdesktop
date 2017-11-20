@@ -128,7 +128,7 @@ template <typename Value, typename Error>
 inline void type_erased_handlers<Value, Error>::terminate() {
 	if (!_terminated) {
 		_terminated = true;
-		base::take(_lifetime).destroy();
+		details::take(_lifetime).destroy();
 	}
 }
 

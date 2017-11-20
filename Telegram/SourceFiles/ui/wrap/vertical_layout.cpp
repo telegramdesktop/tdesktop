@@ -131,7 +131,7 @@ RpWidget *VerticalLayout::addChild(
 }
 
 void VerticalLayout::childHeightUpdated(RpWidget *child) {
-	auto it = base::find_if(_rows, [child](const Row &row) {
+	auto it = ranges::find_if(_rows, [child](const Row &row) {
 		return (row.widget == child);
 	});
 
@@ -158,7 +158,7 @@ void VerticalLayout::childHeightUpdated(RpWidget *child) {
 }
 
 void VerticalLayout::removeChild(RpWidget *child) {
-	auto it = base::find_if(_rows, [child](const Row &row) {
+	auto it = ranges::find_if(_rows, [child](const Row &row) {
 		return (row.widget == child);
 	});
 	auto end = _rows.end();

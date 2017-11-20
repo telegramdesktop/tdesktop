@@ -62,7 +62,7 @@ base::optional<int> SparseIdsSlice::distance(
 }
 
 base::optional<MsgId> SparseIdsSlice::nearest(MsgId msgId) const {
-	if (auto it = base::lower_bound(_ids, msgId); it != _ids.end()) {
+	if (auto it = ranges::lower_bound(_ids, msgId); it != _ids.end()) {
 		return *it;
 	} else if (_ids.empty()) {
 		return base::none;
@@ -342,7 +342,7 @@ void SparseIdsSliceBuilder::sliceToLimits() {
 		return;
 	}
 	auto requestedSomething = false;
-	auto aroundIt = base::lower_bound(_ids, _key);
+	auto aroundIt = ranges::lower_bound(_ids, _key);
 	auto removeFromBegin = (aroundIt - _ids.begin() - _limitBefore);
 	auto removeFromEnd = (_ids.end() - aroundIt - _limitAfter - 1);
 	if (removeFromBegin > 0) {

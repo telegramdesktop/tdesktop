@@ -26,7 +26,8 @@
     '<(src_loc)',
     '<(submodules_loc)/GSL/include',
     '<(submodules_loc)/variant/include',
-    '<(submodules_loc)/Catch/include'
+    '<(submodules_loc)/Catch/include',
+    '<(libs_loc)/range-v3/include',
   ],
   'sources': [
     '<(src_loc)/base/tests_main.cpp',

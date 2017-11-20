@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/wrap/slide_wrap.h"
 
 #include <rpl/combine.h>
+#include <range/v3/algorithm/find.hpp>
 
 namespace Ui {
 
@@ -156,7 +157,7 @@ rpl::producer<bool> MultiSlideTracker::atLeastOneShownValue() const {
 	return rpl::combine(
 		std::move(shown),
 		[](const std::vector<bool> &values) {
-			return base::find(values, true) != values.end();
+			return ranges::find(values, true) != values.end();
 		});
 }
 

@@ -60,7 +60,8 @@ private:
 
 };
 
-UserPhotosSlice::UserPhotosSlice(Key key) : UserPhotosSlice(
+UserPhotosSlice::UserPhotosSlice(Key key)
+: UserPhotosSlice(
 	key,
 	{},
 	base::none,
@@ -74,15 +75,15 @@ UserPhotosSlice::UserPhotosSlice(
 	base::optional<int> fullCount,
 	base::optional<int> skippedBefore,
 	int skippedAfter)
-	: _key(key)
-	, _ids(ids)
-	, _fullCount(fullCount)
-	, _skippedBefore(skippedBefore)
-	, _skippedAfter(skippedAfter) {
+: _key(key)
+, _ids(ids)
+, _fullCount(fullCount)
+, _skippedBefore(skippedBefore)
+, _skippedAfter(skippedAfter) {
 }
 
 base::optional<int> UserPhotosSlice::indexOf(PhotoId photoId) const {
-	auto it = base::find(_ids, photoId);
+	auto it = ranges::find(_ids, photoId);
 	if (it != _ids.end()) {
 		return (it - _ids.begin());
 	}
@@ -190,7 +191,7 @@ void UserPhotosSliceBuilder::mergeSliceData(
 }
 
 void UserPhotosSliceBuilder::sliceToLimits() {
-	auto aroundIt = base::find(_ids, _key.photoId);
+	auto aroundIt = ranges::find(_ids, _key.photoId);
 	auto removeFromBegin = (aroundIt - _ids.begin() - _limitBefore);
 	auto removeFromEnd = (_ids.end() - aroundIt - _limitAfter - 1);
 	if (removeFromEnd > 0) {

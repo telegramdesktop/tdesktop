@@ -51,7 +51,7 @@ void UserPhotos::List::addSlice(
 }
 
 void UserPhotos::List::removeOne(PhotoId photoId) {
-	auto position = base::find(_photoIds, photoId);
+	auto position = ranges::find(_photoIds, photoId);
 	if (position == _photoIds.end()) {
 		_count = base::none;
 	} else {
@@ -64,7 +64,7 @@ void UserPhotos::List::removeOne(PhotoId photoId) {
 }
 
 void UserPhotos::List::removeAfter(PhotoId photoId) {
-	auto position = base::find(_photoIds, photoId);
+	auto position = ranges::find(_photoIds, photoId);
 	if (position == _photoIds.end()) {
 		_count = base::none;
 		_photoIds.clear();
@@ -90,7 +90,7 @@ rpl::producer<UserPhotosResult> UserPhotos::List::query(
 		auto result = UserPhotosResult {};
 		result.count = _count;
 
-		auto position = base::find(_photoIds, query.key.photoId);
+		auto position = ranges::find(_photoIds, query.key.photoId);
 		if (position != _photoIds.end()) {
 			auto haveBefore = int(position - _photoIds.begin());
 			auto haveEqualOrAfter = int(_photoIds.end() - position);

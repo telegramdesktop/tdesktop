@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include <deque>
-#include "base/algorithm.h"
+#include <algorithm>
 
 namespace base {
 
@@ -31,28 +31,29 @@ class flat_set;
 template <typename Type, typename Compare = std::less<>>
 class flat_multi_set;
 
-template <typename Type, typename Compare, typename iterator_impl>
+template <typename Type, typename iterator_impl>
 class flat_multi_set_iterator_impl;
 
-template <typename Type, typename Compare, typename iterator_impl>
+template <typename Type, typename iterator_impl>
 class flat_multi_set_iterator_impl {
 public:
 	using iterator_category = typename iterator_impl::iterator_category;
 
-	using value_type = typename flat_multi_set<Type, Compare>::value_type;
+	using value_type = Type;
 	using difference_type = typename iterator_impl::difference_type;
-	using pointer = typename flat_multi_set<Type, Compare>::pointer;
-	using reference = typename flat_multi_set<Type, Compare>::reference;
+	using pointer = const Type*;
+	using reference = const Type&;
 
-	flat_multi_set_iterator_impl(iterator_impl impl = iterator_impl())
-		: _impl(impl) {
+	flat_multi_set_iterator_impl(
+		iterator_impl impl = iterator_impl())
+	: _impl(impl) {
 	}
 	template <typename other_iterator_impl>
 	flat_multi_set_iterator_impl(
-			const flat_multi_set_iterator_impl<
-				Type,
-				Compare,
-				other_iterator_impl> &other) : _impl(other._impl) {
+		const flat_multi_set_iterator_impl<
+			Type,
+			other_iterator_impl> &other)
+	: _impl(other._impl) {
 	}
 
 	reference operator*() const {
@@ -91,10 +92,9 @@ public:
 	}
 	template <typename other_iterator_impl>
 	difference_type operator-(
-			const flat_multi_set_iterator_impl<
-				Type,
-				Compare,
-				other_iterator_impl> &right) const {
+		const flat_multi_set_iterator_impl<
+			Type,
+			other_iterator_impl> &right) const {
 		return _impl - right._impl;
 	}
 	reference operator[](difference_type offset) const {
@@ -103,37 +103,37 @@ public:
 
 	template <typename other_iterator_impl>
 	bool operator==(
-			const flat_multi_set_iterator_impl<
-				Type,
-				Compare,
-				other_iterator_impl> &right) const {
+		const flat_multi_set_iterator_impl<
+			Type,
+			other_iterator_impl> &right) const {
 		return _impl == right._impl;
 	}
 	template <typename other_iterator_impl>
 	bool operator!=(
-			const flat_multi_set_iterator_impl<
-				Type,
-				Compare,
-				other_iterator_impl> &right) const {
+		const flat_multi_set_iterator_impl<
+			Type,
+			other_iterator_impl> &right) const {
 		return _impl != right._impl;
 	}
 	template <typename other_iterator_impl>
 	bool operator<(
-			const flat_multi_set_iterator_impl<
-				Type,
-				Compare,
-				other_iterator_impl> &right) const {
+		const flat_multi_set_iterator_impl<
+			Type,
+			other_iterator_impl> &right) const {
 		return _impl < right._impl;
 	}
 
 private:
 	iterator_impl _impl;
-	friend class flat_multi_set<Type, Compare>;
-	friend class flat_set<Type, Compare>;
+
+	template <typename OtherType, typename OtherCompare>
+	friend class flat_multi_set;
+
+	template <typename OtherType, typename OtherCompare>
+	friend class flat_set;
 
 	template <
 		typename OtherType,
-		typename OtherCompare,
 		typename other_iterator_impl>
 	friend class flat_multi_set_iterator_impl;
 
@@ -143,159 +143,111 @@ private:
 
 };
 
+template <typename Type>
+class flat_multi_set_const_wrap {
+public:
+	constexpr flat_multi_set_const_wrap(const Type &value)
+	: _value(value) {
+	}
+	constexpr flat_multi_set_const_wrap(Type &&value)
+	: _value(std::move(value)) {
+	}
+	inline constexpr operator const Type&() const {
+		return _value;
+	}
+	constexpr Type &wrapped() {
+		return _value;
+	}
+
+private:
+	Type _value;
+
+};
+
 template <typename Type, typename Compare>
 class flat_multi_set {
-	class const_wrap {
-	public:
-		constexpr const_wrap(const Type &value)
-		: _value(value) {
-		}
-		constexpr const_wrap(Type &&value)
-		: _value(std::move(value)) {
-		}
-		inline constexpr operator const Type&() const {
-			return _value;
-		}
-		constexpr Type &wrapped() {
-			return _value;
-		}
-
-	private:
-		Type _value;
-
-	};
-
-	class compare {
-	public:
-		template <
-			typename OtherType1,
-			typename OtherType2,
-			typename = std::enable_if_t<
-				!std::is_same_v<std::decay_t<OtherType1>, const_wrap> &&
-				!std::is_same_v<std::decay_t<OtherType2>, const_wrap>>>
-		inline constexpr auto operator()(
-				OtherType1 &&a,
-				OtherType2 &b) const {
-			return Compare()(
-				std::forward<OtherType1>(a),
-				std::forward<OtherType2>(b));
-		}
-		inline constexpr auto operator()(
-				const const_wrap &a,
-				const const_wrap &b) const {
-			return operator()(
-				static_cast<const Type&>(a),
-				static_cast<const Type&>(b));
-		}
-		template <
-			typename OtherType,
-			typename = std::enable_if_t<
-				!std::is_same_v<std::decay_t<OtherType>, const_wrap>>>
-		inline constexpr auto operator()(
-				const const_wrap &a,
-				OtherType &&b) const {
-			return operator()(
-				static_cast<const Type&>(a),
-				std::forward<OtherType>(b));
-		}
-		template <
-			typename OtherType,
-			typename = std::enable_if_t<
-				!std::is_same_v<std::decay_t<OtherType>, const_wrap>>>
-		inline constexpr auto operator()(
-				OtherType &&a,
-				const const_wrap &b) const {
-			return operator()(
-				std::forward<OtherType>(a),
-				static_cast<const Type&>(b));
-		}
-
-	};
-
-	using impl = std::deque<const_wrap>;
+	using const_wrap = flat_multi_set_const_wrap<Type>;
+	using impl_t = std::deque<const_wrap>;
 
 public:
 	using value_type = Type;
-	using size_type = typename impl::size_type;
-	using difference_type = typename impl::difference_type;
+	using size_type = typename impl_t::size_type;
+	using difference_type = typename impl_t::difference_type;
 	using pointer = const Type*;
 	using reference = const Type&;
 
 	using iterator = flat_multi_set_iterator_impl<
 		Type,
-		Compare,
-		typename impl::iterator>;
+		typename impl_t::iterator>;
 	using const_iterator = flat_multi_set_iterator_impl<
 		Type,
-		Compare,
-		typename impl::const_iterator>;
+		typename impl_t::const_iterator>;
 	using reverse_iterator = flat_multi_set_iterator_impl<
 		Type,
-		Compare,
-		typename impl::reverse_iterator>;
+		typename impl_t::reverse_iterator>;
 	using const_reverse_iterator = flat_multi_set_iterator_impl<
 		Type,
-		Compare,
-		typename impl::const_reverse_iterator>;
+		typename impl_t::const_reverse_iterator>;
 
 	flat_multi_set() = default;
 
 	template <
 		typename Iterator,
 		typename = typename std::iterator_traits<Iterator>::iterator_category>
-	flat_multi_set(Iterator first, Iterator last) : _impl(first, last) {
-		base::sort(_impl, compare());
+	flat_multi_set(Iterator first, Iterator last)
+	: _data(first, last) {
+		std::sort(std::begin(impl()), std::end(impl()), compare());
 	}
 
 	flat_multi_set(std::initializer_list<Type> iter)
-		: flat_multi_set(iter.begin(), iter.end()) {
+	: flat_multi_set(iter.begin(), iter.end()) {
 	}
 
 	size_type size() const {
-		return _impl.size();
+		return impl().size();
 	}
 	bool empty() const {
-		return _impl.empty();
+		return impl().empty();
 	}
 	void clear() {
-		_impl.clear();
+		impl().clear();
 	}
 
 	iterator begin() {
-		return _impl.begin();
+		return impl().begin();
 	}
 	iterator end() {
-		return _impl.end();
+		return impl().end();
 	}
 	const_iterator begin() const {
-		return _impl.begin();
+		return impl().begin();
 	}
 	const_iterator end() const {
-		return _impl.end();
+		return impl().end();
 	}
 	const_iterator cbegin() const {
-		return _impl.cbegin();
+		return impl().cbegin();
 	}
 	const_iterator cend() const {
-		return _impl.cend();
+		return impl().cend();
 	}
 	reverse_iterator rbegin() {
-		return _impl.rbegin();
+		return impl().rbegin();
 	}
 	reverse_iterator rend() {
-		return _impl.rend();
+		return impl().rend();
 	}
 	const_reverse_iterator rbegin() const {
-		return _impl.rbegin();
+		return impl().rbegin();
 	}
 	const_reverse_iterator rend() const {
-		return _impl.rend();
+		return impl().rend();
 	}
 	const_reverse_iterator crbegin() const {
-		return _impl.crbegin();
+		return impl().crbegin();
 	}
 	const_reverse_iterator crend() const {
-		return _impl.crend();
+		return impl().crend();
 	}
 
 	reference front() const {
@@ -307,25 +259,25 @@ public:
 
 	iterator insert(const Type &value) {
 		if (empty() || compare()(value, front())) {
-			_impl.push_front(value);
+			impl().push_front(value);
 			return begin();
 		} else if (!compare()(value, back())) {
-			_impl.push_back(value);
+			impl().push_back(value);
 			return (end() - 1);
 		}
 		auto where = getUpperBound(value);
-		return _impl.insert(where, value);
+		return impl().insert(where, value);
 	}
 	iterator insert(Type &&value) {
 		if (empty() || compare()(value, front())) {
-			_impl.push_front(std::move(value));
+			impl().push_front(std::move(value));
 			return begin();
 		} else if (!compare()(value, back())) {
-			_impl.push_back(std::move(value));
+			impl().push_back(std::move(value));
 			return (end() - 1);
 		}
 		auto where = getUpperBound(value);
-		return _impl.insert(where, std::move(value));
+		return impl().insert(where, std::move(value));
 	}
 	template <typename... Args>
 	iterator emplace(Args&&... args) {
@@ -342,7 +294,7 @@ public:
 		if (compare()(value, *where)) {
 			return false;
 		}
-		_impl.erase(where);
+		impl().erase(where);
 		return true;
 	}
 	int removeAll(const Type &value) {
@@ -355,15 +307,15 @@ public:
 		if (range.first == range.second) {
 			return 0;
 		}
-		_impl.erase(range.first, range.second);
+		impl().erase(range.first, range.second);
 		return (range.second - range.first);
 	}
 
 	iterator erase(const_iterator where) {
-		return _impl.erase(where._impl);
+		return impl().erase(where._impl);
 	}
 	iterator erase(const_iterator from, const_iterator till) {
-		return _impl.erase(from._impl, till._impl);
+		return impl().erase(from._impl, till._impl);
 	}
 
 	iterator findFirst(const Type &value) {
@@ -373,7 +325,7 @@ public:
 			return end();
 		}
 		auto where = getLowerBound(value);
-		return compare()(value, *where) ? _impl.end() : where;
+		return compare()(value, *where) ? impl().end() : where;
 	}
 
 	const_iterator findFirst(const Type &value) const {
@@ -383,33 +335,33 @@ public:
 			return end();
 		}
 		auto where = getLowerBound(value);
-		return compare()(value, *where) ? _impl.end() : where;
+		return compare()(value, *where) ? impl().end() : where;
 	}
 
 	template <
 		typename OtherType,
 		typename = typename Compare::is_transparent>
-	iterator findFirst(const OtherType &value) {
+		iterator findFirst(const OtherType &value) {
 		if (empty()
 			|| compare()(value, front())
 			|| compare()(back(), value)) {
 			return end();
 		}
 		auto where = getLowerBound(value);
-		return compare()(value, *where) ? _impl.end() : where;
+		return compare()(value, *where) ? impl().end() : where;
 	}
 
 	template <
 		typename OtherType,
 		typename = typename Compare::is_transparent>
-	const_iterator findFirst(const OtherType &value) const {
+		const_iterator findFirst(const OtherType &value) const {
 		if (empty()
 			|| compare()(value, front())
 			|| compare()(back(), value)) {
 			return end();
 		}
 		auto where = getLowerBound(value);
-		return compare()(value, *where) ? _impl.end() : where;
+		return compare()(value, *where) ? impl().end() : where;
 	}
 
 	bool contains(const Type &value) const {
@@ -450,8 +402,8 @@ public:
 		typename Iterator,
 		typename = typename std::iterator_traits<Iterator>::iterator_category>
 	void merge(Iterator first, Iterator last) {
-		_impl.insert(_impl.end(), first, last);
-		base::sort(_impl, compare());
+		impl().insert(impl().end(), first, last);
+		std::sort(std::begin(impl()), std::end(impl()), compare());
 	}
 
 	void merge(const flat_multi_set<Type, Compare> &other) {
@@ -463,44 +415,149 @@ public:
 	}
 
 private:
-	impl _impl;
 	friend class flat_set<Type, Compare>;
 
-	typename impl::iterator getLowerBound(const Type &value) {
-		return base::lower_bound(_impl, value, compare());
+	struct transparent_compare : Compare {
+		inline constexpr const Compare &initial() const noexcept {
+			return *this;
+		}
+
+		template <
+			typename OtherType1,
+			typename OtherType2,
+			typename = std::enable_if_t<
+			!std::is_same_v<std::decay_t<OtherType1>, const_wrap> &&
+			!std::is_same_v<std::decay_t<OtherType2>, const_wrap>>>
+		inline constexpr auto operator()(
+				OtherType1 &&a,
+				OtherType2 &&b) const {
+			return initial()(
+				std::forward<OtherType1>(a),
+				std::forward<OtherType2>(b));
+		}
+		template <
+			typename OtherType1,
+			typename OtherType2>
+		inline constexpr auto operator()(
+				OtherType1 &&a,
+				OtherType2 &&b) const -> std::enable_if_t<
+		std::is_same_v<std::decay_t<OtherType1>, const_wrap> &&
+		std::is_same_v<std::decay_t<OtherType2>, const_wrap>, bool> {
+			return initial()(
+				static_cast<const Type&>(a),
+				static_cast<const Type&>(b));
+		}
+		template <
+			typename OtherType,
+			typename = std::enable_if_t<
+			!std::is_same_v<std::decay_t<OtherType>, const_wrap>>>
+		inline constexpr auto operator()(
+				const const_wrap &a,
+				OtherType &&b) const {
+			return initial()(
+				static_cast<const Type&>(a),
+				std::forward<OtherType>(b));
+		}
+		template <
+			typename OtherType,
+			typename = std::enable_if_t<
+			!std::is_same_v<std::decay_t<OtherType>, const_wrap>>>
+		inline constexpr auto operator()(
+				OtherType &&a,
+				const const_wrap &b) const {
+			return initial()(
+				std::forward<OtherType>(a),
+				static_cast<const Type&>(b));
+		}
+
+	};
+	struct Data : transparent_compare {
+		template <typename ...Args>
+		Data(Args &&...args)
+		: elements(std::forward<Args>(args)...) {
+		}
+
+		impl_t elements;
+	};
+
+	Data _data;
+	const transparent_compare &compare() const {
+		return _data;
 	}
-	typename impl::const_iterator getLowerBound(const Type &value) const {
-		return base::lower_bound(_impl, value, compare());
+	const impl_t &impl() const {
+		return _data.elements;
+	}
+	impl_t &impl() {
+		return _data.elements;
+	}
+
+	typename impl_t::iterator getLowerBound(const Type &value) {
+		return std::lower_bound(
+			std::begin(impl()),
+			std::end(impl()),
+			value,
+			compare());
+	}
+	typename impl_t::const_iterator getLowerBound(const Type &value) const {
+		return std::lower_bound(
+			std::begin(impl()),
+			std::end(impl()),
+			value,
+			compare());
 	}
 	template <
 		typename OtherType,
 		typename = typename Compare::is_transparent>
-	typename impl::iterator getLowerBound(const OtherType &value) {
-		return base::lower_bound(_impl, value, compare());
+	typename impl_t::iterator getLowerBound(const OtherType &value) {
+		return std::lower_bound(
+			std::begin(impl()),
+			std::end(impl()),
+			value,
+			compare());
 	}
 	template <
 		typename OtherType,
 		typename = typename Compare::is_transparent>
-	typename impl::const_iterator getLowerBound(const OtherType &value) const {
-		return base::lower_bound(_impl, value, compare());
+	typename impl_t::const_iterator getLowerBound(const OtherType &value) const {
+		return std::lower_bound(
+			std::begin(impl()),
+			std::end(impl()),
+			value,
+			compare());
 	}
-	typename impl::iterator getUpperBound(const Type &value) {
-		return base::upper_bound(_impl, value, compare());
+	typename impl_t::iterator getUpperBound(const Type &value) {
+		return std::upper_bound(
+			std::begin(impl()),
+			std::end(impl()),
+			value,
+			compare());
 	}
-	typename impl::const_iterator getUpperBound(const Type &value) const {
-		return base::upper_bound(_impl, value, compare());
+	typename impl_t::const_iterator getUpperBound(const Type &value) const {
+		return std::upper_bound(
+			std::begin(impl()),
+			std::end(impl()),
+			value,
+			compare());
 	}
 	std::pair<
-		typename impl::iterator,
-		typename impl::iterator
+		typename impl_t::iterator,
+		typename impl_t::iterator
 	> getEqualRange(const Type &value) {
-		return base::equal_range(_impl, value, compare());
+		return std::equal_range(
+			std::begin(impl()),
+			std::end(impl()),
+			value,
+			compare());
 	}
 	std::pair<
-		typename impl::const_iterator,
-		typename impl::const_iterator
+		typename impl_t::const_iterator,
+		typename impl_t::const_iterator
 	> getEqualRange(const Type &value) const {
-		return base::equal_range(_impl, value, compare());
+		return std::equal_range(
+			std::begin(impl()),
+			std::end(impl()),
+			value,
+			compare());
 	}
 
 };
@@ -508,7 +565,6 @@ private:
 template <typename Type, typename Compare>
 class flat_set : private flat_multi_set<Type, Compare> {
 	using parent = flat_multi_set<Type, Compare>;
-	using compare = typename parent::compare;
 
 public:
 	using iterator = typename parent::iterator;
@@ -553,30 +609,30 @@ public:
 	using parent::erase;
 
 	iterator insert(const Type &value) {
-		if (this->empty() || compare()(value, this->front())) {
-			this->_impl.push_front(value);
+		if (this->empty() || this->compare()(value, this->front())) {
+			this->impl().push_front(value);
 			return this->begin();
-		} else if (compare()(this->back(), value)) {
-			this->_impl.push_back(value);
+		} else if (this->compare()(this->back(), value)) {
+			this->impl().push_back(value);
 			return (this->end() - 1);
 		}
 		auto where = this->getLowerBound(value);
-		if (compare()(value, *where)) {
-			return this->_impl.insert(where, value);
+		if (this->compare()(value, *where)) {
+			return this->impl().insert(where, value);
 		}
 		return this->end();
 	}
 	iterator insert(Type &&value) {
-		if (this->empty() || compare()(value, this->front())) {
-			this->_impl.push_front(std::move(value));
+		if (this->empty() || this->compare()(value, this->front())) {
+			this->impl().push_front(std::move(value));
 			return this->begin();
-		} else if (compare()(this->back(), value)) {
-			this->_impl.push_back(std::move(value));
+		} else if (this->compare()(this->back(), value)) {
+			this->impl().push_back(std::move(value));
 			return (this->end() - 1);
 		}
 		auto where = this->getLowerBound(value);
-		if (compare()(value, *where)) {
-			return this->_impl.insert(where, std::move(value));
+		if (this->compare()(value, *where)) {
+			return this->impl().insert(where, std::move(value));
 		}
 		return this->end();
 	}
@@ -612,9 +668,9 @@ public:
 	void modify(iterator which, Action action) {
 		action(which.wrapped());
 		for (auto i = iterator(which + 1), e = end(); i != e; ++i) {
-			if (compare()(*i, *which)) {
+			if (this->compare()(*i, *which)) {
 				std::swap(i.wrapped(), which.wrapped());
-			} else if (!compare()(*which, *i)) {
+			} else if (!this->compare()(*which, *i)) {
 				erase(which);
 				return;
 			} else{
@@ -623,9 +679,9 @@ public:
 		}
 		for (auto i = which, b = begin(); i != b;) {
 			--i;
-			if (compare()(*which, *i)) {
+			if (this->compare()(*which, *i)) {
 				std::swap(i.wrapped(), which.wrapped());
-			} else if (!compare()(*i, *which)) {
+			} else if (!this->compare()(*i, *which)) {
 				erase(which);
 				return;
 			} else {
@@ -652,12 +708,15 @@ public:
 
 private:
 	void finalize() {
-		this->_impl.erase(
+		this->impl().erase(
 			std::unique(
-				this->_impl.begin(),
-				this->_impl.end(),
-				[](auto &&a, auto &&b) { return !compare()(a, b); }),
-			this->_impl.end());
+				std::begin(this->impl()),
+				std::end(this->impl()),
+				[&](auto &&a, auto &&b) {
+					return !this->compare()(a, b);
+				}
+			),
+			std::end(this->impl()));
 	}
 
 };

@@ -648,11 +648,11 @@ void EditChatAdminsBoxController::rebuildRows() {
 		admins.insert(admins.end(), others.begin(), others.end());
 		others.clear();
 	}
-	auto sortByName = [](auto a, auto b) {
+	auto sortByName = [](not_null<UserData*> a, auto b) {
 		return (a->name.compare(b->name, Qt::CaseInsensitive) < 0);
 	};
-	base::sort(admins, sortByName);
-	base::sort(others, sortByName);
+	ranges::sort(admins, sortByName);
+	ranges::sort(others, sortByName);
 
 	auto addOne = [this](not_null<UserData*> user) {
 		if (auto row = createRow(user)) {
@@ -664,8 +664,8 @@ void EditChatAdminsBoxController::rebuildRows() {
 			addOne(creator);
 		}
 	}
-	base::for_each(admins, addOne);
-	base::for_each(others, addOne);
+	ranges::for_each(admins, addOne);
+	ranges::for_each(others, addOne);
 
 	delegate()->peerListRefreshRows();
 }
