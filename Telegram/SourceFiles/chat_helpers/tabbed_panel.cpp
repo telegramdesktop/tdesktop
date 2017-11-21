@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "chat_helpers/tabbed_selector.h"
 #include "window/window_controller.h"
 #include "mainwindow.h"
+#include "messenger.h"
 
 namespace ChatHelpers {
 namespace {
@@ -178,6 +179,7 @@ void TabbedPanel::moveByBottom() {
 }
 
 void TabbedPanel::enterEventHook(QEvent *e) {
+	Messenger::Instance().registerLeaveSubscription(this);
 	showAnimated();
 }
 
@@ -189,6 +191,7 @@ bool TabbedPanel::preventAutoHide() const {
 }
 
 void TabbedPanel::leaveEventHook(QEvent *e) {
+	Messenger::Instance().unregisterLeaveSubscription(this);
 	if (preventAutoHide()) {
 		return;
 	}

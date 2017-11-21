@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include <rpl/event_stream.h>
 #include "window/window_title.h"
 #include "base/timer.h"
 
@@ -96,6 +97,8 @@ public:
 		return _dragFinished;
 	}
 
+	rpl::producer<> leaveEvents() const;
+
 public slots:
 	bool minimizeToTray();
 	void updateGlobalMenu() {
@@ -104,6 +107,7 @@ public slots:
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
+	void leaveEvent(QEvent *e) override;
 
 	void savePosition(Qt::WindowState state = Qt::WindowActive);
 	void handleStateChanged(Qt::WindowState state);
@@ -187,6 +191,7 @@ private:
 	base::Timer _inactivePressTimer;
 
 	base::Observable<void> _dragFinished;
+	rpl::event_stream<> _leaveEvents;
 
 };
 

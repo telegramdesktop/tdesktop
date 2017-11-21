@@ -261,6 +261,14 @@ void MainWindow::resizeEvent(QResizeEvent *e) {
 	updateControlsGeometry();
 }
 
+rpl::producer<> MainWindow::leaveEvents() const {
+	return _leaveEvents.events();
+}
+
+void MainWindow::leaveEvent(QEvent *e) {
+	_leaveEvents.fire({});
+}
+
 void MainWindow::updateControlsGeometry() {
 	auto bodyTop = 0;
 	auto bodyWidth = width();

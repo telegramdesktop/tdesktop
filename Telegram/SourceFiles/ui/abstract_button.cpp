@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <rpl/filter.h>
 #include <rpl/mappers.h>
+#include "messenger.h"
 
 namespace Ui {
 
@@ -109,10 +110,12 @@ void AbstractButton::setOver(bool over, StateChangeSource source) {
 	if (over && !(_state & StateFlag::Over)) {
 		auto was = _state;
 		_state |= StateFlag::Over;
+		Messenger::Instance().registerLeaveSubscription(this);
 		onStateChanged(was, source);
 	} else if (!over && (_state & StateFlag::Over)) {
 		auto was = _state;
 		_state &= ~State(StateFlag::Over);
+		Messenger::Instance().unregisterLeaveSubscription(this);
 		onStateChanged(was, source);
 	}
 	updateCursor();

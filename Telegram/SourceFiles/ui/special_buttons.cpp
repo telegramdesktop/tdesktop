@@ -169,7 +169,8 @@ void HistoryDownButton::setUnreadCount(int unreadCount) {
 	}
 }
 
-EmojiButton::EmojiButton(QWidget *parent, const style::IconButton &st) : RippleButton(parent, st.ripple)
+EmojiButton::EmojiButton(QWidget *parent, const style::IconButton &st)
+: RippleButton(parent, st.ripple)
 , _st(st)
 , _a_loading(animation(this, &EmojiButton::step_loading)) {
 	resize(_st.width, _st.height);

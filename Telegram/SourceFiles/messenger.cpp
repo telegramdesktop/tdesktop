@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "messenger.h"
 
+#include <rpl/complete.h>
 #include "data/data_photo.h"
 #include "data/data_document.h"
 #include "base/timer.h"
@@ -993,6 +994,36 @@ QPoint Messenger::getPointForCallPanelCenter() const {
 		return activeWindow->windowHandle()->screen()->geometry().center();
 	}
 	return QApplication::desktop()->screenGeometry().center();
+}
+
+// macOS Qt bug workaround, sometimes no leaveEvent() gets to the nested widgets.
+void Messenger::registerLeaveSubscription(QWidget *widget) {
+#ifdef Q_OS_MAC
+	if (auto topLevel = widget->window()) {
+		if (topLevel == _window.get()) {
+			auto guarded = weak(widget);
+			auto subscription = _window->leaveEvents()
+				| rpl::start_with_next([guarded] {
+					if (auto w = guarded.data()) {
+						QEvent ev(QEvent::Leave);
+						QGuiApplication::sendEvent(w, &ev);
+					}
+				});
+			_leaveSubscriptions.emplace_back(guarded, std::move(subscription));
+		}
+	}
+#endif // Q_OS_MAC
+}
+
+void Messenger::unregisterLeaveSubscription(QWidget *widget) {
+#ifdef Q_OS_MAC
+	_leaveSubscriptions = std::move(
+		_leaveSubscriptions
+	) | ranges::action::remove_if([&](const LeaveSubscription &subscription) {
+		auto pointer = subscription.pointer.data();
+		return !pointer || (pointer == widget);
+	});
+#endif // Q_OS_MAC
 }
 
 void Messenger::QuitAttempt() {

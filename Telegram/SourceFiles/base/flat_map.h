@@ -272,7 +272,6 @@ public:
 	using reference = pair_type&;
 	using const_reference = const pair_type&;
 
-	class const_iterator;
 	class iterator : public iterator_base {
 	public:
 		using iterator_base::iterator_base;
@@ -292,7 +291,6 @@ public:
 		}
 
 	};
-	class const_reverse_iterator;
 	class reverse_iterator : public reverse_iterator_base {
 	public:
 		using reverse_iterator_base::reverse_iterator_base;

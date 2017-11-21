@@ -174,6 +174,9 @@ public:
 		return _passcodedChanged;
 	}
 
+	void registerLeaveSubscription(QWidget *widget);
+	void unregisterLeaveSubscription(QWidget *widget);
+
 	void quitPreventFinished();
 
 	void handleAppActivated();
@@ -245,5 +248,15 @@ private:
 	QImage _logoNoMargin;
 
 	base::DelayedCallTimer _callDelayedTimer;
+
+	struct LeaveSubscription {
+		LeaveSubscription(QPointer<QWidget> pointer, rpl::lifetime &&subscription)
+		: pointer(pointer), subscription(std::move(subscription)) {
+		}
+
+		QPointer<QWidget> pointer;
+		rpl::lifetime subscription;
+	};
+	std::vector<LeaveSubscription> _leaveSubscriptions;
 
 };
