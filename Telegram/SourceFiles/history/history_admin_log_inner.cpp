@@ -36,6 +36,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/popup_menu.h"
 #include "core/file_utilities.h"
 #include "core/tl_help.h"
+#include "base/overload.h"
 #include "lang/lang_keys.h"
 #include "boxes/edit_participant_box.h"
 
@@ -351,7 +352,7 @@ void InnerWidget::requestAdmins() {
 		MTP_int(kMaxChannelAdmins),
 		MTP_int(participantsHash)
 	)).done([this](const MTPchannels_ChannelParticipants &result) {
-		auto readCanEdit = ranges::overload([](const MTPDchannelParticipantAdmin &v) {
+		auto readCanEdit = base::overload([](const MTPDchannelParticipantAdmin &v) {
 			return v.is_can_edit();
 		}, [](auto &&) {
 			return false;

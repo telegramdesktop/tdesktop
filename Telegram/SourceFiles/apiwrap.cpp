@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "data/data_photo.h"
 #include "data/data_web_page.h"
 #include "core/tl_help.h"
+#include "base/overload.h"
 #include "observer_peer.h"
 #include "lang/lang_keys.h"
 #include "application.h"
@@ -1716,7 +1717,7 @@ void ApiWrap::parseChannelParticipants(
 		const MTPchannels_ChannelParticipants &result,
 		base::lambda<void(int fullCount, const QVector<MTPChannelParticipant> &list)> callbackList,
 		base::lambda<void()> callbackNotModified) {
-	TLHelp::VisitChannelParticipants(result, ranges::overload([&](
+	TLHelp::VisitChannelParticipants(result, base::overload([&](
 			const MTPDchannels_channelParticipants &data) {
 		App::feedUsers(data.vusers);
 		if (callbackList) {

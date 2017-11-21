@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang/lang_keys.h"
 #include "boxes/sticker_set_box.h"
 #include "core/tl_help.h"
+#include "base/overload.h"
 #include "messenger.h"
 
 namespace AdminLog {
@@ -212,7 +213,7 @@ auto GenerateParticipantChangeTextInner(
 		const MTPChannelParticipant *oldParticipant) {
 	auto oldType = oldParticipant ? oldParticipant->type() : 0;
 
-	auto readResult = ranges::overload([](const MTPDchannelParticipantCreator &data) {
+	auto readResult = base::overload([&](const MTPDchannelParticipantCreator &data) {
 		// No valid string here :(
 		return lng_admin_log_invited__generic(
 			lt_user,
@@ -234,7 +235,7 @@ auto GenerateParticipantChangeTextInner(
 			(oldType == mtpc_channelParticipantBanned)
 				? &oldParticipant->c_channelParticipantBanned().vbanned_rights
 				: nullptr);
-	}, [&](auto &&data) {
+	}, [&](const auto &data) {
 		auto user = GenerateUserString(data.vuser_id);
 		if (oldType == mtpc_channelParticipantAdmin) {
 			return GenerateAdminChangeText(

@@ -52,9 +52,9 @@ public:
 	template <typename Type, typename... Args>
 	Type *make_state(Args&& ...args) {
 		auto result = new Type(std::forward<Args>(args)...);
-		add([result]() mutable {
+		add([result] {
 			static_assert(sizeof(Type) > 0, "Can't delete unknown type.");
-			delete details::take(result);
+			delete result;
 		});
 		return result;
 	}

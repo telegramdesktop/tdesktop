@@ -14,6 +14,7 @@
 <(src_loc)/base/ordered_set.h
 <(src_loc)/base/openssl_help.h
 <(src_loc)/base/optional.h
+<(src_loc)/base/overload.h
 <(src_loc)/base/parse_helper.cpp
 <(src_loc)/base/parse_helper.h
 <(src_loc)/base/qthelp_regex.h

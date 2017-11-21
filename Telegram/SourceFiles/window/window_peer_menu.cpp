@@ -510,7 +510,7 @@ void PeerMenuAddChannelMembers(not_null<ChannelData*> channel) {
 				return App::userLoaded(userId);
 			}) | ranges::view::filter([](UserData *user) {
 				return (user != nullptr);
-			});
+			}) | ranges::to_vector;
 
 			AddParticipantsBoxController::Start(
 				channel,

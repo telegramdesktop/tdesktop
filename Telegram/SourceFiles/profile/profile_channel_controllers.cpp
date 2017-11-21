@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/confirm_box.h"
 #include "boxes/add_contact_box.h"
 #include "core/tl_help.h"
+#include "base/overload.h"
 #include "auth_session.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
@@ -1080,7 +1081,7 @@ void ParticipantsBoxSearchController::searchDone(
 	}
 
 	_requestId = 0;
-	TLHelp::VisitChannelParticipants(result, ranges::overload([&](
+	TLHelp::VisitChannelParticipants(result, base::overload([&](
 			const MTPDchannels_channelParticipants &data) {
 		auto &list = data.vparticipants.v;
 		if (list.size() < requestedCount) {
@@ -1716,7 +1717,7 @@ void AddParticipantBoxSearchController::searchParticipantsDone(mtpRequestId requ
 		return;
 	}
 	_requestId = 0;
-	TLHelp::VisitChannelParticipants(result, ranges::overload([&](
+	TLHelp::VisitChannelParticipants(result, base::overload([&](
 			const MTPDchannels_channelParticipants &data) {
 		auto &list = data.vparticipants.v;
 		if (list.size() < requestedCount) {
