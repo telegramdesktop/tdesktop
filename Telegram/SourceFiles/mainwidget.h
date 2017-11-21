@@ -210,7 +210,6 @@ public:
 	void deletedContact(UserData *user, const MTPcontacts_Link &result);
 	void deleteConversation(PeerData *peer, bool deleteHistory = true);
 	void deleteAndExit(ChatData *chat);
-	void clearHistory(PeerData *peer);
 	void deleteAllFromUser(ChannelData *channel, UserData *from);
 
 	void addParticipants(PeerData *chatOrChannel, const std::vector<not_null<UserData*>> &users);
@@ -319,6 +318,10 @@ public:
 	}
 
 	bool contentOverlapped(const QRect &globalRect);
+
+	bool ptsUpdateAndApply(int32 pts, int32 ptsCount, const MTPUpdates &updates);
+	bool ptsUpdateAndApply(int32 pts, int32 ptsCount, const MTPUpdate &update);
+	bool ptsUpdateAndApply(int32 pts, int32 ptsCount);
 
 	void documentLoadProgress(DocumentData *document);
 
@@ -534,9 +537,6 @@ private:
 		RectPart side) const;
 	RectPart getFloatPlayerSide(QPoint center) const;
 
-	bool ptsUpdateAndApply(int32 pts, int32 ptsCount, const MTPUpdates &updates);
-	bool ptsUpdateAndApply(int32 pts, int32 ptsCount, const MTPUpdate &update);
-	bool ptsUpdateAndApply(int32 pts, int32 ptsCount);
 	bool getDifferenceTimeChanged(ChannelData *channel, int32 ms, ChannelGetDifferenceTime &channelCurTime, TimeMs &curTime);
 
 	void viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint> &result, mtpRequestId req);

@@ -1035,9 +1035,7 @@ void Controller::saveDescription() {
 		return continueSave();
 	}
 	auto successCallback = [this] {
-		if (_channel->setAbout(*_savingData.description)) {
-			Auth().api().fullPeerUpdated().notify(_channel);
-		}
+		_channel->setAbout(*_savingData.description);
 		continueSave();
 	};
 	request(MTPchannels_EditAbout(

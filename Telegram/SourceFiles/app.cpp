@@ -1059,22 +1059,21 @@ namespace {
 		return false;
 	}
 
-	template <typename TMTPDclass>
-	void updateEditedMessage(const TMTPDclass &m) {
-		auto peerId = peerFromMTP(m.vto_id);
-		if (m.has_from_id() && peerId == Auth().userPeerId()) {
-			peerId = peerFromUser(m.vfrom_id);
-		}
-		if (auto existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
-			existing->applyEdition(m);
-		}
-	}
-
 	void updateEditedMessage(const MTPMessage &m) {
+		auto apply = [](const auto &data) {
+			auto peerId = peerFromMTP(data.vto_id);
+			if (data.has_from_id() && peerId == Auth().userPeerId()) {
+				peerId = peerFromUser(data.vfrom_id);
+			}
+			if (auto existing = App::histItemById(peerToChannel(peerId), data.vid.v)) {
+				existing->applyEdition(data);
+			}
+		};
+
 		if (m.type() == mtpc_message) { // apply message edit
-			App::updateEditedMessage(m.c_message());
+			apply(m.c_message());
 		} else if (m.type() == mtpc_messageService) {
-			App::updateEditedMessage(m.c_messageService());
+			apply(m.c_messageService());
 		}
 	}
 

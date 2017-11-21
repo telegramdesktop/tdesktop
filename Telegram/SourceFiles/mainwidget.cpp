@@ -1215,19 +1215,6 @@ void MainWidget::deleteAllFromUserPart(DeleteAllFromUserParams params, const MTP
 	}
 }
 
-void MainWidget::clearHistory(PeerData *peer) {
-	if (History *h = App::historyLoaded(peer->id)) {
-		if (h->lastMsg) {
-			Local::addSavedPeer(h->peer, h->lastMsg->date);
-		}
-		h->clear();
-		h->newLoaded = h->oldLoaded = true;
-	}
-	auto flags = MTPmessages_DeleteHistory::Flag::f_just_clear;
-	DeleteHistoryRequest request = { peer, true };
-	MTP::send(MTPmessages_DeleteHistory(MTP_flags(flags), peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, request));
-}
-
 void MainWidget::addParticipants(PeerData *chatOrChannel, const std::vector<not_null<UserData*>> &users) {
 	if (chatOrChannel->isChat()) {
 		auto chat = chatOrChannel->asChat();

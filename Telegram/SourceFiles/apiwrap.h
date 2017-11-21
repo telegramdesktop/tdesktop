@@ -100,6 +100,8 @@ public:
 	void handlePrivacyChange(mtpTypeId keyTypeId, const MTPVector<MTPPrivacyRule> &rules);
 	int onlineTillFromStatus(const MTPUserStatus &status, int currentOnlineTill);
 
+	void clearHistory(not_null<PeerData*> peer);
+
 	base::Observable<PeerData*> &fullPeerUpdated() {
 		return _fullPeerUpdated;
 	}
@@ -201,6 +203,10 @@ private:
 	void cancelEditChatAdmins(not_null<ChatData*> chat);
 	void saveChatAdmins(not_null<ChatData*> chat);
 	void sendSaveChatAdminsRequests(not_null<ChatData*> chat);
+
+	int applyAffectedHistory(
+		not_null<PeerData*> peer,
+		const MTPmessages_AffectedHistory &result);
 
 	void sharedMediaDone(
 		not_null<PeerData*> peer,

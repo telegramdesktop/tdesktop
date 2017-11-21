@@ -1335,9 +1335,7 @@ bool EditChannelBox::onSaveFail(const RPCError &error, mtpRequestId req) {
 	} else if (req == _saveDescriptionRequestId) {
 		_saveDescriptionRequestId = 0;
 		if (err == qstr("CHAT_ABOUT_NOT_MODIFIED")) {
-			if (_channel->setAbout(_sentDescription)) {
-				Auth().api().fullPeerUpdated().notify(_channel);
-			}
+			_channel->setAbout(_sentDescription);
 			saveSign();
 			return true;
 		} else {
@@ -1367,9 +1365,7 @@ void EditChannelBox::onSaveTitleDone(const MTPUpdates &result) {
 
 void EditChannelBox::onSaveDescriptionDone(const MTPBool &result) {
 	_saveDescriptionRequestId = 0;
-	if (_channel->setAbout(_sentDescription)) {
-		Auth().api().fullPeerUpdated().notify(_channel);
-	}
+	_channel->setAbout(_sentDescription);
 	saveSign();
 }
 

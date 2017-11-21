@@ -1403,8 +1403,7 @@ void History::newItemAdded(HistoryItem *item) {
 		if (item->from() == item->author()) {
 			unregSendAction(item->from()->asUser());
 		}
-		MTPint itemServerTime;
-		toServerTime(item->date.toTime_t(), itemServerTime);
+		auto itemServerTime = toServerTime(item->date.toTime_t());
 		item->from()->asUser()->madeAction(itemServerTime.v);
 	}
 	if (item->out()) {
@@ -2386,6 +2385,19 @@ void History::clearUpTill(MsgId availableMinId) {
 		auto item = blocks.front()->items.front();
 		auto itemId = item->id;
 		if (IsServerMsgId(itemId) && itemId >= availableMinId) {
+			if (itemId == availableMinId) {
+				auto fromId = 0;
+				auto replyToId = 0;
+				item->applyEdition(MTP_messageService(
+					MTP_flags(0),
+					MTP_int(itemId),
+					MTP_int(fromId),
+					peerToMTP(peer->id),
+					MTP_int(replyToId),
+					toServerTime(item->date.toTime_t()),
+					MTP_messageActionHistoryClear()
+				).c_messageService());
+			}
 			break;
 		}
 		item->destroy();

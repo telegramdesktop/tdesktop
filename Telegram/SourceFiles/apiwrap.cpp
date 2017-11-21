@@ -1257,6 +1257,52 @@ int ApiWrap::onlineTillFromStatus(const MTPUserStatus &status, int currentOnline
 	Unexpected("Bad UserStatus type.");
 }
 
+void ApiWrap::clearHistory(not_null<PeerData*> peer) {
+	auto lastMsgId = MsgId(0);
+	if (auto history = App::historyLoaded(peer->id)) {
+		if (history->lastMsg) {
+			lastMsgId = history->lastMsg->id;
+			Local::addSavedPeer(history->peer, history->lastMsg->date);
+		}
+		history->clear();
+		history->newLoaded = history->oldLoaded = true;
+	}
+	if (auto channel = peer->asChannel()) {
+		if (auto migrated = peer->migrateFrom()) {
+			clearHistory(migrated);
+		}
+		if (IsServerMsgId(lastMsgId)) {
+			request(MTPchannels_DeleteHistory(
+				channel->inputChannel,
+				MTP_int(lastMsgId)
+			)).send();
+		}
+	} else {
+		request(MTPmessages_DeleteHistory(
+			MTP_flags(MTPmessages_DeleteHistory::Flag::f_just_clear),
+			peer->input,
+			MTP_int(0)
+		)).done([=](const MTPmessages_AffectedHistory &result) {
+			auto offset = applyAffectedHistory(peer, result);
+			if (offset > 0) {
+				clearHistory(peer);
+			}
+		}).send();
+	}
+}
+
+int ApiWrap::applyAffectedHistory(
+		not_null<PeerData*> peer,
+		const MTPmessages_AffectedHistory &result) {
+	auto &d = result.c_messages_affectedHistory();
+	if (peer && peer->isChannel()) {
+		peer->asChannel()->ptsUpdateAndApply(d.vpts.v, d.vpts_count.v);
+	} else {
+		App::main()->ptsUpdateAndApply(d.vpts.v, d.vpts_count.v);
+	}
+	return d.voffset.v;
+}
+
 void ApiWrap::saveDraftsToCloud() {
 	for (auto i = _draftsSaveRequestIds.begin(), e = _draftsSaveRequestIds.end(); i != e; ++i) {
 		if (i.value()) continue; // sent already

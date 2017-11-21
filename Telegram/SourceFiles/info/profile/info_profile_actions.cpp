@@ -435,7 +435,7 @@ void ActionsFiller::addClearHistoryAction(not_null<UserData*> user) {
 			App::peerName(user));
 		auto confirmCallback = [user] {
 			Ui::hideLayer();
-			App::main()->clearHistory(user);
+			Auth().api().clearHistory(user);
 			Ui::showPeerHistory(user, ShowAtUnreadMsgId);
 		};
 		auto box = Box<ConfirmBox>(

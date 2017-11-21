@@ -87,12 +87,14 @@ History *FindWastedPin() {
 
 auto ClearHistoryHandler(not_null<PeerData*> peer) {
 	return [peer] {
-		auto text = peer->isUser() ? lng_sure_delete_history(lt_contact, peer->name) : lng_sure_delete_group_history(lt_group, peer->name);
+		auto text = peer->isUser()
+			? lng_sure_delete_history(lt_contact, peer->name)
+			: lng_sure_delete_group_history(lt_group, peer->name);
 		Ui::show(Box<ConfirmBox>(text, lang(lng_box_delete), st::attentionBoxButton, [peer] {
 			if (!App::main()) return;
 
 			Ui::hideLayer();
-			App::main()->clearHistory(peer);
+			Auth().api().clearHistory(peer);
 		}));
 	};
 }
@@ -363,9 +365,10 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 }
 
 void Filler::addChannelActions(not_null<ChannelData*> channel) {
+	auto isGroup = channel->isMegagroup();
 	if (_source != PeerMenuSource::ChatsList) {
 		if (ManagePeerBox::Available(channel)) {
-			auto text = lang(channel->isMegagroup()
+			auto text = lang(isGroup
 				? lng_manage_group_title
 				: lng_manage_channel_title);
 			_addAction(text, [channel] {
@@ -379,21 +382,26 @@ void Filler::addChannelActions(not_null<ChannelData*> channel) {
 		}
 	}
 	if (channel->amIn()) {
-		auto leaveText = lang(channel->isMegagroup()
+		if (isGroup && !channel->isPublic()) {
+			_addAction(
+				lang(lng_profile_clear_history),
+				ClearHistoryHandler(channel));
+		}
+		auto text = lang(isGroup
 			? lng_profile_leave_group
 			: lng_profile_leave_channel);
-		_addAction(leaveText, DeleteAndLeaveHandler(channel));
+		_addAction(text, DeleteAndLeaveHandler(channel));
 	} else {
-		auto joinText = lang(channel->isMegagroup()
+		auto text = lang(isGroup
 			? lng_profile_join_group
 			: lng_profile_join_channel);
 		_addAction(
-			joinText,
+			text,
 			[channel] { Auth().api().joinChannel(channel); });
 	}
 	if (_source != PeerMenuSource::ChatsList) {
 		auto needReport = !channel->amCreator()
-			&& (!channel->isMegagroup() || channel->isPublic());
+			&& (!isGroup || channel->isPublic());
 		if (needReport) {
 			_addAction(lang(lng_profile_report), [channel] {
 				Ui::show(Box<ReportBox>(channel));
