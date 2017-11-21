@@ -649,9 +649,9 @@ void HistoryItem::finishEditionToEmpty() {
 	finishEdition(-1);
 
 	_history->removeNotification(this);
-	if (history()->isChannel()) {
-		if (history()->peer->isMegagroup() && history()->peer->asChannel()->mgInfo->pinnedMsgId == id) {
-			history()->peer->asChannel()->mgInfo->pinnedMsgId = 0;
+	if (auto channel = history()->peer->asChannel()) {
+		if (channel->pinnedMessageId() == id) {
+			channel->clearPinnedMessage();
 		}
 	}
 	if (history()->lastKeyboardId == id) {
@@ -735,9 +735,9 @@ void HistoryItem::destroy() {
 		auto wasAtBottom = history()->loadedAtBottom();
 		_history->removeNotification(this);
 		detach();
-		if (history()->isChannel()) {
-			if (history()->peer->isMegagroup() && history()->peer->asChannel()->mgInfo->pinnedMsgId == id) {
-				history()->peer->asChannel()->mgInfo->pinnedMsgId = 0;
+		if (auto channel = history()->peer->asChannel()) {
+			if (channel->pinnedMessageId() == id) {
+				channel->clearPinnedMessage();
 			}
 		}
 		if (history()->lastMsg == this) {
@@ -846,11 +846,18 @@ void HistoryItem::setId(MsgId newId) {
 	}
 }
 
+bool HistoryItem::isPinned() const {
+	if (auto channel = _history->peer->asChannel()) {
+		return (channel->pinnedMessageId() == id);
+	}
+	return false;
+}
+
 bool HistoryItem::canPin() const {
-	if (id < 0 || !_history->peer->isMegagroup() || !toHistoryMessage()) {
+	if (id < 0 || !toHistoryMessage()) {
 		return false;
 	}
-	if (auto channel = _history->peer->asMegagroup()) {
+	if (auto channel = _history->peer->asChannel()) {
 		return channel->canPinMessages();
 	}
 	return false;
@@ -873,7 +880,13 @@ bool HistoryItem::canForward() const {
 
 bool HistoryItem::canEdit(const QDateTime &cur) const {
 	auto messageToMyself = _history->peer->isSelf();
-	auto messageTooOld = messageToMyself
+	auto canPinInMegagroup = [&] {
+		if (auto megagroup = _history->peer->asMegagroup()) {
+			return megagroup->canPinMessages();
+		}
+		return false;
+	}();
+	auto messageTooOld = (messageToMyself || canPinInMegagroup)
 		? false
 		: (date.secsTo(cur) >= Global::EditTimeLimit());
 	if (id < 0 || messageTooOld) {

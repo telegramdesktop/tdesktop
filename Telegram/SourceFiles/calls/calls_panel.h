@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/timer.h"
 #include "calls/calls_call.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 class IconButton;
@@ -34,7 +35,11 @@ class FadeWrap;
 
 namespace Calls {
 
-class Panel : public TWidget, private base::Subscriber, private Ui::AbstractTooltipShower {
+class Panel
+	: public Ui::RpWidget
+	, private base::Subscriber
+	, private Ui::AbstractTooltipShower {
+
 public:
 	Panel(not_null<Call*> call);
 
@@ -51,7 +56,7 @@ protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
-	bool event(QEvent *e) override;
+	bool eventHook(QEvent *e) override;
 
 private:
 	using State = Call::State;

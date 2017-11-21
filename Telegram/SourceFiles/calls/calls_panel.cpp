@@ -275,13 +275,13 @@ void Panel::replaceCall(not_null<Call*> call) {
 	updateControlsGeometry();
 }
 
-bool Panel::event(QEvent *e) {
+bool Panel::eventHook(QEvent *e) {
 	if (e->type() == QEvent::WindowDeactivate) {
 		if (_call && _call->state() == State::Established) {
 			hideDeactivated();
 		}
 	}
-	return TWidget::event(e);
+	return RpWidget::eventHook(e);
 }
 
 void Panel::hideDeactivated() {
@@ -364,12 +364,10 @@ void Panel::initLayout() {
 
 	initGeometry();
 
-	processUserPhoto();
-	subscribe(Auth().api().fullPeerUpdated(), [this](PeerData *peer) {
-		if (peer == _user) {
-			processUserPhoto();
-		}
-	});
+	Notify::PeerUpdateValue(_user, Notify::PeerUpdate::Flag::PhotoChanged)
+		| rpl::start_with_next(
+			[this] { processUserPhoto(); },
+			lifetime());
 	subscribe(Auth().downloaderTaskFinished(), [this] {
 		refreshUserPhoto();
 	});

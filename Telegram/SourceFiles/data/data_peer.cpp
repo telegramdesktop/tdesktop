@@ -957,6 +957,102 @@ void ChannelData::setAvailableMinId(MsgId availableMinId) {
 	}
 }
 
+void ChannelData::setPinnedMessageId(MsgId messageId) {
+	if (_pinnedMessageId != messageId) {
+		_pinnedMessageId = messageId;
+		Notify::peerUpdatedDelayed(this, Notify::PeerUpdate::Flag::ChannelPinnedChanged);
+	}
+}
+
+bool ChannelData::canBanMembers() const {
+	return (adminRights() & AdminRight::f_ban_users)
+		|| amCreator();
+}
+
+bool ChannelData::canEditMessages() const {
+	return (adminRights() & AdminRight::f_edit_messages)
+		|| amCreator();
+}
+
+bool ChannelData::canDeleteMessages() const {
+	return (adminRights() & AdminRight::f_delete_messages)
+		|| amCreator();
+}
+
+bool ChannelData::anyoneCanAddMembers() const {
+	return (flags() & MTPDchannel::Flag::f_democracy);
+}
+
+bool ChannelData::canAddMembers() const {
+	return (adminRights() & AdminRight::f_invite_users)
+		|| amCreator()
+		|| (anyoneCanAddMembers()
+			&& amIn()
+			&& !hasRestrictions());
+}
+
+bool ChannelData::canAddAdmins() const {
+	return (adminRights() & AdminRight::f_add_admins)
+		|| amCreator();
+}
+
+bool ChannelData::canPinMessages() const {
+	if (isMegagroup()) {
+		return (adminRights() & AdminRight::f_pin_messages)
+			|| amCreator();
+	}
+	return (adminRights() & AdminRight::f_edit_messages)
+		|| amCreator();
+}
+
+bool ChannelData::canPublish() const {
+	return (adminRights() & AdminRight::f_post_messages)
+		|| amCreator();
+}
+
+bool ChannelData::canWrite() const {
+	// Duplicated in Data::CanWriteValue().
+	return amIn()
+		&& (canPublish()
+			|| (!isBroadcast()
+				&& !restricted(Restriction::f_send_messages)));
+}
+
+bool ChannelData::canViewMembers() const {
+	return fullFlags()
+		& MTPDchannelFull::Flag::f_can_view_participants;
+}
+
+bool ChannelData::canViewAdmins() const {
+	return (isMegagroup() || hasAdminRights() || amCreator());
+}
+
+bool ChannelData::canViewBanned() const {
+	return (hasAdminRights() || amCreator());
+}
+
+bool ChannelData::canEditInformation() const {
+	return (adminRights() & AdminRight::f_change_info)
+		|| amCreator();
+}
+
+bool ChannelData::canEditUsername() const {
+	return amCreator()
+		&& (fullFlags()
+			& MTPDchannelFull::Flag::f_can_set_username);
+}
+
+bool ChannelData::canEditStickers() const {
+	return (fullFlags()
+		& MTPDchannelFull::Flag::f_can_set_stickers);
+}
+
+bool ChannelData::canDelete() const {
+	constexpr auto kDeleteChannelMembersLimit = 1000;
+	return amCreator()
+		&& (membersCount() <= kDeleteChannelMembersLimit);
+}
+
 bool ChannelData::canEditLastAdmin(not_null<UserData*> user) const {
 	// Duplicated in ParticipantsBoxController::canEditAdmin :(
 	if (mgInfo) {

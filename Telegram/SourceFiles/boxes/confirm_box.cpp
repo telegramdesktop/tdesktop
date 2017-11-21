@@ -368,21 +368,30 @@ void ConvertToSupergroupBox::paintEvent(QPaintEvent *e) {
 PinMessageBox::PinMessageBox(QWidget*, ChannelData *channel, MsgId msgId)
 : _channel(channel)
 , _msgId(msgId)
-, _text(this, lang(lng_pinned_pin_sure), Ui::FlatLabel::InitType::Simple, st::boxLabel)
-, _notify(this, lang(lng_pinned_notify), true, st::defaultBoxCheckbox) {
+, _text(this, lang(lng_pinned_pin_sure), Ui::FlatLabel::InitType::Simple, st::boxLabel) {
 }
 
 void PinMessageBox::prepare() {
 	addButton(langFactory(lng_pinned_pin), [this] { pinMessage(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 
-	setDimensions(st::boxWidth, st::boxPadding.top() + _text->height() + st::boxMediumSkip + _notify->heightNoMargins() + st::boxPadding.bottom());
+	if (_channel->isMegagroup()) {
+		_notify.create(this, lang(lng_pinned_notify), true, st::defaultBoxCheckbox);
+	}
+
+	auto height = st::boxPadding.top() + _text->height() + st::boxPadding.bottom();
+	if (_notify) {
+		height += st::boxMediumSkip + _notify->heightNoMargins();
+	}
+	setDimensions(st::boxWidth, height);
 }
 
 void PinMessageBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 	_text->moveToLeft(st::boxPadding.left(), st::boxPadding.top());
-	_notify->moveToLeft(st::boxPadding.left(), _text->y() + _text->height() + st::boxMediumSkip);
+	if (_notify) {
+		_notify->moveToLeft(st::boxPadding.left(), _text->y() + _text->height() + st::boxMediumSkip);
+	}
 }
 
 void PinMessageBox::keyPressEvent(QKeyEvent *e) {
@@ -397,10 +406,16 @@ void PinMessageBox::pinMessage() {
 	if (_requestId) return;
 
 	auto flags = MTPchannels_UpdatePinnedMessage::Flags(0);
-	if (!_notify->checked()) {
+	if (_notify && !_notify->checked()) {
 		flags |= MTPchannels_UpdatePinnedMessage::Flag::f_silent;
 	}
-	_requestId = MTP::send(MTPchannels_UpdatePinnedMessage(MTP_flags(flags), _channel->inputChannel, MTP_int(_msgId)), rpcDone(&PinMessageBox::pinDone), rpcFail(&PinMessageBox::pinFail));
+	_requestId = MTP::send(
+		MTPchannels_UpdatePinnedMessage(
+			MTP_flags(flags),
+			_channel->inputChannel,
+			MTP_int(_msgId)),
+		rpcDone(&PinMessageBox::pinDone),
+		rpcFail(&PinMessageBox::pinFail));
 }
 
 void PinMessageBox::pinDone(const MTPUpdates &updates) {

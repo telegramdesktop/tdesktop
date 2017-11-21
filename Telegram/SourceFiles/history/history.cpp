@@ -1076,9 +1076,10 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			} break;
 
 			case mtpc_messageActionPinMessage: {
-				if (m.has_reply_to_msg_id() && result && result->history()->peer->isMegagroup()) {
-					result->history()->peer->asChannel()->mgInfo->pinnedMsgId = m.vreply_to_msg_id.v;
-					Notify::peerUpdatedDelayed(result->history()->peer, Notify::PeerUpdate::Flag::ChannelPinnedChanged);
+				if (m.has_reply_to_msg_id() && result) {
+					if (auto channel = result->history()->peer->asChannel()) {
+						channel->setPinnedMessageId(m.vreply_to_msg_id.v);
+					}
 				}
 			} break;
 
@@ -2355,8 +2356,8 @@ void History::clear(bool leaveItems) {
 		lastKeyboardInited = false;
 	} else {
 		setUnreadCount(0);
-		if (peer->isMegagroup()) {
-			peer->asChannel()->mgInfo->pinnedMsgId = 0;
+		if (auto channel = peer->asChannel()) {
+			channel->clearPinnedMessage();
 		}
 		clearLastKeyboard();
 	}

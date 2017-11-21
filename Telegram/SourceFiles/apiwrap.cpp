@@ -395,13 +395,13 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 			}
 			accumulate_max(h->outboxReadBefore, f.vread_outbox_max_id.v + 1);
 		}
+		ranges::overload([] {}, [](int a) {});
+		if (f.has_pinned_msg_id()) {
+			channel->setPinnedMessageId(f.vpinned_msg_id.v);
+		} else {
+			channel->clearPinnedMessage();
+		}
 		if (channel->isMegagroup()) {
-			if (f.has_pinned_msg_id()) {
-				channel->mgInfo->pinnedMsgId = f.vpinned_msg_id.v;
-			} else {
-				channel->mgInfo->pinnedMsgId = 0;
-			}
-
 			auto stickersChanged = (canEditStickers != channel->canEditStickers());
 			auto stickerSet = (f.has_stickerset() ? &f.vstickerset.c_stickerSet() : nullptr);
 			auto newSetId = (stickerSet ? stickerSet->vid.v : 0);

@@ -395,7 +395,11 @@ void HistoryTopBarWidget::updateControlsGeometry() {
 	_clearSelection->moveToRight(st::topBarActionSkip, selectedButtonsTop);
 
 	if (_unreadBadge) {
-		_unreadBadge->setGeometryToLeft(0, st::titleUnreadCounterTop, _back->width(), st::dialogsUnreadHeight);
+		_unreadBadge->setGeometryToLeft(
+			0,
+			otherButtonsTop + st::titleUnreadCounterTop,
+			_back->width(),
+			st::dialogsUnreadHeight);
 	}
 	if (_back->isHidden()) {
 		_leftTaken = st::topBarArrowPadding.right();

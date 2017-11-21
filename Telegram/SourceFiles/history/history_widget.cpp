@@ -725,6 +725,7 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 					updateHistoryGeometry();
 					updateControlsVisibility();
 					updateControlsGeometry();
+					this->update();
 				}
 			}
 			if (update.flags & (UpdateFlag::UserIsBlocked
@@ -5236,8 +5237,8 @@ void HistoryWidget::updatePinnedBar(bool force) {
 		_pinnedBar->text.setText(st::messageTextStyle, TextUtilities::Clean(_pinnedBar->msg->notificationText()), _textDlgOptions);
 		update();
 	} else if (force) {
-		if (_peer && _peer->isMegagroup()) {
-			_peer->asChannel()->mgInfo->pinnedMsgId = 0;
+		if (auto channel = _peer ? _peer->asChannel() : nullptr) {
+			channel->clearPinnedMessage();
 		}
 		destroyPinnedBar();
 		updateControlsGeometry();
@@ -5246,21 +5247,26 @@ void HistoryWidget::updatePinnedBar(bool force) {
 
 bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 	auto result = false;
-	auto pinnedMsgId = (_peer && _peer->isMegagroup()) ? _peer->asChannel()->mgInfo->pinnedMsgId : 0;
-	if (pinnedMsgId && !_peer->asChannel()->canPinMessages()) {
+	auto pinnedId = [&] {
+		if (auto channel = _peer ? _peer->asChannel() : nullptr) {
+			return channel->pinnedMessageId();
+		}
+		return 0;
+	}();
+	if (pinnedId && !_peer->asChannel()->canPinMessages()) {
 		auto it = Global::HiddenPinnedMessages().constFind(_peer->id);
 		if (it != Global::HiddenPinnedMessages().cend()) {
-			if (it.value() == pinnedMsgId) {
-				pinnedMsgId = 0;
+			if (it.value() == pinnedId) {
+				pinnedId = 0;
 			} else {
 				Global::RefHiddenPinnedMessages().remove(_peer->id);
 				Local::writeUserSettings();
 			}
 		}
 	}
-	if (pinnedMsgId) {
+	if (pinnedId) {
 		if (!_pinnedBar) {
-			_pinnedBar = std::make_unique<PinnedBar>(pinnedMsgId, this);
+			_pinnedBar = std::make_unique<PinnedBar>(pinnedId, this);
 			if (_a_show.animating()) {
 				_pinnedBar->cancel->hide();
 				_pinnedBar->shadow->hide();
@@ -5277,9 +5283,9 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 			if (_scroll->scrollTop() != unreadBarTop()) {
 				synteticScrollToY(_scroll->scrollTop() + st::historyReplyHeight);
 			}
-		} else if (_pinnedBar->msgId != pinnedMsgId) {
-			_pinnedBar->msgId = pinnedMsgId;
-			_pinnedBar->msg = 0;
+		} else if (_pinnedBar->msgId != pinnedId) {
+			_pinnedBar->msgId = pinnedId;
+			_pinnedBar->msg = nullptr;
 			_pinnedBar->text.clear();
 			updatePinnedBar();
 		}
@@ -5541,26 +5547,30 @@ void HistoryWidget::onEditMessage() {
 }
 
 void HistoryWidget::onPinMessage() {
-	HistoryItem *to = App::contextItem();
-	if (!to || !to->canPin() || !_peer || !_peer->isMegagroup()) return;
+	auto to = App::contextItem();
+	if (!to || !to->canPin()) return;
 
-	Ui::show(Box<PinMessageBox>(_peer->asChannel(), to->id));
+	Ui::show(Box<PinMessageBox>(
+		to->history()->peer->asChannel(),
+		to->id));
 }
 
 void HistoryWidget::onUnpinMessage() {
-	if (!_peer || !_peer->isMegagroup()) return;
+	if (!_peer || !_peer->isChannel()) return;
 
 	Ui::show(Box<ConfirmBox>(lang(lng_pinned_unpin_sure), lang(lng_pinned_unpin), base::lambda_guarded(this, [this] {
-		if (!_peer || !_peer->isMegagroup()) return;
+		auto channel = _peer ? _peer->asChannel() : nullptr;
+		if (!channel) return;
 
-		_peer->asChannel()->mgInfo->pinnedMsgId = 0;
-		if (pinnedMsgVisibilityUpdated()) {
-			updateControlsGeometry();
-			update();
-		}
+		channel->clearPinnedMessage();
 
 		Ui::hideLayer();
-		MTP::send(MTPchannels_UpdatePinnedMessage(MTP_flags(0), _peer->asChannel()->inputChannel, MTP_int(0)), rpcDone(&HistoryWidget::unpinDone));
+		MTP::send(
+			MTPchannels_UpdatePinnedMessage(
+				MTP_flags(0),
+				channel->inputChannel,
+				MTP_int(0)),
+			rpcDone(&HistoryWidget::unpinDone));
 	})));
 }
 
@@ -5571,8 +5581,9 @@ void HistoryWidget::unpinDone(const MTPUpdates &updates) {
 }
 
 void HistoryWidget::onPinnedHide() {
-	if (!_peer || !_peer->isMegagroup()) return;
-	if (!_peer->asChannel()->mgInfo->pinnedMsgId) {
+	auto channel = _peer ? _peer->asChannel() : nullptr;
+	auto pinnedId = channel->pinnedMessageId();
+	if (!pinnedId) {
 		if (pinnedMsgVisibilityUpdated()) {
 			updateControlsGeometry();
 			update();
@@ -5580,10 +5591,10 @@ void HistoryWidget::onPinnedHide() {
 		return;
 	}
 
-	if (_peer->asChannel()->canPinMessages()) {
+	if (channel->canPinMessages()) {
 		onUnpinMessage();
 	} else {
-		Global::RefHiddenPinnedMessages().insert(_peer->id, _peer->asChannel()->mgInfo->pinnedMsgId);
+		Global::RefHiddenPinnedMessages().insert(_peer->id, pinnedId);
 		Local::writeUserSettings();
 		if (pinnedMsgVisibilityUpdated()) {
 			updateControlsGeometry();

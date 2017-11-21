@@ -756,7 +756,6 @@ struct MegagroupInfo {
 
 	UserData *creator = nullptr; // nullptr means unknown
 	int botStatus = 0; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
-	MsgId pinnedMsgId = 0;
 	bool joinedMessageFound = false;
 	MTPInputStickerSet stickerSet = MTP_inputStickerSetEmpty();
 
@@ -968,75 +967,22 @@ public:
 		return hasRestrictions()
 			&& (restrictedUntil() > now);
 	}
-	bool canBanMembers() const {
-		return (adminRights() & AdminRight::f_ban_users)
-			|| amCreator();
-	}
-	bool canEditMessages() const {
-		return (adminRights() & AdminRight::f_edit_messages)
-			|| amCreator();
-	}
-	bool canDeleteMessages() const {
-		return (adminRights() & AdminRight::f_delete_messages)
-			|| amCreator();
-	}
-	bool anyoneCanAddMembers() const {
-		return (flags() & MTPDchannel::Flag::f_democracy);
-	}
-	bool canAddMembers() const {
-		return (adminRights() & AdminRight::f_invite_users)
-			|| amCreator()
-			|| (anyoneCanAddMembers()
-				&& amIn()
-				&& !hasRestrictions());
-	}
-	bool canAddAdmins() const {
-		return (adminRights() & AdminRight::f_add_admins)
-			|| amCreator();
-	}
-	bool canPinMessages() const {
-		return (adminRights() & AdminRight::f_pin_messages)
-			|| amCreator();
-	}
-	bool canPublish() const {
-		return (adminRights() & AdminRight::f_post_messages)
-			|| amCreator();
-	}
-	bool canWrite() const {
-		// Duplicated in Data::CanWriteValue().
-		return amIn()
-			&& (canPublish()
-				|| (!isBroadcast()
-					&& !restricted(Restriction::f_send_messages)));
-	}
-	bool canViewMembers() const {
-		return fullFlags()
-			& MTPDchannelFull::Flag::f_can_view_participants;
-	}
-	bool canViewAdmins() const {
-		return (isMegagroup() || hasAdminRights() || amCreator());
-	}
-	bool canViewBanned() const {
-		return (hasAdminRights() || amCreator());
-	}
-	bool canEditInformation() const {
-		return (adminRights() & AdminRight::f_change_info)
-			|| amCreator();
-	}
-	bool canEditUsername() const {
-		return amCreator()
-			&& (fullFlags()
-				& MTPDchannelFull::Flag::f_can_set_username);
-	}
-	bool canEditStickers() const {
-		return (fullFlags()
-			& MTPDchannelFull::Flag::f_can_set_stickers);
-	}
-	bool canDelete() const {
-		constexpr auto kDeleteChannelMembersLimit = 1000;
-		return amCreator()
-			&& (membersCount() <= kDeleteChannelMembersLimit);
-	}
+	bool canBanMembers() const;
+	bool canEditMessages() const;
+	bool canDeleteMessages() const;
+	bool anyoneCanAddMembers() const;
+	bool canAddMembers() const;
+	bool canAddAdmins() const;
+	bool canPinMessages() const;
+	bool canPublish() const;
+	bool canWrite() const;
+	bool canViewMembers() const;
+	bool canViewAdmins() const;
+	bool canViewBanned() const;
+	bool canEditInformation() const;
+	bool canEditUsername() const;
+	bool canEditStickers() const;
+	bool canDelete() const;
 	bool canEditAdmin(not_null<UserData*> user) const;
 	bool canRestrictUser(not_null<UserData*> user) const;
 
@@ -1105,6 +1051,14 @@ public:
 	}
 	void setAvailableMinId(MsgId availableMinId);
 
+	MsgId pinnedMessageId() const {
+		return _pinnedMessageId;
+	}
+	void setPinnedMessageId(MsgId messageId);
+	void clearPinnedMessage() {
+		setPinnedMessageId(0);
+	}
+
 private:
 	void flagsUpdated(MTPDchannel::Flags diff);
 	void fullFlagsUpdated(MTPDchannelFull::Flags diff);
@@ -1121,6 +1075,7 @@ private:
 	int _restrictedCount = 0;
 	int _kickedCount = 0;
 	MsgId _availableMinId = 0;
+	MsgId _pinnedMessageId = 0;
 
 	AdminRightFlags _adminRights;
 	RestrictionFlags _restrictions;

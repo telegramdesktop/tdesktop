@@ -164,7 +164,7 @@ private:
 	MsgId _msgId;
 
 	object_ptr<Ui::FlatLabel> _text;
-	object_ptr<Ui::Checkbox> _notify;
+	object_ptr<Ui::Checkbox> _notify = { nullptr };
 
 	mtpRequestId _requestId = 0;
 

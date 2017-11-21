@@ -749,6 +749,7 @@ public:
 		return _text.isEmpty();
 	}
 
+	bool isPinned() const;
 	bool canPin() const;
 	bool canForward() const;
 	bool canEdit(const QDateTime &cur) const;
