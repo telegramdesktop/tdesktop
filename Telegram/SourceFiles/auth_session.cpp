@@ -190,12 +190,99 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	}
 }
 
+void AuthSessionData::markItemLayoutChanged(not_null<const HistoryItem*> item) {
+	_itemLayoutChanged.fire_copy(item);
+}
+
+rpl::producer<not_null<const HistoryItem*>> AuthSessionData::itemLayoutChanged() const {
+	return _itemLayoutChanged.events();
+}
+
+void AuthSessionData::requestItemRepaint(not_null<const HistoryItem*> item) {
+	_itemRepaintRequest.fire_copy(item);
+}
+
+rpl::producer<not_null<const HistoryItem*>> AuthSessionData::itemRepaintRequest() const {
+	return _itemRepaintRequest.events();
+}
+
+void AuthSessionData::markItemRemoved(not_null<const HistoryItem*> item) {
+	_itemRemoved.fire_copy(item);
+}
+
+rpl::producer<not_null<const HistoryItem*>> AuthSessionData::itemRemoved() const {
+	return _itemRemoved.events();
+}
+
+void AuthSessionData::markHistoryUnloaded(not_null<const History*> history) {
+	_historyUnloaded.fire_copy(history);
+}
+
+rpl::producer<not_null<const History*>> AuthSessionData::historyUnloaded() const {
+	return _historyUnloaded.events();
+}
+
+void AuthSessionData::markHistoryCleared(not_null<const History*> history) {
+	_historyCleared.fire_copy(history);
+}
+
+rpl::producer<not_null<const History*>> AuthSessionData::historyCleared() const {
+	return _historyCleared.events();
+}
+
+void AuthSessionData::removeMegagroupParticipant(
+		not_null<ChannelData*> channel,
+		not_null<UserData*> user) {
+	_megagroupParticipantRemoved.fire({ channel, user });
+}
+
+auto AuthSessionData::megagroupParticipantRemoved() const -> rpl::producer<MegagroupParticipant> {
+	return _megagroupParticipantRemoved.events();
+}
+
+rpl::producer<not_null<UserData*>> AuthSessionData::megagroupParticipantRemoved(
+		not_null<ChannelData*> channel) const {
+	return megagroupParticipantRemoved()
+		| rpl::filter([channel](auto updateChannel, auto user) {
+			return (updateChannel == channel);
+		})
+		| rpl::map([](auto updateChannel, auto user) {
+			return user;
+		});
+}
+
+void AuthSessionData::addNewMegagroupParticipant(
+		not_null<ChannelData*> channel,
+		not_null<UserData*> user) {
+	_megagroupParticipantAdded.fire({ channel, user });
+}
+
+auto AuthSessionData::megagroupParticipantAdded() const -> rpl::producer<MegagroupParticipant> {
+	return _megagroupParticipantAdded.events();
+}
+
+rpl::producer<not_null<UserData*>> AuthSessionData::megagroupParticipantAdded(
+		not_null<ChannelData*> channel) const {
+	return megagroupParticipantAdded()
+		| rpl::filter([channel](auto updateChannel, auto user) {
+			return (updateChannel == channel);
+		})
+		| rpl::map([](auto updateChannel, auto user) {
+			return user;
+		});
+}
+
 void AuthSessionData::setTabbedSelectorSectionEnabled(bool enabled) {
 	_variables.tabbedSelectorSectionEnabled = enabled;
 	if (enabled) {
 		setThirdSectionInfoEnabled(false);
 	}
 	setTabbedReplacedWithInfo(false);
+}
+
+rpl::producer<bool> AuthSessionData::tabbedReplacedWithInfoValue() const {
+	return _tabbedReplacedWithInfoValue.events_starting_with(
+		tabbedReplacedWithInfo());
 }
 
 void AuthSessionData::setThirdSectionInfoEnabled(bool enabled) {
@@ -207,6 +294,11 @@ void AuthSessionData::setThirdSectionInfoEnabled(bool enabled) {
 		setTabbedReplacedWithInfo(false);
 		_thirdSectionInfoEnabledValue.fire_copy(enabled);
 	}
+}
+
+rpl::producer<bool> AuthSessionData::thirdSectionInfoEnabledValue() const {
+	return _thirdSectionInfoEnabledValue.events_starting_with(
+		thirdSectionInfoEnabled());
 }
 
 void AuthSessionData::setTabbedReplacedWithInfo(bool enabled) {
@@ -222,6 +314,46 @@ QString AuthSessionData::getSoundPath(const QString &key) const {
 		return it.value();
 	}
 	return qsl(":/sounds/") + key + qsl(".mp3");
+}
+
+void AuthSessionData::setDialogsWidthRatio(float64 ratio) {
+	_variables.dialogsWidthRatio = ratio;
+}
+
+float64 AuthSessionData::dialogsWidthRatio() const {
+	return _variables.dialogsWidthRatio.current();
+}
+
+rpl::producer<float64> AuthSessionData::dialogsWidthRatioChanges() const {
+	return _variables.dialogsWidthRatio.changes();
+}
+
+void AuthSessionData::setThirdColumnWidth(int width) {
+	_variables.thirdColumnWidth = width;
+}
+
+int AuthSessionData::thirdColumnWidth() const {
+	return _variables.thirdColumnWidth.current();
+}
+
+rpl::producer<int> AuthSessionData::thirdColumnWidthChanges() const {
+	return _variables.thirdColumnWidth.changes();
+}
+
+void AuthSessionData::markStickersUpdated() {
+	_stickersUpdated.fire({});
+}
+
+rpl::producer<> AuthSessionData::stickersUpdated() const {
+	return _stickersUpdated.events();
+}
+
+void AuthSessionData::markSavedGifsUpdated() {
+	_savedGifsUpdated.fire({});
+}
+
+rpl::producer<> AuthSessionData::savedGifsUpdated() const {
+	return _savedGifsUpdated.events();
 }
 
 AuthSession &Auth() {

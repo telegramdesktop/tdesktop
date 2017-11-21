@@ -194,16 +194,9 @@ public:
 	void remove(SharedMediaRemoveAll &&query);
 
 	rpl::producer<SharedMediaResult> query(SharedMediaQuery &&query) const;
-
-	rpl::producer<SharedMediaSliceUpdate> sliceUpdated() const {
-		return _sliceUpdated.events();
-	}
-	rpl::producer<SharedMediaRemoveOne> oneRemoved() const {
-		return _oneRemoved.events();
-	}
-	rpl::producer<SharedMediaRemoveAll> allRemoved() const {
-		return _allRemoved.events();
-	}
+	rpl::producer<SharedMediaSliceUpdate> sliceUpdated() const;
+	rpl::producer<SharedMediaRemoveOne> oneRemoved() const;
+	rpl::producer<SharedMediaRemoveAll> allRemoved() const;
 
 private:
 	using Lists = std::array<SparseIdsList, kSharedMediaTypeCount>;

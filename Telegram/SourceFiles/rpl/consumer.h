@@ -24,6 +24,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/lifetime.h>
 #include <rpl/details/callable.h>
 
+// GCC 7.2 can't handle not type-erased consumers.
+// It eats up 4GB RAM + 16GB swap on the unittest and dies.
+// Clang and Visual C++ both handle it without such problems.
+#if defined _DEBUG || defined COMPILER_GCC
+#define RPL_CONSUMER_TYPE_ERASED_ALWAYS
+#endif // _DEBUG || COMPILER_GCC
+
 namespace rpl {
 namespace details {
 
@@ -609,9 +616,6 @@ inline bool operator>=(
 	return !(a < b);
 }
 
-// GCC 7.2 can't handle not type-erased consumers.
-// It eats up 4GB RAM + 16GB swap on the unittest and dies.
-// Clang and Visual C++ both handle it without such problems.
 template <
 	typename Value,
 	typename Error,
@@ -622,11 +626,11 @@ template <
 		details::is_callable_v<OnNext, Value> &&
 		details::is_callable_v<OnError, Error> &&
 		details::is_callable_v<OnDone>>>
-#ifdef COMPILER_GCC
+#ifdef RPL_CONSUMER_TYPE_ERASED_ALWAYS
 inline consumer<Value, Error> make_consumer(
-#else // COMPILER_GCC
+#else // RPL_CONSUMER_TYPE_ERASED_ALWAYS
 inline auto make_consumer(
-#endif // COMPILER_GCC
+#endif // !RPL_CONSUMER_TYPE_ERASED_ALWAYS
 		OnNext &&next,
 		OnError &&error,
 		OnDone &&done) {

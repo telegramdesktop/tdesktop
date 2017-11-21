@@ -167,6 +167,14 @@ auto Controller::produceSearchQuery(
 	return result;
 }
 
+rpl::producer<bool> Controller::searchEnabledByContent() const {
+	return _seachEnabledByContent.value();
+}
+
+rpl::producer<QString> Controller::mediaSourceQueryValue() const {
+	return _searchController->currentQueryValue();
+}
+
 rpl::producer<SparseIdsMergedSlice> Controller::mediaSource(
 		SparseIdsMergedSlice::UniversalMsgId aroundId,
 		int limitBefore,

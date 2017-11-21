@@ -58,13 +58,8 @@ public:
 	void setIsStackBottom(bool isStackBottom) {
 		_isStackBottom = isStackBottom;
 	}
-	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const {
-		return _scrollToRequests.events();
-	}
-
-	rpl::producer<int> desiredHeightValue() const override {
-		return _desiredHeight.events_starting_with(countDesiredHeight());
-	}
+	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const;
+	rpl::producer<int> desiredHeightValue() const override;
 
 protected:
 	int resizeGetHeight(int newWidth) override;

@@ -60,9 +60,7 @@ public:
 		not_null<Controller*> controller,
 		not_null<PeerData*> peer);
 
-	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const {
-		return _scrollToRequests.events();
-	}
+	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const;
 
 	std::unique_ptr<MembersState> saveState();
 	void restoreState(std::unique_ptr<MembersState> state);

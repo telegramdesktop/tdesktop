@@ -144,10 +144,7 @@ public:
 	void remove(UserPhotosRemoveAfter &&query);
 
 	rpl::producer<UserPhotosResult> query(UserPhotosQuery &&query) const;
-
-	rpl::producer<UserPhotosSliceUpdate> sliceUpdated() const {
-		return _sliceUpdated.events();
-	}
+	rpl::producer<UserPhotosSliceUpdate> sliceUpdated() const;
 
 private:
 	class List {
@@ -164,9 +161,7 @@ private:
 			const std::deque<PhotoId> *photoIds = nullptr;
 			base::optional<int> count;
 		};
-		rpl::producer<SliceUpdate> sliceUpdated() const {
-			return _sliceUpdated.events();
-		}
+		rpl::producer<SliceUpdate> sliceUpdated() const;
 
 	private:
 		void sendUpdate();

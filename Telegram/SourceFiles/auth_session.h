@@ -70,75 +70,31 @@ public:
 	base::Observable<ItemVisibilityQuery> &queryItemVisibility() {
 		return _queryItemVisibility;
 	}
-	void markItemLayoutChanged(not_null<const HistoryItem*> item) {
-		_itemLayoutChanged.fire_copy(item);
-	}
-	rpl::producer<not_null<const HistoryItem*>> itemLayoutChanged() const {
-		return _itemLayoutChanged.events();
-	}
-	void requestItemRepaint(not_null<const HistoryItem*> item) {
-		_itemRepaintRequest.fire_copy(item);
-	}
-	rpl::producer<not_null<const HistoryItem*>> itemRepaintRequest() const {
-		return _itemRepaintRequest.events();
-	}
-	void markItemRemoved(not_null<const HistoryItem*> item) {
-		_itemRemoved.fire_copy(item);
-	}
-	rpl::producer<not_null<const HistoryItem*>> itemRemoved() const {
-		return _itemRemoved.events();
-	}
-	void markHistoryUnloaded(not_null<const History*> history) {
-		_historyUnloaded.fire_copy(history);
-	}
-	rpl::producer<not_null<const History*>> historyUnloaded() const {
-		return _historyUnloaded.events();
-	}
-	void markHistoryCleared(not_null<const History*> history) {
-		_historyCleared.fire_copy(history);
-	}
-	rpl::producer<not_null<const History*>> historyCleared() const {
-		return _historyCleared.events();
-	}
+	void markItemLayoutChanged(not_null<const HistoryItem*> item);
+	rpl::producer<not_null<const HistoryItem*>> itemLayoutChanged() const;
+	void requestItemRepaint(not_null<const HistoryItem*> item);
+	rpl::producer<not_null<const HistoryItem*>> itemRepaintRequest() const;
+	void markItemRemoved(not_null<const HistoryItem*> item);
+	rpl::producer<not_null<const HistoryItem*>> itemRemoved() const;
+	void markHistoryUnloaded(not_null<const History*> history);
+	rpl::producer<not_null<const History*>> historyUnloaded() const;
+	void markHistoryCleared(not_null<const History*> history);
+	rpl::producer<not_null<const History*>> historyCleared() const;
 	using MegagroupParticipant = std::tuple<
 		not_null<ChannelData*>,
 		not_null<UserData*>>;
 	void removeMegagroupParticipant(
-			not_null<ChannelData*> channel,
-			not_null<UserData*> user) {
-		_megagroupParticipantRemoved.fire({ channel, user });
-	}
-	auto megagroupParticipantRemoved() const {
-		return _megagroupParticipantRemoved.events();
-	}
-	auto megagroupParticipantRemoved(
-			not_null<ChannelData*> channel) const {
-		return megagroupParticipantRemoved()
-			| rpl::filter([channel](auto updateChannel, auto user) {
-				return (updateChannel == channel);
-			})
-			| rpl::map([](auto updateChannel, auto user) {
-				return user;
-			});
-	}
+		not_null<ChannelData*> channel,
+		not_null<UserData*> user);
+	rpl::producer<MegagroupParticipant> megagroupParticipantRemoved() const;
+	rpl::producer<not_null<UserData*>> megagroupParticipantRemoved(
+		not_null<ChannelData*> channel) const;
 	void addNewMegagroupParticipant(
-			not_null<ChannelData*> channel,
-			not_null<UserData*> user) {
-		_megagroupParticipantAdded.fire({ channel, user });
-	}
-	auto megagroupParticipantAdded() const {
-		return _megagroupParticipantAdded.events();
-	}
-	auto megagroupParticipantAdded(
-			not_null<ChannelData*> channel) const {
-		return megagroupParticipantAdded()
-			| rpl::filter([channel](auto updateChannel, auto user) {
-				return (updateChannel == channel);
-			})
-			| rpl::map([](auto updateChannel, auto user) {
-				return user;
-			});
-	}
+		not_null<ChannelData*> channel,
+		not_null<UserData*> user);
+	rpl::producer<MegagroupParticipant> megagroupParticipantAdded() const;
+	rpl::producer<not_null<UserData*>> megagroupParticipantAdded(
+		not_null<ChannelData*> channel) const;
 
 	void moveFrom(AuthSessionData &&other) {
 		_variables = std::move(other._variables);
@@ -166,10 +122,7 @@ public:
 		return _variables.thirdSectionInfoEnabled;
 	}
 	void setThirdSectionInfoEnabled(bool enabled);
-	auto thirdSectionInfoEnabledValue() const {
-		return _thirdSectionInfoEnabledValue.events_starting_with(
-			thirdSectionInfoEnabled());
-	}
+	rpl::producer<bool> thirdSectionInfoEnabledValue() const;
 	int thirdSectionExtendedBy() const {
 		return _variables.thirdSectionExtendedBy;
 	}
@@ -180,10 +133,7 @@ public:
 		return _tabbedReplacedWithInfo;
 	}
 	void setTabbedReplacedWithInfo(bool enabled);
-	auto tabbedReplacedWithInfoValue() const {
-		return _tabbedReplacedWithInfoValue.events_starting_with(
-			tabbedReplacedWithInfo());
-	}
+	rpl::producer<bool> tabbedReplacedWithInfoValue() const;
 	void setSmallDialogsList(bool enabled) {
 		_variables.smallDialogsList = enabled;
 	}
@@ -221,37 +171,17 @@ public:
 	RectPart floatPlayerCorner() const {
 		return _variables.floatPlayerCorner;
 	}
-	void setDialogsWidthRatio(float64 ratio) {
-		_variables.dialogsWidthRatio = ratio;
-	}
-	float64 dialogsWidthRatio() const {
-		return _variables.dialogsWidthRatio.current();
-	}
-	rpl::producer<float64> dialogsWidthRatioChanges() const {
-		return _variables.dialogsWidthRatio.changes();
-	}
-	void setThirdColumnWidth(int width) {
-		_variables.thirdColumnWidth = width;
-	}
-	int thirdColumnWidth() const {
-		return _variables.thirdColumnWidth.current();
-	}
-	rpl::producer<int> thirdColumnWidthChanges() const {
-		return _variables.thirdColumnWidth.changes();
-	}
+	void setDialogsWidthRatio(float64 ratio);
+	float64 dialogsWidthRatio() const;
+	rpl::producer<float64> dialogsWidthRatioChanges() const;
+	void setThirdColumnWidth(int width);
+	int thirdColumnWidth() const;
+	rpl::producer<int> thirdColumnWidthChanges() const;
 
-	void markStickersUpdated() {
-		_stickersUpdated.fire({});
-	}
-	rpl::producer<> stickersUpdated() const {
-		return _stickersUpdated.events();
-	}
-	void markSavedGifsUpdated() {
-		_savedGifsUpdated.fire({});
-	}
-	rpl::producer<> savedGifsUpdated() const {
-		return _savedGifsUpdated.events();
-	}
+	void markStickersUpdated();
+	rpl::producer<> stickersUpdated() const;
+	void markSavedGifsUpdated();
+	rpl::producer<> savedGifsUpdated() const;
 	void setGroupStickersSectionHidden(PeerId peerId) {
 		_variables.groupStickersSectionHidden.insert(peerId);
 	}

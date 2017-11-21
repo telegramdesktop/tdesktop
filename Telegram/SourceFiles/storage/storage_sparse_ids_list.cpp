@@ -197,6 +197,10 @@ rpl::producer<SparseIdsListResult> SparseIdsList::query(
 	};
 }
 
+rpl::producer<SparseIdsSliceUpdate> SparseIdsList::sliceUpdated() const {
+	return _sliceUpdated.events();
+}
+
 SparseIdsListResult SparseIdsList::queryFromSlice(
 		const SparseIdsListQuery &query,
 		const Slice &slice) const {

@@ -109,16 +109,12 @@ public:
 	void setSearchEnabledByContent(bool enabled) {
 		_seachEnabledByContent = enabled;
 	}
-	rpl::producer<bool> searchEnabledByContent() const {
-		return _seachEnabledByContent.value();
-	}
+	rpl::producer<bool> searchEnabledByContent() const;
 	rpl::producer<SparseIdsMergedSlice> mediaSource(
 		SparseIdsMergedSlice::UniversalMsgId aroundId,
 		int limitBefore,
 		int limitAfter) const;
-	rpl::producer<QString> mediaSourceQueryValue() const {
-		return _searchController->currentQueryValue();
-	}
+	rpl::producer<QString> mediaSourceQueryValue() const;
 
 	void saveSearchState(not_null<ContentMemento*> memento);
 

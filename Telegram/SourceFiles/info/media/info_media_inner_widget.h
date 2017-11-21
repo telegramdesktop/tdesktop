@@ -55,9 +55,7 @@ public:
 
 	void setScrollHeightValue(rpl::producer<int> value);
 
-	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const {
-		return _scrollToRequests.events();
-	}
+	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const;
 	rpl::producer<SelectedItems> selectedListValue() const;
 	void cancelSelection();
 

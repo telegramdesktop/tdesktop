@@ -103,6 +103,10 @@ int PhotoCropBox::mouseState(QPoint p) {
 	return 0;
 }
 
+rpl::producer<QImage> PhotoCropBox::ready() const {
+	return _readyImages.events();
+}
+
 void PhotoCropBox::mouseReleaseEvent(QMouseEvent *e) {
 	if (_downState) {
 		_downState = 0;

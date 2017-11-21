@@ -62,10 +62,7 @@ public:
 	void removeOne(MsgId messageId);
 	void removeAll();
 	rpl::producer<SparseIdsListResult> query(SparseIdsListQuery &&query) const;
-
-	rpl::producer<SparseIdsSliceUpdate> sliceUpdated() const {
-		return _sliceUpdated.events();
-	}
+	rpl::producer<SparseIdsSliceUpdate> sliceUpdated() const;
 
 private:
 	struct Slice {

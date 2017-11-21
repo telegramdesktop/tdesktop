@@ -95,9 +95,7 @@ public:
 		not_null<Additional*> additional,
 		Callback callback);
 
-	rpl::producer<int> onlineCountValue() const override {
-		return _onlineCount.value();
-	}
+	rpl::producer<int> onlineCountValue() const override;
 
 protected:
 	virtual std::unique_ptr<PeerListRow> createRow(not_null<UserData*> user) const;

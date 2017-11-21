@@ -97,6 +97,18 @@ base::unique_qptr<Ui::RpWidget> SearchFieldController::createRowView(
 	return std::move(result);
 }
 
+QString SearchFieldController::query() const {
+	return _query.current();
+}
+
+rpl::producer<QString> SearchFieldController::queryValue() const {
+	return _query.value();
+}
+
+rpl::producer<QString> SearchFieldController::queryChanges() const {
+	return _query.changes();
+}
+
 base::unique_qptr<Ui::InputField> SearchFieldController::createField(
 		QWidget *parent,
 		const style::InputField &st) {

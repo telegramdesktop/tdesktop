@@ -26,6 +26,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/details/superset_type.h>
 #include <rpl/details/callable.h>
 
+#if defined _DEBUG
+#define RPL_PRODUCER_TYPE_ERASED_ALWAYS
+#endif // _DEBUG
+
 namespace rpl {
 namespace details {
 
@@ -450,7 +454,11 @@ template <
 				details::const_ref_consumer<Value, Error>())),
 			lifetime>>>
 inline auto make_producer(Generator &&generator)
+#ifdef RPL_PRODUCER_TYPE_ERASED_ALWAYS
+-> producer<Value, Error> {
+#else // RPL_CONSUMER_TYPE_ERASED_ALWAYS
 -> producer<Value, Error, std::decay_t<Generator>> {
+#endif // !RPL_CONSUMER_TYPE_ERASED_ALWAYS
 	return std::forward<Generator>(generator);
 }
 

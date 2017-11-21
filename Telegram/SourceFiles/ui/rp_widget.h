@@ -56,9 +56,7 @@ inline Widget *CreateChild(
 		Parent *parent,
 		Args &&...args) {
 	Expects(parent != nullptr);
-	return base::make_unique_q<Widget>(
-		parent,
-		std::forward<Args>(args)...).release();
+	return new Widget(parent, std::forward<Args>(args)...);
 }
 
 template <typename Value>
@@ -76,141 +74,102 @@ using RpWidgetParent = std::conditional_t<
 	TWidgetHelper<Widget>>;
 
 template <typename Widget>
-class RpWidgetWrap : public RpWidgetParent<Widget> {
-	using Parent = RpWidgetParent<Widget>;
+class RpWidgetWrap;
 
+class RpWidgetMethods {
 public:
-	using Parent::Parent;
-
-	auto geometryValue() const {
-		auto &stream = eventStreams().geometry;
-		return stream.events_starting_with_copy(this->geometry());
-	}
-	auto sizeValue() const {
-		return geometryValue()
-			| rpl::map([](QRect &&value) { return value.size(); })
-			| rpl::distinct_until_changed();
-	}
-	auto heightValue() const {
-		return geometryValue()
-			| rpl::map([](QRect &&value) { return value.height(); })
-			| rpl::distinct_until_changed();
-	}
-	auto widthValue() const {
-		return geometryValue()
-			| rpl::map([](QRect &&value) { return value.width(); })
-			| rpl::distinct_until_changed();
-	}
-	auto positionValue() const {
-		return geometryValue()
-			| rpl::map([](QRect &&value) { return value.topLeft(); })
-			| rpl::distinct_until_changed();
-	}
-	auto leftValue() const {
-		return geometryValue()
-			| rpl::map([](QRect &&value) { return value.left(); })
-			| rpl::distinct_until_changed();
-	}
-	auto topValue() const {
-		return geometryValue()
-			| rpl::map([](QRect &&value) { return value.top(); })
-			| rpl::distinct_until_changed();
-	}
-	virtual rpl::producer<int> desiredHeightValue() const {
-		return heightValue();
-	}
-	auto shownValue() const {
-		auto &stream = eventStreams().shown;
-		return stream.events_starting_with(!this->isHidden());
-	}
-
-	auto paintRequest() const {
-		return eventStreams().paint.events();
-	}
-
-	auto alive() const {
-		return eventStreams().alive.events();
-	}
-
-	void setVisible(bool visible) final override {
-		auto wasVisible = !this->isHidden();
-		Parent::setVisible(visible);
-		auto nowVisible = !this->isHidden();
-		if (nowVisible != wasVisible) {
-			if (auto streams = _eventStreams.get()) {
-				streams->shown.fire_copy(nowVisible);
-			}
-		}
-	}
+	rpl::producer<QRect> geometryValue() const;
+	rpl::producer<QSize> sizeValue() const;
+	rpl::producer<int> heightValue() const;
+	rpl::producer<int> widthValue() const;
+	rpl::producer<QPoint> positionValue() const;
+	rpl::producer<int> leftValue() const;
+	rpl::producer<int> topValue() const;
+	virtual rpl::producer<int> desiredHeightValue() const;
+	rpl::producer<bool> shownValue() const;
+	rpl::producer<QRect> paintRequest() const;
+	rpl::producer<> alive() const;
 
 	template <typename Error, typename Generator>
 	void showOn(rpl::producer<bool, Error, Generator> &&shown) {
 		std::move(shown)
 			| rpl::start_with_next([this](bool visible) {
-				this->setVisible(visible);
+				callSetVisible(visible);
 			}, lifetime());
 	}
 
-	rpl::lifetime &lifetime() {
-		return _lifetime.data;
-	}
+	rpl::lifetime &lifetime();
 
 protected:
-	bool event(QEvent *event) final override {
-		switch (event->type()) {
-		case QEvent::Move:
-		case QEvent::Resize:
-			if (auto streams = _eventStreams.get()) {
-				auto that = weak(this);
-				streams->geometry.fire_copy(this->geometry());
-				if (!that) {
-					return true;
-				}
-			}
-			break;
-
-		case QEvent::Paint:
-			if (auto streams = _eventStreams.get()) {
-				auto that = weak(this);
-				streams->paint.fire_copy(
-					static_cast<QPaintEvent*>(event)->rect());
-				if (!that) {
-					return true;
-				}
-			}
-			break;
-		}
-
-		return eventHook(event);
-	}
-	virtual bool eventHook(QEvent *event) {
-		return Parent::event(event);
-	}
+	bool handleEvent(QEvent *event);
+	virtual bool eventHook(QEvent *event) = 0;
 
 private:
+	template <typename Widget>
+	friend class RpWidgetWrap;
+
 	struct EventStreams {
 		rpl::event_stream<QRect> geometry;
 		rpl::event_stream<QRect> paint;
 		rpl::event_stream<bool> shown;
 		rpl::event_stream<> alive;
 	};
-	struct LifetimeHolder {
-		LifetimeHolder(QWidget *parent) {
-			parent->setGeometry(0, 0, 0, 0);
-		}
-		rpl::lifetime data;
+	struct Initer {
+		Initer(QWidget *parent);
 	};
 
-	EventStreams &eventStreams() const {
-		if (!_eventStreams) {
-			_eventStreams = std::make_unique<EventStreams>();
-		}
-		return *_eventStreams;
-	}
+	virtual void callSetVisible(bool visible) = 0;
+	virtual QPointer<QObject> callCreateWeak() = 0;
+	virtual QRect callGetGeometry() const = 0;
+	virtual bool callIsHidden() const = 0;
+
+	void visibilityChangedHook(bool wasVisible, bool nowVisible);
+	EventStreams &eventStreams() const;
 
 	mutable std::unique_ptr<EventStreams> _eventStreams;
+	rpl::lifetime _lifetime;
 
-	LifetimeHolder _lifetime = { this };
+};
+
+template <typename Widget>
+class RpWidgetWrap
+	: public RpWidgetParent<Widget>
+	, public RpWidgetMethods {
+	using Self = RpWidgetWrap<Widget>;
+	using Parent = RpWidgetParent<Widget>;
+
+public:
+	using Parent::Parent;
+
+	void setVisible(bool visible) final override {
+		auto wasVisible = !this->isHidden();
+		Parent::setVisible(visible);
+		visibilityChangedHook(wasVisible, !this->isHidden());
+	}
+
+protected:
+	bool event(QEvent *event) final override {
+		return handleEvent(event);
+	}
+	bool eventHook(QEvent *event) override {
+		return Parent::event(event);
+	}
+
+private:
+	void callSetVisible(bool visible) override {
+		Self::setVisible(visible);
+	}
+	QPointer<QObject> callCreateWeak() override {
+		return QPointer<QObject>((QObject*)this);
+	}
+	QRect callGetGeometry() const override {
+		return this->geometry();
+	}
+	bool callIsHidden() const override {
+		return this->isHidden();
+	}
+
+	Initer _initer = { this };
 
 };
 

@@ -623,6 +623,10 @@ object_ptr<ContentWidget> WrapWidget::createContent(
 //	_historyStack.erase(_historyStack.begin());
 //}
 
+rpl::producer<Wrap> WrapWidget::wrapValue() const {
+	return _wrap.value();
+}
+
 void WrapWidget::setWrap(Wrap wrap) {
 	// Was done for top level tabs support.
 	//

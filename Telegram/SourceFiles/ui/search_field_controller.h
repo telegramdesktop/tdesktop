@@ -45,15 +45,9 @@ public:
 		QWidget *parent,
 		const style::SearchFieldRow &st);
 
-	QString query() const {
-		return _query.current();
-	}
-	rpl::producer<QString> queryValue() const {
-		return _query.value();
-	}
-	rpl::producer<QString> queryChanges() const {
-		return _query.changes();
-	}
+	QString query() const;
+	rpl::producer<QString> queryValue() const;
+	rpl::producer<QString> queryChanges() const;
 
 	rpl::lifetime &lifetime() {
 		return _lifetime;

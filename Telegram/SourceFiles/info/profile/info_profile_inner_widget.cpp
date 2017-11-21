@@ -274,6 +274,14 @@ void InnerWidget::restoreState(not_null<Memento*> memento) {
 	}
 }
 
+rpl::producer<Ui::ScrollToRequest> InnerWidget::scrollToRequests() const {
+	return _scrollToRequests.events();
+}
+
+rpl::producer<int> InnerWidget::desiredHeightValue() const {
+	return _desiredHeight.events_starting_with(countDesiredHeight());
+}
+
 int InnerWidget::resizeGetHeight(int newWidth) {
 	_inResize = true;
 	auto guard = gsl::finally([&] { _inResize = false; });

@@ -72,10 +72,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/assertion.h"
 
 #include <gsl/gsl>
-
-#ifndef _DEBUG
 #include <rpl/rpl.h>
-#endif // _DEBUG
 
 #include "base/variant.h"
 #include "base/optional.h"

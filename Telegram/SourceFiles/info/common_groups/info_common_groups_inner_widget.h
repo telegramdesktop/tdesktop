@@ -45,9 +45,7 @@ public:
 		return _user;
 	}
 
-	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const {
-		return _scrollToRequests.events();
-	}
+	rpl::producer<Ui::ScrollToRequest> scrollToRequests() const;
 
 	int desiredHeight() const;
 

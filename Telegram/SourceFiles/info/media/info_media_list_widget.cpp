@@ -585,6 +585,15 @@ void ListWidget::start() {
 		}, lifetime());
 }
 
+rpl::producer<int> ListWidget::scrollToRequests() const {
+	return _scrollToRequests.events();
+}
+
+rpl::producer<SelectedItems> ListWidget::selectedListValue() const {
+	return _selectedListStream.events_starting_with(
+		collectSelectedItems());
+}
+
 void ListWidget::restart() {
 	mouseActionCancel();
 

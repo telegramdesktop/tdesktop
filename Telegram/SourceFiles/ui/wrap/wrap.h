@@ -98,8 +98,8 @@ protected:
 		return heightNoMargins();
 	}
 	void visibleTopBottomUpdated(
-		int visibleTop,
-		int visibleBottom) override {
+			int visibleTop,
+			int visibleBottom) override {
 		setChildVisibleTopBottom(
 			wrapped(),
 			visibleTop,

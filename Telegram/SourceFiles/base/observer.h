@@ -477,16 +477,6 @@ inline auto ObservableViewer(base::Observable<Type> &observable) {
 	});
 }
 
-inline auto ObservableViewer(base::Observable<void> &observable) {
-	return rpl::make_producer<>([&observable](
-			const auto &consumer) {
-		auto lifetime = rpl::lifetime();
-		lifetime.make_state<base::Subscription>(
-			observable.add_subscription([consumer]() {
-				consumer.put_next({});
-			}));
-		return lifetime;
-	});
-}
+rpl::producer<> ObservableViewer(base::Observable<void> &observable);
 
 } // namespace base

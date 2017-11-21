@@ -82,17 +82,13 @@ inline auto PeerFlagValue(
 //	return PeerFlagValue(user, static_cast<MTPDuser::Flag>(flag));
 //}
 
-inline auto PeerFlagValue(
-		ChatData *chat,
-		MTPDchat_ClientFlag flag) {
-	return PeerFlagValue(chat, static_cast<MTPDchat::Flag>(flag));
-}
+rpl::producer<bool> PeerFlagValue(
+	ChatData *chat,
+	MTPDchat_ClientFlag flag);
 
-inline auto PeerFlagValue(
-		ChannelData *channel,
-		MTPDchannel_ClientFlag flag) {
-	return PeerFlagValue(channel, static_cast<MTPDchannel::Flag>(flag));
-}
+rpl::producer<bool> PeerFlagValue(
+	ChannelData *channel,
+	MTPDchannel_ClientFlag flag);
 
 template <
 	typename PeerType,
@@ -120,93 +116,9 @@ inline auto PeerFullFlagValue(
 	return SingleFlagValue(PeerFullFlagsValue(peer), flag);
 }
 
-inline auto AdminRightsValue(not_null<ChannelData*> channel) {
-	return channel->adminRightsValue();
-}
-
-inline auto AdminRightsValue(
-		not_null<ChannelData*> channel,
-		MTPDchannelAdminRights::Flags mask) {
-	return FlagsValueWithMask(AdminRightsValue(channel), mask);
-}
-
-inline auto AdminRightValue(
-		not_null<ChannelData*> channel,
-		MTPDchannelAdminRights::Flag flag) {
-	return SingleFlagValue(AdminRightsValue(channel), flag);
-}
-
-inline auto RestrictionsValue(not_null<ChannelData*> channel) {
-	return channel->restrictionsValue();
-}
-
-inline auto RestrictionsValue(
-		not_null<ChannelData*> channel,
-		MTPDchannelBannedRights::Flags mask) {
-	return FlagsValueWithMask(RestrictionsValue(channel), mask);
-}
-
-inline auto RestrictionValue(
-		not_null<ChannelData*> channel,
-		MTPDchannelBannedRights::Flag flag) {
-	return SingleFlagValue(RestrictionsValue(channel), flag);
-}
-
-inline auto CanWriteValue(UserData *user) {
-	using namespace rpl::mappers;
-	return PeerFlagValue(user, MTPDuser::Flag::f_deleted)
-		| rpl::map(!_1);
-}
-
-inline auto CanWriteValue(ChatData *chat) {
-	using namespace rpl::mappers;
-	auto mask = 0
-		| MTPDchat::Flag::f_deactivated
-		| MTPDchat_ClientFlag::f_forbidden
-		| MTPDchat::Flag::f_left
-		| MTPDchat::Flag::f_kicked;
-	return PeerFlagsValue(chat, mask)
-		| rpl::map(!_1);
-}
-
-inline auto CanWriteValue(ChannelData *channel) {
-	auto flagsMask = 0
-		| MTPDchannel::Flag::f_left
-		| MTPDchannel_ClientFlag::f_forbidden
-		| MTPDchannel::Flag::f_creator
-		| MTPDchannel::Flag::f_broadcast;
-	return rpl::combine(
-		PeerFlagsValue(channel, flagsMask),
-		AdminRightValue(
-			channel,
-			MTPDchannelAdminRights::Flag::f_post_messages),
-		RestrictionValue(
-			channel,
-			MTPDchannelBannedRights::Flag::f_send_messages),
-		[](
-				MTPDchannel::Flags flags,
-				bool postMessagesRight,
-				bool sendMessagesRestriction) {
-			auto notAmInFlags = 0
-				| MTPDchannel::Flag::f_left
-				| MTPDchannel_ClientFlag::f_forbidden;
-			return !(flags & notAmInFlags)
-				&& (postMessagesRight
-					|| (flags & MTPDchannel::Flag::f_creator)
-					|| (!(flags & MTPDchannel::Flag::f_broadcast)
-						&& !sendMessagesRestriction));
-		});
-}
-
-inline rpl::producer<bool> CanWriteValue(not_null<PeerData*> peer) {
-	if (auto user = peer->asUser()) {
-		return CanWriteValue(user);
-	} else if (auto chat = peer->asChat()) {
-		return CanWriteValue(chat);
-	} else if (auto channel = peer->asChannel()) {
-		return CanWriteValue(channel);
-	}
-	Unexpected("Bad peer value in CanWriteValue()");
-}
+rpl::producer<bool> CanWriteValue(UserData *user);
+rpl::producer<bool> CanWriteValue(ChatData *chat);
+rpl::producer<bool> CanWriteValue(ChannelData *channel);
+rpl::producer<bool> CanWriteValue(not_null<PeerData*> peer);
 
 } // namespace Data

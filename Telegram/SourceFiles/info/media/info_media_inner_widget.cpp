@@ -360,5 +360,9 @@ void InnerWidget::setScrollHeightValue(rpl::producer<int> value) {
 		_1 - _2));
 }
 
+rpl::producer<Ui::ScrollToRequest> InnerWidget::scrollToRequests() const {
+	return _scrollToRequests.events();
+}
+
 } // namespace Media
 } // namespace Info

@@ -90,6 +90,10 @@ rpl::producer<int> Members::onlineCountValue() const {
 	return _listController->onlineCountValue();
 }
 
+rpl::producer<Ui::ScrollToRequest> Members::scrollToRequests() const {
+	return _scrollToRequests.events();
+}
+
 std::unique_ptr<MembersState> Members::saveState() {
 	auto result = std::make_unique<MembersState>();
 	result->list = _listController->saveState();

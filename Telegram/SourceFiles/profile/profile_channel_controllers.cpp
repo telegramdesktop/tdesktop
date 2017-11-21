@@ -331,6 +331,10 @@ void ParticipantsBoxController::restoreState(
 	}
 }
 
+rpl::producer<int> ParticipantsBoxController::onlineCountValue() const {
+	return _onlineCount.value();
+}
+
 template <typename Callback>
 void ParticipantsBoxController::HandleParticipant(const MTPChannelParticipant &participant, Role role, not_null<Additional*> additional, Callback callback) {
 	if ((role == Role::Profile

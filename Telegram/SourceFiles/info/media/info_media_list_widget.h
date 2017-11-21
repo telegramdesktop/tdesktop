@@ -55,13 +55,8 @@ public:
 
 	void restart();
 
-	rpl::producer<int> scrollToRequests() const {
-		return _scrollToRequests.events();
-	}
-	rpl::producer<SelectedItems> selectedListValue() const {
-		return _selectedListStream.events_starting_with(
-			collectSelectedItems());
-	}
+	rpl::producer<int> scrollToRequests() const;
+	rpl::producer<SelectedItems> selectedListValue() const;
 	void cancelSelection() {
 		clearSelected();
 	}

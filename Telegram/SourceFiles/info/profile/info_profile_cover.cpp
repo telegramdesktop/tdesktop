@@ -431,6 +431,11 @@ SharedMediaCover::SharedMediaCover(QWidget *parent)
 	createLabel();
 }
 
+SharedMediaCover *SharedMediaCover::setToggleShown(rpl::producer<bool> &&shown) {
+	return static_cast<SharedMediaCover*>(
+		SectionWithToggle::setToggleShown(std::move(shown)));
+}
+
 void SharedMediaCover::createLabel() {
 	using namespace rpl::mappers;
 	auto label = object_ptr<Ui::FlatLabel>(

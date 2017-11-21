@@ -29,9 +29,7 @@ public:
 
 	int32 mouseState(QPoint p);
 
-	rpl::producer<QImage> ready() const {
-		return _readyImages.events();
-	}
+	rpl::producer<QImage> ready() const;
 
 protected:
 	void prepare() override;

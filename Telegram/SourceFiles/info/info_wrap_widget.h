@@ -94,9 +94,7 @@ public:
 	Wrap wrap() const {
 		return _wrap.current();
 	}
-	rpl::producer<Wrap> wrapValue() const {
-		return _wrap.value();
-	}
+	rpl::producer<Wrap> wrapValue() const;
 	void setWrap(Wrap wrap);
 
 	not_null<Controller*> controller() {

@@ -102,10 +102,7 @@ class SharedMediaCover : public SectionWithToggle {
 public:
 	SharedMediaCover(QWidget *parent);
 
-	SharedMediaCover *setToggleShown(rpl::producer<bool> &&shown) {
-		return static_cast<SharedMediaCover*>(
-			SectionWithToggle::setToggleShown(std::move(shown)));
-	}
+	SharedMediaCover *setToggleShown(rpl::producer<bool> &&shown);
 
 	QMargins getMargins() const override;
 

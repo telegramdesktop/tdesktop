@@ -118,4 +118,16 @@ rpl::producer<SharedMediaResult> SharedMedia::query(SharedMediaQuery &&query) co
 	};
 }
 
+rpl::producer<SharedMediaSliceUpdate> SharedMedia::sliceUpdated() const {
+	return _sliceUpdated.events();
+}
+
+rpl::producer<SharedMediaRemoveOne> SharedMedia::oneRemoved() const {
+	return _oneRemoved.events();
+}
+
+rpl::producer<SharedMediaRemoveAll> SharedMedia::allRemoved() const {
+	return _allRemoved.events();
+}
+
 } // namespace Storage

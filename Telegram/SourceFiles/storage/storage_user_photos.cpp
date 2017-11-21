@@ -114,8 +114,15 @@ rpl::producer<UserPhotosResult> UserPhotos::List::query(
 	};
 }
 
-std::map<UserId, UserPhotos::List>::iterator
-UserPhotos::enforceLists(UserId user) {
+auto UserPhotos::List::sliceUpdated() const -> rpl::producer<SliceUpdate> {
+	return _sliceUpdated.events();
+}
+
+rpl::producer<UserPhotosSliceUpdate> UserPhotos::sliceUpdated() const {
+	return _sliceUpdated.events();
+}
+
+std::map<UserId, UserPhotos::List>::iterator UserPhotos::enforceLists(UserId user) {
 	auto result = _lists.find(user);
 	if (result != _lists.end()) {
 		return result;

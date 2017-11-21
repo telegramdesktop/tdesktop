@@ -208,6 +208,10 @@ void InnerWidget::restoreState(not_null<Memento*> memento) {
 	_listController->restoreState(memento->listState());
 }
 
+rpl::producer<Ui::ScrollToRequest> InnerWidget::scrollToRequests() const {
+	return _scrollToRequests.events();
+}
+
 int InnerWidget::desiredHeight() const {
 	auto desired = 0;
 	auto count = qMax(_user->commonChatsCount(), 1);
