@@ -147,6 +147,11 @@ public:
 		visibilityChangedHook(wasVisible, !this->isHidden());
 	}
 
+	~RpWidgetWrap() {
+		base::take(_lifetime);
+		base::take(_eventStreams);
+	}
+
 protected:
 	bool event(QEvent *event) final override {
 		return handleEvent(event);
