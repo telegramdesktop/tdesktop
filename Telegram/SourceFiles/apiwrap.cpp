@@ -1776,6 +1776,28 @@ void ApiWrap::parseChannelParticipants(
 	}));
 };
 
+void ApiWrap::parseRecentChannelParticipants(
+		not_null<ChannelData*> channel,
+		const MTPchannels_ChannelParticipants &result,
+		base::lambda<void(int fullCount, const QVector<MTPChannelParticipant> &list)> callbackList,
+		base::lambda<void()> callbackNotModified) {
+	parseChannelParticipants(result, [&](
+			int fullCount,
+			const QVector<MTPChannelParticipant> &list) {
+		auto applyLast = channel->isMegagroup()
+			&& (channel->mgInfo->lastParticipants.size() <= list.size());
+		if (applyLast) {
+			applyLastParticipantsList(
+				channel,
+				fullCount,
+				list,
+				false,
+				true);
+		}
+		callbackList(fullCount, list);
+	}, std::move(callbackNotModified));
+}
+
 void ApiWrap::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 	switch (updates.type()) {
 	case mtpc_updateShortMessage: {

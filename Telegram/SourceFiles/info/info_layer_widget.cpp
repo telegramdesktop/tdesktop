@@ -133,16 +133,14 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 	auto parentSize = parentWidget()->size();
 	auto windowWidth = parentSize.width();
 	auto windowHeight = parentSize.height();
-	auto newHeight = st::boxRadius + _desiredHeight + st::boxRadius;
-	if (newHeight > windowHeight || newWidth >= windowWidth) {
-		newHeight = windowHeight;
-	}
-	auto layerTop = snap(
+	auto newTop = snap(
 		windowHeight / 24,
 		st::infoLayerTopMinimal,
 		st::infoLayerTopMaximal);
+	auto newHeight = st::boxRadius + _desiredHeight + st::boxRadius;
+	accumulate_min(newHeight, windowHeight - newTop);
 
-	setRoundedCorners(layerTop + newHeight < windowHeight);
+	setRoundedCorners(newTop + newHeight < windowHeight);
 
 	// First resize content to new width and get the new desired height.
 	auto contentTop = st::boxRadius;
@@ -152,7 +150,7 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 	}
 	_content->setGeometry(0, contentTop, newWidth, contentHeight);
 
-	moveToLeft((windowWidth - newWidth) / 2, layerTop);
+	moveToLeft((windowWidth - newWidth) / 2, newTop);
 
 	return newHeight;
 }

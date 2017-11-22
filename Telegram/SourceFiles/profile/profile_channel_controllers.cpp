@@ -465,7 +465,21 @@ void ParticipantsBoxController::loadMoreRows() {
 		auto firstLoad = !_offset;
 		_loadRequestId = 0;
 
-		Auth().api().parseChannelParticipants(result, [&](
+		auto wasRecentRequest = firstLoad
+			&& (_role == Role::Members || _role == Role::Profile);
+		auto parseParticipants = [&](auto &&result, auto &&callback) {
+			if (wasRecentRequest) {
+				Auth().api().parseRecentChannelParticipants(
+					_channel,
+					result,
+					callback);
+			} else {
+				Auth().api().parseChannelParticipants(
+					result,
+					callback);
+			}
+		};
+		parseParticipants(result, [&](
 				int fullCount,
 				const QVector<MTPChannelParticipant> &list) {
 			for (auto &participant : list) {

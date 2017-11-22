@@ -147,6 +147,11 @@ public:
 		const MTPchannels_ChannelParticipants &result,
 		base::lambda<void(int fullCount, const QVector<MTPChannelParticipant> &list)> callbackList,
 		base::lambda<void()> callbackNotModified = nullptr);
+	void parseRecentChannelParticipants(
+		not_null<ChannelData*> channel,
+		const MTPchannels_ChannelParticipants &result,
+		base::lambda<void(int fullCount, const QVector<MTPChannelParticipant> &list)> callbackList,
+		base::lambda<void()> callbackNotModified = nullptr);
 
 	~ApiWrap();
 
