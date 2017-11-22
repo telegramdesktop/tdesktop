@@ -2316,7 +2316,13 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 	}
 
 	if (_preloadRequest == requestId) {
+		auto to = toMigrated ? _migrated : _history;
+		SignalHandlers::setCrashAnnotation("old_minmaxbefore_minmaxnow", QString("%1;%2;%3;%4").arg(_debug_preloadMin).arg(_debug_preloadMax).arg(to->minMsgId()).arg(to->maxMsgId()));
+
 		addMessagesToFront(peer, *histList);
+
+		SignalHandlers::setCrashAnnotation("old_minmaxbefore_minmaxnow", QString());
+
 		_preloadRequest = 0;
 		preloadHistoryIfNeeded();
 		if (_reportSpamStatus == dbiprsUnknown) {
@@ -2324,7 +2330,13 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 			if (_reportSpamStatus != dbiprsUnknown) updateControlsVisibility();
 		}
 	} else if (_preloadDownRequest == requestId) {
+		auto to = toMigrated ? _migrated : _history;
+		SignalHandlers::setCrashAnnotation("new_minmaxbefore_minmaxnow", QString("%1;%2;%3;%4").arg(_debug_preloadDownMin).arg(_debug_preloadDownMax).arg(to->minMsgId()).arg(to->maxMsgId()));
+
 		addMessagesToBack(peer, *histList);
+
+		SignalHandlers::setCrashAnnotation("new_minmaxbefore_minmaxnow", QString());
+
 		_preloadDownRequest = 0;
 		preloadHistoryIfNeeded();
 		if (_history->loadedAtBottom() && App::wnd()) App::wnd()->checkHistoryActivation();
@@ -2516,6 +2528,8 @@ void HistoryWidget::loadMessages() {
 	auto minId = 0;
 	auto historyHash = 0;
 
+	_debug_preloadMin = from->minMsgId();
+	_debug_preloadMax = from->maxMsgId();
 	_preloadRequest = MTP::send(
 		MTPmessages_GetHistory(
 			from->peer->input,
@@ -2556,6 +2570,8 @@ void HistoryWidget::loadMessagesDown() {
 	auto minId = 0;
 	auto historyHash = 0;
 
+	_debug_preloadDownMin = from->minMsgId();
+	_debug_preloadDownMax = from->maxMsgId();
 	_preloadDownRequest = MTP::send(
 		MTPmessages_GetHistory(
 			from->peer->input,

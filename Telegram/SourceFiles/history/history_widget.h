@@ -725,6 +725,11 @@ private:
 	mtpRequestId _preloadRequest = 0;
 	mtpRequestId _preloadDownRequest = 0;
 
+	MsgId _debug_preloadMin = 0;
+	MsgId _debug_preloadMax = 0;
+	MsgId _debug_preloadDownMin = 0;
+	MsgId _debug_preloadDownMax = 0;
+
 	MsgId _delayedShowAtMsgId = -1; // wtf?
 	mtpRequestId _delayedShowAtRequest = 0;
 

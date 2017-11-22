@@ -1661,11 +1661,11 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 
 	logged.push_back(QString::number(minAdded));
 	logged.push_back(QString::number(maxAdded));
-	SignalHandlers::setCrashAnnotation("add", logged.join(";"));
+	SignalHandlers::setCrashAnnotation("old_minmaxwas_minmaxadd", logged.join(";"));
 
 	addBlockToSharedMedia(block);
 
-	SignalHandlers::setCrashAnnotation("add", "");
+	SignalHandlers::setCrashAnnotation("old_minmaxwas_minmaxadd", "");
 
 	if (isChannel()) {
 		asChannelHistory()->checkJoinedMessage();
@@ -1723,7 +1723,7 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 		}
 		logged.push_back(QString::number(minAdded));
 		logged.push_back(QString::number(maxAdded));
-		SignalHandlers::setCrashAnnotation("add", logged.join(";"));
+		SignalHandlers::setCrashAnnotation("new_minmaxwas_minmaxadd", logged.join(";"));
 
 		if (!atLeastOneAdded) {
 			newLoaded = true;
@@ -1731,7 +1731,7 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 		}
 		addToSharedMedia(medias, wasLoadedAtBottom != loadedAtBottom());
 
-		SignalHandlers::setCrashAnnotation("add", "");
+		SignalHandlers::setCrashAnnotation("new_minmaxwas_minmaxadd", "");
 	}
 
 	if (!wasLoadedAtBottom) {
