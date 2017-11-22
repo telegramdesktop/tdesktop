@@ -213,13 +213,16 @@ void MainWindow::Private::initCustomTitle() {
 	// Qt has bug with layer-backed widgets containing QOpenGLWidgets.
 	// See https://bugreports.qt.io/browse/QTBUG-64494
 	// Emulate custom title instead (code below).
-	//	[window setStyleMask:[window styleMask] | NSFullSizeContentViewWindowMask];
-	//	auto inner = [window contentLayoutRect];
-	//	auto full = [view frame];
-	//	_public->_customTitleHeight = qMax(qRound(full.size.height - inner.size.height), 0);
+	//
+	// Tried to backport a fix, testing.
+	[_nativeWindow setStyleMask:[_nativeWindow styleMask] | NSFullSizeContentViewWindowMask];
+	auto inner = [_nativeWindow contentLayoutRect];
+	auto full = [_nativeView frame];
+	_public->_customTitleHeight = qMax(qRound(full.size.height - inner.size.height), 0);
 
-	_useNativeTitle = true;
-	setWindowTitle(qsl("Telegram"));
+	// Disabled for now.
+	//_useNativeTitle = true;
+	//setWindowTitle(qsl("Telegram"));
 #endif // !OS_MAC_OLD
 }
 
@@ -475,8 +478,7 @@ void _placeCounter(QImage &img, int size, int count, style::color bg, style::col
 }
 
 void MainWindow::updateTitleCounter() {
-	//setWindowTitle(titleVisible() ? QString() : titleText());
-	_private->setWindowTitle(titleText());
+	_private->setWindowTitle(titleVisible() ? QString() : titleText());
 }
 
 void MainWindow::unreadCounterChangedHook() {
