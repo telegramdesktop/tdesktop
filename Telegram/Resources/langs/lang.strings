@@ -930,6 +930,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_stickers_group_set" = "Group sticker set";
 "lng_stickers_remove_group_set" = "Remove group sticker set?";
 "lng_stickers_group_from_your" = "Choose from your stickers";
+"lng_stickers_group_from_featured" = "Choose from featured stickers";
 
 "lng_in_dlg_photo" = "Photo";
 "lng_in_dlg_video" = "Video";

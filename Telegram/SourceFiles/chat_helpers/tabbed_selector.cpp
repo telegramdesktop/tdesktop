@@ -716,7 +716,9 @@ not_null<GifsListWidget*> TabbedSelector::gifs() const {
 
 void TabbedSelector::setWidgetToScrollArea() {
 	auto inner = _scroll->setOwnedWidget(currentTab()->takeWidget());
-	inner->resizeToWidth(_scroll->width() - st::emojiScroll.width);
+	auto innerWidth = _scroll->width() - st::emojiScroll.width;
+	auto scrollHeight = _scroll->height();
+	inner->setMinimalHeight(innerWidth, scrollHeight);
 	inner->moveToLeft(0, 0);
 	inner->show();
 

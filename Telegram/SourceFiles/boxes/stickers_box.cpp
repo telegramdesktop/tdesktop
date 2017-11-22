@@ -704,6 +704,7 @@ void StickersBox::Inner::updateControlsGeometry() {
 		}
 		_megagroupDivider->setGeometryToLeft(0, top, width(), _megagroupDivider->height());
 		top += _megagroupDivider->height();
+		_megagroupSubTitle->resizeToNaturalWidth(width() - 2 * st::boxLayerTitlePosition.x());
 		_megagroupSubTitle->moveToLeft(st::boxLayerTitlePosition.x(), top + st::boxLayerTitlePosition.y());
 	}
 }
@@ -1370,9 +1371,13 @@ void StickersBox::Inner::rebuild() {
 	auto maxNameWidth = countMaxNameWidth();
 
 	clear();
-	auto &order = ([this]() -> const Stickers::Order & {
+	auto &order = ([&]() -> const Stickers::Order & {
 		if (_section == Section::Installed) {
-			return Auth().data().stickerSetsOrder();
+			auto &result = Auth().data().stickerSetsOrder();
+			if (_megagroupSet && result.empty()) {
+				return Auth().data().featuredStickerSetsOrder();
+			}
+			return result;
 		} else if (_section == Section::Featured) {
 			return Auth().data().featuredStickerSetsOrder();
 		}
@@ -1382,7 +1387,13 @@ void StickersBox::Inner::rebuild() {
 	_animStartTimes.reserve(order.size() + 1);
 
 	auto &sets = Auth().data().stickerSets();
-	if (!_megagroupSet && _section == Section::Installed) {
+	if (_megagroupSet) {
+		auto usingFeatured = Auth().data().stickerSetsOrder().empty();
+		_megagroupSubTitle->setText(lang(usingFeatured
+			? lng_stickers_group_from_featured
+			: lng_stickers_group_from_your));
+		updateControlsGeometry();
+	} else if (_section == Section::Installed) {
 		auto cloudIt = sets.constFind(Stickers::CloudRecentSetId);
 		if (cloudIt != sets.cend() && !cloudIt->stickers.isEmpty()) {
 			rebuildAppendSet(cloudIt.value(), maxNameWidth);
@@ -1419,6 +1430,7 @@ void StickersBox::Inner::setMinHeight(int newWidth, int minHeight) {
 void StickersBox::Inner::updateSize(int newWidth) {
 	auto naturalHeight = _itemsTop + int(_rows.size()) * _rowHeight + st::membersMarginBottom;
 	resize(newWidth ? newWidth : width(), qMax(_minHeight, naturalHeight));
+	updateControlsGeometry();
 	checkLoadMore();
 }
 

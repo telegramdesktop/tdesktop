@@ -589,7 +589,7 @@ editPeerInviteLink: FlatLabel(defaultFlatLabel) {
 	style: boxTextStyle;
 }
 editPeerInviteLinkButton: boxLinkButton;
-editPeerUsernameMargins: margins(0px, 10px, 0px, 0px);
+editPeerUsernameMargins: margins(0px, 10px, 0px, 13px);
 editPeerUsernameGood: FlatLabel(defaultFlatLabel) {
 	textFg: boxTextFgGood;
 	style: boxTextStyle;
@@ -599,9 +599,9 @@ editPeerUsernameError: FlatLabel(editPeerUsernameGood) {
 }
 editPeerUsernamePosition: point(0px, 10px);
 editPeerInviteLinkSkip: 10px;
-editPeerInviteLinkMargins: margins(23px, 10px, 14px, 0px);
-editPeerSignaturesMargins: margins(23px, 16px, 23px, 8px);
-editPeerInvitesMargins: margins(23px, 18px, 23px, 16px);
+editPeerInviteLinkMargins: margins(23px, 10px, 14px, 16px);
+editPeerSignaturesMargins: margins(23px, 10px, 23px, 16px);
+editPeerInvitesMargins: margins(23px, 10px, 23px, 16px);
 editPeerInvitesTopSkip: 10px;
 editPeerInvitesSkip: 10px;
 

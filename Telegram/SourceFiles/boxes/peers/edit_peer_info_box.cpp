@@ -34,6 +34,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/confirm_box.h"
 #include "boxes/photo_crop_box.h"
 #include "boxes/add_contact_box.h"
+#include "boxes/stickers_box.h"
 #include "mtproto/sender.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
@@ -121,6 +122,7 @@ private:
 	object_ptr<Ui::RpWidget> createHistoryVisibilityEdit();
 	object_ptr<Ui::RpWidget> createSignaturesEdit();
 	object_ptr<Ui::RpWidget> createInvitesEdit();
+	object_ptr<Ui::RpWidget> createStickersEdit();
 	object_ptr<Ui::RpWidget> createDeleteButton();
 
 	void submitTitle();
@@ -217,6 +219,7 @@ object_ptr<Ui::VerticalLayout> Controller::createContent() {
 	_wrap->add(createHistoryVisibilityEdit());
 	_wrap->add(createSignaturesEdit());
 	_wrap->add(createInvitesEdit());
+	_wrap->add(createStickersEdit());
 	_wrap->add(createDeleteButton());
 
 	_wrap->resizeToWidth(st::boxWideWidth);
@@ -878,9 +881,6 @@ object_ptr<Ui::RpWidget> Controller::createInvitesEdit() {
 		container,
 		Lang::Viewer(lng_edit_group_who_invites),
 		st::editPeerSectionLabel));
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		st::editPeerInvitesTopSkip));
 
 	_controls.invites = std::make_shared<Ui::RadioenumGroup<Invites>>(
 		_channel->anyoneCanAddMembers()
@@ -891,7 +891,7 @@ object_ptr<Ui::RpWidget> Controller::createInvitesEdit() {
 			LangKey textKey) {
 		container->add(object_ptr<Ui::FixedHeightWidget>(
 			container,
-			st::editPeerInvitesSkip));
+			st::editPeerInvitesTopSkip + st::editPeerInvitesSkip));
 		container->add(object_ptr<Ui::Radioenum<Invites>>(
 			container,
 			_controls.invites,
@@ -905,6 +905,49 @@ object_ptr<Ui::RpWidget> Controller::createInvitesEdit() {
 	addButton(
 		Invites::OnlyAdmins,
 		lng_edit_group_invites_only_admins);
+	container->add(object_ptr<Ui::FixedHeightWidget>(
+		container,
+		st::editPeerInvitesSkip));
+
+	return std::move(result);
+}
+
+object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
+	Expects(_wrap != nullptr);
+
+	if (!_channel->canEditStickers()) {
+		return nullptr;
+	}
+
+	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		_wrap,
+		object_ptr<Ui::VerticalLayout>(_wrap),
+		st::editPeerInviteLinkMargins);
+	auto container = result->entity();
+
+	container->add(object_ptr<Ui::FlatLabel>(
+		container,
+		Lang::Viewer(lng_group_stickers),
+		st::editPeerSectionLabel));
+	container->add(object_ptr<Ui::FixedHeightWidget>(
+		container,
+		st::editPeerInviteLinkSkip));
+
+	container->add(object_ptr<Ui::FlatLabel>(
+		container,
+		Lang::Viewer(lng_group_stickers_description),
+		st::editPeerPrivacyLabel));
+	container->add(object_ptr<Ui::FixedHeightWidget>(
+		container,
+		st::editPeerInviteLinkSkip));
+
+	container->add(object_ptr<Ui::LinkButton>(
+		_wrap,
+		lang(lng_group_stickers_add),
+		st::editPeerInviteLinkButton)
+	)->addClickHandler([this] {
+		Ui::show(Box<StickersBox>(_channel), LayerOption::KeepOther);
+	});
 
 	return std::move(result);
 }
