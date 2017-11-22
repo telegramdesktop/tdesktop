@@ -971,6 +971,7 @@ public:
 	bool canEditMessages() const;
 	bool canDeleteMessages() const;
 	bool anyoneCanAddMembers() const;
+	bool hiddenPreHistory() const;
 	bool canAddMembers() const;
 	bool canAddAdmins() const;
 	bool canPinMessages() const;
@@ -980,6 +981,9 @@ public:
 	bool canViewAdmins() const;
 	bool canViewBanned() const;
 	bool canEditInformation() const;
+	bool canEditInvites() const;
+	bool canEditSignatures() const;
+	bool canEditPreHistoryHidden() const;
 	bool canEditUsername() const;
 	bool canEditStickers() const;
 	bool canDelete() const;

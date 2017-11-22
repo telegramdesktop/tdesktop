@@ -668,6 +668,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_manage_peer_administrators" = "Administrators";
 "lng_manage_peer_banned_users" = "Banned users";
 "lng_manage_peer_restricted_users" = "Restricted users";
+"lng_manage_history_visibility_title" = "Chat history for new members";
+"lng_manage_history_visibility_shown" = "Visible";
+"lng_manage_history_visibility_shown_about" = "New members will see messages that were sent before they joined.";
+"lng_manage_history_visibility_hidden" = "Hidden";
+"lng_manage_history_visibility_hidden_about" = "New members won't see earlier messages.";
 
 "lng_report_title" = "Report channel";
 "lng_report_group_title" = "Report group";

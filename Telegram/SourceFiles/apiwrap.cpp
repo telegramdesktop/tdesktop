@@ -736,13 +736,11 @@ void ApiWrap::applyLastParticipantsList(
 	if (!keyboardBotFound) {
 		h->clearLastKeyboard();
 	}
-	int newMembersCount = qMax(fullCount, list.size());
-	if (newMembersCount > peer->membersCount()) {
-		peer->setMembersCount(newMembersCount);
-	}
 	if (!bots) {
 		if (list.isEmpty()) {
 			peer->setMembersCount(peer->mgInfo->lastParticipants.size());
+		} else {
+			peer->setMembersCount(fullCount);
 		}
 		Notify::PeerUpdate update(peer);
 		update.flags |= Notify::PeerUpdate::Flag::MembersChanged | Notify::PeerUpdate::Flag::AdminsChanged;

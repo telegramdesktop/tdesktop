@@ -983,6 +983,10 @@ bool ChannelData::anyoneCanAddMembers() const {
 	return (flags() & MTPDchannel::Flag::f_democracy);
 }
 
+bool ChannelData::hiddenPreHistory() const {
+	return (fullFlags() & MTPDchannelFull::Flag::f_hidden_prehistory);
+}
+
 bool ChannelData::canAddMembers() const {
 	return (adminRights() & AdminRight::f_invite_users)
 		|| amCreator()
@@ -1034,6 +1038,18 @@ bool ChannelData::canViewBanned() const {
 bool ChannelData::canEditInformation() const {
 	return (adminRights() & AdminRight::f_change_info)
 		|| amCreator();
+}
+
+bool ChannelData::canEditInvites() const {
+	return canEditInformation();
+}
+
+bool ChannelData::canEditSignatures() const {
+	return canEditInformation();
+}
+
+bool ChannelData::canEditPreHistoryHidden() const {
+	return canEditInformation();
 }
 
 bool ChannelData::canEditUsername() const {

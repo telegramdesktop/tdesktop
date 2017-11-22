@@ -69,6 +69,10 @@ private:
 		Everyone,
 		OnlyAdmins,
 	};
+	enum class HistoryVisibility {
+		Visible,
+		Hidden,
+	};
 	enum class UsernameState {
 		Normal,
 		TooMany,
@@ -90,6 +94,9 @@ private:
 		Ui::SlideWrap<Ui::RpWidget> *editInviteLinkWrap = nullptr;
 		Ui::FlatLabel *inviteLink = nullptr;
 
+		std::shared_ptr<Ui::RadioenumGroup<HistoryVisibility>> historyVisibility;
+		Ui::SlideWrap<Ui::RpWidget> *historyVisibilityWrap = nullptr;
+
 		std::shared_ptr<Ui::RadioenumGroup<Invites>> invites;
 		Ui::Checkbox *signatures = nullptr;
 	};
@@ -97,6 +104,7 @@ private:
 		base::optional<QString> username;
 		base::optional<QString> title;
 		base::optional<QString> description;
+		base::optional<bool> hiddenPreHistory;
 		base::optional<bool> signatures;
 		base::optional<bool> everyoneInvites;
 	};
@@ -110,6 +118,7 @@ private:
 	object_ptr<Ui::RpWidget> createUsernameEdit();
 	object_ptr<Ui::RpWidget> createInviteLinkCreate();
 	object_ptr<Ui::RpWidget> createInviteLinkEdit();
+	object_ptr<Ui::RpWidget> createHistoryVisibilityEdit();
 	object_ptr<Ui::RpWidget> createSignaturesEdit();
 	object_ptr<Ui::RpWidget> createInvitesEdit();
 	object_ptr<Ui::RpWidget> createDeleteButton();
@@ -132,6 +141,7 @@ private:
 	bool inviteLinkShown() const;
 	void refreshEditInviteLink();
 	void refreshCreateInviteLink();
+	void refreshHistoryVisibility();
 	void createInviteLink();
 	void revokeInviteLink();
 	void exportInviteLink(const QString &confirmation);
@@ -140,6 +150,7 @@ private:
 	bool validateUsername(Saving &to) const;
 	bool validateTitle(Saving &to) const;
 	bool validateDescription(Saving &to) const;
+	bool validateHistoryVisibility(Saving &to) const;
 	bool validateInvites(Saving &to) const;
 	bool validateSignatures(Saving &to) const;
 
@@ -147,6 +158,7 @@ private:
 	void saveUsername();
 	void saveTitle();
 	void saveDescription();
+	void saveHistoryVisibility();
 	void saveInvites();
 	void saveSignatures();
 	void savePhoto();
@@ -202,6 +214,7 @@ object_ptr<Ui::VerticalLayout> Controller::createContent() {
 	_wrap->add(createPrivaciesEdit());
 	_wrap->add(createInviteLinkCreate());
 	_wrap->add(createInviteLinkEdit());
+	_wrap->add(createHistoryVisibilityEdit());
 	_wrap->add(createSignaturesEdit());
 	_wrap->add(createInvitesEdit());
 	_wrap->add(createDeleteButton());
@@ -435,6 +448,7 @@ void Controller::privacyChanged(Privacy value) {
 		}
 		refreshCreateInviteLink();
 		refreshEditInviteLink();
+		refreshHistoryVisibility();
 		if (value == Privacy::Public) {
 			_controls.usernameResult = nullptr;
 			checkUsernameAvailability();
@@ -709,14 +723,25 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkCreate() {
 		return nullptr;
 	}
 
-	auto result = object_ptr<Ui::SlideWrap<Ui::LinkButton>>(
+	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		_wrap,
-		object_ptr<Ui::LinkButton>(
-			_wrap,
-			lang(lng_group_invite_create),
-			st::editPeerInviteLinkButton),
+		object_ptr<Ui::VerticalLayout>(_wrap),
 		st::editPeerInviteLinkMargins);
-	result->entity()->addClickHandler([this] {
+	auto container = result->entity();
+
+	container->add(object_ptr<Ui::FlatLabel>(
+		container,
+		Lang::Viewer(lng_profile_invite_link_section),
+		st::editPeerSectionLabel));
+	container->add(object_ptr<Ui::FixedHeightWidget>(
+		container,
+		st::editPeerInviteLinkSkip));
+
+	container->add(object_ptr<Ui::LinkButton>(
+		_wrap,
+		lang(lng_group_invite_create),
+		st::editPeerInviteLinkButton)
+	)->addClickHandler([this] {
 		createInviteLink();
 	});
 	_controls.createInviteLinkWrap = result.data();
@@ -738,10 +763,80 @@ void Controller::refreshCreateInviteLink() {
 		anim::type::instant);
 }
 
+object_ptr<Ui::RpWidget> Controller::createHistoryVisibilityEdit() {
+	Expects(_wrap != nullptr);
+
+	if (!_channel->canEditPreHistoryHidden()
+		|| !_channel->isMegagroup()) {
+		return nullptr;
+	}
+	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		_wrap,
+		object_ptr<Ui::VerticalLayout>(_wrap),
+		st::editPeerInvitesMargins);
+	_controls.historyVisibilityWrap = result.data();
+	auto container = result->entity();
+
+	_controls.historyVisibility
+		= std::make_shared<Ui::RadioenumGroup<HistoryVisibility>>(
+			_channel->hiddenPreHistory()
+				? HistoryVisibility::Hidden
+				: HistoryVisibility::Visible);
+	auto addButton = [&](
+			HistoryVisibility value,
+			LangKey groupTextKey,
+			LangKey groupAboutKey) {
+		container->add(object_ptr<Ui::FixedHeightWidget>(
+			container,
+			st::editPeerPrivacyTopSkip + st::editPeerPrivacyBottomSkip));
+		container->add(object_ptr<Ui::Radioenum<HistoryVisibility>>(
+			container,
+			_controls.historyVisibility,
+			value,
+			lang(groupTextKey),
+			st::defaultBoxCheckbox));
+		container->add(object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
+			container,
+			object_ptr<Ui::FlatLabel>(
+				container,
+				Lang::Viewer(groupAboutKey),
+				st::editPeerPrivacyLabel),
+			st::editPeerPrivacyLabelMargins));
+	};
+
+	container->add(object_ptr<Ui::FlatLabel>(
+		container,
+		Lang::Viewer(lng_manage_history_visibility_title),
+		st::editPeerSectionLabel));
+	addButton(
+		HistoryVisibility::Visible,
+		lng_manage_history_visibility_shown,
+		lng_manage_history_visibility_shown_about);
+	addButton(
+		HistoryVisibility::Hidden,
+		lng_manage_history_visibility_hidden,
+		lng_manage_history_visibility_hidden_about);
+
+	refreshHistoryVisibility();
+
+	return std::move(result);
+}
+
+void Controller::refreshHistoryVisibility() {
+	if (!_controls.historyVisibilityWrap) {
+		return;
+	}
+	auto historyVisibilityShown = !_controls.privacy
+		|| (_controls.privacy->value() == Privacy::Private);
+	_controls.historyVisibilityWrap->toggle(
+		historyVisibilityShown,
+		anim::type::instant);
+}
+
 object_ptr<Ui::RpWidget> Controller::createSignaturesEdit() {
 	Expects(_wrap != nullptr);
 
-	if (!_channel->canEditInformation()
+	if (!_channel->canEditSignatures()
 		|| _channel->isMegagroup()) {
 		return nullptr;
 	}
@@ -768,7 +863,7 @@ object_ptr<Ui::RpWidget> Controller::createSignaturesEdit() {
 object_ptr<Ui::RpWidget> Controller::createInvitesEdit() {
 	Expects(_wrap != nullptr);
 
-	if (!_channel->canEditInformation()
+	if (!_channel->canEditInvites()
 		|| !_channel->isMegagroup()) {
 		return nullptr;
 	}
@@ -866,6 +961,7 @@ base::optional<Controller::Saving> Controller::validate() const {
 	if (validateUsername(result)
 		&& validateTitle(result)
 		&& validateDescription(result)
+		&& validateHistoryVisibility(result)
 		&& validateInvites(result)
 		&& validateSignatures(result)) {
 		return result;
@@ -912,6 +1008,16 @@ bool Controller::validateDescription(Saving &to) const {
 	return true;
 }
 
+bool Controller::validateHistoryVisibility(Saving &to) const {
+	if (!_controls.historyVisibility
+		|| (_controls.privacy && _controls.privacy->value() == Privacy::Public)) {
+		return true;
+	}
+	to.hiddenPreHistory
+		= (_controls.historyVisibility->value() == HistoryVisibility::Hidden);
+	return true;
+}
+
 bool Controller::validateInvites(Saving &to) const {
 	if (!_controls.invites) {
 		return true;
@@ -940,6 +1046,7 @@ void Controller::save() {
 		pushSaveStage([this] { saveUsername(); });
 		pushSaveStage([this] { saveTitle(); });
 		pushSaveStage([this] { saveDescription(); });
+		pushSaveStage([this] { saveHistoryVisibility(); });
 		pushSaveStage([this] { saveInvites(); });
 		pushSaveStage([this] { saveSignatures(); });
 		pushSaveStage([this] { savePhoto(); });
@@ -1051,6 +1158,31 @@ void Controller::saveDescription() {
 		}
 		_controls.description->setFocus();
 		cancelSave();
+	}).send();
+}
+
+void Controller::saveHistoryVisibility() {
+	if (!_savingData.hiddenPreHistory
+		|| *_savingData.hiddenPreHistory == _channel->hiddenPreHistory()) {
+		return continueSave();
+	}
+	request(MTPchannels_TogglePreHistoryHidden(
+		_channel->inputChannel,
+		MTP_bool(*_savingData.hiddenPreHistory)
+	)).done([this](const MTPUpdates &result) {
+		// Update in the result doesn't contain the
+		// channelFull:flags field which holds this value.
+		// So after saving we need to update it manually.
+		_channel->updateFullForced();
+
+		Auth().api().applyUpdates(result);
+		continueSave();
+	}).fail([this](const RPCError &error) {
+		if (error.type() == qstr("CHAT_NOT_MODIFIED")) {
+			continueSave();
+		} else {
+			cancelSave();
+		}
 	}).send();
 }
 
