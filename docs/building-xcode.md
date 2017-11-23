@@ -49,6 +49,15 @@ Go to ***BuildPath*** and run
     make build_libs -j4
     cd ..
 
+    git clone https://github.com/xiph/opus
+    cd opus
+    git checkout v1.2.1
+    ./autogen.sh
+    CFLAGS="-mmacosx-version-min=10.8" CPPFLAGS="-mmacosx-version-min=10.8" LDFLAGS="-mmacosx-version-min=10.8" ./configure
+    make -j4
+    sudo make install
+    cd ..
+
     cd libiconv-1.15
     CFLAGS="-mmacosx-version-min=10.8" CPPFLAGS="-mmacosx-version-min=10.8" LDFLAGS="-mmacosx-version-min=10.8" ./configure --enable-static
     make -j4
@@ -60,7 +69,7 @@ Go to ***BuildPath*** and run
 
     git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
-    git checkout release/3.2
+    git checkout release/3.4
     CFLAGS=`freetype-config --cflags`
     LDFLAGS=`freetype-config --libs`
     PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:/usr/X11/lib/pkgconfig

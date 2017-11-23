@@ -319,6 +319,8 @@ buildFFmpeg() {
   git clone https://git.ffmpeg.org/ffmpeg.git
 
   cd "$EXTERNAL/ffmpeg"
+  git checkout release/3.4
+
   ./configure \
       --prefix=$FFMPEG_PATH \
       --disable-debug \
