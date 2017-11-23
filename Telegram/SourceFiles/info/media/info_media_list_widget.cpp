@@ -1784,7 +1784,8 @@ void ListWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butto
 	if (ClickHandler::getPressed() && !hasSelected()) {
 		_mouseAction = MouseAction::PrepareDrag;
 	} else if (hasSelectedItems()) {
-		if (isItemUnderPressSelected()) {
+		if (isItemUnderPressSelected() && ClickHandler::getPressed()) {
+			// In shared media overview drag only by click handlers.
 			_mouseAction = MouseAction::PrepareDrag; // start items drag
 		} else if (!_pressWasInactive) {
 			_mouseAction = MouseAction::PrepareSelect; // start items select

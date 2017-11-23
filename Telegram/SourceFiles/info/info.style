@@ -131,10 +131,15 @@ infoTopBarTitle: FlatLabel(defaultFlatLabel) {
 		linkFontOver: font(14px semibold);
 	}
 }
-infoTopBarClose: IconButton(infoTopBarBack) {
+infoTopBarMediaCancel: IconButton(infoTopBarBack) {
 	width: infoTopBarHeight;
 	icon: icon {{ "info_close", boxTitleCloseFg }};
 	iconOver: icon {{ "info_close", boxTitleCloseFgOver }};
+}
+infoTopBarClose: IconButton(infoTopBarMediaCancel) {
+	width: 48px;
+	iconPosition: point(5px, -1px);
+	rippleAreaPosition: point(0px, 6px);
 }
 infoTopBarSearch: IconButton(infoTopBarBack) {
 	width: 56px;
@@ -176,7 +181,7 @@ infoTopBar: InfoTopBar {
 	title: infoTopBarTitle;
 	titlePosition: point(23px, 18px);
 	bg: windowBg;
-	mediaCancel: infoTopBarClose;
+	mediaCancel: infoTopBarMediaCancel;
 	mediaActionsSkip: 4px;
 	mediaForward: infoTopBarForward;
 	mediaDelete: infoTopBarDelete;
@@ -200,12 +205,12 @@ infoLayerTopBarBack: IconButton(infoTopBarBack) {
 	iconOver: infoLayerTopBarBackIconOver;
 	rippleAreaSize: 44px;
 }
-infoLayerTopBarCloseIcon: icon {{ "info_close", boxTitleCloseFg }};
-infoLayerTopBarCloseIconOver: icon {{ "info_close", boxTitleCloseFgOver }};
-infoLayerTopBarClose: IconButton(infoLayerTopBarBack) {
+infoLayerTopBarMediaCancel: IconButton(infoLayerTopBarBack) {
+	icon: icon {{ "info_close", boxTitleCloseFg }};
+	iconOver: icon {{ "info_close", boxTitleCloseFgOver }};
+}
+infoLayerTopBarClose: IconButton(infoLayerTopBarMediaCancel) {
 	width: 50px;
-	icon: infoLayerTopBarCloseIcon;
-	iconOver: infoLayerTopBarCloseIconOver;
 	iconPosition: point(6px, -1px);
 	rippleAreaPosition: point(0px, 6px);
 }
@@ -237,7 +242,7 @@ infoLayerTopBar: InfoTopBar(infoTopBar) {
 	title: boxTitle;
 	titlePosition: boxLayerTitlePosition;
 	bg: boxBg;
-	mediaCancel: infoLayerTopBarClose;
+	mediaCancel: infoLayerTopBarMediaCancel;
 	mediaActionsSkip: 6px;
 	mediaForward: infoLayerTopBarForward;
 	mediaDelete: infoLayerTopBarDelete;

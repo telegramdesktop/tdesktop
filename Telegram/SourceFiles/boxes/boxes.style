@@ -311,17 +311,23 @@ contactsMultiSelect: MultiSelect {
 	fieldCancel: contactsSearchCancel;
 	fieldCancelSkip: 40px;
 }
+contactsPhotoCheckIcon: icon {{
+	"default_checkbox_check",
+	windowFgActive,
+	point(3px, 6px)
+}};
+contactsPhotoCheck: RoundCheckbox(defaultRoundCheckbox) {
+	size: 20px;
+	sizeSmall: 0.3;
+	check: contactsPhotoCheckIcon;
+}
 contactsPhotoCheckbox: RoundImageCheckbox {
 	imageRadius: 21px;
 	imageSmallRadius: 18px;
 	selectWidth: 2px;
 	selectFg: windowBgActive;
 	selectDuration: 150;
-	check: RoundCheckbox(defaultRoundCheckbox) {
-		size: 20px;
-		sizeSmall: 0.3;
-		check: icon {{ "default_checkbox_check", windowFgActive, point(3px, 6px) }};
-	}
+	check: contactsPhotoCheck;
 }
 contactsPhotoDisabledCheckFg: menuIconFg;
 contactsNameCheckedFg: windowActiveTextFg;

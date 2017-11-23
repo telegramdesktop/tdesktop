@@ -25,8 +25,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/radial_animation.h"
 #include "styles/style_overview.h"
 
+namespace style {
+struct RoundCheckbox;
+} // namespace style
+
 namespace Overview {
 namespace Layout {
+
+class Checkbox;
 
 class PaintContext : public PaintContextBase {
 public:
@@ -66,8 +72,7 @@ public:
 
 class ItemBase : public AbstractItem {
 public:
-	ItemBase(not_null<HistoryItem*> parent) : _parent(parent) {
-	}
+	ItemBase(not_null<HistoryItem*> parent);
 
 	void setPosition(int position) {
 		_position = position;
@@ -89,9 +94,27 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) override;
 
+	void invalidateCache() override;
+
+	~ItemBase();
+
 protected:
-	not_null<HistoryItem*> _parent;
+	not_null<HistoryItem*> parent() const {
+		return _parent;
+	}
+	void paintCheckbox(
+		Painter &p,
+		QPoint position,
+		bool selected,
+		const PaintContext *context);
+	virtual const style::RoundCheckbox &checkboxStyle() const;
+
+private:
+	void ensureCheckboxCreated();
+
 	int _position = 0;
+	not_null<HistoryItem*> _parent;
+	std::unique_ptr<Checkbox> _check;
 
 };
 
@@ -178,8 +201,6 @@ private:
 
 };
 
-class PhotoVideoCheckbox;
-
 class Photo : public ItemBase {
 public:
 	Photo(
@@ -193,18 +214,7 @@ public:
 		QPoint point,
 		HistoryStateRequest request) const override;
 
-	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
-	void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) override;
-
-	void invalidateCache() override;
-
-	~Photo();
-
 private:
-	void ensureCheckboxCreated();
-
-	std::unique_ptr<PhotoVideoCheckbox> _check;
-
 	not_null<PhotoData*> _data;
 	ClickHandlerPtr _link;
 
@@ -226,13 +236,6 @@ public:
 		QPoint point,
 		HistoryStateRequest request) const override;
 
-	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
-	void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) override;
-
-	void invalidateCache() override;
-
-	~Video();
-
 protected:
 	float64 dataProgress() const override;
 	bool dataFinished() const override;
@@ -240,10 +243,6 @@ protected:
 	bool iconAnimated() const override;
 
 private:
-	void ensureCheckboxCreated();
-
-	std::unique_ptr<PhotoVideoCheckbox> _check;
-
 	not_null<DocumentData*> _data;
 	StatusText _status;
 
@@ -273,6 +272,7 @@ protected:
 	bool dataFinished() const override;
 	bool dataLoaded() const override;
 	bool iconAnimated() const override;
+	const style::RoundCheckbox &checkboxStyle() const override;
 
 private:
 	not_null<DocumentData*> _data;
@@ -311,6 +311,7 @@ protected:
 	bool dataFinished() const override;
 	bool dataLoaded() const override;
 	bool iconAnimated() const override;
+	const style::RoundCheckbox &checkboxStyle() const override;
 
 private:
 	not_null<DocumentData*> _data;
@@ -344,6 +345,9 @@ public:
 	HistoryTextState getState(
 		QPoint point,
 		HistoryStateRequest request) const override;
+
+protected:
+	const style::RoundCheckbox &checkboxStyle() const override;
 
 private:
 	ClickHandlerPtr _photol;

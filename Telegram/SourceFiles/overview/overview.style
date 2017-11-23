@@ -22,6 +22,7 @@ using "basic.style";
 using "history/history.style";
 using "ui/widgets/widgets.style";
 using "media/view/mediaview.style";
+using "boxes/boxes.style";
 
 OverviewFileLayout {
 	maxWidth: pixels;
@@ -58,6 +59,11 @@ overviewCheck: RoundCheckbox(defaultRoundCheckbox) {
 	size: 29px;
 	sizeSmall: 0.3;
 	check: icon {{ "overview_photo_check", overviewCheckFgActive, point(4px, 8px) }};
+}
+overviewSmallCheck: RoundCheckbox(contactsPhotoCheck) {
+	bgInactive: overviewCheckBg;
+	bgActive: overviewCheckBgActive;
+	border: overviewCheckBorder;
 }
 overviewCheckSkip: 5px;
 
@@ -125,14 +131,6 @@ linksDateColor: windowSubTextFg;
 linksDateMargin: margins(0px, 15px, 0px, 2px);
 linksPhotoSize: 46px;
 linksPhotoPadding: 12px;
-overviewLinksCheck: icon {
-	{ "overview_links_check_bg", overviewCheckBg },
-	{ "overview_links_check", overviewCheckFg, point(4px, 5px) },
-};
-overviewLinksChecked: icon {
-	{ "overview_links_check_bg", overviewCheckBgActive },
-	{ "overview_links_check", overviewCheckFgActive, point(4px, 5px) },
-};
 
 overviewFilter: FlatInput(defaultFlatInput) {
 	font: font(fsize);
