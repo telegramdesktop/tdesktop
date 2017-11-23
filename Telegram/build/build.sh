@@ -155,6 +155,26 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ]; then
     Error "Updater not found!"
   fi
 
+  BadCount=`objdump -T $ReleasePath/Updater | grep GLIBC_2\.1[6-9] | wc -l`
+  if [ "$BadCount" != "0" ]; then
+    Error "Bad GLIBC usages found: $BadCount"
+  fi
+
+  BadCount=`objdump -T $ReleasePath/Updater | grep GLIBC_2\.2[0-9] | wc -l`
+  if [ "$BadCount" != "0" ]; then
+    Error "Bad GLIBC usages found: $BadCount"
+  fi
+
+  BadCount=`objdump -T $ReleasePath/Updater | grep GCC_4\.[3-9] | wc -l`
+  if [ "$BadCount" != "0" ]; then
+    Error "Bad GCC usages found: $BadCount"
+  fi
+
+  BadCount=`objdump -T $ReleasePath/Updater | grep GCC_[5-9]\. | wc -l`
+  if [ "$BadCount" != "0" ]; then
+    Error "Bad GCC usages found: $BadCount"
+  fi
+
   echo "Dumping debug symbols.."
   "$HomePath/../../Libraries/breakpad/out/Default/dump_syms" "$ReleasePath/$BinaryName" > "$ReleasePath/$BinaryName.sym"
   echo "Done!"

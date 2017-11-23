@@ -51,6 +51,10 @@
         'sources!': [
           '<(src_loc)/_other/updater_linux.cpp',
         ],
+      }, {
+        'ldflags': [
+          '-static-libstdc++',
+        ],
       }],
       [ '"<(build_mac)" != "1"', {
         'sources!': [
