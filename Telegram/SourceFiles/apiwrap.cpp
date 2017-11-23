@@ -171,8 +171,12 @@ void ApiWrap::resolveMessageDatas() {
 
 	auto ids = collectMessageIds(_messageDataRequests);
 	if (!ids.isEmpty()) {
-		auto requestId = request(MTPmessages_GetMessages(MTP_vector<MTPint>(ids))).done([this](const MTPmessages_Messages &result, mtpRequestId requestId) {
+		auto requestId = request(MTPmessages_GetMessages(
+			MTP_vector<MTPint>(ids)
+		)).done([this](const MTPmessages_Messages &result, mtpRequestId requestId) {
 			gotMessageDatas(nullptr, result, requestId);
+		}).fail([this](const RPCError &error, mtpRequestId requestId) {
+			finalizeMessageDataRequest(nullptr, requestId);
 		}).after(kSmallDelayMs).send();
 		for (auto &request : _messageDataRequests) {
 			if (request.requestId > 0) continue;
@@ -186,8 +190,14 @@ void ApiWrap::resolveMessageDatas() {
 		}
 		auto ids = collectMessageIds(j.value());
 		if (!ids.isEmpty()) {
-			auto requestId = request(MTPchannels_GetMessages(j.key()->inputChannel, MTP_vector<MTPint>(ids))).done([this, channel = j.key()](const MTPmessages_Messages &result, mtpRequestId requestId) {
+			auto channel = j.key();
+			auto requestId = request(MTPchannels_GetMessages(
+				j.key()->inputChannel,
+				MTP_vector<MTPint>(ids)
+			)).done([=](const MTPmessages_Messages &result, mtpRequestId requestId) {
 				gotMessageDatas(channel, result, requestId);
+			}).fail([=](const RPCError &error, mtpRequestId requestId) {
+				finalizeMessageDataRequest(channel, requestId);
 			}).after(kSmallDelayMs).send();
 
 			for (auto &request : *j) {
@@ -225,6 +235,12 @@ void ApiWrap::gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &
 		LOG(("API Error: received messages.messagesNotModified! (ApiWrap::gotDependencyItem)"));
 		break;
 	}
+	finalizeMessageDataRequest(channel, requestId);
+}
+
+void ApiWrap::finalizeMessageDataRequest(
+		ChannelData *channel,
+		mtpRequestId requestId) {
 	auto requests = messageDataRequests(channel, true);
 	if (requests) {
 		for (auto i = requests->begin(); i != requests->cend();) {

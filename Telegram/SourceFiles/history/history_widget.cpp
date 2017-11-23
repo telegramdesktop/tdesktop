@@ -1613,7 +1613,10 @@ void HistoryWidget::applyDraft(bool parseLinks, Ui::FlatTextarea::UndoHistoryAct
 	if (_editMsgId || _replyToId) {
 		updateReplyEditTexts();
 		if (!_replyEditMsg) {
-			Auth().api().requestMessageData(_peer->asChannel(), _editMsgId ? _editMsgId : _replyToId, replyEditMessageDataCallback());
+			Auth().api().requestMessageData(
+				_peer->asChannel(),
+				_editMsgId ? _editMsgId : _replyToId,
+				replyEditMessageDataCallback());
 		}
 	}
 }
@@ -5306,7 +5309,10 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 			updatePinnedBar();
 		}
 		if (!_pinnedBar->msg) {
-			Auth().api().requestMessageData(_peer->asChannel(), _pinnedBar->msgId, replyEditMessageDataCallback());
+			Auth().api().requestMessageData(
+				_peer->asChannel(),
+				_pinnedBar->msgId,
+				replyEditMessageDataCallback());
 		}
 	} else if (_pinnedBar) {
 		destroyPinnedBar();

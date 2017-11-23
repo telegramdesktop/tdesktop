@@ -414,7 +414,13 @@ bool HistoryMessageReply::updateData(HistoryMessage *holder, bool force) {
 	if (!replyToMsg) {
 		replyToMsg = App::histItemById(holder->channelId(), replyToMsgId);
 		if (replyToMsg) {
-			App::historyRegDependency(holder, replyToMsg);
+			if (replyToMsg->isEmpty()) {
+				// Really it is deleted.
+				replyToMsg = nullptr;
+				force = true;
+			} else {
+				App::historyRegDependency(holder, replyToMsg);
+			}
 		}
 	}
 
@@ -869,7 +875,10 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	if (auto reply = Get<HistoryMessageReply>()) {
 		reply->replyToMsgId = config.replyTo;
 		if (!reply->updateData(this)) {
-			Auth().api().requestMessageData(history()->peer->asChannel(), reply->replyToMsgId, HistoryDependentItemCallback(fullId()));
+			Auth().api().requestMessageData(
+				history()->peer->asChannel(),
+				reply->replyToMsgId,
+				HistoryDependentItemCallback(fullId()));
 		}
 	}
 	if (auto via = Get<HistoryMessageVia>()) {

@@ -173,6 +173,9 @@ private:
 
 	void resolveMessageDatas();
 	void gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId requestId);
+	void finalizeMessageDataRequest(
+		ChannelData *channel,
+		mtpRequestId requestId);
 
 	QVector<MTPint> collectMessageIds(const MessageDataRequests &requests);
 	MessageDataRequests *messageDataRequests(ChannelData *channel, bool onlyExisting = false);

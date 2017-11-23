@@ -4931,7 +4931,10 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 			if (peerId) {
 				if (auto item = App::histItemById(peerToChannel(peerId), d.vid.v)) {
 					if (d.has_entities() && !mentionUsersLoaded(d.ventities)) {
-						Auth().api().requestMessageData(item->history()->peer->asChannel(), item->id, ApiWrap::RequestMessageDataCallback());
+						Auth().api().requestMessageData(
+							item->history()->peer->asChannel(),
+							item->id,
+							ApiWrap::RequestMessageDataCallback());
 					}
 					auto entities = d.has_entities() ? TextUtilities::EntitiesFromMTP(d.ventities.v) : EntitiesInText();
 					item->setText({ text, entities });

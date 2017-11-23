@@ -248,12 +248,18 @@ bool HistoryService::updateDependent(bool force) {
 	if (!dependent->lnk) {
 		dependent->lnk = goToMessageClickHandler(history()->peer, dependent->msgId);
 	}
-	bool gotDependencyItem = false;
+	auto gotDependencyItem = false;
 	if (!dependent->msg) {
 		dependent->msg = App::histItemById(channelId(), dependent->msgId);
 		if (dependent->msg) {
-			App::historyRegDependency(this, dependent->msg);
-			gotDependencyItem = true;
+			if (dependent->msg->isEmpty()) {
+				// Really it is deleted.
+				dependent->msg = nullptr;
+				force = true;
+			} else {
+				App::historyRegDependency(this, dependent->msg);
+				gotDependencyItem = true;
+			}
 		}
 	}
 	if (dependent->msg) {
@@ -687,7 +693,10 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 		if (auto dependent = GetDependentData()) {
 			dependent->msgId = message.vreply_to_msg_id.v;
 			if (!updateDependent()) {
-				Auth().api().requestMessageData(history()->peer->asChannel(), dependent->msgId, HistoryDependentItemCallback(fullId()));
+				Auth().api().requestMessageData(
+					history()->peer->asChannel(),
+					dependent->msgId,
+					HistoryDependentItemCallback(fullId()));
 			}
 		}
 	}
