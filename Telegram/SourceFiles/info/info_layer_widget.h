@@ -60,13 +60,12 @@ protected:
 private:
 	void setupHeightConsumers();
 
-	void setRoundedCorners(bool roundedCorners);
-
 	not_null<Window::Controller*> _controller;
 	object_ptr<WrapWidget> _content;
 
 	int _desiredHeight = 0;
-	bool _roundedCorners = false;
+	bool _inResize = false;
+	bool _tillBottom = false;
 
 };
 

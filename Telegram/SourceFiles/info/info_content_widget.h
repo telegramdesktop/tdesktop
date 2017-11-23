@@ -31,6 +31,8 @@ enum class SharedMediaType : char;
 namespace Ui {
 class ScrollArea;
 struct ScrollToRequest;
+template <typename Widget>
+class PaddingWrap;
 } // namespace Ui
 
 namespace Info {
@@ -57,9 +59,7 @@ public:
 	rpl::producer<bool> desiredShadowVisibility() const;
 	bool hasTopBarShadow() const;
 
-	virtual void setInnerFocus() {
-		_inner->setFocus();
-	}
+	virtual void setInnerFocus();
 
 	// When resizing the widget with top edge moved up or down and we
 	// want to add this top movement to the scroll position, so inner
@@ -67,6 +67,9 @@ public:
 	void setGeometryWithTopMoved(
 		const QRect &newGeometry,
 		int topDelta);
+	void applyAdditionalScroll(int additionalScroll);
+	int scrollTillBottom(int forHeight) const;
+	rpl::producer<int> scrollTillBottomChanges() const;
 
 	// Float player interface.
 	bool wheelEventFromFloatPlayer(QEvent *e);
@@ -106,9 +109,11 @@ private:
 
 	style::color _bg;
 	rpl::variable<int> _scrollTopSkip = -1;
+	rpl::event_stream<int> _scrollTillBottomChanges;
 	object_ptr<Ui::ScrollArea> _scroll;
-	Ui::RpWidget *_inner = nullptr;
+	Ui::PaddingWrap<Ui::RpWidget> *_innerWrap = nullptr;
 	base::unique_qptr<Ui::RpWidget> _searchField = nullptr;
+	int _innerDesiredHeight = 0;
 
 	// Saving here topDelta in setGeometryWithTopMoved() to get it passed to resizeEvent().
 	int _topDelta = 0;

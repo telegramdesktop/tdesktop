@@ -37,6 +37,11 @@ public:
 		object_ptr<RpWidget> &&child,
 		const style::margins &padding);
 
+	style::margins padding() const {
+		return _padding;
+	}
+	void setPadding(const style::margins &padding);
+
 	int naturalWidth() const override;
 
 protected:

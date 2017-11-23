@@ -122,6 +122,10 @@ public:
 
 	object_ptr<Ui::RpWidget> createTopBarSurrogate(QWidget *parent);
 
+	void updateGeometry(QRect newGeometry, int additionalScroll);
+	int scrollTillBottom(int forHeight) const;
+	rpl::producer<int>  scrollTillBottomChanges() const;
+
 	~WrapWidget();
 
 protected:
@@ -199,6 +203,7 @@ private:
 	rpl::variable<Wrap> _wrap;
 	std::unique_ptr<Controller> _controller;
 	object_ptr<ContentWidget> _content = { nullptr };
+	int _additionalScroll = 0;
 	//object_ptr<Ui::PlainShadow> _topTabsBackground = { nullptr };
 	//object_ptr<Ui::SettingsSlider> _topTabs = { nullptr };
 	object_ptr<TopBar> _topBar = { nullptr };
@@ -216,6 +221,7 @@ private:
 	rpl::event_stream<rpl::producer<int>> _desiredHeights;
 	rpl::event_stream<rpl::producer<bool>> _desiredShadowVisibilities;
 	rpl::event_stream<rpl::producer<SelectedItems>> _selectedLists;
+	rpl::event_stream<rpl::producer<int>> _scrollTillBottomChanges;
 
 };
 

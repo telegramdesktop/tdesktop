@@ -526,6 +526,7 @@ not_null<Ui::RpWidget*> WrapWidget::topWidget() const {
 void WrapWidget::showContent(object_ptr<ContentWidget> content) {
 	_content = std::move(content);
 	_content->show();
+	_additionalScroll = 0;
 	//_anotherTabMemento = nullptr;
 	finishShowContent();
 }
@@ -536,6 +537,7 @@ void WrapWidget::finishShowContent() {
 	_desiredHeights.fire(desiredHeightForContent());
 	_desiredShadowVisibilities.fire(_content->desiredShadowVisibility());
 	_selectedLists.fire(_content->selectedListValue());
+	_scrollTillBottomChanges.fire(_content->scrollTillBottomChanges());
 	_topShadow->raise();
 	_topShadow->finishAnimating();
 
@@ -754,16 +756,13 @@ std::unique_ptr<Window::SectionMemento> WrapWidget::createMemento() {
 }
 
 rpl::producer<int> WrapWidget::desiredHeightValue() const {
-	return
-		rpl::single(desiredHeightForContent())
-		| rpl::then(_desiredHeights.events())
+	return _desiredHeights.events_starting_with(desiredHeightForContent())
 		| rpl::flatten_latest();
 }
 
 QRect WrapWidget::contentGeometry() const {
 	return rect().marginsRemoved({ 0, topWidget()->height(), 0, 0 });
 }
-
 
 bool WrapWidget::returnToFirstStackFrame(
 		not_null<ContentMemento*> memento,
@@ -910,6 +909,37 @@ object_ptr<Ui::RpWidget> WrapWidget::createTopBarSurrogate(
 		return std::move(result);
 	}
 	return nullptr;
+}
+
+void WrapWidget::updateGeometry(QRect newGeometry, int additionalScroll) {
+	auto scrollChanged = (_additionalScroll != additionalScroll);
+	auto geometryChanged = (geometry() != newGeometry);
+	auto shrinkingContent = (additionalScroll < _additionalScroll);
+	_additionalScroll = additionalScroll;
+
+	if (geometryChanged) {
+		if (shrinkingContent) {
+			setGeometry(newGeometry);
+		}
+		if (scrollChanged) {
+			_content->applyAdditionalScroll(additionalScroll);
+		}
+		if (!shrinkingContent) {
+			setGeometry(newGeometry);
+		}
+	} else if (scrollChanged) {
+		_content->applyAdditionalScroll(additionalScroll);
+	}
+}
+
+int WrapWidget::scrollTillBottom(int forHeight) const {
+	return _content->scrollTillBottom(forHeight - topWidget()->height());
+}
+
+rpl::producer<int> WrapWidget::scrollTillBottomChanges() const {
+	return _scrollTillBottomChanges.events_starting_with(
+		_content->scrollTillBottomChanges()
+	) | rpl::flatten_latest();
 }
 
 WrapWidget::~WrapWidget() = default;

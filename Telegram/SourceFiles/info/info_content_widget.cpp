@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/range.h>
 #include "window/window_controller.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/search_field_controller.h"
 #include "lang/lang_keys.h"
 #include "info/profile/info_profile_widget.h"
@@ -51,6 +52,9 @@ ContentWidget::ContentWidget(
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	_controller->wrapValue()
 		| rpl::start_with_next([this](Wrap value) {
+			if (value != Wrap::Layer) {
+				applyAdditionalScroll(0);
+			}
 			_bg = (value == Wrap::Layer)
 				? st::boxBg
 				: st::profileBg;
@@ -76,7 +80,7 @@ void ContentWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void ContentWidget::updateControlsGeometry() {
-	if (!_inner) {
+	if (!_innerWrap) {
 		return;
 	}
 	auto newScrollTop = _scroll->scrollTop() + _topDelta;
@@ -84,7 +88,7 @@ void ContentWidget::updateControlsGeometry() {
 		QMargins(0, _scrollTopSkip.current(), 0, 0));
 	if (_scroll->geometry() != scrollGeometry) {
 		_scroll->setGeometry(scrollGeometry);
-		_inner->resizeToWidth(_scroll->width());
+		_innerWrap->resizeToWidth(_scroll->width());
 	}
 
 	if (!_scroll->isHidden()) {
@@ -92,7 +96,7 @@ void ContentWidget::updateControlsGeometry() {
 			_scroll->scrollToY(newScrollTop);
 		}
 		auto scrollTop = _scroll->scrollTop();
-		_inner->setVisibleTopBottom(
+		_innerWrap->setVisibleTopBottom(
 			scrollTop,
 			scrollTop + _scroll->height());
 	}
@@ -128,22 +132,39 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 		object_ptr<RpWidget> inner) {
 	using namespace rpl::mappers;
 
-	_inner = _scroll->setOwnedWidget(std::move(inner));
-	_inner->move(0, 0);
+	_innerWrap = _scroll->setOwnedWidget(
+		object_ptr<Ui::PaddingWrap<Ui::RpWidget>>(
+			this,
+			std::move(inner),
+			_innerWrap ? _innerWrap->padding() : style::margins()));
+	_innerWrap->move(0, 0);
 
 	rpl::combine(
 		_scroll->scrollTopValue(),
 		_scroll->heightValue(),
-		_inner->desiredHeightValue(),
+		_innerWrap->entity()->desiredHeightValue(),
 		tuple(_1, _1 + _2, _3))
-		| rpl::start_with_next([inner = _inner](
+		| rpl::start_with_next([this](
 				int top,
 				int bottom,
 				int desired) {
-			inner->setVisibleTopBottom(top, bottom);
-		}, _inner->lifetime());
+			_innerDesiredHeight = desired;
+			_innerWrap->setVisibleTopBottom(top, bottom);
+			_scrollTillBottomChanges.fire_copy(std::max(desired - bottom, 0));
+		}, _innerWrap->lifetime());
 
-	return _inner;
+	return _innerWrap->entity();
+}
+
+int ContentWidget::scrollTillBottom(int forHeight) const {
+	auto scrollHeight = forHeight - _scrollTopSkip.current();
+	auto scrollBottom = _scroll->scrollTop() + scrollHeight;
+	auto desired = _innerDesiredHeight;
+	return std::max(desired - scrollBottom, 0);
+}
+
+rpl::producer<int> ContentWidget::scrollTillBottomChanges() const {
+	return _scrollTillBottomChanges.events();
 }
 
 void ContentWidget::setScrollTopSkip(int scrollTopSkip) {
@@ -158,10 +179,16 @@ rpl::producer<int> ContentWidget::scrollHeightValue() const {
 	return _scroll->heightValue();
 }
 
+void ContentWidget::applyAdditionalScroll(int additionalScroll) {
+	if (_innerWrap) {
+		_innerWrap->setPadding({ 0, 0, 0, additionalScroll });
+	}
+}
+
 rpl::producer<int> ContentWidget::desiredHeightValue() const {
 	using namespace rpl::mappers;
 	return rpl::combine(
-		_inner->desiredHeightValue(),
+		_innerWrap->entity()->desiredHeightValue(),
 		_scrollTopSkip.value())
 		| rpl::map(_1 + _2);
 }
@@ -176,6 +203,10 @@ rpl::producer<bool> ContentWidget::desiredShadowVisibility() const {
 
 bool ContentWidget::hasTopBarShadow() const {
 	return (_scroll->scrollTop() > 0);
+}
+
+void ContentWidget::setInnerFocus() {
+	_innerWrap->entity()->setFocus();
 }
 
 int ContentWidget::scrollTopSave() const {
