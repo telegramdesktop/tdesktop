@@ -27,6 +27,11 @@ inline Type take(Type &value) {
 	return std::exchange(value, Type {});
 }
 
+template <typename Type>
+inline Type duplicate(const Type &value) {
+	return value;
+}
+
 template <typename Type, size_t Size>
 inline constexpr size_t array_size(const Type(&)[Size]) {
 	return Size;

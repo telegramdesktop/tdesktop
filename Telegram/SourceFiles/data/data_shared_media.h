@@ -116,6 +116,8 @@ public:
 	Value operator[](int index) const;
 	base::optional<int> distance(const Key &a, const Key &b) const;
 
+	void reverse();
+
 	static SparseIdsMergedSlice::Key ViewerKey(const Key &key) {
 		return {
 			key.peerId,
@@ -174,15 +176,25 @@ private:
 			| [](bool isolated) { return isolated ? 1 : 0; };
 	}
 
+	base::optional<int> skippedBeforeImpl() const;
+	base::optional<int> skippedAfterImpl() const;
+	base::optional<int> indexOfImpl(Value fullId) const;
+
 	Key _key;
 	SparseIdsMergedSlice _slice;
 	base::optional<SparseIdsMergedSlice> _ending;
 	PhotoId _lastPhotoId = 0;
 	base::optional<bool> _isolatedLastPhoto;
+	bool _reversed = false;
 
 };
 
 rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastViewer(
+	SharedMediaWithLastSlice::Key key,
+	int limitBefore,
+	int limitAfter);
+
+rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastReversedViewer(
 	SharedMediaWithLastSlice::Key key,
 	int limitBefore,
 	int limitAfter);

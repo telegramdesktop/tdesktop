@@ -154,13 +154,13 @@ SearchResult ParseSearchResult(
 	result.messageIds.reserve(messages->size());
 	for (auto &message : *messages) {
 		if (auto item = App::histories().addNewMessage(message, addType)) {
+			auto itemId = item->id;
 			if ((type == Storage::SharedMediaType::kCount)
 				|| item->sharedMediaTypes().test(type)) {
-				auto itemId = item->id;
 				result.messageIds.push_back(itemId);
-				accumulate_min(result.noSkipRange.from, itemId);
-				accumulate_max(result.noSkipRange.till, itemId);
 			}
+			accumulate_min(result.noSkipRange.from, itemId);
+			accumulate_max(result.noSkipRange.till, itemId);
 		}
 	}
 	if (messageId && result.messageIds.empty()) {

@@ -76,9 +76,6 @@ int SparseIdsList::addRangeItemsAndCountNew(
 		const Range &messages,
 		MsgRange noSkipRange) {
 	Expects(noSkipRange.from <= noSkipRange.till);
-	if (messages.begin() == messages.end()) {
-		return 0;
-	}
 
 	auto uniteFrom = ranges::lower_bound(
 		_slices,

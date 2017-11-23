@@ -30,35 +30,40 @@ public:
 	UserPhotosSlice(Key key);
 	UserPhotosSlice(
 		Key key,
-		const std::deque<PhotoId> &ids,
+		std::deque<PhotoId> &&ids,
 		base::optional<int> fullCount,
 		base::optional<int> skippedBefore,
-		int skippedAfter);
+		base::optional<int> skippedAfter);
+
+	void reverse();
 
 	const Key &key() const { return _key; }
 
 	base::optional<int> fullCount() const { return _fullCount; }
 	base::optional<int> skippedBefore() const { return _skippedBefore; }
-	int skippedAfter() const { return _skippedAfter; }
+	base::optional<int> skippedAfter() const { return _skippedAfter; }
 	base::optional<int> indexOf(PhotoId msgId) const;
 	int size() const { return _ids.size(); }
 	PhotoId operator[](int index) const;
 	base::optional<int> distance(const Key &a, const Key &b) const;
-
-	QString debug() const;
 
 private:
 	Key _key;
 	std::deque<PhotoId> _ids;
 	base::optional<int> _fullCount;
 	base::optional<int> _skippedBefore;
-	int _skippedAfter = 0;
+	base::optional<int> _skippedAfter;
 
 	friend class UserPhotosSliceBuilder;
 
 };
 
 rpl::producer<UserPhotosSlice> UserPhotosViewer(
+	UserPhotosSlice::Key key,
+	int limitBefore,
+	int limitAfter);
+
+rpl::producer<UserPhotosSlice> UserPhotosReversedViewer(
 	UserPhotosSlice::Key key,
 	int limitBefore,
 	int limitAfter);

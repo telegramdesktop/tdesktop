@@ -66,20 +66,25 @@ UserPhotosSlice::UserPhotosSlice(Key key)
 	{},
 	base::none,
 	base::none,
-	0) {
+	base::none) {
 }
 
 UserPhotosSlice::UserPhotosSlice(
 	Key key,
-	const std::deque<PhotoId> &ids,
+	std::deque<PhotoId> &&ids,
 	base::optional<int> fullCount,
 	base::optional<int> skippedBefore,
-	int skippedAfter)
+	base::optional<int> skippedAfter)
 : _key(key)
-, _ids(ids)
+, _ids(std::move(ids))
 , _fullCount(fullCount)
 , _skippedBefore(skippedBefore)
 , _skippedAfter(skippedAfter) {
+}
+
+void UserPhotosSlice::reverse() {
+	ranges::reverse(_ids);
+	std::swap(_skippedBefore, _skippedAfter);
 }
 
 base::optional<int> UserPhotosSlice::indexOf(PhotoId photoId) const {
@@ -109,30 +114,13 @@ base::optional<int> UserPhotosSlice::distance(const Key &a, const Key &b) const 
 	return base::none;
 }
 
-QString UserPhotosSlice::debug() const {
-	auto before = _skippedBefore
-		? (*_skippedBefore
-			? ('(' + QString::number(*_skippedBefore) + ").. ")
-			: QString())
-		: QString(".. ");
-	auto after = _skippedAfter
-		? (" ..(" + QString::number(_skippedAfter) + ')')
-		: QString(" ..");
-	auto middle = (size() > 2)
-		? QString::number((*this)[0]) + " .. " + QString::number((*this)[size() - 1])
-		: (size() > 1)
-		? QString::number((*this)[0]) + ' ' + QString::number((*this)[1])
-		: ((size() > 0) ? QString::number((*this)[0]) : QString());
-	return before + middle + after;
-}
-
 UserPhotosSliceBuilder::UserPhotosSliceBuilder(
 	Key key,
 	int limitBefore,
 	int limitAfter)
-	: _key(key)
-	, _limitBefore(limitBefore)
-	, _limitAfter(limitAfter) {
+: _key(key)
+, _limitBefore(limitBefore)
+, _limitAfter(limitAfter) {
 }
 
 bool UserPhotosSliceBuilder::applyUpdate(const Storage::UserPhotosResult &update) {
@@ -209,7 +197,12 @@ void UserPhotosSliceBuilder::sliceToLimits() {
 }
 
 UserPhotosSlice UserPhotosSliceBuilder::snapshot() const {
-	return UserPhotosSlice(_key, _ids, _fullCount, _skippedBefore, _skippedAfter);
+	return UserPhotosSlice(
+		_key,
+		base::duplicate(_ids),
+		_fullCount,
+		_skippedBefore,
+		_skippedAfter);
 }
 
 rpl::producer<UserPhotosSlice> UserPhotosViewer(
@@ -248,4 +241,16 @@ rpl::producer<UserPhotosSlice> UserPhotosViewer(
 
 		return lifetime;
 	};
+}
+
+
+rpl::producer<UserPhotosSlice> UserPhotosReversedViewer(
+		UserPhotosSlice::Key key,
+		int limitBefore,
+		int limitAfter) {
+	return UserPhotosViewer(key, limitBefore, limitAfter)
+		| rpl::map([](UserPhotosSlice &&slice) {
+			slice.reverse();
+			return std::move(slice);
+		});
 }

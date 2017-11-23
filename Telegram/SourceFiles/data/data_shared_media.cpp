@@ -207,11 +207,15 @@ base::optional<int> SharedMediaWithLastSlice::fullCount() const {
 		_isolatedLastPhoto | [](bool isolated) { return isolated ? 1 : 0; });
 }
 
-base::optional<int> SharedMediaWithLastSlice::skippedBefore() const {
+base::optional<int> SharedMediaWithLastSlice::skippedBeforeImpl() const {
 	return _slice.skippedBefore();
 }
 
-base::optional<int> SharedMediaWithLastSlice::skippedAfter() const {
+base::optional<int> SharedMediaWithLastSlice::skippedBefore() const {
+	return _reversed ? skippedAfterImpl() : skippedBeforeImpl();
+}
+
+base::optional<int> SharedMediaWithLastSlice::skippedAfterImpl() const {
 	return isolatedInSlice()
 		? Add(
 			_slice.skippedAfter(),
@@ -219,13 +223,24 @@ base::optional<int> SharedMediaWithLastSlice::skippedAfter() const {
 		: (lastPhotoSkip() | [](int) { return 0; });
 }
 
-base::optional<int> SharedMediaWithLastSlice::indexOf(Value value) const {
+base::optional<int> SharedMediaWithLastSlice::skippedAfter() const {
+	return _reversed ? skippedBeforeImpl() : skippedAfterImpl();
+}
+
+base::optional<int> SharedMediaWithLastSlice::indexOfImpl(Value value) const {
 	return base::get_if<FullMsgId>(&value)
 		? _slice.indexOf(*base::get_if<FullMsgId>(&value))
 		: (isolatedInSlice()
 			|| (*base::get_if<not_null<PhotoData*>>(&value))->id != _lastPhotoId)
 			? base::none
 			: Add(_slice.size() - 1, lastPhotoSkip());
+}
+
+base::optional<int> SharedMediaWithLastSlice::indexOf(Value value) const {
+	auto result = indexOfImpl(value);
+	return _reversed
+		? (result | func::negate | func::add(size() - 1))
+		: result;
 }
 
 int SharedMediaWithLastSlice::size() const {
@@ -236,6 +251,9 @@ int SharedMediaWithLastSlice::size() const {
 SharedMediaWithLastSlice::Value SharedMediaWithLastSlice::operator[](int index) const {
 	Expects(index >= 0 && index < size());
 
+	if (_reversed) {
+		index = size() - index - 1;
+	}
 	return (index < _slice.size())
 		? Value(_slice[index])
 		: Value(App::photo(_lastPhotoId));
@@ -250,6 +268,10 @@ base::optional<int> SharedMediaWithLastSlice::distance(
 		}
 	}
 	return base::none;
+}
+
+void SharedMediaWithLastSlice::reverse() {
+	_reversed = !_reversed;
 }
 
 PhotoId SharedMediaWithLastSlice::LastPeerPhotoId(PeerId peerId) {
@@ -331,4 +353,15 @@ rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastViewer(
 				std::move(ending)));
 		});
 	};
+}
+
+rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastReversedViewer(
+		SharedMediaWithLastSlice::Key key,
+		int limitBefore,
+		int limitAfter) {
+	return SharedMediaWithLastViewer(key, limitBefore, limitAfter)
+		| rpl::map([](SharedMediaWithLastSlice &&slice) {
+			slice.reverse();
+			return std::move(slice);
+		});
 }

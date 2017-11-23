@@ -1071,7 +1071,10 @@ bool MediaView::validSharedMedia() const {
 void MediaView::validateSharedMedia() {
 	if (auto key = sharedMediaKey()) {
 		_sharedMedia = std::make_unique<SharedMedia>(*key);
-		SharedMediaWithLastViewer(
+		auto viewer = (key->type == SharedMediaType::ChatPhoto)
+			? SharedMediaWithLastReversedViewer
+			: SharedMediaWithLastViewer;
+		viewer(
 			*key,
 			kIdsLimit,
 			kIdsLimit
@@ -1134,7 +1137,7 @@ bool MediaView::validUserPhotos() const {
 void MediaView::validateUserPhotos() {
 	if (auto key = userPhotosKey()) {
 		_userPhotos = std::make_unique<UserPhotos>(*key);
-		UserPhotosViewer(
+		UserPhotosReversedViewer(
 			*key,
 			kIdsLimit,
 			kIdsLimit
@@ -2811,6 +2814,7 @@ void MediaView::updateImage() {
 }
 
 void MediaView::findCurrent() {
+	using namespace rpl::mappers;
 	if (_sharedMediaData) {
 		_index = _msgid
 			? _sharedMediaData->indexOf(_msgid)

@@ -22,27 +22,27 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace qthelp {
 
-QMap<QString, QString> url_parse_params(const QString &params, UrlParamNameTransform transform) {
-	QMap<QString, QString> result;
+QMap<QString, QString> url_parse_params(
+		const QString &params,
+		UrlParamNameTransform transform) {
+	auto result = QMap<QString, QString>();
 
-	auto transformParamName = [transform](const QString &name) {
+	const auto transformParamName = [transform](const QString &name) {
 		if (transform == UrlParamNameTransform::ToLower) {
 			return name.toLower();
 		}
 		return name;
 	};
-
-	auto paramsList = params.split('&');
-	for_const (auto &param, paramsList) {
+	for (const auto &param : params.split('&')) {
 		// Skip params without a name (starting with '=').
 		if (auto separatorPosition = param.indexOf('=')) {
-			auto paramName = param;
-			auto paramValue = QString();
-			if (separatorPosition > 0) {
-				paramName = param.mid(0, separatorPosition);
-				paramValue = url_decode(param.mid(separatorPosition + 1));
-			}
-			paramName = transformParamName(paramName);
+			const auto paramName = transformParamName(
+				(separatorPosition > 0)
+					? param.mid(0, separatorPosition)
+					: param);
+			const auto paramValue = (separatorPosition > 0)
+				? url_decode(param.mid(separatorPosition + 1))
+				: QString();
 			if (!result.contains(paramName)) {
 				result.insert(paramName, paramValue);
 			}
