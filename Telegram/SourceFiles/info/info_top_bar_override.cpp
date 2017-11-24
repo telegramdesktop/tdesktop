@@ -25,10 +25,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang/lang_keys.h"
 #include "info/info_wrap_widget.h"
 #include "storage/storage_shared_media.h"
+#include "ui/effects/numbers_animation.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/labels.h"
-#include "ui/wrap/fade_wrap.h"
 #include "ui/widgets/shadow.h"
+#include "ui/wrap/fade_wrap.h"
 #include "mainwidget.h"
 #include "boxes/confirm_box.h"
 #include "boxes/peer_list_controllers.h"
@@ -44,7 +44,7 @@ TopBarOverride::TopBarOverride(
 , _items(std::move(items))
 , _canDelete(computeCanDelete())
 , _cancel(this, _st.mediaCancel)
-, _text(this, generateText(), Ui::FlatLabel::InitType::Simple, _st.title)
+, _text(this, _st.title, _st.titlePosition.y(), generateText())
 , _forward(this, _st.mediaForward)
 , _delete(this, _st.mediaDelete) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -55,17 +55,18 @@ TopBarOverride::TopBarOverride(
 	_delete->addClickHandler([this] { performDelete(); });
 }
 
-QString TopBarOverride::generateText() const {
+Ui::StringWithNumbers TopBarOverride::generateText() const {
+	using Data = Ui::StringWithNumbers;
 	using Type = Storage::SharedMediaType;
 	auto phrase = [&] {
 		switch (_items.type) {
-		case Type::Photo: return lng_media_selected_photo;
-		case Type::Video: return lng_media_selected_video;
-		case Type::File: return lng_media_selected_file;
-		case Type::MusicFile: return lng_media_selected_song;
-		case Type::Link: return lng_media_selected_link;
-		case Type::VoiceFile: return lng_media_selected_audio;
-//		case Type::RoundFile: return lng_media_selected_round;
+		case Type::Photo: return lng_media_selected_photo__generic<Data>;
+		case Type::Video: return lng_media_selected_video__generic<Data>;
+		case Type::File: return lng_media_selected_file__generic<Data>;
+		case Type::MusicFile: return lng_media_selected_song__generic<Data>;
+		case Type::Link: return lng_media_selected_link__generic<Data>;
+		case Type::VoiceFile: return lng_media_selected_audio__generic<Data>;
+//		case Type::RoundFile: return lng_media_selected_round__generic<Data>;
 		}
 		Unexpected("Type in TopBarOverride::generateText()");
 	}();
@@ -82,7 +83,7 @@ void TopBarOverride::setItems(SelectedItems &&items) {
 	_items = std::move(items);
 	_canDelete = computeCanDelete();
 
-	_text->setText(generateText());
+	_text->setValue(generateText());
 	updateControlsVisibility();
 	updateControlsGeometry(width());
 }
@@ -110,8 +111,14 @@ void TopBarOverride::updateControlsGeometry(int newWidth) {
 		right += _delete->width();
 	}
 	_forward->moveToRight(right, 0, newWidth);
-	_cancel->moveToLeft(0, 0);
-	_text->moveToLeft(_cancel->width(), _st.titlePosition.y());
+	right += _forward->width();
+
+	auto left = 0;
+	_cancel->moveToLeft(left, 0);
+	left += _cancel->width();
+
+	const auto availableWidth = newWidth - left - right;
+	_text->setGeometryToLeft(left, 0, availableWidth, _st.height, newWidth);
 }
 
 void TopBarOverride::updateControlsVisibility() {

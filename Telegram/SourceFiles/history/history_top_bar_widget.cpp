@@ -534,7 +534,12 @@ void HistoryTopBarWidget::showSelected(SelectedState state) {
 		setCursor(hasSelected ? style::cur_default : style::cur_pointer);
 
 		updateMembersShowArea();
-		_selectedShown.start([this] { selectedShowCallback(); }, hasSelected ? 0. : 1., hasSelected ? 1. : 0., st::topBarSlideDuration, anim::easeOutCirc);
+		_selectedShown.start(
+			[this] { selectedShowCallback(); },
+			hasSelected ? 0. : 1.,
+			hasSelected ? 1. : 0.,
+			st::slideWrapDuration,
+			anim::easeOutCirc);
 	} else {
 		updateControlsGeometry();
 	}

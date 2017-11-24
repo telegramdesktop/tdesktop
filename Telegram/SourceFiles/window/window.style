@@ -304,7 +304,6 @@ topBarInfoButton: UserpicButton(defaultUserpicButton) {
 	photoSize: 42px;
 	photoPosition: point(2px, -1px);
 }
-topBarSlideDuration: 200;
 
 themeEditorSampleSize: size(90px, 51px);
 themeEditorMargin: margins(17px, 10px, 17px, 10px);

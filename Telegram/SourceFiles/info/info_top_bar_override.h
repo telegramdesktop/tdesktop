@@ -30,7 +30,8 @@ struct InfoTopBar;
 
 namespace Ui {
 class IconButton;
-class FlatLabel;
+class LabelWithNumbers;
+struct StringWithNumbers;
 } // namespace Ui
 
 namespace Info {
@@ -54,7 +55,7 @@ protected:
 private:
 	void updateControlsVisibility();
 	void updateControlsGeometry(int newWidth);
-	QString generateText() const;
+	Ui::StringWithNumbers generateText() const;
 	[[nodiscard]] bool computeCanDelete() const;
 	[[nodiscard]] SelectedItemSet collectItems() const;
 
@@ -65,7 +66,7 @@ private:
 	SelectedItems _items;
 	bool _canDelete = false;
 	object_ptr<Ui::IconButton> _cancel;
-	object_ptr<Ui::FlatLabel> _text;
+	object_ptr<Ui::LabelWithNumbers> _text;
 	object_ptr<Ui::IconButton> _forward;
 	object_ptr<Ui::IconButton> _delete;
 	rpl::event_stream<> _correctionCancelRequests;

@@ -77,7 +77,6 @@ RoundButton {
 	numbersTextFg: color;
 	numbersTextFgOver: color;
 	numbersSkip: pixels;
-	numbersDuration: int;
 
 	width: pixels;
 	height: pixels;
@@ -564,7 +563,6 @@ defaultActiveButton: RoundButton {
 	textBgOver: activeButtonBgOver;
 
 	numbersSkip: 7px;
-	numbersDuration: 200;
 
 	width: -34px;
 	height: 34px;

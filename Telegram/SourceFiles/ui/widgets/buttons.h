@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Ui {
 
 class RippleAnimation;
+class NumbersAnimation;
 
 class LinkButton : public AbstractButton {
 public:
@@ -152,8 +153,7 @@ private:
 	base::lambda<QString()> _textFactory;
 	int _textWidth;
 
-	class Numbers;
-	std::unique_ptr<Numbers> _numbers;
+	std::unique_ptr<NumbersAnimation> _numbers;
 
 	int _fullWidthOverride = 0;
 

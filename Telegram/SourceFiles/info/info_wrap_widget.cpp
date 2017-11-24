@@ -46,7 +46,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
-#include "styles/style_window.h"
 
 namespace Info {
 namespace {
@@ -449,7 +448,7 @@ void WrapWidget::toggleTopBarOverride(bool shown) {
 		[this] { topBarOverrideStep(); },
 		_topBarOverrideShown ? 0. : 1.,
 		_topBarOverrideShown ? 1. : 0.,
-		st::topBarSlideDuration,
+		st::slideWrapDuration,
 		anim::easeOutCirc);
 }
 
