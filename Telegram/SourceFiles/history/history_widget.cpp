@@ -2318,9 +2318,27 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 	} break;
 	}
 
+	const auto ExtractFirstId = [&] {
+		return histList->empty() ? -1 : idFromMessage(histList->front());
+	};
+	const auto ExtractLastId = [&] {
+		return histList->empty() ? -1 : idFromMessage(histList->back());
+	};
+
 	if (_preloadRequest == requestId) {
 		auto to = toMigrated ? _migrated : _history;
-		SignalHandlers::setCrashAnnotation("old_minmaxbefore_minmaxnow", QString("%1;%2;%3;%4").arg(_debug_preloadMin).arg(_debug_preloadMax).arg(to->minMsgId()).arg(to->maxMsgId()));
+		SignalHandlers::setCrashAnnotation("old_minmaxbefore_minmaxnow", QString(
+			"%1=%6;%2=%7;%3;%4;%5;(%8:%9)"
+		).arg(_debug_preloadMin
+		).arg(_debug_preloadMax
+		).arg(_debug_preloadOffsetId
+		).arg(_debug_preloadAddOffset
+		).arg(_debug_preloadLoadCount
+		).arg(to->minMsgId()
+		).arg(to->maxMsgId()
+		).arg(ExtractFirstId()
+		).arg(ExtractLastId()
+		));
 
 		addMessagesToFront(peer, *histList);
 
@@ -2334,7 +2352,18 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		}
 	} else if (_preloadDownRequest == requestId) {
 		auto to = toMigrated ? _migrated : _history;
-		SignalHandlers::setCrashAnnotation("new_minmaxbefore_minmaxnow", QString("%1;%2;%3;%4").arg(_debug_preloadDownMin).arg(_debug_preloadDownMax).arg(to->minMsgId()).arg(to->maxMsgId()));
+		SignalHandlers::setCrashAnnotation("new_minmaxbefore_minmaxnow", QString(
+			"%1=%6;%2=%7;%3;%4;%5;(%8:%9)"
+		).arg(_debug_preloadDownMin
+		).arg(_debug_preloadDownMax
+		).arg(_debug_preloadDownOffsetId
+		).arg(_debug_preloadDownAddOffset
+		).arg(_debug_preloadDownLoadCount
+		).arg(to->minMsgId()
+		).arg(to->maxMsgId()
+		).arg(ExtractFirstId()
+		).arg(ExtractLastId()
+		));
 
 		addMessagesToBack(peer, *histList);
 
@@ -2522,7 +2551,7 @@ void HistoryWidget::loadMessages() {
 	}
 
 	auto offsetId = from->minMsgId();
-	auto offset = 0;
+	auto addOffset = 0;
 	auto loadCount = offsetId
 		? kMessagesPerPage
 		: kMessagesPerPageFirst;
@@ -2533,12 +2562,15 @@ void HistoryWidget::loadMessages() {
 
 	_debug_preloadMin = from->minMsgId();
 	_debug_preloadMax = from->maxMsgId();
+	_debug_preloadOffsetId = offsetId + 1;
+	_debug_preloadAddOffset = addOffset;
+	_debug_preloadLoadCount = loadCount;
 	_preloadRequest = MTP::send(
 		MTPmessages_GetHistory(
 			from->peer->input,
 			MTP_int(offsetId),
 			MTP_int(offsetDate),
-			MTP_int(offset),
+			MTP_int(addOffset),
 			MTP_int(loadCount),
 			MTP_int(maxId),
 			MTP_int(minId),
@@ -2561,12 +2593,12 @@ void HistoryWidget::loadMessagesDown() {
 	}
 
 	auto loadCount = kMessagesPerPage;
-	auto offset = -loadCount;
+	auto addOffset = -loadCount;
 	auto offsetId = from->maxMsgId();
 	if (!offsetId) {
 		if (loadMigrated || !_migrated) return;
 		++offsetId;
-		++offset;
+		++addOffset;
 	}
 	auto offsetDate = 0;
 	auto maxId = 0;
@@ -2575,12 +2607,15 @@ void HistoryWidget::loadMessagesDown() {
 
 	_debug_preloadDownMin = from->minMsgId();
 	_debug_preloadDownMax = from->maxMsgId();
+	_debug_preloadDownOffsetId = offsetId + 1;
+	_debug_preloadDownAddOffset = addOffset;
+	_debug_preloadDownLoadCount = loadCount;
 	_preloadDownRequest = MTP::send(
 		MTPmessages_GetHistory(
 			from->peer->input,
 			MTP_int(offsetId + 1),
 			MTP_int(offsetDate),
-			MTP_int(offset),
+			MTP_int(addOffset),
 			MTP_int(loadCount),
 			MTP_int(maxId),
 			MTP_int(minId),

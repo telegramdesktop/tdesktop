@@ -727,8 +727,14 @@ private:
 
 	MsgId _debug_preloadMin = 0;
 	MsgId _debug_preloadMax = 0;
+	MsgId _debug_preloadOffsetId = 0;
+	int32 _debug_preloadAddOffset = 0;
+	int32 _debug_preloadLoadCount = 0;
 	MsgId _debug_preloadDownMin = 0;
 	MsgId _debug_preloadDownMax = 0;
+	MsgId _debug_preloadDownOffsetId = 0;
+	int32 _debug_preloadDownAddOffset = 0;
+	int32 _debug_preloadDownLoadCount = 0;
 
 	MsgId _delayedShowAtMsgId = -1; // wtf?
 	mtpRequestId _delayedShowAtRequest = 0;

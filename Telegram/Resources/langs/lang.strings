@@ -217,6 +217,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_signin_reset_in_days" = "{days_count} {hours_count} {minutes_count}";
 "lng_signin_reset_in_hours" = "{hours_count} {minutes_count}";
 "lng_signin_reset_cancelled" = "Your recent attempts to reset this account have been cancelled by its active user. Please try again in 7 days.";
+"lng_signin_banned_text" = "This phone number is banned.";
+"lng_signin_banned_help" = "Help";
 
 "lng_signup_title" = "Your Info";
 "lng_signup_desc" = "Please enter your name and\nupload a photo.";

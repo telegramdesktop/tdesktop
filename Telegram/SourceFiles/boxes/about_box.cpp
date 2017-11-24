@@ -39,7 +39,6 @@ AboutBox::AboutBox(QWidget *parent)
 }
 
 void AboutBox::prepare() {
-	constexpr auto test = std::is_convertible<const char*, QString>::value;
 	setTitle([] { return qsl("Telegram Desktop"); });
 
 	addButton(langFactory(lng_close), [this] { closeBox(); });
