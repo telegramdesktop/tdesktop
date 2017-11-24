@@ -243,7 +243,8 @@ Cover::Cover(
 	this,
 	_peer->isMegagroup()
 		? st::infoProfileMegagroupStatusLabel
-		: st::infoProfileStatusLabel) {
+		: st::infoProfileStatusLabel)
+, _refreshStatusTimer([this] { refreshStatusText(); }) {
 	_peer->updateFull();
 
 	_name->setSelectable(true);
@@ -351,8 +352,13 @@ void Cover::refreshStatusText() {
 	auto statusText = [&] {
 		auto currentTime = unixtime();
 		if (auto user = _peer->asUser()) {
-			auto result = App::onlineText(user, currentTime, true);
-			return App::onlineColorUse(user, currentTime)
+			const auto result = App::onlineText(user, currentTime, true);
+			const auto showOnline = App::onlineColorUse(user, currentTime);
+			const auto updateIn = App::onlineWillChangeIn(user, currentTime);
+			if (showOnline) {
+				_refreshStatusTimer.callOnce(updateIn * 1000LL);
+			}
+			return showOnline
 				? textcmdLink(1, result)
 				: result;
 		} else if (auto chat = _peer->asChat()) {
