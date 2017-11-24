@@ -394,6 +394,9 @@ void GroupInfoBox::createGroup(not_null<PeerListBox*> selectUsersBox, const QStr
 			inputs.push_back(user->inputUser);
 		}
 	}
+	if (inputs.empty()) {
+		return;
+	}
 	_creationRequestId = request(MTPmessages_CreateChat(MTP_vector<MTPInputUser>(inputs), MTP_string(title))).done([this](const MTPUpdates &result) {
 		Ui::hideLayer();
 
@@ -439,6 +442,9 @@ void GroupInfoBox::createGroup(not_null<PeerListBox*> selectUsersBox, const QStr
 				_title->showError();
 			}
 		} else if (error.type() == qstr("USERS_TOO_FEW")) {
+			Ui::show(
+				Box<InformBox>(lang(lng_cant_invite_privacy)),
+				LayerOption::KeepOther);
 		} else if (error.type() == qstr("PEER_FLOOD")) {
 			Ui::show(
 				Box<InformBox>(
