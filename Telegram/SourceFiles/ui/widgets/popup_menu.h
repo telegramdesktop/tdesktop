@@ -23,7 +23,7 @@
 
 namespace Ui {
 
-class PopupMenu : public TWidget {
+class PopupMenu : public TWidget, private base::Subscriber {
 public:
 	PopupMenu(QWidget*, const style::PopupMenu &st = st::defaultPopupMenu);
 	PopupMenu(QWidget*, QMenu *menu, const style::PopupMenu &st = st::defaultPopupMenu);

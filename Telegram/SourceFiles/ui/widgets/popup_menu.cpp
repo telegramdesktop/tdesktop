@@ -21,6 +21,7 @@
 #include "platform/platform_specific.h"
 #include "application.h"
 #include "mainwindow.h"
+#include "messenger.h"
 #include "lang/lang_keys.h"
 
 namespace Ui {
@@ -45,6 +46,12 @@ PopupMenu::PopupMenu(QWidget*, QMenu *menu, const style::PopupMenu &st) : TWidge
 }
 
 void PopupMenu::init() {
+	subscribe(Messenger::Instance().passcodedChanged(), [this] {
+		if (App::passcoded()) {
+			hideMenu(true);
+		}
+	});
+
 	_menu->setResizedCallback([this] { handleMenuResize(); });
 	_menu->setActivatedCallback([this](QAction *action, int actionTop, TriggeredSource source) {
 		handleActivated(action, actionTop, source);
