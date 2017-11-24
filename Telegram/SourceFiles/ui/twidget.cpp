@@ -138,7 +138,7 @@ void CreateWidgetStateRecursive(not_null<QWidget*> target) {
 	}
 }
 
-void SendPendingEventsRecursive(QWidget *target) {
+void SendPendingEventsRecursive(QWidget *target, bool parentHiddenFlag) {
 	auto wasVisible = target->isVisible();
 	if (!wasVisible) {
 		target->setAttribute(Qt::WA_WState_Visible, true);
@@ -153,6 +153,12 @@ void SendPendingEventsRecursive(QWidget *target) {
 		QResizeEvent e(target->size(), QSize());
 		QApplication::sendEvent(target, &e);
 	}
+
+	auto removeVisibleFlag = [&] {
+		return parentHiddenFlag
+			|| target->testAttribute(Qt::WA_WState_Hidden);
+	};
+
 	auto &children = target->children();
 	for (auto i = 0; i < children.size(); ++i) {
 		auto child = children[i];
@@ -162,11 +168,12 @@ void SendPendingEventsRecursive(QWidget *target) {
 				if (!widget->testAttribute(Qt::WA_WState_Created)) {
 					WidgetCreator::Create(widget);
 				}
-				SendPendingEventsRecursive(widget);
+				SendPendingEventsRecursive(widget, removeVisibleFlag());
 			}
 		}
 	}
-	if (!wasVisible) {
+
+	if (removeVisibleFlag()) {
 		target->setAttribute(Qt::WA_WState_Visible, false);
 	}
 }
@@ -178,7 +185,7 @@ void myEnsureResized(QWidget *target) {
 		return;
 	}
 	CreateWidgetStateRecursive(target);
-	SendPendingEventsRecursive(target);
+	SendPendingEventsRecursive(target, !target->isVisible());
 }
 
 QPixmap myGrab(TWidget *target, QRect rect, QColor bg) {
