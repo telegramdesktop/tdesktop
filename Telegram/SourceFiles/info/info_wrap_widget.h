@@ -193,7 +193,8 @@ private:
 	void refreshTopBarOverride();
 	void refreshTopBarOverride(SelectedItems &&items);
 	void createTopBarOverride(SelectedItems &&items);
-	void destroyTopBarOverride();
+	void toggleTopBarOverride(bool shown);
+	void topBarOverrideStep();
 	bool requireTopBarSearch() const;
 
 	void addProfileMenuButton();
@@ -210,6 +211,7 @@ private:
 	object_ptr<Ui::RpWidget> _topBarSurrogate = { nullptr };
 	object_ptr<TopBarOverride> _topBarOverride = { nullptr };
 	Animation _topBarOverrideAnimation;
+	bool _topBarOverrideShown = false;
 	object_ptr<Ui::FadeShadow> _topShadow;
 	base::unique_qptr<Ui::IconButton> _topBarMenuToggle;
 	base::unique_qptr<Ui::DropdownMenu> _topBarMenu;

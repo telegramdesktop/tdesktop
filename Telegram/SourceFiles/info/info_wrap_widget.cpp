@@ -46,6 +46,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
+#include "styles/style_window.h"
 
 namespace Info {
 namespace {
@@ -329,7 +330,7 @@ void WrapWidget::createTopBar() {
 //		addProfileNotificationsButton();
 	}
 
-	_topBar->move(0, 0);
+	_topBar->lower();
 	_topBar->resizeToWidth(width());
 	_topBar->show();
 }
@@ -419,46 +420,58 @@ void WrapWidget::showProfileMenu() {
 }
 
 void WrapWidget::refreshTopBarOverride(SelectedItems &&items) {
-	if (items.list.empty()) {
-		destroyTopBarOverride();
-	} else if (_topBarOverride) {
-		_topBarOverride->setItems(std::move(items));
-	} else {
-		createTopBarOverride(std::move(items));
+	auto empty = items.list.empty();
+	if (!empty) {
+		if (_topBarOverride) {
+			_topBarOverride->setItems(std::move(items));
+		} else {
+			createTopBarOverride(std::move(items));
+		}
 	}
+	toggleTopBarOverride(!empty);
 }
 
 void WrapWidget::refreshTopBarOverride() {
 	if (_topBarOverride) {
 		auto items = _topBarOverride->takeItems();
-		destroyTopBarOverride();
 		createTopBarOverride(std::move(items));
+		topBarOverrideStep();
 	}
 }
 
-void WrapWidget::destroyTopBarOverride() {
-	if (!_topBarOverride) {
+void WrapWidget::toggleTopBarOverride(bool shown) {
+	if (_topBarOverrideShown == shown) {
 		return;
 	}
-	auto widget = std::exchange(_topBarOverride, nullptr);
-	auto handle = weak(widget.data());
-	_topBarOverrideAnimation.start([this, handle] {
-	}, 1., 0., st::slideWrapDuration);
-	widget.destroy();
+	_topBarOverrideShown = shown;
+	_topBar->show();
+	_topBarOverrideAnimation.start(
+		[this] { topBarOverrideStep(); },
+		_topBarOverrideShown ? 0. : 1.,
+		_topBarOverrideShown ? 1. : 0.,
+		st::topBarSlideDuration,
+		anim::easeOutCirc);
+}
 
-	// This was done for tabs support.
-	//
-	//if (_topTabs) {
-	//	_topTabs->show();
-	//}
-
-	if (_topBar) {
-		_topBar->show();
+void WrapWidget::topBarOverrideStep() {
+	auto shown = _topBarOverrideAnimation.current(
+		_topBarOverrideShown ? 1. : 0.);
+	auto topBarTop = anim::interpolate(0, _topBar->height(), shown);
+	auto overrideTop = anim::interpolate(-_topBar->height(), 0, shown);
+	_topBar->moveToLeft(0, topBarTop);
+	if (_topBarOverride) {
+		_topBarOverride->moveToLeft(0, overrideTop);
+	}
+	if (!_topBarOverrideAnimation.animating()) {
+		if (_topBarOverrideShown) {
+			_topBar->hide();
+		} else {
+			_topBarOverride = nullptr;
+		}
 	}
 }
 
 void WrapWidget::createTopBarOverride(SelectedItems &&items) {
-	Expects(_topBarOverride == nullptr);
 	_topBarOverride.create(
 		this,
 		TopBarStyle(wrap()),
@@ -477,7 +490,6 @@ void WrapWidget::createTopBarOverride(SelectedItems &&items) {
 		| rpl::start_with_next([this](auto) {
 			_content->cancelSelection();
 		}, _topBarOverride->lifetime());
-	_topBarOverride->moveToLeft(0, 0);
 	_topBarOverride->resizeToWidth(width());
 	_topBarOverride->show();
 }
@@ -821,6 +833,10 @@ void WrapWidget::showNewContent(
 		showNewContent(memento);
 	}
 	if (animationParams) {
+		refreshTopBarOverride(SelectedItems(Section::MediaType::kCount));
+		_topBarOverrideAnimation.finish();
+		topBarOverrideStep();
+
 		showAnimated(
 			saveToStack
 				? SlideDirection::FromRight
