@@ -1074,9 +1074,9 @@ bool ChannelData::canEditLastAdmin(not_null<UserData*> user) const {
 	if (mgInfo) {
 		auto i = mgInfo->lastAdmins.constFind(user);
 		if (i != mgInfo->lastAdmins.cend()) {
-			return !i->canEdit;
+			return i->canEdit;
 		}
-		return (user == mgInfo->creator);
+		return (user != mgInfo->creator);
 	}
 	return false;
 }
