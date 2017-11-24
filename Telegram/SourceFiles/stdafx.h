@@ -63,7 +63,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <map>
 #include <algorithm>
 #include <memory>
+
 #include <range/v3/all.hpp>
+#ifdef Q_OS_WIN
+#include "platform/win/windows_range_v3_helpers.h"
+#endif // Q_OS_WIN
 
 // Ensures/Expects.
 #include <gsl/gsl_assert>

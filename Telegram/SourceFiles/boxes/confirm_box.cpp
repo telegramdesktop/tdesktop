@@ -456,7 +456,7 @@ DeleteMessagesBox::DeleteMessagesBox(
 
 std::vector<FullMsgId> DeleteMessagesBox::CollectFrom(
 		const SelectedItemSet &items) {
-	return ranges::make_range(
+	return ranges::make_iterator_range(
 		items.begin(),
 		items.end()
 	) | ranges::view::transform([](not_null<HistoryItem*> item) {
