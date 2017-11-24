@@ -29,9 +29,39 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/wrap/fade_wrap.h"
 #include "core/click_handler_types.h"
 #include "boxes/confirm_box.h"
+#include "base/qthelp_url.h"
+#include "platform/platform_specific.h"
 #include "messenger.h"
 
 namespace Intro {
+namespace {
+
+void SendToBannedHelp(const QString &phone) {
+	const auto version = QString::fromLatin1(AppVersionStr.c_str())
+		+ (cAlphaVersion() ? " alpha" : "")
+		+ (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString());
+
+	const auto subject = qsl("Banned phone number: ") + phone;
+
+	const auto body = qsl("\
+I'm trying to use my mobile phone number: ") + phone + qsl("\n\
+But Telegram says it's banned. Please help.\n\
+\n\
+App version: ") + version + qsl("\n\
+OS version: ") + cPlatformString() + qsl("\n\
+Locale: ") + Platform::SystemLanguage();
+
+	const auto url = "mailto:?to="
+		+ qthelp::url_encode("login@stel.com")
+		+ "&subject="
+		+ qthelp::url_encode(subject)
+		+ "&body="
+		+ qthelp::url_encode(body);
+
+	UrlClickHandler::doOpen(url);
+}
+
+} // namespace
 
 PhoneWidget::PhoneWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
 , _country(this, st::introCountry)
@@ -216,6 +246,15 @@ bool PhoneWidget::phoneSubmitFail(const RPCError &error) {
 		return true;
 	} else if (err == qstr("PHONE_NUMBER_INVALID")) { // show error
 		showPhoneError(langFactory(lng_bad_phone));
+		return true;
+	} else if (err == qstr("PHONE_NUMBER_BANNED")) {
+		const auto phone = _sentPhone;
+		Ui::show(Box<ConfirmBox>(
+			lang(lng_signin_banned_text),
+			lang(lng_box_ok),
+			lang(lng_signin_banned_help),
+			[] { Ui::hideLayer(); },
+			[phone] { SendToBannedHelp(phone); Ui::hideLayer(); }));
 		return true;
 	}
 	if (cDebug()) { // internal server error
