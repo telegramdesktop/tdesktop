@@ -21,6 +21,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/wrap/fade_wrap.h"
+#include "ui/effects/numbers_animation.h"
+#include "info/info_wrap_widget.h"
 
 namespace style {
 struct InfoTopBar;
@@ -31,6 +34,7 @@ class IconButton;
 class FlatLabel;
 class InputField;
 class SearchFieldController;
+class LabelWithNumbers;
 } // namespace Ui
 
 namespace Info {
@@ -43,14 +47,17 @@ rpl::producer<QString> TitleValue(
 
 class TopBar : public Ui::RpWidget {
 public:
-	TopBar(QWidget *parent, const style::InfoTopBar &st);
+	TopBar(
+		QWidget *parent,
+		const style::InfoTopBar &st,
+		SelectedItems &&items);
 
 	auto backRequest() const {
 		return _backClicks.events();
 	}
 
 	void setTitle(rpl::producer<QString> &&title);
-	void enableBackButton(bool enable);
+	void enableBackButton();
 	void highlight();
 
 	template <typename ButtonWidget>
@@ -64,15 +71,36 @@ public:
 		not_null<Ui::SearchFieldController*> controller,
 		rpl::producer<bool> &&shown);
 
+	void setSelectedItems(SelectedItems &&items);
+	SelectedItems takeSelectedItems();
+
+	rpl::producer<> cancelSelectionRequests() const;
+	void finishSelectionAnimations();
+
 protected:
 	int resizeGetHeight(int newWidth) override;
 	void paintEvent(QPaintEvent *e) override;
 
 private:
 	void updateControlsGeometry(int newWidth);
+	void updateDefaultControlsGeometry(int newWidth);
+	void updateSelectionControlsGeometry(int newWidth);
 	void pushButton(base::unique_qptr<Ui::RpWidget> button);
 	void removeButton(not_null<Ui::RpWidget*> button);
 	void startHighlightAnimation();
+
+	bool selectionMode() const;
+	Ui::StringWithNumbers generateSelectedText() const;
+	[[nodiscard]] bool computeCanDelete() const;
+	[[nodiscard]] SelectedItemSet collectSelectedItems() const;
+	void updateSelectionState();
+	void createSelectionControls();
+	void toggleSelectionControls();
+	void clearSelectionControls();
+
+	SelectedItemSet collectItems() const;
+	void performForward();
+	void performDelete();
 
 	void setSearchField(
 		base::unique_qptr<Ui::InputField> field,
@@ -84,13 +112,25 @@ private:
 	const style::InfoTopBar &_st;
 	Animation _a_highlight;
 	bool _highlight = false;
-	object_ptr<Ui::IconButton> _back = { nullptr };
+	QPointer<Ui::FadeWrap<Ui::IconButton>> _back;
 	std::vector<base::unique_qptr<Ui::RpWidget>> _buttons;
-	object_ptr<Ui::FlatLabel> _title = { nullptr };
+	QPointer<Ui::FadeWrap<Ui::FlatLabel>> _title;
 
 	base::unique_qptr<Ui::RpWidget> _searchView;
 
 	rpl::event_stream<> _backClicks;
+
+	SelectedItems _selectedItems;
+	bool _canDelete = false;
+	QPointer<Ui::FadeWrap<Ui::IconButton>> _cancelSelection;
+	QPointer<Ui::FadeWrap<Ui::LabelWithNumbers>> _selectionText;
+	QPointer<Ui::FadeWrap<Ui::IconButton>> _forward;
+	QPointer<Ui::FadeWrap<Ui::IconButton>> _delete;
+	rpl::event_stream<> _cancelSelectionClicks;
+
+	using FadingControl = QPointer<Ui::FadeWrap<RpWidget>>;
+	std::vector<FadingControl> _defaultControls;
+	std::vector<FadingControl> _selectionControls;
 
 };
 

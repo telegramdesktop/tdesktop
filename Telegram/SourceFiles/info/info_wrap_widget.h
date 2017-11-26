@@ -52,7 +52,6 @@ class MoveMemento;
 class ContentMemento;
 class ContentWidget;
 class TopBar;
-class TopBarOverride;
 
 enum class Wrap {
 	Layer,
@@ -190,11 +189,6 @@ private:
 	//void convertProfileFromStackToTab();
 
 	rpl::producer<SelectedItems> selectedListValue() const;
-	void refreshTopBarOverride();
-	void refreshTopBarOverride(SelectedItems &&items);
-	void createTopBarOverride(SelectedItems &&items);
-	void toggleTopBarOverride(bool shown);
-	void topBarOverrideStep();
 	bool requireTopBarSearch() const;
 
 	void addProfileMenuButton();
@@ -209,7 +203,6 @@ private:
 	//object_ptr<Ui::SettingsSlider> _topTabs = { nullptr };
 	object_ptr<TopBar> _topBar = { nullptr };
 	object_ptr<Ui::RpWidget> _topBarSurrogate = { nullptr };
-	object_ptr<TopBarOverride> _topBarOverride = { nullptr };
 	Animation _topBarOverrideAnimation;
 	bool _topBarOverrideShown = false;
 	object_ptr<Ui::FadeShadow> _topShadow;

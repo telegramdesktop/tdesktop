@@ -794,6 +794,10 @@ void ListWidget::refreshViewer() {
 		_idsLimit)
 		| rpl::start_with_next([=](
 				SparseIdsMergedSlice &&slice) {
+			if (!slice.fullCount()) {
+				// Don't display anything while full count is unknown.
+				return;
+			}
 			_slice = std::move(slice);
 			if (auto nearest = _slice.nearest(idForViewer)) {
 				_universalAroundId = GetUniversalId(*nearest);
@@ -906,8 +910,10 @@ void ListWidget::refreshRows() {
 		_sections.push_back(std::move(section));
 	}
 
-	if (_layouts.size() > kMediaCountForSearch) {
-		_controller->setSearchEnabledByContent(true);
+	if (auto count = _slice.fullCount()) {
+		if (*count > kMediaCountForSearch) {
+			_controller->setSearchEnabledByContent(true);
+		}
 	}
 
 	clearStaleLayouts();

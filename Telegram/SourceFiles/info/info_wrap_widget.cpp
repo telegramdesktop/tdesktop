@@ -30,7 +30,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "info/info_top_bar.h"
-#include "info/info_top_bar_override.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
@@ -84,7 +83,7 @@ WrapWidget::WrapWidget(
 	selectedListValue()
 		| rpl::start_with_next([this](SelectedItems &&items) {
 			InvokeQueued(this, [this, items = std::move(items)]() mutable {
-				refreshTopBarOverride(std::move(items));
+				if (_topBar) _topBar->setSelectedItems(std::move(items));
 			});
 		}, lifetime());
 	restoreHistoryStack(memento->takeStack());
@@ -283,18 +282,24 @@ void WrapWidget::setupTop() {
 	//	createTopBar();
 	//}
 	createTopBar();
-	refreshTopBarOverride();
 }
 
 void WrapWidget::createTopBar() {
 	auto wrapValue = wrap();
-	_topBar.create(this, TopBarStyle(wrapValue));
+	auto selectedItems = _topBar
+		? _topBar->takeSelectedItems()
+		: SelectedItems(Section::MediaType::kCount);
+	_topBar.create(this, TopBarStyle(wrapValue), std::move(selectedItems));
+	_topBar->cancelSelectionRequests()
+		| rpl::start_with_next([this](auto) {
+			_content->cancelSelection();
+		}, _topBar->lifetime());
 
 	_topBar->setTitle(TitleValue(
 		_controller->section(),
 		_controller->peer()));
 	if (wrapValue == Wrap::Narrow || hasStackHistory()) {
-		_topBar->enableBackButton(true);
+		_topBar->enableBackButton();
 		_topBar->backRequest()
 			| rpl::start_with_next([this] {
 				showBackFromStack();
@@ -416,81 +421,6 @@ void WrapWidget::showProfileMenu() {
 		: st::infoTopBarMenuPosition;
 	_topBarMenu->moveToRight(position.x(), position.y());
 	_topBarMenu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
-}
-
-void WrapWidget::refreshTopBarOverride(SelectedItems &&items) {
-	auto empty = items.list.empty();
-	if (!empty) {
-		if (_topBarOverride) {
-			_topBarOverride->setItems(std::move(items));
-		} else {
-			createTopBarOverride(std::move(items));
-		}
-	}
-	toggleTopBarOverride(!empty);
-}
-
-void WrapWidget::refreshTopBarOverride() {
-	if (_topBarOverride) {
-		auto items = _topBarOverride->takeItems();
-		createTopBarOverride(std::move(items));
-		topBarOverrideStep();
-	}
-}
-
-void WrapWidget::toggleTopBarOverride(bool shown) {
-	if (_topBarOverrideShown == shown) {
-		return;
-	}
-	_topBarOverrideShown = shown;
-	_topBar->show();
-	_topBarOverrideAnimation.start(
-		[this] { topBarOverrideStep(); },
-		_topBarOverrideShown ? 0. : 1.,
-		_topBarOverrideShown ? 1. : 0.,
-		st::slideWrapDuration,
-		anim::easeOutCirc);
-}
-
-void WrapWidget::topBarOverrideStep() {
-	auto shown = _topBarOverrideAnimation.current(
-		_topBarOverrideShown ? 1. : 0.);
-	auto topBarTop = anim::interpolate(0, _topBar->height(), shown);
-	auto overrideTop = anim::interpolate(-_topBar->height(), 0, shown);
-	_topBar->moveToLeft(0, topBarTop);
-	if (_topBarOverride) {
-		_topBarOverride->moveToLeft(0, overrideTop);
-	}
-	if (!_topBarOverrideAnimation.animating()) {
-		if (_topBarOverrideShown) {
-			_topBar->hide();
-		} else {
-			_topBarOverride = nullptr;
-		}
-	}
-}
-
-void WrapWidget::createTopBarOverride(SelectedItems &&items) {
-	_topBarOverride.create(
-		this,
-		TopBarStyle(wrap()),
-		std::move(items));
-
-	// This was done for tabs support.
-	//
-	//if (_topTabs) {
-	//	_topTabs->hide();
-	//}
-
-	if (_topBar) {
-		_topBar->hide();
-	}
-	_topBarOverride->cancelRequests()
-		| rpl::start_with_next([this](auto) {
-			_content->cancelSelection();
-		}, _topBarOverride->lifetime());
-	_topBarOverride->resizeToWidth(width());
-	_topBarOverride->show();
 }
 
 bool WrapWidget::requireTopBarSearch() const {
@@ -832,10 +762,6 @@ void WrapWidget::showNewContent(
 		showNewContent(memento);
 	}
 	if (animationParams) {
-		refreshTopBarOverride(SelectedItems(Section::MediaType::kCount));
-		_topBarOverrideAnimation.finish();
-		topBarOverrideStep();
-
 		showAnimated(
 			saveToStack
 				? SlideDirection::FromRight
@@ -875,9 +801,6 @@ void WrapWidget::resizeEvent(QResizeEvent *e) {
 	//}
 	if (_topBar) {
 		_topBar->resizeToWidth(width());
-	}
-	if (_topBarOverride) {
-		_topBarOverride->resizeToWidth(width());
 	}
 	updateContentGeometry();
 }
