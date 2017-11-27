@@ -303,8 +303,19 @@ void HistoryTopBarWidget::paintTopBar(Painter &p, TimeMs ms) {
 	auto namewidth = width() - _rightTaken - nameleft;
 	p.setFont(st::dialogsTextFont);
 	if (!history->paintSendAction(p, nameleft, statustop, namewidth, width(), st::historyStatusFgTyping, ms)) {
-		p.setPen(_titlePeerTextOnline ? st::historyStatusFgActive : st::historyStatusFg);
-		p.drawText(nameleft, statustop + st::dialogsTextFont->ascent, _titlePeerText);
+		auto statustext = _titlePeerText;
+		auto statuswidth = _titlePeerTextWidth;
+		if (statuswidth > namewidth) {
+			statustext = st::dialogsTextFont->elided(
+				statustext,
+				namewidth,
+				Qt::ElideLeft);
+			statuswidth = st::dialogsTextFont->width(statustext);
+		}
+		p.setPen(_titlePeerTextOnline
+			? st::historyStatusFgActive
+			: st::historyStatusFg);
+		p.drawTextLeft(nameleft, statustop, width(), statustext, statuswidth);
 	}
 
 	p.setPen(st::dialogsNameFg);
