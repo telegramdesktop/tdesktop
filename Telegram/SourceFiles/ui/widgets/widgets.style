@@ -316,6 +316,8 @@ RoundCheckbox {
 	size: pixels;
 	sizeSmall: double;
 	duration: int;
+	bgDuration: double;
+	fgDuration: double;
 	check: icon;
 }
 
@@ -875,7 +877,9 @@ defaultRoundCheckbox: RoundCheckbox {
 	border: windowBg;
 	bgActive: windowBgActive;
 	width: 2px;
-	duration: 150;
+	duration: 160;
+	bgDuration: 0.75;
+	fgDuration: 1.;
 }
 
 defaultMenuArrow: icon {{ "dropdown_submenu_arrow", menuSubmenuArrowFg }};

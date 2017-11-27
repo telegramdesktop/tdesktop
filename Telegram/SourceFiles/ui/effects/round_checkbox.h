@@ -43,27 +43,16 @@ public:
 	void invalidateCache();
 
 private:
-	struct Icon {
-		Animation fadeIn;
-		Animation fadeOut;
-		QPixmap wideCheckCache;
-	};
-	void removeFadeOutedIcons();
-	void prepareWideCheckIconCache(Icon *icon);
 	void prepareInactiveCache();
-	QRect cacheDestRect(int x, int y, float64 scale) const;
 
 	const style::RoundCheckbox &_st;
 	base::lambda<void()> _updateCallback;
 
 	bool _checked = false;
-	std::vector<Icon> _icons;
+	Animation _checkedProgress;
 
 	bool _displayInactive = false;
 	QPixmap _inactiveCacheBg, _inactiveCacheFg;
-
-	// Those pixmaps are shared among all checkboxes that have the same style.
-	QPixmap _wideCheckBgCache, _wideCheckFullCache;
 
 };
 
