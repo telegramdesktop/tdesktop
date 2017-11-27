@@ -727,7 +727,7 @@ Editor::Editor(QWidget*, const QString &path)
 		_scroll->scrollToY(top, bottom);
 	});
 	_close->setClickedCallback([this] { closeEditor(); });
-	_close->showFast();
+	_close->show(anim::type::instant);
 
 	_select->resizeToWidth(st::windowMinWidth);
 	_select->setQueryChangedCallback([this](const QString &query) { _inner->filterRows(query); _scroll->scrollToY(0); });

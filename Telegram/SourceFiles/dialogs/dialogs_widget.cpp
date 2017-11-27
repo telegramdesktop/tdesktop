@@ -267,7 +267,7 @@ void DialogsWidget::showAnimated(Window::SlideDirection direction, const Window:
 	_mainMenuToggle->hide();
 	if (_forwardCancel) _forwardCancel->hide();
 	_filter->hide();
-	_cancelSearch->hide();
+	_cancelSearch->hide(anim::type::instant);
 	_jumpToDate->hide(anim::type::instant);
 	_chooseFromUser->hide(anim::type::instant);
 	_lockUnlock->hide();
@@ -827,10 +827,8 @@ void DialogsWidget::onFilterUpdate(bool force) {
 	_inner->onFilterUpdate(filterText, force);
 	if (filterText.isEmpty()) {
 		clearSearchCache();
-		_cancelSearch->hideAnimated();
-	} else {
-		_cancelSearch->showAnimated();
 	}
+	_cancelSearch->toggle(!filterText.isEmpty(), anim::type::normal);
 	updateJumpToDateVisibility();
 
 	if (filterText.size() < MinUsernameLength) {

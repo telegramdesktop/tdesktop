@@ -383,11 +383,7 @@ MultiSelect::Inner::Inner(QWidget *parent, const style::MultiSelect &st, base::l
 
 void MultiSelect::Inner::onQueryChanged() {
 	auto query = getQuery();
-	if (query.isEmpty()) {
-		_cancel->hideAnimated();
-	} else {
-		_cancel->showAnimated();
-	}
+	_cancel->toggle(!query.isEmpty(), anim::type::normal);
 	updateFieldGeometry();
 	if (_queryChangedCallback) {
 		_queryChangedCallback(query);
@@ -422,7 +418,7 @@ void MultiSelect::Inner::setSubmittedCallback(base::lambda<void(bool ctrlShiftEn
 
 void MultiSelect::Inner::updateFieldGeometry() {
 	auto fieldFinalWidth = _fieldWidth;
-	if (_cancel->isShown()) {
+	if (_cancel->toggled()) {
 		fieldFinalWidth -= _st.fieldCancelSkip;
 	}
 	_field->resizeToWidth(fieldFinalWidth);

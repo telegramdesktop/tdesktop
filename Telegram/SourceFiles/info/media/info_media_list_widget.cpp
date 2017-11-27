@@ -36,7 +36,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_info.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/confirm_box.h"
-#include "info/info_top_bar_override.h"
 #include "core/file_utilities.h"
 
 namespace Layout = Overview::Layout;

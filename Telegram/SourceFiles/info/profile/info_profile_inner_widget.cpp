@@ -25,7 +25,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/flatten_latest.h>
 #include "info/info_memento.h"
 #include "info/info_controller.h"
-#include "info/info_top_bar_override.h"
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_widget.h"
 #include "info/profile/info_profile_text.h"

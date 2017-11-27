@@ -36,13 +36,10 @@ class FadeWrap<RpWidget> : public Wrap<RpWidget> {
 	using Parent = Wrap<RpWidget>;
 
 public:
-	FadeWrap(QWidget *parent, object_ptr<RpWidget> &&child)
-	: FadeWrap(parent, std::move(child), false) {
-	}
 	FadeWrap(
 		QWidget *parent,
 		object_ptr<RpWidget> &&child,
-		bool scaled);
+		float64 scale = 1.);
 
 	FadeWrap *setDuration(int duration);
 	FadeWrap *toggle(bool shown, anim::type animated);
@@ -81,14 +78,11 @@ class FadeWrap : public Wrap<Widget, FadeWrap<RpWidget>> {
 	using Parent = Wrap<Widget, FadeWrap<RpWidget>>;
 
 public:
-	FadeWrap(QWidget *parent, object_ptr<Widget> &&child)
-	: Parent(parent, std::move(child)) {
-	}
 	FadeWrap(
 		QWidget *parent,
 		object_ptr<Widget> &&child,
-		bool scaled)
-	: Parent(parent, std::move(child), scaled) {
+		float64 scale = 1.)
+	: Parent(parent, std::move(child), scale) {
 	}
 
 	FadeWrap *setDuration(int duration) {
@@ -123,7 +117,7 @@ class FadeWrapScaled : public FadeWrap<Widget> {
 
 public:
 	FadeWrapScaled(QWidget *parent, object_ptr<Widget> &&child)
-	: Parent(parent, std::move(child), true) {
+	: Parent(parent, std::move(child), 0.) {
 	}
 
 };

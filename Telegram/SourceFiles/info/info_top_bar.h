@@ -75,7 +75,6 @@ public:
 	SelectedItems takeSelectedItems();
 
 	rpl::producer<> cancelSelectionRequests() const;
-	void finishSelectionAnimations();
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -85,17 +84,18 @@ private:
 	void updateControlsGeometry(int newWidth);
 	void updateDefaultControlsGeometry(int newWidth);
 	void updateSelectionControlsGeometry(int newWidth);
-	void pushButton(base::unique_qptr<Ui::RpWidget> button);
+	Ui::FadeWrap<Ui::RpWidget> *pushButton(base::unique_qptr<Ui::RpWidget> button);
 	void removeButton(not_null<Ui::RpWidget*> button);
 	void startHighlightAnimation();
+	void updateControlsVisibility(anim::type animated);
 
 	bool selectionMode() const;
+	bool searchMode() const;
 	Ui::StringWithNumbers generateSelectedText() const;
 	[[nodiscard]] bool computeCanDelete() const;
 	[[nodiscard]] SelectedItemSet collectSelectedItems() const;
 	void updateSelectionState();
 	void createSelectionControls();
-	void toggleSelectionControls();
 	void clearSelectionControls();
 
 	SelectedItemSet collectItems() const;
@@ -109,6 +109,12 @@ private:
 		not_null<Ui::InputField*> field,
 		rpl::producer<bool> &&shown);
 
+	template <typename Callback>
+	void registerUpdateControlCallback(QObject *guard, Callback &&callback);
+
+	template <typename Widget, typename IsVisible>
+	void registerToggleControlCallback(Widget *widget, IsVisible &&callback);
+
 	const style::InfoTopBar &_st;
 	Animation _a_highlight;
 	bool _highlight = false;
@@ -116,6 +122,8 @@ private:
 	std::vector<base::unique_qptr<Ui::RpWidget>> _buttons;
 	QPointer<Ui::FadeWrap<Ui::FlatLabel>> _title;
 
+	bool _searchModeEnabled = false;
+	bool _searchModeAvailable = false;
 	base::unique_qptr<Ui::RpWidget> _searchView;
 
 	rpl::event_stream<> _backClicks;
@@ -128,9 +136,8 @@ private:
 	QPointer<Ui::FadeWrap<Ui::IconButton>> _delete;
 	rpl::event_stream<> _cancelSelectionClicks;
 
-	using FadingControl = QPointer<Ui::FadeWrap<RpWidget>>;
-	std::vector<FadingControl> _defaultControls;
-	std::vector<FadingControl> _selectionControls;
+	using UpdateCallback = base::lambda<bool(anim::type)>;
+	std::map<QObject*, UpdateCallback> _updateControlCallbacks;
 
 };
 

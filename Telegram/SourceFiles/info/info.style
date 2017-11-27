@@ -190,6 +190,8 @@ infoTopBar: InfoTopBar {
 	highlightBg: windowBgOver;
 	highlightDuration: 240;
 }
+infoTopBarScale: 0.7;
+infoTopBarDuration: 150;
 
 infoLayerTopMinimal: 20px;
 infoLayerTopMaximal: 40px;

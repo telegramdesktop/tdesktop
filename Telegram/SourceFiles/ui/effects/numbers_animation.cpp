@@ -105,6 +105,10 @@ int NumbersAnimation::countWidth() const {
 		anim::easeOutCirc(1., _a_ready.current(1.)));
 }
 
+int NumbersAnimation::maxWidth() const {
+	return std::max(_fromWidth, _toWidth);
+}
+
 void NumbersAnimation::stepAnimation(TimeMs ms) {
 	_a_ready.step(ms);
 }
@@ -210,6 +214,12 @@ void LabelWithNumbers::setValue(const StringWithNumbers &value) {
 		anim::easeOutCirc);
 
 	_afterWidth = _st.style.font->width(_after);
+}
+
+void LabelWithNumbers::finishAnimating() {
+	_beforeWidthAnimation.finish();
+	_numbers.finishAnimating();
+	update();
 }
 
 void LabelWithNumbers::paintEvent(QPaintEvent *e) {

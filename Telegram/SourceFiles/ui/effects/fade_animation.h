@@ -27,7 +27,7 @@ namespace Ui {
 
 class FadeAnimation {
 public:
-	FadeAnimation(TWidget *widget, bool scaled = false);
+	FadeAnimation(TWidget *widget, float64 scale = 1.);
 
 	bool paint(Painter &p);
 	void refreshCache();
@@ -63,7 +63,7 @@ private:
 	QPixmap grabContent();
 
 	TWidget *_widget = nullptr;
-	bool _scaled = false;
+	float64 _scale = 1.;
 
 	Animation _animation;
 	QSize _size;

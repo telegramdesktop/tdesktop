@@ -212,28 +212,19 @@ class CrossButton : public RippleButton {
 public:
 	CrossButton(QWidget *parent, const style::CrossButton &st);
 
-	void showAnimated() {
-		toggleAnimated(true);
+	void toggle(bool shown, anim::type animated);
+	void show(anim::type animated) {
+		return toggle(true, animated);
 	}
-	void hideAnimated() {
-		toggleAnimated(false);
+	void hide(anim::type animated) {
+		return toggle(false, animated);
 	}
-	void toggleAnimated(bool visible);
-	void showFast() {
-		toggleFast(true);
-	}
-	void hideFast() {
-		toggleFast(false);
-	}
-	void toggleFast(bool visible) {
-		toggleAnimated(visible);
-		finishAnimations();
-	}
-	void finishAnimations() {
+	void finishAnimating() {
 		_a_show.finish();
+		animationCallback();
 	}
 
-	bool isShown() const {
+	bool toggled() const {
 		return _shown;
 	}
 	void setLoadingAnimation(bool enabled);

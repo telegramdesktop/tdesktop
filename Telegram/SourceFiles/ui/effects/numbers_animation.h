@@ -43,6 +43,7 @@ public:
 
 	void paint(Painter &p, int x, int y, int outerWidth);
 	int countWidth() const;
+	int maxWidth() const;
 
 private:
 	struct Digit {
@@ -90,6 +91,11 @@ public:
 		const StringWithNumbers &value);
 
 	void setValue(const StringWithNumbers &value);
+	void finishAnimating();
+
+	int naturalWidth() const override {
+		return _beforeWidth + _numbers.maxWidth() + _afterWidth;
+	}
 
 protected:
 	void paintEvent(QPaintEvent *e) override;

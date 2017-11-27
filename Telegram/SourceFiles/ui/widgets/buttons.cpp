@@ -478,7 +478,7 @@ CrossButton::CrossButton(QWidget *parent, const style::CrossButton &st) : Ripple
 , _a_loading(animation(this, &CrossButton::step_loading)) {
 	resize(_st.width, _st.height);
 	setCursor(style::cur_pointer);
-	hide();
+	setVisible(false);
 }
 
 void CrossButton::step_loading(TimeMs ms, bool timer) {
@@ -490,21 +490,29 @@ void CrossButton::step_loading(TimeMs ms, bool timer) {
 	}
 }
 
-void CrossButton::toggleAnimated(bool visible) {
-	if (_shown == visible) {
-		return;
+void CrossButton::toggle(bool visible, anim::type animated) {
+	if (_shown != visible) {
+		_shown = visible;
+		if (animated == anim::type::normal) {
+			if (isHidden()) {
+				setVisible(true);
+			}
+			_a_show.start(
+				[this] { animationCallback(); },
+				_shown ? 0. : 1.,
+				_shown ? 1. : 0.,
+				_st.duration);
+		}
 	}
-	_shown = visible;
-	if (isHidden()) {
-		show();
+	if (animated == anim::type::instant) {
+		finishAnimating();
 	}
-	_a_show.start([this] { animationCallback(); }, _shown ? 0. : 1., _shown ? 1. : 0., _st.duration);
 }
 
 void CrossButton::animationCallback() {
 	update();
-	if (!_shown && !_a_show.animating()) {
-		hide();
+	if (!_a_show.animating()) {
+		setVisible(_shown);
 	}
 }
 

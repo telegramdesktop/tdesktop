@@ -58,9 +58,9 @@ base::unique_qptr<Ui::RpWidget> SearchFieldController::createRowView(
 			return !value.isEmpty();
 		})
 		| rpl::start_with_next([cancel](bool shown) {
-			cancel->toggleAnimated(shown);
+			cancel->toggle(shown, anim::type::normal);
 		}, cancel->lifetime());
-	cancel->finishAnimations();
+	cancel->finishAnimating();
 
 	auto shadow = CreateChild<Ui::PlainShadow>(wrap);
 	shadow->show();

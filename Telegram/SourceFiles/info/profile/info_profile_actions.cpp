@@ -38,7 +38,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang/lang_keys.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
-#include "info/info_top_bar_override.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_button.h"

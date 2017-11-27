@@ -85,7 +85,9 @@ GifsListWidget::Footer::Footer(not_null<GifsListWidget*> parent) : InnerFooter(p
 		}
 	});
 	connect(_field, &Ui::InputField::changed, this, [this] {
-		_cancel->toggleAnimated(!_field->getLastText().isEmpty());
+		_cancel->toggle(
+			!_field->getLastText().isEmpty(),
+			anim::type::normal);
 		_pan->searchForGifs(_field->getLastText());
 	});
 	_cancel->setClickedCallback([this] {

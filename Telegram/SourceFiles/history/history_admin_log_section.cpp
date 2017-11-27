@@ -128,7 +128,7 @@ FixedBar::FixedBar(
 	connect(_field, &Ui::FlatInput::submitted, this, [this] { applySearch(); });
 	_searchTimer.setCallback([this] { applySearch(); });
 
-	_cancel->hideFast();
+	_cancel->hide(anim::type::instant);
 }
 
 void FixedBar::applyFilter(const FilterValue &value) {
@@ -148,7 +148,7 @@ void FixedBar::showSearch() {
 
 void FixedBar::toggleSearch() {
 	_searchShown = !_searchShown;
-	_cancel->toggleAnimated(_searchShown);
+	_cancel->toggle(_searchShown, anim::type::normal);
 	_searchShownAnimation.start([this] { searchAnimationCallback(); }, _searchShown ? 0. : 1., _searchShown ? 1. : 0., st::historyAdminLogSearchSlideDuration);
 	_search->setDisabled(_searchShown);
 	if (_searchShown) {
@@ -227,7 +227,7 @@ void FixedBar::setAnimatingMode(bool enabled) {
 			setAttribute(Qt::WA_OpaquePaintEvent);
 			showChildren();
 			_field->hide();
-			_cancel->hide();
+			_cancel->setVisible(false);
 		}
 		show();
 	}

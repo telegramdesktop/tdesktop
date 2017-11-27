@@ -50,18 +50,50 @@ TopBar::TopBar(
 , _selectedItems(Section::MediaType::kCount) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setSelectedItems(std::move(selectedItems));
-	finishSelectionAnimations();
+	updateControlsVisibility(anim::type::instant);
+}
+
+template <typename Callback>
+void TopBar::registerUpdateControlCallback(
+		QObject *guard,
+		Callback &&callback) {
+	_updateControlCallbacks[guard] =[
+		object = weak(guard),
+		callback = std::forward<Callback>(callback)
+	](anim::type animated) {
+		if (!object) {
+			return false;
+		}
+		callback(animated);
+		return true;
+	};
+}
+
+template <typename Widget, typename IsVisible>
+void TopBar::registerToggleControlCallback(
+		Widget *widget,
+		IsVisible &&callback) {
+	registerUpdateControlCallback(widget, [
+		widget,
+		isVisible = std::forward<IsVisible>(callback)
+	](anim::type animated) {
+		widget->toggle(isVisible(), animated);
+	});
 }
 
 void TopBar::setTitle(rpl::producer<QString> &&title) {
 	if (_title) {
 		delete _title;
 	}
-	_title = Ui::CreateChild<Ui::FadeWrapScaled<Ui::FlatLabel>>(
+	_title = Ui::CreateChild<Ui::FadeWrap<Ui::FlatLabel>>(
 		this,
-		object_ptr<Ui::FlatLabel>(this, std::move(title), _st.title));
+		object_ptr<Ui::FlatLabel>(this, std::move(title), _st.title),
+		st::infoTopBarScale);
+	_title->setDuration(st::infoTopBarDuration);
 	_title->toggle(!selectionMode(), anim::type::instant);
-	_defaultControls.push_back(_title.data());
+	registerToggleControlCallback(_title.data(), [=] {
+		return !selectionMode() && !searchMode();
+	});
 
 	if (_back) {
 		_title->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -73,13 +105,17 @@ void TopBar::enableBackButton() {
 	if (_back) {
 		return;
 	}
-	_back = Ui::CreateChild<Ui::FadeWrapScaled<Ui::IconButton>>(
+	_back = Ui::CreateChild<Ui::FadeWrap<Ui::IconButton>>(
 		this,
-		object_ptr<Ui::IconButton>(this, _st.back));
+		object_ptr<Ui::IconButton>(this, _st.back),
+		st::infoTopBarScale);
+	_back->setDuration(st::infoTopBarDuration);
 	_back->toggle(!selectionMode(), anim::type::instant);
 	_back->entity()->clicks()
 		| rpl::start_to_stream(_backClicks, _back->lifetime());
-	_defaultControls.push_back(_back.data());
+	registerToggleControlCallback(_back.data(), [=] {
+		return !selectionMode();
+	});
 
 	if (_title) {
 		_title->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -95,14 +131,24 @@ void TopBar::createSearchView(
 		std::move(shown));
 }
 
-void TopBar::pushButton(base::unique_qptr<Ui::RpWidget> button) {
-	auto weak = button.get();
-	_buttons.push_back(std::move(button));
-	weak->setParent(this);
+Ui::FadeWrap<Ui::RpWidget> *TopBar::pushButton(
+		base::unique_qptr<Ui::RpWidget> button) {
+	auto wrapped = base::make_unique_q<Ui::FadeWrap<Ui::RpWidget>>(
+		this,
+		object_ptr<Ui::RpWidget>::fromRaw(button.release()),
+		st::infoTopBarScale);
+	auto weak = wrapped.get();
+	_buttons.push_back(std::move(wrapped));
+	weak->setDuration(st::infoTopBarDuration);
+	registerToggleControlCallback(weak, [=] {
+		return !selectionMode()
+			&& !_searchModeEnabled;
+	});
 	weak->widthValue()
 		| rpl::start_with_next([this] {
 			updateControlsGeometry(width());
 		}, lifetime());
+	return weak;
 }
 
 void TopBar::setSearchField(
@@ -122,59 +168,75 @@ void TopBar::createSearchView(
 		this,
 		_st.searchRow.height);
 	auto wrap = _searchView.get();
+	registerUpdateControlCallback(wrap, [=](anim::type) {
+		wrap->setVisible(!selectionMode() && _searchModeAvailable);
+	});
 
-	field->setParent(wrap);
-
-	auto search = addButton(
-		base::make_unique_q<Ui::FadeWrapScaled<Ui::FadeWrapScaled<Ui::IconButton>>>(
-			this,
-			object_ptr<Ui::FadeWrapScaled<Ui::IconButton>>(
-				this,
-				object_ptr<Ui::IconButton>(this, _st.search))));
-	_defaultControls.push_back(search);
-	auto cancel = Ui::CreateChild<Ui::FadeWrapScaled<Ui::CrossButton>>(
+	auto fieldWrap = Ui::CreateChild<Ui::FadeWrap<Ui::InputField>>(
 		wrap,
-		object_ptr<Ui::CrossButton>(wrap, _st.searchRow.fieldCancel));
-	_defaultControls.push_back(cancel);
+		object_ptr<Ui::InputField>::fromRaw(field),
+		st::infoTopBarScale);
+	fieldWrap->setDuration(st::infoTopBarDuration);
 
-	auto toggleSearchMode = [=](bool enabled, anim::type animated) {
-		if (!enabled) {
+	auto focusLifetime = field->lifetime().make_state<rpl::lifetime>();
+	registerUpdateControlCallback(fieldWrap, [=](anim::type animated) {
+		auto fieldShown = !selectionMode() && searchMode();
+		if (!fieldShown && field->hasFocus()) {
 			setFocus();
 		}
-		if (_title) {
-			_title->entity()->setVisible(!enabled);
+		fieldWrap->toggle(fieldShown, animated);
+		if (fieldShown) {
+			*focusLifetime = field->shownValue()
+				| rpl::filter([](bool shown) { return shown; })
+				| rpl::take(1)
+				| rpl::start_with_next([=] {
+					field->setFocus();
+				});
+		} else {
+			focusLifetime->destroy();
 		}
-		field->setVisible(enabled);
-		cancel->entity()->toggleAnimated(enabled);
-		if (animated == anim::type::instant) {
-			cancel->entity()->finishAnimations();
-		}
-		search->wrapped()->toggle(!enabled, animated);
-		if (enabled) {
-			field->setFocus();
-		}
-	};
+	});
+
+	auto button = base::make_unique_q<Ui::IconButton>(this, _st.search);
+	auto search = button.get();
+	search->addClickHandler([=] {
+		_searchModeEnabled = true;
+		updateControlsVisibility(anim::type::normal);
+	});
+	auto searchWrap = pushButton(std::move(button));
+	registerToggleControlCallback(searchWrap, [=] {
+		return !selectionMode()
+			&& _searchModeAvailable
+			&& !_searchModeEnabled;
+	});
+
+	auto cancel = Ui::CreateChild<Ui::CrossButton>(
+		wrap,
+		_st.searchRow.fieldCancel);
+	registerToggleControlCallback(cancel, [=] {
+		return !selectionMode() && searchMode();
+	});
 
 	auto cancelSearch = [=] {
 		if (!field->getLastText().isEmpty()) {
 			field->setText(QString());
 		} else {
-			toggleSearchMode(false, anim::type::normal);
+			_searchModeEnabled = false;
+			updateControlsVisibility(anim::type::normal);
 		}
 	};
 
-	cancel->entity()->addClickHandler(cancelSearch);
+	cancel->addClickHandler(cancelSearch);
 	field->connect(field, &Ui::InputField::cancelled, cancelSearch);
 
 	wrap->widthValue()
 		| rpl::start_with_next([=](int newWidth) {
 			auto availableWidth = newWidth
 				- _st.searchRow.fieldCancelSkip;
-			field->setGeometryToLeft(
+			fieldWrap->resizeToWidth(availableWidth);
+			fieldWrap->moveToLeft(
 				_st.searchRow.padding.left(),
-				_st.searchRow.padding.top(),
-				availableWidth,
-				field->height());
+				_st.searchRow.padding.top());
 			cancel->moveToRight(0, 0);
 		}, wrap->lifetime());
 
@@ -191,10 +253,6 @@ void TopBar::createSearchView(
 				newWidth);
 		}, wrap->lifetime());
 
-	search->entity()->addClickHandler([=] {
-		toggleSearchMode(true, anim::type::normal);
-	});
-
 	field->alive()
 		| rpl::start_with_done([=] {
 			field->setParent(nullptr);
@@ -202,18 +260,14 @@ void TopBar::createSearchView(
 			setSearchField(nullptr, rpl::never<bool>());
 		}, _searchView->lifetime());
 
-	toggleSearchMode(
-		!field->getLastText().isEmpty(),
-		anim::type::instant);
+	_searchModeEnabled = !field->getLastText().isEmpty();
+	updateControlsVisibility(anim::type::instant);
 
 	std::move(shown)
 		| rpl::start_with_next([=](bool visible) {
-			if (!field->getLastText().isEmpty()) {
-				return;
-			}
-			toggleSearchMode(false, anim::type::instant);
-			wrap->setVisible(visible);
-			search->wrapped()->toggle(visible, anim::type::instant);
+			auto alreadyInSearch = !field->getLastText().isEmpty();
+			_searchModeAvailable = visible || alreadyInSearch;
+			updateControlsVisibility(anim::type::instant);
 		}, wrap->lifetime());
 }
 
@@ -226,17 +280,6 @@ void TopBar::removeButton(not_null<Ui::RpWidget*> button) {
 int TopBar::resizeGetHeight(int newWidth) {
 	updateControlsGeometry(newWidth);
 	return _st.height;
-}
-
-void TopBar::finishSelectionAnimations() {
-	ranges::for_each(ranges::view::concat(
-		_defaultControls,
-		_selectionControls
-	), [](auto &&control) {
-		if (auto pointer = control.data()) {
-			pointer->finishAnimating();
-		}
-	});
 }
 
 void TopBar::updateControlsGeometry(int newWidth) {
@@ -286,7 +329,7 @@ void TopBar::updateSelectionControlsGeometry(int newWidth) {
 
 	const auto top = 0;
 	const auto availableWidth = newWidth - left - right;
-	_selectionText->resizeToWidth(availableWidth);
+	_selectionText->resizeToNaturalWidth(availableWidth);
 	_selectionText->moveToLeft(
 		left,
 		top,
@@ -319,16 +362,31 @@ void TopBar::startHighlightAnimation() {
 		_st.highlightDuration);
 }
 
+void TopBar::updateControlsVisibility(anim::type animated) {
+	for (auto i = _updateControlCallbacks.begin(); i != _updateControlCallbacks.end();) {
+		auto &&[widget, callback] = *i;
+		if (!callback(animated)) {
+			i = _updateControlCallbacks.erase(i);
+		} else {
+			++i;
+		}
+	}
+}
+
 void TopBar::setSelectedItems(SelectedItems &&items) {
+	auto wasSelectionMode = selectionMode();
 	_selectedItems = std::move(items);
 	if (selectionMode()) {
 		if (_selectionText) {
 			updateSelectionState();
+			if (!wasSelectionMode) {
+				_selectionText->entity()->finishAnimating();
+			}
 		} else {
 			createSelectionControls();
 		}
 	}
-	toggleSelectionControls();
+	updateControlsVisibility(anim::type::normal);
 }
 
 SelectedItems TopBar::takeSelectedItems() {
@@ -352,33 +410,43 @@ void TopBar::updateSelectionState() {
 
 void TopBar::createSelectionControls() {
 	auto wrap = [&](auto created) {
-		_selectionControls.push_back(created);
+		registerToggleControlCallback(
+			created,
+			[this] { return selectionMode(); });
 		created->toggle(false, anim::type::instant);
 		return created;
 	};
 	_canDelete = computeCanDelete();
-	_cancelSelection = wrap(Ui::CreateChild<Ui::FadeWrapScaled<Ui::IconButton>>(
+	_cancelSelection = wrap(Ui::CreateChild<Ui::FadeWrap<Ui::IconButton>>(
 		this,
-		object_ptr<Ui::IconButton>(this, _st.mediaCancel)));
+		object_ptr<Ui::IconButton>(this, _st.mediaCancel),
+		st::infoTopBarScale));
+	_cancelSelection->setDuration(st::infoTopBarDuration);
 	_cancelSelection->entity()->clicks()
 		| rpl::start_to_stream(
 			_cancelSelectionClicks,
 			_cancelSelection->lifetime());
-	_selectionText = wrap(Ui::CreateChild<Ui::FadeWrapScaled<Ui::LabelWithNumbers>>(
+	_selectionText = wrap(Ui::CreateChild<Ui::FadeWrap<Ui::LabelWithNumbers>>(
 		this,
 		object_ptr<Ui::LabelWithNumbers>(
 			this,
 			_st.title,
 			_st.titlePosition.y(),
-			generateSelectedText())));
+			generateSelectedText()),
+		st::infoTopBarScale));
+	_selectionText->setDuration(st::infoTopBarDuration);
 	_selectionText->entity()->resize(0, _st.height);
-	_forward = wrap(Ui::CreateChild<Ui::FadeWrapScaled<Ui::IconButton>>(
+	_forward = wrap(Ui::CreateChild<Ui::FadeWrap<Ui::IconButton>>(
 		this,
-		object_ptr<Ui::IconButton>(this, _st.mediaForward)));
+		object_ptr<Ui::IconButton>(this, _st.mediaForward),
+		st::infoTopBarScale));
+	_forward->setDuration(st::infoTopBarDuration);
 	_forward->entity()->addClickHandler([this] { performForward(); });
-	_delete = wrap(Ui::CreateChild<Ui::FadeWrapScaled<Ui::IconButton>>(
+	_delete = wrap(Ui::CreateChild<Ui::FadeWrap<Ui::IconButton>>(
 		this,
-		object_ptr<Ui::IconButton>(this, _st.mediaDelete)));
+		object_ptr<Ui::IconButton>(this, _st.mediaDelete),
+		st::infoTopBarScale));
+	_delete->setDuration(st::infoTopBarDuration);
 	_delete->entity()->addClickHandler([this] { performDelete(); });
 	_delete->entity()->setVisible(_canDelete);
 
@@ -390,23 +458,6 @@ bool TopBar::computeCanDelete() const {
 		_selectedItems.list,
 		[](const SelectedItem &item) { return !item.canDelete; }
 	) == _selectedItems.list.end();
-}
-
-void TopBar::toggleSelectionControls() {
-	auto toggle = [](bool shown) {
-		return [=](auto &&control) {
-			if (auto pointer = control.data()) {
-				pointer->toggle(shown, anim::type::normal);
-			}
-		};
-	};
-	auto shown = selectionMode();
-	ranges::for_each(_defaultControls, toggle(!shown));
-	ranges::for_each(_selectionControls, toggle(shown));
-
-	if (!shown) {
-		clearSelectionControls();
-	}
 }
 
 Ui::StringWithNumbers TopBar::generateSelectedText() const {
@@ -422,7 +473,7 @@ Ui::StringWithNumbers TopBar::generateSelectedText() const {
 		case Type::VoiceFile: return lng_media_selected_audio__generic<Data>;
 //		case Type::RoundFile: return lng_media_selected_round__generic<Data>;
 		}
-		Unexpected("Type in TopBarOverride::generateText()");
+		Unexpected("Type in TopBar::generateSelectedText()");
 	}();
 	return phrase(lt_count, _selectedItems.list.size());
 }
@@ -431,27 +482,8 @@ bool TopBar::selectionMode() const {
 	return !_selectedItems.list.empty();
 }
 
-void TopBar::clearSelectionControls() {
-	for (auto &&control : _selectionControls) {
-		if (auto pointer = control.data()) {
-			pointer->shownValue()
-				| rpl::filter([](bool shown) { return !shown; })
-				| rpl::start_with_next([control] {
-					if (auto pointer = control.data()) {
-						InvokeQueued(pointer, [pointer] { delete pointer; });
-					}
-				}, pointer->lifetime());
-		}
-	}
-
-	auto isStale = [](auto &&control) { return !control; };
-	_defaultControls |= ranges::action::remove_if(isStale);
-	_selectionControls |= ranges::action::remove_if(isStale);
-
-	_cancelSelection = nullptr;
-	_selectionText = nullptr;
-	_forward = nullptr;
-	_delete = nullptr;
+bool TopBar::searchMode() const {
+	return _searchModeAvailable && _searchModeEnabled;
 }
 
 SelectedItemSet TopBar::collectItems() const {

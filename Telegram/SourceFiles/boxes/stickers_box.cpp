@@ -1350,7 +1350,7 @@ void StickersBox::Inner::rebuildMegagroupSet() {
 
 	if (!_megagroupSelectedRemove) {
 		_megagroupSelectedRemove.create(this, st::groupStickersRemove);
-		_megagroupSelectedRemove->showFast();
+		_megagroupSelectedRemove->show(anim::type::instant);
 		_megagroupSelectedRemove->setClickedCallback([this] {
 			setMegagroupSelectedSet(MTP_inputStickerSetEmpty());
 		});

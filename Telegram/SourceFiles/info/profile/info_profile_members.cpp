@@ -187,7 +187,7 @@ void Members::setupButtons() {
 	});
 
 	//_searchField->hide();
-	//_cancelSearch->hideFast();
+	//_cancelSearch->setVisible(false);
 
 	auto addMemberShown = CanAddMemberValue(_peer)
 		| rpl::start_spawning(lifetime());
@@ -344,15 +344,14 @@ void Members::addMember() {
 //
 //void Members::toggleSearch(anim::type animated) {
 //	_searchShown = !_searchShown;
+//	_cancelSearch->toggle(_searchShown, animated);
 //	if (animated == anim::type::normal) {
-//		_cancelSearch->toggleAnimated(_searchShown);
 //		_searchShownAnimation.start(
 //			[this] { searchAnimationCallback(); },
 //			_searchShown ? 0. : 1.,
 //			_searchShown ? 1. : 0.,
 //			st::slideWrapDuration);
 //	} else {
-//		_cancelSearch->toggleFast(_searchShown);
 //		_searchShownAnimation.finish();
 //		searchAnimationCallback();
 //	}

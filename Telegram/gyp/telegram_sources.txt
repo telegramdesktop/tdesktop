@@ -234,8 +234,6 @@
 <(src_loc)/info/info_section_widget.h
 <(src_loc)/info/info_top_bar.cpp
 <(src_loc)/info/info_top_bar.h
-<(src_loc)/info/info_top_bar_override.cpp
-<(src_loc)/info/info_top_bar_override.h
 <(src_loc)/info/info_wrap_widget.cpp
 <(src_loc)/info/info_wrap_widget.h
 <(src_loc)/info/common_groups/info_common_groups_inner_widget.cpp

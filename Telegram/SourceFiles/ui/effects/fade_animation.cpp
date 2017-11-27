@@ -27,9 +27,9 @@ constexpr int kWideScale = 5;
 
 } // namespace
 
-FadeAnimation::FadeAnimation(TWidget *widget, bool scaled)
+FadeAnimation::FadeAnimation(TWidget *widget, float64 scale)
 : _widget(widget)
-, _scaled(scaled) {
+, _scale(scale) {
 }
 
 bool FadeAnimation::paint(Painter &p) {
@@ -37,13 +37,28 @@ bool FadeAnimation::paint(Painter &p) {
 
 	auto opacity = _animation.current(getms(), _visible ? 1. : 0.);
 	p.setOpacity(opacity);
-	if (_scaled) {
+	if (_scale < 1.) {
 		PainterHighQualityEnabler hq(p);
-		auto targetRect = QRect((1 - kWideScale) / 2 * _size.width(), (1 - kWideScale) / 2 * _size.height(), kWideScale * _size.width(), kWideScale * _size.height());
-		auto scale = opacity;
-		auto shownWidth = anim::interpolate((1 - kWideScale) / 2 * _size.width(), 0, scale);
-		auto shownHeight = anim::interpolate((1 - kWideScale) / 2 * _size.height(), 0, scale);
-		p.drawPixmap(targetRect.marginsAdded(QMargins(shownWidth, shownHeight, shownWidth, shownHeight)), _cache);
+		auto targetRect = QRect(
+			(1 - kWideScale) / 2 * _size.width(),
+			(1 - kWideScale) / 2 * _size.height(),
+			kWideScale * _size.width(),
+			kWideScale * _size.height());
+		auto scale = opacity + (1. - opacity) * _scale;
+		auto shownWidth = anim::interpolate(
+			(1 - kWideScale) / 2 * _size.width(),
+			0,
+			scale);
+		auto shownHeight = anim::interpolate(
+			(1 - kWideScale) / 2 * _size.height(),
+			0,
+			scale);
+		auto margins = QMargins(
+			shownWidth,
+			shownHeight,
+			shownWidth,
+			shownHeight);
+		p.drawPixmap(targetRect.marginsAdded(margins), _cache);
 	} else {
 		p.drawPixmap(0, 0, _cache);
 	}
@@ -70,18 +85,17 @@ QPixmap FadeAnimation::grabContent() {
 		return App::pixmapFromImageInPlace(std::move(image));
 	}
 	auto widgetContent = myGrab(_widget);
-	if (!_scaled) {
-		return widgetContent;
+	if (_scale < 1.) {
+		auto result = QImage(kWideScale * _size * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+		result.setDevicePixelRatio(cRetinaFactor());
+		result.fill(Qt::transparent);
+		{
+			Painter p(&result);
+			p.drawPixmap((kWideScale - 1) / 2 * _size.width(), (kWideScale - 1) / 2 * _size.height(), widgetContent);
+		}
+		return App::pixmapFromImageInPlace(std::move(result));
 	}
-
-	auto result = QImage(kWideScale * _size * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(cRetinaFactor());
-	result.fill(Qt::transparent);
-	{
-		Painter p(&result);
-		p.drawPixmap((kWideScale - 1) / 2 * _size.width(), (kWideScale - 1) / 2 * _size.height(), widgetContent);
-	}
-	return App::pixmapFromImageInPlace(std::move(result));
+	return widgetContent;
 }
 
 void FadeAnimation::setFinishedCallback(FinishedCallback &&callback) {

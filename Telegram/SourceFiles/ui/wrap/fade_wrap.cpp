@@ -27,9 +27,9 @@ namespace Ui {
 FadeWrap<RpWidget>::FadeWrap(
 	QWidget *parent,
 	object_ptr<RpWidget> &&child,
-	bool scaled)
+	float64 scale)
 : Parent(parent, std::move(child))
-, _animation(this, scaled)
+, _animation(this, scale)
 , _duration(st::fadeWrapDuration) {
 	if (auto weak = wrapped()) {
 		weak->show();
