@@ -403,7 +403,7 @@ void TopBar::updateSelectionState() {
 
 	_canDelete = computeCanDelete();
 	_selectionText->entity()->setValue(generateSelectedText());
-	_delete->entity()->setVisible(_canDelete);
+	_delete->toggle(_canDelete, anim::type::instant);
 
 	updateSelectionControlsGeometry(width());
 }
@@ -446,6 +446,9 @@ void TopBar::createSelectionControls() {
 		this,
 		object_ptr<Ui::IconButton>(this, _st.mediaDelete),
 		st::infoTopBarScale));
+	registerToggleControlCallback(
+		_delete.data(),
+		[this] { return selectionMode() && _canDelete; });
 	_delete->setDuration(st::infoTopBarDuration);
 	_delete->entity()->addClickHandler([this] { performDelete(); });
 	_delete->entity()->setVisible(_canDelete);
