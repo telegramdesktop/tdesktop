@@ -2324,25 +2324,37 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 	const auto ExtractLastId = [&] {
 		return histList->empty() ? -1 : idFromMessage(histList->back());
 	};
+	const auto PeerString = [](PeerId peerId) {
+		if (peerIsUser(peerId)) {
+			return QString("User-%1").arg(peerToUser(peerId));
+		} else if (peerIsChat(peerId)) {
+			return QString("Chat-%1").arg(peerToChat(peerId));
+		} else if (peerIsChannel(peerId)) {
+			return QString("Channel-%1").arg(peerToChannel(peerId));
+		}
+		return QString("Bad-%1").arg(peerId);
+	};
 
 	if (_preloadRequest == requestId) {
 		auto to = toMigrated ? _migrated : _history;
-		SignalHandlers::setCrashAnnotation("old_minmaxbefore_minmaxnow", QString(
-			"%1=%6;%2=%7;%3;%4;%5;(%8:%9)"
-		).arg(_debug_preloadMin
-		).arg(_debug_preloadMax
-		).arg(_debug_preloadOffsetId
-		).arg(_debug_preloadAddOffset
-		).arg(_debug_preloadLoadCount
-		).arg(to->minMsgId()
-		).arg(to->maxMsgId()
-		).arg(ExtractFirstId()
-		).arg(ExtractLastId()
-		));
+		if (cBetaVersion()) {
+			SignalHandlers::setCrashAnnotation("old_debugstr", QString(
+				"%1_%2_%3_%4:%5_%6 (%7)"
+			).arg(PeerString(_debug_preloadDownPeer)
+			).arg(_debug_preloadOffsetId
+			).arg(_debug_preloadAddOffset
+			).arg(_debug_preloadLoadCount
+			).arg(ExtractFirstId()
+			).arg(ExtractLastId()
+			).arg(Auth().userId()
+			));
+		}
 
 		addMessagesToFront(peer, *histList);
 
-		SignalHandlers::setCrashAnnotation("old_minmaxbefore_minmaxnow", QString());
+		if (cBetaVersion()) {
+			SignalHandlers::setCrashAnnotation("old_debugstr", QString());
+		}
 
 		_preloadRequest = 0;
 		preloadHistoryIfNeeded();
@@ -2352,22 +2364,24 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		}
 	} else if (_preloadDownRequest == requestId) {
 		auto to = toMigrated ? _migrated : _history;
-		SignalHandlers::setCrashAnnotation("new_minmaxbefore_minmaxnow", QString(
-			"%1=%6;%2=%7;%3;%4;%5;(%8:%9)"
-		).arg(_debug_preloadDownMin
-		).arg(_debug_preloadDownMax
-		).arg(_debug_preloadDownOffsetId
-		).arg(_debug_preloadDownAddOffset
-		).arg(_debug_preloadDownLoadCount
-		).arg(to->minMsgId()
-		).arg(to->maxMsgId()
-		).arg(ExtractFirstId()
-		).arg(ExtractLastId()
-		));
+		if (cBetaVersion()) {
+			SignalHandlers::setCrashAnnotation("new_debugstr", QString(
+				"%1_%2_%3_%4:%5_%6 (%7)"
+			).arg(PeerString(_debug_preloadDownPeer)
+			).arg(_debug_preloadDownOffsetId
+			).arg(_debug_preloadDownAddOffset
+			).arg(_debug_preloadDownLoadCount
+			).arg(ExtractFirstId()
+			).arg(ExtractLastId()
+			).arg(Auth().userId()
+			));
+		}
 
 		addMessagesToBack(peer, *histList);
 
-		SignalHandlers::setCrashAnnotation("new_minmaxbefore_minmaxnow", QString());
+		if (cBetaVersion()) {
+			SignalHandlers::setCrashAnnotation("new_debugstr", QString());
+		}
 
 		_preloadDownRequest = 0;
 		preloadHistoryIfNeeded();
@@ -2560,11 +2574,10 @@ void HistoryWidget::loadMessages() {
 	auto minId = 0;
 	auto historyHash = 0;
 
-	_debug_preloadMin = from->minMsgId();
-	_debug_preloadMax = from->maxMsgId();
 	_debug_preloadOffsetId = offsetId + 1;
 	_debug_preloadAddOffset = addOffset;
 	_debug_preloadLoadCount = loadCount;
+	_debug_preloadPeer = from->peer->id;
 	_preloadRequest = MTP::send(
 		MTPmessages_GetHistory(
 			from->peer->input,
@@ -2605,11 +2618,10 @@ void HistoryWidget::loadMessagesDown() {
 	auto minId = 0;
 	auto historyHash = 0;
 
-	_debug_preloadDownMin = from->minMsgId();
-	_debug_preloadDownMax = from->maxMsgId();
 	_debug_preloadDownOffsetId = offsetId + 1;
 	_debug_preloadDownAddOffset = addOffset;
 	_debug_preloadDownLoadCount = loadCount;
+	_debug_preloadDownPeer = from->peer->id;
 	_preloadDownRequest = MTP::send(
 		MTPmessages_GetHistory(
 			from->peer->input,
