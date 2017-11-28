@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_button.h"
 #include "info/profile/info_profile_members_controllers.h"
+#include "info/members/info_members_widget.h"
 #include "info/info_content_widget.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
@@ -181,9 +182,13 @@ void Members::setupButtons() {
 	using namespace rpl::mappers;
 
 	_openMembers->addClickHandler([this] {
-		_controller->window()->showSection(Info::Memento(
-			_controller->peerId(),
-			Section::Type::Members));
+		auto contentMemento = std::make_unique<Info::Members::Memento>(
+			_controller);
+		contentMemento->setState(saveState());
+		auto mementoStack = std::vector<std::unique_ptr<ContentMemento>>();
+		mementoStack.push_back(std::move(contentMemento));
+		_controller->window()->showSection(
+			Info::Memento(std::move(mementoStack)));
 	});
 
 	//_searchField->hide();

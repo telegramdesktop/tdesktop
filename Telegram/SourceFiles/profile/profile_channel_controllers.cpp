@@ -527,12 +527,26 @@ bool ParticipantsBoxController::feedMegagroupLastParticipants() {
 		return false;
 	}
 	auto info = megagroup->mgInfo.get();
-	if (info->lastParticipantsStatus != MegagroupInfo::LastParticipantsUpToDate) {
-		_channel->updateFull();
-		return false;
-	}
+	//
+	// channelFull and channels_channelParticipants members count is desynced
+	// so we almost always have LastParticipantsCountOutdated that is set
+	// inside setMembersCount() and so we almost never use lastParticipants.
+	//
+	// => disable this check temporarily.
+	//
+	//if (info->lastParticipantsStatus != MegagroupInfo::LastParticipantsUpToDate) {
+	//	_channel->updateFull();
+	//	return false;
+	//}
 	if (info->lastParticipants.isEmpty()) {
 		return false;
+	}
+	if ((info->lastParticipants.size() < Global::ChatSizeMax() / 2)
+		&& (_channel->membersCount() > Global::ChatSizeMax())) {
+		// If we have really small non-empty count of last participants.
+		// Request them from the beginning so that we won't do that each
+		// time we open megagroup profile.
+		Auth().api().requestLastParticipants(_channel);
 	}
 
 	if (info->creator) {
