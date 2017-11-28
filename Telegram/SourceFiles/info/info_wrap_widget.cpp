@@ -336,6 +336,7 @@ void WrapWidget::createTopBar() {
 
 	_topBar->lower();
 	_topBar->resizeToWidth(width());
+	_topBar->finishAnimating();
 	_topBar->show();
 }
 

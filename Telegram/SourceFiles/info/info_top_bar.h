@@ -76,6 +76,10 @@ public:
 
 	rpl::producer<> cancelSelectionRequests() const;
 
+	void finishAnimating() {
+		updateControlsVisibility(anim::type::instant);
+	}
+
 protected:
 	int resizeGetHeight(int newWidth) override;
 	void paintEvent(QPaintEvent *e) override;

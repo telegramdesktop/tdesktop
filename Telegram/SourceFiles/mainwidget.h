@@ -437,6 +437,9 @@ private:
 	void updateThirdColumnToCurrentPeer(
 		PeerData *peer,
 		bool canWrite);
+	[[nodiscard]] bool saveThirdSectionToStackBack() const;
+	[[nodiscard]] auto thirdSectionForCurrentMainSection(
+		not_null<PeerData*> peer) -> std::unique_ptr<Window::SectionMemento>;
 
 	void createPlayer();
 	void switchToPanelPlayer();
@@ -578,6 +581,7 @@ private:
 	object_ptr<HistoryWidget> _history;
 	object_ptr<Window::SectionWidget> _mainSection = { nullptr };
 	object_ptr<Window::SectionWidget> _thirdSection = { nullptr };
+	std::unique_ptr<Window::SectionMemento> _thirdSectionFromStack;
 
 	base::weak_unique_ptr<Calls::Call> _currentCall;
 	object_ptr<Ui::SlideWrap<Calls::TopBar>> _callTopBar = { nullptr };

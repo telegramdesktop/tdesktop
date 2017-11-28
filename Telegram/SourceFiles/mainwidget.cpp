@@ -41,6 +41,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/resize_area.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"
+#include "info/info_memento.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "dialogs/dialogs_widget.h"
@@ -123,8 +124,15 @@ public:
 
 	void setThirdSectionMemento(
 		std::unique_ptr<Window::SectionMemento> &&memento);
-	Window::SectionMemento *thirdSectionMemento() const {
-		return _thirdSectionMemento.get();
+	std::unique_ptr<Window::SectionMemento> takeThirdSectionMemento() {
+		return std::move(_thirdSectionMemento);
+	}
+
+	void setThirdSectionWeak(QPointer<Window::SectionWidget> section) {
+		_thirdSectionWeak = section;
+	}
+	QPointer<Window::SectionWidget> thirdSectionWeak() const {
+		return _thirdSectionWeak;
 	}
 
 	virtual StackItemType type() const = 0;
@@ -132,6 +140,7 @@ public:
 
 private:
 	PeerData *_peer = nullptr;
+	QPointer<Window::SectionWidget> _thirdSectionWeak;
 	std::unique_ptr<Window::SectionMemento> _thirdSectionMemento;
 
 };
@@ -2541,6 +2550,7 @@ void MainWidget::saveSectionInStack() {
 		if (auto memento = _mainSection->createMemento()) {
 			_stack.push_back(std::make_unique<StackItemSection>(
 				std::move(memento)));
+			_stack.back()->setThirdSectionWeak(_thirdSection.data());
 		}
 	} else if (_history->peer()) {
 		_peerInStack = _history->peer();
@@ -2549,6 +2559,7 @@ void MainWidget::saveSectionInStack() {
 			_peerInStack,
 			_msgIdInStack,
 			_history->replyReturns()));
+		_stack.back()->setThirdSectionWeak(_thirdSection.data());
 	}
 }
 
@@ -2875,6 +2886,7 @@ void MainWidget::showBackFromStack(
 	if (auto currentHistoryPeer = _history->peer()) {
 		clearBotStartToken(currentHistoryPeer);
 	}
+	_thirdSectionFromStack = item->takeThirdSectionMemento();
 	if (item->type() == HistoryStackItem) {
 		dlgUpdated();
 		_peerInStack = nullptr;
@@ -2900,15 +2912,14 @@ void MainWidget::showBackFromStack(
 			std::move(*sectionItem->memento()),
 			params.withWay(SectionShow::Way::Backward));
 	}
-	if (auto memento = item->thirdSectionMemento()) {
-		if (_thirdSection) {
-			_controller->showSection(
-				std::move(*memento),
-				SectionShow(
-					SectionShow::Way::ClearStack,
-					anim::type::instant,
-					anim::activation::background));
-		}
+	if (_thirdSectionFromStack && _thirdSection) {
+		_controller->showSection(
+			std::move(*base::take(_thirdSectionFromStack)),
+			SectionShow(
+				SectionShow::Way::ClearStack,
+				anim::type::instant,
+				anim::activation::background));
+
 	}
 }
 
@@ -3432,11 +3443,26 @@ void MainWidget::updateDialogsWidthAnimated() {
 	}
 }
 
+bool MainWidget::saveThirdSectionToStackBack() const {
+	return !_stack.empty()
+		&& _thirdSection != nullptr
+		&& _stack.back()->thirdSectionWeak() == _thirdSection.data();
+}
+
+auto MainWidget::thirdSectionForCurrentMainSection(
+	not_null<PeerData*> peer)
+-> std::unique_ptr<Window::SectionMemento> {
+	if (_thirdSectionFromStack) {
+		return std::move(_thirdSectionFromStack);
+	}
+	return std::make_unique<Info::Memento>(peer->id);
+}
+
 void MainWidget::updateThirdColumnToCurrentPeer(
 		PeerData *peer,
 		bool canWrite) {
 	auto saveOldThirdSection = [&] {
-		if (!_stack.empty() && _thirdSection) {
+		if (saveThirdSectionToStackBack()) {
 			_stack.back()->setThirdSectionMemento(
 				_thirdSection->createMemento());
 			_thirdSection.destroy();
@@ -3448,7 +3474,19 @@ void MainWidget::updateThirdColumnToCurrentPeer(
 		anim::activation::background);
 	auto switchInfoFast = [&] {
 		saveOldThirdSection();
-		_controller->showPeerInfo(peer, params);
+
+		//
+		// Like in _controller->showPeerInfo()
+		//
+		if (Adaptive::ThreeColumn()
+			&& !Auth().data().thirdSectionInfoEnabled()) {
+			Auth().data().setThirdSectionInfoEnabled(true);
+			Auth().saveDataDelayed();
+		}
+
+		_controller->showSection(
+			std::move(*thirdSectionForCurrentMainSection(peer)),
+			params);
 	};
 	auto switchTabbedFast = [&] {
 		saveOldThirdSection();
