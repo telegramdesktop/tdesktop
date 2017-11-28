@@ -712,6 +712,8 @@ void UserpicButton::grabOldUserpic() {
 void UserpicButton::startNewPhotoShowing() {
 	auto oldUniqueKey = _userpicUniqueKey;
 	prepareUserpicPixmap();
+	update();
+
 	if (_notShownYet) {
 		return;
 	}
@@ -719,7 +721,6 @@ void UserpicButton::startNewPhotoShowing() {
 		|| _a_appearance.animating()) {
 		startAnimation();
 	}
-	update();
 }
 
 void UserpicButton::startAnimation() {

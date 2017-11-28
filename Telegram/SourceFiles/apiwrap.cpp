@@ -572,28 +572,21 @@ void ApiWrap::requestPeers(const QList<PeerData*> &peers) {
 	}
 }
 
-void ApiWrap::requestLastParticipants(ChannelData *channel, bool fromStart) {
+void ApiWrap::requestLastParticipants(ChannelData *channel) {
 	if (!channel || !channel->isMegagroup()) {
 		return;
 	}
 
 	auto needAdmins = channel->canViewAdmins();
 	auto adminsOutdated = (channel->mgInfo->lastParticipantsStatus & MegagroupInfo::LastParticipantsAdminsOutdated) != 0;
-	if ((needAdmins && adminsOutdated) || channel->lastParticipantsCountOutdated()) {
-		fromStart = true;
-	}
 	auto i = _participantsRequests.find(channel);
 	if (i != _participantsRequests.cend()) {
-		if (fromStart && i.value() < 0) { // was not loading from start
-			_participantsRequests.erase(i);
-		} else {
-			return;
-		}
+		return;
 	}
 
-	auto offset = fromStart ? 0 : channel->mgInfo->lastParticipants.size();
-	auto participantsHash = 0;
-	auto requestId = request(MTPchannels_GetParticipants(
+	const auto offset = 0;
+	const auto participantsHash = 0;
+	const auto requestId = request(MTPchannels_GetParticipants(
 		channel->inputChannel,
 		MTP_channelParticipantsRecent(),
 		MTP_int(offset),
@@ -608,7 +601,7 @@ void ApiWrap::requestLastParticipants(ChannelData *channel, bool fromStart) {
 		}
 	}).send();
 
-	_participantsRequests.insert(channel, fromStart ? requestId : -requestId);
+	_participantsRequests.insert(channel, requestId);
 }
 
 void ApiWrap::requestBots(ChannelData *channel) {
@@ -656,11 +649,11 @@ void ApiWrap::lastParticipantsDone(
 	if (!peer->mgInfo) return;
 
 	parseChannelParticipants(result, [&](
-			int fullCount,
+			int availableCount,
 			const QVector<MTPChannelParticipant> &list) {
 		applyLastParticipantsList(
 			peer,
-			fullCount,
+			availableCount,
 			list,
 			bots,
 			fromStart);
@@ -669,7 +662,7 @@ void ApiWrap::lastParticipantsDone(
 
 void ApiWrap::applyLastParticipantsList(
 		ChannelData *peer,
-		int fullCount,
+		int availableCount,
 		const QVector<MTPChannelParticipant> &list,
 		bool bots,
 		bool fromStart) {
@@ -753,11 +746,18 @@ void ApiWrap::applyLastParticipantsList(
 		h->clearLastKeyboard();
 	}
 	if (!bots) {
-		if (list.isEmpty()) {
-			peer->setMembersCount(peer->mgInfo->lastParticipants.size());
-		} else {
-			peer->setMembersCount(fullCount);
-		}
+		//
+		// getParticipants(Recent) sometimes can't return all members,
+		// only some last subset, size of this subset is availableCount.
+		//
+		// So both list size and availableCount have nothing to do with
+		// the full supergroup members count.
+		//
+		//if (list.isEmpty()) {
+		//	peer->setMembersCount(peer->mgInfo->lastParticipants.size());
+		//} else {
+		//	peer->setMembersCount(availableCount);
+		//}
 		Notify::PeerUpdate update(peer);
 		update.flags |= Notify::PeerUpdate::Flag::MembersChanged | Notify::PeerUpdate::Flag::AdminsChanged;
 		Notify::peerUpdatedDelayed(update);
@@ -1775,7 +1775,9 @@ void ApiWrap::readFeaturedSets() {
 
 void ApiWrap::parseChannelParticipants(
 		const MTPchannels_ChannelParticipants &result,
-		base::lambda<void(int fullCount, const QVector<MTPChannelParticipant> &list)> callbackList,
+		base::lambda<void(
+			int availableCount,
+			const QVector<MTPChannelParticipant> &list)> callbackList,
 		base::lambda<void()> callbackNotModified) {
 	TLHelp::VisitChannelParticipants(result, base::overload([&](
 			const MTPDchannels_channelParticipants &data) {
@@ -1795,22 +1797,24 @@ void ApiWrap::parseChannelParticipants(
 void ApiWrap::parseRecentChannelParticipants(
 		not_null<ChannelData*> channel,
 		const MTPchannels_ChannelParticipants &result,
-		base::lambda<void(int fullCount, const QVector<MTPChannelParticipant> &list)> callbackList,
+		base::lambda<void(
+			int availableCount,
+			const QVector<MTPChannelParticipant> &list)> callbackList,
 		base::lambda<void()> callbackNotModified) {
 	parseChannelParticipants(result, [&](
-			int fullCount,
+			int availableCount,
 			const QVector<MTPChannelParticipant> &list) {
 		auto applyLast = channel->isMegagroup()
 			&& (channel->mgInfo->lastParticipants.size() <= list.size());
 		if (applyLast) {
 			applyLastParticipantsList(
 				channel,
-				fullCount,
+				availableCount,
 				list,
 				false,
 				true);
 		}
-		callbackList(fullCount, list);
+		callbackList(availableCount, list);
 	}, std::move(callbackNotModified));
 }
 
@@ -1819,13 +1823,43 @@ void ApiWrap::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 	case mtpc_updateShortMessage: {
 		auto &d = updates.c_updateShortMessage();
 		auto flags = mtpCastFlags(d.vflags.v) | MTPDmessage::Flag::f_from_id;
-		App::histories().addNewMessage(MTP_message(MTP_flags(flags), d.vid, d.is_out() ? MTP_int(Auth().userId()) : d.vuser_id, MTP_peerUser(d.is_out() ? d.vuser_id : MTP_int(Auth().userId())), d.vfwd_from, d.vvia_bot_id, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, d.has_entities() ? d.ventities : MTPnullEntities, MTPint(), MTPint(), MTPstring()), NewMessageUnread);
+		App::histories().addNewMessage(MTP_message(
+			MTP_flags(flags),
+			d.vid,
+			d.is_out() ? MTP_int(Auth().userId()) : d.vuser_id,
+			MTP_peerUser(d.is_out() ? d.vuser_id : MTP_int(Auth().userId())),
+			d.vfwd_from,
+			d.vvia_bot_id,
+			d.vreply_to_msg_id,
+			d.vdate,
+			d.vmessage,
+			MTP_messageMediaEmpty(),
+			MTPnullMarkup,
+			d.has_entities() ? d.ventities : MTPnullEntities,
+			MTPint(),
+			MTPint(),
+			MTPstring()), NewMessageUnread);
 	} break;
 
 	case mtpc_updateShortChatMessage: {
 		auto &d = updates.c_updateShortChatMessage();
 		auto flags = mtpCastFlags(d.vflags.v) | MTPDmessage::Flag::f_from_id;
-		App::histories().addNewMessage(MTP_message(MTP_flags(flags), d.vid, d.vfrom_id, MTP_peerChat(d.vchat_id), d.vfwd_from, d.vvia_bot_id, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, d.has_entities() ? d.ventities : MTPnullEntities, MTPint(), MTPint(), MTPstring()), NewMessageUnread);
+		App::histories().addNewMessage(MTP_message(
+			MTP_flags(flags),
+			d.vid,
+			d.vfrom_id,
+			MTP_peerChat(d.vchat_id),
+			d.vfwd_from,
+			d.vvia_bot_id,
+			d.vreply_to_msg_id,
+			d.vdate,
+			d.vmessage,
+			MTP_messageMediaEmpty(),
+			MTPnullMarkup,
+			d.has_entities() ? d.ventities : MTPnullEntities,
+			MTPint(),
+			MTPint(),
+			MTPstring()), NewMessageUnread);
 	} break;
 
 	case mtpc_updateShortSentMessage: {

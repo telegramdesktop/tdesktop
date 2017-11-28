@@ -668,7 +668,7 @@ void HistoryTopBarWidget::updateOnlineDisplay() {
 		}
 	} else if (auto channel = _historyPeer->asChannel()) {
 		if (channel->isMegagroup() && channel->membersCount() > 0 && channel->membersCount() <= Global::ChatSizeMax()) {
-			if (channel->mgInfo->lastParticipants.size() < channel->membersCount() || channel->lastParticipantsCountOutdated()) {
+			if (channel->mgInfo->lastParticipants.isEmpty() || channel->lastParticipantsCountOutdated()) {
 				Auth().api().requestLastParticipants(channel);
 			}
 			auto online = 0;

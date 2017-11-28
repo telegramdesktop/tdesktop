@@ -358,7 +358,7 @@ void InnerWidget::requestAdmins() {
 			return false;
 		});
 		Auth().api().parseChannelParticipants(result, [&](
-				int fullCount,
+				int availableCount,
 				const QVector<MTPChannelParticipant> &list) {
 			auto filtered = (
 				list

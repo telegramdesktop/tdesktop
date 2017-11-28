@@ -61,7 +61,7 @@ public:
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);
 	void requestPeers(const QList<PeerData*> &peers);
-	void requestLastParticipants(ChannelData *channel, bool fromStart = true);
+	void requestLastParticipants(ChannelData *channel);
 	void requestBots(ChannelData *channel);
 	void requestParticipantsCountDelayed(ChannelData *channel);
 
@@ -145,12 +145,16 @@ public:
 
 	void parseChannelParticipants(
 		const MTPchannels_ChannelParticipants &result,
-		base::lambda<void(int fullCount, const QVector<MTPChannelParticipant> &list)> callbackList,
+		base::lambda<void(
+			int availableCount,
+			const QVector<MTPChannelParticipant> &list)> callbackList,
 		base::lambda<void()> callbackNotModified = nullptr);
 	void parseRecentChannelParticipants(
 		not_null<ChannelData*> channel,
 		const MTPchannels_ChannelParticipants &result,
-		base::lambda<void(int fullCount, const QVector<MTPChannelParticipant> &list)> callbackList,
+		base::lambda<void(
+			int availableCount,
+			const QVector<MTPChannelParticipant> &list)> callbackList,
 		base::lambda<void()> callbackNotModified = nullptr);
 
 	~ApiWrap();
@@ -188,7 +192,7 @@ private:
 		mtpRequestId req);
 	void applyLastParticipantsList(
 		ChannelData *peer,
-		int fullCount,
+		int availableCount,
 		const QVector<MTPChannelParticipant> &list,
 		bool bots,
 		bool fromStart);

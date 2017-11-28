@@ -175,12 +175,15 @@ void GroupMembersWidget::refreshUserOnline(UserData *user) {
 }
 
 void GroupMembersWidget::preloadMore() {
-	if (auto megagroup = peer()->asMegagroup()) {
-		auto &megagroupInfo = megagroup->mgInfo;
-		if (!megagroupInfo->lastParticipants.isEmpty() && megagroupInfo->lastParticipants.size() < megagroup->membersCount()) {
-			Auth().api().requestLastParticipants(megagroup, false);
-		}
-	}
+	//
+	// This can cause a ddos, because lastParticipants may never reach members count.
+	//
+	//if (auto megagroup = peer()->asMegagroup()) {
+	//	auto &megagroupInfo = megagroup->mgInfo;
+	//	if (!megagroupInfo->lastParticipants.isEmpty() && megagroupInfo->lastParticipants.size() < megagroup->membersCount()) {
+	//		Auth().api().requestLastParticipants(megagroup, false);
+	//	}
+	//}
 }
 
 int GroupMembersWidget::resizeGetHeight(int newWidth) {
