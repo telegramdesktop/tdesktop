@@ -1,3 +1,9 @@
+1.1.24 alpha (29.11.17)
+
+- Radically improved navigation. New side panel on the right with quick access to shared media and group members.
+- Pinned Messages. If you are a channel admin, pin messages to focus your subscribers' attention on important announcements.
+- Also supported clearing history in supergroups and added a host of minor improvements.
+
 1.1.23 (05.09.17)
 
 - See the message author photo and name while searching specific chat messages.

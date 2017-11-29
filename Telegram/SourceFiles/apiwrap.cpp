@@ -115,16 +115,7 @@ void ApiWrap::addLocalChangelogs(int oldAppVersion) {
 				addLocalChangelog(text);
 			}
 		};
-		addLocalAlphaChangelog(1001008, "\xE2\x80\x94 Toggle night mode in the main menu.\n");
-		addLocalAlphaChangelog(1001010, "\xE2\x80\x94 Filter added to channel and supergroup event log.\n\xE2\x80\x94 Search by username in privacy exceptions editor fixed.\n\xE2\x80\x94 Adding admins in channels fixed.");
-		addLocalAlphaChangelog(1001011, "\xE2\x80\x94 Send **bold** and __italic__ text in your messages (in addition to already supported `monospace` and ```multiline monospace```).\n\xE2\x80\x94 Search in channel and supergroup admin event log.\n\xE2\x80\x94 Ban members from right click menu in supergroup admin event log.");
-		addLocalAlphaChangelog(1001012, "\xE2\x80\x94 Click on forwarded messages bar to change the recipient chat in case you chose a wrong one first.\n\xE2\x80\x94 Quickly share posts from channels and media messages from bots.\n\xE2\x80\x94 Search in large supergroup members by name.\n\xE2\x80\x94 Search in channel members by name if you're a channel admin.\n\xE2\x80\x94 Copy links to messages in public supergroups.");
-		addLocalAlphaChangelog(1001014, "\xE2\x80\x94 Bug fixes and other minor improvements.");
-#ifdef Q_OS_WIN
-		addLocalAlphaChangelog(1001023, "\xE2\x80\x94 See the message author photo and name while searching specific chat messages.\n\xE2\x80\x94 Fix \"Send To\" menu action on Windows.");
-#else // Q_OS_WIN
-		addLocalAlphaChangelog(1001023, "\xE2\x80\x94 See the message author photo and name while searching specific chat messages.");
-#endif // Q_OS_WIN
+		addLocalAlphaChangelog(1001024, "\xE2\x80\x94 Radically improved navigation. New side panel on the right with quick access to shared media and group members.\n\xE2\x80\x94 Pinned Messages. If you are a channel admin, pin messages to focus your subscribers\xE2\x80\x99 attention on important announcements.\n\xE2\x80\x94 Also supported clearing history in supergroups and added a host of minor improvements.");
 	}
 	if (!addedSome) {
 		auto text = lng_new_version_wrap(lt_version, str_const_toString(AppVersionStr), lt_changes, lang(lng_new_version_minor), lt_link, qsl("https://desktop.telegram.org/changelog")).trimmed();
