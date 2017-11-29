@@ -33,8 +33,8 @@ addons:
       - dpatch
       - equivs
       - fakeroot
-      - g++-6
-      - gcc-6
+      - g++-7
+      - gcc-7
       - git
       - gnome-common
       - gobject-introspection
@@ -58,8 +58,8 @@ addons:
       - yasm
 
 before_install:
-  - export CXX="g++-6" CC="gcc-6"
-  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 60 --slave /usr/bin/g++ g++ /usr/bin/g++-6
+  - export CXX="g++-7" CC="gcc-7"
+  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-7 60 --slave /usr/bin/g++ g++ /usr/bin/g++-7
   - sudo update-alternatives --config gcc
   - g++ --version
 
