@@ -284,7 +284,7 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 
 		// https://stackoverflow.com/questions/1076714/max-length-for-client-ip-address
 		constexpr auto kMaxIpSize = 45;
-		if (ipSize > kMaxIpSize) {
+		if (ipSize <= 0 || ipSize > kMaxIpSize) {
 			LOG(("MTP Error: Bad data inside DcOptions::constructFromSerialized()"));
 			return;
 		}

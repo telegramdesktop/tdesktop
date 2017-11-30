@@ -662,6 +662,8 @@ void mtpFileLoader::getCdnFileHashesDone(const MTPVector<MTPCdnFileHash> &result
 }
 
 void mtpFileLoader::placeSentRequest(mtpRequestId requestId, const RequestData &requestData) {
+	Expects(!_finished);
+
 	_downloader->requestedAmountIncrement(requestData.dcId, requestData.dcIndex, partSize());
 	++_queue->queriesCount;
 	_sentRequests.emplace(requestId, requestData);

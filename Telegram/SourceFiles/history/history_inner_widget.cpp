@@ -1066,9 +1066,11 @@ void HistoryInner::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 		return;
 	}
 	if (_mouseAction == MouseAction::PrepareSelect && !_pressWasInactive && !_selected.empty() && _selected.cbegin()->second == FullSelection) {
-		SelectedItems::iterator i = _selected.find(_mouseActionItem);
-		if (i == _selected.cend() && !_mouseActionItem->serviceMsg() && _mouseActionItem->id > 0) {
-			if (_selected.size() < MaxSelectedItems) {
+		auto i = _selected.find(_mouseActionItem);
+		if (i == _selected.cend()) {
+			if (!_mouseActionItem->serviceMsg()
+				&& IsServerMsgId(_mouseActionItem->id)
+				&& _selected.size() < MaxSelectedItems) {
 				if (!_selected.empty() && _selected.cbegin()->second != FullSelection) {
 					_selected.clear();
 				}
