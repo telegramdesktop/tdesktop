@@ -102,6 +102,15 @@ bool LayerWidget::takeToThirdSection() {
 	auto memento = MoveMemento(std::move(_content));
 	localCopy->hideSpecialLayer(anim::type::instant);
 
+	// When creating third section in response to the window
+	// size allowing it to fit without window resize we want
+	// to save that we didn't extend the window while showing
+	// the third section, so that when we close it we won't
+	// shrink the window size.
+	//
+	// See https://github.com/telegramdesktop/tdesktop/issues/4091
+	Auth().data().setThirdSectionExtendedBy(0);
+
 	Auth().data().setThirdSectionInfoEnabled(true);
 	Auth().saveDataDelayed();
 	localCopy->showSection(

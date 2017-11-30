@@ -213,7 +213,7 @@ historyAttachEmoji: IconButton(historyAttach) {
 	iconOver: icon {{ "send_control_emoji", historyComposeIconFgOver }};
 	iconPosition: point(15px, 15px);
 }
-historyAttachEmojiFgActive: windowBgActive;
+historyAttachEmojiFgActive: windowActiveTextFg;
 historyAttachEmojiActive: icon {{ "send_control_emoji", historyAttachEmojiFgActive }};
 historyAttachEmojiTooltipDelta: 4px;
 historyEmojiCircle: size(20px, 20px);

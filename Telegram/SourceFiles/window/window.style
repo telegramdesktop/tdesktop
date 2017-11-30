@@ -285,7 +285,7 @@ topBarInfo: IconButton(topBarSearch) {
 	icon: icon {{ "top_bar_profile", menuIconFg }};
 	iconOver: icon {{ "top_bar_profile", menuIconFgOver }};
 }
-topBarInfoActive: icon {{ "top_bar_profile", windowBgActive }};
+topBarInfoActive: icon {{ "top_bar_profile", windowActiveTextFg }};
 topBarSkip: -2px;
 topBarCallSkip: -1px;
 topBarMenuToggle: IconButton(topBarSearch) {
