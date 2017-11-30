@@ -435,12 +435,12 @@ protected:
 };
 
 template <typename Widget>
-QPointer<Widget> weak(Widget *object) {
+QPointer<Widget> make_weak(Widget *object) {
 	return QPointer<Widget>(object);
 }
 
 template <typename Widget>
-QPointer<const Widget> weak(const Widget *object) {
+QPointer<const Widget> make_weak(const Widget *object) {
 	return QPointer<const Widget>(object);
 }
 

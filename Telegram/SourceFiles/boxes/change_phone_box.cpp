@@ -271,7 +271,11 @@ void ChangePhoneBox::EnterCode::submit() {
 	hideError();
 
 	auto code = _code->getLastText().trimmed();
-	_requestId = MTP::send(MTPaccount_ChangePhone(MTP_string(_phone), MTP_string(_hash), MTP_string(code)), rpcDone([weak = weak(this)](const MTPUser &result) {
+	_requestId = MTP::send(MTPaccount_ChangePhone(
+		MTP_string(_phone),
+		MTP_string(_hash),
+		MTP_string(code)
+	), rpcDone([weak = make_weak(this)](const MTPUser &result) {
 		App::feedUser(result);
 		if (weak) {
 			Ui::hideLayer();

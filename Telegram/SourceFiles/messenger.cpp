@@ -1001,15 +1001,15 @@ void Messenger::registerLeaveSubscription(QWidget *widget) {
 #ifdef Q_OS_MAC
 	if (auto topLevel = widget->window()) {
 		if (topLevel == _window.get()) {
-			auto guarded = weak(widget);
+			auto weak = make_weak(widget);
 			auto subscription = _window->leaveEvents()
-				| rpl::start_with_next([guarded] {
-					if (auto w = guarded.data()) {
+				| rpl::start_with_next([weak] {
+					if (const auto window = weak.data()) {
 						QEvent ev(QEvent::Leave);
-						QGuiApplication::sendEvent(w, &ev);
+						QGuiApplication::sendEvent(window, &ev);
 					}
 				});
-			_leaveSubscriptions.emplace_back(guarded, std::move(subscription));
+			_leaveSubscriptions.emplace_back(weak, std::move(subscription));
 		}
 	}
 #endif // Q_OS_MAC

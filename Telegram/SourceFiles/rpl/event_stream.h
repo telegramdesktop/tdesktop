@@ -48,7 +48,7 @@ public:
 		return fire_forward(value);
 	}
 	auto events() const {
-		return make_producer<Value>([weak = weak()](
+		return make_producer<Value>([weak = make_weak()](
 				const auto &consumer) {
 			if (auto strong = weak.lock()) {
 				auto result = [weak, consumer] {
@@ -82,7 +82,7 @@ private:
 		std::vector<consumer<Value, no_error>> consumers;
 		int depth = 0;
 	};
-	std::weak_ptr<Data> weak() const;
+	std::weak_ptr<Data> make_weak() const;
 
 	mutable std::shared_ptr<Data> _data;
 
@@ -153,7 +153,7 @@ inline void event_stream<Value>::fire_forward(
 }
 
 template <typename Value>
-inline auto event_stream<Value>::weak() const
+inline auto event_stream<Value>::make_weak() const
 -> std::weak_ptr<Data> {
 	if (!_data) {
 		_data = std::make_shared<Data>();

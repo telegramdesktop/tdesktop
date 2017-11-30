@@ -838,9 +838,9 @@ object_ptr<Ui::RpWidget> WrapWidget::createTopBarSurrogate(
 		Assert(_topBar != nullptr);
 
 		auto result = object_ptr<Ui::AbstractButton>(parent);
-		result->addClickHandler([wrap = weak(this)]{
-			if (wrap) {
-				wrap->showBackFromStack();
+		result->addClickHandler([weak = make_weak(this)]{
+			if (weak) {
+				weak->showBackFromStack();
 			}
 		});
 		result->setGeometry(_topBar->geometry());

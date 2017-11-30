@@ -436,9 +436,9 @@ void GroupInfoBox::createGroup(not_null<PeerListBox*> selectUsersBox, const QStr
 	}).fail([this, selectUsersBox](const RPCError &error) {
 		_creationRequestId = 0;
 		if (error.type() == qstr("NO_CHAT_TITLE")) {
-			auto guard = weak(this);
+			auto weak = make_weak(this);
 			selectUsersBox->closeBox();
-			if (guard) {
+			if (weak) {
 				_title->showError();
 			}
 		} else if (error.type() == qstr("USERS_TOO_FEW")) {
@@ -471,16 +471,22 @@ void GroupInfoBox::onNext() {
 	if (_creating != CreatingGroupGroup) {
 		createChannel(title, description);
 	} else {
-		auto initBox = [title, weak = weak(this)](not_null<PeerListBox*> box) {
-			box->addButton(langFactory(lng_create_group_create), [box, title, weak] {
+		auto initBox = [title, weak = make_weak(this)](
+				not_null<PeerListBox*> box) {
+			auto create = [box, title, weak] {
 				if (weak) {
 					auto rows = box->peerListCollectSelectedRows();
 					if (!rows.empty()) {
 						weak->createGroup(box, title, rows);
 					}
 				}
-			});
-			box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
+			};
+			box->addButton(
+				langFactory(lng_create_group_create),
+				std::move(create));
+			box->addButton(
+				langFactory(lng_cancel),
+				[box] { box->closeBox(); });
 		};
 		Ui::show(
 			Box<PeerListBox>(

@@ -84,13 +84,13 @@ void AbstractButton::mouseReleaseEvent(QMouseEvent *e) {
 		onStateChanged(was, StateChangeSource::ByPress);
 		if (was & StateFlag::Over) {
 			_modifiers = e->modifiers();
-			auto test = weak(this);
+			auto weak = make_weak(this);
 			if (_clickedCallback) {
 				_clickedCallback();
 			} else {
 				emit clicked();
 			}
-			if (test) {
+			if (weak) {
 				_clicks.fire({});
 			}
 		} else {

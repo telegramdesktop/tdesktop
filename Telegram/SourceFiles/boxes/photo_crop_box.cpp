@@ -286,9 +286,9 @@ void PhotoCropBox::sendPhoto() {
 		tosend = cropped.copy();
 	}
 
-	auto guard = weak(this);
+	auto weak = make_weak(this);
 	_readyImages.fire(std::move(tosend));
-	if (guard) {
+	if (weak) {
 		closeBox();
 	}
 }

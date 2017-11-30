@@ -58,10 +58,10 @@ void TopBar::registerUpdateControlCallback(
 		QObject *guard,
 		Callback &&callback) {
 	_updateControlCallbacks[guard] =[
-		object = weak(guard),
+		weak = make_weak(guard),
 		callback = std::forward<Callback>(callback)
 	](anim::type animated) {
-		if (!object) {
+		if (!weak) {
 			return false;
 		}
 		callback(animated);
@@ -505,11 +505,11 @@ void TopBar::performForward() {
 		_cancelSelectionClicks.fire({});
 		return;
 	}
-	auto callback = [items = std::move(items), that = weak(this)](
+	auto callback = [items = std::move(items), weak = make_weak(this)](
 			not_null<PeerData*> peer) {
 		App::main()->setForwardDraft(peer->id, items);
-		if (that) {
-			that->_cancelSelectionClicks.fire({});
+		if (weak) {
+			weak->_cancelSelectionClicks.fire({});
 		}
 	};
 	Ui::show(Box<PeerListBox>(

@@ -203,11 +203,11 @@ void HistoryTopBarWidget::showMenu() {
 		return;
 	}
 	_menu.create(parentWidget());
-	_menu->setHiddenCallback([that = weak(this), menu = _menu.data()] {
+	_menu->setHiddenCallback([weak = make_weak(this), menu = _menu.data()] {
 		menu->deleteLater();
-		if (that && that->_menu == menu) {
-			that->_menu = nullptr;
-			that->_menuToggle->setForceRippled(false);
+		if (weak && weak->_menu == menu) {
+			weak->_menu = nullptr;
+			weak->_menuToggle->setForceRippled(false);
 		}
 	});
 	_menu->setShowStartCallback(base::lambda_guarded(this, [this, menu = _menu.data()] {
