@@ -930,11 +930,13 @@ void ListWidget::markLayoutsStale() {
 
 void ListWidget::saveState(not_null<Memento*> memento) {
 	if (_universalAroundId != kDefaultAroundId) {
-		memento->setAroundId(computeFullId(_universalAroundId));
-		memento->setIdsLimit(_idsLimit);
 		auto state = countScrollState();
-		memento->setScrollTopItem(computeFullId(state.item));
-		memento->setScrollTopShift(state.shift);
+		if (state.item) {
+			memento->setAroundId(computeFullId(_universalAroundId));
+			memento->setIdsLimit(_idsLimit);
+			memento->setScrollTopItem(computeFullId(state.item));
+			memento->setScrollTopShift(state.shift);
+		}
 	}
 }
 
