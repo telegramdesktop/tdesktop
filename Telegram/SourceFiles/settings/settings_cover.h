@@ -41,18 +41,8 @@ class CoverDropArea;
 namespace Settings {
 
 class CoverWidget : public BlockWidget {
-	Q_OBJECT
-
 public:
 	CoverWidget(QWidget *parent, UserData *self);
-
-private slots:
-	void onPhotoShow();
-	void onPhotoUploadStatusChanged(PeerId peerId = 0);
-	void onCancelPhotoUpload();
-
-	void onSetPhoto();
-	void onEditName();
 
 protected:
 	void dragEnterEvent(QDragEnterEvent *e) override;
@@ -67,6 +57,13 @@ protected:
 private:
 	// Observed notifications.
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
+
+	void showPhoto();
+	void cancelPhotoUpload();
+	void chooseNewPhoto();
+	void editName();
+
+	void onPhotoUploadStatusChanged(PeerId peerId = 0);
 
 	PhotoData *validatePhoto() const;
 

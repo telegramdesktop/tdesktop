@@ -61,19 +61,30 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self)
 	_name->setSelectable(true);
 	_name->setContextCopyText(lang(lng_profile_copy_fullname));
 
-	_setPhoto->setClickedCallback(App::LambdaDelayed(st::settingsPrimaryButton.ripple.hideDuration, this, [this] { onSetPhoto(); }));
-	connect(_editName, SIGNAL(clicked()), this, SLOT(onEditName()));
-	connect(_editNameInline, SIGNAL(clicked()), this, SLOT(onEditName()));
+	_setPhoto->setClickedCallback(App::LambdaDelayed(
+		st::settingsPrimaryButton.ripple.hideDuration,
+		this,
+		[this] { chooseNewPhoto(); }));
+	_editName->addClickHandler([this] { editName(); });
+	_editNameInline->addClickHandler([this] { editName(); });
 
 	auto observeEvents = Notify::PeerUpdate::Flag::NameChanged | Notify::PeerUpdate::Flag::PhotoChanged;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		notifyPeerUpdated(update);
 	}));
 
-	connect(&Messenger::Instance(), SIGNAL(peerPhotoDone(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
-	connect(&Messenger::Instance(), SIGNAL(peerPhotoFail(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
+	connect(
+		&Messenger::Instance(),
+		&Messenger::peerPhotoDone,
+		this,
+		&CoverWidget::onPhotoUploadStatusChanged);
+	connect(
+		&Messenger::Instance(),
+		&Messenger::peerPhotoFail,
+		this,
+		&CoverWidget::onPhotoUploadStatusChanged);
 
-	connect(_userpicButton, SIGNAL(clicked()), this, SLOT(onPhotoShow()));
+	_userpicButton->addClickHandler([this] { showPhoto(); });
 	validatePhoto();
 
 	refreshNameText();
@@ -92,13 +103,13 @@ PhotoData *CoverWidget::validatePhoto() const {
 	return photo;
 }
 
-void CoverWidget::onPhotoShow() {
+void CoverWidget::showPhoto() {
 	if (auto photo = validatePhoto()) {
 		Messenger::Instance().showPhoto(photo, _self);
 	}
 }
 
-void CoverWidget::onCancelPhotoUpload() {
+void CoverWidget::cancelPhotoUpload() {
 	Messenger::Instance().cancelPhotoUpdate(_self->id);
 	refreshStatusText();
 }
@@ -175,8 +186,8 @@ void CoverWidget::refreshNameGeometry(int newWidth) {
 		newWidth);
 
 	_editNameInline->moveToLeft(
-		margins.left() + nameLeft + _name->widthNoMargins(),
-		margins.top() + nameTop + st::settingsNameLabel.margin.top(),
+		margins.left() + nameLeft + _name->widthNoMargins() + st::settingsNameLabel.margin.right(),
+		margins.top() + nameTop - st::settingsNameLabel.margin.top(),
 		newWidth);
 	_editNameInline->setVisible(editNameInlineVisible);
 }
@@ -310,7 +321,7 @@ void CoverWidget::refreshStatusText() {
 		if (!_cancelPhotoUpload) {
 			auto margins = getMargins();
 			_cancelPhotoUpload.create(this, lang(lng_cancel), st::defaultLinkButton);
-			connect(_cancelPhotoUpload, SIGNAL(clicked()), this, SLOT(onCancelPhotoUpload()));
+			_cancelPhotoUpload->addClickHandler([this] { cancelPhotoUpload(); });
 			_cancelPhotoUpload->show();
 			_cancelPhotoUpload->moveToLeft(
 				margins.left()
@@ -335,7 +346,7 @@ void CoverWidget::refreshStatusText() {
 	update();
 }
 
-void CoverWidget::onSetPhoto() {
+void CoverWidget::chooseNewPhoto() {
 	auto imageExtensions = cImgExtensions();
 	auto filter = qsl("Image files (*") + imageExtensions.join(qsl(" *")) + qsl(");;") + FileDialog::AllFilesFilter();
 	FileDialog::GetOpenPath(lang(lng_choose_image), filter, base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
@@ -354,7 +365,7 @@ void CoverWidget::onSetPhoto() {
 	}));
 }
 
-void CoverWidget::onEditName() {
+void CoverWidget::editName() {
 	Ui::show(Box<EditNameTitleBox>(self()));
 }
 

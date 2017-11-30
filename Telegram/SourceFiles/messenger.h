@@ -159,7 +159,7 @@ public:
 	void chatPhotoCleared(PeerId peer, const MTPUpdates &updates);
 	void selfPhotoDone(const MTPphotos_Photo &result);
 	void chatPhotoDone(PeerId peerId, const MTPUpdates &updates);
-	bool peerPhotoFail(PeerId peerId, const RPCError &e);
+	bool peerPhotoFailed(PeerId peerId, const RPCError &e);
 	void peerClearPhoto(PeerId peer);
 
 	void writeUserConfigIn(TimeMs ms);
