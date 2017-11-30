@@ -216,6 +216,12 @@ private:
 	void saveChatAdmins(not_null<ChatData*> chat);
 	void sendSaveChatAdminsRequests(not_null<ChatData*> chat);
 
+	template <typename Callback>
+	void requestMessageAfterDate(
+		not_null<PeerData*> peer,
+		const QDate &date,
+		Callback &&callback);
+
 	int applyAffectedHistory(
 		not_null<PeerData*> peer,
 		const MTPmessages_AffectedHistory &result);

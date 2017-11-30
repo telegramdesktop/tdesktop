@@ -280,7 +280,10 @@ void Controller::showJumpToDate(not_null<PeerData*> peer, QDate requestedDate) {
 		}
 		return QDate::currentDate();
 	};
-	auto maxPeerDate = [peer] {
+	auto maxPeerDate = [](not_null<PeerData*> peer) {
+		if (auto channel = peer->migrateTo()) {
+			peer = channel;
+		}
 		if (auto history = App::historyLoaded(peer)) {
 			if (!history->lastMsgDate.isNull()) {
 				return history->lastMsgDate.date();
@@ -288,22 +291,45 @@ void Controller::showJumpToDate(not_null<PeerData*> peer, QDate requestedDate) {
 		}
 		return QDate::currentDate();
 	};
-	auto minPeerDate = [peer] {
-		if (auto history = App::historyLoaded(peer)) {
-			if (history->loadedAtTop()) {
-				if (history->isEmpty()) {
-					return QDate::currentDate();
+	auto minPeerDate = [](not_null<PeerData*> peer) {
+		const auto startDate = [] {
+			// Telegram was launched in August 2013 :)
+			return QDate(2013, 8, 1);
+		};
+		if (auto chat = peer->migrateFrom()) {
+			if (auto history = App::historyLoaded(chat)) {
+				if (history->loadedAtTop()) {
+					if (!history->isEmpty()) {
+						return history->blocks.front()->items.front()->date.date();
+					}
+				} else {
+					return startDate();
 				}
-				return history->blocks.front()->items.front()->date.date();
 			}
 		}
-		return QDate(2013, 8, 1); // Telegram was launched in August 2013 :)
+		if (auto history = App::historyLoaded(peer)) {
+			if (history->loadedAtTop()) {
+				if (!history->isEmpty()) {
+					return history->blocks.front()->items.front()->date.date();
+				}
+				return QDate::currentDate();
+			}
+		}
+		return startDate();
 	};
-	auto highlighted = requestedDate.isNull() ? currentPeerDate() : requestedDate;
+	auto highlighted = requestedDate.isNull()
+		? currentPeerDate()
+		: requestedDate;
 	auto month = highlighted;
-	auto box = Box<CalendarBox>(month, highlighted, [this, peer](const QDate &date) { Auth().api().jumpToDate(peer, date); });
-	box->setMinDate(minPeerDate());
-	box->setMaxDate(maxPeerDate());
+	auto callback = [this, peer](const QDate &date) {
+		Auth().api().jumpToDate(peer, date);
+	};
+	auto box = Box<CalendarBox>(
+		month,
+		highlighted,
+		std::move(callback));
+	box->setMinDate(minPeerDate(peer));
+	box->setMaxDate(maxPeerDate(peer));
 	Ui::show(std::move(box));
 }
 
