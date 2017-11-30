@@ -110,7 +110,9 @@ auto DeleteAndLeaveHandler(not_null<PeerData*> peer) {
 			if (!App::main()) return;
 
 			Ui::hideLayer();
-			Ui::showChatsList();
+			if (App::wnd()->controller()->activePeer.current() == peer) {
+				Ui::showChatsList();
+			}
 			if (peer->isUser()) {
 				App::main()->deleteConversation(peer);
 			} else if (auto chat = peer->asChat()) {
