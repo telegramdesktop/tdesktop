@@ -685,81 +685,84 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 	}
 
 	switch (e->type()) {
-	case QEvent::TouchBegin:
-	if (_menu) {
-		e->accept();
-		return; // ignore mouse press, that was hiding context menu
-	}
-	if (_touchInProgress) return;
-	if (e->touchPoints().isEmpty()) return;
+	case QEvent::TouchBegin: {
+		if (_menu) {
+			e->accept();
+			return; // ignore mouse press, that was hiding context menu
+		}
+		if (_touchInProgress) return;
+		if (e->touchPoints().isEmpty()) return;
 
-	_touchInProgress = true;
-	if (_touchScrollState == Ui::TouchScrollState::Auto) {
-		_touchScrollState = Ui::TouchScrollState::Acceleration;
-		_touchWaitingAcceleration = true;
-		_touchAccelerationTime = getms();
-		touchUpdateSpeed();
-		_touchStart = _touchPos;
-	} else {
-		_touchScroll = false;
-		_touchSelectTimer.start(QApplication::startDragTime());
-	}
-	_touchSelect = false;
-	_touchStart = _touchPrevPos = _touchPos;
-	break;
-
-	case QEvent::TouchUpdate:
-	if (!_touchInProgress) return;
-	if (_touchSelect) {
-		mouseActionUpdate(_touchPos);
-	} else if (!_touchScroll && (_touchPos - _touchStart).manhattanLength() >= QApplication::startDragDistance()) {
-		_touchSelectTimer.stop();
-		_touchScroll = true;
-		touchUpdateSpeed();
-	}
-	if (_touchScroll) {
-		if (_touchScrollState == Ui::TouchScrollState::Manual) {
-			touchScrollUpdated(_touchPos);
-		} else if (_touchScrollState == Ui::TouchScrollState::Acceleration) {
-			touchUpdateSpeed();
+		_touchInProgress = true;
+		if (_touchScrollState == Ui::TouchScrollState::Auto) {
+			_touchScrollState = Ui::TouchScrollState::Acceleration;
+			_touchWaitingAcceleration = true;
 			_touchAccelerationTime = getms();
-			if (_touchSpeed.isNull()) {
-				_touchScrollState = Ui::TouchScrollState::Manual;
+			touchUpdateSpeed();
+			_touchStart = _touchPos;
+		} else {
+			_touchScroll = false;
+			_touchSelectTimer.start(QApplication::startDragTime());
+		}
+		_touchSelect = false;
+		_touchStart = _touchPrevPos = _touchPos;
+	} break;
+
+	case QEvent::TouchUpdate: {
+		if (!_touchInProgress) return;
+		if (_touchSelect) {
+			mouseActionUpdate(_touchPos);
+		} else if (!_touchScroll && (_touchPos - _touchStart).manhattanLength() >= QApplication::startDragDistance()) {
+			_touchSelectTimer.stop();
+			_touchScroll = true;
+			touchUpdateSpeed();
+		}
+		if (_touchScroll) {
+			if (_touchScrollState == Ui::TouchScrollState::Manual) {
+				touchScrollUpdated(_touchPos);
+			} else if (_touchScrollState == Ui::TouchScrollState::Acceleration) {
+				touchUpdateSpeed();
+				_touchAccelerationTime = getms();
+				if (_touchSpeed.isNull()) {
+					_touchScrollState = Ui::TouchScrollState::Manual;
+				}
 			}
 		}
-	}
-	break;
+	} break;
 
-	case QEvent::TouchEnd:
-	if (!_touchInProgress) return;
-	_touchInProgress = false;
-	if (_touchSelect) {
-		mouseActionFinish(_touchPos, Qt::RightButton);
-		QContextMenuEvent contextMenu(QContextMenuEvent::Mouse, mapFromGlobal(_touchPos), _touchPos);
-		showContextMenu(&contextMenu, true);
-		_touchScroll = false;
-	} else if (_touchScroll) {
-		if (_touchScrollState == Ui::TouchScrollState::Manual) {
-			_touchScrollState = Ui::TouchScrollState::Auto;
-			_touchPrevPosValid = false;
-			_touchScrollTimer.start(15);
-			_touchTime = getms();
-		} else if (_touchScrollState == Ui::TouchScrollState::Auto) {
-			_touchScrollState = Ui::TouchScrollState::Manual;
+	case QEvent::TouchEnd: {
+		if (!_touchInProgress) return;
+		_touchInProgress = false;
+		auto weak = make_weak(this);
+		if (_touchSelect) {
+			mouseActionFinish(_touchPos, Qt::RightButton);
+			QContextMenuEvent contextMenu(QContextMenuEvent::Mouse, mapFromGlobal(_touchPos), _touchPos);
+			showContextMenu(&contextMenu, true);
 			_touchScroll = false;
-			touchResetSpeed();
-		} else if (_touchScrollState == Ui::TouchScrollState::Acceleration) {
-			_touchScrollState = Ui::TouchScrollState::Auto;
-			_touchWaitingAcceleration = false;
-			_touchPrevPosValid = false;
+		} else if (_touchScroll) {
+			if (_touchScrollState == Ui::TouchScrollState::Manual) {
+				_touchScrollState = Ui::TouchScrollState::Auto;
+				_touchPrevPosValid = false;
+				_touchScrollTimer.start(15);
+				_touchTime = getms();
+			} else if (_touchScrollState == Ui::TouchScrollState::Auto) {
+				_touchScrollState = Ui::TouchScrollState::Manual;
+				_touchScroll = false;
+				touchResetSpeed();
+			} else if (_touchScrollState == Ui::TouchScrollState::Acceleration) {
+				_touchScrollState = Ui::TouchScrollState::Auto;
+				_touchWaitingAcceleration = false;
+				_touchPrevPosValid = false;
+			}
+		} else { // One short tap is like left mouse click.
+			mouseActionStart(_touchPos, Qt::LeftButton);
+			mouseActionFinish(_touchPos, Qt::LeftButton);
 		}
-	} else { // One short tap is like left mouse click.
-		mouseActionStart(_touchPos, Qt::LeftButton);
-		mouseActionFinish(_touchPos, Qt::LeftButton);
-	}
-	_touchSelectTimer.stop();
-	_touchSelect = false;
-	break;
+		if (weak) {
+			_touchSelectTimer.stop();
+			_touchSelect = false;
+		}
+	} break;
 	}
 }
 

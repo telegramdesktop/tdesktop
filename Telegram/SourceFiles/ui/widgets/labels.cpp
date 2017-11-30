@@ -483,42 +483,45 @@ void FlatLabel::touchEvent(QTouchEvent *e) {
 	}
 
 	switch (e->type()) {
-	case QEvent::TouchBegin:
-	if (_contextMenu) {
-		e->accept();
-		return; // ignore mouse press, that was hiding context menu
-	}
-	if (_touchInProgress) return;
-	if (e->touchPoints().isEmpty()) return;
+	case QEvent::TouchBegin: {
+		if (_contextMenu) {
+			e->accept();
+			return; // ignore mouse press, that was hiding context menu
+		}
+		if (_touchInProgress) return;
+		if (e->touchPoints().isEmpty()) return;
 
-	_touchInProgress = true;
-	_touchSelectTimer.start(QApplication::startDragTime());
-	_touchSelect = false;
-	_touchStart = _touchPrevPos = _touchPos;
-	break;
+		_touchInProgress = true;
+		_touchSelectTimer.start(QApplication::startDragTime());
+		_touchSelect = false;
+		_touchStart = _touchPrevPos = _touchPos;
+	} break;
 
-	case QEvent::TouchUpdate:
-	if (!_touchInProgress) return;
-	if (_touchSelect) {
-		_lastMousePos = _touchPos;
-		dragActionUpdate();
-	}
-	break;
+	case QEvent::TouchUpdate: {
+		if (!_touchInProgress) return;
+		if (_touchSelect) {
+			_lastMousePos = _touchPos;
+			dragActionUpdate();
+		}
+	} break;
 
-	case QEvent::TouchEnd:
-	if (!_touchInProgress) return;
-	_touchInProgress = false;
-	if (_touchSelect) {
-		dragActionFinish(_touchPos, Qt::RightButton);
-		QContextMenuEvent contextMenu(QContextMenuEvent::Mouse, mapFromGlobal(_touchPos), _touchPos);
-		showContextMenu(&contextMenu, ContextMenuReason::FromTouch);
-	} else { // one short tap -- like mouse click
-		dragActionStart(_touchPos, Qt::LeftButton);
-		dragActionFinish(_touchPos, Qt::LeftButton);
-	}
-	_touchSelectTimer.stop();
-	_touchSelect = false;
-	break;
+	case QEvent::TouchEnd: {
+		if (!_touchInProgress) return;
+		_touchInProgress = false;
+		auto weak = make_weak(this);
+		if (_touchSelect) {
+			dragActionFinish(_touchPos, Qt::RightButton);
+			QContextMenuEvent contextMenu(QContextMenuEvent::Mouse, mapFromGlobal(_touchPos), _touchPos);
+			showContextMenu(&contextMenu, ContextMenuReason::FromTouch);
+		} else { // one short tap -- like mouse click
+			dragActionStart(_touchPos, Qt::LeftButton);
+			dragActionFinish(_touchPos, Qt::LeftButton);
+		}
+		if (weak) {
+			_touchSelectTimer.stop();
+			_touchSelect = false;
+		}
+	} break;
 	}
 }
 

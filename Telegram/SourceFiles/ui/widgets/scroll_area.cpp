@@ -526,7 +526,7 @@ void ScrollArea::touchEvent(QTouchEvent *e) {
 	}
 
 	switch (e->type()) {
-	case QEvent::TouchBegin:
+	case QEvent::TouchBegin: {
 		if (_touchPress || e->touchPoints().isEmpty()) return;
 		_touchPress = true;
 		if (_touchScrollState == TouchScrollState::Auto) {
@@ -541,9 +541,9 @@ void ScrollArea::touchEvent(QTouchEvent *e) {
 		}
 		_touchStart = _touchPrevPos = _touchPos;
 		_touchRightButton = false;
-		break;
+	} break;
 
-	case QEvent::TouchUpdate:
+	case QEvent::TouchUpdate: {
 		if (!_touchPress) return;
 		if (!_touchScroll && (_touchPos - _touchStart).manhattanLength() >= QApplication::startDragDistance()) {
 			_touchTimer.stop();
@@ -561,11 +561,12 @@ void ScrollArea::touchEvent(QTouchEvent *e) {
 				}
 			}
 		}
-		break;
+	} break;
 
-	case QEvent::TouchEnd:
+	case QEvent::TouchEnd: {
 		if (!_touchPress) return;
 		_touchPress = false;
+		auto weak = make_weak(this);
 		if (_touchScroll) {
 			if (_touchScrollState == TouchScrollState::Manual) {
 				_touchScrollState = TouchScrollState::Auto;
@@ -584,11 +585,11 @@ void ScrollArea::touchEvent(QTouchEvent *e) {
 		} else if (window()) { // one short tap -- like left mouse click, one long tap -- like right mouse click
 			Qt::MouseButton btn(_touchRightButton ? Qt::RightButton : Qt::LeftButton);
 
-			sendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton, _touchStart);
-			sendSynteticMouseEvent(this, QEvent::MouseButtonPress, btn, _touchStart);
-			sendSynteticMouseEvent(this, QEvent::MouseButtonRelease, btn, _touchStart);
+			if (weak) sendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton, _touchStart);
+			if (weak) sendSynteticMouseEvent(this, QEvent::MouseButtonPress, btn, _touchStart);
+			if (weak) sendSynteticMouseEvent(this, QEvent::MouseButtonRelease, btn, _touchStart);
 
-			if (_touchRightButton) {
+			if (weak && _touchRightButton) {
 				auto windowHandle = window()->windowHandle();
 				auto localPoint = windowHandle->mapFromGlobal(_touchStart);
 				QContextMenuEvent ev(QContextMenuEvent::Mouse, localPoint, _touchStart, QGuiApplication::keyboardModifiers());
@@ -596,16 +597,18 @@ void ScrollArea::touchEvent(QTouchEvent *e) {
 				QGuiApplication::sendEvent(windowHandle, &ev);
 			}
 		}
-		_touchTimer.stop();
-		_touchRightButton = false;
-		break;
+		if (weak) {
+			_touchTimer.stop();
+			_touchRightButton = false;
+		}
+	} break;
 
-	case QEvent::TouchCancel:
+	case QEvent::TouchCancel: {
 		_touchPress = false;
 		_touchScroll = false;
 		_touchScrollState = TouchScrollState::Manual;
 		_touchTimer.stop();
-		break;
+	} break;
 	}
 }
 

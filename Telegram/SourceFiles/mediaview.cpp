@@ -2657,35 +2657,36 @@ void MediaView::contextMenuEvent(QContextMenuEvent *e) {
 
 void MediaView::touchEvent(QTouchEvent *e) {
 	switch (e->type()) {
-	case QEvent::TouchBegin:
+	case QEvent::TouchBegin: {
 		if (_touchPress || e->touchPoints().isEmpty()) return;
 		_touchTimer.start(QApplication::startDragTime());
 		_touchPress = true;
 		_touchMove = _touchRightButton = false;
 		_touchStart = e->touchPoints().cbegin()->screenPos().toPoint();
-		break;
+	} break;
 
-	case QEvent::TouchUpdate:
+	case QEvent::TouchUpdate: {
 		if (!_touchPress || e->touchPoints().isEmpty()) return;
 		if (!_touchMove && (e->touchPoints().cbegin()->screenPos().toPoint() - _touchStart).manhattanLength() >= QApplication::startDragDistance()) {
 			_touchMove = true;
 		}
-		break;
+	} break;
 
-	case QEvent::TouchEnd:
+	case QEvent::TouchEnd: {
 		if (!_touchPress) return;
+		auto weak = make_weak(this);
 		if (!_touchMove) {
 			Qt::MouseButton btn(_touchRightButton ? Qt::RightButton : Qt::LeftButton);
 			auto mapped = mapFromGlobal(_touchStart);
 
 			QMouseEvent pressEvent(QEvent::MouseButtonPress, mapped, mapped, _touchStart, btn, Qt::MouseButtons(btn), Qt::KeyboardModifiers());
 			pressEvent.accept();
-			mousePressEvent(&pressEvent);
+			if (weak) mousePressEvent(&pressEvent);
 
 			QMouseEvent releaseEvent(QEvent::MouseButtonRelease, mapped, mapped, _touchStart, btn, Qt::MouseButtons(btn), Qt::KeyboardModifiers());
-			mouseReleaseEvent(&releaseEvent);
+			if (weak) mouseReleaseEvent(&releaseEvent);
 
-			if (_touchRightButton) {
+			if (weak && _touchRightButton) {
 				QContextMenuEvent contextEvent(QContextMenuEvent::Mouse, mapped, _touchStart);
 				contextMenuEvent(&contextEvent);
 			}
@@ -2697,14 +2698,16 @@ void MediaView::touchEvent(QTouchEvent *e) {
 				}
 			}
 		}
-		_touchTimer.stop();
-		_touchPress = _touchMove = _touchRightButton = false;
-		break;
+		if (weak) {
+			_touchTimer.stop();
+			_touchPress = _touchMove = _touchRightButton = false;
+		}
+	} break;
 
-	case QEvent::TouchCancel:
+	case QEvent::TouchCancel: {
 		_touchPress = false;
 		_touchTimer.stop();
-		break;
+	} break;
 	}
 }
 

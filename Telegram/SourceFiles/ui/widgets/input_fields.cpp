@@ -278,40 +278,43 @@ bool FlatTextarea::viewportEvent(QEvent *e) {
 
 void FlatTextarea::touchEvent(QTouchEvent *e) {
 	switch (e->type()) {
-	case QEvent::TouchBegin:
-	if (_touchPress || e->touchPoints().isEmpty()) return;
-	_touchTimer.start(QApplication::startDragTime());
-	_touchPress = true;
-	_touchMove = _touchRightButton = false;
-	_touchStart = e->touchPoints().cbegin()->screenPos().toPoint();
-	break;
+	case QEvent::TouchBegin: {
+		if (_touchPress || e->touchPoints().isEmpty()) return;
+		_touchTimer.start(QApplication::startDragTime());
+		_touchPress = true;
+		_touchMove = _touchRightButton = false;
+		_touchStart = e->touchPoints().cbegin()->screenPos().toPoint();
+	} break;
 
-	case QEvent::TouchUpdate:
-	if (!_touchPress || e->touchPoints().isEmpty()) return;
-	if (!_touchMove && (e->touchPoints().cbegin()->screenPos().toPoint() - _touchStart).manhattanLength() >= QApplication::startDragDistance()) {
-		_touchMove = true;
-	}
-	break;
-
-	case QEvent::TouchEnd:
-	if (!_touchPress) return;
-	if (!_touchMove && window()) {
-		Qt::MouseButton btn(_touchRightButton ? Qt::RightButton : Qt::LeftButton);
-		QPoint mapped(mapFromGlobal(_touchStart)), winMapped(window()->mapFromGlobal(_touchStart));
-
-		if (_touchRightButton) {
-			QContextMenuEvent contextEvent(QContextMenuEvent::Mouse, mapped, _touchStart);
-			contextMenuEvent(&contextEvent);
+	case QEvent::TouchUpdate: {
+		if (!_touchPress || e->touchPoints().isEmpty()) return;
+		if (!_touchMove && (e->touchPoints().cbegin()->screenPos().toPoint() - _touchStart).manhattanLength() >= QApplication::startDragDistance()) {
+			_touchMove = true;
 		}
-	}
-	_touchTimer.stop();
-	_touchPress = _touchMove = _touchRightButton = false;
-	break;
+	} break;
 
-	case QEvent::TouchCancel:
-	_touchPress = false;
-	_touchTimer.stop();
-	break;
+	case QEvent::TouchEnd: {
+		if (!_touchPress) return;
+		auto weak = make_weak(this);
+		if (!_touchMove && window()) {
+			Qt::MouseButton btn(_touchRightButton ? Qt::RightButton : Qt::LeftButton);
+			QPoint mapped(mapFromGlobal(_touchStart)), winMapped(window()->mapFromGlobal(_touchStart));
+
+			if (_touchRightButton) {
+				QContextMenuEvent contextEvent(QContextMenuEvent::Mouse, mapped, _touchStart);
+				contextMenuEvent(&contextEvent);
+			}
+		}
+		if (weak) {
+			_touchTimer.stop();
+			_touchPress = _touchMove = _touchRightButton = false;
+		}
+	} break;
+
+	case QEvent::TouchCancel: {
+		_touchPress = false;
+		_touchTimer.stop();
+	} break;
 	}
 }
 
@@ -1523,23 +1526,24 @@ bool FlatInput::event(QEvent *e) {
 
 void FlatInput::touchEvent(QTouchEvent *e) {
 	switch (e->type()) {
-	case QEvent::TouchBegin:
+	case QEvent::TouchBegin: {
 		if (_touchPress || e->touchPoints().isEmpty()) return;
 		_touchTimer.start(QApplication::startDragTime());
 		_touchPress = true;
 		_touchMove = _touchRightButton = false;
 		_touchStart = e->touchPoints().cbegin()->screenPos().toPoint();
-		break;
+	} break;
 
-	case QEvent::TouchUpdate:
+	case QEvent::TouchUpdate: {
 		if (!_touchPress || e->touchPoints().isEmpty()) return;
 		if (!_touchMove && (e->touchPoints().cbegin()->screenPos().toPoint() - _touchStart).manhattanLength() >= QApplication::startDragDistance()) {
 			_touchMove = true;
 		}
-		break;
+	} break;
 
-	case QEvent::TouchEnd:
+	case QEvent::TouchEnd: {
 		if (!_touchPress) return;
+		auto weak = make_weak(this);
 		if (!_touchMove && window()) {
 			Qt::MouseButton btn(_touchRightButton ? Qt::RightButton : Qt::LeftButton);
 			QPoint mapped(mapFromGlobal(_touchStart)), winMapped(window()->mapFromGlobal(_touchStart));
@@ -1549,14 +1553,16 @@ void FlatInput::touchEvent(QTouchEvent *e) {
 				contextMenuEvent(&contextEvent);
 			}
 		}
-		_touchTimer.stop();
-		_touchPress = _touchMove = _touchRightButton = false;
-		break;
+		if (weak) {
+			_touchTimer.stop();
+			_touchPress = _touchMove = _touchRightButton = false;
+		}
+	} break;
 
-	case QEvent::TouchCancel:
+	case QEvent::TouchCancel: {
 		_touchPress = false;
 		_touchTimer.stop();
-		break;
+	} break;
 	}
 }
 
@@ -1857,23 +1863,24 @@ bool InputArea::Inner::viewportEvent(QEvent *e) {
 
 void InputArea::touchEvent(QTouchEvent *e) {
 	switch (e->type()) {
-	case QEvent::TouchBegin:
+	case QEvent::TouchBegin: {
 		if (_touchPress || e->touchPoints().isEmpty()) return;
 		_touchTimer.start(QApplication::startDragTime());
 		_touchPress = true;
 		_touchMove = _touchRightButton = false;
 		_touchStart = e->touchPoints().cbegin()->screenPos().toPoint();
-		break;
+	} break;
 
-	case QEvent::TouchUpdate:
+	case QEvent::TouchUpdate: {
 		if (!_touchPress || e->touchPoints().isEmpty()) return;
 		if (!_touchMove && (e->touchPoints().cbegin()->screenPos().toPoint() - _touchStart).manhattanLength() >= QApplication::startDragDistance()) {
 			_touchMove = true;
 		}
-		break;
+	} break;
 
-	case QEvent::TouchEnd:
+	case QEvent::TouchEnd: {
 		if (!_touchPress) return;
+		auto weak = make_weak(this);
 		if (!_touchMove && window()) {
 			Qt::MouseButton btn(_touchRightButton ? Qt::RightButton : Qt::LeftButton);
 			QPoint mapped(mapFromGlobal(_touchStart)), winMapped(window()->mapFromGlobal(_touchStart));
@@ -1883,14 +1890,16 @@ void InputArea::touchEvent(QTouchEvent *e) {
 				contextMenuEvent(&contextEvent);
 			}
 		}
-		_touchTimer.stop();
-		_touchPress = _touchMove = _touchRightButton = false;
-		break;
+		if (weak) {
+			_touchTimer.stop();
+			_touchPress = _touchMove = _touchRightButton = false;
+		}
+	} break;
 
-	case QEvent::TouchCancel:
+	case QEvent::TouchCancel: {
 		_touchPress = false;
 		_touchTimer.stop();
-		break;
+	} break;
 	}
 }
 
@@ -2593,23 +2602,25 @@ bool InputField::Inner::viewportEvent(QEvent *e) {
 
 void InputField::touchEvent(QTouchEvent *e) {
 	switch (e->type()) {
-	case QEvent::TouchBegin:
+	case QEvent::TouchBegin: {
 		if (_touchPress || e->touchPoints().isEmpty()) return;
 		_touchTimer.start(QApplication::startDragTime());
 		_touchPress = true;
 		_touchMove = _touchRightButton = false;
 		_touchStart = e->touchPoints().cbegin()->screenPos().toPoint();
-		break;
+	} break;
 
-	case QEvent::TouchUpdate:
+	case QEvent::TouchUpdate: {
 		if (!_touchPress || e->touchPoints().isEmpty()) return;
 		if (!_touchMove && (e->touchPoints().cbegin()->screenPos().toPoint() - _touchStart).manhattanLength() >= QApplication::startDragDistance()) {
 			_touchMove = true;
 		}
-		break;
+	} break;
 
 	case QEvent::TouchEnd:
+	{
 		if (!_touchPress) return;
+		auto weak = make_weak(this);
 		if (!_touchMove && window()) {
 			Qt::MouseButton btn(_touchRightButton ? Qt::RightButton : Qt::LeftButton);
 			QPoint mapped(mapFromGlobal(_touchStart)), winMapped(window()->mapFromGlobal(_touchStart));
@@ -2619,14 +2630,16 @@ void InputField::touchEvent(QTouchEvent *e) {
 				contextMenuEvent(&contextEvent);
 			}
 		}
-		_touchTimer.stop();
-		_touchPress = _touchMove = _touchRightButton = false;
-		break;
+		if (weak) {
+			_touchTimer.stop();
+			_touchPress = _touchMove = _touchRightButton = false;
+		}
+	} break;
 
-	case QEvent::TouchCancel:
+	case QEvent::TouchCancel: {
 		_touchPress = false;
 		_touchTimer.stop();
-		break;
+	} break;
 	}
 }
 
@@ -3376,23 +3389,24 @@ bool MaskedInputField::eventHook(QEvent *e) {
 
 void MaskedInputField::touchEvent(QTouchEvent *e) {
 	switch (e->type()) {
-	case QEvent::TouchBegin:
+	case QEvent::TouchBegin: {
 		if (_touchPress || e->touchPoints().isEmpty()) return;
 		_touchTimer.start(QApplication::startDragTime());
 		_touchPress = true;
 		_touchMove = _touchRightButton = false;
 		_touchStart = e->touchPoints().cbegin()->screenPos().toPoint();
-		break;
+	} break;
 
-	case QEvent::TouchUpdate:
+	case QEvent::TouchUpdate: {
 		if (!_touchPress || e->touchPoints().isEmpty()) return;
 		if (!_touchMove && (e->touchPoints().cbegin()->screenPos().toPoint() - _touchStart).manhattanLength() >= QApplication::startDragDistance()) {
 			_touchMove = true;
 		}
-		break;
+	} break;
 
-	case QEvent::TouchEnd:
+	case QEvent::TouchEnd: {
 		if (!_touchPress) return;
+		auto weak = make_weak(this);
 		if (!_touchMove && window()) {
 			Qt::MouseButton btn(_touchRightButton ? Qt::RightButton : Qt::LeftButton);
 			QPoint mapped(mapFromGlobal(_touchStart)), winMapped(window()->mapFromGlobal(_touchStart));
@@ -3402,14 +3416,16 @@ void MaskedInputField::touchEvent(QTouchEvent *e) {
 				contextMenuEvent(&contextEvent);
 			}
 		}
-		_touchTimer.stop();
-		_touchPress = _touchMove = _touchRightButton = false;
-		break;
+		if (weak) {
+			_touchTimer.stop();
+			_touchPress = _touchMove = _touchRightButton = false;
+		}
+	} break;
 
-	case QEvent::TouchCancel:
+	case QEvent::TouchCancel: {
 		_touchPress = false;
 		_touchTimer.stop();
-		break;
+	} break;
 	}
 }
 
