@@ -190,7 +190,10 @@ public:
 	void noHider(HistoryHider *destroyed);
 	bool setForwardDraft(PeerId peer, ForwardWhatMessages what);
 	bool setForwardDraft(PeerId peer, const SelectedItemSet &items);
-	bool onShareUrl(const PeerId &peer, const QString &url, const QString &text);
+	bool shareUrl(
+		not_null<PeerData*> peer,
+		const QString &url,
+		const QString &text);
 	bool onInlineSwitchChosen(const PeerId &peer, const QString &botAndQuery);
 	void onShareContact(const PeerId &peer, UserData *contact);
 	bool onSendPaths(const PeerId &peer);
