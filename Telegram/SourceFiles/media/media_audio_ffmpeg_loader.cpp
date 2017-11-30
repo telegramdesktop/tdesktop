@@ -20,6 +20,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "media/media_audio_ffmpeg_loader.h"
 
+extern "C" {
+#include <libswresample/swresample_internal.h>
+}
+
 constexpr AVSampleFormat AudioToFormat = AV_SAMPLE_FMT_S16;
 constexpr int64_t AudioToChannelLayout = AV_CH_LAYOUT_STEREO;
 constexpr int32 AudioToChannels = 2;
@@ -350,6 +354,21 @@ AudioPlayerLoader::ReadResult FFMpegLoader::readFromReadyFrame(QByteArray &resul
 				LOG(("Audio Error: Unable to av_samples_alloc for file '%1', data size '%2', error %3, %4").arg(_file.name()).arg(_data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 				return ReadResult::Error;
 			}
+		}
+		if (swrContext->in.ch_count == 2 && frame->extended_data[1] == nullptr) {
+			auto params = fmtContext->streams[streamId]->codecpar;
+			SignalHandlers::setCrashAnnotation("MediaCrash",
+				QString("layout:%1,channels:%2,rate:%3,format:%4,framelayout:%5,framechannels:%6,framerate:%7,stream:%8"
+				).arg(params->channel_layout
+				).arg(params->channels
+				).arg(params->sample_rate
+				).arg(codecContext->sample_fmt
+				).arg(frame->channel_layout
+				).arg(frame->channels
+				).arg(frame->sample_rate
+				).arg(streamId
+				));
+			Unexpected("Bad frame while reading audio!");
 		}
 		if ((res = swr_convert(swrContext, dstSamplesData, dstSamples, (const uint8_t**)frame->extended_data, frame->nb_samples)) < 0) {
 			char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
