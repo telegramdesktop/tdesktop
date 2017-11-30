@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "storage/storage_user_photos.h"
-#include "base/weak_unique_ptr.h"
+#include "base/weak_ptr.h"
 
 class UserPhotosSlice {
 public:

@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "base/timer.h"
-#include "base/weak_unique_ptr.h"
+#include "base/weak_ptr.h"
 #include "mtproto/rpc_sender.h"
 
 namespace MTP {
@@ -31,7 +31,7 @@ class Instance;
 
 namespace internal {
 
-class ConfigLoader : public base::enable_weak_from_this {
+class ConfigLoader : public base::has_weak_ptr {
 public:
 	ConfigLoader(not_null<Instance*> instance, RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail);
 	~ConfigLoader();

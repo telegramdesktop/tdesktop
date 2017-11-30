@@ -142,16 +142,15 @@ void ConfigLoader::sendSpecialRequest() {
 		return;
 	}
 
-	auto weak = base::make_weak_unique(this);
+	auto weak = base::make_weak(this);
 	auto index = rand_value<uint32>() % uint32(_specialEndpoints.size());
 	auto endpoint = _specialEndpoints.begin() + index;
 	_specialEnumCurrent = specialToRealDcId(endpoint->dcId);
 	_instance->dcOptions()->constructAddOne(_specialEnumCurrent, MTPDdcOption::Flag::f_tcpo_only, endpoint->ip, endpoint->port);
 	_specialEnumRequest = _instance->send(MTPhelp_GetConfig(), rpcDone([weak](const MTPConfig &result) {
-		if (!weak) {
-			return;
+		if (const auto strong = weak.get()) {
+			strong->specialConfigLoaded(result);
 		}
-		weak->specialConfigLoaded(result);
 	}), _failHandler, _specialEnumCurrent);
 	_triedSpecialEndpoints.push_back(*endpoint);
 	_specialEndpoints.erase(endpoint);

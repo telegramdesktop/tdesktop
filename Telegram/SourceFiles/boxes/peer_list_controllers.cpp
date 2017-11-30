@@ -725,8 +725,7 @@ void AddBotToGroupBoxController::rowClicked(not_null<PeerListRow*> row) {
 }
 
 void AddBotToGroupBoxController::shareBotGame(not_null<PeerData*> chat) {
-	auto weak = base::make_weak_unique(this);
-	auto send = [weak, bot = _bot, chat] {
+	auto send = [weak = base::make_weak(this), bot = _bot, chat] {
 		if (!weak) {
 			return;
 		}
@@ -773,8 +772,7 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 			return;
 		}
 	}
-	auto weak = base::make_weak_unique(this);
-	auto send = [weak, bot = _bot, chat] {
+	auto send = [weak = base::make_weak(this), bot = _bot, chat] {
 		if (!weak) {
 			return;
 		}

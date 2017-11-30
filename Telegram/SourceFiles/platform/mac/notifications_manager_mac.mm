@@ -61,19 +61,19 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 @interface NotificationDelegate : NSObject<NSUserNotificationCenterDelegate> {
 }
 
-- (id) initWithManager:(base::weak_unique_ptr<Manager>)manager managerId:(uint64)managerId;
+- (id) initWithManager:(base::weak_ptr<Manager>)manager managerId:(uint64)managerId;
 - (void) userNotificationCenter:(NSUserNotificationCenter*)center didActivateNotification:(NSUserNotification*)notification;
 - (BOOL) userNotificationCenter:(NSUserNotificationCenter*)center shouldPresentNotification:(NSUserNotification*)notification;
 
 @end // @interface NotificationDelegate
 
 @implementation NotificationDelegate {
-	base::weak_unique_ptr<Manager> _manager;
+	base::weak_ptr<Manager> _manager;
 	uint64 _managerId;
 
 }
 
-- (id) initWithManager:(base::weak_unique_ptr<Manager>)manager managerId:(uint64)managerId {
+- (id) initWithManager:(base::weak_ptr<Manager>)manager managerId:(uint64)managerId {
 	if (self = [super init]) {
 		_manager = manager;
 		_managerId = managerId;

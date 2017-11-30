@@ -216,14 +216,14 @@ void ParticipantsBoxController::addNewItem() {
 		}
 		return;
 	}
-	auto weak = base::make_weak_unique(this);
+	auto weak = base::make_weak(this);
 	_addBox = Ui::show(Box<PeerListBox>(std::make_unique<AddParticipantBoxController>(_channel, _role, [weak](not_null<UserData*> user, const MTPChannelAdminRights &rights) {
-		if (weak) {
-			weak->editAdminDone(user, rights);
+		if (const auto strong = weak.get()) {
+			strong->editAdminDone(user, rights);
 		}
 	}, [weak](not_null<UserData*> user, const MTPChannelBannedRights &rights) {
-		if (weak) {
-			weak->editRestrictedDone(user, rights);
+		if (const auto strong = weak.get()) {
+			strong->editRestrictedDone(user, rights);
 		}
 	}), [](not_null<PeerListBox*> box) {
 		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
@@ -640,9 +640,9 @@ Ui::PopupMenu *ParticipantsBoxController::rowContextMenu(
 	auto result = new Ui::PopupMenu(nullptr);
 	result->addAction(
 		lang(lng_context_view_profile),
-		[weak = base::make_weak_unique(this), user] {
-			if (weak) {
-				weak->_window->showPeerInfo(user);
+		[weak = base::make_weak(this), user] {
+			if (const auto strong = weak.get()) {
+				strong->_window->showPeerInfo(user);
 			}
 		});
 	if (canEditAdmin(user)) {
@@ -654,9 +654,9 @@ Ui::PopupMenu *ParticipantsBoxController::rowContextMenu(
 			: lng_context_edit_permissions);
 		result->addAction(
 			label,
-			[weak = base::make_weak_unique(this), user] {
-				if (weak) {
-					weak->showAdmin(user);
+			[weak = base::make_weak(this), user] {
+				if (const auto strong = weak.get()) {
+					strong->showAdmin(user);
 				}
 			});
 	}
@@ -665,9 +665,9 @@ Ui::PopupMenu *ParticipantsBoxController::rowContextMenu(
 		if (isGroup) {
 			result->addAction(
 				lang(lng_context_restrict_user),
-				[weak = base::make_weak_unique(this), user]{
-					if (weak) {
-						weak->showRestricted(user);
+				[weak = base::make_weak(this), user]{
+					if (const auto strong = weak.get()) {
+						strong->showRestricted(user);
 					}
 				});
 		}
@@ -675,9 +675,9 @@ Ui::PopupMenu *ParticipantsBoxController::rowContextMenu(
 			lang(isGroup
 				? lng_context_remove_from_group
 				: lng_profile_kick),
-			[weak = base::make_weak_unique(this), user] {
-				if (weak) {
-					weak->kickMember(user);
+			[weak = base::make_weak(this), user] {
+				if (auto strong = weak.get()) {
+					strong->kickMember(user);
 				}
 			});
 	}
@@ -691,7 +691,7 @@ void ParticipantsBoxController::showAdmin(not_null<UserData*> user) {
 	auto currentRights = isCreator
 		? MTP_channelAdminRights(MTP_flags(~MTPDchannelAdminRights::Flag::f_add_admins | MTPDchannelAdminRights::Flag::f_add_admins))
 		: notAdmin ? MTP_channelAdminRights(MTP_flags(0)) : it->second;
-	auto weak = base::make_weak_unique(this);
+	auto weak = base::make_weak(this);
 	auto box = Box<EditAdminBox>(_channel, user, currentRights);
 	auto canEdit = (_additional.adminCanEdit.find(user) != _additional.adminCanEdit.end());
 	auto canSave = notAdmin ? _channel->canAddAdmins() : canEdit;
@@ -749,7 +749,7 @@ void ParticipantsBoxController::showRestricted(not_null<UserData*> user) {
 	auto restrictedRights = (it == _additional.restrictedRights.cend())
 		? MTP_channelBannedRights(MTP_flags(0), MTP_int(0))
 		: it->second;
-	auto weak = base::make_weak_unique(this);
+	auto weak = base::make_weak(this);
 	auto hasAdminRights = false;
 	auto box = Box<EditRestrictedBox>(_channel, user, hasAdminRights, restrictedRights);
 	if (_channel->canBanMembers()) {
@@ -815,10 +815,10 @@ void ParticipantsBoxController::editRestrictedDone(not_null<UserData*> user, con
 
 void ParticipantsBoxController::kickMember(not_null<UserData*> user) {
 	auto text = (_channel->isMegagroup() ? lng_profile_sure_kick : lng_profile_sure_kick_channel)(lt_user, user->firstName);
-	auto weak = base::make_weak_unique(this);
+	auto weak = base::make_weak(this);
 	_editBox = Ui::show(Box<ConfirmBox>(text, lang(lng_box_remove), [weak, user] {
-		if (weak) {
-			weak->kickMemberSure(user);
+		if (const auto strong = weak.get()) {
+			strong->kickMemberSure(user);
 		}
 	}), LayerOption::KeepOther);
 }
@@ -1255,7 +1255,7 @@ void AddParticipantBoxController::showAdmin(not_null<UserData*> user, bool sure)
 	}
 
 	// Check restrictions.
-	auto weak = base::make_weak_unique(this);
+	auto weak = base::make_weak(this);
 	auto alreadyIt = _additional.adminRights.find(user);
 	auto currentRights = (_additional.creator == user)
 		? MTP_channelAdminRights(MTP_flags(~MTPDchannelAdminRights::Flag::f_add_admins | MTPDchannelAdminRights::Flag::f_add_admins))
@@ -1398,7 +1398,7 @@ void AddParticipantBoxController::showRestricted(not_null<UserData*> user, bool 
 	}
 
 	// Check restrictions.
-	auto weak = base::make_weak_unique(this);
+	auto weak = base::make_weak(this);
 	auto alreadyIt = _additional.restrictedRights.find(user);
 	auto currentRights = MTP_channelBannedRights(MTP_flags(0), MTP_int(0));
 	auto hasAdminRights = false;
@@ -1436,12 +1436,12 @@ void AddParticipantBoxController::showRestricted(not_null<UserData*> user, bool 
 }
 
 void AddParticipantBoxController::restrictUserSure(not_null<UserData*> user, const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
-	auto weak = base::make_weak_unique(this);
+	auto weak = base::make_weak(this);
 	MTP::send(MTPchannels_EditBanned(_channel->inputChannel, user->inputUser, newRights), rpcDone([megagroup = _channel.get(), user, weak, oldRights, newRights](const MTPUpdates &result) {
 		Auth().api().applyUpdates(result);
 		megagroup->applyEditBanned(user, oldRights, newRights);
-		if (weak) {
-			weak->editRestrictedDone(user, newRights);
+		if (const auto strong = weak.get()) {
+			strong->editRestrictedDone(user, newRights);
 		}
 	}));
 }
@@ -1477,7 +1477,7 @@ void AddParticipantBoxController::kickUser(not_null<UserData*> user, bool sure) 
 	}
 
 	// Check restrictions.
-	auto weak = base::make_weak_unique(this);
+	auto weak = base::make_weak(this);
 	if (_additional.adminRights.find(user) != _additional.adminRights.end() || _additional.creator == user) {
 		// The user is an admin or creator.
 		if (_additional.adminCanEdit.find(user) != _additional.adminCanEdit.end()) {

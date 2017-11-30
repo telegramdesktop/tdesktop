@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <rpl/producer.h>
 #include "lang_auto.h"
-#include "base/weak_unique_ptr.h"
+#include "base/weak_ptr.h"
 
 namespace Lang {
 

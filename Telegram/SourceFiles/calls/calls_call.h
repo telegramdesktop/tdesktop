@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "base/weak_unique_ptr.h"
+#include "base/weak_ptr.h"
 #include "base/timer.h"
 #include "mtproto/sender.h"
 #include "mtproto/auth_key.h"
@@ -43,7 +43,7 @@ struct DhConfig {
 	std::vector<gsl::byte> p;
 };
 
-class Call : public base::enable_weak_from_this, private MTP::Sender {
+class Call : public base::has_weak_ptr, private MTP::Sender {
 public:
 	class Delegate {
 	public:

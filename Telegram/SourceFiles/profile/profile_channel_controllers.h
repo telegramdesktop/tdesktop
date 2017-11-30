@@ -24,7 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/peer_list_box.h"
 #include "mtproto/sender.h"
 #include "base/timer.h"
-#include "base/weak_unique_ptr.h"
+#include "base/weak_ptr.h"
 #include "info/profile/info_profile_members_controllers.h"
 
 namespace Window {
@@ -38,7 +38,7 @@ class ParticipantsBoxController
 	: public PeerListController
 	, private base::Subscriber
 	, private MTP::Sender
-	, public base::enable_weak_from_this {
+	, public base::has_weak_ptr {
 public:
 	enum class Role {
 		Profile,
@@ -212,7 +212,7 @@ private:
 };
 
 // Adding an admin, banned or restricted user from channel members with search + contacts search + global search.
-class AddParticipantBoxController : public PeerListController, private base::Subscriber, private MTP::Sender, public base::enable_weak_from_this {
+class AddParticipantBoxController : public PeerListController, private base::Subscriber, private MTP::Sender, public base::has_weak_ptr {
 public:
 	using Role = ParticipantsBoxController::Role;
 	using Additional = ParticipantsBoxController::Additional;

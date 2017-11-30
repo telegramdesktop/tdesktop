@@ -69,7 +69,7 @@ inline void CallDelayed(
 template <typename Lambda>
 inline void CallDelayed(
 		int duration,
-		const base::enable_weak_from_this *object,
+		const base::has_weak_ptr *object,
 		Lambda &&lambda) {
 	return internal::CallDelayed(
 		duration,
@@ -93,7 +93,7 @@ inline auto LambdaDelayed(
 template <typename Lambda>
 inline auto LambdaDelayed(
 		int duration,
-		const base::enable_weak_from_this *object,
+		const base::has_weak_ptr *object,
 		Lambda &&lambda) {
 	auto guarded = base::lambda_guarded(
 		object,
@@ -120,7 +120,7 @@ inline auto LambdaDelayedOnce(
 template <typename Lambda>
 inline auto LambdaDelayedOnce(
 		int duration,
-		const base::enable_weak_from_this *object,
+		const base::has_weak_ptr *object,
 		Lambda &&lambda) {
 	auto guarded = base::lambda_guarded(
 		object,

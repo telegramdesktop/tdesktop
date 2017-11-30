@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "boxes/peer_list_box.h"
 #include "base/flat_set.h"
-#include "base/weak_unique_ptr.h"
+#include "base/weak_ptr.h"
 
 // Not used for now.
 //
@@ -207,7 +207,7 @@ private:
 
 };
 
-class AddBotToGroupBoxController : public ChatsListBoxController, public base::enable_weak_from_this {
+class AddBotToGroupBoxController : public ChatsListBoxController, public base::has_weak_ptr {
 public:
 	static void Start(not_null<UserData*> bot);
 

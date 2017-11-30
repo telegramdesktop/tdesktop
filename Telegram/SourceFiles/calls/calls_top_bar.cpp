@@ -39,7 +39,7 @@ constexpr auto kUpdateDebugTimeoutMs = TimeMs(500);
 
 class DebugInfoBox : public BoxContent {
 public:
-	DebugInfoBox(QWidget*, base::weak_unique_ptr<Call> call);
+	DebugInfoBox(QWidget*, base::weak_ptr<Call> call);
 
 protected:
 	void prepare() override;
@@ -47,13 +47,14 @@ protected:
 private:
 	void updateText();
 
-	base::weak_unique_ptr<Call> _call;
+	base::weak_ptr<Call> _call;
 	QPointer<Ui::FlatLabel> _text;
 	base::Timer _updateTextTimer;
 
 };
 
-DebugInfoBox::DebugInfoBox(QWidget*, base::weak_unique_ptr<Call> call) : _call(call) {
+DebugInfoBox::DebugInfoBox(QWidget*, base::weak_ptr<Call> call)
+: _call(call) {
 }
 
 void DebugInfoBox::prepare() {
@@ -82,7 +83,7 @@ void DebugInfoBox::updateText() {
 
 TopBar::TopBar(
 	QWidget *parent,
-	const base::weak_unique_ptr<Call> &call)
+	const base::weak_ptr<Call> &call)
 : RpWidget(parent)
 , _call(call)
 , _durationLabel(this, st::callBarLabel)

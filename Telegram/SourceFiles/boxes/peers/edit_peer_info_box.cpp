@@ -52,7 +52,7 @@ constexpr auto kUsernameCheckTimeout = TimeMs(200);
 
 class Controller
 	: private MTP::Sender
-	, private base::enable_weak_from_this {
+	, private base::has_weak_ptr {
 public:
 	Controller(
 		not_null<BoxContent*> box,

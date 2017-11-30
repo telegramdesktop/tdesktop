@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "storage/storage_shared_media.h"
-#include "base/weak_unique_ptr.h"
+#include "base/weak_ptr.h"
 #include "data/data_sparse_ids.h"
 
 base::optional<Storage::SharedMediaType> SharedMediaOverviewType(

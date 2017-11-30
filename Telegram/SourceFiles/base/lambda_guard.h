@@ -21,9 +21,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include <QPointer>
-#include "base/weak_unique_ptr.h"
+#include "base/weak_ptr.h"
 
-// Guard lambda call by QObject* or enable_weak_from_this* pointers.
+// Guard lambda call by QObject* or has_weak_ptr* pointers.
 
 namespace base {
 namespace lambda_internal {
@@ -66,9 +66,9 @@ class guard_with_weak {
 public:
 	template <typename OtherLambda>
 	guard_with_weak(
-		const base::enable_weak_from_this *object,
+		const base::has_weak_ptr *object,
 		OtherLambda &&other)
-	: _guard(base::make_weak_unique(object))
+	: _guard(base::make_weak(object))
 	, _callable(std::forward<OtherLambda>(other)) {
 	}
 
@@ -91,7 +91,7 @@ public:
 	}
 
 private:
-	base::weak_unique_ptr<const base::enable_weak_from_this> _guard;
+	base::weak_ptr<const base::has_weak_ptr> _guard;
 	Lambda _callable;
 
 };
@@ -117,7 +117,7 @@ inline auto lambda_guarded(const QObject *object, Lambda &&lambda) {
 
 template <typename Lambda>
 inline auto lambda_guarded(
-		const base::enable_weak_from_this *object,
+		const base::has_weak_ptr *object,
 		Lambda &&lambda) {
 	using Guarded = lambda_internal::guard_with_weak<
 		std::decay_t<Lambda>>;

@@ -33,7 +33,7 @@
 <(src_loc)/base/value_ordering.h
 <(src_loc)/base/variant.h
 <(src_loc)/base/virtual_method.h
-<(src_loc)/base/weak_unique_ptr.h
+<(src_loc)/base/weak_ptr.h
 <(src_loc)/base/zlib_help.h
 <(src_loc)/boxes/peers/edit_peer_info_box.cpp
 <(src_loc)/boxes/peers/edit_peer_info_box.h

@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "mtproto/sender.h"
-#include "base/weak_unique_ptr.h"
+#include "base/weak_ptr.h"
 
 namespace MTP {
 class Instance;
@@ -31,7 +31,7 @@ namespace Lang {
 
 class Instance;
 
-class CloudManager : public base::enable_weak_from_this, private MTP::Sender, private base::Subscriber {
+class CloudManager : public base::has_weak_ptr, private MTP::Sender, private base::Subscriber {
 public:
 	CloudManager(Instance &langpack, not_null<MTP::Instance*> mtproto);
 
