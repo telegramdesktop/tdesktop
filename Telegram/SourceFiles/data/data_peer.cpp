@@ -57,10 +57,8 @@ ImagePtr generateUserpicImage(const style::icon &icon) {
 	return ImagePtr(App::pixmapFromImageInPlace(std::move(data)), "PNG");
 }
 
-} // namespace
-
-style::color peerUserpicColor(int index) {
-	static style::color peerColors[kUserColorsCount] = {
+style::color PeerUserpicColor(PeerId peerId) {
+	const style::color colors[] = {
 		st::historyPeer1UserpicBg,
 		st::historyPeer2UserpicBg,
 		st::historyPeer3UserpicBg,
@@ -70,12 +68,25 @@ style::color peerUserpicColor(int index) {
 		st::historyPeer7UserpicBg,
 		st::historyPeer8UserpicBg,
 	};
-	return peerColors[index];
+	return colors[PeerColorIndex(peerId)];
+}
+
+} // namespace
+
+int PeerColorIndex(int32 bareId) {
+	const auto index = std::abs(bareId) % 7;
+	const int map[] = { 0, 7, 4, 1, 6, 3, 5 };
+	return map[index];
+}
+
+int PeerColorIndex(PeerId peerId) {
+	return PeerColorIndex(peerToBareInt(peerId));
 }
 
 class EmptyUserpic::Impl {
 public:
-	Impl(int index, const QString &name) : _color(peerUserpicColor(index)) {
+	Impl(PeerId peerId, const QString &name)
+	: _color(PeerUserpicColor(peerId)) {
 		fillString(name);
 	}
 
@@ -196,11 +207,16 @@ void EmptyUserpic::Impl::fillString(const QString &name) {
 
 EmptyUserpic::EmptyUserpic() = default;
 
-EmptyUserpic::EmptyUserpic(int index, const QString &name) : _impl(std::make_unique<Impl>(index, name)) {
+EmptyUserpic::EmptyUserpic(PeerId peerId, const QString &name)
+: _impl(std::make_unique<Impl>(peerId, name)) {
 }
 
-void EmptyUserpic::set(int index, const QString &name) {
-	_impl = std::make_unique<Impl>(index, name);
+EmptyUserpic::EmptyUserpic(const QString &nonce, const QString &name)
+: EmptyUserpic(qHash(nonce), name) {
+}
+
+void EmptyUserpic::set(PeerId peerId, const QString &name) {
+	_impl = std::make_unique<Impl>(peerId, name);
 }
 
 void EmptyUserpic::clear() {
@@ -269,10 +285,9 @@ void PeerClickHandler::onClick(Qt::MouseButton button) const {
 }
 
 PeerData::PeerData(const PeerId &id)
-: id(id)
-, _colorIndex(peerColorIndex(id)) {
+: id(id) {
 	nameText.setText(st::msgNameStyle, QString(), _textNameOptions);
-	_userpicEmpty.set(_colorIndex, QString());
+	_userpicEmpty.set(id, QString());
 }
 
 void PeerData::updateNameDelayed(
@@ -298,7 +313,7 @@ void PeerData::updateNameDelayed(
 	name = newName;
 	nameText.setText(st::msgNameStyle, name, _textNameOptions);
 	if (useEmptyUserpic()) {
-		_userpicEmpty.set(_colorIndex, name);
+		_userpicEmpty.set(id, name);
 	}
 
 	Notify::PeerUpdate update(this);
@@ -337,7 +352,7 @@ void PeerData::setUserpic(
 	_userpic = userpic;
 	_userpicLocation = location;
 	if (useEmptyUserpic()) {
-		_userpicEmpty.set(_colorIndex, name);
+		_userpicEmpty.set(id, name);
 	} else {
 		_userpicEmpty.clear();
 	}

@@ -67,16 +67,16 @@ inline bool isNotifyMuted(
 	return false;
 }
 
-static constexpr int kUserColorsCount = 8;
-static constexpr int kChatColorsCount = 4;
-static constexpr int kChannelColorsCount = 4;
+int PeerColorIndex(PeerId peerId);
+int PeerColorIndex(int32 bareId);
 
 class EmptyUserpic {
 public:
 	EmptyUserpic();
-	EmptyUserpic(int index, const QString &name);
+	EmptyUserpic(PeerId peerId, const QString &name);
+	EmptyUserpic(const QString &nonce, const QString &name);
 
-	void set(int index, const QString &name);
+	void set(PeerId peerId, const QString &name);
 	void clear();
 
 	explicit operator bool() const {
@@ -222,9 +222,6 @@ public:
 	LoadedStatus loadedStatus = NotLoaded;
 	MTPinputPeer input;
 
-	int colorIndex() const {
-		return _colorIndex;
-	}
 	void setUserpic(ImagePtr userpic, StorageImageLocation location);
 	void paintUserpic(
 		Painter &p,
@@ -308,7 +305,6 @@ private:
 	NameWords _nameWords; // for filtering
 	NameFirstChars _nameFirstChars;
 
-	int _colorIndex = 0;
 	TimeMs _lastFullUpdate = 0;
 
 };

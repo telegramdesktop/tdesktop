@@ -2981,7 +2981,9 @@ void HistoryContact::initDimensions() {
 	if (_contact) {
 		_contact->loadUserpic();
 	} else {
-		_photoEmpty.set(qAbs(_userId ? _userId : _parent->id) % kUserColorsCount, _name.originalText());
+		_photoEmpty.set(
+			_userId ? _userId : _parent->id,
+			_name.originalText());
 	}
 	if (_contact && _contact->contact > 0) {
 		_linkl = sendMessageClickHandler(_contact);

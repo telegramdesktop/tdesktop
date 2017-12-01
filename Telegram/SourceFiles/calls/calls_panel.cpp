@@ -478,7 +478,7 @@ void Panel::createUserpicCache(ImagePtr image) {
 		filled.setDevicePixelRatio(cRetinaFactor());
 		{
 			Painter p(&filled);
-			EmptyUserpic(_user->colorIndex(), _user->name).paintSquare(p, 0, 0, st::callWidth, st::callWidth);
+			EmptyUserpic(_user->id, _user->name).paintSquare(p, 0, 0, st::callWidth, st::callWidth);
 		}
 		Images::prepareRound(filled, ImageRoundRadius::Large, ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight);
 		_userPhoto = App::pixmapFromImageInPlace(std::move(filled));

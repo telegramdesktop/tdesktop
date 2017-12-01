@@ -50,37 +50,38 @@ inline void initTextOptions() {
 	_textDlgOptions.maxw = st::columnMaximalWidthLeft * 2;
 }
 
-style::color fromNameFg(int index) {
-	Expects(index >= 0 && index < 8);
-	style::color colors[] = {
-		st::historyPeer1NameFg,
-		st::historyPeer2NameFg,
-		st::historyPeer3NameFg,
-		st::historyPeer4NameFg,
-		st::historyPeer5NameFg,
-		st::historyPeer6NameFg,
-		st::historyPeer7NameFg,
-		st::historyPeer8NameFg,
-	};
-	return colors[index];
+style::color FromNameFg(not_null<PeerData*> peer, bool selected) {
+	if (selected) {
+		const style::color colors[] = {
+			st::historyPeer1NameFgSelected,
+			st::historyPeer2NameFgSelected,
+			st::historyPeer3NameFgSelected,
+			st::historyPeer4NameFgSelected,
+			st::historyPeer5NameFgSelected,
+			st::historyPeer6NameFgSelected,
+			st::historyPeer7NameFgSelected,
+			st::historyPeer8NameFgSelected,
+		};
+		return colors[PeerColorIndex(peer->id)];
+	} else {
+		const style::color colors[] = {
+			st::historyPeer1NameFg,
+			st::historyPeer2NameFg,
+			st::historyPeer3NameFg,
+			st::historyPeer4NameFg,
+			st::historyPeer5NameFg,
+			st::historyPeer6NameFg,
+			st::historyPeer7NameFg,
+			st::historyPeer8NameFg,
+		};
+		return colors[PeerColorIndex(peer->id)];
+	}
 }
 
-style::color fromNameFgSelected(int index) {
-	Expects(index >= 0 && index < 8);
-	style::color colors[] = {
-		st::historyPeer1NameFgSelected,
-		st::historyPeer2NameFgSelected,
-		st::historyPeer3NameFgSelected,
-		st::historyPeer4NameFgSelected,
-		st::historyPeer5NameFgSelected,
-		st::historyPeer6NameFgSelected,
-		st::historyPeer7NameFgSelected,
-		st::historyPeer8NameFgSelected,
-	};
-	return colors[index];
-}
-
-MTPDmessage::Flags NewForwardedFlags(not_null<PeerData*> peer, UserId from, not_null<HistoryMessage*> fwd) {
+MTPDmessage::Flags NewForwardedFlags(
+		not_null<PeerData*> peer,
+		UserId from,
+		not_null<HistoryMessage*> fwd) {
 	auto result = NewMessageFlags(peer) | MTPDmessage::Flag::f_fwd_from;
 	if (from) {
 		result |= MTPDmessage::Flag::f_from_id;
@@ -1777,7 +1778,7 @@ void HistoryMessage::paintFromName(Painter &p, QRect &trect, bool selected) cons
 		if (isPost()) {
 			p.setPen(selected ? st::msgInServiceFgSelected : st::msgInServiceFg);
 		} else {
-			p.setPen(selected ? fromNameFgSelected(author()->colorIndex()) : fromNameFg(author()->colorIndex()));
+			p.setPen(FromNameFg(author(), selected));
 		}
 		author()->nameText.drawElided(p, trect.left(), trect.top(), trect.width());
 
