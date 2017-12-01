@@ -510,7 +510,7 @@ void PeerMenuAddChannelMembers(not_null<ChannelData*> channel) {
 		return;
 	}
 	auto callback = [channel](const MTPchannels_ChannelParticipants &result) {
-		Auth().api().parseChannelParticipants(result, [&](
+		Auth().api().parseChannelParticipants(channel, result, [&](
 				int availableCount,
 				const QVector<MTPChannelParticipant> &list) {
 			auto already = (

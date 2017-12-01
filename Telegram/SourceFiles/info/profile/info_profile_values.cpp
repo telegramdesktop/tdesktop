@@ -186,7 +186,7 @@ rpl::producer<int> MembersCountValue(
 			Notify::PeerUpdate::Flag::MembersChanged)
 			| rpl::map([chat] {
 				return chat->amIn()
-					? qMax(chat->count, chat->participants.size())
+					? std::max(chat->count, int(chat->participants.size()))
 					: 0;
 			});
 	} else if (auto channel = peer->asChannel()) {

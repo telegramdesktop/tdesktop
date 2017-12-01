@@ -639,7 +639,7 @@ void ApiWrap::lastParticipantsDone(
 
 	if (!peer->mgInfo) return;
 
-	parseChannelParticipants(result, [&](
+	parseChannelParticipants(peer, result, [&](
 			int availableCount,
 			const QVector<MTPChannelParticipant> &list) {
 		applyLastParticipantsList(
@@ -713,12 +713,12 @@ void ApiWrap::applyLastParticipantsList(
 				keyboardBotFound = true;
 			}
 		} else {
-			if (peer->mgInfo->lastParticipants.indexOf(u) < 0) {
+			if (!base::contains(peer->mgInfo->lastParticipants, u)) {
 				peer->mgInfo->lastParticipants.push_back(u);
 				if (adminRights.c_channelAdminRights().vflags.v) {
-					peer->mgInfo->lastAdmins.insert(u, MegagroupInfo::Admin { adminRights, adminCanEdit });
+					peer->mgInfo->lastAdmins.emplace(u, MegagroupInfo::Admin { adminRights, adminCanEdit });
 				} else if (restrictedRights.c_channelBannedRights().vflags.v != 0) {
-					peer->mgInfo->lastRestricted.insert(u, MegagroupInfo::Restricted { restrictedRights });
+					peer->mgInfo->lastRestricted.emplace(u, MegagroupInfo::Restricted { restrictedRights });
 				}
 				if (u->botInfo) {
 					peer->mgInfo->bots.insert(u);
@@ -1765,6 +1765,7 @@ void ApiWrap::readFeaturedSets() {
 }
 
 void ApiWrap::parseChannelParticipants(
+		not_null<ChannelData*> channel,
 		const MTPchannels_ChannelParticipants &result,
 		base::lambda<void(
 			int availableCount,
@@ -1773,6 +1774,9 @@ void ApiWrap::parseChannelParticipants(
 	TLHelp::VisitChannelParticipants(result, base::overload([&](
 			const MTPDchannels_channelParticipants &data) {
 		App::feedUsers(data.vusers);
+		if (channel->mgInfo) {
+			refreshChannelAdmins(channel, data.vparticipants.v);
+		}
 		if (callbackList) {
 			callbackList(data.vcount.v, data.vparticipants.v);
 		}
@@ -1783,7 +1787,31 @@ void ApiWrap::parseChannelParticipants(
 			LOG(("API Error: channels.channelParticipantsNotModified received!"));
 		}
 	}));
-};
+}
+
+void ApiWrap::refreshChannelAdmins(
+		not_null<ChannelData*> channel,
+		const QVector<MTPChannelParticipant> &participants) {
+	auto changes = base::flat_map<UserId, bool>();
+	auto &admins = channel->mgInfo->admins;
+	for (auto &participant : participants) {
+		auto userId = TLHelp::ReadChannelParticipantUserId(participant);
+		auto admin = (participant.type() == mtpc_channelParticipantAdmin)
+			|| (participant.type() == mtpc_channelParticipantCreator);
+		if (admin && !admins.contains(userId)) {
+			admins.insert(userId);
+			changes.emplace(userId, true);
+		} else if (!admin && admins.contains(userId)) {
+			admins.remove(userId);
+			changes.emplace(userId, false);
+		}
+	}
+	if (!changes.empty()) {
+		if (auto history = App::historyLoaded(channel)) {
+			history->applyGroupAdminChanges(changes);
+		}
+	}
+}
 
 void ApiWrap::parseRecentChannelParticipants(
 		not_null<ChannelData*> channel,
@@ -1792,7 +1820,7 @@ void ApiWrap::parseRecentChannelParticipants(
 			int availableCount,
 			const QVector<MTPChannelParticipant> &list)> callbackList,
 		base::lambda<void()> callbackNotModified) {
-	parseChannelParticipants(result, [&](
+	parseChannelParticipants(channel, result, [&](
 			int availableCount,
 			const QVector<MTPChannelParticipant> &list) {
 		auto applyLast = channel->isMegagroup()

@@ -78,7 +78,7 @@ void GroupMembersWidget::editAdmin(not_null<UserData*> user) {
 	}
 	auto currentRightsIt = megagroup->mgInfo->lastAdmins.find(user);
 	auto hasAdminRights = (currentRightsIt != megagroup->mgInfo->lastAdmins.cend());
-	auto currentRights = hasAdminRights ? currentRightsIt->rights : MTP_channelAdminRights(MTP_flags(0));
+	auto currentRights = hasAdminRights ? currentRightsIt->second.rights : MTP_channelAdminRights(MTP_flags(0));
 	auto weak = QPointer<GroupMembersWidget>(this);
 	auto box = Box<EditAdminBox>(megagroup, user, currentRights);
 	box->setSaveCallback([weak, megagroup, user](const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
@@ -96,8 +96,10 @@ void GroupMembersWidget::restrictUser(not_null<UserData*> user) {
 	if (!megagroup) {
 		return; // not supported
 	}
-	auto defaultRestricted = MegagroupInfo::Restricted { MTP_channelBannedRights(MTP_flags(0), MTP_int(0)) };
-	auto currentRights = megagroup->mgInfo->lastRestricted.value(user, defaultRestricted).rights;
+	auto currentRightsIt = megagroup->mgInfo->lastRestricted.find(user);
+	auto currentRights = (currentRightsIt != megagroup->mgInfo->lastRestricted.end())
+		? currentRightsIt->second.rights
+		: MTP_channelBannedRights(MTP_flags(0), MTP_int(0));
 	auto hasAdminRights = megagroup->mgInfo->lastAdmins.find(user) != megagroup->mgInfo->lastAdmins.cend();
 	auto box = Box<EditRestrictedBox>(megagroup, user, hasAdminRights, currentRights);
 	box->setSaveCallback([megagroup, user](const MTPChannelBannedRights &oldRights, const MTPChannelBannedRights &newRights) {
@@ -114,13 +116,15 @@ void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
 	auto user = selectedPeer->asUser();
 	Assert(user != nullptr);
 	auto text = lng_profile_sure_kick(lt_user, user->firstName);
-	auto currentRestrictedRights = MTP_channelBannedRights(MTP_flags(0), MTP_int(0));
-	if (auto channel = peer()->asMegagroup()) {
-		auto it = channel->mgInfo->lastRestricted.find(user);
-		if (it != channel->mgInfo->lastRestricted.cend()) {
-			currentRestrictedRights = it->rights;
+	auto currentRestrictedRights = [&]() -> MTPChannelBannedRights {
+		if (auto channel = peer()->asMegagroup()) {
+			auto it = channel->mgInfo->lastRestricted.find(user);
+			if (it != channel->mgInfo->lastRestricted.cend()) {
+				return it->second.rights;
+			}
 		}
-	}
+		return MTP_channelBannedRights(MTP_flags(0), MTP_int(0));
+	}();
 	Ui::show(Box<ConfirmBox>(text, lang(lng_box_remove), [user, currentRestrictedRights, peer = peer()] {
 		Ui::hideLayer();
 		if (auto chat = peer->asChat()) {
@@ -303,7 +307,7 @@ void GroupMembersWidget::refreshMembers() {
 		refreshLimitReached();
 	} else if (auto megagroup = peer()->asMegagroup()) {
 		auto &megagroupInfo = megagroup->mgInfo;
-		if (megagroupInfo->lastParticipants.isEmpty() || megagroup->lastParticipantsCountOutdated()) {
+		if (megagroupInfo->lastParticipants.empty() || megagroup->lastParticipantsCountOutdated()) {
 			Auth().api().requestLastParticipants(megagroup);
 		}
 		fillMegagroupMembers(megagroup);
@@ -335,7 +339,7 @@ void GroupMembersWidget::refreshLimitReached() {
 }
 
 void GroupMembersWidget::checkSelfAdmin(ChatData *chat) {
-	if (chat->participants.isEmpty()) return;
+	if (chat->participants.empty()) return;
 
 	auto self = App::self();
 	if (chat->amAdmin() && !chat->admins.contains(self)) {
@@ -390,7 +394,7 @@ GroupMembersWidget::Member *GroupMembersWidget::addUser(ChatData *chat, UserData
 }
 
 void GroupMembersWidget::fillChatMembers(ChatData *chat) {
-	if (chat->participants.isEmpty()) return;
+	if (chat->participants.empty()) return;
 
 	clearItems();
 	if (!chat->amIn()) return;
@@ -399,8 +403,7 @@ void GroupMembersWidget::fillChatMembers(ChatData *chat) {
 
 	reserveItemsForSize(chat->participants.size());
 	addUser(chat, App::self())->onlineForSort = INT_MAX; // Put me on the first place.
-	for (auto i = chat->participants.cbegin(), e = chat->participants.cend(); i != e; ++i) {
-		auto user = i.key();
+	for (auto [user, v] : chat->participants) {
 		if (!user->isSelf()) {
 			addUser(chat, user);
 		}
@@ -434,7 +437,7 @@ GroupMembersWidget::Member *GroupMembersWidget::addUser(ChannelData *megagroup, 
 
 void GroupMembersWidget::fillMegagroupMembers(ChannelData *megagroup) {
 	Assert(megagroup->mgInfo != nullptr);
-	if (megagroup->mgInfo->lastParticipants.isEmpty()) return;
+	if (megagroup->mgInfo->lastParticipants.empty()) return;
 
 	if (!megagroup->canViewMembers()) {
 		clearItems();
@@ -485,10 +488,10 @@ void GroupMembersWidget::setItemFlags(Item *item, ChannelData *megagroup) {
 	using AdminState = Item::AdminState;
 	auto amCreator = item->peer->isSelf() && megagroup->amCreator();
 	auto amAdmin = item->peer->isSelf() && megagroup->hasAdminRights();
-	auto adminIt = megagroup->mgInfo->lastAdmins.constFind(getMember(item)->user());
+	auto adminIt = megagroup->mgInfo->lastAdmins.find(getMember(item)->user());
 	auto isAdmin = (adminIt != megagroup->mgInfo->lastAdmins.cend());
 	auto isCreator = megagroup->mgInfo->creator == item->peer;
-	auto adminCanEdit = isAdmin && adminIt->canEdit;
+	auto adminCanEdit = isAdmin && adminIt->second.canEdit;
 	auto adminState = (amCreator || isCreator) ? AdminState::Creator : (amAdmin || isAdmin) ? AdminState::Admin : AdminState::None;
 	if (item->adminState != adminState) {
 		item->adminState = adminState;

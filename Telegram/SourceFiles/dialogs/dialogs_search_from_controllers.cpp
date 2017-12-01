@@ -87,9 +87,8 @@ void ChatSearchFromController::rebuildRows() {
 	QMultiMap<int32, UserData*> ordered;
 	if (_chat->noParticipantInfo()) {
 		Auth().api().requestFullPeer(_chat);
-	} else if (!_chat->participants.isEmpty()) {
-		for (auto i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
-			auto user = i.key();
+	} else if (!_chat->participants.empty()) {
+		for (const auto [user, version] : _chat->participants) {
 			ordered.insertMulti(App::onlineForSort(user, now), user);
 		}
 	}

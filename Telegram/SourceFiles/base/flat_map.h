@@ -47,28 +47,46 @@ template <
 	typename reference_impl>
 class flat_multi_map_iterator_base_impl;
 
-template <typename Key>
-class flat_multi_map_key_const_wrap {
-public:
-	constexpr flat_multi_map_key_const_wrap(const Key &value)
-	: _value(value) {
-	}
-	constexpr flat_multi_map_key_const_wrap(Key &&value)
-	: _value(std::move(value)) {
-	}
-	inline constexpr operator const Key&() const {
-		return _value;
+template <typename Key, typename Value>
+struct flat_multi_map_pair_type {
+	using first_type = const Key;
+	using second_type = Value;
+
+	constexpr flat_multi_map_pair_type()
+	: first()
+	, second() {
 	}
 
-private:
-	Key _value;
+	template <typename OtherKey, typename OtherValue>
+	constexpr flat_multi_map_pair_type(OtherKey &&key, OtherValue &&value)
+	: first(std::forward<OtherKey>(key))
+	, second(std::forward<OtherValue>(value)) {
+	}
 
+	flat_multi_map_pair_type(const flat_multi_map_pair_type&) = default;
+	flat_multi_map_pair_type(flat_multi_map_pair_type&&) = default;
+
+	flat_multi_map_pair_type &operator=(const flat_multi_map_pair_type&) = delete;
+	flat_multi_map_pair_type &operator=(flat_multi_map_pair_type &&other) {
+		const_cast<Key&>(first) = other.first;
+		second = std::move(other.second);
+		return *this;
+	}
+
+	void swap(flat_multi_map_pair_type &other) {
+		using std::swap;
+
+		if (this != &other) {
+			std::swap(
+				const_cast<Key&>(first),
+				const_cast<Key&>(other.first));
+			std::swap(second, other.second);
+		}
+	}
+
+	const Key first;
+	Value second;
 };
-
-template <typename Key, typename Type>
-using flat_multi_map_pair_type = std::pair<
-	flat_multi_map_key_const_wrap<Key>,
-	Type>;
 
 template <
 	typename Me,
@@ -230,7 +248,6 @@ public:
 	class const_reverse_iterator;
 
 private:
-	using key_const_wrap = flat_multi_map_key_const_wrap<Key>;
 	using pair_type = flat_multi_map_pair_type<Key, Type>;
 	using impl_t = std::deque<pair_type>;
 
@@ -477,9 +494,7 @@ private:
 			typename OtherType1,
 			typename OtherType2,
 			typename = std::enable_if_t<
-				!std::is_same_v<std::decay_t<OtherType1>, key_const_wrap> &&
 				!std::is_same_v<std::decay_t<OtherType1>, pair_type> &&
-				!std::is_same_v<std::decay_t<OtherType2>, key_const_wrap> &&
 				!std::is_same_v<std::decay_t<OtherType2>, pair_type>>>
 		inline constexpr auto operator()(
 				OtherType1 &&a,
@@ -494,47 +509,9 @@ private:
 		inline constexpr auto operator()(
 				OtherType1 &&a,
 				OtherType2 &&b) const -> std::enable_if_t<
-		std::is_same_v<std::decay_t<OtherType1>, key_const_wrap> &&
-		std::is_same_v<std::decay_t<OtherType2>, key_const_wrap>, bool> {
-			return initial()(
-				static_cast<const Key&>(a),
-				static_cast<const Key&>(b));
-		}
-		template <
-			typename OtherType,
-			typename = std::enable_if_t<
-				!std::is_same_v<std::decay_t<OtherType>, key_const_wrap> &&
-				!std::is_same_v<std::decay_t<OtherType>, pair_type>>>
-		inline constexpr auto operator()(
-				const key_const_wrap &a,
-				OtherType &&b) const {
-			return initial()(
-				static_cast<const Key&>(a),
-				std::forward<OtherType>(b));
-		}
-		template <
-			typename OtherType,
-			typename = std::enable_if_t<
-				!std::is_same_v<std::decay_t<OtherType>, key_const_wrap> &&
-				!std::is_same_v<std::decay_t<OtherType>, pair_type>>>
-		inline constexpr auto operator()(
-				OtherType &&a,
-				const key_const_wrap &b) const {
-			return initial()(
-				std::forward<OtherType>(a),
-				static_cast<const Key&>(b));
-		}
-		template <
-			typename OtherType1,
-			typename OtherType2>
-		inline constexpr auto operator()(
-				OtherType1 &&a,
-				OtherType2 &&b) const -> std::enable_if_t<
 		std::is_same_v<std::decay_t<OtherType1>, pair_type> &&
 		std::is_same_v<std::decay_t<OtherType2>, pair_type>, bool> {
-			return initial()(
-				static_cast<const Key&>(a.first),
-				static_cast<const Key&>(b.first));
+			return initial()(a.first, b.first);
 		}
 		template <
 			typename OtherType,
@@ -543,9 +520,7 @@ private:
 		inline constexpr auto operator()(
 				const pair_type &a,
 				OtherType &&b) const {
-			return operator()(
-				static_cast<const Key&>(a.first),
-				std::forward<OtherType>(b));
+			return operator()(a.first, std::forward<OtherType>(b));
 		}
 		template <
 			typename OtherType,
@@ -554,9 +529,7 @@ private:
 		inline constexpr auto operator()(
 				OtherType &&a,
 				const pair_type &b) const {
-			return operator()(
-				std::forward<OtherType>(a),
-				static_cast<const Key&>(b.first));
+			return operator()(std::forward<OtherType>(a), b.first);
 		}
 
 	};

@@ -78,8 +78,11 @@ enum class MTPDmessage_ClientFlag : uint32 {
 	// message is generated on the client side and should be unread
 	f_clientside_unread = (1U << 21),
 
+	// message has an admin badge in supergroup
+	f_has_admin_badge = (1U << 20),
+
 	// update this when adding new client side flags
-	MIN_FIELD = (1U << 21),
+	MIN_FIELD = (1U << 20),
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDmessage)
 

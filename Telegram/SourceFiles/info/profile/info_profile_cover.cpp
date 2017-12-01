@@ -365,9 +365,9 @@ void Cover::refreshStatusText() {
 			if (!chat->amIn()) {
 				return lang(lng_chat_status_unaccessible);
 			}
-			auto fullCount = qMax(
+			auto fullCount = std::max(
 				chat->count,
-				chat->participants.size());
+				int(chat->participants.size()));
 			return ChatStatusText(fullCount, _onlineCount, true);
 		} else if (auto channel = _peer->asChannel()) {
 			auto fullCount = qMax(channel->membersCount(), 1);

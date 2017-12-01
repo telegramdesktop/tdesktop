@@ -639,7 +639,7 @@ void HistoryTopBarWidget::updateOnlineDisplay() {
 	} else if (auto chat = _historyPeer->asChat()) {
 		if (!chat->amIn()) {
 			text = lang(lng_chat_status_unaccessible);
-		} else if (chat->participants.isEmpty()) {
+		} else if (chat->participants.empty()) {
 			if (!_titlePeerText.isEmpty()) {
 				text = _titlePeerText;
 			} else if (chat->count <= 0) {
@@ -650,10 +650,10 @@ void HistoryTopBarWidget::updateOnlineDisplay() {
 		} else {
 			auto online = 0;
 			auto onlyMe = true;
-			for (auto i = chat->participants.cbegin(), e = chat->participants.cend(); i != e; ++i) {
-				if (i.key()->onlineTill > t) {
+			for (auto [user, v] : chat->participants) {
+				if (user->onlineTill > t) {
 					++online;
-					if (onlyMe && i.key() != App::self()) onlyMe = false;
+					if (onlyMe && user != App::self()) onlyMe = false;
 				}
 			}
 			if (online > 0 && !onlyMe) {
@@ -668,7 +668,7 @@ void HistoryTopBarWidget::updateOnlineDisplay() {
 		}
 	} else if (auto channel = _historyPeer->asChannel()) {
 		if (channel->isMegagroup() && channel->membersCount() > 0 && channel->membersCount() <= Global::ChatSizeMax()) {
-			if (channel->mgInfo->lastParticipants.isEmpty() || channel->lastParticipantsCountOutdated()) {
+			if (channel->mgInfo->lastParticipants.empty() || channel->lastParticipantsCountOutdated()) {
 				Auth().api().requestLastParticipants(channel);
 			}
 			auto online = 0;
@@ -713,10 +713,10 @@ void HistoryTopBarWidget::updateOnlineDisplayTimer() {
 	if (auto user = _historyPeer->asUser()) {
 		minIn = App::onlineWillChangeIn(user, t);
 	} else if (auto chat = _historyPeer->asChat()) {
-		if (chat->participants.isEmpty()) return;
+		if (chat->participants.empty()) return;
 
-		for (auto i = chat->participants.cbegin(), e = chat->participants.cend(); i != e; ++i) {
-			int32 onlineWillChangeIn = App::onlineWillChangeIn(i.key(), t);
+		for (auto [user, v] : chat->participants) {
+			auto onlineWillChangeIn = App::onlineWillChangeIn(user, t);
 			if (onlineWillChangeIn < minIn) {
 				minIn = onlineWillChangeIn;
 			}

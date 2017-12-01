@@ -50,6 +50,10 @@ inline void initTextOptions() {
 	_textDlgOptions.maxw = st::columnMaximalWidthLeft * 2;
 }
 
+QString AdminBadgeText() {
+	return lang(lng_admin_badge);
+}
+
 style::color FromNameFg(not_null<PeerData*> peer, bool selected) {
 	if (selected) {
 		const style::color colors[] = {
@@ -805,6 +809,35 @@ void HistoryMessage::updateMediaInBubbleState() {
 	_media->setInBubbleState(computeState());
 }
 
+void HistoryMessage::updateAdminBadgeState() {
+	auto hasAdminBadge = [&] {
+		if (auto channel = history()->peer->asChannel()) {
+			if (auto user = author()->asUser()) {
+				return channel->isGroupAdmin(user);
+			}
+		}
+		return false;
+	}();
+	if (hasAdminBadge) {
+		_flags |= MTPDmessage_ClientFlag::f_has_admin_badge;
+	} else {
+		_flags &= ~MTPDmessage_ClientFlag::f_has_admin_badge;
+	}
+}
+
+void HistoryMessage::applyGroupAdminChanges(
+		const base::flat_map<UserId, bool> &changes) {
+	auto i = changes.find(peerToUser(author()->id));
+	if (i != changes.end()) {
+		if (i->second) {
+			_flags |= MTPDmessage_ClientFlag::f_has_admin_badge;
+		} else {
+			_flags &= ~MTPDmessage_ClientFlag::f_has_admin_badge;
+		}
+		setPendingInitDimensions();
+	}
+}
+
 bool HistoryMessage::displayEditedBadge(bool hasViaBotOrInlineMarkup) const {
 	if (hasViaBotOrInlineMarkup) {
 		return false;
@@ -1062,6 +1095,9 @@ void HistoryMessage::initDimensions() {
 		if (reply) {
 			reply->updateName();
 		}
+		if (displayFromName()) {
+			updateAdminBadgeState();
+		}
 
 		auto mediaDisplayed = false;
 		if (_media) {
@@ -1110,6 +1146,11 @@ void HistoryMessage::initDimensions() {
 				auto namew = st::msgPadding.left() + author()->nameText.maxWidth() + st::msgPadding.right();
 				if (via && !forwarded) {
 					namew += st::msgServiceFont->spacew + via->_maxWidth;
+				}
+				if (_flags & MTPDmessage_ClientFlag::f_has_admin_badge) {
+					auto badgeWidth = st::msgServiceFont->width(
+						AdminBadgeText());
+					namew += st::msgPadding.right() + badgeWidth;
 				}
 				accumulate_max(_maxw, namew);
 			} else if (via && !forwarded) {
@@ -1188,10 +1229,19 @@ QRect HistoryMessage::countGeometry() const {
 }
 
 void HistoryMessage::fromNameUpdated(int32 width) const {
+	if (_flags & MTPDmessage_ClientFlag::f_has_admin_badge) {
+		auto badgeWidth = st::msgServiceFont->width(
+			AdminBadgeText());
+		width -= st::msgPadding.right() + badgeWidth;
+	}
 	_authorNameVersion = author()->nameVersion;
 	if (!Has<HistoryMessageForwarded>()) {
 		if (auto via = Get<HistoryMessageVia>()) {
-			via->resize(width - st::msgPadding.left() - st::msgPadding.right() - author()->nameText.maxWidth() - st::msgServiceFont->spacew);
+			via->resize(width
+				- st::msgPadding.left()
+				- st::msgPadding.right()
+				- author()->nameText.maxWidth()
+				- st::msgServiceFont->spacew);
 		}
 	}
 }
@@ -1774,20 +1824,46 @@ void HistoryMessage::drawFastShare(Painter &p, int left, int top, int outerWidth
 
 void HistoryMessage::paintFromName(Painter &p, QRect &trect, bool selected) const {
 	if (displayFromName()) {
+		auto badgeWidth = [&] {
+			if (_flags & MTPDmessage_ClientFlag::f_has_admin_badge) {
+				return st::msgServiceFont->width(AdminBadgeText());
+			}
+			return 0;
+		}();
+		auto availableLeft = trect.left();
+		auto availableWidth = trect.width();
+		if (badgeWidth) {
+			availableWidth -= st::msgPadding.right() + badgeWidth;
+		}
+
 		p.setFont(st::msgNameFont);
 		if (isPost()) {
 			p.setPen(selected ? st::msgInServiceFgSelected : st::msgInServiceFg);
 		} else {
 			p.setPen(FromNameFg(author(), selected));
 		}
-		author()->nameText.drawElided(p, trect.left(), trect.top(), trect.width());
+		author()->nameText.drawElided(p, availableLeft, trect.top(), availableWidth);
+		auto skipWidth = author()->nameText.maxWidth() + st::msgServiceFont->spacew;
+		availableLeft += skipWidth;
+		availableWidth -= skipWidth;
 
 		auto forwarded = Get<HistoryMessageForwarded>();
 		auto via = Get<HistoryMessageVia>();
-		if (via && !forwarded && trect.width() > author()->nameText.maxWidth() + st::msgServiceFont->spacew) {
-			bool outbg = out() && !isPost();
+		if (via && !forwarded && availableWidth > 0) {
+			auto outbg = out() && !isPost();
 			p.setPen(selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg));
-			p.drawText(trect.left() + author()->nameText.maxWidth() + st::msgServiceFont->spacew, trect.top() + st::msgServiceFont->ascent, via->_text);
+			p.drawText(availableLeft, trect.top() + st::msgServiceFont->ascent, via->_text);
+			auto skipWidth = via->_width + st::msgServiceFont->spacew;
+			availableLeft += skipWidth;
+			availableWidth -= skipWidth;
+		}
+		if (badgeWidth) {
+			p.setPen(selected ? st::msgInDateFgSelected : st::msgInDateFg);
+			p.setFont(st::msgFont);
+			p.drawText(
+				trect.left() + trect.width() - badgeWidth,
+				trect.top() + st::msgFont->ascent,
+				AdminBadgeText());
 		}
 		trect.setY(trect.y() + st::msgNameFont->height);
 	}

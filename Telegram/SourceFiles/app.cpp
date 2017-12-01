@@ -798,7 +798,9 @@ namespace {
 				chat->version = d.vversion.v;
 				auto &v = d.vparticipants.v;
 				chat->count = v.size();
-				int32 pversion = chat->participants.isEmpty() ? 1 : (chat->participants.begin().value() + 1);
+				int32 pversion = chat->participants.empty()
+					? 1
+					: (chat->participants.begin()->second + 1);
 				chat->invitedByMe.clear();
 				chat->admins.clear();
 				chat->removeFlags(MTPDchat::Flag::f_admin);
@@ -840,21 +842,22 @@ namespace {
 						break;
 					}
 				}
-				if (!chat->participants.isEmpty()) {
-					History *h = App::historyLoaded(chat->id);
+				if (!chat->participants.empty()) {
+					auto h = App::historyLoaded(chat->id);
 					bool found = !h || !h->lastKeyboardFrom;
-					int32 botStatus = -1;
+					auto botStatus = -1;
 					for (auto i = chat->participants.begin(), e = chat->participants.end(); i != e;) {
-						if (i.value() < pversion) {
+						auto [user, version] = *i;
+						if (version < pversion) {
 							i = chat->participants.erase(i);
 						} else {
-							if (i.key()->botInfo) {
-								botStatus = 2;// (botStatus > 0/* || !i.key()->botInfo->readsAllHistory*/) ? 2 : 1;
-								if (requestBotInfos && !i.key()->botInfo->inited) {
-									Auth().api().requestFullPeer(i.key());
+							if (user->botInfo) {
+								botStatus = 2;// (botStatus > 0/* || !user->botInfo->readsAllHistory*/) ? 2 : 1;
+								if (requestBotInfos && !user->botInfo->inited) {
+									Auth().api().requestFullPeer(user);
 								}
 							}
-							if (!found && i.key()->id == h->lastKeyboardFrom) {
+							if (!found && user->id == h->lastKeyboardFrom) {
 								found = true;
 							}
 							++i;
@@ -884,11 +887,11 @@ namespace {
 			chat->version = d.vversion.v;
 			UserData *user = App::userLoaded(d.vuser_id.v);
 			if (user) {
-				if (chat->participants.isEmpty() && chat->count) {
+				if (chat->participants.empty() && chat->count) {
 					chat->count++;
 					chat->botStatus = 0;
 				} else if (chat->participants.find(user) == chat->participants.end()) {
-					chat->participants[user] = (chat->participants.isEmpty() ? 1 : chat->participants.begin().value());
+					chat->participants[user] = (chat->participants.empty() ? 1 : chat->participants.begin()->second);
 					if (d.vinviter_id.v == Auth().userId()) {
 						chat->invitedByMe.insert(user);
 					} else {
@@ -921,7 +924,7 @@ namespace {
 			auto canEdit = chat->canEdit();
 			UserData *user = App::userLoaded(d.vuser_id.v);
 			if (user) {
-				if (chat->participants.isEmpty()) {
+				if (chat->participants.empty()) {
 					if (chat->count > 0) {
 						chat->count--;
 					}
@@ -943,9 +946,9 @@ namespace {
 					}
 					if (chat->botStatus > 0 && user->botInfo) {
 						int32 botStatus = -1;
-						for (auto j = chat->participants.cbegin(), e = chat->participants.cend(); j != e; ++j) {
-							if (j.key()->botInfo) {
-								if (true || botStatus > 0/* || !j.key()->botInfo->readsAllHistory*/) {
+						for (auto [participant, v] : chat->participants) {
+							if (participant->botInfo) {
+								if (true || botStatus > 0/* || !participant->botInfo->readsAllHistory*/) {
 									botStatus = 2;
 									break;
 								}

@@ -144,6 +144,7 @@ public:
 	void readFeaturedSetDelayed(uint64 setId);
 
 	void parseChannelParticipants(
+		not_null<ChannelData*> channel,
 		const MTPchannels_ChannelParticipants &result,
 		base::lambda<void(
 			int availableCount,
@@ -215,6 +216,9 @@ private:
 	void cancelEditChatAdmins(not_null<ChatData*> chat);
 	void saveChatAdmins(not_null<ChatData*> chat);
 	void sendSaveChatAdminsRequests(not_null<ChatData*> chat);
+	void refreshChannelAdmins(
+		not_null<ChannelData*> channel,
+		const QVector<MTPChannelParticipant> &participants);
 
 	template <typename Callback>
 	void requestMessageAfterDate(

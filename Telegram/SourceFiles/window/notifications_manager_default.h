@@ -98,7 +98,7 @@ private:
 		QueuedNotification(HistoryItem *item, int forwardedCount)
 		: history(item->history())
 		, peer(history->peer)
-		, author((item->hasFromName() && !item->isPost()) ? item->author() : nullptr)
+		, author((!peer->isUser() && !item->isPost()) ? item->author() : nullptr)
 		, item((forwardedCount > 1) ? nullptr : item)
 		, forwardedCount(forwardedCount) {
 		}

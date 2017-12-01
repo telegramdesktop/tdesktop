@@ -475,6 +475,7 @@ void ParticipantsBoxController::loadMoreRows() {
 					callback);
 			} else {
 				Auth().api().parseChannelParticipants(
+					_channel,
 					result,
 					callback);
 			}
@@ -538,7 +539,7 @@ bool ParticipantsBoxController::feedMegagroupLastParticipants() {
 	//	_channel->updateFull();
 	//	return false;
 	//}
-	if (info->lastParticipants.isEmpty()) {
+	if (info->lastParticipants.empty()) {
 		return false;
 	}
 
@@ -546,21 +547,21 @@ bool ParticipantsBoxController::feedMegagroupLastParticipants() {
 		_additional.creator = info->creator;
 	}
 	for_const (auto user, info->lastParticipants) {
-		auto admin = info->lastAdmins.constFind(user);
+		auto admin = info->lastAdmins.find(user);
 		if (admin != info->lastAdmins.cend()) {
 			_additional.restrictedRights.erase(user);
-			if (admin->canEdit) {
+			if (admin->second.canEdit) {
 				_additional.adminCanEdit.emplace(user);
 			} else {
 				_additional.adminCanEdit.erase(user);
 			}
-			_additional.adminRights.emplace(user, admin->rights);
+			_additional.adminRights.emplace(user, admin->second.rights);
 		} else {
 			_additional.adminCanEdit.erase(user);
 			_additional.adminRights.erase(user);
-			auto restricted = info->lastRestricted.constFind(user);
+			auto restricted = info->lastRestricted.find(user);
 			if (restricted != info->lastRestricted.cend()) {
-				_additional.restrictedRights.emplace(user, restricted->rights);
+				_additional.restrictedRights.emplace(user, restricted->second.rights);
 			} else {
 				_additional.restrictedRights.erase(user);
 			}
@@ -1083,7 +1084,7 @@ void ParticipantsBoxSearchController::searchDone(
 		int requestedCount) {
 	auto query = _query;
 	if (requestId) {
-		Auth().api().parseChannelParticipants(result, [&](auto&&...) {
+		Auth().api().parseChannelParticipants(_channel, result, [&](auto&&...) {
 			auto it = _queries.find(requestId);
 			if (it != _queries.cend()) {
 				query = it->second.text;
@@ -1184,7 +1185,7 @@ void AddParticipantBoxController::loadMoreRows() {
 	)).done([this](const MTPchannels_ChannelParticipants &result) {
 		_loadRequestId = 0;
 
-		Auth().api().parseChannelParticipants(result, [&](
+		Auth().api().parseChannelParticipants(_channel, result, [&](
 				int availableCount,
 				const QVector<MTPChannelParticipant> &list) {
 			for (auto &participant : list) {
@@ -1720,7 +1721,7 @@ void AddParticipantBoxSearchController::requestParticipants() {
 void AddParticipantBoxSearchController::searchParticipantsDone(mtpRequestId requestId, const MTPchannels_ChannelParticipants &result, int requestedCount) {
 	auto query = _query;
 	if (requestId) {
-		Auth().api().parseChannelParticipants(result, [&](auto&&...) {
+		Auth().api().parseChannelParticipants(_channel, result, [&](auto&&...) {
 			auto it = _participantsQueries.find(requestId);
 			if (it != _participantsQueries.cend()) {
 				query = it->second.text;

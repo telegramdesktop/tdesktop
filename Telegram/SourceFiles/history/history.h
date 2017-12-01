@@ -223,6 +223,8 @@ public:
 	void clear(bool leaveItems = false);
 	void clearUpTill(MsgId availableMinId);
 
+	void applyGroupAdminChanges(const base::flat_map<UserId, bool> &changes);
+
 	virtual ~History();
 
 	HistoryItem *addNewService(MsgId msgId, QDateTime date, const QString &text, MTPDmessage::Flags flags = 0, bool newMsg = true);

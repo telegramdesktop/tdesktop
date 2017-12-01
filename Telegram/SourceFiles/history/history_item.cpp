@@ -1176,7 +1176,7 @@ void HistoryItem::audioTrackUpdated() {
 
 void HistoryItem::recountDisplayDate() {
 	Expects(!isLogEntry());
-	setDisplayDate(([this]() {
+	setDisplayDate([&] {
 		if (isEmpty()) {
 			return false;
 		}
@@ -1185,7 +1185,7 @@ void HistoryItem::recountDisplayDate() {
 			return previous->isEmpty() || (previous->date.date() != date.date());
 		}
 		return true;
-	})());
+	}());
 }
 
 void HistoryItem::setDisplayDate(bool displayDate) {

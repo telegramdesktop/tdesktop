@@ -62,6 +62,9 @@ public:
 	bool hasBubble() const override {
 		return drawBubble();
 	}
+	bool hasFromName() const {
+		return (!out() || isPost()) && !history()->peer->isUser();
+	}
 	bool displayFromName() const {
 		if (!hasFromName()) return false;
 		if (isAttachedToPrevious()) return false;
@@ -70,6 +73,9 @@ public:
 	bool displayEditedBadge(bool hasViaBotOrInlineMarkup) const;
 	bool uploading() const;
 	bool displayFastShare() const override;
+
+	void applyGroupAdminChanges(
+		const base::flat_map<UserId, bool> &changes) override;
 
 	void drawInfo(Painter &p, int32 right, int32 bottom, int32 width, bool selected, InfoDisplayType type) const override;
 	void drawFastShare(Painter &p, int left, int top, int outerWidth) const override;
@@ -229,5 +235,6 @@ private:
 	};
 
 	void updateMediaInBubbleState();
+	void updateAdminBadgeState();
 
 };

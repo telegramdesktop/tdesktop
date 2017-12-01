@@ -188,10 +188,8 @@ void ChatMembersController::rebuildRows() {
 			--count;
 		}
 	}
-	for (auto i = participants.cbegin(), e = participants.cend();
-		i != e;
-		++i) {
-		if (auto row = createRow(i.key())) {
+	for (const auto [user, v] : participants) {
+		if (auto row = createRow(user)) {
 			delegate()->peerListAppendRow(std::move(row));
 		}
 	}

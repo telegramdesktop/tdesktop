@@ -38,8 +38,12 @@ base::flat_set<not_null<UserData*>> GetAlreadyInFromPeer(PeerData *peer) {
 		return {};
 	}
 	if (auto chat = peer->asChat()) {
-		auto participants = chat->participants.keys();
-		return { participants.cbegin(), participants.cend() };
+		auto participants = (
+			chat->participants
+		) | ranges::view::transform([](auto &&pair) -> not_null<UserData*> {
+			return pair.first;
+		});
+		return { participants.begin(), participants.end() };
 	} else if (auto channel = peer->asChannel()) {
 		if (channel->isMegagroup()) {
 			auto &participants = channel->mgInfo->lastParticipants;
@@ -427,7 +431,7 @@ bool AddParticipantsBoxController::isAlreadyIn(not_null<UserData*> user) const {
 		return chat->participants.contains(user);
 	} else if (auto channel = _peer->asChannel()) {
 		return _alreadyIn.contains(user)
-			|| (channel->isMegagroup() && channel->mgInfo->lastParticipants.contains(user));
+			|| (channel->isMegagroup() && base::contains(channel->mgInfo->lastParticipants, user));
 	}
 	Unexpected("User in AddParticipantsBoxController::isAlreadyIn");
 }
@@ -632,12 +636,12 @@ void EditChatAdminsBoxController::rebuildRows() {
 	admins.reserve(allAdmins ? _chat->participants.size() : _chat->admins.size());
 	others.reserve(_chat->participants.size());
 
-	for (auto i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
-		if (i.key()->id == peerFromUser(_chat->creator)) continue;
-		if (_chat->admins.contains(i.key())) {
-			admins.push_back(i.key());
+	for (auto [user, version] : _chat->participants) {
+		if (user->id == peerFromUser(_chat->creator)) continue;
+		if (_chat->admins.contains(user)) {
+			admins.push_back(user);
 		} else {
-			others.push_back(i.key());
+			others.push_back(user);
 		}
 	}
 	if (!admins.empty()) {

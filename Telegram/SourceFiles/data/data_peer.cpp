@@ -806,7 +806,7 @@ void ChannelData::setInviteLink(const QString &newInviteLink) {
 
 void ChannelData::setMembersCount(int newMembersCount) {
 	if (_membersCount != newMembersCount) {
-		if (isMegagroup() && !mgInfo->lastParticipants.isEmpty()) {
+		if (isMegagroup() && !mgInfo->lastParticipants.empty()) {
 			mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsCountOutdated;
 			mgInfo->lastParticipantsCount = membersCount();
 		}
@@ -845,7 +845,8 @@ MTPChannelBannedRights ChannelData::KickedRestrictedRights() {
 void ChannelData::applyEditAdmin(not_null<UserData*> user, const MTPChannelAdminRights &oldRights, const MTPChannelAdminRights &newRights) {
 	auto flags = Notify::PeerUpdate::Flag::AdminsChanged | Notify::PeerUpdate::Flag::None;
 	if (mgInfo) {
-		if (!mgInfo->lastParticipants.contains(user)) { // If rights are empty - still add participant? TODO check
+		// If rights are empty - still add participant? TODO check
+		if (!base::contains(mgInfo->lastParticipants, user)) {
 			mgInfo->lastParticipants.push_front(user);
 			setMembersCount(membersCount() + 1);
 			if (user->botInfo && !mgInfo->bots.contains(user)) {
@@ -855,7 +856,8 @@ void ChannelData::applyEditAdmin(not_null<UserData*> user, const MTPChannelAdmin
 				}
 			}
 		}
-		if (mgInfo->lastRestricted.contains(user)) { // If rights are empty - still remove restrictions? TODO check
+		// If rights are empty - still remove restrictions? TODO check
+		if (mgInfo->lastRestricted.contains(user)) {
 			mgInfo->lastRestricted.remove(user);
 			if (restrictedCount() > 0) {
 				setRestrictedCount(restrictedCount() - 1);
@@ -866,10 +868,10 @@ void ChannelData::applyEditAdmin(not_null<UserData*> user, const MTPChannelAdmin
 			auto lastAdmin = MegagroupInfo::Admin { newRights };
 			lastAdmin.canEdit = true;
 			if (it == mgInfo->lastAdmins.cend()) {
-				mgInfo->lastAdmins.insert(user, lastAdmin);
+				mgInfo->lastAdmins.emplace(user, lastAdmin);
 				setAdminsCount(adminsCount() + 1);
 			} else {
-				it.value() = lastAdmin;
+				it->second = lastAdmin;
 			}
 		} else {
 			if (it != mgInfo->lastAdmins.cend()) {
@@ -913,10 +915,10 @@ void ChannelData::applyEditBanned(not_null<UserData*> user, const MTPChannelBann
 		auto it = mgInfo->lastRestricted.find(user);
 		if (isRestricted) {
 			if (it == mgInfo->lastRestricted.cend()) {
-				mgInfo->lastRestricted.insert(user, MegagroupInfo::Restricted { newRights });
+				mgInfo->lastRestricted.emplace(user, MegagroupInfo::Restricted { newRights });
 				setRestrictedCount(restrictedCount() + 1);
 			} else {
-				it->rights = newRights;
+				it->second.rights = newRights;
 			}
 		} else {
 			if (it != mgInfo->lastRestricted.cend()) {
@@ -926,9 +928,9 @@ void ChannelData::applyEditBanned(not_null<UserData*> user, const MTPChannelBann
 				}
 			}
 			if (isKicked) {
-				auto i = mgInfo->lastParticipants.indexOf(user);
-				if (i >= 0) {
-					mgInfo->lastParticipants.removeAt(i);
+				auto i = ranges::find(mgInfo->lastParticipants, user);
+				if (i != mgInfo->lastParticipants.end()) {
+					mgInfo->lastParticipants.erase(i);
 				}
 				if (membersCount() > 1) {
 					setMembersCount(membersCount() - 1);
@@ -939,7 +941,7 @@ void ChannelData::applyEditBanned(not_null<UserData*> user, const MTPChannelBann
 				setKickedCount(kickedCount() + 1);
 				if (mgInfo->bots.contains(user)) {
 					mgInfo->bots.remove(user);
-					if (mgInfo->bots.isEmpty() && mgInfo->botStatus > 0) {
+					if (mgInfo->bots.empty() && mgInfo->botStatus > 0) {
 						mgInfo->botStatus = -1;
 					}
 				}
@@ -954,6 +956,13 @@ void ChannelData::applyEditBanned(not_null<UserData*> user, const MTPChannelBann
 		}
 	}
 	Notify::peerUpdatedDelayed(this, flags);
+}
+
+bool ChannelData::isGroupAdmin(not_null<UserData*> user) const {
+	if (auto info = mgInfo.get()) {
+		return info->admins.contains(peerToUser(user->id));
+	}
+	return false;
 }
 
 void ChannelData::setRestrictionReason(const QString &text) {
@@ -1087,9 +1096,9 @@ bool ChannelData::canDelete() const {
 bool ChannelData::canEditLastAdmin(not_null<UserData*> user) const {
 	// Duplicated in ParticipantsBoxController::canEditAdmin :(
 	if (mgInfo) {
-		auto i = mgInfo->lastAdmins.constFind(user);
+		auto i = mgInfo->lastAdmins.find(user);
 		if (i != mgInfo->lastAdmins.cend()) {
-			return i->canEdit;
+			return i->second.canEdit;
 		}
 		return (user != mgInfo->creator);
 	}
@@ -1130,7 +1139,7 @@ void ChannelData::setAdminRights(const MTPChannelAdminRights &rights) {
 			if (!amCreator()) {
 				auto me = MegagroupInfo::Admin { rights };
 				me.canEdit = false;
-				mgInfo->lastAdmins.insert(App::self(), me);
+				mgInfo->lastAdmins.emplace(App::self(), me);
 			}
 			mgInfo->lastRestricted.remove(App::self());
 		} else {
@@ -1151,7 +1160,7 @@ void ChannelData::setRestrictedRights(const MTPChannelBannedRights &rights) {
 		if (hasRestrictions()) {
 			if (!amCreator()) {
 				auto me = MegagroupInfo::Restricted { rights };
-				mgInfo->lastRestricted.insert(App::self(), me);
+				mgInfo->lastRestricted.emplace(App::self(), me);
 			}
 			mgInfo->lastAdmins.remove(App::self());
 		} else {

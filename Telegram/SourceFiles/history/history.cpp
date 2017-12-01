@@ -945,7 +945,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 					auto &v = d.vusers.v;
 					for (auto i = 0, l = v.size(); i != l; ++i) {
 						if (auto user = App::userLoaded(peerFromUser(v[i]))) {
-							if (mgInfo->lastParticipants.indexOf(user) < 0) {
+							if (!base::contains(mgInfo->lastParticipants, user)) {
 								mgInfo->lastParticipants.push_front(user);
 								mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
 								Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
@@ -968,7 +968,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 					auto mgInfo = megagroup->mgInfo.get();
 					Assert(mgInfo != nullptr);
 					if (auto user = result->from()->asUser()) {
-						if (mgInfo->lastParticipants.indexOf(user) < 0) {
+						if (!base::contains(mgInfo->lastParticipants, user)) {
 							mgInfo->lastParticipants.push_front(user);
 							Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
 							Auth().data().addNewMegagroupParticipant(megagroup, user);
@@ -998,9 +998,12 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 					if (auto user = App::userLoaded(uid)) {
 						auto mgInfo = megagroup->mgInfo.get();
 						Assert(mgInfo != nullptr);
-						auto index = mgInfo->lastParticipants.indexOf(user);
-						if (index >= 0) {
-							mgInfo->lastParticipants.removeAt(index);
+						auto i = ranges::find(
+							mgInfo->lastParticipants,
+							user,
+							[](not_null<UserData*> user) { return user.get(); });
+						if (i != mgInfo->lastParticipants.end()) {
+							mgInfo->lastParticipants.erase(i);
 							Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
 						}
 						Auth().data().removeMegagroupParticipant(megagroup, user);
@@ -1018,7 +1021,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 							Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::AdminsChanged);
 						}
 						mgInfo->bots.remove(user);
-						if (mgInfo->bots.isEmpty() && mgInfo->botStatus > 0) {
+						if (mgInfo->bots.empty() && mgInfo->botStatus > 0) {
 							mgInfo->botStatus = -1;
 						}
 					}
@@ -1305,7 +1308,7 @@ HistoryItem *History::addNewItem(HistoryItem *adding, bool newMsg) {
 	}
 	if (adding->from()->id) {
 		if (auto user = adding->from()->asUser()) {
-			auto getLastAuthors = [this]() -> QList<not_null<UserData*>>* {
+			auto getLastAuthors = [this]() -> std::deque<not_null<UserData*>>* {
 				if (auto chat = peer->asChat()) {
 					return &chat->lastAuthors;
 				} else if (auto channel = peer->asMegagroup()) {
@@ -1324,13 +1327,19 @@ HistoryItem *History::addNewItem(HistoryItem *adding, bool newMsg) {
 				}
 			}
 			if (auto lastAuthors = getLastAuthors()) {
-				int prev = lastAuthors->indexOf(user);
-				if (prev > 0) {
-					lastAuthors->removeAt(prev);
-				} else if (prev < 0 && peer->isMegagroup()) { // nothing is outdated if just reordering
+				auto prev = ranges::find(
+					*lastAuthors,
+					user,
+					[](not_null<UserData*> user) { return user.get(); });
+				auto index = (prev != lastAuthors->end())
+					? (lastAuthors->end() - prev)
+					: -1;
+				if (index > 0) {
+					lastAuthors->erase(prev);
+				} else if (index < 0 && peer->isMegagroup()) { // nothing is outdated if just reordering
 					peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
 				}
-				if (prev) {
+				if (index) {
 					lastAuthors->push_front(user);
 				}
 				if (auto megagroup = peer->asMegagroup()) {
@@ -1342,7 +1351,7 @@ HistoryItem *History::addNewItem(HistoryItem *adding, bool newMsg) {
 		if (adding->definesReplyKeyboard()) {
 			auto markupFlags = adding->replyKeyboardFlags();
 			if (!(markupFlags & MTPDreplyKeyboardMarkup::Flag::f_selective) || adding->mentionsMe()) {
-				auto getMarkupSenders = [this]() -> OrderedSet<not_null<PeerData*>>* {
+				auto getMarkupSenders = [this]() -> base::flat_set<not_null<PeerData*>>* {
 					if (auto chat = peer->asChat()) {
 						return &chat->markupSenders;
 					} else if (auto channel = peer->asMegagroup()) {
@@ -1360,7 +1369,7 @@ HistoryItem *History::addNewItem(HistoryItem *adding, bool newMsg) {
 				} else {
 					bool botNotInChat = false;
 					if (peer->isChat()) {
-						botNotInChat = adding->from()->isUser() && (!peer->canWrite() || !peer->asChat()->participants.isEmpty()) && !peer->asChat()->participants.contains(adding->from()->asUser());
+						botNotInChat = adding->from()->isUser() && (!peer->canWrite() || !peer->asChat()->participants.empty()) && !peer->asChat()->participants.contains(adding->from()->asUser());
 					} else if (peer->isMegagroup()) {
 						botNotInChat = adding->from()->isUser() && (!peer->canWrite() || peer->asChannel()->mgInfo->botStatus != 0) && !peer->asChannel()->mgInfo->bots.contains(adding->from()->asUser());
 					}
@@ -1577,8 +1586,8 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 	} else if (loadedAtBottom()) { // add photos to overview and authors to lastAuthors
 		bool channel = isChannel();
 		int32 mask = 0;
-		QList<not_null<UserData*>> *lastAuthors = nullptr;
-		OrderedSet<not_null<PeerData*>> *markupSenders = nullptr;
+		std::deque<not_null<UserData*>> *lastAuthors = nullptr;
+		base::flat_set<not_null<PeerData*>> *markupSenders = nullptr;
 		if (peer->isChat()) {
 			lastAuthors = &peer->asChat()->lastAuthors;
 			markupSenders = &peer->asChat()->markupSenders;
@@ -1597,7 +1606,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 			if (item->from()->id) {
 				if (lastAuthors) { // chats
 					if (auto user = item->from()->asUser()) {
-						if (!lastAuthors->contains(user)) {
+						if (!base::contains(*lastAuthors, user)) {
 							lastAuthors->push_back(user);
 							if (peer->isMegagroup()) {
 								peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
@@ -1620,7 +1629,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 								if (!lastKeyboardInited) {
 									bool botNotInChat = false;
 									if (peer->isChat()) {
-										botNotInChat = (!peer->canWrite() || !peer->asChat()->participants.isEmpty()) && item->author()->isUser() && !peer->asChat()->participants.contains(item->author()->asUser());
+										botNotInChat = (!peer->canWrite() || !peer->asChat()->participants.empty()) && item->author()->isUser() && !peer->asChat()->participants.contains(item->author()->asUser());
 									} else if (peer->isMegagroup()) {
 										botNotInChat = (!peer->canWrite() || peer->asChannel()->mgInfo->botStatus != 0) && item->author()->isUser() && !peer->asChannel()->mgInfo->bots.contains(item->author()->asUser());
 									}
@@ -2405,6 +2414,15 @@ void History::clearUpTill(MsgId availableMinId) {
 
 	if (!lastMsg) {
 		App::main()->checkPeerHistory(peer);
+	}
+}
+
+void History::applyGroupAdminChanges(
+		const base::flat_map<UserId, bool> &changes) {
+	for (auto block : blocks) {
+		for (auto item : block->items) {
+			item->applyGroupAdminChanges(changes);
+		}
 	}
 }
 

@@ -520,6 +520,9 @@ public:
 	virtual bool notificationReady() const {
 		return true;
 	}
+	virtual void applyGroupAdminChanges(
+		const base::flat_map<UserId, bool> &changes) {
+	}
 
 	UserData *viaBot() const {
 		if (auto via = Get<HistoryMessageVia>()) {
@@ -822,9 +825,6 @@ public:
 		return 0;
 	}
 
-	bool hasFromName() const {
-		return (!out() || isPost()) && !history()->peer->isUser();
-	}
 	PeerData *author() const {
 		return isPost() ? history()->peer : from();
 	}
