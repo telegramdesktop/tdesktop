@@ -275,9 +275,9 @@ inline bool chIsSpace(QChar ch, bool rich = false) {
 inline bool chIsDiac(QChar ch) { // diac and variation selectors
 	return (ch.category() == QChar::Mark_NonSpacing) || (ch == 1652) || (ch >= 64606 && ch <= 64611);
 }
-inline bool chIsBad(QChar ch) {
-	return (ch == 0) || (ch >= 8232 && ch < 8237) || (ch >= 65024 && ch < 65040 && ch != 65039) || (ch >= 127 && ch < 160 && ch != 156) || (cPlatform() == dbipMac && ch >= 0x0B00 && ch <= 0x0B7F && chIsDiac(ch) && cIsElCapitan()); // tmp hack see https://bugreports.qt.io/browse/QTBUG-48910
-}
+
+bool chIsBad(QChar ch);
+
 inline bool chIsTrimmed(QChar ch, bool rich = false) {
 	return (!rich || ch != TextCommand) && (chIsSpace(ch) || chIsBad(ch));
 }

@@ -104,6 +104,7 @@ DBIPlatform gPlatform = dbipLinux32;
 QString gPlatformString;
 QUrl gUpdateURL;
 bool gIsElCapitan = false;
+bool gIsSnowLeopard = false;
 
 int gOtherOnline = 0;
 
@@ -195,6 +196,9 @@ void InitFromCommandLine(int argc, char *argv[]) {
 		gIsElCapitan = true;
 	}
 #else // OS_MAC_OLD
+	if (QSysInfo::macVersion() < QSysInfo::MV_10_7) {
+		gIsSnowLeopard = true;
+	}
 	gPlatform = dbipMacOld;
 #endif // OS_MAC_OLD
 #endif // Q_OS_MAC

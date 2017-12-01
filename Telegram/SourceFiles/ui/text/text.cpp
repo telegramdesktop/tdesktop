@@ -37,6 +37,15 @@ inline int32 countBlockHeight(const ITextBlock *b, const style::TextStyle *st) {
 
 } // namespace
 
+bool chIsBad(QChar ch) {
+#ifdef OS_MAC_OLD
+	if (cIsSnowLeopard() && (ch == 8207 || ch == 8206)) {
+		return true;
+	}
+#endif // OS_MAC_OLD
+	return (ch == 0) || (ch >= 8232 && ch < 8237) || (ch >= 65024 && ch < 65040 && ch != 65039) || (ch >= 127 && ch < 160 && ch != 156) || (cPlatform() == dbipMac && ch >= 0x0B00 && ch <= 0x0B7F && chIsDiac(ch) && cIsElCapitan()); // tmp hack see https://bugreports.qt.io/browse/QTBUG-48910
+}
+
 QString textcmdSkipBlock(ushort w, ushort h) {
 	static QString cmd(5, TextCommand);
 	cmd[1] = QChar(TextCommandSkipBlock);

@@ -133,8 +133,10 @@ void CreateWidgetStateRecursive(not_null<QWidget*> target) {
 	if (!target->testAttribute(Qt::WA_WState_Created)) {
 		if (!target->isWindow()) {
 			CreateWidgetStateRecursive(target->parentWidget());
+			WidgetCreator::Create(target);
+		} else if (!cIsSnowLeopard()) {
+			WidgetCreator::Create(target);
 		}
-		WidgetCreator::Create(target);
 	}
 }
 
