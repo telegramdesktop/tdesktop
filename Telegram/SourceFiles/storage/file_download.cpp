@@ -381,6 +381,7 @@ void FileLoader::cancel(bool fail) {
 		_file.remove();
 	}
 	_data = QByteArray();
+	removeFromQueue();
 
 	if (fail) {
 		emit failed(this, started);
@@ -480,6 +481,8 @@ mtpFileLoader::RequestData mtpFileLoader::prepareRequest(int offset) const {
 }
 
 void mtpFileLoader::makeRequest(int offset) {
+	Expects(!_finished);
+
 	auto requestData = prepareRequest(offset);
 	auto send = [this, &requestData] {
 		auto offset = requestData.offset;
@@ -521,6 +524,7 @@ void mtpFileLoader::requestMoreCdnFileHashes() {
 }
 
 void mtpFileLoader::normalPartLoaded(const MTPupload_File &result, mtpRequestId requestId) {
+	Expects(!_finished);
 	Expects(result.type() == mtpc_upload_fileCdnRedirect || result.type() == mtpc_upload_file);
 
 	auto offset = finishSentRequestGetOffset(requestId);
@@ -547,6 +551,8 @@ void mtpFileLoader::webPartLoaded(const MTPupload_WebFile &result, mtpRequestId 
 }
 
 void mtpFileLoader::cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequestId requestId) {
+	Expects(!_finished);
+
 	auto offset = finishSentRequestGetOffset(requestId);
 	if (result.type() == mtpc_upload_cdnFileReuploadNeeded) {
 		auto requestData = RequestData();
@@ -616,7 +622,9 @@ void mtpFileLoader::reuploadDone(const MTPVector<MTPCdnFileHash> &result, mtpReq
 }
 
 void mtpFileLoader::getCdnFileHashesDone(const MTPVector<MTPCdnFileHash> &result, mtpRequestId requestId) {
+	Expects(!_finished);
 	Expects(_cdnHashesRequestId == requestId);
+
 	_cdnHashesRequestId = 0;
 
 	auto offset = finishSentRequestGetOffset(requestId);
@@ -683,6 +691,8 @@ int mtpFileLoader::finishSentRequestGetOffset(mtpRequestId requestId) {
 }
 
 void mtpFileLoader::partLoaded(int offset, base::const_byte_span bytes) {
+	Expects(!_finished);
+
 	if (bytes.size()) {
 		if (_fileIsOpen) {
 			auto fsize = _file.size();
