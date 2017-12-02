@@ -1,4 +1,10 @@
-1.1.25 (30.11.17)
+1.1.26 alpha (02.12.17)
+
+- Admin badges in supergroup messages.
+- Fix crashing on launch in OS X 10.6.
+- Bug fixes and other minor improvements.
+
+1.1.25 alpha (30.11.17)
 
 - Bug fixes and other minor improvements.
 
