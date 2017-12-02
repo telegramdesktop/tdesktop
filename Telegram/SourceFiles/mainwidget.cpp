@@ -657,8 +657,8 @@ bool MainWidget::setForwardDraft(PeerId peerId, const SelectedItemSet &items) {
 	if (_history->peer() == peer) {
 		_history->cancelReply();
 	}
-	Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 	_history->onClearSelected();
+	Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 	return true;
 }
 

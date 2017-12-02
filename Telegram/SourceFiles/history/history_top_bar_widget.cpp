@@ -439,11 +439,16 @@ void HistoryTopBarWidget::updateControlsGeometry() {
 	updateMembersShowArea();
 }
 
+void HistoryTopBarWidget::finishAnimating() {
+	_selectedShown.finish();
+	updateControlsVisibility();
+}
+
 void HistoryTopBarWidget::setAnimationMode(bool enabled) {
 	if (_animationMode != enabled) {
 		_animationMode = enabled;
 		setAttribute(Qt::WA_OpaquePaintEvent, !_animationMode);
-		_selectedShown.finish();
+		finishAnimating();
 		updateControlsVisibility();
 	}
 }

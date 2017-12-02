@@ -48,6 +48,7 @@ public:
 	};
 
 	void updateControlsVisibility();
+	void finishAnimating();
 	void showSelected(SelectedState state);
 	rpl::producer<bool> membersShowAreaActive() const {
 		return _membersShowAreaActive.events();
