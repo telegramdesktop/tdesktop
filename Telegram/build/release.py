@@ -1,6 +1,7 @@
 import os, sys, requests, pprint, re, json
 from uritemplate import URITemplate, expand
 from subprocess import call
+from os.path import expanduser
 
 changelog_file = '../../changelog.txt'
 token_file = '../../../TelegramPrivate/github-releases-token.txt'
@@ -98,7 +99,7 @@ if access_token == '':
   sys.exit(1)
 
 print('Version: ' + version_full);
-local_folder = '$HOME/Telegram/backup/' + version_major + '/' + version_full
+local_folder = expanduser("~") + '/Telegram/backup/' + version_major + '/' + version_full
 
 if stable == 1:
   if os.path.isdir(local_folder + '.dev'):
@@ -113,7 +114,7 @@ if stable == 1:
     local_folder = local_folder + '.alpha'
 
 if not os.path.isdir(local_folder):
-  print('Storage path not found!')
+  print('Storage path not found: ' + local_folder)
   sys.exit(1)
 
 local_folder = local_folder + '/'
