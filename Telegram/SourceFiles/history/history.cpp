@@ -37,6 +37,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "calls/calls_instance.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
+#include "data/data_channel_admins.h"
 
 namespace {
 
@@ -1025,6 +1026,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 							mgInfo->botStatus = -1;
 						}
 					}
+					Data::ChannelAdminChanges(megagroup).feed(uid, false);
 				}
 			} break;
 

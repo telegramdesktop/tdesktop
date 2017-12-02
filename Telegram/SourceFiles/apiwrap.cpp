@@ -44,6 +44,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/storage_user_photos.h"
 #include "data/data_sparse_ids.h"
 #include "data/data_search_controller.h"
+#include "data/data_channel_admins.h"
 
 namespace {
 
@@ -1792,24 +1793,12 @@ void ApiWrap::parseChannelParticipants(
 void ApiWrap::refreshChannelAdmins(
 		not_null<ChannelData*> channel,
 		const QVector<MTPChannelParticipant> &participants) {
-	auto changes = base::flat_map<UserId, bool>();
-	auto &admins = channel->mgInfo->admins;
-	for (auto &participant : participants) {
-		auto userId = TLHelp::ReadChannelParticipantUserId(participant);
-		auto admin = (participant.type() == mtpc_channelParticipantAdmin)
-			|| (participant.type() == mtpc_channelParticipantCreator);
-		if (admin && !admins.contains(userId)) {
-			admins.insert(userId);
-			changes.emplace(userId, true);
-		} else if (!admin && admins.contains(userId)) {
-			admins.remove(userId);
-			changes.emplace(userId, false);
-		}
-	}
-	if (!changes.empty()) {
-		if (auto history = App::historyLoaded(channel)) {
-			history->applyGroupAdminChanges(changes);
-		}
+	Data::ChannelAdminChanges changes(channel);
+	for (auto &p : participants) {
+		const auto userId = TLHelp::ReadChannelParticipantUserId(p);
+		const auto isAdmin = (p.type() == mtpc_channelParticipantAdmin)
+			|| (p.type() == mtpc_channelParticipantCreator);
+		changes.feed(userId, isAdmin);
 	}
 }
 

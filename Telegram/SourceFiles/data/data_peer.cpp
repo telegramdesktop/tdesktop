@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/filter.h>
 #include <rpl/map.h>
 #include "data/data_peer_values.h"
+#include "data/data_channel_admins.h"
 #include "lang/lang_keys.h"
 #include "observer_peer.h"
 #include "mainwidget.h"
@@ -863,6 +864,8 @@ void ChannelData::applyEditAdmin(not_null<UserData*> user, const MTPChannelAdmin
 				setRestrictedCount(restrictedCount() - 1);
 			}
 		}
+
+		auto userId = peerToUser(user->id);
 		auto it = mgInfo->lastAdmins.find(user);
 		if (newRights.c_channelAdminRights().vflags.v != 0) {
 			auto lastAdmin = MegagroupInfo::Admin { newRights };
@@ -873,6 +876,7 @@ void ChannelData::applyEditAdmin(not_null<UserData*> user, const MTPChannelAdmin
 			} else {
 				it->second = lastAdmin;
 			}
+			Data::ChannelAdminChanges(this).feed(userId, true);
 		} else {
 			if (it != mgInfo->lastAdmins.cend()) {
 				mgInfo->lastAdmins.erase(it);
@@ -880,6 +884,7 @@ void ChannelData::applyEditAdmin(not_null<UserData*> user, const MTPChannelAdmin
 					setAdminsCount(adminsCount() - 1);
 				}
 			}
+			Data::ChannelAdminChanges(this).feed(userId, false);
 		}
 	}
 	if (oldRights.c_channelAdminRights().vflags.v && !newRights.c_channelAdminRights().vflags.v) {
@@ -904,7 +909,8 @@ void ChannelData::applyEditBanned(not_null<UserData*> user, const MTPChannelBann
 	auto isKicked = (newRights.c_channelBannedRights().vflags.v & MTPDchannelBannedRights::Flag::f_view_messages);
 	auto isRestricted = !isKicked && (newRights.c_channelBannedRights().vflags.v != 0);
 	if (mgInfo) {
-		if (mgInfo->lastAdmins.contains(user)) { // If rights are empty - still remove admin? TODO check
+		// If rights are empty - still remove admin? TODO check
+		if (mgInfo->lastAdmins.contains(user)) {
 			mgInfo->lastAdmins.remove(user);
 			if (adminsCount() > 1) {
 				setAdminsCount(adminsCount() - 1);
@@ -949,6 +955,7 @@ void ChannelData::applyEditBanned(not_null<UserData*> user, const MTPChannelBann
 				Auth().data().removeMegagroupParticipant(this, user);
 			}
 		}
+		Data::ChannelAdminChanges(this).feed(peerToUser(user->id), false);
 	} else {
 		if (isKicked && membersCount() > 1) {
 			setMembersCount(membersCount() - 1);
@@ -1145,6 +1152,9 @@ void ChannelData::setAdminRights(const MTPChannelAdminRights &rights) {
 		} else {
 			mgInfo->lastAdmins.remove(App::self());
 		}
+
+		auto amAdmin = hasAdminRights() || amCreator();
+		Data::ChannelAdminChanges(this).feed(Auth().userId(), amAdmin);
 	}
 	Notify::peerUpdatedDelayed(this, UpdateFlag::ChannelRightsChanged | UpdateFlag::AdminsChanged | UpdateFlag::BannedUsersChanged);
 }
@@ -1163,6 +1173,7 @@ void ChannelData::setRestrictedRights(const MTPChannelBannedRights &rights) {
 				mgInfo->lastRestricted.emplace(App::self(), me);
 			}
 			mgInfo->lastAdmins.remove(App::self());
+			Data::ChannelAdminChanges(this).feed(Auth().userId(), false);
 		} else {
 			mgInfo->lastRestricted.remove(App::self());
 		}
