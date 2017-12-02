@@ -76,7 +76,7 @@ bool ChildFFMpegLoader::open(qint64 &position) {
 		_sampleSize = -1; // convert needed
 	break;
 	}
-	if (_parentData->frequency != 44100 && _parentData->frequency != 48000) {
+	if (_parentData->frequency != Media::Player::kDefaultFrequency) {
 		_sampleSize = -1; // convert needed
 	}
 
@@ -89,7 +89,7 @@ bool ChildFFMpegLoader::open(qint64 &position) {
 		int64_t src_ch_layout = layout, dst_ch_layout = AudioToChannelLayout;
 		_srcRate = _parentData->frequency;
 		AVSampleFormat src_sample_fmt = _inputFormat, dst_sample_fmt = AudioToFormat;
-		_dstRate = (_parentData->frequency != 44100 && _parentData->frequency != 48000) ? Media::Player::kDefaultFrequency : _parentData->frequency;
+		_dstRate = Media::Player::kDefaultFrequency;
 
 		av_opt_set_int(_swrContext, "in_channel_layout", src_ch_layout, 0);
 		av_opt_set_int(_swrContext, "in_sample_rate", _srcRate, 0);

@@ -140,7 +140,11 @@ bool CreatePlaybackDevice() {
 		return false;
 	}
 
-	ALCint attributes[] = { ALC_STEREO_SOURCES, 128, 0 };
+	ALCint attributes[] = {
+		ALC_STEREO_SOURCES, 128,
+		ALC_FREQUENCY, Media::Player::kDefaultFrequency,
+		0
+	};
 	AudioContext = alcCreateContext(AudioDevice, attributes);
 	alcMakeContextCurrent(AudioContext);
 	if (ContextErrorHappened()) {
@@ -256,7 +260,7 @@ namespace Player {
 namespace {
 
 constexpr auto kVolumeRound = 10000;
-constexpr auto kPreloadSamples = 2LL * 48000; // preload next part if less than 2 seconds remains
+constexpr auto kPreloadSamples = 2LL * kDefaultFrequency; // preload next part if less than 2 seconds remains
 constexpr auto kFadeDuration = TimeMs(500);
 constexpr auto kCheckPlaybackPositionTimeout = TimeMs(100); // 100ms per check audio position
 constexpr auto kCheckPlaybackPositionDelta = 2400LL; // update position called each 2400 samples
