@@ -1739,11 +1739,11 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 	if (peerId) {
 		_peer = App::peer(peerId);
-		_topBar->setHistoryPeer(_peer);
 		_channel = peerToChannel(_peer->id);
 		_canSendMessages = canSendMessages(_peer);
 		_tabbedSelector->setCurrentPeer(_peer);
 	}
+	_topBar->setHistoryPeer(_peer);
 	updateTopBarSelection();
 
 	if (_peer && _peer->isChannel()) {

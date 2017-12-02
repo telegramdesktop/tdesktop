@@ -352,8 +352,7 @@ void HistoryTopBarWidget::backClicked() {
 	_controller->showBackFromStack();
 }
 
-void HistoryTopBarWidget::setHistoryPeer(
-		not_null<PeerData*> historyPeer) {
+void HistoryTopBarWidget::setHistoryPeer(PeerData *historyPeer) {
 	if (_historyPeer != historyPeer) {
 		_historyPeer = historyPeer;
 		update();
@@ -367,8 +366,10 @@ void HistoryTopBarWidget::setHistoryPeer(
 				Ui::UserpicButton::Role::Custom,
 				st::topBarInfoButton);
 			_info->setAttribute(Qt::WA_TransparentForMouseEvents);
-		} else {
-			_info.destroy();
+		}
+		if (_menu) {
+			_menuToggle->removeEventFilter(_menu);
+			_menu->hideFast();
 		}
 		updateOnlineDisplay();
 		updateControlsVisibility();

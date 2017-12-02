@@ -55,7 +55,7 @@ public:
 	}
 	void setAnimationMode(bool enabled);
 
-	void setHistoryPeer(not_null<PeerData*> historyPeer);
+	void setHistoryPeer(PeerData *historyPeer);
 
 	static void paintUnreadCounter(
 		Painter &p,
