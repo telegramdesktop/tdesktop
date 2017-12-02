@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/report_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/manage_peer_box.h"
+#include "boxes/peers/edit_peer_info_box.h"
 #include "core/tl_help.h"
 #include "auth_session.h"
 #include "apiwrap.h"
@@ -341,19 +342,8 @@ void Filler::addChatActions(not_null<ChatData*> chat) {
 	if (_source != PeerMenuSource::ChatsList) {
 		if (chat->canEdit()) {
 			_addAction(
-				lang(lng_profile_edit_group_name),
-				[chat] { Ui::show(Box<EditNameTitleBox>(chat)); });
-		}
-		if (chat->amCreator()
-			&& !chat->isDeactivated()) {
-			_addAction(
-				lang(lng_profile_manage_admins),
-				[chat] { EditChatAdminsBoxController::Start(chat); });
-			_addAction(
-				lang(lng_profile_migrate_button),
-				[chat] { Ui::show(Box<ConvertToSupergroupBox>(chat)); });
-		}
-		if (chat->canEdit()) {
+				lang(lng_manage_group_title),
+				[chat] { Ui::show(Box<EditPeerInfoBox>(chat)); });
 			_addAction(
 				lang(lng_profile_add_participant),
 				[chat] { AddChatMembers(chat); });

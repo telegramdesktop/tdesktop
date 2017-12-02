@@ -35,6 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/photo_crop_box.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/stickers_box.h"
+#include "boxes/peer_list_controllers.h"
 #include "mtproto/sender.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
@@ -56,7 +57,7 @@ class Controller
 public:
 	Controller(
 		not_null<BoxContent*> box,
-		not_null<ChannelData*> channel);
+		not_null<PeerData*> peer);
 
 	object_ptr<Ui::VerticalLayout> createContent();
 	void setFocus();
@@ -123,7 +124,11 @@ private:
 	object_ptr<Ui::RpWidget> createSignaturesEdit();
 	object_ptr<Ui::RpWidget> createInvitesEdit();
 	object_ptr<Ui::RpWidget> createStickersEdit();
+	object_ptr<Ui::RpWidget> createManageAdminsButton();
+	object_ptr<Ui::RpWidget> createUpgradeButton();
 	object_ptr<Ui::RpWidget> createDeleteButton();
+
+	QString inviteLinkText() const;
 
 	void submitTitle();
 	void submitDescription();
@@ -169,8 +174,8 @@ private:
 	void cancelSave();
 
 	not_null<BoxContent*> _box;
-	not_null<ChannelData*> _channel;
-	bool _isGroup;
+	not_null<PeerData*> _peer;
+	bool _isGroup = false;
 
 	base::unique_qptr<Ui::VerticalLayout> _wrap;
 	Controls _controls;
@@ -186,10 +191,10 @@ private:
 
 Controller::Controller(
 	not_null<BoxContent*> box,
-	not_null<ChannelData*> channel)
+	not_null<PeerData*> peer)
 : _box(box)
-, _channel(channel)
-, _isGroup(_channel->isMegagroup())
+, _peer(peer)
+, _isGroup(_peer->isChat() || _peer->isMegagroup())
 , _checkUsernameTimer([this] { checkUsernameAvailability(); }) {
 	_box->setTitle(computeTitle());
 	_box->addButton(langFactory(lng_settings_save), [this] {
@@ -220,6 +225,8 @@ object_ptr<Ui::VerticalLayout> Controller::createContent() {
 	_wrap->add(createSignaturesEdit());
 	_wrap->add(createInvitesEdit());
 	_wrap->add(createStickersEdit());
+	_wrap->add(createManageAdminsButton());
+	_wrap->add(createUpgradeButton());
 	_wrap->add(createDeleteButton());
 
 	_wrap->resizeToWidth(st::boxWideWidth);
@@ -236,7 +243,15 @@ void Controller::setFocus() {
 object_ptr<Ui::RpWidget> Controller::createPhotoAndTitleEdit() {
 	Expects(_wrap != nullptr);
 
-	if (!_channel->canEditInformation()) {
+	auto canEdit = [&] {
+		if (auto channel = _peer->asChannel()) {
+			return channel->canEditInformation();
+		} else if (auto chat = _peer->asChat()) {
+			return chat->canEdit();
+		}
+		return false;
+	}();
+	if (!canEdit) {
 		return nullptr;
 	}
 
@@ -273,7 +288,7 @@ object_ptr<Ui::RpWidget> Controller::createPhotoEdit() {
 		object_ptr<Ui::UserpicButton>(
 			_wrap,
 			_box->controller(),
-			_channel,
+			_peer,
 			Ui::UserpicButton::Role::ChangePhoto,
 			st::defaultUserpicButton),
 		st::editPeerPhotoMargins);
@@ -293,7 +308,7 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 			langFactory(_isGroup
 				? lng_dlg_new_group_name
 				: lng_dlg_new_channel_name),
-			_channel->name),
+			_peer->name),
 		st::editPeerTitleMargins);
 
 	QObject::connect(
@@ -308,13 +323,18 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
 	Expects(_wrap != nullptr);
 
+	auto channel = _peer->asChannel();
+	if (!channel || !channel->canEditInformation()) {
+		return nullptr;
+	}
+
 	auto result = object_ptr<Ui::PaddingWrap<Ui::InputArea>>(
 		_wrap,
 		object_ptr<Ui::InputArea>(
 			_wrap,
 			st::editPeerDescription,
 			langFactory(lng_create_group_description),
-			_channel->about()),
+			channel->about()),
 		st::editPeerDescriptionMargins);
 
 	QObject::connect(
@@ -329,7 +349,8 @@ object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
 object_ptr<Ui::RpWidget> Controller::createPrivaciesEdit() {
 	Expects(_wrap != nullptr);
 
-	if (!_channel->canEditUsername()) {
+	auto channel = _peer->asChannel();
+	if (!channel || !channel->canEditUsername()) {
 		return nullptr;
 	}
 	auto result = object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
@@ -339,7 +360,7 @@ object_ptr<Ui::RpWidget> Controller::createPrivaciesEdit() {
 	auto container = result->entity();
 
 	_controls.privacy = std::make_shared<Ui::RadioenumGroup<Privacy>>(
-		_channel->isPublic() ? Privacy::Public : Privacy::Private);
+		channel->isPublic() ? Privacy::Public : Privacy::Private);
 	auto addButton = [&](
 			Privacy value,
 			LangKey groupTextKey,
@@ -383,7 +404,7 @@ object_ptr<Ui::RpWidget> Controller::createPrivaciesEdit() {
 	_controls.privacy->setChangedCallback([this](Privacy value) {
 		privacyChanged(value);
 	});
-	if (!_channel->isPublic()) {
+	if (!channel->isPublic()) {
 		checkUsernameAvailability();
 	}
 
@@ -391,6 +412,11 @@ object_ptr<Ui::RpWidget> Controller::createPrivaciesEdit() {
 }
 
 object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
+	Expects(_wrap != nullptr);
+
+	auto channel = _peer->asChannel();
+	Assert(channel != nullptr);
+
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		_wrap,
 		object_ptr<Ui::VerticalLayout>(_wrap),
@@ -411,7 +437,7 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 			container,
 			st::setupChannelLink,
 			base::lambda<QString()>(),
-			_channel->username,
+			channel->username,
 			true));
 	_controls.username->heightValue()
 		| rpl::start_with_next([placeholder](int height) {
@@ -483,6 +509,9 @@ void Controller::checkUsernameAvailability() {
 	if (!_controls.username) {
 		return;
 	}
+	auto channel = _peer->asChannel();
+	Assert(channel != nullptr);
+
 	auto initial = (_controls.privacy->value() != Privacy::Public);
 	auto checking = initial
 		? qsl(".bad.")
@@ -494,14 +523,14 @@ void Controller::checkUsernameAvailability() {
 		request(_checkUsernameRequestId).cancel();
 	}
 	_checkUsernameRequestId = request(MTPchannels_CheckUsername(
-		_channel->inputChannel,
+		channel->inputChannel,
 		MTP_string(checking)
 	)).done([=](const MTPBool &result) {
 		_checkUsernameRequestId = 0;
 		if (initial) {
 			return;
 		}
-		if (!mtpIsTrue(result) && checking != _channel->username) {
+		if (!mtpIsTrue(result) && checking != channel->username) {
 			showUsernameError(
 				Lang::Viewer(lng_create_channel_link_occupied));
 		} else {
@@ -529,7 +558,7 @@ void Controller::checkUsernameAvailability() {
 			showUsernameError(
 				Lang::Viewer(lng_create_channel_link_invalid));
 		} else if (type == qstr("USERNAME_OCCUPIED")
-			&& checking != _channel->username) {
+			&& checking != channel->username) {
 			showUsernameError(
 				Lang::Viewer(lng_create_channel_link_occupied));
 		}
@@ -621,7 +650,7 @@ void Controller::exportInviteLink(const QString &confirmation) {
 		if (auto strong = *boxPointer) {
 			strong->closeBox();
 		}
-		Auth().api().exportInviteLink(_channel);
+		Auth().api().exportInviteLink(_peer);
 	});
 	auto box = Box<ConfirmBox>(
 		confirmation,
@@ -630,15 +659,29 @@ void Controller::exportInviteLink(const QString &confirmation) {
 }
 
 bool Controller::canEditInviteLink() const {
-	if (_channel->canEditUsername()) {
-		return true;
+	if (auto channel = _peer->asChannel()) {
+		if (channel->canEditUsername()) {
+			return true;
+		}
+		return (!channel->isPublic() && channel->canAddMembers());
+	} else if (auto chat = _peer->asChat()) {
+		return !chat->inviteLink().isEmpty() || chat->canEdit();
 	}
-	return (!_channel->isPublic() && _channel->canAddMembers());
+	return false;
 }
 
 bool Controller::inviteLinkShown() const {
 	return !_controls.privacy
 		|| (_controls.privacy->value() == Privacy::Private);
+}
+
+QString Controller::inviteLinkText() const {
+	if (auto channel = _peer->asChannel()) {
+		return channel->inviteLink();
+	} else if (auto chat = _peer->asChat()) {
+		return chat->inviteLink();
+	}
+	return QString();
 }
 
 object_ptr<Ui::RpWidget> Controller::createInviteLinkEdit() {
@@ -670,7 +713,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkEdit() {
 	_controls.inviteLink->setContextCopyText(QString());
 	_controls.inviteLink->setBreakEverywhere(true);
 	_controls.inviteLink->setClickHandlerHook([this](auto&&...) {
-		Application::clipboard()->setText(_channel->inviteLink());
+		Application::clipboard()->setText(inviteLinkText());
 		Ui::Toast::Show(lang(lng_group_invite_copied));
 		return false;
 	});
@@ -685,7 +728,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkEdit() {
 	)->addClickHandler([this] { revokeInviteLink(); });
 
 	Notify::PeerUpdateValue(
-		_channel,
+		_peer,
 		Notify::PeerUpdate::Flag::InviteLinkChanged)
 		| rpl::start_with_next([this] {
 			refreshEditInviteLink();
@@ -695,7 +738,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkEdit() {
 }
 
 void Controller::refreshEditInviteLink() {
-	auto link = _channel->inviteLink();
+	auto link = inviteLinkText();
 	auto text = TextWithEntities();
 	if (!link.isEmpty()) {
 		text.text = link;
@@ -750,7 +793,7 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkCreate() {
 	_controls.createInviteLinkWrap = result.data();
 
 	Notify::PeerUpdateValue(
-		_channel,
+		_peer,
 		Notify::PeerUpdate::Flag::InviteLinkChanged)
 		| rpl::start_with_next([this] {
 			refreshCreateInviteLink();
@@ -760,17 +803,18 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkCreate() {
 }
 
 void Controller::refreshCreateInviteLink() {
-	auto link = _channel->inviteLink();
 	_controls.createInviteLinkWrap->toggle(
-		inviteLinkShown() && link.isEmpty(),
+		inviteLinkShown() && inviteLinkText().isEmpty(),
 		anim::type::instant);
 }
 
 object_ptr<Ui::RpWidget> Controller::createHistoryVisibilityEdit() {
 	Expects(_wrap != nullptr);
 
-	if (!_channel->canEditPreHistoryHidden()
-		|| !_channel->isMegagroup()) {
+	auto channel = _peer->asChannel();
+	if (!channel
+		|| !channel->canEditPreHistoryHidden()
+		|| !channel->isMegagroup()) {
 		return nullptr;
 	}
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -782,7 +826,7 @@ object_ptr<Ui::RpWidget> Controller::createHistoryVisibilityEdit() {
 
 	_controls.historyVisibility
 		= std::make_shared<Ui::RadioenumGroup<HistoryVisibility>>(
-			_channel->hiddenPreHistory()
+			channel->hiddenPreHistory()
 				? HistoryVisibility::Hidden
 				: HistoryVisibility::Visible);
 	auto addButton = [&](
@@ -839,8 +883,10 @@ void Controller::refreshHistoryVisibility() {
 object_ptr<Ui::RpWidget> Controller::createSignaturesEdit() {
 	Expects(_wrap != nullptr);
 
-	if (!_channel->canEditSignatures()
-		|| _channel->isMegagroup()) {
+	auto channel = _peer->asChannel();
+	if (!channel
+		|| !channel->canEditSignatures()
+		|| channel->isMegagroup()) {
 		return nullptr;
 	}
 	auto result = object_ptr<Ui::VerticalLayout>(_wrap);
@@ -854,7 +900,7 @@ object_ptr<Ui::RpWidget> Controller::createSignaturesEdit() {
 			object_ptr<Ui::Checkbox>(
 				container,
 				lang(lng_edit_sign_messages),
-				_channel->addsSignature(),
+				channel->addsSignature(),
 				st::defaultBoxCheckbox),
 			st::editPeerSignaturesMargins))->entity();
 	container->add(object_ptr<Ui::FixedHeightWidget>(
@@ -866,8 +912,10 @@ object_ptr<Ui::RpWidget> Controller::createSignaturesEdit() {
 object_ptr<Ui::RpWidget> Controller::createInvitesEdit() {
 	Expects(_wrap != nullptr);
 
-	if (!_channel->canEditInvites()
-		|| !_channel->isMegagroup()) {
+	auto channel = _peer->asChannel();
+	if (!channel
+		|| !channel->canEditInvites()
+		|| !channel->isMegagroup()) {
 		return nullptr;
 	}
 
@@ -883,7 +931,7 @@ object_ptr<Ui::RpWidget> Controller::createInvitesEdit() {
 		st::editPeerSectionLabel));
 
 	_controls.invites = std::make_shared<Ui::RadioenumGroup<Invites>>(
-		_channel->anyoneCanAddMembers()
+		channel->anyoneCanAddMembers()
 			? Invites::Everyone
 			: Invites::OnlyAdmins);
 	auto addButton = [&](
@@ -915,7 +963,8 @@ object_ptr<Ui::RpWidget> Controller::createInvitesEdit() {
 object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 	Expects(_wrap != nullptr);
 
-	if (!_channel->canEditStickers()) {
+	auto channel = _peer->asChannel();
+	if (!channel || !channel->canEditStickers()) {
 		return nullptr;
 	}
 
@@ -945,17 +994,58 @@ object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 		_wrap,
 		lang(lng_group_stickers_add),
 		st::editPeerInviteLinkButton)
-	)->addClickHandler([this] {
-		Ui::show(Box<StickersBox>(_channel), LayerOption::KeepOther);
+	)->addClickHandler([channel] {
+		Ui::show(Box<StickersBox>(channel), LayerOption::KeepOther);
 	});
 
+	return std::move(result);
+}
+
+object_ptr<Ui::RpWidget> Controller::createManageAdminsButton() {
+	Expects(_wrap != nullptr);
+
+	auto chat = _peer->asChat();
+	if (!chat || !chat->amCreator() || chat->isDeactivated()) {
+		return nullptr;
+	}
+	auto result = object_ptr<Ui::PaddingWrap<Ui::LinkButton>>(
+		_wrap,
+		object_ptr<Ui::LinkButton>(
+			_wrap,
+			lang(lng_profile_manage_admins),
+			st::editPeerInviteLinkButton),
+		st::editPeerDeleteButtonMargins);
+	result->entity()->addClickHandler([=] {
+		EditChatAdminsBoxController::Start(chat);
+	});
+	return std::move(result);
+}
+
+object_ptr<Ui::RpWidget> Controller::createUpgradeButton() {
+	Expects(_wrap != nullptr);
+
+	auto chat = _peer->asChat();
+	if (!chat || !chat->amCreator() || chat->isDeactivated()) {
+		return nullptr;
+	}
+	auto result = object_ptr<Ui::PaddingWrap<Ui::LinkButton>>(
+		_wrap,
+		object_ptr<Ui::LinkButton>(
+			_wrap,
+			lang(lng_profile_migrate_button),
+			st::editPeerInviteLinkButton),
+		st::editPeerDeleteButtonMargins);
+	result->entity()->addClickHandler([=] {
+		Ui::show(Box<ConvertToSupergroupBox>(chat), LayerOption::KeepOther);
+	});
 	return std::move(result);
 }
 
 object_ptr<Ui::RpWidget> Controller::createDeleteButton() {
 	Expects(_wrap != nullptr);
 
-	if (!_channel->canDelete()) {
+	auto channel = _peer->asChannel();
+	if (!channel || !channel->canDelete()) {
 		return nullptr;
 	}
 	auto text = lang(_isGroup
@@ -1114,23 +1204,25 @@ void Controller::cancelSave() {
 }
 
 void Controller::saveUsername() {
+	auto channel = _peer->asChannel();
 	if (!_savingData.username
-		|| *_savingData.username == _channel->username) {
+		|| !channel
+		|| *_savingData.username == channel->username) {
 		return continueSave();
 	}
 	request(MTPchannels_UpdateUsername(
-		_channel->inputChannel,
+		channel->inputChannel,
 		MTP_string(*_savingData.username)
-	)).done([this](const MTPBool &result) {
-		_channel->setName(
-			TextUtilities::SingleLine(_channel->name),
+	)).done([=](const MTPBool &result) {
+		channel->setName(
+			TextUtilities::SingleLine(channel->name),
 			*_savingData.username);
 		continueSave();
-	}).fail([this](const RPCError &error) {
+	}).fail([=](const RPCError &error) {
 		auto type = error.type();
 		if (type == qstr("USERNAME_NOT_MODIFIED")) {
-			_channel->setName(
-				TextUtilities::SingleLine(_channel->name),
+			channel->setName(
+				TextUtilities::SingleLine(channel->name),
 				TextUtilities::SingleLine(*_savingData.username));
 			continueSave();
 			return;
@@ -1152,20 +1244,23 @@ void Controller::saveUsername() {
 }
 
 void Controller::saveTitle() {
-	if (!_savingData.title || *_savingData.title == _channel->name) {
+	if (!_savingData.title || *_savingData.title == _peer->name) {
 		return continueSave();
 	}
-	request(MTPchannels_EditTitle(
-		_channel->inputChannel,
-		MTP_string(*_savingData.title)
-	)).done([this](const MTPUpdates &result) {
+
+	auto onDone = [this](const MTPUpdates &result) {
 		Auth().api().applyUpdates(result);
 		continueSave();
-	}).fail([this](const RPCError &error) {
+	};
+	auto onFail = [this](const RPCError &error) {
 		auto type = error.type();
 		if (type == qstr("CHAT_NOT_MODIFIED")
 			|| type == qstr("CHAT_TITLE_NOT_MODIFIED")) {
-			_channel->setName(*_savingData.title, _channel->username);
+			if (auto channel = _peer->asChannel()) {
+				channel->setName(*_savingData.title, channel->username);
+			} else if (auto chat = _peer->asChat()) {
+				chat->setName(*_savingData.title);
+			}
 			continueSave();
 			return;
 		}
@@ -1176,20 +1271,40 @@ void Controller::saveTitle() {
 			_controls.title->setFocus();
 		}
 		cancelSave();
-	}).send();
+	};
+
+	if (auto channel = _peer->asChannel()) {
+		request(MTPchannels_EditTitle(
+			channel->inputChannel,
+			MTP_string(*_savingData.title)
+		)).done(std::move(onDone)
+		).fail(std::move(onFail)
+		).send();
+	} else if (auto chat = _peer->asChat()) {
+		request(MTPmessages_EditChatTitle(
+			chat->inputChat,
+			MTP_string(*_savingData.title)
+		)).done(std::move(onDone)
+		).fail(std::move(onFail)
+		).send();
+	} else {
+		continueSave();
+	}
 }
 
 void Controller::saveDescription() {
+	auto channel = _peer->asChannel();
 	if (!_savingData.description
-		|| *_savingData.description == _channel->about()) {
+		|| !channel
+		|| *_savingData.description == channel->about()) {
 		return continueSave();
 	}
-	auto successCallback = [this] {
-		_channel->setAbout(*_savingData.description);
+	auto successCallback = [=] {
+		channel->setAbout(*_savingData.description);
 		continueSave();
 	};
 	request(MTPchannels_EditAbout(
-		_channel->inputChannel,
+		channel->inputChannel,
 		MTP_string(*_savingData.description)
 	)).done([=](const MTPBool &result) {
 		successCallback();
@@ -1205,18 +1320,20 @@ void Controller::saveDescription() {
 }
 
 void Controller::saveHistoryVisibility() {
+	auto channel = _peer->asChannel();
 	if (!_savingData.hiddenPreHistory
-		|| *_savingData.hiddenPreHistory == _channel->hiddenPreHistory()) {
+		|| !channel
+		|| *_savingData.hiddenPreHistory == channel->hiddenPreHistory()) {
 		return continueSave();
 	}
 	request(MTPchannels_TogglePreHistoryHidden(
-		_channel->inputChannel,
+		channel->inputChannel,
 		MTP_bool(*_savingData.hiddenPreHistory)
-	)).done([this](const MTPUpdates &result) {
+	)).done([=](const MTPUpdates &result) {
 		// Update in the result doesn't contain the
 		// channelFull:flags field which holds this value.
 		// So after saving we need to update it manually.
-		_channel->updateFullForced();
+		channel->updateFullForced();
 
 		Auth().api().applyUpdates(result);
 		continueSave();
@@ -1230,12 +1347,14 @@ void Controller::saveHistoryVisibility() {
 }
 
 void Controller::saveInvites() {
+	auto channel = _peer->asChannel();
 	if (!_savingData.everyoneInvites
-		|| *_savingData.everyoneInvites == _channel->anyoneCanAddMembers()) {
+		|| !channel
+		|| *_savingData.everyoneInvites == channel->anyoneCanAddMembers()) {
 		return continueSave();
 	}
 	request(MTPchannels_ToggleInvites(
-		_channel->inputChannel,
+		channel->inputChannel,
 		MTP_bool(*_savingData.everyoneInvites)
 	)).done([this](const MTPUpdates &result) {
 		Auth().api().applyUpdates(result);
@@ -1250,12 +1369,14 @@ void Controller::saveInvites() {
 }
 
 void Controller::saveSignatures() {
+	auto channel = _peer->asChannel();
 	if (!_savingData.signatures
-		|| *_savingData.signatures == _channel->addsSignature()) {
+		|| !channel
+		|| *_savingData.signatures == channel->addsSignature()) {
 		return continueSave();
 	}
 	request(MTPchannels_ToggleSignatures(
-		_channel->inputChannel,
+		channel->inputChannel,
 		MTP_bool(*_savingData.signatures)
 	)).done([this](const MTPUpdates &result) {
 		Auth().api().applyUpdates(result);
@@ -1276,16 +1397,19 @@ void Controller::savePhoto() {
 	if (!image.isNull()) {
 		Messenger::Instance().uploadProfilePhoto(
 			std::move(image),
-			_channel->id);
+			_peer->id);
 	}
 	_box->closeBox();
 }
 
 void Controller::deleteWithConfirmation() {
+	auto channel = _peer->asChannel();
+	Assert(channel != nullptr);
+
 	auto text = lang(_isGroup
 		? lng_sure_delete_group
 		: lng_sure_delete_channel);
-	auto deleteCallback = [channel = _channel] {
+	auto deleteCallback = [=] {
 		Ui::hideLayer();
 		Ui::showChatsList();
 		if (auto chat = channel->migrateFrom()) {
@@ -1307,12 +1431,12 @@ void Controller::deleteWithConfirmation() {
 
 EditPeerInfoBox::EditPeerInfoBox(
 	QWidget*,
-	not_null<ChannelData*> channel)
-: _channel(channel) {
+	not_null<PeerData*> peer)
+: _peer(peer) {
 }
 
 void EditPeerInfoBox::prepare() {
-	auto controller = std::make_unique<Controller>(this, _channel);
+	auto controller = std::make_unique<Controller>(this, _peer);
 	_focusRequests.events()
 		| rpl::start_with_next(
 			[c = controller.get()] { c->setFocus(); },

@@ -198,11 +198,9 @@ private:
 
 };
 
-class EditNameTitleBox : public BoxContent, public RPCSender {
-	Q_OBJECT
-
+class EditNameBox : public BoxContent, public RPCSender {
 public:
-	EditNameTitleBox(QWidget*, not_null<PeerData*> peer);
+	EditNameBox(QWidget*, not_null<UserData*> user);
 
 protected:
 	void setInnerFocus() override;
@@ -210,18 +208,13 @@ protected:
 
 	void resizeEvent(QResizeEvent *e) override;
 
-private slots:
-	void onSave();
-	void onSubmit();
-
 private:
-	void onSaveSelfDone(const MTPUser &user);
-	bool onSaveSelfFail(const RPCError &error);
+	void submit();
+	void save();
+	void saveSelfDone(const MTPUser &user);
+	bool saveSelfFail(const RPCError &error);
 
-	void onSaveChatDone(const MTPUpdates &updates);
-	bool onSaveChatFail(const RPCError &e);
-
-	not_null<PeerData*> _peer;
+	not_null<UserData*> _user;
 
 	object_ptr<Ui::InputField> _first;
 	object_ptr<Ui::InputField> _last;

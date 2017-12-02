@@ -366,7 +366,7 @@ void CoverWidget::chooseNewPhoto() {
 }
 
 void CoverWidget::editName() {
-	Ui::show(Box<EditNameTitleBox>(self()));
+	Ui::show(Box<EditNameBox>(self()));
 }
 
 void CoverWidget::showSetPhotoBox(const QImage &img) {

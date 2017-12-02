@@ -703,7 +703,9 @@ void EditChatAdminsBoxController::Start(not_null<ChatData*> chat) {
 		});
 		box->addButton(langFactory(lng_cancel), [box] { box->closeBox(); });
 	};
-	Ui::show(Box<PeerListBox>(std::move(controller), std::move(initBox)));
+	Ui::show(
+		Box<PeerListBox>(std::move(controller), std::move(initBox)),
+		LayerOption::KeepOther);
 }
 
 void AddBotToGroupBoxController::Start(not_null<UserData*> bot) {

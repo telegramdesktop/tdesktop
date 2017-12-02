@@ -929,25 +929,23 @@ bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
 	return true;
 }
 
-EditNameTitleBox::EditNameTitleBox(QWidget*, not_null<PeerData*> peer)
-: _peer(peer)
-, _first(this, st::defaultInputField, langFactory(_peer->isUser() ? lng_signup_firstname : lng_dlg_new_group_name), _peer->isUser() ? _peer->asUser()->firstName : _peer->name)
-, _last(this, st::defaultInputField, langFactory(lng_signup_lastname), peer->isUser() ? peer->asUser()->lastName : QString())
-, _invertOrder(!peer->isChat() && langFirstNameGoesSecond()) {
+EditNameBox::EditNameBox(QWidget*, not_null<UserData*> user)
+: _user(user)
+, _first(this, st::defaultInputField, langFactory(lng_signup_firstname), _user->firstName)
+, _last(this, st::defaultInputField, langFactory(lng_signup_lastname), _user->lastName)
+, _invertOrder(langFirstNameGoesSecond()) {
 }
 
-void EditNameTitleBox::prepare() {
+void EditNameBox::prepare() {
 	auto newHeight = st::contactPadding.top() + _first->height();
-	if (_peer->isUser()) {
-		setTitle(langFactory(_peer->isSelf() ? lng_edit_self_title : lng_edit_contact_title));
-		newHeight += st::contactSkip + _last->height();
-	} else if (_peer->isChat()) {
-		setTitle(langFactory(lng_edit_group_title));
-	}
+
+	setTitle(langFactory(lng_edit_self_title));
+	newHeight += st::contactSkip + _last->height();
+
 	newHeight += st::boxPadding.bottom() + st::contactPadding.bottom();
 	setDimensions(st::boxWideWidth, newHeight);
 
-	addButton(langFactory(lng_settings_save), [this] { onSave(); });
+	addButton(langFactory(lng_settings_save), [this] { save(); });
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });
 	if (_invertOrder) {
 		setTabOrder(_last, _first);
@@ -955,27 +953,17 @@ void EditNameTitleBox::prepare() {
 	_first->setMaxLength(kMaxGroupChannelTitle);
 	_last->setMaxLength(kMaxGroupChannelTitle);
 
-	connect(_first, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
-	connect(_last, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
-	_last->setVisible(!_peer->isChat());
+	connect(_first, &Ui::InputField::submitted, this, [this] { submit(); });
+	connect(_last, &Ui::InputField::submitted, this, [this] { submit(); });
 }
 
-void EditNameTitleBox::setInnerFocus() {
+void EditNameBox::setInnerFocus() {
 	(_invertOrder ? _last : _first)->setFocusFast();
 }
 
-void EditNameTitleBox::onSubmit() {
+void EditNameBox::submit() {
 	if (_first->hasFocus()) {
-		if (_peer->isChat()) {
-			if (_first->getLastText().trimmed().isEmpty()) {
-				_first->setFocus();
-				_first->showError();
-			} else {
-				onSave();
-			}
-		} else {
-			_last->setFocus();
-		}
+		_last->setFocus();
 	} else if (_last->hasFocus()) {
 		if (_first->getLastText().trimmed().isEmpty()) {
 			_first->setFocus();
@@ -984,12 +972,12 @@ void EditNameTitleBox::onSubmit() {
 			_last->setFocus();
 			_last->showError();
 		} else {
-			onSave();
+			save();
 		}
 	}
 }
 
-void EditNameTitleBox::resizeEvent(QResizeEvent *e) {
+void EditNameBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
 	_first->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _first->height());
@@ -1003,7 +991,7 @@ void EditNameTitleBox::resizeEvent(QResizeEvent *e) {
 	}
 }
 
-void EditNameTitleBox::onSave() {
+void EditNameBox::save() {
 	if (_requestId) return;
 
 	auto first = TextUtilities::PrepareForSending(_first->getLastText());
@@ -1023,27 +1011,31 @@ void EditNameTitleBox::onSave() {
 		last = QString();
 	}
 	_sentName = first;
-	if (_peer == App::self()) {
-		auto flags = MTPaccount_UpdateProfile::Flag::f_first_name | MTPaccount_UpdateProfile::Flag::f_last_name;
-		_requestId = MTP::send(MTPaccount_UpdateProfile(MTP_flags(flags), MTP_string(first), MTP_string(last), MTPstring()), rpcDone(&EditNameTitleBox::onSaveSelfDone), rpcFail(&EditNameTitleBox::onSaveSelfFail));
-	} else if (_peer->isChat()) {
-		_requestId = MTP::send(MTPmessages_EditChatTitle(_peer->asChat()->inputChat, MTP_string(first)), rpcDone(&EditNameTitleBox::onSaveChatDone), rpcFail(&EditNameTitleBox::onSaveChatFail));
-	}
+	auto flags = MTPaccount_UpdateProfile::Flag::f_first_name
+		| MTPaccount_UpdateProfile::Flag::f_last_name;
+	_requestId = MTP::send(
+		MTPaccount_UpdateProfile(
+			MTP_flags(flags),
+			MTP_string(first),
+			MTP_string(last),
+			MTPstring()),
+		rpcDone(&EditNameBox::saveSelfDone),
+		rpcFail(&EditNameBox::saveSelfFail));
 }
 
-void EditNameTitleBox::onSaveSelfDone(const MTPUser &user) {
+void EditNameBox::saveSelfDone(const MTPUser &user) {
 	App::feedUsers(MTP_vector<MTPUser>(1, user));
 	closeBox();
 }
 
-bool EditNameTitleBox::onSaveSelfFail(const RPCError &error) {
+bool EditNameBox::saveSelfFail(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	auto err = error.type();
 	auto first = TextUtilities::SingleLine(_first->getLastText().trimmed());
 	auto last = TextUtilities::SingleLine(_last->getLastText().trimmed());
 	if (err == "NAME_NOT_MODIFIED") {
-		App::self()->setName(first, last, QString(), TextUtilities::SingleLine(App::self()->username));
+		_user->setName(first, last, QString(), TextUtilities::SingleLine(_user->username));
 		closeBox();
 		return true;
 	} else if (err == "FIRSTNAME_INVALID") {
@@ -1057,31 +1049,6 @@ bool EditNameTitleBox::onSaveSelfFail(const RPCError &error) {
 	}
 	_first->setFocus();
 	return true;
-}
-
-bool EditNameTitleBox::onSaveChatFail(const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	_requestId = 0;
-	QString err(error.type());
-	if (err == qstr("CHAT_TITLE_NOT_MODIFIED") || err == qstr("CHAT_NOT_MODIFIED")) {
-		if (auto chatData = _peer->asChat()) {
-			chatData->setName(_sentName);
-		}
-		closeBox();
-		return true;
-	} else if (err == qstr("NO_CHAT_TITLE")) {
-		_first->setFocus();
-		_first->showError();
-		return true;
-	}
-	_first->setFocus();
-	return true;
-}
-
-void EditNameTitleBox::onSaveChatDone(const MTPUpdates &updates) {
-	App::main()->sentUpdatesReceived(updates);
-	closeBox();
 }
 
 EditBioBox::EditBioBox(QWidget*, not_null<UserData*> self) : BoxContent()

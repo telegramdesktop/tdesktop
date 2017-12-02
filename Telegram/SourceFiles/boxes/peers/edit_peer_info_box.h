@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 class EditPeerInfoBox : public BoxContent {
 public:
-	EditPeerInfoBox(QWidget*, not_null<ChannelData*> channel);
+	EditPeerInfoBox(QWidget*, not_null<PeerData*> peer);
 
 	void setInnerFocus() override {
 		_focusRequests.fire({});
@@ -35,7 +35,7 @@ protected:
 	void prepare() override;
 
 private:
-	not_null<ChannelData*> _channel;
+	not_null<PeerData*> _peer;
 	rpl::event_stream<> _focusRequests;
 
 };
