@@ -631,7 +631,6 @@ namespace internal {
 	using Annotations = std::map<std::string, std::string>;
 	using AnnotationRefs = std::map<std::string, const QString*>;
 
-	std::mutex ProcessAnnotationsMutex;
 	Annotations ProcessAnnotations;
 	AnnotationRefs ProcessAnnotationRefs;
 
@@ -1127,7 +1126,6 @@ namespace internal {
 	}
 
 	void setCrashAnnotation(const std::string &key, const QString &value) {
-		std::unique_lock<std::mutex> lock(internal::ProcessAnnotationsMutex);
 		if (!value.trimmed().isEmpty()) {
 			internal::ProcessAnnotations[key] = value.toUtf8().constData();
 		} else {
@@ -1136,7 +1134,6 @@ namespace internal {
 	}
 
 	void setCrashAnnotationRef(const std::string &key, const QString *valuePtr) {
-		std::unique_lock<std::mutex> lock(internal::ProcessAnnotationsMutex);
 		if (valuePtr) {
 			internal::ProcessAnnotationRefs[key] = valuePtr;
 		} else {
