@@ -635,7 +635,7 @@ FileKey _langPackKey = 0;
 
 typedef QMap<StorageKey, FileDesc> StorageMap;
 StorageMap _imagesMap, _stickerImagesMap, _audiosMap;
-int32 _storageImagesSize = 0, _storageStickersSize = 0, _storageAudiosSize = 0;
+qint64 _storageImagesSize = 0, _storageStickersSize = 0, _storageAudiosSize = 0;
 
 bool _mapChanged = false;
 int32 _oldMapVersion = 0, _oldSettingsVersion = 0;
