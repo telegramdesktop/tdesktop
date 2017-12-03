@@ -79,8 +79,8 @@ public:
 	}
 	Private(base::const_byte_span nBytes, base::const_byte_span eBytes) : _rsa(RSA_new()) {
 		if (_rsa) {
-			BIGNUM *n = BN_dup(openssl::BigNum(nBytes).raw());
-			BIGNUM *e = BN_dup(openssl::BigNum(eBytes).raw());
+			BIGNUM *n = openssl::BigNum(nBytes).raw();
+			BIGNUM *e = openssl::BigNum(eBytes).raw();
 			RSA_set0_key(_rsa, n, e, nullptr);
 			if (!n || !e) {
 				RSA_free(base::take(_rsa));
