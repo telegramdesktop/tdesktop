@@ -1233,24 +1233,47 @@ void MainWidget::deleteAllFromUserPart(DeleteAllFromUserParams params, const MTP
 	}
 }
 
-void MainWidget::addParticipants(PeerData *chatOrChannel, const std::vector<not_null<UserData*>> &users) {
-	if (chatOrChannel->isChat()) {
-		auto chat = chatOrChannel->asChat();
+void MainWidget::addParticipants(
+		not_null<PeerData*> chatOrChannel,
+		const std::vector<not_null<UserData*>> &users) {
+	if (auto chat = chatOrChannel->asChat()) {
 		for_const (auto user, users) {
-			MTP::send(MTPmessages_AddChatUser(chat->inputChat, user->inputUser, MTP_int(ForwardOnAdd)), rpcDone(&MainWidget::sentUpdatesReceived), rpcFail(&MainWidget::addParticipantFail, { user, chat }), 0, 5);
+			MTP::send(
+				MTPmessages_AddChatUser(
+					chat->inputChat,
+					user->inputUser,
+					MTP_int(ForwardOnAdd)),
+				rpcDone(&MainWidget::sentUpdatesReceived),
+				rpcFail(&MainWidget::addParticipantFail, { user, chat }),
+				0,
+				5);
 		}
-	} else if (chatOrChannel->isChannel()) {
+	} else if (auto channel = chatOrChannel->asChannel()) {
 		QVector<MTPInputUser> inputUsers;
 		inputUsers.reserve(qMin(int(users.size()), int(MaxUsersPerInvite)));
 		for (auto i = users.cbegin(), e = users.cend(); i != e; ++i) {
 			inputUsers.push_back((*i)->inputUser);
 			if (inputUsers.size() == MaxUsersPerInvite) {
-				MTP::send(MTPchannels_InviteToChannel(chatOrChannel->asChannel()->inputChannel, MTP_vector<MTPInputUser>(inputUsers)), rpcDone(&MainWidget::inviteToChannelDone, chatOrChannel->asChannel()), rpcFail(&MainWidget::addParticipantsFail, chatOrChannel->asChannel()), 0, 5);
+				MTP::send(
+					MTPchannels_InviteToChannel(
+						channel->inputChannel,
+						MTP_vector<MTPInputUser>(inputUsers)),
+					rpcDone(&MainWidget::inviteToChannelDone, { channel }),
+					rpcFail(&MainWidget::addParticipantsFail, { channel }),
+					0,
+					5);
 				inputUsers.clear();
 			}
 		}
 		if (!inputUsers.isEmpty()) {
-			MTP::send(MTPchannels_InviteToChannel(chatOrChannel->asChannel()->inputChannel, MTP_vector<MTPInputUser>(inputUsers)), rpcDone(&MainWidget::inviteToChannelDone, chatOrChannel->asChannel()), rpcFail(&MainWidget::addParticipantsFail, chatOrChannel->asChannel()), 0, 5);
+			MTP::send(
+				MTPchannels_InviteToChannel(
+					channel->inputChannel,
+					MTP_vector<MTPInputUser>(inputUsers)),
+				rpcDone(&MainWidget::inviteToChannelDone, { channel }),
+				rpcFail(&MainWidget::addParticipantsFail, { channel }),
+				0,
+				5);
 		}
 	}
 }
@@ -1275,7 +1298,9 @@ bool MainWidget::addParticipantFail(UserAndPeer data, const RPCError &error) {
 	return false;
 }
 
-bool MainWidget::addParticipantsFail(ChannelData *channel, const RPCError &error) {
+bool MainWidget::addParticipantsFail(
+		not_null<ChannelData*> channel,
+		const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	QString text = lang(lng_failed_add_participant);
@@ -3070,7 +3095,9 @@ bool MainWidget::deleteChannelFailed(const RPCError &error) {
 	return true;
 }
 
-void MainWidget::inviteToChannelDone(ChannelData *channel, const MTPUpdates &updates) {
+void MainWidget::inviteToChannelDone(
+		not_null<ChannelData*> channel,
+		const MTPUpdates &updates) {
 	sentUpdatesReceived(updates);
 	Auth().api().requestParticipantsCountDelayed(channel);
 }

@@ -135,7 +135,9 @@ public:
 		return sentUpdatesReceived(0, updates);
 	}
 	bool deleteChannelFailed(const RPCError &error);
-	void inviteToChannelDone(ChannelData *channel, const MTPUpdates &updates);
+	void inviteToChannelDone(
+		not_null<ChannelData*> channel,
+		const MTPUpdates &updates);
 	void historyToDown(History *hist);
 	void dialogsToUp();
 	void newUnreadMsg(History *history, HistoryItem *item);
@@ -215,13 +217,17 @@ public:
 	void deleteAndExit(ChatData *chat);
 	void deleteAllFromUser(ChannelData *channel, UserData *from);
 
-	void addParticipants(PeerData *chatOrChannel, const std::vector<not_null<UserData*>> &users);
+	void addParticipants(
+		not_null<PeerData*> chatOrChannel,
+		const std::vector<not_null<UserData*>> &users);
 	struct UserAndPeer {
 		UserData *user;
 		PeerData *peer;
 	};
 	bool addParticipantFail(UserAndPeer data, const RPCError &e);
-	bool addParticipantsFail(ChannelData *channel, const RPCError &e); // for multi invite in channels
+	bool addParticipantsFail(
+		not_null<ChannelData*> channel,
+		const RPCError &e); // for multi invite in channels
 
 	void kickParticipant(ChatData *chat, UserData *user);
 	bool kickParticipantFail(ChatData *chat, const RPCError &e);

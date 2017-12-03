@@ -5989,8 +5989,13 @@ void HistoryWidget::handlePeerUpdate() {
 		Auth().api().requestFullPeer(_peer);
 	} else if (_peer->isUser() && (_peer->asUser()->blockStatus() == UserData::BlockStatus::Unknown || _peer->asUser()->callsStatus() == UserData::CallsStatus::Unknown)) {
 		Auth().api().requestFullPeer(_peer);
-	} else if (_peer->isMegagroup() && !_peer->asChannel()->mgInfo->botStatus) {
-		Auth().api().requestBots(_peer->asChannel());
+	} else if (auto channel = _peer->asMegagroup()) {
+		if (!channel->mgInfo->botStatus) {
+			Auth().api().requestBots(channel);
+		}
+		if (channel->mgInfo->admins.empty()) {
+			Auth().api().requestAdmins(channel);
+		}
 	}
 	if (!_a_show.animating()) {
 		if (_unblock->isHidden() == isBlocked() || (!isBlocked() && _joinChannel->isHidden() == isJoinChannel())) {

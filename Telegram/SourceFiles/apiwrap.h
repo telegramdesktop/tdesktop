@@ -61,9 +61,10 @@ public:
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);
 	void requestPeers(const QList<PeerData*> &peers);
-	void requestLastParticipants(ChannelData *channel);
-	void requestBots(ChannelData *channel);
-	void requestParticipantsCountDelayed(ChannelData *channel);
+	void requestLastParticipants(not_null<ChannelData*> channel);
+	void requestBots(not_null<ChannelData*> channel);
+	void requestAdmins(not_null<ChannelData*> channel);
+	void requestParticipantsCountDelayed(not_null<ChannelData*> channel);
 
 	void requestChannelMembersForAdd(
 		not_null<ChannelData*> channel,
@@ -187,16 +188,18 @@ private:
 
 	void gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mtpRequestId req);
 	void gotUserFull(UserData *user, const MTPUserFull &result, mtpRequestId req);
-	void lastParticipantsDone(
-		ChannelData *peer,
-		const MTPchannels_ChannelParticipants &result,
-		mtpRequestId req);
 	void applyLastParticipantsList(
-		ChannelData *peer,
+		not_null<ChannelData*> channel,
 		int availableCount,
-		const QVector<MTPChannelParticipant> &list,
-		bool bots,
-		bool fromStart);
+		const QVector<MTPChannelParticipant> &list);
+	void applyBotsList(
+		not_null<ChannelData*> channel,
+		int availableCount,
+		const QVector<MTPChannelParticipant> &list);
+	void applyAdminsList(
+		not_null<ChannelData*> channel,
+		int availableCount,
+		const QVector<MTPChannelParticipant> &list);
 	void resolveWebPages();
 	void gotWebPages(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
 	void gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result);
@@ -255,6 +258,7 @@ private:
 
 	PeerRequests _participantsRequests;
 	PeerRequests _botsRequests;
+	PeerRequests _adminsRequests;
 	base::DelayedCallTimer _participantsCountRequestTimer;
 
 	ChannelData *_channelMembersForAdd = nullptr;

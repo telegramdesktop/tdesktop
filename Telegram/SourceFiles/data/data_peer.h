@@ -755,7 +755,6 @@ struct MegagroupInfo {
 
 	enum LastParticipantsStatus {
 		LastParticipantsUpToDate       = 0x00,
-		LastParticipantsAdminsOutdated = 0x01,
 		LastParticipantsCountOutdated  = 0x02,
 	};
 	mutable int lastParticipantsStatus = LastParticipantsUpToDate;

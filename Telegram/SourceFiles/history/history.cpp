@@ -948,7 +948,6 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 						if (auto user = App::userLoaded(peerFromUser(v[i]))) {
 							if (!base::contains(mgInfo->lastParticipants, user)) {
 								mgInfo->lastParticipants.push_front(user);
-								mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
 								Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
 								Auth().data().addNewMegagroupParticipant(megagroup, user);
 							}
@@ -1339,7 +1338,7 @@ HistoryItem *History::addNewItem(HistoryItem *adding, bool newMsg) {
 				if (index > 0) {
 					lastAuthors->erase(prev);
 				} else if (index < 0 && peer->isMegagroup()) { // nothing is outdated if just reordering
-					peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
+					// admins information outdated
 				}
 				if (index) {
 					lastAuthors->push_front(user);
@@ -1610,10 +1609,6 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 					if (auto user = item->from()->asUser()) {
 						if (!base::contains(*lastAuthors, user)) {
 							lastAuthors->push_back(user);
-							if (peer->isMegagroup()) {
-								peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
-								Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
-							}
 						}
 					}
 				}
