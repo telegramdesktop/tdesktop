@@ -3095,7 +3095,29 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 	}
 	auto messageFromId = channelPost ? 0 : Auth().userId();
 	auto messagePostAuthor = channelPost ? (Auth().user()->firstName + ' ' + Auth().user()->lastName) : QString();
-	history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(messageFromId), peerToMTP(peer), MTPnullFwdHeader, MTPint(), MTP_int(replyToId()), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname), MTP_int(userId)), MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint(), MTP_string(messagePostAuthor)), NewMessageUnread);
+	history->addNewMessage(
+		MTP_message(
+			MTP_flags(flags),
+			MTP_int(newId.msg),
+			MTP_int(messageFromId),
+			peerToMTP(peer),
+			MTPnullFwdHeader,
+			MTPint(),
+			MTP_int(replyToId()),
+			MTP_int(unixtime()),
+			MTP_string(""),
+			MTP_messageMediaContact(
+				MTP_string(phone),
+				MTP_string(fname),
+				MTP_string(lname),
+				MTP_int(userId)),
+			MTPnullMarkup,
+			MTPnullEntities,
+			MTP_int(1),
+			MTPint(),
+			MTP_string(messagePostAuthor),
+			MTPlong()),
+		NewMessageUnread);
 	history->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), p->input, MTP_int(replyTo), MTP_inputMediaContact(MTP_string(phone), MTP_string(fname), MTP_string(lname)), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, history->sendRequestId);
 
 	App::historyRegRandom(randomId, newId);
@@ -4368,15 +4390,59 @@ void HistoryWidget::sendFileConfirmed(const FileLoadResultPtr &file) {
 		if (!file->caption.isEmpty()) {
 			photoFlags |= MTPDmessageMediaPhoto::Flag::f_caption;
 		}
-		auto photo = MTP_messageMediaPhoto(MTP_flags(photoFlags), file->photo, MTP_string(file->caption), MTPint());
-		h->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(messageFromId), peerToMTP(file->to.peer), MTPnullFwdHeader, MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), photo, MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint(), MTP_string(messagePostAuthor)), NewMessageUnread);
+		auto photo = MTP_messageMediaPhoto(
+			MTP_flags(photoFlags),
+			file->photo,
+			MTP_string(file->caption),
+			MTPint());
+		h->addNewMessage(
+			MTP_message(
+				MTP_flags(flags),
+				MTP_int(newId.msg),
+				MTP_int(messageFromId),
+				peerToMTP(file->to.peer),
+				MTPnullFwdHeader,
+				MTPint(),
+				MTP_int(file->to.replyTo),
+				MTP_int(unixtime()),
+				MTP_string(""),
+				photo,
+				MTPnullMarkup,
+				MTPnullEntities,
+				MTP_int(1),
+				MTPint(),
+				MTP_string(messagePostAuthor),
+				MTPlong()),
+			NewMessageUnread);
 	} else if (file->type == SendMediaType::File) {
 		auto documentFlags = MTPDmessageMediaDocument::Flag::f_document | 0;
 		if (!file->caption.isEmpty()) {
 			documentFlags |= MTPDmessageMediaDocument::Flag::f_caption;
 		}
-		auto document = MTP_messageMediaDocument(MTP_flags(documentFlags), file->document, MTP_string(file->caption), MTPint());
-		h->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(messageFromId), peerToMTP(file->to.peer), MTPnullFwdHeader, MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), document, MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint(), MTP_string(messagePostAuthor)), NewMessageUnread);
+		auto document = MTP_messageMediaDocument(
+			MTP_flags(documentFlags),
+			file->document,
+			MTP_string(file->caption),
+			MTPint());
+		h->addNewMessage(
+			MTP_message(
+				MTP_flags(flags),
+				MTP_int(newId.msg),
+				MTP_int(messageFromId),
+				peerToMTP(file->to.peer),
+				MTPnullFwdHeader,
+				MTPint(),
+				MTP_int(file->to.replyTo),
+				MTP_int(unixtime()),
+				MTP_string(""),
+				document,
+				MTPnullMarkup,
+				MTPnullEntities,
+				MTP_int(1),
+				MTPint(),
+				MTP_string(messagePostAuthor),
+				MTPlong()),
+			NewMessageUnread);
 	} else if (file->type == SendMediaType::Audio) {
 		if (!h->peer->isChannel()) {
 			flags |= MTPDmessage::Flag::f_media_unread;
@@ -4385,8 +4451,30 @@ void HistoryWidget::sendFileConfirmed(const FileLoadResultPtr &file) {
 		if (!file->caption.isEmpty()) {
 			documentFlags |= MTPDmessageMediaDocument::Flag::f_caption;
 		}
-		auto document = MTP_messageMediaDocument(MTP_flags(documentFlags), file->document, MTP_string(file->caption), MTPint());
-		h->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(messageFromId), peerToMTP(file->to.peer), MTPnullFwdHeader, MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), document, MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint(), MTP_string(messagePostAuthor)), NewMessageUnread);
+		auto document = MTP_messageMediaDocument(
+			MTP_flags(documentFlags),
+			file->document,
+			MTP_string(file->caption),
+			MTPint());
+		h->addNewMessage(
+			MTP_message(
+				MTP_flags(flags),
+				MTP_int(newId.msg),
+				MTP_int(messageFromId),
+				peerToMTP(file->to.peer),
+				MTPnullFwdHeader,
+				MTPint(),
+				MTP_int(file->to.replyTo),
+				MTP_int(unixtime()),
+				MTP_string(""),
+				document,
+				MTPnullMarkup,
+				MTPnullEntities,
+				MTP_int(1),
+				MTPint(),
+				MTP_string(messagePostAuthor),
+				MTPlong()),
+			NewMessageUnread);
 	}
 
 	if (_peer && file->to.peer == _peer->id) {
@@ -4415,8 +4503,25 @@ void HistoryWidget::onPhotoUploaded(const FullMsgId &newId, bool silent, const M
 			sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 		}
 		auto caption = item->getMedia() ? item->getMedia()->getCaption() : TextWithEntities();
-		auto media = MTP_inputMediaUploadedPhoto(MTP_flags(0), file, MTP_string(caption.text), MTPVector<MTPInputDocument>(), MTP_int(0));
-		hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), item->history()->peer->input, MTP_int(replyTo), media, MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
+		auto media = MTP_inputMediaUploadedPhoto(
+			MTP_flags(0),
+			file,
+			MTP_string(caption.text),
+			MTPVector<MTPInputDocument>(),
+			MTP_int(0));
+		hist->sendRequestId = MTP::send(
+			MTPmessages_SendMedia(
+				MTP_flags(sendFlags),
+				item->history()->peer->input,
+				MTP_int(replyTo),
+				media,
+				MTP_long(randomId),
+				MTPnullMarkup),
+			App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
+			App::main()->rpcFail(&MainWidget::sendMessageFail),
+			0,
+			0,
+			hist->sendRequestId);
 	}
 }
 
@@ -4448,7 +4553,19 @@ void HistoryWidget::onDocumentUploaded(const FullMsgId &newId, bool silent, cons
 				MTP_string(caption.text),
 				MTPVector<MTPInputDocument>(),
 				MTP_int(0));
-			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), item->history()->peer->input, MTP_int(replyTo), media, MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
+			hist->sendRequestId = MTP::send(
+				MTPmessages_SendMedia(
+					MTP_flags(sendFlags),
+					item->history()->peer->input,
+					MTP_int(replyTo),
+					media,
+					MTP_long(randomId),
+					MTPnullMarkup),
+				App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
+				App::main()->rpcFail(&MainWidget::sendMessageFail),
+				0,
+				0,
+				hist->sendRequestId);
 		}
 	}
 }
@@ -4472,8 +4589,28 @@ void HistoryWidget::onThumbDocumentUploaded(const FullMsgId &newId, bool silent,
 				sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 			}
 			auto caption = media ? media->getCaption() : TextWithEntities();
-			auto media = MTP_inputMediaUploadedDocument(MTP_flags(MTPDinputMediaUploadedDocument::Flag::f_thumb), file, thumb, MTP_string(document->mimeString()), composeDocumentAttributes(document), MTP_string(caption.text), MTPVector<MTPInputDocument>(), MTP_int(0));
-			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), item->history()->peer->input, MTP_int(replyTo), media, MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
+			auto media = MTP_inputMediaUploadedDocument(
+				MTP_flags(MTPDinputMediaUploadedDocument::Flag::f_thumb),
+				file,
+				thumb,
+				MTP_string(document->mimeString()),
+				composeDocumentAttributes(document),
+				MTP_string(caption.text),
+				MTPVector<MTPInputDocument>(),
+				MTP_int(0));
+			hist->sendRequestId = MTP::send(
+				MTPmessages_SendMedia(
+					MTP_flags(sendFlags),
+					item->history()->peer->input,
+					MTP_int(replyTo),
+					media,
+					MTP_long(randomId),
+					MTPnullMarkup),
+				App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
+				App::main()->rpcFail(&MainWidget::sendMessageFail),
+				0,
+				0,
+				hist->sendRequestId);
 		}
 	}
 }

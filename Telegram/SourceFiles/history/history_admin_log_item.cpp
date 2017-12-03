@@ -50,13 +50,44 @@ MTPMessage PrepareLogMessage(const MTPMessage &message, MsgId newId, int32 newDa
 	case mtpc_messageEmpty: return MTP_messageEmpty(MTP_int(newId));
 	case mtpc_messageService: {
 		auto &data = message.c_messageService();
-		auto flags = data.vflags.v & ~(MTPDmessageService::Flag::f_out | MTPDmessageService::Flag::f_post/* | MTPDmessageService::Flag::f_reply_to_msg_id*/);
-		return MTP_messageService(MTP_flags(flags), MTP_int(newId), data.vfrom_id, data.vto_id, data.vreply_to_msg_id, MTP_int(newDate), data.vaction);
+		auto removeFlags = MTPDmessageService::Flag::f_out
+			| MTPDmessageService::Flag::f_post
+			/* | MTPDmessageService::Flag::f_reply_to_msg_id*/;
+		auto flags = data.vflags.v & ~removeFlags;
+		return MTP_messageService(
+			MTP_flags(flags),
+			MTP_int(newId),
+			data.vfrom_id,
+			data.vto_id,
+			data.vreply_to_msg_id,
+			MTP_int(newDate),
+			data.vaction);
 	} break;
 	case mtpc_message: {
 		auto &data = message.c_message();
-		auto flags = data.vflags.v & ~(MTPDmessage::Flag::f_out | MTPDmessage::Flag::f_post | MTPDmessage::Flag::f_reply_to_msg_id | MTPDmessage::Flag::f_edit_date);
-		return MTP_message(MTP_flags(flags), MTP_int(newId), data.vfrom_id, data.vto_id, data.vfwd_from, data.vvia_bot_id, data.vreply_to_msg_id, MTP_int(newDate), data.vmessage, data.vmedia, data.vreply_markup, data.ventities, data.vviews, data.vedit_date, MTP_string(""));
+		auto removeFlags = MTPDmessage::Flag::f_out
+			| MTPDmessage::Flag::f_post
+			| MTPDmessage::Flag::f_reply_to_msg_id
+			| MTPDmessage::Flag::f_edit_date
+			| MTPDmessage::Flag::f_grouped_id;
+		auto flags = data.vflags.v & ~removeFlags;
+		return MTP_message(
+			MTP_flags(flags),
+			MTP_int(newId),
+			data.vfrom_id,
+			data.vto_id,
+			data.vfwd_from,
+			data.vvia_bot_id,
+			data.vreply_to_msg_id,
+			MTP_int(newDate),
+			data.vmessage,
+			data.vmedia,
+			data.vreply_markup,
+			data.ventities,
+			data.vviews,
+			data.vedit_date,
+			MTP_string(""),
+			data.vgrouped_id);
 	} break;
 	}
 	Unexpected("Type in PrepareLogMessage()");

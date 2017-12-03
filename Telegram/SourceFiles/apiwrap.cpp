@@ -1893,7 +1893,8 @@ void ApiWrap::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 			d.has_entities() ? d.ventities : MTPnullEntities,
 			MTPint(),
 			MTPint(),
-			MTPstring()), NewMessageUnread);
+			MTPstring(),
+			MTPlong()), NewMessageUnread);
 	} break;
 
 	case mtpc_updateShortChatMessage: {
@@ -1914,7 +1915,8 @@ void ApiWrap::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 			d.has_entities() ? d.ventities : MTPnullEntities,
 			MTPint(),
 			MTPint(),
-			MTPstring()), NewMessageUnread);
+			MTPstring(),
+			MTPlong()), NewMessageUnread);
 	} break;
 
 	case mtpc_updateShortSentMessage: {
