@@ -1066,12 +1066,11 @@ object_ptr<Ui::RpWidget> Controller::createDeleteButton() {
 
 void Controller::submitTitle() {
 	Expects(_controls.title != nullptr);
-	Expects(_controls.description != nullptr);
 
 	if (_controls.title->getLastText().isEmpty()) {
 		_controls.title->showError();
 		_box->scrollToWidget(_controls.title);
-	} else {
+	} else if (_controls.description) {
 		_controls.description->setFocus();
 		_box->scrollToWidget(_controls.description);
 	}
