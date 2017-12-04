@@ -56,7 +56,7 @@ public:
 		return createRow(peer);
 	}
 
-	std::unique_ptr<PeerListState> saveState() override;
+	std::unique_ptr<PeerListState> saveState() const override;
 	void restoreState(std::unique_ptr<PeerListState> state) override;
 
 private:
@@ -132,15 +132,12 @@ void ListController::loadMoreRows() {
 	}).send();
 }
 
-std::unique_ptr<PeerListState> ListController::saveState() {
+std::unique_ptr<PeerListState> ListController::saveState() const {
 	auto result = PeerListController::saveState();
 	auto my = std::make_unique<SavedState>();
 	my->preloadGroupId = _preloadGroupId;
 	my->allLoaded = _allLoaded;
-	if (auto requestId = base::take(_preloadRequestId)) {
-		request(requestId).cancel();
-		my->wasLoading = true;
-	}
+	my->wasLoading = (_preloadRequestId != 0);
 	result->controllerState = std::move(my);
 	return result;
 }

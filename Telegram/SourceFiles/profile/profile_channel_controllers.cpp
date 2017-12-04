@@ -253,19 +253,16 @@ std::unique_ptr<PeerListRow> ParticipantsBoxController::createRestoredRow(
 	return nullptr;
 }
 
-std::unique_ptr<PeerListState> ParticipantsBoxController::saveState() {
+std::unique_ptr<PeerListState> ParticipantsBoxController::saveState() const {
 	Expects(_role == Role::Profile);
 
 	auto result = PeerListController::saveState();
 
 	auto my = std::make_unique<SavedState>();
-	my->additional = std::move(_additional);
+	my->additional = _additional;
 	my->offset = _offset;
 	my->allLoaded = _allLoaded;
-	if (auto requestId = base::take(_loadRequestId)) {
-		request(requestId).cancel();
-		my->wasLoading = true;
-	}
+	my->wasLoading = (_loadRequestId != 0);
 	if (auto search = searchController()) {
 		my->searchState = search->saveState();
 	}
@@ -982,16 +979,13 @@ void ParticipantsBoxSearchController::searchQuery(const QString &query) {
 	}
 }
 
-auto ParticipantsBoxSearchController::saveState()
+auto ParticipantsBoxSearchController::saveState() const
 -> std::unique_ptr<SavedStateBase> {
 	auto result = std::make_unique<SavedState>();
 	result->query = _query;
 	result->offset = _offset;
 	result->allLoaded = _allLoaded;
-	if (auto requestId = base::take(_requestId)) {
-		request(requestId).cancel();
-		result->wasLoading = true;
-	}
+	result->wasLoading = (_requestId != 0);
 	return std::move(result);
 }
 

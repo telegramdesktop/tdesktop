@@ -265,7 +265,7 @@ public:
 
 	virtual int peerListSelectedRowsCount() = 0;
 	virtual std::vector<not_null<PeerData*>> peerListCollectSelectedRows() = 0;
-	virtual std::unique_ptr<PeerListState> peerListSaveState() = 0;
+	virtual std::unique_ptr<PeerListState> peerListSaveState() const = 0;
 	virtual void peerListRestoreState(
 		std::unique_ptr<PeerListState> state) = 0;
 	virtual ~PeerListDelegate() = default;
@@ -299,7 +299,7 @@ public:
 		_delegate = delegate;
 	}
 
-	virtual std::unique_ptr<SavedStateBase> saveState() {
+	virtual std::unique_ptr<SavedStateBase> saveState() const {
 		return nullptr;
 	}
 	virtual void restoreState(
@@ -354,7 +354,7 @@ public:
 		return nullptr;
 	}
 
-	virtual std::unique_ptr<PeerListState> saveState();
+	virtual std::unique_ptr<PeerListState> saveState() const ;
 	virtual void restoreState(
 		std::unique_ptr<PeerListState> state);
 
@@ -714,7 +714,7 @@ public:
 		});
 		return result;
 	}
-	std::unique_ptr<PeerListState> peerListSaveState() override {
+	std::unique_ptr<PeerListState> peerListSaveState() const override {
 		return _content->saveState();
 	}
 	void peerListRestoreState(

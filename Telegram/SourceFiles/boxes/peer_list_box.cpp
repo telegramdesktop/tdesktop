@@ -260,7 +260,7 @@ void PeerListController::setSearchNoResultsText(const QString &text) {
 	}
 }
 
-std::unique_ptr<PeerListState> PeerListController::saveState() {
+std::unique_ptr<PeerListState> PeerListController::saveState() const {
 	return delegate()->peerListSaveState();
 }
 

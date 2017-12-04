@@ -61,7 +61,7 @@ public:
 	std::unique_ptr<PeerListRow> createRestoredRow(
 		not_null<PeerData*> peer) override;
 
-	std::unique_ptr<PeerListState> saveState() override;
+	std::unique_ptr<PeerListState> saveState() const override;
 	void restoreState(std::unique_ptr<PeerListState> state) override;
 
 private:
@@ -147,7 +147,7 @@ void ChatMembersController::sortByOnline() {
 	refreshOnlineCount();
 }
 
-std::unique_ptr<PeerListState> ChatMembersController::saveState() {
+std::unique_ptr<PeerListState> ChatMembersController::saveState() const {
 	auto result = PeerListController::saveState();
 	auto my = std::make_unique<SavedState>();
 	using Flag = Notify::PeerUpdate::Flag;

@@ -84,7 +84,7 @@ public:
 	std::unique_ptr<PeerListRow> createRestoredRow(
 		not_null<PeerData*> peer) override;
 
-	std::unique_ptr<PeerListState> saveState() override;
+	std::unique_ptr<PeerListState> saveState() const override;
 	void restoreState(std::unique_ptr<PeerListState> state) override;
 
 	// Callback(not_null<UserData*>)
@@ -171,7 +171,7 @@ public:
 	bool isLoading() override;
 	bool loadMoreRows() override;
 
-	std::unique_ptr<SavedStateBase> saveState() override;
+	std::unique_ptr<SavedStateBase> saveState() const override;
 	void restoreState(std::unique_ptr<SavedStateBase> state) override;
 
 private:
