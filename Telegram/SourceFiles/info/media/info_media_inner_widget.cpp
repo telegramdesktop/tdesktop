@@ -113,7 +113,7 @@ InnerWidget::InnerWidget(
 //			const style::icon &icon) {
 //		auto result = AddButton(
 //			content,
-//			_controller->window(),
+//			_controller,
 //			_controller->peer(),
 //			_controller->migrated(),
 //			type,
@@ -128,7 +128,7 @@ InnerWidget::InnerWidget(
 //			const style::icon &icon) {
 //		auto result = AddCommonGroupsButton(
 //			content,
-//			_controller->window(),
+//			_controller,
 //			user,
 //			tracker);
 //		object_ptr<Profile::FloatingIcon>(

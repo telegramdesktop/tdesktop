@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/peer_list_box.h"
 
 namespace Window {
-class Controller;
+class Navigation;
 } // namespace Window
 
 namespace Info {
@@ -74,7 +74,7 @@ private:
 };
 
 std::unique_ptr<PeerListController> CreateMembersController(
-	not_null<Window::Controller*> window,
+	not_null<Window::Navigation*> navigation,
 	not_null<PeerData*> peer);
 
 } // namespace Profile

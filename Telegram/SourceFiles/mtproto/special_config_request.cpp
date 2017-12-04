@@ -87,6 +87,9 @@ void SpecialConfigRequest::dnsFinished() {
 	if (!_dnsReply) {
 		return;
 	}
+	if (_dnsReply->error() != QNetworkReply::NoError) {
+		LOG(("Config Error: Failed to get dns response JSON, error: %1 (%2)").arg(_dnsReply->errorString()).arg(_dnsReply->error()));
+	}
 	auto result = _dnsReply->readAll();
 	_dnsReply.release()->deleteLater();
 

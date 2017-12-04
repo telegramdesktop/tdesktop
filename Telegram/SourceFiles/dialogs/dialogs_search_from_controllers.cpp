@@ -28,16 +28,26 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Dialogs {
 
 void ShowSearchFromBox(
-		not_null<Window::Controller*> window,
+		not_null<Window::Navigation*> navigation,
 		not_null<PeerData*> peer,
 		base::lambda<void(not_null<UserData*>)> callback,
 		base::lambda<void()> closedCallback) {
-	auto createController = [window, peer, callback = std::move(callback)]() -> std::unique_ptr<PeerListController> {
+	auto createController = [
+		navigation,
+		peer,
+		callback = std::move(callback)
+	]() -> std::unique_ptr<PeerListController> {
 		if (peer) {
 			if (auto chat = peer->asChat()) {
-				return std::make_unique<Dialogs::ChatSearchFromController>(window, chat, std::move(callback));
+				return std::make_unique<Dialogs::ChatSearchFromController>(
+					navigation,
+					chat,
+					std::move(callback));
 			} else if (auto group = peer->asMegagroup()) {
-				return std::make_unique<Dialogs::ChannelSearchFromController>(window, group, std::move(callback));
+				return std::make_unique<Dialogs::ChannelSearchFromController>(
+					navigation,
+					group,
+					std::move(callback));
 			}
 		}
 		return nullptr;
@@ -52,7 +62,7 @@ void ShowSearchFromBox(
 }
 
 ChatSearchFromController::ChatSearchFromController(
-	not_null<Window::Controller*> window,
+	not_null<Window::Navigation*> navigation,
 	not_null<ChatData*> chat,
 	base::lambda<void(not_null<UserData*>)> callback)
 : PeerListController()
@@ -123,11 +133,11 @@ void ChatSearchFromController::appendRow(not_null<UserData*> user) {
 }
 
 ChannelSearchFromController::ChannelSearchFromController(
-	not_null<Window::Controller*> window,
+	not_null<Window::Navigation*> navigation,
 	not_null<ChannelData*> channel,
 	base::lambda<void(not_null<UserData*>)> callback)
 : ParticipantsBoxController(
-	window,
+	navigation,
 	channel,
 	ParticipantsBoxController::Role::Members)
 , _callback(std::move(callback)) {

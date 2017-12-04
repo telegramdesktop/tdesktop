@@ -22,14 +22,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <rpl/variable.h>
 #include "data/data_search_controller.h"
+#include "window/window_controller.h"
 
 namespace Ui {
 class SearchFieldController;
 } // namespace Ui
-
-namespace Window {
-class Controller;
-} // namespace Window
 
 namespace Info {
 
@@ -70,7 +67,7 @@ private:
 
 };
 
-class Controller {
+class Controller : public Window::Navigation {
 public:
 	Controller(
 		not_null<WrapWidget*> widget,
@@ -117,6 +114,15 @@ public:
 	rpl::producer<QString> mediaSourceQueryValue() const;
 
 	void saveSearchState(not_null<ContentMemento*> memento);
+
+	void showSection(
+		Window::SectionMemento &&memento,
+		const Window::SectionShow &params = Window::SectionShow()) override;
+	void showBackFromStack(
+		const Window::SectionShow &params = Window::SectionShow()) override;
+	not_null<Window::Controller*> parentController() override {
+		return _window;
+	}
 
 	rpl::lifetime &lifetime() {
 		return _lifetime;

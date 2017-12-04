@@ -28,7 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/profile/info_profile_members_controllers.h"
 
 namespace Window {
-class Controller;
+class Navigation;
 } // namespace Window
 
 namespace Profile {
@@ -48,7 +48,7 @@ public:
 		Kicked,
 	};
 	static void Start(
-		not_null<Window::Controller*> window,
+		not_null<Window::Navigation*> navigation,
 		not_null<ChannelData*> channel,
 		Role role);
 
@@ -65,7 +65,7 @@ public:
 	};
 
 	ParticipantsBoxController(
-		not_null<Window::Controller*> window,
+		not_null<Window::Navigation*> navigation,
 		not_null<ChannelData*> channel,
 		Role role);
 
@@ -142,7 +142,7 @@ private:
 	bool canRestrictUser(not_null<UserData*> user) const;
 	bool canEditAdminByRights(not_null<UserData*> user) const;
 
-	not_null<Window::Controller*> _window;
+	not_null<Window::Navigation*> _navigation;
 	not_null<ChannelData*> _channel;
 	Role _role = Role::Admins;
 	int _offset = 0;

@@ -28,6 +28,8 @@ class MainWidget;
 namespace Window {
 
 class LayerWidget;
+class MainWindow;
+class SectionMemento;
 
 enum class GifPauseReason {
 	Any           = 0,
@@ -64,17 +66,43 @@ struct SectionShow {
 	SectionShow withWay(Way newWay) const {
 		return SectionShow(newWay, animated, activation);
 	}
+	SectionShow withThirdColumn() const {
+		auto copy = *this;
+		copy.thirdColumn = true;
+		return copy;
+	}
 
 	Way way = Way::Forward;
 	anim::type animated = anim::type::normal;
 	anim::activation activation = anim::activation::normal;
+	bool thirdColumn = false;
 
 };
 
-class MainWindow;
-class SectionMemento;
+class Controller;
 
-class Controller {
+class Navigation {
+public:
+	virtual void showSection(
+		SectionMemento &&memento,
+		const SectionShow &params = SectionShow()) = 0;
+	virtual void showBackFromStack(
+		const SectionShow &params = SectionShow()) = 0;
+	virtual not_null<Controller*> parentController() = 0;
+
+	void showPeerInfo(
+		PeerId peerId,
+		const SectionShow &params = SectionShow());
+	void showPeerInfo(
+		not_null<PeerData*> peer,
+		const SectionShow &params = SectionShow());
+	void showPeerInfo(
+		not_null<History*> history,
+		const SectionShow &params = SectionShow());
+
+};
+
+class Controller : public Navigation {
 public:
 	Controller(not_null<MainWindow*> window) : _window(window) {
 	}
@@ -126,9 +154,9 @@ public:
 
 	void showSection(
 		SectionMemento &&memento,
-		const SectionShow &params = SectionShow());
+		const SectionShow &params = SectionShow()) override;
 	void showBackFromStack(
-		const SectionShow &params = SectionShow());
+		const SectionShow &params = SectionShow()) override;
 
 	void showPeerHistory(
 		PeerId peerId,
@@ -142,16 +170,6 @@ public:
 		not_null<History*> history,
 		const SectionShow &params = SectionShow::Way::ClearStack,
 		MsgId msgId = ShowAtUnreadMsgId);
-
-	void showPeerInfo(
-		PeerId peerId,
-		const SectionShow &params = SectionShow());
-	void showPeerInfo(
-		not_null<PeerData*> peer,
-		const SectionShow &params = SectionShow());
-	void showPeerInfo(
-		not_null<History*> history,
-		const SectionShow &params = SectionShow());
 
 	void clearSectionStack(
 			const SectionShow &params = SectionShow::Way::ClearStack) {
@@ -184,6 +202,10 @@ public:
 	}
 	const base::Variable<bool> &dialogsListDisplayForced() const {
 		return _dialogsListDisplayForced;
+	}
+
+	not_null<Controller*> parentController() override {
+		return this;
 	}
 
 private:

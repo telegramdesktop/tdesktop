@@ -59,7 +59,7 @@ Members::Members(
 : RpWidget(parent)
 , _controller(controller)
 , _peer(peer)
-, _listController(CreateMembersController(controller->window(), _peer)) {
+, _listController(CreateMembersController(controller, _peer)) {
 	setupHeader();
 	setupList();
 	setContent(_list.data());

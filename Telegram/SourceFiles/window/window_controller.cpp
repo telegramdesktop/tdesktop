@@ -367,24 +367,24 @@ void Controller::showPeerHistory(
 		msgId);
 }
 
-void Controller::showPeerInfo(
+void Navigation::showPeerInfo(
 		PeerId peerId,
 		const SectionShow &params) {
-	if (Adaptive::ThreeColumn()
-		&& !Auth().data().thirdSectionInfoEnabled()) {
-		Auth().data().setThirdSectionInfoEnabled(true);
-		Auth().saveDataDelayed();
-	}
+	//if (Adaptive::ThreeColumn()
+	//	&& !Auth().data().thirdSectionInfoEnabled()) {
+	//	Auth().data().setThirdSectionInfoEnabled(true);
+	//	Auth().saveDataDelayed();
+	//}
 	showSection(Info::Memento(peerId), params);
 }
 
-void Controller::showPeerInfo(
+void Navigation::showPeerInfo(
 		not_null<PeerData*> peer,
 		const SectionShow &params) {
 	showPeerInfo(peer->id, params);
 }
 
-void Controller::showPeerInfo(
+void Navigation::showPeerInfo(
 		not_null<History*> history,
 		const SectionShow &params) {
 	showPeerInfo(history->peer->id, params);

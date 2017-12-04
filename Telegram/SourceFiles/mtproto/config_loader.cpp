@@ -33,9 +33,13 @@ constexpr auto kSpecialRequestTimeoutMs = 6000; // 4 seconds timeout for it to w
 
 } // namespace
 
-ConfigLoader::ConfigLoader(not_null<Instance*> instance, RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail) : _instance(instance)
-	, _doneHandler(onDone)
-	, _failHandler(onFail) {
+ConfigLoader::ConfigLoader(
+	not_null<Instance*> instance,
+	RPCDoneHandlerPtr onDone,
+	RPCFailHandlerPtr onFail)
+: _instance(instance)
+, _doneHandler(onDone)
+, _failHandler(onFail) {
 	_enumDCTimer.setCallback([this] { enumerate(); });
 	_specialEnumTimer.setCallback([this] { sendSpecialRequest(); });
 }

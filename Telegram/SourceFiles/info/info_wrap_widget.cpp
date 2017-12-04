@@ -302,7 +302,7 @@ void WrapWidget::createTopBar() {
 		_topBar->enableBackButton();
 		_topBar->backRequest()
 			| rpl::start_with_next([this] {
-				showBackFromStack();
+				_controller->showBackFromStack();
 			}, _topBar->lifetime());
 	} else if (wrapValue == Wrap::Side) {
 		auto close = _topBar->addButton(
@@ -441,19 +441,18 @@ bool WrapWidget::requireTopBarSearch() const {
 	return false;
 }
 
-void WrapWidget::showBackFromStack() {
-	auto params = Window::SectionShow(
-		Window::SectionShow::Way::Backward);
+bool WrapWidget::showBackFromStackInternal(
+		const Window::SectionShow &params) {
 	if (hasStackHistory()) {
 		auto last = std::move(_historyStack.back());
 		_historyStack.pop_back();
 		showNewContent(
 			last.section.get(),
-			params);
+			params.withWay(Window::SectionShow::Way::Backward));
 		//_anotherTabMemento = std::move(last.anotherTab);
-	} else if (wrap() != Wrap::Layer) {
-		_controller->window()->showBackFromStack(params);
+		return true;
 	}
+	return (wrap() == Wrap::Layer);
 }
 
 not_null<Ui::RpWidget*> WrapWidget::topWidget() const {
@@ -718,7 +717,7 @@ bool WrapWidget::returnToFirstStackFrame(
 		&& firstSection.type() == memento->section().type()
 		&& firstSection.type() == Section::Type::Profile) {
 		_historyStack.resize(1);
-		showBackFromStack();
+		_controller->showBackFromStack();
 		return true;
 	}
 	return false;
@@ -809,7 +808,7 @@ void WrapWidget::resizeEvent(QResizeEvent *e) {
 void WrapWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		if (hasStackHistory() || wrap() != Wrap::Layer) {
-			showBackFromStack();
+			_controller->showBackFromStack();
 			return;
 		}
 	}
@@ -840,7 +839,7 @@ object_ptr<Ui::RpWidget> WrapWidget::createTopBarSurrogate(
 		auto result = object_ptr<Ui::AbstractButton>(parent);
 		result->addClickHandler([weak = make_weak(this)]{
 			if (weak) {
-				weak->showBackFromStack();
+				weak->_controller->showBackFromStack();
 			}
 		});
 		result->setGeometry(_topBar->geometry());

@@ -26,7 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Dialogs {
 
 void ShowSearchFromBox(
-	not_null<Window::Controller*> window,
+	not_null<Window::Navigation*> navigation,
 	not_null<PeerData*> peer,
 	base::lambda<void(not_null<UserData*>)> callback,
 	base::lambda<void()> closedCallback);
@@ -34,7 +34,7 @@ void ShowSearchFromBox(
 class ChatSearchFromController : public PeerListController, protected base::Subscriber {
 public:
 	ChatSearchFromController(
-		not_null<Window::Controller*> window,
+		not_null<Window::Navigation*> navigation,
 		not_null<ChatData*> chat,
 		base::lambda<void(not_null<UserData*>)> callback);
 
@@ -54,7 +54,7 @@ private:
 class ChannelSearchFromController : public Profile::ParticipantsBoxController {
 public:
 	ChannelSearchFromController(
-		not_null<Window::Controller*> window,
+		not_null<Window::Navigation*> navigation,
 		not_null<ChannelData*> channel,
 		base::lambda<void(not_null<UserData*>)> callback);
 

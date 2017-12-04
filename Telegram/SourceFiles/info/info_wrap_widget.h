@@ -109,6 +109,7 @@ public:
 	bool showInternal(
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) override;
+	bool showBackFromStackInternal(const Window::SectionShow &params);
 	std::unique_ptr<Window::SectionMemento> createMemento() override;
 
 	rpl::producer<int> desiredHeightValue() const override;
@@ -154,7 +155,6 @@ private:
 	bool hasStackHistory() const {
 		return !_historyStack.empty();
 	}
-	void showBackFromStack();
 	void showNewContent(not_null<ContentMemento*> memento);
 	void showNewContent(
 		not_null<ContentMemento*> memento,

@@ -45,7 +45,7 @@ class ChatMembersController
 	, public base::has_weak_ptr {
 public:
 	ChatMembersController(
-		not_null<Window::Controller*> window,
+		not_null<Window::Navigation*> navigation,
 		not_null<ChatData*> chat);
 
 	void prepare() override;
@@ -80,7 +80,7 @@ private:
 	void removeMember(not_null<UserData*> user);
 	Type computeType(not_null<UserData*> user);
 
-	not_null<Window::Controller*> _window;
+	not_null<Window::Navigation*> _navigation;
 	not_null<ChatData*> _chat;
 
 	base::Timer _sortByOnlineTimer;
@@ -89,10 +89,10 @@ private:
 };
 
 ChatMembersController::ChatMembersController(
-	not_null<Window::Controller*> window,
+	not_null<Window::Navigation*> navigation,
 	not_null<ChatData*> chat)
 : PeerListController()
-, _window(window)
+, _navigation(navigation)
 , _chat(chat) {
 	_sortByOnlineTimer.setCallback([this] { sortByOnline(); });
 }
@@ -267,7 +267,7 @@ auto ChatMembersController::computeType(
 }
 
 void ChatMembersController::rowClicked(not_null<PeerListRow*> row) {
-	_window->showPeerInfo(row->peer());
+	_navigation->showPeerInfo(row->peer());
 }
 
 void ChatMembersController::rowActionClicked(
@@ -286,7 +286,7 @@ Ui::PopupMenu *ChatMembersController::rowContextMenu(
 		lang(lng_context_view_profile),
 		[weak = base::make_weak(this), user] {
 			if (weak) {
-				weak->_window->showPeerInfo(user);
+				weak->_navigation->showPeerInfo(user);
 			}
 		});
 	if (canRemoveMember) {
@@ -376,17 +376,17 @@ void MemberListRow::paintNameIcon(
 }
 
 std::unique_ptr<PeerListController> CreateMembersController(
-		not_null<Window::Controller*> window,
+		not_null<Window::Navigation*> navigation,
 		not_null<PeerData*> peer) {
 	if (auto chat = peer->asChat()) {
 		return std::make_unique<ChatMembersController>(
-			window,
+			navigation,
 			chat);
 	} else if (auto channel = peer->asChannel()) {
 		using ChannelMembersController
 			= ::Profile::ParticipantsBoxController;
 		return std::make_unique<ChannelMembersController>(
-			window,
+			navigation,
 			channel,
 			ChannelMembersController::Role::Profile);
 	}

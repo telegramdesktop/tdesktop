@@ -242,7 +242,9 @@ void HistoryTopBarWidget::toggleInfoSection() {
 			Auth().data().setThirdSectionInfoEnabled(true);
 			Auth().saveDataDelayed();
 			if (Adaptive::ThreeColumn()) {
-				_controller->showSection(Info::Memento(_historyPeer->id));
+				_controller->showSection(
+					Info::Memento(_historyPeer->id),
+					Window::SectionShow().withThirdColumn());
 			} else {
 				_controller->resizeForThirdSection();
 				_controller->updateColumnLayout();

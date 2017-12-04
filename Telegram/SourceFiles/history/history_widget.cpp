@@ -3887,7 +3887,7 @@ void HistoryWidget::pushTabbedSelectorToThirdSection(
 		return;
 	} else if (!_canSendMessages) {
 		Auth().data().setTabbedReplacedWithInfo(true);
-		controller()->showPeerInfo(_peer, params);
+		controller()->showPeerInfo(_peer, params.withThirdColumn());
 		return;
 	}
 	Auth().data().setTabbedReplacedWithInfo(false);
@@ -3903,7 +3903,7 @@ void HistoryWidget::pushTabbedSelectorToThirdSection(
 			returnTabbedSelector(std::move(selector));
 		}));
 	controller()->resizeForThirdSection();
-	controller()->showSection(std::move(memento), params);
+	controller()->showSection(std::move(memento), params.withThirdColumn());
 	destroyingPanel.destroy();
 }
 
@@ -3912,7 +3912,7 @@ void HistoryWidget::pushInfoToThirdSection(
 	if (!_peer) {
 		return;
 	}
-	controller()->showPeerInfo(_peer, params);
+	controller()->showPeerInfo(_peer, params.withThirdColumn());
 }
 
 void HistoryWidget::toggleTabbedSelectorMode() {

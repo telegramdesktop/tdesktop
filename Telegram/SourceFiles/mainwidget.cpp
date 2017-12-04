@@ -2604,10 +2604,14 @@ void MainWidget::showSection(
 			&memento,
 			params)) {
 		return;
-	} else if (_thirdSection && _thirdSection->showInternal(
-			&memento,
-			params)) {
-		return;
+	//
+	// Now third section handles only its own showSection() requests.
+	// General showSection() should show layer or main_section instead.
+	//
+	//} else if (_thirdSection && _thirdSection->showInternal(
+	//		&memento,
+	//		params)) {
+	//	return;
 	}
 
 	// If the window was not resized, but we've enabled
@@ -2762,7 +2766,7 @@ void MainWidget::showNewSection(
 		thirdSectionTop,
 		st::columnMinimalWidthThird,
 		height() - thirdSectionTop);
-	auto newThirdSection = Adaptive::ThreeColumn()
+	auto newThirdSection = (Adaptive::ThreeColumn() && params.thirdColumn)
 		? memento.createWidget(
 			this,
 			_controller,
@@ -3522,7 +3526,7 @@ void MainWidget::updateThirdColumnToCurrentPeer(
 
 		_controller->showSection(
 			std::move(*thirdSectionForCurrentMainSection(peer)),
-			params);
+			params.withThirdColumn());
 	};
 	auto switchTabbedFast = [&] {
 		saveOldThirdSection();

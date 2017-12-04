@@ -86,8 +86,8 @@ void LayerWidget::parentResized() {
 				Window::SectionShow::Way::Forward,
 				anim::type::instant,
 				anim::activation::background));
-	} else if (_controller->canShowThirdSectionWithoutResize()) {
-		takeToThirdSection();
+	//} else if (_controller->canShowThirdSectionWithoutResize()) {
+	//	takeToThirdSection();
 	} else {
 		auto newWidth = qMin(
 			parentWidth - 2 * st::infoMinimalLayerMargin,
@@ -97,29 +97,31 @@ void LayerWidget::parentResized() {
 }
 
 bool LayerWidget::takeToThirdSection() {
-	Ui::FocusPersister persister(this);
-	auto localCopy = _controller;
-	auto memento = MoveMemento(std::move(_content));
-	localCopy->hideSpecialLayer(anim::type::instant);
+	return false;
 
-	// When creating third section in response to the window
-	// size allowing it to fit without window resize we want
-	// to save that we didn't extend the window while showing
-	// the third section, so that when we close it we won't
-	// shrink the window size.
-	//
-	// See https://github.com/telegramdesktop/tdesktop/issues/4091
-	Auth().data().setThirdSectionExtendedBy(0);
+	//Ui::FocusPersister persister(this);
+	//auto localCopy = _controller;
+	//auto memento = MoveMemento(std::move(_content));
+	//localCopy->hideSpecialLayer(anim::type::instant);
 
-	Auth().data().setThirdSectionInfoEnabled(true);
-	Auth().saveDataDelayed();
-	localCopy->showSection(
-		std::move(memento),
-		Window::SectionShow(
-			Window::SectionShow::Way::ClearStack,
-			anim::type::instant,
-			anim::activation::background));
-	return true;
+	//// When creating third section in response to the window
+	//// size allowing it to fit without window resize we want
+	//// to save that we didn't extend the window while showing
+	//// the third section, so that when we close it we won't
+	//// shrink the window size.
+	////
+	//// See https://github.com/telegramdesktop/tdesktop/issues/4091
+	//Auth().data().setThirdSectionExtendedBy(0);
+
+	//Auth().data().setThirdSectionInfoEnabled(true);
+	//Auth().saveDataDelayed();
+	//localCopy->showSection(
+	//	std::move(memento),
+	//	Window::SectionShow(
+	//		Window::SectionShow::Way::ClearStack,
+	//		anim::type::instant,
+	//		anim::activation::background));
+	//return true;
 }
 
 bool LayerWidget::showSectionInternal(

@@ -101,9 +101,7 @@ bool HasRecentActions(not_null<ChannelData*> channel) {
 void ShowRecentActions(
 		not_null<Window::Controller*> controller,
 		not_null<ChannelData*> channel) {
-	controller->showSection(
-		AdminLog::SectionMemento(channel),
-		Window::SectionShow());
+	controller->showSection(AdminLog::SectionMemento(channel));
 
 }
 

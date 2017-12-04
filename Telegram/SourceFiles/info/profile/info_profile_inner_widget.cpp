@@ -151,7 +151,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 			const style::icon &icon) {
 		auto result = Media::AddButton(
 			content,
-			_controller->window(),
+			_controller,
 			_peer,
 			_migrated,
 			type,
@@ -166,7 +166,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 			const style::icon &icon) {
 		auto result = Media::AddCommonGroupsButton(
 			content,
-			_controller->window(),
+			_controller,
 			user,
 			tracker);
 		object_ptr<Profile::FloatingIcon>(

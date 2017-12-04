@@ -157,6 +157,20 @@ void Controller::saveSearchState(not_null<ContentMemento*> memento) {
 	}
 }
 
+void Controller::showSection(
+		Window::SectionMemento &&memento,
+		const Window::SectionShow &params) {
+	if (!_widget->showInternal(&memento, params)) {
+		_window->showSection(std::move(memento), params);
+	}
+}
+
+void Controller::showBackFromStack(const Window::SectionShow &params) {
+	if (!_widget->showBackFromStackInternal(params)) {
+		_window->showBackFromStack(params);
+	}
+}
+
 auto Controller::produceSearchQuery(
 		const QString &query) const -> SearchQuery {
 	auto result = SearchQuery();

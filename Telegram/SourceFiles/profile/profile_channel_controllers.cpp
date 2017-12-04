@@ -45,11 +45,11 @@ constexpr auto kSortByOnlineDelay = TimeMs(1000);
 } // namespace
 
 ParticipantsBoxController::ParticipantsBoxController(
-	not_null<Window::Controller*> window,
+	not_null<Window::Navigation*> navigation,
 	not_null<ChannelData*> channel,
 	Role role)
 : PeerListController(CreateSearchController(channel, role, &_additional))
-, _window(window)
+, _navigation(navigation)
 , _channel(channel)
 , _role(role) {
 	if (_channel->mgInfo) {
@@ -162,11 +162,11 @@ ParticipantsBoxController::CreateSearchController(
 }
 
 void ParticipantsBoxController::Start(
-		not_null<Window::Controller*> window,
+		not_null<Window::Navigation*> navigation,
 		not_null<ChannelData*> channel,
 		Role role) {
 	auto controller = std::make_unique<ParticipantsBoxController>(
-		window,
+		navigation,
 		channel,
 		role);
 	auto initBox = [role, channel, controller = controller.get()](not_null<PeerListBox*> box) {
@@ -582,7 +582,7 @@ void ParticipantsBoxController::rowClicked(not_null<PeerListRow*> row) {
 	} else if (_role == Role::Restricted || _role == Role::Kicked) {
 		showRestricted(user);
 	} else {
-		_window->showPeerInfo(row->peer());
+		_navigation->showPeerInfo(row->peer());
 	}
 }
 
@@ -643,7 +643,7 @@ Ui::PopupMenu *ParticipantsBoxController::rowContextMenu(
 		lang(lng_context_view_profile),
 		[weak = base::make_weak(this), user] {
 			if (const auto strong = weak.get()) {
-				strong->_window->showPeerInfo(user);
+				strong->_navigation->showPeerInfo(user);
 			}
 		});
 	if (canEditAdmin(user)) {

@@ -91,7 +91,7 @@ inline auto AddCountedButton(
 
 inline auto AddButton(
 		Ui::VerticalLayout *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::Navigation*> navigation,
 		not_null<PeerData*> peer,
 		PeerData *migrated,
 		Type type,
@@ -101,8 +101,8 @@ inline auto AddButton(
 		Profile::SharedMediaCountValue(peer, migrated, type),
 		MediaText(type),
 		tracker)->entity();
-	result->addClickHandler([controller, peer, type] {
-		controller->showSection(
+	result->addClickHandler([=] {
+		navigation->showSection(
 			Info::Memento(peer->id, Section(type)));
 	});
 	return std::move(result);
@@ -110,7 +110,7 @@ inline auto AddButton(
 
 inline auto AddCommonGroupsButton(
 		Ui::VerticalLayout *parent,
-		not_null<Window::Controller*> controller,
+		not_null<Window::Navigation*> navigation,
 		not_null<UserData*> user,
 		Ui::MultiSlideTracker &tracker) {
 	auto result = AddCountedButton(
@@ -120,8 +120,8 @@ inline auto AddCommonGroupsButton(
 			return lng_profile_common_groups(lt_count, count);
 		},
 		tracker)->entity();
-	result->addClickHandler([controller, user] {
-		controller->showSection(
+	result->addClickHandler([=] {
+		navigation->showSection(
 			Info::Memento(user->id, Section::Type::CommonGroups));
 	});
 	return std::move(result);
