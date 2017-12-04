@@ -975,6 +975,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_unblock_button" = "Unblock";
 "lng_channel_mute" = "Mute";
 "lng_channel_unmute" = "Unmute";
+"lng_saved_messages" = "Saved messages";
 
 "lng_dialogs_text_with_from" = "{from_part} {message}";
 "lng_dialogs_text_from_wrapped" = "{from}:";

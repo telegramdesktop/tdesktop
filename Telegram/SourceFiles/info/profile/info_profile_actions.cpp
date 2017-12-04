@@ -278,7 +278,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 }
 
 object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
-	auto peer = _peer;
+	const auto peer = _peer;
 	auto result = object_ptr<Button>(
 		_wrap,
 		Lang::Viewer(lng_profile_enable_notifications),
@@ -286,11 +286,10 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 	result->toggleOn(
 		NotificationsEnabledValue(peer)
 	)->addClickHandler([=] {
-		App::main()->updateNotifySetting(
-			peer,
-			peer->isMuted()
-				? NotifySettingSetNotify
-				: NotifySettingSetMuted);
+		const auto muteState = peer->isMuted()
+			? Data::NotifySettings::MuteChange::Unmute
+			: Data::NotifySettings::MuteChange::Mute;
+		App::main()->updateNotifySettings(peer, muteState);
 	});
 	object_ptr<FloatingIcon>(
 		result,

@@ -32,6 +32,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Window {
 namespace Notifications {
+namespace {
+
+// not more than one sound in 500ms from one peer - grouping
+constexpr auto kMinimalAlertDelay = TimeMs(500);
+
+} // namespace
 
 System::System(AuthSession *session) : _authSession(session) {
 	createManager();
@@ -69,13 +75,13 @@ void System::schedule(History *history, HistoryItem *item) {
 		return;
 	}
 
-	bool haveSetting = (history->peer->notify != UnknownNotifySettings);
+	auto haveSetting = !history->peer->notifySettingsUnknown();
 	if (haveSetting) {
-		if (history->peer->notify != EmptyNotifySettings && history->peer->notify->mute > unixtime()) {
+		if (history->peer->isMuted()) {
 			if (notifyByFrom) {
-				haveSetting = (item->from()->notify != UnknownNotifySettings);
+				haveSetting = !item->from()->notifySettingsUnknown();
 				if (haveSetting) {
-					if (notifyByFrom->notify != EmptyNotifySettings && notifyByFrom->notify->mute > unixtime()) {
+					if (notifyByFrom->isMuted()) {
 						history->popNotification(item);
 						return;
 					}
@@ -88,7 +94,7 @@ void System::schedule(History *history, HistoryItem *item) {
 			}
 		}
 	} else {
-		if (notifyByFrom && notifyByFrom->notify == UnknownNotifySettings) {
+		if (notifyByFrom && notifyByFrom->notifySettingsUnknown()) {
 			Auth().api().requestNotifySetting(notifyByFrom);
 		}
 		Auth().api().requestNotifySetting(history->peer);
@@ -167,16 +173,17 @@ void System::clearAllFast() {
 }
 
 void System::checkDelayed() {
-	int32 t = unixtime();
 	for (auto i = _settingWaiters.begin(); i != _settingWaiters.end();) {
-		auto history = i.key();
-		bool loaded = false, muted = false;
-		if (history->peer->notify != UnknownNotifySettings) {
-			if (history->peer->notify == EmptyNotifySettings || history->peer->notify->mute <= t) {
+		const auto history = i.key();
+		const auto peer = history->peer;
+		auto loaded = false;
+		auto muted = false;
+		if (!peer->notifySettingsUnknown()) {
+			if (!peer->isMuted()) {
 				loaded = true;
-			} else if (PeerData *from = i.value().notifyByFrom) {
-				if (from->notify != UnknownNotifySettings) {
-					if (from->notify == EmptyNotifySettings || from->notify->mute <= t) {
+			} else if (const auto from = i.value().notifyByFrom) {
+				if (!from->notifySettingsUnknown()) {
+					if (!from->isMuted()) {
 						loaded = true;
 					} else {
 						loaded = muted = true;
@@ -187,7 +194,10 @@ void System::checkDelayed() {
 			}
 		}
 		if (loaded) {
-			if (HistoryItem *item = App::histItemById(history->channelId(), i.value().msg)) {
+			const auto fullId = FullMsgId(
+				history->channelId(),
+				i.value().msg);
+			if (const auto item = App::histItemById(fullId)) {
 				if (!item->notificationReady()) {
 					loaded = false;
 				}
@@ -216,14 +226,18 @@ void System::showNext() {
 	int32 now = unixtime();
 	for (auto i = _whenAlerts.begin(); i != _whenAlerts.end();) {
 		while (!i.value().isEmpty() && i.value().begin().key() <= ms) {
-			NotifySettingsPtr n = i.key()->peer->notify, f = i.value().begin().value() ? i.value().begin().value()->notify : UnknownNotifySettings;
-			while (!i.value().isEmpty() && i.value().begin().key() <= ms + 500) { // not more than one sound in 500ms from one peer - grouping
-				i.value().erase(i.value().begin());
+			const auto peer = i.key()->peer;
+			const auto peerUnknown = peer->notifySettingsUnknown();
+			const auto peerAlert = peerUnknown ? false : !peer->isMuted();
+			const auto from = i.value().begin().value();
+			const auto fromUnknown = (!from || from->notifySettingsUnknown());
+			const auto fromAlert = fromUnknown ? false : !from->isMuted();
+			if (peerAlert || fromAlert) {
+				alert = true;
 			}
-			if (n == EmptyNotifySettings || (n != UnknownNotifySettings && n->mute <= now)) {
-				alert = true;
-			} else if (f == EmptyNotifySettings || (f != UnknownNotifySettings && f->mute <= now)) { // notify by from()
-				alert = true;
+			while (!i.value().isEmpty()
+				&& i.value().begin().key() <= ms + kMinimalAlertDelay) {
+				i.value().erase(i.value().begin());
 			}
 		}
 		if (i.value().isEmpty()) {

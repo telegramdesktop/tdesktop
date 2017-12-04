@@ -259,9 +259,6 @@ EmptyUserpic::~EmptyUserpic() = default;
 
 using UpdateFlag = Notify::PeerUpdate::Flag;
 
-NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
-NotifySettingsPtr globalNotifyAllPtr = UnknownNotifySettings, globalNotifyUsersPtr = UnknownNotifySettings, globalNotifyChatsPtr = UnknownNotifySettings;
-
 PeerClickHandler::PeerClickHandler(not_null<PeerData*> peer)
 : _peer(peer) {
 }
@@ -290,6 +287,8 @@ PeerData::PeerData(const PeerId &id)
 	nameText.setText(st::msgNameStyle, QString(), _textNameOptions);
 	_userpicEmpty.set(id, QString());
 }
+
+PeerData::~PeerData() = default;
 
 void PeerData::updateNameDelayed(
 		const QString &newName,

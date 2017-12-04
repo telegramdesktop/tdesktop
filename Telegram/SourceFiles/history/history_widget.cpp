@@ -501,9 +501,16 @@ void SilentToggle::mouseReleaseEvent(QMouseEvent *e) {
 	setChecked(!_checked);
 	IconButton::mouseReleaseEvent(e);
 	Ui::Tooltip::Show(0, this);
-	auto p = App::main() ? App::main()->peer() : nullptr;
-	if (p && p->isChannel() && p->notify != UnknownNotifySettings) {
-		App::main()->updateNotifySetting(p, NotifySettingDontChange, _checked ? SilentNotifiesSetSilent : SilentNotifiesSetNotify);
+	if (const auto peer = App::main() ? App::main()->peer() : nullptr) {
+		if (peer->isChannel() && !peer->notifySettingsUnknown()) {
+			const auto silentState = _checked
+				? Data::NotifySettings::SilentPostsChange::Silent
+				: Data::NotifySettings::SilentPostsChange::Notify;
+			App::main()->updateNotifySettings(
+				peer,
+				Data::NotifySettings::MuteChange::Ignore,
+				silentState);
+		}
 	}
 }
 
@@ -695,6 +702,7 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 		| UpdateFlag::AdminsChanged
 		| UpdateFlag::MembersChanged
 		| UpdateFlag::UserOnlineChanged
+		| UpdateFlag::NotificationsEnabled
 		| UpdateFlag::ChannelAmIn;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(changes, [this](const Notify::PeerUpdate &update) {
 		if (update.peer == _peer) {
@@ -710,6 +718,9 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 					Auth().api().requestParticipantsCountDelayed(channel);
 					return;
 				}
+			}
+			if (update.flags & UpdateFlag::NotificationsEnabled) {
+				updateNotifySettings();
 			}
 			if (update.flags & UpdateFlag::RestrictionReasonChanged) {
 				auto restriction = _peer->restrictionReason();
@@ -1780,7 +1791,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 		if (_channel) {
 			updateNotifySettings();
-			if (_peer->notify == UnknownNotifySettings) {
+			if (_peer->notifySettingsUnknown()) {
 				Auth().api().requestNotifySetting(_peer);
 			}
 		}
@@ -1884,9 +1895,11 @@ void HistoryWidget::updateFieldSubmitSettings() {
 void HistoryWidget::updateNotifySettings() {
 	if (!_peer || !_peer->isChannel()) return;
 
-	_muteUnmute->setText(lang(_history->mute() ? lng_channel_unmute : lng_channel_mute).toUpper());
-	if (_peer->notify != UnknownNotifySettings) {
-		_silent->setChecked(_peer->notify != EmptyNotifySettings && (_peer->notify->flags & MTPDpeerNotifySettings::Flag::f_silent));
+	_muteUnmute->setText(lang(_history->mute()
+		? lng_channel_unmute
+		: lng_channel_mute).toUpper());
+	if (!_peer->notifySettingsUnknown()) {
+		_silent->setChecked(_peer->notifySilentPosts());
 		if (_silent->isHidden() && hasSilentToggle()) {
 			updateControlsVisibility();
 		}
@@ -3025,7 +3038,10 @@ bool HistoryWidget::joinFail(const RPCError &error, mtpRequestId req) {
 }
 
 void HistoryWidget::onMuteUnmute() {
-	App::main()->updateNotifySetting(_peer, _history->mute() ? NotifySettingSetNotify : NotifySettingSetMuted);
+	const auto muteState = _history->mute()
+		? Data::NotifySettings::MuteChange::Unmute
+		: Data::NotifySettings::MuteChange::Mute;
+	App::main()->updateNotifySettings(_peer, muteState);
 }
 
 void HistoryWidget::onBroadcastSilentChange() {
@@ -3638,7 +3654,11 @@ bool HistoryWidget::readyToForward() const {
 }
 
 bool HistoryWidget::hasSilentToggle() const {
-	return _peer && _peer->isChannel() && !_peer->isMegagroup() && _peer->asChannel()->canPublish() && _peer->notify != UnknownNotifySettings;
+	return _peer
+		&& _peer->isChannel()
+		&& !_peer->isMegagroup()
+		&& _peer->asChannel()->canPublish()
+		&& !_peer->notifySettingsUnknown();
 }
 
 void HistoryWidget::inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result) {

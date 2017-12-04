@@ -159,6 +159,8 @@
 <(src_loc)/data/data_drafts.h
 <(src_loc)/data/data_flags.h
 <(src_loc)/data/data_game.h
+<(src_loc)/data/data_notify_settings.cpp
+<(src_loc)/data/data_notify_settings.h
 <(src_loc)/data/data_peer.cpp
 <(src_loc)/data/data_peer.h
 <(src_loc)/data/data_peer_values.cpp

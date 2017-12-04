@@ -1432,23 +1432,36 @@ void ApiWrap::checkQuitPreventFinished() {
 	}
 }
 
-PeerData *ApiWrap::notifySettingReceived(MTPInputNotifyPeer notifyPeer, const MTPPeerNotifySettings &settings) {
+PeerData *ApiWrap::notifySettingReceived(
+		MTPInputNotifyPeer notifyPeer,
+		const MTPPeerNotifySettings &settings) {
 	PeerData *requestedPeer = nullptr;
 	switch (notifyPeer.type()) {
-	case mtpc_inputNotifyAll: App::main()->applyNotifySetting(MTP_notifyAll(), settings); break;
-	case mtpc_inputNotifyUsers: App::main()->applyNotifySetting(MTP_notifyUsers(), settings); break;
-	case mtpc_inputNotifyChats: App::main()->applyNotifySetting(MTP_notifyChats(), settings); break;
+	case mtpc_inputNotifyAll:
+		App::main()->applyNotifySetting(MTP_notifyAll(), settings);
+	break;
+	case mtpc_inputNotifyUsers:
+		App::main()->applyNotifySetting(MTP_notifyUsers(), settings);
+	break;
+	case mtpc_inputNotifyChats:
+		App::main()->applyNotifySetting(MTP_notifyChats(), settings);
+	break;
 	case mtpc_inputNotifyPeer: {
 		auto &peer = notifyPeer.c_inputNotifyPeer().vpeer;
 		switch (peer.type()) {
-		case mtpc_inputPeerEmpty: App::main()->applyNotifySetting(MTP_notifyPeer(MTP_peerUser(MTP_int(0))), settings); break;
+		case mtpc_inputPeerEmpty: App::main()->applyNotifySetting(
+			MTP_notifyPeer(MTP_peerUser(MTP_int(0))),
+			settings);
+		break;
 		case mtpc_inputPeerSelf: requestedPeer = App::self(); break;
 		case mtpc_inputPeerUser: requestedPeer = App::user(peerFromUser(peer.c_inputPeerUser().vuser_id)); break;
 		case mtpc_inputPeerChat: requestedPeer = App::chat(peerFromChat(peer.c_inputPeerChat().vchat_id)); break;
 		case mtpc_inputPeerChannel: requestedPeer = App::channel(peerFromChannel(peer.c_inputPeerChannel().vchannel_id)); break;
 		}
 		if (requestedPeer) {
-			App::main()->applyNotifySetting(MTP_notifyPeer(peerToMTP(requestedPeer->id)), settings);
+			App::main()->applyNotifySetting(
+				MTP_notifyPeer(peerToMTP(requestedPeer->id)),
+				settings);
 		}
 	} break;
 	}

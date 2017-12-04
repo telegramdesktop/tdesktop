@@ -262,8 +262,8 @@ namespace App {
 	void stopRoundVideoPlayback();
 	void stopGifItems();
 
-	void regMuted(PeerData *peer, int32 changeIn);
-	void unregMuted(PeerData *peer);
+	void regMuted(not_null<PeerData*> peer, TimeMs changeIn);
+	void unregMuted(not_null<PeerData*> peer);
 	void updateMuted();
 
 	void setProxySettings(QNetworkAccessManager &manager);

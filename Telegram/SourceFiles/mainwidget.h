@@ -75,17 +75,6 @@ class HistoryHider;
 
 class StackItem;
 
-enum SilentNotifiesStatus {
-	SilentNotifiesDontChange,
-	SilentNotifiesSetSilent,
-	SilentNotifiesSetNotify,
-};
-enum NotifySettingStatus {
-	NotifySettingDontChange,
-	NotifySettingSetMuted,
-	NotifySettingSetNotify,
-};
-
 namespace InlineBots {
 namespace Layout {
 class ItemBase;
@@ -114,9 +103,17 @@ public:
 	void stickersBox(const MTPInputStickerSet &set);
 
 	bool started();
-	void applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNotifySettings &settings, History *history = 0);
+	void applyNotifySetting(
+		const MTPNotifyPeer &notifyPeer,
+		const MTPPeerNotifySettings &settings,
+		History *history = 0);
 
-	void updateNotifySetting(PeerData *peer, NotifySettingStatus notify, SilentNotifiesStatus silent = SilentNotifiesDontChange, int muteFor = 86400 * 365);
+	void updateNotifySettings(
+		not_null<PeerData*> peer,
+		Data::NotifySettings::MuteChange mute,
+		Data::NotifySettings::SilentPostsChange silent
+			= Data::NotifySettings::SilentPostsChange::Ignore,
+		int muteForSeconds = 86400 * 365);
 
 	void incrementSticker(DocumentData *sticker);
 
@@ -303,7 +300,7 @@ public:
 
 	void webPageUpdated(WebPageData *page);
 	void gameUpdated(GameData *game);
-	void updateMutedIn(int32 seconds);
+	void updateMutedIn(TimeMs delay);
 
 	void choosePeer(PeerId peerId, MsgId showAtMsgId); // does offerPeer or showPeerHistory
 	void clearBotStartToken(PeerData *peer);
@@ -563,6 +560,10 @@ private:
 	void ensureFirstColumnResizeAreaCreated();
 	void ensureThirdColumnResizeAreaCreated();
 
+	void updateNotifySettingsLocal(
+		not_null<PeerData*> peer,
+		History *history = nullptr);
+
 	not_null<Window::Controller*> _controller;
 	bool _started = false;
 
@@ -636,7 +637,7 @@ private:
 	TimeMs _lastSetOnline = 0;
 	bool _isIdle = false;
 
-	QSet<PeerData*> updateNotifySettingPeers;
+	base::flat_set<not_null<PeerData*>> updateNotifySettingPeers;
 	SingleTimer updateNotifySettingTimer;
 
     typedef QMap<PeerData*, QPair<mtpRequestId, MsgId> > ReadRequests;

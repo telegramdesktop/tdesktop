@@ -14,16 +14,22 @@
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 
+namespace {
+
+constexpr auto kForeverHours = 24 * 365;
+
+} // namespace
+
 void MuteSettingsBox::prepare() {
 	setTitle(langFactory(lng_disable_notifications_from_tray));
-	int y = 0;
+	auto y = 0;
 
 	object_ptr<Ui::FlatLabel> info(this, st::boxLabel);
 	info->setText(lang(lng_mute_box_tip));
 	info->moveToLeft(st::boxPadding.left(), y);
 	y += info->height() + st::boxLittleSkip;
 
-	auto icon = object_ptr<Ui::UserpicButton>(
+	const auto icon = object_ptr<Ui::UserpicButton>(
 		this,
 		controller(),
 		_peer,
@@ -40,27 +46,34 @@ void MuteSettingsBox::prepare() {
 	// the icon is always higher than this chat title
 	y += icon->height() + st::boxMediumSkip;
 
-	const int FOREVER = 8760;  // in fact, this is mute only for 1 year
-	auto group = std::make_shared<Ui::RadiobuttonGroup>(FOREVER);
+	// in fact, this is mute only for 1 year
+	const auto group = std::make_shared<Ui::RadiobuttonGroup>(kForeverHours);
 	y += st::boxOptionListPadding.top();
-	for (int value : { 1, 4, 18, 72, FOREVER }) {  // periods in hours
-		QString text;
-		if (value < 24) {
-			text = lng_mute_duration_hours(lt_count, value);
-		} else if (value < FOREVER) {
-			text = lng_rights_chat_banned_day(lt_count, value / 24);
-		} else {
-			text = lang(lng_rights_chat_banned_forever);
-		}
-		object_ptr<Ui::Radiobutton> option(this, group, value, text);
+	for (const auto hours : { 1, 4, 18, 72, kForeverHours }) {
+		const auto text = [&] {
+			if (hours < 24) {
+				return lng_mute_duration_hours(lt_count, hours);
+			} else if (hours < kForeverHours) {
+				return lng_rights_chat_banned_day(lt_count, hours / 24);
+			} else {
+				return lang(lng_rights_chat_banned_forever);
+			}
+		}();
+		object_ptr<Ui::Radiobutton> option(this, group, hours, text);
 		option->moveToLeft(st::boxPadding.left(), y);
 		y += option->heightNoMargins() + st::boxOptionListSkip;
 	}
-	y += st::boxOptionListPadding.bottom() - st::boxOptionListSkip + st::defaultCheckbox.margin.bottom();
+	y += st::boxOptionListPadding.bottom()
+		- st::boxOptionListSkip
+		+ st::defaultCheckbox.margin.bottom();
 
 	addButton(langFactory(lng_box_ok), [this, group] {
-		App::main()->updateNotifySetting(_peer, NotifySettingSetMuted,
-			SilentNotifiesDontChange, group->value() * 3600);
+		auto muteForSeconds = group->value() * 3600;
+		App::main()->updateNotifySettings(
+			_peer,
+			Data::NotifySettings::MuteChange::Mute,
+			Data::NotifySettings::SilentPostsChange::Ignore,
+			muteForSeconds);
 		closeBox();
 	});
 	addButton(langFactory(lng_cancel), [this] { closeBox(); });

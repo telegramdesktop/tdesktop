@@ -820,11 +820,12 @@ void MainWidget::webPagesOrGamesUpdate() {
 	}
 }
 
-void MainWidget::updateMutedIn(int32 seconds) {
-	if (seconds > 86400) seconds = 86400;
-	int32 ms = seconds * 1000;
-	if (_updateMutedTimer.isActive() && _updateMutedTimer.remainingTime() <= ms) return;
-	_updateMutedTimer.start(ms);
+void MainWidget::updateMutedIn(TimeMs delay) {
+	accumulate_max(delay, 24 * 3600 * 1000LL);
+	if (!_updateMutedTimer.isActive()
+		|| _updateMutedTimer.remainingTime() > delay) {
+		_updateMutedTimer.start(delay);
+	}
 }
 
 void MainWidget::onUpdateMuted() {
@@ -3706,14 +3707,17 @@ void MainWidget::searchInPeer(PeerData *peer) {
 
 void MainWidget::onUpdateNotifySettings() {
 	if (this != App::main()) return;
-	while (!updateNotifySettingPeers.isEmpty()) {
-		PeerData *peer = *updateNotifySettingPeers.begin();
-		updateNotifySettingPeers.erase(updateNotifySettingPeers.begin());
 
-		if (peer->notify == UnknownNotifySettings || peer->notify == EmptyNotifySettings) {
-			peer->notify = new NotifySettings();
-		}
-		MTP::send(MTPaccount_UpdateNotifySettings(MTP_inputNotifyPeer(peer->input), MTP_inputPeerNotifySettings(MTP_flags(mtpCastFlags(peer->notify->flags)), MTP_int(peer->notify->mute), MTP_string(peer->notify->sound))), RPCResponseHandler(), 0, updateNotifySettingPeers.isEmpty() ? 0 : 10);
+	while (!updateNotifySettingPeers.empty()) {
+		auto peer = *updateNotifySettingPeers.begin();
+		updateNotifySettingPeers.erase(updateNotifySettingPeers.begin());
+		MTP::send(
+			MTPaccount_UpdateNotifySettings(
+				MTP_inputNotifyPeer(peer->input),
+				peer->notifySerialize()),
+			RPCResponseHandler(),
+			0,
+			updateNotifySettingPeers.empty() ? 0 : 10);
 	}
 }
 
@@ -4450,112 +4454,60 @@ void MainWidget::startWithSelf(const MTPUserFull &result) {
 	}
 }
 
-void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNotifySettings &settings, History *h) {
-	PeerData *updatePeer = nullptr;
-	bool changed = false;
-	switch (settings.type()) {
-	case mtpc_peerNotifySettingsEmpty:
-		switch (peer.type()) {
-		case mtpc_notifyAll: globalNotifyAllPtr = EmptyNotifySettings; break;
-		case mtpc_notifyUsers: globalNotifyUsersPtr = EmptyNotifySettings; break;
-		case mtpc_notifyChats: globalNotifyChatsPtr = EmptyNotifySettings; break;
-		case mtpc_notifyPeer: {
-			if ((updatePeer = App::peerLoaded(peerFromMTP(peer.c_notifyPeer().vpeer)))) {
-				changed = (updatePeer->notify != EmptyNotifySettings);
-				if (changed) {
-					if (updatePeer->notify != UnknownNotifySettings) {
-						delete updatePeer->notify;
-					}
-					updatePeer->notify = EmptyNotifySettings;
-					App::unregMuted(updatePeer);
-					if (!h) h = App::history(updatePeer->id);
-					h->setMute(false);
-				}
-			}
-		} break;
-		}
-	break;
-	case mtpc_peerNotifySettings: {
-		const auto &d(settings.c_peerNotifySettings());
-		NotifySettingsPtr setTo = UnknownNotifySettings;
-		switch (peer.type()) {
-		case mtpc_notifyAll: setTo = globalNotifyAllPtr = &globalNotifyAll; break;
-		case mtpc_notifyUsers: setTo = globalNotifyUsersPtr = &globalNotifyUsers; break;
-		case mtpc_notifyChats: setTo = globalNotifyChatsPtr = &globalNotifyChats; break;
-		case mtpc_notifyPeer: {
-			if ((updatePeer = App::peerLoaded(peerFromMTP(peer.c_notifyPeer().vpeer)))) {
-				if (updatePeer->notify == UnknownNotifySettings || updatePeer->notify == EmptyNotifySettings) {
-					changed = true;
-					updatePeer->notify = new NotifySettings();
-				}
-				setTo = updatePeer->notify;
-			}
-		} break;
-		}
-		if (setTo == UnknownNotifySettings) break;
-
-		auto sound = qs(d.vsound);
-		changed = (setTo->flags != d.vflags.v) || (setTo->mute != d.vmute_until.v) || (setTo->sound != sound);
-		if (changed) {
-			setTo->flags = d.vflags.v;
-			setTo->mute = d.vmute_until.v;
-			setTo->sound = sound;
-			if (updatePeer) {
-				if (!h) h = App::history(updatePeer->id);
-				int32 changeIn = 0;
-				if (isNotifyMuted(setTo, &changeIn)) {
-					Auth().notifications().clearFromHistory(h);
-					h->setMute(true);
-					App::regMuted(updatePeer, changeIn);
-				} else {
-					h->setMute(false);
-				}
-			}
-		}
-	} break;
+void MainWidget::applyNotifySetting(
+		const MTPNotifyPeer &notifyPeer,
+		const MTPPeerNotifySettings &settings,
+		History *history) {
+	if (notifyPeer.type() != mtpc_notifyPeer) {
+		// Ignore those for now, they were not ever used.
+		return;
 	}
 
-	if (updatePeer) {
-		if (_history->peer() == updatePeer) {
-			_history->updateNotifySettings();
-		}
+	const auto &data = notifyPeer.c_notifyPeer();
+	const auto peer = App::peerLoaded(peerFromMTP(data.vpeer));
+	if (!peer || !peer->notifyChange(settings)) {
+		return;
+	}
+
+	updateNotifySettingsLocal(peer, history);
+}
+
+void MainWidget::updateNotifySettings(
+		not_null<PeerData*> peer,
+		Data::NotifySettings::MuteChange mute,
+		Data::NotifySettings::SilentPostsChange silent,
+		int muteForSeconds) {
+	if (peer->notifyChange(mute, silent, muteForSeconds)) {
+		updateNotifySettingsLocal(peer);
+		updateNotifySettingPeers.insert(peer);
+		updateNotifySettingTimer.start(NotifySettingSaveTimeout);
 	}
 }
 
-void MainWidget::updateNotifySetting(PeerData *peer, NotifySettingStatus notify, SilentNotifiesStatus silent, int muteFor) {
-	if (notify == NotifySettingDontChange && silent == SilentNotifiesDontChange) return;
+void MainWidget::updateNotifySettingsLocal(
+		not_null<PeerData*> peer,
+		History *history) {
+	if (!history) {
+		history = App::historyLoaded(peer->id);
+	}
 
-	updateNotifySettingPeers.insert(peer);
-	if (peer->notify == EmptyNotifySettings) {
-		if (notify == NotifySettingSetMuted || silent == SilentNotifiesSetSilent) {
-			peer->notify = new NotifySettings();
-		}
-	} else if (peer->notify == UnknownNotifySettings) {
-		peer->notify = new NotifySettings();
+	const auto muteFinishesIn = peer->notifyMuteFinishesIn();
+	const auto muted = (muteFinishesIn > 0);
+	if (history && history->changeMute(muted)) {
+		// Notification already sent.
+	} else {
+		Notify::peerUpdatedDelayed(
+			peer,
+			Notify::PeerUpdate::Flag::NotificationsEnabled);
 	}
-	if (peer->notify != EmptyNotifySettings && peer->notify != UnknownNotifySettings) {
-		if (notify != NotifySettingDontChange) {
-			if ((notify != NotifySettingSetMuted) && peer->notify->sound.isEmpty()) {
-				peer->notify->sound = qsl("default");
-			}
-			peer->notify->mute = (notify == NotifySettingSetMuted) ? (unixtime() + muteFor) : 0;
+	if (muted) {
+		App::regMuted(peer, muteFinishesIn);
+		if (history) {
+			Auth().notifications().clearFromHistory(history);
 		}
-		if (silent == SilentNotifiesSetSilent) {
-			peer->notify->flags |= MTPDpeerNotifySettings::Flag::f_silent;
-		} else if (silent == SilentNotifiesSetNotify) {
-			peer->notify->flags &= ~MTPDpeerNotifySettings::Flag::f_silent;
-		}
+	} else {
+		App::unregMuted(peer);
 	}
-	if (notify != NotifySettingDontChange) {
-		if (notify == NotifySettingSetMuted) {
-			App::regMuted(peer, muteFor + 1);
-		} else {
-			App::unregMuted(peer);
-		}
-		App::history(peer->id)->setMute(notify == NotifySettingSetMuted);
-	}
-	if (_history->peer() == peer) _history->updateNotifySettings();
-	updateNotifySettingTimer.start(NotifySettingSaveTimeout);
 }
 
 void MainWidget::incrementSticker(DocumentData *sticker) {

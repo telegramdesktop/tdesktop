@@ -127,7 +127,8 @@ rpl::producer<bool> NotificationsEnabledValue(
 	return Notify::PeerUpdateValue(
 			peer,
 			Notify::PeerUpdate::Flag::NotificationsEnabled)
-		| rpl::map([peer] { return !peer->isMuted(); });
+		| rpl::map([peer] { return !peer->isMuted(); })
+		| rpl::distinct_until_changed();
 }
 
 rpl::producer<bool> IsContactValue(

@@ -60,7 +60,7 @@ namespace {
 	using PeersData = QHash<PeerId, PeerData*>;
 	PeersData peersData;
 
-	using MutedPeers = QMap<PeerData*, bool>;
+	using MutedPeers = QMap<not_null<PeerData*>, bool>;
 	MutedPeers mutedPeers;
 
 	PhotosData photosData;
@@ -195,9 +195,6 @@ namespace {
 		Window::Theme::Background()->reset();
 
 		cSetOtherOnline(0);
-		globalNotifyAllPtr = UnknownNotifySettings;
-		globalNotifyUsersPtr = UnknownNotifySettings;
-		globalNotifyChatsPtr = UnknownNotifySettings;
 		clearStorageImages();
 		if (auto w = wnd()) {
 			w->updateConnectingStatus();
@@ -2598,28 +2595,32 @@ namespace {
 		return QString();
 	}
 
-	void regMuted(PeerData *peer, int32 changeIn) {
+	void regMuted(not_null<PeerData*> peer, TimeMs changeIn) {
 		::mutedPeers.insert(peer, true);
-		if (App::main()) App::main()->updateMutedIn(changeIn);
+		App::main()->updateMutedIn(changeIn);
 	}
 
-	void unregMuted(PeerData *peer) {
+	void unregMuted(not_null<PeerData*> peer) {
 		::mutedPeers.remove(peer);
 	}
 
 	void updateMuted() {
-		int32 changeInMin = 0;
-		for (MutedPeers::iterator i = ::mutedPeers.begin(); i != ::mutedPeers.end();) {
-			int32 changeIn = 0;
-			History *h = App::history(i.key()->id);
-			if (isNotifyMuted(i.key()->notify, &changeIn)) {
-				h->setMute(true);
-				if (changeIn && (!changeInMin || changeIn < changeInMin)) {
-					changeInMin = changeIn;
+		auto changeInMin = TimeMs(0);
+		for (auto i = ::mutedPeers.begin(); i != ::mutedPeers.end();) {
+			const auto history = App::historyLoaded(i.key()->id);
+			const auto muteFinishesIn = i.key()->notifyMuteFinishesIn();
+			if (muteFinishesIn > 0) {
+				if (history) {
+					history->changeMute(true);
+				}
+				if (!changeInMin || muteFinishesIn < changeInMin) {
+					changeInMin = muteFinishesIn;
 				}
 				++i;
 			} else {
-				h->setMute(false);
+				if (history) {
+					history->changeMute(false);
+				}
 				i = ::mutedPeers.erase(i);
 			}
 		}

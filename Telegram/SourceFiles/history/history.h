@@ -261,7 +261,7 @@ public:
 	bool mute() const {
 		return _mute;
 	}
-	void setMute(bool newMute);
+	bool changeMute(bool newMute);
 	void getNextShowFrom(HistoryBlock *block, int i);
 	void addUnreadBar();
 	void destroyUnreadBar();

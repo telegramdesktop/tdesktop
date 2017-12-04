@@ -1487,7 +1487,10 @@ void DialogsInner::dialogsReceived(const QVector<MTPDialog> &added) {
 				}
 			}
 		}
-		App::main()->applyNotifySetting(MTP_notifyPeer(d.vpeer), d.vnotify_settings, history);
+		App::main()->applyNotifySetting(
+			MTP_notifyPeer(d.vpeer),
+			d.vnotify_settings,
+			history);
 
 		if (!history->isPinnedDialog() && !history->lastMsgDate.isNull()) {
 			addSavedPeersAfter(history->lastMsgDate);

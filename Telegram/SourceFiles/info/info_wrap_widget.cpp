@@ -357,7 +357,7 @@ void WrapWidget::addProfileMenuButton() {
 void WrapWidget::addProfileNotificationsButton() {
 	Expects(_topBar != nullptr);
 
-	auto peer = _controller->peer();
+	const auto peer = _controller->peer();
 	auto notifications = _topBar->addButton(
 		base::make_unique_q<Ui::IconButton>(
 			_topBar,
@@ -365,18 +365,17 @@ void WrapWidget::addProfileNotificationsButton() {
 				? st::infoLayerTopBarNotifications
 				: st::infoTopBarNotifications)));
 	notifications->addClickHandler([peer] {
-		App::main()->updateNotifySetting(
-			peer,
-			peer->isMuted()
-				? NotifySettingSetNotify
-				: NotifySettingSetMuted);
+		const auto muteState = peer->isMuted()
+			? Data::NotifySettings::MuteChange::Unmute
+			: Data::NotifySettings::MuteChange::Mute;
+		App::main()->updateNotifySettings(peer, muteState);
 	});
 	Profile::NotificationsEnabledValue(peer)
 		| rpl::start_with_next([notifications](bool enabled) {
-			auto iconOverride = enabled
+			const auto iconOverride = enabled
 				? &st::infoNotificationsActive
 				: nullptr;
-			auto rippleOverride = enabled
+			const auto rippleOverride = enabled
 				? &st::lightButtonBgOver
 				: nullptr;
 			notifications->setIconOverride(iconOverride, iconOverride);

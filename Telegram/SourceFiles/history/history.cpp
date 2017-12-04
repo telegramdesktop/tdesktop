@@ -85,7 +85,7 @@ History::History(const PeerId &peerId)
 : peer(App::peer(peerId))
 , lastItemTextCache(st::dialogsTextWidthMin)
 , cloudDraftTextCache(st::dialogsTextWidthMin)
-, _mute(isNotifyMuted(peer->notify))
+, _mute(peer->isMuted())
 , _sendActionText(st::dialogsTextWidthMin) {
 	if (peer->isUser() && peer->asUser()->botInfo) {
 		outboxReadBefore = INT_MAX;
@@ -1912,21 +1912,23 @@ void History::setUnreadCount(int newUnreadCount) {
 	}
 }
 
- void History::setMute(bool newMute) {
-	if (_mute != newMute) {
-		_mute = newMute;
-		if (inChatList(Dialogs::Mode::All)) {
-			if (_unreadCount) {
-				App::histories().unreadMuteChanged(_unreadCount, newMute);
-				Notify::unreadCounterUpdated();
-			}
-			Notify::historyMuteUpdated(this);
-		}
-		updateChatListEntry();
-		Notify::peerUpdatedDelayed(
-			peer,
-			Notify::PeerUpdate::Flag::NotificationsEnabled);
+bool History::changeMute(bool newMute) {
+	if (_mute == newMute) {
+		return false;
 	}
+	_mute = newMute;
+	if (inChatList(Dialogs::Mode::All)) {
+		if (_unreadCount) {
+			App::histories().unreadMuteChanged(_unreadCount, newMute);
+			Notify::unreadCounterUpdated();
+		}
+		Notify::historyMuteUpdated(this);
+	}
+	updateChatListEntry();
+	Notify::peerUpdatedDelayed(
+		peer,
+		Notify::PeerUpdate::Flag::NotificationsEnabled);
+	return true;
 }
 
 void History::getNextShowFrom(HistoryBlock *block, int i) {

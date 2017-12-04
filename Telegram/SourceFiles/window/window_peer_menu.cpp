@@ -238,17 +238,19 @@ void Filler::addNotifications() {
 		if (!peer->isMuted()) {
 			Ui::show(Box<MuteSettingsBox>(peer));
 		} else {
-			App::main()->updateNotifySetting(
+			App::main()->updateNotifySettings(
 				peer,
-				NotifySettingSetNotify);
+				Data::NotifySettings::MuteChange::Unmute);
 		}
 	});
 
 	auto lifetime = Notify::PeerUpdateViewer(
 		_peer,
 		Notify::PeerUpdate::Flag::NotificationsEnabled)
-		| rpl::start_with_next([=] {
-			muteAction->setText(muteText(peer->isMuted()));
+		| rpl::map([=] { return peer->isMuted(); })
+		| rpl::distinct_until_changed()
+		| rpl::start_with_next([=](bool muted) {
+			muteAction->setText(muteText(muted));
 		});
 
 	Ui::AttachAsChild(muteAction, std::move(lifetime));

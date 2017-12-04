@@ -22,50 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "data/data_types.h"
 #include "data/data_flags.h"
-
-struct NotifySettings {
-	NotifySettings() = default;
-
-	bool previews() const {
-		return flags & MTPDpeerNotifySettings::Flag::f_show_previews;
-	}
-	bool silent() const {
-		return flags & MTPDpeerNotifySettings::Flag::f_silent;
-	}
-
-	MTPDpeerNotifySettings::Flags flags
-		= MTPDpeerNotifySettings::Flag::f_show_previews;
-	TimeId mute = 0;
-	QString sound = qsl("default");
-
-};
-typedef NotifySettings *NotifySettingsPtr;
-
-static const NotifySettingsPtr UnknownNotifySettings
-	= NotifySettingsPtr(0);
-static const NotifySettingsPtr EmptyNotifySettings
-	= NotifySettingsPtr(1);
-extern NotifySettings globalNotifyAll;
-extern NotifySettings globalNotifyUsers;
-extern NotifySettings globalNotifyChats;
-extern NotifySettingsPtr globalNotifyAllPtr;
-extern NotifySettingsPtr globalNotifyUsersPtr;
-extern NotifySettingsPtr globalNotifyChatsPtr;
-
-inline bool isNotifyMuted(
-		NotifySettingsPtr settings,
-		TimeId *changeIn = nullptr) {
-	if (settings != UnknownNotifySettings
-		&& settings != EmptyNotifySettings) {
-		auto t = unixtime();
-		if (settings->mute > t) {
-			if (changeIn) *changeIn = settings->mute - t + 1;
-			return true;
-		}
-	}
-	if (changeIn) *changeIn = 0;
-	return false;
-}
+#include "data/data_notify_settings.h"
 
 int PeerColorIndex(PeerId peerId);
 int PeerColorIndex(int32 bareId);
@@ -142,12 +99,7 @@ protected:
 	PeerData &operator=(const PeerData &other) = delete;
 
 public:
-	virtual ~PeerData() {
-		if (notify != UnknownNotifySettings
-			&& notify != EmptyNotifySettings) {
-			delete base::take(notify);
-		}
-	}
+	virtual ~PeerData();
 
 	bool isUser() const {
 		return peerIsUser(id);
@@ -163,11 +115,32 @@ public:
 	}
 	bool isVerified() const;
 	bool isMegagroup() const;
-	bool isMuted() const {
-		return (notify != EmptyNotifySettings)
-			&& (notify != UnknownNotifySettings)
-			&& (notify->mute >= unixtime());
+
+	TimeMs notifyMuteFinishesIn() const {
+		return _notify.muteFinishesIn();
 	}
+	bool notifyChange(const MTPPeerNotifySettings &settings) {
+		return _notify.change(settings);
+	}
+	bool notifyChange(
+			Data::NotifySettings::MuteChange mute,
+			Data::NotifySettings::SilentPostsChange silent,
+			int muteForSeconds) {
+		return _notify.change(mute, silent, muteForSeconds);
+	}
+	bool notifySettingsUnknown() const {
+		return _notify.settingsUnknown();
+	}
+	bool notifySilentPosts() const {
+		return _notify.silentPosts();
+	}
+	MTPinputPeerNotifySettings notifySerialize() const {
+		return _notify.serialize();
+	}
+	bool isMuted() const {
+		return (notifyMuteFinishesIn() > 0);
+	}
+
 	bool canWrite() const;
 	UserData *asUser();
 	const UserData *asUser() const;
@@ -265,8 +238,6 @@ public:
 
 	int nameVersion = 1;
 
-	NotifySettingsPtr notify = UnknownNotifySettings;
-
 	// if this string is not empty we must not allow to open the
 	// conversation and we must show this string instead
 	virtual QString restrictionReason() const {
@@ -295,6 +266,8 @@ protected:
 
 private:
 	void fillNames();
+
+	Data::NotifySettings _notify;
 
 	ClickHandlerPtr _openLink;
 	NameWords _nameWords; // for filtering
