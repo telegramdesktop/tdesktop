@@ -187,7 +187,7 @@ void Members::setupButtons() {
 		contentMemento->setState(saveState());
 		auto mementoStack = std::vector<std::unique_ptr<ContentMemento>>();
 		mementoStack.push_back(std::move(contentMemento));
-		_controller->window()->showSection(
+		_controller->showSection(
 			Info::Memento(std::move(mementoStack)));
 	});
 

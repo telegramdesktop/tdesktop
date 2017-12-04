@@ -382,7 +382,7 @@ void Cover::refreshStatusText() {
 	_status->setRichText(statusText);
 	if (hasMembersLink) {
 		_status->setLink(1, MakeShared<LambdaClickHandler>([=] {
-			_controller->window()->showSection(Info::Memento(
+			_controller->showSection(Info::Memento(
 				_controller->peerId(),
 				Section::Type::Members));
 		}));

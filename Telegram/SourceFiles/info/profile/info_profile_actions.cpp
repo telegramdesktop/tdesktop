@@ -729,7 +729,7 @@ object_ptr<Ui::RpWidget> SetupChannelMembers(
 		return lng_chat_status_members(lt_count, count);
 	});
 	auto membersCallback = [controller, channel] {
-		controller->window()->showSection(Info::Memento(
+		controller->showSection(Info::Memento(
 			channel->id,
 			Section::Type::Members));
 	};
