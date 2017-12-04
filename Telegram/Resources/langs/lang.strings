@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 "lng_language_name" = "English";
-"lng_switch_to_this" = "Switch to English";
+"lng_switch_to_this" = "Continue in English";
 
 "lng_menu_contacts" = "Contacts";
 "lng_menu_calls" = "Calls";
@@ -302,7 +302,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_workmode_window" = "Show taskbar icon";
 "lng_settings_auto_start" = "Launch Telegram when system starts";
 "lng_settings_start_min" = "Launch minimized";
-"lng_settings_add_sendto" = "Place Telegram in «Send to» menu";
+"lng_settings_add_sendto" = "Place Telegram in \"Send to\" menu";
 "lng_settings_section_scale" = "Interface Scale";
 "lng_settings_scale_auto" = "Auto ({cur})";
 
@@ -532,7 +532,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_mute_duration_hours#one" = "For {count} hour";
 "lng_mute_duration_hours#other" = "For {count} hours";
-"lng_mute_box_tip" = "Choose duration of turning off notifications from the following chat";
+"lng_mute_box_tip" = "Choose for how long you would like to turn off notifications for the following chat";
 
 "lng_preview_loading" = "Getting Link Info...";
 
@@ -567,7 +567,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_block_bot" = "Stop and block bot";
 "lng_profile_unblock_bot" = "Unblock bot";
 "lng_profile_invite_to_group" = "Add to Group";
-"lng_profile_delete_contact" = "Delete Contact";
+"lng_profile_delete_contact" = "Delete";
 "lng_profile_set_group_photo" = "Set Photo";
 "lng_profile_add_participant" = "Add Members";
 "lng_profile_view_channel" = "View Channel";
@@ -933,7 +933,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_stickers_group_set" = "Group sticker set";
 "lng_stickers_remove_group_set" = "Remove group sticker set?";
 "lng_stickers_group_from_your" = "Choose from your stickers";
-"lng_stickers_group_from_featured" = "Choose from featured stickers";
+"lng_stickers_group_from_featured" = "Choose from trending stickers";
 
 "lng_in_dlg_photo" = "Photo";
 "lng_in_dlg_video" = "Video";
@@ -977,7 +977,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_channel_mute" = "Mute";
 "lng_channel_unmute" = "Unmute";
 "lng_saved_messages" = "Saved Messages";
-"lng_saved_short" = "Saved";
+"lng_saved_short" = "Save";
 "lng_saved_forward_here" = "Forward messages here for quick access";
 
 "lng_dialogs_text_with_from" = "{from_part} {message}";
@@ -1108,8 +1108,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_forward_cant" = "Sorry, no way to forward here :(";
 "lng_forward_share_contact" = "Share contact to {recipient}?";
 "lng_forward_share_cant" = "Sorry, no way to share contact here :(";
-"lng_forward_send_file_confirm" = "Send «{name}» to {recipient}?";
-"lng_forward_send_files_confirm" = "Send selected files to {recipient}?";
+
+
 "lng_forward_send_files_cant" = "Sorry, no way to send media here :(";
 "lng_forward_send" = "Send";
 "lng_forward_messages#one" = "{count} forwarded message";
