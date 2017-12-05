@@ -66,7 +66,7 @@ style::color FromNameFg(not_null<PeerData*> peer, bool selected) {
 			st::historyPeer7NameFgSelected,
 			st::historyPeer8NameFgSelected,
 		};
-		return colors[PeerColorIndex(peer->id)];
+		return colors[Data::PeerColorIndex(peer->id)];
 	} else {
 		const style::color colors[] = {
 			st::historyPeer1NameFg,
@@ -78,7 +78,7 @@ style::color FromNameFg(not_null<PeerData*> peer, bool selected) {
 			st::historyPeer7NameFg,
 			st::historyPeer8NameFg,
 		};
-		return colors[PeerColorIndex(peer->id)];
+		return colors[Data::PeerColorIndex(peer->id)];
 	}
 }
 

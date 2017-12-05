@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Ui {
 class Checkbox;
 class FlatLabel;
+class EmptyUserpic;
 } // namespace Ui
 
 class InformBox;
@@ -207,6 +208,7 @@ private:
 class ConfirmInviteBox : public BoxContent, public RPCSender {
 public:
 	ConfirmInviteBox(QWidget*, const QString &title, bool isChannel, const MTPChatPhoto &photo, int count, const QVector<UserData*> &participants);
+	~ConfirmInviteBox();
 
 protected:
 	void prepare() override;
@@ -218,7 +220,7 @@ private:
 	object_ptr<Ui::FlatLabel> _title;
 	object_ptr<Ui::FlatLabel> _status;
 	ImagePtr _photo;
-	EmptyUserpic _photoEmpty;
+	std::unique_ptr<Ui::EmptyUserpic> _photoEmpty;
 	QVector<UserData*> _participants;
 
 	int _userWidth = 0;

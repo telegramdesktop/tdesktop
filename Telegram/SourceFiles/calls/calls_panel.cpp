@@ -29,6 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/shadow.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/empty_userpic.h"
 #include "messenger.h"
 #include "mainwindow.h"
 #include "lang/lang_keys.h"
@@ -484,7 +485,10 @@ void Panel::createUserpicCache(ImagePtr image) {
 		filled.setDevicePixelRatio(cRetinaFactor());
 		{
 			Painter p(&filled);
-			EmptyUserpic(_user->id, _user->name).paintSquare(p, 0, 0, st::callWidth, st::callWidth);
+			Ui::EmptyUserpic(
+				Data::PeerUserpicColor(_user->id),
+				_user->name
+			).paintSquare(p, 0, 0, st::callWidth, st::callWidth);
 		}
 		Images::prepareRound(filled, ImageRoundRadius::Large, ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight);
 		_userPhoto = App::pixmapFromImageInPlace(std::move(filled));

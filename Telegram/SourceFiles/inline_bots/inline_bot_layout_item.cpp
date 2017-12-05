@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "inline_bots/inline_bot_layout_internal.h"
 #include "storage/localstorage.h"
 #include "mainwidget.h"
+#include "ui/empty_userpic.h"
 
 namespace InlineBots {
 namespace Layout {
@@ -153,8 +154,8 @@ ImagePtr ItemBase::getResultThumb() const {
 
 QPixmap ItemBase::getResultContactAvatar(int width, int height) const {
 	if (_result->_type == Result::Type::Contact) {
-		auto result = EmptyUserpic(
-			_result->_id,
+		auto result = Ui::EmptyUserpic(
+			Data::PeerUserpicColor(qHash(_result->_id)),
 			_result->getLayoutTitle()
 		).generate(width);
 		if (result.height() != height * cIntRetinaFactor()) {

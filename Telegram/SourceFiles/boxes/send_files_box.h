@@ -27,6 +27,7 @@ namespace Ui {
 class Checkbox;
 class RoundButton;
 class InputArea;
+class EmptyUserpic;
 } // namespace Ui
 
 class SendFilesBox : public BoxContent {
@@ -43,6 +44,8 @@ public:
 	void setCancelledCallback(base::lambda<void()> callback) {
 		_cancelledCallback = std::move(callback);
 	}
+
+	~SendFilesBox();
 
 protected:
 	void prepare() override;
@@ -96,7 +99,7 @@ private:
 	QString _contactPhone;
 	QString _contactFirstName;
 	QString _contactLastName;
-	EmptyUserpic _contactPhotoEmpty;
+	std::unique_ptr<Ui::EmptyUserpic> _contactPhotoEmpty;
 
 	base::lambda<void(const QStringList &files, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, bool compressed, const QString &caption, bool ctrlShiftEnter)> _confirmedCallback;
 	base::lambda<void()> _cancelledCallback;

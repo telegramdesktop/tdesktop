@@ -38,6 +38,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/window_controller.h"
 #include "styles/style_history.h"
 #include "calls/calls_instance.h"
+#include "ui/empty_userpic.h"
 
 namespace {
 
@@ -2981,8 +2982,8 @@ void HistoryContact::initDimensions() {
 	if (_contact) {
 		_contact->loadUserpic();
 	} else {
-		_photoEmpty.set(
-			_userId ? _userId : _parent->id,
+		_photoEmpty = std::make_unique<Ui::EmptyUserpic>(
+			Data::PeerUserpicColor(_userId ? _userId : _parent->id),
 			_name.originalText());
 	}
 	if (_contact && _contact->contact > 0) {
@@ -3046,7 +3047,7 @@ void HistoryContact::draw(Painter &p, const QRect &r, TextSelection selection, T
 		if (_contact) {
 			_contact->paintUserpic(p, rthumb.x(), rthumb.y(), st::msgFileThumbSize);
 		} else {
-			_photoEmpty.paint(p, st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top() - topMinus, width, st::msgFileThumbSize);
+			_photoEmpty->paint(p, st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top() - topMinus, width, st::msgFileThumbSize);
 		}
 		if (selected) {
 			PainterHighQualityEnabler hq(p);
@@ -3065,7 +3066,7 @@ void HistoryContact::draw(Painter &p, const QRect &r, TextSelection selection, T
 		nameright = st::msgFilePadding.left();
 		statustop = st::msgFileStatusTop - topMinus;
 
-		_photoEmpty.paint(p, st::msgFilePadding.left(), st::msgFilePadding.top() - topMinus, width, st::msgFileSize);
+		_photoEmpty->paint(p, st::msgFilePadding.left(), st::msgFilePadding.top() - topMinus, width, st::msgFileSize);
 	}
 	int32 namewidth = width - nameleft - nameright;
 
@@ -3132,6 +3133,8 @@ void HistoryContact::updateSentMedia(const MTPMessageMedia &media) {
 		}
 	}
 }
+
+HistoryContact::~HistoryContact() = default;
 
 HistoryCall::HistoryCall(not_null<HistoryItem*> parent, const MTPDmessageActionPhoneCall &call) : HistoryMedia(parent)
 , _reason(GetReason(call)) {

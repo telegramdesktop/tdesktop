@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/empty_userpic.h"
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 #include "media/media_clip_reader.h"
@@ -235,7 +236,9 @@ SendFilesBox::SendFilesBox(QWidget*, const QString &phone, const QString &firstn
 	_nameText.setText(st::semiboldTextStyle, name, _textNameOptions);
 	_statusText = _contactPhone;
 	_statusWidth = qMax(_nameText.maxWidth(), st::normalFont->width(_statusText));
-	_contactPhotoEmpty.set(0, name);
+	_contactPhotoEmpty = std::make_unique<Ui::EmptyUserpic>(
+		Data::PeerUserpicColor(0),
+		name);
 }
 
 void SendFilesBox::prepare() {
@@ -400,7 +403,7 @@ void SendFilesBox::paintEvent(QPaintEvent *e) {
 				auto &icon = _fileIsAudio ? st::historyFileOutPlay : _fileIsImage ? st::historyFileOutImage : st::historyFileOutDocument;
 				icon.paintInCenter(p, inner);
 			} else {
-				_contactPhotoEmpty.paint(p, x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), width(), st::msgFileSize);
+				_contactPhotoEmpty->paint(p, x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), width(), st::msgFileSize);
 			}
 		} else {
 			QRect rthumb(rtlrect(x + st::msgFileThumbPadding.left(), y + st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, width()));
@@ -456,6 +459,8 @@ void SendFilesBox::onSend(bool ctrlShiftEnter) {
 	}
 	closeBox();
 }
+
+SendFilesBox::~SendFilesBox() = default;
 
 EditCaptionBox::EditCaptionBox(QWidget*, HistoryMedia *media, FullMsgId msgId) : _msgId(msgId) {
 	Expects(media->canEditCaption());

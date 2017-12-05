@@ -24,53 +24,22 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "data/data_flags.h"
 #include "data/data_notify_settings.h"
 
-int PeerColorIndex(PeerId peerId);
-int PeerColorIndex(int32 bareId);
-
-class EmptyUserpic {
-public:
-	EmptyUserpic();
-	EmptyUserpic(PeerId peerId, const QString &name);
-	EmptyUserpic(const QString &nonce, const QString &name);
-
-	void set(PeerId peerId, const QString &name);
-	void clear();
-
-	explicit operator bool() const {
-		return (_impl != nullptr);
-	}
-
-	void paint(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size) const;
-	void paintRounded(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size) const;
-	void paintSquare(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size) const;
-	QPixmap generate(int size);
-	StorageKey uniqueKey() const;
-
-	~EmptyUserpic();
-
-private:
-	class Impl;
-	std::unique_ptr<Impl> _impl;
-	friend class Impl;
-
-};
+namespace Ui {
+class EmptyUserpic;
+} // namespace Ui
 
 class PeerData;
+class UserData;
+class ChatData;
+class ChannelData;
+
+namespace Data {
+
+int PeerColorIndex(PeerId peerId);
+int PeerColorIndex(int32 bareId);
+style::color PeerUserpicColor(PeerId peerId);
+
+} // namespace Data
 
 class PeerClickHandler : public ClickHandler {
 public:
@@ -85,10 +54,6 @@ private:
 	not_null<PeerData*> _peer;
 
 };
-
-class UserData;
-class ChatData;
-class ChannelData;
 
 class PeerData {
 protected:
@@ -270,12 +235,14 @@ protected:
 
 private:
 	void fillNames();
+	std::unique_ptr<Ui::EmptyUserpic> createEmptyUserpic() const;
+	void refreshEmptyUserpic() const;
 
 	static constexpr auto kUnknownPhotoId = PhotoId(0xFFFFFFFFFFFFFFFFULL);
 
 	ImagePtr _userpic;
 	PhotoId _userpicPhotoId = kUnknownPhotoId;
-	mutable EmptyUserpic _userpicEmpty;
+	mutable std::unique_ptr<Ui::EmptyUserpic> _userpicEmpty;
 	StorageImageLocation _userpicLocation;
 
 	Data::NotifySettings _notify;
