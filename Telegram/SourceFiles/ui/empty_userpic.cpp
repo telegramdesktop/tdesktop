@@ -84,10 +84,23 @@ void EmptyUserpic::PaintSavedMessages(
 		int y,
 		int outerWidth,
 		int size) {
+	const auto &bg = st::historyPeer4UserpicBg;
+	const auto &fg = st::historyPeerUserpicFg;
+	PaintSavedMessages(p, x, y, outerWidth, size, bg, fg);
+}
+
+void EmptyUserpic::PaintSavedMessages(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size,
+		const style::color &bg,
+		const style::color &fg) {
 	x = rtl() ? (outerWidth - x - size) : x;
 
 	PainterHighQualityEnabler hq(p);
-	p.setBrush(st::historyPeer4UserpicBg);
+	p.setBrush(bg);
 	p.setPen(Qt::NoPen);
 	p.drawEllipse(x, y, size, size);
 
@@ -118,7 +131,7 @@ void EmptyUserpic::PaintSavedMessages(
 	const auto half = (top + bottom) / 2;
 
 	p.setBrush(Qt::NoBrush);
-	auto pen = st::historyPeerUserpicFg->p;
+	auto pen = fg->p;
 	pen.setWidthF(thinkness);
 	pen.setCapStyle(Qt::FlatCap);
 

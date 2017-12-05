@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/labels.h"
 #include "ui/widgets/menu.h"
 #include "ui/special_buttons.h"
+#include "ui/empty_userpic.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
 #include "boxes/about_box.h"
@@ -199,13 +200,23 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 			p.drawTextLeft(st::mainMenuCoverTextLeft, st::mainMenuCoverStatusTop, width(), _phoneText);
 		}
 		if (_cloudButton) {
-			PainterHighQualityEnabler hq(p);
-			p.setPen(Qt::NoPen);
-			p.setBrush(st::mainMenuCloudBg);
-			auto cloudBg = QRect(_cloudButton->x() + (_cloudButton->width() - st::mainMenuCloudSize) / 2,
+			Ui::EmptyUserpic::PaintSavedMessages(
+				p,
+				_cloudButton->x() + (_cloudButton->width() - st::mainMenuCloudSize) / 2,
 				_cloudButton->y() + (_cloudButton->height() - st::mainMenuCloudSize) / 2,
-				st::mainMenuCloudSize, st::mainMenuCloudSize);
-			p.drawEllipse(cloudBg);
+				width(),
+				st::mainMenuCloudSize,
+				st::mainMenuCloudBg,
+				st::mainMenuCloudFg);
+			//PainterHighQualityEnabler hq(p);
+			//p.setPen(Qt::NoPen);
+			//p.setBrush(st::mainMenuCloudBg);
+			//auto cloudBg = QRect(
+			//	_cloudButton->x() + (_cloudButton->width() - st::mainMenuCloudSize) / 2,
+			//	_cloudButton->y() + (_cloudButton->height() - st::mainMenuCloudSize) / 2,
+			//	st::mainMenuCloudSize,
+			//	st::mainMenuCloudSize);
+			//p.drawEllipse(cloudBg);
 		}
 	}
 	auto other = QRect(0, st::mainMenuCoverHeight, width(), height() - st::mainMenuCoverHeight).intersected(clip);

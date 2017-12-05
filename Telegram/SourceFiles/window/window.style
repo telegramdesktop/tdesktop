@@ -113,7 +113,7 @@ mainMenuCloudButton: IconButton {
 	height: 64px;
 
 	icon: icon {
-		{ "menu_cloud", mainMenuCloudFg },
+//		{ "menu_cloud", mainMenuCloudFg },
 	};
 	iconPosition: point(22px, 22px);
 }

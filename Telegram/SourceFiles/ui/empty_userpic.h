@@ -53,6 +53,14 @@ public:
 		int y,
 		int outerWidth,
 		int size);
+	static void PaintSavedMessages(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size,
+		const style::color &bg,
+		const style::color &fg);
 
 	~EmptyUserpic();
 
