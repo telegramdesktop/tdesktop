@@ -501,7 +501,9 @@ void RowPainter::paint(
 	auto cloudDraft = nullptr;
 	auto from = [&] {
 		if (auto searchPeer = row->searchInPeer()) {
-			if (!searchPeer->isChannel() || searchPeer->isMegagroup()) {
+			if (searchPeer->isSelf()) {
+				return item->senderOriginal();
+			} else if (!searchPeer->isChannel() || searchPeer->isMegagroup()) {
 				return item->from();
 			}
 		}

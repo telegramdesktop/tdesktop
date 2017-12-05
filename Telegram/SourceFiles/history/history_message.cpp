@@ -1616,7 +1616,9 @@ int HistoryMessage::infoWidth() const {
 	if (auto views = Get<HistoryMessageViews>()) {
 		result += st::historyViewsSpace + views->_viewsWidth + st::historyViewsWidth;
 	} else if (id < 0 && history()->peer->isSelf()) {
-		result += st::historySendStateSpace;
+		if (!hasOutLayout()) {
+			result += st::historySendStateSpace;
+		}
 	}
 	if (hasOutLayout()) {
 		result += st::historySendStateSpace;
@@ -1629,7 +1631,9 @@ int HistoryMessage::timeLeft() const {
 	if (auto views = Get<HistoryMessageViews>()) {
 		result += st::historyViewsSpace + views->_viewsWidth + st::historyViewsWidth;
 	} else if (id < 0 && history()->peer->isSelf()) {
-		result += st::historySendStateSpace;
+		if (!hasOutLayout()) {
+			result += st::historySendStateSpace;
+		}
 	}
 	return result;
 }
@@ -1697,7 +1701,7 @@ void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, int32 width
 			auto iconSkip = st::historyViewsSpace + views->_viewsWidth;
 			icon->paint(p, infoRight - infoW + iconSkip, infoBottom + st::historyViewsTop, width);
 		}
-	} else if (id < 0 && history()->peer->isSelf()) {
+	} else if (id < 0 && history()->peer->isSelf() && !outbg) {
 		auto icon = &(invertedsprites ? st::historyViewsSendingInvertedIcon : st::historyViewsSendingIcon);
 		icon->paint(p, infoRight - infoW, infoBottom + st::historyViewsTop, width);
 	}

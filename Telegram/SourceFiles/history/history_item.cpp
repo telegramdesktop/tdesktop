@@ -1234,12 +1234,19 @@ QString HistoryItem::inDialogsText(DrawInDialog way) const {
 		}
 		return TextUtilities::Clean(_text.originalText());
 	};
-	auto plainText = getText();
-	if ((!_history->peer->isUser() || out())
-		&& !isPost()
-		&& !isEmpty()
-		&& (way != DrawInDialog::WithoutSender)) {
-		auto fromText = author()->isSelf() ? lang(lng_from_you) : author()->shortName();
+	const auto plainText = getText();
+	const auto sender = [&]() -> PeerData* {
+		if (isPost() || isEmpty() || (way == DrawInDialog::WithoutSender)) {
+			return nullptr;
+		} else if (!_history->peer->isUser() || out()) {
+			return author();
+		} else if (_history->peer->isSelf() && !hasOutLayout()) {
+			return senderOriginal();
+		}
+		return nullptr;
+	}();
+	if (sender) {
+		auto fromText = sender->isSelf() ? lang(lng_from_you) : sender->shortName();
 		auto fromWrapped = textcmdLink(1, lng_dialogs_text_from_wrapped(lt_from, TextUtilities::Clean(fromText)));
 		return lng_dialogs_text_with_from(lt_from_part, fromWrapped, lt_message, plainText);
 	}
