@@ -47,6 +47,13 @@ public:
 	QPixmap generate(int size);
 	StorageKey uniqueKey() const;
 
+	static void PaintSavedMessages(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size);
+
 	~EmptyUserpic();
 
 private:

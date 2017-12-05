@@ -78,6 +78,87 @@ void EmptyUserpic::paintSquare(Painter &p, int x, int y, int outerWidth, int siz
 	});
 }
 
+void EmptyUserpic::PaintSavedMessages(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size) {
+	x = rtl() ? (outerWidth - x - size) : x;
+
+	PainterHighQualityEnabler hq(p);
+	p.setBrush(st::historyPeer4UserpicBg);
+	p.setPen(Qt::NoPen);
+	p.drawEllipse(x, y, size, size);
+
+	// |<----width----->|
+	//
+	// XXXXXXXXXXXXXXXXXX  ---
+	// X                X   |
+	// X                X   |
+	// X                X   |
+	// X                X height
+	// X       XX       X   |     ---
+	// X     XX  XX     X   |      |
+	// X   XX      XX   X   |     add
+	// X XX          XX X   |      |
+	// XX              XX  ---    ---
+
+	const auto thinkness = std::round(size * 0.055);
+	const auto increment = int(thinkness) % 2 + (size % 2);
+	const auto width = std::round(size * 0.15) * 2 + increment;
+	const auto height = std::round(size * 0.19) * 2 + increment;
+	const auto add = std::round(size * 0.064);
+
+	const auto left = x + (size - width) / 2;
+	const auto top = y + (size - height) / 2;
+	const auto right = left + width;
+	const auto bottom = top + height;
+	const auto middle = (left + right) / 2;
+	const auto half = (top + bottom) / 2;
+
+	p.setBrush(Qt::NoBrush);
+	auto pen = st::historyPeerUserpicFg->p;
+	pen.setWidthF(thinkness);
+	pen.setCapStyle(Qt::FlatCap);
+
+	{
+		// XXXXXXXXXXXXXXXXXX
+		// X                X
+		// X                X
+		// X                X
+		// X                X
+		// X                X
+
+		pen.setJoinStyle(Qt::RoundJoin);
+		p.setPen(pen);
+		QPainterPath path;
+		path.moveTo(left, half);
+		path.lineTo(left, top);
+		path.lineTo(right, top);
+		path.lineTo(right, half);
+		p.drawPath(path);
+	}
+	{
+		// X                X
+		// X       XX       X
+		// X     XX  XX     X
+		// X   XX      XX   X
+		// X XX          XX X
+		// XX              XX
+
+		pen.setJoinStyle(Qt::MiterJoin);
+		p.setPen(pen);
+		QPainterPath path;
+		path.moveTo(left, half);
+		path.lineTo(left, bottom);
+		path.lineTo(middle, bottom - add);
+		path.lineTo(right, bottom);
+		path.lineTo(right, half);
+		p.drawPath(path);
+	}
+}
+
 StorageKey EmptyUserpic::uniqueKey() const {
 	auto first = 0xFFFFFFFF00000000ULL | anim::getPremultiplied(_color->c);
 	auto second = uint64(0);

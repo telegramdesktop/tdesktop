@@ -170,6 +170,7 @@ public:
 		const style::UserpicButton &st);
 
 	void switchChangePhotoOverlay(bool enabled);
+	void showSavedMessagesOnSelf(bool enabled);
 
 	QImage takeResultImage() {
 		return std::move(_result);
@@ -199,6 +200,7 @@ private:
 	void updateCursorInChangeOverlay(QPoint localPos);
 	void setCursorInChangeOverlay(bool inOverlay);
 	void updateCursor();
+	bool showSavedMessages() const;
 
 	void grabOldUserpic();
 	void setClickHandlerByRole();
@@ -220,6 +222,7 @@ private:
 	Animation _a_appearance;
 	QImage _result;
 
+	bool _showSavedMessagesOnSelf = false;
 	bool _canOpenPhoto = false;
 	bool _cursorInChangeOverlay = false;
 	bool _changeOverlayEnabled = false;

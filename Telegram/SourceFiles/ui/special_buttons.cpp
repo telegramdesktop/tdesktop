@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_history.h"
 #include "dialogs/dialogs_layout.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/empty_userpic.h"
 #include "data/data_photo.h"
 #include "core/file_utilities.h"
 #include "boxes/photo_crop_box.h"
@@ -522,11 +523,20 @@ void UserpicButton::paintEvent(QPaintEvent *e) {
 	auto photoTop = photoPosition.y();
 
 	auto ms = getms();
-	if (_a_appearance.animating(ms)) {
-		p.drawPixmapLeft(photoPosition, width(), _oldUserpic);
-		p.setOpacity(_a_appearance.current());
+	if (showSavedMessages()) {
+		Ui::EmptyUserpic::PaintSavedMessages(
+			p,
+			photoPosition.x(),
+			photoPosition.y(),
+			width(),
+			_st.photoSize);
+	} else {
+		if (_a_appearance.animating(ms)) {
+			p.drawPixmapLeft(photoPosition, width(), _oldUserpic);
+			p.setOpacity(_a_appearance.current());
+		}
+		p.drawPixmapLeft(photoPosition, width(), _userpic);
 	}
-	p.drawPixmapLeft(photoPosition, width(), _userpic);
 
 	if (_role == Role::ChangePhoto) {
 		auto over = isOver() || isDown();
@@ -741,6 +751,17 @@ void UserpicButton::switchChangePhotoOverlay(bool enabled) {
 			update();
 		}
 	}
+}
+
+void UserpicButton::showSavedMessagesOnSelf(bool enabled) {
+	if (_showSavedMessagesOnSelf != enabled) {
+		_showSavedMessagesOnSelf = enabled;
+		update();
+	}
+}
+
+bool UserpicButton::showSavedMessages() const {
+	return _showSavedMessagesOnSelf && _peer && _peer->isSelf();
 }
 
 void UserpicButton::startChangeOverlayAnimation() {
