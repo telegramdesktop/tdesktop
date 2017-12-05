@@ -3882,7 +3882,7 @@ void HistoryWidget::forwardMessage() {
 
 	auto items = SelectedItemSet();
 	items.insert(item->id, item);
-	App::main()->showForwardLayer(items);
+	App::main()->showForwardBox(std::move(items));
 }
 
 void HistoryWidget::selectMessage() {
@@ -5280,7 +5280,7 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		if (readyToForward()) {
 			auto items = _toForward;
 			App::main()->cancelForwarding(_history);
-			App::main()->showForwardLayer(items);
+			App::main()->showForwardBox(std::move(items));
 		} else {
 			Ui::showPeerHistory(_peer, _editMsgId ? _editMsgId : replyToId());
 		}
@@ -6178,7 +6178,7 @@ void HistoryWidget::handlePeerUpdate() {
 
 void HistoryWidget::onForwardSelected() {
 	if (!_list) return;
-	App::main()->showForwardLayer(getSelectedItems());
+	App::main()->showForwardBox(getSelectedItems());
 }
 
 void HistoryWidget::confirmDeleteContextItem() {

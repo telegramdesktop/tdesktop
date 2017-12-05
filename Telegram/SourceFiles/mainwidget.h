@@ -180,6 +180,7 @@ public:
 
 	void showForwardLayer(const SelectedItemSet &items);
 	void showSendPathsLayer();
+	void showForwardBox(SelectedItemSet &&items);
 	void deleteLayer(int selectedCount = 0); // 0 - context item
 	void cancelUploadLayer();
 	void shareContactLayer(UserData *contact);

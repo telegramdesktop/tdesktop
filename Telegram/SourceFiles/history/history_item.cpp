@@ -616,8 +616,7 @@ HistoryItem::HistoryItem(
 , date(date)
 , _history(history)
 , _from(from ? App::user(from) : history->peer)
-, _flags(flags | MTPDmessage_ClientFlag::f_pending_init_dimensions | MTPDmessage_ClientFlag::f_pending_resize)
-, _authorNameVersion(author()->nameVersion) {
+, _flags(flags | MTPDmessage_ClientFlag::f_pending_init_dimensions | MTPDmessage_ClientFlag::f_pending_resize) {
 }
 
 void HistoryItem::finishCreate() {
@@ -789,11 +788,18 @@ void HistoryItem::nextItemChanged() {
 
 bool HistoryItem::computeIsAttachToPrevious(not_null<HistoryItem*> previous) {
 	if (!Has<HistoryMessageDate>() && !Has<HistoryMessageUnreadBar>()) {
-		return !isPost() && !previous->isPost()
+		const auto possible = !isPost() && !previous->isPost()
 			&& !serviceMsg() && !previous->serviceMsg()
 			&& !isEmpty() && !previous->isEmpty()
-			&& previous->from() == from()
 			&& (qAbs(previous->date.secsTo(date)) < kAttachMessageToPreviousSecondsDelta);
+		if (possible) {
+			if (history()->peer->isSelf()) {
+				return previous->senderOriginal() == senderOriginal()
+					&& (previous->Has<HistoryMessageForwarded>() == Has<HistoryMessageForwarded>());
+			} else {
+				return previous->from() == from();
+			}
+		}
 	}
 	return false;
 }
@@ -1020,6 +1026,13 @@ QString HistoryItem::directLink() const {
 		return Messenger::Instance().createInternalLinkFull(query);
 	}
 	return QString();
+}
+
+bool HistoryItem::hasOutLayout() const {
+	if (history()->peer->isSelf()) {
+		return !Has<HistoryMessageForwarded>();
+	}
+	return out() && !isPost();
 }
 
 bool HistoryItem::unread() const {

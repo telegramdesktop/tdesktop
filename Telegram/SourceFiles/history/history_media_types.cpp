@@ -366,7 +366,6 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 	bool notChild = (_parent->getMedia() == this);
 	int skipx = 0, skipy = 0, width = _width, height = _height;
 	bool bubble = _parent->hasBubble();
-	bool out = _parent->out(), isPost = _parent->isPost(), outbg = out && !isPost;
 
 	int captionw = width - st::msgPadding.left() - st::msgPadding.right();
 
@@ -462,6 +461,7 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 
 	// date
 	if (!_caption.isEmpty()) {
+		auto outbg = _parent->hasOutLayout();
 		p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
 		_caption.draw(p, st::msgPadding.left(), skipy + height + st::mediaPadding.bottom() + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, selection);
 	} else if (notChild) {
@@ -470,10 +470,10 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 		if (_data->uploading() || App::hoveredItem() == _parent) {
 			_parent->drawInfo(p, fullRight, fullBottom, 2 * skipx + width, selected, InfoDisplayOverImage);
 		}
-		if (!bubble && _parent->displayFastShare()) {
+		if (!bubble && _parent->displayRightAction()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
-			_parent->drawFastShare(p, fastShareLeft, fastShareTop, 2 * skipx + width);
+			_parent->drawRightAction(p, fastShareLeft, fastShareTop, 2 * skipx + width);
 		}
 	}
 }
@@ -523,11 +523,11 @@ HistoryTextState HistoryPhoto::getState(QPoint point, HistoryStateRequest reques
 		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayOverImage)) {
 			result.cursor = HistoryInDateCursorState;
 		}
-		if (!bubble && _parent->displayFastShare()) {
+		if (!bubble && _parent->displayRightAction()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
 			if (QRect(fastShareLeft, fastShareTop, st::historyFastShareSize, st::historyFastShareSize).contains(point)) {
-				result.link = _parent->fastShareLink();
+				result.link = _parent->rightActionLink();
 			}
 		}
 	}
@@ -779,7 +779,6 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 
 	int skipx = 0, skipy = 0, width = _width, height = _height;
 	bool bubble = _parent->hasBubble();
-	bool out = _parent->out(), isPost = _parent->isPost(), outbg = out && !isPost;
 
 	int captionw = width - st::msgPadding.left() - st::msgPadding.right();
 
@@ -868,15 +867,16 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 
 	// date
 	if (!_caption.isEmpty()) {
+		auto outbg = _parent->hasOutLayout();
 		p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
 		_caption.draw(p, st::msgPadding.left(), skipy + height + st::mediaPadding.bottom() + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, selection);
 	} else if (_parent->getMedia() == this) {
 		auto fullRight = skipx + width, fullBottom = skipy + height;
 		_parent->drawInfo(p, fullRight, fullBottom, 2 * skipx + width, selected, InfoDisplayOverImage);
-		if (!bubble && _parent->displayFastShare()) {
+		if (!bubble && _parent->displayRightAction()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
-			_parent->drawFastShare(p, fastShareLeft, fastShareTop, 2 * skipx + width);
+			_parent->drawRightAction(p, fastShareLeft, fastShareTop, 2 * skipx + width);
 		}
 	}
 }
@@ -921,11 +921,11 @@ HistoryTextState HistoryVideo::getState(QPoint point, HistoryStateRequest reques
 		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayOverImage)) {
 			result.cursor = HistoryInDateCursorState;
 		}
-		if (!bubble && _parent->displayFastShare()) {
+		if (!bubble && _parent->displayRightAction()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
 			if (QRect(fastShareLeft, fastShareTop, st::historyFastShareSize, st::historyFastShareSize).contains(point)) {
-				result.link = _parent->fastShareLink();
+				result.link = _parent->rightActionLink();
 			}
 		}
 	}
@@ -1224,8 +1224,7 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 	bool selected = (selection == FullSelection);
 
 	int captionw = _width - st::msgPadding.left() - st::msgPadding.right();
-
-	bool out = _parent->out(), isPost = _parent->isPost(), outbg = out && !isPost;
+	auto outbg = _parent->hasOutLayout();
 
 	if (displayLoading) {
 		ensureAnimation();
@@ -1468,7 +1467,6 @@ HistoryTextState HistoryDocument::getState(QPoint point, HistoryStateRequest req
 
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return result;
 
-	bool out = _parent->out(), isPost = _parent->isPost(), outbg = out && !isPost;
 	bool loaded = _data->loaded();
 
 	bool showPause = updateStatusText();
@@ -2010,7 +2008,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 
 	int32 skipx = 0, skipy = 0, width = _width, height = _height;
 	bool bubble = _parent->hasBubble();
-	bool out = _parent->out(), isPost = _parent->isPost(), outbg = out && !isPost;
+	auto outbg = _parent->hasOutLayout();
 	auto isChildMedia = (_parent->getMedia() != this);
 
 	auto captionw = width - st::msgPadding.left() - st::msgPadding.right();
@@ -2055,8 +2053,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 	auto forwarded = separateRoundVideo ? _parent->Get<HistoryMessageForwarded>() : nullptr;
 	if (via || reply || forwarded) {
 		usew = _maxw - additionalWidth(via, reply, forwarded);
-		if (isPost) {
-		} else if (out) {
+		if (outbg) {
 			usex = _width - usew;
 		}
 	}
@@ -2207,7 +2204,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 			if (reply) {
 				recth += st::msgReplyBarSize.height();
 			}
-			int rectx = isPost ? (usew + st::msgReplyPadding.left()) : (out ? 0 : (usew + st::msgReplyPadding.left()));
+			int rectx = outbg ? 0 : (usew + st::msgReplyPadding.left());
 			int recty = skipy;
 			if (rtl()) rectx = _width - rectx - rectw;
 
@@ -2260,14 +2257,14 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 		if (isRound || _data->uploading() || App::hoveredItem() == _parent) {
 			_parent->drawInfo(p, fullRight, fullBottom, 2 * skipx + width, selected, isRound ? InfoDisplayOverBackground : InfoDisplayOverImage);
 		}
-		if (!bubble && _parent->displayFastShare()) {
+		if (!bubble && _parent->displayRightAction()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
 			if (fastShareLeft + st::historyFastShareSize > maxRight) {
 				fastShareLeft = (fullRight - st::historyFastShareSize - st::msgDateImgDelta);
 				fastShareTop -= (st::msgDateImgDelta + st::msgDateImgPadding.y() + st::msgDateFont->height + st::msgDateImgPadding.y());
 			}
-			_parent->drawFastShare(p, fastShareLeft, fastShareTop, 2 * skipx + width);
+			_parent->drawRightAction(p, fastShareLeft, fastShareTop, 2 * skipx + width);
 		}
 	}
 }
@@ -2297,7 +2294,7 @@ HistoryTextState HistoryGif::getState(QPoint point, HistoryStateRequest request)
 		width -= st::mediaPadding.left() + st::mediaPadding.right();
 		height -= skipy + st::mediaPadding.bottom();
 	}
-	bool out = _parent->out(), isPost = _parent->isPost(), outbg = out && !isPost;
+	auto outbg = _parent->hasOutLayout();
 	auto isChildMedia = (_parent->getMedia() != this);
 	auto isRound = _data->isRoundVideo();
 	auto usew = width, usex = 0;
@@ -2307,8 +2304,7 @@ HistoryTextState HistoryGif::getState(QPoint point, HistoryStateRequest request)
 	auto forwarded = separateRoundVideo ? _parent->Get<HistoryMessageForwarded>() : nullptr;
 	if (via || reply || forwarded) {
 		usew = _maxw - additionalWidth(via, reply, forwarded);
-		if (isPost) {
-		} else if (out) {
+		if (outbg) {
 			usex = _width - usew;
 		}
 	}
@@ -2328,7 +2324,7 @@ HistoryTextState HistoryGif::getState(QPoint point, HistoryStateRequest request)
 		if (reply) {
 			recth += st::msgReplyBarSize.height();
 		}
-		auto rectx = isPost ? (usew + st::msgReplyPadding.left()) : (out ? 0 : (usew + st::msgReplyPadding.left()));
+		auto rectx = outbg ? 0 : (usew + st::msgReplyPadding.left());
 		auto recty = skipy;
 		if (rtl()) rectx = _width - rectx - rectw;
 
@@ -2401,7 +2397,7 @@ HistoryTextState HistoryGif::getState(QPoint point, HistoryStateRequest request)
 				result.cursor = HistoryInDateCursorState;
 			}
 		}
-		if (!bubble && _parent->displayFastShare()) {
+		if (!bubble && _parent->displayRightAction()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
 			if (fastShareLeft + st::historyFastShareSize > maxRight) {
@@ -2409,7 +2405,7 @@ HistoryTextState HistoryGif::getState(QPoint point, HistoryStateRequest request)
 				fastShareTop -= st::msgDateImgDelta + st::msgDateImgPadding.y() + st::msgDateFont->height + st::msgDateImgPadding.y();
 			}
 			if (QRect(fastShareLeft, fastShareTop, st::historyFastShareSize, st::historyFastShareSize).contains(point)) {
-				result.link = _parent->fastShareLink();
+				result.link = _parent->rightActionLink();
 			}
 		}
 	}
@@ -2739,15 +2735,15 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, T
 	bool loaded = _data->loaded();
 	bool selected = (selection == FullSelection);
 
-	bool out = _parent->out(), isPost = _parent->isPost(), childmedia = (_parent->getMedia() != this);
+	auto outbg = _parent->hasOutLayout();
+	auto childmedia = (_parent->getMedia() != this);
 
 	int usew = _maxw, usex = 0;
 	auto via = childmedia ? nullptr : _parent->Get<HistoryMessageVia>();
 	auto reply = childmedia ? nullptr : _parent->Get<HistoryMessageReply>();
 	if (via || reply) {
 		usew -= additionalWidth(via, reply);
-		if (isPost) {
-		} else if (out) {
+		if (outbg) {
 			usex = _width - usew;
 		}
 	}
@@ -2780,7 +2776,7 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, T
 			if (reply) {
 				recth += st::msgReplyBarSize.height();
 			}
-			int rectx = isPost ? (usew + st::msgReplyPadding.left()) : (out ? 0 : (usew + st::msgReplyPadding.left()));
+			int rectx = outbg ? 0 : (usew + st::msgReplyPadding.left());
 			int recty = st::msgDateImgDelta;
 			if (rtl()) rectx = _width - rectx - rectw;
 
@@ -2802,10 +2798,10 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, T
 				reply->paint(p, _parent, rectx, recty, rectw, flags);
 			}
 		}
-		if (_parent->displayFastShare()) {
+		if (_parent->displayRightAction()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
-			_parent->drawFastShare(p, fastShareLeft, fastShareTop, 2 * usex + usew);
+			_parent->drawRightAction(p, fastShareLeft, fastShareTop, 2 * usex + usew);
 		}
 	}
 }
@@ -2814,15 +2810,15 @@ HistoryTextState HistorySticker::getState(QPoint point, HistoryStateRequest requ
 	HistoryTextState result;
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return result;
 
-	bool out = _parent->out(), isPost = _parent->isPost(), childmedia = (_parent->getMedia() != this);
+	auto outbg = _parent->hasOutLayout();
+	auto childmedia = (_parent->getMedia() != this);
 
 	int usew = _maxw, usex = 0;
 	auto via = childmedia ? nullptr : _parent->Get<HistoryMessageVia>();
 	auto reply = childmedia ? nullptr : _parent->Get<HistoryMessageReply>();
 	if (via || reply) {
 		usew -= additionalWidth(via, reply);
-		if (isPost) {
-		} else if (out) {
+		if (outbg) {
 			usex = _width - usew;
 		}
 	}
@@ -2837,7 +2833,7 @@ HistoryTextState HistorySticker::getState(QPoint point, HistoryStateRequest requ
 		if (reply) {
 			recth += st::msgReplyBarSize.height();
 		}
-		int rectx = isPost ? (usew + st::msgReplyPadding.left()) : (out ? 0 : (usew + st::msgReplyPadding.left()));
+		int rectx = outbg ? 0 : (usew + st::msgReplyPadding.left());
 		int recty = st::msgDateImgDelta;
 		if (rtl()) rectx = _width - rectx - rectw;
 
@@ -2864,11 +2860,11 @@ HistoryTextState HistorySticker::getState(QPoint point, HistoryStateRequest requ
 		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayOverImage)) {
 			result.cursor = HistoryInDateCursorState;
 		}
-		if (_parent->displayFastShare()) {
+		if (_parent->displayRightAction()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
 			if (QRect(fastShareLeft, fastShareTop, st::historyFastShareSize, st::historyFastShareSize).contains(point)) {
-				result.link = _parent->fastShareLink();
+				result.link = _parent->rightActionLink();
 			}
 		}
 	}
@@ -3027,7 +3023,7 @@ void HistoryContact::draw(Painter &p, const QRect &r, TextSelection selection, T
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	int32 skipx = 0, skipy = 0, width = _width, height = _height;
 
-	bool out = _parent->out(), isPost = _parent->isPost(), outbg = out && !isPost;
+	auto outbg = _parent->hasOutLayout();
 	bool selected = (selection == FullSelection);
 
 	if (width >= _maxw) {
@@ -3082,7 +3078,6 @@ void HistoryContact::draw(Painter &p, const QRect &r, TextSelection selection, T
 
 HistoryTextState HistoryContact::getState(QPoint point, HistoryStateRequest request) const {
 	HistoryTextState result;
-	bool out = _parent->out(), isPost = _parent->isPost(), outbg = out && !isPost;
 
 	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, linktop = 0;
 	auto topMinus = isBubbleTop() ? 0 : st::msgFileTopMinus;
@@ -3193,7 +3188,7 @@ void HistoryCall::draw(Painter &p, const QRect &r, TextSelection selection, Time
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	auto skipx = 0, skipy = 0, width = _width, height = _height;
 
-	auto out = _parent->out(), isPost = _parent->isPost(), outbg = out && !isPost;
+	auto outbg = _parent->hasOutLayout();
 	auto selected = (selection == FullSelection);
 
 	if (width >= _maxw) {
@@ -3549,7 +3544,7 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, T
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	int32 skipx = 0, skipy = 0, width = _width, height = _height;
 
-	bool out = _parent->out(), isPost = _parent->isPost(), outbg = out && !isPost;
+	auto outbg = _parent->hasOutLayout();
 	bool selected = (selection == FullSelection);
 
 	auto &barfg = selected ? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (outbg ? st::msgOutReplyBarColor : st::msgInReplyBarColor);
@@ -3994,7 +3989,7 @@ void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, Time
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	int32 width = _width, height = _height;
 
-	bool out = _parent->out(), isPost = _parent->isPost(), outbg = out && !isPost;
+	auto outbg = _parent->hasOutLayout();
 	bool selected = (selection == FullSelection);
 
 	auto &barfg = selected ? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (outbg ? st::msgOutReplyBarColor : st::msgInReplyBarColor);
@@ -4431,7 +4426,7 @@ void HistoryInvoice::draw(Painter &p, const QRect &r, TextSelection selection, T
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	int32 width = _width, height = _height;
 
-	bool out = _parent->out(), isPost = _parent->isPost(), outbg = out && !isPost;
+	auto outbg = _parent->hasOutLayout();
 	bool selected = (selection == FullSelection);
 
 	auto &barfg = selected ? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (outbg ? st::msgOutReplyBarColor : st::msgInReplyBarColor);
@@ -4718,7 +4713,7 @@ void HistoryLocation::draw(Painter &p, const QRect &r, TextSelection selection, 
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	int32 skipx = 0, skipy = 0, width = _width, height = _height;
 	bool bubble = _parent->hasBubble();
-	bool out = _parent->out(), isPost = _parent->isPost(), outbg = out && !isPost;
+	auto outbg = _parent->hasOutLayout();
 	bool selected = (selection == FullSelection);
 
 	if (bubble) {
@@ -4781,10 +4776,10 @@ void HistoryLocation::draw(Painter &p, const QRect &r, TextSelection selection, 
 		auto fullRight = skipx + width;
 		auto fullBottom = _height - (skipx ? st::mediaPadding.bottom() : 0);
 		_parent->drawInfo(p, fullRight, fullBottom, skipx * 2 + width, selected, InfoDisplayOverImage);
-		if (!bubble && _parent->displayFastShare()) {
+		if (!bubble && _parent->displayRightAction()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
-			_parent->drawFastShare(p, fastShareLeft, fastShareTop, 2 * skipx + width);
+			_parent->drawRightAction(p, fastShareLeft, fastShareTop, 2 * skipx + width);
 		}
 	}
 }
@@ -4843,11 +4838,11 @@ HistoryTextState HistoryLocation::getState(QPoint point, HistoryStateRequest req
 		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayOverImage)) {
 			result.cursor = HistoryInDateCursorState;
 		}
-		if (!bubble && _parent->displayFastShare()) {
+		if (!bubble && _parent->displayRightAction()) {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - st::historyFastShareSize);
 			if (QRect(fastShareLeft, fastShareTop, st::historyFastShareSize, st::historyFastShareSize).contains(point)) {
-				result.link = _parent->fastShareLink();
+				result.link = _parent->rightActionLink();
 			}
 		}
 	}

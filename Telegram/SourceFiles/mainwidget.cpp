@@ -1013,6 +1013,20 @@ void MainWidget::showSendPathsLayer() {
 	hiderLayer(object_ptr<HistoryHider>(this));
 }
 
+void MainWidget::showForwardBox(SelectedItemSet &&items) {
+	auto controller = std::make_unique<ChooseRecipientBoxController>(
+		[items = std::move(items)](not_null<PeerData*> peer) {
+			App::main()->setForwardDraft(peer->id, items);
+		});
+	Ui::show(Box<PeerListBox>(
+		std::move(controller),
+		[](not_null<PeerListBox*> box) {
+			box->addButton(langFactory(lng_cancel), [box] {
+				box->closeBox();
+			});
+		}));
+}
+
 void MainWidget::deleteLayer(int selectedCount) {
 	if (selectedCount) {
 		auto forDelete = true;

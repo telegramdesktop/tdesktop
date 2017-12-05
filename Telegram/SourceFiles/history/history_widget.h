@@ -485,6 +485,7 @@ private:
 	void showNextUnreadMention();
 	void handlePeerUpdate();
 	void setMembersShowAreaActive(bool active);
+	void forwardItems(SelectedItemSet &&items);
 
 	void highlightMessage(MsgId universalMessageId);
 	void adjustHighlightedMessageToMigrated();

@@ -527,7 +527,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 
 				// paint the userpic if it intersects the painted rect
 				if (userpicTop + st::msgPhotoSize > clip.top()) {
-					message->from()->paintUserpicLeft(p, st::historyPhotoLeft, userpicTop, message->history()->width, st::msgPhotoSize);
+					message->displayFrom()->paintUserpicLeft(p, st::historyPhotoLeft, userpicTop, message->history()->width, st::msgPhotoSize);
 				}
 				return true;
 			});
@@ -2140,7 +2140,7 @@ void HistoryInner::onUpdateSelected() {
 
 							// stop enumeration if we've found a userpic under the cursor
 							if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
-								dragState.link = message->from()->openLink();
+								dragState.link = message->displayFrom()->openLink();
 								lnkhost = message;
 								return false;
 							}

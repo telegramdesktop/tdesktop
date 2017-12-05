@@ -939,7 +939,7 @@ void MediaView::onForward() {
 	if (auto main = App::main()) {
 		auto items = SelectedItemSet();
 		items.insert(item->id, item);
-		main->showForwardLayer(items);
+		main->showForwardBox(std::move(items));
 	}
 }
 

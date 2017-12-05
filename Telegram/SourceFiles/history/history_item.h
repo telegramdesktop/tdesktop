@@ -155,6 +155,9 @@ struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded
 	QString _originalAuthor;
 	MsgId _originalId = 0;
 	mutable Text _text = { 1 };
+
+	PeerData *_savedFromPeer = nullptr;
+	MsgId _savedFromMsgId = 0;
 };
 
 struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply> {
@@ -645,9 +648,7 @@ public:
 	bool isSilent() const {
 		return _flags & MTPDmessage::Flag::f_silent;
 	}
-	bool hasOutLayout() const {
-		return out() && !isPost();
-	}
+	bool hasOutLayout() const;
 	virtual int32 viewsCount() const {
 		return hasViews() ? 1 : -1;
 	}
@@ -727,13 +728,13 @@ public:
 
 	virtual void drawInfo(Painter &p, int32 right, int32 bottom, int32 width, bool selected, InfoDisplayType type) const {
 	}
-	virtual ClickHandlerPtr fastShareLink() const {
+	virtual ClickHandlerPtr rightActionLink() const {
 		return ClickHandlerPtr();
 	}
-	virtual bool displayFastShare() const {
+	virtual bool displayRightAction() const {
 		return false;
 	}
-	virtual void drawFastShare(Painter &p, int left, int top, int outerWidth) const {
+	virtual void drawRightAction(Painter &p, int left, int top, int outerWidth) const {
 	}
 	virtual void setViewsCount(int32 count) {
 	}
@@ -984,8 +985,6 @@ protected:
 	HistoryBlock *_block = nullptr;
 	int _indexInBlock = -1;
 	MTPDmessage::Flags _flags = 0;
-
-	mutable int32 _authorNameVersion = 0;
 
 	HistoryItem *previousItem() const {
 		if (_block && _indexInBlock >= 0) {
