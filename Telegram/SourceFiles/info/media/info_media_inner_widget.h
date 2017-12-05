@@ -49,6 +49,10 @@ public:
 		not_null<Controller*> controller);
 
 	bool showInternal(not_null<Memento*> memento);
+	void setIsStackBottom(bool isStackBottom) {
+		_isStackBottom = isStackBottom;
+		setupOtherTypes();
+	}
 
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
@@ -72,10 +76,13 @@ private:
 	void refreshHeight();
 	// Allows showing additional shared media links and tabs.
 	// Was done for top level tabs support.
+	// Now used for shared media in Saved Messages.
+	void setupOtherTypes();
+	void createOtherTypes();
+	void createTypeButtons();
+	// Allows showing additional shared media links and tabs.
+	// Was done for top level tabs support.
 	//
-	//void setupOtherTypes();
-	//void createOtherTypes();
-	//void createTypeButtons();
 	//void createTabs();
 	//void switchToTab(Memento &&memento);
 	//void refreshSearchField();
@@ -88,7 +95,7 @@ private:
 	const not_null<Controller*> _controller;
 
 	//Ui::SettingsSlider *_otherTabs = nullptr;
-	//object_ptr<Ui::VerticalLayout> _otherTypes = { nullptr };
+	object_ptr<Ui::VerticalLayout> _otherTypes = { nullptr };
 	//object_ptr<Ui::PlainShadow> _otherTabsShadow = { nullptr };
 	//base::unique_qptr<Ui::RpWidget> _searchField = nullptr;
 	object_ptr<ListWidget> _list = { nullptr };
@@ -96,6 +103,7 @@ private:
 	//bool _searchEnabled = false;
 
 	bool _inResize = false;
+	bool _isStackBottom = false;
 
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 	rpl::event_stream<rpl::producer<SelectedItems>> _selectedLists;

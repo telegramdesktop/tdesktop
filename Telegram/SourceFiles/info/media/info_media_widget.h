@@ -100,6 +100,8 @@ public:
 		QWidget *parent,
 		not_null<Controller*> controller);
 
+	void setIsStackBottom(bool isStackBottom) override;
+
 	bool showInternal(
 		not_null<ContentMemento*> memento) override;
 

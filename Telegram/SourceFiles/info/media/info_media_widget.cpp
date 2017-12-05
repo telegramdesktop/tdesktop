@@ -102,6 +102,10 @@ void Widget::cancelSelection() {
 	_inner->cancelSelection();
 }
 
+void Widget::setIsStackBottom(bool isStackBottom) {
+	_inner->setIsStackBottom(isStackBottom);
+}
+
 bool Widget::showInternal(not_null<ContentMemento*> memento) {
 	if (!controller()->validateMementoPeer(memento)) {
 		return false;

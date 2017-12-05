@@ -49,109 +49,106 @@ InnerWidget::InnerWidget(
 			[this] { refreshHeight(); },
 			_empty->lifetime());
 	_list = setupList();
-	// Allows showing additional shared media links and tabs.
-	// Was done for top level tabs support.
-	//
-	//setupOtherTypes();
 }
 
 // Allows showing additional shared media links and tabs.
 // Was done for top level tabs support.
-//
-//void InnerWidget::setupOtherTypes() {
-//	_controller->wrapValue()
-//		| rpl::start_with_next([this](Wrap value) {
-//			if (value == Wrap::Side
-//				&& !_controller->hasStackHistory()
-//				&& TypeToTabIndex(type())) {
-//				createOtherTypes();
-//			} else {
-//				_otherTabs = nullptr;
-//				_otherTypes.destroy();
-//				refreshHeight();
-//			}
-//		}, lifetime());
-//	rpl::combine(
-//		_controller->wrapValue(),
-//		_controller->searchEnabledByContent())
-//		| rpl::start_with_next([this](Wrap wrap, bool enabled) {
-//			_searchEnabled = enabled;
-//			refreshSearchField();
-//		}, lifetime());
-//}
-//
-//void InnerWidget::createOtherTypes() {
-//	_otherTabsShadow.create(this);
-//	_otherTabsShadow->show();
-//
-//	_otherTabs = nullptr;
-//	_otherTypes.create(this);
-//	_otherTypes->show();
-//
-//	createTypeButtons();
-//	_otherTypes->add(object_ptr<BoxContentDivider>(_otherTypes));
-//	createTabs();
-//
-//	_otherTypes->heightValue()
-//		| rpl::start_with_next(
-//			[this] { refreshHeight(); },
-//			_otherTypes->lifetime());
-//}
-//
-//void InnerWidget::createTypeButtons() {
-//	auto wrap = _otherTypes->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-//		_otherTypes,
-//		object_ptr<Ui::VerticalLayout>(_otherTypes)));
-//	auto content = wrap->entity();
-//	content->add(object_ptr<Ui::FixedHeightWidget>(
-//		content,
-//		st::infoProfileSkip));
-//
-//	auto tracker = Ui::MultiSlideTracker();
-//	auto addMediaButton = [&](
-//			Type type,
-//			const style::icon &icon) {
-//		auto result = AddButton(
-//			content,
-//			_controller,
-//			_controller->peer(),
-//			_controller->migrated(),
-//			type,
-//			tracker);
-//		object_ptr<Profile::FloatingIcon>(
-//			result,
-//			icon,
-//			st::infoSharedMediaButtonIconPosition);
-//	};
-//	auto addCommonGroupsButton = [&](
-//			not_null<UserData*> user,
-//			const style::icon &icon) {
-//		auto result = AddCommonGroupsButton(
-//			content,
-//			_controller,
-//			user,
-//			tracker);
-//		object_ptr<Profile::FloatingIcon>(
-//			result,
-//			icon,
-//			st::infoSharedMediaButtonIconPosition);
-//	};
-//
-//	addMediaButton(Type::MusicFile, st::infoIconMediaAudio);
-//	addMediaButton(Type::Link, st::infoIconMediaLink);
-//	if (auto user = _controller->peer()->asUser()) {
+// Now used for shared media in Saved Messages.
+void InnerWidget::setupOtherTypes() {
+	if (_controller->peer()->isSelf() && _isStackBottom) {
+		createOtherTypes();
+	} else {
+		_otherTypes.destroy();
+		refreshHeight();
+	}
+	//rpl::combine(
+	//	_controller->wrapValue(),
+	//	_controller->searchEnabledByContent())
+	//	| rpl::start_with_next([this](Wrap wrap, bool enabled) {
+	//		_searchEnabled = enabled;
+	//		refreshSearchField();
+	//	}, lifetime());
+}
+
+void InnerWidget::createOtherTypes() {
+	//_otherTabsShadow.create(this);
+	//_otherTabsShadow->show();
+
+	//_otherTabs = nullptr;
+	_otherTypes.create(this);
+	_otherTypes->show();
+
+	createTypeButtons();
+	_otherTypes->add(object_ptr<BoxContentDivider>(_otherTypes));
+	//createTabs();
+
+	_otherTypes->resizeToWidth(width());
+	_otherTypes->heightValue()
+		| rpl::start_with_next(
+			[this] { refreshHeight(); },
+			_otherTypes->lifetime());
+}
+
+void InnerWidget::createTypeButtons() {
+	auto wrap = _otherTypes->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		_otherTypes,
+		object_ptr<Ui::VerticalLayout>(_otherTypes)));
+	auto content = wrap->entity();
+	content->add(object_ptr<Ui::FixedHeightWidget>(
+		content,
+		st::infoProfileSkip));
+
+	auto tracker = Ui::MultiSlideTracker();
+	auto addMediaButton = [&](
+			Type buttonType,
+			const style::icon &icon) {
+		if (buttonType == type()) {
+			return;
+		}
+		auto result = AddButton(
+			content,
+			_controller,
+			_controller->peer(),
+			_controller->migrated(),
+			buttonType,
+			tracker);
+		object_ptr<Profile::FloatingIcon>(
+			result,
+			icon,
+			st::infoSharedMediaButtonIconPosition)->show();
+	};
+	//auto addCommonGroupsButton = [&](
+	//		not_null<UserData*> user,
+	//		const style::icon &icon) {
+	//	auto result = AddCommonGroupsButton(
+	//		content,
+	//		_controller,
+	//		user,
+	//		tracker);
+	//	object_ptr<Profile::FloatingIcon>(
+	//		result,
+	//		icon,
+	//		st::infoSharedMediaButtonIconPosition)->show();
+	//};
+
+	addMediaButton(Type::Photo, st::infoIconMediaPhoto);
+	addMediaButton(Type::Video, st::infoIconMediaVideo);
+	addMediaButton(Type::File, st::infoIconMediaFile);
+	addMediaButton(Type::MusicFile, st::infoIconMediaAudio);
+	addMediaButton(Type::Link, st::infoIconMediaLink);
+	if (auto user = _controller->peer()->asUser()) {
 //		addCommonGroupsButton(user, st::infoIconMediaGroup);
-//	}
-//	addMediaButton(Type::VoiceFile, st::infoIconMediaVoice);
-////	addMediaButton(Type::RoundFile, st::infoIconMediaRound);
-//
-//	content->add(object_ptr<Ui::FixedHeightWidget>(
-//		content,
-//		st::infoProfileSkip));
-//	wrap->toggleOn(tracker.atLeastOneShownValue());
-//	wrap->finishAnimating();
-//}
-//
+	}
+	addMediaButton(Type::VoiceFile, st::infoIconMediaVoice);
+//	addMediaButton(Type::RoundFile, st::infoIconMediaRound);
+
+	content->add(object_ptr<Ui::FixedHeightWidget>(
+		content,
+		st::infoProfileSkip));
+	wrap->toggleOn(tracker.atLeastOneShownValue());
+	wrap->finishAnimating();
+}
+
 //void InnerWidget::createTabs() {
 //	_otherTabs = _otherTypes->add(object_ptr<Ui::SettingsSlider>(
 //		this,
@@ -305,10 +302,10 @@ int InnerWidget::resizeGetHeight(int newWidth) {
 	_inResize = true;
 	auto guard = gsl::finally([this] { _inResize = false; });
 
-	//if (_otherTypes) {
-	//	_otherTypes->resizeToWidth(newWidth);
-	//	_otherTabsShadow->resizeToWidth(newWidth);
-	//}
+	if (_otherTypes) {
+		_otherTypes->resizeToWidth(newWidth);
+		//_otherTabsShadow->resizeToWidth(newWidth);
+	}
 	//if (_searchField) {
 	//	_searchField->resizeToWidth(newWidth);
 	//}
@@ -326,11 +323,11 @@ void InnerWidget::refreshHeight() {
 
 int InnerWidget::recountHeight() {
 	auto top = 0;
-	//if (_otherTypes) {
-	//	_otherTypes->moveToLeft(0, top);
-	//	top += _otherTypes->heightNoMargins() - st::lineWidth;
-	//	_otherTabsShadow->moveToLeft(0, top);
-	//}
+	if (_otherTypes) {
+		_otherTypes->moveToLeft(0, top);
+		top += _otherTypes->heightNoMargins() - st::lineWidth;
+//		_otherTabsShadow->moveToLeft(0, top);
+	}
 	//if (_searchField) {
 	//	_searchField->moveToLeft(0, top);
 	//	top += _searchField->heightNoMargins() - st::lineWidth;
