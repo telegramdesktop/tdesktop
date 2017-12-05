@@ -46,6 +46,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_drag_area.h"
 #include "history/history_inner_widget.h"
 #include "profile/profile_block_group_members.h"
+#include "info/info_memento.h"
 #include "core/click_handler_types.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
@@ -3954,7 +3955,9 @@ void HistoryWidget::pushInfoToThirdSection(
 	if (!_peer) {
 		return;
 	}
-	controller()->showPeerInfo(_peer, params.withThirdColumn());
+	controller()->showSection(
+		Info::Memento::Default(_peer),
+		params.withThirdColumn());
 }
 
 void HistoryWidget::toggleTabbedSelectorMode() {

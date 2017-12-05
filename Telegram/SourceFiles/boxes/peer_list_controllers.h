@@ -90,9 +90,13 @@ private:
 
 };
 
-class ChatsListBoxController : public PeerListController, protected base::Subscriber {
+class ChatsListBoxController
+	: public PeerListController
+	, protected base::Subscriber {
 public:
-	ChatsListBoxController(std::unique_ptr<PeerListSearchController> searchController = std::make_unique<PeerListGlobalSearchController>());
+	ChatsListBoxController(
+		std::unique_ptr<PeerListSearchController> searchController
+			= std::make_unique<PeerListGlobalSearchController>());
 
 	void prepare() override final;
 	std::unique_ptr<PeerListRow> createSearchRow(not_null<PeerData*> peer) override final;
@@ -243,11 +247,16 @@ public:
 
 	void rowClicked(not_null<PeerListRow*> row) override;
 
+	bool respectSavedMessagesChat() const override {
+		return true;
+	}
+
 protected:
 	void prepareViewHook() override;
 	std::unique_ptr<Row> createRow(
 		not_null<History*> history) override;
 
+private:
 	base::lambda<void(not_null<PeerData*>)> _callback;
 
 };

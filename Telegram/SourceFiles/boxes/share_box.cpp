@@ -223,7 +223,12 @@ void ShareBox::onFilterUpdate(const QString &query) {
 void ShareBox::addPeerToMultiSelect(PeerData *peer, bool skipAnimation) {
 	using AddItemWay = Ui::MultiSelect::AddItemWay;
 	auto addItemWay = skipAnimation ? AddItemWay::SkipAnimation : AddItemWay::Default;
-	_select->addItem(peer->id, peer->shortName(), st::activeButtonBg, PaintUserpicCallback(peer), addItemWay);
+	_select->addItem(
+		peer->id,
+		peer->isSelf() ? lang(lng_saved_short) : peer->shortName(),
+		st::activeButtonBg,
+		PaintUserpicCallback(peer, true),
+		addItemWay);
 }
 
 void ShareBox::onPeerSelectedChanged(PeerData *peer, bool checked) {
@@ -281,9 +286,14 @@ ShareBox::Inner::Inner(QWidget *parent, ShareBox::FilterCallback &&filterCallbac
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	auto dialogs = App::main()->dialogsList();
+	if (auto self = App::self()) {
+		if (_filterCallback(App::self())) {
+			_chatsIndexed->addToEnd(App::history(self));
+		}
+	}
 	for_const (auto row, dialogs->all()) {
 		auto history = row->history();
-		if (_filterCallback(history->peer)) {
+		if (!history->peer->isSelf() && _filterCallback(history->peer)) {
 			_chatsIndexed->addToEnd(history);
 		}
 	}
@@ -355,7 +365,7 @@ void ShareBox::Inner::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 	updateChat(update.peer);
 }
 
-void ShareBox::Inner::updateChat(PeerData *peer) {
+void ShareBox::Inner::updateChat(not_null<PeerData*> peer) {
 	auto i = _dataMap.find(peer);
 	if (i != _dataMap.cend()) {
 		updateChatName(i.value(), peer);
@@ -363,8 +373,11 @@ void ShareBox::Inner::updateChat(PeerData *peer) {
 	}
 }
 
-void ShareBox::Inner::updateChatName(Chat *chat, PeerData *peer) {
-	chat->name.setText(st::shareNameStyle, peer->name, _textNameOptions);
+void ShareBox::Inner::updateChatName(
+		not_null<Chat*> chat,
+		not_null<PeerData*> peer) {
+	const auto text = peer->isSelf() ? lang(lng_saved_messages) : peer->name;
+	chat->name.setText(st::shareNameStyle, text, _textNameOptions);
 }
 
 void ShareBox::Inner::repaintChatAtIndex(int index) {
@@ -394,11 +407,11 @@ ShareBox::Inner::Chat *ShareBox::Inner::getChatAtIndex(int index) {
 	return nullptr;
 }
 
-void ShareBox::Inner::repaintChat(PeerData *peer) {
+void ShareBox::Inner::repaintChat(not_null<PeerData*> peer) {
 	repaintChatAtIndex(chatIndex(peer));
 }
 
-int ShareBox::Inner::chatIndex(PeerData *peer) const {
+int ShareBox::Inner::chatIndex(not_null<PeerData*> peer) const {
 	int index = 0;
 	if (_filter.isEmpty()) {
 		for_const (auto row, _chatsIndexed->all()) {
@@ -498,7 +511,11 @@ void ShareBox::Inner::setActive(int active) {
 	emit mustScrollTo(y, y + _rowHeight);
 }
 
-void ShareBox::Inner::paintChat(Painter &p, TimeMs ms, Chat *chat, int index) {
+void ShareBox::Inner::paintChat(
+		Painter &p,
+		TimeMs ms,
+		not_null<Chat*> chat,
+		int index) {
 	auto x = _rowsLeft + qFloor((index % _columnCount) * _rowWidthReal);
 	auto y = _rowsTop + (index / _columnCount) * _rowHeight;
 
@@ -518,7 +535,7 @@ void ShareBox::Inner::paintChat(Painter &p, TimeMs ms, Chat *chat, int index) {
 
 ShareBox::Inner::Chat::Chat(PeerData *peer, base::lambda<void()> updateCallback)
 : peer(peer)
-, checkbox(st::sharePhotoCheckbox, updateCallback, PaintUserpicCallback(peer))
+, checkbox(st::sharePhotoCheckbox, updateCallback, PaintUserpicCallback(peer, true))
 , name(st::sharePhotoCheckbox.imageRadius * 2) {
 }
 
@@ -649,27 +666,29 @@ void ShareBox::Inner::changeCheckState(Chat *chat) {
 	changePeerCheckState(chat, !chat->checkbox.checked());
 }
 
-void ShareBox::Inner::peerUnselected(PeerData *peer) {
-	// If data is nullptr we simply won't do anything.
-	auto chat = _dataMap.value(peer, nullptr);
-	changePeerCheckState(chat, false, ChangeStateWay::SkipCallback);
+void ShareBox::Inner::peerUnselected(not_null<PeerData*> peer) {
+	if (auto chat = _dataMap.value(peer, nullptr)) {
+		changePeerCheckState(chat, false, ChangeStateWay::SkipCallback);
+	}
 }
 
 void ShareBox::Inner::setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> callback) {
 	_peerSelectedChangedCallback = std::move(callback);
 }
 
-void ShareBox::Inner::changePeerCheckState(Chat *chat, bool checked, ChangeStateWay useCallback) {
-	if (chat) {
-		chat->checkbox.setChecked(checked);
-	}
+void ShareBox::Inner::changePeerCheckState(
+		not_null<Chat*> chat,
+		bool checked,
+		ChangeStateWay useCallback) {
+	chat->checkbox.setChecked(checked);
 	if (checked) {
 		_selected.insert(chat->peer);
 		setActive(chatIndex(chat->peer));
 	} else {
 		_selected.remove(chat->peer);
 	}
-	if (useCallback != ChangeStateWay::SkipCallback && _peerSelectedChangedCallback) {
+	if (useCallback != ChangeStateWay::SkipCallback
+		&& _peerSelectedChangedCallback) {
 		_peerSelectedChangedCallback(chat->peer, checked);
 	}
 }

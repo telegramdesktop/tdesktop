@@ -41,6 +41,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/window_controller.h"
 #include "window/window_peer_menu.h"
 #include "ui/widgets/multi_select.h"
+#include "ui/empty_userpic.h"
 
 namespace {
 
@@ -463,7 +464,11 @@ void DialogsInner::paintSearchInPeer(Painter &p, int fullWidth, bool onlyBackgro
 	if (onlyBackground) return;
 
 	p.setPen(st::dialogsNameFg);
-	paintSearchInFilter(p, _searchInPeer, top, fullWidth, _searchInPeer->nameText);
+	if (_searchInPeer->isSelf()) {
+		paintSearchInFilter(p, nullptr, top, fullWidth, _searchInSavedText);
+	} else {
+		paintSearchInFilter(p, _searchInPeer, top, fullWidth, _searchInPeer->nameText);
+	}
 	if (_searchFromUser) {
 		top += st::dialogsSearchInHeight + st::lineWidth;
 		p.setPen(st::dialogsTextFg);
@@ -473,19 +478,53 @@ void DialogsInner::paintSearchInPeer(Painter &p, int fullWidth, bool onlyBackgro
 	}
 }
 
-void DialogsInner::paintSearchInFilter(Painter &p, not_null<PeerData*> peer, int top, int fullWidth, const Text &text) const {
-	auto pen = p.pen();
-	peer->paintUserpicLeft(p, st::dialogsPadding.x(), top + (st::dialogsSearchInHeight - st::dialogsSearchInPhotoSize) / 2, getFullWidth(), st::dialogsSearchInPhotoSize);
-
-	auto nameleft = st::dialogsPadding.x() + st::dialogsSearchInPhotoSize + st::dialogsSearchInPhotoPadding;
-	auto namewidth = fullWidth - nameleft - st::dialogsPadding.x() * 2 - st::dialogsCancelSearch.width;
-	auto rectForName = QRect(nameleft, top + (st::dialogsSearchInHeight - st::msgNameFont->height) / 2, namewidth, st::msgNameFont->height);
-	if (auto chatTypeIcon = Dialogs::Layout::ChatTypeIcon(peer, false, false)) {
-		chatTypeIcon->paint(p, rectForName.topLeft(), fullWidth);
+void DialogsInner::paintSearchInFilter(
+		Painter &p,
+		PeerData *peer,
+		int top,
+		int fullWidth,
+		const Text &text) const {
+	const auto savedPen = p.pen();
+	const auto userpicTop = top
+		+ (st::dialogsSearchInHeight - st::dialogsSearchInPhotoSize) / 2;
+	if (peer) {
+		peer->paintUserpicLeft(
+			p,
+			st::dialogsPadding.x(),
+			userpicTop,
+			getFullWidth(),
+			st::dialogsSearchInPhotoSize);
+	} else {
+		Ui::EmptyUserpic::PaintSavedMessages(
+			p,
+			st::dialogsPadding.x(),
+			userpicTop,
+			getFullWidth(),
+			st::dialogsSearchInPhotoSize);
+	}
+	const auto nameleft = st::dialogsPadding.x()
+		+ st::dialogsSearchInPhotoSize
+		+ st::dialogsSearchInPhotoPadding;
+	const auto namewidth = fullWidth
+		- nameleft
+		- st::dialogsPadding.x() * 2
+		- st::dialogsCancelSearch.width;
+	auto rectForName = QRect(
+		nameleft,
+		top + (st::dialogsSearchInHeight - st::msgNameFont->height) / 2,
+		namewidth,
+		st::msgNameFont->height);
+	if (auto icon = Dialogs::Layout::ChatTypeIcon(peer, false, false)) {
+		icon->paint(p, rectForName.topLeft(), fullWidth);
 		rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
 	}
-	p.setPen(pen);
-	text.drawLeftElided(p, rectForName.left(), rectForName.top(), rectForName.width(), width());
+	p.setPen(savedPen);
+	text.drawLeftElided(
+		p,
+		rectForName.left(),
+		rectForName.top(),
+		rectForName.width(),
+		getFullWidth());
 }
 
 void DialogsInner::activate() {
@@ -1752,11 +1791,23 @@ void DialogsInner::searchInPeer(PeerData *peer, UserData *from) {
 	if (_searchInPeer) {
 		onHashtagFilterUpdate(QStringRef());
 		_cancelSearchInPeer->show();
+		if (_searchInPeer->isSelf()) {
+			_searchInSavedText.setText(
+				st::dialogsSearchFromStyle,
+				lang(lng_saved_messages),
+				_textDlgOptions);
+		}
 	} else {
 		_cancelSearchInPeer->hide();
 	}
 	if (_searchFromUser) {
-		_searchFromUserText.setText(st::dialogsSearchFromStyle, lng_dlg_search_from(lt_user, textcmdLink(1, App::peerName(_searchFromUser))), _textDlgOptions);
+		auto fromUserText = lng_dlg_search_from(
+			lt_user,
+			textcmdLink(1, App::peerName(_searchFromUser)));
+		_searchFromUserText.setText(
+			st::dialogsSearchFromStyle,
+			fromUserText,
+			_textDlgOptions);
 		_cancelSearchFromUser->show();
 	} else {
 		_cancelSearchFromUser->hide();

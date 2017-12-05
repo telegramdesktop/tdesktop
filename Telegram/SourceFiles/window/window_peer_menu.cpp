@@ -144,7 +144,7 @@ Filler::Filler(
 }
 
 bool Filler::showInfo() {
-	if (_source == PeerMenuSource::Profile) {
+	if (_source == PeerMenuSource::Profile || _peer->isSelf()) {
 		return false;
 	} else if (_controller->activePeer.current() != _peer) {
 		return true;
@@ -310,16 +310,20 @@ void Filler::addUserActions(not_null<UserData*> user) {
 			_addAction(
 				lang(lng_info_share_contact),
 				[user] { PeerMenuShareContactBox(user); });
-			_addAction(
-				lang(lng_info_edit_contact),
-				[user] { Ui::show(Box<AddContactBox>(user)); });
-			_addAction(
-				lang(lng_info_delete_contact),
-				[user] { PeerMenuDeleteContact(user); });
+			if (!user->isSelf()) {
+				_addAction(
+					lang(lng_info_edit_contact),
+					[user] { Ui::show(Box<AddContactBox>(user)); });
+				_addAction(
+					lang(lng_info_delete_contact),
+					[user] { PeerMenuDeleteContact(user); });
+			}
 		} else if (user->canShareThisContact()) {
-			_addAction(
-				lang(lng_info_add_as_contact),
-				[user] { PeerMenuAddContact(user); });
+			if (!user->isSelf()) {
+				_addAction(
+					lang(lng_info_add_as_contact),
+					[user] { PeerMenuAddContact(user); });
+			}
 			_addAction(
 				lang(lng_info_share_contact),
 				[user] { PeerMenuShareContactBox(user); });
@@ -412,7 +416,7 @@ void Filler::fill() {
 	if (showInfo()) {
 		addInfo();
 	}
-	if (_source != PeerMenuSource::Profile) {
+	if (_source != PeerMenuSource::Profile && !_peer->isSelf()) {
 		addNotifications();
 	}
 	if (_source == PeerMenuSource::ChatsList) {

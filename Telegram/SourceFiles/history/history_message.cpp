@@ -186,7 +186,9 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		OrderedSet<mtpRequestId> requests;
 	};
 	auto data = MakeShared<ShareData>(item->fullId());
-	auto isGame = item->getMessageBot() && item->getMedia() && (item->getMedia()->type() == MediaTypeGame);
+	auto isGame = item->getMessageBot()
+		&& item->getMedia()
+		&& (item->getMedia()->type() == MediaTypeGame);
 
 	auto canCopyLink = item->hasDirectLink();
 	if (!canCopyLink) {
@@ -285,8 +287,13 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		}
 		return false;
 	};
-	auto copyLinkCallback = canCopyLink ? base::lambda<void()>(std::move(copyCallback)) : base::lambda<void()>();
-	Ui::show(Box<ShareBox>(std::move(copyLinkCallback), std::move(submitCallback), std::move(filterCallback)));
+	auto copyLinkCallback = canCopyLink
+		? base::lambda<void()>(std::move(copyCallback))
+		: base::lambda<void()>();
+	Ui::show(Box<ShareBox>(
+		std::move(copyLinkCallback),
+		std::move(submitCallback),
+		std::move(filterCallback)));
 }
 
 void HistoryInitMessages() {

@@ -32,6 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/popup_menu.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/empty_userpic.h"
 #include "ui/wrap/slide_wrap.h"
 #include "lang/lang_keys.h"
 #include "observer_peer.h"
@@ -274,10 +275,23 @@ void PeerListBox::addSelectItem(not_null<PeerData*> peer, PeerListRow::SetStyle 
 		createMultiSelect();
 		_select->hide(anim::type::instant);
 	}
+	const auto respect = _controller->respectSavedMessagesChat();
+	const auto text = (respect && peer->isSelf())
+		? lang(lng_saved_short)
+		: peer->shortName();
+	const auto callback = PaintUserpicCallback(peer, respect);
 	if (style == PeerListRow::SetStyle::Fast) {
-		_select->entity()->addItemInBunch(peer->id, peer->shortName(), st::activeButtonBg, PaintUserpicCallback(peer));
+		_select->entity()->addItemInBunch(
+			peer->id,
+			text,
+			st::activeButtonBg,
+			std::move(callback));
 	} else {
-		_select->entity()->addItem(peer->id, peer->shortName(), st::activeButtonBg, PaintUserpicCallback(peer), Ui::MultiSelect::AddItemWay::Default);
+		_select->entity()->addItem(
+			peer->id,
+			text,
+			st::activeButtonBg,
+			std::move(callback));
 	}
 }
 
@@ -313,7 +327,8 @@ PeerListRow::PeerListRow(not_null<PeerData*> peer, PeerListRowId id)
 : _id(id)
 , _peer(peer)
 , _initialized(false)
-, _isSearchResult(false) {
+, _isSearchResult(false)
+, _isSavedMessagesChat(false) {
 }
 
 bool PeerListRow::checked() const {
@@ -338,13 +353,17 @@ void PeerListRow::refreshStatus() {
 	_statusType = StatusType::LastSeen;
 	_statusValidTill = 0;
 	if (auto user = peer()->asUser()) {
-		auto time = unixtime();
-		setStatusText(App::onlineText(user, time));
-		if (App::onlineColorUse(user, time)) {
-			_statusType = StatusType::Online;
+		if (_isSavedMessagesChat) {
+			setStatusText(lang(lng_saved_forward_here));
+		} else {
+			auto time = unixtime();
+			setStatusText(App::onlineText(user, time));
+			if (App::onlineColorUse(user, time)) {
+				_statusType = StatusType::Online;
+			}
+			_statusValidTill = getms()
+				+ App::onlineWillChangeIn(user, time) * 1000LL;
 		}
-		_statusValidTill = getms()
-			+ App::onlineWillChangeIn(user, time) * 1000LL;
 	} else if (auto chat = peer()->asChat()) {
 		if (!chat->amIn()) {
 			setStatusText(lang(lng_chat_status_unaccessible));
@@ -368,7 +387,10 @@ void PeerListRow::refreshName(const style::PeerListItem &st) {
 	if (!_initialized) {
 		return;
 	}
-	_name.setText(st.nameStyle, peer()->name, _textNameOptions);
+	const auto text = _isSavedMessagesChat
+		? lang(lng_saved_messages)
+		: peer()->name;
+	_name.setText(st.nameStyle, text, _textNameOptions);
 }
 
 PeerListRow::~PeerListRow() = default;
@@ -441,6 +463,8 @@ void PeerListRow::paintUserpic(
 		paintDisabledCheckUserpic(p, st, x, y, outerWidth);
 	} else if (_checkbox) {
 		_checkbox->paint(p, ms, x, y, outerWidth);
+	} else if (_isSavedMessagesChat) {
+		Ui::EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, st.photoSize);
 	} else {
 		peer()->paintUserpicLeft(p, x, y, outerWidth, st.photoSize);
 	}
@@ -469,7 +493,11 @@ void PeerListRow::paintDisabledCheckUserpic(
 	auto iconBorderPen = st::contactsPhotoCheckbox.check.border->p;
 	iconBorderPen.setWidth(st::contactsPhotoCheckbox.selectWidth);
 
-	peer()->paintUserpicLeft(p, userpicLeft, userpicTop, outerWidth, userpicRadius * 2);
+	if (_isSavedMessagesChat) {
+		Ui::EmptyUserpic::PaintSavedMessages(p, userpicLeft, userpicTop, outerWidth, userpicRadius * 2);
+	} else {
+		peer()->paintUserpicLeft(p, userpicLeft, userpicTop, outerWidth, userpicRadius * 2);
+	}
 
 	{
 		PainterHighQualityEnabler hq(p);
@@ -507,7 +535,7 @@ void PeerListRow::createCheckbox(base::lambda<void()> updateCallback) {
 	_checkbox = std::make_unique<Ui::RoundImageCheckbox>(
 		st::contactsPhotoCheckbox,
 		std::move(updateCallback),
-		PaintUserpicCallback(_peer));
+		PaintUserpicCallback(_peer, _isSavedMessagesChat));
 }
 
 void PeerListRow::setCheckedInternal(bool checked, SetStyle style) {
@@ -574,12 +602,16 @@ void PeerListContent::appendFoundRow(not_null<PeerListRow*> row) {
 }
 
 void PeerListContent::changeCheckState(not_null<PeerListRow*> row, bool checked, PeerListRow::SetStyle style) {
-	row->setChecked(checked, style, [this, row] {
-		updateRow(row);
-	});
+	row->setChecked(
+		checked,
+		style,
+		[this, row] { updateRow(row); });
 }
 
 void PeerListContent::addRowEntry(not_null<PeerListRow*> row) {
+	if (_controller->respectSavedMessagesChat() && row->peer()->isSelf()) {
+		row->setIsSavedMessagesChat(true);
+	}
 	_rowsById.emplace(row->id(), row);
 	_rowsByPeer[row->peer()].push_back(row);
 	if (addingToSearchIndex()) {
@@ -1013,6 +1045,7 @@ void PeerListContent::setPressed(Selected pressed) {
 TimeMs PeerListContent::paintRow(Painter &p, TimeMs ms, RowIndex index) {
 	auto row = getRow(index);
 	Assert(row != nullptr);
+
 	row->lazyInitialize(_st.item);
 
 	auto refreshStatusAt = row->refreshStatusTime();

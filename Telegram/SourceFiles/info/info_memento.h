@@ -64,13 +64,16 @@ public:
 		return _stack.back().get();
 	}
 
+	static Section DefaultSection(not_null<PeerData*> peer);
+	static Memento Default(not_null<PeerData*> peer);
+
 	~Memento();
 
 private:
 	static std::vector<std::unique_ptr<ContentMemento>> DefaultStack(
 		PeerId peerId,
 		Section section);
-	static std::unique_ptr<ContentMemento> Default(
+	static std::unique_ptr<ContentMemento> DefaultContent(
 		PeerId peerId,
 		Section section);
 

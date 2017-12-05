@@ -305,20 +305,35 @@ void PeerData::clearUserpic() {
 void PeerData::fillNames() {
 	_nameWords.clear();
 	_nameFirstChars.clear();
-	auto toIndex = TextUtilities::RemoveAccents(name);
-	if (cRussianLetters().match(toIndex).hasMatch()) {
-		toIndex += ' ' + translitRusEng(toIndex);
+	auto toIndexList = QStringList();
+	auto appendToIndex = [&](const QString &value) {
+		if (!value.isEmpty()) {
+			toIndexList.push_back(TextUtilities::RemoveAccents(value));
+		}
+	};
+
+	appendToIndex(name);
+	const auto appendTranslit = !toIndexList.isEmpty()
+		&& cRussianLetters().match(toIndexList.front()).hasMatch();
+	if (appendTranslit) {
+		appendToIndex(translitRusEng(toIndexList.front()));
 	}
-	if (isUser()) {
-		if (!asUser()->nameOrPhone.isEmpty() && asUser()->nameOrPhone != name) toIndex += ' ' + TextUtilities::RemoveAccents(asUser()->nameOrPhone);
-		if (!asUser()->username.isEmpty()) toIndex += ' ' + TextUtilities::RemoveAccents(asUser()->username);
-	} else if (isChannel()) {
-		if (!asChannel()->username.isEmpty()) toIndex += ' ' + TextUtilities::RemoveAccents(asChannel()->username);
+	if (auto user = asUser()) {
+		if (user->nameOrPhone != name) {
+			appendToIndex(user->nameOrPhone);
+		}
+		appendToIndex(user->username);
+		if (isSelf()) {
+			appendToIndex(lang(lng_saved_messages));
+		}
+	} else if (auto channel = asChannel()) {
+		appendToIndex(channel->username);
 	}
+	auto toIndex = toIndexList.join(' ');
 	toIndex += ' ' + rusKeyboardLayoutSwitch(toIndex);
 
-	auto namesList = TextUtilities::PrepareSearchWords(toIndex);
-	for (auto &name : namesList) {
+	const auto namesList = TextUtilities::PrepareSearchWords(toIndex);
+	for (const auto &name : namesList) {
 		_nameWords.insert(name);
 		_nameFirstChars.insert(name[0]);
 	}

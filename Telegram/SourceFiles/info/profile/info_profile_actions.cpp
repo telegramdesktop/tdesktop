@@ -261,15 +261,18 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		});
 		addInfoLine(lng_info_about_label, AboutValue(_peer));
 	}
-	result->add(object_ptr<Ui::SlideWrap<>>(
-		result,
-		object_ptr<Ui::PlainShadow>(result),
-		st::infoProfileSeparatorPadding)
-	)->setDuration(
-		st::infoSlideDuration
-	)->toggleOn(
-		std::move(tracker).atLeastOneShownValue()
-	);
+	if (!_peer->isSelf()) {
+		// No notifications toggle for Self => no separator.
+		result->add(object_ptr<Ui::SlideWrap<>>(
+			result,
+			object_ptr<Ui::PlainShadow>(result),
+			st::infoProfileSeparatorPadding)
+		)->setDuration(
+			st::infoSlideDuration
+		)->toggleOn(
+			std::move(tracker).atLeastOneShownValue()
+		);
+	}
 	object_ptr<FloatingIcon>(
 		result,
 		st::infoIconInformation,
@@ -323,28 +326,49 @@ Ui::MultiSlideTracker DetailsFiller::fillUserButtons(
 
 	Ui::MultiSlideTracker tracker;
 	auto window = _controller->window();
-	auto sendMessageVisible = rpl::combine(
-		_controller->wrapValue(),
-		window->historyPeer.value(),
-		(_1 != Wrap::Side) || (_2 != user));
-	auto sendMessage = [window, user] {
-		window->showPeerHistory(
-			user,
-			Window::SectionShow::Way::Forward);
-	};
-	AddMainButton(
-		_wrap,
-		Lang::Viewer(lng_profile_send_message),
-		std::move(sendMessageVisible),
-		std::move(sendMessage),
-		tracker);
-	AddMainButton(
-		_wrap,
-		Lang::Viewer(lng_info_add_as_contact),
-		CanAddContactValue(user),
-		[user] { Window::PeerMenuAddContact(user); },
-		tracker);
 
+	auto addSendMessageButton = [&] {
+		auto sendMessageVisible = rpl::combine(
+			_controller->wrapValue(),
+			window->historyPeer.value(),
+			(_1 != Wrap::Side) || (_2 != user));
+		auto sendMessage = [window, user] {
+			window->showPeerHistory(
+				user,
+				Window::SectionShow::Way::Forward);
+		};
+		AddMainButton(
+			_wrap,
+			Lang::Viewer(lng_profile_send_message),
+			std::move(sendMessageVisible),
+			std::move(sendMessage),
+			tracker);
+	};
+
+	if (user->isSelf()) {
+		auto separator = _wrap->add(object_ptr<Ui::SlideWrap<>>(
+			_wrap,
+			object_ptr<Ui::PlainShadow>(_wrap),
+			st::infoProfileSeparatorPadding)
+		)->setDuration(
+			st::infoSlideDuration
+		);
+
+		addSendMessageButton();
+
+		separator->toggleOn(
+			std::move(tracker).atLeastOneShownValue()
+		);
+	} else {
+		addSendMessageButton();
+
+		AddMainButton(
+			_wrap,
+			Lang::Viewer(lng_info_add_as_contact),
+			CanAddContactValue(user),
+			[user] { Window::PeerMenuAddContact(user); },
+			tracker);
+	}
 	return tracker;
 }
 
@@ -377,7 +401,9 @@ object_ptr<Ui::RpWidget> DetailsFiller::fill() {
 	add(object_ptr<BoxContentDivider>(_wrap));
 	add(CreateSkipWidget(_wrap));
 	add(setupInfo());
-	add(setupMuteToggle());
+	if (!_peer->isSelf()) {
+		add(setupMuteToggle());
+	}
 	setupMainButtons();
 	add(CreateSkipWidget(_wrap));
 	return std::move(_wrap);
@@ -611,8 +637,10 @@ void ActionsFiller::fillUserActions(not_null<UserData*> user) {
 		addInviteToGroupAction(user);
 	}
 	addShareContactAction(user);
-	addEditContactAction(user);
-	addDeleteContactAction(user);
+	if (!user->isSelf()) {
+		addEditContactAction(user);
+		addDeleteContactAction(user);
+	}
 	addClearHistoryAction(user);
 	addDeleteConversationAction(user);
 	if (!user->isSelf()) {

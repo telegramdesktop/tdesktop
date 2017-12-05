@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <rpl/event_stream.h>
 #include "ui/rp_widget.h"
+#include "ui/empty_userpic.h"
 #include "boxes/abstract_box.h"
 #include "mtproto/sender.h"
 #include "base/timer.h"
@@ -46,7 +47,15 @@ namespace Notify {
 struct PeerUpdate;
 } // namespace Notify
 
-inline auto PaintUserpicCallback(PeerData *peer) {
+inline auto PaintUserpicCallback(
+	not_null<PeerData*> peer,
+	bool respectSavedMessagesChat)
+->base::lambda<void(Painter &p, int x, int y, int outerWidth, int size)> {
+	if (respectSavedMessagesChat && peer->isSelf()) {
+		return [](Painter &p, int x, int y, int outerWidth, int size) {
+			Ui::EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);
+		};
+	}
 	return [peer](Painter &p, int x, int y, int outerWidth, int size) {
 		peer->paintUserpicLeft(p, x, y, outerWidth, size);
 	};
@@ -141,13 +150,22 @@ public:
 	void setIsSearchResult(bool isSearchResult) {
 		_isSearchResult = isSearchResult;
 	}
+	bool isSavedMessagesChat() const {
+		return _isSavedMessagesChat;
+	}
+	void setIsSavedMessagesChat(bool isSavedMessagesChat) {
+		_isSavedMessagesChat = isSavedMessagesChat;
+	}
 
 	enum class SetStyle {
 		Animated,
 		Fast,
 	};
 	template <typename UpdateCallback>
-	void setChecked(bool checked, SetStyle style, UpdateCallback callback) {
+	void setChecked(
+			bool checked,
+			SetStyle style,
+			UpdateCallback callback) {
 		if (checked && !_checkbox) {
 			createCheckbox(std::move(callback));
 		}
@@ -218,6 +236,7 @@ private:
 	State _disabledState = State::Active;
 	bool _initialized : 1;
 	bool _isSearchResult : 1;
+	bool _isSavedMessagesChat : 1;
 
 };
 
@@ -370,6 +389,10 @@ public:
 
 	void peerListSearchAddRow(not_null<PeerData*> peer) override;
 	void peerListSearchRefreshRows() override;
+
+	virtual bool respectSavedMessagesChat() const {
+		return false;
+	}
 
 	virtual rpl::producer<int> onlineCountValue() const;
 

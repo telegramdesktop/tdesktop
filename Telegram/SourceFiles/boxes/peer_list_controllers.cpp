@@ -220,7 +220,9 @@ bool PeerListGlobalSearchController::isLoading() {
 	return _timer.isActive() || _requestId;
 }
 
-ChatsListBoxController::ChatsListBoxController(std::unique_ptr<PeerListSearchController> searchController) : PeerListController(std::move(searchController)) {
+ChatsListBoxController::ChatsListBoxController(
+	std::unique_ptr<PeerListSearchController> searchController)
+: PeerListController(std::move(searchController)) {
 }
 
 void ChatsListBoxController::prepare() {
@@ -254,7 +256,15 @@ void ChatsListBoxController::rebuildRows() {
 		}
 		return count;
 	};
-	auto added = appendList(App::main()->dialogsList());
+	auto added = 0;
+	if (respectSavedMessagesChat()) {
+		if (auto self = App::self()) {
+			if (appendRow(App::history(self))) {
+				++added;
+			}
+		}
+	}
+	added += appendList(App::main()->dialogsList());
 	added += appendList(App::main()->contactsNoDialogsList());
 	if (!wasEmpty && added > 0) {
 		// Place dialogs list before contactsNoDialogs list.
@@ -262,6 +272,11 @@ void ChatsListBoxController::rebuildRows() {
 			auto history = static_cast<const Row&>(a).history();
 			return history->inChatList(Dialogs::Mode::All);
 		});
+		if (respectSavedMessagesChat()) {
+			delegate()->peerListPartitionRows([](const PeerListRow &a) {
+				return a.peer()->isSelf();
+			});
+		}
 	}
 	checkForEmptyRows();
 	delegate()->peerListRefreshRows();

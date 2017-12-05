@@ -48,11 +48,21 @@ std::vector<std::unique_ptr<ContentMemento>> Memento::DefaultStack(
 		PeerId peerId,
 		Section section) {
 	auto result = std::vector<std::unique_ptr<ContentMemento>>();
-	result.push_back(Default(peerId, section));
+	result.push_back(DefaultContent(peerId, section));
 	return result;
 }
 
-std::unique_ptr<ContentMemento> Memento::Default(
+Section Memento::DefaultSection(not_null<PeerData*> peer) {
+	return peer->isSelf()
+		? Section(Section::MediaType::Photo)
+		: Section(Section::Type::Profile);
+}
+
+Memento Memento::Default(not_null<PeerData*> peer) {
+	return Memento(peer->id, DefaultSection(peer));
+}
+
+std::unique_ptr<ContentMemento> Memento::DefaultContent(
 		PeerId peerId,
 		Section section) {
 	Expects(peerId != 0);
@@ -84,7 +94,7 @@ std::unique_ptr<ContentMemento> Memento::Default(
 			peerId,
 			migratedPeerId);
 	}
-	Unexpected("Wrong section type in Info::Memento::Default()");
+	Unexpected("Wrong section type in Info::Memento::DefaultContent()");
 }
 
 object_ptr<Window::SectionWidget> Memento::createWidget(

@@ -124,17 +124,35 @@ void WrapWidget::startInjectingActivePeerProfiles() {
 }
 
 void WrapWidget::injectActivePeerProfile(not_null<PeerData*> peer) {
-	auto firstPeerId = hasStackHistory()
+	const auto firstPeerId = hasStackHistory()
 		? _historyStack.front().section->peerId()
 		: _controller->peerId();
-	auto firstSectionType = hasStackHistory()
+	const auto firstSectionType = hasStackHistory()
 		? _historyStack.front().section->section().type()
 		: _controller->section().type();
-	if (firstSectionType != Section::Type::Profile
+	const auto firstSectionMediaType = [&] {
+		if (firstSectionType == Section::Type::Profile) {
+			return Section::MediaType::kCount;
+		}
+		return hasStackHistory()
+			? _historyStack.front().section->section().mediaType()
+			: _controller->section().mediaType();
+	}();
+	const auto expectedType = peer->isSelf()
+		? Section::Type::Media
+		: Section::Type::Profile;
+	const auto expectedMediaType = peer->isSelf()
+		? Section::MediaType::Photo
+		: Section::MediaType::kCount;
+	if (firstSectionType != expectedType
+		|| firstSectionMediaType != expectedMediaType
 		|| firstPeerId != peer->id) {
 		auto injected = StackItem();
+		auto section = peer->isSelf()
+			? Section(Section::MediaType::Photo)
+			: Section(Section::Type::Profile);
 		injected.section = std::move(
-			Memento(peer->id).takeStack().front());
+			Memento(peer->id, section).takeStack().front());
 		_historyStack.insert(
 			_historyStack.begin(),
 			std::move(injected));

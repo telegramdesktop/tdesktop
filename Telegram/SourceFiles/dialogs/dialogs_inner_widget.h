@@ -196,7 +196,12 @@ private:
 	void paintDialog(Painter &p, Dialogs::Row *row, int fullWidth, PeerData *active, PeerData *selected, bool onlyBackground, TimeMs ms);
 	void paintPeerSearchResult(Painter &p, const PeerSearchResult *result, int fullWidth, bool active, bool selected, bool onlyBackground, TimeMs ms) const;
 	void paintSearchInPeer(Painter &p, int fullWidth, bool onlyBackground, TimeMs ms) const;
-	void paintSearchInFilter(Painter &p, not_null<PeerData*> peer, int top, int fullWidth, const Text &text) const;
+	void paintSearchInFilter(
+		Painter &p,
+		PeerData *peer,
+		int top,
+		int fullWidth,
+		const Text &text) const;
 
 	void clearSelection();
 	void clearSearchResults(bool clearPeerSearchResults = true);
@@ -289,6 +294,7 @@ private:
 	PeerData *_searchInMigrated = nullptr;
 	UserData *_searchFromUser = nullptr;
 	Text _searchFromUserText;
+	Text _searchInSavedText;
 	PeerData *_menuPeer = nullptr;
 
 	base::lambda<void()> _loadMoreCallback;

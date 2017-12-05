@@ -115,7 +115,7 @@ public:
 	Inner(QWidget *parent, ShareBox::FilterCallback &&filterCallback);
 
 	void setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> callback);
-	void peerUnselected(PeerData *peer);
+	void peerUnselected(not_null<PeerData*> peer);
 
 	QVector<PeerData*> selected() const;
 	bool hasSelected() const;
@@ -163,11 +163,11 @@ private:
 		Text name;
 		Animation nameActive;
 	};
-	void paintChat(Painter &p, TimeMs ms, Chat *chat, int index);
-	void updateChat(PeerData *peer);
-	void updateChatName(Chat *chat, PeerData *peer);
-	void repaintChat(PeerData *peer);
-	int chatIndex(PeerData *peer) const;
+	void paintChat(Painter &p, TimeMs ms, not_null<Chat*> chat, int index);
+	void updateChat(not_null<PeerData*> peer);
+	void updateChatName(not_null<Chat*> chat, not_null<PeerData*> peer);
+	void repaintChat(not_null<PeerData*> peer);
+	int chatIndex(not_null<PeerData*> peer) const;
 	void repaintChatAtIndex(int index);
 	Chat *getChatAtIndex(int index);
 
@@ -177,7 +177,10 @@ private:
 		Default,
 		SkipCallback,
 	};
-	void changePeerCheckState(Chat *chat, bool checked, ChangeStateWay useCallback = ChangeStateWay::Default);
+	void changePeerCheckState(
+		not_null<Chat*> chat,
+		bool checked,
+		ChangeStateWay useCallback = ChangeStateWay::Default);
 
 	Chat *getChat(Dialogs::Row *row);
 	void setActive(int active);

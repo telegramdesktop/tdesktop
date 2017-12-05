@@ -42,6 +42,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"
 #include "info/info_memento.h"
+#include "info/info_controller.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "dialogs/dialogs_widget.h"
@@ -3531,7 +3532,9 @@ auto MainWidget::thirdSectionForCurrentMainSection(
 	if (_thirdSectionFromStack) {
 		return std::move(_thirdSectionFromStack);
 	}
-	return std::make_unique<Info::Memento>(peer->id);
+	return std::make_unique<Info::Memento>(
+		peer->id,
+		Info::Memento::DefaultSection(peer));
 }
 
 void MainWidget::updateThirdColumnToCurrentPeer(

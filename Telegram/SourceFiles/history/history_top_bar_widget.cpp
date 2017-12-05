@@ -29,6 +29,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/add_contact_box.h"
 #include "boxes/confirm_box.h"
 #include "info/info_memento.h"
+#include "info/info_controller.h"
+#include "storage/storage_shared_media.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "shortcuts.h"
@@ -243,7 +245,7 @@ void HistoryTopBarWidget::toggleInfoSection() {
 			Auth().saveDataDelayed();
 			if (Adaptive::ThreeColumn()) {
 				_controller->showSection(
-					Info::Memento(_historyPeer->id),
+					Info::Memento::Default(_historyPeer),
 					Window::SectionShow().withThirdColumn());
 			} else {
 				_controller->resizeForThirdSection();
@@ -303,25 +305,40 @@ void HistoryTopBarWidget::paintTopBar(Painter &p, TimeMs ms) {
 	auto nametop = st::topBarArrowPadding.top();
 	auto statustop = st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height;
 	auto namewidth = width() - _rightTaken - nameleft;
-	p.setFont(st::dialogsTextFont);
-	if (!history->paintSendAction(p, nameleft, statustop, namewidth, width(), st::historyStatusFgTyping, ms)) {
-		auto statustext = _titlePeerText;
-		auto statuswidth = _titlePeerTextWidth;
-		if (statuswidth > namewidth) {
-			statustext = st::dialogsTextFont->elided(
-				statustext,
-				namewidth,
-				Qt::ElideLeft);
-			statuswidth = st::dialogsTextFont->width(statustext);
-		}
-		p.setPen(_titlePeerTextOnline
-			? st::historyStatusFgActive
-			: st::historyStatusFg);
-		p.drawTextLeft(nameleft, statustop, width(), statustext, statuswidth);
-	}
 
 	p.setPen(st::dialogsNameFg);
-	_historyPeer->dialogName().drawElided(p, nameleft, nametop, namewidth);
+	if (_historyPeer->isSelf()) {
+		auto text = lang(lng_saved_messages);
+		auto textWidth = st::historySavedFont->width(text);
+		if (namewidth < textWidth) {
+			text = st::historySavedFont->elided(text, namewidth);
+		}
+		p.setFont(st::historySavedFont);
+		p.drawTextLeft(
+			nameleft,
+			(height() - st::historySavedFont->height) / 2,
+			width(),
+			text);
+	} else {
+		_historyPeer->dialogName().drawElided(p, nameleft, nametop, namewidth);
+
+		p.setFont(st::dialogsTextFont);
+		if (!history->paintSendAction(p, nameleft, statustop, namewidth, width(), st::historyStatusFgTyping, ms)) {
+			auto statustext = _titlePeerText;
+			auto statuswidth = _titlePeerTextWidth;
+			if (statuswidth > namewidth) {
+				statustext = st::dialogsTextFont->elided(
+					statustext,
+					namewidth,
+					Qt::ElideLeft);
+				statuswidth = st::dialogsTextFont->width(statustext);
+			}
+			p.setPen(_titlePeerTextOnline
+				? st::historyStatusFgActive
+				: st::historyStatusFg);
+			p.drawTextLeft(nameleft, statustop, width(), statustext, statuswidth);
+		}
+	}
 }
 
 QRect HistoryTopBarWidget::getMembersShowAreaGeometry() const {
@@ -347,7 +364,13 @@ void HistoryTopBarWidget::mousePressEvent(QMouseEvent *e) {
 }
 
 void HistoryTopBarWidget::infoClicked() {
-	_controller->showPeerInfo(_historyPeer);
+	if (_historyPeer && _historyPeer->isSelf()) {
+		_controller->showSection(Info::Memento(
+			_historyPeer->id,
+			Info::Section(Storage::SharedMediaType::Photo)));
+	} else {
+		_controller->showPeerInfo(_historyPeer);
+	}
 }
 
 void HistoryTopBarWidget::backClicked() {
@@ -367,6 +390,7 @@ void HistoryTopBarWidget::setHistoryPeer(PeerData *historyPeer) {
 				_historyPeer,
 				Ui::UserpicButton::Role::Custom,
 				st::topBarInfoButton);
+			_info->showSavedMessagesOnSelf(true);
 			_info->setAttribute(Qt::WA_TransparentForMouseEvents);
 		}
 		if (_menu) {
@@ -421,7 +445,7 @@ void HistoryTopBarWidget::updateControlsGeometry() {
 		_leftTaken = 0;
 		_back->moveToLeft(_leftTaken, otherButtonsTop);
 		_leftTaken += _back->width();
-		if (_info) {
+		if (_info && !_info->isHidden()) {
 			_info->moveToLeft(_leftTaken, otherButtonsTop);
 			_leftTaken += _info->width();
 		}
@@ -469,7 +493,7 @@ void HistoryTopBarWidget::updateControlsVisibility() {
 		|| (App::main() && !App::main()->stackIsEmpty());
 	_back->setVisible(backVisible);
 	if (_info) {
-		_info->setVisible(backVisible);
+		_info->setVisible(Adaptive::OneColumn());
 	}
 	if (_unreadBadge) {
 		_unreadBadge->show();
