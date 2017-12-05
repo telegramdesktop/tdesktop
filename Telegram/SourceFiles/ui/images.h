@@ -115,6 +115,30 @@ public:
 		return _secret;
 	}
 
+	static StorageImageLocation FromMTP(
+			int32 width,
+			int32 height,
+			const MTPFileLocation &location) {
+		if (location.type() == mtpc_fileLocation) {
+			const auto &data = location.c_fileLocation();
+			return StorageImageLocation(width, height, data);
+		}
+		return StorageImageLocation(width, height, 0, 0, 0, 0);
+	}
+	static StorageImageLocation FromMTP(const MTPPhotoSize &size) {
+		switch (size.type()) {
+		case mtpc_photoSize: {
+			const auto &data = size.c_photoSize();
+			return FromMTP(data.vw.v, data.vh.v, data.vlocation);
+		} break;
+		case mtpc_photoCachedSize: {
+			const auto &data = size.c_photoCachedSize();
+			return FromMTP(data.vw.v, data.vh.v, data.vlocation);
+		} break;
+		}
+		return StorageImageLocation();
+	}
+
 	static StorageImageLocation Null;
 
 private:

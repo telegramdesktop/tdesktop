@@ -436,20 +436,26 @@ void Panel::processUserPhoto() {
 	if (!_user->userpicLoaded()) {
 		_user->loadUserpic(true);
 	}
-	auto photo = (_user->photoId && _user->photoId != UnknownPeerPhotoId) ? App::photo(_user->photoId) : nullptr;
+	const auto photo = _user->userpicPhotoId()
+		? App::photo(_user->userpicPhotoId())
+		: nullptr;
 	if (isGoodUserPhoto(photo)) {
 		photo->full->load(true);
-	} else {
-		if ((_user->photoId == UnknownPeerPhotoId) || (_user->photoId && (!photo || !photo->date))) {
-			Auth().api().requestFullPeer(_user);
-		}
+	} else if (_user->userpicPhotoUnknown() || (photo && !photo->date)) {
+		Auth().api().requestFullPeer(_user);
 	}
 	refreshUserPhoto();
 }
 
 void Panel::refreshUserPhoto() {
-	auto photo = (_user->photoId && _user->photoId != UnknownPeerPhotoId) ? App::photo(_user->photoId) : nullptr;
-	if (isGoodUserPhoto(photo) && photo->full->loaded() && (photo->id != _userPhotoId || !_userPhotoFull)) {
+	const auto photo = _user->userpicPhotoId()
+		? App::photo(_user->userpicPhotoId())
+		: nullptr;
+	const auto isNewPhoto = [&](not_null<PhotoData*> photo) {
+		return photo->full->loaded()
+			&& (photo->id != _userPhotoId || !_userPhotoFull);
+	};
+	if (isGoodUserPhoto(photo) && isNewPhoto(photo)) {
 		_userPhotoId = photo->id;
 		_userPhotoFull = true;
 		createUserpicCache(photo->full);

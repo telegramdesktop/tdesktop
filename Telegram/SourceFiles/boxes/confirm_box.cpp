@@ -628,8 +628,12 @@ ConfirmInviteBox::ConfirmInviteBox(QWidget*, const QString &title, bool isChanne
 	}
 	_status->setText(status);
 	if (photo.type() == mtpc_chatPhoto) {
-		auto &d = photo.c_chatPhoto();
-		auto location = App::imageLocation(160, 160, d.vphoto_small);
+		const auto &data = photo.c_chatPhoto();
+		const auto size = 160;
+		const auto location = StorageImageLocation::FromMTP(
+			size,
+			size,
+			data.vphoto_small);
 		if (!location.isNull()) {
 			_photo = ImagePtr(location);
 			if (!_photo->loaded()) {

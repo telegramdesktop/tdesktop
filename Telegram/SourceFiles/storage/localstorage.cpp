@@ -4010,11 +4010,9 @@ uint32 _peerSize(PeerData *peer) {
 }
 
 void _writePeer(QDataStream &stream, PeerData *peer) {
-	stream << quint64(peer->id) << quint64(peer->photoId);
+	stream << quint64(peer->id) << quint64(peer->userpicPhotoId());
 	Serialize::writeStorageImageLocation(stream, peer->userpicLocation());
-	if (peer->isUser()) {
-		UserData *user = peer->asUser();
-
+	if (const auto user = peer->asUser()) {
 		stream << user->firstName << user->lastName << user->phone() << user->username << quint64(user->accessHash());
 		if (AppVersion >= 9012) {
 			stream << qint32(user->flags());
@@ -4023,14 +4021,10 @@ void _writePeer(QDataStream &stream, PeerData *peer) {
 			stream << (user->botInfo ? user->botInfo->inlinePlaceholder : QString());
 		}
 		stream << qint32(user->onlineTill) << qint32(user->contact) << qint32(user->botInfo ? user->botInfo->version : -1);
-	} else if (peer->isChat()) {
-		auto chat = peer->asChat();
-
+	} else if (const auto chat = peer->asChat()) {
 		stream << chat->name << qint32(chat->count) << qint32(chat->date) << qint32(chat->version) << qint32(chat->creator);
 		stream << qint32(0) << quint32(chat->flags()) << chat->inviteLink();
-	} else if (peer->isChannel()) {
-		auto channel = peer->asChannel();
-
+	} else if (auto channel = peer->asChannel()) {
 		stream << channel->name << quint64(channel->access) << qint32(channel->date) << qint32(channel->version);
 		stream << qint32(0) << quint32(channel->flags()) << channel->inviteLink();
 	}
@@ -4048,9 +4042,7 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 		result = App::peer(peerId);
 		result->loadedStatus = PeerData::FullLoaded;
 	}
-	if (result->isUser()) {
-		UserData *user = result->asUser();
-
+	if (const auto user = result->asUser()) {
 		QString first, last, phone, username, inlinePlaceholder;
 		quint64 access;
 		qint32 flags = 0, onlineTill, contact, botInfoVersion;
@@ -4086,14 +4078,8 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 				user->input = MTP_inputPeerUser(MTP_int(peerToUser(user->id)), MTP_long(user->accessHash()));
 				user->inputUser = MTP_inputUser(MTP_int(peerToUser(user->id)), MTP_long(user->accessHash()));
 			}
-
-			user->setUserpic(
-				photoLoc.isNull() ? ImagePtr() : ImagePtr(photoLoc),
-				photoLoc);
 		}
-	} else if (result->isChat()) {
-		ChatData *chat = result->asChat();
-
+	} else if (const auto chat = result->asChat()) {
 		QString name, inviteLink;
 		qint32 count, date, version, creator, oldForbidden;
 		quint32 flagsData, flags;
@@ -4121,14 +4107,8 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 
 			chat->input = MTP_inputPeerChat(MTP_int(peerToChat(chat->id)));
 			chat->inputChat = MTP_int(peerToChat(chat->id));
-
-			chat->setUserpic(
-				photoLoc.isNull() ? ImagePtr() : ImagePtr(photoLoc),
-				photoLoc);
 		}
-	} else if (result->isChannel()) {
-		ChannelData *channel = result->asChannel();
-
+	} else if (const auto channel = result->asChannel()) {
 		QString name, inviteLink;
 		quint64 access;
 		qint32 date, version, oldForbidden;
@@ -4147,11 +4127,13 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 
 			channel->input = MTP_inputPeerChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 			channel->inputChannel = MTP_inputChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
-
-			channel->setUserpic(
-				photoLoc.isNull() ? ImagePtr() : ImagePtr(photoLoc),
-				photoLoc);
 		}
+	}
+	if (!wasLoaded) {
+		result->setUserpic(
+			photoId,
+			photoLoc,
+			photoLoc.isNull() ? ImagePtr() : ImagePtr(photoLoc));
 	}
 	return result;
 }

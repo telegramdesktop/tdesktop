@@ -483,11 +483,11 @@ void UserpicButton::openPeerPhoto() {
 		return;
 	}
 
-	auto id = _peer->photoId;
-	if (!id || id == UnknownPeerPhotoId) {
+	const auto id = _peer->userpicPhotoId();
+	if (!id) {
 		return;
 	}
-	auto photo = App::photo(id);
+	const auto photo = App::photo(id);
 	if (photo->date) {
 		Messenger::Instance().showPhoto(photo, _peer);
 	}
@@ -632,18 +632,15 @@ QPoint UserpicButton::prepareRippleStartPosition() const {
 void UserpicButton::processPeerPhoto() {
 	Expects(_peer != nullptr);
 
-	auto hasPhoto = (_peer->photoId
-		&& _peer->photoId != UnknownPeerPhotoId);
 	_waiting = !_peer->userpicLoaded();
 	if (_waiting) {
 		_peer->loadUserpic(true);
 	}
 	if (_role == Role::OpenPhoto) {
-		auto id = _peer->photoId;
-		if (id == UnknownPeerPhotoId) {
+		if (_peer->userpicPhotoUnknown()) {
 			_peer->updateFullForced();
 		}
-		_canOpenPhoto = (id != 0 && id != UnknownPeerPhotoId);
+		_canOpenPhoto = (_peer->userpicPhotoId() != 0);
 		updateCursor();
 	}
 }

@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/map.h>
 #include "data/data_peer_values.h"
 #include "data/data_channel_admins.h"
+#include "data/data_photo.h"
 #include "lang/lang_keys.h"
 #include "observer_peer.h"
 #include "mainwidget.h"
@@ -38,6 +39,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace {
 
 constexpr auto kUpdateFullPeerTimeout = TimeMs(5000); // Not more than once in 5 seconds.
+constexpr auto kUserpicSize = 160;
 
 int peerColorIndex(const PeerId &peer) {
 	auto myId = Auth().userId();
@@ -347,14 +349,30 @@ ClickHandlerPtr PeerData::createOpenLink() {
 }
 
 void PeerData::setUserpic(
-		ImagePtr userpic,
-		StorageImageLocation location) {
+		PhotoId photoId,
+		const StorageImageLocation &location,
+		ImagePtr userpic) {
+	_userpicPhotoId = photoId;
 	_userpic = userpic;
 	_userpicLocation = location;
 	if (useEmptyUserpic()) {
 		_userpicEmpty.set(id, name);
 	} else {
 		_userpicEmpty.clear();
+	}
+}
+
+void PeerData::setUserpicPhoto(const MTPPhoto &data) {
+	auto photoId = [&]() -> PhotoId {
+		if (auto photo = App::feedPhoto(data)) {
+			photo->peer = this;
+			return photo->id;
+		}
+		return 0;
+	}();
+	if (_userpicPhotoId != photoId) {
+		_userpicPhotoId = photoId;
+		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
 	}
 }
 
@@ -449,35 +467,44 @@ bool UserData::canShareThisContact() const {
 	return canShareThisContactFast() || !App::phoneFromSharedContact(peerToUser(id)).isEmpty();
 }
 
-void UserData::setPhoto(const MTPUserProfilePhoto &p) { // see Local::readPeer as well
-	auto newPhotoId = photoId;
-	auto newPhoto = _userpic;
-	auto newPhotoLoc = _userpicLocation;
-
-	switch (p.type()) {
-	case mtpc_userProfilePhoto: {
-		const auto &d(p.c_userProfilePhoto());
-		newPhotoId = d.vphoto_id.v;
-		newPhotoLoc = App::imageLocation(160, 160, d.vphoto_small);
-		newPhoto = newPhotoLoc.isNull() ? ImagePtr() : ImagePtr(newPhotoLoc);
-		//App::feedPhoto(App::photoFromUserPhoto(peerToUser(id), MTP_int(unixtime()), p));
-	} break;
-	default: {
-		newPhotoId = 0;
-		if (id == ServiceUserId) {
-			if (!_userpic) {
-				newPhoto = ImagePtr(App::pixmapFromImageInPlace(Messenger::Instance().logoNoMargin().scaledToWidth(160, Qt::SmoothTransformation)), "PNG");
-			}
-		} else {
-			newPhoto = ImagePtr();
-		}
-		newPhotoLoc = StorageImageLocation();
-	} break;
-	}
-	if (newPhotoId != photoId || newPhoto.v() != _userpic.v() || newPhotoLoc != _userpicLocation) {
-		photoId = newPhotoId;
-		setUserpic(newPhoto, newPhotoLoc);
+void PeerData::updateUserpic(
+		PhotoId photoId,
+		const MTPFileLocation &location) {
+	const auto size = kUserpicSize;
+	const auto loc = StorageImageLocation::FromMTP(size, size, location);
+	const auto photo = loc.isNull() ? ImagePtr() : ImagePtr(loc);
+	if (_userpicPhotoId != photoId
+		|| _userpic.v() != photo.v()
+		|| _userpicLocation != loc) {
+		setUserpic(photoId, loc, photo);
 		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
+	}
+}
+
+void PeerData::clearUserpic() {
+	const auto photoId = PhotoId(0);
+	const auto loc = StorageImageLocation();
+	const auto photo = [&] {
+		if (id == peerFromUser(ServiceUserId)) {
+			auto image = Messenger::Instance().logoNoMargin().scaledToWidth(
+				kUserpicSize,
+				Qt::SmoothTransformation);
+			auto pixmap = App::pixmapFromImageInPlace(std::move(image));
+			return _userpic
+				? _userpic
+				: ImagePtr(std::move(pixmap), "PNG");
+		}
+		return ImagePtr();
+	}();
+}
+
+// see Local::readPeer as well
+void UserData::setPhoto(const MTPUserProfilePhoto &photo) {
+	if (photo.type() == mtpc_userProfilePhoto) {
+		const auto &data = photo.c_userProfilePhoto();
+		updateUserpic(data.vphoto_id.v, data.vphoto_small);
+	} else {
+		clearUserpic();
 	}
 }
 
@@ -668,32 +695,16 @@ bool UserData::hasCalls() const {
 	return (callsStatus() != CallsStatus::Disabled) && (callsStatus() != CallsStatus::Unknown);
 }
 
-void ChatData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Local::readPeer as well
-	auto newPhotoId = photoId;
-	auto newPhoto = _userpic;
-	auto newPhotoLoc = _userpicLocation;
+void ChatData::setPhoto(const MTPChatPhoto &photo) {
+	setPhoto(userpicPhotoId(), photo);
+}
 
-	switch (p.type()) {
-	case mtpc_chatPhoto: {
-		auto &d = p.c_chatPhoto();
-		if (phId != UnknownPeerPhotoId) {
-			newPhotoId = phId;
-		}
-		newPhotoLoc = App::imageLocation(160, 160, d.vphoto_small);
-		newPhoto = newPhotoLoc.isNull() ? ImagePtr() : ImagePtr(newPhotoLoc);
-//		photoFull = newPhoto ? ImagePtr(640, 640, d.vphoto_big, ImagePtr()) : ImagePtr();
-	} break;
-	default: {
-		newPhotoId = 0;
-		newPhotoLoc = StorageImageLocation();
-		newPhoto = ImagePtr();
-//		photoFull = ImagePtr();
-	} break;
-	}
-	if (newPhotoId != photoId || newPhoto.v() != _userpic.v() || newPhotoLoc != _userpicLocation) {
-		photoId = newPhotoId;
-		setUserpic(newPhoto, newPhotoLoc);
-		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
+void ChatData::setPhoto(PhotoId photoId, const MTPChatPhoto &photo) {
+	if (photo.type() == mtpc_chatPhoto) {
+		const auto &data = photo.c_chatPhoto();
+		updateUserpic(photoId, data.vphoto_small);
+	} else {
+		clearUserpic();
 	}
 }
 
@@ -736,32 +747,16 @@ ChannelData::ChannelData(const PeerId &id)
 		}, _lifetime);
 }
 
-void ChannelData::setPhoto(const MTPChatPhoto &p, const PhotoId &phId) { // see Local::readPeer as well
-	auto newPhotoId = photoId;
-	auto newPhoto = _userpic;
-	auto newPhotoLoc = _userpicLocation;
+void ChannelData::setPhoto(const MTPChatPhoto &photo) {
+	setPhoto(userpicPhotoId(), photo);
+}
 
-	switch (p.type()) {
-	case mtpc_chatPhoto: {
-		auto &d = p.c_chatPhoto();
-		if (phId != UnknownPeerPhotoId) {
-			newPhotoId = phId;
-		}
-		newPhotoLoc = App::imageLocation(160, 160, d.vphoto_small);
-		newPhoto = newPhotoLoc.isNull() ? ImagePtr() : ImagePtr(newPhotoLoc);
-//		photoFull = newPhoto ? ImagePtr(640, 640, d.vphoto_big, newPhoto) : ImagePtr();
-	} break;
-	default: {
-		newPhotoId = 0;
-		newPhotoLoc = StorageImageLocation();
-		newPhoto = ImagePtr();
-//		photoFull = ImagePtr();
-	} break;
-	}
-	if (newPhotoId != photoId || newPhoto.v() != _userpic.v() || newPhotoLoc != _userpicLocation) {
-		photoId = newPhotoId;
-		setUserpic(newPhoto, newPhotoLoc);
-		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
+void ChannelData::setPhoto(PhotoId photoId, const MTPChatPhoto &photo) {
+	if (photo.type() == mtpc_chatPhoto) {
+		const auto &data = photo.c_chatPhoto();
+		updateUserpic(photoId, data.vphoto_small);
+	} else {
+		clearUserpic();
 	}
 }
 

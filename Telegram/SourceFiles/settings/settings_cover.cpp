@@ -94,9 +94,11 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self)
 }
 
 PhotoData *CoverWidget::validatePhoto() const {
-	auto photo = (_self->photoId && _self->photoId != UnknownPeerPhotoId) ? App::photo(_self->photoId) : nullptr;
+	const auto photo = _self->userpicPhotoId()
+		? App::photo(_self->userpicPhotoId())
+		: nullptr;
 	_userpicButton->setPointerCursor(photo != nullptr && photo->date != 0);
-	if ((_self->photoId == UnknownPeerPhotoId) || (_self->photoId && (!photo || !photo->date))) {
+	if (_self->userpicPhotoUnknown() || (photo && !photo->date)) {
 		Auth().api().requestFullPeer(_self);
 		return nullptr;
 	}

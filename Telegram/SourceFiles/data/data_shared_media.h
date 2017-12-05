@@ -142,11 +142,11 @@ private:
 			: base::none;
 	}
 
-	static PhotoId LastPeerPhotoId(PeerId peerId);
+	static base::optional<PhotoId> LastPeerPhotoId(PeerId peerId);
 	static base::optional<bool> IsLastIsolated(
 		const SparseIdsMergedSlice &slice,
 		const base::optional<SparseIdsMergedSlice> &ending,
-		PhotoId lastPeerPhotoId);
+		base::optional<PhotoId> lastPeerPhotoId);
 	static base::optional<FullMsgId> LastFullMsgId(
 		const SparseIdsMergedSlice &slice);
 	static base::optional<int> Add(
@@ -183,7 +183,7 @@ private:
 	Key _key;
 	SparseIdsMergedSlice _slice;
 	base::optional<SparseIdsMergedSlice> _ending;
-	PhotoId _lastPhotoId = 0;
+	base::optional<PhotoId> _lastPhotoId;
 	base::optional<bool> _isolatedLastPhoto;
 	bool _reversed = false;
 

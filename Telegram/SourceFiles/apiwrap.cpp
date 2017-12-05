@@ -320,15 +320,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 			} break;
 			}
 		}
-		auto newPhotoId = PhotoId(0);
-		if (auto photo = App::feedPhoto(f.vchat_photo)) {
-			newPhotoId = photo->id;
-			photo->peer = chat;
-		}
-		if (chat->photoId != newPhotoId) {
-			chat->photoId = newPhotoId;
-			Notify::peerUpdatedDelayed(chat, UpdateFlag::PhotoChanged);
-		}
+		chat->setUserpicPhoto(f.vchat_photo);
 		chat->setInviteLink((f.vexported_invite.type() == mtpc_chatInviteExported) ? qs(f.vexported_invite.c_chatInviteExported().vlink) : QString());
 		chat->fullUpdated();
 
@@ -345,15 +337,7 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 		auto canEditStickers = channel->canEditStickers();
 
 		channel->setFullFlags(f.vflags.v);
-		auto newPhotoId = PhotoId(0);
-		if (auto photo = App::feedPhoto(f.vchat_photo)) {
-			newPhotoId = photo->id;
-			photo->peer = channel;
-		}
-		if (channel->photoId != newPhotoId) {
-			channel->photoId = newPhotoId;
-			Notify::peerUpdatedDelayed(channel, UpdateFlag::PhotoChanged);
-		}
+		channel->setUserpicPhoto(f.vchat_photo);
 		if (f.has_migrated_from_chat_id()) {
 			channel->addFlags(MTPDchannel::Flag::f_megagroup);
 			auto cfrom = App::chat(peerFromChat(f.vmigrated_from_chat_id));

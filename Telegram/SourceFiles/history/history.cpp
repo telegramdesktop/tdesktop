@@ -984,8 +984,9 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			} break;
 
 			case mtpc_messageActionChatDeletePhoto: {
-				auto chat = peer->asChat();
-				if (chat) chat->setPhoto(MTP_chatPhotoEmpty());
+				if (const auto chat = peer->asChat()) {
+					chat->setPhoto(MTP_chatPhotoEmpty());
+				}
 			} break;
 
 			case mtpc_messageActionChatDeleteUser: {
@@ -1048,10 +1049,11 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 						case mtpc_photoCachedSize: bigLoc = &bigSize.c_photoCachedSize().vlocation; break;
 						}
 						if (smallLoc && bigLoc) {
-							if (peer->isChat()) {
-								peer->asChat()->setPhoto(MTP_chatPhoto(*smallLoc, *bigLoc), photo ? photo->id : 0);
-							} else if (peer->isChannel()) {
-								peer->asChannel()->setPhoto(MTP_chatPhoto(*smallLoc, *bigLoc), photo ? photo->id : 0);
+							const auto newPhotoId = photo ? photo->id : 0;
+							if (const auto chat = peer->asChat()) {
+								chat->setPhoto(newPhotoId, MTP_chatPhoto(*smallLoc, *bigLoc));
+							} else if (const auto channel = peer->asChannel()) {
+								channel->setPhoto(newPhotoId, MTP_chatPhoto(*smallLoc, *bigLoc));
 							}
 							peer->loadUserpic();
 						}

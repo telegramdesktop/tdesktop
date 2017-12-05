@@ -82,8 +82,6 @@ namespace App {
 	void feedUserLink(MTPint userId, const MTPContactLink &myLink, const MTPContactLink &foreignLink);
 
 	ImagePtr image(const MTPPhotoSize &size);
-	StorageImageLocation imageLocation(int32 w, int32 h, const MTPFileLocation &loc);
-	StorageImageLocation imageLocation(const MTPPhotoSize &size);
 
 	PhotoData *feedPhoto(const MTPPhoto &photo, const PreparedPhotoThumbs &thumbs);
 	PhotoData *feedPhoto(const MTPPhoto &photo, PhotoData *convert = nullptr);

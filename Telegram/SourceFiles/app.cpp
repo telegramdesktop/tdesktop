@@ -1159,28 +1159,6 @@ namespace {
 		return ImagePtr();
 	}
 
-	StorageImageLocation imageLocation(int32 w, int32 h, const MTPFileLocation &loc) {
-		if (loc.type() == mtpc_fileLocation) {
-			const auto &l(loc.c_fileLocation());
-			return StorageImageLocation(w, h, l.vdc_id.v, l.vvolume_id.v, l.vlocal_id.v, l.vsecret.v);
-		}
-		return StorageImageLocation(w, h, 0, 0, 0, 0);
-	}
-
-	StorageImageLocation imageLocation(const MTPPhotoSize &size) {
-		switch (size.type()) {
-		case mtpc_photoSize: {
-			const auto &d(size.c_photoSize());
-			return imageLocation(d.vw.v, d.vh.v, d.vlocation);
-		} break;
-		case mtpc_photoCachedSize: {
-			const auto &d(size.c_photoCachedSize());
-			return imageLocation(d.vw.v, d.vh.v, d.vlocation);
-		} break;
-		}
-		return StorageImageLocation();
-	}
-
 	void feedInboxRead(const PeerId &peer, MsgId upTo) {
 		if (auto history = App::historyLoaded(peer)) {
 			history->inboxRead(upTo);
@@ -1418,7 +1396,18 @@ namespace {
 	}
 
 	DocumentData *feedDocument(const MTPDdocument &document, DocumentData *convert) {
-		return App::documentSet(document.vid.v, convert, document.vaccess_hash.v, document.vversion.v, document.vdate.v, document.vattributes.v, qs(document.vmime_type), App::image(document.vthumb), document.vdc_id.v, document.vsize.v, App::imageLocation(document.vthumb));
+		return App::documentSet(
+			document.vid.v,
+			convert,
+			document.vaccess_hash.v,
+			document.vversion.v,
+			document.vdate.v,
+			document.vattributes.v,
+			qs(document.vmime_type),
+			App::image(document.vthumb),
+			document.vdc_id.v,
+			document.vsize.v,
+			StorageImageLocation::FromMTP(document.vthumb));
 	}
 
 	WebPageData *feedWebPage(const MTPDwebPage &webpage, WebPageData *convert) {

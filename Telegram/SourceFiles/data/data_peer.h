@@ -70,8 +70,6 @@ private:
 
 };
 
-static const PhotoId UnknownPeerPhotoId = 0xFFFFFFFFFFFFFFFFULL;
-
 class PeerData;
 
 class PeerClickHandler : public ClickHandler {
@@ -190,7 +188,11 @@ public:
 	LoadedStatus loadedStatus = NotLoaded;
 	MTPinputPeer input;
 
-	void setUserpic(ImagePtr userpic, StorageImageLocation location);
+	void setUserpic(
+		PhotoId photoId,
+		const StorageImageLocation &location,
+		ImagePtr userpic);
+	void setUserpicPhoto(const MTPPhoto &data);
 	void paintUserpic(
 		Painter &p,
 		int x,
@@ -233,8 +235,12 @@ public:
 	StorageImageLocation userpicLocation() const {
 		return _userpicLocation;
 	}
-
-	PhotoId photoId = UnknownPeerPhotoId;
+	bool userpicPhotoUnknown() const {
+		return (_userpicPhotoId == kUnknownPhotoId);
+	}
+	PhotoId userpicPhotoId() const {
+		return userpicPhotoUnknown() ? 0 : _userpicPhotoId;
+	}
 
 	int nameVersion = 1;
 
@@ -259,13 +265,18 @@ protected:
 		const QString &newName,
 		const QString &newNameOrPhone,
 		const QString &newUsername);
-
-	ImagePtr _userpic;
-	mutable EmptyUserpic _userpicEmpty;
-	StorageImageLocation _userpicLocation;
+	void updateUserpic(PhotoId photoId, const MTPFileLocation &location);
+	void clearUserpic();
 
 private:
 	void fillNames();
+
+	static constexpr auto kUnknownPhotoId = PhotoId(0xFFFFFFFFFFFFFFFFULL);
+
+	ImagePtr _userpic;
+	PhotoId _userpicPhotoId = kUnknownPhotoId;
+	mutable EmptyUserpic _userpicEmpty;
+	StorageImageLocation _userpicLocation;
 
 	Data::NotifySettings _notify;
 
@@ -519,9 +530,8 @@ public:
 	: PeerData(id)
 	, inputChat(MTP_int(bareId())) {
 	}
-	void setPhoto(
-		const MTPChatPhoto &photo,
-		const PhotoId &phId = UnknownPeerPhotoId);
+	void setPhoto(const MTPChatPhoto &photo);
+	void setPhoto(PhotoId photoId, const MTPChatPhoto &photo);
 
 	void setName(const QString &newName);
 
@@ -768,9 +778,8 @@ public:
 
 	ChannelData(const PeerId &id);
 
-	void setPhoto(
-		const MTPChatPhoto &photo,
-		const PhotoId &phId = UnknownPeerPhotoId);
+	void setPhoto(const MTPChatPhoto &photo);
+	void setPhoto(PhotoId photoId, const MTPChatPhoto &photo);
 
 	void setName(const QString &name, const QString &username);
 

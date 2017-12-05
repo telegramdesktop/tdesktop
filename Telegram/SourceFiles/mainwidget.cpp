@@ -1048,9 +1048,9 @@ void MainWidget::deletePhotoLayer(PhotoData *photo) {
 		auto me = App::self();
 		if (!me) return;
 
-		if (me->photoId == photo->id) {
+		if (me->userpicPhotoId() == photo->id) {
 			Messenger::Instance().peerClearPhoto(me->id);
-		} else if (photo->peer && !photo->peer->isUser() && photo->peer->photoId == photo->id) {
+		} else if (photo->peer && !photo->peer->isUser() && photo->peer->userpicPhotoId() == photo->id) {
 			Messenger::Instance().peerClearPhoto(photo->peer->id);
 		} else {
 			MTP::send(MTPphotos_DeletePhotos(MTP_vector<MTPInputPhoto>(1, MTP_inputPhoto(MTP_long(photo->id), MTP_long(photo->access)))));
@@ -5318,16 +5318,14 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		if (auto user = App::userLoaded(d.vuser_id.v)) {
 			user->setPhoto(d.vphoto);
 			user->loadUserpic();
-			if (mtpIsTrue(d.vprevious)
-				|| !user->photoId
-				|| user->photoId == UnknownPeerPhotoId) {
+			if (mtpIsTrue(d.vprevious) || !user->userpicPhotoId()) {
 				Auth().storage().remove(Storage::UserPhotosRemoveAfter(
 					user->bareId(),
-					user->photoId));
+					user->userpicPhotoId()));
 			} else {
 				Auth().storage().add(Storage::UserPhotosAddNew(
 					user->bareId(),
-					user->photoId));
+					user->userpicPhotoId()));
 			}
 		}
 	} break;
