@@ -380,6 +380,7 @@ void HistoryTopBarWidget::backClicked() {
 void HistoryTopBarWidget::setHistoryPeer(PeerData *historyPeer) {
 	if (_historyPeer != historyPeer) {
 		_historyPeer = historyPeer;
+		_back->clearState();
 		update();
 
 		updateUnreadBadge();

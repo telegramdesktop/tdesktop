@@ -65,6 +65,8 @@ public:
 		return QPoint(-0x3FFFFFFF, -0x3FFFFFFF);
 	}
 
+	void clearState() override;
+
 	~RippleButton();
 
 protected:
@@ -74,7 +76,6 @@ protected:
 
 	virtual QImage prepareRippleMask() const;
 	virtual QPoint prepareRippleStartPosition() const;
-	void resetRipples();
 
 private:
 	void ensureRipple();

@@ -37,7 +37,7 @@ public:
 	}
 
 	void setDisabled(bool disabled = true);
-	void clearState();
+	virtual void clearState();
 	bool isOver() const {
 		return _state & StateFlag::Over;
 	}

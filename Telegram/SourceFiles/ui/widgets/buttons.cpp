@@ -63,8 +63,17 @@ void LinkButton::onStateChanged(State was, StateChangeSource source) {
 	update();
 }
 
-RippleButton::RippleButton(QWidget *parent, const style::RippleAnimation &st) : AbstractButton(parent)
+RippleButton::RippleButton(QWidget *parent, const style::RippleAnimation &st)
+: AbstractButton(parent)
 , _st(st) {
+}
+
+void RippleButton::clearState() {
+	AbstractButton::clearState();
+	if (_ripple) {
+		_ripple.reset();
+		update();
+	}
 }
 
 void RippleButton::setForceRippled(
@@ -132,10 +141,6 @@ QImage RippleButton::prepareRippleMask() const {
 
 QPoint RippleButton::prepareRippleStartPosition() const {
 	return mapFromGlobal(QCursor::pos());
-}
-
-void RippleButton::resetRipples() {
-	_ripple.reset();
 }
 
 RippleButton::~RippleButton() = default;
