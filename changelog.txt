@@ -1,3 +1,7 @@
+1.1.27 alpha (06.12.17)
+
+- Bookmark messages by forwarding them to "Saved Messages". Access them from the Chats list or from the side menu.
+
 1.1.26 alpha (02.12.17)
 
 - Admin badges in supergroup messages.
