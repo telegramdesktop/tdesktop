@@ -119,9 +119,9 @@ MTPDmessage::Flags NewForwardedFlags(
 	return result;
 }
 
-bool HasMediaItems(const SelectedItemSet &items) {
-	for_const (auto item, items) {
-		if (auto media = item->getMedia()) {
+bool HasMediaItems(const HistoryItemsList &items) {
+	for (const auto item : items) {
+		if (const auto media = item->getMedia()) {
 			switch (media->type()) {
 			case MediaTypePhoto:
 			case MediaTypeVideo:
@@ -135,9 +135,9 @@ bool HasMediaItems(const SelectedItemSet &items) {
 	return false;
 }
 
-bool HasStickerItems(const SelectedItemSet &items) {
-	for_const (auto item, items) {
-		if (auto media = item->getMedia()) {
+bool HasStickerItems(const HistoryItemsList &items) {
+	for (const auto item : items) {
+		if (const auto media = item->getMedia()) {
 			switch (media->type()) {
 			case MediaTypeSticker: return true;
 			}
@@ -146,9 +146,9 @@ bool HasStickerItems(const SelectedItemSet &items) {
 	return false;
 }
 
-bool HasGifItems(const SelectedItemSet &items) {
-	for_const (auto item, items) {
-		if (auto media = item->getMedia()) {
+bool HasGifItems(const HistoryItemsList &items) {
+	for (const auto item : items) {
+		if (const auto media = item->getMedia()) {
 			switch (media->type()) {
 			case MediaTypeGif: return !media->getDocument()->isRoundVideo();
 			}
@@ -157,9 +157,9 @@ bool HasGifItems(const SelectedItemSet &items) {
 	return false;
 }
 
-bool HasGameItems(const SelectedItemSet &items) {
-	for_const (auto item, items) {
-		if (auto media = item->getMedia()) {
+bool HasGameItems(const HistoryItemsList &items) {
+	for (const auto item : items) {
+		if (const auto media = item->getMedia()) {
 			switch (media->type()) {
 			case MediaTypeGame: return true;
 			}
@@ -168,8 +168,8 @@ bool HasGameItems(const SelectedItemSet &items) {
 	return false;
 }
 
-bool HasInlineItems(const SelectedItemSet &items) {
-	for_const (auto item, items) {
+bool HasInlineItems(const HistoryItemsList &items) {
+	for (const auto item : items) {
 		if (item->viaBot()) {
 			return true;
 		}
@@ -229,13 +229,12 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			return;
 		}
 
-		auto items = SelectedItemSet();
+		auto items = HistoryItemsList(1, item);
 		auto restrictedSomewhere = false;
 		auto restrictedEverywhere = true;
 		auto firstError = QString();
-		items.insert(item->id, item);
-		for_const (auto peer, result) {
-			auto error = GetErrorTextForForward(peer, items);
+		for (const auto peer : result) {
+			const auto error = GetErrorTextForForward(peer, items);
 			if (!error.isEmpty()) {
 				if (firstError.isEmpty()) {
 					firstError = error;
@@ -266,7 +265,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		auto sendFlags = MTPmessages_ForwardMessages::Flag::f_with_my_score;
 		MTPVector<MTPint> msgIds = MTP_vector<MTPint>(1, MTP_int(data->msgId.msg));
 		if (auto main = App::main()) {
-			for_const (auto peer, result) {
+			for (const auto peer : result) {
 				if (!GetErrorTextForForward(peer, items).isEmpty()) {
 					continue;
 				}
@@ -320,7 +319,9 @@ MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer) {
 	return result;
 }
 
-QString GetErrorTextForForward(not_null<PeerData*> peer, const SelectedItemSet &items) {
+QString GetErrorTextForForward(
+		not_null<PeerData*> peer,
+		const HistoryItemsList &items) {
 	if (!peer->canWrite()) {
 		return lang(lng_forward_cant);
 	}

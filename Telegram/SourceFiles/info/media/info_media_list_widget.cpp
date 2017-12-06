@@ -673,17 +673,13 @@ auto ListWidget::collectSelectedItems() const -> SelectedItems {
 	return items;
 }
 
-SelectedItemSet ListWidget::collectSelectedSet() const {
-	auto items = SelectedItemSet();
-	if (hasSelectedItems()) {
-		for (auto &data : _selected) {
-			auto fullId = computeFullId(data.first);
-			if (auto item = App::histItemById(fullId)) {
-				items.insert(items.size(), item);
-			}
-		}
-	}
-	return items;
+MessageIdsList ListWidget::collectSelectedIds() const {
+	const auto selected = collectSelectedItems();
+	return ranges::view::all(
+		selected.list
+	) | ranges::view::transform([](const SelectedItem &item) {
+		return item.msgId;
+	}) | ranges::to_vector;
 }
 
 void ListWidget::pushSelectedItems() {
@@ -1364,29 +1360,29 @@ void ListWidget::contextMenuEvent(QContextMenuEvent *e) {
 }
 
 void ListWidget::forwardSelected() {
-	forwardItems(collectSelectedSet());
+	forwardItems(collectSelectedIds());
 }
 
 void ListWidget::forwardItem(UniversalMsgId universalId) {
-	if (auto item = App::histItemById(computeFullId(universalId))) {
-		auto items = SelectedItemSet();
-		items.insert(0, item);
-		forwardItems(std::move(items));
+	if (const auto item = App::histItemById(computeFullId(universalId))) {
+		forwardItems({ 1, item->fullId() });
 	}
 }
 
-void ListWidget::forwardItems(SelectedItemSet items) {
+void ListWidget::forwardItems(MessageIdsList &&items) {
 	if (items.empty()) {
 		return;
 	}
 	auto weak = make_weak(this);
+	auto callback = [weak, items = std::move(items)](
+			not_null<PeerData*> peer) mutable {
+		App::main()->setForwardDraft(peer->id, std::move(items));
+		if (weak) {
+			weak->clearSelected();
+		}
+	};
 	auto controller = std::make_unique<ChooseRecipientBoxController>(
-		[weak, items = std::move(items)](not_null<PeerData*> peer) {
-			App::main()->setForwardDraft(peer->id, items);
-			if (weak) {
-				weak->clearSelected();
-			}
-		});
+		std::move(callback));
 	Ui::show(Box<PeerListBox>(
 		std::move(controller),
 		[](not_null<PeerListBox*> box) {
@@ -1397,20 +1393,18 @@ void ListWidget::forwardItems(SelectedItemSet items) {
 }
 
 void ListWidget::deleteSelected() {
-	deleteItems(collectSelectedSet());
+	deleteItems(collectSelectedIds());
 }
 
 void ListWidget::deleteItem(UniversalMsgId universalId) {
-	if (auto item = App::histItemById(computeFullId(universalId))) {
-		auto items = SelectedItemSet();
-		items.insert(0, item);
-		deleteItems(std::move(items));
+	if (const auto item = App::histItemById(computeFullId(universalId))) {
+		deleteItems({ 1, item->fullId() });
 	}
 }
 
-void ListWidget::deleteItems(SelectedItemSet items) {
+void ListWidget::deleteItems(MessageIdsList &&items) {
 	if (!items.empty()) {
-		Ui::show(Box<DeleteMessagesBox>(items));
+		Ui::show(Box<DeleteMessagesBox>(std::move(items)));
 	}
 }
 

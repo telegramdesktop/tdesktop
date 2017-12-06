@@ -178,9 +178,8 @@ public:
 
 	int32 dlgsWidth() const;
 
-	void showForwardLayer(const SelectedItemSet &items);
+	void showForwardLayer(MessageIdsList &&items);
 	void showSendPathsLayer();
-	void showForwardBox(SelectedItemSet &&items);
 	void deleteLayer(int selectedCount = 0); // 0 - context item
 	void cancelUploadLayer();
 	void shareContactLayer(UserData *contact);
@@ -189,7 +188,7 @@ public:
 	void hiderLayer(object_ptr<HistoryHider> h);
 	void noHider(HistoryHider *destroyed);
 	bool setForwardDraft(PeerId peer, ForwardWhatMessages what);
-	bool setForwardDraft(PeerId peer, const SelectedItemSet &items);
+	bool setForwardDraft(PeerId peer, MessageIdsList &&items);
 	bool shareUrl(
 		not_null<PeerData*> peer,
 		const QString &url,

@@ -66,15 +66,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/localstorage.h"
 #include "apiwrap.h"
 #include "history/history_top_bar_widget.h"
-#include "window/themes/window_theme.h"
 #include "observer_peer.h"
 #include "base/qthelp_regex.h"
 #include "ui/widgets/popup_menu.h"
 #include "platform/platform_file_utilities.h"
 #include "auth_session.h"
+#include "window/themes/window_theme.h"
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
 #include "window/window_slide_animation.h"
+#include "window/window_peer_menu.h"
 #include "inline_bots/inline_results_widget.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 
@@ -174,8 +175,11 @@ void ReportSpamPanel::setReported(bool reported, PeerData *onPeer) {
 	update();
 }
 
-HistoryHider::HistoryHider(MainWidget *parent, const SelectedItemSet &items) : RpWidget(parent)
-, _forwardItems(items)
+HistoryHider::HistoryHider(
+	MainWidget *parent,
+	MessageIdsList &&items)
+: RpWidget(parent)
+, _forwardItems(std::move(items))
 , _send(this, langFactory(lng_forward_send), st::defaultBoxButton)
 , _cancel(this, langFactory(lng_cancel), st::defaultBoxButton) {
 	init();
@@ -212,20 +216,6 @@ HistoryHider::HistoryHider(MainWidget *parent, const QString &url, const QString
 
 void HistoryHider::init() {
 	subscribe(Lang::Current().updated(), [this] { refreshLang(); });
-	if (!_forwardItems.empty()) {
-		Auth().data().itemRemoved()
-			| rpl::start_with_next([this](auto item) {
-				for (auto i = _forwardItems.begin(); i != _forwardItems.end(); ++i) {
-					if (i->get() == item) {
-						i = _forwardItems.erase(i);
-						break;
-					}
-				}
-				if (_forwardItems.empty()) {
-					startHide();
-				}
-			}, lifetime());
-	}
 	connect(_send, SIGNAL(clicked()), this, SLOT(forward()));
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(startHide()));
 	subscribe(Global::RefPeerChooseCancel(), [this] { startHide(); });
@@ -336,7 +326,7 @@ void HistoryHider::forward() {
 		} else if (!_botAndQuery.isEmpty()) {
 			parent()->onInlineSwitchChosen(_offered->id, _botAndQuery);
 		} else {
-			parent()->setForwardDraft(_offered->id, _forwardItems);
+			parent()->setForwardDraft(_offered->id, std::move(_forwardItems));
 		}
 	}
 	emit forwarded();
@@ -418,7 +408,7 @@ bool HistoryHider::offerPeer(PeerId peer) {
 	} else {
 		auto toId = _offered->id;
 		_offered = nullptr;
-		if (parent()->setForwardDraft(toId, _forwardItems)) {
+		if (parent()->setForwardDraft(toId, std::move(_forwardItems))) {
 			startHide();
 		}
 		return false;
@@ -3673,7 +3663,7 @@ bool HistoryWidget::canSendMessages(PeerData *peer) const {
 }
 
 bool HistoryWidget::readyToForward() const {
-	return _canSendMessages && !_toForward.isEmpty();
+	return _canSendMessages && !_toForward.empty();
 }
 
 bool HistoryWidget::hasSilentToggle() const {
@@ -3880,9 +3870,7 @@ void HistoryWidget::forwardMessage() {
 	auto item = App::contextItem();
 	if (!item || item->id < 0 || item->serviceMsg()) return;
 
-	auto items = SelectedItemSet();
-	items.insert(item->id, item);
-	App::main()->showForwardBox(std::move(items));
+	Window::ShowForwardMessagesBox({ 1, item->fullId() });
 }
 
 void HistoryWidget::selectMessage() {
@@ -4878,15 +4866,13 @@ void HistoryWidget::itemRemoved(not_null<const HistoryItem*> item) {
 		onKbToggle();
 		_kbReplyTo = 0;
 	}
-	for (auto i = _toForward.begin(); i != _toForward.end(); ++i) {
-		if (i->get() == item) {
-			i = _toForward.erase(i);
-			updateForwardingTexts();
-			if (_toForward.empty()) {
-				updateControlsVisibility();
-				updateControlsGeometry();
-			}
-			break;
+	auto found = ranges::find(_toForward, item);
+	if (found != _toForward.end()) {
+		_toForward.erase(found);
+		updateForwardingTexts();
+		if (_toForward.empty()) {
+			updateControlsVisibility();
+			updateControlsGeometry();
 		}
 	}
 }
@@ -5278,9 +5264,13 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		updateField();
 	} else if (_inReplyEditForward) {
 		if (readyToForward()) {
-			auto items = _toForward;
+			const auto items = std::move(_toForward);
 			App::main()->cancelForwarding(_history);
-			App::main()->showForwardBox(std::move(items));
+			Window::ShowForwardMessagesBox(ranges::view::all(
+				items
+			) | ranges::view::transform([](not_null<HistoryItem*> item) {
+				return item->fullId();
+			}) | ranges::to_vector);
 		} else {
 			Ui::showPeerHistory(_peer, _editMsgId ? _editMsgId : replyToId());
 		}
@@ -5680,9 +5670,9 @@ void HistoryWidget::onReplyToMessage() {
 					auto item = App::contextItem();
 					if (!item || item->id < 0 || item->serviceMsg()) return;
 
-					auto items = SelectedItemSet();
-					items.insert(item->id, item);
-					App::main()->setForwardDraft(_peer->id, items);
+					App::main()->setForwardDraft(
+						_peer->id,
+						{ 1, item->fullId() });
 				})));
 			}
 		}
@@ -6178,7 +6168,7 @@ void HistoryWidget::handlePeerUpdate() {
 
 void HistoryWidget::onForwardSelected() {
 	if (!_list) return;
-	App::main()->showForwardBox(getSelectedItems());
+	Window::ShowForwardMessagesBox(getSelectedItems());
 }
 
 void HistoryWidget::confirmDeleteContextItem() {
@@ -6198,9 +6188,9 @@ void HistoryWidget::confirmDeleteSelectedItems() {
 	if (!_list) return;
 
 	auto selected = _list->getSelectedItems();
-	if (selected.isEmpty()) return;
+	if (selected.empty()) return;
 
-	App::main()->deleteLayer(selected.size());
+	App::main()->deleteLayer(int(selected.size()));
 }
 
 void HistoryWidget::deleteContextItem(bool forEveryone) {
@@ -6230,18 +6220,24 @@ void HistoryWidget::deleteSelectedItems(bool forEveryone) {
 	Ui::hideLayer();
 	if (!_list) return;
 
-	auto selected = _list->getSelectedItems();
-	if (selected.isEmpty()) return;
+	const auto items = _list->getSelectedItems();
+	const auto selected = ranges::view::all(
+		items
+	) | ranges::view::transform([](const FullMsgId &fullId) {
+		return App::histItemById(fullId);
+	}) | ranges::view::filter([](HistoryItem *item) {
+		return item != nullptr;
+	}) | ranges::to_vector;
+
+	if (selected.empty()) return;
 
 	QMap<PeerData*, QVector<MTPint>> idsByPeer;
-	for_const (auto item, selected) {
-		if (item->id > 0) {
-			idsByPeer[item->history()->peer].push_back(MTP_int(item->id));
-		}
+	for (const auto item : selected) {
+		idsByPeer[item->history()->peer].push_back(MTP_int(item->id));
 	}
 
 	onClearSelected();
-	for_const (auto item, selected) {
+	for (const auto item : selected) {
 		item->destroy();
 	}
 
@@ -6275,8 +6271,8 @@ HistoryItem *HistoryWidget::getItemFromHistoryOrMigrated(MsgId genericMsgId) con
 	return App::histItemById(_channel, genericMsgId);
 }
 
-SelectedItemSet HistoryWidget::getSelectedItems() const {
-	return _list ? _list->getSelectedItems() : SelectedItemSet();
+MessageIdsList HistoryWidget::getSelectedItems() const {
+	return _list ? _list->getSelectedItems() : MessageIdsList();
 }
 
 void HistoryWidget::updateTopBarSelection() {
@@ -6354,12 +6350,12 @@ void HistoryWidget::updateForwarding() {
 void HistoryWidget::updateForwardingTexts() {
 	int32 version = 0;
 	QString from, text;
-	if (!_toForward.isEmpty()) {
+	if (const auto count = int(_toForward.size())) {
 		QMap<PeerData*, bool> fromUsersMap;
 		QVector<PeerData*> fromUsers;
 		fromUsers.reserve(_toForward.size());
-		for (auto i = _toForward.cbegin(), e = _toForward.cend(); i != e; ++i) {
-			auto from = i.value()->senderOriginal();
+		for (const auto item : _toForward) {
+			const auto from = item->senderOriginal();
 			if (!fromUsersMap.contains(from)) {
 				fromUsersMap.insert(from, true);
 				fromUsers.push_back(from);
@@ -6374,10 +6370,10 @@ void HistoryWidget::updateForwardingTexts() {
 			from = lng_forwarding_from_two(lt_user, fromUsers.at(0)->shortName(), lt_second_user, fromUsers.at(1)->shortName());
 		}
 
-		if (_toForward.size() < 2) {
-			text = _toForward.cbegin().value()->inReplyText();
+		if (count < 2) {
+			text = _toForward.front()->inReplyText();
 		} else {
-			text = lng_forward_messages(lt_count, _toForward.size());
+			text = lng_forward_messages(lt_count, count);
 		}
 	}
 	_toForwardFrom.setText(st::msgNameStyle, from, _textNameOptions);
@@ -6386,9 +6382,9 @@ void HistoryWidget::updateForwardingTexts() {
 }
 
 void HistoryWidget::checkForwardingInfo() {
-	if (!_toForward.isEmpty()) {
+	if (!_toForward.empty()) {
 		auto version = 0;
-		for_const (auto item, _toForward) {
+		for (const auto item : _toForward) {
 			version += item->senderOriginal()->nameVersion;
 		}
 		if (version != _toForwardNameVersion) {
@@ -6461,10 +6457,14 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 		auto forwardLeft = st::historyReplySkip;
 		st::historyForwardIcon.paint(p, st::historyReplyIconPosition + QPoint(0, backy), width());
 		if (!drawWebPagePreview) {
-			auto firstItem = _toForward.cbegin().value();
-			auto firstMedia = firstItem->getMedia();
-			auto serviceColor = (_toForward.size() > 1) || (firstMedia != nullptr) || firstItem->serviceMsg();
-			auto preview = (_toForward.size() < 2 && firstMedia && firstMedia->hasReplyPreview()) ? firstMedia->replyPreview() : ImagePtr();
+			const auto firstItem = _toForward.front();
+			const auto firstMedia = firstItem->getMedia();
+			const auto serviceColor = (_toForward.size() > 1)
+				|| (firstMedia != nullptr)
+				|| firstItem->serviceMsg();
+			const auto preview = (_toForward.size() < 2 && firstMedia && firstMedia->hasReplyPreview())
+				? firstMedia->replyPreview()
+				: ImagePtr();
 			if (!preview->isNull()) {
 				auto to = QRect(forwardLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
 				if (preview->width() == preview->height()) {

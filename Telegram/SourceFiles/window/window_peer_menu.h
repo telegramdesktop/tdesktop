@@ -45,4 +45,8 @@ void PeerMenuShareContactBox(not_null<UserData*> user);
 void PeerMenuAddContact(not_null<UserData*> user);
 void PeerMenuAddChannelMembers(not_null<ChannelData*> channel);
 
+void ShowForwardMessagesBox(
+	MessageIdsList &&items,
+	base::lambda_once<void()> &&successCallback = nullptr);
+
 } // namespace Window

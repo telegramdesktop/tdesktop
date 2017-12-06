@@ -177,7 +177,7 @@ public:
 		QWidget*,
 		not_null<HistoryItem*> item,
 		bool suggestModerateActions);
-	DeleteMessagesBox(QWidget*, const SelectedItemSet &selected);
+	DeleteMessagesBox(QWidget*, MessageIdsList &&selected);
 
 protected:
 	void prepare() override;
@@ -188,9 +188,7 @@ protected:
 private:
 	void deleteAndClear();
 
-	static std::vector<FullMsgId> CollectFrom(const SelectedItemSet &items);
-
-	const std::vector<FullMsgId> _ids;
+	const MessageIdsList _ids;
 	const bool _singleItem = false;
 	UserData *_moderateFrom = nullptr;
 	ChannelData *_moderateInChannel = nullptr;

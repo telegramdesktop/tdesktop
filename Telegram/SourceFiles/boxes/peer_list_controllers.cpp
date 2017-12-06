@@ -892,7 +892,7 @@ void AddBotToGroupBoxController::prepareViewHook() {
 }
 
 ChooseRecipientBoxController::ChooseRecipientBoxController(
-	base::lambda<void(not_null<PeerData*>)> callback)
+	base::lambda_once<void(not_null<PeerData*>)> callback)
 : _callback(std::move(callback)) {
 }
 

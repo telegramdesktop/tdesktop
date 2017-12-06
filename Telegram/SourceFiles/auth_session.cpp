@@ -356,6 +356,28 @@ rpl::producer<> AuthSessionData::savedGifsUpdated() const {
 	return _savedGifsUpdated.events();
 }
 
+HistoryItemsList AuthSessionData::idsToItems(
+		const MessageIdsList &ids) const {
+	return ranges::view::all(
+		ids
+	) | ranges::view::transform([](const FullMsgId &fullId) {
+		return App::histItemById(fullId);
+	}) | ranges::view::filter([](HistoryItem *item) {
+		return item != nullptr;
+	}) | ranges::view::transform([](HistoryItem *item) {
+		return not_null<HistoryItem*>(item);
+	}) | ranges::to_vector;
+}
+
+MessageIdsList AuthSessionData::itemsToIds(
+		const HistoryItemsList &items) const {
+	return ranges::view::all(
+		items
+	) | ranges::view::transform([](not_null<HistoryItem*> item) {
+		return item->fullId();
+	}) | ranges::to_vector;
+}
+
 AuthSession &Auth() {
 	auto result = Messenger::Instance().authSession();
 	Assert(result != nullptr);

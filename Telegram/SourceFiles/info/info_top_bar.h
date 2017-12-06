@@ -97,12 +97,11 @@ private:
 	bool searchMode() const;
 	Ui::StringWithNumbers generateSelectedText() const;
 	[[nodiscard]] bool computeCanDelete() const;
-	[[nodiscard]] SelectedItemSet collectSelectedItems() const;
 	void updateSelectionState();
 	void createSelectionControls();
 	void clearSelectionControls();
 
-	SelectedItemSet collectItems() const;
+	MessageIdsList collectItems() const;
 	void performForward();
 	void performDelete();
 

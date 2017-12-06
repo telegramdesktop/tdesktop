@@ -174,7 +174,7 @@ private:
 		Type type);
 
 	SelectedItems collectSelectedItems() const;
-	SelectedItemSet collectSelectedSet() const;
+	MessageIdsList collectSelectedIds() const;
 	void pushSelectedItems();
 	FullMsgId computeFullId(UniversalMsgId universalId) const;
 	bool hasSelected() const;
@@ -187,10 +187,10 @@ private:
 	void clearSelected();
 	void forwardSelected();
 	void forwardItem(UniversalMsgId universalId);
-	void forwardItems(SelectedItemSet items);
+	void forwardItems(MessageIdsList &&items);
 	void deleteSelected();
 	void deleteItem(UniversalMsgId universalId);
-	void deleteItems(SelectedItemSet items);
+	void deleteItems(MessageIdsList &&items);
 	void applyItemSelection(
 		UniversalMsgId universalId,
 		TextSelection selection);

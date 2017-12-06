@@ -214,26 +214,16 @@ void History::draftSavedToCloud() {
 	if (App::main()) App::main()->writeDrafts(this);
 }
 
-SelectedItemSet History::validateForwardDraft() {
-	auto result = SelectedItemSet();
-	auto count = 0;
-	for_const (auto &fullMsgId, _forwardDraft) {
-		if (auto item = App::histItemById(fullMsgId)) {
-			result.insert(++count, item);
-		}
-	}
+HistoryItemsList History::validateForwardDraft() {
+	auto result = Auth().data().idsToItems(_forwardDraft);
 	if (result.size() != _forwardDraft.size()) {
-		setForwardDraft(result);
+		setForwardDraft(Auth().data().itemsToIds(result));
 	}
 	return result;
 }
 
-void History::setForwardDraft(const SelectedItemSet &items) {
-	_forwardDraft.clear();
-	_forwardDraft.reserve(items.size());
-	for_const (auto item, items) {
-		_forwardDraft.push_back(item->fullId());
-	}
+void History::setForwardDraft(MessageIdsList &&items) {
+	_forwardDraft = std::move(items);
 }
 
 bool History::updateSendActionNeedsAnimating(UserData *user, const MTPSendMessageAction &action) {

@@ -1984,22 +1984,26 @@ void HistoryInner::clearSelectedItems(bool onlyTextSelection) {
 	}
 }
 
-SelectedItemSet HistoryInner::getSelectedItems() const {
-	auto result = SelectedItemSet();
+MessageIdsList HistoryInner::getSelectedItems() const {
+	using namespace ranges;
+
 	if (_selected.empty() || _selected.cbegin()->second != FullSelection) {
-		return result;
+		return {};
 	}
 
-	for (auto &selected : _selected) {
-		auto item = selected.first;
-		if (item && item->toHistoryMessage() && item->id > 0) {
-			if (item->history() == _migrated) {
-				result.insert(item->id - ServerMaxMsgId, item);
-			} else {
-				result.insert(item->id, item);
-			}
-		}
-	}
+	auto result = make_iterator_range(
+		_selected.begin(),
+		_selected.end()
+	) | view::filter([](const auto &selected) {
+		const auto item = selected.first;
+		return item && item->toHistoryMessage() && (item->id > 0);
+	}) | view::transform([](const auto &selected) {
+		return selected.first->fullId();
+	}) | to_vector;
+
+	result |= action::sort(ordered_less{}, [](const FullMsgId &msgId) {
+		return msgId.channel ? msgId.msg : (msgId.msg - ServerMaxMsgId);
+	});
 	return result;
 }
 

@@ -39,6 +39,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/focus_persister.h"
 #include "ui/resize_area.h"
+#include "ui/toast/toast.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"
 #include "info/info_memento.h"
@@ -616,10 +617,10 @@ void MainWidget::finishFloatPlayerDrag(not_null<Float*> instance, bool closed) {
 }
 
 bool MainWidget::setForwardDraft(PeerId peerId, ForwardWhatMessages what) {
-	auto toForward = SelectedItemSet();
-	if (what == ForwardSelectedMessages) {
-		toForward = _history->getSelectedItems();
-	} else {
+	const auto collect = [&]() -> MessageIdsList {
+		if (what == ForwardSelectedMessages) {
+			return _history->getSelectedItems();
+		}
 		auto item = (HistoryItem*)nullptr;
 		if (what == ForwardContextMessage) {
 			item = App::contextItem();
@@ -629,10 +630,11 @@ bool MainWidget::setForwardDraft(PeerId peerId, ForwardWhatMessages what) {
 			item = App::pressedLinkItem();
 		}
 		if (item && item->toHistoryMessage() && item->id > 0) {
-			toForward.insert(item->id, item);
+			return { 1, item->fullId() };
 		}
-	}
-	auto result = setForwardDraft(peerId, toForward);
+		return {};
+	};
+	const auto result = setForwardDraft(peerId, collect());
 	if (!result) {
 		if (what == ForwardPressedMessage || what == ForwardPressedLinkMessage) {
 			// We've already released the mouse button, so the forwarding is cancelled.
@@ -645,16 +647,18 @@ bool MainWidget::setForwardDraft(PeerId peerId, ForwardWhatMessages what) {
 	return result;
 }
 
-bool MainWidget::setForwardDraft(PeerId peerId, const SelectedItemSet &items) {
+bool MainWidget::setForwardDraft(PeerId peerId, MessageIdsList &&items) {
 	Expects(peerId != 0);
-	auto peer = App::peer(peerId);
-	auto error = GetErrorTextForForward(peer, items);
+	const auto peer = App::peer(peerId);
+	const auto error = GetErrorTextForForward(
+		peer,
+		Auth().data().idsToItems(items));
 	if (!error.isEmpty()) {
 		Ui::show(Box<InformBox>(error), LayerOption::KeepOther);
 		return false;
 	}
 
-	App::history(peer)->setForwardDraft(items);
+	App::history(peer)->setForwardDraft(std::move(items));
 	if (_history->peer() == peer) {
 		_history->cancelReply();
 	}
@@ -713,16 +717,16 @@ bool MainWidget::onInlineSwitchChosen(const PeerId &peer, const QString &botAndQ
 }
 
 void MainWidget::cancelForwarding(History *history) {
-	history->setForwardDraft(SelectedItemSet());
+	history->setForwardDraft({});
 	_history->updateForwarding();
 }
 
 void MainWidget::finishForwarding(History *history, bool silent) {
 	if (!history) return;
 
-	auto toForward = history->validateForwardDraft();
-	if (!toForward.isEmpty()) {
-		auto genClientSideMessage = (toForward.size() < 2);
+	const auto toForward = history->validateForwardDraft();
+	if (const auto count = int(toForward.size())) {
+		auto genClientSideMessage = (count < 2);
 		PeerData *forwardFrom = 0;
 		App::main()->readServerHistory(history);
 
@@ -745,12 +749,12 @@ void MainWidget::finishForwarding(History *history, bool silent) {
 
 		QVector<MTPint> ids;
 		QVector<MTPlong> randomIds;
-		ids.reserve(toForward.size());
-		randomIds.reserve(toForward.size());
-		for (auto i = toForward.cbegin(), e = toForward.cend(); i != e; ++i) {
+		ids.reserve(count);
+		randomIds.reserve(count);
+		for (const auto item : toForward) {
 			auto randomId = rand_value<uint64>();
 			if (genClientSideMessage) {
-				if (auto message = i.value()->toHistoryMessage()) {
+				if (auto message = item->toHistoryMessage()) {
 					auto newId = FullMsgId(peerToChannel(history->peer->id), clientMsgId());
 					auto messageFromId = channelPost ? 0 : Auth().userId();
 					auto messagePostAuthor = channelPost ? (Auth().user()->firstName + ' ' + Auth().user()->lastName) : QString();
@@ -758,15 +762,15 @@ void MainWidget::finishForwarding(History *history, bool silent) {
 					App::historyRegRandom(randomId, newId);
 				}
 			}
-			if (forwardFrom != i.value()->history()->peer) {
+			if (forwardFrom != item->history()->peer) {
 				if (forwardFrom) {
 					history->sendRequestId = MTP::send(MTPmessages_ForwardMessages(MTP_flags(sendFlags), forwardFrom->input, MTP_vector<MTPint>(ids), MTP_vector<MTPlong>(randomIds), history->peer->input), rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, history->sendRequestId);
 					ids.resize(0);
 					randomIds.resize(0);
 				}
-				forwardFrom = i.value()->history()->peer;
+				forwardFrom = item->history()->peer;
 			}
-			ids.push_back(MTP_int(i.value()->id));
+			ids.push_back(MTP_int(item->id));
 			randomIds.push_back(MTP_long(randomId));
 		}
 		history->sendRequestId = MTP::send(MTPmessages_ForwardMessages(MTP_flags(sendFlags), forwardFrom->input, MTP_vector<MTPint>(ids), MTP_vector<MTPlong>(randomIds), history->peer->input), rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, history->sendRequestId);
@@ -1005,37 +1009,22 @@ void MainWidget::hiderLayer(object_ptr<HistoryHider> h) {
 	checkFloatPlayerVisibility();
 }
 
-void MainWidget::showForwardLayer(const SelectedItemSet &items) {
-	hiderLayer(object_ptr<HistoryHider>(this, items));
+void MainWidget::showForwardLayer(MessageIdsList &&items) {
+	hiderLayer(object_ptr<HistoryHider>(this, std::move(items)));
 }
 
 void MainWidget::showSendPathsLayer() {
 	hiderLayer(object_ptr<HistoryHider>(this));
 }
 
-void MainWidget::showForwardBox(SelectedItemSet &&items) {
-	auto controller = std::make_unique<ChooseRecipientBoxController>(
-		[items = std::move(items)](not_null<PeerData*> peer) {
-			App::main()->setForwardDraft(peer->id, items);
-		});
-	Ui::show(Box<PeerListBox>(
-		std::move(controller),
-		[](not_null<PeerListBox*> box) {
-			box->addButton(langFactory(lng_cancel), [box] {
-				box->closeBox();
-			});
-		}));
-}
-
 void MainWidget::deleteLayer(int selectedCount) {
 	if (selectedCount) {
-		auto forDelete = true;
 		auto selected = _history->getSelectedItems();
-		if (!selected.isEmpty()) {
-			Ui::show(Box<DeleteMessagesBox>(selected));
+		if (!selected.empty()) {
+			Ui::show(Box<DeleteMessagesBox>(std::move(selected)));
 		}
-	} else if (auto item = App::contextItem()) {
-		auto suggestModerateActions = true;
+	} else if (const auto item = App::contextItem()) {
+		const auto suggestModerateActions = true;
 		Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
 	}
 }
@@ -1335,7 +1324,10 @@ bool MainWidget::addParticipantsFail(
 }
 
 void MainWidget::kickParticipant(ChatData *chat, UserData *user) {
-	MTP::send(MTPmessages_DeleteChatUser(chat->inputChat, user->inputUser), rpcDone(&MainWidget::sentUpdatesReceived), rpcFail(&MainWidget::kickParticipantFail, chat));
+	MTP::send(
+		MTPmessages_DeleteChatUser(chat->inputChat, user->inputUser),
+		rpcDone(&MainWidget::sentUpdatesReceived),
+		rpcFail(&MainWidget::kickParticipantFail, chat));
 	Ui::showPeerHistory(chat->id, ShowAtTheEndMsgId);
 }
 

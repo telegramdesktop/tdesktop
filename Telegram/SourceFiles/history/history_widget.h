@@ -102,7 +102,7 @@ class HistoryHider : public Ui::RpWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	HistoryHider(MainWidget *parent, const SelectedItemSet &items); // forward messages
+	HistoryHider(MainWidget *parent, MessageIdsList &&items); // forward messages
 	HistoryHider(MainWidget *parent, UserData *sharedContact); // share contact
 	HistoryHider(MainWidget *parent); // send path from command line argument
 	HistoryHider(MainWidget *parent, const QString &url, const QString &text); // share url
@@ -143,7 +143,7 @@ private:
 	MainWidget *parent();
 
 	UserData *_sharedContact = nullptr;
-	SelectedItemSet _forwardItems;
+	MessageIdsList _forwardItems;
 	bool _sendPath = false;
 
 	QString _shareUrl, _shareText;
@@ -261,7 +261,7 @@ public:
 	void enqueueMessageHighlight(not_null<HistoryItem*> item);
 	TimeMs highlightStartTime(not_null<const HistoryItem*> item) const;
 
-	SelectedItemSet getSelectedItems() const;
+	MessageIdsList getSelectedItems() const;
 	void itemEdited(HistoryItem *item);
 
 	void updateScrollColors();
@@ -485,7 +485,7 @@ private:
 	void showNextUnreadMention();
 	void handlePeerUpdate();
 	void setMembersShowAreaActive(bool active);
-	void forwardItems(SelectedItemSet &&items);
+	void forwardItems(MessageIdsList &&items);
 
 	void highlightMessage(MsgId universalMessageId);
 	void adjustHighlightedMessageToMigrated();
@@ -553,7 +553,7 @@ private:
 	Text _replyToName;
 	int _replyToNameVersion = 0;
 
-	SelectedItemSet _toForward;
+	HistoryItemsList _toForward;
 	Text _toForwardFrom, _toForwardText;
 	int _toForwardNameVersion = 0;
 

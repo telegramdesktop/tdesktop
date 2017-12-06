@@ -243,7 +243,7 @@ private:
 class ChooseRecipientBoxController : public ChatsListBoxController {
 public:
 	ChooseRecipientBoxController(
-		base::lambda<void(not_null<PeerData*>)> callback);
+		base::lambda_once<void(not_null<PeerData*>)> callback);
 
 	void rowClicked(not_null<PeerListRow*> row) override;
 
@@ -257,6 +257,6 @@ protected:
 		not_null<History*> history) override;
 
 private:
-	base::lambda<void(not_null<PeerData*>)> _callback;
+	base::lambda_once<void(not_null<PeerData*>)> _callback;
 
 };

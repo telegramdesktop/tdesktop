@@ -261,6 +261,9 @@ public:
 		return _savedGifs;
 	}
 
+	HistoryItemsList idsToItems(const MessageIdsList &ids) const;
+	MessageIdsList itemsToIds(const HistoryItemsList &items) const;
+
 private:
 	struct Variables {
 		Variables();

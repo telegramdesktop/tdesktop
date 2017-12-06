@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/manage_peer_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
+#include "ui/toast/toast.h"
 #include "core/tl_help.h"
 #include "auth_session.h"
 #include "apiwrap.h"
@@ -490,6 +491,37 @@ void PeerMenuShareContactBox(not_null<UserData*> user) {
 				box->closeBox();
 			});
 		}));
+}
+
+void ShowForwardMessagesBox(
+		MessageIdsList &&items,
+		base::lambda_once<void()> &&successCallback) {
+	auto weak = std::make_shared<QPointer<PeerListBox>>();
+	auto callback = [
+		ids = std::move(items),
+		callback = std::move(successCallback),
+		weak
+	](not_null<PeerData*> peer) mutable {
+		if (peer->isSelf()) {
+			Ui::Toast::Show(lang(lng_share_done));
+		} else {
+			App::main()->setForwardDraft(peer->id, std::move(ids));
+		}
+		if (const auto strong = *weak) {
+			strong->closeBox();
+		}
+		if (callback) {
+			callback();
+		}
+	};
+	auto initBox = [](not_null<PeerListBox*> box) {
+		box->addButton(langFactory(lng_cancel), [box] {
+			box->closeBox();
+		});
+	};
+	*weak = Ui::show(Box<PeerListBox>(
+		std::make_unique<ChooseRecipientBoxController>(std::move(callback)),
+		std::move(initBox)), LayerOption::KeepOther);
 }
 
 void PeerMenuAddChannelMembers(not_null<ChannelData*> channel) {

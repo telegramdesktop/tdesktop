@@ -35,6 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_message.h"
 #include "history/history_media_types.h"
 #include "window/themes/window_theme_preview.h"
+#include "window/window_peer_menu.h"
 #include "base/task_queue.h"
 #include "observer_peer.h"
 #include "auth_session.h"
@@ -936,11 +937,7 @@ void MediaView::onForward() {
 	}
 
 	close();
-	if (auto main = App::main()) {
-		auto items = SelectedItemSet();
-		items.insert(item->id, item);
-		main->showForwardBox(std::move(items));
-	}
+	Window::ShowForwardMessagesBox({ 1, item->fullId() });
 }
 
 void MediaView::onDelete() {

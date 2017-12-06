@@ -450,19 +450,9 @@ DeleteMessagesBox::DeleteMessagesBox(
 
 DeleteMessagesBox::DeleteMessagesBox(
 	QWidget*,
-	const SelectedItemSet &selected)
-: _ids(CollectFrom(selected)) {
+	MessageIdsList &&selected)
+: _ids(std::move(selected)) {
 	Expects(!_ids.empty());
-}
-
-std::vector<FullMsgId> DeleteMessagesBox::CollectFrom(
-		const SelectedItemSet &items) {
-	return ranges::make_iterator_range(
-		items.begin(),
-		items.end()
-	) | ranges::view::transform([](not_null<HistoryItem*> item) {
-		return item->fullId();
-	}) | ranges::to_vector;
 }
 
 void DeleteMessagesBox::prepare() {

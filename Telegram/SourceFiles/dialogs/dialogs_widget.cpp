@@ -798,7 +798,7 @@ void DialogsWidget::updateDragInScroll(bool inScroll) {
 	if (_dragInScroll != inScroll) {
 		_dragInScroll = inScroll;
 		if (_dragInScroll) {
-			App::main()->showForwardLayer(SelectedItemSet());
+			App::main()->showForwardLayer({});
 		} else {
 			App::main()->dialogsCancelled();
 		}

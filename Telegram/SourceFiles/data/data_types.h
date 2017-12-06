@@ -154,6 +154,8 @@ inline bool operator<(const FullMsgId &a, const FullMsgId &b) {
 	return a.channel < b.channel;
 }
 
+using MessageIdsList = std::vector<FullMsgId>;
+
 inline PeerId peerFromMessage(const MTPmessage &msg) {
 	auto compute = [](auto &message) {
 		auto from_id = message.has_from_id() ? peerFromUser(message.vfrom_id) : 0;

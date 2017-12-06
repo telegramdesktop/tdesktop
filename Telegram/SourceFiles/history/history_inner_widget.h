@@ -65,7 +65,7 @@ public:
 
 	HistoryTopBarWidget::SelectedState getSelectionState() const;
 	void clearSelectedItems(bool onlyTextSelection = false);
-	SelectedItemSet getSelectedItems() const;
+	MessageIdsList getSelectedItems() const;
 	void selectItem(HistoryItem *item);
 
 	void updateBotInfo(bool recount = true);
