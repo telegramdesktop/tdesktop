@@ -73,6 +73,8 @@ Type Compute() {
 			return Type::KDE3;
 		} else if (desktopSession.indexOf(qstr("xfce")) >= 0 || desktopSession == qstr("xubuntu")) {
 			return Type::XFCE;
+		} else if (desktopSession == qstr("awesome")) {
+			return Type::Awesome;
 		}
 	}
 
@@ -102,6 +104,7 @@ Type ComputeAndLog() {
 		case Type::Unity: return "Unity";
 		case Type::XFCE: return "XFCE";
 		case Type::Pantheon: return "Pantheon";
+		case Type::Awesome: return "Awesome";
 		}
 		return QString::number(static_cast<int>(result));
 	};
@@ -118,7 +121,7 @@ Type Get() {
 }
 
 bool TryQtTrayIcon() {
-	return !IsPantheon();
+	return !IsPantheon() && !IsAwesome();
 }
 
 bool PreferAppIndicatorTrayIcon() {
