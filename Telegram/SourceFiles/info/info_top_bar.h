@@ -43,7 +43,8 @@ class Section;
 
 rpl::producer<QString> TitleValue(
 	const Section &section,
-	not_null<PeerData*> peer);
+	not_null<PeerData*> peer,
+	bool isStackBottom);
 
 class TopBar : public Ui::RpWidget {
 public:

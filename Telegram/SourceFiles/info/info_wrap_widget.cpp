@@ -315,7 +315,8 @@ void WrapWidget::createTopBar() {
 
 	_topBar->setTitle(TitleValue(
 		_controller->section(),
-		_controller->peer()));
+		_controller->peer(),
+		!hasStackHistory()));
 	if (wrapValue == Wrap::Narrow || hasStackHistory()) {
 		_topBar->enableBackButton();
 		_topBar->backRequest()

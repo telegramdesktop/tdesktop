@@ -524,7 +524,8 @@ void TopBar::performDelete() {
 
 rpl::producer<QString> TitleValue(
 		const Section &section,
-		not_null<PeerData*> peer) {
+		not_null<PeerData*> peer,
+		bool isStackBottom) {
 	return Lang::Viewer([&] {
 		switch (section.type()) {
 		case Section::Type::Profile:
@@ -542,6 +543,9 @@ rpl::producer<QString> TitleValue(
 			Unexpected("Bad peer type in Info::TitleValue()");
 
 		case Section::Type::Media:
+			if (peer->isSelf() && isStackBottom) {
+				return lng_profile_shared_media;
+			}
 			switch (section.mediaType()) {
 			case Section::MediaType::Photo:
 				return lng_media_type_photos;

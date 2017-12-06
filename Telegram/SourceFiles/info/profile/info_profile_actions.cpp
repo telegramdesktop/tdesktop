@@ -453,53 +453,20 @@ void ActionsFiller::addDeleteContactAction(
 }
 
 void ActionsFiller::addClearHistoryAction(not_null<UserData*> user) {
-	auto callback = [user] {
-		auto confirmation = lng_sure_delete_history(
-			lt_contact,
-			App::peerName(user));
-		auto confirmCallback = [user] {
-			Ui::hideLayer();
-			Auth().api().clearHistory(user);
-			Ui::showPeerHistory(user, ShowAtUnreadMsgId);
-		};
-		auto box = Box<ConfirmBox>(
-			confirmation,
-			lang(lng_box_delete),
-			st::attentionBoxButton,
-			std::move(confirmCallback));
-		Ui::show(std::move(box));
-	};
 	AddActionButton(
 		_wrap,
 		Lang::Viewer(lng_profile_clear_history),
 		rpl::single(true),
-		std::move(callback));
+		 Window::ClearHistoryHandler(user));
 }
 
 void ActionsFiller::addDeleteConversationAction(
 		not_null<UserData*> user) {
-	auto callback = [user] {
-		auto confirmation = lng_sure_delete_history(
-			lt_contact,
-			App::peerName(user));
-		auto confirmButton = lang(lng_box_delete);
-		auto confirmCallback = [user] {
-			Ui::hideLayer();
-			Ui::showChatsList();
-			App::main()->deleteConversation(user);
-		};
-		auto box = Box<ConfirmBox>(
-			confirmation,
-			confirmButton,
-			st::attentionBoxButton,
-			std::move(confirmCallback));
-		Ui::show(std::move(box));
-	};
 	AddActionButton(
 		_wrap,
 		Lang::Viewer(lng_profile_delete_conversation),
 		rpl::single(true),
-		std::move(callback));
+		Window::DeleteAndLeaveHandler(user));
 }
 
 void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {

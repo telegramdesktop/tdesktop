@@ -743,6 +743,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_sure_delete_channel" = "Are you sure, you want to delete this channel? All members will be removed and all messages will be lost.";
 "lng_sure_leave_group" = "Are you sure, you want to leave\nthis group?";
 "lng_sure_delete_group" = "Are you sure, you want to delete this group? All members will be removed and all messages will be lost.";
+"lng_sure_delete_saved_messages" = "Are you sure, you want to delete all your saved messages?\n\nThis action cannot be undone.";
 
 "lng_message_empty" = "Empty Message";
 "lng_message_unsupported" = "This message is not supported by your version of Telegram Desktop. Please update to the last version in Settings or install it from {link}";
@@ -975,7 +976,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_unblock_button" = "Unblock";
 "lng_channel_mute" = "Mute";
 "lng_channel_unmute" = "Unmute";
-"lng_saved_messages" = "Saved messages";
+"lng_saved_messages" = "Saved Messages";
 "lng_saved_short" = "Saved";
 "lng_saved_forward_here" = "Forward messages here for quick access";
 

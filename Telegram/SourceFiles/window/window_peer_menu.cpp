@@ -88,51 +88,6 @@ History *FindWastedPin() {
 	return nullptr;
 }
 
-auto ClearHistoryHandler(not_null<PeerData*> peer) {
-	return [peer] {
-		auto text = peer->isUser()
-			? lng_sure_delete_history(lt_contact, peer->name)
-			: lng_sure_delete_group_history(lt_group, peer->name);
-		Ui::show(Box<ConfirmBox>(text, lang(lng_box_delete), st::attentionBoxButton, [peer] {
-			if (!App::main()) return;
-
-			Ui::hideLayer();
-			Auth().api().clearHistory(peer);
-		}));
-	};
-}
-
-auto DeleteAndLeaveHandler(not_null<PeerData*> peer) {
-	return [peer] {
-		auto warningText = peer->isUser() ? lng_sure_delete_history(lt_contact, peer->name) :
-			peer->isChat() ? lng_sure_delete_and_exit(lt_group, peer->name) :
-			lang(peer->isMegagroup() ? lng_sure_leave_group : lng_sure_leave_channel);
-		auto confirmText = lang(peer->isUser() ? lng_box_delete : lng_box_leave);
-		auto &confirmStyle = peer->isChannel() ? st::defaultBoxButton : st::attentionBoxButton;
-		Ui::show(Box<ConfirmBox>(warningText, confirmText, confirmStyle, [peer] {
-			if (!App::main()) return;
-
-			Ui::hideLayer();
-			if (App::wnd()->controller()->activePeer.current() == peer) {
-				Ui::showChatsList();
-			}
-			if (peer->isUser()) {
-				App::main()->deleteConversation(peer);
-			} else if (auto chat = peer->asChat()) {
-				App::main()->deleteAndExit(chat);
-			} else if (auto channel = peer->asChannel()) {
-				// Don't delete old history by default,
-				// because Android app doesn't.
-				//
-				//if (auto migrateFrom = channel->migrateFrom()) {
-				//	App::main()->deleteConversation(migrateFrom);
-				//}
-				Auth().api().leaveChannel(channel);
-			}
-		}));
-	};
-}
-
 Filler::Filler(
 	not_null<Controller*> controller,
 	not_null<PeerData*> peer,
@@ -564,6 +519,76 @@ void PeerMenuAddChannelMembers(not_null<ChannelData*> channel) {
 		});
 	};
 	Auth().api().requestChannelMembersForAdd(channel, callback);
+}
+
+base::lambda<void()> ClearHistoryHandler(not_null<PeerData*> peer) {
+	return [peer] {
+		const auto weak = std::make_shared<QPointer<ConfirmBox>>();
+		const auto text = peer->isSelf()
+			? lang(lng_sure_delete_saved_messages)
+			: peer->isUser()
+			? lng_sure_delete_history(lt_contact, peer->name)
+			: lng_sure_delete_group_history(lt_group, peer->name);
+		auto callback = [=] {
+			if (auto strong = *weak) {
+				strong->closeBox();
+			}
+			Auth().api().clearHistory(peer);
+		};
+		*weak = Ui::show(
+			Box<ConfirmBox>(
+				text,
+				lang(lng_box_delete),
+				st::attentionBoxButton,
+				std::move(callback)),
+			LayerOption::KeepOther);
+	};
+}
+
+base::lambda<void()> DeleteAndLeaveHandler(not_null<PeerData*> peer) {
+	return [peer] {
+		const auto warningText = peer->isSelf()
+			? lang(lng_sure_delete_saved_messages)
+			: peer->isUser()
+			? lng_sure_delete_history(lt_contact, peer->name)
+			: peer->isChat()
+			? lng_sure_delete_and_exit(lt_group, peer->name)
+			: lang(peer->isMegagroup()
+				? lng_sure_leave_group
+				: lng_sure_leave_channel);
+		const auto confirmText = lang(peer->isUser()
+			? lng_box_delete
+			: lng_box_leave);
+		const auto &confirmStyle = peer->isChannel()
+			? st::defaultBoxButton
+			: st::attentionBoxButton;
+		auto callback = [peer] {
+			Ui::hideLayer();
+			if (App::wnd()->controller()->activePeer.current() == peer) {
+				Ui::showChatsList();
+			}
+			if (peer->isUser()) {
+				App::main()->deleteConversation(peer);
+			} else if (auto chat = peer->asChat()) {
+				App::main()->deleteAndExit(chat);
+			} else if (auto channel = peer->asChannel()) {
+				// Don't delete old history by default,
+				// because Android app doesn't.
+				//
+				//if (auto migrateFrom = channel->migrateFrom()) {
+				//	App::main()->deleteConversation(migrateFrom);
+				//}
+				Auth().api().leaveChannel(channel);
+			}
+		};
+		Ui::show(
+			Box<ConfirmBox>(
+				warningText,
+				confirmText,
+				confirmStyle,
+				std::move(callback)),
+			LayerOption::KeepOther);
+	};
 }
 
 void FillPeerMenu(
