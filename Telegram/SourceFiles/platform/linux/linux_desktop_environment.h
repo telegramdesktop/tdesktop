@@ -32,6 +32,7 @@ enum class Type {
 	Unity,
 	XFCE,
 	Pantheon,
+	Awesome,
 };
 
 Type Get();
@@ -66,6 +67,10 @@ inline bool IsXFCE() {
 
 inline bool IsPantheon() {
 	return Get() == Type::Pantheon;
+}
+
+inline bool IsAwesome() {
+	return Get() == Type::Awesome;
 }
 
 bool TryQtTrayIcon();
