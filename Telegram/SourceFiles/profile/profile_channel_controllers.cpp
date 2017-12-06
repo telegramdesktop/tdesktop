@@ -517,7 +517,7 @@ void ParticipantsBoxController::setNonEmptyDescription() {
 
 bool ParticipantsBoxController::feedMegagroupLastParticipants() {
 	if ((_role != Role::Members && _role != Role::Profile)
-		|| _offset > 0) {
+		|| delegate()->peerListFullRowsCount() > 0) {
 		return false;
 	}
 	auto megagroup = _channel->asMegagroup();
@@ -564,7 +564,13 @@ bool ParticipantsBoxController::feedMegagroupLastParticipants() {
 			}
 		}
 		appendRow(user);
-		++_offset;
+
+		//
+		// Don't count lastParticipants in _offset, because we don't know
+		// their exact information (admin / creator / restricted), they
+		// could simply be added from the last messages authors.
+		//
+		//++_offset;
 	}
 	sortByOnline();
 	return true;
