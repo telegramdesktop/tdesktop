@@ -263,10 +263,10 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 void Filler::addUserActions(not_null<UserData*> user) {
 	if (_source != PeerMenuSource::ChatsList) {
 		if (user->isContact()) {
-			_addAction(
-				lang(lng_info_share_contact),
-				[user] { PeerMenuShareContactBox(user); });
 			if (!user->isSelf()) {
+				_addAction(
+					lang(lng_info_share_contact),
+					[user] { PeerMenuShareContactBox(user); });
 				_addAction(
 					lang(lng_info_edit_contact),
 					[user] { Ui::show(Box<AddContactBox>(user)); });
