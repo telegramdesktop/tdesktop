@@ -503,7 +503,14 @@ void ShowForwardMessagesBox(
 		weak
 	](not_null<PeerData*> peer) mutable {
 		if (peer->isSelf()) {
-			Ui::Toast::Show(lang(lng_share_done));
+			auto items = Auth().data().idsToItems(ids);
+			if (!items.empty()) {
+				auto options = ApiWrap::SendOptions(App::history(peer));
+				options.generateLocal = false;
+				Auth().api().forwardMessages(std::move(items), options, [] {
+					Ui::Toast::Show(lang(lng_share_done));
+				});
+			}
 		} else {
 			App::main()->setForwardDraft(peer->id, std::move(ids));
 		}

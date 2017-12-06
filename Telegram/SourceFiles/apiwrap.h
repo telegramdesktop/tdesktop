@@ -159,6 +159,22 @@ public:
 			const QVector<MTPChannelParticipant> &list)> callbackList,
 		base::lambda<void()> callbackNotModified = nullptr);
 
+	struct SendOptions {
+		SendOptions(not_null<History*> history) : history(history) {
+		}
+
+		not_null<History*> history;
+		MsgId replyTo = 0;
+		bool silent = false;
+		WebPageId webPageId = 0;
+		bool clearDraft = true;
+		bool generateLocal = true;
+	};
+	void forwardMessages(
+		HistoryItemsList &&items,
+		const SendOptions &options,
+		base::lambda_once<void()> &&successCallback = nullptr);
+
 	~ApiWrap();
 
 private:

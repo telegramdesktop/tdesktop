@@ -6168,7 +6168,12 @@ void HistoryWidget::handlePeerUpdate() {
 
 void HistoryWidget::onForwardSelected() {
 	if (!_list) return;
-	Window::ShowForwardMessagesBox(getSelectedItems());
+	auto weak = make_weak(this);
+	Window::ShowForwardMessagesBox(getSelectedItems(), [=] {
+		if (weak) {
+			weak->onClearSelected();
+		}
+	});
 }
 
 void HistoryWidget::confirmDeleteContextItem() {

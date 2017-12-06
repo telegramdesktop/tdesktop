@@ -2387,4 +2387,110 @@ void ApiWrap::userPhotosDone(
 	));
 }
 
+void ApiWrap::forwardMessages(
+		HistoryItemsList &&items,
+		const SendOptions &options,
+		base::lambda_once<void()> &&successCallback) {
+	Expects(!items.empty());
+
+	struct SharedCallback {
+		int requestsLeft = 0;
+		base::lambda_once<void()> callback;
+	};
+	const auto shared = successCallback
+		? std::make_shared<SharedCallback>()
+		: std::shared_ptr<SharedCallback>();
+	if (successCallback) {
+		shared->callback = std::move(successCallback);
+	}
+
+	const auto count = int(items.size());
+	const auto genClientSideMessage = options.generateLocal && (count < 2);
+	const auto history = options.history;
+
+	App::main()->readServerHistory(history);
+
+	const auto channelPost = history->peer->isChannel()
+		&& !history->peer->isMegagroup();
+	const auto silentPost = channelPost && options.silent;
+
+	auto flags = MTPDmessage::Flags(0);
+	auto sendFlags = MTPmessages_ForwardMessages::Flags(0);
+	if (channelPost) {
+		flags |= MTPDmessage::Flag::f_views;
+		flags |= MTPDmessage::Flag::f_post;
+	}
+	if (!channelPost) {
+		flags |= MTPDmessage::Flag::f_from_id;
+	} else if (history->peer->asChannel()->addsSignature()) {
+		flags |= MTPDmessage::Flag::f_post_author;
+	}
+	if (silentPost) {
+		sendFlags |= MTPmessages_ForwardMessages::Flag::f_silent;
+	}
+
+	auto forwardFrom = items.front()->history()->peer;
+	auto ids = QVector<MTPint>();
+	auto randomIds = QVector<MTPlong>();
+
+	const auto sendAccumulated = [&] {
+		if (shared) {
+			++shared->requestsLeft;
+		}
+		history->sendRequestId = request(MTPmessages_ForwardMessages(
+			MTP_flags(sendFlags),
+			forwardFrom->input,
+			MTP_vector<MTPint>(ids),
+			MTP_vector<MTPlong>(randomIds),
+			history->peer->input
+		)).done([=, callback = std::move(successCallback)](
+				const MTPUpdates &updates) {
+			applyUpdates(updates);
+			if (shared && !--shared->requestsLeft) {
+				shared->callback();
+			}
+		}).after(
+			history->sendRequestId
+		).send();
+
+		ids.resize(0);
+		randomIds.resize(0);
+	};
+
+	ids.reserve(count);
+	randomIds.reserve(count);
+	for (const auto item : items) {
+		auto randomId = rand_value<uint64>();
+		if (genClientSideMessage) {
+			if (auto message = item->toHistoryMessage()) {
+				const auto newId = FullMsgId(
+					peerToChannel(history->peer->id),
+					clientMsgId());
+				const auto self = Auth().user();
+				const auto messageFromId = channelPost
+					? UserId(0)
+					: peerToUser(self->id);
+				const auto messagePostAuthor = channelPost
+					? (self->firstName + ' ' + self->lastName)
+					: QString();
+				history->addNewForwarded(
+					newId.msg,
+					flags,
+					date(MTP_int(unixtime())),
+					messageFromId,
+					messagePostAuthor,
+					message);
+				App::historyRegRandom(randomId, newId);
+			}
+		}
+		if (forwardFrom != item->history()->peer) {
+			sendAccumulated();
+			forwardFrom = item->history()->peer;
+		}
+		ids.push_back(MTP_int(item->id));
+		randomIds.push_back(MTP_long(randomId));
+	}
+	sendAccumulated();
+}
+
 ApiWrap::~ApiWrap() = default;

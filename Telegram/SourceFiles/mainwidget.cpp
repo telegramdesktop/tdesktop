@@ -662,7 +662,6 @@ bool MainWidget::setForwardDraft(PeerId peerId, MessageIdsList &&items) {
 	if (_history->peer() == peer) {
 		_history->cancelReply();
 	}
-	_history->onClearSelected();
 	Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 	return true;
 }
@@ -724,61 +723,15 @@ void MainWidget::cancelForwarding(History *history) {
 void MainWidget::finishForwarding(History *history, bool silent) {
 	if (!history) return;
 
-	const auto toForward = history->validateForwardDraft();
-	if (const auto count = int(toForward.size())) {
-		auto genClientSideMessage = (count < 2);
-		PeerData *forwardFrom = 0;
-		App::main()->readServerHistory(history);
-
-		auto flags = MTPDmessage::Flags(0);
-		auto sendFlags = MTPmessages_ForwardMessages::Flags(0);
-		bool channelPost = history->peer->isChannel() && !history->peer->isMegagroup();
-		bool silentPost = channelPost && silent;
-		if (channelPost) {
-			flags |= MTPDmessage::Flag::f_views;
-			flags |= MTPDmessage::Flag::f_post;
-		}
-		if (!channelPost) {
-			flags |= MTPDmessage::Flag::f_from_id;
-		} else if (history->peer->asChannel()->addsSignature()) {
-			flags |= MTPDmessage::Flag::f_post_author;
-		}
-		if (silentPost) {
-			sendFlags |= MTPmessages_ForwardMessages::Flag::f_silent;
-		}
-
-		QVector<MTPint> ids;
-		QVector<MTPlong> randomIds;
-		ids.reserve(count);
-		randomIds.reserve(count);
-		for (const auto item : toForward) {
-			auto randomId = rand_value<uint64>();
-			if (genClientSideMessage) {
-				if (auto message = item->toHistoryMessage()) {
-					auto newId = FullMsgId(peerToChannel(history->peer->id), clientMsgId());
-					auto messageFromId = channelPost ? 0 : Auth().userId();
-					auto messagePostAuthor = channelPost ? (Auth().user()->firstName + ' ' + Auth().user()->lastName) : QString();
-					history->addNewForwarded(newId.msg, flags, date(MTP_int(unixtime())), messageFromId, messagePostAuthor, message);
-					App::historyRegRandom(randomId, newId);
-				}
-			}
-			if (forwardFrom != item->history()->peer) {
-				if (forwardFrom) {
-					history->sendRequestId = MTP::send(MTPmessages_ForwardMessages(MTP_flags(sendFlags), forwardFrom->input, MTP_vector<MTPint>(ids), MTP_vector<MTPlong>(randomIds), history->peer->input), rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, history->sendRequestId);
-					ids.resize(0);
-					randomIds.resize(0);
-				}
-				forwardFrom = item->history()->peer;
-			}
-			ids.push_back(MTP_int(item->id));
-			randomIds.push_back(MTP_long(randomId));
-		}
-		history->sendRequestId = MTP::send(MTPmessages_ForwardMessages(MTP_flags(sendFlags), forwardFrom->input, MTP_vector<MTPint>(ids), MTP_vector<MTPlong>(randomIds), history->peer->input), rpcDone(&MainWidget::sentUpdatesReceived), RPCFailHandlerPtr(), 0, 0, history->sendRequestId);
+	auto toForward = history->validateForwardDraft();
+	if (!toForward.empty()) {
+		auto options = ApiWrap::SendOptions(history);
+		options.silent = silent;
+		Auth().api().forwardMessages(std::move(toForward), options);
 
 		if (_history->peer() == history->peer) {
 			_history->peerMessagesUpdated();
 		}
-
 		cancelForwarding(history);
 	}
 
