@@ -1464,7 +1464,7 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 	readServerHistory(history);
 	_history->fastShowAtEnd(history);
 
-	if (!history || !_history->canSendMessages(history->peer)) {
+	if (!history || !history->peer->canWrite()) {
 		return;
 	}
 	saveRecentHashtags(textWithTags.text);

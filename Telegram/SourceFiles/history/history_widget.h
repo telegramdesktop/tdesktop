@@ -318,7 +318,6 @@ public:
 	void updateFieldSubmitSettings();
 
 	void setInnerFocus();
-	bool canSendMessages(PeerData *peer) const;
 
 	void updateNotifySettings();
 

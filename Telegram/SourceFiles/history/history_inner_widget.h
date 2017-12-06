@@ -42,10 +42,10 @@ class HistoryInner
 
 public:
 	HistoryInner(
-		HistoryWidget *historyWidget,
+		not_null<HistoryWidget*> historyWidget,
 		not_null<Window::Controller*> controller,
 		Ui::ScrollArea *scroll,
-		History *history);
+		not_null<History*> history);
 
 	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages);
 	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages);

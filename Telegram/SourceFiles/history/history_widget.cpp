@@ -1742,7 +1742,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	if (peerId) {
 		_peer = App::peer(peerId);
 		_channel = peerToChannel(_peer->id);
-		_canSendMessages = canSendMessages(_peer);
+		_canSendMessages = _peer->canWrite();
 		_tabbedSelector->setCurrentPeer(_peer);
 	}
 	_topBar->setHistoryPeer(_peer);
@@ -3658,10 +3658,6 @@ void HistoryWidget::updateDragAreas() {
 	};
 }
 
-bool HistoryWidget::canSendMessages(PeerData *peer) const {
-	return peer && peer->canWrite();
-}
-
 bool HistoryWidget::readyToForward() const {
 	return _canSendMessages && !_toForward.empty();
 }
@@ -5345,7 +5341,9 @@ void HistoryWidget::onPhotoSend(PhotoData *photo) {
 }
 
 void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot) {
-	if (!_history || !result || !canSendMessages(_peer)) return;
+	if (!_peer || !_peer->canWrite() || !result) {
+		return;
+	}
 
 	auto errorText = result->getErrorOnSend(_history);
 	if (!errorText.isEmpty()) {
@@ -5527,7 +5525,7 @@ void HistoryWidget::destroyPinnedBar() {
 }
 
 bool HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &caption) {
-	if (!_history || !doc || !canSendMessages(_peer)) {
+	if (!_peer || !_peer->canWrite() || !doc) {
 		return false;
 	}
 
@@ -5592,7 +5590,9 @@ bool HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 }
 
 void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption) {
-	if (!_history || !photo || !canSendMessages(_peer)) return;
+	if (!_peer || !_peer->canWrite() || !photo) {
+		return;
+	}
 
 	App::main()->readServerHistory(_history);
 	fastShowAtEnd(_history);
@@ -6108,7 +6108,7 @@ void HistoryWidget::onCancel() {
 
 void HistoryWidget::fullPeerUpdated(PeerData *peer) {
 	if (_list && peer == _peer) {
-		bool newCanSendMessages = canSendMessages(_peer);
+		auto newCanSendMessages = _peer->canWrite();
 		if (newCanSendMessages != _canSendMessages) {
 			_canSendMessages = newCanSendMessages;
 			if (!_canSendMessages) {
@@ -6151,7 +6151,7 @@ void HistoryWidget::handlePeerUpdate() {
 		if (_unblock->isHidden() == isBlocked() || (!isBlocked() && _joinChannel->isHidden() == isJoinChannel())) {
 			resize = true;
 		}
-		bool newCanSendMessages = canSendMessages(_peer);
+		bool newCanSendMessages = _peer->canWrite();
 		if (newCanSendMessages != _canSendMessages) {
 			_canSendMessages = newCanSendMessages;
 			if (!_canSendMessages) {

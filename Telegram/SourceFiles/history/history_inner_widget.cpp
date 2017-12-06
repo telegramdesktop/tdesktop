@@ -86,10 +86,10 @@ int BinarySearchBlocksOrItems(const T &list, int edge) {
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
 HistoryInner::HistoryInner(
-	HistoryWidget *historyWidget,
+	not_null<HistoryWidget*> historyWidget,
 	not_null<Window::Controller*> controller,
 	Ui::ScrollArea *scroll,
-	History *history)
+	not_null<History*> history)
 : RpWidget(nullptr)
 , _controller(controller)
 , _peer(history->peer)
@@ -1171,7 +1171,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	}
 
 	auto selectedState = getSelectionState();
-	auto canSendMessages = _widget->canSendMessages(_peer);
+	auto canSendMessages = _peer->canWrite();
 
 	// -2 - has full selected items, but not over, -1 - has selection, but no over, 0 - no selection, 1 - over text, 2 - over full selected items
 	auto isUponSelected = 0;

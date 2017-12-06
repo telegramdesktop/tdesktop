@@ -1276,7 +1276,7 @@ QRect HistoryMessage::countGeometry() const {
 		maxwidth = qMax(_media->currentWidth(), qMin(maxwidth, plainMaxWidth()));
 	}
 
-	auto outLayout = hasOutLayout();
+	const auto outLayout = hasOutLayout();
 	auto contentLeft = (outLayout && !Adaptive::ChatWide())
 		? st::msgMargin.right()
 		: st::msgMargin.left();
@@ -1297,8 +1297,12 @@ QRect HistoryMessage::countGeometry() const {
 		contentWidth = maxwidth;
 	}
 
-	auto contentTop = marginTop();
-	return QRect(contentLeft, contentTop, contentWidth, _height - contentTop - marginBottom());
+	const auto contentTop = marginTop();
+	return QRect(
+		contentLeft,
+		contentTop,
+		contentWidth,
+		_height - contentTop - marginBottom());
 }
 
 void HistoryMessage::fromNameUpdated(int32 width) const {
@@ -1876,8 +1880,12 @@ void HistoryMessage::draw(Painter &p, QRect clip, TextSelection selection, TimeM
 			HistoryMessage::drawInfo(p, g.left() + g.width(), g.top() + g.height(), 2 * g.left() + g.width(), selected, InfoDisplayDefault);
 		}
 		if (displayRightAction()) {
-			auto fastShareLeft = g.left() + g.width() + st::historyFastShareLeft;
-			auto fastShareTop = g.top() + g.height() - st::historyFastShareBottom - st::historyFastShareSize;
+			const auto fastShareSkip = snap(
+				(g.height() - st::historyFastShareSize) / 2,
+				0,
+				st::historyFastShareBottom);
+			const auto fastShareLeft = g.left() + g.width() + st::historyFastShareLeft;
+			const auto fastShareTop = g.top() + g.height() - fastShareSkip - st::historyFastShareSize;
 			drawRightAction(p, fastShareLeft, fastShareTop, width());
 		}
 	} else if (_media) {
@@ -2241,9 +2249,18 @@ HistoryTextState HistoryMessage::getState(QPoint point, HistoryStateRequest requ
 			}
 		}
 		if (displayRightAction()) {
-			auto fastShareLeft = g.left() + g.width() + st::historyFastShareLeft;
-			auto fastShareTop = g.top() + g.height() - st::historyFastShareBottom - st::historyFastShareSize;
-			if (QRect(fastShareLeft, fastShareTop, st::historyFastShareSize, st::historyFastShareSize).contains(point)) {
+			const auto fastShareSkip = snap(
+				(g.height() - st::historyFastShareSize) / 2,
+				0,
+				st::historyFastShareBottom);
+			const auto fastShareLeft = g.left() + g.width() + st::historyFastShareLeft;
+			const auto fastShareTop = g.top() + g.height() - fastShareSkip - st::historyFastShareSize;
+			if (QRect(
+				fastShareLeft,
+				fastShareTop,
+				st::historyFastShareSize,
+				st::historyFastShareSize
+			).contains(point)) {
 				result.link = rightActionLink();
 			}
 		}
