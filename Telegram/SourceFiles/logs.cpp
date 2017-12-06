@@ -307,20 +307,21 @@ namespace Logs {
 		if (!Sandbox::CheckBetaVersionDir()) {
 			return;
 		}
-		bool workingDirChosen = cBetaVersion();
 
-		QString initialWorkingDir = QDir(cWorkingDir()).absolutePath() + '/', moveOldDataFrom;
+		auto initialWorkingDir = QDir(cWorkingDir()).absolutePath() + '/';
+		auto moveOldDataFrom = QString();
+		auto workingDirChosen = false;
+
 		if (cBetaVersion()) {
 			cSetDebug(true);
+			workingDirChosen = true;
 #if defined Q_OS_MAC || defined Q_OS_LINUX
 		} else {
 #ifdef _DEBUG
 			cForceWorkingDir(cExeDir());
 #else // _DEBUG
-			if (cWorkingDir().isEmpty()) {
-				cForceWorkingDir(psAppDataPath());
-			}
-#endif // else for _DEBUG
+			cForceWorkingDir(psAppDataPath());
+#endif // !_DEBUG
 			workingDirChosen = true;
 
 #if defined Q_OS_LINUX && !defined _DEBUG // fix first version
@@ -331,31 +332,31 @@ namespace Logs {
 		} else {
 			cForceWorkingDir(psAppDataPath());
 			workingDirChosen = true;
-#elif defined OS_WIN_STORE
+#elif defined OS_WIN_STORE // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT
 #ifdef _DEBUG
 			cForceWorkingDir(cExeDir());
 #else // _DEBUG
 			cForceWorkingDir(psAppDataPath());
-#endif // else for _DEBUG
-#endif // OS_WIN_STORE
+#endif // !_DEBUG
+			workingDirChosen = true;
+#endif // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT || OS_WIN_STORE
 		}
 
 		LogsData = new LogsDataFields();
 		if (!workingDirChosen) {
-			cForceWorkingDir(cWorkingDir());
+			cForceWorkingDir(cExeDir());
 			if (!LogsData->openMain()) {
-				cForceWorkingDir(cExeDir());
-				if (!LogsData->openMain()) {
-					cForceWorkingDir(psAppDataPath());
-				}
+				cForceWorkingDir(psAppDataPath());
 			}
 		}
 
 		cForceWorkingDir(QDir(cWorkingDir()).absolutePath() + '/');
+
 // WinRT build requires the working dir to stay the same for plugin loading.
 #ifndef Q_OS_WINRT
 		QDir().setCurrent(cWorkingDir());
 #endif // !Q_OS_WINRT
+
 		QDir().mkpath(cWorkingDir() + qstr("tdata"));
 
 		Sandbox::WorkingDirReady();
