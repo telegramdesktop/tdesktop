@@ -86,6 +86,11 @@ void LayerWidget::parentResized() {
 				Window::SectionShow::Way::Forward,
 				anim::type::instant,
 				anim::activation::background));
+	//
+	// There was a layout logic which caused layer info to become a
+	// third column info if the window size allows, but it was decided
+	// to keep layer info and third column info separated.
+	//
 	//} else if (_controller->canShowThirdSectionWithoutResize()) {
 	//	takeToThirdSection();
 	} else {
@@ -98,7 +103,11 @@ void LayerWidget::parentResized() {
 
 bool LayerWidget::takeToThirdSection() {
 	return false;
-
+	//
+	// There was a layout logic which caused layer info to become a
+	// third column info if the window size allows, but it was decided
+	// to keep layer info and third column info separated.
+	//
 	//Ui::FocusPersister persister(this);
 	//auto localCopy = _controller;
 	//auto memento = MoveMemento(std::move(_content));

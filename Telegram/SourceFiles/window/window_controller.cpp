@@ -395,7 +395,7 @@ void Controller::showSection(
 		const SectionShow &params) {
 	if (App::wnd()->showSectionInExistingLayer(
 			&memento,
-			params)) {
+			params) && !params.thirdColumn) {
 		return;
 	}
 	App::main()->showSection(std::move(memento), params);
