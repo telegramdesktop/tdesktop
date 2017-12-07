@@ -35,7 +35,7 @@ namespace {
 // This is a key setter for compatibility with OpenSSL 1.0
 int RSA_set0_key(RSA *r, BIGNUM *n, BIGNUM *e, BIGNUM *d) {
 	if ((r->n == nullptr && n == nullptr) || (r->e == nullptr && e == nullptr)) {
-		return false;
+		return 0;
 	}
 	if (n != nullptr) {
 		BN_free(r->n);
@@ -49,7 +49,7 @@ int RSA_set0_key(RSA *r, BIGNUM *n, BIGNUM *e, BIGNUM *d) {
 		BN_free(r->d);
 		r->d = d;
 	}
-	return true;
+	return 1;
 }
 
 // This is a key getter for compatibility with OpenSSL 1.0
@@ -72,17 +72,21 @@ namespace internal {
 
 class RSAPublicKey::Private {
 public:
-	Private(base::const_byte_span key) : _rsa(PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<gsl::byte*>(key.data()), key.size()), 0, 0, 0)) {
+	Private(base::const_byte_span key)
+	: _rsa(PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<gsl::byte*>(key.data()), key.size()), 0, 0, 0)) {
 		if (_rsa) {
 			computeFingerprint();
 		}
 	}
-	Private(base::const_byte_span nBytes, base::const_byte_span eBytes) : _rsa(RSA_new()) {
+	Private(base::const_byte_span nBytes, base::const_byte_span eBytes)
+	: _rsa(RSA_new()) {
 		if (_rsa) {
-			BIGNUM *n = openssl::BigNum(nBytes).raw();
-			BIGNUM *e = openssl::BigNum(eBytes).raw();
-			RSA_set0_key(_rsa, n, e, nullptr);
-			if (!n || !e) {
+			auto n = openssl::BigNum(nBytes).takeRaw();
+			auto e = openssl::BigNum(eBytes).takeRaw();
+			auto valid = (n != nullptr) && (e != nullptr);
+			// We still pass both values to RSA_set0_key() so that even
+			// if only one of them is valid RSA would take ownership of it.
+			if (!RSA_set0_key(_rsa, n, e, nullptr) || !valid) {
 				RSA_free(base::take(_rsa));
 			} else {
 				computeFingerprint();

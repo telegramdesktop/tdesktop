@@ -154,7 +154,10 @@ bool IsPrimeAndGood(base::const_byte_span primeBytes, int g) {
 	return IsPrimeAndGoodCheck(openssl::BigNum(primeBytes), g);
 }
 
-std::vector<gsl::byte> CreateAuthKey(base::const_byte_span firstBytes, base::const_byte_span randomBytes, base::const_byte_span primeBytes) {
+std::vector<gsl::byte> CreateAuthKey(
+		base::const_byte_span firstBytes,
+		base::const_byte_span randomBytes,
+		base::const_byte_span primeBytes) {
 	using openssl::BigNum;
 	BigNum first(firstBytes);
 	BigNum prime(primeBytes);
@@ -165,7 +168,10 @@ std::vector<gsl::byte> CreateAuthKey(base::const_byte_span firstBytes, base::con
 	return BigNum::ModExp(first, BigNum(randomBytes), prime).getBytes();
 }
 
-ModExpFirst CreateModExp(int g, base::const_byte_span primeBytes, base::const_byte_span randomSeed) {
+ModExpFirst CreateModExp(
+		int g,
+		base::const_byte_span primeBytes,
+		base::const_byte_span randomSeed) {
 	Expects(randomSeed.size() == ModExpFirst::kRandomPowerSize);
 
 	using namespace openssl;
