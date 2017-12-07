@@ -524,7 +524,8 @@ void UserData::setCallsStatus(CallsStatus callsStatus) {
 }
 
 bool UserData::hasCalls() const {
-	return (callsStatus() != CallsStatus::Disabled) && (callsStatus() != CallsStatus::Unknown);
+	return (callsStatus() != CallsStatus::Disabled)
+		&& (callsStatus() != CallsStatus::Unknown);
 }
 
 void ChatData::setPhoto(const MTPChatPhoto &photo) {

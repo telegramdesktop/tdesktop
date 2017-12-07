@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 using "basic.style";
 
 using "ui/widgets/widgets.style";
-using "window/window.style";
+using "info/info.style";
 
 profileBg: windowBg;
 

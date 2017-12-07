@@ -145,6 +145,9 @@ Ui::FadeWrap<Ui::RpWidget> *TopBar::pushButton(
 		return !selectionMode()
 			&& !_searchModeEnabled;
 	});
+	weak->toggle(
+		!selectionMode() && !_searchModeEnabled,
+		anim::type::instant);
 	weak->widthValue()
 		| rpl::start_with_next([this] {
 			updateControlsGeometry(width());

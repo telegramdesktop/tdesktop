@@ -192,6 +192,7 @@ private:
 	bool requireTopBarSearch() const;
 
 	void addProfileMenuButton();
+	void addProfileCallsButton();
 	void addProfileNotificationsButton();
 	void showProfileMenu();
 
@@ -205,6 +206,7 @@ private:
 	object_ptr<Ui::RpWidget> _topBarSurrogate = { nullptr };
 	Animation _topBarOverrideAnimation;
 	bool _topBarOverrideShown = false;
+
 	object_ptr<Ui::FadeShadow> _topShadow;
 	base::unique_qptr<Ui::IconButton> _topBarMenuToggle;
 	base::unique_qptr<Ui::DropdownMenu> _topBarMenu;

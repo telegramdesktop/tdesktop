@@ -164,6 +164,10 @@ infoNotificationsActive: icon {{
 	"info_notifications",
 	windowBgActive
 }};
+infoTopBarCall: IconButton(infoTopBarNotifications) {
+	icon: icon {{ "top_bar_call", boxTitleCloseFg }};
+	iconOver: icon {{ "top_bar_call", boxTitleCloseFgOver }};
+}
 infoTopBarForward: IconButton(infoTopBarBack) {
 	width: 46px;
 	icon: icon {{ "info_media_forward", boxTitleCloseFg }};
@@ -226,6 +230,10 @@ infoLayerTopBarNotifications: IconButton(infoLayerTopBarMenu) {
 	icon: icon {{ "info_notifications", boxTitleCloseFg }};
 	iconOver: icon {{ "info_notifications", boxTitleCloseFgOver }};
 	iconPosition: point(5px, 11px);
+}
+infoLayerTopBarCall: IconButton(infoLayerTopBarNotifications) {
+	icon: icon {{ "top_bar_call", boxTitleCloseFg }};
+	iconOver: icon {{ "top_bar_call", boxTitleCloseFgOver }};
 }
 infoLayerTopBarForward: IconButton(infoLayerTopBarBack) {
 	width: 45px;
@@ -614,4 +622,60 @@ editPeerInvitesSkip: 10px;
 
 historyTopBarBack: IconButton(infoTopBarBack) {
 	width: 52px;
+}
+topBarHeight: 54px;
+topBarMenuPosition: point(-2px, 35px);
+topBarDuration: 200;
+topBarBackward: icon {{ "title_back", menuIconFg }};
+topBarForwardAlpha: 0.6;
+topBarBack: icon {{ "title_back", lightButtonFg }};
+topBarArrowPadding: margins(39px, 8px, 17px, 8px);
+topBarMinPadding: 5px;
+topBarButton: RoundButton(defaultLightButton) {
+	width: -18px;
+	padding: margins(0px, 10px, 12px, 10px);
+}
+topBarClearButton: RoundButton(defaultLightButton) {
+	width: -18px;
+}
+topBarSearch: IconButton {
+	width: 40px;
+	height: topBarHeight;
+
+	icon: icon {{ "top_bar_search", menuIconFg }};
+	iconOver: icon {{ "top_bar_search", menuIconFgOver }};
+	iconPosition: point(4px, 11px);
+
+	rippleAreaPosition: point(0px, 7px);
+	rippleAreaSize: 40px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+topBarSkip: -2px;
+topBarCallSkip: -1px;
+topBarMenuToggle: IconButton(topBarSearch) {
+	width: 44px;
+
+	icon: icon {{ "title_menu_dots", menuIconFg }};
+	iconOver: icon {{ "title_menu_dots", menuIconFgOver }};
+	iconPosition: point(16px, 17px);
+
+	rippleAreaPosition: point(0px, 7px);
+}
+topBarCall: IconButton(topBarSearch) {
+	icon: icon {{ "top_bar_call", menuIconFg }};
+	iconOver: icon {{ "top_bar_call", menuIconFgOver }};
+}
+topBarInfo: IconButton(topBarSearch) {
+	icon: icon {{ "top_bar_profile", menuIconFg }};
+	iconOver: icon {{ "top_bar_profile", menuIconFgOver }};
+}
+topBarInfoActive: icon {{ "top_bar_profile", windowActiveTextFg }};
+topBarActionSkip: 10px;
+
+topBarInfoButton: UserpicButton(defaultUserpicButton) {
+	size: size(52px, topBarHeight);
+	photoSize: 42px;
+	photoPosition: point(2px, -1px);
 }

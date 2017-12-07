@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "info/info_wrap_widget.h"
 
 #include <rpl/flatten_latest.h>
+#include <rpl/take.h>
 #include <rpl/combine.h>
 #include "info/profile/info_profile_widget.h"
 #include "info/profile/info_profile_members.h"
@@ -36,6 +37,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/search_field_controller.h"
+#include "calls/calls_instance.h"
 #include "window/window_controller.h"
 #include "window/window_slide_animation.h"
 #include "window/window_peer_menu.h"
@@ -303,7 +305,7 @@ void WrapWidget::setupTop() {
 }
 
 void WrapWidget::createTopBar() {
-	auto wrapValue = wrap();
+	const auto wrapValue = wrap();
 	auto selectedItems = _topBar
 		? _topBar->takeSelectedItems()
 		: SelectedItems(Section::MediaType::kCount);
@@ -350,6 +352,7 @@ void WrapWidget::createTopBar() {
 	if (_controller->section().type() == Section::Type::Profile
 		&& (wrapValue != Wrap::Side || hasStackHistory())) {
 		addProfileMenuButton();
+		addProfileCallsButton();
 //		addProfileNotificationsButton();
 	}
 
@@ -371,6 +374,38 @@ void WrapWidget::addProfileMenuButton() {
 	_topBarMenuToggle->addClickHandler([this] {
 		showProfileMenu();
 	});
+}
+
+void WrapWidget::addProfileCallsButton() {
+	Expects(_topBar != nullptr);
+
+	const auto user = _controller->peer()->asUser();
+	if (!user || user->isSelf() || !Global::PhoneCallsEnabled()) {
+		return;
+	}
+
+	Notify::PeerUpdateValue(
+		user,
+		Notify::PeerUpdate::Flag::UserHasCalls
+	) | rpl::filter([=] {
+		return user->hasCalls();
+	}) | rpl::take(
+		1
+	) | rpl::start_with_next([=] {
+		_topBar->addButton(
+			base::make_unique_q<Ui::IconButton>(
+				_topBar,
+				(wrap() == Wrap::Layer
+					? st::infoLayerTopBarCall
+					: st::infoTopBarCall))
+		)->addClickHandler([=] {
+			Calls::Current().startOutgoingCall(user);
+		});
+	}, _topBar->lifetime());
+
+	if (user && user->callsStatus() == UserData::CallsStatus::Unknown) {
+		user->updateFull();
+	}
 }
 
 void WrapWidget::addProfileNotificationsButton() {
