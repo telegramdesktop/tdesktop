@@ -22,6 +22,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <memory>
 #include <functional>
+#include <list>
+#include <algorithm>
 #include <QtCore/QDir>
 #include <QtCore/QSet>
 #include <QtCore/QBuffer>
@@ -609,10 +611,16 @@ bool Generator::writeStructsForwardDeclarations() {
 	}
 
 	header_->newline();
-	bool result = module_.enumVariables([this](const Variable &value) -> bool {
+
+	std::list<QString> alreadyDeclaredTypes;
+	bool result = module_.enumVariables([this, &alreadyDeclaredTypes](const Variable &value) -> bool {
 		if (value.value.type().tag == structure::TypeTag::Struct) {
-			if (!module_.findStructInModule(value.value.type().name, module_)) {
-				header_->stream() << "struct " << value.value.type().name.back() << ";\n";
+			auto begin = alreadyDeclaredTypes.cbegin(), end = alreadyDeclaredTypes.cend();
+			if (std::find(begin, end, value.value.type().name.back()) == end) {
+				if (!module_.findStructInModule(value.value.type().name, module_)) {
+						header_->stream() << "struct " << value.value.type().name.back() << ";\n";
+						alreadyDeclaredTypes.push_back(value.value.type().name.back());
+				}
 			}
 		}
 		return true;
