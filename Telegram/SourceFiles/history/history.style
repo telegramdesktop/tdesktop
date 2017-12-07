@@ -396,7 +396,7 @@ msgFileThumbStatusTop: 32px;
 msgFileThumbLinkTop: 60px;
 msgFileNameTop: 16px;
 msgFileStatusTop: 37px;
-msgFileMinWidth: 294px;
+msgFileMinWidth: 268px;
 msgFileTopMinus: 6px;
 
 msgFileOverDuration: 200;
