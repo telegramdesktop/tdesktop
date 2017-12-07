@@ -320,7 +320,12 @@ namespace Logs {
 #ifdef _DEBUG
 			cForceWorkingDir(cExeDir());
 #else // _DEBUG
-			cForceWorkingDir(psAppDataPath());
+			if (!cWorkingDir().isEmpty()) {
+				// This value must come only from the "-workdir" argument.
+				cForceWorkingDir(cWorkingDir());
+			} else {
+				cForceWorkingDir(psAppDataPath());
+			}
 #endif // !_DEBUG
 			workingDirChosen = true;
 
