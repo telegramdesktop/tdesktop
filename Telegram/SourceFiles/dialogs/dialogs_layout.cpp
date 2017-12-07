@@ -374,6 +374,10 @@ void RowPainter::paint(
 	auto from = history->peer->migrateTo()
 		? history->peer->migrateTo()
 		: history->peer;
+	const auto flags = (active ? Flag::Active : Flag(0))
+		| (selected ? Flag::Selected : Flag(0))
+		| (onlyBackground ? Flag::OnlyBackground : Flag(0))
+		| (history->peer->isSelf() ? Flag::SavedMessages : Flag(0));
 	auto paintItemCallback = [&](int nameleft, int namewidth) {
 		auto availableWidth = namewidth;
 		auto texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
@@ -469,10 +473,6 @@ void RowPainter::paint(
 			paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
 		}
 	};
-	const auto flags = (active ? Flag::Active : Flag(0))
-		| (selected ? Flag::Selected : Flag(0))
-		| (onlyBackground ? Flag::OnlyBackground : Flag(0))
-		| (history->peer->isSelf() ? Flag::SavedMessages : Flag(0));
 	paintRow(
 		p,
 		row,

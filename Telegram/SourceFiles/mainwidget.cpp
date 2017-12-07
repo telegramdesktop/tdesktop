@@ -5054,9 +5054,6 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					App::historyUnregItem(msgRow);
 					Auth().messageIdChanging.notify({ msgRow, d.vid.v }, true);
 					msgRow->setId(d.vid.v);
-					if (msgRow->history()->peer->isSelf()) {
-						msgRow->history()->unregSendAction(App::self());
-					}
 					App::historyRegItem(msgRow);
 					Auth().data().requestItemRepaint(msgRow);
 				}
@@ -5212,26 +5209,31 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateUserTyping: {
 		auto &d = update.c_updateUserTyping();
-		auto history = App::historyLoaded(peerFromUser(d.vuser_id));
-		auto user = App::userLoaded(d.vuser_id.v);
+		const auto userId = peerFromUser(d.vuser_id);
+		const auto history = App::historyLoaded(userId);
+		const auto user = App::userLoaded(d.vuser_id.v);
 		if (history && user) {
-			auto when = requestingDifference() ? 0 : unixtime();
-			App::histories().regSendAction(history, user, d.vaction, when);
+			const auto when = requestingDifference() ? 0 : unixtime();
+			App::histories().registerSendAction(history, user, d.vaction, when);
 		}
 	} break;
 
 	case mtpc_updateChatUserTyping: {
 		auto &d = update.c_updateChatUserTyping();
-		History *history = 0;
-		if (auto chat = App::chatLoaded(d.vchat_id.v)) {
-			history = App::historyLoaded(chat->id);
-		} else if (auto channel = App::channelLoaded(d.vchat_id.v)) {
-			history = App::historyLoaded(channel->id);
-		}
-		auto user = (d.vuser_id.v == Auth().userId()) ? nullptr : App::userLoaded(d.vuser_id.v);
+		const auto history = [&]() -> History* {
+			if (auto chat = App::chatLoaded(d.vchat_id.v)) {
+				return App::historyLoaded(chat->id);
+			} else if (auto channel = App::channelLoaded(d.vchat_id.v)) {
+				return App::historyLoaded(channel->id);
+			}
+			return nullptr;
+		}();
+		const auto user = (d.vuser_id.v == Auth().userId())
+			? nullptr
+			: App::userLoaded(d.vuser_id.v);
 		if (history && user) {
-			auto when = requestingDifference() ? 0 : unixtime();
-			App::histories().regSendAction(history, user, d.vaction, when);
+			const auto when = requestingDifference() ? 0 : unixtime();
+			App::histories().registerSendAction(history, user, d.vaction, when);
 		}
 	} break;
 

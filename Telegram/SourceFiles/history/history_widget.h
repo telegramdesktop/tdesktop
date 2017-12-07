@@ -206,8 +206,13 @@ public:
 	void pushInfoToThirdSection(
 		const Window::SectionShow &params);
 
-	void updateSendAction(History *history, SendAction::Type type, int32 progress = 0);
-	void cancelSendAction(History *history, SendAction::Type type);
+	void updateSendAction(
+		not_null<History*> history,
+		SendAction::Type type,
+		int32 progress = 0);
+	void cancelSendAction(
+		not_null<History*> history,
+		SendAction::Type type);
 
 	void updateRecentStickers();
 	void sendActionDone(const MTPBool &result, mtpRequestId req);
@@ -845,7 +850,7 @@ private:
 	base::Timer _highlightTimer;
 	TimeMs _highlightStart = 0;
 
-	QMap<QPair<History*, SendAction::Type>, mtpRequestId> _sendActionRequests;
+	QMap<QPair<not_null<History*>, SendAction::Type>, mtpRequestId> _sendActionRequests;
 	QTimer _sendActionStopTimer;
 
 	TimeMs _saveDraftStart = 0;

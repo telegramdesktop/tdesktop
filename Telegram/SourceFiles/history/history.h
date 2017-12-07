@@ -51,7 +51,11 @@ public:
 		_selfDestructTimer.setCallback([this] { checkSelfDestructItems(); });
 	}
 
-	void regSendAction(History *history, UserData *user, const MTPSendMessageAction &action, TimeId when);
+	void registerSendAction(
+		not_null<History*> history,
+		not_null<UserData*> user,
+		const MTPSendMessageAction &action,
+		TimeId when);
 	void step_typings(TimeMs ms, bool timer);
 
 	History *find(const PeerId &peerId);
@@ -347,11 +351,14 @@ public:
 	}
 
 	void paintDialog(Painter &p, int32 w, bool sel) const;
-	bool updateSendActionNeedsAnimating(TimeMs ms, bool force = false);
-	void unregSendAction(UserData *from);
-	bool updateSendActionNeedsAnimating(UserData *user, const MTPSendMessageAction &action);
 	bool mySendActionUpdated(SendAction::Type type, bool doing);
 	bool paintSendAction(Painter &p, int x, int y, int availableWidth, int outerWidth, style::color color, TimeMs ms);
+
+	// Interface for Histories
+	bool updateSendActionNeedsAnimating(TimeMs ms, bool force = false);
+	bool updateSendActionNeedsAnimating(
+		not_null<UserData*> user,
+		const MTPSendMessageAction &action);
 
 	void clearLastKeyboard();
 
@@ -556,6 +563,8 @@ private:
 	template <int kSharedMediaTypeCount>
 	void addToSharedMedia(std::vector<MsgId> (&medias)[kSharedMediaTypeCount], bool force);
 	void addBlockToSharedMedia(HistoryBlock *block);
+
+	void clearSendAction(not_null<UserData*> from);
 
 	enum class Flag {
 		f_has_pending_resized_items = (1 << 0),

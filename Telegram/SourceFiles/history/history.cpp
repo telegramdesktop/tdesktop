@@ -226,10 +226,16 @@ void History::setForwardDraft(MessageIdsList &&items) {
 	_forwardDraft = std::move(items);
 }
 
-bool History::updateSendActionNeedsAnimating(UserData *user, const MTPSendMessageAction &action) {
+bool History::updateSendActionNeedsAnimating(
+		not_null<UserData*> user,
+		const MTPSendMessageAction &action) {
+	if (peer->isSelf()) {
+		return false;
+	}
+
 	using Type = SendAction::Type;
 	if (action.type() == mtpc_sendMessageCancelAction) {
-		unregSendAction(user);
+		clearSendAction(user);
 		return false;
 	}
 
@@ -632,7 +638,11 @@ void Histories::clear() {
 	typing.clear();
 }
 
-void Histories::regSendAction(History *history, UserData *user, const MTPSendMessageAction &action, TimeId when) {
+void Histories::registerSendAction(
+		not_null<History*> history,
+		not_null<UserData*> user,
+		const MTPSendMessageAction &action,
+		TimeId when) {
 	if (history->updateSendActionNeedsAnimating(user, action)) {
 		user->madeAction(when);
 
@@ -1382,7 +1392,7 @@ HistoryItem *History::addNewItem(HistoryItem *adding, bool newMsg) {
 	return adding;
 }
 
-void History::unregSendAction(UserData *from) {
+void History::clearSendAction(not_null<UserData*> from) {
 	auto updateAtMs = TimeMs(0);
 	auto i = _typing.find(from);
 	if (i != _typing.cend()) {
@@ -1401,12 +1411,12 @@ void History::unregSendAction(UserData *from) {
 
 void History::newItemAdded(HistoryItem *item) {
 	App::checkImageCacheSize();
-	if (item->from() && item->from()->isUser()) {
-		if (item->from() == item->author()) {
-			unregSendAction(item->from()->asUser());
+	if (const auto from = item->from() ? item->from()->asUser() : nullptr) {
+		if (from == item->author()) {
+			clearSendAction(from);
 		}
 		auto itemServerTime = toServerTime(item->date.toTime_t());
-		item->from()->asUser()->madeAction(itemServerTime.v);
+		from->madeAction(itemServerTime.v);
 	}
 	if (item->out()) {
 		if (unreadBar) unreadBar->destroyUnreadBar();

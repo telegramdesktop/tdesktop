@@ -1123,8 +1123,10 @@ void HistoryWidget::onTextChange() {
 	updateInlineBotQuery();
 	updateStickersByEmoji();
 
-	if (_peer && (!_peer->isChannel() || _peer->isMegagroup())) {
-		if (!_inlineBot && !_editMsgId && (_textUpdateEvents & TextUpdateEvent::SendTyping)) {
+	if (_history) {
+		if (!_inlineBot
+			&& !_editMsgId
+			&& (_textUpdateEvents & TextUpdateEvent::SendTyping)) {
 			updateSendAction(_history, SendAction::Type::Typing);
 		}
 	}
@@ -1248,7 +1250,9 @@ void HistoryWidget::writeDrafts(Data::Draft **localDraft, Data::Draft **editDraf
 	}
 }
 
-void HistoryWidget::cancelSendAction(History *history, SendAction::Type type) {
+void HistoryWidget::cancelSendAction(
+		not_null<History*> history,
+		SendAction::Type type) {
 	auto i = _sendActionRequests.find(qMakePair(history, type));
 	if (i != _sendActionRequests.cend()) {
 		MTP::cancel(i.value());
@@ -1260,10 +1264,16 @@ void HistoryWidget::onCancelSendAction() {
 	cancelSendAction(_history, SendAction::Type::Typing);
 }
 
-void HistoryWidget::updateSendAction(History *history, SendAction::Type type, int32 progress) {
-	if (!history) return;
+void HistoryWidget::updateSendAction(
+		not_null<History*> history,
+		SendAction::Type type,
+		int32 progress) {
+	const auto peer = history->peer;
+	if (peer->isSelf() || (peer->isChannel() && !peer->isMegagroup())) {
+		return;
+	}
 
-	auto doing = (progress >= 0);
+	const auto doing = (progress >= 0);
 	if (history->mySendActionUpdated(type, doing)) {
 		cancelSendAction(history, type);
 		if (doing) {
@@ -1283,7 +1293,13 @@ void HistoryWidget::updateSendAction(History *history, SendAction::Type type, in
 			case Type::ChooseContact: action = MTP_sendMessageChooseContactAction(); break;
 			case Type::PlayGame: action = MTP_sendMessageGamePlayAction(); break;
 			}
-			_sendActionRequests.insert(qMakePair(history, type), MTP::send(MTPmessages_SetTyping(history->peer->input, action), rpcDone(&HistoryWidget::sendActionDone)));
+			const auto key = qMakePair(history, type);
+			const auto requestId = MTP::send(
+				MTPmessages_SetTyping(
+					peer->input,
+					action),
+				rpcDone(&HistoryWidget::sendActionDone));
+			_sendActionRequests.insert(key, requestId);
 			if (type == Type::Typing) _sendActionStopTimer.start(5000);
 		}
 	}
@@ -1351,7 +1367,7 @@ void HistoryWidget::onRecordUpdate(quint16 level, qint32 samples) {
 		stopRecording(_peer && samples > 0 && _inField);
 	}
 	updateField();
-	if (_peer && (!_peer->isChannel() || _peer->isMegagroup())) {
+	if (_history) {
 		updateSendAction(_history, SendAction::Type::RecordVoice);
 	}
 }
@@ -3281,7 +3297,7 @@ void HistoryWidget::stopRecording(bool send) {
 
 	_recording = false;
 	_recordingSamples = 0;
-	if (_peer && (!_peer->isChannel() || _peer->isMegagroup())) {
+	if (_history) {
 		updateSendAction(_history, SendAction::Type::RecordVoice, -1);
 	}
 
@@ -3402,7 +3418,7 @@ void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotC
 			if (info.game) {
 				url = AppendShareGameScoreUrl(url, info.msgId);
 				BotGameUrlClickHandler(info.bot, url).onClick(Qt::LeftButton);
-				if (item && (!item->history()->peer->isChannel() || item->history()->peer->isMegagroup())) {
+				if (item) {
 					updateSendAction(item->history(), SendAction::Type::PlayGame);
 				}
 			} else {
@@ -4536,42 +4552,43 @@ void HistoryWidget::onThumbDocumentUploaded(const FullMsgId &newId, bool silent,
 }
 
 void HistoryWidget::onPhotoProgress(const FullMsgId &newId) {
-	if (auto item = App::histItemById(newId)) {
-		auto photo = (item->getMedia() && item->getMedia()->type() == MediaTypePhoto) ? static_cast<HistoryPhoto*>(item->getMedia())->photo() : nullptr;
-		if (!item->isPost()) {
-			updateSendAction(item->history(), SendAction::Type::UploadPhoto, 0);
-		}
+	if (const auto item = App::histItemById(newId)) {
+		const auto photo = (item->getMedia() && item->getMedia()->type() == MediaTypePhoto) ? static_cast<HistoryPhoto*>(item->getMedia())->photo() : nullptr;
+		updateSendAction(item->history(), SendAction::Type::UploadPhoto, 0);
 		Auth().data().requestItemRepaint(item);
 	}
 }
 
 void HistoryWidget::onDocumentProgress(const FullMsgId &newId) {
-	if (auto item = App::histItemById(newId)) {
-		auto media = item->getMedia();
-		auto document = media ? media->getDocument() : nullptr;
-		if (!item->isPost()) {
-			updateSendAction(item->history(), (document && document->voice()) ? SendAction::Type::UploadVoice : SendAction::Type::UploadFile, document ? document->uploadOffset : 0);
-		}
+	if (const auto item = App::histItemById(newId)) {
+		const auto media = item->getMedia();
+		const auto document = media ? media->getDocument() : nullptr;
+		const auto sendAction = (document && document->voice())
+			? SendAction::Type::UploadVoice
+			: SendAction::Type::UploadFile;
+		updateSendAction(
+			item->history(),
+			sendAction,
+			document ? document->uploadOffset : 0);
 		Auth().data().requestItemRepaint(item);
 	}
 }
 
 void HistoryWidget::onPhotoFailed(const FullMsgId &newId) {
-	if (auto item = App::histItemById(newId)) {
-		if (!item->isPost()) {
-			updateSendAction(item->history(), SendAction::Type::UploadPhoto, -1);
-		}
+	if (const auto item = App::histItemById(newId)) {
+		updateSendAction(item->history(), SendAction::Type::UploadPhoto, -1);
 		Auth().data().requestItemRepaint(item);
 	}
 }
 
 void HistoryWidget::onDocumentFailed(const FullMsgId &newId) {
-	if (auto item = App::histItemById(newId)) {
-		auto media = item->getMedia();
-		auto document = media ? media->getDocument() : nullptr;
-		if (!item->isPost()) {
-			updateSendAction(item->history(), (document && document->voice()) ? SendAction::Type::UploadVoice : SendAction::Type::UploadFile, -1);
-		}
+	if (const auto item = App::histItemById(newId)) {
+		const auto media = item->getMedia();
+		const auto document = media ? media->getDocument() : nullptr;
+		const auto sendAction = (document && document->voice())
+			? SendAction::Type::UploadVoice
+			: SendAction::Type::UploadFile;
+		updateSendAction(item->history(), sendAction, -1);
 		Auth().data().requestItemRepaint(item);
 	}
 }
