@@ -4229,15 +4229,29 @@ bool HistoryWidget::confirmSendingFiles(const QMimeData *data, CompressConfirm c
 	return false;
 }
 
-bool HistoryWidget::confirmShareContact(const QString &phone, const QString &fname, const QString &lname, const QString *addedComment) {
+bool HistoryWidget::confirmShareContact(
+		const QString &phone,
+		const QString &fname,
+		const QString &lname,
+		const QString *addedComment) {
 	if (!canWriteMessage()) return false;
 
 	auto box = Box<SendFilesBox>(phone, fname, lname);
-	auto sendCallback = [this, phone, fname, lname](const QStringList &files, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, bool compressed, const QString &caption, MsgId replyTo) {
+	auto sendCallback = [=](
+			const QStringList &files,
+			const QImage &image,
+			std::unique_ptr<FileLoadTask::MediaInformation> information,
+			bool compressed,
+			const QString &caption,
+			MsgId replyTo) {
 		shareContact(_peer->id, phone, fname, lname, replyTo);
 	};
 	auto insertTextOnCancel = QString();
-	return showSendFilesBox(std::move(box), insertTextOnCancel, addedComment, std::move(sendCallback));
+	return showSendFilesBox(
+		std::move(box),
+		insertTextOnCancel,
+		addedComment,
+		std::move(sendCallback));
 }
 
 HistoryWidget::SendingFilesLists HistoryWidget::getSendingFilesLists(const QList<QUrl> &files) {
@@ -5830,7 +5844,9 @@ void HistoryWidget::onCopyPostLink() {
 
 bool HistoryWidget::lastForceReplyReplied(const FullMsgId &replyTo) const {
 	if (replyTo.msg > 0 && replyTo.channel != _channel) return false;
-	return _keyboard->forceReply() && _keyboard->forMsgId() == FullMsgId(_channel, _history->lastKeyboardId) && _keyboard->forMsgId().msg == (replyTo.msg < 0 ? replyToId() : replyTo.msg);
+	return _keyboard->forceReply()
+		&& _keyboard->forMsgId() == FullMsgId(_channel, _history->lastKeyboardId)
+		&& _keyboard->forMsgId().msg == (replyTo.msg < 0 ? replyToId() : replyTo.msg);
 }
 
 bool HistoryWidget::cancelReply(bool lastKeyboardUsed) {

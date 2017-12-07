@@ -425,6 +425,12 @@ void PeerMenuShareContactBox(not_null<UserData*> user) {
 				lang(lng_forward_share_cant)),
 				LayerOption::KeepOther);
 			return;
+		} else if (peer->isSelf()) {
+			App::main()->onShareContact(
+				peer->id,
+				user);
+			Ui::Toast::Show(lang(lng_share_done));
+			return;
 		}
 		auto recipient = peer->isUser()
 			? peer->name
