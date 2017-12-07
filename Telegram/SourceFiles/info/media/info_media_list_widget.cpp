@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_item.h"
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
+#include "window/window_peer_menu.h"
 #include "storage/file_download.h"
 #include "ui/widgets/popup_menu.h"
 #include "lang/lang_keys.h"
@@ -1360,7 +1361,9 @@ void ListWidget::contextMenuEvent(QContextMenuEvent *e) {
 }
 
 void ListWidget::forwardSelected() {
-	forwardItems(collectSelectedIds());
+	if (auto items = collectSelectedIds(); !items.empty()) {
+		forwardItems(std::move(items));
+	}
 }
 
 void ListWidget::forwardItem(UniversalMsgId universalId) {
@@ -1370,26 +1373,12 @@ void ListWidget::forwardItem(UniversalMsgId universalId) {
 }
 
 void ListWidget::forwardItems(MessageIdsList &&items) {
-	if (items.empty()) {
-		return;
-	}
-	auto weak = make_weak(this);
-	auto callback = [weak, items = std::move(items)](
-			not_null<PeerData*> peer) mutable {
-		App::main()->setForwardDraft(peer->id, std::move(items));
-		if (weak) {
-			weak->clearSelected();
+	const auto weak = make_weak(this);
+	Window::ShowForwardMessagesBox(std::move(items), [weak] {
+		if (const auto strong = weak.data()) {
+			strong->clearSelected();
 		}
-	};
-	auto controller = std::make_unique<ChooseRecipientBoxController>(
-		std::move(callback));
-	Ui::show(Box<PeerListBox>(
-		std::move(controller),
-		[](not_null<PeerListBox*> box) {
-			box->addButton(langFactory(lng_cancel), [box] {
-				box->closeBox();
-			});
-		}));
+	});
 }
 
 void ListWidget::deleteSelected() {
