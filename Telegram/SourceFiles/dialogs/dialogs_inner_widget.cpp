@@ -1319,7 +1319,10 @@ void DialogsInner::handlePeerNameChange(not_null<PeerData*> peer, const PeerData
 }
 
 void DialogsInner::onFilterUpdate(QString newFilter, bool force) {
-	auto words = TextUtilities::PrepareSearchWords(newFilter);
+	const auto mentionsSearch = (newFilter == qstr("@"));
+	const auto words = mentionsSearch
+		? QStringList(newFilter)
+		: TextUtilities::PrepareSearchWords(newFilter);
 	newFilter = words.isEmpty() ? QString() : words.join(' ');
 	if (newFilter != _filter || force) {
 		_filter = newFilter;
