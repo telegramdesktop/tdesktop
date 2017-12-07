@@ -417,13 +417,15 @@ void Manager::notificationActivated(PeerId peerId, MsgId msgId) {
 	onAfterNotificationActivated(peerId, msgId);
 }
 
-void Manager::notificationReplied(PeerId peerId, MsgId msgId, const QString &reply) {
+void Manager::notificationReplied(
+		PeerId peerId,
+		MsgId msgId,
+		const QString &reply) {
 	if (!peerId) return;
 
 	auto history = App::history(peerId);
 
-	MainWidget::MessageToSend message;
-	message.history = history;
+	auto message = MainWidget::MessageToSend(history);
 	message.textWithTags = { reply, TextWithTags::Tags() };
 	message.replyTo = (msgId > 0 && !history->peer->isUser()) ? msgId : 0;
 	message.silent = false;

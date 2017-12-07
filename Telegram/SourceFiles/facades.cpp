@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
+#include "apiwrap.h"
 #include "messenger.h"
 #include "auth_session.h"
 #include "boxes/confirm_box.h"
@@ -121,10 +122,13 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 
 	case ButtonType::RequestPhone: {
 		hideSingleUseKeyboard(msg);
-		Ui::show(Box<ConfirmBox>(lang(lng_bot_share_phone), lang(lng_bot_share_phone_confirm), [peerId = msg->history()->peer->id] {
-			if (auto m = App::main()) {
-				m->onShareContact(peerId, App::self());
-			}
+		const auto msgId = msg->id;
+		const auto history = msg->history();
+		Ui::show(Box<ConfirmBox>(lang(lng_bot_share_phone), lang(lng_bot_share_phone_confirm), [=] {
+			Ui::showPeerHistory(history, ShowAtTheEndMsgId);
+			auto options = ApiWrap::SendOptions(history);
+			options.replyTo = msgId;
+			Auth().api().shareContact(App::self(), options);
 		}));
 	} break;
 

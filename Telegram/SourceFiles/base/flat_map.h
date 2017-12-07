@@ -103,24 +103,16 @@ public:
 	using value_type = pair_type;
 	using difference_type = typename iterator_impl::difference_type;
 	using pointer = pointer_impl;
-	using const_pointer = const pair_type*;
 	using reference = reference_impl;
-	using const_reference = const pair_type&;
 
 	flat_multi_map_iterator_base_impl(iterator_impl impl = iterator_impl())
 		: _impl(impl) {
 	}
 
-	reference operator*() {
+	reference operator*() const {
 		return *_impl;
 	}
-	const_reference operator*() const {
-		return *_impl;
-	}
-	pointer operator->() {
-		return std::addressof(**this);
-	}
-	const_pointer operator->() const {
+	pointer operator->() const {
 		return std::addressof(**this);
 	}
 	Me &operator++() {
@@ -166,10 +158,7 @@ public:
 				other_reference_impl> &right) const {
 		return _impl - right._impl;
 	}
-	reference operator[](difference_type offset) {
-		return _impl[offset];
-	}
-	const_reference operator[](difference_type offset) const {
+	reference operator[](difference_type offset) const {
 		return _impl[offset];
 	}
 

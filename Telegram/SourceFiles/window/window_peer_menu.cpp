@@ -419,17 +419,20 @@ void PeerMenuAddContact(not_null<UserData*> user) {
 }
 
 void PeerMenuShareContactBox(not_null<UserData*> user) {
-	auto callback = [user](not_null<PeerData*> peer) {
+	const auto weak = std::make_shared<QPointer<PeerListBox>>();
+	auto callback = [=](not_null<PeerData*> peer) {
 		if (!peer->canWrite()) {
 			Ui::show(Box<InformBox>(
 				lang(lng_forward_share_cant)),
 				LayerOption::KeepOther);
 			return;
 		} else if (peer->isSelf()) {
-			App::main()->onShareContact(
-				peer->id,
-				user);
+			auto options = ApiWrap::SendOptions(App::history(peer));
+			Auth().api().shareContact(user, options);
 			Ui::Toast::Show(lang(lng_share_done));
+			if (auto strong = *weak) {
+				strong->closeBox();
+			}
 			return;
 		}
 		auto recipient = peer->isUser()
@@ -439,13 +442,13 @@ void PeerMenuShareContactBox(not_null<UserData*> user) {
 			lng_forward_share_contact(lt_recipient, recipient),
 			lang(lng_forward_send),
 			[peer, user] {
-				App::main()->onShareContact(
-					peer->id,
-					user);
-				Ui::hideLayer();
+				const auto history = App::history(peer);
+				Ui::showPeerHistory(history, ShowAtTheEndMsgId);
+				auto options = ApiWrap::SendOptions(history);
+				Auth().api().shareContact(user, options);
 			}), LayerOption::KeepOther);
 	};
-	Ui::show(Box<PeerListBox>(
+	*weak = Ui::show(Box<PeerListBox>(
 		std::make_unique<ChooseRecipientBoxController>(std::move(callback)),
 		[](not_null<PeerListBox*> box) {
 			box->addButton(langFactory(lng_cancel), [box] {
@@ -457,7 +460,7 @@ void PeerMenuShareContactBox(not_null<UserData*> user) {
 void ShowForwardMessagesBox(
 		MessageIdsList &&items,
 		base::lambda_once<void()> &&successCallback) {
-	auto weak = std::make_shared<QPointer<PeerListBox>>();
+	const auto weak = std::make_shared<QPointer<PeerListBox>>();
 	auto callback = [
 		ids = std::move(items),
 		callback = std::move(successCallback),

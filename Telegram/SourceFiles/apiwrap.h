@@ -167,13 +167,25 @@ public:
 		MsgId replyTo = 0;
 		bool silent = false;
 		WebPageId webPageId = 0;
-		bool clearDraft = true;
+		bool clearDraft = false;
 		bool generateLocal = true;
 	};
+	rpl::producer<SendOptions> sendActions() const {
+		return _sendActions.events();
+	}
+	void sendAction(const SendOptions &options);
 	void forwardMessages(
 		HistoryItemsList &&items,
 		const SendOptions &options,
 		base::lambda_once<void()> &&successCallback = nullptr);
+	void shareContact(
+		const QString &phone,
+		const QString &firstName,
+		const QString &lastName,
+		const SendOptions &options);
+	void shareContact(not_null<UserData*> user, const SendOptions &options);
+	void readServerHistory(not_null<History*> history);
+	void readServerHistoryForce(not_null<History*> history);
 
 	~ApiWrap();
 
@@ -245,10 +257,6 @@ private:
 		const QDate &date,
 		Callback &&callback);
 
-	int applyAffectedHistory(
-		not_null<PeerData*> peer,
-		const MTPmessages_AffectedHistory &result);
-
 	void sharedMediaDone(
 		not_null<PeerData*> peer,
 		SharedMediaType type,
@@ -260,6 +268,22 @@ private:
 		not_null<UserData*> user,
 		PhotoId photoId,
 		const MTPphotos_Photos &result);
+
+	void sendSharedContact(
+		const QString &phone,
+		const QString &firstName,
+		const QString &lastName,
+		UserId userId,
+		const SendOptions &options);
+
+	void sendReadRequest(not_null<PeerData*> peer, MsgId upTo);
+	int applyAffectedHistory(
+		not_null<PeerData*> peer,
+		const MTPmessages_AffectedHistory &result);
+	void applyAffectedMessages(const MTPmessages_AffectedMessages &result);
+	void applyAffectedMessages(
+		not_null<PeerData*> peer,
+		const MTPmessages_AffectedMessages &result);
 
 	not_null<AuthSession*> _session;
 	mtpRequestId _changelogSubscription = 0;
@@ -338,6 +362,20 @@ private:
 		SliceType>, mtpRequestId> _sharedMediaRequests;
 
 	base::flat_map<not_null<UserData*>, mtpRequestId> _userPhotosRequests;
+
+	rpl::event_stream<SendOptions> _sendActions;
+
+	struct ReadRequest {
+		ReadRequest(mtpRequestId requestId, MsgId upTo)
+		: requestId(requestId)
+		, upTo(upTo) {
+		}
+
+		mtpRequestId requestId = 0;
+		MsgId upTo = 0;
+	};
+	base::flat_map<not_null<PeerData*>, ReadRequest> _readRequests;
+	base::flat_map<not_null<PeerData*>, MsgId> _readRequestsPending;
 
 	base::Observable<PeerData*> _fullPeerUpdated;
 

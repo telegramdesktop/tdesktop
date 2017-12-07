@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "storage/localimageloader.h"
 #include "ui/widgets/tooltip.h"
-#include "history/history_common.h"
+#include "mainwidget.h"
 #include "chat_helpers/field_autocomplete.h"
 #include "window/section_widget.h"
 #include "core/single_timer.h"
@@ -103,7 +103,6 @@ class HistoryHider : public Ui::RpWidget, private base::Subscriber {
 
 public:
 	HistoryHider(MainWidget *parent, MessageIdsList &&items); // forward messages
-	HistoryHider(MainWidget *parent, UserData *sharedContact); // share contact
 	HistoryHider(MainWidget *parent); // send path from command line argument
 	HistoryHider(MainWidget *parent, const QString &url, const QString &text); // share url
 	HistoryHider(MainWidget *parent, const QString &botAndQuery); // inline switch button handler
@@ -142,7 +141,6 @@ private:
 	void init();
 	MainWidget *parent();
 
-	UserData *_sharedContact = nullptr;
 	MessageIdsList _forwardItems;
 	bool _sendPath = false;
 
@@ -200,7 +198,6 @@ public:
 
 	void newUnreadMsg(History *history, HistoryItem *item);
 	void historyToDown(History *history);
-	void historyWasRead(ReadServerHistoryChecks checks);
 	void unreadCountChanged(History *history);
 
 	QRect historyRect() const;
@@ -234,10 +231,6 @@ public:
 	void updateControlsVisibility();
 	void updateControlsGeometry();
 
-	void onShareContact(const PeerId &peer, UserData *contact);
-
-	void shareContact(const PeerId &peer, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, int32 userId = 0);
-
 	History *history() const;
 	PeerData *peer() const;
 	void setMsgId(MsgId showAtMsgId);
@@ -268,7 +261,8 @@ public:
 
 	MsgId replyToId() const;
 	void messageDataReceived(ChannelData *channel, MsgId msgId);
-	bool lastForceReplyReplied(const FullMsgId &replyTo = FullMsgId(NoChannel, -1)) const;
+	bool lastForceReplyReplied(const FullMsgId &replyTo) const;
+	bool lastForceReplyReplied() const;
 	bool cancelReply(bool lastKeyboardUsed = false);
 	void cancelEdit();
 	void updateForwarding();
@@ -301,7 +295,7 @@ public:
 
 	DragState getDragState(const QMimeData *d);
 
-	void fastShowAtEnd(History *h);
+	void fastShowAtEnd(not_null<History*> history);
 	void applyDraft(bool parseLinks = true, Ui::FlatTextarea::UndoHistoryAction undoHistoryAction = Ui::FlatTextarea::ClearUndoHistory);
 	void showHistory(const PeerId &peer, MsgId showAtMsgId, bool reload = false);
 	void clearDelayedShowAt();
@@ -405,7 +399,6 @@ public slots:
 	void onReportSpamClear();
 
 	void onScroll();
-	void onSend(bool ctrlShiftEnter = false, MsgId replyTo = -1);
 
 	void onUnblock();
 	void onBotStart();
@@ -452,6 +445,8 @@ public slots:
 	void preloadHistoryIfNeeded();
 
 private slots:
+	void onSend(bool ctrlShiftEnter = false);
+
 	void onHashtagOrBotCommandInsert(QString str, FieldAutocomplete::ChooseMethod method);
 	void onMentionInsert(UserData *user);
 	void onInlineBotCancel();
@@ -825,7 +820,7 @@ private:
 	object_ptr<InlineBots::Layout::Widget> _inlineResults = { nullptr };
 	object_ptr<TabbedPanel> _tabbedPanel;
 	QPointer<TabbedSelector> _tabbedSelector;
-	DragState _attachDrag = DragStateNone;
+	DragState _attachDrag = DragState::None;
 	object_ptr<DragArea> _attachDragDocument, _attachDragPhoto;
 
 	object_ptr<Ui::Emoji::SuggestionsController> _emojiSuggestions = { nullptr };

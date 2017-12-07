@@ -203,7 +203,6 @@
 <(src_loc)/history/history_admin_log_item.h
 <(src_loc)/history/history_admin_log_section.cpp
 <(src_loc)/history/history_admin_log_section.h
-<(src_loc)/history/history_common.h
 <(src_loc)/history/history_drag_area.cpp
 <(src_loc)/history/history_drag_area.h
 <(src_loc)/history/history_item.cpp

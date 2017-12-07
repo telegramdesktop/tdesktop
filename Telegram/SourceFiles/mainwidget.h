@@ -21,7 +21,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "storage/localimageloader.h"
-#include "history/history_common.h"
 #include "core/single_timer.h"
 #include "base/weak_ptr.h"
 #include "ui/rp_widget.h"
@@ -80,6 +79,13 @@ namespace Layout {
 class ItemBase;
 } // namespace Layout
 } // namespace InlineBots
+
+enum class DragState {
+	None = 0x00,
+	Files = 0x01,
+	PhotoFiles = 0x02,
+	Image = 0x03,
+};
 
 class MainWidget : public Ui::RpWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
@@ -182,7 +188,6 @@ public:
 	void showSendPathsLayer();
 	void deleteLayer(int selectedCount = 0); // 0 - context item
 	void cancelUploadLayer();
-	void shareContactLayer(UserData *contact);
 	void shareUrlLayer(const QString &url, const QString &text);
 	void inlineSwitchLayer(const QString &botAndQuery);
 	void hiderLayer(object_ptr<HistoryHider> h);
@@ -194,7 +199,6 @@ public:
 		const QString &url,
 		const QString &text);
 	bool onInlineSwitchChosen(const PeerId &peer, const QString &botAndQuery);
-	void onShareContact(const PeerId &peer, UserData *contact);
 	bool onSendPaths(const PeerId &peer);
 	void onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data);
 	bool selectingPeer(bool withConfirm = false) const;
@@ -208,7 +212,10 @@ public:
 
 	bool leaveChatFailed(PeerData *peer, const RPCError &e);
 	void deleteHistoryAfterLeave(PeerData *peer, const MTPUpdates &updates);
-	void deleteMessages(PeerData *peer, const QVector<MTPint> &ids, bool forEveryone);
+	void deleteMessages(
+		not_null<PeerData*> peer,
+		const QVector<MTPint> &ids,
+		bool forEveryone);
 	void deletedContact(UserData *user, const MTPcontacts_Link &result);
 	void deleteConversation(PeerData *peer, bool deleteHistory = true);
 	void deleteAndExit(ChatData *chat);
@@ -243,7 +250,10 @@ public:
 	Dialogs::IndexedList *contactsNoDialogsList();
 
 	struct MessageToSend {
-		History *history = nullptr;
+		MessageToSend(not_null<History*> history) : history(history) {
+		}
+
+		not_null<History*> history;
 		TextWithTags textWithTags;
 		MsgId replyTo = 0;
 		bool silent = false;
@@ -253,7 +263,6 @@ public:
 	void sendMessage(const MessageToSend &message);
 	void saveRecentHashtags(const QString &text);
 
-    void readServerHistory(History *history, ReadServerHistoryChecks checks = ReadServerHistoryChecks::OnlyIfUnread);
 	void unreadCountChanged(History *history);
 
 	TimeMs highlightStartTime(not_null<const HistoryItem*> item) const;
@@ -295,7 +304,7 @@ public:
 	void finishForwarding(History *history, bool silent); // send them
 
 	void mediaMarkRead(not_null<DocumentData*> data);
-	void mediaMarkRead(const HistoryItemsMap &items);
+	void mediaMarkRead(const base::flat_set<not_null<HistoryItem*>> &items);
 	void mediaMarkRead(not_null<HistoryItem*> item);
 
 	void webPageUpdated(WebPageData *page);
@@ -458,13 +467,10 @@ private:
 	void destroyCallTopBar();
 	void callTopBarHeightUpdated(int callTopBarHeight);
 
-	void sendReadRequest(PeerData *peer, MsgId upTo);
-	void channelReadDone(PeerData *peer, const MTPBool &result);
-	void historyReadDone(PeerData *peer, const MTPmessages_AffectedMessages &result);
-	bool readRequestFail(PeerData *peer, const RPCError &error);
-	void readRequestDone(PeerData *peer);
-
-	void messagesAffected(PeerData *peer, const MTPmessages_AffectedMessages &result);
+	void messagesAffected(
+		not_null<PeerData*> peer,
+		const MTPmessages_AffectedMessages &result);
+	void messagesContentsRead(const MTPmessages_AffectedMessages &result);
 	void overviewLoaded(
 		std::pair<not_null<History*>, MsgId> historyAndStartMsgId,
 		const MTPmessages_Messages &result,
@@ -639,11 +645,6 @@ private:
 
 	base::flat_set<not_null<PeerData*>> updateNotifySettingPeers;
 	SingleTimer updateNotifySettingTimer;
-
-    typedef QMap<PeerData*, QPair<mtpRequestId, MsgId> > ReadRequests;
-    ReadRequests _readRequests;
-	typedef QMap<PeerData*, MsgId> ReadRequestsPending;
-	ReadRequestsPending _readRequestsPending;
 
 	typedef QMap<PeerData*, mtpRequestId> OverviewsPreload;
 	OverviewsPreload _overviewPreload[OverviewCount], _overviewLoad[OverviewCount];

@@ -790,10 +790,6 @@ void MainWidget::onUpdateMuted() {
 	App::updateMuted();
 }
 
-void MainWidget::onShareContact(const PeerId &peerId, UserData *contact) {
-	_history->onShareContact(peerId, contact);
-}
-
 bool MainWidget::onSendPaths(const PeerId &peerId) {
 	Expects(peerId != 0);
 	auto peer = App::peer(peerId);
@@ -1016,10 +1012,6 @@ void MainWidget::deletePhotoLayer(PhotoData *photo) {
 	})));
 }
 
-void MainWidget::shareContactLayer(UserData *contact) {
-	hiderLayer(object_ptr<HistoryHider>(this, contact));
-}
-
 void MainWidget::shareUrlLayer(const QString &url, const QString &text) {
 	// Don't allow to insert an inline bot query by share url link.
 	if (url.trimmed().startsWith('@')) {
@@ -1100,15 +1092,26 @@ void MainWidget::deleteHistoryPart(DeleteHistoryRequest request, const MTPmessag
 	MTP::send(MTPmessages_DeleteHistory(MTP_flags(flags), peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, request));
 }
 
-void MainWidget::deleteMessages(PeerData *peer, const QVector<MTPint> &ids, bool forEveryone) {
-	if (peer->isChannel()) {
-		MTP::send(MTPchannels_DeleteMessages(peer->asChannel()->inputChannel, MTP_vector<MTPint>(ids)), rpcDone(&MainWidget::messagesAffected, peer));
+void MainWidget::deleteMessages(
+		not_null<PeerData*> peer,
+		const QVector<MTPint> &ids,
+		bool forEveryone) {
+	if (const auto channel = peer->asChannel()) {
+		MTP::send(
+			MTPchannels_DeleteMessages(
+				channel->inputChannel,
+				MTP_vector<MTPint>(ids)),
+			rpcDone(&MainWidget::messagesAffected, peer));
 	} else {
 		auto flags = MTPmessages_DeleteMessages::Flags(0);
 		if (forEveryone) {
 			flags |= MTPmessages_DeleteMessages::Flag::f_revoke;
 		}
-		MTP::send(MTPmessages_DeleteMessages(MTP_flags(flags), MTP_vector<MTPint>(ids)), rpcDone(&MainWidget::messagesAffected, peer));
+		MTP::send(
+			MTPmessages_DeleteMessages(
+				MTP_flags(flags),
+				MTP_vector<MTPint>(ids)),
+			rpcDone(&MainWidget::messagesAffected, peer));
 	}
 }
 
@@ -1458,13 +1461,18 @@ Dialogs::IndexedList *MainWidget::contactsNoDialogsList() {
 }
 
 void MainWidget::sendMessage(const MessageToSend &message) {
-	auto history = message.history;
+	const auto history = message.history;
 	auto &textWithTags = message.textWithTags;
 
-	readServerHistory(history);
-	_history->fastShowAtEnd(history);
+	auto options = ApiWrap::SendOptions(message.history);
+	options.clearDraft = message.clearDraft;
+	options.replyTo = message.replyTo;
+	options.generateLocal = true;
+	options.silent = message.silent;
+	options.webPageId = message.webPageId;
+	Auth().api().sendAction(options);
 
-	if (!history || !history->peer->canWrite()) {
+	if (!history->peer->canWrite()) {
 		return;
 	}
 	saveRecentHashtags(textWithTags.text);
@@ -1476,7 +1484,6 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 
 	HistoryItem *lastMessage = nullptr;
 
-	auto replyTo = (message.replyTo < 0) ? _history->replyToId() : message.replyTo;
 	while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
 		auto newId = FullMsgId(peerToChannel(history->peer->id), clientMsgId());
 		auto randomId = rand_value<uint64>();
@@ -1489,7 +1496,7 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 		MTPstring msgText(MTP_string(sending.text));
 		auto flags = NewMessageFlags(history->peer) | MTPDmessage::Flag::f_entities; // unread, out
 		auto sendFlags = MTPmessages_SendMessage::Flags(0);
-		if (replyTo) {
+		if (message.replyTo) {
 			flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 			sendFlags |= MTPmessages_SendMessage::Flag::f_reply_to_msg_id;
 		}
@@ -1534,7 +1541,7 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 				peerToMTP(history->peer->id),
 				MTPnullFwdHeader,
 				MTPint(),
-				MTP_int(replyTo),
+				MTP_int(message.replyTo),
 				MTP_int(unixtime()),
 				msgText,
 				media,
@@ -1545,7 +1552,20 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 				MTP_string(messagePostAuthor),
 				MTPlong()),
 			NewMessageUnread);
-		history->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_flags(sendFlags), history->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, sentEntities), rpcDone(&MainWidget::sentUpdatesReceived, randomId), rpcFail(&MainWidget::sendMessageFail), 0, 0, history->sendRequestId);
+		history->sendRequestId = MTP::send(
+			MTPmessages_SendMessage(
+				MTP_flags(sendFlags),
+				history->peer->input,
+				MTP_int(message.replyTo),
+				msgText,
+				MTP_long(randomId),
+				MTPnullMarkup,
+				sentEntities),
+			rpcDone(&MainWidget::sentUpdatesReceived, randomId),
+			rpcFail(&MainWidget::sendMessageFail),
+			0,
+			0,
+			history->sendRequestId);
 	}
 
 	history->lastSentMsg = lastMessage;
@@ -1578,30 +1598,6 @@ void MainWidget::saveRecentHashtags(const QString &text) {
 	if (found) {
 		cSetRecentWriteHashtags(recent);
 		Local::writeRecentHashtagsAndBots();
-	}
-}
-
-void MainWidget::readServerHistory(History *history, ReadServerHistoryChecks checks) {
-	if (!history) return;
-	if (checks == ReadServerHistoryChecks::OnlyIfUnread && !history->unreadCount()) return;
-
-	auto peer = history->peer;
-	MsgId upTo = history->inboxRead(0);
-	if (auto channel = peer->asChannel()) {
-		if (!channel->amIn()) {
-			return; // no read request for channels that I didn't koin
-		}
-	}
-
-	if (_readRequests.contains(peer)) {
-		auto i = _readRequestsPending.find(peer);
-		if (i == _readRequestsPending.cend()) {
-			_readRequestsPending.insert(peer, upTo);
-		} else if (i.value() < upTo) {
-			i.value() = upTo;
-		}
-	} else {
-		sendReadRequest(peer, upTo);
 	}
 }
 
@@ -1761,45 +1757,14 @@ void MainWidget::overviewLoaded(
 	Notify::mediaOverviewUpdated(history->peer, type);
 }
 
-void MainWidget::sendReadRequest(PeerData *peer, MsgId upTo) {
-	if (peer->isChannel()) {
-		_readRequests.insert(peer, qMakePair(MTP::send(MTPchannels_ReadHistory(peer->asChannel()->inputChannel, MTP_int(upTo)), rpcDone(&MainWidget::channelReadDone, peer), rpcFail(&MainWidget::readRequestFail, peer)), upTo));
+void MainWidget::messagesAffected(
+		not_null<PeerData*> peer,
+		const MTPmessages_AffectedMessages &result) {
+	const auto &data = result.c_messages_affectedMessages();
+	if (const auto channel = peer->asChannel()) {
+		channel->ptsUpdateAndApply(data.vpts.v, data.vpts_count.v);
 	} else {
-		_readRequests.insert(peer, qMakePair(MTP::send(MTPmessages_ReadHistory(peer->input, MTP_int(upTo)), rpcDone(&MainWidget::historyReadDone, peer), rpcFail(&MainWidget::readRequestFail, peer)), upTo));
-	}
-}
-
-void MainWidget::channelReadDone(PeerData *peer, const MTPBool &result) {
-	readRequestDone(peer);
-}
-
-void MainWidget::historyReadDone(PeerData *peer, const MTPmessages_AffectedMessages &result) {
-	messagesAffected(peer, result);
-	readRequestDone(peer);
-}
-
-bool MainWidget::readRequestFail(PeerData *peer, const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	readRequestDone(peer);
-	return false;
-}
-
-void MainWidget::readRequestDone(PeerData *peer) {
-	_readRequests.remove(peer);
-	ReadRequestsPending::iterator i = _readRequestsPending.find(peer);
-	if (i != _readRequestsPending.cend()) {
-		sendReadRequest(peer, i.value());
-		_readRequestsPending.erase(i);
-	}
-}
-
-void MainWidget::messagesAffected(PeerData *peer, const MTPmessages_AffectedMessages &result) {
-	auto &d = result.c_messages_affectedMessages();
-	if (peer && peer->isChannel()) {
-		peer->asChannel()->ptsUpdateAndApply(d.vpts.v, d.vpts_count.v);
-	} else {
-		ptsUpdateAndApply(d.vpts.v, d.vpts_count.v);
+		ptsUpdateAndApply(data.vpts.v, data.vpts_count.v);
 	}
 
 	if (auto h = App::historyLoaded(peer ? peer->id : 0)) {
@@ -1807,6 +1772,12 @@ void MainWidget::messagesAffected(PeerData *peer, const MTPmessages_AffectedMess
 			checkPeerHistory(peer);
 		}
 	}
+}
+
+void MainWidget::messagesContentsRead(
+		const MTPmessages_AffectedMessages &result) {
+	const auto &data = result.c_messages_affectedMessages();
+	ptsUpdateAndApply(data.vpts.v, data.vpts_count.v);
 }
 
 void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
@@ -2063,31 +2034,37 @@ void MainWidget::mediaMarkRead(not_null<DocumentData*> data) {
 	auto &items = App::documentItems();
 	auto i = items.constFind(data);
 	if (i != items.cend()) {
-		mediaMarkRead(i.value());
+		mediaMarkRead({ i.value().begin(), i.value().end() });
 	}
 }
 
-void MainWidget::mediaMarkRead(const HistoryItemsMap &items) {
+void MainWidget::mediaMarkRead(
+		const base::flat_set<not_null<HistoryItem*>> &items) {
 	QVector<MTPint> markedIds;
-	QMap<ChannelData*, QVector<MTPint>> channelMarkedIds;
+	base::flat_map<not_null<ChannelData*>, QVector<MTPint>> channelMarkedIds;
 	markedIds.reserve(items.size());
-	for_const (auto item, items) {
-		if ((!item->out() || item->mentionsMe()) && item->isMediaUnread()) {
-			item->markMediaRead();
-			if (item->id > 0) {
-				if (auto channel = item->history()->peer->asChannel()) {
-					channelMarkedIds[channel].push_back(MTP_int(item->id));
-				} else {
-					markedIds.push_back(MTP_int(item->id));
-				}
+	for (const auto item : items) {
+		if (!item->isMediaUnread() || (item->out() && !item->mentionsMe())) {
+			continue;
+		}
+		item->markMediaRead();
+		if (item->id > 0) {
+			if (const auto channel = item->history()->peer->asChannel()) {
+				channelMarkedIds[channel].push_back(MTP_int(item->id));
+			} else {
+				markedIds.push_back(MTP_int(item->id));
 			}
 		}
 	}
 	if (!markedIds.isEmpty()) {
-		MTP::send(MTPmessages_ReadMessageContents(MTP_vector<MTPint>(markedIds)), rpcDone(&MainWidget::messagesAffected, (PeerData*)0));
+		MTP::send(
+			MTPmessages_ReadMessageContents(MTP_vector<MTPint>(markedIds)),
+			rpcDone(&MainWidget::messagesContentsRead));
 	}
-	for (auto i = channelMarkedIds.cbegin(), e = channelMarkedIds.cend(); i != e; ++i) {
-		MTP::send(MTPchannels_ReadMessageContents(i.key()->inputChannel, MTP_vector<MTPint>(i.value())));
+	for (const auto &channelIds : channelMarkedIds) {
+		MTP::send(MTPchannels_ReadMessageContents(
+			channelIds.first->inputChannel,
+			MTP_vector<MTPint>(channelIds.second)));
 	}
 }
 
@@ -2095,10 +2072,16 @@ void MainWidget::mediaMarkRead(not_null<HistoryItem*> item) {
 	if ((!item->out() || item->mentionsMe()) && item->isMediaUnread()) {
 		item->markMediaRead();
 		if (item->id > 0) {
-			if (auto channel = item->history()->peer->asChannel()) {
-				MTP::send(MTPchannels_ReadMessageContents(channel->inputChannel, MTP_vector<MTPint>(1, MTP_int(item->id))));
+			const auto ids = MTP_vector<MTPint>(1, MTP_int(item->id));
+			if (const auto channel = item->history()->peer->asChannel()) {
+				MTP::send(
+					MTPchannels_ReadMessageContents(
+						channel->inputChannel,
+						ids));
 			} else {
-				MTP::send(MTPmessages_ReadMessageContents(MTP_vector<MTPint>(1, MTP_int(item->id))), rpcDone(&MainWidget::messagesAffected, (PeerData*)0));
+				MTP::send(
+					MTPmessages_ReadMessageContents(ids),
+					rpcDone(&MainWidget::messagesContentsRead));
 			}
 		}
 	}
@@ -3115,7 +3098,9 @@ void MainWidget::newUnreadMsg(History *history, HistoryItem *item) {
 }
 
 void MainWidget::markActiveHistoryAsRead() {
-	_history->historyWasRead(ReadServerHistoryChecks::OnlyIfUnread);
+	if (const auto activeHistory = _history->history()) {
+		Auth().api().readServerHistory(activeHistory);
+	}
 }
 
 void MainWidget::showAnimated(const QPixmap &bgAnimCache, bool back) {

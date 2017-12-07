@@ -218,7 +218,7 @@ public:
 			setToDC(dcId);
 			return *this;
 		}
-		[[nodiscard]] SpecificRequestBuilder &canWait(TimeMs ms) noexcept {
+		[[nodiscard]] SpecificRequestBuilder &afterDelay(TimeMs ms) noexcept {
 			setCanWait(ms);
 			return *this;
 		}
@@ -246,7 +246,7 @@ public:
 			setFailSkipPolicy(FailSkipPolicy::HandleAll);
 			return *this;
 		}
-		[[nodiscard]] SpecificRequestBuilder &after(mtpRequestId requestId) noexcept {
+		[[nodiscard]] SpecificRequestBuilder &afterRequest(mtpRequestId requestId) noexcept {
 			setAfter(requestId);
 			return *this;
 		}

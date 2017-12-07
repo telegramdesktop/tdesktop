@@ -395,7 +395,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		HistoryLayout::paintEmpty(p, width(), height());
 	}
 	if (!noHistoryDisplayed) {
-		auto readMentions = HistoryItemsMap();
+		auto readMentions = base::flat_set<not_null<HistoryItem*>>();
 
 		adjustCurrent(clip.top());
 
