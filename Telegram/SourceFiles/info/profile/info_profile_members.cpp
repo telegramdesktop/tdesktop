@@ -332,17 +332,22 @@ void Members::updateHeaderControlsGeometry(int newWidth) {
 }
 
 void Members::addMember() {
-	if (auto chat = _peer->asChat()) {
+	if (const auto chat = _peer->asChat()) {
 		if (chat->count >= Global::ChatSizeMax() && chat->amCreator()) {
 			Ui::show(Box<ConvertToSupergroupBox>(chat));
 		} else {
 			AddParticipantsBoxController::Start(chat);
 		}
-	} else if (auto channel = _peer->asChannel()) {
-		if (channel->mgInfo) {
-			auto &participants = channel->mgInfo->lastParticipants;
-			AddParticipantsBoxController::Start(channel, { participants.cbegin(), participants.cend() });
-		}
+	} else if (const auto channel = _peer->asChannel()) {
+		const auto state = _listController->saveState();
+		const auto users = ranges::view::all(
+			state->list
+		) | ranges::view::transform([](not_null<PeerData*> peer) {
+			return peer->asUser();
+		});
+		AddParticipantsBoxController::Start(
+			channel,
+			{ users.begin(), users.end() });
 	}
 }
 

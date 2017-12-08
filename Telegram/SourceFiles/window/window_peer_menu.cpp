@@ -496,13 +496,8 @@ void ShowForwardMessagesBox(
 }
 
 void PeerMenuAddChannelMembers(not_null<ChannelData*> channel) {
-	if (channel->isMegagroup()) {
-		auto &participants = channel->mgInfo->lastParticipants;
-		AddParticipantsBoxController::Start(
-			channel,
-			{ participants.cbegin(), participants.cend() });
-		return;
-	} else if (channel->membersCount() >= Global::ChatSizeMax()) {
+	if (!channel->isMegagroup()
+		&& channel->membersCount() >= Global::ChatSizeMax()) {
 		Ui::show(
 			Box<MaxInviteBox>(channel),
 			LayerOption::KeepOther);
