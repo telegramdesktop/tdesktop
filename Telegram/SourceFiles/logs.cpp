@@ -1139,6 +1139,9 @@ namespace internal {
 	}
 
 	void setCrashAnnotation(const std::string &key, const QString &value) {
+		static QMutex mutex;
+		QMutexLocker lock(&mutex);
+
 		if (!value.trimmed().isEmpty()) {
 			internal::ProcessAnnotations[key] = value.toUtf8().constData();
 		} else {
