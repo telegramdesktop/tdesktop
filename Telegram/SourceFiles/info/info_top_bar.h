@@ -70,7 +70,9 @@ public:
 
 	void createSearchView(
 		not_null<Ui::SearchFieldController*> controller,
-		rpl::producer<bool> &&shown);
+		rpl::producer<bool> &&shown,
+		bool startsFocused);
+	bool focusSearchField();
 
 	void setSelectedItems(SelectedItems &&items);
 	SelectedItems takeSelectedItems();
@@ -108,10 +110,13 @@ private:
 
 	void setSearchField(
 		base::unique_qptr<Ui::InputField> field,
-		rpl::producer<bool> &&shown);
+		rpl::producer<bool> &&shown,
+		bool startsFocused);
+	void clearSearchField();
 	void createSearchView(
 		not_null<Ui::InputField*> field,
-		rpl::producer<bool> &&shown);
+		rpl::producer<bool> &&shown,
+		bool startsFocused);
 
 	template <typename Callback>
 	void registerUpdateControlCallback(QObject *guard, Callback &&callback);
@@ -129,6 +134,7 @@ private:
 	bool _searchModeEnabled = false;
 	bool _searchModeAvailable = false;
 	base::unique_qptr<Ui::RpWidget> _searchView;
+	QPointer<Ui::InputField> _searchField;
 
 	rpl::event_stream<> _backClicks;
 

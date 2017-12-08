@@ -112,7 +112,7 @@ private:
 	rpl::event_stream<int> _scrollTillBottomChanges;
 	object_ptr<Ui::ScrollArea> _scroll;
 	Ui::PaddingWrap<Ui::RpWidget> *_innerWrap = nullptr;
-	base::unique_qptr<Ui::RpWidget> _searchField = nullptr;
+	base::unique_qptr<Ui::RpWidget> _searchWrap = nullptr;
 	int _innerDesiredHeight = 0;
 
 	// Saving here topDelta in setGeometryWithTopMoved() to get it passed to resizeEvent().
@@ -161,6 +161,12 @@ public:
 	bool searchEnabledByContent() const {
 		return _searchEnabledByContent;
 	}
+	void setSearchStartsFocused(bool focused) {
+		_searchStartsFocused = focused;
+	}
+	bool searchStartsFocused() const {
+		return _searchStartsFocused;
+	}
 
 private:
 	const PeerId _peerId = 0;
@@ -168,6 +174,7 @@ private:
 	int _scrollTop = 0;
 	QString _searchFieldQuery;
 	bool _searchEnabledByContent = false;
+	bool _searchStartsFocused = false;
 
 };
 

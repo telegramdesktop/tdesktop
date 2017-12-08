@@ -70,6 +70,11 @@ Members::Members(
 			peerListScrollToTop();
 			content()->searchQueryChanged(std::move(query));
 		}, lifetime());
+	MembersCountValue(_peer)
+		| rpl::start_with_next([this](int count) {
+			const auto enabled = (count >= kEnableSearchMembersAfterCount);
+			_controller->setSearchEnabledByContent(enabled);
+		});
 }
 
 int Members::desiredHeight() const {
@@ -109,7 +114,7 @@ void Members::restoreState(std::unique_ptr<MembersState> state) {
 		return;
 	}
 	_listController->restoreState(std::move(state->list));
-	updateSearchEnabledByContent();
+	//updateSearchEnabledByContent();
 	//if (!_controller->searchFieldController()->query().isEmpty()) {
 	//	if (!_searchShown) {
 	//		toggleSearch(anim::type::instant);
@@ -145,9 +150,9 @@ void Members::setupHeader() {
 	//_searchField = _controller->searchFieldController()->createField(
 	//	parent,
 	//	st::infoMembersSearchField);
-	//_search = Ui::CreateChild<Ui::IconButton>(
-	//	parent,
-	//	st::infoMembersSearch);
+	_search = Ui::CreateChild<Ui::IconButton>(
+		_openMembers,
+		st::infoMembersSearch);
 	//_cancelSearch = Ui::CreateChild<Ui::CrossButton>(
 	//	parent,
 	//	st::infoMembersCancelSearch);
@@ -182,13 +187,7 @@ void Members::setupButtons() {
 	using namespace rpl::mappers;
 
 	_openMembers->addClickHandler([this] {
-		auto contentMemento = std::make_unique<Info::Members::Memento>(
-			_controller);
-		contentMemento->setState(saveState());
-		auto mementoStack = std::vector<std::unique_ptr<ContentMemento>>();
-		mementoStack.push_back(std::move(contentMemento));
-		_controller->showSection(
-			Info::Memento(std::move(mementoStack)));
+		showMembersWithSearch(false);
 	});
 
 	//_searchField->hide();
@@ -201,22 +200,21 @@ void Members::setupButtons() {
 		this->addMember();
 	});
 
-	//auto searchShown = MembersCountValue(_peer)
-	//	| rpl::map(_1 >= kEnableSearchMembersAfterCount)
-	//	| rpl::distinct_until_changed()
-	//	| rpl::start_spawning(lifetime());
-	//_search->showOn(rpl::duplicate(searchShown));
-	//_search->addClickHandler([this] {
-	//	this->showSearch();
-	//});
+	auto searchShown = MembersCountValue(_peer)
+		| rpl::map(_1 >= kEnableSearchMembersAfterCount)
+		| rpl::distinct_until_changed()
+		| rpl::start_spawning(lifetime());
+	_search->showOn(rpl::duplicate(searchShown));
+	_search->addClickHandler([this] { // TODO throttle(ripple duration)
+		this->showMembersWithSearch(true);
+	});
 	//_cancelSearch->addClickHandler([this] {
 	//	this->cancelSearch();
 	//});
 
-	//rpl::combine(
-	//	std::move(addMemberShown),
-	//	std::move(searchShown))
-	std::move(addMemberShown)
+	rpl::combine(
+		std::move(addMemberShown),
+		std::move(searchShown))
 		| rpl::start_with_next([this] {
 			updateHeaderControlsGeometry(width());
 		}, lifetime());
@@ -263,10 +261,10 @@ int Members::resizeGetHeight(int newWidth) {
 	return heightNoMargins();
 }
 
-void Members::updateSearchEnabledByContent() {
-	_controller->setSearchEnabledByContent(
-		peerListFullRowsCount() >= kEnableSearchMembersAfterCount);
-}
+//void Members::updateSearchEnabledByContent() {
+//	_controller->setSearchEnabledByContent(
+//		peerListFullRowsCount() >= kEnableSearchMembersAfterCount);
+//}
 
 void Members::updateHeaderControlsGeometry(int newWidth) {
 	_openMembers->setGeometry(0, st::infoProfileSkip, newWidth, st::infoMembersHeader - st::infoProfileSkip - st::infoMembersHeaderPaddingBottom);
@@ -296,6 +294,13 @@ void Members::updateHeaderControlsGeometry(int newWidth) {
 	//}
 	_addMember->moveToLeft(
 		availableWidth - _addMember->width(),
+		st::infoMembersButtonPosition.y(),
+		newWidth);
+	if (!_addMember->isHidden()) {
+		availableWidth -= st::infoMembersSearch.width;
+	}
+	_search->moveToLeft(
+		availableWidth - _search->width(),
 		st::infoMembersButtonPosition.y(),
 		newWidth);
 
@@ -341,12 +346,20 @@ void Members::addMember() {
 	}
 }
 
-//void Members::showSearch() {
-//	if (!_searchShown) {
-//		toggleSearch();
-//	}
-//}
-//
+void Members::showMembersWithSearch(bool withSearch) {
+	//if (!_searchShown) {
+	//	toggleSearch();
+	//}
+	auto contentMemento = std::make_unique<Info::Members::Memento>(
+		_controller);
+	contentMemento->setState(saveState());
+	contentMemento->setSearchStartsFocused(withSearch);
+	auto mementoStack = std::vector<std::unique_ptr<ContentMemento>>();
+	mementoStack.push_back(std::move(contentMemento));
+	_controller->showSection(
+		Info::Memento(std::move(mementoStack)));
+}
+
 //void Members::toggleSearch(anim::type animated) {
 //	_searchShown = !_searchShown;
 //	_cancelSearch->toggle(_searchShown, animated);

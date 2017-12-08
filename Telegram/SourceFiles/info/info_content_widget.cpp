@@ -236,10 +236,10 @@ rpl::producer<SelectedItems> ContentWidget::selectedListValue() const {
 void ContentWidget::refreshSearchField(bool shown) {
 	auto search = _controller->searchFieldController();
 	if (search && shown) {
-		_searchField = search->createRowView(
+		_searchWrap = search->createRowView(
 			this,
 			st::infoLayerMediaSearch);
-		auto field = _searchField.get();
+		auto field = _searchWrap.get();
 		widthValue()
 			| rpl::start_with_next([field](int newWidth) {
 				field->resizeToWidth(newWidth);
@@ -250,7 +250,7 @@ void ContentWidget::refreshSearchField(bool shown) {
 		setScrollTopSkip(field->heightNoMargins() - st::lineWidth);
 	} else {
 		setFocus();
-		_searchField = nullptr;
+		_searchWrap = nullptr;
 		setScrollTopSkip(0);
 	}
 }

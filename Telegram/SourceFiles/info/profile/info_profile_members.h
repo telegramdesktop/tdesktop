@@ -91,20 +91,20 @@ private:
 	void peerListSetDescription(
 		object_ptr<Ui::FlatLabel> description) override;
 
-	void peerListAppendRow(
-			std::unique_ptr<PeerListRow> row) override {
-		PeerListContentDelegate::peerListAppendRow(std::move(row));
-		updateSearchEnabledByContent();
-	}
-	void peerListPrependRow(
-			std::unique_ptr<PeerListRow> row) override {
-		PeerListContentDelegate::peerListPrependRow(std::move(row));
-		updateSearchEnabledByContent();
-	}
-	void peerListRemoveRow(not_null<PeerListRow*> row) override {
-		PeerListContentDelegate::peerListRemoveRow(row);
-		updateSearchEnabledByContent();
-	}
+	//void peerListAppendRow(
+	//	std::unique_ptr<PeerListRow> row) override {
+	//	PeerListContentDelegate::peerListAppendRow(std::move(row));
+	//	updateSearchEnabledByContent();
+	//}
+	//void peerListPrependRow(
+	//	std::unique_ptr<PeerListRow> row) override {
+	//	PeerListContentDelegate::peerListPrependRow(std::move(row));
+	//	updateSearchEnabledByContent();
+	//}
+	//void peerListRemoveRow(not_null<PeerListRow*> row) override {
+	//	PeerListContentDelegate::peerListRemoveRow(row);
+	//	updateSearchEnabledByContent();
+	//}
 
 	void setupHeader();
 	object_ptr<Ui::FlatLabel> setupTitle();
@@ -114,12 +114,12 @@ private:
 	//void updateSearchOverrides();
 
 	void addMember();
-	//void showSearch();
+	void showMembersWithSearch(bool withSearch);
 	//void toggleSearch(anim::type animated = anim::type::normal);
 	//void cancelSearch();
 	//void searchAnimationCallback();
 	void updateHeaderControlsGeometry(int newWidth);
-	void updateSearchEnabledByContent();
+	//void updateSearchEnabledByContent();
 
 	//Wrap _wrap;
 	not_null<Controller*> _controller;
@@ -133,7 +133,7 @@ private:
 	Ui::FlatLabel *_title = nullptr;
 	Ui::IconButton *_addMember = nullptr;
 	//base::unique_qptr<Ui::InputField> _searchField;
-	//Ui::IconButton *_search = nullptr;
+	Ui::IconButton *_search = nullptr;
 	//Ui::CrossButton *_cancelSearch = nullptr;
 
 	//Animation _searchShownAnimation;

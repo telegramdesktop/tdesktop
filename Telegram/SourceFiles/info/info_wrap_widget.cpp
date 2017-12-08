@@ -347,7 +347,8 @@ void WrapWidget::createTopBar() {
 		Assert(search != nullptr);
 		_topBar->createSearchView(
 			search,
-			_controller->searchEnabledByContent());
+			_controller->searchEnabledByContent(),
+			_controller->takeSearchStartsFocused());
 	}
 	if (_controller->section().type() == Section::Type::Profile
 		&& (wrapValue != Wrap::Side || hasStackHistory())) {
@@ -669,7 +670,9 @@ void WrapWidget::showAnimatedHook(
 }
 
 void WrapWidget::doSetInnerFocus() {
-	_content->setInnerFocus();
+	if (!_topBar->focusSearchField()) {
+		_content->setInnerFocus();
+	}
 }
 
 void WrapWidget::showFinishedHook() {
@@ -815,6 +818,9 @@ void WrapWidget::showNewContent(
 		showNewContent(memento);
 	}
 	if (animationParams) {
+		if (Ui::InFocusChain(this)) {
+			setFocus();
+		}
 		showAnimated(
 			saveToStack
 				? SlideDirection::FromRight

@@ -25,10 +25,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 struct PeerListState;
 
-namespace Ui {
-class SearchFieldController;
-} // namespace Ui
-
 namespace Info {
 namespace Profile {
 class Members;
@@ -43,7 +39,7 @@ class Memento final : public ContentMemento {
 public:
 	Memento(not_null<Controller*> controller);
 	Memento(PeerId peerId, PeerId migratedPeerId)
-		: ContentMemento(peerId, migratedPeerId) {
+	: ContentMemento(peerId, migratedPeerId) {
 	}
 
 	object_ptr<ContentWidget> createWidget(

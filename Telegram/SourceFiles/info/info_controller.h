@@ -112,6 +112,9 @@ public:
 		int limitBefore,
 		int limitAfter) const;
 	rpl::producer<QString> mediaSourceQueryValue() const;
+	bool takeSearchStartsFocused() {
+		return base::take(_searchStartsFocused);
+	}
 
 	void saveSearchState(not_null<ContentMemento*> memento);
 
@@ -147,6 +150,7 @@ private:
 	std::unique_ptr<Ui::SearchFieldController> _searchFieldController;
 	std::unique_ptr<Api::DelayedSearchController> _searchController;
 	rpl::variable<bool> _seachEnabledByContent = false;
+	bool _searchStartsFocused = false;
 
 	rpl::lifetime _lifetime;
 

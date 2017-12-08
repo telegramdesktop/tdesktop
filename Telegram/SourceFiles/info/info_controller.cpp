@@ -137,6 +137,7 @@ void Controller::updateSearchControllers(
 				}, _searchFieldController->lifetime());
 		}
 		_seachEnabledByContent = memento->searchEnabledByContent();
+		_searchStartsFocused = memento->searchStartsFocused();
 	} else {
 		_searchFieldController = nullptr;
 	}
