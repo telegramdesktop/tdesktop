@@ -4657,6 +4657,15 @@ void HistoryWidget::grabFinish() {
 
 void HistoryWidget::repaintHistoryItem(
 		not_null<const HistoryItem*> item) {
+	// It is possible that repaintHistoryItem() will be called from
+	// _scroll->setOwnedWidget() because it calls onScroll() that
+	// sendSynteticMouseEvent() and it could lead to some Info layout
+	// calling Auth().data().requestItemRepaint(), while we still are
+	// in progrss of showing the history. Just ignore them for now :/
+	if (!_list) {
+		return;
+	}
+
 	auto itemHistory = item->history();
 	if (itemHistory == _history || itemHistory == _migrated) {
 		auto ms = getms();
