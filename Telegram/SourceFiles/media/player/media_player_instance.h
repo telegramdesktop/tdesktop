@@ -20,9 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-namespace Notify {
-struct PeerUpdate;
-} // namespace Notify
+#include "data/data_shared_media.h"
+
 class AudioMsgId;
 
 namespace Media {
@@ -98,12 +97,8 @@ public:
 	void startSeeking(AudioMsgId::Type type);
 	void stopSeeking(AudioMsgId::Type type);
 
-	QList<FullMsgId> playlist(AudioMsgId::Type type) const {
-		if (auto data = getData(type)) {
-			return data->playlist;
-		}
-		return QList<FullMsgId>();
-	}
+	bool nextAvailable(AudioMsgId::Type type) const;
+	bool previousAvailable(AudioMsgId::Type type) const;
 
 	struct Switch {
 		AudioMsgId from;
@@ -128,15 +123,14 @@ public:
 	base::Observable<AudioMsgId::Type> &tracksFinishedNotifier() {
 		return _tracksFinishedNotifier;
 	}
-	base::Observable<AudioMsgId::Type> &playlistChangedNotifier() {
-		return _playlistChangedNotifier;
-	}
 	base::Observable<AudioMsgId::Type> &trackChangedNotifier() {
 		return _trackChangedNotifier;
 	}
 	base::Observable<AudioMsgId::Type> &repeatChangedNotifier() {
 		return _repeatChangedNotifier;
 	}
+
+	rpl::producer<> playlistChanges(AudioMsgId::Type type) const;
 
 	void documentLoadProgress(DocumentData *document);
 
@@ -146,30 +140,31 @@ private:
 	Instance();
 	friend void start();
 
+	using SharedMediaType = Storage::SharedMediaType;
 	struct Data {
-		Data(AudioMsgId::Type type, MediaOverviewType overview) : type(type), overview(overview) {
+		Data(AudioMsgId::Type type, SharedMediaType overview)
+		: type(type)
+		, overview(overview) {
 		}
 
 		AudioMsgId::Type type;
-		MediaOverviewType overview;
+		Storage::SharedMediaType overview;
 		AudioMsgId current;
 		AudioMsgId seeking;
+		base::optional<SparseIdsMergedSlice> playlistSlice;
 		History *history = nullptr;
 		History *migrated = nullptr;
 		bool repeatEnabled = false;
-		QList<FullMsgId> playlist;
 		bool isPlaying = false;
 	};
 
 	// Observed notifications.
-	void notifyPeerUpdated(const Notify::PeerUpdate &update);
 	void handleSongUpdate(const AudioMsgId &audioId);
 
-	void checkPeerUpdate(AudioMsgId::Type type, const Notify::PeerUpdate &update);
 	void setCurrent(const AudioMsgId &audioId);
-	void rebuildPlaylist(Data *data);
-	bool moveInPlaylist(Data *data, int delta, bool autonext);
-	void preloadNext(Data *data);
+	void rebuildPlaylist(not_null<Data*> data);
+	bool moveInPlaylist(not_null<Data*> data, int delta, bool autonext);
+	void preloadNext(not_null<Data*> data);
 	void handleLogout();
 
 	template <typename CheckCallback>
@@ -202,7 +197,6 @@ private:
 	base::Observable<bool> _playerWidgetOver;
 	base::Observable<TrackState> _updatedNotifier;
 	base::Observable<AudioMsgId::Type> _tracksFinishedNotifier;
-	base::Observable<AudioMsgId::Type> _playlistChangedNotifier;
 	base::Observable<AudioMsgId::Type> _trackChangedNotifier;
 	base::Observable<AudioMsgId::Type> _repeatChangedNotifier;
 

@@ -49,9 +49,6 @@ void mergePeerUpdate(PeerUpdate &mergeTo, const PeerUpdate &mergeFrom) {
 			mergeTo.oldNameFirstChars = mergeFrom.oldNameFirstChars;
 		}
 	}
-	if (mergeFrom.flags & PeerUpdate::Flag::SharedMediaChanged) {
-		mergeTo.mediaTypesMask |= mergeFrom.mediaTypesMask;
-	}
 	mergeTo.flags |= mergeFrom.flags;
 }
 

@@ -144,11 +144,6 @@ Widget::Widget(QWidget *parent) : RpWidget(parent)
 			updateRepeatTrackIcon();
 		}
 	});
-	subscribe(instance()->playlistChangedNotifier(), [this](AudioMsgId::Type type) {
-		if (type == _type) {
-			handlePlaylistUpdate();
-		}
-	});
 	subscribe(instance()->updatedNotifier(), [this](const TrackState &state) {
 		handleSongUpdate(state);
 	});
@@ -395,6 +390,11 @@ void Widget::setType(AudioMsgId::Type type) {
 		handleSongChange();
 		handleSongUpdate(mixer()->currentState(_type));
 		updateOverLabelsState(_labelsOver);
+		_playlistChangesLifetime = instance()->playlistChanges(
+			_type
+		) | rpl::start_with_next([=] {
+			handlePlaylistUpdate();
+		});
 	}
 }
 
@@ -519,15 +519,12 @@ void Widget::handleSongChange() {
 }
 
 void Widget::handlePlaylistUpdate() {
-	auto current = instance()->current(_type);
-	auto playlist = instance()->playlist(_type);
-	auto index = playlist.indexOf(current.contextId());
-	if (!current || index < 0) {
+	const auto previousEnabled = instance()->previousAvailable(_type);
+	const auto nextEnabled = instance()->nextAvailable(_type);
+	if (!previousEnabled && !nextEnabled) {
 		destroyPrevNextButtons();
 	} else {
 		createPrevNextButtons();
-		auto previousEnabled = (index > 0);
-		auto nextEnabled = (index + 1 < playlist.size());
 		_previousTrack->setIconOverride(previousEnabled ? nullptr : &st::mediaPlayerPreviousDisabledIcon);
 		_previousTrack->setRippleColorOverride(previousEnabled ? nullptr : &st::mediaPlayerBg);
 		_previousTrack->setCursor(previousEnabled ? style::cur_pointer : style::cur_default);

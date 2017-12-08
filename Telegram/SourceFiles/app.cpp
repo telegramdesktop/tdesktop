@@ -1040,8 +1040,7 @@ namespace {
 			existing->updateMedia(m.has_media() ? (&m.vmedia) : nullptr);
 			existing->updateReplyMarkup(m.has_reply_markup() ? (&m.vreply_markup) : nullptr);
 			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
-			existing->addToOverview(AddToOverviewNew);
-
+			existing->addToUnreadMentions(AddToUnreadMentionsMethod::New);
 			if (auto sharedMediaTypes = existing->sharedMediaTypes()) {
 				Auth().storage().add(Storage::SharedMediaAddNew(
 					peerId,

@@ -107,8 +107,8 @@ public:
 		setReplyMarkup(markup);
 	}
 
-	int32 addToOverview(AddToOverviewMethod method) override;
-	void eraseFromOverview() override;
+	void addToUnreadMentions(AddToUnreadMentionsMethod method) override;
+	void eraseFromUnreadMentions() override;
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	TextWithEntities selectedText(TextSelection selection) const override;

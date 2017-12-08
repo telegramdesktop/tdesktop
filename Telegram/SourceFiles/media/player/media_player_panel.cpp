@@ -21,7 +21,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/player/media_player_panel.h"
 
 #include "media/player/media_player_cover.h"
-#include "media/player/media_player_list.h"
 #include "media/player/media_player_instance.h"
 #include "styles/style_overview.h"
 #include "styles/style_widgets.h"
@@ -104,11 +103,12 @@ int Panel::bestPositionFor(int left) const {
 }
 
 void Panel::scrollPlaylistToCurrentTrack() {
-	if (auto list = static_cast<ListWidget*>(_scroll->widget())) {
-		auto rect = list->getCurrentTrackGeometry();
-		auto top = _scroll->scrollTop(), bottom = top + _scroll->height();
-		_scroll->scrollToY(rect.y());
-	}
+	// #TODO playlist
+	//if (auto list = static_cast<ListWidget*>(_scroll->widget())) {
+	//	auto rect = list->getCurrentTrackGeometry();
+	//	auto top = _scroll->scrollTop(), bottom = top + _scroll->height();
+	//	_scroll->scrollToY(rect.y());
+	//}
 }
 
 void Panel::onScroll() {
@@ -219,9 +219,10 @@ void Panel::ensureCreated() {
 
 		_scrollShadow.create(this, st::mediaPlayerScrollShadow, RectPart::Bottom);
 	}
-	auto list = object_ptr<ListWidget>(this);
-	connect(list, SIGNAL(heightUpdated()), this, SLOT(onListHeightUpdated()));
-	_scroll->setOwnedWidget(std::move(list));
+	// #TODO playlist
+	//auto list = object_ptr<ListWidget>(this);
+	//connect(list, SIGNAL(heightUpdated()), this, SLOT(onListHeightUpdated()));
+	//_scroll->setOwnedWidget(std::move(list));
 
 	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 		if (auto window = App::wnd()) {
@@ -238,7 +239,8 @@ void Panel::performDestroy() {
 	if (!_scroll->widget()) return;
 
 	_cover.destroy();
-	_scroll->takeWidget<ListWidget>().destroyDelayed();
+	// #TODO playlist
+	//_scroll->takeWidget<ListWidget>().destroyDelayed();
 
 	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 		if (auto window = App::wnd()) {

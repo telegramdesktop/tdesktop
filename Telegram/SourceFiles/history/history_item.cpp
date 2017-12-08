@@ -721,7 +721,7 @@ void HistoryItem::destroy() {
 		Assert(detached());
 	} else {
 		// All this must be done for all items manually in History::clear(false)!
-		eraseFromOverview();
+		eraseFromUnreadMentions();
 		if (IsServerMsgId(id)) {
 			if (auto types = sharedMediaTypes()) {
 				Auth().storage().remove(Storage::SharedMediaRemoveOne(

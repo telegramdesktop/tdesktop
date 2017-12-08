@@ -84,11 +84,6 @@ public:
 	virtual void updatePressed(QPoint point) {
 	}
 
-	virtual int32 addToOverview(AddToOverviewMethod method) {
-		return 0;
-	}
-	virtual void eraseFromOverview() {
-	}
 	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const;
 
 	// if we are in selecting items mode perhaps we want to
@@ -236,16 +231,6 @@ public:
 	}
 
 protected:
-	int32 addToOneOverview(MediaOverviewType type, AddToOverviewMethod method) {
-		if (_parent->history()->addToOverview(type, _parent->id, method)) {
-			return (1 << type);
-		}
-		return 0;
-	}
-	void eraseFromOneOverview(MediaOverviewType type) {
-		_parent->history()->eraseFromOverview(type, _parent->id);
-	}
-
 	not_null<HistoryItem*> _parent;
 	int _width = 0;
 	MediaInBubbleState _inBubbleState = MediaInBubbleState::None;

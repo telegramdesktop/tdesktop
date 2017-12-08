@@ -638,24 +638,6 @@ bool HistoryPhoto::needsBubble() const {
 	return false;
 }
 
-int32 HistoryPhoto::addToOverview(AddToOverviewMethod method) {
-	auto result = int32(0);
-	if (_parent->toHistoryMessage()) {
-		result |= addToOneOverview(OverviewPhotos, method);
-	} else {
-		result |= addToOneOverview(OverviewChatPhotos, method);
-	}
-	return result;
-}
-
-void HistoryPhoto::eraseFromOverview() {
-	if (_parent->toHistoryMessage()) {
-		eraseFromOneOverview(OverviewPhotos);
-	} else {
-		eraseFromOneOverview(OverviewChatPhotos);
-	}
-}
-
 Storage::SharedMediaTypesMask HistoryPhoto::sharedMediaTypes() const {
 	if (_parent->toHistoryMessage()) {
 		return Storage::SharedMediaType::Photo;
@@ -959,14 +941,6 @@ bool HistoryVideo::needsBubble() const {
 			|| message->displayFromName();
 	}
 	return false;
-}
-
-int32 HistoryVideo::addToOverview(AddToOverviewMethod method) {
-	return addToOneOverview(OverviewVideos, method);
-}
-
-void HistoryVideo::eraseFromOverview() {
-	eraseFromOneOverview(OverviewVideos);
 }
 
 Storage::SharedMediaTypesMask HistoryVideo::sharedMediaTypes() const {
@@ -1583,30 +1557,6 @@ TextWithEntities HistoryDocument::selectedText(TextSelection selection) const {
 		result = captionedSelectedText(fullType, caption, selection);
 	});
 	return result;
-}
-
-int32 HistoryDocument::addToOverview(AddToOverviewMethod method) {
-	auto result = int32(0);
-	if (_data->voice()) {
-		result |= addToOneOverview(OverviewVoiceFiles, method);
-		result |= addToOneOverview(OverviewRoundVoiceFiles, method);
-	} else if (_data->isMusic()) {
-		result |= addToOneOverview(OverviewMusicFiles, method);
-	} else {
-		result |= addToOneOverview(OverviewFiles, method);
-	}
-	return result;
-}
-
-void HistoryDocument::eraseFromOverview() {
-	if (_data->voice()) {
-		eraseFromOneOverview(OverviewVoiceFiles);
-		eraseFromOneOverview(OverviewRoundVoiceFiles);
-	} else if (_data->isMusic()) {
-		eraseFromOneOverview(OverviewMusicFiles);
-	} else {
-		eraseFromOneOverview(OverviewFiles);
-	}
 }
 
 Storage::SharedMediaTypesMask HistoryDocument::sharedMediaTypes() const {
@@ -2433,18 +2383,6 @@ bool HistoryGif::needsBubble() const {
 	return false;
 }
 
-int32 HistoryGif::addToOverview(AddToOverviewMethod method) {
-	auto result = int32(0);
-	if (_data->isRoundVideo()) {
-		result |= addToOneOverview(OverviewRoundVoiceFiles, method);
-	} else if (_data->isGifv()) {
-		result |= addToOneOverview(OverviewGIFs, method);
-	} else {
-		result |= addToOneOverview(OverviewFiles, method);
-	}
-	return result;
-}
-
 Storage::SharedMediaTypesMask HistoryGif::sharedMediaTypes() const {
 	using Type = Storage::SharedMediaType;
 	if (_data->isRoundVideo()) {
@@ -2455,16 +2393,6 @@ Storage::SharedMediaTypesMask HistoryGif::sharedMediaTypes() const {
 		return Type::GIF;
 	}
 	return Type::File;
-}
-
-void HistoryGif::eraseFromOverview() {
-	if (_data->isRoundVideo()) {
-		eraseFromOneOverview(OverviewRoundVoiceFiles);
-	} else if (_data->isGifv()) {
-		eraseFromOneOverview(OverviewGIFs);
-	} else {
-		eraseFromOneOverview(OverviewFiles);
-	}
 }
 
 QString HistoryGif::mediaTypeString() const {

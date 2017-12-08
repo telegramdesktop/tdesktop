@@ -121,6 +121,8 @@ private:
 	object_ptr<Ui::FilledSlider> _playbackSlider;
 	std::unique_ptr<Clip::Playback> _playback;
 
+	rpl::lifetime _playlistChangesLifetime;
+
 };
 
 } // namespace Clip

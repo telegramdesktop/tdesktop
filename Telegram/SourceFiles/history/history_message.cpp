@@ -1416,33 +1416,17 @@ void HistoryMessage::updateMedia(const MTPMessageMedia *media) {
 	setPendingInitDimensions();
 }
 
-int32 HistoryMessage::addToOverview(AddToOverviewMethod method) {
-	if (!indexInOverview()) return 0;
-
-	int32 result = 0;
-	if (auto media = getMedia()) {
-		result |= media->addToOverview(method);
-	}
-	if (hasTextLinks()) {
-		if (history()->addToOverview(OverviewLinks, id, method)) {
-			result |= (1 << OverviewLinks);
-		}
-	}
-	if (mentionsMe() && isMediaUnread()) {
+void HistoryMessage::addToUnreadMentions(AddToUnreadMentionsMethod method) {
+	if (indexInUnreadMentions() && mentionsMe() && isMediaUnread()) {
 		if (history()->addToUnreadMentions(id, method)) {
-			Notify::peerUpdatedDelayed(history()->peer, Notify::PeerUpdate::Flag::UnreadMentionsChanged);
+			Notify::peerUpdatedDelayed(
+				history()->peer,
+				Notify::PeerUpdate::Flag::UnreadMentionsChanged);
 		}
 	}
-	return result;
 }
 
-void HistoryMessage::eraseFromOverview() {
-	if (auto media = getMedia()) {
-		media->eraseFromOverview();
-	}
-	if (hasTextLinks()) {
-		history()->eraseFromOverview(OverviewLinks, id);
-	}
+void HistoryMessage::eraseFromUnreadMentions() {
 	if (mentionsMe() && isMediaUnread()) {
 		history()->eraseFromUnreadMentions(id);
 	}

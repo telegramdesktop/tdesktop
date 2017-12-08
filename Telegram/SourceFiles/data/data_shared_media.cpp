@@ -36,25 +36,17 @@ namespace {
 
 using Type = Storage::SharedMediaType;
 
-inline MediaOverviewType SharedMediaTypeToOverview(Type type) {
-	switch (type) {
-	case Type::Photo: return OverviewPhotos;
-	case Type::Video: return OverviewVideos;
-	case Type::MusicFile: return OverviewMusicFiles;
-	case Type::File: return OverviewFiles;
-	case Type::VoiceFile: return OverviewVoiceFiles;
-	case Type::Link: return OverviewLinks;
-	default: break;
-	}
-	return OverviewCount;
-}
-
 } // namespace
 
 base::optional<Storage::SharedMediaType> SharedMediaOverviewType(
 		Storage::SharedMediaType type) {
-	if (SharedMediaTypeToOverview(type) != OverviewCount) {
-		return type;
+	switch (type) {
+	case Type::Photo:
+	case Type::Video:
+	case Type::MusicFile:
+	case Type::File:
+	case Type::VoiceFile:
+	case Type::Link: return type;
 	}
 	return base::none;
 }

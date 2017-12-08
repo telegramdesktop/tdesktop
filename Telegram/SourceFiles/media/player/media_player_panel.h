@@ -29,7 +29,6 @@ namespace Media {
 namespace Player {
 
 class CoverWidget;
-class ListWidget;
 
 class Panel : public TWidget {
 	Q_OBJECT

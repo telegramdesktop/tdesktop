@@ -738,27 +738,11 @@ void HistoryService::removeMedia() {
 	}
 }
 
-int32 HistoryService::addToOverview(AddToOverviewMethod method) {
-	if (!indexInOverview()) return 0;
-
-	int32 result = 0;
-	if (auto media = getMedia()) {
-		result |= media->addToOverview(method);
-	}
-	return result;
-}
-
 Storage::SharedMediaTypesMask HistoryService::sharedMediaTypes() const {
 	if (auto media = getMedia()) {
 		return media->sharedMediaTypes();
 	}
 	return {};
-}
-
-void HistoryService::eraseFromOverview() {
-	if (auto media = getMedia()) {
-		media->eraseFromOverview();
-	}
 }
 
 void HistoryService::updateDependentText() {

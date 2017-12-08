@@ -23,7 +23,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "data/data_document.h"
 #include "media/media_audio.h"
 #include "media/media_audio_capture.h"
-#include "observer_peer.h"
 #include "messenger.h"
 #include "auth_session.h"
 #include "calls/calls_instance.h"
@@ -52,15 +51,11 @@ void finish() {
 }
 
 Instance::Instance()
-: _songData(AudioMsgId::Type::Song, OverviewMusicFiles)
-, _voiceData(AudioMsgId::Type::Voice, OverviewRoundVoiceFiles) {
+: _songData(AudioMsgId::Type::Song, SharedMediaType::MusicFile)
+, _voiceData(AudioMsgId::Type::Voice, SharedMediaType::RoundVoiceFile) {
 	subscribe(Media::Player::Updated(), [this](const AudioMsgId &audioId) {
 		handleSongUpdate(audioId);
 	});
-	auto observeEvents = Notify::PeerUpdate::Flag::SharedMediaChanged;
-	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
-		notifyPeerUpdated(update);
-	}));
 	subscribe(Global::RefSelfChanged(), [this] {
 		if (!App::self()) {
 			handleLogout();
@@ -95,27 +90,6 @@ AudioMsgId::Type Instance::getActiveType() const {
 	return AudioMsgId::Type::Song;
 }
 
-void Instance::notifyPeerUpdated(const Notify::PeerUpdate &update) {
-	checkPeerUpdate(AudioMsgId::Type::Song, update);
-	checkPeerUpdate(AudioMsgId::Type::Voice, update);
-}
-
-void Instance::checkPeerUpdate(AudioMsgId::Type type, const Notify::PeerUpdate &update) {
-	if (auto data = getData(type)) {
-		if (!data->history) {
-			return;
-		}
-		if (!(update.mediaTypesMask & (1 << data->overview))) {
-			return;
-		}
-		if (update.peer != data->history->peer && (!data->migrated || update.peer != data->migrated->peer)) {
-			return;
-		}
-
-		rebuildPlaylist(data);
-	}
-}
-
 void Instance::handleSongUpdate(const AudioMsgId &audioId) {
 	emitUpdate(audioId.type(), [&audioId](const AudioMsgId &playing) {
 		return (audioId == playing);
@@ -146,51 +120,48 @@ void Instance::setCurrent(const AudioMsgId &audioId) {
 	}
 }
 
-void Instance::rebuildPlaylist(Data *data) {
-	Expects(data != nullptr);
-
-	data->playlist.clear();
-	if (data->history && data->history->loadedAtBottom()) {
-		auto &historyOverview = data->history->overview(data->overview);
-		if (data->migrated && data->migrated->loadedAtBottom() && data->history->loadedAtTop()) {
-			auto &migratedOverview = data->migrated->overview(data->overview);
-			data->playlist.reserve(migratedOverview.size() + historyOverview.size());
-			for_const (auto msgId, migratedOverview) {
-				data->playlist.push_back(FullMsgId(data->migrated->channelId(), msgId));
-			}
-		} else {
-			data->playlist.reserve(historyOverview.size());
-		}
-		for_const (auto msgId, historyOverview) {
-			data->playlist.push_back(FullMsgId(data->history->channelId(), msgId));
-		}
-	}
-	_playlistChangedNotifier.notify(data->type, true);
+void Instance::rebuildPlaylist(not_null<Data*> data) {
+	// #TODO playlist
 }
 
-bool Instance::moveInPlaylist(Data *data, int delta, bool autonext) {
-	Expects(data != nullptr);
+bool Instance::moveInPlaylist(
+		not_null<Data*> data,
+		int delta,
+		bool autonext) {
+	//auto index = data->playlist.indexOf(data->current.contextId());
+	//auto newIndex = index + delta;
+	//if (!data->current || index < 0 || newIndex < 0 || newIndex >= data->playlist.size()) {
+	//	rebuildPlaylist(data);
+	//	return false;
+	//}
 
-	auto index = data->playlist.indexOf(data->current.contextId());
-	auto newIndex = index + delta;
-	if (!data->current || index < 0 || newIndex < 0 || newIndex >= data->playlist.size()) {
-		rebuildPlaylist(data);
-		return false;
-	}
-
-	auto msgId = data->playlist[newIndex];
-	if (auto item = App::histItemById(msgId)) {
-		if (auto media = item->getMedia()) {
-			if (auto document = media->getDocument()) {
-				if (autonext) {
-					_switchToNextNotifier.notify({ data->current, msgId });
-				}
-				DocumentOpenClickHandler::doOpen(media->getDocument(), item, ActionOnLoadPlayInline);
-				return true;
-			}
-		}
-	}
+	//auto msgId = data->playlist[newIndex];
+	//if (auto item = App::histItemById(msgId)) {
+	//	if (auto media = item->getMedia()) {
+	//		if (auto document = media->getDocument()) {
+	//			if (autonext) {
+	//				_switchToNextNotifier.notify({ data->current, msgId });
+	//			}
+	//			DocumentOpenClickHandler::doOpen(media->getDocument(), item, ActionOnLoadPlayInline);
+	//			return true;
+	//		}
+	//	}
+	//}
+	//return false;
 	return false;
+}
+
+bool Instance::previousAvailable(AudioMsgId::Type type) const {
+	return false;
+}
+
+bool Instance::nextAvailable(AudioMsgId::Type type) const {
+	return false;
+}
+
+rpl::producer<> Media::Player::Instance::playlistChanges(
+		AudioMsgId::Type type) const {
+	return rpl::never<>();
 }
 
 Instance *instance() {
@@ -344,34 +315,36 @@ void Instance::emitUpdate(AudioMsgId::Type type, CheckCallback check) {
 	}
 }
 
-void Instance::preloadNext(Data *data) {
-	Expects(data != nullptr);
-
+void Instance::preloadNext(not_null<Data*> data) {
 	if (!data->current) {
 		return;
 	}
-	auto index = data->playlist.indexOf(data->current.contextId());
-	if (index < 0) {
-		return;
-	}
-	auto nextIndex = index + 1;
-	if (nextIndex >= data->playlist.size()) {
-		return;
-	}
-	if (auto item = App::histItemById(data->playlist[nextIndex])) {
-		if (auto media = item->getMedia()) {
-			if (auto document = media->getDocument()) {
-				if (!document->loaded(DocumentData::FilePathResolveSaveFromDataSilent)) {
-					DocumentOpenClickHandler::doOpen(document, nullptr, ActionOnLoadNone);
-				}
-			}
-		}
-	}
+	//auto index = data->playlist.indexOf(data->current.contextId());
+	//if (index < 0) {
+	//	return;
+	//}
+	//auto nextIndex = index + 1;
+	//if (nextIndex >= data->playlist.size()) {
+	//	return;
+	//}
+	//if (auto item = App::histItemById(data->playlist[nextIndex])) {
+	//	if (auto media = item->getMedia()) {
+	//		if (auto document = media->getDocument()) {
+	//			if (!document->loaded(DocumentData::FilePathResolveSaveFromDataSilent)) {
+	//				DocumentOpenClickHandler::doOpen(document, nullptr, ActionOnLoadNone);
+	//			}
+	//		}
+	//	}
+	//}
 }
 
 void Instance::handleLogout() {
-	*getData(AudioMsgId::Type::Voice) = Data(AudioMsgId::Type::Voice, OverviewRoundVoiceFiles);
-	*getData(AudioMsgId::Type::Song) = Data(AudioMsgId::Type::Song, OverviewMusicFiles);
+	const auto reset = [&](AudioMsgId::Type type) {
+		const auto data = getData(type);
+		*data = Data(type, data->overview);
+	};
+	reset(AudioMsgId::Type::Voice);
+	reset(AudioMsgId::Type::Song);
 	_usePanelPlayer.notify(false, true);
 }
 

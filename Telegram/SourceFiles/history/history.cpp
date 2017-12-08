@@ -66,14 +66,6 @@ HistoryItem *createUnsupportedMessage(History *history, MsgId msgId, MTPDmessage
 	return HistoryMessage::create(history, msgId, flags, replyTo, viaBotId, date, from, QString(), text);
 }
 
-Storage::SharedMediaType ConvertSharedMediaType(MediaOverviewType type) {
-	return static_cast<Storage::SharedMediaType>(type);
-}
-
-MediaOverviewType ConvertSharedMediaType(Storage::SharedMediaType type) {
-	return static_cast<MediaOverviewType>(type);
-}
-
 } // namespace
 
 void HistoryInit() {
@@ -89,9 +81,6 @@ History::History(const PeerId &peerId)
 , _sendActionText(st::dialogsTextWidthMin) {
 	if (peer->isUser() && peer->asUser()->botInfo) {
 		outboxReadBefore = INT_MAX;
-	}
-	for (auto &countData : _overviewCountData) {
-		countData = -1; // not loaded yet
 	}
 }
 
@@ -1173,28 +1162,6 @@ HistoryItem *History::addNewGame(MsgId id, MTPDmessage::Flags flags, UserId viaB
 	return addNewItem(createItemGame(id, flags, viaBotId, replyTo, date, from, postAuthor, game, markup), true);
 }
 
-bool History::addToOverview(MediaOverviewType type, MsgId msgId, AddToOverviewMethod method) {
-	_overview[type].insert(msgId);
-	if (method == AddToOverviewNew) {
-		if (_overviewCountData[type] > 0) {
-			++_overviewCountData[type];
-		}
-		Notify::mediaOverviewUpdated(peer, type);
-	}
-	return true;
-}
-
-void History::eraseFromOverview(MediaOverviewType type, MsgId msgId) {
-	auto i = _overview[type].find(msgId);
-	if (i == _overview[type].cend()) return;
-
-	_overview[type].erase(i);
-	if (_overviewCountData[type] > 0) {
-		--_overviewCountData[type];
-	}
-	Notify::mediaOverviewUpdated(peer, type);
-}
-
 void History::setUnreadMentionsCount(int count) {
 	if (_unreadMentions.size() > count) {
 		LOG(("API Warning: real mentions count is greater than received mentions count"));
@@ -1203,15 +1170,17 @@ void History::setUnreadMentionsCount(int count) {
 	_unreadMentionsCount = count;
 }
 
-bool History::addToUnreadMentions(MsgId msgId, AddToOverviewMethod method) {
+bool History::addToUnreadMentions(
+		MsgId msgId,
+		AddToUnreadMentionsMethod method) {
 	auto allLoaded = _unreadMentionsCount ? (_unreadMentions.size() >= *_unreadMentionsCount) : false;
 	if (allLoaded) {
-		if (method == AddToOverviewNew) {
+		if (method == AddToUnreadMentionsMethod::New) {
 			++*_unreadMentionsCount;
 			_unreadMentions.insert(msgId);
 			return true;
 		}
-	} else if (!_unreadMentions.empty() && method != AddToOverviewNew) {
+	} else if (!_unreadMentions.empty() && method != AddToUnreadMentionsMethod::New) {
 		_unreadMentions.insert(msgId);
 		return true;
 	}
@@ -1290,7 +1259,7 @@ HistoryItem *History::addNewItem(HistoryItem *adding, bool newMsg) {
 		newItemAdded(adding);
 	}
 
-	adding->addToOverview(AddToOverviewNew);
+	adding->addToUnreadMentions(AddToUnreadMentionsMethod::New);
 	if (IsServerMsgId(adding->id)) {
 		if (auto sharedMediaTypes = adding->sharedMediaTypes()) {
 			if (newMsg) {
@@ -1588,7 +1557,6 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 		oldLoaded = true;
 	} else if (loadedAtBottom()) { // add photos to overview and authors to lastAuthors
 		bool channel = isChannel();
-		int32 mask = 0;
 		std::deque<not_null<UserData*>> *lastAuthors = nullptr;
 		base::flat_set<not_null<PeerData*>> *markupSenders = nullptr;
 		if (peer->isChat()) {
@@ -1605,7 +1573,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 		}
 		for (auto i = block->items.size(); i > 0; --i) {
 			auto item = block->items[i - 1];
-			mask |= item->addToOverview(AddToOverviewFront);
+			item->addToUnreadMentions(AddToUnreadMentionsMethod::Front);
 			if (item->from()->id) {
 				if (lastAuthors) { // chats
 					if (auto user = item->from()->asUser()) {
@@ -1658,12 +1626,6 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 					}
 				}
 			}
-		}
-		if (mask) {
-			Notify::PeerUpdate update(peer);
-			update.flags |= Notify::PeerUpdate::Flag::SharedMediaChanged;
-			update.mediaTypesMask |= mask;
-			Notify::peerUpdatedDelayed(update);
 		}
 	}
 
@@ -1743,7 +1705,7 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 	}
 
 	if (!wasLoadedAtBottom) {
-		checkAddAllToOverview();
+		checkAddAllToUnreadMentions();
 	}
 
 	if (isChannel()) asChannelHistory()->checkJoinedMessage();
@@ -1754,29 +1716,22 @@ void History::checkLastMsg() {
 	if (lastMsg) {
 		if (!newLoaded && !lastMsg->detached()) {
 			newLoaded = true;
-			checkAddAllToOverview();
+			checkAddAllToUnreadMentions();
 		}
 	} else if (newLoaded) {
 		setLastMessage(lastAvailableMessage());
 	}
 }
 
-void History::checkAddAllToOverview() {
+void History::checkAddAllToUnreadMentions() {
 	if (!loadedAtBottom()) {
 		return;
 	}
 
-	int32 mask = 0;
 	for_const (auto block, blocks) {
 		for_const (auto item, block->items) {
-			mask |= item->addToOverview(AddToOverviewBack);
+			item->addToUnreadMentions(AddToUnreadMentionsMethod::Back);
 		}
-	}
-	if (mask) {
-		Notify::PeerUpdate update(peer);
-		update.flags |= Notify::PeerUpdate::Flag::SharedMediaChanged;
-		update.mediaTypesMask |= mask;
-		Notify::peerUpdatedDelayed(update);
 	}
 }
 
@@ -2348,15 +2303,6 @@ void History::clear(bool leaveItems) {
 				++i;
 			}
 		}
-		for (auto i = 0; i != OverviewCount; ++i) {
-			if (!_overview[i].isEmpty()) {
-				_overviewCountData[i] = -1; // not loaded yet
-				_overview[i].clear();
-				if (!App::quitting()) {
-					Notify::mediaOverviewUpdated(peer, MediaOverviewType(i));
-				}
-			}
-		}
 		Auth().storage().remove(Storage::SharedMediaRemoveAll(peer->id));
 		Auth().data().markHistoryCleared(this);
 	}
@@ -2521,91 +2467,7 @@ void History::setPinnedIndex(int pinnedIndex) {
 	}
 }
 
-void History::overviewSliceDone(
-		int32 overviewIndex,
-		MsgId startMessageId,
-		const MTPmessages_Messages &result,
-		bool onlyCounts) {
-	auto fullCount = 0;
-	auto v = (const QVector<MTPMessage>*)nullptr;
-
-	switch (result.type()) {
-	case mtpc_messages_messages: {
-		auto &d = result.c_messages_messages();
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-		v = &d.vmessages.v;
-		fullCount = v->size();
-		_overviewCountData[overviewIndex] = 0;
-	} break;
-
-	case mtpc_messages_messagesSlice: {
-		auto &d = result.c_messages_messagesSlice();
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-		fullCount = _overviewCountData[overviewIndex] = d.vcount.v;
-		v = &d.vmessages.v;
-	} break;
-
-	case mtpc_messages_channelMessages: {
-		auto &d = result.c_messages_channelMessages();
-		if (peer->isChannel()) {
-			peer->asChannel()->ptsReceived(d.vpts.v);
-		} else {
-			LOG(("API Error: received messages.channelMessages when no channel was passed! (History::overviewSliceDone, onlyCounts %1)").arg(Logs::b(onlyCounts)));
-		}
-		App::feedUsers(d.vusers);
-		App::feedChats(d.vchats);
-		fullCount = _overviewCountData[overviewIndex] = d.vcount.v;
-		v = &d.vmessages.v;
-	} break;
-
-	case mtpc_messages_messagesNotModified: {
-		LOG(("API Error: received messages.messagesNotModified! (History::overviewSliceDone, onlyCounts %1)").arg(Logs::b(onlyCounts)));
-	} break;
-
-	default: return;
-	}
-
-	if (!onlyCounts && (!v || v->isEmpty())) {
-		_overviewCountData[overviewIndex] = 0;
-	}
-
-	auto noSkipRange = MsgRange { startMessageId, startMessageId };
-	auto sharedMediaType = ConvertSharedMediaType(
-		static_cast<MediaOverviewType>(overviewIndex));
-	auto slice = std::vector<MsgId>();
-	if (v) {
-		slice.reserve(v->size());
-		for (auto &message : *v) {
-			if (auto item = App::histories().addNewMessage(message, NewMessageExisting)) {
-				auto itemId = item->id;
-				_overview[overviewIndex].insert(itemId);
-				if (item->sharedMediaTypes().test(sharedMediaType)) {
-					slice.push_back(itemId);
-					accumulate_min(noSkipRange.from, itemId);
-					accumulate_max(noSkipRange.till, itemId);
-				}
-			}
-		}
-	}
-	Auth().storage().add(Storage::SharedMediaAddSlice(
-		peer->id,
-		sharedMediaType,
-		std::move(slice),
-		noSkipRange,
-		fullCount
-	));
-}
-
 void History::changeMsgId(MsgId oldId, MsgId newId) {
-	for (auto i = 0; i != OverviewCount; ++i) {
-		auto j = _overview[i].find(oldId);
-		if (j != _overview[i].cend()) {
-			_overview[i].erase(j);
-			_overview[i].insert(newId);
-		}
-	}
 }
 
 void History::removeBlock(HistoryBlock *block) {

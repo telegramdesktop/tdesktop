@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "ui/rp_widget.h"
+
 class AudioMsgId;
 
 namespace Ui {
@@ -39,7 +41,7 @@ namespace Player {
 class VolumeController;
 struct TrackState;
 
-class CoverWidget : public TWidget, private base::Subscriber {
+class CoverWidget : public Ui::RpWidget, private base::Subscriber {
 public:
 	CoverWidget(QWidget *parent);
 

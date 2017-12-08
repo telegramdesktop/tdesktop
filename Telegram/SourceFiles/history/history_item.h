@@ -642,7 +642,7 @@ public:
 	bool isPost() const {
 		return _flags & MTPDmessage::Flag::f_post;
 	}
-	bool indexInOverview() const {
+	bool indexInUnreadMentions() const {
 		return (id > 0);
 	}
 	bool isSilent() const {
@@ -688,10 +688,9 @@ public:
 	virtual void updateReplyMarkup(const MTPReplyMarkup *markup) {
 	}
 
-	virtual int32 addToOverview(AddToOverviewMethod method) {
-		return 0;
+	virtual void addToUnreadMentions(AddToUnreadMentionsMethod method) {
 	}
-	virtual void eraseFromOverview() {
+	virtual void eraseFromUnreadMentions() {
 	}
 	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const;
 

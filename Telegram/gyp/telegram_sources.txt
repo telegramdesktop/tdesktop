@@ -317,8 +317,6 @@
 <(src_loc)/media/player/media_player_float.h
 <(src_loc)/media/player/media_player_instance.cpp
 <(src_loc)/media/player/media_player_instance.h
-<(src_loc)/media/player/media_player_list.cpp
-<(src_loc)/media/player/media_player_list.h
 <(src_loc)/media/player/media_player_panel.cpp
 <(src_loc)/media/player/media_player_panel.h
 <(src_loc)/media/player/media_player_volume_controller.cpp

@@ -69,7 +69,7 @@ void CoverWidget::PlayButton::paintEvent(QPaintEvent *e) {
 	_layout.paint(p, st::mediaPlayerActiveFg);
 }
 
-CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
+CoverWidget::CoverWidget(QWidget *parent) : RpWidget(parent)
 , _nameLabel(this, st::mediaPlayerName)
 , _timeLabel(this, st::mediaPlayerTime)
 , _close(this, st::mediaPlayerPanelClose)
@@ -123,11 +123,6 @@ CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 			updateRepeatTrackIcon();
 		}
 	});
-	subscribe(instance()->playlistChangedNotifier(), [this](AudioMsgId::Type type) {
-		if (type == AudioMsgId::Type::Song) {
-			handlePlaylistUpdate();
-		}
-	});
 	subscribe(instance()->updatedNotifier(), [this](const TrackState &state) {
 		if (state.id.type() == AudioMsgId::Type::Song) {
 			handleSongUpdate(state);
@@ -138,6 +133,13 @@ CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 			handleSongChange();
 		}
 	});
+
+	instance()->playlistChanges(
+		AudioMsgId::Type::Song
+	) | rpl::start_with_next([=] {
+		handlePlaylistUpdate();
+	}, lifetime());
+
 	handleSongChange();
 
 	handleSongUpdate(mixer()->currentState(AudioMsgId::Type::Song));
@@ -340,15 +342,13 @@ void CoverWidget::handleSongChange() {
 }
 
 void CoverWidget::handlePlaylistUpdate() {
-	auto current = instance()->current(AudioMsgId::Type::Song);
-	auto playlist = instance()->playlist(AudioMsgId::Type::Song);
-	auto index = playlist.indexOf(current.contextId());
-	if (!current || index < 0) {
+	const auto type = AudioMsgId::Type::Song;
+	const auto previousEnabled = instance()->previousAvailable(type);
+	const auto nextEnabled = instance()->nextAvailable(type);
+	if (!previousEnabled && !nextEnabled) {
 		destroyPrevNextButtons();
 	} else {
 		createPrevNextButtons();
-		auto previousEnabled = (index > 0);
-		auto nextEnabled = (index + 1 < playlist.size());
 		_previousTrack->setIconOverride(previousEnabled ? nullptr : &st::mediaPlayerPanelPreviousDisabledIcon);
 		_previousTrack->setCursor(previousEnabled ? style::cur_pointer : style::cur_default);
 		_nextTrack->setIconOverride(nextEnabled ? nullptr : &st::mediaPlayerPanelNextDisabledIcon);

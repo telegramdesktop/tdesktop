@@ -47,7 +47,6 @@ struct PeerUpdate {
 		PhotoChanged              = (1 << 2),
 		AboutChanged              = (1 << 3),
 		NotificationsEnabled      = (1 << 4),
-		SharedMediaChanged        = (1 << 5),
 		MigrationChanged          = (1 << 6),
 		PinnedChanged             = (1 << 7),
 		RestrictionReasonChanged  = (1 << 8),
@@ -87,9 +86,6 @@ struct PeerUpdate {
 	// NameChanged data
 	PeerData::NameFirstChars oldNameFirstChars;
 
-	// SharedMediaChanged data
-	int32 mediaTypesMask = 0;
-
 };
 
 void peerUpdatedDelayed(const PeerUpdate &update);
@@ -99,13 +95,6 @@ inline void peerUpdatedDelayed(PeerData *peer, PeerUpdate::Flags events) {
 	peerUpdatedDelayed(update);
 }
 void peerUpdatedSendDelayed();
-
-inline void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
-	PeerUpdate update(peer);
-	update.flags |= PeerUpdate::Flag::SharedMediaChanged;
-	update.mediaTypesMask |= (1 << type);
-	peerUpdatedDelayed(update);
-}
 
 class PeerUpdatedHandler {
 public:

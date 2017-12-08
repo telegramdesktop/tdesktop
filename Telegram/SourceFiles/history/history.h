@@ -140,20 +140,6 @@ enum HistoryMediaType {
 	MediaTypeCount
 };
 
-enum MediaOverviewType {
-	OverviewPhotos          = 0,
-	OverviewVideos          = 1,
-	OverviewMusicFiles      = 2,
-	OverviewFiles           = 3,
-	OverviewVoiceFiles      = 4,
-	OverviewLinks           = 5,
-	OverviewChatPhotos      = 6,
-	OverviewRoundVoiceFiles = 7,
-	OverviewGIFs            = 8,
-
-	OverviewCount
-};
-
 struct TextWithTags {
 	struct Tag {
 		int offset, length;
@@ -186,10 +172,10 @@ struct Draft;
 class HistoryMedia;
 class HistoryMessage;
 
-enum AddToOverviewMethod {
-	AddToOverviewNew, // when new message is added to history
-	AddToOverviewFront, // when old messages slice was received
-	AddToOverviewBack, // when new messages slice was received and it is the last one, we index all media
+enum class AddToUnreadMentionsMethod {
+	New, // when new message is added to history
+	Front, // when old messages slice was received
+	Back, // when new messages slice was received and it is the last one, we index all media
 };
 
 namespace Dialogs {
@@ -244,8 +230,6 @@ public:
 
 	void addOlderSlice(const QVector<MTPMessage> &slice);
 	void addNewerSlice(const QVector<MTPMessage> &slice);
-	bool addToOverview(MediaOverviewType type, MsgId msgId, AddToOverviewMethod method);
-	void eraseFromOverview(MediaOverviewType type, MsgId msgId);
 
 	void newItemAdded(HistoryItem *item);
 
@@ -382,7 +366,7 @@ public:
 		return (getUnreadMentionsCount() > 0);
 	}
 	void setUnreadMentionsCount(int count);
-	bool addToUnreadMentions(MsgId msgId, AddToOverviewMethod method);
+	bool addToUnreadMentions(MsgId msgId, AddToUnreadMentionsMethod method);
 	void eraseFromUnreadMentions(MsgId msgId);
 	void addUnreadMentionsSlice(const MTPmessages_Messages &result);
 
@@ -478,39 +462,6 @@ public:
 	mutable const HistoryItem *textCachedFor = nullptr; // cache
 	mutable Text lastItemTextCache;
 
-	bool overviewCountLoaded(int32 overviewIndex) const {
-		return _overviewCountData[overviewIndex] >= 0;
-	}
-	bool overviewLoaded(int32 overviewIndex) const {
-		return overviewCount(overviewIndex) == _overview[overviewIndex].size();
-	}
-	int overviewCount(int32 overviewIndex, int32 defaultValue = -1) const {
-		auto result = _overviewCountData[overviewIndex];
-		auto loaded = _overview[overviewIndex].size();
-		if (result < 0) return defaultValue;
-		if (result < loaded) {
-			if (result > 0) {
-				const_cast<History*>(this)->_overviewCountData[overviewIndex] = 0;
-			}
-			return loaded;
-		}
-		return result;
-	}
-	const OrderedSet<MsgId> &overview(int32 overviewIndex) const {
-		return _overview[overviewIndex];
-	}
-	MsgId overviewMinId(int32 overviewIndex) const {
-		return _overview[overviewIndex].empty() ? 0 : *_overview[overviewIndex].begin();
-	}
-	void overviewSliceDone(
-		int32 overviewIndex,
-		MsgId startMessageId,
-		const MTPmessages_Messages &result,
-		bool onlyCounts = false);
-	bool overviewHasMsgId(int32 overviewIndex, MsgId msgId) const {
-		return _overview[overviewIndex].contains(msgId);
-	}
-
 	void changeMsgId(MsgId oldId, MsgId newId);
 
 	Text cloudDraftTextCache;
@@ -557,8 +508,8 @@ private:
 	// After adding a new history slice check the lastMsg and newLoaded.
 	void checkLastMsg();
 
-	// Add all items to the media overview if we were not loaded at bottom and now are.
-	void checkAddAllToOverview();
+	// Add all items to the unread mentions if we were not loaded at bottom and now are.
+	void checkAddAllToUnreadMentions();
 
 	template <int kSharedMediaTypeCount>
 	void addToSharedMedia(std::vector<MsgId> (&medias)[kSharedMediaTypeCount], bool force);
@@ -593,9 +544,6 @@ private:
 		return it->second;
 	}
 	uint64 _sortKeyInChatList = 0; // like ((unixtime) << 32) | (incremented counter)
-
-	OrderedSet<MsgId> _overview[OverviewCount];
-	int32 _overviewCountData[OverviewCount]; // -1 - not loaded, 0 - all loaded, > 0 - count, but not all loaded
 
 	// A pointer to the block that is currently being built.
 	// We hold this pointer so we can destroy it while building

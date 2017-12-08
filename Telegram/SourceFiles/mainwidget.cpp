@@ -91,25 +91,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/storage_shared_media.h"
 #include "storage/storage_user_photos.h"
 
-namespace {
-
-MTPMessagesFilter TypeToMediaFilter(MediaOverviewType &type) {
-	switch (type) {
-	case OverviewPhotos: return MTP_inputMessagesFilterPhotos();
-	case OverviewVideos: return MTP_inputMessagesFilterVideo();
-	case OverviewMusicFiles: return MTP_inputMessagesFilterMusic();
-	case OverviewFiles: return MTP_inputMessagesFilterDocument();
-	case OverviewVoiceFiles: return MTP_inputMessagesFilterVoice();
-	case OverviewRoundVoiceFiles: return MTP_inputMessagesFilterRoundVoice();
-	case OverviewGIFs: return MTP_inputMessagesFilterGif();
-	case OverviewLinks: return MTP_inputMessagesFilterUrl();
-	case OverviewChatPhotos: return MTP_inputMessagesFilterChatPhotos();
-	default: return MTP_inputMessagesFilterEmpty();
-	}
-}
-
-} // namespace
-
 enum StackItemType {
 	HistoryStackItem,
 	SectionStackItem,
@@ -1631,97 +1612,10 @@ void MainWidget::searchMessages(const QString &query, PeerData *inPeer) {
 	}
 }
 
-bool MainWidget::preloadOverview(PeerData *peer, MediaOverviewType type) {
-	auto filter = TypeToMediaFilter(type);
-	if (filter.type() == mtpc_inputMessagesFilterEmpty) {
-		return false;
-	}
-
-	auto history = App::history(peer->id);
-	if (history->overviewCountLoaded(type) || _overviewPreload[type].contains(peer)) {
-		return false;
-	}
-
-	auto request = MTPmessages_Search(
-		MTP_flags(0),
-		peer->input,
-		MTP_string(""),
-		MTP_inputUserEmpty(),
-		filter,
-		MTP_int(0),
-		MTP_int(0),
-		MTP_int(0),
-		MTP_int(0),
-		MTP_int(0),
-		MTP_int(0),
-		MTP_int(0));
-	_overviewPreload[type].insert(peer, MTP::send(
-		request,
-		rpcDone(&MainWidget::overviewPreloaded, peer),
-		rpcFail(&MainWidget::overviewFailed, peer),
-		0,
-		10));
-	return true;
-}
-
-void MainWidget::overviewPreloaded(
-		PeerData *peer,
-		const MTPmessages_Messages &result,
-		mtpRequestId req) {
-	MediaOverviewType type = OverviewCount;
-	for (int32 i = 0; i < OverviewCount; ++i) {
-		OverviewsPreload::iterator j = _overviewPreload[i].find(peer);
-		if (j != _overviewPreload[i].end() && j.value() == req) {
-			type = MediaOverviewType(i);
-			_overviewPreload[i].erase(j);
-			break;
-		}
-	}
-
-	if (type == OverviewCount) return;
-
-	auto startMessageId = MsgId(0);
-	App::history(peer->id)->overviewSliceDone(type, startMessageId, result, true);
-
-	Notify::mediaOverviewUpdated(peer, type);
-}
-
 void MainWidget::itemEdited(HistoryItem *item) {
 	if (_history->peer() == item->history()->peer || (_history->peer() && _history->peer() == item->history()->peer->migrateTo())) {
 		_history->itemEdited(item);
 	}
-}
-
-bool MainWidget::overviewFailed(PeerData *peer, const RPCError &error, mtpRequestId req) {
-	if (MTP::isDefaultHandledError(error)) return false;
-
-	MediaOverviewType type = OverviewCount;
-	for (int32 i = 0; i < OverviewCount; ++i) {
-		OverviewsPreload::iterator j = _overviewPreload[i].find(peer);
-		if (j != _overviewPreload[i].end() && j.value() == req) {
-			_overviewPreload[i].erase(j);
-			break;
-		}
-	}
-	return true;
-}
-
-void MainWidget::loadMediaBack(PeerData *peer, MediaOverviewType type, bool many) {
-	if (_overviewLoad[type].constFind(peer) != _overviewLoad[type].cend()) return;
-
-	auto history = App::history(peer->id);
-	if (history->overviewLoaded(type)) {
-		return;
-	}
-
-	auto minId = history->overviewMinId(type);
-	auto limit = (many || history->overview(type).size() > MediaOverviewStartPerPage) ? SearchPerPage : MediaOverviewStartPerPage;
-	auto filter = TypeToMediaFilter(type);
-	if (filter.type() == mtpc_inputMessagesFilterEmpty) {
-		return;
-	}
-
-	_overviewLoad[type].insert(peer, MTP::send(MTPmessages_Search(MTP_flags(0), peer->input, MTPstring(), MTP_inputUserEmpty(), filter, MTP_int(0), MTP_int(0), MTP_int(minId), MTP_int(0), MTP_int(limit), MTP_int(0), MTP_int(0)), rpcDone(&MainWidget::overviewLoaded, { history, minId })));
 }
 
 void MainWidget::checkLastUpdate(bool afterSleep) {
@@ -1730,28 +1624,6 @@ void MainWidget::checkLastUpdate(bool afterSleep) {
 		_lastUpdateTime = n;
 		MTP::ping();
 	}
-}
-
-void MainWidget::overviewLoaded(
-		std::pair<not_null<History*>,MsgId> historyAndStartMsgId,
-		const MTPmessages_Messages &result,
-		mtpRequestId req) {
-	auto history = historyAndStartMsgId.first;
-	OverviewsPreload::iterator it;
-	MediaOverviewType type = OverviewCount;
-	for (int32 i = 0; i < OverviewCount; ++i) {
-		it = _overviewLoad[i].find(history->peer);
-		if (it != _overviewLoad[i].cend()) {
-			type = MediaOverviewType(i);
-			_overviewLoad[i].erase(it);
-			break;
-		}
-	}
-	if (type == OverviewCount) return;
-
-	history->overviewSliceDone(type, historyAndStartMsgId.second, result);
-
-	Notify::mediaOverviewUpdated(history->peer, type);
 }
 
 void MainWidget::messagesAffected(
@@ -4948,7 +4820,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 					auto entities = d.has_entities() ? TextUtilities::EntitiesFromMTP(d.ventities.v) : EntitiesInText();
 					item->setText({ text, entities });
 					item->updateMedia(d.has_media() ? (&d.vmedia) : nullptr);
-					item->addToOverview(AddToOverviewNew);
+					item->addToUnreadMentions(AddToUnreadMentionsMethod::New);
 					if (!wasAlready) {
 						if (auto sharedMediaTypes = item->sharedMediaTypes()) {
 							Auth().storage().add(Storage::SharedMediaAddNew(

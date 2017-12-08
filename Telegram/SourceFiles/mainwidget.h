@@ -272,10 +272,7 @@ public:
 
 	void jumpToDate(not_null<PeerData*> peer, const QDate &date);
 	void searchMessages(const QString &query, PeerData *inPeer);
-	bool preloadOverview(PeerData *peer, MediaOverviewType type);
 	void itemEdited(HistoryItem *item);
-
-	void loadMediaBack(PeerData *peer, MediaOverviewType type, bool many = false);
 
 	void checkLastUpdate(bool afterSleep);
 
@@ -470,10 +467,6 @@ private:
 		not_null<PeerData*> peer,
 		const MTPmessages_AffectedMessages &result);
 	void messagesContentsRead(const MTPmessages_AffectedMessages &result);
-	void overviewLoaded(
-		std::pair<not_null<History*>, MsgId> historyAndStartMsgId,
-		const MTPmessages_Messages &result,
-		mtpRequestId req);
 
 	Window::SectionSlideParams prepareShowAnimation(
 		bool willHaveTopBarShadow);
@@ -525,9 +518,6 @@ private:
 
 	void hideAll();
 	void showAll();
-
-	void overviewPreloaded(PeerData *data, const MTPmessages_Messages &result, mtpRequestId req);
-	bool overviewFailed(PeerData *data, const RPCError &error, mtpRequestId req);
 
 	void clearCachedBackground();
 	void checkCurrentFloatPlayer();
@@ -644,9 +634,6 @@ private:
 
 	base::flat_set<not_null<PeerData*>> updateNotifySettingPeers;
 	SingleTimer updateNotifySettingTimer;
-
-	typedef QMap<PeerData*, mtpRequestId> OverviewsPreload;
-	OverviewsPreload _overviewPreload[OverviewCount], _overviewLoad[OverviewCount];
 
 	int32 _failDifferenceTimeout = 1; // growing timeout for getDifference calls, if it fails
 	typedef QMap<ChannelData*, int32> ChannelFailDifferenceTimeout;

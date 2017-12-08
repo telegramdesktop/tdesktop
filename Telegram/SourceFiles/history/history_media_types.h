@@ -164,8 +164,6 @@ public:
 	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
-	int32 addToOverview(AddToOverviewMethod method) override;
-	void eraseFromOverview() override;
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	PhotoData *photo() const {
@@ -252,8 +250,6 @@ public:
 	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
-	int32 addToOverview(AddToOverviewMethod method) override;
-	void eraseFromOverview() override;
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	DocumentData *getDocument() override {
@@ -412,8 +408,6 @@ public:
 	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
-	int32 addToOverview(AddToOverviewMethod method) override;
-	void eraseFromOverview() override;
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	bool uploading() const override {
@@ -521,8 +515,6 @@ public:
 	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
-	int32 addToOverview(AddToOverviewMethod method) override;
-	void eraseFromOverview() override;
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
 	bool uploading() const override {
