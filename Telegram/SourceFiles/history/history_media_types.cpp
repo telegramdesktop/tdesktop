@@ -1590,10 +1590,8 @@ int32 HistoryDocument::addToOverview(AddToOverviewMethod method) {
 	if (_data->voice()) {
 		result |= addToOneOverview(OverviewVoiceFiles, method);
 		result |= addToOneOverview(OverviewRoundVoiceFiles, method);
-	} else if (_data->song()) {
-		if (_data->isMusic()) {
-			result |= addToOneOverview(OverviewMusicFiles, method);
-		}
+	} else if (_data->isMusic()) {
+		result |= addToOneOverview(OverviewMusicFiles, method);
 	} else {
 		result |= addToOneOverview(OverviewFiles, method);
 	}
@@ -1604,10 +1602,8 @@ void HistoryDocument::eraseFromOverview() {
 	if (_data->voice()) {
 		eraseFromOneOverview(OverviewVoiceFiles);
 		eraseFromOneOverview(OverviewRoundVoiceFiles);
-	} else if (_data->song()) {
-		if (_data->isMusic()) {
-			eraseFromOneOverview(OverviewMusicFiles);
-		}
+	} else if (_data->isMusic()) {
+		eraseFromOneOverview(OverviewMusicFiles);
 	} else {
 		eraseFromOneOverview(OverviewFiles);
 	}
@@ -1619,11 +1615,8 @@ Storage::SharedMediaTypesMask HistoryDocument::sharedMediaTypes() const {
 		return Storage::SharedMediaTypesMask{}
 			.added(Type::VoiceFile)
 			.added(Type::RoundVoiceFile);
-	} else if (_data->song()) {
-		if (_data->isMusic()) {
-			return Type::MusicFile;
-		}
-		return {};
+	} else if (_data->isMusic()) {
+		return Type::MusicFile;
 	}
 	return Type::File;
 }
