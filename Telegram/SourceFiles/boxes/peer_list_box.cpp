@@ -1362,8 +1362,12 @@ void PeerListContent::setSearchQuery(
 }
 
 void PeerListContent::submitted() {
-	if (auto row = getRow(_selected.index)) {
+	if (const auto row = getRow(_selected.index)) {
 		_controller->rowClicked(row);
+	} else if (showingSearch()) {
+		if (const auto row = getRow(RowIndex(0))) {
+			_controller->rowClicked(row);
+		}
 	}
 }
 
