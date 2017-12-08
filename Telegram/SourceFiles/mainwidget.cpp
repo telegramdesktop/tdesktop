@@ -715,18 +715,15 @@ bool MainWidget::onInlineSwitchChosen(const PeerId &peer, const QString &botAndQ
 	return true;
 }
 
-void MainWidget::cancelForwarding(History *history) {
+void MainWidget::cancelForwarding(not_null<History*> history) {
 	history->setForwardDraft({});
 	_history->updateForwarding();
 }
 
-void MainWidget::finishForwarding(History *history, bool silent) {
-	if (!history) return;
-
+void MainWidget::finishForwarding(not_null<History*> history) {
 	auto toForward = history->validateForwardDraft();
 	if (!toForward.empty()) {
 		auto options = ApiWrap::SendOptions(history);
-		options.silent = silent;
 		Auth().api().forwardMessages(std::move(toForward), options);
 
 		if (_history->peer() == history->peer) {
@@ -1462,17 +1459,17 @@ Dialogs::IndexedList *MainWidget::contactsNoDialogsList() {
 
 void MainWidget::sendMessage(const MessageToSend &message) {
 	const auto history = message.history;
+	const auto peer = history->peer;
 	auto &textWithTags = message.textWithTags;
 
-	auto options = ApiWrap::SendOptions(message.history);
+	auto options = ApiWrap::SendOptions(history);
 	options.clearDraft = message.clearDraft;
 	options.replyTo = message.replyTo;
 	options.generateLocal = true;
-	options.silent = message.silent;
 	options.webPageId = message.webPageId;
 	Auth().api().sendAction(options);
 
-	if (!history->peer->canWrite()) {
+	if (!peer->canWrite()) {
 		return;
 	}
 	saveRecentHashtags(textWithTags.text);
@@ -1485,16 +1482,16 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 	HistoryItem *lastMessage = nullptr;
 
 	while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
-		auto newId = FullMsgId(peerToChannel(history->peer->id), clientMsgId());
+		auto newId = FullMsgId(peerToChannel(peer->id), clientMsgId());
 		auto randomId = rand_value<uint64>();
 
 		TextUtilities::Trim(sending);
 
 		App::historyRegRandom(randomId, newId);
-		App::historyRegSentData(randomId, history->peer->id, sending.text);
+		App::historyRegSentData(randomId, peer->id, sending.text);
 
 		MTPstring msgText(MTP_string(sending.text));
-		auto flags = NewMessageFlags(history->peer) | MTPDmessage::Flag::f_entities; // unread, out
+		auto flags = NewMessageFlags(peer) | MTPDmessage::Flag::f_entities;
 		auto sendFlags = MTPmessages_SendMessage::Flags(0);
 		if (message.replyTo) {
 			flags |= MTPDmessage::Flag::f_reply_to_msg_id;
@@ -1508,15 +1505,15 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 			media = MTP_messageMediaWebPage(MTP_webPagePending(MTP_long(page->id), MTP_int(page->pendingTill)));
 			flags |= MTPDmessage::Flag::f_media;
 		}
-		bool channelPost = history->peer->isChannel() && !history->peer->isMegagroup();
-		bool silentPost = channelPost && message.silent;
+		bool channelPost = peer->isChannel() && !peer->isMegagroup();
+		bool silentPost = channelPost && peer->notifySilentPosts();
 		if (channelPost) {
 			flags |= MTPDmessage::Flag::f_views;
 			flags |= MTPDmessage::Flag::f_post;
 		}
 		if (!channelPost) {
 			flags |= MTPDmessage::Flag::f_from_id;
-		} else if (history->peer->asChannel()->addsSignature()) {
+		} else if (peer->asChannel()->addsSignature()) {
 			flags |= MTPDmessage::Flag::f_post_author;
 		}
 		if (silentPost) {
@@ -1538,7 +1535,7 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 				MTP_flags(flags),
 				MTP_int(newId.msg),
 				MTP_int(messageFromId),
-				peerToMTP(history->peer->id),
+				peerToMTP(peer->id),
 				MTPnullFwdHeader,
 				MTPint(),
 				MTP_int(message.replyTo),
@@ -1555,7 +1552,7 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 		history->sendRequestId = MTP::send(
 			MTPmessages_SendMessage(
 				MTP_flags(sendFlags),
-				history->peer->input,
+				peer->input,
 				MTP_int(message.replyTo),
 				msgText,
 				MTP_long(randomId),
@@ -1570,7 +1567,7 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 
 	history->lastSentMsg = lastMessage;
 
-	finishForwarding(history, message.silent);
+	finishForwarding(history);
 }
 
 void MainWidget::saveRecentHashtags(const QString &text) {

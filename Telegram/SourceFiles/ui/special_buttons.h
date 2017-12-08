@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/tooltip.h"
 #include "styles/style_window.h"
 #include "styles/style_widgets.h"
 
@@ -227,6 +228,32 @@ private:
 	bool _cursorInChangeOverlay = false;
 	bool _changeOverlayEnabled = false;
 	Animation _changeOverlayShown;
+
+};
+
+class SilentToggle : public Ui::IconButton, public Ui::AbstractTooltipShower {
+public:
+	SilentToggle(QWidget *parent, not_null<ChannelData*> channel);
+
+	void setChecked(bool checked);
+	bool checked() const {
+		return _checked;
+	}
+
+	// AbstractTooltipShower interface
+	QString tooltipText() const override;
+	QPoint tooltipPos() const override;
+
+protected:
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
+
+private:
+	void refreshIconOverrides();
+
+	not_null<ChannelData*> _channel;
+	bool _checked = false;
 
 };
 

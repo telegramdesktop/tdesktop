@@ -256,7 +256,6 @@ public:
 		not_null<History*> history;
 		TextWithTags textWithTags;
 		MsgId replyTo = 0;
-		bool silent = false;
 		WebPageId webPageId = 0;
 		bool clearDraft = true;
 	};
@@ -300,8 +299,8 @@ public:
 
 	void pushReplyReturn(HistoryItem *item);
 
-	void cancelForwarding(History *history);
-	void finishForwarding(History *history, bool silent); // send them
+	void cancelForwarding(not_null<History*> history);
+	void finishForwarding(not_null<History*> history);
 
 	void mediaMarkRead(not_null<DocumentData*> data);
 	void mediaMarkRead(const base::flat_set<not_null<HistoryItem*>> &items);

@@ -2432,12 +2432,12 @@ void ApiWrap::forwardMessages(
 	const auto count = int(items.size());
 	const auto genClientSideMessage = options.generateLocal && (count < 2);
 	const auto history = options.history;
+	const auto peer = history->peer;
 
 	readServerHistory(history);
 
-	const auto channelPost = history->peer->isChannel()
-		&& !history->peer->isMegagroup();
-	const auto silentPost = channelPost && options.silent;
+	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
+	const auto silentPost = channelPost && peer->notifySilentPosts();
 
 	auto flags = MTPDmessage::Flags(0);
 	auto sendFlags = MTPmessages_ForwardMessages::Flags(0);
@@ -2447,7 +2447,7 @@ void ApiWrap::forwardMessages(
 	}
 	if (!channelPost) {
 		flags |= MTPDmessage::Flag::f_from_id;
-	} else if (history->peer->asChannel()->addsSignature()) {
+	} else if (peer->asChannel()->addsSignature()) {
 		flags |= MTPDmessage::Flag::f_post_author;
 	}
 	if (silentPost) {
@@ -2467,7 +2467,7 @@ void ApiWrap::forwardMessages(
 			forwardFrom->input,
 			MTP_vector<MTPint>(ids),
 			MTP_vector<MTPlong>(randomIds),
-			history->peer->input
+			peer->input
 		)).done([=, callback = std::move(successCallback)](
 				const MTPUpdates &updates) {
 			applyUpdates(updates);
@@ -2489,7 +2489,7 @@ void ApiWrap::forwardMessages(
 		if (genClientSideMessage) {
 			if (auto message = item->toHistoryMessage()) {
 				const auto newId = FullMsgId(
-					peerToChannel(history->peer->id),
+					peerToChannel(peer->id),
 					clientMsgId());
 				const auto self = Auth().user();
 				const auto messageFromId = channelPost
@@ -2559,7 +2559,7 @@ void ApiWrap::sendSharedContact(
 	const auto randomId = rand_value<uint64>();
 	const auto newId = FullMsgId(history->channelId(), clientMsgId());
 	const auto channelPost = peer->isChannel() && !peer->isMegagroup();
-	const auto silentPost = channelPost && options.silent;
+	const auto silentPost = channelPost && peer->notifySilentPosts();
 
 	auto flags = NewMessageFlags(peer) | MTPDmessage::Flag::f_media;
 

@@ -428,7 +428,6 @@ void Manager::notificationReplied(
 	auto message = MainWidget::MessageToSend(history);
 	message.textWithTags = { reply, TextWithTags::Tags() };
 	message.replyTo = (msgId > 0 && !history->peer->isUser()) ? msgId : 0;
-	message.silent = false;
 	message.clearDraft = false;
 	if (auto main = App::main()) {
 		main->sendMessage(message);

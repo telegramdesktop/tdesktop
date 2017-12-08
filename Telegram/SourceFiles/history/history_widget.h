@@ -48,6 +48,7 @@ class IconButton;
 class HistoryDownButton;
 class EmojiButton;
 class SendButton;
+class SilentToggle;
 class FlatButton;
 class LinkButton;
 class RoundButton;
@@ -67,7 +68,6 @@ class TabbedSelector;
 } // namespace ChatHelpers
 
 class DragArea;
-class SilentToggle;
 class SendFilesBox;
 class BotKeyboard;
 class MessageField;
@@ -779,6 +779,7 @@ private:
 	void updateSendButtonType();
 	bool showRecordButton() const;
 	bool showInlineBotCancel() const;
+	void refreshSilentToggle();
 
 	object_ptr<ReportSpamPanel> _reportSpamPanel = { nullptr };
 
@@ -796,7 +797,7 @@ private:
 	object_ptr<Ui::IconButton> _botKeyboardShow;
 	object_ptr<Ui::IconButton> _botKeyboardHide;
 	object_ptr<Ui::IconButton> _botCommandStart;
-	object_ptr<SilentToggle> _silent;
+	object_ptr<Ui::SilentToggle> _silent = { nullptr };
 	bool _cmdStartShown = false;
 	object_ptr<MessageField> _field;
 	bool _recording = false;

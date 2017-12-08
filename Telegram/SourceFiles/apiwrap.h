@@ -165,7 +165,6 @@ public:
 
 		not_null<History*> history;
 		MsgId replyTo = 0;
-		bool silent = false;
 		WebPageId webPageId = 0;
 		bool clearDraft = false;
 		bool generateLocal = true;

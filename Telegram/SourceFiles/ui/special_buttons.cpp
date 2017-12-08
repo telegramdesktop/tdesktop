@@ -32,6 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/window_controller.h"
 #include "lang/lang_keys.h"
 #include "auth_session.h"
+#include "mainwidget.h"
 #include "messenger.h"
 #include "observer_peer.h"
 
@@ -829,6 +830,70 @@ void UserpicButton::prepareUserpicPixmap() {
 	_userpicUniqueKey = _userpicHasImage
 		? _peer->userpicUniqueKey()
 		: StorageKey();
+}
+
+SilentToggle::SilentToggle(QWidget *parent, not_null<ChannelData*> channel)
+: IconButton(parent, st::historySilentToggle)
+, _channel(channel)
+, _checked(_channel->notifySilentPosts()) {
+	Expects(!_channel->notifySettingsUnknown());
+
+	if (_checked) {
+		refreshIconOverrides();
+	}
+	setMouseTracking(true);
+}
+
+void SilentToggle::mouseMoveEvent(QMouseEvent *e) {
+	IconButton::mouseMoveEvent(e);
+	if (rect().contains(e->pos())) {
+		Ui::Tooltip::Show(1000, this);
+	} else {
+		Ui::Tooltip::Hide();
+	}
+}
+
+void SilentToggle::setChecked(bool checked) {
+	if (_checked != checked) {
+		_checked = checked;
+		refreshIconOverrides();
+	}
+}
+
+void SilentToggle::refreshIconOverrides() {
+	const auto iconOverride = _checked
+		? &st::historySilentToggleOn
+		: nullptr;
+	const auto iconOverOverride = _checked
+		? &st::historySilentToggleOnOver
+		: nullptr;
+	setIconOverride(iconOverride, iconOverOverride);
+}
+
+void SilentToggle::leaveEventHook(QEvent *e) {
+	IconButton::leaveEventHook(e);
+	Ui::Tooltip::Hide();
+}
+
+void SilentToggle::mouseReleaseEvent(QMouseEvent *e) {
+	setChecked(!_checked);
+	IconButton::mouseReleaseEvent(e);
+	Ui::Tooltip::Show(0, this);
+	const auto silentState = _checked
+		? Data::NotifySettings::SilentPostsChange::Silent
+		: Data::NotifySettings::SilentPostsChange::Notify;
+	App::main()->updateNotifySettings(
+		_channel,
+		Data::NotifySettings::MuteChange::Ignore,
+		silentState);
+}
+
+QString SilentToggle::tooltipText() const {
+	return lang(_checked ? lng_wont_be_notified : lng_will_be_notified);
+}
+
+QPoint SilentToggle::tooltipPos() const {
+	return QCursor::pos();
 }
 
 } // namespace Ui
