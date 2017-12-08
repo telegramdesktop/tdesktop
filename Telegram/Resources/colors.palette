@@ -316,6 +316,7 @@ historyPeer8NameFg: #ce671b; // orange group member name
 historyPeer8NameFgSelected: historyPeer8NameFg; // orange group member name in a selected message
 historyPeer8UserpicBg: #faa774; // orange userpic background
 historyPeerUserpicFg: windowFgActive; // default userpic initials
+historyPeerSavedMessagesBg: historyPeer4UserpicBg; // saved messages userpic background
 
 // Some values are marked as (adjusted), it means they're adjusted by
 // hue and saturation of the average background color if user chooses

@@ -84,7 +84,7 @@ void EmptyUserpic::PaintSavedMessages(
 		int y,
 		int outerWidth,
 		int size) {
-	const auto &bg = st::historyPeer4UserpicBg;
+	const auto &bg = st::historyPeerSavedMessagesBg;
 	const auto &fg = st::historyPeerUserpicFg;
 	PaintSavedMessages(p, x, y, outerWidth, size, bg, fg);
 }
