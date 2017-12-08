@@ -509,6 +509,8 @@ void mtpFileLoader::makeRequest(int offset) {
 }
 
 void mtpFileLoader::requestMoreCdnFileHashes() {
+	Expects(!_finished);
+
 	if (_cdnHashesRequestId || _cdnUncheckedParts.empty()) {
 		return;
 	}
@@ -519,7 +521,13 @@ void mtpFileLoader::requestMoreCdnFileHashes() {
 	requestData.dcIndex = 0;
 	requestData.offset = offset;
 	auto shiftedDcId = MTP::downloadDcId(requestData.dcId, requestData.dcIndex);
-	auto requestId = _cdnHashesRequestId = MTP::send(MTPupload_GetCdnFileHashes(MTP_bytes(_cdnToken), MTP_int(offset)), rpcDone(&mtpFileLoader::getCdnFileHashesDone), rpcFail(&mtpFileLoader::cdnPartFailed), shiftedDcId);
+	auto requestId = _cdnHashesRequestId = MTP::send(
+		MTPupload_GetCdnFileHashes(
+			MTP_bytes(_cdnToken),
+			MTP_int(offset)),
+		rpcDone(&mtpFileLoader::getCdnFileHashesDone),
+		rpcFail(&mtpFileLoader::cdnPartFailed),
+		shiftedDcId);
 	placeSentRequest(requestId, requestData);
 }
 
@@ -596,9 +604,7 @@ void mtpFileLoader::cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequestId 
 		cancel(true);
 	} return;
 
-	case CheckCdnHashResult::Good: {
-		partLoaded(offset, bytes);
-	} return;
+	case CheckCdnHashResult::Good: return partLoaded(offset, bytes);
 	}
 	Unexpected("Result of checkCdnFileHash()");
 }
@@ -627,12 +633,12 @@ void mtpFileLoader::getCdnFileHashesDone(const MTPVector<MTPCdnFileHash> &result
 
 	_cdnHashesRequestId = 0;
 
-	auto offset = finishSentRequestGetOffset(requestId);
+	const auto offset = finishSentRequestGetOffset(requestId);
 	addCdnHashes(result.v);
 	auto someMoreChecked = false;
 	for (auto i = _cdnUncheckedParts.begin(); i != _cdnUncheckedParts.cend();) {
-		auto uncheckedOffset = i->first;
-		auto uncheckedBytes = gsl::as_bytes(gsl::make_span(i->second));
+		const auto uncheckedOffset = i->first;
+		const auto uncheckedBytes = gsl::as_bytes(gsl::make_span(i->second));
 
 		switch (checkCdnFileHash(uncheckedOffset, uncheckedBytes)) {
 		case CheckCdnHashResult::NoHash: {
@@ -647,13 +653,17 @@ void mtpFileLoader::getCdnFileHashesDone(const MTPVector<MTPCdnFileHash> &result
 
 		case CheckCdnHashResult::Good: {
 			someMoreChecked = true;
-			auto goodOffset = uncheckedOffset;
-			auto goodBytes = std::move(i->second);
+			const auto goodOffset = uncheckedOffset;
+			const auto goodBytes = std::move(i->second);
+			const auto goodBytesSpan = gsl::make_span(goodBytes);
+			const auto weak = QPointer<mtpFileLoader>(this);
 			i = _cdnUncheckedParts.erase(i);
-			auto guarded = QPointer<mtpFileLoader>(this);
-			partLoaded(goodOffset, gsl::as_bytes(gsl::make_span(goodBytes)));
-			if (!guarded) {
-				// Perhaps we were destroyed already?..
+			if (!feedPart(goodOffset, gsl::as_bytes(goodBytesSpan))
+				|| !weak) {
+				return;
+			} else if (_finished) {
+				emit progress(this);
+				loadNext();
 				return;
 			}
 		} break;
@@ -661,12 +671,13 @@ void mtpFileLoader::getCdnFileHashesDone(const MTPVector<MTPCdnFileHash> &result
 		default: Unexpected("Result of checkCdnFileHash()");
 		}
 	}
-	if (!someMoreChecked) {
-		LOG(("API Error: Could not find cdnFileHash for offset %1 after getCdnFileHashes request.").arg(offset));
-		cancel(true);
-	} else {
-		requestMoreCdnFileHashes();
+	if (someMoreChecked) {
+		emit progress(this);
+		loadNext();
+		return requestMoreCdnFileHashes();
 	}
+	LOG(("API Error: Could not find cdnFileHash for offset %1 after getCdnFileHashes request.").arg(offset));
+	cancel(true);
 }
 
 void mtpFileLoader::placeSentRequest(mtpRequestId requestId, const RequestData &requestData) {
@@ -690,7 +701,7 @@ int mtpFileLoader::finishSentRequestGetOffset(mtpRequestId requestId) {
 	return requestData.offset;
 }
 
-void mtpFileLoader::partLoaded(int offset, base::const_byte_span bytes) {
+bool mtpFileLoader::feedPart(int offset, base::const_byte_span bytes) {
 	Expects(!_finished);
 
 	if (bytes.size()) {
@@ -703,7 +714,8 @@ void mtpFileLoader::partLoaded(int offset, base::const_byte_span bytes) {
 			}
 			_file.seek(offset);
 			if (_file.write(reinterpret_cast<const char*>(bytes.data()), bytes.size()) != qint64(bytes.size())) {
-				return cancel(true);
+				cancel(true);
+				return false;
 			}
 		} else {
 			if (offset > 100 * 1024 * 1024) {
@@ -737,14 +749,16 @@ void mtpFileLoader::partLoaded(int offset, base::const_byte_span bytes) {
 	if (!bytes.size() || (bytes.size() % 1024)) { // bad next offset
 		_lastComplete = true;
 	}
-	if (_sentRequests.empty() && _cdnUncheckedParts.empty() && (_lastComplete || (_size && _nextRequestOffset >= _size))) {
+	if (_sentRequests.empty()
+		&& _cdnUncheckedParts.empty()
+		&& (_lastComplete || (_size && _nextRequestOffset >= _size))) {
 		if (!_filename.isEmpty() && (_toCache == LoadToCacheAsWell)) {
-			if (!_fileIsOpen) _fileIsOpen = _file.open(QIODevice::WriteOnly);
 			if (!_fileIsOpen) {
-				return cancel(true);
+				_fileIsOpen = _file.open(QIODevice::WriteOnly);
 			}
-			if (_file.write(_data) != qint64(_data.size())) {
-				return cancel(true);
+			if (!_fileIsOpen || _file.write(_data) != qint64(_data.size())) {
+				cancel(true);
+				return false;
 			}
 		}
 		_finished = true;
@@ -778,10 +792,14 @@ void mtpFileLoader::partLoaded(int offset, base::const_byte_span bytes) {
 	if (_finished) {
 		_downloader->taskFinished().notify();
 	}
+	return true;
+}
 
-	emit progress(this);
-
-	loadNext();
+void mtpFileLoader::partLoaded(int offset, base::const_byte_span bytes) {
+	if (feedPart(offset, bytes)) {
+		emit progress(this);
+		loadNext();
+	}
 }
 
 bool mtpFileLoader::partFailed(const RPCError &error) {

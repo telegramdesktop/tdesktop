@@ -238,7 +238,9 @@ private:
 	void requestMoreCdnFileHashes();
 	void getCdnFileHashesDone(const MTPVector<MTPCdnFileHash> &result, mtpRequestId requestId);
 
+	bool feedPart(int offset, base::const_byte_span bytes);
 	void partLoaded(int offset, base::const_byte_span bytes);
+
 	bool partFailed(const RPCError &error);
 	bool cdnPartFailed(const RPCError &error, mtpRequestId requestId);
 
