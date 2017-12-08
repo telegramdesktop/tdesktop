@@ -742,17 +742,18 @@ void HistoryTopBarWidget::updateOnlineDisplay() {
 void HistoryTopBarWidget::updateOnlineDisplayTimer() {
 	if (!_historyPeer) return;
 
-	int32 t = unixtime(), minIn = 86400;
-	if (auto user = _historyPeer->asUser()) {
-		minIn = App::onlineWillChangeIn(user, t);
+	const auto now = unixtime();
+	auto minIn = TimeId(86400);
+	const auto handleUser = [&](not_null<UserData*> user) {
+		auto hisMinIn = App::onlineWillChangeIn(user, now);
+		Assert(hisMinIn >= 0 && hisMinIn <= 86400);
+		accumulate_min(minIn, hisMinIn);
+	};
+	if (const auto user = _historyPeer->asUser()) {
+		handleUser(user);
 	} else if (auto chat = _historyPeer->asChat()) {
-		if (chat->participants.empty()) return;
-
 		for (auto [user, v] : chat->participants) {
-			auto onlineWillChangeIn = App::onlineWillChangeIn(user, t);
-			if (onlineWillChangeIn < minIn) {
-				minIn = onlineWillChangeIn;
-			}
+			handleUser(user);
 		}
 	} else if (_historyPeer->isChannel()) {
 	}
