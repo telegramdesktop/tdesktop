@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "codegen/style/generator.h"
 
+#include <set>
 #include <memory>
 #include <functional>
 #include <QtCore/QDir>
@@ -609,10 +610,14 @@ bool Generator::writeStructsForwardDeclarations() {
 	}
 
 	header_->newline();
-	bool result = module_.enumVariables([this](const Variable &value) -> bool {
+	std::set<QString> alreadyDeclaredTypes;
+	bool result = module_.enumVariables([this, &alreadyDeclaredTypes](const Variable &value) -> bool {
 		if (value.value.type().tag == structure::TypeTag::Struct) {
 			if (!module_.findStructInModule(value.value.type().name, module_)) {
-				header_->stream() << "struct " << value.value.type().name.back() << ";\n";
+				if (alreadyDeclaredTypes.find(value.value.type().name.back()) == alreadyDeclaredTypes.end()) {
+					header_->stream() << "struct " << value.value.type().name.back() << ";\n";
+					alreadyDeclaredTypes.emplace(value.value.type().name.back());
+				}
 			}
 		}
 		return true;
