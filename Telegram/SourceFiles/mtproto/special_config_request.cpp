@@ -157,7 +157,9 @@ bool SpecialConfigRequest::decryptSimpleConfig(const QByteArray &bytes) {
 		return false;
 	}
 
-	auto publicKey = internal::RSAPublicKey(gsl::as_bytes(gsl::make_span(kPublicKey.c_str(), kPublicKey.size())));
+	auto publicKey = internal::RSAPublicKey(gsl::as_bytes(gsl::make_span(
+		kPublicKey.c_str(),
+		kPublicKey.size())));
 	auto decrypted = publicKey.decrypt(gsl::as_bytes(gsl::make_span(decodedBytes)));
 	auto decryptedBytes = gsl::make_span(decrypted);
 

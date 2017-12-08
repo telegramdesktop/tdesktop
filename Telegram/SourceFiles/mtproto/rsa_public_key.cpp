@@ -26,9 +26,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <openssl/bio.h>
 #include <openssl/err.h>
 
-using std::string;
-
 namespace MTP {
+namespace internal {
 namespace {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 
@@ -66,14 +65,45 @@ void RSA_get0_key(const RSA *r, const BIGNUM **n, const BIGNUM **e, const BIGNUM
 }
 
 #endif
+
+enum class Format {
+	RSAPublicKey,
+	RSA_PUBKEY,
+	Unknown,
+};
+
+Format GuessFormat(base::const_byte_span key) {
+	const auto array = QByteArray::fromRawData(
+		reinterpret_cast<const char*>(key.data()),
+		key.size());
+	if (array.indexOf("BEGIN RSA PUBLIC KEY") >= 0) {
+		return Format::RSAPublicKey;
+	} else if (array.indexOf("BEGIN PUBLIC KEY") >= 0) {
+		return Format::RSA_PUBKEY;
+	}
+	return Format::Unknown;
 }
 
-namespace internal {
+RSA *CreateRaw(base::const_byte_span key) {
+	const auto format = GuessFormat(key);
+	const auto bio = BIO_new_mem_buf(
+		const_cast<gsl::byte*>(key.data()),
+		key.size());
+	switch (format) {
+	case Format::RSAPublicKey:
+		return PEM_read_bio_RSAPublicKey(bio, nullptr, nullptr, nullptr);
+	case Format::RSA_PUBKEY:
+		return PEM_read_bio_RSA_PUBKEY(bio, nullptr, nullptr, nullptr);
+	}
+	Unexpected("format in RSAPublicKey::Private::Create.");
+}
+
+} // namespace
 
 class RSAPublicKey::Private {
 public:
 	Private(base::const_byte_span key)
-	: _rsa(PEM_read_bio_RSAPublicKey(BIO_new_mem_buf(const_cast<gsl::byte*>(key.data()), key.size()), 0, 0, 0)) {
+	: _rsa(CreateRaw(key)) {
 		if (_rsa) {
 			computeFingerprint();
 		}
@@ -174,10 +204,14 @@ private:
 
 };
 
-RSAPublicKey::RSAPublicKey(base::const_byte_span key) : _private(std::make_shared<Private>(key)) {
+RSAPublicKey::RSAPublicKey(base::const_byte_span key)
+: _private(std::make_shared<Private>(key)) {
 }
 
-RSAPublicKey::RSAPublicKey(base::const_byte_span nBytes, base::const_byte_span eBytes) : _private(std::make_shared<Private>(nBytes, eBytes)) {
+RSAPublicKey::RSAPublicKey(
+	base::const_byte_span nBytes,
+	base::const_byte_span eBytes)
+: _private(std::make_shared<Private>(nBytes, eBytes)) {
 }
 
 bool RSAPublicKey::isValid() const {

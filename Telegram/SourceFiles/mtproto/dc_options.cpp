@@ -23,6 +23,55 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/serialize_common.h"
 
 namespace MTP {
+namespace {
+
+const char *(PublicRSAKeys[]) = { "\
+-----BEGIN RSA PUBLIC KEY-----\n\
+MIIBCgKCAQEAwVACPi9w23mF3tBkdZz+zwrzKOaaQdr01vAbU4E1pvkfj4sqDsm6\n\
+lyDONS789sVoD/xCS9Y0hkkC3gtL1tSfTlgCMOOul9lcixlEKzwKENj1Yz/s7daS\n\
+an9tqw3bfUV/nqgbhGX81v/+7RFAEd+RwFnK7a+XYl9sluzHRyVVaTTveB2GazTw\n\
+Efzk2DWgkBluml8OREmvfraX3bkHZJTKX4EQSjBbbdJ2ZXIsRrYOXfaA+xayEGB+\n\
+8hdlLmAjbCVfaigxX0CDqWeR1yFL9kwd9P0NsZRPsmoqVwMbMu7mStFai6aIhc3n\n\
+Slv8kg9qv1m6XHVQY3PnEw+QQtqSIXklHwIDAQAB\n\
+-----END RSA PUBLIC KEY-----", "\
+-----BEGIN PUBLIC KEY-----\n\
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAruw2yP/BCcsJliRoW5eB\n\
+VBVle9dtjJw+OYED160Wybum9SXtBBLXriwt4rROd9csv0t0OHCaTmRqBcQ0J8fx\n\
+hN6/cpR1GWgOZRUAiQxoMnlt0R93LCX/j1dnVa/gVbCjdSxpbrfY2g2L4frzjJvd\n\
+l84Kd9ORYjDEAyFnEA7dD556OptgLQQ2e2iVNq8NZLYTzLp5YpOdO1doK+ttrltg\n\
+gTCy5SrKeLoCPPbOgGsdxJxyz5KKcZnSLj16yE5HvJQn0CNpRdENvRUXe6tBP78O\n\
+39oJ8BTHp9oIjd6XWXAsp2CvK45Ol8wFXGF710w9lwCGNbmNxNYhtIkdqfsEcwR5\n\
+JwIDAQAB\n\
+-----END PUBLIC KEY-----", "\
+-----BEGIN PUBLIC KEY-----\n\
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvfLHfYH2r9R70w8prHbl\n\
+Wt/nDkh+XkgpflqQVcnAfSuTtO05lNPspQmL8Y2XjVT4t8cT6xAkdgfmmvnvRPOO\n\
+KPi0OfJXoRVylFzAQG/j83u5K3kRLbae7fLccVhKZhY46lvsueI1hQdLgNV9n1cQ\n\
+3TDS2pQOCtovG4eDl9wacrXOJTG2990VjgnIKNA0UMoP+KF03qzryqIt3oTvZq03\n\
+DyWdGK+AZjgBLaDKSnC6qD2cFY81UryRWOab8zKkWAnhw2kFpcqhI0jdV5QaSCEx\n\
+vnsjVaX0Y1N0870931/5Jb9ICe4nweZ9kSDF/gip3kWLG0o8XQpChDfyvsqB9OLV\n\
+/wIDAQAB\n\
+-----END PUBLIC KEY-----", "\
+-----BEGIN PUBLIC KEY-----\n\
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAs/ditzm+mPND6xkhzwFI\n\
+z6J/968CtkcSE/7Z2qAJiXbmZ3UDJPGrzqTDHkO30R8VeRM/Kz2f4nR05GIFiITl\n\
+4bEjvpy7xqRDspJcCFIOcyXm8abVDhF+th6knSU0yLtNKuQVP6voMrnt9MV1X92L\n\
+GZQLgdHZbPQz0Z5qIpaKhdyA8DEvWWvSUwwc+yi1/gGaybwlzZwqXYoPOhwMebzK\n\
+Uk0xW14htcJrRrq+PXXQbRzTMynseCoPIoke0dtCodbA3qQxQovE16q9zz4Otv2k\n\
+4j63cz53J+mhkVWAeWxVGI0lltJmWtEYK6er8VqqWot3nqmWMXogrgRLggv/Nbbo\n\
+oQIDAQAB\n\
+-----END PUBLIC KEY-----", "\
+-----BEGIN PUBLIC KEY-----\n\
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvmpxVY7ld/8DAjz6F6q0\n\
+5shjg8/4p6047bn6/m8yPy1RBsvIyvuDuGnP/RzPEhzXQ9UJ5Ynmh2XJZgHoE9xb\n\
+nfxL5BXHplJhMtADXKM9bWB11PU1Eioc3+AXBB8QiNFBn2XI5UkO5hPhbb9mJpjA\n\
+9Uhw8EdfqJP8QetVsI/xrCEbwEXe0xvifRLJbY08/Gp66KpQvy7g8w7VB8wlgePe\n\
+xW3pT13Ap6vuC+mQuJPyiHvSxjEKHgqePji9NP3tJUFQjcECqcm0yV7/2d0t/pbC\n\
+m+ZH1sadZspQCEPPrtbkQBlvHb4OLiIWPGHKSMeRFvp3IWcmdJqXahxLCUS1Eh6M\n\
+AQIDAQAB\n\
+-----END PUBLIC KEY-----" };
+
+} // namespace
 
 class DcOptions::WriteLocker {
 public:
@@ -49,16 +98,14 @@ private:
 };
 
 void DcOptions::readBuiltInPublicKeys() {
-	auto keysCount = 0;
-	auto keys = cPublicRSAKeys(keysCount);
-	for (auto i = 0; i != keysCount; ++i) {
-		auto keyBytes = gsl::as_bytes(gsl::make_span(keys[i], keys[i] + strlen(keys[i])));
-		auto key = internal::RSAPublicKey(keyBytes);
-		if (key.isValid()) {
-			_publicKeys.emplace(key.getFingerPrint(), std::move(key));
+	for (const auto key : PublicRSAKeys) {
+		const auto keyBytes = gsl::make_span(key, key + strlen(key));
+		auto parsed = internal::RSAPublicKey(gsl::as_bytes(keyBytes));
+		if (parsed.isValid()) {
+			_publicKeys.emplace(parsed.getFingerPrint(), std::move(parsed));
 		} else {
 			LOG(("MTP Error: could not read this public RSA key:"));
-			LOG((keys[i]));
+			LOG((key));
 		}
 	}
 }
@@ -364,11 +411,13 @@ void DcOptions::setCDNConfig(const MTPDcdnConfig &config) {
 	_cdnPublicKeys.clear();
 	for_const (auto &publicKey, config.vpublic_keys.v) {
 		Expects(publicKey.type() == mtpc_cdnPublicKey);
-		auto &keyData = publicKey.c_cdnPublicKey();
-		auto keyBytes = gsl::as_bytes(gsl::make_span(keyData.vpublic_key.v));
-		auto key = internal::RSAPublicKey(keyBytes);
+		const auto &keyData = publicKey.c_cdnPublicKey();
+		const auto keyBytes = gsl::make_span(keyData.vpublic_key.v);
+		auto key = internal::RSAPublicKey(gsl::as_bytes(keyBytes));
 		if (key.isValid()) {
-			_cdnPublicKeys[keyData.vdc_id.v].emplace(key.getFingerPrint(), std::move(key));
+			_cdnPublicKeys[keyData.vdc_id.v].emplace(
+				key.getFingerPrint(),
+				std::move(key));
 		} else {
 			LOG(("MTP Error: could not read this public RSA key:"));
 			LOG((qs(keyData.vpublic_key)));
