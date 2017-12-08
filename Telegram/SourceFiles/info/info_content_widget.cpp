@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/range.h>
 #include "window/window_controller.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/widgets/input_fields.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/search_field_controller.h"
 #include "lang/lang_keys.h"
@@ -206,7 +207,11 @@ bool ContentWidget::hasTopBarShadow() const {
 }
 
 void ContentWidget::setInnerFocus() {
-	_innerWrap->entity()->setFocus();
+	if (_searchField) {
+		_searchField->setFocus();
+	} else {
+		_innerWrap->entity()->setFocus();
+	}
 }
 
 int ContentWidget::scrollTopSave() const {
@@ -236,18 +241,21 @@ rpl::producer<SelectedItems> ContentWidget::selectedListValue() const {
 void ContentWidget::refreshSearchField(bool shown) {
 	auto search = _controller->searchFieldController();
 	if (search && shown) {
-		_searchWrap = search->createRowView(
+		auto rowView = search->createRowView(
 			this,
 			st::infoLayerMediaSearch);
-		auto field = _searchWrap.get();
+		_searchWrap = std::move(rowView.wrap);
+		_searchField = rowView.field;
+
+		const auto view = _searchWrap.get();
 		widthValue()
-			| rpl::start_with_next([field](int newWidth) {
-				field->resizeToWidth(newWidth);
-				field->moveToLeft(0, 0);
-			}, field->lifetime());
-		field->show();
-		field->setFocus();
-		setScrollTopSkip(field->heightNoMargins() - st::lineWidth);
+			| rpl::start_with_next([=](int newWidth) {
+				view->resizeToWidth(newWidth);
+				view->moveToLeft(0, 0);
+			}, view->lifetime());
+		view->show();
+		_searchField->setFocus();
+		setScrollTopSkip(view->heightNoMargins() - st::lineWidth);
 	} else {
 		setFocus();
 		_searchWrap = nullptr;

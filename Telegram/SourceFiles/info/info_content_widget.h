@@ -30,6 +30,7 @@ enum class SharedMediaType : char;
 
 namespace Ui {
 class ScrollArea;
+class InputField;
 struct ScrollToRequest;
 template <typename Widget>
 class PaddingWrap;
@@ -113,6 +114,7 @@ private:
 	object_ptr<Ui::ScrollArea> _scroll;
 	Ui::PaddingWrap<Ui::RpWidget> *_innerWrap = nullptr;
 	base::unique_qptr<Ui::RpWidget> _searchWrap = nullptr;
+	QPointer<Ui::InputField> _searchField;
 	int _innerDesiredHeight = 0;
 
 	// Saving here topDelta in setGeometryWithTopMoved() to get it passed to resizeEvent().

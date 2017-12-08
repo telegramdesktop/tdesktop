@@ -41,7 +41,11 @@ public:
 	base::unique_qptr<Ui::InputField> createField(
 		QWidget *parent,
 		const style::InputField &st);
-	base::unique_qptr<Ui::RpWidget> createRowView(
+	struct RowView {
+		base::unique_qptr<Ui::RpWidget> wrap;
+		QPointer<Ui::InputField> field;
+	};
+	RowView createRowView(
 		QWidget *parent,
 		const style::SearchFieldRow &st);
 

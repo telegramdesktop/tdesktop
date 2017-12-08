@@ -33,9 +33,9 @@ SearchFieldController::SearchFieldController(const QString &query)
 : _query(query) {
 }
 
-base::unique_qptr<Ui::RpWidget> SearchFieldController::createRowView(
+auto SearchFieldController::createRowView(
 		QWidget *parent,
-		const style::SearchFieldRow &st) {
+		const style::SearchFieldRow &st) -> RowView {
 	auto result = base::make_unique_q<Ui::FixedHeightWidget>(
 		parent,
 		st.height);
@@ -94,7 +94,7 @@ base::unique_qptr<Ui::RpWidget> SearchFieldController::createRowView(
 
 	_view.release();
 	_view.reset(wrap);
-	return std::move(result);
+	return { std::move(result), field };
 }
 
 QString SearchFieldController::query() const {
