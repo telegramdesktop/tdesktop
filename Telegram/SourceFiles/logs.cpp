@@ -344,6 +344,13 @@ namespace Logs {
 			cForceWorkingDir(psAppDataPath());
 #endif // !_DEBUG
 			workingDirChosen = true;
+#elif defined Q_OS_WIN
+		} else {
+			if (!cWorkingDir().isEmpty()) {
+				// This value must come only from the "-workdir" argument.
+				cForceWorkingDir(cWorkingDir());
+				workingDirChosen = true;
+			}
 #endif // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT || OS_WIN_STORE
 		}
 
