@@ -463,6 +463,7 @@ void MainWindow::ui_showBox(
 		if (_layerBg) {
 			_layerBg->hideTopLayer(animated);
 			if ((animated == anim::type::instant)
+				&& _layerBg
 				&& !_layerBg->layerShown()) {
 				destroyLayerDelayed();
 			}
