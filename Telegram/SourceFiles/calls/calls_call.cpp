@@ -451,7 +451,11 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 
 	voip_config_t config = { 0 };
 	config.data_saving = DATA_SAVING_NEVER;
+#ifdef Q_OS_MAC
+	config.enableAEC = (QSysInfo::macVersion() < QSysInfo::MV_10_7);
+#else // Q_OS_MAC
 	config.enableAEC = true;
+#endif // Q_OS_MAC
 	config.enableNS = true;
 	config.enableAGC = true;
 	config.init_timeout = Global::CallConnectTimeoutMs() / 1000;
