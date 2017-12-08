@@ -148,7 +148,7 @@ void BoxContent::setInnerTopSkip(int innerTopSkip, bool scrollBottomFixed) {
 	if (_innerTopSkip != innerTopSkip) {
 		auto delta = innerTopSkip - _innerTopSkip;
 		_innerTopSkip = innerTopSkip;
-		if (_scroll) {
+		if (_scroll && width() > 0) {
 			auto scrollTopWas = _scroll->scrollTop();
 			updateScrollAreaGeometry();
 			if (scrollBottomFixed) {

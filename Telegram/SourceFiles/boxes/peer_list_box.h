@@ -807,6 +807,6 @@ private:
 
 	std::unique_ptr<PeerListController> _controller;
 	base::lambda<void(PeerListBox*)> _init;
-	bool _scrollBottomFixed = true;
+	bool _scrollBottomFixed = false;
 
 };
