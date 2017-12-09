@@ -199,7 +199,7 @@ auto Instance::playlistKey(not_null<Data*> data) const
 -> base::optional<SliceKey> {
 	const auto contextId = data->current.contextId();
 	const auto history = data->history;
-	if (!contextId || !history) {
+	if (!contextId || !history || !IsServerMsgId(contextId.msg)) {
 		return {};
 	}
 

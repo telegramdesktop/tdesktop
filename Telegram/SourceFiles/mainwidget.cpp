@@ -198,8 +198,11 @@ MainWidget::MainWidget(
 , _sideShadow(this)
 , _dialogs(this, _controller)
 , _history(this, _controller)
-, _playerPlaylist(this, Media::Player::Panel::Layout::OnlyPlaylist)
-, _playerPanel(this, Media::Player::Panel::Layout::Full) {
+, _playerPlaylist(
+	this,
+	_controller,
+	Media::Player::Panel::Layout::OnlyPlaylist)
+, _playerPanel(this, _controller, Media::Player::Panel::Layout::Full) {
 	Messenger::Instance().mtp()->setUpdatesHandler(rpcDone(&MainWidget::updateReceived));
 	Messenger::Instance().mtp()->setGlobalFailHandler(rpcFail(&MainWidget::updateFail));
 

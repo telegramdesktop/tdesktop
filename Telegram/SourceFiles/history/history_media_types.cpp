@@ -1148,11 +1148,11 @@ void HistoryDocument::initDimensions() {
 
 	if (thumbed) {
 		_minh = st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom();
-		if (!captioned && (_parent->Has<HistoryMessageSigned>() || _parent->Has<HistoryMessageEdited>())) {
-			_minh += st::msgDateFont->height - st::msgDateDelta.y();
-		}
 	} else {
 		_minh = st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom();
+	}
+	if (!captioned && (_parent->Has<HistoryMessageSigned>() || _parent->Has<HistoryMessageEdited>())) {
+		_minh += st::msgDateFont->height - st::msgDateDelta.y();
 	}
 	if (!isBubbleTop()) {
 		_minh -= st::msgFileTopMinus;

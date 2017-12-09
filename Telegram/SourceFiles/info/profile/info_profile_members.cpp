@@ -74,7 +74,7 @@ Members::Members(
 		| rpl::start_with_next([this](int count) {
 			const auto enabled = (count >= kEnableSearchMembersAfterCount);
 			_controller->setSearchEnabledByContent(enabled);
-		});
+		}, lifetime());
 }
 
 int Members::desiredHeight() const {

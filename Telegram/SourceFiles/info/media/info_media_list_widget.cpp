@@ -35,6 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/main_window.h"
 #include "styles/style_overview.h"
 #include "styles/style_info.h"
+#include "media/player/media_player_instance.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/confirm_box.h"
 #include "core/file_utilities.h"
@@ -546,7 +547,7 @@ void ListWidget::Section::refreshHeight() {
 
 ListWidget::ListWidget(
 	QWidget *parent,
-	not_null<Controller*> controller)
+	not_null<AbstractController*> controller)
 : RpWidget(parent)
 , _controller(controller)
 , _peer(_controller->peer())
@@ -592,6 +593,18 @@ rpl::producer<int> ListWidget::scrollToRequests() const {
 rpl::producer<SelectedItems> ListWidget::selectedListValue() const {
 	return _selectedListStream.events_starting_with(
 		collectSelectedItems());
+}
+
+QRect ListWidget::getCurrentSongGeometry() {
+	const auto type = AudioMsgId::Type::Song;
+	const auto current = ::Media::Player::instance()->current(type);
+	const auto fullMsgId = current.contextId();
+	if (fullMsgId && isPossiblyMyId(fullMsgId)) {
+		if (const auto item = findItemById(GetUniversalId(fullMsgId))) {
+			return item->geometry;
+		}
+	}
+	return QRect(0, 0, width(), 0);
 }
 
 void ListWidget::restart() {
@@ -1347,6 +1360,7 @@ void ListWidget::showContextMenu(
 			_contextMenu = nullptr;
 			mouseActionUpdate(QCursor::pos());
 			repaintItem(universalId);
+			_checkForHide.fire({});
 		}));
 	_contextMenu->popup(e->globalPos());
 	e->accept();
@@ -1373,12 +1387,14 @@ void ListWidget::forwardItem(UniversalMsgId universalId) {
 }
 
 void ListWidget::forwardItems(MessageIdsList &&items) {
-	const auto weak = make_weak(this);
-	Window::ShowForwardMessagesBox(std::move(items), [weak] {
+	auto callback = [weak = make_weak(this)] {
 		if (const auto strong = weak.data()) {
 			strong->clearSelected();
 		}
-	});
+	};
+	setActionBoxWeak(Window::ShowForwardMessagesBox(
+		std::move(items),
+		std::move(callback)));
 }
 
 void ListWidget::deleteSelected() {
@@ -1393,7 +1409,19 @@ void ListWidget::deleteItem(UniversalMsgId universalId) {
 
 void ListWidget::deleteItems(MessageIdsList &&items) {
 	if (!items.empty()) {
-		Ui::show(Box<DeleteMessagesBox>(std::move(items)));
+		const auto box = Ui::show(Box<DeleteMessagesBox>(std::move(items)));
+		setActionBoxWeak(box.data());
+	}
+}
+
+void ListWidget::setActionBoxWeak(QPointer<Ui::RpWidget> box) {
+	if ((_actionBoxWeak = box)) {
+		_actionBoxWeakLifetime = _actionBoxWeak->alive(
+		) | rpl::start_with_done([weak = make_weak(this)]{
+			if (weak) {
+				weak->_checkForHide.fire({});
+			}
+		});
 	}
 }
 
@@ -1768,8 +1796,8 @@ void ListWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butto
 	auto pressLayout = _overLayout;
 
 	_mouseAction = MouseAction::None;
-	_pressWasInactive = _controller->window()->window()->wasInactivePress();
-	if (_pressWasInactive) _controller->window()->window()->setInactivePress(false);
+	_pressWasInactive = _controller->parentController()->window()->wasInactivePress();
+	if (_pressWasInactive) _controller->parentController()->window()->setInactivePress(false);
 
 	if (ClickHandler::getPressed() && !hasSelected()) {
 		_mouseAction = MouseAction::PrepareDrag;
@@ -1893,7 +1921,7 @@ void ListWidget::performDrag() {
 	//			mimeData->setData(qsl("application/x-td-forward-selected"), "1");
 	//		}
 	//	}
-	//	_controller->window()->launchDrag(std::move(mimeData));
+	//	_controller->parentController()->window()->launchDrag(std::move(mimeData));
 	//	return;
 	//} else {
 	//	auto forwardMimeType = QString();
@@ -1924,7 +1952,7 @@ void ListWidget::performDrag() {
 	//		}
 
 	//		// This call enters event loop and can destroy any QObject.
-	//		_controller->window()->launchDrag(std::move(mimeData));
+	//		_controller->parentController()->window()->launchDrag(std::move(mimeData));
 	//		return;
 	//	}
 	//}
@@ -1974,7 +2002,7 @@ void ListWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton butt
 			if (selection.text != FullSelection
 				&& selection.text.from == selection.text.to) {
 				clearSelected();
-				//_controller->window()->setInnerFocus(); // #TODO focus
+				//_controller->parentController()->window()->setInnerFocus(); // #TODO focus
 			}
 		}
 	}

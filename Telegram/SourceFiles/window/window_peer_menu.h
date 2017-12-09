@@ -20,6 +20,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+namespace Ui {
+class RpWidget;
+} // namespace Ui
+
 namespace Window {
 
 class Controller;
@@ -48,7 +52,7 @@ void PeerMenuAddChannelMembers(not_null<ChannelData*> channel);
 base::lambda<void()> ClearHistoryHandler(not_null<PeerData*> peer);
 base::lambda<void()> DeleteAndLeaveHandler(not_null<PeerData*> peer);
 
-void ShowForwardMessagesBox(
+QPointer<Ui::RpWidget> ShowForwardMessagesBox(
 	MessageIdsList &&items,
 	base::lambda_once<void()> &&successCallback = nullptr);
 

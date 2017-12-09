@@ -325,7 +325,7 @@ Ui::MultiSlideTracker DetailsFiller::fillUserButtons(
 	using namespace rpl::mappers;
 
 	Ui::MultiSlideTracker tracker;
-	auto window = _controller->window();
+	auto window = _controller->parentController();
 
 	auto addSendMessageButton = [&] {
 		auto sendMessageVisible = rpl::combine(
@@ -377,7 +377,7 @@ Ui::MultiSlideTracker DetailsFiller::fillChannelButtons(
 	using namespace rpl::mappers;
 
 	Ui::MultiSlideTracker tracker;
-	auto window = _controller->window();
+	auto window = _controller->parentController();
 	auto viewChannelVisible = rpl::combine(
 		_controller->wrapValue(),
 		window->historyPeer.value(),

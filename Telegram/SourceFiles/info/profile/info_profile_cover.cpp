@@ -234,7 +234,7 @@ Cover::Cover(
 , _peer(peer)
 , _userpic(
 	this,
-	controller->window(),
+	controller->parentController(),
 	_peer,
 	Ui::UserpicButton::Role::OpenPhoto,
 	st::infoProfilePhoto)

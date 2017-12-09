@@ -165,7 +165,7 @@ void ListController::restoreState(
 }
 
 void ListController::rowClicked(not_null<PeerListRow*> row) {
-	_controller->window()->showPeerHistory(
+	_controller->parentController()->showPeerHistory(
 		row->peer(),
 		Window::SectionShow::Way::Forward);
 }

@@ -40,7 +40,7 @@ class Controller;
 
 namespace Info {
 
-class Controller;
+class AbstractController;
 
 namespace Media {
 
@@ -51,7 +51,7 @@ class ListWidget : public Ui::RpWidget {
 public:
 	ListWidget(
 		QWidget *parent,
-		not_null<Controller*> controller);
+		not_null<AbstractController*> controller);
 
 	void restart();
 
@@ -59,6 +59,14 @@ public:
 	rpl::producer<SelectedItems> selectedListValue() const;
 	void cancelSelection() {
 		clearSelected();
+	}
+
+	QRect getCurrentSongGeometry();
+	rpl::producer<> checkForHide() const {
+		return _checkForHide.events();
+	}
+	bool preventAutoHide() const {
+		return (_contextMenu != nullptr) || (_actionBoxWeak != nullptr);
 	}
 
 	void saveState(not_null<Memento*> memento);
@@ -259,7 +267,9 @@ private:
 	void validateTrippleClickStartTime();
 	void checkMoveToOtherViewer();
 
-	const not_null<Controller*> _controller;
+	void setActionBoxWeak(QPointer<Ui::RpWidget> box);
+
+	const not_null<AbstractController*> _controller;
 	const not_null<PeerData*> _peer;
 	PeerData * const _migrated = nullptr;
 	Type _type = Type::Photo;
@@ -294,7 +304,11 @@ private:
 	style::cursor _cursor = style::cur_default;
 	DragSelectAction _dragSelectAction = DragSelectAction::None;
 	bool _wasSelectedText = false; // was some text selected in current drag action
+
 	Ui::PopupMenu *_contextMenu = nullptr;
+	rpl::event_stream<> _checkForHide;
+	QPointer<Ui::RpWidget> _actionBoxWeak;
+	rpl::lifetime _actionBoxWeakLifetime;
 
 	QPoint _trippleClickPoint;
 	TimeMs _trippleClickStartTime = 0;

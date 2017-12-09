@@ -226,7 +226,7 @@ mediaPlayerPanelVolumeToggleTop: 57px;
 
 mediaPlayerScroll: ScrollArea(defaultSolidScroll) {
 	deltat: 10px;
-	deltab: 0px;
+	deltab: 10px;
 }
 mediaPlayerListHeightMax: 280px;
 mediaPlayerListMarginBottom: 10px;

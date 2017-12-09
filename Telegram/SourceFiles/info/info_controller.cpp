@@ -44,16 +44,46 @@ not_null<PeerData*> CorrectPeer(PeerId peerId) {
 
 } // namespace
 
+rpl::producer<SparseIdsMergedSlice> AbstractController::mediaSource(
+		SparseIdsMergedSlice::UniversalMsgId aroundId,
+		int limitBefore,
+		int limitAfter) const {
+	return SharedMediaMergedViewer(
+		SharedMediaMergedKey(
+			SparseIdsMergedSlice::Key(
+				peerId(),
+				migratedPeerId(),
+				aroundId),
+			section().mediaType()),
+		limitBefore,
+		limitAfter);
+}
+
+rpl::producer<QString> AbstractController::mediaSourceQueryValue() const {
+	return rpl::single(QString());
+}
+
+void AbstractController::showSection(
+		Window::SectionMemento &&memento,
+		const Window::SectionShow &params) {
+	return parentController()->showSection(std::move(memento), params);
+}
+
+void AbstractController::showBackFromStack(
+		const Window::SectionShow &params) {
+	return parentController()->showBackFromStack(params);
+}
+
 Controller::Controller(
 	not_null<WrapWidget*> widget,
 	not_null<Window::Controller*> window,
 	not_null<ContentMemento*> memento)
-: _widget(widget)
+: AbstractController(window)
+, _widget(widget)
 , _peer(App::peer(memento->peerId()))
 , _migrated(memento->migratedPeerId()
 	? App::peer(memento->migratedPeerId())
 	: nullptr)
-, _window(window)
 , _section(memento->section()) {
 	updateSearchControllers(memento);
 	setupMigrationViewer();
@@ -66,11 +96,11 @@ void Controller::setupMigrationViewer() {
 	Notify::PeerUpdateValue(_peer, Notify::PeerUpdate::Flag::MigrationChanged)
 		| rpl::start_with_next([this] {
 			if (_peer->migrateTo() || (_peer->migrateFrom() != _migrated)) {
-				auto windowController = window();
+				auto window = parentController();
 				auto peerId = _peer->id;
 				auto section = _section;
 				InvokeQueued(_widget, [=] {
-					windowController->showSection(
+					window->showSection(
 						Memento(peerId, section),
 						Window::SectionShow(
 							Window::SectionShow::Way::Backward,
@@ -162,13 +192,13 @@ void Controller::showSection(
 		Window::SectionMemento &&memento,
 		const Window::SectionShow &params) {
 	if (!_widget->showInternal(&memento, params)) {
-		_window->showSection(std::move(memento), params);
+		AbstractController::showSection(std::move(memento), params);
 	}
 }
 
 void Controller::showBackFromStack(const Window::SectionShow &params) {
 	if (!_widget->showBackFromStackInternal(params)) {
-		_window->showBackFromStack(params);
+		AbstractController::showBackFromStack(params);
 	}
 }
 

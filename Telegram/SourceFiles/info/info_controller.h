@@ -67,26 +67,62 @@ private:
 
 };
 
-class Controller : public Window::Navigation {
+class AbstractController : public Window::Navigation {
+public:
+	AbstractController(not_null<Window::Controller*> parent)
+	: _parent(parent) {
+	}
+
+	virtual not_null<PeerData*> peer() const = 0;
+	virtual PeerData *migrated() const = 0;
+	virtual Section section() const = 0;
+
+	PeerId peerId() const {
+		return peer()->id;
+	}
+	PeerId migratedPeerId() const {
+		if (auto peer = migrated()) {
+			return peer->id;
+		}
+		return PeerId(0);
+	}
+
+	virtual void setSearchEnabledByContent(bool enabled) {
+	}
+	virtual rpl::producer<SparseIdsMergedSlice> mediaSource(
+		SparseIdsMergedSlice::UniversalMsgId aroundId,
+		int limitBefore,
+		int limitAfter) const;
+	virtual rpl::producer<QString> mediaSourceQueryValue() const;
+
+	void showSection(
+		Window::SectionMemento &&memento,
+		const Window::SectionShow &params = Window::SectionShow()) override;
+	void showBackFromStack(
+		const Window::SectionShow &params = Window::SectionShow()) override;
+	not_null<Window::Controller*> parentController() override {
+		return _parent;
+	}
+
+private:
+	not_null<Window::Controller*> _parent;
+
+};
+
+class Controller : public AbstractController {
 public:
 	Controller(
 		not_null<WrapWidget*> widget,
 		not_null<Window::Controller*> window,
 		not_null<ContentMemento*> memento);
 
-	not_null<PeerData*> peer() const {
+	not_null<PeerData*> peer() const override {
 		return _peer;
 	}
-	PeerData *migrated() const {
+	PeerData *migrated() const override {
 		return _migrated;
 	}
-	PeerId peerId() const {
-		return _peer->id;
-	}
-	PeerId migratedPeerId() const {
-		return _migrated ? _migrated->id : PeerId(0);
-	}
-	const Section &section() const {
+	Section section() const override {
 		return _section;
 	}
 
@@ -97,21 +133,18 @@ public:
 	rpl::producer<Wrap> wrapValue() const;
 	void setSection(not_null<ContentMemento*> memento);
 
-	not_null<Window::Controller*> window() const {
-		return _window;
-	}
 	Ui::SearchFieldController *searchFieldController() const {
 		return _searchFieldController.get();
 	}
-	void setSearchEnabledByContent(bool enabled) {
+	void setSearchEnabledByContent(bool enabled) override {
 		_seachEnabledByContent = enabled;
 	}
 	rpl::producer<bool> searchEnabledByContent() const;
 	rpl::producer<SparseIdsMergedSlice> mediaSource(
 		SparseIdsMergedSlice::UniversalMsgId aroundId,
 		int limitBefore,
-		int limitAfter) const;
-	rpl::producer<QString> mediaSourceQueryValue() const;
+		int limitAfter) const override;
+	rpl::producer<QString> mediaSourceQueryValue() const override;
 	bool takeSearchStartsFocused() {
 		return base::take(_searchStartsFocused);
 	}
@@ -123,9 +156,6 @@ public:
 		const Window::SectionShow &params = Window::SectionShow()) override;
 	void showBackFromStack(
 		const Window::SectionShow &params = Window::SectionShow()) override;
-	not_null<Window::Controller*> parentController() override {
-		return _window;
-	}
 
 	rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -143,7 +173,6 @@ private:
 	not_null<WrapWidget*> _widget;
 	not_null<PeerData*> _peer;
 	PeerData *_migrated = nullptr;
-	not_null<Window::Controller*> _window;
 	rpl::variable<Wrap> _wrap;
 	Section _section;
 
