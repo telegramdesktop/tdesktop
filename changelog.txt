@@ -1,3 +1,7 @@
+1.1.28 alpha (09.12.17)
+
+- Bug fixes and other minor improvements.
+
 1.1.27 alpha (06.12.17)
 
 - Bookmark messages by forwarding them to "Saved Messages". Access them from the Chats list or from the side menu.
