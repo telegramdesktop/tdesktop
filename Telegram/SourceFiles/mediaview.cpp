@@ -2316,12 +2316,12 @@ void MediaView::setContext(base::optional_variant<
 	_user = _peer ? _peer->asUser() : nullptr;
 }
 
-bool MediaView::moveToNext(int32 delta) {
+bool MediaView::moveToNext(int delta) {
 	if (!_index) {
 		return false;
 	}
 	auto newIndex = *_index + delta;
-	auto entity = entityByIndex(*_index + delta);
+	auto entity = entityByIndex(newIndex);
 	if (!entity.data && !entity.item) {
 		return false;
 	}
@@ -2345,7 +2345,7 @@ bool MediaView::moveToNext(int32 delta) {
 	return true;
 }
 
-void MediaView::preloadData(int32 delta) {
+void MediaView::preloadData(int delta) {
 	if (!_index) {
 		return;
 	}

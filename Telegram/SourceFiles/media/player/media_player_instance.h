@@ -141,6 +141,7 @@ private:
 	friend void start();
 
 	using SharedMediaType = Storage::SharedMediaType;
+	using SliceKey = SparseIdsMergedSlice::Key;
 	struct Data {
 		Data(AudioMsgId::Type type, SharedMediaType overview)
 		: type(type)
@@ -152,6 +153,11 @@ private:
 		AudioMsgId current;
 		AudioMsgId seeking;
 		base::optional<SparseIdsMergedSlice> playlistSlice;
+		base::optional<SliceKey> playlistSliceKey;
+		base::optional<SliceKey> playlistRequestedKey;
+		base::optional<int> playlistIndex;
+		rpl::lifetime playlistLifetime;
+		rpl::event_stream<> playlistChanges;
 		History *history = nullptr;
 		History *migrated = nullptr;
 		bool repeatEnabled = false;
@@ -162,9 +168,14 @@ private:
 	void handleSongUpdate(const AudioMsgId &audioId);
 
 	void setCurrent(const AudioMsgId &audioId);
-	void rebuildPlaylist(not_null<Data*> data);
+	void refreshPlaylist(not_null<Data*> data);
+	base::optional<SliceKey> playlistKey(not_null<Data*> data) const;
+	bool validPlaylist(not_null<Data*> data);
+	void validatePlaylist(not_null<Data*> data);
+	void playlistUpdated(not_null<Data*> data);
 	bool moveInPlaylist(not_null<Data*> data, int delta, bool autonext);
 	void preloadNext(not_null<Data*> data);
+	HistoryItem *itemByIndex(not_null<Data*> data, int index);
 	void handleLogout();
 
 	template <typename CheckCallback>

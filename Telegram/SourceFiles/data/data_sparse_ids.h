@@ -79,6 +79,9 @@ public:
 				&& (migratedPeerId == other.migratedPeerId)
 				&& (universalId == other.universalId);
 		}
+		bool operator!=(const Key &other) const {
+			return !(*this == other);
+		}
 
 		PeerId peerId = 0;
 		PeerId migratedPeerId = 0;

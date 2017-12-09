@@ -147,8 +147,8 @@ private:
 
 	void updateOver(QPoint mpos);
 	void moveToScreen();
-	bool moveToNext(int32 delta);
-	void preloadData(int32 delta);
+	bool moveToNext(int delta);
+	void preloadData(int delta);
 	struct Entity {
 		base::optional_variant<
 			not_null<PhotoData*>,

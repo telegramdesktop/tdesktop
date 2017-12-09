@@ -1148,6 +1148,11 @@ void HistoryItem::clipCallback(Media::Clip::Notification notification) {
 		}
 		if (!stopped) {
 			setPendingInitDimensions();
+			if (detached()) {
+				// We still want to handle our pending initDimensions and
+				// resize state even if we're detached in history.
+				_history->setHasPendingResizedItems();
+			}
 			Auth().data().markItemLayoutChanged(this);
 			Global::RefPendingRepaintItems().insert(this);
 		}

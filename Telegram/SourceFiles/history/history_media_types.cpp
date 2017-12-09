@@ -1052,7 +1052,10 @@ HistoryDocument::HistoryDocument(not_null<HistoryItem*> parent, DocumentData *do
 	}
 }
 
-HistoryDocument::HistoryDocument(not_null<HistoryItem*> parent, const HistoryDocument &other) : HistoryFileMedia(parent)
+HistoryDocument::HistoryDocument(
+	not_null<HistoryItem*> parent,
+	const HistoryDocument &other)
+: HistoryFileMedia(parent)
 , RuntimeComposer()
 , _data(other._data) {
 	auto captioned = other.Get<HistoryDocumentCaptioned>();

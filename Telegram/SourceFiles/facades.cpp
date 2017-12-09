@@ -36,6 +36,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/observer.h"
 #include "base/task_queue.h"
 #include "history/history_media.h"
+#include "styles/style_history.h"
 
 Q_DECLARE_METATYPE(ClickHandlerPtr);
 Q_DECLARE_METATYPE(Qt::MouseButton);
@@ -359,15 +360,25 @@ void handlePendingHistoryUpdate() {
 	}
 	Auth().data().pendingHistoryResize().notify(true);
 
-	for (auto item : base::take(Global::RefPendingRepaintItems())) {
+	for (const auto item : base::take(Global::RefPendingRepaintItems())) {
 		Auth().data().requestItemRepaint(item);
 
 		// Start the video if it is waiting for that.
 		if (item->pendingInitDimensions()) {
-			if (auto media = item->getMedia()) {
-				if (auto reader = media->getClipReader()) {
-					if (!reader->started() && reader->mode() == Media::Clip::Reader::Mode::Video) {
-						item->resizeGetHeight(item->width());
+			if (const auto media = item->getMedia()) {
+				if (const auto reader = media->getClipReader()) {
+					const auto startRequired = [&] {
+						if (reader->started()) {
+							return false;
+						}
+						using Mode = Media::Clip::Reader::Mode;
+						return (reader->mode() == Mode::Video);
+					};
+					if (startRequired()) {
+						const auto width = std::max(
+							item->width(),
+							st::historyMinimalWidth);
+						item->resizeGetHeight(width);
 					}
 				}
 			}
