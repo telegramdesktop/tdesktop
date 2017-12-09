@@ -344,7 +344,7 @@ void Members::addMember() {
 			state->list
 		) | ranges::view::transform([](not_null<PeerData*> peer) {
 			return peer->asUser();
-		});
+		}) | ranges::to_vector;
 		AddParticipantsBoxController::Start(
 			channel,
 			{ users.begin(), users.end() });
