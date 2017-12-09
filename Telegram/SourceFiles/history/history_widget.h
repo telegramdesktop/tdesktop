@@ -29,6 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/input_fields.h"
 #include "ui/rp_widget.h"
 #include "base/flags.h"
+#include "base/timer.h"
 
 namespace InlineBots {
 namespace Layout {
@@ -206,16 +207,7 @@ public:
 	void pushInfoToThirdSection(
 		const Window::SectionShow &params);
 
-	void updateSendAction(
-		not_null<History*> history,
-		SendAction::Type type,
-		int32 progress = 0);
-	void cancelSendAction(
-		not_null<History*> history,
-		SendAction::Type type);
-
 	void updateRecentStickers();
-	void sendActionDone(const MTPBool &result, mtpRequestId req);
 
 	void destroyData();
 
@@ -383,8 +375,6 @@ public slots:
 	void onCopyPostLink();
 	void onFieldBarCancel();
 
-	void onCancelSendAction();
-
 	void onPreviewParse();
 	void onPreviewCheck();
 	void onPreviewTimeout();
@@ -492,6 +482,16 @@ private:
 	void updateHighlightedMessage();
 	void clearHighlightMessages();
 	void stopMessageHighlight();
+
+	void updateSendAction(
+		not_null<History*> history,
+		SendAction::Type type,
+		int32 progress = 0);
+	void cancelSendAction(
+		not_null<History*> history,
+		SendAction::Type type);
+	void cancelTypingAction();
+	void sendActionDone(const MTPBool &result, mtpRequestId req);
 
 	void animationCallback();
 	void updateOverStates(QPoint pos);
@@ -852,7 +852,7 @@ private:
 	TimeMs _highlightStart = 0;
 
 	QMap<QPair<not_null<History*>, SendAction::Type>, mtpRequestId> _sendActionRequests;
-	QTimer _sendActionStopTimer;
+	base::Timer _sendActionStopTimer;
 
 	TimeMs _saveDraftStart = 0;
 	bool _saveDraftText = false;
