@@ -5313,9 +5313,29 @@ void HistoryWidget::onInlineResultSend(
 	UserId messageViaBotId = bot ? peerToUser(bot->id) : 0;
 	MsgId messageId = newId.msg;
 
-	result->addToHistory(_history, flags, messageId, messageFromId, messageDate, messageViaBotId, replyToId(), messagePostAuthor);
+	result->addToHistory(
+		_history,
+		flags,
+		messageId,
+		messageFromId,
+		messageDate,
+		messageViaBotId,
+		options.replyTo,
+		messagePostAuthor);
 
-	_history->sendRequestId = MTP::send(MTPmessages_SendInlineBotResult(MTP_flags(sendFlags), _peer->input, MTP_int(replyToId()), MTP_long(randomId), MTP_long(result->getQueryId()), MTP_string(result->getId())), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, _history->sendRequestId);
+	_history->sendRequestId = MTP::send(
+		MTPmessages_SendInlineBotResult(
+			MTP_flags(sendFlags),
+			_peer->input,
+			MTP_int(options.replyTo),
+			MTP_long(randomId),
+			MTP_long(result->getQueryId()),
+			MTP_string(result->getId())),
+		App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
+		App::main()->rpcFail(&MainWidget::sendMessageFail),
+		0,
+		0,
+		_history->sendRequestId);
 	App::main()->finishForwarding(_history);
 
 	App::historyRegRandom(randomId, newId);
@@ -5469,7 +5489,7 @@ bool HistoryWidget::sendExistingDocument(
 
 	auto flags = NewMessageFlags(_peer) | MTPDmessage::Flag::f_media;
 	auto sendFlags = MTPmessages_SendMedia::Flags(0);
-	if (replyToId()) {
+	if (options.replyTo) {
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 	}
@@ -5493,7 +5513,7 @@ bool HistoryWidget::sendExistingDocument(
 		newId.msg,
 		flags,
 		0,
-		replyToId(),
+		options.replyTo,
 		date(MTP_int(unixtime())),
 		messageFromId,
 		messagePostAuthor,
@@ -5505,7 +5525,7 @@ bool HistoryWidget::sendExistingDocument(
 		MTPmessages_SendMedia(
 			MTP_flags(sendFlags),
 			_peer->input,
-			MTP_int(replyToId()),
+			MTP_int(options.replyTo),
 			MTP_inputMediaDocument(
 				MTP_flags(0),
 				mtpInput,
@@ -5556,7 +5576,7 @@ void HistoryWidget::sendExistingPhoto(
 
 	auto flags = NewMessageFlags(_peer) | MTPDmessage::Flag::f_media;
 	auto sendFlags = MTPmessages_SendMedia::Flags(0);
-	if (replyToId()) {
+	if (options.replyTo) {
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 	}
@@ -5580,7 +5600,7 @@ void HistoryWidget::sendExistingPhoto(
 		newId.msg,
 		flags,
 		0,
-		replyToId(),
+		options.replyTo,
 		date(MTP_int(unixtime())),
 		messageFromId,
 		messagePostAuthor,
@@ -5592,7 +5612,7 @@ void HistoryWidget::sendExistingPhoto(
 		MTPmessages_SendMedia(
 			MTP_flags(sendFlags),
 			_peer->input,
-			MTP_int(replyToId()),
+			MTP_int(options.replyTo),
 			MTP_inputMediaPhoto(
 				MTP_flags(0),
 				MTP_inputPhoto(MTP_long(photo->id), MTP_long(photo->access)),
