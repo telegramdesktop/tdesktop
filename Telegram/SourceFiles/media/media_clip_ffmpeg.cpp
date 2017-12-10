@@ -400,9 +400,11 @@ bool FFMpegReaderImplementation::start(Mode mode, TimeMs &positionMs) {
 		}
 	}
 	if (positionMs > 0) {
-		auto ts = (positionMs * _fmtContext->streams[_streamId]->time_base.den) / (1000LL * _fmtContext->streams[_streamId]->time_base.num);
-		if (av_seek_frame(_fmtContext, _streamId, ts, 0) < 0) {
-			if (av_seek_frame(_fmtContext, _streamId, ts, AVSEEK_FLAG_BACKWARD) < 0) {
+		const auto timeBase = _fmtContext->streams[_streamId]->time_base;
+		const auto timeStamp = (positionMs * timeBase.den)
+			/ (1000LL * timeBase.num);
+		if (av_seek_frame(_fmtContext, _streamId, timeStamp, 0) < 0) {
+			if (av_seek_frame(_fmtContext, _streamId, timeStamp, AVSEEK_FLAG_BACKWARD) < 0) {
 				return false;
 			}
 		}
@@ -415,8 +417,7 @@ bool FFMpegReaderImplementation::start(Mode mode, TimeMs &positionMs) {
 	}
 
 	if (hasAudio()) {
-		auto position = (positionMs * soundData->frequency) / 1000LL;
-		Player::mixer()->play(_audioMsgId, std::move(soundData), position);
+		Player::mixer()->play(_audioMsgId, std::move(soundData), positionMs);
 	}
 
 	if (readResult == PacketResult::Ok) {
@@ -428,9 +429,11 @@ bool FFMpegReaderImplementation::start(Mode mode, TimeMs &positionMs) {
 
 bool FFMpegReaderImplementation::inspectAt(TimeMs &positionMs) {
 	if (positionMs > 0) {
-		auto ts = (positionMs * _fmtContext->streams[_streamId]->time_base.den) / (1000LL * _fmtContext->streams[_streamId]->time_base.num);
-		if (av_seek_frame(_fmtContext, _streamId, ts, 0) < 0) {
-			if (av_seek_frame(_fmtContext, _streamId, ts, AVSEEK_FLAG_BACKWARD) < 0) {
+		const auto timeBase = _fmtContext->streams[_streamId]->time_base;
+		const auto timeStamp = (positionMs * timeBase.den)
+			/ (1000LL * timeBase.num);
+		if (av_seek_frame(_fmtContext, _streamId, timeStamp, 0) < 0) {
+			if (av_seek_frame(_fmtContext, _streamId, timeStamp, AVSEEK_FLAG_BACKWARD) < 0) {
 				return false;
 			}
 		}

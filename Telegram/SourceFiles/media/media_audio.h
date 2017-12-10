@@ -121,11 +121,11 @@ class Mixer : public QObject, private base::Subscriber {
 public:
 	Mixer();
 
-	void play(const AudioMsgId &audio, int64 position = 0);
-	void play(const AudioMsgId &audio, std::unique_ptr<VideoSoundData> videoData, int64 position = 0);
+	void play(const AudioMsgId &audio, TimeMs positionMs = 0);
+	void play(const AudioMsgId &audio, std::unique_ptr<VideoSoundData> videoData, TimeMs positionMs = 0);
 	void pause(const AudioMsgId &audio, bool fast = false);
 	void resume(const AudioMsgId &audio, bool fast = false);
-	void seek(AudioMsgId::Type type, int64 position); // type == AudioMsgId::Type::Song
+	void seek(AudioMsgId::Type type, TimeMs positionMs); // type == AudioMsgId::Type::Song
 	void stop(const AudioMsgId &audio);
 	void stop(const AudioMsgId &audio, State state);
 
@@ -165,7 +165,7 @@ private slots:
 signals:
 	void updated(const AudioMsgId &audio);
 	void stoppedOnError(const AudioMsgId &audio);
-	void loaderOnStart(const AudioMsgId &audio, qint64 position);
+	void loaderOnStart(const AudioMsgId &audio, qint64 positionMs);
 	void loaderOnCancel(const AudioMsgId &audio);
 
 	void faderOnTimer();

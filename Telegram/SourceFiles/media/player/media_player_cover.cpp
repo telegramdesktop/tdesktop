@@ -173,8 +173,8 @@ void CoverWidget::handleSeekFinished(float64 progress) {
 
 	auto type = AudioMsgId::Type::Song;
 	auto state = Media::Player::mixer()->currentState(type);
-	if (state.id && state.length) {
-		Media::Player::mixer()->seek(type, qRound(progress * state.length));
+	if (state.id && state.length && state.frequency) {
+		Media::Player::mixer()->seek(type, qRound(progress * state.length * 1000. / state.frequency));
 	}
 
 	instance()->stopSeeking(type);

@@ -37,7 +37,7 @@ public:
 	AbstractFFMpegLoader(const FileLocation &file, const QByteArray &data, base::byte_vector &&bytes) : AudioPlayerLoader(file, data, std::move(bytes)) {
 	}
 
-	bool open(qint64 &position) override;
+	bool open(TimeMs positionMs) override;
 
 	int64 samplesCount() override {
 		return _samplesCount;
@@ -75,7 +75,7 @@ class FFMpegLoader : public AbstractFFMpegLoader {
 public:
 	FFMpegLoader(const FileLocation &file, const QByteArray &data, base::byte_vector &&bytes);
 
-	bool open(qint64 &position) override;
+	bool open(TimeMs positionMs) override;
 
 	int32 format() override {
 		return fmt;

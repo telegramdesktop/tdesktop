@@ -85,7 +85,7 @@ class ChildFFMpegLoader : public AudioPlayerLoader {
 public:
 	ChildFFMpegLoader(std::unique_ptr<VideoSoundData> &&data);
 
-	bool open(qint64 &position) override;
+	bool open(TimeMs positionMs) override;
 
 	bool check(const FileLocation &file, const QByteArray &data) override {
 		return true;

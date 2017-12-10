@@ -37,7 +37,7 @@ bool IsPlanarFormat(int format) {
 
 } // namespace
 
-bool AbstractFFMpegLoader::open(qint64 &position) {
+bool AbstractFFMpegLoader::open(TimeMs positionMs) {
 	if (!AudioPlayerLoader::openFile()) {
 		return false;
 	}
@@ -192,8 +192,8 @@ FFMpegLoader::FFMpegLoader(const FileLocation &file, const QByteArray &data, bas
 	frame = av_frame_alloc();
 }
 
-bool FFMpegLoader::open(qint64 &position) {
-	if (!AbstractFFMpegLoader::open(position)) {
+bool FFMpegLoader::open(TimeMs positionMs) {
+	if (!AbstractFFMpegLoader::open(positionMs)) {
 		return false;
 	}
 
@@ -295,7 +295,6 @@ bool FFMpegLoader::open(qint64 &position) {
 		sampleSize = AudioToChannels * sizeof(short);
 		_samplesFrequency = dstRate;
 		_samplesCount = av_rescale_rnd(_samplesCount, dstRate, srcRate, AV_ROUND_UP);
-		position = av_rescale_rnd(position, dstRate, srcRate, AV_ROUND_DOWN);
 		fmt = AL_FORMAT_STEREO16;
 
 		maxResampleSamples = av_rescale_rnd(AVBlockSize / sampleSize, dstRate, srcRate, AV_ROUND_UP);
@@ -304,10 +303,12 @@ bool FFMpegLoader::open(qint64 &position) {
 			return false;
 		}
 	}
-	if (position) {
-		int64 ts = (position * fmtContext->streams[streamId]->time_base.den) / (_samplesFrequency * fmtContext->streams[streamId]->time_base.num);
-		if (av_seek_frame(fmtContext, streamId, ts, AVSEEK_FLAG_ANY) < 0) {
-			if (av_seek_frame(fmtContext, streamId, ts, 0) < 0) {
+	if (positionMs) {
+		const auto timeBase = fmtContext->streams[streamId]->time_base;
+		const auto timeStamp = (positionMs * timeBase.den)
+			/ (1000LL * timeBase.num);
+		if (av_seek_frame(fmtContext, streamId, timeStamp, AVSEEK_FLAG_ANY) < 0) {
+			if (av_seek_frame(fmtContext, streamId, timeStamp, 0) < 0) {
 			}
 		}
 	}

@@ -248,8 +248,8 @@ void Widget::handleSeekFinished(float64 progress) {
 	_seekPositionMs = -1;
 
 	auto state = mixer()->currentState(_type);
-	if (state.id && state.length) {
-		mixer()->seek(_type, qRound(progress * state.length));
+	if (state.id && state.length && state.frequency) {
+		mixer()->seek(_type, qRound(progress * state.length * 1000. / state.frequency));
 	}
 
 	instance()->stopSeeking(_type);

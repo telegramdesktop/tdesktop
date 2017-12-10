@@ -1707,7 +1707,9 @@ void HistoryDocument::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool 
 			auto state = Media::Player::mixer()->currentState(type);
 			if (state.id == AudioMsgId(_data, _parent->fullId()) && state.length) {
 				auto currentProgress = voice->seekingCurrent();
-				auto currentPosition = qRound(currentProgress * state.length);
+				auto currentPosition = state.frequency
+					? qRound(currentProgress * state.length * 1000. / state.frequency)
+					: 0;
 				Media::Player::mixer()->seek(type, currentPosition);
 
 				voice->ensurePlayback(this);

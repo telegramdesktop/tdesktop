@@ -98,7 +98,7 @@ void Loaders::clearFromVideoQueue() {
 void Loaders::onInit() {
 }
 
-void Loaders::onStart(const AudioMsgId &audio, qint64 position) {
+void Loaders::onStart(const AudioMsgId &audio, qint64 positionMs) {
 	auto type = audio.type();
 	clear(type);
 	{
@@ -111,7 +111,7 @@ void Loaders::onStart(const AudioMsgId &audio, qint64 position) {
 		track->loading = true;
 	}
 
-	loadData(audio, position);
+	loadData(audio, positionMs);
 }
 
 AudioMsgId Loaders::clear(AudioMsgId::Type type) {
@@ -133,13 +133,13 @@ void Loaders::emitError(AudioMsgId::Type type) {
 }
 
 void Loaders::onLoad(const AudioMsgId &audio) {
-	loadData(audio, 0);
+	loadData(audio, TimeMs(0));
 }
 
-void Loaders::loadData(AudioMsgId audio, qint64 position) {
+void Loaders::loadData(AudioMsgId audio, TimeMs positionMs) {
 	auto err = SetupNoErrorStarted;
 	auto type = audio.type();
-	auto l = setupLoader(audio, err, position);
+	auto l = setupLoader(audio, err, positionMs);
 	if (!l) {
 		if (err == SetupErrorAtStart) {
 			emitError(type);
@@ -210,12 +210,13 @@ void Loaders::loadData(AudioMsgId audio, qint64 position) {
 			return;
 		}
 
+		track->format = l->format();
+		track->frequency = l->samplesFrequency();
+
+		const auto position = (positionMs * track->frequency) / 1000LL;
 		track->bufferedPosition = position;
 		track->state.position = position;
 		track->fadeStartPosition = position;
-
-		track->format = l->format();
-		track->frequency = l->samplesFrequency();
 	}
 	if (samplesCount) {
 		track->ensureStreamCreated();
@@ -291,7 +292,10 @@ void Loaders::loadData(AudioMsgId audio, qint64 position) {
 	}
 }
 
-AudioPlayerLoader *Loaders::setupLoader(const AudioMsgId &audio, SetupError &err, qint64 &position) {
+AudioPlayerLoader *Loaders::setupLoader(
+		const AudioMsgId &audio,
+		SetupError &err,
+		TimeMs positionMs) {
 	err = SetupErrorAtStart;
 	QMutexLocker lock(internal::audioPlayerMutex());
 	if (!mixer()) return nullptr;
@@ -339,7 +343,7 @@ AudioPlayerLoader *Loaders::setupLoader(const AudioMsgId &audio, SetupError &err
 		}
 		l = loader->get();
 
-		if (!l->open(position)) {
+		if (!l->open(positionMs)) {
 			track->state.state = State::StoppedAtStart;
 			return nullptr;
 		}
@@ -350,7 +354,6 @@ AudioPlayerLoader *Loaders::setupLoader(const AudioMsgId &audio, SetupError &err
 		}
 		track->state.length = length;
 		track->state.frequency = l->samplesFrequency();
-		if (!track->state.frequency) track->state.frequency = kDefaultFrequency;
 		err = SetupNoErrorStarted;
 	} else if (track->loaded) {
 		err = SetupErrorLoadedFull;

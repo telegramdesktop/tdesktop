@@ -619,12 +619,15 @@ bool Mixer::fadedStop(AudioMsgId::Type type, bool *fadedStart) {
 	return false;
 }
 
-void Mixer::play(const AudioMsgId &audio, int64 position) {
+void Mixer::play(const AudioMsgId &audio, TimeMs positionMs) {
 	setSongVolume(Global::SongVolume());
-	play(audio, nullptr, position);
+	play(audio, nullptr, positionMs);
 }
 
-void Mixer::play(const AudioMsgId &audio, std::unique_ptr<VideoSoundData> videoData, int64 position) {
+void Mixer::play(
+		const AudioMsgId &audio,
+		std::unique_ptr<VideoSoundData> videoData,
+		TimeMs positionMs) {
 	Expects(!videoData || audio.playId() != 0);
 
 	auto type = audio.type();
@@ -700,10 +703,11 @@ void Mixer::play(const AudioMsgId &audio, std::unique_ptr<VideoSoundData> videoD
 			auto newState = (type == AudioMsgId::Type::Song) ? State::Stopped : State::StoppedAtError;
 			setStoppedState(current, newState);
 		} else {
-			current->state.position = position;
+			current->state.position = (positionMs * current->state.frequency)
+				/ 1000LL;
 			current->state.state = current->videoData ? State::Paused : fadedStart ? State::Starting : State::Playing;
 			current->loading = true;
-			emit loaderOnStart(current->state.id, position);
+			emit loaderOnStart(current->state.id, positionMs);
 			if (type == AudioMsgId::Type::Voice) {
 				emit suppressSong();
 			}
@@ -871,20 +875,31 @@ void Mixer::resume(const AudioMsgId &audio, bool fast) {
 	if (current) emit updated(current);
 }
 
-void Mixer::seek(AudioMsgId::Type type, int64 position) {
+void Mixer::seek(AudioMsgId::Type type, TimeMs positionMs) {
 	QMutexLocker lock(&AudioMutex);
 
-	auto current = trackForType(type);
-	auto audio = current->state.id;
+	const auto current = trackForType(type);
+	const auto audio = current->state.id;
 
 	Audio::AttachToDevice();
-	auto streamCreated = current->isStreamCreated();
-	auto fastSeek = (position >= current->bufferedPosition && position < current->bufferedPosition + current->bufferedLength - (current->loaded ? 0 : kDefaultFrequency));
-	if (!streamCreated) {
-		fastSeek = false;
-	} else if (IsStoppedOrStopping(current->state.state)) {
-		fastSeek = false;
-	}
+	const auto streamCreated = current->isStreamCreated();
+	const auto position = (positionMs * current->frequency) / 1000LL;
+	const auto fastSeek = [&] {
+		const auto loadedStart = current->bufferedPosition;
+		const auto loadedLength = current->bufferedLength;
+		const auto skipBack = (current->loaded ? 0 : kDefaultFrequency);
+		const auto availableEnd = loadedStart + loadedLength - skipBack;
+		if (position < loadedStart) {
+			return false;
+		} else if (position >= availableEnd) {
+			return false;
+		} else if (!streamCreated) {
+			return false;
+		} else if (IsStoppedOrStopping(current->state.state)) {
+			return false;
+		}
+		return true;
+	}();
 	if (fastSeek) {
 		alSourcei(current->stream.source, AL_SAMPLE_OFFSET, position - current->bufferedPosition);
 		if (!checkCurrentALError(type)) return;
@@ -921,7 +936,7 @@ void Mixer::seek(AudioMsgId::Type type, int64 position) {
 	case State::StoppedAtError:
 	case State::StoppedAtStart: {
 		lock.unlock();
-	} return play(audio, position);
+	} return play(audio, positionMs);
 	}
 	emit faderOnTimer();
 }
@@ -1386,8 +1401,8 @@ public:
 	FFMpegAttributesReader(const FileLocation &file, const QByteArray &data) : AbstractFFMpegLoader(file, data, base::byte_vector()) {
 	}
 
-	bool open(qint64 &position) override {
-		if (!AbstractFFMpegLoader::open(position)) {
+	bool open(TimeMs positionMs) override {
+		if (!AbstractFFMpegLoader::open(positionMs)) {
 			return false;
 		}
 
@@ -1487,8 +1502,8 @@ namespace Player {
 FileLoadTask::Song PrepareForSending(const QString &fname, const QByteArray &data) {
 	auto result = FileLoadTask::Song();
 	FFMpegAttributesReader reader(FileLocation(fname), data);
-	qint64 position = 0;
-	if (reader.open(position) && reader.samplesCount() > 0) {
+	const auto positionMs = TimeMs(0);
+	if (reader.open(positionMs) && reader.samplesCount() > 0) {
 		result.duration = reader.samplesCount() / reader.samplesFrequency();
 		result.title = reader.title();
 		result.performer = reader.performer();
@@ -1505,8 +1520,8 @@ public:
 	FFMpegWaveformCounter(const FileLocation &file, const QByteArray &data) : FFMpegLoader(file, data, base::byte_vector()) {
 	}
 
-	bool open(qint64 &position) override {
-		if (!FFMpegLoader::open(position)) {
+	bool open(TimeMs positionMs) override {
+		if (!FFMpegLoader::open(positionMs)) {
 			return false;
 		}
 
@@ -1584,8 +1599,8 @@ private:
 
 VoiceWaveform audioCountWaveform(const FileLocation &file, const QByteArray &data) {
 	FFMpegWaveformCounter counter(file, data);
-	qint64 position = 0;
-	if (counter.open(position)) {
+	const auto positionMs = TimeMs(0);
+	if (counter.open(positionMs)) {
 		return counter.waveform();
 	}
 	return VoiceWaveform();

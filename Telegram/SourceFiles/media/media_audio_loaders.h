@@ -45,7 +45,7 @@ signals:
 	public slots:
 	void onInit();
 
-	void onStart(const AudioMsgId &audio, qint64 position);
+	void onStart(const AudioMsgId &audio, qint64 positionMs);
 	void onLoad(const AudioMsgId &audio);
 	void onCancel(const AudioMsgId &audio);
 
@@ -72,8 +72,11 @@ private:
 		SetupErrorLoadedFull = 2,
 		SetupNoErrorStarted = 3,
 	};
-	void loadData(AudioMsgId audio, qint64 position);
-	AudioPlayerLoader *setupLoader(const AudioMsgId &audio, SetupError &err, qint64 &position);
+	void loadData(AudioMsgId audio, TimeMs positionMs);
+	AudioPlayerLoader *setupLoader(
+		const AudioMsgId &audio,
+		SetupError &err,
+		TimeMs positionMs);
 	Mixer::Track *checkLoader(AudioMsgId::Type type);
 
 };

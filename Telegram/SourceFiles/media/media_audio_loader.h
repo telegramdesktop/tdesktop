@@ -31,7 +31,7 @@ public:
 
 	virtual bool check(const FileLocation &file, const QByteArray &data);
 
-	virtual bool open(qint64 &position) = 0;
+	virtual bool open(TimeMs positionMs) = 0;
 	virtual int64 samplesCount() = 0;
 	virtual int32 samplesFrequency() = 0;
 	virtual int32 format() = 0;
