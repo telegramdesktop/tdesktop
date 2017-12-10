@@ -1017,7 +1017,7 @@ QString HistoryItem::directLink() const {
 		if (!channel->isMegagroup()) {
 			if (auto media = getMedia()) {
 				if (auto document = media->getDocument()) {
-					if (document->isRoundVideo()) {
+					if (document->isVideoMessage()) {
 						return qsl("https://telesco.pe/") + query;
 					}
 				}

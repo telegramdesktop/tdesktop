@@ -325,7 +325,7 @@ void AutoDownloadBox::onSave() {
 		cSetAutoDownloadAudio(autoDownloadAudio);
 		if (enabledPrivate || enabledGroups) {
 			for (auto document : App::documentsData()) {
-				if (document->voice()) {
+				if (document->isVoiceMessage()) {
 					document->automaticLoadSettingsChanged();
 				}
 			}

@@ -338,7 +338,7 @@ void MainWidget::checkCurrentFloatPlayer() {
 		if (auto item = App::histItemById(fullId)) {
 			if (auto media = item->getMedia()) {
 				if (auto document = media->getDocument()) {
-					if (document->isRoundVideo()) {
+					if (document->isVideoMessage()) {
 						_playerFloats.push_back(std::make_unique<Float>(this, item, [this](not_null<Float*> instance, bool visible) {
 							instance->hiddenByWidget = !visible;
 							toggleFloatPlayer(instance);
@@ -1853,7 +1853,7 @@ void MainWidget::documentLoadProgress(DocumentData *document) {
 	}
 	Auth().documentUpdated.notify(document, true);
 
-	if (!document->loaded() && document->song()) {
+	if (!document->loaded() && document->isAudioFile()) {
 		Media::Player::instance()->documentLoadProgress(document);
 	}
 }

@@ -128,7 +128,7 @@ bool HasMediaItems(const HistoryItemsList &items) {
 			case MediaTypeFile:
 			case MediaTypeMusicFile:
 			case MediaTypeVoiceFile: return true;
-			case MediaTypeGif: return media->getDocument()->isRoundVideo();
+			case MediaTypeGif: return media->getDocument()->isVideoMessage();
 			}
 		}
 	}
@@ -150,7 +150,7 @@ bool HasGifItems(const HistoryItemsList &items) {
 	for (const auto item : items) {
 		if (const auto media = item->getMedia()) {
 			switch (media->type()) {
-			case MediaTypeGif: return !media->getDocument()->isRoundVideo();
+			case MediaTypeGif: return !media->getDocument()->isVideoMessage();
 			}
 		}
 	}
@@ -1131,7 +1131,7 @@ void HistoryMessage::initMediaFromDocument(DocumentData *doc, const QString &cap
 		_media = std::make_unique<HistorySticker>(this, doc);
 	} else if (doc->isAnimation()) {
 		_media = std::make_unique<HistoryGif>(this, doc, caption);
-	} else if (doc->isVideo()) {
+	} else if (doc->isVideoFile()) {
 		_media = std::make_unique<HistoryVideo>(this, doc, caption);
 	} else {
 		_media = std::make_unique<HistoryDocument>(this, doc, caption);

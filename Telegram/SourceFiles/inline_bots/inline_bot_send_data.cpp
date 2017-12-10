@@ -138,9 +138,12 @@ QString SendFile::getErrorOnSend(const Result *owner, History *history) const {
 	if (auto megagroup = history->peer->asMegagroup()) {
 		if (megagroup->restricted(ChannelRestriction::f_send_media)) {
 			return lang(lng_restricted_send_media);
-		} else if (megagroup->restricted(ChannelRestriction::f_send_stickers) && (_document->sticker() != nullptr)) {
+		} else if (megagroup->restricted(ChannelRestriction::f_send_stickers)
+			&& (_document->sticker() != nullptr)) {
 			return lang(lng_restricted_send_stickers);
-		} else if (megagroup->restricted(ChannelRestriction::f_send_gifs) && _document->isAnimation() && !_document->isRoundVideo()) {
+		} else if (megagroup->restricted(ChannelRestriction::f_send_gifs)
+			&& _document->isAnimation()
+			&& !_document->isVideoMessage()) {
 			return lang(lng_restricted_send_gifs);
 		}
 	}

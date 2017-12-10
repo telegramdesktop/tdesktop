@@ -75,10 +75,10 @@ int FileBase::content_height() const {
 }
 
 int FileBase::content_duration() const {
-	if (DocumentData *document = getShownDocument()) {
+	if (const auto document = getShownDocument()) {
 		if (document->duration() > 0) {
 			return document->duration();
-		} else if (SongData *song = document->song()) {
+		} else if (const auto song = document->song()) {
 			if (song->duration) {
 				return song->duration;
 			}
@@ -750,7 +750,7 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 		} else if (true || document->loaded()) {
 			if (document->isImage()) {
 				return &st::historyFileInImage;
-			} else if (document->voice() || document->song()) {
+			} else if (document->isVoiceMessage() || document->isAudioFile()) {
 				return &st::historyFileInPlay;
 			}
 			return &st::historyFileInDocument;
@@ -850,7 +850,7 @@ bool File::updateStatusText() const {
 		statusSize = document->loadOffset();
 	} else if (document->loaded()) {
 		using State = Media::Player::State;
-		if (document->voice()) {
+		if (document->isVoiceMessage()) {
 			statusSize = FileStatusSizeLoaded;
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
 			if (state.id == AudioMsgId(document, FullMsgId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
@@ -858,7 +858,7 @@ bool File::updateStatusText() const {
 				realDuration = (state.length / state.frequency);
 				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
 			}
-		} else if (document->song()) {
+		} else if (document->isAudioFile()) {
 			statusSize = FileStatusSizeLoaded;
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
 			if (state.id == AudioMsgId(document, FullMsgId()) && !Media::Player::IsStoppedOrStopping(state.state)) {
@@ -876,7 +876,11 @@ bool File::updateStatusText() const {
 		statusSize = FileStatusSizeReady;
 	}
 	if (statusSize != _statusSize) {
-		int32 duration = document->song() ? document->song()->duration : (document->voice() ? document->voice()->duration : -1);
+		int32 duration = document->isSong()
+			? document->song()->duration
+			: (document->isVoiceMessage()
+				? document->voice()->duration
+				: -1);
 		setStatusSize(statusSize, document->size, duration, realDuration);
 	}
 	return showPause;

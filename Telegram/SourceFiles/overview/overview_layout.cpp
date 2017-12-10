@@ -50,7 +50,7 @@ TextParseOptions _documentNameOptions = {
 
 TextWithEntities ComposeNameWithEntities(DocumentData *document) {
 	TextWithEntities result;
-	auto song = document->song();
+	const auto song = document->song();
 	if (!song || (song->title.isEmpty() && song->performer.isEmpty())) {
 		result.text = document->filename().isEmpty()
 			? qsl("Unknown File")
@@ -185,7 +185,7 @@ void RadialProgressItem::setDocumentLinks(
 	auto createSaveHandler = [](
 		not_null<DocumentData*> document
 	) -> ClickHandlerPtr {
-		if (document->voice()) {
+		if (document->isVoiceMessage()) {
 			return MakeShared<DocumentOpenClickHandler>(document);
 		}
 		return MakeShared<DocumentSaveClickHandler>(document);
@@ -548,7 +548,7 @@ Voice::Voice(
 , _st(st) {
 	AddComponents(Info::Bit());
 
-	Assert(_data->voice() != 0);
+	Assert(_data->isVoiceMessage());
 
 	setDocumentLinks(_data);
 
@@ -799,7 +799,7 @@ Document::Document(
 
 	setDocumentLinks(_data);
 
-	_status.update(FileStatusSizeReady, _data->size, _data->song() ? _data->song()->duration : -1, 0);
+	_status.update(FileStatusSizeReady, _data->size, _data->isSong() ? _data->song()->duration : -1, 0);
 
 	if (withThumb()) {
 		_data->thumb->load();
@@ -822,7 +822,7 @@ Document::Document(
 
 void Document::initDimensions() {
 	_maxw = _st.maxWidth;
-	if (_data->song()) {
+	if (_data->isAudioFile()) {
 		_minh = _st.songPadding.top() + _st.songThumbSize + _st.songPadding.bottom();
 	} else {
 		_minh = _st.filePadding.top() + _st.fileThumbSize + _st.filePadding.bottom() + st::lineWidth;
@@ -847,7 +847,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, datetop = -1;
 	bool wthumb = withThumb();
 
-	auto isSong = (_data->song() != nullptr);
+	auto isSong = _data->isAudioFile();
 	if (isSong) {
 		nameleft = _st.songPadding.left() + _st.songThumbSize + _st.songPadding.right();
 		nameright = _st.songPadding.left();
@@ -998,7 +998,7 @@ HistoryTextState Document::getState(
 		|| Local::willStickerImageLoad(_data->mediaKey());
 	const auto wthumb = withThumb();
 
-	if (_data->song()) {
+	if (_data->isAudioFile()) {
 		const auto nameleft = _st.songPadding.left() + _st.songThumbSize + _st.songPadding.right();
 		const auto nameright = _st.songPadding.left();
 		const auto namewidth = std::min(
@@ -1106,11 +1106,13 @@ bool Document::dataLoaded() const {
 }
 
 bool Document::iconAnimated() const {
-	return _data->song() || !_data->loaded() || (_radial && _radial->animating());
+	return _data->isAudioFile()
+		|| !_data->loaded()
+		|| (_radial && _radial->animating());
 }
 
 bool Document::withThumb() const {
-	return !_data->song()
+	return !_data->isAudioFile()
 		&& !_data->thumb->isNull()
 		&& _data->thumb->width()
 		&& _data->thumb->height()
@@ -1127,7 +1129,7 @@ bool Document::updateStatusText() {
 	} else if (_data->loading()) {
 		statusSize = _data->loadOffset();
 	} else if (_data->loaded()) {
-		if (_data->song()) {
+		if (_data->isAudioFile()) {
 			statusSize = FileStatusSizeLoaded;
 			using State = Media::Player::State;
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
@@ -1146,7 +1148,7 @@ bool Document::updateStatusText() {
 		statusSize = FileStatusSizeReady;
 	}
 	if (statusSize != _status.size()) {
-		_status.update(statusSize, _data->size, _data->song() ? _data->song()->duration : -1, realDuration);
+		_status.update(statusSize, _data->size, _data->isSong() ? _data->song()->duration : -1, realDuration);
 	}
 	return showPause;
 }
@@ -1327,7 +1329,9 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 			}
 			p.drawPixmapLeft(pixLeft, pixTop, _width, pix);
 		} else if (_page && _page->document && !_page->document->thumb->isNull()) {
-			auto roundRadius = _page->document->isRoundVideo() ? ImageRoundRadius::Ellipse : ImageRoundRadius::Small;
+			auto roundRadius = _page->document->isVideoMessage()
+				? ImageRoundRadius::Ellipse
+				: ImageRoundRadius::Small;
 			p.drawPixmapLeft(pixLeft, pixTop, _width, _page->document->thumb->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, roundRadius));
 		} else {
 			const auto index = _letter.isEmpty()

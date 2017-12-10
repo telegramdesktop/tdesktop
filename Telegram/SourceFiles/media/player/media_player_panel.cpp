@@ -23,6 +23,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/player/media_player_cover.h"
 #include "media/player/media_player_instance.h"
 #include "info/media/info_media_list_widget.h"
+#include "history/history_media.h"
+#include "data/data_document.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/scroll_area.h"
 #include "mainwindow.h"
@@ -267,14 +269,16 @@ void Panel::refreshList() {
 	const auto contextId = current.contextId();
 	const auto peer = [&]() -> PeerData* {
 		const auto item = contextId ? App::histItemById(contextId) : nullptr;
-		if (item) {
-			const auto result = item->history()->peer;
-			if (const auto migrated = result->migrateTo()) {
-				return migrated;
-			}
-			return result;
+		const auto media = item ? item->getMedia() : nullptr;
+		const auto document = media ? media->getDocument() : nullptr;
+		if (!document || !document->isSharedMediaMusic()) {
+			return nullptr;
 		}
-		return nullptr;
+		const auto result = item->history()->peer;
+		if (const auto migrated = result->migrateTo()) {
+			return migrated;
+		}
+		return result;
 	}();
 	const auto migrated = peer ? peer->migrateFrom() : nullptr;
 	if (_listPeer != peer || _listMigratedPeer != migrated) {

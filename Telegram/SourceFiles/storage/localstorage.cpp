@@ -3134,7 +3134,7 @@ public:
 		_wavemax = wavemax;
 	}
 	void finish() {
-		if (VoiceData *voice = _doc ? _doc->voice() : 0) {
+		if (const auto voice = _doc ? _doc->voice() : nullptr) {
 			if (!_waveform.isEmpty()) {
 				voice->waveform = _waveform;
 				voice->wavemax = _wavemax;
@@ -3172,7 +3172,7 @@ protected:
 };
 
 void countVoiceWaveform(DocumentData *document) {
-	if (VoiceData *voice = document->voice()) {
+	if (const auto voice = document->voice()) {
 		if (_localLoader) {
 			voice->waveform.resize(1 + sizeof(TaskId));
 			voice->waveform[0] = -1; // counting

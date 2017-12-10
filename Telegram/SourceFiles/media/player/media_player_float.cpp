@@ -47,7 +47,7 @@ Float::Float(
 
 	auto document = media->getDocument();
 	Assert(document != nullptr);
-	Assert(document->isRoundVideo());
+	Assert(document->isVideoMessage());
 
 	auto margin = st::mediaPlayerFloatMargin;
 	auto size = 2 * margin + st::mediaPlayerFloatSize;

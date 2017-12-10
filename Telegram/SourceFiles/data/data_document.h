@@ -163,7 +163,7 @@ public:
 		}
 	}
 	SongData *song() {
-		return (type == SongDocument)
+		return isSong()
 			? static_cast<SongData*>(_additional.get())
 			: nullptr;
 	}
@@ -171,55 +171,24 @@ public:
 		return const_cast<DocumentData*>(this)->song();
 	}
 	VoiceData *voice() {
-		return (type == VoiceDocument)
+		return isVoiceMessage()
 			? static_cast<VoiceData*>(_additional.get())
 			: nullptr;
 	}
 	const VoiceData *voice() const {
 		return const_cast<DocumentData*>(this)->voice();
 	}
-	bool isRoundVideo() const {
-		return (type == RoundVideoDocument);
-	}
-	bool isAnimation() const {
-		return (type == AnimatedDocument)
-			|| isRoundVideo()
-			|| hasMimeType(qstr("image/gif"));
-	}
-	bool isGifv() const {
-		return (type == AnimatedDocument)
-			&& hasMimeType(qstr("video/mp4"));
-	}
-	bool isTheme() const {
-		return
-			_filename.endsWith(
-				qstr(".tdesktop-theme"),
-				Qt::CaseInsensitive)
-			|| _filename.endsWith(
-				qstr(".tdesktop-palette"),
-				Qt::CaseInsensitive);
-	}
-	bool tryPlaySong() const {
-		return (song() != nullptr)
-			|| _mimeString.startsWith(
-				qstr("audio/"),
-				Qt::CaseInsensitive);
-	}
-	bool isMusic() const {
-		if (auto s = song()) {
-			return (s->duration > 0);
-		}
-		return false;
-	}
-	bool isVideo() const {
-		return (type == VideoDocument);
-	}
-	int32 duration() const {
-		return (isAnimation() || isVideo()) ? _duration : -1;
-	}
-	bool isImage() const {
-		return !isAnimation() && !isVideo() && (_duration > 0);
-	}
+	bool isVoiceMessage() const;
+	bool isVideoMessage() const;
+	bool isSong() const;
+	bool isAudioFile() const;
+	bool isVideoFile() const;
+	bool isAnimation() const;
+	bool isGifv() const;
+	bool isTheme() const;
+	bool isSharedMediaMusic() const;
+	int32 duration() const;
+	bool isImage() const;
 	void recountIsImage();
 	void setData(const QByteArray &data) {
 		_data = data;
@@ -306,9 +275,9 @@ private:
 	friend class Serialize::Document;
 
 	LocationType locationType() const {
-		return voice()
+		return isVoiceMessage()
 			? AudioFileLocation
-			: isVideo()
+			: isVideoFile()
 				? VideoFileLocation
 				: DocumentFileLocation;
 	}

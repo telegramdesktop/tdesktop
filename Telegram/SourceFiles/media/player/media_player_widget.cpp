@@ -431,20 +431,21 @@ void Widget::handleSongUpdate(const TrackState &state) {
 void Widget::updateTimeText(const TrackState &state) {
 	QString time;
 	qint64 position = 0, length = 0, display = 0;
-	auto frequency = state.frequency;
+	const auto frequency = state.frequency;
+	const auto document = state.id.audio();
 	if (!IsStoppedOrStopping(state.state)) {
 		display = position = state.position;
 		length = state.length;
 	} else if (state.length) {
 		display = state.length;
-	} else if (state.id.audio()->song()) {
-		display = (state.id.audio()->song()->duration * frequency);
+	} else if (const auto song = document->song()) {
+		display = (song->duration * frequency);
 	}
 
 	_lastDurationMs = (state.length * 1000LL) / frequency;
 
-	if (state.id.audio()->loading()) {
-		_time = QString::number(qRound(state.id.audio()->progress() * 100)) + '%';
+	if (document->loading()) {
+		_time = QString::number(qRound(document->progress() * 100)) + '%';
 		_playbackSlider->setDisabled(true);
 	} else {
 		display = display / frequency;
@@ -470,13 +471,14 @@ void Widget::updateTimeLabel() {
 }
 
 void Widget::handleSongChange() {
-	auto current = instance()->current(_type);
-	if (!current || !current.audio()) {
+	const auto current = instance()->current(_type);
+	const auto document = current.audio();
+	if (!current || !document) {
 		return;
 	}
 
 	TextWithEntities textWithEntities;
-	if (current.audio()->voice() || current.audio()->isRoundVideo()) {
+	if (document->isVoiceMessage() || document->isVideoMessage()) {
 		if (auto item = App::histItemById(current.contextId())) {
 			auto name = App::peerName(item->fromOriginal());
 			auto date = [item] {
@@ -497,12 +499,12 @@ void Widget::handleSongChange() {
 			textWithEntities.text = lang(lng_media_audio);
 		}
 	} else {
-		auto song = current.audio()->song();
+		const auto song = document->song();
 		if (!song || song->performer.isEmpty()) {
 			textWithEntities.text = (!song || song->title.isEmpty())
-				? (current.audio()->filename().isEmpty()
+				? (document->filename().isEmpty()
 					? qsl("Unknown Track")
-					: current.audio()->filename())
+					: document->filename())
 				: song->title;
 		} else {
 			auto title = song->title.isEmpty()

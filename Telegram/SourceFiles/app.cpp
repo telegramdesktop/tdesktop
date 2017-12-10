@@ -1615,7 +1615,7 @@ namespace {
 
 				MediaKey newKey = convert->mediaKey();
 				if (idChanged) {
-					if (convert->voice()) {
+					if (convert->isVoiceMessage()) {
 						Local::copyAudio(oldKey, newKey);
 					} else if (convert->sticker() || convert->isAnimation()) {
 						Local::copyStickerImage(oldKey, newKey);

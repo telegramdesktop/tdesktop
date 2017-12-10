@@ -110,7 +110,7 @@ MTPVector<MTPDocumentAttribute> composeDocumentAttributes(DocumentData *document
 		int32 duration = document->duration();
 		if (duration >= 0) {
 			auto flags = MTPDdocumentAttributeVideo::Flags(0);
-			if (document->isRoundVideo()) {
+			if (document->isVideoMessage()) {
 				flags |= MTPDdocumentAttributeVideo::Flag::f_round_message;
 			}
 			attributes.push_back(MTP_documentAttributeVideo(MTP_flags(flags), MTP_int(duration), MTP_int(document->dimensions.width()), MTP_int(document->dimensions.height())));
@@ -122,12 +122,12 @@ MTPVector<MTPDocumentAttribute> composeDocumentAttributes(DocumentData *document
 		attributes.push_back(MTP_documentAttributeAnimated());
 	} else if (document->type == StickerDocument && document->sticker()) {
 		attributes.push_back(MTP_documentAttributeSticker(MTP_flags(0), MTP_string(document->sticker()->alt), document->sticker()->set, MTPMaskCoords()));
-	} else if (document->type == SongDocument && document->song()) {
+	} else if (const auto song = document->song()) {
 		auto flags = MTPDdocumentAttributeAudio::Flag::f_title | MTPDdocumentAttributeAudio::Flag::f_performer;
-		attributes.push_back(MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(document->song()->duration), MTP_string(document->song()->title), MTP_string(document->song()->performer), MTPstring()));
-	} else if (document->type == VoiceDocument && document->voice()) {
+		attributes.push_back(MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(song->duration), MTP_string(song->title), MTP_string(song->performer), MTPstring()));
+	} else if (const auto voice = document->voice()) {
 		auto flags = MTPDdocumentAttributeAudio::Flag::f_voice | MTPDdocumentAttributeAudio::Flag::f_waveform;
-		attributes.push_back(MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(document->voice()->duration), MTPstring(), MTPstring(), MTP_bytes(documentWaveformEncode5bit(document->voice()->waveform))));
+		attributes.push_back(MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(voice->duration), MTPstring(), MTPstring(), MTP_bytes(documentWaveformEncode5bit(voice->waveform))));
 	}
 	return MTP_vector<MTPDocumentAttribute>(attributes);
 }
@@ -4530,7 +4530,7 @@ void HistoryWidget::onDocumentProgress(const FullMsgId &newId) {
 	if (const auto item = App::histItemById(newId)) {
 		const auto media = item->getMedia();
 		const auto document = media ? media->getDocument() : nullptr;
-		const auto sendAction = (document && document->voice())
+		const auto sendAction = (document && document->isVoiceMessage())
 			? SendAction::Type::UploadVoice
 			: SendAction::Type::UploadFile;
 		updateSendAction(
@@ -4552,7 +4552,7 @@ void HistoryWidget::onDocumentFailed(const FullMsgId &newId) {
 	if (const auto item = App::histItemById(newId)) {
 		const auto media = item->getMedia();
 		const auto document = media ? media->getDocument() : nullptr;
-		const auto sendAction = (document && document->voice())
+		const auto sendAction = (document && document->isVoiceMessage())
 			? SendAction::Type::UploadVoice
 			: SendAction::Type::UploadFile;
 		updateSendAction(item->history(), sendAction, -1);

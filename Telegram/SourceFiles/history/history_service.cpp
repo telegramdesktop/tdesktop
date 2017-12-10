@@ -290,7 +290,7 @@ HistoryService::PreparedText HistoryService::preparePinnedText() {
 			case MediaTypeFile: return lang(lng_action_pinned_media_file);
 			case MediaTypeGif: {
 				if (auto document = media->getDocument()) {
-					if (document->isRoundVideo()) {
+					if (document->isVideoMessage()) {
 						return lang(lng_action_pinned_media_video_message);
 					}
 				}

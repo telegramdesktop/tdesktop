@@ -239,7 +239,7 @@ bool Instance::moveInPlaylist(
 						item->fullId()
 					});
 				}
-				if (document->tryPlaySong()) {
+				if (document->isAudioFile()) {
 					play(AudioMsgId(document, item->fullId()));
 				} else {
 					DocumentOpenClickHandler::doOpen(
@@ -298,18 +298,19 @@ void Instance::play(AudioMsgId::Type type) {
 }
 
 void Instance::play(const AudioMsgId &audioId) {
-	if (!audioId) {
+	const auto document = audioId.audio();
+	if (!audioId || !document) {
 		return;
 	}
-	if (audioId.audio()->tryPlaySong() || audioId.audio()->voice()) {
+	if (document->isAudioFile() || document->isVoiceMessage()) {
 		mixer()->play(audioId);
 		setCurrent(audioId);
-		if (audioId.audio()->loading()) {
-			documentLoadProgress(audioId.audio());
+		if (document->loading()) {
+			documentLoadProgress(document);
 		}
-	} else if (audioId.audio()->isRoundVideo()) {
-		if (auto item = App::histItemById(audioId.contextId())) {
-			if (auto media = item->getMedia()) {
+	} else if (document->isVideoMessage()) {
+		if (const auto item = App::histItemById(audioId.contextId())) {
+			if (const auto media = item->getMedia()) {
 				media->playInline();
 			}
 		}
@@ -395,7 +396,7 @@ void Instance::stopSeeking(AudioMsgId::Type type) {
 }
 
 void Instance::documentLoadProgress(DocumentData *document) {
-	const auto type = document->tryPlaySong()
+	const auto type = document->isAudioFile()
 		? AudioMsgId::Type::Song
 		: AudioMsgId::Type::Voice;
 	emitUpdate(type, [document](const AudioMsgId &audioId) {

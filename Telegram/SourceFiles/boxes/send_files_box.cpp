@@ -517,7 +517,7 @@ EditCaptionBox::EditCaptionBox(QWidget*, HistoryMedia *media, FullMsgId msgId) :
 		}
 
 		if (doc) {
-			auto nameString = doc->voice()
+			auto nameString = doc->isVoiceMessage()
 				? lang(lng_media_audio)
 				: doc->composeNameString();
 			_name.setText(
@@ -529,7 +529,7 @@ EditCaptionBox::EditCaptionBox(QWidget*, HistoryMedia *media, FullMsgId msgId) :
 				_name.maxWidth(),
 				st::normalFont->width(_status));
 			_isImage = doc->isImage();
-			_isAudio = (doc->voice() || doc->song());
+			_isAudio = (doc->isVoiceMessage() || doc->isAudioFile());
 		}
 	} else {
 		int32 maxW = 0, maxH = 0;

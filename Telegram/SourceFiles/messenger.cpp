@@ -220,7 +220,7 @@ void Messenger::showPhoto(not_null<PhotoData*> photo, PeerData *peer) {
 }
 
 void Messenger::showDocument(not_null<DocumentData*> document, HistoryItem *item) {
-	if (cUseExternalVideoPlayer() && document->isVideo()) {
+	if (cUseExternalVideoPlayer() && document->isVideoFile()) {
 		QDesktopServices::openUrl(QUrl("file:///" + document->location(false).fname));
 	} else {
 		if (_mediaView->isHidden()) {

@@ -824,9 +824,9 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(_contextMenuLink.data());
 	auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.data());
 	auto lnkPeer = dynamic_cast<PeerClickHandler*>(_contextMenuLink.data());
-	auto lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideo() : false;
-	auto lnkIsAudio = lnkDocument ? (lnkDocument->document()->voice() != nullptr) : false;
-	auto lnkIsSong = lnkDocument ? (lnkDocument->document()->song() != nullptr) : false;
+	auto lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideoFile() : false;
+	auto lnkIsVoice = lnkDocument ? lnkDocument->document()->isVoiceMessage() : false;
+	auto lnkIsAudio = lnkDocument ? lnkDocument->document()->isAudioFile() : false;
 	if (lnkPhoto || lnkDocument) {
 		if (isUponSelected > 0) {
 			_menu->addAction(lang(lng_context_copy_selected), [this] { copySelectedText(); })->setEnabled(true);
@@ -851,7 +851,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (!document->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
 					_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), [this] { showContextInFolder(); })->setEnabled(true);
 				}
-				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsAudio ? lng_context_save_audio : (lnkIsSong ? lng_context_save_audio_file : lng_context_save_file))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
+				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsVoice ? lng_context_save_audio : (lnkIsAudio ? lng_context_save_audio_file : lng_context_save_file))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
 					saveDocumentToFile(document);
 				}))->setEnabled(true);
 			}

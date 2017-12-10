@@ -1238,13 +1238,13 @@ void ListWidget::showContextMenu(
 	auto photoLink = dynamic_cast<PhotoClickHandler*>(link.data());
 	auto fileLink = dynamic_cast<DocumentClickHandler*>(link.data());
 	if (photoLink || fileLink) {
-		auto [isVideo, isVoice, isSong] = [&] {
+		auto [isVideo, isVoice, isAudio] = [&] {
 			if (fileLink) {
 				auto document = fileLink->document();
 				return std::make_tuple(
-					document->isVideo(),
-					(document->voice() != nullptr),
-					(document->song() != nullptr)
+					document->isVideoFile(),
+					document->isVoiceMessage(),
+					document->isAudioFile()
 				);
 			}
 			return std::make_tuple(false, false, false);
@@ -1285,7 +1285,7 @@ void ListWidget::showContextMenu(
 							? lng_context_save_video
 							: isVoice
 							? lng_context_save_audio
-							: isSong
+							: isAudio
 							? lng_context_save_audio_file
 							: lng_context_save_file),
 						std::move(handler));

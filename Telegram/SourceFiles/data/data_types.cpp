@@ -23,11 +23,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "data/data_document.h"
 
 void AudioMsgId::setTypeFromAudio() {
-	if (_audio->voice() || _audio->isRoundVideo()) {
+	if (_audio->isVoiceMessage() || _audio->isVideoMessage()) {
 		_type = Type::Voice;
-	} else if (_audio->isVideo()) {
+	} else if (_audio->isVideoFile()) {
 		_type = Type::Video;
-	} else if (_audio->tryPlaySong()) {
+	} else if (_audio->isAudioFile()) {
 		_type = Type::Song;
 	} else {
 		_type = Type::Unknown;
