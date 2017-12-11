@@ -247,7 +247,7 @@ void MainWindow::Private::initCustomTitle() {
 	_public->_customTitleHeight = qMax(qRound(full.size.height - inner.size.height), 0);
 
 	// Qt still has some bug with layer-backed widgets containing QOpenGLWidgets.
-	// See https://github.com/telegramdesktop/tdesktop/issues/4149
+	// See https://github.com/telegramdesktop/tdesktop/issues/4150
 	// Tried to workaround it by catching the first moment we have CALayer created
 	// and explicitly setting contentsScale to window->backingScaleFactor there.
 	_layerCreationChecker = std::make_unique<LayerCreationChecker>(_nativeView, [=] {
