@@ -715,10 +715,10 @@ public:
 	}
 	void peerListSortRows(
 			base::lambda<bool(const PeerListRow &a, const PeerListRow &b)> compare) override {
-		_content->reorderRows([compare = std::move(compare)](
+		_content->reorderRows([&](
 				auto &&begin,
 				auto &&end) {
-			std::sort(begin, end, [&compare](auto &&a, auto &&b) {
+			std::sort(begin, end, [&](auto &&a, auto &&b) {
 				return compare(*a, *b);
 			});
 		});
@@ -726,10 +726,10 @@ public:
 	int peerListPartitionRows(
 			base::lambda<bool(const PeerListRow &a)> border) override {
 		auto result = 0;
-		_content->reorderRows([border = std::move(border), &result](
+		_content->reorderRows([&](
 				auto &&begin,
 				auto &&end) {
-			auto edge = std::stable_partition(begin, end, [&border](
+			auto edge = std::stable_partition(begin, end, [&](
 					auto &&current) {
 				return border(*current);
 			});

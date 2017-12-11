@@ -260,10 +260,18 @@ Cover::Cover(
 
 void Cover::setupChildGeometry() {
 	using namespace rpl::mappers;
+	//
+	// Visual Studio 2017 15.5.1 internal compiler error here.
+	// See https://developercommunity.visualstudio.com/content/problem/165155/ice-regression-in-1551-after-successfull-build-in.html
+	//
+	//rpl::combine(
+	//	toggleShownValue(),
+	//	widthValue(),
+	//	_2)
 	rpl::combine(
 		toggleShownValue(),
-		widthValue(),
-		_2)
+		widthValue())
+		| rpl::map([](bool shown, int width) { return width; })
 		| rpl::start_with_next([this](int newWidth) {
 			_userpic->moveToLeft(
 				st::infoProfilePhotoLeft,
@@ -449,10 +457,18 @@ void SharedMediaCover::createLabel() {
 		Lang::Viewer(lng_profile_shared_media) | ToUpperValue(),
 		st::infoBlockHeaderLabel);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	//
+	// Visual Studio 2017 15.5.1 internal compiler error here.
+	// See https://developercommunity.visualstudio.com/content/problem/165155/ice-regression-in-1551-after-successfull-build-in.html
+	//
+	//rpl::combine(
+	//	toggleShownValue(),
+	//	widthValue(),
+	//	_2)
 	rpl::combine(
 		toggleShownValue(),
-		widthValue(),
-		_2)
+		widthValue())
+		| rpl::map([](bool shown, int width) { return width; })
 		| rpl::start_with_next([this, weak = label.data()](int newWidth) {
 			auto availableWidth = newWidth
 				- st::infoBlockHeaderPosition.x()
