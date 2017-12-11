@@ -143,7 +143,7 @@ void HiddenUrlClickHandler::doOpen(QString url) {
 			Ui::show(Box<ConfirmBox>(lang(lng_open_this_link) + qsl("\n\n") + displayUrl, lang(lng_open_link), [urlText] {
 				Ui::hideLayer();
 				UrlClickHandler::doOpen(urlText);
-			}));
+			}), LayerOption::KeepOther);
 		} else {
 			UrlClickHandler::doOpen(urlText);
 		}

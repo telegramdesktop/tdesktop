@@ -30,6 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/labels.h"
 #include "styles/style_boxes.h"
 #include "platform/platform_file_utilities.h"
+#include "core/click_handler_types.h"
 
 AboutBox::AboutBox(QWidget *parent)
 : _version(this, lng_about_version(lt_version, QString::fromLatin1(AppVersionStr.c_str()) + (cAlphaVersion() ? " alpha" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())), st::aboutVersionLink)
@@ -43,7 +44,18 @@ void AboutBox::prepare() {
 
 	addButton(langFactory(lng_close), [this] { closeBox(); });
 
+	const auto linkHook = [](const ClickHandlerPtr &link, auto button) {
+		if (const auto url = dynamic_cast<UrlClickHandler*>(link.data())) {
+			url->UrlClickHandler::onClick(button);
+			return false;
+		}
+		return true;
+	};
+
 	_text3->setRichText(lng_about_text_3(lt_faq_open, qsl("[a href=\"%1\"]").arg(telegramFaqLink()), lt_faq_close, qsl("[/a]")));
+	_text1->setClickHandlerHook(linkHook);
+	_text2->setClickHandlerHook(linkHook);
+	_text3->setClickHandlerHook(linkHook);
 
 	_version->setClickedCallback([this] { showVersionHistory(); });
 
