@@ -347,7 +347,7 @@ void SetsReceived(const QVector<MTPStickerSet> &data, int32 hash) {
 		}
 	}
 	auto writeRecent = false;
-	auto &recent = cGetRecentStickers();
+	auto &recent = GetRecentPack();
 	for (auto it = sets.begin(), e = sets.end(); it != e;) {
 		bool installed = (it->flags & MTPDstickerSet::Flag::f_installed);
 		bool featured = (it->flags & MTPDstickerSet_ClientFlag::f_featured);
@@ -449,7 +449,7 @@ void SpecialSetReceived(uint64 setId, const QString &setTitle, const QVector<MTP
 		}
 
 		auto writeRecent = false;
-		auto &recent = cGetRecentStickers();
+		auto &recent = GetRecentPack();
 		for (auto i = recent.begin(); i != recent.cend();) {
 			if (it->stickers.indexOf(i->first) >= 0 && pack.indexOf(i->first) < 0) {
 				i = recent.erase(i);
@@ -748,7 +748,7 @@ Set *FeedSetFull(const MTPmessages_StickerSet &data) {
 	}
 
 	auto writeRecent = false;
-	auto &recent = cGetRecentStickers();
+	auto &recent = GetRecentPack();
 	for (auto i = recent.begin(); i != recent.cend();) {
 		if (set->stickers.indexOf(i->first) >= 0 && pack.indexOf(i->first) < 0) {
 			i = recent.erase(i);
@@ -814,6 +814,58 @@ QString GetSetTitle(const MTPDstickerSet &s) {
 		return lang(lng_stickers_default_set);
 	}
 	return title;
+}
+
+RecentStickerPack &GetRecentPack() {
+	if (cRecentStickers().isEmpty() && !cRecentStickersPreload().isEmpty()) {
+		const auto p = cRecentStickersPreload();
+		cSetRecentStickersPreload(RecentStickerPreload());
+
+		auto &recent = cRefRecentStickers();
+		recent.reserve(p.size());
+		for (const auto &preloaded : p) {
+			const auto document = App::document(preloaded.first);
+			if (!document || !document->sticker()) continue;
+
+			recent.push_back(qMakePair(document, preloaded.second));
+		}
+	}
+	return cRefRecentStickers();
+}
+
+void IncrementRecentHashtag(RecentHashtagPack &recent, const QString &tag) {
+	auto i = recent.begin(), e = recent.end();
+	for (; i != e; ++i) {
+		if (i->first == tag) {
+			++i->second;
+			if (qAbs(i->second) > 0x4000) {
+				for (auto j = recent.begin(); j != e; ++j) {
+					if (j->second > 1) {
+						j->second /= 2;
+					} else if (j->second > 0) {
+						j->second = 1;
+					}
+				}
+			}
+			for (; i != recent.begin(); --i) {
+				if (qAbs((i - 1)->second) > qAbs(i->second)) {
+					break;
+				}
+				qSwap(*i, *(i - 1));
+			}
+			break;
+		}
+	}
+	if (i == e) {
+		while (recent.size() >= 64) recent.pop_back();
+		recent.push_back(qMakePair(tag, 1));
+		for (i = recent.end() - 1; i != recent.begin(); --i) {
+			if ((i - 1)->second > i->second) {
+				break;
+			}
+			qSwap(*i, *(i - 1));
+		}
+	}
 }
 
 } // namespace Stickers

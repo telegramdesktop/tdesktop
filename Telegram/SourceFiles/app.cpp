@@ -46,6 +46,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "numbers.h"
 #include "observer_peer.h"
 #include "auth_session.h"
+#include "core/crash_reports.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "window/themes/window_theme.h"
@@ -472,7 +473,7 @@ namespace {
 				QString pname = (showPhoneChanged || phoneChanged || nameChanged) ? ((showPhone && !phone.isEmpty()) ? formatPhone(phone) : QString()) : data->nameOrPhone;
 
 				if (!minimal && d.is_self() && uname != data->username) {
-					SignalHandlers::setCrashAnnotation("Username", uname);
+					CrashReports::SetAnnotation("Username", uname);
 				}
 				data->setName(fname, lname, pname, uname);
 				if (d.has_photo()) {

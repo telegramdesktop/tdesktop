@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "media/media_audio_ffmpeg_loader.h"
 
+#include "core/crash_reports.h"
+
 namespace {
 
 constexpr AVSampleFormat AudioToFormat = AV_SAMPLE_FMT_S16;
@@ -423,7 +425,7 @@ AudioPlayerLoader::ReadResult FFMpegLoader::readFromReadyFrame(QByteArray &resul
 				).arg(ptrdiff_t(frame->extended_data[0])
 				).arg(ptrdiff_t(frame->data[1])
 				);
-				SignalHandlers::setCrashAnnotation(key, value);
+				CrashReports::SetAnnotation(key, value);
 			}
 		}
 
@@ -435,7 +437,7 @@ AudioPlayerLoader::ReadResult FFMpegLoader::readFromReadyFrame(QByteArray &resul
 
 		if (frame->extended_data[1] == nullptr) {
 			const auto key = "ffmpeg_" + std::to_string(ptrdiff_t(this));
-			SignalHandlers::setCrashAnnotation(key, QString());
+			CrashReports::ClearAnnotation(key);
 		}
 
 		int32 resultLen = av_samples_get_buffer_size(0, AudioToChannels, res, AudioToFormat, 1);

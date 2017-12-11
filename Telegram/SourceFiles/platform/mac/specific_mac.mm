@@ -17,19 +17,18 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "platform/mac/specific_mac.h"
 
-#include <cstdlib>
-
 #include "lang/lang_keys.h"
 #include "application.h"
 #include "mainwidget.h"
 #include "history/history_widget.h"
-
+#include "core/crash_reports.h"
 #include "storage/localstorage.h"
 #include "passcodewidget.h"
 #include "mainwindow.h"
 #include "history/history_location_manager.h"
 #include "platform/mac/mac_utilities.h"
 
+#include <cstdlib>
 #include <execinfo.h>
 
 #include <Cocoa/Cocoa.h>
@@ -92,7 +91,7 @@ QAbstractNativeEventFilter *psNativeEventFilter() {
 
 void psWriteDump() {
 	double v = objc_appkitVersion();
-	SignalHandlers::dump() << "OS-Version: " << v;
+	CrashReports::dump() << "OS-Version: " << v;
 }
 
 QString demanglestr(const QString &mangled) {

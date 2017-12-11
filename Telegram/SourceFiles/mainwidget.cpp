@@ -1574,7 +1574,7 @@ void MainWidget::saveRecentHashtags(const QString &text) {
 			recent = cRecentWriteHashtags();
 		}
 		found = true;
-		incrementRecentHashtag(recent, text.mid(i + 1, next - i - 1));
+		Stickers::IncrementRecentHashtag(recent, text.mid(i + 1, next - i - 1));
 	}
 	if (found) {
 		cSetRecentWriteHashtags(recent);
@@ -4389,7 +4389,7 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 
 	// Remove that sticker from old recent, now it is in cloud recent stickers.
 	bool writeOldRecent = false;
-	auto &recent = cGetRecentStickers();
+	auto &recent = Stickers::GetRecentPack();
 	for (auto i = recent.begin(), e = recent.end(); i != e; ++i) {
 		if (i->first == sticker) {
 			writeOldRecent = true;

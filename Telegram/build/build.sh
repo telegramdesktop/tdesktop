@@ -398,3 +398,8 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "mac32" ] || [ "$BuildTarg
 fi
 
 echo "Version $AppVersionStrFull is ready!";
+echo -en "\007";
+sleep 1;
+echo -en "\007";
+sleep 1;
+echo -en "\007";

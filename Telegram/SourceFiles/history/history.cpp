@@ -38,6 +38,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "data/data_channel_admins.h"
+#include "core/crash_reports.h"
 
 namespace {
 
@@ -1499,7 +1500,7 @@ void History::addToSharedMedia(std::vector<MsgId> (&medias)[kSharedMediaTypeCoun
 			}
 			value.push_back(indices.join(","));
 		}
-		SignalHandlers::setCrashAnnotation("full", value.join(";"));
+		CrashReports::SetAnnotation("full", value.join(";"));
 		Assert(!"History desync caught!");
 		//// Logging
 
@@ -1631,11 +1632,11 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 
 	logged.push_back(QString::number(minAdded));
 	logged.push_back(QString::number(maxAdded));
-	SignalHandlers::setCrashAnnotation("old_minmaxwas_minmaxadd", logged.join(";"));
+	CrashReports::SetAnnotation("old_minmaxwas_minmaxadd", logged.join(";"));
 
 	addBlockToSharedMedia(block);
 
-	SignalHandlers::setCrashAnnotation("old_minmaxwas_minmaxadd", "");
+	CrashReports::ClearAnnotation("old_minmaxwas_minmaxadd");
 
 	if (isChannel()) {
 		asChannelHistory()->checkJoinedMessage();
@@ -1693,7 +1694,7 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 		}
 		logged.push_back(QString::number(minAdded));
 		logged.push_back(QString::number(maxAdded));
-		SignalHandlers::setCrashAnnotation("new_minmaxwas_minmaxadd", logged.join(";"));
+		CrashReports::SetAnnotation("new_minmaxwas_minmaxadd", logged.join(";"));
 
 		if (!atLeastOneAdded) {
 			newLoaded = true;
@@ -1701,7 +1702,7 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 		}
 		addToSharedMedia(medias, wasLoadedAtBottom != loadedAtBottom());
 
-		SignalHandlers::setCrashAnnotation("new_minmaxwas_minmaxadd", "");
+		CrashReports::ClearAnnotation("new_minmaxwas_minmaxadd");
 	}
 
 	if (!wasLoadedAtBottom) {

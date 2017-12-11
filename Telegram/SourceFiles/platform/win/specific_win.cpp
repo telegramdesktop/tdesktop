@@ -32,6 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/localstorage.h"
 #include "passcodewidget.h"
 #include "base/task_queue.h"
+#include "core/crash_reports.h"
 
 #include <Shobjidl.h>
 #include <shellapi.h>
@@ -687,7 +688,7 @@ void psExecTelegram(const QString &crashreport) {
 
 	DEBUG_LOG(("Application Info: executing %1 %2").arg(cExeDir() + cExeName()).arg(targs));
 	Logs::closeMain();
-	SignalHandlers::finish();
+	CrashReports::Finish();
 	HINSTANCE r = ShellExecute(0, 0, telegram.toStdWString().c_str(), targs.toStdWString().c_str(), wdir.isEmpty() ? 0 : wdir.toStdWString().c_str(), SW_SHOWNORMAL);
 	if (long(r) < 32) {
 		DEBUG_LOG(("Application Error: failed to execute %1, working directory: '%2', result: %3").arg(telegram).arg(wdir).arg(long(r)));
@@ -1291,7 +1292,7 @@ QString psPrepareCrashDump(const QByteArray &crashdump, QString dumpfile) {
 void psWriteStackTrace() {
 #ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 	if (!LoadDbgHelp()) {
-		SignalHandlers::dump() << "ERROR: Could not load dbghelp.dll!\n";
+		CrashReports::dump() << "ERROR: Could not load dbghelp.dll!\n";
 		return;
 	}
 
@@ -1348,17 +1349,17 @@ void psWriteStackTrace() {
 		// deeper frame could not be found.
 		// CONTEXT need not to be suplied if imageTyp is IMAGE_FILE_MACHINE_I386!
 		if (!stackWalk64(imageType, hProcess, hThread, &s, &c, ReadProcessMemoryRoutine64, symFunctionTableAccess64, symGetModuleBase64, NULL)) {
-			SignalHandlers::dump() << "ERROR: Call to StackWalk64() failed!\n";
+			CrashReports::dump() << "ERROR: Call to StackWalk64() failed!\n";
 			return;
 		}
 
 		if (s.AddrPC.Offset == s.AddrReturn.Offset) {
-			SignalHandlers::dump() << s.AddrPC.Offset << "\n";
-			SignalHandlers::dump() << "ERROR: StackWalk64() endless callstack!";
+			CrashReports::dump() << s.AddrPC.Offset << "\n";
+			CrashReports::dump() << "ERROR: StackWalk64() endless callstack!";
 			return;
 		}
 		if (s.AddrPC.Offset != 0) { // we seem to have a valid PC
-			SignalHandlers::dump() << s.AddrPC.Offset << "\n";
+			CrashReports::dump() << s.AddrPC.Offset << "\n";
 		}
 
 		if (s.AddrReturn.Offset == 0) {

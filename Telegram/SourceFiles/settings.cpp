@@ -20,13 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "settings.h"
 
-#include "platform/platform_specific.h"
-#include "data/data_document.h"
-
 bool gRtl = false;
 Qt::LayoutDirection gLangDir = gRtl ? Qt::RightToLeft : Qt::LeftToRight;
-
-QString gArguments;
 
 bool gAlphaVersion = AppAlphaVersion;
 uint64 gBetaVersion = AppBetaVersion;
@@ -168,7 +163,8 @@ void ParseCommandLineArguments(const QStringList &arguments) {
 	gKeyFile = parseResult.value("-key", QStringList()).join(QString());
 	gLaunchMode = parseResult.contains("-autostart") ? LaunchModeAutoStart
 		: parseResult.contains("-fixprevious") ? LaunchModeFixPrevious
-		: parseResult.contains("-cleanup") ? LaunchModeCleanup : LaunchModeNormal;
+		: parseResult.contains("-cleanup") ? LaunchModeCleanup
+		: LaunchModeNormal;
 	gNoStartUpdate = parseResult.contains("-noupdate");
 	gStartToSettings = parseResult.contains("-tosettings");
 	gStartInTray = parseResult.contains("-startintray");
@@ -182,13 +178,11 @@ void ParseCommandLineArguments(const QStringList &arguments) {
 
 void InitFromCommandLine(int argc, char *argv[]) {
 	Expects(argc >= 0);
-
 	auto arguments = QStringList();
 	arguments.reserve(argc);
 	for (auto i = 0; i != argc; ++i) {
 		arguments.push_back(fromUtf8Safe(argv[i]));
 	}
-	gArguments = arguments.join(' ');
 
 #ifdef Q_OS_MAC
 #ifndef OS_MAC_OLD
@@ -251,21 +245,4 @@ void InitFromCommandLine(int argc, char *argv[]) {
 	}
 
 	ParseCommandLineArguments(arguments);
-}
-
-RecentStickerPack &cGetRecentStickers() {
-	if (cRecentStickers().isEmpty() && !cRecentStickersPreload().isEmpty()) {
-		RecentStickerPreload p(cRecentStickersPreload());
-		cSetRecentStickersPreload(RecentStickerPreload());
-
-		RecentStickerPack &recent(cRefRecentStickers());
-		recent.reserve(p.size());
-		for (RecentStickerPreload::const_iterator i = p.cbegin(), e = p.cend(); i != e; ++i) {
-			DocumentData *doc = App::document(i->first);
-			if (!doc || !doc->sticker()) continue;
-
-			recent.push_back(qMakePair(doc, i->second));
-		}
-	}
-	return cRefRecentStickers();
 }

@@ -79,6 +79,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/window_peer_menu.h"
 #include "inline_bots/inline_results_widget.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
+#include "core/crash_reports.h"
 
 namespace {
 
@@ -2292,7 +2293,7 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 	if (_preloadRequest == requestId) {
 		auto to = toMigrated ? _migrated : _history;
 		if (cBetaVersion()) {
-			SignalHandlers::setCrashAnnotation("old_debugstr", QString(
+			CrashReports::SetAnnotation("old_debugstr", QString(
 				"%1_%2_%3_%4:%5_%6 (%7)"
 			).arg(PeerString(_debug_preloadDownPeer)
 			).arg(_debug_preloadOffsetId
@@ -2307,7 +2308,7 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		addMessagesToFront(peer, *histList);
 
 		if (cBetaVersion()) {
-			SignalHandlers::setCrashAnnotation("old_debugstr", QString());
+			CrashReports::ClearAnnotation("old_debugstr");
 		}
 
 		_preloadRequest = 0;
@@ -2319,7 +2320,7 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 	} else if (_preloadDownRequest == requestId) {
 		auto to = toMigrated ? _migrated : _history;
 		if (cBetaVersion()) {
-			SignalHandlers::setCrashAnnotation("new_debugstr", QString(
+			CrashReports::SetAnnotation("new_debugstr", QString(
 				"%1_%2_%3_%4:%5_%6 (%7)"
 			).arg(PeerString(_debug_preloadDownPeer)
 			).arg(_debug_preloadDownOffsetId
@@ -2334,7 +2335,7 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		addMessagesToBack(peer, *histList);
 
 		if (cBetaVersion()) {
-			SignalHandlers::setCrashAnnotation("new_debugstr", QString());
+			CrashReports::ClearAnnotation("new_debugstr");
 		}
 
 		_preloadDownRequest = 0;

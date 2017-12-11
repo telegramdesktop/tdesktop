@@ -85,4 +85,8 @@ Set *FeedSetFull(const MTPmessages_StickerSet &data);
 
 QString GetSetTitle(const MTPDstickerSet &s);
 
+RecentStickerPack &GetRecentPack();
+
+void IncrementRecentHashtag(RecentHashtagPack &recent, const QString &tag);
+
 } // namespace Stickers

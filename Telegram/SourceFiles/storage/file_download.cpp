@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/localstorage.h"
 #include "platform/platform_file_utilities.h"
 #include "auth_session.h"
+#include "core/crash_reports.h"
 
 namespace Storage {
 
@@ -722,11 +723,11 @@ bool mtpFileLoader::feedPart(int offset, base::const_byte_span bytes) {
 				// Debugging weird out of memory crashes.
 				auto info = QString("offset: %1, size: %2, cancelled: %3, finished: %4, filename: '%5', tocache: %6, fromcloud: %7, data: %8, fullsize: %9").arg(offset).arg(bytes.size()).arg(Logs::b(_cancelled)).arg(Logs::b(_finished)).arg(_filename).arg(int(_toCache)).arg(int(_fromCloud)).arg(_data.size()).arg(_size);
 				info += QString(", locationtype: %1, inqueue: %2, localstatus: %3").arg(int(_locationType)).arg(Logs::b(_inQueue)).arg(int(_localStatus));
-				SignalHandlers::setCrashAnnotation("DebugInfo", info);
+				CrashReports::SetAnnotation("DebugInfo", info);
 			}
 			_data.reserve(offset + bytes.size());
 			if (offset > 100 * 1024 * 1024) {
-				SignalHandlers::setCrashAnnotation("DebugInfo", QString());
+				CrashReports::ClearAnnotation("DebugInfo");
 			}
 
 			if (offset > _data.size()) {

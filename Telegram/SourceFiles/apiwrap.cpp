@@ -946,7 +946,7 @@ void ApiWrap::saveStickerSets(const Stickers::Order &localOrder, const Stickers:
 	request(base::take(_stickersClearRecentRequestId)).cancel();
 
 	auto writeInstalled = true, writeRecent = false, writeCloudRecent = false, writeFaved = false, writeArchived = false;
-	auto &recent = cGetRecentStickers();
+	auto &recent = Stickers::GetRecentPack();
 	auto &sets = Auth().data().stickerSetsRef();
 
 	_stickersOrder = localOrder;

@@ -356,6 +356,7 @@ private:
 	mtpRequestId storeRequest(mtpRequest &request, const RPCResponseHandler &parser);
 	mtpRequest getRequest(mtpRequestId requestId);
 	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err);
+	void requestPrepareFailed(const RPCFailHandlerPtr &onFail, Exception &e);
 
 	not_null<Instance*> _instance;
 	std::unique_ptr<Connection> _connection;

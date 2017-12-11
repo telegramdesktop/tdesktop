@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_window.h"
 #include "lang/lang_keys.h"
 #include "base/timer.h"
+#include "core/crash_reports.h"
 
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
@@ -441,7 +442,7 @@ BOOL _execUpdater(BOOL update = YES, const QString &crashreport = QString()) {
 
 		DEBUG_LOG(("Application Info: executing %1 %2").arg(NS2QString(path)).arg(NS2QString([args componentsJoinedByString:@" "])));
 		Logs::closeMain();
-		SignalHandlers::finish();
+		CrashReports::Finish();
 		if (![NSTask launchedTaskWithLaunchPath:path arguments:args]) {
 			DEBUG_LOG(("Task not launched while executing %1 %2").arg(NS2QString(path)).arg(NS2QString([args componentsJoinedByString:@" "])));
 			return NO;

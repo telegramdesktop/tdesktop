@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "platform/linux/file_utilities_linux.h"
 #include "platform/platform_notifications_manager.h"
 #include "storage/localstorage.h"
+#include "core/crash_reports.h"
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -598,7 +599,7 @@ bool _execUpdater(bool update = true, const QString &crashreport = QString()) {
 	}
 
 	Logs::closeMain();
-	SignalHandlers::finish();
+	CrashReports::Finish();
 	pid_t pid = fork();
 	switch (pid) {
 	case -1: return false;

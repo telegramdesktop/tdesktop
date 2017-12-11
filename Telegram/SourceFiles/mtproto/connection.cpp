@@ -45,6 +45,15 @@ constexpr auto kMaxModExpSize = 256;
 // Don't try to handle messages larger than this size.
 constexpr auto kMaxMessageLength = 16 * 1024 * 1024;
 
+QString LogIdsVector(const QVector<MTPlong> &ids) {
+	if (!ids.size()) return "[]";
+	auto idsStr = QString("[%1").arg(ids.cbegin()->v);
+	for (const auto &id : ids) {
+		idsStr += QString(", %2").arg(id.v);
+	}
+	return idsStr + "]";
+}
+
 bool IsGoodModExpFirst(const openssl::BigNum &modexp, const openssl::BigNum &prime) {
 	auto diff = prime - modexp;
 	if (modexp.failed() || prime.failed() || diff.failed()) {
@@ -1432,7 +1441,7 @@ void ConnectionPrivate::handleReceived() {
 		// send acks
 		uint32 toAckSize = ackRequestData.size();
 		if (toAckSize) {
-			DEBUG_LOG(("MTP Info: will send %1 acks, ids: %2").arg(toAckSize).arg(Logs::vector(ackRequestData)));
+			DEBUG_LOG(("MTP Info: will send %1 acks, ids: %2").arg(toAckSize).arg(LogIdsVector(ackRequestData)));
 			emit sendAnythingAsync(MTPAckSendWaiting);
 		}
 
@@ -1546,7 +1555,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 		auto &ids = msg.c_msgs_ack().vmsg_ids.v;
 		uint32 idsCount = ids.size();
 
-		DEBUG_LOG(("Message Info: acks received, ids: %1").arg(Logs::vector(ids)));
+		DEBUG_LOG(("Message Info: acks received, ids: %1").arg(LogIdsVector(ids)));
 		if (!idsCount) return (badTime ? HandleResult::Ignored : HandleResult::Success);
 
 		if (badTime) {
@@ -1676,7 +1685,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 		msg.read(from, end);
 		auto &ids = msg.c_msgs_state_req().vmsg_ids.v;
 		auto idsCount = ids.size();
-		DEBUG_LOG(("Message Info: msgs_state_req received, ids: %1").arg(Logs::vector(ids)));
+		DEBUG_LOG(("Message Info: msgs_state_req received, ids: %1").arg(LogIdsVector(ids)));
 		if (!idsCount) return HandleResult::Success;
 
 		QByteArray info(idsCount, Qt::Uninitialized);
@@ -1787,7 +1796,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 
 		QVector<MTPlong> toAck;
 
-		DEBUG_LOG(("Message Info: msgs all info received, msgId %1, reqMsgIds: %2, states %3").arg(msgId).arg(Logs::vector(ids)).arg(Logs::mb(states.data(), states.length()).str()));
+		DEBUG_LOG(("Message Info: msgs all info received, msgId %1, reqMsgIds: %2, states %3").arg(msgId).arg(LogIdsVector(ids)).arg(Logs::mb(states.data(), states.length()).str()));
 		handleMsgsStates(ids, states, toAck);
 
 		requestsAcked(toAck);
@@ -1856,7 +1865,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 		auto &ids = msg.c_msg_resend_req().vmsg_ids.v;
 
 		auto idsCount = ids.size();
-		DEBUG_LOG(("Message Info: resend of msgs requested, ids: %1").arg(Logs::vector(ids)));
+		DEBUG_LOG(("Message Info: resend of msgs requested, ids: %1").arg(LogIdsVector(ids)));
 		if (!idsCount) return (badTime ? HandleResult::Ignored : HandleResult::Success);
 
 		QVector<quint64> toResend(ids.size());
@@ -2087,7 +2096,7 @@ bool ConnectionPrivate::requestsFixTimeSalt(const QVector<MTPlong> &ids, int32 s
 void ConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool byResponse) {
 	uint32 idsCount = ids.size();
 
-	DEBUG_LOG(("Message Info: requests acked, ids %1").arg(Logs::vector(ids)));
+	DEBUG_LOG(("Message Info: requests acked, ids %1").arg(LogIdsVector(ids)));
 
 	RPCCallbackClears clearedAcked;
 	QVector<MTPlong> toAckMore;

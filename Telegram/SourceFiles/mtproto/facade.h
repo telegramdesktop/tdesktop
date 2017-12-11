@@ -246,7 +246,7 @@ mtpRequestId Session::send(const TRequest &request, RPCResponseHandler callbacks
 		sendPrepared(reqSerialized, msCanWait);
 	} catch (Exception &e) {
 		requestId = 0;
-		rpcErrorOccured(requestId, callbacks.onFail, rpcClientError("NO_REQUEST_ID", QString("send() failed to queue request, exception: %1").arg(e.what())));
+		requestPrepareFailed(callbacks.onFail, e);
 	}
 	if (requestId) registerRequest(requestId, toMainDC ? -getDcWithShift() : getDcWithShift());
 	return requestId;

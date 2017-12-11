@@ -18,9 +18,15 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "core/launcher.h"
+#include "platform/mac/launcher_mac.h"
 
-int main(int argc, char *argv[]) {
-	const auto launcher = Core::Launcher::Create(argc, argv);
-	return launcher ? launcher->exec() : 1;
+namespace Platform {
+
+void Launcher::initHook() {
+#ifndef OS_MAC_OLD
+	// macOS Retina display support is working fine, others are not.
+	QCoreApplication::setAttribute(Qt::AA_DisableHighDpiScaling, false);
+#endif // OS_MAC_OLD
 }
+
+} // namespace Platform

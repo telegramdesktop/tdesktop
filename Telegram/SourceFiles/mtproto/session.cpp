@@ -23,9 +23,22 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/connection.h"
 #include "mtproto/dcenter.h"
 #include "mtproto/auth_key.h"
+#include "core/crash_reports.h"
 
 namespace MTP {
 namespace internal {
+namespace {
+
+QString LogIds(const QVector<uint64> &ids) {
+	if (!ids.size()) return "[]";
+	auto idsStr = QString("[%1").arg(*ids.cbegin());
+	for (const auto id : ids) {
+		idsStr += QString(", %2").arg(id);
+	}
+	return idsStr + "]";
+}
+
+} // namespace
 
 void SessionData::setKey(const AuthKeyPtr &key) {
 	if (_authKey != key) {
@@ -138,6 +151,23 @@ mtpRequest Session::getRequest(mtpRequestId requestId) {
 
 bool Session::rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err) { // return true if need to clean request data
 	return _instance->rpcErrorOccured(requestId, onFail, err);
+}
+
+void Session::requestPrepareFailed(
+		const RPCFailHandlerPtr &onFail,
+		Exception &e) {
+	CrashReports::SetAnnotation("RequestException", QString::fromLatin1(e.what()));
+	Unexpected("Exception in Session::send()");
+
+	const auto requestId = 0;
+	const auto error = rpcClientError(
+		"NO_REQUEST_ID",
+		QString(
+			"send() failed to queue request, exception: %1"
+		).arg(
+			e.what()
+		));
+	rpcErrorOccured(requestId, onFail, error);
 }
 
 void Session::restart() {
@@ -271,7 +301,7 @@ void Session::checkRequestsByTimer() {
 	}
 
 	if (stateRequestIds.size()) {
-		DEBUG_LOG(("MTP Info: requesting state of msgs: %1").arg(Logs::vector(stateRequestIds)));
+		DEBUG_LOG(("MTP Info: requesting state of msgs: %1").arg(LogIds(stateRequestIds)));
 		{
 			QWriteLocker locker(data.stateRequestMutex());
 			for (uint32 i = 0, l = stateRequestIds.size(); i < l; ++i) {

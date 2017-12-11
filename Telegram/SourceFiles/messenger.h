@@ -24,6 +24,17 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/auth_key.h"
 #include "base/timer.h"
 
+class AuthSession;
+class AuthSessionData;
+class MainWidget;
+class FileUploader;
+class Translator;
+class MediaView;
+
+namespace Core {
+class Launcher;
+} // namespace Core
+
 namespace App {
 void quit();
 } // namespace App
@@ -35,13 +46,6 @@ class AuthKey;
 using AuthKeyPtr = std::shared_ptr<AuthKey>;
 using AuthKeysList = std::vector<AuthKeyPtr>;
 } // namespace MTP
-
-class AuthSession;
-class AuthSessionData;
-class MainWidget;
-class FileUploader;
-class Translator;
-class MediaView;
 
 namespace Media {
 namespace Audio {
@@ -59,12 +63,16 @@ class Messenger final : public QObject, public RPCSender, private base::Subscrib
 	Q_OBJECT
 
 public:
-	Messenger();
+	Messenger(not_null<Core::Launcher*> launcher);
 
 	Messenger(const Messenger &other) = delete;
 	Messenger &operator=(const Messenger &other) = delete;
 
 	~Messenger();
+
+	not_null<Core::Launcher*> launcher() const {
+		return _launcher;
+	}
 
 	// Windows interface.
 	MainWindow *getActiveWindow() const;
@@ -219,6 +227,8 @@ private:
 	void quitDelayed();
 
 	void loggedOut();
+
+	not_null<Core::Launcher*> _launcher;
 
 	QMap<FullMsgId, PeerId> photoUpdates;
 

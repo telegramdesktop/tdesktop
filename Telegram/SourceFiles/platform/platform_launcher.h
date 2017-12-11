@@ -18,9 +18,26 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "core/launcher.h"
+#pragma once
 
-int main(int argc, char *argv[]) {
-	const auto launcher = Core::Launcher::Create(argc, argv);
-	return launcher ? launcher->exec() : 1;
-}
+namespace Platform {
+
+//class Launcher : public Core::Launcher {
+//public:
+//	using Core::Launcher::Launcher;
+//
+//	...
+//
+//};
+
+} // namespace Platform
+
+// Platform dependent implementations.
+
+#ifdef Q_OS_MAC
+#include "platform/mac/launcher_mac.h"
+#elif defined Q_OS_LINUX // Q_OS_MAC
+#include "platform/linux/launcher_linux.h"
+#elif defined Q_OS_WINRT || defined Q_OS_WIN // Q_OS_MAC || Q_OS_LINUX
+#include "platform/win/launcher_win.h"
+#endif // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT || Q_OS_WIN

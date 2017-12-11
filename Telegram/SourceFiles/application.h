@@ -21,11 +21,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 class UpdateChecker;
+
+namespace Core {
+class Launcher;
+} // namespace Core
+
 class Application : public QApplication {
 	Q_OBJECT
 
 public:
-	Application(int &argc, char **argv);
+	Application(not_null<Core::Launcher*> launcher, int &argc, char **argv);
 
 	bool event(QEvent *e) override;
 
@@ -55,6 +60,7 @@ private:
 	typedef QPair<QLocalSocket*, QByteArray> LocalClient;
 	typedef QList<LocalClient> LocalClients;
 
+	not_null<Core::Launcher*> _launcher;
 	std::unique_ptr<Messenger> _messengerInstance;
 
 	QString _localServerName, _localSocketReadData;

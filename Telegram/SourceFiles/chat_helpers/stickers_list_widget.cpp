@@ -1090,7 +1090,7 @@ void StickersListWidget::removeRecentSticker(int section, int index) {
 	clearSelection();
 	bool refresh = false;
 	auto sticker = _mySets[section].pack[index];
-	auto &recent = cGetRecentStickers();
+	auto &recent = Stickers::GetRecentPack();
 	for (int32 i = 0, l = recent.size(); i < l; ++i) {
 		if (recent.at(i).first == sticker) {
 			recent.removeAt(i);
@@ -1302,7 +1302,7 @@ void StickersListWidget::refreshRecentStickers(bool performResize) {
 	_custom.clear();
 	clearSelection();
 	auto &sets = Auth().data().stickerSets();
-	auto &recent = cGetRecentStickers();
+	auto &recent = Stickers::GetRecentPack();
 	auto customIt = sets.constFind(Stickers::CustomSetId);
 	auto cloudIt = sets.constFind(Stickers::CloudRecentSetId);
 
@@ -1773,7 +1773,7 @@ void StickersListWidget::removeSet(uint64 setId) {
 					request(MTPmessages_UninstallStickerSet(MTP_inputStickerSetShortName(MTP_string(it->shortName)))).send();
 				}
 				auto writeRecent = false;
-				auto &recent = cGetRecentStickers();
+				auto &recent = Stickers::GetRecentPack();
 				for (auto i = recent.begin(); i != recent.cend();) {
 					if (it->stickers.indexOf(i->first) >= 0) {
 						i = recent.erase(i);

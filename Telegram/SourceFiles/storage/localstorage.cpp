@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "storage/serialize_document.h"
 #include "storage/serialize_common.h"
+#include "chat_helpers/stickers.h"
 #include "data/data_drafts.h"
 #include "window/themes/window_theme.h"
 #include "observer_peer.h"
@@ -1778,7 +1779,7 @@ void _writeUserSettings() {
 	}
 
 	size += sizeof(quint32) + sizeof(qint32) + cEmojiVariants().size() * (sizeof(uint32) + sizeof(uint64));
-	size += sizeof(quint32) + sizeof(qint32) + (cRecentStickersPreload().isEmpty() ? cGetRecentStickers().size() : cRecentStickersPreload().size()) * (sizeof(uint64) + sizeof(ushort));
+	size += sizeof(quint32) + sizeof(qint32) + (Stickers::GetRecentPack().isEmpty() ? Stickers::GetRecentPack().size() : cRecentStickersPreload().size()) * (sizeof(uint64) + sizeof(ushort));
 	size += sizeof(quint32) + Serialize::stringSize(cDialogLastPath());
 	size += sizeof(quint32) + 3 * sizeof(qint32);
 	size += sizeof(quint32) + 2 * sizeof(qint32);
@@ -1822,11 +1823,11 @@ void _writeUserSettings() {
 	}
 	data.stream << quint32(dbiEmojiVariants) << cEmojiVariants();
 	{
-		RecentStickerPreload v(cRecentStickersPreload());
+		auto v = cRecentStickersPreload();
 		if (v.isEmpty()) {
-			v.reserve(cGetRecentStickers().size());
-			for (RecentStickerPack::const_iterator i = cGetRecentStickers().cbegin(), e = cGetRecentStickers().cend(); i != e; ++i) {
-				v.push_back(qMakePair(i->first->id, i->second));
+			v.reserve(Stickers::GetRecentPack().size());
+			for_const (auto &pair, Stickers::GetRecentPack()) {
+				v.push_back(qMakePair(pair.first->id, pair.second));
 			}
 		}
 		data.stream << quint32(dbiRecentStickers) << v;

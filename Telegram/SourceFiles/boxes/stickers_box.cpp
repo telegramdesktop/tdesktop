@@ -1551,13 +1551,13 @@ int StickersBox::Inner::fillSetCount(const Stickers::Set &set) const {
 		auto customIt = Auth().data().stickerSets().constFind(Stickers::CustomSetId);
 		if (customIt != Auth().data().stickerSets().cend()) {
 			added = customIt->stickers.size();
-			for_const (auto &sticker, cGetRecentStickers()) {
+			for_const (auto &sticker, Stickers::GetRecentPack()) {
 				if (customIt->stickers.indexOf(sticker.first) < 0) {
 					++added;
 				}
 			}
 		} else {
-			added = cGetRecentStickers().size();
+			added = Stickers::GetRecentPack().size();
 		}
 	}
 	return result + added;

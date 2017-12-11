@@ -36,6 +36,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "window/themes/window_theme.h"
 #include "observer_peer.h"
+#include "chat_helpers/stickers.h"
 #include "auth_session.h"
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
@@ -2123,7 +2124,7 @@ void DialogsInner::saveRecentHashtags(const QString &text) {
 			recent = cRecentSearchHashtags();
 		}
 		found = true;
-		incrementRecentHashtag(recent, text.mid(i + 1, next - i - 1));
+		Stickers::IncrementRecentHashtag(recent, text.mid(i + 1, next - i - 1));
 	}
 	if (found) {
 		cSetRecentSearchHashtags(recent);

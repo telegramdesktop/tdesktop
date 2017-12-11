@@ -75,7 +75,9 @@ struct Messenger::Private {
 	base::Timer quitTimer;
 };
 
-Messenger::Messenger() : QObject()
+Messenger::Messenger(not_null<Core::Launcher*> launcher)
+: QObject()
+, _launcher(launcher)
 , _private(std::make_unique<Private>())
 , _langpack(std::make_unique<Lang::Instance>())
 , _audio(std::make_unique<Media::Audio::Instance>())
