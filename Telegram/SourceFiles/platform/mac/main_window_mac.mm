@@ -38,6 +38,20 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <IOKit/hidsystem/ev_keymap.h>
 #include <SPMediaKeyTap.h>
 
+@interface MainWindowObserver : NSObject {
+}
+
+- (id) init:(MainWindow::Private*)window;
+- (void) activeSpaceDidChange:(NSNotification *)aNotification;
+- (void) darkModeChanged:(NSNotification *)aNotification;
+- (void) screenIsLocked:(NSNotification *)aNotification;
+- (void) screenIsUnlocked:(NSNotification *)aNotification;
+- (void) windowWillEnterFullScreen:(NSNotification *)aNotification;
+- (void) windowWillExitFullScreen:(NSNotification *)aNotification;
+
+@end // @interface MainWindowObserver
+
+namespace Platform {
 namespace {
 
 // When we close a window that is fullscreen we first leave the fullscreen
@@ -56,22 +70,33 @@ id FindClassInSubviews(NSView *parent, NSString *className) {
 	return nil;
 }
 
+#ifndef OS_MAC_OLD
+
+class LayerCreationChecker : public QObject {
+public:
+	LayerCreationChecker(NSView * __weak view, base::lambda<void()> callback)
+	: _weakView(view)
+	, _callback(std::move(callback)) {
+		QCoreApplication::instance()->installEventFilter(this);
+	}
+
+protected:
+	bool eventFilter(QObject *object, QEvent *event) override {
+		if (!_weakView || [_weakView layer] != nullptr) {
+			_callback();
+		}
+		return QObject::eventFilter(object, event);
+	}
+
+private:
+	NSView * __weak _weakView = nil;
+	base::lambda<void()> _callback;
+
+};
+
+#endif // OS_MAC_OLD
+
 } // namespace
-
-@interface MainWindowObserver : NSObject {
-}
-
-- (id) init:(MainWindow::Private*)window;
-- (void) activeSpaceDidChange:(NSNotification *)aNotification;
-- (void) darkModeChanged:(NSNotification *)aNotification;
-- (void) screenIsLocked:(NSNotification *)aNotification;
-- (void) screenIsUnlocked:(NSNotification *)aNotification;
-- (void) windowWillEnterFullScreen:(NSNotification *)aNotification;
-- (void) windowWillExitFullScreen:(NSNotification *)aNotification;
-
-@end // @interface MainWindowObserver
-
-namespace Platform {
 
 class MainWindow::Private {
 public:
@@ -108,6 +133,7 @@ private:
 	NSView * __weak _nativeView = nil;
 	id __weak _nativeTitleWrapWeak = nil;
 	id __weak _nativeTitleWeak = nil;
+	std::unique_ptr<LayerCreationChecker> _layerCreationChecker;
 #endif // !OS_MAC_OLD
 	bool _useNativeTitle = false;
 	bool _inFullScreen = false;
@@ -219,6 +245,22 @@ void MainWindow::Private::initCustomTitle() {
 	auto inner = [_nativeWindow contentLayoutRect];
 	auto full = [_nativeView frame];
 	_public->_customTitleHeight = qMax(qRound(full.size.height - inner.size.height), 0);
+
+	// Qt still has some bug with layer-backed widgets containing QOpenGLWidgets.
+	// See https://github.com/telegramdesktop/tdesktop/issues/4149
+	// Tried to workaround it by catching the first moment we have CALayer created
+	// and explicitly setting contentsScale to window->backingScaleFactor there.
+	_layerCreationChecker = std::make_unique<LayerCreationChecker>(_nativeView, [=] {
+		if (_nativeView && _nativeWindow) {
+			if (CALayer *layer = [_nativeView layer]) {
+				LOG(("Window Info: Setting layer scale factor to: %1").arg([_nativeWindow backingScaleFactor]));
+				[layer setContentsScale: [_nativeWindow backingScaleFactor]];
+				_layerCreationChecker = nullptr;
+			}
+		} else {
+			_layerCreationChecker = nullptr;
+		}
+	});
 
 	// Disabled for now.
 	//_useNativeTitle = true;
