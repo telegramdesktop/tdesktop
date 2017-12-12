@@ -45,11 +45,19 @@ private:
 	void prepareSettings();
 	void processArguments();
 
+	QStringList readArguments(int argc, char *argv[]) const;
+	virtual base::optional<QStringList> readArgumentsHook(
+			int argc,
+			char *argv[]) const {
+		return base::none;
+	}
+
 	void init();
 	virtual void initHook() {
 	}
 
 	virtual bool launchUpdater(UpdaterLaunch action) = 0;
+
 
 	int _argc;
 	char **_argv;

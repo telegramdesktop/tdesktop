@@ -29,6 +29,10 @@ public:
 	using Core::Launcher::Launcher;
 
 private:
+	base::optional<QStringList> readArgumentsHook(
+		int argc,
+		char *argv[]) const override;
+
 	bool launchUpdater(UpdaterLaunch action) override;
 
 	bool launch(

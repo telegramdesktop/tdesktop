@@ -23,9 +23,28 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/crash_reports.h"
 #include "platform/platform_specific.h"
 
+#include <windows.h>
 #include <shellapi.h>
 
 namespace Platform {
+
+base::optional<QStringList> Launcher::readArgumentsHook(
+		int argc,
+		char *argv[]) const {
+	auto count = 0;
+	if (const auto list = CommandLineToArgvW(GetCommandLine(), &count)) {
+		const auto guard = gsl::finally([&] { LocalFree(list); });
+		if (count > 0) {
+			auto result = QStringList();
+			result.reserve(count);
+			for (auto i = 0; i != count; ++i) {
+				result.push_back(QString::fromWCharArray(list[i]));
+			}
+			return result;
+		}
+	}
+	return base::none;
+}
 
 bool Launcher::launchUpdater(UpdaterLaunch action) {
 	if (cExeName().isEmpty()) {

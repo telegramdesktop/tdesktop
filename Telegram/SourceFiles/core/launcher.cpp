@@ -26,20 +26,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "application.h"
 
 namespace Core {
-namespace {
-
-QStringList ReadArguments(int argc, char *argv[]) {
-	Expects(argc >= 0);
-
-	auto result = QStringList();
-	result.reserve(argc);
-	for (auto i = 0; i != argc; ++i) {
-		result.push_back(fromUtf8Safe(argv[i]));
-	}
-	return result;
-}
-
-} // namespace
 
 std::unique_ptr<Launcher> Launcher::Create(int argc, char *argv[]) {
 	return std::make_unique<Platform::Launcher>(argc, argv);
@@ -47,12 +33,14 @@ std::unique_ptr<Launcher> Launcher::Create(int argc, char *argv[]) {
 
 Launcher::Launcher(int argc, char *argv[])
 : _argc(argc)
-, _argv(argv)
-, _arguments(ReadArguments(argc, argv)) {
-	prepareSettings();
+, _argv(argv) {
 }
 
 void Launcher::init() {
+	_arguments = readArguments(_argc, _argv);
+
+	prepareSettings();
+
 	QCoreApplication::setApplicationName(qsl("TelegramDesktop"));
 
 #ifndef OS_MAC_OLD
@@ -100,6 +88,21 @@ int Launcher::exec() {
 	Platform::finish();
 	Logs::finish();
 
+	return result;
+}
+
+QStringList Launcher::readArguments(int argc, char *argv[]) const {
+	Expects(argc >= 0);
+
+	if (const auto native = readArgumentsHook(argc, argv)) {
+		return *native;
+	}
+
+	auto result = QStringList();
+	result.reserve(argc);
+	for (auto i = 0; i != argc; ++i) {
+		result.push_back(fromUtf8Safe(argv[i]));
+	}
 	return result;
 }
 
