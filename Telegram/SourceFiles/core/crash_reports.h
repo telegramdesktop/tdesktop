@@ -22,6 +22,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace CrashReports {
 
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
+
 struct dump {
 	~dump();
 };
@@ -32,6 +34,8 @@ const dump &operator<<(const dump &stream, unsigned int num);
 const dump &operator<<(const dump &stream, unsigned long num);
 const dump &operator<<(const dump &stream, unsigned long long num);
 const dump &operator<<(const dump &stream, double num);
+
+#endif // TDESKTOP_DISABLE_CRASH_REPORTS
 
 enum Status {
 	CantOpen,

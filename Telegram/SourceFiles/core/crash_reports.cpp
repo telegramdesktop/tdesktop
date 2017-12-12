@@ -514,6 +514,8 @@ void SetAnnotationRef(const std::string &key, const QString *valuePtr) {
 	}
 }
 
+#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
+
 dump::~dump() {
 	if (ReportFile) {
 		fflush(ReportFile);
@@ -572,5 +574,7 @@ const dump &operator<<(const dump &stream, double num) {
 	}
 	return stream;
 }
+
+#endif // TDESKTOP_DISABLE_CRASH_REPORTS
 
 } // namespace CrashReports
