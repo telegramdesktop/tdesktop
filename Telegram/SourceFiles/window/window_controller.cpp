@@ -130,7 +130,7 @@ Controller::ColumnLayout Controller::computeColumnLayout() const {
 int Controller::countDialogsWidthFromRatio(int bodyWidth) const {
 	auto result = qRound(bodyWidth * Auth().data().dialogsWidthRatio());
 	accumulate_max(result, st::columnMinimalWidthLeft);
-	accumulate_min(result, st::columnMaximalWidthLeft);
+//	accumulate_min(result, st::columnMaximalWidthLeft);
 	return result;
 }
 
