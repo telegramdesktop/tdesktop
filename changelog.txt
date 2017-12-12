@@ -1,3 +1,7 @@
+1.2.1 alpha (12.12.17)
+
+- Bug fixes and other minor improvements.
+
 1.2.0 (10.12.17)
 
 - Radically improved navigation. New side panel on the right with quick access to shared media and group members.
