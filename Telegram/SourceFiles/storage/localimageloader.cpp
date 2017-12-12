@@ -251,7 +251,7 @@ bool FileLoadTask::CheckForSong(const QString &filepath, const QByteArray &conte
 	if (!CheckMimeOrExtensions(filepath, result->filemime, mimes, extensions)) {
 		return false;
 	}
-	return false;
+
 	auto media = Media::Player::PrepareForSending(filepath, content);
 	if (media.duration < 0) {
 		return false;
