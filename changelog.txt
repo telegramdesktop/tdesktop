@@ -1,4 +1,4 @@
-1.2.1 alpha (12.12.17)
+1.2.1 (12.12.17)
 
 - Bug fixes and other minor improvements.
 
