@@ -277,12 +277,7 @@ void PeerData::updateUserpic(
 	const auto size = kUserpicSize;
 	const auto loc = StorageImageLocation::FromMTP(size, size, location);
 	const auto photo = loc.isNull() ? ImagePtr() : ImagePtr(loc);
-	if (_userpicPhotoId != photoId
-		|| _userpic.v() != photo.v()
-		|| _userpicLocation != loc) {
-		setUserpic(photoId, loc, photo);
-		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
-	}
+	setUserpicChecked(photoId, loc, photo);
 }
 
 void PeerData::clearUserpic() {
@@ -300,6 +295,19 @@ void PeerData::clearUserpic() {
 		}
 		return ImagePtr();
 	}();
+	setUserpicChecked(photoId, loc, photo);
+}
+
+void PeerData::setUserpicChecked(
+		PhotoId photoId,
+		const StorageImageLocation &location,
+		ImagePtr userpic) {
+	if (_userpicPhotoId != photoId
+		|| _userpic.v() != userpic.v()
+		|| _userpicLocation != location) {
+		setUserpic(photoId, location, userpic);
+		Notify::peerUpdatedDelayed(this, UpdateFlag::PhotoChanged);
+	}
 }
 
 void PeerData::fillNames() {

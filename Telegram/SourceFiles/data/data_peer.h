@@ -238,6 +238,11 @@ private:
 	std::unique_ptr<Ui::EmptyUserpic> createEmptyUserpic() const;
 	void refreshEmptyUserpic() const;
 
+	void setUserpicChecked(
+		PhotoId photoId,
+		const StorageImageLocation &location,
+		ImagePtr userpic);
+
 	static constexpr auto kUnknownPhotoId = PhotoId(0xFFFFFFFFFFFFFFFFULL);
 
 	ImagePtr _userpic;
