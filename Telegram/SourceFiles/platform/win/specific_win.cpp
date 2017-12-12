@@ -648,53 +648,6 @@ void psNewVersion() {
 	}
 }
 
-void psExecUpdater() {
-	if (cExeName().isEmpty()) {
-		return;
-	}
-
-	QString targs = qsl("-update -exename \"") + cExeName() + '"';
-	if (cLaunchMode() == LaunchModeAutoStart) targs += qsl(" -autostart");
-	if (cDebug()) targs += qsl(" -debug");
-	if (cStartInTray()) targs += qsl(" -startintray");
-	if (cWriteProtected()) targs += qsl(" -writeprotected \"") + cExeDir() + '"';
-
-	QString updaterPath = cWriteProtected() ? (cWorkingDir() + qsl("tupdates/temp/Updater.exe")) : (cExeDir() + qsl("Updater.exe"));
-
-	QString updater(QDir::toNativeSeparators(updaterPath)), wdir(QDir::toNativeSeparators(cWorkingDir()));
-
-	DEBUG_LOG(("Application Info: executing %1 %2").arg(cExeDir() + "Updater.exe").arg(targs));
-	HINSTANCE r = ShellExecute(0, cWriteProtected() ? L"runas" : 0, updater.toStdWString().c_str(), targs.toStdWString().c_str(), wdir.isEmpty() ? 0 : wdir.toStdWString().c_str(), SW_SHOWNORMAL);
-	if (long(r) < 32) {
-		DEBUG_LOG(("Application Error: failed to execute %1, working directory: '%2', result: %3").arg(updater).arg(wdir).arg(long(r)));
-		psDeleteDir(cWorkingDir() + qsl("tupdates/temp"));
-	}
-}
-
-void psExecTelegram(const QString &crashreport) {
-	if (cExeName().isEmpty()) {
-		return;
-	}
-	QString targs = crashreport.isEmpty() ? qsl("-noupdate") : ('"' + crashreport + '"');
-	if (crashreport.isEmpty()) {
-		if (cRestartingToSettings()) targs += qsl(" -tosettings");
-		if (cLaunchMode() == LaunchModeAutoStart) targs += qsl(" -autostart");
-		if (cDebug()) targs += qsl(" -debug");
-		if (cStartInTray()) targs += qsl(" -startintray");
-		if (cTestMode()) targs += qsl(" -testmode");
-		if (cDataFile() != qsl("data")) targs += qsl(" -key \"") + cDataFile() + '"';
-	}
-	QString telegram(QDir::toNativeSeparators(cExeDir() + cExeName())), wdir(QDir::toNativeSeparators(cWorkingDir()));
-
-	DEBUG_LOG(("Application Info: executing %1 %2").arg(cExeDir() + cExeName()).arg(targs));
-	Logs::closeMain();
-	CrashReports::Finish();
-	HINSTANCE r = ShellExecute(0, 0, telegram.toStdWString().c_str(), targs.toStdWString().c_str(), wdir.isEmpty() ? 0 : wdir.toStdWString().c_str(), SW_SHOWNORMAL);
-	if (long(r) < 32) {
-		DEBUG_LOG(("Application Error: failed to execute %1, working directory: '%2', result: %3").arg(telegram).arg(wdir).arg(long(r)));
-	}
-}
-
 void _manageAppLnk(bool create, bool silent, int path_csidl, const wchar_t *args, const wchar_t *description) {
 	if (cExeName().isEmpty()) {
 		return;

@@ -29,7 +29,12 @@ public:
 	using Core::Launcher::Launcher;
 
 private:
-	void initHook() override;
+	bool launchUpdater(UpdaterLaunch action) override;
+
+	bool launch(
+		const QString &operation,
+		const QString &binaryPath,
+		const QStringList &argumentsList);
 
 };
 

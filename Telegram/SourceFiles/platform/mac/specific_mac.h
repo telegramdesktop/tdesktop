@@ -78,9 +78,6 @@ void psBringToBack(QWidget *w);
 int psCleanup();
 int psFixPrevious();
 
-void psExecUpdater();
-void psExecTelegram(const QString &crashreport = QString());
-
 bool psShowOpenWithMenu(int x, int y, const QString &file);
 
 QAbstractNativeEventFilter *psNativeEventFilter();

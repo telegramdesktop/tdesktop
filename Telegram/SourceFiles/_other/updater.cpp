@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 bool _debug = false;
 
-wstring updaterName, updaterDir, updateTo, exeName;
+wstring updaterName, updaterDir, updateTo, exeName, customWorkingDir, customKeyFile;
 
 bool equal(const wstring &a, const wstring &b) {
 	return !_wcsicmp(a.c_str(), b.c_str());
@@ -356,6 +356,7 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 	args = CommandLineToArgvW(GetCommandLine(), &argsCount);
 	if (args) {
 		for (int i = 1; i < argsCount; ++i) {
+			writeLog(std::wstring(L"Argument: ") + args[i]);
 			if (equal(args[i], L"-update")) {
 				needupdate = true;
 			} else if (equal(args[i], L"-autostart")) {
@@ -368,17 +369,25 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 			} else if (equal(args[i], L"-testmode")) {
 				testmode = true;
 			} else if (equal(args[i], L"-writeprotected") && ++i < argsCount) {
+				writeLog(std::wstring(L"Argument: ") + args[i]);
 				writeprotected = true;
 				updateTo = args[i];
-				for (int i = 0, l = updateTo.size(); i < l; ++i) {
-					if (updateTo[i] == L'/') {
-						updateTo[i] = L'\\';
+				for (int j = 0, l = updateTo.size(); j < l; ++j) {
+					if (updateTo[j] == L'/') {
+						updateTo[j] = L'\\';
 					}
 				}
+			} else if (equal(args[i], L"-workdir") && ++i < argsCount) {
+				writeLog(std::wstring(L"Argument: ") + args[i]);
+				customWorkingDir = args[i];
+			} else if (equal(args[i], L"-key") && ++i < argsCount) {
+				writeLog(std::wstring(L"Argument: ") + args[i]);
+				customKeyFile = args[i];
 			} else if (equal(args[i], L"-exename") && ++i < argsCount) {
+				writeLog(std::wstring(L"Argument: ") + args[i]);
 				exeName = args[i];
-				for (int i = 0, l = exeName.size(); i < l; ++i) {
-					if (exeName[i] == L'/' || exeName[i] == L'\\') {
+				for (int j = 0, l = exeName.size(); j < l; ++j) {
+					if (exeName[j] == L'/' || exeName[j] == L'\\') {
 						exeName = L"Telegram.exe";
 						break;
 					}
@@ -391,6 +400,7 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 		if (needupdate) writeLog(L"Need to update!");
 		if (autostart) writeLog(L"From autostart!");
 		if (writeprotected) writeLog(L"Write Protected folder!");
+		if (!customWorkingDir.empty()) writeLog(L"Will pass custom working dir: " + customWorkingDir);
 
 		updaterName = args[0];
 		writeLog(L"Updater name is: " + updaterName);
@@ -428,6 +438,13 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 	if (debug) targs += L" -debug";
 	if (startintray) targs += L" -startintray";
 	if (testmode) targs += L" -testmode";
+	if (!customWorkingDir.empty()) {
+		targs += L" -workdir \"" + customWorkingDir + L"\"";
+	}
+	if (!customKeyFile.empty()) {
+		targs += L" -key \"" + customKeyFile + L"\"";
+	}
+	writeLog(L"Result arguments: " + targs);
 
 	bool executed = false;
 	if (writeprotected) { // run un-elevated

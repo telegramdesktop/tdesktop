@@ -31,14 +31,31 @@ public:
 	int exec();
 
 	QString argumentsString() const;
+	bool customWorkingDir() const {
+		return _customWorkingDir;
+	}
+
+protected:
+	enum class UpdaterLaunch {
+		PerformUpdate,
+		JustRelaunch,
+	};
 
 private:
+	void prepareSettings();
+	void processArguments();
+
 	void init();
-	virtual void initHook() = 0;
+	virtual void initHook() {
+	}
+
+	virtual bool launchUpdater(UpdaterLaunch action) = 0;
 
 	int _argc;
 	char **_argv;
 	QStringList _arguments;
+
+	bool _customWorkingDir = false;
 
 };
 

@@ -31,6 +31,8 @@ public:
 private:
 	void initHook() override;
 
+	bool launchUpdater(UpdaterLaunch action) override;
+
 };
 
 } // namespace Platform

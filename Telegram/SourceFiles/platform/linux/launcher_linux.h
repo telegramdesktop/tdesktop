@@ -29,7 +29,7 @@ public:
 	using Core::Launcher::Launcher;
 
 private:
-	void initHook() override;
+	bool launchUpdater(UpdaterLaunch action) override;
 
 };
 

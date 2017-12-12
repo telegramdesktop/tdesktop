@@ -77,9 +77,6 @@ void psBringToBack(QWidget *w);
 int psCleanup();
 int psFixPrevious();
 
-void psExecUpdater();
-void psExecTelegram(const QString &arg = QString());
-
 QAbstractNativeEventFilter *psNativeEventFilter();
 
 void psNewVersion();

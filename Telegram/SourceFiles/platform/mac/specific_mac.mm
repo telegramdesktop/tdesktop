@@ -412,16 +412,6 @@ void psNewVersion() {
 	objc_registerCustomScheme();
 }
 
-void psExecUpdater() {
-	if (!objc_execUpdater()) {
-		psDeleteDir(cWorkingDir() + qsl("tupdates/temp"));
-	}
-}
-
-void psExecTelegram(const QString &crashreport) {
-	objc_execTelegram(crashreport);
-}
-
 void psAutoStart(bool start, bool silent) {
 }
 

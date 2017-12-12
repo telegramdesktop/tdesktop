@@ -32,8 +32,6 @@ bool objc_idleTime(TimeMs &idleTime);
 void objc_start();
 void objc_ignoreApplicationActivationRightNow();
 void objc_finish();
-bool objc_execUpdater();
-void objc_execTelegram(const QString &crashreport);
 
 void objc_registerCustomScheme();
 

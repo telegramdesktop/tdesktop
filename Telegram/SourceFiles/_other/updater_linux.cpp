@@ -344,9 +344,16 @@ string CurrentExecutablePath(int argc, char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
-	bool needupdate = true, autostart = false, debug = false, tosettings = false, startintray = false, testmode = false;
+	bool needupdate = true;
+	bool autostart = false;
+	bool debug = false;
+	bool tosettings = false;
+	bool startintray = false;
+	bool testmode = false;
+	bool customWorkingDir = false;
 
-	char *key = 0, *crashreport = 0;
+	char *key = 0;
+	char *workdir = 0;
 	for (int i = 1; i < argc; ++i) {
 		if (equal(argv[i], "-noupdate")) {
 			needupdate = false;
@@ -360,12 +367,12 @@ int main(int argc, char *argv[]) {
 			testmode = true;
 		} else if (equal(argv[i], "-tosettings")) {
 			tosettings = true;
+		} else if (equal(argv[i], "-workdir_custom")) {
+			customWorkingDir = true;
 		} else if (equal(argv[i], "-key") && ++i < argc) {
 			key = argv[i];
 		} else if (equal(argv[i], "-workpath") && ++i < argc) {
-			workDir = argv[i];
-		} else if (equal(argv[i], "-crashreport") && ++i < argc) {
-			crashreport = argv[i];
+			workDir = workdir = argv[i];
 		} else if (equal(argv[i], "-exename") && ++i < argc) {
 			exeName = argv[i];
 		} else if (equal(argv[i], "-exepath") && ++i < argc) {
@@ -401,6 +408,8 @@ int main(int argc, char *argv[]) {
 			}
 			if (needupdate) {
 				if (workDir.empty()) { // old app launched, update prepared in tupdates/ready (not in tupdates/temp)
+					customWorkingDir = false;
+
 					writeLog("No workdir, trying to figure it out");
 					struct passwd *pw = getpwuid(getuid());
 					if (pw && pw->pw_dir && strlen(pw->pw_dir)) {
@@ -446,22 +455,30 @@ int main(int argc, char *argv[]) {
 	string fullBinaryPath = exePath + exeName;
 	strcpy(path, fullBinaryPath.c_str());
 
-	char *args[MaxArgsCount] = {0}, p_noupdate[] = "-noupdate", p_autostart[] = "-autostart", p_debug[] = "-debug", p_tosettings[] = "-tosettings", p_key[] = "-key", p_startintray[] = "-startintray", p_testmode[] = "-testmode";
+	char *args[MaxArgsCount] = { 0 };
+	char p_noupdate[] = "-noupdate";
+	char p_autostart[] = "-autostart";
+	char p_debug[] = "-debug";
+	char p_tosettings[] = "-tosettings";
+	char p_key[] = "-key";
+	char p_startintray[] = "-startintray";
+	char p_testmode[] = "-testmode";
+	char p_workdir[] = "-workdir";
 	int argIndex = 0;
 	args[argIndex++] = path;
-	if (crashreport) {
-		args[argIndex++] = crashreport;
-	} else {
-		args[argIndex++] = p_noupdate;
-		if (autostart) args[argIndex++] = p_autostart;
-		if (debug) args[argIndex++] = p_debug;
-		if (startintray) args[argIndex++] = p_startintray;
-		if (testmode) args[argIndex++] = p_testmode;
-		if (tosettings) args[argIndex++] = p_tosettings;
-		if (key) {
-			args[argIndex++] = p_key;
-			args[argIndex++] = key;
-		}
+	args[argIndex++] = p_noupdate;
+	if (autostart) args[argIndex++] = p_autostart;
+	if (debug) args[argIndex++] = p_debug;
+	if (startintray) args[argIndex++] = p_startintray;
+	if (testmode) args[argIndex++] = p_testmode;
+	if (tosettings) args[argIndex++] = p_tosettings;
+	if (key) {
+		args[argIndex++] = p_key;
+		args[argIndex++] = key;
+	}
+	if (customWorkingDir && workdir) {
+		args[argIndex++] = p_workdir;
+		args[argIndex++] = workdir;
 	}
 	pid_t pid = fork();
 	switch (pid) {

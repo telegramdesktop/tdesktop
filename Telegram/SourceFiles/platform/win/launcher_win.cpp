@@ -20,9 +20,107 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "platform/win/launcher_win.h"
 
+#include "core/crash_reports.h"
+#include "platform/platform_specific.h"
+
+#include <shellapi.h>
+
 namespace Platform {
 
-void Launcher::initHook() {
+bool Launcher::launchUpdater(UpdaterLaunch action) {
+	if (cExeName().isEmpty()) {
+		return false;
+	}
+
+	const auto operation = (action == UpdaterLaunch::JustRelaunch)
+		? QString()
+		: (cWriteProtected()
+			? qsl("runas")
+			: QString());
+	const auto binaryPath = (action == UpdaterLaunch::JustRelaunch)
+		? (cExeDir() + cExeName())
+		: (cWriteProtected()
+			? (cWorkingDir() + qsl("tupdates/temp/Updater.exe"))
+			: (cExeDir() + qsl("Updater.exe")));
+
+	auto argumentsList = QStringList();
+	const auto pushArgument = [&](const QString &argument) {
+		argumentsList.push_back(argument.trimmed());
+	};
+	if (cLaunchMode() == LaunchModeAutoStart) {
+		pushArgument(qsl("-autostart"));
+	}
+	if (cDebug()) {
+		pushArgument(qsl("-debug"));
+	}
+	if (cStartInTray()) {
+		pushArgument(qsl("-startintray"));
+	}
+	if (cTestMode()) {
+		pushArgument(qsl("-testmode"));
+	}
+	if (customWorkingDir()) {
+		pushArgument(qsl("-workdir"));
+		pushArgument('"' + cWorkingDir() + '"');
+	}
+	if (cDataFile() != qsl("data")) {
+		pushArgument(qsl("-key"));
+		pushArgument('"' + cDataFile() + '"');
+	}
+
+	if (action == UpdaterLaunch::JustRelaunch) {
+		pushArgument(qsl("-noupdate"));
+		if (cRestartingToSettings()) {
+			pushArgument(qsl("-tosettings"));
+		}
+	} else {
+		pushArgument(qsl("-update"));
+		pushArgument(qsl("-exename"));
+		pushArgument('"' + cExeName() + '"');
+		if (cWriteProtected()) {
+			pushArgument(qsl("-writeprotected"));
+			pushArgument('"' + cExeDir() + '"');
+		}
+	}
+	return launch(operation, binaryPath, argumentsList);
+}
+
+bool Launcher::launch(
+		const QString &operation,
+		const QString &binaryPath,
+		const QStringList &argumentsList) {
+	const auto convertPath = [](const QString &path) {
+		return QDir::toNativeSeparators(path).toStdWString();
+	};
+	const auto nativeBinaryPath = convertPath(binaryPath);
+	const auto nativeWorkingDir = convertPath(cWorkingDir());
+	const auto arguments = argumentsList.join(' ');
+
+	DEBUG_LOG(("Application Info: executing %1 %2"
+		).arg(binaryPath
+		).arg(arguments
+		));
+
+	Logs::closeMain();
+	CrashReports::Finish();
+
+	const auto hwnd = HWND(0);
+	const auto result = ShellExecute(
+		hwnd,
+		operation.isEmpty() ? nullptr : operation.toStdWString().c_str(),
+		nativeBinaryPath.c_str(),
+		arguments.toStdWString().c_str(),
+		nativeWorkingDir.empty() ? nullptr : nativeWorkingDir.c_str(),
+		SW_SHOWNORMAL);
+	if (long(result) < 32) {
+		DEBUG_LOG(("Application Error: failed to execute %1, working directory: '%2', result: %3"
+			).arg(binaryPath
+			).arg(cWorkingDir()
+			).arg(long(result)
+			));
+		return false;
+	}
+	return true;
 }
 
 } // namespace
