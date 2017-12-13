@@ -461,3 +461,9 @@ historyFastShareIcon: icon {{ "fast_share", msgServiceFg, point(4px, 3px)}};
 historyGoToOriginalIcon: icon {{ "title_back-flip_horizontal", msgServiceFg, point(8px, 7px) }};
 
 historySavedFont: font(semibold 14px);
+
+historyGroupWidthMax: maxMediaSize;
+historyGroupWidthMin: minPhotoSize;
+historyGroupSkip: 4px;
+historyGroupRadialSize: 44px;
+historyGroupRadialLine: 3px;

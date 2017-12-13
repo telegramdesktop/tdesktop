@@ -38,6 +38,16 @@ class EmptyUserpic;
 } // namespace Ui
 
 void HistoryInitMedia();
+TextWithEntities WithCaptionSelectedText(
+	const QString &attachType,
+	const Text &caption,
+	TextSelection selection);
+QString WithCaptionNotificationText(
+	const QString &attachType,
+	const Text &caption);
+QString WithCaptionDialogsText(
+	const QString &attachType,
+	const Text &caption);
 
 class HistoryFileMedia : public HistoryMedia {
 public:
@@ -129,23 +139,35 @@ protected:
 
 class HistoryPhoto : public HistoryFileMedia {
 public:
-	HistoryPhoto(not_null<HistoryItem*> parent, not_null<PhotoData*> photo, const QString &caption);
-	HistoryPhoto(not_null<HistoryItem*> parent, not_null<PeerData*> chat, not_null<PhotoData*> photo, int width);
-	HistoryPhoto(not_null<HistoryItem*> parent, not_null<PeerData*> chat, const MTPDphoto &photo, int width);
+	HistoryPhoto(
+		not_null<HistoryItem*> parent,
+		not_null<PhotoData*> photo,
+		const QString &caption);
+	HistoryPhoto(
+		not_null<HistoryItem*> parent,
+		not_null<PeerData*> chat,
+		not_null<PhotoData*> photo,
+		int width);
+	HistoryPhoto(
+		not_null<HistoryItem*> parent,
+		not_null<PeerData*> chat,
+		const MTPDphoto &photo,
+		int width);
 	HistoryPhoto(not_null<HistoryItem*> parent, const HistoryPhoto &other);
 
 	void init();
 	HistoryMediaType type() const override {
 		return MediaTypePhoto;
 	}
-	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
+	std::unique_ptr<HistoryMedia> clone(
+			not_null<HistoryItem*> newParent) const override {
 		return std::make_unique<HistoryPhoto>(newParent, *this);
 	}
 
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
+	void draw(Painter &p, const QRect &clip, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(QPoint point, HistoryStateRequest request) const override;
 
 	[[nodiscard]] TextSelection adjustSelection(
@@ -166,9 +188,27 @@ public:
 
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
-	PhotoData *photo() const {
+	not_null<PhotoData*> photo() const {
 		return _data;
 	}
+
+	bool canBeGrouped() const override {
+		return true;
+	}
+	QSize sizeForGrouping() const override;
+	void drawGrouped(
+		Painter &p,
+		const QRect &clip,
+		TextSelection selection,
+		TimeMs ms,
+		const QRect &geometry,
+		RectParts corners,
+		not_null<uint64*> cacheKey,
+		not_null<QPixmap*> cache) const override;
+	HistoryTextState getStateGrouped(
+		const QRect &geometry,
+		QPoint point,
+		HistoryStateRequest request) const override;
 
 	void updateSentMedia(const MTPMessageMedia &media) override;
 	bool needReSetInlineResultMedia(const MTPMessageMedia &media) override;
@@ -210,6 +250,12 @@ protected:
 	}
 
 private:
+	void validateGroupedCache(
+		const QRect &geometry,
+		RectParts corners,
+		not_null<uint64*> cacheKey,
+		not_null<QPixmap*> cache) const;
+
 	not_null<PhotoData*> _data;
 	int16 _pixw = 1;
 	int16 _pixh = 1;
@@ -219,12 +265,17 @@ private:
 
 class HistoryVideo : public HistoryFileMedia {
 public:
-	HistoryVideo(not_null<HistoryItem*> parent, DocumentData *document, const QString &caption);
+	HistoryVideo(
+		not_null<HistoryItem*> parent,
+		not_null<DocumentData*> document,
+		const QString &caption);
 	HistoryVideo(not_null<HistoryItem*> parent, const HistoryVideo &other);
+
 	HistoryMediaType type() const override {
 		return MediaTypeVideo;
 	}
-	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
+	std::unique_ptr<HistoryMedia> clone(
+			not_null<HistoryItem*> newParent) const override {
 		return std::make_unique<HistoryVideo>(newParent, *this);
 	}
 
@@ -255,6 +306,24 @@ public:
 	DocumentData *getDocument() override {
 		return _data;
 	}
+
+	bool canBeGrouped() const override {
+		return true;
+	}
+	QSize sizeForGrouping() const override;
+	void drawGrouped(
+		Painter &p,
+		const QRect &clip,
+		TextSelection selection,
+		TimeMs ms,
+		const QRect &geometry,
+		RectParts corners,
+		not_null<uint64*> cacheKey,
+		not_null<QPixmap*> cache) const override;
+	HistoryTextState getStateGrouped(
+		const QRect &geometry,
+		QPoint point,
+		HistoryStateRequest request) const override;
 
 	bool uploading() const override {
 		return _data->uploading();
@@ -297,12 +366,17 @@ protected:
 	}
 
 private:
+	void validateGroupedCache(
+		const QRect &geometry,
+		RectParts corners,
+		not_null<uint64*> cacheKey,
+		not_null<QPixmap*> cache) const;
+	void setStatusSize(int32 newSize) const;
+	void updateStatusText() const;
+
 	not_null<DocumentData*> _data;
 	int32 _thumbw;
 	Text _caption;
-
-	void setStatusSize(int32 newSize) const;
-	void updateStatusText() const;
 
 };
 
@@ -370,8 +444,14 @@ private:
 
 class HistoryDocument : public HistoryFileMedia, public RuntimeComposer {
 public:
-	HistoryDocument(not_null<HistoryItem*> parent, DocumentData *document, const QString &caption);
-	HistoryDocument(not_null<HistoryItem*> parent, const HistoryDocument &other);
+	HistoryDocument(
+		not_null<HistoryItem*> parent,
+		not_null<DocumentData*> document,
+		const QString &caption);
+	HistoryDocument(
+		not_null<HistoryItem*> parent,
+		const HistoryDocument &other);
+
 	HistoryMediaType type() const override {
 		return _data->isVoiceMessage()
 			? MediaTypeVoiceFile
@@ -379,7 +459,8 @@ public:
 				? MediaTypeMusicFile
 				: MediaTypeFile);
 	}
-	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
+	std::unique_ptr<HistoryMedia> clone(
+			not_null<HistoryItem*> newParent) const override {
 		return std::make_unique<HistoryDocument>(newParent, *this);
 	}
 
@@ -488,12 +569,17 @@ private:
 
 class HistoryGif : public HistoryFileMedia {
 public:
-	HistoryGif(not_null<HistoryItem*> parent, DocumentData *document, const QString &caption);
+	HistoryGif(
+		not_null<HistoryItem*> parent,
+		not_null<DocumentData*> document,
+		const QString &caption);
 	HistoryGif(not_null<HistoryItem*> parent, const HistoryGif &other);
+
 	HistoryMediaType type() const override {
 		return MediaTypeGif;
 	}
-	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
+	std::unique_ptr<HistoryMedia> clone(
+			not_null<HistoryItem*> newParent) const override {
 		return std::make_unique<HistoryGif>(newParent, *this);
 	}
 
@@ -602,11 +688,15 @@ private:
 
 class HistorySticker : public HistoryMedia {
 public:
-	HistorySticker(not_null<HistoryItem*> parent, DocumentData *document);
+	HistorySticker(
+		not_null<HistoryItem*> parent,
+		not_null<DocumentData*> document);
+
 	HistoryMediaType type() const override {
 		return MediaTypeSticker;
 	}
-	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
+	std::unique_ptr<HistoryMedia> clone(
+			not_null<HistoryItem*> newParent) const override {
 		return std::make_unique<HistorySticker>(newParent, _data);
 	}
 
@@ -671,11 +761,18 @@ private:
 
 class HistoryContact : public HistoryMedia {
 public:
-	HistoryContact(not_null<HistoryItem*> parent, int32 userId, const QString &first, const QString &last, const QString &phone);
+	HistoryContact(
+		not_null<HistoryItem*> parent,
+		int32 userId,
+		const QString &first,
+		const QString &last,
+		const QString &phone);
+
 	HistoryMediaType type() const override {
 		return MediaTypeContact;
 	}
-	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
+	std::unique_ptr<HistoryMedia> clone(
+			not_null<HistoryItem*> newParent) const override {
 		return std::make_unique<HistoryContact>(newParent, _userId, _fname, _lname, _phone);
 	}
 
@@ -735,11 +832,15 @@ private:
 
 class HistoryCall : public HistoryMedia {
 public:
-	HistoryCall(not_null<HistoryItem*> parent, const MTPDmessageActionPhoneCall &call);
+	HistoryCall(
+		not_null<HistoryItem*> parent,
+		const MTPDmessageActionPhoneCall &call);
+
 	HistoryMediaType type() const override {
 		return MediaTypeCall;
 	}
-	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
+	std::unique_ptr<HistoryMedia> clone(
+			not_null<HistoryItem*> newParent) const override {
 		Unexpected("Clone HistoryCall.");
 	}
 
@@ -790,12 +891,18 @@ private:
 
 class HistoryWebPage : public HistoryMedia {
 public:
-	HistoryWebPage(not_null<HistoryItem*> parent, not_null<WebPageData*> data);
-	HistoryWebPage(not_null<HistoryItem*> parent, const HistoryWebPage &other);
+	HistoryWebPage(
+		not_null<HistoryItem*> parent,
+		not_null<WebPageData*> data);
+	HistoryWebPage(
+		not_null<HistoryItem*> parent,
+		const HistoryWebPage &other);
+
 	HistoryMediaType type() const override {
 		return MediaTypeWebPage;
 	}
-	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
+	std::unique_ptr<HistoryMedia> clone(
+			not_null<HistoryItem*> newParent) const override {
 		return std::make_unique<HistoryWebPage>(newParent, *this);
 	}
 
@@ -898,12 +1005,14 @@ private:
 
 class HistoryGame : public HistoryMedia {
 public:
-	HistoryGame(not_null<HistoryItem*> parent, GameData *data);
+	HistoryGame(not_null<HistoryItem*> parent, not_null<GameData*> data);
 	HistoryGame(not_null<HistoryItem*> parent, const HistoryGame &other);
+
 	HistoryMediaType type() const override {
 		return MediaTypeGame;
 	}
-	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
+	std::unique_ptr<HistoryMedia> clone(
+			not_null<HistoryItem*> newParent) const override {
 		return std::make_unique<HistoryGame>(newParent, *this);
 	}
 
@@ -962,7 +1071,7 @@ public:
 	}
 	ImagePtr replyPreview() override;
 
-	GameData *game() {
+	not_null<GameData*> game() {
 		return _data;
 	}
 
@@ -993,7 +1102,7 @@ private:
 	QMargins inBubblePadding() const;
 	int bottomInfoPadding() const;
 
-	GameData *_data;
+	not_null<GameData*> _data;
 	ClickHandlerPtr _openl;
 	std::unique_ptr<HistoryMedia> _attach;
 
@@ -1007,12 +1116,18 @@ private:
 
 class HistoryInvoice : public HistoryMedia {
 public:
-	HistoryInvoice(not_null<HistoryItem*> parent, const MTPDmessageMediaInvoice &data);
-	HistoryInvoice(not_null<HistoryItem*> parent, const HistoryInvoice &other);
+	HistoryInvoice(
+		not_null<HistoryItem*> parent,
+		const MTPDmessageMediaInvoice &data);
+	HistoryInvoice(
+		not_null<HistoryItem*> parent,
+		const HistoryInvoice &other);
+
 	HistoryMediaType type() const override {
 		return MediaTypeInvoice;
 	}
-	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
+	std::unique_ptr<HistoryMedia> clone(
+			not_null<HistoryItem*> newParent) const override {
 		return std::make_unique<HistoryInvoice>(newParent, *this);
 	}
 
@@ -1103,12 +1218,20 @@ struct LocationData;
 
 class HistoryLocation : public HistoryMedia {
 public:
-	HistoryLocation(not_null<HistoryItem*> parent, const LocationCoords &coords, const QString &title = QString(), const QString &description = QString());
-	HistoryLocation(not_null<HistoryItem*> parent, const HistoryLocation &other);
+	HistoryLocation(
+		not_null<HistoryItem*> parent,
+		const LocationCoords &coords,
+		const QString &title = QString(),
+		const QString &description = QString());
+	HistoryLocation(
+		not_null<HistoryItem*> parent,
+		const HistoryLocation &other);
+
 	HistoryMediaType type() const override {
 		return MediaTypeLocation;
 	}
-	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
+	std::unique_ptr<HistoryMedia> clone(
+			not_null<HistoryItem*> newParent) const override {
 		return std::make_unique<HistoryLocation>(newParent, *this);
 	}
 

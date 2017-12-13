@@ -219,6 +219,8 @@
 <(src_loc)/history/history_location_manager.h
 <(src_loc)/history/history_media.h
 <(src_loc)/history/history_media.cpp
+<(src_loc)/history/history_media_grouped.h
+<(src_loc)/history/history_media_grouped.cpp
 <(src_loc)/history/history_media_types.cpp
 <(src_loc)/history/history_media_types.h
 <(src_loc)/history/history_message.cpp
@@ -607,6 +609,8 @@
 <(src_loc)/ui/empty_userpic.cpp
 <(src_loc)/ui/empty_userpic.h
 <(src_loc)/ui/focus_persister.h
+<(src_loc)/ui/grouped_layout.cpp
+<(src_loc)/ui/grouped_layout.h
 <(src_loc)/ui/images.cpp
 <(src_loc)/ui/images.h
 <(src_loc)/ui/resize_area.h

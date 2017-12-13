@@ -1608,18 +1608,18 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 	}
 
 	if (!v) return;
-	QMap<uint64, int32> msgsIds; // copied from feedMsgs
-	for (int32 i = 0, l = v->size(); i < l; ++i) {
-		const auto &msg(v->at(i));
-		switch (msg.type()) {
-		case mtpc_message: msgsIds.insert((uint64(uint32(msg.c_message().vid.v)) << 32) | uint64(i), i); break;
-		case mtpc_messageEmpty: msgsIds.insert((uint64(uint32(msg.c_messageEmpty().vid.v)) << 32) | uint64(i), i); break;
-		case mtpc_messageService: msgsIds.insert((uint64(uint32(msg.c_messageService().vid.v)) << 32) | uint64(i), i); break;
-		}
+
+	auto indices = base::flat_map<uint64, int>(); // copied from feedMsgs
+	for (auto i = 0, l = v->size(); i != l; ++i) {
+		const auto msgId = idFromMessage(v->at(i));
+		indices.emplace((uint64(uint32(msgId)) << 32) | uint64(i), i);
 	}
 
-	for_const (auto msgId, msgsIds) {
-		if (auto item = App::histories().addNewMessage(v->at(msgId), NewMessageExisting)) {
+	for (const auto [position, index] : indices) {
+		const auto item = App::histories().addNewMessage(
+			v->at(index),
+			NewMessageExisting);
+		if (item) {
 			item->setPendingInitDimensions();
 		}
 	}

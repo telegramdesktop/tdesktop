@@ -136,6 +136,7 @@ enum HistoryMediaType {
 	MediaTypeVoiceFile,
 	MediaTypeGame,
 	MediaTypeInvoice,
+	MediaTypeGrouped,
 
 	MediaTypeCount
 };
@@ -217,13 +218,13 @@ public:
 
 	virtual ~History();
 
-	HistoryItem *addNewService(MsgId msgId, QDateTime date, const QString &text, MTPDmessage::Flags flags = 0, bool newMsg = true);
 	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
 	HistoryItem *addToHistory(const MTPMessage &msg);
-	HistoryItem *addNewForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, UserId from, const QString &postAuthor, HistoryMessage *item);
-	HistoryItem *addNewDocument(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup);
-	HistoryItem *addNewPhoto(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup);
-	HistoryItem *addNewGame(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, GameData *game, const MTPReplyMarkup &markup);
+	not_null<HistoryItem*> addNewService(MsgId msgId, QDateTime date, const QString &text, MTPDmessage::Flags flags = 0, bool newMsg = true);
+	not_null<HistoryItem*> addNewForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, UserId from, const QString &postAuthor, HistoryMessage *item);
+	not_null<HistoryItem*> addNewDocument(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup);
+	not_null<HistoryItem*> addNewPhoto(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup);
+	not_null<HistoryItem*> addNewGame(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, GameData *game, const MTPReplyMarkup &markup);
 
 	// Used only internally and for channel admin log.
 	HistoryItem *createItem(const MTPMessage &msg, bool applyServiceAction, bool detachExistingItem);
@@ -475,17 +476,17 @@ protected:
 	// this method just removes a block from the blocks list
 	// when the last item from this block was detached and
 	// calls the required previousItemChanged()
-	void removeBlock(HistoryBlock *block);
+	void removeBlock(not_null<HistoryBlock*> block);
 
 	void clearBlocks(bool leaveItems);
 
-	HistoryItem *createItemForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, UserId from, const QString &postAuthor, HistoryMessage *msg);
-	HistoryItem *createItemDocument(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup);
-	HistoryItem *createItemPhoto(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup);
-	HistoryItem *createItemGame(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, GameData *game, const MTPReplyMarkup &markup);
+	not_null<HistoryItem*> createItemForwarded(MsgId id, MTPDmessage::Flags flags, QDateTime date, UserId from, const QString &postAuthor, HistoryMessage *msg);
+	not_null<HistoryItem*> createItemDocument(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, DocumentData *doc, const QString &caption, const MTPReplyMarkup &markup);
+	not_null<HistoryItem*> createItemPhoto(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, PhotoData *photo, const QString &caption, const MTPReplyMarkup &markup);
+	not_null<HistoryItem*> createItemGame(MsgId id, MTPDmessage::Flags flags, UserId viaBotId, MsgId replyTo, QDateTime date, UserId from, const QString &postAuthor, GameData *game, const MTPReplyMarkup &markup);
 
-	HistoryItem *addNewItem(HistoryItem *adding, bool newMsg);
-	HistoryItem *addNewInTheMiddle(HistoryItem *newItem, int32 blockIndex, int32 itemIndex);
+	not_null<HistoryItem*> addNewItem(not_null<HistoryItem*> adding, bool newMsg);
+	not_null<HistoryItem*> addNewInTheMiddle(not_null<HistoryItem*> newItem, int32 blockIndex, int32 itemIndex);
 
 	// All this methods add a new item to the first or last block
 	// depending on if we are in isBuildingFronBlock() state.
@@ -493,7 +494,7 @@ protected:
 
 	// Adds the item to the back or front block, depending on
 	// isBuildingFrontBlock(), creating the block if necessary.
-	void addItemToBlock(HistoryItem *item);
+	void addItemToBlock(not_null<HistoryItem*> item);
 
 	// Usually all new items are added to the last block.
 	// Only when we scroll up and add a new slice to the
@@ -516,6 +517,18 @@ private:
 	void addBlockToSharedMedia(HistoryBlock *block);
 
 	void clearSendAction(not_null<UserData*> from);
+
+	HistoryItem *findPreviousItem(not_null<HistoryItem*> item) const;
+	HistoryItem *findNextItem(not_null<HistoryItem*> item) const;
+	not_null<HistoryItem*> findGroupFirst(
+		not_null<HistoryItem*> item) const;
+	not_null<HistoryItem*> findGroupLast(
+		not_null<HistoryItem*> item) const;
+	auto recountGroupingFromTill(not_null<HistoryItem*> item)
+		-> std::pair<not_null<HistoryItem*>, not_null<HistoryItem*>>;
+	void recountGrouping(
+		not_null<HistoryItem*> from,
+		not_null<HistoryItem*> till);
 
 	enum class Flag {
 		f_has_pending_resized_items = (1 << 0),
@@ -624,7 +637,7 @@ public:
 	~HistoryBlock() {
 		clear();
 	}
-	void removeItem(HistoryItem *item);
+	void removeItem(not_null<HistoryItem*> item);
 
 	int resizeGetHeight(int newWidth, bool resizeAllItems);
 	int y() const {

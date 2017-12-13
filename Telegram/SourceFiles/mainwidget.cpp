@@ -3680,31 +3680,26 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 		// feed messages and groups, copy from App::feedMsgs
 		auto h = App::history(channel->id);
 		auto &vmsgs = d.vnew_messages.v;
-		QMap<uint64, int> msgsIds;
-		for (int i = 0, l = vmsgs.size(); i < l; ++i) {
-			auto &msg = vmsgs[i];
-			switch (msg.type()) {
-			case mtpc_message: {
-				const auto &d(msg.c_message());
-				if (App::checkEntitiesAndViewsUpdate(d)) { // new message, index my forwarded messages to links _overview, already in blocks
+		auto indices = base::flat_map<uint64, int>();
+		for (auto i = 0, l = vmsgs.size(); i != l; ++i) {
+			const auto &msg = vmsgs[i];
+			if (msg.type() == mtpc_message) {
+				const auto &data = msg.c_message();
+				if (App::checkEntitiesAndViewsUpdate(data)) { // new message, index my forwarded messages to links _overview, already in blocks
 					LOG(("Skipping message, because it is already in blocks!"));
-				} else {
-					msgsIds.insert((uint64(uint32(d.vid.v)) << 32) | uint64(i), i + 1);
+					continue;
 				}
-			} break;
-			case mtpc_messageEmpty: msgsIds.insert((uint64(uint32(msg.c_messageEmpty().vid.v)) << 32) | uint64(i), i + 1); break;
-			case mtpc_messageService: msgsIds.insert((uint64(uint32(msg.c_messageService().vid.v)) << 32) | uint64(i), i + 1); break;
 			}
+			const auto msgId = idFromMessage(msg);
+			indices.emplace((uint64(uint32(msgId)) << 32) | uint64(i), i);
 		}
-		for_const (auto msgIndex, msgsIds) {
-			if (msgIndex > 0) { // add message
-				auto &msg = vmsgs.at(msgIndex - 1);
-				if (channel->id != peerFromMessage(msg)) {
-					LOG(("API Error: message with invalid peer returned in channelDifference, channelId: %1, peer: %2").arg(peerToChannel(channel->id)).arg(peerFromMessage(msg)));
-					continue; // wtf
-				}
-				h->addNewMessage(msg, NewMessageUnread);
+		for (const auto [position, index] : indices) {
+			const auto &msg = vmsgs[index];
+			if (channel->id != peerFromMessage(msg)) {
+				LOG(("API Error: message with invalid peer returned in channelDifference, channelId: %1, peer: %2").arg(peerToChannel(channel->id)).arg(peerFromMessage(msg)));
+				continue; // wtf
 			}
+			h->addNewMessage(msg, NewMessageUnread);
 		}
 
 		feedUpdateVector(d.vother_updates, true);

@@ -936,6 +936,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_stickers_group_from_featured" = "Choose from trending stickers";
 
 "lng_in_dlg_photo" = "Photo";
+"lng_in_dlg_album" = "Album";
 "lng_in_dlg_video" = "Video";
 "lng_in_dlg_audio_file" = "Audio file";
 "lng_in_dlg_contact" = "Contact";

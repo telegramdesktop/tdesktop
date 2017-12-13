@@ -1105,29 +1105,23 @@ namespace {
 	}
 
 	void feedMsgs(const QVector<MTPMessage> &msgs, NewMessageType type) {
-		QMap<uint64, int32> msgsIds;
-		for (int32 i = 0, l = msgs.size(); i < l; ++i) {
-			const auto &msg(msgs.at(i));
-			switch (msg.type()) {
-			case mtpc_message: {
-				const auto &d(msg.c_message());
-				bool needToAdd = true;
+		auto indices = base::flat_map<uint64, int>();
+		for (int i = 0, l = msgs.size(); i != l; ++i) {
+			const auto &msg = msgs[i];
+			if (msg.type() == mtpc_message) {
+				const auto &data = msg.c_message();
 				if (type == NewMessageUnread) { // new message, index my forwarded messages to links overview
-					if (checkEntitiesAndViewsUpdate(d)) { // already in blocks
+					if (checkEntitiesAndViewsUpdate(data)) { // already in blocks
 						LOG(("Skipping message, because it is already in blocks!"));
-						needToAdd = false;
+						continue;
 					}
 				}
-				if (needToAdd) {
-					msgsIds.insert((uint64(uint32(d.vid.v)) << 32) | uint64(i), i);
-				}
-			} break;
-			case mtpc_messageEmpty: msgsIds.insert((uint64(uint32(msg.c_messageEmpty().vid.v)) << 32) | uint64(i), i); break;
-			case mtpc_messageService: msgsIds.insert((uint64(uint32(msg.c_messageService().vid.v)) << 32) | uint64(i), i); break;
 			}
+			const auto msgId = idFromMessage(msg);
+			indices.emplace((uint64(uint32(msgId)) << 32) | uint64(i), i);
 		}
-		for (QMap<uint64, int32>::const_iterator i = msgsIds.cbegin(), e = msgsIds.cend(); i != e; ++i) {
-			histories().addNewMessage(msgs.at(i.value()), type);
+		for (const auto [position, index] : indices) {
+			histories().addNewMessage(msgs[index], type);
 		}
 	}
 
@@ -2671,7 +2665,9 @@ namespace {
 			p.setBrush(p.textPalette().selectOverlay);
 			p.drawEllipse(rect);
 		} else {
-			auto overlayCorners = (radius == ImageRoundRadius::Small) ? SelectedOverlaySmallCorners : SelectedOverlayLargeCorners;
+			auto overlayCorners = (radius == ImageRoundRadius::Small)
+				? SelectedOverlaySmallCorners
+				: SelectedOverlayLargeCorners;
 			auto overlayParts = RectPart::Full | RectPart::None;
 			if (radius == ImageRoundRadius::Large) {
 				complexAdjustRect(corners, rect, overlayParts);

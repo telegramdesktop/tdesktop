@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "history/history_service_layout.h"
 #include "history/history_media_types.h"
+#include "history/history_media_grouped.h"
 #include "history/history_message.h"
 #include "media/media_clip_reader.h"
 #include "styles/style_dialogs.h"
@@ -563,7 +564,8 @@ HistoryMessageLogEntryOriginal::~HistoryMessageLogEntryOriginal() = default;
 
 HistoryMediaPtr::HistoryMediaPtr() = default;
 
-HistoryMediaPtr::HistoryMediaPtr(std::unique_ptr<HistoryMedia> pointer) : _pointer(std::move(pointer)) {
+HistoryMediaPtr::HistoryMediaPtr(std::unique_ptr<HistoryMedia> pointer)
+: _pointer(std::move(pointer)) {
 	if (_pointer) {
 		_pointer->attachToParent();
 	}
@@ -768,6 +770,11 @@ void HistoryItem::detach() {
 void HistoryItem::detachFast() {
 	_block = nullptr;
 	_indexInBlock = -1;
+
+	validateGroupId();
+	if (groupId()) {
+		makeGroupLeader({});
+	}
 }
 
 Storage::SharedMediaTypesMask HistoryItem::sharedMediaTypes() const {
@@ -1114,6 +1121,88 @@ void HistoryItem::setUnreadBarFreezed() {
 	if (auto bar = Get<HistoryMessageUnreadBar>()) {
 		bar->_freezed = true;
 	}
+}
+
+bool HistoryItem::groupIdValidityChanged() {
+	if (Has<HistoryMessageGroup>()) {
+		if (_media && _media->canBeGrouped()) {
+			return false;
+		}
+		RemoveComponents(HistoryMessageGroup::Bit());
+		setPendingInitDimensions();
+		return true;
+	}
+	return false;
+}
+
+void HistoryItem::makeGroupMember(not_null<HistoryItem*> leader) {
+	Expects(leader != this);
+
+	const auto group = Get<HistoryMessageGroup>();
+	Assert(group != nullptr);
+	if (group->leader == this) {
+		if (auto single = _media ? _media->takeLastFromGroup() : nullptr) {
+			_media = std::move(single);
+		}
+		_flags |= MTPDmessage_ClientFlag::f_hidden_by_group;
+		setPendingInitDimensions();
+
+		group->leader = leader;
+		base::take(group->others);
+	} else if (group->leader != leader) {
+		group->leader = leader;
+	}
+
+	Ensures(isHiddenByGroup());
+	Ensures(group->others.empty());
+}
+
+void HistoryItem::makeGroupLeader(
+		std::vector<not_null<HistoryItem*>> &&others) {
+	const auto group = Get<HistoryMessageGroup>();
+	Assert(group != nullptr);
+
+	if (group->leader != this) {
+		group->leader = this;
+		_flags &= ~MTPDmessage_ClientFlag::f_hidden_by_group;
+		setPendingInitDimensions();
+	}
+	group->others = std::move(others);
+	if (!_media || !_media->applyGroup(group->others)) {
+		resetGroupMedia(group->others);
+	}
+
+	Ensures(!isHiddenByGroup());
+}
+
+void HistoryItem::resetGroupMedia(
+		const std::vector<not_null<HistoryItem*>> &others) {
+	if (!others.empty()) {
+		_media = std::make_unique<HistoryGroupedMedia>(this, others);
+	} else if (_media) {
+		_media = _media->takeLastFromGroup();
+	}
+	setPendingInitDimensions();
+}
+
+int HistoryItem::marginTop() const {
+	auto result = 0;
+	if (!isHiddenByGroup()) {
+		if (isAttachedToPrevious()) {
+			result += st::msgMarginTopAttached;
+		} else {
+			result += st::msgMargin.top();
+		}
+	}
+	result += displayedDateHeight();
+	if (const auto unreadbar = Get<HistoryMessageUnreadBar>()) {
+		result += unreadbar->height();
+	}
+	return result;
+}
+
+int HistoryItem::marginBottom() const {
+	return isHiddenByGroup() ? 0 : st::msgMargin.bottom();
 }
 
 void HistoryItem::clipCallback(Media::Clip::Notification notification) {

@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "base/runtime_composer.h"
 #include "base/flags.h"
+#include "base/value_ordering.h"
 
 namespace base {
 template <typename Enum>
@@ -433,6 +434,34 @@ struct HistoryMessageUnreadBar : public RuntimeComponent<HistoryMessageUnreadBar
 	// as soon as they are added to the chat history.
 	bool _freezed = false;
 
+};
+
+struct MessageGroupId {
+	using Underlying = uint64;
+
+	enum Type : Underlying {
+		None = 0,
+	} value;
+
+	MessageGroupId(Type value = None) : value(value) {
+	}
+	static MessageGroupId FromRaw(Underlying value) {
+		return static_cast<Type>(value);
+	}
+
+	explicit operator bool() const {
+		return value != None;
+	}
+
+	friend inline Type value_ordering_helper(MessageGroupId value) {
+		return value.value;
+	}
+
+};
+struct HistoryMessageGroup : public RuntimeComponent<HistoryMessageGroup> {
+	MessageGroupId groupId = MessageGroupId::None;
+	HistoryItem *leader = nullptr;
+	std::vector<not_null<HistoryItem*>> others;
 };
 
 class HistoryWebPage;
@@ -899,22 +928,8 @@ public:
 		}
 		return 0;
 	}
-	int marginTop() const {
-		int result = 0;
-		if (isAttachedToPrevious()) {
-			result += st::msgMarginTopAttached;
-		} else {
-			result += st::msgMargin.top();
-		}
-		result += displayedDateHeight();
-		if (auto unreadbar = Get<HistoryMessageUnreadBar>()) {
-			result += unreadbar->height();
-		}
-		return result;
-	}
-	int marginBottom() const {
-		return st::msgMargin.bottom();
-	}
+	int marginTop() const;
+	int marginBottom() const;
 	bool isAttachedToPrevious() const {
 		return _flags & MTPDmessage_ClientFlag::f_attach_to_previous;
 	}
@@ -932,6 +947,23 @@ public:
 	bool isEmpty() const {
 		return _text.isEmpty() && !_media && !Has<HistoryMessageLogEntryOriginal>();
 	}
+	bool isHiddenByGroup() const {
+		return _flags & MTPDmessage_ClientFlag::f_hidden_by_group;
+	}
+
+	MessageGroupId groupId() const {
+		if (const auto group = Get<HistoryMessageGroup>()) {
+			return group->groupId;
+		}
+		return MessageGroupId::None;
+	}
+	bool groupIdValidityChanged();
+	void validateGroupId() {
+		// Just ignore the result.
+		groupIdValidityChanged();
+	}
+	void makeGroupMember(not_null<HistoryItem*> leader);
+	void makeGroupLeader(std::vector<not_null<HistoryItem*>> &&others);
 
 	int width() const {
 		return _width;
@@ -1070,6 +1102,8 @@ protected:
 	HistoryMediaPtr _media;
 
 private:
+	void resetGroupMedia(const std::vector<not_null<HistoryItem*>> &others);
+
 	int _y = 0;
 	int _width = 0;
 
