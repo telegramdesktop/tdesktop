@@ -199,7 +199,7 @@ public:
 
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
-	not_null<PhotoData*> photo() const {
+	PhotoData *getPhoto() const override {
 		return _data;
 	}
 
@@ -318,7 +318,7 @@ public:
 
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
-	DocumentData *getDocument() override {
+	DocumentData *getDocument() const override {
 		return _data;
 	}
 
@@ -517,7 +517,7 @@ public:
 		return _data->uploading();
 	}
 
-	DocumentData *getDocument() override {
+	DocumentData *getDocument() const override {
 		return _data;
 	}
 
@@ -632,7 +632,7 @@ public:
 		return _data->uploading();
 	}
 
-	DocumentData *getDocument() override {
+	DocumentData *getDocument() const override {
 		return _data;
 	}
 	Media::Clip::Reader *getClipReader() override {
@@ -743,7 +743,7 @@ public:
 	QString notificationText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
-	DocumentData *getDocument() override {
+	DocumentData *getDocument() const override {
 		return _data;
 	}
 
@@ -973,7 +973,10 @@ public:
 	bool isDisplayed() const override {
 		return !_data->pendingTill && !_parent->Has<HistoryMessageLogEntryOriginal>();
 	}
-	DocumentData *getDocument() override {
+	PhotoData *getPhoto() const override {
+		return _attach ? _attach->getPhoto() : nullptr;
+	}
+	DocumentData *getDocument() const override {
 		return _attach ? _attach->getDocument() : nullptr;
 	}
 	Media::Clip::Reader *getClipReader() override {
@@ -1089,7 +1092,10 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
-	DocumentData *getDocument() override {
+	PhotoData *getPhoto() const override {
+		return _attach ? _attach->getPhoto() : nullptr;
+	}
+	DocumentData *getDocument() const override {
 		return _attach ? _attach->getDocument() : nullptr;
 	}
 	Media::Clip::Reader *getClipReader() override {

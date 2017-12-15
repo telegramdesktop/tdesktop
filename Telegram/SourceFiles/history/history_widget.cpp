@@ -4508,7 +4508,7 @@ void HistoryWidget::onThumbDocumentUploaded(
 void HistoryWidget::onPhotoProgress(const FullMsgId &newId) {
 	if (const auto item = App::histItemById(newId)) {
 		const auto photo = (item->getMedia() && item->getMedia()->type() == MediaTypePhoto)
-			? static_cast<HistoryPhoto*>(item->getMedia())->photo().get()
+			? static_cast<HistoryPhoto*>(item->getMedia())->getPhoto()
 			: nullptr;
 		updateSendAction(item->history(), SendAction::Type::UploadPhoto, 0);
 		Auth().data().requestItemRepaint(item);

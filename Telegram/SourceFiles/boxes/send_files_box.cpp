@@ -480,7 +480,7 @@ EditCaptionBox::EditCaptionBox(QWidget*, HistoryMedia *media, FullMsgId msgId) :
 
 	case MediaTypePhoto: {
 		_photo = true;
-		auto photo = static_cast<HistoryPhoto*>(media)->photo();
+		auto photo = static_cast<HistoryPhoto*>(media)->getPhoto();
 		dimensions = QSize(photo->full->width(), photo->full->height());
 		image = photo->full;
 	} break;

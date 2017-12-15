@@ -123,7 +123,7 @@ QSize CountPixSizeForSize(QSize original, QSize geometry) {
 	auto tw = original.width();
 	auto th = original.height();
 	if (tw * height > th * width) {
-		if (tw * height < 2 * th * width) {
+		if (th > height || tw * height < 2 * th * width) {
 			tw = (height * tw) / th;
 			th = height;
 		} else if (tw < width) {
@@ -131,7 +131,7 @@ QSize CountPixSizeForSize(QSize original, QSize geometry) {
 			tw = width;
 		}
 	} else {
-		if (th * width < 2 * tw * height) {
+		if (tw > width || th * width < 2 * tw * height) {
 			th = (width * th) / tw;
 			tw = width;
 		} else if (tw > 0 && th < height) {

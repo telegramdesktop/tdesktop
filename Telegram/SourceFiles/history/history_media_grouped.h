@@ -65,6 +65,13 @@ public:
 		return !_caption.isEmpty();
 	}
 
+	PhotoData *getPhoto() const override {
+		return main()->getPhoto();
+	}
+	DocumentData *getDocument() const override {
+		return main()->getDocument();
+	}
+
 	QString notificationText() const override;
 	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;

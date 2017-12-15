@@ -1266,8 +1266,9 @@ void MediaView::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
 	_zoom = 0;
 
 	_caption = Text();
-	if (auto itemMsg = item ? item->toHistoryMessage() : nullptr) {
-		if (auto photoMsg = dynamic_cast<HistoryPhoto*>(itemMsg->getMedia())) {
+	if (const auto media = item ? item->getMedia() : nullptr) {
+		const auto caption = media->getCaption();
+		if (!caption.text.isEmpty()) {
 			auto asBot = (item->author()->isUser()
 				&& item->author()->asUser()->botInfo);
 			auto skipw = qMax(_dateNav.left() + _dateNav.width(), _headerNav.left() + _headerNav.width());
@@ -1275,7 +1276,7 @@ void MediaView::displayPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
 			_caption = Text(maxw);
 			_caption.setMarkedText(
 				st::mediaviewCaptionStyle,
-				photoMsg->getCaption(),
+				caption,
 				itemTextOptions(item));
 		}
 	}
@@ -2254,21 +2255,16 @@ MediaView::Entity MediaView::entityForSharedMedia(int index) const {
 		return { base::none, nullptr };
 	}
 	auto value = (*_sharedMediaData)[index];
-	if (auto photo = base::get_if<not_null<PhotoData*>>(&value)) {
+	if (const auto photo = base::get_if<not_null<PhotoData*>>(&value)) {
 		// Last peer photo.
 		return { *photo, nullptr };
-	} else if (auto itemId = base::get_if<FullMsgId>(&value)) {
-		if (auto item = App::histItemById(*itemId)) {
-			if (auto media = item->getMedia()) {
-				switch (media->type()) {
-				case MediaTypePhoto: return {
-					static_cast<HistoryPhoto*>(item->getMedia())->photo(),
-					item
-				};
-				case MediaTypeFile:
-				case MediaTypeVideo:
-				case MediaTypeGif:
-				case MediaTypeSticker: return { media->getDocument(), item };
+	} else if (const auto itemId = base::get_if<FullMsgId>(&value)) {
+		if (const auto item = App::histItemById(*itemId)) {
+			if (const auto media = item->getMedia()) {
+				if (const auto photo = media->getPhoto()) {
+					return { photo, item };
+				} else if (const auto document = media->getDocument()) {
+					return { document, item };
 				}
 			}
 			return { base::none, item };

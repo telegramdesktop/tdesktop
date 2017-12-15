@@ -138,7 +138,10 @@ public:
 		not_null<HistoryItem*> newParent,
 		not_null<HistoryItem*> realParent) const = 0;
 
-	virtual DocumentData *getDocument() {
+	virtual PhotoData *getPhoto() const {
+		return nullptr;
+	}
+	virtual DocumentData *getDocument() const {
 		return nullptr;
 	}
 	virtual Media::Clip::Reader *getClipReader() {
