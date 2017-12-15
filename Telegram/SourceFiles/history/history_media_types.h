@@ -72,21 +72,28 @@ public:
 protected:
 	ClickHandlerPtr _openl, _savel, _cancell;
 	void setLinks(ClickHandlerPtr &&openl, ClickHandlerPtr &&savel, ClickHandlerPtr &&cancell);
-	void setDocumentLinks(DocumentData *document, bool inlinegif = false) {
+	void setDocumentLinks(
+			not_null<DocumentData*> document,
+			not_null<HistoryItem*> realParent,
+			bool inlinegif = false) {
 		ClickHandlerPtr open, save;
+		const auto context = realParent->fullId();
 		if (inlinegif) {
-			open = MakeShared<GifOpenClickHandler>(document);
+			open = MakeShared<GifOpenClickHandler>(document, context);
 		} else {
-			open = MakeShared<DocumentOpenClickHandler>(document);
+			open = MakeShared<DocumentOpenClickHandler>(document, context);
 		}
 		if (inlinegif) {
-			save = MakeShared<GifOpenClickHandler>(document);
+			save = MakeShared<GifOpenClickHandler>(document, context);
 		} else if (document->isVoiceMessage()) {
-			save = MakeShared<DocumentOpenClickHandler>(document);
+			save = MakeShared<DocumentOpenClickHandler>(document, context);
 		} else {
-			save = MakeShared<DocumentSaveClickHandler>(document);
+			save = MakeShared<DocumentSaveClickHandler>(document, context);
 		}
-		setLinks(std::move(open), std::move(save), MakeShared<DocumentCancelClickHandler>(document));
+		setLinks(
+			std::move(open),
+			std::move(save),
+			MakeShared<DocumentCancelClickHandler>(document, context));
 	}
 
 	// >= 0 will contain download / upload string, _statusSize = loaded bytes
@@ -153,15 +160,19 @@ public:
 		not_null<PeerData*> chat,
 		const MTPDphoto &photo,
 		int width);
-	HistoryPhoto(not_null<HistoryItem*> parent, const HistoryPhoto &other);
+	HistoryPhoto(
+		not_null<HistoryItem*> parent,
+		not_null<HistoryItem*> realParent,
+		const HistoryPhoto &other);
 
 	void init();
 	HistoryMediaType type() const override {
 		return MediaTypePhoto;
 	}
 	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent) const override {
-		return std::make_unique<HistoryPhoto>(newParent, *this);
+			not_null<HistoryItem*> newParent,
+			not_null<HistoryItem*> realParent) const override {
+		return std::make_unique<HistoryPhoto>(newParent, realParent, *this);
 	}
 
 	void initDimensions() override;
@@ -269,14 +280,18 @@ public:
 		not_null<HistoryItem*> parent,
 		not_null<DocumentData*> document,
 		const QString &caption);
-	HistoryVideo(not_null<HistoryItem*> parent, const HistoryVideo &other);
+	HistoryVideo(
+		not_null<HistoryItem*> parent,
+		not_null<HistoryItem*> realParent,
+		const HistoryVideo &other);
 
 	HistoryMediaType type() const override {
 		return MediaTypeVideo;
 	}
 	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent) const override {
-		return std::make_unique<HistoryVideo>(newParent, *this);
+			not_null<HistoryItem*> newParent,
+			not_null<HistoryItem*> realParent) const override {
+		return std::make_unique<HistoryVideo>(newParent, realParent, *this);
 	}
 
 	void initDimensions() override;
@@ -460,7 +475,10 @@ public:
 				: MediaTypeFile);
 	}
 	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent) const override {
+			not_null<HistoryItem*> newParent,
+			not_null<HistoryItem*> realParent) const override {
+		Expects(newParent == realParent);
+
 		return std::make_unique<HistoryDocument>(newParent, *this);
 	}
 
@@ -579,7 +597,10 @@ public:
 		return MediaTypeGif;
 	}
 	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent) const override {
+			not_null<HistoryItem*> newParent,
+			not_null<HistoryItem*> realParent) const override {
+		Expects(newParent == realParent);
+
 		return std::make_unique<HistoryGif>(newParent, *this);
 	}
 
@@ -696,7 +717,10 @@ public:
 		return MediaTypeSticker;
 	}
 	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent) const override {
+			not_null<HistoryItem*> newParent,
+			not_null<HistoryItem*> realParent) const override {
+		Expects(newParent == realParent);
+
 		return std::make_unique<HistorySticker>(newParent, _data);
 	}
 
@@ -772,8 +796,16 @@ public:
 		return MediaTypeContact;
 	}
 	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent) const override {
-		return std::make_unique<HistoryContact>(newParent, _userId, _fname, _lname, _phone);
+			not_null<HistoryItem*> newParent,
+			not_null<HistoryItem*> realParent) const override {
+		Expects(newParent == realParent);
+
+		return std::make_unique<HistoryContact>(
+			newParent,
+			_userId,
+			_fname,
+			_lname,
+			_phone);
 	}
 
 	void initDimensions() override;
@@ -840,7 +872,8 @@ public:
 		return MediaTypeCall;
 	}
 	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent) const override {
+			not_null<HistoryItem*> newParent,
+			not_null<HistoryItem*> realParent) const override {
 		Unexpected("Clone HistoryCall.");
 	}
 
@@ -902,7 +935,10 @@ public:
 		return MediaTypeWebPage;
 	}
 	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent) const override {
+			not_null<HistoryItem*> newParent,
+			not_null<HistoryItem*> realParent) const override {
+		Expects(newParent == realParent);
+
 		return std::make_unique<HistoryWebPage>(newParent, *this);
 	}
 
@@ -1012,7 +1048,10 @@ public:
 		return MediaTypeGame;
 	}
 	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent) const override {
+			not_null<HistoryItem*> newParent,
+			not_null<HistoryItem*> realParent) const override {
+		Expects(newParent == realParent);
+
 		return std::make_unique<HistoryGame>(newParent, *this);
 	}
 
@@ -1127,7 +1166,10 @@ public:
 		return MediaTypeInvoice;
 	}
 	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent) const override {
+			not_null<HistoryItem*> newParent,
+			not_null<HistoryItem*> realParent) const override {
+		Expects(newParent == realParent);
+
 		return std::make_unique<HistoryInvoice>(newParent, *this);
 	}
 
@@ -1231,7 +1273,10 @@ public:
 		return MediaTypeLocation;
 	}
 	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent) const override {
+			not_null<HistoryItem*> newParent,
+			not_null<HistoryItem*> realParent) const override {
+		Expects(newParent == realParent);
+
 		return std::make_unique<HistoryLocation>(newParent, *this);
 	}
 

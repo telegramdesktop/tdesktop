@@ -66,7 +66,7 @@ public:
 	HistoryTopBarWidget::SelectedState getSelectionState() const;
 	void clearSelectedItems(bool onlyTextSelection = false);
 	MessageIdsList getSelectedItems() const;
-	void selectItem(HistoryItem *item);
+	void selectItem(not_null<HistoryItem*> item);
 
 	void updateBotInfo(bool recount = true);
 
@@ -165,6 +165,10 @@ private:
 	HistoryItem *prevItem(HistoryItem *item);
 	HistoryItem *nextItem(HistoryItem *item);
 	void updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dragSelTo, bool dragSelecting);
+	TextSelection itemRenderSelection(
+		not_null<HistoryItem*> item,
+		int selfromy,
+		int seltoy) const;
 
 	void setToClipboard(const TextWithEntities &forClipboard, QClipboard::Mode mode = QClipboard::Clipboard);
 
@@ -217,8 +221,26 @@ private:
 	using SelectedItems = std::map<HistoryItem*, TextSelection, std::less<>>;
 	SelectedItems _selected;
 	void applyDragSelection();
-	void applyDragSelection(SelectedItems *toItems) const;
-	void addSelectionRange(SelectedItems *toItems, int32 fromblock, int32 fromitem, int32 toblock, int32 toitem, History *h) const;
+	void applyDragSelection(not_null<SelectedItems*> toItems) const;
+	void addSelectionRange(
+		not_null<SelectedItems*> toItems,
+		not_null<History*> history,
+		int fromblock,
+		int fromitem,
+		int toblock,
+		int toitem) const;
+	bool isFullSelected(
+		not_null<SelectedItems*> toItems,
+		not_null<HistoryItem*> item) const;
+	enum class SelectAction {
+		Select,
+		Deselect,
+		Invert,
+	};
+	void changeDragSelection(
+		not_null<SelectedItems*> toItems,
+		not_null<HistoryItem*> item,
+		SelectAction action) const;
 
 	// Does any of the shown histories has this flag set.
 	bool hasPendingResizedItems() const {
@@ -230,6 +252,7 @@ private:
 	QPoint _dragStartPosition;
 	QPoint _mousePosition;
 	HistoryItem *_mouseActionItem = nullptr;
+	HistoryItem *_dragStateItem = nullptr;
 	HistoryCursorState _mouseCursorState = HistoryDefaultCursorState;
 	uint16 _mouseTextSymbol = 0;
 	bool _pressWasInactive = false;

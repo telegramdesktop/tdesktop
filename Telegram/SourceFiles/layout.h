@@ -24,6 +24,40 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 constexpr auto FullSelection = TextSelection { 0xFFFF, 0xFFFF };
 
+inline bool IsSubGroupSelection(TextSelection selection) {
+	return (selection.from == 0xFFFF) && (selection.to != 0xFFFF);
+}
+
+inline bool IsGroupItemSelection(
+		TextSelection selection,
+		int index) {
+	Expects(index >= 0 && index < 0x0F);
+
+	return IsSubGroupSelection(selection) && (selection.to & (1 << index));
+}
+
+inline [[nodiscard]] TextSelection AddGroupItemSelection(
+		TextSelection selection,
+		int index) {
+	Expects(index >= 0 && index < 0x0F);
+
+	const auto bit = uint16(1U << index);
+	return TextSelection(
+		0xFFFF,
+		IsSubGroupSelection(selection) ? (selection.to | bit) : bit);
+}
+
+inline[[nodiscard]] TextSelection RemoveGroupItemSelection(
+		TextSelection selection,
+		int index) {
+	Expects(index >= 0 && index < 0x0F);
+
+	const auto bit = uint16(1U << index);
+	return IsSubGroupSelection(selection)
+		? TextSelection(0xFFFF, selection.to & ~bit)
+		: selection;
+}
+
 extern TextParseOptions _textNameOptions, _textDlgOptions;
 extern TextParseOptions _historyTextOptions, _historyBotOptions, _historyTextNoMonoOptions, _historyBotNoMonoOptions;
 

@@ -224,7 +224,10 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 	return saveFileName(caption, filter, prefix, name, forceSavingAs, dir);
 }
 
-void DocumentOpenClickHandler::doOpen(DocumentData *data, HistoryItem *context, ActionOnLoad action) {
+void DocumentOpenClickHandler::doOpen(
+		not_null<DocumentData*> data,
+		HistoryItem *context,
+		ActionOnLoad action) {
 	if (!data->date) return;
 
 	auto msgId = context ? context->fullId() : FullMsgId();
@@ -329,9 +332,13 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, HistoryItem *context, 
 }
 
 void DocumentOpenClickHandler::onClickImpl() const {
-	const auto item = App::hoveredLinkItem()
+	const auto item = context()
+		? App::histItemById(context())
+		: App::hoveredLinkItem()
 		? App::hoveredLinkItem()
-		: (App::contextItem() ? App::contextItem() : nullptr);
+		: App::contextItem()
+		? App::contextItem()
+		: nullptr;
 	const auto action = document()->isVoiceMessage()
 		? ActionOnLoadNone
 		: ActionOnLoadOpen;
@@ -339,13 +346,19 @@ void DocumentOpenClickHandler::onClickImpl() const {
 }
 
 void GifOpenClickHandler::onClickImpl() const {
-	const auto item = App::hoveredLinkItem()
+	const auto item = context()
+		? App::histItemById(context())
+		: App::hoveredLinkItem()
 		? App::hoveredLinkItem()
-		: (App::contextItem() ? App::contextItem() : nullptr);
+		: App::contextItem()
+		? App::contextItem()
+		: nullptr;
 	doOpen(document(), item, ActionOnLoadPlayInline);
 }
 
-void DocumentSaveClickHandler::doSave(DocumentData *data, bool forceSavingAs) {
+void DocumentSaveClickHandler::doSave(
+		not_null<DocumentData*> data,
+		bool forceSavingAs) {
 	if (!data->date) return;
 
 	auto filepath = data->filepath(DocumentData::FilePathResolveSaveFromDataSilent, forceSavingAs);

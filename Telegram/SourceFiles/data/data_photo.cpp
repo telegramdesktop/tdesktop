@@ -121,7 +121,7 @@ ImagePtr PhotoData::makeReplyPreview() {
 }
 
 void PhotoOpenClickHandler::onClickImpl() const {
-	Messenger::Instance().showPhoto(this, App::hoveredLinkItem() ? App::hoveredLinkItem() : App::contextItem());
+	Messenger::Instance().showPhoto(this);
 }
 
 void PhotoSaveClickHandler::onClickImpl() const {
@@ -136,13 +136,9 @@ void PhotoCancelClickHandler::onClickImpl() const {
 	if (!data->date) return;
 
 	if (data->uploading()) {
-		if (auto item = App::hoveredLinkItem() ? App::hoveredLinkItem() : (App::contextItem() ? App::contextItem() : nullptr)) {
-			if (auto media = item->getMedia()) {
-				if (media->type() == MediaTypePhoto && static_cast<HistoryPhoto*>(media)->photo() == data) {
-					App::contextItem(item);
-					App::main()->cancelUploadLayer();
-				}
-			}
+		if (const auto item = App::histItemById(context())) {
+			App::contextItem(item);
+			App::main()->cancelUploadLayer();
 		}
 	} else {
 		data->cancel();

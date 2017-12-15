@@ -34,7 +34,8 @@ public:
 		return MediaTypeGrouped;
 	}
 	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent) const override {
+			not_null<HistoryItem*> newParent,
+			not_null<HistoryItem*> realParent) const override {
 		Unexpected("Clone HistoryGroupedMedia.");
 	}
 
@@ -64,6 +65,8 @@ public:
 		return !_caption.isEmpty();
 	}
 
+	QString notificationText() const override;
+	QString inDialogsText() const override;
 	TextWithEntities selectedText(TextSelection selection) const override;
 
 	void clickHandlerActiveChanged(

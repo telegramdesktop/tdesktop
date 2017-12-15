@@ -79,25 +79,33 @@ enum HistoryCursorState {
 
 struct HistoryTextState {
 	HistoryTextState() = default;
-	HistoryTextState(const Text::StateResult &state)
-		: cursor(state.uponSymbol ? HistoryInTextCursorState : HistoryDefaultCursorState)
-		, link(state.link)
-		, afterSymbol(state.afterSymbol)
-		, symbol(state.symbol) {
+	HistoryTextState(not_null<const HistoryItem*> item);
+	HistoryTextState(
+		not_null<const HistoryItem*> item,
+		const Text::StateResult &state);
+	HistoryTextState(
+		not_null<const HistoryItem*> item,
+		ClickHandlerPtr link);
+	HistoryTextState(
+		std::nullptr_t,
+		const Text::StateResult &state)
+	: cursor(state.uponSymbol
+		? HistoryInTextCursorState
+		: HistoryDefaultCursorState)
+	, link(state.link)
+	, afterSymbol(state.afterSymbol)
+	, symbol(state.symbol) {
 	}
-	HistoryTextState &operator=(const Text::StateResult &state) {
-		cursor = state.uponSymbol ? HistoryInTextCursorState : HistoryDefaultCursorState;
-		link = state.link;
-		afterSymbol = state.afterSymbol;
-		symbol = state.symbol;
-		return *this;
+	HistoryTextState(std::nullptr_t, ClickHandlerPtr link)
+	: link(link) {
 	}
-	HistoryTextState(ClickHandlerPtr link) : link(link) {
-	}
+
+	FullMsgId itemId;
 	HistoryCursorState cursor = HistoryDefaultCursorState;
 	ClickHandlerPtr link;
 	bool afterSymbol = false;
 	uint16 symbol = 0;
+
 };
 
 struct HistoryStateRequest {

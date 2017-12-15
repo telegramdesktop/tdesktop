@@ -311,15 +311,22 @@ QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform);
 
 class DocumentClickHandler : public LeftButtonClickHandler {
 public:
-	DocumentClickHandler(DocumentData *document)
-	: _document(document) {
+	DocumentClickHandler(
+		not_null<DocumentData*> document,
+		FullMsgId context = FullMsgId())
+	: _document(document)
+	, _context(context) {
 	}
-	DocumentData *document() const {
+	not_null<DocumentData*> document() const {
 		return _document;
+	}
+	FullMsgId context() const {
+		return _context;
 	}
 
 private:
-	DocumentData *_document;
+	not_null<DocumentData*> _document;
+	FullMsgId _context;
 
 };
 
@@ -327,7 +334,7 @@ class DocumentSaveClickHandler : public DocumentClickHandler {
 public:
 	using DocumentClickHandler::DocumentClickHandler;
 	static void doSave(
-		DocumentData *document,
+		not_null<DocumentData*> document,
 		bool forceSavingAs = false);
 
 protected:
@@ -339,7 +346,7 @@ class DocumentOpenClickHandler : public DocumentClickHandler {
 public:
 	using DocumentClickHandler::DocumentClickHandler;
 	static void doOpen(
-		DocumentData *document,
+		not_null<DocumentData*> document,
 		HistoryItem *context,
 		ActionOnLoad action = ActionOnLoadOpen);
 

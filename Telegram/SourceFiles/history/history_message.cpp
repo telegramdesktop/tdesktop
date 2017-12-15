@@ -757,7 +757,7 @@ HistoryMessage::HistoryMessage(
 		return (mediaType != MediaTypeCount);
 	};
 	if (cloneMedia()) {
-		_media = mediaOriginal->clone(this);
+		_media = mediaOriginal->clone(this, this);
 	}
 	setText(fwd->originalText());
 }
@@ -1512,12 +1512,22 @@ Storage::SharedMediaTypesMask HistoryMessage::sharedMediaTypes() const {
 
 TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {
 	TextWithEntities logEntryOriginalResult;
-	auto textResult = _text.originalTextWithEntities((selection == FullSelection) ? AllTextSelection : selection, ExpandLinksAll);
+	const auto textSelection = (selection == FullSelection)
+		? AllTextSelection
+		: IsSubGroupSelection(selection)
+		? TextSelection(0, 0)
+		: selection;
+	auto textResult = _text.originalTextWithEntities(
+		textSelection,
+		ExpandLinksAll);
 	auto skipped = skipTextSelection(selection);
 	auto mediaDisplayed = (_media && _media->isDisplayed());
 	auto mediaResult = mediaDisplayed ? _media->selectedText(skipped) : TextWithEntities();
 	if (auto entry = Get<HistoryMessageLogEntryOriginal>()) {
-		logEntryOriginalResult = entry->_page->selectedText(mediaDisplayed ? _media->skipSelection(skipped) : skipped);
+		const auto originalSelection = mediaDisplayed
+			? _media->skipSelection(skipped)
+			: skipped;
+		logEntryOriginalResult = entry->_page->selectedText(originalSelection);
 	}
 	auto result = textResult;
 	if (result.text.isEmpty()) {
@@ -2232,7 +2242,7 @@ bool HistoryMessage::pointInTime(int right, int bottom, QPoint point, InfoDispla
 }
 
 HistoryTextState HistoryMessage::getState(QPoint point, HistoryStateRequest request) const {
-	HistoryTextState result;
+	auto result = HistoryTextState(this);
 
 	auto g = countGeometry();
 	if (g.width() < 1) {
@@ -2272,7 +2282,9 @@ HistoryTextState HistoryMessage::getState(QPoint point, HistoryStateRequest requ
 			auto entryLeft = g.left();
 			auto entryTop = trect.y() + trect.height();
 			if (point.y() >= entryTop && point.y() < entryTop + entryHeight) {
-				result = entry->_page->getState(point - QPoint(entryLeft, entryTop), request);
+				result = entry->_page->getState(
+					point - QPoint(entryLeft, entryTop),
+					request);
 				result.symbol += _text.length() + (mediaDisplayed ? _media->fullSelectionLength() : 0);
 			}
 		}
@@ -2408,7 +2420,10 @@ void HistoryMessage::updatePressed(QPoint point) {
 	}
 }
 
-bool HistoryMessage::getStateFromName(QPoint point, QRect &trect, HistoryTextState *outResult) const {
+bool HistoryMessage::getStateFromName(
+		QPoint point,
+		QRect &trect,
+		not_null<HistoryTextState*> outResult) const {
 	if (displayFromName()) {
 		if (point.y() >= trect.top() && point.y() < trect.top() + st::msgNameFont->height) {
 			auto user = displayFrom();
@@ -2428,7 +2443,11 @@ bool HistoryMessage::getStateFromName(QPoint point, QRect &trect, HistoryTextSta
 	return false;
 }
 
-bool HistoryMessage::getStateForwardedInfo(QPoint point, QRect &trect, HistoryTextState *outResult, const HistoryStateRequest &request) const {
+bool HistoryMessage::getStateForwardedInfo(
+		QPoint point,
+		QRect &trect,
+		not_null<HistoryTextState*> outResult,
+		const HistoryStateRequest &request) const {
 	if (displayForwardedFrom()) {
 		auto forwarded = Get<HistoryMessageForwarded>();
 		auto fwdheight = ((forwarded->_text.maxWidth() > trect.width()) ? 2 : 1) * st::semiboldFont->height;
@@ -2438,7 +2457,10 @@ bool HistoryMessage::getStateForwardedInfo(QPoint point, QRect &trect, HistoryTe
 			if (breakEverywhere) {
 				textRequest.flags |= Text::StateRequest::Flag::BreakEverywhere;
 			}
-			*outResult = forwarded->_text.getState(point - trect.topLeft(), trect.width(), textRequest);
+			*outResult = HistoryTextState(this, forwarded->_text.getState(
+				point - trect.topLeft(),
+				trect.width(),
+				textRequest));
 			outResult->symbol = 0;
 			outResult->afterSymbol = false;
 			if (breakEverywhere) {
@@ -2453,7 +2475,10 @@ bool HistoryMessage::getStateForwardedInfo(QPoint point, QRect &trect, HistoryTe
 	return false;
 }
 
-bool HistoryMessage::getStateReplyInfo(QPoint point, QRect &trect, HistoryTextState *outResult) const {
+bool HistoryMessage::getStateReplyInfo(
+		QPoint point,
+		QRect &trect,
+		not_null<HistoryTextState*> outResult) const {
 	if (auto reply = Get<HistoryMessageReply>()) {
 		int32 h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
 		if (point.y() >= trect.top() && point.y() < trect.top() + h) {
@@ -2467,7 +2492,10 @@ bool HistoryMessage::getStateReplyInfo(QPoint point, QRect &trect, HistoryTextSt
 	return false;
 }
 
-bool HistoryMessage::getStateViaBotIdInfo(QPoint point, QRect &trect, HistoryTextState *outResult) const {
+bool HistoryMessage::getStateViaBotIdInfo(
+		QPoint point,
+		QRect &trect,
+		not_null<HistoryTextState*> outResult) const {
 	if (!displayFromName() && !Has<HistoryMessageForwarded>()) {
 		if (auto via = Get<HistoryMessageVia>()) {
 			if (QRect(trect.x(), trect.y(), via->_width, st::msgNameFont->height).contains(point)) {
@@ -2480,9 +2508,16 @@ bool HistoryMessage::getStateViaBotIdInfo(QPoint point, QRect &trect, HistoryTex
 	return false;
 }
 
-bool HistoryMessage::getStateText(QPoint point, QRect &trect, HistoryTextState *outResult, const HistoryStateRequest &request) const {
+bool HistoryMessage::getStateText(
+		QPoint point,
+		QRect &trect,
+		not_null<HistoryTextState*> outResult,
+		const HistoryStateRequest &request) const {
 	if (trect.contains(point)) {
-		*outResult = _text.getState(point - trect.topLeft(), trect.width(), request.forText());
+		*outResult = HistoryTextState(this, _text.getState(
+			point - trect.topLeft(),
+			trect.width(),
+			request.forText()));
 		return true;
 	}
 	return false;
@@ -2524,13 +2559,18 @@ TextSelection HistoryMessage::adjustSelection(TextSelection selection, TextSelec
 }
 
 void HistoryMessage::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
-	if (_media) _media->clickHandlerActiveChanged(p, active);
 	HistoryItem::clickHandlerActiveChanged(p, active);
+	if (_media) {
+		_media->clickHandlerActiveChanged(p, active);
+	}
 }
 
 void HistoryMessage::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
-	if (_media) _media->clickHandlerPressedChanged(p, pressed);
 	HistoryItem::clickHandlerPressedChanged(p, pressed);
+	if (_media) {
+		// HistoryGroupedMedia overrides HistoryItem App::pressedLinkItem().
+		_media->clickHandlerPressedChanged(p, pressed);
+	}
 }
 
 QString HistoryMessage::notificationHeader() const {

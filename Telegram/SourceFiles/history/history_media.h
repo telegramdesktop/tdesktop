@@ -135,7 +135,8 @@ public:
 		return false;
 	}
 	virtual std::unique_ptr<HistoryMedia> clone(
-		not_null<HistoryItem*> newParent) const = 0;
+		not_null<HistoryItem*> newParent,
+		not_null<HistoryItem*> realParent) const = 0;
 
 	virtual DocumentData *getDocument() {
 		return nullptr;

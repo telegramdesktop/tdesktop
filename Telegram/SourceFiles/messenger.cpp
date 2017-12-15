@@ -201,9 +201,11 @@ bool Messenger::hideMediaView() {
 	return false;
 }
 
-void Messenger::showPhoto(not_null<const PhotoOpenClickHandler*> link, HistoryItem *item) {
-	return (!item && link->peer())
-		? showPhoto(link->photo(), link->peer())
+void Messenger::showPhoto(not_null<const PhotoOpenClickHandler*> link) {
+	const auto item = App::histItemById(link->context());
+	const auto peer = link->peer();
+	return (!item && peer)
+		? showPhoto(link->photo(), peer)
 		: showPhoto(link->photo(), item);
 }
 
@@ -214,7 +216,9 @@ void Messenger::showPhoto(not_null<PhotoData*> photo, HistoryItem *item) {
 	_mediaView->setFocus();
 }
 
-void Messenger::showPhoto(not_null<PhotoData*> photo, PeerData *peer) {
+void Messenger::showPhoto(
+		not_null<PhotoData*> photo,
+		not_null<PeerData*> peer) {
 	if (_mediaView->isHidden()) Ui::hideLayer(anim::type::instant);
 	_mediaView->showPhoto(photo, peer);
 	_mediaView->activateWindow();

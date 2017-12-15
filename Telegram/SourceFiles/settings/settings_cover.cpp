@@ -94,6 +94,8 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self)
 }
 
 PhotoData *CoverWidget::validatePhoto() const {
+	Expects(_self != nullptr);
+
 	const auto photo = _self->userpicPhotoId()
 		? App::photo(_self->userpicPhotoId())
 		: nullptr;
@@ -106,7 +108,7 @@ PhotoData *CoverWidget::validatePhoto() const {
 }
 
 void CoverWidget::showPhoto() {
-	if (auto photo = validatePhoto()) {
+	if (const auto photo = validatePhoto()) {
 		Messenger::Instance().showPhoto(photo, _self);
 	}
 }

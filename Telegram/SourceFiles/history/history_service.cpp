@@ -594,7 +594,7 @@ bool HistoryService::hasPoint(QPoint point) const {
 }
 
 HistoryTextState HistoryService::getState(QPoint point, HistoryStateRequest request) const {
-	HistoryTextState result;
+	auto result = HistoryTextState(this);
 
 	auto g = countGeometry();
 	if (g.width() < 1) {
@@ -618,7 +618,10 @@ HistoryTextState HistoryService::getState(QPoint point, HistoryStateRequest requ
 	if (trect.contains(point)) {
 		auto textRequest = request.forText();
 		textRequest.align = style::al_center;
-		result = _text.getState(point - trect.topLeft(), trect.width(), textRequest);
+		result = HistoryTextState(this, _text.getState(
+			point - trect.topLeft(),
+			trect.width(),
+			textRequest));
 		if (auto gamescore = Get<HistoryServiceGameScore>()) {
 			if (!result.link && result.cursor == HistoryInTextCursorState && g.contains(point)) {
 				result.link = gamescore->lnk;

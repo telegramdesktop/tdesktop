@@ -218,9 +218,9 @@ HistoryTextState Gif::getState(
 		HistoryStateRequest request) const {
 	if (QRect(0, 0, _width, st::inlineMediaHeight).contains(point)) {
 		if (_delete && rtlpoint(point, _width).x() >= _width - st::stickerPanDeleteIconBg.width() && point.y() < st::stickerPanDeleteIconBg.height()) {
-			return _delete;
+			return { nullptr, _delete };
 		} else {
-			return _send;
+			return { nullptr, _send };
 		}
 	}
 	return {};
@@ -411,7 +411,7 @@ HistoryTextState Sticker::getState(
 		QPoint point,
 		HistoryStateRequest request) const {
 	if (QRect(0, 0, _width, st::inlineMediaHeight).contains(point)) {
-		return _send;
+		return { nullptr, _send };
 	}
 	return {};
 }
@@ -501,7 +501,7 @@ HistoryTextState Photo::getState(
 		QPoint point,
 		HistoryStateRequest request) const {
 	if (QRect(0, 0, _width, st::inlineMediaHeight).contains(point)) {
-		return _send;
+		return { nullptr, _send };
 	}
 	return {};
 }
@@ -646,10 +646,10 @@ HistoryTextState Video::getState(
 		QPoint point,
 		HistoryStateRequest request) const {
 	if (QRect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize).contains(point)) {
-		return _link;
+		return { nullptr, _link };
 	}
 	if (QRect(st::inlineThumbSize + st::inlineThumbSkip, 0, _width - st::inlineThumbSize - st::inlineThumbSkip, _height).contains(point)) {
-		return _send;
+		return { nullptr, _send };
 	}
 	return {};
 }
@@ -787,11 +787,11 @@ HistoryTextState File::getState(
 		QPoint point,
 		HistoryStateRequest request) const {
 	if (QRect(0, st::inlineRowMargin, st::msgFileSize, st::msgFileSize).contains(point)) {
-		return getShownDocument()->loading() ? _cancel : _open;
+		return { nullptr, getShownDocument()->loading() ? _cancel : _open };
 	} else {
 		auto left = st::msgFileSize + st::inlineThumbSkip;
 		if (QRect(left, 0, _width - left, _height).contains(point)) {
-			return _send;
+			return { nullptr, _send };
 		}
 	}
 	return {};
@@ -955,7 +955,7 @@ HistoryTextState Contact::getState(
 	if (!QRect(0, st::inlineRowMargin, st::msgFileSize, st::inlineThumbSize).contains(point)) {
 		auto left = (st::msgFileSize + st::inlineThumbSkip);
 		if (QRect(left, 0, _width - left, _height).contains(point)) {
-			return _send;
+			return { nullptr, _send };
 		}
 	}
 	return {};
@@ -1090,7 +1090,7 @@ HistoryTextState Article::getState(
 		QPoint point,
 		HistoryStateRequest request) const {
 	if (_withThumb && QRect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize).contains(point)) {
-		return _link;
+		return { nullptr, _link };
 	}
 	auto left = _withThumb ? (st::inlineThumbSize + st::inlineThumbSkip) : 0;
 	if (QRect(left, 0, _width - left, _height).contains(point)) {
@@ -1100,10 +1100,10 @@ HistoryTextState Article::getState(
 			auto descriptionLines = 2;
 			auto descriptionHeight = qMin(_description.countHeight(_width - left), st::normalFont->height * descriptionLines);
 			if (rtlrect(left, st::inlineRowMargin + titleHeight + descriptionHeight, _urlWidth, st::normalFont->height, _width).contains(point)) {
-				return _url;
+				return { nullptr, _url };
 			}
 		}
-		return _send;
+		return { nullptr, _send };
 	}
 	return {};
 }
@@ -1275,23 +1275,23 @@ HistoryTextState Game::getState(
 		HistoryStateRequest request) const {
 	int left = st::inlineThumbSize + st::inlineThumbSkip;
 	if (QRect(0, st::inlineRowMargin, st::inlineThumbSize, st::inlineThumbSize).contains(point)) {
-		return _send;
+		return { nullptr, _send };
 	}
 	if (QRect(left, 0, _width - left, _height).contains(point)) {
-		return _send;
+		return { nullptr, _send };
 	}
 	return {};
 }
 
 void Game::prepareThumb(int width, int height) const {
-	auto thumb = ([this]() {
+	auto thumb = [this] {
 		if (auto photo = getResultPhoto()) {
 			return photo->medium;
 		} else if (auto document = getResultDocument()) {
 			return document->thumb;
 		}
 		return ImagePtr();
-	})();
+	}();
 	if (thumb->isNull()) {
 		return;
 	}

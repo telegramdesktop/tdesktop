@@ -283,7 +283,7 @@ Photo::Photo(
 	not_null<PhotoData*> photo)
 : ItemBase(parent)
 , _data(photo)
-, _link(MakeShared<PhotoOpenClickHandler>(photo)) {
+, _link(MakeShared<PhotoOpenClickHandler>(photo, parent->fullId())) {
 }
 
 void Photo::initDimensions() {
@@ -352,7 +352,7 @@ HistoryTextState Photo::getState(
 		QPoint point,
 		HistoryStateRequest request) const {
 	if (hasPoint(point)) {
-		return _link;
+		return { parent(), _link };
 	}
 	return {};
 }
@@ -508,7 +508,12 @@ HistoryTextState Video::getState(
 	bool loaded = _data->loaded();
 
 	if (hasPoint(point)) {
-		return loaded ? _openl : (_data->loading() ? _cancell : _savel);
+		const auto link = loaded
+			? _openl
+			: _data->loading()
+			? _cancell
+			: _savel;
+		return { parent(), link };
 	}
 	return {};
 }
@@ -687,13 +692,14 @@ HistoryTextState Voice::getState(
 		_st.songThumbSize,
 		_width);
 	if (inner.contains(point)) {
-		return loaded
+		const auto link = loaded
 			? _openl
-			: ((_data->loading() || _data->status == FileUploading)
-				? _cancell
-				: _openl);
+			: (_data->loading() || _data->status == FileUploading)
+			? _cancell
+			: _openl;
+		return { parent(), link };
 	}
-	auto result = HistoryTextState();
+	auto result = HistoryTextState(parent());
 	const auto statusmaxwidth = _width - nameleft - nameright;
 	const auto statusrect = rtlrect(
 		nameleft,
@@ -718,7 +724,7 @@ HistoryTextState Voice::getState(
 		st::normalFont->height,
 		_width);
 	if (namerect.contains(point) && !result.link && !_data->loading()) {
-		return _namel;
+		return { parent(), _namel };
 	}
 	return result;
 }
@@ -1014,11 +1020,12 @@ HistoryTextState Document::getState(
 			_st.songThumbSize,
 			_width);
 		if (inner.contains(point)) {
-			return loaded
+			const auto link = loaded
 				? _openl
-				: ((_data->loading() || _data->status == FileUploading)
-					? _cancell
-					: _openl);
+				: (_data->loading() || _data->status == FileUploading)
+				? _cancell
+				: _openl;
+			return { parent(), link };
 		}
 		const auto namerect = rtlrect(
 			nameleft,
@@ -1027,7 +1034,7 @@ HistoryTextState Document::getState(
 			st::semiboldFont->height,
 			_width);
 		if (namerect.contains(point) && !_data->loading()) {
-			return _namel;
+			return { parent(), _namel };
 		}
 	} else {
 		const auto nameleft = _st.fileThumbSize + _st.filePadding.right();
@@ -1047,11 +1054,12 @@ HistoryTextState Document::getState(
 			_width);
 
 		if (rthumb.contains(point)) {
-			return loaded
+			const auto link = loaded
 				? _openl
-				: ((_data->loading() || _data->status == FileUploading)
-					? _cancell
-					: _savel);
+				: (_data->loading() || _data->status == FileUploading)
+				? _cancell
+				: _savel;
+			return { parent(), link };
 		}
 
 		if (_data->status != FileUploadFailed) {
@@ -1062,7 +1070,7 @@ HistoryTextState Document::getState(
 				st::normalFont->height,
 				_width);
 			if (daterect.contains(point)) {
-				return _msgl;
+				return { parent(), _msgl };
 			}
 		}
 		if (!_data->loading() && _data->isValid()) {
@@ -1073,7 +1081,7 @@ HistoryTextState Document::getState(
 				_height - st::linksBorder,
 				_width);
 			if (loaded && leftofnamerect.contains(point)) {
-				return _namel;
+				return { parent(), _namel };
 			}
 			const auto namerect = rtlrect(
 				nameleft,
@@ -1082,7 +1090,7 @@ HistoryTextState Document::getState(
 				st::semiboldFont->height,
 				_width);
 			if (namerect.contains(point)) {
-				return _namel;
+				return { parent(), _namel };
 			}
 		}
 	}
@@ -1212,7 +1220,9 @@ Link::Link(
 			if (_page->type == WebPageProfile || _page->type == WebPageVideo) {
 				_photol = MakeShared<UrlClickHandler>(_page->url);
 			} else if (_page->type == WebPagePhoto || _page->siteName == qstr("Twitter") || _page->siteName == qstr("Facebook")) {
-				_photol = MakeShared<PhotoOpenClickHandler>(_page->photo);
+				_photol = MakeShared<PhotoOpenClickHandler>(
+					_page->photo,
+					parent->fullId());
 			} else {
 				_photol = MakeShared<UrlClickHandler>(_page->url);
 			}
@@ -1415,7 +1425,7 @@ HistoryTextState Link::getState(
 		HistoryStateRequest request) const {
 	int32 left = st::linksPhotoSize + st::linksPhotoPadding, top = st::linksMargin.top() + st::linksBorder, w = _width - left;
 	if (rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width).contains(point)) {
-		return _photol;
+		return { parent(), _photol };
 	}
 
 	if (!_title.isEmpty() && _text.isEmpty() && _links.size() == 1) {
@@ -1423,7 +1433,7 @@ HistoryTextState Link::getState(
 	}
 	if (!_title.isEmpty()) {
 		if (rtlrect(left, top, qMin(w, _titlew), st::semiboldFont->height, _width).contains(point)) {
-			return _photol;
+			return { parent(), _photol };
 		}
 		top += st::webPageTitleFont->height;
 	}
@@ -1432,7 +1442,7 @@ HistoryTextState Link::getState(
 	}
 	for (int32 i = 0, l = _links.size(); i < l; ++i) {
 		if (rtlrect(left, top, qMin(w, _links.at(i).width), st::normalFont->height, _width).contains(point)) {
-			return ClickHandlerPtr(_links[i].lnk);
+			return { parent(), ClickHandlerPtr(_links[i].lnk) };
 		}
 		top += st::normalFont->height;
 	}

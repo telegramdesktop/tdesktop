@@ -46,6 +46,29 @@ constexpr int kAttachMessageToPreviousSecondsDelta = 900;
 
 } // namespace
 
+HistoryTextState::HistoryTextState(not_null<const HistoryItem*> item)
+: itemId(item->fullId()) {
+}
+
+HistoryTextState::HistoryTextState(
+	not_null<const HistoryItem*> item,
+	const Text::StateResult &state)
+: itemId(item->fullId())
+, cursor(state.uponSymbol
+	? HistoryInTextCursorState
+	: HistoryDefaultCursorState)
+, link(state.link)
+, afterSymbol(state.afterSymbol)
+, symbol(state.symbol) {
+}
+
+HistoryTextState::HistoryTextState(
+	not_null<const HistoryItem*> item,
+	ClickHandlerPtr link)
+: itemId(item->fullId())
+, link(link) {
+}
+
 ReplyMarkupClickHandler::ReplyMarkupClickHandler(const HistoryItem *item, int row, int col)
 : _itemId(item->fullId())
 , _row(row)
