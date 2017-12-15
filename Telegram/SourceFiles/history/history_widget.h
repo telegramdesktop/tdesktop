@@ -325,9 +325,7 @@ public:
 
 	bool isItemVisible(HistoryItem *item);
 
-	void confirmDeleteContextItem();
 	void confirmDeleteSelectedItems();
-	void deleteContextItem(bool forEveryone);
 	void deleteSelectedItems(bool forEveryone);
 
 	// Float player interface.
@@ -413,9 +411,6 @@ public slots:
 	void onInlineResultSend(InlineBots::Result *result, UserData *bot);
 
 	void onWindowVisibleChanged();
-
-	void forwardMessage();
-	void selectMessage();
 
 	void onFieldFocused();
 	void onFieldResize();

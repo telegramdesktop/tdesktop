@@ -28,6 +28,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_media_types.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
+#include "window/window_peer_menu.h"
+#include "boxes/confirm_box.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers.h"
 #include "history/history_widget.h"
@@ -1110,7 +1112,7 @@ void HistoryInner::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 		&& !_pressWasInactive
 		&& !_selected.empty()
 		&& (_selected.cbegin()->second == FullSelection)) {
-		changeDragSelection(
+		changeSelectionAsGroup(
 			&_selected,
 			_mouseActionItem,
 			SelectAction::Invert);
@@ -1220,7 +1222,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		isUponSelected = -1;
 		if (_selected.cbegin()->second == FullSelection) {
 			hasSelected = 2;
-			if (App::hoveredItem() && _selected.find(App::hoveredItem()) != _selected.cend()) {
+			if (_dragStateItem && _selected.find(_dragStateItem) != _selected.cend()) {
 				isUponSelected = 2;
 			} else {
 				isUponSelected = -2;
@@ -1307,23 +1309,35 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				}));
 			}
 			_menu->addAction(lang(lng_context_clear_selection), _widget, SLOT(onClearSelected()));
-		} else if (App::hoveredLinkItem()) {
+		} else if (_dragStateItem) {
 			if (isUponSelected != -2) {
-				if (App::hoveredLinkItem()->canForward()) {
-					_menu->addAction(lang(lng_context_forward_msg), _widget, SLOT(forwardMessage()))->setEnabled(true);
+				if (_dragStateItem->canForward()) {
+					_menu->addAction(lang(lng_context_forward_msg), base::lambda_guarded(this, [this] {
+						if (const auto item = App::contextItem()) {
+							forwardItem(item);
+						}
+					}))->setEnabled(true);
 				}
-				if (App::hoveredLinkItem()->canDelete()) {
+				if (_dragStateItem->canDelete()) {
 					_menu->addAction(lang(lng_context_delete_msg), base::lambda_guarded(this, [this] {
-						_widget->confirmDeleteContextItem();
+						if (const auto item = App::contextItem()) {
+							deleteItem(item);
+						}
 					}));
 				}
 			}
-			if (App::hoveredLinkItem()->id > 0 && !App::hoveredLinkItem()->serviceMsg()) {
+			if (_dragStateItem && _dragStateItem->id > 0 && !_dragStateItem->serviceMsg()) {
 				_menu->addAction(lang(lng_context_select_msg), base::lambda_guarded(this, [this] {
-					// TODO
+					if (const auto item = App::contextItem()) {
+						if (!item->detached()) {
+							changeSelection(&_selected, item, SelectAction::Select);
+							repaintItem(item);
+							_widget->updateTopBarSelection();
+						}
+					}
 				}))->setEnabled(true);
 			}
-			App::contextItem(App::hoveredLinkItem());
+			App::contextItem(_dragStateItem);
 		}
 	} else { // maybe cursor on some text history item?
 		bool canDelete = item && item->canDelete() && (item->id > 0 || !item->serviceMsg());
@@ -1421,23 +1435,46 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 			_menu->addAction(lang(lng_context_clear_selection), _widget, SLOT(onClearSelected()));
 		} else if (item && ((isUponSelected != -2 && (canForward || canDelete)) || item->id > 0)) {
+			const auto fullId = item->fullId();
 			if (isUponSelected != -2) {
 				if (canForward) {
-					_menu->addAction(lang(lng_context_forward_msg), _widget, SLOT(forwardMessage()))->setEnabled(true);
+					_menu->addAction(lang(lng_context_forward_msg), base::lambda_guarded(this, [this] {
+						if (const auto item = App::contextItem()) {
+							forwardAsGroup(item);
+						}
+					}))->setEnabled(true);
 				}
 
 				if (canDelete) {
 					_menu->addAction(lang((msg && msg->uploading()) ? lng_context_cancel_upload : lng_context_delete_msg), base::lambda_guarded(this, [this] {
-						_widget->confirmDeleteContextItem();
+						if (const auto item = App::contextItem()) {
+							deleteAsGroup(item);
+						}
 					}));
 				}
 			}
 			if (item->id > 0 && !item->serviceMsg()) {
-				_menu->addAction(lang(lng_context_select_msg), _widget, SLOT(selectMessage()))->setEnabled(true);
+				_menu->addAction(lang(lng_context_select_msg), base::lambda_guarded(this, [this] {
+					if (const auto item = App::contextItem()) {
+						if (!item->detached()) {
+							changeSelectionAsGroup(&_selected, item, SelectAction::Select);
+							repaintItem(item);
+							_widget->updateTopBarSelection();
+						}
+					}
+				}))->setEnabled(true);
 			}
 		} else {
 			if (App::mousedItem() && !App::mousedItem()->serviceMsg() && App::mousedItem()->id > 0) {
-				_menu->addAction(lang(lng_context_select_msg), _widget, SLOT(selectMessage()))->setEnabled(true);
+				_menu->addAction(lang(lng_context_select_msg), base::lambda_guarded(this, [this] {
+					if (const auto item = App::contextItem()) {
+						if (!item->detached()) {
+							changeSelectionAsGroup(&_selected, item, SelectAction::Select);
+							repaintItem(item);
+							_widget->updateTopBarSelection();
+						}
+					}
+				}))->setEnabled(true);
 				item = App::mousedItem();
 			}
 		}
@@ -2428,110 +2465,167 @@ void HistoryInner::applyDragSelection() {
 	applyDragSelection(&_selected);
 }
 
-bool HistoryInner::isFullSelected(
+HistoryMessageGroup *HistoryInner::itemGroup(
+		not_null<HistoryItem*> item) const {
+	if (const auto group = item->Get<HistoryMessageGroup>()) {
+		if (group->leader == item) {
+			return group;
+		}
+		return group->leader->Get<HistoryMessageGroup>();
+	}
+	return nullptr;
+}
+
+bool HistoryInner::isSelected(
 		not_null<SelectedItems*> toItems,
 		not_null<HistoryItem*> item) const {
-	const auto group = [&] {
-		if (const auto group = item->Get<HistoryMessageGroup>()) {
-			if (group->leader == item) {
-				return group;
-			}
-			return group->leader->Get<HistoryMessageGroup>();
-		}
-		return (HistoryMessageGroup*)nullptr;
-	}();
-	const auto singleSelected = [&](not_null<HistoryItem*> item) {
-		const auto i = toItems->find(item);
-		return (i != toItems->cend()) && (i->second == FullSelection);
-	};
-	if (group) {
-		if (!singleSelected(group->leader)) {
+	const auto i = toItems->find(item);
+	return (i != toItems->cend()) && (i->second == FullSelection);
+}
+
+bool HistoryInner::isSelectedAsGroup(
+		not_null<SelectedItems*> toItems,
+		not_null<HistoryItem*> item) const {
+	if (const auto group = itemGroup(item)) {
+		if (!isSelected(toItems, group->leader)) {
 			return false;
 		}
 		for (const auto other : group->others) {
-			if (!singleSelected(other)) {
+			if (!isSelected(toItems, other)) {
 				return false;
 			}
 		}
-	} else if (!singleSelected(item)) {
+		return true;
+	}
+	return isSelected(toItems, item);
+}
+
+bool HistoryInner::goodForSelection(
+		not_null<SelectedItems*> toItems,
+		not_null<HistoryItem*> item,
+		int &totalCount) const {
+	if (item->id <= 0 || item->serviceMsg()) {
 		return false;
+	}
+	if (toItems->find(item) == toItems->end()) {
+		++totalCount;
 	}
 	return true;
 }
 
-void HistoryInner::changeDragSelection(
+void HistoryInner::addToSelection(
+		not_null<SelectedItems*> toItems,
+		not_null<HistoryItem*> item) const {
+	const auto i = toItems->find(item);
+	if (i == toItems->cend()) {
+		toItems->emplace(item, FullSelection);
+	} else if (i->second != FullSelection) {
+		i->second = FullSelection;
+	}
+}
+
+void HistoryInner::removeFromSelection(
+		not_null<SelectedItems*> toItems,
+		not_null<HistoryItem*> item) const {
+	const auto i = toItems->find(item);
+	if (i != toItems->cend()) {
+		toItems->erase(i);
+	}
+}
+
+void HistoryInner::changeSelection(
 		not_null<SelectedItems*> toItems,
 		not_null<HistoryItem*> item,
 		SelectAction action) const {
 	if (action == SelectAction::Invert) {
-		action = isFullSelected(toItems, item)
+		action = isSelected(toItems, item)
 			? SelectAction::Deselect
 			: SelectAction::Select;
 	}
-	auto total = toItems->size();
+	auto total = int(toItems->size());
 	const auto add = (action == SelectAction::Select);
-	const auto goodForAdding = [&](not_null<HistoryItem*> item) {
-		if (item->id <= 0 || item->serviceMsg()) {
+	if (add
+		&& goodForSelection(toItems, item, total)
+		&& total <= MaxSelectedItems) {
+		addToSelection(toItems, item);
+	} else {
+		removeFromSelection(toItems, item);
+	}
+}
+
+void HistoryInner::changeSelectionAsGroup(
+		not_null<SelectedItems*> toItems,
+		not_null<HistoryItem*> item,
+		SelectAction action) const {
+	const auto group = itemGroup(item);
+	if (!group) {
+		return changeSelection(toItems, item, action);
+	}
+	if (action == SelectAction::Invert) {
+		action = isSelectedAsGroup(toItems, item)
+			? SelectAction::Deselect
+			: SelectAction::Select;
+	}
+	auto total = int(toItems->size());
+	const auto add = (action == SelectAction::Select);
+
+	const auto adding = [&] {
+		if (!add || !goodForSelection(toItems, group->leader, total)) {
 			return false;
 		}
-		if (toItems->find(item) == toItems->end()) {
-			++total;
-		}
-		return true;
-	};
-	const auto addSingle = [&](not_null<HistoryItem*> item) {
-		const auto i = toItems->find(item);
-		if (i == toItems->cend()) {
-			toItems->emplace(item, FullSelection);
-		} else if (i->second != FullSelection) {
-			i->second = FullSelection;
-		}
-	};
-	const auto removeSingle = [&](not_null<HistoryItem*> item) {
-		const auto i = toItems->find(item);
-		if (i != toItems->cend()) {
-			toItems->erase(i);
-		}
-	};
-	const auto group = [&] {
-		if (const auto group = item->Get<HistoryMessageGroup>()) {
-			if (group->leader == item) {
-				return group;
-			}
-			return group->leader->Get<HistoryMessageGroup>();
-		}
-		return (HistoryMessageGroup*)nullptr;
-	}();
-	if (group) {
-		const auto adding = [&] {
-			if (!add || !goodForAdding(group->leader)) {
+		for (const auto other : group->others) {
+			if (!goodForSelection(toItems, other, total)) {
 				return false;
 			}
-			for (const auto other : group->others) {
-				if (!goodForAdding(other)) {
-					return false;
-				}
-			}
-			return (total <= MaxSelectedItems);
-		}();
-		if (adding) {
-			addSingle(group->leader);
-			for (const auto other : group->others) {
-				addSingle(other);
-			}
-		} else {
-			removeSingle(group->leader);
-			for (const auto other : group->others) {
-				removeSingle(other);
-			}
+		}
+		return (total <= MaxSelectedItems);
+	}();
+	if (adding) {
+		addToSelection(toItems, group->leader);
+		for (const auto other : group->others) {
+			addToSelection(toItems, other);
 		}
 	} else {
-		if (add && goodForAdding(item) && total <= MaxSelectedItems) {
-			addSingle(item);
-		} else {
-			removeSingle(item);
+		removeFromSelection(toItems, group->leader);
+		for (const auto other : group->others) {
+			removeFromSelection(toItems, other);
 		}
 	}
+}
+
+void HistoryInner::forwardItem(not_null<HistoryItem*> item) {
+	Window::ShowForwardMessagesBox({ 1, item->fullId() });
+}
+
+void HistoryInner::forwardAsGroup(not_null<HistoryItem*> item) {
+	if (const auto group = itemGroup(item)) {
+		auto items = Auth().data().itemsToIds(group->others);
+		items.push_back(group->leader->fullId());
+		Window::ShowForwardMessagesBox(std::move(items));
+	} else {
+		Window::ShowForwardMessagesBox({ 1, item->fullId() });
+	}
+}
+
+void HistoryInner::deleteItem(not_null<HistoryItem*> item) {
+	if (auto message = item->toHistoryMessage()) {
+		if (message->uploading()) {
+			App::main()->cancelUploadLayer();
+			return;
+		}
+	}
+	const auto suggestModerateActions = true;
+	Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
+}
+
+void HistoryInner::deleteAsGroup(not_null<HistoryItem*> item) {
+	const auto group = itemGroup(item);
+	if (!group || group->others.empty()) {
+		return deleteItem(item);
+	}
+	auto items = Auth().data().itemsToIds(group->others);
+	items.push_back(group->leader->fullId());
+	Ui::show(Box<DeleteMessagesBox>(std::move(items)));
 }
 
 void HistoryInner::addSelectionRange(
@@ -2546,7 +2640,7 @@ void HistoryInner::addSelectionRange(
 			auto block = history->blocks[fromblock];
 			for (int cnt = (fromblock < toblock) ? block->items.size() : (toitem + 1); fromitem < cnt; ++fromitem) {
 				auto item = block->items[fromitem];
-				changeDragSelection(toItems, item, SelectAction::Select);
+				changeSelectionAsGroup(toItems, item, SelectAction::Select);
 			}
 			if (toItems->size() >= MaxSelectedItems) break;
 			fromitem = 0;
@@ -2601,7 +2695,7 @@ void HistoryInner::applyDragSelection(
 			}
 		}
 		for (const auto item : toRemove) {
-			changeDragSelection(toItems, item, SelectAction::Deselect);
+			changeSelectionAsGroup(toItems, item, SelectAction::Deselect);
 		}
 	}
 }

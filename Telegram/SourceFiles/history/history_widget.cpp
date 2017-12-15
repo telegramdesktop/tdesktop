@@ -3735,20 +3735,6 @@ void HistoryWidget::onCmdStart() {
 	setFieldText({ qsl("/"), TextWithTags::Tags() }, 0, Ui::FlatTextarea::AddToUndoHistory);
 }
 
-void HistoryWidget::forwardMessage() {
-	auto item = App::contextItem();
-	if (!item || item->id < 0 || item->serviceMsg()) return;
-
-	Window::ShowForwardMessagesBox({ 1, item->fullId() });
-}
-
-void HistoryWidget::selectMessage() {
-	auto item = App::contextItem();
-	if (!item || item->id < 0 || item->serviceMsg()) return;
-
-	if (_list) _list->selectItem(item);
-}
-
 void HistoryWidget::setMembersShowAreaActive(bool active) {
 	if (!active) {
 		_membersDropdownShowTimer.stop();
@@ -6198,19 +6184,6 @@ void HistoryWidget::onForwardSelected() {
 	});
 }
 
-void HistoryWidget::confirmDeleteContextItem() {
-	auto item = App::contextItem();
-	if (!item) return;
-
-	if (auto message = item->toHistoryMessage()) {
-		if (message->uploading()) {
-			App::main()->cancelUploadLayer();
-			return;
-		}
-	}
-	App::main()->deleteLayer();
-}
-
 void HistoryWidget::confirmDeleteSelectedItems() {
 	if (!_list) return;
 
@@ -6218,29 +6191,6 @@ void HistoryWidget::confirmDeleteSelectedItems() {
 	if (selected.empty()) return;
 
 	App::main()->deleteLayer(int(selected.size()));
-}
-
-void HistoryWidget::deleteContextItem(bool forEveryone) {
-	Ui::hideLayer();
-
-	auto item = App::contextItem();
-	if (!item) {
-		return;
-	}
-
-	auto toDelete = QVector<MTPint>(1, MTP_int(item->id));
-	auto history = item->history();
-	auto wasOnServer = (item->id > 0);
-	auto wasLast = (history->lastMsg == item);
-	item->destroy();
-
-	if (!wasOnServer && wasLast && !history->lastMsg) {
-		App::main()->checkPeerHistory(history->peer);
-	}
-
-	if (wasOnServer) {
-		App::main()->deleteMessages(history->peer, toDelete, forEveryone);
-	}
 }
 
 void HistoryWidget::deleteSelectedItems(bool forEveryone) {

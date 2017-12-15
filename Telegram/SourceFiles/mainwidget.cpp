@@ -965,9 +965,18 @@ void MainWidget::cancelUploadLayer() {
 		return;
 	}
 
-	Auth().uploader().pause(item->fullId());
-	Ui::show(Box<ConfirmBox>(lang(lng_selected_cancel_sure_this), lang(lng_selected_upload_stop), lang(lng_continue), base::lambda_guarded(this, [this] {
-		_history->deleteContextItem(false);
+	const auto itemId = item->fullId();
+	Auth().uploader().pause(itemId);
+	Ui::show(Box<ConfirmBox>(lang(lng_selected_cancel_sure_this), lang(lng_selected_upload_stop), lang(lng_continue), base::lambda_guarded(this, [=] {
+		Ui::hideLayer();
+		if (const auto item = App::histItemById(itemId)) {
+			const auto history = item->history();
+			const auto wasLast = (history->lastMsg == item);
+			item->destroy();
+			if (wasLast && !history->lastMsg) {
+				checkPeerHistory(history->peer);
+			}
+		}
 		Auth().uploader().unpause();
 	}), base::lambda_guarded(this, [] {
 		Auth().uploader().unpause();

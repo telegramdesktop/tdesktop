@@ -141,6 +141,12 @@ private:
 		Selecting,
 	};
 
+	enum class SelectAction {
+		Select,
+		Deselect,
+		Invert,
+	};
+
 	void mouseActionStart(const QPoint &screenPos, Qt::MouseButton button);
 	void mouseActionUpdate(const QPoint &screenPos);
 	void mouseActionFinish(const QPoint &screenPos, Qt::MouseButton button);
@@ -220,6 +226,8 @@ private:
 	style::cursor _cursor = style::cur_default;
 	using SelectedItems = std::map<HistoryItem*, TextSelection, std::less<>>;
 	SelectedItems _selected;
+
+	HistoryMessageGroup *itemGroup(not_null<HistoryItem*> item) const;
 	void applyDragSelection();
 	void applyDragSelection(not_null<SelectedItems*> toItems) const;
 	void addSelectionRange(
@@ -229,18 +237,34 @@ private:
 		int fromitem,
 		int toblock,
 		int toitem) const;
-	bool isFullSelected(
+	bool isSelected(
 		not_null<SelectedItems*> toItems,
 		not_null<HistoryItem*> item) const;
-	enum class SelectAction {
-		Select,
-		Deselect,
-		Invert,
-	};
-	void changeDragSelection(
+	bool isSelectedAsGroup(
+		not_null<SelectedItems*> toItems,
+		not_null<HistoryItem*> item) const;
+	bool goodForSelection(
+		not_null<SelectedItems*> toItems,
+		not_null<HistoryItem*> item,
+		int &totalCount) const;
+	void addToSelection(
+		not_null<SelectedItems*> toItems,
+		not_null<HistoryItem*> item) const;
+	void removeFromSelection(
+		not_null<SelectedItems*> toItems,
+		not_null<HistoryItem*> item) const;
+	void changeSelection(
 		not_null<SelectedItems*> toItems,
 		not_null<HistoryItem*> item,
 		SelectAction action) const;
+	void changeSelectionAsGroup(
+		not_null<SelectedItems*> toItems,
+		not_null<HistoryItem*> item,
+		SelectAction action) const;
+	void forwardItem(not_null<HistoryItem*> item);
+	void forwardAsGroup(not_null<HistoryItem*> item);
+	void deleteItem(not_null<HistoryItem*> item);
+	void deleteAsGroup(not_null<HistoryItem*> item);
 
 	// Does any of the shown histories has this flag set.
 	bool hasPendingResizedItems() const {
