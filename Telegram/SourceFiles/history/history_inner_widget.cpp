@@ -2465,17 +2465,6 @@ void HistoryInner::applyDragSelection() {
 	applyDragSelection(&_selected);
 }
 
-HistoryMessageGroup *HistoryInner::itemGroup(
-		not_null<HistoryItem*> item) const {
-	if (const auto group = item->Get<HistoryMessageGroup>()) {
-		if (group->leader == item) {
-			return group;
-		}
-		return group->leader->Get<HistoryMessageGroup>();
-	}
-	return nullptr;
-}
-
 bool HistoryInner::isSelected(
 		not_null<SelectedItems*> toItems,
 		not_null<HistoryItem*> item) const {
@@ -2486,7 +2475,7 @@ bool HistoryInner::isSelected(
 bool HistoryInner::isSelectedAsGroup(
 		not_null<SelectedItems*> toItems,
 		not_null<HistoryItem*> item) const {
-	if (const auto group = itemGroup(item)) {
+	if (const auto group = item->getFullGroup()) {
 		if (!isSelected(toItems, group->leader)) {
 			return false;
 		}
@@ -2557,7 +2546,7 @@ void HistoryInner::changeSelectionAsGroup(
 		not_null<SelectedItems*> toItems,
 		not_null<HistoryItem*> item,
 		SelectAction action) const {
-	const auto group = itemGroup(item);
+	const auto group = item->getFullGroup();
 	if (!group) {
 		return changeSelection(toItems, item, action);
 	}
@@ -2598,7 +2587,7 @@ void HistoryInner::forwardItem(not_null<HistoryItem*> item) {
 }
 
 void HistoryInner::forwardAsGroup(not_null<HistoryItem*> item) {
-	if (const auto group = itemGroup(item)) {
+	if (const auto group = item->getFullGroup()) {
 		auto items = Auth().data().itemsToIds(group->others);
 		items.push_back(group->leader->fullId());
 		Window::ShowForwardMessagesBox(std::move(items));
@@ -2619,13 +2608,13 @@ void HistoryInner::deleteItem(not_null<HistoryItem*> item) {
 }
 
 void HistoryInner::deleteAsGroup(not_null<HistoryItem*> item) {
-	const auto group = itemGroup(item);
+	const auto group = item->getFullGroup();
 	if (!group || group->others.empty()) {
 		return deleteItem(item);
 	}
 	auto items = Auth().data().itemsToIds(group->others);
 	items.push_back(group->leader->fullId());
-	Ui::show(Box<DeleteMessagesBox>(std::move(items)));
+	Ui::show(Box<DeleteMessagesBox>(Auth().data().groupToIds(group)));
 }
 
 void HistoryInner::addSelectionRange(

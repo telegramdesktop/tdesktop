@@ -378,6 +378,13 @@ MessageIdsList AuthSessionData::itemsToIds(
 	}) | ranges::to_vector;
 }
 
+MessageIdsList AuthSessionData::groupToIds(
+		not_null<HistoryMessageGroup*> group) const {
+	auto result = itemsToIds(group->others);
+	result.push_back(group->leader->fullId());
+	return result;
+}
+
 AuthSession &Auth() {
 	auto result = Messenger::Instance().authSession();
 	Assert(result != nullptr);

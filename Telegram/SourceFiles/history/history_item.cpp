@@ -1198,6 +1198,16 @@ void HistoryItem::makeGroupLeader(
 	Ensures(!isHiddenByGroup());
 }
 
+HistoryMessageGroup *HistoryItem::getFullGroup() {
+	if (const auto group = Get<HistoryMessageGroup>()) {
+		if (group->leader == this) {
+			return group;
+		}
+		return group->leader->Get<HistoryMessageGroup>();
+	}
+	return nullptr;
+}
+
 void HistoryItem::resetGroupMedia(
 		const std::vector<not_null<HistoryItem*>> &others) {
 	if (!others.empty()) {

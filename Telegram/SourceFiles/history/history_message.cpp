@@ -181,27 +181,28 @@ bool HasInlineItems(const HistoryItemsList &items) {
 
 void FastShareMessage(not_null<HistoryItem*> item) {
 	struct ShareData {
-		ShareData(const FullMsgId &msgId) : msgId(msgId) {
+		ShareData(not_null<PeerData*> peer, MessageIdsList &&ids)
+		: peer(peer)
+		, msgIds(std::move(ids)) {
 		}
-		FullMsgId msgId;
-		OrderedSet<mtpRequestId> requests;
+		not_null<PeerData*> peer;
+		MessageIdsList msgIds;
+		base::flat_set<mtpRequestId> requests;
 	};
-	auto data = MakeShared<ShareData>(item->fullId());
-	auto isGame = item->getMessageBot()
+	const auto data = MakeShared<ShareData>(item->history()->peer, [&] {
+		if (const auto group = item->getFullGroup()) {
+			return Auth().data().groupToIds(group);
+		}
+		return MessageIdsList(1, item->fullId());
+	}());
+	const auto isGame = item->getMessageBot()
 		&& item->getMedia()
 		&& (item->getMedia()->type() == MediaTypeGame);
+	const auto canCopyLink = item->hasDirectLink() || isGame;
 
-	auto canCopyLink = item->hasDirectLink();
-	if (!canCopyLink) {
-		if (auto bot = item->getMessageBot()) {
-			if (auto media = item->getMedia()) {
-				canCopyLink = (media->type() == MediaTypeGame);
-			}
-		}
-	}
 	auto copyCallback = [data]() {
 		if (auto main = App::main()) {
-			if (auto item = App::histItemById(data->msgId)) {
+			if (auto item = App::histItemById(data->msgIds[0])) {
 				if (item->hasDirectLink()) {
 					QApplication::clipboard()->setText(item->directLink());
 
@@ -224,12 +225,11 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		if (!data->requests.empty()) {
 			return; // Share clicked already.
 		}
-		auto item = App::histItemById(data->msgId);
-		if (!item || result.empty()) {
+		auto items = Auth().data().idsToItems(data->msgIds);
+		if (items.empty() || result.empty()) {
 			return;
 		}
 
-		auto items = HistoryItemsList(1, item);
 		auto restrictedSomewhere = false;
 		auto restrictedEverywhere = true;
 		auto firstError = QString();
@@ -262,16 +262,32 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			}
 		};
 
-		auto sendFlags = MTPmessages_ForwardMessages::Flag::f_with_my_score;
-		MTPVector<MTPint> msgIds = MTP_vector<MTPint>(1, MTP_int(data->msgId.msg));
+		auto sendFlags = MTPmessages_ForwardMessages::Flag::f_with_my_score
+			| MTPmessages_ForwardMessages::Flag::f_grouped;
+		auto msgIds = QVector<MTPint>();
+		msgIds.reserve(data->msgIds.size());
+		for (const auto fullId : data->msgIds) {
+			msgIds.push_back(MTP_int(fullId.msg));
+		}
+		auto generateRandom = [&] {
+			auto result = QVector<MTPlong>(data->msgIds.size());
+			for (auto &value : result) {
+				value = rand_value<MTPlong>();
+			}
+			return result;
+		};
 		if (auto main = App::main()) {
 			for (const auto peer : result) {
 				if (!GetErrorTextForForward(peer, items).isEmpty()) {
 					continue;
 				}
 
-				MTPVector<MTPlong> random = MTP_vector<MTPlong>(1, rand_value<MTPlong>());
-				auto request = MTPmessages_ForwardMessages(MTP_flags(sendFlags), item->history()->peer->input, msgIds, random, peer->input);
+				auto request = MTPmessages_ForwardMessages(
+					MTP_flags(sendFlags),
+					data->peer->input,
+					MTP_vector<MTPint>(msgIds),
+					MTP_vector<MTPlong>(generateRandom()),
+					peer->input);
 				auto callback = doneCallback;
 				auto requestId = MTP::send(request, rpcDone(std::move(callback)));
 				data->requests.insert(requestId);
@@ -2361,7 +2377,7 @@ ClickHandlerPtr HistoryMessage::rightActionLink() const {
 						Window::SectionShow::Way::Forward,
 						savedFromMsgId);
 				} else {
-					FastShareMessage(item->toHistoryMessage());
+					FastShareMessage(item);
 				}
 			}
 		});

@@ -610,6 +610,11 @@ bool MainWidget::setForwardDraft(PeerId peerId, ForwardWhatMessages what) {
 			item = App::contextItem();
 		} else if (what == ForwardPressedMessage) {
 			item = App::pressedItem();
+			if (const auto group = item ? item->getFullGroup() : nullptr) {
+				if (item->id > 0) {
+					return Auth().data().groupToIds(group);
+				}
+			}
 		} else if (what == ForwardPressedLinkMessage) {
 			item = App::pressedLinkItem();
 		}

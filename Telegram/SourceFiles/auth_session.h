@@ -263,6 +263,7 @@ public:
 
 	HistoryItemsList idsToItems(const MessageIdsList &ids) const;
 	MessageIdsList itemsToIds(const HistoryItemsList &items) const;
+	MessageIdsList groupToIds(not_null<HistoryMessageGroup*> group) const;
 
 private:
 	struct Variables {

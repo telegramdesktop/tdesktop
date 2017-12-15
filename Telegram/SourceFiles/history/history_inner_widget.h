@@ -227,7 +227,6 @@ private:
 	using SelectedItems = std::map<HistoryItem*, TextSelection, std::less<>>;
 	SelectedItems _selected;
 
-	HistoryMessageGroup *itemGroup(not_null<HistoryItem*> item) const;
 	void applyDragSelection();
 	void applyDragSelection(not_null<SelectedItems*> toItems) const;
 	void addSelectionRange(

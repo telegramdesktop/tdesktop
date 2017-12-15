@@ -972,6 +972,7 @@ public:
 	}
 	void makeGroupMember(not_null<HistoryItem*> leader);
 	void makeGroupLeader(std::vector<not_null<HistoryItem*>> &&others);
+	HistoryMessageGroup *getFullGroup();
 
 	int width() const {
 		return _width;

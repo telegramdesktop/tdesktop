@@ -2455,6 +2455,7 @@ void ApiWrap::forwardMessages(
 	}
 
 	auto forwardFrom = items.front()->history()->peer;
+	auto currentGroupId = items.front()->groupId();
 	auto ids = QVector<MTPint>();
 	auto randomIds = QVector<MTPlong>();
 
@@ -2462,8 +2463,12 @@ void ApiWrap::forwardMessages(
 		if (shared) {
 			++shared->requestsLeft;
 		}
+		const auto finalFlags = sendFlags
+			| (currentGroupId == MessageGroupId()
+				? MTPmessages_ForwardMessages::Flag(0)
+				: MTPmessages_ForwardMessages::Flag::f_grouped);
 		history->sendRequestId = request(MTPmessages_ForwardMessages(
-			MTP_flags(sendFlags),
+			MTP_flags(finalFlags),
 			forwardFrom->input,
 			MTP_vector<MTPint>(ids),
 			MTP_vector<MTPlong>(randomIds),
@@ -2508,9 +2513,13 @@ void ApiWrap::forwardMessages(
 				App::historyRegRandom(randomId, newId);
 			}
 		}
-		if (forwardFrom != item->history()->peer) {
+		const auto newFrom = item->history()->peer;
+		const auto newGroupId = item->groupId();
+		if (forwardFrom != newFrom
+			|| currentGroupId != newGroupId) {
 			sendAccumulated();
-			forwardFrom = item->history()->peer;
+			forwardFrom = newFrom;
+			currentGroupId = newGroupId;
 		}
 		ids.push_back(MTP_int(item->id));
 		randomIds.push_back(MTP_long(randomId));
