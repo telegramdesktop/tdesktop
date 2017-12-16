@@ -1024,7 +1024,7 @@ void HistoryInner::performDrag() {
 				forwardMimeType = qsl("application/x-td-forward-pressed");
 			}
 		}
-		if (const auto pressedLnkItem = _dragStateItem) {
+		if (const auto pressedLnkItem = _mouseActionItem) {
 			if ((pressedMedia = pressedLnkItem->getMedia())) {
 				if (forwardMimeType.isEmpty() && pressedMedia->dragItemByHandler(pressedHandler)) {
 					forwardMimeType = qsl("application/x-td-forward-pressed-link");

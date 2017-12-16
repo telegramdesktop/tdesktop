@@ -128,6 +128,9 @@ private:
 	not_null<HistoryMedia*> main() const;
 	bool validateGroupElements(
 		const std::vector<not_null<HistoryItem*>> &others) const;
+	HistoryTextState getElementState(
+		QPoint point,
+		HistoryStateRequest request) const;
 
 	Text _caption;
 	std::vector<Element> _elements;

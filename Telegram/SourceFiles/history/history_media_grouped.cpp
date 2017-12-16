@@ -205,7 +205,7 @@ void HistoryGroupedMedia::draw(
 	}
 }
 
-HistoryTextState HistoryGroupedMedia::getState(
+HistoryTextState HistoryGroupedMedia::getElementState(
 		QPoint point,
 		HistoryStateRequest request) const {
 	for (const auto &element : _elements) {
@@ -218,7 +218,14 @@ HistoryTextState HistoryGroupedMedia::getState(
 			return result;
 		}
 	}
-	if (!_caption.isEmpty()) {
+	return HistoryTextState(_parent);
+}
+
+HistoryTextState HistoryGroupedMedia::getState(
+		QPoint point,
+		HistoryStateRequest request) const {
+	auto result = getElementState(point, request);
+	if (!result.link && !_caption.isEmpty()) {
 		const auto captionw = _width - st::msgPadding.left() - st::msgPadding.right();
 		const auto captiony = _height
 			- (isBubbleBottom() ? st::msgPadding.bottom() : 0)
@@ -229,9 +236,7 @@ HistoryTextState HistoryGroupedMedia::getState(
 				captionw,
 				request.forText()));
 		}
-	}
-	auto result = HistoryTextState(_parent);
-	if (_caption.isEmpty() && _parent->getMedia() == this) {
+	} else if (_parent->getMedia() == this) {
 		auto fullRight = _width;
 		auto fullBottom = _height;
 		if (_parent->pointInTime(fullRight, fullBottom, point, InfoDisplayOverImage)) {
@@ -245,7 +250,7 @@ HistoryTextState HistoryGroupedMedia::getState(
 			}
 		}
 	}
-	return HistoryTextState();
+	return result;
 }
 
 bool HistoryGroupedMedia::toggleSelectionByHandlerClick(
