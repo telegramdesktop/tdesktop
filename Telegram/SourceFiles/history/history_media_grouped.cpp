@@ -426,14 +426,12 @@ bool HistoryGroupedMedia::computeNeedBubble() const {
 	if (!_caption.isEmpty()) {
 		return true;
 	}
-	for (const auto &element : _elements) {
-		if (const auto message = element.item->toHistoryMessage()) {
-			if (message->viaBot()
-				|| message->Has<HistoryMessageForwarded>()
-				|| message->Has<HistoryMessageReply>()
-				|| message->displayFromName()) {
-				return true;
-			}
+	if (const auto message = _parent->toHistoryMessage()) {
+		if (message->viaBot()
+			|| message->Has<HistoryMessageReply>()
+			|| message->displayForwardedFrom()
+			|| message->displayFromName()) {
+			return true;
 		}
 	}
 	return false;

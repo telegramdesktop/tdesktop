@@ -163,6 +163,7 @@ public:
 		if (isAttachedToPrevious()) return false;
 		return true;
 	}
+	bool displayForwardedFrom() const;
 	bool displayEditedBadge(bool hasViaBotOrInlineMarkup) const;
 	bool uploading() const;
 	bool displayRightAction() const override;
@@ -321,7 +322,6 @@ private:
 	int performResizeGetHeight();
 	void applyEditionToEmpty();
 
-	bool displayForwardedFrom() const;
 	void paintFromName(Painter &p, QRect &trect, bool selected) const;
 	void paintForwardedInfo(Painter &p, QRect &trect, bool selected) const;
 	void paintReplyInfo(Painter &p, QRect &trect, bool selected) const;

@@ -125,6 +125,7 @@ bool HasMediaItems(const HistoryItemsList &items) {
 			switch (media->type()) {
 			case MediaTypePhoto:
 			case MediaTypeVideo:
+			case MediaTypeGrouped:
 			case MediaTypeFile:
 			case MediaTypeMusicFile:
 			case MediaTypeVoiceFile: return true;

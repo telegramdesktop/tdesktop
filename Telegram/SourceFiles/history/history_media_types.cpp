@@ -640,9 +640,9 @@ void HistoryPhoto::drawGrouped(
 		const auto roundRadius = ImageRoundRadius::Large;
 		const auto roundCorners = ImageRoundCorner::None
 			| ((corners & RectPart::TopLeft) ? ImageRoundCorner::TopLeft : ImageRoundCorner::None)
-			| ((corners & RectPart::TopRight) ? ImageRoundCorner::TopLeft : ImageRoundCorner::None)
-			| ((corners & RectPart::BottomLeft) ? ImageRoundCorner::TopLeft : ImageRoundCorner::None)
-			| ((corners & RectPart::BottomRight) ? ImageRoundCorner::TopLeft : ImageRoundCorner::None);
+			| ((corners & RectPart::TopRight) ? ImageRoundCorner::TopRight : ImageRoundCorner::None)
+			| ((corners & RectPart::BottomLeft) ? ImageRoundCorner::BottomLeft : ImageRoundCorner::None)
+			| ((corners & RectPart::BottomRight) ? ImageRoundCorner::BottomRight : ImageRoundCorner::None);
 		App::complexOverlayRect(p, geometry, roundRadius, roundCorners);
 	}
 
@@ -857,8 +857,8 @@ bool HistoryPhoto::needsBubble() const {
 	}
 	if (auto message = _parent->toHistoryMessage()) {
 		return message->viaBot()
-			|| message->Has<HistoryMessageForwarded>()
 			|| message->Has<HistoryMessageReply>()
+			|| message->displayForwardedFrom()
 			|| message->displayFromName();
 	}
 	return false;
@@ -1333,8 +1333,8 @@ bool HistoryVideo::needsBubble() const {
 	}
 	if (auto message = _parent->toHistoryMessage()) {
 		return message->viaBot()
-			|| message->Has<HistoryMessageForwarded>()
 			|| message->Has<HistoryMessageReply>()
+			|| message->displayForwardedFrom()
 			|| message->displayFromName();
 	}
 	return false;
@@ -2809,8 +2809,8 @@ bool HistoryGif::needsBubble() const {
 	}
 	if (auto message = _parent->toHistoryMessage()) {
 		return message->viaBot()
-			|| message->Has<HistoryMessageForwarded>()
 			|| message->Has<HistoryMessageReply>()
+			|| message->displayForwardedFrom()
 			|| message->displayFromName();
 	}
 	return false;
@@ -5318,8 +5318,8 @@ bool HistoryLocation::needsBubble() const {
 	}
 	if (auto message = _parent->toHistoryMessage()) {
 		return message->viaBot()
-			|| message->Has<HistoryMessageForwarded>()
 			|| message->Has<HistoryMessageReply>()
+			|| message->displayForwardedFrom()
 			|| message->displayFromName();
 	}
 	return false;

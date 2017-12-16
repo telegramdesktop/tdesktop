@@ -847,10 +847,8 @@ std::unique_ptr<BaseLayout> ListWidget::createLayout(
 		return nullptr;
 	}
 	auto getPhoto = [&]() -> PhotoData* {
-		if (auto media = item->getMedia()) {
-			if (media->type() == MediaTypePhoto) {
-				return static_cast<HistoryPhoto*>(media)->getPhoto();
-			}
+		if (const auto media = item->getMedia()) {
+			return media->getPhoto();
 		}
 		return nullptr;
 	};

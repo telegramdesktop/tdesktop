@@ -290,9 +290,7 @@ base::optional<bool> SharedMediaWithLastSlice::IsLastIsolated(
 		| [](FullMsgId msgId) {	return App::histItemById(msgId); }
 		| [](HistoryItem *item) { return item ? item->getMedia() : nullptr; }
 		| [](HistoryMedia *media) {
-			return (media && media->type() == MediaTypePhoto)
-				? static_cast<HistoryPhoto*>(media)->getPhoto()
-				: nullptr;
+			return media ? media->getPhoto() : nullptr;
 		}
 		| [](PhotoData *photo) { return photo ? photo->id : 0; }
 		| [&](PhotoId photoId) { return *lastPeerPhotoId != photoId; };

@@ -286,6 +286,9 @@ HistoryService::PreparedText HistoryService::preparePinnedText() {
 			switch (media ? media->type() : MediaTypeCount) {
 			case MediaTypePhoto: return lang(lng_action_pinned_media_photo);
 			case MediaTypeVideo: return lang(lng_action_pinned_media_video);
+			case MediaTypeGrouped: return lang(media->getPhoto()
+				? lng_action_pinned_media_photo
+				: lng_action_pinned_media_video);
 			case MediaTypeContact: return lang(lng_action_pinned_media_contact);
 			case MediaTypeFile: return lang(lng_action_pinned_media_file);
 			case MediaTypeGif: {

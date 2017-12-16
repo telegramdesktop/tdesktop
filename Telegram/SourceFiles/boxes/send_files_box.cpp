@@ -492,6 +492,17 @@ EditCaptionBox::EditCaptionBox(QWidget*, HistoryMedia *media, FullMsgId msgId) :
 		image = doc->thumb;
 	} break;
 
+	case MediaTypeGrouped: {
+		if (const auto photo = media->getPhoto()) {
+			dimensions = QSize(photo->full->width(), photo->full->height());
+			image = photo->full;
+		} else if (const auto doc = media->getDocument()) {
+			dimensions = doc->dimensions;
+			image = doc->thumb;
+			_animated = true;
+		}
+	} break;
+
 	case MediaTypeFile:
 	case MediaTypeMusicFile:
 	case MediaTypeVoiceFile: {
