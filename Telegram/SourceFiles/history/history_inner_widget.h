@@ -133,6 +133,9 @@ private slots:
 	void onScrollDateHideByTimer();
 
 private:
+	class BotAbout;
+	using SelectedItems = std::map<HistoryItem*, TextSelection, std::less<>>;
+
 	enum class MouseAction {
 		None,
 		PrepareDrag,
@@ -140,7 +143,6 @@ private:
 		PrepareSelect,
 		Selecting,
 	};
-
 	enum class SelectAction {
 		Select,
 		Deselect,
@@ -175,6 +177,9 @@ private:
 		not_null<HistoryItem*> item,
 		int selfromy,
 		int seltoy) const;
+	TextSelection computeRenderSelection(
+		not_null<const SelectedItems*> selected,
+		not_null<HistoryItem*> item) const;
 
 	void setToClipboard(const TextWithEntities &forClipboard, QClipboard::Mode mode = QClipboard::Clipboard);
 
@@ -196,23 +201,6 @@ private:
 	// or at least we don't need to display first _history date (just skip it by height)
 	int _historySkipHeight = 0;
 
-	class BotAbout : public ClickHandlerHost {
-	public:
-		BotAbout(HistoryInner *parent, BotInfo *info) : info(info), _parent(parent) {
-		}
-		BotInfo *info = nullptr;
-		int width = 0;
-		int height = 0;
-		QRect rect;
-
-		// ClickHandlerHost interface
-		void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
-		void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
-
-	private:
-		HistoryInner *_parent;
-
-	};
 	std::unique_ptr<BotAbout> _botAbout;
 
 	HistoryWidget *_widget = nullptr;
@@ -224,7 +212,6 @@ private:
 	bool _firstLoading = false;
 
 	style::cursor _cursor = style::cur_default;
-	using SelectedItems = std::map<HistoryItem*, TextSelection, std::less<>>;
 	SelectedItems _selected;
 
 	void applyDragSelection();

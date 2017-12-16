@@ -288,10 +288,15 @@ QString HistoryGroupedMedia::inDialogsText() const {
 
 TextWithEntities HistoryGroupedMedia::selectedText(
 		TextSelection selection) const {
-	return WithCaptionSelectedText(
-		lang(lng_in_dlg_album),
-		_caption,
-		selection);
+	if (!IsSubGroupSelection(selection)) {
+		return WithCaptionSelectedText(
+			lang(lng_in_dlg_album),
+			_caption,
+			selection);
+	} else if (IsGroupItemSelection(selection, int(_elements.size()) - 1)) {
+		return main()->selectedText(FullSelection);
+	}
+	return TextWithEntities();
 }
 
 void HistoryGroupedMedia::clickHandlerActiveChanged(

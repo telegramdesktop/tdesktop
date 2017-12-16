@@ -87,6 +87,43 @@ int BinarySearchBlocksOrItems(const T &list, int edge) {
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
+class HistoryInner::BotAbout : public ClickHandlerHost {
+public:
+	BotAbout(not_null<HistoryInner*> parent, not_null<BotInfo*> info);
+
+	// ClickHandlerHost interface
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
+	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
+
+	not_null<BotInfo*> info;
+	int width = 0;
+	int height = 0;
+	QRect rect;
+
+private:
+	not_null<HistoryInner*>  _parent;
+
+};
+
+HistoryInner::BotAbout::BotAbout(
+	not_null<HistoryInner*> parent,
+	not_null<BotInfo*> info)
+: info(info)
+, _parent(parent) {
+}
+
+void HistoryInner::BotAbout::clickHandlerActiveChanged(
+		const ClickHandlerPtr &p,
+		bool active) {
+	_parent->update(rect);
+}
+
+void HistoryInner::BotAbout::clickHandlerPressedChanged(
+		const ClickHandlerPtr &p,
+		bool pressed) {
+	_parent->update(rect);
+}
+
 HistoryInner::HistoryInner(
 	not_null<HistoryWidget*> historyWidget,
 	not_null<Window::Controller*> controller,
@@ -365,6 +402,44 @@ void HistoryInner::enumerateDates(Method method) {
 	enumerateItems<EnumItemsDirection::BottomToTop>(dateCallback);
 }
 
+TextSelection HistoryInner::computeRenderSelection(
+		not_null<const SelectedItems*> selected,
+		not_null<HistoryItem*> item) const {
+	const auto itemSelection = [&](not_null<HistoryItem*> item) {
+		auto i = selected->find(item);
+		if (i != selected->end()) {
+			return i->second;
+		}
+		return TextSelection();
+	};
+	const auto group = item->Get<HistoryMessageGroup>();
+	if (group) {
+		if (group->leader != item) {
+			return TextSelection();
+		}
+		auto result = TextSelection();
+		auto allFullSelected = true;
+		const auto count = int(group->others.size());
+		for (auto i = 0; i != count; ++i) {
+			if (itemSelection(group->others[i]) == FullSelection) {
+				result = AddGroupItemSelection(result, i);
+			} else {
+				allFullSelected = false;
+			}
+		}
+		const auto leaderSelection = itemSelection(item);
+		if (leaderSelection == FullSelection) {
+			return allFullSelected
+				? FullSelection
+				: AddGroupItemSelection(result, count);
+		} else if (leaderSelection != TextSelection()) {
+			return leaderSelection;
+		}
+		return result;
+	}
+	return itemSelection(item);
+}
+
 TextSelection HistoryInner::itemRenderSelection(
 		not_null<HistoryItem*> item,
 		int selfromy,
@@ -377,39 +452,7 @@ TextSelection HistoryInner::itemRenderSelection(
 			return FullSelection;
 		}
 	} else if (!_selected.empty()) {
-		const auto itemSelection = [&](not_null<HistoryItem*> item) {
-			auto i = _selected.find(item);
-			if (i != _selected.end()) {
-				return i->second;
-			}
-			return TextSelection();
-		};
-		const auto group = item->Get<HistoryMessageGroup>();
-		if (group) {
-			if (group->leader != item) {
-				return TextSelection();
-			}
-			auto result = TextSelection();
-			auto allFullSelected = true;
-			const auto count = int(group->others.size());
-			for (auto i = 0; i != count; ++i) {
-				if (itemSelection(group->others[i]) == FullSelection) {
-					result = AddGroupItemSelection(result, i);
-				} else {
-					allFullSelected = false;
-				}
-			}
-			const auto leaderSelection = itemSelection(item);
-			if (leaderSelection == FullSelection) {
-				return allFullSelected
-					? FullSelection
-					: AddGroupItemSelection(result, count);
-			} else if (leaderSelection != TextSelection()) {
-				return leaderSelection;
-			}
-			return result;
-		}
-		return itemSelection(item);
+		return computeRenderSelection(&_selected, item);
 	}
 	return TextSelection();
 }
@@ -1605,8 +1648,9 @@ void HistoryInner::copyContextText() {
 	if (!item || (item->getMedia() && item->getMedia()->type() == MediaTypeSticker)) {
 		return;
 	}
-
-	setToClipboard(item->selectedText(FullSelection));
+	const auto group = item->getFullGroup();
+	const auto leader = group ? group->leader : item;
+	setToClipboard(leader->selectedText(FullSelection));
 }
 
 void HistoryInner::setToClipboard(const TextWithEntities &forClipboard, QClipboard::Mode mode) {
@@ -1634,32 +1678,65 @@ TextWithEntities HistoryInner::getSelectedText() const {
 		return item->selectedText(selection);
 	}
 
-	int fullSize = 0;
-	QString timeFormat(qsl(", [dd.MM.yy hh:mm]\n"));
-	QMap<int, TextWithEntities> texts;
-	for (const auto [item, selection] : selected) {
-		if (item->detached()) continue;
+	const auto timeFormat = qsl(", [dd.MM.yy hh:mm]\n");
+	auto groupLeadersAdded = base::flat_set<not_null<HistoryItem*>>();
+	auto fullSize = 0;
+	auto texts = base::flat_map<std::pair<int, MsgId>, TextWithEntities>();
 
+	const auto addItem = [&](
+			not_null<HistoryItem*> item,
+			TextSelection selection) {
 		auto time = item->date.toString(timeFormat);
-		TextWithEntities part, unwrapped = item->selectedText(FullSelection);
-		int size = item->author()->name.size() + time.size() + unwrapped.text.size();
+		auto part = TextWithEntities();
+		auto unwrapped = item->selectedText(selection);
+		auto size = item->author()->name.size()
+			+ time.size()
+			+ unwrapped.text.size();
 		part.text.reserve(size);
 
-		int y = itemTop(item);
+		auto y = itemTop(item);
 		if (y >= 0) {
 			part.text.append(item->author()->name).append(time);
 			TextUtilities::Append(part, std::move(unwrapped));
-			texts.insert(y, part);
+			texts.emplace(std::make_pair(y, item->id), part);
 			fullSize += size;
+		}
+	};
+
+	for (const auto [item, selection] : selected) {
+		if (item->detached()) {
+			continue;
+		}
+
+		if (const auto group = item->Get<HistoryMessageGroup>()) {
+			if (groupLeadersAdded.contains(group->leader)) {
+				continue;
+			}
+			const auto leaderSelection = computeRenderSelection(
+				&selected,
+				group->leader);
+			if (leaderSelection == FullSelection) {
+				groupLeadersAdded.emplace(group->leader);
+				addItem(group->leader, FullSelection);
+			} else if (item == group->leader) {
+				const auto leaderFullSelection = AddGroupItemSelection(
+					TextSelection(),
+					int(group->others.size()));
+				addItem(item, leaderFullSelection);
+			} else {
+				addItem(item, FullSelection);
+			}
+		} else {
+			addItem(item, FullSelection);
 		}
 	}
 
-	TextWithEntities result;
+	auto result = TextWithEntities();
 	auto sep = qsl("\n\n");
 	result.text.reserve(fullSize + (texts.size() - 1) * sep.size());
-	for (auto i = texts.begin(), e = texts.end(); i != e; ++i) {
-		TextUtilities::Append(result, std::move(i.value()));
-		if (i + 1 != e) {
+	for (auto i = texts.begin(), e = texts.end(); i != e;) {
+		TextUtilities::Append(result, std::move(i->second));
+		if (++i != e) {
 			result.text.append(sep);
 		}
 	}
@@ -2386,14 +2463,6 @@ void HistoryInner::updateDragSelection(HistoryItem *dragSelFrom, HistoryItem *dr
 	update();
 }
 
-void HistoryInner::BotAbout::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
-	_parent->update(rect);
-}
-
-void HistoryInner::BotAbout::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
-	_parent->update(rect);
-}
-
 int HistoryInner::historyHeight() const {
 	int result = 0;
 	if (!_history || _history->isEmpty()) {
@@ -2441,13 +2510,16 @@ int HistoryInner::itemTop(const HistoryItem *item) const { // -1 if should not b
 }
 
 void HistoryInner::notifyIsBotChanged() {
-	BotInfo *newinfo = (_history && _history->peer->isUser()) ? _history->peer->asUser()->botInfo.get() : nullptr;
-	if ((!newinfo && !_botAbout) || (newinfo && _botAbout && _botAbout->info == newinfo)) {
+	const auto newinfo = (_history && _history->peer->isUser())
+		? _history->peer->asUser()->botInfo.get()
+		: nullptr;
+	if ((!newinfo && !_botAbout)
+		|| (newinfo && _botAbout && _botAbout->info == newinfo)) {
 		return;
 	}
 
 	if (newinfo) {
-		_botAbout.reset(new BotAbout(this, newinfo));
+		_botAbout = std::make_unique<BotAbout>(this, newinfo);
 		if (newinfo && !newinfo->inited) {
 			Auth().api().requestFullPeer(_peer);
 		}

@@ -1539,7 +1539,9 @@ TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {
 		ExpandLinksAll);
 	auto skipped = skipTextSelection(selection);
 	auto mediaDisplayed = (_media && _media->isDisplayed());
-	auto mediaResult = mediaDisplayed ? _media->selectedText(skipped) : TextWithEntities();
+	auto mediaResult = (mediaDisplayed || isHiddenByGroup())
+		? _media->selectedText(skipped)
+		: TextWithEntities();
 	if (auto entry = Get<HistoryMessageLogEntryOriginal>()) {
 		const auto originalSelection = mediaDisplayed
 			? _media->skipSelection(skipped)
