@@ -782,6 +782,9 @@ void HistoryWidget::scrollToAnimationCallback(FullMsgId attachToId) {
 }
 
 void HistoryWidget::enqueueMessageHighlight(not_null<HistoryItem*> item) {
+	if (const auto group = item->getFullGroup()) {
+		item = group->leader;
+	}
 	auto enqueueMessageId = [this](MsgId universalId) {
 		if (_highlightQueue.empty() && !_highlightTimer.isActive()) {
 			highlightMessage(universalId);
@@ -884,6 +887,9 @@ void HistoryWidget::clearHighlightMessages() {
 }
 
 int HistoryWidget::itemTopForHighlight(not_null<HistoryItem*> item) const {
+	if (const auto group = item->getFullGroup()) {
+		item = group->leader;
+	}
 	auto itemTop = _list->itemTop(item);
 	Assert(itemTop >= 0);
 

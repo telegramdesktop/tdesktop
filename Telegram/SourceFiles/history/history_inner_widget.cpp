@@ -1248,13 +1248,13 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	_menu = new Ui::PopupMenu(nullptr);
 
 	_contextMenuLink = ClickHandler::getActive();
-	auto item = App::hoveredItem() ? App::hoveredItem() : App::hoveredLinkItem();
 	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(_contextMenuLink.data());
 	auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.data());
 	auto lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideoFile() : false;
 	auto lnkIsVoice = lnkDocument ? lnkDocument->document()->isVoiceMessage() : false;
 	auto lnkIsAudio = lnkDocument ? lnkDocument->document()->isAudioFile() : false;
 	if (lnkPhoto || lnkDocument) {
+		const auto item = _dragStateItem;
 		if (isUponSelected > 0) {
 			_menu->addAction(lang((isUponSelected > 1) ? lng_context_copy_selected_items : lng_context_copy_selected), this, SLOT(copySelectedText()))->setEnabled(true);
 		}
@@ -1269,6 +1269,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				auto isPinned = item->isPinned();
 				_menu->addAction(lang(isPinned ? lng_context_unpin_msg : lng_context_pin_msg), _widget, isPinned ? SLOT(onUnpinMessage()) : SLOT(onPinMessage()));
 			}
+			App::contextItem(item);
 		}
 		if (lnkPhoto) {
 			_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, photo = lnkPhoto->photo()] {
@@ -1309,16 +1310,16 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				}));
 			}
 			_menu->addAction(lang(lng_context_clear_selection), _widget, SLOT(onClearSelected()));
-		} else if (_dragStateItem) {
+		} else if (item) {
 			if (isUponSelected != -2) {
-				if (_dragStateItem->canForward()) {
+				if (item->canForward()) {
 					_menu->addAction(lang(lng_context_forward_msg), base::lambda_guarded(this, [this] {
 						if (const auto item = App::contextItem()) {
 							forwardItem(item);
 						}
 					}))->setEnabled(true);
 				}
-				if (_dragStateItem->canDelete()) {
+				if (item->canDelete()) {
 					_menu->addAction(lang(lng_context_delete_msg), base::lambda_guarded(this, [this] {
 						if (const auto item = App::contextItem()) {
 							deleteItem(item);
@@ -1326,7 +1327,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					}));
 				}
 			}
-			if (_dragStateItem && _dragStateItem->id > 0 && !_dragStateItem->serviceMsg()) {
+			if (item && item->id > 0 && !item->serviceMsg()) {
 				_menu->addAction(lang(lng_context_select_msg), base::lambda_guarded(this, [this] {
 					if (const auto item = App::contextItem()) {
 						if (!item->detached()) {
@@ -1337,9 +1338,18 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					}
 				}))->setEnabled(true);
 			}
-			App::contextItem(_dragStateItem);
+			App::contextItem(item);
 		}
 	} else { // maybe cursor on some text history item?
+		auto item = App::hoveredItem()
+			? App::hoveredItem()
+			: App::hoveredLinkItem();
+		const auto group = item->getFullGroup();
+		if (group) {
+			item = group->others.empty()
+				? group->leader
+				: group->others.front().get();
+		}
 		bool canDelete = item && item->canDelete() && (item->id > 0 || !item->serviceMsg());
 		bool canForward = item && item->canForward();
 
@@ -1435,7 +1445,6 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 			_menu->addAction(lang(lng_context_clear_selection), _widget, SLOT(onClearSelected()));
 		} else if (item && ((isUponSelected != -2 && (canForward || canDelete)) || item->id > 0)) {
-			const auto fullId = item->fullId();
 			if (isUponSelected != -2) {
 				if (canForward) {
 					_menu->addAction(lang(lng_context_forward_msg), base::lambda_guarded(this, [this] {
