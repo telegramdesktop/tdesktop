@@ -650,13 +650,15 @@ void HistoryItem::finishCreate() {
 
 void HistoryItem::finishEdition(int oldKeyboardTop) {
 	setPendingInitDimensions();
-	if (App::main()) {
-		App::main()->dlgUpdated(history()->peer, id);
-	}
-
-	// invalidate cache for drawInDialog
-	if (history()->textCachedFor == this) {
-		history()->textCachedFor = nullptr;
+	invalidateChatsListEntry();
+	//if (groupId()) {
+	//	history()->fixGroupAfterEdition(this);
+	//}
+	if (isHiddenByGroup()) {
+		// Perhaps caption was changed, we should refresh the group.
+		const auto group = Get<HistoryMessageGroup>();
+		group->leader->setPendingInitDimensions();
+		group->leader->invalidateChatsListEntry();
 	}
 
 	if (oldKeyboardTop >= 0) {
@@ -666,6 +668,17 @@ void HistoryItem::finishEdition(int oldKeyboardTop) {
 	}
 
 	App::historyUpdateDependent(this);
+}
+
+void HistoryItem::invalidateChatsListEntry() {
+	if (App::main()) {
+		App::main()->dlgUpdated(history()->peer, id);
+	}
+
+	// invalidate cache for drawInDialog
+	if (history()->textCachedFor == this) {
+		history()->textCachedFor = nullptr;
+	}
 }
 
 void HistoryItem::finishEditionToEmpty() {
@@ -1193,6 +1206,7 @@ void HistoryItem::makeGroupLeader(
 	group->others = std::move(others);
 	if (!_media || !_media->applyGroup(group->others)) {
 		resetGroupMedia(group->others);
+		invalidateChatsListEntry();
 	}
 
 	Ensures(!isHiddenByGroup());

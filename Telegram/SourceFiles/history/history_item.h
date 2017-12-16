@@ -1094,6 +1094,7 @@ protected:
 		}
 		return nullptr;
 	}
+	void invalidateChatsListEntry();
 
 	[[nodiscard]] TextSelection skipTextSelection(
 			TextSelection selection) const {

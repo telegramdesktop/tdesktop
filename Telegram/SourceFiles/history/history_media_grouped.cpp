@@ -279,7 +279,7 @@ TextSelection HistoryGroupedMedia::adjustSelection(
 }
 
 QString HistoryGroupedMedia::notificationText() const {
-	return WithCaptionNotificationText(lang(lng_in_dlg_album), _caption);
+	return WithCaptionNotificationText(lang(lng_in_dlg_photo), _caption);
 }
 
 QString HistoryGroupedMedia::inDialogsText() const {
@@ -393,14 +393,23 @@ Storage::SharedMediaTypesMask HistoryGroupedMedia::sharedMediaTypes() const {
 }
 
 void HistoryGroupedMedia::updateNeedBubbleState() {
-	auto captionText = [&] {
-		for (const auto &element : _elements) {
-			auto result = element.content->getCaption();
-			if (!result.text.isEmpty()) {
-				return result;
+	const auto getItemCaption = [](const Element &element) {
+		if (const auto media = element.item->getMedia()) {
+			return media->getCaption();
+		}
+		return element.content->getCaption();
+	};
+	const auto captionText = [&] {
+		auto result = getItemCaption(_elements.front());
+		if (result.text.isEmpty()) {
+			return result;
+		}
+		for (auto i = 1, count = int(_elements.size()); i != count; ++i) {
+			if (!getItemCaption(_elements[i]).text.isEmpty()) {
+				return TextWithEntities();
 			}
 		}
-		return TextWithEntities();
+		return result;
 	}();
 	_caption.setText(
 		st::messageTextStyle,
