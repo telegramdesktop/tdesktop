@@ -1114,11 +1114,15 @@ not_null<HistoryItem*> History::addNewService(MsgId msgId, QDateTime date, const
 }
 
 HistoryItem *History::addNewMessage(const MTPMessage &msg, NewMessageType type) {
-	if (isChannel()) return asChannelHistory()->addNewChannelMessage(msg, type);
+	if (isChannel()) {
+		return asChannelHistory()->addNewChannelMessage(msg, type);
+	}
 
-	if (type == NewMessageExisting) return addToHistory(msg);
+	if (type == NewMessageExisting) {
+		return addToHistory(msg);
+	}
 	if (!loadedAtBottom() || peer->migrateTo()) {
-		HistoryItem *item = addToHistory(msg);
+		const auto item = addToHistory(msg);
 		if (item) {
 			setLastMessage(item);
 			if (type == NewMessageUnread) {
@@ -1132,13 +1136,24 @@ HistoryItem *History::addNewMessage(const MTPMessage &msg, NewMessageType type) 
 }
 
 HistoryItem *History::addNewToLastBlock(const MTPMessage &msg, NewMessageType type) {
-	auto applyServiceAction = (type == NewMessageUnread);
-	auto detachExistingItem = (type != NewMessageLast);
-	auto item = createItem(msg, applyServiceAction, detachExistingItem);
+	const auto applyServiceAction = (type == NewMessageUnread);
+	const auto detachExistingItem = (type != NewMessageLast);
+	const auto item = createItem(msg, applyServiceAction, detachExistingItem);
 	if (!item || !item->detached()) {
 		return item;
 	}
-	return addNewItem(item, (type == NewMessageUnread));
+	const auto result = addNewItem(item, (type == NewMessageUnread));
+	if (type == NewMessageLast) {
+		// When we add just one last item, like we do while loading dialogs,
+		// we want to remove a single added grouped media, otherwise it will
+		// jump once we open the message history (first we show only that
+		// media, then we load the rest of the group and show the group).
+		//
+		// That way when we open the message history we show nothing until a
+		// whole history part is loaded, it certainly will contain the group.
+		removeOrphanMediaGroupPart();
+	}
+	return result;
 }
 
 HistoryItem *History::addToHistory(const MTPMessage &msg) {
@@ -1251,6 +1266,7 @@ void History::addUnreadMentionsSlice(const MTPmessages_Messages &result) {
 
 not_null<HistoryItem*> History::addNewItem(not_null<HistoryItem*> adding, bool newMsg) {
 	Expects(!isBuildingFrontBlock());
+
 	addItemToBlock(adding);
 
 	const auto [groupFrom, groupTill] = recountGroupingFromTill(adding);
@@ -2415,6 +2431,25 @@ History *History::migrateFrom() const {
 
 bool History::isDisplayedEmpty() const {
 	return isEmpty() || ((blocks.size() == 1) && blocks.front()->items.size() == 1 && blocks.front()->items.front()->isEmpty());
+}
+
+bool History::hasOrphanMediaGroupPart() const {
+	if (loadedAtTop() || !loadedAtBottom()) {
+		return false;
+	} else if (blocks.size() != 1) {
+		return false;
+	} else if (blocks.front()->items.size() != 1) {
+		return false;
+	}
+	return blocks.front()->items.front()->groupId() != MessageGroupId();
+}
+
+bool History::removeOrphanMediaGroupPart() {
+	if (hasOrphanMediaGroupPart()) {
+		clear(true);
+		return true;
+	}
+	return false;
 }
 
 void History::clear(bool leaveItems) {

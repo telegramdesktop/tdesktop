@@ -210,6 +210,8 @@ public:
 		return blocks.empty();
 	}
 	bool isDisplayedEmpty() const;
+	bool hasOrphanMediaGroupPart() const;
+	bool removeOrphanMediaGroupPart();
 
 	void clear(bool leaveItems = false);
 	void clearUpTill(MsgId availableMinId);
