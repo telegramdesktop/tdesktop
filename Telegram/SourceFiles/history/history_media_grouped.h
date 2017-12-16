@@ -91,8 +91,9 @@ public:
 
 	bool hasReplyPreview() const override;
 	ImagePtr replyPreview() override;
-
+	TextWithEntities getCaption() const override;
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
+
 	bool canBeGrouped() const override {
 		return true;
 	}

@@ -393,6 +393,10 @@ ImagePtr HistoryGroupedMedia::replyPreview() {
 	return main()->replyPreview();
 }
 
+TextWithEntities HistoryGroupedMedia::getCaption() const {
+	return main()->getCaption();
+}
+
 Storage::SharedMediaTypesMask HistoryGroupedMedia::sharedMediaTypes() const {
 	return main()->sharedMediaTypes();
 }

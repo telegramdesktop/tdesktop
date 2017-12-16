@@ -2125,6 +2125,15 @@ not_null<HistoryItem*> History::findGroupLast(
 	return group->leader;
 }
 
+void History::recountGroupingAround(not_null<HistoryItem*> item) {
+	Expects(item->history() == this);
+
+	if (!item->detached() && item->groupId()) {
+		const auto [groupFrom, groupTill] = recountGroupingFromTill(item);
+		recountGrouping(groupFrom, groupTill);
+	}
+}
+
 auto History::recountGroupingFromTill(not_null<HistoryItem*> item)
 -> std::pair<not_null<HistoryItem*>, not_null<HistoryItem*>> {
 	const auto recountFromItem = [&] {

@@ -422,6 +422,7 @@ public:
 	}
 	HistoryItemsList validateForwardDraft();
 	void setForwardDraft(MessageIdsList &&items);
+	void recountGroupingAround(not_null<HistoryItem*> item);
 
 	// some fields below are a property of a currently displayed instance of this
 	// conversation history not a property of the conversation history itself

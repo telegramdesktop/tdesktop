@@ -1608,6 +1608,7 @@ void HistoryMessage::setMedia(const MTPMessageMedia *media) {
 		_textWidth = -1;
 		_textHeight = 0;
 	}
+	_history->recountGroupingAround(this);
 }
 
 void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
