@@ -97,7 +97,7 @@ public:
 	bool overrideEditedDate() const override {
 		return true;
 	}
-	HistoryMessageEdited *displayedEditBadge() const;
+	HistoryMessageEdited *displayedEditBadge() const override;
 
 	bool canBeGrouped() const override {
 		return true;

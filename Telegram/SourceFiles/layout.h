@@ -36,7 +36,7 @@ inline bool IsGroupItemSelection(
 	return IsSubGroupSelection(selection) && (selection.to & (1 << index));
 }
 
-inline [[nodiscard]] TextSelection AddGroupItemSelection(
+[[nodiscard]] inline TextSelection AddGroupItemSelection(
 		TextSelection selection,
 		int index) {
 	Expects(index >= 0 && index < 0x0F);
@@ -47,7 +47,7 @@ inline [[nodiscard]] TextSelection AddGroupItemSelection(
 		IsSubGroupSelection(selection) ? (selection.to | bit) : bit);
 }
 
-inline[[nodiscard]] TextSelection RemoveGroupItemSelection(
+[[nodiscard]] inline TextSelection RemoveGroupItemSelection(
 		TextSelection selection,
 		int index) {
 	Expects(index >= 0 && index < 0x0F);

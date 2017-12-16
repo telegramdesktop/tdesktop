@@ -749,8 +749,8 @@ void HistoryPhoto::validateGroupedCache(
 	const auto pixSize = CountPixSizeForSize(
 		{ originalWidth, originalHeight },
 		{ width, height });
-	const auto pixWidth = pixSize.width();
-	const auto pixHeight = pixSize.height();
+	const auto pixWidth = pixSize.width() * cIntRetinaFactor();
+	const auto pixHeight = pixSize.height() * cIntRetinaFactor();
 	const auto &image = loaded ? _data->full : _data->thumb;
 
 	*cacheKey = key;
