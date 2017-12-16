@@ -164,7 +164,6 @@ public:
 		return true;
 	}
 	bool displayForwardedFrom() const;
-	bool displayEditedBadge(bool hasViaBotOrInlineMarkup) const;
 	bool uploading() const;
 	bool displayRightAction() const override;
 
@@ -210,6 +209,9 @@ public:
 	TextWithEntities originalText() const override;
 	bool textHasLinks() const override;
 
+	bool displayEditedBadge() const override;
+	QDateTime displayedEditDate() const override;
+
 	int infoWidth() const override;
 	int timeLeft() const override;
 	int timeWidth() const override {
@@ -248,6 +250,9 @@ public:
 	bool hasFromPhoto() const;
 
 	~HistoryMessage();
+
+protected:
+	void refreshEditedBadge() override;
 
 private:
 	HistoryMessage(
@@ -321,6 +326,9 @@ private:
 	int resizeContentGetHeight() override;
 	int performResizeGetHeight();
 	void applyEditionToEmpty();
+	QDateTime displayedEditDate(bool hasViaBotOrInlineMarkup) const;
+	const HistoryMessageEdited *displayedEditBadge() const;
+	HistoryMessageEdited *displayedEditBadge();
 
 	void paintFromName(Painter &p, QRect &trect, bool selected) const;
 	void paintForwardedInfo(Painter &p, QRect &trect, bool selected) const;

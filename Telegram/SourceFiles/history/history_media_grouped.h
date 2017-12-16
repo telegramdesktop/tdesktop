@@ -94,6 +94,11 @@ public:
 	TextWithEntities getCaption() const override;
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
+	bool overrideEditedDate() const override {
+		return true;
+	}
+	HistoryMessageEdited *displayedEditBadge() const;
+
 	bool canBeGrouped() const override {
 		return true;
 	}

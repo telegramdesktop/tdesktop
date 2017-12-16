@@ -1551,7 +1551,7 @@ void HistoryDocument::initDimensions() {
 	} else {
 		_minh = st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom();
 	}
-	if (!captioned && (_parent->Has<HistoryMessageSigned>() || _parent->Has<HistoryMessageEdited>())) {
+	if (!captioned && (_parent->Has<HistoryMessageSigned>() || _parent->displayEditedBadge())) {
 		_minh += st::msgDateFont->height - st::msgDateDelta.y();
 	}
 	if (!isBubbleTop()) {

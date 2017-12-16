@@ -401,6 +401,13 @@ Storage::SharedMediaTypesMask HistoryGroupedMedia::sharedMediaTypes() const {
 	return main()->sharedMediaTypes();
 }
 
+HistoryMessageEdited *HistoryGroupedMedia::displayedEditBadge() const {
+	if (!_caption.isEmpty()) {
+		return _elements.front().item->Get<HistoryMessageEdited>();
+	}
+	return nullptr;
+}
+
 void HistoryGroupedMedia::updateNeedBubbleState() {
 	const auto getItemCaption = [](const Element &element) {
 		if (const auto media = element.item->getMedia()) {

@@ -398,13 +398,13 @@ int HistoryMessageSigned::maxWidth() const {
 	return _signature.maxWidth();
 }
 
-void HistoryMessageEdited::create(const QDateTime &editDate, const QString &date) {
-	_editDate = editDate;
-	_edited.setText(st::msgDateTextStyle, lang(lng_edited) + ' ' + date, _textNameOptions);
+void HistoryMessageEdited::refresh(const QString &date, bool displayed) {
+	const auto prefix = displayed ? (lang(lng_edited) + ' ') : QString();
+	text.setText(st::msgDateTextStyle, prefix + date, _textNameOptions);
 }
 
 int HistoryMessageEdited::maxWidth() const {
-	return _edited.maxWidth();
+	return text.maxWidth();
 }
 
 void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
@@ -953,18 +953,43 @@ void HistoryMessage::applyGroupAdminChanges(
 	}
 }
 
-bool HistoryMessage::displayEditedBadge(bool hasViaBotOrInlineMarkup) const {
+bool HistoryMessage::displayEditedBadge() const {
+	return !displayedEditDate().isNull();
+}
+
+QDateTime HistoryMessage::displayedEditDate() const {
+	auto hasViaBotId = Has<HistoryMessageVia>();
+	auto hasInlineMarkup = (inlineReplyMarkup() != nullptr);
+	return displayedEditDate(hasViaBotId || hasInlineMarkup);
+}
+
+QDateTime HistoryMessage::displayedEditDate(
+		bool hasViaBotOrInlineMarkup) const {
 	if (hasViaBotOrInlineMarkup) {
-		return false;
-	} else if (!(_flags & MTPDmessage::Flag::f_edit_date)) {
-		return false;
-	}
-	if (auto fromUser = from()->asUser()) {
+		return QDateTime();
+	} else if (const auto fromUser = from()->asUser()) {
 		if (fromUser->botInfo) {
-			return false;
+			return QDateTime();
 		}
 	}
-	return true;
+	if (const auto edited = displayedEditBadge()) {
+		return edited->date;
+	}
+	return QDateTime();
+}
+
+HistoryMessageEdited *HistoryMessage::displayedEditBadge() {
+	if (_media && _media->overrideEditedDate()) {
+		return _media->displayedEditBadge();
+	}
+	return Get<HistoryMessageEdited>();
+}
+
+const HistoryMessageEdited *HistoryMessage::displayedEditBadge() const {
+	if (_media && _media->overrideEditedDate()) {
+		return _media->displayedEditBadge();
+	}
+	return Get<HistoryMessageEdited>();
 }
 
 bool HistoryMessage::uploading() const {
@@ -1016,7 +1041,7 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 		}
 		return (config.inlineMarkup != nullptr);
 	};
-	if (displayEditedBadge(hasViaBot || hasInlineMarkup())) {
+	if (!config.editDate.isNull()) {
 		mask |= HistoryMessageEdited::Bit();
 	}
 	if (config.senderOriginal) {
@@ -1053,12 +1078,7 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 		views->_views = config.viewsCount;
 	}
 	if (const auto edited = Get<HistoryMessageEdited>()) {
-		edited->create(config.editDate, date.toString(cTimeFormat()));
-		if (const auto msgsigned = Get<HistoryMessageSigned>()) {
-			msgsigned->create(config.author, edited->_edited.originalText());
-		}
-	} else if (const auto msgsigned = Get<HistoryMessageSigned>()) {
-		msgsigned->create(config.author, date.toString(cTimeFormat()));
+		edited->date = config.editDate;
 	}
 	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
 		forwarded->_originalDate = config.originalDate;
@@ -1082,7 +1102,6 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 		group->groupId = config.groupId;
 		group->leader = this;
 	}
-	initTime();
 	_fromNameVersion = displayFrom()->nameVersion;
 }
 
@@ -1106,17 +1125,22 @@ QString formatViewsCount(int32 views) {
 }
 
 void HistoryMessage::initTime() {
-	if (auto msgsigned = Get<HistoryMessageSigned>()) {
+	if (const auto msgsigned = Get<HistoryMessageSigned>()) {
 		_timeWidth = msgsigned->maxWidth();
-	} else if (auto edited = Get<HistoryMessageEdited>()) {
+	} else if (const auto edited = displayedEditBadge()) {
 		_timeWidth = edited->maxWidth();
 	} else {
 		_timeText = date.toString(cTimeFormat());
 		_timeWidth = st::msgDateFont->width(_timeText);
 	}
-	if (auto views = Get<HistoryMessageViews>()) {
+	if (const auto views = Get<HistoryMessageViews>()) {
 		views->_viewsText = (views->_views >= 0) ? formatViewsCount(views->_views) : QString();
 		views->_viewsWidth = views->_viewsText.isEmpty() ? 0 : st::msgDateFont->width(views->_viewsText);
+	}
+	if (_text.hasSkipBlock()) {
+		_text.setSkipBlock(skipBlockWidth(), skipBlockHeight());
+		_textWidth = -1;
+		_textHeight = 0;
 	}
 }
 
@@ -1222,6 +1246,7 @@ int32 HistoryMessage::plainMaxWidth() const {
 
 void HistoryMessage::initDimensions() {
 	updateMediaInBubbleState();
+	refreshEditedBadge();
 	if (drawBubble()) {
 		auto forwarded = Get<HistoryMessageForwarded>();
 		auto reply = Get<HistoryMessageReply>();
@@ -1416,24 +1441,11 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 
 	if (message.has_edit_date()) {
 		_flags |= MTPDmessage::Flag::f_edit_date;
-		auto hasViaBotId = Has<HistoryMessageVia>();
-		auto hasInlineMarkup = (inlineReplyMarkup() != nullptr);
-		if (displayEditedBadge(hasViaBotId || hasInlineMarkup)) {
-			if (!Has<HistoryMessageEdited>()) {
-				AddComponents(HistoryMessageEdited::Bit());
-			}
-			auto edited = Get<HistoryMessageEdited>();
-			edited->create(::date(message.vedit_date), date.toString(cTimeFormat()));
-			if (auto msgsigned = Get<HistoryMessageSigned>()) {
-				msgsigned->create(msgsigned->_author, edited->_edited.originalText());
-			}
-		} else if (Has<HistoryMessageEdited>()) {
-			RemoveComponents(HistoryMessageEdited::Bit());
-			if (auto msgsigned = Get<HistoryMessageSigned>()) {
-				msgsigned->create(msgsigned->_author, date.toString(cTimeFormat()));
-			}
+		if (!Has<HistoryMessageEdited>()) {
+			AddComponents(HistoryMessageEdited::Bit());
 		}
-		initTime();
+		auto edited = Get<HistoryMessageEdited>();
+		edited->date = ::date(message.vedit_date);
 	}
 
 	TextWithEntities textWithEntities = { qs(message.vmessage), EntitiesInText() };
@@ -1461,6 +1473,22 @@ void HistoryMessage::applyEditionToEmpty() {
 	setViewsCount(-1);
 
 	finishEditionToEmpty();
+}
+
+void HistoryMessage::refreshEditedBadge() {
+	const auto edited = displayedEditBadge();
+	const auto editDate = displayedEditDate();
+	const auto dateText = date.toString(cTimeFormat());
+	if (edited) {
+		edited->refresh(dateText, !editDate.isNull());
+	}
+	if (auto msgsigned = Get<HistoryMessageSigned>()) {
+		const auto text = (!edited || editDate.isNull())
+			? dateText
+			: edited->text.originalText();
+		msgsigned->create(msgsigned->_author, text);
+	}
+	initTime();
 }
 
 bool HistoryMessage::displayForwardedFrom() const {
@@ -1762,10 +1790,10 @@ void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, int32 width
 	}
 	dateX += HistoryMessage::timeLeft();
 
-	if (auto msgsigned = Get<HistoryMessageSigned>()) {
+	if (const auto msgsigned = Get<HistoryMessageSigned>()) {
 		msgsigned->_signature.drawElided(p, dateX, dateY, _timeWidth);
-	} else if (auto edited = Get<HistoryMessageEdited>()) {
-		edited->_edited.drawElided(p, dateX, dateY, _timeWidth);
+	} else if (const auto edited = displayedEditBadge()) {
+		edited->text.drawElided(p, dateX, dateY, _timeWidth);
 	} else {
 		p.drawText(dateX, dateY + st::msgDateFont->ascent, _timeText);
 	}

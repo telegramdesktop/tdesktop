@@ -227,6 +227,13 @@ public:
 		return false;
 	}
 
+	virtual bool overrideEditedDate() const {
+		return false;
+	}
+	virtual HistoryMessageEdited *displayedEditBadge() const {
+		Unexpected("displayedEditBadge() on non-grouped media.");
+	}
+
 	// An attach media in a web page can provide an
 	// additional text to be displayed below the attach.
 	// For example duration / progress for video messages.

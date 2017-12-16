@@ -2774,8 +2774,9 @@ QString HistoryInner::tooltipText() const {
 	if (_mouseCursorState == HistoryInDateCursorState && _mouseAction == MouseAction::None) {
 		if (App::hoveredItem()) {
 			auto dateText = App::hoveredItem()->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat));
-			if (auto edited = App::hoveredItem()->Get<HistoryMessageEdited>()) {
-				dateText += '\n' + lng_edited_date(lt_date, edited->_editDate.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)));
+			auto editedDate = App::hoveredItem()->displayedEditDate();
+			if (!editedDate.isNull()) {
+				dateText += '\n' + lng_edited_date(lt_date, editedDate.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)));
 			}
 			if (auto forwarded = App::hoveredItem()->Get<HistoryMessageForwarded>()) {
 				dateText += '\n' + lng_forwarded_date(lt_date, forwarded->_originalDate.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)));

@@ -149,11 +149,11 @@ struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned> {
 };
 
 struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited> {
-	void create(const QDateTime &editDate, const QString &date);
+	void refresh(const QString &date, bool displayed);
 	int maxWidth() const;
 
-	QDateTime _editDate;
-	Text _edited;
+	QDateTime date;
+	Text text;
 };
 
 struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded> {
@@ -775,6 +775,15 @@ public:
 	virtual void setViewsCount(int32 count) {
 	}
 	virtual void setId(MsgId newId);
+
+	virtual bool displayEditedBadge() const {
+		return false;
+	}
+	virtual QDateTime displayedEditDate() const {
+		return QDateTime();
+	}
+	virtual void refreshEditedBadge() {
+	}
 
 	void drawInDialog(
 		Painter &p,

@@ -1198,8 +1198,8 @@ void HistoryItem::makeGroupLeader(
 	const auto group = Get<HistoryMessageGroup>();
 	Assert(group != nullptr);
 
-	if (group->leader != this) {
-		group->leader = this;
+	const auto leaderChanged = (group->leader != this);
+	if (leaderChanged) {
 		_flags &= ~MTPDmessage_ClientFlag::f_hidden_by_group;
 		setPendingInitDimensions();
 	}
