@@ -37,53 +37,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "auth_session.h"
 #include "lang/lang_keys.h"
 #include "ui/special_buttons.h"
+#include "ui/unread_badge.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/dropdown_menu.h"
-#include "dialogs/dialogs_layout.h"
 #include "window/window_controller.h"
 #include "window/window_peer_menu.h"
 #include "calls/calls_instance.h"
 #include "data/data_peer_values.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
-
-class HistoryTopBarWidget::UnreadBadge : public Ui::RpWidget {
-public:
-	using RpWidget::RpWidget;
-
-	void setText(const QString &text, bool active) {
-		_text = text;
-		_active = active;
-		update();
-	}
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	QString _text;
-	bool _active = false;
-
-};
-
-void HistoryTopBarWidget::UnreadBadge::paintEvent(QPaintEvent *e) {
-	if (_text.isEmpty()) {
-		return;
-	}
-
-	Painter p(this);
-
-	Dialogs::Layout::UnreadBadgeStyle unreadSt;
-	unreadSt.muted = !_active;
-	auto unreadRight = width();
-	auto unreadTop = 0;
-	Dialogs::Layout::paintUnreadCount(
-		p,
-		_text,
-		unreadRight,
-		unreadTop,
-		unreadSt);
-}
 
 HistoryTopBarWidget::HistoryTopBarWidget(
 	QWidget *parent,

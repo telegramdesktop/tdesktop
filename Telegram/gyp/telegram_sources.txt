@@ -622,6 +622,8 @@
 <(src_loc)/ui/special_buttons.h
 <(src_loc)/ui/twidget.cpp
 <(src_loc)/ui/twidget.h
+<(src_loc)/ui/unread_badge.cpp
+<(src_loc)/ui/unread_badge.h
 <(src_loc)/window/layer_widget.cpp
 <(src_loc)/window/layer_widget.h
 <(src_loc)/window/main_window.cpp
