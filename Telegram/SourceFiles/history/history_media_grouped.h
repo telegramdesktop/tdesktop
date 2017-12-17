@@ -36,7 +36,7 @@ public:
 	std::unique_ptr<HistoryMedia> clone(
 			not_null<HistoryItem*> newParent,
 			not_null<HistoryItem*> realParent) const override {
-		Unexpected("Clone HistoryGroupedMedia.");
+		return main()->clone(newParent, realParent);
 	}
 
 	void initDimensions() override;
