@@ -1200,6 +1200,7 @@ void HistoryItem::makeGroupLeader(
 
 	const auto leaderChanged = (group->leader != this);
 	if (leaderChanged) {
+		group->leader = this;
 		_flags &= ~MTPDmessage_ClientFlag::f_hidden_by_group;
 		setPendingInitDimensions();
 	}
