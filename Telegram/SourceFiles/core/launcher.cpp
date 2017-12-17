@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "platform/platform_launcher.h"
 #include "platform/platform_specific.h"
 #include "core/crash_reports.h"
+#include "core/main_queue_processor.h"
 #include "application.h"
 
 namespace Core {
@@ -63,11 +64,7 @@ int Launcher::exec() {
 	Logs::start(this); // must be started before Platform is started
 	Platform::start(); // must be started before QApplication is created
 
-	auto result = 0;
-	{
-		Application app(this, _argc, _argv);
-		result = app.exec();
-	}
+	auto result = executeApplication();
 
 	DEBUG_LOG(("Telegram finished, result: %1").arg(result));
 
@@ -238,6 +235,12 @@ void Launcher::processArguments() {
 		}
 	}
 	gStartUrl = parseResult.value("--", QStringList()).join(QString());
+}
+
+int Launcher::executeApplication() {
+	MainQueueProcessor processor;
+	Application app(this, _argc, _argv);
+	return app.exec();
 }
 
 } // namespace Core

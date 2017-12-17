@@ -10,3 +10,6 @@
 [submodule "Telegram/ThirdParty/Catch"]
 	path = Telegram/ThirdParty/Catch
 	url = https://github.com/philsquared/Catch
+[submodule "Telegram/ThirdParty/crl"]
+	path = Telegram/ThirdParty/crl
+	url = https://github.com/telegramdesktop/crl.git

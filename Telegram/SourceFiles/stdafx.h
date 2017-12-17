@@ -77,6 +77,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <gsl/gsl>
 #include <rpl/rpl.h>
+#include <crl/crl.h>
 
 #include "base/variant.h"
 #include "base/optional.h"

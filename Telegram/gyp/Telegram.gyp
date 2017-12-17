@@ -84,6 +84,7 @@
       'tests/tests.gyp:tests',
       'utils.gyp:Updater',
       '../ThirdParty/libtgvoip/libtgvoip.gyp:libtgvoip',
+      'crl.gyp:crl',
     ],
 
     'defines': [
@@ -108,6 +109,7 @@
       '<(emoji_suggestions_loc)',
       '<(submodules_loc)/GSL/include',
       '<(submodules_loc)/variant/include',
+      '<(submodules_loc)/crl/src',
     ],
     'sources': [
       '<@(qrc_files)',

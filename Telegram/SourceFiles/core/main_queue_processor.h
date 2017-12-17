@@ -22,49 +22,18 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Core {
 
-class Launcher {
+class MainQueueProcessor : public QObject {
 public:
-	Launcher(int argc, char *argv[]);
+	MainQueueProcessor();
 
-	static std::unique_ptr<Launcher> Create(int argc, char *argv[]);
-
-	int exec();
-
-	QString argumentsString() const;
-	bool customWorkingDir() const {
-		return _customWorkingDir;
-	}
+	~MainQueueProcessor();
 
 protected:
-	enum class UpdaterLaunch {
-		PerformUpdate,
-		JustRelaunch,
-	};
+	bool event(QEvent *event) override;
 
 private:
-	void prepareSettings();
-	void processArguments();
-
-	QStringList readArguments(int argc, char *argv[]) const;
-	virtual base::optional<QStringList> readArgumentsHook(
-			int argc,
-			char *argv[]) const {
-		return base::none;
-	}
-
-	void init();
-	virtual void initHook() {
-	}
-
-	virtual bool launchUpdater(UpdaterLaunch action) = 0;
-
-	int executeApplication();
-
-	int _argc;
-	char **_argv;
-	QStringList _arguments;
-
-	bool _customWorkingDir = false;
+	void acquire();
+	void release();
 
 };
 

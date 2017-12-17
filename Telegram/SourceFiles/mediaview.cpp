@@ -1596,9 +1596,9 @@ void MediaView::initThemePreview() {
 		current.backgroundId = Window::Theme::Background()->id();
 		current.backgroundImage = Window::Theme::Background()->pixmap();
 		current.backgroundTiled = Window::Theme::Background()->tile();
-		base::TaskQueue::Normal().Put([ready = std::move(ready), path, current]() mutable {
+		crl::async([=] {
 			auto preview = Window::Theme::GeneratePreview(path, current);
-			base::TaskQueue::Main().Put([ready = std::move(ready), result = std::move(preview)]() mutable {
+			crl::on_main([ready, result = std::move(preview)]() mutable {
 				ready(std::move(result));
 			});
 		});

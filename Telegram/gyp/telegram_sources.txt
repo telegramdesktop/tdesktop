@@ -149,6 +149,8 @@
 <(src_loc)/core/file_utilities.h
 <(src_loc)/core/launcher.cpp
 <(src_loc)/core/launcher.h
+<(src_loc)/core/main_queue_processor.cpp
+<(src_loc)/core/main_queue_processor.h
 <(src_loc)/core/single_timer.cpp
 <(src_loc)/core/single_timer.h
 <(src_loc)/core/tl_help.h
