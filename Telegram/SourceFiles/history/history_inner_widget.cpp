@@ -1387,14 +1387,16 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		auto item = App::hoveredItem()
 			? App::hoveredItem()
 			: App::hoveredLinkItem();
-		const auto group = item->getFullGroup();
-		if (group) {
+		if (const auto group = item ? item->getFullGroup() : nullptr) {
 			item = group->others.empty()
 				? group->leader
 				: group->others.front().get();
 		}
-		bool canDelete = item && item->canDelete() && (item->id > 0 || !item->serviceMsg());
-		bool canForward = item && item->canForward();
+		const auto canDelete = item
+			&& item->canDelete()
+			&& (item->id > 0 || !item->serviceMsg());
+		const auto canForward = item
+			&& item->canForward();
 
 		auto msg = dynamic_cast<HistoryMessage*>(item);
 		if (isUponSelected > 0) {
