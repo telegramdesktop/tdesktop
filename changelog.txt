@@ -1,3 +1,7 @@
+1.2.3 alpha (17.12.17)
+
+- Several crash fixes.
+
 1.2.2 alpha (16.12.17)
 
 - Grouped photos and videos are displayed as albums.
