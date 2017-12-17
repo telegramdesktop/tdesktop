@@ -32,6 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/confirm_box.h"
 #include "window/window_controller.h"
 #include "styles/style_info.h"
+#include "data/data_peer_values.h"
 
 namespace Info {
 namespace Profile {
@@ -141,8 +142,8 @@ void ChatMembersController::sortByOnline() {
 	delegate()->peerListSortRows([now](
 			const PeerListRow &a,
 			const PeerListRow &b) {
-		return App::onlineForSort(a.peer()->asUser(), now) >
-			App::onlineForSort(b.peer()->asUser(), now);
+		return Data::SortByOnlineValue(a.peer()->asUser(), now) >
+			Data::SortByOnlineValue(b.peer()->asUser(), now);
 	});
 	refreshOnlineCount();
 }
@@ -214,7 +215,7 @@ void ChatMembersController::refreshOnlineCount() {
 	while (right > left) {
 		auto middle = (left + right) / 2;
 		auto row = delegate()->peerListRowAt(middle);
-		if (App::onlineColorUse(row->peer()->asUser(), now)) {
+		if (Data::OnlineTextActive(row->peer()->asUser(), now)) {
 			left = middle + 1;
 		} else {
 			right = middle;

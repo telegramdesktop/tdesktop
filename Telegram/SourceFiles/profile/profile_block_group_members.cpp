@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/confirm_box.h"
 #include "boxes/edit_participant_box.h"
 #include "ui/widgets/popup_menu.h"
+#include "data/data_peer_values.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
 #include "observer_peer.h"
@@ -169,9 +170,11 @@ void GroupMembersWidget::refreshUserOnline(UserData *user) {
 	_now = unixtime();
 
 	auto member = getMember(it.value());
-	member->statusHasOnlineColor = !user->botInfo && App::onlineColorUse(user->onlineTill, _now);
+	member->statusHasOnlineColor = !user->botInfo && Data::OnlineTextActive(user->onlineTill, _now);
 	member->onlineTill = user->onlineTill;
-	member->onlineForSort = user->isSelf() ? INT_MAX : App::onlineForSort(user, _now);
+	member->onlineForSort = user->isSelf()
+		? std::numeric_limits<TimeId>::max()
+		: Data::SortByOnlineValue(user, _now);
 	member->statusText = QString();
 
 	sortMembers();
@@ -276,9 +279,12 @@ void GroupMembersWidget::updateItemStatusText(Item *item) {
 			member->statusText = lang(seesAllMessages ? lng_status_bot_reads_all : lng_status_bot_not_reads_all);
 			member->onlineTextTill = _now + 86400;
 		} else {
-			member->statusHasOnlineColor = App::onlineColorUse(member->onlineTill, _now);
-			member->statusText = App::onlineText(member->onlineTill, _now);
-			member->onlineTextTill = _now + App::onlineWillChangeIn(member->onlineTill, _now);
+			member->statusHasOnlineColor = Data::OnlineTextActive(member->onlineTill, _now);
+			member->statusText = Data::OnlineText(member->onlineTill, _now);
+			const auto changeInMs = Data::OnlineChangeTimeout(
+				member->onlineTill,
+				_now);
+			member->onlineTextTill = _now + TimeId(changeInMs / 1000);
 		}
 	}
 	if (_updateOnlineAt <= _now || _updateOnlineAt > member->onlineTextTill) {
@@ -365,7 +371,7 @@ void GroupMembersWidget::updateOnlineCount() {
 	for_const (auto item, items()) {
 		auto member = getMember(item);
 		auto user = member->user();
-		auto isOnline = !user->botInfo && App::onlineColorUse(member->onlineTill, _now);
+		auto isOnline = !user->botInfo && Data::OnlineTextActive(member->onlineTill, _now);
 		if (member->statusHasOnlineColor != isOnline) {
 			member->statusHasOnlineColor = isOnline;
 			member->statusText = QString();
@@ -402,7 +408,8 @@ void GroupMembersWidget::fillChatMembers(ChatData *chat) {
 	_sortByOnline = true;
 
 	reserveItemsForSize(chat->participants.size());
-	addUser(chat, App::self())->onlineForSort = INT_MAX; // Put me on the first place.
+	addUser(chat, App::self())->onlineForSort
+		= std::numeric_limits<TimeId>::max();
 	for (auto [user, v] : chat->participants) {
 		if (!user->isSelf()) {
 			addUser(chat, user);
@@ -451,7 +458,8 @@ void GroupMembersWidget::fillMegagroupMembers(ChannelData *megagroup) {
 		clearItems();
 		reserveItemsForSize(membersList.size());
 		if (megagroup->amIn()) {
-			addUser(megagroup, App::self())->onlineForSort = INT_MAX;
+			addUser(megagroup, App::self())->onlineForSort
+				= std::numeric_limits<TimeId>::max();
 		}
 	} else if (membersList.size() >= itemsCount()) {
 		if (addUsersToEnd(megagroup)) {
@@ -517,9 +525,10 @@ GroupMembersWidget::Member *GroupMembersWidget::computeMember(UserData *user) {
 	if (it == _membersByUser.cend()) {
 		auto member = new Member(user);
 		it = _membersByUser.insert(user, member);
-		member->statusHasOnlineColor = !user->botInfo && App::onlineColorUse(user->onlineTill, _now);
+		member->statusHasOnlineColor = !user->botInfo
+			&& Data::OnlineTextActive(user->onlineTill, _now);
 		member->onlineTill = user->onlineTill;
-		member->onlineForSort = App::onlineForSort(user, _now);
+		member->onlineForSort = Data::SortByOnlineValue(user, _now);
 	}
 	return it.value();
 }
@@ -538,7 +547,8 @@ void GroupMembersWidget::onUpdateOnlineDisplay() {
 				}
 			}
 			auto member = getMember(item);
-			bool isOnline = !member->user()->botInfo && App::onlineColorUse(member->onlineTill, _now);
+			bool isOnline = !member->user()->botInfo
+				&& Data::OnlineTextActive(member->onlineTill, _now);
 			if (!isOnline) {
 				changed = true;
 			}

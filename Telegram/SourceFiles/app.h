@@ -52,14 +52,6 @@ namespace App {
 
 	QString formatPhone(QString phone);
 
-	TimeId onlineForSort(UserData *user, TimeId now);
-	int32 onlineWillChangeIn(UserData *user, TimeId now);
-	int32 onlineWillChangeIn(TimeId online, TimeId now);
-	QString onlineText(UserData *user, TimeId now, bool precise = false);
-	QString onlineText(TimeId online, TimeId now, bool precise = false);
-	bool onlineColorUse(UserData *user, TimeId now);
-	bool onlineColorUse(TimeId online, TimeId now);
-
 	UserData *feedUser(const MTPUser &user);
 	UserData *feedUsers(const MTPVector<MTPUser> &users); // returns last user
 	PeerData *feedChat(const MTPChat &chat);

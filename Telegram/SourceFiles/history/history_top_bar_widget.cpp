@@ -43,6 +43,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/window_controller.h"
 #include "window/window_peer_menu.h"
 #include "calls/calls_instance.h"
+#include "data/data_peer_values.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
 
@@ -664,12 +665,12 @@ void HistoryTopBarWidget::updateOnlineDisplay() {
 	if (!_historyPeer) return;
 
 	QString text;
-	int32 t = unixtime();
+	const auto now = unixtime();
 	bool titlePeerTextOnline = false;
-	if (auto user = _historyPeer->asUser()) {
-		text = App::onlineText(user, t);
-		titlePeerTextOnline = App::onlineColorUse(user, t);
-	} else if (auto chat = _historyPeer->asChat()) {
+	if (const auto user = _historyPeer->asUser()) {
+		text = Data::OnlineText(user, now);
+		titlePeerTextOnline = Data::OnlineTextActive(user, now);
+	} else if (const auto chat = _historyPeer->asChat()) {
 		if (!chat->amIn()) {
 			text = lang(lng_chat_status_unaccessible);
 		} else if (chat->participants.empty()) {
@@ -684,7 +685,7 @@ void HistoryTopBarWidget::updateOnlineDisplay() {
 			auto online = 0;
 			auto onlyMe = true;
 			for (auto [user, v] : chat->participants) {
-				if (user->onlineTill > t) {
+				if (user->onlineTill > now) {
 					++online;
 					if (onlyMe && user != App::self()) onlyMe = false;
 				}
@@ -707,7 +708,7 @@ void HistoryTopBarWidget::updateOnlineDisplay() {
 			auto online = 0;
 			bool onlyMe = true;
 			for (auto &participant : std::as_const(channel->mgInfo->lastParticipants)) {
-				if (participant->onlineTill > t) {
+				if (participant->onlineTill > now) {
 					++online;
 					if (onlyMe && participant != App::self()) {
 						onlyMe = false;
@@ -743,11 +744,10 @@ void HistoryTopBarWidget::updateOnlineDisplayTimer() {
 	if (!_historyPeer) return;
 
 	const auto now = unixtime();
-	auto minIn = TimeId(86400);
+	auto minTimeout = TimeMs(86400);
 	const auto handleUser = [&](not_null<UserData*> user) {
-		auto hisMinIn = App::onlineWillChangeIn(user, now);
-		Assert(hisMinIn >= 0 && hisMinIn <= 86400);
-		accumulate_min(minIn, hisMinIn);
+		auto hisTimeout = Data::OnlineChangeTimeout(user, now);
+		accumulate_min(minTimeout, hisTimeout);
 	};
 	if (const auto user = _historyPeer->asUser()) {
 		handleUser(user);
@@ -757,7 +757,7 @@ void HistoryTopBarWidget::updateOnlineDisplayTimer() {
 		}
 	} else if (_historyPeer->isChannel()) {
 	}
-	updateOnlineDisplayIn(minIn * 1000);
+	updateOnlineDisplayIn(minTimeout);
 }
 
 void HistoryTopBarWidget::updateOnlineDisplayIn(TimeMs timeout) {

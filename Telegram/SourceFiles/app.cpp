@@ -128,7 +128,8 @@ namespace {
 	LastPhotosList lastPhotos;
 	using LastPhotosMap = QHash<PhotoData*, LastPhotosList::iterator>;
 	LastPhotosMap lastPhotosMap;
-}
+
+} // namespace
 
 namespace App {
 
@@ -219,117 +220,6 @@ namespace {
 		}
 	}
 
-	TimeId onlineForSort(UserData *user, TimeId now) {
-		if (isServiceUser(user->id) || user->botInfo) {
-			return -1;
-		}
-		TimeId online = user->onlineTill;
-		if (online <= 0) {
-			switch (online) {
-			case 0:
-			case -1: return online;
-
-			case -2: {
-				QDate yesterday(date(now).date());
-				return int32(QDateTime(yesterday.addDays(-3)).toTime_t()) + (unixtime() - myunixtime());
-			} break;
-
-			case -3: {
-				QDate weekago(date(now).date());
-				return int32(QDateTime(weekago.addDays(-7)).toTime_t()) + (unixtime() - myunixtime());
-			} break;
-
-			case -4: {
-				QDate monthago(date(now).date());
-				return int32(QDateTime(monthago.addDays(-30)).toTime_t()) + (unixtime() - myunixtime());
-			} break;
-			}
-			return -online;
-		}
-		return online;
-	}
-
-	int32 onlineWillChangeIn(UserData *user, TimeId now) {
-		if (isServiceUser(user->id) || user->botInfo) {
-			return 86400;
-		}
-		return onlineWillChangeIn(user->onlineTill, now);
-	}
-
-	int32 onlineWillChangeIn(TimeId online, TimeId now) {
-		if (online <= 0) {
-			if (-online > now) return std::max(-online - now, 86400);
-            return 86400;
-        }
-		if (online > now) {
-			return std::max(online - now, 86400);
-		}
-		int32 minutes = (now - online) / 60;
-		if (minutes < 60) {
-			return (minutes + 1) * 60 - (now - online);
-		}
-		int32 hours = (now - online) / 3600;
-		if (hours < 12) {
-			return (hours + 1) * 3600 - (now - online);
-		}
-		QDateTime dNow(date(now)), dTomorrow(dNow.date().addDays(1));
-		return std::max(dNow.secsTo(dTomorrow), 86400LL);
-	}
-
-	QString onlineText(UserData *user, TimeId now, bool precise) {
-		if (isNotificationsUser(user->id)) {
-			return lang(lng_status_service_notifications);
-		} else if (user->botInfo) {
-			return lang(lng_status_bot);
-		} else if (isServiceUser(user->id)) {
-			return lang(lng_status_support);
-		}
-		return onlineText(user->onlineTill, now, precise);
-	}
-
-	QString onlineText(TimeId online, TimeId now, bool precise) {
-		if (online <= 0) {
-			switch (online) {
-			case 0:
-            case -1: return lang(lng_status_offline);
-			case -2: return lang(lng_status_recently);
-			case -3: return lang(lng_status_last_week);
-			case -4: return lang(lng_status_last_month);
-			}
-            return (-online > now) ? lang(lng_status_online) : lang(lng_status_recently);
-		}
-		if (online > now) {
-			return lang(lng_status_online);
-		}
-		QString when;
-		if (precise) {
-			QDateTime dOnline(date(online)), dNow(date(now));
-			if (dOnline.date() == dNow.date()) {
-				return lng_status_lastseen_today(lt_time, dOnline.time().toString(cTimeFormat()));
-			} else if (dOnline.date().addDays(1) == dNow.date()) {
-				return lng_status_lastseen_yesterday(lt_time, dOnline.time().toString(cTimeFormat()));
-			}
-			return lng_status_lastseen_date_time(lt_date, dOnline.date().toString(qsl("dd.MM.yy")), lt_time, dOnline.time().toString(cTimeFormat()));
-		}
-		int32 minutes = (now - online) / 60;
-		if (!minutes) {
-			return lang(lng_status_lastseen_now);
-		} else if (minutes < 60) {
-			return lng_status_lastseen_minutes(lt_count, minutes);
-		}
-		int32 hours = (now - online) / 3600;
-		if (hours < 12) {
-			return lng_status_lastseen_hours(lt_count, hours);
-		}
-		QDateTime dOnline(date(online)), dNow(date(now));
-		if (dOnline.date() == dNow.date()) {
-			return lng_status_lastseen_today(lt_time, dOnline.time().toString(cTimeFormat()));
-		} else if (dOnline.date().addDays(1) == dNow.date()) {
-			return lng_status_lastseen_yesterday(lt_time, dOnline.time().toString(cTimeFormat()));
-		}
-		return lng_status_lastseen_date(lt_date, dOnline.date().toString(qsl("dd.MM.yy")));
-	}
-
 	namespace {
 		// we should get a full restriction in "{fulltype}: {reason}" format and we
 		// need to find a "-all" tag in {fulltype}, otherwise ignore this restriction
@@ -352,27 +242,6 @@ namespace {
 			}
 			return QString();
 		}
-	}
-
-	bool onlineColorUse(UserData *user, TimeId now) {
-		if (isServiceUser(user->id) || user->botInfo) {
-			return false;
-		}
-		return onlineColorUse(user->onlineTill, now);
-	}
-
-	bool onlineColorUse(TimeId online, TimeId now) {
-		if (online <= 0) {
-			switch (online) {
-			case 0:
-			case -1:
-			case -2:
-			case -3:
-			case -4: return false;
-			}
-			return (-online > now);
-		}
-		return (online > now);
 	}
 
 	UserData *feedUser(const MTPUser &user) {

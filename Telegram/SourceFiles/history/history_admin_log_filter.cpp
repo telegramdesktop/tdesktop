@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/checkbox.h"
 #include "ui/effects/ripple_animation.h"
 #include "lang/lang_keys.h"
+#include "data/data_peer_values.h"
 
 namespace AdminLog {
 namespace {
@@ -79,8 +80,8 @@ UserCheckbox::UserCheckbox(QWidget *parent, not_null<UserData*> user, bool check
 		setChecked(!this->checked());
 	});
 	auto now = unixtime();
-	_statusText = App::onlineText(_user, now);
-	_statusOnline = App::onlineColorUse(_user, now);
+	_statusText = Data::OnlineText(_user, now);
+	_statusOnline = Data::OnlineTextActive(_user, now);
 	auto checkSize = _check->getSize();
 	_checkRect = { QPoint(_st.margin.left(), (st::contactsPhotoSize - checkSize.height()) / 2), checkSize };
 }

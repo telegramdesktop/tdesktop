@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "chat_helpers/field_autocomplete.h"
 
 #include "data/data_document.h"
+#include "data/data_peer_values.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "storage/localstorage.h"
@@ -191,7 +192,10 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 			}
 		}
 		if (_chat) {
-			QMultiMap<int32, UserData*> ordered;
+			auto ordered = QMultiMap<TimeId, not_null<UserData*>>();
+			const auto byOnline = [&](not_null<UserData*> user) {
+				return Data::SortByOnlineValue(user, now);
+			};
 			mrows.reserve(mrows.size() + (_chat->participants.empty() ? _chat->lastAuthors.size() : _chat->participants.size()));
 			if (_chat->noParticipantInfo()) {
 				Auth().api().requestFullPeer(_chat);
@@ -200,7 +204,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 					if (user->isInaccessible()) continue;
 					if (!listAllSuggestions && filterNotPassedByName(user)) continue;
 					if (indexOfInFirstN(mrows, user, recentInlineBots) >= 0) continue;
-					ordered.insertMulti(App::onlineForSort(user, now), user);
+					ordered.insertMulti(byOnline(user), user);
 				}
 			}
 			for (const auto user : _chat->lastAuthors) {
@@ -209,7 +213,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 				if (indexOfInFirstN(mrows, user, recentInlineBots) >= 0) continue;
 				mrows.push_back(user);
 				if (!ordered.isEmpty()) {
-					ordered.remove(App::onlineForSort(user, now), user);
+					ordered.remove(byOnline(user), user);
 				}
 			}
 			if (!ordered.isEmpty()) {

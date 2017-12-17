@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 #include "ui/special_buttons.h"
 #include "boxes/calendar_box.h"
+#include "data/data_peer_values.h"
 
 namespace {
 
@@ -176,7 +177,7 @@ void EditParticipantBox::Inner::paintEvent(QPaintEvent *e) {
 			auto seesAllMessages = (_user->botInfo->readsAllHistory || _hasAdminRights);
 			return lang(seesAllMessages ? lng_status_bot_reads_all : lng_status_bot_not_reads_all);
 		}
-		return App::onlineText(_user->onlineTill, unixtime());
+		return Data::OnlineText(_user->onlineTill, unixtime());
 	};
 	p.setFont(st::contactsStatusFont);
 	p.setPen(st::contactsStatusFg);

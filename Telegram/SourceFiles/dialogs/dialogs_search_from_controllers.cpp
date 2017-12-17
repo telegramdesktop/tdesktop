@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_search_from_controllers.h"
 
 #include "lang/lang_keys.h"
+#include "data/data_peer_values.h"
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "apiwrap.h"
@@ -94,19 +95,22 @@ void ChatSearchFromController::rebuildRows() {
 	auto wasEmpty = !delegate()->peerListFullRowsCount();
 
 	auto now = unixtime();
-	QMultiMap<int32, UserData*> ordered;
+	const auto byOnline = [&](not_null<UserData*> user) {
+		return Data::SortByOnlineValue(user, now);
+	};
+	auto ordered = QMultiMap<TimeId, not_null<UserData*>>();
 	if (_chat->noParticipantInfo()) {
 		Auth().api().requestFullPeer(_chat);
 	} else if (!_chat->participants.empty()) {
 		for (const auto [user, version] : _chat->participants) {
-			ordered.insertMulti(App::onlineForSort(user, now), user);
+			ordered.insertMulti(byOnline(user), user);
 		}
 	}
 	for_const (auto user, _chat->lastAuthors) {
 		if (user->isInaccessible()) continue;
 		appendRow(user);
 		if (!ordered.isEmpty()) {
-			ordered.remove(App::onlineForSort(user, now), user);
+			ordered.remove(byOnline(user), user);
 		}
 	}
 	if (!ordered.isEmpty()) {

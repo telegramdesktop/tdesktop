@@ -37,6 +37,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang/lang_keys.h"
 #include "observer_peer.h"
 #include "storage/file_download.h"
+#include "data/data_peer_values.h"
 #include "window/themes/window_theme.h"
 
 PeerListBox::PeerListBox(
@@ -357,12 +358,12 @@ void PeerListRow::refreshStatus() {
 			setStatusText(lang(lng_saved_forward_here));
 		} else {
 			auto time = unixtime();
-			setStatusText(App::onlineText(user, time));
-			if (App::onlineColorUse(user, time)) {
+			setStatusText(Data::OnlineText(user, time));
+			if (Data::OnlineTextActive(user, time)) {
 				_statusType = StatusType::Online;
 			}
 			_statusValidTill = getms()
-				+ App::onlineWillChangeIn(user, time) * 1000LL;
+				+ Data::OnlineChangeTimeout(user, time);
 		}
 	} else if (auto chat = peer()->asChat()) {
 		if (!chat->amIn()) {

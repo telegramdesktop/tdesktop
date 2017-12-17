@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <rpl/never.h>
 #include <rpl/combine.h>
 #include "data/data_photo.h"
+#include "data/data_peer_values.h"
 #include "info/profile/info_profile_values.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
@@ -360,11 +361,11 @@ void Cover::refreshStatusText() {
 	auto statusText = [&] {
 		auto currentTime = unixtime();
 		if (auto user = _peer->asUser()) {
-			const auto result = App::onlineText(user, currentTime, true);
-			const auto showOnline = App::onlineColorUse(user, currentTime);
-			const auto updateIn = App::onlineWillChangeIn(user, currentTime);
+			const auto result = Data::OnlineTextFull(user, currentTime);
+			const auto showOnline = Data::OnlineTextActive(user, currentTime);
+			const auto updateIn = Data::OnlineChangeTimeout(user, currentTime);
 			if (showOnline) {
-				_refreshStatusTimer.callOnce(updateIn * 1000LL);
+				_refreshStatusTimer.callOnce(updateIn);
 			}
 			return showOnline
 				? textcmdLink(1, result)
