@@ -196,6 +196,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		}
 		return MessageIdsList(1, item->fullId());
 	}());
+	const auto isGroup = (item->getFullGroup() != nullptr);
 	const auto isGame = item->getMessageBot()
 		&& item->getMedia()
 		&& (item->getMedia()->type() == MediaTypeGame);
@@ -222,7 +223,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			}
 		}
 	};
-	auto submitCallback = [data](const QVector<PeerData*> &result) {
+	auto submitCallback = [data, isGroup](const QVector<PeerData*> &result) {
 		if (!data->requests.empty()) {
 			return; // Share clicked already.
 		}
@@ -263,8 +264,11 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 			}
 		};
 
-		auto sendFlags = MTPmessages_ForwardMessages::Flag::f_with_my_score
-			| MTPmessages_ForwardMessages::Flag::f_grouped;
+		const auto sendFlags = MTPmessages_ForwardMessages::Flag(0)
+			| MTPmessages_ForwardMessages::Flag::f_with_my_score
+			| (isGroup
+				? MTPmessages_ForwardMessages::Flag::f_grouped
+				: MTPmessages_ForwardMessages::Flag(0));
 		auto msgIds = QVector<MTPint>();
 		msgIds.reserve(data->msgIds.size());
 		for (const auto fullId : data->msgIds) {
