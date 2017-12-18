@@ -322,12 +322,12 @@ void Uploader::confirm(const FullMsgId &msgId) {
 void Uploader::clear() {
 	uploaded.clear();
 	queue.clear();
-	for (const auto &[requestId, requestData] : requestsSent) {
-		MTP::cancel(requestId);
+	for (const auto &requestData : requestsSent) {
+		MTP::cancel(requestData.first);
 	}
 	requestsSent.clear();
-	for (const auto &[requestId, requestIndex] : docRequestsSent) {
-		MTP::cancel(requestId);
+	for (const auto &requestData : docRequestsSent) {
+		MTP::cancel(requestData.first);
 	}
 	docRequestsSent.clear();
 	dcMap.clear();
