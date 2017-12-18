@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+struct HistoryMessageEdited;
+
 namespace base {
 template <typename Enum>
 class enum_mask;

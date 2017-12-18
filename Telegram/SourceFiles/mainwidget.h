@@ -25,6 +25,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/weak_ptr.h"
 #include "ui/rp_widget.h"
 
+struct HistoryMessageMarkupButton;
+class MainWindow;
+class ConfirmBox;
+class DialogsWidget;
+class HistoryWidget;
+class HistoryHider;
+class StackItem;
+
 namespace Notify {
 struct PeerUpdate;
 } // namespace Notify
@@ -65,14 +73,6 @@ namespace Calls {
 class Call;
 class TopBar;
 } // namespace Calls
-
-class MainWindow;
-class ConfirmBox;
-class DialogsWidget;
-class HistoryWidget;
-class HistoryHider;
-
-class StackItem;
 
 namespace InlineBots {
 namespace Layout {
@@ -336,7 +336,11 @@ public:
 
 	void documentLoadProgress(DocumentData *document);
 
-	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col);
+	void app_sendBotCallback(
+		not_null<const HistoryMessageMarkupButton*> button,
+		not_null<const HistoryItem*> msg,
+		int row,
+		int column);
 
 	void ui_showPeerHistory(
 		PeerId peer,

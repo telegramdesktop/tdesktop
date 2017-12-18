@@ -20,15 +20,22 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "history/history_item.h"
+
+struct HistoryMessageEdited;
+
 void HistoryInitMessages();
-base::lambda<void(ChannelData*, MsgId)> HistoryDependentItemCallback(const FullMsgId &msgId);
+base::lambda<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
+	const FullMsgId &msgId);
 MTPDmessage::Flags NewMessageFlags(not_null<PeerData*> peer);
 QString GetErrorTextForForward(
 	not_null<PeerData*> peer,
 	const HistoryItemsList &items);
 void FastShareMessage(not_null<HistoryItem*> item);
 
-class HistoryMessage : public HistoryItem, private HistoryItemInstantiated<HistoryMessage> {
+class HistoryMessage
+	: public HistoryItem
+	, private HistoryItemInstantiated<HistoryMessage> {
 public:
 	static not_null<HistoryMessage*> create(
 			not_null<History*> history,
@@ -218,21 +225,9 @@ public:
 		return _timeWidth;
 	}
 
-	int viewsCount() const override {
-		if (auto views = Get<HistoryMessageViews>()) {
-			return views->_views;
-		}
-		return HistoryItem::viewsCount();
-	}
-
+	int viewsCount() const override;
 	not_null<PeerData*> displayFrom() const;
-
-	bool updateDependencyItem() override {
-		if (auto reply = Get<HistoryMessageReply>()) {
-			return reply->updateData(this, true);
-		}
-		return true;
-	}
+	bool updateDependencyItem() override;
 	MsgId dependencyMsgId() const override {
 		return replyToId();
 	}
@@ -372,46 +367,9 @@ private:
 	mutable ClickHandlerPtr _rightActionLink;
 	mutable int32 _fromNameVersion = 0;
 
-	struct CreateConfig {
-		MsgId replyTo = 0;
-		UserId viaBotId = 0;
-		int viewsCount = -1;
-		QString author;
-		PeerId senderOriginal = 0;
-		MsgId originalId = 0;
-		PeerId savedFromPeer = 0;
-		MsgId savedFromMsgId = 0;
-		QString authorOriginal;
-		QDateTime originalDate;
-		QDateTime editDate;
-		MessageGroupId groupId = MessageGroupId::None;
-
-		// For messages created from MTP structs.
-		const MTPReplyMarkup *mtpMarkup = nullptr;
-
-		// For messages created from existing messages (forwarded).
-		const HistoryMessageReplyMarkup *inlineMarkup = nullptr;
-	};
+	struct CreateConfig;
 	void createComponentsHelper(MTPDmessage::Flags flags, MsgId replyTo, UserId viaBotId, const QString &postAuthor, const MTPReplyMarkup &markup);
 	void createComponents(const CreateConfig &config);
-
-	class KeyboardStyle : public ReplyKeyboard::Style {
-	public:
-		using ReplyKeyboard::Style::Style;
-
-		int buttonRadius() const override;
-
-		void startPaint(Painter &p) const override;
-		const style::TextStyle &textStyle() const override;
-		void repaint(not_null<const HistoryItem*> item) const override;
-
-	protected:
-		void paintButtonBg(Painter &p, const QRect &rect, float64 howMuchOver) const override;
-		void paintButtonIcon(Painter &p, const QRect &rect, int outerWidth, HistoryMessageReplyMarkup::Button::Type type) const override;
-		void paintButtonLoading(Painter &p, const QRect &rect) const override;
-		int minButtonWidth(HistoryMessageReplyMarkup::Button::Type type) const override;
-
-	};
 
 	void updateMediaInBubbleState();
 	void updateAdminBadgeState();

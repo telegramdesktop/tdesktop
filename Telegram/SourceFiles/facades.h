@@ -130,11 +130,21 @@ inline auto LambdaDelayedOnce(
 	};
 }
 
-void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo = 0);
+void sendBotCommand(
+	PeerData *peer,
+	UserData *bot,
+	const QString &cmd,
+	MsgId replyTo = 0);
 bool insertBotCommand(const QString &cmd);
-void activateBotCommand(const HistoryItem *msg, int row, int col);
+void activateBotCommand(
+	not_null<const HistoryItem*> msg,
+	int row,
+	int column);
 void searchByHashtag(const QString &tag, PeerData *inPeer);
-void openPeerByName(const QString &username, MsgId msgId = ShowAtUnreadMsgId, const QString &startToken = QString());
+void openPeerByName(
+	const QString &username,
+	MsgId msgId = ShowAtUnreadMsgId,
+	const QString &startToken = QString());
 void joinGroupByHash(const QString &hash);
 void removeDialog(History *history);
 void showSettings();

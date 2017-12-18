@@ -22,7 +22,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "ui/widgets/tooltip.h"
 
-class BotKeyboard : public TWidget, public Ui::AbstractTooltipShower, public ClickHandlerHost {
+class ReplyKeyboard;
+
+class BotKeyboard
+	: public TWidget
+	, public Ui::AbstractTooltipShower
+	, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
@@ -57,6 +62,8 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
+	~BotKeyboard();
+
 protected:
 	int resizeGetHeight(int newWidth) override;
 
@@ -83,27 +90,6 @@ private:
 	QPoint _lastMousePos;
 	std::unique_ptr<ReplyKeyboard> _impl;
 
-	class Style : public ReplyKeyboard::Style {
-	public:
-		Style(BotKeyboard *parent, const style::BotKeyboardButton &st) : ReplyKeyboard::Style(st), _parent(parent) {
-		}
-
-		int buttonRadius() const override;
-
-		void startPaint(Painter &p) const override;
-		const style::TextStyle &textStyle() const override;
-		void repaint(not_null<const HistoryItem*> item) const override;
-
-	protected:
-		void paintButtonBg(Painter &p, const QRect &rect, float64 howMuchOver) const override;
-		void paintButtonIcon(Painter &p, const QRect &rect, int outerWidth, HistoryMessageReplyMarkup::Button::Type type) const override;
-		void paintButtonLoading(Painter &p, const QRect &rect) const override;
-		int minButtonWidth(HistoryMessageReplyMarkup::Button::Type type) const override;
-
-	private:
-		BotKeyboard *_parent;
-
-	};
 	const style::BotKeyboardButton *_st = nullptr;
 
 };

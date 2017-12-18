@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_message.h"
 #include "history/history_media_types.h"
 #include "history/history_service.h"
+#include "history/history_item_components.h"
 #include "dialogs/dialogs_indexed_list.h"
 #include "styles/style_dialogs.h"
 #include "data/data_drafts.h"
@@ -679,7 +680,7 @@ void checkForSwitchInlineButton(HistoryItem *item) {
 		if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 			for_const (auto &row, markup->rows) {
 				for_const (auto &button, row) {
-					if (button.type == HistoryMessageReplyMarkup::Button::Type::SwitchInline) {
+					if (button.type == HistoryMessageMarkupButton::Type::SwitchInline) {
 						Notify::switchInlineBotButtonReceived(QString::fromUtf8(button.data));
 						return;
 					}

@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/click_handler_types.h"
 #include "media/media_clip_reader.h"
 #include "window/window_controller.h"
+#include "history/history_item_components.h"
 #include "observer_peer.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -69,19 +70,22 @@ bool insertBotCommand(const QString &cmd) {
 	return false;
 }
 
-void activateBotCommand(const HistoryItem *msg, int row, int col) {
-	const HistoryMessageReplyMarkup::Button *button = nullptr;
+void activateBotCommand(
+		not_null<const HistoryItem*> msg,
+		int row,
+		int column) {
+	const HistoryMessageMarkupButton *button = nullptr;
 	if (auto markup = msg->Get<HistoryMessageReplyMarkup>()) {
 		if (row < markup->rows.size()) {
 			auto &buttonRow = markup->rows[row];
-			if (col < buttonRow.size()) {
-				button = &buttonRow.at(col);
+			if (column < buttonRow.size()) {
+				button = &buttonRow[column];
 			}
 		}
 	}
 	if (!button) return;
 
-	using ButtonType = HistoryMessageReplyMarkup::Button::Type;
+	using ButtonType = HistoryMessageMarkupButton::Type;
 	switch (button->type) {
 	case ButtonType::Default: {
 		// Copy string before passing it to the sending method
@@ -93,7 +97,7 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 	case ButtonType::Callback:
 	case ButtonType::Game: {
 		if (auto m = main()) {
-			m->app_sendBotCallback(button, msg, row, col);
+			m->app_sendBotCallback(button, msg, row, column);
 		}
 	} break;
 

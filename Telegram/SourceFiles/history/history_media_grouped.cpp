@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "history/history_media_grouped.h"
 
+#include "history/history_item_components.h"
 #include "history/history_media_types.h"
 #include "history/history_message.h"
 #include "storage/storage_shared_media.h"

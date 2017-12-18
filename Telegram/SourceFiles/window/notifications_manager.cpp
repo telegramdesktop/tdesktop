@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/notifications_manager_default.h"
 #include "media/media_audio_track.h"
 #include "media/media_audio.h"
+#include "history/history_item_components.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"

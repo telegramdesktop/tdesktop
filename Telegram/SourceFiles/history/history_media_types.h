@@ -27,6 +27,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "data/data_web_page.h"
 #include "data/data_game.h"
 
+class ReplyMarkupClickHandler;
+struct HistoryDocumentNamed;
+struct HistoryMessageVia;
+struct HistoryMessageReply;
+struct HistoryMessageForwarded;
+
 namespace Media {
 namespace Clip {
 class Playback;
@@ -402,68 +408,6 @@ private:
 
 };
 
-struct HistoryDocumentThumbed : public RuntimeComponent<HistoryDocumentThumbed> {
-	ClickHandlerPtr _linksavel, _linkcancell;
-	int _thumbw = 0;
-
-	mutable int _linkw = 0;
-	mutable QString _link;
-};
-struct HistoryDocumentCaptioned : public RuntimeComponent<HistoryDocumentCaptioned> {
-	HistoryDocumentCaptioned();
-
-	Text _caption;
-};
-struct HistoryDocumentNamed : public RuntimeComponent<HistoryDocumentNamed> {
-	QString _name;
-	int _namew = 0;
-};
-class HistoryDocument;
-struct HistoryDocumentVoicePlayback {
-	HistoryDocumentVoicePlayback(const HistoryDocument *that);
-
-	int32 _position = 0;
-	anim::value a_progress;
-	BasicAnimation _a_progress;
-};
-class HistoryDocumentVoice : public RuntimeComponent<HistoryDocumentVoice> {
-	// We don't use float64 because components should align to pointer even on 32bit systems.
-	static constexpr float64 kFloatToIntMultiplier = 65536.;
-
-public:
-	void ensurePlayback(const HistoryDocument *interfaces) const;
-	void checkPlaybackFinished() const;
-
-	mutable std::unique_ptr<HistoryDocumentVoicePlayback> _playback;
-	std::shared_ptr<VoiceSeekClickHandler> _seekl;
-	mutable int _lastDurationMs = 0;
-
-	bool seeking() const {
-		return _seeking;
-	}
-	void startSeeking();
-	void stopSeeking();
-	float64 seekingStart() const {
-		return _seekingStart / kFloatToIntMultiplier;
-	}
-	void setSeekingStart(float64 seekingStart) const {
-		_seekingStart = qRound(seekingStart * kFloatToIntMultiplier);
-	}
-	float64 seekingCurrent() const {
-		return _seekingCurrent / kFloatToIntMultiplier;
-	}
-	void setSeekingCurrent(float64 seekingCurrent) {
-		_seekingCurrent = qRound(seekingCurrent * kFloatToIntMultiplier);
-	}
-
-private:
-	bool _seeking = false;
-
-	mutable int _seekingStart = 0;
-	mutable int _seekingCurrent = 0;
-
-};
-
 class HistoryDocument : public HistoryFileMedia, public RuntimeComposer {
 public:
 	HistoryDocument(
@@ -497,22 +441,10 @@ public:
 	void updatePressed(QPoint point) override;
 
 	[[nodiscard]] TextSelection adjustSelection(
-			TextSelection selection,
-			TextSelectType type) const override {
-		if (auto captioned = Get<HistoryDocumentCaptioned>()) {
-			return captioned->_caption.adjustSelection(selection, type);
-		}
-		return selection;
-	}
-	uint16 fullSelectionLength() const override {
-		if (auto captioned = Get<HistoryDocumentCaptioned>()) {
-			return captioned->_caption.length();
-		}
-		return 0;
-	}
-	bool hasTextForCopy() const override {
-		return Has<HistoryDocumentCaptioned>();
-	}
+		TextSelection selection,
+		TextSelectType type) const override;
+	uint16 fullSelectionLength() const override;
+	bool hasTextForCopy() const override;
 
 	QString notificationText() const override;
 	QString inDialogsText() const override;
@@ -541,12 +473,7 @@ public:
 	}
 	ImagePtr replyPreview() override;
 
-	TextWithEntities getCaption() const override {
-		if (const HistoryDocumentCaptioned *captioned = Get<HistoryDocumentCaptioned>()) {
-			return captioned->_caption.originalTextWithEntities();
-		}
-		return TextWithEntities();
-	}
+	TextWithEntities getCaption() const override;
 	bool needsBubble() const override {
 		return true;
 	}
@@ -693,10 +620,11 @@ protected:
 	}
 
 private:
-	int additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply, const HistoryMessageForwarded *forwarded) const;
-	int additionalWidth() const {
-		return additionalWidth(_parent->Get<HistoryMessageVia>(), _parent->Get<HistoryMessageReply>(), _parent->Get<HistoryMessageForwarded>());
-	}
+	int additionalWidth(
+		const HistoryMessageVia *via,
+		const HistoryMessageReply *reply,
+		const HistoryMessageForwarded *forwarded) const;
+	int additionalWidth() const;
 	QString mediaTypeString() const;
 	bool isSeparateRoundVideo() const;
 
@@ -777,9 +705,7 @@ public:
 
 private:
 	int additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply) const;
-	int additionalWidth() const {
-		return additionalWidth(_parent->Get<HistoryMessageVia>(), _parent->Get<HistoryMessageReply>());
-	}
+	int additionalWidth() const;
 	QString toString() const;
 
 	int16 _pixw = 1;
@@ -978,9 +904,7 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
-	bool isDisplayed() const override {
-		return !_data->pendingTill && !_parent->Has<HistoryMessageLogEntryOriginal>();
-	}
+	bool isDisplayed() const override;
 	PhotoData *getPhoto() const override {
 		return _attach ? _attach->getPhoto() : nullptr;
 	}

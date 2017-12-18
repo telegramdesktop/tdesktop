@@ -32,6 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/confirm_box.h"
 #include "boxes/add_contact_box.h"
 #include "core/click_handler_types.h"
+#include "history/history_item_components.h"
 #include "history/history_location_manager.h"
 #include "history/history_message.h"
 #include "window/main_window.h"
@@ -1364,39 +1365,6 @@ ImagePtr HistoryVideo::replyPreview() {
 	return _data->replyPreview;
 }
 
-HistoryDocumentCaptioned::HistoryDocumentCaptioned()
-: _caption(st::msgFileMinWidth - st::msgPadding.left() - st::msgPadding.right()) {
-}
-
-
-HistoryDocumentVoicePlayback::HistoryDocumentVoicePlayback(const HistoryDocument *that)
-: a_progress(0., 0.)
-, _a_progress(animation(const_cast<HistoryDocument*>(that), &HistoryDocument::step_voiceProgress)) {
-}
-
-void HistoryDocumentVoice::ensurePlayback(const HistoryDocument *that) const {
-	if (!_playback) {
-		_playback = std::make_unique<HistoryDocumentVoicePlayback>(that);
-	}
-}
-
-void HistoryDocumentVoice::checkPlaybackFinished() const {
-	if (_playback && !_playback->_a_progress.animating()) {
-		_playback.reset();
-	}
-}
-
-void HistoryDocumentVoice::startSeeking() {
-	_seeking = true;
-	_seekingCurrent = _seekingStart;
-	Media::Player::instance()->startSeeking(AudioMsgId::Type::Voice);
-}
-
-void HistoryDocumentVoice::stopSeeking() {
-	_seeking = false;
-	Media::Player::instance()->stopSeeking(AudioMsgId::Type::Voice);
-}
-
 HistoryDocument::HistoryDocument(
 	not_null<HistoryItem*> parent,
 	not_null<DocumentData*> document,
@@ -1925,6 +1893,26 @@ QString HistoryDocument::inDialogsText() const {
 	return result;
 }
 
+TextSelection HistoryDocument::adjustSelection(
+		TextSelection selection,
+		TextSelectType type) const {
+	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
+		return captioned->_caption.adjustSelection(selection, type);
+	}
+	return selection;
+}
+
+uint16 HistoryDocument::fullSelectionLength() const {
+	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
+		return captioned->_caption.length();
+	}
+	return 0;
+}
+
+bool HistoryDocument::hasTextForCopy() const {
+	return Has<HistoryDocumentCaptioned>();
+}
+
 TextWithEntities HistoryDocument::selectedText(TextSelection selection) const {
 	TextWithEntities result;
 	buildStringRepresentation([&result, selection](const QString &type, const QString &fileName, const Text &caption) {
@@ -2140,6 +2128,13 @@ void HistoryDocument::updateSentMedia(const MTPMessageMedia &media) {
 
 bool HistoryDocument::needReSetInlineResultMedia(const MTPMessageMedia &media) {
 	return needReSetInlineResultDocument(media, _data);
+}
+
+TextWithEntities HistoryDocument::getCaption() const {
+	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
+		return captioned->_caption.originalTextWithEntities();
+	}
+	return TextWithEntities();
 }
 
 ImagePtr HistoryDocument::replyPreview() {
@@ -2513,7 +2508,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 			auto rectw = _width - usew - st::msgReplyPadding.left();
 			auto innerw = rectw - (st::msgReplyPadding.left() + st::msgReplyPadding.right());
 			auto recth = st::msgReplyPadding.top() + st::msgReplyPadding.bottom();
-			auto forwardedHeightReal = forwarded ? forwarded->_text.countHeight(innerw) : 0;
+			auto forwardedHeightReal = forwarded ? forwarded->text.countHeight(innerw) : 0;
 			auto forwardedHeight = qMin(forwardedHeightReal, kMaxGifForwardedBarLines * st::msgServiceNameFont->height);
 			if (forwarded) {
 				recth += forwardedHeight;
@@ -2534,11 +2529,11 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 			if (forwarded) {
 				p.setTextPalette(st::serviceTextPalette);
 				auto breakEverywhere = (forwardedHeightReal > forwardedHeight);
-				forwarded->_text.drawElided(p, rectx, recty + st::msgReplyPadding.top(), rectw, kMaxGifForwardedBarLines, style::al_left, 0, -1, 0, breakEverywhere);
+				forwarded->text.drawElided(p, rectx, recty + st::msgReplyPadding.top(), rectw, kMaxGifForwardedBarLines, style::al_left, 0, -1, 0, breakEverywhere);
 				p.restoreTextPalette();
 			} else if (via) {
 				p.setFont(st::msgDateFont);
-				p.drawTextLeft(rectx, recty + st::msgReplyPadding.top(), 2 * rectx + rectw, via->_text);
+				p.drawTextLeft(rectx, recty + st::msgReplyPadding.top(), 2 * rectx + rectw, via->text);
 				int skip = st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
 				recty += skip;
 			}
@@ -2632,7 +2627,7 @@ HistoryTextState HistoryGif::getState(QPoint point, HistoryStateRequest request)
 		auto rectw = width - usew - st::msgReplyPadding.left();
 		auto innerw = rectw - (st::msgReplyPadding.left() + st::msgReplyPadding.right());
 		auto recth = st::msgReplyPadding.top() + st::msgReplyPadding.bottom();
-		auto forwardedHeightReal = forwarded ? forwarded->_text.countHeight(innerw) : 0;
+		auto forwardedHeightReal = forwarded ? forwarded->text.countHeight(innerw) : 0;
 		auto forwardedHeight = qMin(forwardedHeightReal, kMaxGifForwardedBarLines * st::msgServiceNameFont->height);
 		if (forwarded) {
 			recth += forwardedHeight;
@@ -2653,7 +2648,7 @@ HistoryTextState HistoryGif::getState(QPoint point, HistoryStateRequest request)
 				if (breakEverywhere) {
 					textRequest.flags |= Text::StateRequest::Flag::BreakEverywhere;
 				}
-				result = HistoryTextState(_parent, forwarded->_text.getState(
+				result = HistoryTextState(_parent, forwarded->text.getState(
 					point - QPoint(rectx + st::msgReplyPadding.left(), recty + st::msgReplyPadding.top()),
 					innerw,
 					textRequest));
@@ -2671,7 +2666,7 @@ HistoryTextState HistoryGif::getState(QPoint point, HistoryStateRequest request)
 		} else if (via) {
 			auto viah = st::msgReplyPadding.top() + st::msgServiceNameFont->height + (reply ? 0 : st::msgReplyPadding.bottom());
 			if (QRect(rectx, recty, rectw, viah).contains(point)) {
-				result.link = via->_lnk;
+				result.link = via->link;
 				return result;
 			}
 			auto skip = st::msgServiceNameFont->height + (reply ? 2 * st::msgReplyPadding.top() : 0);
@@ -2771,6 +2766,13 @@ Storage::SharedMediaTypesMask HistoryGif::sharedMediaTypes() const {
 		return Type::GIF;
 	}
 	return Type::File;
+}
+
+int HistoryGif::additionalWidth() const {
+	return additionalWidth(
+		_parent->Get<HistoryMessageVia>(),
+		_parent->Get<HistoryMessageReply>(),
+		_parent->Get<HistoryMessageForwarded>());
 }
 
 QString HistoryGif::mediaTypeString() const {
@@ -2874,9 +2876,9 @@ ImagePtr HistoryGif::replyPreview() {
 int HistoryGif::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply, const HistoryMessageForwarded *forwarded) const {
 	int result = 0;
 	if (forwarded) {
-		accumulate_max(result, st::msgReplyPadding.left() + st::msgReplyPadding.left() + forwarded->_text.maxWidth() + st::msgReplyPadding.right());
+		accumulate_max(result, st::msgReplyPadding.left() + st::msgReplyPadding.left() + forwarded->text.maxWidth() + st::msgReplyPadding.right());
 	} else if (via) {
-		accumulate_max(result, st::msgReplyPadding.left() + st::msgReplyPadding.left() + via->_maxWidth + st::msgReplyPadding.left());
+		accumulate_max(result, st::msgReplyPadding.left() + st::msgReplyPadding.left() + via->maxWidth + st::msgReplyPadding.left());
 	}
 	if (reply) {
 		accumulate_max(result, st::msgReplyPadding.left() + reply->replyToWidth());
@@ -3094,7 +3096,7 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, T
 			rectw -= st::msgReplyPadding.left() + st::msgReplyPadding.right();
 			if (via) {
 				p.setFont(st::msgDateFont);
-				p.drawTextLeft(rectx, recty + st::msgReplyPadding.top(), 2 * rectx + rectw, via->_text);
+				p.drawTextLeft(rectx, recty + st::msgReplyPadding.top(), 2 * rectx + rectw, via->text);
 				int skip = st::msgServiceNameFont->height + (reply ? st::msgReplyPadding.top() : 0);
 				recty += skip;
 			}
@@ -3150,7 +3152,7 @@ HistoryTextState HistorySticker::getState(QPoint point, HistoryStateRequest requ
 		if (via) {
 			int viah = st::msgReplyPadding.top() + st::msgServiceNameFont->height + (reply ? 0 : st::msgReplyPadding.bottom());
 			if (QRect(rectx, recty, rectw, viah).contains(point)) {
-				result.link = via->_lnk;
+				result.link = via->link;
 				return result;
 			}
 			int skip = st::msgServiceNameFont->height + (reply ? 2 * st::msgReplyPadding.top() : 0);
@@ -3236,12 +3238,18 @@ ImagePtr HistorySticker::replyPreview() {
 int HistorySticker::additionalWidth(const HistoryMessageVia *via, const HistoryMessageReply *reply) const {
 	int result = 0;
 	if (via) {
-		accumulate_max(result, st::msgReplyPadding.left() + st::msgReplyPadding.left() + via->_maxWidth + st::msgReplyPadding.left());
+		accumulate_max(result, st::msgReplyPadding.left() + st::msgReplyPadding.left() + via->maxWidth + st::msgReplyPadding.left());
 	}
 	if (reply) {
 		accumulate_max(result, st::msgReplyPadding.left() + reply->replyToWidth());
 	}
 	return result;
+}
+
+int HistorySticker::additionalWidth() const {
+	return additionalWidth(
+		_parent->Get<HistoryMessageVia>(),
+		_parent->Get<HistoryMessageReply>());
 }
 
 namespace {
@@ -4103,6 +4111,10 @@ void HistoryWebPage::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool p
 	if (_attach) {
 		_attach->clickHandlerPressedChanged(p, pressed);
 	}
+}
+bool HistoryWebPage::isDisplayed() const {
+	return !_data->pendingTill
+		&& !_parent->Has<HistoryMessageLogEntryOriginal>();
 }
 
 void HistoryWebPage::attachToParent() {

@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
+#include "history/history_item_components.h"
 #include "history/history_location_manager.h"
 #include "history/history_service_layout.h"
 #include "history/history_media_types.h"
@@ -45,6 +46,97 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace {
 
 constexpr auto kPinnedMessageTextLimit = 16;
+
+class KeyboardStyle : public ReplyKeyboard::Style {
+public:
+	using ReplyKeyboard::Style::Style;
+
+	int buttonRadius() const override;
+
+	void startPaint(Painter &p) const override;
+	const style::TextStyle &textStyle() const override;
+	void repaint(not_null<const HistoryItem*> item) const override;
+
+protected:
+	void paintButtonBg(
+		Painter &p,
+		const QRect &rect,
+		float64 howMuchOver) const override;
+	void paintButtonIcon(Painter &p, const QRect &rect, int outerWidth, HistoryMessageMarkupButton::Type type) const override;
+	void paintButtonLoading(Painter &p, const QRect &rect) const override;
+	int minButtonWidth(HistoryMessageMarkupButton::Type type) const override;
+
+};
+
+void KeyboardStyle::startPaint(Painter &p) const {
+	p.setPen(st::msgServiceFg);
+}
+
+const style::TextStyle &KeyboardStyle::textStyle() const {
+	return st::serviceTextStyle;
+}
+
+void KeyboardStyle::repaint(not_null<const HistoryItem*> item) const {
+	Auth().data().requestItemRepaint(item);
+}
+
+int KeyboardStyle::buttonRadius() const {
+	return st::dateRadius;
+}
+
+void KeyboardStyle::paintButtonBg(
+		Painter &p,
+		const QRect &rect,
+		float64 howMuchOver) const {
+	App::roundRect(p, rect, st::msgServiceBg, StickerCorners);
+	if (howMuchOver > 0) {
+		auto o = p.opacity();
+		p.setOpacity(o * howMuchOver);
+		App::roundRect(p, rect, st::msgBotKbOverBgAdd, BotKbOverCorners);
+		p.setOpacity(o);
+	}
+}
+
+void KeyboardStyle::paintButtonIcon(
+		Painter &p,
+		const QRect &rect,
+		int outerWidth,
+		HistoryMessageMarkupButton::Type type) const {
+	using Button = HistoryMessageMarkupButton;
+	auto getIcon = [](Button::Type type) -> const style::icon* {
+		switch (type) {
+		case Button::Type::Url: return &st::msgBotKbUrlIcon;
+		case Button::Type::SwitchInlineSame:
+		case Button::Type::SwitchInline: return &st::msgBotKbSwitchPmIcon;
+		}
+		return nullptr;
+	};
+	if (auto icon = getIcon(type)) {
+		icon->paint(p, rect.x() + rect.width() - icon->width() - st::msgBotKbIconPadding, rect.y() + st::msgBotKbIconPadding, outerWidth);
+	}
+}
+
+void KeyboardStyle::paintButtonLoading(Painter &p, const QRect &rect) const {
+	auto icon = &st::historySendingInvertedIcon;
+	icon->paint(p, rect.x() + rect.width() - icon->width() - st::msgBotKbIconPadding, rect.y() + rect.height() - icon->height() - st::msgBotKbIconPadding, rect.x() * 2 + rect.width());
+}
+
+int KeyboardStyle::minButtonWidth(
+		HistoryMessageMarkupButton::Type type) const {
+	using Button = HistoryMessageMarkupButton;
+	int result = 2 * buttonPadding(), iconWidth = 0;
+	switch (type) {
+	case Button::Type::Url: iconWidth = st::msgBotKbUrlIcon.width(); break;
+	case Button::Type::SwitchInlineSame:
+	case Button::Type::SwitchInline: iconWidth = st::msgBotKbSwitchPmIcon.width(); break;
+	case Button::Type::Callback:
+	case Button::Type::Game: iconWidth = st::historySendingInvertedIcon.width(); break;
+	}
+	if (iconWidth > 0) {
+		result = std::max(result, 2 * iconWidth + 4 * int(st::msgBotKbIconPadding));
+	}
+	return result;
+}
 
 inline void initTextOptions() {
 	_historySrvOptions.dir = _textNameOptions.dir = _textDlgOptions.dir = cLangDir();
@@ -321,7 +413,8 @@ void HistoryInitMessages() {
 	initTextOptions();
 }
 
-base::lambda<void(ChannelData*, MsgId)> HistoryDependentItemCallback(const FullMsgId &msgId) {
+base::lambda<void(ChannelData*, MsgId)> HistoryDependentItemCallback(
+		const FullMsgId &msgId) {
 	return [dependent = msgId](ChannelData *channel, MsgId msgId) {
 		if (auto item = App::histItemById(dependent)) {
 			item->updateDependencyItem();
@@ -363,293 +456,26 @@ QString GetErrorTextForForward(
 	return QString();
 }
 
-void HistoryMessageVia::create(UserId userId) {
-	_bot = App::user(peerFromUser(userId));
-	_maxWidth = st::msgServiceNameFont->width(lng_inline_bot_via(lt_inline_bot, '@' + _bot->username));
-	_lnk = std::make_shared<LambdaClickHandler>([bot = _bot] {
-		App::insertBotCommand('@' + bot->username);
-	});
-}
+struct HistoryMessage::CreateConfig {
+	MsgId replyTo = 0;
+	UserId viaBotId = 0;
+	int viewsCount = -1;
+	QString author;
+	PeerId senderOriginal = 0;
+	MsgId originalId = 0;
+	PeerId savedFromPeer = 0;
+	MsgId savedFromMsgId = 0;
+	QString authorOriginal;
+	QDateTime originalDate;
+	QDateTime editDate;
+	MessageGroupId groupId = MessageGroupId::None;
 
-void HistoryMessageVia::resize(int32 availw) const {
-	if (availw < 0) {
-		_text = QString();
-		_width = 0;
-	} else {
-		_text = lng_inline_bot_via(lt_inline_bot, '@' + _bot->username);
-		if (availw < _maxWidth) {
-			_text = st::msgServiceNameFont->elided(_text, availw);
-			_width = st::msgServiceNameFont->width(_text);
-		} else if (_width < _maxWidth) {
-			_width = _maxWidth;
-		}
-	}
-}
+	// For messages created from MTP structs.
+	const MTPReplyMarkup *mtpMarkup = nullptr;
 
-void HistoryMessageSigned::create(const QString &author, const QString &date) {
-	auto time = qsl(", ") + date;
-	auto name = author;
-	auto timew = st::msgDateFont->width(time);
-	auto namew = st::msgDateFont->width(name);
-	if (timew + namew > st::maxSignatureSize) {
-		name = st::msgDateFont->elided(author, st::maxSignatureSize - timew);
-	}
-	_author = author;
-	_signature.setText(st::msgDateTextStyle, name + time, _textNameOptions);
-}
-
-int HistoryMessageSigned::maxWidth() const {
-	return _signature.maxWidth();
-}
-
-void HistoryMessageEdited::refresh(const QString &date, bool displayed) {
-	const auto prefix = displayed ? (lang(lng_edited) + ' ') : QString();
-	text.setText(st::msgDateTextStyle, prefix + date, _textNameOptions);
-}
-
-int HistoryMessageEdited::maxWidth() const {
-	return text.maxWidth();
-}
-
-void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
-	QString text;
-	auto fromChannel = (_originalSender->isChannel() && !_originalSender->isMegagroup());
-	if (!_originalAuthor.isEmpty()) {
-		text = lng_forwarded_signed(lt_channel, App::peerName(_originalSender), lt_user, _originalAuthor);
-	} else {
-		text = App::peerName(_originalSender);
-	}
-	if (via) {
-		if (fromChannel) {
-			text = lng_forwarded_channel_via(lt_channel, textcmdLink(1, text), lt_inline_bot, textcmdLink(2, '@' + via->_bot->username));
-		} else {
-			text = lng_forwarded_via(lt_user, textcmdLink(1, text), lt_inline_bot, textcmdLink(2, '@' + via->_bot->username));
-		}
-	} else {
-		if (fromChannel) {
-			text = lng_forwarded_channel(lt_channel, textcmdLink(1, text));
-		} else {
-			text = lng_forwarded(lt_user, textcmdLink(1, text));
-		}
-	}
-	TextParseOptions opts = { TextParseRichText, 0, 0, Qt::LayoutDirectionAuto };
-	_text.setText(st::fwdTextStyle, text, opts);
-	_text.setLink(1, fromChannel ? goToMessageClickHandler(_originalSender, _originalId) : _originalSender->openLink());
-	if (via) {
-		_text.setLink(2, via->_lnk);
-	}
-}
-
-bool HistoryMessageReply::updateData(HistoryMessage *holder, bool force) {
-	if (!force) {
-		if (replyToMsg || !replyToMsgId) {
-			return true;
-		}
-	}
-	if (!replyToMsg) {
-		replyToMsg = App::histItemById(holder->channelId(), replyToMsgId);
-		if (replyToMsg) {
-			if (replyToMsg->isEmpty()) {
-				// Really it is deleted.
-				replyToMsg = nullptr;
-				force = true;
-			} else {
-				App::historyRegDependency(holder, replyToMsg);
-			}
-		}
-	}
-
-	if (replyToMsg) {
-		replyToText.setText(st::messageTextStyle, TextUtilities::Clean(replyToMsg->inReplyText()), _textDlgOptions);
-
-		updateName();
-
-		replyToLnk = goToMessageClickHandler(replyToMsg);
-		if (!replyToMsg->Has<HistoryMessageForwarded>()) {
-			if (auto bot = replyToMsg->viaBot()) {
-				_replyToVia = std::make_unique<HistoryMessageVia>();
-				_replyToVia->create(peerToUser(bot->id));
-			}
-		}
-	} else if (force) {
-		replyToMsgId = 0;
-	}
-	if (force) {
-		holder->setPendingInitDimensions();
-	}
-	return (replyToMsg || !replyToMsgId);
-}
-
-void HistoryMessageReply::clearData(HistoryMessage *holder) {
-	_replyToVia = nullptr;
-	if (replyToMsg) {
-		App::historyUnregDependency(holder, replyToMsg);
-		replyToMsg = nullptr;
-	}
-	replyToMsgId = 0;
-}
-
-bool HistoryMessageReply::isNameUpdated() const {
-	if (replyToMsg && replyToMsg->author()->nameVersion > replyToVersion) {
-		updateName();
-		return true;
-	}
-	return false;
-}
-
-void HistoryMessageReply::updateName() const {
-	if (replyToMsg) {
-		QString name = (_replyToVia && replyToMsg->author()->isUser()) ? replyToMsg->author()->asUser()->firstName : App::peerName(replyToMsg->author());
-		replyToName.setText(st::fwdTextStyle, name, _textNameOptions);
-		replyToVersion = replyToMsg->author()->nameVersion;
-		bool hasPreview = replyToMsg->getMedia() ? replyToMsg->getMedia()->hasReplyPreview() : false;
-		int32 previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
-		int32 w = replyToName.maxWidth();
-		if (_replyToVia) {
-			w += st::msgServiceFont->spacew + _replyToVia->_maxWidth;
-		}
-
-		_maxReplyWidth = previewSkip + qMax(w, qMin(replyToText.maxWidth(), int32(st::maxSignatureSize)));
-	} else {
-		_maxReplyWidth = st::msgDateFont->width(lang(replyToMsgId ? lng_profile_loading : lng_deleted_message));
-	}
-	_maxReplyWidth = st::msgReplyPadding.left() + st::msgReplyBarSkip + _maxReplyWidth + st::msgReplyPadding.right();
-}
-
-void HistoryMessageReply::resize(int width) const {
-	if (_replyToVia) {
-		bool hasPreview = replyToMsg->getMedia() ? replyToMsg->getMedia()->hasReplyPreview() : false;
-		int previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
-		_replyToVia->resize(width - st::msgReplyBarSkip - previewSkip - replyToName.maxWidth() - st::msgServiceFont->spacew);
-	}
-}
-
-void HistoryMessageReply::itemRemoved(HistoryMessage *holder, HistoryItem *removed) {
-	if (replyToMsg == removed) {
-		clearData(holder);
-		holder->setPendingInitDimensions();
-	}
-}
-
-void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, int y, int w, PaintFlags flags) const {
-	bool selected = (flags & PaintFlag::Selected), outbg = holder->hasOutLayout();
-
-	style::color bar = st::msgImgReplyBarColor;
-	if (flags & PaintFlag::InBubble) {
-		bar = (flags & PaintFlag::Selected) ? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (outbg ? st::msgOutReplyBarColor : st::msgInReplyBarColor);
-	}
-	QRect rbar(rtlrect(x + st::msgReplyBarPos.x(), y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height(), w + 2 * x));
-	p.fillRect(rbar, bar);
-
-	if (w > st::msgReplyBarSkip) {
-		if (replyToMsg) {
-			auto hasPreview = replyToMsg->getMedia() ? replyToMsg->getMedia()->hasReplyPreview() : false;
-			if (hasPreview && w < st::msgReplyBarSkip + st::msgReplyBarSize.height()) {
-				hasPreview = false;
-			}
-			auto previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
-
-			if (hasPreview) {
-				ImagePtr replyPreview = replyToMsg->getMedia()->replyPreview();
-				if (!replyPreview->isNull()) {
-					auto to = rtlrect(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height(), w + 2 * x);
-					auto previewWidth = replyPreview->width() / cIntRetinaFactor();
-					auto previewHeight = replyPreview->height() / cIntRetinaFactor();
-					auto preview = replyPreview->pixSingle(previewWidth, previewHeight, to.width(), to.height(), ImageRoundRadius::Small, ImageRoundCorner::All, selected ? &st::msgStickerOverlay : nullptr);
-					p.drawPixmap(to.x(), to.y(), preview);
-				}
-			}
-			if (w > st::msgReplyBarSkip + previewSkip) {
-				if (flags & PaintFlag::InBubble) {
-					p.setPen(selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg));
-				} else {
-					p.setPen(st::msgImgReplyBarColor);
-				}
-				replyToName.drawLeftElided(p, x + st::msgReplyBarSkip + previewSkip, y + st::msgReplyPadding.top(), w - st::msgReplyBarSkip - previewSkip, w + 2 * x);
-				if (_replyToVia && w > st::msgReplyBarSkip + previewSkip + replyToName.maxWidth() + st::msgServiceFont->spacew) {
-					p.setFont(st::msgServiceFont);
-					p.drawText(x + st::msgReplyBarSkip + previewSkip + replyToName.maxWidth() + st::msgServiceFont->spacew, y + st::msgReplyPadding.top() + st::msgServiceFont->ascent, _replyToVia->_text);
-				}
-
-				auto replyToAsMsg = replyToMsg->toHistoryMessage();
-				if (!(flags & PaintFlag::InBubble)) {
-				} else if ((replyToAsMsg && replyToAsMsg->emptyText()) || replyToMsg->serviceMsg()) {
-					p.setPen(outbg ? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg) : (selected ? st::msgInDateFgSelected : st::msgInDateFg));
-				} else {
-					p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
-				}
-				replyToText.drawLeftElided(p, x + st::msgReplyBarSkip + previewSkip, y + st::msgReplyPadding.top() + st::msgServiceNameFont->height, w - st::msgReplyBarSkip - previewSkip, w + 2 * x);
-			}
-		} else {
-			p.setFont(st::msgDateFont);
-			auto &date = outbg ? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg) : (selected ? st::msgInDateFgSelected : st::msgInDateFg);
-			p.setPen((flags & PaintFlag::InBubble) ? date : st::msgDateImgFg);
-			p.drawTextLeft(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2, w + 2 * x, st::msgDateFont->elided(lang(replyToMsgId ? lng_profile_loading : lng_deleted_message), w - st::msgReplyBarSkip));
-		}
-	}
-}
-
-void HistoryMessage::KeyboardStyle::startPaint(Painter &p) const {
-	p.setPen(st::msgServiceFg);
-}
-
-const style::TextStyle &HistoryMessage::KeyboardStyle::textStyle() const {
-	return st::serviceTextStyle;
-}
-
-void HistoryMessage::KeyboardStyle::repaint(not_null<const HistoryItem*> item) const {
-	Auth().data().requestItemRepaint(item);
-}
-
-int HistoryMessage::KeyboardStyle::buttonRadius() const {
-	return st::dateRadius;
-}
-
-void HistoryMessage::KeyboardStyle::paintButtonBg(Painter &p, const QRect &rect, float64 howMuchOver) const {
-	App::roundRect(p, rect, st::msgServiceBg, StickerCorners);
-	if (howMuchOver > 0) {
-		auto o = p.opacity();
-		p.setOpacity(o * howMuchOver);
-		App::roundRect(p, rect, st::msgBotKbOverBgAdd, BotKbOverCorners);
-		p.setOpacity(o);
-	}
-}
-
-void HistoryMessage::KeyboardStyle::paintButtonIcon(Painter &p, const QRect &rect, int outerWidth, HistoryMessageReplyMarkup::Button::Type type) const {
-	using Button = HistoryMessageReplyMarkup::Button;
-	auto getIcon = [](Button::Type type) -> const style::icon* {
-		switch (type) {
-		case Button::Type::Url: return &st::msgBotKbUrlIcon;
-		case Button::Type::SwitchInlineSame:
-		case Button::Type::SwitchInline: return &st::msgBotKbSwitchPmIcon;
-		}
-		return nullptr;
-	};
-	if (auto icon = getIcon(type)) {
-		icon->paint(p, rect.x() + rect.width() - icon->width() - st::msgBotKbIconPadding, rect.y() + st::msgBotKbIconPadding, outerWidth);
-	}
-}
-
-void HistoryMessage::KeyboardStyle::paintButtonLoading(Painter &p, const QRect &rect) const {
-	auto icon = &st::historySendingInvertedIcon;
-	icon->paint(p, rect.x() + rect.width() - icon->width() - st::msgBotKbIconPadding, rect.y() + rect.height() - icon->height() - st::msgBotKbIconPadding, rect.x() * 2 + rect.width());
-}
-
-int HistoryMessage::KeyboardStyle::minButtonWidth(HistoryMessageReplyMarkup::Button::Type type) const {
-	using Button = HistoryMessageReplyMarkup::Button;
-	int result = 2 * buttonPadding(), iconWidth = 0;
-	switch (type) {
-	case Button::Type::Url: iconWidth = st::msgBotKbUrlIcon.width(); break;
-	case Button::Type::SwitchInlineSame:
-	case Button::Type::SwitchInline: iconWidth = st::msgBotKbSwitchPmIcon.width(); break;
-	case Button::Type::Callback:
-	case Button::Type::Game: iconWidth = st::historySendingInvertedIcon.width(); break;
-	}
-	if (iconWidth > 0) {
-		result = std::max(result, 2 * iconWidth + 4 * int(st::msgBotKbIconPadding));
-	}
-	return result;
-}
+	// For messages created from existing messages (forwarded).
+	const HistoryMessageReplyMarkup *inlineMarkup = nullptr;
+};
 
 HistoryMessage::HistoryMessage(
 	not_null<History*> history,
@@ -922,10 +748,24 @@ void HistoryMessage::updateMediaInBubbleState() {
 	_media->setInBubbleState(computeState());
 }
 
+int HistoryMessage::viewsCount() const {
+	if (const auto views = Get<HistoryMessageViews>()) {
+		return views->_views;
+	}
+	return HistoryItem::viewsCount();
+}
+
 not_null<PeerData*> HistoryMessage::displayFrom() const {
 	return history()->peer->isSelf()
 		? senderOriginal()
 		: author();
+}
+
+bool HistoryMessage::updateDependencyItem() {
+	if (const auto reply = Get<HistoryMessageReply>()) {
+		return reply->updateData(this, true);
+	}
+	return true;
 }
 
 void HistoryMessage::updateAdminBadgeState() {
@@ -1018,7 +858,7 @@ bool HistoryMessage::displayFastShare() const {
 bool HistoryMessage::displayGoToOriginal() const {
 	if (_history->peer->isSelf()) {
 		if (auto forwarded = Get<HistoryMessageForwarded>()) {
-			return forwarded->_savedFromPeer && forwarded->_savedFromMsgId;
+			return forwarded->savedFromPeer && forwarded->savedFromMsgId;
 		}
 	}
 	return false;
@@ -1084,13 +924,16 @@ void HistoryMessage::createComponents(const CreateConfig &config) {
 	if (const auto edited = Get<HistoryMessageEdited>()) {
 		edited->date = config.editDate;
 	}
+	if (const auto msgsigned = Get<HistoryMessageSigned>()) {
+		msgsigned->author = config.author;
+	}
 	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
-		forwarded->_originalDate = config.originalDate;
-		forwarded->_originalSender = App::peer(config.senderOriginal);
-		forwarded->_originalId = config.originalId;
-		forwarded->_originalAuthor = config.authorOriginal;
-		forwarded->_savedFromPeer = App::peerLoaded(config.savedFromPeer);
-		forwarded->_savedFromMsgId = config.savedFromMsgId;
+		forwarded->originalDate = config.originalDate;
+		forwarded->originalSender = App::peer(config.senderOriginal);
+		forwarded->originalId = config.originalId;
+		forwarded->originalAuthor = config.authorOriginal;
+		forwarded->savedFromPeer = App::peerLoaded(config.savedFromPeer);
+		forwarded->savedFromMsgId = config.savedFromMsgId;
 	}
 	if (const auto markup = Get<HistoryMessageReplyMarkup>()) {
 		if (config.mtpMarkup) {
@@ -1224,7 +1067,7 @@ void HistoryMessage::replaceBuyWithReceiptInMarkup() {
 	if (auto markup = inlineReplyMarkup()) {
 		for (auto &row : markup->rows) {
 			for (auto &button : row) {
-				if (button.type == HistoryMessageReplyMarkup::Button::Type::Buy) {
+				if (button.type == HistoryMessageMarkupButton::Type::Buy) {
 					button.text = lang(lng_payments_receipt_button);
 				}
 			}
@@ -1314,7 +1157,7 @@ void HistoryMessage::initDimensions() {
 					+ displayFrom()->nameText.maxWidth()
 					+ st::msgPadding.right();
 				if (via && !forwarded) {
-					namew += st::msgServiceFont->spacew + via->_maxWidth;
+					namew += st::msgServiceFont->spacew + via->maxWidth;
 				}
 				if (_flags & MTPDmessage_ClientFlag::f_has_admin_badge) {
 					auto badgeWidth = st::msgServiceFont->width(
@@ -1323,19 +1166,19 @@ void HistoryMessage::initDimensions() {
 				}
 				accumulate_max(_maxw, namew);
 			} else if (via && !forwarded) {
-				accumulate_max(_maxw, st::msgPadding.left() + via->_maxWidth + st::msgPadding.right());
+				accumulate_max(_maxw, st::msgPadding.left() + via->maxWidth + st::msgPadding.right());
 			}
 			if (forwarded) {
-				auto namew = st::msgPadding.left() + forwarded->_text.maxWidth() + st::msgPadding.right();
+				auto namew = st::msgPadding.left() + forwarded->text.maxWidth() + st::msgPadding.right();
 				if (via) {
-					namew += st::msgServiceFont->spacew + via->_maxWidth;
+					namew += st::msgServiceFont->spacew + via->maxWidth;
 				}
 				accumulate_max(_maxw, namew);
 			}
 			if (reply) {
-				auto replyw = st::msgPadding.left() + reply->_maxReplyWidth - st::msgReplyPadding.left() - st::msgReplyPadding.right() + st::msgPadding.right();
-				if (reply->_replyToVia) {
-					replyw += st::msgServiceFont->spacew + reply->_replyToVia->_maxWidth;
+				auto replyw = st::msgPadding.left() + reply->maxReplyWidth - st::msgReplyPadding.left() - st::msgReplyPadding.right() + st::msgPadding.right();
+				if (reply->replyToVia) {
+					replyw += st::msgServiceFont->spacew + reply->replyToVia->maxWidth;
 				}
 				accumulate_max(_maxw, replyw);
 			}
@@ -1486,11 +1329,11 @@ void HistoryMessage::refreshEditedBadge() {
 	if (edited) {
 		edited->refresh(dateText, !editDate.isNull());
 	}
-	if (auto msgsigned = Get<HistoryMessageSigned>()) {
+	if (const auto msgsigned = Get<HistoryMessageSigned>()) {
 		const auto text = (!edited || editDate.isNull())
 			? dateText
 			: edited->text.originalText();
-		msgsigned->create(msgsigned->_author, text);
+		msgsigned->refresh(text);
 	}
 	initTime();
 }
@@ -1504,7 +1347,7 @@ bool HistoryMessage::displayForwardedFrom() const {
 			|| !_media
 			|| !_media->isDisplayed()
 			|| !_media->hideForwardedFrom()
-			|| forwarded->_originalSender->isChannel();
+			|| forwarded->originalSender->isChannel();
 	}
 	return false;
 }
@@ -1604,7 +1447,7 @@ TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {
 	}
 	if (auto forwarded = Get<HistoryMessageForwarded>()) {
 		if (selection == FullSelection) {
-			auto fwdinfo = forwarded->_text.originalTextWithEntities(AllTextSelection, ExpandLinksAll);
+			auto fwdinfo = forwarded->text.originalTextWithEntities(AllTextSelection, ExpandLinksAll);
 			auto wrapped = TextWithEntities();
 			wrapped.text.reserve(fwdinfo.text.size() + 4 + result.text.size());
 			wrapped.entities.reserve(fwdinfo.entities.size() + result.entities.size());
@@ -1795,7 +1638,7 @@ void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, int32 width
 	dateX += HistoryMessage::timeLeft();
 
 	if (const auto msgsigned = Get<HistoryMessageSigned>()) {
-		msgsigned->_signature.drawElided(p, dateX, dateY, _timeWidth);
+		msgsigned->signature.drawElided(p, dateX, dateY, _timeWidth);
 	} else if (const auto edited = displayedEditBadge()) {
 		edited->text.drawElided(p, dateX, dateY, _timeWidth);
 	} else {
@@ -2062,8 +1905,8 @@ void HistoryMessage::paintFromName(Painter &p, QRect &trect, bool selected) cons
 		if (via && !forwarded && availableWidth > 0) {
 			auto outbg = hasOutLayout();
 			p.setPen(selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg));
-			p.drawText(availableLeft, trect.top() + st::msgServiceFont->ascent, via->_text);
-			auto skipWidth = via->_width + st::msgServiceFont->spacew;
+			p.drawText(availableLeft, trect.top() + st::msgServiceFont->ascent, via->text);
+			auto skipWidth = via->width + st::msgServiceFont->spacew;
 			availableLeft += skipWidth;
 			availableWidth -= skipWidth;
 		}
@@ -2088,12 +1931,12 @@ void HistoryMessage::paintForwardedInfo(Painter &p, QRect &trect, bool selected)
 		p.setFont(serviceFont);
 
 		auto forwarded = Get<HistoryMessageForwarded>();
-		auto breakEverywhere = (forwarded->_text.countHeight(trect.width()) > 2 * serviceFont->height);
+		auto breakEverywhere = (forwarded->text.countHeight(trect.width()) > 2 * serviceFont->height);
 		p.setTextPalette(selected ? (outbg ? st::outFwdTextPaletteSelected : st::inFwdTextPaletteSelected) : (outbg ? st::outFwdTextPalette : st::inFwdTextPalette));
-		forwarded->_text.drawElided(p, trect.x(), trect.y(), trect.width(), 2, style::al_left, 0, -1, 0, breakEverywhere);
+		forwarded->text.drawElided(p, trect.x(), trect.y(), trect.width(), 2, style::al_left, 0, -1, 0, breakEverywhere);
 		p.setTextPalette(selected ? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected) : (outbg ? st::outTextPalette : st::inTextPalette));
 
-		trect.setY(trect.y() + (((forwarded->_text.maxWidth() > trect.width()) ? 2 : 1) * serviceFont->height));
+		trect.setY(trect.y() + (((forwarded->text.maxWidth() > trect.width()) ? 2 : 1) * serviceFont->height));
 	}
 }
 
@@ -2116,7 +1959,7 @@ void HistoryMessage::paintViaBotIdInfo(Painter &p, QRect &trect, bool selected) 
 		if (auto via = Get<HistoryMessageVia>()) {
 			p.setFont(st::msgServiceNameFont);
 			p.setPen(selected ? (hasOutLayout() ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (hasOutLayout() ? st::msgOutServiceFg : st::msgInServiceFg));
-			p.drawTextLeft(trect.left(), trect.top(), width(), via->_text);
+			p.drawTextLeft(trect.left(), trect.top(), width(), via->text);
 			trect.setY(trect.y() + st::msgServiceNameFont->height);
 		}
 	}
@@ -2236,7 +2079,7 @@ int HistoryMessage::performResizeGetHeight() {
 		}
 
 		if (displayForwardedFrom()) {
-			auto fwdheight = ((forwarded->_text.maxWidth() > (countGeometry().width() - st::msgPadding.left() - st::msgPadding.right())) ? 2 : 1) * st::semiboldFont->height;
+			auto fwdheight = ((forwarded->text.maxWidth() > (countGeometry().width() - st::msgPadding.left() - st::msgPadding.right())) ? 2 : 1) * st::semiboldFont->height;
 			_height += fwdheight;
 		}
 
@@ -2403,8 +2246,8 @@ ClickHandlerPtr HistoryMessage::rightActionLink() const {
 	if (!_rightActionLink) {
 		const auto itemId = fullId();
 		const auto forwarded = Get<HistoryMessageForwarded>();
-		const auto savedFromPeer = forwarded ? forwarded->_savedFromPeer : nullptr;
-		const auto savedFromMsgId = forwarded ? forwarded->_savedFromMsgId : 0;
+		const auto savedFromPeer = forwarded ? forwarded->savedFromPeer : nullptr;
+		const auto savedFromMsgId = forwarded ? forwarded->savedFromMsgId : 0;
 		_rightActionLink = std::make_shared<LambdaClickHandler>([=] {
 			if (auto item = App::histItemById(itemId)) {
 				if (savedFromPeer && savedFromMsgId) {
@@ -2442,7 +2285,7 @@ void HistoryMessage::updatePressed(QPoint point) {
 			if (displayFromName()) trect.setTop(trect.top() + st::msgNameFont->height);
 			if (displayForwardedFrom()) {
 				auto forwarded = Get<HistoryMessageForwarded>();
-				auto fwdheight = ((forwarded->_text.maxWidth() > trect.width()) ? 2 : 1) * st::semiboldFont->height;
+				auto fwdheight = ((forwarded->text.maxWidth() > trect.width()) ? 2 : 1) * st::semiboldFont->height;
 				trect.setTop(trect.top() + fwdheight);
 			}
 			if (Get<HistoryMessageReply>()) {
@@ -2485,8 +2328,8 @@ bool HistoryMessage::getStateFromName(
 			}
 			auto forwarded = Get<HistoryMessageForwarded>();
 			auto via = Get<HistoryMessageVia>();
-			if (via && !forwarded && point.x() >= trect.left() + author()->nameText.maxWidth() + st::msgServiceFont->spacew && point.x() < trect.left() + user->nameText.maxWidth() + st::msgServiceFont->spacew + via->_width) {
-				outResult->link = via->_lnk;
+			if (via && !forwarded && point.x() >= trect.left() + author()->nameText.maxWidth() + st::msgServiceFont->spacew && point.x() < trect.left() + user->nameText.maxWidth() + st::msgServiceFont->spacew + via->width) {
+				outResult->link = via->link;
 				return true;
 			}
 		}
@@ -2502,14 +2345,14 @@ bool HistoryMessage::getStateForwardedInfo(
 		const HistoryStateRequest &request) const {
 	if (displayForwardedFrom()) {
 		auto forwarded = Get<HistoryMessageForwarded>();
-		auto fwdheight = ((forwarded->_text.maxWidth() > trect.width()) ? 2 : 1) * st::semiboldFont->height;
+		auto fwdheight = ((forwarded->text.maxWidth() > trect.width()) ? 2 : 1) * st::semiboldFont->height;
 		if (point.y() >= trect.top() && point.y() < trect.top() + fwdheight) {
-			auto breakEverywhere = (forwarded->_text.countHeight(trect.width()) > 2 * st::semiboldFont->height);
+			auto breakEverywhere = (forwarded->text.countHeight(trect.width()) > 2 * st::semiboldFont->height);
 			auto textRequest = request.forText();
 			if (breakEverywhere) {
 				textRequest.flags |= Text::StateRequest::Flag::BreakEverywhere;
 			}
-			*outResult = HistoryTextState(this, forwarded->_text.getState(
+			*outResult = HistoryTextState(this, forwarded->text.getState(
 				point - trect.topLeft(),
 				trect.width(),
 				textRequest));
@@ -2550,8 +2393,8 @@ bool HistoryMessage::getStateViaBotIdInfo(
 		not_null<HistoryTextState*> outResult) const {
 	if (!displayFromName() && !Has<HistoryMessageForwarded>()) {
 		if (auto via = Get<HistoryMessageVia>()) {
-			if (QRect(trect.x(), trect.y(), via->_width, st::msgNameFont->height).contains(point)) {
-				outResult->link = via->_lnk;
+			if (QRect(trect.x(), trect.y(), via->width, st::msgNameFont->height).contains(point)) {
+				outResult->link = via->link;
 				return true;
 			}
 			trect.setTop(trect.top() + st::msgNameFont->height);

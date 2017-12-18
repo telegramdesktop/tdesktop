@@ -74,6 +74,7 @@ class BotKeyboard;
 class MessageField;
 class HistoryInner;
 class HistoryTopBarWidget;
+struct HistoryMessageMarkupButton;
 
 class ReportSpamPanel : public TWidget {
 	Q_OBJECT
@@ -332,7 +333,11 @@ public:
 	bool wheelEventFromFloatPlayer(QEvent *e) override;
 	QRect rectForFloatPlayer() const override;
 
-	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, not_null<const HistoryItem*> msg, int row, int col);
+	void app_sendBotCallback(
+		not_null<const HistoryMessageMarkupButton*> button,
+		not_null<const HistoryItem*> msg,
+		int row,
+		int column);
 
 	PeerData *ui_getPeerForMouseAction();
 

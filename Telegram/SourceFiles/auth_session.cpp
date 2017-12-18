@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/localstorage.h"
 #include "storage/storage_facade.h"
 #include "storage/serialize_common.h"
+#include "history/history_item_components.h"
 #include "window/notifications_manager.h"
 #include "platform/platform_specific.h"
 #include "calls/calls_instance.h"

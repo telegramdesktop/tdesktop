@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_message.h"
 #include "history/history_service_layout.h"
 #include "history/history_media_types.h"
+#include "history/history_item_components.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
 #include "window/window_peer_menu.h"
@@ -2774,21 +2775,22 @@ void HistoryInner::applyDragSelection(
 
 QString HistoryInner::tooltipText() const {
 	if (_mouseCursorState == HistoryInDateCursorState && _mouseAction == MouseAction::None) {
-		if (App::hoveredItem()) {
-			auto dateText = App::hoveredItem()->date.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat));
-			auto editedDate = App::hoveredItem()->displayedEditDate();
+		if (const auto item = App::hoveredItem()) {
+			auto dateText = item->date.toString(
+				QLocale::system().dateTimeFormat(QLocale::LongFormat));
+			auto editedDate = item->displayedEditDate();
 			if (!editedDate.isNull()) {
 				dateText += '\n' + lng_edited_date(lt_date, editedDate.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)));
 			}
-			if (auto forwarded = App::hoveredItem()->Get<HistoryMessageForwarded>()) {
-				dateText += '\n' + lng_forwarded_date(lt_date, forwarded->_originalDate.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)));
+			if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+				dateText += '\n' + lng_forwarded_date(lt_date, forwarded->originalDate.toString(QLocale::system().dateTimeFormat(QLocale::LongFormat)));
 			}
 			return dateText;
 		}
 	} else if (_mouseCursorState == HistoryInForwardedCursorState && _mouseAction == MouseAction::None) {
-		if (App::hoveredItem()) {
-			if (auto forwarded = App::hoveredItem()->Get<HistoryMessageForwarded>()) {
-				return forwarded->_text.originalText(AllTextSelection, ExpandLinksNone);
+		if (const auto item = App::hoveredItem()) {
+			if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+				return forwarded->text.originalText(AllTextSelection, ExpandLinksNone);
 			}
 		}
 	} else if (auto lnk = ClickHandler::getActive()) {

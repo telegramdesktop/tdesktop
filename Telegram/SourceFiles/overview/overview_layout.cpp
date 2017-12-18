@@ -35,6 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/player/media_player_instance.h"
 #include "storage/localstorage.h"
 #include "history/history_media_types.h"
+#include "history/history_item_components.h"
 #include "ui/effects/round_checkbox.h"
 
 namespace Overview {
@@ -751,7 +752,7 @@ const style::RoundCheckbox &Voice::checkboxStyle() const {
 
 void Voice::updateName() {
 	auto version = 0;
-	if (auto forwarded = parent()->Get<HistoryMessageForwarded>()) {
+	if (const auto forwarded = parent()->Get<HistoryMessageForwarded>()) {
 		if (parent()->fromOriginal()->isChannel()) {
 			_name.setText(st::semiboldTextStyle, lng_forwarded_channel(lt_channel, App::peerName(parent()->fromOriginal())), _textNameOptions);
 		} else {
