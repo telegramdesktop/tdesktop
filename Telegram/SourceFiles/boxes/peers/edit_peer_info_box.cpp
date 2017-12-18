@@ -814,7 +814,8 @@ object_ptr<Ui::RpWidget> Controller::createHistoryVisibilityEdit() {
 	auto channel = _peer->asChannel();
 	if (!channel
 		|| !channel->canEditPreHistoryHidden()
-		|| !channel->isMegagroup()) {
+		|| !channel->isMegagroup()
+		|| (channel->isPublic() && !channel->canEditUsername())) {
 		return nullptr;
 	}
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
