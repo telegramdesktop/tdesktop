@@ -1646,7 +1646,10 @@ void AdjustMarkdownPrePart(MarkdownPart &result, const TextWithEntities &text, b
 	result.addNewlineAfter = (result.outerEnd < length && !chIsNewline(*(start + result.outerEnd)));
 }
 
-void ParseMarkdown(TextWithEntities &result, bool rich) {
+void ParseMarkdown(
+		TextWithEntities &result,
+		const EntitiesInText &linkEntities,
+		bool rich) {
 	if (result.empty()) {
 		return;
 	}
@@ -1707,7 +1710,13 @@ void ParseMarkdown(TextWithEntities &result, bool rich) {
 		}
 
 		// Check if start sequence intersects a command.
-		auto inCommand = checkTagStartInCommand(start, length, part.outerStart, nextCommandOffset, commandIsLink, inLink);
+		auto inCommand = checkTagStartInCommand(
+			start,
+			length,
+			part.outerStart,
+			nextCommandOffset,
+			commandIsLink,
+			inLink);
 		if (inCommand || inLink) {
 			matchFromOffset = nextCommandOffset;
 			continue;
@@ -1722,6 +1731,19 @@ void ParseMarkdown(TextWithEntities &result, bool rich) {
 				break;
 			}
 		}
+
+		// Check if any of sequence outer edges are inside a link.
+		for_const (auto &entity, linkEntities) {
+			const auto startIntersects = (part.outerStart >= entity.offset())
+				&& (part.outerStart < entity.offset() + entity.length());
+			const auto endIntersects = (part.outerEnd > entity.offset())
+				&& (part.outerEnd <= entity.offset() + entity.length());
+			if (startIntersects || endIntersects) {
+				intersectedEntityEnd = entity.offset() + entity.length();
+				break;
+			}
+		}
+
 		if (intersectedEntityEnd > 0) {
 			matchFromOffset = qMax(part.innerStart, intersectedEntityEnd);
 			continue;
@@ -1772,7 +1794,9 @@ void ParseMarkdown(TextWithEntities &result, bool rich) {
 // Some code is duplicated in flattextarea.cpp!
 void ParseEntities(TextWithEntities &result, int32 flags, bool rich) {
 	if (flags & TextParseMarkdown) { // parse markdown entities (bold, italic, code and pre)
-		ParseMarkdown(result, rich);
+		auto copy = TextWithEntities{ result.text, EntitiesInText() };
+		ParseEntities(copy, TextParseLinks, false);
+		ParseMarkdown(result, copy.entities, rich);
 	}
 
 	auto newEntities = EntitiesInText();
