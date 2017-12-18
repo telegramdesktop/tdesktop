@@ -80,10 +80,7 @@ public:
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 
-	int resizeGetHeight(int width) override {
-		_width = width;
-		return _minh;
-	}
+	int resizeGetHeight(int width) override;
 
 private:
 	QSize countFrameSize() const;
@@ -306,7 +303,6 @@ public:
 	Contact(not_null<Context*> context, Result *result);
 
 	void initDimensions() override;
-	int resizeGetHeight(int width) override;
 
 	void paint(Painter &p, const QRect &clip, const PaintContext *context) const override;
 	HistoryTextState getState(

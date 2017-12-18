@@ -134,6 +134,12 @@ void DeleteSavedGifClickHandler::onClickImpl() const {
 	Auth().data().markSavedGifsUpdated();
 }
 
+int Gif::resizeGetHeight(int width) {
+	_width = width;
+	_height = _minh;
+	return _height;
+}
+
 void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	DocumentData *document = getShownDocument();
 	document->automaticLoad(nullptr);
@@ -919,12 +925,6 @@ void Contact::initDimensions() {
 
 	_minh = st::msgFileSize;
 	_minh += st::inlineRowMargin * 2 + st::inlineRowBorder;
-}
-
-int32 Contact::resizeGetHeight(int32 width) {
-	_width = qMin(width, _maxw);
-	_height = _minh;
-	return _height;
 }
 
 void Contact::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
