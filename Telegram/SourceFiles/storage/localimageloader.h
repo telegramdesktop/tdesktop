@@ -114,8 +114,6 @@ public:
 	}
 
 };
-using TaskPtr = std::shared_ptr<Task>;
-using TasksList = QList<TaskPtr>;
 
 class TaskQueueWorker;
 class TaskQueue : public QObject {
@@ -124,8 +122,8 @@ class TaskQueue : public QObject {
 public:
 	TaskQueue(QObject *parent, int32 stopTimeoutMs = 0); // <= 0 - never stop worker
 
-	TaskId addTask(TaskPtr task);
-	void addTasks(const TasksList &tasks);
+	TaskId addTask(std::unique_ptr<Task> &&task);
+	void addTasks(std::vector<std::unique_ptr<Task>> &&tasks);
 	void cancelTask(TaskId id); // this task finish() won't be called
 
 	~TaskQueue();
@@ -142,7 +140,9 @@ private:
 
 	void wakeThread();
 
-	TasksList _tasksToProcess, _tasksToFinish;
+	std::deque<std::unique_ptr<Task>> _tasksToProcess;
+	std::deque<std::unique_ptr<Task>> _tasksToFinish;
+	TaskId _taskInProcessId = TaskId();
 	QMutex _tasksToProcessMutex, _tasksToFinishMutex;
 	QThread *_thread;
 	TaskQueueWorker *_worker;

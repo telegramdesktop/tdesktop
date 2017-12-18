@@ -59,7 +59,7 @@ protected:
 		int left, width;
 		QString label;
 		int labelWidth;
-		std::shared_ptr<RippleAnimation> ripple;
+		std::unique_ptr<RippleAnimation> ripple;
 	};
 
 	int getCurrentActiveLeft(TimeMs ms);
@@ -91,7 +91,7 @@ private:
 	int getIndexFromPosition(QPoint pos);
 	void setSelectedSection(int index);
 
-	QList<Section> _sections;
+	std::vector<Section> _sections;
 	int _activeIndex = 0;
 	bool _selectOnPress = true;
 

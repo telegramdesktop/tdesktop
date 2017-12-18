@@ -365,7 +365,7 @@ private:
 		LinkEntry(const QString &url, const QString &text);
 		QString text;
 		int32 width;
-		TextClickHandlerPtr lnk;
+		std::shared_ptr<TextClickHandler> lnk;
 	};
 	QVector<LinkEntry> _links;
 

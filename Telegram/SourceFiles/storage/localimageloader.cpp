@@ -48,21 +48,24 @@ TaskQueue::TaskQueue(QObject *parent, int32 stopTimeoutMs) : QObject(parent), _t
 	}
 }
 
-TaskId TaskQueue::addTask(TaskPtr task) {
+TaskId TaskQueue::addTask(std::unique_ptr<Task> &&task) {
+	const auto result = task->id();
 	{
 		QMutexLocker lock(&_tasksToProcessMutex);
-		_tasksToProcess.push_back(task);
+		_tasksToProcess.push_back(std::move(task));
 	}
 
 	wakeThread();
 
-	return task->id();
+	return result;
 }
 
-void TaskQueue::addTasks(const TasksList &tasks) {
+void TaskQueue::addTasks(std::vector<std::unique_ptr<Task>> &&tasks) {
 	{
 		QMutexLocker lock(&_tasksToProcessMutex);
-		_tasksToProcess.append(tasks);
+		for (auto &task : tasks) {
+			_tasksToProcess.push_back(std::move(task));
+		}
 	}
 
 	wakeThread();
@@ -85,31 +88,33 @@ void TaskQueue::wakeThread() {
 }
 
 void TaskQueue::cancelTask(TaskId id) {
+	const auto removeFrom = [&](std::deque<std::unique_ptr<Task>> &queue) {
+		const auto proj = [](const std::unique_ptr<Task> &task) {
+			return task->id();
+		};
+		auto i = ranges::find(queue, id, proj);
+		if (i != queue.end()) {
+			queue.erase(i);
+		}
+	};
 	{
 		QMutexLocker lock(&_tasksToProcessMutex);
-		for (int32 i = 0, l = _tasksToProcess.size(); i != l; ++i) {
-			if (_tasksToProcess.at(i)->id() == id) {
-				_tasksToProcess.removeAt(i);
-				return;
-			}
+		removeFrom(_tasksToProcess);
+		if (_taskInProcessId == id) {
+			_taskInProcessId = TaskId();
 		}
 	}
 	QMutexLocker lock(&_tasksToFinishMutex);
-	for (int32 i = 0, l = _tasksToFinish.size(); i != l; ++i) {
-		if (_tasksToFinish.at(i)->id() == id) {
-			_tasksToFinish.removeAt(i);
-			return;
-		}
-	}
+	removeFrom(_tasksToFinish);
 }
 
 void TaskQueue::onTaskProcessed() {
 	do {
-		TaskPtr task;
+		auto task = std::unique_ptr<Task>();
 		{
 			QMutexLocker lock(&_tasksToFinishMutex);
-			if (_tasksToFinish.isEmpty()) break;
-			task = _tasksToFinish.front();
+			if (_tasksToFinish.empty()) break;
+			task = std::move(_tasksToFinish.front());
 			_tasksToFinish.pop_front();
 		}
 		task->finish();
@@ -117,7 +122,7 @@ void TaskQueue::onTaskProcessed() {
 
 	if (_stopTimer) {
 		QMutexLocker lock(&_tasksToProcessMutex);
-		if (_tasksToProcess.isEmpty()) {
+		if (_tasksToProcess.empty() && !_taskInProcessId) {
 			_stopTimer->start();
 		}
 	}
@@ -136,6 +141,7 @@ void TaskQueue::stop() {
 	}
 	_tasksToProcess.clear();
 	_tasksToFinish.clear();
+	_taskInProcessId = TaskId();
 }
 
 TaskQueue::~TaskQueue() {
@@ -149,11 +155,13 @@ void TaskQueueWorker::onTaskAdded() {
 
 	bool someTasksLeft = false;
 	do {
-		TaskPtr task;
+		auto task = std::unique_ptr<Task>();
 		{
 			QMutexLocker lock(&_queue->_tasksToProcessMutex);
-			if (!_queue->_tasksToProcess.isEmpty()) {
-				task = _queue->_tasksToProcess.front();
+			if (!_queue->_tasksToProcess.empty()) {
+				task = std::move(_queue->_tasksToProcess.front());
+				_queue->_tasksToProcess.pop_front();
+				_queue->_taskInProcessId = task->id();
 			}
 		}
 
@@ -162,13 +170,13 @@ void TaskQueueWorker::onTaskAdded() {
 			bool emitTaskProcessed = false;
 			{
 				QMutexLocker lockToProcess(&_queue->_tasksToProcessMutex);
-				if (!_queue->_tasksToProcess.isEmpty() && _queue->_tasksToProcess.front() == task) {
-					_queue->_tasksToProcess.pop_front();
-					someTasksLeft = !_queue->_tasksToProcess.isEmpty();
+				if (_queue->_taskInProcessId == task->id()) {
+					_queue->_taskInProcessId = TaskId();
+					someTasksLeft = !_queue->_tasksToProcess.empty();
 
 					QMutexLocker lockToFinish(&_queue->_tasksToFinishMutex);
-					emitTaskProcessed = _queue->_tasksToFinish.isEmpty();
-					_queue->_tasksToFinish.push_back(task);
+					emitTaskProcessed = _queue->_tasksToFinish.empty();
+					_queue->_tasksToFinish.push_back(std::move(task));
 				}
 			}
 			if (emitTaskProcessed) {

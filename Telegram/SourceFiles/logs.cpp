@@ -114,7 +114,7 @@ public:
 	}
 
 private:
-	std::shared_ptr<QFile> files[LogDataCount];
+	std::unique_ptr<QFile> files[LogDataCount];
 	QTextStream streams[LogDataCount];
 
 	int32 part = -1;
@@ -136,7 +136,7 @@ private:
 			if (postfix.isEmpty()) { // instance checked, need to move to log.txt
 				Assert(!files[type]->fileName().isEmpty()); // one of log_startXX.txt should've been opened already
 
-				std::shared_ptr<QFile> to = std::make_shared<QFile>(_logsFilePath(type, postfix));
+				auto to = std::make_unique<QFile>(_logsFilePath(type, postfix));
 				if (to->exists() && !to->remove()) {
 					LOG(("Could not delete '%1' file to start new logging!").arg(to->fileName()));
 					return false;

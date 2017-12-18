@@ -165,9 +165,7 @@ void createLocalKey(const QByteArray &pass, QByteArray *salt, MTP::AuthKeyPtr *r
 }
 
 struct FileReadDescriptor {
-	FileReadDescriptor() : version(0) {
-	}
-	int32 version;
+	int32 version = 0;
 	QByteArray data;
 	QBuffer buffer;
 	QDataStream stream;
@@ -2854,7 +2852,8 @@ TaskId startImageLoad(const StorageKey &location, mtpFileLoader *loader) {
 	if (j == _imagesMap.cend() || !_localLoader) {
 		return 0;
 	}
-	return _localLoader->addTask(std::make_shared<ImageLoadTask>(j->first, location, loader));
+	return _localLoader->addTask(
+		std::make_unique<ImageLoadTask>(j->first, location, loader));
 }
 
 int32 hasImages() {
@@ -2912,7 +2911,8 @@ TaskId startStickerImageLoad(const StorageKey &location, mtpFileLoader *loader) 
 	if (j == _stickerImagesMap.cend() || !_localLoader) {
 		return 0;
 	}
-	return _localLoader->addTask(std::make_shared<StickerImageLoadTask>(j->first, location, loader));
+	return _localLoader->addTask(
+		std::make_unique<StickerImageLoadTask>(j->first, location, loader));
 }
 
 bool willStickerImageLoad(const StorageKey &location) {
@@ -2985,7 +2985,8 @@ TaskId startAudioLoad(const StorageKey &location, mtpFileLoader *loader) {
 	if (j == _audiosMap.cend() || !_localLoader) {
 		return 0;
 	}
-	return _localLoader->addTask(std::make_shared<AudioLoadTask>(j->first, location, loader));
+	return _localLoader->addTask(
+		std::make_unique<AudioLoadTask>(j->first, location, loader));
 }
 
 bool copyAudio(const StorageKey &oldLocation, const StorageKey &newLocation) {
@@ -3101,7 +3102,8 @@ TaskId startWebFileLoad(const QString &url, webFileLoader *loader) {
 	if (j == _webFilesMap.cend() || !_localLoader) {
 		return 0;
 	}
-	return _localLoader->addTask(std::make_shared<WebFileLoadTask>(j->first, url, loader));
+	return _localLoader->addTask(
+		std::make_unique<WebFileLoadTask>(j->first, url, loader));
 }
 
 int32 hasWebFiles() {
@@ -3177,7 +3179,8 @@ void countVoiceWaveform(DocumentData *document) {
 		if (_localLoader) {
 			voice->waveform.resize(1 + sizeof(TaskId));
 			voice->waveform[0] = -1; // counting
-			TaskId taskId = _localLoader->addTask(std::make_shared<CountWaveformTask>(document));
+			TaskId taskId = _localLoader->addTask(
+				std::make_unique<CountWaveformTask>(document));
 			memcpy(voice->waveform.data() + 1, &taskId, sizeof(taskId));
 		}
 	}

@@ -97,7 +97,6 @@ private:
 	QString _originalUrl, _readable;
 
 };
-using TextClickHandlerPtr = std::shared_ptr<TextClickHandler>;
 
 class HiddenUrlClickHandler : public UrlClickHandler {
 public:

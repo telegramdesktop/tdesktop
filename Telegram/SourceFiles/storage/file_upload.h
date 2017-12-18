@@ -117,28 +117,28 @@ private:
 
 		HashMd5 md5Hash;
 
-		std::shared_ptr<QFile> docFile;
+		std::unique_ptr<QFile> docFile;
 		int32 docSentParts;
 		int32 docSize;
 		int32 docPartSize;
 		int32 docPartsCount;
 	};
-	typedef QMap<FullMsgId, File> Queue;
 
 	void partLoaded(const MTPBool &result, mtpRequestId requestId);
 	bool partFailed(const RPCError &err, mtpRequestId requestId);
 
 	void currentFailed();
 
-	QMap<mtpRequestId, QByteArray> requestsSent;
-	QMap<mtpRequestId, int32> docRequestsSent;
-	QMap<mtpRequestId, int32> dcMap;
+	base::flat_map<mtpRequestId, QByteArray> requestsSent;
+	base::flat_map<mtpRequestId, int32> docRequestsSent;
+	base::flat_map<mtpRequestId, int32> dcMap;
 	uint32 sentSize = 0;
 	uint32 sentSizes[MTP::kUploadSessionsCount] = { 0 };
 
-	FullMsgId uploading, _paused;
-	Queue queue;
-	Queue uploaded;
+	FullMsgId uploadingId;
+	FullMsgId _pausedId;
+	std::map<FullMsgId, File> queue;
+	std::map<FullMsgId, File> uploaded;
 	QTimer nextTimer, killSessionsTimer;
 
 };

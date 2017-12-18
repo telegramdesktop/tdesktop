@@ -253,10 +253,8 @@ struct HistoryMessageReplyMarkup : public RuntimeComponent<HistoryMessageReplyMa
 		QByteArray data;
 		mutable mtpRequestId requestId;
 	};
-	using ButtonRow = QVector<Button>;
-	using ButtonRows = QVector<ButtonRow>;
 
-	ButtonRows rows;
+	std::vector<std::vector<Button>> rows;
 	MTPDreplyKeyboardMarkup::Flags flags = 0;
 
 	std::unique_ptr<ReplyKeyboard> inlineKeyboard;
@@ -345,14 +343,15 @@ public:
 		friend class ReplyKeyboard;
 
 	};
-	typedef std::unique_ptr<Style> StylePtr;
 
-	ReplyKeyboard(const HistoryItem *item, StylePtr &&s);
+	ReplyKeyboard(
+		not_null<const HistoryItem*> item,
+		std::unique_ptr<Style> &&s);
 	ReplyKeyboard(const ReplyKeyboard &other) = delete;
 	ReplyKeyboard &operator=(const ReplyKeyboard &other) = delete;
 
 	bool isEnoughSpace(int width, const style::BotKeyboardButton &st) const;
-	void setStyle(StylePtr &&s);
+	void setStyle(std::unique_ptr<Style> &&s);
 	void resize(int width, int height);
 
 	// what width and height will best fit this keyboard
@@ -369,39 +368,39 @@ public:
 	void updateMessageId();
 
 private:
-	void startAnimation(int i, int j, int direction);
-
 	friend class Style;
-	using ReplyMarkupClickHandlerPtr = std::shared_ptr<ReplyMarkupClickHandler>;
 	struct Button {
+		Button();
+		Button(Button &&other);
+		Button &operator=(Button &&other);
+		~Button();
+
 		Text text = { 1 };
 		QRect rect;
 		int characters = 0;
 		float64 howMuchOver = 0.;
 		HistoryMessageReplyMarkup::Button::Type type;
-		ReplyMarkupClickHandlerPtr link;
-		mutable std::shared_ptr<Ui::RippleAnimation> ripple;
+		std::shared_ptr<ReplyMarkupClickHandler> link;
+		mutable std::unique_ptr<Ui::RippleAnimation> ripple;
 	};
-	using ButtonRow = QVector<Button>;
-	using ButtonRows = QVector<ButtonRow>;
-
 	struct ButtonCoords {
 		int i, j;
 	};
+
+	void startAnimation(int i, int j, int direction);
+
 	ButtonCoords findButtonCoordsByClickHandler(const ClickHandlerPtr &p);
 
-	using Animations = QMap<int, TimeMs>;
 	void step_selected(TimeMs ms, bool timer);
 
-	const HistoryItem *_item;
+	const not_null<const HistoryItem*> _item;
 	int _width = 0;
 
-	ButtonRows _rows;
+	std::vector<std::vector<Button>> _rows;
 
-	Animations _animations;
+	base::flat_map<int, TimeMs> _animations;
 	BasicAnimation _a_selected;
-
-	StylePtr _st;
+	std::unique_ptr<Style> _st;
 
 	ClickHandlerPtr _savedPressed;
 	ClickHandlerPtr _savedActive;

@@ -108,16 +108,18 @@ void BotKeyboard::leaveEventHook(QEvent *e) {
 }
 
 bool BotKeyboard::moderateKeyActivate(int key) {
-	if (auto item = App::histItemById(_wasForMsgId)) {
-		if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
+	if (const auto item = App::histItemById(_wasForMsgId)) {
+		if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 			if (key >= Qt::Key_1 && key <= Qt::Key_9) {
-				int index = (key - Qt::Key_1);
-				if (!markup->rows.isEmpty() && index >= 0 && index < markup->rows.front().size()) {
+				const auto index = int(key - Qt::Key_1);
+				if (!markup->rows.empty()
+					&& index >= 0
+					&& index < int(markup->rows.front().size())) {
 					App::activateBotCommand(item, 0, index);
 					return true;
 				}
 			} else if (key == Qt::Key_Q) {
-				if (auto user = item->history()->peer->asUser()) {
+				if (const auto user = item->history()->peer->asUser()) {
 					if (user->botInfo && item->from() == user) {
 						App::sendBotCommand(user, user, qsl("/translate"));
 						return true;
@@ -163,8 +165,10 @@ bool BotKeyboard::updateMarkup(HistoryItem *to, bool force) {
 
 	_impl = nullptr;
 	if (auto markup = to->Get<HistoryMessageReplyMarkup>()) {
-		if (!markup->rows.isEmpty()) {
-			_impl.reset(new ReplyKeyboard(to, std::make_unique<Style>(this, *_st)));
+		if (!markup->rows.empty()) {
+			_impl = std::make_unique<ReplyKeyboard>(
+				to,
+				std::make_unique<Style>(this, *_st));
 		}
 	}
 

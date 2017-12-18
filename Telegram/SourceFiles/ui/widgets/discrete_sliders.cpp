@@ -91,7 +91,8 @@ void DiscreteSlider::setSections(const QStringList &labels) {
 }
 
 int DiscreteSlider::getCurrentActiveLeft(TimeMs ms) {
-	return _a_left.current(ms, _sections.isEmpty() ? 0 : _sections[_selected].left);
+	const auto left = _sections.empty() ? 0 : _sections[_selected].left;
+	return _a_left.current(ms, left);
 }
 
 template <typename Lambda>
@@ -253,9 +254,13 @@ void SettingsSlider::startRipple(int sectionIndex) {
 		if (index++ == sectionIndex) {
 			if (!section.ripple) {
 				auto mask = prepareRippleMask(sectionIndex, section);
-				section.ripple = std::make_shared<RippleAnimation>(_st.ripple, std::move(mask), [this] { update(); });
+				section.ripple = std::make_unique<RippleAnimation>(
+					_st.ripple,
+					std::move(mask),
+					[this] { update(); });
 			}
-			section.ripple->add(mapFromGlobal(QCursor::pos()) - QPoint(section.left, 0));
+			const auto point = mapFromGlobal(QCursor::pos());
+			section.ripple->add(point - QPoint(section.left, 0));
 			return false;
 		}
 		return true;

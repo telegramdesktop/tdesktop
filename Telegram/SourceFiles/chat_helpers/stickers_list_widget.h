@@ -138,15 +138,22 @@ private:
 	};
 
 	struct Set {
-		Set(uint64 id, MTPDstickerSet::Flags flags, const QString &title, int32 hoversSize, const Stickers::Pack &pack = Stickers::Pack()) : id(id), flags(flags), title(title), pack(pack) {
-		}
+		Set(
+			uint64 id,
+			MTPDstickerSet::Flags flags,
+			const QString &title,
+			int hoversSize,
+			const Stickers::Pack &pack = Stickers::Pack());
+		Set(Set &&other);
+		Set &operator=(Set &&other);
+		~Set();
+
 		uint64 id;
 		MTPDstickerSet::Flags flags;
 		QString title;
 		Stickers::Pack pack;
-		std::shared_ptr<Ui::RippleAnimation> ripple;
+		std::unique_ptr<Ui::RippleAnimation> ripple;
 	};
-	using Sets = QList<Set>;
 
 	template <typename Callback>
 	bool enumerateSections(Callback callback) const;
@@ -172,7 +179,7 @@ private:
 	void updateSelected();
 	void setSelected(OverState newSelected);
 	void setPressed(OverState newPressed);
-	std::shared_ptr<Ui::RippleAnimation> createButtonRipple(int section);
+	std::unique_ptr<Ui::RippleAnimation> createButtonRipple(int section);
 	QPoint buttonRippleTopLeft(int section) const;
 
 	enum class ValidateIconAnimations {
@@ -182,10 +189,10 @@ private:
 	};
 	void validateSelectedIcon(ValidateIconAnimations animations);
 
-	Sets &shownSets() {
+	std::vector<Set> &shownSets() {
 		return (_section == Section::Featured) ? _featuredSets : _mySets;
 	}
-	const Sets &shownSets() const {
+	const std::vector<Set> &shownSets() const {
 		return (_section == Section::Featured) ? _featuredSets : _mySets;
 	}
 	int featuredRowHeight() const;
@@ -210,7 +217,10 @@ private:
 		Archived,
 		Installed,
 	};
-	void appendSet(Sets &to, uint64 setId, AppendSkip skip = AppendSkip::None);
+	void appendSet(
+		std::vector<Set> &to,
+		uint64 setId,
+		AppendSkip skip = AppendSkip::None);
 
 	void selectEmoji(EmojiPtr emoji);
 	int stickersLeft() const;
@@ -222,10 +232,10 @@ private:
 	void refreshFooterIcons();
 
 	ChannelData *_megagroupSet = nullptr;
-	Sets _mySets;
-	Sets _featuredSets;
-	OrderedSet<uint64> _installedLocallySets;
-	QList<bool> _custom;
+	std::vector<Set> _mySets;
+	std::vector<Set> _featuredSets;
+	base::flat_set<uint64> _installedLocallySets;
+	std::vector<bool> _custom;
 	base::flat_set<not_null<DocumentData*>> _favedStickersMap;
 
 	Section _section = Section::Stickers;

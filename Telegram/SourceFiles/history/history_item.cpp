@@ -128,33 +128,43 @@ QString ReplyMarkupClickHandler::buttonText() const {
 	return QString();
 }
 
-ReplyKeyboard::ReplyKeyboard(const HistoryItem *item, StylePtr &&s)
-	: _item(item)
-	, _a_selected(animation(this, &ReplyKeyboard::step_selected))
-	, _st(std::move(s)) {
-	if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
+ReplyKeyboard::Button::Button() = default;
+ReplyKeyboard::Button::Button(Button &&other) = default;
+ReplyKeyboard::Button &ReplyKeyboard::Button::operator=(
+	Button &&other) = default;
+ReplyKeyboard::Button::~Button() = default;
+
+ReplyKeyboard::ReplyKeyboard(
+	not_null<const HistoryItem*> item,
+	std::unique_ptr<Style> &&s)
+: _item(item)
+, _a_selected(animation(this, &ReplyKeyboard::step_selected))
+, _st(std::move(s)) {
+	if (const auto markup = _item->Get<HistoryMessageReplyMarkup>()) {
 		_rows.reserve(markup->rows.size());
-		for (int i = 0, l = markup->rows.size(); i != l; ++i) {
+		for (auto i = 0, l = int(markup->rows.size()); i != l; ++i) {
 			auto &row = markup->rows.at(i);
 			int s = row.size();
-			ButtonRow newRow(s, Button());
+			auto newRow = std::vector<Button>();
+			newRow.reserve(s);
 			for (int j = 0; j != s; ++j) {
-				auto &button = newRow[j];
+				auto button = Button();
 				auto str = row.at(j).text;
 				button.type = row.at(j).type;
 				button.link = std::make_shared<ReplyMarkupClickHandler>(item, i, j);
 				button.text.setText(_st->textStyle(), TextUtilities::SingleLine(str), _textPlainOptions);
 				button.characters = str.isEmpty() ? 1 : str.size();
+				newRow.push_back(std::move(button));
 			}
-			_rows.push_back(newRow);
+			_rows.push_back(std::move(newRow));
 		}
 	}
 }
 
 void ReplyKeyboard::updateMessageId() {
-	auto msgId = _item->fullId();
-	for_const (auto &row, _rows) {
-		for_const (auto &button, row) {
+	const auto msgId = _item->fullId();
+	for (const auto &row : _rows) {
+		for (const auto &button : row) {
 			button.link->setMessageId(msgId);
 		}
 	}
@@ -165,7 +175,10 @@ void ReplyKeyboard::resize(int width, int height) {
 	_width = width;
 
 	auto markup = _item->Get<HistoryMessageReplyMarkup>();
-	float64 y = 0, buttonHeight = _rows.isEmpty() ? _st->buttonHeight() : (float64(height + _st->buttonSkip()) / _rows.size());
+	auto y = 0.;
+	auto buttonHeight = _rows.empty()
+		? float64(_st->buttonHeight())
+		: (float64(height + _st->buttonSkip()) / _rows.size());
 	for (auto &row : _rows) {
 		int s = row.size();
 
@@ -228,24 +241,30 @@ bool ReplyKeyboard::isEnoughSpace(int width, const style::BotKeyboardButton &st)
 	return true;
 }
 
-void ReplyKeyboard::setStyle(StylePtr &&st) {
+void ReplyKeyboard::setStyle(std::unique_ptr<Style> &&st) {
 	_st = std::move(st);
 }
 
 int ReplyKeyboard::naturalWidth() const {
 	auto result = 0;
-	for_const (auto &row, _rows) {
+	for (const auto &row : _rows) {
 		auto maxMinButtonWidth = 0;
-		for_const (auto &button, row) {
-			accumulate_max(maxMinButtonWidth, _st->minButtonWidth(button.type));
+		for (const auto &button : row) {
+			accumulate_max(
+				maxMinButtonWidth,
+				_st->minButtonWidth(button.type));
 		}
 		auto rowMaxButtonWidth = 0;
-		for_const (auto &button, row) {
-			accumulate_max(rowMaxButtonWidth, qMax(button.text.maxWidth(), 1) + maxMinButtonWidth);
+		for (const auto &button : row) {
+			accumulate_max(
+				rowMaxButtonWidth,
+				qMax(button.text.maxWidth(), 1) + maxMinButtonWidth);
 		}
 
-		auto rowSize = row.size();
-		accumulate_max(result, rowSize * rowMaxButtonWidth + (rowSize - 1) * _st->buttonSkip());
+		const auto rowSize = int(row.size());
+		accumulate_max(
+			result,
+			rowSize * rowMaxButtonWidth + (rowSize - 1) * _st->buttonSkip());
 	}
 	return result;
 }
@@ -323,8 +342,13 @@ void ReplyKeyboard::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pr
 		auto &button = _rows[coords.i][coords.j];
 		if (pressed) {
 			if (!button.ripple) {
-				auto mask = Ui::RippleAnimation::roundRectMask(button.rect.size(), _st->buttonRadius());
-				button.ripple = std::make_shared<Ui::RippleAnimation>(_st->_st->ripple, std::move(mask), [this] { _st->repaint(_item); });
+				auto mask = Ui::RippleAnimation::roundRectMask(
+					button.rect.size(),
+					_st->buttonRadius());
+				button.ripple = std::make_unique<Ui::RippleAnimation>(
+					_st->_st->ripple,
+					std::move(mask),
+					[this] { _st->repaint(_item); });
 			}
 			button.ripple->add(_savedCoords - button.rect.topLeft());
 		} else {
@@ -339,13 +363,13 @@ void ReplyKeyboard::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pr
 }
 
 void ReplyKeyboard::startAnimation(int i, int j, int direction) {
-	auto notStarted = _animations.isEmpty();
+	auto notStarted = _animations.empty();
 
 	int indexForAnimation = (i * MatrixRowShift + j + 1) * direction;
 
 	_animations.remove(-indexForAnimation);
 	if (!_animations.contains(indexForAnimation)) {
-		_animations.insert(indexForAnimation, getms());
+		_animations.emplace(indexForAnimation, getms());
 	}
 
 	if (notStarted && !_a_selected.animating()) {
@@ -354,26 +378,30 @@ void ReplyKeyboard::startAnimation(int i, int j, int direction) {
 }
 
 void ReplyKeyboard::step_selected(TimeMs ms, bool timer) {
-	for (Animations::iterator i = _animations.begin(); i != _animations.end();) {
-		int index = qAbs(i.key()) - 1, row = (index / MatrixRowShift), col = index % MatrixRowShift;
-		float64 dt = float64(ms - i.value()) / st::botKbDuration;
+	for (auto i = _animations.begin(); i != _animations.end();) {
+		const auto index = std::abs(i->first) - 1;
+		const auto row = (index / MatrixRowShift);
+		const auto col = index % MatrixRowShift;
+		const auto dt = float64(ms - i->second) / st::botKbDuration;
 		if (dt >= 1) {
-			_rows[row][col].howMuchOver = (i.key() > 0) ? 1 : 0;
+			_rows[row][col].howMuchOver = (i->first > 0) ? 1 : 0;
 			i = _animations.erase(i);
 		} else {
-			_rows[row][col].howMuchOver = (i.key() > 0) ? dt : (1 - dt);
+			_rows[row][col].howMuchOver = (i->first > 0) ? dt : (1 - dt);
 			++i;
 		}
 	}
 	if (timer) _st->repaint(_item);
-	if (_animations.isEmpty()) {
+	if (_animations.empty()) {
 		_a_selected.stop();
 	}
 }
 
 void ReplyKeyboard::clearSelection() {
-	for (auto i = _animations.cbegin(), e = _animations.cend(); i != e; ++i) {
-		int index = qAbs(i.key()) - 1, row = (index / MatrixRowShift), col = index % MatrixRowShift;
+	for (const auto [relativeIndex, time] : _animations) {
+		const auto index = std::abs(relativeIndex) - 1;
+		const auto row = (index / MatrixRowShift);
+		const auto col = index % MatrixRowShift;
 		_rows[row][col].howMuchOver = 0;
 	}
 	_animations.clear();
@@ -435,7 +463,7 @@ void HistoryMessageReplyMarkup::createFromButtonRows(const QVector<MTPKeyboardBu
 			auto &r = row.c_keyboardButtonRow();
 			auto &b = r.vbuttons.v;
 			if (!b.isEmpty()) {
-				ButtonRow buttonRow;
+				auto buttonRow = std::vector<Button>();
 				buttonRow.reserve(b.size());
 				for_const (auto &button, b) {
 					switch (button.type()) {
@@ -476,7 +504,9 @@ void HistoryMessageReplyMarkup::createFromButtonRows(const QVector<MTPKeyboardBu
 					}
 					}
 				}
-				if (!buttonRow.isEmpty()) rows.push_back(buttonRow);
+				if (!buttonRow.empty()) {
+					rows.push_back(std::move(buttonRow));
+				}
 			}
 		} break;
 		}
@@ -515,18 +545,21 @@ void HistoryMessageReplyMarkup::create(const MTPReplyMarkup &markup) {
 	}
 }
 
-void HistoryMessageReplyMarkup::create(const HistoryMessageReplyMarkup &markup) {
+void HistoryMessageReplyMarkup::create(
+		const HistoryMessageReplyMarkup &markup) {
 	flags = markup.flags;
 	inlineKeyboard = nullptr;
 
 	rows.clear();
-	for_const (auto &row, markup.rows) {
-		ButtonRow buttonRow;
+	for (const auto &row : markup.rows) {
+		auto buttonRow = std::vector<Button>();
 		buttonRow.reserve(row.size());
-		for_const (auto &button, row) {
+		for (const auto &button : row) {
 			buttonRow.push_back({ button.type, button.text, button.data, 0 });
 		}
-		if (!buttonRow.isEmpty()) rows.push_back(buttonRow);
+		if (!buttonRow.empty()) {
+			rows.push_back(std::move(buttonRow));
+		}
 	}
 }
 
