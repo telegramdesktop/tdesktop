@@ -141,8 +141,10 @@ void Session::registerRequest(mtpRequestId requestId, ShiftedDcId dcWithShift) {
 	return _instance->registerRequest(requestId, dcWithShift);
 }
 
-mtpRequestId Session::storeRequest(mtpRequest &request, const RPCResponseHandler &parser) {
-	return _instance->storeRequest(request, parser);
+mtpRequestId Session::storeRequest(
+		mtpRequest &request,
+		RPCResponseHandler &&callbacks) {
+	return _instance->storeRequest(request, std::move(callbacks));
 }
 
 mtpRequest Session::getRequest(mtpRequestId requestId) {
@@ -151,23 +153,6 @@ mtpRequest Session::getRequest(mtpRequestId requestId) {
 
 bool Session::rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err) { // return true if need to clean request data
 	return _instance->rpcErrorOccured(requestId, onFail, err);
-}
-
-void Session::requestPrepareFailed(
-		const RPCFailHandlerPtr &onFail,
-		Exception &e) {
-	CrashReports::SetAnnotation("RequestException", QString::fromLatin1(e.what()));
-	Unexpected("Exception in Session::send()");
-
-	const auto requestId = 0;
-	const auto error = rpcClientError(
-		"NO_REQUEST_ID",
-		QString(
-			"send() failed to queue request, exception: %1"
-		).arg(
-			e.what()
-		));
-	rpcErrorOccured(requestId, onFail, error);
 }
 
 void Session::restart() {
@@ -255,7 +240,9 @@ void Session::needToResumeAndSend() {
 }
 
 void Session::sendPong(quint64 msgId, quint64 pingId) {
-	send(MTP_pong(MTP_long(msgId), MTP_long(pingId)));
+	send(mtpRequestData::serialize(MTPPong(MTP_pong(
+		MTP_long(msgId),
+		MTP_long(pingId)))));
 }
 
 void Session::sendMsgsStateInfo(quint64 msgId, QByteArray data) {
@@ -267,7 +254,8 @@ void Session::sendMsgsStateInfo(quint64 msgId, QByteArray data) {
 		auto dst = gsl::as_writeable_bytes(gsl::make_span(&info[0], info.size()));
 		base::copy_bytes(dst, src);
 	}
-	send(MTPMsgsStateInfo(MTP_msgs_state_info(MTP_long(msgId), MTP_string(std::move(info)))));
+	send(mtpRequestData::serialize(MTPMsgsStateInfo(
+		MTP_msgs_state_info(MTP_long(msgId), MTP_string(std::move(info))))));
 }
 
 void Session::checkRequestsByTimer() {
@@ -425,13 +413,17 @@ mtpRequestId Session::resend(quint64 msgId, qint64 msCanWait, bool forceContaine
 		QWriteLocker locker(data.haveSentMutex());
 		mtpRequestMap &haveSent(data.haveSentMap());
 
-		mtpRequestMap::iterator i = haveSent.find(msgId);
+		auto i = haveSent.find(msgId);
 		if (i == haveSent.end()) {
 			if (sendMsgStateInfo) {
 				char cantResend[2] = {1, 0};
 				DEBUG_LOG(("Message Info: cant resend %1, request not found").arg(msgId));
 
-				return send(MTP_msgs_state_info(MTP_long(msgId), MTP_string(std::string(cantResend, cantResend + 1))));
+				auto info = std::string(cantResend, cantResend + 1);
+				return send(mtpRequestData::serialize(MTPMsgsStateInfo(
+					MTP_msgs_state_info(
+						MTP_long(msgId),
+						MTP_string(std::move(info))))));
 			}
 			return 0;
 		}
@@ -478,6 +470,30 @@ void Session::resendAll() {
 	for (uint32 i = 0, l = toResend.size(); i < l; ++i) {
 		resend(toResend[i], 10, true);
 	}
+}
+
+mtpRequestId Session::send(
+		mtpRequest &&request,
+		RPCResponseHandler &&callbacks,
+		TimeMs msCanWait,
+		bool needsLayer,
+		bool toMainDC,
+		mtpRequestId after) {
+	DEBUG_LOG(("MTP Info: adding request to toSendMap, msCanWait %1").arg(msCanWait));
+
+	request->msDate = getms(true); // > 0 - can send without container
+	request->needsLayer = needsLayer;
+	if (after) {
+		request->after = getRequest(after);
+	}
+	const auto requestId = storeRequest(request, std::move(callbacks));
+	Assert(requestId != 0);
+
+	const auto signedDcId = toMainDC ? -getDcWithShift() : getDcWithShift();
+	sendPrepared(request, msCanWait);
+	registerRequest(requestId, signedDcId);
+
+	return requestId;
 }
 
 void Session::sendPrepared(const mtpRequest &request, TimeMs msCanWait, bool newRequest) { // returns true, if emit of needToSend() is needed

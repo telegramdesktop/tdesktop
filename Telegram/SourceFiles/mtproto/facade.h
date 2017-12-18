@@ -20,9 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "mtproto/type_utils.h"
-#include "mtproto/session.h"
 #include "core/single_timer.h"
+#include "mtproto/type_utils.h"
 #include "mtproto/mtp_instance.h"
 
 namespace MTP {
@@ -193,12 +192,23 @@ inline QString dctransport(ShiftedDcId shiftedDcId = 0) {
 }
 
 template <typename TRequest>
-inline mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), ShiftedDcId dcId = 0, TimeMs msCanWait = 0, mtpRequestId after = 0) {
+inline mtpRequestId send(
+		const TRequest &request,
+		RPCResponseHandler &&callbacks = {},
+		ShiftedDcId dcId = 0,
+		TimeMs msCanWait = 0,
+		mtpRequestId after = 0) {
 	return MainInstance()->send(request, std::move(callbacks), dcId, msCanWait, after);
 }
 
 template <typename TRequest>
-inline mtpRequestId send(const TRequest &request, RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail = RPCFailHandlerPtr(), ShiftedDcId dcId = 0, TimeMs msCanWait = 0, mtpRequestId after = 0) {
+inline mtpRequestId send(
+		const TRequest &request,
+		RPCDoneHandlerPtr &&onDone,
+		RPCFailHandlerPtr &&onFail = nullptr,
+		ShiftedDcId dcId = 0,
+		TimeMs msCanWait = 0,
+		mtpRequestId after = 0) {
 	return MainInstance()->send(request, std::move(onDone), std::move(onFail), dcId, msCanWait, after);
 }
 
@@ -226,31 +236,4 @@ inline int32 state(mtpRequestId requestId) { // < 0 means waiting for such count
 	return MainInstance()->state(requestId);
 }
 
-namespace internal {
-
-template <typename TRequest>
-mtpRequestId Session::send(const TRequest &request, RPCResponseHandler callbacks, TimeMs msCanWait, bool needsLayer, bool toMainDC, mtpRequestId after) {
-	mtpRequestId requestId = 0;
-	try {
-		uint32 requestSize = request.innerLength() >> 2;
-		mtpRequest reqSerialized(mtpRequestData::prepare(requestSize));
-		request.write(*reqSerialized);
-
-		DEBUG_LOG(("MTP Info: adding request to toSendMap, msCanWait %1").arg(msCanWait));
-
-		reqSerialized->msDate = getms(true); // > 0 - can send without container
-		reqSerialized->needsLayer = needsLayer;
-		if (after) reqSerialized->after = getRequest(after);
-		requestId = storeRequest(reqSerialized, callbacks);
-
-		sendPrepared(reqSerialized, msCanWait);
-	} catch (Exception &e) {
-		requestId = 0;
-		requestPrepareFailed(callbacks.onFail, e);
-	}
-	if (requestId) registerRequest(requestId, toMainDC ? -getDcWithShift() : getDcWithShift());
-	return requestId;
-}
-
-} // namespace internal
 } // namespace MTP

@@ -22,14 +22,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <map>
 #include <set>
+#include "mtproto/rpc_sender.h"
 
 namespace MTP {
 namespace internal {
 class Dcenter;
+class Session;
+class Connection;
 } // namespace internal
 
 class DcOptions;
-class Session;
 class AuthKey;
 using AuthKeyPtr = std::shared_ptr<AuthKey>;
 using AuthKeysList = std::vector<AuthKeyPtr>;
@@ -70,23 +72,37 @@ public:
 	not_null<DcOptions*> dcOptions();
 
 	template <typename TRequest>
-	mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), ShiftedDcId dcId = 0, TimeMs msCanWait = 0, mtpRequestId after = 0) {
-		if (auto session = getSession(dcId)) {
-			return session->send(request, callbacks, msCanWait, true, !dcId, after);
-		}
-		return 0;
+	mtpRequestId send(
+			const TRequest &request,
+			RPCResponseHandler &&callbacks = {},
+			ShiftedDcId dcId = 0,
+			TimeMs msCanWait = 0,
+			mtpRequestId after = 0) {
+		return send(
+			mtpRequestData::serialize(request),
+			std::move(callbacks),
+			dcId,
+			msCanWait,
+			after);
 	}
 
 	template <typename TRequest>
-	mtpRequestId send(const TRequest &request, RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail = RPCFailHandlerPtr(), int32 dc = 0, TimeMs msCanWait = 0, mtpRequestId after = 0) {
-		return send(request, RPCResponseHandler(onDone, onFail), dc, msCanWait, after);
+	mtpRequestId send(
+			const TRequest &request,
+			RPCDoneHandlerPtr &&onDone,
+			RPCFailHandlerPtr &&onFail = nullptr,
+			ShiftedDcId dc = 0,
+			TimeMs msCanWait = 0,
+			mtpRequestId after = 0) {
+		return send(
+			request,
+			RPCResponseHandler(std::move(onDone), std::move(onFail)),
+			dc,
+			msCanWait,
+			after);
 	}
 
-	void sendAnything(ShiftedDcId dcId = 0, TimeMs msCanWait = 0) {
-		if (auto session = getSession(dcId)) {
-			session->sendAnything(msCanWait);
-		}
-	}
+	void sendAnything(ShiftedDcId dcId = 0, TimeMs msCanWait = 0);
 
 	void restart();
 	void restart(ShiftedDcId shiftedDcId);
@@ -103,7 +119,7 @@ public:
 	std::shared_ptr<internal::Dcenter> getDcById(ShiftedDcId shiftedDcId);
 	void unpaused();
 
-	void queueQuittingConnection(std::unique_ptr<internal::Connection> connection);
+	void queueQuittingConnection(std::unique_ptr<internal::Connection> &&connection);
 
 	void setUpdatesHandler(RPCDoneHandlerPtr onDone);
 	void setGlobalFailHandler(RPCFailHandlerPtr onFail);
@@ -115,7 +131,9 @@ public:
 	void onSessionReset(ShiftedDcId dcWithShift);
 
 	void registerRequest(mtpRequestId requestId, ShiftedDcId dcWithShift);
-	mtpRequestId storeRequest(mtpRequest &request, const RPCResponseHandler &parser);
+	mtpRequestId storeRequest(
+		mtpRequest &request,
+		RPCResponseHandler &&callbacks);
 	mtpRequest getRequest(mtpRequestId requestId);
 	void clearCallbacksDelayed(const RPCCallbackClears &requestIds);
 
@@ -147,7 +165,12 @@ private slots:
 	void onKeyDestroyed(qint32 shiftedDcId);
 
 private:
-	internal::Session *getSession(ShiftedDcId shiftedDcId);
+	mtpRequestId send(
+		mtpRequest &&request,
+		RPCResponseHandler &&callbacks,
+		ShiftedDcId dcId,
+		TimeMs msCanWait,
+		mtpRequestId after);
 
 	class Private;
 	const std::unique_ptr<Private> _private;

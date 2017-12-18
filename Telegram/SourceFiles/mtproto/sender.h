@@ -252,7 +252,13 @@ public:
 		}
 
 		mtpRequestId send() {
-			auto id = MainInstance()->send(_request, takeOnDone(), takeOnFail(), takeDcId(), takeCanWait(), takeAfter());
+			const auto id = MainInstance()->send(
+				_request,
+				takeOnDone(),
+				takeOnFail(),
+				takeDcId(),
+				takeCanWait(),
+				takeAfter());
 			registerRequest(id);
 			return id;
 		}

@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "mtproto/connection.h"
 
+#include "mtproto/session.h"
 #include "mtproto/rsa_public_key.h"
 #include "mtproto/rpc_sender.h"
 #include "mtproto/dc_options.h"
@@ -1637,7 +1638,9 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 			mtpRequestId requestId = wasSent(resendId);
 			if (requestId) {
 				LOG(("Message Error: bad message notification received, msgId %1, error_code %2, fatal: clearing callbacks").arg(data.vbad_msg_id.v).arg(errorCode));
-				_instance->clearCallbacksDelayed(RPCCallbackClears(1, RPCCallbackClear(requestId, -errorCode)));
+				_instance->clearCallbacksDelayed(RPCCallbackClears(
+					1,
+					RPCCallbackClear(requestId, -errorCode)));
 			} else {
 				DEBUG_LOG(("Message Error: such message was not sent recently %1").arg(resendId));
 			}
@@ -2177,7 +2180,9 @@ void ConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool byRespon
 			clearedAcked.reserve(ackedCount - MTPIdsBufferSize);
 			while (ackedCount-- > MTPIdsBufferSize) {
 				mtpRequestIdsMap::iterator i(wereAcked.begin());
-				clearedAcked.push_back(RPCCallbackClear(i.key(), RPCError::TimeoutError));
+				clearedAcked.push_back(RPCCallbackClear(
+					i.key(),
+					RPCError::TimeoutError));
 				wereAcked.erase(i);
 			}
 		}

@@ -311,16 +311,25 @@ public:
 	void destroyKey();
 	void notifyLayerInited(bool wasInited);
 
-	template <typename TRequest>
-	mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), TimeMs msCanWait = 0, bool needsLayer = false, bool toMainDC = false, mtpRequestId after = 0); // send mtp request
-
 	void ping();
 	void cancel(mtpRequestId requestId, mtpMsgId msgId);
 	int32 requestState(mtpRequestId requestId) const;
 	int32 getState() const;
 	QString transport() const;
 
-	void sendPrepared(const mtpRequest &request, TimeMs msCanWait = 0, bool newRequest = true); // nulls msgId and seqNo in request, if newRequest = true
+	mtpRequestId send(
+		mtpRequest &&request,
+		RPCResponseHandler &&callbacks = {},
+		TimeMs msCanWait = 0,
+		bool needsLayer = false,
+		bool toMainDC = false,
+		mtpRequestId after = 0);
+
+	// Nulls msgId and seqNo in request, if newRequest = true.
+	void sendPrepared(
+		const mtpRequest &request,
+		TimeMs msCanWait = 0,
+		bool newRequest = true);
 
 	~Session();
 
@@ -353,10 +362,11 @@ private:
 	void createDcData();
 
 	void registerRequest(mtpRequestId requestId, ShiftedDcId dcWithShift);
-	mtpRequestId storeRequest(mtpRequest &request, const RPCResponseHandler &parser);
+	mtpRequestId storeRequest(
+		mtpRequest &request,
+		RPCResponseHandler &&callbacks);
 	mtpRequest getRequest(mtpRequestId requestId);
 	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err);
-	void requestPrepareFailed(const RPCFailHandlerPtr &onFail, Exception &e);
 
 	not_null<Instance*> _instance;
 	std::unique_ptr<Connection> _connection;

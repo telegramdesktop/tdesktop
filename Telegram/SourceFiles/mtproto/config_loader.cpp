@@ -57,7 +57,11 @@ void ConfigLoader::load() {
 }
 
 mtpRequestId ConfigLoader::sendRequest(ShiftedDcId shiftedDcId) {
-	return _instance->send(MTPhelp_GetConfig(), _doneHandler, _failHandler, shiftedDcId);
+	return _instance->send(
+		MTPhelp_GetConfig(),
+		base::duplicate(_doneHandler),
+		base::duplicate(_failHandler),
+		shiftedDcId);
 }
 
 DcId ConfigLoader::specialToRealDcId(DcId specialDcId) {
@@ -146,16 +150,24 @@ void ConfigLoader::sendSpecialRequest() {
 		return;
 	}
 
-	auto weak = base::make_weak(this);
-	auto index = rand_value<uint32>() % uint32(_specialEndpoints.size());
-	auto endpoint = _specialEndpoints.begin() + index;
+	const auto weak = base::make_weak(this);
+	const auto index = rand_value<uint32>() % _specialEndpoints.size();
+	const auto endpoint = _specialEndpoints.begin() + index;
 	_specialEnumCurrent = specialToRealDcId(endpoint->dcId);
-	_instance->dcOptions()->constructAddOne(_specialEnumCurrent, MTPDdcOption::Flag::f_tcpo_only, endpoint->ip, endpoint->port);
-	_specialEnumRequest = _instance->send(MTPhelp_GetConfig(), rpcDone([weak](const MTPConfig &result) {
-		if (const auto strong = weak.get()) {
-			strong->specialConfigLoaded(result);
-		}
-	}), _failHandler, _specialEnumCurrent);
+	_instance->dcOptions()->constructAddOne(
+		_specialEnumCurrent,
+		MTPDdcOption::Flag::f_tcpo_only,
+		endpoint->ip,
+		endpoint->port);
+	_specialEnumRequest = _instance->send(
+		MTPhelp_GetConfig(),
+		rpcDone([weak](const MTPConfig &result) {
+			if (const auto strong = weak.get()) {
+				strong->specialConfigLoaded(result);
+			}
+		}),
+		base::duplicate(_failHandler),
+		_specialEnumCurrent);
 	_triedSpecialEndpoints.push_back(*endpoint);
 	_specialEndpoints.erase(endpoint);
 

@@ -750,23 +750,24 @@ void AddBotToGroupBoxController::shareBotGame(not_null<PeerData*> chat) {
 		if (!weak) {
 			return;
 		}
-		auto history = App::historyLoaded(chat);
-		auto afterRequestId = history ? history->sendRequestId : 0;
-		auto randomId = rand_value<uint64>();
-		auto gameShortName = bot->botInfo->shareGameShortName;
-		auto inputGame = MTP_inputGameShortName(
-			bot->inputUser,
-			MTP_string(gameShortName));
-		auto request = MTPmessages_SendMedia(
-			MTP_flags(0),
-			chat->input,
-			MTP_int(0),
-			MTP_inputMediaGame(inputGame),
-			MTP_long(randomId),
-			MTPnullMarkup);
-		auto done = App::main()->rpcDone(&MainWidget::sentUpdatesReceived);
-		auto fail = App::main()->rpcFail(&MainWidget::sendMessageFail);
-		auto requestId = MTP::send(request, done, fail, 0, 0, afterRequestId);
+		const auto history = App::historyLoaded(chat);
+		const auto randomId = rand_value<uint64>();
+		const auto requestId = MTP::send(
+			MTPmessages_SendMedia(
+				MTP_flags(0),
+				chat->input,
+				MTP_int(0),
+				MTP_inputMediaGame(
+					MTP_inputGameShortName(
+						bot->inputUser,
+						MTP_string(bot->botInfo->shareGameShortName))),
+				MTP_long(randomId),
+				MTPnullMarkup),
+			App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
+			App::main()->rpcFail(&MainWidget::sendMessageFail),
+			0,
+			0,
+			history ? history->sendRequestId : 0);
 		if (history) {
 			history->sendRequestId = requestId;
 		}
@@ -778,9 +779,9 @@ void AddBotToGroupBoxController::shareBotGame(not_null<PeerData*> chat) {
 			return lng_bot_sure_share_game(lt_user, App::peerName(chat));
 		}
 		return lng_bot_sure_share_game_group(lt_group, chat->name);
-	};
+	}();
 	Ui::show(
-		Box<ConfirmBox>(confirmText(), send),
+		Box<ConfirmBox>(confirmText, std::move(send)),
 		LayerOption::KeepOther);
 }
 
@@ -799,17 +800,16 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 		}
 		if (auto &info = bot->botInfo) {
 			if (!info->startGroupToken.isEmpty()) {
-				auto request = MTPmessages_StartBot(
-					bot->inputUser,
-					chat->input,
-					MTP_long(rand_value<uint64>()),
-					MTP_string(info->startGroupToken));
-				auto done = App::main()->rpcDone(
-					&MainWidget::sentUpdatesReceived);
-				auto fail = App::main()->rpcFail(
-					&MainWidget::addParticipantFail,
-					{ bot, chat });
-				MTP::send(request, done, fail);
+				MTP::send(
+					MTPmessages_StartBot(
+						bot->inputUser,
+						chat->input,
+						MTP_long(rand_value<uint64>()),
+						MTP_string(info->startGroupToken)),
+					App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
+					App::main()->rpcFail(
+						&MainWidget::addParticipantFail,
+						{ bot, chat }));
 			} else {
 				App::main()->addParticipants(
 					chat,

@@ -98,19 +98,16 @@ public:
 using RPCFailHandlerPtr = std::shared_ptr<RPCAbstractFailHandler>;
 
 struct RPCResponseHandler {
-	RPCResponseHandler() {
-	}
-	RPCResponseHandler(const RPCDoneHandlerPtr &ondone, const RPCFailHandlerPtr &onfail) : onDone(ondone), onFail(onfail) {
+	RPCResponseHandler() = default;
+	RPCResponseHandler(RPCDoneHandlerPtr &&done, RPCFailHandlerPtr &&fail)
+	: onDone(std::move(done))
+	, onFail(std::move(fail)) {
 	}
 
 	RPCDoneHandlerPtr onDone;
 	RPCFailHandlerPtr onFail;
 
 };
-
-inline RPCResponseHandler rpcCb(const RPCDoneHandlerPtr &onDone = RPCDoneHandlerPtr(), const RPCFailHandlerPtr &onFail = RPCFailHandlerPtr()) {
-	return RPCResponseHandler(onDone, onFail);
-}
 
 template <typename TReturn>
 class RPCDoneHandlerBare : public RPCAbstractDoneHandler { // done(from, end)
