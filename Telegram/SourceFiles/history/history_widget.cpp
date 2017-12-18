@@ -565,8 +565,14 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 
 	_topShadow->hide();
 
-	_attachDragDocument->setDroppedCallback([this](const QMimeData *data) { confirmSendingFiles(data, CompressConfirm::No); });
-	_attachDragPhoto->setDroppedCallback([this](const QMimeData *data) { confirmSendingFiles(data, CompressConfirm::Yes); });
+	_attachDragDocument->setDroppedCallback([this](const QMimeData *data) {
+		confirmSendingFiles(data, CompressConfirm::No);
+		this->controller()->window()->activateWindow();
+	});
+	_attachDragPhoto->setDroppedCallback([this](const QMimeData *data) {
+		confirmSendingFiles(data, CompressConfirm::Yes);
+		this->controller()->window()->activateWindow();
+	});
 
 	connect(&_updateEditTimeLeftDisplay, SIGNAL(timeout()), this, SLOT(updateField()));
 

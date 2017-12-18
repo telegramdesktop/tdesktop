@@ -289,6 +289,8 @@ void CoverWidget::dropEvent(QDropEvent *e) {
 	e->acceptProposedAction();
 
 	showSetPhotoBox(img);
+
+	App::wnd()->activateWindow();
 }
 
 void CoverWidget::paintDivider(Painter &p) {
