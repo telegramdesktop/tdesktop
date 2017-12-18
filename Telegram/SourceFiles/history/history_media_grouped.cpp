@@ -102,14 +102,14 @@ void HistoryGroupedMedia::initDimensions() {
 }
 
 int HistoryGroupedMedia::resizeGetHeight(int width) {
-	_width = width;
+	_width = std::min(width, _maxw);
 	_height = 0;
 	if (_width < st::historyGroupWidthMin) {
 		return _height;
 	}
 
 	const auto initialSpacing = st::historyGroupSkip;
-	const auto factor = width / float64(_maxw);
+	const auto factor = _width / float64(_maxw);
 	const auto scale = [&](int value) {
 		return int(std::round(value * factor));
 	};
@@ -142,7 +142,7 @@ int HistoryGroupedMedia::resizeGetHeight(int width) {
 
 	if (!_caption.isEmpty()) {
 		const auto captionw = _width - st::msgPadding.left() - st::msgPadding.right();
-		_height += st::mediaPadding.bottom() + st::mediaCaptionSkip + _caption.countHeight(captionw);
+		_height += st::mediaCaptionSkip + _caption.countHeight(captionw);
 		if (isBubbleBottom()) {
 			_height += st::msgPadding.bottom();
 		}

@@ -196,7 +196,6 @@ outSemiboldPalette: TextPalette(outTextPalette) {
 	selectLinkFg: msgOutServiceFgSelected;
 }
 
-mediaPadding: margins(0px, 0px, 0px, 0px);
 mediaCaptionSkip: 5px;
 mediaInBubbleSkip: 5px;
 mediaThumbSize: 48px;
