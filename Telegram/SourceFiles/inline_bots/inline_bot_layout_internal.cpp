@@ -101,7 +101,7 @@ Gif::Gif(not_null<Context*> context, Result *result) : FileBase(context, result)
 
 Gif::Gif(not_null<Context*> context, DocumentData *document, bool hasDeleteButton) : FileBase(context, document) {
 	if (hasDeleteButton) {
-		_delete = MakeShared<DeleteSavedGifClickHandler>(document);
+		_delete = std::make_shared<DeleteSavedGifClickHandler>(document);
 	}
 }
 
@@ -688,8 +688,8 @@ void CancelFileClickHandler::onClickImpl() const {
 File::File(not_null<Context*> context, Result *result) : FileBase(context, result)
 , _title(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::msgFileSize - st::inlineThumbSkip)
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::msgFileSize - st::inlineThumbSkip)
-, _open(MakeShared<OpenFileClickHandler>(result))
-, _cancel(MakeShared<CancelFileClickHandler>(result)) {
+, _open(std::make_shared<OpenFileClickHandler>(result))
+, _cancel(std::make_shared<CancelFileClickHandler>(result)) {
 	updateStatusText();
 	regDocumentItem(getShownDocument(), this);
 }
@@ -999,7 +999,7 @@ Article::Article(not_null<Context*> context, Result *result, bool withThumb) : I
 , _description(st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft - st::inlineThumbSize - st::inlineThumbSkip) {
 	LocationCoords location;
 	if (!_link && result->getLocationCoords(&location)) {
-		_link = MakeShared<LocationClickHandler>(location);
+		_link = std::make_shared<LocationClickHandler>(location);
 	}
 	_thumbLetter = getResultThumbLetter();
 }

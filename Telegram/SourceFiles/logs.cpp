@@ -114,8 +114,7 @@ public:
 	}
 
 private:
-
-	QSharedPointer<QFile> files[LogDataCount];
+	std::shared_ptr<QFile> files[LogDataCount];
 	QTextStream streams[LogDataCount];
 
 	int32 part = -1;
@@ -137,7 +136,7 @@ private:
 			if (postfix.isEmpty()) { // instance checked, need to move to log.txt
 				Assert(!files[type]->fileName().isEmpty()); // one of log_startXX.txt should've been opened already
 
-				QSharedPointer<QFile> to(new QFile(_logsFilePath(type, postfix)));
+				std::shared_ptr<QFile> to = std::make_shared<QFile>(_logsFilePath(type, postfix));
 				if (to->exists() && !to->remove()) {
 					LOG(("Could not delete '%1' file to start new logging!").arg(to->fileName()));
 					return false;
@@ -147,8 +146,8 @@ private:
 					return false;
 				}
 				if (to->open(mode | QIODevice::Append)) {
-					qSwap(files[type], to);
-					streams[type].setDevice(files[type].data());
+					std::swap(files[type], to);
+					streams[type].setDevice(files[type].get());
 					streams[type].setCodec("UTF-8");
 					LOG(("Moved logging from '%1' to '%2'!").arg(to->fileName()).arg(files[type]->fileName()));
 					to->remove();
@@ -206,11 +205,16 @@ private:
 			}
 		}
 		if (files[type]->open(mode)) {
-			streams[type].setDevice(files[type].data());
+			streams[type].setDevice(files[type].get());
 			streams[type].setCodec("UTF-8");
 
 			if (type != LogDataMain) {
-				streams[type] << ((mode & QIODevice::Append) ? qsl("----------------------------------------------------------------\nNEW LOGGING INSTANCE STARTED!!!\n----------------------------------------------------------------\n") : qsl("%1\n").arg(dayIndex));
+				streams[type] << ((mode & QIODevice::Append)
+					? qsl("\
+----------------------------------------------------------------\n\
+NEW LOGGING INSTANCE STARTED!!!\n\
+----------------------------------------------------------------\n")
+					: qsl("%1\n").arg(dayIndex));
 				streams[type].flush();
 			}
 

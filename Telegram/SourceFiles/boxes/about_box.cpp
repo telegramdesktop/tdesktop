@@ -45,7 +45,7 @@ void AboutBox::prepare() {
 	addButton(langFactory(lng_close), [this] { closeBox(); });
 
 	const auto linkHook = [](const ClickHandlerPtr &link, auto button) {
-		if (const auto url = dynamic_cast<UrlClickHandler*>(link.data())) {
+		if (const auto url = dynamic_cast<UrlClickHandler*>(link.get())) {
 			url->UrlClickHandler::onClick(button);
 			return false;
 		}

@@ -1031,7 +1031,7 @@ void HistoryInner::performDrag() {
 	}
 	auto pressedHandler = ClickHandler::getPressed();
 
-	if (dynamic_cast<VoiceSeekClickHandler*>(pressedHandler.data())) {
+	if (dynamic_cast<VoiceSeekClickHandler*>(pressedHandler.get())) {
 		return;
 	}
 
@@ -1127,14 +1127,14 @@ void HistoryInner::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton bu
 
 	auto activated = ClickHandler::unpressed();
 	if (_mouseAction == MouseAction::Dragging) {
-		activated.clear();
+		activated = nullptr;
 	} else if (_mouseActionItem) {
 		// if we are in selecting items mode perhaps we want to
 		// toggle selection instead of activating the pressed link
 		if (_mouseAction == MouseAction::PrepareDrag && !_pressWasInactive && !_selected.empty() && _selected.cbegin()->second == FullSelection && button != Qt::RightButton) {
 			if (auto media = _mouseActionItem->getMedia()) {
 				if (media->toggleSelectionByHandlerClick(activated)) {
-					activated.clear();
+					activated = nullptr;
 				}
 			}
 		}
@@ -1291,8 +1291,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	_menu = new Ui::PopupMenu(nullptr);
 
 	_contextMenuLink = ClickHandler::getActive();
-	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(_contextMenuLink.data());
-	auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.data());
+	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(_contextMenuLink.get());
+	auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.get());
 	auto lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideoFile() : false;
 	auto lnkIsVoice = lnkDocument ? lnkDocument->document()->isVoiceMessage() : false;
 	auto lnkIsAudio = lnkDocument ? lnkDocument->document()->isAudioFile() : false;
@@ -1594,7 +1594,7 @@ void HistoryInner::toggleFavedSticker(DocumentData *document) {
 }
 
 void HistoryInner::cancelContextDownload() {
-	if (auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.data())) {
+	if (auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.get())) {
 		lnkDocument->document()->cancel();
 	} else if (auto item = App::contextItem()) {
 		if (auto media = item->getMedia()) {
@@ -1607,7 +1607,7 @@ void HistoryInner::cancelContextDownload() {
 
 void HistoryInner::showContextInFolder() {
 	QString filepath;
-	if (auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.data())) {
+	if (auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.get())) {
 		filepath = lnkDocument->document()->filepath(DocumentData::FilePathResolveChecked);
 	} else if (auto item = App::contextItem()) {
 		if (auto media = item->getMedia()) {
@@ -2286,9 +2286,9 @@ void HistoryInner::onUpdateSelected() {
 
 					if (point.x() >= dateLeft && point.x() < dateLeft + dateWidth) {
 						if (!_scrollDateLink) {
-							_scrollDateLink = MakeShared<DateClickHandler>(item->history()->peer, item->date.date());
+							_scrollDateLink = std::make_shared<DateClickHandler>(item->history()->peer, item->date.date());
 						} else {
-							static_cast<DateClickHandler*>(_scrollDateLink.data())->setDate(item->date.date());
+							static_cast<DateClickHandler*>(_scrollDateLink.get())->setDate(item->date.date());
 						}
 						dragState = HistoryTextState(
 							nullptr,

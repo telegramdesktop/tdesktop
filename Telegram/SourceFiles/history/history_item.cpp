@@ -142,7 +142,7 @@ ReplyKeyboard::ReplyKeyboard(const HistoryItem *item, StylePtr &&s)
 				auto &button = newRow[j];
 				auto str = row.at(j).text;
 				button.type = row.at(j).type;
-				button.link = MakeShared<ReplyMarkupClickHandler>(item, i, j);
+				button.link = std::make_shared<ReplyMarkupClickHandler>(item, i, j);
 				button.text.setText(_st->textStyle(), TextUtilities::SingleLine(str), _textPlainOptions);
 				button.characters = str.isEmpty() ? 1 : str.size();
 			}
@@ -324,7 +324,7 @@ void ReplyKeyboard::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pr
 		if (pressed) {
 			if (!button.ripple) {
 				auto mask = Ui::RippleAnimation::roundRectMask(button.rect.size(), _st->buttonRadius());
-				button.ripple = MakeShared<Ui::RippleAnimation>(_st->_st->ripple, std::move(mask), [this] { _st->repaint(_item); });
+				button.ripple = std::make_shared<Ui::RippleAnimation>(_st->_st->ripple, std::move(mask), [this] { _st->repaint(_item); });
 			}
 			button.ripple->add(_savedCoords - button.rect.topLeft());
 		} else {
@@ -1424,7 +1424,7 @@ HistoryItem::~HistoryItem() {
 }
 
 ClickHandlerPtr goToMessageClickHandler(PeerData *peer, MsgId msgId) {
-	return MakeShared<LambdaClickHandler>([peer, msgId] {
+	return std::make_shared<LambdaClickHandler>([peer, msgId] {
 		if (App::main()) {
 			auto current = App::mousedItem();
 			if (current && current->history()->peer == peer) {

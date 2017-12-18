@@ -253,7 +253,7 @@ void SettingsSlider::startRipple(int sectionIndex) {
 		if (index++ == sectionIndex) {
 			if (!section.ripple) {
 				auto mask = prepareRippleMask(sectionIndex, section);
-				section.ripple = MakeShared<RippleAnimation>(_st.ripple, std::move(mask), [this] { update(); });
+				section.ripple = std::make_shared<RippleAnimation>(_st.ripple, std::move(mask), [this] { update(); });
 			}
 			section.ripple->add(mapFromGlobal(QCursor::pos()) - QPoint(section.left, 0));
 			return false;

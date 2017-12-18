@@ -1257,10 +1257,15 @@ WebFileImage *getImage(const WebFileImageLocation &location, int32 size) {
 
 } // namespace internal
 
-ReadAccessEnabler::ReadAccessEnabler(const PsFileBookmark *bookmark) : _bookmark(bookmark), _failed(_bookmark ? !_bookmark->enable() : false) {
+ReadAccessEnabler::ReadAccessEnabler(const PsFileBookmark *bookmark)
+: _bookmark(bookmark)
+, _failed(_bookmark ? !_bookmark->enable() : false) {
 }
 
-ReadAccessEnabler::ReadAccessEnabler(const QSharedPointer<PsFileBookmark> &bookmark) : _bookmark(bookmark.data()), _failed(_bookmark ? !_bookmark->enable() : false) {
+ReadAccessEnabler::ReadAccessEnabler(
+	const std::shared_ptr<PsFileBookmark> &bookmark)
+: _bookmark(bookmark.get())
+, _failed(_bookmark ? !_bookmark->enable() : false) {
 }
 
 ReadAccessEnabler::~ReadAccessEnabler() {
@@ -1278,7 +1283,7 @@ FileLocation::FileLocation(const QString &name) : fname(name) {
 			qint64 s = f.size();
 			if (s > INT_MAX) {
 				fname = QString();
-				_bookmark.clear();
+				_bookmark = nullptr;
 				size = 0;
 			} else {
 				modified = f.lastModified();
@@ -1286,7 +1291,7 @@ FileLocation::FileLocation(const QString &name) : fname(name) {
 			}
 		} else {
 			fname = QString();
-			_bookmark.clear();
+			_bookmark = nullptr;
 			size = 0;
 		}
 	}
@@ -1297,7 +1302,7 @@ bool FileLocation::check() const {
 
 	ReadAccessEnabler enabler(_bookmark);
 	if (enabler.failed()) {
-		const_cast<FileLocation*>(this)->_bookmark.clear();
+		const_cast<FileLocation*>(this)->_bookmark = nullptr;
 	}
 
 	QFileInfo f(name());

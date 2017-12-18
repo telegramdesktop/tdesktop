@@ -190,7 +190,7 @@ void FastShareMessage(not_null<HistoryItem*> item) {
 		MessageIdsList msgIds;
 		base::flat_set<mtpRequestId> requests;
 	};
-	const auto data = MakeShared<ShareData>(item->history()->peer, [&] {
+	const auto data = std::make_shared<ShareData>(item->history()->peer, [&] {
 		if (const auto group = item->getFullGroup()) {
 			return Auth().data().groupToIds(group);
 		}
@@ -362,7 +362,7 @@ QString GetErrorTextForForward(
 void HistoryMessageVia::create(UserId userId) {
 	_bot = App::user(peerFromUser(userId));
 	_maxWidth = st::msgServiceNameFont->width(lng_inline_bot_via(lt_inline_bot, '@' + _bot->username));
-	_lnk = MakeShared<LambdaClickHandler>([bot = _bot] {
+	_lnk = std::make_shared<LambdaClickHandler>([bot = _bot] {
 		App::insertBotCommand('@' + bot->username);
 	});
 }
@@ -2401,7 +2401,7 @@ ClickHandlerPtr HistoryMessage::rightActionLink() const {
 		const auto forwarded = Get<HistoryMessageForwarded>();
 		const auto savedFromPeer = forwarded ? forwarded->_savedFromPeer : nullptr;
 		const auto savedFromMsgId = forwarded ? forwarded->_savedFromMsgId : 0;
-		_rightActionLink = MakeShared<LambdaClickHandler>([=] {
+		_rightActionLink = std::make_shared<LambdaClickHandler>([=] {
 			if (auto item = App::histItemById(itemId)) {
 				if (savedFromPeer && savedFromMsgId) {
 					App::wnd()->controller()->showPeerHistory(

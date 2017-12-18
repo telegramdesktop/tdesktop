@@ -1294,7 +1294,7 @@ void HistoryWidget::onRecordDone(QByteArray result, VoiceWaveform waveform, qint
 	auto duration = samples / Media::Player::kDefaultFrequency;
 	auto to = FileLoadTo(_peer->id, _peer->notifySilentPosts(), replyToId());
 	auto caption = QString();
-	_fileLoader.addTask(MakeShared<FileLoadTask>(result, duration, waveform, to, caption));
+	_fileLoader.addTask(std::make_shared<FileLoadTask>(result, duration, waveform, to, caption));
 }
 
 void HistoryWidget::onRecordUpdate(quint16 level, qint32 samples) {
@@ -4215,9 +4215,9 @@ void HistoryWidget::uploadFilesAfterConfirmation(
 	tasks.reserve(files.size());
 	for_const (auto &filepath, files) {
 		if (filepath.isEmpty() && (!image.isNull() || !content.isNull())) {
-			tasks.push_back(MakeShared<FileLoadTask>(content, image, type, to, caption));
+			tasks.push_back(std::make_shared<FileLoadTask>(content, image, type, to, caption));
 		} else {
-			tasks.push_back(MakeShared<FileLoadTask>(filepath, std::move(information), type, to, caption));
+			tasks.push_back(std::make_shared<FileLoadTask>(filepath, std::move(information), type, to, caption));
 		}
 	}
 	_fileLoader.addTasks(tasks);
@@ -4228,7 +4228,7 @@ void HistoryWidget::uploadFile(const QByteArray &fileContent, SendMediaType type
 
 	auto to = FileLoadTo(_peer->id, _peer->notifySilentPosts(), replyToId());
 	auto caption = QString();
-	_fileLoader.addTask(MakeShared<FileLoadTask>(fileContent, QImage(), type, to, caption));
+	_fileLoader.addTask(std::make_shared<FileLoadTask>(fileContent, QImage(), type, to, caption));
 }
 
 void HistoryWidget::sendFileConfirmed(const FileLoadResultPtr &file) {

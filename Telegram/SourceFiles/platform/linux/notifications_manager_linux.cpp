@@ -236,7 +236,7 @@ private:
 
 };
 
-using Notification = QSharedPointer<NotificationData>;
+using Notification = std::shared_ptr<NotificationData>;
 
 QString GetServerName() {
 	if (!LibNotifyLoaded()) {
@@ -440,7 +440,13 @@ void Manager::Private::showNextNotification() {
 
 	auto peerId = data.peer->id;
 	auto msgId = data.msgId;
-	auto notification = MakeShared<NotificationData>(_guarded, data.title, data.body, _capabilities, peerId, msgId);
+	auto notification = std::make_shared<NotificationData>(
+		_guarded,
+		data.title,
+		data.body,
+		_capabilities,
+		peerId,
+		msgId);
 	if (!notification->valid()) {
 		return;
 	}

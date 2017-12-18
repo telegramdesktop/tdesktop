@@ -117,7 +117,7 @@ private:
 
 		HashMd5 md5Hash;
 
-		QSharedPointer<QFile> docFile;
+		std::shared_ptr<QFile> docFile;
 		int32 docSentParts;
 		int32 docSize;
 		int32 docPartSize;

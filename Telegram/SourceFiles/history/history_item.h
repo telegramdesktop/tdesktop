@@ -372,7 +372,7 @@ private:
 	void startAnimation(int i, int j, int direction);
 
 	friend class Style;
-	using ReplyMarkupClickHandlerPtr = QSharedPointer<ReplyMarkupClickHandler>;
+	using ReplyMarkupClickHandlerPtr = std::shared_ptr<ReplyMarkupClickHandler>;
 	struct Button {
 		Text text = { 1 };
 		QRect rect;
@@ -380,7 +380,7 @@ private:
 		float64 howMuchOver = 0.;
 		HistoryMessageReplyMarkup::Button::Type type;
 		ReplyMarkupClickHandlerPtr link;
-		mutable QSharedPointer<Ui::RippleAnimation> ripple;
+		mutable std::shared_ptr<Ui::RippleAnimation> ripple;
 	};
 	using ButtonRow = QVector<Button>;
 	using ButtonRows = QVector<ButtonRow>;

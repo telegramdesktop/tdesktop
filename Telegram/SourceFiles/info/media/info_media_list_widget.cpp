@@ -1233,8 +1233,8 @@ void ListWidget::showContextMenu(
 			}
 		});
 
-	auto photoLink = dynamic_cast<PhotoClickHandler*>(link.data());
-	auto fileLink = dynamic_cast<DocumentClickHandler*>(link.data());
+	auto photoLink = dynamic_cast<PhotoClickHandler*>(link.get());
+	auto fileLink = dynamic_cast<DocumentClickHandler*>(link.get());
 	if (photoLink || fileLink) {
 		auto [isVideo, isVoice, isAudio] = [&] {
 			if (fileLink) {
@@ -1894,7 +1894,7 @@ void ListWidget::performDrag() {
 	}
 	auto pressedHandler = ClickHandler::getPressed();
 
-	if (dynamic_cast<VoiceSeekClickHandler*>(pressedHandler.data())) {
+	if (dynamic_cast<VoiceSeekClickHandler*>(pressedHandler.get())) {
 		return;
 	}
 
@@ -1976,9 +1976,9 @@ void ListWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton butt
 	auto activated = ClickHandler::unpressed();
 	if (_mouseAction == MouseAction::Dragging
 		|| _mouseAction == MouseAction::Selecting) {
-		activated.clear();
+		activated = nullptr;
 	} else if (needSelectionToggle) {
-		activated.clear();
+		activated = nullptr;
 	}
 
 	_wasSelectedText = false;

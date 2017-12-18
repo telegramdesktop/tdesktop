@@ -573,7 +573,7 @@ class PsFileBookmark;
 class ReadAccessEnabler {
 public:
 	ReadAccessEnabler(const PsFileBookmark *bookmark);
-	ReadAccessEnabler(const QSharedPointer<PsFileBookmark> &bookmark);
+	ReadAccessEnabler(const std::shared_ptr<PsFileBookmark> &bookmark);
 	bool failed() const {
 		return _failed;
 	}
@@ -606,7 +606,7 @@ public:
 	qint32 size;
 
 private:
-	QSharedPointer<PsFileBookmark> _bookmark;
+	std::shared_ptr<PsFileBookmark> _bookmark;
 
 };
 inline bool operator==(const FileLocation &a, const FileLocation &b) {

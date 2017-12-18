@@ -602,45 +602,45 @@ public:
 				if (_t->_links.size() < lnkIndex) {
 					_t->_links.resize(lnkIndex);
 					auto &link = links[lnkIndex - maxLnkIndex - 1];
-					ClickHandlerPtr handler;
+					auto handler = ClickHandlerPtr();
 					switch (link.type) {
 					case EntityInTextCustomUrl: {
 						if (!link.data.isEmpty()) {
-							handler = MakeShared<HiddenUrlClickHandler>(link.data);
+							handler = std::make_shared<HiddenUrlClickHandler>(link.data);
 						}
 					} break;
 					case EntityInTextEmail:
-					case EntityInTextUrl: handler = MakeShared<UrlClickHandler>(link.data, link.displayStatus == LinkDisplayedFull); break;
-					case EntityInTextBotCommand: handler = MakeShared<BotCommandClickHandler>(link.data); break;
+					case EntityInTextUrl: handler = std::make_shared<UrlClickHandler>(link.data, link.displayStatus == LinkDisplayedFull); break;
+					case EntityInTextBotCommand: handler = std::make_shared<BotCommandClickHandler>(link.data); break;
 					case EntityInTextHashtag:
 						if (options.flags & TextTwitterMentions) {
-							handler = MakeShared<UrlClickHandler>(qsl("https://twitter.com/hashtag/") + link.data.mid(1) + qsl("?src=hash"), true);
+							handler = std::make_shared<UrlClickHandler>(qsl("https://twitter.com/hashtag/") + link.data.mid(1) + qsl("?src=hash"), true);
 						} else if (options.flags & TextInstagramMentions) {
-							handler = MakeShared<UrlClickHandler>(qsl("https://instagram.com/explore/tags/") + link.data.mid(1) + '/', true);
+							handler = std::make_shared<UrlClickHandler>(qsl("https://instagram.com/explore/tags/") + link.data.mid(1) + '/', true);
 						} else {
-							handler = MakeShared<HashtagClickHandler>(link.data);
+							handler = std::make_shared<HashtagClickHandler>(link.data);
 						}
 					break;
 					case EntityInTextMention:
 						if (options.flags & TextTwitterMentions) {
-							handler = MakeShared<UrlClickHandler>(qsl("https://twitter.com/") + link.data.mid(1), true);
+							handler = std::make_shared<UrlClickHandler>(qsl("https://twitter.com/") + link.data.mid(1), true);
 						} else if (options.flags & TextInstagramMentions) {
-							handler = MakeShared<UrlClickHandler>(qsl("https://instagram.com/") + link.data.mid(1) + '/', true);
+							handler = std::make_shared<UrlClickHandler>(qsl("https://instagram.com/") + link.data.mid(1) + '/', true);
 						} else {
-							handler = MakeShared<MentionClickHandler>(link.data);
+							handler = std::make_shared<MentionClickHandler>(link.data);
 						}
 					break;
 					case EntityInTextMentionName: {
 						auto fields = TextUtilities::MentionNameDataToFields(link.data);
 						if (fields.userId) {
-							handler = MakeShared<MentionNameClickHandler>(link.text, fields.userId, fields.accessHash);
+							handler = std::make_shared<MentionNameClickHandler>(link.text, fields.userId, fields.accessHash);
 						} else {
 							LOG(("Bad mention name: %1").arg(link.data));
 						}
 					} break;
 					}
 
-					if (!handler.isNull()) {
+					if (handler) {
 						_t->setLink(lnkIndex, handler);
 					}
 				}
@@ -1209,7 +1209,7 @@ private:
 					}
 				}
 				if (_lookupLink) {
-					_lookupResult.link.clear();
+					_lookupResult.link = nullptr;
 				}
 				_lookupResult.uponSymbol = false;
 				return false;
@@ -1224,7 +1224,7 @@ private:
 //					_lookupResult.uponSymbol = ((_lookupX < _x + _w) && (_lineEnd < _t->_text.size()) && (!_endBlock || _endBlock->type() != TextBlockTSkip)) ? true : false;
 				}
 				if (_lookupLink) {
-					_lookupResult.link.clear();
+					_lookupResult.link = nullptr;
 				}
 				_lookupResult.uponSymbol = false;
 				return false;

@@ -75,7 +75,7 @@ void InfoWidget::refreshMobileNumber() {
 		lang(lng_profile_copy_phone));
 	if (auto text = _mobileNumber->entity()->textLabel()) {
 		text->setRichText(textcmdLink(1, phoneText.text));
-		text->setLink(1, MakeShared<LambdaClickHandler>([] {
+		text->setLink(1, std::make_shared<LambdaClickHandler>([] {
 			Ui::show(Box<ChangePhoneBox>());
 		}));
 	}

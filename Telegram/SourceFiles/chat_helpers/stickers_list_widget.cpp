@@ -1005,19 +1005,21 @@ QRect StickersListWidget::megagroupSetButtonRectFinal() const {
 	return result;
 }
 
-QSharedPointer<Ui::RippleAnimation> StickersListWidget::createButtonRipple(int section) {
+std::shared_ptr<Ui::RippleAnimation> StickersListWidget::createButtonRipple(int section) {
 	if (_section == Section::Featured) {
 		auto maskSize = QSize(_addWidth - st::stickersTrendingAdd.width, st::stickersTrendingAdd.height);
 		auto mask = Ui::RippleAnimation::roundRectMask(maskSize, st::buttonRadius);
-		return MakeShared<Ui::RippleAnimation>(st::stickersTrendingAdd.ripple, std::move(mask), [this, section] {
-			rtlupdate(featuredAddRect(section));
-		});
+		return std::make_shared<Ui::RippleAnimation>(
+			st::stickersTrendingAdd.ripple,
+			std::move(mask),
+			[this, section] { rtlupdate(featuredAddRect(section)); });
 	}
 	auto maskSize = QSize(st::stickerPanRemoveSet.rippleAreaSize, st::stickerPanRemoveSet.rippleAreaSize);
 	auto mask = Ui::RippleAnimation::ellipseMask(maskSize);
-	return MakeShared<Ui::RippleAnimation>(st::stickerPanRemoveSet.ripple, std::move(mask), [this, section] {
-		rtlupdate(removeButtonRect(section));
-	});
+	return std::make_shared<Ui::RippleAnimation>(
+		st::stickerPanRemoveSet.ripple,
+		std::move(mask),
+		[this, section] { rtlupdate(removeButtonRect(section)); });
 }
 
 QPoint StickersListWidget::buttonRippleTopLeft(int section) const {

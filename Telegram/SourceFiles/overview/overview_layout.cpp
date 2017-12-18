@@ -186,14 +186,14 @@ void RadialProgressItem::setDocumentLinks(
 		not_null<DocumentData*> document
 	) -> ClickHandlerPtr {
 		if (document->isVoiceMessage()) {
-			return MakeShared<DocumentOpenClickHandler>(document);
+			return std::make_shared<DocumentOpenClickHandler>(document);
 		}
-		return MakeShared<DocumentSaveClickHandler>(document);
+		return std::make_shared<DocumentSaveClickHandler>(document);
 	};
 	setLinks(
-		MakeShared<DocumentOpenClickHandler>(document),
+		std::make_shared<DocumentOpenClickHandler>(document),
 		createSaveHandler(document),
-		MakeShared<DocumentCancelClickHandler>(document));
+		std::make_shared<DocumentCancelClickHandler>(document));
 }
 
 void RadialProgressItem::clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
@@ -283,7 +283,7 @@ Photo::Photo(
 	not_null<PhotoData*> photo)
 : ItemBase(parent)
 , _data(photo)
-, _link(MakeShared<PhotoOpenClickHandler>(photo, parent->fullId())) {
+, _link(std::make_shared<PhotoOpenClickHandler>(photo, parent->fullId())) {
 }
 
 void Photo::initDimensions() {
@@ -549,7 +549,7 @@ Voice::Voice(
 	const style::OverviewFileLayout &st)
 : RadialProgressItem(parent)
 , _data(voice)
-, _namel(MakeShared<DocumentOpenClickHandler>(_data))
+, _namel(std::make_shared<DocumentOpenClickHandler>(_data))
 , _st(st) {
 	AddComponents(Info::Bit());
 
@@ -794,7 +794,7 @@ Document::Document(
 : RadialProgressItem(parent)
 , _data(document)
 , _msgl(goToMessageClickHandler(parent))
-, _namel(MakeShared<DocumentOpenClickHandler>(_data))
+, _namel(std::make_shared<DocumentOpenClickHandler>(_data))
 , _st(st)
 , _date(langDateTime(date(_data->date)))
 , _datew(st::normalFont->width(_date))
@@ -1215,22 +1215,22 @@ Link::Link(
 	if (_page) {
 		mainUrl = _page->url;
 		if (_page->document) {
-			_photol = MakeShared<DocumentOpenClickHandler>(_page->document);
+			_photol = std::make_shared<DocumentOpenClickHandler>(_page->document);
 		} else if (_page->photo) {
 			if (_page->type == WebPageProfile || _page->type == WebPageVideo) {
-				_photol = MakeShared<UrlClickHandler>(_page->url);
+				_photol = std::make_shared<UrlClickHandler>(_page->url);
 			} else if (_page->type == WebPagePhoto || _page->siteName == qstr("Twitter") || _page->siteName == qstr("Facebook")) {
-				_photol = MakeShared<PhotoOpenClickHandler>(
+				_photol = std::make_shared<PhotoOpenClickHandler>(
 					_page->photo,
 					parent->fullId());
 			} else {
-				_photol = MakeShared<UrlClickHandler>(_page->url);
+				_photol = std::make_shared<UrlClickHandler>(_page->url);
 			}
 		} else {
-			_photol = MakeShared<UrlClickHandler>(_page->url);
+			_photol = std::make_shared<UrlClickHandler>(_page->url);
 		}
 	} else if (!mainUrl.isEmpty()) {
-		_photol = MakeShared<UrlClickHandler>(mainUrl);
+		_photol = std::make_shared<UrlClickHandler>(mainUrl);
 	}
 	if (from >= till && _page) {
 		text = _page->description.text;
@@ -1456,7 +1456,7 @@ const style::RoundCheckbox &Link::checkboxStyle() const {
 Link::LinkEntry::LinkEntry(const QString &url, const QString &text)
 : text(text)
 , width(st::normalFont->width(text))
-, lnk(MakeShared<UrlClickHandler>(url)) {
+, lnk(std::make_shared<UrlClickHandler>(url)) {
 }
 
 } // namespace Layout

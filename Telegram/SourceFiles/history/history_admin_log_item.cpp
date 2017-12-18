@@ -488,7 +488,7 @@ void GenerateItems(not_null<History*> history, LocalIdManager &idManager, const 
 				fromLinkText,
 				lt_sticker_set,
 				textcmdLink(2, lang(lng_admin_log_changed_stickers_set)));
-			auto setLink = MakeShared<LambdaClickHandler>([set] {
+			auto setLink = std::make_shared<LambdaClickHandler>([set] {
 				Ui::show(Box<StickerSetBox>(set));
 			});
 			auto message = HistoryService::PreparedText { text };

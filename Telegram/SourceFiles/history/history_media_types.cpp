@@ -274,9 +274,9 @@ HistoryPhoto::HistoryPhoto(
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
 	const auto fullId = parent->fullId();
 	setLinks(
-		MakeShared<PhotoOpenClickHandler>(_data, fullId),
-		MakeShared<PhotoSaveClickHandler>(_data, fullId),
-		MakeShared<PhotoCancelClickHandler>(_data, fullId));
+		std::make_shared<PhotoOpenClickHandler>(_data, fullId),
+		std::make_shared<PhotoSaveClickHandler>(_data, fullId),
+		std::make_shared<PhotoCancelClickHandler>(_data, fullId));
 	if (!caption.isEmpty()) {
 		_caption.setText(
 			st::messageTextStyle,
@@ -295,9 +295,9 @@ HistoryPhoto::HistoryPhoto(
 , _data(photo) {
 	const auto fullId = parent->fullId();
 	setLinks(
-		MakeShared<PhotoOpenClickHandler>(_data, fullId, chat),
-		MakeShared<PhotoSaveClickHandler>(_data, fullId, chat),
-		MakeShared<PhotoCancelClickHandler>(_data, fullId, chat));
+		std::make_shared<PhotoOpenClickHandler>(_data, fullId, chat),
+		std::make_shared<PhotoSaveClickHandler>(_data, fullId, chat),
+		std::make_shared<PhotoCancelClickHandler>(_data, fullId, chat));
 
 	_width = width;
 	init();
@@ -322,9 +322,9 @@ HistoryPhoto::HistoryPhoto(
 , _caption(other._caption) {
 	const auto fullId = realParent->fullId();
 	setLinks(
-		MakeShared<PhotoOpenClickHandler>(_data, fullId),
-		MakeShared<PhotoSaveClickHandler>(_data, fullId),
-		MakeShared<PhotoCancelClickHandler>(_data, fullId));
+		std::make_shared<PhotoOpenClickHandler>(_data, fullId),
+		std::make_shared<PhotoSaveClickHandler>(_data, fullId),
+		std::make_shared<PhotoCancelClickHandler>(_data, fullId));
 
 	init();
 }
@@ -1497,11 +1497,11 @@ void HistoryDocument::createComponents(bool caption) {
 	}
 	UpdateComponents(mask);
 	if (auto thumbed = Get<HistoryDocumentThumbed>()) {
-		thumbed->_linksavel = MakeShared<DocumentSaveClickHandler>(_data);
-		thumbed->_linkcancell = MakeShared<DocumentCancelClickHandler>(_data);
+		thumbed->_linksavel = std::make_shared<DocumentSaveClickHandler>(_data);
+		thumbed->_linkcancell = std::make_shared<DocumentCancelClickHandler>(_data);
 	}
 	if (auto voice = Get<HistoryDocumentVoice>()) {
-		voice->_seekl = MakeShared<VoiceSeekClickHandler>(_data);
+		voice->_seekl = std::make_shared<VoiceSeekClickHandler>(_data);
 	}
 }
 
@@ -2216,7 +2216,7 @@ void HistoryGif::initDimensions() {
 		_caption.setSkipBlock(_parent->skipBlockWidth(), _parent->skipBlockHeight());
 	}
 	if (!_openInMediaviewLink) {
-		_openInMediaviewLink = MakeShared<DocumentOpenClickHandler>(_data);
+		_openInMediaviewLink = std::make_shared<DocumentOpenClickHandler>(_data);
 	}
 
 	bool bubble = _parent->hasBubble();
@@ -3040,7 +3040,7 @@ void HistorySticker::initDimensions() {
 	auto sticker = _data->sticker();
 
 	if (!_packLink && sticker && sticker->set.type() != mtpc_inputStickerSetEmpty) {
-		_packLink = MakeShared<LambdaClickHandler>([document = _data] {
+		_packLink = std::make_shared<LambdaClickHandler>([document = _data] {
 			if (auto sticker = document->sticker()) {
 				if (sticker->set.type() != mtpc_inputStickerSetEmpty && App::main()) {
 					App::main()->stickersBox(sticker->set);
@@ -3302,7 +3302,7 @@ int HistorySticker::additionalWidth(const HistoryMessageVia *via, const HistoryM
 namespace {
 
 ClickHandlerPtr sendMessageClickHandler(PeerData *peer) {
-	return MakeShared<LambdaClickHandler>([peer] {
+	return std::make_shared<LambdaClickHandler>([peer] {
 		App::wnd()->controller()->showPeerHistory(
 			peer->id,
 			Window::SectionShow::Way::Forward);
@@ -3310,7 +3310,7 @@ ClickHandlerPtr sendMessageClickHandler(PeerData *peer) {
 }
 
 ClickHandlerPtr addContactClickHandler(HistoryItem *item) {
-	return MakeShared<LambdaClickHandler>([fullId = item->fullId()] {
+	return std::make_shared<LambdaClickHandler>([fullId = item->fullId()] {
 		if (auto item = App::histItemById(fullId)) {
 			if (auto media = item->getMedia()) {
 				if (media->type() == MediaTypeContact) {
@@ -3535,7 +3535,7 @@ HistoryCall::FinishReason HistoryCall::GetReason(const MTPDmessageActionPhoneCal
 void HistoryCall::initDimensions() {
 	_maxw = st::msgFileMinWidth;
 
-	_link = MakeShared<LambdaClickHandler>([peer = _parent->history()->peer] {
+	_link = std::make_shared<LambdaClickHandler>([peer = _parent->history()->peer] {
 		if (auto user = peer->asUser()) {
 			Calls::Current().startOutgoingCall(user);
 		}
@@ -3674,7 +3674,7 @@ void HistoryWebPage::initDimensions() {
 	auto lineHeight = unitedLineHeight();
 
 	if (!_openl && !_data->url.isEmpty()) {
-		_openl = MakeShared<UrlClickHandler>(_data->url, true);
+		_openl = std::make_shared<UrlClickHandler>(_data->url, true);
 	}
 
 	// init layout
@@ -4238,7 +4238,7 @@ void HistoryGame::initDimensions() {
 	auto lineHeight = unitedLineHeight();
 
 	if (!_openl && _parent->id > 0) {
-		_openl = MakeShared<ReplyMarkupClickHandler>(_parent, 0, 0);
+		_openl = std::make_shared<ReplyMarkupClickHandler>(_parent, 0, 0);
 	}
 
 	auto title = TextUtilities::SingleLine(_data->title);
@@ -4320,7 +4320,7 @@ void HistoryGame::initDimensions() {
 
 void HistoryGame::updateMessageId() {
 	if (_openl) {
-		_openl = MakeShared<ReplyMarkupClickHandler>(_parent, 0, 0);
+		_openl = std::make_shared<ReplyMarkupClickHandler>(_parent, 0, 0);
 	}
 }
 
@@ -5027,7 +5027,7 @@ HistoryLocation::HistoryLocation(not_null<HistoryItem*> parent, const LocationCo
 , _data(App::location(coords))
 , _title(st::msgMinWidth)
 , _description(st::msgMinWidth)
-, _link(MakeShared<LocationClickHandler>(coords)) {
+, _link(std::make_shared<LocationClickHandler>(coords)) {
 	if (!title.isEmpty()) {
 		_title.setText(st::webPageTitleStyle, TextUtilities::Clean(title), _webpageTitleOptions);
 	}
@@ -5043,7 +5043,7 @@ HistoryLocation::HistoryLocation(not_null<HistoryItem*> parent, const HistoryLoc
 , _data(other._data)
 , _title(other._title)
 , _description(other._description)
-, _link(MakeShared<LocationClickHandler>(_data->coords)) {
+, _link(std::make_shared<LocationClickHandler>(_data->coords)) {
 }
 
 void HistoryLocation::initDimensions() {

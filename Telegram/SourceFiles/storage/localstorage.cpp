@@ -2854,7 +2854,7 @@ TaskId startImageLoad(const StorageKey &location, mtpFileLoader *loader) {
 	if (j == _imagesMap.cend() || !_localLoader) {
 		return 0;
 	}
-	return _localLoader->addTask(MakeShared<ImageLoadTask>(j->first, location, loader));
+	return _localLoader->addTask(std::make_shared<ImageLoadTask>(j->first, location, loader));
 }
 
 int32 hasImages() {
@@ -2912,7 +2912,7 @@ TaskId startStickerImageLoad(const StorageKey &location, mtpFileLoader *loader) 
 	if (j == _stickerImagesMap.cend() || !_localLoader) {
 		return 0;
 	}
-	return _localLoader->addTask(MakeShared<StickerImageLoadTask>(j->first, location, loader));
+	return _localLoader->addTask(std::make_shared<StickerImageLoadTask>(j->first, location, loader));
 }
 
 bool willStickerImageLoad(const StorageKey &location) {
@@ -2985,7 +2985,7 @@ TaskId startAudioLoad(const StorageKey &location, mtpFileLoader *loader) {
 	if (j == _audiosMap.cend() || !_localLoader) {
 		return 0;
 	}
-	return _localLoader->addTask(MakeShared<AudioLoadTask>(j->first, location, loader));
+	return _localLoader->addTask(std::make_shared<AudioLoadTask>(j->first, location, loader));
 }
 
 bool copyAudio(const StorageKey &oldLocation, const StorageKey &newLocation) {
@@ -3101,7 +3101,7 @@ TaskId startWebFileLoad(const QString &url, webFileLoader *loader) {
 	if (j == _webFilesMap.cend() || !_localLoader) {
 		return 0;
 	}
-	return _localLoader->addTask(MakeShared<WebFileLoadTask>(j->first, url, loader));
+	return _localLoader->addTask(std::make_shared<WebFileLoadTask>(j->first, url, loader));
 }
 
 int32 hasWebFiles() {
@@ -3177,7 +3177,7 @@ void countVoiceWaveform(DocumentData *document) {
 		if (_localLoader) {
 			voice->waveform.resize(1 + sizeof(TaskId));
 			voice->waveform[0] = -1; // counting
-			TaskId taskId = _localLoader->addTask(MakeShared<CountWaveformTask>(document));
+			TaskId taskId = _localLoader->addTask(std::make_shared<CountWaveformTask>(document));
 			memcpy(voice->waveform.data() + 1, &taskId, sizeof(taskId));
 		}
 	}

@@ -353,9 +353,9 @@ Text::StateResult FlatLabel::dragActionFinish(const QPoint &p, Qt::MouseButton b
 	_lastMousePos = p;
 	auto state = dragActionUpdate();
 
-	ClickHandlerPtr activated = ClickHandler::unpressed();
+	auto activated = ClickHandler::unpressed();
 	if (_dragAction == Dragging) {
-		activated.clear();
+		activated = nullptr;
 	} else if (_dragAction == PrepareDrag) {
 		_selection = { 0, 0 };
 		_savedSelection = { 0, 0 };

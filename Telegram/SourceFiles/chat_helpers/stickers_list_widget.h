@@ -144,7 +144,7 @@ private:
 		MTPDstickerSet::Flags flags;
 		QString title;
 		Stickers::Pack pack;
-		QSharedPointer<Ui::RippleAnimation> ripple;
+		std::shared_ptr<Ui::RippleAnimation> ripple;
 	};
 	using Sets = QList<Set>;
 
@@ -172,7 +172,7 @@ private:
 	void updateSelected();
 	void setSelected(OverState newSelected);
 	void setPressed(OverState newPressed);
-	QSharedPointer<Ui::RippleAnimation> createButtonRipple(int section);
+	std::shared_ptr<Ui::RippleAnimation> createButtonRipple(int section);
 	QPoint buttonRippleTopLeft(int section) const;
 
 	enum class ValidateIconAnimations {

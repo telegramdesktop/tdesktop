@@ -125,8 +125,8 @@ void PhoneWidget::showSignup() {
 		auto signupText = lng_phone_notreg(lt_link_start, textcmdStartLink(1), lt_link_end, textcmdStopLink(), lt_signup_start, textcmdStartLink(2), lt_signup_end, textcmdStopLink());
 		auto inner = object_ptr<Ui::FlatLabel>(this, signupText, Ui::FlatLabel::InitType::Rich, st::introDescription);
 		_signup.create(this, std::move(inner));
-		_signup->entity()->setLink(1, MakeShared<UrlClickHandler>(qsl("https://telegram.org"), false));
-		_signup->entity()->setLink(2, MakeShared<LambdaClickHandler>([this] {
+		_signup->entity()->setLink(1, std::make_shared<UrlClickHandler>(qsl("https://telegram.org"), false));
+		_signup->entity()->setLink(2, std::make_shared<LambdaClickHandler>([this] {
 			toSignUp();
 		}));
 		_signup->hide(anim::type::instant);

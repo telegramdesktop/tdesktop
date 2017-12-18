@@ -87,7 +87,7 @@ public:
 	}
 
 };
-using RPCDoneHandlerPtr = QSharedPointer<RPCAbstractDoneHandler>;
+using RPCDoneHandlerPtr = std::shared_ptr<RPCAbstractDoneHandler>;
 
 class RPCAbstractFailHandler { // abstract fail
 public:
@@ -95,7 +95,7 @@ public:
 	virtual ~RPCAbstractFailHandler() {
 	}
 };
-using RPCFailHandlerPtr = QSharedPointer<RPCAbstractFailHandler>;
+using RPCFailHandlerPtr = std::shared_ptr<RPCAbstractFailHandler>;
 
 struct RPCResponseHandler {
 	RPCResponseHandler() {

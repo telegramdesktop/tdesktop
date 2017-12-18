@@ -41,10 +41,11 @@ using mtpBuffer = QVector<mtpPrime>;
 using mtpTypeId = uint32;
 
 class mtpRequestData;
-class mtpRequest : public QSharedPointer<mtpRequestData> {
+class mtpRequest : public std::shared_ptr<mtpRequestData> {
 public:
 	mtpRequest() = default;
-    explicit mtpRequest(mtpRequestData *ptr) : QSharedPointer<mtpRequestData>(ptr) {
+    explicit mtpRequest(mtpRequestData *ptr)
+	: std::shared_ptr<mtpRequestData>(ptr) {
 	}
 
 	uint32 innerLength() const;

@@ -164,7 +164,7 @@ void PeerData::refreshEmptyUserpic() const {
 }
 
 ClickHandlerPtr PeerData::createOpenLink() {
-	return MakeShared<PeerClickHandler>(this);
+	return std::make_shared<PeerClickHandler>(this);
 }
 
 void PeerData::setUserpic(

@@ -359,7 +359,7 @@ HistoryService::PreparedText HistoryService::prepareGameScoreText() {
 		if (gamescore && gamescore->msg) {
 			if (auto media = gamescore->msg->getMedia()) {
 				if (media->type() == MediaTypeGame) {
-					result.links.push_back(MakeShared<ReplyMarkupClickHandler>(gamescore->msg, 0, 0));
+					result.links.push_back(std::make_shared<ReplyMarkupClickHandler>(gamescore->msg, 0, 0));
 					auto titleText = static_cast<HistoryGame*>(media)->game()->title;
 					return textcmdLink(result.links.size(), titleText);
 				}

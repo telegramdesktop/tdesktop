@@ -79,21 +79,21 @@ protected:
 		ClickHandlerPtr open, save;
 		const auto context = realParent->fullId();
 		if (inlinegif) {
-			open = MakeShared<GifOpenClickHandler>(document, context);
+			open = std::make_shared<GifOpenClickHandler>(document, context);
 		} else {
-			open = MakeShared<DocumentOpenClickHandler>(document, context);
+			open = std::make_shared<DocumentOpenClickHandler>(document, context);
 		}
 		if (inlinegif) {
-			save = MakeShared<GifOpenClickHandler>(document, context);
+			save = std::make_shared<GifOpenClickHandler>(document, context);
 		} else if (document->isVoiceMessage()) {
-			save = MakeShared<DocumentOpenClickHandler>(document, context);
+			save = std::make_shared<DocumentOpenClickHandler>(document, context);
 		} else {
-			save = MakeShared<DocumentSaveClickHandler>(document, context);
+			save = std::make_shared<DocumentSaveClickHandler>(document, context);
 		}
 		setLinks(
 			std::move(open),
 			std::move(save),
-			MakeShared<DocumentCancelClickHandler>(document, context));
+			std::make_shared<DocumentCancelClickHandler>(document, context));
 	}
 
 	// >= 0 will contain download / upload string, _statusSize = loaded bytes
@@ -428,7 +428,7 @@ public:
 	void checkPlaybackFinished() const;
 
 	mutable std::unique_ptr<HistoryDocumentVoicePlayback> _playback;
-	QSharedPointer<VoiceSeekClickHandler> _seekl;
+	std::shared_ptr<VoiceSeekClickHandler> _seekl;
 	mutable int _lastDurationMs = 0;
 
 	bool seeking() const {

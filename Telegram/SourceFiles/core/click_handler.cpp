@@ -38,9 +38,11 @@ bool ClickHandler::setActive(const ClickHandlerPtr &p, ClickHandlerHost *host) {
 	// other pressed click handler currently, if there is
 	// this method will be called when it is unpressed
 	if (_active && *_active) {
-		auto emitClickHandlerActiveChanged = (!_pressed || !*_pressed || *_pressed == *_active);
-		auto wasactive = *_active;
-		(*_active).clear();
+		const auto emitClickHandlerActiveChanged = false
+			|| !_pressed
+			|| !*_pressed
+			|| (*_pressed == *_active);
+		const auto wasactive = base::take(*_active);
 		if (_activeHost) {
 			if (emitClickHandlerActiveChanged) {
 				_activeHost->clickHandlerActiveChanged(wasactive, false);

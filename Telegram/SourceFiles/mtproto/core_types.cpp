@@ -75,14 +75,18 @@ void MTPstring::write(mtpBuffer &to) const {
 }
 
 uint32 mtpRequest::innerLength() const { // for template MTP requests and MTPBoxed instanciation
-	mtpRequestData *value = data();
-	if (!value || value->size() < 9) return 0;
+	const auto value = get();
+	if (!value || value->size() < 9) {
+		return 0;
+	}
 	return value->at(7);
 }
 
 void mtpRequest::write(mtpBuffer &to) const {
-	mtpRequestData *value = data();
-	if (!value || value->size() < 9) return;
+	const auto value = get();
+	if (!value || value->size() < 9) {
+		return;
+	}
 	uint32 was = to.size(), s = innerLength() / sizeof(mtpPrime);
 	to.resize(was + s);
 	memcpy(to.data() + was, value->constData() + 8, s * sizeof(mtpPrime));

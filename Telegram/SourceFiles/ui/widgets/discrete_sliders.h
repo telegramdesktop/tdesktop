@@ -59,7 +59,7 @@ protected:
 		int left, width;
 		QString label;
 		int labelWidth;
-		QSharedPointer<RippleAnimation> ripple;
+		std::shared_ptr<RippleAnimation> ripple;
 	};
 
 	int getCurrentActiveLeft(TimeMs ms);

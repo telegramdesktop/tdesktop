@@ -318,7 +318,7 @@ bool FileLoadTask::CheckForImage(const QString &filepath, const QByteArray &cont
 void FileLoadTask::process() {
 	const auto stickerMime = qsl("image/webp");
 
-	_result = MakeShared<FileLoadResult>(_id, _to, _caption);
+	_result = std::make_shared<FileLoadResult>(_id, _to, _caption);
 
 	QString filename, filemime;
 	qint64 filesize = 0;

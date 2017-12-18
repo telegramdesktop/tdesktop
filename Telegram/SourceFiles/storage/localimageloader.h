@@ -114,7 +114,7 @@ public:
 	}
 
 };
-using TaskPtr = QSharedPointer<Task>;
+using TaskPtr = std::shared_ptr<Task>;
 using TasksList = QList<TaskPtr>;
 
 class TaskQueueWorker;
@@ -235,7 +235,7 @@ struct FileLoadResult {
 		}
 	}
 };
-typedef QSharedPointer<FileLoadResult> FileLoadResultPtr;
+using FileLoadResultPtr = std::shared_ptr<FileLoadResult>;
 
 class FileLoadTask final : public Task {
 public:

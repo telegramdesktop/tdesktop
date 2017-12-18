@@ -821,9 +821,9 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 	_contextMenuLink = ClickHandler::getActive();
 	auto item = App::hoveredItem() ? App::hoveredItem() : App::hoveredLinkItem();
-	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(_contextMenuLink.data());
-	auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.data());
-	auto lnkPeer = dynamic_cast<PeerClickHandler*>(_contextMenuLink.data());
+	auto lnkPhoto = dynamic_cast<PhotoClickHandler*>(_contextMenuLink.get());
+	auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.get());
+	auto lnkPeer = dynamic_cast<PeerClickHandler*>(_contextMenuLink.get());
 	auto lnkIsVideo = lnkDocument ? lnkDocument->document()->isVideoFile() : false;
 	auto lnkIsVoice = lnkDocument ? lnkDocument->document()->isVoiceMessage() : false;
 	auto lnkIsAudio = lnkDocument ? lnkDocument->document()->isAudioFile() : false;
@@ -979,7 +979,7 @@ void InnerWidget::showStickerPackInfo() {
 }
 
 void InnerWidget::cancelContextDownload() {
-	if (auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.data())) {
+	if (auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.get())) {
 		lnkDocument->document()->cancel();
 	} else if (auto item = App::contextItem()) {
 		if (auto media = item->getMedia()) {
@@ -992,7 +992,7 @@ void InnerWidget::cancelContextDownload() {
 
 void InnerWidget::showContextInFolder() {
 	QString filepath;
-	if (auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.data())) {
+	if (auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLink.get())) {
 		filepath = lnkDocument->document()->filepath(DocumentData::FilePathResolveChecked);
 	} else if (auto item = App::contextItem()) {
 		if (auto media = item->getMedia()) {
@@ -1240,9 +1240,9 @@ void InnerWidget::mouseActionCancel() {
 void InnerWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton button) {
 	mouseActionUpdate(screenPos);
 
-	ClickHandlerPtr activated = ClickHandler::unpressed();
+	auto activated = ClickHandler::unpressed();
 	if (_mouseAction == MouseAction::Dragging) {
-		activated.clear();
+		activated = nullptr;
 	}
 	if (App::pressedItem()) {
 		repaintItem(App::pressedItem());

@@ -545,11 +545,6 @@ static int32 QuarterArcLength = (FullArcLength / 4);
 static int32 MinArcLength = (FullArcLength / 360);
 static int32 AlmostFullArcLength = (FullArcLength - MinArcLength);
 
-template <typename T, typename... Args>
-inline QSharedPointer<T> MakeShared(Args&&... args) {
-	return QSharedPointer<T>(new T(std::forward<Args>(args)...));
-}
-
 // This pointer is used for global non-POD variables that are allocated
 // on demand by createIfNull(lambda) and are never automatically freed.
 template <typename T>
