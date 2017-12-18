@@ -390,3 +390,21 @@ struct SendAction {
 	int progress = 0;
 
 };
+
+class FileClickHandler : public LeftButtonClickHandler {
+public:
+	FileClickHandler(FullMsgId context) : _context(context) {
+	}
+
+	void setMessageId(FullMsgId context) {
+		_context = context;
+	}
+
+	FullMsgId context() const {
+		return _context;
+	}
+
+private:
+	FullMsgId _context;
+
+};

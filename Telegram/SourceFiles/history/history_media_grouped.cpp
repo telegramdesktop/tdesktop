@@ -151,6 +151,13 @@ int HistoryGroupedMedia::resizeGetHeight(int width) {
 	return _height;
 }
 
+void HistoryGroupedMedia::refreshParentId(
+		not_null<HistoryItem*> realParent) {
+	for (const auto &element : _elements) {
+		element.content->refreshParentId(element.item);
+	}
+}
+
 void HistoryGroupedMedia::draw(
 		Painter &p,
 		const QRect &clip,

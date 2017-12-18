@@ -70,14 +70,14 @@ private:
 
 };
 
-class PhotoClickHandler : public LeftButtonClickHandler {
+class PhotoClickHandler : public FileClickHandler {
 public:
 	PhotoClickHandler(
 		not_null<PhotoData*> photo,
 		FullMsgId context = FullMsgId(),
 		PeerData *peer = nullptr)
-	: _photo(photo)
-	, _context(context)
+	: FileClickHandler(context)
+	, _photo(photo)
 	, _peer(peer) {
 	}
 	not_null<PhotoData*> photo() const {
@@ -86,13 +86,9 @@ public:
 	PeerData *peer() const {
 		return _peer;
 	}
-	FullMsgId context() const {
-		return _context;
-	}
 
 private:
 	not_null<PhotoData*> _photo;
-	FullMsgId _context;
 	PeerData *_peer = nullptr;
 
 };

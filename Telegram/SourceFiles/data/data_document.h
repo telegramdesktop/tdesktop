@@ -309,24 +309,20 @@ private:
 VoiceWaveform documentWaveformDecode(const QByteArray &encoded5bit);
 QByteArray documentWaveformEncode5bit(const VoiceWaveform &waveform);
 
-class DocumentClickHandler : public LeftButtonClickHandler {
+class DocumentClickHandler : public FileClickHandler {
 public:
 	DocumentClickHandler(
 		not_null<DocumentData*> document,
 		FullMsgId context = FullMsgId())
-	: _document(document)
-	, _context(context) {
+	: FileClickHandler(context)
+	, _document(document) {
 	}
 	not_null<DocumentData*> document() const {
 		return _document;
 	}
-	FullMsgId context() const {
-		return _context;
-	}
 
 private:
 	not_null<DocumentData*> _document;
-	FullMsgId _context;
 
 };
 

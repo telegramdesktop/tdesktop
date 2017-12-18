@@ -75,7 +75,7 @@ public:
 		return false;
 	}
 	virtual void initDimensions() = 0;
-	virtual void updateMessageId() {
+	virtual void refreshParentId(not_null<HistoryItem*> realParent) {
 	}
 	virtual int resizeGetHeight(int width) {
 		_width = qMin(width, _maxw);

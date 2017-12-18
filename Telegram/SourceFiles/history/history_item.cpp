@@ -69,10 +69,13 @@ HistoryTextState::HistoryTextState(
 , link(link) {
 }
 
-ReplyMarkupClickHandler::ReplyMarkupClickHandler(const HistoryItem *item, int row, int col)
-: _itemId(item->fullId())
+ReplyMarkupClickHandler::ReplyMarkupClickHandler(
+	int row,
+	int column,
+	FullMsgId context)
+: _itemId(context)
 , _row(row)
-, _col(col) {
+, _column(column) {
 }
 
 // Copy to clipboard support.
@@ -104,9 +107,9 @@ const HistoryMessageReplyMarkup::Button *ReplyMarkupClickHandler::getButton() co
 	if (auto item = App::histItemById(_itemId)) {
 		if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 			if (_row < markup->rows.size()) {
-				auto &row = markup->rows.at(_row);
-				if (_col < row.size()) {
-					return &row.at(_col);
+				auto &row = markup->rows[_row];
+				if (_column < row.size()) {
+					return &row[_column];
 				}
 			}
 		}
@@ -116,7 +119,7 @@ const HistoryMessageReplyMarkup::Button *ReplyMarkupClickHandler::getButton() co
 
 void ReplyMarkupClickHandler::onClickImpl() const {
 	if (auto item = App::histItemById(_itemId)) {
-		App::activateBotCommand(item, _row, _col);
+		App::activateBotCommand(item, _row, _column);
 	}
 }
 
@@ -141,19 +144,27 @@ ReplyKeyboard::ReplyKeyboard(
 , _a_selected(animation(this, &ReplyKeyboard::step_selected))
 , _st(std::move(s)) {
 	if (const auto markup = _item->Get<HistoryMessageReplyMarkup>()) {
-		_rows.reserve(markup->rows.size());
-		for (auto i = 0, l = int(markup->rows.size()); i != l; ++i) {
-			auto &row = markup->rows.at(i);
-			int s = row.size();
+		const auto context = _item->fullId();
+		const auto rowCount = int(markup->rows.size());
+		_rows.reserve(rowCount);
+		for (auto i = 0; i != rowCount; ++i) {
+			const auto &row = markup->rows.at(i);
+			const auto rowSize = int(row.size());
 			auto newRow = std::vector<Button>();
-			newRow.reserve(s);
-			for (int j = 0; j != s; ++j) {
+			newRow.reserve(rowSize);
+			for (auto j = 0; j != rowSize; ++j) {
 				auto button = Button();
-				auto str = row.at(j).text;
+				const auto text = row[j].text;
 				button.type = row.at(j).type;
-				button.link = std::make_shared<ReplyMarkupClickHandler>(item, i, j);
-				button.text.setText(_st->textStyle(), TextUtilities::SingleLine(str), _textPlainOptions);
-				button.characters = str.isEmpty() ? 1 : str.size();
+				button.link = std::make_shared<ReplyMarkupClickHandler>(
+					i,
+					j,
+					context);
+				button.text.setText(
+					_st->textStyle(),
+					TextUtilities::SingleLine(text),
+					_textPlainOptions);
+				button.characters = text.isEmpty() ? 1 : text.size();
 				newRow.push_back(std::move(button));
 			}
 			_rows.push_back(std::move(newRow));
@@ -924,7 +935,14 @@ void HistoryItem::setId(MsgId newId) {
 	}
 
 	if (_media) {
-		_media->updateMessageId();
+		_media->refreshParentId(this);
+		if (const auto group = Get<HistoryMessageGroup>()) {
+			if (group->leader != this) {
+				if (const auto media = group->leader->getMedia()) {
+					media->refreshParentId(group->leader);
+				}
+			}
+		}
 	}
 }
 

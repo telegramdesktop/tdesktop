@@ -269,7 +269,7 @@ private:
 
 class ReplyMarkupClickHandler : public LeftButtonClickHandler {
 public:
-	ReplyMarkupClickHandler(const HistoryItem *item, int row, int col);
+	ReplyMarkupClickHandler(int row, int column, FullMsgId context);
 
 	QString tooltip() const override {
 		return _fullDisplayed ? QString() : buttonText();
@@ -300,7 +300,8 @@ protected:
 
 private:
 	FullMsgId _itemId;
-	int _row, _col;
+	int _row = 0;
+	int _column = 0;
 	bool _fullDisplayed = true;
 
 	// Returns the full text of the corresponding button.

@@ -41,6 +41,7 @@ public:
 
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
+	void refreshParentId(not_null<HistoryItem*> realParent) override;
 
 	void draw(
 		Painter &p,

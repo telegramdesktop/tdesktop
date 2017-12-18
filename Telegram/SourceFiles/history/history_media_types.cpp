@@ -215,12 +215,19 @@ void HistoryFileMedia::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool
 }
 
 void HistoryFileMedia::setLinks(
-		ClickHandlerPtr &&openl,
-		ClickHandlerPtr &&savel,
-		ClickHandlerPtr &&cancell) {
+		FileClickHandlerPtr &&openl,
+		FileClickHandlerPtr &&savel,
+		FileClickHandlerPtr &&cancell) {
 	_openl = std::move(openl);
 	_savel = std::move(savel);
 	_cancell = std::move(cancell);
+}
+
+void HistoryFileMedia::refreshParentId(not_null<HistoryItem*> realParent) {
+	const auto contextId = realParent->fullId();
+	_openl->setMessageId(contextId);
+	_savel->setMessageId(contextId);
+	_cancell->setMessageId(contextId);
 }
 
 void HistoryFileMedia::setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const {
@@ -3846,6 +3853,12 @@ int HistoryWebPage::resizeGetHeight(int width) {
 	return _height;
 }
 
+void HistoryWebPage::refreshParentId(not_null<HistoryItem*> realParent) {
+	if (_attach) {
+		_attach->refreshParentId(realParent);
+	}
+}
+
 void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	int32 skipx = 0, skipy = 0, width = _width, height = _height;
@@ -4175,8 +4188,13 @@ HistoryGame::HistoryGame(
 void HistoryGame::initDimensions() {
 	auto lineHeight = unitedLineHeight();
 
-	if (!_openl && _parent->id > 0) {
-		_openl = std::make_shared<ReplyMarkupClickHandler>(_parent, 0, 0);
+	if (!_openl && IsServerMsgId(_parent->id)) {
+		const auto row = 0;
+		const auto column = 0;
+		_openl = std::make_shared<ReplyMarkupClickHandler>(
+			row,
+			column,
+			_parent->fullId());
 	}
 
 	auto title = TextUtilities::SingleLine(_data->title);
@@ -4256,9 +4274,12 @@ void HistoryGame::initDimensions() {
 	}
 }
 
-void HistoryGame::updateMessageId() {
+void HistoryGame::refreshParentId(not_null<HistoryItem*> realParent) {
 	if (_openl) {
-		_openl = std::make_shared<ReplyMarkupClickHandler>(_parent, 0, 0);
+		_openl->setMessageId(_parent->fullId());
+	}
+	if (_attach) {
+		_attach->refreshParentId(realParent);
 	}
 }
 
@@ -4756,6 +4777,12 @@ int HistoryInvoice::resizeGetHeight(int width) {
 	_height += padding.top() + padding.bottom();
 
 	return _height;
+}
+
+void HistoryInvoice::refreshParentId(not_null<HistoryItem*> realParent) {
+	if (_attach) {
+		_attach->refreshParentId(realParent);
+	}
 }
 
 void HistoryInvoice::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {

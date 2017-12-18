@@ -357,9 +357,15 @@ HistoryService::PreparedText HistoryService::prepareGameScoreText() {
 
 	auto computeGameTitle = [gamescore, &result]() -> QString {
 		if (gamescore && gamescore->msg) {
-			if (auto media = gamescore->msg->getMedia()) {
+			if (const auto media = gamescore->msg->getMedia()) {
 				if (media->type() == MediaTypeGame) {
-					result.links.push_back(std::make_shared<ReplyMarkupClickHandler>(gamescore->msg, 0, 0));
+					const auto row = 0;
+					const auto column = 0;
+					result.links.push_back(
+						std::make_shared<ReplyMarkupClickHandler>(
+							row,
+							column,
+							gamescore->msg->fullId()));
 					auto titleText = static_cast<HistoryGame*>(media)->game()->title;
 					return textcmdLink(result.links.size(), titleText);
 				}
@@ -371,21 +377,37 @@ HistoryService::PreparedText HistoryService::prepareGameScoreText() {
 		return QString();
 	};
 
-	auto scoreNumber = gamescore ? gamescore->score : 0;
+	const auto scoreNumber = gamescore ? gamescore->score : 0;
 	if (_from->isSelf()) {
 		auto gameTitle = computeGameTitle();
 		if (gameTitle.isEmpty()) {
-			result.text = lng_action_game_you_scored_no_game(lt_count, scoreNumber);
+			result.text = lng_action_game_you_scored_no_game(
+				lt_count,
+				scoreNumber);
 		} else {
-			result.text = lng_action_game_you_scored(lt_count, scoreNumber, lt_game, gameTitle);
+			result.text = lng_action_game_you_scored(
+				lt_count,
+				scoreNumber,
+				lt_game,
+				gameTitle);
 		}
 	} else {
 		result.links.push_back(fromLink());
 		auto gameTitle = computeGameTitle();
 		if (gameTitle.isEmpty()) {
-			result.text = lng_action_game_score_no_game(lt_count, scoreNumber, lt_from, fromLinkText());
+			result.text = lng_action_game_score_no_game(
+				lt_count,
+				scoreNumber,
+				lt_from,
+				fromLinkText());
 		} else {
-			result.text = lng_action_game_score(lt_count, scoreNumber, lt_from, fromLinkText(), lt_game, gameTitle);
+			result.text = lng_action_game_score(
+				lt_count,
+				scoreNumber,
+				lt_from,
+				fromLinkText(),
+				lt_game,
+				gameTitle);
 		}
 	}
 	return result;
