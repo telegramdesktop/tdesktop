@@ -1274,13 +1274,8 @@ not_null<HistoryItem*> History::addNewItem(not_null<HistoryItem*> adding, bool n
 		recountGrouping(groupFrom, groupTill);
 	}
 
-	setLastMessage(adding);
-	if (newMsg) {
-		newItemAdded(adding);
-	}
-
-	adding->addToUnreadMentions(AddToUnreadMentionsMethod::New);
 	if (IsServerMsgId(adding->id)) {
+		adding->addToUnreadMentions(AddToUnreadMentionsMethod::New);
 		if (auto sharedMediaTypes = adding->sharedMediaTypes()) {
 			if (newMsg) {
 				Auth().storage().add(Storage::SharedMediaAddNew(
@@ -1376,6 +1371,11 @@ not_null<HistoryItem*> History::addNewItem(not_null<HistoryItem*> adding, bool n
 				}
 			}
 		}
+	}
+
+	setLastMessage(adding);
+	if (newMsg) {
+		newItemAdded(adding);
 	}
 
 	return adding;
