@@ -163,7 +163,7 @@ void SendFilesBox::clipCallback(Media::Clip::Notification notification) {
 
 		if (_gifPreview && _gifPreview->ready() && !_gifPreview->started()) {
 			auto s = QSize(_previewWidth, _previewHeight);
-			_gifPreview->start(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, ImageRoundCorner::None);
+			_gifPreview->start(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None);
 		}
 
 		update();
@@ -350,7 +350,7 @@ void SendFilesBox::paintEvent(QPaintEvent *e) {
 		if (_gifPreview && _gifPreview->started()) {
 			auto s = QSize(_previewWidth, _previewHeight);
 			auto paused = controller()->isGifPausedAtLeastFor(Window::GifPauseReason::Layer);
-			auto frame = _gifPreview->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, ImageRoundCorner::None, paused ? 0 : getms());
+			auto frame = _gifPreview->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None, paused ? 0 : getms());
 			p.drawPixmap(_previewLeft, st::boxPhotoPadding.top(), frame);
 		} else {
 			p.drawPixmap(_previewLeft, st::boxPhotoPadding.top(), _preview);
@@ -619,7 +619,7 @@ void EditCaptionBox::clipCallback(Media::Clip::Notification notification) {
 
 		if (_gifPreview && _gifPreview->ready() && !_gifPreview->started()) {
 			auto s = QSize(_thumbw, _thumbh);
-			_gifPreview->start(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, ImageRoundCorner::None);
+			_gifPreview->start(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None);
 		}
 
 		update();
@@ -686,7 +686,7 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 		if (_gifPreview && _gifPreview->started()) {
 			auto s = QSize(_thumbw, _thumbh);
 			auto paused = controller()->isGifPausedAtLeastFor(Window::GifPauseReason::Layer);
-			auto frame = _gifPreview->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, ImageRoundCorner::None, paused ? 0 : getms());
+			auto frame = _gifPreview->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None, paused ? 0 : getms());
 			p.drawPixmap(_thumbx, st::boxPhotoPadding.top(), frame);
 		} else {
 			p.drawPixmap(_thumbx, st::boxPhotoPadding.top(), _thumb);

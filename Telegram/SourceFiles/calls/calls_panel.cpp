@@ -490,7 +490,7 @@ void Panel::createUserpicCache(ImagePtr image) {
 				_user->name
 			).paintSquare(p, 0, 0, st::callWidth, st::callWidth);
 		}
-		Images::prepareRound(filled, ImageRoundRadius::Large, ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight);
+		Images::prepareRound(filled, ImageRoundRadius::Large, RectPart::TopLeft | RectPart::TopRight);
 		_userPhoto = App::pixmapFromImageInPlace(std::move(filled));
 	}
 	refreshCacheImageUserPhoto();

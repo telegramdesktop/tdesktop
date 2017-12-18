@@ -452,8 +452,8 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 		}
 		auto inWebPage = (_parent->getMedia() != this);
 		auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
-		auto roundCorners = inWebPage ? ImageRoundCorner::All : ((isBubbleTop() ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)
-			| ((isBubbleBottom() && _caption.isEmpty()) ? (ImageRoundCorner::BottomLeft | ImageRoundCorner::BottomRight) : ImageRoundCorner::None));
+		auto roundCorners = inWebPage ? RectPart::AllCorners : ((isBubbleTop() ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
+			| ((isBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
 		const auto pix = loaded
 			? _data->full->pixSingle(_pixw, _pixh, width, height, roundRadius, roundCorners)
 			: _data->thumb->pixBlurredSingle(_pixw, _pixh, width, height, roundRadius, roundCorners);
@@ -623,12 +623,7 @@ void HistoryPhoto::drawGrouped(
 	p.drawPixmap(geometry.topLeft(), *cache);
 	if (selected) {
 		const auto roundRadius = ImageRoundRadius::Large;
-		const auto roundCorners = ImageRoundCorner::None
-			| ((corners & RectPart::TopLeft) ? ImageRoundCorner::TopLeft : ImageRoundCorner::None)
-			| ((corners & RectPart::TopRight) ? ImageRoundCorner::TopRight : ImageRoundCorner::None)
-			| ((corners & RectPart::BottomLeft) ? ImageRoundCorner::BottomLeft : ImageRoundCorner::None)
-			| ((corners & RectPart::BottomRight) ? ImageRoundCorner::BottomRight : ImageRoundCorner::None);
-		App::complexOverlayRect(p, geometry, roundRadius, roundCorners);
+		App::complexOverlayRect(p, geometry, roundRadius, corners);
 	}
 
 	if (radial || (!loaded && !_data->loading())) {
@@ -997,8 +992,8 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 
 	auto inWebPage = (_parent->getMedia() != this);
 	auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
-	auto roundCorners = inWebPage ? ImageRoundCorner::All : ((isBubbleTop() ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)
-		| ((isBubbleBottom() && _caption.isEmpty()) ? (ImageRoundCorner::BottomLeft | ImageRoundCorner::BottomRight) : ImageRoundCorner::None));
+	auto roundCorners = inWebPage ? RectPart::AllCorners : ((isBubbleTop() ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
+		| ((isBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
 	QRect rthumb(rtlrect(skipx, skipy, width, height, _width));
 	p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(_thumbw, 0, width, height, roundRadius, roundCorners));
 	if (selected) {
@@ -1158,12 +1153,7 @@ void HistoryVideo::drawGrouped(
 	p.drawPixmap(geometry.topLeft(), *cache);
 	if (selected) {
 		const auto roundRadius = ImageRoundRadius::Large;
-		const auto roundCorners = ImageRoundCorner::None
-			| ((corners & RectPart::TopLeft) ? ImageRoundCorner::TopLeft : ImageRoundCorner::None)
-			| ((corners & RectPart::TopRight) ? ImageRoundCorner::TopLeft : ImageRoundCorner::None)
-			| ((corners & RectPart::BottomLeft) ? ImageRoundCorner::TopLeft : ImageRoundCorner::None)
-			| ((corners & RectPart::BottomRight) ? ImageRoundCorner::TopLeft : ImageRoundCorner::None);
-		App::complexOverlayRect(p, geometry, roundRadius, roundCorners);
+		App::complexOverlayRect(p, geometry, roundRadius, corners);
 	}
 
 	const auto radialOpacity = (radial && loaded && !_data->uploading())
@@ -2275,8 +2265,8 @@ int HistoryGif::resizeGetHeight(int width) {
 			auto isRound = _data->isVideoMessage();
 			auto inWebPage = (_parent->getMedia() != this);
 			auto roundRadius = isRound ? ImageRoundRadius::Ellipse : inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
-			auto roundCorners = (isRound || inWebPage) ? ImageRoundCorner::All : ((isBubbleTop() ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)
-				| ((isBubbleBottom() && _caption.isEmpty()) ? (ImageRoundCorner::BottomLeft | ImageRoundCorner::BottomRight) : ImageRoundCorner::None));
+			auto roundCorners = (isRound || inWebPage) ? RectPart::AllCorners : ((isBubbleTop() ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
+				| ((isBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
 			_gif->start(_thumbw, _thumbh, _width, _height, roundRadius, roundCorners);
 		}
 	} else {
@@ -2376,8 +2366,8 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 	QRect rthumb(rtlrect(usex + skipx, skipy, usew, height, _width));
 
 	auto roundRadius = isRound ? ImageRoundRadius::Ellipse : isChildMedia ? ImageRoundRadius::Small : ImageRoundRadius::Large;
-	auto roundCorners = (isRound || isChildMedia) ? ImageRoundCorner::All : ((isBubbleTop() ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)
-		| ((isBubbleBottom() && _caption.isEmpty()) ? (ImageRoundCorner::BottomLeft | ImageRoundCorner::BottomRight) : ImageRoundCorner::None));
+	auto roundCorners = (isRound || isChildMedia) ? RectPart::AllCorners : ((isBubbleTop() ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
+		| ((isBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
 	if (animating) {
 		auto paused = App::wnd()->controller()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
 		if (isRound) {
@@ -5119,8 +5109,8 @@ void HistoryLocation::draw(Painter &p, const QRect &r, TextSelection selection, 
 
 	_data->load();
 	auto roundRadius = ImageRoundRadius::Large;
-	auto roundCorners = ((isBubbleTop() && _title.isEmpty() && _description.isEmpty()) ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)
-		| (isBubbleBottom() ? (ImageRoundCorner::BottomLeft | ImageRoundCorner::BottomRight) : ImageRoundCorner::None);
+	auto roundCorners = ((isBubbleTop() && _title.isEmpty() && _description.isEmpty()) ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
+		| (isBubbleBottom() ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None);
 	auto rthumb = QRect(skipx, skipy, width, height);
 	if (_data && !_data->thumb->isNull()) {
 		int32 w = _data->thumb->width(), h = _data->thumb->height();

@@ -41,16 +41,6 @@ enum class ImageRoundRadius {
 	Small,
 	Ellipse,
 };
-enum class ImageRoundCorner {
-	None        = 0x00,
-	TopLeft     = 0x01,
-	TopRight    = 0x02,
-	BottomLeft  = 0x04,
-	BottomRight = 0x08,
-	All         = 0x0f,
-};
-using ImageRoundCorners = base::flags<ImageRoundCorner>;
-inline constexpr auto is_flag_type(ImageRoundCorner) { return true; };
 
 inline uint32 packInt(int32 a) {
 	return (a < 0) ? uint32(int64(a) + 0x100000000LL) : uint32(a);
@@ -205,8 +195,8 @@ inline bool operator!=(const WebFileImageLocation &a, const WebFileImageLocation
 namespace Images {
 
 QImage prepareBlur(QImage image);
-void prepareRound(QImage &image, ImageRoundRadius radius, ImageRoundCorners corners = ImageRoundCorner::All);
-void prepareRound(QImage &image, QImage *cornerMasks, ImageRoundCorners corners = ImageRoundCorner::All);
+void prepareRound(QImage &image, ImageRoundRadius radius, RectParts corners = RectPart::AllCorners);
+void prepareRound(QImage &image, QImage *cornerMasks, RectParts corners = RectPart::AllCorners);
 void prepareCircle(QImage &image);
 QImage prepareColored(style::color add, QImage image);
 QImage prepareOpaque(QImage image);
@@ -270,12 +260,12 @@ public:
 	}
 
 	const QPixmap &pix(int32 w = 0, int32 h = 0) const;
-	const QPixmap &pixRounded(int32 w = 0, int32 h = 0, ImageRoundRadius radius = ImageRoundRadius::None, ImageRoundCorners corners = ImageRoundCorner::All) const;
+	const QPixmap &pixRounded(int32 w = 0, int32 h = 0, ImageRoundRadius radius = ImageRoundRadius::None, RectParts corners = RectPart::AllCorners) const;
 	const QPixmap &pixBlurred(int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixColored(style::color add, int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixBlurredColored(style::color add, int32 w = 0, int32 h = 0) const;
-	const QPixmap &pixSingle(int32 w, int32 h, int32 outerw, int32 outerh, ImageRoundRadius radius, ImageRoundCorners corners = ImageRoundCorner::All, const style::color *colored = nullptr) const;
-	const QPixmap &pixBlurredSingle(int32 w, int32 h, int32 outerw, int32 outerh, ImageRoundRadius radius, ImageRoundCorners corners = ImageRoundCorner::All) const;
+	const QPixmap &pixSingle(int32 w, int32 h, int32 outerw, int32 outerh, ImageRoundRadius radius, RectParts corners = RectPart::AllCorners, const style::color *colored = nullptr) const;
+	const QPixmap &pixBlurredSingle(int32 w, int32 h, int32 outerw, int32 outerh, ImageRoundRadius radius, RectParts corners = RectPart::AllCorners) const;
 	const QPixmap &pixCircled(int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixBlurredCircled(int32 w = 0, int32 h = 0) const;
 	QPixmap pixNoCache(int w = 0, int h = 0, Images::Options options = 0, int outerw = -1, int outerh = -1, const style::color *colored = nullptr) const;

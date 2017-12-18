@@ -204,7 +204,7 @@ void Reader::callback(Reader *reader, int32 threadIndex, Notification notificati
 	}
 }
 
-void Reader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, ImageRoundRadius radius, ImageRoundCorners corners) {
+void Reader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, ImageRoundRadius radius, RectParts corners) {
 	if (managers.size() <= _threadIndex) error();
 	if (_state == State::Error) return;
 
@@ -224,7 +224,7 @@ void Reader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, Image
 	}
 }
 
-QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, ImageRoundRadius radius, ImageRoundCorners corners, TimeMs ms) {
+QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, ImageRoundRadius radius, RectParts corners, TimeMs ms) {
 	Expects(outerw > 0);
 	Expects(outerh > 0);
 

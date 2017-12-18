@@ -983,7 +983,7 @@ QPixmap MediaPreviewWidget::currentImage() const {
 			if (_gif && _gif->started()) {
 				auto s = currentDimensions();
 				auto paused = _controller->isGifPausedAtLeastFor(Window::GifPauseReason::MediaPreview);
-				return _gif->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, ImageRoundCorner::None, paused ? 0 : getms());
+				return _gif->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None, paused ? 0 : getms());
 			}
 			if (_cacheStatus != CacheThumbLoaded && _document->thumb->loaded()) {
 				QSize s = currentDimensions();
@@ -1022,7 +1022,7 @@ void MediaPreviewWidget::clipCallback(Media::Clip::Notification notification) {
 
 		if (_gif && _gif->ready() && !_gif->started()) {
 			QSize s = currentDimensions();
-			_gif->start(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, ImageRoundCorner::None);
+			_gif->start(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, RectPart::None);
 		}
 
 		update();

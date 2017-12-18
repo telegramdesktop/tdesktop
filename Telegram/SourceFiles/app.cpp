@@ -2512,13 +2512,13 @@ namespace {
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	}
 
-	void complexAdjustRect(ImageRoundCorners corners, QRect &rect, RectParts &parts) {
-		if (corners & ImageRoundCorner::TopLeft) {
-			if (!(corners & ImageRoundCorner::BottomLeft)) {
+	void complexAdjustRect(RectParts corners, QRect &rect, RectParts &parts) {
+		if (corners & RectPart::TopLeft) {
+			if (!(corners & RectPart::BottomLeft)) {
 				parts = RectPart::NoTopBottom | RectPart::FullTop;
 				rect.setHeight(rect.height() + msgRadius());
 			}
-		} else if (corners & ImageRoundCorner::BottomLeft) {
+		} else if (corners & RectPart::BottomLeft) {
 			parts = RectPart::NoTopBottom | RectPart::FullBottom;
 			rect.setTop(rect.y() - msgRadius());
 		} else {
@@ -2528,7 +2528,7 @@ namespace {
 		}
 	}
 
-	void complexOverlayRect(Painter &p, QRect rect, ImageRoundRadius radius, ImageRoundCorners corners) {
+	void complexOverlayRect(Painter &p, QRect rect, ImageRoundRadius radius, RectParts corners) {
 		if (radius == ImageRoundRadius::Ellipse) {
 			PainterHighQualityEnabler hq(p);
 			p.setPen(Qt::NoPen);
@@ -2546,7 +2546,7 @@ namespace {
 		}
 	}
 
-	void complexLocationRect(Painter &p, QRect rect, ImageRoundRadius radius, ImageRoundCorners corners) {
+	void complexLocationRect(Painter &p, QRect rect, ImageRoundRadius radius, RectParts corners) {
 		auto parts = RectPart::Full | RectPart::None;
 		complexAdjustRect(corners, rect, parts);
 		roundRect(p, rect, st::msgInBg, MessageInCorners, nullptr, parts);

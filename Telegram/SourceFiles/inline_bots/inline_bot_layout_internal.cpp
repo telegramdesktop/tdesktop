@@ -168,7 +168,7 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 	QRect r(0, 0, _width, height);
 	if (animating) {
 		if (!_thumb.isNull()) _thumb = QPixmap();
-		auto pixmap = _gif->current(frame.width(), frame.height(), _width, height, ImageRoundRadius::None, ImageRoundCorner::None, context->paused ? 0 : context->ms);
+		auto pixmap = _gif->current(frame.width(), frame.height(), _width, height, ImageRoundRadius::None, RectPart::None, context->paused ? 0 : context->ms);
 		p.drawPixmap(r.topLeft(), pixmap);
 	} else {
 		prepareThumb(_width, height, frame);
@@ -353,7 +353,7 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 			} else if (_gif->ready() && !_gif->started()) {
 				auto height = st::inlineMediaHeight;
 				auto frame = countFrameSize();
-				_gif->start(frame.width(), frame.height(), _width, height, ImageRoundRadius::None, ImageRoundCorner::None);
+				_gif->start(frame.width(), frame.height(), _width, height, ImageRoundRadius::None, RectPart::None);
 			} else if (_gif->autoPausedGif() && !context()->inlineItemVisible(this)) {
 				_gif.reset();
 				getShownDocument()->forget();
@@ -1232,7 +1232,7 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 
 		if (animating) {
 			if (!_thumb.isNull()) _thumb = QPixmap();
-			auto animationThumb = _gif->current(_frameSize.width(), _frameSize.height(), st::inlineThumbSize, st::inlineThumbSize, ImageRoundRadius::None, ImageRoundCorner::None, context->paused ? 0 : context->ms);
+			auto animationThumb = _gif->current(_frameSize.width(), _frameSize.height(), st::inlineThumbSize, st::inlineThumbSize, ImageRoundRadius::None, RectPart::None, context->paused ? 0 : context->ms);
 			p.drawPixmapLeft(rthumb.topLeft(), _width, animationThumb);
 			thumbDisplayed = true;
 		}
@@ -1347,7 +1347,7 @@ void Game::clipCallback(Media::Clip::Notification notification) {
 				_gif.setBad();
 				getResultDocument()->forget();
 			} else if (_gif->ready() && !_gif->started()) {
-				_gif->start(_frameSize.width(), _frameSize.height(), st::inlineThumbSize, st::inlineThumbSize, ImageRoundRadius::None, ImageRoundCorner::None);
+				_gif->start(_frameSize.width(), _frameSize.height(), st::inlineThumbSize, st::inlineThumbSize, ImageRoundRadius::None, RectPart::None);
 			} else if (_gif->autoPausedGif() && !context()->inlineItemVisible(this)) {
 				_gif.reset();
 				getResultDocument()->forget();

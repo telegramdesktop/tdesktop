@@ -216,7 +216,7 @@ bool MediaView::gifShown() const {
 				const_cast<MediaView*>(this)->_videoPaused = _gif->videoPaused();
 			}
 			auto rounding = (_doc && _doc->isVideoMessage()) ? ImageRoundRadius::Ellipse : ImageRoundRadius::None;
-			_gif->start(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), rounding, ImageRoundCorner::All);
+			_gif->start(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), rounding, RectPart::AllCorners);
 			const_cast<MediaView*>(this)->_current = QPixmap();
 			updateMixerVideoVolume();
 			Global::RefVideoVolumeChanged().notify();
@@ -1664,7 +1664,7 @@ void MediaView::restartVideoAtSeekPosition(TimeMs positionMs) {
 
 	if (_current.isNull()) {
 		auto rounding = (_doc && _doc->isVideoMessage()) ? ImageRoundRadius::Ellipse : ImageRoundRadius::None;
-		_current = _gif->current(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), rounding, ImageRoundCorner::All, getms());
+		_current = _gif->current(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), rounding, RectPart::AllCorners, getms());
 	}
 	_gif = Media::Clip::MakeReader(_doc, _msgid, [this](Media::Clip::Notification notification) {
 		clipCallback(notification);
@@ -1812,7 +1812,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 		QRect imgRect(_x, _y, _w, _h);
 		if (imgRect.intersects(r)) {
 			auto rounding = (_doc && _doc->isVideoMessage()) ? ImageRoundRadius::Ellipse : ImageRoundRadius::None;
-			auto toDraw = _current.isNull() ? _gif->current(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), rounding, ImageRoundCorner::None, ms) : _current;
+			auto toDraw = _current.isNull() ? _gif->current(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), rounding, RectPart::AllCorners, ms) : _current;
 			if (!_gif && (!_doc || !_doc->sticker() || _doc->sticker()->img->isNull()) && toDraw.hasAlpha()) {
 				p.fillRect(imgRect, _transparentBrush);
 			}

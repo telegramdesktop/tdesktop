@@ -84,8 +84,8 @@ enum class RectPart {
 	NoLeft      = NoLeftRight | FullRight,
 	NoRight     = FullLeft | NoLeftRight,
 
-	CornersMask = TopLeft | TopRight | BottomLeft | BottomRight,
-	SidesMask   = Top | Bottom | Left | Right,
+	AllCorners = TopLeft | TopRight | BottomLeft | BottomRight,
+	AllSides   = Top | Bottom | Left | Right,
 
 	Full        = FullTop | NoTop,
 };

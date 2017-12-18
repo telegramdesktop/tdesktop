@@ -248,7 +248,7 @@ void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, in
 					auto to = rtlrect(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height(), w + 2 * x);
 					auto previewWidth = replyPreview->width() / cIntRetinaFactor();
 					auto previewHeight = replyPreview->height() / cIntRetinaFactor();
-					auto preview = replyPreview->pixSingle(previewWidth, previewHeight, to.width(), to.height(), ImageRoundRadius::Small, ImageRoundCorner::All, selected ? &st::msgStickerOverlay : nullptr);
+					auto preview = replyPreview->pixSingle(previewWidth, previewHeight, to.width(), to.height(), ImageRoundRadius::Small, RectPart::AllCorners, selected ? &st::msgStickerOverlay : nullptr);
 					p.drawPixmap(to.x(), to.y(), preview);
 				}
 			}

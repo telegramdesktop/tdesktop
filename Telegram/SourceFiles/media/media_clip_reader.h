@@ -43,7 +43,7 @@ struct FrameRequest {
 	int outerw = 0;
 	int outerh = 0;
 	ImageRoundRadius radius = ImageRoundRadius::None;
-	ImageRoundCorners corners = ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight | ImageRoundCorner::BottomLeft | ImageRoundCorner::BottomRight;
+	RectParts corners = RectPart::AllCorners;
 };
 
 enum ReaderSteps {
@@ -80,8 +80,8 @@ public:
 		return _seekPositionMs;
 	}
 
-	void start(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius, ImageRoundCorners corners);
-	QPixmap current(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius, ImageRoundCorners corners, TimeMs ms);
+	void start(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius, RectParts corners);
+	QPixmap current(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius, RectParts corners, TimeMs ms);
 	QPixmap current();
 	QPixmap frameOriginal() const {
 		if (auto frame = frameToShow()) {
