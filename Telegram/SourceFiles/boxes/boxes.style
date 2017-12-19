@@ -716,3 +716,5 @@ groupStickersField: InputField(contactsSearchField) {
 	heightMin: 32px;
 }
 groupStickersSubTitleHeight: 36px;
+
+sendMediaPreviewSize: 308px;

@@ -20,7 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "storage/localimageloader.h"
+struct FileLoadResult;
+struct SendMediaReady;
 
 namespace Storage {
 
@@ -30,7 +31,9 @@ class Uploader : public QObject, public RPCSender {
 public:
 	Uploader();
 	void uploadMedia(const FullMsgId &msgId, const SendMediaReady &image);
-	void upload(const FullMsgId &msgId, const FileLoadResultPtr &file);
+	void upload(
+		const FullMsgId &msgId,
+		const std::shared_ptr<FileLoadResult> &file);
 
 	int32 currentOffset(const FullMsgId &msgId) const; // -1 means file not found
 	int32 fullSize(const FullMsgId &msgId) const;
@@ -60,69 +63,7 @@ signals:
 	void documentFailed(const FullMsgId &msgId);
 
 private:
-	struct File {
-		File(const SendMediaReady &media) : media(media), docSentParts(0) {
-			partsCount = media.parts.size();
-			if (type() == SendMediaType::File || type() == SendMediaType::Audio) {
-				setDocSize(media.file.isEmpty() ? media.data.size() : media.filesize);
-			} else {
-				docSize = docPartSize = docPartsCount = 0;
-			}
-		}
-		File(const FileLoadResultPtr &file) : file(file), docSentParts(0) {
-			partsCount = (type() == SendMediaType::Photo) ? file->fileparts.size() : file->thumbparts.size();
-			if (type() == SendMediaType::File || type() == SendMediaType::Audio) {
-				setDocSize(file->filesize);
-			} else {
-				docSize = docPartSize = docPartsCount = 0;
-			}
-		}
-		void setDocSize(int32 size) {
-			docSize = size;
-			if (docSize >= 1024 * 1024 || !setPartSize(DocumentUploadPartSize0)) {
-				if (docSize > 32 * 1024 * 1024 || !setPartSize(DocumentUploadPartSize1)) {
-					if (!setPartSize(DocumentUploadPartSize2)) {
-						if (!setPartSize(DocumentUploadPartSize3)) {
-							if (!setPartSize(DocumentUploadPartSize4)) {
-								LOG(("Upload Error: bad doc size: %1").arg(docSize));
-							}
-						}
-					}
-				}
-			}
-		}
-		bool setPartSize(uint32 partSize) {
-			docPartSize = partSize;
-			docPartsCount = (docSize / docPartSize) + ((docSize % docPartSize) ? 1 : 0);
-			return (docPartsCount <= DocumentMaxPartsCount);
-		}
-
-		FileLoadResultPtr file;
-		SendMediaReady media;
-		int32 partsCount;
-		mutable int32 fileSentSize;
-
-		uint64 id() const {
-			return file ? file->id : media.id;
-		}
-		SendMediaType type() const {
-			return file ? file->type : media.type;
-		}
-		uint64 thumbId() const {
-			return file ? file->thumbId : media.thumbId;
-		}
-		const QString &filename() const {
-			return file ? file->filename : media.filename;
-		}
-
-		HashMd5 md5Hash;
-
-		std::unique_ptr<QFile> docFile;
-		int32 docSentParts;
-		int32 docSize;
-		int32 docPartSize;
-		int32 docPartsCount;
-	};
+	struct File;
 
 	void partLoaded(const MTPBool &result, mtpRequestId requestId);
 	bool partFailed(const RPCError &err, mtpRequestId requestId);

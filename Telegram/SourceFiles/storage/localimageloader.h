@@ -120,7 +120,7 @@ class TaskQueue : public QObject {
 	Q_OBJECT
 
 public:
-	TaskQueue(QObject *parent, int32 stopTimeoutMs = 0); // <= 0 - never stop worker
+	explicit TaskQueue(TimeMs stopTimeoutMs = 0); // <= 0 - never stop worker
 
 	TaskId addTask(std::unique_ptr<Task> &&task);
 	void addTasks(std::vector<std::unique_ptr<Task>> &&tasks);
@@ -144,9 +144,9 @@ private:
 	std::deque<std::unique_ptr<Task>> _tasksToFinish;
 	TaskId _taskInProcessId = TaskId();
 	QMutex _tasksToProcessMutex, _tasksToFinishMutex;
-	QThread *_thread;
-	TaskQueueWorker *_worker;
-	QTimer *_stopTimer;
+	QThread *_thread = nullptr;
+	TaskQueueWorker *_worker = nullptr;
+	QTimer *_stopTimer = nullptr;
 
 };
 
@@ -169,6 +169,22 @@ private:
 
 };
 
+struct SendingAlbum {
+	struct Item {
+		explicit Item(TaskId taskId) : taskId(taskId) {
+		}
+		TaskId taskId;
+		FullMsgId msgId;
+		base::optional<MTPInputSingleMedia> media;
+	};
+
+	SendingAlbum();
+
+	uint64 groupId;
+	std::vector<Item> items;
+
+};
+
 struct FileLoadTo {
 	FileLoadTo(const PeerId &peer, bool silent, MsgId replyTo)
 		: peer(peer)
@@ -181,14 +197,17 @@ struct FileLoadTo {
 };
 
 struct FileLoadResult {
-	FileLoadResult(const uint64 &id, const FileLoadTo &to, const QString &caption)
-		: id(id)
-		, to(to)
-		, caption(caption) {
-	}
+	FileLoadResult(
+		TaskId taskId,
+		uint64 id,
+		const FileLoadTo &to,
+		const QString &caption,
+		std::shared_ptr<SendingAlbum> album);
 
+	TaskId taskId;
 	uint64 id;
 	FileLoadTo to;
+	std::shared_ptr<SendingAlbum> album;
 	SendMediaType type = SendMediaType::File;
 	QString filepath;
 	QByteArray content;
@@ -235,10 +254,8 @@ struct FileLoadResult {
 		}
 	}
 };
-using FileLoadResultPtr = std::shared_ptr<FileLoadResult>;
 
-class FileLoadTask final : public Task {
-public:
+struct FileMediaInformation {
 	struct Image {
 		QImage data;
 		bool animated = false;
@@ -254,15 +271,38 @@ public:
 		int duration = -1;
 		QImage thumbnail;
 	};
-	struct MediaInformation {
-		QString filemime;
-		base::variant<Image, Song, Video> media;
-	};
-	static std::unique_ptr<MediaInformation> ReadMediaInformation(const QString &filepath, const QByteArray &content, const QString &filemime);
 
-	FileLoadTask(const QString &filepath, std::unique_ptr<MediaInformation> information, SendMediaType type, const FileLoadTo &to, const QString &caption);
-	FileLoadTask(const QByteArray &content, const QImage &image, SendMediaType type, const FileLoadTo &to, const QString &caption);
-	FileLoadTask(const QByteArray &voice, int32 duration, const VoiceWaveform &waveform, const FileLoadTo &to, const QString &caption);
+	QString filemime;
+	base::variant<Image, Song, Video> media;
+};
+
+class FileLoadTask final : public Task {
+public:
+	static std::unique_ptr<FileMediaInformation> ReadMediaInformation(
+		const QString &filepath,
+		const QByteArray &content,
+		const QString &filemime);
+
+	FileLoadTask(
+		const QString &filepath,
+		std::unique_ptr<FileMediaInformation> information,
+		SendMediaType type,
+		const FileLoadTo &to,
+		const QString &caption,
+		std::shared_ptr<SendingAlbum> album = nullptr);
+	FileLoadTask(
+		const QByteArray &content,
+		const QImage &image,
+		SendMediaType type,
+		const FileLoadTo &to,
+		const QString &caption,
+		std::shared_ptr<SendingAlbum> album = nullptr);
+	FileLoadTask(
+		const QByteArray &voice,
+		int32 duration,
+		const VoiceWaveform &waveform,
+		const FileLoadTo &to,
+		const QString &caption);
 
 	uint64 fileid() const {
 		return _id;
@@ -272,28 +312,30 @@ public:
 	void finish();
 
 private:
-	static bool CheckForSong(const QString &filepath, const QByteArray &content, std::unique_ptr<MediaInformation> &result);
-	static bool CheckForVideo(const QString &filepath, const QByteArray &content, std::unique_ptr<MediaInformation> &result);
-	static bool CheckForImage(const QString &filepath, const QByteArray &content, std::unique_ptr<MediaInformation> &result);
+	static bool CheckForSong(const QString &filepath, const QByteArray &content, std::unique_ptr<FileMediaInformation> &result);
+	static bool CheckForVideo(const QString &filepath, const QByteArray &content, std::unique_ptr<FileMediaInformation> &result);
+	static bool CheckForImage(const QString &filepath, const QByteArray &content, std::unique_ptr<FileMediaInformation> &result);
 
 	template <typename Mimes, typename Extensions>
 	static bool CheckMimeOrExtensions(const QString &filepath, const QString &filemime, Mimes &mimes, Extensions &extensions);
 
-	std::unique_ptr<MediaInformation> readMediaInformation(const QString &filemime) const {
+	std::unique_ptr<FileMediaInformation> readMediaInformation(const QString &filemime) const {
 		return ReadMediaInformation(_filepath, _content, filemime);
 	}
+	void removeFromAlbum();
 
 	uint64 _id;
 	FileLoadTo _to;
+	const std::shared_ptr<SendingAlbum> _album;
 	QString _filepath;
 	QByteArray _content;
-	std::unique_ptr<MediaInformation> _information;
+	std::unique_ptr<FileMediaInformation> _information;
 	QImage _image;
 	int32 _duration = 0;
 	VoiceWaveform _waveform;
 	SendMediaType _type;
 	QString _caption;
 
-	FileLoadResultPtr _result;
+	std::shared_ptr<FileLoadResult> _result;
 
 };

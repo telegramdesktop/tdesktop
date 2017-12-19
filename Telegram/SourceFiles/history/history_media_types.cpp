@@ -40,6 +40,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_history.h"
 #include "calls/calls_instance.h"
 #include "ui/empty_userpic.h"
+#include "ui/grouped_layout.h"
 
 namespace {
 
@@ -116,33 +117,6 @@ int32 gifMaxStatusWidth(DocumentData *document) {
 	int32 result = st::normalFont->width(formatDownloadText(document->size, document->size));
 	result = qMax(result, st::normalFont->width(formatGifAndSizeText(document->size)));
 	return result;
-}
-
-QSize CountPixSizeForSize(QSize original, QSize geometry) {
-	const auto width = geometry.width();
-	const auto height = geometry.height();
-	auto tw = original.width();
-	auto th = original.height();
-	if (tw * height > th * width) {
-		if (th > height || tw * height < 2 * th * width) {
-			tw = (height * tw) / th;
-			th = height;
-		} else if (tw < width) {
-			th = (width * th) / tw;
-			tw = width;
-		}
-	} else {
-		if (tw > width || th * width < 2 * tw * height) {
-			th = (width * th) / tw;
-			tw = width;
-		} else if (tw > 0 && th < height) {
-			tw = (height * tw) / th;
-			th = height;
-		}
-	}
-	if (tw < 1) tw = 1;
-	if (th < 1) th = 1;
-	return { tw, th };
 }
 
 } // namespace
@@ -726,7 +700,7 @@ void HistoryPhoto::validateGroupedCache(
 
 	const auto originalWidth = convertScale(_data->full->width());
 	const auto originalHeight = convertScale(_data->full->height());
-	const auto pixSize = CountPixSizeForSize(
+	const auto pixSize = Ui::GetImageScaleSizeForGeometry(
 		{ originalWidth, originalHeight },
 		{ width, height });
 	const auto pixWidth = pixSize.width() * cIntRetinaFactor();
@@ -1252,7 +1226,7 @@ void HistoryVideo::validateGroupedCache(
 
 	const auto originalWidth = convertScale(_data->thumb->width());
 	const auto originalHeight = convertScale(_data->thumb->height());
-	const auto pixSize = CountPixSizeForSize(
+	const auto pixSize = Ui::GetImageScaleSizeForGeometry(
 		{ originalWidth, originalHeight },
 		{ width, height });
 	const auto pixWidth = pixSize.width();

@@ -1044,10 +1044,6 @@ void MainWidget::dialogsActivate() {
 	_dialogs->activate();
 }
 
-DragState MainWidget::getDragState(const QMimeData *mime) {
-	return _history->getDragState(mime);
-}
-
 bool MainWidget::leaveChatFailed(PeerData *peer, const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
@@ -1384,8 +1380,11 @@ bool MainWidget::sendMessageFail(const RPCError &error) {
 		Ui::show(Box<InformBox>(PeerFloodErrorText(PeerFloodType::Send)));
 		return true;
 	} else if (error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
-		auto link = textcmdLink(Messenger::Instance().createInternalLinkFull(qsl("spambot")), lang(lng_cant_more_info));
-		Ui::show(Box<InformBox>(lng_error_public_groups_denied(lt_more_info, link)));
+		const auto link = textcmdLink(
+			Messenger::Instance().createInternalLinkFull(qsl("spambot")),
+			lang(lng_cant_more_info));
+		const auto text = lng_error_public_groups_denied(lt_more_info, link);
+		Ui::show(Box<InformBox>(text));
 		return true;
 	}
 	return false;
@@ -1977,7 +1976,8 @@ void MainWidget::mediaMarkRead(not_null<HistoryItem*> item) {
 	}
 }
 
-void MainWidget::onSendFileConfirm(const FileLoadResultPtr &file) {
+void MainWidget::onSendFileConfirm(
+		const std::shared_ptr<FileLoadResult> &file) {
 	_history->sendFileConfirmed(file);
 }
 

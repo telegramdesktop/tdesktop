@@ -249,7 +249,7 @@ private:
 
 };
 
-FileLoadTask::Video PrepareForSending(const QString &fname, const QByteArray &data);
+FileMediaInformation::Video PrepareForSending(const QString &fname, const QByteArray &data);
 
 void Finish();
 

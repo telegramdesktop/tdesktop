@@ -285,8 +285,6 @@ enum {
 	DialogsFirstLoad = 20, // first dialogs part size requested
 	DialogsPerPage = 500, // next dialogs part size
 
-	FileLoaderQueueStopTimeout = 5000,
-
     UseBigFilesFrom = 10 * 1024 * 1024, // mtp big files methods used for files greater than 10mb
 
 	UploadPartSize = 32 * 1024, // 32kb for photo

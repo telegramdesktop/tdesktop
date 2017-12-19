@@ -1499,8 +1499,8 @@ private:
 namespace Media {
 namespace Player {
 
-FileLoadTask::Song PrepareForSending(const QString &fname, const QByteArray &data) {
-	auto result = FileLoadTask::Song();
+FileMediaInformation::Song PrepareForSending(const QString &fname, const QByteArray &data) {
+	auto result = FileMediaInformation::Song();
 	FFMpegAttributesReader reader(FileLocation(fname), data);
 	const auto positionMs = TimeMs(0);
 	if (reader.open(positionMs) && reader.samplesCount() > 0) {

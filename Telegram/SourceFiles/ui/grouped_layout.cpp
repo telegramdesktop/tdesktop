@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "ui/grouped_layout.h"
 
-namespace Data {
+namespace Ui {
 namespace {
 
 int Round(float64 value) {
@@ -586,4 +586,47 @@ std::vector<GroupMediaLayout> LayoutMediaGroup(
 	return Layouter(sizes, maxWidth, minWidth, spacing).layout();
 }
 
-} // namespace Data
+RectParts GetCornersFromSides(RectParts sides) {
+	const auto convert = [&](
+			RectPart side1,
+			RectPart side2,
+			RectPart corner) {
+		return ((sides & side1) && (sides & side2))
+			? corner
+			: RectPart::None;
+	};
+	return RectPart::None
+		| convert(RectPart::Top, RectPart::Left, RectPart::TopLeft)
+		| convert(RectPart::Top, RectPart::Right, RectPart::TopRight)
+		| convert(RectPart::Bottom, RectPart::Left, RectPart::BottomLeft)
+		| convert(RectPart::Bottom, RectPart::Right, RectPart::BottomRight);
+}
+
+QSize GetImageScaleSizeForGeometry(QSize original, QSize geometry) {
+	const auto width = geometry.width();
+	const auto height = geometry.height();
+	auto tw = original.width();
+	auto th = original.height();
+	if (tw * height > th * width) {
+		if (th > height || tw * height < 2 * th * width) {
+			tw = (height * tw) / th;
+			th = height;
+		} else if (tw < width) {
+			th = (width * th) / tw;
+			tw = width;
+		}
+	} else {
+		if (tw > width || th * width < 2 * tw * height) {
+			th = (width * th) / tw;
+			tw = width;
+		} else if (tw > 0 && th < height) {
+			tw = (height * tw) / th;
+			th = height;
+		}
+	}
+	if (tw < 1) tw = 1;
+	if (th < 1) th = 1;
+	return { tw, th };
+}
+
+} // namespace Ui

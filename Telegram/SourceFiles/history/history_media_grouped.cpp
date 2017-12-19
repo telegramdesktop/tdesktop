@@ -28,26 +28,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/grouped_layout.h"
 #include "styles/style_history.h"
 
-namespace {
-
-RectParts GetCornersFromSides(RectParts sides) {
-	const auto convert = [&](
-			RectPart side1,
-			RectPart side2,
-			RectPart corner) {
-		return ((sides & side1) && (sides & side2))
-			? corner
-			: RectPart::None;
-	};
-	return RectPart::None
-		| convert(RectPart::Top, RectPart::Left, RectPart::TopLeft)
-		| convert(RectPart::Top, RectPart::Right, RectPart::TopRight)
-		| convert(RectPart::Bottom, RectPart::Left, RectPart::BottomLeft)
-		| convert(RectPart::Bottom, RectPart::Right, RectPart::BottomRight);
-}
-
-} // namespace
-
 HistoryGroupedMedia::Element::Element(not_null<HistoryItem*> item)
 : item(item) {
 }
@@ -60,6 +40,12 @@ HistoryGroupedMedia::HistoryGroupedMedia(
 	const auto result = applyGroup(others);
 
 	Ensures(result);
+}
+
+std::unique_ptr<HistoryMedia> HistoryGroupedMedia::clone(
+		not_null<HistoryItem*> newParent,
+		not_null<HistoryItem*> realParent) const {
+	return main()->clone(newParent, realParent);
 }
 
 void HistoryGroupedMedia::initDimensions() {
@@ -77,7 +63,7 @@ void HistoryGroupedMedia::initDimensions() {
 		sizes.push_back(media->sizeForGrouping());
 	}
 
-	const auto layout = Data::LayoutMediaGroup(
+	const auto layout = Ui::LayoutMediaGroup(
 		sizes,
 		st::historyGroupWidthMax,
 		st::historyGroupWidthMin,
@@ -171,7 +157,7 @@ void HistoryGroupedMedia::draw(
 			: IsGroupItemSelection(selection, i)
 			? FullSelection
 			: TextSelection();
-		auto corners = GetCornersFromSides(element.sides);
+		auto corners = Ui::GetCornersFromSides(element.sides);
 		if (!isBubbleTop()) {
 			corners &= ~(RectPart::TopLeft | RectPart::TopRight);
 		}
@@ -407,6 +393,23 @@ TextWithEntities HistoryGroupedMedia::getCaption() const {
 
 Storage::SharedMediaTypesMask HistoryGroupedMedia::sharedMediaTypes() const {
 	return main()->sharedMediaTypes();
+}
+
+void HistoryGroupedMedia::updateSentMedia(const MTPMessageMedia &media) {
+	return main()->updateSentMedia(media);
+}
+
+bool HistoryGroupedMedia::needReSetInlineResultMedia(
+		const MTPMessageMedia &media) {
+	return main()->needReSetInlineResultMedia(media);
+}
+
+PhotoData *HistoryGroupedMedia::getPhoto() const {
+	return main()->getPhoto();
+}
+
+DocumentData *HistoryGroupedMedia::getDocument() const {
+	return main()->getDocument();
 }
 
 HistoryMessageEdited *HistoryGroupedMedia::displayedEditBadge() const {

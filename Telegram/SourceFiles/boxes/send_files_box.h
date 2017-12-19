@@ -22,23 +22,23 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "boxes/abstract_box.h"
 #include "storage/localimageloader.h"
+#include "storage/storage_media_prepare.h"
 
 namespace Ui {
 class Checkbox;
 class RoundButton;
 class InputArea;
 class EmptyUserpic;
+struct GroupMediaLayout;
 } // namespace Ui
 
 class SendFilesBox : public BoxContent {
-	Q_OBJECT
-
 public:
 	SendFilesBox(QWidget*, QImage image, CompressConfirm compressed);
-	SendFilesBox(QWidget*, const QStringList &files, CompressConfirm compressed);
+	SendFilesBox(QWidget*, Storage::PreparedList &&list, CompressConfirm compressed);
 	SendFilesBox(QWidget*, const QString &phone, const QString &firstname, const QString &lastname);
 
-	void setConfirmedCallback(base::lambda<void(const QStringList &files, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, bool compressed, const QString &caption, bool ctrlShiftEnter)> callback) {
+	void setConfirmedCallback(base::lambda<void(Storage::PreparedList &&list, const QImage &image, bool compressed, const QString &caption, bool ctrlShiftEnter)> callback) {
 		_confirmedCallback = std::move(callback);
 	}
 	void setCancelledCallback(base::lambda<void()> callback) {
@@ -55,14 +55,6 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-private slots:
-	void onCompressedChange();
-	void onSend(bool ctrlShiftEnter = false);
-	void onCaptionResized();
-	void onClose() {
-		closeBox();
-	}
-
 private:
 	void prepareSingleFileLayout();
 	void prepareDocumentLayout();
@@ -70,15 +62,18 @@ private:
 	void prepareGifPreview();
 	void clipCallback(Media::Clip::Notification notification);
 
+	void send(bool ctrlShiftEnter = false);
+	void captionResized();
+	void compressedChange();
+
 	void updateTitleText();
 	void updateBoxSize();
 	void updateControlsGeometry();
 	base::lambda<QString()> getSendButtonText() const;
 
 	QString _titleText;
-	QStringList _files;
+	Storage::PreparedList _list;
 	QImage _image;
-	std::unique_ptr<FileLoadTask::MediaInformation> _information;
 
 	CompressConfirm _compressConfirm = CompressConfirm::None;
 	bool _animated = false;
@@ -101,7 +96,7 @@ private:
 	QString _contactLastName;
 	std::unique_ptr<Ui::EmptyUserpic> _contactPhotoEmpty;
 
-	base::lambda<void(const QStringList &files, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, bool compressed, const QString &caption, bool ctrlShiftEnter)> _confirmedCallback;
+	base::lambda<void(Storage::PreparedList &&list, const QImage &image, bool compressed, const QString &caption, bool ctrlShiftEnter)> _confirmedCallback;
 	base::lambda<void()> _cancelledCallback;
 	bool _confirmed = false;
 
@@ -112,18 +107,57 @@ private:
 
 };
 
-class EditCaptionBox : public BoxContent, public RPCSender {
-	Q_OBJECT
+class SendAlbumBox : public BoxContent {
+public:
+	SendAlbumBox(QWidget*, Storage::PreparedList &&list);
 
+	void setConfirmedCallback(base::lambda<void(Storage::PreparedList &&list, const QString &caption, bool ctrlShiftEnter)> callback) {
+		_confirmedCallback = std::move(callback);
+	}
+	void setCancelledCallback(base::lambda<void()> callback) {
+		_cancelledCallback = std::move(callback);
+	}
+
+	~SendAlbumBox();
+
+protected:
+	void prepare() override;
+	void setInnerFocus() override;
+
+	void keyPressEvent(QKeyEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+
+private:
+	struct Thumb;
+
+	void prepareThumbs();
+	Thumb prepareThumb(
+		const QImage &preview,
+		const Ui::GroupMediaLayout &layout) const;
+
+	void send(bool ctrlShiftEnter = false);
+	void captionResized();
+
+	void updateBoxSize();
+	void updateControlsGeometry();
+
+	Storage::PreparedList _list;
+
+	std::vector<Thumb> _thumbs;
+	int _thumbsHeight = 0;
+
+	base::lambda<void(Storage::PreparedList &&list, const QString &caption, bool ctrlShiftEnter)> _confirmedCallback;
+	base::lambda<void()> _cancelledCallback;
+	bool _confirmed = false;
+
+	object_ptr<Ui::InputArea> _caption = { nullptr };
+
+};
+
+class EditCaptionBox : public BoxContent, public RPCSender {
 public:
 	EditCaptionBox(QWidget*, HistoryMedia *media, FullMsgId msgId);
-
-public slots:
-	void onCaptionResized();
-	void onSave(bool ctrlShiftEnter = false);
-	void onClose() {
-		closeBox();
-	}
 
 protected:
 	void prepare() override;
@@ -136,6 +170,9 @@ private:
 	void updateBoxSize();
 	void prepareGifPreview(DocumentData *document);
 	void clipCallback(Media::Clip::Notification notification);
+
+	void save();
+	void captionResized();
 
 	void saveDone(const MTPUpdates &updates);
 	bool saveFail(const RPCError &error);

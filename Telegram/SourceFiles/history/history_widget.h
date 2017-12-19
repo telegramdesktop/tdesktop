@@ -20,7 +20,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "storage/localimageloader.h"
 #include "ui/widgets/tooltip.h"
 #include "mainwidget.h"
 #include "chat_helpers/field_autocomplete.h"
@@ -30,6 +29,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/rp_widget.h"
 #include "base/flags.h"
 #include "base/timer.h"
+
+struct FileLoadResult;
+struct FileMediaInformation;
+struct SendingAlbum;
+enum class SendMediaType;
+enum class CompressConfirm;
 
 namespace InlineBots {
 namespace Layout {
@@ -67,6 +72,11 @@ class TabbedPanel;
 class TabbedSection;
 class TabbedSelector;
 } // namespace ChatHelpers
+
+namespace Storage {
+enum class MimeDataState;
+struct PreparedList;
+} // namespace Storage
 
 class DragArea;
 class SendFilesBox;
@@ -215,16 +225,9 @@ public:
 	void updateFieldPlaceholder();
 	void updateStickersByEmoji();
 
-	bool confirmSendingFiles(const QList<QUrl> &files, CompressConfirm compressed = CompressConfirm::Auto, const QString *addedComment = nullptr);
-	bool confirmSendingFiles(const QStringList &files, CompressConfirm compressed = CompressConfirm::Auto, const QString *addedComment = nullptr);
-	bool confirmSendingFiles(const QImage &image, const QByteArray &content, CompressConfirm compressed = CompressConfirm::Auto, const QString &insertTextOnCancel = QString());
-	bool confirmSendingFiles(const QMimeData *data, CompressConfirm compressed = CompressConfirm::Auto, const QString &insertTextOnCancel = QString());
-	bool confirmShareContact(const QString &phone, const QString &fname, const QString &lname, const QString *addedComment = nullptr);
-
-	void uploadFile(const QByteArray &fileContent, SendMediaType type);
-	void uploadFiles(const QStringList &files, SendMediaType type);
-
-	void sendFileConfirmed(const FileLoadResultPtr &file);
+	bool confirmSendingFiles(const QStringList &files);
+	bool confirmSendingFiles(const QMimeData *data);
+	void sendFileConfirmed(const std::shared_ptr<FileLoadResult> &file);
 
 	void updateControlsVisibility();
 	void updateControlsGeometry();
@@ -290,8 +293,6 @@ public:
 	// With force=true the markup is updated even if it is
 	// already shown for the passed history item.
 	void updateBotKeyboard(History *h = nullptr, bool force = false);
-
-	DragState getDragState(const QMimeData *d);
 
 	void fastShowAtEnd(not_null<History*> history);
 	void applyDraft(bool parseLinks = true, Ui::FlatTextarea::UndoHistoryAction undoHistoryAction = Ui::FlatTextarea::ClearUndoHistory);
@@ -452,16 +453,9 @@ private slots:
 	void updateField();
 
 private:
-	struct SendingFilesLists {
-		QList<QUrl> nonLocalUrls;
-		QStringList directories;
-		QStringList emptyFiles;
-		QStringList tooLargeFiles;
-		QStringList filesToSend;
-		bool allFilesForCompress = true;
-	};
 	using TabbedPanel = ChatHelpers::TabbedPanel;
 	using TabbedSelector = ChatHelpers::TabbedSelector;
+	using DragState = Storage::MimeDataState;
 
 	void repaintHistoryItem(not_null<const HistoryItem*> item);
 	void handlePendingHistoryUpdate();
@@ -502,17 +496,29 @@ private:
 	void historyDownAnimationFinish();
 	void unreadMentionsAnimationFinish();
 	void sendButtonClicked();
-	SendingFilesLists getSendingFilesLists(const QList<QUrl> &files);
-	SendingFilesLists getSendingFilesLists(const QStringList &files);
-	void getSendingLocalFileInfo(SendingFilesLists &result, const QString &filepath);
-	bool confirmSendingFiles(const SendingFilesLists &lists, CompressConfirm compressed = CompressConfirm::Auto, const QString *addedComment = nullptr);
-	template <typename Callback>
-	bool validateSendingFiles(const SendingFilesLists &lists, Callback callback);
+
+	bool confirmShareContact(const QString &phone, const QString &fname, const QString &lname, const QString *addedComment = nullptr);
+	bool confirmSendingFiles(const QList<QUrl> &files, CompressConfirm compressed, const QString *addedComment = nullptr);
+	bool confirmSendingFiles(const QStringList &files, CompressConfirm compressed, const QString *addedComment = nullptr);
+	bool confirmSendingFiles(const QImage &image, const QByteArray &content, CompressConfirm compressed, const QString &insertTextOnCancel = QString());
+	bool confirmSendingFiles(const QMimeData *data, CompressConfirm compressed, const QString &insertTextOnCancel = QString());
+	bool confirmSendingFiles(Storage::PreparedList &&list, CompressConfirm compressed, const QString *addedComment = nullptr);
+	bool showSendingFilesError(const Storage::PreparedList &list) const;
 	template <typename SendCallback>
 	bool showSendFilesBox(object_ptr<SendFilesBox> box, const QString &insertTextOnCancel, const QString *addedComment, SendCallback callback);
 
+	void uploadFiles(Storage::PreparedList &&list, SendMediaType type);
+	void uploadFile(const QByteArray &fileContent, SendMediaType type);
+
 	// If an empty filepath is found we upload (possible) "image" with (possible) "content".
-	void uploadFilesAfterConfirmation(const QStringList &files, const QByteArray &content, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, SendMediaType type, QString caption);
+	void uploadFilesAfterConfirmation(
+		Storage::PreparedList &&list,
+		const QByteArray &content,
+		const QImage &image,
+		SendMediaType type,
+		QString caption,
+		MsgId replyTo,
+		std::shared_ptr<SendingAlbum> album = nullptr);
 
 	void itemRemoved(not_null<const HistoryItem*> item);
 
@@ -826,14 +832,13 @@ private:
 	object_ptr<InlineBots::Layout::Widget> _inlineResults = { nullptr };
 	object_ptr<TabbedPanel> _tabbedPanel;
 	QPointer<TabbedSelector> _tabbedSelector;
-	DragState _attachDrag = DragState::None;
+	DragState _attachDragState;
 	object_ptr<DragArea> _attachDragDocument, _attachDragPhoto;
 
 	object_ptr<Ui::Emoji::SuggestionsController> _emojiSuggestions = { nullptr };
 
 	bool _nonEmptySelection = false;
 
-	TaskQueue _fileLoader;
 	TextUpdateEvents _textUpdateEvents = (TextUpdateEvents() | TextUpdateEvent::SaveDraft | TextUpdateEvent::SendTyping);
 
 	int64 _serviceImageCacheSize = 0;

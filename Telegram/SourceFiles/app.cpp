@@ -1394,7 +1394,7 @@ namespace {
 					::photosData.erase(i);
 				}
 				convert->id = photo;
-				convert->uploadingData.reset();
+				convert->uploadingData = nullptr;
 			}
 			if (date) {
 				convert->access = access;

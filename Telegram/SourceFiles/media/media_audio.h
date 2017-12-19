@@ -310,7 +310,7 @@ private:
 
 };
 
-FileLoadTask::Song PrepareForSending(const QString &fname, const QByteArray &data);
+FileMediaInformation::Song PrepareForSending(const QString &fname, const QByteArray &data);
 
 namespace internal {
 

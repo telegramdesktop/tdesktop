@@ -61,17 +61,18 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "passcodewidget.h"
 #include "mainwindow.h"
+#include "storage/localimageloader.h"
+#include "storage/localstorage.h"
 #include "storage/file_upload.h"
+#include "storage/storage_media_prepare.h"
 #include "media/media_audio.h"
 #include "media/media_audio_capture.h"
 #include "media/player/media_player_instance.h"
-#include "storage/localstorage.h"
 #include "apiwrap.h"
 #include "history/history_top_bar_widget.h"
 #include "observer_peer.h"
 #include "base/qthelp_regex.h"
 #include "ui/widgets/popup_menu.h"
-#include "platform/platform_file_utilities.h"
 #include "auth_session.h"
 #include "window/themes/window_theme.h"
 #include "window/notifications_manager.h"
@@ -102,36 +103,6 @@ ApiWrap::RequestMessageDataCallback replyEditMessageDataCallback() {
 			App::main()->messageDataReceived(channel, msgId);
 		}
 	};
-}
-
-MTPVector<MTPDocumentAttribute> composeDocumentAttributes(DocumentData *document) {
-	auto filenameAttribute = MTP_documentAttributeFilename(
-		MTP_string(document->filename()));
-	auto attributes = QVector<MTPDocumentAttribute>(1, filenameAttribute);
-	if (document->dimensions.width() > 0 && document->dimensions.height() > 0) {
-		int32 duration = document->duration();
-		if (duration >= 0) {
-			auto flags = MTPDdocumentAttributeVideo::Flags(0);
-			if (document->isVideoMessage()) {
-				flags |= MTPDdocumentAttributeVideo::Flag::f_round_message;
-			}
-			attributes.push_back(MTP_documentAttributeVideo(MTP_flags(flags), MTP_int(duration), MTP_int(document->dimensions.width()), MTP_int(document->dimensions.height())));
-		} else {
-			attributes.push_back(MTP_documentAttributeImageSize(MTP_int(document->dimensions.width()), MTP_int(document->dimensions.height())));
-		}
-	}
-	if (document->type == AnimatedDocument) {
-		attributes.push_back(MTP_documentAttributeAnimated());
-	} else if (document->type == StickerDocument && document->sticker()) {
-		attributes.push_back(MTP_documentAttributeSticker(MTP_flags(0), MTP_string(document->sticker()->alt), document->sticker()->set, MTPMaskCoords()));
-	} else if (const auto song = document->song()) {
-		auto flags = MTPDdocumentAttributeAudio::Flag::f_title | MTPDdocumentAttributeAudio::Flag::f_performer;
-		attributes.push_back(MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(song->duration), MTP_string(song->title), MTP_string(song->performer), MTPstring()));
-	} else if (const auto voice = document->voice()) {
-		auto flags = MTPDdocumentAttributeAudio::Flag::f_voice | MTPDdocumentAttributeAudio::Flag::f_waveform;
-		attributes.push_back(MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(voice->duration), MTPstring(), MTPstring(), MTP_bytes(documentWaveformEncode5bit(voice->waveform))));
-	}
-	return MTP_vector<MTPDocumentAttribute>(attributes);
 }
 
 } // namespace
@@ -448,9 +419,9 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 , _kbScroll(this, st::botKbScroll)
 , _tabbedPanel(this, controller)
 , _tabbedSelector(_tabbedPanel->getSelector())
+, _attachDragState(DragState::None)
 , _attachDragDocument(this)
 , _attachDragPhoto(this)
-, _fileLoader(this, FileLoaderQueueStopTimeout)
 , _sendActionStopTimer([this] { cancelTypingAction(); })
 , _topShadow(this) {
 	setAcceptDrops(true);
@@ -1294,14 +1265,17 @@ void HistoryWidget::onRecordError() {
 	stopRecording(false);
 }
 
-void HistoryWidget::onRecordDone(QByteArray result, VoiceWaveform waveform, qint32 samples) {
+void HistoryWidget::onRecordDone(
+		QByteArray result,
+		VoiceWaveform waveform,
+		qint32 samples) {
 	if (!canWriteMessage() || result.isEmpty()) return;
 
 	App::wnd()->activateWindow();
-	auto duration = samples / Media::Player::kDefaultFrequency;
-	auto to = FileLoadTo(_peer->id, _peer->notifySilentPosts(), replyToId());
-	auto caption = QString();
-	_fileLoader.addTask(std::make_unique<FileLoadTask>(result, duration, waveform, to, caption));
+	const auto duration = samples / Media::Player::kDefaultFrequency;
+	auto options = ApiWrap::SendOptions(_history);
+	options.replyTo = replyToId();
+	Auth().api().sendVoiceMessage(result, waveform, duration, options);
 }
 
 void HistoryWidget::onRecordUpdate(quint16 level, qint32 samples) {
@@ -3129,19 +3103,21 @@ void HistoryWidget::chooseAttach() {
 			auto animated = false;
 			auto image = App::readImage(result.remoteContent, nullptr, false, &animated);
 			if (!image.isNull() && !animated) {
-				confirmSendingFiles(image, result.remoteContent);
+				confirmSendingFiles(
+					image,
+					result.remoteContent,
+					CompressConfirm::Auto);
 			} else {
 				uploadFile(result.remoteContent, SendMediaType::File);
 			}
 		} else {
-			auto lists = getSendingFilesLists(result.paths);
-			if (lists.allFilesForCompress) {
-				confirmSendingFiles(lists);
-			} else {
-				validateSendingFiles(lists, [this](const QStringList &files) {
-					uploadFiles(files, SendMediaType::File);
-					return true;
-				});
+			auto list = Storage::PrepareMediaList(
+				result.paths,
+				st::sendMediaPreviewSize);
+			if (list.allFilesForCompress) {
+				confirmSendingFiles(std::move(list), CompressConfirm::Auto);
+			} else if (!showSendingFilesError(list)) {
+				uploadFiles(std::move(list), SendMediaType::File);
 			}
 		}
 	}));
@@ -3159,25 +3135,25 @@ void HistoryWidget::sendButtonClicked() {
 void HistoryWidget::dragEnterEvent(QDragEnterEvent *e) {
 	if (!_history || !_canSendMessages) return;
 
-	_attachDrag = getDragState(e->mimeData());
+	_attachDragState = Storage::ComputeMimeDataState(e->mimeData());
 	updateDragAreas();
 
-	if (_attachDrag != DragState::None) {
+	if (_attachDragState != DragState::None) {
 		e->setDropAction(Qt::IgnoreAction);
 		e->accept();
 	}
 }
 
 void HistoryWidget::dragLeaveEvent(QDragLeaveEvent *e) {
-	if (_attachDrag != DragState::None || !_attachDragPhoto->isHidden() || !_attachDragDocument->isHidden()) {
-		_attachDrag = DragState::None;
+	if (_attachDragState != DragState::None || !_attachDragPhoto->isHidden() || !_attachDragDocument->isHidden()) {
+		_attachDragState = DragState::None;
 		updateDragAreas();
 	}
 }
 
 void HistoryWidget::leaveEventHook(QEvent *e) {
-	if (_attachDrag != DragState::None || !_attachDragPhoto->isHidden() || !_attachDragDocument->isHidden()) {
-		_attachDrag = DragState::None;
+	if (_attachDragState != DragState::None || !_attachDragPhoto->isHidden() || !_attachDragDocument->isHidden()) {
+		_attachDragState = DragState::None;
 		updateDragAreas();
 	}
 	if (hasMouseTracking()) mouseMoveEvent(0);
@@ -3246,8 +3222,8 @@ void HistoryWidget::mouseReleaseEvent(QMouseEvent *e) {
 		_replyForwardPressed = false;
 		update(0, _field->y() - st::historySendPadding - st::historyReplyHeight, width(), st::historyReplyHeight);
 	}
-	if (_attachDrag != DragState::None || !_attachDragPhoto->isHidden() || !_attachDragDocument->isHidden()) {
-		_attachDrag = DragState::None;
+	if (_attachDragState != DragState::None || !_attachDragPhoto->isHidden() || !_attachDragDocument->isHidden()) {
+		_attachDragState = DragState::None;
 		updateDragAreas();
 	}
 	if (_recording) {
@@ -3477,60 +3453,11 @@ QRect HistoryWidget::rectForFloatPlayer() const {
 	return mapToGlobal(_scroll->geometry());
 }
 
-DragState HistoryWidget::getDragState(const QMimeData *d) {
-	if (!d
-		|| d->hasFormat(qsl("application/x-td-forward-selected"))
-		|| d->hasFormat(qsl("application/x-td-forward-pressed"))
-		|| d->hasFormat(qsl("application/x-td-forward-pressed-link"))) return DragState::None;
-
-	if (d->hasImage()) return DragState::Image;
-
-	QString uriListFormat(qsl("text/uri-list"));
-	if (!d->hasFormat(uriListFormat)) return DragState::None;
-
-	QStringList imgExtensions(cImgExtensions()), files;
-
-	const QList<QUrl> &urls(d->urls());
-	if (urls.isEmpty()) return DragState::None;
-
-	bool allAreSmallImages = true;
-	for (QList<QUrl>::const_iterator i = urls.cbegin(), en = urls.cend(); i != en; ++i) {
-		if (!i->isLocalFile()) return DragState::None;
-
-		auto file = Platform::File::UrlToLocal(*i);
-
-		QFileInfo info(file);
-		if (info.isDir()) return DragState::None;
-
-		quint64 s = info.size();
-		if (s > App::kFileSizeLimit) {
-			return DragState::None;
-		}
-		if (allAreSmallImages) {
-			if (s > App::kImageSizeLimit) {
-				allAreSmallImages = false;
-			} else {
-				bool foundImageExtension = false;
-				for (QStringList::const_iterator j = imgExtensions.cbegin(), end = imgExtensions.cend(); j != end; ++j) {
-					if (file.right(j->size()).toLower() == (*j).toLower()) {
-						foundImageExtension = true;
-						break;
-					}
-				}
-				if (!foundImageExtension) {
-					allAreSmallImages = false;
-				}
-			}
-		}
-	}
-	return allAreSmallImages ? DragState::PhotoFiles : DragState::Files;
-}
-
 void HistoryWidget::updateDragAreas() {
-	_field->setAcceptDrops(_attachDrag == DragState::None);
+	_field->setAcceptDrops(_attachDragState == DragState::None);
 	updateControlsGeometry();
 
-	switch (_attachDrag) {
+	switch (_attachDragState) {
 	case DragState::None:
 		_attachDragDocument->otherLeave();
 		_attachDragPhoto->otherLeave();
@@ -3670,7 +3597,7 @@ bool HistoryWidget::kbWasHidden() const {
 }
 
 void HistoryWidget::dropEvent(QDropEvent *e) {
-	_attachDrag = DragState::None;
+	_attachDragState = DragState::None;
 	updateDragAreas();
 	e->acceptProposedAction();
 }
@@ -4006,11 +3933,20 @@ void HistoryWidget::updateFieldPlaceholder() {
 }
 
 template <typename SendCallback>
-bool HistoryWidget::showSendFilesBox(object_ptr<SendFilesBox> box, const QString &insertTextOnCancel, const QString *addedComment, SendCallback callback) {
+bool HistoryWidget::showSendFilesBox(
+		object_ptr<SendFilesBox> box,
+		const QString &insertTextOnCancel,
+		const QString *addedComment,
+		SendCallback callback) {
 	App::wnd()->activateWindow();
 
 	auto withComment = (addedComment != nullptr);
-	box->setConfirmedCallback(base::lambda_guarded(this, [this, withComment, sendCallback = std::move(callback)](const QStringList &files, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, bool compressed, const QString &caption, bool ctrlShiftEnter) {
+	const auto confirmedCallback = [=, sendCallback = std::move(callback)](
+			Storage::PreparedList &&list,
+			const QImage &image,
+			bool compressed,
+			const QString &caption,
+			bool ctrlShiftEnter) {
 		if (!canWriteMessage()) return;
 
 		const auto replyTo = replyToId();
@@ -4019,13 +3955,14 @@ bool HistoryWidget::showSendFilesBox(object_ptr<SendFilesBox> box, const QString
 			onSend(ctrlShiftEnter);
 		}
 		sendCallback(
-			files,
+			std::move(list),
 			image,
-			std::move(information),
 			compressed,
 			caption,
 			replyTo);
-	}));
+	};
+	box->setConfirmedCallback(
+		base::lambda_guarded(this, std::move(confirmedCallback)));
 
 	if (withComment) {
 		auto was = _field->getTextWithTags();
@@ -4043,66 +3980,161 @@ bool HistoryWidget::showSendFilesBox(object_ptr<SendFilesBox> box, const QString
 	return true;
 }
 
-template <typename Callback>
-bool HistoryWidget::validateSendingFiles(const SendingFilesLists &lists, Callback callback) {
-	if (!canWriteMessage()) return false;
-
+bool HistoryWidget::showSendingFilesError(
+		const Storage::PreparedList &list) const {
 	App::wnd()->activateWindow();
-	if (!lists.nonLocalUrls.isEmpty()) {
-		Ui::show(Box<InformBox>(lng_send_image_empty(lt_name, lists.nonLocalUrls.front().toDisplayString())));
-	} else if (!lists.emptyFiles.isEmpty()) {
-		Ui::show(Box<InformBox>(lng_send_image_empty(lt_name, lists.emptyFiles.front())));
-	} else if (!lists.tooLargeFiles.isEmpty()) {
-		Ui::show(Box<InformBox>(lng_send_image_too_large(lt_name, lists.tooLargeFiles.front())));
-	} else if (!lists.filesToSend.isEmpty()) {
-		return callback(lists.filesToSend);
-	}
-	return false;
-}
-
-bool HistoryWidget::confirmSendingFiles(const QList<QUrl> &files, CompressConfirm compressed, const QString *addedComment) {
-	return confirmSendingFiles(getSendingFilesLists(files), compressed, addedComment);
-}
-
-bool HistoryWidget::confirmSendingFiles(const QStringList &files, CompressConfirm compressed, const QString *addedComment) {
-	return confirmSendingFiles(getSendingFilesLists(files), compressed, addedComment);
-}
-
-bool HistoryWidget::confirmSendingFiles(const SendingFilesLists &lists, CompressConfirm compressed, const QString *addedComment) {
-	if (auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
-		if (megagroup->restricted(ChannelRestriction::f_send_media)) {
-			Ui::show(Box<InformBox>(lang(lng_restricted_send_media)));
-			return false;
+	const auto text = [&] {
+		if (const auto megagroup = _peer ? _peer->asMegagroup() : nullptr) {
+			if (megagroup->restricted(ChannelRestriction::f_send_media)) {
+				return lang(lng_restricted_send_media);
+			}
+		} else if (!canWriteMessage()) {
+			return lang(lng_forward_send_files_cant);
 		}
+		using Error = Storage::PreparedList::Error;
+		switch (list.error) {
+		case Error::None: return QString();
+		case Error::EmptyFile:
+		case Error::Directory:
+		case Error::NonLocalUrl: return lng_send_image_empty(
+			lt_name,
+			list.errorData);
+		case Error::TooLargeFile: return lng_send_image_too_large(
+			lt_name,
+			list.errorData);
+		}
+		return lang(lng_forward_send_files_cant);
+	}();
+	if (text.isEmpty()) {
+		return false;
 	}
-	return validateSendingFiles(lists, [this, &lists, compressed, addedComment](const QStringList &files) {
-		auto insertTextOnCancel = QString();
-		auto sendCallback = [this](const QStringList &files, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, bool compressed, const QString &caption, MsgId replyTo) {
-			auto type = compressed ? SendMediaType::Photo : SendMediaType::File;
-			uploadFilesAfterConfirmation(files, QByteArray(), image, std::move(information), type, caption);
+	Ui::show(Box<InformBox>(text));
+	return true;
+}
+
+bool HistoryWidget::confirmSendingFiles(const QStringList &files) {
+	return confirmSendingFiles(files, CompressConfirm::Auto, nullptr);
+}
+
+bool HistoryWidget::confirmSendingFiles(const QMimeData *data) {
+	return confirmSendingFiles(data, CompressConfirm::Auto, nullptr);
+}
+
+bool HistoryWidget::confirmSendingFiles(
+		const QList<QUrl> &files,
+		CompressConfirm compressed,
+		const QString *addedComment) {
+	return confirmSendingFiles(
+		Storage::PrepareMediaList(files, st::sendMediaPreviewSize),
+		compressed,
+		addedComment);
+}
+
+bool HistoryWidget::confirmSendingFiles(
+		const QStringList &files,
+		CompressConfirm compressed,
+		const QString *addedComment) {
+	return confirmSendingFiles(
+		Storage::PrepareMediaList(files, st::sendMediaPreviewSize),
+		compressed,
+		addedComment);
+}
+
+bool HistoryWidget::confirmSendingFiles(
+		Storage::PreparedList &&list,
+		CompressConfirm compressed,
+		const QString *addedComment) {
+	if (showSendingFilesError(list)) {
+		return false;
+	}
+	if (list.albumIsPossible) {
+		auto box = Ui::show(Box<SendAlbumBox>(std::move(list)));
+		const auto confirmedCallback = [=](
+				Storage::PreparedList &&list,
+				const QString &caption,
+				bool ctrlShiftEnter) {
+			if (!canWriteMessage()) return;
+
+			uploadFilesAfterConfirmation(
+				std::move(list),
+				QByteArray(),
+				QImage(),
+				SendMediaType::Photo,
+				caption,
+				replyToId(),
+				std::make_shared<SendingAlbum>());
 		};
-		auto boxCompressConfirm = compressed;
-		if (files.size() > 1 && !lists.allFilesForCompress) {
-			boxCompressConfirm = CompressConfirm::None;
-		}
-		auto box = Box<SendFilesBox>(files, boxCompressConfirm);
-		return showSendFilesBox(std::move(box), insertTextOnCancel, addedComment, std::move(sendCallback));
-	});
+		box->setConfirmedCallback(
+			base::lambda_guarded(this, std::move(confirmedCallback)));
+		return true;
+	} else {
+		const auto insertTextOnCancel = QString();
+		auto sendCallback = [this](
+				Storage::PreparedList &&list,
+				const QImage &image,
+				bool compressed,
+				const QString &caption,
+				MsgId replyTo) {
+			const auto type = compressed
+				? SendMediaType::Photo
+				: SendMediaType::File;
+			uploadFilesAfterConfirmation(
+				std::move(list),
+				QByteArray(),
+				image,
+				type,
+				caption,
+				replyTo);
+		};
+		const auto noCompressOption = (list.files.size() > 1)
+			&& !list.allFilesForCompress;
+		const auto boxCompressConfirm = noCompressOption
+			? CompressConfirm::None
+			: compressed;
+		return showSendFilesBox(
+			Box<SendFilesBox>(std::move(list), boxCompressConfirm),
+			insertTextOnCancel,
+			addedComment,
+			std::move(sendCallback));
+	}
 }
 
-bool HistoryWidget::confirmSendingFiles(const QImage &image, const QByteArray &content, CompressConfirm compressed, const QString &insertTextOnCancel) {
+bool HistoryWidget::confirmSendingFiles(
+		const QImage &image,
+		const QByteArray &content,
+		CompressConfirm compressed,
+		const QString &insertTextOnCancel) {
 	if (!canWriteMessage() || image.isNull()) return false;
 
 	App::wnd()->activateWindow();
-	auto sendCallback = [this, content](const QStringList &files, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, bool compressed, const QString &caption, MsgId replyTo) {
-		auto type = compressed ? SendMediaType::Photo : SendMediaType::File;
-		uploadFilesAfterConfirmation(files, content, image, std::move(information), type, caption);
+	auto sendCallback = [this, content](
+			Storage::PreparedList &&list,
+			const QImage &image,
+			bool compressed,
+			const QString &caption,
+			MsgId replyTo) {
+		const auto type = compressed
+			? SendMediaType::Photo
+			: SendMediaType::File;
+		uploadFilesAfterConfirmation(
+			std::move(list),
+			content,
+			image,
+			type,
+			caption,
+			replyTo);
 	};
-	auto box = Box<SendFilesBox>(image, compressed);
-	return showSendFilesBox(std::move(box), insertTextOnCancel, nullptr, std::move(sendCallback));
+	return showSendFilesBox(
+		Box<SendFilesBox>(image, compressed),
+		insertTextOnCancel,
+		nullptr,
+		std::move(sendCallback));
 }
 
-bool HistoryWidget::confirmSendingFiles(const QMimeData *data, CompressConfirm compressed, const QString &insertTextOnCancel) {
+bool HistoryWidget::confirmSendingFiles(
+		const QMimeData *data,
+		CompressConfirm compressed,
+		const QString &insertTextOnCancel) {
 	if (!canWriteMessage()) {
 		return false;
 	}
@@ -4119,7 +4151,11 @@ bool HistoryWidget::confirmSendingFiles(const QMimeData *data, CompressConfirm c
 	if (data->hasImage()) {
 		auto image = qvariant_cast<QImage>(data->imageData());
 		if (!image.isNull()) {
-			confirmSendingFiles(image, QByteArray(), compressed, insertTextOnCancel);
+			confirmSendingFiles(
+				image,
+				QByteArray(),
+				compressed,
+				insertTextOnCancel);
 			return true;
 		}
 	}
@@ -4133,11 +4169,9 @@ bool HistoryWidget::confirmShareContact(
 		const QString *addedComment) {
 	if (!canWriteMessage()) return false;
 
-	auto box = Box<SendFilesBox>(phone, fname, lname);
 	auto sendCallback = [=](
-			const QStringList &files,
+			Storage::PreparedList &&list,
 			const QImage &image,
-			std::unique_ptr<FileLoadTask::MediaInformation> information,
 			bool compressed,
 			const QString &caption,
 			MsgId replyTo) {
@@ -4145,113 +4179,79 @@ bool HistoryWidget::confirmShareContact(
 		options.replyTo = replyTo;
 		Auth().api().shareContact(phone, fname, lname, options);
 	};
-	auto insertTextOnCancel = QString();
+	const auto insertTextOnCancel = QString();
 	return showSendFilesBox(
-		std::move(box),
+		Box<SendFilesBox>(phone, fname, lname),
 		insertTextOnCancel,
 		addedComment,
 		std::move(sendCallback));
 }
 
-HistoryWidget::SendingFilesLists HistoryWidget::getSendingFilesLists(const QList<QUrl> &files) {
-	auto result = SendingFilesLists();
-	for_const (auto &url, files) {
-		if (!url.isLocalFile()) {
-			result.nonLocalUrls.push_back(url);
-		} else {
-			auto filepath = Platform::File::UrlToLocal(url);
-			getSendingLocalFileInfo(result, filepath);
-		}
-	}
-	return result;
-}
-
-HistoryWidget::SendingFilesLists HistoryWidget::getSendingFilesLists(const QStringList &files) {
-	auto result = SendingFilesLists();
-	for_const (auto &filepath, files) {
-		getSendingLocalFileInfo(result, filepath);
-	}
-	return result;
-}
-
-void HistoryWidget::getSendingLocalFileInfo(SendingFilesLists &result, const QString &filepath) {
-	auto hasExtensionForCompress = [](const QString &filepath) {
-		for_const (auto extension, cExtensionsForCompress()) {
-			if (filepath.right(extension.size()).compare(extension, Qt::CaseInsensitive) == 0) {
-				return true;
-			}
-		}
-		return false;
-	};
-	auto fileinfo = QFileInfo(filepath);
-	if (fileinfo.isDir()) {
-		result.directories.push_back(filepath);
-	} else {
-		auto filesize = fileinfo.size();
-		if (filesize <= 0) {
-			result.emptyFiles.push_back(filepath);
-		} else if (filesize > App::kFileSizeLimit) {
-			result.tooLargeFiles.push_back(filepath);
-		} else {
-			result.filesToSend.push_back(filepath);
-			if (result.allFilesForCompress) {
-				if (filesize > App::kImageSizeLimit || !hasExtensionForCompress(filepath)) {
-					result.allFilesForCompress = false;
-				}
-			}
-		}
-	}
-}
-
-void HistoryWidget::uploadFiles(const QStringList &files, SendMediaType type) {
+void HistoryWidget::uploadFiles(
+		Storage::PreparedList &&list,
+		SendMediaType type) {
 	if (!canWriteMessage()) return;
 
 	auto caption = QString();
-	uploadFilesAfterConfirmation(files, QByteArray(), QImage(), nullptr, type, caption);
+	uploadFilesAfterConfirmation(
+		std::move(list),
+		QByteArray(),
+		QImage(),
+		type,
+		caption,
+		replyToId());
 }
 
 void HistoryWidget::uploadFilesAfterConfirmation(
-		const QStringList &files,
+		Storage::PreparedList &&list,
 		const QByteArray &content,
 		const QImage &image,
-		std::unique_ptr<FileLoadTask::MediaInformation> information,
 		SendMediaType type,
-		QString caption) {
+		QString caption,
+		MsgId replyTo,
+		std::shared_ptr<SendingAlbum> album) {
 	Assert(canWriteMessage());
 
-	auto to = FileLoadTo(_peer->id, _peer->notifySilentPosts(), replyToId());
-	if (files.size() > 1 && !caption.isEmpty()) {
-		auto message = MainWidget::MessageToSend(_history);
-		message.textWithTags = { caption, TextWithTags::Tags() };
-		message.replyTo = to.replyTo;
-		message.clearDraft = false;
-		App::main()->sendMessage(message);
-		caption = QString();
-	}
-	auto tasks = std::vector<std::unique_ptr<Task>>();
-	tasks.reserve(files.size());
-	for_const (auto &filepath, files) {
-		if (filepath.isEmpty() && (!image.isNull() || !content.isNull())) {
-			tasks.push_back(std::make_unique<FileLoadTask>(content, image, type, to, caption));
-		} else {
-			tasks.push_back(std::make_unique<FileLoadTask>(filepath, std::move(information), type, to, caption));
-		}
-	}
-	_fileLoader.addTasks(std::move(tasks));
+	auto options = ApiWrap::SendOptions(_history);
+	options.replyTo = replyTo;
+	Auth().api().sendFiles(
+		std::move(list),
+		content,
+		image,
+		type,
+		caption,
+		album,
+		options);
 }
 
-void HistoryWidget::uploadFile(const QByteArray &fileContent, SendMediaType type) {
+void HistoryWidget::uploadFile(
+		const QByteArray &fileContent,
+		SendMediaType type) {
 	if (!canWriteMessage()) return;
 
-	auto to = FileLoadTo(_peer->id, _peer->notifySilentPosts(), replyToId());
-	auto caption = QString();
-	_fileLoader.addTask(std::make_unique<FileLoadTask>(fileContent, QImage(), type, to, caption));
+	auto options = ApiWrap::SendOptions(_history);
+	options.replyTo = replyToId();
+	Auth().api().sendFile(fileContent, type, options);
 }
 
-void HistoryWidget::sendFileConfirmed(const FileLoadResultPtr &file) {
-	bool lastKeyboardUsed = lastForceReplyReplied(FullMsgId(peerToChannel(file->to.peer), file->to.replyTo));
+void HistoryWidget::sendFileConfirmed(
+		const std::shared_ptr<FileLoadResult> &file) {
+	const auto channelId = peerToChannel(file->to.peer);
+	const auto lastKeyboardUsed = lastForceReplyReplied(FullMsgId(
+		channelId,
+		file->to.replyTo));
 
-	FullMsgId newId(peerToChannel(file->to.peer), clientMsgId());
+	const auto newId = FullMsgId(channelId, clientMsgId());
+	const auto groupId = file->album ? file->album->groupId : uint64(0);
+	if (file->album) {
+		const auto proj = [](const SendingAlbum::Item &item) {
+			return item.taskId;
+		};
+		const auto it = ranges::find(file->album->items, file->taskId, proj);
+		Assert(it != file->album->items.end());
+
+		it->msgId = newId;
+	}
 
 	connect(&Auth().uploader(), SIGNAL(photoReady(const FullMsgId&,bool,const MTPInputFile&)), this, SLOT(onPhotoUploaded(const FullMsgId&,bool,const MTPInputFile&)), Qt::UniqueConnection);
 	connect(&Auth().uploader(), SIGNAL(documentReady(const FullMsgId&,bool,const MTPInputFile&)), this, SLOT(onDocumentUploaded(const FullMsgId&,bool,const MTPInputFile&)), Qt::UniqueConnection);
@@ -4288,6 +4288,9 @@ void HistoryWidget::sendFileConfirmed(const FileLoadResultPtr &file) {
 	if (silentPost) {
 		flags |= MTPDmessage::Flag::f_silent;
 	}
+	if (groupId) {
+		flags |= MTPDmessage::Flag::f_grouped_id;
+	}
 	auto messageFromId = channelPost ? 0 : Auth().userId();
 	auto messagePostAuthor = channelPost ? (Auth().user()->firstName + ' ' + Auth().user()->lastName) : QString();
 	if (file->type == SendMediaType::Photo) {
@@ -4317,7 +4320,7 @@ void HistoryWidget::sendFileConfirmed(const FileLoadResultPtr &file) {
 				MTP_int(1),
 				MTPint(),
 				MTP_string(messagePostAuthor),
-				MTPlong()),
+				MTP_long(groupId)),
 			NewMessageUnread);
 	} else if (file->type == SendMediaType::File) {
 		auto documentFlags = MTPDmessageMediaDocument::Flag::f_document | 0;
@@ -4346,7 +4349,7 @@ void HistoryWidget::sendFileConfirmed(const FileLoadResultPtr &file) {
 				MTP_int(1),
 				MTPint(),
 				MTP_string(messagePostAuthor),
-				MTPlong()),
+				MTP_long(groupId)),
 			NewMessageUnread);
 	} else if (file->type == SendMediaType::Audio) {
 		if (!peer->isChannel()) {
@@ -4378,7 +4381,7 @@ void HistoryWidget::sendFileConfirmed(const FileLoadResultPtr &file) {
 				MTP_int(1),
 				MTPint(),
 				MTP_string(messagePostAuthor),
-				MTPlong()),
+				MTP_long(groupId)),
 			NewMessageUnread);
 	}
 
@@ -4393,90 +4396,14 @@ void HistoryWidget::onPhotoUploaded(
 		const FullMsgId &newId,
 		bool silent,
 		const MTPInputFile &file) {
-	if (auto item = App::histItemById(newId)) {
-		uint64 randomId = rand_value<uint64>();
-		App::historyRegRandom(randomId, newId);
-		History *hist = item->history();
-		MsgId replyTo = item->replyToId();
-		auto sendFlags = MTPmessages_SendMedia::Flags(0);
-		if (replyTo) {
-			sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
-		}
-
-		bool channelPost = hist->peer->isChannel() && !hist->peer->isMegagroup();
-		bool silentPost = channelPost && silent;
-		if (silentPost) {
-			sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
-		}
-		auto caption = item->getMedia() ? item->getMedia()->getCaption() : TextWithEntities();
-		auto media = MTP_inputMediaUploadedPhoto(
-			MTP_flags(0),
-			file,
-			MTP_string(caption.text),
-			MTPVector<MTPInputDocument>(),
-			MTP_int(0));
-		hist->sendRequestId = MTP::send(
-			MTPmessages_SendMedia(
-				MTP_flags(sendFlags),
-				item->history()->peer->input,
-				MTP_int(replyTo),
-				media,
-				MTP_long(randomId),
-				MTPnullMarkup),
-			App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
-			App::main()->rpcFail(&MainWidget::sendMessageFail),
-			0,
-			0,
-			hist->sendRequestId);
-	}
+	Auth().api().sendUploadedPhoto(newId, file, silent);
 }
 
 void HistoryWidget::onDocumentUploaded(
 		const FullMsgId &newId,
 		bool silent,
 		const MTPInputFile &file) {
-	if (auto item = dynamic_cast<HistoryMessage*>(App::histItemById(newId))) {
-		auto media = item->getMedia();
-		if (auto document = media ? media->getDocument() : nullptr) {
-			auto randomId = rand_value<uint64>();
-			App::historyRegRandom(randomId, newId);
-			auto hist = item->history();
-			auto replyTo = item->replyToId();
-			auto sendFlags = MTPmessages_SendMedia::Flags(0);
-			if (replyTo) {
-				sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
-			}
-
-			bool channelPost = hist->peer->isChannel() && !hist->peer->isMegagroup();
-			bool silentPost = channelPost && silent;
-			if (silentPost) {
-				sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
-			}
-			auto caption = item->getMedia() ? item->getMedia()->getCaption() : TextWithEntities();
-			auto media = MTP_inputMediaUploadedDocument(
-				MTP_flags(0),
-				file,
-				MTPInputFile(),
-				MTP_string(document->mimeString()),
-				composeDocumentAttributes(document),
-				MTP_string(caption.text),
-				MTPVector<MTPInputDocument>(),
-				MTP_int(0));
-			hist->sendRequestId = MTP::send(
-				MTPmessages_SendMedia(
-					MTP_flags(sendFlags),
-					item->history()->peer->input,
-					MTP_int(replyTo),
-					media,
-					MTP_long(randomId),
-					MTPnullMarkup),
-				App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
-				App::main()->rpcFail(&MainWidget::sendMessageFail),
-				0,
-				0,
-				hist->sendRequestId);
-		}
-	}
+	Auth().api().sendUploadedDocument(newId, file, base::none, silent);
 }
 
 void HistoryWidget::onThumbDocumentUploaded(
@@ -4484,48 +4411,7 @@ void HistoryWidget::onThumbDocumentUploaded(
 		bool silent,
 		const MTPInputFile &file,
 		const MTPInputFile &thumb) {
-	if (auto item = dynamic_cast<HistoryMessage*>(App::histItemById(newId))) {
-		auto media = item->getMedia();
-		if (auto document = media ? media->getDocument() : nullptr) {
-			auto randomId = rand_value<uint64>();
-			App::historyRegRandom(randomId, newId);
-			auto hist = item->history();
-			auto replyTo = item->replyToId();
-			auto sendFlags = MTPmessages_SendMedia::Flags(0);
-			if (replyTo) {
-				sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
-			}
-
-			bool channelPost = hist->peer->isChannel() && !hist->peer->isMegagroup();
-			bool silentPost = channelPost && silent;
-			if (silentPost) {
-				sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
-			}
-			auto caption = media ? media->getCaption() : TextWithEntities();
-			auto media = MTP_inputMediaUploadedDocument(
-				MTP_flags(MTPDinputMediaUploadedDocument::Flag::f_thumb),
-				file,
-				thumb,
-				MTP_string(document->mimeString()),
-				composeDocumentAttributes(document),
-				MTP_string(caption.text),
-				MTPVector<MTPInputDocument>(),
-				MTP_int(0));
-			hist->sendRequestId = MTP::send(
-				MTPmessages_SendMedia(
-					MTP_flags(sendFlags),
-					item->history()->peer->input,
-					MTP_int(replyTo),
-					media,
-					MTP_long(randomId),
-					MTPnullMarkup),
-				App::main()->rpcDone(&MainWidget::sentUpdatesReceived),
-				App::main()->rpcFail(&MainWidget::sendMessageFail),
-				0,
-				0,
-				hist->sendRequestId);
-		}
-	}
+	Auth().api().sendUploadedDocument(newId, file, thumb, silent);
 }
 
 void HistoryWidget::onPhotoProgress(const FullMsgId &newId) {
@@ -4756,7 +4642,7 @@ void HistoryWidget::updateControlsGeometry() {
 		_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());
 	}
 
-	switch (_attachDrag) {
+	switch (_attachDragState) {
 	case DragState::Files:
 		_attachDragDocument->resize(width() - st::dragMargin.left() - st::dragMargin.right(), height() - st::dragMargin.top() - st::dragMargin.bottom());
 		_attachDragDocument->move(st::dragMargin.left(), st::dragMargin.top());

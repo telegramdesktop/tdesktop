@@ -44,12 +44,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Local {
 namespace {
 
-constexpr int kThemeFileSizeLimit = 5 * 1024 * 1024;
+constexpr auto kThemeFileSizeLimit = 5 * 1024 * 1024;
+constexpr auto kFileLoaderQueueStopTimeout = TimeMs(5000);
 
 using FileKey = quint64;
 
 constexpr char tdfMagic[] = { 'T', 'D', 'F', '$' };
-constexpr int tdfMagicLen = sizeof(tdfMagic);
+constexpr auto tdfMagicLen = int(sizeof(tdfMagic));
 
 QString toFilePart(FileKey val) {
 	QString result;
@@ -2273,7 +2274,7 @@ void start() {
 	Expects(!_manager);
 
 	_manager = new internal::Manager();
-	_localLoader = new TaskQueue(0, FileLoaderQueueStopTimeout);
+	_localLoader = new TaskQueue(kFileLoaderQueueStopTimeout);
 
 	_basePath = cWorkingDir() + qsl("tdata/");
 	if (!QDir().exists(_basePath)) QDir().mkpath(_basePath);

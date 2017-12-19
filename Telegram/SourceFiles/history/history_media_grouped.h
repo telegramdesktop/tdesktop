@@ -34,14 +34,14 @@ public:
 		return MediaTypeGrouped;
 	}
 	std::unique_ptr<HistoryMedia> clone(
-			not_null<HistoryItem*> newParent,
-			not_null<HistoryItem*> realParent) const override {
-		return main()->clone(newParent, realParent);
-	}
+		not_null<HistoryItem*> newParent,
+		not_null<HistoryItem*> realParent) const override;
 
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
+	void updateSentMedia(const MTPMessageMedia &media) override;
+	bool needReSetInlineResultMedia(const MTPMessageMedia &media) override;
 
 	void draw(
 		Painter &p,
@@ -66,12 +66,8 @@ public:
 		return !_caption.isEmpty();
 	}
 
-	PhotoData *getPhoto() const override {
-		return main()->getPhoto();
-	}
-	DocumentData *getDocument() const override {
-		return main()->getDocument();
-	}
+	PhotoData *getPhoto() const override;
+	DocumentData *getDocument() const override;
 
 	QString notificationText() const override;
 	QString inDialogsText() const override;

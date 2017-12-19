@@ -872,8 +872,8 @@ Manager::~Manager() {
 	clear();
 }
 
-FileLoadTask::Video PrepareForSending(const QString &fname, const QByteArray &data) {
-	auto result = FileLoadTask::Video();
+FileMediaInformation::Video PrepareForSending(const QString &fname, const QByteArray &data) {
+	auto result = FileMediaInformation::Video();
 	auto localLocation = FileLocation(fname);
 	auto localData = QByteArray(data);
 

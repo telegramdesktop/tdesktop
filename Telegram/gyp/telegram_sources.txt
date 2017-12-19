@@ -519,6 +519,8 @@
 <(src_loc)/storage/serialize_document.h
 <(src_loc)/storage/storage_facade.cpp
 <(src_loc)/storage/storage_facade.h
+<(src_loc)/storage/storage_media_prepare.cpp
+<(src_loc)/storage/storage_media_prepare.h
 <(src_loc)/storage/storage_shared_media.cpp
 <(src_loc)/storage/storage_shared_media.h
 <(src_loc)/storage/storage_sparse_ids_list.cpp

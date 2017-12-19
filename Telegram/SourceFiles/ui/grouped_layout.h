@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-namespace Data {
+namespace Ui {
 
 struct GroupMediaLayout {
 	QRect geometry;
@@ -33,4 +33,7 @@ std::vector<GroupMediaLayout> LayoutMediaGroup(
 	int minWidth,
 	int spacing);
 
-} // namespace Data
+RectParts GetCornersFromSides(RectParts sides);
+QSize GetImageScaleSizeForGeometry(QSize original, QSize geometry);
+
+} // namespace Ui

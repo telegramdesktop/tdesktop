@@ -28,13 +28,17 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "base/flat_set.h"
 #include "chat_helpers/stickers.h"
 
+class TaskQueue;
 class AuthSession;
+enum class SparseIdsLoadDirection;
+struct MessageGroupId;
+struct SendingAlbum;
+enum class SendMediaType;
 
 namespace Storage {
 enum class SharedMediaType : char;
+struct PreparedList;
 } // namespace Storage
-
-enum class SparseIdsLoadDirection;
 
 namespace Api {
 
@@ -186,6 +190,34 @@ public:
 	void readServerHistory(not_null<History*> history);
 	void readServerHistoryForce(not_null<History*> history);
 
+	void sendVoiceMessage(
+		QByteArray result,
+		VoiceWaveform waveform,
+		int duration,
+		const SendOptions &options);
+	void sendFiles(
+		Storage::PreparedList &&list,
+		const QByteArray &content,
+		const QImage &image,
+		SendMediaType type,
+		QString caption,
+		std::shared_ptr<SendingAlbum> album,
+		const SendOptions &options);
+	void sendFile(
+		const QByteArray &fileContent,
+		SendMediaType type,
+		const SendOptions &options);
+
+	void sendUploadedPhoto(
+		FullMsgId localId,
+		const MTPInputFile &file,
+		bool silent);
+	void sendUploadedDocument(
+		FullMsgId localId,
+		const MTPInputFile &file,
+		const base::optional<MTPInputFile> &thumb,
+		bool silent);
+
 	~ApiWrap();
 
 private:
@@ -283,6 +315,26 @@ private:
 	void applyAffectedMessages(
 		not_null<PeerData*> peer,
 		const MTPmessages_AffectedMessages &result);
+	void sendMessageFail(const RPCError &error);
+	void uploadAlbumMedia(
+		not_null<HistoryItem*> item,
+		const MessageGroupId &groupId,
+		const MTPInputMedia &media,
+		bool silent);
+	void trySendAlbum(
+		not_null<HistoryItem*> item,
+		const MessageGroupId &groupId,
+		const MTPInputMedia &media,
+		bool silent);
+	QVector<MTPInputSingleMedia> completeAlbum(
+		FullMsgId localId,
+		const MessageGroupId &groupId,
+		const MTPInputMedia &media,
+		uint64 randomId);
+	void sendMedia(
+		not_null<HistoryItem*> item,
+		const MTPInputMedia &media,
+		bool silent);
 
 	not_null<AuthSession*> _session;
 	mtpRequestId _changelogSubscription = 0;
@@ -375,6 +427,8 @@ private:
 	};
 	base::flat_map<not_null<PeerData*>, ReadRequest> _readRequests;
 	base::flat_map<not_null<PeerData*>, MsgId> _readRequestsPending;
+	std::unique_ptr<TaskQueue> _fileLoader;
+	base::flat_map<uint64, std::shared_ptr<SendingAlbum>> _sendingAlbums;
 
 	base::Observable<PeerData*> _fullPeerUpdated;
 

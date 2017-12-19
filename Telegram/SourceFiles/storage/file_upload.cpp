@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "storage/file_upload.h"
 
+#include "storage/localimageloader.h"
 #include "data/data_document.h"
 #include "data/data_photo.h"
 
@@ -29,6 +30,95 @@ namespace {
 constexpr auto kMaxUploadFileParallelSize = MTP::kUploadSessionsCount * 512 * 1024; // max 512kb uploaded at the same time in each session
 
 } // namespace
+
+struct Uploader::File {
+	File(const SendMediaReady &media);
+	File(const std::shared_ptr<FileLoadResult> &file);
+
+	void setDocSize(int32 size);
+	bool setPartSize(uint32 partSize);
+
+	std::shared_ptr<FileLoadResult> file;
+	SendMediaReady media;
+	int32 partsCount;
+	mutable int32 fileSentSize;
+
+	uint64 id() const;
+	SendMediaType type() const;
+	uint64 thumbId() const;
+	const QString &filename() const;
+
+	HashMd5 md5Hash;
+
+	std::unique_ptr<QFile> docFile;
+	int32 docSentParts = 0;
+	int32 docSize = 0;
+	int32 docPartSize = 0;
+	int32 docPartsCount = 0;
+
+};
+
+Uploader::File::File(const SendMediaReady &media) : media(media) {
+	partsCount = media.parts.size();
+	if (type() == SendMediaType::File || type() == SendMediaType::Audio) {
+		setDocSize(media.file.isEmpty()
+			? media.data.size()
+			: media.filesize);
+	} else {
+		docSize = docPartSize = docPartsCount = 0;
+	}
+}
+Uploader::File::File(const std::shared_ptr<FileLoadResult> &file)
+: file(file) {
+	partsCount = (type() == SendMediaType::Photo)
+		? file->fileparts.size()
+		: file->thumbparts.size();
+	if (type() == SendMediaType::File || type() == SendMediaType::Audio) {
+		setDocSize(file->filesize);
+	} else {
+		docSize = docPartSize = docPartsCount = 0;
+	}
+}
+
+void Uploader::File::setDocSize(int32 size) {
+	docSize = size;
+	constexpr auto limit0 = 1024 * 1024;
+	constexpr auto limit1 = 32 * limit0;
+	if (docSize >= limit0 || !setPartSize(DocumentUploadPartSize0)) {
+		if (docSize > limit1 || !setPartSize(DocumentUploadPartSize1)) {
+			if (!setPartSize(DocumentUploadPartSize2)) {
+				if (!setPartSize(DocumentUploadPartSize3)) {
+					if (!setPartSize(DocumentUploadPartSize4)) {
+						LOG(("Upload Error: bad doc size: %1").arg(docSize));
+					}
+				}
+			}
+		}
+	}
+}
+
+bool Uploader::File::setPartSize(uint32 partSize) {
+	docPartSize = partSize;
+	docPartsCount = (docSize / docPartSize)
+		+ ((docSize % docPartSize) ? 1 : 0);
+	return (docPartsCount <= DocumentMaxPartsCount);
+}
+
+uint64 Uploader::File::id() const {
+	return file ? file->id : media.id;
+}
+
+SendMediaType Uploader::File::type() const {
+	return file ? file->type : media.type;
+}
+
+uint64 Uploader::File::thumbId() const {
+	return file ? file->thumbId : media.thumbId;
+}
+
+const QString &Uploader::File::filename() const {
+	return file ? file->filename : media.filename;
+}
 
 Uploader::Uploader() {
 	nextTimer.setSingleShot(true);
@@ -59,7 +149,9 @@ void Uploader::uploadMedia(const FullMsgId &msgId, const SendMediaReady &media) 
 	sendNext();
 }
 
-void Uploader::upload(const FullMsgId &msgId, const FileLoadResultPtr &file) {
+void Uploader::upload(
+		const FullMsgId &msgId,
+		const std::shared_ptr<FileLoadResult> &file) {
 	if (file->type == SendMediaType::Photo) {
 		auto photo = App::feedPhoto(file->photo, file->photoThumbs);
 		photo->uploadingData = std::make_unique<PhotoData::UploadingData>(file->partssize);

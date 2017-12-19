@@ -42,6 +42,9 @@ struct MessageGroupId {
 	explicit operator bool() const {
 		return value != None;
 	}
+	Underlying raw() const {
+		return static_cast<Underlying>(value);
+	}
 
 	friend inline Type value_ordering_helper(MessageGroupId value) {
 		return value.value;

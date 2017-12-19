@@ -30,21 +30,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang/lang_keys.h"
 #include "boxes/confirm_box.h"
 #include "storage/file_download.h"
+#include "storage/storage_media_prepare.h"
 
-namespace {
+using Storage::ValidateThumbDimensions;
 
-bool ValidateThumbDimensions(int width, int height) {
-	return (width > 0) && (height > 0) && (width < 20 * height) && (height < 20 * width);
-}
-
-} // namespace
-
-TaskQueue::TaskQueue(QObject *parent, int32 stopTimeoutMs) : QObject(parent), _thread(0), _worker(0), _stopTimer(0) {
+TaskQueue::TaskQueue(TimeMs stopTimeoutMs) {
 	if (stopTimeoutMs > 0) {
 		_stopTimer = new QTimer(this);
 		connect(_stopTimer, SIGNAL(timeout()), this, SLOT(stop()));
 		_stopTimer->setSingleShot(true);
-		_stopTimer->setInterval(stopTimeoutMs);
+		_stopTimer->setInterval(int(stopTimeoutMs));
 	}
 }
 
@@ -189,23 +184,61 @@ void TaskQueueWorker::onTaskAdded() {
 	_inTaskAdded = false;
 }
 
-FileLoadTask::FileLoadTask(const QString &filepath, std::unique_ptr<MediaInformation> information, SendMediaType type, const FileLoadTo &to, const QString &caption) : _id(rand_value<uint64>())
+SendingAlbum::SendingAlbum() : groupId(rand_value<uint64>()) {
+}
+
+FileLoadResult::FileLoadResult(
+	TaskId taskId,
+	uint64 id,
+	const FileLoadTo &to,
+	const QString &caption,
+	std::shared_ptr<SendingAlbum> album)
+: taskId(taskId)
+, id(id)
+, to(to)
+, caption(caption)
+, album(std::move(album)) {
+}
+
+FileLoadTask::FileLoadTask(
+	const QString &filepath,
+	std::unique_ptr<FileMediaInformation> information,
+	SendMediaType type,
+	const FileLoadTo &to,
+	const QString &caption,
+	std::shared_ptr<SendingAlbum> album)
+: _id(rand_value<uint64>())
 , _to(to)
+, _album(std::move(album))
 , _filepath(filepath)
 , _information(std::move(information))
 , _type(type)
 , _caption(caption) {
 }
 
-FileLoadTask::FileLoadTask(const QByteArray &content, const QImage &image, SendMediaType type, const FileLoadTo &to, const QString &caption) : _id(rand_value<uint64>())
+FileLoadTask::FileLoadTask(
+	const QByteArray &content,
+	const QImage &image,
+	SendMediaType type,
+	const FileLoadTo &to,
+	const QString &caption,
+	std::shared_ptr<SendingAlbum> album)
+: _id(rand_value<uint64>())
 , _to(to)
+, _album(std::move(album))
 , _content(content)
 , _image(image)
 , _type(type)
 , _caption(caption) {
 }
 
-FileLoadTask::FileLoadTask(const QByteArray &voice, int32 duration, const VoiceWaveform &waveform, const FileLoadTo &to, const QString &caption) : _id(rand_value<uint64>())
+FileLoadTask::FileLoadTask(
+	const QByteArray &voice,
+	int32 duration,
+	const VoiceWaveform &waveform,
+	const FileLoadTo &to,
+	const QString &caption)
+: _id(rand_value<uint64>())
 , _to(to)
 , _content(voice)
 , _duration(duration)
@@ -214,8 +247,11 @@ FileLoadTask::FileLoadTask(const QByteArray &voice, int32 duration, const VoiceW
 , _caption(caption) {
 }
 
-std::unique_ptr<FileLoadTask::MediaInformation> FileLoadTask::ReadMediaInformation(const QString &filepath, const QByteArray &content, const QString &filemime) {
-	auto result = std::make_unique<MediaInformation>();
+std::unique_ptr<FileMediaInformation> FileLoadTask::ReadMediaInformation(
+		const QString &filepath,
+		const QByteArray &content,
+		const QString &filemime) {
+	auto result = std::make_unique<FileMediaInformation>();
 	result->filemime = filemime;
 
 	if (CheckForSong(filepath, content, result)) {
@@ -229,7 +265,11 @@ std::unique_ptr<FileLoadTask::MediaInformation> FileLoadTask::ReadMediaInformati
 }
 
 template <typename Mimes, typename Extensions>
-bool FileLoadTask::CheckMimeOrExtensions(const QString &filepath, const QString &filemime, Mimes &mimes, Extensions &extensions) {
+bool FileLoadTask::CheckMimeOrExtensions(
+		const QString &filepath,
+		const QString &filemime,
+		Mimes &mimes,
+		Extensions &extensions) {
 	if (std::find(std::begin(mimes), std::end(mimes), filemime) != std::end(mimes)) {
 		return true;
 	}
@@ -241,7 +281,10 @@ bool FileLoadTask::CheckMimeOrExtensions(const QString &filepath, const QString 
 	return false;
 }
 
-bool FileLoadTask::CheckForSong(const QString &filepath, const QByteArray &content, std::unique_ptr<MediaInformation> &result) {
+bool FileLoadTask::CheckForSong(
+		const QString &filepath,
+		const QByteArray &content,
+		std::unique_ptr<FileMediaInformation> &result) {
 	static const auto mimes = {
 		qstr("audio/mp3"),
 		qstr("audio/m4a"),
@@ -271,7 +314,10 @@ bool FileLoadTask::CheckForSong(const QString &filepath, const QByteArray &conte
 	return true;
 }
 
-bool FileLoadTask::CheckForVideo(const QString &filepath, const QByteArray &content, std::unique_ptr<MediaInformation> &result) {
+bool FileLoadTask::CheckForVideo(
+		const QString &filepath,
+		const QByteArray &content,
+		std::unique_ptr<FileMediaInformation> &result) {
 	static const auto mimes = {
 		qstr("video/mp4"),
 		qstr("video/quicktime"),
@@ -302,7 +348,10 @@ bool FileLoadTask::CheckForVideo(const QString &filepath, const QByteArray &cont
 	return true;
 }
 
-bool FileLoadTask::CheckForImage(const QString &filepath, const QByteArray &content, std::unique_ptr<MediaInformation> &result) {
+bool FileLoadTask::CheckForImage(
+		const QString &filepath,
+		const QByteArray &content,
+		std::unique_ptr<FileMediaInformation> &result) {
 	auto animated = false;
 	auto image = ([&filepath, &content, &animated] {
 		if (!content.isEmpty()) {
@@ -316,7 +365,7 @@ bool FileLoadTask::CheckForImage(const QString &filepath, const QByteArray &cont
 	if (image.isNull()) {
 		return false;
 	}
-	auto media = Image();
+	auto media = FileMediaInformation::Image();
 	media.data = std::move(image);
 	media.animated = animated;
 	result->media = media;
@@ -326,7 +375,12 @@ bool FileLoadTask::CheckForImage(const QString &filepath, const QByteArray &cont
 void FileLoadTask::process() {
 	const auto stickerMime = qsl("image/webp");
 
-	_result = std::make_shared<FileLoadResult>(_id, _to, _caption);
+	_result = std::make_shared<FileLoadResult>(
+		id(),
+		_id,
+		_to,
+		_caption,
+		_album);
 
 	QString filename, filemime;
 	qint64 filesize = 0;
@@ -360,7 +414,8 @@ void FileLoadTask::process() {
 			_information = readMediaInformation(mimeTypeForFile(info).name());
 		}
 		filemime = _information->filemime;
-		if (auto image = base::get_if<FileLoadTask::Image>(&_information->media)) {
+		if (auto image = base::get_if<FileMediaInformation::Image>(
+				&_information->media)) {
 			fullimage = base::take(image->data);
 			if (auto opaque = (filemime != stickerMime)) {
 				fullimage = Images::prepareOpaque(std::move(fullimage));
@@ -393,7 +448,8 @@ void FileLoadTask::process() {
 		}
 	} else {
 		if (_information) {
-			if (auto image = base::get_if<FileLoadTask::Image>(&_information->media)) {
+			if (auto image = base::get_if<FileMediaInformation::Image>(
+					&_information->media)) {
 				fullimage = base::take(image->data);
 			}
 		}
@@ -440,7 +496,8 @@ void FileLoadTask::process() {
 			_information = readMediaInformation(filemime);
 			filemime = _information->filemime;
 		}
-		if (auto song = base::get_if<Song>(&_information->media)) {
+		if (auto song = base::get_if<FileMediaInformation::Song>(
+				&_information->media)) {
 			isSong = true;
 			auto flags = MTPDdocumentAttributeAudio::Flag::f_title | MTPDdocumentAttributeAudio::Flag::f_performer;
 			attributes.push_back(MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(song->duration), MTP_string(song->title), MTP_string(song->performer), MTPstring()));
@@ -461,7 +518,8 @@ void FileLoadTask::process() {
 
 				thumbId = rand_value<uint64>();
 			}
-		} else if (auto video = base::get_if<Video>(&_information->media)) {
+		} else if (auto video = base::get_if<FileMediaInformation::Video>(
+				&_information->media)) {
 			isVideo = true;
 			auto coverWidth = video->thumbnail.width();
 			auto coverHeight = video->thumbnail.height();
@@ -586,12 +644,27 @@ void FileLoadTask::finish() {
 		Ui::show(
 			Box<InformBox>(lng_send_image_empty(lt_name, _filepath)),
 			LayerOption::KeepOther);
+		removeFromAlbum();
 	} else if (_result->filesize > App::kFileSizeLimit) {
 		Ui::show(
 			Box<InformBox>(
 				lng_send_image_too_large(lt_name, _filepath)),
 			LayerOption::KeepOther);
+		removeFromAlbum();
 	} else if (App::main()) {
 		App::main()->onSendFileConfirm(_result);
 	}
+}
+
+void FileLoadTask::removeFromAlbum() {
+	if (!_album) {
+		return;
+	}
+	const auto proj = [](const SendingAlbum::Item &item) {
+		return item.taskId;
+	};
+	const auto it = ranges::find(_album->items, id(), proj);
+	Assert(it != _album->items.end());
+
+	_album->items.erase(it);
 }
