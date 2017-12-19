@@ -577,6 +577,31 @@ public:
 		setAttachToNext(attachToNext);
 	}
 
+	HistoryItem *previousItem() const {
+		if (_block && _indexInBlock >= 0) {
+			if (_indexInBlock > 0) {
+				return _block->items.at(_indexInBlock - 1);
+			}
+			if (auto previous = _block->previousBlock()) {
+				Assert(!previous->items.empty());
+				return previous->items.back();
+			}
+		}
+		return nullptr;
+	}
+	HistoryItem *nextItem() const {
+		if (_block && _indexInBlock >= 0) {
+			if (_indexInBlock + 1 < _block->items.size()) {
+				return _block->items.at(_indexInBlock + 1);
+			}
+			if (auto next = _block->nextBlock()) {
+				Assert(!next->items.empty());
+				return next->items.front();
+			}
+		}
+		return nullptr;
+	}
+
 	~HistoryItem();
 
 protected:
@@ -607,31 +632,6 @@ protected:
 	HistoryBlock *_block = nullptr;
 	int _indexInBlock = -1;
 	MTPDmessage::Flags _flags = 0;
-
-	HistoryItem *previousItem() const {
-		if (_block && _indexInBlock >= 0) {
-			if (_indexInBlock > 0) {
-				return _block->items.at(_indexInBlock - 1);
-			}
-			if (auto previous = _block->previousBlock()) {
-				Assert(!previous->items.empty());
-				return previous->items.back();
-			}
-		}
-		return nullptr;
-	}
-	HistoryItem *nextItem() const {
-		if (_block && _indexInBlock >= 0) {
-			if (_indexInBlock + 1 < _block->items.size()) {
-				return _block->items.at(_indexInBlock + 1);
-			}
-			if (auto next = _block->nextBlock()) {
-				Assert(!next->items.empty());
-				return next->items.front();
-			}
-		}
-		return nullptr;
-	}
 
 	// This should be called only from previousItemChanged()
 	// to add required bits to the Composer mask
