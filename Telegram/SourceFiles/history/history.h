@@ -173,10 +173,9 @@ struct Draft;
 class HistoryMedia;
 class HistoryMessage;
 
-enum class AddToUnreadMentionsMethod {
+enum class UnreadMentionType {
 	New, // when new message is added to history
-	Front, // when old messages slice was received
-	Back, // when new messages slice was received and it is the last one, we index all media
+	Existing, // when some messages slice was received
 };
 
 namespace Dialogs {
@@ -234,7 +233,7 @@ public:
 	void addOlderSlice(const QVector<MTPMessage> &slice);
 	void addNewerSlice(const QVector<MTPMessage> &slice);
 
-	void newItemAdded(HistoryItem *item);
+	void newItemAdded(not_null<HistoryItem*> item);
 
 	int countUnread(MsgId upTo);
 	void updateShowFrom();
@@ -369,7 +368,7 @@ public:
 		return (getUnreadMentionsCount() > 0);
 	}
 	void setUnreadMentionsCount(int count);
-	bool addToUnreadMentions(MsgId msgId, AddToUnreadMentionsMethod method);
+	bool addToUnreadMentions(MsgId msgId, UnreadMentionType type);
 	void eraseFromUnreadMentions(MsgId msgId);
 	void addUnreadMentionsSlice(const MTPmessages_Messages &result);
 
@@ -609,11 +608,8 @@ public:
 
 private:
 	friend class History;
-	HistoryItem* addNewChannelMessage(const MTPMessage &msg, NewMessageType type);
-	HistoryItem *addNewToBlocks(const MTPMessage &msg, NewMessageType type);
 
 	void checkMaxReadMessageDate();
-
 	void cleared(bool leaveItems);
 
 	QDateTime _maxReadMessageDate;

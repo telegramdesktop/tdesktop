@@ -303,9 +303,6 @@ public:
 	bool isPost() const {
 		return _flags & MTPDmessage::Flag::f_post;
 	}
-	bool indexInUnreadMentions() const {
-		return (id > 0);
-	}
 	bool isSilent() const {
 		return _flags & MTPDmessage::Flag::f_silent;
 	}
@@ -349,11 +346,12 @@ public:
 	virtual void updateReplyMarkup(const MTPReplyMarkup *markup) {
 	}
 
-	virtual void addToUnreadMentions(AddToUnreadMentionsMethod method) {
+	virtual void addToUnreadMentions(UnreadMentionType type) {
 	}
 	virtual void eraseFromUnreadMentions() {
 	}
 	virtual Storage::SharedMediaTypesMask sharedMediaTypes() const;
+	void indexAsNewItem();
 
 	virtual bool hasBubble() const {
 		return false;

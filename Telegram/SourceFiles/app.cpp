@@ -904,26 +904,22 @@ namespace {
 		if (m.has_from_id() && peerId == Auth().userPeerId()) {
 			peerId = peerFromUser(m.vfrom_id);
 		}
-		if (auto existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
+		if (const auto existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
 			auto text = qs(m.vmessage);
-			auto entities = m.has_entities() ? TextUtilities::EntitiesFromMTP(m.ventities.v) : EntitiesInText();
+			auto entities = m.has_entities()
+				? TextUtilities::EntitiesFromMTP(m.ventities.v)
+				: EntitiesInText();
 			existing->setText({ text, entities });
 			existing->updateMedia(m.has_media() ? (&m.vmedia) : nullptr);
-			existing->updateReplyMarkup(m.has_reply_markup() ? (&m.vreply_markup) : nullptr);
+			existing->updateReplyMarkup(m.has_reply_markup()
+				? (&m.vreply_markup)
+				: nullptr);
 			existing->setViewsCount(m.has_views() ? m.vviews.v : -1);
-			existing->addToUnreadMentions(AddToUnreadMentionsMethod::New);
-			if (auto sharedMediaTypes = existing->sharedMediaTypes()) {
-				Auth().storage().add(Storage::SharedMediaAddNew(
-					peerId,
-					sharedMediaTypes,
-					existing->id));
-			}
-
+			existing->indexAsNewItem();
 			if (!existing->detached()) {
 				App::checkSavedGif(existing);
 				return true;
 			}
-
 			return false;
 		}
 		return false;

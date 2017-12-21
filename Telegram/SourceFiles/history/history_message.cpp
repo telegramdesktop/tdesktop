@@ -1375,9 +1375,9 @@ void HistoryMessage::updateMedia(const MTPMessageMedia *media) {
 	setPendingInitDimensions();
 }
 
-void HistoryMessage::addToUnreadMentions(AddToUnreadMentionsMethod method) {
-	if (indexInUnreadMentions() && mentionsMe() && isMediaUnread()) {
-		if (history()->addToUnreadMentions(id, method)) {
+void HistoryMessage::addToUnreadMentions(UnreadMentionType type) {
+	if (IsServerMsgId(id) && mentionsMe() && isMediaUnread()) {
+		if (history()->addToUnreadMentions(id, type)) {
 			Notify::peerUpdatedDelayed(
 				history()->peer,
 				Notify::PeerUpdate::Flag::UnreadMentionsChanged);

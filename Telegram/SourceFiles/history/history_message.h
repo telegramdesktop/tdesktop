@@ -207,7 +207,7 @@ public:
 		setReplyMarkup(markup);
 	}
 
-	void addToUnreadMentions(AddToUnreadMentionsMethod method) override;
+	void addToUnreadMentions(UnreadMentionType type) override;
 	void eraseFromUnreadMentions() override;
 	Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 

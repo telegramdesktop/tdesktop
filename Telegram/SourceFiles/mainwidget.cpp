@@ -2018,7 +2018,8 @@ void MainWidget::insertCheckedServiceNotification(const TextWithEntities &messag
 				MTPint(),
 				MTPint(),
 				MTPstring(),
-				MTPlong()), NewMessageUnread);
+				MTPlong()),
+			NewMessageUnread);
 	}
 	if (item) {
 		_history->peerMessagesUpdated(item->history()->peer->id);
@@ -4825,7 +4826,8 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 			QString text;
 			App::histSentDataByItem(randomId, peerId, text);
 
-			auto wasAlready = peerId && (App::histItemById(peerToChannel(peerId), d.vid.v) != nullptr);
+			const auto wasAlready = (peerId != 0)
+				&& (App::histItemById(peerToChannel(peerId), d.vid.v) != nullptr);
 			feedUpdate(MTP_updateMessageID(d.vid, MTP_long(randomId))); // ignore real date
 			if (peerId) {
 				if (auto item = App::histItemById(peerToChannel(peerId), d.vid.v)) {
@@ -4835,17 +4837,13 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 							item->id,
 							ApiWrap::RequestMessageDataCallback());
 					}
-					auto entities = d.has_entities() ? TextUtilities::EntitiesFromMTP(d.ventities.v) : EntitiesInText();
+					const auto entities = d.has_entities()
+						? TextUtilities::EntitiesFromMTP(d.ventities.v)
+						: EntitiesInText();
 					item->setText({ text, entities });
 					item->updateMedia(d.has_media() ? (&d.vmedia) : nullptr);
-					item->addToUnreadMentions(AddToUnreadMentionsMethod::New);
 					if (!wasAlready) {
-						if (auto sharedMediaTypes = item->sharedMediaTypes()) {
-							Auth().storage().add(Storage::SharedMediaAddNew(
-								peerId,
-								sharedMediaTypes,
-								item->id));
-						}
+						item->indexAsNewItem();
 					}
 				}
 			}

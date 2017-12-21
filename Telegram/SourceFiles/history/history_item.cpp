@@ -350,6 +350,18 @@ Storage::SharedMediaTypesMask HistoryItem::sharedMediaTypes() const {
 	return {};
 }
 
+void HistoryItem::indexAsNewItem() {
+	if (IsServerMsgId(id)) {
+		addToUnreadMentions(UnreadMentionType::New);
+		if (const auto types = sharedMediaTypes()) {
+			Auth().storage().add(Storage::SharedMediaAddNew(
+				history()->peer->id,
+				types,
+				id));
+		}
+	}
+}
+
 void HistoryItem::previousItemChanged() {
 	Expects(!isLogEntry());
 	recountDisplayDate();

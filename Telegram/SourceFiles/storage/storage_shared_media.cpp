@@ -86,9 +86,9 @@ void SharedMedia::remove(SharedMediaRemoveOne &&query) {
 			auto type = static_cast<SharedMediaType>(index);
 			if (query.types.test(type)) {
 				peerIt->second[index].removeOne(query.messageId);
-				_oneRemoved.fire(std::move(query));
 			}
 		}
+		_oneRemoved.fire(std::move(query));
 	}
 }
 

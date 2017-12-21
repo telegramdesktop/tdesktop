@@ -544,27 +544,6 @@ const QDateTime &ChannelHistory::maxReadMessageDate() {
 	return _maxReadMessageDate;
 }
 
-HistoryItem *ChannelHistory::addNewChannelMessage(const MTPMessage &msg, NewMessageType type) {
-	if (type == NewMessageExisting) return addToHistory(msg);
-
-	return addNewToBlocks(msg, type);
-}
-
-HistoryItem *ChannelHistory::addNewToBlocks(const MTPMessage &msg, NewMessageType type) {
-	if (!loadedAtBottom()) {
-		HistoryItem *item = addToHistory(msg);
-		if (item) {
-			setLastMessage(item);
-			if (type == NewMessageUnread) {
-				newItemAdded(item);
-			}
-		}
-		return item;
-	}
-
-	return addNewToLastBlock(msg, type);
-}
-
 void ChannelHistory::cleared(bool leaveItems) {
 	_joinedMessage = nullptr;
 }
@@ -1115,28 +1094,26 @@ not_null<HistoryItem*> History::addNewService(MsgId msgId, QDateTime date, const
 }
 
 HistoryItem *History::addNewMessage(const MTPMessage &msg, NewMessageType type) {
-	if (isChannel()) {
-		return asChannelHistory()->addNewChannelMessage(msg, type);
-	}
-
 	if (type == NewMessageExisting) {
 		return addToHistory(msg);
 	}
 	if (!loadedAtBottom() || peer->migrateTo()) {
-		const auto item = addToHistory(msg);
-		if (item) {
+		if (const auto item = addToHistory(msg)) {
 			setLastMessage(item);
 			if (type == NewMessageUnread) {
 				newItemAdded(item);
 			}
+			return item;
 		}
-		return item;
+		return nullptr;
 	}
 
 	return addNewToLastBlock(msg, type);
 }
 
 HistoryItem *History::addNewToLastBlock(const MTPMessage &msg, NewMessageType type) {
+	Expects(type != NewMessageExisting);
+
 	const auto applyServiceAction = (type == NewMessageUnread);
 	const auto detachExistingItem = (type != NewMessageLast);
 	const auto item = createItem(msg, applyServiceAction, detachExistingItem);
@@ -1187,15 +1164,17 @@ void History::setUnreadMentionsCount(int count) {
 
 bool History::addToUnreadMentions(
 		MsgId msgId,
-		AddToUnreadMentionsMethod method) {
-	auto allLoaded = _unreadMentionsCount ? (_unreadMentions.size() >= *_unreadMentionsCount) : false;
+		UnreadMentionType type) {
+	auto allLoaded = _unreadMentionsCount
+		? (_unreadMentions.size() >= *_unreadMentionsCount)
+		: false;
 	if (allLoaded) {
-		if (method == AddToUnreadMentionsMethod::New) {
+		if (type == UnreadMentionType::New) {
 			++*_unreadMentionsCount;
 			_unreadMentions.insert(msgId);
 			return true;
 		}
-	} else if (!_unreadMentions.empty() && method != AddToUnreadMentionsMethod::New) {
+	} else if (!_unreadMentions.empty() && type != UnreadMentionType::New) {
 		_unreadMentions.insert(msgId);
 		return true;
 	}
@@ -1274,24 +1253,15 @@ not_null<HistoryItem*> History::addNewItem(not_null<HistoryItem*> adding, bool n
 	if (groupFrom != groupTill || groupFrom->groupId()) {
 		recountGrouping(groupFrom, groupTill);
 	}
-
-	if (IsServerMsgId(adding->id)) {
-		adding->addToUnreadMentions(AddToUnreadMentionsMethod::New);
-		if (auto sharedMediaTypes = adding->sharedMediaTypes()) {
-			if (newMsg) {
-				Auth().storage().add(Storage::SharedMediaAddNew(
-					peer->id,
-					sharedMediaTypes,
-					adding->id));
-			} else {
-				auto from = loadedAtTop() ? 0 : minMsgId();
-				auto till = loadedAtBottom() ? ServerMaxMsgId : maxMsgId();
-				Auth().storage().add(Storage::SharedMediaAddExisting(
-					peer->id,
-					sharedMediaTypes,
-					adding->id,
-					{ from, till }));
-			}
+	if (!newMsg && IsServerMsgId(adding->id)) {
+		if (const auto sharedMediaTypes = adding->sharedMediaTypes()) {
+			auto from = loadedAtTop() ? 0 : minMsgId();
+			auto till = loadedAtBottom() ? ServerMaxMsgId : maxMsgId();
+			Auth().storage().add(Storage::SharedMediaAddExisting(
+				peer->id,
+				sharedMediaTypes,
+				adding->id,
+				{ from, till }));
 		}
 	}
 	if (adding->from()->id) {
@@ -1399,8 +1369,9 @@ void History::clearSendAction(not_null<UserData*> from) {
 	}
 }
 
-void History::newItemAdded(HistoryItem *item) {
+void History::newItemAdded(not_null<HistoryItem*> item) {
 	App::checkImageCacheSize();
+	item->indexAsNewItem();
 	if (const auto from = item->from() ? item->from()->asUser() : nullptr) {
 		if (from == item->author()) {
 			clearSendAction(from);
@@ -1409,7 +1380,9 @@ void History::newItemAdded(HistoryItem *item) {
 		from->madeAction(itemServerTime.v);
 	}
 	if (item->out()) {
-		if (unreadBar) unreadBar->destroyUnreadBar();
+		if (unreadBar) {
+			unreadBar->destroyUnreadBar();
+		}
 		if (!item->unread()) {
 			outboxRead(item);
 		}
@@ -1599,7 +1572,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 		}
 		for (auto i = block->items.size(); i > 0; --i) {
 			auto item = block->items[i - 1];
-			item->addToUnreadMentions(AddToUnreadMentionsMethod::Front);
+			item->addToUnreadMentions(UnreadMentionType::Existing);
 			if (item->from()->id) {
 				if (lastAuthors) { // chats
 					if (auto user = item->from()->asUser()) {
@@ -1768,9 +1741,9 @@ void History::checkAddAllToUnreadMentions() {
 		return;
 	}
 
-	for_const (auto block, blocks) {
-		for_const (auto item, block->items) {
-			item->addToUnreadMentions(AddToUnreadMentionsMethod::Back);
+	for (const auto block : blocks) {
+		for (const auto item : block->items) {
+			item->addToUnreadMentions(UnreadMentionType::Existing);
 		}
 	}
 }
@@ -2417,11 +2390,11 @@ int History::resizeGetHeight(int newWidth) {
 }
 
 ChannelHistory *History::asChannelHistory() {
-	return isChannel() ? static_cast<ChannelHistory*>(this) : 0;
+	return isChannel() ? static_cast<ChannelHistory*>(this) : nullptr;
 }
 
 const ChannelHistory *History::asChannelHistory() const {
-	return isChannel() ? static_cast<const ChannelHistory*>(this) : 0;
+	return isChannel() ? static_cast<const ChannelHistory*>(this) : nullptr;
 }
 
 not_null<History*> History::migrateToOrMe() const {

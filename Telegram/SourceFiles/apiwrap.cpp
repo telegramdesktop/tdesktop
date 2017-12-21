@@ -1989,45 +1989,49 @@ void ApiWrap::applyUpdatesNoPtsCheck(const MTPUpdates &updates) {
 	case mtpc_updateShortMessage: {
 		auto &d = updates.c_updateShortMessage();
 		auto flags = mtpCastFlags(d.vflags.v) | MTPDmessage::Flag::f_from_id;
-		App::histories().addNewMessage(MTP_message(
-			MTP_flags(flags),
-			d.vid,
-			d.is_out() ? MTP_int(Auth().userId()) : d.vuser_id,
-			MTP_peerUser(d.is_out() ? d.vuser_id : MTP_int(Auth().userId())),
-			d.vfwd_from,
-			d.vvia_bot_id,
-			d.vreply_to_msg_id,
-			d.vdate,
-			d.vmessage,
-			MTP_messageMediaEmpty(),
-			MTPnullMarkup,
-			d.has_entities() ? d.ventities : MTPnullEntities,
-			MTPint(),
-			MTPint(),
-			MTPstring(),
-			MTPlong()), NewMessageUnread);
+		App::histories().addNewMessage(
+			MTP_message(
+				MTP_flags(flags),
+				d.vid,
+				d.is_out() ? MTP_int(Auth().userId()) : d.vuser_id,
+				MTP_peerUser(d.is_out() ? d.vuser_id : MTP_int(Auth().userId())),
+				d.vfwd_from,
+				d.vvia_bot_id,
+				d.vreply_to_msg_id,
+				d.vdate,
+				d.vmessage,
+				MTP_messageMediaEmpty(),
+				MTPnullMarkup,
+				d.has_entities() ? d.ventities : MTPnullEntities,
+				MTPint(),
+				MTPint(),
+				MTPstring(),
+				MTPlong()),
+			NewMessageUnread);
 	} break;
 
 	case mtpc_updateShortChatMessage: {
 		auto &d = updates.c_updateShortChatMessage();
 		auto flags = mtpCastFlags(d.vflags.v) | MTPDmessage::Flag::f_from_id;
-		App::histories().addNewMessage(MTP_message(
-			MTP_flags(flags),
-			d.vid,
-			d.vfrom_id,
-			MTP_peerChat(d.vchat_id),
-			d.vfwd_from,
-			d.vvia_bot_id,
-			d.vreply_to_msg_id,
-			d.vdate,
-			d.vmessage,
-			MTP_messageMediaEmpty(),
-			MTPnullMarkup,
-			d.has_entities() ? d.ventities : MTPnullEntities,
-			MTPint(),
-			MTPint(),
-			MTPstring(),
-			MTPlong()), NewMessageUnread);
+		App::histories().addNewMessage(
+			MTP_message(
+				MTP_flags(flags),
+				d.vid,
+				d.vfrom_id,
+				MTP_peerChat(d.vchat_id),
+				d.vfwd_from,
+				d.vvia_bot_id,
+				d.vreply_to_msg_id,
+				d.vdate,
+				d.vmessage,
+				MTP_messageMediaEmpty(),
+				MTPnullMarkup,
+				d.has_entities() ? d.ventities : MTPnullEntities,
+				MTPint(),
+				MTPint(),
+				MTPstring(),
+				MTPlong()),
+			NewMessageUnread);
 	} break;
 
 	case mtpc_updateShortSentMessage: {
