@@ -102,7 +102,16 @@ void ShowRecentActions(
 		not_null<Window::Controller*> controller,
 		not_null<ChannelData*> channel) {
 	controller->showSection(AdminLog::SectionMemento(channel));
+}
 
+bool HasEditInfoBox(not_null<ChannelData*> channel) {
+	if (channel->canEditInformation()) {
+		return true;
+	} else if (!channel->isPublic() && channel->canAddMembers()) {
+		// Edit invite link.
+		return true;
+	}
+	return false;
 }
 
 void FillManageBox(
@@ -112,7 +121,7 @@ void FillManageBox(
 	using Profile::ParticipantsBoxController;
 
 	auto isGroup = channel->isMegagroup();
-	if (channel->canEditInformation()) {
+	if (HasEditInfoBox(channel)) {
 		AddButton(
 			content,
 			Lang::Viewer(isGroup
