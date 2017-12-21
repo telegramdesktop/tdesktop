@@ -29,7 +29,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
-#include "ui/empty_userpic.h"
 #include "ui/grouped_layout.h"
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
@@ -42,15 +41,10 @@ constexpr auto kMinPreviewWidth = 20;
 
 } // namespace
 
-SendFilesBox::SendFilesBox(QWidget*, QImage image, CompressConfirm compressed)
-: _image(image)
-, _compressConfirm(compressed)
-, _caption(this, st::confirmCaptionArea, langFactory(lng_photo_caption)) {
-	_list.files.push_back({ QString() });
-	prepareSingleFileLayout();
-}
-
-SendFilesBox::SendFilesBox(QWidget*, Storage::PreparedList &&list, CompressConfirm compressed)
+SendFilesBox::SendFilesBox(
+	QWidget*,
+	Storage::PreparedList &&list,
+	CompressConfirm compressed)
 : _list(std::move(list))
 , _compressConfirm(compressed)
 , _caption(
@@ -66,34 +60,54 @@ SendFilesBox::SendFilesBox(QWidget*, Storage::PreparedList &&list, CompressConfi
 
 void SendFilesBox::prepareSingleFileLayout() {
 	Expects(_list.files.size() == 1);
-	if (!_list.files.front().path.isEmpty()) {
-		tryToReadSingleFile();
+
+	const auto &file = _list.files[0];
+	auto preview = QImage();
+	if (const auto image = base::get_if<FileMediaInformation::Image>(
+			&file.information->media)) {
+		preview = image->data;
+		_animated = image->animated;
+	} else if (const auto video = base::get_if<FileMediaInformation::Video>(
+			&file.information->media)) {
+		preview = video->thumbnail;
+		_animated = true;
 	}
 
-	if (!Storage::ValidateThumbDimensions(_image.width(), _image.height())
+	if (!Storage::ValidateThumbDimensions(preview.width(), preview.height())
 		|| _animated) {
 		_compressConfirm = CompressConfirm::None;
 	}
 
-	if (!_image.isNull()) {
-		auto image = _image;
+	if (!preview.isNull()) {
 		if (!_animated && _compressConfirm == CompressConfirm::None) {
-			auto originalWidth = image.width();
-			auto originalHeight = image.height();
+			auto originalWidth = preview.width();
+			auto originalHeight = preview.height();
 			auto thumbWidth = st::msgFileThumbSize;
 			if (originalWidth > originalHeight) {
-				thumbWidth = (originalWidth * st::msgFileThumbSize) / originalHeight;
+				thumbWidth = (originalWidth * st::msgFileThumbSize)
+					/ originalHeight;
 			}
-			auto options = Images::Option::Smooth | Images::Option::RoundedSmall | Images::Option::RoundedTopLeft | Images::Option::RoundedTopRight | Images::Option::RoundedBottomLeft | Images::Option::RoundedBottomRight;
-			_fileThumb = Images::pixmap(image, thumbWidth * cIntRetinaFactor(), 0, options, st::msgFileThumbSize, st::msgFileThumbSize);
+			auto options = Images::Option::Smooth
+				| Images::Option::RoundedSmall
+				| Images::Option::RoundedTopLeft
+				| Images::Option::RoundedTopRight
+				| Images::Option::RoundedBottomLeft
+				| Images::Option::RoundedBottomRight;
+			_fileThumb = Images::pixmap(
+				preview,
+				thumbWidth * cIntRetinaFactor(),
+				0,
+				options,
+				st::msgFileThumbSize,
+				st::msgFileThumbSize);
 		} else {
 			auto maxW = 0;
 			auto maxH = 0;
 			if (_animated) {
 				auto limitW = st::sendMediaPreviewSize;
 				auto limitH = st::confirmMaxHeight;
-				maxW = qMax(image.width(), 1);
-				maxH = qMax(image.height(), 1);
+				maxW = qMax(preview.width(), 1);
+				maxH = qMax(preview.height(), 1);
 				if (maxW * limitH > maxH * limitW) {
 					if (maxW < limitW) {
 						maxH = maxH * limitW / maxW;
@@ -105,16 +119,22 @@ void SendFilesBox::prepareSingleFileLayout() {
 						maxH = limitH;
 					}
 				}
-				image = Images::prepare(image, maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), Images::Option::Smooth | Images::Option::Blurred, maxW, maxH);
+				preview = Images::prepare(
+					preview,
+					maxW * cIntRetinaFactor(),
+					maxH * cIntRetinaFactor(),
+					Images::Option::Smooth | Images::Option::Blurred,
+					maxW,
+					maxH);
 			}
-			auto originalWidth = image.width();
-			auto originalHeight = image.height();
+			auto originalWidth = preview.width();
+			auto originalHeight = preview.height();
 			if (!originalWidth || !originalHeight) {
 				originalWidth = originalHeight = 1;
 			}
 			_previewWidth = st::sendMediaPreviewSize;
-			if (image.width() < _previewWidth) {
-				_previewWidth = qMax(image.width(), kMinPreviewWidth);
+			if (preview.width() < _previewWidth) {
+				_previewWidth = qMax(preview.width(), kMinPreviewWidth);
 			}
 			auto maxthumbh = qMin(qRound(1.5 * _previewWidth), st::confirmMaxHeight);
 			_previewHeight = qRound(originalHeight * float64(_previewWidth) / originalWidth);
@@ -125,9 +145,13 @@ void SendFilesBox::prepareSingleFileLayout() {
 			}
 			_previewLeft = (st::boxWideWidth - _previewWidth) / 2;
 
-			image = std::move(image).scaled(_previewWidth * cIntRetinaFactor(), _previewHeight * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-			image = Images::prepareOpaque(std::move(image));
-			_preview = App::pixmapFromImageInPlace(std::move(image));
+			preview = std::move(preview).scaled(
+				_previewWidth * cIntRetinaFactor(),
+				_previewHeight * cIntRetinaFactor(),
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation);
+			preview = Images::prepareOpaque(std::move(preview));
+			_preview = App::pixmapFromImageInPlace(std::move(preview));
 			_preview.setDevicePixelRatio(cRetinaFactor());
 
 			prepareGifPreview();
@@ -191,9 +215,12 @@ void SendFilesBox::prepareDocumentLayout() {
 	const auto &file = _list.files.front();
 	const auto filepath = file.path;
 	if (filepath.isEmpty()) {
+		const auto data = base::get_if<FileMediaInformation::Image>(
+			&file.information->media);
+		const auto image = data ? data->data : QImage();
 		auto filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
 		_nameText.setText(st::semiboldTextStyle, filename, _textNameOptions);
-		_statusText = qsl("%1x%2").arg(_image.width()).arg(_image.height());
+		_statusText = qsl("%1x%2").arg(image.width()).arg(image.height());
 		_statusWidth = qMax(_nameText.maxWidth(), st::normalFont->width(_statusText));
 		_fileIsImage = true;
 	} else {
@@ -225,40 +252,6 @@ void SendFilesBox::prepareDocumentLayout() {
 			_nameText.maxWidth(),
 			st::normalFont->width(_statusText));
 	}
-}
-
-void SendFilesBox::tryToReadSingleFile() {
-	auto &file = _list.files.front();
-	auto filepath = file.path;
-	auto filemime = mimeTypeForFile(QFileInfo(filepath)).name();
-	if (!file.information) {
-		file.information = FileLoadTask::ReadMediaInformation(
-			filepath,
-			QByteArray(),
-			filemime);
-	}
-	if (const auto image = base::get_if<FileMediaInformation::Image>(
-			&file.information->media)) {
-		_image = image->data;
-		_animated = image->animated;
-	} else if (const auto video = base::get_if<FileMediaInformation::Video>(
-			&file.information->media)) {
-		_image = video->thumbnail;
-		_animated = true;
-	}
-}
-
-SendFilesBox::SendFilesBox(QWidget*, const QString &phone, const QString &firstname, const QString &lastname)
-: _contactPhone(phone)
-, _contactFirstName(firstname)
-, _contactLastName(lastname) {
-	auto name = lng_full_name(lt_first_name, _contactFirstName, lt_last_name, _contactLastName);
-	_nameText.setText(st::semiboldTextStyle, name, _textNameOptions);
-	_statusText = _contactPhone;
-	_statusWidth = qMax(_nameText.maxWidth(), st::normalFont->width(_statusText));
-	_contactPhotoEmpty = std::make_unique<Ui::EmptyUserpic>(
-		Data::PeerUserpicColor(0),
-		name);
 }
 
 void SendFilesBox::prepare() {
@@ -304,9 +297,7 @@ void SendFilesBox::prepare() {
 }
 
 base::lambda<QString()> SendFilesBox::getSendButtonText() const {
-	if (!_contactPhone.isEmpty()) {
-		return langFactory(lng_send_button);
-	} else if (_compressed && _compressed->checked()) {
+	if (_compressed && _compressed->checked()) {
 		return [count = _list.files.size()] {
 			return lng_send_photos(lt_count, count);
 		};
@@ -429,21 +420,17 @@ void SendFilesBox::paintEvent(QPaintEvent *e) {
 		App::roundRect(p, x, y, w, h, st::msgOutBg, MessageOutCorners, &st::msgOutShadow);
 
 		if (_fileThumb.isNull()) {
-			if (_contactPhone.isNull()) {
-				QRect inner(rtlrect(x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, width()));
-				p.setPen(Qt::NoPen);
-				p.setBrush(st::msgFileOutBg);
+			QRect inner(rtlrect(x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, width()));
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::msgFileOutBg);
 
-				{
-					PainterHighQualityEnabler hq(p);
-					p.drawEllipse(inner);
-				}
-
-				auto &icon = _fileIsAudio ? st::historyFileOutPlay : _fileIsImage ? st::historyFileOutImage : st::historyFileOutDocument;
-				icon.paintInCenter(p, inner);
-			} else {
-				_contactPhotoEmpty->paint(p, x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), width(), st::msgFileSize);
+			{
+				PainterHighQualityEnabler hq(p);
+				p.drawEllipse(inner);
 			}
+
+			auto &icon = _fileIsAudio ? st::historyFileOutPlay : _fileIsImage ? st::historyFileOutImage : st::historyFileOutDocument;
+			icon.paintInCenter(p, inner);
 		} else {
 			QRect rthumb(rtlrect(x + st::msgFileThumbPadding.left(), y + st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, width()));
 			p.drawPixmap(rthumb.topLeft(), _fileThumb);
@@ -496,7 +483,6 @@ void SendFilesBox::send(bool ctrlShiftEnter) {
 		auto caption = _caption ? TextUtilities::PrepareForSending(_caption->getLastText(), TextUtilities::PrepareTextOption::CheckLinks) : QString();
 		_confirmedCallback(
 			std::move(_list),
-			_animated ? QImage() : _image,
 			compressed,
 			caption,
 			ctrlShiftEnter);

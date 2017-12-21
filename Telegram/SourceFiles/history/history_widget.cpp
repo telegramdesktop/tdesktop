@@ -498,7 +498,10 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 	connect(_fieldAutocomplete, SIGNAL(moderateKeyActivate(int,bool*)), this, SLOT(onModerateKeyActivate(int,bool*)));
 	_field->installEventFilter(_fieldAutocomplete);
 	_field->setInsertFromMimeDataHook([this](const QMimeData *data) {
-		return confirmSendingFiles(data, CompressConfirm::Auto, data->text());
+		return confirmSendingFiles(
+			data,
+			CompressConfirm::Auto,
+			data->text());
 	});
 	_emojiSuggestions.create(this, _field.data());
 	updateFieldSubmitSettings();
@@ -3094,18 +3097,22 @@ void HistoryWidget::chooseAttach() {
 
 	auto filter = FileDialog::AllFilesFilter() + qsl(";;Image files (*") + cImgExtensions().join(qsl(" *")) + qsl(")");
 
-	FileDialog::GetOpenPaths(lang(lng_choose_files), filter, base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
+	FileDialog::GetOpenPaths(lang(lng_choose_files), filter, base::lambda_guarded(this, [this](FileDialog::OpenResult &&result) {
 		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
 			return;
 		}
 
 		if (!result.remoteContent.isEmpty()) {
 			auto animated = false;
-			auto image = App::readImage(result.remoteContent, nullptr, false, &animated);
+			auto image = App::readImage(
+				result.remoteContent,
+				nullptr,
+				false,
+				&animated);
 			if (!image.isNull() && !animated) {
 				confirmSendingFiles(
-					image,
-					result.remoteContent,
+					std::move(image),
+					std::move(result.remoteContent),
 					CompressConfirm::Auto);
 			} else {
 				uploadFile(result.remoteContent, SendMediaType::File);
@@ -3936,42 +3943,27 @@ template <typename SendCallback>
 bool HistoryWidget::showSendFilesBox(
 		object_ptr<SendFilesBox> box,
 		const QString &insertTextOnCancel,
-		const QString *addedComment,
 		SendCallback callback) {
 	App::wnd()->activateWindow();
 
-	auto withComment = (addedComment != nullptr);
 	const auto confirmedCallback = [=, sendCallback = std::move(callback)](
 			Storage::PreparedList &&list,
-			const QImage &image,
 			bool compressed,
 			const QString &caption,
 			bool ctrlShiftEnter) {
 		if (!canWriteMessage()) return;
 
-		const auto replyTo = replyToId();
-		if (withComment) {
-			// This call will clear replyToId().
-			onSend(ctrlShiftEnter);
-		}
 		sendCallback(
 			std::move(list),
-			image,
 			compressed,
 			caption,
-			replyTo);
+			replyToId());
 	};
 	box->setConfirmedCallback(
 		base::lambda_guarded(this, std::move(confirmedCallback)));
 
-	if (withComment) {
-		auto was = _field->getTextWithTags();
-		setFieldText({ *addedComment, TextWithTags::Tags() });
-		box->setCancelledCallback(base::lambda_guarded(this, [this, was] {
-			setFieldText(was);
-		}));
-	} else if (!insertTextOnCancel.isEmpty()) {
-		box->setCancelledCallback(base::lambda_guarded(this, [this, insertTextOnCancel] {
+	if (!insertTextOnCancel.isEmpty()) {
+		box->setCancelledCallback(base::lambda_guarded(this, [=] {
 			_field->textCursor().insertText(insertTextOnCancel);
 		}));
 	}
@@ -4013,37 +4005,32 @@ bool HistoryWidget::showSendingFilesError(
 }
 
 bool HistoryWidget::confirmSendingFiles(const QStringList &files) {
-	return confirmSendingFiles(files, CompressConfirm::Auto, nullptr);
+	return confirmSendingFiles(files, CompressConfirm::Auto);
 }
 
 bool HistoryWidget::confirmSendingFiles(const QMimeData *data) {
-	return confirmSendingFiles(data, CompressConfirm::Auto, nullptr);
+	return confirmSendingFiles(data, CompressConfirm::Auto);
 }
 
 bool HistoryWidget::confirmSendingFiles(
 		const QList<QUrl> &files,
-		CompressConfirm compressed,
-		const QString *addedComment) {
+		CompressConfirm compressed) {
 	return confirmSendingFiles(
 		Storage::PrepareMediaList(files, st::sendMediaPreviewSize),
-		compressed,
-		addedComment);
+		compressed);
 }
 
 bool HistoryWidget::confirmSendingFiles(
 		const QStringList &files,
-		CompressConfirm compressed,
-		const QString *addedComment) {
+		CompressConfirm compressed) {
 	return confirmSendingFiles(
 		Storage::PrepareMediaList(files, st::sendMediaPreviewSize),
-		compressed,
-		addedComment);
+		compressed);
 }
 
 bool HistoryWidget::confirmSendingFiles(
 		Storage::PreparedList &&list,
-		CompressConfirm compressed,
-		const QString *addedComment) {
+		CompressConfirm compressed) {
 	if (showSendingFilesError(list)) {
 		return false;
 	}
@@ -4057,8 +4044,6 @@ bool HistoryWidget::confirmSendingFiles(
 
 			uploadFilesAfterConfirmation(
 				std::move(list),
-				QByteArray(),
-				QImage(),
 				SendMediaType::Photo,
 				caption,
 				replyToId(),
@@ -4071,7 +4056,6 @@ bool HistoryWidget::confirmSendingFiles(
 		const auto insertTextOnCancel = QString();
 		auto sendCallback = [this](
 				Storage::PreparedList &&list,
-				const QImage &image,
 				bool compressed,
 				const QString &caption,
 				MsgId replyTo) {
@@ -4080,8 +4064,6 @@ bool HistoryWidget::confirmSendingFiles(
 				: SendMediaType::File;
 			uploadFilesAfterConfirmation(
 				std::move(list),
-				QByteArray(),
-				image,
 				type,
 				caption,
 				replyTo);
@@ -4094,22 +4076,20 @@ bool HistoryWidget::confirmSendingFiles(
 		return showSendFilesBox(
 			Box<SendFilesBox>(std::move(list), boxCompressConfirm),
 			insertTextOnCancel,
-			addedComment,
 			std::move(sendCallback));
 	}
 }
 
 bool HistoryWidget::confirmSendingFiles(
-		const QImage &image,
-		const QByteArray &content,
+		QImage &&image,
+		QByteArray &&content,
 		CompressConfirm compressed,
 		const QString &insertTextOnCancel) {
 	if (!canWriteMessage() || image.isNull()) return false;
 
 	App::wnd()->activateWindow();
-	auto sendCallback = [this, content](
+	auto sendCallback = [this](
 			Storage::PreparedList &&list,
-			const QImage &image,
 			bool compressed,
 			const QString &caption,
 			MsgId replyTo) {
@@ -4118,16 +4098,17 @@ bool HistoryWidget::confirmSendingFiles(
 			: SendMediaType::File;
 		uploadFilesAfterConfirmation(
 			std::move(list),
-			content,
-			image,
 			type,
 			caption,
 			replyTo);
 	};
+	auto list = Storage::PrepareMediaFromImage(
+		std::move(image),
+		std::move(content),
+		st::sendMediaPreviewSize);
 	return showSendFilesBox(
-		Box<SendFilesBox>(image, compressed),
+		Box<SendFilesBox>(std::move(list), compressed),
 		insertTextOnCancel,
-		nullptr,
 		std::move(sendCallback));
 }
 
@@ -4152,7 +4133,7 @@ bool HistoryWidget::confirmSendingFiles(
 		auto image = qvariant_cast<QImage>(data->imageData());
 		if (!image.isNull()) {
 			confirmSendingFiles(
-				image,
+				std::move(image),
 				QByteArray(),
 				compressed,
 				insertTextOnCancel);
@@ -4160,31 +4141,6 @@ bool HistoryWidget::confirmSendingFiles(
 		}
 	}
 	return false;
-}
-
-bool HistoryWidget::confirmShareContact(
-		const QString &phone,
-		const QString &fname,
-		const QString &lname,
-		const QString *addedComment) {
-	if (!canWriteMessage()) return false;
-
-	auto sendCallback = [=](
-			Storage::PreparedList &&list,
-			const QImage &image,
-			bool compressed,
-			const QString &caption,
-			MsgId replyTo) {
-		auto options = ApiWrap::SendOptions(_history);
-		options.replyTo = replyTo;
-		Auth().api().shareContact(phone, fname, lname, options);
-	};
-	const auto insertTextOnCancel = QString();
-	return showSendFilesBox(
-		Box<SendFilesBox>(phone, fname, lname),
-		insertTextOnCancel,
-		addedComment,
-		std::move(sendCallback));
 }
 
 void HistoryWidget::uploadFiles(
@@ -4195,8 +4151,6 @@ void HistoryWidget::uploadFiles(
 	auto caption = QString();
 	uploadFilesAfterConfirmation(
 		std::move(list),
-		QByteArray(),
-		QImage(),
 		type,
 		caption,
 		replyToId());
@@ -4204,8 +4158,6 @@ void HistoryWidget::uploadFiles(
 
 void HistoryWidget::uploadFilesAfterConfirmation(
 		Storage::PreparedList &&list,
-		const QByteArray &content,
-		const QImage &image,
 		SendMediaType type,
 		QString caption,
 		MsgId replyTo,
@@ -4216,8 +4168,6 @@ void HistoryWidget::uploadFilesAfterConfirmation(
 	options.replyTo = replyTo;
 	Auth().api().sendFiles(
 		std::move(list),
-		content,
-		image,
 		type,
 		caption,
 		album,

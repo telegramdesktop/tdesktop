@@ -2508,19 +2508,26 @@ namespace {
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	}
 
-	void complexAdjustRect(RectParts corners, QRect &rect, RectParts &parts) {
-		if (corners & RectPart::TopLeft) {
-			if (!(corners & RectPart::BottomLeft)) {
-				parts = RectPart::NoTopBottom | RectPart::FullTop;
-				rect.setHeight(rect.height() + msgRadius());
+	void rectWithCorners(Painter &p, QRect rect, const style::color &bg, RoundCorners index, RectParts corners) {
+		auto parts = RectPart::Top
+			| RectPart::NoTopBottom
+			| RectPart::Bottom
+			| corners;
+		roundRect(p, rect, bg, index, nullptr, parts);
+		if ((corners & RectPart::AllCorners) != RectPart::AllCorners) {
+			const auto size = ::corners[index].p[0].width() / cIntRetinaFactor();
+			if (!(corners & RectPart::TopLeft)) {
+				p.fillRect(rect.x(), rect.y(), size, size, bg);
 			}
-		} else if (corners & RectPart::BottomLeft) {
-			parts = RectPart::NoTopBottom | RectPart::FullBottom;
-			rect.setTop(rect.y() - msgRadius());
-		} else {
-			parts = RectPart::NoTopBottom;
-			rect.setTop(rect.y() - msgRadius());
-			rect.setHeight(rect.height() + msgRadius());
+			if (!(corners & RectPart::TopRight)) {
+				p.fillRect(rect.x() + rect.width() - size, rect.y(), size, size, bg);
+			}
+			if (!(corners & RectPart::BottomLeft)) {
+				p.fillRect(rect.x(), rect.y() + rect.height() - size, size, size, bg);
+			}
+			if (!(corners & RectPart::BottomRight)) {
+				p.fillRect(rect.x() + rect.width() - size, rect.y() + rect.height() - size, size, size, bg);
+			}
 		}
 	}
 
@@ -2534,18 +2541,13 @@ namespace {
 			auto overlayCorners = (radius == ImageRoundRadius::Small)
 				? SelectedOverlaySmallCorners
 				: SelectedOverlayLargeCorners;
-			auto overlayParts = RectPart::Full | RectPart::None;
-			if (radius == ImageRoundRadius::Large) {
-				complexAdjustRect(corners, rect, overlayParts);
-			}
-			roundRect(p, rect, p.textPalette().selectOverlay, overlayCorners, nullptr, overlayParts);
+			const auto bg = p.textPalette().selectOverlay;
+			rectWithCorners(p, rect, bg, overlayCorners, corners);
 		}
 	}
 
 	void complexLocationRect(Painter &p, QRect rect, ImageRoundRadius radius, RectParts corners) {
-		auto parts = RectPart::Full | RectPart::None;
-		complexAdjustRect(corners, rect, parts);
-		roundRect(p, rect, st::msgInBg, MessageInCorners, nullptr, parts);
+		rectWithCorners(p, rect, st::msgInBg, MessageInCorners, corners);
 	}
 
 	QImage *cornersMask(ImageRoundRadius radius) {

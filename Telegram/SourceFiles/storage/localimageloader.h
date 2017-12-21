@@ -282,17 +282,15 @@ public:
 		const QString &filepath,
 		const QByteArray &content,
 		const QString &filemime);
+	static bool FillImageInformation(
+		QImage &&image,
+		bool animated,
+		std::unique_ptr<FileMediaInformation> &result);
 
 	FileLoadTask(
 		const QString &filepath,
-		std::unique_ptr<FileMediaInformation> information,
-		SendMediaType type,
-		const FileLoadTo &to,
-		const QString &caption,
-		std::shared_ptr<SendingAlbum> album = nullptr);
-	FileLoadTask(
 		const QByteArray &content,
-		const QImage &image,
+		std::unique_ptr<FileMediaInformation> information,
 		SendMediaType type,
 		const FileLoadTo &to,
 		const QString &caption,
@@ -312,9 +310,18 @@ public:
 	void finish();
 
 private:
-	static bool CheckForSong(const QString &filepath, const QByteArray &content, std::unique_ptr<FileMediaInformation> &result);
-	static bool CheckForVideo(const QString &filepath, const QByteArray &content, std::unique_ptr<FileMediaInformation> &result);
-	static bool CheckForImage(const QString &filepath, const QByteArray &content, std::unique_ptr<FileMediaInformation> &result);
+	static bool CheckForSong(
+		const QString &filepath,
+		const QByteArray &content,
+		std::unique_ptr<FileMediaInformation> &result);
+	static bool CheckForVideo(
+		const QString &filepath,
+		const QByteArray &content,
+		std::unique_ptr<FileMediaInformation> &result);
+	static bool CheckForImage(
+		const QString &filepath,
+		const QByteArray &content,
+		std::unique_ptr<FileMediaInformation> &result);
 
 	template <typename Mimes, typename Extensions>
 	static bool CheckMimeOrExtensions(const QString &filepath, const QString &filemime, Mimes &mimes, Extensions &extensions);
@@ -330,7 +337,6 @@ private:
 	QString _filepath;
 	QByteArray _content;
 	std::unique_ptr<FileMediaInformation> _information;
-	QImage _image;
 	int32 _duration = 0;
 	VoiceWaveform _waveform;
 	SendMediaType _type;

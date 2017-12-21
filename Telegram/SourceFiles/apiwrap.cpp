@@ -2729,8 +2729,6 @@ void ApiWrap::sendVoiceMessage(
 
 void ApiWrap::sendFiles(
 		Storage::PreparedList &&list,
-		const QByteArray &content,
-		const QImage &image,
 		SendMediaType type,
 		QString caption,
 		std::shared_ptr<SendingAlbum> album,
@@ -2759,23 +2757,14 @@ void ApiWrap::sendFiles(
 			default: Unexpected("AlbumType in uploadFilesAfterConfirmation");
 			}
 		}
-		if (file.path.isEmpty() && (!image.isNull() || !content.isNull())) {
-			tasks.push_back(std::make_unique<FileLoadTask>(
-				content,
-				image,
-				type,
-				to,
-				caption,
-				album));
-		} else {
-			tasks.push_back(std::make_unique<FileLoadTask>(
-				file.path,
-				std::move(file.information),
-				type,
-				to,
-				caption,
-				album));
-		}
+		tasks.push_back(std::make_unique<FileLoadTask>(
+			file.path,
+			file.content,
+			std::move(file.information),
+			type,
+			to,
+			caption,
+			album));
 	}
 	if (album) {
 		_sendingAlbums.emplace(album->groupId, album);
@@ -2794,8 +2783,9 @@ void ApiWrap::sendFile(
 	auto to = FileLoadTaskOptions(options);
 	auto caption = QString();
 	_fileLoader->addTask(std::make_unique<FileLoadTask>(
+		QString(),
 		fileContent,
-		QImage(),
+		nullptr,
 		type,
 		to,
 		caption));

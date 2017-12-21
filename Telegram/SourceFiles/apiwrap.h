@@ -197,8 +197,6 @@ public:
 		const SendOptions &options);
 	void sendFiles(
 		Storage::PreparedList &&list,
-		const QByteArray &content,
-		const QImage &image,
 		SendMediaType type,
 		QString caption,
 		std::shared_ptr<SendingAlbum> album,

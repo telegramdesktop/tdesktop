@@ -28,17 +28,22 @@ namespace Ui {
 class Checkbox;
 class RoundButton;
 class InputArea;
-class EmptyUserpic;
 struct GroupMediaLayout;
 } // namespace Ui
 
 class SendFilesBox : public BoxContent {
 public:
-	SendFilesBox(QWidget*, QImage image, CompressConfirm compressed);
-	SendFilesBox(QWidget*, Storage::PreparedList &&list, CompressConfirm compressed);
-	SendFilesBox(QWidget*, const QString &phone, const QString &firstname, const QString &lastname);
+	SendFilesBox(
+		QWidget*,
+		Storage::PreparedList &&list,
+		CompressConfirm compressed);
 
-	void setConfirmedCallback(base::lambda<void(Storage::PreparedList &&list, const QImage &image, bool compressed, const QString &caption, bool ctrlShiftEnter)> callback) {
+	void setConfirmedCallback(
+		base::lambda<void(
+			Storage::PreparedList &&list,
+			bool compressed,
+			const QString &caption,
+			bool ctrlShiftEnter)> callback) {
 		_confirmedCallback = std::move(callback);
 	}
 	void setCancelledCallback(base::lambda<void()> callback) {
@@ -58,7 +63,6 @@ protected:
 private:
 	void prepareSingleFileLayout();
 	void prepareDocumentLayout();
-	void tryToReadSingleFile();
 	void prepareGifPreview();
 	void clipCallback(Media::Clip::Notification notification);
 
@@ -73,7 +77,6 @@ private:
 
 	QString _titleText;
 	Storage::PreparedList _list;
-	QImage _image;
 
 	CompressConfirm _compressConfirm = CompressConfirm::None;
 	bool _animated = false;
@@ -91,12 +94,11 @@ private:
 	QString _statusText;
 	int _statusWidth = 0;
 
-	QString _contactPhone;
-	QString _contactFirstName;
-	QString _contactLastName;
-	std::unique_ptr<Ui::EmptyUserpic> _contactPhotoEmpty;
-
-	base::lambda<void(Storage::PreparedList &&list, const QImage &image, bool compressed, const QString &caption, bool ctrlShiftEnter)> _confirmedCallback;
+	base::lambda<void(
+		Storage::PreparedList &&list,
+		bool compressed,
+		const QString &caption,
+		bool ctrlShiftEnter)> _confirmedCallback;
 	base::lambda<void()> _cancelledCallback;
 	bool _confirmed = false;
 
@@ -111,7 +113,11 @@ class SendAlbumBox : public BoxContent {
 public:
 	SendAlbumBox(QWidget*, Storage::PreparedList &&list);
 
-	void setConfirmedCallback(base::lambda<void(Storage::PreparedList &&list, const QString &caption, bool ctrlShiftEnter)> callback) {
+	void setConfirmedCallback(
+		base::lambda<void(
+			Storage::PreparedList &&list,
+			const QString &caption,
+			bool ctrlShiftEnter)> callback) {
 		_confirmedCallback = std::move(callback);
 	}
 	void setCancelledCallback(base::lambda<void()> callback) {

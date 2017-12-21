@@ -46,8 +46,9 @@ struct PreparedFile {
 	~PreparedFile();
 
 	QString path;
+	QByteArray content;
+	QString mime;
 	std::unique_ptr<FileMediaInformation> information;
-	base::optional<QImage> large;
 	QImage preview;
 	AlbumType type = AlbumType::None;
 
@@ -79,5 +80,9 @@ struct PreparedList {
 bool ValidateThumbDimensions(int width, int height);
 PreparedList PrepareMediaList(const QList<QUrl> &files, int previewWidth);
 PreparedList PrepareMediaList(const QStringList &files, int previewWidth);
+PreparedList PrepareMediaFromImage(
+	QImage &&image,
+	QByteArray &&content,
+	int previewWidth);
 
 } // namespace Storage

@@ -202,6 +202,7 @@ FileLoadResult::FileLoadResult(
 
 FileLoadTask::FileLoadTask(
 	const QString &filepath,
+	const QByteArray &content,
 	std::unique_ptr<FileMediaInformation> information,
 	SendMediaType type,
 	const FileLoadTo &to,
@@ -211,23 +212,8 @@ FileLoadTask::FileLoadTask(
 , _to(to)
 , _album(std::move(album))
 , _filepath(filepath)
-, _information(std::move(information))
-, _type(type)
-, _caption(caption) {
-}
-
-FileLoadTask::FileLoadTask(
-	const QByteArray &content,
-	const QImage &image,
-	SendMediaType type,
-	const FileLoadTo &to,
-	const QString &caption,
-	std::shared_ptr<SendingAlbum> album)
-: _id(rand_value<uint64>())
-, _to(to)
-, _album(std::move(album))
 , _content(content)
-, _image(image)
+, _information(std::move(information))
 , _type(type)
 , _caption(caption) {
 }
@@ -361,6 +347,14 @@ bool FileLoadTask::CheckForImage(
 		}
 		return QImage();
 	})();
+	return FillImageInformation(std::move(image), animated, result);
+}
+
+bool FileLoadTask::FillImageInformation(
+		QImage &&image,
+		bool animated,
+		std::unique_ptr<FileMediaInformation> &result) {
+	Expects(result != nullptr);
 
 	if (image.isNull()) {
 		return false;
@@ -395,7 +389,7 @@ void FileLoadTask::process() {
 	auto isVideo = false;
 	auto isVoice = (_type == SendMediaType::Audio);
 
-	auto fullimage = base::take(_image);
+	auto fullimage = QImage();
 	auto info = _filepath.isEmpty() ? QFileInfo() : QFileInfo(_filepath);
 	if (info.exists()) {
 		if (info.isDir()) {
@@ -428,6 +422,12 @@ void FileLoadTask::process() {
 			filename = filedialogDefaultName(qsl("audio"), qsl(".ogg"), QString(), true);
 			filemime = "audio/ogg";
 		} else {
+			if (_information) {
+				if (auto image = base::get_if<FileMediaInformation::Image>(
+						&_information->media)) {
+					fullimage = base::take(image->data);
+				}
+			}
 			auto mimeType = mimeTypeForData(_content);
 			filemime = mimeType.name();
 			if (filemime != stickerMime) {

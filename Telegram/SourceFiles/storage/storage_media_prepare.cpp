@@ -61,11 +61,22 @@ bool PrepareAlbumMediaIsWaiting(
 	// Use some special thread queue, like a separate QThreadPool.
 	base::TaskQueue::Normal().Put([&, previewWidth] {
 		const auto guard = gsl::finally([&] { semaphore.release(); });
-		const auto filemime = mimeTypeForFile(QFileInfo(file.path)).name();
-		file.information = FileLoadTask::ReadMediaInformation(
-			file.path,
-			QByteArray(),
-			filemime);
+		if (!file.path.isEmpty()) {
+			file.mime = mimeTypeForFile(QFileInfo(file.path)).name();
+			file.information = FileLoadTask::ReadMediaInformation(
+				file.path,
+				QByteArray(),
+				file.mime);
+		} else if (!file.content.isEmpty()) {
+			file.mime = mimeTypeForData(file.content).name();
+			file.information = FileLoadTask::ReadMediaInformation(
+				QString(),
+				file.content,
+				file.mime);
+		} else {
+			Assert(file.information != nullptr);
+		}
+
 		using Image = FileMediaInformation::Image;
 		using Video = FileMediaInformation::Video;
 		if (const auto image = base::get_if<Image>(
@@ -94,17 +105,14 @@ bool PrepareAlbumMediaIsWaiting(
 
 void PrepareAlbum(PreparedList &result, int previewWidth) {
 	const auto count = int(result.files.size());
-	if ((count < 2) || (count > kMaxAlbumCount)) {
+	if (count > kMaxAlbumCount) {
 		return;
 	}
 
-	result.albumIsPossible = true;
+	result.albumIsPossible = (count > 1);
 	auto waiting = 0;
 	QSemaphore semaphore;
 	for (auto &file : result.files) {
-		if (!result.albumIsPossible) {
-			break;
-		}
 		if (PrepareAlbumMediaIsWaiting(semaphore, file, previewWidth)) {
 			++waiting;
 		}
@@ -226,8 +234,31 @@ PreparedList PrepareMediaList(const QStringList &files, int previewWidth) {
 		if (filesize > App::kImageSizeLimit || !toCompress) {
 			result.allFilesForCompress = false;
 		}
-		result.files.push_back({ file });
+		result.files.emplace_back(file);
 	}
+	PrepareAlbum(result, previewWidth);
+	return result;
+}
+
+PreparedList PrepareMediaFromImage(
+		QImage &&image,
+		QByteArray &&content,
+		int previewWidth) {
+	auto result = Storage::PreparedList();
+	result.allFilesForCompress = ValidateThumbDimensions(
+		image.width(),
+		image.height());
+	auto file = PreparedFile(QString());
+	file.content = content;
+	if (file.content.isEmpty()) {
+		file.information = std::make_unique<FileMediaInformation>();
+		const auto animated = false;
+		FileLoadTask::FillImageInformation(
+			std::move(image),
+			animated,
+			file.information);
+	}
+	result.files.push_back(std::move(file));
 	PrepareAlbum(result, previewWidth);
 	return result;
 }
