@@ -1797,7 +1797,7 @@ void DialogsInner::searchInPeer(PeerData *peer, UserData *from) {
 		_cancelSearchInPeer->show();
 		if (_searchInPeer->isSelf()) {
 			_searchInSavedText.setText(
-				st::dialogsSearchFromStyle,
+				st::msgNameStyle,
 				lang(lng_saved_messages),
 				_textDlgOptions);
 		}

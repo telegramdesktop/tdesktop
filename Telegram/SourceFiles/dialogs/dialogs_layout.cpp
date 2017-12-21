@@ -499,7 +499,7 @@ void RowPainter::paint(
 	auto item = row->item();
 	auto history = item->history();
 	auto cloudDraft = nullptr;
-	auto from = [&] {
+	const auto from = [&] {
 		if (auto searchPeer = row->searchInPeer()) {
 			if (searchPeer->isSelf()) {
 				return item->senderOriginal();
@@ -509,7 +509,7 @@ void RowPainter::paint(
 		}
 		return (history->peer->migrateTo() ? history->peer->migrateTo() : history->peer);
 	}();
-	auto drawInDialogWay = [&] {
+	const auto drawInDialogWay = [&] {
 		if (auto searchPeer = row->searchInPeer()) {
 			if (!searchPeer->isChannel() || searchPeer->isMegagroup()) {
 				return HistoryItem::DrawInDialog::WithoutSender;
@@ -517,7 +517,7 @@ void RowPainter::paint(
 		}
 		return HistoryItem::DrawInDialog::Normal;
 	}();
-	auto paintItemCallback = [&](int nameleft, int namewidth) {
+	const auto paintItemCallback = [&](int nameleft, int namewidth) {
 		auto lastWidth = namewidth;
 		auto texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
 		item->drawInDialog(
@@ -529,11 +529,14 @@ void RowPainter::paint(
 			row->_cacheFor,
 			row->_cache);
 	};
-	auto paintCounterCallback = [] {};
+	const auto paintCounterCallback = [] {};
+	const auto showSavedMessages = history->peer->isSelf()
+		&& !row->searchInPeer();
 	const auto flags = (active ? Flag::Active : Flag(0))
 		| (selected ? Flag::Selected : Flag(0))
 		| (onlyBackground ? Flag::OnlyBackground : Flag(0))
-		| Flag::SearchResult;
+		| Flag::SearchResult
+		| (showSavedMessages ? Flag::SavedMessages : Flag(0));
 	paintRow(
 		p,
 		row,
