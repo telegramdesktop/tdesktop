@@ -1756,7 +1756,9 @@ void MainWidget::createPlayer() {
 	}
 	if (!_player) {
 		_player.create(this);
-		_player->heightValue()
+		rpl::merge(
+			_player->heightValue() | rpl::map([] { return true; }),
+			_player->shownValue())
 			| rpl::start_with_next(
 				[this] { playerHeightUpdated(); },
 				lifetime());
