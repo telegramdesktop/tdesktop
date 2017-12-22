@@ -61,6 +61,8 @@
 <(src_loc)/boxes/connection_box.h
 <(src_loc)/boxes/download_path_box.cpp
 <(src_loc)/boxes/download_path_box.h
+<(src_loc)/boxes/edit_caption_box.cpp
+<(src_loc)/boxes/edit_caption_box.h
 <(src_loc)/boxes/edit_color_box.cpp
 <(src_loc)/boxes/edit_color_box.h
 <(src_loc)/boxes/edit_participant_box.cpp
