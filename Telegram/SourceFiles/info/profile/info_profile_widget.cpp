@@ -69,15 +69,15 @@ Widget::Widget(
 		this,
 		controller));
 	_inner->move(0, 0);
-	_inner->scrollToRequests()
-		| rpl::start_with_next([this](Ui::ScrollToRequest request) {
-			if (request.ymin < 0) {
-				scrollTopRestore(
-					qMin(scrollTopSave(), request.ymax));
-			} else {
-				scrollTo(request);
-			}
-		}, lifetime());
+	_inner->scrollToRequests(
+	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
+		if (request.ymin < 0) {
+			scrollTopRestore(
+				qMin(scrollTopSave(), request.ymax));
+		} else {
+			scrollTo(request);
+		}
+	}, lifetime());
 }
 
 void Widget::setIsStackBottom(bool isStackBottom) {

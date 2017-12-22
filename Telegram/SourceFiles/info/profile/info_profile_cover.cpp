@@ -174,17 +174,18 @@ SectionWithToggle *SectionWithToggle::setToggleShown(
 	_toggle->hide();
 	_toggle->lower();
 	_toggle->setCheckAlignment(style::al_right);
-	widthValue()
-		| rpl::start_with_next([this](int newValue) {
-			_toggle->setGeometry(0, 0, newValue, height());
-		}, _toggle->lifetime());
-	std::move(shown)
-		| rpl::start_with_next([this](bool shown) {
-			if (_toggle->isHidden() == shown) {
-				_toggle->setVisible(shown);
-				_toggleShown.fire_copy(shown);
-			}
-		}, lifetime());
+	widthValue(
+	) | rpl::start_with_next([this](int newValue) {
+		_toggle->setGeometry(0, 0, newValue, height());
+	}, _toggle->lifetime());
+	std::move(
+		shown
+	) | rpl::start_with_next([this](bool shown) {
+		if (_toggle->isHidden() == shown) {
+			_toggle->setVisible(shown);
+			_toggleShown.fire_copy(shown);
+		}
+	}, lifetime());
 	return this;
 }
 
@@ -203,9 +204,9 @@ bool SectionWithToggle::toggled() const {
 
 rpl::producer<bool> SectionWithToggle::toggledValue() const {
 	if (_toggle) {
-		return rpl::single(_toggle->checked())
-			| rpl::then(
-				base::ObservableViewer(_toggle->checkedChanged));
+		return rpl::single(
+			_toggle->checked()
+		) | rpl::then(base::ObservableViewer(_toggle->checkedChanged));
 	}
 	return rpl::never<bool>();
 }
@@ -268,52 +269,60 @@ void Cover::setupChildGeometry() {
 	//rpl::combine(
 	//	toggleShownValue(),
 	//	widthValue(),
-	//	_2)
+	//	_2
+	//) | rpl::map([](bool shown, int width) {
 	rpl::combine(
 		toggleShownValue(),
-		widthValue())
-		| rpl::map([](bool shown, int width) { return width; })
-		| rpl::start_with_next([this](int newWidth) {
-			_userpic->moveToLeft(
-				st::infoProfilePhotoLeft,
-				st::infoProfilePhotoTop,
-				newWidth);
-			refreshNameGeometry(newWidth);
-			refreshStatusGeometry(newWidth);
-		}, lifetime());
+		widthValue()
+	) | rpl::map([](bool shown, int width) {
+		return width;
+	}) | rpl::start_with_next([this](int newWidth) {
+		_userpic->moveToLeft(
+			st::infoProfilePhotoLeft,
+			st::infoProfilePhotoTop,
+			newWidth);
+		refreshNameGeometry(newWidth);
+		refreshStatusGeometry(newWidth);
+	}, lifetime());
 }
 
 Cover *Cover::setOnlineCount(rpl::producer<int> &&count) {
-	std::move(count)
-		| rpl::start_with_next([this](int count) {
-			_onlineCount = count;
-			refreshStatusText();
-		}, lifetime());
+	std::move(
+		count
+	) | rpl::start_with_next([this](int count) {
+		_onlineCount = count;
+		refreshStatusText();
+	}, lifetime());
 	return this;
 }
 
 void Cover::initViewers() {
 	using Flag = Notify::PeerUpdate::Flag;
-	Notify::PeerUpdateValue(_peer, Flag::NameChanged)
-		| rpl::start_with_next(
-			[this] { refreshNameText(); },
-			lifetime());
-	Notify::PeerUpdateValue(_peer,
-		Flag::UserOnlineChanged | Flag::MembersChanged)
-		| rpl::start_with_next(
-			[this] { refreshStatusText(); },
-			lifetime());
+	Notify::PeerUpdateValue(
+		_peer,
+		Flag::NameChanged
+	) | rpl::start_with_next(
+		[this] { refreshNameText(); },
+		lifetime());
+	Notify::PeerUpdateValue(
+		_peer,
+		Flag::UserOnlineChanged | Flag::MembersChanged
+	) | rpl::start_with_next(
+		[this] { refreshStatusText(); },
+		lifetime());
 	if (!_peer->isUser()) {
-		Notify::PeerUpdateValue(_peer,
-			Flag::ChannelRightsChanged | Flag::ChatCanEdit)
-			| rpl::start_with_next(
-				[this] { refreshUploadPhotoOverlay(); },
-				lifetime());
-	}
-	VerifiedValue(_peer)
-		| rpl::start_with_next(
-			[this](bool verified) { setVerified(verified); },
+		Notify::PeerUpdateValue(
+			_peer,
+			Flag::ChannelRightsChanged | Flag::ChatCanEdit
+		) | rpl::start_with_next(
+			[this] { refreshUploadPhotoOverlay(); },
 			lifetime());
+	}
+	VerifiedValue(
+		_peer
+	) | rpl::start_with_next(
+		[this](bool verified) { setVerified(verified); },
+		lifetime());
 }
 
 void Cover::refreshUploadPhotoOverlay() {
@@ -335,11 +344,11 @@ void Cover::setVerified(bool verified) {
 		_verifiedCheck.create(this);
 		_verifiedCheck->show();
 		_verifiedCheck->resize(st::infoVerifiedCheck.size());
-		_verifiedCheck->paintRequest()
-			| rpl::start_with_next([check = _verifiedCheck.data()] {
-				Painter p(check);
-				st::infoVerifiedCheck.paint(p, 0, 0, check->width());
-			}, _verifiedCheck->lifetime());
+		_verifiedCheck->paintRequest(
+		) | rpl::start_with_next([check = _verifiedCheck.data()] {
+			Painter p(check);
+			st::infoVerifiedCheck.paint(p, 0, 0, check->width());
+		}, _verifiedCheck->lifetime());
 	} else {
 		_verifiedCheck.destroy();
 	}
@@ -465,22 +474,24 @@ void SharedMediaCover::createLabel() {
 	//rpl::combine(
 	//	toggleShownValue(),
 	//	widthValue(),
-	//	_2)
+	//	_2
+	//) | rpl::map([](bool shown, int width) {
 	rpl::combine(
 		toggleShownValue(),
-		widthValue())
-		| rpl::map([](bool shown, int width) { return width; })
-		| rpl::start_with_next([this, weak = label.data()](int newWidth) {
-			auto availableWidth = newWidth
-				- st::infoBlockHeaderPosition.x()
-				- st::infoSharedMediaButton.padding.right()
-				- toggleSkip();
-			weak->resizeToWidth(availableWidth);
-			weak->moveToLeft(
-				st::infoBlockHeaderPosition.x(),
-				st::infoBlockHeaderPosition.y(),
-				newWidth);
-		}, label->lifetime());
+		widthValue()
+	) | rpl::map([](bool shown, int width) {
+		return width;
+	}) | rpl::start_with_next([this, weak = label.data()](int newWidth) {
+		auto availableWidth = newWidth
+			- st::infoBlockHeaderPosition.x()
+			- st::infoSharedMediaButton.padding.right()
+			- toggleSkip();
+		weak->resizeToWidth(availableWidth);
+		weak->moveToLeft(
+			st::infoBlockHeaderPosition.x(),
+			st::infoBlockHeaderPosition.y(),
+			newWidth);
+	}, label->lifetime());
 }
 
 } // namespace Profile

@@ -35,10 +35,10 @@ public:
 	}
 	template <typename Callback>
 	void addMoveLeftCallback(Callback &&callback) {
-		moveLeft()
-			| rpl::start_with_next(
-				std::forward<Callback>(callback),
-				lifetime());
+		moveLeft(
+		) | rpl::start_with_next(
+			std::forward<Callback>(callback),
+			lifetime());
 	}
 
 	rpl::producer<> moveFinished() const {
@@ -46,10 +46,10 @@ public:
 	}
 	template <typename Callback>
 	void addMoveFinishedCallback(Callback &&callback) {
-		moveFinished()
-			| rpl::start_with_next(
-				std::forward<Callback>(callback),
-				lifetime());
+		moveFinished(
+		) | rpl::start_with_next(
+			std::forward<Callback>(callback),
+			lifetime());
 	}
 
 	~ResizeArea() {

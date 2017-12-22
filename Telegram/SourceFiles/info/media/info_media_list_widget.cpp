@@ -560,30 +560,32 @@ ListWidget::ListWidget(
 
 void ListWidget::start() {
 	_controller->setSearchEnabledByContent(false);
-	ObservableViewer(*Window::Theme::Background())
-		| rpl::start_with_next([this](const auto &update) {
-			if (update.paletteChanged()) {
-				invalidatePaletteCache();
-			}
-		}, lifetime());
-	ObservableViewer(Auth().downloader().taskFinished())
-		| rpl::start_with_next([this] { update(); }, lifetime());
-	Auth().data().itemLayoutChanged()
-		| rpl::start_with_next([this](auto item) {
-			itemLayoutChanged(item);
-		}, lifetime());
-	Auth().data().itemRemoved()
-		| rpl::start_with_next([this](auto item) {
-			itemRemoved(item);
-		}, lifetime());
-	Auth().data().itemRepaintRequest()
-		| rpl::start_with_next([this](auto item) {
-			repaintItem(item);
-		}, lifetime());
-	_controller->mediaSourceQueryValue()
-		| rpl::start_with_next([this]{
-			restart();
-		}, lifetime());
+	ObservableViewer(
+		*Window::Theme::Background()
+	) | rpl::start_with_next([this](const auto &update) {
+		if (update.paletteChanged()) {
+			invalidatePaletteCache();
+		}
+	}, lifetime());
+	ObservableViewer(
+		Auth().downloader().taskFinished()
+	) | rpl::start_with_next([this] { update(); }, lifetime());
+	Auth().data().itemLayoutChanged(
+	) | rpl::start_with_next([this](auto item) {
+		itemLayoutChanged(item);
+	}, lifetime());
+	Auth().data().itemRemoved(
+	) | rpl::start_with_next([this](auto item) {
+		itemRemoved(item);
+	}, lifetime());
+	Auth().data().itemRepaintRequest(
+	) | rpl::start_with_next([this](auto item) {
+		repaintItem(item);
+	}, lifetime());
+	_controller->mediaSourceQueryValue(
+	) | rpl::start_with_next([this]{
+		restart();
+	}, lifetime());
 }
 
 rpl::producer<int> ListWidget::scrollToRequests() const {
@@ -800,19 +802,19 @@ void ListWidget::refreshViewer() {
 	_controller->mediaSource(
 		idForViewer,
 		_idsLimit,
-		_idsLimit)
-		| rpl::start_with_next([=](
-				SparseIdsMergedSlice &&slice) {
-			if (!slice.fullCount()) {
-				// Don't display anything while full count is unknown.
-				return;
-			}
-			_slice = std::move(slice);
-			if (auto nearest = _slice.nearest(idForViewer)) {
-				_universalAroundId = GetUniversalId(*nearest);
-			}
-			refreshRows();
-		}, _viewerLifetime);
+		_idsLimit
+	) | rpl::start_with_next([=](
+			SparseIdsMergedSlice &&slice) {
+		if (!slice.fullCount()) {
+			// Don't display anything while full count is unknown.
+			return;
+		}
+		_slice = std::move(slice);
+		if (auto nearest = _slice.nearest(idForViewer)) {
+			_universalAroundId = GetUniversalId(*nearest);
+		}
+		refreshRows();
+	}, _viewerLifetime);
 }
 
 BaseLayout *ListWidget::getLayout(UniversalMsgId universalId) {

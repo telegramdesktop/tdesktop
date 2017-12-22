@@ -93,22 +93,24 @@ void Controller::setupMigrationViewer() {
 	if (!_peer->isChat() && (!_peer->isChannel() || _migrated != nullptr)) {
 		return;
 	}
-	Notify::PeerUpdateValue(_peer, Notify::PeerUpdate::Flag::MigrationChanged)
-		| rpl::start_with_next([this] {
-			if (_peer->migrateTo() || (_peer->migrateFrom() != _migrated)) {
-				auto window = parentController();
-				auto peerId = _peer->id;
-				auto section = _section;
-				InvokeQueued(_widget, [=] {
-					window->showSection(
-						Memento(peerId, section),
-						Window::SectionShow(
-							Window::SectionShow::Way::Backward,
-							anim::type::instant,
-							anim::activation::background));
-				});
-			}
-		}, lifetime());
+	Notify::PeerUpdateValue(
+		_peer,
+		Notify::PeerUpdate::Flag::MigrationChanged
+	) | rpl::start_with_next([this] {
+		if (_peer->migrateTo() || (_peer->migrateFrom() != _migrated)) {
+			auto window = parentController();
+			auto peerId = _peer->id;
+			auto section = _section;
+			InvokeQueued(_widget, [=] {
+				window->showSection(
+					Memento(peerId, section),
+					Window::SectionShow(
+						Window::SectionShow::Way::Backward,
+						anim::type::instant,
+						anim::activation::background));
+			});
+		}
+	}, lifetime());
 }
 
 Wrap Controller::wrap() const {
@@ -160,11 +162,11 @@ void Controller::updateSearchControllers(
 			= std::make_unique<Ui::SearchFieldController>(
 				searchQuery);
 		if (_searchController) {
-			_searchFieldController->queryValue()
-				| rpl::start_with_next([=](QString &&query) {
-					_searchController->setQuery(
-						produceSearchQuery(std::move(query)));
-				}, _searchFieldController->lifetime());
+			_searchFieldController->queryValue(
+			) | rpl::start_with_next([=](QString &&query) {
+				_searchController->setQuery(
+					produceSearchQuery(std::move(query)));
+			}, _searchFieldController->lifetime());
 		}
 		_seachEnabledByContent = memento->searchEnabledByContent();
 		_searchStartsFocused = memento->searchStartsFocused();

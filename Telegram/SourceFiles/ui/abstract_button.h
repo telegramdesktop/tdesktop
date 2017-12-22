@@ -61,7 +61,8 @@ public:
 	}
 	template <typename Handler>
 	void addClickHandler(Handler &&handler) {
-		clicks() | rpl::start_with_next(
+		clicks(
+		) | rpl::start_with_next(
 			std::forward<Handler>(handler),
 			lifetime());
 	}

@@ -233,11 +233,11 @@ rpl::producer<UserPhotosSlice> UserPhotosViewer(
 		Auth().storage().query(Storage::UserPhotosQuery(
 			key,
 			limitBefore,
-			limitAfter))
-			| rpl::start_with_next_done(
-				applyUpdate,
-				[=] { builder->checkInsufficientPhotos(); },
-				lifetime);
+			limitAfter
+		)) | rpl::start_with_next_done(
+			applyUpdate,
+			[=] { builder->checkInsufficientPhotos(); },
+			lifetime);
 
 		return lifetime;
 	};
@@ -248,9 +248,12 @@ rpl::producer<UserPhotosSlice> UserPhotosReversedViewer(
 		UserPhotosSlice::Key key,
 		int limitBefore,
 		int limitAfter) {
-	return UserPhotosViewer(key, limitBefore, limitAfter)
-		| rpl::map([](UserPhotosSlice &&slice) {
-			slice.reverse();
-			return std::move(slice);
-		});
+	return UserPhotosViewer(
+		key,
+		limitBefore,
+		limitAfter
+	) | rpl::map([](UserPhotosSlice &&slice) {
+		slice.reverse();
+		return std::move(slice);
+	});
 }

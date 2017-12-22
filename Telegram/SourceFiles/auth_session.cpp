@@ -243,13 +243,12 @@ auto AuthSessionData::megagroupParticipantRemoved() const -> rpl::producer<Megag
 
 rpl::producer<not_null<UserData*>> AuthSessionData::megagroupParticipantRemoved(
 		not_null<ChannelData*> channel) const {
-	return megagroupParticipantRemoved()
-		| rpl::filter([channel](auto updateChannel, auto user) {
-			return (updateChannel == channel);
-		})
-		| rpl::map([](auto updateChannel, auto user) {
-			return user;
-		});
+	return megagroupParticipantRemoved(
+	) | rpl::filter([channel](auto updateChannel, auto user) {
+		return (updateChannel == channel);
+	}) | rpl::map([](auto updateChannel, auto user) {
+		return user;
+	});
 }
 
 void AuthSessionData::addNewMegagroupParticipant(
@@ -264,13 +263,12 @@ auto AuthSessionData::megagroupParticipantAdded() const -> rpl::producer<Megagro
 
 rpl::producer<not_null<UserData*>> AuthSessionData::megagroupParticipantAdded(
 		not_null<ChannelData*> channel) const {
-	return megagroupParticipantAdded()
-		| rpl::filter([channel](auto updateChannel, auto user) {
-			return (updateChannel == channel);
-		})
-		| rpl::map([](auto updateChannel, auto user) {
-			return user;
-		});
+	return megagroupParticipantAdded(
+	) | rpl::filter([channel](auto updateChannel, auto user) {
+		return (updateChannel == channel);
+	}) | rpl::map([](auto updateChannel, auto user) {
+		return user;
+	});
 }
 
 void AuthSessionData::setTabbedSelectorSectionEnabled(bool enabled) {

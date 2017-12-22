@@ -148,10 +148,10 @@ GifsListWidget::GifsListWidget(
 	_inlineRequestTimer.setSingleShot(true);
 	connect(&_inlineRequestTimer, &QTimer::timeout, this, [this] { sendInlineRequest(); });
 
-	Auth().data().savedGifsUpdated()
-		| rpl::start_with_next([this] {
-			refreshSavedGifs();
-		}, lifetime());
+	Auth().data().savedGifsUpdated(
+	) | rpl::start_with_next([this] {
+		refreshSavedGifs();
+	}, lifetime());
 	subscribe(Auth().downloaderTaskFinished(), [this] {
 		update();
 	});

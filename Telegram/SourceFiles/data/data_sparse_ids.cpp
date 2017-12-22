@@ -415,13 +415,14 @@ rpl::producer<SparseIdsMergedSlice> SparseIdsMergedSlice::CreateViewer(
 			limitAfter
 		);
 		if (!key.migratedPeerId) {
-			return std::move(partViewer)
-				| rpl::start_with_next([=](SparseIdsSlice &&part) {
-					consumer.put_next(SparseIdsMergedSlice(
-						key,
-						std::move(part),
-						base::none));
-				});
+			return std::move(
+				partViewer
+			) | rpl::start_with_next([=](SparseIdsSlice &&part) {
+				consumer.put_next(SparseIdsMergedSlice(
+					key,
+					std::move(part),
+					base::none));
+			});
 		}
 		auto migratedViewer = simpleViewer(
 			key.migratedPeerId,

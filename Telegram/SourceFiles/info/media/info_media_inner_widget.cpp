@@ -44,10 +44,10 @@ InnerWidget::InnerWidget(
 : RpWidget(parent)
 , _controller(controller)
 , _empty(this) {
-	_empty->heightValue()
-		| rpl::start_with_next(
-			[this] { refreshHeight(); },
-			_empty->lifetime());
+	_empty->heightValue(
+	) | rpl::start_with_next(
+		[this] { refreshHeight(); },
+		_empty->lifetime());
 	_list = setupList();
 }
 
@@ -63,11 +63,11 @@ void InnerWidget::setupOtherTypes() {
 	}
 	//rpl::combine(
 	//	_controller->wrapValue(),
-	//	_controller->searchEnabledByContent())
-	//	| rpl::start_with_next([this](Wrap wrap, bool enabled) {
-	//		_searchEnabled = enabled;
-	//		refreshSearchField();
-	//	}, lifetime());
+	//	_controller->searchEnabledByContent()
+	//) | rpl::start_with_next([this](Wrap wrap, bool enabled) {
+	//	_searchEnabled = enabled;
+	//	refreshSearchField();
+	//}, lifetime());
 }
 
 void InnerWidget::createOtherTypes() {
@@ -83,10 +83,10 @@ void InnerWidget::createOtherTypes() {
 	//createTabs();
 
 	_otherTypes->resizeToWidth(width());
-	_otherTypes->heightValue()
-		| rpl::start_with_next(
-			[this] { refreshHeight(); },
-			_otherTypes->lifetime());
+	_otherTypes->heightValue(
+	) | rpl::start_with_next(
+		[this] { refreshHeight(); },
+		_otherTypes->lifetime());
 }
 
 void InnerWidget::createTypeButtons() {
@@ -161,18 +161,19 @@ void InnerWidget::createTypeButtons() {
 //	_otherTabs->setActiveSection(*TypeToTabIndex(type()));
 //	_otherTabs->finishAnimating();
 //
-//	_otherTabs->sectionActivated()
-//		| rpl::map([](int index) { return TabIndexToType(index); })
-//		| rpl::start_with_next(
-//			[this](Type newType) {
-//				if (type() != newType) {
-//					switchToTab(Memento(
-//						_controller->peerId(),
-//						_controller->migratedPeerId(),
-//						newType));
-//				}
-//			},
-//			_otherTabs->lifetime());
+//	_otherTabs->sectionActivated(
+//	) | rpl::map([](int index) {
+//		return TabIndexToType(index);
+//	}) | rpl::start_with_next(
+//		[this](Type newType) {
+//			if (type() != newType) {
+//				switchToTab(Memento(
+//					_controller->peerId(),
+//					_controller->migratedPeerId(),
+//					newType));
+//			}
+//		},
+//		_otherTabs->lifetime());
 //}
 
 Type InnerWidget::type() const {
@@ -233,10 +234,10 @@ bool InnerWidget::showInternal(not_null<Memento*> memento) {
 //			st::infoMediaSearch);
 //		_searchField->resizeToWidth(width());
 //		_searchField->show();
-//		search->queryChanges()
-//			| rpl::start_with_next([this] {
-//				scrollToSearchField();
-//			}, _searchField->lifetime());
+//		search->queryChanges(
+//		) | rpl::start_with_next([this] {
+//			scrollToSearchField();
+//		}, _searchField->lifetime());
 //	} else {
 //		_searchField = nullptr;
 //	}
@@ -254,28 +255,27 @@ object_ptr<ListWidget> InnerWidget::setupList() {
 	auto result = object_ptr<ListWidget>(
 		this,
 		_controller);
-	result->heightValue()
-		| rpl::start_with_next(
-			[this] { refreshHeight(); },
-			result->lifetime());
+	result->heightValue(
+	) | rpl::start_with_next(
+		[this] { refreshHeight(); },
+		result->lifetime());
 	using namespace rpl::mappers;
-	result->scrollToRequests()
-		| rpl::map([widget = result.data()](int to) {
-			return Ui::ScrollToRequest {
-				widget->y() + to,
-				-1
-			};
-		})
-		| rpl::start_to_stream(
-			_scrollToRequests,
-			result->lifetime());
+	result->scrollToRequests(
+	) | rpl::map([widget = result.data()](int to) {
+		return Ui::ScrollToRequest {
+			widget->y() + to,
+			-1
+		};
+	}) | rpl::start_to_stream(
+		_scrollToRequests,
+		result->lifetime());
 	_selectedLists.fire(result->selectedListValue());
 	_listTops.fire(result->topValue());
 	_empty->setType(_controller->section().mediaType());
-	_controller->mediaSourceQueryValue()
-		| rpl::start_with_next([this](const QString &query) {
-			_empty->setSearchQuery(query);
-		}, result->lifetime());
+	_controller->mediaSourceQueryValue(
+	) | rpl::start_with_next([this](const QString &query) {
+		_empty->setSearchQuery(query);
+	}, result->lifetime());
 	return result;
 }
 
@@ -288,8 +288,9 @@ void InnerWidget::restoreState(not_null<Memento*> memento) {
 }
 
 rpl::producer<SelectedItems> InnerWidget::selectedListValue() const {
-	return _selectedLists.events_starting_with(_list->selectedListValue())
-		| rpl::flatten_latest();
+	return _selectedLists.events_starting_with(
+		_list->selectedListValue()
+	) | rpl::flatten_latest();
 }
 
 void InnerWidget::cancelSelection() {
@@ -352,8 +353,9 @@ void InnerWidget::setScrollHeightValue(rpl::producer<int> value) {
 	using namespace rpl::mappers;
 	_empty->setFullHeight(rpl::combine(
 		std::move(value),
-		_listTops.events_starting_with(_list->topValue())
-			| rpl::flatten_latest(),
+		_listTops.events_starting_with(
+			_list->topValue()
+		) | rpl::flatten_latest(),
 		_1 - _2));
 }
 

@@ -37,19 +37,18 @@ rpl::producer<TextWithEntities> PhoneValue(
 		not_null<UserData*> user) {
 	return Notify::PeerUpdateValue(
 			user,
-			Notify::PeerUpdate::Flag::UserPhoneChanged)
-		| rpl::map([user] {
-			return App::formatPhone(user->phone());
-		})
-		| WithEmptyEntities();
+			Notify::PeerUpdate::Flag::UserPhoneChanged
+	) | rpl::map([user] {
+		return App::formatPhone(user->phone());
+	}) | WithEmptyEntities();
 }
 
 auto PlainBioValue(
 		not_null<UserData*> user) {
 	return Notify::PeerUpdateValue(
 			user,
-			Notify::PeerUpdate::Flag::AboutChanged)
-		| rpl::map([user] { return user->about(); });
+			Notify::PeerUpdate::Flag::AboutChanged
+	) | rpl::map([user] { return user->about(); });
 }
 
 rpl::producer<TextWithEntities> BioValue(
@@ -63,21 +62,21 @@ auto PlainUsernameValue(
 		not_null<PeerData*> peer) {
 	return Notify::PeerUpdateValue(
 			peer,
-			Notify::PeerUpdate::Flag::UsernameChanged)
-		| rpl::map([peer] {
-			return peer->userName();
-		});
+			Notify::PeerUpdate::Flag::UsernameChanged
+	) | rpl::map([peer] {
+		return peer->userName();
+	});
 }
 
 rpl::producer<TextWithEntities> UsernameValue(
 		not_null<UserData*> user) {
-	return PlainUsernameValue(user)
-		| rpl::map([](QString &&username) {
-			return username.isEmpty()
-				? QString()
-				: ('@' + username);
-		})
-		| WithEmptyEntities();
+	return PlainUsernameValue(
+		user
+	) | rpl::map([](QString &&username) {
+		return username.isEmpty()
+			? QString()
+			: ('@' + username);
+	}) | WithEmptyEntities();
 }
 
 rpl::producer<QString> PlainAboutValue(
@@ -85,8 +84,8 @@ rpl::producer<QString> PlainAboutValue(
 	if (auto channel = peer->asChannel()) {
 		return Notify::PeerUpdateValue(
 				channel,
-				Notify::PeerUpdate::Flag::AboutChanged)
-			| rpl::map([channel] { return channel->about(); });
+				Notify::PeerUpdate::Flag::AboutChanged
+		) | rpl::map([channel] { return channel->about(); });
 	} else if (auto user = peer->asUser()) {
 		if (user->botInfo) {
 			return PlainBioValue(user);
@@ -104,39 +103,42 @@ rpl::producer<TextWithEntities> AboutValue(
 	if (peer->isUser()) {
 		flags |= TextParseBotCommands;
 	}
-	return PlainAboutValue(peer)
-		| WithEmptyEntities()
-		| rpl::map([=](TextWithEntities &&text) {
-			TextUtilities::ParseEntities(text, flags);
-			return std::move(text);
-		});
+	return PlainAboutValue(
+		peer
+	) | WithEmptyEntities(
+	) | rpl::map([=](TextWithEntities &&text) {
+		TextUtilities::ParseEntities(text, flags);
+		return std::move(text);
+	});
 }
 
 rpl::producer<QString> LinkValue(
 		not_null<PeerData*> peer) {
-	return PlainUsernameValue(peer)
-		| rpl::map([](QString &&username) {
-			return username.isEmpty()
-				? QString()
-				: Messenger::Instance().createInternalLinkFull(username);
-		});
+	return PlainUsernameValue(
+		peer
+	) | rpl::map([](QString &&username) {
+		return username.isEmpty()
+			? QString()
+			: Messenger::Instance().createInternalLinkFull(username);
+	});
 }
 
 rpl::producer<bool> NotificationsEnabledValue(
 		not_null<PeerData*> peer) {
 	return Notify::PeerUpdateValue(
 			peer,
-			Notify::PeerUpdate::Flag::NotificationsEnabled)
-		| rpl::map([peer] { return !peer->isMuted(); })
-		| rpl::distinct_until_changed();
+			Notify::PeerUpdate::Flag::NotificationsEnabled
+	) | rpl::map([peer] {
+		return !peer->isMuted();
+	}) | rpl::distinct_until_changed();
 }
 
 rpl::producer<bool> IsContactValue(
 		not_null<UserData*> user) {
 	return Notify::PeerUpdateValue(
 			user,
-			Notify::PeerUpdate::Flag::UserIsContact)
-		| rpl::map([user] { return user->isContact(); });
+			Notify::PeerUpdate::Flag::UserIsContact
+	) | rpl::map([user] { return user->isContact(); });
 }
 
 rpl::producer<bool> CanInviteBotToGroupValue(
@@ -146,20 +148,20 @@ rpl::producer<bool> CanInviteBotToGroupValue(
 	}
 	return Notify::PeerUpdateValue(
 			user,
-			Notify::PeerUpdate::Flag::BotCanAddToGroups)
-		| rpl::map([user] {
-			return !user->botInfo->cantJoinGroups;
-		});
+			Notify::PeerUpdate::Flag::BotCanAddToGroups
+	) | rpl::map([user] {
+		return !user->botInfo->cantJoinGroups;
+	});
 }
 
 rpl::producer<bool> CanShareContactValue(
 		not_null<UserData*> user) {
 	return Notify::PeerUpdateValue(
 			user,
-			Notify::PeerUpdate::Flag::UserCanShareContact)
-		| rpl::map([user] {
-			return user->canShareThisContact();
-		});
+			Notify::PeerUpdate::Flag::UserCanShareContact
+	) | rpl::map([user] {
+		return user->canShareThisContact();
+	});
 }
 
 rpl::producer<bool> CanAddContactValue(
@@ -175,8 +177,8 @@ rpl::producer<bool> AmInChannelValue(
 		not_null<ChannelData*> channel) {
 	return Notify::PeerUpdateValue(
 		channel,
-		Notify::PeerUpdate::Flag::ChannelAmIn)
-		| rpl::map([channel] { return channel->amIn(); });
+		Notify::PeerUpdate::Flag::ChannelAmIn
+	) | rpl::map([channel] { return channel->amIn(); });
 }
 
 rpl::producer<int> MembersCountValue(
@@ -184,19 +186,19 @@ rpl::producer<int> MembersCountValue(
 	if (auto chat = peer->asChat()) {
 		return Notify::PeerUpdateValue(
 			peer,
-			Notify::PeerUpdate::Flag::MembersChanged)
-			| rpl::map([chat] {
-				return chat->amIn()
-					? std::max(chat->count, int(chat->participants.size()))
-					: 0;
-			});
+			Notify::PeerUpdate::Flag::MembersChanged
+		) | rpl::map([chat] {
+			return chat->amIn()
+				? std::max(chat->count, int(chat->participants.size()))
+				: 0;
+		});
 	} else if (auto channel = peer->asChannel()) {
 		return Notify::PeerUpdateValue(
 				channel,
-				Notify::PeerUpdate::Flag::MembersChanged)
-			| rpl::map([channel] {
-				return channel->membersCount();
-			});
+				Notify::PeerUpdate::Flag::MembersChanged
+		) | rpl::map([channel] {
+			return channel->membersCount();
+		});
 	}
 	Unexpected("User in MembersCountViewer().");
 }
@@ -206,12 +208,12 @@ rpl::producer<int> AdminsCountValue(
 	using Flag = Notify::PeerUpdate::Flag;
 	return Notify::PeerUpdateValue(
 		channel,
-		Flag::AdminsChanged | Flag::ChannelRightsChanged)
-		| rpl::map([channel] {
-			return channel->canViewAdmins()
-				? channel->adminsCount()
-				: 0;
-		});
+		Flag::AdminsChanged | Flag::ChannelRightsChanged
+	) | rpl::map([channel] {
+		return channel->canViewAdmins()
+			? channel->adminsCount()
+			: 0;
+	});
 }
 
 rpl::producer<int> RestrictedCountValue(
@@ -219,12 +221,12 @@ rpl::producer<int> RestrictedCountValue(
 	using Flag = Notify::PeerUpdate::Flag;
 	return Notify::PeerUpdateValue(
 		channel,
-		Flag::BannedUsersChanged | Flag::ChannelRightsChanged)
-		| rpl::map([channel] {
-			return channel->canViewBanned()
-				? channel->restrictedCount()
-				: 0;
-		});
+		Flag::BannedUsersChanged | Flag::ChannelRightsChanged
+	) | rpl::map([channel] {
+		return channel->canViewBanned()
+			? channel->restrictedCount()
+			: 0;
+	});
 }
 
 rpl::producer<int> KickedCountValue(
@@ -232,12 +234,12 @@ rpl::producer<int> KickedCountValue(
 	using Flag = Notify::PeerUpdate::Flag;
 	return Notify::PeerUpdateValue(
 		channel,
-		Flag::BannedUsersChanged | Flag::ChannelRightsChanged)
-		| rpl::map([channel] {
-			return channel->canViewBanned()
-				? channel->kickedCount()
-				: 0;
-		});
+		Flag::BannedUsersChanged | Flag::ChannelRightsChanged
+	) | rpl::map([channel] {
+		return channel->canViewBanned()
+			? channel->kickedCount()
+			: 0;
+	});
 }
 
 rpl::producer<int> SharedMediaCountValue(
@@ -254,11 +256,10 @@ rpl::producer<int> SharedMediaCountValue(
 				aroundId),
 			type),
 		limit,
-		limit)
-		| rpl::map([](const SparseIdsMergedSlice &slice) {
-			return slice.fullCount();
-		})
-		| rpl::filter_optional();
+		limit
+	) | rpl::map([](const SparseIdsMergedSlice &slice) {
+		return slice.fullCount();
+	}) | rpl::filter_optional();
 	return rpl::single(0) | rpl::then(std::move(updated));
 }
 
@@ -266,10 +267,10 @@ rpl::producer<int> CommonGroupsCountValue(
 		not_null<UserData*> user) {
 	return Notify::PeerUpdateValue(
 		user,
-		Notify::PeerUpdate::Flag::UserCommonChatsChanged)
-		| rpl::map([user] {
-			return user->commonChatsCount();
-		});
+		Notify::PeerUpdate::Flag::UserCommonChatsChanged
+	) | rpl::map([user] {
+		return user->commonChatsCount();
+	});
 }
 
 rpl::producer<bool> CanAddMemberValue(
@@ -277,17 +278,17 @@ rpl::producer<bool> CanAddMemberValue(
 	if (auto chat = peer->asChat()) {
 		return Notify::PeerUpdateValue(
 			chat,
-			Notify::PeerUpdate::Flag::ChatCanEdit)
-			| rpl::map([chat] {
-				return chat->canEdit();
-			});
+			Notify::PeerUpdate::Flag::ChatCanEdit
+		) | rpl::map([chat] {
+			return chat->canEdit();
+		});
 	} else if (auto channel = peer->asChannel()) {
 		return Notify::PeerUpdateValue(
 			channel,
-			Notify::PeerUpdate::Flag::ChannelRightsChanged)
-			| rpl::map([channel] {
-				return channel->canAddMembers();
-			});
+			Notify::PeerUpdate::Flag::ChannelRightsChanged
+		) | rpl::map([channel] {
+			return channel->canAddMembers();
+		});
 	}
 	return rpl::single(false);
 }

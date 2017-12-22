@@ -1008,13 +1008,13 @@ void Messenger::registerLeaveSubscription(QWidget *widget) {
 	if (auto topLevel = widget->window()) {
 		if (topLevel == _window.get()) {
 			auto weak = make_weak(widget);
-			auto subscription = _window->leaveEvents()
-				| rpl::start_with_next([weak] {
-					if (const auto window = weak.data()) {
-						QEvent ev(QEvent::Leave);
-						QGuiApplication::sendEvent(window, &ev);
-					}
-				});
+			auto subscription = _window->leaveEvents(
+			) | rpl::start_with_next([weak] {
+				if (const auto window = weak.data()) {
+					QEvent ev(QEvent::Leave);
+					QGuiApplication::sendEvent(window, &ev);
+				}
+			});
 			_leaveSubscriptions.emplace_back(weak, std::move(subscription));
 		}
 	}

@@ -51,29 +51,29 @@ ContentWidget::ContentWidget(
 	using namespace rpl::mappers;
 
 	setAttribute(Qt::WA_OpaquePaintEvent);
-	_controller->wrapValue()
-		| rpl::start_with_next([this](Wrap value) {
-			if (value != Wrap::Layer) {
-				applyAdditionalScroll(0);
-			}
-			_bg = (value == Wrap::Layer)
-				? st::boxBg
-				: st::profileBg;
-			update();
-		}, lifetime());
+	_controller->wrapValue(
+	) | rpl::start_with_next([this](Wrap value) {
+		if (value != Wrap::Layer) {
+			applyAdditionalScroll(0);
+		}
+		_bg = (value == Wrap::Layer)
+			? st::boxBg
+			: st::profileBg;
+		update();
+	}, lifetime());
 	if (_controller->section().type() != Section::Type::Profile) {
 		rpl::combine(
 			_controller->wrapValue(),
 			_controller->searchEnabledByContent(),
-			(_1 == Wrap::Layer) && _2)
-			| rpl::start_with_next([this](bool shown) {
-				refreshSearchField(shown);
-			}, lifetime());
-	}
-	_scrollTopSkip.changes()
-		| rpl::start_with_next([this] {
-			updateControlsGeometry();
+			(_1 == Wrap::Layer) && _2
+		) | rpl::start_with_next([this](bool shown) {
+			refreshSearchField(shown);
 		}, lifetime());
+	}
+	_scrollTopSkip.changes(
+	) | rpl::start_with_next([this] {
+		updateControlsGeometry();
+	}, lifetime());
 }
 
 void ContentWidget::resizeEvent(QResizeEvent *e) {
@@ -144,15 +144,15 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 		_scroll->scrollTopValue(),
 		_scroll->heightValue(),
 		_innerWrap->entity()->desiredHeightValue(),
-		tuple(_1, _1 + _2, _3))
-		| rpl::start_with_next([this](
-				int top,
-				int bottom,
-				int desired) {
-			_innerDesiredHeight = desired;
-			_innerWrap->setVisibleTopBottom(top, bottom);
-			_scrollTillBottomChanges.fire_copy(std::max(desired - bottom, 0));
-		}, _innerWrap->lifetime());
+		tuple(_1, _1 + _2, _3)
+	) | rpl::start_with_next([this](
+			int top,
+			int bottom,
+			int desired) {
+		_innerDesiredHeight = desired;
+		_innerWrap->setVisibleTopBottom(top, bottom);
+		_scrollTillBottomChanges.fire_copy(std::max(desired - bottom, 0));
+	}, _innerWrap->lifetime());
 
 	return _innerWrap->entity();
 }
@@ -190,16 +190,16 @@ rpl::producer<int> ContentWidget::desiredHeightValue() const {
 	using namespace rpl::mappers;
 	return rpl::combine(
 		_innerWrap->entity()->desiredHeightValue(),
-		_scrollTopSkip.value())
-		| rpl::map(_1 + _2);
+		_scrollTopSkip.value()
+	) | rpl::map(_1 + _2);
 }
 
 rpl::producer<bool> ContentWidget::desiredShadowVisibility() const {
 	using namespace rpl::mappers;
 	return rpl::combine(
 		_scroll->scrollTopValue(),
-		_scrollTopSkip.value())
-		| rpl::map((_1 > 0) || (_2 > 0));
+		_scrollTopSkip.value()
+	) | rpl::map((_1 > 0) || (_2 > 0));
 }
 
 bool ContentWidget::hasTopBarShadow() const {
@@ -248,11 +248,11 @@ void ContentWidget::refreshSearchField(bool shown) {
 		_searchField = rowView.field;
 
 		const auto view = _searchWrap.get();
-		widthValue()
-			| rpl::start_with_next([=](int newWidth) {
-				view->resizeToWidth(newWidth);
-				view->moveToLeft(0, 0);
-			}, view->lifetime());
+		widthValue(
+		) | rpl::start_with_next([=](int newWidth) {
+			view->resizeToWidth(newWidth);
+			view->moveToLeft(0, 0);
+		}, view->lifetime());
 		view->show();
 		_searchField->setFocus();
 		setScrollTopSkip(view->heightNoMargins() - st::lineWidth);

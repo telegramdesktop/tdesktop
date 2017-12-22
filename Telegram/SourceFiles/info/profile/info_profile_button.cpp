@@ -39,10 +39,11 @@ Button::Button(
 	const style::InfoProfileButton &st)
 : RippleButton(parent, st.ripple)
 , _st(st) {
-	std::move(text)
-		| rpl::start_with_next([this](QString &&value) {
-			setText(std::move(value));
-		}, lifetime());
+	std::move(
+		text
+	) | rpl::start_with_next([this](QString &&value) {
+		setText(std::move(value));
+	}, lifetime());
 }
 
 Button *Button::toggleOn(rpl::producer<bool> &&toggled) {
@@ -54,10 +55,11 @@ Button *Button::toggleOn(rpl::producer<bool> &&toggled) {
 	addClickHandler([this] {
 		_toggle->setCheckedAnimated(!_toggle->checked());
 	});
-	std::move(toggled)
-		| rpl::start_with_next([this](bool toggled) {
-			_toggle->setCheckedAnimated(toggled);
-		}, lifetime());
+	std::move(
+		toggled
+	) | rpl::start_with_next([this](bool toggled) {
+		_toggle->setCheckedAnimated(toggled);
+	}, lifetime());
 	_toggle->finishAnimating();
 	return this;
 }

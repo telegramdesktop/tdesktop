@@ -45,20 +45,19 @@ TextWithLabel CreateTextWithLabel(
 		st::infoSlideDuration
 	);
 	auto layout = result->entity();
-	auto nonEmptyText = std::move(text)
-		| rpl::before_next([slide = result.data()](
-				const TextWithEntities &value) {
-			if (value.text.isEmpty()) {
-				slide->hide(anim::type::normal);
-			}
-		})
-		| rpl::filter([](const TextWithEntities &value) {
-			return !value.text.isEmpty();
-		})
-		| rpl::after_next([slide = result.data()](
-				const TextWithEntities &value) {
-			slide->show(anim::type::normal);
-		});
+	auto nonEmptyText = std::move(
+		text
+	) | rpl::before_next([slide = result.data()](
+			const TextWithEntities &value) {
+		if (value.text.isEmpty()) {
+			slide->hide(anim::type::normal);
+		}
+	}) | rpl::filter([](const TextWithEntities &value) {
+		return !value.text.isEmpty();
+	}) | rpl::after_next([slide = result.data()](
+			const TextWithEntities &value) {
+		slide->show(anim::type::normal);
+	});
 	auto labeled = layout->add(object_ptr<Ui::FlatLabel>(
 		layout,
 		std::move(nonEmptyText),

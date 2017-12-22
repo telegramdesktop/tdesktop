@@ -31,23 +31,25 @@ template <typename ChangeType, typename Error, typename Generator>
 inline auto FlagsValueWithMask(
 		rpl::producer<ChangeType, Error, Generator> &&value,
 		typename ChangeType::Type mask) {
-	return std::move(value)
-		| rpl::filter([mask](const ChangeType &change) {
-			return change.diff & mask;
-		})
-		| rpl::map([mask](const ChangeType &change) {
-			return change.value & mask;
-		});
+	return std::move(
+		value
+	) | rpl::filter([mask](const ChangeType &change) {
+		return change.diff & mask;
+	}) | rpl::map([mask](const ChangeType &change) {
+		return change.value & mask;
+	});
 }
 
 template <typename ChangeType, typename Error, typename Generator>
 inline auto SingleFlagValue(
 		rpl::producer<ChangeType, Error, Generator> &&value,
 		typename ChangeType::Enum flag) {
-	return FlagsValueWithMask(std::move(value), flag)
-		| rpl::map([flag](typename ChangeType::Type value) {
-			return !!value;
-		});
+	return FlagsValueWithMask(
+		std::move(value),
+		flag
+	) | rpl::map([flag](typename ChangeType::Type value) {
+		return !!value;
+	});
 }
 
 template <

@@ -65,16 +65,17 @@ Members::Members(
 	setContent(_list.data());
 	_listController->setDelegate(static_cast<PeerListDelegate*>(this));
 
-	_controller->searchFieldController()->queryValue()
-		| rpl::start_with_next([this](QString &&query) {
-			peerListScrollToTop();
-			content()->searchQueryChanged(std::move(query));
-		}, lifetime());
-	MembersCountValue(_peer)
-		| rpl::start_with_next([this](int count) {
-			const auto enabled = (count >= kEnableSearchMembersAfterCount);
-			_controller->setSearchEnabledByContent(enabled);
-		}, lifetime());
+	_controller->searchFieldController()->queryValue(
+	) | rpl::start_with_next([this](QString &&query) {
+		peerListScrollToTop();
+		content()->searchQueryChanged(std::move(query));
+	}, lifetime());
+	MembersCountValue(
+		_peer
+	) | rpl::start_with_next([this](int count) {
+		const auto enabled = (count >= kEnableSearchMembersAfterCount);
+		_controller->setSearchEnabledByContent(enabled);
+	}, lifetime());
 }
 
 int Members::desiredHeight() const {
@@ -159,25 +160,25 @@ void Members::setupHeader() {
 
 	setupButtons();
 
-	//_controller->wrapValue()
-	//	| rpl::start_with_next([this](Wrap wrap) {
-	//		_wrap = wrap;
-	//		updateSearchOverrides();
-	//	}, lifetime());
-	widthValue()
-		| rpl::start_with_next([this](int width) {
-			_header->resizeToWidth(width);
-		}, _header->lifetime());
+	//_controller->wrapValue(
+	//) | rpl::start_with_next([this](Wrap wrap) {
+	//	_wrap = wrap;
+	//	updateSearchOverrides();
+	//}, lifetime());
+	widthValue(
+	) | rpl::start_with_next([this](int width) {
+		_header->resizeToWidth(width);
+	}, _header->lifetime());
 }
 
 object_ptr<Ui::FlatLabel> Members::setupTitle() {
 	auto result = object_ptr<Ui::FlatLabel>(
 		_titleWrap,
-		MembersCountValue(_peer)
-			| rpl::map([](int count) {
-				return lng_chat_status_members(lt_count, count);
-			})
-			| ToUpperValue(),
+		MembersCountValue(
+			_peer
+		) | rpl::map([](int count) {
+			return lng_chat_status_members(lt_count, count);
+		}) | ToUpperValue(),
 		st::infoBlockHeaderLabel);
 	result->setAttribute(Qt::WA_TransparentForMouseEvents);
 	return result;
@@ -214,10 +215,10 @@ void Members::setupButtons() {
 
 	rpl::combine(
 		std::move(addMemberShown),
-		std::move(searchShown))
-		| rpl::start_with_next([this] {
-			updateHeaderControlsGeometry(width());
-		}, lifetime());
+		std::move(searchShown)
+	) | rpl::start_with_next([this] {
+		updateHeaderControlsGeometry(width());
+	}, lifetime());
 }
 
 void Members::setupList() {
@@ -226,31 +227,31 @@ void Members::setupList() {
 		this,
 		_listController.get(),
 		st::infoMembersList);
-	_list->scrollToRequests()
-		| rpl::start_with_next([this](Ui::ScrollToRequest request) {
-			auto addmin = (request.ymin < 0 || !_header)
-				? 0
-				: _header->height();
-			auto addmax = (request.ymax < 0 || !_header)
-				? 0
-				: _header->height();
-			_scrollToRequests.fire({
-				request.ymin + addmin,
-				request.ymax + addmax });
-		}, _list->lifetime());
-	widthValue()
-		| rpl::start_with_next([this](int newWidth) {
-			_list->resizeToWidth(newWidth);
-		}, _list->lifetime());
-	_list->heightValue()
-		| rpl::start_with_next([=](int listHeight) {
-			auto newHeight = (listHeight > st::membersMarginBottom)
-				? (topSkip
-					+ listHeight
-					+ st::membersMarginBottom)
-				: 0;
-			resize(width(), newHeight);
-		}, _list->lifetime());
+	_list->scrollToRequests(
+	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
+		auto addmin = (request.ymin < 0 || !_header)
+			? 0
+			: _header->height();
+		auto addmax = (request.ymax < 0 || !_header)
+			? 0
+			: _header->height();
+		_scrollToRequests.fire({
+			request.ymin + addmin,
+			request.ymax + addmax });
+	}, _list->lifetime());
+	widthValue(
+	) | rpl::start_with_next([this](int newWidth) {
+		_list->resizeToWidth(newWidth);
+	}, _list->lifetime());
+	_list->heightValue(
+	) | rpl::start_with_next([=](int listHeight) {
+		auto newHeight = (listHeight > st::membersMarginBottom)
+			? (topSkip
+				+ listHeight
+				+ st::membersMarginBottom)
+			: 0;
+		resize(width(), newHeight);
+	}, _list->lifetime());
 	_list->moveToLeft(0, topSkip);
 }
 

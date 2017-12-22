@@ -55,21 +55,20 @@ Float::Float(
 
 	prepareShadow();
 
-	// #TODO rpl::merge
 	rpl::merge(
 		Auth().data().itemLayoutChanged(),
-		Auth().data().itemRepaintRequest())
-		| rpl::start_with_next([this](auto item) {
-			if (_item == item) {
-				repaintItem();
-			}
-		}, lifetime());
-	Auth().data().itemRemoved()
-		| rpl::start_with_next([this](auto item) {
-			if (_item == item) {
-				detach();
-			}
-		}, lifetime());
+		Auth().data().itemRepaintRequest()
+	) | rpl::start_with_next([this](auto item) {
+		if (_item == item) {
+			repaintItem();
+		}
+	}, lifetime());
+	Auth().data().itemRemoved(
+	) | rpl::start_with_next([this](auto item) {
+		if (_item == item) {
+			detach();
+		}
+	}, lifetime());
 
 	setCursor(style::cur_pointer);
 }

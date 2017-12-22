@@ -66,13 +66,13 @@ InnerWidget::InnerWidget(
 , _peer(_controller->peer())
 , _migrated(_controller->migrated())
 , _content(setupContent(this)) {
-	_content->heightValue()
-		| rpl::start_with_next([this](int height) {
-			if (!_inResize) {
-				resizeToWidth(width());
-				updateDesiredHeight();
-			}
-		}, lifetime());
+	_content->heightValue(
+	) | rpl::start_with_next([this](int height) {
+		if (!_inResize) {
+			resizeToWidth(width());
+			updateDesiredHeight();
+		}
+	}, lifetime());
 }
 
 bool InnerWidget::canHideDetailsEver() const {
@@ -122,18 +122,18 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 			_controller,
 			_peer)
 		);
-		_members->scrollToRequests()
-			| rpl::start_with_next([this](Ui::ScrollToRequest request) {
-				auto min = (request.ymin < 0)
-					? request.ymin
-					: mapFromGlobal(_members->mapToGlobal({ 0, request.ymin })).y();
-				auto max = (request.ymin < 0)
-					? mapFromGlobal(_members->mapToGlobal({ 0, 0 })).y()
-					: (request.ymax < 0)
-						? request.ymax
-						: mapFromGlobal(_members->mapToGlobal({ 0, request.ymax })).y();
-				_scrollToRequests.fire({ min, max });
-			}, _members->lifetime());
+		_members->scrollToRequests(
+		) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
+			auto min = (request.ymin < 0)
+				? request.ymin
+				: mapFromGlobal(_members->mapToGlobal({ 0, request.ymin })).y();
+			auto max = (request.ymin < 0)
+				? mapFromGlobal(_members->mapToGlobal({ 0, 0 })).y()
+				: (request.ymax < 0)
+				? request.ymax
+				: mapFromGlobal(_members->mapToGlobal({ 0, request.ymax })).y();
+			_scrollToRequests.fire({ min, max });
+		}, _members->lifetime());
 		_cover->setOnlineCount(_members->onlineCountValue());
 	}
 	return std::move(result);
@@ -198,24 +198,25 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 	//rpl::combine(
 	//	tracker.atLeastOneShownValue(),
 	//	_controller->wrapValue(),
-	//	_isStackBottom.value())
-	//	| rpl::combine_previous(ToggledData())
-	//	| rpl::start_with_next([wrap = result.data()](
-	//			const ToggledData &was,
-	//			const ToggledData &now) {
-	//		bool wasOneShown, wasStackBottom, nowOneShown, nowStackBottom;
-	//		Wrap wasWrap, nowWrap;
-	//		std::tie(wasOneShown, wasWrap, wasStackBottom) = was;
-	//		std::tie(nowOneShown, nowWrap, nowStackBottom) = now;
-	//		// MSVC Internal Compiler Error
-	//		//auto [wasOneShown, wasWrap, wasStackBottom] = was;
-	//		//auto [nowOneShown, nowWrap, nowStackBottom] = now;
-	//		wrap->toggle(
-	//			nowOneShown && (nowWrap != Wrap::Side || !nowStackBottom),
-	//			(wasStackBottom == nowStackBottom && wasWrap == nowWrap)
-	//				? anim::type::normal
-	//				: anim::type::instant);
-	//	}, result->lifetime());
+	//	_isStackBottom.value()
+	//) | rpl::combine_previous(
+	//	ToggledData()
+	//) | rpl::start_with_next([wrap = result.data()](
+	//		const ToggledData &was,
+	//		const ToggledData &now) {
+	//	bool wasOneShown, wasStackBottom, nowOneShown, nowStackBottom;
+	//	Wrap wasWrap, nowWrap;
+	//	std::tie(wasOneShown, wasWrap, wasStackBottom) = was;
+	//	std::tie(nowOneShown, nowWrap, nowStackBottom) = now;
+	//	// MSVC Internal Compiler Error
+	//	//auto [wasOneShown, wasWrap, wasStackBottom] = was;
+	//	//auto [nowOneShown, nowWrap, nowStackBottom] = now;
+	//	wrap->toggle(
+	//		nowOneShown && (nowWrap != Wrap::Side || !nowStackBottom),
+	//		(wasStackBottom == nowStackBottom && wasWrap == nowWrap)
+	//			? anim::type::normal
+	//			: anim::type::instant);
+	//}, result->lifetime());
 	//
 	// Using that instead
 	result->setDuration(

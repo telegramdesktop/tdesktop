@@ -500,13 +500,13 @@ Instance &Current() {
 }
 
 rpl::producer<QString> Viewer(LangKey key) {
-	return
-		rpl::single(Current().getValue(key))
-		| then(
-			base::ObservableViewer(Current().updated())
-			| rpl::map([=] {
-				return Current().getValue(key);
-			}));
+	return rpl::single(
+		Current().getValue(key)
+	) | then(base::ObservableViewer(
+		Current().updated()
+	) | rpl::map([=] {
+		return Current().getValue(key);
+	}));
 }
 
 } // namespace Lang

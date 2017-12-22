@@ -85,13 +85,15 @@ void AddButtonWithCount(
 		std::move(count),
 		st::managePeerButtonLabel);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-	rpl::combine(button->widthValue(), label->widthValue())
-		| rpl::start_with_next([label](int outerWidth, int width) {
-			label->moveToRight(
-				st::managePeerButtonLabelPosition.x(),
-				st::managePeerButtonLabelPosition.y(),
-				outerWidth);
-		}, label->lifetime());
+	rpl::combine(
+		button->widthValue(),
+		label->widthValue()
+	) | rpl::start_with_next([label](int outerWidth, int width) {
+		label->moveToRight(
+			st::managePeerButtonLabelPosition.x(),
+			st::managePeerButtonLabelPosition.y(),
+			outerWidth);
+	}, label->lifetime());
 }
 
 bool HasRecentActions(not_null<ChannelData*> channel) {
@@ -228,12 +230,12 @@ void ManagePeerBox::prepare() {
 void ManagePeerBox::setupContent() {
 	auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 	FillManageBox(controller(), _channel, content);
-	widthValue()
-		| rpl::start_with_next([=](int width) {
-			content->resizeToWidth(width);
-		}, content->lifetime());
-	content->heightValue()
-		| rpl::start_with_next([=](int height) {
-			setDimensions(st::boxWidth, height);
-		}, content->lifetime());
+	widthValue(
+	) | rpl::start_with_next([=](int width) {
+		content->resizeToWidth(width);
+	}, content->lifetime());
+	content->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		setDimensions(st::boxWidth, height);
+	}, content->lifetime());
 }

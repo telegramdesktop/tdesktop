@@ -55,18 +55,19 @@ LayerWidget::LayerWidget(
 }
 
 void LayerWidget::setupHeightConsumers() {
-	_content->scrollTillBottomChanges()
-		| rpl::filter([this] { return !_inResize; })
-		| rpl::start_with_next([this] {
+	_content->scrollTillBottomChanges(
+	) | rpl::filter([this] {
+		return !_inResize;
+	}) | rpl::start_with_next([this] {
+		resizeToWidth(width());
+	}, lifetime());
+	_content->desiredHeightValue(
+	) | rpl::start_with_next([this](int height) {
+		accumulate_max(_desiredHeight, height);
+		if (_content && !_inResize) {
 			resizeToWidth(width());
-		}, lifetime());
-	_content->desiredHeightValue()
-		| rpl::start_with_next([this](int height) {
-			accumulate_max(_desiredHeight, height);
-			if (_content && !_inResize) {
-				resizeToWidth(width());
-			}
-		}, lifetime());
+		}
+	}, lifetime());
 }
 
 void LayerWidget::showFinished() {

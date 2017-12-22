@@ -220,12 +220,12 @@ InnerWidget::InnerWidget(
 , _emptyText(st::historyAdminLogEmptyWidth - st::historyAdminLogEmptyPadding.left() - st::historyAdminLogEmptyPadding.left()) {
 	setMouseTracking(true);
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
-	Auth().data().itemRepaintRequest()
-		| rpl::start_with_next([this](auto item) {
-			if (item->isLogEntry() && _history == item->history()) {
-				repaintItem(item);
-			}
-		}, lifetime());
+	Auth().data().itemRepaintRequest(
+	) | rpl::start_with_next([this](auto item) {
+		if (item->isLogEntry() && _history == item->history()) {
+			repaintItem(item);
+		}
+	}, lifetime());
 	subscribe(Auth().data().pendingHistoryResize(), [this] { handlePendingHistoryResize(); });
 	subscribe(Auth().data().queryItemVisibility(), [this](const AuthSessionData::ItemVisibilityQuery &query) {
 		if (_history != query.item->history() || !query.item->isLogEntry() || !isVisible()) {

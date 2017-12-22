@@ -552,14 +552,14 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 	connect(&_updateEditTimeLeftDisplay, SIGNAL(timeout()), this, SLOT(updateField()));
 
 	subscribe(Adaptive::Changed(), [this] { update(); });
-	Auth().data().itemRemoved()
-		| rpl::start_with_next(
-			[this](auto item) { itemRemoved(item); },
-			lifetime());
-	Auth().data().itemRepaintRequest()
-		| rpl::start_with_next(
-			[this](auto item) { repaintHistoryItem(item); },
-			lifetime());
+	Auth().data().itemRemoved(
+	) | rpl::start_with_next(
+		[this](auto item) { itemRemoved(item); },
+		lifetime());
+	Auth().data().itemRepaintRequest(
+	) | rpl::start_with_next(
+		[this](auto item) { repaintHistoryItem(item); },
+		lifetime());
 	subscribe(Auth().data().contactsLoaded(), [this](bool) {
 		if (_peer) {
 			updateReportSpamStatus();
@@ -639,20 +639,20 @@ HistoryWidget::HistoryWidget(QWidget *parent, not_null<Window::Controller*> cont
 			}
 		}
 	});
-	Auth().data().itemLayoutChanged()
-		| rpl::start_with_next([this](auto item) {
-			if (_peer && _list) {
-				if ((item == App::mousedItem())
-					|| (item == App::hoveredItem())
-					|| (item == App::hoveredLinkItem())) {
-					_list->onUpdateSelected();
-				}
+	Auth().data().itemLayoutChanged(
+	) | rpl::start_with_next([this](auto item) {
+		if (_peer && _list) {
+			if ((item == App::mousedItem())
+				|| (item == App::hoveredItem())
+				|| (item == App::hoveredLinkItem())) {
+				_list->onUpdateSelected();
 			}
-		}, lifetime());
-	_topBar->membersShowAreaActive()
-		| rpl::start_with_next([this](bool active) {
-			setMembersShowAreaActive(active);
-		}, _topBar->lifetime());
+		}
+	}, lifetime());
+	_topBar->membersShowAreaActive(
+	) | rpl::start_with_next([this](bool active) {
+		setMembersShowAreaActive(active);
+	}, _topBar->lifetime());
 
 	Auth().api().sendActions(
 	) | rpl::start_with_next([this](const ApiWrap::SendOptions &options) {
@@ -883,11 +883,11 @@ int HistoryWidget::itemTopForHighlight(not_null<HistoryItem*> item) const {
 }
 
 void HistoryWidget::start() {
-	Auth().data().stickersUpdated()
-		| rpl::start_with_next([this] {
-			_tabbedSelector->refreshStickers();
-			updateStickersByEmoji();
-		}, lifetime());
+	Auth().data().stickersUpdated(
+	) | rpl::start_with_next([this] {
+		_tabbedSelector->refreshStickers();
+		updateStickersByEmoji();
+	}, lifetime());
 	updateRecentStickers();
 	Auth().data().markSavedGifsUpdated();
 	subscribe(Auth().api().fullPeerUpdated(), [this](PeerData *peer) {

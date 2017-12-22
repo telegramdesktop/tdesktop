@@ -49,12 +49,12 @@ SectionWidget::SectionWidget(
 }
 
 void SectionWidget::init() {
-	sizeValue()
-		| rpl::start_with_next([wrap = _content.data()](QSize size) {
-			auto wrapGeometry = QRect{ { 0, 0 }, size };
-			auto additionalScroll = 0;
-			wrap->updateGeometry(wrapGeometry, additionalScroll);
-		}, _content->lifetime());
+	sizeValue(
+	) | rpl::start_with_next([wrap = _content.data()](QSize size) {
+		auto wrapGeometry = QRect{ { 0, 0 }, size };
+		auto additionalScroll = 0;
+		wrap->updateGeometry(wrapGeometry, additionalScroll);
+	}, _content->lifetime());
 }
 
 PeerData *SectionWidget::activePeer() const {

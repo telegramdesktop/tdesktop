@@ -79,10 +79,10 @@ void InnerWidget::refreshBlocks() {
 		_cover->show();
 	}
 	_blocks->show();
-	_blocks->heightValue()
-		| rpl::start_with_next([this](int blocksHeight) {
-			resize(width(), _blocks->y() + blocksHeight);
-		}, lifetime());
+	_blocks->heightValue(
+	) | rpl::start_with_next([this](int blocksHeight) {
+		resize(width(), _blocks->y() + blocksHeight);
+	}, lifetime());
 }
 
 int InnerWidget::resizeGetHeight(int newWidth) {

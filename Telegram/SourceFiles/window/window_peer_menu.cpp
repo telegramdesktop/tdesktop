@@ -161,11 +161,11 @@ void Filler::addPinToggle() {
 
 	auto lifetime = Notify::PeerUpdateViewer(
 		peer,
-		Notify::PeerUpdate::Flag::PinnedChanged)
-		| rpl::start_with_next([peer, pinAction, pinText] {
-			auto isPinned = App::history(peer)->isPinnedDialog();
-			pinAction->setText(pinText(isPinned));
-		});
+		Notify::PeerUpdate::Flag::PinnedChanged
+	) | rpl::start_with_next([peer, pinAction, pinText] {
+		auto isPinned = App::history(peer)->isPinnedDialog();
+		pinAction->setText(pinText(isPinned));
+	});
 
 	Ui::AttachAsChild(pinAction, std::move(lifetime));
 }
@@ -202,12 +202,13 @@ void Filler::addNotifications() {
 
 	auto lifetime = Notify::PeerUpdateViewer(
 		_peer,
-		Notify::PeerUpdate::Flag::NotificationsEnabled)
-		| rpl::map([=] { return peer->isMuted(); })
-		| rpl::distinct_until_changed()
-		| rpl::start_with_next([=](bool muted) {
-			muteAction->setText(muteText(muted));
-		});
+		Notify::PeerUpdate::Flag::NotificationsEnabled
+	) | rpl::map([=] {
+		return peer->isMuted();
+	}) | rpl::distinct_until_changed(
+	) | rpl::start_with_next([=](bool muted) {
+		muteAction->setText(muteText(muted));
+	});
 
 	Ui::AttachAsChild(muteAction, std::move(lifetime));
 }
@@ -248,10 +249,10 @@ void Filler::addBlockUser(not_null<UserData*> user) {
 
 	auto lifetime = Notify::PeerUpdateViewer(
 		_peer,
-		Notify::PeerUpdate::Flag::UserIsBlocked)
-		| rpl::start_with_next([=] {
-			blockAction->setText(blockText(user));
-		});
+		Notify::PeerUpdate::Flag::UserIsBlocked
+	) | rpl::start_with_next([=] {
+		blockAction->setText(blockText(user));
+	});
 
 	Ui::AttachAsChild(blockAction, std::move(lifetime));
 

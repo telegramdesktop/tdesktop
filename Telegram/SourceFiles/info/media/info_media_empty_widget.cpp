@@ -33,15 +33,16 @@ EmptyWidget::EmptyWidget(QWidget *parent)
 }
 
 void EmptyWidget::setFullHeight(rpl::producer<int> fullHeightValue) {
-	std::move(fullHeightValue)
-		| rpl::start_with_next([this](int fullHeight) {
-			// Make icon center be on 1/3 height.
-			auto iconCenter = fullHeight / 3;
-			auto iconHeight = st::infoEmptyFile.height();
-			auto iconTop = iconCenter - iconHeight / 2;
-			_height = iconTop + st::infoEmptyIconTop;
-			resizeToWidth(width());
-		}, lifetime());
+	std::move(
+		fullHeightValue
+	) | rpl::start_with_next([this](int fullHeight) {
+		// Make icon center be on 1/3 height.
+		auto iconCenter = fullHeight / 3;
+		auto iconHeight = st::infoEmptyFile.height();
+		auto iconTop = iconCenter - iconHeight / 2;
+		_height = iconTop + st::infoEmptyIconTop;
+		resizeToWidth(width());
+	}, lifetime());
 }
 
 void EmptyWidget::setType(Type type) {

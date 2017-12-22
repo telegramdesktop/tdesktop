@@ -92,10 +92,11 @@ public:
 
 	template <typename Error, typename Generator>
 	void showOn(rpl::producer<bool, Error, Generator> &&shown) {
-		std::move(shown)
-			| rpl::start_with_next([this](bool visible) {
-				callSetVisible(visible);
-			}, lifetime());
+		std::move(
+			shown
+		) | rpl::start_with_next([this](bool visible) {
+			callSetVisible(visible);
+		}, lifetime());
 	}
 
 	rpl::lifetime &lifetime();

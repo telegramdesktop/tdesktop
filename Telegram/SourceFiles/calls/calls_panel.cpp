@@ -365,10 +365,12 @@ void Panel::initLayout() {
 
 	initGeometry();
 
-	Notify::PeerUpdateValue(_user, Notify::PeerUpdate::Flag::PhotoChanged)
-		| rpl::start_with_next(
-			[this] { processUserPhoto(); },
-			lifetime());
+	Notify::PeerUpdateValue(
+		_user,
+		Notify::PeerUpdate::Flag::PhotoChanged
+	) | rpl::start_with_next(
+		[this] { processUserPhoto(); },
+		lifetime());
 	subscribe(Auth().downloaderTaskFinished(), [this] {
 		refreshUserPhoto();
 	});

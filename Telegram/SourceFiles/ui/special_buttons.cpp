@@ -74,10 +74,10 @@ void SuggestPhoto(
 	auto box = Ui::show(
 		Box<PhotoCropBox>(image, peerForCrop),
 		LayerOption::KeepOther);
-	box->ready()
-		| rpl::start_with_next(
-			std::forward<Callback>(callback),
-			box->lifetime());
+	box->ready(
+	) | rpl::start_with_next(
+		std::forward<Callback>(callback),
+		box->lifetime());
 }
 
 template <typename Callback>
@@ -498,18 +498,19 @@ void UserpicButton::openPeerPhoto() {
 void UserpicButton::setupPeerViewers() {
 	Notify::PeerUpdateViewer(
 		_peer,
-		Notify::PeerUpdate::Flag::PhotoChanged)
-		| rpl::start_with_next([this] {
-			processNewPeerPhoto();
-			update();
-		}, lifetime());
-	base::ObservableViewer(Auth().downloaderTaskFinished())
-		| rpl::start_with_next([this] {
-			if (_waiting && _peer->userpicLoaded()) {
-				_waiting = false;
-				startNewPhotoShowing();
-			}
-		}, lifetime());
+		Notify::PeerUpdate::Flag::PhotoChanged
+	) | rpl::start_with_next([this] {
+		processNewPeerPhoto();
+		update();
+	}, lifetime());
+	base::ObservableViewer(
+		Auth().downloaderTaskFinished()
+	) | rpl::start_with_next([this] {
+		if (_waiting && _peer->userpicLoaded()) {
+			_waiting = false;
+			startNewPhotoShowing();
+		}
+	}, lifetime());
 }
 
 void UserpicButton::paintEvent(QPaintEvent *e) {

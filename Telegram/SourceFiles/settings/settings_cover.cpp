@@ -383,12 +383,12 @@ void CoverWidget::showSetPhotoBox(const QImage &img) {
 
 	auto peer = _self;
 	auto box = Ui::show(Box<PhotoCropBox>(img, peer));
-	box->ready()
-		| rpl::start_with_next([=](QImage &&image) {
-			Messenger::Instance().uploadProfilePhoto(
-				std::move(image),
-				peer->id);
-		}, box->lifetime());
+	box->ready(
+	) | rpl::start_with_next([=](QImage &&image) {
+		Messenger::Instance().uploadProfilePhoto(
+			std::move(image),
+			peer->id);
+	}, box->lifetime());
 	subscribe(box->boxClosing, [this] { onPhotoUploadStatusChanged(); });
 }
 

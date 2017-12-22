@@ -117,14 +117,14 @@ RpWidget *VerticalLayout::addChild(
 			margin,
 			width() - margins.left() - margins.right(),
 			height() - margins.top() - margins.bottom());
-		weak->heightValue()
-			| rpl::start_with_next_done([this, weak] {
-				if (!_inResize) {
-					childHeightUpdated(weak);
-				}
-			}, [this, weak] {
-				removeChild(weak);
-			}, lifetime());
+		weak->heightValue(
+		) | rpl::start_with_next_done([this, weak] {
+			if (!_inResize) {
+				childHeightUpdated(weak);
+			}
+		}, [this, weak] {
+			removeChild(weak);
+		}, lifetime());
 		return weak;
 	}
 	return nullptr;

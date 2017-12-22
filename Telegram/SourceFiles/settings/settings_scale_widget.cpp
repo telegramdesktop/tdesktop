@@ -60,10 +60,10 @@ void ScaleWidget::createControls() {
 	_scale->addSection(scaleLabel(dbisOneAndHalf));
 	_scale->addSection(scaleLabel(dbisTwo));
 	_scale->setActiveSectionFast(cEvalScale(cConfigScale()) - 1);
-	_scale->sectionActivated()
-		| rpl::start_with_next(
-			[this] { scaleChanged(); },
-			lifetime());
+	_scale->sectionActivated(
+	) | rpl::start_with_next(
+		[this] { scaleChanged(); },
+		lifetime());
 }
 
 void ScaleWidget::onAutoChanged() {

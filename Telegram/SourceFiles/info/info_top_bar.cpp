@@ -158,10 +158,10 @@ Ui::FadeWrap<Ui::RpWidget> *TopBar::pushButton(
 	weak->toggle(
 		!selectionMode() && !_searchModeEnabled,
 		anim::type::instant);
-	weak->widthValue()
-		| rpl::start_with_next([this] {
-			updateControlsGeometry(width());
-		}, lifetime());
+	weak->widthValue(
+	) | rpl::start_with_next([this] {
+		updateControlsGeometry(width());
+	}, lifetime());
 	return weak;
 }
 
@@ -207,9 +207,7 @@ void TopBar::createSearchView(
 			*focusLifetime = field->shownValue()
 				| rpl::filter([](bool shown) { return shown; })
 				| rpl::take(1)
-				| rpl::start_with_next([=] {
-					field->setFocus();
-				});
+				| rpl::start_with_next([=] { field->setFocus(); });
 		} else {
 			focusLifetime->destroy();
 		}
@@ -247,46 +245,47 @@ void TopBar::createSearchView(
 	cancel->addClickHandler(cancelSearch);
 	field->connect(field, &Ui::InputField::cancelled, cancelSearch);
 
-	wrap->widthValue()
-		| rpl::start_with_next([=](int newWidth) {
-			auto availableWidth = newWidth
-				- _st.searchRow.fieldCancelSkip;
-			fieldWrap->resizeToWidth(availableWidth);
-			fieldWrap->moveToLeft(
-				_st.searchRow.padding.left(),
-				_st.searchRow.padding.top());
-			cancel->moveToRight(0, 0);
-		}, wrap->lifetime());
+	wrap->widthValue(
+	) | rpl::start_with_next([=](int newWidth) {
+		auto availableWidth = newWidth
+			- _st.searchRow.fieldCancelSkip;
+		fieldWrap->resizeToWidth(availableWidth);
+		fieldWrap->moveToLeft(
+			_st.searchRow.padding.left(),
+			_st.searchRow.padding.top());
+		cancel->moveToRight(0, 0);
+	}, wrap->lifetime());
 
-	widthValue()
-		| rpl::start_with_next([=](int newWidth) {
-			auto left = _back
-				? _st.back.width
-				: _st.titlePosition.x();
-			wrap->setGeometryToLeft(
-				left,
-				0,
-				newWidth - left,
-				wrap->height(),
-				newWidth);
-		}, wrap->lifetime());
+	widthValue(
+	) | rpl::start_with_next([=](int newWidth) {
+		auto left = _back
+			? _st.back.width
+			: _st.titlePosition.x();
+		wrap->setGeometryToLeft(
+			left,
+			0,
+			newWidth - left,
+			wrap->height(),
+			newWidth);
+	}, wrap->lifetime());
 
-	field->alive()
-		| rpl::start_with_done([=] {
-			field->setParent(nullptr);
-			removeButton(search);
-			clearSearchField();
-		}, _searchView->lifetime());
+	field->alive(
+	) | rpl::start_with_done([=] {
+		field->setParent(nullptr);
+		removeButton(search);
+		clearSearchField();
+	}, _searchView->lifetime());
 
 	_searchModeEnabled = !field->getLastText().isEmpty() || startsFocused;
 	updateControlsVisibility(anim::type::instant);
 
-	std::move(shown)
-		| rpl::start_with_next([=](bool visible) {
-			auto alreadyInSearch = !field->getLastText().isEmpty();
-			_searchModeAvailable = visible || alreadyInSearch;
-			updateControlsVisibility(anim::type::instant);
-		}, wrap->lifetime());
+	std::move(
+		shown
+	) | rpl::start_with_next([=](bool visible) {
+		auto alreadyInSearch = !field->getLastText().isEmpty();
+		_searchModeAvailable = visible || alreadyInSearch;
+		updateControlsVisibility(anim::type::instant);
+	}, wrap->lifetime());
 }
 
 void TopBar::removeButton(not_null<Ui::RpWidget*> button) {
@@ -440,10 +439,10 @@ void TopBar::createSelectionControls() {
 		object_ptr<Ui::IconButton>(this, _st.mediaCancel),
 		st::infoTopBarScale));
 	_cancelSelection->setDuration(st::infoTopBarDuration);
-	_cancelSelection->entity()->clicks()
-		| rpl::start_to_stream(
-			_cancelSelectionClicks,
-			_cancelSelection->lifetime());
+	_cancelSelection->entity()->clicks(
+	) | rpl::start_to_stream(
+		_cancelSelectionClicks,
+		_cancelSelection->lifetime());
 	_selectionText = wrap(Ui::CreateChild<Ui::FadeWrap<Ui::LabelWithNumbers>>(
 		this,
 		object_ptr<Ui::LabelWithNumbers>(

@@ -214,19 +214,19 @@ void BoxController::Row::stopLastActionRipple() {
 }
 
 void BoxController::prepare() {
-	Auth().data().itemRemoved()
-		| rpl::start_with_next([this](auto item) {
-			if (auto row = rowForItem(item)) {
-				row->itemRemoved(item);
-				if (!row->hasItems()) {
-					delegate()->peerListRemoveRow(row);
-					if (!delegate()->peerListFullRowsCount()) {
-						refreshAbout();
-					}
+	Auth().data().itemRemoved(
+	) | rpl::start_with_next([this](auto item) {
+		if (auto row = rowForItem(item)) {
+			row->itemRemoved(item);
+			if (!row->hasItems()) {
+				delegate()->peerListRemoveRow(row);
+				if (!delegate()->peerListFullRowsCount()) {
+					refreshAbout();
 				}
-				delegate()->peerListRefreshRows();
 			}
-		}, lifetime());
+			delegate()->peerListRefreshRows();
+		}
+	}, lifetime());
 	subscribe(Current().newServiceMessage(), [this](const FullMsgId &msgId) {
 		if (auto item = App::histItemById(msgId)) {
 			insertRow(item, InsertWay::Prepend);

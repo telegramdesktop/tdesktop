@@ -90,11 +90,11 @@ StickersBox::CounterWidget::CounterWidget(QWidget *parent)
 	_st.padding = st::stickersFeaturedBadgePadding;
 	_st.font = st::stickersFeaturedBadgeFont;
 
-	Auth().data().featuredStickerSetsUnreadCountValue()
-		| rpl::start_with_next([this](int count) {
-			setCounter(count);
-			update();
-		}, lifetime());
+	Auth().data().featuredStickerSetsUnreadCountValue(
+	) | rpl::start_with_next([this](int count) {
+		setCounter(count);
+		update();
+	}, lifetime());
 }
 
 void StickersBox::CounterWidget::setCounter(int counter) {
@@ -242,10 +242,10 @@ void StickersBox::prepare() {
 			preloadArchivedSets();
 		}
 		setNoContentMargin(true);
-		_tabs->sectionActivated()
-			| rpl::start_with_next(
-				[this] { switchTab(); },
-				lifetime());
+		_tabs->sectionActivated(
+		) | rpl::start_with_next(
+			[this] { switchTab(); },
+			lifetime());
 		refreshTabs();
 	}
 	if (_installed.widget() && _section != Section::Installed) _installed.widget()->hide();
@@ -277,10 +277,10 @@ void StickersBox::prepare() {
 	setInnerWidget(_tab->takeWidget(), getTopSkip());
 	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
 
-	Auth().data().stickersUpdated()
-		| rpl::start_with_next(
-			[this] { handleStickersUpdated(); },
-			lifetime());
+	Auth().data().stickersUpdated(
+	) | rpl::start_with_next(
+		[this] { handleStickersUpdated(); },
+		lifetime());
 	Auth().api().updateStickers();
 
 	if (_installed.widget()) {

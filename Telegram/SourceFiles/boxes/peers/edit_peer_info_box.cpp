@@ -264,17 +264,17 @@ object_ptr<Ui::RpWidget> Controller::createPhotoAndTitleEdit() {
 	auto titleEdit = Ui::AttachParentChild(
 		container,
 		createTitleEdit());
-	photoWrap->heightValue()
-		| rpl::start_with_next([container](int height) {
-			container->resize(container->width(), height);
-		}, photoWrap->lifetime());
-	container->widthValue()
-		| rpl::start_with_next([titleEdit](int width) {
-			auto left = st::editPeerPhotoMargins.left()
-				+ st::defaultUserpicButton.size.width();
-			titleEdit->resizeToWidth(width - left);
-			titleEdit->moveToLeft(left, 0, width);
-		}, titleEdit->lifetime());
+	photoWrap->heightValue(
+	) | rpl::start_with_next([container](int height) {
+		container->resize(container->width(), height);
+	}, photoWrap->lifetime());
+	container->widthValue(
+	) | rpl::start_with_next([titleEdit](int width) {
+		auto left = st::editPeerPhotoMargins.left()
+			+ st::defaultUserpicButton.size.width();
+		titleEdit->resizeToWidth(width - left);
+		titleEdit->moveToLeft(left, 0, width);
+	}, titleEdit->lifetime());
 
 	return result;
 }
@@ -439,16 +439,16 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 			base::lambda<QString()>(),
 			channel->username,
 			true));
-	_controls.username->heightValue()
-		| rpl::start_with_next([placeholder](int height) {
-			placeholder->resize(placeholder->width(), height);
-		}, placeholder->lifetime());
-	placeholder->widthValue()
-		| rpl::start_with_next([this](int width) {
-			_controls.username->resize(
-				width,
-				_controls.username->height());
-		}, placeholder->lifetime());
+	_controls.username->heightValue(
+	) | rpl::start_with_next([placeholder](int height) {
+		placeholder->resize(placeholder->width(), height);
+	}, placeholder->lifetime());
+	placeholder->widthValue(
+	) | rpl::start_with_next([this](int width) {
+		_controls.username->resize(
+			width,
+			_controls.username->height());
+	}, placeholder->lifetime());
 	_controls.username->move(placeholder->pos());
 
 	QObject::connect(
@@ -624,12 +624,12 @@ void Controller::showUsernameResult(
 			*st);
 		auto label = _controls.usernameResult.get();
 		label->show();
-		label->widthValue()
-			| rpl::start_with_next([label] {
-				label->moveToRight(
-					st::editPeerUsernamePosition.x(),
-					st::editPeerUsernamePosition.y());
-			}, label->lifetime());
+		label->widthValue(
+		) | rpl::start_with_next([label] {
+			label->moveToRight(
+				st::editPeerUsernamePosition.x(),
+				st::editPeerUsernamePosition.y());
+		}, label->lifetime());
 	}
 	_usernameResultTexts.fire(std::move(text));
 }
@@ -729,10 +729,10 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkEdit() {
 
 	Notify::PeerUpdateValue(
 		_peer,
-		Notify::PeerUpdate::Flag::InviteLinkChanged)
-		| rpl::start_with_next([this] {
-			refreshEditInviteLink();
-		}, _controls.editInviteLinkWrap->lifetime());
+		Notify::PeerUpdate::Flag::InviteLinkChanged
+	) | rpl::start_with_next([this] {
+		refreshEditInviteLink();
+	}, _controls.editInviteLinkWrap->lifetime());
 
 	return std::move(result);
 }
@@ -794,10 +794,10 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkCreate() {
 
 	Notify::PeerUpdateValue(
 		_peer,
-		Notify::PeerUpdate::Flag::InviteLinkChanged)
-		| rpl::start_with_next([this] {
-			refreshCreateInviteLink();
-		}, _controls.createInviteLinkWrap->lifetime());
+		Notify::PeerUpdate::Flag::InviteLinkChanged
+	) | rpl::start_with_next([this] {
+		refreshCreateInviteLink();
+	}, _controls.createInviteLinkWrap->lifetime());
 
 	return std::move(result);
 }
@@ -1437,15 +1437,15 @@ EditPeerInfoBox::EditPeerInfoBox(
 
 void EditPeerInfoBox::prepare() {
 	auto controller = std::make_unique<Controller>(this, _peer);
-	_focusRequests.events()
-		| rpl::start_with_next(
-			[c = controller.get()] { c->setFocus(); },
-			lifetime());
+	_focusRequests.events(
+	) | rpl::start_with_next(
+		[c = controller.get()] { c->setFocus(); },
+		lifetime());
 	auto content = controller->createContent();
-	content->heightValue()
-		| rpl::start_with_next([this](int height) {
-			setDimensions(st::boxWideWidth, height);
-		}, content->lifetime());
+	content->heightValue(
+	) | rpl::start_with_next([this](int height) {
+		setDimensions(st::boxWideWidth, height);
+	}, content->lifetime());
 	setInnerWidget(object_ptr<Ui::IgnoreMargins>(
 		this,
 		std::move(content)));

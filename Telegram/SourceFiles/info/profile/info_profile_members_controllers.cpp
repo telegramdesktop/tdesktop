@@ -152,10 +152,12 @@ std::unique_ptr<PeerListState> ChatMembersController::saveState() const {
 	auto result = PeerListController::saveState();
 	auto my = std::make_unique<SavedState>();
 	using Flag = Notify::PeerUpdate::Flag;
-	Notify::PeerUpdateViewer(_chat, Flag::MembersChanged)
-		| rpl::start_with_next([state = result.get()](auto update) {
-			state->controllerState = nullptr;
-		}, my->lifetime);
+	Notify::PeerUpdateViewer(
+		_chat,
+		Flag::MembersChanged
+	) | rpl::start_with_next([state = result.get()](auto update) {
+		state->controllerState = nullptr;
+	}, my->lifetime);
 	result->controllerState = std::move(my);
 	return result;
 }

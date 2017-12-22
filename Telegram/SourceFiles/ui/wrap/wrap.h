@@ -121,18 +121,18 @@ Wrap<Widget, RpWidget>::Wrap(
 : RpWidget(parent)
 , _wrapped(std::move(child)) {
 	if (_wrapped) {
-		_wrapped->sizeValue()
-			| rpl::start_with_next([this](const QSize &value) {
-				wrappedSizeUpdated(value);
-			}, lifetime());
+		_wrapped->sizeValue(
+		) | rpl::start_with_next([this](const QSize &value) {
+			wrappedSizeUpdated(value);
+		}, lifetime());
 		AttachParentChild(this, _wrapped);
 		_wrapped->move(0, 0);
-		_wrapped->alive()
-			| rpl::start_with_done([this] {
-				_wrapped->setParent(nullptr);
-				_wrapped = nullptr;
-				delete this;
-			}, lifetime());
+		_wrapped->alive(
+		) | rpl::start_with_done([this] {
+			_wrapped->setParent(nullptr);
+			_wrapped = nullptr;
+			delete this;
+		}, lifetime());
 	}
 }
 

@@ -53,44 +53,43 @@ auto SearchFieldController::createRowView(
 	cancel->addClickHandler([=] {
 		field->setText(QString());
 	});
-	queryValue()
-		| rpl::map([](const QString &value) {
-			return !value.isEmpty();
-		})
-		| rpl::start_with_next([cancel](bool shown) {
-			cancel->toggle(shown, anim::type::normal);
-		}, cancel->lifetime());
+	queryValue(
+	) | rpl::map([](const QString &value) {
+		return !value.isEmpty();
+	}) | rpl::start_with_next([cancel](bool shown) {
+		cancel->toggle(shown, anim::type::normal);
+	}, cancel->lifetime());
 	cancel->finishAnimating();
 
 	auto shadow = CreateChild<Ui::PlainShadow>(wrap);
 	shadow->show();
 
-	wrap->widthValue()
-		| rpl::start_with_next([=, &st](int newWidth) {
-			auto availableWidth = newWidth
-				- st.fieldIconSkip
-				- st.fieldCancelSkip;
-			field->setGeometryToLeft(
-				st.padding.left() + st.fieldIconSkip,
-				st.padding.top(),
-				availableWidth,
-				field->height());
-			cancel->moveToRight(0, 0);
-			shadow->setGeometry(
-				0,
-				st.height - st::lineWidth,
-				newWidth,
-				st::lineWidth);
-		}, wrap->lifetime());
-	wrap->paintRequest()
-		| rpl::start_with_next([=, &st] {
-			Painter p(wrap);
-			st.fieldIcon.paint(
-				p,
-				st.padding.left(),
-				st.padding.top(),
-				wrap->width());
-		}, wrap->lifetime());
+	wrap->widthValue(
+	) | rpl::start_with_next([=, &st](int newWidth) {
+		auto availableWidth = newWidth
+			- st.fieldIconSkip
+			- st.fieldCancelSkip;
+		field->setGeometryToLeft(
+			st.padding.left() + st.fieldIconSkip,
+			st.padding.top(),
+			availableWidth,
+			field->height());
+		cancel->moveToRight(0, 0);
+		shadow->setGeometry(
+			0,
+			st.height - st::lineWidth,
+			newWidth,
+			st::lineWidth);
+	}, wrap->lifetime());
+	wrap->paintRequest(
+	) | rpl::start_with_next([=, &st] {
+		Painter p(wrap);
+		st.fieldIcon.paint(
+			p,
+			st.padding.left(),
+			st.padding.top(),
+			wrap->width());
+	}, wrap->lifetime());
 
 	_view.release();
 	_view.reset(wrap);

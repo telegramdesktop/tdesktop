@@ -71,10 +71,11 @@ FadeWrap<RpWidget> *FadeWrap<RpWidget>::finishAnimating() {
 
 FadeWrap<RpWidget> *FadeWrap<RpWidget>::toggleOn(
 		rpl::producer<bool> &&shown) {
-	std::move(shown)
-		| rpl::start_with_next([this](bool shown) {
-			toggle(shown, anim::type::normal);
-		}, lifetime());
+	std::move(
+		shown
+	) | rpl::start_with_next([this](bool shown) {
+		toggle(shown, anim::type::normal);
+	}, lifetime());
 	finishAnimating();
 	return this;
 }

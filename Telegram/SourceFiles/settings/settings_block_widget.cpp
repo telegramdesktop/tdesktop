@@ -31,14 +31,14 @@ BlockWidget::BlockWidget(QWidget *parent, UserData *self, const QString &title) 
 , _content(this)
 , _self(self)
 , _title(title) {
-	_content->heightValue()
-		| rpl::start_with_next([this](int contentHeight) {
-			resize(
-				width(),
-				contentTop()
-					+ contentHeight
-					+ st::settingsBlockMarginBottom);
-		}, lifetime());
+	_content->heightValue(
+	) | rpl::start_with_next([this](int contentHeight) {
+		resize(
+			width(),
+			contentTop()
+				+ contentHeight
+				+ st::settingsBlockMarginBottom);
+	}, lifetime());
 }
 
 void BlockWidget::setContentLeft(int contentLeft) {

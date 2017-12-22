@@ -260,7 +260,9 @@ private:
 	base::DelayedCallTimer _callDelayedTimer;
 
 	struct LeaveSubscription {
-		LeaveSubscription(QPointer<QWidget> pointer, rpl::lifetime &&subscription)
+		LeaveSubscription(
+			QPointer<QWidget> pointer,
+			rpl::lifetime &&subscription)
 		: pointer(pointer), subscription(std::move(subscription)) {
 		}
 

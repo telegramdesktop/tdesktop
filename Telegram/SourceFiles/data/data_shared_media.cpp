@@ -93,56 +93,50 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 				data.aroundId,
 				data.direction);
 		};
-		builder->insufficientAround()
-			| rpl::start_with_next(requestMediaAround, lifetime);
+		builder->insufficientAround(
+		) | rpl::start_with_next(requestMediaAround, lifetime);
 
 		auto pushNextSnapshot = [=] {
 			consumer.put_next(builder->snapshot());
 		};
 
 		using SliceUpdate = Storage::SharedMediaSliceUpdate;
-		Auth().storage().sharedMediaSliceUpdated()
-			| rpl::filter([=](const SliceUpdate &update) {
-				return (update.peerId == key.peerId)
-					&& (update.type == key.type);
-			})
-			| rpl::filter([=](const SliceUpdate &update) {
-				return builder->applyUpdate(update.data);
-			})
-			| rpl::start_with_next(pushNextSnapshot, lifetime);
+		Auth().storage().sharedMediaSliceUpdated(
+		) | rpl::filter([=](const SliceUpdate &update) {
+			return (update.peerId == key.peerId)
+				&& (update.type == key.type);
+		}) | rpl::filter([=](const SliceUpdate &update) {
+			return builder->applyUpdate(update.data);
+		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
 
 		using OneRemoved = Storage::SharedMediaRemoveOne;
-		Auth().storage().sharedMediaOneRemoved()
-			| rpl::filter([=](const OneRemoved &update) {
-				return (update.peerId == key.peerId)
-					&& update.types.test(key.type);
-			})
-			| rpl::filter([=](const OneRemoved &update) {
-				return builder->removeOne(update.messageId);
-			})
-			| rpl::start_with_next(pushNextSnapshot, lifetime);
+		Auth().storage().sharedMediaOneRemoved(
+		) | rpl::filter([=](const OneRemoved &update) {
+			return (update.peerId == key.peerId)
+				&& update.types.test(key.type);
+		}) | rpl::filter([=](const OneRemoved &update) {
+			return builder->removeOne(update.messageId);
+		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
 
 		using AllRemoved = Storage::SharedMediaRemoveAll;
-		Auth().storage().sharedMediaAllRemoved()
-			| rpl::filter([=](const AllRemoved &update) {
-				return (update.peerId == key.peerId);
-			})
-			| rpl::filter([=] { return builder->removeAll(); })
-			| rpl::start_with_next(pushNextSnapshot, lifetime);
+		Auth().storage().sharedMediaAllRemoved(
+		) | rpl::filter([=](const AllRemoved &update) {
+			return (update.peerId == key.peerId);
+		}) | rpl::filter([=] {
+			return builder->removeAll();
+		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
 
 		using Result = Storage::SharedMediaResult;
-		Auth().storage().query(
-			Storage::SharedMediaQuery(
-				key,
-				limitBefore,
-				limitAfter))
-			| rpl::filter([=](const Result &result) {
-				return builder->applyInitial(result);
-			})
-			| rpl::start_with_next_done(
-				pushNextSnapshot,
-				[=] { builder->checkInsufficient(); },
-				lifetime);
+		Auth().storage().query(Storage::SharedMediaQuery(
+			key,
+			limitBefore,
+			limitAfter
+		)) | rpl::filter([=](const Result &result) {
+			return builder->applyInitial(result);
+		}) | rpl::start_with_next_done(
+			pushNextSnapshot,
+			[=] { builder->checkInsufficient(); },
+			lifetime);
 
 		return lifetime;
 	};
@@ -353,9 +347,12 @@ rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastReversedViewer(
 		SharedMediaWithLastSlice::Key key,
 		int limitBefore,
 		int limitAfter) {
-	return SharedMediaWithLastViewer(key, limitBefore, limitAfter)
-		| rpl::map([](SharedMediaWithLastSlice &&slice) {
-			slice.reverse();
-			return std::move(slice);
-		});
+	return SharedMediaWithLastViewer(
+		key,
+		limitBefore,
+		limitAfter
+	) | rpl::map([](SharedMediaWithLastSlice &&slice) {
+		slice.reverse();
+		return std::move(slice);
+	});
 }

@@ -50,21 +50,21 @@ void StickerSetBox::prepare() {
 	setTitle(langFactory(lng_contacts_loading));
 
 	_inner = setInnerWidget(object_ptr<Inner>(this, _set), st::stickersScroll);
-	Auth().data().stickersUpdated()
-		| rpl::start_with_next(
-			[this] { updateButtons(); },
-			lifetime());
+	Auth().data().stickersUpdated(
+	) | rpl::start_with_next(
+		[this] { updateButtons(); },
+		lifetime());
 
 	setDimensions(st::boxWideWidth, st::stickersMaxHeight);
 
 	onUpdateButtons();
 
 	connect(_inner, SIGNAL(updateButtons()), this, SLOT(onUpdateButtons()));
-	_inner->setInstalled()
-		| rpl::start_with_next([this](auto &&setId) {
-			Auth().api().stickerSetInstalled(setId);
-			this->closeBox();
-		}, lifetime());
+	_inner->setInstalled(
+	) | rpl::start_with_next([this](auto &&setId) {
+		Auth().api().stickerSetInstalled(setId);
+		this->closeBox();
+	}, lifetime());
 }
 
 void StickerSetBox::onAddStickers() {

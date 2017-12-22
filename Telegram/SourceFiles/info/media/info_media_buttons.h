@@ -68,12 +68,13 @@ inline auto AddCountedButton(
 	using Button = Profile::Button;
 	auto forked = std::move(count)
 		| start_spawning(parent->lifetime());
-	auto text = rpl::duplicate(forked)
-				| rpl::map([textFromCount](int count) {
-					return (count > 0)
-						? textFromCount(count)
-						: QString();
-				});
+	auto text = rpl::duplicate(
+		forked
+	) | rpl::map([textFromCount](int count) {
+		return (count > 0)
+			? textFromCount(count)
+			: QString();
+	});
 	auto button = parent->add(object_ptr<Ui::SlideWrap<Button>>(
 		parent,
 		object_ptr<Button>(

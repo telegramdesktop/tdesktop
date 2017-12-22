@@ -121,10 +121,11 @@ rpl::producer<PeerUpdate> PeerUpdateViewer(
 rpl::producer<PeerUpdate> PeerUpdateViewer(
 		not_null<PeerData*> peer,
 		PeerUpdate::Flags flags) {
-	return PeerUpdateViewer(flags)
-		| rpl::filter([=](const PeerUpdate &update) {
-			return (update.peer == peer);
-		});
+	return PeerUpdateViewer(
+		flags
+	) | rpl::filter([=](const PeerUpdate &update) {
+		return (update.peer == peer);
+	});
 }
 
 rpl::producer<PeerUpdate> PeerUpdateValue(
@@ -132,8 +133,9 @@ rpl::producer<PeerUpdate> PeerUpdateValue(
 		PeerUpdate::Flags flags) {
 	auto initial = PeerUpdate(peer);
 	initial.flags = flags;
-	return rpl::single(initial)
-		| rpl::then(PeerUpdateViewer(peer, flags));
+	return rpl::single(
+		initial
+	) | rpl::then(PeerUpdateViewer(peer, flags));
 }
 
 } // namespace Notify

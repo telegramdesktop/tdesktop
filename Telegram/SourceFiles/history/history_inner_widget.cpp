@@ -159,19 +159,18 @@ HistoryInner::HistoryInner(
 	subscribe(_controller->window()->dragFinished(), [this] {
 		mouseActionUpdate(QCursor::pos());
 	});
-	Auth().data().itemRemoved()
-		| rpl::start_with_next(
-			[this](auto item) { itemRemoved(item); },
-			lifetime());
+	Auth().data().itemRemoved(
+	) | rpl::start_with_next(
+		[this](auto item) { itemRemoved(item); },
+		lifetime());
 	rpl::merge(
 		Auth().data().historyUnloaded(),
-		Auth().data().historyCleared())
-		| rpl::filter([this](not_null<const History*> history) {
-			return (_history == history);
-		})
-		| rpl::start_with_next([this] {
-			mouseActionCancel();
-		}, lifetime());
+		Auth().data().historyCleared()
+	) | rpl::filter([this](not_null<const History*> history) {
+		return (_history == history);
+	}) | rpl::start_with_next([this] {
+		mouseActionCancel();
+	}, lifetime());
 }
 
 void HistoryInner::messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages) {

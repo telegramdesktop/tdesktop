@@ -71,10 +71,10 @@ void Layer::resizeToWidth(int newWidth, int newContentLeft) {
 
 void Layer::doSetInnerWidget(object_ptr<LayerInner> widget) {
 	_inner = _scroll->setOwnedWidget(std::move(widget));
-	_inner->heightValue()
-		| rpl::start_with_next([this](int innerHeight) {
-			resizeUsingInnerHeight(width(), innerHeight);
-		}, lifetime());
+	_inner->heightValue(
+	) | rpl::start_with_next([this](int innerHeight) {
+		resizeUsingInnerHeight(width(), innerHeight);
+	}, lifetime());
 }
 
 void Layer::paintEvent(QPaintEvent *e) {

@@ -77,26 +77,26 @@ HistoryTopBarWidget::HistoryTopBarWidget(
 
 	rpl::combine(
 		_controller->historyPeer.value(),
-		_controller->searchInPeer.value())
-		| rpl::combine_previous(std::make_tuple(nullptr, nullptr))
-		| rpl::map([](
-				const std::tuple<PeerData*, PeerData*> &previous,
-				const std::tuple<PeerData*, PeerData*> &current) {
-			auto peer = std::get<0>(current);
-			auto searchPeer = std::get<1>(current);
-			auto peerChanged = (peer != std::get<0>(previous));
-			auto searchInPeer
-				= (peer != nullptr) && (peer == searchPeer);
-			return std::make_tuple(searchInPeer, peerChanged);
-		})
-		| rpl::start_with_next([this](
-				bool searchInHistoryPeer,
-				bool peerChanged) {
-			auto animated = peerChanged
-				? anim::type::instant
-				: anim::type::normal;
-			_search->setForceRippled(searchInHistoryPeer, animated);
-		}, lifetime());
+		_controller->searchInPeer.value()
+	) | rpl::combine_previous(
+		std::make_tuple(nullptr, nullptr)
+	) | rpl::map([](
+			const std::tuple<PeerData*, PeerData*> &previous,
+			const std::tuple<PeerData*, PeerData*> &current) {
+		auto peer = std::get<0>(current);
+		auto searchPeer = std::get<1>(current);
+		auto peerChanged = (peer != std::get<0>(previous));
+		auto searchInPeer
+			= (peer != nullptr) && (peer == searchPeer);
+		return std::make_tuple(searchInPeer, peerChanged);
+	}) | rpl::start_with_next([this](
+			bool searchInHistoryPeer,
+			bool peerChanged) {
+		auto animated = peerChanged
+			? anim::type::instant
+			: anim::type::normal;
+		_search->setForceRippled(searchInHistoryPeer, animated);
+	}, lifetime());
 
 	subscribe(Adaptive::Changed(), [this] { updateAdaptiveLayout(); });
 	if (Adaptive::OneColumn()) {
@@ -126,10 +126,10 @@ HistoryTopBarWidget::HistoryTopBarWidget(
 
 	rpl::combine(
 		Auth().data().thirdSectionInfoEnabledValue(),
-		Auth().data().tabbedReplacedWithInfoValue())
-		| rpl::start_with_next(
-			[this] { updateInfoToggleActive(); },
-			lifetime());
+		Auth().data().tabbedReplacedWithInfoValue()
+	) | rpl::start_with_next(
+		[this] { updateInfoToggleActive(); },
+		lifetime());
 
 	setCursor(style::cur_pointer);
 	updateControlsVisibility();

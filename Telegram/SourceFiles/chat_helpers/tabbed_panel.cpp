@@ -63,10 +63,10 @@ TabbedPanel::TabbedPanel(
 			_controller->disableGifPauseReason(Window::GifPauseReason::SavedGifs);
 		}
 	});
-	_selector->showRequests()
-		| rpl::start_with_next([this] {
-			this->showFromSelector();
-		}, lifetime());
+	_selector->showRequests(
+	) | rpl::start_with_next([this] {
+		this->showFromSelector();
+	}, lifetime());
 
 	resize(QRect(0, 0, st::emojiPanWidth, st::emojiPanMaxHeight).marginsAdded(innerPadding()).size());
 

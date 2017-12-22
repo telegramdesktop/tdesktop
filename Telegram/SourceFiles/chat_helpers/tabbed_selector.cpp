@@ -339,13 +339,13 @@ TabbedSelector::TabbedSelector(QWidget *parent, not_null<Window::Controller*> co
 		}
 	}));
 
-	Auth().api().stickerSetInstalled()
-		| rpl::start_with_next([this](uint64 setId) {
-			_tabsSlider->setActiveSection(
-				static_cast<int>(SelectorTab::Stickers));
-			stickers()->showStickerSet(setId);
-			_showRequests.fire({});
-		}, lifetime());
+	Auth().api().stickerSetInstalled(
+	) | rpl::start_with_next([this](uint64 setId) {
+		_tabsSlider->setActiveSection(
+			static_cast<int>(SelectorTab::Stickers));
+		stickers()->showStickerSet(setId);
+		_showRequests.fire({});
+	}, lifetime());
 
 	//	setAttribute(Qt::WA_AcceptTouchEvents);
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
@@ -638,10 +638,10 @@ void TabbedSelector::createTabsSlider() {
 	_tabsSlider->setSections(sections);
 
 	_tabsSlider->setActiveSectionFast(static_cast<int>(_currentTabType));
-	_tabsSlider->sectionActivated()
-		| rpl::start_with_next(
-			[this] { switchTab(); },
-			lifetime());
+	_tabsSlider->sectionActivated(
+	) | rpl::start_with_next(
+		[this] { switchTab(); },
+		lifetime());
 }
 
 bool TabbedSelector::hasSectionIcons() const {

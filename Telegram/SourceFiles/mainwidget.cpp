@@ -237,27 +237,25 @@ MainWidget::MainWidget(
 		Auth().data().dialogsWidthRatioChanges()
 			| rpl::map([] { return rpl::empty_value(); }),
 		Auth().data().thirdColumnWidthChanges()
-			| rpl::map([] { return rpl::empty_value(); }))
-		| rpl::start_with_next(
-			[this] { updateControlsGeometry(); },
-			lifetime());
+			| rpl::map([] { return rpl::empty_value(); })
+	) | rpl::start_with_next(
+		[this] { updateControlsGeometry(); },
+		lifetime());
 	subscribe(_controller->floatPlayerAreaUpdated(), [this] {
 		checkFloatPlayerVisibility();
 	});
 
 	using namespace rpl::mappers;
-	_controller->activePeer.value()
-		| rpl::map([](PeerData *peer) {
-			auto canWrite = peer
-				? Data::CanWriteValue(peer)
-				: rpl::single(false);
-			return std::move(canWrite)
-					| rpl::map(tuple(peer, _1));
-		})
-		| rpl::flatten_latest()
-		| rpl::start_with_next([this](PeerData *peer, bool canWrite) {
-			updateThirdColumnToCurrentPeer(peer, canWrite);
-		}, lifetime());
+	_controller->activePeer.value(
+	) | rpl::map([](PeerData *peer) {
+		auto canWrite = peer
+			? Data::CanWriteValue(peer)
+			: rpl::single(false);
+		return std::move(canWrite) | rpl::map(tuple(peer, _1));
+	}) | rpl::flatten_latest(
+	) | rpl::start_with_next([this](PeerData *peer, bool canWrite) {
+		updateThirdColumnToCurrentPeer(peer, canWrite);
+	}, lifetime());
 
 	QCoreApplication::instance()->installEventFilter(this);
 
@@ -1758,10 +1756,10 @@ void MainWidget::createPlayer() {
 		_player.create(this);
 		rpl::merge(
 			_player->heightValue() | rpl::map([] { return true; }),
-			_player->shownValue())
-			| rpl::start_with_next(
-				[this] { playerHeightUpdated(); },
-				lifetime());
+			_player->shownValue()
+		) | rpl::start_with_next(
+			[this] { playerHeightUpdated(); },
+			lifetime());
 		_player->entity()->setCloseCallback([this] { closeBothPlayers(); });
 		_playerVolume.create(this);
 		_player->entity()->volumeWidgetCreated(_playerVolume);
@@ -1819,10 +1817,10 @@ void MainWidget::setCurrentCall(Calls::Call *call) {
 void MainWidget::createCallTopBar() {
 	Expects(_currentCall != nullptr);
 	_callTopBar.create(this, object_ptr<Calls::TopBar>(this, _currentCall));
-	_callTopBar->heightValue()
-		| rpl::start_with_next([this](int value) {
-			callTopBarHeightUpdated(value);
-		}, lifetime());
+	_callTopBar->heightValue(
+	) | rpl::start_with_next([this](int value) {
+		callTopBarHeightUpdated(value);
+	}, lifetime());
 	orderWidgets();
 	if (_a_show.animating()) {
 		_callTopBar->show(anim::type::instant);
