@@ -83,7 +83,8 @@ bool PrepareAlbumMediaIsWaiting(
 				&file.information->media)) {
 			if (ValidPhotoForAlbum(*image)) {
 				file.preview = image->data.scaledToWidth(
-					previewWidth * cIntRetinaFactor(),
+					std::min(previewWidth, convertScale(image->data.width()))
+						* cIntRetinaFactor(),
 					Qt::SmoothTransformation);
 				file.preview.setDevicePixelRatio(cRetinaFactor());
 				file.type = PreparedFile::AlbumType::Photo;
@@ -119,6 +120,11 @@ void PrepareAlbum(PreparedList &result, int previewWidth) {
 	}
 	if (waiting > 0) {
 		semaphore.acquire(waiting);
+		const auto badIt = ranges::find(
+			result.files,
+			PreparedFile::AlbumType::None,
+			[](const PreparedFile &file) { return file.type; });
+		result.albumIsPossible = (badIt == result.files.end());
 	}
 }
 

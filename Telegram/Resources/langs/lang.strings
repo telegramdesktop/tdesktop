@@ -735,15 +735,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_failed_add_not_mutual" = "Sorry, if a person leaves a group, only a mutual contact can bring them back (they need to have your phone number, and you need theirs).";
 "lng_failed_add_not_mutual_channel" = "Sorry, if a person leaves a channel, only a mutual contact can bring them back (they need to have your phone number, and you need theirs).";
 
-"lng_sure_delete_contact" = "Are you sure, you want to delete {contact} from your contact list?";
-"lng_sure_delete_history" = "Are you sure, you want to delete all message history with {contact}?\n\nThis action cannot be undone.";
-"lng_sure_delete_group_history" = "Are you sure, you want to delete all message history in «{group}»?\n\nThis action cannot be undone.";
-"lng_sure_delete_and_exit" = "Are you sure, you want to delete all message history and leave «{group}»?\n\nThis action cannot be undone.";
-"lng_sure_leave_channel" = "Are you sure, you want to leave\nthis channel?";
-"lng_sure_delete_channel" = "Are you sure, you want to delete this channel? All members will be removed and all messages will be lost.";
-"lng_sure_leave_group" = "Are you sure, you want to leave\nthis group?";
-"lng_sure_delete_group" = "Are you sure, you want to delete this group? All members will be removed and all messages will be lost.";
-"lng_sure_delete_saved_messages" = "Are you sure, you want to delete all your saved messages?\n\nThis action cannot be undone.";
+"lng_sure_delete_contact" = "Are you sure you want to delete {contact} from your contact list?";
+"lng_sure_delete_history" = "Are you sure you want to delete all message history with {contact}?\n\nThis action cannot be undone.";
+"lng_sure_delete_group_history" = "Are you sure you want to delete all message history in «{group}»?\n\nThis action cannot be undone.";
+"lng_sure_delete_and_exit" = "Are you sure you want to delete all message history and leave «{group}»?\n\nThis action cannot be undone.";
+"lng_sure_leave_channel" = "Are you sure you want to leave\nthis channel?";
+"lng_sure_delete_channel" = "Are you sure you want to delete this channel? All members will be removed and all messages will be lost.";
+"lng_sure_leave_group" = "Are you sure you want to leave\nthis group?";
+"lng_sure_delete_group" = "Are you sure you want to delete this group? All members will be removed and all messages will be lost.";
+"lng_sure_delete_saved_messages" = "Are you sure you want to delete all your saved messages?\n\nThis action cannot be undone.";
 
 "lng_message_empty" = "Empty Message";
 "lng_message_unsupported" = "This message is not supported by your version of Telegram Desktop. Please update to the last version in Settings or install it from {link}";
@@ -1092,18 +1092,23 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_context_forward_selected" = "Forward Selected";
 "lng_context_delete_selected" = "Delete Selected";
 "lng_context_clear_selection" = "Clear Selection";
-"lng_send_images_compress#one" = "Compress image";
-"lng_send_images_compress#other" = "Compress images";
 "lng_send_image_empty" = "Could not send an empty file: {name}";
 "lng_send_image_too_large" = "Could not send a file, because it is larger than 1500 MB: {name}";
 "lng_send_images_selected#one" = "{count} image selected";
 "lng_send_images_selected#other" = "{count} images selected";
 "lng_send_photos#one" = "Send {count} photo";
 "lng_send_photos#other" = "Send {count} photos";
+"lng_send_photos_videos#one" = "Send {count} photo and video file";
+"lng_send_photos_videos#other" = "Send {count} photos and video files";
+"lng_send_separate_photos" = "Send separate photos";
+"lng_send_separate_photos_videos" = "Send separate photos and video files";
 "lng_send_files_selected#one" = "{count} file selected";
 "lng_send_files_selected#other" = "{count} files selected";
 "lng_send_files#one" = "Send {count} file";
 "lng_send_files#other" = "Send {count} files";
+"lng_send_album" = "Send an album";
+"lng_send_photo" = "Send a photo";
+"lng_send_file" = "Send a file";
 
 "lng_forward_choose" = "Choose recipient...";
 "lng_forward_cant" = "Sorry, no way to forward here :(";

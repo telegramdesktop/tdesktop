@@ -212,6 +212,11 @@ enum class Option {
 	RoundedTopRight       = (1 << 6),
 	RoundedBottomLeft     = (1 << 7),
 	RoundedBottomRight    = (1 << 8),
+	RoundedAll            = (None
+		| RoundedTopLeft
+		| RoundedTopRight
+		| RoundedBottomLeft
+		| RoundedBottomRight),
 	Colored               = (1 << 9),
 	TransparentBackground = (1 << 10),
 };

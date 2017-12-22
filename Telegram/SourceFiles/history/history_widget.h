@@ -499,10 +499,12 @@ private:
 
 	bool confirmSendingFiles(
 		const QList<QUrl> &files,
-		CompressConfirm compressed);
+		CompressConfirm compressed,
+		const QString &insertTextOnCancel = QString());
 	bool confirmSendingFiles(
 		const QStringList &files,
-		CompressConfirm compressed);
+		CompressConfirm compressed,
+		const QString &insertTextOnCancel = QString());
 	bool confirmSendingFiles(
 		QImage &&image,
 		QByteArray &&content,
@@ -514,14 +516,9 @@ private:
 		const QString &insertTextOnCancel = QString());
 	bool confirmSendingFiles(
 		Storage::PreparedList &&list,
-		CompressConfirm compressed);
+		CompressConfirm compressed,
+		const QString &insertTextOnCancel = QString());
 	bool showSendingFilesError(const Storage::PreparedList &list) const;
-
-	template <typename SendCallback>
-	bool showSendFilesBox(
-		object_ptr<SendFilesBox> box,
-		const QString &insertTextOnCancel,
-		SendCallback callback);
 
 	void uploadFiles(Storage::PreparedList &&list, SendMediaType type);
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);

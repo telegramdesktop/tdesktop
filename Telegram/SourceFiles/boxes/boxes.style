@@ -718,3 +718,9 @@ groupStickersField: InputField(contactsSearchField) {
 groupStickersSubTitleHeight: 36px;
 
 sendMediaPreviewSize: 308px;
+sendMediaPreviewHeightMax: 1280;
+sendMediaPreviewPhotoSkip: 10px;
+sendMediaFileThumbSize: 64px;
+sendMediaFileThumbSkip: 10px;
+sendMediaFileNameTop: 7px;
+sendMediaFileStatusTop: 37px;
