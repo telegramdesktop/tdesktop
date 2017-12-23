@@ -22,4 +22,13 @@
     <provides>
         <binary>telegram-desktop</binary>
     </provides>
+    <releases>
+        <release version="1.2.3 alpha" date="2017-12-17">
+            <description>
+                <ul>
+                    <li>Several crash fixes</li>
+                </ul>
+            </description>
+        </release>
+    </releases>
 </component>
