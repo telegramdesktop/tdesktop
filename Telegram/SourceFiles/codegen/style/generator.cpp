@@ -1191,9 +1191,11 @@ QByteArray iconMaskValueSize(int width, int height) {
 QByteArray iconMaskValuePng(QString filepath) {
 	QByteArray result;
 
-	auto pathAndModifiers = filepath.split('-');
-	filepath = pathAndModifiers[0];
-	auto modifiers = pathAndModifiers.mid(1);
+	QFileInfo fileInfo(filepath);
+	auto directory = fileInfo.dir();
+	auto nameAndModifiers = fileInfo.fileName().split('-');
+	filepath = directory.filePath(nameAndModifiers[0]);
+	auto modifiers = nameAndModifiers.mid(1);
 
 	QImage png100x(filepath + ".png");
 	QImage png200x(filepath + "@2x.png");
